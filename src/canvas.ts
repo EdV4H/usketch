@@ -1,26 +1,32 @@
-import { useWhiteboardStore } from './store';
+import { whiteboardStore } from './store';
 import { Shape, Camera } from './types';
 import { getCanvasMousePosition, screenToWorld, applyCameraTransform, applyShapeTransform } from './utils/coordinates';
+import { ToolManager } from './tools/ToolManager';
+import { SelectionLayer } from './components/SelectionLayer';
 
 export class WhiteboardCanvas {
   private canvasElement: HTMLElement;
   private shapesContainer: HTMLElement;
+  private selectionContainer: HTMLElement;
   private gridElement: HTMLElement;
   
   private isDragging = false;
   private dragStart = { x: 0, y: 0 };
   private dragStartCamera = { x: 0, y: 0, zoom: 1 };
   
-  private isShapeDragging = false;
-  private draggedShapeId: string | null = null;
-  private shapeDragStart = { x: 0, y: 0 };
-  private shapeDragStartPosition = { x: 0, y: 0 };
+  private toolManager: ToolManager;
+  private selectionLayer: SelectionLayer;
 
   constructor(canvasElement: HTMLElement) {
     this.canvasElement = canvasElement;
     
+    // Add necessary classes and attributes
+    this.canvasElement.classList.add('whiteboard-canvas');
+    this.canvasElement.setAttribute('role', 'application');
+    
     // Create shapes container
     this.shapesContainer = document.createElement('div');
+    this.shapesContainer.className = 'shape-layer';
     this.shapesContainer.style.position = 'absolute';
     this.shapesContainer.style.top = '0';
     this.shapesContainer.style.left = '0';
@@ -34,6 +40,24 @@ export class WhiteboardCanvas {
     // Add shapes container after grid
     canvasElement.appendChild(this.shapesContainer);
     
+    // Create selection container
+    this.selectionContainer = document.createElement('div');
+    this.selectionContainer.className = 'selection-layer';
+    this.selectionContainer.style.position = 'absolute';
+    this.selectionContainer.style.top = '0';
+    this.selectionContainer.style.left = '0';
+    this.selectionContainer.style.width = '100%';
+    this.selectionContainer.style.height = '100%';
+    this.selectionContainer.style.transformOrigin = '0 0';
+    this.selectionContainer.style.pointerEvents = 'none';
+    canvasElement.appendChild(this.selectionContainer);
+    
+    // Initialize selection layer
+    this.selectionLayer = new SelectionLayer(this.selectionContainer);
+    
+    // Initialize tool manager
+    this.toolManager = new ToolManager();
+    
     this.setupEventListeners();
     this.subscribeToStore();
   }
@@ -45,35 +69,25 @@ export class WhiteboardCanvas {
     this.canvasElement.addEventListener('mouseup', this.handleMouseUp.bind(this));
     this.canvasElement.addEventListener('wheel', this.handleWheel.bind(this));
     
+    // Keyboard events
+    document.addEventListener('keydown', this.handleKeyDown.bind(this));
+    document.addEventListener('keyup', this.handleKeyUp.bind(this));
+    
     // Prevent context menu
     this.canvasElement.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
   private handleMouseDown(event: MouseEvent): void {
-    const store = useWhiteboardStore.getState();
+    const store = whiteboardStore.getState();
+    const mousePos = getCanvasMousePosition(event, this.canvasElement);
+    const worldPos = screenToWorld(mousePos, store.camera);
     
-    // Check if clicking on a shape
-    const target = event.target as HTMLElement;
-    const shapeId = target.dataset.shapeId || target.closest('[data-shape-id]')?.getAttribute('data-shape-id');
-    
-    if (shapeId && store.selectedShapeIds.has(shapeId) && event.button === 0) {
-      // Start dragging the selected shape
-      this.isShapeDragging = true;
-      this.draggedShapeId = shapeId;
-      const mousePos = getCanvasMousePosition(event, this.canvasElement);
-      const worldPos = screenToWorld(mousePos, store.camera);
-      this.shapeDragStart = worldPos;
-      
-      const shape = store.shapes[shapeId];
-      this.shapeDragStartPosition = { x: shape.x, y: shape.y };
-      
-      this.canvasElement.style.cursor = 'grabbing';
-      event.preventDefault();
-      event.stopPropagation();
+    // Handle tool events first
+    if (event.button === 0 && !event.altKey) {
+      this.toolManager.handlePointerDown(event as PointerEvent, worldPos);
     } else if (event.button === 1 || (event.button === 0 && event.altKey)) {
       // Middle mouse button or Alt+Left mouse for panning
       this.isDragging = true;
-      const mousePos = getCanvasMousePosition(event, this.canvasElement);
       this.dragStart = mousePos;
       this.dragStartCamera = { ...store.camera };
       this.canvasElement.style.cursor = 'grabbing';
@@ -81,47 +95,43 @@ export class WhiteboardCanvas {
   }
 
   private handleMouseMove(event: MouseEvent): void {
-    if (this.isShapeDragging && this.draggedShapeId) {
-      // Handle shape dragging
-      const store = useWhiteboardStore.getState();
-      const mousePos = getCanvasMousePosition(event, this.canvasElement);
-      const worldPos = screenToWorld(mousePos, store.camera);
-      
-      const deltaX = worldPos.x - this.shapeDragStart.x;
-      const deltaY = worldPos.y - this.shapeDragStart.y;
-      
-      store.updateShape(this.draggedShapeId, {
-        x: this.shapeDragStartPosition.x + deltaX,
-        y: this.shapeDragStartPosition.y + deltaY
-      });
-    } else if (this.isDragging) {
+    const mousePos = getCanvasMousePosition(event, this.canvasElement);
+    const store = whiteboardStore.getState();
+    const worldPos = screenToWorld(mousePos, store.camera);
+    
+    if (this.isDragging) {
       // Handle canvas panning
-      const mousePos = getCanvasMousePosition(event, this.canvasElement);
       const deltaX = (mousePos.x - this.dragStart.x) / this.dragStartCamera.zoom;
       const deltaY = (mousePos.y - this.dragStart.y) / this.dragStartCamera.zoom;
       
-      useWhiteboardStore.getState().setCamera({
+      store.setCamera({
         x: this.dragStartCamera.x - deltaX,
         y: this.dragStartCamera.y - deltaY
       });
+    } else {
+      // Handle tool events
+      this.toolManager.handlePointerMove(event as PointerEvent, worldPos);
     }
   }
 
   private handleMouseUp(event: MouseEvent): void {
-    if (this.isShapeDragging) {
-      this.isShapeDragging = false;
-      this.draggedShapeId = null;
-      this.canvasElement.style.cursor = 'default';
-    } else if (this.isDragging) {
+    const mousePos = getCanvasMousePosition(event, this.canvasElement);
+    const store = whiteboardStore.getState();
+    const worldPos = screenToWorld(mousePos, store.camera);
+    
+    if (this.isDragging) {
       this.isDragging = false;
       this.canvasElement.style.cursor = 'default';
+    } else {
+      // Handle tool events
+      this.toolManager.handlePointerUp(event as PointerEvent, worldPos);
     }
   }
 
   private handleWheel(event: WheelEvent): void {
     event.preventDefault();
     
-    const store = useWhiteboardStore.getState();
+    const store = whiteboardStore.getState();
     const mousePos = getCanvasMousePosition(event, this.canvasElement);
     const worldPos = screenToWorld(mousePos, store.camera);
     
@@ -142,7 +152,7 @@ export class WhiteboardCanvas {
 
   private subscribeToStore(): void {
     // Subscribe to store changes
-    useWhiteboardStore.subscribe((state) => {
+    whiteboardStore.subscribe((state) => {
       this.updateCamera(state.camera);
       this.updateShapes(state.shapes, state.selectedShapeIds);
     });
@@ -151,6 +161,9 @@ export class WhiteboardCanvas {
   private updateCamera(camera: Camera): void {
     // Update shapes container transform
     applyCameraTransform(this.shapesContainer, camera);
+    
+    // Update selection container transform
+    applyCameraTransform(this.selectionContainer, camera);
     
     // Update grid background
     if (this.gridElement) {
@@ -170,18 +183,34 @@ export class WhiteboardCanvas {
     // Render each shape
     Object.values(shapes).forEach(shape => {
       const shapeElement = this.createShapeElement(shape);
+      
+      // Set selection state
       if (selectedShapeIds.has(shape.id)) {
         shapeElement.classList.add('selected');
+        shapeElement.dataset.selected = 'true';
+      } else {
+        shapeElement.dataset.selected = 'false';
       }
+      
       this.shapesContainer.appendChild(shapeElement);
     });
+    
+    // Update selection layer
+    const selectedShapes = Array.from(selectedShapeIds)
+      .map(id => shapes[id])
+      .filter(shape => shape);
+    this.selectionLayer.updateSelection(selectedShapes);
   }
 
   private createShapeElement(shape: Shape): HTMLElement {
     const element = document.createElement('div');
     element.style.position = 'absolute';
     element.style.pointerEvents = 'auto';
+    
+    // Set data attributes for shape identification
     element.dataset.shapeId = shape.id;
+    element.dataset.shapeType = shape.type;
+    element.setAttribute('data-shape', 'true');
     
     // Apply common styles
     element.style.opacity = shape.opacity.toString();
@@ -200,19 +229,7 @@ export class WhiteboardCanvas {
       // Add other shape types as needed
     }
     
-    // Add click handler for selection
-    element.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const store = useWhiteboardStore.getState();
-      if (store.selectedShapeIds.has(shape.id)) {
-        store.deselectShape(shape.id);
-      } else {
-        if (!e.shiftKey) {
-          store.clearSelection();
-        }
-        store.selectShape(shape.id);
-      }
-    });
+    // Click handler is now managed by the SelectTool
     
     return element;
   }
@@ -236,7 +253,7 @@ export class WhiteboardCanvas {
 
   // Method to add a test shape for demonstration
   public addTestShape(): void {
-    const store = useWhiteboardStore.getState();
+    const store = whiteboardStore.getState();
     const testShape: Shape = {
       id: 'test-rect-' + Date.now(),
       type: 'rectangle',
@@ -252,5 +269,38 @@ export class WhiteboardCanvas {
     };
     
     store.addShape(testShape);
+  }
+  
+  private handleKeyDown(event: KeyboardEvent): void {
+    const store = whiteboardStore.getState();
+    
+    // Handle Delete key
+    if (event.key === 'Delete' && store.selectedShapeIds.size > 0) {
+      Array.from(store.selectedShapeIds).forEach(id => {
+        store.removeShape(id);
+      });
+      return;
+    }
+    
+    // Handle Ctrl+A / Cmd+A
+    if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
+      event.preventDefault();
+      // Select all shapes
+      Object.keys(store.shapes).forEach(id => {
+        store.selectShape(id);
+      });
+      return;
+    }
+    
+    this.toolManager.handleKeyDown(event);
+  }
+  
+  private handleKeyUp(event: KeyboardEvent): void {
+    this.toolManager.handleKeyUp(event);
+  }
+  
+  // Public method to access tool manager
+  public getToolManager(): ToolManager {
+    return this.toolManager;
   }
 }

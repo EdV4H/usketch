@@ -1,6 +1,6 @@
 import { BaseTool } from './Tool';
 import { Point, RectangleShape } from '../types';
-import { useWhiteboardStore } from '../store';
+import { whiteboardStore } from '../store';
 
 export class RectangleTool extends BaseTool {
   id = 'rectangle';
@@ -53,7 +53,7 @@ export class RectangleTool extends BaseTool {
       strokeWidth: 2
     };
     
-    useWhiteboardStore.getState().addShape(newShape);
+    whiteboardStore.getState().addShape(newShape);
   }
   
   onPointerMove(event: PointerEvent, worldPos: Point): void {
@@ -68,7 +68,7 @@ export class RectangleTool extends BaseTool {
     const x = width < 0 ? worldPos.x : this.startPoint.x;
     const y = height < 0 ? worldPos.y : this.startPoint.y;
     
-    useWhiteboardStore.getState().updateShape(this.currentShapeId, {
+    whiteboardStore.getState().updateShape(this.currentShapeId, {
       x: x,
       y: y,
       width: Math.abs(width),
@@ -80,11 +80,11 @@ export class RectangleTool extends BaseTool {
     if (!this.isDrawing || !this.currentShapeId) return;
     
     // Check if the rectangle is too small (essentially a click)
-    const shape = useWhiteboardStore.getState().shapes[this.currentShapeId];
+    const shape = whiteboardStore.getState().shapes[this.currentShapeId];
     if (shape && 'width' in shape && 'height' in shape) {
       if (shape.width < 5 && shape.height < 5) {
         // Remove the shape if it's too small
-        useWhiteboardStore.getState().removeShape(this.currentShapeId);
+        whiteboardStore.getState().removeShape(this.currentShapeId);
       }
     }
     
@@ -97,7 +97,7 @@ export class RectangleTool extends BaseTool {
   onKeyDown(event: KeyboardEvent): void {
     // Cancel drawing on Escape
     if (event.key === 'Escape' && this.isDrawing && this.currentShapeId) {
-      useWhiteboardStore.getState().removeShape(this.currentShapeId);
+      whiteboardStore.getState().removeShape(this.currentShapeId);
       this.isDrawing = false;
       this.startPoint = null;
       this.currentShapeId = null;

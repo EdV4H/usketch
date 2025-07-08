@@ -9,6 +9,24 @@ if (!canvasElement) {
 
 const whiteboard = new WhiteboardCanvas(canvasElement);
 
+// Setup toolbar
+const selectButton = document.getElementById('select-tool');
+const rectangleButton = document.getElementById('rectangle-tool');
+
+if (selectButton && rectangleButton) {
+  selectButton.addEventListener('click', () => {
+    whiteboard.getToolManager().setActiveTool('select');
+    selectButton.classList.add('active');
+    rectangleButton.classList.remove('active');
+  });
+  
+  rectangleButton.addEventListener('click', () => {
+    whiteboard.getToolManager().setActiveTool('rectangle');
+    rectangleButton.classList.add('active');
+    selectButton.classList.remove('active');
+  });
+}
+
 // Add some test shapes for demonstration
 setTimeout(() => {
   whiteboard.addTestShape();
@@ -31,8 +49,8 @@ setTimeout(async () => {
   };
   
   // Access the store directly
-  const { useWhiteboardStore } = await import('./store');
-  useWhiteboardStore.getState().addShape(testShape2);
+  const { whiteboardStore } = await import('./store');
+  whiteboardStore.getState().addShape(testShape2);
 }, 200);
 
 console.log('DOM Whiteboard initialized');

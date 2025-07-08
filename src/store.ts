@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { createStore } from 'zustand/vanilla';
 import { Shape, Camera, WhiteboardState } from './types';
 
 interface WhiteboardStore extends WhiteboardState {
@@ -13,7 +13,7 @@ interface WhiteboardStore extends WhiteboardState {
   setCurrentTool: (tool: string) => void;
 }
 
-export const useWhiteboardStore = create<WhiteboardStore>((set, get) => ({
+export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
   // Initial state
   shapes: {},
   selectedShapeIds: new Set(),
@@ -77,3 +77,6 @@ export const useWhiteboardStore = create<WhiteboardStore>((set, get) => ({
     set({ currentTool: tool });
   }
 }));
+
+// Export convenient accessor functions
+export const useWhiteboardStore = whiteboardStore;
