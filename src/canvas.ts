@@ -67,7 +67,7 @@ export class WhiteboardCanvas {
     this.canvasElement.addEventListener('mousedown', this.handleMouseDown.bind(this));
     this.canvasElement.addEventListener('mousemove', this.handleMouseMove.bind(this));
     this.canvasElement.addEventListener('mouseup', this.handleMouseUp.bind(this));
-    this.canvasElement.addEventListener('wheel', this.handleWheel.bind(this));
+    this.canvasElement.addEventListener('wheel', this.handleWheel.bind(this), { passive: false });
     
     // Keyboard events
     document.addEventListener('keydown', this.handleKeyDown.bind(this));
@@ -133,15 +133,20 @@ export class WhiteboardCanvas {
     
     const store = whiteboardStore.getState();
     const mousePos = getCanvasMousePosition(event, this.canvasElement);
-    const worldPos = screenToWorld(mousePos, store.camera);
     
-    // Zoom factor
-    const zoomDelta = event.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.1, Math.min(5, store.camera.zoom * zoomDelta));
+    // More natural zoom factor based on deltaY magnitude
+    const scaleFactor = Math.pow(1.002, -event.deltaY);
+    const newZoom = Math.max(0.1, Math.min(5, store.camera.zoom * scaleFactor));
     
-    // Adjust camera position to zoom towards mouse cursor
-    const newCameraX = worldPos.x - (mousePos.x / newZoom);
-    const newCameraY = worldPos.y - (mousePos.y / newZoom);
+    // If zoom hasn't changed, return early
+    if (newZoom === store.camera.zoom) return;
+    
+    // Calculate new camera position to keep mouse position fixed in world space
+    const worldX = mousePos.x / store.camera.zoom + store.camera.x;
+    const worldY = mousePos.y / store.camera.zoom + store.camera.y;
+    
+    const newCameraX = worldX - mousePos.x / newZoom;
+    const newCameraY = worldY - mousePos.y / newZoom;
     
     store.setCamera({
       x: newCameraX,
@@ -302,5 +307,9 @@ export class WhiteboardCanvas {
   // Public method to access tool manager
   public getToolManager(): ToolManager {
     return this.toolManager;
+  }
+
+  public getStore() {
+    return whiteboardStore;
   }
 }

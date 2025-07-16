@@ -9,6 +9,11 @@ if (!canvasElement) {
 
 const whiteboard = new WhiteboardCanvas(canvasElement);
 
+// Expose store for E2E testing
+if (typeof window !== 'undefined') {
+  (window as any).store = whiteboard.getStore();
+}
+
 // Setup toolbar
 const selectButton = document.getElementById('select-tool');
 const rectangleButton = document.getElementById('rectangle-tool');
