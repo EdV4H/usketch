@@ -1,0 +1,1 @@
+export { whiteboardStore, useWhiteboardStore } from './store';

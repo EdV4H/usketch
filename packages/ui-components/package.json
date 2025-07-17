@@ -1,0 +1,19 @@
+{
+  "name": "@whiteboard/ui-components",
+  "version": "1.0.0",
+  "description": "UI components for the whiteboard application",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@whiteboard/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@whiteboard/tsconfig": "workspace:*",
+    "typescript": "^5.7.3"
+  }
+}

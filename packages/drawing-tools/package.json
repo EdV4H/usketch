@@ -1,0 +1,28 @@
+{
+  "name": "@whiteboard/drawing-tools",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@whiteboard/shared-types": "workspace:*",
+    "@whiteboard/shared-utils": "workspace:*",
+    "@whiteboard/store": "workspace:*"
+  },
+  "devDependencies": {
+    "@whiteboard/tsconfig": "workspace:*",
+    "tsup": "^8.0.0",
+    "vitest": "^2.1.8"
+  }
+}

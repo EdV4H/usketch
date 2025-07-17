@@ -1,24 +1,23 @@
 {
+  "extends": "@dom-whiteboard/tsconfig/tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "skipLibCheck": true,
-
-    /* Bundler mode */
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-
-    /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "baseUrl": ".",
+    "paths": {
+      "@dom-whiteboard/*": ["packages/*/src"]
+    }
   },
-  "include": ["src/**/*", "index.html"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "references": [
+    { "path": "./apps/whiteboard" },
+    { "path": "./apps/e2e" },
+    { "path": "./packages/canvas-core" },
+    { "path": "./packages/drawing-tools" },
+    { "path": "./packages/shared-types" },
+    { "path": "./packages/shared-utils" },
+    { "path": "./packages/store" },
+    { "path": "./packages/test-utils" },
+    { "path": "./packages/ui-components" },
+    { "path": "./packages/vite-config" }
+  ],
+  "include": [],
+  "exclude": ["node_modules", "dist", "build", ".turbo"]
 }

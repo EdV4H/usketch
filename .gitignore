@@ -55,3 +55,11 @@ test-results/
 .turbo/
 .vercel/
 *.tsbuildinfo
+
+# Turborepo
+.turbo/
+turbo-*.log
+
+# Build outputs
+build/
+out/

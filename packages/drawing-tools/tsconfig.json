@@ -1,0 +1,25 @@
+{
+  "extends": "@whiteboard/tsconfig/lib",
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"],
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": false,
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "allowImportingTsExtensions": false,
+    "verbatimModuleSyntax": false,
+    "baseUrl": ".",
+    "paths": {
+      "@whiteboard/shared-types": ["../shared-types/dist"],
+      "@whiteboard/shared-utils": ["../shared-utils/dist"],
+      "@whiteboard/store": ["../store/dist"]
+    }
+  }
+}
