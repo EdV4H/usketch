@@ -311,4 +311,19 @@ export class Canvas {
   public getStore(): typeof whiteboardStore {
     return whiteboardStore;
   }
+
+  // Cleanup method for React
+  public destroy(): void {
+    // Remove event listeners
+    this.canvasElement.removeEventListener('mousedown', this.handleMouseDown.bind(this));
+    this.canvasElement.removeEventListener('mousemove', this.handleMouseMove.bind(this));
+    this.canvasElement.removeEventListener('mouseup', this.handleMouseUp.bind(this));
+    this.canvasElement.removeEventListener('wheel', this.handleWheel.bind(this));
+    document.removeEventListener('keydown', this.handleKeyDown.bind(this));
+    document.removeEventListener('keyup', this.handleKeyUp.bind(this));
+    
+    // Remove elements from DOM
+    this.shapesContainer.remove();
+    this.selectionContainer.remove();
+  }
 }

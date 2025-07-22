@@ -1,6 +1,7 @@
 {
 	"$schema": "https://turbo.build/schema.json",
 	"ui": "tui",
+	"concurrency": "15",
 	"tasks": {
 		// ========== BUILD PIPELINE ==========
 		"build": {
@@ -115,4 +116,3 @@
 	"daemon": true,
 	"cacheDir": ".turbo"
 }
-
