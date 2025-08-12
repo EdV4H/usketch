@@ -1,13 +1,13 @@
 {
-  "extends": "@whiteboard/tsconfig/base.json",
-  "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "module": "esnext",
-    "target": "esnext",
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "types": ["@playwright/test"],
-    "noEmit": true
-  },
-  "include": ["src/**/*.ts"]
+	"extends": "@whiteboard/tsconfig/base.json",
+	"compilerOptions": {
+		"lib": ["dom", "dom.iterable", "esnext"],
+		"module": "esnext",
+		"target": "esnext",
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
+		"types": ["@playwright/test"],
+		"noEmit": true
+	},
+	"include": ["src/**/*.ts"]
 }

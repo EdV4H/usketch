@@ -1,72 +1,72 @@
 {
-  "name": "@whiteboard/test-utils",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Common test utilities for whiteboard monorepo",
-  "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    },
-    "./setup": {
-      "types": "./dist/setup.d.ts",
-      "import": "./dist/setup.js",
-      "require": "./dist/setup.cjs"
-    },
-    "./dom": {
-      "types": "./dist/dom-helpers.d.ts",
-      "import": "./dist/dom-helpers.js",
-      "require": "./dist/dom-helpers.cjs"
-    },
-    "./async": {
-      "types": "./dist/async-helpers.d.ts",
-      "import": "./dist/async-helpers.js",
-      "require": "./dist/async-helpers.cjs"
-    },
-    "./canvas": {
-      "types": "./dist/canvas-helpers.d.ts",
-      "import": "./dist/canvas-helpers.js",
-      "require": "./dist/canvas-helpers.cjs"
-    },
-    "./storage": {
-      "types": "./dist/storage-mocks.d.ts",
-      "import": "./dist/storage-mocks.js",
-      "require": "./dist/storage-mocks.cjs"
-    }
-  },
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "scripts": {
-    "build": "tsup && npm run build:dts",
-    "build:dts": "tsc --declaration --emitDeclarationOnly --outDir dist --skipLibCheck --composite false --incremental false",
-    "dev": "tsup --watch",
-    "test": "vitest",
-    "test:coverage": "vitest --coverage",
-    "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist coverage .turbo"
-  },
-  "dependencies": {
-    "@testing-library/jest-dom": "^6.6.3"
-  },
-  "devDependencies": {
-    "@types/node": "^24.0.3",
-    "@whiteboard/tsconfig": "workspace:*",
-    "jsdom": "^26.1.0",
-    "tsup": "^8.0.0",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
-  },
-  "peerDependencies": {
-    "vitest": "^3.0.0 || ^4.0.0 || ^5.0.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+	"name": "@whiteboard/test-utils",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Common test utilities for whiteboard monorepo",
+	"type": "module",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
+		},
+		"./setup": {
+			"types": "./dist/setup.d.ts",
+			"import": "./dist/setup.js",
+			"require": "./dist/setup.cjs"
+		},
+		"./dom": {
+			"types": "./dist/dom-helpers.d.ts",
+			"import": "./dist/dom-helpers.js",
+			"require": "./dist/dom-helpers.cjs"
+		},
+		"./async": {
+			"types": "./dist/async-helpers.d.ts",
+			"import": "./dist/async-helpers.js",
+			"require": "./dist/async-helpers.cjs"
+		},
+		"./canvas": {
+			"types": "./dist/canvas-helpers.d.ts",
+			"import": "./dist/canvas-helpers.js",
+			"require": "./dist/canvas-helpers.cjs"
+		},
+		"./storage": {
+			"types": "./dist/storage-mocks.d.ts",
+			"import": "./dist/storage-mocks.js",
+			"require": "./dist/storage-mocks.cjs"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"scripts": {
+		"build": "tsup && npm run build:dts",
+		"build:dts": "tsc --declaration --emitDeclarationOnly --outDir dist --skipLibCheck --composite false --incremental false",
+		"dev": "tsup --watch",
+		"test": "vitest",
+		"test:coverage": "vitest --coverage",
+		"typecheck": "tsc --noEmit",
+		"clean": "rm -rf dist coverage .turbo"
+	},
+	"dependencies": {
+		"@testing-library/jest-dom": "^6.6.3"
+	},
+	"devDependencies": {
+		"@types/node": "^24.0.3",
+		"@whiteboard/tsconfig": "workspace:*",
+		"jsdom": "^26.1.0",
+		"tsup": "^8.0.0",
+		"typescript": "^5.8.3",
+		"vitest": "^3.2.4"
+	},
+	"peerDependencies": {
+		"vitest": "^3.0.0 || ^4.0.0 || ^5.0.0"
+	},
+	"engines": {
+		"node": ">=18.0.0"
+	}
 }

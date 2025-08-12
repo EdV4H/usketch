@@ -1,16 +1,16 @@
 {
-  "extends": "@whiteboard/tsconfig/lib",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "composite": false,
-    "declaration": true,
-    "declarationMap": true,
-    "baseUrl": ".",
-    "paths": {
-      "@whiteboard/shared-types": ["../shared-types/dist"]
-    }
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+	"extends": "@whiteboard/tsconfig/lib",
+	"compilerOptions": {
+		"outDir": "./dist",
+		"rootDir": "./src",
+		"composite": false,
+		"declaration": true,
+		"declarationMap": true,
+		"baseUrl": ".",
+		"paths": {
+			"@whiteboard/shared-types": ["../shared-types/dist"]
+		}
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist"]
 }

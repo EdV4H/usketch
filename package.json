@@ -1,21 +1,26 @@
 {
-  "name": "whiteboard-monorepo",
-  "version": "0.0.0",
-  "private": true,
-  "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "test": "turbo run test",
-    "test:e2e": "turbo run test:e2e",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck",
-    "clean": "turbo run clean"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "turbo": "^2.5.5"
-  },
-  "packageManager": "pnpm@8.15.6"
+	"name": "whiteboard-monorepo",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"dev": "turbo run dev",
+		"build": "turbo run build",
+		"test": "turbo run test",
+		"test:e2e": "turbo run test:e2e",
+		"lint": "turbo run lint",
+		"typecheck": "turbo run typecheck",
+		"clean": "turbo run clean",
+		"format": "biome check --write --no-errors-on-unmatched .",
+		"format:check": "biome check .",
+		"prepare": "lefthook install"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"@biomejs/biome": "^2.1.4",
+		"lefthook": "^1.12.2",
+		"turbo": "^2.5.5"
+	},
+	"packageManager": "pnpm@8.15.6"
 }

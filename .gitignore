@@ -63,3 +63,9 @@ turbo-*.log
 # Build outputs
 build/
 out/
+
+# Biome
+.biome/
+
+# Lefthook
+.lefthook-local/

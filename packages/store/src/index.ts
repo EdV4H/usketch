@@ -1,1 +1,1 @@
-export { whiteboardStore, useWhiteboardStore } from './store';
+export { useWhiteboardStore, whiteboardStore } from "./store";

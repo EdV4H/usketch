@@ -1,24 +1,24 @@
 {
-  "name": "@whiteboard/vite-config",
-  "version": "0.0.0",
-  "private": true,
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "scripts": {
-    "build": "tsup src/index.ts --format esm --dts",
-    "dev": "tsup src/index.ts --format esm --dts --watch"
-  },
-  "dependencies": {
-    "vite": "^6.3.5"
-  },
-  "devDependencies": {
-    "@whiteboard/tsconfig": "workspace:*",
-    "tsup": "^8.0.0"
-  }
+	"name": "@whiteboard/vite-config",
+	"version": "0.0.0",
+	"private": true,
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsup src/index.ts --format esm --dts",
+		"dev": "tsup src/index.ts --format esm --dts --watch"
+	},
+	"dependencies": {
+		"vite": "^6.3.5"
+	},
+	"devDependencies": {
+		"@whiteboard/tsconfig": "workspace:*",
+		"tsup": "^8.0.0"
+	}
 }

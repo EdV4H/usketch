@@ -1,68 +1,59 @@
 {
-  "$schema": "https://json.schemastore.org/tsconfig",
-  "display": "Whiteboard Test TypeScript Config",
-  "extends": "./tsconfig.base.json",
-  "compilerOptions": {
-    // Test environment settings
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    
-    // Test-specific types
-    "types": [
-      "vitest/globals",
-      "@vitest/ui",
-      "vite/client",
-      "node",
-      "@types/jsdom",
-      "@playwright/test"
-    ],
-    
-    // Allow test imports
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
-    
-    // Relaxed settings for tests
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noImplicitReturns": false,
-    "allowUnreachableCode": true,
-    "noPropertyAccessFromIndexSignature": false,
-    "exactOptionalPropertyTypes": false,
-    
-    // Test environment globals
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    
-    // Path mappings for test imports
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"],
-      "@test/*": ["./test/*"],
-      "@mocks/*": ["./__mocks__/*"],
-      "@fixtures/*": ["./fixtures/*"]
-    }
-  },
-  "include": [
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "**/*.spec.ts",
-    "**/*.spec.tsx",
-    "**/__tests__/**",
-    "**/__mocks__/**",
-    "**/test/**",
-    "**/tests/**",
-    "**/e2e/**",
-    "vitest.config.ts",
-    "playwright.config.ts",
-    "vitest.setup.ts",
-    "test-setup.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "build",
-    "coverage",
-    ".turbo"
-  ]
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"display": "Whiteboard Test TypeScript Config",
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		// Test environment settings
+		"target": "ES2020",
+		"lib": ["ES2020", "DOM", "DOM.Iterable"],
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+
+		// Test-specific types
+		"types": [
+			"vitest/globals",
+			"@vitest/ui",
+			"vite/client",
+			"node",
+			"@types/jsdom",
+			"@playwright/test"
+		],
+
+		// Allow test imports
+		"allowImportingTsExtensions": true,
+		"noEmit": true,
+
+		// Relaxed settings for tests
+		"noUnusedLocals": false,
+		"noUnusedParameters": false,
+		"noImplicitReturns": false,
+		"allowUnreachableCode": true,
+		"noPropertyAccessFromIndexSignature": false,
+		"exactOptionalPropertyTypes": false,
+
+		// Path mappings for test imports
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["./src/*"],
+			"@test/*": ["./test/*"],
+			"@mocks/*": ["./__mocks__/*"],
+			"@fixtures/*": ["./fixtures/*"]
+		}
+	},
+	"include": [
+		"**/*.test.ts",
+		"**/*.test.tsx",
+		"**/*.spec.ts",
+		"**/*.spec.tsx",
+		"**/__tests__/**",
+		"**/__mocks__/**",
+		"**/test/**",
+		"**/tests/**",
+		"**/e2e/**",
+		"vitest.config.ts",
+		"playwright.config.ts",
+		"vitest.setup.ts",
+		"test-setup.ts"
+	],
+	"exclude": ["node_modules", "dist", "build", "coverage", ".turbo"]
 }

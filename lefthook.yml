@@ -1,0 +1,48 @@
+# Lefthook configuration
+# https://github.com/evilmartians/lefthook
+
+pre-commit:
+  parallel: true
+  commands:
+    biome-check:
+      glob: "*.{js,jsx,ts,tsx,css,json}"
+      run: pnpm biome check --write --no-errors-on-unmatched {staged_files}
+      stage_fixed: true
+
+commit-msg:
+  commands:
+    commitlint:
+      run: |
+        # Validate commit message format
+        commit_regex='^(✨|🐛|♻️|🎨|⚡️|🔥|💄|✅|🔧|📝|🚀|🔒|🩹|🌐|✏️|⬆️|⬇️|📌|👷|📈|♿️|🏗️|🔊|🔇|🚨|🚧|💚|⏪|🔀|📦|👽️|🚚|📄|💥|🍱|♿️|💬|🗃️|🔊|🔇|🔧) (feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .{1,50}'
+        
+        if ! grep -qE "$commit_regex" "$1"; then
+          echo "❌ Invalid commit message format!"
+          echo ""
+          echo "📝 Commit message must follow the format:"
+          echo "   <gitmoji> <type>(<scope>): <subject>"
+          echo ""
+          echo "📋 Examples:"
+          echo "   ✨ feat: add new feature"
+          echo "   🐛 fix(auth): resolve login issue"
+          echo "   ♻️ refactor: improve code structure"
+          echo "   📝 docs: update README"
+          echo ""
+          echo "🎯 Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+          echo ""
+          echo "🎨 Common gitmojis:"
+          echo "   ✨ feat       - New feature"
+          echo "   🐛 fix        - Bug fix"
+          echo "   ♻️ refactor   - Code refactoring"
+          echo "   🎨 style      - Code formatting"
+          echo "   ⚡️ perf       - Performance improvement"
+          echo "   📝 docs       - Documentation"
+          echo "   ✅ test       - Tests"
+          echo "   🔧 config     - Configuration"
+          exit 1
+        fi
+
+# Skip hooks in CI environment
+skip_output:
+  - meta
+  - summary

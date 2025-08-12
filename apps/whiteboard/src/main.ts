@@ -40,7 +40,7 @@ setTimeout(() => {
 // Add another test shape
 setTimeout(async () => {
 	const testShape2 = {
-		id: "test-ellipse-" + Date.now(),
+		id: `test-ellipse-${Date.now()}`,
 		type: "ellipse" as const,
 		x: 350,
 		y: 200,
@@ -59,4 +59,3 @@ setTimeout(async () => {
 }, 200);
 
 console.log("DOM Whiteboard initialized");
-

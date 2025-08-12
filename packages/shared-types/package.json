@@ -1,24 +1,24 @@
 {
-  "name": "@whiteboard/shared-types",
-  "version": "0.0.0",
-  "private": true,
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "test": "vitest run",
-    "clean": "rm -rf dist"
-  },
-  "devDependencies": {
-    "@whiteboard/tsconfig": "workspace:*",
-    "typescript": "^5.7.3",
-    "vitest": "^2.1.8"
-  }
+	"name": "@whiteboard/shared-types",
+	"version": "0.0.0",
+	"private": true,
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc",
+		"dev": "tsc --watch",
+		"test": "vitest run",
+		"clean": "rm -rf dist"
+	},
+	"devDependencies": {
+		"@whiteboard/tsconfig": "workspace:*",
+		"typescript": "^5.7.3",
+		"vitest": "^2.1.8"
+	}
 }

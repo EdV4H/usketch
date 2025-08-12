@@ -1,54 +1,43 @@
 {
-  "$schema": "https://json.schemastore.org/tsconfig",
-  "display": "Whiteboard Application TypeScript Config",
-  "extends": "./tsconfig.base.json",
-  "compilerOptions": {
-    // Application-specific overrides
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable", "WebWorker"],
-    
-    // Module settings for bundlers (Vite)
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    
-    // JSX for potential React usage
-    "jsx": "react-jsx",
-    
-    // Emit settings - apps don't emit, bundler handles it
-    "noEmit": true,
-    "declaration": false,
-    "declarationMap": false,
-    
-    // Environment-specific
-    "types": ["vite/client", "node"],
-    
-    // Path mapping for cleaner imports
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"],
-      "@components/*": ["./src/components/*"],
-      "@utils/*": ["./src/utils/*"],
-      "@tools/*": ["./src/tools/*"],
-      "@whiteboard/*": ["../../packages/*/src"]
-    },
-    
-    // Relaxed settings for app development
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "allowUnreachableCode": false
-  },
-  "include": [
-    "src",
-    "vite.config.ts",
-    "vite-env.d.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "build",
-    "coverage",
-    ".turbo",
-    "public"
-  ]
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"display": "Whiteboard Application TypeScript Config",
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		// Application-specific overrides
+		"target": "ES2020",
+		"lib": ["ES2020", "DOM", "DOM.Iterable", "WebWorker"],
+
+		// Module settings for bundlers (Vite)
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
+
+		// JSX for potential React usage
+		"jsx": "react-jsx",
+
+		// Emit settings - apps don't emit, bundler handles it
+		"noEmit": true,
+		"declaration": false,
+		"declarationMap": false,
+
+		// Environment-specific
+		"types": ["vite/client", "node"],
+
+		// Path mapping for cleaner imports
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["./src/*"],
+			"@components/*": ["./src/components/*"],
+			"@utils/*": ["./src/utils/*"],
+			"@tools/*": ["./src/tools/*"],
+			"@whiteboard/*": ["../../packages/*/src"]
+		},
+
+		// Relaxed settings for app development
+		"noUnusedLocals": false,
+		"noUnusedParameters": false,
+		"allowUnreachableCode": false
+	},
+	"include": ["src", "vite.config.ts", "vite-env.d.ts"],
+	"exclude": ["node_modules", "dist", "build", "coverage", ".turbo", "public"]
 }

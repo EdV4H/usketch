@@ -1,10 +1,10 @@
 // Base tool exports
-export type { Tool } from './Tool';
-export { BaseTool } from './Tool';
 
+export { RectangleTool } from "./RectangleTool";
 // Tool implementations
-export { SelectTool } from './SelectTool';
-export { RectangleTool } from './RectangleTool';
+export { SelectTool } from "./SelectTool";
+export type { Tool } from "./Tool";
+export { BaseTool } from "./Tool";
 
 // Tool manager
-export { ToolManager } from './ToolManager';
+export { ToolManager } from "./ToolManager";

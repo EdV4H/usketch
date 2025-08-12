@@ -1,24 +1,24 @@
 {
-  "name": "@whiteboard/e2e",
-  "version": "0.0.0",
-  "private": true,
-  "description": "E2E tests for whiteboard application",
-  "type": "module",
-  "scripts": {
-    "test": "playwright test",
-    "test:ui": "playwright test --ui",
-    "test:debug": "playwright test --debug",
-    "test:headed": "playwright test --headed",
-    "test:report": "playwright show-report",
-    "test:codegen": "playwright codegen http://localhost:5173",
-    "test:install": "playwright install --with-deps",
-    "clean": "rm -rf test-results playwright-report .playwright"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.53.1",
-    "@whiteboard/test-utils": "workspace:*",
-    "@whiteboard/tsconfig": "workspace:*",
-    "@whiteboard/e2e-tests": "workspace:*",
-    "dotenv": "^16.4.5"
-  }
+	"name": "@whiteboard/e2e",
+	"version": "0.0.0",
+	"private": true,
+	"description": "E2E tests for whiteboard application",
+	"type": "module",
+	"scripts": {
+		"test": "playwright test",
+		"test:ui": "playwright test --ui",
+		"test:debug": "playwright test --debug",
+		"test:headed": "playwright test --headed",
+		"test:report": "playwright show-report",
+		"test:codegen": "playwright codegen http://localhost:5173",
+		"test:install": "playwright install --with-deps",
+		"clean": "rm -rf test-results playwright-report .playwright"
+	},
+	"devDependencies": {
+		"@playwright/test": "^1.53.1",
+		"@whiteboard/test-utils": "workspace:*",
+		"@whiteboard/tsconfig": "workspace:*",
+		"@whiteboard/e2e-tests": "workspace:*",
+		"dotenv": "^16.4.5"
+	}
 }

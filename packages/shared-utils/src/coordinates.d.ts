@@ -1,4 +1,4 @@
-import type { Camera, Point } from '@whiteboard/shared-types';
+import type { Camera, Point } from "@whiteboard/shared-types";
 /**
  * Convert screen coordinates to world coordinates
  */
@@ -10,7 +10,10 @@ export declare function worldToScreen(worldPoint: Point, camera: Camera): Point;
 /**
  * Get the mouse position relative to the canvas element
  */
-export declare function getCanvasMousePosition(event: MouseEvent, canvasElement: HTMLElement): Point;
+export declare function getCanvasMousePosition(
+	event: MouseEvent,
+	canvasElement: HTMLElement,
+): Point;
 /**
  * Apply camera transform to a DOM element
  */
@@ -18,9 +21,12 @@ export declare function applyCameraTransform(element: HTMLElement, camera: Camer
 /**
  * Apply shape transform to a DOM element
  */
-export declare function applyShapeTransform(element: HTMLElement, shape: {
-    x: number;
-    y: number;
-    rotation: number;
-}): void;
+export declare function applyShapeTransform(
+	element: HTMLElement,
+	shape: {
+		x: number;
+		y: number;
+		rotation: number;
+	},
+): void;
 //# sourceMappingURL=coordinates.d.ts.map

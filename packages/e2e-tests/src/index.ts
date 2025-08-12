@@ -1,1 +1,1 @@
-export { whiteboardTests } from './tests/whiteboard.spec';
+export { whiteboardTests } from "./tests/whiteboard.spec";
