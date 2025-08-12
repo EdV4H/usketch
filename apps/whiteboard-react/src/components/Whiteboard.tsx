@@ -15,7 +15,7 @@ export const Whiteboard: React.FC = () => {
 		canvasRef.current = new Canvas(containerRef.current);
 
 		// Expose store and canvas for debugging
-		if (process.env["NODE_ENV"] === "development") {
+		if (import.meta.env.DEV) {
 			(window as any).__whiteboardStore = whiteboardStore;
 			(window as any).__canvas = canvasRef.current;
 		}
