@@ -12,7 +12,7 @@ export class SelectTool extends BaseTool {
   private shapeStartPosition: Point | null = null;
   
   override activate(): void {
-    const canvas = document.getElementById('canvas');
+    const canvas = document.querySelector('.whiteboard-canvas') as HTMLElement;
     if (canvas) {
       canvas.style.cursor = 'default';
     }

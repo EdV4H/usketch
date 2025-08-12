@@ -7,8 +7,8 @@ export const Toolbar: React.FC = () => {
   const setCurrentTool = useStore((state) => state.setCurrentTool);
 
   const tools = [
-    { id: 'select', name: 'Select', icon: '↖' },
-    { id: 'rectangle', name: 'Rectangle', icon: '□' },
+    { id: 'select', name: 'Select' },
+    { id: 'rectangle', name: 'Rectangle' },
   ];
 
   return (
@@ -18,10 +18,8 @@ export const Toolbar: React.FC = () => {
           key={tool.id}
           className={`tool-button ${currentTool === tool.id ? 'active' : ''}`}
           onClick={() => setCurrentTool(tool.id)}
-          title={tool.name}
         >
-          <span className="tool-icon">{tool.icon}</span>
-          <span className="tool-name">{tool.name}</span>
+          {tool.name}
         </button>
       ))}
     </div>

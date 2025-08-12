@@ -12,7 +12,7 @@ export class RectangleTool extends BaseTool {
   
   override activate(): void {
     // Change cursor to crosshair
-    const canvas = document.getElementById('canvas');
+    const canvas = document.querySelector('.whiteboard-canvas') as HTMLElement;
     if (canvas) {
       canvas.style.cursor = 'crosshair';
     }
@@ -20,7 +20,7 @@ export class RectangleTool extends BaseTool {
   
   override deactivate(): void {
     // Reset cursor
-    const canvas = document.getElementById('canvas');
+    const canvas = document.querySelector('.whiteboard-canvas') as HTMLElement;
     if (canvas) {
       canvas.style.cursor = 'default';
     }

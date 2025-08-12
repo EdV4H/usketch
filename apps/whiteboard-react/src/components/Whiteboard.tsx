@@ -11,6 +11,35 @@ export const Whiteboard: React.FC = () => {
 
     // Initialize canvas
     canvasRef.current = new Canvas(containerRef.current);
+    
+    // Expose store and canvas for debugging
+    if (process.env.NODE_ENV === 'development') {
+      (window as any).__whiteboardStore = whiteboardStore;
+      (window as any).__canvas = canvasRef.current;
+    }
+    
+    // Add some test shapes for demonstration (matching vanilla version)
+    setTimeout(() => {
+      canvasRef.current?.addTestShape();
+    }, 100);
+    
+    // Add another test shape
+    setTimeout(() => {
+      const testShape2 = {
+        id: 'test-ellipse-' + Date.now(),
+        type: 'ellipse' as const,
+        x: 350,
+        y: 200,
+        width: 150,
+        height: 100,
+        rotation: 0,
+        opacity: 1,
+        strokeColor: '#d63384',
+        fillColor: '#ffe0e6',
+        strokeWidth: 3,
+      };
+      whiteboardStore.getState().addShape(testShape2);
+    }, 200);
 
     // Cleanup on unmount
     return () => {
@@ -22,15 +51,17 @@ export const Whiteboard: React.FC = () => {
   }, []);
 
   return (
-    <div 
-      ref={containerRef} 
-      className="whiteboard-container"
-      style={{ 
-        width: '100%', 
-        height: '100%',
-        position: 'relative',
-        overflow: 'hidden'
-      }}
-    />
+    <div className="whiteboard-container">
+      <div 
+        ref={containerRef} 
+        style={{ 
+          width: '100%', 
+          height: '100%',
+          position: 'relative'
+        }}
+      >
+        <div className="grid-background" />
+      </div>
+    </div>
   );
 };

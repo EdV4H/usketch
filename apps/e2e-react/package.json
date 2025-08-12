@@ -1,0 +1,16 @@
+{
+  "name": "@whiteboard/e2e-react",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:codegen": "playwright codegen http://localhost:3001"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@whiteboard/tsconfig": "workspace:*",
+    "@whiteboard/e2e-tests": "workspace:*"
+  }
+}

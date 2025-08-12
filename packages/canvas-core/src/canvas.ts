@@ -157,10 +157,19 @@ export class Canvas {
 
   private subscribeToStore(): void {
     // Subscribe to store changes
-    whiteboardStore.subscribe((state) => {
+    whiteboardStore.subscribe((state, prevState) => {
       this.updateCamera(state.camera);
       this.updateShapes(state.shapes, state.selectedShapeIds);
+      
+      // Update tool if changed
+      if (state.currentTool !== prevState?.currentTool) {
+        this.toolManager.setActiveTool(state.currentTool, false);
+      }
     });
+    
+    // Set initial tool
+    const initialState = whiteboardStore.getState();
+    this.toolManager.setActiveTool(initialState.currentTool, false);
   }
 
   private updateCamera(camera: Camera): void {

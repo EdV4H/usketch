@@ -17,6 +17,9 @@ importers:
       '@playwright/test':
         specifier: ^1.53.1
         version: 1.54.1
+      '@whiteboard/e2e-tests':
+        specifier: workspace:*
+        version: link:../../packages/e2e-tests
       '@whiteboard/test-utils':
         specifier: workspace:*
         version: link:../../packages/test-utils
@@ -26,6 +29,18 @@ importers:
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
+
+  apps/e2e-react:
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.49.1
+        version: 1.54.1
+      '@whiteboard/e2e-tests':
+        specifier: workspace:*
+        version: link:../../packages/e2e-tests
+      '@whiteboard/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
 
   apps/whiteboard:
     dependencies:
@@ -97,6 +112,9 @@ importers:
         specifier: ^5.0.2
         version: 5.0.6(@types/react@18.3.23)(react@18.3.1)
     devDependencies:
+      '@types/node':
+        specifier: ^24.1.0
+        version: 24.1.0
       '@types/react':
         specifier: ^18.3.15
         version: 18.3.23
@@ -132,7 +150,7 @@ importers:
         version: 5.8.3
       vite:
         specifier: ^6.3.5
-        version: 6.3.5(@types/node@24.0.14)
+        version: 6.3.5(@types/node@24.1.0)
 
   packages/canvas-core:
     dependencies:
@@ -186,6 +204,19 @@ importers:
       vitest:
         specifier: ^2.1.8
         version: 2.1.9
+
+  packages/e2e-tests:
+    dependencies:
+      '@playwright/test':
+        specifier: ^1.49.1
+        version: 1.54.1
+    devDependencies:
+      '@whiteboard/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: ^5.6.3
+        version: 5.8.3
 
   packages/shared-types:
     devDependencies:
@@ -1067,7 +1098,6 @@ packages:
     hasBin: true
     dependencies:
       playwright: 1.54.1
-    dev: true
 
   /@rolldown/pluginutils@1.0.0-beta.27:
     resolution: {integrity: sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA==}
@@ -1279,6 +1309,12 @@ packages:
     dependencies:
       undici-types: 7.8.0
 
+  /@types/node@24.1.0:
+    resolution: {integrity: sha512-ut5FthK5moxFKH2T1CUOC6ctR67rQRvvHdFLCD2Ql6KXmMuCrjsSsRI9UsLCm9M18BMwClv4pn327UvB7eeO1w==}
+    dependencies:
+      undici-types: 7.8.0
+    dev: true
+
   /@types/prop-types@15.7.15:
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
 
@@ -1439,7 +1475,7 @@ packages:
       '@rolldown/pluginutils': 1.0.0-beta.27
       '@types/babel__core': 7.20.5
       react-refresh: 0.17.0
-      vite: 6.3.5(@types/node@24.0.14)
+      vite: 6.3.5(@types/node@24.1.0)
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -2169,7 +2205,6 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /fsevents@2.3.3:
@@ -2711,7 +2746,6 @@ packages:
     resolution: {integrity: sha512-Nbjs2zjj0htNhzgiy5wu+3w09YetDx5pkrpI/kZotDlDUaYk0HVA5xrBVPdow4SAUIlhgKcJeJg4GRKW6xHusA==}
     engines: {node: '>=18'}
     hasBin: true
-    dev: true
 
   /playwright@1.54.1:
     resolution: {integrity: sha512-peWpSwIBmSLi6aW2auvrUtf2DqY16YYcCMO8rTVx486jKmDTJg7UAhyrraP98GB8BoPURZP8+nxO7TSd4cPr5g==}
@@ -2721,7 +2755,6 @@ packages:
       playwright-core: 1.54.1
     optionalDependencies:
       fsevents: 2.3.2
-    dev: true
 
   /postcss-load-config@6.0.1:
     resolution: {integrity: sha512-oPtTM4oerL+UXmx+93ytZVN82RrlY/wPUV8IeDxFrzIjXOLF1pN+EmKPLbubvKHT2HC20xXsCAH2Z+CKV6Oz/g==}
@@ -3458,6 +3491,57 @@ packages:
       tinyglobby: 0.2.14
     optionalDependencies:
       fsevents: 2.3.3
+
+  /vite@6.3.5(@types/node@24.1.0):
+    resolution: {integrity: sha512-cZn6NDFE7wdTpINgs++ZJ4N49W2vRp8LCKrn3Ob1kYNtOo21vfDoaV5GzBfLU4MovSAB8uNRm4jgzVQZ+mBzPQ==}
+    engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
+    hasBin: true
+    peerDependencies:
+      '@types/node': ^18.0.0 || ^20.0.0 || >=22.0.0
+      jiti: '>=1.21.0'
+      less: '*'
+      lightningcss: ^1.21.0
+      sass: '*'
+      sass-embedded: '*'
+      stylus: '*'
+      sugarss: '*'
+      terser: ^5.16.0
+      tsx: ^4.8.1
+      yaml: ^2.4.2
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+      jiti:
+        optional: true
+      less:
+        optional: true
+      lightningcss:
+        optional: true
+      sass:
+        optional: true
+      sass-embedded:
+        optional: true
+      stylus:
+        optional: true
+      sugarss:
+        optional: true
+      terser:
+        optional: true
+      tsx:
+        optional: true
+      yaml:
+        optional: true
+    dependencies:
+      '@types/node': 24.1.0
+      esbuild: 0.25.6
+      fdir: 6.4.6(picomatch@4.0.3)
+      picomatch: 4.0.3
+      postcss: 8.5.6
+      rollup: 4.45.1
+      tinyglobby: 0.2.14
+    optionalDependencies:
+      fsevents: 2.3.3
+    dev: true
 
   /vitest@2.1.9:
     resolution: {integrity: sha512-MSmPM9REYqDGBI8439mA4mWhV5sKmDlBKWIYbA3lRb2PTHACE0mgKwA8yQ2xq9vxDTuk4iPrECBAEW2aoFXY0Q==}

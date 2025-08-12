@@ -18,6 +18,7 @@
     "@playwright/test": "^1.53.1",
     "@whiteboard/test-utils": "workspace:*",
     "@whiteboard/tsconfig": "workspace:*",
+    "@whiteboard/e2e-tests": "workspace:*",
     "dotenv": "^16.4.5"
   }
 }

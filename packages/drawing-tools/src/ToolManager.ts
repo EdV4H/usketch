@@ -21,7 +21,7 @@ export class ToolManager {
     this.tools.set(tool.id, tool);
   }
   
-  setActiveTool(toolId: string): void {
+  setActiveTool(toolId: string, updateStore = true): void {
     const tool = this.tools.get(toolId);
     if (!tool) {
       console.warn(`Tool with id "${toolId}" not found`);
@@ -37,8 +37,10 @@ export class ToolManager {
     this.currentTool = tool;
     this.currentTool.activate();
     
-    // Update store
-    whiteboardStore.setState({ currentTool: toolId });
+    // Update store only if requested (to avoid circular updates)
+    if (updateStore) {
+      whiteboardStore.setState({ currentTool: toolId });
+    }
   }
   
   getCurrentTool(): Tool | null {

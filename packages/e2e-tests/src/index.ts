@@ -1,0 +1,1 @@
+export { whiteboardTests } from './tests/whiteboard.spec';
