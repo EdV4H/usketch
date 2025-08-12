@@ -1,5 +1,5 @@
 {
-	"extends": "@whiteboard/tsconfig/app",
+	"extends": "@usketch/tsconfig/app",
 	"compilerOptions": {
 		"baseUrl": ".",
 		"paths": {

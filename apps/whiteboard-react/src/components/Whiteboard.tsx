@@ -1,5 +1,5 @@
-import { Canvas } from "@whiteboard/canvas-core";
-import { whiteboardStore } from "@whiteboard/store";
+import { Canvas } from "@usketch/canvas-core";
+import { whiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useEffect, useRef } from "react";
 
@@ -15,7 +15,7 @@ export const Whiteboard: React.FC = () => {
 		canvasRef.current = new Canvas(containerRef.current);
 
 		// Expose store and canvas for debugging
-		if (process.env.NODE_ENV === "development") {
+		if (process.env["NODE_ENV"] === "development") {
 			(window as any).__whiteboardStore = whiteboardStore;
 			(window as any).__canvas = canvasRef.current;
 		}

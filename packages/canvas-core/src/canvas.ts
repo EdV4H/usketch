@@ -1,13 +1,13 @@
-import { ToolManager } from "@whiteboard/drawing-tools";
-import type { Camera, Shape } from "@whiteboard/shared-types";
+import { ToolManager } from "@usketch/drawing-tools";
+import type { Camera, Shape } from "@usketch/shared-types";
 import {
 	applyCameraTransform,
 	applyShapeTransform,
 	getCanvasMousePosition,
 	screenToWorld,
-} from "@whiteboard/shared-utils";
-import { whiteboardStore } from "@whiteboard/store";
-import { SelectionLayer } from "@whiteboard/ui-components";
+} from "@usketch/shared-utils";
+import { whiteboardStore } from "@usketch/store";
+import { SelectionLayer } from "@usketch/ui-components";
 
 export class Canvas {
 	private canvasElement: HTMLElement;
@@ -206,9 +206,9 @@ export class Canvas {
 			// Set selection state
 			if (selectedShapeIds.has(shape.id)) {
 				shapeElement.classList.add("selected");
-				shapeElement.dataset.selected = "true";
+				shapeElement.dataset["selected"] = "true";
 			} else {
-				shapeElement.dataset.selected = "false";
+				shapeElement.dataset["selected"] = "false";
 			}
 
 			this.shapesContainer.appendChild(shapeElement);
@@ -227,8 +227,8 @@ export class Canvas {
 		element.style.pointerEvents = "auto";
 
 		// Set data attributes for shape identification
-		element.dataset.shapeId = shape.id;
-		element.dataset.shapeType = shape.type;
+		element.dataset["shapeId"] = shape.id;
+		element.dataset["shapeType"] = shape.type;
 		element.setAttribute("data-shape", "true");
 
 		// Apply common styles

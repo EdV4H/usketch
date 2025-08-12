@@ -1,6 +1,6 @@
-import type { Point, RectangleShape } from "@whiteboard/shared-types";
-import { whiteboardStore } from "@whiteboard/store";
-import { BaseTool } from "./Tool";
+import type { Point, RectangleShape } from "@usketch/shared-types";
+import { whiteboardStore } from "@usketch/store";
+import { BaseTool } from "./tool";
 
 export class RectangleTool extends BaseTool {
 	id = "rectangle";

@@ -1,5 +1,5 @@
 {
-	"name": "@whiteboard/canvas-core",
+	"name": "@usketch/canvas-core",
 	"version": "0.0.0",
 	"private": true,
 	"main": "./dist/index.js",
@@ -18,14 +18,14 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@whiteboard/shared-types": "workspace:*",
-		"@whiteboard/shared-utils": "workspace:*",
-		"@whiteboard/drawing-tools": "workspace:*",
-		"@whiteboard/store": "workspace:*",
-		"@whiteboard/ui-components": "workspace:*"
+		"@usketch/shared-types": "workspace:*",
+		"@usketch/shared-utils": "workspace:*",
+		"@usketch/drawing-tools": "workspace:*",
+		"@usketch/store": "workspace:*",
+		"@usketch/ui-components": "workspace:*"
 	},
 	"devDependencies": {
-		"@whiteboard/tsconfig": "workspace:*",
+		"@usketch/tsconfig": "workspace:*",
 		"tsup": "^8.0.0",
 		"typescript": "^5.0.0",
 		"vitest": "^2.1.8"

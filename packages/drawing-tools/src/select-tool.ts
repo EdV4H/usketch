@@ -1,6 +1,6 @@
-import type { Point } from "@whiteboard/shared-types";
-import { whiteboardStore } from "@whiteboard/store";
-import { BaseTool } from "./Tool";
+import type { Point } from "@usketch/shared-types";
+import { whiteboardStore } from "@usketch/store";
+import { BaseTool } from "./tool";
 
 export class SelectTool extends BaseTool {
 	id = "select";
@@ -31,7 +31,7 @@ export class SelectTool extends BaseTool {
 		// Check if clicking on a shape
 		const target = event.target as HTMLElement;
 		const shapeElement = target.closest('[data-shape="true"]') as HTMLElement;
-		const shapeId = shapeElement?.dataset.shapeId;
+		const shapeId = shapeElement?.dataset["shapeId"];
 
 		if (shapeId) {
 			// Handle shape selection

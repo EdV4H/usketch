@@ -1,1 +1,1 @@
-export { SelectionLayer } from "./SelectionLayer";
+export { SelectionLayer } from "./selection-layer";

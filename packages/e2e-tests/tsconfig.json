@@ -1,5 +1,5 @@
 {
-	"extends": "@whiteboard/tsconfig/base.json",
+	"extends": "@usketch/tsconfig/base.json",
 	"compilerOptions": {
 		"lib": ["dom", "dom.iterable", "esnext"],
 		"module": "esnext",

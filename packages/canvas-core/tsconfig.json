@@ -1,5 +1,5 @@
 {
-	"extends": "@whiteboard/tsconfig/lib",
+	"extends": "@usketch/tsconfig/lib",
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "dist"],
 	"compilerOptions": {

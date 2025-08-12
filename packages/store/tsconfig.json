@@ -1,5 +1,5 @@
 {
-	"extends": "@whiteboard/tsconfig/lib",
+	"extends": "@usketch/tsconfig/lib",
 	"compilerOptions": {
 		"outDir": "./dist",
 		"rootDir": "./src",
@@ -8,7 +8,7 @@
 		"declarationMap": true,
 		"baseUrl": ".",
 		"paths": {
-			"@whiteboard/shared-types": ["../shared-types/dist"]
+			"@usketch/shared-types": ["../shared-types/dist"]
 		}
 	},
 	"include": ["src/**/*"],

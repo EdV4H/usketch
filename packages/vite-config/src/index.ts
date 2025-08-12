@@ -66,7 +66,7 @@ export function createLibConfig(options: BaseConfigOptions & { entry?: string } 
 				fileName: "index",
 			},
 			rollupOptions: {
-				external: ["react", "react-dom", "react/jsx-runtime", /^@whiteboard\//],
+				external: ["react", "react-dom", "react/jsx-runtime", /^@usketch\//],
 			},
 		},
 	});

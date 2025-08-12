@@ -1,5 +1,5 @@
 {
-	"name": "@whiteboard/shared-utils",
+	"name": "@usketch/shared-utils",
 	"version": "1.0.0",
 	"description": "Shared utility functions for the whiteboard application",
 	"main": "dist/index.js",
@@ -10,10 +10,10 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@whiteboard/shared-types": "workspace:*"
+		"@usketch/shared-types": "workspace:*"
 	},
 	"devDependencies": {
-		"@whiteboard/tsconfig": "workspace:*",
+		"@usketch/tsconfig": "workspace:*",
 		"typescript": "^5.7.3"
 	}
 }

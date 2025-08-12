@@ -1,5 +1,5 @@
 {
-	"name": "@whiteboard/e2e-react",
+	"name": "@usketch/e2e-react",
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
@@ -10,7 +10,7 @@
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.49.1",
-		"@whiteboard/tsconfig": "workspace:*",
-		"@whiteboard/e2e-tests": "workspace:*"
+		"@usketch/tsconfig": "workspace:*",
+		"@usketch/e2e-tests": "workspace:*"
 	}
 }

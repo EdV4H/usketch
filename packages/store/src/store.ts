@@ -1,4 +1,4 @@
-import type { Camera, Shape, WhiteboardState } from "@whiteboard/shared-types";
+import type { Camera, Shape, WhiteboardState } from "@usketch/shared-types";
 import { createStore } from "zustand/vanilla";
 
 export interface WhiteboardStore extends WhiteboardState {
@@ -23,12 +23,14 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 	// Actions
 	addShape: (shape: Shape) => {
 		set((state) => ({
+			...state,
 			shapes: { ...state.shapes, [shape.id]: shape },
 		}));
 	},
 
 	updateShape: (id: string, updates: Partial<Shape>) => {
 		set((state) => ({
+			...state,
 			shapes: {
 				...state.shapes,
 				[id]: { ...state.shapes[id], ...updates } as Shape,
@@ -43,6 +45,7 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 			const newSelectedIds = new Set(state.selectedShapeIds);
 			newSelectedIds.delete(id);
 			return {
+				...state,
 				shapes: newShapes,
 				selectedShapeIds: newSelectedIds,
 			};
@@ -51,6 +54,7 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 
 	selectShape: (id: string) => {
 		set((state) => ({
+			...state,
 			selectedShapeIds: new Set([...state.selectedShapeIds, id]),
 		}));
 	},
@@ -59,22 +63,23 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 		set((state) => {
 			const newSelectedIds = new Set(state.selectedShapeIds);
 			newSelectedIds.delete(id);
-			return { selectedShapeIds: newSelectedIds };
+			return { ...state, selectedShapeIds: newSelectedIds };
 		});
 	},
 
 	clearSelection: () => {
-		set({ selectedShapeIds: new Set() });
+		set((state) => ({ ...state, selectedShapeIds: new Set() }));
 	},
 
 	setCamera: (camera: Partial<Camera>) => {
 		set((state) => ({
+			...state,
 			camera: { ...state.camera, ...camera },
 		}));
 	},
 
 	setCurrentTool: (tool: string) => {
-		set({ currentTool: tool });
+		set((state) => ({ ...state, currentTool: tool }));
 	},
 }));
 

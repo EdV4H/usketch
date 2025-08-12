@@ -1,8 +1,8 @@
-import type { Point } from "@whiteboard/shared-types";
-import { whiteboardStore } from "@whiteboard/store";
-import { RectangleTool } from "./RectangleTool";
-import { SelectTool } from "./SelectTool";
-import type { Tool } from "./Tool";
+import type { Point } from "@usketch/shared-types";
+import { whiteboardStore } from "@usketch/store";
+import { RectangleTool } from "./rectangle-tool";
+import { SelectTool } from "./select-tool";
+import type { Tool } from "./tool";
 
 export class ToolManager {
 	private tools: Map<string, Tool> = new Map();

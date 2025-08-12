@@ -1,5 +1,5 @@
 /**
- * @whiteboard/test-utils
+ * @usketch/test-utils
  *
  * 共通テストユーティリティのエントリーポイント
  */

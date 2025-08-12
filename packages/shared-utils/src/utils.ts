@@ -1,4 +1,4 @@
-import type { Point } from "@whiteboard/shared-types";
+import type { Point } from "@usketch/shared-types";
 
 export function generateId(): string {
 	return Math.random().toString(36).substr(2, 9);

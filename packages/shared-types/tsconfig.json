@@ -1,5 +1,5 @@
 {
-	"extends": "@whiteboard/tsconfig/lib",
+	"extends": "@usketch/tsconfig/lib",
 	"compilerOptions": {
 		"outDir": "./dist",
 		"rootDir": "./src",

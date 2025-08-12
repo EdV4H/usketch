@@ -1,4 +1,4 @@
-import type { Camera, Point } from "@whiteboard/shared-types";
+import type { Camera, Point } from "@usketch/shared-types";
 
 /**
  * Convert screen coordinates to world coordinates

@@ -1,6 +1,6 @@
-import { Toolbar } from "./components/Toolbar";
-import { Whiteboard } from "./components/Whiteboard";
-import "./styles/App.css";
+import { Toolbar } from "./components/toolbar";
+import { Whiteboard } from "./components/whiteboard";
+import "./styles/app.css";
 
 function App() {
 	return (

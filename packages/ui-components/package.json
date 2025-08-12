@@ -1,5 +1,5 @@
 {
-	"name": "@whiteboard/ui-components",
+	"name": "@usketch/ui-components",
 	"version": "1.0.0",
 	"description": "UI components for the whiteboard application",
 	"main": "dist/index.js",
@@ -10,10 +10,10 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@whiteboard/shared-types": "workspace:*"
+		"@usketch/shared-types": "workspace:*"
 	},
 	"devDependencies": {
-		"@whiteboard/tsconfig": "workspace:*",
+		"@usketch/tsconfig": "workspace:*",
 		"typescript": "^5.7.3"
 	}
 }

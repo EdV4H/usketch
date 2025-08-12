@@ -1,4 +1,4 @@
-import type { Point } from "@whiteboard/shared-types";
+import type { Point } from "@usketch/shared-types";
 
 export interface Tool {
 	id: string;

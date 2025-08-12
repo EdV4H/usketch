@@ -1,5 +1,5 @@
 import type React from "react";
-import { useStore } from "../hooks/useStore";
+import { useStore } from "../hooks/use-store";
 
 export const Toolbar: React.FC = () => {
 	const currentTool = useStore((state) => state.currentTool);

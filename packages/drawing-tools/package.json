@@ -1,5 +1,5 @@
 {
-	"name": "@whiteboard/drawing-tools",
+	"name": "@usketch/drawing-tools",
 	"version": "0.0.0",
 	"private": true,
 	"main": "./dist/index.js",
@@ -16,12 +16,12 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@whiteboard/shared-types": "workspace:*",
-		"@whiteboard/shared-utils": "workspace:*",
-		"@whiteboard/store": "workspace:*"
+		"@usketch/shared-types": "workspace:*",
+		"@usketch/shared-utils": "workspace:*",
+		"@usketch/store": "workspace:*"
 	},
 	"devDependencies": {
-		"@whiteboard/tsconfig": "workspace:*",
+		"@usketch/tsconfig": "workspace:*",
 		"tsup": "^8.0.0",
 		"vitest": "^2.1.8"
 	}

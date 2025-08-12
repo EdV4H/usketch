@@ -1,5 +1,5 @@
 {
-	"name": "@whiteboard/tsconfig",
+	"name": "@usketch/tsconfig",
 	"version": "0.0.0",
 	"description": "Shared TypeScript configuration for Whiteboard monorepo",
 	"private": true,

@@ -1,4 +1,4 @@
-import { Canvas } from "@whiteboard/canvas-core";
+import { Canvas } from "@usketch/canvas-core";
 import "./style.css";
 
 // Initialize the whiteboard
@@ -54,7 +54,7 @@ setTimeout(async () => {
 	};
 
 	// Access the store directly
-	const { whiteboardStore } = await import("@whiteboard/store");
+	const { whiteboardStore } = await import("@usketch/store");
 	whiteboardStore.getState().addShape(testShape2);
 }, 200);
 

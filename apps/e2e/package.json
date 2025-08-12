@@ -1,5 +1,5 @@
 {
-	"name": "@whiteboard/e2e",
+	"name": "@usketch/e2e",
 	"version": "0.0.0",
 	"private": true,
 	"description": "E2E tests for whiteboard application",
@@ -16,9 +16,9 @@
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.53.1",
-		"@whiteboard/test-utils": "workspace:*",
-		"@whiteboard/tsconfig": "workspace:*",
-		"@whiteboard/e2e-tests": "workspace:*",
+		"@usketch/test-utils": "workspace:*",
+		"@usketch/tsconfig": "workspace:*",
+		"@usketch/e2e-tests": "workspace:*",
 		"dotenv": "^16.4.5"
 	}
 }

@@ -1,5 +1,5 @@
 {
-	"name": "@whiteboard/vite-config",
+	"name": "@usketch/vite-config",
 	"version": "0.0.0",
 	"private": true,
 	"main": "./dist/index.js",
@@ -18,7 +18,7 @@
 		"vite": "^6.3.5"
 	},
 	"devDependencies": {
-		"@whiteboard/tsconfig": "workspace:*",
+		"@usketch/tsconfig": "workspace:*",
 		"tsup": "^8.0.0"
 	}
 }
