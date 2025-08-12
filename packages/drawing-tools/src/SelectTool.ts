@@ -39,18 +39,18 @@ export class SelectTool extends BaseTool {
 				whiteboardStore.getState().clearSelection();
 			}
 
-			if (store.selectedShapeIds.has(shapeId)) {
-				// If already selected, prepare for dragging
-				this.isDragging = true;
-				this.draggedShapeId = shapeId;
-				this.dragStart = worldPos;
-				const shape = store.shapes[shapeId];
-				if (shape) {
-					this.shapeStartPosition = { x: shape.x, y: shape.y };
-				}
-			} else {
-				// Select the shape
+			// Select the shape if not already selected
+			if (!store.selectedShapeIds.has(shapeId)) {
 				whiteboardStore.getState().selectShape(shapeId);
+			}
+
+			// Always prepare for dragging when clicking on a shape
+			this.isDragging = true;
+			this.draggedShapeId = shapeId;
+			this.dragStart = worldPos;
+			const shape = store.shapes[shapeId];
+			if (shape) {
+				this.shapeStartPosition = { x: shape.x, y: shape.y };
 			}
 		} else {
 			// Clicking on empty space - clear selection
