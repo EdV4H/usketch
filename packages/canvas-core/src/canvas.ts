@@ -22,8 +22,26 @@ export class Canvas {
 	private toolManager: ToolManager;
 	private selectionLayer: SelectionLayer;
 
+	// Event handler references for cleanup
+	private boundHandleMouseDown: (e: MouseEvent) => void;
+	private boundHandleMouseMove: (e: MouseEvent) => void;
+	private boundHandleMouseUp: (e: MouseEvent) => void;
+	private boundHandleWheel: (e: WheelEvent) => void;
+	private boundHandleKeyDown: (e: KeyboardEvent) => void;
+	private boundHandleKeyUp: (e: KeyboardEvent) => void;
+	private boundHandleContextMenu: (e: Event) => void;
+
 	constructor(canvasElement: HTMLElement) {
 		this.canvasElement = canvasElement;
+
+		// Bind event handlers
+		this.boundHandleMouseDown = this.handleMouseDown.bind(this);
+		this.boundHandleMouseMove = this.handleMouseMove.bind(this);
+		this.boundHandleMouseUp = this.handleMouseUp.bind(this);
+		this.boundHandleWheel = this.handleWheel.bind(this);
+		this.boundHandleKeyDown = this.handleKeyDown.bind(this);
+		this.boundHandleKeyUp = this.handleKeyUp.bind(this);
+		this.boundHandleContextMenu = (e) => e.preventDefault();
 
 		// Add necessary classes and attributes
 		this.canvasElement.classList.add("whiteboard-canvas");
@@ -69,17 +87,17 @@ export class Canvas {
 
 	private setupEventListeners(): void {
 		// Mouse events for pan and zoom
-		this.canvasElement.addEventListener("mousedown", this.handleMouseDown.bind(this));
-		this.canvasElement.addEventListener("mousemove", this.handleMouseMove.bind(this));
-		this.canvasElement.addEventListener("mouseup", this.handleMouseUp.bind(this));
-		this.canvasElement.addEventListener("wheel", this.handleWheel.bind(this), { passive: false });
+		this.canvasElement.addEventListener("mousedown", this.boundHandleMouseDown);
+		this.canvasElement.addEventListener("mousemove", this.boundHandleMouseMove);
+		this.canvasElement.addEventListener("mouseup", this.boundHandleMouseUp);
+		this.canvasElement.addEventListener("wheel", this.boundHandleWheel, { passive: false });
 
 		// Keyboard events
-		document.addEventListener("keydown", this.handleKeyDown.bind(this));
-		document.addEventListener("keyup", this.handleKeyUp.bind(this));
+		document.addEventListener("keydown", this.boundHandleKeyDown);
+		document.addEventListener("keyup", this.boundHandleKeyUp);
 
 		// Prevent context menu
-		this.canvasElement.addEventListener("contextmenu", (e) => e.preventDefault());
+		this.canvasElement.addEventListener("contextmenu", this.boundHandleContextMenu);
 	}
 
 	private handleMouseDown(event: MouseEvent): void {
@@ -335,12 +353,13 @@ export class Canvas {
 	// Cleanup method for React
 	public destroy(): void {
 		// Remove event listeners
-		this.canvasElement.removeEventListener("mousedown", this.handleMouseDown.bind(this));
-		this.canvasElement.removeEventListener("mousemove", this.handleMouseMove.bind(this));
-		this.canvasElement.removeEventListener("mouseup", this.handleMouseUp.bind(this));
-		this.canvasElement.removeEventListener("wheel", this.handleWheel.bind(this));
-		document.removeEventListener("keydown", this.handleKeyDown.bind(this));
-		document.removeEventListener("keyup", this.handleKeyUp.bind(this));
+		this.canvasElement.removeEventListener("mousedown", this.boundHandleMouseDown);
+		this.canvasElement.removeEventListener("mousemove", this.boundHandleMouseMove);
+		this.canvasElement.removeEventListener("mouseup", this.boundHandleMouseUp);
+		this.canvasElement.removeEventListener("wheel", this.boundHandleWheel);
+		this.canvasElement.removeEventListener("contextmenu", this.boundHandleContextMenu);
+		document.removeEventListener("keydown", this.boundHandleKeyDown);
+		document.removeEventListener("keyup", this.boundHandleKeyUp);
 
 		// Remove elements from DOM
 		this.shapesContainer.remove();
