@@ -1,3 +1,22 @@
+# uSketch 開発プロジェクト
+
+## プロジェクト概要
+
+uSketchは、キャンバスベースのドローイングアプリケーションです。
+Vanilla JavaScriptとReact版の2つの実装があり、共通のコアライブラリを使用しています。
+
+## ドキュメント
+
+プロジェクトに関する詳細なドキュメントは `docs/` ディレクトリにあります：
+
+- `dependency-injection-examples.md` - 依存性注入の実装例
+- `turbo-cache-strategy.md` - Turborepoのキャッシュ戦略
+- `turbo-example-configs.md` - Turborepoの設定例
+- `turborepo-migration-plan.md` - Turborepoへの移行計画
+- `whiteboard-integration-architecture.md` - ホワイトボード統合アーキテクチャ
+
+---
+
 # tmuxを使った部下（サブペイン）管理方法
 
 ## 概要
