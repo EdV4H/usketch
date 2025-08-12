@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 export const Whiteboard: React.FC = () => {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<Canvas | null>(null);
+	const shapesAddedRef = useRef(false);
 
 	useEffect(() => {
 		if (!containerRef.current) return;
@@ -19,28 +20,33 @@ export const Whiteboard: React.FC = () => {
 			(window as any).__canvas = canvasRef.current;
 		}
 
-		// Add some test shapes for demonstration (matching vanilla version)
-		setTimeout(() => {
-			canvasRef.current?.addTestShape();
-		}, 100);
+		// Add test shapes only once (protect against StrictMode double render)
+		if (!shapesAddedRef.current) {
+			shapesAddedRef.current = true;
 
-		// Add another test shape
-		setTimeout(() => {
-			const testShape2 = {
-				id: `test-ellipse-${Date.now()}`,
-				type: "ellipse" as const,
-				x: 350,
-				y: 200,
-				width: 150,
-				height: 100,
-				rotation: 0,
-				opacity: 1,
-				strokeColor: "#d63384",
-				fillColor: "#ffe0e6",
-				strokeWidth: 3,
-			};
-			whiteboardStore.getState().addShape(testShape2);
-		}, 200);
+			// Add some test shapes for demonstration (matching vanilla version)
+			setTimeout(() => {
+				canvasRef.current?.addTestShape();
+			}, 100);
+
+			// Add another test shape
+			setTimeout(() => {
+				const testShape2 = {
+					id: `test-ellipse-${Date.now()}`,
+					type: "ellipse" as const,
+					x: 350,
+					y: 200,
+					width: 150,
+					height: 100,
+					rotation: 0,
+					opacity: 1,
+					strokeColor: "#d63384",
+					fillColor: "#ffe0e6",
+					strokeWidth: 3,
+				};
+				whiteboardStore.getState().addShape(testShape2);
+			}, 200);
+		}
 
 		// Cleanup on unmount
 		return () => {
