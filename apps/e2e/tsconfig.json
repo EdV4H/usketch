@@ -1,13 +1,12 @@
 {
-	"extends": "@usketch/tsconfig/app",
+	"extends": "@usketch/tsconfig/base.json",
 	"compilerOptions": {
-		"target": "ESNext",
-		"module": "ESNext",
+		"lib": ["dom", "dom.iterable", "esnext"],
+		"module": "esnext",
+		"target": "esnext",
 		"moduleResolution": "bundler",
 		"allowImportingTsExtensions": true,
-		"noEmit": true,
 		"types": ["@playwright/test"]
 	},
-	"include": ["**/*.ts", "**/*.tsx"],
-	"exclude": ["node_modules", "test-results", "playwright-report"]
+	"include": ["tests/**/*.ts", "playwright.config.ts"]
 }
