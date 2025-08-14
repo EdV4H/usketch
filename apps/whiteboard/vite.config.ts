@@ -1,36 +1,21 @@
-import { resolve } from "node:path";
+import path from "node:path";
+import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+// https://vitejs.dev/config/
 export default defineConfig({
-	root: __dirname,
+	plugins: [react()],
+	server: {
+		port: 3001,
+	},
 	resolve: {
 		alias: {
-			"@": resolve(__dirname, "./src"),
-			"@components": resolve(__dirname, "./src/components"),
-			"@utils": resolve(__dirname, "./src/utils"),
-			"@tools": resolve(__dirname, "./src/tools"),
-			"@usketch/shared-types": resolve(__dirname, "../../packages/shared-types/src"),
-			"@usketch/shared-utils": resolve(__dirname, "../../packages/shared-utils/src"),
-			"@usketch/store": resolve(__dirname, "../../packages/store/src"),
-			"@usketch/canvas-core": resolve(__dirname, "../../packages/canvas-core/src"),
-			"@usketch/drawing-tools": resolve(__dirname, "../../packages/drawing-tools/src"),
-			"@usketch/ui-components": resolve(__dirname, "../../packages/ui-components/src"),
+			"@usketch/canvas-core": path.resolve(__dirname, "../../packages/canvas-core/src"),
+			"@usketch/drawing-tools": path.resolve(__dirname, "../../packages/drawing-tools/src"),
+			"@usketch/shared-types": path.resolve(__dirname, "../../packages/shared-types/src"),
+			"@usketch/shared-utils": path.resolve(__dirname, "../../packages/shared-utils/src"),
+			"@usketch/store": path.resolve(__dirname, "../../packages/store/src"),
+			"@usketch/ui-components": path.resolve(__dirname, "../../packages/ui-components/src"),
 		},
-	},
-	build: {
-		outDir: "dist",
-		sourcemap: true,
-		rollupOptions: {
-			input: {
-				main: resolve(__dirname, "index.html"),
-			},
-		},
-	},
-	server: {
-		port: 5173,
-		open: true,
-	},
-	optimizeDeps: {
-		include: ["zustand"],
 	},
 });

@@ -1,19 +1,19 @@
 {
 	"extends": "@usketch/tsconfig/app",
 	"compilerOptions": {
-		"baseUrl": ".",
+		"jsx": "react-jsx",
+		"lib": ["DOM", "DOM.Iterable", "ESNext"],
+		"module": "ESNext",
+		"target": "ES2020",
 		"paths": {
-			"@/*": ["./src/*"],
-			"@components/*": ["./src/components/*"],
-			"@utils/*": ["./src/utils/*"],
-			"@tools/*": ["./src/tools/*"],
+			"@whiteboard/canvas-core": ["../../packages/canvas-core/src"],
+			"@whiteboard/drawing-tools": ["../../packages/drawing-tools/src"],
 			"@whiteboard/shared-types": ["../../packages/shared-types/src"],
 			"@whiteboard/shared-utils": ["../../packages/shared-utils/src"],
 			"@whiteboard/store": ["../../packages/store/src"],
-			"@whiteboard/canvas-core": ["../../packages/canvas-core/src"],
-			"@whiteboard/drawing-tools": ["../../packages/drawing-tools/src"],
 			"@whiteboard/ui-components": ["../../packages/ui-components/src"]
 		}
 	},
-	"include": ["src", "vite.config.ts"]
+	"include": ["src"],
+	"exclude": ["node_modules", "dist"]
 }
