@@ -21,24 +21,6 @@ importers:
   apps/e2e:
     devDependencies:
       '@playwright/test':
-        specifier: ^1.53.1
-        version: 1.54.1
-      '@usketch/e2e-tests':
-        specifier: workspace:*
-        version: link:../../packages/e2e-tests
-      '@usketch/test-utils':
-        specifier: workspace:*
-        version: link:../../packages/test-utils
-      '@usketch/tsconfig':
-        specifier: workspace:*
-        version: link:../../packages/tsconfig
-      dotenv:
-        specifier: ^16.4.5
-        version: 16.6.1
-
-  apps/e2e-react:
-    devDependencies:
-      '@playwright/test':
         specifier: ^1.49.1
         version: 1.54.1
       '@usketch/e2e-tests':
@@ -49,46 +31,6 @@ importers:
         version: link:../../packages/tsconfig
 
   apps/whiteboard:
-    dependencies:
-      '@usketch/canvas-core':
-        specifier: workspace:*
-        version: link:../../packages/canvas-core
-      '@usketch/drawing-tools':
-        specifier: workspace:*
-        version: link:../../packages/drawing-tools
-      '@usketch/shared-types':
-        specifier: workspace:*
-        version: link:../../packages/shared-types
-      '@usketch/shared-utils':
-        specifier: workspace:*
-        version: link:../../packages/shared-utils
-      '@usketch/store':
-        specifier: workspace:*
-        version: link:../../packages/store
-      '@usketch/ui-components':
-        specifier: workspace:*
-        version: link:../../packages/ui-components
-      zustand:
-        specifier: ^5.0.5
-        version: 5.0.6(@types/react@18.3.23)(react@18.3.1)
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.8
-      '@usketch/tsconfig':
-        specifier: workspace:*
-        version: link:../../packages/tsconfig
-      '@usketch/vite-config':
-        specifier: workspace:*
-        version: link:../../packages/vite-config
-      typescript:
-        specifier: ^5.8.3
-        version: 5.8.3
-      vite:
-        specifier: ^6.3.5
-        version: 6.3.5(@types/node@20.19.8)
-
-  apps/whiteboard-react:
     dependencies:
       '@usketch/canvas-core':
         specifier: workspace:*
@@ -1391,12 +1333,6 @@ packages:
   /@types/estree@1.0.8:
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
-  /@types/node@20.19.8:
-    resolution: {integrity: sha512-HzbgCY53T6bfu4tT7Aq3TvViJyHjLjPNaAS3HOuMc9pw97KHsUtXNX4L+wu59g1WnjsZSko35MbEqnO58rihhw==}
-    dependencies:
-      undici-types: 6.21.0
-    dev: true
-
   /@types/node@24.0.14:
     resolution: {integrity: sha512-4zXMWD91vBLGRtHK3YbIoFMia+1nqEz72coM42C5ETjnNCa/heoj7NT1G67iAfOqMmcfhuCZ4uNpyz8EjlAejw==}
     dependencies:
@@ -1972,11 +1908,6 @@ packages:
   /dom-accessibility-api@0.6.3:
     resolution: {integrity: sha512-7ZgogeTnjuHbo+ct10G9Ffp0mif17idi0IyWNVA/wcwcm7NPOD/WEHVP3n7n3MhXqxoIYm8d6MuZohYWIZ4T3w==}
     dev: false
-
-  /dotenv@16.6.1:
-    resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
-    engines: {node: '>=12'}
-    dev: true
 
   /eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
@@ -3472,10 +3403,6 @@ packages:
     resolution: {integrity: sha512-9a4/uxlTWJ4+a5i0ooc1rU7C7YOw3wT+UGqdeNNHWnOF9qcMBgLRS+4IYUqbczewFx4mLEig6gawh7X6mFlEkA==}
     dev: true
 
-  /undici-types@6.21.0:
-    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
-    dev: true
-
   /undici-types@7.8.0:
     resolution: {integrity: sha512-9UJ2xGDvQ43tYyVMpuHlsgApydB8ZKfVYTsLDhXkFL/6gfkp+U8xTGdh8pMJv1SpZna0zxG1DwsKZsreLbXBxw==}
 
@@ -3577,57 +3504,6 @@ packages:
       esbuild: 0.21.5
       postcss: 8.5.6
       rollup: 4.45.1
-    optionalDependencies:
-      fsevents: 2.3.3
-    dev: true
-
-  /vite@6.3.5(@types/node@20.19.8):
-    resolution: {integrity: sha512-cZn6NDFE7wdTpINgs++ZJ4N49W2vRp8LCKrn3Ob1kYNtOo21vfDoaV5GzBfLU4MovSAB8uNRm4jgzVQZ+mBzPQ==}
-    engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
-    hasBin: true
-    peerDependencies:
-      '@types/node': ^18.0.0 || ^20.0.0 || >=22.0.0
-      jiti: '>=1.21.0'
-      less: '*'
-      lightningcss: ^1.21.0
-      sass: '*'
-      sass-embedded: '*'
-      stylus: '*'
-      sugarss: '*'
-      terser: ^5.16.0
-      tsx: ^4.8.1
-      yaml: ^2.4.2
-    peerDependenciesMeta:
-      '@types/node':
-        optional: true
-      jiti:
-        optional: true
-      less:
-        optional: true
-      lightningcss:
-        optional: true
-      sass:
-        optional: true
-      sass-embedded:
-        optional: true
-      stylus:
-        optional: true
-      sugarss:
-        optional: true
-      terser:
-        optional: true
-      tsx:
-        optional: true
-      yaml:
-        optional: true
-    dependencies:
-      '@types/node': 20.19.8
-      esbuild: 0.25.6
-      fdir: 6.4.6(picomatch@4.0.3)
-      picomatch: 4.0.3
-      postcss: 8.5.6
-      rollup: 4.45.1
-      tinyglobby: 0.2.14
     optionalDependencies:
       fsevents: 2.3.3
     dev: true
