@@ -1,11 +1,12 @@
-# DOM Whiteboard Library
+# uSketch - React Whiteboard Library
 
-**DOMベースの軽量・ヘッドレス ホワイトボードライブラリ**
+**React向けの軽量・ヘッドレス ホワイトボードライブラリ**
 
-tldrawのアーキテクチャを参考に、DOMベースで高性能なホワイトボード機能を提供するヘッドレスライブラリです。UIコンポーネントを含まず、開発者が自由にインターフェースを構築できます。
+tldrawのアーキテクチャを参考に、DOMベースで高性能なホワイトボード機能を提供するReact向けヘッドレスライブラリです。UIコンポーネントを含まず、開発者が自由にインターフェースを構築できます。
 
 ## ✨ 特徴
 
+- **⚛️ React専用**: React向けに最適化されたAPI
 - **🎯 ヘッドレス設計**: UIを含まず、ロジックのみを提供
 - **⚡️ 高性能**: CSS Transform + DOM最適化による高速描画
 - **🔧 柔軟性**: 自由なスタイリングとカスタマイズが可能
@@ -35,7 +36,13 @@ tldrawのアーキテクチャを参考に、DOMベースで高性能なホワ�
 ### インストール
 
 ```bash
-# パッケージマネージャーはYarnを使用
+# pnpmを使用（推奨）
+pnpm install
+
+# または npm
+npm install
+
+# または yarn
 yarn install
 ```
 
@@ -43,48 +50,64 @@ yarn install
 
 ```bash
 # 開発サーバーを起動
-yarn dev
+pnpm dev
 
 # テストを実行
-yarn test
+pnpm test
+
+# E2Eテストを実行
+pnpm test:e2e
 
 # ビルド
-yarn build
+pnpm build
 ```
 
 ### 基本的な使用方法
 
-```typescript
-import { WhiteboardEngine } from 'dom-wb-handson';
+```tsx
+import { Canvas } from '@usketch/canvas-core';
+import { whiteboardStore } from '@usketch/store';
+import { useEffect, useRef } from 'react';
 
-// エンジンを初期化
-const engine = new WhiteboardEngine({
-  container: document.getElementById('canvas-container')!,
-});
+function Whiteboard() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<Canvas | null>(null);
 
-// シェイプを追加
-engine.addShape({
-  type: 'rectangle',
-  x: 100,
-  y: 100,
-  width: 200,
-  height: 150,
-});
+  useEffect(() => {
+    if (!containerRef.current) return;
 
-// 状態を監視
-engine.onStateChange((state) => {
-  console.log('State updated:', state);
-});
+    // キャンバスを初期化
+    canvasRef.current = new Canvas(containerRef.current);
+
+    // シェイプを追加
+    whiteboardStore.getState().addShape({
+      type: 'rectangle',
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 150,
+    });
+
+    // クリーンアップ
+    return () => {
+      canvasRef.current?.destroy();
+    };
+  }, []);
+
+  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
+}
 ```
 
 ## 🏗️ アーキテクチャ
 
 ### 技術スタック
 
+- **React 18**: モダンなReactアプリケーション
 - **TypeScript**: 型安全性とコード品質
 - **Vite**: 高速開発サーバーとバンドル
 - **Zustand**: 軽量状態管理
-- **Vitest**: テストフレームワーク
+- **Playwright**: E2Eテストフレームワーク
+- **Biome**: 高速なリンター/フォーマッター
 
 ### 主要コンポーネント
 
@@ -129,27 +152,30 @@ engine.onStateChange((state) => {
 ```bash
 # リポジトリをクローン
 git clone [repository-url]
-cd dom-wb-handson
+cd dom-base-whiteboard-handson
 
 # 依存関係をインストール
-yarn install
+pnpm install
 
 # 開発サーバーを起動
-yarn dev
+pnpm dev
 ```
 
 ### プロジェクト構造
 
 ```
-dom-wb-handson/
-├── src/
-│   ├── core/           # コアエンジン
-│   ├── tools/          # ツールシステム
-│   ├── types/          # 型定義
-│   └── utils/          # ユーティリティ
-├── examples/           # サンプルアプリケーション  
-├── docs/              # ドキュメント
-└── tests/             # テストスイート
+dom-base-whiteboard-handson/
+├── apps/
+│   ├── whiteboard/     # Reactアプリケーション
+│   └── e2e/           # E2Eテスト
+├── packages/
+│   ├── canvas-core/    # キャンバスコア機能
+│   ├── drawing-tools/  # 描画ツール
+│   ├── store/         # 状態管理
+│   ├── ui-components/ # UIコンポーネント
+│   ├── shared-types/  # 共通型定義
+│   └── shared-utils/  # 共通ユーティリティ
+└── docs/              # ドキュメント
 ```
 
 ### コミット規約
