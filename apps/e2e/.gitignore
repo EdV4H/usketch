@@ -1,25 +1,4 @@
-# Test results
 test-results/
 playwright-report/
-.playwright/
-
-# Screenshots and videos
-screenshots/
-videos/
-traces/
-
-# Environment files
-.env.test
-.env.local
-
-# Temporary files
-*.tmp
-*.log
-
-# IDE
-.idea/
-.vscode/
-
-# OS
+playwright/.cache/
 .DS_Store
-Thumbs.db

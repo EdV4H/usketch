@@ -1,0 +1,107 @@
+.app {
+	width: 100vw;
+	height: 100vh;
+	position: relative;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.toolbar {
+	background-color: #f8f8f8;
+	border-bottom: 1px solid #ddd;
+	padding: 8px;
+	display: flex;
+	gap: 8px;
+}
+
+.tool-button {
+	padding: 8px 16px;
+	border: 1px solid #ccc;
+	background-color: white;
+	cursor: pointer;
+	font-size: 14px;
+	border-radius: 4px;
+	transition: all 0.2s;
+}
+
+.tool-button:hover {
+	background-color: #f0f0f0;
+}
+
+.tool-button.active {
+	background-color: #007bff;
+	color: white;
+	border-color: #0056b3;
+}
+
+.whiteboard-container {
+	flex: 1;
+	position: relative;
+	background-color: white;
+	cursor: default;
+	overflow: hidden;
+}
+
+.grid-background {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-image:
+		linear-gradient(to right, #e0e0e0 1px, transparent 1px),
+		linear-gradient(to bottom, #e0e0e0 1px, transparent 1px);
+	background-size: 20px 20px;
+	pointer-events: none;
+	transition:
+		background-size 0.1s ease-out,
+		background-position 0.1s ease-out;
+}
+
+/* Shape selection styles */
+[data-shape="true"].selected {
+	outline: 2px solid #007bff;
+	outline-offset: 2px;
+}
+
+[data-shape="true"].selected::after {
+	content: "";
+	position: absolute;
+	top: -4px;
+	left: -4px;
+	right: -4px;
+	bottom: -4px;
+	border: 2px dashed #007bff;
+	pointer-events: none;
+}
+
+/* Hover effects */
+[data-shape="true"]:not(.selected):hover {
+	outline: 1px solid #007bff;
+	outline-offset: 1px;
+}
+
+/* Shape-specific styles */
+[data-shape-type="rectangle"] {
+	box-sizing: border-box;
+}
+
+[data-shape-type="ellipse"] {
+	box-sizing: border-box;
+}
+
+/* Cursor styles */
+.grabbing {
+	cursor: grabbing !important;
+}
+
+/* Selection box styles */
+.selection-box {
+	box-sizing: border-box;
+}
+
+/* Resize handle styles */
+.resize-handle {
+	box-sizing: border-box;
+}
