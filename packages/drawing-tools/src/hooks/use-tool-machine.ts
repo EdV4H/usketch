@@ -1,6 +1,6 @@
 import type { Point } from "@usketch/shared-types";
 import { useActor } from "@xstate/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getToolManager } from "../machines/tool-manager-machine";
 import type { KeyboardToolEvent, PointerToolEvent, ToolEvent } from "../machines/types";
 
@@ -18,7 +18,7 @@ function screenToWorld(screenPoint: Point, viewport?: { zoom: number; pan: Point
 // === Main Hook for Tool Machine ===
 export function useToolMachine(viewport?: { zoom: number; pan: Point }) {
 	const toolManager = useMemo(() => getToolManager(), []);
-	const [state, send] = useActor(toolManager.getService());
+	const [state] = useActor(toolManager.getService());
 
 	// Event handlers
 	const handlers = useMemo(

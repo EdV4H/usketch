@@ -1,4 +1,4 @@
-import { type ActorRefFrom, assign, createMachine, interpret, spawn } from "xstate";
+import { assign, createMachine, interpret } from "xstate";
 import { drawingToolMachine, rectangleToolMachine } from "./drawing-tool-machine";
 import { selectToolMachine } from "./select-tool-machine";
 import type { ToolManagerContext, ToolRegistration } from "./types";
@@ -21,8 +21,6 @@ export const toolManagerMachine = createMachine(
 			context: ToolManagerContext;
 			events: ToolManagerEvent;
 		},
-		predictableActionArguments: true,
-		preserveActionOrder: true,
 
 		context: {
 			availableTools: new Map(),
@@ -93,69 +91,75 @@ export const toolManagerMachine = createMachine(
 	{
 		actions: {
 			// Register default tools on initialization
-			registerDefaultTools: assign((context) => {
-				const tools = new Map(context.availableTools);
+			registerDefaultTools: assign({
+				availableTools: (context: any) => {
+					const tools = new Map<string, ToolRegistration>(context.availableTools);
 
-				// Register built-in tools
-				tools.set("select", {
-					id: "select",
-					name: "Select Tool",
-					icon: "cursor",
-					machine: selectToolMachine,
-					category: "select",
-				});
+					// Register built-in tools
+					tools.set("select", {
+						id: "select",
+						name: "Select Tool",
+						icon: "cursor",
+						machine: selectToolMachine,
+						category: "select",
+					});
 
-				tools.set("draw", {
-					id: "draw",
-					name: "Drawing Tool",
-					icon: "pencil",
-					machine: drawingToolMachine,
-					category: "draw",
-				});
+					tools.set("draw", {
+						id: "draw",
+						name: "Drawing Tool",
+						icon: "pencil",
+						machine: drawingToolMachine,
+						category: "draw",
+					});
 
-				tools.set("rectangle", {
-					id: "rectangle",
-					name: "Rectangle Tool",
-					icon: "square",
-					machine: rectangleToolMachine,
-					category: "shape",
-				});
+					tools.set("rectangle", {
+						id: "rectangle",
+						name: "Rectangle Tool",
+						icon: "square",
+						machine: rectangleToolMachine,
+						category: "shape",
+					});
 
-				return { availableTools: tools };
+					return tools;
+				},
 			}),
 
 			// Register a new tool
-			registerTool: assign((context, event) => {
-				if (event.type !== "REGISTER_TOOL") return {};
+			registerTool: assign({
+				availableTools: (context: any, event: any) => {
+					if (event.type !== "REGISTER_TOOL") return context.availableTools;
 
-				const tools = new Map(context.availableTools);
-				tools.set(event.id, event.registration);
+					const tools = new Map(context.availableTools);
+					tools.set(event.id, event.registration);
 
-				console.log(`Tool registered: ${event.id}`);
+					console.log(`Tool registered: ${event.id}`);
 
-				return { availableTools: tools };
+					return tools;
+				},
 			}),
 
 			// Unregister a tool
-			unregisterTool: assign((context, event) => {
-				if (event.type !== "UNREGISTER_TOOL") return {};
+			unregisterTool: assign({
+				availableTools: (context: any, event: any) => {
+					if (event.type !== "UNREGISTER_TOOL") return context.availableTools;
 
-				const tools = new Map(context.availableTools);
+					const tools = new Map(context.availableTools);
 
-				// Don't allow unregistering the current tool
-				if (context.currentToolId === event.id) {
-					console.warn(`Cannot unregister active tool: ${event.id}`);
-					return {};
-				}
+					// Don't allow unregistering the current tool
+					if (context.currentToolId === event.id) {
+						console.warn(`Cannot unregister active tool: ${event.id}`);
+						return context.availableTools;
+					}
 
-				tools.delete(event.id);
-				console.log(`Tool unregistered: ${event.id}`);
+					tools.delete(event.id);
+					console.log(`Tool unregistered: ${event.id}`);
 
-				return { availableTools: tools };
+					return tools;
+				},
 			}),
 
 			// Activate a tool
-			activateTool: assign((context, event) => {
+			activateTool: assign((context: any, event: any) => {
 				if (event.type !== "ACTIVATE_TOOL" && event.type !== "SWITCH_TOOL") return {};
 
 				const toolId = event.toolId;
@@ -171,11 +175,8 @@ export const toolManagerMachine = createMachine(
 					context.currentToolActor.stop?.();
 				}
 
-				// Spawn new tool actor
-				const actor = spawn(registration.machine, {
-					name: `tool-${toolId}`,
-					sync: true,
-				}) as ActorRefFrom<typeof registration.machine>;
+				// Create new tool actor
+				const actor = interpret(registration.machine).start();
 
 				console.log(`Tool activated: ${toolId}`);
 
@@ -187,7 +188,7 @@ export const toolManagerMachine = createMachine(
 			}),
 
 			// Deactivate current tool
-			deactivateCurrentTool: assign((context) => {
+			deactivateCurrentTool: assign((context: any) => {
 				if (context.currentToolActor) {
 					context.currentToolActor.stop?.();
 					console.log(`Tool deactivated: ${context.currentToolId}`);
@@ -200,8 +201,8 @@ export const toolManagerMachine = createMachine(
 			}),
 
 			// Forward event to current tool
-			forwardToTool: (context, event) => {
-				if (event.type !== "FORWARD_EVENT") return;
+			forwardToTool: ({ context, event }) => {
+				if (!event || event.type !== "FORWARD_EVENT") return;
 
 				if (context.currentToolActor) {
 					context.currentToolActor.send(event.payload);
@@ -211,13 +212,13 @@ export const toolManagerMachine = createMachine(
 			},
 
 			// Update settings
-			updateSettings: assign((context, event) => {
-				if (event.type !== "UPDATE_SETTINGS") return {};
+			updateSettings: assign((context: any, event: any) => {
+				if (!event || event.type !== "UPDATE_SETTINGS") return {};
 
 				return {
 					settings: {
 						...context.settings,
-						...event.settings,
+						...(event as any).settings,
 					},
 				};
 			}),

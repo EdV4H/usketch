@@ -33,12 +33,18 @@ export type DrawingToolEvent =
 function smoothPath(points: Point[], smoothingFactor: number = 0.5): Point[] {
 	if (points.length < 3) return points;
 
-	const smoothed: Point[] = [points[0]];
+	const firstPoint = points[0];
+	const lastPoint = points[points.length - 1];
+	if (!firstPoint || !lastPoint) return points;
+
+	const smoothed: Point[] = [firstPoint];
 
 	for (let i = 1; i < points.length - 1; i++) {
 		const prev = points[i - 1];
 		const curr = points[i];
 		const next = points[i + 1];
+
+		if (!prev || !curr || !next) continue;
 
 		smoothed.push({
 			x: curr.x * (1 - smoothingFactor) + (prev.x + next.x) * smoothingFactor * 0.5,
@@ -46,7 +52,7 @@ function smoothPath(points: Point[], smoothingFactor: number = 0.5): Point[] {
 		});
 	}
 
-	smoothed.push(points[points.length - 1]);
+	smoothed.push(lastPoint);
 	return smoothed;
 }
 
@@ -60,9 +66,12 @@ function simplifyPath(points: Point[], tolerance: number = 1): Point[] {
 
 	const first = points[0];
 	const last = points[points.length - 1];
+	if (!first || !last) return points;
 
 	for (let i = 1; i < points.length - 1; i++) {
-		const dist = pointToLineDistance(points[i], first, last);
+		const point = points[i];
+		if (!point) continue;
+		const dist = pointToLineDistance(point, first, last);
 		if (dist > maxDist) {
 			maxDist = dist;
 			maxIndex = i;
@@ -114,7 +123,7 @@ function pointToLineDistance(point: Point, lineStart: Point, lineEnd: Point): nu
 }
 
 // === Drawing Tool State Machine ===
-export const drawingToolMachine = createToolMachine<DrawingToolContext, DrawingToolEvent>({
+export const drawingToolMachine = createToolMachine<DrawingToolContext>({
 	id: "drawingTool",
 
 	context: {
@@ -240,16 +249,16 @@ export const drawingToolMachine = createToolMachine<DrawingToolContext, DrawingT
 			currentStroke: [],
 		}),
 
-		startStroke: assign((context, event: PointerToolEvent) => ({
+		startStroke: assign((_context, event: PointerToolEvent) => ({
 			currentStroke: [event.point],
 			cursor: "crosshair",
 		})),
 
-		addPoint: assign((context, event: PointerToolEvent) => ({
+		addPoint: assign((context: any, event: PointerToolEvent) => ({
 			currentStroke: [...context.currentStroke, event.point],
 		})),
 
-		addSmoothPoint: assign((context, event: PointerToolEvent) => {
+		addSmoothPoint: assign((context: any, event: PointerToolEvent) => {
 			const newStroke = [...context.currentStroke, event.point];
 			// Apply smoothing only to the last few points for performance
 			if (newStroke.length > 5) {
@@ -262,7 +271,7 @@ export const drawingToolMachine = createToolMachine<DrawingToolContext, DrawingT
 			return { currentStroke: newStroke };
 		}),
 
-		performSmoothing: assign((context) => {
+		performSmoothing: assign((context: any) => {
 			if (context.currentStroke.length > 2) {
 				return {
 					currentStroke: smoothPath(context.currentStroke, 0.5),
@@ -271,16 +280,18 @@ export const drawingToolMachine = createToolMachine<DrawingToolContext, DrawingT
 			return {};
 		}),
 
-		updateStraightLine: assign((context, event: PointerToolEvent) => {
+		updateStraightLine: assign((context: any, event: PointerToolEvent) => {
 			if (context.currentStroke.length === 0) return {};
 
 			// Keep only first and current point for straight line
+			const firstPoint = context.currentStroke[0];
+			if (!firstPoint) return {};
 			return {
-				currentStroke: [context.currentStroke[0], event.point],
+				currentStroke: [firstPoint, event.point],
 			};
 		}),
 
-		finalizeStroke: (context) => {
+		finalizeStroke: ({ context }: any) => {
 			if (context.currentStroke.length > 1) {
 				// Simplify the path before saving
 				const simplified =
@@ -311,21 +322,21 @@ export const drawingToolMachine = createToolMachine<DrawingToolContext, DrawingT
 		}),
 
 		// Style actions
-		setColor: assign((context, event: { type: "SET_COLOR"; color: string }) => ({
+		setColor: assign((context: any, event: { type: "SET_COLOR"; color: string }) => ({
 			strokeStyle: {
 				...context.strokeStyle,
 				color: event.color,
 			},
 		})),
 
-		setWidth: assign((context, event: { type: "SET_WIDTH"; width: number }) => ({
+		setWidth: assign((context: any, event: { type: "SET_WIDTH"; width: number }) => ({
 			strokeStyle: {
 				...context.strokeStyle,
 				width: event.width,
 			},
 		})),
 
-		setOpacity: assign((context, event: { type: "SET_OPACITY"; opacity: number }) => ({
+		setOpacity: assign((context: any, event: { type: "SET_OPACITY"; opacity: number }) => ({
 			strokeStyle: {
 				...context.strokeStyle,
 				opacity: event.opacity,
@@ -337,15 +348,15 @@ export const drawingToolMachine = createToolMachine<DrawingToolContext, DrawingT
 		})),
 
 		toggleDrawingMode: assign(
-			(context, event: { type: "TOGGLE_MODE"; mode: "freehand" | "straight" | "smooth" }) => ({
+			(_context, event: { type: "TOGGLE_MODE"; mode: "freehand" | "straight" | "smooth" }) => ({
 				drawingMode: event.mode,
 			}),
 		),
 	},
 
 	guards: {
-		isSmoothMode: (context) => context.drawingMode === "smooth",
-		isStraightMode: (context) => context.drawingMode === "straight",
+		isSmoothMode: ({ context }: any) => context.drawingMode === "smooth",
+		isStraightMode: ({ context }: any) => context.drawingMode === "straight",
 	},
 
 	services: {
@@ -360,7 +371,7 @@ export const drawingToolMachine = createToolMachine<DrawingToolContext, DrawingT
 });
 
 // === Rectangle Tool State Machine ===
-export const rectangleToolMachine = createToolMachine<DrawingToolContext, DrawingToolEvent>({
+export const rectangleToolMachine = createToolMachine<DrawingToolContext>({
 	id: "rectangleTool",
 
 	context: {
@@ -416,14 +427,16 @@ export const rectangleToolMachine = createToolMachine<DrawingToolContext, Drawin
 			currentStroke: [event.point],
 		})),
 
-		updateRectangle: assign((context, event: PointerToolEvent) => {
+		updateRectangle: assign((context: any, event: PointerToolEvent) => {
 			if (context.currentStroke.length === 0) return {};
+			const firstPoint = context.currentStroke[0];
+			if (!firstPoint) return {};
 			return {
-				currentStroke: [context.currentStroke[0], event.point],
+				currentStroke: [firstPoint, event.point],
 			};
 		}),
 
-		finalizeRectangle: (context) => {
+		finalizeRectangle: ({ context }: any) => {
 			if (context.currentStroke.length === 2) {
 				const [start, end] = context.currentStroke;
 				const x = Math.min(start.x, end.x);

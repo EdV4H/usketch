@@ -55,10 +55,9 @@ export function createToolMachine<
 			},
 			guards: {
 				// Default guards that can be overridden
-				hasSelection: (context) => context.selectedIds.size > 0,
+				hasSelection: ({ context }) => context.selectedIds.size > 0,
 				...config.guards,
 			},
-			services: config.services || {},
 		},
 	);
 }

@@ -1,4 +1,4 @@
-import type { Bounds, Point } from "@usketch/shared-types";
+import type { Point } from "@usketch/shared-types";
 
 // === Common Types for Tool State Machines ===
 

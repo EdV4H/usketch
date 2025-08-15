@@ -28,11 +28,12 @@ function getShapeAtPoint(point: Point): string | null {
 	const state = whiteboardStore.getState();
 	// Simple hit detection - should be improved
 	for (const [id, shape] of Object.entries(state.shapes)) {
+		const s = shape as any;
 		if (
-			point.x >= shape.x &&
-			point.x <= shape.x + shape.width &&
-			point.y >= shape.y &&
-			point.y <= shape.y + shape.height
+			point.x >= s.x &&
+			point.x <= s.x + (s.width || 0) &&
+			point.y >= s.y &&
+			point.y <= s.y + (s.height || 0)
 		) {
 			return id;
 		}
@@ -45,12 +46,13 @@ function getShapesInBounds(bounds: Bounds): string[] {
 	const intersecting: string[] = [];
 
 	for (const [id, shape] of Object.entries(state.shapes)) {
+		const s = shape as any;
 		// Check if shape intersects with selection bounds
 		if (
-			shape.x < bounds.x + bounds.width &&
-			shape.x + shape.width > bounds.x &&
-			shape.y < bounds.y + bounds.height &&
-			shape.y + shape.height > bounds.y
+			s.x < bounds.x + bounds.width &&
+			s.x + (s.width || 0) > bounds.x &&
+			s.y < bounds.y + bounds.height &&
+			s.y + (s.height || 0) > bounds.y
 		) {
 			intersecting.push(id);
 		}
@@ -60,7 +62,7 @@ function getShapesInBounds(bounds: Bounds): string[] {
 }
 
 // === Select Tool State Machine ===
-export const selectToolMachine = createToolMachine<SelectToolContext, SelectToolEvent>({
+export const selectToolMachine = createToolMachine<SelectToolContext>({
 	id: "selectTool",
 
 	context: {
@@ -227,28 +229,28 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
 		}),
 
 		// Selection actions
-		selectShape: assign((context, event: PointerToolEvent) => {
+		selectShape: assign((context: any, event: PointerToolEvent) => {
 			const shapeId = getShapeAtPoint(event.point);
 			if (!shapeId) return {};
 
-			const selectedIds = new Set(context.selectedIds);
+			const newSelectedIds = new Set(context.selectedIds);
 
 			if (event.shiftKey || event.metaKey) {
 				// Multi-select
-				if (selectedIds.has(shapeId)) {
-					selectedIds.delete(shapeId);
+				if (newSelectedIds.has(shapeId)) {
+					newSelectedIds.delete(shapeId);
 				} else {
-					selectedIds.add(shapeId);
+					newSelectedIds.add(shapeId);
 				}
 			} else {
 				// Single select
-				selectedIds.clear();
-				selectedIds.add(shapeId);
+				newSelectedIds.clear();
+				newSelectedIds.add(shapeId);
 			}
 
-			whiteboardStore.getState().setSelectedShapeIds(selectedIds);
+			whiteboardStore.getState().setSelectedShapeIds(newSelectedIds as Set<string>);
 
-			return { selectedIds };
+			return { selectedIds: newSelectedIds };
 		}),
 
 		selectAllShapes: assign(() => {
@@ -263,14 +265,14 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
 			return { selectedIds: new Set() };
 		}),
 
-		deleteSelectedShapes: (context) => {
-			context.selectedIds.forEach((id) => {
+		deleteSelectedShapes: (context: any) => {
+			context.selectedIds.forEach((id: string) => {
 				whiteboardStore.getState().deleteShape(id);
 			});
 		},
 
 		// Hover actions
-		updateHover: assign((context, event: PointerToolEvent) => {
+		updateHover: assign((_context, event: PointerToolEvent) => {
 			const shapeId = getShapeAtPoint(event.point);
 			return {
 				hoveredId: shapeId,
@@ -279,16 +281,16 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
 		}),
 
 		// Translation actions
-		startTranslating: assign((context, event: PointerToolEvent) => ({
+		startTranslating: assign((_context, event: PointerToolEvent) => ({
 			dragStart: event.point,
 			dragOffset: { x: 0, y: 0 },
 		})),
 
-		recordInitialPositions: assign((context) => {
+		recordInitialPositions: assign((context: any) => {
 			const positions = new Map<string, Point>();
 			const state = whiteboardStore.getState();
 
-			context.selectedIds.forEach((id) => {
+			context.selectedIds.forEach((id: string) => {
 				const shape = state.shapes[id];
 				if (shape) {
 					positions.set(id, { x: shape.x, y: shape.y });
@@ -298,7 +300,7 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
 			return { initialPositions: positions };
 		}),
 
-		updateTranslation: assign((context, event: PointerToolEvent) => {
+		updateTranslation: assign((context: any, event: PointerToolEvent) => {
 			if (!context.dragStart) return {};
 
 			const offset = {
@@ -307,7 +309,7 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
 			};
 
 			// Apply translation to all selected shapes
-			context.selectedIds.forEach((id) => {
+			context.selectedIds.forEach((id: string) => {
 				const initial = context.initialPositions.get(id);
 				if (initial) {
 					whiteboardStore.getState().updateShape(id, {
@@ -325,15 +327,15 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
 			console.log("Translation committed");
 		},
 
-		cancelTranslation: (context) => {
+		cancelTranslation: ({ context }: any) => {
 			// Restore original positions
-			context.initialPositions.forEach((pos, id) => {
+			context.initialPositions.forEach((pos: Point, id: string) => {
 				whiteboardStore.getState().updateShape(id, pos);
 			});
 		},
 
 		// Brush selection actions
-		startBrushSelection: assign((context, event: PointerToolEvent) => ({
+		startBrushSelection: assign((_context, event: PointerToolEvent) => ({
 			dragStart: event.point,
 			selectionBox: {
 				x: event.point.x,
@@ -343,7 +345,7 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
 			},
 		})),
 
-		startBrushFromSingle: assign((context) => {
+		startBrushFromSingle: assign((context: any) => {
 			if (!context.dragStart) return {};
 
 			return {
@@ -356,7 +358,7 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
 			};
 		}),
 
-		updateSelectionBox: assign((context, event: PointerToolEvent) => {
+		updateSelectionBox: assign((context: any, event: PointerToolEvent) => {
 			if (!context.dragStart) return {};
 
 			const box: Bounds = {
@@ -391,7 +393,7 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
 		},
 
 		// Crop mode actions (placeholder)
-		enterCropMode: (context, event: any) => {
+		enterCropMode: (_context: any, event: any) => {
 			console.log("Entering crop mode for shape:", event.target);
 		},
 
@@ -413,26 +415,32 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
 	},
 
 	guards: {
-		isPointOnShape: (context, event: PointerToolEvent) => {
+		isPointOnShape: ({ event }: { event: PointerToolEvent }) => {
 			return !!getShapeAtPoint(event.point);
 		},
 
-		isPointOnSelectedShape: (context, event: PointerToolEvent) => {
+		isPointOnSelectedShape: ({
+			context,
+			event,
+		}: {
+			context: SelectToolContext;
+			event: PointerToolEvent;
+		}) => {
 			const shapeId = getShapeAtPoint(event.point);
 			return shapeId ? context.selectedIds.has(shapeId) : false;
 		},
 
-		hasSelection: (context) => {
+		hasSelection: ({ context }: any) => {
 			return context.selectedIds.size > 0;
 		},
 
-		isDragging: (context) => {
+		isDragging: ({ context }: any) => {
 			return context.dragStart !== null;
 		},
 	},
 
 	services: {
-		snappingService: fromCallback(({ sendBack, receive }) => {
+		snappingService: fromCallback(({ sendBack: _sendBack, receive: _receive }) => {
 			// Placeholder for snapping service
 			console.log("Snapping service started");
 
