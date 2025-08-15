@@ -84,12 +84,12 @@ export const selectToolMachine = createToolMachine<SelectToolContext>({
 				POINTER_DOWN: [
 					{
 						target: "translating",
-						cond: "isPointOnSelectedShape",
+						guard: "isPointOnSelectedShape",
 						actions: "startTranslating",
 					},
 					{
 						target: "selecting.single",
-						cond: "isPointOnShape",
+						guard: "isPointOnShape",
 						actions: "selectShape",
 					},
 					{
@@ -104,13 +104,13 @@ export const selectToolMachine = createToolMachine<SelectToolContext>({
 
 				DOUBLE_CLICK: {
 					target: "cropping",
-					cond: "isPointOnShape",
+					guard: "isPointOnShape",
 					actions: "enterCropMode",
 				},
 
 				DELETE: {
 					actions: "deleteSelectedShapes",
-					cond: "hasSelection",
+					guard: "hasSelection",
 				},
 
 				SELECT_ALL: {
@@ -136,7 +136,7 @@ export const selectToolMachine = createToolMachine<SelectToolContext>({
 						POINTER_MOVE: [
 							{
 								target: "brush",
-								cond: "isDragging",
+								guard: "isDragging",
 								actions: "startBrushFromSingle",
 							},
 						],

@@ -177,8 +177,8 @@ export const drawingToolMachine = createToolMachine<DrawingToolContext>({
 			states: {
 				detectMode: {
 					always: [
-						{ target: "smooth", cond: "isSmoothMode" },
-						{ target: "straight", cond: "isStraightMode" },
+						{ target: "smooth", guard: "isSmoothMode" },
+						{ target: "straight", guard: "isStraightMode" },
 						{ target: "freehand" },
 					],
 				},
