@@ -145,6 +145,7 @@ export const drawingToolMachine = setup({
 	},
 }).createMachine({
 	id: "drawingTool",
+	initial: "idle",
 
 	context: {
 		currentStroke: [],

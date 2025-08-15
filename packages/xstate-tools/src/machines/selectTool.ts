@@ -230,6 +230,7 @@ export const selectToolMachine = setup({
 	},
 }).createMachine({
 	id: "selectTool",
+	initial: "idle",
 
 	context: {
 		dragStart: null,

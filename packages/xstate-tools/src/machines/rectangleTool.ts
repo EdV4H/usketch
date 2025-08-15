@@ -169,6 +169,7 @@ export const rectangleToolMachine = setup({
 	},
 }).createMachine({
 	id: "rectangleTool",
+	initial: "idle",
 
 	context: {
 		startPoint: null,
