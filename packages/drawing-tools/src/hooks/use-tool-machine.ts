@@ -1,5 +1,5 @@
 import type { Point } from "@usketch/shared-types";
-import { useActor, useMachine } from "@xstate/react";
+import { useActor } from "@xstate/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getToolManager } from "../machines/tool-manager-machine";
 import type { KeyboardToolEvent, PointerToolEvent, ToolEvent } from "../machines/types";

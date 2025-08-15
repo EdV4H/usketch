@@ -11,6 +11,10 @@ export function createToolMachine<
 	return createMachine(
 		{
 			id: config.id,
+			types: {} as {
+				context: TContext;
+				events: TEvent;
+			},
 			predictableActionArguments: true,
 			preserveActionOrder: true,
 

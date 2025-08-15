@@ -1,4 +1,4 @@
-import { type ActorRefFrom, assign, createMachine, spawn } from "xstate";
+import { type ActorRefFrom, assign, createMachine, interpret, spawn } from "xstate";
 import { drawingToolMachine, rectangleToolMachine } from "./drawing-tool-machine";
 import { selectToolMachine } from "./select-tool-machine";
 import type { ToolManagerContext, ToolRegistration } from "./types";
@@ -14,9 +14,13 @@ export type ToolManagerEvent =
 	| { type: "UPDATE_SETTINGS"; settings: Partial<ToolManagerContext["settings"]> };
 
 // === Tool Manager State Machine ===
-export const toolManagerMachine = createMachine<ToolManagerContext, ToolManagerEvent>(
+export const toolManagerMachine = createMachine(
 	{
 		id: "toolManager",
+		types: {} as {
+			context: ToolManagerContext;
+			events: ToolManagerEvent;
+		},
 		predictableActionArguments: true,
 		preserveActionOrder: true,
 
@@ -227,7 +231,7 @@ export class ToolManager {
 	private listeners: Map<string, (state: any) => void> = new Map();
 
 	constructor() {
-		this.service = createMachine(toolManagerMachine).createActor().start();
+		this.service = interpret(toolManagerMachine).start();
 
 		// Subscribe to state changes
 		this.service.subscribe((state: any) => {

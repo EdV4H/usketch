@@ -288,21 +288,21 @@ export const drawingToolMachine = createToolMachine<DrawingToolContext, DrawingT
 						? simplifyPath(context.currentStroke, 1.5)
 						: context.currentStroke;
 
-				// Create a path shape
-				whiteboardStore.getState().addShape({
-					type: "path",
+				// Create a path shape as FreedrawShape
+				const shape: any = {
+					id: `shape-${Date.now()}`,
+					type: "freedraw",
 					x: 0,
 					y: 0,
-					width: 0,
-					height: 0,
+					rotation: 0,
+					opacity: context.strokeStyle.opacity,
+					strokeColor: context.strokeStyle.color,
+					fillColor: "transparent",
+					strokeWidth: context.strokeStyle.width,
 					points: simplified,
-					style: {
-						stroke: context.strokeStyle.color,
-						strokeWidth: context.strokeStyle.width,
-						opacity: context.strokeStyle.opacity,
-						fill: "none",
-					},
-				});
+				};
+
+				whiteboardStore.getState().addShape(shape);
 			}
 		},
 
@@ -432,19 +432,21 @@ export const rectangleToolMachine = createToolMachine<DrawingToolContext, Drawin
 				const height = Math.abs(end.y - start.y);
 
 				if (width > 0 && height > 0) {
-					whiteboardStore.getState().addShape({
+					const shape: any = {
+						id: `shape-${Date.now()}`,
 						type: "rectangle",
 						x,
 						y,
 						width,
 						height,
-						style: {
-							stroke: context.strokeStyle.color,
-							strokeWidth: context.strokeStyle.width,
-							opacity: context.strokeStyle.opacity,
-							fill: "none",
-						},
-					});
+						rotation: 0,
+						opacity: context.strokeStyle.opacity,
+						strokeColor: context.strokeStyle.color,
+						fillColor: "transparent",
+						strokeWidth: context.strokeStyle.width,
+					};
+
+					whiteboardStore.getState().addShape(shape);
 				}
 			}
 		},

@@ -52,7 +52,7 @@ importers:
         version: link:../../packages/ui-components
       '@xstate/react':
         specifier: ^6.0.0
-        version: 6.0.0(@types/react@18.3.23)(react@18.3.1)
+        version: 6.0.0(@types/react@18.3.23)(react@18.3.1)(xstate@5.20.2)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -145,10 +145,22 @@ importers:
       '@usketch/store':
         specifier: workspace:*
         version: link:../store
+      '@xstate/react':
+        specifier: ^6.0.0
+        version: 6.0.0(@types/react@18.3.23)(react@18.3.1)(xstate@5.20.2)
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      tslib:
+        specifier: ^2.8.1
+        version: 2.8.1
       xstate:
         specifier: ^5.20.2
         version: 5.20.2
     devDependencies:
+      '@types/react':
+        specifier: ^18.3.15
+        version: 18.3.23
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -1639,7 +1651,7 @@ packages:
       tinyrainbow: 2.0.0
     dev: true
 
-  /@xstate/react@6.0.0(@types/react@18.3.23)(react@18.3.1):
+  /@xstate/react@6.0.0(@types/react@18.3.23)(react@18.3.1)(xstate@5.20.2):
     resolution: {integrity: sha512-xXlLpFJxqLhhmecAXclBECgk+B4zYSrDTl8hTfPZBogkn82OHKbm9zJxox3Z/YXoOhAQhKFTRLMYGdlbhc6T9A==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -1651,6 +1663,7 @@ packages:
       react: 18.3.1
       use-isomorphic-layout-effect: 1.2.1(@types/react@18.3.23)(react@18.3.1)
       use-sync-external-store: 1.5.0(react@18.3.1)
+      xstate: 5.20.2
     transitivePeerDependencies:
       - '@types/react'
     dev: false
@@ -3298,6 +3311,10 @@ packages:
   /ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
     dev: true
+
+  /tslib@2.8.1:
+    resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
+    dev: false
 
   /tsup@8.5.0(typescript@5.8.3):
     resolution: {integrity: sha512-VmBp77lWNQq6PfuMqCHD3xWl22vEoWsKajkF8t+yMBawlUS8JzEI+vOVMeuNZIuMML8qXRizFKi9oD5glKQVcQ==}

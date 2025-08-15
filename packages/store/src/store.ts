@@ -3,12 +3,14 @@ import { createStore } from "zustand/vanilla";
 
 export interface WhiteboardStore extends WhiteboardState {
 	// Actions
-	addShape: (shape: Shape) => void;
-	updateShape: (id: string, updates: Partial<Shape>) => void;
+	addShape: (shape: Shape | any) => void;
+	updateShape: (id: string, updates: Partial<Shape> | any) => void;
 	removeShape: (id: string) => void;
+	deleteShape: (id: string) => void;
 	selectShape: (id: string) => void;
 	deselectShape: (id: string) => void;
 	clearSelection: () => void;
+	setSelectedShapeIds: (ids: Set<string>) => void;
 	setCamera: (camera: Partial<Camera>) => void;
 	setCurrentTool: (tool: string) => void;
 }
@@ -21,10 +23,12 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 	currentTool: "select",
 
 	// Actions
-	addShape: (shape: Shape) => {
+	addShape: (shape: Shape | any) => {
+		const id = shape.id || `shape-${Date.now()}`;
+		const shapeWithId = { ...shape, id };
 		set((state) => ({
 			...state,
-			shapes: { ...state.shapes, [shape.id]: shape },
+			shapes: { ...state.shapes, [id]: shapeWithId },
 		}));
 	},
 
@@ -69,6 +73,24 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 
 	clearSelection: () => {
 		set((state) => ({ ...state, selectedShapeIds: new Set() }));
+	},
+
+	deleteShape: (id: string) => {
+		set((state) => {
+			const newShapes = { ...state.shapes };
+			delete newShapes[id];
+			const newSelectedIds = new Set(state.selectedShapeIds);
+			newSelectedIds.delete(id);
+			return {
+				...state,
+				shapes: newShapes,
+				selectedShapeIds: newSelectedIds,
+			};
+		});
+	},
+
+	setSelectedShapeIds: (ids: Set<string>) => {
+		set((state) => ({ ...state, selectedShapeIds: ids }));
 	},
 
 	setCamera: (camera: Partial<Camera>) => {

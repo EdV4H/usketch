@@ -46,6 +46,39 @@ export interface FreedrawShape extends BaseShape {
 	points: Array<{ x: number; y: number }>;
 }
 
+// Path shape (for drawing tools)
+export interface PathShape {
+	id?: string;
+	type: "path";
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	points: Array<{ x: number; y: number }>;
+	style?: {
+		stroke?: string;
+		strokeWidth?: number;
+		opacity?: number;
+		fill?: string;
+	};
+}
+
+// Rectangle shape (for drawing tools)
+export interface RectShape {
+	id?: string;
+	type: "rectangle";
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	style?: {
+		stroke?: string;
+		strokeWidth?: number;
+		opacity?: number;
+		fill?: string;
+	};
+}
+
 // Union type for all shapes
 export type Shape = RectangleShape | EllipseShape | LineShape | TextShape | FreedrawShape;
 
@@ -60,6 +93,14 @@ export interface Camera {
 export interface Point {
 	x: number;
 	y: number;
+}
+
+// Bounds interface
+export interface Bounds {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
 }
 
 // Whiteboard state
