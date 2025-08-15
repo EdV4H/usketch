@@ -2,30 +2,48 @@
 
 ## 🎯 概要
 
-uSketchのToolシステムを**XState**で完全に再設計します。XStateの強力な機能（階層状態、並列状態、Actor Model、TypeScript統合）を活用し、複雑なインタラクションを宣言的に管理します。
+uSketchのToolシステムを**XState v5**で完全に再設計します。XState v5の新機能（改善されたTypeScript統合、新しいActor API、簡略化されたsetup API）を活用し、複雑なインタラクションを宣言的に管理します。
 
 ## 📦 依存関係
 
 ```json
 {
   "dependencies": {
-    "xstate": "^5.9.0",
-    "@xstate/react": "^4.0.0"
+    "xstate": "^5.18.0",
+    "@xstate/react": "^4.1.0"
   },
   "devDependencies": {
     "@xstate/cli": "^0.5.0",
     "@xstate/inspect": "^0.8.0",
-    "@xstate/test": "^0.5.0"
+    "@xstate/test": "^1.0.0"
   }
 }
 ```
 
-## 🏗️ Core Architecture
+## 🆕 XState v5の主な変更点
 
-### 1. Tool Machine Factory
+### 1. **Setup API**
+- `createMachine`の代わりに`setup()`を使用して型安全性を向上
+- コンテキスト、イベント、アクション、ガードの型を事前定義
+
+### 2. **Actor API**
+- `spawn`が`createActor`に変更
+- より直感的なActor間通信
+
+### 3. **TypeScript改善**
+- 型推論の大幅な改善
+- `tsTypes`や`schema`が不要に
+
+### 4. **簡略化されたAPI**
+- `predictableActionArguments`と`preserveActionOrder`がデフォルトで有効
+- `services`が`actors`に名称変更
+
+## 🏗️ Core Architecture (XState v5)
+
+### 1. Tool Machine Factory with Setup API
 
 ```typescript
-import { createMachine, assign, createActor, fromCallback } from 'xstate';
+import { setup, assign, createActor, fromCallback } from 'xstate';
 import type { Point, Shape, Bounds } from '@usketch/shared-types';
 
 // === 共通の型定義 ===
@@ -47,7 +65,7 @@ export interface ToolEvent {
   altKey?: boolean;
 }
 
-// === Tool Machine Factory ===
+// === XState v5: Setup API を使用したTool Machine Factory ===
 export function createToolMachine<
   TContext extends ToolContext = ToolContext,
   TEvent extends ToolEvent = ToolEvent
@@ -55,20 +73,21 @@ export function createToolMachine<
   id: string;
   context?: Partial<TContext>;
   states: any;
-  actions?: any;
-  guards?: any;
-  services?: any;
+  actions?: Record<string, any>;
+  guards?: Record<string, any>;
+  actors?: Record<string, any>; // v5: services → actors
 }) {
-  return createMachine({
-    id: config.id,
-    predictableActionArguments: true,
-    preserveActionOrder: true,
-    tsTypes: {} as import('./tools.typegen').Typegen0,
-    
-    schema: {
+  // v5: setup APIで型安全性を向上
+  return setup({
+    types: {
       context: {} as TContext,
       events: {} as TEvent,
     },
+    actions: config.actions || {},
+    guards: config.guards || {},
+    actors: config.actors || {}, // v5: services → actors
+  }).createMachine({
+    id: config.id,
     
     context: {
       cursor: 'default',
@@ -78,10 +97,6 @@ export function createToolMachine<
     } as TContext,
     
     states: config.states,
-  }, {
-    actions: config.actions,
-    guards: config.guards,
-    services: config.services,
   });
 }
 ```
@@ -108,8 +123,57 @@ type SelectToolEvent =
   | { type: 'DELETE' }
   | { type: 'ENTER_CROP_MODE'; shapeId: string };
 
-// === Select Tool Machine ===
-export const selectToolMachine = createToolMachine<SelectToolContext, SelectToolEvent>({
+// === Select Tool Machine (XState v5) ===
+export const selectToolMachine = setup({
+  types: {
+    context: {} as SelectToolContext,
+    events: {} as SelectToolEvent,
+  },
+  actions: {
+    resetCursor: assign({
+      cursor: 'default'
+    }),
+    
+    setCursorMove: assign({
+      cursor: 'move'
+    }),
+    
+    startTranslating: assign(({ event }) => ({
+      dragStart: event.point,
+      dragOffset: { x: 0, y: 0 }
+    })),
+    
+    // その他のアクションは後述
+  },
+  guards: {
+    isPointOnShape: ({ event }) => {
+      return !!getShapeAtPoint(event.point);
+    },
+    
+    isPointOnSelectedShape: ({ context, event }) => {
+      const shape = getShapeAtPoint(event.point);
+      return shape ? context.selectedIds.has(shape.id) : false;
+    },
+    
+    // その他のガードは後述
+  },
+  actors: {
+    snappingService: fromCallback(({ sendBack, receive }) => {
+      const snapEngine = new SnapEngine();
+      
+      receive((event) => {
+        if (event.type === 'UPDATE_POSITION') {
+          const snapped = snapEngine.snap(event.position);
+          sendBack({ type: 'SNAPPED', position: snapped });
+        }
+      });
+      
+      return () => {
+        snapEngine.cleanup();
+      };
+    })
+  }
+}).createMachine({
   id: 'selectTool',
   
   context: {
@@ -117,6 +181,9 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
     dragOffset: { x: 0, y: 0 },
     selectionBox: null,
     initialPositions: new Map(),
+    cursor: 'default',
+    selectedIds: new Set(),
+    hoveredId: null,
   },
   
   states: {
@@ -126,12 +193,12 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
         POINTER_DOWN: [
           {
             target: 'translating',
-            cond: 'isPointOnSelectedShape',
+            guard: 'isPointOnSelectedShape', // v5: cond → guard
             actions: 'startTranslating'
           },
           {
             target: 'selecting.single',
-            cond: 'isPointOnShape',
+            guard: 'isPointOnShape', // v5: cond → guard
             actions: 'selectShape'
           },
           {
@@ -142,7 +209,7 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
         
         DOUBLE_CLICK: {
           target: 'cropping',
-          cond: 'isPointOnShape',
+          guard: 'isPointOnShape', // v5: cond → guard
           actions: 'enterCropMode'
         },
         
@@ -207,11 +274,11 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
         }
       },
       
-      // === Invoke Service for snapping ===
+      // === v5: Invoke Actor for snapping ===
       invoke: {
         id: 'snappingService',
-        src: 'snappingService',
-        data: (context) => ({
+        src: 'snappingService', // actors内で定義
+        input: ({ context }) => ({ // v5: data → input
           shapes: context.selectedIds,
           threshold: 10
         })
@@ -231,7 +298,7 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
               on: {
                 POINTER_DOWN: {
                   target: 'adjusting',
-                  cond: 'isPointOnCropHandle'
+                  guard: 'isPointOnCropHandle' // v5: cond → guard
                 }
               }
             },
@@ -275,129 +342,84 @@ export const selectToolMachine = createToolMachine<SelectToolContext, SelectTool
       }
     }
   }
-}, {
-  // === Actions ===
-  actions: {
-    resetCursor: assign({
-      cursor: 'default'
-    }),
-    
-    setCursorMove: assign({
-      cursor: 'move'
-    }),
-    
-    startTranslating: assign((context, event) => ({
-      dragStart: event.point,
-      dragOffset: { x: 0, y: 0 }
-    })),
-    
-    recordInitialPositions: assign((context) => {
-      const positions = new Map<string, Point>();
-      context.selectedIds.forEach(id => {
-        const shape = getShape(id);
-        if (shape) {
-          positions.set(id, { x: shape.x, y: shape.y });
-        }
-      });
-      return { initialPositions: positions };
-    }),
-    
-    updateTranslation: assign((context, event) => {
-      if (!context.dragStart) return {};
-      
-      const offset = {
-        x: event.point.x - context.dragStart.x,
-        y: event.point.y - context.dragStart.y
-      };
-      
-      // Apply translation to all selected shapes
-      context.selectedIds.forEach(id => {
-        const initial = context.initialPositions.get(id);
-        if (initial) {
-          updateShape(id, {
-            x: initial.x + offset.x,
-            y: initial.y + offset.y
-          });
-        }
-      });
-      
-      return { dragOffset: offset };
-    }),
-    
-    commitTranslation: (context) => {
-      commitShapeChanges();
-    },
-    
-    cancelTranslation: (context) => {
-      // Restore original positions
-      context.initialPositions.forEach((pos, id) => {
-        updateShape(id, pos);
-      });
-    },
-    
-    startBrushSelection: assign((context, event) => ({
-      selectionBox: {
-        x: event.point.x,
-        y: event.point.y,
-        width: 0,
-        height: 0
-      }
-    })),
-    
-    updateSelectionBox: assign((context, event) => {
-      if (!context.selectionBox) return {};
-      
-      const box = {
-        x: Math.min(context.selectionBox.x, event.point.x),
-        y: Math.min(context.selectionBox.y, event.point.y),
-        width: Math.abs(event.point.x - context.selectionBox.x),
-        height: Math.abs(event.point.y - context.selectionBox.y)
-      };
-      
-      // Update selected shapes based on intersection
-      const intersecting = getShapesInBounds(box);
-      
-      return {
-        selectionBox: box,
-        selectedIds: new Set(intersecting.map(s => s.id))
-      };
-    })
-  },
-  
-  // === Guards ===
-  guards: {
-    isPointOnShape: (context, event) => {
-      return !!getShapeAtPoint(event.point);
-    },
-    
-    isPointOnSelectedShape: (context, event) => {
-      const shape = getShapeAtPoint(event.point);
-      return shape ? context.selectedIds.has(shape.id) : false;
-    },
-    
-    isPointOnCropHandle: (context, event) => {
-      return !!getCropHandleAtPoint(event.point);
-    }
-  },
-  
-  // === Services ===
-  services: {
-    snappingService: fromCallback(({ sendBack, receive }) => {
-      const snapEngine = new SnapEngine();
-      
-      receive((event) => {
-        if (event.type === 'UPDATE_POSITION') {
-          const snapped = snapEngine.snap(event.position);
-          sendBack({ type: 'SNAPPED', position: snapped });
-        }
-      });
-      
-      return () => {
-        snapEngine.cleanup();
-      };
-    })
-  }
 });
+
+// Note: 上記のsetup内でactionsの一部のみ定義し、残りのactionsの実装例を以下に示す
+// 実際の実装では、これらもsetup内のactionsに含める
+
+const additionalActions = {
+  recordInitialPositions: assign(({ context }) => {
+    const positions = new Map<string, Point>();
+    context.selectedIds.forEach(id => {
+      const shape = getShape(id);
+      if (shape) {
+        positions.set(id, { x: shape.x, y: shape.y });
+      }
+    });
+    return { initialPositions: positions };
+  }),
+  
+  updateTranslation: assign(({ context, event }) => {
+    if (!context.dragStart) return {};
+    
+    const offset = {
+      x: event.point.x - context.dragStart.x,
+      y: event.point.y - context.dragStart.y
+    };
+    
+    // Apply translation to all selected shapes
+    context.selectedIds.forEach(id => {
+      const initial = context.initialPositions.get(id);
+      if (initial) {
+        updateShape(id, {
+          x: initial.x + offset.x,
+          y: initial.y + offset.y
+        });
+      }
+    });
+    
+    return { dragOffset: offset };
+  }),
+  
+  commitTranslation: ({ context }) => {
+    commitShapeChanges();
+  },
+  
+  cancelTranslation: ({ context }) => {
+    // Restore original positions
+    context.initialPositions.forEach((pos, id) => {
+      updateShape(id, pos);
+    });
+  },
+  
+  startBrushSelection: assign(({ event }) => ({
+    selectionBox: {
+      x: event.point.x,
+      y: event.point.y,
+      width: 0,
+      height: 0
+    }
+  })),
+  
+  updateSelectionBox: assign(({ context, event }) => {
+    if (!context.selectionBox) return {};
+    
+    const box = {
+      x: Math.min(context.selectionBox.x, event.point.x),
+      y: Math.min(context.selectionBox.y, event.point.y),
+      width: Math.abs(event.point.x - context.selectionBox.x),
+      height: Math.abs(event.point.y - context.selectionBox.y)
+    };
+    
+    // Update selected shapes based on intersection
+    const intersecting = getShapesInBounds(box);
+    
+    return {
+      selectionBox: box,
+      selectedIds: new Set(intersecting.map(s => s.id))
+    };
+  })
+};
 ```
 
 ### 3. Drawing Tool Implementation
@@ -415,8 +437,72 @@ interface DrawingToolContext extends ToolContext {
   pressure: number;
 }
 
-// === Drawing Tool Machine ===
-export const drawingToolMachine = createToolMachine<DrawingToolContext>({
+// === Drawing Tool Machine (XState v5) ===
+export const drawingToolMachine = setup({
+  types: {
+    context: {} as DrawingToolContext,
+    events: {} as DrawingToolEvent,
+  },
+  actions: {
+    startStroke: assign(({ event }) => ({
+      currentStroke: [event.point],
+      cursor: 'crosshair'
+    })),
+    
+    addPoint: assign(({ context, event }) => ({
+      currentStroke: [...context.currentStroke, event.point]
+    })),
+    
+    addSmoothPoint: assign(({ context, event }) => {
+      // Apply smoothing algorithm
+      const smoothed = smoothPath(
+        [...context.currentStroke, event.point],
+        0.5
+      );
+      return { currentStroke: smoothed };
+    }),
+    
+    updateStraightLine: assign(({ context, event }) => {
+      if (context.currentStroke.length === 0) return {};
+      
+      // Keep only first and current point for straight line
+      return {
+        currentStroke: [
+          context.currentStroke[0],
+          event.point
+        ]
+      };
+    }),
+    
+    finalizeStroke: ({ context }) => {
+      if (context.currentStroke.length > 1) {
+        createShape({
+          type: 'path',
+          points: context.currentStroke,
+          style: context.strokeStyle
+        });
+      }
+    },
+    
+    cancelStroke: assign({
+      currentStroke: []
+    }),
+    
+    resetStroke: assign({
+      currentStroke: [],
+      cursor: 'crosshair'
+    })
+  },
+  actors: {
+    smoothingService: fromCallback(({ sendBack }) => {
+      const interval = setInterval(() => {
+        sendBack({ type: 'SMOOTH_TICK' });
+      }, 16); // 60fps
+      
+      return () => clearInterval(interval);
+    })
+  }
+}).createMachine({
   id: 'drawingTool',
   
   context: {
@@ -504,7 +590,7 @@ export const drawingToolMachine = createToolMachine<DrawingToolContext>({
         
         PRESSURE_CHANGE: {
           actions: assign({
-            pressure: (_, event) => event.pressure
+            pressure: ({ event }) => event.pressure // v5: 引数の構造が変更
           })
         },
         
@@ -520,77 +606,16 @@ export const drawingToolMachine = createToolMachine<DrawingToolContext>({
       }
     }
   }
-}, {
-  actions: {
-    startStroke: assign((context, event) => ({
-      currentStroke: [event.point],
-      cursor: 'crosshair'
-    })),
-    
-    addPoint: assign((context, event) => ({
-      currentStroke: [...context.currentStroke, event.point]
-    })),
-    
-    addSmoothPoint: assign((context, event) => {
-      // Apply smoothing algorithm
-      const smoothed = smoothPath(
-        [...context.currentStroke, event.point],
-        0.5
-      );
-      return { currentStroke: smoothed };
-    }),
-    
-    updateStraightLine: assign((context, event) => {
-      if (context.currentStroke.length === 0) return {};
-      
-      // Keep only first and current point for straight line
-      return {
-        currentStroke: [
-          context.currentStroke[0],
-          event.point
-        ]
-      };
-    }),
-    
-    finalizeStroke: (context) => {
-      if (context.currentStroke.length > 1) {
-        createShape({
-          type: 'path',
-          points: context.currentStroke,
-          style: context.strokeStyle
-        });
-      }
-    },
-    
-    cancelStroke: assign({
-      currentStroke: []
-    }),
-    
-    resetStroke: assign({
-      currentStroke: [],
-      cursor: 'crosshair'
-    })
-  },
-  
-  services: {
-    smoothingService: fromCallback(({ sendBack }) => {
-      const interval = setInterval(() => {
-        sendBack({ type: 'SMOOTH_TICK' });
-      }, 16); // 60fps
-      
-      return () => clearInterval(interval);
-    })
-  }
 });
 ```
 
-### 4. Tool Manager with XState
+### 4. Tool Manager with XState v5
 
 ```typescript
-import { createMachine, interpret, spawn, assign } from 'xstate';
+import { setup, createActor, assign, spawnChild, stopChild } from 'xstate';
 import type { ActorRefFrom } from 'xstate';
 
-// === Tool Registry Machine ===
+// === Tool Registry Machine (XState v5) ===
 interface ToolManagerContext {
   availableTools: Map<string, any>;
   currentToolId: string | null;
@@ -598,7 +623,70 @@ interface ToolManagerContext {
   toolHistory: string[];
 }
 
-export const toolManagerMachine = createMachine({
+type ToolManagerEvent =
+  | { type: 'REGISTER_TOOL'; id: string; machine: any }
+  | { type: 'ACTIVATE_TOOL'; toolId: string }
+  | { type: 'SWITCH_TOOL'; toolId: string }
+  | { type: 'FORWARD_EVENT'; payload: any }
+  | { type: 'DEACTIVATE' };
+
+export const toolManagerMachine = setup({
+  types: {
+    context: {} as ToolManagerContext,
+    events: {} as ToolManagerEvent,
+  },
+  actions: {
+    registerTool: assign(({ context, event }) => {
+      if (event.type === 'REGISTER_TOOL') {
+        context.availableTools.set(event.id, event.machine);
+      }
+      return context;
+    }),
+    
+    activateTool: assign(({ context, event, spawn }) => {
+      if (event.type !== 'ACTIVATE_TOOL' && event.type !== 'SWITCH_TOOL') return context;
+      
+      const toolId = event.type === 'ACTIVATE_TOOL' ? event.toolId : event.toolId;
+      const machine = context.availableTools.get(toolId);
+      if (!machine) {
+        console.error(`Tool ${toolId} not found`);
+        return context;
+      }
+      
+      // Stop current tool if exists
+      if (context.currentToolActor) {
+        stopChild(context.currentToolActor); // v5: actor.stop() → stopChild
+      }
+      
+      // Spawn new tool actor
+      const actor = spawnChild(machine, { id: toolId }); // v5: spawn → spawnChild
+      
+      return {
+        ...context,
+        currentToolId: toolId,
+        currentToolActor: actor,
+        toolHistory: [...context.toolHistory, toolId]
+      };
+    }),
+    
+    deactivateCurrentTool: assign(({ context }) => {
+      if (context.currentToolActor) {
+        stopChild(context.currentToolActor); // v5: actor.stop() → stopChild
+      }
+      
+      return {
+        ...context,
+        currentToolActor: null
+      };
+    }),
+    
+    forwardToTool: ({ context, event }) => {
+      if (event.type === 'FORWARD_EVENT' && context.currentToolActor) {
+        context.currentToolActor.send(event.payload);
+      }
+    }
+  }
+}).createMachine({
   id: 'toolManager',
   
   context: {
@@ -641,65 +729,18 @@ export const toolManagerMachine = createMachine({
       }
     }
   }
-}, {
-  actions: {
-    registerTool: assign((context, event) => {
-      context.availableTools.set(event.id, event.machine);
-      return context;
-    }),
-    
-    activateTool: assign((context, event) => {
-      const machine = context.availableTools.get(event.toolId);
-      if (!machine) {
-        console.error(`Tool ${event.toolId} not found`);
-        return context;
-      }
-      
-      // Stop current tool if exists
-      if (context.currentToolActor) {
-        context.currentToolActor.stop();
-      }
-      
-      // Spawn new tool actor
-      const actor = spawn(machine, { sync: true });
-      
-      return {
-        ...context,
-        currentToolId: event.toolId,
-        currentToolActor: actor,
-        toolHistory: [...context.toolHistory, event.toolId]
-      };
-    }),
-    
-    deactivateCurrentTool: assign((context) => {
-      if (context.currentToolActor) {
-        context.currentToolActor.stop();
-      }
-      
-      return {
-        ...context,
-        currentToolActor: null
-      };
-    }),
-    
-    forwardToTool: (context, event) => {
-      if (context.currentToolActor) {
-        context.currentToolActor.send(event.payload);
-      }
-    }
-  }
 });
 
-// === Tool Manager Service ===
+// === Tool Manager Service (XState v5) ===
 export class ToolManager {
-  private service: any;
+  private actor: any; // v5: service → actor
   
   constructor() {
-    this.service = interpret(toolManagerMachine)
-      .onTransition((state) => {
-        console.log('Tool Manager:', state.value);
-      })
-      .start();
+    this.actor = createActor(toolManagerMachine) // v5: interpret → createActor
+    this.actor.subscribe((state) => {
+      console.log('Tool Manager:', state.value);
+    });
+    this.actor.start(); // v5: start()は別で呼ぶ
     
     // Register default tools
     this.registerDefaultTools();
@@ -715,32 +756,34 @@ export class ToolManager {
   }
   
   register(id: string, machine: any) {
-    this.service.send({ type: 'REGISTER_TOOL', id, machine });
+    this.actor.send({ type: 'REGISTER_TOOL', id, machine });
   }
   
   activate(toolId: string) {
-    this.service.send({ type: 'ACTIVATE_TOOL', toolId });
+    this.actor.send({ type: 'ACTIVATE_TOOL', toolId });
   }
   
   send(event: any) {
-    this.service.send({ type: 'FORWARD_EVENT', payload: event });
+    this.actor.send({ type: 'FORWARD_EVENT', payload: event });
   }
   
   getCurrentTool() {
-    return this.service.state.context.currentToolId;
+    return this.actor.getSnapshot().context.currentToolId; // v5: state → getSnapshot()
   }
 }
 ```
 
-### 5. React Integration
+### 5. React Integration (XState v5)
 
 ```typescript
-import { useMachine, useActor } from '@xstate/react';
-import { useEffect, useRef, useCallback } from 'react';
+import { useActor, useSelector } from '@xstate/react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { createActor } from 'xstate';
 
-// === XState React Hook ===
+// === XState v5 React Hook ===
 export function useToolMachine(toolId: string) {
-  const [state, send] = useMachine(() => {
+  // v5: useMachine → useActor with createActor
+  const toolMachine = useMemo(() => {
     switch (toolId) {
       case 'select':
         return selectToolMachine;
@@ -749,7 +792,10 @@ export function useToolMachine(toolId: string) {
       default:
         throw new Error(`Unknown tool: ${toolId}`);
     }
-  });
+  }, [toolId]);
+
+  const toolActor = useMemo(() => createActor(toolMachine), [toolMachine]);
+  const [state, send] = useActor(toolActor);
   
   const handlers = useCallback(() => ({
     onPointerDown: (e: PointerEvent) => {
@@ -862,46 +908,56 @@ export const Whiteboard: React.FC = () => {
 };
 ```
 
-### 6. Advanced Patterns
+### 6. Advanced Patterns (XState v5)
 
 ```typescript
-// === Spawning Child Machines ===
-export const parentToolMachine = createMachine({
+// === Spawning Child Machines (XState v5) ===
+export const parentToolMachine = setup({
+  types: {
+    context: {} as { childActors: Map<string, any> },
+    events: {} as { type: 'DELEGATE_TO_CHILD'; childId: string; payload: any }
+  },
+  actions: {
+    spawnChildren: assign(({ spawn }) => {
+      // v5: spawnはsetup内で使用
+      const selectActor = spawn(selectToolMachine, { id: 'select' });
+      const drawActor = spawn(drawingToolMachine, { id: 'draw' });
+      
+      const childActors = new Map();
+      childActors.set('select', selectActor);
+      childActors.set('draw', drawActor);
+      
+      return { childActors };
+    }),
+      
+    delegateToChild: ({ context, event }) => {
+      if (event.type === 'DELEGATE_TO_CHILD') {
+        const actor = context.childActors.get(event.childId);
+        actor?.send(event.payload);
+      }
+    }
+  }
+}).createMachine({
   id: 'parentTool',
-  
   context: {
     childActors: new Map()
   },
-  
   states: {
     active: {
-      entry: assign((context) => {
-        // Spawn multiple child machines
-        const selectActor = spawn(selectToolMachine);
-        const drawActor = spawn(drawingToolMachine);
-        
-        context.childActors.set('select', selectActor);
-        context.childActors.set('draw', drawActor);
-        
-        return context;
-      }),
-      
+      entry: 'spawnChildren',
       on: {
         DELEGATE_TO_CHILD: {
-          actions: (context, event) => {
-            const actor = context.childActors.get(event.childId);
-            actor?.send(event.payload);
-          }
+          actions: 'delegateToChild'
         }
       }
     }
   }
 });
 
-// === Model-Based Testing ===
-import { createModel } from '@xstate/test';
+// === Model-Based Testing (XState v5) ===
+import { createTestModel } from '@xstate/test'; // v5: createModel → createTestModel
 
-const testModel = createModel(selectToolMachine).withEvents({
+const testModel = createTestModel(selectToolMachine).withEvents({
   POINTER_DOWN: { exec: async () => { /* simulate */ } },
   POINTER_MOVE: { exec: async () => { /* simulate */ } },
   POINTER_UP: { exec: async () => { /* simulate */ } }
@@ -930,8 +986,18 @@ describe('Select Tool', () => {
   });
 });
 
-// === Persistence & Hydration ===
-export const persistentToolMachine = createMachine({
+// === Persistence & Hydration (XState v5) ===
+export const persistentToolMachine = setup({
+  types: {
+    context: {} as any,
+    events: {} as any
+  },
+  actions: {
+    saveToLocalStorage: ({ context }) => {
+      localStorage.setItem('toolState', JSON.stringify(context));
+    }
+  }
+}).createMachine({
   id: 'persistentTool',
   
   context: {
@@ -941,22 +1007,19 @@ export const persistentToolMachine = createMachine({
   
   on: {
     '*': {
-      actions: (context) => {
-        // Save to localStorage on any event
-        localStorage.setItem('toolState', JSON.stringify(context));
-      }
+      actions: 'saveToLocalStorage' // v5: actionを外部定義
     }
   }
 });
 
-// === Time Travel Debugging ===
+// === Time Travel Debugging (XState v5) ===
 export function useTimeTravel(machine: any) {
   const [history, setHistory] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   
-  const [state, send] = useMachine(machine, {
-    devTools: true
-  });
+  // v5: useMachine → useActor with createActor
+  const actor = useMemo(() => createActor(machine), [machine]);
+  const [state, send] = useActor(actor);
   
   useEffect(() => {
     setHistory(prev => [...prev, { state, timestamp: Date.now() }]);
@@ -983,18 +1046,19 @@ export function useTimeTravel(machine: any) {
 }
 ```
 
-### 7. TypeScript Integration
+### 7. TypeScript Integration (XState v5)
 
 ```typescript
-// === Type Generation ===
-// Run: npx xstate typegen "src/**/*.ts?(x)"
+// === Type Generation (XState v5) ===
+// v5: TypeScriptサポートが大幅に改善され、typegen不要に
 
 import type { StateFrom, EventFrom, ActorRefFrom } from 'xstate';
 
-// Type-safe state
+// Type-safe state (v5: 型推論が改善)
 export type SelectToolState = StateFrom<typeof selectToolMachine>;
 export type SelectToolEvent = EventFrom<typeof selectToolMachine>;
 export type SelectToolActor = ActorRefFrom<typeof selectToolMachine>;
+export type SelectToolSnapshot = SnapshotFrom<typeof selectToolMachine>; // v5: Snapshot型も追加
 
 // Type guards
 export function isInDrawingState(state: SelectToolState): boolean {
@@ -1025,7 +1089,7 @@ export const ToolEvents = {
 } as const;
 ```
 
-## 🎯 Key Benefits of XState
+## 🎯 Key Benefits of XState v5
 
 ### 1. **Visualizable**
 - XState Visualizer でステートマシンを可視化
@@ -1033,8 +1097,8 @@ export const ToolEvents = {
 - デバッグが容易
 
 ### 2. **Type-Safe**
-- TypeScript完全対応
-- 自動型生成
+- TypeScript完全対応（v5で大幅改善）
+- 型推論の強化により自動型生成が不要に
 - 実行時エラーの削減
 
 ### 3. **Testable**
@@ -1052,12 +1116,13 @@ export const ToolEvents = {
 - Vanilla JSでも使用可能
 - サーバーサイドでも動作
 
-## 📊 Migration Plan
+## 📊 Migration Plan (XState v5)
 
 ### Phase 1: Setup (Day 1)
 ```bash
-npm install xstate @xstate/react @xstate/cli
-npx xstate typegen "src/**/*.ts"
+# v5の最新版をインストール
+npm install xstate@^5.18.0 @xstate/react@^4.1.0
+# v5では型生成が不要（TypeScript統合が改善）
 ```
 
 ### Phase 2: Basic Tools (Day 2-3)
@@ -1067,22 +1132,22 @@ npx xstate typegen "src/**/*.ts"
 
 ### Phase 3: Advanced Features (Day 4-5)
 - 階層状態の実装
-- Actor Modelの活用
-- Service統合
+- Actor Modelの活用（v5の新Actor API）
+- Actors統合（v5: services → actors）
 
 ### Phase 4: Testing & Polish (Day 6-7)
 - Model-based testing
 - Performance optimization
 - Documentation
 
-## 🚀 Getting Started
+## 🚀 Getting Started (XState v5)
 
 ```bash
-# Install dependencies
-pnpm add xstate @xstate/react
+# Install XState v5 dependencies
+pnpm add xstate@^5.18.0 @xstate/react@^4.1.0
 
-# Generate types
-npx xstate typegen "src/**/*.ts"
+# v5では型生成は不要（TypeScript統合が改善）
+# 以前必要だった xstate typegen は不要に
 
 # Start development with Inspector
 XSTATE_INSPECT=true pnpm dev
@@ -1090,12 +1155,13 @@ XSTATE_INSPECT=true pnpm dev
 
 ## 📚 Resources
 
-- [XState Documentation](https://xstate.js.org/docs/)
+- [XState v5 Documentation](https://stately.ai/docs/xstate)
+- [XState v5 Migration Guide](https://stately.ai/docs/migration)
 - [XState Visualizer](https://stately.ai/viz)
 - [XState Catalogue](https://xstate-catalogue.com/)
-- [Video Course](https://frontendmasters.com/courses/xstate-v2/)
+- [Stately Studio](https://stately.ai/studio)
 
 ---
 
-*この設計により、宣言的で保守性の高いToolシステムが実現できます。*
-*最終更新: 2025-01-14*
+*XState v5の新機能により、より型安全で保守性の高いToolシステムが実現できます。*
+*最終更新: 2025-01-15*
