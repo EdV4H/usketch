@@ -191,3 +191,131 @@ export class ToolManager {
 		return this.actor.subscribe(callback);
 	}
 }
+
+// Types for the createToolManager factory
+interface CustomToolManagerContext {
+	tools: Record<string, AnyStateMachine>;
+	currentToolId: string | null;
+	currentToolActor: any | null;
+	activeTool: string | null;
+}
+
+type CustomToolManagerEvent =
+	| { type: "REGISTER_TOOL"; id: string; machine: AnyStateMachine }
+	| { type: "ACTIVATE_TOOL"; toolId: string }
+	| { type: "SWITCH_TOOL"; tool: string }
+	| { type: "DEACTIVATE" }
+	| { type: "FORWARD_EVENT"; payload: any }
+	| { type: "POINTER_DOWN"; position?: any; event?: any }
+	| { type: "POINTER_MOVE"; position?: any; event?: any }
+	| { type: "POINTER_UP"; position?: any; event?: any };
+
+// Factory function to create a tool manager with custom tools
+export function createToolManager(tools: Record<string, AnyStateMachine>) {
+	return setup({
+		types: {
+			context: {} as CustomToolManagerContext,
+			events: {} as CustomToolManagerEvent,
+		},
+		actions: {
+			registerTool: assign(({ context, event }) => {
+				if (event.type !== "REGISTER_TOOL") return {};
+				return {
+					tools: { ...context.tools, [event.id]: event.machine },
+				};
+			}),
+			activateTool: assign(({ context, event }) => {
+				if (event.type !== "ACTIVATE_TOOL") return {};
+				// Spawn the tool actor
+				const toolMachine = tools[event.toolId];
+				if (!toolMachine) {
+					console.warn(`Tool ${event.toolId} not found`);
+					return {};
+				}
+				const toolActor = createActor(toolMachine);
+				toolActor.start();
+				return {
+					currentToolId: event.toolId,
+					currentToolActor: toolActor,
+					activeTool: event.toolId,
+				};
+			}),
+			switchTool: assign(({ context, event }) => {
+				if (event.type !== "SWITCH_TOOL") return {};
+				// Stop current tool if exists
+				if (context.currentToolActor) {
+					context.currentToolActor.stop();
+				}
+				// Start new tool
+				const toolMachine = tools[event.tool];
+				if (!toolMachine) {
+					console.warn(`Tool ${event.tool} not found`);
+					return {};
+				}
+				const toolActor = createActor(toolMachine);
+				toolActor.start();
+				return {
+					currentToolId: event.tool,
+					currentToolActor: toolActor,
+					activeTool: event.tool,
+				};
+			}),
+			deactivateTool: assign(() => ({
+				currentToolId: null,
+				currentToolActor: null,
+				activeTool: null,
+			})),
+			forwardToTool: ({ context, event }) => {
+				if (event.type !== "FORWARD_EVENT" || !context.currentToolActor) return;
+				context.currentToolActor.send(event.payload);
+			},
+		},
+	}).createMachine({
+		id: "toolManager",
+		context: {
+			tools,
+			currentToolId: null,
+			currentToolActor: null,
+			activeTool: Object.keys(tools)[0] || null,
+		},
+		on: {
+			REGISTER_TOOL: {
+				actions: "registerTool",
+			},
+			ACTIVATE_TOOL: {
+				actions: "activateTool",
+			},
+			SWITCH_TOOL: {
+				actions: "switchTool",
+			},
+			DEACTIVATE: {
+				actions: "deactivateTool",
+			},
+			FORWARD_EVENT: {
+				actions: "forwardToTool",
+			},
+			// Forward common events as FORWARD_EVENT
+			POINTER_DOWN: {
+				actions: ({ context, event }) => {
+					if (context.currentToolActor) {
+						context.currentToolActor.send(event);
+					}
+				},
+			},
+			POINTER_MOVE: {
+				actions: ({ context, event }) => {
+					if (context.currentToolActor) {
+						context.currentToolActor.send(event);
+					}
+				},
+			},
+			POINTER_UP: {
+				actions: ({ context, event }) => {
+					if (context.currentToolActor) {
+						context.currentToolActor.send(event);
+					}
+				},
+			},
+		},
+	});
+}

@@ -21,6 +21,7 @@
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/shared-utils": "workspace:*",
 		"@usketch/drawing-tools": "workspace:*",
+		"@usketch/xstate-tools": "workspace:*",
 		"@usketch/store": "workspace:*",
 		"@usketch/ui-components": "workspace:*"
 	},

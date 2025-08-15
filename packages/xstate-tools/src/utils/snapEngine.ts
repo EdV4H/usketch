@@ -3,6 +3,8 @@
 import type { Point } from "../types";
 
 export class SnapEngine {
+	private threshold: number;
+
 	constructor(threshold: number = 10) {
 		this.threshold = threshold;
 	}

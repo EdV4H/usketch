@@ -19,6 +19,11 @@ export interface Shape {
 	y: number;
 	width?: number;
 	height?: number;
+	rotation?: number;
+	opacity?: number;
+	strokeColor?: string;
+	fillColor?: string;
+	strokeWidth?: number;
 	points?: Point[];
 	style?: ShapeStyle;
 }

@@ -57,6 +57,9 @@ importers:
       '@usketch/ui-components':
         specifier: workspace:*
         version: link:../../packages/ui-components
+      '@usketch/xstate-tools':
+        specifier: workspace:*
+        version: link:../../packages/xstate-tools
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -124,6 +127,9 @@ importers:
       '@usketch/ui-components':
         specifier: workspace:*
         version: link:../ui-components
+      '@usketch/xstate-tools':
+        specifier: workspace:*
+        version: link:../xstate-tools
     devDependencies:
       '@usketch/tsconfig':
         specifier: workspace:*
@@ -269,6 +275,12 @@ importers:
 
   packages/xstate-tools:
     dependencies:
+      '@usketch/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+      '@usketch/store':
+        specifier: workspace:*
+        version: link:../store
       '@xstate/react':
         specifier: ^4.1.0
         version: 4.1.3(@types/react@18.3.23)(react@18.3.1)(xstate@5.20.2)

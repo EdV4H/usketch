@@ -1,5 +1,7 @@
 // === Main exports for @usketch/xstate-tools ===
 
+// Adapters
+export { XStateToolManager } from "./adapters/toolManagerAdapter";
 // React Components
 export { Whiteboard } from "./components/Whiteboard";
 // React Hooks

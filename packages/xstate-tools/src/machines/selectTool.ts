@@ -398,3 +398,7 @@ export const selectToolMachine = setup({
 		},
 	},
 });
+
+export function createSelectTool() {
+	return selectToolMachine;
+}

@@ -1,4 +1,5 @@
-import { ToolManager } from "@usketch/drawing-tools";
+// Use XState ToolManager instead of legacy ToolManager
+
 import type { Camera, Shape } from "@usketch/shared-types";
 import {
 	applyCameraTransform,
@@ -8,6 +9,7 @@ import {
 } from "@usketch/shared-utils";
 import { whiteboardStore } from "@usketch/store";
 import { SelectionLayer } from "@usketch/ui-components";
+import { XStateToolManager } from "@usketch/xstate-tools";
 
 export class Canvas {
 	private canvasElement: HTMLElement;
@@ -19,7 +21,7 @@ export class Canvas {
 	private dragStart = { x: 0, y: 0 };
 	private dragStartCamera = { x: 0, y: 0, zoom: 1 };
 
-	private toolManager: ToolManager;
+	private toolManager: XStateToolManager;
 	private selectionLayer: SelectionLayer;
 
 	// Event handler references for cleanup
@@ -78,8 +80,8 @@ export class Canvas {
 		// Initialize selection layer
 		this.selectionLayer = new SelectionLayer(this.selectionContainer);
 
-		// Initialize tool manager
-		this.toolManager = new ToolManager();
+		// Initialize XState tool manager
+		this.toolManager = new XStateToolManager();
 
 		this.setupEventListeners();
 		this.subscribeToStore();
@@ -342,7 +344,7 @@ export class Canvas {
 	}
 
 	// Public method to access tool manager
-	public getToolManager(): ToolManager {
+	public getToolManager(): XStateToolManager {
 		return this.toolManager;
 	}
 
@@ -360,6 +362,9 @@ export class Canvas {
 		this.canvasElement.removeEventListener("contextmenu", this.boundHandleContextMenu);
 		document.removeEventListener("keydown", this.boundHandleKeyDown);
 		document.removeEventListener("keyup", this.boundHandleKeyUp);
+
+		// Clean up tool manager
+		this.toolManager.destroy();
 
 		// Remove elements from DOM
 		this.shapesContainer.remove();
