@@ -18,7 +18,8 @@
 	"dependencies": {
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/shared-utils": "workspace:*",
-		"@usketch/store": "workspace:*"
+		"@usketch/store": "workspace:*",
+		"xstate": "^5.20.2"
 	},
 	"devDependencies": {
 		"@usketch/tsconfig": "workspace:*",
