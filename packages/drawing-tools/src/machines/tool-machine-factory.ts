@@ -17,6 +17,7 @@ export function createToolMachine<
 			},
 			predictableActionArguments: true,
 			preserveActionOrder: true,
+			initial: "idle", // Add initial state
 
 			context: {
 				cursor: "default",
