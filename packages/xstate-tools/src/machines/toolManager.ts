@@ -267,16 +267,32 @@ export function createToolManager(tools: Record<string, AnyStateMachine>) {
 			})),
 			forwardToTool: ({ context, event }) => {
 				if (event.type !== "FORWARD_EVENT" || !context.currentToolActor) return;
-				context.currentToolActor.send(event.payload);
+				if (context.currentToolActor.getSnapshot().status === "active") {
+					context.currentToolActor.send(event.payload);
+				}
 			},
 		},
 	}).createMachine({
 		id: "toolManager",
-		context: {
-			tools,
-			currentToolId: null,
-			currentToolActor: null,
-			activeTool: Object.keys(tools)[0] || null,
+		context: () => {
+			// Start the first tool immediately
+			const firstToolId = Object.keys(tools)[0];
+			if (firstToolId && tools[firstToolId]) {
+				const toolActor = createActor(tools[firstToolId]);
+				toolActor.start();
+				return {
+					tools,
+					currentToolId: firstToolId,
+					currentToolActor: toolActor,
+					activeTool: firstToolId,
+				};
+			}
+			return {
+				tools,
+				currentToolId: null,
+				currentToolActor: null,
+				activeTool: null,
+			};
 		},
 		on: {
 			REGISTER_TOOL: {
@@ -297,21 +313,21 @@ export function createToolManager(tools: Record<string, AnyStateMachine>) {
 			// Forward common events as FORWARD_EVENT
 			POINTER_DOWN: {
 				actions: ({ context, event }) => {
-					if (context.currentToolActor) {
+					if (context.currentToolActor && context.currentToolActor.getSnapshot().status === "active") {
 						context.currentToolActor.send(event);
 					}
 				},
 			},
 			POINTER_MOVE: {
 				actions: ({ context, event }) => {
-					if (context.currentToolActor) {
+					if (context.currentToolActor && context.currentToolActor.getSnapshot().status === "active") {
 						context.currentToolActor.send(event);
 					}
 				},
 			},
 			POINTER_UP: {
 				actions: ({ context, event }) => {
-					if (context.currentToolActor) {
+					if (context.currentToolActor && context.currentToolActor.getSnapshot().status === "active") {
 						context.currentToolActor.send(event);
 					}
 				},
