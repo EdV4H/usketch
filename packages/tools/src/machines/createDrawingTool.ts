@@ -54,18 +54,32 @@ export function createDrawingTool() {
 
 				const newStroke = [...context.currentStroke, event.point];
 
-				// Create preview shape
+				// Calculate bounding box for preview
+				const minX = Math.min(...newStroke.map((p) => p.x));
+				const minY = Math.min(...newStroke.map((p) => p.y));
+				const maxX = Math.max(...newStroke.map((p) => p.x));
+				const maxY = Math.max(...newStroke.map((p) => p.y));
+
+				// Convert points to relative coordinates for preview
+				const relativePoints = newStroke.map((p) => ({
+					x: p.x - minX,
+					y: p.y - minY,
+				}));
+
+				// Create preview shape with proper coordinates
 				const previewShape: FreedrawShape = {
 					id: "preview-draw",
 					type: "freedraw",
-					x: 0,
-					y: 0,
+					x: minX,
+					y: minY,
+					width: maxX - minX,
+					height: maxY - minY,
 					rotation: 0,
 					opacity: context.strokeStyle.opacity,
 					strokeColor: context.strokeStyle.color,
 					fillColor: "transparent",
 					strokeWidth: context.strokeStyle.width,
-					points: newStroke,
+					points: relativePoints,
 				};
 
 				return {
@@ -84,6 +98,11 @@ export function createDrawingTool() {
 				const minY = Math.min(...context.currentStroke.map((p) => p.y));
 				const maxX = Math.max(...context.currentStroke.map((p) => p.x));
 				const maxY = Math.max(...context.currentStroke.map((p) => p.y));
+
+				// Debug logging
+				console.log("Freedraw stroke bounds:", { minX, minY, maxX, maxY });
+				console.log("First point:", context.currentStroke[0]);
+				console.log("Last point:", context.currentStroke[context.currentStroke.length - 1]);
 
 				// Convert points to relative coordinates
 				const relativePoints = context.currentStroke.map((p) => ({
@@ -106,6 +125,9 @@ export function createDrawingTool() {
 					strokeWidth: context.strokeStyle.width,
 					points: relativePoints,
 				};
+
+				// Debug: Log the created shape
+				console.log("Created freedraw shape:", shape);
 
 				// The adapter will handle adding to store
 				if (typeof window !== "undefined") {
