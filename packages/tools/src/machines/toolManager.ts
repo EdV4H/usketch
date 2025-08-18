@@ -147,7 +147,16 @@ type CustomToolManagerEvent =
 	| { type: "FORWARD_EVENT"; payload: any }
 	| { type: "POINTER_DOWN"; position?: any; event?: any }
 	| { type: "POINTER_MOVE"; position?: any; event?: any }
-	| { type: "POINTER_UP"; position?: any; event?: any };
+	| { type: "POINTER_UP"; position?: any; event?: any }
+	| {
+			type: "KEY_DOWN";
+			key?: string;
+			code?: string;
+			shiftKey?: boolean;
+			ctrlKey?: boolean;
+			metaKey?: boolean;
+			altKey?: boolean;
+	  };
 
 // Factory function to create a tool manager with custom tools
 export function createToolManager(tools: Record<string, AnyStateMachine>) {
@@ -186,7 +195,7 @@ export function createToolManager(tools: Record<string, AnyStateMachine>) {
 					context.currentToolActor.stop();
 				}
 				// Start new tool
-				const toolMachine = tools[event.tool];
+				const toolMachine = context.tools[event.tool];
 				if (!toolMachine) {
 					console.warn(`Tool ${event.tool} not found`);
 					return {};
@@ -213,6 +222,10 @@ export function createToolManager(tools: Record<string, AnyStateMachine>) {
 		},
 	}).createMachine({
 		id: "toolManager",
+		initial: "active",
+		states: {
+			active: {},
+		},
 		context: () => {
 			// Start the first tool immediately
 			const firstToolId = Object.keys(tools)[0];
@@ -220,14 +233,14 @@ export function createToolManager(tools: Record<string, AnyStateMachine>) {
 				const toolActor = createActor(tools[firstToolId]);
 				toolActor.start();
 				return {
-					tools,
+					tools: tools,
 					currentToolId: firstToolId,
 					currentToolActor: toolActor,
 					activeTool: firstToolId,
 				};
 			}
 			return {
-				tools,
+				tools: tools,
 				currentToolId: null,
 				currentToolActor: null,
 				activeTool: null,
@@ -277,6 +290,21 @@ export function createToolManager(tools: Record<string, AnyStateMachine>) {
 						context.currentToolActor.getSnapshot().status === "active"
 					) {
 						context.currentToolActor.send(event);
+					}
+				},
+			},
+			KEY_DOWN: {
+				actions: ({ context, event }) => {
+					if (
+						context.currentToolActor &&
+						context.currentToolActor.getSnapshot().status === "active"
+					) {
+						// Forward KEY_DOWN as ESCAPE if it's the Escape key
+						if (event.type === "KEY_DOWN" && event.key === "Escape") {
+							context.currentToolActor.send({ type: "ESCAPE" });
+						} else {
+							context.currentToolActor.send(event);
+						}
 					}
 				},
 			},

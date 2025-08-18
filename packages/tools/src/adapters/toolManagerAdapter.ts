@@ -2,6 +2,7 @@ import type { Point, Shape } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import type { Actor, AnyStateMachine } from "xstate";
 import { createActor } from "xstate";
+import { createDrawingTool } from "../machines/createDrawingTool";
 import { createRectangleTool } from "../machines/rectangleTool";
 import { createSelectTool } from "../machines/selectTool";
 import { createToolManager } from "../machines/toolManager";
@@ -15,11 +16,13 @@ export class ToolManager {
 		// Create tool machines
 		const selectTool = createSelectTool();
 		const rectangleTool = createRectangleTool();
+		const drawingTool = createDrawingTool();
 
 		// Create and start the tool manager
 		const toolManagerMachine = createToolManager({
 			select: selectTool,
 			rectangle: rectangleTool,
+			draw: drawingTool,
 		});
 
 		this.toolManagerActor = createActor(toolManagerMachine);
@@ -65,7 +68,8 @@ export class ToolManager {
 		// Map legacy tool IDs to XState tool IDs
 		const mapping: Record<string, string> = {
 			select: "select",
-			rectangle: "rectangle", // Rectangle has its own tool now
+			rectangle: "rectangle",
+			draw: "draw",
 		};
 		return mapping[toolId] || toolId;
 	}
@@ -76,7 +80,7 @@ export class ToolManager {
 
 	// Get preview shape from the current tool
 	getPreviewShape(): Shape | null {
-		if (this.currentToolId === "rectangle") {
+		if (this.currentToolId === "rectangle" || this.currentToolId === "draw") {
 			const snapshot = this.toolManagerActor.getSnapshot();
 			const toolActor = snapshot.context.currentToolActor;
 			if (toolActor) {
@@ -169,8 +173,8 @@ export class ToolManager {
 			},
 		});
 
-		// Check if rectangle tool created a shape
-		if (this.currentToolId === "rectangle") {
+		// Check if rectangle or draw tool created a shape
+		if (this.currentToolId === "rectangle" || this.currentToolId === "draw") {
 			if (typeof window !== "undefined" && window.__lastCreatedShape) {
 				whiteboardStore.getState().addShape(window.__lastCreatedShape);
 				delete window.__lastCreatedShape;

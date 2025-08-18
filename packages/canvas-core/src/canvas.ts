@@ -285,6 +285,9 @@ export class Canvas {
 			case "ellipse":
 				this.createEllipseElement(element, shape);
 				break;
+			case "freedraw":
+				this.createFreedrawElement(element, shape);
+				break;
 			// Add other shape types as needed
 		}
 
@@ -314,6 +317,57 @@ export class Canvas {
 		element.style.border = `${shape.strokeWidth}px solid ${shape.strokeColor}`;
 		element.style.borderRadius = "50%";
 		element.style.boxSizing = "border-box";
+	}
+
+	private createFreedrawElement(
+		element: HTMLElement,
+		shape: Shape & { points: Array<{ x: number; y: number }> },
+	): void {
+		// Find the bounding box of the points
+		const minX = Math.min(...shape.points.map((p) => p.x));
+		const minY = Math.min(...shape.points.map((p) => p.y));
+		const maxX = Math.max(...shape.points.map((p) => p.x));
+		const maxY = Math.max(...shape.points.map((p) => p.y));
+
+		const width = maxX - minX;
+		const height = maxY - minY;
+
+		element.style.width = `${width}px`;
+		element.style.height = `${height}px`;
+		element.style.left = `${minX}px`;
+		element.style.top = `${minY}px`;
+
+		// Create an SVG to render the path
+		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+		svg.setAttribute("width", width.toString());
+		svg.setAttribute("height", height.toString());
+		svg.style.position = "absolute";
+		svg.style.top = "0";
+		svg.style.left = "0";
+		svg.style.width = "100%";
+		svg.style.height = "100%";
+
+		// Create path element
+		const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+
+		// Build path data (adjust points relative to bounding box)
+		const pathData = shape.points
+			.map((point, index) => {
+				const x = point.x - minX;
+				const y = point.y - minY;
+				return index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
+			})
+			.join(" ");
+
+		path.setAttribute("d", pathData);
+		path.setAttribute("stroke", shape.strokeColor);
+		path.setAttribute("stroke-width", shape.strokeWidth.toString());
+		path.setAttribute("fill", "none");
+		path.setAttribute("stroke-linecap", "round");
+		path.setAttribute("stroke-linejoin", "round");
+
+		svg.appendChild(path);
+		element.appendChild(svg);
 	}
 
 	// Method to add a test shape for demonstration
