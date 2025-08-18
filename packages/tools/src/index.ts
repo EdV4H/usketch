@@ -5,7 +5,7 @@ export { ToolManager } from "./adapters/toolManagerAdapter";
 
 // Machine exports for advanced usage
 export type { DrawingToolContext, DrawingToolEvent } from "./machines/drawingTool";
-export { drawingToolMachine } from "./machines/drawingTool";
+export { createDrawingTool } from "./machines/drawingTool";
 export type { SelectToolContext, SelectToolEvent } from "./machines/selectTool";
 export { selectToolMachine } from "./machines/selectTool";
 export { createToolMachine } from "./machines/toolMachineFactory";

@@ -2,7 +2,7 @@ import type { Point, Shape } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import type { Actor, AnyStateMachine } from "xstate";
 import { createActor } from "xstate";
-import { createDrawingTool } from "../machines/createDrawingTool";
+import { createDrawingTool } from "../machines/drawingTool";
 import { createRectangleTool } from "../machines/rectangleTool";
 import { createSelectTool } from "../machines/selectTool";
 import { createToolManager } from "../machines/toolManager";
