@@ -54,16 +54,25 @@ export function createDrawingTool() {
 
 				const newStroke = [...context.currentStroke, event.point];
 
-				// Create preview shape with absolute points
+				// Calculate bounding box for preview
+				const minX = Math.min(...newStroke.map((p) => p.x));
+				const minY = Math.min(...newStroke.map((p) => p.y));
+				const maxX = Math.max(...newStroke.map((p) => p.x));
+				const maxY = Math.max(...newStroke.map((p) => p.y));
+
+				// Add padding for stroke width to prevent clipping
+				const padding = Math.ceil(context.strokeStyle.width / 2);
+
+				// Create preview shape with proper bounding box
 				const previewShape: FreedrawShape = {
 					id: "preview-draw",
 					type: "freedraw",
-					x: 0,
-					y: 0,
-					width: 0,
-					height: 0,
+					x: minX - padding,
+					y: minY - padding,
+					width: Math.max(1, maxX - minX + padding * 2),
+					height: Math.max(1, maxY - minY + padding * 2),
 					rotation: 0,
-					opacity: context.strokeStyle.opacity,
+					opacity: context.strokeStyle.opacity * 0.5, // Make preview semi-transparent
 					strokeColor: context.strokeStyle.color,
 					fillColor: "transparent",
 					strokeWidth: context.strokeStyle.width,
@@ -81,15 +90,24 @@ export function createDrawingTool() {
 					return;
 				}
 
+				// Calculate bounding box for proper positioning
+				const minX = Math.min(...context.currentStroke.map((p) => p.x));
+				const minY = Math.min(...context.currentStroke.map((p) => p.y));
+				const maxX = Math.max(...context.currentStroke.map((p) => p.x));
+				const maxY = Math.max(...context.currentStroke.map((p) => p.y));
+
+				// Add padding for stroke width to prevent clipping
+				const padding = Math.ceil(context.strokeStyle.width / 2);
+
 				// Create the final shape with absolute points
-				// The shape position is handled by transform, not by the points
+				// Store the bounding box position in x, y for transform
 				const shape: FreedrawShape = {
 					id: `draw-${Date.now()}`,
 					type: "freedraw",
-					x: 0,
-					y: 0,
-					width: 0, // Will be calculated by canvas
-					height: 0, // Will be calculated by canvas
+					x: minX - padding,
+					y: minY - padding,
+					width: maxX - minX + padding * 2 || 1, // Ensure minimum width
+					height: maxY - minY + padding * 2 || 1, // Ensure minimum height
 					rotation: 0,
 					opacity: context.strokeStyle.opacity,
 					strokeColor: context.strokeStyle.color,
@@ -99,7 +117,16 @@ export function createDrawingTool() {
 				};
 
 				// Debug: Log the created shape
-				console.log("Created freedraw shape:", shape);
+				console.log("Created freedraw shape:", {
+					id: shape.id,
+					x: shape.x,
+					y: shape.y,
+					width: shape.width,
+					height: shape.height,
+					pointsCount: shape.points.length,
+					firstPoint: shape.points[0],
+					lastPoint: shape.points[shape.points.length - 1],
+				});
 
 				// The adapter will handle adding to store
 				if (typeof window !== "undefined") {

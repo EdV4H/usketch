@@ -23,31 +23,58 @@ export function getShapeAtPoint(point: Point): Shape | null {
 // Check if a point is inside a shape
 function isPointInShape(point: Point, shape: any): boolean {
 	// Handle different shape types
-	if (shape.type === "freedraw" && shape.points) {
-		// For freedraw shapes, check if point is within the bounding box
-		const minX = Math.min(...shape.points.map((p: Point) => p.x));
-		const minY = Math.min(...shape.points.map((p: Point) => p.y));
-		const maxX = Math.max(...shape.points.map((p: Point) => p.x));
-		const maxY = Math.max(...shape.points.map((p: Point) => p.y));
+	if (shape.type === "freedraw") {
+		// For freedraw shapes with x, y, width, height (new approach)
+		if (
+			shape.x !== undefined &&
+			shape.y !== undefined &&
+			shape.width !== undefined &&
+			shape.height !== undefined
+		) {
+			const padding = 10;
+			const isInside =
+				point.x >= shape.x - padding &&
+				point.x <= shape.x + shape.width + padding &&
+				point.y >= shape.y - padding &&
+				point.y <= shape.y + shape.height + padding;
 
-		// Add some padding for easier selection
-		const padding = 10;
-		const isInside =
-			point.x >= minX - padding &&
-			point.x <= maxX + padding &&
-			point.y >= minY - padding &&
-			point.y <= maxY + padding;
+			console.log("Checking freedraw shape (with bbox):", {
+				shapeX: shape.x,
+				shapeY: shape.y,
+				width: shape.width,
+				height: shape.height,
+				point,
+				isInside,
+			});
 
-		console.log("Checking freedraw shape bounds:", {
-			minX,
-			maxX,
-			minY,
-			maxY,
-			point,
-			isInside,
-		});
+			return isInside;
+		}
+		// Fallback for freedraw shapes with points array (old approach)
+		else if (shape.points) {
+			const minX = Math.min(...shape.points.map((p: Point) => p.x));
+			const minY = Math.min(...shape.points.map((p: Point) => p.y));
+			const maxX = Math.max(...shape.points.map((p: Point) => p.x));
+			const maxY = Math.max(...shape.points.map((p: Point) => p.y));
 
-		return isInside;
+			// Add some padding for easier selection
+			const padding = 10;
+			const isInside =
+				point.x >= minX - padding &&
+				point.x <= maxX + padding &&
+				point.y >= minY - padding &&
+				point.y <= maxY + padding;
+
+			console.log("Checking freedraw shape (with points):", {
+				minX,
+				maxX,
+				minY,
+				maxY,
+				point,
+				isInside,
+			});
+
+			return isInside;
+		}
 	}
 
 	// For shapes with width and height (rectangle, ellipse)

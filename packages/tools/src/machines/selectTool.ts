@@ -62,14 +62,9 @@ export const selectToolMachine = setup({
 				const shape = getShape(id);
 				if (shape) {
 					positions.set(id, { x: shape.x, y: shape.y });
-
-					// Store original points for freedraw shapes
-					if (shape.type === "freedraw" && shape.points) {
-						// Deep copy the points array
-						points.set(
-							id,
-							shape.points.map((p: Point) => ({ ...p })),
-						);
+					// For freedraw shapes, store initial points
+					if (shape.type === "freedraw" && (shape as any).points) {
+						points.set(id, [...(shape as any).points]);
 					}
 				}
 			});
@@ -147,13 +142,9 @@ export const selectToolMachine = setup({
 				const shape = getShape(id);
 				if (shape) {
 					positions.set(id, { x: shape.x, y: shape.y });
-
-					// Store original points for freedraw shapes
-					if (shape.type === "freedraw" && shape.points) {
-						points.set(
-							id,
-							shape.points.map((p: Point) => ({ ...p })),
-						);
+					// For freedraw shapes, store initial points
+					if (shape.type === "freedraw" && (shape as any).points) {
+						points.set(id, [...(shape as any).points]);
 					}
 				}
 			});
@@ -173,31 +164,27 @@ export const selectToolMachine = setup({
 
 			// Apply translation to all selected shapes
 			context.selectedIds.forEach((id) => {
+				const initial = context.initialPositions.get(id);
 				const shape = getShape(id);
-				if (!shape) return;
+				if (initial && shape) {
+					// Update position for all shapes
+					const updates: any = {
+						x: initial.x + offset.x,
+						y: initial.y + offset.y,
+					};
 
-				// For freedraw shapes, update the points array
-				if (shape.type === "freedraw" && shape.points) {
-					const originalPoints = context.initialPoints.get(id);
-					if (originalPoints) {
-						const translatedPoints = originalPoints.map((p: Point) => ({
-							x: p.x + offset.x,
-							y: p.y + offset.y,
-						}));
+					// For freedraw shapes, also update points
+					if (shape.type === "freedraw" && (shape as any).points) {
+						const initialPoints = context.initialPoints.get(id);
+						if (initialPoints) {
+							updates.points = initialPoints.map((p: Point) => ({
+								x: p.x + offset.x,
+								y: p.y + offset.y,
+							}));
+						}
+					}
 
-						updateShape(id, {
-							points: translatedPoints,
-						});
-					}
-				} else {
-					// For regular shapes, just update x and y
-					const initial = context.initialPositions.get(id);
-					if (initial) {
-						updateShape(id, {
-							x: initial.x + offset.x,
-							y: initial.y + offset.y,
-						});
-					}
+					updateShape(id, updates);
 				}
 			});
 
@@ -209,23 +196,22 @@ export const selectToolMachine = setup({
 		},
 
 		cancelTranslation: ({ context }) => {
-			// Restore original positions and points
+			// Restore original positions for all shapes
 			context.selectedIds.forEach((id) => {
+				const originalPos = context.initialPositions.get(id);
 				const shape = getShape(id);
-				if (!shape) return;
+				if (originalPos && shape) {
+					const updates: any = { ...originalPos };
 
-				if (shape.type === "freedraw") {
-					// Restore original points for freedraw shapes
-					const originalPoints = context.initialPoints.get(id);
-					if (originalPoints) {
-						updateShape(id, { points: originalPoints });
+					// For freedraw shapes, restore original points
+					if (shape.type === "freedraw") {
+						const originalPoints = context.initialPoints.get(id);
+						if (originalPoints) {
+							updates.points = originalPoints;
+						}
 					}
-				} else {
-					// Restore original position for regular shapes
-					const originalPos = context.initialPositions.get(id);
-					if (originalPos) {
-						updateShape(id, originalPos);
-					}
+
+					updateShape(id, updates);
 				}
 			});
 		},

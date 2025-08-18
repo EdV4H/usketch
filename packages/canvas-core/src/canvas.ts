@@ -323,19 +323,17 @@ export class Canvas {
 		element: HTMLElement,
 		shape: Shape & { points: Array<{ x: number; y: number }> },
 	): void {
-		// Find the bounding box of the points
-		const minX = Math.min(...shape.points.map((p) => p.x));
-		const minY = Math.min(...shape.points.map((p) => p.y));
-		const maxX = Math.max(...shape.points.map((p) => p.x));
-		const maxY = Math.max(...shape.points.map((p) => p.y));
-
-		const width = maxX - minX;
-		const height = maxY - minY;
+		// Use the shape's x, y, width, height that were set when created
+		// These values should already be set by createDrawingTool
+		const shapeX = shape.x || 0;
+		const shapeY = shape.y || 0;
+		const width = (shape as any).width || 100;
+		const height = (shape as any).height || 100;
+		const strokeWidth = shape.strokeWidth || 2;
 
 		element.style.width = `${width}px`;
 		element.style.height = `${height}px`;
-		element.style.left = `${minX}px`;
-		element.style.top = `${minY}px`;
+		// Don't set left/top - transform will handle positioning
 
 		// Create an SVG to render the path
 		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -346,22 +344,24 @@ export class Canvas {
 		svg.style.left = "0";
 		svg.style.width = "100%";
 		svg.style.height = "100%";
+		// Add overflow visible to prevent clipping at edges
+		svg.style.overflow = "visible";
 
 		// Create path element
 		const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
 
-		// Build path data (adjust points relative to bounding box)
+		// Build path data (adjust points relative to shape's position, accounting for padding)
 		const pathData = shape.points
 			.map((point, index) => {
-				const x = point.x - minX;
-				const y = point.y - minY;
+				const x = point.x - shapeX;
+				const y = point.y - shapeY;
 				return index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
 			})
 			.join(" ");
 
 		path.setAttribute("d", pathData);
 		path.setAttribute("stroke", shape.strokeColor);
-		path.setAttribute("stroke-width", shape.strokeWidth.toString());
+		path.setAttribute("stroke-width", strokeWidth.toString());
 		path.setAttribute("fill", "none");
 		path.setAttribute("stroke-linecap", "round");
 		path.setAttribute("stroke-linejoin", "round");

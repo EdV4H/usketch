@@ -6,6 +6,7 @@ import { createDrawingTool } from "../machines/createDrawingTool";
 import { createRectangleTool } from "../machines/rectangleTool";
 import { createSelectTool } from "../machines/selectTool";
 import { createToolManager } from "../machines/toolManager";
+import { getShapeAtPoint } from "../utils/geometry";
 
 // ToolManager implementation using XState v5
 export class ToolManager {
@@ -93,10 +94,10 @@ export class ToolManager {
 
 	// Event delegation methods
 	handlePointerDown(event: PointerEvent, worldPos: Point): void {
-		// Get the target element
-		const target = event.target as HTMLElement;
-		const isShape = target?.dataset?.shape === "true";
-		const shapeId = target?.dataset?.shapeId;
+		// Get shape at the clicked position using world coordinates
+		const shape = getShapeAtPoint(worldPos);
+		const isShape = !!shape;
+		const shapeId = shape?.id;
 
 		// If select tool, handle selection logic
 		if (this.currentToolId === "select") {
@@ -136,7 +137,7 @@ export class ToolManager {
 				ctrlKey: event.ctrlKey,
 				metaKey: event.metaKey,
 				altKey: event.altKey,
-				target: isShape ? { id: shapeId, element: target } : null,
+				target: isShape ? { id: shapeId, element: event.target as HTMLElement } : null,
 			},
 		});
 	}
