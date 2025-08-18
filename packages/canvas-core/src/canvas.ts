@@ -323,13 +323,19 @@ export class Canvas {
 		element: HTMLElement,
 		shape: Shape & { points: Array<{ x: number; y: number }> },
 	): void {
-		// For freedraw shapes, points are already relative to the shape's origin
-		// and the shape has x, y, width, height already set
-		const width = shape.width || 100;
-		const height = shape.height || 100;
+		// Find the bounding box of the points
+		const minX = Math.min(...shape.points.map((p) => p.x));
+		const minY = Math.min(...shape.points.map((p) => p.y));
+		const maxX = Math.max(...shape.points.map((p) => p.x));
+		const maxY = Math.max(...shape.points.map((p) => p.y));
+
+		const width = maxX - minX;
+		const height = maxY - minY;
 
 		element.style.width = `${width}px`;
 		element.style.height = `${height}px`;
+		element.style.left = `${minX}px`;
+		element.style.top = `${minY}px`;
 
 		// Create an SVG to render the path
 		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -344,11 +350,11 @@ export class Canvas {
 		// Create path element
 		const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
 
-		// Build path data (points are already relative to shape origin)
+		// Build path data (adjust points relative to bounding box)
 		const pathData = shape.points
 			.map((point, index) => {
-				const x = point.x;
-				const y = point.y;
+				const x = point.x - minX;
+				const y = point.y - minY;
 				return index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
 			})
 			.join(" ");

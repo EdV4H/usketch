@@ -54,32 +54,20 @@ export function createDrawingTool() {
 
 				const newStroke = [...context.currentStroke, event.point];
 
-				// Calculate bounding box for preview
-				const minX = Math.min(...newStroke.map((p) => p.x));
-				const minY = Math.min(...newStroke.map((p) => p.y));
-				const maxX = Math.max(...newStroke.map((p) => p.x));
-				const maxY = Math.max(...newStroke.map((p) => p.y));
-
-				// Convert points to relative coordinates for preview
-				const relativePoints = newStroke.map((p) => ({
-					x: p.x - minX,
-					y: p.y - minY,
-				}));
-
-				// Create preview shape with proper coordinates
+				// Create preview shape with absolute points
 				const previewShape: FreedrawShape = {
 					id: "preview-draw",
 					type: "freedraw",
-					x: minX,
-					y: minY,
-					width: maxX - minX,
-					height: maxY - minY,
+					x: 0,
+					y: 0,
+					width: 0,
+					height: 0,
 					rotation: 0,
 					opacity: context.strokeStyle.opacity,
 					strokeColor: context.strokeStyle.color,
 					fillColor: "transparent",
 					strokeWidth: context.strokeStyle.width,
-					points: relativePoints,
+					points: newStroke, // Keep absolute world coordinates
 				};
 
 				return {
@@ -93,37 +81,21 @@ export function createDrawingTool() {
 					return;
 				}
 
-				// Calculate bounding box
-				const minX = Math.min(...context.currentStroke.map((p) => p.x));
-				const minY = Math.min(...context.currentStroke.map((p) => p.y));
-				const maxX = Math.max(...context.currentStroke.map((p) => p.x));
-				const maxY = Math.max(...context.currentStroke.map((p) => p.y));
-
-				// Debug logging
-				console.log("Freedraw stroke bounds:", { minX, minY, maxX, maxY });
-				console.log("First point:", context.currentStroke[0]);
-				console.log("Last point:", context.currentStroke[context.currentStroke.length - 1]);
-
-				// Convert points to relative coordinates
-				const relativePoints = context.currentStroke.map((p) => ({
-					x: p.x - minX,
-					y: p.y - minY,
-				}));
-
-				// Create the final shape with normalized coordinates
+				// Create the final shape with absolute points
+				// The shape position is handled by transform, not by the points
 				const shape: FreedrawShape = {
 					id: `draw-${Date.now()}`,
 					type: "freedraw",
-					x: minX,
-					y: minY,
-					width: maxX - minX,
-					height: maxY - minY,
+					x: 0,
+					y: 0,
+					width: 0, // Will be calculated by canvas
+					height: 0, // Will be calculated by canvas
 					rotation: 0,
 					opacity: context.strokeStyle.opacity,
 					strokeColor: context.strokeStyle.color,
 					fillColor: "transparent",
 					strokeWidth: context.strokeStyle.width,
-					points: relativePoints,
+					points: context.currentStroke, // Keep absolute world coordinates
 				};
 
 				// Debug: Log the created shape
