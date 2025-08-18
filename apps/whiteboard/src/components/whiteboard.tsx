@@ -21,33 +21,35 @@ export const Whiteboard: React.FC = () => {
 		}
 
 		// Add test shapes only once (protect against StrictMode double render)
-		// Disabled for E2E tests - uncomment to add demo shapes
-		// if (!shapesAddedRef.current) {
-		// 	shapesAddedRef.current = true;
+		// Skip demo shapes if running E2E tests (when URL has ?e2e=true)
+		const isE2E = new URLSearchParams(window.location.search).has("e2e");
 
-		// 	// Add some test shapes for demonstration (matching vanilla version)
-		// 	setTimeout(() => {
-		// 		canvasRef.current?.addTestShape();
-		// 	}, 100);
+		if (!shapesAddedRef.current && !isE2E) {
+			shapesAddedRef.current = true;
 
-		// 	// Add another test shape
-		// 	setTimeout(() => {
-		// 		const testShape2 = {
-		// 			id: `test-ellipse-${Date.now()}`,
-		// 			type: "ellipse" as const,
-		// 			x: 350,
-		// 			y: 200,
-		// 			width: 150,
-		// 			height: 100,
-		// 			rotation: 0,
-		// 			opacity: 1,
-		// 			strokeColor: "#d63384",
-		// 			fillColor: "#ffe0e6",
-		// 			strokeWidth: 3,
-		// 		};
-		// 		whiteboardStore.getState().addShape(testShape2);
-		// 	}, 200);
-		// }
+			// Add some test shapes for demonstration (matching vanilla version)
+			setTimeout(() => {
+				canvasRef.current?.addTestShape();
+			}, 100);
+
+			// Add another test shape
+			setTimeout(() => {
+				const testShape2 = {
+					id: `test-ellipse-${Date.now()}`,
+					type: "ellipse" as const,
+					x: 350,
+					y: 200,
+					width: 150,
+					height: 100,
+					rotation: 0,
+					opacity: 1,
+					strokeColor: "#d63384",
+					fillColor: "#ffe0e6",
+					strokeWidth: 3,
+				};
+				whiteboardStore.getState().addShape(testShape2);
+			}, 200);
+		}
 
 		// Cleanup on unmount
 		return () => {
