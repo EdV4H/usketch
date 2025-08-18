@@ -246,9 +246,9 @@ export class Canvas {
 			// Set selection state
 			if (selectedShapeIds.has(shape.id)) {
 				shapeElement.classList.add("selected");
-				shapeElement.dataset.selected = "true";
+				shapeElement.dataset["selected"] = "true";
 			} else {
-				shapeElement.dataset.selected = "false";
+				shapeElement.dataset["selected"] = "false";
 			}
 
 			this.shapesContainer.appendChild(shapeElement);
@@ -267,8 +267,8 @@ export class Canvas {
 		element.style.pointerEvents = "auto";
 
 		// Set data attributes for shape identification
-		element.dataset.shapeId = shape.id;
-		element.dataset.shapeType = shape.type;
+		element.dataset["shapeId"] = shape.id;
+		element.dataset["shapeType"] = shape.type;
 		element.setAttribute("data-shape", "true");
 
 		// Apply common styles

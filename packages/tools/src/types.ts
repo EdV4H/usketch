@@ -14,7 +14,7 @@ export interface Bounds {
 
 export interface Shape {
 	id: string;
-	type: "rectangle" | "ellipse" | "path" | "text" | "arrow";
+	type: "rectangle" | "ellipse" | "path" | "text" | "arrow" | "freedraw";
 	x: number;
 	y: number;
 	width?: number;

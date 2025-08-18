@@ -12,16 +12,52 @@ export function getShapeAtPoint(point: Point): Shape | null {
 	for (let i = shapes.length - 1; i >= 0; i--) {
 		const shape = shapes[i];
 		if (isPointInShape(point, shape)) {
+			console.log("Found shape at point:", shape.id, shape.type);
 			return shape as Shape;
 		}
 	}
+	console.log("No shape found at point:", point);
 	return null;
 }
 
 // Check if a point is inside a shape
 function isPointInShape(point: Point, shape: any): boolean {
-	const { x, y, width, height } = shape;
-	return point.x >= x && point.x <= x + width && point.y >= y && point.y <= y + height;
+	// Handle different shape types
+	if (shape.type === "freedraw" && shape.points) {
+		// For freedraw shapes, check if point is within the bounding box
+		const minX = Math.min(...shape.points.map((p: Point) => p.x));
+		const minY = Math.min(...shape.points.map((p: Point) => p.y));
+		const maxX = Math.max(...shape.points.map((p: Point) => p.x));
+		const maxY = Math.max(...shape.points.map((p: Point) => p.y));
+
+		// Add some padding for easier selection
+		const padding = 10;
+		const isInside =
+			point.x >= minX - padding &&
+			point.x <= maxX + padding &&
+			point.y >= minY - padding &&
+			point.y <= maxY + padding;
+
+		console.log("Checking freedraw shape bounds:", {
+			minX,
+			maxX,
+			minY,
+			maxY,
+			point,
+			isInside,
+		});
+
+		return isInside;
+	}
+
+	// For shapes with width and height (rectangle, ellipse)
+	if (shape.width !== undefined && shape.height !== undefined) {
+		const { x, y, width, height } = shape;
+		return point.x >= x && point.x <= x + width && point.y >= y && point.y <= y + height;
+	}
+
+	// Default case - use x, y if available
+	return false;
 }
 
 // Get shapes within bounds
@@ -36,12 +72,36 @@ export function getShapesInBounds(bounds: Bounds): Shape[] {
 
 // Check if shape intersects with bounds
 function isShapeInBounds(shape: any, bounds: Bounds): boolean {
-	const { x, y, width, height } = shape;
+	let shapeX: number, shapeY: number, shapeWidth: number, shapeHeight: number;
+
+	// Handle different shape types
+	if (shape.type === "freedraw" && shape.points) {
+		// Calculate bounding box for freedraw shapes
+		const minX = Math.min(...shape.points.map((p: Point) => p.x));
+		const minY = Math.min(...shape.points.map((p: Point) => p.y));
+		const maxX = Math.max(...shape.points.map((p: Point) => p.x));
+		const maxY = Math.max(...shape.points.map((p: Point) => p.y));
+
+		shapeX = minX;
+		shapeY = minY;
+		shapeWidth = maxX - minX;
+		shapeHeight = maxY - minY;
+	} else if (shape.width !== undefined && shape.height !== undefined) {
+		// Shapes with explicit width and height
+		shapeX = shape.x;
+		shapeY = shape.y;
+		shapeWidth = shape.width;
+		shapeHeight = shape.height;
+	} else {
+		// Can't determine bounds
+		return false;
+	}
+
 	return !(
-		x + width < bounds.x ||
-		x > bounds.x + bounds.width ||
-		y + height < bounds.y ||
-		y > bounds.y + bounds.height
+		shapeX + shapeWidth < bounds.x ||
+		shapeX > bounds.x + bounds.width ||
+		shapeY + shapeHeight < bounds.y ||
+		shapeY > bounds.y + bounds.height
 	);
 }
 
