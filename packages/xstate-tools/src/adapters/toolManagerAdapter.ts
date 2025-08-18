@@ -68,6 +68,19 @@ export class XStateToolManager {
 		return this.currentToolId;
 	}
 
+	// Get preview shape from the current tool
+	getPreviewShape(): any {
+		if (this.currentToolId === "rectangle") {
+			const snapshot = this.toolManagerActor.getSnapshot();
+			const toolActor = snapshot.context.currentToolActor;
+			if (toolActor) {
+				const toolSnapshot = toolActor.getSnapshot();
+				return toolSnapshot.context.previewShape;
+			}
+		}
+		return null;
+	}
+
 	// Event delegation methods
 	handlePointerDown(event: PointerEvent, worldPos: Point): void {
 		// Get the target element

@@ -15,6 +15,7 @@ export class Canvas {
 	private canvasElement: HTMLElement;
 	private shapesContainer: HTMLElement;
 	private selectionContainer: HTMLElement;
+	private previewContainer: HTMLElement;
 	private gridElement: HTMLElement;
 
 	private isDragging = false;
@@ -65,6 +66,18 @@ export class Canvas {
 		// Add shapes container after grid
 		canvasElement.appendChild(this.shapesContainer);
 
+		// Create preview container for drawing tools
+		this.previewContainer = document.createElement("div");
+		this.previewContainer.className = "preview-layer";
+		this.previewContainer.style.position = "absolute";
+		this.previewContainer.style.top = "0";
+		this.previewContainer.style.left = "0";
+		this.previewContainer.style.width = "100%";
+		this.previewContainer.style.height = "100%";
+		this.previewContainer.style.transformOrigin = "0 0";
+		this.previewContainer.style.pointerEvents = "none";
+		canvasElement.appendChild(this.previewContainer);
+
 		// Create selection container
 		this.selectionContainer = document.createElement("div");
 		this.selectionContainer.className = "selection-layer";
@@ -110,6 +123,8 @@ export class Canvas {
 		// Handle tool events first
 		if (event.button === 0 && !event.altKey) {
 			this.toolManager.handlePointerDown(event as PointerEvent, worldPos);
+			// Start preview if needed
+			this.updatePreview();
 		} else if (event.button === 1 || (event.button === 0 && event.altKey)) {
 			// Middle mouse button or Alt+Left mouse for panning
 			this.isDragging = true;
@@ -136,6 +151,8 @@ export class Canvas {
 		} else {
 			// Handle tool events
 			this.toolManager.handlePointerMove(event as PointerEvent, worldPos);
+			// Update preview if needed
+			this.updatePreview();
 		}
 	}
 
@@ -150,6 +167,8 @@ export class Canvas {
 		} else {
 			// Handle tool events
 			this.toolManager.handlePointerUp(event as PointerEvent, worldPos);
+			// Clear preview after mouse up
+			this.updatePreview();
 		}
 	}
 
@@ -200,6 +219,9 @@ export class Canvas {
 	private updateCamera(camera: Camera): void {
 		// Update shapes container transform
 		applyCameraTransform(this.shapesContainer, camera);
+
+		// Update preview container transform
+		applyCameraTransform(this.previewContainer, camera);
 
 		// Update selection container transform
 		applyCameraTransform(this.selectionContainer, camera);
@@ -352,6 +374,24 @@ export class Canvas {
 		return whiteboardStore;
 	}
 
+	// Update preview for drawing tools
+	private updatePreview(): void {
+		const previewShape = this.toolManager.getPreviewShape();
+		
+		if (previewShape) {
+			// Clear previous preview
+			this.previewContainer.innerHTML = "";
+			// Create preview element
+			const element = this.createShapeElement(previewShape);
+			element.style.opacity = "0.5";
+			element.style.pointerEvents = "none";
+			this.previewContainer.appendChild(element);
+		} else {
+			// Clear preview
+			this.previewContainer.innerHTML = "";
+		}
+	}
+
 	// Cleanup method for React
 	public destroy(): void {
 		// Remove event listeners
@@ -368,6 +408,7 @@ export class Canvas {
 
 		// Remove elements from DOM
 		this.shapesContainer.remove();
+		this.previewContainer.remove();
 		this.selectionContainer.remove();
 	}
 }
