@@ -7,13 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      '@xstate/react':
-        specifier: ^4.1.0
-        version: 4.1.3(@types/react@18.3.23)(react@18.3.1)(xstate@5.20.2)
-      xstate:
-        specifier: ^5.18.0
-        version: 5.20.2
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.1.4
@@ -42,9 +35,6 @@ importers:
       '@usketch/canvas-core':
         specifier: workspace:*
         version: link:../../packages/canvas-core
-      '@usketch/drawing-tools':
-        specifier: workspace:*
-        version: link:../../packages/drawing-tools
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -54,12 +44,12 @@ importers:
       '@usketch/store':
         specifier: workspace:*
         version: link:../../packages/store
+      '@usketch/tools':
+        specifier: workspace:*
+        version: link:../../packages/tools
       '@usketch/ui-components':
         specifier: workspace:*
         version: link:../../packages/ui-components
-      '@usketch/xstate-tools':
-        specifier: workspace:*
-        version: link:../../packages/xstate-tools
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -112,9 +102,6 @@ importers:
 
   packages/canvas-core:
     dependencies:
-      '@usketch/drawing-tools':
-        specifier: workspace:*
-        version: link:../drawing-tools
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../shared-types
@@ -124,12 +111,12 @@ importers:
       '@usketch/store':
         specifier: workspace:*
         version: link:../store
+      '@usketch/tools':
+        specifier: workspace:*
+        version: link:../tools
       '@usketch/ui-components':
         specifier: workspace:*
         version: link:../ui-components
-      '@usketch/xstate-tools':
-        specifier: workspace:*
-        version: link:../xstate-tools
     devDependencies:
       '@usketch/tsconfig':
         specifier: workspace:*
@@ -140,28 +127,6 @@ importers:
       typescript:
         specifier: ^5.0.0
         version: 5.8.3
-      vitest:
-        specifier: ^2.1.8
-        version: 2.1.9
-
-  packages/drawing-tools:
-    dependencies:
-      '@usketch/shared-types':
-        specifier: workspace:*
-        version: link:../shared-types
-      '@usketch/shared-utils':
-        specifier: workspace:*
-        version: link:../shared-utils
-      '@usketch/store':
-        specifier: workspace:*
-        version: link:../store
-    devDependencies:
-      '@usketch/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      tsup:
-        specifier: ^8.0.0
-        version: 8.5.0(typescript@5.8.3)
       vitest:
         specifier: ^2.1.8
         version: 2.1.9
@@ -245,6 +210,34 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@24.0.14)(jsdom@26.1.0)
 
+  packages/tools:
+    dependencies:
+      '@usketch/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+      '@usketch/store':
+        specifier: workspace:*
+        version: link:../store
+      '@xstate/react':
+        specifier: ^4.1.0
+        version: 4.1.3(@types/react@18.3.23)(react@18.3.1)(xstate@5.20.2)
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      xstate:
+        specifier: ^5.18.0
+        version: 5.20.2
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.11
+      '@types/react':
+        specifier: ^18.3.3
+        version: 18.3.23
+      typescript:
+        specifier: ^5.7.3
+        version: 5.8.3
+
   packages/tsconfig: {}
 
   packages/ui-components:
@@ -272,34 +265,6 @@ importers:
       tsup:
         specifier: ^8.0.0
         version: 8.5.0(typescript@5.8.3)
-
-  packages/xstate-tools:
-    dependencies:
-      '@usketch/shared-types':
-        specifier: workspace:*
-        version: link:../shared-types
-      '@usketch/store':
-        specifier: workspace:*
-        version: link:../store
-      '@xstate/react':
-        specifier: ^4.1.0
-        version: 4.1.3(@types/react@18.3.23)(react@18.3.1)(xstate@5.20.2)
-      react:
-        specifier: ^18.3.1
-        version: 18.3.1
-      xstate:
-        specifier: ^5.18.0
-        version: 5.20.2
-    devDependencies:
-      '@types/node':
-        specifier: ^20.14.0
-        version: 20.19.11
-      '@types/react':
-        specifier: ^18.3.3
-        version: 18.3.23
-      typescript:
-        specifier: ^5.7.3
-        version: 5.8.3
 
 packages:
 

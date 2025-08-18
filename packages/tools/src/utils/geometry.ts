@@ -7,7 +7,7 @@ import type { Bounds, Point, Shape } from "../types";
 export function getShapeAtPoint(point: Point): Shape | null {
 	const state = whiteboardStore.getState();
 	const shapes = Object.values(state.shapes);
-	
+
 	// Check shapes in reverse order (top to bottom)
 	for (let i = shapes.length - 1; i >= 0; i--) {
 		const shape = shapes[i];
@@ -21,19 +21,14 @@ export function getShapeAtPoint(point: Point): Shape | null {
 // Check if a point is inside a shape
 function isPointInShape(point: Point, shape: any): boolean {
 	const { x, y, width, height } = shape;
-	return (
-		point.x >= x &&
-		point.x <= x + width &&
-		point.y >= y &&
-		point.y <= y + height
-	);
+	return point.x >= x && point.x <= x + width && point.y >= y && point.y <= y + height;
 }
 
 // Get shapes within bounds
 export function getShapesInBounds(bounds: Bounds): Shape[] {
 	const state = whiteboardStore.getState();
 	const shapes = Object.values(state.shapes);
-	
+
 	return shapes.filter((shape) => {
 		return isShapeInBounds(shape, bounds);
 	}) as Shape[];
@@ -89,7 +84,7 @@ export function createShape(shape: Partial<Shape>): void {
 		strokeWidth: 2,
 		...shape,
 	} as any;
-	
+
 	whiteboardStore.getState().addShape(fullShape);
 }
 

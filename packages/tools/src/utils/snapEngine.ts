@@ -3,11 +3,7 @@
 import type { Point } from "../types";
 
 export class SnapEngine {
-	private threshold: number;
-
-	constructor(threshold: number = 10) {
-		this.threshold = threshold;
-	}
+	constructor(private threshold: number = 10) {}
 
 	snap(position: Point): Point {
 		// TODO: Implement actual snapping logic

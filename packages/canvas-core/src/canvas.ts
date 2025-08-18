@@ -1,5 +1,3 @@
-// Use XState ToolManager instead of legacy ToolManager
-
 import type { Camera, Shape } from "@usketch/shared-types";
 import {
 	applyCameraTransform,
@@ -8,8 +6,8 @@ import {
 	screenToWorld,
 } from "@usketch/shared-utils";
 import { whiteboardStore } from "@usketch/store";
+import { ToolManager } from "@usketch/tools";
 import { SelectionLayer } from "@usketch/ui-components";
-import { XStateToolManager } from "@usketch/xstate-tools";
 
 export class Canvas {
 	private canvasElement: HTMLElement;
@@ -22,7 +20,7 @@ export class Canvas {
 	private dragStart = { x: 0, y: 0 };
 	private dragStartCamera = { x: 0, y: 0, zoom: 1 };
 
-	private toolManager: XStateToolManager;
+	private toolManager: ToolManager;
 	private selectionLayer: SelectionLayer;
 
 	// Event handler references for cleanup
@@ -93,8 +91,8 @@ export class Canvas {
 		// Initialize selection layer
 		this.selectionLayer = new SelectionLayer(this.selectionContainer);
 
-		// Initialize XState tool manager
-		this.toolManager = new XStateToolManager();
+		// Initialize tool manager
+		this.toolManager = new ToolManager();
 
 		this.setupEventListeners();
 		this.subscribeToStore();
@@ -248,9 +246,9 @@ export class Canvas {
 			// Set selection state
 			if (selectedShapeIds.has(shape.id)) {
 				shapeElement.classList.add("selected");
-				shapeElement.dataset["selected"] = "true";
+				shapeElement.dataset.selected = "true";
 			} else {
-				shapeElement.dataset["selected"] = "false";
+				shapeElement.dataset.selected = "false";
 			}
 
 			this.shapesContainer.appendChild(shapeElement);
@@ -269,8 +267,8 @@ export class Canvas {
 		element.style.pointerEvents = "auto";
 
 		// Set data attributes for shape identification
-		element.dataset["shapeId"] = shape.id;
-		element.dataset["shapeType"] = shape.type;
+		element.dataset.shapeId = shape.id;
+		element.dataset.shapeType = shape.type;
 		element.setAttribute("data-shape", "true");
 
 		// Apply common styles
@@ -366,7 +364,7 @@ export class Canvas {
 	}
 
 	// Public method to access tool manager
-	public getToolManager(): XStateToolManager {
+	public getToolManager(): ToolManager {
 		return this.toolManager;
 	}
 
@@ -377,7 +375,7 @@ export class Canvas {
 	// Update preview for drawing tools
 	private updatePreview(): void {
 		const previewShape = this.toolManager.getPreviewShape();
-		
+
 		if (previewShape) {
 			// Clear previous preview
 			this.previewContainer.innerHTML = "";

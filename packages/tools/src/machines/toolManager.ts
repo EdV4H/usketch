@@ -1,7 +1,5 @@
 import type { ActorRefFrom, AnyStateMachine } from "xstate";
 import { assign, createActor, setup } from "xstate";
-import { drawingToolMachine } from "./drawingTool";
-import { selectToolMachine } from "./selectTool";
 
 // === Tool Registry Machine (XState v5) ===
 interface ToolManagerContext {
@@ -133,65 +131,6 @@ export const toolManagerMachine = setup({
 	},
 });
 
-// === Tool Manager Service (XState v5) ===
-export class ToolManager {
-	private actor: ActorRefFrom<typeof toolManagerMachine>;
-
-	constructor() {
-		this.actor = createActor(toolManagerMachine);
-		this.actor.subscribe((snapshot) => {
-			console.log("Tool Manager State:", snapshot.value);
-			console.log("Current Tool:", snapshot.context.currentToolId);
-		});
-		this.actor.start();
-
-		// Register default tools
-		this.registerDefaultTools();
-	}
-
-	private registerDefaultTools() {
-		this.register("select", selectToolMachine);
-		this.register("draw", drawingToolMachine);
-		// Add more tools as they are implemented
-		// this.register('rectangle', rectangleToolMachine);
-		// this.register('ellipse', ellipseToolMachine);
-		// this.register('arrow', arrowToolMachine);
-		// this.register('text', textToolMachine);
-	}
-
-	register(id: string, machine: AnyStateMachine) {
-		this.actor.send({ type: "REGISTER_TOOL", id, machine });
-	}
-
-	activate(toolId: string) {
-		this.actor.send({ type: "ACTIVATE_TOOL", toolId });
-	}
-
-	switch(toolId: string) {
-		this.actor.send({ type: "SWITCH_TOOL", toolId });
-	}
-
-	deactivate() {
-		this.actor.send({ type: "DEACTIVATE" });
-	}
-
-	send(event: any) {
-		this.actor.send({ type: "FORWARD_EVENT", payload: event });
-	}
-
-	getCurrentTool(): string | null {
-		return this.actor.getSnapshot().context.currentToolId;
-	}
-
-	getSnapshot() {
-		return this.actor.getSnapshot();
-	}
-
-	subscribe(callback: (snapshot: any) => void) {
-		return this.actor.subscribe(callback);
-	}
-}
-
 // Types for the createToolManager factory
 interface CustomToolManagerContext {
 	tools: Record<string, AnyStateMachine>;
@@ -224,7 +163,7 @@ export function createToolManager(tools: Record<string, AnyStateMachine>) {
 					tools: { ...context.tools, [event.id]: event.machine },
 				};
 			}),
-			activateTool: assign(({ context, event }) => {
+			activateTool: assign(({ event }) => {
 				if (event.type !== "ACTIVATE_TOOL") return {};
 				// Spawn the tool actor
 				const toolMachine = tools[event.toolId];
@@ -313,21 +252,30 @@ export function createToolManager(tools: Record<string, AnyStateMachine>) {
 			// Forward common events as FORWARD_EVENT
 			POINTER_DOWN: {
 				actions: ({ context, event }) => {
-					if (context.currentToolActor && context.currentToolActor.getSnapshot().status === "active") {
+					if (
+						context.currentToolActor &&
+						context.currentToolActor.getSnapshot().status === "active"
+					) {
 						context.currentToolActor.send(event);
 					}
 				},
 			},
 			POINTER_MOVE: {
 				actions: ({ context, event }) => {
-					if (context.currentToolActor && context.currentToolActor.getSnapshot().status === "active") {
+					if (
+						context.currentToolActor &&
+						context.currentToolActor.getSnapshot().status === "active"
+					) {
 						context.currentToolActor.send(event);
 					}
 				},
 			},
 			POINTER_UP: {
 				actions: ({ context, event }) => {
-					if (context.currentToolActor && context.currentToolActor.getSnapshot().status === "active") {
+					if (
+						context.currentToolActor &&
+						context.currentToolActor.getSnapshot().status === "active"
+					) {
 						context.currentToolActor.send(event);
 					}
 				},

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AnyStateMachine } from "xstate";
 import { createActor } from "xstate";
+import { ToolManager } from "../adapters/toolManagerAdapter";
 import { drawingToolMachine } from "../machines/drawingTool";
 import { selectToolMachine } from "../machines/selectTool";
-import { ToolManager } from "../machines/toolManager";
 import { screenToWorld } from "../utils/geometry";
 
 // === XState v5 React Hook ===
@@ -102,20 +102,22 @@ export function useToolManager() {
 		}
 
 		const manager = toolManagerRef.current;
-		manager.activate(currentTool);
+		manager.setActiveTool(currentTool);
 
 		return () => {
-			manager.deactivate();
+			// Cleanup if needed
 		};
 	}, [currentTool]);
 
 	const switchTool = useCallback((toolId: string) => {
 		setCurrentTool(toolId);
-		toolManagerRef.current?.switch(toolId);
+		toolManagerRef.current?.setActiveTool(toolId);
 	}, []);
 
-	const sendToTool = useCallback((event: any) => {
-		toolManagerRef.current?.send(event);
+	const sendToTool = useCallback(() => {
+		// The new ToolManager handles events through specific methods
+		// This method is not used in the new implementation
+		console.warn("sendToTool is deprecated in the new ToolManager");
 	}, []);
 
 	return {

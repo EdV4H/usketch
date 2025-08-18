@@ -47,7 +47,7 @@ export const selectToolMachine = setup({
 			cursor: "move",
 		}),
 
-		startTranslating: assign(({ context, event }) => {
+		startTranslating: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
 			// Use store's selection which has been updated by the adapter
 			const store = whiteboardStore.getState();

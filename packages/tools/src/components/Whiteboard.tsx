@@ -42,7 +42,6 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({ className = "" }) => {
 				onPointerUp={handlers.onPointerUp as any}
 				onKeyDown={handlers.onKeyDown as any}
 				onDoubleClick={handlers.onDoubleClick as any}
-				tabIndex={0}
 				style={{
 					width: "100%",
 					height: "100%",

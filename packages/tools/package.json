@@ -1,5 +1,5 @@
 {
-	"name": "@usketch/xstate-tools",
+	"name": "@usketch/tools",
 	"version": "0.0.1",
 	"private": true,
 	"type": "module",

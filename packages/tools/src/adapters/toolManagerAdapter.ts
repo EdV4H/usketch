@@ -1,12 +1,12 @@
-import type { Point, Shape } from "@usketch/shared-types";
+import type { Point } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { createActor } from "xstate";
 import { createRectangleTool } from "../machines/rectangleTool";
 import { createSelectTool } from "../machines/selectTool";
 import { createToolManager } from "../machines/toolManager";
 
-// Adapter class that provides the same interface as the legacy ToolManager
-export class XStateToolManager {
+// ToolManager implementation using XState v5
+export class ToolManager {
 	private toolManagerActor: any;
 	private currentToolId = "select";
 
