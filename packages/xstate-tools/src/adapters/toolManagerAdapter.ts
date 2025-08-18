@@ -41,6 +41,11 @@ export class XStateToolManager {
 		// Map legacy tool IDs to XState tool IDs
 		const xstateToolId = this.mapLegacyToolId(toolId);
 
+		// Clear selection when switching away from select tool
+		if (this.currentToolId === "select" && toolId !== "select") {
+			whiteboardStore.getState().clearSelection();
+		}
+
 		// Send switch event to the state machine
 		this.toolManagerActor.send({
 			type: "SWITCH_TOOL",
@@ -88,20 +93,29 @@ export class XStateToolManager {
 		const isShape = target?.dataset?.shape === "true";
 		const shapeId = target?.dataset?.shapeId;
 
-		// If select tool and clicking on a shape, handle selection
-		if (this.currentToolId === "select" && isShape && shapeId) {
+		// If select tool, handle selection logic
+		if (this.currentToolId === "select") {
 			const store = whiteboardStore.getState();
-			if (event.shiftKey || event.ctrlKey || event.metaKey) {
-				// Toggle selection with modifier keys
-				if (store.selectedShapeIds.has(shapeId)) {
-					store.deselectShape(shapeId);
+			if (isShape && shapeId) {
+				// Clicking on a shape
+				if (event.shiftKey || event.ctrlKey || event.metaKey) {
+					// Toggle selection with modifier keys
+					if (store.selectedShapeIds.has(shapeId)) {
+						store.deselectShape(shapeId);
+					} else {
+						store.selectShape(shapeId);
+					}
 				} else {
+					// Clear selection and select only this shape
+					store.clearSelection();
 					store.selectShape(shapeId);
 				}
 			} else {
-				// Clear selection and select only this shape
-				store.clearSelection();
-				store.selectShape(shapeId);
+				// Clicking on empty space - clear selection
+				// Only clear if there are selected shapes
+				if (store.selectedShapeIds.size > 0) {
+					store.clearSelection();
+				}
 			}
 		}
 

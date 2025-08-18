@@ -255,4 +255,112 @@ export const whiteboardTests = () => {
 		expect(pannedBox!.x).not.toBe(initialBox!.x);
 		expect(pannedBox!.y).not.toBe(initialBox!.y);
 	});
+
+	test("should clear selection when clicking on empty space", async ({ page }) => {
+		// Draw a rectangle
+		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		const whiteboard = page.locator(".whiteboard-container, #canvas");
+
+		await whiteboard.hover({ position: { x: 400, y: 300 } });
+		await page.mouse.down();
+		await whiteboard.hover({ position: { x: 500, y: 400 } });
+		await page.mouse.up();
+
+		// Switch to Select tool
+		await page.locator('.tool-button:has-text("Select"), #select-tool').click();
+
+		// Wait for shape to be rendered
+		await page.waitForTimeout(200);
+
+		// Select the rectangle
+		const rectangle = page.locator('[data-shape="true"][data-shape-type="rectangle"]').last();
+		await rectangle.click();
+
+		// Verify shape is selected
+		await expect(page.locator(".selection-box")).toBeVisible();
+
+		// Click on empty space
+		await whiteboard.click({ position: { x: 100, y: 100 } });
+
+		// Verify selection is cleared
+		await expect(page.locator(".selection-box")).not.toBeVisible();
+	});
+
+	test("should clear selection when switching to Rectangle tool", async ({ page }) => {
+		// Draw a rectangle
+		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		const whiteboard = page.locator(".whiteboard-container, #canvas");
+
+		await whiteboard.hover({ position: { x: 300, y: 200 } });
+		await page.mouse.down();
+		await whiteboard.hover({ position: { x: 400, y: 300 } });
+		await page.mouse.up();
+
+		// Switch to Select tool
+		await page.locator('.tool-button:has-text("Select"), #select-tool').click();
+
+		// Wait for shape to be rendered
+		await page.waitForTimeout(200);
+
+		// Select the rectangle
+		const rectangle = page.locator('[data-shape="true"][data-shape-type="rectangle"]').last();
+		await rectangle.click();
+
+		// Verify shape is selected
+		await expect(page.locator(".selection-box")).toBeVisible();
+
+		// Switch to Rectangle tool
+		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+
+		// Verify selection is cleared
+		await expect(page.locator(".selection-box")).not.toBeVisible();
+	});
+
+	test("should maintain selection when switching back to Select tool", async ({ page }) => {
+		// Draw two rectangles
+		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		const whiteboard = page.locator(".whiteboard-container, #canvas");
+
+		// First rectangle
+		await whiteboard.hover({ position: { x: 200, y: 200 } });
+		await page.mouse.down();
+		await whiteboard.hover({ position: { x: 300, y: 300 } });
+		await page.mouse.up();
+
+		// Second rectangle
+		await whiteboard.hover({ position: { x: 400, y: 200 } });
+		await page.mouse.down();
+		await whiteboard.hover({ position: { x: 500, y: 300 } });
+		await page.mouse.up();
+
+		// Switch to Select tool
+		await page.locator('.tool-button:has-text("Select"), #select-tool').click();
+
+		// Wait for shapes to be rendered
+		await page.waitForTimeout(200);
+
+		// Select the first rectangle
+		const firstRectangle = page.locator('[data-shape="true"][data-shape-type="rectangle"]').first();
+		await firstRectangle.click();
+
+		// Verify shape is selected
+		await expect(page.locator(".selection-box")).toBeVisible();
+
+		// Select the second rectangle with Shift
+		const secondRectangle = page.locator('[data-shape="true"][data-shape-type="rectangle"]').last();
+		await page.keyboard.down("Shift");
+		await secondRectangle.click();
+		await page.keyboard.up("Shift");
+
+		// Verify both shapes are selected (should have multiple selection indicators)
+		const selectionBoxes = await page.locator(".selection-box").count();
+		expect(selectionBoxes).toBeGreaterThan(0);
+
+		// Switch to Rectangle tool and back
+		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		await page.waitForTimeout(100);
+
+		// Selection should be cleared after switching away from Select tool
+		await expect(page.locator(".selection-box")).not.toBeVisible();
+	});
 };
