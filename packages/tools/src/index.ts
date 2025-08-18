@@ -26,6 +26,21 @@ export type {
 	ToolEvent,
 } from "./types";
 
+// Event types
+export type {
+	NativeToolEventHandlers,
+	ToolEvent as ToolEventType,
+	ToolEventHandlers,
+} from "./types/events";
+
+// State types
+export type {
+	ToolContextUnion,
+	ToolManagerState,
+	ToolStateValue,
+	UseToolMachineReturn,
+} from "./types/state";
+
 // Utils
 export * from "./utils/geometry";
 export { SnapEngine } from "./utils/snapEngine";

@@ -4,10 +4,12 @@ import { createActor } from "xstate";
 import { ToolManager } from "../adapters/toolManagerAdapter";
 import { drawingToolMachine } from "../machines/drawingTool";
 import { selectToolMachine } from "../machines/selectTool";
+import type { NativeToolEventHandlers } from "../types/events";
+import type { UseToolMachineReturn } from "../types/state";
 import { screenToWorld } from "../utils/geometry";
 
 // === XState v5 React Hook ===
-export function useToolMachine(toolId: string) {
+export function useToolMachine(toolId: string): UseToolMachineReturn {
 	// v5: useMachine → useActor with createActor
 	const toolMachine = useMemo<AnyStateMachine>(() => {
 		switch (toolId) {
@@ -31,7 +33,7 @@ export function useToolMachine(toolId: string) {
 	const send = toolActor.send;
 
 	const handlers = useCallback(
-		() => ({
+		(): NativeToolEventHandlers => ({
 			onPointerDown: (e: PointerEvent) => {
 				const point = screenToWorld({ x: e.clientX, y: e.clientY });
 				send({

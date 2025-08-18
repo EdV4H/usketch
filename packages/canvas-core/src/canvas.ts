@@ -330,7 +330,7 @@ export class Canvas {
 			strokeColor: "#333",
 			fillColor: "#e0e0ff",
 			strokeWidth: 2,
-		} as any; // Using 'as any' temporarily until we have proper shape types
+		} as Shape;
 
 		whiteboardStore.getState().addShape(testShape);
 	}

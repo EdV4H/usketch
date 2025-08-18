@@ -1,5 +1,6 @@
-import type { Point } from "@usketch/shared-types";
+import type { Point, Shape } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
+import type { Actor, AnyStateMachine } from "xstate";
 import { createActor } from "xstate";
 import { createRectangleTool } from "../machines/rectangleTool";
 import { createSelectTool } from "../machines/selectTool";
@@ -7,7 +8,7 @@ import { createToolManager } from "../machines/toolManager";
 
 // ToolManager implementation using XState v5
 export class ToolManager {
-	private toolManagerActor: any;
+	private toolManagerActor: Actor<AnyStateMachine>;
 	private currentToolId = "select";
 
 	constructor() {
@@ -25,7 +26,7 @@ export class ToolManager {
 		this.toolManagerActor.start();
 
 		// Subscribe to tool changes
-		this.toolManagerActor.subscribe((state: any) => {
+		this.toolManagerActor.subscribe((state) => {
 			const activeToolId = state.context.activeTool;
 			if (activeToolId !== this.currentToolId) {
 				this.currentToolId = activeToolId;
@@ -74,7 +75,7 @@ export class ToolManager {
 	}
 
 	// Get preview shape from the current tool
-	getPreviewShape(): any {
+	getPreviewShape(): Shape | null {
 		if (this.currentToolId === "rectangle") {
 			const snapshot = this.toolManagerActor.getSnapshot();
 			const toolActor = snapshot.context.currentToolActor;
@@ -170,10 +171,12 @@ export class ToolManager {
 
 		// Check if rectangle tool created a shape
 		if (this.currentToolId === "rectangle") {
-			const shape = (globalThis as any).__lastCreatedShape;
-			if (shape) {
-				whiteboardStore.getState().addShape(shape);
-				delete (globalThis as any).__lastCreatedShape;
+			if (typeof window !== "undefined" && window.__lastCreatedShape) {
+				whiteboardStore.getState().addShape(window.__lastCreatedShape);
+				delete window.__lastCreatedShape;
+			} else if (typeof global !== "undefined" && global.__lastCreatedShape) {
+				whiteboardStore.getState().addShape(global.__lastCreatedShape);
+				delete global.__lastCreatedShape;
 			}
 		}
 	}

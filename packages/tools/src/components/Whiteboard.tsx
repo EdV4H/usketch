@@ -1,6 +1,7 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { useToolMachine } from "../hooks/useToolMachine";
+import type { ToolStateValue } from "../types/state";
 
 interface WhiteboardProps {
 	className?: string;
@@ -37,11 +38,11 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({ className = "" }) => {
 				className="whiteboard-canvas"
 				role="application"
 				aria-label="Drawing canvas"
-				onPointerDown={handlers.onPointerDown as any}
-				onPointerMove={handlers.onPointerMove as any}
-				onPointerUp={handlers.onPointerUp as any}
-				onKeyDown={handlers.onKeyDown as any}
-				onDoubleClick={handlers.onDoubleClick as any}
+				onPointerDown={(e) => handlers.onPointerDown(e.nativeEvent)}
+				onPointerMove={(e) => handlers.onPointerMove(e.nativeEvent)}
+				onPointerUp={(e) => handlers.onPointerUp(e.nativeEvent)}
+				onKeyDown={(e) => handlers.onKeyDown(e.nativeEvent)}
+				onDoubleClick={(e) => handlers.onDoubleClick(e.nativeEvent)}
 				style={{
 					width: "100%",
 					height: "100%",
@@ -78,7 +79,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({ className = "" }) => {
 interface ToolbarProps {
 	currentTool: string;
 	onToolChange: (toolId: string) => void;
-	toolState: any;
+	toolState: ToolStateValue;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({ currentTool, onToolChange, toolState }) => {
@@ -229,7 +230,7 @@ const CropOverlay: React.FC<CropOverlayProps> = ({ shapeId }) => {
 
 // === State Inspector Component ===
 interface StateInspectorProps {
-	state: any;
+	state: ToolStateValue;
 	context: any;
 }
 

@@ -1,5 +1,6 @@
+import type { RectangleShape } from "@usketch/shared-types";
 import { assign, setup } from "xstate";
-import type { Point, Shape, ToolContext } from "../types";
+import type { Point, ToolContext } from "../types";
 
 // === Rectangle Tool Context ===
 export interface RectangleToolContext extends ToolContext {
@@ -12,7 +13,7 @@ export interface RectangleToolContext extends ToolContext {
 		strokeWidth: number;
 		opacity: number;
 	};
-	previewShape: Shape | null;
+	previewShape: RectangleShape | null;
 }
 
 // === Rectangle Tool Events ===
@@ -61,7 +62,7 @@ export const rectangleToolMachine = setup({
 				finalHeight = size;
 			}
 
-			const previewShape: Shape = {
+			const previewShape: RectangleShape = {
 				id: "preview-rect",
 				type: "rectangle",
 				x: startX,
@@ -94,7 +95,7 @@ export const rectangleToolMachine = setup({
 
 			// Access the store directly to add the shape
 			// This will be handled by the adapter
-			const shape: Shape = {
+			const shape: RectangleShape = {
 				id: `rect-${Date.now()}`,
 				type: "rectangle",
 				x: startX,
@@ -109,7 +110,11 @@ export const rectangleToolMachine = setup({
 			};
 
 			// The adapter will handle adding to store
-			(globalThis as any).__lastCreatedShape = shape;
+			if (typeof window !== "undefined") {
+				window.__lastCreatedShape = shape;
+			} else if (typeof global !== "undefined") {
+				global.__lastCreatedShape = shape;
+			}
 		},
 
 		resetDrawing: assign({
