@@ -1,3 +1,4 @@
+import { whiteboardStore } from "@usketch/store";
 import { assign, fromCallback, setup } from "xstate";
 import type { Bounds, Point, ToolContext } from "../types";
 import {
@@ -46,11 +47,25 @@ export const selectToolMachine = setup({
 			cursor: "move",
 		}),
 
-		startTranslating: assign(({ event }) => {
+		startTranslating: assign(({ context, event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
+			// Use store's selection which has been updated by the adapter
+			const store = whiteboardStore.getState();
+			const selectedIds = store.selectedShapeIds;
+
+			// Record initial positions of all selected shapes
+			const positions = new Map<string, Point>();
+			selectedIds.forEach((id) => {
+				const shape = getShape(id);
+				if (shape) {
+					positions.set(id, { x: shape.x, y: shape.y });
+				}
+			});
 			return {
 				dragStart: event.point,
 				dragOffset: { x: 0, y: 0 },
+				initialPositions: positions,
+				selectedIds: new Set(selectedIds), // Update machine's selection state
 			};
 		}),
 
@@ -59,8 +74,12 @@ export const selectToolMachine = setup({
 			const shape = getShapeAtPoint(event.point);
 			if (!shape) return {};
 
+			// The adapter will update the store selection
+			// Sync with store's selection
+			const store = whiteboardStore.getState();
+
 			return {
-				selectedIds: new Set([shape.id]),
+				selectedIds: new Set(store.selectedShapeIds),
 				hoveredId: shape.id,
 			};
 		}),
@@ -253,9 +272,10 @@ export const selectToolMachine = setup({
 						actions: "startTranslating",
 					},
 					{
-						target: "selecting.single",
+						// Allow direct drag of unselected shapes
+						target: "translating",
 						guard: "isPointOnShape",
-						actions: "selectShape",
+						actions: ["selectShape", "startTranslating"],
 					},
 					{
 						target: "selecting.brush",
@@ -314,7 +334,7 @@ export const selectToolMachine = setup({
 
 		// === ドラッグ状態 ===
 		translating: {
-			entry: ["setCursorMove", "recordInitialPositions"],
+			entry: ["setCursorMove"],
 			exit: "commitTranslation",
 
 			on: {

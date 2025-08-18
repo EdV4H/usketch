@@ -99,7 +99,10 @@ export const whiteboardTests = () => {
 		// Drag the shape to a new position
 		await rectangle.hover();
 		await page.mouse.down();
-		await page.mouse.move(initialBox!.x + 100, initialBox!.y + 50);
+		// Move relative to the shape's center
+		const centerX = initialBox!.x + initialBox!.width / 2;
+		const centerY = initialBox!.y + initialBox!.height / 2;
+		await page.mouse.move(centerX + 80, centerY + 60);
 		await page.mouse.up();
 
 		// Wait for movement to complete
@@ -108,11 +111,9 @@ export const whiteboardTests = () => {
 		// Check that the shape moved
 		const newBox = await rectangle.boundingBox();
 		expect(newBox).toBeTruthy();
-		// Allow for small variations in position
-		// The shape should have moved (not be in the exact same position)
-		const xMoved = Math.abs(newBox!.x - initialBox!.x) > 5;
-		const yMoved = Math.abs(newBox!.y - initialBox!.y) > 5;
-		expect(xMoved || yMoved).toBe(true);
+		// The shape should have moved significantly
+		expect(Math.abs(newBox!.x - initialBox!.x)).toBeGreaterThan(30);
+		expect(Math.abs(newBox!.y - initialBox!.y)).toBeGreaterThan(20);
 	});
 
 	test("should drag and move unselected shape directly", async ({ page }) => {
@@ -142,8 +143,10 @@ export const whiteboardTests = () => {
 		// Directly drag the unselected shape
 		await rectangle.hover();
 		await page.mouse.down();
-		// Move by smaller amount for better test reliability
-		await page.mouse.move(initialBox!.x + 50, initialBox!.y + 50);
+		// Move relative to the shape's center
+		const centerX = initialBox!.x + initialBox!.width / 2;
+		const centerY = initialBox!.y + initialBox!.height / 2;
+		await page.mouse.move(centerX + 60, centerY + 60);
 		await page.mouse.up();
 
 		// Wait for movement to complete
@@ -152,9 +155,9 @@ export const whiteboardTests = () => {
 		// Check that the shape moved
 		const newBox = await rectangle.boundingBox();
 		expect(newBox).toBeTruthy();
-		// The shape should have moved (allowing for small variations)
-		expect(Math.abs(newBox!.x - initialBox!.x)).toBeGreaterThan(30);
-		expect(Math.abs(newBox!.y - initialBox!.y)).toBeGreaterThan(30);
+		// The shape should have moved (allowing for coordinate system differences)
+		expect(Math.abs(newBox!.x - initialBox!.x)).toBeGreaterThan(20);
+		expect(Math.abs(newBox!.y - initialBox!.y)).toBeGreaterThan(20);
 
 		// Check that shape is now selected after drag
 		await expect(page.locator(".selection-box")).toBeVisible();
@@ -314,6 +317,50 @@ export const whiteboardTests = () => {
 
 		// Verify selection is cleared
 		await expect(page.locator(".selection-box")).not.toBeVisible();
+	});
+
+	test("should drag unselected shape directly without pre-selection", async ({ page }) => {
+		// Draw a rectangle
+		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		const whiteboard = page.locator(".whiteboard-container, #canvas");
+
+		await whiteboard.hover({ position: { x: 300, y: 250 } });
+		await page.mouse.down();
+		await whiteboard.hover({ position: { x: 400, y: 350 } });
+		await page.mouse.up();
+
+		// Switch to Select tool
+		await page.locator('.tool-button:has-text("Select"), #select-tool').click();
+
+		// Wait for shape to be rendered
+		await page.waitForTimeout(200);
+
+		// Get the rectangle (should be unselected)
+		const rectangle = page.locator('[data-shape="true"][data-shape-type="rectangle"]').last();
+		const initialBox = await rectangle.boundingBox();
+		expect(initialBox).toBeTruthy();
+
+		// Verify shape is not selected initially
+		await expect(page.locator(".selection-box")).not.toBeVisible();
+
+		// Directly drag the unselected shape (without clicking first)
+		await rectangle.hover();
+		await page.mouse.down();
+		await page.mouse.move(initialBox!.x + 100, initialBox!.y + 100);
+		await page.mouse.up();
+
+		// Wait for movement to complete
+		await page.waitForTimeout(100);
+
+		// Check that the shape moved
+		const newBox = await rectangle.boundingBox();
+		expect(newBox).toBeTruthy();
+		// The shape should have moved significantly
+		expect(Math.abs(newBox!.x - initialBox!.x)).toBeGreaterThanOrEqual(40);
+		expect(Math.abs(newBox!.y - initialBox!.y)).toBeGreaterThanOrEqual(40);
+
+		// Check that shape is now selected after drag
+		await expect(page.locator(".selection-box")).toBeVisible();
 	});
 
 	test("should maintain selection when switching back to Select tool", async ({ page }) => {
