@@ -22,9 +22,5 @@
 		"lefthook": "^1.12.2",
 		"turbo": "^2.5.5"
 	},
-	"packageManager": "pnpm@8.15.6",
-	"dependencies": {
-		"@xstate/react": "^4.1.0",
-		"xstate": "^5.18.0"
-	}
+	"packageManager": "pnpm@8.15.6"
 }
