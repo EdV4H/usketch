@@ -43,7 +43,9 @@ export interface TextShape extends BaseShape {
 // Freedraw shape
 export interface FreedrawShape extends BaseShape {
 	type: "freedraw";
-	points: Array<{ x: number; y: number }>;
+	width: number;
+	height: number;
+	points: Array<{ x: number; y: number }>; // Points are relative to (x, y)
 }
 
 // Union type for all shapes

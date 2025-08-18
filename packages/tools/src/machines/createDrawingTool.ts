@@ -79,18 +79,32 @@ export function createDrawingTool() {
 					return;
 				}
 
-				// Create the final shape
+				// Calculate bounding box
+				const minX = Math.min(...context.currentStroke.map((p) => p.x));
+				const minY = Math.min(...context.currentStroke.map((p) => p.y));
+				const maxX = Math.max(...context.currentStroke.map((p) => p.x));
+				const maxY = Math.max(...context.currentStroke.map((p) => p.y));
+
+				// Convert points to relative coordinates
+				const relativePoints = context.currentStroke.map((p) => ({
+					x: p.x - minX,
+					y: p.y - minY,
+				}));
+
+				// Create the final shape with normalized coordinates
 				const shape: FreedrawShape = {
 					id: `draw-${Date.now()}`,
 					type: "freedraw",
-					x: 0,
-					y: 0,
+					x: minX,
+					y: minY,
+					width: maxX - minX,
+					height: maxY - minY,
 					rotation: 0,
 					opacity: context.strokeStyle.opacity,
 					strokeColor: context.strokeStyle.color,
 					fillColor: "transparent",
 					strokeWidth: context.strokeStyle.width,
-					points: context.currentStroke,
+					points: relativePoints,
 				};
 
 				// The adapter will handle adding to store

@@ -17,14 +17,14 @@ export interface Shape {
 	type: "rectangle" | "ellipse" | "path" | "text" | "arrow" | "freedraw";
 	x: number;
 	y: number;
-	width?: number;
-	height?: number;
+	width: number;
+	height: number;
 	rotation?: number;
 	opacity?: number;
 	strokeColor?: string;
 	fillColor?: string;
 	strokeWidth?: number;
-	points?: Point[];
+	points?: Point[]; // For freedraw, points are relative to (x, y)
 	style?: ShapeStyle;
 }
 
