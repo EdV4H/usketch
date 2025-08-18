@@ -95,6 +95,7 @@ export class XStateToolManager {
 		this.toolManagerActor.send({
 			type: "POINTER_DOWN",
 			position: worldPos,
+			point: worldPos, // Add point for select tool
 			event: {
 				clientX: event.clientX,
 				clientY: event.clientY,
@@ -112,6 +113,7 @@ export class XStateToolManager {
 		this.toolManagerActor.send({
 			type: "POINTER_MOVE",
 			position: worldPos,
+			point: worldPos, // Add point for select tool
 			event: {
 				clientX: event.clientX,
 				clientY: event.clientY,
@@ -127,6 +129,7 @@ export class XStateToolManager {
 		this.toolManagerActor.send({
 			type: "POINTER_UP",
 			position: worldPos,
+			point: worldPos, // Add point for select tool
 			event: {
 				clientX: event.clientX,
 				clientY: event.clientY,
