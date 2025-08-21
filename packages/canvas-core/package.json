@@ -20,7 +20,7 @@
 	"dependencies": {
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/shared-utils": "workspace:*",
-		"@usketch/drawing-tools": "workspace:*",
+		"@usketch/tools": "workspace:*",
 		"@usketch/store": "workspace:*",
 		"@usketch/ui-components": "workspace:*"
 	},

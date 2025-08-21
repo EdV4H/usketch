@@ -21,7 +21,10 @@ export const Whiteboard: React.FC = () => {
 		}
 
 		// Add test shapes only once (protect against StrictMode double render)
-		if (!shapesAddedRef.current) {
+		// Skip demo shapes if running E2E tests (when URL has ?e2e=true)
+		const isE2E = new URLSearchParams(window.location.search).has("e2e");
+
+		if (!shapesAddedRef.current && !isE2E) {
 			shapesAddedRef.current = true;
 
 			// Add some test shapes for demonstration (matching vanilla version)

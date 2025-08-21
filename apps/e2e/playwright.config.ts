@@ -18,7 +18,7 @@ export default defineConfig({
 		},
 	],
 	webServer: {
-		command: "cd ../whiteboard-react && pnpm dev",
+		command: "cd ../whiteboard && pnpm dev",
 		port: 3001,
 		reuseExistingServer: !process.env.CI,
 	},

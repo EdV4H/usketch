@@ -12,11 +12,11 @@
 	},
 	"dependencies": {
 		"@usketch/canvas-core": "workspace:*",
-		"@usketch/drawing-tools": "workspace:*",
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/shared-utils": "workspace:*",
 		"@usketch/store": "workspace:*",
 		"@usketch/ui-components": "workspace:*",
+		"@usketch/tools": "workspace:*",
 		"react": "^18.3.1",
 		"react-dom": "^18.3.1",
 		"zustand": "^5.0.2"

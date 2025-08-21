@@ -8,6 +8,7 @@ export const Toolbar: React.FC = () => {
 	const tools = [
 		{ id: "select", name: "Select" },
 		{ id: "rectangle", name: "Rectangle" },
+		{ id: "draw", name: "Draw" },
 	];
 
 	return (
