@@ -11,6 +11,12 @@ export interface WhiteboardStore extends WhiteboardState {
 	clearSelection: () => void;
 	setCamera: (camera: Partial<Camera>) => void;
 	setCurrentTool: (tool: string) => void;
+
+	// Multiple selection actions
+	toggleSelection: (id: string) => void;
+	selectAll: () => void;
+	setSelection: (ids: string[]) => void;
+	removeSelectedShapes: () => void;
 }
 
 export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
@@ -80,6 +86,47 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 
 	setCurrentTool: (tool: string) => {
 		set((state) => ({ ...state, currentTool: tool }));
+	},
+
+	// Multiple selection actions
+	toggleSelection: (id: string) => {
+		set((state) => {
+			const newSelectedIds = new Set(state.selectedShapeIds);
+			if (newSelectedIds.has(id)) {
+				newSelectedIds.delete(id);
+			} else {
+				newSelectedIds.add(id);
+			}
+			return { ...state, selectedShapeIds: newSelectedIds };
+		});
+	},
+
+	selectAll: () => {
+		set((state) => ({
+			...state,
+			selectedShapeIds: new Set(Object.keys(state.shapes)),
+		}));
+	},
+
+	setSelection: (ids: string[]) => {
+		set((state) => ({
+			...state,
+			selectedShapeIds: new Set(ids),
+		}));
+	},
+
+	removeSelectedShapes: () => {
+		set((state) => {
+			const newShapes = { ...state.shapes };
+			state.selectedShapeIds.forEach((id) => {
+				delete newShapes[id];
+			});
+			return {
+				...state,
+				shapes: newShapes,
+				selectedShapeIds: new Set(),
+			};
+		});
 	},
 }));
 
