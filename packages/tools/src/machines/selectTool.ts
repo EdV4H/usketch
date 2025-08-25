@@ -102,15 +102,6 @@ export const selectToolMachine = setup({
 		startBrushSelection: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
 
-			// Initialize selection box at the starting point
-			const selectionBoxElement = document.getElementById("selection-box-overlay");
-			if (selectionBoxElement) {
-				selectionBoxElement.style.left = `${event.point.x}px`;
-				selectionBoxElement.style.top = `${event.point.y}px`;
-				selectionBoxElement.style.width = "0px";
-				selectionBoxElement.style.height = "0px";
-			}
-
 			return {
 				selectionBox: {
 					x: event.point.x,
@@ -185,7 +176,7 @@ export const selectToolMachine = setup({
 			};
 		}),
 
-		showSelectionBox: ({ context }) => {
+		showSelectionBox: () => {
 			// Create or show selection box overlay
 			let selectionBoxElement = document.getElementById("selection-box-overlay");
 			if (!selectionBoxElement) {
@@ -207,7 +198,10 @@ export const selectToolMachine = setup({
 					}
 				}
 			}
+			// Make sure it's visible and reset size (will be set by updateSelectionBox)
 			selectionBoxElement.style.display = "block";
+			selectionBoxElement.style.width = "0px";
+			selectionBoxElement.style.height = "0px";
 		},
 
 		hideSelectionBox: () => {
