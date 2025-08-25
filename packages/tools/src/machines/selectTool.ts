@@ -170,8 +170,19 @@ export const selectToolMachine = setup({
 			};
 		}),
 
-		finalizeSelection: assign({
-			selectionBox: null,
+		finalizeSelection: assign(() => {
+			// Hide the selection box overlay when selection is finalized
+			const selectionBoxElement = document.getElementById("selection-box-overlay");
+			if (selectionBoxElement) {
+				selectionBoxElement.style.display = "none";
+				// Clear the dimensions to prevent visual artifacts
+				selectionBoxElement.style.width = "0px";
+				selectionBoxElement.style.height = "0px";
+			}
+
+			return {
+				selectionBox: null,
+			};
 		}),
 
 		showSelectionBox: ({ context }) => {
@@ -288,9 +299,20 @@ export const selectToolMachine = setup({
 			});
 		},
 
-		clearSelection: assign({
-			selectedIds: new Set<string>(),
-			hoveredId: null,
+		clearSelection: assign(() => {
+			// Also clear any selection box overlay when clearing selection
+			const selectionBoxElement = document.getElementById("selection-box-overlay");
+			if (selectionBoxElement) {
+				selectionBoxElement.style.display = "none";
+				selectionBoxElement.style.width = "0px";
+				selectionBoxElement.style.height = "0px";
+			}
+
+			return {
+				selectedIds: new Set<string>(),
+				hoveredId: null,
+				selectionBox: null,
+			};
 		}),
 
 		deleteSelectedShapes: ({ context }) => {

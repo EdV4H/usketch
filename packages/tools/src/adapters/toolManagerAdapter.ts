@@ -49,6 +49,14 @@ export class ToolManager {
 		// Clear selection when switching away from select tool
 		if (this.currentToolId === "select" && toolId !== "select") {
 			whiteboardStore.getState().clearSelection();
+
+			// Also clear any selection box overlay
+			const selectionBoxElement = document.getElementById("selection-box-overlay");
+			if (selectionBoxElement) {
+				selectionBoxElement.style.display = "none";
+				selectionBoxElement.style.width = "0px";
+				selectionBoxElement.style.height = "0px";
+			}
 		}
 
 		// Send switch event to the state machine
