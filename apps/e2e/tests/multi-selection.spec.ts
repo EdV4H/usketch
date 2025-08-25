@@ -317,6 +317,61 @@ test.describe("Multi-Selection Feature", () => {
 	});
 
 	test.describe("Edge Cases", () => {
+		test("should clear selection box overlay after drag selection", async ({ page }) => {
+			// Create shapes
+			await page.click('[data-tool="rectangle"]');
+			await page.mouse.move(200, 200);
+			await page.mouse.down();
+			await page.mouse.move(300, 300);
+			await page.mouse.up();
+
+			await page.mouse.move(400, 200);
+			await page.mouse.down();
+			await page.mouse.move(500, 300);
+			await page.mouse.up();
+
+			// Switch to select tool
+			await page.click('[data-tool="select"]');
+
+			// First drag selection
+			await page.mouse.move(150, 150);
+			await page.mouse.down();
+			await page.mouse.move(550, 350);
+			await page.mouse.up();
+
+			// Check that selection box is hidden after release
+			const selectionBox = await page.$("#selection-box-overlay");
+			if (selectionBox) {
+				const display = await selectionBox.evaluate((el) => window.getComputedStyle(el).display);
+				expect(display).toBe("none");
+			}
+
+			// Start another drag selection
+			await page.mouse.move(100, 100);
+			await page.mouse.down();
+			await page.mouse.move(250, 250);
+
+			// Selection box should be visible during drag
+			const selectionBoxDuringDrag = await page.$("#selection-box-overlay");
+			if (selectionBoxDuringDrag) {
+				const displayDuringDrag = await selectionBoxDuringDrag.evaluate(
+					(el) => window.getComputedStyle(el).display,
+				);
+				expect(displayDuringDrag).toBe("block");
+			}
+
+			await page.mouse.up();
+
+			// Check that selection box is hidden again
+			const selectionBoxAfter = await page.$("#selection-box-overlay");
+			if (selectionBoxAfter) {
+				const displayAfter = await selectionBoxAfter.evaluate(
+					(el) => window.getComputedStyle(el).display,
+				);
+				expect(displayAfter).toBe("none");
+			}
+		});
+
 		test("should handle selection of overlapping shapes", async ({ page }) => {
 			// Create overlapping shapes
 			await page.click('[data-tool="rectangle"]');
