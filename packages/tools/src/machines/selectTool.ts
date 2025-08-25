@@ -23,9 +23,16 @@ export interface SelectToolContext extends ToolContext {
 
 // === Select Tool Events ===
 export type SelectToolEvent =
-	| { type: "POINTER_DOWN"; point: Point; target?: string }
-	| { type: "POINTER_MOVE"; point: Point }
-	| { type: "POINTER_UP"; point: Point }
+	| {
+			type: "POINTER_DOWN";
+			point: Point;
+			target?: string;
+			shiftKey?: boolean;
+			ctrlKey?: boolean;
+			metaKey?: boolean;
+	  }
+	| { type: "POINTER_MOVE"; point: Point; shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean }
+	| { type: "POINTER_UP"; point: Point; shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean }
 	| { type: "DOUBLE_CLICK"; point: Point; target?: string }
 	| { type: "KEY_DOWN"; key: string }
 	| { type: "ESCAPE" }
@@ -94,6 +101,16 @@ export const selectToolMachine = setup({
 
 		startBrushSelection: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
+
+			// Initialize selection box at the starting point
+			const selectionBoxElement = document.getElementById("selection-box-overlay");
+			if (selectionBoxElement) {
+				selectionBoxElement.style.left = `${event.point.x}px`;
+				selectionBoxElement.style.top = `${event.point.y}px`;
+				selectionBoxElement.style.width = "0px";
+				selectionBoxElement.style.height = "0px";
+			}
+
 			return {
 				selectionBox: {
 					x: event.point.x,
@@ -107,18 +124,49 @@ export const selectToolMachine = setup({
 		updateSelectionBox: assign(({ context, event }) => {
 			if (event.type !== "POINTER_MOVE" || !context.selectionBox) return {};
 
+			const startX = context.selectionBox.x;
+			const startY = context.selectionBox.y;
+			const currentX = event.point.x;
+			const currentY = event.point.y;
+
 			const box = {
-				x: Math.min(context.selectionBox.x, event.point.x),
-				y: Math.min(context.selectionBox.y, event.point.y),
-				width: Math.abs(event.point.x - context.selectionBox.x),
-				height: Math.abs(event.point.y - context.selectionBox.y),
+				x: Math.min(startX, currentX),
+				y: Math.min(startY, currentY),
+				width: Math.abs(currentX - startX),
+				height: Math.abs(currentY - startY),
 			};
 
+			// Get shapes that intersect with the selection box
 			const intersecting = getShapesInBounds(box);
+
+			// Check if Shift is held for additive selection
+			const store = whiteboardStore.getState();
+			let newSelectedIds: Set<string>;
+
+			if (event.shiftKey) {
+				// Add to existing selection
+				newSelectedIds = new Set(store.selectedShapeIds);
+				intersecting.forEach((shape) => newSelectedIds.add(shape.id));
+			} else {
+				// Replace selection
+				newSelectedIds = new Set(intersecting.map((s) => s.id));
+			}
+
+			// Update store with new selection
+			store.setSelection(Array.from(newSelectedIds));
+
+			// Update visual feedback for selection box
+			const selectionBoxElement = document.getElementById("selection-box-overlay");
+			if (selectionBoxElement) {
+				selectionBoxElement.style.left = `${box.x}px`;
+				selectionBoxElement.style.top = `${box.y}px`;
+				selectionBoxElement.style.width = `${box.width}px`;
+				selectionBoxElement.style.height = `${box.height}px`;
+			}
 
 			return {
 				selectionBox: box,
-				selectedIds: new Set(intersecting.map((s) => s.id)),
+				selectedIds: newSelectedIds,
 			};
 		}),
 
@@ -126,12 +174,36 @@ export const selectToolMachine = setup({
 			selectionBox: null,
 		}),
 
-		showSelectionBox: () => {
-			// TODO: Show selection box UI
+		showSelectionBox: ({ context }) => {
+			// Create or show selection box overlay
+			let selectionBoxElement = document.getElementById("selection-box-overlay");
+			if (!selectionBoxElement) {
+				selectionBoxElement = document.createElement("div");
+				selectionBoxElement.id = "selection-box-overlay";
+				selectionBoxElement.style.position = "absolute";
+				selectionBoxElement.style.border = "1px dashed #007bff";
+				selectionBoxElement.style.backgroundColor = "rgba(0, 123, 255, 0.1)";
+				selectionBoxElement.style.pointerEvents = "none";
+				selectionBoxElement.style.zIndex = "1000";
+				selectionBoxElement.style.transformOrigin = "0 0";
+
+				// Find the shape layer container to add the selection box with proper transform
+				const canvas = document.querySelector(".whiteboard-canvas");
+				if (canvas) {
+					const shapeLayer = canvas.querySelector(".shape-layer");
+					if (shapeLayer) {
+						shapeLayer.appendChild(selectionBoxElement);
+					}
+				}
+			}
+			selectionBoxElement.style.display = "block";
 		},
 
 		hideSelectionBox: () => {
-			// TODO: Hide selection box UI
+			const selectionBoxElement = document.getElementById("selection-box-overlay");
+			if (selectionBoxElement) {
+				selectionBoxElement.style.display = "none";
+			}
 		},
 
 		recordInitialPositions: assign(({ context }) => {
