@@ -177,31 +177,45 @@ export const selectToolMachine = setup({
 		}),
 
 		showSelectionBox: () => {
-			// Create or show selection box overlay
-			let selectionBoxElement = document.getElementById("selection-box-overlay");
-			if (!selectionBoxElement) {
-				selectionBoxElement = document.createElement("div");
-				selectionBoxElement.id = "selection-box-overlay";
-				selectionBoxElement.style.position = "absolute";
-				selectionBoxElement.style.border = "1px dashed #007bff";
-				selectionBoxElement.style.backgroundColor = "rgba(0, 123, 255, 0.1)";
-				selectionBoxElement.style.pointerEvents = "none";
-				selectionBoxElement.style.zIndex = "1000";
-				selectionBoxElement.style.transformOrigin = "0 0";
+			try {
+				// Create or show selection box overlay
+				let selectionBoxElement = document.getElementById("selection-box-overlay");
+				if (!selectionBoxElement) {
+					selectionBoxElement = document.createElement("div");
+					selectionBoxElement.id = "selection-box-overlay";
+					selectionBoxElement.style.position = "absolute";
+					selectionBoxElement.style.border = "1px dashed #007bff";
+					selectionBoxElement.style.backgroundColor = "rgba(0, 123, 255, 0.1)";
+					selectionBoxElement.style.pointerEvents = "none";
+					selectionBoxElement.style.zIndex = "1000";
+					selectionBoxElement.style.transformOrigin = "0 0";
+					selectionBoxElement.style.left = "0px";
+					selectionBoxElement.style.top = "0px";
+					selectionBoxElement.style.width = "0px";
+					selectionBoxElement.style.height = "0px";
 
-				// Find the shape layer container to add the selection box with proper transform
-				const canvas = document.querySelector(".whiteboard-canvas");
-				if (canvas) {
-					const shapeLayer = canvas.querySelector(".shape-layer");
-					if (shapeLayer) {
-						shapeLayer.appendChild(selectionBoxElement);
+					// Try to find the best place to append
+					// Don't append to shape-layer as it gets cleared on updates
+					const canvas = document.querySelector(".whiteboard-canvas");
+					if (canvas) {
+						// Try selection-layer first
+						const selectionLayer = canvas.querySelector(".selection-layer");
+						if (selectionLayer) {
+							selectionLayer.appendChild(selectionBoxElement);
+						} else {
+							// Append directly to canvas as a sibling to shape-layer
+							canvas.appendChild(selectionBoxElement);
+						}
+					} else {
+						// Last resort: append to body
+						document.body.appendChild(selectionBoxElement);
 					}
 				}
+				// Make sure it's visible
+				selectionBoxElement.style.display = "block";
+			} catch (error) {
+				console.error("[SelectTool] Error in showSelectionBox:", error);
 			}
-			// Make sure it's visible and reset size (will be set by updateSelectionBox)
-			selectionBoxElement.style.display = "block";
-			selectionBoxElement.style.width = "0px";
-			selectionBoxElement.style.height = "0px";
 		},
 
 		hideSelectionBox: () => {
