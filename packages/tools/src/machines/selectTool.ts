@@ -23,9 +23,16 @@ export interface SelectToolContext extends ToolContext {
 
 // === Select Tool Events ===
 export type SelectToolEvent =
-	| { type: "POINTER_DOWN"; point: Point; target?: string }
-	| { type: "POINTER_MOVE"; point: Point }
-	| { type: "POINTER_UP"; point: Point }
+	| {
+			type: "POINTER_DOWN";
+			point: Point;
+			target?: string;
+			shiftKey?: boolean;
+			ctrlKey?: boolean;
+			metaKey?: boolean;
+	  }
+	| { type: "POINTER_MOVE"; point: Point; shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean }
+	| { type: "POINTER_UP"; point: Point; shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean }
 	| { type: "DOUBLE_CLICK"; point: Point; target?: string }
 	| { type: "KEY_DOWN"; key: string }
 	| { type: "ESCAPE" }
@@ -94,7 +101,11 @@ export const selectToolMachine = setup({
 
 		startBrushSelection: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
+
+			// Store the drag start point separately from selection box
+			// This ensures the start point is fixed during drag
 			return {
+				dragStart: event.point,
 				selectionBox: {
 					x: event.point.x,
 					y: event.point.y,
@@ -105,33 +116,119 @@ export const selectToolMachine = setup({
 		}),
 
 		updateSelectionBox: assign(({ context, event }) => {
-			if (event.type !== "POINTER_MOVE" || !context.selectionBox) return {};
+			if (event.type !== "POINTER_MOVE" || !context.selectionBox || !context.dragStart) return {};
 
+			// Use the fixed drag start point, not the selection box position
+			const startX = context.dragStart.x;
+			const startY = context.dragStart.y;
+			const currentX = event.point.x;
+			const currentY = event.point.y;
+
+			// Calculate the box with proper min/max to handle all drag directions
 			const box = {
-				x: Math.min(context.selectionBox.x, event.point.x),
-				y: Math.min(context.selectionBox.y, event.point.y),
-				width: Math.abs(event.point.x - context.selectionBox.x),
-				height: Math.abs(event.point.y - context.selectionBox.y),
+				x: Math.min(startX, currentX),
+				y: Math.min(startY, currentY),
+				width: Math.abs(currentX - startX),
+				height: Math.abs(currentY - startY),
 			};
 
+			// Get shapes that intersect with the selection box
 			const intersecting = getShapesInBounds(box);
+
+			// Check if Shift is held for additive selection
+			const store = whiteboardStore.getState();
+			let newSelectedIds: Set<string>;
+
+			if (event.shiftKey) {
+				// Add to existing selection
+				newSelectedIds = new Set(store.selectedShapeIds);
+				intersecting.forEach((shape) => newSelectedIds.add(shape.id));
+			} else {
+				// Replace selection
+				newSelectedIds = new Set(intersecting.map((s) => s.id));
+			}
+
+			// Update store with new selection
+			store.setSelection(Array.from(newSelectedIds));
+
+			// Update visual feedback for selection box
+			const selectionBoxElement = document.getElementById("selection-box-overlay");
+			if (selectionBoxElement) {
+				selectionBoxElement.style.left = `${box.x}px`;
+				selectionBoxElement.style.top = `${box.y}px`;
+				selectionBoxElement.style.width = `${box.width}px`;
+				selectionBoxElement.style.height = `${box.height}px`;
+			}
 
 			return {
 				selectionBox: box,
-				selectedIds: new Set(intersecting.map((s) => s.id)),
+				selectedIds: newSelectedIds,
 			};
 		}),
 
-		finalizeSelection: assign({
-			selectionBox: null,
+		finalizeSelection: assign(() => {
+			// Hide the selection box overlay when selection is finalized
+			const selectionBoxElement = document.getElementById("selection-box-overlay");
+			if (selectionBoxElement) {
+				selectionBoxElement.style.display = "none";
+				// Clear the dimensions to prevent visual artifacts
+				selectionBoxElement.style.width = "0px";
+				selectionBoxElement.style.height = "0px";
+			}
+
+			return {
+				selectionBox: null,
+				dragStart: null,
+			};
 		}),
 
 		showSelectionBox: () => {
-			// TODO: Show selection box UI
+			try {
+				// Create or show selection box overlay
+				let selectionBoxElement = document.getElementById("selection-box-overlay");
+				if (!selectionBoxElement) {
+					selectionBoxElement = document.createElement("div");
+					selectionBoxElement.id = "selection-box-overlay";
+					selectionBoxElement.style.position = "absolute";
+					selectionBoxElement.style.border = "1px dashed #007bff";
+					selectionBoxElement.style.backgroundColor = "rgba(0, 123, 255, 0.1)";
+					selectionBoxElement.style.pointerEvents = "none";
+					selectionBoxElement.style.zIndex = "1000";
+					selectionBoxElement.style.transformOrigin = "0 0";
+					selectionBoxElement.style.left = "0px";
+					selectionBoxElement.style.top = "0px";
+					selectionBoxElement.style.width = "0px";
+					selectionBoxElement.style.height = "0px";
+
+					// Try to find the best place to append
+					// Don't append to shape-layer as it gets cleared on updates
+					const canvas = document.querySelector(".whiteboard-canvas");
+					if (canvas) {
+						// Try selection-layer first
+						const selectionLayer = canvas.querySelector(".selection-layer");
+						if (selectionLayer) {
+							selectionLayer.appendChild(selectionBoxElement);
+						} else {
+							// Append directly to canvas as a sibling to shape-layer
+							canvas.appendChild(selectionBoxElement);
+						}
+					} else {
+						// Last resort: append to body
+						document.body.appendChild(selectionBoxElement);
+					}
+				}
+				// Make sure it's visible
+				selectionBoxElement.style.display = "block";
+			} catch (error) {
+				console.error("[SelectTool] Error in showSelectionBox:", error);
+			}
 		},
 
 		hideSelectionBox: () => {
-			// TODO: Hide selection box UI
+			const selectionBoxElement = document.getElementById("selection-box-overlay");
+			if (selectionBoxElement) {
+				selectionBoxElement.style.display = "none";
+			}
 		},
 
 		recordInitialPositions: assign(({ context }) => {
@@ -216,9 +313,21 @@ export const selectToolMachine = setup({
 			});
 		},
 
-		clearSelection: assign({
-			selectedIds: new Set<string>(),
-			hoveredId: null,
+		clearSelection: assign(() => {
+			// Also clear any selection box overlay when clearing selection
+			const selectionBoxElement = document.getElementById("selection-box-overlay");
+			if (selectionBoxElement) {
+				selectionBoxElement.style.display = "none";
+				selectionBoxElement.style.width = "0px";
+				selectionBoxElement.style.height = "0px";
+			}
+
+			return {
+				selectedIds: new Set<string>(),
+				hoveredId: null,
+				selectionBox: null,
+				dragStart: null,
+			};
 		}),
 
 		deleteSelectedShapes: ({ context }) => {

@@ -394,19 +394,43 @@ export class Canvas {
 
 		// Handle Delete key
 		if (event.key === "Delete" && store.selectedShapeIds.size > 0) {
-			Array.from(store.selectedShapeIds).forEach((id) => {
-				whiteboardStore.getState().removeShape(id);
-			});
+			store.removeSelectedShapes();
 			return;
 		}
 
-		// Handle Ctrl+A / Cmd+A
-		if ((event.ctrlKey || event.metaKey) && event.key === "a") {
+		// Handle Escape key - clear selection
+		if (event.key === "Escape") {
+			if (store.selectedShapeIds.size > 0) {
+				store.clearSelection();
+			}
+			return;
+		}
+
+		// Handle Select All (Ctrl/Cmd + A)
+		if (event.key === "a" && (event.ctrlKey || event.metaKey)) {
 			event.preventDefault();
-			// Select all shapes
-			Object.keys(store.shapes).forEach((id) => {
-				whiteboardStore.getState().selectShape(id);
-			});
+			store.selectAll();
+			return;
+		}
+
+		// Handle Copy (Ctrl/Cmd + C) - future implementation
+		if (event.key === "c" && (event.ctrlKey || event.metaKey)) {
+			event.preventDefault();
+			// TODO: Implement copy functionality
+			return;
+		}
+
+		// Handle Paste (Ctrl/Cmd + V) - future implementation
+		if (event.key === "v" && (event.ctrlKey || event.metaKey)) {
+			event.preventDefault();
+			// TODO: Implement paste functionality
+			return;
+		}
+
+		// Handle Cut (Ctrl/Cmd + X) - future implementation
+		if (event.key === "x" && (event.ctrlKey || event.metaKey)) {
+			event.preventDefault();
+			// TODO: Implement cut functionality
 			return;
 		}
 
