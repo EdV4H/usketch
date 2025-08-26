@@ -102,7 +102,10 @@ export const selectToolMachine = setup({
 		startBrushSelection: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
 
+			// Store the drag start point separately from selection box
+			// This ensures the start point is fixed during drag
 			return {
+				dragStart: event.point,
 				selectionBox: {
 					x: event.point.x,
 					y: event.point.y,
@@ -113,13 +116,15 @@ export const selectToolMachine = setup({
 		}),
 
 		updateSelectionBox: assign(({ context, event }) => {
-			if (event.type !== "POINTER_MOVE" || !context.selectionBox) return {};
+			if (event.type !== "POINTER_MOVE" || !context.selectionBox || !context.dragStart) return {};
 
-			const startX = context.selectionBox.x;
-			const startY = context.selectionBox.y;
+			// Use the fixed drag start point, not the selection box position
+			const startX = context.dragStart.x;
+			const startY = context.dragStart.y;
 			const currentX = event.point.x;
 			const currentY = event.point.y;
 
+			// Calculate the box with proper min/max to handle all drag directions
 			const box = {
 				x: Math.min(startX, currentX),
 				y: Math.min(startY, currentY),
@@ -173,6 +178,7 @@ export const selectToolMachine = setup({
 
 			return {
 				selectionBox: null,
+				dragStart: null,
 			};
 		}),
 
@@ -320,6 +326,7 @@ export const selectToolMachine = setup({
 				selectedIds: new Set<string>(),
 				hoveredId: null,
 				selectionBox: null,
+				dragStart: null,
 			};
 		}),
 

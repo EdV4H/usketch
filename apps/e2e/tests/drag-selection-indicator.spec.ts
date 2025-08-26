@@ -59,6 +59,48 @@ test.describe("Drag Selection Indicator", () => {
 		expect(isHiddenAfter).toBe(true);
 	});
 
+	test("should handle upward drag selection correctly", async ({ page }) => {
+		// Switch to select tool
+		await page.click('button:has-text("Select")');
+
+		// Get the canvas element position
+		const canvasBox = await page.locator(".whiteboard-canvas").boundingBox();
+		if (!canvasBox) throw new Error("Canvas not found");
+
+		// Start dragging from bottom-right (relative to canvas)
+		const startX = canvasBox.x + 400;
+		const startY = canvasBox.y + 400;
+		await page.mouse.move(startX, startY);
+		await page.mouse.down();
+
+		// Move to top-left (upward drag)
+		const endX = canvasBox.x + 100;
+		const endY = canvasBox.y + 100;
+		await page.mouse.move(endX, endY);
+		await page.waitForTimeout(100);
+
+		// Check that selection box is positioned correctly
+		const boxPosition = await page.evaluate(() => {
+			const elem = document.getElementById("selection-box-overlay");
+			if (!elem) return null;
+			return {
+				left: parseInt(elem.style.left || "0"),
+				top: parseInt(elem.style.top || "0"),
+				width: parseInt(elem.style.width || "0"),
+				height: parseInt(elem.style.height || "0"),
+			};
+		});
+
+		// The box should be positioned at (100, 100) with size 300x300
+		expect(boxPosition).not.toBeNull();
+		expect(boxPosition!.left).toBe(100);
+		expect(boxPosition!.top).toBe(100);
+		expect(boxPosition!.width).toBe(300);
+		expect(boxPosition!.height).toBe(300);
+
+		await page.mouse.up();
+	});
+
 	test("should update selection box size as mouse moves", async ({ page }) => {
 		// Switch to select tool
 		await page.click('button:has-text("Select")');
