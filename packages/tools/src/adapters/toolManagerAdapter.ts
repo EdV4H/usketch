@@ -133,53 +133,35 @@ export class ToolManager {
 			}
 		}
 
-		this.toolManagerActor.send({
-			type: "POINTER_DOWN",
-			position: worldPos,
-			point: worldPos, // Add point for select tool
-			event: {
-				clientX: event.clientX,
-				clientY: event.clientY,
-				button: event.button,
-				shiftKey: event.shiftKey,
-				ctrlKey: event.ctrlKey,
-				metaKey: event.metaKey,
-				altKey: event.altKey,
-				target: isShape ? { id: shapeId, element: event.target as HTMLElement } : null,
-			},
-		});
+		// Send the event directly in the format selectTool expects
+		const eventToSend: any = {
+			type: "POINTER_DOWN" as const,
+			point: worldPos,
+			target: shapeId,
+			shiftKey: event.shiftKey,
+			ctrlKey: event.ctrlKey,
+			metaKey: event.metaKey,
+		};
+		this.toolManagerActor.send(eventToSend);
 	}
 
 	handlePointerMove(event: PointerEvent, worldPos: Point): void {
 		this.toolManagerActor.send({
-			type: "POINTER_MOVE",
-			position: worldPos,
-			point: worldPos, // Add point for select tool
-			event: {
-				clientX: event.clientX,
-				clientY: event.clientY,
-				shiftKey: event.shiftKey,
-				ctrlKey: event.ctrlKey,
-				metaKey: event.metaKey,
-				altKey: event.altKey,
-			},
+			type: "POINTER_MOVE" as const,
+			point: worldPos,
+			shiftKey: event.shiftKey,
+			ctrlKey: event.ctrlKey,
+			metaKey: event.metaKey,
 		});
 	}
 
 	handlePointerUp(event: PointerEvent, worldPos: Point): void {
 		this.toolManagerActor.send({
-			type: "POINTER_UP",
-			position: worldPos,
-			point: worldPos, // Add point for select tool
-			event: {
-				clientX: event.clientX,
-				clientY: event.clientY,
-				button: event.button,
-				shiftKey: event.shiftKey,
-				ctrlKey: event.ctrlKey,
-				metaKey: event.metaKey,
-				altKey: event.altKey,
-			},
+			type: "POINTER_UP" as const,
+			point: worldPos,
+			shiftKey: event.shiftKey,
+			ctrlKey: event.ctrlKey,
+			metaKey: event.metaKey,
 		});
 
 		// Check if rectangle or draw tool created a shape

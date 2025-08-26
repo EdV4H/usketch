@@ -9,7 +9,7 @@ test.describe("Multi-Selection Feature", () => {
 	test.describe("Basic Selection", () => {
 		test("should select multiple shapes with Shift+Click", async ({ page }) => {
 			// Create first rectangle
-			await page.click('[data-tool="rectangle"]');
+			await page.click('button:has-text("Rectangle")');
 			await page.mouse.move(200, 200);
 			await page.mouse.down();
 			await page.mouse.move(300, 300);
@@ -28,7 +28,7 @@ test.describe("Multi-Selection Feature", () => {
 			await page.mouse.up();
 
 			// Switch to select tool
-			await page.click('[data-tool="select"]');
+			await page.click('button:has-text("Select")');
 
 			// Select first shape
 			await page.click(".whiteboard-canvas", { position: { x: 250, y: 250 } });
@@ -54,7 +54,7 @@ test.describe("Multi-Selection Feature", () => {
 
 		test("should deselect shapes with Shift+Click on selected shape", async ({ page }) => {
 			// Create two rectangles
-			await page.click('[data-tool="rectangle"]');
+			await page.click('button:has-text("Rectangle")');
 			await page.mouse.move(200, 200);
 			await page.mouse.down();
 			await page.mouse.move(300, 300);
@@ -66,7 +66,7 @@ test.describe("Multi-Selection Feature", () => {
 			await page.mouse.up();
 
 			// Switch to select tool
-			await page.click('[data-tool="select"]');
+			await page.click('button:has-text("Select")');
 
 			// Select both shapes
 			await page.click(".whiteboard-canvas", { position: { x: 250, y: 250 } });
@@ -86,7 +86,7 @@ test.describe("Multi-Selection Feature", () => {
 	test.describe("Keyboard Shortcuts", () => {
 		test("should select all shapes with Ctrl+A (or Cmd+A on Mac)", async ({ page }) => {
 			// Create three shapes
-			await page.click('[data-tool="rectangle"]');
+			await page.click('button:has-text("Rectangle")');
 
 			for (let i = 0; i < 3; i++) {
 				await page.mouse.move(200 + i * 150, 200);
@@ -96,7 +96,7 @@ test.describe("Multi-Selection Feature", () => {
 			}
 
 			// Switch to select tool
-			await page.click('[data-tool="select"]');
+			await page.click('button:has-text("Select")');
 
 			// Select all with keyboard shortcut
 			const modifier = process.platform === "darwin" ? "Meta" : "Control";
@@ -117,13 +117,13 @@ test.describe("Multi-Selection Feature", () => {
 
 		test("should clear selection with Escape key", async ({ page }) => {
 			// Create and select shapes
-			await page.click('[data-tool="rectangle"]');
+			await page.click('button:has-text("Rectangle")');
 			await page.mouse.move(200, 200);
 			await page.mouse.down();
 			await page.mouse.move(300, 300);
 			await page.mouse.up();
 
-			await page.click('[data-tool="select"]');
+			await page.click('button:has-text("Select")');
 			await page.click(".whiteboard-canvas", { position: { x: 250, y: 250 } });
 
 			// Verify shape is selected
@@ -140,7 +140,7 @@ test.describe("Multi-Selection Feature", () => {
 
 		test("should delete selected shapes with Delete key", async ({ page }) => {
 			// Create three shapes
-			await page.click('[data-tool="rectangle"]');
+			await page.click('button:has-text("Rectangle")');
 
 			for (let i = 0; i < 3; i++) {
 				await page.mouse.move(200 + i * 150, 200);
@@ -150,7 +150,7 @@ test.describe("Multi-Selection Feature", () => {
 			}
 
 			// Select all shapes
-			await page.click('[data-tool="select"]');
+			await page.click('button:has-text("Select")');
 			const modifier = process.platform === "darwin" ? "Meta" : "Control";
 			await page.keyboard.press(`${modifier}+a`);
 
@@ -166,7 +166,7 @@ test.describe("Multi-Selection Feature", () => {
 	test.describe("Drag Selection (Rubber Band)", () => {
 		test("should select shapes with drag selection", async ({ page }) => {
 			// Create three shapes in a grid
-			await page.click('[data-tool="rectangle"]');
+			await page.click('button:has-text("Rectangle")');
 
 			const positions = [
 				{ x: 200, y: 200 },
@@ -182,7 +182,7 @@ test.describe("Multi-Selection Feature", () => {
 			}
 
 			// Switch to select tool
-			await page.click('[data-tool="select"]');
+			await page.click('button:has-text("Select")');
 
 			// Drag to select multiple shapes
 			await page.mouse.move(150, 150);
@@ -197,7 +197,7 @@ test.describe("Multi-Selection Feature", () => {
 
 		test("should add to selection with Shift+Drag", async ({ page }) => {
 			// Create four shapes in a grid
-			await page.click('[data-tool="rectangle"]');
+			await page.click('button:has-text("Rectangle")');
 
 			const positions = [
 				{ x: 200, y: 200 },
@@ -214,7 +214,7 @@ test.describe("Multi-Selection Feature", () => {
 			}
 
 			// Switch to select tool
-			await page.click('[data-tool="select"]');
+			await page.click('button:has-text("Select")');
 
 			// Select top two shapes with drag
 			await page.mouse.move(150, 150);
@@ -239,7 +239,7 @@ test.describe("Multi-Selection Feature", () => {
 	test.describe("Multi-Selection Operations", () => {
 		test("should move multiple selected shapes together", async ({ page }) => {
 			// Create two shapes
-			await page.click('[data-tool="rectangle"]');
+			await page.click('button:has-text("Rectangle")');
 			await page.mouse.move(200, 200);
 			await page.mouse.down();
 			await page.mouse.move(300, 300);
@@ -251,7 +251,7 @@ test.describe("Multi-Selection Feature", () => {
 			await page.mouse.up();
 
 			// Select both shapes
-			await page.click('[data-tool="select"]');
+			await page.click('button:has-text("Select")');
 			const modifier = process.platform === "darwin" ? "Meta" : "Control";
 			await page.keyboard.press(`${modifier}+a`);
 
@@ -286,7 +286,7 @@ test.describe("Multi-Selection Feature", () => {
 
 		test("should show group bounding box for multiple selection", async ({ page }) => {
 			// Create three shapes
-			await page.click('[data-tool="rectangle"]');
+			await page.click('button:has-text("Rectangle")');
 
 			for (let i = 0; i < 3; i++) {
 				await page.mouse.move(200 + i * 150, 200);
@@ -296,7 +296,7 @@ test.describe("Multi-Selection Feature", () => {
 			}
 
 			// Select all shapes
-			await page.click('[data-tool="select"]');
+			await page.click('button:has-text("Select")');
 			const modifier = process.platform === "darwin" ? "Meta" : "Control";
 			await page.keyboard.press(`${modifier}+a`);
 
@@ -317,9 +317,61 @@ test.describe("Multi-Selection Feature", () => {
 	});
 
 	test.describe("Edge Cases", () => {
+		test("should create and show selection box DOM element during drag", async ({ page }) => {
+			// Create shapes
+			await page.click('button:has-text("Rectangle")');
+			await page.mouse.move(200, 200);
+			await page.mouse.down();
+			await page.mouse.move(300, 300);
+			await page.mouse.up();
+
+			// Switch to select tool
+			await page.click('button:has-text("Select")');
+
+			// Start drag selection
+			await page.mouse.move(100, 100);
+			await page.mouse.down();
+
+			// Move to create selection box
+			await page.mouse.move(400, 400);
+
+			// Wait for DOM element to be created
+			await page.waitForSelector("#selection-box-overlay", { state: "attached" });
+
+			// Check that the selection box DOM element exists
+			const selectionBox = await page.$("#selection-box-overlay");
+			expect(selectionBox).toBeTruthy();
+
+			// Check that it's visible during drag
+			const isVisible = await selectionBox.evaluate((el) => {
+				const style = window.getComputedStyle(el);
+				return style.display !== "none" && style.visibility !== "hidden";
+			});
+			expect(isVisible).toBe(true);
+
+			// Check that it has proper dimensions
+			const dimensions = await selectionBox.evaluate((el) => ({
+				width: el.offsetWidth,
+				height: el.offsetHeight,
+				left: parseInt(el.style.left || "0"),
+				top: parseInt(el.style.top || "0"),
+			}));
+
+			// The box should have non-zero dimensions
+			expect(dimensions.width).toBeGreaterThan(0);
+			expect(dimensions.height).toBeGreaterThan(0);
+
+			// Complete the drag
+			await page.mouse.up();
+
+			// Check that selection box is hidden after release
+			const displayAfter = await selectionBox.evaluate((el) => window.getComputedStyle(el).display);
+			expect(displayAfter).toBe("none");
+		});
+
 		test("should clear selection box overlay after drag selection", async ({ page }) => {
 			// Create shapes
-			await page.click('[data-tool="rectangle"]');
+			await page.click('button:has-text("Rectangle")');
 			await page.mouse.move(200, 200);
 			await page.mouse.down();
 			await page.mouse.move(300, 300);
@@ -331,7 +383,7 @@ test.describe("Multi-Selection Feature", () => {
 			await page.mouse.up();
 
 			// Switch to select tool
-			await page.click('[data-tool="select"]');
+			await page.click('button:has-text("Select")');
 
 			// First drag selection
 			await page.mouse.move(150, 150);
@@ -374,7 +426,7 @@ test.describe("Multi-Selection Feature", () => {
 
 		test("should handle selection of overlapping shapes", async ({ page }) => {
 			// Create overlapping shapes
-			await page.click('[data-tool="rectangle"]');
+			await page.click('button:has-text("Rectangle")');
 
 			for (let i = 0; i < 3; i++) {
 				await page.mouse.move(250 + i * 30, 250 + i * 30);
@@ -384,7 +436,7 @@ test.describe("Multi-Selection Feature", () => {
 			}
 
 			// Try to select the top shape
-			await page.click('[data-tool="select"]');
+			await page.click('button:has-text("Select")');
 			await page.click(".whiteboard-canvas", { position: { x: 320, y: 320 } });
 
 			// Should select only one shape (the topmost)
@@ -394,20 +446,20 @@ test.describe("Multi-Selection Feature", () => {
 
 		test("should maintain selection after tool switch and back", async ({ page }) => {
 			// Create and select shapes
-			await page.click('[data-tool="rectangle"]');
+			await page.click('button:has-text("Rectangle")');
 			await page.mouse.move(200, 200);
 			await page.mouse.down();
 			await page.mouse.move(300, 300);
 			await page.mouse.up();
 
-			await page.click('[data-tool="select"]');
+			await page.click('button:has-text("Select")');
 			await page.click(".whiteboard-canvas", { position: { x: 250, y: 250 } });
 
 			// Switch to rectangle tool
-			await page.click('[data-tool="rectangle"]');
+			await page.click('button:has-text("Rectangle")');
 
 			// Switch back to select tool
-			await page.click('[data-tool="select"]');
+			await page.click('button:has-text("Select")');
 
 			// Selection should be cleared after tool switch
 			const selectedShapes = await page.$$('[data-selected="true"]');
