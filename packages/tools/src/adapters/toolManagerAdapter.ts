@@ -120,9 +120,14 @@ export class ToolManager {
 						store.selectShape(shapeId);
 					}
 				} else {
-					// Clear selection and select only this shape
-					store.clearSelection();
-					store.selectShape(shapeId);
+					// If clicking on already selected shape, don't change selection
+					// This allows dragging multiple selected shapes
+					if (!store.selectedShapeIds.has(shapeId)) {
+						// Clear selection and select only this shape
+						store.clearSelection();
+						store.selectShape(shapeId);
+					}
+					// If shape is already selected, keep the current selection
 				}
 			} else {
 				// Clicking on empty space - clear selection
@@ -133,11 +138,14 @@ export class ToolManager {
 			}
 		}
 
-		// Send the event directly in the format selectTool expects
+		// Send the event in the format each tool expects
+		// SelectTool expects "point", Rectangle/Drawing tools expect "position"
 		const eventToSend: any = {
 			type: "POINTER_DOWN" as const,
 			point: worldPos,
+			position: worldPos, // Add position for drawing tools
 			target: shapeId,
+			event: event, // Pass original event for drawing tools
 			shiftKey: event.shiftKey,
 			ctrlKey: event.ctrlKey,
 			metaKey: event.metaKey,
@@ -149,6 +157,8 @@ export class ToolManager {
 		this.toolManagerActor.send({
 			type: "POINTER_MOVE" as const,
 			point: worldPos,
+			position: worldPos, // Add position for drawing tools
+			event: event, // Pass original event for drawing tools
 			shiftKey: event.shiftKey,
 			ctrlKey: event.ctrlKey,
 			metaKey: event.metaKey,
@@ -159,6 +169,8 @@ export class ToolManager {
 		this.toolManagerActor.send({
 			type: "POINTER_UP" as const,
 			point: worldPos,
+			position: worldPos, // Add position for drawing tools
+			event: event, // Pass original event for drawing tools
 			shiftKey: event.shiftKey,
 			ctrlKey: event.ctrlKey,
 			metaKey: event.metaKey,

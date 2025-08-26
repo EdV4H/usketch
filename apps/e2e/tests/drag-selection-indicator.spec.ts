@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Drag Selection Indicator", () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto("http://localhost:5173");
+		await page.goto("http://localhost:5173?e2e=true");
 		await page.waitForSelector(".whiteboard-canvas");
 	});
 
