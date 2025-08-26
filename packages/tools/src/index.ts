@@ -1,7 +1,12 @@
 // === Main exports for @usketch/tools ===
 
-// Main Tool Manager
-export { ToolManager } from "./adapters/toolManagerAdapter";
+// New Tool Manager V2
+export { ToolManagerV2 } from "./adapters/toolManagerAdapterV2";
+// Main Tool Manager (backward compatible)
+export { createDefaultToolManager, ToolManager } from "./adapters/toolManagerCompat";
+
+// Tool configurations
+export { createDefaultToolManagerOptions, getDefaultTools } from "./configs/default-tools";
 
 // Machine exports for advanced usage
 export type { DrawingToolContext, DrawingToolEvent } from "./machines/drawingTool";
