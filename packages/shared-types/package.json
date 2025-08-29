@@ -13,7 +13,6 @@
 	"scripts": {
 		"build": "tsc",
 		"dev": "tsc --watch",
-		"test": "vitest run",
 		"clean": "rm -rf dist"
 	},
 	"devDependencies": {

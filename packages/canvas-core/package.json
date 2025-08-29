@@ -14,8 +14,7 @@
 	},
 	"scripts": {
 		"build": "tsc",
-		"dev": "tsup src/index.ts --format cjs,esm --dts --watch",
-		"test": "vitest run"
+		"dev": "tsup src/index.ts --format cjs,esm --dts --watch"
 	},
 	"dependencies": {
 		"@usketch/shared-types": "workspace:*",
