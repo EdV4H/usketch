@@ -6,7 +6,7 @@ import {
 	screenToWorld,
 } from "@usketch/shared-utils";
 import { whiteboardStore } from "@usketch/store";
-import { createDefaultToolManager } from "@usketch/tools";
+import { createDefaultToolManager, type ToolManager } from "@usketch/tools";
 import { SelectionLayer } from "@usketch/ui-components";
 
 export class Canvas {
@@ -20,7 +20,7 @@ export class Canvas {
 	private dragStart = { x: 0, y: 0 };
 	private dragStartCamera = { x: 0, y: 0, zoom: 1 };
 
-	private toolManager: ReturnType<typeof createDefaultToolManager>;
+	private toolManager: ToolManager;
 	private selectionLayer: SelectionLayer;
 
 	// Event handler references for cleanup
@@ -442,7 +442,7 @@ export class Canvas {
 	}
 
 	// Public method to access tool manager
-	public getToolManager(): ReturnType<typeof createDefaultToolManager> {
+	public getToolManager(): ToolManager {
 		return this.toolManager;
 	}
 
