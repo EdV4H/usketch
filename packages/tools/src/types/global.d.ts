@@ -10,6 +10,6 @@ declare global {
 
 // For Node.js environments
 declare global {
-	// biome-ignore lint: global declaration requires var
+	// Global variable requires var declaration
 	var __lastCreatedShape: Shape | undefined;
 }

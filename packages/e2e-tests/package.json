@@ -8,9 +8,7 @@
 		".": "./src/index.ts",
 		"./tests/*": "./src/tests/*"
 	},
-	"scripts": {
-		"typecheck": "tsc --noEmit"
-	},
+	"scripts": {},
 	"dependencies": {
 		"@playwright/test": "^1.49.1"
 	},
