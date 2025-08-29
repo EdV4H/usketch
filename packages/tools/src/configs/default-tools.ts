@@ -1,4 +1,3 @@
-import { whiteboardStore } from "@usketch/store";
 import { createDrawingTool } from "../machines/drawingTool";
 import { createRectangleTool } from "../machines/rectangleTool";
 import { createSelectTool } from "../machines/selectTool";

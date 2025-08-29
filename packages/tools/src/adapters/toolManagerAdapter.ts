@@ -3,7 +3,7 @@ import { whiteboardStore } from "@usketch/store";
 import type { Actor, AnyStateMachine } from "xstate";
 import { createActor } from "xstate";
 import { createToolManager } from "../machines/toolManager";
-import type { ToolBehaviors, ToolConfig, ToolManagerOptions } from "../schemas";
+import type { ToolConfig, ToolManagerOptions } from "../schemas";
 import { formatToolConfigError, ToolManagerOptionsSchema, validateToolConfig } from "../schemas";
 import { ToolValidationError } from "../utils/error-handler";
 import { getShapeAtPoint } from "../utils/geometry";
