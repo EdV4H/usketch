@@ -212,7 +212,7 @@ export class SelectionLayer {
 		handlePositions.forEach(({ position, ...styles }) => {
 			const handle = document.createElement("div");
 			handle.className = "resize-handle";
-			handle.dataset["resizeHandle"] = position;
+			handle.dataset.resizeHandle = position;
 			handle.style.position = "absolute";
 			handle.style.width = "8px";
 			handle.style.height = "8px";
