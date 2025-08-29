@@ -1,9 +1,9 @@
 // === Main exports for @usketch/tools ===
 
-// New Tool Manager V2
-export { ToolManagerV2 } from "./adapters/toolManagerAdapterV2";
-// Main Tool Manager (backward compatible)
-export { createDefaultToolManager, ToolManager } from "./adapters/toolManagerCompat";
+// Main Tool Manager
+export { ToolManager } from "./adapters/toolManagerAdapter";
+// Helper for backward compatibility with default tools
+export { createDefaultToolManager } from "./adapters/toolManagerCompat";
 
 // Tool configurations
 export { createDefaultToolManagerOptions, getDefaultTools } from "./configs/default-tools";

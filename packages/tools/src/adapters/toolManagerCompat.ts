@@ -1,21 +1,10 @@
 import { createDefaultToolManagerOptions } from "../configs/default-tools";
-import { ToolManagerV2 } from "./toolManagerAdapterV2";
-
-/**
- * Backward compatibility wrapper for the original ToolManager
- * Creates a ToolManagerV2 instance with default tools
- */
-export class ToolManager extends ToolManagerV2 {
-	constructor() {
-		// Initialize with default tools for backward compatibility
-		super(createDefaultToolManagerOptions());
-	}
-}
+import { ToolManager } from "./toolManagerAdapter";
 
 /**
  * Factory function to create a ToolManager with default tools
- * (recommended for new code)
+ * Use this for backward compatibility with existing code that expects default tools
  */
-export function createDefaultToolManager(): ToolManagerV2 {
-	return new ToolManagerV2(createDefaultToolManagerOptions());
+export function createDefaultToolManager(): ToolManager {
+	return new ToolManager(createDefaultToolManagerOptions());
 }
