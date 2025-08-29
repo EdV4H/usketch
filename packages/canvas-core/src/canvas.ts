@@ -6,7 +6,7 @@ import {
 	screenToWorld,
 } from "@usketch/shared-utils";
 import { whiteboardStore } from "@usketch/store";
-import { ToolManager } from "@usketch/tools";
+import { createDefaultToolManager, type ToolManager } from "@usketch/tools";
 import { SelectionLayer } from "@usketch/ui-components";
 
 export class Canvas {
@@ -91,8 +91,8 @@ export class Canvas {
 		// Initialize selection layer
 		this.selectionLayer = new SelectionLayer(this.selectionContainer);
 
-		// Initialize tool manager
-		this.toolManager = new ToolManager();
+		// Initialize tool manager with default tools
+		this.toolManager = createDefaultToolManager();
 
 		this.setupEventListeners();
 		this.subscribeToStore();

@@ -2,163 +2,282 @@ import type { Point, Shape } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import type { Actor, AnyStateMachine } from "xstate";
 import { createActor } from "xstate";
-import { createDrawingTool } from "../machines/drawingTool";
-import { createRectangleTool } from "../machines/rectangleTool";
-import { createSelectTool } from "../machines/selectTool";
 import { createToolManager } from "../machines/toolManager";
+import type { ToolBehaviors, ToolConfig, ToolManagerOptions } from "../schemas";
+import { formatToolConfigError, ToolManagerOptionsSchema, validateToolConfig } from "../schemas";
+import { ToolValidationError } from "../utils/error-handler";
 import { getShapeAtPoint } from "../utils/geometry";
 
-// ToolManager implementation using XState v5
+/**
+ * ToolManager with external configuration support and validation
+ */
 export class ToolManager {
 	private toolManagerActor: Actor<AnyStateMachine>;
-	private currentToolId = "select";
+	private currentToolId: string;
+	private toolConfigs: Map<string, ToolConfig>;
+	private options: ToolManagerOptions;
 
-	constructor() {
-		// Create tool machines
-		const selectTool = createSelectTool();
-		const rectangleTool = createRectangleTool();
-		const drawingTool = createDrawingTool();
+	constructor(options: unknown) {
+		// Validate options with Zod
+		const validationResult = ToolManagerOptionsSchema.safeParse(options);
+		if (!validationResult.success) {
+			throw new ToolValidationError(
+				`Invalid ToolManager options: ${formatToolConfigError(validationResult.error)}`,
+				validationResult.error,
+			);
+		}
 
-		// Create and start the tool manager
-		const toolManagerMachine = createToolManager({
-			select: selectTool,
-			rectangle: rectangleTool,
-			draw: drawingTool,
+		this.options = validationResult.data;
+		this.toolConfigs = new Map();
+
+		// Store and validate tool configurations
+		validationResult.data.tools.forEach((config) => {
+			if (config.enabled !== false) {
+				this.validateAndAddToolConfig(config);
+			}
 		});
 
+		// Ensure at least one tool is enabled
+		if (this.toolConfigs.size === 0) {
+			throw new Error("At least one enabled tool is required");
+		}
+
+		// Create tool machines object for XState
+		const toolMachines = Object.fromEntries(
+			Array.from(this.toolConfigs.entries()).map(([id, config]) => [id, config.machine]),
+		);
+
+		// Create and start the tool manager machine
+		const toolManagerMachine = createToolManager(toolMachines);
 		this.toolManagerActor = createActor(toolManagerMachine);
 		this.toolManagerActor.start();
 
 		// Subscribe to tool changes
 		this.toolManagerActor.subscribe((state) => {
 			const activeToolId = state.context.activeTool;
-			if (activeToolId !== this.currentToolId) {
+			if (activeToolId !== this.currentToolId && activeToolId) {
+				const previousToolId = this.currentToolId;
 				this.currentToolId = activeToolId;
+
+				// Call tool change callback if provided
+				if (this.options.onToolChange) {
+					(this.options.onToolChange as (toolId: string) => void)(activeToolId);
+				}
 			}
 		});
 
-		// Set initial tool
-		this.setActiveTool("select");
+		// Set default tool
+		const defaultToolId = this.validateDefaultToolId(
+			this.options.defaultToolId || this.options.tools[0]?.id,
+		);
+		this.currentToolId = defaultToolId;
+		this.setActiveTool(defaultToolId);
 	}
 
-	// Match the legacy ToolManager interface
-	setActiveTool(toolId: string, updateStore = true): void {
-		// Map legacy tool IDs to XState tool IDs
-		const xstateToolId = this.mapLegacyToolId(toolId);
-
-		// Clear selection when switching away from select tool
-		if (this.currentToolId === "select" && toolId !== "select") {
-			whiteboardStore.getState().clearSelection();
-
-			// Also clear any selection box overlay
-			const selectionBoxElement = document.getElementById("selection-box-overlay");
-			if (selectionBoxElement) {
-				selectionBoxElement.style.display = "none";
-				selectionBoxElement.style.width = "0px";
-				selectionBoxElement.style.height = "0px";
-			}
+	private validateAndAddToolConfig(config: ToolConfig): void {
+		// Check for duplicates if not allowed
+		if (!this.options.allowDuplicates && this.toolConfigs.has(config.id)) {
+			throw new Error(`Tool with id "${config.id}" already exists`);
 		}
 
-		// Send switch event to the state machine
+		this.toolConfigs.set(config.id, config);
+	}
+
+	private validateDefaultToolId(toolId: string | undefined): string {
+		if (!toolId) {
+			const firstTool = Array.from(this.toolConfigs.keys())[0];
+			if (!firstTool) {
+				throw new Error("No tools available to set as default");
+			}
+			return firstTool;
+		}
+
+		if (!this.toolConfigs.has(toolId)) {
+			throw new Error(`Default tool "${toolId}" not found in available tools`);
+		}
+
+		return toolId;
+	}
+
+	// Tool management methods
+	setActiveTool(toolId: string, updateStore = true): void {
+		const previousToolId = this.currentToolId;
+		const previousTool = this.toolConfigs.get(previousToolId);
+		const nextTool = this.toolConfigs.get(toolId);
+
+		if (!nextTool) {
+			throw new Error(`Tool "${toolId}" not found`);
+		}
+
+		// Execute previous tool's deactivate behavior
+		if (previousTool?.behaviors?.onDeactivate) {
+			previousTool.behaviors.onDeactivate({
+				store: whiteboardStore.getState(),
+				nextToolId: toolId,
+			});
+		}
+
+		// Send switch event to XState machine
 		this.toolManagerActor.send({
 			type: "SWITCH_TOOL",
-			tool: xstateToolId,
+			tool: toolId,
 		});
 
-		// Update store if requested
+		// Execute new tool's activate behavior
+		if (nextTool.behaviors?.onActivate) {
+			nextTool.behaviors.onActivate({
+				store: whiteboardStore.getState(),
+				previousToolId,
+			});
+		}
+
+		// Update state
+		this.currentToolId = toolId;
 		if (updateStore) {
 			whiteboardStore.setState({ currentTool: toolId });
 		}
-
-		this.currentToolId = toolId;
-	}
-
-	private mapLegacyToolId(toolId: string): string {
-		// Map legacy tool IDs to XState tool IDs
-		const mapping: Record<string, string> = {
-			select: "select",
-			rectangle: "rectangle",
-			draw: "draw",
-		};
-		return mapping[toolId] || toolId;
 	}
 
 	getActiveTool(): string {
 		return this.currentToolId;
 	}
 
+	// Dynamic tool management
+	addTool(config: unknown): void {
+		const validationResult = validateToolConfig(config);
+
+		if (this.options.validateOnAdd && !validationResult.success) {
+			throw new ToolValidationError(
+				`Invalid tool configuration: ${formatToolConfigError(validationResult.error)}`,
+				validationResult.error,
+			);
+		}
+
+		const validatedConfig = validationResult.success
+			? validationResult.data
+			: (config as ToolConfig);
+
+		this.validateAndAddToolConfig(validatedConfig);
+
+		// Register with XState machine
+		this.toolManagerActor.send({
+			type: "REGISTER_TOOL",
+			id: validatedConfig.id,
+			machine: validatedConfig.machine,
+		});
+	}
+
+	removeTool(toolId: string): void {
+		if (!this.toolConfigs.has(toolId)) {
+			console.warn(`Tool "${toolId}" not found`);
+			return;
+		}
+
+		// Switch to another tool if removing the active one
+		if (this.currentToolId === toolId) {
+			const nextTool = Array.from(this.toolConfigs.keys()).find((id) => id !== toolId);
+			if (nextTool) {
+				this.setActiveTool(nextTool);
+			}
+		}
+
+		this.toolConfigs.delete(toolId);
+	}
+
+	// Tool configuration access
+	getAvailableTools(): ToolConfig[] {
+		return Array.from(this.toolConfigs.values());
+	}
+
+	getToolConfig(toolId: string): ToolConfig | undefined {
+		return this.toolConfigs.get(toolId);
+	}
+
+	updateToolConfig(toolId: string, updates: Partial<ToolConfig>): void {
+		const existing = this.toolConfigs.get(toolId);
+		if (!existing) {
+			throw new Error(`Tool "${toolId}" not found`);
+		}
+
+		const updated = { ...existing, ...updates };
+		const validationResult = validateToolConfig(updated);
+
+		if (!validationResult.success) {
+			throw new ToolValidationError(
+				`Invalid tool configuration update: ${formatToolConfigError(validationResult.error)}`,
+				validationResult.error,
+			);
+		}
+
+		this.toolConfigs.set(toolId, validationResult.data);
+	}
+
 	// Get preview shape from the current tool
 	getPreviewShape(): Shape | null {
-		if (this.currentToolId === "rectangle" || this.currentToolId === "draw") {
-			const snapshot = this.toolManagerActor.getSnapshot();
-			const toolActor = snapshot.context.currentToolActor;
-			if (toolActor) {
-				const toolSnapshot = toolActor.getSnapshot();
-				return toolSnapshot.context.previewShape;
-			}
+		const currentTool = this.toolConfigs.get(this.currentToolId);
+		if (!currentTool) return null;
+
+		const snapshot = this.toolManagerActor.getSnapshot();
+		const toolActor = snapshot.context.currentToolActor;
+		if (toolActor) {
+			const toolSnapshot = toolActor.getSnapshot();
+			return toolSnapshot.context.previewShape;
 		}
 		return null;
 	}
 
-	// Event delegation methods
+	// Event handling with behaviors support
 	handlePointerDown(event: PointerEvent, worldPos: Point): void {
-		// Get shape at the clicked position using world coordinates
-		const shape = getShapeAtPoint(worldPos);
-		const isShape = !!shape;
-		const shapeId = shape?.id;
+		const currentTool = this.toolConfigs.get(this.currentToolId);
 
-		// If select tool, handle selection logic
-		if (this.currentToolId === "select") {
-			const store = whiteboardStore.getState();
-			if (isShape && shapeId) {
-				// Clicking on a shape
-				if (event.shiftKey || event.ctrlKey || event.metaKey) {
-					// Toggle selection with modifier keys
-					if (store.selectedShapeIds.has(shapeId)) {
-						store.deselectShape(shapeId);
-					} else {
-						store.selectShape(shapeId);
-					}
-				} else {
-					// If clicking on already selected shape, don't change selection
-					// This allows dragging multiple selected shapes
-					if (!store.selectedShapeIds.has(shapeId)) {
-						// Clear selection and select only this shape
-						store.clearSelection();
-						store.selectShape(shapeId);
-					}
-					// If shape is already selected, keep the current selection
-				}
-			} else {
-				// Clicking on empty space - clear selection
-				// Only clear if there are selected shapes
-				if (store.selectedShapeIds.size > 0) {
-					store.clearSelection();
-				}
-			}
+		// Execute tool-specific pre-processing
+		if (currentTool?.behaviors?.beforePointerDown) {
+			const handled = currentTool.behaviors.beforePointerDown({
+				event,
+				worldPos,
+				store: whiteboardStore.getState(),
+			});
+
+			// Skip default processing if tool handled the event
+			if (handled) return;
 		}
 
-		// Send the event in the format each tool expects
-		// SelectTool expects "point", Rectangle/Drawing tools expect "position"
-		const eventToSend: any = {
+		// Default processing - send to XState machine
+		const shape = getShapeAtPoint(worldPos);
+		const shapeId = shape?.id;
+
+		this.toolManagerActor.send({
 			type: "POINTER_DOWN" as const,
 			point: worldPos,
-			position: worldPos, // Add position for drawing tools
+			position: worldPos, // For compatibility
 			target: shapeId,
-			event: event, // Pass original event for drawing tools
+			event: event,
 			shiftKey: event.shiftKey,
 			ctrlKey: event.ctrlKey,
 			metaKey: event.metaKey,
-		};
-		this.toolManagerActor.send(eventToSend);
+		});
 	}
 
 	handlePointerMove(event: PointerEvent, worldPos: Point): void {
+		const currentTool = this.toolConfigs.get(this.currentToolId);
+
+		// Execute tool-specific pre-processing
+		if (currentTool?.behaviors?.beforePointerMove) {
+			const handled = currentTool.behaviors.beforePointerMove({
+				event,
+				worldPos,
+				store: whiteboardStore.getState(),
+			});
+
+			if (handled) return;
+		}
+
+		// Default processing
 		this.toolManagerActor.send({
 			type: "POINTER_MOVE" as const,
 			point: worldPos,
-			position: worldPos, // Add position for drawing tools
-			event: event, // Pass original event for drawing tools
+			position: worldPos,
+			event: event,
 			shiftKey: event.shiftKey,
 			ctrlKey: event.ctrlKey,
 			metaKey: event.metaKey,
@@ -166,29 +285,62 @@ export class ToolManager {
 	}
 
 	handlePointerUp(event: PointerEvent, worldPos: Point): void {
+		const currentTool = this.toolConfigs.get(this.currentToolId);
+
+		// Execute tool-specific pre-processing
+		if (currentTool?.behaviors?.beforePointerUp) {
+			const handled = currentTool.behaviors.beforePointerUp({
+				event,
+				worldPos,
+				store: whiteboardStore.getState(),
+			});
+
+			if (handled) return;
+		}
+
+		// Default processing
 		this.toolManagerActor.send({
 			type: "POINTER_UP" as const,
 			point: worldPos,
-			position: worldPos, // Add position for drawing tools
-			event: event, // Pass original event for drawing tools
+			position: worldPos,
+			event: event,
 			shiftKey: event.shiftKey,
 			ctrlKey: event.ctrlKey,
 			metaKey: event.metaKey,
 		});
 
-		// Check if rectangle or draw tool created a shape
-		if (this.currentToolId === "rectangle" || this.currentToolId === "draw") {
-			if (typeof window !== "undefined" && window.__lastCreatedShape) {
-				whiteboardStore.getState().addShape(window.__lastCreatedShape);
-				delete window.__lastCreatedShape;
-			} else if (typeof global !== "undefined" && global.__lastCreatedShape) {
-				whiteboardStore.getState().addShape(global.__lastCreatedShape);
-				delete global.__lastCreatedShape;
+		// Check if tool created a shape (for compatibility with legacy behavior)
+		if (typeof window !== "undefined" && window.__lastCreatedShape) {
+			const shape = window.__lastCreatedShape;
+			delete window.__lastCreatedShape;
+
+			// Execute onShapeCreated behavior if defined
+			if (currentTool?.behaviors?.onShapeCreated) {
+				currentTool.behaviors.onShapeCreated({
+					shape,
+					store: whiteboardStore.getState(),
+				});
+			} else {
+				// Default behavior - add to store
+				whiteboardStore.getState().addShape(shape);
 			}
 		}
 	}
 
 	handleKeyDown(event: KeyboardEvent): void {
+		const currentTool = this.toolConfigs.get(this.currentToolId);
+
+		// Execute tool-specific pre-processing
+		if (currentTool?.behaviors?.beforeKeyDown) {
+			const handled = currentTool.behaviors.beforeKeyDown({
+				event,
+				store: whiteboardStore.getState(),
+			});
+
+			if (handled) return;
+		}
+
+		// Default processing
 		this.toolManagerActor.send({
 			type: "KEY_DOWN",
 			key: event.key,
@@ -201,6 +353,7 @@ export class ToolManager {
 	}
 
 	handleKeyUp(event: KeyboardEvent): void {
+		// Currently no tool has keyUp behaviors, but send to XState machine
 		this.toolManagerActor.send({
 			type: "KEY_UP",
 			key: event.key,
@@ -214,6 +367,15 @@ export class ToolManager {
 
 	// Clean up method
 	destroy(): void {
+		// Execute deactivate for current tool
+		const currentTool = this.toolConfigs.get(this.currentToolId);
+		if (currentTool?.behaviors?.onDeactivate) {
+			currentTool.behaviors.onDeactivate({
+				store: whiteboardStore.getState(),
+				nextToolId: "", // No next tool
+			});
+		}
+
 		this.toolManagerActor.stop();
 	}
 }

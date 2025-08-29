@@ -2,6 +2,11 @@
 
 // Main Tool Manager
 export { ToolManager } from "./adapters/toolManagerAdapter";
+// Helper for backward compatibility with default tools
+export { createDefaultToolManager } from "./adapters/toolManagerCompat";
+
+// Tool configurations
+export { createDefaultToolManagerOptions, getDefaultTools } from "./configs/default-tools";
 
 // Machine exports for advanced usage
 export type { DrawingToolContext, DrawingToolEvent } from "./machines/drawingTool";
