@@ -8,7 +8,7 @@ import { getShapeAtPoint } from "../utils/geometry";
  * Select tool behaviors - handle selection logic
  */
 const selectToolBehaviors: ToolBehaviors = {
-	onDeactivate: ({ store, nextToolId }) => {
+	onDeactivate: ({ store }) => {
 		// Clear selection when switching away from select tool
 		store.clearSelection();
 

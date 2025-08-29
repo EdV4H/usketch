@@ -56,7 +56,6 @@ export class ToolManager {
 		this.toolManagerActor.subscribe((state) => {
 			const activeToolId = state.context.activeTool;
 			if (activeToolId !== this.currentToolId && activeToolId) {
-				const previousToolId = this.currentToolId;
 				this.currentToolId = activeToolId;
 
 				// Call tool change callback if provided
