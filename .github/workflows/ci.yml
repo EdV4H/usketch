@@ -84,7 +84,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run tests
-        run: pnpm test --force
+        run: pnpm test
 
   e2e:
     name: E2E Tests
