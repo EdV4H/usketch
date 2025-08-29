@@ -111,7 +111,7 @@ jobs:
         run: cd apps/e2e && npx playwright install --with-deps chromium
 
       - name: Run E2E tests
-        run: pnpm test:e2e
+        run: cd apps/e2e && pnpm test:e2e
 
       - name: Upload test results
         if: always()
