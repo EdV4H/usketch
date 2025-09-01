@@ -124,8 +124,8 @@ describe("DOM Helpers", () => {
 		});
 
 		it("should timeout if element does not appear", async () => {
-			await expect(waitForElement(".non-existent", 100)).rejects.toThrow(
-				'Element with selector ".non-existent" not found within 100ms',
+			await expect(waitForElement(".non-existent", 100)).rejects.toThrowError(
+				new Error('Element with selector ".non-existent" not found within 100ms'),
 			);
 		});
 	});
