@@ -5,15 +5,79 @@
 uSketchは、キャンバスベースのドローイングアプリケーションです。
 Vanilla JavaScriptとReact版の2つの実装があり、共通のコアライブラリを使用しています。
 
-## ドキュメント
+## ドキュメント構成
 
-プロジェクトに関する詳細なドキュメントは `docs/` ディレクトリにあります：
+プロジェクトのドキュメントは `docs/` ディレクトリに整理されています：
 
-- `dependency-injection-examples.md` - 依存性注入の実装例
-- `turbo-cache-strategy.md` - Turborepoのキャッシュ戦略
-- `turbo-example-configs.md` - Turborepoの設定例
-- `turborepo-migration-plan.md` - Turborepoへの移行計画
-- `whiteboard-integration-architecture.md` - ホワイトボード統合アーキテクチャ
+### 📁 ドキュメントフォルダ構成
+
+```
+docs/
+├── README.md                 # ドキュメントのインデックス
+├── api/                      # API仕様・型定義
+│   ├── README.md            # API仕様書（完全なAPIリファレンス）
+│   ├── drawing-tools.md     # 描画ツールのAPI
+│   ├── tool-system-api-design.md  # ツールシステムAPI設計
+│   └── undo-redo.md         # Undo/Redo機能
+├── architecture/             # アーキテクチャ設計
+│   ├── README.md            # アーキテクチャ設計書
+│   ├── component-architecture-diagram.md
+│   ├── component-integration-guide.md
+│   └── whiteboard-integration-architecture.md
+├── development/              # 開発ガイド
+│   └── README.md            # 開発環境セットアップ・コーディング規約
+├── examples/                 # サンプルコード
+│   ├── README.md            # 使用例とベストプラクティス
+│   └── component-integration-examples.md
+├── implementation/           # 実装詳細
+│   ├── advanced-statemachine-design.md
+│   ├── ci-failure-fix-plan.md
+│   ├── dependency-injection-examples.md
+│   ├── functional-statemachine-design.md
+│   ├── multi-selection-implementation-plan.md
+│   ├── react-migration-plan.md
+│   ├── tool-manager-refactoring-plan.md
+│   ├── tool-system-refactoring-plan.md
+│   ├── xstate-tool-system-design.md
+│   └── zod-schema-adoption-analysis.md
+├── testing/                  # テスト関連
+│   ├── data-attributes-standard.md
+│   ├── test-implementation-guidelines.md
+│   └── testability-guidelines.md
+└── turborepo/               # Turborepo設定
+    ├── turbo-cache-strategy.md
+    ├── turbo-example-configs.md
+    └── turborepo-migration-plan.md
+```
+
+### 📖 ドキュメントの使い方
+
+#### 1. **初めての方**
+- まず `docs/development/README.md` で開発環境のセットアップを行う
+- 次に `docs/examples/README.md` で基本的な使用例を確認
+
+#### 2. **アーキテクチャを理解したい方**
+- `docs/architecture/README.md` でシステム全体の設計を把握
+- 各コンポーネントの詳細は `docs/architecture/` 内の個別ファイルを参照
+
+#### 3. **APIリファレンスが必要な方**
+- `docs/api/README.md` に完全なAPI仕様が記載されている
+- TypeScript型定義やインターフェースの詳細を確認可能
+
+#### 4. **実装の詳細を知りたい方**
+- `docs/implementation/` フォルダ内に具体的な実装計画や設計文書
+- ステートマシン、依存性注入、リファクタリング計画など
+
+#### 5. **テストを書きたい方**
+- `docs/testing/` フォルダ内のガイドラインを参照
+- テスト実装のベストプラクティスとデータ属性の標準
+
+### 🚀 クイックアクセス
+
+- **開発を始める**: [開発ガイド](docs/development/README.md)
+- **API仕様**: [APIリファレンス](docs/api/README.md)
+- **サンプルコード**: [使用例](docs/examples/README.md)
+- **アーキテクチャ**: [設計書](docs/architecture/README.md)
 
 ---
 
