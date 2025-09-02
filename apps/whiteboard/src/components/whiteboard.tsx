@@ -1,13 +1,24 @@
 import { GridRenderer } from "@usketch/backgrounds";
 import { Canvas } from "@usketch/canvas-core";
 import { whiteboardStore } from "@usketch/store";
-import type React from "react";
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 
-export const Whiteboard: React.FC = () => {
+export interface WhiteboardRef {
+	setBackground: (background: { renderer: any; config?: any }) => void;
+}
+
+export const Whiteboard = forwardRef<WhiteboardRef>((_, ref) => {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<Canvas | null>(null);
 	const shapesAddedRef = useRef(false);
+
+	useImperativeHandle(ref, () => ({
+		setBackground: (background: { renderer: any; config?: any }) => {
+			if (canvasRef.current) {
+				canvasRef.current.setBackground(background);
+			}
+		},
+	}));
 
 	useEffect(() => {
 		if (!containerRef.current) return;
@@ -82,4 +93,4 @@ export const Whiteboard: React.FC = () => {
 			/>
 		</div>
 	);
-};
+});

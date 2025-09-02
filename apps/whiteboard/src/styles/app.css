@@ -12,7 +12,45 @@
 	border-bottom: 1px solid #ddd;
 	padding: 8px;
 	display: flex;
+	gap: 16px;
+	align-items: center;
+}
+
+.toolbar-group {
+	display: flex;
 	gap: 8px;
+	align-items: center;
+}
+
+.toolbar-separator {
+	width: 1px;
+	height: 24px;
+	background-color: #ddd;
+}
+
+.toolbar-label {
+	font-size: 14px;
+	color: #666;
+	margin-right: 8px;
+}
+
+.toolbar-select {
+	padding: 6px 12px;
+	border: 1px solid #ccc;
+	background-color: white;
+	font-size: 14px;
+	border-radius: 4px;
+	cursor: pointer;
+	min-width: 120px;
+}
+
+.toolbar-select:hover {
+	background-color: #f0f0f0;
+}
+
+.toolbar-select:focus {
+	outline: none;
+	border-color: #007bff;
 }
 
 .tool-button {
