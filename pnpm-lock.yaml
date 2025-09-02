@@ -150,6 +150,46 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9
 
+  packages/canvas-react:
+    dependencies:
+      '@usketch/backgrounds':
+        specifier: workspace:*
+        version: link:../backgrounds
+      '@usketch/canvas-core':
+        specifier: workspace:*
+        version: link:../canvas-core
+      '@usketch/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+      '@usketch/shared-utils':
+        specifier: workspace:*
+        version: link:../shared-utils
+      '@usketch/store':
+        specifier: workspace:*
+        version: link:../store
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.1
+        version: 18.3.23
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.23)
+      '@usketch/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.0(typescript@5.8.3)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.8.3
+
   packages/e2e-tests:
     dependencies:
       '@playwright/test':

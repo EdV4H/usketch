@@ -1,0 +1,40 @@
+{
+	"name": "@usketch/canvas-react",
+	"version": "0.0.1",
+	"description": "React components and renderer for uSketch canvas",
+	"main": "dist/index.js",
+	"module": "dist/index.mjs",
+	"types": "dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.mjs",
+			"require": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@usketch/canvas-core": "workspace:*",
+		"@usketch/shared-types": "workspace:*",
+		"@usketch/shared-utils": "workspace:*",
+		"@usketch/store": "workspace:*",
+		"@usketch/backgrounds": "workspace:*",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1"
+	},
+	"devDependencies": {
+		"@usketch/tsconfig": "workspace:*",
+		"@types/react": "^18.3.1",
+		"@types/react-dom": "^18.3.0",
+		"tsup": "^8.0.0",
+		"typescript": "^5.0.0"
+	},
+	"peerDependencies": {
+		"react": "^18.0.0",
+		"react-dom": "^18.0.0"
+	}
+}
