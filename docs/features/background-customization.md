@@ -26,7 +26,7 @@
 ```typescript
 interface BackgroundRenderer<TConfig = unknown> {
   render(container: HTMLElement, camera: Camera, config?: TConfig): void;
-  cleanup?(): void;
+  cleanup?(container: HTMLElement): void;
 }
 
 interface BackgroundOptions<TConfig = unknown> {
@@ -37,6 +37,28 @@ interface BackgroundOptions<TConfig = unknown> {
 
 #### Canvas初期化時の設定
 ```typescript
+class Canvas {
+  // ... 既存のプロパティとメソッド ...
+  
+  /**
+   * 背景を動的に変更
+   * @param options - 新しい背景オプション
+   */
+  setBackground<TConfig = unknown>(options: BackgroundOptions<TConfig>): void {
+    // 既存の背景をクリーンアップ
+    if (this.currentRenderer?.cleanup) {
+      this.currentRenderer.cleanup(this.backgroundContainer);
+    }
+    
+    // 新しい背景レンダラーを設定
+    this.currentRenderer = options.renderer;
+    this.currentConfig = options.config;
+    
+    // 新しい背景をレンダリング
+    this.currentRenderer.render(this.backgroundContainer, this.camera, this.currentConfig);
+  }
+}
+
 // デフォルト（何も描画しない）
 const canvas = new Canvas(element);
 
@@ -146,9 +168,21 @@ class DotsRenderer implements BackgroundRenderer<DotsConfig> {
     }
   }
 
+  /**
+   * ドットパターンのSVGを生成
+   * 
+   * @param spacing - 隣接するドットの中心間距離（px）。パターンのグリッドサイズを決定
+   * @param size - 各ドットの直径（px）。大きい値ほど大きなドットを生成
+   * @param color - ドットの塗りつぶし色（CSS色文字列）
+   * @returns 繰り返し背景として使用するSVG文字列
+   * 
+   * SVGは指定された間隔でドットを配置。viewBoxはspacingサイズの正方形として定義され、
+   * 中央に1つのドットを配置。背景画像として繰り返し表示することでドットグリッドを形成
+   */
   private generateDotsSVG(spacing: number, size: number, color: string): string {
-    // SVGパターン生成のロジック
-    return `<svg>...</svg>`;
+    return `<svg width="${spacing}" height="${spacing}" viewBox="0 0 ${spacing} ${spacing}" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="${spacing/2}" cy="${spacing/2}" r="${size/2}" fill="${color}" />
+    </svg>`;
   }
 }
 ```
@@ -230,9 +264,40 @@ class IsometricRenderer implements BackgroundRenderer<IsometricConfig> {
     }
   }
 
+  /**
+   * アイソメトリックグリッドのSVGパターンを生成
+   * 
+   * アイソメトリックグリッドは30度の角度の線を使用して3D効果をシミュレート。
+   * グリッドは30°、150°、90°（垂直）の平行線で構成され、
+   * 正三角形の繰り返しパターンを形成。
+   * 
+   * 計算詳細:
+   * - グリッド点間の水平間隔: size
+   * - 垂直間隔: size * sin(60°) = size * 0.866
+   * - 30°と150°の線を水平から描画、垂直線も追加
+   * - SVGパターンはシームレスにタイル化されるサイズに設定
+   * 
+   * @param size - グリッドサイズ（グリッド点間の距離）
+   * @param color - 線の色
+   * @returns 背景画像として使用するSVG文字列
+   */
   private generateIsometricSVG(size: number, color: string): string {
-    // アイソメトリックグリッドのSVGパターン生成ロジック
-    return `<svg>...</svg>`;
+    const height = size * 0.866; // size * sin(60°)
+    return `<svg width="${size}" height="${height*2}" viewBox="0 0 ${size} ${height*2}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="iso" width="${size}" height="${height*2}" patternUnits="userSpaceOnUse">
+          <!-- 30度の線 -->
+          <line x1="0" y1="0" x2="${size}" y2="${height}" stroke="${color}" stroke-width="1"/>
+          <line x1="0" y1="${height*2}" x2="${size}" y2="${height}" stroke="${color}" stroke-width="1"/>
+          <!-- 150度の線 -->
+          <line x1="0" y1="${height}" x2="${size}" y2="0" stroke="${color}" stroke-width="1"/>
+          <line x1="0" y1="${height}" x2="${size}" y2="${height*2}" stroke="${color}" stroke-width="1"/>
+          <!-- 垂直線 -->
+          <line x1="${size/2}" y1="0" x2="${size/2}" y2="${height*2}" stroke="${color}" stroke-width="1"/>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#iso)"/>
+    </svg>`;
   }
 }
 ```
@@ -363,8 +428,11 @@ class BlueprintRenderer implements BackgroundRenderer<BlueprintConfig> {
     }
   }
   
-  cleanup() {
-    // 必要に応じてクリーンアップ
+  cleanup(container: HTMLElement) {
+    // 必要に応じてコンテナのスタイルをリセット
+    container.style.backgroundColor = '';
+    container.style.backgroundImage = '';
+    container.style.backgroundSize = '';
   }
 }
 
