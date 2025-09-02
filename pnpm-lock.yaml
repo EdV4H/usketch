@@ -32,6 +32,9 @@ importers:
 
   apps/whiteboard:
     dependencies:
+      '@usketch/backgrounds':
+        specifier: workspace:^
+        version: link:../../packages/backgrounds
       '@usketch/canvas-core':
         specifier: workspace:*
         version: link:../../packages/canvas-core
