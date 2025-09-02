@@ -4,6 +4,8 @@
 
 uSketchのReact版実装において、現在DOM操作や命令的なコードで実装されている部分をJSXとReactコンポーネントに移行し、よりReactらしい宣言的な実装にする提案書です。
 
+**重要な更新**: Core-Renderer分離アーキテクチャを採用し、既存のVanilla実装をコアロジックとして活用しながら、レンダリング層のみをReact化する設計に変更しました。詳細は[Core-Renderer分離アーキテクチャ設計](./core-renderer-separation-architecture.md)を参照してください。
+
 ## 現状の課題
 
 ### 1. Canvas クラスでのDOM直接操作
@@ -43,6 +45,10 @@ element.style.position = "absolute";
 各背景レンダラー（Grid, Dots, Lines, Isometric）もCanvasやSVG要素を直接操作しています。
 
 ## 提案する解決策
+
+### アーキテクチャ方針: Core-Renderer分離
+
+既存のVanilla実装をコアビジネスロジック層として保持し、レンダリング層のみを切り替え可能にすることで、React版とVanilla版で同じロジックを共有します。
 
 ### 1. レイヤーコンポーネントの React 化
 
@@ -135,10 +141,15 @@ export const useCanvasInteraction = () => {
 
 ### Phase 1: 基盤整備（1週間）
 
-1. **新パッケージの作成**
-   - `@usketch/canvas-react`: React版Canvasコンポーネント
-   - `@usketch/shapes-react`: Reactシェイプコンポーネント
-   - `@usketch/backgrounds-react`: React背景コンポーネント
+1. **Core層のリファクタリング**
+   - レンダリング部分をCanvasクラスから分離
+   - Rendererインターフェースの定義
+   - ビジネスロジックのManager化
+
+2. **新パッケージの作成**
+   - `@usketch/canvas-vanilla-renderer`: Vanilla版レンダラー
+   - `@usketch/canvas-react-renderer`: React版レンダラー
+   - `@usketch/canvas-react`: React統合パッケージ
 
 2. **型定義の共有化**
    - 既存の型定義を活用
@@ -217,9 +228,10 @@ export const useCanvasInteraction = () => {
 - 必要に応じて react-window などの仮想化ライブラリの検討
 
 ### 2. 移行戦略
-- 段階的な移行を可能にする設計
-- 既存のVanilla JS版との共存期間の考慮
-- APIの互換性維持
+- Core-Renderer分離により段階的な移行が可能
+- 既存のVanilla JS版のロジックを100%再利用
+- 同じCanvasManager APIで両バージョンを操作可能
+- レンダラーの切り替えのみで移行完了
 
 ### 3. バンドルサイズ
 - React版のバンドルサイズ増加への対処
