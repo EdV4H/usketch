@@ -1,3 +1,8 @@
+import {
+	type BackgroundOptions,
+	type BackgroundRenderer,
+	NoneRenderer,
+} from "@usketch/backgrounds";
 import type { Camera, Shape } from "@usketch/shared-types";
 import {
 	applyCameraTransform,
@@ -9,12 +14,16 @@ import { whiteboardStore } from "@usketch/store";
 import { createDefaultToolManager, type ToolManager } from "@usketch/tools";
 import { SelectionLayer } from "@usketch/ui-components";
 
+export interface CanvasOptions {
+	background?: BackgroundOptions;
+}
+
 export class Canvas {
 	private canvasElement: HTMLElement;
 	private shapesContainer: HTMLElement;
 	private selectionContainer: HTMLElement;
 	private previewContainer: HTMLElement;
-	private gridElement: HTMLElement;
+	private backgroundContainer: HTMLElement;
 
 	private isDragging = false;
 	private dragStart = { x: 0, y: 0 };
@@ -22,6 +31,10 @@ export class Canvas {
 
 	private toolManager: ToolManager;
 	private selectionLayer: SelectionLayer;
+
+	// 背景レンダリング
+	private backgroundRenderer: BackgroundRenderer;
+	private backgroundConfig?: unknown;
 
 	// Event handler references for cleanup
 	private boundHandleMouseDown: (e: MouseEvent) => void;
@@ -32,7 +45,7 @@ export class Canvas {
 	private boundHandleKeyUp: (e: KeyboardEvent) => void;
 	private boundHandleContextMenu: (e: Event) => void;
 
-	constructor(canvasElement: HTMLElement) {
+	constructor(canvasElement: HTMLElement, options?: CanvasOptions) {
 		this.canvasElement = canvasElement;
 
 		// Bind event handlers
@@ -48,6 +61,26 @@ export class Canvas {
 		this.canvasElement.classList.add("whiteboard-canvas");
 		this.canvasElement.setAttribute("role", "application");
 
+		// Create background container
+		this.backgroundContainer = document.createElement("div");
+		this.backgroundContainer.className = "background-layer";
+		this.backgroundContainer.style.position = "absolute";
+		this.backgroundContainer.style.top = "0";
+		this.backgroundContainer.style.left = "0";
+		this.backgroundContainer.style.width = "100%";
+		this.backgroundContainer.style.height = "100%";
+		this.backgroundContainer.style.pointerEvents = "none";
+		canvasElement.appendChild(this.backgroundContainer);
+
+		// Initialize background renderer
+		if (options?.background) {
+			this.backgroundRenderer = options.background.renderer;
+			this.backgroundConfig = options.background.config;
+		} else {
+			// デフォルトは白紙背景
+			this.backgroundRenderer = new NoneRenderer();
+		}
+
 		// Create shapes container
 		this.shapesContainer = document.createElement("div");
 		this.shapesContainer.className = "shape-layer";
@@ -57,11 +90,6 @@ export class Canvas {
 		this.shapesContainer.style.width = "100%";
 		this.shapesContainer.style.height = "100%";
 		this.shapesContainer.style.transformOrigin = "0 0";
-
-		// Get grid element
-		this.gridElement = canvasElement.querySelector(".grid-background") as HTMLElement;
-
-		// Add shapes container after grid
 		canvasElement.appendChild(this.shapesContainer);
 
 		// Create preview container for drawing tools
@@ -224,15 +252,8 @@ export class Canvas {
 		// Update selection container transform
 		applyCameraTransform(this.selectionContainer, camera);
 
-		// Update grid background
-		if (this.gridElement) {
-			const gridSize = 20 * camera.zoom;
-			const offsetX = (-camera.x * camera.zoom) % gridSize;
-			const offsetY = (-camera.y * camera.zoom) % gridSize;
-
-			this.gridElement.style.backgroundSize = `${gridSize}px ${gridSize}px`;
-			this.gridElement.style.backgroundPosition = `${offsetX}px ${offsetY}px`;
-		}
+		// Update background
+		this.renderBackground(camera);
 	}
 
 	private updateShapes(shapes: Record<string, Shape>, selectedShapeIds: Set<string>): void {
@@ -468,6 +489,34 @@ export class Canvas {
 		}
 	}
 
+	/**
+	 * 背景をレンダリング
+	 */
+	private renderBackground(camera: Camera): void {
+		if (this.backgroundRenderer) {
+			this.backgroundRenderer.render(this.backgroundContainer, camera, this.backgroundConfig);
+		}
+	}
+
+	/**
+	 * 背景を動的に変更
+	 * @param options - 新しい背景オプション
+	 */
+	setBackground<TConfig = unknown>(options: BackgroundOptions<TConfig>): void {
+		// 既存の背景をクリーンアップ
+		if (this.backgroundRenderer?.cleanup) {
+			this.backgroundRenderer.cleanup(this.backgroundContainer);
+		}
+
+		// 新しい背景レンダラーを設定
+		this.backgroundRenderer = options.renderer;
+		this.backgroundConfig = options.config;
+
+		// 新しい背景をレンダリング
+		const camera = whiteboardStore.getState().camera;
+		this.renderBackground(camera);
+	}
+
 	// Cleanup method for React
 	public destroy(): void {
 		// Remove event listeners
@@ -482,7 +531,13 @@ export class Canvas {
 		// Clean up tool manager
 		this.toolManager.destroy();
 
+		// Clean up background
+		if (this.backgroundRenderer?.cleanup) {
+			this.backgroundRenderer.cleanup(this.backgroundContainer);
+		}
+
 		// Remove elements from DOM
+		this.backgroundContainer.remove();
 		this.shapesContainer.remove();
 		this.previewContainer.remove();
 		this.selectionContainer.remove();

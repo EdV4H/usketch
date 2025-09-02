@@ -21,7 +21,8 @@
 		"@usketch/shared-utils": "workspace:*",
 		"@usketch/tools": "workspace:*",
 		"@usketch/store": "workspace:*",
-		"@usketch/ui-components": "workspace:*"
+		"@usketch/ui-components": "workspace:*",
+		"@usketch/backgrounds": "workspace:*"
 	},
 	"devDependencies": {
 		"@usketch/tsconfig": "workspace:*",
