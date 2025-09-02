@@ -100,8 +100,24 @@ importers:
         specifier: ^6.3.5
         version: 6.3.5(@types/node@24.1.0)
 
+  packages/backgrounds:
+    dependencies:
+      '@usketch/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.11
+      typescript:
+        specifier: ^5.7.3
+        version: 5.8.3
+
   packages/canvas-core:
     dependencies:
+      '@usketch/backgrounds':
+        specifier: workspace:*
+        version: link:../backgrounds
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../shared-types

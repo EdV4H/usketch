@@ -1,3 +1,4 @@
+import { GridRenderer } from "@usketch/backgrounds";
 import { Canvas } from "@usketch/canvas-core";
 import { whiteboardStore } from "@usketch/store";
 import type React from "react";
@@ -11,8 +12,17 @@ export const Whiteboard: React.FC = () => {
 	useEffect(() => {
 		if (!containerRef.current) return;
 
-		// Initialize canvas
-		canvasRef.current = new Canvas(containerRef.current);
+		// Initialize canvas with grid background
+		canvasRef.current = new Canvas(containerRef.current, {
+			background: {
+				renderer: new GridRenderer(),
+				config: {
+					size: 20,
+					color: "#e0e0e0",
+					thickness: 1,
+				},
+			},
+		});
 
 		// Expose store and canvas for debugging
 		if (import.meta.env.DEV) {
@@ -69,9 +79,7 @@ export const Whiteboard: React.FC = () => {
 					height: "100%",
 					position: "relative",
 				}}
-			>
-				<div className="grid-background" />
-			</div>
+			/>
 		</div>
 	);
 };
