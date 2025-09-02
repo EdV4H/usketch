@@ -24,14 +24,14 @@
 
 #### 基本設計
 ```typescript
-interface BackgroundRenderer {
-  render(container: HTMLElement, camera: Camera, config?: any): void;
+interface BackgroundRenderer<TConfig = unknown> {
+  render(container: HTMLElement, camera: Camera, config?: TConfig): void;
   cleanup?(): void;
 }
 
-interface BackgroundOptions {
-  renderer: BackgroundRenderer;  // レンダラーを必須に
-  config?: Record<string, any>;   // レンダラー固有の設定
+interface BackgroundOptions<TConfig = unknown> {
+  renderer: BackgroundRenderer<TConfig>;  // レンダラーを必須に
+  config?: TConfig;   // レンダラー固有の設定
 }
 ```
 
@@ -64,7 +64,7 @@ const canvas = new Canvas(element, {
 
 ### 1. NoneRenderer (デフォルト)
 ```typescript
-class NoneRenderer implements BackgroundRenderer {
+class NoneRenderer implements BackgroundRenderer<void> {
   render() {
     // 何も描画しない（白紙背景）
   }
@@ -73,89 +73,166 @@ class NoneRenderer implements BackgroundRenderer {
 
 ### 2. GridRenderer
 ```typescript
-class GridRenderer implements BackgroundRenderer {
-  render(container: HTMLElement, camera: Camera, config?: GridConfig) {
-    const size = (config?.size || 20) * camera.zoom;
-    const color = config?.color || '#e0e0e0';
-    const thickness = config?.thickness || 1;
-    
-    container.style.backgroundImage = `
-      linear-gradient(to right, ${color} ${thickness}px, transparent ${thickness}px),
-      linear-gradient(to bottom, ${color} ${thickness}px, transparent ${thickness}px)
-    `;
-    container.style.backgroundSize = `${size}px ${size}px`;
-  }
-}
-
 interface GridConfig {
   size?: number;      // グリッドサイズ（デフォルト: 20px）
   color?: string;     // 線の色（デフォルト: #e0e0e0）
   thickness?: number; // 線の太さ（デフォルト: 1px）
 }
+
+class GridRenderer implements BackgroundRenderer<GridConfig> {
+  private _cachedSize?: number;
+  private _cachedColor?: string;
+  private _cachedThickness?: number;
+
+  render(container: HTMLElement, camera: Camera, config?: GridConfig) {
+    const gridSize = config?.size || 20;
+    const size = gridSize * camera.zoom;
+    const color = config?.color || '#e0e0e0';
+    const thickness = config?.thickness || 1;
+    
+    // パフォーマンス最適化: 値が変更された場合のみ更新
+    if (
+      this._cachedSize !== size ||
+      this._cachedColor !== color ||
+      this._cachedThickness !== thickness
+    ) {
+      container.style.backgroundImage = `
+        linear-gradient(to right, ${color} ${thickness}px, transparent ${thickness}px),
+        linear-gradient(to bottom, ${color} ${thickness}px, transparent ${thickness}px)
+      `;
+      container.style.backgroundSize = `${size}px ${size}px`;
+      
+      this._cachedSize = size;
+      this._cachedColor = color;
+      this._cachedThickness = thickness;
+    }
+  }
+}
 ```
 
 ### 3. DotsRenderer
 ```typescript
-class DotsRenderer implements BackgroundRenderer {
-  render(container: HTMLElement, camera: Camera, config?: DotsConfig) {
-    const spacing = (config?.spacing || 20) * camera.zoom;
-    const size = config?.size || 2;
-    const color = config?.color || '#d0d0d0';
-    
-    // SVGまたはcanvasでドットパターンを生成
-    const svg = this.generateDotsSVG(spacing, size, color);
-    container.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-  }
-}
-
 interface DotsConfig {
   spacing?: number;  // ドット間隔（デフォルト: 20px）
   size?: number;     // ドットサイズ（デフォルト: 2px）
   color?: string;    // ドットの色（デフォルト: #d0d0d0）
 }
+
+class DotsRenderer implements BackgroundRenderer<DotsConfig> {
+  private _cachedSpacing?: number;
+  private _cachedSize?: number;
+  private _cachedColor?: string;
+  private _cachedSVG?: string;
+
+  render(container: HTMLElement, camera: Camera, config?: DotsConfig) {
+    const spacing = (config?.spacing || 20) * camera.zoom;
+    const size = config?.size || 2;
+    const color = config?.color || '#d0d0d0';
+    
+    // パフォーマンス最適化: 値が変更された場合のみSVGを再生成
+    if (
+      this._cachedSpacing !== spacing ||
+      this._cachedSize !== size ||
+      this._cachedColor !== color
+    ) {
+      // SVGまたはcanvasでドットパターンを生成
+      const svg = this.generateDotsSVG(spacing, size, color);
+      container.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+      
+      this._cachedSpacing = spacing;
+      this._cachedSize = size;
+      this._cachedColor = color;
+      this._cachedSVG = svg;
+    }
+  }
+
+  private generateDotsSVG(spacing: number, size: number, color: string): string {
+    // SVGパターン生成のロジック
+    return `<svg>...</svg>`;
+  }
+}
 ```
 
 ### 4. LinesRenderer
 ```typescript
-class LinesRenderer implements BackgroundRenderer {
-  render(container: HTMLElement, camera: Camera, config?: LinesConfig) {
-    const direction = config?.direction || 'horizontal';
-    const spacing = (config?.spacing || 25) * camera.zoom;
-    const color = config?.color || '#e0e0e0';
-    const thickness = config?.thickness || 1;
-    
-    let gradient = '';
-    if (direction === 'horizontal' || direction === 'both') {
-      gradient += `linear-gradient(to bottom, ${color} ${thickness}px, transparent ${thickness}px)`;
-    }
-    if (direction === 'vertical' || direction === 'both') {
-      if (gradient) gradient += ', ';
-      gradient += `linear-gradient(to right, ${color} ${thickness}px, transparent ${thickness}px)`;
-    }
-    
-    container.style.backgroundImage = gradient;
-    container.style.backgroundSize = `${spacing}px ${spacing}px`;
-  }
-}
-
 interface LinesConfig {
   direction?: 'horizontal' | 'vertical' | 'both';  // 線の方向
   spacing?: number;    // 線の間隔（デフォルト: 25px）
   color?: string;      // 線の色（デフォルト: #e0e0e0）
   thickness?: number;  // 線の太さ（デフォルト: 1px）
 }
+
+class LinesRenderer implements BackgroundRenderer<LinesConfig> {
+  private _cachedDirection?: string;
+  private _cachedSpacing?: number;
+  private _cachedColor?: string;
+  private _cachedThickness?: number;
+
+  render(container: HTMLElement, camera: Camera, config?: LinesConfig) {
+    const direction = config?.direction || 'horizontal';
+    const spacing = (config?.spacing || 25) * camera.zoom;
+    const color = config?.color || '#e0e0e0';
+    const thickness = config?.thickness || 1;
+    
+    // パフォーマンス最適化: 値が変更された場合のみ更新
+    if (
+      this._cachedDirection !== direction ||
+      this._cachedSpacing !== spacing ||
+      this._cachedColor !== color ||
+      this._cachedThickness !== thickness
+    ) {
+      let gradient = '';
+      if (direction === 'horizontal' || direction === 'both') {
+        gradient += `linear-gradient(to bottom, ${color} ${thickness}px, transparent ${thickness}px)`;
+      }
+      if (direction === 'vertical' || direction === 'both') {
+        if (gradient) gradient += ', ';
+        gradient += `linear-gradient(to right, ${color} ${thickness}px, transparent ${thickness}px)`;
+      }
+      
+      container.style.backgroundImage = gradient;
+      container.style.backgroundSize = `${spacing}px ${spacing}px`;
+      
+      this._cachedDirection = direction;
+      this._cachedSpacing = spacing;
+      this._cachedColor = color;
+      this._cachedThickness = thickness;
+    }
+  }
+}
 ```
 
 ### 5. IsometricRenderer
 ```typescript
-class IsometricRenderer implements BackgroundRenderer {
+interface IsometricConfig {
+  size?: number;   // グリッドサイズ（デフォルト: 30px）
+  color?: string;  // 線の色（デフォルト: #e0e0e0）
+}
+
+class IsometricRenderer implements BackgroundRenderer<IsometricConfig> {
+  private _cachedSize?: number;
+  private _cachedColor?: string;
+  private _cachedSVG?: string;
+
   render(container: HTMLElement, camera: Camera, config?: IsometricConfig) {
     const size = (config?.size || 30) * camera.zoom;
     const color = config?.color || '#e0e0e0';
     
-    // アイソメトリック（30度）グリッドのSVGパターンを生成
-    const svg = this.generateIsometricSVG(size, color);
-    container.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+    // パフォーマンス最適化: 値が変更された場合のみSVGを再生成
+    if (this._cachedSize !== size || this._cachedColor !== color) {
+      // アイソメトリック（30度）グリッドのSVGパターンを生成
+      const svg = this.generateIsometricSVG(size, color);
+      container.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+      
+      this._cachedSize = size;
+      this._cachedColor = color;
+      this._cachedSVG = svg;
+    }
+  }
+
+  private generateIsometricSVG(size: number, color: string): string {
+    // アイソメトリックグリッドのSVGパターン生成ロジック
+    return `<svg>...</svg>`;
   }
 }
 ```
@@ -249,17 +326,40 @@ const canvas = new Canvas(element, {
 
 ### カスタムレンダラー
 ```typescript
-class BlueprintRenderer implements BackgroundRenderer {
-  render(container: HTMLElement, camera: Camera, config?: any) {
+interface BlueprintConfig {
+  gridSize?: number;
+  primaryColor?: string;
+  backgroundColor?: string;
+}
+
+class BlueprintRenderer implements BackgroundRenderer<BlueprintConfig> {
+  private _cachedSize?: number;
+  private _cachedPrimaryColor?: string;
+  private _cachedBackgroundColor?: string;
+
+  render(container: HTMLElement, camera: Camera, config?: BlueprintConfig) {
     const size = (config?.gridSize || 25) * camera.zoom;
+    const primaryColor = config?.primaryColor || '#1e3a5f';
+    const backgroundColor = config?.backgroundColor || '#0d1929';
     
-    // 青写真風の背景
-    container.style.backgroundColor = '#0d1929';
-    container.style.backgroundImage = `
-      linear-gradient(to right, #1e3a5f 1px, transparent 1px),
-      linear-gradient(to bottom, #1e3a5f 1px, transparent 1px)
-    `;
-    container.style.backgroundSize = `${size}px ${size}px`;
+    // パフォーマンス最適化: 値が変更された場合のみ更新
+    if (
+      this._cachedSize !== size ||
+      this._cachedPrimaryColor !== primaryColor ||
+      this._cachedBackgroundColor !== backgroundColor
+    ) {
+      // 青写真風の背景
+      container.style.backgroundColor = backgroundColor;
+      container.style.backgroundImage = `
+        linear-gradient(to right, ${primaryColor} 1px, transparent 1px),
+        linear-gradient(to bottom, ${primaryColor} 1px, transparent 1px)
+      `;
+      container.style.backgroundSize = `${size}px ${size}px`;
+      
+      this._cachedSize = size;
+      this._cachedPrimaryColor = primaryColor;
+      this._cachedBackgroundColor = backgroundColor;
+    }
   }
   
   cleanup() {
