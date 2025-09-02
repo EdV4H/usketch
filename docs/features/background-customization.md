@@ -252,10 +252,10 @@ export {
 // 使いやすいプリセットとしても提供
 export const Backgrounds = {
   none: () => new NoneRenderer(),
-  grid: (config?: GridConfig) => new GridRenderer(config),
-  dots: (config?: DotsConfig) => new DotsRenderer(config),
-  lines: (config?: LinesConfig) => new LinesRenderer(config),
-  isometric: (config?: IsometricConfig) => new IsometricRenderer(config)
+  grid: () => new GridRenderer(),
+  dots: () => new DotsRenderer(),
+  lines: () => new LinesRenderer(),
+  isometric: () => new IsometricRenderer()
 };
 ```
 
@@ -319,7 +319,8 @@ const canvas = new Canvas(element, {
 // プリセットヘルパーを使用
 const canvas = new Canvas(element, {
   background: {
-    renderer: Backgrounds.grid({ size: 30 })
+    renderer: Backgrounds.grid(),
+    config: { size: 30 }
   }
 });
 ```
@@ -385,10 +386,11 @@ canvas.setBackground({
 
 // プリセットを使って変更
 canvas.setBackground({
-  renderer: Backgrounds.lines({
+  renderer: Backgrounds.lines(),
+  config: {
     direction: 'horizontal',
     spacing: 25
-  })
+  }
 });
 
 // 背景を削除（白紙に）
