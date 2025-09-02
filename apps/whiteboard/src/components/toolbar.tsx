@@ -42,7 +42,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onBackgroundChange }) => {
 			id: "lines",
 			name: "Lines",
 			renderer: LinesRenderer,
-			config: { direction: "both", spacing: 25, color: "#e0e0e0" },
+			config: { direction: "horizontal", spacing: 25, color: "#e0e0e0" },
 		},
 		{
 			id: "isometric",
