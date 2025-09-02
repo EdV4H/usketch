@@ -1,4 +1,4 @@
-import { GridRenderer } from "@usketch/backgrounds";
+import { DotsRenderer } from "@usketch/backgrounds";
 import { Canvas } from "@usketch/canvas-core";
 import { whiteboardStore } from "@usketch/store";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
@@ -23,14 +23,14 @@ export const Whiteboard = forwardRef<WhiteboardRef>((_, ref) => {
 	useEffect(() => {
 		if (!containerRef.current) return;
 
-		// Initialize canvas with grid background
+		// Initialize canvas with dots background (default)
 		canvasRef.current = new Canvas(containerRef.current, {
 			background: {
-				renderer: new GridRenderer(),
+				renderer: new DotsRenderer(),
 				config: {
-					size: 20,
-					color: "#e0e0e0",
-					thickness: 1,
+					spacing: 20,
+					size: 2,
+					color: "#d0d0d0",
 				},
 			},
 		});

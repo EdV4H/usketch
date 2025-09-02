@@ -16,7 +16,7 @@ export interface ToolbarProps {
 export const Toolbar: React.FC<ToolbarProps> = ({ onBackgroundChange }) => {
 	const currentTool = useStore((state) => state.currentTool);
 	const setCurrentTool = useStore((state) => state.setCurrentTool);
-	const [currentBackground, setCurrentBackground] = useState("grid");
+	const [currentBackground, setCurrentBackground] = useState("dots");
 
 	const tools = [
 		{ id: "select", name: "Select" },

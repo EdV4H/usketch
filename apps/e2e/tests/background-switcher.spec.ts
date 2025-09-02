@@ -11,9 +11,9 @@ test.describe("Background Switcher", () => {
 		const selector = page.locator('[data-testid="background-selector"]');
 		await expect(selector).toBeVisible();
 
-		// Check that default value is "grid"
+		// Check that default value is "dots"
 		const value = await selector.inputValue();
-		expect(value).toBe("grid");
+		expect(value).toBe("dots");
 
 		// Check available options
 		const options = await selector.locator("option").allTextContents();
@@ -24,12 +24,12 @@ test.describe("Background Switcher", () => {
 		const selector = page.locator('[data-testid="background-selector"]');
 		const backgroundLayer = page.locator(".background-layer");
 
-		// Initial state: Grid background
-		await expect(selector).toHaveValue("grid");
+		// Initial state: Dots background (default)
+		await expect(selector).toHaveValue("dots");
 		let backgroundStyle = await backgroundLayer.evaluate(
 			(el) => window.getComputedStyle(el).backgroundImage,
 		);
-		expect(backgroundStyle).toContain("linear-gradient");
+		expect(backgroundStyle).toContain("data:image/svg+xml");
 
 		// Switch to None background
 		await selector.selectOption("none");
