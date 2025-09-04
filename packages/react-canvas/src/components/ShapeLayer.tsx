@@ -224,7 +224,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 				updateShape(dragState.draggedShapeId, updates);
 			}
 		},
-		[dragState, camera, updateShape],
+		[dragState, camera, updateShape, shapes],
 	);
 
 	const handleShapePointerUp = useCallback(
