@@ -6,7 +6,6 @@ import { useInteraction } from "../hooks/useInteraction";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import type { CanvasProps } from "../types";
 import { BackgroundLayer } from "./BackgroundLayer";
-import { DragSelectionLayer } from "./DragSelectionLayer";
 import { InteractionLayer } from "./InteractionLayer";
 import { SelectionLayer } from "./SelectionLayer";
 import { ShapeLayer } from "./ShapeLayer";
@@ -44,7 +43,6 @@ export const WhiteboardCanvas: React.FC<CanvasProps> = ({
 		>
 			<BackgroundLayer camera={camera} options={background} />
 			<ShapeLayer shapes={shapes} camera={camera} activeTool={interactions.activeTool} />
-			<DragSelectionLayer camera={camera} activeTool={interactions.activeTool} />
 			<SelectionLayer selectedIds={selectedShapeIds} shapes={shapes} camera={camera} />
 			<InteractionLayer camera={camera} activeTool={interactions.activeTool} />
 		</div>
