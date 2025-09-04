@@ -148,6 +148,18 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			} else if (activeTool === "draw" && drawPath) {
 				const bounds = calculatePathBounds(pathRef.current);
 				if (bounds.width > 5 || bounds.height > 5) {
+					// Extract points from path commands
+					const points = pathRef.current.map((cmd) => {
+						const matches = cmd.match(/[\d.-]+/g);
+						if (matches && matches.length >= 2) {
+							return {
+								x: parseFloat(matches[0]),
+								y: parseFloat(matches[1]),
+							};
+						}
+						return null;
+					}).filter((p): p is { x: number; y: number } => p !== null);
+
 					addShape({
 						id: uuidv4(),
 						type: "freedraw",
@@ -156,7 +168,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 						width: bounds.width,
 						height: bounds.height,
 						path: drawPath,
-						points: [],
+						points: points, // Set the extracted points
 						strokeColor: "#000000",
 						strokeWidth: 2,
 						fillColor: "transparent",
