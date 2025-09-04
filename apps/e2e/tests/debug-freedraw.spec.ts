@@ -8,7 +8,7 @@ test("debug freedraw rendering and selection", async ({ page }) => {
 		}
 	});
 
-	await page.goto("http://localhost:3002/?e2e=true");
+	await page.goto("/?e2e=true");
 	await page.waitForSelector(".whiteboard-canvas");
 
 	const canvas = page.locator(".whiteboard-canvas");

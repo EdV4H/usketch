@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("FreeDraw Selection and Movement", () => {
 	test.beforeEach(async ({ page }) => {
-		await page.goto("http://localhost:3001/?e2e=true");
+		await page.goto("/?e2e=true");
 		await page.waitForSelector(".whiteboard-canvas");
 	});
 

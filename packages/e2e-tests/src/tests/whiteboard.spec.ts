@@ -8,8 +8,8 @@ export const whiteboardTests = () => {
 		// Check that the whiteboard/canvas container exists
 		await expect(page.locator(".whiteboard-container, #canvas")).toBeVisible();
 
-		// Check that the grid background is displayed
-		await expect(page.locator(".grid-background")).toBeVisible();
+		// Check that the background layer is displayed
+		await expect(page.locator(".background-layer")).toBeVisible();
 	});
 
 	test("should have Select and Rectangle tools", async ({ page }) => {
