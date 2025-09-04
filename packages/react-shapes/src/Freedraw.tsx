@@ -23,9 +23,9 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 		shape.points && shape.points.length > 0
 			? shape.points
 					.map((point, index) => {
-						// Use absolute coordinates from points
-						const x = point.x;
-						const y = point.y;
+						// Use relative coordinates (points are relative to shape position)
+						const x = point.x - shape.x;
+						const y = point.y - shape.y;
 						return index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
 					})
 					.join(" ")
@@ -45,8 +45,6 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 			transform={transform}
 			opacity={shape.opacity ?? 1}
 			style={{ cursor: "pointer" }}
-			role="button"
-			aria-label="Freedraw shape"
 			onClick={onClick}
 			onPointerDown={onPointerDown}
 			onPointerMove={onPointerMove}

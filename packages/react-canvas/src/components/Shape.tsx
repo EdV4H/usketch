@@ -137,11 +137,25 @@ const Freedraw: React.FC<{
 	onPointerMove?: any;
 	onPointerUp?: any;
 }> = ({ shape, isSelected, onClick, onPointerDown, onPointerMove, onPointerUp }) => {
-	if (!shape.path) return null;
+	// Generate path data from points (like Vanilla version)
+	const pathData =
+		shape.points && shape.points.length > 0
+			? shape.points
+					.map((point, index) => {
+						// Use relative coordinates (points are relative to shape position)
+						const x = point.x - shape.x;
+						const y = point.y - shape.y;
+						return index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
+					})
+					.join(" ")
+			: shape.path || "";
 
+	if (!pathData) return null;
+
+	// Apply translation and rotation transforms
 	const transform = shape.rotation
-		? `rotate(${shape.rotation} ${shape.x + shape.width / 2} ${shape.y + shape.height / 2})`
-		: undefined;
+		? `translate(${shape.x}, ${shape.y}) rotate(${shape.rotation} ${shape.width / 2} ${shape.height / 2})`
+		: `translate(${shape.x}, ${shape.y})`;
 
 	return (
 		<g
@@ -155,7 +169,7 @@ const Freedraw: React.FC<{
 		>
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need interactions */}
 			<path
-				d={shape.path}
+				d={pathData}
 				fill="none"
 				stroke={shape.strokeColor || "#000"}
 				strokeWidth={shape.strokeWidth || 2}
@@ -170,8 +184,8 @@ const Freedraw: React.FC<{
 			/>
 			{isSelected && (
 				<rect
-					x={shape.x - 1}
-					y={shape.y - 1}
+					x={-1}
+					y={-1}
 					width={shape.width + 2}
 					height={shape.height + 2}
 					fill="none"
