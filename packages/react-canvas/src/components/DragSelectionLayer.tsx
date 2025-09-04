@@ -1,4 +1,4 @@
-import { useWhiteboardStore } from "@usketch/store";
+import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useCallback, useState } from "react";
 
@@ -24,7 +24,7 @@ export const DragSelectionLayer: React.FC<DragSelectionLayerProps> = ({ camera, 
 		isDragging: false,
 	});
 
-	const { clearSelection, shapes, selectShapesInArea } = useWhiteboardStore();
+	const { clearSelection, shapes, selectShapes } = useWhiteboardStore();
 
 	const screenToCanvas = useCallback(
 		(screenX: number, screenY: number) => {
@@ -96,6 +96,19 @@ export const DragSelectionLayer: React.FC<DragSelectionLayerProps> = ({ camera, 
 			const maxX = Math.max(dragState.startX, dragState.currentX);
 			const maxY = Math.max(dragState.startY, dragState.currentY);
 
+			// If the drag area is too small, treat it as a click and skip selection
+			if (Math.abs(maxX - minX) < 5 && Math.abs(maxY - minY) < 5) {
+				setDragState({
+					startX: 0,
+					startY: 0,
+					currentX: 0,
+					currentY: 0,
+					isDragging: false,
+				});
+				e.currentTarget.releasePointerCapture(e.pointerId);
+				return;
+			}
+
 			// Find shapes in the selection area
 			const selectedIds: string[] = [];
 			Object.values(shapes).forEach((shape) => {
@@ -111,7 +124,15 @@ export const DragSelectionLayer: React.FC<DragSelectionLayerProps> = ({ camera, 
 			});
 
 			if (selectedIds.length > 0) {
-				selectShapesInArea(selectedIds);
+				if (e.shiftKey || e.metaKey) {
+					// Add to existing selection
+					const currentSelection = whiteboardStore.getState().selectedShapeIds;
+					const combined = new Set([...currentSelection, ...selectedIds]);
+					selectShapes(Array.from(combined));
+				} else {
+					// Replace selection
+					selectShapes(selectedIds);
+				}
 			}
 
 			setDragState({
@@ -124,7 +145,7 @@ export const DragSelectionLayer: React.FC<DragSelectionLayerProps> = ({ camera, 
 
 			e.currentTarget.releasePointerCapture(e.pointerId);
 		},
-		[dragState, activeTool, shapes, selectShapesInArea],
+		[dragState, activeTool, shapes, selectShapes],
 	);
 
 	if (activeTool !== "select") {

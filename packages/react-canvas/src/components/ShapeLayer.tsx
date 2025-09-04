@@ -27,16 +27,16 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 
 		e.stopPropagation();
 		if (e.shiftKey || e.metaKey) {
+			// Multiple selection mode
 			if (selectedShapeIds.has(shapeId)) {
 				deselectShape(shapeId);
 			} else {
 				selectShape(shapeId);
 			}
 		} else {
-			// Clear selection and select only this shape
+			// Single selection mode - clear others and select only this shape
 			const store = whiteboardStore.getState();
-			store.clearSelection();
-			store.selectShape(shapeId);
+			store.setSelection([shapeId]);
 		}
 	};
 
