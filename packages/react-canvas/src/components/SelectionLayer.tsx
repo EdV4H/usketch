@@ -57,19 +57,104 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 				transformOrigin: "0 0",
 			}}
 		>
-			<div
-				className="selection-box"
-				style={{
-					position: "absolute",
-					left: boundingBox.x - 2,
-					top: boundingBox.y - 2,
-					width: boundingBox.width + 4,
-					height: boundingBox.height + 4,
-					border: "2px solid #0066ff",
-					backgroundColor: "rgba(0, 102, 255, 0.1)",
-					pointerEvents: "none",
-				}}
-			/>
+			{/* Show group bounding box for multiple selection */}
+			{selectedShapes.length > 1 ? (
+				<div
+					className="selection-box group-selection"
+					data-testid="group-selection-box"
+					style={{
+						position: "absolute",
+						left: boundingBox.x - 2,
+						top: boundingBox.y - 2,
+						width: boundingBox.width + 4,
+						height: boundingBox.height + 4,
+						border: "2px solid #0066ff",
+						backgroundColor: "rgba(0, 102, 255, 0.05)",
+						pointerEvents: "none",
+					}}
+				/>
+			) : (
+				/* Show individual selection boxes */
+				selectedShapes.map((shape) => {
+					const width = "width" in shape ? shape.width : 100;
+					const height = "height" in shape ? shape.height : 100;
+					return (
+						<div
+							key={shape.id}
+							className="selection-box"
+							data-testid={`selection-box-${shape.id}`}
+							style={{
+								position: "absolute",
+								left: shape.x - 2,
+								top: shape.y - 2,
+								width: width + 4,
+								height: height + 4,
+								border: "2px solid #0066ff",
+								backgroundColor: "rgba(0, 102, 255, 0.1)",
+								pointerEvents: "none",
+							}}
+						/>
+					);
+				})
+			)}
+			{/* Show resize handles for single selection */}
+			{selectedShapes.length === 1 && (
+				<>
+					{/* Corner handles */}
+					<div
+						className="resize-handle nw"
+						style={{
+							position: "absolute",
+							left: boundingBox.x - 4,
+							top: boundingBox.y - 4,
+							width: 8,
+							height: 8,
+							backgroundColor: "#0066ff",
+							border: "1px solid white",
+							cursor: "nw-resize",
+						}}
+					/>
+					<div
+						className="resize-handle ne"
+						style={{
+							position: "absolute",
+							left: boundingBox.x + boundingBox.width - 4,
+							top: boundingBox.y - 4,
+							width: 8,
+							height: 8,
+							backgroundColor: "#0066ff",
+							border: "1px solid white",
+							cursor: "ne-resize",
+						}}
+					/>
+					<div
+						className="resize-handle sw"
+						style={{
+							position: "absolute",
+							left: boundingBox.x - 4,
+							top: boundingBox.y + boundingBox.height - 4,
+							width: 8,
+							height: 8,
+							backgroundColor: "#0066ff",
+							border: "1px solid white",
+							cursor: "sw-resize",
+						}}
+					/>
+					<div
+						className="resize-handle se"
+						style={{
+							position: "absolute",
+							left: boundingBox.x + boundingBox.width - 4,
+							top: boundingBox.y + boundingBox.height - 4,
+							width: 8,
+							height: 8,
+							backgroundColor: "#0066ff",
+							border: "1px solid white",
+							cursor: "se-resize",
+						}}
+					/>
+				</>
+			)}
 		</div>
 	);
 };

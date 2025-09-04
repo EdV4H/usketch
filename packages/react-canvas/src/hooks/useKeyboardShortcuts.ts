@@ -34,7 +34,11 @@ export const useKeyboardShortcuts = () => {
 			// Escape to clear selection or cancel current operation
 			if (e.key === "Escape") {
 				e.preventDefault();
-				clearSelection();
+				// Only clear selection if we have selected shapes
+				if (selectedShapeIds.size > 0) {
+					clearSelection();
+				}
+				// Always switch back to select tool when escape is pressed
 				setActiveTool("select");
 				return;
 			}

@@ -32,10 +32,13 @@ const Rectangle: React.FC<{
 		<g
 			data-shape-id={shape.id}
 			data-shape-type="rectangle"
+			data-shape="true"
+			data-selected={isSelected.toString()}
 			className={`shape-rectangle ${isSelected ? "selected" : ""}`}
 			transform={transform}
 			opacity={shape.opacity ?? 1}
 		>
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need interactions */}
 			<rect
 				x={shape.x}
 				y={shape.y}
@@ -45,6 +48,7 @@ const Rectangle: React.FC<{
 				stroke={shape.strokeColor || "#000"}
 				strokeWidth={shape.strokeWidth || 1}
 				style={{ cursor: "pointer" }}
+				// @ts-ignore - SVG elements need role for accessibility
 				onClick={onClick}
 				onPointerDown={onPointerDown}
 				onPointerMove={onPointerMove}
@@ -86,10 +90,13 @@ const Ellipse: React.FC<{
 		<g
 			data-shape-id={shape.id}
 			data-shape-type="ellipse"
+			data-shape="true"
+			data-selected={isSelected.toString()}
 			className={`shape-ellipse ${isSelected ? "selected" : ""}`}
 			transform={transform}
 			opacity={shape.opacity ?? 1}
 		>
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need interactions */}
 			<ellipse
 				cx={cx}
 				cy={cy}
@@ -99,6 +106,7 @@ const Ellipse: React.FC<{
 				stroke={shape.strokeColor || "#000"}
 				strokeWidth={shape.strokeWidth || 1}
 				style={{ cursor: "pointer" }}
+				// @ts-ignore - SVG elements need role for accessibility
 				onClick={onClick}
 				onPointerDown={onPointerDown}
 				onPointerMove={onPointerMove}
@@ -139,10 +147,13 @@ const Freedraw: React.FC<{
 		<g
 			data-shape-id={shape.id}
 			data-shape-type="freedraw"
+			data-shape="true"
+			data-selected={isSelected.toString()}
 			className={`shape-freedraw ${isSelected ? "selected" : ""}`}
 			transform={transform}
 			opacity={shape.opacity ?? 1}
 		>
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need interactions */}
 			<path
 				d={shape.path}
 				fill="none"
@@ -151,6 +162,7 @@ const Freedraw: React.FC<{
 				strokeLinecap="round"
 				strokeLinejoin="round"
 				style={{ cursor: "pointer" }}
+				// @ts-ignore - SVG elements need role for accessibility
 				onClick={onClick}
 				onPointerDown={onPointerDown}
 				onPointerMove={onPointerMove}

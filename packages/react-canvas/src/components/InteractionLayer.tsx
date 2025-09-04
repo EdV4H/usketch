@@ -1,6 +1,6 @@
 import { useWhiteboardStore } from "@usketch/store";
 import type React from "react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { InteractionLayerProps } from "../types";
 
@@ -28,7 +28,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 	const [drawPath, setDrawPath] = useState<string>("");
 	const pathRef = useRef<string[]>([]);
 
-	const { addShape, clearSelection } = useWhiteboardStore();
+	const { addShape, setActiveTool } = useWhiteboardStore();
 
 	const screenToCanvas = useCallback(
 		(screenX: number, screenY: number) => {
@@ -47,7 +47,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			const screenY = e.clientY - rect.top;
 			const { x, y } = screenToCanvas(screenX, screenY);
 
-			if (activeTool === "rectangle") {
+			if (activeTool === "rectangle" || activeTool === "ellipse") {
 				setDragState({
 					startX: x,
 					startY: y,
@@ -63,7 +63,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 			e.currentTarget.setPointerCapture(e.pointerId);
 		},
-		[activeTool, screenToCanvas, clearSelection],
+		[activeTool, screenToCanvas, dragState],
 	);
 
 	const handlePointerMove = useCallback(
@@ -75,7 +75,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			const screenY = e.clientY - rect.top;
 			const { x, y } = screenToCanvas(screenX, screenY);
 
-			if (activeTool === "rectangle") {
+			if (activeTool === "rectangle" || activeTool === "ellipse") {
 				setDragState((prev) => ({
 					...prev,
 					currentX: x,
@@ -124,7 +124,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			const screenY = e.clientY - rect.top;
 			const { x, y } = screenToCanvas(screenX, screenY);
 
-			if (activeTool === "rectangle") {
+			if (activeTool === "rectangle" || activeTool === "ellipse") {
 				const minX = Math.min(dragState.startX, x);
 				const minY = Math.min(dragState.startY, y);
 				const width = Math.abs(x - dragState.startX);
@@ -133,7 +133,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 				if (width > 5 && height > 5) {
 					addShape({
 						id: uuidv4(),
-						type: "rectangle",
+						type: activeTool === "ellipse" ? "ellipse" : "rectangle",
 						x: minX,
 						y: minY,
 						width,
@@ -181,12 +181,38 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 		[activeTool, screenToCanvas, dragState, drawPath, addShape, calculatePathBounds],
 	);
 
+	// Handle escape key to cancel drawing
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === "Escape" && dragState.isDragging) {
+				e.preventDefault();
+				// Cancel current drawing
+				setDragState({
+					startX: 0,
+					startY: 0,
+					currentX: 0,
+					currentY: 0,
+					isDragging: false,
+				});
+				pathRef.current = [];
+				setDrawPath("");
+				// Switch back to select tool
+				setActiveTool("select");
+			}
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => {
+			window.removeEventListener("keydown", handleKeyDown);
+		};
+	}, [dragState.isDragging, setActiveTool]);
+
 	const getCursor = () => {
 		switch (activeTool) {
 			case "select":
 				return "default";
 			case "rectangle":
-				return "crosshair";
+			case "ellipse":
 			case "draw":
 				return "crosshair";
 			default:
@@ -235,6 +261,17 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 								y={Math.min(dragState.startY, dragState.currentY)}
 								width={Math.abs(dragState.currentX - dragState.startX)}
 								height={Math.abs(dragState.currentY - dragState.startY)}
+								fill="rgba(100, 100, 250, 0.3)"
+								stroke="#000000"
+								strokeWidth={2}
+							/>
+						)}
+						{activeTool === "ellipse" && (
+							<ellipse
+								cx={(dragState.startX + dragState.currentX) / 2}
+								cy={(dragState.startY + dragState.currentY) / 2}
+								rx={Math.abs(dragState.currentX - dragState.startX) / 2}
+								ry={Math.abs(dragState.currentY - dragState.startY) / 2}
 								fill="rgba(100, 100, 250, 0.3)"
 								stroke="#000000"
 								strokeWidth={2}

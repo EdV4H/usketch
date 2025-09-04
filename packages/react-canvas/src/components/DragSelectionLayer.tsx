@@ -40,9 +40,9 @@ export const DragSelectionLayer: React.FC<DragSelectionLayerProps> = ({ camera, 
 		(e: React.PointerEvent) => {
 			if (activeTool !== "select") return;
 
-			// Check if clicking on a shape
+			// Check if clicking on a shape or using shift/meta key for multi-selection
 			const target = e.target as HTMLElement;
-			if (target.closest("[data-shape-id]")) {
+			if (target.closest("[data-shape-id]") || e.shiftKey || e.metaKey) {
 				return; // Let ShapeLayer handle it
 			}
 

@@ -1,6 +1,6 @@
 import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import type React from "react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import type { ShapeLayerProps } from "../types";
 import { Shape } from "./Shape";
 
@@ -82,12 +82,30 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			const dx = x - dragState.startX;
 			const dy = y - dragState.startY;
 
-			updateShape(dragState.draggedShapeId, {
-				x: dragState.originalX + dx,
-				y: dragState.originalY + dy,
-			});
+			// Move all selected shapes together
+			if (selectedShapeIds.size > 1) {
+				selectedShapeIds.forEach((shapeId) => {
+					const shape = shapes[shapeId];
+					if (shape) {
+						// Calculate relative position from the dragged shape
+						const relativeX = shape.x - shapes[dragState.draggedShapeId].x;
+						const relativeY = shape.y - shapes[dragState.draggedShapeId].y;
+
+						updateShape(shapeId, {
+							x: dragState.originalX + relativeX + dx,
+							y: dragState.originalY + relativeY + dy,
+						});
+					}
+				});
+			} else {
+				// Move single shape
+				updateShape(dragState.draggedShapeId, {
+					x: dragState.originalX + dx,
+					y: dragState.originalY + dy,
+				});
+			}
 		},
-		[dragState, camera, updateShape],
+		[dragState, camera, updateShape, selectedShapeIds, shapes],
 	);
 
 	const handleShapePointerUp = useCallback(
