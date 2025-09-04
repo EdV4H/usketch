@@ -14,7 +14,8 @@ interface InteractionResult {
 }
 
 export const useInteraction = (): InteractionResult => {
-	const { activeTool, camera, setCamera } = useWhiteboardStore();
+	const { currentTool, camera, setCamera } = useWhiteboardStore();
+	const activeTool = currentTool || "select";
 	const [cursor, setCursor] = useState("default");
 	const [isPanning, setIsPanning] = useState(false);
 	const panStartRef = useRef<Point | null>(null);
@@ -50,7 +51,7 @@ export const useInteraction = (): InteractionResult => {
 				console.log("Tool interaction at:", point);
 			}
 		},
-		[activeTool, camera, getCanvasPoint],
+		[camera, getCanvasPoint, activeTool],
 	);
 
 	const handlePointerMove = useCallback(
