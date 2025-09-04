@@ -18,7 +18,20 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 	onPointerMove,
 	onPointerUp,
 }) => {
-	if (!shape.path) return null;
+	// Generate path data from points (like Vanilla version)
+	const pathData =
+		shape.points && shape.points.length > 0
+			? shape.points
+					.map((point, index) => {
+						// Use absolute coordinates from points
+						const x = point.x;
+						const y = point.y;
+						return index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
+					})
+					.join(" ")
+			: shape.path || "";
+
+	if (!pathData) return null;
 
 	const transform = shape.rotation
 		? `rotate(${shape.rotation} ${shape.x + shape.width / 2} ${shape.y + shape.height / 2})`
@@ -31,19 +44,21 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 			className={`shape-freedraw ${isSelected ? "selected" : ""}`}
 			transform={transform}
 			opacity={shape.opacity ?? 1}
+			style={{ cursor: "pointer" }}
+			role="button"
+			aria-label="Freedraw shape"
+			onClick={onClick}
+			onPointerDown={onPointerDown}
+			onPointerMove={onPointerMove}
+			onPointerUp={onPointerUp}
 		>
 			<path
-				d={shape.path}
+				d={pathData}
 				fill="none"
 				stroke={shape.strokeColor || "#000"}
 				strokeWidth={shape.strokeWidth || 2}
 				strokeLinecap="round"
 				strokeLinejoin="round"
-				style={{ cursor: "pointer" }}
-				onClick={onClick}
-				onPointerDown={onPointerDown}
-				onPointerMove={onPointerMove}
-				onPointerUp={onPointerUp}
 			/>
 			{isSelected && (
 				<rect
