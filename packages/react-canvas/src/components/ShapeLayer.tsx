@@ -20,6 +20,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 		originalX: number;
 		originalY: number;
 		originalPositions?: Map<string, { x: number; y: number }>;
+		originalPoints?: Map<string, Array<{ x: number; y: number }>>;
 	}>({ isDragging: false, draggedShapeId: null, startX: 0, startY: 0, originalX: 0, originalY: 0 });
 
 	// State for drag selection
@@ -116,13 +117,18 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			const x = (e.clientX - rect.left - camera.x) / camera.zoom;
 			const y = (e.clientY - rect.top - camera.y) / camera.zoom;
 
-			// Store original positions of all selected shapes for group movement
+			// Store original positions and points of all selected shapes for group movement
 			const currentSelectedIds = whiteboardStore.getState().selectedShapeIds;
 			const originalPositions = new Map<string, { x: number; y: number }>();
+			const originalPoints = new Map<string, Array<{ x: number; y: number }>>();
 			currentSelectedIds.forEach((id) => {
 				const s = shapes[id];
 				if (s) {
 					originalPositions.set(id, { x: s.x, y: s.y });
+					// For freedraw shapes, store initial points
+					if (s.type === "freedraw" && "points" in s && s.points) {
+						originalPoints.set(id, [...s.points]);
+					}
 				}
 			});
 
@@ -134,6 +140,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 				originalX: shape.x,
 				originalY: shape.y,
 				originalPositions,
+				originalPoints,
 			});
 
 			// Reset the drag flag
@@ -170,18 +177,51 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 				currentSelectedIds.forEach((shapeId) => {
 					const originalPos = dragState.originalPositions?.get(shapeId);
 					if (originalPos) {
-						updateShape(shapeId, {
+						const updates: any = {
 							x: originalPos.x + dx,
 							y: originalPos.y + dy,
-						});
+						};
+
+						// For freedraw shapes, also update points
+						const shape = shapes[shapeId];
+						if (
+							shape &&
+							shape.type === "freedraw" &&
+							"points" in shape &&
+							dragState.originalPoints
+						) {
+							const originalPoints = dragState.originalPoints.get(shapeId);
+							if (originalPoints) {
+								updates.points = originalPoints.map((p: { x: number; y: number }) => ({
+									x: p.x + dx,
+									y: p.y + dy,
+								}));
+							}
+						}
+
+						updateShape(shapeId, updates);
 					}
 				});
 			} else {
 				// Move single shape
-				updateShape(dragState.draggedShapeId, {
+				const shape = shapes[dragState.draggedShapeId];
+				const updates: any = {
 					x: dragState.originalX + dx,
 					y: dragState.originalY + dy,
-				});
+				};
+
+				// For freedraw shapes, also update points
+				if (shape && shape.type === "freedraw" && "points" in shape && dragState.originalPoints) {
+					const originalPoints = dragState.originalPoints.get(dragState.draggedShapeId);
+					if (originalPoints) {
+						updates.points = originalPoints.map((p: { x: number; y: number }) => ({
+							x: p.x + dx,
+							y: p.y + dy,
+						}));
+					}
+				}
+
+				updateShape(dragState.draggedShapeId, updates);
 			}
 		},
 		[dragState, camera, updateShape],
