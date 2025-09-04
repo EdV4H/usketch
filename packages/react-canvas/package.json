@@ -19,6 +19,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@usketch/backgrounds": "*",
 		"@usketch/shared-types": "*",
 		"@usketch/store": "*",
 		"uuid": "^11.1.0",

@@ -1,8 +1,9 @@
-import type { BackgroundOptions, Camera, Shape } from "@usketch/shared-types";
+import type { Camera, Shape } from "@usketch/shared-types";
+import type { BackgroundConfig } from "./hooks/useBackgroundRenderer";
 
 export interface CanvasProps {
 	className?: string;
-	background?: BackgroundOptions;
+	background?: BackgroundConfig;
 	onReady?: (canvas: CanvasManager) => void;
 }
 
@@ -22,7 +23,7 @@ export interface SelectionLayerProps extends LayerProps {
 }
 
 export interface BackgroundLayerProps extends LayerProps {
-	options?: BackgroundOptions;
+	options?: BackgroundConfig;
 }
 
 export interface InteractionLayerProps extends LayerProps {

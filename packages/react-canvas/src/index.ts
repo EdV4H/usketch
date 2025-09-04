@@ -7,6 +7,7 @@ export { ShapeLayer } from "./components/ShapeLayer";
 export { WhiteboardCanvas } from "./components/WhiteboardCanvas";
 
 // Hooks
+export { useBackgroundRenderer } from "./hooks/useBackgroundRenderer";
 export { useCanvas } from "./hooks/useCanvas";
 export { useInteraction } from "./hooks/useInteraction";
 export { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
