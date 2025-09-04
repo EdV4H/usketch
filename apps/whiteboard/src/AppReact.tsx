@@ -41,7 +41,6 @@ function AppReact() {
 					background={background}
 					onReady={(canvas) => {
 						canvasRef.current = canvas;
-						console.log("Canvas ready:", canvas);
 						
 						// Add test shapes only once (protect against StrictMode double render)
 						// Skip demo shapes if running E2E tests (when URL has ?e2e=true)
