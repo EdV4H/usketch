@@ -5,6 +5,9 @@ export { Backgrounds } from "./presets";
 
 // レンダラー実装
 export { BaseRenderer } from "./renderers/base";
+export type { GradientConfig, PulseConfig } from "./renderers/custom-example";
+// カスタムレンダラーの例
+export { GradientRenderer, PulseRenderer } from "./renderers/custom-example";
 export { DotsRenderer } from "./renderers/dots";
 export { GridRenderer } from "./renderers/grid";
 export { IsometricRenderer } from "./renderers/isometric";
