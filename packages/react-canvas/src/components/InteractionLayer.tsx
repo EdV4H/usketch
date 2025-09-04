@@ -47,18 +47,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			const screenY = e.clientY - rect.top;
 			const { x, y } = screenToCanvas(screenX, screenY);
 
-			if (activeTool === "select") {
-				setDragState({
-					startX: x,
-					startY: y,
-					currentX: x,
-					currentY: y,
-					isDragging: true,
-				});
-				if (!e.shiftKey && !e.metaKey) {
-					clearSelection();
-				}
-			} else if (activeTool === "rectangle") {
+			if (activeTool === "rectangle") {
 				setDragState({
 					startX: x,
 					startY: y,
@@ -74,7 +63,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 			e.currentTarget.setPointerCapture(e.pointerId);
 		},
-		[activeTool, camera, clearSelection, dragState.isDragging],
+		[activeTool, screenToCanvas, clearSelection],
 	);
 
 	const handlePointerMove = useCallback(
@@ -86,7 +75,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			const screenY = e.clientY - rect.top;
 			const { x, y } = screenToCanvas(screenX, screenY);
 
-			if (activeTool === "select" || activeTool === "rectangle") {
+			if (activeTool === "rectangle") {
 				setDragState((prev) => ({
 					...prev,
 					currentX: x,
@@ -97,7 +86,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 				setDrawPath(pathRef.current.join(" "));
 			}
 		},
-		[activeTool, camera, dragState.isDragging],
+		[activeTool, screenToCanvas, dragState.isDragging],
 	);
 
 	const calculatePathBounds = useCallback((pathCommands: string[]) => {
@@ -189,7 +178,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 			e.currentTarget.releasePointerCapture(e.pointerId);
 		},
-		[activeTool, camera, dragState, drawPath, addShape, calculatePathBounds],
+		[activeTool, screenToCanvas, dragState, drawPath, addShape, calculatePathBounds],
 	);
 
 	const getCursor = () => {
@@ -204,6 +193,11 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 				return "default";
 		}
 	};
+
+	// Only render interaction layer for drawing tools
+	if (activeTool === "select") {
+		return null;
+	}
 
 	return (
 		<div
@@ -235,18 +229,6 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 					aria-label="Drawing preview"
 				>
 					<g transform={`translate(${camera.x}, ${camera.y}) scale(${camera.zoom})`}>
-						{activeTool === "select" && (
-							<rect
-								x={Math.min(dragState.startX, dragState.currentX)}
-								y={Math.min(dragState.startY, dragState.currentY)}
-								width={Math.abs(dragState.currentX - dragState.startX)}
-								height={Math.abs(dragState.currentY - dragState.startY)}
-								fill="rgba(0, 122, 255, 0.1)"
-								stroke="#007AFF"
-								strokeWidth={1}
-								strokeDasharray="5,5"
-							/>
-						)}
 						{activeTool === "rectangle" && (
 							<rect
 								x={Math.min(dragState.startX, dragState.currentX)}

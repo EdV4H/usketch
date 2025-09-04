@@ -13,6 +13,7 @@ export interface LayerProps {
 
 export interface ShapeLayerProps extends LayerProps {
 	shapes: Record<string, Shape>;
+	activeTool?: string;
 }
 
 export interface SelectionLayerProps extends LayerProps {

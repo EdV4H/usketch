@@ -42,7 +42,7 @@ export const WhiteboardCanvas: React.FC<CanvasProps> = ({
 			{...interactions.getCanvasProps()}
 		>
 			<BackgroundLayer camera={camera} options={background} />
-			<ShapeLayer shapes={shapes} camera={camera} />
+			<ShapeLayer shapes={shapes} camera={camera} activeTool={interactions.activeTool} />
 			<SelectionLayer selectedIds={selectedShapeIds} shapes={shapes} camera={camera} />
 			<InteractionLayer camera={camera} activeTool={interactions.activeTool} />
 		</div>

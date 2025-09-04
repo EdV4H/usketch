@@ -3,11 +3,19 @@ import type React from "react";
 import type { ShapeLayerProps } from "../types";
 import { Shape } from "./Shape";
 
-export const ShapeLayer: React.FC<ShapeLayerProps> = ({ shapes, camera, className = "" }) => {
+export const ShapeLayer: React.FC<ShapeLayerProps> = ({
+	shapes,
+	camera,
+	activeTool,
+	className = "",
+}) => {
 	const shapeArray = Object.values(shapes);
 	const { selectedShapeIds, selectShape, deselectShape } = useWhiteboardStore();
 
 	const handleShapeClick = (shapeId: string, e: React.MouseEvent) => {
+		// Only handle clicks when select tool is active
+		if (activeTool !== "select") return;
+
 		e.stopPropagation();
 		if (e.shiftKey || e.metaKey) {
 			if (selectedShapeIds.has(shapeId)) {
@@ -33,6 +41,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({ shapes, camera, classNam
 				width: "100%",
 				height: "100%",
 				overflow: "visible",
+				// ShapeLayer should always be clickable when select tool is active
 			}}
 		>
 			<g transform={`translate(${camera.x}, ${camera.y}) scale(${camera.zoom})`}>
