@@ -30,6 +30,7 @@ export const Rectangle: React.FC<RectangleProps> = ({
 			transform={transform}
 			opacity={shape.opacity ?? 1}
 		>
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need pointer events */}
 			<rect
 				x={shape.x}
 				y={shape.y}

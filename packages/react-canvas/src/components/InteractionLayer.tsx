@@ -149,16 +149,18 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 				const bounds = calculatePathBounds(pathRef.current);
 				if (bounds.width > 5 || bounds.height > 5) {
 					// Extract points from path commands
-					const points = pathRef.current.map((cmd) => {
-						const matches = cmd.match(/[\d.-]+/g);
-						if (matches && matches.length >= 2) {
-							return {
-								x: parseFloat(matches[0]),
-								y: parseFloat(matches[1]),
-							};
-						}
-						return null;
-					}).filter((p): p is { x: number; y: number } => p !== null);
+					const points = pathRef.current
+						.map((cmd) => {
+							const matches = cmd.match(/[\d.-]+/g);
+							if (matches && matches.length >= 2) {
+								return {
+									x: parseFloat(matches[0]),
+									y: parseFloat(matches[1]),
+								};
+							}
+							return null;
+						})
+						.filter((p): p is { x: number; y: number } => p !== null);
 
 					addShape({
 						id: uuidv4(),

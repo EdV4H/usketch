@@ -116,7 +116,6 @@ export function createDrawingTool() {
 					points: context.currentStroke, // Keep absolute world coordinates
 				};
 
-
 				// The adapter will handle adding to store
 				if (typeof window !== "undefined") {
 					window.__lastCreatedShape = shape;

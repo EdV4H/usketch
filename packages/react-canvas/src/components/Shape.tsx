@@ -182,7 +182,6 @@ const Freedraw: React.FC<{
 				onPointerMove={onPointerMove}
 				onPointerUp={onPointerUp}
 			/>
-			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need interactions */}
 			<path
 				d={pathData}
 				fill="none"

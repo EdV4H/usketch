@@ -38,6 +38,7 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 		: undefined;
 
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: SVG g element needs pointer events
 		<g
 			data-shape-id={shape.id}
 			data-shape-type="freedraw"

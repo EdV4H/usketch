@@ -33,6 +33,7 @@ export const Ellipse: React.FC<EllipseProps> = ({
 			transform={transform}
 			opacity={shape.opacity ?? 1}
 		>
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need pointer events */}
 			<ellipse
 				cx={cx}
 				cy={cy}

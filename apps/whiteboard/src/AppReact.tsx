@@ -31,7 +31,6 @@ function AppReact() {
 		});
 	};
 
-
 	return (
 		<div className="app">
 			<Toolbar onBackgroundChange={handleBackgroundChange} />
@@ -41,7 +40,7 @@ function AppReact() {
 					background={background}
 					onReady={(canvas) => {
 						canvasRef.current = canvas;
-						
+
 						// Add test shapes only once (protect against StrictMode double render)
 						// Skip demo shapes if running E2E tests (when URL has ?e2e=true)
 						const isE2E = new URLSearchParams(window.location.search).has("e2e");
