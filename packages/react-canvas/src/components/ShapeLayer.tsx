@@ -24,6 +24,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({ shapes, camera, classNam
 		<svg
 			className={`shape-layer ${className}`.trim()}
 			data-testid="shape-layer"
+			role="img"
 			aria-label="Shape layer"
 			style={{
 				position: "absolute",

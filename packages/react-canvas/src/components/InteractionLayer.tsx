@@ -28,14 +28,17 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 	const [drawPath, setDrawPath] = useState<string>("");
 	const pathRef = useRef<string[]>([]);
 
-	const { addShape, selectShape, clearSelection } = useWhiteboardStore();
+	const { addShape, clearSelection } = useWhiteboardStore();
 
-	const screenToCanvas = (screenX: number, screenY: number) => {
-		return {
-			x: (screenX - camera.x) / camera.zoom,
-			y: (screenY - camera.y) / camera.zoom,
-		};
-	};
+	const screenToCanvas = useCallback(
+		(screenX: number, screenY: number) => {
+			return {
+				x: (screenX - camera.x) / camera.zoom,
+				y: (screenY - camera.y) / camera.zoom,
+			};
+		},
+		[camera],
+	);
 
 	const handlePointerDown = useCallback(
 		(e: React.PointerEvent) => {
@@ -71,7 +74,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 			e.currentTarget.setPointerCapture(e.pointerId);
 		},
-		[activeTool, clearSelection, dragState, screenToCanvas],
+		[activeTool, camera, clearSelection, dragState.isDragging],
 	);
 
 	const handlePointerMove = useCallback(
@@ -94,8 +97,34 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 				setDrawPath(pathRef.current.join(" "));
 			}
 		},
-		[activeTool, dragState.isDragging, screenToCanvas],
+		[activeTool, camera, dragState.isDragging],
 	);
+
+	const calculatePathBounds = useCallback((pathCommands: string[]) => {
+		let minX = Infinity,
+			minY = Infinity;
+		let maxX = -Infinity,
+			maxY = -Infinity;
+
+		pathCommands.forEach((cmd) => {
+			const matches = cmd.match(/[\d.-]+/g);
+			if (matches && matches.length >= 2) {
+				const x = parseFloat(matches[0]);
+				const y = parseFloat(matches[1]);
+				minX = Math.min(minX, x);
+				minY = Math.min(minY, y);
+				maxX = Math.max(maxX, x);
+				maxY = Math.max(maxY, y);
+			}
+		});
+
+		return {
+			minX,
+			minY,
+			width: maxX - minX,
+			height: maxY - minY,
+		};
+	}, []);
 
 	const handlePointerUp = useCallback(
 		(e: React.PointerEvent) => {
@@ -160,34 +189,8 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 			e.currentTarget.releasePointerCapture(e.pointerId);
 		},
-		[activeTool, dragState, drawPath, addShape, calculatePathBounds, screenToCanvas],
+		[activeTool, camera, dragState, drawPath, addShape, calculatePathBounds],
 	);
-
-	const calculatePathBounds = (pathCommands: string[]) => {
-		let minX = Infinity,
-			minY = Infinity;
-		let maxX = -Infinity,
-			maxY = -Infinity;
-
-		pathCommands.forEach((cmd) => {
-			const matches = cmd.match(/[\d.-]+/g);
-			if (matches && matches.length >= 2) {
-				const x = parseFloat(matches[0]);
-				const y = parseFloat(matches[1]);
-				minX = Math.min(minX, x);
-				minY = Math.min(minY, y);
-				maxX = Math.max(maxX, x);
-				maxY = Math.max(maxY, y);
-			}
-		});
-
-		return {
-			minX,
-			minY,
-			width: maxX - minX,
-			height: maxY - minY,
-		};
-	};
 
 	const getCursor = () => {
 		switch (activeTool) {
@@ -228,6 +231,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 						height: "100%",
 						pointerEvents: "none",
 					}}
+					role="img"
 					aria-label="Drawing preview"
 				>
 					<g transform={`translate(${camera.x}, ${camera.y}) scale(${camera.zoom})`}>
