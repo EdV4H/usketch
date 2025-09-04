@@ -1,5 +1,5 @@
 import { WhiteboardCanvas } from "@usketch/react-canvas";
-import { useRef } from "react";
+import React, { useRef } from "react";
 import { Toolbar } from "./components/toolbar";
 import "./styles/app.css";
 

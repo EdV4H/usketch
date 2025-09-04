@@ -12,7 +12,14 @@ export default defineConfig({
 			formats: ["es"],
 		},
 		rollupOptions: {
-			external: ["react", "react-dom", "zustand", "@usketch/store", "@usketch/shared-types"],
+			external: [
+				"react",
+				"react-dom",
+				"react/jsx-runtime",
+				"zustand",
+				"@usketch/store",
+				"@usketch/shared-types",
+			],
 			output: {
 				globals: {
 					react: "React",

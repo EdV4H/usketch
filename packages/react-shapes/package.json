@@ -19,8 +19,10 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@usketch/shared-types": "*",
-		"react": "^18.2.0"
+		"@usketch/shared-types": "*"
+	},
+	"peerDependencies": {
+		"react": "^18.0.0"
 	},
 	"devDependencies": {
 		"@types/react": "^18.2.0",
