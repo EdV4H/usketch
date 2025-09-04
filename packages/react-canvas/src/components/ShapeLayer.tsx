@@ -29,6 +29,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 		startY: number;
 		currentX: number;
 		currentY: number;
+		originalSelection?: Set<string>; // Store original selection for modifier key handling
 	}>({ isSelecting: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
 
 	const svgRef = useRef<SVGSVGElement>(null);
@@ -183,7 +184,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 				});
 			}
 		},
-		[dragState, camera, updateShape, shapes],
+		[dragState, camera, updateShape],
 	);
 
 	const handleShapePointerUp = useCallback(
@@ -217,17 +218,21 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			const x = (e.clientX - rect.left - camera.x) / camera.zoom;
 			const y = (e.clientY - rect.top - camera.y) / camera.zoom;
 
+			// Store original selection for modifier key handling
+			const store = whiteboardStore.getState();
+			const originalSelection = new Set(store.selectedShapeIds);
+
 			setSelectionBox({
 				isSelecting: true,
 				startX: x,
 				startY: y,
 				currentX: x,
 				currentY: y,
+				originalSelection,
 			});
 
 			// Clear selection on background click (unless shift/cmd is held)
 			if (!e.shiftKey && !e.metaKey) {
-				const store = whiteboardStore.getState();
 				store.clearSelection();
 			}
 
@@ -250,53 +255,58 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 				currentX: x,
 				currentY: y,
 			}));
+
+			// Calculate selection bounds in real-time
+			const minX = Math.min(selectionBox.startX, x);
+			const minY = Math.min(selectionBox.startY, y);
+			const maxX = Math.max(selectionBox.startX, x);
+			const maxY = Math.max(selectionBox.startY, y);
+
+			// Find shapes within current selection box
+			const selectedIds: string[] = [];
+			Object.values(shapes).forEach((shape) => {
+				const shapeWidth = "width" in shape ? shape.width : 100;
+				const shapeHeight = "height" in shape ? shape.height : 100;
+
+				// Check if shape intersects with selection box
+				if (
+					shape.x < maxX &&
+					shape.x + shapeWidth > minX &&
+					shape.y < maxY &&
+					shape.y + shapeHeight > minY
+				) {
+					selectedIds.push(shape.id);
+				}
+			});
+
+			// Update store selection in real-time
+			const store = whiteboardStore.getState();
+			if (e.shiftKey || e.metaKey) {
+				// Add to existing selection (preserve original selection from drag start)
+				const originalSelection = selectionBox.originalSelection || new Set();
+				const combined = new Set([...originalSelection, ...selectedIds]);
+				store.setSelection(Array.from(combined));
+			} else {
+				// Replace selection
+				store.setSelection(selectedIds);
+			}
 		},
-		[selectionBox.isSelecting, camera],
+		[
+			selectionBox.isSelecting,
+			selectionBox.startX,
+			selectionBox.startY,
+			selectionBox.originalSelection,
+			camera,
+			shapes,
+		],
 	);
 
 	const handleBackgroundPointerUp = useCallback(
 		(e: React.PointerEvent<SVGSVGElement>) => {
 			if (!selectionBox.isSelecting) return;
 
-			// Calculate selection bounds
-			const minX = Math.min(selectionBox.startX, selectionBox.currentX);
-			const minY = Math.min(selectionBox.startY, selectionBox.currentY);
-			const maxX = Math.max(selectionBox.startX, selectionBox.currentX);
-			const maxY = Math.max(selectionBox.startY, selectionBox.currentY);
-
-			// Only select if drag area is large enough
-			if (Math.abs(maxX - minX) > 5 || Math.abs(maxY - minY) > 5) {
-				// Find shapes within selection box
-				const selectedIds: string[] = [];
-				Object.values(shapes).forEach((shape) => {
-					const shapeWidth = "width" in shape ? shape.width : 100;
-					const shapeHeight = "height" in shape ? shape.height : 100;
-
-					// Check if shape intersects with selection box
-					if (
-						shape.x < maxX &&
-						shape.x + shapeWidth > minX &&
-						shape.y < maxY &&
-						shape.y + shapeHeight > minY
-					) {
-						selectedIds.push(shape.id);
-					}
-				});
-
-				if (selectedIds.length > 0) {
-					const store = whiteboardStore.getState();
-					if (e.shiftKey || e.metaKey) {
-						// Add to existing selection
-						const currentSelection = store.selectedShapeIds;
-						const combined = new Set([...currentSelection, ...selectedIds]);
-						store.selectShapes(Array.from(combined));
-					} else {
-						// Replace selection
-						store.selectShapes(selectedIds);
-					}
-				}
-			}
-
+			// Selection is already updated in real-time during move
+			// Just clean up the selection box state
 			setSelectionBox({
 				isSelecting: false,
 				startX: 0,
@@ -307,7 +317,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 
 			e.currentTarget.releasePointerCapture(e.pointerId);
 		},
-		[selectionBox, shapes],
+		[selectionBox.isSelecting],
 	);
 
 	return (
