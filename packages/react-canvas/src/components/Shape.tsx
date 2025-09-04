@@ -167,6 +167,21 @@ const Freedraw: React.FC<{
 			transform={transform}
 			opacity={shape.opacity ?? 1}
 		>
+			{/* Invisible rect for better click detection */}
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need interactions */}
+			<rect
+				x={0}
+				y={0}
+				width={shape.width}
+				height={shape.height}
+				fill="transparent"
+				style={{ cursor: "pointer" }}
+				// @ts-ignore - SVG elements need role for accessibility
+				onClick={onClick}
+				onPointerDown={onPointerDown}
+				onPointerMove={onPointerMove}
+				onPointerUp={onPointerUp}
+			/>
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need interactions */}
 			<path
 				d={pathData}
@@ -175,12 +190,8 @@ const Freedraw: React.FC<{
 				strokeWidth={shape.strokeWidth || 2}
 				strokeLinecap="round"
 				strokeLinejoin="round"
+				pointerEvents="none"
 				style={{ cursor: "pointer" }}
-				// @ts-ignore - SVG elements need role for accessibility
-				onClick={onClick}
-				onPointerDown={onPointerDown}
-				onPointerMove={onPointerMove}
-				onPointerUp={onPointerUp}
 			/>
 			{isSelected && (
 				<rect

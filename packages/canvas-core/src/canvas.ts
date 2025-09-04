@@ -368,6 +368,16 @@ export class Canvas {
 		// Add overflow visible to prevent clipping at edges
 		svg.style.overflow = "visible";
 
+		// Create invisible rect for better click detection
+		const hitboxRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+		hitboxRect.setAttribute("x", "0");
+		hitboxRect.setAttribute("y", "0");
+		hitboxRect.setAttribute("width", width.toString());
+		hitboxRect.setAttribute("height", height.toString());
+		hitboxRect.setAttribute("fill", "transparent");
+		hitboxRect.style.cursor = "pointer";
+		svg.appendChild(hitboxRect);
+
 		// Create path element
 		const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
 
@@ -386,6 +396,7 @@ export class Canvas {
 		path.setAttribute("fill", "none");
 		path.setAttribute("stroke-linecap", "round");
 		path.setAttribute("stroke-linejoin", "round");
+		path.style.pointerEvents = "none"; // Let the rect handle click events
 
 		svg.appendChild(path);
 		element.appendChild(svg);

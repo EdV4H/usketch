@@ -50,6 +50,15 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 			onPointerMove={onPointerMove}
 			onPointerUp={onPointerUp}
 		>
+			{/* Invisible rect for better click detection */}
+			<rect
+				x={0}
+				y={0}
+				width={shape.width}
+				height={shape.height}
+				fill="transparent"
+				style={{ cursor: "pointer" }}
+			/>
 			<path
 				d={pathData}
 				fill="none"
@@ -57,6 +66,7 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 				strokeWidth={shape.strokeWidth || 2}
 				strokeLinecap="round"
 				strokeLinejoin="round"
+				pointerEvents="none"
 			/>
 			{isSelected && (
 				<rect
