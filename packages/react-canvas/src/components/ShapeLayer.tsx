@@ -1,4 +1,4 @@
-import { useWhiteboardStore } from "@usketch/store";
+import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useCallback, useRef, useState } from "react";
 import type { ShapeLayerProps } from "../types";
@@ -25,8 +25,6 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 		// Only handle clicks when select tool is active
 		if (activeTool !== "select") return;
 
-		console.log("Shape clicked:", shapeId, "Selected before:", selectedShapeIds.has(shapeId));
-
 		e.stopPropagation();
 		if (e.shiftKey || e.metaKey) {
 			if (selectedShapeIds.has(shapeId)) {
@@ -36,12 +34,10 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			}
 		} else {
 			// Clear selection and select only this shape
-			const store = useWhiteboardStore.getState();
+			const store = whiteboardStore.getState();
 			store.clearSelection();
 			store.selectShape(shapeId);
 		}
-
-		console.log("Selected after:", useWhiteboardStore.getState().selectedShapeIds);
 	};
 
 	const handleShapePointerDown = useCallback(
