@@ -35,7 +35,7 @@ export const useCanvas = (containerRef: RefObject<HTMLDivElement>, options?: Use
 			rendererRef.current = null;
 			setCanvasManager(null);
 		};
-	}, [containerRef.current, options.background]); // Only run once on mount
+	}, [containerRef.current, options?.background]); // Only run once on mount
 
 	return canvasManager;
 };
