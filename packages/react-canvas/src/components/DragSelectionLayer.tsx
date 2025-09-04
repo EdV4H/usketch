@@ -112,13 +112,25 @@ export const DragSelectionLayer: React.FC<DragSelectionLayerProps> = ({ camera, 
 			// Find shapes in the selection area
 			const selectedIds: string[] = [];
 			Object.values(shapes).forEach((shape) => {
+				// Calculate bounding box for each shape type
+				let shapeRight: number;
+				let shapeBottom: number;
+
+				if (shape.type === "line") {
+					// For line shapes, use x2 and y2
+					shapeRight = Math.max(shape.x, shape.x2);
+					shapeBottom = Math.max(shape.y, shape.y2);
+				} else if ("width" in shape && "height" in shape) {
+					// For shapes with width and height
+					shapeRight = shape.x + shape.width;
+					shapeBottom = shape.y + shape.height;
+				} else {
+					// Skip shapes without proper dimensions
+					return;
+				}
+
 				// Simple bounding box check
-				if (
-					shape.x < maxX &&
-					shape.x + shape.width > minX &&
-					shape.y < maxY &&
-					shape.y + shape.height > minY
-				) {
+				if (shape.x < maxX && shapeRight > minX && shape.y < maxY && shapeBottom > minY) {
 					selectedIds.push(shape.id);
 				}
 			});

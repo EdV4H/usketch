@@ -4,6 +4,8 @@
 	"private": true,
 	"scripts": {
 		"test:e2e": "playwright test",
+		"test:e2e:react": "playwright test whiteboard-common.spec.ts",
+		"test:e2e:vanilla": "playwright test whiteboard-vanilla.spec.ts",
 		"test:ui": "playwright test --ui",
 		"test:debug": "playwright test --debug",
 		"test:codegen": "playwright codegen http://localhost:3001"
