@@ -219,8 +219,8 @@ export const selectToolMachine = setup({
 				}
 				// Make sure it's visible
 				selectionBoxElement.style.display = "block";
-			} catch (error) {
-				console.error("[SelectTool] Error in showSelectionBox:", error);
+			} catch {
+				// Silently handle error
 			}
 		},
 
@@ -330,9 +330,8 @@ export const selectToolMachine = setup({
 			};
 		}),
 
-		deleteSelectedShapes: ({ context }) => {
+		deleteSelectedShapes: () => {
 			// TODO: Implement shape deletion
-			console.log("Delete shapes:", Array.from(context.selectedIds));
 		},
 
 		enterCropMode: assign(({ event }) => {
@@ -349,9 +348,8 @@ export const selectToolMachine = setup({
 			croppingShapeId: undefined,
 		}),
 
-		applyCrop: ({ context }) => {
+		applyCrop: () => {
 			// TODO: Apply crop to shape
-			console.log("Apply crop to:", context.croppingShapeId);
 		},
 
 		showCropOverlay: () => {
@@ -362,11 +360,8 @@ export const selectToolMachine = setup({
 			// TODO: Hide crop overlay UI
 		},
 
-		adjustCropBounds: ({ event }) => {
+		adjustCropBounds: () => {
 			// TODO: Adjust crop bounds
-			if (event.type === "POINTER_MOVE") {
-				console.log("Adjust crop:", event.point);
-			}
 		},
 	},
 	guards: {

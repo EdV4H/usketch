@@ -16,6 +16,12 @@ export default defineConfig({
 			"@usketch/shared-utils": path.resolve(__dirname, "../../packages/shared-utils/src"),
 			"@usketch/store": path.resolve(__dirname, "../../packages/store/src"),
 			"@usketch/ui-components": path.resolve(__dirname, "../../packages/ui-components/src"),
+			"@usketch/react-canvas": path.resolve(__dirname, "../../packages/react-canvas/src"),
+			"@usketch/react-shapes": path.resolve(__dirname, "../../packages/react-shapes/src"),
 		},
+	},
+	optimizeDeps: {
+		include: ["react", "react-dom"],
+		exclude: ["@usketch/react-canvas", "@usketch/react-shapes"],
 	},
 });

@@ -116,18 +116,6 @@ export function createDrawingTool() {
 					points: context.currentStroke, // Keep absolute world coordinates
 				};
 
-				// Debug: Log the created shape
-				console.log("Created freedraw shape:", {
-					id: shape.id,
-					x: shape.x,
-					y: shape.y,
-					width: shape.width,
-					height: shape.height,
-					pointsCount: shape.points.length,
-					firstPoint: shape.points[0],
-					lastPoint: shape.points[shape.points.length - 1],
-				});
-
 				// The adapter will handle adding to store
 				if (typeof window !== "undefined") {
 					window.__lastCreatedShape = shape;

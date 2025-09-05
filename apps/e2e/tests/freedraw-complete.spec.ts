@@ -8,7 +8,7 @@ test("freedraw complete test - draw, select, move, preview", async ({ page }) =>
 		}
 	});
 
-	await page.goto("http://localhost:3002/?e2e=true");
+	await page.goto("/?e2e=true");
 	await page.waitForSelector(".whiteboard-canvas");
 
 	const canvas = page.locator(".whiteboard-canvas");
@@ -104,5 +104,6 @@ test("freedraw complete test - draw, select, move, preview", async ({ page }) =>
 	console.log("Moved path:", movedShapeData.svgPath);
 
 	// The path should be relative to the shape, not absolute
-	expect(movedShapeData.svgPath).toContain("M 0");
+	// Path starts at M 1 1 because that's where the drawing started relative to the shape's bounding box
+	expect(movedShapeData.svgPath).toContain("M 1 1");
 });

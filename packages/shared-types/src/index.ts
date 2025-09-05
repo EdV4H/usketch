@@ -1,3 +1,6 @@
+// Export all types
+export * from "./background";
+
 // Base shape interface
 export interface BaseShape {
 	id: string;
@@ -46,6 +49,7 @@ export interface FreedrawShape extends BaseShape {
 	width: number;
 	height: number;
 	points: Array<{ x: number; y: number }>; // Points are relative to (x, y)
+	path?: string; // SVG path data
 }
 
 // Union type for all shapes
@@ -70,4 +74,11 @@ export interface WhiteboardState {
 	selectedShapeIds: Set<string>;
 	camera: Camera;
 	currentTool: string;
+}
+
+// Background options
+export interface BackgroundOptions {
+	renderer?: string;
+	color?: string;
+	config?: any;
 }

@@ -6,7 +6,7 @@ test("simple draw test", async ({ page }) => {
 		console.log("Browser:", msg.text());
 	});
 
-	await page.goto("http://localhost:3002/?e2e=true");
+	await page.goto("/?e2e=true");
 	await page.waitForSelector(".whiteboard-canvas");
 
 	const canvas = page.locator(".whiteboard-canvas");

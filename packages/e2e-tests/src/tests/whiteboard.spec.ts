@@ -8,24 +8,24 @@ export const whiteboardTests = () => {
 		// Check that the whiteboard/canvas container exists
 		await expect(page.locator(".whiteboard-container, #canvas")).toBeVisible();
 
-		// Check that the grid background is displayed
-		await expect(page.locator(".grid-background")).toBeVisible();
+		// Check that the background layer is displayed
+		await expect(page.locator(".background-layer")).toBeVisible();
 	});
 
 	test("should have Select and Rectangle tools", async ({ page }) => {
 		// Check that the Select tool button exists and is active by default
-		const selectButton = page.locator('.tool-button:has-text("Select"), #select-tool');
+		const selectButton = page.locator('[data-testid="tool-select"]');
 		await expect(selectButton).toBeVisible();
 		await expect(selectButton).toHaveClass(/active/);
 
 		// Check that the Rectangle tool button exists
-		const rectangleButton = page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool');
+		const rectangleButton = page.locator('[data-testid="tool-rectangle"]');
 		await expect(rectangleButton).toBeVisible();
 	});
 
 	test("should switch between tools", async ({ page }) => {
-		const selectButton = page.locator('.tool-button:has-text("Select"), #select-tool');
-		const rectangleButton = page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool');
+		const selectButton = page.locator('[data-testid="tool-select"]');
+		const rectangleButton = page.locator('[data-testid="tool-rectangle"]');
 
 		// Initially, Select should be active
 		await expect(selectButton).toHaveClass(/active/);
@@ -48,7 +48,7 @@ export const whiteboardTests = () => {
 
 	test("should draw a rectangle", async ({ page }) => {
 		// Switch to Rectangle tool
-		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		await page.locator('[data-testid="tool-rectangle"]').click();
 
 		// Get the whiteboard container
 		const whiteboard = page.locator(".whiteboard-container, #canvas");
@@ -71,7 +71,7 @@ export const whiteboardTests = () => {
 
 	test("should select and move a shape", async ({ page }) => {
 		// First, draw a rectangle at a different position to avoid initial shapes
-		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		await page.locator('[data-testid="tool-rectangle"]').click();
 		const whiteboard = page.locator(".whiteboard-container, #canvas");
 
 		await whiteboard.hover({ position: { x: 500, y: 100 } });
@@ -80,7 +80,7 @@ export const whiteboardTests = () => {
 		await page.mouse.up();
 
 		// Switch to Select tool
-		await page.locator('.tool-button:has-text("Select"), #select-tool').click();
+		await page.locator('[data-testid="tool-select"]').click();
 
 		// Wait for shape to be rendered
 		await page.waitForTimeout(200);
@@ -118,7 +118,7 @@ export const whiteboardTests = () => {
 
 	test("should drag and move unselected shape directly", async ({ page }) => {
 		// First, draw a rectangle
-		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		await page.locator('[data-testid="tool-rectangle"]').click();
 		const whiteboard = page.locator(".whiteboard-container, #canvas");
 
 		await whiteboard.hover({ position: { x: 500, y: 250 } });
@@ -127,7 +127,7 @@ export const whiteboardTests = () => {
 		await page.mouse.up();
 
 		// Switch to Select tool
-		await page.locator('.tool-button:has-text("Select"), #select-tool').click();
+		await page.locator('[data-testid="tool-select"]').click();
 
 		// Wait for shape to be rendered
 		await page.waitForTimeout(200);
@@ -167,7 +167,7 @@ export const whiteboardTests = () => {
 		const whiteboard = page.locator(".whiteboard-container, #canvas");
 
 		// Draw a rectangle first at a clear position
-		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		await page.locator('[data-testid="tool-rectangle"]').click();
 		await whiteboard.hover({ position: { x: 600, y: 300 } });
 		await page.mouse.down();
 		await whiteboard.hover({ position: { x: 700, y: 400 } });
@@ -196,7 +196,7 @@ export const whiteboardTests = () => {
 	test.skip("should handle keyboard shortcuts", async ({ page }) => {
 		// Skip this test for now as delete functionality might not be implemented
 		// Draw two rectangles
-		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		await page.locator('[data-testid="tool-rectangle"]').click();
 		const whiteboard = page.locator(".whiteboard-container, #canvas");
 
 		// First rectangle at clear position
@@ -212,7 +212,7 @@ export const whiteboardTests = () => {
 		await page.mouse.up();
 
 		// Switch to Select tool
-		await page.locator('.tool-button:has-text("Select"), #select-tool').click();
+		await page.locator('[data-testid="tool-select"]').click();
 
 		// Select first shape
 		const firstRect = page.locator('[data-shape="true"][data-shape-type="rectangle"]').first();
@@ -231,7 +231,7 @@ export const whiteboardTests = () => {
 
 	test("should pan the canvas with middle mouse button", async ({ page }) => {
 		// Draw a rectangle at a clear position
-		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		await page.locator('[data-testid="tool-rectangle"]').click();
 		const whiteboard = page.locator(".whiteboard-container, #canvas");
 
 		await whiteboard.hover({ position: { x: 600, y: 300 } });
@@ -261,7 +261,7 @@ export const whiteboardTests = () => {
 
 	test("should clear selection when clicking on empty space", async ({ page }) => {
 		// Draw a rectangle
-		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		await page.locator('[data-testid="tool-rectangle"]').click();
 		const whiteboard = page.locator(".whiteboard-container, #canvas");
 
 		await whiteboard.hover({ position: { x: 400, y: 300 } });
@@ -270,7 +270,7 @@ export const whiteboardTests = () => {
 		await page.mouse.up();
 
 		// Switch to Select tool
-		await page.locator('.tool-button:has-text("Select"), #select-tool').click();
+		await page.locator('[data-testid="tool-select"]').click();
 
 		// Wait for shape to be rendered
 		await page.waitForTimeout(200);
@@ -291,7 +291,7 @@ export const whiteboardTests = () => {
 
 	test("should clear selection when switching to Rectangle tool", async ({ page }) => {
 		// Draw a rectangle
-		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		await page.locator('[data-testid="tool-rectangle"]').click();
 		const whiteboard = page.locator(".whiteboard-container, #canvas");
 
 		await whiteboard.hover({ position: { x: 300, y: 200 } });
@@ -300,7 +300,7 @@ export const whiteboardTests = () => {
 		await page.mouse.up();
 
 		// Switch to Select tool
-		await page.locator('.tool-button:has-text("Select"), #select-tool').click();
+		await page.locator('[data-testid="tool-select"]').click();
 
 		// Wait for shape to be rendered
 		await page.waitForTimeout(200);
@@ -313,7 +313,7 @@ export const whiteboardTests = () => {
 		await expect(page.locator(".selection-box")).toBeVisible();
 
 		// Switch to Rectangle tool
-		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		await page.locator('[data-testid="tool-rectangle"]').click();
 
 		// Verify selection is cleared
 		await expect(page.locator(".selection-box")).not.toBeVisible();
@@ -321,7 +321,7 @@ export const whiteboardTests = () => {
 
 	test("should drag unselected shape directly without pre-selection", async ({ page }) => {
 		// Draw a rectangle
-		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		await page.locator('[data-testid="tool-rectangle"]').click();
 		const whiteboard = page.locator(".whiteboard-container, #canvas");
 
 		await whiteboard.hover({ position: { x: 300, y: 250 } });
@@ -330,7 +330,7 @@ export const whiteboardTests = () => {
 		await page.mouse.up();
 
 		// Switch to Select tool
-		await page.locator('.tool-button:has-text("Select"), #select-tool').click();
+		await page.locator('[data-testid="tool-select"]').click();
 
 		// Wait for shape to be rendered
 		await page.waitForTimeout(200);
@@ -365,7 +365,7 @@ export const whiteboardTests = () => {
 
 	test("should maintain selection when switching back to Select tool", async ({ page }) => {
 		// Draw two rectangles
-		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		await page.locator('[data-testid="tool-rectangle"]').click();
 		const whiteboard = page.locator(".whiteboard-container, #canvas");
 
 		// First rectangle
@@ -381,7 +381,7 @@ export const whiteboardTests = () => {
 		await page.mouse.up();
 
 		// Switch to Select tool
-		await page.locator('.tool-button:has-text("Select"), #select-tool').click();
+		await page.locator('[data-testid="tool-select"]').click();
 
 		// Wait for shapes to be rendered
 		await page.waitForTimeout(200);
@@ -404,7 +404,7 @@ export const whiteboardTests = () => {
 		expect(selectionBoxes).toBeGreaterThan(0);
 
 		// Switch to Rectangle tool and back
-		await page.locator('.tool-button:has-text("Rectangle"), #rectangle-tool').click();
+		await page.locator('[data-testid="tool-rectangle"]').click();
 		await page.waitForTimeout(100);
 
 		// Selection should be cleared after switching away from Select tool
