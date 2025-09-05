@@ -13,7 +13,14 @@ import {
 import type { Camera } from "@usketch/shared-types";
 import { useEffect, useRef } from "react";
 
-export type BackgroundType = "none" | "dots" | "grid" | "lines" | "isometric" | "custom";
+export type BackgroundType =
+	| "none"
+	| "dots"
+	| "grid"
+	| "lines"
+	| "isometric"
+	| "custom"
+	| "component";
 
 export interface BackgroundConfig {
 	type: BackgroundType;
@@ -24,6 +31,8 @@ export interface BackgroundConfig {
 	direction?: "horizontal" | "vertical" | "both";
 	// カスタムレンダラー用
 	renderer?: BackgroundRenderer<any>;
+	// Reactコンポーネント用
+	component?: React.ComponentType<any>;
 	config?: any;
 }
 

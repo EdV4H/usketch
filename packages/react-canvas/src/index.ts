@@ -1,5 +1,13 @@
 // Main exports
 
+export {
+	AnimatedGridBackground,
+	type BackgroundComponent,
+	type BackgroundComponentProps,
+	DotsBackground,
+	GradientBackground,
+	PulseBackground,
+} from "./components/BackgroundComponent";
 export { BackgroundLayer } from "./components/BackgroundLayer";
 export { InteractionLayer } from "./components/InteractionLayer";
 export { SelectionLayer } from "./components/SelectionLayer";

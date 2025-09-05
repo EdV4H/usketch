@@ -63,9 +63,111 @@ const gradientRenderer = new GradientRenderer();
 />
 ```
 
-## カスタムレンダラーの作成
+## Reactコンポーネントとして背景を作成
 
-`BackgroundRenderer`インターフェースを実装することで、独自の背景レンダラーを作成できます：
+React版では、JSX/Reactコンポーネントとして背景を作成できます：
+
+```tsx
+import type { BackgroundComponent } from "@usketch/react-canvas";
+
+// カスタム背景コンポーネント
+const MyBackground: BackgroundComponent = ({ camera, config }) => {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        background: `linear-gradient(45deg, ${config?.color1 || "#ff0000"}, ${config?.color2 || "#0000ff"})`,
+        transform: `translate(${-camera.x}px, ${-camera.y}px) scale(${camera.zoom})`,
+        transformOrigin: "0 0",
+        pointerEvents: "none",
+      }}
+    />
+  );
+};
+
+// 使用方法
+<WhiteboardCanvas
+  background={{
+    type: "component",
+    component: MyBackground,
+    config: {
+      color1: "#667eea",
+      color2: "#764ba2",
+    }
+  }}
+/>
+```
+
+### SVGを使った背景コンポーネント
+
+```tsx
+const SVGPatternBackground: BackgroundComponent = ({ camera }) => {
+  return (
+    <svg
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+      }}
+    >
+      <defs>
+        <pattern
+          id="custom-pattern"
+          x={-camera.x}
+          y={-camera.y}
+          width={50 * camera.zoom}
+          height={50 * camera.zoom}
+          patternUnits="userSpaceOnUse"
+        >
+          <circle cx={25 * camera.zoom} cy={25 * camera.zoom} r={5 * camera.zoom} fill="#007acc" opacity="0.3" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#custom-pattern)" />
+    </svg>
+  );
+};
+```
+
+### アニメーション付き背景コンポーネント
+
+```tsx
+const AnimatedBackground: BackgroundComponent = ({ camera }) => {
+  const [time, setTime] = React.useState(0);
+  
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setTime(t => t + 1);
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        background: `hsl(${time % 360}, 50%, 95%)`,
+        transition: "background 0.1s",
+        pointerEvents: "none",
+      }}
+    />
+  );
+};
+```
+
+## DOM操作ベースのレンダラー作成
+
+`BackgroundRenderer`インターフェースを実装することで、DOM操作ベースの背景レンダラーを作成できます：
 
 ```typescript
 import type { Camera } from "@usketch/shared-types";
