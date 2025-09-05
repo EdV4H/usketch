@@ -1,4 +1,6 @@
 import { WhiteboardCanvas } from "@usketch/react-canvas";
+import { defaultShapePlugins } from "@usketch/shape-plugins";
+import { ShapeRegistryProvider } from "@usketch/shape-registry";
 import { whiteboardStore } from "@usketch/store";
 import { useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/registerBackgrounds";
@@ -8,6 +10,7 @@ import "./styles/app.css";
 function App() {
 	const canvasRef = useRef<any>(null);
 	const shapesAddedRef = useRef(false);
+	const backgroundsRegisteredRef = useRef(false);
 	const [background, setBackground] = useState<any>({
 		id: "usketch.dots",
 		config: {
@@ -17,9 +20,12 @@ function App() {
 		},
 	});
 
-	// カスタム背景を登録
+	// カスタム背景を登録（一度だけ）
 	useEffect(() => {
-		registerCustomBackgrounds();
+		if (!backgroundsRegisteredRef.current) {
+			backgroundsRegisteredRef.current = true;
+			registerCustomBackgrounds();
+		}
 	}, []);
 
 	// デモ用のシェイプを追加
@@ -76,16 +82,18 @@ function App() {
 	};
 
 	return (
-		<div className="app">
-			<ToolbarReact onBackgroundChange={setBackground} />
-			<div className="whiteboard-container">
-				<WhiteboardCanvas
-					className="whiteboard"
-					background={background}
-					onReady={handleCanvasReady}
-				/>
+		<ShapeRegistryProvider plugins={defaultShapePlugins}>
+			<div className="app">
+				<ToolbarReact onBackgroundChange={setBackground} />
+				<div className="whiteboard-container">
+					<WhiteboardCanvas
+						className="whiteboard"
+						background={background}
+						onReady={handleCanvasReady}
+					/>
+				</div>
 			</div>
-		</div>
+		</ShapeRegistryProvider>
 	);
 }
 

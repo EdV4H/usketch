@@ -38,6 +38,12 @@ importers:
       '@usketch/react-shapes':
         specifier: workspace:*
         version: link:../../packages/react-shapes
+      '@usketch/shape-plugins':
+        specifier: workspace:*
+        version: link:../../packages/shape-plugins
+      '@usketch/shape-registry':
+        specifier: workspace:*
+        version: link:../../packages/shape-registry
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
