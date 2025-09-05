@@ -84,6 +84,111 @@ export const Shape: React.FC<ShapeProps> = ({ shape, ...props }) => {
 };
 ```
 
+### 2.4 初期図形の設定サポート
+
+```typescript
+// WhiteboardCanvasの新しいProps
+interface WhiteboardCanvasProps {
+  // 初期図形の設定
+  initialShapes?: Shape[];
+  
+  // プラグインの動的登録
+  plugins?: ShapePlugin[];
+  
+  // 図形の変更コールバック
+  onShapesChange?: (shapes: Shape[]) => void;
+  
+  // コントロールモード
+  controlled?: boolean;
+  shapes?: Shape[];
+}
+
+// 使用例
+<WhiteboardCanvas 
+  initialShapes={[
+    {
+      id: 'rect-1',
+      type: 'rectangle',
+      x: 100,
+      y: 100,
+      width: 200,
+      height: 150,
+      fillColor: '#ff0000',
+      strokeColor: '#000000',
+      strokeWidth: 2,
+      rotation: 0,
+      opacity: 1
+    },
+    {
+      id: 'text-1',
+      type: 'text',
+      x: 350,
+      y: 200,
+      text: 'Hello World',
+      fontSize: 24,
+      fontFamily: 'Arial',
+      fillColor: '#000000',
+      strokeColor: 'transparent',
+      strokeWidth: 0,
+      rotation: 0,
+      opacity: 1
+    }
+  ]}
+  plugins={[customHeartPlugin, customStarPlugin]}
+  onShapesChange={(shapes) => console.log('Shapes updated:', shapes)}
+/>
+```
+
+### 2.5 Controlled/Uncontrolled Component パターン
+
+```typescript
+// Uncontrolled Mode (内部で状態管理)
+function UncontrolledExample() {
+  return (
+    <WhiteboardCanvas 
+      initialShapes={defaultShapes}
+      onShapesChange={(shapes) => {
+        // 変更の通知のみ受け取る
+        saveToBackend(shapes);
+      }}
+    />
+  );
+}
+
+// Controlled Mode (外部で状態管理)
+function ControlledExample() {
+  const [shapes, setShapes] = useState<Shape[]>(defaultShapes);
+  
+  return (
+    <WhiteboardCanvas 
+      controlled
+      shapes={shapes}
+      onShapesChange={setShapes}
+    />
+  );
+}
+
+// Hybrid Mode (初期値 + 外部制御)
+function HybridExample() {
+  const [externalShapes, setExternalShapes] = useState<Shape[]>([]);
+  const [mode, setMode] = useState<'local' | 'sync'>('local');
+  
+  return (
+    <WhiteboardCanvas 
+      controlled={mode === 'sync'}
+      initialShapes={mode === 'local' ? localShapes : undefined}
+      shapes={mode === 'sync' ? externalShapes : undefined}
+      onShapesChange={(shapes) => {
+        if (mode === 'sync') {
+          setExternalShapes(shapes);
+          syncWithServer(shapes);
+        }
+      }}
+    />
+  );
+}
+```
+
 ## 3. 実装ロードマップ
 
 ### Phase 1: 基盤構築（Week 1）
@@ -97,6 +202,11 @@ export const Shape: React.FC<ShapeProps> = ({ shape, ...props }) => {
 - [ ] `ShapeRegistry`クラスの実装
 - [ ] React Context経由でのレジストリ提供
 - [ ] レジストリフックの作成
+
+#### 1.3 初期化システム
+- [ ] `initialShapes` propの実装
+- [ ] Controlled/Uncontrolled モードの実装
+- [ ] 図形の初期化とバリデーション
 
 ### Phase 2: 既存図形の移行（Week 2）
 
@@ -244,6 +354,118 @@ function App() {
 }
 ```
 
+### 5.3 初期図形を使った実装例
+
+```typescript
+// 初期図形を持つホワイトボードの実装
+import { WhiteboardCanvas } from '@usketch/react-canvas';
+import { generateDefaultShapes } from './utils/shapes';
+
+function DiagramEditor() {
+  // テンプレートから初期図形を生成
+  const templateShapes = useMemo(() => {
+    return [
+      {
+        id: 'title',
+        type: 'text',
+        x: 400,
+        y: 50,
+        text: 'System Architecture',
+        fontSize: 32,
+        fontFamily: 'Arial',
+        fillColor: '#000',
+        strokeColor: 'transparent',
+        strokeWidth: 0,
+        rotation: 0,
+        opacity: 1
+      },
+      {
+        id: 'server',
+        type: 'rectangle',
+        x: 100,
+        y: 150,
+        width: 150,
+        height: 100,
+        fillColor: '#4A90E2',
+        strokeColor: '#2E5C8A',
+        strokeWidth: 2,
+        rotation: 0,
+        opacity: 1
+      },
+      {
+        id: 'database',
+        type: 'ellipse',
+        x: 350,
+        y: 150,
+        width: 150,
+        height: 100,
+        fillColor: '#50C878',
+        strokeColor: '#2D7A4F',
+        strokeWidth: 2,
+        rotation: 0,
+        opacity: 1
+      },
+      {
+        id: 'connection',
+        type: 'line',
+        x: 250,
+        y: 200,
+        x2: 350,
+        y2: 200,
+        fillColor: 'transparent',
+        strokeColor: '#666',
+        strokeWidth: 2,
+        rotation: 0,
+        opacity: 1
+      }
+    ];
+  }, []);
+
+  return (
+    <WhiteboardCanvas
+      initialShapes={templateShapes}
+      onShapesChange={(shapes) => {
+        console.log('Diagram updated:', shapes.length, 'shapes');
+      }}
+    />
+  );
+}
+
+// JSONやAPIから図形を読み込む例
+function SavedDiagramLoader({ diagramId }: { diagramId: string }) {
+  const [initialShapes, setInitialShapes] = useState<Shape[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    // APIから保存された図形を取得
+    fetch(`/api/diagrams/${diagramId}`)
+      .then(res => res.json())
+      .then(data => {
+        setInitialShapes(data.shapes);
+        setLoading(false);
+      });
+  }, [diagramId]);
+  
+  if (loading) {
+    return <div>Loading diagram...</div>;
+  }
+  
+  return (
+    <WhiteboardCanvas
+      initialShapes={initialShapes}
+      onShapesChange={async (shapes) => {
+        // 変更を自動保存
+        await fetch(`/api/diagrams/${diagramId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ shapes }),
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }}
+    />
+  );
+}
+```
+
 ## 6. 利点
 
 ### 6.1 開発者体験の向上
@@ -255,6 +477,8 @@ function App() {
 - **動的な図形追加**: 実行時に新しい図形タイプを追加可能
 - **カスタマイズ性**: アプリケーション固有の図形を簡単に追加
 - **パフォーマンス**: 必要な図形のみをロード（コード分割対応）
+- **初期状態の設定**: テンプレートや保存データから簡単に開始
+- **柔軟な状態管理**: Controlled/Uncontrolledモードで様々なユースケースに対応
 
 ### 6.3 保守性
 - **単一責任原則**: 各図形が独自のロジックをカプセル化
@@ -285,6 +509,9 @@ function App() {
 - [ ] バンドルサイズが10%以上増加しない
 - [ ] 既存のテストがすべてパスする
 - [ ] カスタム図形のサンプルが3つ以上動作する
+- [ ] 初期図形の設定が正しく動作する
+- [ ] Controlled/Uncontrolledモードが両方動作する
+- [ ] APIからの図形読み込みが可能
 
 ## 9. リスクと軽減策
 
