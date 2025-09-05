@@ -1,5 +1,6 @@
 // === Geometry Utility Functions ===
 
+import { DEFAULT_SHAPE_SIZE, DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import type { Bounds, Point, Shape } from "../types";
 
@@ -162,13 +163,13 @@ export function createShape(shape: Partial<Shape>): void {
 		type: "rectangle",
 		x: 0,
 		y: 0,
-		width: 100,
-		height: 100,
+		width: DEFAULT_SHAPE_SIZE.width,
+		height: DEFAULT_SHAPE_SIZE.height,
 		rotation: 0,
-		opacity: 1,
-		strokeColor: "#333",
-		fillColor: "#fff",
-		strokeWidth: 2,
+		opacity: DEFAULT_SHAPE_STYLES.opacity,
+		strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
+		fillColor: DEFAULT_SHAPE_STYLES.fillColor,
+		strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
 		...shape,
 	} as any;
 
