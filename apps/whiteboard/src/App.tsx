@@ -82,7 +82,7 @@ function App() {
 	};
 
 	return (
-		<ShapeRegistryProvider plugins={defaultShapePlugins}>
+		<ShapeRegistryProvider plugins={defaultShapePlugins as any}>
 			<div className="app">
 				<ToolbarReact onBackgroundChange={setBackground} />
 				<div className="whiteboard-container">
