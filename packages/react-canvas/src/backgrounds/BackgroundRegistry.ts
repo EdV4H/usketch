@@ -1,4 +1,4 @@
-import type { BackgroundComponent } from "../components/BackgroundComponent";
+import type { BackgroundComponent } from "./types";
 
 /**
  * 背景コンポーネントのレジストリ

@@ -58,16 +58,16 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 
 	// 外側クリックでメニューを閉じる
 	useEffect(() => {
+		if (!showBackgroundMenu) return;
+
 		const handleClickOutside = (event: MouseEvent) => {
 			if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
 				setShowBackgroundMenu(false);
 			}
 		};
 
-		if (showBackgroundMenu) {
-			document.addEventListener("mousedown", handleClickOutside);
-			return () => document.removeEventListener("mousedown", handleClickOutside);
-		}
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => document.removeEventListener("mousedown", handleClickOutside);
 	}, [showBackgroundMenu]);
 
 	return (

@@ -1,6 +1,6 @@
 import type { Camera } from "@usketch/shared-types";
 import { useRef } from "react";
-import type { BackgroundComponent } from "../components/BackgroundComponent";
+import type { BackgroundComponent } from "../backgrounds/types";
 
 /**
  * 背景の設定

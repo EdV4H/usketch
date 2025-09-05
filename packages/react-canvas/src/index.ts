@@ -1,19 +1,8 @@
 // Main exports
 
-// Background Registry
-export { BackgroundRegistry, globalBackgroundRegistry } from "./backgrounds/BackgroundRegistry";
-export {
-	getAllPresetIds,
-	getPresetsByCategory,
-	PRESET_BACKGROUNDS_METADATA,
-	type PresetCategory,
-	registerPresetBackgrounds,
-} from "./backgrounds/presets";
-
+// Re-export presets from @usketch/background-presets for backward compatibility
 export {
 	AnimatedGridBackground,
-	type BackgroundComponent,
-	type BackgroundComponentProps,
 	DotsBackground,
 	type DotsBackgroundConfig,
 	GradientBackground,
@@ -26,7 +15,17 @@ export {
 	type LinesBackgroundConfig,
 	PulseBackground,
 	type PulseBackgroundConfig,
-} from "./components/BackgroundComponent";
+} from "@usketch/background-presets";
+// Background Registry
+export { BackgroundRegistry, globalBackgroundRegistry } from "./backgrounds/BackgroundRegistry";
+export {
+	getAllPresetIds,
+	getPresetsByCategory,
+	PRESET_BACKGROUNDS_METADATA,
+	type PresetCategory,
+	registerPresetBackgrounds,
+} from "./backgrounds/presets";
+export type { BackgroundComponent, BackgroundComponentProps } from "./backgrounds/types";
 export { BackgroundLayer } from "./components/BackgroundLayer";
 export { InteractionLayer } from "./components/InteractionLayer";
 export { SelectionLayer } from "./components/SelectionLayer";

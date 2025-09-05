@@ -231,7 +231,7 @@ export const BackgroundSelector: React.FC<BackgroundSelectorProps> = ({
 										<input
 											className="config-input"
 											type="text"
-											value={value}
+											value={value as string}
 											onChange={(e) => handleConfigChange(key, e.target.value)}
 										/>
 									)}

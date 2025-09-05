@@ -3,8 +3,8 @@ import { useMemo } from "react";
 import type { BackgroundRegistry } from "../backgrounds/BackgroundRegistry";
 import { globalBackgroundRegistry } from "../backgrounds/BackgroundRegistry";
 import { registerPresetBackgrounds } from "../backgrounds/presets";
+import type { BackgroundComponent } from "../backgrounds/types";
 import type { BackgroundLayerProps } from "../types";
-import type { BackgroundComponent } from "./BackgroundComponent";
 
 // 初回レンダリング時にプリセット背景を登録
 let presetsRegistered = false;
