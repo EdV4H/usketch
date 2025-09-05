@@ -238,6 +238,9 @@ importers:
 
   packages/shared-types:
     devDependencies:
+      '@types/react':
+        specifier: ^18.3.23
+        version: 18.3.23
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig

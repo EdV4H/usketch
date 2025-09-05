@@ -1,2 +1,2 @@
-// 型定義を@usketch/background-presetsから再エクスポート
-export type { BackgroundComponent, BackgroundComponentProps } from "@usketch/background-presets";
+// 型定義を@usketch/shared-typesから再エクスポート
+export type { BackgroundComponent, BackgroundComponentProps } from "@usketch/shared-types";

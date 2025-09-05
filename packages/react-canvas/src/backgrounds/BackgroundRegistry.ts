@@ -1,10 +1,13 @@
-import type { BackgroundComponent } from "./types";
+import type {
+	BackgroundComponent,
+	BackgroundRegistry as IBackgroundRegistry,
+} from "@usketch/shared-types";
 
 /**
  * 背景コンポーネントのレジストリ
  * IDベースで背景コンポーネントを管理
  */
-export class BackgroundRegistry {
+export class BackgroundRegistry implements IBackgroundRegistry {
 	private backgrounds = new Map<string, BackgroundComponent>();
 	private lazyBackgrounds = new Map<string, () => Promise<{ default: BackgroundComponent }>>();
 

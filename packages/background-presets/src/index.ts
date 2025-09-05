@@ -13,12 +13,12 @@ export { getAllPresetIds, PRESET_BACKGROUNDS_METADATA } from "./metadata";
 // 型定義のエクスポート
 export type { BackgroundComponent, BackgroundComponentProps } from "./types";
 
+// レジストリに登録する関数
+import type { BackgroundRegistry } from "@usketch/shared-types";
 import { DotsBackground } from "./components/DotsBackground";
 import { GridBackground } from "./components/GridBackground";
 import { IsometricBackground } from "./components/IsometricBackground";
 import { LinesBackground } from "./components/LinesBackground";
-// レジストリに登録する関数
-import type { BackgroundRegistry } from "./registry";
 
 /**
  * uSketchプリセット背景をレジストリに登録

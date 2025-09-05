@@ -1,15 +1,2 @@
-import type { Camera } from "@usketch/shared-types";
-import type React from "react";
-
-/**
- * React背景コンポーネントのプロパティ
- */
-export interface BackgroundComponentProps {
-	camera: Camera;
-	config?: any;
-}
-
-/**
- * React背景コンポーネントのインターフェース
- */
-export type BackgroundComponent = React.FC<BackgroundComponentProps>;
+// 背景関連の型定義はshared-typesから再エクスポート
+export type { BackgroundComponent, BackgroundComponentProps } from "@usketch/shared-types";

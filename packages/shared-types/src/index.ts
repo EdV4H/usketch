@@ -1,3 +1,6 @@
+// Export all types
+export * from "./background";
+
 // Base shape interface
 export interface BaseShape {
 	id: string;
