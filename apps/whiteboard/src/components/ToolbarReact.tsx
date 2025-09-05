@@ -226,26 +226,28 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 							<div className="background-section">
 								<div className="background-section-title">プリセット</div>
 								{Object.entries(PRESET_BACKGROUNDS).map(([id, bg]) => (
-									<div
+									<button
+										type="button"
 										key={id}
 										className={`background-item ${currentBackground === id ? "active" : ""}`}
 										onClick={() => handleBackgroundSelect(id, bg.config)}
 									>
 										{bg.name}
-									</div>
+									</button>
 								))}
 							</div>
 
 							<div className="background-section">
 								<div className="background-section-title">カスタム</div>
 								{Object.entries(CUSTOM_BACKGROUNDS_METADATA).map(([id, bg]) => (
-									<div
+									<button
+										type="button"
 										key={id}
 										className={`background-item ${currentBackground === id ? "active" : ""}`}
 										onClick={() => handleBackgroundSelect(id)}
 									>
 										{bg.name}
-									</div>
+									</button>
 								))}
 							</div>
 						</div>

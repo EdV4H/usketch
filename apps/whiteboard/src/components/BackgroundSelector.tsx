@@ -179,22 +179,24 @@ export const BackgroundSelector: React.FC<BackgroundSelectorProps> = ({
 			<div className="background-grid">
 				{selectedCategory === "preset"
 					? Object.entries(PRESET_BACKGROUNDS).map(([id, bg]) => (
-							<div
+							<button
+								type="button"
 								key={id}
 								className={`background-item ${currentBackground.id === id ? "active" : ""}`}
 								onClick={() => handleBackgroundSelect(id, bg.config)}
 							>
 								{bg.name}
-							</div>
+							</button>
 						))
 					: Object.entries(CUSTOM_BACKGROUNDS_METADATA).map(([id, bg]) => (
-							<div
+							<button
+								type="button"
 								key={id}
 								className={`background-item ${currentBackground.id === id ? "active" : ""}`}
 								onClick={() => handleBackgroundSelect(id)}
 							>
 								{bg.name}
-							</div>
+							</button>
 						))}
 			</div>
 
@@ -210,33 +212,41 @@ export const BackgroundSelector: React.FC<BackgroundSelectorProps> = ({
 
 					{showConfig && (
 						<div className="config-grid">
-							{Object.entries(currentBackground.config).map(([key, value]) => (
-								<div key={key} className="config-item">
-									<label className="config-label">{key}:</label>
-									{typeof value === "number" ? (
-										<input
-											className="config-input"
-											type="number"
-											value={value}
-											onChange={(e) => handleConfigChange(key, Number(e.target.value))}
-										/>
-									) : typeof value === "string" && key.toLowerCase().includes("color") ? (
-										<input
-											className="config-input"
-											type="color"
-											value={value}
-											onChange={(e) => handleConfigChange(key, e.target.value)}
-										/>
-									) : (
-										<input
-											className="config-input"
-											type="text"
-											value={value as string}
-											onChange={(e) => handleConfigChange(key, e.target.value)}
-										/>
-									)}
-								</div>
-							))}
+							{Object.entries(currentBackground.config).map(([key, value]) => {
+								const inputId = `config-${key}`;
+								return (
+									<div key={key} className="config-item">
+										<label htmlFor={inputId} className="config-label">
+											{key}:
+										</label>
+										{typeof value === "number" ? (
+											<input
+												id={inputId}
+												className="config-input"
+												type="number"
+												value={value}
+												onChange={(e) => handleConfigChange(key, Number(e.target.value))}
+											/>
+										) : typeof value === "string" && key.toLowerCase().includes("color") ? (
+											<input
+												id={inputId}
+												className="config-input"
+												type="color"
+												value={value}
+												onChange={(e) => handleConfigChange(key, e.target.value)}
+											/>
+										) : (
+											<input
+												id={inputId}
+												className="config-input"
+												type="text"
+												value={value as string}
+												onChange={(e) => handleConfigChange(key, e.target.value)}
+											/>
+										)}
+									</div>
+								);
+							})}
 						</div>
 					)}
 				</div>
