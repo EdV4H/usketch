@@ -42,25 +42,6 @@ export const PRESET_BACKGROUNDS_METADATA = {
 			color: "#e0e0e0",
 		},
 	},
-	"usketch.gradient": {
-		name: "グラデーション",
-		description: "2色のグラデーション背景",
-		category: "effect",
-		defaultConfig: {
-			startColor: "#ff0000",
-			endColor: "#0000ff",
-			angle: 45,
-		},
-	},
-	"usketch.pulse": {
-		name: "パルス",
-		description: "パルスアニメーション効果",
-		category: "effect",
-		defaultConfig: {
-			color: "#007acc",
-			speed: 2000,
-		},
-	},
 } as const;
 
 /**

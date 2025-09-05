@@ -4,16 +4,12 @@
 export {
 	DotsBackground,
 	type DotsBackgroundConfig,
-	GradientBackground,
-	type GradientBackgroundConfig,
 	GridBackground,
 	type GridBackgroundConfig,
 	IsometricBackground,
 	type IsometricBackgroundConfig,
 	LinesBackground,
 	type LinesBackgroundConfig,
-	PulseBackground,
-	type PulseBackgroundConfig,
 } from "@usketch/background-presets";
 // Background Registry
 export { BackgroundRegistry, globalBackgroundRegistry } from "./backgrounds/BackgroundRegistry";

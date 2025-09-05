@@ -2,16 +2,12 @@
 
 export type { DotsBackgroundConfig } from "./components/DotsBackground";
 export { DotsBackground } from "./components/DotsBackground";
-export type { GradientBackgroundConfig } from "./components/GradientBackground";
-export { GradientBackground } from "./components/GradientBackground";
 export type { GridBackgroundConfig } from "./components/GridBackground";
 export { GridBackground } from "./components/GridBackground";
 export type { IsometricBackgroundConfig } from "./components/IsometricBackground";
 export { IsometricBackground } from "./components/IsometricBackground";
 export type { LinesBackgroundConfig } from "./components/LinesBackground";
 export { LinesBackground } from "./components/LinesBackground";
-export type { PulseBackgroundConfig } from "./components/PulseBackground";
-export { PulseBackground } from "./components/PulseBackground";
 // メタデータのエクスポート
 export {
 	getAllPresetIds,
@@ -23,11 +19,9 @@ export {
 export type { BackgroundComponent, BackgroundComponentProps } from "./types";
 
 import { DotsBackground } from "./components/DotsBackground";
-import { GradientBackground } from "./components/GradientBackground";
 import { GridBackground } from "./components/GridBackground";
 import { IsometricBackground } from "./components/IsometricBackground";
 import { LinesBackground } from "./components/LinesBackground";
-import { PulseBackground } from "./components/PulseBackground";
 // レジストリに登録する関数
 import type { BackgroundRegistry } from "./registry";
 
@@ -41,9 +35,5 @@ export function registerPresetBackgrounds(registry: BackgroundRegistry): void {
 		"usketch.grid": GridBackground,
 		"usketch.lines": LinesBackground,
 		"usketch.isometric": IsometricBackground,
-
-		// エフェクト系の背景
-		"usketch.gradient": GradientBackground,
-		"usketch.pulse": PulseBackground,
 	});
 }
