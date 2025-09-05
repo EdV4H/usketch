@@ -161,6 +161,9 @@ importers:
       '@usketch/react-shapes':
         specifier: '*'
         version: link:../react-shapes
+      '@usketch/shape-registry':
+        specifier: '*'
+        version: link:../shape-registry
       '@usketch/shared-types':
         specifier: '*'
         version: link:../shared-types
