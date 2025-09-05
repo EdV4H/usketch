@@ -20,6 +20,7 @@
 	},
 	"dependencies": {
 		"@usketch/background-presets": "*",
+		"@usketch/react-shapes": "*",
 		"@usketch/shared-types": "*",
 		"@usketch/store": "*",
 		"uuid": "^11.1.0",

@@ -158,6 +158,9 @@ importers:
       '@usketch/background-presets':
         specifier: '*'
         version: link:../background-presets
+      '@usketch/react-shapes':
+        specifier: '*'
+        version: link:../react-shapes
       '@usketch/shared-types':
         specifier: '*'
         version: link:../shared-types

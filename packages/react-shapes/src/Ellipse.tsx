@@ -29,11 +29,13 @@ export const Ellipse: React.FC<EllipseProps> = ({
 		<g
 			data-shape-id={shape.id}
 			data-shape-type="ellipse"
+			data-shape="true"
+			data-selected={isSelected.toString()}
 			className={`shape-ellipse ${isSelected ? "selected" : ""}`}
 			transform={transform}
 			opacity={shape.opacity ?? 1}
 		>
-			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need pointer events */}
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need interactions */}
 			<ellipse
 				cx={cx}
 				cy={cy}
@@ -43,6 +45,7 @@ export const Ellipse: React.FC<EllipseProps> = ({
 				stroke={shape.strokeColor || "#000"}
 				strokeWidth={shape.strokeWidth || 1}
 				style={{ cursor: "pointer" }}
+				// @ts-ignore - SVG elements need role for accessibility
 				onClick={onClick}
 				onPointerDown={onPointerDown}
 				onPointerMove={onPointerMove}

@@ -33,25 +33,23 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 
 	if (!pathData) return null;
 
+	// Apply translation and rotation transforms
 	const transform = shape.rotation
-		? `rotate(${shape.rotation} ${shape.x + shape.width / 2} ${shape.y + shape.height / 2})`
-		: undefined;
+		? `translate(${shape.x}, ${shape.y}) rotate(${shape.rotation} ${shape.width / 2} ${shape.height / 2})`
+		: `translate(${shape.x}, ${shape.y})`;
 
 	return (
-		// biome-ignore lint/a11y/noStaticElementInteractions: SVG g element needs pointer events
 		<g
 			data-shape-id={shape.id}
 			data-shape-type="freedraw"
+			data-shape="true"
+			data-selected={isSelected.toString()}
 			className={`shape-freedraw ${isSelected ? "selected" : ""}`}
 			transform={transform}
 			opacity={shape.opacity ?? 1}
-			style={{ cursor: "pointer" }}
-			onClick={onClick}
-			onPointerDown={onPointerDown}
-			onPointerMove={onPointerMove}
-			onPointerUp={onPointerUp}
 		>
 			{/* Invisible rect for better click detection */}
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need interactions */}
 			<rect
 				x={0}
 				y={0}
@@ -59,6 +57,11 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 				height={shape.height}
 				fill="transparent"
 				style={{ cursor: "pointer" }}
+				// @ts-ignore - SVG elements need role for accessibility
+				onClick={onClick}
+				onPointerDown={onPointerDown}
+				onPointerMove={onPointerMove}
+				onPointerUp={onPointerUp}
 			/>
 			<path
 				d={pathData}
@@ -68,11 +71,12 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 				strokeLinecap="round"
 				strokeLinejoin="round"
 				pointerEvents="none"
+				style={{ cursor: "pointer" }}
 			/>
 			{isSelected && (
 				<rect
-					x={shape.x - 1}
-					y={shape.y - 1}
+					x={-1}
+					y={-1}
 					width={shape.width + 2}
 					height={shape.height + 2}
 					fill="none"

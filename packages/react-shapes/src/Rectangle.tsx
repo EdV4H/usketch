@@ -26,11 +26,13 @@ export const Rectangle: React.FC<RectangleProps> = ({
 		<g
 			data-shape-id={shape.id}
 			data-shape-type="rectangle"
+			data-shape="true"
+			data-selected={isSelected.toString()}
 			className={`shape-rectangle ${isSelected ? "selected" : ""}`}
 			transform={transform}
 			opacity={shape.opacity ?? 1}
 		>
-			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need pointer events */}
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need interactions */}
 			<rect
 				x={shape.x}
 				y={shape.y}
@@ -40,6 +42,7 @@ export const Rectangle: React.FC<RectangleProps> = ({
 				stroke={shape.strokeColor || "#000"}
 				strokeWidth={shape.strokeWidth || 1}
 				style={{ cursor: "pointer" }}
+				// @ts-ignore - SVG elements need role for accessibility
 				onClick={onClick}
 				onPointerDown={onPointerDown}
 				onPointerMove={onPointerMove}
