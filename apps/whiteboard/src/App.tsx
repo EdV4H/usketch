@@ -1,6 +1,7 @@
 import { WhiteboardCanvas } from "@usketch/react-canvas";
 import { defaultShapePlugins } from "@usketch/shape-plugins";
 import { ShapeRegistryProvider } from "@usketch/shape-registry";
+import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/registerBackgrounds";
@@ -47,10 +48,10 @@ function App() {
 					width: 200,
 					height: 100,
 					rotation: 0,
-					opacity: 1,
-					strokeColor: "#333",
-					fillColor: "#e0e0ff",
-					strokeWidth: 2,
+					opacity: DEFAULT_SHAPE_STYLES.opacity,
+					strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
+					fillColor: DEFAULT_SHAPE_STYLES.fillColor,
+					strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
 				};
 				whiteboardStore.getState().addShape(testShape1);
 			}, 100);
@@ -65,10 +66,10 @@ function App() {
 					width: 150,
 					height: 100,
 					rotation: 0,
-					opacity: 1,
-					strokeColor: "#d63384",
-					fillColor: "#ffe0e6",
-					strokeWidth: 3,
+					opacity: DEFAULT_SHAPE_STYLES.opacity,
+					strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
+					fillColor: DEFAULT_SHAPE_STYLES.fillColor,
+					strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
 				};
 				whiteboardStore.getState().addShape(testShape2);
 			}, 200);
