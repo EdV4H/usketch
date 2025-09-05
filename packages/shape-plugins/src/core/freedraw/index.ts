@@ -1,6 +1,7 @@
 import { Freedraw } from "@usketch/react-shapes";
 import type { ShapePlugin } from "@usketch/shape-registry";
 import type { FreedrawShape } from "@usketch/shared-types";
+import { DEFAULT_FREEDRAW_STYLES } from "@usketch/shared-types";
 
 export const freedrawPlugin: ShapePlugin<FreedrawShape> = {
 	type: "freedraw",
@@ -16,10 +17,10 @@ export const freedrawPlugin: ShapePlugin<FreedrawShape> = {
 		height: 0,
 		points: [],
 		rotation: 0,
-		opacity: 1,
-		strokeColor: "#000000",
-		fillColor: "transparent",
-		strokeWidth: 2,
+		opacity: DEFAULT_FREEDRAW_STYLES.opacity,
+		strokeColor: DEFAULT_FREEDRAW_STYLES.strokeColor,
+		fillColor: DEFAULT_FREEDRAW_STYLES.fillColor,
+		strokeWidth: DEFAULT_FREEDRAW_STYLES.strokeWidth,
 	}),
 
 	getBounds: (shape) => {

@@ -1,6 +1,7 @@
 import { Rectangle } from "@usketch/react-shapes";
 import type { ShapePlugin } from "@usketch/shape-registry";
 import type { RectangleShape } from "@usketch/shared-types";
+import { DEFAULT_SHAPE_SIZE, DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 
 export const rectanglePlugin: ShapePlugin<RectangleShape> = {
 	type: "rectangle",
@@ -12,13 +13,13 @@ export const rectanglePlugin: ShapePlugin<RectangleShape> = {
 		type: "rectangle",
 		x,
 		y,
-		width: 100,
-		height: 100,
+		width: DEFAULT_SHAPE_SIZE.width,
+		height: DEFAULT_SHAPE_SIZE.height,
 		rotation: 0,
-		opacity: 1,
-		strokeColor: "#000000",
-		fillColor: "#ffffff",
-		strokeWidth: 2,
+		opacity: DEFAULT_SHAPE_STYLES.opacity,
+		strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
+		fillColor: DEFAULT_SHAPE_STYLES.fillColor,
+		strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
 	}),
 
 	getBounds: (shape) => ({

@@ -1,6 +1,7 @@
 import { Ellipse } from "@usketch/react-shapes";
 import type { ShapePlugin } from "@usketch/shape-registry";
 import type { EllipseShape } from "@usketch/shared-types";
+import { DEFAULT_SHAPE_SIZE, DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 
 export const ellipsePlugin: ShapePlugin<EllipseShape> = {
 	type: "ellipse",
@@ -12,13 +13,13 @@ export const ellipsePlugin: ShapePlugin<EllipseShape> = {
 		type: "ellipse",
 		x,
 		y,
-		width: 100,
-		height: 100,
+		width: DEFAULT_SHAPE_SIZE.width,
+		height: DEFAULT_SHAPE_SIZE.height,
 		rotation: 0,
-		opacity: 1,
-		strokeColor: "#000000",
-		fillColor: "#ffffff",
-		strokeWidth: 2,
+		opacity: DEFAULT_SHAPE_STYLES.opacity,
+		strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
+		fillColor: DEFAULT_SHAPE_STYLES.fillColor,
+		strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
 	}),
 
 	getBounds: (shape) => ({

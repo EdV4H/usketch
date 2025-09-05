@@ -1,4 +1,5 @@
 import type { FreedrawShape } from "@usketch/shared-types";
+import { DEFAULT_FREEDRAW_STYLES } from "@usketch/shared-types";
 import { assign, setup } from "xstate";
 import type { Point, ToolContext } from "../types";
 
@@ -111,7 +112,7 @@ export function createDrawingTool() {
 					rotation: 0,
 					opacity: context.strokeStyle.opacity,
 					strokeColor: context.strokeStyle.color,
-					fillColor: "transparent",
+					fillColor: DEFAULT_FREEDRAW_STYLES.fillColor,
 					strokeWidth: context.strokeStyle.width,
 					points: context.currentStroke, // Keep absolute world coordinates
 				};
@@ -175,9 +176,9 @@ export function createDrawingTool() {
 			cursor: "crosshair",
 			currentStroke: [],
 			strokeStyle: {
-				color: "#000000",
-				width: 2,
-				opacity: 1,
+				color: DEFAULT_FREEDRAW_STYLES.strokeColor,
+				width: DEFAULT_FREEDRAW_STYLES.strokeWidth,
+				opacity: DEFAULT_FREEDRAW_STYLES.opacity,
 			},
 			isDrawing: false,
 			pressure: 1,
