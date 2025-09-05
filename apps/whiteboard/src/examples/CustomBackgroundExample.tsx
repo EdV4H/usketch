@@ -1,4 +1,3 @@
-import { GradientRenderer } from "@usketch/backgrounds";
 import {
 	AnimatedGridBackground,
 	type BackgroundComponent,
@@ -170,18 +169,6 @@ export const CustomBackgroundExamples: React.FC = () => {
 					component: RippleBackground,
 				};
 
-			case "gradient-renderer":
-				// DOM操作ベースのレンダラー
-				return {
-					type: "custom" as const,
-					renderer: new GradientRenderer(),
-					config: {
-						startColor: "#ff6b6b",
-						endColor: "#4ecdc4",
-						angle: 45,
-					},
-				};
-
 			case "dots":
 				// プリセットのドット背景
 				return {
@@ -189,6 +176,33 @@ export const CustomBackgroundExamples: React.FC = () => {
 					spacing: 25,
 					size: 3,
 					color: "#cbd5e0",
+				};
+
+			case "grid":
+				// プリセットのグリッド背景
+				return {
+					type: "grid" as const,
+					size: 40,
+					color: "#e2e8f0",
+					thickness: 1,
+				};
+
+			case "lines":
+				// プリセットのライン背景
+				return {
+					type: "lines" as const,
+					direction: "horizontal" as const,
+					spacing: 30,
+					color: "#cbd5e0",
+					thickness: 1,
+				};
+
+			case "isometric":
+				// プリセットのアイソメトリック背景
+				return {
+					type: "isometric" as const,
+					size: 40,
+					color: "#a0aec0",
 				};
 
 			default:
@@ -215,8 +229,10 @@ export const CustomBackgroundExamples: React.FC = () => {
 					<option value="animated-grid">アニメーショングリッド (React Component)</option>
 					<option value="particles">パーティクル (Custom React Component)</option>
 					<option value="ripple">波紋 (Custom React Component)</option>
-					<option value="gradient-renderer">グラデーション (DOM Renderer)</option>
 					<option value="dots">ドット (Preset)</option>
+					<option value="grid">グリッド (Preset)</option>
+					<option value="lines">ライン (Preset)</option>
+					<option value="isometric">アイソメトリック (Preset)</option>
 					<option value="none">なし</option>
 				</select>
 			</div>

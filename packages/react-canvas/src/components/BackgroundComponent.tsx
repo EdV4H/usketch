@@ -130,6 +130,169 @@ export const DotsBackground: React.FC<
 };
 
 /**
+ * グリッド背景のReactコンポーネント
+ */
+export interface GridBackgroundConfig {
+	size?: number;
+	color?: string;
+	thickness?: number;
+}
+
+export const GridBackground: React.FC<
+	BackgroundComponentProps & { config?: GridBackgroundConfig }
+> = ({ camera, config }) => {
+	const size = (config?.size || 40) * camera.zoom;
+	const color = config?.color || "#e0e0e0";
+	const thickness = config?.thickness || 1;
+
+	const svgDataUrl = `data:image/svg+xml,${encodeURIComponent(`
+		<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+			<rect width="${size}" height="${size}" fill="none" stroke="${color}" stroke-width="${thickness}" />
+		</svg>
+	`)}`;
+
+	return (
+		<div
+			style={{
+				position: "absolute",
+				top: 0,
+				left: 0,
+				width: "100%",
+				height: "100%",
+				backgroundImage: `url("${svgDataUrl}")`,
+				backgroundSize: `${size}px ${size}px`,
+				backgroundPosition: `${-camera.x % size}px ${-camera.y % size}px`,
+				pointerEvents: "none",
+			}}
+		/>
+	);
+};
+
+/**
+ * ライン背景のReactコンポーネント
+ */
+export interface LinesBackgroundConfig {
+	direction?: "horizontal" | "vertical" | "both";
+	spacing?: number;
+	color?: string;
+	thickness?: number;
+}
+
+export const LinesBackground: React.FC<
+	BackgroundComponentProps & { config?: LinesBackgroundConfig }
+> = ({ camera, config }) => {
+	const direction = config?.direction || "horizontal";
+	const spacing = (config?.spacing || 40) * camera.zoom;
+	const color = config?.color || "#e0e0e0";
+	const thickness = config?.thickness || 1;
+
+	const createSvgDataUrl = () => {
+		if (direction === "both") {
+			// GridBackgroundと同じ
+			return `data:image/svg+xml,${encodeURIComponent(`
+				<svg width="${spacing}" height="${spacing}" viewBox="0 0 ${spacing} ${spacing}" xmlns="http://www.w3.org/2000/svg">
+					<rect width="${spacing}" height="${spacing}" fill="none" stroke="${color}" stroke-width="${thickness}" />
+				</svg>
+			`)}`;
+		} else if (direction === "horizontal") {
+			return `data:image/svg+xml,${encodeURIComponent(`
+				<svg width="${spacing}" height="${spacing}" viewBox="0 0 ${spacing} ${spacing}" xmlns="http://www.w3.org/2000/svg">
+					<line x1="0" y1="${spacing}" x2="${spacing}" y2="${spacing}" stroke="${color}" stroke-width="${thickness}" />
+				</svg>
+			`)}`;
+		} else {
+			return `data:image/svg+xml,${encodeURIComponent(`
+				<svg width="${spacing}" height="${spacing}" viewBox="0 0 ${spacing} ${spacing}" xmlns="http://www.w3.org/2000/svg">
+					<line x1="${spacing}" y1="0" x2="${spacing}" y2="${spacing}" stroke="${color}" stroke-width="${thickness}" />
+				</svg>
+			`)}`;
+		}
+	};
+
+	return (
+		<div
+			style={{
+				position: "absolute",
+				top: 0,
+				left: 0,
+				width: "100%",
+				height: "100%",
+				backgroundImage: `url("${createSvgDataUrl()}")`,
+				backgroundSize: `${spacing}px ${spacing}px`,
+				backgroundPosition: `${-camera.x % spacing}px ${-camera.y % spacing}px`,
+				pointerEvents: "none",
+			}}
+		/>
+	);
+};
+
+/**
+ * アイソメトリック背景のReactコンポーネント
+ */
+export interface IsometricBackgroundConfig {
+	size?: number;
+	color?: string;
+}
+
+export const IsometricBackground: React.FC<
+	BackgroundComponentProps & { config?: IsometricBackgroundConfig }
+> = ({ camera, config }) => {
+	const size = (config?.size || 40) * camera.zoom;
+	const color = config?.color || "#e0e0e0";
+	const height = (size * Math.sqrt(3)) / 2;
+
+	return (
+		<svg
+			aria-label="Isometric background"
+			style={{
+				position: "absolute",
+				top: 0,
+				left: 0,
+				width: "100%",
+				height: "100%",
+				pointerEvents: "none",
+			}}
+		>
+			<title>Isometric background</title>
+			<defs>
+				<pattern
+					id="isometric"
+					x={-camera.x}
+					y={-camera.y}
+					width={size * 3}
+					height={height * 2}
+					patternUnits="userSpaceOnUse"
+				>
+					<path
+						d={`
+							M ${size},0
+							L ${size * 2},${height}
+							L ${size},${height * 2}
+							L 0,${height}
+							Z
+						`}
+						fill="none"
+						stroke={color}
+						strokeWidth="1"
+					/>
+					<path
+						d={`
+							M ${size * 2},${height}
+							L ${size * 3},0
+							M ${size * 2},${height}
+							L ${size * 3},${height * 2}
+						`}
+						stroke={color}
+						strokeWidth="1"
+					/>
+				</pattern>
+			</defs>
+			<rect width="100%" height="100%" fill="url(#isometric)" />
+		</svg>
+	);
+};
+
+/**
  * カスタム背景コンポーネントの例: アニメーショングリッド
  */
 export const AnimatedGridBackground: React.FC<BackgroundComponentProps> = ({ camera }) => {

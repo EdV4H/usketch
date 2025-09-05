@@ -5,8 +5,17 @@ export {
 	type BackgroundComponent,
 	type BackgroundComponentProps,
 	DotsBackground,
+	type DotsBackgroundConfig,
 	GradientBackground,
+	type GradientBackgroundConfig,
+	GridBackground,
+	type GridBackgroundConfig,
+	IsometricBackground,
+	type IsometricBackgroundConfig,
+	LinesBackground,
+	type LinesBackgroundConfig,
 	PulseBackground,
+	type PulseBackgroundConfig,
 } from "./components/BackgroundComponent";
 export { BackgroundLayer } from "./components/BackgroundLayer";
 export { InteractionLayer } from "./components/InteractionLayer";
