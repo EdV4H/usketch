@@ -32,7 +32,7 @@ interface ShapeRegistryProviderProps {
 	/** Optional: Use a custom registry instance */
 	registry?: ShapeRegistry;
 	/** Optional: Initial plugins to register */
-	plugins?: ShapePlugin[];
+	plugins?: ShapePlugin<any>[];
 	/** Optional: Callback when registry changes */
 	onRegistryChange?: (event: RegistryEvent) => void;
 }

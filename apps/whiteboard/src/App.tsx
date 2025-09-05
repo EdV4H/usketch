@@ -86,7 +86,7 @@ function App() {
 			<ToolbarReact onBackgroundChange={setBackground} />
 			<div className="whiteboard-container">
 				<WhiteboardCanvas
-					shapes={defaultShapePlugins as any}
+					shapes={defaultShapePlugins}
 					className="whiteboard"
 					background={background}
 					onReady={handleCanvasReady}
