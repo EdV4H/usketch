@@ -2,7 +2,6 @@
 
 // Re-export presets from @usketch/background-presets for backward compatibility
 export {
-	AnimatedGridBackground,
 	DotsBackground,
 	type DotsBackgroundConfig,
 	GradientBackground,

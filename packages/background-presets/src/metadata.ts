@@ -61,12 +61,6 @@ export const PRESET_BACKGROUNDS_METADATA = {
 			speed: 2000,
 		},
 	},
-	"usketch.animated-grid": {
-		name: "アニメーショングリッド",
-		description: "アニメーション付きのグリッド",
-		category: "effect",
-		defaultConfig: {},
-	},
 } as const;
 
 /**

@@ -1,6 +1,5 @@
 // コンポーネントのエクスポート
 
-export { AnimatedGridBackground } from "./components/AnimatedGridBackground";
 export type { DotsBackgroundConfig } from "./components/DotsBackground";
 export { DotsBackground } from "./components/DotsBackground";
 export type { GradientBackgroundConfig } from "./components/GradientBackground";
@@ -23,7 +22,6 @@ export {
 // 型定義のエクスポート
 export type { BackgroundComponent, BackgroundComponentProps } from "./types";
 
-import { AnimatedGridBackground } from "./components/AnimatedGridBackground";
 import { DotsBackground } from "./components/DotsBackground";
 import { GradientBackground } from "./components/GradientBackground";
 import { GridBackground } from "./components/GridBackground";
@@ -47,6 +45,5 @@ export function registerPresetBackgrounds(registry: BackgroundRegistry): void {
 		// エフェクト系の背景
 		"usketch.gradient": GradientBackground,
 		"usketch.pulse": PulseBackground,
-		"usketch.animated-grid": AnimatedGridBackground,
 	});
 }
