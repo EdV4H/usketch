@@ -9,12 +9,7 @@ export { IsometricBackground } from "./components/IsometricBackground";
 export type { LinesBackgroundConfig } from "./components/LinesBackground";
 export { LinesBackground } from "./components/LinesBackground";
 // メタデータのエクスポート
-export {
-	getAllPresetIds,
-	getPresetsByCategory,
-	PRESET_BACKGROUNDS_METADATA,
-	type PresetCategory,
-} from "./metadata";
+export { getAllPresetIds, PRESET_BACKGROUNDS_METADATA } from "./metadata";
 // 型定義のエクスポート
 export type { BackgroundComponent, BackgroundComponentProps } from "./types";
 

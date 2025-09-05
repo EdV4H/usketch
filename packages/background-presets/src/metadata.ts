@@ -5,7 +5,6 @@ export const PRESET_BACKGROUNDS_METADATA = {
 	"usketch.dots": {
 		name: "ドット",
 		description: "等間隔に配置されたドットパターン",
-		category: "basic",
 		defaultConfig: {
 			spacing: 20,
 			size: 2,
@@ -15,7 +14,6 @@ export const PRESET_BACKGROUNDS_METADATA = {
 	"usketch.grid": {
 		name: "グリッド",
 		description: "格子状のグリッドパターン",
-		category: "basic",
 		defaultConfig: {
 			size: 40,
 			color: "#e0e0e0",
@@ -25,7 +23,6 @@ export const PRESET_BACKGROUNDS_METADATA = {
 	"usketch.lines": {
 		name: "ライン",
 		description: "水平または垂直の線パターン",
-		category: "basic",
 		defaultConfig: {
 			direction: "horizontal" as const,
 			spacing: 40,
@@ -36,27 +33,12 @@ export const PRESET_BACKGROUNDS_METADATA = {
 	"usketch.isometric": {
 		name: "アイソメトリック",
 		description: "アイソメトリック投影のグリッド",
-		category: "basic",
 		defaultConfig: {
 			size: 40,
 			color: "#e0e0e0",
 		},
 	},
 } as const;
-
-/**
- * プリセット背景のカテゴリー
- */
-export type PresetCategory = "basic" | "effect";
-
-/**
- * カテゴリー別にプリセットIDを取得
- */
-export function getPresetsByCategory(category: PresetCategory): string[] {
-	return Object.entries(PRESET_BACKGROUNDS_METADATA)
-		.filter(([_, metadata]) => metadata.category === category)
-		.map(([id]) => id);
-}
 
 /**
  * すべてのプリセットIDを取得

@@ -9,9 +9,4 @@ export function registerPresetBackgrounds(): void {
 }
 
 // メタデータとユーティリティ関数を再エクスポート
-export {
-	getAllPresetIds,
-	getPresetsByCategory,
-	PRESET_BACKGROUNDS_METADATA,
-	type PresetCategory,
-} from "@usketch/background-presets";
+export { getAllPresetIds, PRESET_BACKGROUNDS_METADATA } from "@usketch/background-presets";

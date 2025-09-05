@@ -15,9 +15,7 @@ export {
 export { BackgroundRegistry, globalBackgroundRegistry } from "./backgrounds/BackgroundRegistry";
 export {
 	getAllPresetIds,
-	getPresetsByCategory,
 	PRESET_BACKGROUNDS_METADATA,
-	type PresetCategory,
 	registerPresetBackgrounds,
 } from "./backgrounds/presets";
 export type { BackgroundComponent, BackgroundComponentProps } from "./backgrounds/types";
