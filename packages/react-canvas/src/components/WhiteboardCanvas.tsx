@@ -1,3 +1,4 @@
+import { ShapeRegistryProvider } from "@usketch/shape-registry";
 import { useWhiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useEffect, useRef } from "react";
@@ -10,7 +11,8 @@ import { InteractionLayer } from "./InteractionLayer";
 import { SelectionLayer } from "./SelectionLayer";
 import { ShapeLayer } from "./ShapeLayer";
 
-export const WhiteboardCanvas: React.FC<CanvasProps> = ({
+// Internal canvas component that uses the registry
+const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes">> = ({
 	className = "",
 	background,
 	onReady,
@@ -47,4 +49,19 @@ export const WhiteboardCanvas: React.FC<CanvasProps> = ({
 			<InteractionLayer camera={camera} activeTool={interactions.activeTool} />
 		</div>
 	);
+};
+
+// Public component that optionally sets up ShapeRegistryProvider
+export const WhiteboardCanvas: React.FC<CanvasProps> = ({ shapes, ...props }) => {
+	// If shapes are provided, wrap with ShapeRegistryProvider
+	if (shapes && shapes.length > 0) {
+		return (
+			<ShapeRegistryProvider plugins={shapes}>
+				<WhiteboardCanvasInternal {...props} />
+			</ShapeRegistryProvider>
+		);
+	}
+
+	// Otherwise, render directly (assuming parent provides ShapeRegistryProvider)
+	return <WhiteboardCanvasInternal {...props} />;
 };

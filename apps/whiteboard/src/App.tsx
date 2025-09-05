@@ -1,6 +1,5 @@
 import { WhiteboardCanvas } from "@usketch/react-canvas";
 import { defaultShapePlugins } from "@usketch/shape-plugins";
-import { ShapeRegistryProvider } from "@usketch/shape-registry";
 import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { useEffect, useRef, useState } from "react";
@@ -83,18 +82,17 @@ function App() {
 	};
 
 	return (
-		<ShapeRegistryProvider plugins={defaultShapePlugins as any}>
-			<div className="app">
-				<ToolbarReact onBackgroundChange={setBackground} />
-				<div className="whiteboard-container">
-					<WhiteboardCanvas
-						className="whiteboard"
-						background={background}
-						onReady={handleCanvasReady}
-					/>
-				</div>
+		<div className="app">
+			<ToolbarReact onBackgroundChange={setBackground} />
+			<div className="whiteboard-container">
+				<WhiteboardCanvas
+					shapes={defaultShapePlugins as any}
+					className="whiteboard"
+					background={background}
+					onReady={handleCanvasReady}
+				/>
 			</div>
-		</ShapeRegistryProvider>
+		</div>
 	);
 }
 

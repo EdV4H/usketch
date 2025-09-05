@@ -1,9 +1,11 @@
+import type { ShapePlugin } from "@usketch/shape-registry";
 import type { Camera, Shape } from "@usketch/shared-types";
 import type { BackgroundConfig } from "./hooks/useBackgroundRenderer";
 
 export interface CanvasProps {
 	className?: string;
 	background?: BackgroundConfig;
+	shapes?: ShapePlugin[];
 	onReady?: (canvas: CanvasManager) => void;
 }
 
