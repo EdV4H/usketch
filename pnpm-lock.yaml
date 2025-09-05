@@ -38,6 +38,12 @@ importers:
       '@usketch/react-shapes':
         specifier: workspace:*
         version: link:../../packages/react-shapes
+      '@usketch/shape-plugins':
+        specifier: workspace:*
+        version: link:../../packages/shape-plugins
+      '@usketch/shape-registry':
+        specifier: workspace:*
+        version: link:../../packages/shape-registry
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -161,6 +167,9 @@ importers:
       '@usketch/react-shapes':
         specifier: '*'
         version: link:../react-shapes
+      '@usketch/shape-registry':
+        specifier: '*'
+        version: link:../shape-registry
       '@usketch/shared-types':
         specifier: '*'
         version: link:../shared-types
@@ -238,6 +247,31 @@ importers:
       vitest:
         specifier: ^2.1.8
         version: 2.1.9
+
+  packages/shape-plugins:
+    dependencies:
+      '@usketch/react-shapes':
+        specifier: workspace:*
+        version: link:../react-shapes
+      '@usketch/shape-registry':
+        specifier: workspace:*
+        version: link:../shape-registry
+      '@usketch/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+    devDependencies:
+      '@types/react':
+        specifier: ^18.2.47
+        version: 18.3.23
+      typescript:
+        specifier: ^5.3.3
+        version: 5.8.3
+      vitest:
+        specifier: ^1.2.0
+        version: 1.6.1
 
   packages/shape-registry:
     dependencies:
