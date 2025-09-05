@@ -1,9 +1,6 @@
 import {
-	AnimatedGridBackground,
 	type BackgroundComponent,
 	type BackgroundComponentProps,
-	GradientBackground,
-	PulseBackground,
 	WhiteboardCanvas,
 } from "@usketch/react-canvas";
 import React from "react";
@@ -126,10 +123,9 @@ export const CustomBackgroundExamples: React.FC = () => {
 	const getBackgroundConfig = () => {
 		switch (backgroundType) {
 			case "gradient":
-				// プリセットのグラデーション（Reactコンポーネント）
+				// uSketchプリセットのグラデーション
 				return {
-					type: "component" as const,
-					component: GradientBackground,
+					id: "usketch.gradient",
 					config: {
 						startColor: "#667eea",
 						endColor: "#764ba2",
@@ -138,10 +134,9 @@ export const CustomBackgroundExamples: React.FC = () => {
 				};
 
 			case "pulse":
-				// パルス効果（Reactコンポーネント）
+				// uSketchプリセットのパルス効果
 				return {
-					type: "component" as const,
-					component: PulseBackground,
+					id: "usketch.pulse",
 					config: {
 						color: "#00bcd4",
 						speed: 1500,
@@ -149,65 +144,72 @@ export const CustomBackgroundExamples: React.FC = () => {
 				};
 
 			case "animated-grid":
-				// アニメーショングリッド（Reactコンポーネント）
+				// uSketchプリセットのアニメーショングリッド
 				return {
-					type: "component" as const,
-					component: AnimatedGridBackground,
+					id: "usketch.animated-grid",
 				};
 
 			case "particles":
-				// カスタムパーティクル効果（Reactコンポーネント）
+				// カスタム背景（直接指定）
 				return {
-					type: "component" as const,
+					id: "custom.particles",
 					component: ParticleBackground,
 				};
 
 			case "ripple":
-				// 波紋効果（Reactコンポーネント）
+				// カスタム背景（直接指定）
 				return {
-					type: "component" as const,
+					id: "custom.ripple",
 					component: RippleBackground,
 				};
 
 			case "dots":
-				// プリセットのドット背景
+				// uSketchプリセットのドット背景
 				return {
-					type: "dots" as const,
-					spacing: 25,
-					size: 3,
-					color: "#cbd5e0",
+					id: "usketch.dots",
+					config: {
+						spacing: 25,
+						size: 3,
+						color: "#cbd5e0",
+					},
 				};
 
 			case "grid":
-				// プリセットのグリッド背景
+				// uSketchプリセットのグリッド背景
 				return {
-					type: "grid" as const,
-					size: 40,
-					color: "#e2e8f0",
-					thickness: 1,
+					id: "usketch.grid",
+					config: {
+						size: 40,
+						color: "#e2e8f0",
+						thickness: 1,
+					},
 				};
 
 			case "lines":
-				// プリセットのライン背景
+				// uSketchプリセットのライン背景
 				return {
-					type: "lines" as const,
-					direction: "horizontal" as const,
-					spacing: 30,
-					color: "#cbd5e0",
-					thickness: 1,
+					id: "usketch.lines",
+					config: {
+						direction: "horizontal" as const,
+						spacing: 30,
+						color: "#cbd5e0",
+						thickness: 1,
+					},
 				};
 
 			case "isometric":
-				// プリセットのアイソメトリック背景
+				// uSketchプリセットのアイソメトリック背景
 				return {
-					type: "isometric" as const,
-					size: 40,
-					color: "#a0aec0",
+					id: "usketch.isometric",
+					config: {
+						size: 40,
+						color: "#a0aec0",
+					},
 				};
 
 			default:
 				return {
-					type: "none" as const,
+					id: "none",
 				};
 		}
 	};

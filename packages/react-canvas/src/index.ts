@@ -1,5 +1,15 @@
 // Main exports
 
+// Background Registry
+export { BackgroundRegistry, globalBackgroundRegistry } from "./backgrounds/BackgroundRegistry";
+export {
+	getAllPresetIds,
+	getPresetsByCategory,
+	PRESET_BACKGROUNDS_METADATA,
+	type PresetCategory,
+	registerPresetBackgrounds,
+} from "./backgrounds/presets";
+
 export {
 	AnimatedGridBackground,
 	type BackgroundComponent,

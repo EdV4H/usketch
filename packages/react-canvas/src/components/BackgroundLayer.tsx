@@ -1,73 +1,59 @@
 import type React from "react";
 import { useMemo } from "react";
-import { useBackgroundRenderer } from "../hooks/useBackgroundRenderer";
+import type { BackgroundRegistry } from "../backgrounds/BackgroundRegistry";
+import { globalBackgroundRegistry } from "../backgrounds/BackgroundRegistry";
+import { registerPresetBackgrounds } from "../backgrounds/presets";
 import type { BackgroundLayerProps } from "../types";
-import {
-	type BackgroundComponent,
-	DotsBackground,
-	GridBackground,
-	IsometricBackground,
-	LinesBackground,
-} from "./BackgroundComponent";
+import type { BackgroundComponent } from "./BackgroundComponent";
 
-export const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
+// 初回レンダリング時にプリセット背景を登録
+let presetsRegistered = false;
+if (!presetsRegistered) {
+	registerPresetBackgrounds();
+	presetsRegistered = true;
+}
+
+export interface BackgroundLayerPropsWithRegistry extends BackgroundLayerProps {
+	/**
+	 * カスタムレジストリを使用する場合
+	 * 指定しない場合はグローバルレジストリを使用
+	 */
+	registry?: BackgroundRegistry;
+}
+
+export const BackgroundLayer: React.FC<BackgroundLayerPropsWithRegistry> = ({
 	camera,
 	options,
 	className = "",
+	registry = globalBackgroundRegistry,
 }) => {
-	// 後方互換性のためにフックは呼び出すが、実際には使用しない
-	const containerRef = useBackgroundRenderer(camera, options);
-
-	// 背景コンポーネントを選択
+	// 背景コンポーネントを解決
 	const BackgroundComp = useMemo(() => {
-		if (!options || options.type === "none") {
+		if (!options) {
 			return null;
 		}
 
-		// カスタムコンポーネントが指定されている場合
-		if (options.type === "component" && options.component) {
+		// 1. componentが直接指定されていればそれを使用
+		if (options.component) {
 			return options.component as BackgroundComponent;
 		}
 
-		// プリセット背景の場合
-		switch (options.type) {
-			case "dots":
-				return DotsBackground;
-			case "grid":
-				return GridBackground;
-			case "lines":
-				return LinesBackground;
-			case "isometric":
-				return IsometricBackground;
-			default:
-				return null;
-		}
-	}, [options]);
-
-	// 背景設定を準備
-	const config = useMemo(() => {
-		if (!options) return {};
-
-		// カスタムコンポーネントの設定
-		if (options.type === "component") {
-			return options.config || {};
+		// 2. IDからレジストリで解決
+		if (options.id) {
+			const registered = registry.get(options.id);
+			if (registered) {
+				return registered;
+			}
+			console.warn(`Background with id "${options.id}" not found in registry`);
 		}
 
-		// プリセット背景の設定
-		return {
-			spacing: options.spacing,
-			size: options.size,
-			color: options.color,
-			thickness: options.thickness,
-			direction: options.direction,
-		};
-	}, [options]);
+		return null;
+	}, [options, registry]);
 
-	// 背景なしの場合
+	// 背景なしまたは解決できなかった場合
 	if (!BackgroundComp) {
 		return (
 			<div
-				ref={containerRef}
 				className={`background-layer ${className}`.trim()}
 				data-testid="background-layer"
 				style={{
@@ -96,7 +82,7 @@ export const BackgroundLayer: React.FC<BackgroundLayerProps> = ({
 				pointerEvents: "none",
 			}}
 		>
-			<BackgroundComp camera={camera} config={config} />
+			<BackgroundComp camera={camera} config={options.config} />
 		</div>
 	);
 };
