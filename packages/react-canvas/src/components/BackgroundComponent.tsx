@@ -259,32 +259,27 @@ export const IsometricBackground: React.FC<
 					id="isometric"
 					x={-camera.x}
 					y={-camera.y}
-					width={size * 3}
+					width={size * 2}
 					height={height * 2}
 					patternUnits="userSpaceOnUse"
 				>
-					<path
-						d={`
-							M ${size},0
-							L ${size * 2},${height}
-							L ${size},${height * 2}
-							L 0,${height}
-							Z
-						`}
-						fill="none"
+					{/* 左斜めの線 */}
+					<line x1={0} y1={height} x2={size} y2={0} stroke={color} strokeWidth="1" />
+					<line
+						x1={size}
+						y1={height * 2}
+						x2={size * 2}
+						y2={height}
 						stroke={color}
 						strokeWidth="1"
 					/>
-					<path
-						d={`
-							M ${size * 2},${height}
-							L ${size * 3},0
-							M ${size * 2},${height}
-							L ${size * 3},${height * 2}
-						`}
-						stroke={color}
-						strokeWidth="1"
-					/>
+
+					{/* 右斜めの線 */}
+					<line x1={size} y1={0} x2={size * 2} y2={height} stroke={color} strokeWidth="1" />
+					<line x1={0} y1={height} x2={size} y2={height * 2} stroke={color} strokeWidth="1" />
+
+					{/* 垂直線 */}
+					<line x1={size} y1={0} x2={size} y2={height * 2} stroke={color} strokeWidth="1" />
 				</pattern>
 			</defs>
 			<rect width="100%" height="100%" fill="url(#isometric)" />

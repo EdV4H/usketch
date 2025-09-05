@@ -29,7 +29,7 @@ export const BackgroundLayer: React.FC<BackgroundLayerPropsWithRegistry> = ({
 }) => {
 	// 背景コンポーネントを解決
 	const BackgroundComp = useMemo(() => {
-		if (!options) {
+		if (!options || options.id === "none") {
 			return null;
 		}
 
@@ -69,20 +69,38 @@ export const BackgroundLayer: React.FC<BackgroundLayerPropsWithRegistry> = ({
 	}
 
 	// Reactコンポーネントをレンダリング
-	return (
-		<div
-			className={`background-layer ${className}`.trim()}
-			data-testid="background-layer"
-			style={{
-				position: "absolute",
-				top: 0,
-				left: 0,
-				width: "100%",
-				height: "100%",
-				pointerEvents: "none",
-			}}
-		>
-			<BackgroundComp camera={camera} config={options.config} />
-		</div>
-	);
+	try {
+		return (
+			<div
+				className={`background-layer ${className}`.trim()}
+				data-testid="background-layer"
+				style={{
+					position: "absolute",
+					top: 0,
+					left: 0,
+					width: "100%",
+					height: "100%",
+					pointerEvents: "none",
+				}}
+			>
+				<BackgroundComp camera={camera} config={options.config} />
+			</div>
+		);
+	} catch (error) {
+		console.error("BackgroundLayer: Error rendering background", error);
+		return (
+			<div
+				className={`background-layer ${className}`.trim()}
+				data-testid="background-layer"
+				style={{
+					position: "absolute",
+					top: 0,
+					left: 0,
+					width: "100%",
+					height: "100%",
+					pointerEvents: "none",
+				}}
+			/>
+		);
+	}
 };
