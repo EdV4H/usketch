@@ -1,5 +1,6 @@
 // Export all types
 export * from "./background";
+export * from "./defaults/shape-styles";
 
 // Base shape interface
 export interface BaseShape {

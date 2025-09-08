@@ -1,3 +1,4 @@
+import { DEFAULT_FREEDRAW_STYLES, DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -138,10 +139,10 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 						y: minY,
 						width,
 						height,
-						fillColor: "rgba(100, 100, 250, 0.3)",
-						strokeColor: "#000000",
-						strokeWidth: 2,
-						opacity: 1,
+						fillColor: DEFAULT_SHAPE_STYLES.fillColor,
+						strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
+						strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
+						opacity: DEFAULT_SHAPE_STYLES.opacity,
 						rotation: 0,
 					});
 				}
@@ -171,10 +172,10 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 						height: bounds.height,
 						path: drawPath,
 						points: points, // Set the extracted points
-						strokeColor: "#000000",
-						strokeWidth: 2,
-						fillColor: "transparent",
-						opacity: 1,
+						strokeColor: DEFAULT_FREEDRAW_STYLES.strokeColor,
+						strokeWidth: DEFAULT_FREEDRAW_STYLES.strokeWidth,
+						fillColor: DEFAULT_FREEDRAW_STYLES.fillColor,
+						opacity: DEFAULT_FREEDRAW_STYLES.opacity,
 						rotation: 0,
 					});
 				}
@@ -275,9 +276,10 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 								y={Math.min(dragState.startY, dragState.currentY)}
 								width={Math.abs(dragState.currentX - dragState.startX)}
 								height={Math.abs(dragState.currentY - dragState.startY)}
-								fill="rgba(100, 100, 250, 0.3)"
-								stroke="#000000"
-								strokeWidth={2}
+								fill={DEFAULT_SHAPE_STYLES.fillColor}
+								stroke={DEFAULT_SHAPE_STYLES.strokeColor}
+								strokeWidth={DEFAULT_SHAPE_STYLES.strokeWidth}
+								opacity={DEFAULT_SHAPE_STYLES.opacity * 0.5}
 							/>
 						)}
 						{activeTool === "ellipse" && (
@@ -286,19 +288,21 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 								cy={(dragState.startY + dragState.currentY) / 2}
 								rx={Math.abs(dragState.currentX - dragState.startX) / 2}
 								ry={Math.abs(dragState.currentY - dragState.startY) / 2}
-								fill="rgba(100, 100, 250, 0.3)"
-								stroke="#000000"
-								strokeWidth={2}
+								fill={DEFAULT_SHAPE_STYLES.fillColor}
+								stroke={DEFAULT_SHAPE_STYLES.strokeColor}
+								strokeWidth={DEFAULT_SHAPE_STYLES.strokeWidth}
+								opacity={DEFAULT_SHAPE_STYLES.opacity * 0.5}
 							/>
 						)}
 						{activeTool === "draw" && drawPath && (
 							<path
 								d={drawPath}
 								fill="none"
-								stroke="#000000"
-								strokeWidth={2}
+								stroke={DEFAULT_FREEDRAW_STYLES.strokeColor}
+								strokeWidth={DEFAULT_FREEDRAW_STYLES.strokeWidth}
 								strokeLinecap="round"
 								strokeLinejoin="round"
+								opacity={DEFAULT_FREEDRAW_STYLES.opacity * 0.5}
 							/>
 						)}
 					</g>

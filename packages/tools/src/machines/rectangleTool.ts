@@ -1,4 +1,5 @@
 import type { RectangleShape } from "@usketch/shared-types";
+import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { assign, setup } from "xstate";
 import type { Point, ToolContext } from "../types";
 
@@ -181,10 +182,10 @@ export const rectangleToolMachine = setup({
 		currentPoint: null,
 		isDrawing: false,
 		strokeStyle: {
-			strokeColor: "#333333",
-			fillColor: "#e0e0ff",
-			strokeWidth: 2,
-			opacity: 1,
+			strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
+			fillColor: DEFAULT_SHAPE_STYLES.fillColor,
+			strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
+			opacity: DEFAULT_SHAPE_STYLES.opacity,
 		},
 		previewShape: null,
 		cursor: "crosshair",
