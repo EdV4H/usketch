@@ -13,6 +13,8 @@
 	"dependencies": {
 		"@usketch/react-canvas": "workspace:*",
 		"@usketch/react-shapes": "workspace:*",
+		"@usketch/shape-registry": "workspace:*",
+		"@usketch/shape-plugins": "workspace:*",
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/shared-utils": "workspace:*",
 		"@usketch/store": "workspace:*",

@@ -1,13 +1,18 @@
 import { WhiteboardCanvas } from "@usketch/react-canvas";
+import { defaultShapePlugins } from "@usketch/shape-plugins";
+import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/registerBackgrounds";
 import { ToolbarReact } from "./components/ToolbarReact";
+import { customShapePlugins } from "./custom-shapes";
 import "./styles/app.css";
 
 function App() {
 	const canvasRef = useRef<any>(null);
 	const shapesAddedRef = useRef(false);
+	const backgroundsRegisteredRef = useRef(false);
+	const [shapePlugins, setShapePlugins] = useState<any[]>([]);
 	const [background, setBackground] = useState<any>({
 		id: "usketch.dots",
 		config: {
@@ -17,9 +22,20 @@ function App() {
 		},
 	});
 
-	// カスタム背景を登録
+	// カスタム背景とシェイプを登録（一度だけ）
 	useEffect(() => {
-		registerCustomBackgrounds();
+		if (!backgroundsRegisteredRef.current) {
+			backgroundsRegisteredRef.current = true;
+			registerCustomBackgrounds();
+		}
+
+		// Load custom shapes and combine with default shapes
+		const loadShapes = async () => {
+			const customPlugins = await customShapePlugins();
+			const allPlugins = [...defaultShapePlugins, ...customPlugins];
+			setShapePlugins(allPlugins);
+		};
+		loadShapes();
 	}, []);
 
 	// デモ用のシェイプを追加
@@ -41,10 +57,10 @@ function App() {
 					width: 200,
 					height: 100,
 					rotation: 0,
-					opacity: 1,
-					strokeColor: "#333",
-					fillColor: "#e0e0ff",
-					strokeWidth: 2,
+					opacity: DEFAULT_SHAPE_STYLES.opacity,
+					strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
+					fillColor: DEFAULT_SHAPE_STYLES.fillColor,
+					strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
 				};
 				whiteboardStore.getState().addShape(testShape1);
 			}, 100);
@@ -59,13 +75,88 @@ function App() {
 					width: 150,
 					height: 100,
 					rotation: 0,
-					opacity: 1,
-					strokeColor: "#d63384",
-					fillColor: "#ffe0e6",
-					strokeWidth: 3,
+					opacity: DEFAULT_SHAPE_STYLES.opacity,
+					strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
+					fillColor: DEFAULT_SHAPE_STYLES.fillColor,
+					strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
 				};
 				whiteboardStore.getState().addShape(testShape2);
 			}, 200);
+
+			// Add custom shapes for demonstration
+			setTimeout(() => {
+				const starShape = {
+					id: `test-star-${Date.now()}`,
+					type: "star" as any,
+					x: 550,
+					y: 100,
+					width: 120,
+					height: 120,
+					rotation: 0,
+					opacity: 1,
+					strokeColor: "#FFB700",
+					fillColor: "#FFD700",
+					strokeWidth: 2,
+					points: 5,
+					innerRadius: 30,
+					outerRadius: 60,
+				};
+				whiteboardStore.getState().addShape(starShape as any);
+			}, 300);
+
+			setTimeout(() => {
+				const heartShape = {
+					id: `test-heart-${Date.now()}`,
+					type: "heart" as any,
+					x: 700,
+					y: 200,
+					width: 100,
+					height: 90,
+					rotation: 0,
+					opacity: 1,
+					strokeColor: "#FF1493",
+					fillColor: "#FF69B4",
+					strokeWidth: 2,
+				};
+				whiteboardStore.getState().addShape(heartShape as any);
+			}, 400);
+
+			setTimeout(() => {
+				const triangleShape = {
+					id: `test-triangle-${Date.now()}`,
+					type: "triangle" as any,
+					x: 200,
+					y: 250,
+					width: 100,
+					height: 100,
+					rotation: 0,
+					opacity: 1,
+					strokeColor: "#008B8B",
+					fillColor: "#00CED1",
+					strokeWidth: 2,
+					direction: "up",
+				};
+				whiteboardStore.getState().addShape(triangleShape as any);
+			}, 500);
+
+			// Add HTML-based counter shape
+			setTimeout(() => {
+				const htmlCounterShape = {
+					id: `test-html-counter-${Date.now()}`,
+					type: "html-counter" as any,
+					x: 250,
+					y: 400,
+					width: 160,
+					height: 100,
+					rotation: 0,
+					opacity: 1,
+					strokeColor: "#6B46C1",
+					fillColor: "#F3E8FF",
+					strokeWidth: 3,
+					count: 42,
+				};
+				whiteboardStore.getState().addShape(htmlCounterShape as any);
+			}, 600);
 		}
 	};
 
@@ -80,6 +171,7 @@ function App() {
 			<ToolbarReact onBackgroundChange={setBackground} />
 			<div className="whiteboard-container">
 				<WhiteboardCanvas
+					shapes={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
 					className="whiteboard"
 					background={background}
 					onReady={handleCanvasReady}
