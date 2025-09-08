@@ -1,4 +1,4 @@
-import React, {
+import {
 	createContext,
 	type ReactNode,
 	useContext,
@@ -65,7 +65,7 @@ export function ShapeRegistryProvider({
 			});
 			setRegisteredTypes(registry.getRegisteredTypes());
 		}
-	}, []); // Only run once on mount
+	}, [plugins, registry]); // Re-run when plugins change
 
 	// Setup registry change listener
 	useEffect(() => {
@@ -123,7 +123,7 @@ export function useShapePlugin(type: string): ShapePlugin | undefined {
 	const { getPlugin, registeredTypes } = useShapeRegistry();
 
 	// Re-render when registeredTypes changes
-	return useMemo(() => getPlugin(type), [type, registeredTypes]);
+	return useMemo(() => getPlugin(type), [type, getPlugin]);
 }
 
 /**

@@ -75,7 +75,7 @@ export function useShapeComponent(type: string) {
 	return useMemo(() => {
 		const plugin = getPlugin(type);
 		return plugin?.component;
-	}, [type, registeredTypes]);
+	}, [type, getPlugin]);
 }
 
 /**
@@ -87,7 +87,7 @@ export function useShapeToolComponent(type: string) {
 	return useMemo(() => {
 		const plugin = getPlugin(type);
 		return plugin?.toolComponent;
-	}, [type, registeredTypes]);
+	}, [type, getPlugin]);
 }
 
 /**
@@ -119,7 +119,7 @@ export function useShapeSerialization() {
 			}
 
 			// Default deserialization: return data as-is if it has required properties
-			if (data && data.id && data.type) {
+			if (data?.id && data.type) {
 				return data as BaseShape;
 			}
 
@@ -141,7 +141,7 @@ export function useRegistryStats() {
 
 	useEffect(() => {
 		setStats(registry.getStats());
-	}, [registry, registeredTypes]);
+	}, [registry]);
 
 	return stats;
 }
@@ -197,5 +197,5 @@ export function usePluginsWithCapability(
 			default:
 				return allPlugins;
 		}
-	}, [registry, registeredTypes, capability]);
+	}, [registry, capability]);
 }

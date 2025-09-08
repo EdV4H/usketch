@@ -1,5 +1,5 @@
 import type { BaseShape } from "@usketch/shared-types";
-import type { RegistryEvent, RegistryEventListener, RegistryEventType, ShapePlugin } from "./types";
+import type { RegistryEvent, RegistryEventListener, ShapePlugin } from "./types";
 
 /**
  * Shape Registry for managing shape plugins
