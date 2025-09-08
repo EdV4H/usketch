@@ -44,18 +44,20 @@ This directory contains sample shapes demonstrating the power of the new unified
   - Hover interactions
 - **Demonstrates:** Pure SVG animations and transformations
 
-### 5. 🔢 Counter (HTML) - Original Comparison
+### 5. 🔢 Counter (HTML)
 **File:** `html-counter-unified.tsx`
 - **Render Mode:** HTML
 - **Features:**
-  - Simple counter with increment/decrement
+  - Interactive counter with increment/decrement buttons
+  - Beautiful gradient styling
+  - Smooth hover animations
   - Clean implementation using BaseShape
-- **Demonstrates:** Simplified implementation compared to the original `html-counter.tsx`
+- **Demonstrates:** Simple state management in HTML shapes
 
 ## 🚀 Key Benefits Demonstrated
 
 ### 1. **Simplified Development**
-Compare `html-counter.tsx` (original) with `html-counter-unified.tsx` (new):
+The unified abstraction layer provides:
 - No manual coordinate transformation needed
 - No complex Portal management
 - Automatic event handling
