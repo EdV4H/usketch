@@ -1,0 +1,44 @@
+{
+	"name": "@usketch/shape-abstraction",
+	"version": "0.0.0",
+	"license": "ISC",
+	"type": "module",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsc",
+		"dev": "tsc --watch",
+		"test": "vitest run",
+		"test:watch": "vitest watch",
+		"type-check": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@usketch/shared-types": "workspace:*",
+		"@usketch/shared-utils": "workspace:*",
+		"@usketch/store": "workspace:*",
+		"react": "^18.2.0",
+		"react-dom": "^18.2.0"
+	},
+	"devDependencies": {
+		"@types/react": "^18.2.55",
+		"@types/react-dom": "^18.2.19",
+		"@usketch/test-utils": "workspace:*",
+		"@usketch/tsconfig": "workspace:*",
+		"typescript": "^5.3.3",
+		"vitest": "^1.2.2"
+	},
+	"peerDependencies": {
+		"react": "^18.2.0",
+		"react-dom": "^18.2.0"
+	}
+}
