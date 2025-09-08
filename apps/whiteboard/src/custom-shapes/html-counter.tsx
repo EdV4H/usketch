@@ -26,11 +26,11 @@ export interface HtmlCounterShape extends CustomBaseShape {
 // This component renders in SVG space but creates a portal to DOM
 const HtmlCounterComponent: React.FC<{
 	shape: HtmlCounterShape;
-	isSelected?: boolean;
-	onClick?: (e: React.MouseEvent) => void;
-	onPointerDown?: (e: React.PointerEvent) => void;
-	onPointerMove?: (e: React.PointerEvent) => void;
-	onPointerUp?: (e: React.PointerEvent) => void;
+	isSelected?: boolean | undefined;
+	onClick?: ((e: React.MouseEvent) => void) | undefined;
+	onPointerDown?: ((e: React.PointerEvent) => void) | undefined;
+	onPointerMove?: ((e: React.PointerEvent) => void) | undefined;
+	onPointerUp?: ((e: React.PointerEvent) => void) | undefined;
 }> = ({ shape, isSelected, onClick }) => {
 	const [localCount, setLocalCount] = useState(shape.count || 0);
 	const [container, setContainer] = useState<HTMLDivElement | null>(null);
@@ -41,7 +41,7 @@ const HtmlCounterComponent: React.FC<{
 		const div = document.createElement("div");
 		div.style.position = "absolute";
 		div.style.pointerEvents = "auto";
-		div.dataset.shapeId = shape.id;
+		div.dataset["shapeId"] = shape.id;
 		div.className = "html-shape-container";
 
 		// Find the canvas container
@@ -61,8 +61,11 @@ const HtmlCounterComponent: React.FC<{
 	// Update position based on camera
 	useEffect(() => {
 		if (container) {
-			const transformedX = shape.x * camera.zoom + camera.x;
-			const transformedY = shape.y * camera.zoom + camera.y;
+			// HTMLコンテンツのオフセット（左padding + ボタン + gap = 60px）
+			const offsetX = -60;
+			const offsetY = -10;
+			const transformedX = (shape.x + offsetX) * camera.zoom + camera.x;
+			const transformedY = (shape.y + offsetY) * camera.zoom + camera.y;
 
 			container.style.left = `${transformedX}px`;
 			container.style.top = `${transformedY}px`;
@@ -80,11 +83,10 @@ const HtmlCounterComponent: React.FC<{
 			setLocalCount(newCount);
 
 			whiteboardStore.getState().updateShape(shape.id, {
-				...shape,
 				count: newCount,
-			});
+			} as any);
 		},
-		[shape, localCount],
+		[shape.id, localCount],
 	);
 
 	// Handle decrement
@@ -95,11 +97,10 @@ const HtmlCounterComponent: React.FC<{
 			setLocalCount(newCount);
 
 			whiteboardStore.getState().updateShape(shape.id, {
-				...shape,
 				count: newCount,
-			});
+			} as any);
 		},
-		[shape, localCount],
+		[shape.id, localCount],
 	);
 
 	// Handle drag
@@ -116,10 +117,9 @@ const HtmlCounterComponent: React.FC<{
 				const dy = (e.clientY - startY) / camera.zoom;
 
 				whiteboardStore.getState().updateShape(shape.id, {
-					...shape,
 					x: originalX + dx,
 					y: originalY + dy,
-				});
+				} as any);
 			};
 
 			const handleMouseUp = () => {
@@ -135,7 +135,7 @@ const HtmlCounterComponent: React.FC<{
 				onClick(e as any);
 			}
 		},
-		[shape, camera, onClick],
+		[shape.id, shape.x, shape.y, camera, onClick],
 	);
 
 	// Sync with shape.count if it changes externally
@@ -339,18 +339,29 @@ export const htmlCounterPlugin: ShapePlugin<any> = {
 		strokeWidth: 3,
 		count: 0,
 	}),
-	getBounds: (shape: HtmlCounterShape) => ({
-		x: shape.x - 50,
-		y: shape.y - 10,
-		width: shape.width + 100,
-		height: shape.height + 20,
-	}),
+	getBounds: (shape: HtmlCounterShape) => {
+		// ボタン(40px) + gap(10px) + counter(width) + gap(10px) + ボタン(40px) + padding(20px)
+		const totalWidth = shape.width + 120;
+		// height + padding(20px)
+		const totalHeight = shape.height + 20;
+		// 左のpadding(10px) + ボタン(40px) + gap(10px) = 60px左にオフセット
+		const offsetX = -60;
+		const offsetY = -10;
+
+		return {
+			x: shape.x + offsetX,
+			y: shape.y + offsetY,
+			width: totalWidth,
+			height: totalHeight,
+		};
+	},
 	hitTest: (shape: HtmlCounterShape, point: { x: number; y: number }) => {
+		const bounds = htmlCounterPlugin.getBounds!(shape);
 		return (
-			point.x >= shape.x - 50 &&
-			point.x <= shape.x + shape.width + 50 &&
-			point.y >= shape.y - 10 &&
-			point.y <= shape.y + shape.height + 10
+			point.x >= bounds.x &&
+			point.x <= bounds.x + bounds.width &&
+			point.y >= bounds.y &&
+			point.y <= bounds.y + bounds.height
 		);
 	},
 };
