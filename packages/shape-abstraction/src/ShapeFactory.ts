@@ -1,10 +1,17 @@
-import type { Shape } from "@usketch/shared-types";
 import type { BaseShapeConfig, ShapeRenderer, ShapeRendererConstructor } from "./types";
+
+// Minimal shape interface
+interface MinimalShape {
+	id: string;
+	type: string;
+	x: number;
+	y: number;
+}
 
 export class ShapeFactory {
 	private static renderers = new Map<string, ShapeRendererConstructor>();
 
-	static register<T extends Shape = Shape>(
+	static register<T extends MinimalShape = MinimalShape>(
 		type: string,
 		RendererClass: ShapeRendererConstructor<T>,
 	): void {
@@ -15,7 +22,7 @@ export class ShapeFactory {
 		return ShapeFactory.renderers.delete(type);
 	}
 
-	static create<T extends Shape = Shape>(
+	static create<T extends MinimalShape = MinimalShape>(
 		shape: T,
 		config?: Partial<BaseShapeConfig<T>>,
 	): ShapeRenderer<T> {

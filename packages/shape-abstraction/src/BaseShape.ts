@@ -1,9 +1,17 @@
-import type { Bounds, Camera, Point, Shape } from "@usketch/shared-types";
+import type { Bounds, Camera, Point } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import type React from "react";
 import type { BaseShapeConfig, ResizeHandle, ShapeRenderer } from "./types";
 
-export abstract class BaseShape<T extends Shape = Shape> implements ShapeRenderer<T> {
+// Allow any shape type that has at least id, type, x, y
+interface MinimalShape {
+	id: string;
+	type: string;
+	x: number;
+	y: number;
+}
+
+export abstract class BaseShape<T extends MinimalShape = MinimalShape> implements ShapeRenderer<T> {
 	public shape: T;
 	public camera: Camera;
 	public isSelected: boolean;
@@ -77,7 +85,7 @@ export abstract class BaseShape<T extends Shape = Shape> implements ShapeRendere
 	}
 
 	protected updateShape(updates: Partial<T>): void {
-		whiteboardStore.getState().updateShape(this.shape.id, updates);
+		whiteboardStore.getState().updateShape(this.shape.id, updates as any);
 	}
 
 	protected getSelectionStyle(): React.CSSProperties {

@@ -155,8 +155,8 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 				<rect
 					x={renderer.shape.x}
 					y={renderer.shape.y}
-					width={"width" in renderer.shape ? renderer.shape.width : 100}
-					height={"height" in renderer.shape ? renderer.shape.height : 100}
+					width={"width" in renderer.shape ? (renderer.shape.width as number) : 100}
+					height={"height" in renderer.shape ? (renderer.shape.height as number) : 100}
 					fill="transparent"
 					style={{ pointerEvents: "all" }}
 					data-shape-id={renderer.shape.id}

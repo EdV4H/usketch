@@ -1,15 +1,24 @@
-import type { Bounds, Camera, Point, Shape } from "@usketch/shared-types";
+import type { Bounds, Camera, Point } from "@usketch/shared-types";
 import type React from "react";
 
 export type RenderMode = "svg" | "html" | "hybrid";
 
-export interface BaseShapeConfig<T extends Shape = Shape> {
+// Minimal shape interface for flexibility
+interface MinimalShape {
+	id: string;
+	type: string;
+	x: number;
+	y: number;
+}
+
+export interface BaseShapeConfig<T extends MinimalShape = MinimalShape> {
 	type: string;
 	renderMode?: RenderMode;
 	enableInteractivity?: boolean;
+	onUpdate?: (shape: T) => void;
 }
 
-export interface ShapeRenderer<T extends Shape = Shape> {
+export interface ShapeRenderer<T extends MinimalShape = MinimalShape> {
 	shape: T;
 	camera: Camera;
 	isSelected: boolean;
@@ -37,6 +46,6 @@ export type ResizeHandle =
 	| "bottom-left"
 	| "left";
 
-export interface ShapeRendererConstructor<T extends Shape = Shape> {
+export interface ShapeRendererConstructor<T extends MinimalShape = MinimalShape> {
 	new (shape: T, config: BaseShapeConfig<T>): ShapeRenderer<T>;
 }
