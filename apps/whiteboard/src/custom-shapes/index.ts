@@ -13,6 +13,7 @@ export const customShapePlugins = async () => {
 	const { heartPlugin } = await import("./heart");
 	const { trianglePlugin } = await import("./triangle");
 	const { htmlCounterPlugin } = await import("./html-counter");
+	const { htmlCounterUnifiedPlugin } = await import("./html-counter-unified");
 
-	return [starPlugin, heartPlugin, trianglePlugin, htmlCounterPlugin];
+	return [starPlugin, heartPlugin, trianglePlugin, htmlCounterPlugin, htmlCounterUnifiedPlugin];
 };

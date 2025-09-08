@@ -38,6 +38,9 @@ importers:
       '@usketch/react-shapes':
         specifier: workspace:*
         version: link:../../packages/react-shapes
+      '@usketch/shape-abstraction':
+        specifier: workspace:*
+        version: link:../../packages/shape-abstraction
       '@usketch/shape-plugins':
         specifier: workspace:*
         version: link:../../packages/shape-plugins
@@ -312,6 +315,9 @@ importers:
 
   packages/shape-registry:
     dependencies:
+      '@usketch/shape-abstraction':
+        specifier: workspace:*
+        version: link:../shape-abstraction
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../shared-types
