@@ -13,8 +13,8 @@ import { freedrawPlugin } from "./core/freedraw";
 import { rectanglePlugin } from "./core/rectangle";
 
 // Export with proper typing for any shape type
-export const defaultShapePlugins: ShapePlugin<Shape>[] = [
-	rectanglePlugin as ShapePlugin<Shape>,
-	ellipsePlugin as ShapePlugin<Shape>,
-	freedrawPlugin as ShapePlugin<Shape>,
-];
+export const defaultShapePlugins = [
+	rectanglePlugin,
+	ellipsePlugin,
+	freedrawPlugin,
+] as const satisfies readonly ShapePlugin<Shape>[];

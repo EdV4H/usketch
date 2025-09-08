@@ -8,7 +8,7 @@ export type AnyShapePlugin = ShapePlugin<Shape>;
 export interface CanvasProps {
 	className?: string;
 	background?: BackgroundConfig;
-	shapes?: AnyShapePlugin[];
+	shapes?: readonly AnyShapePlugin[];
 	onReady?: (canvas: CanvasManager) => void;
 }
 
