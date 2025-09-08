@@ -1,8 +1,15 @@
 // === Geometry Utility Functions ===
 
-import { DEFAULT_SHAPE_SIZE, DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
+import {
+	DEFAULT_SHAPE_SIZE,
+	DEFAULT_SHAPE_STYLES,
+	type Shape as SharedShape,
+} from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
-import type { Bounds, Point, Shape } from "../types";
+import type { Bounds, Point } from "../types";
+
+// Use the Shape type from shared-types
+type Shape = SharedShape;
 
 // Get shape at a specific point
 export function getShapeAtPoint(point: Point): Shape | null {
@@ -14,15 +21,20 @@ export function getShapeAtPoint(point: Point): Shape | null {
 		const shape = shapes[i];
 		if (isPointInShape(point, shape)) {
 			console.log("Found shape at point:", shape.id, shape.type);
-			return shape as Shape;
+			return shape;
 		}
 	}
 	console.log("No shape found at point:", point);
 	return null;
 }
 
+// Type guard to check if shape has width and height
+function hasWidthHeight(shape: Shape): shape is Shape & { width: number; height: number } {
+	return "width" in shape && "height" in shape;
+}
+
 // Check if a point is inside a shape
-function isPointInShape(point: Point, shape: any): boolean {
+function isPointInShape(point: Point, shape: Shape): boolean {
 	// Handle different shape types
 	if (shape.type === "freedraw") {
 		// For freedraw shapes with x, y, width, height (new approach)
@@ -79,7 +91,7 @@ function isPointInShape(point: Point, shape: any): boolean {
 	}
 
 	// For shapes with width and height (rectangle, ellipse)
-	if (shape.width !== undefined && shape.height !== undefined) {
+	if (hasWidthHeight(shape)) {
 		const { x, y, width, height } = shape;
 		return point.x >= x && point.x <= x + width && point.y >= y && point.y <= y + height;
 	}
@@ -95,11 +107,11 @@ export function getShapesInBounds(bounds: Bounds): Shape[] {
 
 	return shapes.filter((shape) => {
 		return isShapeInBounds(shape, bounds);
-	}) as Shape[];
+	});
 }
 
 // Check if shape intersects with bounds
-function isShapeInBounds(shape: any, bounds: Bounds): boolean {
+function isShapeInBounds(shape: Shape, bounds: Bounds): boolean {
 	let shapeX: number, shapeY: number, shapeWidth: number, shapeHeight: number;
 
 	// Handle different shape types
@@ -114,7 +126,7 @@ function isShapeInBounds(shape: any, bounds: Bounds): boolean {
 		shapeY = minY;
 		shapeWidth = maxX - minX;
 		shapeHeight = maxY - minY;
-	} else if (shape.width !== undefined && shape.height !== undefined) {
+	} else if (hasWidthHeight(shape)) {
 		// Shapes with explicit width and height
 		shapeX = shape.x;
 		shapeY = shape.y;
@@ -143,7 +155,7 @@ export function getCropHandleAtPoint(point: Point): any {
 // Get shape by ID
 export function getShape(id: string): Shape | null {
 	const state = whiteboardStore.getState();
-	return (state.shapes[id] as Shape) || null;
+	return state.shapes[id] || null;
 }
 
 // Update shape properties
@@ -151,8 +163,8 @@ export function updateShape(id: string, updates: Partial<Shape>): void {
 	const state = whiteboardStore.getState();
 	const shape = state.shapes[id];
 	if (shape) {
-		// Convert to store's Shape type
-		state.updateShape(id, updates as any);
+		// Updates is already Partial<Shape> which is compatible
+		state.updateShape(id, updates);
 	}
 }
 
@@ -171,7 +183,7 @@ export function createShape(shape: Partial<Shape>): void {
 		fillColor: DEFAULT_SHAPE_STYLES.fillColor,
 		strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
 		...shape,
-	} as any;
+	} as Shape;
 
 	whiteboardStore.getState().addShape(fullShape);
 }
