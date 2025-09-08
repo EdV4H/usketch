@@ -36,16 +36,23 @@ class HtmlCounterUnified extends BaseShape<any> {
 	}
 
 	getBounds(): Bounds {
-		// Include button areas in bounds
+		// Include button areas and padding in bounds
 		const buttonWidth = 40;
 		const gap = 10;
-		const totalWidth = this.shape.width + (buttonWidth + gap) * 2;
+		const padding = 10; // padding from the style
+		// Total width: padding + button + gap + shape + gap + button + padding
+		const totalWidth = padding * 2 + buttonWidth * 2 + gap * 2 + this.shape.width;
+		// Height also includes padding
+		const totalHeight = padding * 2 + this.shape.height;
+		// Portal版と同じオフセットを適用
+		const offsetX = -60; // 左のpadding(10px) + ボタン(40px) + gap(10px)
+		const offsetY = -10; // 上のpadding
 
 		return {
-			x: this.shape.x - buttonWidth - gap,
-			y: this.shape.y,
+			x: this.shape.x + offsetX,
+			y: this.shape.y + offsetY,
 			width: totalWidth,
-			height: this.shape.height,
+			height: totalHeight,
 		};
 	}
 
@@ -71,13 +78,15 @@ const CounterUI: React.FC<{
 		setLocalCount(shape.count);
 	}, [shape.count]);
 
-	const handleIncrement = () => {
+	const handleIncrement = (e: React.MouseEvent) => {
+		e.stopPropagation();
 		const newCount = localCount + 1;
 		setLocalCount(newCount);
 		onUpdate({ count: newCount });
 	};
 
-	const handleDecrement = () => {
+	const handleDecrement = (e: React.MouseEvent) => {
+		e.stopPropagation();
 		const newCount = localCount - 1;
 		setLocalCount(newCount);
 		onUpdate({ count: newCount });
