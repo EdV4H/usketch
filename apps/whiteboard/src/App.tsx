@@ -157,6 +157,97 @@ function App() {
 				};
 				whiteboardStore.getState().addShape(htmlCounterShape as any);
 			}, 600);
+
+			// Add new unified abstraction layer shapes
+			// Color Picker
+			setTimeout(() => {
+				const colorPickerShape = {
+					id: `test-color-picker-${Date.now()}`,
+					type: "color-picker-unified" as any,
+					x: 450,
+					y: 400,
+					width: 220,
+					height: 180,
+					rotation: 0,
+					opacity: 1,
+					selectedColor: "#FF6B6B",
+					label: "Color Picker",
+				};
+				whiteboardStore.getState().addShape(colorPickerShape as any);
+			}, 700);
+
+			// Interactive Chart
+			setTimeout(() => {
+				const chartShape = {
+					id: `test-chart-${Date.now()}`,
+					type: "chart-hybrid-unified" as any,
+					x: 700,
+					y: 350,
+					width: 300,
+					height: 200,
+					rotation: 0,
+					opacity: 1,
+					data: [75, 45, 90, 30, 60, 85],
+					title: "Interactive Bar Chart",
+					color: "#4ECDC4",
+				};
+				whiteboardStore.getState().addShape(chartShape as any);
+			}, 800);
+
+			// Animated Logo
+			setTimeout(() => {
+				const animatedLogoShape = {
+					id: `test-animated-logo-${Date.now()}`,
+					type: "animated-logo-unified" as any,
+					x: 100,
+					y: 550,
+					width: 200,
+					height: 200,
+					rotation: 0,
+					opacity: 1,
+					primaryColor: "#FF6B6B",
+					secondaryColor: "#4ECDC4",
+					animationSpeed: 1,
+				};
+				whiteboardStore.getState().addShape(animatedLogoShape as any);
+			}, 900);
+
+			// Video Player
+			setTimeout(() => {
+				const videoPlayerShape = {
+					id: `test-video-player-${Date.now()}`,
+					type: "video-player-unified" as any,
+					x: 350,
+					y: 600,
+					width: 320,
+					height: 240,
+					rotation: 0,
+					opacity: 1,
+					videoUrl: "",
+					title: "Video Player Shape",
+					autoplay: false,
+				};
+				whiteboardStore.getState().addShape(videoPlayerShape as any);
+			}, 1000);
+
+			// Unified HTML Counter (improved version)
+			setTimeout(() => {
+				const htmlCounterUnifiedShape = {
+					id: `test-html-counter-unified-${Date.now()}`,
+					type: "html-counter-unified" as any,
+					x: 700,
+					y: 600,
+					width: 160,
+					height: 100,
+					rotation: 0,
+					opacity: 1,
+					fillColor: "#FFFFFF",
+					strokeColor: "#333333",
+					strokeWidth: 3,
+					count: 0,
+				};
+				whiteboardStore.getState().addShape(htmlCounterUnifiedShape as any);
+			}, 1100);
 		}
 	};
 
