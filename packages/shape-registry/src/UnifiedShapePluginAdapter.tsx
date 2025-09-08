@@ -1,6 +1,7 @@
 import type { ShapeRenderer, ShapeRendererConstructor } from "@usketch/shape-abstraction";
-import { type BaseShape as BaseShapeClass, ShapeFactory } from "@usketch/shape-abstraction";
-import type { BaseShape, Shape } from "@usketch/shared-types";
+import { type BaseShape as BaseShapeClass, ShapeFactory, UnifiedShapeRenderer } from "@usketch/shape-abstraction";
+import type { BaseShape, Camera, Shape } from "@usketch/shared-types";
+import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import React from "react";
 import type { ShapeComponentProps, ShapePlugin } from "./types";
 
@@ -22,6 +23,7 @@ export class UnifiedShapePluginAdapter {
 	): ShapePlugin<T> {
 		// Register the shape with ShapeFactory for unified rendering
 		ShapeFactory.register(config.type, ShapeClass as ShapeRendererConstructor<Shape>);
+		console.log(`[UnifiedShapePluginAdapter] Registered shape type: ${config.type}`);
 
 		return {
 			type: config.type,
@@ -30,66 +32,50 @@ export class UnifiedShapePluginAdapter {
 			// Component that bridges the old and new systems
 			component: (props: ShapeComponentProps<T>) => {
 				const { shape, isSelected, onClick, onPointerDown, onPointerMove, onPointerUp } = props;
+				
+				// Get camera from store using React hook for reactive updates
+				const camera = useWhiteboardStore((state) => state.camera);
+				
+				console.log(`[UnifiedShapePluginAdapter] Rendering component for ${shape.type} at (${shape.x}, ${shape.y})`);
 
-				// Create a renderer instance
-				const renderer = ShapeFactory.create(shape as any) as any;
-
-				// Update renderer state
-				renderer.isSelected = isSelected || false;
-				renderer.shape = shape;
-
-				// Handle events if provided by the renderer
-				const handlePointerDown = (e: React.PointerEvent) => {
-					if (renderer.onPointerDown) {
-						renderer.onPointerDown(e);
-					}
-					if (onPointerDown) {
-						onPointerDown(e);
-					}
-				};
-
-				const handlePointerMove = (e: React.PointerEvent) => {
-					if (renderer.onPointerMove) {
-						renderer.onPointerMove(e);
-					}
-					if (onPointerMove) {
-						onPointerMove(e);
-					}
-				};
-
-				const handlePointerUp = (e: React.PointerEvent) => {
-					if (renderer.onPointerUp) {
-						renderer.onPointerUp(e);
-					}
-					if (onPointerUp) {
-						onPointerUp(e);
-					}
-				};
-
-				// Clone element with event handlers
-				const element = renderer.render();
-				if (React.isValidElement(element)) {
-					return React.cloneElement(element as React.ReactElement<any>, {
-						onClick,
-						onPointerDown: handlePointerDown,
-						onPointerMove: handlePointerMove,
-						onPointerUp: handlePointerUp,
-						"data-shape-id": shape.id,
-						"data-shape-type": shape.type,
-					});
+				// Ensure the shape is registered (in case of lazy loading)
+				if (!ShapeFactory.has(config.type)) {
+					console.log(`[UnifiedShapePluginAdapter] Re-registering ${config.type}`);
+					ShapeFactory.register(config.type, ShapeClass as ShapeRendererConstructor<Shape>);
 				}
 
-				return element;
+				// Use UnifiedShapeRenderer which handles different render modes properly
+				return (
+					<UnifiedShapeRenderer
+						shape={shape as unknown as Shape}
+						isSelected={isSelected || false}
+						camera={camera}
+						onClick={onClick}
+						onPointerDown={onPointerDown}
+						onPointerMove={onPointerMove}
+						onPointerUp={onPointerUp}
+					/>
+				);
 			},
 
 			createDefaultShape: config.createDefaultShape,
 
 			getBounds: (shape: T) => {
+				// Ensure the shape is registered
+				if (!ShapeFactory.has(config.type)) {
+					ShapeFactory.register(config.type, ShapeClass as ShapeRendererConstructor<Shape>);
+				}
 				const renderer = ShapeFactory.create(shape as any) as any;
-				return renderer.getBounds();
+				const bounds = renderer.getBounds();
+				console.log(`[UnifiedShapePluginAdapter] getBounds for ${shape.type}:`, bounds, 'shape:', shape);
+				return bounds;
 			},
 
 			hitTest: (shape: T, point: { x: number; y: number }) => {
+				// Ensure the shape is registered
+				if (!ShapeFactory.has(config.type)) {
+					ShapeFactory.register(config.type, ShapeClass as ShapeRendererConstructor<Shape>);
+				}
 				const renderer = ShapeFactory.create(shape as any) as any;
 				return renderer.hitTest(point);
 			},

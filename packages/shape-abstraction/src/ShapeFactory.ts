@@ -29,6 +29,7 @@ export class ShapeFactory {
 		const RendererClass = ShapeFactory.renderers.get(shape.type);
 
 		if (!RendererClass) {
+			console.error(`[ShapeFactory] Available types:`, Array.from(ShapeFactory.renderers.keys()));
 			throw new Error(`Unknown shape type: ${shape.type}. Did you forget to register it?`);
 		}
 

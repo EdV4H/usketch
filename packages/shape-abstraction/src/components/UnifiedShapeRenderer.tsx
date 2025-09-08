@@ -44,6 +44,7 @@ export const UnifiedShapeRenderer: React.FC<UnifiedShapeRendererProps> = ({
 	renderer.shape = shape;
 
 	const renderMode = renderer.getRenderMode();
+	console.log(`[UnifiedShapeRenderer] Rendering ${shape.type} with mode: ${renderMode}`);
 
 	const wrapperProps = {
 		renderer,

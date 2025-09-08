@@ -321,6 +321,9 @@ importers:
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../shared-types
+      '@usketch/store':
+        specifier: workspace:*
+        version: link:../store
       react:
         specifier: ^18.2.0
         version: 18.3.1
