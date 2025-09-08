@@ -18,28 +18,54 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 	onPointerUp,
 }) => {
 	const [container, setContainer] = useState<HTMLDivElement | null>(null);
+	// Use foreignObject mode by default for better coordinate alignment
 	const [useForeignObject, _setUseForeignObject] = useState(true);
 	const foreignObjectRef = useRef<SVGForeignObjectElement>(null);
 
 	// Create container for portal mode
 	useEffect(() => {
 		if (!useForeignObject) {
-			const div = document.createElement("div");
-			div.style.position = "absolute";
-			div.style.pointerEvents = "auto";
-			div.dataset.shapeId = renderer.shape.id;
-			div.dataset.shapeType = renderer.shape.type;
-			div.className = "html-shape-container";
+			// Use a small delay to ensure DOM is ready
+			const timer = setTimeout(() => {
+				const div = document.createElement("div");
+				div.style.position = "absolute";
+				div.style.pointerEvents = "auto";
+				div.dataset.shapeId = renderer.shape.id;
+				div.dataset.shapeType = renderer.shape.type;
+				div.className = "html-shape-container";
 
-			const canvasContainer = document.querySelector(".whiteboard-container");
-			if (canvasContainer) {
-				canvasContainer.appendChild(div);
-				setContainer(div);
-			}
+				// Find the HTML shapes layer that has the proper camera transform
+				const canvasContainer =
+					document.querySelector(".html-shapes-layer") ||
+					document.querySelector(".whiteboard-canvas") ||
+					document.querySelector(".whiteboard-container") ||
+					document.body;
+
+				console.log(
+					"[HtmlWrapper] Container search result:",
+					canvasContainer?.className || canvasContainer?.tagName,
+				);
+
+				if (canvasContainer) {
+					canvasContainer.appendChild(div);
+					setContainer(div);
+					console.log(
+						`[HtmlWrapper] Created HTML container for shape ${renderer.shape.type}#${renderer.shape.id}`,
+					);
+				} else {
+					console.error("[HtmlWrapper] No container found for HTML shape");
+				}
+			}, 100); // Small delay to ensure DOM is ready
 
 			return () => {
-				if (div.parentNode) {
-					div.parentNode.removeChild(div);
+				clearTimeout(timer);
+				// Don't use the state container variable here as it might be stale
+				// Find and remove by class and data attributes
+				const divToRemove = document.querySelector(
+					`.html-shape-container[data-shape-id="${renderer.shape.id}"]`,
+				);
+				if (divToRemove?.parentNode) {
+					divToRemove.parentNode.removeChild(divToRemove);
 				}
 			};
 		}
@@ -51,14 +77,29 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 			const { x, y } = renderer.shape;
 			const { camera } = renderer;
 
-			const transformedX = x * camera.zoom + camera.x;
-			const transformedY = y * camera.zoom + camera.y;
+			// If we're in the html-shapes-layer, the parent already has the camera transform
+			// So we just need to position at shape coordinates
+			const parentHasTransform = container.parentElement?.classList.contains("html-shapes-layer");
 
-			container.style.left = `${transformedX}px`;
-			container.style.top = `${transformedY}px`;
-			container.style.transform = `scale(${camera.zoom})`;
-			container.style.transformOrigin = "top left";
+			if (parentHasTransform) {
+				// Parent already has camera transform, just position at shape coordinates
+				container.style.left = `${x}px`;
+				container.style.top = `${y}px`;
+				container.style.transform = "";
+			} else {
+				// Apply camera transform ourselves if not in transformed parent
+				container.style.transform = `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`;
+				container.style.transformOrigin = "0 0";
+				container.style.left = `${x}px`;
+				container.style.top = `${y}px`;
+			}
+
 			container.style.zIndex = renderer.isSelected ? "1000" : "100";
+			container.style.pointerEvents = "auto";
+
+			console.log(
+				`[HtmlWrapper] Position update for ${renderer.shape.type}: x=${x}, y=${y}, parentTransform=${parentHasTransform}`,
+			);
 		}
 	}, [
 		container,
@@ -104,7 +145,9 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 	};
 
 	// Render the shape element from the renderer
+	console.log(`[HtmlWrapper] Rendering shape ${renderer.shape.type}#${renderer.shape.id}`);
 	const shapeElement = renderer.render();
+	console.log(`[HtmlWrapper] Shape element:`, shapeElement);
 
 	// Wrap the element with event handlers
 	const wrappedElement = React.isValidElement(shapeElement)
@@ -121,56 +164,55 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 		const bounds = renderer.getBounds();
 
 		return (
-			<>
-				{/* Invisible rect for hit detection */}
-				<rect
-					x={renderer.shape.x}
-					y={renderer.shape.y}
-					width={bounds.width}
-					height={bounds.height}
-					fill="transparent"
-					style={{ pointerEvents: "none" }}
-					data-shape-id={renderer.shape.id}
-					data-shape-type={renderer.shape.type}
-				/>
-				<foreignObject
-					ref={foreignObjectRef}
-					x={renderer.shape.x}
-					y={renderer.shape.y}
-					width={bounds.width}
-					height={bounds.height}
-					style={{ overflow: "visible" }}
+			<foreignObject
+				ref={foreignObjectRef}
+				x={bounds.x}
+				y={bounds.y}
+				width={bounds.width}
+				height={bounds.height}
+				style={{ overflow: "visible", pointerEvents: "all" }}
+				onClick={handleClick}
+				onPointerDown={handlePointerDown}
+				onPointerMove={handlePointerMove}
+				onPointerUp={handlePointerUp}
+				data-shape-id={renderer.shape.id}
+				data-shape-type={renderer.shape.type}
+			>
+				<div
+					style={{
+						width: "100%",
+						height: "100%",
+						position: "relative",
+					}}
 				>
-					<div>{wrappedElement}</div>
-				</foreignObject>
-			</>
+					{wrappedElement}
+				</div>
+			</foreignObject>
 		);
 	}
 
-	// Fallback to portal mode
-	if (container) {
-		return (
-			<>
-				{/* SVG placeholder for hit detection */}
-				<rect
-					x={renderer.shape.x}
-					y={renderer.shape.y}
-					width={"width" in renderer.shape ? (renderer.shape.width as number) : 100}
-					height={"height" in renderer.shape ? (renderer.shape.height as number) : 100}
-					fill="transparent"
-					style={{ pointerEvents: "all" }}
-					data-shape-id={renderer.shape.id}
-					data-shape-type={renderer.shape.type}
-					onClick={handleClick}
-					onPointerDown={handlePointerDown}
-					onPointerMove={handlePointerMove}
-					onPointerUp={handlePointerUp}
-				/>
-				{/* HTML content via portal */}
-				{ReactDOM.createPortal(wrappedElement, container)}
-			</>
-		);
-	}
-
-	return null;
+	// Portal mode - always show placeholder rect for hit detection
+	return (
+		<>
+			{/* SVG placeholder for hit detection */}
+			<rect
+				x={renderer.shape.x}
+				y={renderer.shape.y}
+				width={"width" in renderer.shape ? (renderer.shape.width as number) : 100}
+				height={"height" in renderer.shape ? (renderer.shape.height as number) : 100}
+				fill="transparent"
+				stroke="transparent"
+				strokeWidth="1"
+				style={{ pointerEvents: "all" }}
+				data-shape-id={renderer.shape.id}
+				data-shape-type={renderer.shape.type}
+				onClick={handleClick}
+				onPointerDown={handlePointerDown}
+				onPointerMove={handlePointerMove}
+				onPointerUp={handlePointerUp}
+			/>
+			{/* HTML content via portal (when container is ready) */}
+			{container && ReactDOM.createPortal(wrappedElement, container)}
+		</>
+	);
 };

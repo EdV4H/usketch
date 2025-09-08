@@ -81,9 +81,9 @@ const ChartComponent: React.FC<{
 	return (
 		<div
 			style={{
-				position: "absolute",
-				left: shape.x,
-				top: shape.y,
+				position: "relative",
+				left: 0,
+				top: 0,
 				width: shape.width,
 				height: shape.height,
 				opacity: shape.opacity,

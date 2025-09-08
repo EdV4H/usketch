@@ -82,7 +82,8 @@ const ColorPickerComponent: React.FC<{
 		"#F4A460", // Sandy Brown
 	];
 
-	const handleColorSelect = (color: string) => {
+	const handleColorSelect = (color: string, e?: React.MouseEvent) => {
+		e?.stopPropagation();
 		setLocalColor(color);
 		onColorChange(color);
 	};
@@ -90,9 +91,9 @@ const ColorPickerComponent: React.FC<{
 	return (
 		<div
 			style={{
-				position: "absolute",
-				left: shape.x,
-				top: shape.y,
+				position: "relative",
+				left: 0,
+				top: 0,
 				width: shape.width,
 				height: shape.height,
 				background: "white",
@@ -128,7 +129,7 @@ const ColorPickerComponent: React.FC<{
 				{colors.map((color) => (
 					<button
 						key={color}
-						onClick={() => handleColorSelect(color)}
+						onClick={(e) => handleColorSelect(color, e)}
 						style={{
 							width: "30px",
 							height: "30px",

@@ -103,9 +103,9 @@ const VideoPlayerComponent: React.FC<{ shape: VideoPlayerUnifiedShape }> = ({ sh
 	return (
 		<div
 			style={{
-				position: "absolute",
-				left: shape.x,
-				top: shape.y,
+				position: "relative",
+				left: 0,
+				top: 0,
 				width: shape.width,
 				height: shape.height,
 				background: "#000",
