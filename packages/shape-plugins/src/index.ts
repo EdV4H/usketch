@@ -17,4 +17,4 @@ export const defaultShapePlugins = [
 	rectanglePlugin,
 	ellipsePlugin,
 	freedrawPlugin,
-] as const satisfies readonly ShapePlugin<Shape>[];
+] as readonly ShapePlugin<Shape>[];

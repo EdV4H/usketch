@@ -170,9 +170,10 @@ export function updateShape(id: string, updates: Partial<Shape>): void {
 
 // Create a new shape
 export function createShape(shape: Partial<Shape>): void {
-	const fullShape = {
+	// Create default rectangle shape that satisfies Shape type
+	const defaultRectangle = {
 		id: `shape-${Date.now()}`,
-		type: "rectangle",
+		type: "rectangle" as const,
 		x: 0,
 		y: 0,
 		width: DEFAULT_SHAPE_SIZE.width,
@@ -182,6 +183,13 @@ export function createShape(shape: Partial<Shape>): void {
 		strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
 		fillColor: DEFAULT_SHAPE_STYLES.fillColor,
 		strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
+	} satisfies Shape;
+
+	// Merge with provided shape properties
+	// Type assertion is necessary here because Partial<Shape> could change the type field
+	// which would make the result not conform to any specific Shape type
+	const fullShape = {
+		...defaultRectangle,
 		...shape,
 	} as Shape;
 
