@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { ShapeRegistry } from "./shape-registry";
+import { ShapeRegistry } from "./ShapeRegistry";
 import type { ShapePlugin } from "./types";
 
 describe("ShapeRegistry", () => {
@@ -17,7 +17,7 @@ describe("ShapeRegistry", () => {
 		};
 
 		registry.register(mockPlugin);
-		expect(registry.get("test-shape")).toBe(mockPlugin);
+		expect(registry.getPlugin("test-shape")).toBe(mockPlugin);
 	});
 
 	it("should get all registered plugins", () => {
@@ -36,14 +36,14 @@ describe("ShapeRegistry", () => {
 		registry.register(mockPlugin1);
 		registry.register(mockPlugin2);
 
-		const allPlugins = registry.getAll();
+		const allPlugins = registry.getAllPlugins();
 		expect(allPlugins).toHaveLength(2);
 		expect(allPlugins).toContain(mockPlugin1);
 		expect(allPlugins).toContain(mockPlugin2);
 	});
 
 	it("should return undefined for unregistered shape type", () => {
-		expect(registry.get("non-existent")).toBeUndefined();
+		expect(registry.getPlugin("non-existent")).toBeUndefined();
 	});
 
 	it("should override existing plugin when registering with same type", () => {
@@ -62,7 +62,7 @@ describe("ShapeRegistry", () => {
 		registry.register(mockPlugin1);
 		registry.register(mockPlugin2);
 
-		expect(registry.get("test")).toBe(mockPlugin2);
-		expect(registry.getAll()).toHaveLength(1);
+		expect(registry.getPlugin("test")).toBe(mockPlugin2);
+		expect(registry.getAllPlugins()).toHaveLength(1);
 	});
 });

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { shapePlugins } from "./index";
+import { defaultShapePlugins } from "./index";
 
-describe("shapePlugins", () => {
+describe("defaultShapePlugins", () => {
 	it("should export an array of shape plugins", () => {
-		expect(Array.isArray(shapePlugins)).toBe(true);
+		expect(Array.isArray(defaultShapePlugins)).toBe(true);
 	});
 
 	it("should contain shape plugins with required properties", () => {
-		for (const plugin of shapePlugins) {
+		for (const plugin of defaultShapePlugins) {
 			expect(plugin).toHaveProperty("type");
 			expect(plugin).toHaveProperty("component");
 			expect(plugin).toHaveProperty("createDefaultShape");
@@ -18,7 +18,7 @@ describe("shapePlugins", () => {
 	});
 
 	it("should have unique plugin types", () => {
-		const types = shapePlugins.map((plugin) => plugin.type);
+		const types = defaultShapePlugins.map((plugin) => plugin.type);
 		const uniqueTypes = new Set(types);
 		expect(types.length).toBe(uniqueTypes.size);
 	});
