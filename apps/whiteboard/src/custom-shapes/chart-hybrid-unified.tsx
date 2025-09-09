@@ -56,7 +56,6 @@ class ChartHybridUnified extends BaseShape<ChartHybridUnifiedShape> {
 	}
 
 	private handleDataUpdate = (data: number[]) => {
-		console.log(`[ChartHybrid] handleDataUpdate called with:`, data);
 		// Use updateShape to trigger a proper state update
 		this.updateShape({ data } as Partial<ChartHybridUnifiedShape>);
 	};
@@ -74,15 +73,12 @@ const ChartComponent: React.FC<{
 	const chartHeight = shape.height - 60;
 
 	const handleBarClick = (index: number, e: React.MouseEvent) => {
-		console.log(`[ChartHybrid] Bar ${index} clicked!`);
 		// Stop propagation to prevent shape selection
 		e.stopPropagation();
 		e.preventDefault();
 
 		const newData = [...shape.data];
-		const oldValue = newData[index];
 		newData[index] = Math.floor(Math.random() * 100) + 10;
-		console.log(`[ChartHybrid] Changing value from ${oldValue} to ${newData[index]}`);
 		onDataUpdate(newData);
 	};
 
@@ -175,11 +171,9 @@ const ChartComponent: React.FC<{
 								onMouseEnter={() => setHoveredBar(index)}
 								onMouseLeave={() => setHoveredBar(null)}
 								onPointerDown={(e) => {
-									console.log(`[ChartHybrid] Rect ${index} pointer down!`);
 									e.stopPropagation();
 								}}
 								onClick={(e) => {
-									console.log(`[ChartHybrid] Rect ${index} clicked directly!`);
 									handleBarClick(index, e);
 								}}
 							/>

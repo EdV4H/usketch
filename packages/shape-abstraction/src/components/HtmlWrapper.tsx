@@ -42,17 +42,9 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 					document.querySelector(".whiteboard-container") ||
 					document.body;
 
-				console.log(
-					"[HtmlWrapper] Container search result:",
-					canvasContainer?.className || canvasContainer?.tagName,
-				);
-
 				if (canvasContainer) {
 					canvasContainer.appendChild(div);
 					setContainer(div);
-					console.log(
-						`[HtmlWrapper] Created HTML container for shape ${renderer.shape.type}#${renderer.shape.id}`,
-					);
 				} else {
 					console.error("[HtmlWrapper] No container found for HTML shape");
 				}
@@ -97,10 +89,6 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 
 			container.style.zIndex = renderer.isSelected ? "1000" : "100";
 			container.style.pointerEvents = "auto";
-
-			console.log(
-				`[HtmlWrapper] Position update for ${renderer.shape.type}: x=${x}, y=${y}, parentTransform=${parentHasTransform}`,
-			);
 		}
 	}, [container, renderer.shape, renderer.camera, renderer.isSelected, useForeignObject, renderer]);
 
@@ -179,9 +167,7 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 	};
 
 	// Render the shape element from the renderer
-	console.log(`[HtmlWrapper] Rendering shape ${renderer.shape.type}#${renderer.shape.id}`);
 	const shapeElement = renderer.render();
-	console.log(`[HtmlWrapper] Shape element:`, shapeElement);
 
 	// Try foreignObject first (better performance and integration)
 	if (useForeignObject) {
