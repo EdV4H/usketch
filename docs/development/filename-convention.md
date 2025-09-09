@@ -277,15 +277,46 @@ renameFiles();
 3. **テストファイルの命名**
    - 解決: `component-name.test.tsx`のパターンを使用
 
+## Claude Codeへの設定
+
+### CLAUDE.mdファイルへの記載
+
+Claude Codeが毎回ファイル命名規則を認識できるよう、プロジェクトルートの`CLAUDE.md`ファイルに以下の内容を追加します：
+
+```markdown
+## ファイル命名規則
+
+このプロジェクトでは、すべてのTypeScript（.ts）およびTSX（.tsx）ファイルは**kebab-case**で命名する必要があります。
+
+### 命名ルール
+- ✅ 正しい: `user-profile.ts`, `api-service.tsx`, `test-utils.ts`
+- ❌ 間違い: `userProfile.ts`, `UserProfile.tsx`, `user_profile.ts`
+
+### 新規ファイル作成時の注意
+- 新しいファイルを作成する際は、必ずkebab-caseを使用してください
+- 例: `create-user-modal.tsx`、`data-fetcher.ts`
+
+### 既存ファイルのリネーム
+- 既存のファイルをリネームする場合は、`git mv`コマンドを使用してください
+- インポート文の更新も忘れずに行ってください
+```
+
+この設定により、Claude Codeは自動的に：
+1. 新規ファイル作成時にkebab-caseを使用
+2. コードレビュー時に命名規則違反を指摘
+3. リファクタリング時に適切な命名を提案
+
 ## チームへの導入手順
 
 1. **チーム全体への周知**
    - 命名規則の重要性を説明
    - 移行計画の共有
+   - CLAUDE.mdファイルの更新
 
 2. **段階的な導入**
    - 新規ファイルから適用開始
    - 既存ファイルは計画的に移行
+   - Claude Codeの活用を推奨
 
 3. **CI/CDの有効化**
    - まずは警告モードで開始
