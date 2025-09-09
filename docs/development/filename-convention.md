@@ -11,11 +11,12 @@
 - `.tsx` ファイル
 
 ### 命名パターン
-- **必須**: kebab-case（例: `user-profile.ts`, `header-component.tsx`）
+- **必須**: kebab-case（例: `user-profile.ts`, `header-component.tsx`, `api-v2.ts`, `utils-123.tsx`）
 - **禁止**: 
   - camelCase（例: ~~`userProfile.ts`~~）
   - PascalCase（例: ~~`UserProfile.ts`~~）
   - snake_case（例: ~~`user_profile.ts`~~）
+- **数字の扱い**: 数字は許可されるが、適切に区切る（例: `component-v2.tsx`, `test-123.ts`）
 
 ### 例外
 - 設定ファイル（例: `next.config.ts`, `vite.config.ts`）
@@ -96,8 +97,8 @@ const fs = require('fs');
 const path = require('path');
 const glob = require('glob');
 
-// kebab-case パターン
-const kebabCasePattern = /^[a-z]+(-[a-z]+)*$/;
+// kebab-case パターン（数字も許可）
+const kebabCasePattern = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 // 例外ファイルのパターン
 const exceptions = [
@@ -184,7 +185,7 @@ jobs:
         run: npm run check:filenames
         
       - name: Run ESLint filename rules
-        run: npm run lint -- --rule 'filenames-simple/naming-convention: error'
+        run: npm run lint
 ```
 
 ### 5. VS Code設定（推奨）
@@ -226,10 +227,19 @@ const glob = require('glob');
 
 function toKebabCase(str) {
   return str
-    .replace(/([A-Z])/g, '-$1')
+    // PascalCase/camelCaseの処理
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    // 数字の前後に区切りを追加
+    .replace(/([a-zA-Z])([0-9])/g, '$1-$2')
+    .replace(/([0-9])([a-zA-Z])/g, '$1-$2')
+    // すべて小文字に変換
     .toLowerCase()
-    .replace(/^-/, '')
-    .replace(/_/g, '-');
+    // アンダースコアをハイフンに変換
+    .replace(/_/g, '-')
+    // 重複するハイフンを単一に
+    .replace(/-+/g, '-')
+    // 先頭と末尾のハイフンを削除
+    .replace(/^-|-$/g, '');
 }
 
 function renameFiles() {
