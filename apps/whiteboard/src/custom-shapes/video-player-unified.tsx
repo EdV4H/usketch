@@ -154,6 +154,7 @@ const VideoPlayerComponent: React.FC<{ shape: VideoPlayerUnifiedShape }> = ({ sh
 						loop
 					>
 						<source src={shape.videoUrl} type="video/mp4" />
+						<track kind="captions" />
 						{/* Fallback for demo - using a placeholder */}
 						Your browser does not support the video tag.
 					</video>

@@ -70,7 +70,7 @@ export function useShapeHitTest(shape: BaseShape | null) {
  * Hook to get shape component
  */
 export function useShapeComponent(type: string) {
-	const { getPlugin, registeredTypes } = useShapeRegistry();
+	const { getPlugin } = useShapeRegistry();
 
 	return useMemo(() => {
 		const plugin = getPlugin(type);
@@ -82,7 +82,7 @@ export function useShapeComponent(type: string) {
  * Hook to get tool component for a shape type
  */
 export function useShapeToolComponent(type: string) {
-	const { getPlugin, registeredTypes } = useShapeRegistry();
+	const { getPlugin } = useShapeRegistry();
 
 	return useMemo(() => {
 		const plugin = getPlugin(type);
@@ -135,7 +135,7 @@ export function useShapeSerialization() {
  * Hook to get registry statistics
  */
 export function useRegistryStats() {
-	const { registry, registeredTypes } = useShapeRegistry();
+	const { registry } = useShapeRegistry();
 
 	const [stats, setStats] = useState(() => registry.getStats());
 
@@ -179,7 +179,7 @@ export function useGroupShapesByType(shapes: BaseShape[]): Record<string, BaseSh
 export function usePluginsWithCapability(
 	capability: "tool" | "serialization" | "validation",
 ): ShapePlugin[] {
-	const { registry, registeredTypes } = useShapeRegistry();
+	const { registry } = useShapeRegistry();
 
 	return useMemo(() => {
 		const allPlugins = registry.getAllPlugins();

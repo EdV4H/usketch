@@ -121,9 +121,9 @@ export function useShapeRegistry(): ShapeRegistryContextValue {
  * Hook to get a specific shape plugin
  */
 export function useShapePlugin(type: string): ShapePlugin | undefined {
-	const { getPlugin, registeredTypes } = useShapeRegistry();
+	const { getPlugin } = useShapeRegistry();
 
-	// Re-render when registeredTypes changes
+	// Re-render when plugin changes
 	return useMemo(() => getPlugin(type), [type, getPlugin]);
 }
 

@@ -102,15 +102,7 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 				`[HtmlWrapper] Position update for ${renderer.shape.type}: x=${x}, y=${y}, parentTransform=${parentHasTransform}`,
 			);
 		}
-	}, [
-		container,
-		renderer.shape.x,
-		renderer.shape.y,
-		renderer.camera,
-		renderer.isSelected,
-		useForeignObject,
-		renderer,
-	]);
+	}, [container, renderer.shape, renderer.camera, renderer.isSelected, useForeignObject, renderer]);
 
 	const handlePointerDown = (e: React.PointerEvent) => {
 		// Check if the pointer down is on an interactive element
