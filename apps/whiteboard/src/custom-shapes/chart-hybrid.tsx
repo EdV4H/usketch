@@ -1,6 +1,6 @@
 import type { BaseShapeConfig, Bounds } from "@usketch/shape-abstraction";
 import { BaseShape } from "@usketch/shape-abstraction";
-import { ShapePluginAdapter } from "@usketch/shape-registry";
+import { UnifiedShapePluginAdapter } from "@usketch/shape-registry";
 import type React from "react";
 import { useState } from "react";
 
@@ -231,9 +231,9 @@ const ChartComponent: React.FC<{
 };
 
 // Create the plugin using the adapter
-export const chartHybridPlugin = ShapePluginAdapter.fromBaseShape(
+export const chartHybridPlugin = UnifiedShapePluginAdapter.fromBaseShape(
 	"chart-hybrid-unified",
-	ChartHybridUnified,
+	ChartHybrid as any,
 	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>
 		({
 			id: props.id,
@@ -249,4 +249,4 @@ export const chartHybridPlugin = ShapePluginAdapter.fromBaseShape(
 			color: "#4ECDC4",
 		}) as any,
 	"Chart (Hybrid)",
-);
+) as any;

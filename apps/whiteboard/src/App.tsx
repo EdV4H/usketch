@@ -1,7 +1,6 @@
-import type { WhiteboardCanvasRef } from "@usketch/react-canvas";
 import { WhiteboardCanvas } from "@usketch/react-canvas";
 import { defaultShapePlugins } from "@usketch/shape-plugins";
-import type { Background, ShapePlugin } from "@usketch/shape-registry";
+import type { ShapePlugin } from "@usketch/shape-registry";
 import type { Shape } from "@usketch/shared-types";
 import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
@@ -22,11 +21,11 @@ const addShapeWithDelay = (shape: Shape, delay: number) => {
 const calculateDelay = (index: number, baseDelay = 100) => index * baseDelay;
 
 function App() {
-	const canvasRef = useRef<WhiteboardCanvasRef>(null);
+	const canvasRef = useRef<any>(null);
 	const shapesAddedRef = useRef(false);
 	const backgroundsRegisteredRef = useRef(false);
-	const [shapePlugins, setShapePlugins] = useState<ShapePlugin[]>([]);
-	const [background, setBackground] = useState<Background>({
+	const [shapePlugins, setShapePlugins] = useState<ShapePlugin<any>[]>([]);
+	const [background, setBackground] = useState<any>({
 		id: "usketch.dots",
 		config: {
 			spacing: 20,
@@ -37,7 +36,7 @@ function App() {
 
 	// デモ用のシェイプを追加
 	const addDemoShapes = useCallback(
-		(plugins?: ShapePlugin[]) => {
+		(plugins?: ShapePlugin<any>[]) => {
 			// Add test shapes only once (protect against StrictMode double render)
 			// Skip demo shapes if running E2E tests (when URL has ?e2e=true)
 			const isE2E = new URLSearchParams(window.location.search).has("e2e");
@@ -46,7 +45,7 @@ function App() {
 				shapesAddedRef.current = true;
 
 				// Demo shapes data
-				const demoShapes: Shape[] = [
+				const demoShapes: any[] = [
 					{
 						id: `test-rect-${Date.now()}`,
 						type: "rectangle",
@@ -201,7 +200,7 @@ function App() {
 
 		// Load custom shapes and combine with default shapes
 		const loadShapes = () => {
-			const allPlugins = [...defaultShapePlugins, ...customShapePlugins];
+			const allPlugins = [...defaultShapePlugins, ...customShapePlugins] as ShapePlugin<any>[];
 			setShapePlugins(allPlugins);
 
 			// Add demo shapes after shapes are loaded, pass plugins directly
@@ -220,7 +219,7 @@ function App() {
 	}, [shapePlugins, addDemoShapes]);
 
 	// Canvasの準備完了時の処理
-	const handleCanvasReady = (canvas: WhiteboardCanvasRef) => {
+	const handleCanvasReady = (canvas: any) => {
 		canvasRef.current = canvas;
 		// Only add demo shapes if plugins are loaded
 		if (shapePlugins.length > 0 && !shapesAddedRef.current) {

@@ -1,6 +1,6 @@
 import type { BaseShapeConfig, Bounds } from "@usketch/shape-abstraction";
 import { BaseShape } from "@usketch/shape-abstraction";
-import { ShapePluginAdapter } from "@usketch/shape-registry";
+import { UnifiedShapePluginAdapter } from "@usketch/shape-registry";
 import type React from "react";
 import { useEffect, useState } from "react";
 
@@ -263,9 +263,9 @@ function generateTrianglePoints(radius: number): string {
 }
 
 // Create the plugin using the adapter
-export const animatedLogoPlugin = ShapePluginAdapter.fromBaseShape(
+export const animatedLogoPlugin = UnifiedShapePluginAdapter.fromBaseShape(
 	"animated-logo-unified",
-	AnimatedLogoUnified,
+	AnimatedLogo as any,
 	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>
 		({
 			id: props.id,
@@ -281,4 +281,4 @@ export const animatedLogoPlugin = ShapePluginAdapter.fromBaseShape(
 			animationSpeed: 1,
 		}) as any,
 	"Animated Logo (Unified)",
-);
+) as any;

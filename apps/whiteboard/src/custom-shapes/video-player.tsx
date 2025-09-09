@@ -1,6 +1,6 @@
 import type { BaseShapeConfig, Bounds } from "@usketch/shape-abstraction";
 import { BaseShape } from "@usketch/shape-abstraction";
-import { ShapePluginAdapter } from "@usketch/shape-registry";
+import { UnifiedShapePluginAdapter } from "@usketch/shape-registry";
 import type React from "react";
 import { useRef, useState } from "react";
 
@@ -246,9 +246,9 @@ const VideoPlayerComponent: React.FC<{ shape: VideoPlayerShape }> = ({ shape }) 
 };
 
 // Create the plugin using the adapter
-export const videoPlayerPlugin = ShapePluginAdapter.fromBaseShape(
+export const videoPlayerPlugin = UnifiedShapePluginAdapter.fromBaseShape(
 	"video-player-unified",
-	VideoPlayerUnified,
+	VideoPlayer as any,
 	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>
 		({
 			id: props.id,
@@ -264,4 +264,4 @@ export const videoPlayerPlugin = ShapePluginAdapter.fromBaseShape(
 			autoplay: false,
 		}) as any,
 	"Video Player (Unified)",
-);
+) as any;

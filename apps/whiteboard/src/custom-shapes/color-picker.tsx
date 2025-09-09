@@ -1,6 +1,6 @@
 import type { BaseShapeConfig, Bounds } from "@usketch/shape-abstraction";
 import { BaseShape } from "@usketch/shape-abstraction";
-import { ShapePluginAdapter } from "@usketch/shape-registry";
+import { UnifiedShapePluginAdapter } from "@usketch/shape-registry";
 import type React from "react";
 import { useState } from "react";
 
@@ -183,9 +183,9 @@ const ColorPickerComponent: React.FC<{
 };
 
 // Create the plugin using the adapter
-export const colorPickerPlugin = ShapePluginAdapter.fromBaseShape(
+export const colorPickerPlugin = UnifiedShapePluginAdapter.fromBaseShape(
 	"color-picker-unified",
-	ColorPickerUnified,
+	ColorPicker as any,
 	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>
 		({
 			id: props.id,
@@ -200,4 +200,4 @@ export const colorPickerPlugin = ShapePluginAdapter.fromBaseShape(
 			label: "Color Picker",
 		}) as any,
 	"Color Picker (Unified)",
-);
+) as any;
