@@ -60,7 +60,6 @@ npx lint-staged
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "npm run check:filenames",
       "biome check --write"
     ]
   }
@@ -87,13 +86,16 @@ const exceptions = [
   /\.d\.ts$/
 ];
 
-function checkFilenames() {
+function checkFilenames(specificFiles = []) {
   const errors = [];
   
-  // TypeScript/TSXファイルを検索
-  const files = glob.sync('**/*.{ts,tsx}', {
-    ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**']
-  });
+  // ファイルリストを取得
+  // 引数が指定されている場合はそれを使用、なければ全体をスキャン
+  const files = specificFiles.length > 0 
+    ? specificFiles.filter(f => /\.(ts|tsx)$/.test(f))
+    : glob.sync('**/*.{ts,tsx}', {
+        ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**']
+      });
 
   files.forEach(filePath => {
     const filename = path.basename(filePath, path.extname(filePath));
@@ -111,21 +113,30 @@ function checkFilenames() {
     console.error('❌ 以下のファイルがkebab-case命名規則に違反しています:');
     errors.forEach(file => {
       const filename = path.basename(file);
-      const suggested = filename
-        .replace(/([A-Z])/g, '-$1')
-        .toLowerCase()
-        .replace(/^-/, '')
-        .replace(/_/g, '-');
+      const ext = path.extname(file);
+      const nameWithoutExt = path.basename(file, ext);
+      // toKebabCase関数と同じロジックを使用
+      const parts = nameWithoutExt
+        .replace(/_/g, '-')
+        .match(/([A-Z]+(?=[A-Z][a-z0-9])|[A-Z]?[a-z]+|[A-Z]+|[0-9]+)/g);
+      const suggested = parts
+        ? parts.map(s => s.toLowerCase()).join('-') + ext
+        : nameWithoutExt.toLowerCase() + ext;
       console.error(`  ${file}`);
       console.error(`    → 推奨: ${suggested}`);
     });
     process.exit(1);
   }
 
-  console.log('✅ すべてのTypeScript/TSXファイルがkebab-case命名規則に準拠しています');
+  const message = specificFiles.length > 0
+    ? `✅ 指定されたTypeScript/TSXファイルがkebab-case命名規則に準拠しています`
+    : `✅ すべてのTypeScript/TSXファイルがkebab-case命名規則に準拠しています`;
+  console.log(message);
 }
 
-checkFilenames();
+// コマンドライン引数を取得（node scripts/check-filenames.js file1.ts file2.tsx ...）
+const args = process.argv.slice(2);
+checkFilenames(args);
 ```
 
 ### 4. GitHub Actions CI設定
@@ -203,20 +214,20 @@ const path = require('path');
 const glob = require('glob');
 
 function toKebabCase(str) {
-  return str
-    // PascalCase/camelCaseの処理
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    // 数字の前後に区切りを追加
-    .replace(/([a-zA-Z])([0-9])/g, '$1-$2')
-    .replace(/([0-9])([a-zA-Z])/g, '$1-$2')
-    // すべて小文字に変換
-    .toLowerCase()
-    // アンダースコアをハイフンに変換
-    .replace(/_/g, '-')
-    // 重複するハイフンを単一に
-    .replace(/-+/g, '-')
-    // 先頭と末尾のハイフンを削除
-    .replace(/^-|-$/g, '');
+  // アクロニム（複数の大文字）、小文字、数字のグループにマッチ
+  // 例: 'API2Service' -> ['API', '2', 'Service']
+  // 'XMLHttpRequest' -> ['XML', 'Http', 'Request']
+  const parts = str
+    .replace(/_/g, '-') // アンダースコアをハイフンとして扱う
+    .match(/([A-Z]+(?=[A-Z][a-z0-9])|[A-Z]?[a-z]+|[A-Z]+|[0-9]+)/g);
+  
+  if (!parts) return str.toLowerCase();
+  
+  return parts
+    .map(s => s.toLowerCase())
+    .join('-')
+    .replace(/-+/g, '-') // 重複するハイフンを単一に
+    .replace(/^-|-$/g, ''); // 先頭・末尾のハイフンを削除
 }
 
 function renameFiles() {
