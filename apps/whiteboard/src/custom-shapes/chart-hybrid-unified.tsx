@@ -84,6 +84,28 @@ const ChartComponent: React.FC<{
 		onDataUpdate(newData);
 	};
 
+	// Handle click on div to determine which bar was clicked
+	const handleDivClick = (e: React.MouseEvent<HTMLDivElement>) => {
+		console.log("[ChartHybrid] Div clicked!");
+		e.stopPropagation(); // Stop event from bubbling to HtmlWrapper
+		
+		const rect = e.currentTarget.getBoundingClientRect();
+		const x = e.clientX - rect.left;
+		const y = e.clientY - rect.top;
+		
+		console.log(`[ChartHybrid] Click position: x=${x}, y=${y}`);
+		
+		// Check if click is within chart area
+		if (y > 40 && y < shape.height - 20) {
+			// Determine which bar was clicked based on x position
+			const barIndex = Math.floor((x - 20) / barWidth);
+			console.log(`[ChartHybrid] Calculated bar index: ${barIndex}`);
+			if (barIndex >= 0 && barIndex < shape.data.length) {
+				handleBarClick(barIndex, e);
+			}
+		}
+	};
+
 	return (
 		<div
 			style={{
@@ -95,7 +117,9 @@ const ChartComponent: React.FC<{
 				opacity: shape.opacity,
 				transform: `rotate(${shape.rotation}deg)`,
 				transformOrigin: "center",
+				cursor: "default",
 			}}
+			onClick={handleDivClick}
 		>
 			{/* HTML part - Title and controls */}
 			<div
@@ -128,7 +152,7 @@ const ChartComponent: React.FC<{
 					border: "2px solid #333",
 					borderTop: "none",
 					borderRadius: "0 0 8px 8px",
-					pointerEvents: "all",
+					pointerEvents: "none",
 				}}
 			>
 				{/* Grid lines */}
@@ -167,11 +191,9 @@ const ChartComponent: React.FC<{
 								style={{
 									cursor: "pointer",
 									transition: "fill 0.2s",
-									pointerEvents: "all",
 								}}
 								onMouseEnter={() => setHoveredBar(index)}
 								onMouseLeave={() => setHoveredBar(null)}
-								onClick={(e) => handleBarClick(index, e)}
 							/>
 							{/* Value label */}
 							<text

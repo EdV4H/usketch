@@ -372,19 +372,17 @@ test.describe("HTML Shape Interaction", () => {
 		const chart = await page.locator('[data-shape-type="chart-hybrid-unified"]').first();
 		expect(await chart.count()).toBe(1);
 
-		// Debug: check if bars are visible
-		const bars = await chart.locator('rect[style*="cursor: pointer"]').all();
-		console.log(`Found ${bars.length} clickable bars`);
-
-		// Find the first bar (rect element with cursor pointer)
-		const firstBar = await chart.locator('rect[style*="cursor: pointer"]').first();
-
 		// Get the initial value
 		const initialValue = await chart.locator("text").first().textContent();
 		console.log("Initial chart value:", initialValue);
 
-		// Click on the first bar with force option
-		await firstBar.click({ force: true });
+		// Click on the chart area where the first bar should be
+		// First bar is at x=20 + some offset, y in middle of chart
+		const chartBox = await chart.boundingBox();
+		if (chartBox) {
+			console.log("Clicking at position:", chartBox.x + 40, chartBox.y + 100);
+			await page.mouse.click(chartBox.x + 40, chartBox.y + 100);
+		}
 
 		// Wait for value to change
 		await page.waitForTimeout(1000);
