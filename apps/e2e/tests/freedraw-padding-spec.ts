@@ -51,14 +51,14 @@ test("freedraw padding test - no clipping", async ({ page }) => {
 	expect(shapeData.pathData).toMatch(/^M \d+ \d+/);
 
 	// Element should be large enough to contain stroke
-	const strokeWidth = parseInt(shapeData.strokeWidth || "2");
+	const strokeWidth = parseInt(shapeData.strokeWidth || "2", 10);
 	const expectedPadding = Math.ceil(strokeWidth / 2) * 2;
 
 	console.log(`Stroke width: ${strokeWidth}, Expected padding: ${expectedPadding}`);
 
 	// Width and height should include padding
-	const widthNum = parseInt(shapeData.width);
-	const heightNum = parseInt(shapeData.height);
+	const widthNum = parseInt(shapeData.width, 10);
+	const heightNum = parseInt(shapeData.height, 10);
 
 	// Should be at least 100px (the drawn size) plus padding
 	expect(widthNum).toBeGreaterThanOrEqual(100 + expectedPadding);

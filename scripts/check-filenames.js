@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const fs = require("fs");
-const path = require("path");
+const _fs = require("node:fs");
+const path = require("node:path");
 const glob = require("glob");
 
 // kebab-case パターン（数字も許可、単一文字も許可）
@@ -44,7 +44,7 @@ function checkFilenames(specificFiles = []) {
 	if (errors.length > 0) {
 		console.error("❌ 以下のファイルがkebab-case命名規則に違反しています:");
 		errors.forEach((file) => {
-			const filename = path.basename(file);
+			const _filename = path.basename(file);
 			const ext = path.extname(file);
 			const nameWithoutExt = path.basename(file, ext);
 			// toKebabCase関数と同じロジックを使用
