@@ -26,7 +26,6 @@ export class UnifiedShapePluginAdapter {
 	): ShapePlugin<T> {
 		// Register the shape with ShapeFactory for unified rendering
 		ShapeFactory.register(config.type, ShapeClass as ShapeRendererConstructor<Shape>);
-		console.log(`[UnifiedShapePluginAdapter] Registered shape type: ${config.type}`);
 
 		return {
 			type: config.type,
@@ -39,13 +38,8 @@ export class UnifiedShapePluginAdapter {
 				// Get camera from store using React hook for reactive updates
 				const camera = useWhiteboardStore((state) => state.camera);
 
-				console.log(
-					`[UnifiedShapePluginAdapter] Rendering component for ${shape.type} at (${shape.x}, ${shape.y})`,
-				);
-
 				// Ensure the shape is registered (in case of lazy loading)
 				if (!ShapeFactory.has(config.type)) {
-					console.log(`[UnifiedShapePluginAdapter] Re-registering ${config.type}`);
 					ShapeFactory.register(config.type, ShapeClass as ShapeRendererConstructor<Shape>);
 				}
 
@@ -72,12 +66,6 @@ export class UnifiedShapePluginAdapter {
 				}
 				const renderer = ShapeFactory.create(shape as any) as any;
 				const bounds = renderer.getBounds();
-				console.log(
-					`[UnifiedShapePluginAdapter] getBounds for ${shape.type}:`,
-					bounds,
-					"shape:",
-					shape,
-				);
 				return bounds;
 			},
 

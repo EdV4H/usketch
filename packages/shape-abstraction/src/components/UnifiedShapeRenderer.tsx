@@ -29,7 +29,7 @@ export const UnifiedShapeRenderer: React.FC<UnifiedShapeRendererProps> = ({
 		try {
 			return ShapeFactory.create(shape);
 		} catch (error) {
-			console.error(`Failed to create renderer for shape type: ${shape.type}`, error);
+			// Failed to create renderer for shape type
 			return null;
 		}
 	}, [shape.type, shape.id, shape]);
@@ -44,7 +44,6 @@ export const UnifiedShapeRenderer: React.FC<UnifiedShapeRendererProps> = ({
 	renderer.shape = shape;
 
 	const renderMode = renderer.getRenderMode();
-	console.log(`[UnifiedShapeRenderer] Rendering ${shape.type} with mode: ${renderMode}`);
 
 	const wrapperProps = {
 		renderer,

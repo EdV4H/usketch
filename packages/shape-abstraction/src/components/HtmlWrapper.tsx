@@ -45,8 +45,6 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 				if (canvasContainer) {
 					canvasContainer.appendChild(div);
 					setContainer(div);
-				} else {
-					console.error("[HtmlWrapper] No container found for HTML shape");
 				}
 			}, 100); // Small delay to ensure DOM is ready
 
