@@ -25,32 +25,10 @@
 
 ## 実装方法
 
-### 1. ESLintルールによる検出
+### 1. カスタムスクリプトによる検出
 
-#### 必要なパッケージ
-```json
-{
-  "devDependencies": {
-    "eslint-plugin-filenames-simple": "^0.9.0"
-  }
-}
-```
-
-#### ESLint設定（`.eslintrc.json`）
-```json
-{
-  "plugins": ["filenames-simple"],
-  "rules": {
-    "filenames-simple/naming-convention": [
-      "error",
-      {
-        "rule": "kebab-case",
-        "match": "\\.tsx?$"
-      }
-    ]
-  }
-}
-```
+**注意**: このプロジェクトではBiomeを使用しているため、ESLintプラグインは使用しません。
+Biomeには現在ファイル名規則を強制する機能がないため、カスタムスクリプトで実装します。
 
 ### 2. Git Pre-commitフック
 
@@ -68,7 +46,7 @@ npx husky init
 # ファイル名チェック
 npm run check:filenames
 
-# ESLintチェック
+# Biomeチェック
 npx lint-staged
 ```
 
@@ -77,13 +55,13 @@ npx lint-staged
 {
   "scripts": {
     "check:filenames": "node scripts/check-filenames.js",
-    "lint": "eslint . --ext .ts,.tsx",
-    "lint:fix": "eslint . --ext .ts,.tsx --fix"
+    "biome:check": "biome check",
+    "biome:fix": "biome check --write"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
       "npm run check:filenames",
-      "eslint --fix"
+      "biome check --write"
     ]
   }
 }
@@ -184,8 +162,8 @@ jobs:
       - name: Check TypeScript/TSX filenames
         run: npm run check:filenames
         
-      - name: Run ESLint filename rules
-        run: npm run lint
+      - name: Run Biome check
+        run: npm run biome:check
 ```
 
 ### 5. VS Code設定（推奨）
@@ -195,18 +173,17 @@ jobs:
 {
   "files.autoSave": "onFocusChange",
   "[typescript]": {
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "biomejs.biome"
   },
   "[typescriptreact]": {
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "biomejs.biome"
   },
-  "eslint.validate": [
-    "javascript",
-    "javascriptreact",
-    "typescript",
-    "typescriptreact"
-  ],
-  "eslint.run": "onType"
+  "editor.codeActionsOnSave": {
+    "quickfix.biome": "explicit",
+    "source.organizeImports.biome": "explicit"
+  }
 }
 ```
 
@@ -303,13 +280,14 @@ renameFiles();
 ## メンテナンス
 
 ### 定期的な確認項目
-- [ ] ESLintルールの更新確認
+- [ ] Biomeのファイル名ルール機能の追加確認
 - [ ] 例外リストの見直し
 - [ ] CI実行時間の最適化
 - [ ] チームフィードバックの収集
 
 ## 参考資料
 
-- [ESLint Plugin Filenames Simple](https://github.com/epaew/eslint-plugin-filenames-simple)
+- [Biome - Fast Formatter and Linter](https://biomejs.dev/)
 - [Husky - Git Hooks](https://typicode.github.io/husky/)
 - [lint-staged](https://github.com/okonet/lint-staged)
+- [Biome VS Code Extension](https://marketplace.visualstudio.com/items?itemName=biomejs.biome)
