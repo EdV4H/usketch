@@ -1,5 +1,5 @@
 import { registerPresetBackgrounds as registerPresets } from "@usketch/background-presets";
-import { globalBackgroundRegistry } from "./BackgroundRegistry";
+import { globalBackgroundRegistry } from "./background-registry";
 
 /**
  * uSketchが提供するプリセット背景を登録
