@@ -1,6 +1,6 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
-import { CUSTOM_BACKGROUNDS_METADATA } from "../backgrounds/registerBackgrounds";
+import { CUSTOM_BACKGROUNDS_METADATA } from "../backgrounds/register-backgrounds";
 import { useStore } from "../hooks/use-store";
 
 export interface ToolbarProps {

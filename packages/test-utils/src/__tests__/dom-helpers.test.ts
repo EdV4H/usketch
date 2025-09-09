@@ -74,9 +74,9 @@ describe("DOM Helpers", () => {
 			clickElement(element, 30, 25);
 
 			expect(spy).toHaveBeenCalled();
-			const event = spy.mock.calls[0][0];
-			expect(event.clientX).toBe(40); // 10 + 30
-			expect(event.clientY).toBe(45); // 20 + 25
+			const event = spy.mock.calls[0]?.[0];
+			expect(event?.clientX).toBe(40); // 10 + 30
+			expect(event?.clientY).toBe(45); // 20 + 25
 		});
 	});
 

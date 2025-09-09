@@ -5,7 +5,7 @@ import {
 	ParticleBackground,
 	RippleBackground,
 	StarsBackground,
-} from "./CustomBackgrounds";
+} from "./custom-backgrounds";
 
 /**
  * アプリケーション固有のカスタム背景を登録

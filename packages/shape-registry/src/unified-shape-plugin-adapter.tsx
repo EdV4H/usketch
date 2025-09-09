@@ -4,7 +4,7 @@ import {
 	ShapeFactory,
 	UnifiedShapeRenderer,
 } from "@usketch/shape-abstraction";
-import type { BaseShape, Shape } from "@usketch/shared-types";
+import type { Shape } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
 import type { ShapeComponentProps, ShapePlugin } from "./types";
 

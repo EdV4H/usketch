@@ -1,7 +1,7 @@
 import type React from "react";
 import { useMemo } from "react";
-import type { BackgroundRegistry } from "../backgrounds/BackgroundRegistry";
-import { globalBackgroundRegistry } from "../backgrounds/BackgroundRegistry";
+import type { BackgroundRegistry } from "../backgrounds/background-registry";
+import { globalBackgroundRegistry } from "../backgrounds/background-registry";
 import { registerPresetBackgrounds } from "../backgrounds/presets";
 import type { BackgroundComponent } from "../backgrounds/types";
 import type { BackgroundLayerProps } from "../types";

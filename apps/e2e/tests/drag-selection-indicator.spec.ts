@@ -38,8 +38,8 @@ test.describe("Drag Selection Indicator", () => {
 			const elem = document.getElementById("selection-box-overlay");
 			if (!elem) return null;
 			return {
-				width: parseInt(elem.style.width || "0"),
-				height: parseInt(elem.style.height || "0"),
+				width: parseInt(elem.style.width || "0", 10),
+				height: parseInt(elem.style.height || "0", 10),
 			};
 		});
 
@@ -84,10 +84,10 @@ test.describe("Drag Selection Indicator", () => {
 			const elem = document.getElementById("selection-box-overlay");
 			if (!elem) return null;
 			return {
-				left: parseInt(elem.style.left || "0"),
-				top: parseInt(elem.style.top || "0"),
-				width: parseInt(elem.style.width || "0"),
-				height: parseInt(elem.style.height || "0"),
+				left: parseInt(elem.style.left || "0", 10),
+				top: parseInt(elem.style.top || "0", 10),
+				width: parseInt(elem.style.width || "0", 10),
+				height: parseInt(elem.style.height || "0", 10),
 			};
 		});
 
@@ -117,8 +117,8 @@ test.describe("Drag Selection Indicator", () => {
 			const elem = document.getElementById("selection-box-overlay");
 			if (!elem) return null;
 			return {
-				width: parseInt(elem.style.width || "0"),
-				height: parseInt(elem.style.height || "0"),
+				width: parseInt(elem.style.width || "0", 10),
+				height: parseInt(elem.style.height || "0", 10),
 			};
 		});
 
@@ -130,8 +130,8 @@ test.describe("Drag Selection Indicator", () => {
 			const elem = document.getElementById("selection-box-overlay");
 			if (!elem) return null;
 			return {
-				width: parseInt(elem.style.width || "0"),
-				height: parseInt(elem.style.height || "0"),
+				width: parseInt(elem.style.width || "0", 10),
+				height: parseInt(elem.style.height || "0", 10),
 			};
 		});
 

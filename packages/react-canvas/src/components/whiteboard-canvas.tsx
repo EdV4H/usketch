@@ -2,14 +2,14 @@ import { ShapeRegistryProvider } from "@usketch/shape-registry";
 import { useWhiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useEffect, useRef } from "react";
-import { useCanvas } from "../hooks/useCanvas";
-import { useInteraction } from "../hooks/useInteraction";
-import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import { useCanvas } from "../hooks/use-canvas";
+import { useInteraction } from "../hooks/use-interaction";
+import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import type { CanvasProps } from "../types";
-import { BackgroundLayer } from "./BackgroundLayer";
-import { InteractionLayer } from "./InteractionLayer";
-import { SelectionLayer } from "./SelectionLayer";
-import { ShapeLayer } from "./ShapeLayer";
+import { BackgroundLayer } from "./background-layer";
+import { InteractionLayer } from "./interaction-layer";
+import { SelectionLayer } from "./selection-layer";
+import { ShapeLayer } from "./shape-layer";
 
 // Internal canvas component that uses the registry
 const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes">> = ({

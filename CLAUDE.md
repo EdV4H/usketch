@@ -5,6 +5,22 @@
 uSketchは、キャンバスベースのドローイングアプリケーションです。
 Vanilla JavaScriptとReact版の2つの実装があり、共通のコアライブラリを使用しています。
 
+## ファイル命名規則
+
+このプロジェクトでは、すべてのTypeScript（.ts）およびTSX（.tsx）ファイルは**kebab-case**で命名する必要があります。
+
+### 命名ルール
+- ✅ 正しい: `user-profile.ts`, `api-service.tsx`, `test-utils.ts`
+- ❌ 間違い: `userProfile.ts`, `UserProfile.tsx`, `user_profile.ts`
+
+### 新規ファイル作成時の注意
+- 新しいファイルを作成する際は、必ずkebab-caseを使用してください
+- 例: `create-user-modal.tsx`、`data-fetcher.ts`
+
+### 既存ファイルのリネーム
+- 既存のファイルをリネームする場合は、`git mv`コマンドを使用してください
+- インポート文の更新も忘れずに行ってください
+
 ## ドキュメント構成
 
 プロジェクトのドキュメントは `docs/` ディレクトリに整理されています：

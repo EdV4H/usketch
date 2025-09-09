@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { ShapeRegistry } from "./ShapeRegistry";
+import { ShapeRegistry } from "./shape-registry";
 import type { ShapePlugin } from "./types";
 
 describe("ShapeRegistry", () => {

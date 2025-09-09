@@ -1,6 +1,6 @@
 import type React from "react";
 import { useState } from "react";
-import { CUSTOM_BACKGROUNDS_METADATA } from "../backgrounds/registerBackgrounds";
+import { CUSTOM_BACKGROUNDS_METADATA } from "../backgrounds/register-backgrounds";
 
 interface BackgroundSelectorProps {
 	currentBackground: { id: string; config?: any };

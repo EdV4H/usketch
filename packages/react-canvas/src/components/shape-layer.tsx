@@ -2,7 +2,7 @@ import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useCallback, useRef, useState } from "react";
 import type { ShapeLayerProps } from "../types";
-import { Shape } from "./Shape";
+import { Shape } from "./shape";
 
 export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 	shapes,

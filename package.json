@@ -12,6 +12,7 @@
 		"clean": "turbo run clean",
 		"format": "biome check --write --no-errors-on-unmatched .",
 		"format:check": "biome check .",
+		"check:filenames": "node scripts/check-filenames.js",
 		"prepare": "lefthook install"
 	},
 	"keywords": [],
@@ -19,6 +20,7 @@
 	"license": "ISC",
 	"devDependencies": {
 		"@biomejs/biome": "^2.1.4",
+		"glob": "^11.0.3",
 		"lefthook": "^1.12.2",
 		"turbo": "^2.5.5"
 	},

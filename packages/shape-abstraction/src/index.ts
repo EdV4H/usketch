@@ -2,12 +2,12 @@
 
 // Re-export commonly used types from shared-types
 export type { Bounds, Camera, Point, Shape } from "@usketch/shared-types";
-export { BaseShape } from "./BaseShape";
-export { HtmlWrapper } from "./components/HtmlWrapper";
-export { SvgWrapper } from "./components/SvgWrapper";
+export { BaseShape } from "./base-shape";
+export { HtmlWrapper } from "./components/html-wrapper";
+export { SvgWrapper } from "./components/svg-wrapper";
 // Components
-export { UnifiedShapeRenderer } from "./components/UnifiedShapeRenderer";
-export { ShapeFactory } from "./ShapeFactory";
+export { UnifiedShapeRenderer } from "./components/unified-shape-renderer";
+export { ShapeFactory } from "./shape-factory";
 // Types
 export type {
 	BaseShapeConfig,

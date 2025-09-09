@@ -8,6 +8,9 @@ pre-commit:
       glob: "*.{js,jsx,ts,tsx,css,json}"
       run: pnpm biome check --write --no-errors-on-unmatched {staged_files}
       stage_fixed: true
+    check-filenames:
+      glob: "*.{ts,tsx}"
+      run: npm run check:filenames
 
 
 # Skip hooks in CI environment

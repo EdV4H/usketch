@@ -1,3 +1,3 @@
-export { Ellipse } from "./Ellipse";
-export { Freedraw } from "./Freedraw";
-export { Rectangle } from "./Rectangle";
+export { Ellipse } from "./ellipse";
+export { Freedraw } from "./freedraw";
+export { Rectangle } from "./rectangle";
