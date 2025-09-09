@@ -102,7 +102,7 @@ test.describe("HTML Shape Interaction", () => {
 		const newValue = await getCounterValue();
 		console.log("New counter value:", newValue);
 
-		expect(parseInt(newValue!)).toBe(parseInt(initialValue!) + 1);
+		expect(parseInt(newValue!, 10)).toBe(parseInt(initialValue!, 10) + 1);
 	});
 
 	test("should be able to drag SVG shapes (AnimatedLogo)", async ({ page }) => {

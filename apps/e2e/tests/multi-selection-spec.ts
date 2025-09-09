@@ -258,8 +258,8 @@ test.describe("Multi-Selection Feature", () => {
 			// Get initial positions
 			const shapesBefore = await page.$$eval('[data-shape="true"]', (elements) =>
 				elements.map((el) => ({
-					left: parseInt(el.style.left || "0"),
-					top: parseInt(el.style.top || "0"),
+					left: parseInt(el.style.left || "0", 10),
+					top: parseInt(el.style.top || "0", 10),
 				})),
 			);
 
@@ -272,8 +272,8 @@ test.describe("Multi-Selection Feature", () => {
 			// Get new positions
 			const shapesAfter = await page.$$eval('[data-shape="true"]', (elements) =>
 				elements.map((el) => ({
-					left: parseInt(el.style.left || "0"),
-					top: parseInt(el.style.top || "0"),
+					left: parseInt(el.style.left || "0", 10),
+					top: parseInt(el.style.top || "0", 10),
 				})),
 			);
 
