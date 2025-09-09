@@ -152,8 +152,8 @@ test.describe("HTML Shape Interaction", () => {
 
 		console.log("Found AnimatedLogo:", animatedLogoTransform);
 
-		// Find the AnimatedLogo shape by transform
-		const animatedLogo = await page.locator('g[transform*="translate(100, 550)"]').first();
+		// Now find it properly with data-shape-type attribute
+		const animatedLogo = await page.locator('[data-shape-type="animated-logo-unified"]').first();
 
 		// Get initial position
 		const initialBox = await animatedLogo.boundingBox();
@@ -173,8 +173,9 @@ test.describe("HTML Shape Interaction", () => {
 		// Wait for movement to complete
 		await page.waitForTimeout(500);
 
-		// Check new position
-		const newBox = await animatedLogo.boundingBox();
+		// Check new position using the data-shape-type selector
+		const movedLogo = await page.locator('[data-shape-type="animated-logo-unified"]').first();
+		const newBox = await movedLogo.boundingBox();
 		console.log("New AnimatedLogo position:", newBox);
 
 		// Shape should have moved

@@ -33,7 +33,14 @@ class AnimatedLogoUnified extends BaseShape<AnimatedLogoUnifiedShape> {
 	}
 
 	render(): React.ReactElement {
-		return <AnimatedLogoComponent shape={this.shape} />;
+		// Return the component with spread props to allow data attributes
+		return (
+			<AnimatedLogoComponent
+				shape={this.shape}
+				shapeId={this.shape.id}
+				shapeType={this.shape.type}
+			/>
+		);
 	}
 
 	getBounds(): Bounds {
@@ -57,7 +64,19 @@ class AnimatedLogoUnified extends BaseShape<AnimatedLogoUnifiedShape> {
 }
 
 // React component for the animated logo
-const AnimatedLogoComponent: React.FC<{ shape: AnimatedLogoUnifiedShape }> = ({ shape }) => {
+interface AnimatedLogoComponentProps {
+	shape: AnimatedLogoUnifiedShape;
+	shapeId?: string;
+	shapeType?: string;
+	[key: string]: any; // Allow additional props from SvgWrapper
+}
+
+const AnimatedLogoComponent: React.FC<AnimatedLogoComponentProps> = ({
+	shape,
+	shapeId,
+	shapeType,
+	...rest
+}) => {
 	const [rotation, setRotation] = useState(0);
 	const [scale, setScale] = useState(1);
 	const [hovered, setHovered] = useState(false);
@@ -87,6 +106,9 @@ const AnimatedLogoComponent: React.FC<{ shape: AnimatedLogoUnifiedShape }> = ({ 
 			transform={`translate(${shape.x}, ${shape.y})`}
 			opacity={shape.opacity}
 			style={{ cursor: "pointer" }}
+			data-shape-id={shapeId}
+			data-shape-type={shapeType}
+			{...rest}
 		>
 			{/* Inner group for rotation */}
 			<g transform={`rotate(${shape.rotation}, ${centerX}, ${centerY})`}>
