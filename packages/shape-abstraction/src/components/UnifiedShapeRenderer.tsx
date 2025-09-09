@@ -28,7 +28,7 @@ export const UnifiedShapeRenderer: React.FC<UnifiedShapeRendererProps> = ({
 	const renderer = useMemo(() => {
 		try {
 			return ShapeFactory.create(shape);
-		} catch (error) {
+		} catch {
 			// Failed to create renderer for shape type
 			return null;
 		}
