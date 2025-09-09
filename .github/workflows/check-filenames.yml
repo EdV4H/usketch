@@ -1,0 +1,31 @@
+name: Check Filename Convention
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  check-filenames:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install glob package
+        run: npm install glob
+        
+      - name: Check TypeScript/TSX filenames
+        run: npm run check:filenames
+        
+      - name: Run Biome check
+        run: npm run format:check
