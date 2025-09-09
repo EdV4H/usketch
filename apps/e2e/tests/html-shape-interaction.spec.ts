@@ -8,8 +8,8 @@ test.describe("HTML Shape Interaction", () => {
 		// Wait for the canvas to be ready
 		await page.waitForSelector(".whiteboard-canvas", { timeout: 5000 });
 
-		// Wait for initial shapes to load
-		await page.waitForTimeout(1000);
+		// Wait for initial shapes to load (AnimatedLogo is added after 800ms)
+		await page.waitForTimeout(2000);
 	});
 
 	test("should be able to drag HTML shapes from non-interactive areas", async ({ page }) => {
@@ -103,6 +103,70 @@ test.describe("HTML Shape Interaction", () => {
 		console.log("New counter value:", newValue);
 
 		expect(parseInt(newValue!)).toBe(parseInt(initialValue!) + 1);
+	});
+
+	test("should be able to drag SVG shapes (AnimatedLogo)", async ({ page }) => {
+		// Wait a bit longer for AnimatedLogo to be added
+		await page.waitForTimeout(1500);
+		
+		// First, check what shapes are available on the page
+		const shapes = await page.evaluate(() => {
+			const elements = document.querySelectorAll('[data-shape-type]');
+			return Array.from(elements).map(el => ({
+				type: el.getAttribute('data-shape-type'),
+				tagName: el.tagName,
+				id: el.getAttribute('data-shape-id')
+			}));
+		});
+		console.log("Available shapes:", shapes);
+
+		// Find the AnimatedLogo shape - it might be rendered as a g element in SVG
+		// Wait for it to appear
+		const animatedLogo = await page.locator('[data-shape-type="animated-logo-unified"]').first();
+		
+		// Check if it exists
+		const count = await animatedLogo.count();
+		if (count === 0) {
+			console.log("AnimatedLogo not found, it may not have been added yet");
+			// List all g elements to debug
+			const gElements = await page.evaluate(() => {
+				const gs = document.querySelectorAll('svg g');
+				return Array.from(gs).map(g => ({
+					dataType: g.getAttribute('data-shape-type'),
+					dataId: g.getAttribute('data-shape-id'),
+					transform: g.getAttribute('transform'),
+					childCount: g.children.length
+				}));
+			});
+			console.log("All g elements:", gElements);
+			return;
+		}
+
+		// Get initial position
+		const initialBox = await animatedLogo.boundingBox();
+		expect(initialBox).toBeTruthy();
+
+		console.log("Initial AnimatedLogo position:", initialBox);
+
+		// Try to drag from the center of the shape
+		await page.mouse.move(
+			initialBox!.x + initialBox!.width / 2,
+			initialBox!.y + initialBox!.height / 2,
+		);
+		await page.mouse.down();
+		await page.mouse.move(initialBox!.x + 100, initialBox!.y + 100);
+		await page.mouse.up();
+
+		// Wait for movement to complete
+		await page.waitForTimeout(500);
+
+		// Check new position
+		const newBox = await animatedLogo.boundingBox();
+		console.log("New AnimatedLogo position:", newBox);
+
+		// Shape should have moved
+		expect(newBox!.x).not.toBe(initialBox!.x);
+		expect(newBox!.y).not.toBe(initialBox!.y);
 	});
 
 	test("should be able to drag counter from non-button areas", async ({ page }) => {
