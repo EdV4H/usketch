@@ -45,14 +45,17 @@
 				"useTemplate": "error"
 			},
 			"complexity": {
-				"noBannedTypes": "off"
+				"noBannedTypes": "off",
+				"noStaticOnlyClass": "warn"
 			},
 			"correctness": {
 				"noUnusedVariables": "warn",
 				"useExhaustiveDependencies": "warn"
 			},
 			"a11y": {
-				"useButtonType": "warn"
+				"useButtonType": "warn",
+				"useSemanticElements": "off",
+				"useMediaCaption": "warn"
 			}
 		}
 	},
