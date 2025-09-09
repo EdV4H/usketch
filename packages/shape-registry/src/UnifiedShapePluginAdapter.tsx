@@ -15,15 +15,16 @@ import type { ShapeComponentProps, ShapePlugin } from "./types";
 export class UnifiedShapePluginAdapter {
 	/**
 	 * Convert a BaseShape class to a ShapePlugin
+	 * Supports any shape type with flexible typing
 	 */
-	static createPlugin<T extends BaseShape = BaseShape>(
+	static createPlugin<T = any>(
 		ShapeClass: ShapeRendererConstructor<any>,
 		config: {
 			type: string;
 			name?: string;
 			createDefaultShape: (props: any) => T;
 		},
-	): ShapePlugin<T> {
+	): ShapePlugin<any> {
 		// Register the shape with ShapeFactory for unified rendering
 		ShapeFactory.register(config.type, ShapeClass as ShapeRendererConstructor<Shape>);
 
@@ -32,7 +33,7 @@ export class UnifiedShapePluginAdapter {
 			name: config.name,
 
 			// Component that bridges the old and new systems
-			component: (props: ShapeComponentProps<T>) => {
+			component: (props: ShapeComponentProps<any>) => {
 				const { shape, isSelected, onClick, onPointerDown, onPointerMove, onPointerUp } = props;
 
 				// Get camera from store using React hook for reactive updates
@@ -69,7 +70,7 @@ export class UnifiedShapePluginAdapter {
 				return bounds;
 			},
 
-			hitTest: (shape: T, point: { x: number; y: number }) => {
+			hitTest: (shape: any, point: { x: number; y: number }) => {
 				// Ensure the shape is registered
 				if (!ShapeFactory.has(config.type)) {
 					ShapeFactory.register(config.type, ShapeClass as ShapeRendererConstructor<Shape>);
@@ -82,13 +83,14 @@ export class UnifiedShapePluginAdapter {
 
 	/**
 	 * Create plugin from existing BaseShape instance
+	 * Supports any shape type that has the required base properties
 	 */
-	static fromBaseShape<T extends BaseShape = BaseShape>(
+	static fromBaseShape<T = any>(
 		type: string,
 		ShapeClass: new (shape: any, config: any) => BaseShapeClass<any>,
 		createDefaultShape: (props: any) => T,
 		name?: string,
-	): ShapePlugin<T> {
+	): ShapePlugin<any> {
 		return UnifiedShapePluginAdapter.createPlugin(ShapeClass as any, {
 			type,
 			name,

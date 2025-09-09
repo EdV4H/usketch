@@ -265,20 +265,19 @@ function generateTrianglePoints(radius: number): string {
 // Create the plugin using the adapter
 export const animatedLogoPlugin = UnifiedShapePluginAdapter.fromBaseShape(
 	"animated-logo-unified",
-	AnimatedLogo as any,
-	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>
-		({
-			id: props.id,
-			type: "animated-logo-unified",
-			x: props.x,
-			y: props.y,
-			width: props.width || 200,
-			height: props.height || 200,
-			rotation: 0,
-			opacity: 1,
-			primaryColor: "#FF6B6B",
-			secondaryColor: "#4ECDC4",
-			animationSpeed: 1,
-		}) as any,
+	AnimatedLogo,
+	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
+		id: props.id,
+		type: "animated-logo-unified",
+		x: props.x,
+		y: props.y,
+		width: props.width || 200,
+		height: props.height || 200,
+		rotation: 0,
+		opacity: 1,
+		primaryColor: "#FF6B6B",
+		secondaryColor: "#4ECDC4",
+		animationSpeed: 1,
+	}),
 	"Animated Logo (Unified)",
-) as any;
+);

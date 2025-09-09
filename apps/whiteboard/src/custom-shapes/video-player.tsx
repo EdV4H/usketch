@@ -248,20 +248,19 @@ const VideoPlayerComponent: React.FC<{ shape: VideoPlayerShape }> = ({ shape }) 
 // Create the plugin using the adapter
 export const videoPlayerPlugin = UnifiedShapePluginAdapter.fromBaseShape(
 	"video-player-unified",
-	VideoPlayer as any,
-	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>
-		({
-			id: props.id,
-			type: "video-player-unified",
-			x: props.x,
-			y: props.y,
-			width: props.width || 320,
-			height: props.height || 240,
-			rotation: 0,
-			opacity: 1,
-			videoUrl: "", // Empty for demo, can be set to actual video URL
-			title: "Video Player Shape",
-			autoplay: false,
-		}) as any,
+	VideoPlayer,
+	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
+		id: props.id,
+		type: "video-player-unified",
+		x: props.x,
+		y: props.y,
+		width: props.width || 320,
+		height: props.height || 240,
+		rotation: 0,
+		opacity: 1,
+		videoUrl: "", // Empty for demo, can be set to actual video URL
+		title: "Video Player Shape",
+		autoplay: false,
+	}),
 	"Video Player (Unified)",
-) as any;
+);

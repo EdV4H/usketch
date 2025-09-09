@@ -185,19 +185,18 @@ const ColorPickerComponent: React.FC<{
 // Create the plugin using the adapter
 export const colorPickerPlugin = UnifiedShapePluginAdapter.fromBaseShape(
 	"color-picker-unified",
-	ColorPicker as any,
-	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>
-		({
-			id: props.id,
-			type: "color-picker-unified",
-			x: props.x,
-			y: props.y,
-			width: props.width || 220,
-			height: props.height || 180,
-			rotation: 0,
-			opacity: 1,
-			selectedColor: "#FF6B6B",
-			label: "Color Picker",
-		}) as any,
+	ColorPicker,
+	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
+		id: props.id,
+		type: "color-picker-unified",
+		x: props.x,
+		y: props.y,
+		width: props.width || 220,
+		height: props.height || 180,
+		rotation: 0,
+		opacity: 1,
+		selectedColor: "#FF6B6B",
+		label: "Color Picker",
+	}),
 	"Color Picker (Unified)",
-) as any;
+);

@@ -211,21 +211,20 @@ const CounterUI: React.FC<{
 // Create the plugin using the adapter
 export const htmlCounterPlugin = UnifiedShapePluginAdapter.fromBaseShape(
 	"html-counter-unified",
-	HtmlCounter as any,
-	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>
-		({
-			id: props.id,
-			type: "html-counter-unified" as const,
-			x: props.x,
-			y: props.y,
-			width: props.width || 160,
-			height: props.height || 100,
-			rotation: 0,
-			opacity: 1,
-			fillColor: "#FFFFFF",
-			strokeColor: "#333333",
-			strokeWidth: 3,
-			count: 0,
-		}) as any,
+	HtmlCounter,
+	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
+		id: props.id,
+		type: "html-counter-unified",
+		x: props.x,
+		y: props.y,
+		width: props.width || 160,
+		height: props.height || 100,
+		rotation: 0,
+		opacity: 1,
+		fillColor: "#FFFFFF",
+		strokeColor: "#333333",
+		strokeWidth: 3,
+		count: 0,
+	}),
 	"Unified HTML Counter",
-) as any;
+);

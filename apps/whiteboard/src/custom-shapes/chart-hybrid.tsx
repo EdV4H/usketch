@@ -233,20 +233,19 @@ const ChartComponent: React.FC<{
 // Create the plugin using the adapter
 export const chartHybridPlugin = UnifiedShapePluginAdapter.fromBaseShape(
 	"chart-hybrid-unified",
-	ChartHybrid as any,
-	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>
-		({
-			id: props.id,
-			type: "chart-hybrid-unified",
-			x: props.x,
-			y: props.y,
-			width: props.width || 300,
-			height: props.height || 200,
-			rotation: 0,
-			opacity: 1,
-			data: [75, 45, 90, 30, 60, 85],
-			title: "Interactive Bar Chart",
-			color: "#4ECDC4",
-		}) as any,
+	ChartHybrid,
+	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
+		id: props.id,
+		type: "chart-hybrid-unified",
+		x: props.x,
+		y: props.y,
+		width: props.width || 300,
+		height: props.height || 200,
+		rotation: 0,
+		opacity: 1,
+		data: [75, 45, 90, 30, 60, 85],
+		title: "Interactive Bar Chart",
+		color: "#4ECDC4",
+	}),
 	"Chart (Hybrid)",
-) as any;
+);
