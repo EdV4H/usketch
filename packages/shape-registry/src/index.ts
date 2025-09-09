@@ -23,7 +23,7 @@ export {
 	useShapeToolComponent,
 	useValidateShape,
 } from "./hooks";
-export { globalShapeRegistry, ShapeRegistry } from "./ShapeRegistry";
+export { globalShapeRegistry, ShapeRegistry } from "./shape-registry";
 // Type exports
 export type {
 	Bounds,
@@ -35,4 +35,4 @@ export type {
 	ShapePlugin,
 	ToolProps,
 } from "./types";
-export { UnifiedShapePluginAdapter } from "./UnifiedShapePluginAdapter";
+export { UnifiedShapePluginAdapter } from "./unified-shape-plugin-adapter";

@@ -5,8 +5,8 @@ import type { Shape } from "@usketch/shared-types";
 import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { registerCustomBackgrounds } from "./backgrounds/registerBackgrounds";
-import { ToolbarReact } from "./components/ToolbarReact";
+import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
+import { ToolbarReact } from "./components/toolbar-react";
 import { customShapePlugins } from "./custom-shapes";
 import "./styles/app.css";
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BaseShape } from "../BaseShape";
+import { BaseShape } from "../base-shape";
 
 describe("BaseShape", () => {
 	it("should be defined", () => {

@@ -1,20 +1,20 @@
 // === Main exports for @usketch/tools ===
 
 // Main Tool Manager
-export { ToolManager } from "./adapters/toolManagerAdapter";
+export { ToolManager } from "./adapters/tool-manager-adapter";
 // Helper for backward compatibility with default tools
-export { createDefaultToolManager } from "./adapters/toolManagerCompat";
+export { createDefaultToolManager } from "./adapters/tool-manager-compat";
 
 // Tool configurations
 export { createDefaultToolManagerOptions, getDefaultTools } from "./configs/default-tools";
 
 // Machine exports for advanced usage
-export type { DrawingToolContext, DrawingToolEvent } from "./machines/drawingTool";
-export { createDrawingTool } from "./machines/drawingTool";
-export type { SelectToolContext, SelectToolEvent } from "./machines/selectTool";
-export { selectToolMachine } from "./machines/selectTool";
-export { createToolMachine } from "./machines/toolMachineFactory";
-export { toolManagerMachine } from "./machines/toolManager";
+export type { DrawingToolContext, DrawingToolEvent } from "./machines/drawing-tool";
+export { createDrawingTool } from "./machines/drawing-tool";
+export type { SelectToolContext, SelectToolEvent } from "./machines/select-tool";
+export { selectToolMachine } from "./machines/select-tool";
+export { createToolMachine } from "./machines/tool-machine-factory";
+export { toolManagerMachine } from "./machines/tool-manager";
 
 // Types
 export type {
@@ -41,4 +41,4 @@ export type {
 
 // Utils
 export * from "./utils/geometry";
-export { SnapEngine } from "./utils/snapEngine";
+export { SnapEngine } from "./utils/snap-engine";

@@ -9,7 +9,7 @@ import {
 	getShapesInBounds,
 	updateShape,
 } from "../utils/geometry";
-import { SnapEngine } from "../utils/snapEngine";
+import { SnapEngine } from "../utils/snap-engine";
 
 // === Select Tool Context ===
 export interface SelectToolContext extends ToolContext {

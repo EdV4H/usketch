@@ -12,25 +12,25 @@ export {
 	type LinesBackgroundConfig,
 } from "@usketch/background-presets";
 // Background Registry
-export { BackgroundRegistry, globalBackgroundRegistry } from "./backgrounds/BackgroundRegistry";
+export { BackgroundRegistry, globalBackgroundRegistry } from "./backgrounds/background-registry";
 export {
 	getAllPresetIds,
 	PRESET_BACKGROUNDS_METADATA,
 	registerPresetBackgrounds,
 } from "./backgrounds/presets";
 export type { BackgroundComponent, BackgroundComponentProps } from "./backgrounds/types";
-export { BackgroundLayer } from "./components/BackgroundLayer";
-export { InteractionLayer } from "./components/InteractionLayer";
-export { SelectionLayer } from "./components/SelectionLayer";
-export { ShapeLayer } from "./components/ShapeLayer";
-export { WhiteboardCanvas } from "./components/WhiteboardCanvas";
+export { BackgroundLayer } from "./components/background-layer";
+export { InteractionLayer } from "./components/interaction-layer";
+export { SelectionLayer } from "./components/selection-layer";
+export { ShapeLayer } from "./components/shape-layer";
+export { WhiteboardCanvas } from "./components/whiteboard-canvas";
 
 // Hooks
-export { useBackgroundRenderer } from "./hooks/useBackgroundRenderer";
-export { useCanvas } from "./hooks/useCanvas";
-export { useInteraction } from "./hooks/useInteraction";
-export { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-export { useShapeManagement } from "./hooks/useShapeManagement";
+export { useBackgroundRenderer } from "./hooks/use-background-renderer";
+export { useCanvas } from "./hooks/use-canvas";
+export { useInteraction } from "./hooks/use-interaction";
+export { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
+export { useShapeManagement } from "./hooks/use-shape-management";
 
 // Types
 export type { CanvasProps, LayerProps } from "./types";

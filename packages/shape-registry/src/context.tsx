@@ -7,7 +7,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { globalShapeRegistry, type ShapeRegistry } from "./ShapeRegistry";
+import { globalShapeRegistry, type ShapeRegistry } from "./shape-registry";
 import type { RegistryEvent, ShapePlugin } from "./types";
 
 /**
