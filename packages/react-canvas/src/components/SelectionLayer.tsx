@@ -32,14 +32,14 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 				width: "width" in shape ? shape.width : 100,
 				height: "height" in shape ? shape.height : 100,
 			};
-			
+
 			if (plugin?.getBounds) {
 				bounds = plugin.getBounds(shape);
-				console.log('[SelectionLayer] Using plugin bounds for', shape.type, ':', bounds);
+				console.log("[SelectionLayer] Using plugin bounds for", shape.type, ":", bounds);
 			} else {
-				console.log('[SelectionLayer] No getBounds for', shape.type, ', using default:', bounds);
+				console.log("[SelectionLayer] No getBounds for", shape.type, ", using default:", bounds);
 			}
-			
+
 			minX = Math.min(minX, bounds.x);
 			minY = Math.min(minY, bounds.y);
 			maxX = Math.max(maxX, bounds.x + bounds.width);
@@ -99,14 +99,24 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 						width: "width" in shape ? shape.width : 100,
 						height: "height" in shape ? shape.height : 100,
 					};
-					
+
 					if (plugin?.getBounds) {
 						bounds = plugin.getBounds(shape);
-						console.log('[SelectionLayer] Individual box using plugin bounds for', shape.type, ':', bounds);
+						console.log(
+							"[SelectionLayer] Individual box using plugin bounds for",
+							shape.type,
+							":",
+							bounds,
+						);
 					} else {
-						console.log('[SelectionLayer] Individual box no getBounds for', shape.type, ', using default:', bounds);
+						console.log(
+							"[SelectionLayer] Individual box no getBounds for",
+							shape.type,
+							", using default:",
+							bounds,
+						);
 					}
-					
+
 					return (
 						<div
 							key={shape.id}
@@ -141,6 +151,7 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 							backgroundColor: "#0066ff",
 							border: "1px solid white",
 							cursor: "nw-resize",
+							pointerEvents: "auto",
 						}}
 					/>
 					<div
@@ -154,6 +165,7 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 							backgroundColor: "#0066ff",
 							border: "1px solid white",
 							cursor: "ne-resize",
+							pointerEvents: "auto",
 						}}
 					/>
 					<div
@@ -167,6 +179,7 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 							backgroundColor: "#0066ff",
 							border: "1px solid white",
 							cursor: "sw-resize",
+							pointerEvents: "auto",
 						}}
 					/>
 					<div
@@ -180,6 +193,7 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 							backgroundColor: "#0066ff",
 							border: "1px solid white",
 							cursor: "se-resize",
+							pointerEvents: "auto",
 						}}
 					/>
 				</>

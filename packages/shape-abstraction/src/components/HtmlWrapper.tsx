@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import type { ShapeRenderer } from "../types";
 
@@ -112,11 +113,34 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 	]);
 
 	const handlePointerDown = (e: React.PointerEvent) => {
-		if (renderer.onPointerDown) {
-			renderer.onPointerDown(e);
-		}
-		if (onPointerDown) {
-			onPointerDown(e);
+		// Check if the pointer down is on an interactive element
+		const target = e.target as HTMLElement;
+		const isInteractiveElement =
+			target.tagName === "BUTTON" ||
+			target.tagName === "INPUT" ||
+			target.tagName === "TEXTAREA" ||
+			target.tagName === "SELECT" ||
+			target.tagName === "A" ||
+			target.closest("button") !== null ||
+			target.closest("input") !== null ||
+			target.closest("textarea") !== null ||
+			target.closest("select") !== null;
+
+		// If clicking on an interactive element, prevent dragging
+		if (isInteractiveElement) {
+			e.stopPropagation();
+			// Still allow the renderer to handle it if needed
+			if (renderer.onPointerDown) {
+				renderer.onPointerDown(e);
+			}
+		} else {
+			// For non-interactive areas, allow both renderer handling and shape dragging
+			if (renderer.onPointerDown) {
+				renderer.onPointerDown(e);
+			}
+			if (onPointerDown) {
+				onPointerDown(e);
+			}
 		}
 	};
 
@@ -139,7 +163,25 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 	};
 
 	const handleClick = (e: React.MouseEvent) => {
-		if (onClick) {
+		// Check if the click is on an interactive element (button, input, etc.)
+		const target = e.target as HTMLElement;
+		const isInteractiveElement =
+			target.tagName === "BUTTON" ||
+			target.tagName === "INPUT" ||
+			target.tagName === "TEXTAREA" ||
+			target.tagName === "SELECT" ||
+			target.tagName === "A" ||
+			target.closest("button") !== null ||
+			target.closest("input") !== null ||
+			target.closest("textarea") !== null ||
+			target.closest("select") !== null ||
+			target.closest("a") !== null;
+
+		// If clicking on an interactive element, don't trigger shape selection
+		if (isInteractiveElement) {
+			e.stopPropagation();
+		} else if (onClick) {
+			// For non-interactive areas, allow shape selection
 			onClick(e);
 		}
 	};
@@ -148,16 +190,6 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 	console.log(`[HtmlWrapper] Rendering shape ${renderer.shape.type}#${renderer.shape.id}`);
 	const shapeElement = renderer.render();
 	console.log(`[HtmlWrapper] Shape element:`, shapeElement);
-
-	// Wrap the element with event handlers
-	const wrappedElement = React.isValidElement(shapeElement)
-		? React.cloneElement(shapeElement as React.ReactElement<any>, {
-				onClick: handleClick,
-				onPointerDown: handlePointerDown,
-				onPointerMove: handlePointerMove,
-				onPointerUp: handlePointerUp,
-			})
-		: shapeElement;
 
 	// Try foreignObject first (better performance and integration)
 	if (useForeignObject) {
@@ -171,10 +203,6 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 				width={bounds.width}
 				height={bounds.height}
 				style={{ overflow: "visible", pointerEvents: "all" }}
-				onClick={handleClick}
-				onPointerDown={handlePointerDown}
-				onPointerMove={handlePointerMove}
-				onPointerUp={handlePointerUp}
 				data-shape-id={renderer.shape.id}
 				data-shape-type={renderer.shape.type}
 			>
@@ -184,8 +212,12 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 						height: "100%",
 						position: "relative",
 					}}
+					onClick={handleClick}
+					onPointerDown={handlePointerDown}
+					onPointerMove={handlePointerMove}
+					onPointerUp={handlePointerUp}
 				>
-					{wrappedElement}
+					{shapeElement}
 				</div>
 			</foreignObject>
 		);
@@ -212,7 +244,23 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 				onPointerUp={handlePointerUp}
 			/>
 			{/* HTML content via portal (when container is ready) */}
-			{container && ReactDOM.createPortal(wrappedElement, container)}
+			{container &&
+				ReactDOM.createPortal(
+					<div
+						style={{
+							width: "100%",
+							height: "100%",
+							position: "relative",
+						}}
+						onClick={handleClick}
+						onPointerDown={handlePointerDown}
+						onPointerMove={handlePointerMove}
+						onPointerUp={handlePointerUp}
+					>
+						{shapeElement}
+					</div>,
+					container,
+				)}
 		</>
 	);
 };

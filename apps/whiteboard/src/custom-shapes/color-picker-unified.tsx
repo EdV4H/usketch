@@ -99,73 +99,85 @@ const ColorPickerComponent: React.FC<{
 				background: "white",
 				border: "2px solid #333",
 				borderRadius: "8px",
-				padding: "12px",
 				boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
 				opacity: shape.opacity,
 				transform: `rotate(${shape.rotation}deg)`,
 				transformOrigin: "center",
 				userSelect: "none",
+				display: "flex",
+				flexDirection: "column",
+				overflow: "hidden",
 			}}
 		>
+			{/* Draggable header */}
 			<div
 				style={{
+					padding: "8px 12px",
+					background: "linear-gradient(to bottom, #f5f5f5, #e0e0e0)",
+					borderBottom: "1px solid #999",
+					cursor: "move",
 					fontSize: "14px",
 					fontWeight: "bold",
-					marginBottom: "8px",
 					color: "#333",
 				}}
+				title="Drag here to move"
 			>
 				{shape.label}
 			</div>
 
-			<div
-				style={{
-					display: "grid",
-					gridTemplateColumns: "repeat(5, 1fr)",
-					gap: "6px",
-					marginBottom: "12px",
-				}}
-			>
-				{colors.map((color) => (
-					<button
-						key={color}
-						onClick={(e) => handleColorSelect(color, e)}
-						style={{
-							width: "30px",
-							height: "30px",
-							background: color,
-							border: localColor === color ? "3px solid #333" : "1px solid #ccc",
-							borderRadius: "4px",
-							cursor: "pointer",
-							transition: "all 0.2s",
-							transform: localColor === color ? "scale(1.1)" : "scale(1)",
-						}}
-						aria-label={`Select color ${color}`}
-					/>
-				))}
-			</div>
-
-			<div
-				style={{
-					display: "flex",
-					alignItems: "center",
-					gap: "8px",
-				}}
-			>
+			{/* Content area */}
+			<div style={{ padding: "12px", flex: 1 }}>
 				<div
 					style={{
-						width: "40px",
-						height: "40px",
-						background: localColor,
-						border: "2px solid #333",
-						borderRadius: "4px",
+						display: "grid",
+						gridTemplateColumns: "repeat(5, 1fr)",
+						gap: "6px",
+						marginBottom: "12px",
 					}}
-				/>
-				<div>
-					<div style={{ fontSize: "12px", color: "#666" }}>Selected:</div>
-					<div style={{ fontSize: "14px", fontWeight: "bold", color: "#333" }}>{localColor}</div>
+				>
+					{colors.map((color) => (
+						<button
+							type="button"
+							key={color}
+							onClick={(e) => handleColorSelect(color, e)}
+							style={{
+								width: "30px",
+								height: "30px",
+								background: color,
+								border: localColor === color ? "3px solid #333" : "1px solid #ccc",
+								borderRadius: "4px",
+								cursor: "pointer",
+								transition: "all 0.2s",
+								transform: localColor === color ? "scale(1.1)" : "scale(1)",
+							}}
+							aria-label={`Select color ${color}`}
+						/>
+					))}
+				</div>
+
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: "8px",
+					}}
+				>
+					<div
+						style={{
+							width: "40px",
+							height: "40px",
+							background: localColor,
+							border: "2px solid #333",
+							borderRadius: "4px",
+						}}
+					/>
+					<div>
+						<div style={{ fontSize: "12px", color: "#666" }}>Selected:</div>
+						<div style={{ fontSize: "14px", fontWeight: "bold", color: "#333" }}>{localColor}</div>
+					</div>
 				</div>
 			</div>
+			{/* Close content area */}
 		</div>
 	);
 };
