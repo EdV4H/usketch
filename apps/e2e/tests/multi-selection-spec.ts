@@ -353,8 +353,8 @@ test.describe("Multi-Selection Feature", () => {
 			const dimensions = await selectionBox.evaluate((el) => ({
 				width: el.offsetWidth,
 				height: el.offsetHeight,
-				left: parseInt(el.style.left || "0"),
-				top: parseInt(el.style.top || "0"),
+				left: parseInt(el.style.left || "0", 10),
+				top: parseInt(el.style.top || "0", 10),
 			}));
 
 			// The box should have non-zero dimensions
