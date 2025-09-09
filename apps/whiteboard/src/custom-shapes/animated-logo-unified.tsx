@@ -84,126 +84,135 @@ const AnimatedLogoComponent: React.FC<{ shape: AnimatedLogoUnifiedShape }> = ({ 
 
 	return (
 		<g
-			transform={`translate(${shape.x}, ${shape.y}) rotate(${shape.rotation}, ${centerX}, ${centerY})`}
+			transform={`translate(${shape.x}, ${shape.y})`}
 			opacity={shape.opacity}
-			onMouseEnter={() => setHovered(true)}
-			onMouseLeave={() => setHovered(false)}
 			style={{ cursor: "pointer" }}
 		>
-			{/* Background circle */}
-			<circle cx={centerX} cy={centerY} r={radius * 2} fill="white" stroke="#333" strokeWidth="2" />
-
-			{/* Animated outer ring */}
-			<g transform={`rotate(${rotation}, ${centerX}, ${centerY})`}>
+			{/* Inner group for rotation */}
+			<g transform={`rotate(${shape.rotation}, ${centerX}, ${centerY})`}>
+				{/* Background circle */}
 				<circle
 					cx={centerX}
 					cy={centerY}
-					r={radius * 1.5}
-					fill="none"
-					stroke={shape.primaryColor}
-					strokeWidth="3"
-					strokeDasharray="10 5"
-					opacity="0.7"
-				>
-					<animateTransform
-						attributeName="transform"
-						type="rotate"
-						from={`0 ${centerX} ${centerY}`}
-						to={`360 ${centerX} ${centerY}`}
-						dur="10s"
-						repeatCount="indefinite"
-					/>
-				</circle>
-			</g>
-
-			{/* Central animated element */}
-			<g
-				transform={`translate(${centerX}, ${centerY}) scale(${scale})`}
-				style={{ transition: "transform 0.3s ease" }}
-			>
-				{/* Hexagon shape */}
-				<polygon
-					points={generateHexagonPoints(radius)}
-					fill={shape.primaryColor}
-					stroke={shape.secondaryColor}
+					r={radius * 2}
+					fill="white"
+					stroke="#333"
 					strokeWidth="2"
-					transform={`rotate(${-rotation * 2})`}
-				>
-					<animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" />
-				</polygon>
+				/>
 
-				{/* Inner rotating triangles */}
-				{[0, 120, 240].map((angle, index) => (
-					<polygon
-						key={index}
-						points={generateTrianglePoints(radius * 0.5)}
-						fill={shape.secondaryColor}
-						opacity="0.6"
-						transform={`rotate(${angle + rotation * 3})`}
+				{/* Animated outer ring */}
+				<g transform={`rotate(${rotation}, ${centerX}, ${centerY})`}>
+					<circle
+						cx={centerX}
+						cy={centerY}
+						r={radius * 1.5}
+						fill="none"
+						stroke={shape.primaryColor}
+						strokeWidth="3"
+						strokeDasharray="10 5"
+						opacity="0.7"
 					>
 						<animateTransform
 							attributeName="transform"
 							type="rotate"
-							from={`${angle} 0 0`}
-							to={`${angle + 360} 0 0`}
-							dur={`${3 + index}s`}
-							repeatCount="indefinite"
-						/>
-					</polygon>
-				))}
-
-				{/* Center circle */}
-				<circle cx="0" cy="0" r={radius * 0.2} fill="white">
-					<animate
-						attributeName="r"
-						values={`${radius * 0.2};${radius * 0.3};${radius * 0.2}`}
-						dur="1.5s"
-						repeatCount="indefinite"
-					/>
-				</circle>
-			</g>
-
-			{/* Orbiting dots */}
-			{[0, 90, 180, 270].map((angle, index) => {
-				const orbitRadius = radius * 1.8;
-				const dotX = centerX + Math.cos((angle + rotation) * (Math.PI / 180)) * orbitRadius;
-				const dotY = centerY + Math.sin((angle + rotation) * (Math.PI / 180)) * orbitRadius;
-
-				return (
-					<circle
-						key={index}
-						cx={dotX}
-						cy={dotY}
-						r="4"
-						fill={index % 2 === 0 ? shape.primaryColor : shape.secondaryColor}
-					>
-						<animate
-							attributeName="r"
-							values="4;6;4"
-							dur={`${1 + index * 0.2}s`}
-							repeatCount="indefinite"
-						/>
-						<animate
-							attributeName="opacity"
-							values="1;0.5;1"
-							dur={`${1.5 + index * 0.1}s`}
+							from={`0 ${centerX} ${centerY}`}
+							to={`360 ${centerX} ${centerY}`}
+							dur="10s"
 							repeatCount="indefinite"
 						/>
 					</circle>
-				);
-			})}
+				</g>
 
-			{/* Text label */}
-			<text
-				x={centerX}
-				y={shape.height - 10}
-				fontSize="12"
-				fill="#333"
-				textAnchor="middle"
-				fontWeight="bold"
-			>
-				Animated Logo
-			</text>
+				{/* Central animated element */}
+				<g
+					transform={`translate(${centerX}, ${centerY}) scale(${scale})`}
+					style={{ transition: "transform 0.3s ease" }}
+				>
+					{/* Hexagon shape */}
+					<polygon
+						points={generateHexagonPoints(radius)}
+						fill={shape.primaryColor}
+						stroke={shape.secondaryColor}
+						strokeWidth="2"
+						transform={`rotate(${-rotation * 2})`}
+					>
+						<animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" />
+					</polygon>
+
+					{/* Inner rotating triangles */}
+					{[0, 120, 240].map((angle, index) => (
+						<polygon
+							key={index}
+							points={generateTrianglePoints(radius * 0.5)}
+							fill={shape.secondaryColor}
+							opacity="0.6"
+							transform={`rotate(${angle + rotation * 3})`}
+						>
+							<animateTransform
+								attributeName="transform"
+								type="rotate"
+								from={`${angle} 0 0`}
+								to={`${angle + 360} 0 0`}
+								dur={`${3 + index}s`}
+								repeatCount="indefinite"
+							/>
+						</polygon>
+					))}
+
+					{/* Center circle */}
+					<circle cx="0" cy="0" r={radius * 0.2} fill="white">
+						<animate
+							attributeName="r"
+							values={`${radius * 0.2};${radius * 0.3};${radius * 0.2}`}
+							dur="1.5s"
+							repeatCount="indefinite"
+						/>
+					</circle>
+				</g>
+
+				{/* Orbiting dots */}
+				{[0, 90, 180, 270].map((angle, index) => {
+					const orbitRadius = radius * 1.8;
+					const dotX = centerX + Math.cos((angle + rotation) * (Math.PI / 180)) * orbitRadius;
+					const dotY = centerY + Math.sin((angle + rotation) * (Math.PI / 180)) * orbitRadius;
+
+					return (
+						<circle
+							key={index}
+							cx={dotX}
+							cy={dotY}
+							r="4"
+							fill={index % 2 === 0 ? shape.primaryColor : shape.secondaryColor}
+						>
+							<animate
+								attributeName="r"
+								values="4;6;4"
+								dur={`${1 + index * 0.2}s`}
+								repeatCount="indefinite"
+							/>
+							<animate
+								attributeName="opacity"
+								values="1;0.5;1"
+								dur={`${1.5 + index * 0.1}s`}
+								repeatCount="indefinite"
+							/>
+						</circle>
+					);
+				})}
+
+				{/* Text label */}
+				<text
+					x={centerX}
+					y={shape.height - 10}
+					fontSize="12"
+					fill="#333"
+					textAnchor="middle"
+					fontWeight="bold"
+				>
+					Animated Logo
+				</text>
+			</g>
+			{/* Close rotation group */}
 		</g>
 	);
 };

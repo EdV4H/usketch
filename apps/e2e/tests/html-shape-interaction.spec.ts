@@ -108,39 +108,52 @@ test.describe("HTML Shape Interaction", () => {
 	test("should be able to drag SVG shapes (AnimatedLogo)", async ({ page }) => {
 		// Wait a bit longer for AnimatedLogo to be added
 		await page.waitForTimeout(1500);
-		
+
 		// First, check what shapes are available on the page
 		const shapes = await page.evaluate(() => {
-			const elements = document.querySelectorAll('[data-shape-type]');
-			return Array.from(elements).map(el => ({
-				type: el.getAttribute('data-shape-type'),
+			const elements = document.querySelectorAll("[data-shape-type]");
+			return Array.from(elements).map((el) => ({
+				type: el.getAttribute("data-shape-type"),
 				tagName: el.tagName,
-				id: el.getAttribute('data-shape-id')
+				id: el.getAttribute("data-shape-id"),
 			}));
 		});
 		console.log("Available shapes:", shapes);
 
-		// Find the AnimatedLogo shape - it might be rendered as a g element in SVG
-		// Wait for it to appear
-		const animatedLogo = await page.locator('[data-shape-type="animated-logo-unified"]').first();
-		
-		// Check if it exists
-		const count = await animatedLogo.count();
-		if (count === 0) {
+		// Try to find AnimatedLogo by its transform position (100, 550)
+		// It may not have data-shape-type attribute set properly
+		const animatedLogoTransform = await page.evaluate(() => {
+			const gs = document.querySelectorAll('svg g[transform*="translate(100, 550)"]');
+			if (gs.length > 0) {
+				return {
+					found: true,
+					transform: gs[0].getAttribute("transform"),
+					hasDataType: gs[0].hasAttribute("data-shape-type"),
+				};
+			}
+			return { found: false };
+		});
+
+		if (!animatedLogoTransform.found) {
 			console.log("AnimatedLogo not found, it may not have been added yet");
 			// List all g elements to debug
 			const gElements = await page.evaluate(() => {
-				const gs = document.querySelectorAll('svg g');
-				return Array.from(gs).map(g => ({
-					dataType: g.getAttribute('data-shape-type'),
-					dataId: g.getAttribute('data-shape-id'),
-					transform: g.getAttribute('transform'),
-					childCount: g.children.length
+				const gs = document.querySelectorAll("svg g");
+				return Array.from(gs).map((g) => ({
+					dataType: g.getAttribute("data-shape-type"),
+					dataId: g.getAttribute("data-shape-id"),
+					transform: g.getAttribute("transform"),
+					childCount: g.children.length,
 				}));
 			});
 			console.log("All g elements:", gElements);
 			return;
 		}
+
+		console.log("Found AnimatedLogo:", animatedLogoTransform);
+
+		// Find the AnimatedLogo shape by transform
+		const animatedLogo = await page.locator('g[transform*="translate(100, 550)"]').first();
 
 		// Get initial position
 		const initialBox = await animatedLogo.boundingBox();
