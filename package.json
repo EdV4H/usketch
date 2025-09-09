@@ -12,6 +12,7 @@
 		"clean": "turbo run clean",
 		"format": "biome check --write --no-errors-on-unmatched .",
 		"format:check": "biome check .",
+		"check:filenames": "node scripts/check-filenames.js",
 		"prepare": "lefthook install"
 	},
 	"keywords": [],
