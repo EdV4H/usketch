@@ -12,11 +12,13 @@
 
 ### 命名パターン
 - **必須**: kebab-case（例: `user-profile.ts`, `header-component.tsx`, `api-v2.ts`, `utils-123.tsx`）
+- **許可される特殊ケース**:
+  - 単一文字ファイル（例: `a.ts`, `x.tsx`, `1.ts`）
+  - 数字を含むファイル（例: `component-v2.tsx`, `test-123.ts`）
 - **禁止**: 
   - camelCase（例: ~~`userProfile.ts`~~）
   - PascalCase（例: ~~`UserProfile.ts`~~）
   - snake_case（例: ~~`user_profile.ts`~~）
-- **数字の扱い**: 数字は許可されるが、適切に区切る（例: `component-v2.tsx`, `test-123.ts`）
 
 ### 例外
 - 設定ファイル（例: `next.config.ts`, `vite.config.ts`）
@@ -74,7 +76,8 @@ const fs = require('fs');
 const path = require('path');
 const glob = require('glob');
 
-// kebab-case パターン（数字も許可）
+// kebab-case パターン（数字も許可、単一文字も許可）
+// 例: 'a.ts', '1.ts', 'api-v2.ts', 'test-123.tsx'
 const kebabCasePattern = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 // 例外ファイルのパターン
