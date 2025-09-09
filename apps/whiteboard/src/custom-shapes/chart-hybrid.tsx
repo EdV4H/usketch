@@ -1,11 +1,11 @@
 import type { BaseShapeConfig, Bounds } from "@usketch/shape-abstraction";
 import { BaseShape } from "@usketch/shape-abstraction";
-import { UnifiedShapePluginAdapter } from "@usketch/shape-registry";
+import { ShapePluginAdapter } from "@usketch/shape-registry";
 import type React from "react";
 import { useState } from "react";
 
 // Define the chart shape data structure
-export interface ChartHybridUnifiedShape {
+export interface ChartHybridShape {
 	id: string;
 	type: "chart-hybrid-unified";
 	x: number;
@@ -23,8 +23,8 @@ export interface ChartHybridUnifiedShape {
  * Hybrid Chart Shape combining SVG and HTML
  * Demonstrates the power of hybrid rendering mode
  */
-class ChartHybridUnified extends BaseShape<ChartHybridUnifiedShape> {
-	constructor(shape: ChartHybridUnifiedShape, config: BaseShapeConfig<ChartHybridUnifiedShape>) {
+class ChartHybrid extends BaseShape<ChartHybridShape> {
+	constructor(shape: ChartHybridShape, config: BaseShapeConfig<ChartHybridShape>) {
 		super(shape, {
 			...config,
 			renderMode: "hybrid", // Use hybrid mode for SVG + HTML
@@ -57,13 +57,13 @@ class ChartHybridUnified extends BaseShape<ChartHybridUnifiedShape> {
 
 	private handleDataUpdate = (data: number[]) => {
 		// Use updateShape to trigger a proper state update
-		this.updateShape({ data } as Partial<ChartHybridUnifiedShape>);
+		this.updateShape({ data } as Partial<ChartHybridShape>);
 	};
 }
 
 // React component combining SVG and HTML
 const ChartComponent: React.FC<{
-	shape: ChartHybridUnifiedShape;
+	shape: ChartHybridShape;
 	onDataUpdate: (data: number[]) => void;
 }> = ({ shape, onDataUpdate }) => {
 	const [hoveredBar, setHoveredBar] = useState<number | null>(null);
@@ -231,7 +231,7 @@ const ChartComponent: React.FC<{
 };
 
 // Create the plugin using the adapter
-export const chartHybridUnifiedPlugin = UnifiedShapePluginAdapter.fromBaseShape(
+export const chartHybridPlugin = ShapePluginAdapter.fromBaseShape(
 	"chart-hybrid-unified",
 	ChartHybridUnified,
 	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>

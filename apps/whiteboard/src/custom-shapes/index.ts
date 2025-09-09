@@ -5,28 +5,21 @@ export { starPlugin } from "./star";
 export type { TriangleShape } from "./triangle";
 export { trianglePlugin } from "./triangle";
 
-// All custom shape plugins as an array for easy registration
-export const customShapePlugins = async () => {
-	const { starPlugin } = await import("./star");
-	const { heartPlugin } = await import("./heart");
-	const { trianglePlugin } = await import("./triangle");
+// All custom shape plugins - direct imports since lazy loading isn't necessary
+import { animatedLogoPlugin } from "./animated-logo";
+import { chartHybridPlugin } from "./chart-hybrid";
+import { colorPickerPlugin } from "./color-picker";
+import { htmlCounterPlugin } from "./html-counter";
+import { videoPlayerPlugin } from "./video-player";
 
-	// New unified abstraction layer shapes
-	const { htmlCounterUnifiedPlugin } = await import("./html-counter-unified");
-	const { colorPickerUnifiedPlugin } = await import("./color-picker-unified");
-	const { chartHybridUnifiedPlugin } = await import("./chart-hybrid-unified");
-	const { videoPlayerUnifiedPlugin } = await import("./video-player-unified");
-	const { animatedLogoUnifiedPlugin } = await import("./animated-logo-unified");
-
-	return [
-		starPlugin,
-		heartPlugin,
-		trianglePlugin,
-		// New unified shapes demonstrating the abstraction layer
-		htmlCounterUnifiedPlugin,
-		colorPickerUnifiedPlugin,
-		chartHybridUnifiedPlugin,
-		videoPlayerUnifiedPlugin,
-		animatedLogoUnifiedPlugin,
-	];
-};
+export const customShapePlugins = [
+	starPlugin,
+	heartPlugin,
+	trianglePlugin,
+	// New unified shapes demonstrating the abstraction layer
+	htmlCounterPlugin,
+	colorPickerPlugin,
+	chartHybridPlugin,
+	videoPlayerPlugin,
+	animatedLogoPlugin,
+];

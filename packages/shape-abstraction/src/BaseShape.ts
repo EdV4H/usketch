@@ -85,7 +85,7 @@ export abstract class BaseShape<T extends MinimalShape = MinimalShape> implement
 	}
 
 	protected updateShape(updates: Partial<T>): void {
-		whiteboardStore.getState().updateShape(this.shape.id, updates as any);
+		whiteboardStore.getState().updateShape(this.shape.id, updates);
 	}
 
 	protected getSelectionStyle(): React.CSSProperties {

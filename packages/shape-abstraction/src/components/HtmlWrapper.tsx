@@ -3,6 +3,20 @@ import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import type { ShapeRenderer } from "../types";
 
+// Constants
+const DOM_READY_DELAY = 100; // milliseconds to wait for DOM to be ready
+
+// Helper function to check if element is interactive
+const isInteractiveElement = (target: HTMLElement): boolean => {
+	const interactiveTags = ["BUTTON", "INPUT", "TEXTAREA", "SELECT", "A"];
+	const interactiveSelectors = ["button", "input", "textarea", "select", "a"];
+
+	return (
+		interactiveTags.includes(target.tagName) ||
+		interactiveSelectors.some((selector) => target.closest(selector) !== null)
+	);
+};
+
 export interface HtmlWrapperProps {
 	renderer: ShapeRenderer;
 	onClick?: (e: React.MouseEvent) => void;
@@ -46,7 +60,7 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 					canvasContainer.appendChild(div);
 					setContainer(div);
 				}
-			}, 100); // Small delay to ensure DOM is ready
+			}, DOM_READY_DELAY);
 
 			return () => {
 				clearTimeout(timer);
@@ -93,19 +107,9 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 	const handlePointerDown = (e: React.PointerEvent) => {
 		// Check if the pointer down is on an interactive element
 		const target = e.target as HTMLElement;
-		const isInteractiveElement =
-			target.tagName === "BUTTON" ||
-			target.tagName === "INPUT" ||
-			target.tagName === "TEXTAREA" ||
-			target.tagName === "SELECT" ||
-			target.tagName === "A" ||
-			target.closest("button") !== null ||
-			target.closest("input") !== null ||
-			target.closest("textarea") !== null ||
-			target.closest("select") !== null;
 
 		// If clicking on an interactive element, prevent dragging
-		if (isInteractiveElement) {
+		if (isInteractiveElement(target)) {
 			e.stopPropagation();
 			// Still allow the renderer to handle it if needed
 			if (renderer.onPointerDown) {
@@ -143,20 +147,9 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 	const handleClick = (e: React.MouseEvent) => {
 		// Check if the click is on an interactive element (button, input, etc.)
 		const target = e.target as HTMLElement;
-		const isInteractiveElement =
-			target.tagName === "BUTTON" ||
-			target.tagName === "INPUT" ||
-			target.tagName === "TEXTAREA" ||
-			target.tagName === "SELECT" ||
-			target.tagName === "A" ||
-			target.closest("button") !== null ||
-			target.closest("input") !== null ||
-			target.closest("textarea") !== null ||
-			target.closest("select") !== null ||
-			target.closest("a") !== null;
 
 		// If clicking on an interactive element, don't trigger shape selection
-		if (isInteractiveElement) {
+		if (isInteractiveElement(target)) {
 			e.stopPropagation();
 		} else if (onClick) {
 			// For non-interactive areas, allow shape selection

@@ -1,11 +1,11 @@
 import type { BaseShapeConfig, Bounds } from "@usketch/shape-abstraction";
 import { BaseShape } from "@usketch/shape-abstraction";
-import { UnifiedShapePluginAdapter } from "@usketch/shape-registry";
+import { ShapePluginAdapter } from "@usketch/shape-registry";
 import type React from "react";
 import { useRef, useState } from "react";
 
 // Define the video player shape data structure
-export interface VideoPlayerUnifiedShape {
+export interface VideoPlayerShape {
 	id: string;
 	type: "video-player-unified";
 	x: number;
@@ -23,8 +23,8 @@ export interface VideoPlayerUnifiedShape {
  * Video Player Shape using HTML rendering
  * Demonstrates embedding rich media content
  */
-class VideoPlayerUnified extends BaseShape<VideoPlayerUnifiedShape> {
-	constructor(shape: VideoPlayerUnifiedShape, config: BaseShapeConfig<VideoPlayerUnifiedShape>) {
+class VideoPlayer extends BaseShape<VideoPlayerShape> {
+	constructor(shape: VideoPlayerShape, config: BaseShapeConfig<VideoPlayerShape>) {
 		super(shape, {
 			...config,
 			renderMode: "html", // HTML for video elements
@@ -57,7 +57,7 @@ class VideoPlayerUnified extends BaseShape<VideoPlayerUnifiedShape> {
 }
 
 // React component for the video player
-const VideoPlayerComponent: React.FC<{ shape: VideoPlayerUnifiedShape }> = ({ shape }) => {
+const VideoPlayerComponent: React.FC<{ shape: VideoPlayerShape }> = ({ shape }) => {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
@@ -246,7 +246,7 @@ const VideoPlayerComponent: React.FC<{ shape: VideoPlayerUnifiedShape }> = ({ sh
 };
 
 // Create the plugin using the adapter
-export const videoPlayerUnifiedPlugin = UnifiedShapePluginAdapter.fromBaseShape(
+export const videoPlayerPlugin = ShapePluginAdapter.fromBaseShape(
 	"video-player-unified",
 	VideoPlayerUnified,
 	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>

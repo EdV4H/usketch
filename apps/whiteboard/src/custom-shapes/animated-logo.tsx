@@ -1,11 +1,11 @@
 import type { BaseShapeConfig, Bounds } from "@usketch/shape-abstraction";
 import { BaseShape } from "@usketch/shape-abstraction";
-import { UnifiedShapePluginAdapter } from "@usketch/shape-registry";
+import { ShapePluginAdapter } from "@usketch/shape-registry";
 import type React from "react";
 import { useEffect, useState } from "react";
 
 // Define the animated logo shape data structure
-export interface AnimatedLogoUnifiedShape {
+export interface AnimatedLogoShape {
 	id: string;
 	type: "animated-logo-unified";
 	x: number;
@@ -23,8 +23,8 @@ export interface AnimatedLogoUnifiedShape {
  * Animated Logo Shape using pure SVG
  * Demonstrates SVG animations and transformations
  */
-class AnimatedLogoUnified extends BaseShape<AnimatedLogoUnifiedShape> {
-	constructor(shape: AnimatedLogoUnifiedShape, config: BaseShapeConfig<AnimatedLogoUnifiedShape>) {
+class AnimatedLogo extends BaseShape<AnimatedLogoShape> {
+	constructor(shape: AnimatedLogoShape, config: BaseShapeConfig<AnimatedLogoShape>) {
 		super(shape, {
 			...config,
 			renderMode: "svg", // Pure SVG for smooth animations
@@ -65,7 +65,7 @@ class AnimatedLogoUnified extends BaseShape<AnimatedLogoUnifiedShape> {
 
 // React component for the animated logo
 interface AnimatedLogoComponentProps {
-	shape: AnimatedLogoUnifiedShape;
+	shape: AnimatedLogoShape;
 	shapeId?: string;
 	shapeType?: string;
 	[key: string]: any; // Allow additional props from SvgWrapper
@@ -263,7 +263,7 @@ function generateTrianglePoints(radius: number): string {
 }
 
 // Create the plugin using the adapter
-export const animatedLogoUnifiedPlugin = UnifiedShapePluginAdapter.fromBaseShape(
+export const animatedLogoPlugin = ShapePluginAdapter.fromBaseShape(
 	"animated-logo-unified",
 	AnimatedLogoUnified,
 	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>

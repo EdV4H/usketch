@@ -1,11 +1,11 @@
 import type { BaseShapeConfig, Bounds } from "@usketch/shape-abstraction";
 import { BaseShape } from "@usketch/shape-abstraction";
-import { UnifiedShapePluginAdapter } from "@usketch/shape-registry";
+import { ShapePluginAdapter } from "@usketch/shape-registry";
 import type React from "react";
 import { useState } from "react";
 
 // Define the color picker shape data structure
-export interface ColorPickerUnifiedShape {
+export interface ColorPickerShape {
 	id: string;
 	type: "color-picker-unified";
 	x: number;
@@ -22,8 +22,8 @@ export interface ColorPickerUnifiedShape {
  * Interactive Color Picker Shape using unified abstraction
  * Demonstrates HTML-based interactive components with state management
  */
-class ColorPickerUnified extends BaseShape<ColorPickerUnifiedShape> {
-	constructor(shape: ColorPickerUnifiedShape, config: BaseShapeConfig<ColorPickerUnifiedShape>) {
+class ColorPicker extends BaseShape<ColorPickerShape> {
+	constructor(shape: ColorPickerShape, config: BaseShapeConfig<ColorPickerShape>) {
 		super(shape, {
 			...config,
 			renderMode: "html", // Use HTML rendering for interactive components
@@ -64,7 +64,7 @@ class ColorPickerUnified extends BaseShape<ColorPickerUnifiedShape> {
 
 // React component for the color picker
 const ColorPickerComponent: React.FC<{
-	shape: ColorPickerUnifiedShape;
+	shape: ColorPickerShape;
 	onColorChange: (color: string) => void;
 }> = ({ shape, onColorChange }) => {
 	const [localColor, setLocalColor] = useState(shape.selectedColor);
@@ -183,7 +183,7 @@ const ColorPickerComponent: React.FC<{
 };
 
 // Create the plugin using the adapter
-export const colorPickerUnifiedPlugin = UnifiedShapePluginAdapter.fromBaseShape(
+export const colorPickerPlugin = ShapePluginAdapter.fromBaseShape(
 	"color-picker-unified",
 	ColorPickerUnified,
 	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>

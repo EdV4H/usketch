@@ -1,10 +1,10 @@
 import type { BaseShapeConfig, Bounds } from "@usketch/shape-abstraction";
 import { BaseShape } from "@usketch/shape-abstraction";
-import { UnifiedShapePluginAdapter } from "@usketch/shape-registry";
+import { ShapePluginAdapter } from "@usketch/shape-registry";
 import React, { useState } from "react";
 
 // Define the counter shape data structure
-export interface HtmlCounterUnifiedShape {
+export interface HtmlCounterShape {
 	id: string;
 	type: "html-counter-unified";
 	x: number;
@@ -20,10 +20,10 @@ export interface HtmlCounterUnifiedShape {
 }
 
 // Implement using the unified BaseShape abstraction
-class HtmlCounterUnified extends BaseShape<any> {
-	declare shape: HtmlCounterUnifiedShape;
+class HtmlCounter extends BaseShape<HtmlCounterShape> {
+	declare shape: HtmlCounterShape;
 
-	constructor(shape: HtmlCounterUnifiedShape, config: BaseShapeConfig<any>) {
+	constructor(shape: HtmlCounterShape, config: BaseShapeConfig<HtmlCounterShape>) {
 		super(shape, {
 			...config,
 			renderMode: "html", // Use HTML rendering for interactive elements
@@ -69,8 +69,8 @@ class HtmlCounterUnified extends BaseShape<any> {
 
 // React component for the counter UI
 const CounterUI: React.FC<{
-	shape: HtmlCounterUnifiedShape;
-	onUpdate: (updates: Partial<HtmlCounterUnifiedShape>) => void;
+	shape: HtmlCounterShape;
+	onUpdate: (updates: Partial<HtmlCounterShape>) => void;
 }> = ({ shape, onUpdate }) => {
 	const [localCount, setLocalCount] = useState(shape.count);
 
@@ -209,23 +209,22 @@ const CounterUI: React.FC<{
 };
 
 // Create the plugin using the adapter
-export const htmlCounterUnifiedPlugin = UnifiedShapePluginAdapter.fromBaseShape(
+export const htmlCounterPlugin = ShapePluginAdapter.fromBaseShape(
 	"html-counter-unified",
 	HtmlCounterUnified,
-	(props: { id: string; x: number; y: number; width?: number; height?: number }) =>
-		({
-			id: props.id,
-			type: "html-counter-unified",
-			x: props.x,
-			y: props.y,
-			width: props.width || 160,
-			height: props.height || 100,
-			rotation: 0,
-			opacity: 1,
-			fillColor: "#FFFFFF",
-			strokeColor: "#333333",
-			strokeWidth: 3,
-			count: 0,
-		}) as any,
+	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
+		id: props.id,
+		type: "html-counter-unified",
+		x: props.x,
+		y: props.y,
+		width: props.width || 160,
+		height: props.height || 100,
+		rotation: 0,
+		opacity: 1,
+		fillColor: "#FFFFFF",
+		strokeColor: "#333333",
+		strokeWidth: 3,
+		count: 0,
+	}),
 	"Unified HTML Counter",
 );

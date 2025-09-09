@@ -3,7 +3,6 @@ import type React from "react";
 import { useMemo } from "react";
 import { ShapeFactory } from "../ShapeFactory";
 import { HtmlWrapper } from "./HtmlWrapper";
-import { HybridWrapper } from "./HybridWrapper";
 import { SvgWrapper } from "./SvgWrapper";
 
 export interface UnifiedShapeRendererProps {
@@ -55,9 +54,8 @@ export const UnifiedShapeRenderer: React.FC<UnifiedShapeRendererProps> = ({
 
 	switch (renderMode) {
 		case "html":
+		case "hybrid": // Hybrid mode also uses HtmlWrapper as it can contain both HTML and SVG
 			return <HtmlWrapper {...wrapperProps} />;
-		case "hybrid":
-			return <HybridWrapper {...wrapperProps} />;
 		default:
 			return <SvgWrapper {...wrapperProps} />;
 	}
