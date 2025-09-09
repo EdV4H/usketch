@@ -111,7 +111,18 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 
 			// Start dragging
 			// Get the parent SVG element's bounding rect
-			const svgElement = (e.currentTarget as SVGElement).ownerSVGElement;
+			// For HTML shapes, currentTarget might be a div inside foreignObject
+			let svgElement: SVGSVGElement | null = null;
+			if (e.currentTarget instanceof SVGElement) {
+				svgElement = e.currentTarget.ownerSVGElement;
+			} else {
+				// For HTML elements, find the closest SVG parent
+				svgElement = e.currentTarget.closest("svg");
+			}
+			if (!svgElement) {
+				// If still no SVG element, try to get it from the ref
+				svgElement = svgRef.current;
+			}
 			if (!svgElement) return;
 			const rect = svgElement.getBoundingClientRect();
 			const x = (e.clientX - rect.left - camera.x) / camera.zoom;
@@ -146,7 +157,12 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			// Reset the drag flag
 			hasDraggedRef.current = false;
 
-			e.currentTarget.setPointerCapture(e.pointerId);
+			// Set pointer capture - for HTML elements, we need to capture on the SVG element
+			if (svgElement) {
+				svgElement.setPointerCapture(e.pointerId);
+			} else {
+				e.currentTarget.setPointerCapture(e.pointerId);
+			}
 			e.preventDefault();
 		},
 		[activeTool, selectedShapeIds, shapes, camera],
@@ -240,7 +256,12 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 				originalY: 0,
 			});
 
-			e.currentTarget.releasePointerCapture(e.pointerId);
+			// Release pointer capture from the SVG element
+			if (svgRef.current) {
+				svgRef.current.releasePointerCapture(e.pointerId);
+			} else {
+				e.currentTarget.releasePointerCapture(e.pointerId);
+			}
 		},
 		[dragState],
 	);

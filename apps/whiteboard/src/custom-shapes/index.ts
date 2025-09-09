@@ -1,18 +1,32 @@
+import { animatedLogoPlugin } from "./animated-logo";
+import { chartHybridPlugin } from "./chart-hybrid";
+import { colorPickerPlugin } from "./color-picker";
+
 export type { HeartShape } from "./heart";
-export { heartPlugin } from "./heart";
-export type { HtmlCounterShape } from "./html-counter";
-export { htmlCounterPlugin } from "./html-counter";
+
+import { heartPlugin } from "./heart";
+import { htmlCounterPlugin } from "./html-counter";
+
 export type { StarShape } from "./star";
-export { starPlugin } from "./star";
+
+import { starPlugin } from "./star";
+
 export type { TriangleShape } from "./triangle";
-export { trianglePlugin } from "./triangle";
 
-// All custom shape plugins as an array for easy registration
-export const customShapePlugins = async () => {
-	const { starPlugin } = await import("./star");
-	const { heartPlugin } = await import("./heart");
-	const { trianglePlugin } = await import("./triangle");
-	const { htmlCounterPlugin } = await import("./html-counter");
+import { trianglePlugin } from "./triangle";
+import { videoPlayerPlugin } from "./video-player";
 
-	return [starPlugin, heartPlugin, trianglePlugin, htmlCounterPlugin];
-};
+export { heartPlugin, starPlugin, trianglePlugin };
+
+// All custom shape plugins - direct imports since lazy loading isn't necessary
+export const customShapePlugins = [
+	starPlugin,
+	heartPlugin,
+	trianglePlugin,
+	// New unified shapes demonstrating the abstraction layer
+	htmlCounterPlugin,
+	colorPickerPlugin,
+	chartHybridPlugin,
+	videoPlayerPlugin,
+	animatedLogoPlugin,
+];

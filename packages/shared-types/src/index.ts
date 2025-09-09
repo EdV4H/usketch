@@ -2,6 +2,19 @@
 export * from "./background";
 export * from "./defaults/shape-styles";
 
+// Common geometry types
+export interface Point {
+	x: number;
+	y: number;
+}
+
+export interface Bounds {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
 // Base shape interface
 export interface BaseShape {
 	id: string;

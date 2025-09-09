@@ -7,7 +7,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { ShapeRegistry } from "./ShapeRegistry";
+import { globalShapeRegistry, type ShapeRegistry } from "./ShapeRegistry";
 import type { RegistryEvent, ShapePlugin } from "./types";
 
 /**
@@ -46,8 +46,9 @@ export function ShapeRegistryProvider({
 	plugins = [],
 	onRegistryChange,
 }: ShapeRegistryProviderProps) {
-	// Use custom registry or create a new one
-	const registryRef = useRef<ShapeRegistry>(customRegistry || new ShapeRegistry());
+	// Use custom registry, global registry, or create a new one
+	// Default to global registry to ensure consistency across the app
+	const registryRef = useRef<ShapeRegistry>(customRegistry || globalShapeRegistry);
 	const registry = registryRef.current;
 
 	// Track registered types for reactivity
@@ -120,9 +121,9 @@ export function useShapeRegistry(): ShapeRegistryContextValue {
  * Hook to get a specific shape plugin
  */
 export function useShapePlugin(type: string): ShapePlugin | undefined {
-	const { getPlugin, registeredTypes } = useShapeRegistry();
+	const { getPlugin } = useShapeRegistry();
 
-	// Re-render when registeredTypes changes
+	// Re-render when plugin changes
 	return useMemo(() => getPlugin(type), [type, getPlugin]);
 }
 

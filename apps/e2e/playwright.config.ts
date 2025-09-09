@@ -21,7 +21,7 @@ export default defineConfig({
 	webServer: {
 		command: "cd ../whiteboard && pnpm dev",
 		port: 5173,
-		reuseExistingServer: !process.env.CI,
+		reuseExistingServer: false, // Always fail if port is in use
 		timeout: 120 * 1000,
 		stdout: "pipe",
 		stderr: "pipe",

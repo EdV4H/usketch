@@ -1,161 +1,105 @@
-import type { ShapePlugin } from "@usketch/shape-registry";
-import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
-import React, { useCallback, useEffect, useState } from "react";
-import ReactDOM from "react-dom";
+import type { BaseShapeConfig, Bounds } from "@usketch/shape-abstraction";
+import { BaseShape } from "@usketch/shape-abstraction";
+import { UnifiedShapePluginAdapter } from "@usketch/shape-registry";
+import React, { useState } from "react";
 
-// Custom base shape interface for custom shapes
-interface CustomBaseShape {
+// Define the counter shape data structure
+export interface HtmlCounterShape {
 	id: string;
-	type: string;
+	type: "html-counter-unified";
 	x: number;
 	y: number;
 	width: number;
 	height: number;
 	rotation: number;
 	opacity: number;
-	strokeColor: string;
+	count: number;
 	fillColor: string;
+	strokeColor: string;
 	strokeWidth: number;
 }
 
-export interface HtmlCounterShape extends CustomBaseShape {
-	type: "html-counter";
-	count: number;
-}
+// Implement using the unified BaseShape abstraction
+class HtmlCounter extends BaseShape<HtmlCounterShape> {
+	declare shape: HtmlCounterShape;
 
-// This component renders in SVG space but creates a portal to DOM
-const HtmlCounterComponent: React.FC<{
-	shape: HtmlCounterShape;
-	isSelected?: boolean | undefined;
-	onClick?: ((e: React.MouseEvent) => void) | undefined;
-	onPointerDown?: ((e: React.PointerEvent) => void) | undefined;
-	onPointerMove?: ((e: React.PointerEvent) => void) | undefined;
-	onPointerUp?: ((e: React.PointerEvent) => void) | undefined;
-}> = ({ shape, isSelected, onClick }) => {
-	const [localCount, setLocalCount] = useState(shape.count || 0);
-	const [container, setContainer] = useState<HTMLDivElement | null>(null);
-	const { camera } = useWhiteboardStore();
-
-	// Create container for portal
-	useEffect(() => {
-		const div = document.createElement("div");
-		div.style.position = "absolute";
-		div.style.pointerEvents = "auto";
-		div.dataset["shapeId"] = shape.id;
-		div.className = "html-shape-container";
-
-		// Find the canvas container
-		const canvasContainer = document.querySelector(".whiteboard-container");
-		if (canvasContainer) {
-			canvasContainer.appendChild(div);
-			setContainer(div);
-		}
-
-		return () => {
-			if (div.parentNode) {
-				div.parentNode.removeChild(div);
-			}
-		};
-	}, [shape.id]);
-
-	// Update position based on camera
-	useEffect(() => {
-		if (container) {
-			// HTMLコンテンツのオフセット（左padding + ボタン + gap = 60px）
-			const offsetX = -60;
-			const offsetY = -10;
-			const transformedX = (shape.x + offsetX) * camera.zoom + camera.x;
-			const transformedY = (shape.y + offsetY) * camera.zoom + camera.y;
-
-			container.style.left = `${transformedX}px`;
-			container.style.top = `${transformedY}px`;
-			container.style.transform = `scale(${camera.zoom})`;
-			container.style.transformOrigin = "top left";
-			container.style.zIndex = isSelected ? "1000" : "100";
-		}
-	}, [container, shape.x, shape.y, camera, isSelected]);
-
-	// Handle increment
-	const handleIncrement = useCallback(
-		(e: React.MouseEvent) => {
-			e.stopPropagation();
-			const newCount = localCount + 1;
-			setLocalCount(newCount);
-
-			whiteboardStore.getState().updateShape(shape.id, {
-				count: newCount,
-			} as any);
-		},
-		[shape.id, localCount],
-	);
-
-	// Handle decrement
-	const handleDecrement = useCallback(
-		(e: React.MouseEvent) => {
-			e.stopPropagation();
-			const newCount = localCount - 1;
-			setLocalCount(newCount);
-
-			whiteboardStore.getState().updateShape(shape.id, {
-				count: newCount,
-			} as any);
-		},
-		[shape.id, localCount],
-	);
-
-	// Handle drag
-	const handleMouseDown = useCallback(
-		(e: React.MouseEvent) => {
-			e.preventDefault();
-			const startX = e.clientX;
-			const startY = e.clientY;
-			const originalX = shape.x;
-			const originalY = shape.y;
-
-			const handleMouseMove = (e: MouseEvent) => {
-				const dx = (e.clientX - startX) / camera.zoom;
-				const dy = (e.clientY - startY) / camera.zoom;
-
-				whiteboardStore.getState().updateShape(shape.id, {
-					x: originalX + dx,
-					y: originalY + dy,
-				} as any);
-			};
-
-			const handleMouseUp = () => {
-				document.removeEventListener("mousemove", handleMouseMove);
-				document.removeEventListener("mouseup", handleMouseUp);
-			};
-
-			document.addEventListener("mousemove", handleMouseMove);
-			document.addEventListener("mouseup", handleMouseUp);
-
-			// Also handle selection
-			if (onClick) {
-				onClick(e as any);
-			}
-		},
-		[shape.id, shape.x, shape.y, camera, onClick],
-	);
-
-	// Sync with shape.count if it changes externally
-	React.useEffect(() => {
-		setLocalCount(shape.count || 0);
-	}, [shape.count]);
-
-	if (!container) {
-		return null;
+	constructor(shape: HtmlCounterShape, config: BaseShapeConfig<HtmlCounterShape>) {
+		super(shape, {
+			...config,
+			renderMode: "html", // Use HTML rendering for interactive elements
+			enableInteractivity: true,
+		});
 	}
 
-	// Render the HTML counter using portal
-	return ReactDOM.createPortal(
+	render(): React.ReactElement {
+		return <CounterUI shape={this.shape} onUpdate={(updates) => this.updateShape(updates)} />;
+	}
+
+	getBounds(): Bounds {
+		// Include button areas and padding in bounds
+		const buttonWidth = 40;
+		const gap = 10;
+		const padding = 10; // padding from the style
+		// Total width: padding + button + gap + shape + gap + button + padding
+		const totalWidth = padding * 2 + buttonWidth * 2 + gap * 2 + this.shape.width;
+		// Height also includes padding
+		const totalHeight = padding * 2 + this.shape.height;
+		// Portal版と同じオフセットを適用
+		const offsetX = -60; // 左のpadding(10px) + ボタン(40px) + gap(10px)
+		const offsetY = -10; // 上のpadding
+
+		return {
+			x: this.shape.x + offsetX,
+			y: this.shape.y + offsetY,
+			width: totalWidth,
+			height: totalHeight,
+		};
+	}
+
+	hitTest(point: { x: number; y: number }): boolean {
+		const bounds = this.getBounds();
+		return (
+			point.x >= bounds.x &&
+			point.x <= bounds.x + bounds.width &&
+			point.y >= bounds.y &&
+			point.y <= bounds.y + bounds.height
+		);
+	}
+}
+
+// React component for the counter UI
+const CounterUI: React.FC<{
+	shape: HtmlCounterShape;
+	onUpdate: (updates: Partial<HtmlCounterShape>) => void;
+}> = ({ shape, onUpdate }) => {
+	const [localCount, setLocalCount] = useState(shape.count);
+
+	React.useEffect(() => {
+		setLocalCount(shape.count);
+	}, [shape.count]);
+
+	const handleIncrement = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		const newCount = localCount + 1;
+		setLocalCount(newCount);
+		onUpdate({ count: newCount });
+	};
+
+	const handleDecrement = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		const newCount = localCount - 1;
+		setLocalCount(newCount);
+		onUpdate({ count: newCount });
+	};
+
+	return (
 		<div
 			style={{
 				display: "flex",
 				alignItems: "center",
 				gap: "10px",
-				padding: "10px",
 				userSelect: "none",
+				padding: "10px",
 			}}
 		>
 			{/* Decrement Button */}
@@ -175,32 +119,26 @@ const HtmlCounterComponent: React.FC<{
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
-					transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+					transition: "all 0.3s",
 					boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
 				}}
 				onMouseEnter={(e) => {
-					e.currentTarget.style.transform = "scale(1.1) rotate(-5deg)";
-					e.currentTarget.style.boxShadow = "0 6px 12px rgba(255,107,107,0.3)";
+					e.currentTarget.style.transform = "scale(1.1)";
 				}}
 				onMouseLeave={(e) => {
-					e.currentTarget.style.transform = "scale(1) rotate(0)";
-					e.currentTarget.style.boxShadow = "0 4px 6px rgba(0,0,0,0.1)";
+					e.currentTarget.style.transform = "scale(1)";
 				}}
 			>
 				−
 			</button>
 
 			{/* Counter Display */}
-			{/* biome-ignore lint/a11y/useSemanticElements: div needs role for dragging */}
 			<div
-				role="button"
-				tabIndex={0}
-				onMouseDown={handleMouseDown}
 				style={{
 					width: `${shape.width}px`,
 					height: `${shape.height}px`,
-					backgroundColor: shape.fillColor || "#FFFFFF",
-					border: `${shape.strokeWidth || 3}px solid ${isSelected ? "#0066FF" : shape.strokeColor || "#333333"}`,
+					backgroundColor: shape.fillColor,
+					border: `${shape.strokeWidth}px solid ${shape.strokeColor}`,
 					borderRadius: "20px",
 					display: "flex",
 					flexDirection: "column",
@@ -208,16 +146,8 @@ const HtmlCounterComponent: React.FC<{
 					justifyContent: "center",
 					fontSize: "16px",
 					fontWeight: "600",
-					fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-					color: "#333333",
-					cursor: "move",
-					position: "relative",
-					boxShadow: isSelected
-						? "0 0 0 4px rgba(0, 102, 255, 0.2), 0 8px 16px rgba(0,0,0,0.1)"
-						: "0 4px 12px rgba(0,0,0,0.08)",
-					transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-					opacity: shape.opacity || 1,
-					background: `linear-gradient(135deg, ${shape.fillColor || "#FFFFFF"} 0%, ${shape.fillColor || "#FFFFFF"}dd 100%)`,
+					boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+					transition: "all 0.3s",
 				}}
 			>
 				<div
@@ -235,12 +165,10 @@ const HtmlCounterComponent: React.FC<{
 					style={{
 						fontSize: "42px",
 						fontWeight: "bold",
-						lineHeight: 1,
 						background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
 						WebkitBackgroundClip: "text",
 						WebkitTextFillColor: "transparent",
 						backgroundClip: "text",
-						textShadow: "0 2px 4px rgba(0,0,0,0.1)",
 					}}
 				>
 					{localCount}
@@ -264,70 +192,29 @@ const HtmlCounterComponent: React.FC<{
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
-					transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+					transition: "all 0.3s",
 					boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
 				}}
 				onMouseEnter={(e) => {
-					e.currentTarget.style.transform = "scale(1.1) rotate(5deg)";
-					e.currentTarget.style.boxShadow = "0 6px 12px rgba(81,207,102,0.3)";
+					e.currentTarget.style.transform = "scale(1.1)";
 				}}
 				onMouseLeave={(e) => {
-					e.currentTarget.style.transform = "scale(1) rotate(0)";
-					e.currentTarget.style.boxShadow = "0 4px 6px rgba(0,0,0,0.1)";
+					e.currentTarget.style.transform = "scale(1)";
 				}}
 			>
 				+
 			</button>
-		</div>,
-		container,
+		</div>
 	);
 };
 
-// For the SVG layer, we still need a placeholder
-const HtmlCounterSvgPlaceholder: React.FC<{
-	shape: HtmlCounterShape;
-	isSelected?: boolean;
-	onClick?: (e: React.MouseEvent) => void;
-	onPointerDown?: (e: React.PointerEvent) => void;
-	onPointerMove?: (e: React.PointerEvent) => void;
-	onPointerUp?: (e: React.PointerEvent) => void;
-}> = ({ shape, isSelected, onClick, onPointerDown, onPointerMove, onPointerUp }) => {
-	return (
-		<>
-			{/* Invisible rect for hit detection in SVG */}
-			<rect
-				x={shape.x}
-				y={shape.y}
-				width={shape.width}
-				height={shape.height}
-				fill="transparent"
-				style={{ pointerEvents: "none" }}
-			/>
-			{/* Render the HTML component */}
-			<HtmlCounterComponent
-				shape={shape}
-				isSelected={isSelected}
-				onClick={onClick}
-				onPointerDown={onPointerDown}
-				onPointerMove={onPointerMove}
-				onPointerUp={onPointerUp}
-			/>
-		</>
-	);
-};
-
-export const htmlCounterPlugin: ShapePlugin<any> = {
-	type: "html-counter",
-	component: HtmlCounterSvgPlaceholder,
-	createDefaultShape: (props: {
-		id: string;
-		x: number;
-		y: number;
-		width?: number;
-		height?: number;
-	}) => ({
+// Create the plugin using the adapter
+export const htmlCounterPlugin = UnifiedShapePluginAdapter.fromBaseShape(
+	"html-counter-unified",
+	HtmlCounter,
+	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
 		id: props.id,
-		type: "html-counter" as const,
+		type: "html-counter-unified",
 		x: props.x,
 		y: props.y,
 		width: props.width || 160,
@@ -339,29 +226,5 @@ export const htmlCounterPlugin: ShapePlugin<any> = {
 		strokeWidth: 3,
 		count: 0,
 	}),
-	getBounds: (shape: HtmlCounterShape) => {
-		// ボタン(40px) + gap(10px) + counter(width) + gap(10px) + ボタン(40px) + padding(20px)
-		const totalWidth = shape.width + 120;
-		// height + padding(20px)
-		const totalHeight = shape.height + 20;
-		// 左のpadding(10px) + ボタン(40px) + gap(10px) = 60px左にオフセット
-		const offsetX = -60;
-		const offsetY = -10;
-
-		return {
-			x: shape.x + offsetX,
-			y: shape.y + offsetY,
-			width: totalWidth,
-			height: totalHeight,
-		};
-	},
-	hitTest: (shape: HtmlCounterShape, point: { x: number; y: number }) => {
-		const bounds = htmlCounterPlugin.getBounds!(shape);
-		return (
-			point.x >= bounds.x &&
-			point.x <= bounds.x + bounds.width &&
-			point.y >= bounds.y &&
-			point.y <= bounds.y + bounds.height
-		);
-	},
-};
+	"Unified HTML Counter",
+);

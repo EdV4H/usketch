@@ -53,7 +53,6 @@ const TriangleComponent: React.FC<{
 	};
 
 	return (
-		// biome-ignore lint/a11y/useSemanticElements: SVG g element needs role for interactivity
 		<g
 			role="button"
 			tabIndex={0}

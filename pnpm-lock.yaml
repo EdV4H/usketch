@@ -38,6 +38,9 @@ importers:
       '@usketch/react-shapes':
         specifier: workspace:*
         version: link:../../packages/react-shapes
+      '@usketch/shape-abstraction':
+        specifier: workspace:*
+        version: link:../../packages/shape-abstraction
       '@usketch/shape-plugins':
         specifier: workspace:*
         version: link:../../packages/shape-plugins
@@ -248,6 +251,43 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9
 
+  packages/shape-abstraction:
+    dependencies:
+      '@usketch/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+      '@usketch/shared-utils':
+        specifier: workspace:*
+        version: link:../shared-utils
+      '@usketch/store':
+        specifier: workspace:*
+        version: link:../store
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: ^18.2.55
+        version: 18.3.23
+      '@types/react-dom':
+        specifier: ^18.2.19
+        version: 18.3.7(@types/react@18.3.23)
+      '@usketch/test-utils':
+        specifier: workspace:*
+        version: link:../test-utils
+      '@usketch/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: ^5.3.3
+        version: 5.8.3
+      vitest:
+        specifier: ^1.2.2
+        version: 1.6.1
+
   packages/shape-plugins:
     dependencies:
       '@usketch/react-shapes':
@@ -275,9 +315,15 @@ importers:
 
   packages/shape-registry:
     dependencies:
+      '@usketch/shape-abstraction':
+        specifier: workspace:*
+        version: link:../shape-abstraction
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../shared-types
+      '@usketch/store':
+        specifier: workspace:*
+        version: link:../store
       react:
         specifier: ^18.2.0
         version: 18.3.1

@@ -1,18 +1,30 @@
 import { WhiteboardCanvas } from "@usketch/react-canvas";
 import { defaultShapePlugins } from "@usketch/shape-plugins";
+import type { ShapePlugin } from "@usketch/shape-registry";
+import type { Shape } from "@usketch/shared-types";
 import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/registerBackgrounds";
 import { ToolbarReact } from "./components/ToolbarReact";
 import { customShapePlugins } from "./custom-shapes";
 import "./styles/app.css";
 
+// Helper function to add shape with delay
+const addShapeWithDelay = (shape: Shape, delay: number) => {
+	setTimeout(() => {
+		whiteboardStore.getState().addShape(shape);
+	}, delay);
+};
+
+// Calculate delay based on shape index
+const calculateDelay = (index: number, baseDelay = 100) => index * baseDelay;
+
 function App() {
 	const canvasRef = useRef<any>(null);
 	const shapesAddedRef = useRef(false);
 	const backgroundsRegisteredRef = useRef(false);
-	const [shapePlugins, setShapePlugins] = useState<any[]>([]);
+	const [shapePlugins, setShapePlugins] = useState<ShapePlugin<any>[]>([]);
 	const [background, setBackground] = useState<any>({
 		id: "usketch.dots",
 		config: {
@@ -22,6 +34,163 @@ function App() {
 		},
 	});
 
+	// デモ用のシェイプを追加
+	const addDemoShapes = useCallback(
+		(plugins?: ShapePlugin<any>[]) => {
+			// Add test shapes only once (protect against StrictMode double render)
+			// Skip demo shapes if running E2E tests (when URL has ?e2e=true)
+			const isE2E = new URLSearchParams(window.location.search).has("e2e");
+
+			if (!shapesAddedRef.current && !isE2E) {
+				shapesAddedRef.current = true;
+
+				// Demo shapes data
+				const demoShapes: any[] = [
+					{
+						id: `test-rect-${Date.now()}`,
+						type: "rectangle",
+						x: 100,
+						y: 100,
+						width: 200,
+						height: 100,
+						rotation: 0,
+						opacity: DEFAULT_SHAPE_STYLES.opacity,
+						strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
+						fillColor: DEFAULT_SHAPE_STYLES.fillColor,
+						strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
+					},
+					{
+						id: `test-ellipse-${Date.now() + 1}`,
+						type: "ellipse",
+						x: 350,
+						y: 200,
+						width: 150,
+						height: 100,
+						rotation: 0,
+						opacity: DEFAULT_SHAPE_STYLES.opacity,
+						strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
+						fillColor: DEFAULT_SHAPE_STYLES.fillColor,
+						strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
+					},
+					{
+						id: `test-star-${Date.now() + 2}`,
+						type: "star",
+						x: 550,
+						y: 100,
+						width: 120,
+						height: 120,
+						rotation: 0,
+						opacity: 1,
+						strokeColor: "#FFB700",
+						fillColor: "#FFD700",
+						strokeWidth: 2,
+						points: 5,
+						innerRadius: 30,
+						outerRadius: 60,
+					},
+					{
+						id: `test-heart-${Date.now() + 3}`,
+						type: "heart",
+						x: 700,
+						y: 200,
+						width: 100,
+						height: 90,
+						rotation: 0,
+						opacity: 1,
+						strokeColor: "#FF1493",
+						fillColor: "#FF69B4",
+						strokeWidth: 2,
+					},
+					{
+						id: `test-triangle-${Date.now() + 4}`,
+						type: "triangle",
+						x: 200,
+						y: 250,
+						width: 100,
+						height: 100,
+						rotation: 0,
+						opacity: 1,
+						strokeColor: "#008B8B",
+						fillColor: "#00CED1",
+						strokeWidth: 2,
+						direction: "up",
+					},
+					{
+						id: `test-color-picker-${Date.now() + 5}`,
+						type: "color-picker",
+						x: 450,
+						y: 400,
+						width: 220,
+						height: 180,
+						rotation: 0,
+						opacity: 1,
+						selectedColor: "#FF6B6B",
+						label: "Color Picker",
+					},
+					{
+						id: `test-chart-${Date.now() + 6}`,
+						type: "chart-hybrid",
+						x: 700,
+						y: 350,
+						width: 300,
+						height: 200,
+						rotation: 0,
+						opacity: 1,
+						data: [75, 45, 90, 30, 60, 85],
+						title: "Interactive Bar Chart",
+						color: "#4ECDC4",
+					},
+					{
+						id: `test-animated-logo-${Date.now() + 7}`,
+						type: "animated-logo",
+						x: 100,
+						y: 550,
+						width: 200,
+						height: 200,
+						rotation: 0,
+						opacity: 1,
+						primaryColor: "#FF6B6B",
+						secondaryColor: "#4ECDC4",
+						animationSpeed: 1,
+					},
+					{
+						id: `test-video-player-${Date.now() + 8}`,
+						type: "video-player",
+						x: 350,
+						y: 600,
+						width: 320,
+						height: 240,
+						rotation: 0,
+						opacity: 1,
+						videoUrl: "",
+						title: "Video Player Shape",
+						autoplay: false,
+					},
+					{
+						id: `test-html-counter-${Date.now() + 9}`,
+						type: "html-counter",
+						x: 700,
+						y: 600,
+						width: 160,
+						height: 100,
+						rotation: 0,
+						opacity: 1,
+						fillColor: "#FFFFFF",
+						strokeColor: "#333333",
+						strokeWidth: 3,
+						count: 0,
+					},
+				];
+
+				// Add all demo shapes with calculated delays
+				demoShapes.forEach((shape, index) => {
+					addShapeWithDelay(shape, calculateDelay(index + 1));
+				});
+			}
+		},
+		[shapePlugins],
+	);
+
 	// カスタム背景とシェイプを登録（一度だけ）
 	useEffect(() => {
 		if (!backgroundsRegisteredRef.current) {
@@ -30,140 +199,32 @@ function App() {
 		}
 
 		// Load custom shapes and combine with default shapes
-		const loadShapes = async () => {
-			const customPlugins = await customShapePlugins();
-			const allPlugins = [...defaultShapePlugins, ...customPlugins];
+		const loadShapes = () => {
+			const allPlugins = [...defaultShapePlugins, ...customShapePlugins] as ShapePlugin<any>[];
 			setShapePlugins(allPlugins);
+
+			// Add demo shapes after shapes are loaded, pass plugins directly
+			if (canvasRef.current && !shapesAddedRef.current) {
+				addDemoShapes(allPlugins);
+			}
 		};
 		loadShapes();
-	}, []);
+	}, [addDemoShapes]);
 
-	// デモ用のシェイプを追加
-	const addDemoShapes = () => {
-		// Add test shapes only once (protect against StrictMode double render)
-		// Skip demo shapes if running E2E tests (when URL has ?e2e=true)
-		const isE2E = new URLSearchParams(window.location.search).has("e2e");
-
-		if (!shapesAddedRef.current && !isE2E) {
-			shapesAddedRef.current = true;
-
-			// Add some test shapes for demonstration (matching vanilla version)
-			setTimeout(() => {
-				const testShape1 = {
-					id: `test-rect-${Date.now()}`,
-					type: "rectangle" as const,
-					x: 100,
-					y: 100,
-					width: 200,
-					height: 100,
-					rotation: 0,
-					opacity: DEFAULT_SHAPE_STYLES.opacity,
-					strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
-					fillColor: DEFAULT_SHAPE_STYLES.fillColor,
-					strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
-				};
-				whiteboardStore.getState().addShape(testShape1);
-			}, 100);
-
-			// Add another test shape
-			setTimeout(() => {
-				const testShape2 = {
-					id: `test-ellipse-${Date.now()}`,
-					type: "ellipse" as const,
-					x: 350,
-					y: 200,
-					width: 150,
-					height: 100,
-					rotation: 0,
-					opacity: DEFAULT_SHAPE_STYLES.opacity,
-					strokeColor: DEFAULT_SHAPE_STYLES.strokeColor,
-					fillColor: DEFAULT_SHAPE_STYLES.fillColor,
-					strokeWidth: DEFAULT_SHAPE_STYLES.strokeWidth,
-				};
-				whiteboardStore.getState().addShape(testShape2);
-			}, 200);
-
-			// Add custom shapes for demonstration
-			setTimeout(() => {
-				const starShape = {
-					id: `test-star-${Date.now()}`,
-					type: "star" as any,
-					x: 550,
-					y: 100,
-					width: 120,
-					height: 120,
-					rotation: 0,
-					opacity: 1,
-					strokeColor: "#FFB700",
-					fillColor: "#FFD700",
-					strokeWidth: 2,
-					points: 5,
-					innerRadius: 30,
-					outerRadius: 60,
-				};
-				whiteboardStore.getState().addShape(starShape as any);
-			}, 300);
-
-			setTimeout(() => {
-				const heartShape = {
-					id: `test-heart-${Date.now()}`,
-					type: "heart" as any,
-					x: 700,
-					y: 200,
-					width: 100,
-					height: 90,
-					rotation: 0,
-					opacity: 1,
-					strokeColor: "#FF1493",
-					fillColor: "#FF69B4",
-					strokeWidth: 2,
-				};
-				whiteboardStore.getState().addShape(heartShape as any);
-			}, 400);
-
-			setTimeout(() => {
-				const triangleShape = {
-					id: `test-triangle-${Date.now()}`,
-					type: "triangle" as any,
-					x: 200,
-					y: 250,
-					width: 100,
-					height: 100,
-					rotation: 0,
-					opacity: 1,
-					strokeColor: "#008B8B",
-					fillColor: "#00CED1",
-					strokeWidth: 2,
-					direction: "up",
-				};
-				whiteboardStore.getState().addShape(triangleShape as any);
-			}, 500);
-
-			// Add HTML-based counter shape
-			setTimeout(() => {
-				const htmlCounterShape = {
-					id: `test-html-counter-${Date.now()}`,
-					type: "html-counter" as any,
-					x: 250,
-					y: 400,
-					width: 160,
-					height: 100,
-					rotation: 0,
-					opacity: 1,
-					strokeColor: "#6B46C1",
-					fillColor: "#F3E8FF",
-					strokeWidth: 3,
-					count: 42,
-				};
-				whiteboardStore.getState().addShape(htmlCounterShape as any);
-			}, 600);
+	// Add demo shapes when both canvas and plugins are ready
+	useEffect(() => {
+		if (canvasRef.current && shapePlugins.length > 0 && !shapesAddedRef.current) {
+			addDemoShapes();
 		}
-	};
+	}, [shapePlugins, addDemoShapes]);
 
 	// Canvasの準備完了時の処理
 	const handleCanvasReady = (canvas: any) => {
 		canvasRef.current = canvas;
-		addDemoShapes();
+		// Only add demo shapes if plugins are loaded
+		if (shapePlugins.length > 0 && !shapesAddedRef.current) {
+			addDemoShapes();
+		}
 	};
 
 	return (
