@@ -364,6 +364,39 @@ test.describe("HTML Shape Interaction", () => {
 		}
 	});
 
+	test("should be able to click on chart bars to change values", async ({ page }) => {
+		// Enable console logging
+		page.on("console", (msg) => console.log("Browser console:", msg.text()));
+
+		// Find the chart shape
+		const chart = await page.locator('[data-shape-type="chart-hybrid-unified"]').first();
+		expect(await chart.count()).toBe(1);
+
+		// Debug: check if bars are visible
+		const bars = await chart.locator('rect[style*="cursor: pointer"]').all();
+		console.log(`Found ${bars.length} clickable bars`);
+
+		// Find the first bar (rect element with cursor pointer)
+		const firstBar = await chart.locator('rect[style*="cursor: pointer"]').first();
+
+		// Get the initial value
+		const initialValue = await chart.locator("text").first().textContent();
+		console.log("Initial chart value:", initialValue);
+
+		// Click on the first bar with force option
+		await firstBar.click({ force: true });
+
+		// Wait for value to change
+		await page.waitForTimeout(1000);
+
+		// Get the new value
+		const newValue = await chart.locator("text").first().textContent();
+		console.log("New chart value:", newValue);
+
+		// Value should have changed
+		expect(newValue).not.toBe(initialValue);
+	});
+
 	test("check if foreignObject is blocking events", async ({ page }) => {
 		await page.evaluate(() => {
 			// Find all foreignObject elements

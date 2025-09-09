@@ -56,8 +56,9 @@ class ChartHybridUnified extends BaseShape<ChartHybridUnifiedShape> {
 	}
 
 	private handleDataUpdate = (data: number[]) => {
-		this.shape.data = data;
-		this.config.onUpdate?.(this.shape);
+		console.log(`[ChartHybrid] handleDataUpdate called with:`, data);
+		// Use updateShape to trigger a proper state update
+		this.updateShape({ data } as Partial<ChartHybridUnifiedShape>);
 	};
 }
 
@@ -72,9 +73,14 @@ const ChartComponent: React.FC<{
 	const barWidth = (shape.width - 40) / shape.data.length;
 	const chartHeight = shape.height - 60;
 
-	const handleBarClick = (index: number) => {
+	const handleBarClick = (index: number, e?: React.MouseEvent) => {
+		console.log(`[ChartHybrid] Bar ${index} clicked!`);
+		// Stop propagation to prevent shape selection
+		e?.stopPropagation();
 		const newData = [...shape.data];
+		const oldValue = newData[index];
 		newData[index] = Math.floor(Math.random() * 100) + 10;
+		console.log(`[ChartHybrid] Changing value from ${oldValue} to ${newData[index]}`);
 		onDataUpdate(newData);
 	};
 
@@ -122,6 +128,7 @@ const ChartComponent: React.FC<{
 					border: "2px solid #333",
 					borderTop: "none",
 					borderRadius: "0 0 8px 8px",
+					pointerEvents: "all",
 				}}
 			>
 				{/* Grid lines */}
@@ -160,10 +167,11 @@ const ChartComponent: React.FC<{
 								style={{
 									cursor: "pointer",
 									transition: "fill 0.2s",
+									pointerEvents: "all",
 								}}
 								onMouseEnter={() => setHoveredBar(index)}
 								onMouseLeave={() => setHoveredBar(null)}
-								onClick={() => handleBarClick(index)}
+								onClick={(e) => handleBarClick(index, e)}
 							/>
 							{/* Value label */}
 							<text
