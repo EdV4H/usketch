@@ -31,9 +31,14 @@ function checkFilenames(specificFiles = []) {
 
 	files.forEach((filePath) => {
 		const filename = path.basename(filePath, path.extname(filePath));
+		const basename = path.basename(filePath);
+
+		// ドット付きファイル名（*.test.ts, *.config.ts など）は除外
+		if (filename.includes(".")) {
+			return;
+		}
 
 		// 例外チェック
-		const basename = path.basename(filePath);
 		const isException = exceptions.some((pattern) => pattern.test(basename));
 
 		if (!isException && !kebabCasePattern.test(filename)) {

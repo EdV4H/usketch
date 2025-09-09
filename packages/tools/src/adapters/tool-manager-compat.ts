@@ -1,5 +1,5 @@
 import { createDefaultToolManagerOptions } from "../configs/default-tools";
-import { ToolManager } from "./toolManagerAdapter";
+import { ToolManager } from "./tool-manager-adapter";
 
 /**
  * Factory function to create a ToolManager with default tools

@@ -2,8 +2,8 @@ import type { Camera, Shape } from "@usketch/shared-types";
 import type React from "react";
 import { useMemo } from "react";
 import { ShapeFactory } from "../shape-factory";
-import { HtmlWrapper } from "./HtmlWrapper";
-import { SvgWrapper } from "./SvgWrapper";
+import { HtmlWrapper } from "./html-wrapper";
+import { SvgWrapper } from "./svg-wrapper";
 
 export interface UnifiedShapeRendererProps {
 	shape: Shape;
