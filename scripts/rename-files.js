@@ -47,6 +47,11 @@ function renameFiles() {
 		const filename = path.basename(filePath, ext);
 		const basename = path.basename(filePath);
 
+		// ドット付きファイル名（*.test.ts, *.spec.ts, *.config.ts など）は除外
+		if (filename.includes(".")) {
+			return;
+		}
+
 		// 例外チェック
 		const isException = exceptions.some((pattern) => pattern.test(basename));
 		if (isException) return;
