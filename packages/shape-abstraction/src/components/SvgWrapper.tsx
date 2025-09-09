@@ -67,6 +67,8 @@ export const SvgWrapper: React.FC<SvgWrapperProps> = ({
 	// Fallback: wrap in a group element
 	return (
 		<g
+			role="button"
+			tabIndex={0}
 			data-shape-id={renderer.shape.id}
 			data-shape-type={renderer.shape.type}
 			onClick={handleClick}

@@ -78,7 +78,7 @@ const ChartComponent: React.FC<{
 		// Stop propagation to prevent shape selection
 		e.stopPropagation();
 		e.preventDefault();
-		
+
 		const newData = [...shape.data];
 		const oldValue = newData[index];
 		newData[index] = Math.floor(Math.random() * 100) + 10;
@@ -132,6 +132,7 @@ const ChartComponent: React.FC<{
 					borderRadius: "0 0 8px 8px",
 				}}
 			>
+				<title>{shape.title}</title>
 				{/* Grid lines */}
 				{[0, 25, 50, 75, 100].map((percentage) => (
 					<line
@@ -156,6 +157,8 @@ const ChartComponent: React.FC<{
 					return (
 						<g key={index}>
 							<rect
+								role="button"
+								tabIndex={0}
 								x={x}
 								y={y}
 								width={barWidth * 0.8}

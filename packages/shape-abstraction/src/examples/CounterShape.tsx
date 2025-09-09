@@ -1,4 +1,4 @@
-import type { Bounds, Shape } from "@usketch/shared-types";
+import type { Bounds } from "@usketch/shared-types";
 import React, { useState } from "react";
 import { BaseShape } from "../BaseShape";
 import type { BaseShapeConfig } from "../types";

@@ -1,8 +1,11 @@
-import type { ShapeRenderer, ShapeRendererConstructor } from "@usketch/shape-abstraction";
-import { type BaseShape as BaseShapeClass, ShapeFactory, UnifiedShapeRenderer } from "@usketch/shape-abstraction";
-import type { BaseShape, Camera, Shape } from "@usketch/shared-types";
-import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
-import React from "react";
+import type { ShapeRendererConstructor } from "@usketch/shape-abstraction";
+import {
+	type BaseShape as BaseShapeClass,
+	ShapeFactory,
+	UnifiedShapeRenderer,
+} from "@usketch/shape-abstraction";
+import type { BaseShape, Shape } from "@usketch/shared-types";
+import { useWhiteboardStore } from "@usketch/store";
 import type { ShapeComponentProps, ShapePlugin } from "./types";
 
 /**
@@ -32,11 +35,13 @@ export class UnifiedShapePluginAdapter {
 			// Component that bridges the old and new systems
 			component: (props: ShapeComponentProps<T>) => {
 				const { shape, isSelected, onClick, onPointerDown, onPointerMove, onPointerUp } = props;
-				
+
 				// Get camera from store using React hook for reactive updates
 				const camera = useWhiteboardStore((state) => state.camera);
-				
-				console.log(`[UnifiedShapePluginAdapter] Rendering component for ${shape.type} at (${shape.x}, ${shape.y})`);
+
+				console.log(
+					`[UnifiedShapePluginAdapter] Rendering component for ${shape.type} at (${shape.x}, ${shape.y})`,
+				);
 
 				// Ensure the shape is registered (in case of lazy loading)
 				if (!ShapeFactory.has(config.type)) {
@@ -67,7 +72,12 @@ export class UnifiedShapePluginAdapter {
 				}
 				const renderer = ShapeFactory.create(shape as any) as any;
 				const bounds = renderer.getBounds();
-				console.log(`[UnifiedShapePluginAdapter] getBounds for ${shape.type}:`, bounds, 'shape:', shape);
+				console.log(
+					`[UnifiedShapePluginAdapter] getBounds for ${shape.type}:`,
+					bounds,
+					"shape:",
+					shape,
+				);
 				return bounds;
 			},
 

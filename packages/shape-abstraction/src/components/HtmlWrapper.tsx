@@ -207,6 +207,8 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 				data-shape-type={renderer.shape.type}
 			>
 				<div
+					role="button"
+					tabIndex={0}
 					style={{
 						width: "100%",
 						height: "100%",
@@ -216,6 +218,27 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 					onPointerDown={handlePointerDown}
 					onPointerMove={handlePointerMove}
 					onPointerUp={handlePointerUp}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							const syntheticEvent = {
+								...e,
+								button: 0,
+								buttons: 1,
+								clientX: 0,
+								clientY: 0,
+								pageX: 0,
+								pageY: 0,
+								screenX: 0,
+								screenY: 0,
+								movementX: 0,
+								movementY: 0,
+								getModifierState: () => false,
+								relatedTarget: null,
+							} as any;
+							handleClick(syntheticEvent);
+						}
+					}}
 				>
 					{shapeElement}
 				</div>
@@ -228,6 +251,8 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 		<>
 			{/* SVG placeholder for hit detection */}
 			<rect
+				role="button"
+				tabIndex={0}
 				x={renderer.shape.x}
 				y={renderer.shape.y}
 				width={"width" in renderer.shape ? (renderer.shape.width as number) : 100}
@@ -247,6 +272,8 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 			{container &&
 				ReactDOM.createPortal(
 					<div
+						role="button"
+						tabIndex={0}
 						style={{
 							width: "100%",
 							height: "100%",
@@ -256,6 +283,27 @@ export const HtmlWrapper: React.FC<HtmlWrapperProps> = ({
 						onPointerDown={handlePointerDown}
 						onPointerMove={handlePointerMove}
 						onPointerUp={handlePointerUp}
+						onKeyDown={(e) => {
+							if (e.key === "Enter" || e.key === " ") {
+								e.preventDefault();
+								const syntheticEvent = {
+									...e,
+									button: 0,
+									buttons: 1,
+									clientX: 0,
+									clientY: 0,
+									pageX: 0,
+									pageY: 0,
+									screenX: 0,
+									screenY: 0,
+									movementX: 0,
+									movementY: 0,
+									getModifierState: () => false,
+									relatedTarget: null,
+								} as any;
+								handleClick(syntheticEvent);
+							}
+						}}
 					>
 						{shapeElement}
 					</div>,

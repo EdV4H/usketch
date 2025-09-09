@@ -170,6 +170,7 @@ const VideoPlayerComponent: React.FC<{ shape: VideoPlayerUnifiedShape }> = ({ sh
 					>
 						{/* Placeholder SVG for demo */}
 						<svg width="60" height="60" viewBox="0 0 24 24" fill="none">
+							<title>Video Player Placeholder</title>
 							<path
 								d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
 								fill="#666"
@@ -215,6 +216,7 @@ const VideoPlayerComponent: React.FC<{ shape: VideoPlayerUnifiedShape }> = ({ sh
 					}}
 				>
 					<button
+						type="button"
 						onClick={togglePlayPause}
 						style={{
 							background: "none",

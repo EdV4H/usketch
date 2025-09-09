@@ -79,7 +79,7 @@ const AnimatedLogoComponent: React.FC<AnimatedLogoComponentProps> = ({
 }) => {
 	const [rotation, setRotation] = useState(0);
 	const [scale, setScale] = useState(1);
-	const [hovered, setHovered] = useState(false);
+	const [hovered, _setHovered] = useState(false);
 
 	useEffect(() => {
 		const interval = setInterval(() => {
