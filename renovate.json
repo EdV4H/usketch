@@ -1,10 +1,14 @@
 {
 	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
-	"extends": ["config:recommended", ":semanticCommits", ":automergeDigest", ":automergeMinor"],
-	"timezone": "Asia/Tokyo",
-	"schedule": ["before 3am on Monday"],
-	"labels": ["dependencies"],
-	"assignees": [],
+	"extends": ["config:base", "customManagers:biomeVersions"],
+	"labels": ["dependencies", "renovate"],
+	"dependencyDashboard": true,
+	"automerge": true,
+	"automergeType": "pr",
+	"platformAutomerge": true,
+	"prConcurrentLimit": 0,
+	"prHourlyLimit": 0,
+	"ignorePaths": ["**/node_modules/**", "**/dist/**", "**/build/**"],
 	"packageRules": [
 		{
 			"description": "Automatically merge minor and patch releases",
@@ -36,15 +40,5 @@
 			"matchPackageNames": ["turbo", "pnpm"],
 			"groupName": "Monorepo tools"
 		}
-	],
-	"rangeStrategy": "pin",
-	"prConcurrentLimit": 10,
-	"prHourlyLimit": 2,
-	"semanticCommits": "enabled",
-	"commitMessagePrefix": "⬆️",
-	"commitMessageAction": "update",
-	"commitMessageTopic": "{{depName}}",
-	"commitMessageExtra": "to {{newVersion}}",
-	"postUpdateOptions": ["pnpmDedupe"],
-	"ignorePaths": ["**/node_modules/**", "**/dist/**", "**/build/**"]
+	]
 }
