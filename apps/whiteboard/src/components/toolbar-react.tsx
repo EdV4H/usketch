@@ -39,13 +39,13 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 	const dropdownRef = useRef<HTMLDivElement>(null);
 
 	const tools = [
-		{ id: "select", name: "Select", icon: "↖" },
-		{ id: "rectangle", name: "Rectangle", icon: "□" },
-		{ id: "ellipse", name: "Ellipse", icon: "○" },
-		{ id: "line", name: "Line", icon: "╱" },
-		{ id: "arrow", name: "Arrow", icon: "→" },
-		{ id: "draw", name: "Draw", icon: "✏" },
-		{ id: "text", name: "Text", icon: "T" },
+		{ id: "select", name: "選択", icon: "↖" },
+		{ id: "rectangle", name: "四角形", icon: "□" },
+		{ id: "ellipse", name: "楕円", icon: "○" },
+		{ id: "line", name: "線", icon: "╱" },
+		{ id: "arrow", name: "矢印", icon: "→" },
+		{ id: "draw", name: "描画", icon: "✏" },
+		{ id: "text", name: "テキスト", icon: "T" },
 	];
 
 	const handleBackgroundSelect = (bgId: string, config?: any) => {
