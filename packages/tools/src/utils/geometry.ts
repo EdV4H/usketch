@@ -8,6 +8,9 @@ import {
 import { whiteboardStore } from "@usketch/store";
 import type { Bounds, Point } from "../types";
 
+// Resize handle types
+export type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+
 // Use the Shape type from shared-types
 type Shape = SharedShape;
 
@@ -143,6 +146,44 @@ function isShapeInBounds(shape: Shape, bounds: Bounds): boolean {
 		shapeY + shapeHeight < bounds.y ||
 		shapeY > bounds.y + bounds.height
 	);
+}
+
+// Get resize handle at point
+export function getResizeHandleAtPoint(point: Point, shapeId: string): ResizeHandle | null {
+	const shape = getShape(shapeId);
+	if (!shape || !hasWidthHeight(shape)) return null;
+
+	const { x, y, width, height } = shape;
+	const handleSize = 15; // Increased handle hit area size for easier clicking
+	const halfHandle = handleSize / 2;
+
+	// Define handle positions
+	const handles = {
+		nw: { x: x - halfHandle, y: y - halfHandle },
+		n: { x: x + width / 2 - halfHandle, y: y - halfHandle },
+		ne: { x: x + width - halfHandle, y: y - halfHandle },
+		e: { x: x + width - halfHandle, y: y + height / 2 - halfHandle },
+		se: { x: x + width - halfHandle, y: y + height - halfHandle },
+		s: { x: x + width / 2 - halfHandle, y: y + height - halfHandle },
+		sw: { x: x - halfHandle, y: y + height - halfHandle },
+		w: { x: x - halfHandle, y: y + height / 2 - halfHandle },
+	};
+
+	// Check if point is within any handle
+	for (const [handle, pos] of Object.entries(handles)) {
+		if (
+			point.x >= pos.x &&
+			point.x <= pos.x + handleSize &&
+			point.y >= pos.y &&
+			point.y <= pos.y + handleSize
+		) {
+			console.log("Resize handle detected:", handle, "at point:", point);
+			return handle as ResizeHandle;
+		}
+	}
+
+	console.log("No resize handle at point:", point, "Shape bounds:", { x, y, width, height });
+	return null;
 }
 
 // Get crop handle at point (not yet implemented)
