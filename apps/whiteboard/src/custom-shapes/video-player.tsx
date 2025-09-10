@@ -7,7 +7,7 @@ import { useRef, useState } from "react";
 // Define the video player shape data structure
 export interface VideoPlayerShape {
 	id: string;
-	type: "video-player-unified";
+	type: "video-player";
 	x: number;
 	y: number;
 	width: number;
@@ -247,11 +247,11 @@ const VideoPlayerComponent: React.FC<{ shape: VideoPlayerShape }> = ({ shape }) 
 
 // Create the plugin using the adapter
 export const videoPlayerPlugin = UnifiedShapePluginAdapter.fromBaseShape(
-	"video-player-unified",
+	"video-player",
 	VideoPlayer,
 	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
 		id: props.id,
-		type: "video-player-unified",
+		type: "video-player",
 		x: props.x,
 		y: props.y,
 		width: props.width || 320,

@@ -6,7 +6,7 @@ import React, { useState } from "react";
 // Define the counter shape data structure
 export interface HtmlCounterShape {
 	id: string;
-	type: "html-counter-unified";
+	type: "html-counter";
 	x: number;
 	y: number;
 	width: number;
@@ -210,11 +210,11 @@ const CounterUI: React.FC<{
 
 // Create the plugin using the adapter
 export const htmlCounterPlugin = UnifiedShapePluginAdapter.fromBaseShape(
-	"html-counter-unified",
+	"html-counter",
 	HtmlCounter,
 	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
 		id: props.id,
-		type: "html-counter-unified",
+		type: "html-counter",
 		x: props.x,
 		y: props.y,
 		width: props.width || 160,

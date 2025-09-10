@@ -7,7 +7,7 @@ import { useState } from "react";
 // Define the color picker shape data structure
 export interface ColorPickerShape {
 	id: string;
-	type: "color-picker-unified";
+	type: "color-picker";
 	x: number;
 	y: number;
 	width: number;
@@ -184,11 +184,11 @@ const ColorPickerComponent: React.FC<{
 
 // Create the plugin using the adapter
 export const colorPickerPlugin = UnifiedShapePluginAdapter.fromBaseShape(
-	"color-picker-unified",
+	"color-picker",
 	ColorPicker,
 	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
 		id: props.id,
-		type: "color-picker-unified",
+		type: "color-picker",
 		x: props.x,
 		y: props.y,
 		width: props.width || 220,
