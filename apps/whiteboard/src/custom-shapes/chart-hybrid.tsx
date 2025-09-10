@@ -7,7 +7,7 @@ import { useState } from "react";
 // Define the chart shape data structure
 export interface ChartHybridShape {
 	id: string;
-	type: "chart-hybrid-unified";
+	type: "chart-hybrid";
 	x: number;
 	y: number;
 	width: number;
@@ -232,11 +232,11 @@ const ChartComponent: React.FC<{
 
 // Create the plugin using the adapter
 export const chartHybridPlugin = UnifiedShapePluginAdapter.fromBaseShape(
-	"chart-hybrid-unified",
+	"chart-hybrid",
 	ChartHybrid,
 	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
 		id: props.id,
-		type: "chart-hybrid-unified",
+		type: "chart-hybrid",
 		x: props.x,
 		y: props.y,
 		width: props.width || 300,

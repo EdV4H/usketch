@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 // Define the animated logo shape data structure
 export interface AnimatedLogoShape {
 	id: string;
-	type: "animated-logo-unified";
+	type: "animated-logo";
 	x: number;
 	y: number;
 	width: number;
@@ -264,11 +264,11 @@ function generateTrianglePoints(radius: number): string {
 
 // Create the plugin using the adapter
 export const animatedLogoPlugin = UnifiedShapePluginAdapter.fromBaseShape(
-	"animated-logo-unified",
+	"animated-logo",
 	AnimatedLogo,
 	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
 		id: props.id,
-		type: "animated-logo-unified",
+		type: "animated-logo",
 		x: props.x,
 		y: props.y,
 		width: props.width || 200,
