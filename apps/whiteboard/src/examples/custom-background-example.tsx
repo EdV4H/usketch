@@ -3,7 +3,7 @@ import {
 	type BackgroundComponentProps,
 	WhiteboardCanvas,
 } from "@usketch/react-canvas";
-import React from "react";
+import React, { useId } from "react";
 
 /**
  * カスタムReact背景コンポーネントの例
@@ -118,6 +118,7 @@ const RippleBackground: React.FC<BackgroundComponentProps> = ({ camera }) => {
  * 使用例のコンポーネント
  */
 export const CustomBackgroundExamples: React.FC = () => {
+	const selectId = useId();
 	const [backgroundType, setBackgroundType] = React.useState<string>("gradient");
 
 	const getBackgroundConfig = () => {
@@ -217,11 +218,11 @@ export const CustomBackgroundExamples: React.FC = () => {
 	return (
 		<div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
 			<div style={{ padding: "1rem", borderBottom: "1px solid #e0e0e0" }}>
-				<label htmlFor="background-select" style={{ marginRight: "1rem" }}>
+				<label htmlFor={selectId} style={{ marginRight: "1rem" }}>
 					背景タイプを選択:
 				</label>
 				<select
-					id="background-select"
+					id={selectId}
 					value={backgroundType}
 					onChange={(e) => setBackgroundType(e.target.value)}
 					style={{ padding: "0.5rem" }}

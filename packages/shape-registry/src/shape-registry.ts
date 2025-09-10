@@ -77,14 +77,18 @@ export class ShapeRegistry {
 	 */
 	clear(): void {
 		const types = this.getRegisteredTypes();
-		types.forEach((type) => this.unregister(type));
+		types.forEach((type) => {
+			this.unregister(type);
+		});
 	}
 
 	/**
 	 * Register multiple plugins at once
 	 */
 	registerMultiple(plugins: ShapePlugin[]): void {
-		plugins.forEach((plugin) => this.register(plugin));
+		plugins.forEach((plugin) => {
+			this.register(plugin);
+		});
 	}
 
 	/**

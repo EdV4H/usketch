@@ -20,7 +20,9 @@ export function mockLocalStorage(): Storage {
 			delete store[key];
 		}),
 		clear: vi.fn(() => {
-			Object.keys(store).forEach((key) => delete store[key]);
+			Object.keys(store).forEach((key) => {
+				delete store[key];
+			});
 		}),
 		key: vi.fn((index: number) => {
 			const keys = Object.keys(store);
@@ -125,7 +127,9 @@ export class StorageEventEmitter {
 			storageArea: this.storage,
 		});
 
-		this.listeners.forEach((listener) => listener(event));
+		this.listeners.forEach((listener) => {
+			listener(event);
+		});
 	}
 }
 

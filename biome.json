@@ -46,7 +46,7 @@
 			},
 			"complexity": {
 				"noBannedTypes": "off",
-				"noStaticOnlyClass": "warn"
+				"noStaticOnlyClass": "off"
 			},
 			"correctness": {
 				"noUnusedVariables": "warn",
@@ -78,6 +78,9 @@
 			"indentStyle": "tab",
 			"indentWidth": 2,
 			"lineWidth": 100
+		},
+		"linter": {
+			"enabled": true
 		}
 	}
 }

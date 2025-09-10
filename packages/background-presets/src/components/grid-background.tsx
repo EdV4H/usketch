@@ -1,4 +1,5 @@
 import type React from "react";
+import { useId } from "react";
 import type { BackgroundComponentProps } from "../types";
 
 export interface GridBackgroundConfig {
@@ -10,6 +11,7 @@ export interface GridBackgroundConfig {
 export const GridBackground: React.FC<
 	BackgroundComponentProps & { config?: GridBackgroundConfig }
 > = ({ camera, config }) => {
+	const patternId = useId();
 	const size = (config?.size || 40) * camera.zoom;
 	const color = config?.color || "#e0e0e0";
 	const thickness = config?.thickness || 1;
@@ -29,7 +31,7 @@ export const GridBackground: React.FC<
 			<title>Grid background</title>
 			<defs>
 				<pattern
-					id="grid"
+					id={patternId}
 					x={camera.x % size}
 					y={camera.y % size}
 					width={size}
@@ -44,7 +46,7 @@ export const GridBackground: React.FC<
 					/>
 				</pattern>
 			</defs>
-			<rect width="100%" height="100%" fill="url(#grid)" />
+			<rect width="100%" height="100%" fill={`url(#${patternId})`} />
 		</svg>
 	);
 };

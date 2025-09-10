@@ -1,4 +1,5 @@
 import type React from "react";
+import { useId } from "react";
 import type { BackgroundComponentProps } from "../types";
 
 export interface DotsBackgroundConfig {
@@ -13,6 +14,7 @@ export const DotsBackground: React.FC<
 	const spacing = (config?.spacing || 20) * camera.zoom;
 	const size = (config?.size || 2) * camera.zoom;
 	const color = config?.color || "#d0d0d0";
+	const patternId = useId();
 
 	return (
 		<svg
@@ -29,7 +31,7 @@ export const DotsBackground: React.FC<
 			<title>Dots background</title>
 			<defs>
 				<pattern
-					id="dots"
+					id={patternId}
 					x={camera.x % spacing}
 					y={camera.y % spacing}
 					width={spacing}
@@ -39,7 +41,7 @@ export const DotsBackground: React.FC<
 					<circle cx={spacing / 2} cy={spacing / 2} r={size} fill={color} />
 				</pattern>
 			</defs>
-			<rect width="100%" height="100%" fill="url(#dots)" />
+			<rect width="100%" height="100%" fill={`url(#${patternId})`} />
 		</svg>
 	);
 };

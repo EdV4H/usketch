@@ -115,7 +115,7 @@
 
 /* Cursor styles */
 .grabbing {
-	cursor: grabbing !important;
+	cursor: grabbing;
 }
 
 /* Selection box styles */

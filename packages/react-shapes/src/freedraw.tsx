@@ -57,7 +57,6 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 				height={shape.height}
 				fill="transparent"
 				style={{ cursor: "pointer" }}
-				// @ts-expect-error - SVG elements need role for accessibility
 				onClick={onClick}
 				onPointerDown={onPointerDown}
 				onPointerMove={onPointerMove}
