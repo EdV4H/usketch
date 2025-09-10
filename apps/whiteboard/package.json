@@ -5,6 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
+		"dev:e2e": "VITE_PORT=6173 vite",
 		"build": "tsc && vite build",
 		"lint": "biome check --no-errors-on-unmatched .",
 		"preview": "vite preview",
