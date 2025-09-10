@@ -1,14 +1,19 @@
+import type { EffectPlugin } from "@usketch/effect-registry";
 import type { ShapePlugin } from "@usketch/shape-registry";
-import type { Camera, Shape } from "@usketch/shared-types";
+import type { Camera, Effect, Shape } from "@usketch/shared-types";
 import type { BackgroundConfig } from "./hooks/use-background-renderer";
 
 // Type for any shape plugin, regardless of specific shape type
 export type AnyShapePlugin = ShapePlugin<Shape>;
 
+// Type for any effect plugin, regardless of specific effect type
+export type AnyEffectPlugin = EffectPlugin<Effect>;
+
 export interface CanvasProps {
 	className?: string;
 	background?: BackgroundConfig;
 	shapes?: readonly AnyShapePlugin[];
+	effects?: readonly AnyEffectPlugin[];
 	onReady?: (canvas: CanvasManager) => void;
 }
 

@@ -12,6 +12,8 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@usketch/effect-registry": "workspace:*",
+		"@usketch/effect-presets": "workspace:*",
 		"@usketch/react-canvas": "workspace:*",
 		"@usketch/react-shapes": "workspace:*",
 		"@usketch/shape-abstraction": "workspace:*",

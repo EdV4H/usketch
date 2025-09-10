@@ -1,10 +1,11 @@
-import type { Camera, Shape, WhiteboardState } from "@usketch/shared-types";
+import type { Camera, Effect, Shape, WhiteboardState } from "@usketch/shared-types";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 
 export interface WhiteboardStore extends WhiteboardState {
 	// State additions
 	activeTool: string;
+	effects: Record<string, Effect>;
 
 	// Actions
 	addShape: (shape: Shape) => void;
@@ -29,6 +30,13 @@ export interface WhiteboardStore extends WhiteboardState {
 	// Undo/Redo
 	undo: () => void;
 	redo: () => void;
+
+	// Effect actions
+	addEffect: (effect: Effect) => void;
+	removeEffect: (id: string) => void;
+	updateEffect: (id: string, updates: Partial<Effect>) => void;
+	clearEffects: (type?: string) => void;
+	clearExpiredEffects: () => void;
 }
 
 export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
@@ -38,6 +46,7 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 	camera: { x: 0, y: 0, zoom: 1 },
 	currentTool: "select",
 	activeTool: "select",
+	effects: {},
 
 	// Actions
 	addShape: (shape: Shape) => {
@@ -185,6 +194,65 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 
 	redo: () => {
 		console.log("Redo not implemented");
+	},
+
+	// Effect actions
+	addEffect: (effect: Effect) => {
+		set((state) => ({
+			...state,
+			effects: { ...state.effects, [effect.id]: effect },
+		}));
+	},
+
+	removeEffect: (id: string) => {
+		set((state) => {
+			const newEffects = { ...state.effects };
+			delete newEffects[id];
+			return {
+				...state,
+				effects: newEffects,
+			};
+		});
+	},
+
+	updateEffect: (id: string, updates: Partial<Effect>) => {
+		set((state) => ({
+			...state,
+			effects: {
+				...state.effects,
+				[id]: { ...state.effects[id], ...updates } as Effect,
+			},
+		}));
+	},
+
+	clearEffects: (type?: string) => {
+		set((state) => {
+			if (!type) {
+				return { ...state, effects: {} };
+			}
+			const newEffects = { ...state.effects };
+			Object.keys(newEffects).forEach((id) => {
+				const effect = newEffects[id];
+				if (effect && effect.type === type) {
+					delete newEffects[id];
+				}
+			});
+			return { ...state, effects: newEffects };
+		});
+	},
+
+	clearExpiredEffects: () => {
+		set((state) => {
+			const now = Date.now();
+			const newEffects = { ...state.effects };
+			Object.keys(newEffects).forEach((id) => {
+				const effect = newEffects[id];
+				if (effect?.duration && effect.createdAt + effect.duration < now) {
+					delete newEffects[id];
+				}
+			});
+			return { ...state, effects: newEffects };
+		});
 	},
 }));
 

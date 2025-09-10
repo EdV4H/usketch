@@ -1,7 +1,9 @@
+import { getAllPresetPlugins as getAllEffectPlugins } from "@usketch/effect-presets";
+import type { EffectPlugin } from "@usketch/effect-registry";
 import { WhiteboardCanvas } from "@usketch/react-canvas";
 import { defaultShapePlugins } from "@usketch/shape-plugins";
 import type { ShapePlugin } from "@usketch/shape-registry";
-import type { Shape } from "@usketch/shared-types";
+import type { Effect, Shape } from "@usketch/shared-types";
 import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,6 +27,7 @@ function App() {
 	const shapesAddedRef = useRef(false);
 	const backgroundsRegisteredRef = useRef(false);
 	const [shapePlugins, setShapePlugins] = useState<ShapePlugin<any>[]>([]);
+	const [effectPlugins] = useState<EffectPlugin<any>[]>(getAllEffectPlugins());
 	const [background, setBackground] = useState<any>({
 		id: "usketch.dots",
 		config: {
@@ -224,12 +227,46 @@ function App() {
 		}
 	};
 
+	// Add ripple effect on canvas click
+	useEffect(() => {
+		const handleCanvasClick = (e: MouseEvent) => {
+			// Only add ripple if clicking on empty canvas (not on shapes)
+			const target = e.target as HTMLElement;
+			if (target.closest(".whiteboard-canvas")) {
+				const rect = target.getBoundingClientRect();
+				const x = e.clientX - rect.left;
+				const y = e.clientY - rect.top;
+
+				// Add a ripple effect at the click position
+				const rippleEffect: Effect = {
+					id: `ripple-${Date.now()}`,
+					type: "ripple",
+					x,
+					y,
+					createdAt: Date.now(),
+					duration: 500,
+					metadata: {
+						color: "#4ECDC4",
+						size: 100,
+						opacity: 0.5,
+					},
+				};
+
+				whiteboardStore.getState().addEffect(rippleEffect);
+			}
+		};
+
+		document.addEventListener("click", handleCanvasClick);
+		return () => document.removeEventListener("click", handleCanvasClick);
+	}, []);
+
 	return (
 		<div className="app">
 			<ToolbarReact onBackgroundChange={setBackground} />
 			<div className="whiteboard-container">
 				<WhiteboardCanvas
 					shapes={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
+					effects={effectPlugins}
 					className="whiteboard"
 					background={background}
 					onReady={handleCanvasReady}

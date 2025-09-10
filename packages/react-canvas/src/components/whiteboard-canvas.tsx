@@ -1,3 +1,4 @@
+import { EffectRegistryProvider } from "@usketch/effect-registry";
 import { ShapeRegistryProvider } from "@usketch/shape-registry";
 import { useWhiteboardStore } from "@usketch/store";
 import type React from "react";
@@ -5,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { useCanvas } from "../hooks/use-canvas";
 import { useInteraction } from "../hooks/use-interaction";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
+import { EffectLayer } from "../layers/effect-layer";
 import type { CanvasProps } from "../types";
 import { BackgroundLayer } from "./background-layer";
 import { InteractionLayer } from "./interaction-layer";
@@ -12,7 +14,7 @@ import { SelectionLayer } from "./selection-layer";
 import { ShapeLayer } from "./shape-layer";
 
 // Internal canvas component that uses the registry
-const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes">> = ({
+const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">> = ({
 	className = "",
 	background,
 	onReady,
@@ -47,21 +49,25 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes">> = ({
 			<ShapeLayer shapes={shapes} camera={camera} activeTool={interactions.activeTool} />
 			<SelectionLayer selectedIds={selectedShapeIds} shapes={shapes} camera={camera} />
 			<InteractionLayer camera={camera} activeTool={interactions.activeTool} />
+			<EffectLayer className="effect-layer" />
 		</div>
 	);
 };
 
-// Public component that optionally sets up ShapeRegistryProvider
-export const WhiteboardCanvas: React.FC<CanvasProps> = ({ shapes, ...props }) => {
-	// If shapes are provided, wrap with ShapeRegistryProvider
-	if (shapes && shapes.length > 0) {
-		return (
-			<ShapeRegistryProvider plugins={shapes}>
-				<WhiteboardCanvasInternal {...props} />
-			</ShapeRegistryProvider>
-		);
+// Public component that optionally sets up ShapeRegistryProvider and EffectRegistryProvider
+export const WhiteboardCanvas: React.FC<CanvasProps> = ({ shapes, effects, ...props }) => {
+	// Build the component tree based on what's provided
+	let canvas = <WhiteboardCanvasInternal {...props} />;
+
+	// Wrap with EffectRegistryProvider if effects are provided
+	if (effects && effects.length > 0) {
+		canvas = <EffectRegistryProvider plugins={[...effects]}>{canvas}</EffectRegistryProvider>;
 	}
 
-	// Otherwise, render directly (assuming parent provides ShapeRegistryProvider)
-	return <WhiteboardCanvasInternal {...props} />;
+	// Wrap with ShapeRegistryProvider if shapes are provided
+	if (shapes && shapes.length > 0) {
+		canvas = <ShapeRegistryProvider plugins={shapes}>{canvas}</ShapeRegistryProvider>;
+	}
+
+	return canvas;
 };

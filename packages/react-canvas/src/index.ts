@@ -24,13 +24,13 @@ export { InteractionLayer } from "./components/interaction-layer";
 export { SelectionLayer } from "./components/selection-layer";
 export { ShapeLayer } from "./components/shape-layer";
 export { WhiteboardCanvas } from "./components/whiteboard-canvas";
-
 // Hooks
 export { useBackgroundRenderer } from "./hooks/use-background-renderer";
 export { useCanvas } from "./hooks/use-canvas";
 export { useInteraction } from "./hooks/use-interaction";
 export { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 export { useShapeManagement } from "./hooks/use-shape-management";
+export { EffectLayer } from "./layers/effect-layer";
 
 // Types
 export type { CanvasProps, LayerProps } from "./types";
