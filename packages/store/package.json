@@ -11,10 +11,10 @@
 	},
 	"dependencies": {
 		"@usketch/shared-types": "workspace:*",
-		"zustand": "^5.0.3"
+		"zustand": "^5.0.8"
 	},
 	"devDependencies": {
 		"@usketch/tsconfig": "workspace:*",
-		"typescript": "^5.7.3"
+		"typescript": "^5.9.2"
 	}
 }

@@ -15,10 +15,10 @@
 		"dev": "tsup src/index.ts --format esm --dts --watch"
 	},
 	"dependencies": {
-		"vite": "^6.3.5"
+		"vite": "^7.1.5"
 	},
 	"devDependencies": {
 		"@usketch/tsconfig": "workspace:*",
-		"tsup": "^8.0.0"
+		"tsup": "^8.5.0"
 	}
 }

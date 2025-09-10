@@ -53,14 +53,14 @@
 		"clean": "rm -rf dist coverage .turbo"
 	},
 	"dependencies": {
-		"@testing-library/jest-dom": "^6.6.3"
+		"@testing-library/jest-dom": "^6.8.0"
 	},
 	"devDependencies": {
-		"@types/node": "^24.0.3",
+		"@types/node": "^24.3.1",
 		"@usketch/tsconfig": "workspace:*",
 		"jsdom": "^26.1.0",
-		"tsup": "^8.0.0",
-		"typescript": "^5.8.3",
+		"tsup": "^8.5.0",
+		"typescript": "^5.9.2",
 		"vitest": "^3.2.4"
 	},
 	"peerDependencies": {
