@@ -19,27 +19,27 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@usketch/background-presets": "^0.0.0",
-		"@usketch/react-shapes": "^0.0.0",
-		"@usketch/shape-registry": "^0.0.1",
-		"@usketch/shared-types": "^0.0.0",
-		"@usketch/store": "^1.0.0",
-		"uuid": "^13.0.0",
-		"zustand": "^5.0.8"
+		"@usketch/background-presets": "workspace:*",
+		"@usketch/react-shapes": "workspace:*",
+		"@usketch/shape-registry": "workspace:*",
+		"@usketch/shared-types": "workspace:*",
+		"@usketch/store": "workspace:*",
+		"uuid": "13.0.0",
+		"zustand": "5.0.8"
 	},
 	"peerDependencies": {
 		"react": "^18.0.0 || ^19.0.0",
 		"react-dom": "^18.0.0 || ^19.0.0"
 	},
 	"devDependencies": {
-		"@types/react": "^19.1.12",
-		"@types/react-dom": "^19.1.9",
-		"@types/uuid": "^10.0.0",
-		"@usketch/tsconfig": "^0.0.0",
-		"@usketch/vite-config": "^0.0.0",
-		"@vitejs/plugin-react": "^5.0.2",
-		"typescript": "^5.9.2",
-		"vite": "^7.1.5",
-		"vitest": "^3.2.4"
+		"@types/react": "19.1.12",
+		"@types/react-dom": "19.1.9",
+		"@types/uuid": "10.0.0",
+		"@usketch/tsconfig": "workspace:*",
+		"@usketch/vite-config": "workspace:*",
+		"@vitejs/plugin-react": "5.0.2",
+		"typescript": "5.9.2",
+		"vite": "7.1.5",
+		"vitest": "3.2.4"
 	}
 }

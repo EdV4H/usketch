@@ -37,7 +37,7 @@
 			"groupName": "Monorepo tools"
 		}
 	],
-	"rangeStrategy": "bump",
+	"rangeStrategy": "pin",
 	"prConcurrentLimit": 10,
 	"prHourlyLimit": 2,
 	"semanticCommits": "enabled",

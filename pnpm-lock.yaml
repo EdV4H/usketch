@@ -9,22 +9,22 @@ importers:
   .:
     devDependencies:
       '@biomejs/biome':
-        specifier: ^2.2.3
+        specifier: 2.2.3
         version: 2.2.3
       glob:
-        specifier: ^11.0.3
+        specifier: 11.0.3
         version: 11.0.3
       lefthook:
-        specifier: ^1.12.4
+        specifier: 1.12.4
         version: 1.12.4
       turbo:
-        specifier: ^2.5.6
+        specifier: 2.5.6
         version: 2.5.6
 
   apps/e2e:
     devDependencies:
       '@playwright/test':
-        specifier: ^1.55.0
+        specifier: 1.55.0
         version: 1.55.0
       '@usketch/e2e-tests':
         specifier: workspace:*
@@ -66,29 +66,29 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui-components
       react:
-        specifier: ^19.1.1
+        specifier: 19.1.1
         version: 19.1.1
       react-dom:
-        specifier: ^19.1.1
+        specifier: 19.1.1
         version: 19.1.1(react@19.1.1)
       zustand:
-        specifier: ^5.0.8
+        specifier: 5.0.8
         version: 5.0.8(@types/react@19.1.12)(react@19.1.1)
     devDependencies:
       '@types/node':
-        specifier: ^24.3.1
+        specifier: 24.3.1
         version: 24.3.1
       '@types/react':
-        specifier: ^19.1.12
+        specifier: 19.1.12
         version: 19.1.12
       '@types/react-dom':
-        specifier: ^19.1.9
+        specifier: 19.1.9
         version: 19.1.9(@types/react@19.1.12)
       '@typescript-eslint/eslint-plugin':
-        specifier: ^8.43.0
+        specifier: 8.43.0
         version: 8.43.0(@typescript-eslint/parser@8.43.0)(eslint@9.35.0)(typescript@5.9.2)
       '@typescript-eslint/parser':
-        specifier: ^8.43.0
+        specifier: 8.43.0
         version: 8.43.0(eslint@9.35.0)(typescript@5.9.2)
       '@usketch/tsconfig':
         specifier: workspace:*
@@ -97,28 +97,28 @@ importers:
         specifier: workspace:*
         version: link:../../packages/vite-config
       '@vitejs/plugin-react':
-        specifier: ^5.0.2
+        specifier: 5.0.2
         version: 5.0.2(vite@7.1.5)
       eslint:
-        specifier: ^9.35.0
+        specifier: 9.35.0
         version: 9.35.0
       eslint-plugin-react-hooks:
-        specifier: ^5.2.0
+        specifier: 5.2.0
         version: 5.2.0(eslint@9.35.0)
       eslint-plugin-react-refresh:
-        specifier: ^0.4.20
+        specifier: 0.4.20
         version: 0.4.20(eslint@9.35.0)
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
       vite:
-        specifier: ^7.1.5
+        specifier: 7.1.5
         version: 7.1.5(@types/node@24.3.1)
 
   packages/background-presets:
     dependencies:
       '@usketch/shared-types':
-        specifier: ^0.0.0
+        specifier: workspace:*
         version: link:../shared-types
       react:
         specifier: ^18.0.0
@@ -128,130 +128,130 @@ importers:
         version: 18.3.1(react@18.3.1)
     devDependencies:
       '@types/react':
-        specifier: ^19.1.12
+        specifier: 19.1.12
         version: 19.1.12
       '@types/react-dom':
-        specifier: ^19.1.9
+        specifier: 19.1.9
         version: 19.1.9(@types/react@19.1.12)
       '@usketch/tsconfig':
-        specifier: ^0.0.0
+        specifier: workspace:*
         version: link:../tsconfig
       '@usketch/vite-config':
-        specifier: ^0.0.0
+        specifier: workspace:*
         version: link:../vite-config
       '@vitejs/plugin-react':
-        specifier: ^5.0.2
+        specifier: 5.0.2
         version: 5.0.2(vite@7.1.5)
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
       vite:
-        specifier: ^7.1.5
+        specifier: 7.1.5
         version: 7.1.5(@types/node@24.3.1)
 
   packages/e2e-tests:
     dependencies:
       '@playwright/test':
-        specifier: ^1.55.0
+        specifier: 1.55.0
         version: 1.55.0
     devDependencies:
       '@types/node':
-        specifier: ^24.3.1
+        specifier: 24.3.1
         version: 24.3.1
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
 
   packages/react-canvas:
     dependencies:
       '@usketch/background-presets':
-        specifier: ^0.0.0
+        specifier: workspace:*
         version: link:../background-presets
       '@usketch/react-shapes':
-        specifier: ^0.0.0
+        specifier: workspace:*
         version: link:../react-shapes
       '@usketch/shape-registry':
-        specifier: ^0.0.1
+        specifier: workspace:*
         version: link:../shape-registry
       '@usketch/shared-types':
-        specifier: ^0.0.0
+        specifier: workspace:*
         version: link:../shared-types
       '@usketch/store':
-        specifier: ^1.0.0
+        specifier: workspace:*
         version: link:../store
       react:
-        specifier: ^18.0.0
-        version: 18.3.1
+        specifier: ^18.0.0 || ^19.0.0
+        version: 19.1.1
       react-dom:
-        specifier: ^18.0.0
-        version: 18.3.1(react@18.3.1)
+        specifier: ^18.0.0 || ^19.0.0
+        version: 19.1.1(react@19.1.1)
       uuid:
-        specifier: ^13.0.0
+        specifier: 13.0.0
         version: 13.0.0
       zustand:
-        specifier: ^5.0.8
+        specifier: 5.0.8
         version: 5.0.8(@types/react@19.1.12)(react@19.1.1)
     devDependencies:
       '@types/react':
-        specifier: ^19.1.12
+        specifier: 19.1.12
         version: 19.1.12
       '@types/react-dom':
-        specifier: ^19.1.9
+        specifier: 19.1.9
         version: 19.1.9(@types/react@19.1.12)
       '@types/uuid':
-        specifier: ^10.0.0
+        specifier: 10.0.0
         version: 10.0.0
       '@usketch/tsconfig':
-        specifier: ^0.0.0
+        specifier: workspace:*
         version: link:../tsconfig
       '@usketch/vite-config':
-        specifier: ^0.0.0
+        specifier: workspace:*
         version: link:../vite-config
       '@vitejs/plugin-react':
-        specifier: ^5.0.2
+        specifier: 5.0.2
         version: 5.0.2(vite@7.1.5)
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
       vite:
-        specifier: ^7.1.5
+        specifier: 7.1.5
         version: 7.1.5(@types/node@24.3.1)
       vitest:
-        specifier: ^3.2.4
+        specifier: 3.2.4
         version: 3.2.4(@types/node@24.3.1)(jsdom@26.1.0)
 
   packages/react-shapes:
     dependencies:
       '@usketch/shared-types':
-        specifier: ^0.0.0
+        specifier: workspace:*
         version: link:../shared-types
       react:
         specifier: ^18.0.0
         version: 18.3.1
     devDependencies:
       '@types/react':
-        specifier: ^19.1.12
+        specifier: 19.1.12
         version: 19.1.12
       '@usketch/tsconfig':
-        specifier: ^0.0.0
+        specifier: workspace:*
         version: link:../tsconfig
       '@usketch/vite-config':
-        specifier: ^0.0.0
+        specifier: workspace:*
         version: link:../vite-config
       '@vitejs/plugin-react':
-        specifier: ^5.0.2
+        specifier: 5.0.2
         version: 5.0.2(vite@7.1.5)
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
       vite:
-        specifier: ^7.1.5
+        specifier: 7.1.5
         version: 7.1.5(@types/node@24.3.1)
       vitest:
-        specifier: ^3.2.4
+        specifier: 3.2.4
         version: 3.2.4(@types/node@24.3.1)(jsdom@26.1.0)
 
   packages/shape-abstraction:
@@ -266,17 +266,17 @@ importers:
         specifier: workspace:*
         version: link:../store
       react:
-        specifier: ^19.1.1
+        specifier: 19.1.1
         version: 19.1.1
       react-dom:
-        specifier: ^19.1.1
+        specifier: 19.1.1
         version: 19.1.1(react@19.1.1)
     devDependencies:
       '@types/react':
-        specifier: ^19.1.12
+        specifier: 19.1.12
         version: 19.1.12
       '@types/react-dom':
-        specifier: ^19.1.9
+        specifier: 19.1.9
         version: 19.1.9(@types/react@19.1.12)
       '@usketch/test-utils':
         specifier: workspace:*
@@ -285,10 +285,10 @@ importers:
         specifier: workspace:*
         version: link:../tsconfig
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
       vitest:
-        specifier: ^3.2.4
+        specifier: 3.2.4
         version: 3.2.4(@types/node@24.3.1)(jsdom@26.1.0)
 
   packages/shape-plugins:
@@ -303,17 +303,17 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       react:
-        specifier: ^19.1.1
+        specifier: 19.1.1
         version: 19.1.1
     devDependencies:
       '@types/react':
-        specifier: ^19.1.12
+        specifier: 19.1.12
         version: 19.1.12
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
       vitest:
-        specifier: ^3.2.4
+        specifier: 3.2.4
         version: 3.2.4(@types/node@24.3.1)(jsdom@26.1.0)
 
   packages/shape-registry:
@@ -328,32 +328,32 @@ importers:
         specifier: workspace:*
         version: link:../store
       react:
-        specifier: ^19.1.1
+        specifier: 19.1.1
         version: 19.1.1
     devDependencies:
       '@types/react':
-        specifier: ^19.1.12
+        specifier: 19.1.12
         version: 19.1.12
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
       vitest:
-        specifier: ^3.2.4
+        specifier: 3.2.4
         version: 3.2.4(@types/node@24.3.1)(jsdom@26.1.0)
 
   packages/shared-types:
     devDependencies:
       '@types/react':
-        specifier: ^19.1.12
+        specifier: 19.1.12
         version: 19.1.12
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
       vitest:
-        specifier: ^3.2.4
+        specifier: 3.2.4
         version: 3.2.4(@types/node@24.3.1)(jsdom@26.1.0)
 
   packages/shared-utils:
@@ -366,7 +366,7 @@ importers:
         specifier: workspace:*
         version: link:../tsconfig
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
 
   packages/store:
@@ -375,39 +375,39 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
       zustand:
-        specifier: ^5.0.8
+        specifier: 5.0.8
         version: 5.0.8(@types/react@19.1.12)(react@19.1.1)
     devDependencies:
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
 
   packages/test-utils:
     dependencies:
       '@testing-library/jest-dom':
-        specifier: ^6.8.0
+        specifier: 6.8.0
         version: 6.8.0
     devDependencies:
       '@types/node':
-        specifier: ^24.3.1
+        specifier: 24.3.1
         version: 24.3.1
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       jsdom:
-        specifier: ^26.1.0
+        specifier: 26.1.0
         version: 26.1.0
       tsup:
-        specifier: ^8.5.0
+        specifier: 8.5.0
         version: 8.5.0(typescript@5.9.2)
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
       vitest:
-        specifier: ^3.2.4
+        specifier: 3.2.4
         version: 3.2.4(@types/node@24.3.1)(jsdom@26.1.0)
 
   packages/tools:
@@ -419,26 +419,26 @@ importers:
         specifier: workspace:*
         version: link:../store
       '@xstate/react':
-        specifier: ^6.0.0
-        version: 6.0.0(@types/react@19.1.12)(react@19.1.1)(xstate@5.21.0)
+        specifier: 6.0.0
+        version: 6.0.0(@types/react@19.1.12)(react@18.3.1)(xstate@5.21.0)
       react:
         specifier: ^18.3.1
-        version: 19.1.1
+        version: 18.3.1
       xstate:
-        specifier: ^5.21.0
+        specifier: 5.21.0
         version: 5.21.0
       zod:
-        specifier: ^4.1.5
+        specifier: 4.1.5
         version: 4.1.5
     devDependencies:
       '@types/node':
-        specifier: ^24.3.1
+        specifier: 24.3.1
         version: 24.3.1
       '@types/react':
-        specifier: ^19.1.12
+        specifier: 19.1.12
         version: 19.1.12
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
 
   packages/tsconfig: {}
@@ -453,20 +453,20 @@ importers:
         specifier: workspace:*
         version: link:../tsconfig
       typescript:
-        specifier: ^5.9.2
+        specifier: 5.9.2
         version: 5.9.2
 
   packages/vite-config:
     dependencies:
       vite:
-        specifier: ^7.1.5
+        specifier: 7.1.5
         version: 7.1.5(@types/node@24.3.1)
     devDependencies:
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       tsup:
-        specifier: ^8.5.0
+        specifier: 8.5.0
         version: 8.5.0(typescript@5.9.2)
 
 packages:
@@ -1637,7 +1637,7 @@ packages:
       tinyrainbow: 2.0.0
     dev: true
 
-  /@xstate/react@6.0.0(@types/react@19.1.12)(react@19.1.1)(xstate@5.21.0):
+  /@xstate/react@6.0.0(@types/react@19.1.12)(react@18.3.1)(xstate@5.21.0):
     resolution: {integrity: sha512-xXlLpFJxqLhhmecAXclBECgk+B4zYSrDTl8hTfPZBogkn82OHKbm9zJxox3Z/YXoOhAQhKFTRLMYGdlbhc6T9A==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -1646,9 +1646,9 @@ packages:
       xstate:
         optional: true
     dependencies:
-      react: 19.1.1
-      use-isomorphic-layout-effect: 1.2.1(@types/react@19.1.12)(react@19.1.1)
-      use-sync-external-store: 1.5.0(react@19.1.1)
+      react: 18.3.1
+      use-isomorphic-layout-effect: 1.2.1(@types/react@19.1.12)(react@18.3.1)
+      use-sync-external-store: 1.5.0(react@18.3.1)
       xstate: 5.21.0
     transitivePeerDependencies:
       - '@types/react'
@@ -3358,7 +3358,7 @@ packages:
       punycode: 2.3.1
     dev: true
 
-  /use-isomorphic-layout-effect@1.2.1(@types/react@19.1.12)(react@19.1.1):
+  /use-isomorphic-layout-effect@1.2.1(@types/react@19.1.12)(react@18.3.1):
     resolution: {integrity: sha512-tpZZ+EX0gaghDAiFR37hj5MgY6ZN55kLiPkJsKxBMZ6GZdOSPJXiOzPM984oPYZ5AnehYx5WQp1+ME8I/P/pRA==}
     peerDependencies:
       '@types/react': '*'
@@ -3368,15 +3368,15 @@ packages:
         optional: true
     dependencies:
       '@types/react': 19.1.12
-      react: 19.1.1
+      react: 18.3.1
     dev: false
 
-  /use-sync-external-store@1.5.0(react@19.1.1):
+  /use-sync-external-store@1.5.0(react@18.3.1):
     resolution: {integrity: sha512-Rb46I4cGGVBmjamjphe8L/UnvJD+uPPtTkNvX5mZgqdbavhI4EbgIWJiIHXJ8bc/i9EQGPRh4DwEURJ552Do0A==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
     dependencies:
-      react: 19.1.1
+      react: 18.3.1
     dev: false
 
   /uuid@13.0.0:

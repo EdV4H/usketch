@@ -16,9 +16,9 @@
 		"clean": "rm -rf dist"
 	},
 	"devDependencies": {
-		"@types/react": "^19.1.12",
+		"@types/react": "19.1.12",
 		"@usketch/tsconfig": "workspace:*",
-		"typescript": "^5.9.2",
-		"vitest": "^3.2.4"
+		"typescript": "5.9.2",
+		"vitest": "3.2.4"
 	}
 }
