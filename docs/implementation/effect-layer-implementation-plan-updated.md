@@ -210,7 +210,8 @@ export const PRESET_EFFECTS_METADATA = {
 
 ```typescript
 // packages/effect-presets/src/plugins/ripple/index.tsx
-import type { EffectPlugin, RippleEffect } from "@usketch/effect-registry";
+import type { EffectComponentProps, EffectPlugin } from "@usketch/effect-registry";
+import type { RippleEffect } from "@usketch/shared-types";
 import { motion } from "framer-motion";
 
 const RippleComponent: React.FC<EffectComponentProps<RippleEffect>> = ({

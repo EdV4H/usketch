@@ -279,39 +279,25 @@ export {
 
 // レジストリに登録する関数
 import type { EffectRegistry } from "@usketch/effect-registry";
-import { cursorPlugin } from "./plugins/cursor";
-import { fadePlugin } from "./plugins/fade";
-import { highlightPlugin } from "./plugins/highlight";
-import { pinPlugin } from "./plugins/pin";
-import { ripplePlugin } from "./plugins/ripple";
-import { tooltipPlugin } from "./plugins/tooltip";
 
 /**
  * uSketchプリセットエフェクトをレジストリに登録
+ * 注: 個別のプラグインは上記でエクスポート済みのため、
+ * この関数内では./plugins/から直接インポートして使用する
  */
 export function registerPresetEffects(registry: EffectRegistry): void {
-  registry.registerMultiple([
-    ripplePlugin,
-    pinPlugin,
-    highlightPlugin,
-    cursorPlugin,
-    tooltipPlugin,
-    fadePlugin,
-  ]);
+  // 実装時は各プラグインをインポートして登録
+  // registry.registerMultiple([...]);
 }
 
 /**
  * すべてのプリセットプラグインを配列で取得
+ * 注: 個別のプラグインは上記でエクスポート済みのため、
+ * この関数内では配列として返す
  */
 export function getAllPresetPlugins() {
-  return [
-    ripplePlugin,
-    pinPlugin,
-    highlightPlugin,
-    cursorPlugin,
-    tooltipPlugin,
-    fadePlugin,
-  ];
+  // 実装時は各プラグインを配列として返す
+  // return [...];
 }
 ```
 
