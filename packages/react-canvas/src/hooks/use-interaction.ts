@@ -1,6 +1,7 @@
 import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
 import { useCallback, useRef, useState } from "react";
+import { useToolMachine } from "./use-tool-machine";
 
 interface InteractionResult {
 	cursor: string;
@@ -20,6 +21,7 @@ export const useInteraction = (): InteractionResult => {
 	const [isPanning, setIsPanning] = useState(false);
 	const panStartRef = useRef<Point | null>(null);
 	const cameraPosRef = useRef<Point | null>(null);
+	const toolMachine = useToolMachine();
 
 	const getCanvasPoint = useCallback(
 		(e: React.PointerEvent): Point => {
@@ -47,11 +49,17 @@ export const useInteraction = (): InteractionResult => {
 			// Left click for tool interaction
 			if (e.button === 0 && activeTool) {
 				const point = getCanvasPoint(e);
-				// Tool handling will be implemented in Phase 3
-				console.log("Tool interaction at:", point);
+
+				// Handle select tool interactions
+				if (toolMachine.isSelectTool) {
+					toolMachine.handlePointerDown(point, e);
+				} else {
+					// Other tools handling
+					console.log("Tool interaction at:", point, "Tool:", activeTool);
+				}
 			}
 		},
-		[camera, getCanvasPoint, activeTool],
+		[camera, getCanvasPoint, activeTool, toolMachine],
 	);
 
 	const handlePointerMove = useCallback(
@@ -65,6 +73,13 @@ export const useInteraction = (): InteractionResult => {
 					y: cameraPosRef.current.y + dy,
 				});
 			} else {
+				const point = getCanvasPoint(e);
+
+				// Handle select tool interactions
+				if (toolMachine.isSelectTool) {
+					toolMachine.handlePointerMove(point, e);
+				}
+
 				// Update cursor based on tool
 				if (activeTool === "select") {
 					setCursor("default");
@@ -75,17 +90,27 @@ export const useInteraction = (): InteractionResult => {
 				}
 			}
 		},
-		[isPanning, setCamera, activeTool],
+		[isPanning, setCamera, activeTool, getCanvasPoint, toolMachine],
 	);
 
-	const handlePointerUp = useCallback(() => {
-		if (isPanning) {
-			setIsPanning(false);
-			panStartRef.current = null;
-			cameraPosRef.current = null;
-			setCursor("default");
-		}
-	}, [isPanning]);
+	const handlePointerUp = useCallback(
+		(e: React.PointerEvent) => {
+			if (isPanning) {
+				setIsPanning(false);
+				panStartRef.current = null;
+				cameraPosRef.current = null;
+				setCursor("default");
+			} else {
+				const point = getCanvasPoint(e);
+
+				// Handle select tool interactions
+				if (toolMachine.isSelectTool) {
+					toolMachine.handlePointerUp(point, e);
+				}
+			}
+		},
+		[isPanning, getCanvasPoint, toolMachine],
+	);
 
 	const handleWheel = useCallback(
 		(e: React.WheelEvent) => {

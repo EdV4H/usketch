@@ -24,7 +24,9 @@
 		"@usketch/shape-registry": "workspace:*",
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/store": "workspace:*",
+		"@usketch/tools": "workspace:*",
 		"uuid": "13.0.0",
+		"xstate": "5.21.0",
 		"zustand": "5.0.8"
 	},
 	"peerDependencies": {
