@@ -142,6 +142,8 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 					{/* Corner handles */}
 					<div
 						className="resize-handle nw"
+						data-resize-handle="nw"
+						data-testid="resize-handle-nw"
 						style={{
 							position: "absolute",
 							left: boundingBox.x - 4,
@@ -152,10 +154,13 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 							border: "1px solid white",
 							cursor: "nw-resize",
 							pointerEvents: "auto",
+							zIndex: 10,
 						}}
 					/>
 					<div
 						className="resize-handle ne"
+						data-resize-handle="ne"
+						data-testid="resize-handle-ne"
 						style={{
 							position: "absolute",
 							left: boundingBox.x + boundingBox.width - 4,
@@ -166,10 +171,13 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 							border: "1px solid white",
 							cursor: "ne-resize",
 							pointerEvents: "auto",
+							zIndex: 10,
 						}}
 					/>
 					<div
 						className="resize-handle sw"
+						data-resize-handle="sw"
+						data-testid="resize-handle-sw"
 						style={{
 							position: "absolute",
 							left: boundingBox.x - 4,
@@ -180,10 +188,13 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 							border: "1px solid white",
 							cursor: "sw-resize",
 							pointerEvents: "auto",
+							zIndex: 10,
 						}}
 					/>
 					<div
 						className="resize-handle se"
+						data-resize-handle="se"
+						data-testid="resize-handle-se"
 						style={{
 							position: "absolute",
 							left: boundingBox.x + boundingBox.width - 4,
@@ -194,6 +205,7 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 							border: "1px solid white",
 							cursor: "se-resize",
 							pointerEvents: "auto",
+							zIndex: 10,
 						}}
 					/>
 				</>
