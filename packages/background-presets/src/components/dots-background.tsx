@@ -30,8 +30,8 @@ export const DotsBackground: React.FC<
 			<defs>
 				<pattern
 					id="dots"
-					x={-camera.x}
-					y={-camera.y}
+					x={camera.x % spacing}
+					y={camera.y % spacing}
 					width={spacing}
 					height={spacing}
 					patternUnits="userSpaceOnUse"

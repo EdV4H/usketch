@@ -33,8 +33,8 @@ export const LinesBackground: React.FC<
 			<defs>
 				<pattern
 					id="lines"
-					x={-camera.x}
-					y={-camera.y}
+					x={isHorizontal ? 0 : camera.x % spacing}
+					y={isHorizontal ? camera.y % spacing : 0}
 					width={isHorizontal ? "100%" : spacing}
 					height={isHorizontal ? spacing : "100%"}
 					patternUnits="userSpaceOnUse"
