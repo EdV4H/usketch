@@ -391,8 +391,6 @@ export const selectToolMachine = setup({
 			const handle = event.target || getResizeHandleAtPoint(event.point, shapeId);
 			if (!handle) return {};
 
-			console.log("Starting resize:", { shapeId, handle, shape, target: event.target });
-
 			return {
 				resizeHandle: handle as ResizeHandle,
 				resizingShapeId: shapeId,
@@ -493,7 +491,6 @@ export const selectToolMachine = setup({
 
 			// First check if we have a target from DOM (data-resize-handle attribute)
 			if (event.target) {
-				console.log("Resize handle detected from DOM:", event.target);
 				return true;
 			}
 

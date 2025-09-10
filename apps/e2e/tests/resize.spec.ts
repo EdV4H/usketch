@@ -38,18 +38,8 @@ test.describe("Shape Resize Functionality", () => {
 		// Debug: Take screenshot
 		await page.screenshot({ path: "test-results/resize-handles-debug.png" });
 
-		// Check if any shape is rendered
-		const shapes = await page.locator("[data-shape-id]").count();
-		console.log(`Found ${shapes} shapes on canvas`);
-
 		// Check if resize handles are visible
 		const handles = await page.locator("[data-resize-handle]").count();
-		console.log(`Found ${handles} resize handles`);
-
-		// Also check for selection layer
-		const selectionLayer = await page.locator(".selection-layer").count();
-		console.log(`Found ${selectionLayer} selection layers`);
-
 		expect(handles).toBeGreaterThan(0);
 	});
 
@@ -75,7 +65,6 @@ test.describe("Shape Resize Functionality", () => {
 
 		// Get initial shape dimensions
 		const shapeBefore = await page.locator("[data-shape-id]").first().boundingBox();
-		console.log("Shape before resize:", shapeBefore);
 
 		// Find SE (bottom-right) resize handle
 		const seHandle = await page.locator('[data-resize-handle="se"]').boundingBox();
@@ -91,7 +80,6 @@ test.describe("Shape Resize Functionality", () => {
 
 		// Get shape dimensions after resize
 		const shapeAfter = await page.locator("[data-shape-id]").first().boundingBox();
-		console.log("Shape after resize:", shapeAfter);
 
 		// Verify shape was resized
 		expect(shapeAfter?.width).toBeGreaterThan(shapeBefore?.width || 0);

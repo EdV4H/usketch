@@ -177,12 +177,10 @@ export function getResizeHandleAtPoint(point: Point, shapeId: string): ResizeHan
 			point.y >= pos.y &&
 			point.y <= pos.y + handleSize
 		) {
-			console.log("Resize handle detected:", handle, "at point:", point);
 			return handle as ResizeHandle;
 		}
 	}
 
-	console.log("No resize handle at point:", point, "Shape bounds:", { x, y, width, height });
 	return null;
 }
 

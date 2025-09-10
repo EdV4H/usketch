@@ -37,10 +37,6 @@ export const useToolMachine = () => {
 			const target = e.target as HTMLElement;
 			const resizeHandle = target.getAttribute("data-resize-handle");
 
-			console.log("Pointer down - target:", target, "resizeHandle:", resizeHandle);
-			console.log("Target className:", target.className);
-			console.log("Point:", point);
-
 			sendEvent({
 				type: "POINTER_DOWN",
 				point,

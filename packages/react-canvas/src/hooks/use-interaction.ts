@@ -55,7 +55,6 @@ export const useInteraction = (): InteractionResult => {
 					toolMachine.handlePointerDown(point, e);
 				} else {
 					// Other tools handling
-					console.log("Tool interaction at:", point, "Tool:", activeTool);
 				}
 			}
 		},
