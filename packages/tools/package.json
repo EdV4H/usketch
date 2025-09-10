@@ -14,6 +14,10 @@
 		"./schemas": {
 			"types": "./dist/schemas/index.d.ts",
 			"import": "./dist/schemas/index.js"
+		},
+		"./machines/select-tool": {
+			"types": "./dist/machines/select-tool.d.ts",
+			"import": "./dist/machines/select-tool.js"
 		}
 	},
 	"scripts": {
