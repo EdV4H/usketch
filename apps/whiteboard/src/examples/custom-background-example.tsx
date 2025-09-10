@@ -9,7 +9,7 @@ import React from "react";
  * カスタムReact背景コンポーネントの例
  * パーティクル効果の背景
  */
-const ParticleBackground: BackgroundComponent = ({ camera }) => {
+const ParticleBackground: BackgroundComponent = ({ camera }: BackgroundComponentProps) => {
 	const particles = React.useMemo(() => {
 		return Array.from({ length: 50 }, (_, i) => ({
 			id: i,
