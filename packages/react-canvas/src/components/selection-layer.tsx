@@ -139,63 +139,129 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 			{/* Show resize handles for single selection */}
 			{selectedShapes.length === 1 && (
 				<>
-					{/* Corner handles */}
+					{/* Corner handles with larger interaction area */}
 					<div
 						className="resize-handle nw"
+						data-resize-handle="nw"
+						data-testid="resize-handle-nw"
 						style={{
 							position: "absolute",
-							left: boundingBox.x - 4,
-							top: boundingBox.y - 4,
-							width: 8,
-							height: 8,
-							backgroundColor: "#0066ff",
-							border: "1px solid white",
+							left: boundingBox.x - 10,
+							top: boundingBox.y - 10,
+							width: 20,
+							height: 20,
 							cursor: "nw-resize",
 							pointerEvents: "auto",
+							zIndex: 10,
+							// Invisible expanded hit area
+							background: "transparent",
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
 						}}
-					/>
+					>
+						{/* Visible handle */}
+						<div
+							style={{
+								width: 8,
+								height: 8,
+								backgroundColor: "#0066ff",
+								border: "1px solid white",
+								borderRadius: "2px",
+								pointerEvents: "none",
+							}}
+						/>
+					</div>
 					<div
 						className="resize-handle ne"
+						data-resize-handle="ne"
+						data-testid="resize-handle-ne"
 						style={{
 							position: "absolute",
-							left: boundingBox.x + boundingBox.width - 4,
-							top: boundingBox.y - 4,
-							width: 8,
-							height: 8,
-							backgroundColor: "#0066ff",
-							border: "1px solid white",
+							left: boundingBox.x + boundingBox.width - 10,
+							top: boundingBox.y - 10,
+							width: 20,
+							height: 20,
 							cursor: "ne-resize",
 							pointerEvents: "auto",
+							zIndex: 10,
+							background: "transparent",
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
 						}}
-					/>
+					>
+						<div
+							style={{
+								width: 8,
+								height: 8,
+								backgroundColor: "#0066ff",
+								border: "1px solid white",
+								borderRadius: "2px",
+								pointerEvents: "none",
+							}}
+						/>
+					</div>
 					<div
 						className="resize-handle sw"
+						data-resize-handle="sw"
+						data-testid="resize-handle-sw"
 						style={{
 							position: "absolute",
-							left: boundingBox.x - 4,
-							top: boundingBox.y + boundingBox.height - 4,
-							width: 8,
-							height: 8,
-							backgroundColor: "#0066ff",
-							border: "1px solid white",
+							left: boundingBox.x - 10,
+							top: boundingBox.y + boundingBox.height - 10,
+							width: 20,
+							height: 20,
 							cursor: "sw-resize",
 							pointerEvents: "auto",
+							zIndex: 10,
+							background: "transparent",
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
 						}}
-					/>
+					>
+						<div
+							style={{
+								width: 8,
+								height: 8,
+								backgroundColor: "#0066ff",
+								border: "1px solid white",
+								borderRadius: "2px",
+								pointerEvents: "none",
+							}}
+						/>
+					</div>
 					<div
 						className="resize-handle se"
+						data-resize-handle="se"
+						data-testid="resize-handle-se"
 						style={{
 							position: "absolute",
-							left: boundingBox.x + boundingBox.width - 4,
-							top: boundingBox.y + boundingBox.height - 4,
-							width: 8,
-							height: 8,
-							backgroundColor: "#0066ff",
-							border: "1px solid white",
+							left: boundingBox.x + boundingBox.width - 10,
+							top: boundingBox.y + boundingBox.height - 10,
+							width: 20,
+							height: 20,
 							cursor: "se-resize",
 							pointerEvents: "auto",
+							zIndex: 10,
+							background: "transparent",
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
 						}}
-					/>
+					>
+						<div
+							style={{
+								width: 8,
+								height: 8,
+								backgroundColor: "#0066ff",
+								border: "1px solid white",
+								borderRadius: "2px",
+								pointerEvents: "none",
+							}}
+						/>
+					</div>
 				</>
 			)}
 		</div>

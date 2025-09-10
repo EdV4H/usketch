@@ -4,11 +4,14 @@ import type { Bounds, Point, ToolContext } from "../types";
 import {
 	commitShapeChanges,
 	getCropHandleAtPoint,
+	getResizeHandleAtPoint,
 	getShape,
 	getShapeAtPoint,
 	getShapesInBounds,
+	type ResizeHandle,
 	updateShape,
 } from "../utils/geometry";
+import { calculateNewBounds } from "../utils/resize-calculator";
 import { SnapEngine } from "../utils/snap-engine";
 
 // === Select Tool Context ===
@@ -19,6 +22,10 @@ export interface SelectToolContext extends ToolContext {
 	initialPositions: Map<string, Point>;
 	initialPoints: Map<string, Point[]>; // Store original points for freedraw shapes
 	croppingShapeId?: string;
+	// Resize state
+	resizeHandle: ResizeHandle | null;
+	resizingShapeId: string | null;
+	initialBounds: Bounds | null;
 }
 
 // === Select Tool Events ===
@@ -365,6 +372,102 @@ export const selectToolMachine = setup({
 		adjustCropBounds: () => {
 			// TODO: Adjust crop bounds
 		},
+
+		// Resize actions
+		startResize: assign(({ event }) => {
+			if (event.type !== "POINTER_DOWN") return {};
+
+			// Get the selected shape from store
+			const store = whiteboardStore.getState();
+			const selectedIds = store.selectedShapeIds;
+			if (selectedIds.size !== 1) return {};
+
+			const shapeId = Array.from(selectedIds)[0];
+			const shape = getShape(shapeId);
+			if (!shape || !("width" in shape && "height" in shape)) return {};
+
+			// Check if we have a resize handle from event target
+			// This is set by the DOM data-resize-handle attribute
+			const handle = event.target || getResizeHandleAtPoint(event.point, shapeId);
+			if (!handle) return {};
+
+			return {
+				resizeHandle: handle as ResizeHandle,
+				resizingShapeId: shapeId,
+				dragStart: event.point,
+				initialBounds: {
+					x: shape.x,
+					y: shape.y,
+					width: shape.width,
+					height: shape.height,
+				},
+				selectedIds: new Set(selectedIds), // Sync selected IDs
+			};
+		}),
+
+		updateResize: assign(({ context, event }) => {
+			if (
+				event.type !== "POINTER_MOVE" ||
+				!context.resizeHandle ||
+				!context.resizingShapeId ||
+				!context.dragStart ||
+				!context.initialBounds
+			) {
+				return {};
+			}
+
+			const delta = {
+				x: event.point.x - context.dragStart.x,
+				y: event.point.y - context.dragStart.y,
+			};
+
+			const newBounds = calculateNewBounds(
+				context.initialBounds,
+				context.resizeHandle,
+				delta,
+				event.shiftKey, // Maintain aspect ratio if shift is held
+			);
+
+			// Update the shape with new bounds
+			updateShape(context.resizingShapeId, newBounds);
+
+			return {};
+		}),
+
+		commitResize: () => {
+			commitShapeChanges();
+		},
+
+		cancelResize: assign(({ context }) => {
+			// Restore original bounds
+			if (context.resizingShapeId && context.initialBounds) {
+				updateShape(context.resizingShapeId, context.initialBounds);
+			}
+			return {
+				resizeHandle: null,
+				resizingShapeId: null,
+				initialBounds: null,
+				dragStart: null,
+			};
+		}),
+
+		setCursorResize: assign(({ context }) => {
+			if (!context.resizeHandle) return { cursor: "default" };
+
+			// Set cursor based on handle
+			const cursors: Record<string, string> = {
+				nw: "nw-resize",
+				n: "n-resize",
+				ne: "ne-resize",
+				e: "e-resize",
+				se: "se-resize",
+				s: "s-resize",
+				sw: "sw-resize",
+				w: "w-resize",
+			};
+
+			return { cursor: cursors[context.resizeHandle] || "default" };
+		}),
 	},
 	guards: {
 		isPointOnShape: ({ event }) => {
@@ -381,6 +484,24 @@ export const selectToolMachine = setup({
 		isPointOnCropHandle: ({ event }) => {
 			if (!("point" in event)) return false;
 			return !!getCropHandleAtPoint(event.point!);
+		},
+
+		isPointOnResizeHandle: ({ event }) => {
+			if (event.type !== "POINTER_DOWN") return false;
+
+			// First check if we have a target from DOM (data-resize-handle attribute)
+			if (event.target) {
+				return true;
+			}
+
+			// Fallback to point-based detection
+			const store = whiteboardStore.getState();
+			const selectedIds = store.selectedShapeIds;
+			if (selectedIds.size !== 1) return false;
+
+			const shapeId = Array.from(selectedIds)[0];
+			const handle = getResizeHandleAtPoint(event.point, shapeId);
+			return !!handle;
 		},
 	},
 	actors: {
@@ -412,6 +533,9 @@ export const selectToolMachine = setup({
 		cursor: "default",
 		selectedIds: new Set(),
 		hoveredId: null,
+		resizeHandle: null,
+		resizingShapeId: null,
+		initialBounds: null,
 	},
 
 	states: {
@@ -419,6 +543,12 @@ export const selectToolMachine = setup({
 			entry: "resetCursor",
 			on: {
 				POINTER_DOWN: [
+					{
+						// Check for resize handle first
+						target: "resizing",
+						guard: "isPointOnResizeHandle",
+						actions: "startResize",
+					},
 					{
 						target: "translating",
 						guard: "isPointOnSelectedShape",
@@ -511,6 +641,25 @@ export const selectToolMachine = setup({
 					shapes: context.selectedIds,
 					threshold: 10,
 				}),
+			},
+		},
+
+		// === リサイズ状態 ===
+		resizing: {
+			entry: ["setCursorResize"],
+			exit: "commitResize",
+
+			on: {
+				POINTER_MOVE: {
+					actions: "updateResize",
+				},
+				POINTER_UP: {
+					target: "idle",
+				},
+				ESCAPE: {
+					target: "idle",
+					actions: "cancelResize",
+				},
 			},
 		},
 
