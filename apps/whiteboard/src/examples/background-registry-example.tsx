@@ -6,12 +6,12 @@ import {
 	PRESET_BACKGROUNDS_METADATA,
 	WhiteboardCanvas,
 } from "@usketch/react-canvas";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 
 /**
  * カスタム背景コンポーネントの例：パーティクル効果
  */
-const ParticleBackground: BackgroundComponent = ({ camera }) => {
+const ParticleBackground: BackgroundComponent = ({ camera }: BackgroundComponentProps) => {
 	const particles = React.useMemo(() => {
 		return Array.from({ length: 50 }, (_, i) => ({
 			id: i,
@@ -120,6 +120,7 @@ const RippleBackground: React.FC<BackgroundComponentProps> = ({ camera }) => {
  * BackgroundRegistryの使用例
  */
 export const BackgroundRegistryExample: React.FC = () => {
+	const selectId = useId();
 	const [selectedBgId, setSelectedBgId] = useState<string>("usketch.dots");
 	const [availableBackgrounds, setAvailableBackgrounds] = useState<string[]>([]);
 	const [customRegistry] = useState(() => new BackgroundRegistry());
@@ -154,11 +155,11 @@ export const BackgroundRegistryExample: React.FC = () => {
 				<h2>Background Registry Example</h2>
 
 				<div style={{ marginTop: "1rem" }}>
-					<label htmlFor="background-select" style={{ marginRight: "1rem" }}>
+					<label htmlFor={selectId} style={{ marginRight: "1rem" }}>
 						背景を選択:
 					</label>
 					<select
-						id="background-select"
+						id={selectId}
 						value={selectedBgId}
 						onChange={(e) => {
 							setSelectedBgId(e.target.value);
@@ -267,7 +268,7 @@ export const BackgroundRegistryExample: React.FC = () => {
 						selectedBgId === "inline.gradient"
 							? {
 									id: "inline.gradient",
-									component: ({ camera }) => (
+									component: ({ camera }: BackgroundComponentProps) => (
 										<div
 											style={{
 												position: "absolute",

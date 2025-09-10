@@ -42,7 +42,6 @@ export const Rectangle: React.FC<RectangleProps> = ({
 				stroke={shape.strokeColor || "#000"}
 				strokeWidth={shape.strokeWidth || 1}
 				style={{ cursor: "pointer" }}
-				// @ts-ignore - SVG elements need role for accessibility
 				onClick={onClick}
 				onPointerDown={onPointerDown}
 				onPointerMove={onPointerMove}

@@ -17,19 +17,19 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@usketch/shared-types": "*"
+		"@usketch/shared-types": "workspace:*"
 	},
 	"peerDependencies": {
 		"react": "^18.0.0",
 		"react-dom": "^18.0.0"
 	},
 	"devDependencies": {
-		"@types/react": "^18.2.0",
-		"@types/react-dom": "^18.2.0",
-		"@usketch/tsconfig": "*",
-		"@usketch/vite-config": "*",
-		"@vitejs/plugin-react": "^4.3.4",
-		"typescript": "^5.7.2",
-		"vite": "^6.0.7"
+		"@types/react": "19.1.12",
+		"@types/react-dom": "19.1.9",
+		"@usketch/tsconfig": "workspace:*",
+		"@usketch/vite-config": "workspace:*",
+		"@vitejs/plugin-react": "5.0.2",
+		"typescript": "5.9.2",
+		"vite": "7.1.5"
 	}
 }

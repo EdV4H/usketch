@@ -142,7 +142,9 @@ export const selectToolMachine = setup({
 			if (event.shiftKey) {
 				// Add to existing selection
 				newSelectedIds = new Set(store.selectedShapeIds);
-				intersecting.forEach((shape) => newSelectedIds.add(shape.id));
+				intersecting.forEach((shape) => {
+					newSelectedIds.add(shape.id);
+				});
 			} else {
 				// Replace selection
 				newSelectedIds = new Set(intersecting.map((s) => s.id));

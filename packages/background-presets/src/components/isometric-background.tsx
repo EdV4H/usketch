@@ -1,4 +1,5 @@
 import type React from "react";
+import { useId } from "react";
 import type { BackgroundComponentProps } from "../types";
 
 export interface IsometricBackgroundConfig {
@@ -9,6 +10,7 @@ export interface IsometricBackgroundConfig {
 export const IsometricBackground: React.FC<
 	BackgroundComponentProps & { config?: IsometricBackgroundConfig }
 > = ({ camera, config }) => {
+	const patternId = useId();
 	const size = (config?.size || 40) * camera.zoom;
 	const color = config?.color || "#e0e0e0";
 	const height = (size * Math.sqrt(3)) / 2;
@@ -28,7 +30,7 @@ export const IsometricBackground: React.FC<
 			<title>Isometric background</title>
 			<defs>
 				<pattern
-					id="isometric"
+					id={patternId}
 					x={camera.x % (size * 2)}
 					y={camera.y % (height * 2)}
 					width={size * 2}
@@ -54,7 +56,7 @@ export const IsometricBackground: React.FC<
 					<line x1={size} y1={0} x2={size} y2={height * 2} stroke={color} strokeWidth="1" />
 				</pattern>
 			</defs>
-			<rect width="100%" height="100%" fill="url(#isometric)" />
+			<rect width="100%" height="100%" fill={`url(#${patternId})`} />
 		</svg>
 	);
 };

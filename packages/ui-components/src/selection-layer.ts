@@ -228,7 +228,9 @@ export class SelectionLayer {
 	}
 
 	clear(): void {
-		this.selectionBoxes.forEach((box) => box.remove());
+		this.selectionBoxes.forEach((box) => {
+			box.remove();
+		});
 		this.selectionBoxes.clear();
 
 		if (this.groupSelectionBox) {

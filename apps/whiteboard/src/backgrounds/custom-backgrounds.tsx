@@ -4,7 +4,7 @@ import React from "react";
 /**
  * カスタム背景: パーティクル効果
  */
-export const ParticleBackground: BackgroundComponent = ({ camera }) => {
+export const ParticleBackground: BackgroundComponent = ({ camera }: BackgroundComponentProps) => {
 	const particles = React.useMemo(() => {
 		return Array.from({ length: 50 }, (_, i) => ({
 			id: i,
@@ -60,7 +60,9 @@ export const ParticleBackground: BackgroundComponent = ({ camera }) => {
 /**
  * カスタム背景: 波紋効果
  */
-export const RippleBackground: React.FC<BackgroundComponentProps> = ({ camera }) => {
+export const RippleBackground: React.FC<BackgroundComponentProps> = ({
+	camera,
+}: BackgroundComponentProps) => {
 	const [_, forceUpdate] = React.useReducer((x) => x + 1, 0);
 	const ripplesRef = React.useRef<Array<{ id: number; x: number; y: number; startTime: number }>>(
 		[],
@@ -148,7 +150,9 @@ export const RippleBackground: React.FC<BackgroundComponentProps> = ({ camera })
 /**
  * カスタム背景: グラデーションメッシュ
  */
-export const GradientMeshBackground: BackgroundComponent = ({ camera }) => {
+export const GradientMeshBackground: BackgroundComponent = ({
+	camera,
+}: BackgroundComponentProps) => {
 	return (
 		<div
 			style={{
@@ -196,7 +200,7 @@ export const GradientMeshBackground: BackgroundComponent = ({ camera }) => {
 /**
  * カスタム背景: 星空
  */
-export const StarsBackground: BackgroundComponent = ({ camera }) => {
+export const StarsBackground: BackgroundComponent = ({ camera }: BackgroundComponentProps) => {
 	const stars = React.useMemo(() => {
 		return Array.from({ length: 100 }, (_, i) => ({
 			id: i,
@@ -256,7 +260,7 @@ export const StarsBackground: BackgroundComponent = ({ camera }) => {
 /**
  * カスタム背景: ネオンライン
  */
-export const NeonLinesBackground: BackgroundComponent = ({ camera }) => {
+export const NeonLinesBackground: BackgroundComponent = ({ camera }: BackgroundComponentProps) => {
 	const time = React.useRef(0);
 	const [_, forceUpdate] = React.useReducer((x) => x + 1, 0);
 

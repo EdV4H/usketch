@@ -1,0 +1,50 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": ["config:recommended", ":semanticCommits", ":automergeDigest", ":automergeMinor"],
+	"timezone": "Asia/Tokyo",
+	"schedule": ["before 3am on Monday"],
+	"labels": ["dependencies"],
+	"assignees": [],
+	"packageRules": [
+		{
+			"description": "Automatically merge minor and patch releases",
+			"matchUpdateTypes": ["minor", "patch"],
+			"automerge": true
+		},
+		{
+			"description": "Require approval for major updates",
+			"matchUpdateTypes": ["major"],
+			"automerge": false
+		},
+		{
+			"description": "Group React packages",
+			"matchPackagePatterns": ["^react", "^@types/react"],
+			"groupName": "React packages"
+		},
+		{
+			"description": "Group TypeScript packages",
+			"matchPackagePatterns": ["typescript", "^@types/"],
+			"groupName": "TypeScript packages"
+		},
+		{
+			"description": "Group testing packages",
+			"matchPackagePatterns": ["vitest", "playwright", "@playwright"],
+			"groupName": "Testing packages"
+		},
+		{
+			"description": "Group monorepo tools",
+			"matchPackageNames": ["turbo", "pnpm"],
+			"groupName": "Monorepo tools"
+		}
+	],
+	"rangeStrategy": "pin",
+	"prConcurrentLimit": 10,
+	"prHourlyLimit": 2,
+	"semanticCommits": "enabled",
+	"commitMessagePrefix": "⬆️",
+	"commitMessageAction": "update",
+	"commitMessageTopic": "{{depName}}",
+	"commitMessageExtra": "to {{newVersion}}",
+	"postUpdateOptions": ["pnpmDedupe"],
+	"ignorePaths": ["**/node_modules/**", "**/dist/**", "**/build/**"]
+}

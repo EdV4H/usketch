@@ -108,9 +108,13 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 	deleteShapes: (ids: string[]) => {
 		set((state) => {
 			const newShapes = { ...state.shapes };
-			ids.forEach((id) => delete newShapes[id]);
+			ids.forEach((id) => {
+				delete newShapes[id];
+			});
 			const newSelectedIds = new Set(state.selectedShapeIds);
-			ids.forEach((id) => newSelectedIds.delete(id));
+			ids.forEach((id) => {
+				newSelectedIds.delete(id);
+			});
 			return {
 				...state,
 				shapes: newShapes,
