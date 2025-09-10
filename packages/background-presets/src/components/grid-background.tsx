@@ -30,8 +30,8 @@ export const GridBackground: React.FC<
 			<defs>
 				<pattern
 					id="grid"
-					x={-camera.x}
-					y={-camera.y}
+					x={camera.x % size}
+					y={camera.y % size}
 					width={size}
 					height={size}
 					patternUnits="userSpaceOnUse"

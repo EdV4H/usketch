@@ -29,8 +29,8 @@ export const IsometricBackground: React.FC<
 			<defs>
 				<pattern
 					id="isometric"
-					x={-camera.x}
-					y={-camera.y}
+					x={camera.x % (size * 2)}
+					y={camera.y % (height * 2)}
 					width={size * 2}
 					height={height * 2}
 					patternUnits="userSpaceOnUse"
