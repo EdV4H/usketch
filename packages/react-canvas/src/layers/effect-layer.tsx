@@ -54,6 +54,8 @@ export const EffectLayer: FC<EffectLayerProps> = memo(({ className }) => {
 							position: "absolute",
 							left: transformedX,
 							top: transformedY,
+							width: 0,
+							height: 0,
 							zIndex: effect.zIndex || 1000,
 							pointerEvents: plugin.interactive ? "auto" : "none",
 						}}
@@ -71,6 +73,8 @@ export const EffectLayer: FC<EffectLayerProps> = memo(({ className }) => {
 						position: "absolute",
 						left: transformedX,
 						top: transformedY,
+						width: 0,
+						height: 0,
 						zIndex: effect.zIndex || 1000,
 						pointerEvents: plugin.interactive ? "auto" : "none",
 					}}
