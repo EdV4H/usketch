@@ -19,7 +19,7 @@ export interface WhiteboardStore extends WhiteboardState {
 	selectionIndicator: SelectionIndicatorState;
 	effects: Record<string, Effect>;
 	effectToolConfig: {
-		effectType: "ripple" | "pin" | "fading-pin";
+		effectType: string; // Allow any effect type for extensibility
 		effectConfig?: Record<string, any>;
 	};
 

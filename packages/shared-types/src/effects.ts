@@ -46,50 +46,14 @@ export interface FadingPinEffect extends BaseEffect {
 	size?: number;
 }
 
-/**
- * Cursor effect for multi-user collaboration
- */
-export interface CursorEffect extends BaseEffect {
-	type: "cursor";
-	userId: string;
-	userName: string;
-	color: string;
-	size?: number;
-}
-
-/**
- * Highlight effect for emphasis
- */
-export interface HighlightEffect extends BaseEffect {
-	type: "highlight";
-	width: number;
-	height: number;
-	color: string;
-	opacity: number;
-	pulseAnimation?: boolean;
-}
-
-/**
- * Tooltip effect for hover information
- */
-export interface TooltipEffect extends BaseEffect {
-	type: "tooltip";
-	content: string;
-	backgroundColor?: string;
-	textColor?: string;
-	fontSize?: number;
-	maxWidth?: number;
-}
-
-/**
- * Fade effect for transitions
- */
-export interface FadeEffect extends BaseEffect {
-	type: "fade";
-	targetOpacity: number;
-	fadeIn?: boolean;
-	fadeOut?: boolean;
-}
+// Future effect types can be added here as needed
+// Example:
+// export interface CursorEffect extends BaseEffect {
+//   type: "cursor";
+//   userId: string;
+//   userName: string;
+//   color: string;
+// }
 
 /**
  * Custom effect for extensions
@@ -102,14 +66,7 @@ export interface CustomEffect extends BaseEffect {
 /**
  * Union type of all standard effects
  */
-export type StandardEffect =
-	| RippleEffect
-	| PinEffect
-	| FadingPinEffect
-	| CursorEffect
-	| HighlightEffect
-	| TooltipEffect
-	| FadeEffect;
+export type StandardEffect = RippleEffect | PinEffect | FadingPinEffect;
 
 /**
  * Union type of all effects including custom
