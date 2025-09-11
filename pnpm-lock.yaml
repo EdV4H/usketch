@@ -35,9 +35,6 @@ importers:
 
   apps/whiteboard:
     dependencies:
-      '@usketch/effect-presets':
-        specifier: workspace:*
-        version: link:../../packages/effect-presets
       '@usketch/effect-registry':
         specifier: workspace:*
         version: link:../../packages/effect-registry
@@ -71,6 +68,9 @@ importers:
       '@usketch/ui-components':
         specifier: workspace:*
         version: link:../../packages/ui-components
+      framer-motion:
+        specifier: 11.18.2
+        version: 11.18.2(react-dom@19.1.1)(react@19.1.1)
       react:
         specifier: 19.1.1
         version: 19.1.1
@@ -171,46 +171,6 @@ importers:
         specifier: 5.9.2
         version: 5.9.2
 
-  packages/effect-presets:
-    dependencies:
-      '@usketch/effect-registry':
-        specifier: workspace:*
-        version: link:../effect-registry
-      '@usketch/shared-types':
-        specifier: workspace:*
-        version: link:../shared-types
-      framer-motion:
-        specifier: ^11.0.0
-        version: 11.18.2(react-dom@18.3.1)(react@18.3.1)
-      react:
-        specifier: ^18.0.0
-        version: 18.3.1
-      react-dom:
-        specifier: ^18.0.0
-        version: 18.3.1(react@18.3.1)
-    devDependencies:
-      '@types/react':
-        specifier: 19.1.12
-        version: 19.1.12
-      '@types/react-dom':
-        specifier: 19.1.9
-        version: 19.1.9(@types/react@19.1.12)
-      '@usketch/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      '@usketch/vite-config':
-        specifier: workspace:*
-        version: link:../vite-config
-      '@vitejs/plugin-react':
-        specifier: 5.0.2
-        version: 5.0.2(vite@7.1.5)
-      typescript:
-        specifier: 5.9.2
-        version: 5.9.2
-      vite:
-        specifier: 7.1.5
-        version: 7.1.5(@types/node@24.3.1)
-
   packages/effect-registry:
     dependencies:
       '@usketch/shared-types':
@@ -250,9 +210,6 @@ importers:
       '@usketch/background-presets':
         specifier: workspace:*
         version: link:../background-presets
-      '@usketch/effect-presets':
-        specifier: workspace:*
-        version: link:../effect-presets
       '@usketch/effect-registry':
         specifier: workspace:*
         version: link:../effect-registry
@@ -2286,27 +2243,6 @@ packages:
       cross-spawn: 7.0.6
       signal-exit: 4.1.0
     dev: true
-
-  /framer-motion@11.18.2(react-dom@18.3.1)(react@18.3.1):
-    resolution: {integrity: sha512-5F5Och7wrvtLVElIpclDT0CBzMVg3dL22B64aZwHtsIY8RB4mXICLrkajK4G9R+ieSAGcgrLeae2SeUTg2pr6w==}
-    peerDependencies:
-      '@emotion/is-prop-valid': '*'
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
-    peerDependenciesMeta:
-      '@emotion/is-prop-valid':
-        optional: true
-      react:
-        optional: true
-      react-dom:
-        optional: true
-    dependencies:
-      motion-dom: 11.18.1
-      motion-utils: 11.18.1
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      tslib: 2.8.1
-    dev: false
 
   /framer-motion@11.18.2(react-dom@19.1.1)(react@19.1.1):
     resolution: {integrity: sha512-5F5Och7wrvtLVElIpclDT0CBzMVg3dL22B64aZwHtsIY8RB4mXICLrkajK4G9R+ieSAGcgrLeae2SeUTg2pr6w==}

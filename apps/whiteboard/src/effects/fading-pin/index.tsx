@@ -1,8 +1,8 @@
-import type { EffectComponentProps, EffectPlugin } from "@usketch/effect-registry";
 import type { FadingPinEffect } from "@usketch/shared-types";
 import { motion } from "framer-motion";
 import type React from "react";
 import { useEffect, useState } from "react";
+import type { EffectComponentProps, EffectPlugin } from "../types";
 
 export interface FadingPinEffectConfig {
 	color?: string;
@@ -25,7 +25,7 @@ const FadingPinComponent: React.FC<EffectComponentProps<FadingPinEffect>> = ({
 	const size = (effect.size || 24) * camera.zoom;
 
 	// Calculate fade timing
-	const fadeDelay = effect.metadata?.fadeDelay || 3000; // 3 seconds before fading
+	const fadeDelay = effect.metadata?.["fadeDelay"] || 3000; // 3 seconds before fading
 	const fadeDuration = effect.duration || 5000; // Total 5 seconds lifetime
 	const fadeTime = fadeDuration - fadeDelay; // Time to fade out
 
@@ -151,7 +151,7 @@ export const fadingPinPlugin: EffectPlugin<FadingPinEffect> = {
 			color: fadeConfig.color || "#9b59b6", // Purple default for fading pins
 			size: fadeConfig.size || 24,
 			message: fadeConfig.message || "Temporary note",
-			authorId: fadeConfig.authorId,
+			authorId: fadeConfig.authorId || "",
 			label: fadeConfig.label || "📍",
 			createdAt: Date.now(),
 			duration: fadeConfig.fadeDuration || 5000, // Will be auto-removed after this duration

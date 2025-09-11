@@ -1,8 +1,8 @@
-import type { EffectComponentProps, EffectPlugin } from "@usketch/effect-registry";
 import type { RippleEffect } from "@usketch/shared-types";
 import { motion } from "framer-motion";
 import type React from "react";
 import { useEffect, useState } from "react";
+import type { EffectComponentProps, EffectPlugin } from "../types";
 
 export interface RippleEffectConfig {
 	radius?: number;
@@ -14,18 +14,18 @@ export interface RippleEffectConfig {
 const RippleComponent: React.FC<EffectComponentProps<RippleEffect>> = ({
 	effect,
 	camera,
-	onComplete,
+	onRemove,
 }) => {
 	const [isAnimating, setIsAnimating] = useState(true);
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			setIsAnimating(false);
-			onComplete?.();
+			onRemove?.();
 		}, effect.duration || 500);
 
 		return () => clearTimeout(timer);
-	}, [effect.duration, onComplete]);
+	}, [effect.duration, onRemove]);
 
 	// Only apply zoom to the radius, position is handled by EffectLayer
 	const radius = effect.radius * camera.zoom;
@@ -87,16 +87,6 @@ export const ripplePlugin: EffectPlugin<RippleEffect> = {
 			effect.opacity >= 0 &&
 			effect.opacity <= 1
 		);
-	},
-
-	animation: {
-		initial: { scale: 0, opacity: 1 },
-		animate: { scale: 1, opacity: 0 },
-		exit: { opacity: 0 },
-		transition: {
-			duration: 0.5,
-			ease: "easeOut",
-		},
 	},
 
 	interactive: false,

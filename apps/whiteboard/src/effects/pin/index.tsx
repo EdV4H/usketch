@@ -1,7 +1,7 @@
-import type { EffectComponentProps, EffectPlugin } from "@usketch/effect-registry";
 import type { PinEffect } from "@usketch/shared-types";
 import type React from "react";
 import { useState } from "react";
+import type { EffectComponentProps, EffectPlugin } from "../types";
 
 export interface PinEffectConfig {
 	color?: string;
@@ -88,9 +88,9 @@ export const pinPlugin: EffectPlugin<PinEffect> = {
 		y,
 		color: (config as PinEffectConfig).color || "#ff6b6b",
 		size: (config as PinEffectConfig).size || 24,
-		message: (config as PinEffectConfig).message,
-		authorId: (config as PinEffectConfig).authorId,
-		label: (config as PinEffectConfig).label,
+		message: (config as PinEffectConfig).message || "",
+		authorId: (config as PinEffectConfig).authorId || "",
+		label: (config as PinEffectConfig).label || "",
 		createdAt: Date.now(),
 	}),
 

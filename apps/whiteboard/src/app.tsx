@@ -1,5 +1,3 @@
-import { getAllPresetPlugins as getAllEffectPlugins } from "@usketch/effect-presets";
-import type { EffectPlugin } from "@usketch/effect-registry";
 import { WhiteboardCanvas } from "@usketch/react-canvas";
 import { defaultShapePlugins } from "@usketch/shape-plugins";
 import type { ShapePlugin } from "@usketch/shape-registry";
@@ -10,6 +8,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
 import { ToolbarReact } from "./components/toolbar-react";
 import { customShapePlugins } from "./custom-shapes";
+import type { EffectPlugin } from "./effects";
+import { fadingPinPlugin, pinPlugin, ripplePlugin } from "./effects";
 import "./styles/app.css";
 
 // Helper function to add shape with delay
@@ -27,7 +27,7 @@ function App() {
 	const shapesAddedRef = useRef(false);
 	const backgroundsRegisteredRef = useRef(false);
 	const [shapePlugins, setShapePlugins] = useState<ShapePlugin<any>[]>([]);
-	const [effectPlugins] = useState<EffectPlugin<any>[]>(getAllEffectPlugins());
+	const [effectPlugins] = useState<EffectPlugin<any>[]>([ripplePlugin, pinPlugin, fadingPinPlugin]);
 	const [background, setBackground] = useState<any>({
 		id: "usketch.dots",
 		config: {
