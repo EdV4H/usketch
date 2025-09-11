@@ -160,7 +160,18 @@ export const selectToolMachine = setup({
 			// Update store with new selection
 			store.setSelection(Array.from(newSelectedIds));
 
-			// Update visual feedback for selection box
+			// Emit event for React component
+			window.dispatchEvent(
+				new CustomEvent("selection-indicator-update", {
+					detail: {
+						bounds: box,
+						visible: true,
+						selectedCount: newSelectedIds.size,
+					},
+				}),
+			);
+
+			// Legacy DOM manipulation for backward compatibility
 			const selectionBoxElement = document.getElementById("selection-box-overlay");
 			if (selectionBoxElement) {
 				selectionBoxElement.style.left = `${box.x}px`;
@@ -176,7 +187,14 @@ export const selectToolMachine = setup({
 		}),
 
 		finalizeSelection: assign(() => {
-			// Hide the selection box overlay when selection is finalized
+			// Emit event for React component
+			window.dispatchEvent(
+				new CustomEvent("selection-indicator-update", {
+					detail: { bounds: null, visible: false, selectedCount: 0 },
+				}),
+			);
+
+			// Legacy DOM manipulation for backward compatibility
 			const selectionBoxElement = document.getElementById("selection-box-overlay");
 			if (selectionBoxElement) {
 				selectionBoxElement.style.display = "none";
@@ -192,48 +210,23 @@ export const selectToolMachine = setup({
 		}),
 
 		showSelectionBox: () => {
-			try {
-				// Create or show selection box overlay
-				let selectionBoxElement = document.getElementById("selection-box-overlay");
-				if (!selectionBoxElement) {
-					selectionBoxElement = document.createElement("div");
-					selectionBoxElement.id = "selection-box-overlay";
-					selectionBoxElement.style.position = "absolute";
-					selectionBoxElement.style.border = "1px dashed #007bff";
-					selectionBoxElement.style.backgroundColor = "rgba(0, 123, 255, 0.1)";
-					selectionBoxElement.style.pointerEvents = "none";
-					selectionBoxElement.style.zIndex = "1000";
-					selectionBoxElement.style.transformOrigin = "0 0";
-					selectionBoxElement.style.left = "0px";
-					selectionBoxElement.style.top = "0px";
-					selectionBoxElement.style.width = "0px";
-					selectionBoxElement.style.height = "0px";
-
-					// Try to find the best place to append
-					// Don't append to shape-layer as it gets cleared on updates
-					const canvas = document.querySelector(".whiteboard-canvas");
-					if (canvas) {
-						// Try selection-layer first
-						const selectionLayer = canvas.querySelector(".selection-layer");
-						if (selectionLayer) {
-							selectionLayer.appendChild(selectionBoxElement);
-						} else {
-							// Append directly to canvas as a sibling to shape-layer
-							canvas.appendChild(selectionBoxElement);
-						}
-					} else {
-						// Last resort: append to body
-						document.body.appendChild(selectionBoxElement);
-					}
-				}
-				// Make sure it's visible
-				selectionBoxElement.style.display = "block";
-			} catch {
-				// Silently handle error
-			}
+			// Emit event instead of DOM manipulation
+			window.dispatchEvent(
+				new CustomEvent("selection-indicator-update", {
+					detail: { bounds: { x: 0, y: 0, width: 0, height: 0 }, visible: true, selectedCount: 0 },
+				}),
+			);
 		},
 
 		hideSelectionBox: () => {
+			// Emit event instead of DOM manipulation
+			window.dispatchEvent(
+				new CustomEvent("selection-indicator-update", {
+					detail: { bounds: null, visible: false, selectedCount: 0 },
+				}),
+			);
+
+			// Legacy DOM manipulation for backward compatibility
 			const selectionBoxElement = document.getElementById("selection-box-overlay");
 			if (selectionBoxElement) {
 				selectionBoxElement.style.display = "none";
@@ -323,7 +316,14 @@ export const selectToolMachine = setup({
 		},
 
 		clearSelection: assign(() => {
-			// Also clear any selection box overlay when clearing selection
+			// Emit event for React component
+			window.dispatchEvent(
+				new CustomEvent("selection-indicator-update", {
+					detail: { bounds: null, visible: false, selectedCount: 0 },
+				}),
+			);
+
+			// Legacy DOM manipulation for backward compatibility
 			const selectionBoxElement = document.getElementById("selection-box-overlay");
 			if (selectionBoxElement) {
 				selectionBoxElement.style.display = "none";
