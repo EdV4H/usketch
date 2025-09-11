@@ -161,7 +161,7 @@ export const selectToolMachine = setup({
 			store.setSelection(Array.from(newSelectedIds));
 
 			// Update selection indicator in store
-			store.setSelectionIndicator({
+			whiteboardStore.getState().setSelectionIndicator({
 				bounds: box,
 				visible: true,
 				selectedCount: newSelectedIds.size,
@@ -175,10 +175,7 @@ export const selectToolMachine = setup({
 
 		finalizeSelection: assign(() => {
 			// Update Zustand store directly
-			const store = getStore();
-			if (store) {
-				store.hideSelectionIndicator();
-			}
+			whiteboardStore.getState().hideSelectionIndicator();
 
 			return {
 				selectionBox: null,
@@ -188,18 +185,12 @@ export const selectToolMachine = setup({
 
 		showSelectionBox: () => {
 			// Update Zustand store directly
-			const store = getStore();
-			if (store) {
-				store.showSelectionIndicator();
-			}
+			whiteboardStore.getState().showSelectionIndicator();
 		},
 
 		hideSelectionBox: () => {
 			// Update Zustand store directly
-			const store = getStore();
-			if (store) {
-				store.hideSelectionIndicator();
-			}
+			whiteboardStore.getState().hideSelectionIndicator();
 		},
 
 		recordInitialPositions: assign(({ context }) => {
@@ -286,10 +277,7 @@ export const selectToolMachine = setup({
 
 		clearSelection: assign(() => {
 			// Update Zustand store directly
-			const store = getStore();
-			if (store) {
-				store.hideSelectionIndicator();
-			}
+			whiteboardStore.getState().hideSelectionIndicator();
 
 			return {
 				selectedIds: new Set<string>(),
