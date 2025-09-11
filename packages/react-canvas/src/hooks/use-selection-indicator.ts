@@ -1,46 +1,26 @@
-import { useEffect, useState } from "react";
-
-interface SelectionIndicatorState {
-	bounds: {
-		x: number;
-		y: number;
-		width: number;
-		height: number;
-	} | null;
-	visible: boolean;
-	selectedCount: number;
-}
-
-interface SelectionIndicatorEvent extends CustomEvent {
-	detail: SelectionIndicatorState;
-}
+import { useWhiteboardStore } from "@usketch/store";
+import { useEffect } from "react";
 
 export function useSelectionIndicator(activeTool: string | undefined) {
-	const [indicatorState, setIndicatorState] = useState<SelectionIndicatorState>({
-		bounds: null,
-		visible: false,
-		selectedCount: 0,
-	});
+	// Get selection indicator state directly from Zustand store
+	const selectionIndicator = useWhiteboardStore((state) => state.selectionIndicator);
+	const hideSelectionIndicator = useWhiteboardStore((state) => state.hideSelectionIndicator);
 
 	useEffect(() => {
+		// Hide selection indicator when tool is not select
 		if (activeTool !== "select") {
-			setIndicatorState({ bounds: null, visible: false, selectedCount: 0 });
-			return;
+			hideSelectionIndicator();
 		}
+	}, [activeTool, hideSelectionIndicator]);
 
-		// ツールからのイベントをリッスン
-		const handleSelectionUpdate = (event: Event) => {
-			const customEvent = event as SelectionIndicatorEvent;
-			const { bounds, visible, selectedCount } = customEvent.detail;
-			setIndicatorState({ bounds, visible, selectedCount });
+	// Return the selection indicator state if select tool is active
+	if (activeTool !== "select") {
+		return {
+			bounds: null,
+			visible: false,
+			selectedCount: 0,
 		};
+	}
 
-		window.addEventListener("selection-indicator-update", handleSelectionUpdate);
-
-		return () => {
-			window.removeEventListener("selection-indicator-update", handleSelectionUpdate);
-		};
-	}, [activeTool]);
-
-	return indicatorState;
+	return selectionIndicator;
 }

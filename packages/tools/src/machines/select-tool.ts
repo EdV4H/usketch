@@ -160,16 +160,12 @@ export const selectToolMachine = setup({
 			// Update store with new selection
 			store.setSelection(Array.from(newSelectedIds));
 
-			// Emit event for React component
-			window.dispatchEvent(
-				new CustomEvent("selection-indicator-update", {
-					detail: {
-						bounds: box,
-						visible: true,
-						selectedCount: newSelectedIds.size,
-					},
-				}),
-			);
+			// Update selection indicator in store
+			store.setSelectionIndicator({
+				bounds: box,
+				visible: true,
+				selectedCount: newSelectedIds.size,
+			});
 
 			return {
 				selectionBox: box,
@@ -178,12 +174,11 @@ export const selectToolMachine = setup({
 		}),
 
 		finalizeSelection: assign(() => {
-			// Emit event for React component
-			window.dispatchEvent(
-				new CustomEvent("selection-indicator-update", {
-					detail: { bounds: null, visible: false, selectedCount: 0 },
-				}),
-			);
+			// Update Zustand store directly
+			const store = getStore();
+			if (store) {
+				store.hideSelectionIndicator();
+			}
 
 			return {
 				selectionBox: null,
@@ -192,21 +187,19 @@ export const selectToolMachine = setup({
 		}),
 
 		showSelectionBox: () => {
-			// Emit event for React component
-			window.dispatchEvent(
-				new CustomEvent("selection-indicator-update", {
-					detail: { bounds: { x: 0, y: 0, width: 0, height: 0 }, visible: true, selectedCount: 0 },
-				}),
-			);
+			// Update Zustand store directly
+			const store = getStore();
+			if (store) {
+				store.showSelectionIndicator();
+			}
 		},
 
 		hideSelectionBox: () => {
-			// Emit event for React component
-			window.dispatchEvent(
-				new CustomEvent("selection-indicator-update", {
-					detail: { bounds: null, visible: false, selectedCount: 0 },
-				}),
-			);
+			// Update Zustand store directly
+			const store = getStore();
+			if (store) {
+				store.hideSelectionIndicator();
+			}
 		},
 
 		recordInitialPositions: assign(({ context }) => {
@@ -292,12 +285,11 @@ export const selectToolMachine = setup({
 		},
 
 		clearSelection: assign(() => {
-			// Emit event for React component
-			window.dispatchEvent(
-				new CustomEvent("selection-indicator-update", {
-					detail: { bounds: null, visible: false, selectedCount: 0 },
-				}),
-			);
+			// Update Zustand store directly
+			const store = getStore();
+			if (store) {
+				store.hideSelectionIndicator();
+			}
 
 			return {
 				selectedIds: new Set<string>(),
