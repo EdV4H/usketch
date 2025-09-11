@@ -27,8 +27,7 @@ const RippleComponent: React.FC<EffectComponentProps<RippleEffect>> = ({
 		return () => clearTimeout(timer);
 	}, [effect.duration, onComplete]);
 
-	const x = effect.x * camera.zoom + camera.x;
-	const y = effect.y * camera.zoom + camera.y;
+	// Only apply zoom to the radius, position is handled by EffectLayer
 	const radius = effect.radius * camera.zoom;
 
 	if (!isAnimating) return null;
@@ -37,8 +36,8 @@ const RippleComponent: React.FC<EffectComponentProps<RippleEffect>> = ({
 		<motion.div
 			style={{
 				position: "absolute",
-				left: x,
-				top: y,
+				left: 0,
+				top: 0,
 				width: radius * 2,
 				height: radius * 2,
 				borderRadius: "50%",

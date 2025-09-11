@@ -14,16 +14,15 @@ export interface PinEffectConfig {
 const PinComponent: React.FC<EffectComponentProps<PinEffect>> = ({ effect, camera }) => {
 	const [isOpen, setIsOpen] = useState(false);
 
-	const x = effect.x * camera.zoom + camera.x;
-	const y = effect.y * camera.zoom + camera.y;
+	// Only apply zoom to the size, position is handled by EffectLayer
 	const size = (effect.size || 24) * camera.zoom;
 
 	return (
 		<div
 			style={{
 				position: "absolute",
-				left: x,
-				top: y,
+				left: 0,
+				top: 0,
 				transform: "translate(-50%, -100%)",
 			}}
 		>

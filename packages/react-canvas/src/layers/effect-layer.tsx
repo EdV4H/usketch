@@ -37,6 +37,10 @@ export const EffectLayer: FC<EffectLayerProps> = memo(({ className }) => {
 			const Component = plugin.component;
 			const key = `${effect.type}-${effect.id}`;
 
+			// Transform coordinates based on camera
+			const transformedX = effect.x * camera.zoom + camera.x;
+			const transformedY = effect.y * camera.zoom + camera.y;
+
 			// Apply animation if the plugin has animation config
 			if (plugin.animation) {
 				return (
@@ -48,8 +52,8 @@ export const EffectLayer: FC<EffectLayerProps> = memo(({ className }) => {
 						transition={plugin.animation.transition}
 						style={{
 							position: "absolute",
-							left: effect.x,
-							top: effect.y,
+							left: transformedX,
+							top: transformedY,
 							zIndex: effect.zIndex || 1000,
 							pointerEvents: plugin.interactive ? "auto" : "none",
 						}}
@@ -65,8 +69,8 @@ export const EffectLayer: FC<EffectLayerProps> = memo(({ className }) => {
 					key={key}
 					style={{
 						position: "absolute",
-						left: effect.x,
-						top: effect.y,
+						left: transformedX,
+						top: transformedY,
 						zIndex: effect.zIndex || 1000,
 						pointerEvents: plugin.interactive ? "auto" : "none",
 					}}
