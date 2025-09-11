@@ -232,10 +232,16 @@ function App() {
 		const handleCanvasClick = (e: MouseEvent) => {
 			// Only add ripple if clicking on empty canvas (not on shapes)
 			const target = e.target as HTMLElement;
-			if (target.closest(".whiteboard-canvas")) {
-				const rect = target.getBoundingClientRect();
-				const x = e.clientX - rect.left;
-				const y = e.clientY - rect.top;
+			const canvasElement = target.closest(".whiteboard-canvas");
+
+			// Check if we clicked on the canvas but not on a shape
+			if (canvasElement && !target.closest("[data-shape-id]")) {
+				const rect = canvasElement.getBoundingClientRect();
+				const camera = whiteboardStore.getState().camera;
+
+				// Convert screen coordinates to world coordinates
+				const x = (e.clientX - rect.left - camera.x) / camera.zoom;
+				const y = (e.clientY - rect.top - camera.y) / camera.zoom;
 
 				// Add a ripple effect at the click position
 				const rippleEffect: Effect = {
@@ -243,15 +249,14 @@ function App() {
 					type: "ripple",
 					x,
 					y,
+					radius: 30,
+					color: "#4ECDC4",
+					opacity: 0.5,
 					createdAt: Date.now(),
 					duration: 500,
-					metadata: {
-						color: "#4ECDC4",
-						size: 100,
-						opacity: 0.5,
-					},
 				};
 
+				console.log("Adding ripple effect at", { x, y }, rippleEffect);
 				whiteboardStore.getState().addEffect(rippleEffect);
 			}
 		};
