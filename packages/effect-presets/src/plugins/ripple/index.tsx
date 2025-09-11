@@ -46,6 +46,7 @@ const RippleComponent: React.FC<EffectComponentProps<RippleEffect>> = ({
 				pointerEvents: "none",
 				boxShadow: `0 0 20px ${effect.color}`, // Add glow effect
 				boxSizing: "content-box", // Border is added to width/height
+				transformOrigin: "center center", // Scale from center
 			}}
 			initial={{ scale: 0.3, opacity: 1 }} // Always start at full opacity
 			animate={{
