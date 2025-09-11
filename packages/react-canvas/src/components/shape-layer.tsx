@@ -433,21 +433,6 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 						onPointerDown={(e) => handleShapePointerDown(shape.id, e)}
 					/>
 				))}
-
-				{/* Render selection box */}
-				{selectionBox.isSelecting && (
-					<rect
-						x={Math.min(selectionBox.startX, selectionBox.currentX)}
-						y={Math.min(selectionBox.startY, selectionBox.currentY)}
-						width={Math.abs(selectionBox.currentX - selectionBox.startX)}
-						height={Math.abs(selectionBox.currentY - selectionBox.startY)}
-						fill="rgba(0, 122, 255, 0.1)"
-						stroke="#007AFF"
-						strokeWidth={1}
-						strokeDasharray="5,5"
-						pointerEvents="none"
-					/>
-				)}
 			</g>
 		</svg>
 	);
