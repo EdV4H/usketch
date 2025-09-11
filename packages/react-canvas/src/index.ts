@@ -20,6 +20,7 @@ export {
 } from "./backgrounds/presets";
 export type { BackgroundComponent, BackgroundComponentProps } from "./backgrounds/types";
 export { BackgroundLayer } from "./components/background-layer";
+export { DefaultSelectionIndicator } from "./components/default-selection-indicator";
 export { InteractionLayer } from "./components/interaction-layer";
 export { SelectionLayer } from "./components/selection-layer";
 export { ShapeLayer } from "./components/shape-layer";
@@ -29,8 +30,14 @@ export { useBackgroundRenderer } from "./hooks/use-background-renderer";
 export { useCanvas } from "./hooks/use-canvas";
 export { useInteraction } from "./hooks/use-interaction";
 export { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
+export { useSelectionIndicator } from "./hooks/use-selection-indicator";
 export { useShapeManagement } from "./hooks/use-shape-management";
 export { EffectLayer } from "./layers/effect-layer";
 
 // Types
-export type { CanvasProps, LayerProps } from "./types";
+export type {
+	CanvasProps,
+	InteractionLayerProps,
+	LayerProps,
+	SelectionIndicatorProps,
+} from "./types";

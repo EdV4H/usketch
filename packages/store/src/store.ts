@@ -2,9 +2,21 @@ import type { Camera, Effect, Shape, WhiteboardState } from "@usketch/shared-typ
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 
+export interface SelectionIndicatorState {
+	bounds: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	} | null;
+	visible: boolean;
+	selectedCount: number;
+}
+
 export interface WhiteboardStore extends WhiteboardState {
 	// State additions
 	activeTool: string;
+	selectionIndicator: SelectionIndicatorState;
 	effects: Record<string, Effect>;
 
 	// Actions
@@ -27,6 +39,16 @@ export interface WhiteboardStore extends WhiteboardState {
 	setSelection: (ids: string[]) => void;
 	removeSelectedShapes: () => void;
 
+	// Selection Indicator actions
+	setSelectionIndicator: (state: Partial<SelectionIndicatorState>) => void;
+	showSelectionIndicator: (bounds?: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	}) => void;
+	hideSelectionIndicator: () => void;
+
 	// Undo/Redo
 	undo: () => void;
 	redo: () => void;
@@ -46,6 +68,11 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 	camera: { x: 0, y: 0, zoom: 1 },
 	currentTool: "select",
 	activeTool: "select",
+	selectionIndicator: {
+		bounds: null,
+		visible: false,
+		selectedCount: 0,
+	},
 	effects: {},
 
 	// Actions
@@ -185,6 +212,36 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 				selectedShapeIds: new Set(),
 			};
 		});
+	},
+
+	// Selection Indicator actions
+	setSelectionIndicator: (indicatorState: Partial<SelectionIndicatorState>) => {
+		set((state) => ({
+			...state,
+			selectionIndicator: { ...state.selectionIndicator, ...indicatorState },
+		}));
+	},
+
+	showSelectionIndicator: (bounds?: { x: number; y: number; width: number; height: number }) => {
+		set((state) => ({
+			...state,
+			selectionIndicator: {
+				bounds: bounds || { x: 0, y: 0, width: 0, height: 0 },
+				visible: true,
+				selectedCount: state.selectedShapeIds.size,
+			},
+		}));
+	},
+
+	hideSelectionIndicator: () => {
+		set((state) => ({
+			...state,
+			selectionIndicator: {
+				bounds: null,
+				visible: false,
+				selectedCount: 0,
+			},
+		}));
 	},
 
 	// Undo/Redo placeholders

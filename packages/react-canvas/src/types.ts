@@ -36,8 +36,28 @@ export interface BackgroundLayerProps extends LayerProps {
 	options?: BackgroundConfig;
 }
 
+export interface SelectionIndicatorProps {
+	// ドラッグ選択ボックスの位置とサイズ
+	bounds: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	} | null;
+	// 表示状態
+	visible: boolean;
+	// カメラ情報（座標変換用）
+	camera: Camera;
+	// 選択中のアイテム数（プレビュー用）
+	selectedCount?: number;
+}
+
 export interface InteractionLayerProps extends LayerProps {
 	activeTool?: string;
+	// カスタムSelectionIndicator
+	selectionIndicator?: React.ComponentType<SelectionIndicatorProps>;
+	selectionIndicatorClassName?: string;
+	selectionIndicatorStyle?: React.CSSProperties;
 }
 
 export interface CanvasManager {
