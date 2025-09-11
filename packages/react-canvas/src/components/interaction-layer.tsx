@@ -3,7 +3,9 @@ import { useWhiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { useSelectionIndicator } from "../hooks/use-selection-indicator";
 import type { InteractionLayerProps } from "../types";
+import { DefaultSelectionIndicator } from "./default-selection-indicator";
 
 interface DragState {
 	startX: number;
@@ -16,6 +18,9 @@ interface DragState {
 export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 	camera,
 	activeTool,
+	selectionIndicator,
+	selectionIndicatorClassName,
+	selectionIndicatorStyle,
 	className = "",
 }) => {
 	const [dragState, setDragState] = useState<DragState>({
@@ -30,6 +35,12 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 	const pathRef = useRef<string[]>([]);
 
 	const { addShape, setActiveTool } = useWhiteboardStore();
+
+	// Selection indicator state from hook
+	const { bounds, visible, selectedCount } = useSelectionIndicator(activeTool);
+
+	// Use custom indicator or default
+	const SelectionIndicatorComponent = selectionIndicator || DefaultSelectionIndicator;
 
 	const screenToCanvas = useCallback(
 		(screenX: number, screenY: number) => {
@@ -235,9 +246,16 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 		}
 	};
 
-	// Only render interaction layer for drawing tools
+	// Render selection indicator for select tool
 	if (activeTool === "select") {
-		return null;
+		return (
+			<SelectionIndicatorComponent
+				bounds={bounds}
+				visible={visible}
+				camera={camera}
+				selectedCount={selectedCount}
+			/>
+		);
 	}
 
 	return (
