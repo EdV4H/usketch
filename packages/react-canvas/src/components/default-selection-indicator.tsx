@@ -11,24 +11,25 @@ export const DefaultSelectionIndicator: React.FC<SelectionIndicatorProps> = ({
 		return null;
 	}
 
-	// カメラ変換を適用
-	const transform = `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`;
+	// boundsはワールド座標なので、スクリーン座標に変換
+	const screenX = bounds.x * camera.zoom + camera.x;
+	const screenY = bounds.y * camera.zoom + camera.y;
+	const screenWidth = bounds.width * camera.zoom;
+	const screenHeight = bounds.height * camera.zoom;
 
 	return (
 		<div
 			data-testid="selection-indicator"
 			style={{
 				position: "absolute",
-				left: bounds.x,
-				top: bounds.y,
-				width: bounds.width,
-				height: bounds.height,
+				left: screenX,
+				top: screenY,
+				width: screenWidth,
+				height: screenHeight,
 				border: "1px dashed #007bff",
 				backgroundColor: "rgba(0, 123, 255, 0.1)",
 				pointerEvents: "none",
 				zIndex: 1000,
-				transform,
-				transformOrigin: "0 0",
 			}}
 		>
 			{/* オプション: 選択数の表示 */}
