@@ -35,6 +35,18 @@ export interface PinEffect extends BaseEffect {
 }
 
 /**
+ * Fading pin effect for temporary comments
+ */
+export interface FadingPinEffect extends BaseEffect {
+	type: "fading-pin";
+	label?: string;
+	color: string;
+	authorId?: string;
+	message?: string;
+	size?: number;
+}
+
+/**
  * Cursor effect for multi-user collaboration
  */
 export interface CursorEffect extends BaseEffect {
@@ -93,6 +105,7 @@ export interface CustomEffect extends BaseEffect {
 export type StandardEffect =
 	| RippleEffect
 	| PinEffect
+	| FadingPinEffect
 	| CursorEffect
 	| HighlightEffect
 	| TooltipEffect

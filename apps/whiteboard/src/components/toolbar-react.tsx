@@ -1,3 +1,4 @@
+import { whiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { CUSTOM_BACKGROUNDS_METADATA } from "../backgrounds/register-backgrounds";
@@ -37,7 +38,9 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 	const [currentBackground, setCurrentBackground] = useState("usketch.dots");
 	const [showBackgroundMenu, setShowBackgroundMenu] = useState(false);
 	const [showEffectMenu, setShowEffectMenu] = useState(false);
-	const [currentEffectType, setCurrentEffectType] = useState<"ripple" | "pin">("ripple");
+	const [currentEffectType, setCurrentEffectType] = useState<"ripple" | "pin" | "fading-pin">(
+		"ripple",
+	);
 	const dropdownRef = useRef<HTMLDivElement>(null);
 	const effectDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -60,11 +63,26 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 		setShowBackgroundMenu(false);
 	};
 
-	// effectToolをインポートして設定
+	// effectToolConfigを更新
 	useEffect(() => {
 		if (currentTool === "effect") {
-			import("../tools/effect-tool").then(({ effectTool }) => {
-				effectTool.setConfig({ effectType: currentEffectType });
+			const effectConfig =
+				currentEffectType === "ripple"
+					? { color: "#4ECDC4", radius: 60, duration: 600 }
+					: currentEffectType === "pin"
+						? { color: "#ff6b6b", size: 24, message: "Click to add comment" }
+						: {
+								color: "#9b59b6",
+								size: 24,
+								message: "Temporary note",
+								fadeDelay: 3000,
+								fadeDuration: 5000,
+							};
+
+			const { setEffectToolConfig } = whiteboardStore.getState();
+			setEffectToolConfig({
+				effectType: currentEffectType,
+				effectConfig,
 			});
 		}
 	}, [currentTool, currentEffectType]);
@@ -235,7 +253,13 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 								onClick={() => setShowEffectMenu(!showEffectMenu)}
 								data-testid="effect-type-button"
 							>
-								<span>{currentEffectType === "ripple" ? "波紋" : "ピン"}</span>
+								<span>
+									{currentEffectType === "ripple"
+										? "波紋"
+										: currentEffectType === "pin"
+											? "ピン"
+											: "消えるピン"}
+								</span>
 								<span>▼</span>
 							</button>
 
@@ -249,6 +273,14 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 											onClick={() => {
 												setCurrentEffectType("ripple");
 												setShowEffectMenu(false);
+
+												// Also update Store config immediately
+												const effectConfig = { color: "#4ECDC4", radius: 60, duration: 600 };
+												const { setEffectToolConfig } = whiteboardStore.getState();
+												setEffectToolConfig({
+													effectType: "ripple",
+													effectConfig,
+												});
 											}}
 										>
 											波紋エフェクト
@@ -259,9 +291,45 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 											onClick={() => {
 												setCurrentEffectType("pin");
 												setShowEffectMenu(false);
+
+												// Also update Store config immediately
+												const effectConfig = {
+													color: "#ff6b6b",
+													size: 24,
+													message: "Click to add comment",
+												};
+												const { setEffectToolConfig } = whiteboardStore.getState();
+												setEffectToolConfig({
+													effectType: "pin",
+													effectConfig,
+												});
 											}}
 										>
 											ピンマーカー
+										</button>
+										<button
+											type="button"
+											className={`background-item ${currentEffectType === "fading-pin" ? "active" : ""}`}
+											onClick={() => {
+												setCurrentEffectType("fading-pin");
+												setShowEffectMenu(false);
+
+												// Also update Store config immediately
+												const effectConfig = {
+													color: "#9b59b6",
+													size: 24,
+													message: "Temporary note",
+													fadeDelay: 3000,
+													fadeDuration: 5000,
+												};
+												const { setEffectToolConfig } = whiteboardStore.getState();
+												setEffectToolConfig({
+													effectType: "fading-pin",
+													effectConfig,
+												});
+											}}
+										>
+											消えるピン（5秒）
 										</button>
 									</div>
 								</div>

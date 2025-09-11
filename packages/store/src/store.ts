@@ -18,6 +18,10 @@ export interface WhiteboardStore extends WhiteboardState {
 	activeTool: string;
 	selectionIndicator: SelectionIndicatorState;
 	effects: Record<string, Effect>;
+	effectToolConfig: {
+		effectType: "ripple" | "pin" | "fading-pin";
+		effectConfig?: Record<string, any>;
+	};
 
 	// Actions
 	addShape: (shape: Shape) => void;
@@ -59,6 +63,12 @@ export interface WhiteboardStore extends WhiteboardState {
 	updateEffect: (id: string, updates: Partial<Effect>) => void;
 	clearEffects: (type?: string) => void;
 	clearExpiredEffects: () => void;
+	setEffectToolConfig: (
+		config: Partial<{
+			effectType: "ripple" | "pin" | "fading-pin";
+			effectConfig?: Record<string, any>;
+		}>,
+	) => void;
 }
 
 export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
@@ -74,6 +84,10 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 		selectedCount: 0,
 	},
 	effects: {},
+	effectToolConfig: {
+		effectType: "ripple",
+		effectConfig: {},
+	},
 
 	// Actions
 	addShape: (shape: Shape) => {
@@ -310,6 +324,13 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 			});
 			return { ...state, effects: newEffects };
 		});
+	},
+
+	setEffectToolConfig: (config) => {
+		set((state) => ({
+			...state,
+			effectToolConfig: { ...state.effectToolConfig, ...config },
+		}));
 	},
 }));
 

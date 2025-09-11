@@ -1,9 +1,23 @@
 import type { Effect } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
-import type { Tool } from "@usketch/tools";
+
+// Simple Tool interface for the effect tool
+export interface Tool {
+	id: string;
+	name: string;
+	icon: string;
+	cursor: string;
+	activate?(): void;
+	deactivate?(): void;
+	onPointerDown(event: PointerEvent): void;
+	onPointerMove(event: PointerEvent): void;
+	onPointerUp(event: PointerEvent): void;
+	onKeyDown?(event: KeyboardEvent): void;
+	onKeyUp?(event: KeyboardEvent): void;
+}
 
 export interface EffectToolConfig {
-	effectType: "ripple" | "pin";
+	effectType: "ripple" | "pin" | "fading-pin";
 	effectConfig?: Record<string, any>;
 }
 
@@ -45,6 +59,8 @@ export class EffectTool implements Tool {
 		// Create effect based on type
 		let effect: Effect;
 
+		const config = this.config.effectConfig || {};
+
 		switch (this.config.effectType) {
 			case "ripple":
 				effect = {
@@ -52,11 +68,11 @@ export class EffectTool implements Tool {
 					type: "ripple",
 					x,
 					y,
-					radius: this.config.effectConfig?.radius || 60,
-					color: this.config.effectConfig?.color || "#4ECDC4",
-					opacity: this.config.effectConfig?.opacity || 1.0,
+					radius: config["radius"] || 60,
+					color: config["color"] || "#4ECDC4",
+					opacity: config["opacity"] || 1.0,
 					createdAt: Date.now(),
-					duration: this.config.effectConfig?.duration || 600,
+					duration: config["duration"] || 600,
 				};
 				break;
 
@@ -66,11 +82,29 @@ export class EffectTool implements Tool {
 					type: "pin",
 					x,
 					y,
-					color: this.config.effectConfig?.color || "#ff6b6b",
-					size: this.config.effectConfig?.size || 24,
-					message: this.config.effectConfig?.message || "Comment",
-					label: this.config.effectConfig?.label || "📌",
+					color: config["color"] || "#ff6b6b",
+					size: config["size"] || 24,
+					message: config["message"] || "Comment",
+					label: config["label"] || "📌",
 					createdAt: Date.now(),
+				};
+				break;
+
+			case "fading-pin":
+				effect = {
+					id: `fading-pin-${Date.now()}`,
+					type: "fading-pin",
+					x,
+					y,
+					color: config["color"] || "#9b59b6",
+					size: config["size"] || 24,
+					message: config["message"] || "Temporary note",
+					label: config["label"] || "📍",
+					createdAt: Date.now(),
+					duration: config["fadeDuration"] || 5000,
+					metadata: {
+						fadeDelay: config["fadeDelay"] || 3000,
+					},
 				};
 				break;
 
