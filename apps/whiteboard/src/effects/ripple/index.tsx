@@ -11,6 +11,9 @@ export interface RippleEffectConfig {
 	opacity?: number;
 }
 
+// Constants for visual styling
+const RIPPLE_FILL_OPACITY = 0.6; // 60% opacity for fill
+
 const RippleComponent: React.FC<EffectComponentProps<RippleEffect>> = ({
 	effect,
 	camera,
@@ -31,6 +34,11 @@ const RippleComponent: React.FC<EffectComponentProps<RippleEffect>> = ({
 	const radius = effect.radius * camera.zoom;
 	const size = radius * 2;
 
+	// Convert color to rgba with opacity
+	const fillColor = `${effect.color}${Math.round(RIPPLE_FILL_OPACITY * 255)
+		.toString(16)
+		.padStart(2, "0")}`;
+
 	if (!isAnimating) return null;
 
 	return (
@@ -43,7 +51,7 @@ const RippleComponent: React.FC<EffectComponentProps<RippleEffect>> = ({
 				height: size,
 				borderRadius: "50%",
 				border: `4px solid ${effect.color}`,
-				backgroundColor: `${effect.color}99`,
+				backgroundColor: fillColor,
 				pointerEvents: "none",
 				boxShadow: `0 0 20px ${effect.color}`,
 			}}

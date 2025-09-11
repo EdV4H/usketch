@@ -1,4 +1,4 @@
-import type { Point } from "@usketch/shared-types";
+import type { FadingPinEffect, PinEffect, Point, RippleEffect } from "@usketch/shared-types";
 import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import { useCallback, useRef, useState } from "react";
 import { useToolMachine } from "./use-tool-machine";
@@ -67,7 +67,7 @@ export const useInteraction = (): InteractionResult => {
 						const y = (e.clientY - rect.top - camera.y) / camera.zoom;
 
 						// Create effect based on config
-						let effect: any;
+						let effect: RippleEffect | PinEffect | FadingPinEffect | null = null;
 						switch (effectToolConfig.effectType) {
 							case "ripple":
 								effect = {
