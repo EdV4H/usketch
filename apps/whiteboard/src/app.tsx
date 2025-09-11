@@ -3,7 +3,7 @@ import type { EffectPlugin } from "@usketch/effect-registry";
 import { WhiteboardCanvas } from "@usketch/react-canvas";
 import { defaultShapePlugins } from "@usketch/shape-plugins";
 import type { ShapePlugin } from "@usketch/shape-registry";
-import type { Effect, Shape } from "@usketch/shared-types";
+import type { Shape } from "@usketch/shared-types";
 import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -226,44 +226,6 @@ function App() {
 			addDemoShapes();
 		}
 	};
-
-	// Add ripple effect on canvas click
-	useEffect(() => {
-		const handleCanvasClick = (e: MouseEvent) => {
-			// Only add ripple if clicking on empty canvas (not on shapes)
-			const target = e.target as HTMLElement;
-			const canvasElement = target.closest(".whiteboard-canvas");
-
-			// Check if we clicked on the canvas but not on a shape
-			if (canvasElement && !target.closest("[data-shape-id]")) {
-				const rect = canvasElement.getBoundingClientRect();
-				const camera = whiteboardStore.getState().camera;
-
-				// Convert screen coordinates to world coordinates
-				const x = (e.clientX - rect.left - camera.x) / camera.zoom;
-				const y = (e.clientY - rect.top - camera.y) / camera.zoom;
-
-				// Add a ripple effect at the click position
-				const rippleEffect: Effect = {
-					id: `ripple-${Date.now()}`,
-					type: "ripple",
-					x,
-					y,
-					radius: 60,
-					color: "#4ECDC4",
-					opacity: 1.0, // Maximum opacity
-					createdAt: Date.now(),
-					duration: 600,
-				};
-
-				console.log("Adding ripple effect at", { x, y }, rippleEffect);
-				whiteboardStore.getState().addEffect(rippleEffect);
-			}
-		};
-
-		document.addEventListener("click", handleCanvasClick);
-		return () => document.removeEventListener("click", handleCanvasClick);
-	}, []);
 
 	return (
 		<div className="app">

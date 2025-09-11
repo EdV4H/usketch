@@ -53,6 +53,15 @@ export const useInteraction = (): InteractionResult => {
 				// Handle select tool interactions
 				if (toolMachine.isSelectTool) {
 					toolMachine.handlePointerDown(point, e);
+				} else if (activeTool === "effect") {
+					// Handle effect tool - dynamically import when needed
+					import("../../../../apps/whiteboard/src/tools/effect-tool")
+						.then(({ effectTool }) => {
+							effectTool.onPointerDown(e.nativeEvent as PointerEvent);
+						})
+						.catch((err) => {
+							console.error("Failed to load effect tool:", err);
+						});
 				} else {
 					// Other tools handling
 				}
@@ -84,6 +93,8 @@ export const useInteraction = (): InteractionResult => {
 					setCursor("default");
 				} else if (activeTool === "pan") {
 					setCursor("grab");
+				} else if (activeTool === "effect") {
+					setCursor("crosshair");
 				} else {
 					setCursor("crosshair");
 				}
