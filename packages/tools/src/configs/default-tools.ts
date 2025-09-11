@@ -11,14 +11,6 @@ const selectToolBehaviors: ToolBehaviors = {
 	onDeactivate: ({ store }) => {
 		// Clear selection when switching away from select tool
 		store.clearSelection();
-
-		// Also clear any selection box overlay
-		const selectionBoxElement = document.getElementById("selection-box-overlay");
-		if (selectionBoxElement) {
-			selectionBoxElement.style.display = "none";
-			selectionBoxElement.style.width = "0px";
-			selectionBoxElement.style.height = "0px";
-		}
 	},
 
 	beforePointerDown: ({ event, worldPos, store }) => {

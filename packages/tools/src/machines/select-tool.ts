@@ -171,15 +171,6 @@ export const selectToolMachine = setup({
 				}),
 			);
 
-			// Legacy DOM manipulation for backward compatibility
-			const selectionBoxElement = document.getElementById("selection-box-overlay");
-			if (selectionBoxElement) {
-				selectionBoxElement.style.left = `${box.x}px`;
-				selectionBoxElement.style.top = `${box.y}px`;
-				selectionBoxElement.style.width = `${box.width}px`;
-				selectionBoxElement.style.height = `${box.height}px`;
-			}
-
 			return {
 				selectionBox: box,
 				selectedIds: newSelectedIds,
@@ -194,15 +185,6 @@ export const selectToolMachine = setup({
 				}),
 			);
 
-			// Legacy DOM manipulation for backward compatibility
-			const selectionBoxElement = document.getElementById("selection-box-overlay");
-			if (selectionBoxElement) {
-				selectionBoxElement.style.display = "none";
-				// Clear the dimensions to prevent visual artifacts
-				selectionBoxElement.style.width = "0px";
-				selectionBoxElement.style.height = "0px";
-			}
-
 			return {
 				selectionBox: null,
 				dragStart: null,
@@ -210,7 +192,7 @@ export const selectToolMachine = setup({
 		}),
 
 		showSelectionBox: () => {
-			// Emit event instead of DOM manipulation
+			// Emit event for React component
 			window.dispatchEvent(
 				new CustomEvent("selection-indicator-update", {
 					detail: { bounds: { x: 0, y: 0, width: 0, height: 0 }, visible: true, selectedCount: 0 },
@@ -219,18 +201,12 @@ export const selectToolMachine = setup({
 		},
 
 		hideSelectionBox: () => {
-			// Emit event instead of DOM manipulation
+			// Emit event for React component
 			window.dispatchEvent(
 				new CustomEvent("selection-indicator-update", {
 					detail: { bounds: null, visible: false, selectedCount: 0 },
 				}),
 			);
-
-			// Legacy DOM manipulation for backward compatibility
-			const selectionBoxElement = document.getElementById("selection-box-overlay");
-			if (selectionBoxElement) {
-				selectionBoxElement.style.display = "none";
-			}
 		},
 
 		recordInitialPositions: assign(({ context }) => {
@@ -322,14 +298,6 @@ export const selectToolMachine = setup({
 					detail: { bounds: null, visible: false, selectedCount: 0 },
 				}),
 			);
-
-			// Legacy DOM manipulation for backward compatibility
-			const selectionBoxElement = document.getElementById("selection-box-overlay");
-			if (selectionBoxElement) {
-				selectionBoxElement.style.display = "none";
-				selectionBoxElement.style.width = "0px";
-				selectionBoxElement.style.height = "0px";
-			}
 
 			return {
 				selectedIds: new Set<string>(),
