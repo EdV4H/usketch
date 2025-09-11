@@ -29,6 +29,7 @@ const RippleComponent: React.FC<EffectComponentProps<RippleEffect>> = ({
 
 	// Only apply zoom to the radius, position is handled by EffectLayer
 	const radius = effect.radius * camera.zoom;
+	const size = radius * 2;
 
 	if (!isAnimating) return null;
 
@@ -36,19 +37,17 @@ const RippleComponent: React.FC<EffectComponentProps<RippleEffect>> = ({
 		<motion.div
 			style={{
 				position: "absolute",
-				left: -radius - 2, // Offset by radius + half of border width (4px/2)
-				top: -radius - 2, // Offset by radius + half of border width (4px/2)
-				width: radius * 2,
-				height: radius * 2,
+				left: -size / 2,
+				top: -size / 2,
+				width: size,
+				height: size,
 				borderRadius: "50%",
-				border: `4px solid ${effect.color}`, // Thicker border
-				backgroundColor: `${effect.color}99`, // Much more opaque fill (60% opacity)
+				border: `4px solid ${effect.color}`,
+				backgroundColor: `${effect.color}99`,
 				pointerEvents: "none",
-				boxShadow: `0 0 20px ${effect.color}`, // Add glow effect
-				boxSizing: "content-box", // Border is added to width/height
-				transformOrigin: "center center", // Scale from center
+				boxShadow: `0 0 20px ${effect.color}`,
 			}}
-			initial={{ scale: 0.3, opacity: 1 }} // Always start at full opacity
+			initial={{ scale: 0.3, opacity: 1 }}
 			animate={{
 				scale: 2.5,
 				opacity: 0,

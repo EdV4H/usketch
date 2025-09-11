@@ -41,6 +41,18 @@ export const EffectLayer: FC<EffectLayerProps> = memo(({ className }) => {
 			const transformedX = effect.x * camera.zoom + camera.x;
 			const transformedY = effect.y * camera.zoom + camera.y;
 
+			// Container size for centering child elements
+			const containerStyle = {
+				position: "absolute" as const,
+				left: transformedX,
+				top: transformedY,
+				width: 0,
+				height: 0,
+				zIndex: effect.zIndex || 1000,
+				pointerEvents: plugin.interactive ? "auto" : "none",
+				overflow: "visible",
+			};
+
 			// Apply animation if the plugin has animation config
 			if (plugin.animation) {
 				return (
@@ -50,13 +62,7 @@ export const EffectLayer: FC<EffectLayerProps> = memo(({ className }) => {
 						animate={plugin.animation.animate}
 						exit={plugin.animation.exit}
 						transition={plugin.animation.transition}
-						style={{
-							position: "absolute",
-							left: transformedX,
-							top: transformedY,
-							zIndex: effect.zIndex || 1000,
-							pointerEvents: plugin.interactive ? "auto" : "none",
-						}}
+						style={containerStyle}
 					>
 						<Component effect={effect} camera={camera} />
 					</motion.div>
@@ -65,16 +71,7 @@ export const EffectLayer: FC<EffectLayerProps> = memo(({ className }) => {
 
 			// No animation, render directly
 			return (
-				<div
-					key={key}
-					style={{
-						position: "absolute",
-						left: transformedX,
-						top: transformedY,
-						zIndex: effect.zIndex || 1000,
-						pointerEvents: plugin.interactive ? "auto" : "none",
-					}}
-				>
+				<div key={key} style={containerStyle}>
 					<Component effect={effect} camera={camera} />
 				</div>
 			);
