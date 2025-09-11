@@ -42,8 +42,8 @@ export const EffectLayer: FC<EffectLayerProps> = memo(({ className }) => {
 			const transformedY = effect.y * camera.zoom + camera.y;
 
 			// Container size for centering child elements
-			const containerStyle = {
-				position: "absolute" as const,
+			const containerStyle: React.CSSProperties = {
+				position: "absolute",
 				left: transformedX,
 				top: transformedY,
 				width: 0,
