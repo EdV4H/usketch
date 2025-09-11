@@ -36,14 +36,13 @@ const RippleComponent: React.FC<EffectComponentProps<RippleEffect>> = ({
 		<motion.div
 			style={{
 				position: "absolute",
-				left: 0,
-				top: 0,
+				left: -radius, // Offset by radius to center
+				top: -radius, // Offset by radius to center
 				width: radius * 2,
 				height: radius * 2,
 				borderRadius: "50%",
 				border: `4px solid ${effect.color}`, // Thicker border
 				backgroundColor: `${effect.color}99`, // Much more opaque fill (60% opacity)
-				transform: "translate(-50%, -50%)",
 				pointerEvents: "none",
 				boxShadow: `0 0 20px ${effect.color}`, // Add glow effect
 			}}
