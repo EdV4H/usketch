@@ -41,12 +41,13 @@ const RippleComponent: React.FC<EffectComponentProps<RippleEffect>> = ({
 				width: radius * 2,
 				height: radius * 2,
 				borderRadius: "50%",
-				border: `2px solid ${effect.color}`,
-				backgroundColor: `${effect.color}33`, // Add semi-transparent fill
+				border: `4px solid ${effect.color}`, // Thicker border
+				backgroundColor: `${effect.color}99`, // Much more opaque fill (60% opacity)
 				transform: "translate(-50%, -50%)",
 				pointerEvents: "none",
+				boxShadow: `0 0 20px ${effect.color}`, // Add glow effect
 			}}
-			initial={{ scale: 0.3, opacity: effect.opacity }}
+			initial={{ scale: 0.3, opacity: 1 }} // Always start at full opacity
 			animate={{
 				scale: 2.5,
 				opacity: 0,
@@ -71,7 +72,7 @@ export const ripplePlugin: EffectPlugin<RippleEffect> = {
 		y,
 		radius: (config as RippleEffectConfig).radius || 50,
 		color: (config as RippleEffectConfig).color || "#007bff",
-		opacity: (config as RippleEffectConfig).opacity || 0.8,
+		opacity: (config as RippleEffectConfig).opacity || 1.0, // Maximum opacity
 		duration: (config as RippleEffectConfig).duration || 600,
 		createdAt: Date.now(),
 	}),

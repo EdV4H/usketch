@@ -249,11 +249,11 @@ function App() {
 					type: "ripple",
 					x,
 					y,
-					radius: 60, // Increased from 30
+					radius: 60,
 					color: "#4ECDC4",
-					opacity: 0.8, // Increased from 0.5
+					opacity: 1.0, // Maximum opacity
 					createdAt: Date.now(),
-					duration: 600, // Slightly longer duration
+					duration: 600,
 				};
 
 				console.log("Adding ripple effect at", { x, y }, rippleEffect);
