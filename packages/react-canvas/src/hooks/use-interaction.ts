@@ -56,7 +56,6 @@ export const useInteraction = (): InteractionResult => {
 					toolMachine.handlePointerDown(point, e);
 				} else if (activeTool === "effect") {
 					// Delegate effect creation to the EffectTool
-					const point = getCanvasPoint(e);
 					const effectTool = getEffectTool();
 					effectTool.handlePointerDown(point);
 				} else {

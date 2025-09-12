@@ -1,4 +1,4 @@
-import type { BaseEffect } from "@usketch/shared-types";
+import type { Effect } from "@usketch/shared-types";
 import type { EffectPlugin, RegistryEvent, RegistryEventListener } from "./types";
 
 /**
@@ -11,7 +11,7 @@ export class EffectRegistry {
 	/**
 	 * Register an effect plugin
 	 */
-	register<T extends BaseEffect>(plugin: EffectPlugin<T>): void {
+	register<T extends Effect>(plugin: EffectPlugin<T>): void {
 		if (this.plugins.has(plugin.type)) {
 			console.warn(`Effect plugin "${plugin.type}" is already registered. Overwriting.`);
 		}

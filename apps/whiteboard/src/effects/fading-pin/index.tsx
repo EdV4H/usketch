@@ -1,7 +1,7 @@
-import type { FadingPinEffect } from "@usketch/shared-types";
 import { motion } from "framer-motion";
 import type React from "react";
 import { useEffect, useState } from "react";
+import type { FadingPinEffect } from "../effect-types";
 import type { EffectComponentProps, EffectPlugin } from "../types";
 
 export interface FadingPinEffectConfig {
@@ -162,7 +162,7 @@ export const fadingPinPlugin: EffectPlugin<FadingPinEffect> = {
 	},
 
 	validate: (effect) => {
-		return effect.type === "fading-pin" && typeof effect.color === "string";
+		return effect.type === "fading-pin" && typeof effect["color"] === "string";
 	},
 
 	interactive: true,

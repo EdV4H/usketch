@@ -1,4 +1,4 @@
-import type { BaseEffect, Camera, Point } from "@usketch/shared-types";
+import type { Camera, Effect, Point } from "@usketch/shared-types";
 import type { ComponentType } from "react";
 
 /**
@@ -24,7 +24,7 @@ export interface InteractionEvent {
 /**
  * Props for effect components
  */
-export interface EffectComponentProps<T extends BaseEffect = BaseEffect> {
+export interface EffectComponentProps<T extends Effect = Effect> {
 	effect: T;
 	camera: Camera;
 	onComplete?: () => void;
@@ -34,7 +34,7 @@ export interface EffectComponentProps<T extends BaseEffect = BaseEffect> {
 /**
  * Effect plugin definition
  */
-export interface EffectPlugin<T extends BaseEffect = BaseEffect> {
+export interface EffectPlugin<T extends Effect = Effect> {
 	/** Unique identifier for the effect type */
 	type: string;
 

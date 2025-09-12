@@ -1,4 +1,4 @@
-import type { BaseEffect } from "@usketch/shared-types";
+import type { Effect } from "@usketch/shared-types";
 import { useCallback, useEffect, useRef } from "react";
 import { useEffectRegistry } from "./context";
 import type { CreateEffectProps, EffectPlugin } from "./types";
@@ -6,7 +6,7 @@ import type { CreateEffectProps, EffectPlugin } from "./types";
 /**
  * Hook to create an effect using a plugin
  */
-export const useCreateEffect = <T extends BaseEffect = BaseEffect>(
+export const useCreateEffect = <T extends Effect = Effect>(
 	type: string,
 ): ((props: Omit<CreateEffectProps, "id">) => T | null) => {
 	const registry = useEffectRegistry();
@@ -39,7 +39,7 @@ export const useCreateEffect = <T extends BaseEffect = BaseEffect>(
 /**
  * Hook to validate an effect
  */
-export const useValidateEffect = <T extends BaseEffect = BaseEffect>(effect: T | null): boolean => {
+export const useValidateEffect = <T extends Effect = Effect>(effect: T | null): boolean => {
 	const registry = useEffectRegistry();
 
 	if (!effect) return false;
@@ -63,7 +63,7 @@ export const useValidateEffect = <T extends BaseEffect = BaseEffect>(effect: T |
 /**
  * Hook to manage effect lifecycle
  */
-export const useEffectLifecycle = <T extends BaseEffect = BaseEffect>(effect: T | null): void => {
+export const useEffectLifecycle = <T extends Effect = Effect>(effect: T | null): void => {
 	const registry = useEffectRegistry();
 	const previousEffectRef = useRef<T | null>(null);
 

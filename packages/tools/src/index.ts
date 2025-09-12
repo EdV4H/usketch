@@ -7,7 +7,7 @@ export { createDefaultToolManager } from "./adapters/tool-manager-compat";
 
 // Tool configurations
 export { createDefaultToolManagerOptions, getDefaultTools } from "./configs/default-tools";
-export type { EffectToolConfig } from "./effect/effect-tool";
+export type { EffectFactory, EffectToolConfig } from "./effect/effect-tool";
 // Effect Tool
 export { EffectTool, getEffectTool } from "./effect/effect-tool";
 // Machine exports for advanced usage

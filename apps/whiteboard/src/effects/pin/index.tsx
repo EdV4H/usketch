@@ -1,6 +1,6 @@
-import type { PinEffect } from "@usketch/shared-types";
 import type React from "react";
 import { useState } from "react";
+import type { PinEffect } from "../effect-types";
 import type { EffectComponentProps, EffectPlugin } from "../types";
 
 export interface PinEffectConfig {
@@ -95,7 +95,7 @@ export const pinPlugin: EffectPlugin<PinEffect> = {
 	}),
 
 	validate: (effect) => {
-		return effect.type === "pin" && typeof effect.color === "string";
+		return effect.type === "pin" && typeof effect["color"] === "string";
 	},
 
 	interactive: true,

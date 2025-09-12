@@ -1,7 +1,8 @@
 /**
  * Base interface for all effects
+ * Effects are visual overlays on the canvas that can be temporary or permanent
  */
-export interface BaseEffect {
+export interface Effect {
 	id: string;
 	type: string;
 	x: number;
@@ -10,65 +11,5 @@ export interface BaseEffect {
 	createdAt: number; // timestamp
 	zIndex?: number; // display order
 	metadata?: Record<string, any>;
+	[key: string]: any; // Allow additional properties for extensibility
 }
-
-/**
- * Ripple effect for click feedback
- */
-export interface RippleEffect extends BaseEffect {
-	type: "ripple";
-	radius: number;
-	color: string;
-	opacity: number;
-}
-
-/**
- * Pin effect for comments and annotations
- */
-export interface PinEffect extends BaseEffect {
-	type: "pin";
-	label?: string;
-	color: string;
-	authorId?: string;
-	message?: string;
-	size?: number;
-}
-
-/**
- * Fading pin effect for temporary comments
- */
-export interface FadingPinEffect extends BaseEffect {
-	type: "fading-pin";
-	label?: string;
-	color: string;
-	authorId?: string;
-	message?: string;
-	size?: number;
-}
-
-// Future effect types can be added here as needed
-// Example:
-// export interface CursorEffect extends BaseEffect {
-//   type: "cursor";
-//   userId: string;
-//   userName: string;
-//   color: string;
-// }
-
-/**
- * Custom effect for extensions
- */
-export interface CustomEffect extends BaseEffect {
-	type: string; // Any custom type
-	[key: string]: any; // Additional properties
-}
-
-/**
- * Union type of all standard effects
- */
-export type StandardEffect = RippleEffect | PinEffect | FadingPinEffect;
-
-/**
- * Union type of all effects including custom
- */
-export type Effect = StandardEffect | CustomEffect;

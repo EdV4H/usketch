@@ -4,12 +4,14 @@ import type { ShapePlugin } from "@usketch/shape-registry";
 import type { Shape } from "@usketch/shared-types";
 import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
+import { getEffectTool } from "@usketch/tools";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
 import { ToolbarReact } from "./components/toolbar-react";
 import { customShapePlugins } from "./custom-shapes";
 import type { EffectPlugin } from "./effects";
 import { fadingPinPlugin, pinPlugin, ripplePlugin } from "./effects";
+import { createAppEffect } from "./effects/effect-factory";
 import "./styles/app.css";
 
 // Helper function to add shape with delay
@@ -196,6 +198,10 @@ function App() {
 		if (!backgroundsRegisteredRef.current) {
 			backgroundsRegisteredRef.current = true;
 			registerCustomBackgrounds();
+
+			// Set up the effect factory for the effect tool
+			const effectTool = getEffectTool();
+			effectTool.setEffectFactory(createAppEffect);
 		}
 
 		// Load custom shapes and combine with default shapes

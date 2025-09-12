@@ -1,7 +1,7 @@
-import type { RippleEffect } from "@usketch/shared-types";
 import { motion } from "framer-motion";
 import type React from "react";
 import { useEffect, useState } from "react";
+import type { RippleEffect } from "../effect-types";
 import type { EffectComponentProps, EffectPlugin } from "../types";
 
 export interface RippleEffectConfig {
@@ -88,12 +88,12 @@ export const ripplePlugin: EffectPlugin<RippleEffect> = {
 	validate: (effect) => {
 		return (
 			effect.type === "ripple" &&
-			typeof effect.radius === "number" &&
-			effect.radius > 0 &&
-			typeof effect.color === "string" &&
-			typeof effect.opacity === "number" &&
-			effect.opacity >= 0 &&
-			effect.opacity <= 1
+			typeof effect["radius"] === "number" &&
+			effect["radius"] > 0 &&
+			typeof effect["color"] === "string" &&
+			typeof effect["opacity"] === "number" &&
+			effect["opacity"] >= 0 &&
+			effect["opacity"] <= 1
 		);
 	},
 
