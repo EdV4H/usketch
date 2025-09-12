@@ -62,7 +62,6 @@ export class EffectTool {
 		const effect = this.createEffect(point);
 
 		if (effect) {
-			console.log(`Adding ${this.config.effectType} effect at`, { x: point.x, y: point.y });
 			const { addEffect } = whiteboardStore.getState();
 			addEffect(effect);
 			return true;

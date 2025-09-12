@@ -1,6 +1,5 @@
 import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
-import { getEffectTool } from "@usketch/tools";
 import { useCallback, useRef, useState } from "react";
 import { useToolMachine } from "./use-tool-machine";
 
@@ -51,13 +50,9 @@ export const useInteraction = (): InteractionResult => {
 			if (e.button === 0 && activeTool) {
 				const point = getCanvasPoint(e);
 
-				// Handle select tool interactions
-				if (toolMachine.isSelectTool) {
+				// Handle tool interactions
+				if (toolMachine.isSelectTool || toolMachine.isEffectTool) {
 					toolMachine.handlePointerDown(point, e);
-				} else if (activeTool === "effect") {
-					// Delegate effect creation to the EffectTool
-					const effectTool = getEffectTool();
-					effectTool.handlePointerDown(point);
 				} else {
 					// Other tools handling
 				}
