@@ -2,7 +2,7 @@ import type { Point, Shape } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import type { Actor, AnyStateMachine } from "xstate";
 import { createActor } from "xstate";
-import { createToolManager } from "../machines/tool-manager";
+import { createToolManager } from "../core/tool-manager";
 import type { ToolConfig, ToolManagerOptions } from "../schemas";
 import { formatToolConfigError, ToolManagerOptionsSchema, validateToolConfig } from "../schemas";
 import { ToolValidationError } from "../utils/error-handler";

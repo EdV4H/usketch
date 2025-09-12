@@ -1,7 +1,7 @@
 import type { RectangleShape } from "@usketch/shared-types";
 import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { assign, setup } from "xstate";
-import type { Point, ToolContext } from "../types";
+import type { Point, ToolContext } from "../types/index";
 
 // === Rectangle Tool Context ===
 export interface RectangleToolContext extends ToolContext {
