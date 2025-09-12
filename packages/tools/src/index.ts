@@ -16,7 +16,7 @@ export type { EffectFactory, EffectToolConfig } from "./tools/effect-tool";
 // Effect Tool
 export { EffectTool, getEffectTool } from "./tools/effect-tool";
 export type { SelectToolContext, SelectToolEvent } from "./tools/select-tool";
-export { selectToolMachine } from "./tools/select-tool";
+export { createSelectTool, selectToolMachine } from "./tools/select-tool";
 // Event types
 export type {
 	ToolEvent as ToolEventType,

@@ -1,7 +1,6 @@
 import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
-import { getEffectTool } from "@usketch/tools";
-import { createSelectTool } from "@usketch/tools/machines/select-tool";
+import { createSelectTool, getEffectTool } from "@usketch/tools";
 import { useEffect, useRef } from "react";
 import { createActor } from "xstate";
 
