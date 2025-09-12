@@ -527,7 +527,9 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 							{currentBackground === "none"
 								? "背景なし"
 								: PRESET_BACKGROUNDS[currentBackground as keyof typeof PRESET_BACKGROUNDS]?.name ||
-									CUSTOM_BACKGROUNDS_METADATA[currentBackground]?.name ||
+									CUSTOM_BACKGROUNDS_METADATA[
+										currentBackground as keyof typeof CUSTOM_BACKGROUNDS_METADATA
+									]?.name ||
 									"背景"}
 						</span>
 						<span>▼</span>
