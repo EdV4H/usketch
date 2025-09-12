@@ -1,5 +1,6 @@
-import type { FadingPinEffect, PinEffect, Point, RippleEffect } from "@usketch/shared-types";
-import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
+import type { Point } from "@usketch/shared-types";
+import { useWhiteboardStore } from "@usketch/store";
+import { getEffectTool } from "@usketch/tools";
 import { useCallback, useRef, useState } from "react";
 import { useToolMachine } from "./use-tool-machine";
 
@@ -15,7 +16,7 @@ interface InteractionResult {
 }
 
 export const useInteraction = (): InteractionResult => {
-	const { currentTool, camera, setCamera, effectToolConfig } = useWhiteboardStore();
+	const { currentTool, camera, setCamera } = useWhiteboardStore();
 	const activeTool = currentTool || "select";
 	const [cursor, setCursor] = useState("default");
 	const [isPanning, setIsPanning] = useState(false);
@@ -54,77 +55,16 @@ export const useInteraction = (): InteractionResult => {
 				if (toolMachine.isSelectTool) {
 					toolMachine.handlePointerDown(point, e);
 				} else if (activeTool === "effect") {
-					// Handle effect tool inline - uses config from store
-					const target = e.target as HTMLElement;
-					const canvasElement = target.closest(".whiteboard-canvas");
-
-					if (canvasElement) {
-						const rect = canvasElement.getBoundingClientRect();
-						const { addEffect } = whiteboardStore.getState();
-
-						// Convert screen coordinates to world coordinates
-						const x = (e.clientX - rect.left - camera.x) / camera.zoom;
-						const y = (e.clientY - rect.top - camera.y) / camera.zoom;
-
-						// Create effect based on config
-						let effect: RippleEffect | PinEffect | FadingPinEffect | null = null;
-						switch (effectToolConfig.effectType) {
-							case "ripple":
-								effect = {
-									id: `ripple-${Date.now()}`,
-									type: "ripple",
-									x,
-									y,
-									radius: effectToolConfig.effectConfig?.radius || 60,
-									color: effectToolConfig.effectConfig?.color || "#4ECDC4",
-									opacity: effectToolConfig.effectConfig?.opacity || 1.0,
-									createdAt: Date.now(),
-									duration: effectToolConfig.effectConfig?.duration || 600,
-								};
-								break;
-							case "pin":
-								effect = {
-									id: `pin-${Date.now()}`,
-									type: "pin",
-									x,
-									y,
-									color: effectToolConfig.effectConfig?.color || "#ff6b6b",
-									size: effectToolConfig.effectConfig?.size || 24,
-									message: effectToolConfig.effectConfig?.message || "Comment",
-									label: effectToolConfig.effectConfig?.label || "📌",
-									createdAt: Date.now(),
-								};
-								break;
-							case "fading-pin":
-								effect = {
-									id: `fading-pin-${Date.now()}`,
-									type: "fading-pin",
-									x,
-									y,
-									color: effectToolConfig.effectConfig?.color || "#9b59b6",
-									size: effectToolConfig.effectConfig?.size || 24,
-									message: effectToolConfig.effectConfig?.message || "Temporary note",
-									label: effectToolConfig.effectConfig?.label || "📍",
-									createdAt: Date.now(),
-									duration: effectToolConfig.effectConfig?.fadeDuration || 5000,
-									metadata: {
-										fadeDelay: effectToolConfig.effectConfig?.fadeDelay || 3000,
-									},
-								};
-								break;
-						}
-
-						if (effect) {
-							console.log(`Adding ${effectToolConfig.effectType} effect at`, { x, y });
-							addEffect(effect);
-						}
-					}
+					// Delegate effect creation to the EffectTool
+					const point = getCanvasPoint(e);
+					const effectTool = getEffectTool();
+					effectTool.handlePointerDown(point);
 				} else {
 					// Other tools handling
 				}
 			}
 		},
-		[camera, getCanvasPoint, activeTool, toolMachine, effectToolConfig],
+		[camera, getCanvasPoint, activeTool, toolMachine],
 	);
 
 	const handlePointerMove = useCallback(
