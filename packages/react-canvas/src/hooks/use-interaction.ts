@@ -50,8 +50,8 @@ export const useInteraction = (): InteractionResult => {
 			if (e.button === 0 && activeTool) {
 				const point = getCanvasPoint(e);
 
-				// Handle select tool interactions
-				if (toolMachine.isSelectTool) {
+				// Handle tool interactions
+				if (toolMachine.isSelectTool || toolMachine.isEffectTool) {
 					toolMachine.handlePointerDown(point, e);
 				} else {
 					// Other tools handling
@@ -84,6 +84,8 @@ export const useInteraction = (): InteractionResult => {
 					setCursor("default");
 				} else if (activeTool === "pan") {
 					setCursor("grab");
+				} else if (activeTool === "effect") {
+					setCursor("crosshair");
 				} else {
 					setCursor("crosshair");
 				}

@@ -1,3 +1,4 @@
+import { whiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { CUSTOM_BACKGROUNDS_METADATA } from "../backgrounds/register-backgrounds";
@@ -36,7 +37,12 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 	const setCurrentTool = useStore((state) => state.setCurrentTool);
 	const [currentBackground, setCurrentBackground] = useState("usketch.dots");
 	const [showBackgroundMenu, setShowBackgroundMenu] = useState(false);
+	const [showEffectMenu, setShowEffectMenu] = useState(false);
+	const [currentEffectType, setCurrentEffectType] = useState<"ripple" | "pin" | "fading-pin">(
+		"ripple",
+	);
 	const dropdownRef = useRef<HTMLDivElement>(null);
+	const effectDropdownRef = useRef<HTMLDivElement>(null);
 
 	const tools = [
 		{ id: "select", name: "選択", icon: "↖" },
@@ -46,6 +52,7 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 		{ id: "arrow", name: "矢印", icon: "→" },
 		{ id: "draw", name: "描画", icon: "✏" },
 		{ id: "text", name: "テキスト", icon: "T" },
+		{ id: "effect", name: "エフェクト", icon: "✨" },
 	];
 
 	const handleBackgroundSelect = (bgId: string, config?: any) => {
@@ -56,19 +63,46 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 		setShowBackgroundMenu(false);
 	};
 
+	// effectToolConfigを更新
+	useEffect(() => {
+		if (currentTool === "effect") {
+			const effectConfig =
+				currentEffectType === "ripple"
+					? { color: "#4ECDC4", radius: 60, duration: 600 }
+					: currentEffectType === "pin"
+						? { color: "#ff6b6b", size: 24, message: "Click to add comment" }
+						: {
+								color: "#9b59b6",
+								size: 24,
+								message: "Temporary note",
+								fadeDelay: 3000,
+								fadeDuration: 5000,
+							};
+
+			const { setEffectToolConfig } = whiteboardStore.getState();
+			setEffectToolConfig({
+				effectType: currentEffectType,
+				effectConfig,
+			});
+		}
+	}, [currentTool, currentEffectType]);
+
 	// 外側クリックでメニューを閉じる
 	useEffect(() => {
-		if (!showBackgroundMenu) return;
+		if (!showBackgroundMenu && !showEffectMenu) return;
 
 		const handleClickOutside = (event: MouseEvent) => {
 			if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
 				setShowBackgroundMenu(false);
 			}
+			if (effectDropdownRef.current && !effectDropdownRef.current.contains(event.target as Node)) {
+				setShowEffectMenu(false);
+			}
 		};
 
 		document.addEventListener("mousedown", handleClickOutside);
 		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, [showBackgroundMenu]);
+	}, [showBackgroundMenu, showEffectMenu]);
 
 	return (
 		<div className="toolbar">
@@ -208,6 +242,103 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 			</div>
 
 			<div className="toolbar-separator" />
+
+			{currentTool === "effect" && (
+				<>
+					<div className="toolbar-group">
+						<div className="background-dropdown" ref={effectDropdownRef}>
+							<button
+								type="button"
+								className="background-button"
+								onClick={() => setShowEffectMenu(!showEffectMenu)}
+								data-testid="effect-type-button"
+							>
+								<span>
+									{currentEffectType === "ripple"
+										? "波紋"
+										: currentEffectType === "pin"
+											? "ピン"
+											: "消えるピン"}
+								</span>
+								<span>▼</span>
+							</button>
+
+							{showEffectMenu && (
+								<div className="background-menu">
+									<div className="background-section">
+										<div className="background-section-title">エフェクトタイプ</div>
+										<button
+											type="button"
+											className={`background-item ${currentEffectType === "ripple" ? "active" : ""}`}
+											onClick={() => {
+												setCurrentEffectType("ripple");
+												setShowEffectMenu(false);
+
+												// Also update Store config immediately
+												const effectConfig = { color: "#4ECDC4", radius: 60, duration: 600 };
+												const { setEffectToolConfig } = whiteboardStore.getState();
+												setEffectToolConfig({
+													effectType: "ripple",
+													effectConfig,
+												});
+											}}
+										>
+											波紋エフェクト
+										</button>
+										<button
+											type="button"
+											className={`background-item ${currentEffectType === "pin" ? "active" : ""}`}
+											onClick={() => {
+												setCurrentEffectType("pin");
+												setShowEffectMenu(false);
+
+												// Also update Store config immediately
+												const effectConfig = {
+													color: "#ff6b6b",
+													size: 24,
+													message: "Click to add comment",
+												};
+												const { setEffectToolConfig } = whiteboardStore.getState();
+												setEffectToolConfig({
+													effectType: "pin",
+													effectConfig,
+												});
+											}}
+										>
+											ピンマーカー
+										</button>
+										<button
+											type="button"
+											className={`background-item ${currentEffectType === "fading-pin" ? "active" : ""}`}
+											onClick={() => {
+												setCurrentEffectType("fading-pin");
+												setShowEffectMenu(false);
+
+												// Also update Store config immediately
+												const effectConfig = {
+													color: "#9b59b6",
+													size: 24,
+													message: "Temporary note",
+													fadeDelay: 3000,
+													fadeDuration: 5000,
+												};
+												const { setEffectToolConfig } = whiteboardStore.getState();
+												setEffectToolConfig({
+													effectType: "fading-pin",
+													effectConfig,
+												});
+											}}
+										>
+											消えるピン（5秒）
+										</button>
+									</div>
+								</div>
+							)}
+						</div>
+					</div>
+					<div className="toolbar-separator" />
+				</>
+			)}
 
 			<div className="toolbar-group">
 				<div className="background-dropdown" ref={dropdownRef}>

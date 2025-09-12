@@ -1,5 +1,6 @@
 import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
+import { getEffectTool } from "@usketch/tools";
 import { createSelectTool } from "@usketch/tools/machines/select-tool";
 import { useEffect, useRef } from "react";
 import { createActor } from "xstate";
@@ -45,6 +46,10 @@ export const useToolMachine = () => {
 				ctrlKey: e.ctrlKey,
 				metaKey: e.metaKey,
 			});
+		} else if (currentTool === "effect") {
+			// Delegate to effect tool
+			const effectTool = getEffectTool();
+			effectTool.handlePointerDown(point);
 		}
 	};
 
@@ -88,5 +93,6 @@ export const useToolMachine = () => {
 		handlePointerUp,
 		handleKeyDown,
 		isSelectTool: currentTool === "select",
+		isEffectTool: currentTool === "effect",
 	};
 };
