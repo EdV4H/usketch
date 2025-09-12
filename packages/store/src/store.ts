@@ -65,7 +65,7 @@ export interface WhiteboardStore extends WhiteboardState {
 	clearExpiredEffects: () => void;
 	setEffectToolConfig: (
 		config: Partial<{
-			effectType: "ripple" | "pin" | "fading-pin";
+			effectType: string;
 			effectConfig?: Record<string, any>;
 		}>,
 	) => void;

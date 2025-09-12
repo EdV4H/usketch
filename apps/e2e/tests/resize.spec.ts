@@ -14,7 +14,6 @@ test.describe("Shape Resize Functionality", () => {
 		await page.click('[data-testid="tool-rectangle"]');
 
 		// Draw rectangle
-		const _canvas = page.locator(".whiteboard-canvas");
 		await page.mouse.move(200, 200);
 		await page.mouse.down();
 		await page.mouse.move(400, 300);
@@ -48,7 +47,6 @@ test.describe("Shape Resize Functionality", () => {
 		await page.click('[data-testid="tool-rectangle"]');
 
 		// Draw rectangle
-		const _canvas = page.locator(".whiteboard-canvas");
 		await page.mouse.move(100, 100);
 		await page.mouse.down();
 		await page.mouse.move(300, 200);
@@ -91,7 +89,6 @@ test.describe("Shape Resize Functionality", () => {
 		await page.click('[data-testid="tool-rectangle"]');
 
 		// Draw square
-		const _canvas = page.locator(".whiteboard-canvas");
 		await page.mouse.move(100, 100);
 		await page.mouse.down();
 		await page.mouse.move(200, 200);
@@ -137,7 +134,6 @@ test.describe("Shape Resize Functionality", () => {
 		await page.click('[data-testid="tool-rectangle"]');
 
 		// Draw rectangle
-		const _canvas = page.locator(".whiteboard-canvas");
 		await page.mouse.move(100, 100);
 		await page.mouse.down();
 		await page.mouse.move(200, 200);
@@ -177,7 +173,6 @@ test.describe("Shape Resize Functionality", () => {
 		await page.click('[data-testid="tool-rectangle"]');
 
 		// Draw rectangle
-		const _canvas = page.locator(".whiteboard-canvas");
 		await page.mouse.move(100, 100);
 		await page.mouse.down();
 		await page.mouse.move(300, 200);
