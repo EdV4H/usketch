@@ -1,6 +1,6 @@
 // === Snap Engine for alignment assistance ===
 
-import type { Point } from "../types";
+import type { Point } from "../types/index";
 
 export class SnapEngine {
 	snap(position: Point): Point {

@@ -1,4 +1,4 @@
-import type { Bounds, Point } from "../types";
+import type { Bounds, Point } from "../types/index";
 
 // Calculate new bounds based on resize handle and delta
 export function calculateNewBounds(

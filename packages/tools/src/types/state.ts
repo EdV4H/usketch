@@ -1,9 +1,9 @@
 // State type definitions for tool machines
 
 import type { Actor, ActorRefFrom, AnyStateMachine, StateValue } from "xstate";
-import type { DrawingToolContext } from "../machines/drawing-tool";
-import type { SelectToolContext } from "../machines/select-tool";
-import type { ToolContext } from "../types";
+import type { DrawingToolContext } from "../tools/drawing-tool";
+import type { SelectToolContext } from "../tools/select-tool";
+import type { ToolContext } from "./index";
 
 // Tool state union type
 export type ToolStateValue = StateValue;

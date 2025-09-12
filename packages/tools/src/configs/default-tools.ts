@@ -1,7 +1,7 @@
-import { createDrawingTool } from "../machines/drawing-tool";
-import { createRectangleTool } from "../machines/rectangle-tool";
-import { createSelectTool } from "../machines/select-tool";
 import type { ToolBehaviors, ToolConfig } from "../schemas";
+import { createDrawingTool } from "../tools/drawing-tool";
+import { createRectangleTool } from "../tools/rectangle-tool";
+import { createSelectTool } from "../tools/select-tool";
 import { getShapeAtPoint } from "../utils/geometry";
 
 /**

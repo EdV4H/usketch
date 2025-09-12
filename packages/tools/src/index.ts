@@ -7,16 +7,21 @@ export { createDefaultToolManager } from "./adapters/tool-manager-compat";
 
 // Tool configurations
 export { createDefaultToolManagerOptions, getDefaultTools } from "./configs/default-tools";
-export type { EffectFactory, EffectToolConfig } from "./effect/effect-tool";
-// Effect Tool
-export { EffectTool, getEffectTool } from "./effect/effect-tool";
+export { createToolMachine } from "./core/tool-machine-factory";
+export { toolManagerMachine } from "./core/tool-manager";
 // Machine exports for advanced usage
-export type { DrawingToolContext, DrawingToolEvent } from "./machines/drawing-tool";
-export { createDrawingTool } from "./machines/drawing-tool";
-export type { SelectToolContext, SelectToolEvent } from "./machines/select-tool";
-export { selectToolMachine } from "./machines/select-tool";
-export { createToolMachine } from "./machines/tool-machine-factory";
-export { toolManagerMachine } from "./machines/tool-manager";
+export type { DrawingToolContext, DrawingToolEvent } from "./tools/drawing-tool";
+export { createDrawingTool } from "./tools/drawing-tool";
+export type { EffectFactory, EffectToolConfig } from "./tools/effect-tool";
+// Effect Tool
+export { EffectTool, getEffectTool } from "./tools/effect-tool";
+export type { SelectToolContext, SelectToolEvent } from "./tools/select-tool";
+export { createSelectTool, selectToolMachine } from "./tools/select-tool";
+// Event types
+export type {
+	ToolEvent as ToolEventType,
+	ToolEventHandlers,
+} from "./types/events";
 // Types
 export type {
 	Bounds,
@@ -25,12 +30,7 @@ export type {
 	ShapeStyle,
 	ToolContext,
 	ToolEvent,
-} from "./types";
-// Event types
-export type {
-	ToolEvent as ToolEventType,
-	ToolEventHandlers,
-} from "./types/events";
+} from "./types/index";
 // State types
 export type {
 	ToolContextUnion,

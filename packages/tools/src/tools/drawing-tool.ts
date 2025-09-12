@@ -1,7 +1,7 @@
 import type { FreedrawShape } from "@usketch/shared-types";
 import { DEFAULT_FREEDRAW_STYLES } from "@usketch/shared-types";
 import { assign, setup } from "xstate";
-import type { Point, ToolContext } from "../types";
+import type { Point, ToolContext } from "../types/index";
 
 // === Drawing Tool Context ===
 export interface DrawingToolContext extends ToolContext {

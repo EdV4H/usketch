@@ -1,5 +1,5 @@
 import { assign, setup } from "xstate";
-import type { ToolContext, ToolEvent } from "../types";
+import type { ToolContext, ToolEvent } from "../types/index";
 
 // === XState v5: Setup API を使用したTool Machine Factory ===
 export function createToolMachine<

@@ -6,7 +6,7 @@ import {
 	type Shape as SharedShape,
 } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
-import type { Bounds, Point } from "../types";
+import type { Bounds, Point } from "../types/index";
 
 // Resize handle types
 export type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";

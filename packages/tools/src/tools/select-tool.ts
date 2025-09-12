@@ -1,6 +1,6 @@
 import { whiteboardStore } from "@usketch/store";
 import { assign, fromCallback, setup } from "xstate";
-import type { Bounds, Point, ToolContext } from "../types";
+import type { Bounds, Point, ToolContext } from "../types/index";
 import {
 	commitShapeChanges,
 	getCropHandleAtPoint,
