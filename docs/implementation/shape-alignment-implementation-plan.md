@@ -64,8 +64,9 @@ uSketchにShape同士の整列機能を実装します。Shapeを移動する際
 
 ```typescript
 interface AlignmentPoint {
-  position: number;
-  type: 'top' | 'center' | 'bottom' | 'left' | 'right';
+  x: number;  // X座標（垂直ガイド用）
+  y: number;  // Y座標（水平ガイド用）
+  type: 'top' | 'center-vertical' | 'bottom' | 'left' | 'center-horizontal' | 'right';
   shapeId: string;
 }
 
@@ -107,11 +108,11 @@ class AlignmentEngine {
 #### 2. SelectTool拡張 (`packages/tools/src/tools/select-tool.ts`)
 
 ```typescript
-// Context拡張
+// Context拡張（最小限の状態のみ保持）
 interface SelectToolContext extends ToolContext {
   // 既存のプロパティ...
-  alignmentGuides: AlignmentGuide[];
-  snapEnabled: boolean;
+  // 注: alignmentGuidesとsnapEnabledはWhiteboardStoreから取得
+  alignmentEngine: AlignmentEngine; // エンジンインスタンスのみ保持
 }
 
 // dragging state内での処理
@@ -120,26 +121,53 @@ dragging: {
     POINTER_MOVE: {
       actions: [
         'updateDragPosition',
-        'calculateAlignment', // 新規追加
-        'updateAlignmentGuides' // 新規追加
+        'calculateAndStoreAlignment', // Store経由で状態更新
       ]
     }
+  },
+  exit: {
+    actions: ['clearAlignmentGuides'] // Store経由でガイドをクリア
   }
+}
+
+// アクション実装
+calculateAndStoreAlignment: (context, event) => {
+  const { alignmentEngine } = context;
+  const store = whiteboardStore.getState();
+  
+  // AlignmentEngineで計算
+  const result = alignmentEngine.calculateAlignments(
+    movingShape,
+    targetShapes,
+    { snapEnabled: store.alignmentConfig.enabled }
+  );
+  
+  // Storeに結果を保存（単一の真実の源）
+  store.setAlignmentGuides(result.guides);
+  
+  // スナップ位置を適用
+  return result.snappedPosition;
 }
 ```
 
 #### 3. AlignmentLayer (`packages/react-canvas/src/layers/alignment-layer.tsx`)
 
 ```typescript
+// PropsはStoreから直接取得するため最小限
 interface AlignmentLayerProps {
-  guides: AlignmentGuide[];
   camera: Camera;
 }
 
-export const AlignmentLayer: React.FC<AlignmentLayerProps> = ({
-  guides,
-  camera
-}) => {
+export const AlignmentLayer: React.FC<AlignmentLayerProps> = ({ camera }) => {
+  // Storeから直接ガイド情報を取得（単一の真実の源）
+  const guides = useWhiteboardStore(state => state.alignmentGuides);
+  const config = useWhiteboardStore(state => state.alignmentConfig);
+  
+  // ガイド表示が無効な場合は何も表示しない
+  if (!config.showGuides || guides.length === 0) {
+    return null;
+  }
+  
   return (
     <svg className="alignment-layer">
       {guides.map(guide => (
@@ -160,20 +188,32 @@ export const AlignmentLayer: React.FC<AlignmentLayerProps> = ({
 interface WhiteboardStore {
   // 既存のプロパティ...
   
-  // Alignment関連
+  // Alignment関連（単一の真実の源として中央管理）
   alignmentGuides: AlignmentGuide[];
   alignmentConfig: {
     enabled: boolean;
     snapThreshold: number;
     showGuides: boolean;
+    strongSnapModifier: 'shift' | 'ctrl' | 'alt';
+    disableModifier: 'alt' | 'ctrl' | 'shift';
   };
   
-  // Actions
+  // Actions（全てのコンポーネントがこれらを使用）
   setAlignmentGuides: (guides: AlignmentGuide[]) => void;
   clearAlignmentGuides: () => void;
   updateAlignmentConfig: (config: Partial<AlignmentConfig>) => void;
+  
+  // Computed getters
+  isAlignmentActive: () => boolean;
+  getActiveGuides: () => AlignmentGuide[];
 }
 ```
+
+**状態管理の原則:**
+- WhiteboardStoreが整列状態の単一の真実の源
+- SelectToolは計算のみ実行し、結果をStoreに保存
+- UIコンポーネントはStoreから状態を読み取るのみ
+- 状態の重複を完全に排除
 
 ## 実装ステップ
 
