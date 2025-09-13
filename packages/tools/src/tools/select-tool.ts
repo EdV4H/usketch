@@ -1,6 +1,8 @@
+import type { Shape } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { assign, fromCallback, setup } from "xstate";
 import type { Bounds, Point, ToolContext } from "../types/index";
+import { AlignmentEngine } from "../utils/alignment-engine";
 import {
 	commitShapeChanges,
 	getCropHandleAtPoint,
@@ -26,6 +28,8 @@ export interface SelectToolContext extends ToolContext {
 	resizeHandle: ResizeHandle | null;
 	resizingShapeId: string | null;
 	initialBounds: Bounds | null;
+	// Alignment
+	alignmentEngine: AlignmentEngine;
 }
 
 // === Select Tool Events ===
@@ -216,29 +220,83 @@ export const selectToolMachine = setup({
 		updateTranslation: assign(({ context, event }) => {
 			if (event.type !== "POINTER_MOVE" || !context.dragStart) return {};
 
+			const store = whiteboardStore.getState();
+			const alignmentConfig = store.alignmentConfig;
+
+			// Check if alignment is disabled (e.g., Alt key pressed)
+			const isAlignmentDisabled =
+				(alignmentConfig.disableModifier === "alt" && event.metaKey) ||
+				(alignmentConfig.disableModifier === "ctrl" && event.ctrlKey) ||
+				(alignmentConfig.disableModifier === "shift" && event.shiftKey);
+
+			// Check for strong snap modifier
+			const isStrongSnap =
+				(alignmentConfig.strongSnapModifier === "shift" && event.shiftKey) ||
+				(alignmentConfig.strongSnapModifier === "ctrl" && event.ctrlKey) ||
+				(alignmentConfig.strongSnapModifier === "alt" && event.metaKey);
+
 			const offset = {
 				x: event.point.x - context.dragStart.x,
 				y: event.point.y - context.dragStart.y,
 			};
 
+			// Get all shapes except the ones being moved
+			const allShapes = Object.values(store.shapes) as Shape[];
+			const movingShapeIds = Array.from(context.selectedIds);
+			const targetShapes = allShapes.filter((s) => !movingShapeIds.includes(s.id));
+
 			// Apply translation to all selected shapes
+			let alignmentGuides: any[] = [];
+
 			context.selectedIds.forEach((id) => {
 				const initial = context.initialPositions.get(id);
 				const shape = getShape(id);
 				if (initial && shape) {
+					let newX = initial.x + offset.x;
+					let newY = initial.y + offset.y;
+
+					// Apply alignment if enabled and not disabled by modifier
+					if (alignmentConfig.enabled && !isAlignmentDisabled && targetShapes.length > 0) {
+						const movingShape = {
+							...shape,
+							x: newX,
+							y: newY,
+						} as Shape;
+
+						const alignmentResult = context.alignmentEngine.calculateAlignments(
+							movingShape,
+							targetShapes,
+							{
+								snapEnabled: true,
+								snapThreshold: alignmentConfig.snapThreshold,
+								strongSnapThreshold: alignmentConfig.snapThreshold * 2,
+								isStrongSnap,
+								excludeShapeIds: movingShapeIds,
+							},
+						);
+
+						if (alignmentResult.didSnap) {
+							newX = alignmentResult.snappedPosition.x;
+							newY = alignmentResult.snappedPosition.y;
+							alignmentGuides = alignmentResult.guides;
+						}
+					}
+
 					// Update position for all shapes
 					const updates: any = {
-						x: initial.x + offset.x,
-						y: initial.y + offset.y,
+						x: newX,
+						y: newY,
 					};
 
 					// For freedraw shapes, also update points
 					if (shape.type === "freedraw" && (shape as any).points) {
 						const initialPoints = context.initialPoints.get(id);
 						if (initialPoints) {
+							const actualOffsetX = newX - initial.x;
+							const actualOffsetY = newY - initial.y;
 							updates.points = initialPoints.map((p: Point) => ({
-								x: p.x + offset.x,
-								y: p.y + offset.y,
+								x: p.x + actualOffsetX,
+								y: p.y + actualOffsetY,
 							}));
 						}
 					}
@@ -247,11 +305,18 @@ export const selectToolMachine = setup({
 				}
 			});
 
+			// Update alignment guides in store
+			if (alignmentConfig.enabled && !isAlignmentDisabled) {
+				store.setAlignmentGuides(alignmentGuides);
+			}
+
 			return { dragOffset: offset };
 		}),
 
 		commitTranslation: () => {
 			commitShapeChanges();
+			// Clear alignment guides after committing
+			whiteboardStore.getState().clearAlignmentGuides();
 		},
 
 		cancelTranslation: ({ context }) => {
@@ -273,6 +338,8 @@ export const selectToolMachine = setup({
 					updateShape(id, updates);
 				}
 			});
+			// Clear alignment guides when canceling
+			whiteboardStore.getState().clearAlignmentGuides();
 		},
 
 		clearSelection: assign(() => {
@@ -484,6 +551,7 @@ export const selectToolMachine = setup({
 		resizeHandle: null,
 		resizingShapeId: null,
 		initialBounds: null,
+		alignmentEngine: new AlignmentEngine(),
 	},
 
 	states: {

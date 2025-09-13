@@ -1,4 +1,6 @@
 // Export all types
+
+export * from "./alignment";
 export * from "./background";
 export * from "./defaults/shape-styles";
 export * from "./effects";
