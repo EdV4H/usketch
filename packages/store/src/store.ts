@@ -1,4 +1,11 @@
-import type { Camera, Effect, Shape, WhiteboardState } from "@usketch/shared-types";
+import type {
+	AlignmentConfig,
+	AlignmentGuide,
+	Camera,
+	Effect,
+	Shape,
+	WhiteboardState,
+} from "@usketch/shared-types";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 
@@ -22,6 +29,10 @@ export interface WhiteboardStore extends WhiteboardState {
 		effectType: string; // Allow any effect type for extensibility
 		effectConfig?: Record<string, any>;
 	};
+
+	// Alignment state
+	alignmentGuides: AlignmentGuide[];
+	alignmentConfig: AlignmentConfig;
 
 	// Actions
 	addShape: (shape: Shape) => void;
@@ -69,6 +80,13 @@ export interface WhiteboardStore extends WhiteboardState {
 			effectConfig?: Record<string, any>;
 		}>,
 	) => void;
+
+	// Alignment actions
+	setAlignmentGuides: (guides: AlignmentGuide[]) => void;
+	clearAlignmentGuides: () => void;
+	updateAlignmentConfig: (config: Partial<AlignmentConfig>) => void;
+	isAlignmentActive: () => boolean;
+	getActiveGuides: () => AlignmentGuide[];
 }
 
 export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
@@ -87,6 +105,14 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 	effectToolConfig: {
 		effectType: "ripple",
 		effectConfig: {},
+	},
+	alignmentGuides: [],
+	alignmentConfig: {
+		enabled: true,
+		snapThreshold: 8,
+		showGuides: true,
+		strongSnapModifier: "shift",
+		disableModifier: "alt",
 	},
 
 	// Actions
@@ -331,6 +357,38 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 			...state,
 			effectToolConfig: { ...state.effectToolConfig, ...config },
 		}));
+	},
+
+	// Alignment actions
+	setAlignmentGuides: (guides: AlignmentGuide[]) => {
+		set((state) => ({
+			...state,
+			alignmentGuides: guides,
+		}));
+	},
+
+	clearAlignmentGuides: () => {
+		set((state) => ({
+			...state,
+			alignmentGuides: [],
+		}));
+	},
+
+	updateAlignmentConfig: (config: Partial<AlignmentConfig>) => {
+		set((state) => ({
+			...state,
+			alignmentConfig: { ...state.alignmentConfig, ...config },
+		}));
+	},
+
+	isAlignmentActive: () => {
+		const currentState = whiteboardStore.getState() as WhiteboardStore;
+		return currentState.alignmentConfig.enabled && currentState.alignmentGuides.length > 0;
+	},
+
+	getActiveGuides: () => {
+		const currentState = whiteboardStore.getState() as WhiteboardStore;
+		return currentState.alignmentConfig.showGuides ? currentState.alignmentGuides : [];
 	},
 }));
 

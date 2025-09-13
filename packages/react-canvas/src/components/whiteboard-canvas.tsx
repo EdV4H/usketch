@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { useCanvas } from "../hooks/use-canvas";
 import { useInteraction } from "../hooks/use-interaction";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
+import { AlignmentLayer } from "../layers/alignment-layer";
 import { EffectLayer } from "../layers/effect-layer";
 import type { CanvasProps } from "../types";
 import { BackgroundLayer } from "./background-layer";
@@ -48,6 +49,7 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">
 			<BackgroundLayer camera={camera} options={background} />
 			<ShapeLayer shapes={shapes} camera={camera} activeTool={interactions.activeTool} />
 			<SelectionLayer selectedIds={selectedShapeIds} shapes={shapes} camera={camera} />
+			<AlignmentLayer camera={camera} />
 			<InteractionLayer camera={camera} activeTool={interactions.activeTool} />
 			<EffectLayer className="effect-layer" />
 		</div>
