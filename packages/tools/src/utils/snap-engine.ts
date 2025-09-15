@@ -17,10 +17,14 @@ export interface SnapResult {
 }
 
 export interface SnapGuide {
-	type: "horizontal" | "vertical";
+	type: "horizontal" | "vertical" | "distance";
 	position: number;
 	start: Point;
 	end: Point;
+	// Smart guide specific properties
+	distance?: number; // Distance value to display
+	label?: string; // Optional label for the guide
+	style?: "solid" | "dashed" | "dotted"; // Line style
 }
 
 export type AlignmentType =
@@ -219,6 +223,7 @@ export class SnapEngine {
 				position: xSnap.value,
 				start: { x: xSnap.value, y: -1000 },
 				end: { x: xSnap.value, y: 1000 },
+				style: "dashed",
 			});
 		}
 
@@ -230,8 +235,117 @@ export class SnapEngine {
 				position: ySnap.value,
 				start: { x: -1000, y: ySnap.value },
 				end: { x: 1000, y: ySnap.value },
+				style: "dashed",
 			});
 		}
+
+		return guides;
+	}
+
+	// Generate smart guides with distance indicators
+	generateSmartGuides(
+		movingShape: { x: number; y: number; width: number; height: number },
+		targetShapes: Array<{
+			x: number;
+			y: number;
+			width: number;
+			height: number;
+			[key: string]: any;
+		}>,
+	): SnapGuide[] {
+		const guides: SnapGuide[] = [];
+
+		targetShapes.forEach((target) => {
+			const movingRight = movingShape.x + movingShape.width;
+			const movingBottom = movingShape.y + movingShape.height;
+			const targetRight = target.x + target.width;
+			const targetBottom = target.y + target.height;
+
+			// Horizontal distance guides
+			const horizontalGap = Math.min(
+				Math.abs(target.x - movingRight),
+				Math.abs(movingShape.x - targetRight),
+			);
+
+			// Add distance guide between shapes (horizontal)
+			if (horizontalGap < 100 && horizontalGap > 0) {
+				if (target.x > movingRight) {
+					// Target is to the right
+					guides.push({
+						type: "distance",
+						position: 0,
+						start: { x: movingRight, y: movingShape.y + movingShape.height / 2 },
+						end: { x: target.x, y: target.y + target.height / 2 },
+						distance: Math.round(horizontalGap),
+						style: "dotted",
+					});
+				} else if (movingShape.x > targetRight) {
+					// Target is to the left
+					guides.push({
+						type: "distance",
+						position: 0,
+						start: { x: targetRight, y: target.y + target.height / 2 },
+						end: { x: movingShape.x, y: movingShape.y + movingShape.height / 2 },
+						distance: Math.round(horizontalGap),
+						style: "dotted",
+					});
+				}
+			}
+
+			// Vertical distance guides
+			const verticalGap = Math.min(
+				Math.abs(target.y - movingBottom),
+				Math.abs(movingShape.y - targetBottom),
+			);
+
+			// Add distance guide between shapes (vertical)
+			if (verticalGap < 100 && verticalGap > 0) {
+				if (target.y > movingBottom) {
+					// Target is below
+					guides.push({
+						type: "distance",
+						position: 0,
+						start: { x: movingShape.x + movingShape.width / 2, y: movingBottom },
+						end: { x: target.x + target.width / 2, y: target.y },
+						distance: Math.round(verticalGap),
+						style: "dotted",
+					});
+				} else if (movingShape.y > targetBottom) {
+					// Target is above
+					guides.push({
+						type: "distance",
+						position: 0,
+						start: { x: target.x + target.width / 2, y: targetBottom },
+						end: { x: movingShape.x + movingShape.width / 2, y: movingShape.y },
+						distance: Math.round(verticalGap),
+						style: "dotted",
+					});
+				}
+			}
+
+			// Extension lines for alignment
+			// Vertical alignment extension
+			if (Math.abs(movingShape.x - target.x) < 5) {
+				guides.push({
+					type: "vertical",
+					position: target.x,
+					start: { x: target.x, y: Math.min(movingShape.y, target.y) - 50 },
+					end: { x: target.x, y: Math.max(movingBottom, targetBottom) + 50 },
+					style: "solid",
+				});
+			}
+
+			// Horizontal alignment extension
+			if (Math.abs(movingShape.y - target.y) < 5) {
+				guides.push({
+					type: "horizontal",
+					position: target.y,
+					start: { x: Math.min(movingShape.x, target.x) - 50, y: target.y },
+					end: { x: Math.max(movingRight, targetRight) + 50, y: target.y },
+					style: "solid",
+				});
+			}
+		});
 
 		return guides;
 	}
