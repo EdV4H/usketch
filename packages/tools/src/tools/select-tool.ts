@@ -1,5 +1,5 @@
 import { whiteboardStore } from "@usketch/store";
-import { assign, fromCallback, setup } from "xstate";
+import { assign, setup } from "xstate";
 import type { Bounds, Point, ToolContext } from "../types/index";
 import {
 	commitShapeChanges,
@@ -14,6 +14,9 @@ import {
 import { calculateNewBounds } from "../utils/resize-calculator";
 import { SnapEngine } from "../utils/snap-engine";
 
+// Create a singleton instance of SnapEngine with default values
+const snapEngine = new SnapEngine(20, 15);
+
 // === Select Tool Context ===
 export interface SelectToolContext extends ToolContext {
 	dragStart: Point | null;
@@ -26,6 +29,15 @@ export interface SelectToolContext extends ToolContext {
 	resizeHandle: ResizeHandle | null;
 	resizingShapeId: string | null;
 	initialBounds: Bounds | null;
+	// Snap guides
+	snapGuides: SnapGuide[];
+}
+
+export interface SnapGuide {
+	type: "horizontal" | "vertical";
+	position: number;
+	start: Point;
+	end: Point;
 }
 
 // === Select Tool Events ===
@@ -64,7 +76,8 @@ export const selectToolMachine = setup({
 
 		startTranslating: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
-			// Use store's selection which has been updated by the adapter
+			// Use store's selection as the single source of truth
+			// The XState context only maintains a local copy for machine state
 			const store = whiteboardStore.getState();
 			const selectedIds = store.selectedShapeIds;
 
@@ -87,7 +100,7 @@ export const selectToolMachine = setup({
 				dragOffset: { x: 0, y: 0 },
 				initialPositions: positions,
 				initialPoints: points,
-				selectedIds: new Set(selectedIds), // Update machine's selection state
+				selectedIds: new Set(selectedIds), // Local copy for machine state
 			};
 		}),
 
@@ -96,12 +109,12 @@ export const selectToolMachine = setup({
 			const shape = getShapeAtPoint(event.point);
 			if (!shape) return {};
 
-			// The adapter will update the store selection
-			// Sync with store's selection
+			// Update the store selection
 			const store = whiteboardStore.getState();
+			store.setSelection([shape.id]);
 
 			return {
-				selectedIds: new Set(store.selectedShapeIds),
+				selectedIds: new Set([shape.id]),
 				hoveredId: shape.id,
 			};
 		}),
@@ -221,6 +234,53 @@ export const selectToolMachine = setup({
 				y: event.point.y - context.dragStart.y,
 			};
 
+			// Get the first shape position for snapping
+			const firstShapeId = Array.from(context.selectedIds)[0];
+			const firstInitial = firstShapeId ? context.initialPositions.get(firstShapeId) : null;
+
+			let finalOffset = offset;
+			const guides: SnapGuide[] = [];
+
+			if (firstInitial) {
+				// Calculate the new position
+				const newPosition = {
+					x: firstInitial.x + offset.x,
+					y: firstInitial.y + offset.y,
+				};
+
+				// Apply grid snapping
+				const snapped = snapEngine.snap(newPosition, {
+					snapEnabled: true,
+					gridSnap: true,
+				});
+
+				if (snapped.snapped) {
+					// Adjust offset based on snapped position
+					finalOffset = {
+						x: snapped.position.x - firstInitial.x,
+						y: snapped.position.y - firstInitial.y,
+					};
+
+					// Generate snap guides
+					if (snapped.position.x !== newPosition.x) {
+						guides.push({
+							type: "vertical",
+							position: snapped.position.x,
+							start: { x: snapped.position.x, y: -10000 },
+							end: { x: snapped.position.x, y: 10000 },
+						});
+					}
+					if (snapped.position.y !== newPosition.y) {
+						guides.push({
+							type: "horizontal",
+							position: snapped.position.y,
+							start: { x: -10000, y: snapped.position.y },
+							end: { x: 10000, y: snapped.position.y },
+						});
+					}
+				}
+			}
+
 			// Apply translation to all selected shapes
 			context.selectedIds.forEach((id) => {
 				const initial = context.initialPositions.get(id);
@@ -228,8 +288,8 @@ export const selectToolMachine = setup({
 				if (initial && shape) {
 					// Update position for all shapes
 					const updates: any = {
-						x: initial.x + offset.x,
-						y: initial.y + offset.y,
+						x: initial.x + finalOffset.x,
+						y: initial.y + finalOffset.y,
 					};
 
 					// For freedraw shapes, also update points
@@ -237,8 +297,8 @@ export const selectToolMachine = setup({
 						const initialPoints = context.initialPoints.get(id);
 						if (initialPoints) {
 							updates.points = initialPoints.map((p: Point) => ({
-								x: p.x + offset.x,
-								y: p.y + offset.y,
+								x: p.x + finalOffset.x,
+								y: p.y + finalOffset.y,
 							}));
 						}
 					}
@@ -247,11 +307,16 @@ export const selectToolMachine = setup({
 				}
 			});
 
-			return { dragOffset: offset };
+			// Update snap guides in store
+			whiteboardStore.getState().setSnapGuides(guides);
+
+			return { dragOffset: finalOffset, snapGuides: guides };
 		}),
 
 		commitTranslation: () => {
 			commitShapeChanges();
+			// Clear snap guides when dragging ends
+			whiteboardStore.getState().setSnapGuides([]);
 		},
 
 		cancelTranslation: ({ context }) => {
@@ -273,6 +338,8 @@ export const selectToolMachine = setup({
 					updateShape(id, updates);
 				}
 			});
+			// Clear snap guides when dragging is cancelled
+			whiteboardStore.getState().setSnapGuides([]);
 		},
 
 		clearSelection: assign(() => {
@@ -420,13 +487,15 @@ export const selectToolMachine = setup({
 	guards: {
 		isPointOnShape: ({ event }) => {
 			if (!("point" in event)) return false;
-			return !!getShapeAtPoint(event.point!);
+			const shape = getShapeAtPoint(event.point!);
+			return !!shape;
 		},
 
 		isPointOnSelectedShape: ({ context, event }) => {
 			if (!("point" in event)) return false;
 			const shape = getShapeAtPoint(event.point!);
-			return shape ? context.selectedIds.has(shape.id) : false;
+			const result = shape ? context.selectedIds.has(shape.id) : false;
+			return result;
 		},
 
 		isPointOnCropHandle: ({ event }) => {
@@ -452,22 +521,6 @@ export const selectToolMachine = setup({
 			return !!handle;
 		},
 	},
-	actors: {
-		snappingService: fromCallback(({ sendBack, receive }) => {
-			const snapEngine = new SnapEngine();
-
-			receive((event: any) => {
-				if (event.type === "UPDATE_POSITION") {
-					const snapped = snapEngine.snap(event.position);
-					sendBack({ type: "SNAPPED", position: snapped });
-				}
-			});
-
-			return () => {
-				snapEngine.cleanup();
-			};
-		}),
-	},
 }).createMachine({
 	id: "selectTool",
 	initial: "idle",
@@ -484,6 +537,7 @@ export const selectToolMachine = setup({
 		resizeHandle: null,
 		resizingShapeId: null,
 		initialBounds: null,
+		snapGuides: [],
 	},
 
 	states: {
@@ -579,16 +633,6 @@ export const selectToolMachine = setup({
 					target: "idle",
 					actions: "cancelTranslation",
 				},
-			},
-
-			// === v5: Invoke Actor for snapping ===
-			invoke: {
-				id: "snappingService",
-				src: "snappingService",
-				input: ({ context }) => ({
-					shapes: context.selectedIds,
-					threshold: 10,
-				}),
 			},
 		},
 

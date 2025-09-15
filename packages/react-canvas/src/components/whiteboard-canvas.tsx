@@ -12,6 +12,7 @@ import { BackgroundLayer } from "./background-layer";
 import { InteractionLayer } from "./interaction-layer";
 import { SelectionLayer } from "./selection-layer";
 import { ShapeLayer } from "./shape-layer";
+import { SnapGuidelines } from "./snap-guidelines";
 
 // Internal canvas component that uses the registry
 const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">> = ({
@@ -20,7 +21,7 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">
 	onReady,
 }) => {
 	const containerRef = useRef<HTMLDivElement>(null);
-	const { shapes, camera, selectedShapeIds } = useWhiteboardStore();
+	const { shapes, camera, selectedShapeIds, snapGuides } = useWhiteboardStore();
 	const canvasManager = useCanvas();
 	const interactions = useInteraction();
 
@@ -47,6 +48,7 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">
 		>
 			<BackgroundLayer camera={camera} options={background} />
 			<ShapeLayer shapes={shapes} camera={camera} activeTool={interactions.activeTool} />
+			<SnapGuidelines guides={snapGuides} camera={camera} />
 			<SelectionLayer selectedIds={selectedShapeIds} shapes={shapes} camera={camera} />
 			<InteractionLayer camera={camera} activeTool={interactions.activeTool} />
 			<EffectLayer className="effect-layer" />
