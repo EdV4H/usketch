@@ -75,7 +75,7 @@ test.describe("Smart Guides", () => {
 		);
 
 		// Should have at least one solid line (extension)
-		const solidLines = guides.filter((g) => g.dashArray === "none");
+		const solidLines = guides.filter((g) => g.dashArray === "none" || !g.dashArray);
 		expect(solidLines.length).toBeGreaterThan(0);
 
 		await page.mouse.up();

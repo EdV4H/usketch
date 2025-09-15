@@ -35,6 +35,10 @@ export type AlignmentType =
 	| "center-vertical"
 	| "bottom";
 
+// Constants for smart guides
+const MAX_GUIDE_DISTANCE = 100; // Maximum distance to show distance guides
+const ALIGNMENT_THRESHOLD = 5; // Threshold for detecting alignment
+
 export class SnapEngine {
 	private gridSize = 20;
 	private snapThreshold = 15;
@@ -262,14 +266,21 @@ export class SnapEngine {
 			const targetBottom = target.y + target.height;
 
 			// Horizontal distance guides
-			const horizontalGap = Math.min(
-				Math.abs(target.x - movingRight),
-				Math.abs(movingShape.x - targetRight),
-			);
+			let horizontalGap = 0;
+			if (movingRight < target.x) {
+				// movingShape is to the left of target
+				horizontalGap = target.x - movingRight;
+			} else if (targetRight < movingShape.x) {
+				// target is to the left of movingShape
+				horizontalGap = movingShape.x - targetRight;
+			} else {
+				// shapes overlap horizontally
+				horizontalGap = 0;
+			}
 
 			// Add distance guide between shapes (horizontal)
-			if (horizontalGap < 100 && horizontalGap > 0) {
-				if (target.x > movingRight) {
+			if (horizontalGap < MAX_GUIDE_DISTANCE && horizontalGap > 0) {
+				if (movingRight < target.x) {
 					// Target is to the right
 					guides.push({
 						type: "distance",
@@ -279,7 +290,7 @@ export class SnapEngine {
 						distance: Math.round(horizontalGap),
 						style: "dotted",
 					});
-				} else if (movingShape.x > targetRight) {
+				} else if (targetRight < movingShape.x) {
 					// Target is to the left
 					guides.push({
 						type: "distance",
@@ -293,14 +304,21 @@ export class SnapEngine {
 			}
 
 			// Vertical distance guides
-			const verticalGap = Math.min(
-				Math.abs(target.y - movingBottom),
-				Math.abs(movingShape.y - targetBottom),
-			);
+			let verticalGap = 0;
+			if (movingBottom < target.y) {
+				// movingShape is above target
+				verticalGap = target.y - movingBottom;
+			} else if (targetBottom < movingShape.y) {
+				// target is above movingShape
+				verticalGap = movingShape.y - targetBottom;
+			} else {
+				// shapes overlap vertically
+				verticalGap = 0;
+			}
 
 			// Add distance guide between shapes (vertical)
-			if (verticalGap < 100 && verticalGap > 0) {
-				if (target.y > movingBottom) {
+			if (verticalGap < MAX_GUIDE_DISTANCE && verticalGap > 0) {
+				if (movingBottom < target.y) {
 					// Target is below
 					guides.push({
 						type: "distance",
@@ -310,7 +328,7 @@ export class SnapEngine {
 						distance: Math.round(verticalGap),
 						style: "dotted",
 					});
-				} else if (movingShape.y > targetBottom) {
+				} else if (targetBottom < movingShape.y) {
 					// Target is above
 					guides.push({
 						type: "distance",
@@ -325,7 +343,7 @@ export class SnapEngine {
 
 			// Extension lines for alignment
 			// Vertical alignment extension
-			if (Math.abs(movingShape.x - target.x) < 5) {
+			if (Math.abs(movingShape.x - target.x) < ALIGNMENT_THRESHOLD) {
 				guides.push({
 					type: "vertical",
 					position: target.x,
@@ -336,7 +354,7 @@ export class SnapEngine {
 			}
 
 			// Horizontal alignment extension
-			if (Math.abs(movingShape.y - target.y) < 5) {
+			if (Math.abs(movingShape.y - target.y) < ALIGNMENT_THRESHOLD) {
 				guides.push({
 					type: "horizontal",
 					position: target.y,
