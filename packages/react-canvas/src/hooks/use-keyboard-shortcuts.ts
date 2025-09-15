@@ -1,6 +1,5 @@
 import { useWhiteboardStore } from "@usketch/store";
 import { useCallback, useEffect } from "react";
-import { useToolMachine } from "./use-tool-machine";
 
 export const useKeyboardShortcuts = () => {
 	const {
@@ -11,8 +10,13 @@ export const useKeyboardShortcuts = () => {
 		undo,
 		redo,
 		setActiveTool,
+		alignShapesLeft,
+		alignShapesRight,
+		alignShapesTop,
+		alignShapesBottom,
+		alignShapesCenterHorizontal,
+		alignShapesCenterVertical,
 	} = useWhiteboardStore();
-	const { sendEvent } = useToolMachine();
 
 	const handleKeyDown = useCallback(
 		(e: KeyboardEvent) => {
@@ -71,29 +75,29 @@ export const useKeyboardShortcuts = () => {
 				switch (e.key) {
 					case "ArrowLeft":
 						e.preventDefault();
-						sendEvent({ type: "ALIGN_LEFT" });
+						alignShapesLeft();
 						return;
 					case "ArrowRight":
 						e.preventDefault();
-						sendEvent({ type: "ALIGN_RIGHT" });
+						alignShapesRight();
 						return;
 					case "ArrowUp":
 						e.preventDefault();
-						sendEvent({ type: "ALIGN_TOP" });
+						alignShapesTop();
 						return;
 					case "ArrowDown":
 						e.preventDefault();
-						sendEvent({ type: "ALIGN_BOTTOM" });
+						alignShapesBottom();
 						return;
 					case "c":
 					case "C":
 						e.preventDefault();
-						sendEvent({ type: "ALIGN_CENTER_H" });
+						alignShapesCenterHorizontal();
 						return;
 					case "m":
 					case "M":
 						e.preventDefault();
-						sendEvent({ type: "ALIGN_CENTER_V" });
+						alignShapesCenterVertical();
 						return;
 				}
 			}
@@ -135,7 +139,12 @@ export const useKeyboardShortcuts = () => {
 			undo,
 			redo,
 			setActiveTool,
-			sendEvent,
+			alignShapesLeft,
+			alignShapesRight,
+			alignShapesTop,
+			alignShapesBottom,
+			alignShapesCenterHorizontal,
+			alignShapesCenterVertical,
 		],
 	);
 

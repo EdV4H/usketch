@@ -45,31 +45,15 @@ export type SelectToolEvent =
 	| { type: "ESCAPE" }
 	| { type: "DELETE" }
 	| { type: "ENTER" }
-	| { type: "ENTER_CROP_MODE"; shapeId: string }
-	| { type: "UPDATE_SELECTION"; selectedIds: Set<string> }
-	// Alignment events
-	| { type: "ALIGN_LEFT" }
-	| { type: "ALIGN_CENTER_H" }
-	| { type: "ALIGN_RIGHT" }
-	| { type: "ALIGN_TOP" }
-	| { type: "ALIGN_CENTER_V" }
-	| { type: "ALIGN_BOTTOM" };
+	| { type: "ENTER_CROP_MODE"; shapeId: string };
 
 // === Select Tool Machine (XState v5) ===
 export const selectToolMachine = setup({
 	types: {
 		context: {} as SelectToolContext,
 		events: {} as SelectToolEvent,
-		input: {} as Partial<SelectToolContext>,
 	},
 	actions: {
-		updateSelection: assign(({ event }) => {
-			if (event.type !== "UPDATE_SELECTION") return {};
-			return {
-				selectedIds: event.selectedIds,
-			};
-		}),
-
 		resetCursor: assign({
 			cursor: "default",
 		}),
@@ -432,167 +416,6 @@ export const selectToolMachine = setup({
 
 			return { cursor: cursors[context.resizeHandle] || "default" };
 		}),
-
-		// Alignment actions
-		alignShapesLeft: () => {
-			const store = whiteboardStore.getState();
-			const selectedShapes = Array.from(store.selectedShapeIds)
-				.map((id) => getShape(id))
-				.filter(Boolean);
-
-			if (selectedShapes.length < 2) {
-				return;
-			}
-
-			// Find the leftmost position
-			const leftMost = Math.min(...selectedShapes.map((s) => s!.x));
-
-			// Update all selected shapes to align to the leftmost position
-			selectedShapes.forEach((shape) => {
-				if (shape) {
-					updateShape(shape.id, { x: leftMost });
-				}
-			});
-
-			commitShapeChanges();
-		},
-
-		alignShapesCenterHorizontal: () => {
-			const store = whiteboardStore.getState();
-			const selectedShapes = Array.from(store.selectedShapeIds)
-				.map((id) => getShape(id))
-				.filter(Boolean);
-
-			if (selectedShapes.length < 2) return;
-
-			// Calculate bounds of all selected shapes
-			const xs = selectedShapes.flatMap((s) => {
-				if (!s) return [];
-				const width = "width" in s ? s.width : 0;
-				return [s.x, s.x + width];
-			});
-			const left = Math.min(...xs);
-			const right = Math.max(...xs);
-			const centerX = (left + right) / 2;
-
-			// Align all shapes to the center
-			selectedShapes.forEach((shape) => {
-				if (shape) {
-					const width = "width" in shape ? shape.width : 0;
-					const newX = centerX - width / 2;
-					updateShape(shape.id, { x: newX });
-				}
-			});
-
-			commitShapeChanges();
-		},
-
-		alignShapesRight: () => {
-			const store = whiteboardStore.getState();
-			const selectedShapes = Array.from(store.selectedShapeIds)
-				.map((id) => getShape(id))
-				.filter(Boolean);
-
-			if (selectedShapes.length < 2) return;
-
-			// Find the rightmost position
-			const rightMost = Math.max(
-				...selectedShapes.map((s) => {
-					if (!s) return 0;
-					const width = "width" in s ? s.width : 0;
-					return s.x + width;
-				}),
-			);
-
-			// Update all selected shapes to align to the rightmost position
-			selectedShapes.forEach((shape) => {
-				if (shape) {
-					const width = "width" in shape ? shape.width : 0;
-					updateShape(shape.id, { x: rightMost - width });
-				}
-			});
-
-			commitShapeChanges();
-		},
-
-		alignShapesTop: () => {
-			const store = whiteboardStore.getState();
-			const selectedShapes = Array.from(store.selectedShapeIds)
-				.map((id) => getShape(id))
-				.filter(Boolean);
-
-			if (selectedShapes.length < 2) return;
-
-			// Find the topmost position
-			const topMost = Math.min(...selectedShapes.map((s) => s!.y));
-
-			// Update all selected shapes to align to the topmost position
-			selectedShapes.forEach((shape) => {
-				if (shape) {
-					updateShape(shape.id, { y: topMost });
-				}
-			});
-
-			commitShapeChanges();
-		},
-
-		alignShapesCenterVertical: () => {
-			const store = whiteboardStore.getState();
-			const selectedShapes = Array.from(store.selectedShapeIds)
-				.map((id) => getShape(id))
-				.filter(Boolean);
-
-			if (selectedShapes.length < 2) return;
-
-			// Calculate bounds of all selected shapes
-			const ys = selectedShapes.flatMap((s) => {
-				if (!s) return [];
-				const height = "height" in s ? s.height : 0;
-				return [s.y, s.y + height];
-			});
-			const top = Math.min(...ys);
-			const bottom = Math.max(...ys);
-			const centerY = (top + bottom) / 2;
-
-			// Align all shapes to the center
-			selectedShapes.forEach((shape) => {
-				if (shape) {
-					const height = "height" in shape ? shape.height : 0;
-					const newY = centerY - height / 2;
-					updateShape(shape.id, { y: newY });
-				}
-			});
-
-			commitShapeChanges();
-		},
-
-		alignShapesBottom: () => {
-			const store = whiteboardStore.getState();
-			const selectedShapes = Array.from(store.selectedShapeIds)
-				.map((id) => getShape(id))
-				.filter(Boolean);
-
-			if (selectedShapes.length < 2) return;
-
-			// Find the bottommost position
-			const bottomMost = Math.max(
-				...selectedShapes.map((s) => {
-					if (!s) return 0;
-					const height = "height" in s ? s.height : 0;
-					return s.y + height;
-				}),
-			);
-
-			// Update all selected shapes to align to the bottommost position
-			selectedShapes.forEach((shape) => {
-				if (shape) {
-					const height = "height" in shape ? shape.height : 0;
-					updateShape(shape.id, { y: bottomMost - height });
-				}
-			});
-
-			commitShapeChanges();
-		},
 	},
 	guards: {
 		isPointOnShape: ({ event }) => {
@@ -628,11 +451,6 @@ export const selectToolMachine = setup({
 			const handle = getResizeHandleAtPoint(event.point, shapeId);
 			return !!handle;
 		},
-
-		hasMultipleSelection: () => {
-			const store = whiteboardStore.getState();
-			return store.selectedShapeIds.size > 1;
-		},
 	},
 	actors: {
 		snappingService: fromCallback(({ sendBack, receive }) => {
@@ -654,19 +472,19 @@ export const selectToolMachine = setup({
 	id: "selectTool",
 	initial: "idle",
 
-	context: ({ input }) => ({
+	context: {
 		dragStart: null,
 		dragOffset: { x: 0, y: 0 },
 		selectionBox: null,
 		initialPositions: new Map(),
 		initialPoints: new Map(),
 		cursor: "default",
-		selectedIds: input?.selectedIds || new Set(),
+		selectedIds: new Set(),
 		hoveredId: null,
 		resizeHandle: null,
 		resizingShapeId: null,
 		initialBounds: null,
-	}),
+	},
 
 	states: {
 		idle: {
@@ -704,36 +522,6 @@ export const selectToolMachine = setup({
 
 				DELETE: {
 					actions: "deleteSelectedShapes",
-				},
-
-				UPDATE_SELECTION: {
-					actions: "updateSelection",
-				},
-
-				// Alignment events
-				ALIGN_LEFT: {
-					guard: "hasMultipleSelection",
-					actions: "alignShapesLeft",
-				},
-				ALIGN_CENTER_H: {
-					guard: "hasMultipleSelection",
-					actions: "alignShapesCenterHorizontal",
-				},
-				ALIGN_RIGHT: {
-					guard: "hasMultipleSelection",
-					actions: "alignShapesRight",
-				},
-				ALIGN_TOP: {
-					guard: "hasMultipleSelection",
-					actions: "alignShapesTop",
-				},
-				ALIGN_CENTER_V: {
-					guard: "hasMultipleSelection",
-					actions: "alignShapesCenterVertical",
-				},
-				ALIGN_BOTTOM: {
-					guard: "hasMultipleSelection",
-					actions: "alignShapesBottom",
 				},
 			},
 		},

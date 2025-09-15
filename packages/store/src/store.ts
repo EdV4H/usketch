@@ -43,6 +43,14 @@ export interface WhiteboardStore extends WhiteboardState {
 	setSelection: (ids: string[]) => void;
 	removeSelectedShapes: () => void;
 
+	// Alignment actions
+	alignShapesLeft: () => void;
+	alignShapesRight: () => void;
+	alignShapesTop: () => void;
+	alignShapesBottom: () => void;
+	alignShapesCenterHorizontal: () => void;
+	alignShapesCenterVertical: () => void;
+
 	// Selection Indicator actions
 	setSelectionIndicator: (state: Partial<SelectionIndicatorState>) => void;
 	showSelectionIndicator: (bounds?: {
@@ -256,6 +264,147 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 				selectedCount: 0,
 			},
 		}));
+	},
+
+	// Alignment actions
+	alignShapesLeft: () => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 2) return state;
+
+			const leftMost = Math.min(...selectedShapes.map((s) => s.x));
+			const updatedShapes = { ...state.shapes };
+
+			selectedShapes.forEach((shape) => {
+				updatedShapes[shape.id] = { ...shape, x: leftMost } as Shape;
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
+	alignShapesRight: () => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 2) return state;
+
+			const rightMost = Math.max(
+				...selectedShapes.map((s) => {
+					const width = "width" in s ? s.width : 0;
+					return s.x + width;
+				}),
+			);
+
+			const updatedShapes = { ...state.shapes };
+			selectedShapes.forEach((shape) => {
+				const width = "width" in shape ? shape.width : 0;
+				updatedShapes[shape.id] = { ...shape, x: rightMost - width } as Shape;
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
+	alignShapesTop: () => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 2) return state;
+
+			const topMost = Math.min(...selectedShapes.map((s) => s.y));
+			const updatedShapes = { ...state.shapes };
+
+			selectedShapes.forEach((shape) => {
+				updatedShapes[shape.id] = { ...shape, y: topMost } as Shape;
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
+	alignShapesBottom: () => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 2) return state;
+
+			const bottomMost = Math.max(
+				...selectedShapes.map((s) => {
+					const height = "height" in s ? s.height : 0;
+					return s.y + height;
+				}),
+			);
+
+			const updatedShapes = { ...state.shapes };
+			selectedShapes.forEach((shape) => {
+				const height = "height" in shape ? shape.height : 0;
+				updatedShapes[shape.id] = { ...shape, y: bottomMost - height } as Shape;
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
+	alignShapesCenterHorizontal: () => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 2) return state;
+
+			const xs = selectedShapes.flatMap((s) => {
+				const width = "width" in s ? s.width : 0;
+				return [s.x, s.x + width];
+			});
+			const left = Math.min(...xs);
+			const right = Math.max(...xs);
+			const centerX = (left + right) / 2;
+
+			const updatedShapes = { ...state.shapes };
+			selectedShapes.forEach((shape) => {
+				const width = "width" in shape ? shape.width : 0;
+				updatedShapes[shape.id] = { ...shape, x: centerX - width / 2 } as Shape;
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
+	alignShapesCenterVertical: () => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 2) return state;
+
+			const ys = selectedShapes.flatMap((s) => {
+				const height = "height" in s ? s.height : 0;
+				return [s.y, s.y + height];
+			});
+			const top = Math.min(...ys);
+			const bottom = Math.max(...ys);
+			const centerY = (top + bottom) / 2;
+
+			const updatedShapes = { ...state.shapes };
+			selectedShapes.forEach((shape) => {
+				const height = "height" in shape ? shape.height : 0;
+				updatedShapes[shape.id] = { ...shape, y: centerY - height / 2 } as Shape;
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
 	},
 
 	// Undo/Redo placeholders

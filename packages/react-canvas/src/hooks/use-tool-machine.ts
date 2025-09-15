@@ -1,24 +1,12 @@
 import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
 import { getEffectTool } from "@usketch/tools";
-import { useEffect } from "react";
-import { toolMachineSingleton } from "./tool-machine-singleton";
 
 export const useToolMachine = () => {
 	const { currentTool } = useWhiteboardStore();
 
-	useEffect(() => {
-		// Update the singleton with current tool
-		toolMachineSingleton.setCurrentTool(currentTool);
-
-		// Cleanup on unmount
-		return () => {
-			// Don't cleanup here as other components might still be using it
-		};
-	}, [currentTool]);
-
 	const sendEvent = (event: any) => {
-		toolMachineSingleton.sendEvent(event);
+		// Event sending removed - alignment is now handled by Zustand actions
 	};
 
 	const handlePointerDown = (point: Point, e: React.PointerEvent) => {
