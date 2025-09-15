@@ -23,11 +23,9 @@ export function getShapeAtPoint(point: Point): Shape | null {
 	for (let i = shapes.length - 1; i >= 0; i--) {
 		const shape = shapes[i];
 		if (isPointInShape(point, shape)) {
-			console.log("Found shape at point:", shape.id, shape.type);
 			return shape;
 		}
 	}
-	console.log("No shape found at point:", point);
 	return null;
 }
 
@@ -54,15 +52,6 @@ function isPointInShape(point: Point, shape: Shape): boolean {
 				point.y >= shape.y - padding &&
 				point.y <= shape.y + shape.height + padding;
 
-			console.log("Checking freedraw shape (with bbox):", {
-				shapeX: shape.x,
-				shapeY: shape.y,
-				width: shape.width,
-				height: shape.height,
-				point,
-				isInside,
-			});
-
 			return isInside;
 		}
 		// Fallback for freedraw shapes with points array (old approach)
@@ -79,15 +68,6 @@ function isPointInShape(point: Point, shape: Shape): boolean {
 				point.x <= maxX + padding &&
 				point.y >= minY - padding &&
 				point.y <= maxY + padding;
-
-			console.log("Checking freedraw shape (with points):", {
-				minX,
-				maxX,
-				minY,
-				maxY,
-				point,
-				isInside,
-			});
 
 			return isInside;
 		}
@@ -187,7 +167,6 @@ export function getResizeHandleAtPoint(point: Point, shapeId: string): ResizeHan
 // Get crop handle at point (not yet implemented)
 export function getCropHandleAtPoint(point: Point): any {
 	// TODO: Implement actual crop handle detection
-	console.log("getCropHandleAtPoint", point);
 	return null;
 }
 

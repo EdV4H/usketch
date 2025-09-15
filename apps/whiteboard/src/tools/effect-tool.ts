@@ -36,11 +36,11 @@ export class EffectTool implements Tool {
 	}
 
 	activate(): void {
-		console.log("Effect tool activated", this.config);
+		// Effect tool activated
 	}
 
 	deactivate(): void {
-		console.log("Effect tool deactivated");
+		// Effect tool deactivated
 	}
 
 	onPointerDown(event: PointerEvent): void {
@@ -112,7 +112,6 @@ export class EffectTool implements Tool {
 				return;
 		}
 
-		console.log(`Adding ${this.config.effectType} effect at`, { x, y }, effect);
 		whiteboardStore.getState().addEffect(effect);
 	}
 

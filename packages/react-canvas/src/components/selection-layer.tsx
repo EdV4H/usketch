@@ -35,9 +35,6 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 
 			if (plugin?.getBounds) {
 				bounds = plugin.getBounds(shape);
-				console.log("[SelectionLayer] Using plugin bounds for", shape.type, ":", bounds);
-			} else {
-				console.log("[SelectionLayer] No getBounds for", shape.type, ", using default:", bounds);
 			}
 
 			minX = Math.min(minX, bounds.x);
@@ -102,19 +99,6 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 
 					if (plugin?.getBounds) {
 						bounds = plugin.getBounds(shape);
-						console.log(
-							"[SelectionLayer] Individual box using plugin bounds for",
-							shape.type,
-							":",
-							bounds,
-						);
-					} else {
-						console.log(
-							"[SelectionLayer] Individual box no getBounds for",
-							shape.type,
-							", using default:",
-							bounds,
-						);
 					}
 
 					return (
