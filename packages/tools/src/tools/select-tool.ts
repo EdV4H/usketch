@@ -46,6 +46,7 @@ export type SelectToolEvent =
 	| { type: "DELETE" }
 	| { type: "ENTER" }
 	| { type: "ENTER_CROP_MODE"; shapeId: string }
+	| { type: "UPDATE_SELECTION"; selectedIds: Set<string> }
 	// Alignment events
 	| { type: "ALIGN_LEFT" }
 	| { type: "ALIGN_CENTER_H" }
@@ -59,8 +60,16 @@ export const selectToolMachine = setup({
 	types: {
 		context: {} as SelectToolContext,
 		events: {} as SelectToolEvent,
+		input: {} as Partial<SelectToolContext>,
 	},
 	actions: {
+		updateSelection: assign(({ event }) => {
+			if (event.type !== "UPDATE_SELECTION") return {};
+			return {
+				selectedIds: event.selectedIds,
+			};
+		}),
+
 		resetCursor: assign({
 			cursor: "default",
 		}),
@@ -425,13 +434,15 @@ export const selectToolMachine = setup({
 		}),
 
 		// Alignment actions
-		alignShapesLeft: ({ context }) => {
+		alignShapesLeft: () => {
 			const store = whiteboardStore.getState();
-			const selectedShapes = Array.from(context.selectedIds)
+			const selectedShapes = Array.from(store.selectedShapeIds)
 				.map((id) => getShape(id))
 				.filter(Boolean);
 
-			if (selectedShapes.length < 2) return;
+			if (selectedShapes.length < 2) {
+				return;
+			}
 
 			// Find the leftmost position
 			const leftMost = Math.min(...selectedShapes.map((s) => s!.x));
@@ -446,8 +457,9 @@ export const selectToolMachine = setup({
 			commitShapeChanges();
 		},
 
-		alignShapesCenterHorizontal: ({ context }) => {
-			const selectedShapes = Array.from(context.selectedIds)
+		alignShapesCenterHorizontal: () => {
+			const store = whiteboardStore.getState();
+			const selectedShapes = Array.from(store.selectedShapeIds)
 				.map((id) => getShape(id))
 				.filter(Boolean);
 
@@ -475,8 +487,9 @@ export const selectToolMachine = setup({
 			commitShapeChanges();
 		},
 
-		alignShapesRight: ({ context }) => {
-			const selectedShapes = Array.from(context.selectedIds)
+		alignShapesRight: () => {
+			const store = whiteboardStore.getState();
+			const selectedShapes = Array.from(store.selectedShapeIds)
 				.map((id) => getShape(id))
 				.filter(Boolean);
 
@@ -502,8 +515,9 @@ export const selectToolMachine = setup({
 			commitShapeChanges();
 		},
 
-		alignShapesTop: ({ context }) => {
-			const selectedShapes = Array.from(context.selectedIds)
+		alignShapesTop: () => {
+			const store = whiteboardStore.getState();
+			const selectedShapes = Array.from(store.selectedShapeIds)
 				.map((id) => getShape(id))
 				.filter(Boolean);
 
@@ -522,8 +536,9 @@ export const selectToolMachine = setup({
 			commitShapeChanges();
 		},
 
-		alignShapesCenterVertical: ({ context }) => {
-			const selectedShapes = Array.from(context.selectedIds)
+		alignShapesCenterVertical: () => {
+			const store = whiteboardStore.getState();
+			const selectedShapes = Array.from(store.selectedShapeIds)
 				.map((id) => getShape(id))
 				.filter(Boolean);
 
@@ -551,8 +566,9 @@ export const selectToolMachine = setup({
 			commitShapeChanges();
 		},
 
-		alignShapesBottom: ({ context }) => {
-			const selectedShapes = Array.from(context.selectedIds)
+		alignShapesBottom: () => {
+			const store = whiteboardStore.getState();
+			const selectedShapes = Array.from(store.selectedShapeIds)
 				.map((id) => getShape(id))
 				.filter(Boolean);
 
@@ -613,8 +629,9 @@ export const selectToolMachine = setup({
 			return !!handle;
 		},
 
-		hasMultipleSelection: ({ context }) => {
-			return context.selectedIds.size > 1;
+		hasMultipleSelection: () => {
+			const store = whiteboardStore.getState();
+			return store.selectedShapeIds.size > 1;
 		},
 	},
 	actors: {
@@ -637,19 +654,19 @@ export const selectToolMachine = setup({
 	id: "selectTool",
 	initial: "idle",
 
-	context: {
+	context: ({ input }) => ({
 		dragStart: null,
 		dragOffset: { x: 0, y: 0 },
 		selectionBox: null,
 		initialPositions: new Map(),
 		initialPoints: new Map(),
 		cursor: "default",
-		selectedIds: new Set(),
+		selectedIds: input?.selectedIds || new Set(),
 		hoveredId: null,
 		resizeHandle: null,
 		resizingShapeId: null,
 		initialBounds: null,
-	},
+	}),
 
 	states: {
 		idle: {
@@ -687,6 +704,10 @@ export const selectToolMachine = setup({
 
 				DELETE: {
 					actions: "deleteSelectedShapes",
+				},
+
+				UPDATE_SELECTION: {
+					actions: "updateSelection",
 				},
 
 				// Alignment events

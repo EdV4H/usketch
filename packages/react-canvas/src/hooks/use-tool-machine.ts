@@ -1,34 +1,24 @@
 import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
-import { createSelectTool, getEffectTool } from "@usketch/tools";
-import { useEffect, useRef } from "react";
-import { createActor } from "xstate";
+import { getEffectTool } from "@usketch/tools";
+import { useEffect } from "react";
+import { toolMachineSingleton } from "./tool-machine-singleton";
 
 export const useToolMachine = () => {
 	const { currentTool } = useWhiteboardStore();
-	const selectToolActorRef = useRef<any>(null);
 
 	useEffect(() => {
-		// Create Select Tool machine actor
-		if (currentTool === "select" && !selectToolActorRef.current) {
-			const selectToolMachine = createSelectTool();
-			selectToolActorRef.current = createActor(selectToolMachine);
-			selectToolActorRef.current.start();
-		}
+		// Update the singleton with current tool
+		toolMachineSingleton.setCurrentTool(currentTool);
 
-		// Cleanup on unmount or tool change
+		// Cleanup on unmount
 		return () => {
-			if (selectToolActorRef.current) {
-				selectToolActorRef.current.stop();
-				selectToolActorRef.current = null;
-			}
+			// Don't cleanup here as other components might still be using it
 		};
 	}, [currentTool]);
 
 	const sendEvent = (event: any) => {
-		if (selectToolActorRef.current) {
-			selectToolActorRef.current.send(event);
-		}
+		toolMachineSingleton.sendEvent(event);
 	};
 
 	const handlePointerDown = (point: Point, e: React.PointerEvent) => {
