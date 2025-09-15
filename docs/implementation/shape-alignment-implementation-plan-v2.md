@@ -66,16 +66,29 @@ selected: {
   }
 }
 
-// アクション実装（シンプルな直接更新）
-const actions = {
+// 補助関数の定義
+const calculateBounds = (shapes: Shape[]): { left: number; right: number; top: number; bottom: number } => {
+  const xs = shapes.flatMap(s => [s.x, s.x + (s.width ?? 0)]);
+  const ys = shapes.flatMap(s => [s.y, s.y + (s.height ?? 0)]);
+  return {
+    left: Math.min(...xs),
+    right: Math.max(...xs),
+    top: Math.min(...ys),
+    bottom: Math.max(...ys)
+  };
+};
+
+// アクション実装（DIパターンを使用）
+const createAlignmentActions = (getStore: () => WhiteboardStore) => ({
   alignShapesLeft: ({ context }) => {
-    const store = whiteboardStore.getState();
+    const store = getStore();
     const selectedShapes = Array.from(context.selectedIds)
       .map(id => store.shapes.get(id))
       .filter(Boolean);
     
     if (selectedShapes.length < 2) return;
     
+    // 最も左のShapeを基準に整列
     // 最も左のShapeを基準に整列
     const leftMost = Math.min(...selectedShapes.map(s => s.x));
     
@@ -85,7 +98,7 @@ const actions = {
   },
   
   alignShapesCenterHorizontal: ({ context }) => {
-    const store = whiteboardStore.getState();
+    const store = getStore();
     const selectedShapes = Array.from(context.selectedIds)
       .map(id => store.shapes.get(id))
       .filter(Boolean);
@@ -97,13 +110,18 @@ const actions = {
     const centerX = (bounds.left + bounds.right) / 2;
     
     selectedShapes.forEach(shape => {
-      const shapeCenter = shape.x + shape.width / 2;
+      // widthが存在しない場合のデフォルト値を設定
+      const width = shape.width ?? 0;
+      const shapeCenter = shape.x + width / 2;
       const offset = centerX - shapeCenter;
       store.updateShape(shape.id, { x: shape.x + offset });
     });
   },
   // 他の整列アクションも同様に実装...
-};
+});
+
+// 使用例:ストアを注入してアクションを作成
+const actions = createAlignmentActions(() => whiteboardStore.getState());
 ```
 
 #### 0.2 キーボードショートカットの追加
@@ -279,12 +297,26 @@ export const AlignmentToolbar: React.FC<AlignmentToolbarProps> = ({
 ```typescript
 // packages/react-canvas/src/layers/selection-layer.tsx
 
+// イベントタイプマッピング
+const ALIGNMENT_EVENT_MAP: Record<AlignmentType, string> = {
+  'left': 'ALIGN_LEFT',
+  'center-h': 'ALIGN_CENTER_H',
+  'right': 'ALIGN_RIGHT',
+  'top': 'ALIGN_TOP',
+  'center-v': 'ALIGN_CENTER_V',
+  'bottom': 'ALIGN_BOTTOM',
+};
+
 export const SelectionLayer: React.FC = () => {
   const selectedIds = useWhiteboardStore(state => state.selectedIds);
   const sendEvent = useToolManager();
   
   const handleAlign = (alignment: AlignmentType) => {
-    const eventType = `ALIGN_${alignment.toUpperCase().replace('-', '_')}`;
+    const eventType = ALIGNMENT_EVENT_MAP[alignment];
+    if (!eventType) {
+      console.warn(`Unknown alignment type: ${alignment}`);
+      return;
+    }
     sendEvent({ type: eventType });
   };
   
