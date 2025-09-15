@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+const { expect, test } = require("@playwright/test");
 
 test.describe("Shape Alignment", () => {
 	test.beforeEach(async ({ page }) => {
