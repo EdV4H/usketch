@@ -26,6 +26,15 @@ export interface SelectToolContext extends ToolContext {
 	resizeHandle: ResizeHandle | null;
 	resizingShapeId: string | null;
 	initialBounds: Bounds | null;
+	// Snap guides
+	snapGuides: SnapGuide[];
+}
+
+export interface SnapGuide {
+	type: "horizontal" | "vertical";
+	position: number;
+	start: Point;
+	end: Point;
 }
 
 // === Select Tool Events ===
@@ -230,6 +239,7 @@ export const selectToolMachine = setup({
 			const firstInitial = firstShapeId ? context.initialPositions.get(firstShapeId) : null;
 
 			let finalOffset = offset;
+			const guides: SnapGuide[] = [];
 
 			if (firstInitial) {
 				// Calculate the new position
@@ -250,6 +260,24 @@ export const selectToolMachine = setup({
 						x: snapped.position.x - firstInitial.x,
 						y: snapped.position.y - firstInitial.y,
 					};
+
+					// Generate snap guides
+					if (snapped.position.x !== newPosition.x) {
+						guides.push({
+							type: "vertical",
+							position: snapped.position.x,
+							start: { x: snapped.position.x, y: -10000 },
+							end: { x: snapped.position.x, y: 10000 },
+						});
+					}
+					if (snapped.position.y !== newPosition.y) {
+						guides.push({
+							type: "horizontal",
+							position: snapped.position.y,
+							start: { x: -10000, y: snapped.position.y },
+							end: { x: 10000, y: snapped.position.y },
+						});
+					}
 				}
 			}
 
@@ -279,11 +307,16 @@ export const selectToolMachine = setup({
 				}
 			});
 
-			return { dragOffset: finalOffset };
+			// Update snap guides in store
+			whiteboardStore.getState().setSnapGuides(guides);
+
+			return { dragOffset: finalOffset, snapGuides: guides };
 		}),
 
 		commitTranslation: () => {
 			commitShapeChanges();
+			// Clear snap guides when dragging ends
+			whiteboardStore.getState().setSnapGuides([]);
 		},
 
 		cancelTranslation: ({ context }) => {
@@ -305,6 +338,8 @@ export const selectToolMachine = setup({
 					updateShape(id, updates);
 				}
 			});
+			// Clear snap guides when dragging is cancelled
+			whiteboardStore.getState().clearSnapGuides();
 		},
 
 		clearSelection: assign(() => {
@@ -502,6 +537,7 @@ export const selectToolMachine = setup({
 		resizeHandle: null,
 		resizingShapeId: null,
 		initialBounds: null,
+		snapGuides: [],
 	},
 
 	states: {

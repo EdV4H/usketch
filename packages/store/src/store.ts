@@ -21,10 +21,18 @@ export interface SelectionIndicatorState {
 	selectedCount: number;
 }
 
+export interface SnapGuide {
+	type: "horizontal" | "vertical";
+	position: number;
+	start: { x: number; y: number };
+	end: { x: number; y: number };
+}
+
 export interface WhiteboardStore extends WhiteboardState {
 	// State additions
 	activeTool: string;
 	selectionIndicator: SelectionIndicatorState;
+	snapGuides: SnapGuide[];
 	effects: Record<string, Effect>;
 	effectToolConfig: {
 		effectType: string; // Allow any effect type for extensibility
@@ -70,6 +78,10 @@ export interface WhiteboardStore extends WhiteboardState {
 	}) => void;
 	hideSelectionIndicator: () => void;
 
+	// Snap Guide actions
+	setSnapGuides: (guides: SnapGuide[]) => void;
+	clearSnapGuides: () => void;
+
 	// Undo/Redo
 	undo: () => void;
 	redo: () => void;
@@ -100,6 +112,7 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 		visible: false,
 		selectedCount: 0,
 	},
+	snapGuides: [],
 	effects: {},
 	effectToolConfig: {
 		effectType: "ripple",
@@ -272,6 +285,21 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 				visible: false,
 				selectedCount: 0,
 			},
+		}));
+	},
+
+	// Snap Guide actions
+	setSnapGuides: (guides: SnapGuide[]) => {
+		set((state) => ({
+			...state,
+			snapGuides: guides,
+		}));
+	},
+
+	clearSnapGuides: () => {
+		set((state) => ({
+			...state,
+			snapGuides: [],
 		}));
 	},
 
