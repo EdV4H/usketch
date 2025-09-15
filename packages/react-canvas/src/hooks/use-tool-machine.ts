@@ -9,15 +9,19 @@ export const useToolMachine = () => {
 	const selectToolActorRef = useRef<any>(null);
 
 	useEffect(() => {
-		// Create Select Tool machine actor
+		// Create and start select tool actor when needed
 		if (currentTool === "select" && !selectToolActorRef.current) {
 			const selectToolMachine = createSelectTool();
 			selectToolActorRef.current = createActor(selectToolMachine);
 			selectToolActorRef.current.start();
+		} else if (currentTool !== "select" && selectToolActorRef.current) {
+			// Stop and cleanup when switching away from select tool
+			selectToolActorRef.current.stop();
+			selectToolActorRef.current = null;
 		}
 
-		// Cleanup on unmount or tool change
 		return () => {
+			// Cleanup on unmount
 			if (selectToolActorRef.current) {
 				selectToolActorRef.current.stop();
 				selectToolActorRef.current = null;
@@ -26,7 +30,7 @@ export const useToolMachine = () => {
 	}, [currentTool]);
 
 	const sendEvent = (event: any) => {
-		if (selectToolActorRef.current) {
+		if (selectToolActorRef.current && currentTool === "select") {
 			selectToolActorRef.current.send(event);
 		}
 	};
@@ -91,6 +95,7 @@ export const useToolMachine = () => {
 		handlePointerMove,
 		handlePointerUp,
 		handleKeyDown,
+		sendEvent,
 		isSelectTool: currentTool === "select",
 		isEffectTool: currentTool === "effect",
 	};

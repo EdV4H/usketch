@@ -2,6 +2,14 @@ import type { Camera, Effect, Shape, WhiteboardState } from "@usketch/shared-typ
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 
+export type AlignmentDirection =
+	| "left"
+	| "right"
+	| "top"
+	| "bottom"
+	| "center-horizontal"
+	| "center-vertical";
+
 export interface SelectionIndicatorState {
 	bounds: {
 		x: number;
@@ -42,6 +50,15 @@ export interface WhiteboardStore extends WhiteboardState {
 	selectShapes: (ids: string[]) => void;
 	setSelection: (ids: string[]) => void;
 	removeSelectedShapes: () => void;
+
+	// Alignment actions
+	alignShapes: (direction: AlignmentDirection) => void;
+	alignShapesLeft: () => void;
+	alignShapesRight: () => void;
+	alignShapesTop: () => void;
+	alignShapesBottom: () => void;
+	alignShapesCenterHorizontal: () => void;
+	alignShapesCenterVertical: () => void;
 
 	// Selection Indicator actions
 	setSelectionIndicator: (state: Partial<SelectionIndicatorState>) => void;
@@ -258,6 +275,226 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 		}));
 	},
 
+	// Alignment actions
+	alignShapes: (direction: AlignmentDirection) => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 2) return state;
+
+			const updatedShapes = { ...state.shapes };
+
+			switch (direction) {
+				case "left": {
+					const leftMost = Math.min(...selectedShapes.map((s) => s.x));
+					selectedShapes.forEach((shape) => {
+						updatedShapes[shape.id] = { ...shape, x: leftMost } as Shape;
+					});
+					break;
+				}
+				case "right": {
+					const rightMost = Math.max(
+						...selectedShapes.map((s) => {
+							const width = "width" in s ? s.width : 0;
+							return s.x + width;
+						}),
+					);
+					selectedShapes.forEach((shape) => {
+						const width = "width" in shape ? shape.width : 0;
+						updatedShapes[shape.id] = { ...shape, x: rightMost - width } as Shape;
+					});
+					break;
+				}
+				case "top": {
+					const topMost = Math.min(...selectedShapes.map((s) => s.y));
+					selectedShapes.forEach((shape) => {
+						updatedShapes[shape.id] = { ...shape, y: topMost } as Shape;
+					});
+					break;
+				}
+				case "bottom": {
+					const bottomMost = Math.max(
+						...selectedShapes.map((s) => {
+							const height = "height" in s ? s.height : 0;
+							return s.y + height;
+						}),
+					);
+					selectedShapes.forEach((shape) => {
+						const height = "height" in shape ? shape.height : 0;
+						updatedShapes[shape.id] = { ...shape, y: bottomMost - height } as Shape;
+					});
+					break;
+				}
+				case "center-horizontal": {
+					const xs = selectedShapes.flatMap((s) => {
+						const width = "width" in s ? s.width : 0;
+						return [s.x, s.x + width];
+					});
+					const left = Math.min(...xs);
+					const right = Math.max(...xs);
+					const centerX = (left + right) / 2;
+					selectedShapes.forEach((shape) => {
+						const width = "width" in shape ? shape.width : 0;
+						updatedShapes[shape.id] = { ...shape, x: centerX - width / 2 } as Shape;
+					});
+					break;
+				}
+				case "center-vertical": {
+					const ys = selectedShapes.flatMap((s) => {
+						const height = "height" in s ? s.height : 0;
+						return [s.y, s.y + height];
+					});
+					const top = Math.min(...ys);
+					const bottom = Math.max(...ys);
+					const centerY = (top + bottom) / 2;
+					selectedShapes.forEach((shape) => {
+						const height = "height" in shape ? shape.height : 0;
+						updatedShapes[shape.id] = { ...shape, y: centerY - height / 2 } as Shape;
+					});
+					break;
+				}
+			}
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
+	alignShapesLeft: () => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 2) return state;
+
+			const updatedShapes = { ...state.shapes };
+			const leftMost = Math.min(...selectedShapes.map((s) => s.x));
+			selectedShapes.forEach((shape) => {
+				updatedShapes[shape.id] = { ...shape, x: leftMost } as Shape;
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
+	alignShapesRight: () => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 2) return state;
+
+			const updatedShapes = { ...state.shapes };
+			const rightMost = Math.max(
+				...selectedShapes.map((s) => {
+					const width = "width" in s ? s.width : 0;
+					return s.x + width;
+				}),
+			);
+			selectedShapes.forEach((shape) => {
+				const width = "width" in shape ? shape.width : 0;
+				updatedShapes[shape.id] = { ...shape, x: rightMost - width } as Shape;
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
+	alignShapesTop: () => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 2) return state;
+
+			const updatedShapes = { ...state.shapes };
+			const topMost = Math.min(...selectedShapes.map((s) => s.y));
+			selectedShapes.forEach((shape) => {
+				updatedShapes[shape.id] = { ...shape, y: topMost } as Shape;
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
+	alignShapesBottom: () => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 2) return state;
+
+			const updatedShapes = { ...state.shapes };
+			const bottomMost = Math.max(
+				...selectedShapes.map((s) => {
+					const height = "height" in s ? s.height : 0;
+					return s.y + height;
+				}),
+			);
+			selectedShapes.forEach((shape) => {
+				const height = "height" in shape ? shape.height : 0;
+				updatedShapes[shape.id] = { ...shape, y: bottomMost - height } as Shape;
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
+	alignShapesCenterHorizontal: () => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 2) return state;
+
+			const updatedShapes = { ...state.shapes };
+			const xs = selectedShapes.flatMap((s) => {
+				const width = "width" in s ? s.width : 0;
+				return [s.x, s.x + width];
+			});
+			const left = Math.min(...xs);
+			const right = Math.max(...xs);
+			const centerX = (left + right) / 2;
+			selectedShapes.forEach((shape) => {
+				const width = "width" in shape ? shape.width : 0;
+				updatedShapes[shape.id] = { ...shape, x: centerX - width / 2 } as Shape;
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
+	alignShapesCenterVertical: () => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 2) return state;
+
+			const updatedShapes = { ...state.shapes };
+			const ys = selectedShapes.flatMap((s) => {
+				const height = "height" in s ? s.height : 0;
+				return [s.y, s.y + height];
+			});
+			const top = Math.min(...ys);
+			const bottom = Math.max(...ys);
+			const centerY = (top + bottom) / 2;
+			selectedShapes.forEach((shape) => {
+				const height = "height" in shape ? shape.height : 0;
+				updatedShapes[shape.id] = { ...shape, y: centerY - height / 2 } as Shape;
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
 	// Undo/Redo placeholders
 	undo: () => {
 		// Undo not implemented
@@ -336,4 +573,4 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 
 // Export convenient accessor functions
 export const useWhiteboardStore = <T = WhiteboardStore>(selector?: (state: WhiteboardStore) => T) =>
-	useStore(whiteboardStore, selector!);
+	useStore(whiteboardStore, selector || ((state) => state as T));

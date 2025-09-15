@@ -10,6 +10,7 @@ export const useKeyboardShortcuts = () => {
 		undo,
 		redo,
 		setActiveTool,
+		alignShapes,
 	} = useWhiteboardStore();
 
 	const handleKeyDown = useCallback(
@@ -64,6 +65,38 @@ export const useKeyboardShortcuts = () => {
 				return;
 			}
 
+			// Alignment shortcuts (Cmd/Ctrl + Shift + Arrow keys and letters)
+			if (cmdOrCtrl && e.shiftKey && selectedShapeIds.size > 1) {
+				switch (e.key) {
+					case "ArrowLeft":
+						e.preventDefault();
+						alignShapes("left");
+						return;
+					case "ArrowRight":
+						e.preventDefault();
+						alignShapes("right");
+						return;
+					case "ArrowUp":
+						e.preventDefault();
+						alignShapes("top");
+						return;
+					case "ArrowDown":
+						e.preventDefault();
+						alignShapes("bottom");
+						return;
+					case "c":
+					case "C":
+						e.preventDefault();
+						alignShapes("center-horizontal");
+						return;
+					case "m":
+					case "M":
+						e.preventDefault();
+						alignShapes("center-vertical");
+						return;
+				}
+			}
+
 			// Tool shortcuts (without modifiers)
 			if (!cmdOrCtrl && !e.shiftKey && !e.altKey) {
 				switch (e.key.toLowerCase()) {
@@ -93,7 +126,16 @@ export const useKeyboardShortcuts = () => {
 				}
 			}
 		},
-		[selectedShapeIds, deleteShapes, selectAllShapes, clearSelection, undo, redo, setActiveTool],
+		[
+			selectedShapeIds,
+			deleteShapes,
+			selectAllShapes,
+			clearSelection,
+			undo,
+			redo,
+			setActiveTool,
+			alignShapes,
+		],
 	);
 
 	useEffect(() => {
