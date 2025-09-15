@@ -1,5 +1,5 @@
 import { whiteboardStore } from "@usketch/store";
-import { assign, fromCallback, setup } from "xstate";
+import { assign, setup } from "xstate";
 import type { Bounds, Point, ToolContext } from "../types/index";
 import {
 	commitShapeChanges,
@@ -221,6 +221,37 @@ export const selectToolMachine = setup({
 				y: event.point.y - context.dragStart.y,
 			};
 
+			// Create a simple snap engine instance
+			const snapEngine = new SnapEngine(10, 8);
+
+			// Get the first shape position for snapping
+			const firstShapeId = Array.from(context.selectedIds)[0];
+			const firstInitial = firstShapeId ? context.initialPositions.get(firstShapeId) : null;
+
+			let finalOffset = offset;
+
+			if (firstInitial) {
+				// Calculate the new position
+				const newPosition = {
+					x: firstInitial.x + offset.x,
+					y: firstInitial.y + offset.y,
+				};
+
+				// Apply grid snapping
+				const snapped = snapEngine.snap(newPosition, {
+					snapEnabled: true,
+					gridSnap: true,
+				});
+
+				if (snapped.snapped) {
+					// Adjust offset based on snapped position
+					finalOffset = {
+						x: snapped.position.x - firstInitial.x,
+						y: snapped.position.y - firstInitial.y,
+					};
+				}
+			}
+
 			// Apply translation to all selected shapes
 			context.selectedIds.forEach((id) => {
 				const initial = context.initialPositions.get(id);
@@ -228,8 +259,8 @@ export const selectToolMachine = setup({
 				if (initial && shape) {
 					// Update position for all shapes
 					const updates: any = {
-						x: initial.x + offset.x,
-						y: initial.y + offset.y,
+						x: initial.x + finalOffset.x,
+						y: initial.y + finalOffset.y,
 					};
 
 					// For freedraw shapes, also update points
@@ -237,8 +268,8 @@ export const selectToolMachine = setup({
 						const initialPoints = context.initialPoints.get(id);
 						if (initialPoints) {
 							updates.points = initialPoints.map((p: Point) => ({
-								x: p.x + offset.x,
-								y: p.y + offset.y,
+								x: p.x + finalOffset.x,
+								y: p.y + finalOffset.y,
 							}));
 						}
 					}
@@ -247,7 +278,7 @@ export const selectToolMachine = setup({
 				}
 			});
 
-			return { dragOffset: offset };
+			return { dragOffset: finalOffset };
 		}),
 
 		commitTranslation: () => {
@@ -452,22 +483,6 @@ export const selectToolMachine = setup({
 			return !!handle;
 		},
 	},
-	actors: {
-		snappingService: fromCallback(({ sendBack, receive }) => {
-			const snapEngine = new SnapEngine();
-
-			receive((event: any) => {
-				if (event.type === "UPDATE_POSITION") {
-					const snapped = snapEngine.snap(event.position);
-					sendBack({ type: "SNAPPED", position: snapped });
-				}
-			});
-
-			return () => {
-				snapEngine.cleanup();
-			};
-		}),
-	},
 }).createMachine({
 	id: "selectTool",
 	initial: "idle",
@@ -579,16 +594,6 @@ export const selectToolMachine = setup({
 					target: "idle",
 					actions: "cancelTranslation",
 				},
-			},
-
-			// === v5: Invoke Actor for snapping ===
-			invoke: {
-				id: "snappingService",
-				src: "snappingService",
-				input: ({ context }) => ({
-					shapes: context.selectedIds,
-					threshold: 10,
-				}),
 			},
 		},
 
