@@ -10,12 +10,7 @@ export const useKeyboardShortcuts = () => {
 		undo,
 		redo,
 		setActiveTool,
-		alignShapesLeft,
-		alignShapesRight,
-		alignShapesTop,
-		alignShapesBottom,
-		alignShapesCenterHorizontal,
-		alignShapesCenterVertical,
+		alignShapes,
 	} = useWhiteboardStore();
 
 	const handleKeyDown = useCallback(
@@ -75,29 +70,29 @@ export const useKeyboardShortcuts = () => {
 				switch (e.key) {
 					case "ArrowLeft":
 						e.preventDefault();
-						alignShapesLeft();
+						alignShapes("left");
 						return;
 					case "ArrowRight":
 						e.preventDefault();
-						alignShapesRight();
+						alignShapes("right");
 						return;
 					case "ArrowUp":
 						e.preventDefault();
-						alignShapesTop();
+						alignShapes("top");
 						return;
 					case "ArrowDown":
 						e.preventDefault();
-						alignShapesBottom();
+						alignShapes("bottom");
 						return;
 					case "c":
 					case "C":
 						e.preventDefault();
-						alignShapesCenterHorizontal();
+						alignShapes("center-horizontal");
 						return;
 					case "m":
 					case "M":
 						e.preventDefault();
-						alignShapesCenterVertical();
+						alignShapes("center-vertical");
 						return;
 				}
 			}
@@ -139,12 +134,7 @@ export const useKeyboardShortcuts = () => {
 			undo,
 			redo,
 			setActiveTool,
-			alignShapesLeft,
-			alignShapesRight,
-			alignShapesTop,
-			alignShapesBottom,
-			alignShapesCenterHorizontal,
-			alignShapesCenterVertical,
+			alignShapes,
 		],
 	);
 
