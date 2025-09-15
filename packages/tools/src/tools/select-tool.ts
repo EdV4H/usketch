@@ -237,48 +237,84 @@ export const selectToolMachine = setup({
 			// Get the first shape position for snapping
 			const firstShapeId = Array.from(context.selectedIds)[0];
 			const firstInitial = firstShapeId ? context.initialPositions.get(firstShapeId) : null;
+			const firstShape = firstShapeId ? getShape(firstShapeId) : null;
 
 			let finalOffset = offset;
-			const guides: SnapGuide[] = [];
+			let guides: SnapGuide[] = [];
 
-			if (firstInitial) {
+			if (firstInitial && firstShape) {
 				// Calculate the new position
 				const newPosition = {
 					x: firstInitial.x + offset.x,
 					y: firstInitial.y + offset.y,
 				};
 
-				// Apply grid snapping
-				const snapped = snapEngine.snap(newPosition, {
-					snapEnabled: true,
-					gridSnap: true,
-				});
+				// Get all shapes that are not being dragged for shape-to-shape snapping
+				const store = whiteboardStore.getState();
+				const allShapes = Object.values(store.shapes);
+				// Filter target shapes and convert to internal Shape type
+				const targetShapes = allShapes
+					.filter((shape) => !context.selectedIds.has(shape.id))
+					.filter((shape): shape is any => "width" in shape && "height" in shape) as any[];
 
-				if (snapped.snapped) {
-					// Adjust offset based on snapped position
-					finalOffset = {
-						x: snapped.position.x - firstInitial.x,
-						y: snapped.position.y - firstInitial.y,
+				// First try shape-to-shape snapping
+				let snappedPosition = newPosition;
+				let snapped = false;
+
+				if (targetShapes.length > 0) {
+					// Calculate moving shape bounds
+					const movingShape = {
+						x: newPosition.x,
+						y: newPosition.y,
+						width: "width" in firstShape ? firstShape.width : 100,
+						height: "height" in firstShape ? firstShape.height : 100,
 					};
 
-					// Generate snap guides
-					if (snapped.position.x !== newPosition.x) {
-						guides.push({
-							type: "vertical",
-							position: snapped.position.x,
-							start: { x: snapped.position.x, y: -10000 },
-							end: { x: snapped.position.x, y: 10000 },
-						});
-					}
-					if (snapped.position.y !== newPosition.y) {
-						guides.push({
-							type: "horizontal",
-							position: snapped.position.y,
-							start: { x: -10000, y: snapped.position.y },
-							end: { x: 10000, y: snapped.position.y },
-						});
+					const shapeSnapResult = snapEngine.snapToShapes(movingShape, targetShapes, newPosition);
+
+					if (shapeSnapResult.snapped) {
+						snappedPosition = shapeSnapResult.position;
+						guides = shapeSnapResult.guides || [];
+						snapped = true;
 					}
 				}
+
+				// If no shape snapping occurred, try grid snapping
+				if (!snapped) {
+					const gridSnapResult = snapEngine.snap(snappedPosition, {
+						snapEnabled: true,
+						gridSnap: true,
+					});
+
+					if (gridSnapResult.snapped) {
+						snappedPosition = gridSnapResult.position;
+						snapped = true;
+
+						// Generate grid snap guides
+						if (snappedPosition.x !== newPosition.x) {
+							guides.push({
+								type: "vertical",
+								position: snappedPosition.x,
+								start: { x: snappedPosition.x, y: -10000 },
+								end: { x: snappedPosition.x, y: 10000 },
+							});
+						}
+						if (snappedPosition.y !== newPosition.y) {
+							guides.push({
+								type: "horizontal",
+								position: snappedPosition.y,
+								start: { x: -10000, y: snappedPosition.y },
+								end: { x: 10000, y: snappedPosition.y },
+							});
+						}
+					}
+				}
+
+				// Update offset based on final snapped position
+				finalOffset = {
+					x: snappedPosition.x - firstInitial.x,
+					y: snappedPosition.y - firstInitial.y,
+				};
 			}
 
 			// Apply translation to all selected shapes
