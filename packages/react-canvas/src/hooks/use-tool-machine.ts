@@ -1,12 +1,38 @@
 import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
-import { getEffectTool } from "@usketch/tools";
+import { createSelectTool, getEffectTool } from "@usketch/tools";
+import { useEffect, useRef } from "react";
+import { createActor } from "xstate";
 
 export const useToolMachine = () => {
 	const { currentTool } = useWhiteboardStore();
+	const selectToolActorRef = useRef<any>(null);
+
+	useEffect(() => {
+		// Create and start select tool actor when needed
+		if (currentTool === "select" && !selectToolActorRef.current) {
+			const selectToolMachine = createSelectTool();
+			selectToolActorRef.current = createActor(selectToolMachine);
+			selectToolActorRef.current.start();
+		} else if (currentTool !== "select" && selectToolActorRef.current) {
+			// Stop and cleanup when switching away from select tool
+			selectToolActorRef.current.stop();
+			selectToolActorRef.current = null;
+		}
+
+		return () => {
+			// Cleanup on unmount
+			if (selectToolActorRef.current) {
+				selectToolActorRef.current.stop();
+				selectToolActorRef.current = null;
+			}
+		};
+	}, [currentTool]);
 
 	const sendEvent = (event: any) => {
-		// Event sending removed - alignment is now handled by Zustand actions
+		if (selectToolActorRef.current && currentTool === "select") {
+			selectToolActorRef.current.send(event);
+		}
 	};
 
 	const handlePointerDown = (point: Point, e: React.PointerEvent) => {
