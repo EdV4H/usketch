@@ -32,11 +32,11 @@ export type AlignmentType =
 	| "bottom";
 
 export class SnapEngine {
-	private gridSize = 10;
-	private snapThreshold = 8;
+	private gridSize = 20;
+	private snapThreshold = 15;
 	private activeGuides: SnapGuide[] = [];
 
-	constructor(gridSize = 10, snapThreshold = 8) {
+	constructor(gridSize = 20, snapThreshold = 15) {
 		this.gridSize = gridSize;
 		this.snapThreshold = snapThreshold;
 	}
@@ -97,7 +97,7 @@ export class SnapEngine {
 	private findSnapPoints(
 		movingShape: { x: number; y: number; width?: number; height?: number },
 		targetShapes: Shape[],
-		currentPosition: Point,
+		_currentPosition: Point,
 	): Array<{ axis: "x" | "y"; value: number; priority: number }> {
 		const snapPoints: Array<{ axis: "x" | "y"; value: number; priority: number }> = [];
 		const width = movingShape.width || 0;

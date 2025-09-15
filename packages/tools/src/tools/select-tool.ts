@@ -14,6 +14,9 @@ import {
 import { calculateNewBounds } from "../utils/resize-calculator";
 import { SnapEngine } from "../utils/snap-engine";
 
+// Create a singleton instance of SnapEngine with default values
+const snapEngine = new SnapEngine(20, 15);
+
 // === Select Tool Context ===
 export interface SelectToolContext extends ToolContext {
 	dragStart: Point | null;
@@ -73,7 +76,8 @@ export const selectToolMachine = setup({
 
 		startTranslating: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
-			// Use store's selection which has been updated by the adapter
+			// Use store's selection as the single source of truth
+			// The XState context only maintains a local copy for machine state
 			const store = whiteboardStore.getState();
 			const selectedIds = store.selectedShapeIds;
 
@@ -96,7 +100,7 @@ export const selectToolMachine = setup({
 				dragOffset: { x: 0, y: 0 },
 				initialPositions: positions,
 				initialPoints: points,
-				selectedIds: new Set(selectedIds), // Update machine's selection state
+				selectedIds: new Set(selectedIds), // Local copy for machine state
 			};
 		}),
 
@@ -230,10 +234,6 @@ export const selectToolMachine = setup({
 				y: event.point.y - context.dragStart.y,
 			};
 
-			// Create a simple snap engine instance with larger threshold for easier snapping
-			// Using 20px grid size and 15px threshold for noticeable snapping
-			const snapEngine = new SnapEngine(20, 15);
-
 			// Get the first shape position for snapping
 			const firstShapeId = Array.from(context.selectedIds)[0];
 			const firstInitial = firstShapeId ? context.initialPositions.get(firstShapeId) : null;
@@ -339,7 +339,7 @@ export const selectToolMachine = setup({
 				}
 			});
 			// Clear snap guides when dragging is cancelled
-			whiteboardStore.getState().clearSnapGuides();
+			whiteboardStore.getState().setSnapGuides([]);
 		},
 
 		clearSelection: assign(() => {
