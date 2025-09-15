@@ -96,12 +96,12 @@ export const selectToolMachine = setup({
 			const shape = getShapeAtPoint(event.point);
 			if (!shape) return {};
 
-			// The adapter will update the store selection
-			// Sync with store's selection
+			// Update the store selection
 			const store = whiteboardStore.getState();
+			store.setSelection([shape.id]);
 
 			return {
-				selectedIds: new Set(store.selectedShapeIds),
+				selectedIds: new Set([shape.id]),
 				hoveredId: shape.id,
 			};
 		}),
@@ -221,8 +221,9 @@ export const selectToolMachine = setup({
 				y: event.point.y - context.dragStart.y,
 			};
 
-			// Create a simple snap engine instance
-			const snapEngine = new SnapEngine(10, 8);
+			// Create a simple snap engine instance with larger threshold for easier snapping
+			// Using 20px grid size and 15px threshold for noticeable snapping
+			const snapEngine = new SnapEngine(20, 15);
 
 			// Get the first shape position for snapping
 			const firstShapeId = Array.from(context.selectedIds)[0];
@@ -451,13 +452,15 @@ export const selectToolMachine = setup({
 	guards: {
 		isPointOnShape: ({ event }) => {
 			if (!("point" in event)) return false;
-			return !!getShapeAtPoint(event.point!);
+			const shape = getShapeAtPoint(event.point!);
+			return !!shape;
 		},
 
 		isPointOnSelectedShape: ({ context, event }) => {
 			if (!("point" in event)) return false;
 			const shape = getShapeAtPoint(event.point!);
-			return shape ? context.selectedIds.has(shape.id) : false;
+			const result = shape ? context.selectedIds.has(shape.id) : false;
+			return result;
 		},
 
 		isPointOnCropHandle: ({ event }) => {

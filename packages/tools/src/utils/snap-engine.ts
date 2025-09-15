@@ -54,12 +54,15 @@ export class SnapEngine {
 			const gridX = Math.round(position.x / this.gridSize) * this.gridSize;
 			const gridY = Math.round(position.y / this.gridSize) * this.gridSize;
 
+			const deltaX = Math.abs(position.x - gridX);
+			const deltaY = Math.abs(position.y - gridY);
+
 			// Only snap if within threshold
-			if (Math.abs(position.x - gridX) < this.snapThreshold) {
+			if (deltaX < this.snapThreshold) {
 				snappedPosition.x = gridX;
 				snapped = true;
 			}
-			if (Math.abs(position.y - gridY) < this.snapThreshold) {
+			if (deltaY < this.snapThreshold) {
 				snappedPosition.y = gridY;
 				snapped = true;
 			}

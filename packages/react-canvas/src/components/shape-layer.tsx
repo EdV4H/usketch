@@ -41,132 +41,14 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 	const selectionHandledRef = useRef(false);
 
 	const handleShapeClick = (shapeId: string, e: React.MouseEvent) => {
-		// Only handle clicks when select tool is active
-		if (activeTool !== "select") return;
-
-		// Ignore click if we just finished dragging
-		if (hasDraggedRef.current) {
-			hasDraggedRef.current = false;
-			return;
-		}
-
-		// Ignore click if selection was already handled in pointerDown
-		if (selectionHandledRef.current) {
-			selectionHandledRef.current = false;
-			return;
-		}
-
-		e.stopPropagation();
-		if (e.shiftKey || e.metaKey) {
-			// Multiple selection mode - toggle selection
-			if (selectedShapeIds.has(shapeId)) {
-				deselectShape(shapeId);
-			} else {
-				selectShape(shapeId);
-			}
-		} else {
-			// Single selection mode - clear others and select only this shape
-			const store = whiteboardStore.getState();
-			store.setSelection([shapeId]);
-		}
+		// Disable ShapeLayer's own click handling - let XState handle everything
+		return;
 	};
 
-	const handleShapePointerDown = useCallback(
-		(shapeId: string, e: React.PointerEvent) => {
-			if (activeTool !== "select") return;
-
-			const shape = shapes[shapeId];
-			if (!shape) return;
-
-			// Stop event propagation to prevent background handler
-			e.stopPropagation();
-
-			// Check if this shape is already selected
-			const isAlreadySelected = selectedShapeIds.has(shapeId);
-			const hasMultipleSelected = selectedShapeIds.size > 1;
-
-			// Handle selection based on modifier keys
-			if (!isAlreadySelected) {
-				const store = whiteboardStore.getState();
-				if (e.shiftKey || e.metaKey) {
-					// Add to selection
-					store.selectShape(shapeId);
-					selectionHandledRef.current = true; // Mark that we handled selection
-				} else {
-					// Replace selection
-					store.setSelection([shapeId]);
-					selectionHandledRef.current = true; // Mark that we handled selection
-				}
-			} else if (isAlreadySelected && (e.shiftKey || e.metaKey)) {
-				// If already selected with modifier key, let click event handle deselection
-				selectionHandledRef.current = false;
-			} else if (isAlreadySelected && hasMultipleSelected) {
-				// If already selected without modifier and multiple shapes are selected,
-				// don't handle selection here - let click event handle single selection after drag check
-				selectionHandledRef.current = false;
-			} else {
-				// If already selected and it's the only selection, just prepare for dragging
-				selectionHandledRef.current = true; // Don't change selection on click
-			}
-
-			// Start dragging
-			// Get the parent SVG element's bounding rect
-			// For HTML shapes, currentTarget might be a div inside foreignObject
-			let svgElement: SVGSVGElement | null = null;
-			if (e.currentTarget instanceof SVGElement) {
-				svgElement = e.currentTarget.ownerSVGElement;
-			} else {
-				// For HTML elements, find the closest SVG parent
-				svgElement = e.currentTarget.closest("svg");
-			}
-			if (!svgElement) {
-				// If still no SVG element, try to get it from the ref
-				svgElement = svgRef.current;
-			}
-			if (!svgElement) return;
-			const rect = svgElement.getBoundingClientRect();
-			const x = (e.clientX - rect.left - camera.x) / camera.zoom;
-			const y = (e.clientY - rect.top - camera.y) / camera.zoom;
-
-			// Store original positions and points of all selected shapes for group movement
-			const currentSelectedIds = whiteboardStore.getState().selectedShapeIds;
-			const originalPositions = new Map<string, { x: number; y: number }>();
-			const originalPoints = new Map<string, Array<{ x: number; y: number }>>();
-			currentSelectedIds.forEach((id) => {
-				const s = shapes[id];
-				if (s) {
-					originalPositions.set(id, { x: s.x, y: s.y });
-					// For freedraw shapes, store initial points
-					if (s.type === "freedraw" && "points" in s && s.points) {
-						originalPoints.set(id, [...s.points]);
-					}
-				}
-			});
-
-			setDragState({
-				isDragging: true,
-				draggedShapeId: shapeId,
-				startX: x,
-				startY: y,
-				originalX: shape.x,
-				originalY: shape.y,
-				originalPositions,
-				originalPoints,
-			});
-
-			// Reset the drag flag
-			hasDraggedRef.current = false;
-
-			// Set pointer capture - for HTML elements, we need to capture on the SVG element
-			if (svgElement) {
-				svgElement.setPointerCapture(e.pointerId);
-			} else {
-				e.currentTarget.setPointerCapture(e.pointerId);
-			}
-			e.preventDefault();
-		},
-		[activeTool, selectedShapeIds, shapes, camera],
-	);
+	const handleShapePointerDown = useCallback((shapeId: string, e: React.PointerEvent) => {
+		// Disable ShapeLayer's own drag handling - let XState handle everything
+		return;
+	}, []);
 
 	const handleShapePointerMove = useCallback(
 		(e: React.PointerEvent<SVGSVGElement>) => {
