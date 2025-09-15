@@ -78,7 +78,13 @@ export class SnapEngine {
 	// Snap to other shapes
 	snapToShapes(
 		movingShape: { x: number; y: number; width?: number; height?: number },
-		targetShapes: Shape[],
+		targetShapes: Array<{
+			x: number;
+			y: number;
+			width: number;
+			height: number;
+			[key: string]: any;
+		}>,
 		currentPosition: Point,
 	): SnapResult {
 		const snapPoints = this.findSnapPoints(movingShape, targetShapes, currentPosition);
@@ -96,7 +102,13 @@ export class SnapEngine {
 
 	private findSnapPoints(
 		movingShape: { x: number; y: number; width?: number; height?: number },
-		targetShapes: Shape[],
+		targetShapes: Array<{
+			x: number;
+			y: number;
+			width: number;
+			height: number;
+			[key: string]: any;
+		}>,
 		_currentPosition: Point,
 	): Array<{ axis: "x" | "y"; value: number; priority: number }> {
 		const snapPoints: Array<{ axis: "x" | "y"; value: number; priority: number }> = [];
@@ -106,8 +118,8 @@ export class SnapEngine {
 		targetShapes.forEach((target) => {
 			if (!target) return;
 
-			const targetWidth = "width" in target ? target.width : 0;
-			const targetHeight = "height" in target ? target.height : 0;
+			const targetWidth = target.width;
+			const targetHeight = target.height;
 
 			// Horizontal snap points (x-axis)
 			// Left edge to left edge

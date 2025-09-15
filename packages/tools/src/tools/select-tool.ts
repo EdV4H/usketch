@@ -19,9 +19,24 @@ const DEFAULT_SHAPE_SIZE = 100;
 const GRID_SIZE = 20;
 const SNAP_THRESHOLD = 15;
 
+// Type for shapes that can be snapped to (with dimensions)
+interface SnappableShape {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	[key: string]: any;
+}
+
 // Type guard to check if a shape has dimensions for snapping
-function hasSnapDimensions(shape: any): shape is Shape & { width: number; height: number } {
-	return shape && typeof shape.width === "number" && typeof shape.height === "number";
+function hasSnapDimensions(shape: { [key: string]: any }): shape is SnappableShape {
+	return (
+		shape &&
+		typeof shape.x === "number" &&
+		typeof shape.y === "number" &&
+		typeof shape.width === "number" &&
+		typeof shape.height === "number"
+	);
 }
 
 // Create a singleton instance of SnapEngine with default values
@@ -262,10 +277,13 @@ export const selectToolMachine = setup({
 				// Get all shapes that are not being dragged for shape-to-shape snapping
 				const store = whiteboardStore.getState();
 				const allShapes = Object.values(store.shapes);
-				// Filter target shapes that have dimensions and are not being dragged
-				const targetShapes = allShapes
-					.filter((shape) => !context.selectedIds.has(shape.id))
-					.filter(hasSnapDimensions);
+				// Filter and convert to snappable shapes
+				const targetShapes: SnappableShape[] = [];
+				for (const shape of allShapes) {
+					if (!context.selectedIds.has(shape.id) && hasSnapDimensions(shape)) {
+						targetShapes.push(shape);
+					}
+				}
 
 				// First try shape-to-shape snapping
 				let snappedPosition = newPosition;
@@ -280,12 +298,9 @@ export const selectToolMachine = setup({
 						height: "height" in firstShape ? firstShape.height : DEFAULT_SHAPE_SIZE,
 					};
 
-					// Cast to Shape[] for the snap engine (already filtered)
-					const shapeSnapResult = snapEngine.snapToShapes(
-						movingShape,
-						targetShapes as any[],
-						newPosition,
-					);
+					// Pass filtered shapes with dimensions to snap engine
+					// targetShapes is already type-checked by hasSnapDimensions guard
+					const shapeSnapResult = snapEngine.snapToShapes(movingShape, targetShapes, newPosition);
 
 					if (shapeSnapResult.snapped) {
 						snappedPosition = shapeSnapResult.position;
