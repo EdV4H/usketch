@@ -1,6 +1,6 @@
 import { whiteboardStore } from "@usketch/store";
 import { assign, setup } from "xstate";
-import type { Bounds, Point, ToolContext } from "../types/index";
+import type { Bounds, Point, Shape, ToolContext } from "../types/index";
 import {
 	commitShapeChanges,
 	getCropHandleAtPoint,
@@ -14,8 +14,18 @@ import {
 import { calculateNewBounds } from "../utils/resize-calculator";
 import { SnapEngine } from "../utils/snap-engine";
 
+// Constants for snap functionality
+const DEFAULT_SHAPE_SIZE = 100;
+const GRID_SIZE = 20;
+const SNAP_THRESHOLD = 15;
+
+// Type guard to check if a shape has dimensions for snapping
+function hasSnapDimensions(shape: any): shape is Shape & { width: number; height: number } {
+	return shape && typeof shape.width === "number" && typeof shape.height === "number";
+}
+
 // Create a singleton instance of SnapEngine with default values
-const snapEngine = new SnapEngine(20, 15);
+const snapEngine = new SnapEngine(GRID_SIZE, SNAP_THRESHOLD);
 
 // === Select Tool Context ===
 export interface SelectToolContext extends ToolContext {
@@ -252,10 +262,10 @@ export const selectToolMachine = setup({
 				// Get all shapes that are not being dragged for shape-to-shape snapping
 				const store = whiteboardStore.getState();
 				const allShapes = Object.values(store.shapes);
-				// Filter target shapes and convert to internal Shape type
+				// Filter target shapes that have dimensions and are not being dragged
 				const targetShapes = allShapes
 					.filter((shape) => !context.selectedIds.has(shape.id))
-					.filter((shape): shape is any => "width" in shape && "height" in shape) as any[];
+					.filter(hasSnapDimensions);
 
 				// First try shape-to-shape snapping
 				let snappedPosition = newPosition;
@@ -266,11 +276,16 @@ export const selectToolMachine = setup({
 					const movingShape = {
 						x: newPosition.x,
 						y: newPosition.y,
-						width: "width" in firstShape ? firstShape.width : 100,
-						height: "height" in firstShape ? firstShape.height : 100,
+						width: "width" in firstShape ? firstShape.width : DEFAULT_SHAPE_SIZE,
+						height: "height" in firstShape ? firstShape.height : DEFAULT_SHAPE_SIZE,
 					};
 
-					const shapeSnapResult = snapEngine.snapToShapes(movingShape, targetShapes, newPosition);
+					// Cast to Shape[] for the snap engine (already filtered)
+					const shapeSnapResult = snapEngine.snapToShapes(
+						movingShape,
+						targetShapes as any[],
+						newPosition,
+					);
 
 					if (shapeSnapResult.snapped) {
 						snappedPosition = shapeSnapResult.position;
