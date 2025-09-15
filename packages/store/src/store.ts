@@ -260,11 +260,11 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 
 	// Undo/Redo placeholders
 	undo: () => {
-		console.log("Undo not implemented");
+		// Undo not implemented
 	},
 
 	redo: () => {
-		console.log("Redo not implemented");
+		// Redo not implemented
 	},
 
 	// Effect actions
