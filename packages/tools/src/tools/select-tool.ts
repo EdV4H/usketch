@@ -45,7 +45,14 @@ export type SelectToolEvent =
 	| { type: "ESCAPE" }
 	| { type: "DELETE" }
 	| { type: "ENTER" }
-	| { type: "ENTER_CROP_MODE"; shapeId: string };
+	| { type: "ENTER_CROP_MODE"; shapeId: string }
+	// Alignment events
+	| { type: "ALIGN_LEFT" }
+	| { type: "ALIGN_CENTER_H" }
+	| { type: "ALIGN_RIGHT" }
+	| { type: "ALIGN_TOP" }
+	| { type: "ALIGN_CENTER_V" }
+	| { type: "ALIGN_BOTTOM" };
 
 // === Select Tool Machine (XState v5) ===
 export const selectToolMachine = setup({
@@ -416,6 +423,160 @@ export const selectToolMachine = setup({
 
 			return { cursor: cursors[context.resizeHandle] || "default" };
 		}),
+
+		// Alignment actions
+		alignShapesLeft: ({ context }) => {
+			const store = whiteboardStore.getState();
+			const selectedShapes = Array.from(context.selectedIds)
+				.map((id) => getShape(id))
+				.filter(Boolean);
+
+			if (selectedShapes.length < 2) return;
+
+			// Find the leftmost position
+			const leftMost = Math.min(...selectedShapes.map((s) => s!.x));
+
+			// Update all selected shapes to align to the leftmost position
+			selectedShapes.forEach((shape) => {
+				if (shape) {
+					updateShape(shape.id, { x: leftMost });
+				}
+			});
+
+			commitShapeChanges();
+		},
+
+		alignShapesCenterHorizontal: ({ context }) => {
+			const selectedShapes = Array.from(context.selectedIds)
+				.map((id) => getShape(id))
+				.filter(Boolean);
+
+			if (selectedShapes.length < 2) return;
+
+			// Calculate bounds of all selected shapes
+			const xs = selectedShapes.flatMap((s) => {
+				if (!s) return [];
+				const width = "width" in s ? s.width : 0;
+				return [s.x, s.x + width];
+			});
+			const left = Math.min(...xs);
+			const right = Math.max(...xs);
+			const centerX = (left + right) / 2;
+
+			// Align all shapes to the center
+			selectedShapes.forEach((shape) => {
+				if (shape) {
+					const width = "width" in shape ? shape.width : 0;
+					const newX = centerX - width / 2;
+					updateShape(shape.id, { x: newX });
+				}
+			});
+
+			commitShapeChanges();
+		},
+
+		alignShapesRight: ({ context }) => {
+			const selectedShapes = Array.from(context.selectedIds)
+				.map((id) => getShape(id))
+				.filter(Boolean);
+
+			if (selectedShapes.length < 2) return;
+
+			// Find the rightmost position
+			const rightMost = Math.max(
+				...selectedShapes.map((s) => {
+					if (!s) return 0;
+					const width = "width" in s ? s.width : 0;
+					return s.x + width;
+				}),
+			);
+
+			// Update all selected shapes to align to the rightmost position
+			selectedShapes.forEach((shape) => {
+				if (shape) {
+					const width = "width" in shape ? shape.width : 0;
+					updateShape(shape.id, { x: rightMost - width });
+				}
+			});
+
+			commitShapeChanges();
+		},
+
+		alignShapesTop: ({ context }) => {
+			const selectedShapes = Array.from(context.selectedIds)
+				.map((id) => getShape(id))
+				.filter(Boolean);
+
+			if (selectedShapes.length < 2) return;
+
+			// Find the topmost position
+			const topMost = Math.min(...selectedShapes.map((s) => s!.y));
+
+			// Update all selected shapes to align to the topmost position
+			selectedShapes.forEach((shape) => {
+				if (shape) {
+					updateShape(shape.id, { y: topMost });
+				}
+			});
+
+			commitShapeChanges();
+		},
+
+		alignShapesCenterVertical: ({ context }) => {
+			const selectedShapes = Array.from(context.selectedIds)
+				.map((id) => getShape(id))
+				.filter(Boolean);
+
+			if (selectedShapes.length < 2) return;
+
+			// Calculate bounds of all selected shapes
+			const ys = selectedShapes.flatMap((s) => {
+				if (!s) return [];
+				const height = "height" in s ? s.height : 0;
+				return [s.y, s.y + height];
+			});
+			const top = Math.min(...ys);
+			const bottom = Math.max(...ys);
+			const centerY = (top + bottom) / 2;
+
+			// Align all shapes to the center
+			selectedShapes.forEach((shape) => {
+				if (shape) {
+					const height = "height" in shape ? shape.height : 0;
+					const newY = centerY - height / 2;
+					updateShape(shape.id, { y: newY });
+				}
+			});
+
+			commitShapeChanges();
+		},
+
+		alignShapesBottom: ({ context }) => {
+			const selectedShapes = Array.from(context.selectedIds)
+				.map((id) => getShape(id))
+				.filter(Boolean);
+
+			if (selectedShapes.length < 2) return;
+
+			// Find the bottommost position
+			const bottomMost = Math.max(
+				...selectedShapes.map((s) => {
+					if (!s) return 0;
+					const height = "height" in s ? s.height : 0;
+					return s.y + height;
+				}),
+			);
+
+			// Update all selected shapes to align to the bottommost position
+			selectedShapes.forEach((shape) => {
+				if (shape) {
+					const height = "height" in shape ? shape.height : 0;
+					updateShape(shape.id, { y: bottomMost - height });
+				}
+			});
+
+			commitShapeChanges();
+		},
 	},
 	guards: {
 		isPointOnShape: ({ event }) => {
@@ -450,6 +611,10 @@ export const selectToolMachine = setup({
 			const shapeId = Array.from(selectedIds)[0];
 			const handle = getResizeHandleAtPoint(event.point, shapeId);
 			return !!handle;
+		},
+
+		hasMultipleSelection: ({ context }) => {
+			return context.selectedIds.size > 1;
 		},
 	},
 	actors: {
@@ -522,6 +687,32 @@ export const selectToolMachine = setup({
 
 				DELETE: {
 					actions: "deleteSelectedShapes",
+				},
+
+				// Alignment events
+				ALIGN_LEFT: {
+					guard: "hasMultipleSelection",
+					actions: "alignShapesLeft",
+				},
+				ALIGN_CENTER_H: {
+					guard: "hasMultipleSelection",
+					actions: "alignShapesCenterHorizontal",
+				},
+				ALIGN_RIGHT: {
+					guard: "hasMultipleSelection",
+					actions: "alignShapesRight",
+				},
+				ALIGN_TOP: {
+					guard: "hasMultipleSelection",
+					actions: "alignShapesTop",
+				},
+				ALIGN_CENTER_V: {
+					guard: "hasMultipleSelection",
+					actions: "alignShapesCenterVertical",
+				},
+				ALIGN_BOTTOM: {
+					guard: "hasMultipleSelection",
+					actions: "alignShapesBottom",
 				},
 			},
 		},

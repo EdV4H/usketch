@@ -91,6 +91,7 @@ export const useToolMachine = () => {
 		handlePointerMove,
 		handlePointerUp,
 		handleKeyDown,
+		sendEvent,
 		isSelectTool: currentTool === "select",
 		isEffectTool: currentTool === "effect",
 	};

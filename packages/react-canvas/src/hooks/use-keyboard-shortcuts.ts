@@ -1,5 +1,6 @@
 import { useWhiteboardStore } from "@usketch/store";
 import { useCallback, useEffect } from "react";
+import { useToolMachine } from "./use-tool-machine";
 
 export const useKeyboardShortcuts = () => {
 	const {
@@ -11,6 +12,7 @@ export const useKeyboardShortcuts = () => {
 		redo,
 		setActiveTool,
 	} = useWhiteboardStore();
+	const { sendEvent } = useToolMachine();
 
 	const handleKeyDown = useCallback(
 		(e: KeyboardEvent) => {
@@ -64,6 +66,38 @@ export const useKeyboardShortcuts = () => {
 				return;
 			}
 
+			// Alignment shortcuts (Cmd/Ctrl + Shift + Arrow keys and letters)
+			if (cmdOrCtrl && e.shiftKey && selectedShapeIds.size > 1) {
+				switch (e.key) {
+					case "ArrowLeft":
+						e.preventDefault();
+						sendEvent({ type: "ALIGN_LEFT" });
+						return;
+					case "ArrowRight":
+						e.preventDefault();
+						sendEvent({ type: "ALIGN_RIGHT" });
+						return;
+					case "ArrowUp":
+						e.preventDefault();
+						sendEvent({ type: "ALIGN_TOP" });
+						return;
+					case "ArrowDown":
+						e.preventDefault();
+						sendEvent({ type: "ALIGN_BOTTOM" });
+						return;
+					case "c":
+					case "C":
+						e.preventDefault();
+						sendEvent({ type: "ALIGN_CENTER_H" });
+						return;
+					case "m":
+					case "M":
+						e.preventDefault();
+						sendEvent({ type: "ALIGN_CENTER_V" });
+						return;
+				}
+			}
+
 			// Tool shortcuts (without modifiers)
 			if (!cmdOrCtrl && !e.shiftKey && !e.altKey) {
 				switch (e.key.toLowerCase()) {
@@ -93,7 +127,16 @@ export const useKeyboardShortcuts = () => {
 				}
 			}
 		},
-		[selectedShapeIds, deleteShapes, selectAllShapes, clearSelection, undo, redo, setActiveTool],
+		[
+			selectedShapeIds,
+			deleteShapes,
+			selectAllShapes,
+			clearSelection,
+			undo,
+			redo,
+			setActiveTool,
+			sendEvent,
+		],
 	);
 
 	useEffect(() => {
