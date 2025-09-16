@@ -426,6 +426,9 @@ importers:
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../shared-types
+      '@usketch/tools':
+        specifier: workspace:*
+        version: link:../tools
       zustand:
         specifier: 5.0.8
         version: 5.0.8(@types/react@19.1.13)(react@19.1.1)(use-sync-external-store@1.5.0(react@19.1.1))
