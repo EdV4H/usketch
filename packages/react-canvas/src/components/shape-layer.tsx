@@ -1,7 +1,6 @@
 import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useCallback, useRef, useState } from "react";
-import { useToolMachine } from "../hooks/use-tool-machine";
 import type { ShapeLayerProps } from "../types";
 import { Shape } from "./shape";
 
@@ -12,8 +11,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 	className = "",
 }) => {
 	const shapeArray = Object.values(shapes);
-	const { selectedShapeIds, selectShape, deselectShape, updateShape } = useWhiteboardStore();
-	const toolHandlers = useToolMachine();
+	const { selectedShapeIds, updateShape } = useWhiteboardStore();
 	const [dragState, setDragState] = useState<{
 		isDragging: boolean;
 		draggedShapeId: string | null;
@@ -43,48 +41,95 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 	const selectionHandledRef = useRef(false);
 
 	const handleShapeClick = (shapeId: string, e: React.MouseEvent) => {
-		// Let the tool machine handle the click
-		if (activeTool === "select" && toolHandlers.isSelectTool) {
-			const svgRect = svgRef.current?.getBoundingClientRect();
-			if (!svgRect) return;
+		// Only handle click, not drag
+		if (!hasDraggedRef.current && activeTool === "select") {
+			const store = whiteboardStore.getState();
+			let newSelectedIds: Set<string>;
 
-			const x = (e.clientX - svgRect.left - camera.x) / camera.zoom;
-			const y = (e.clientY - svgRect.top - camera.y) / camera.zoom;
+			if (e.shiftKey) {
+				// Toggle selection with Shift
+				newSelectedIds = new Set(store.selectedShapeIds);
+				if (newSelectedIds.has(shapeId)) {
+					newSelectedIds.delete(shapeId);
+				} else {
+					newSelectedIds.add(shapeId);
+				}
+			} else {
+				// Replace selection without Shift
+				newSelectedIds = new Set([shapeId]);
+			}
 
-			// Send pointer down event to select tool with shiftKey
-			const pointerEvent = {
-				...e,
-				clientX: e.clientX,
-				clientY: e.clientY,
-				shiftKey: e.shiftKey,
-				ctrlKey: e.ctrlKey,
-				metaKey: e.metaKey,
-			} as React.PointerEvent;
-
-			toolHandlers.handlePointerDown({ x, y }, pointerEvent);
+			store.setSelection(Array.from(newSelectedIds));
 		}
 	};
 
 	const handleShapePointerDown = useCallback(
 		(shapeId: string, e: React.PointerEvent) => {
-			// Let the tool machine handle the pointer down
-			if (activeTool === "select" && toolHandlers.isSelectTool) {
-				// Get the SVG element's bounding rect
-				const svgRect = svgRef.current?.getBoundingClientRect();
-				if (!svgRect) return;
+			if (activeTool !== "select") return;
 
-				const x = (e.clientX - svgRect.left - camera.x) / camera.zoom;
-				const y = (e.clientY - svgRect.top - camera.y) / camera.zoom;
+			const rect = e.currentTarget.getBoundingClientRect();
+			const x = (e.clientX - rect.left - camera.x) / camera.zoom;
+			const y = (e.clientY - rect.top - camera.y) / camera.zoom;
 
-				// Send pointer down event to select tool
-				toolHandlers.handlePointerDown({ x, y }, e);
+			// Reset drag state tracking
+			hasDraggedRef.current = false;
 
-				// Prevent default drag behavior
-				e.preventDefault();
-				e.stopPropagation();
+			// Don't start dragging when using Shift+Click
+			if (e.shiftKey) {
+				// Selection will be handled in handleShapeClick
+				return;
 			}
+
+			// Handle normal selection and start drag
+			const store = whiteboardStore.getState();
+			if (!store.selectedShapeIds.has(shapeId)) {
+				// If clicking on unselected shape, select it
+				store.setSelection([shapeId]);
+			}
+
+			// Start drag state for the selected shape(s)
+			const selectedIds = whiteboardStore.getState().selectedShapeIds;
+			const shape = shapes[shapeId];
+
+			if (shape) {
+				const originalPositions = new Map<string, { x: number; y: number }>();
+				const originalPoints = new Map<string, Array<{ x: number; y: number }>>();
+
+				// Store original positions for all selected shapes
+				selectedIds.forEach((id) => {
+					const s = shapes[id];
+					if (s) {
+						originalPositions.set(id, { x: s.x, y: s.y });
+						if (s.type === "freedraw" && "points" in s) {
+							originalPoints.set(id, [...s.points]);
+						}
+					}
+				});
+
+				setDragState({
+					isDragging: true,
+					draggedShapeId: shapeId,
+					startX: x,
+					startY: y,
+					originalX: shape.x,
+					originalY: shape.y,
+					originalPositions,
+					originalPoints,
+				});
+
+				// Capture pointer for dragging
+				if (svgRef.current) {
+					svgRef.current.setPointerCapture(e.pointerId);
+				} else {
+					e.currentTarget.setPointerCapture(e.pointerId);
+				}
+			}
+
+			selectionHandledRef.current = true;
+			e.preventDefault();
+			e.stopPropagation();
 		},
-		[activeTool, camera, toolHandlers],
+		[activeTool, camera, shapes],
 	);
 
 	const handleShapePointerMove = useCallback(
