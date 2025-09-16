@@ -129,10 +129,27 @@ export const selectToolMachine = setup({
 
 			// Update the store selection
 			const store = whiteboardStore.getState();
-			store.setSelection([shape.id]);
+			let newSelectedIds: Set<string>;
+
+			if (event.shiftKey) {
+				// Add to existing selection if Shift is held
+				newSelectedIds = new Set(store.selectedShapeIds);
+				if (newSelectedIds.has(shape.id)) {
+					// If already selected, remove it (toggle)
+					newSelectedIds.delete(shape.id);
+				} else {
+					// If not selected, add it
+					newSelectedIds.add(shape.id);
+				}
+			} else {
+				// Replace selection if Shift is not held
+				newSelectedIds = new Set([shape.id]);
+			}
+
+			store.setSelection(Array.from(newSelectedIds));
 
 			return {
-				selectedIds: new Set([shape.id]),
+				selectedIds: newSelectedIds,
 				hoveredId: shape.id,
 			};
 		}),

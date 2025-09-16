@@ -1,6 +1,7 @@
 import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useCallback, useRef, useState } from "react";
+import { useToolMachine } from "../hooks/use-tool-machine";
 import type { ShapeLayerProps } from "../types";
 import { Shape } from "./shape";
 
@@ -12,6 +13,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 }) => {
 	const shapeArray = Object.values(shapes);
 	const { selectedShapeIds, selectShape, deselectShape, updateShape } = useWhiteboardStore();
+	const toolHandlers = useToolMachine();
 	const [dragState, setDragState] = useState<{
 		isDragging: boolean;
 		draggedShapeId: string | null;
@@ -41,14 +43,49 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 	const selectionHandledRef = useRef(false);
 
 	const handleShapeClick = (shapeId: string, e: React.MouseEvent) => {
-		// Disable ShapeLayer's own click handling - let XState handle everything
-		return;
+		// Let the tool machine handle the click
+		if (activeTool === "select" && toolHandlers.isSelectTool) {
+			const svgRect = svgRef.current?.getBoundingClientRect();
+			if (!svgRect) return;
+
+			const x = (e.clientX - svgRect.left - camera.x) / camera.zoom;
+			const y = (e.clientY - svgRect.top - camera.y) / camera.zoom;
+
+			// Send pointer down event to select tool with shiftKey
+			const pointerEvent = {
+				...e,
+				clientX: e.clientX,
+				clientY: e.clientY,
+				shiftKey: e.shiftKey,
+				ctrlKey: e.ctrlKey,
+				metaKey: e.metaKey,
+			} as React.PointerEvent;
+
+			toolHandlers.handlePointerDown({ x, y }, pointerEvent);
+		}
 	};
 
-	const handleShapePointerDown = useCallback((shapeId: string, e: React.PointerEvent) => {
-		// Disable ShapeLayer's own drag handling - let XState handle everything
-		return;
-	}, []);
+	const handleShapePointerDown = useCallback(
+		(shapeId: string, e: React.PointerEvent) => {
+			// Let the tool machine handle the pointer down
+			if (activeTool === "select" && toolHandlers.isSelectTool) {
+				// Get the SVG element's bounding rect
+				const svgRect = svgRef.current?.getBoundingClientRect();
+				if (!svgRect) return;
+
+				const x = (e.clientX - svgRect.left - camera.x) / camera.zoom;
+				const y = (e.clientY - svgRect.top - camera.y) / camera.zoom;
+
+				// Send pointer down event to select tool
+				toolHandlers.handlePointerDown({ x, y }, e);
+
+				// Prevent default drag behavior
+				e.preventDefault();
+				e.stopPropagation();
+			}
+		},
+		[activeTool, camera, toolHandlers],
+	);
 
 	const handleShapePointerMove = useCallback(
 		(e: React.PointerEvent<SVGSVGElement>) => {
