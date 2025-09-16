@@ -1,6 +1,6 @@
 import { whiteboardStore } from "@usketch/store";
 import { assign, setup } from "xstate";
-import type { Bounds, Point, Shape, ToolContext } from "../types/index";
+import type { Bounds, Point, ToolContext } from "../types/index";
 import {
 	commitShapeChanges,
 	getCropHandleAtPoint,
@@ -101,13 +101,11 @@ export const selectToolMachine = setup({
 			cursor: "move",
 		}),
 
-		prepareForDrag: assign(({ event, context }) => {
+		prepareForDrag: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
 			// Prepare drag state but don't start dragging yet
 			const store = whiteboardStore.getState();
 			const selectedIds = store.selectedShapeIds;
-
-			console.log("prepareForDrag: selectedIds from store=", Array.from(selectedIds));
 
 			// Record initial positions and points of all selected shapes
 			const positions = new Map<string, Point>();
@@ -139,10 +137,6 @@ export const selectToolMachine = setup({
 
 		startDragging: assign(({ context }) => {
 			if (!context.dragState) return {};
-			console.log(
-				"startDragging: transitioning to drag mode, selectedIds=",
-				context.selectedIds?.size || 0,
-			);
 			return {
 				dragState: {
 					...context.dragState,
@@ -305,13 +299,6 @@ export const selectToolMachine = setup({
 			const dy = event.point.y - context.dragState.startPoint.y;
 			const distance = Math.sqrt(dx * dx + dy * dy);
 
-			console.log(
-				"checkMovementThreshold: distance=",
-				distance,
-				"selectedIds=",
-				context.selectedIds?.size || 0,
-			);
-
 			// Check if moved enough to start dragging (3 pixels threshold)
 			if (distance > 3) {
 				return {
@@ -328,13 +315,6 @@ export const selectToolMachine = setup({
 		updateTranslation: assign(({ context, event }) => {
 			if (event.type !== "POINTER_MOVE" || !context.dragState || !context.dragState.isDragging)
 				return {};
-
-			console.log(
-				"updateTranslation: selectedIds=",
-				context.selectedIds?.size || 0,
-				"isDragging=",
-				context.dragState?.isDragging,
-			);
 
 			const offset = {
 				x: event.point.x - context.dragState.startPoint.x,
@@ -564,7 +544,7 @@ export const selectToolMachine = setup({
 		},
 
 		// Resize actions
-		startResize: assign(({ event, context }) => {
+		startResize: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
 
 			// Get the selected shape from store

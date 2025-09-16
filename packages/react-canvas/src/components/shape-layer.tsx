@@ -1,4 +1,4 @@
-import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
+import { useWhiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useCallback, useRef } from "react";
 import { useToolMachine } from "../hooks/use-tool-machine";
@@ -17,14 +17,17 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 	const svgRef = useRef<SVGSVGElement>(null);
 
 	// Helper function to convert screen coordinates to canvas coordinates
-	const screenToCanvas = (clientX: number, clientY: number) => {
-		if (!svgRef.current) return { x: 0, y: 0 };
-		const rect = svgRef.current.getBoundingClientRect();
-		return {
-			x: (clientX - rect.left - camera.x) / camera.zoom,
-			y: (clientY - rect.top - camera.y) / camera.zoom,
-		};
-	};
+	const screenToCanvas = useCallback(
+		(clientX: number, clientY: number) => {
+			if (!svgRef.current) return { x: 0, y: 0 };
+			const rect = svgRef.current.getBoundingClientRect();
+			return {
+				x: (clientX - rect.left - camera.x) / camera.zoom,
+				y: (clientY - rect.top - camera.y) / camera.zoom,
+			};
+		},
+		[camera.x, camera.y, camera.zoom],
+	);
 
 	const handleShapePointerDown = useCallback(
 		(shapeId: string, e: React.PointerEvent) => {
@@ -37,8 +40,6 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			const shape = shapes[shapeId];
 			if (!shape) return;
 
-			console.log("ShapeLayer.handleShapePointerDown:", { shapeId, point });
-
 			// Send event to XState with shape context
 			toolMachine.handlePointerDown({ ...point, shapeId }, e);
 
@@ -47,7 +48,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 				svgRef.current.setPointerCapture(e.pointerId);
 			}
 		},
-		[activeTool, shapes, camera, toolMachine],
+		[activeTool, shapes, screenToCanvas, toolMachine],
 	);
 
 	const handlePointerMove = useCallback(
@@ -55,10 +56,9 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			if (activeTool !== "select") return;
 
 			const point = screenToCanvas(e.clientX, e.clientY);
-			console.log("ShapeLayer.handlePointerMove:", { point });
 			toolMachine.handlePointerMove(point, e);
 		},
-		[activeTool, camera, toolMachine],
+		[activeTool, screenToCanvas, toolMachine],
 	);
 
 	const handlePointerUp = useCallback(
@@ -73,7 +73,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 				svgRef.current.releasePointerCapture(e.pointerId);
 			}
 		},
-		[activeTool, camera, toolMachine],
+		[activeTool, screenToCanvas, toolMachine],
 	);
 
 	// Handle background pointer events for drag selection

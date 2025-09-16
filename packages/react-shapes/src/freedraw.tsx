@@ -15,8 +15,6 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 	isSelected = false,
 	onClick,
 	onPointerDown,
-	onPointerMove,
-	onPointerUp,
 }) => {
 	// Generate path data from points (like Vanilla version)
 	const pathData =

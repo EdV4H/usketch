@@ -1,24 +1,37 @@
 import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
 import { createSelectTool, getEffectTool } from "@usketch/tools";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createActor } from "xstate";
 
 export const useToolMachine = () => {
-	const { currentTool, shapes, selectedShapeIds } = useWhiteboardStore();
+	const { currentTool } = useWhiteboardStore();
 	const selectToolActorRef = useRef<any>(null);
+	const [actorSnapshot, setActorSnapshot] = useState<any>(null);
 
 	// Create select tool machine with Zustand store data as input
 	useEffect(() => {
 		// Create and start select tool actor when needed
 		if (currentTool === "select" && !selectToolActorRef.current) {
 			const selectToolMachine = createSelectTool();
-			selectToolActorRef.current = createActor(selectToolMachine);
-			selectToolActorRef.current.start();
+			const actor = createActor(selectToolMachine);
+			selectToolActorRef.current = actor;
+
+			// Subscribe to actor state changes
+			const subscription = actor.subscribe((snapshot) => {
+				setActorSnapshot(snapshot);
+			});
+
+			actor.start();
+
+			return () => {
+				subscription.unsubscribe();
+			};
 		} else if (currentTool !== "select" && selectToolActorRef.current) {
 			// Stop and cleanup when switching away from select tool
 			selectToolActorRef.current.stop();
 			selectToolActorRef.current = null;
+			setActorSnapshot(null);
 		}
 
 		return () => {
@@ -26,20 +39,14 @@ export const useToolMachine = () => {
 			if (selectToolActorRef.current) {
 				selectToolActorRef.current.stop();
 				selectToolActorRef.current = null;
+				setActorSnapshot(null);
 			}
 		};
 	}, [currentTool]);
 
-	// Get state from XState actor
-	const dragState = useMemo(() => {
-		if (!selectToolActorRef.current) return null;
-		return selectToolActorRef.current.getSnapshot().context.dragState;
-	}, [selectToolActorRef.current]);
-
-	const snapGuides = useMemo(() => {
-		if (!selectToolActorRef.current) return [];
-		return selectToolActorRef.current.getSnapshot().context.snapGuides || [];
-	}, [selectToolActorRef.current]);
+	// Get state from XState actor snapshot
+	const dragState = actorSnapshot?.context?.dragState || null;
+	const snapGuides = actorSnapshot?.context?.snapGuides || [];
 
 	const sendEvent = (event: any) => {
 		if (selectToolActorRef.current && currentTool === "select") {
