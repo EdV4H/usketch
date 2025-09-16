@@ -67,9 +67,12 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 		(shapeId: string, e: React.PointerEvent) => {
 			if (activeTool !== "select") return;
 
-			const rect = e.currentTarget.getBoundingClientRect();
-			const x = (e.clientX - rect.left - camera.x) / camera.zoom;
-			const y = (e.clientY - rect.top - camera.y) / camera.zoom;
+			const svgRect = svgRef.current?.getBoundingClientRect();
+			if (!svgRect) return;
+
+			// Convert screen coordinates to SVG coordinates
+			const x = (e.clientX - svgRect.left - camera.x) / camera.zoom;
+			const y = (e.clientY - svgRect.top - camera.y) / camera.zoom;
 
 			// Reset drag state tracking
 			hasDraggedRef.current = false;
@@ -136,9 +139,10 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 		(e: React.PointerEvent<SVGSVGElement>) => {
 			if (!dragState.isDragging || !dragState.draggedShapeId) return;
 
-			const rect = e.currentTarget.getBoundingClientRect();
-			const x = (e.clientX - rect.left - camera.x) / camera.zoom;
-			const y = (e.clientY - rect.top - camera.y) / camera.zoom;
+			const svgRect =
+				svgRef.current?.getBoundingClientRect() || e.currentTarget.getBoundingClientRect();
+			const x = (e.clientX - svgRect.left - camera.x) / camera.zoom;
+			const y = (e.clientY - svgRect.top - camera.y) / camera.zoom;
 
 			const dx = x - dragState.startX;
 			const dy = y - dragState.startY;
@@ -239,9 +243,10 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			const target = e.target as Element;
 			if (target.tagName !== "rect" || !target.hasAttribute("data-background")) return;
 
-			const rect = e.currentTarget.getBoundingClientRect();
-			const x = (e.clientX - rect.left - camera.x) / camera.zoom;
-			const y = (e.clientY - rect.top - camera.y) / camera.zoom;
+			const svgRect =
+				svgRef.current?.getBoundingClientRect() || e.currentTarget.getBoundingClientRect();
+			const x = (e.clientX - svgRect.left - camera.x) / camera.zoom;
+			const y = (e.clientY - svgRect.top - camera.y) / camera.zoom;
 
 			// Store original selection for modifier key handling
 			const store = whiteboardStore.getState();
@@ -271,9 +276,10 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 		(e: React.PointerEvent<SVGSVGElement>) => {
 			if (!selectionBox.isSelecting) return;
 
-			const rect = e.currentTarget.getBoundingClientRect();
-			const x = (e.clientX - rect.left - camera.x) / camera.zoom;
-			const y = (e.clientY - rect.top - camera.y) / camera.zoom;
+			const svgRect =
+				svgRef.current?.getBoundingClientRect() || e.currentTarget.getBoundingClientRect();
+			const x = (e.clientX - svgRect.left - camera.x) / camera.zoom;
+			const y = (e.clientY - svgRect.top - camera.y) / camera.zoom;
 
 			setSelectionBox((prev) => ({
 				...prev,
