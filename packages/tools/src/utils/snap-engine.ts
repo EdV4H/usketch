@@ -165,34 +165,6 @@ export class SnapEngine {
 		return snapPoints;
 	}
 
-	private calculateSnappedPosition(
-		currentPosition: Point,
-		snapPoints: Array<{ axis: "x" | "y"; value: number; priority: number }>,
-	): Point {
-		const snappedPosition = { ...currentPosition };
-
-		// Find closest snap point for each axis
-		const xSnapPoints = snapPoints.filter((p) => p.axis === "x");
-		const ySnapPoints = snapPoints.filter((p) => p.axis === "y");
-
-		// Snap X axis
-		if (xSnapPoints.length > 0) {
-			const closest = this.findClosestSnapPoint(currentPosition.x, xSnapPoints);
-			if (closest && Math.abs(currentPosition.x - closest.value) < this.snapThreshold) {
-				snappedPosition.x = closest.value;
-			}
-		}
-
-		// Snap Y axis
-		if (ySnapPoints.length > 0) {
-			const closest = this.findClosestSnapPoint(currentPosition.y, ySnapPoints);
-			if (closest && Math.abs(currentPosition.y - closest.value) < this.snapThreshold) {
-				snappedPosition.y = closest.value;
-			}
-		}
-
-		return snappedPosition;
-	}
 
 	private calculateSnappedPositionWithActive(
 		currentPosition: Point,
@@ -251,43 +223,11 @@ export class SnapEngine {
 		return sorted[0] || null;
 	}
 
-	private generateGuides(
-		snapPoints: Array<{ axis: "x" | "y"; value: number; priority: number }>,
-		snappedPosition: Point,
-	): SnapGuide[] {
-		const guides: SnapGuide[] = [];
-
-		// Generate vertical guides (for x-axis snapping)
-		const xSnap = snapPoints.find((p) => p.axis === "x" && p.value === snappedPosition.x);
-		if (xSnap) {
-			guides.push({
-				type: "vertical",
-				position: xSnap.value,
-				start: { x: xSnap.value, y: -1000 },
-				end: { x: xSnap.value, y: 1000 },
-				style: "dashed",
-			});
-		}
-
-		// Generate horizontal guides (for y-axis snapping)
-		const ySnap = snapPoints.find((p) => p.axis === "y" && p.value === snappedPosition.y);
-		if (ySnap) {
-			guides.push({
-				type: "horizontal",
-				position: ySnap.value,
-				start: { x: -1000, y: ySnap.value },
-				end: { x: 1000, y: ySnap.value },
-				style: "dashed",
-			});
-		}
-
-		return guides;
-	}
 
 	private generateGuidesFromActivePoints(
 		activeSnapPoints: Array<{ axis: "x" | "y"; value: number; priority: number; targetId?: string; edgeType?: string; targetPosition?: number }>,
-		movingShape: { x: number; y: number; width?: number; height?: number },
-		targetShapes: Array<{
+		_movingShape: { x: number; y: number; width?: number; height?: number },
+		_targetShapes: Array<{
 			x: number;
 			y: number;
 			width: number;
