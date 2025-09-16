@@ -12,7 +12,7 @@ import {
 	updateShape,
 } from "../utils/geometry";
 import { calculateNewBounds } from "../utils/resize-calculator";
-import { SnapEngine } from "../utils/snap-engine";
+import { SnapEngine, type SnapGuide } from "../utils/snap-engine";
 
 // Constants for snap functionality
 const DEFAULT_SHAPE_SIZE = 100;
@@ -56,13 +56,6 @@ export interface SelectToolContext extends ToolContext {
 	initialBounds: Bounds | null;
 	// Snap guides
 	snapGuides: SnapGuide[];
-}
-
-export interface SnapGuide {
-	type: "horizontal" | "vertical";
-	position: number;
-	start: Point;
-	end: Point;
 }
 
 // === Select Tool Events ===
@@ -307,6 +300,10 @@ export const selectToolMachine = setup({
 						guides = shapeSnapResult.guides || [];
 						snapped = true;
 					}
+
+					// Always generate smart guides when moving near other shapes
+					const smartGuides = snapEngine.generateSmartGuides(movingShape, targetShapes);
+					guides = [...guides, ...smartGuides];
 				}
 
 				// If no shape snapping occurred, try grid snapping

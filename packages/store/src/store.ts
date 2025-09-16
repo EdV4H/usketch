@@ -22,10 +22,14 @@ export interface SelectionIndicatorState {
 }
 
 export interface SnapGuide {
-	type: "horizontal" | "vertical";
+	type: "horizontal" | "vertical" | "distance";
 	position: number;
 	start: { x: number; y: number };
 	end: { x: number; y: number };
+	// Smart guide specific properties
+	distance?: number; // Distance value to display
+	label?: string; // Optional label for the guide
+	style?: "solid" | "dashed" | "dotted"; // Line style
 }
 
 export interface WhiteboardStore extends WhiteboardState {

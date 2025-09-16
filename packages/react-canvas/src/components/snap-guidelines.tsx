@@ -15,6 +15,29 @@ export const SnapGuidelines: React.FC<SnapGuidelinesProps> = ({ guides, camera }
 		return null;
 	}
 
+	const getStrokeDashArray = (style?: "solid" | "dashed" | "dotted") => {
+		switch (style) {
+			case "solid":
+				return "none";
+			case "dotted":
+				return "2,2";
+			case "dashed":
+			default:
+				return "5,5";
+		}
+	};
+
+	const getStrokeColor = (type: string) => {
+		switch (type) {
+			case "distance":
+				return "#FF9500"; // Orange for distance
+			case "vertical":
+			case "horizontal":
+			default:
+				return "#007AFF"; // Blue for alignment
+		}
+	};
+
 	return (
 		<svg
 			className="snap-guidelines"
@@ -31,19 +54,52 @@ export const SnapGuidelines: React.FC<SnapGuidelinesProps> = ({ guides, camera }
 			}}
 		>
 			<g transform={`translate(${camera.x}, ${camera.y}) scale(${camera.zoom})`}>
-				{guides.map((guide, index) => (
-					<line
-						key={`${guide.type}-${guide.position}-${index}`}
-						x1={guide.start.x}
-						y1={guide.start.y}
-						x2={guide.end.x}
-						y2={guide.end.y}
-						stroke="#007AFF"
-						strokeWidth={1 / camera.zoom}
-						strokeDasharray="5,5"
-						opacity={0.6}
-					/>
-				))}
+				{guides.map((guide, index) => {
+					const strokeColor = getStrokeColor(guide.type);
+					const strokeDasharray = getStrokeDashArray(guide.style);
+
+					return (
+						<g key={`${guide.type}-${guide.position}-${index}`}>
+							<line
+								x1={guide.start.x}
+								y1={guide.start.y}
+								x2={guide.end.x}
+								y2={guide.end.y}
+								stroke={strokeColor}
+								strokeWidth={1 / camera.zoom}
+								strokeDasharray={strokeDasharray}
+								opacity={0.6}
+							/>
+							{guide.type === "distance" && guide.distance !== undefined && (
+								<>
+									{/* Distance label background */}
+									<rect
+										x={(guide.start.x + guide.end.x) / 2 - 15}
+										y={(guide.start.y + guide.end.y) / 2 - 8}
+										width={30}
+										height={16}
+										fill="white"
+										opacity={0.9}
+										rx={2}
+										ry={2}
+									/>
+									{/* Distance label text */}
+									<text
+										x={(guide.start.x + guide.end.x) / 2}
+										y={(guide.start.y + guide.end.y) / 2 + 4}
+										fill={strokeColor}
+										fontSize={12 / camera.zoom}
+										textAnchor="middle"
+										fontFamily="monospace"
+										fontWeight="bold"
+									>
+										{guide.distance}
+									</text>
+								</>
+							)}
+						</g>
+					);
+				})}
 			</g>
 		</svg>
 	);
