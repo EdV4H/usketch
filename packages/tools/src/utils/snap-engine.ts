@@ -98,14 +98,17 @@ export class SnapEngine {
 		currentPosition: Point,
 	): SnapResult {
 		const snapPoints = this.findSnapPoints(movingShape, targetShapes, currentPosition);
-		const snappedPosition = this.calculateSnappedPosition(currentPosition, snapPoints);
+		const { position: snappedPosition, activeSnapPoints } = this.calculateSnappedPositionWithActive(
+			currentPosition,
+			snapPoints,
+		);
 
 		const snapped =
 			snappedPosition.x !== currentPosition.x || snappedPosition.y !== currentPosition.y;
 
 		return {
 			position: snappedPosition,
-			guides: snapped ? this.generateGuides(snapPoints, snappedPosition) : [],
+			guides: snapped ? this.generateGuidesFromActivePoints(activeSnapPoints, movingShape, targetShapes) : [],
 			snapped,
 		};
 	}
@@ -120,8 +123,8 @@ export class SnapEngine {
 			[key: string]: any;
 		}>,
 		_currentPosition: Point,
-	): Array<{ axis: "x" | "y"; value: number; priority: number }> {
-		const snapPoints: Array<{ axis: "x" | "y"; value: number; priority: number }> = [];
+	): Array<{ axis: "x" | "y"; value: number; priority: number; targetId?: string; edgeType?: string; targetPosition?: number }> {
+		const snapPoints: Array<{ axis: "x" | "y"; value: number; priority: number; targetId?: string; edgeType?: string; targetPosition?: number }> = [];
 		const width = movingShape.width || 0;
 		const height = movingShape.height || 0;
 
@@ -130,32 +133,33 @@ export class SnapEngine {
 
 			const targetWidth = target.width;
 			const targetHeight = target.height;
+			const targetId = target.id;
 
 			// Horizontal snap points (x-axis)
 			// Left edge to left edge
-			snapPoints.push({ axis: "x", value: target.x, priority: 1 });
+			snapPoints.push({ axis: "x", value: target.x, priority: 1, targetId, edgeType: "left-to-left", targetPosition: target.x });
 			// Right edge to right edge
-			snapPoints.push({ axis: "x", value: target.x + targetWidth - width, priority: 1 });
+			snapPoints.push({ axis: "x", value: target.x + targetWidth - width, priority: 1, targetId, edgeType: "right-to-right", targetPosition: target.x + targetWidth });
 			// Left edge to right edge
-			snapPoints.push({ axis: "x", value: target.x + targetWidth, priority: 2 });
+			snapPoints.push({ axis: "x", value: target.x + targetWidth, priority: 2, targetId, edgeType: "left-to-right", targetPosition: target.x + targetWidth });
 			// Right edge to left edge
-			snapPoints.push({ axis: "x", value: target.x - width, priority: 2 });
+			snapPoints.push({ axis: "x", value: target.x - width, priority: 2, targetId, edgeType: "right-to-left", targetPosition: target.x });
 			// Center to center
 			const targetCenterX = target.x + targetWidth / 2;
-			snapPoints.push({ axis: "x", value: targetCenterX - width / 2, priority: 3 });
+			snapPoints.push({ axis: "x", value: targetCenterX - width / 2, priority: 3, targetId, edgeType: "center-to-center", targetPosition: targetCenterX });
 
 			// Vertical snap points (y-axis)
 			// Top edge to top edge
-			snapPoints.push({ axis: "y", value: target.y, priority: 1 });
+			snapPoints.push({ axis: "y", value: target.y, priority: 1, targetId, edgeType: "top-to-top", targetPosition: target.y });
 			// Bottom edge to bottom edge
-			snapPoints.push({ axis: "y", value: target.y + targetHeight - height, priority: 1 });
+			snapPoints.push({ axis: "y", value: target.y + targetHeight - height, priority: 1, targetId, edgeType: "bottom-to-bottom", targetPosition: target.y + targetHeight });
 			// Top edge to bottom edge
-			snapPoints.push({ axis: "y", value: target.y + targetHeight, priority: 2 });
+			snapPoints.push({ axis: "y", value: target.y + targetHeight, priority: 2, targetId, edgeType: "top-to-bottom", targetPosition: target.y + targetHeight });
 			// Bottom edge to top edge
-			snapPoints.push({ axis: "y", value: target.y - height, priority: 2 });
+			snapPoints.push({ axis: "y", value: target.y - height, priority: 2, targetId, edgeType: "bottom-to-top", targetPosition: target.y });
 			// Center to center
 			const targetCenterY = target.y + targetHeight / 2;
-			snapPoints.push({ axis: "y", value: targetCenterY - height / 2, priority: 3 });
+			snapPoints.push({ axis: "y", value: targetCenterY - height / 2, priority: 3, targetId, edgeType: "center-to-center", targetPosition: targetCenterY });
 		});
 
 		return snapPoints;
@@ -190,10 +194,42 @@ export class SnapEngine {
 		return snappedPosition;
 	}
 
-	private findClosestSnapPoint(
+	private calculateSnappedPositionWithActive(
+		currentPosition: Point,
+		snapPoints: Array<{ axis: "x" | "y"; value: number; priority: number; targetId?: string; edgeType?: string }>,
+	): { position: Point; activeSnapPoints: Array<{ axis: "x" | "y"; value: number; priority: number; targetId?: string; edgeType?: string }> } {
+		const snappedPosition = { ...currentPosition };
+		const activeSnapPoints: Array<{ axis: "x" | "y"; value: number; priority: number; targetId?: string; edgeType?: string }> = [];
+
+		// Find closest snap point for each axis
+		const xSnapPoints = snapPoints.filter((p) => p.axis === "x");
+		const ySnapPoints = snapPoints.filter((p) => p.axis === "y");
+
+		// Snap X axis
+		if (xSnapPoints.length > 0) {
+			const closest = this.findClosestSnapPoint(currentPosition.x, xSnapPoints);
+			if (closest && Math.abs(currentPosition.x - closest.value) < this.snapThreshold) {
+				snappedPosition.x = closest.value;
+				activeSnapPoints.push({ ...closest, axis: "x" });
+			}
+		}
+
+		// Snap Y axis
+		if (ySnapPoints.length > 0) {
+			const closest = this.findClosestSnapPoint(currentPosition.y, ySnapPoints);
+			if (closest && Math.abs(currentPosition.y - closest.value) < this.snapThreshold) {
+				snappedPosition.y = closest.value;
+				activeSnapPoints.push({ ...closest, axis: "y" });
+			}
+		}
+
+		return { position: snappedPosition, activeSnapPoints };
+	}
+
+	private findClosestSnapPoint<T extends { value: number; priority: number }>(
 		value: number,
-		snapPoints: Array<{ value: number; priority: number }>,
-	): { value: number; priority: number } | null {
+		snapPoints: Array<T>,
+	): T | null {
 		if (snapPoints.length === 0) return null;
 
 		// Sort by distance and priority
@@ -244,6 +280,64 @@ export class SnapEngine {
 				style: "dashed",
 			});
 		}
+
+		return guides;
+	}
+
+	private generateGuidesFromActivePoints(
+		activeSnapPoints: Array<{ axis: "x" | "y"; value: number; priority: number; targetId?: string; edgeType?: string; targetPosition?: number }>,
+		movingShape: { x: number; y: number; width?: number; height?: number },
+		targetShapes: Array<{
+			x: number;
+			y: number;
+			width: number;
+			height: number;
+			[key: string]: any;
+		}>,
+	): SnapGuide[] {
+		const guides: SnapGuide[] = [];
+
+		activeSnapPoints.forEach((snapPoint) => {
+			if (snapPoint.targetPosition !== undefined) {
+				// Use the actual target position for the guide
+				if (snapPoint.axis === "x") {
+					guides.push({
+						type: "vertical",
+						position: snapPoint.targetPosition,
+						start: { x: snapPoint.targetPosition, y: -1000 },
+						end: { x: snapPoint.targetPosition, y: 1000 },
+						style: "dashed",
+					});
+				} else if (snapPoint.axis === "y") {
+					guides.push({
+						type: "horizontal",
+						position: snapPoint.targetPosition,
+						start: { x: -1000, y: snapPoint.targetPosition },
+						end: { x: 1000, y: snapPoint.targetPosition },
+						style: "dashed",
+					});
+				}
+			} else {
+				// Fallback to the snap value if no target position
+				if (snapPoint.axis === "x") {
+					guides.push({
+						type: "vertical",
+						position: snapPoint.value,
+						start: { x: snapPoint.value, y: -1000 },
+						end: { x: snapPoint.value, y: 1000 },
+						style: "dashed",
+					});
+				} else if (snapPoint.axis === "y") {
+					guides.push({
+						type: "horizontal",
+						position: snapPoint.value,
+						start: { x: -1000, y: snapPoint.value },
+						end: { x: 1000, y: snapPoint.value },
+						style: "dashed",
+					});
+				}
+			}
+		});
 
 		return guides;
 	}
