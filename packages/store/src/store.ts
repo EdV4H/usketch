@@ -150,7 +150,7 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 		snapThreshold: 8,
 		showGuides: true,
 		showDistances: true,
-		showAlignmentGuides: true,
+		showAlignmentGuides: false, // Changed default to false for better UX
 	},
 	effects: {},
 	effectToolConfig: {
