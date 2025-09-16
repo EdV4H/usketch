@@ -1,6 +1,7 @@
 import type { Camera, Effect, Shape, WhiteboardState } from "@usketch/shared-types";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
+import { calculateDistribution, type DistributionDirection } from "./distribution-utils";
 
 export type AlignmentDirection =
 	| "left"
@@ -9,6 +10,8 @@ export type AlignmentDirection =
 	| "bottom"
 	| "center-horizontal"
 	| "center-vertical";
+
+export type { DistributionDirection } from "./distribution-utils";
 
 export interface SelectionIndicatorState {
 	bounds: {
@@ -71,6 +74,11 @@ export interface WhiteboardStore extends WhiteboardState {
 	alignShapesBottom: () => void;
 	alignShapesCenterHorizontal: () => void;
 	alignShapesCenterVertical: () => void;
+
+	// Distribution actions
+	distributeShapes: (direction: DistributionDirection) => Promise<void>;
+	distributeShapesHorizontally: () => Promise<void>;
+	distributeShapesVertically: () => Promise<void>;
 
 	// Selection Indicator actions
 	setSelectionIndicator: (state: Partial<SelectionIndicatorState>) => void;
@@ -525,6 +533,38 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 
 			return { ...state, shapes: updatedShapes };
 		});
+	},
+
+	// Distribution actions
+	distributeShapes: async (direction: DistributionDirection) => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 3) return state; // Need at least 3 shapes
+
+			// Calculate distribution
+			const updates = calculateDistribution(selectedShapes, direction);
+
+			const updatedShapes = { ...state.shapes };
+			updates.forEach((position: { x: number; y: number }, shapeId: string) => {
+				const shape = state.shapes[shapeId];
+				if (shape) {
+					updatedShapes[shapeId] = { ...shape, ...position } as Shape;
+				}
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
+	distributeShapesHorizontally: async () => {
+		await whiteboardStore.getState().distributeShapes("horizontal");
+	},
+
+	distributeShapesVertically: async () => {
+		await whiteboardStore.getState().distributeShapes("vertical");
 	},
 
 	// Undo/Redo placeholders

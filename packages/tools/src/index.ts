@@ -39,5 +39,11 @@ export type {
 } from "./types/state";
 // Utils
 export * from "./utils/geometry";
-export type { SnapGuide } from "./utils/snap-engine";
-export { SnapEngine } from "./utils/snap-engine";
+export {
+	type AlignmentType,
+	type DistributionType,
+	SnapEngine,
+	type SnapGuide,
+	type SnapOptions,
+	type SnapResult,
+} from "./utils/snap-engine";

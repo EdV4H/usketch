@@ -35,6 +35,8 @@ export type AlignmentType =
 	| "center-vertical"
 	| "bottom";
 
+export type DistributionType = "horizontal" | "vertical";
+
 // Constants for smart guides
 const MAX_GUIDE_DISTANCE = 100; // Maximum distance to show distance guides
 const ALIGNMENT_THRESHOLD = 5; // Threshold for detecting alignment
@@ -366,6 +368,72 @@ export class SnapEngine {
 		});
 
 		return guides;
+	}
+
+	// Calculate distribution positions for multiple shapes
+	calculateDistribution(shapes: Shape[], distribution: DistributionType): Map<string, Point> {
+		const updates = new Map<string, Point>();
+
+		if (shapes.length < 3) return updates; // Need at least 3 shapes to distribute
+
+		// Sort shapes by position
+		const sortedShapes = [...shapes].sort((a, b) => {
+			if (distribution === "horizontal") {
+				return a.x - b.x;
+			} else {
+				return a.y - b.y;
+			}
+		});
+
+		if (distribution === "horizontal") {
+			// Get the leftmost and rightmost positions
+			const firstShape = sortedShapes[0];
+			const lastShape = sortedShapes[sortedShapes.length - 1];
+			const firstWidth = "width" in firstShape ? firstShape.width : 0;
+			const lastWidth = "width" in lastShape ? lastShape.width : 0;
+
+			const startX = firstShape.x + firstWidth / 2;
+			const endX = lastShape.x + lastWidth / 2;
+			const totalDistance = endX - startX;
+			const spacing = totalDistance / (sortedShapes.length - 1);
+
+			// Distribute shapes evenly between first and last
+			sortedShapes.forEach((shape, index) => {
+				if (index === 0 || index === sortedShapes.length - 1) {
+					// Keep first and last shapes in place
+					updates.set(shape.id, { x: shape.x, y: shape.y });
+				} else {
+					const width = "width" in shape ? shape.width : 0;
+					const centerX = startX + spacing * index;
+					updates.set(shape.id, { x: centerX - width / 2, y: shape.y });
+				}
+			});
+		} else {
+			// Vertical distribution
+			const firstShape = sortedShapes[0];
+			const lastShape = sortedShapes[sortedShapes.length - 1];
+			const firstHeight = "height" in firstShape ? firstShape.height : 0;
+			const lastHeight = "height" in lastShape ? lastShape.height : 0;
+
+			const startY = firstShape.y + firstHeight / 2;
+			const endY = lastShape.y + lastHeight / 2;
+			const totalDistance = endY - startY;
+			const spacing = totalDistance / (sortedShapes.length - 1);
+
+			// Distribute shapes evenly between first and last
+			sortedShapes.forEach((shape, index) => {
+				if (index === 0 || index === sortedShapes.length - 1) {
+					// Keep first and last shapes in place
+					updates.set(shape.id, { x: shape.x, y: shape.y });
+				} else {
+					const height = "height" in shape ? shape.height : 0;
+					const centerY = startY + spacing * index;
+					updates.set(shape.id, { x: shape.x, y: centerY - height / 2 });
+				}
+			});
+		}
+
+		return updates;
 	}
 
 	// Calculate alignment positions for multiple shapes
