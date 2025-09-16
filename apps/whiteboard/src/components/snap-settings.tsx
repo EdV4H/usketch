@@ -1,6 +1,6 @@
 import type { SnapSettings } from "@usketch/store";
 import type React from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useStore } from "../hooks/use-store";
 
 interface SnapSettingsProps {
@@ -10,6 +10,7 @@ interface SnapSettingsProps {
 export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 	const snapSettings = useStore((state) => state.snapSettings);
 	const updateSnapSettings = useStore((state) => state.updateSnapSettings);
+	const gridSizeInputId = useId();
 
 	const handleSettingChange = (key: keyof SnapSettings, value: boolean | number) => {
 		updateSnapSettings({ [key]: value });
@@ -228,9 +229,11 @@ export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 
 				{snapSettings.gridSnap && (
 					<div className="snap-setting-row">
-						<label className="snap-setting-label" htmlFor="grid-size-input">グリッドサイズ</label>
+						<label className="snap-setting-label" htmlFor={gridSizeInputId}>
+							グリッドサイズ
+						</label>
 						<input
-							id="grid-size-input"
+							id={gridSizeInputId}
 							type="number"
 							className="snap-number-input"
 							value={snapSettings.gridSize}

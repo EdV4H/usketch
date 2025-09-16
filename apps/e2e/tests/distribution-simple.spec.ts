@@ -45,7 +45,7 @@ test.describe("Simple Distribution Test", () => {
 		});
 
 		// Get only the last 3 shapes (the ones we just created)
-		const lastThreeShapes = shapes.slice(-3);
+		const _lastThreeShapes = shapes.slice(-3);
 
 		// Switch to select tool and select all
 		await page.click('[data-testid="tool-select"]');

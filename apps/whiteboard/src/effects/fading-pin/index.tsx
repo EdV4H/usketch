@@ -25,7 +25,7 @@ const FadingPinComponent: React.FC<EffectComponentProps<FadingPinEffect>> = ({
 	const size = (effect.size || 24) * camera.zoom;
 
 	// Calculate fade timing
-	const fadeDelay = effect.metadata?.["fadeDelay"] || 3000; // 3 seconds before fading
+	const fadeDelay = effect.metadata?.fadeDelay || 3000; // 3 seconds before fading
 	const fadeDuration = effect.duration || 5000; // Total 5 seconds lifetime
 	const fadeTime = fadeDuration - fadeDelay; // Time to fade out
 
@@ -162,7 +162,7 @@ export const fadingPinPlugin: EffectPlugin<FadingPinEffect> = {
 	},
 
 	validate: (effect) => {
-		return effect.type === "fading-pin" && typeof effect["color"] === "string";
+		return effect.type === "fading-pin" && typeof effect.color === "string";
 	},
 
 	interactive: true,

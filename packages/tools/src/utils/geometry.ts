@@ -165,7 +165,7 @@ export function getResizeHandleAtPoint(point: Point, shapeId: string): ResizeHan
 }
 
 // Get crop handle at point (not yet implemented)
-export function getCropHandleAtPoint(point: Point): any {
+export function getCropHandleAtPoint(_point: Point): any {
 	// TODO: Implement actual crop handle detection
 	return null;
 }
