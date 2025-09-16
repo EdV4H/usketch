@@ -198,7 +198,7 @@ export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 
 			<div className="snap-setting-group">
 				<div className="snap-setting-row">
-					<label className="snap-setting-label">スナップ有効</label>
+					<span className="snap-setting-label">スナップ有効</span>
 					<button
 						type="button"
 						className={`snap-toggle ${snapSettings.enabled ? "active" : ""}`}
@@ -214,7 +214,7 @@ export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 
 			<div className="snap-setting-group">
 				<div className="snap-setting-row">
-					<label className="snap-setting-label">グリッドスナップ</label>
+					<span className="snap-setting-label">グリッドスナップ</span>
 					<button
 						type="button"
 						className={`snap-toggle ${snapSettings.gridSnap ? "active" : ""}`}
@@ -228,8 +228,9 @@ export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 
 				{snapSettings.gridSnap && (
 					<div className="snap-setting-row">
-						<label className="snap-setting-label">グリッドサイズ</label>
+						<label className="snap-setting-label" htmlFor="grid-size-input">グリッドサイズ</label>
 						<input
+							id="grid-size-input"
 							type="number"
 							className="snap-number-input"
 							value={snapSettings.gridSize}
@@ -245,7 +246,7 @@ export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 
 			<div className="snap-setting-group">
 				<div className="snap-setting-row">
-					<label className="snap-setting-label">形状スナップ</label>
+					<span className="snap-setting-label">形状スナップ</span>
 					<button
 						type="button"
 						className={`snap-toggle ${snapSettings.shapeSnap ? "active" : ""}`}
@@ -260,7 +261,7 @@ export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 
 			<div className="snap-setting-group">
 				<div className="snap-setting-row">
-					<label className="snap-setting-label">スナップガイド</label>
+					<span className="snap-setting-label">スナップガイド</span>
 					<button
 						type="button"
 						className={`snap-toggle ${snapSettings.showGuides ? "active" : ""}`}
@@ -273,7 +274,7 @@ export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 				</div>
 
 				<div className="snap-setting-row">
-					<label className="snap-setting-label">整列ガイド</label>
+					<span className="snap-setting-label">整列ガイド</span>
 					<button
 						type="button"
 						className={`snap-toggle ${snapSettings.showAlignmentGuides ? "active" : ""}`}
@@ -288,7 +289,7 @@ export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 				</div>
 
 				<div className="snap-setting-row">
-					<label className="snap-setting-label">距離表示</label>
+					<span className="snap-setting-label">距離表示</span>
 					<button
 						type="button"
 						className={`snap-toggle ${snapSettings.showDistances ? "active" : ""}`}
