@@ -1,6 +1,7 @@
 import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import type React from "react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
+import { useToolMachine } from "../hooks/use-tool-machine";
 import type { ShapeLayerProps } from "../types";
 import { Shape } from "./shape";
 
@@ -11,141 +12,65 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 	className = "",
 }) => {
 	const shapeArray = Object.values(shapes);
-	const { selectedShapeIds, selectShape, deselectShape, updateShape } = useWhiteboardStore();
-	const [dragState, setDragState] = useState<{
-		isDragging: boolean;
-		draggedShapeId: string | null;
-		startX: number;
-		startY: number;
-		originalX: number;
-		originalY: number;
-		originalPositions?: Map<string, { x: number; y: number }>;
-		originalPoints?: Map<string, Array<{ x: number; y: number }>>;
-	}>({ isDragging: false, draggedShapeId: null, startX: 0, startY: 0, originalX: 0, originalY: 0 });
-
-	// State for drag selection
-	const [selectionBox, setSelectionBox] = useState<{
-		isSelecting: boolean;
-		startX: number;
-		startY: number;
-		currentX: number;
-		currentY: number;
-		originalSelection?: Set<string>; // Store original selection for modifier key handling
-	}>({ isSelecting: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
-
+	const { selectedShapeIds } = useWhiteboardStore();
+	const toolMachine = useToolMachine();
 	const svgRef = useRef<SVGSVGElement>(null);
 
-	// Track if we've moved during drag to distinguish between click and drag
-	const hasDraggedRef = useRef(false);
-	// Track if we've already handled the selection in pointerDown
-	const selectionHandledRef = useRef(false);
-
-	const handleShapeClick = (shapeId: string, e: React.MouseEvent) => {
-		// Disable ShapeLayer's own click handling - let XState handle everything
-		return;
+	// Helper function to convert screen coordinates to canvas coordinates
+	const screenToCanvas = (clientX: number, clientY: number) => {
+		if (!svgRef.current) return { x: 0, y: 0 };
+		const rect = svgRef.current.getBoundingClientRect();
+		return {
+			x: (clientX - rect.left - camera.x) / camera.zoom,
+			y: (clientY - rect.top - camera.y) / camera.zoom,
+		};
 	};
 
-	const handleShapePointerDown = useCallback((shapeId: string, e: React.PointerEvent) => {
-		// Disable ShapeLayer's own drag handling - let XState handle everything
-		return;
-	}, []);
+	const handleShapePointerDown = useCallback(
+		(shapeId: string, e: React.PointerEvent) => {
+			if (activeTool !== "select") return;
 
-	const handleShapePointerMove = useCallback(
-		(e: React.PointerEvent<SVGSVGElement>) => {
-			if (!dragState.isDragging || !dragState.draggedShapeId) return;
+			e.stopPropagation(); // Prevent background handler
+			const point = screenToCanvas(e.clientX, e.clientY);
 
-			const rect = e.currentTarget.getBoundingClientRect();
-			const x = (e.clientX - rect.left - camera.x) / camera.zoom;
-			const y = (e.clientY - rect.top - camera.y) / camera.zoom;
+			// Get shape at point to pass to XState
+			const shape = shapes[shapeId];
+			if (!shape) return;
 
-			const dx = x - dragState.startX;
-			const dy = y - dragState.startY;
+			// Send event to XState with shape context
+			toolMachine.handlePointerDown({ ...point, shapeId }, e);
 
-			// Mark that we've actually dragged (moved more than a threshold)
-			if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-				hasDraggedRef.current = true;
-			}
-
-			// Get the current selected shapes
-			const currentSelectedIds = whiteboardStore.getState().selectedShapeIds;
-
-			// Move all selected shapes together
-			if (currentSelectedIds.size > 1 && dragState.originalPositions) {
-				// Move all selected shapes based on their original positions
-				currentSelectedIds.forEach((shapeId) => {
-					const originalPos = dragState.originalPositions?.get(shapeId);
-					if (originalPos) {
-						const updates: any = {
-							x: originalPos.x + dx,
-							y: originalPos.y + dy,
-						};
-
-						// For freedraw shapes, also update points
-						const shape = shapes[shapeId];
-						if (
-							shape &&
-							shape.type === "freedraw" &&
-							"points" in shape &&
-							dragState.originalPoints
-						) {
-							const originalPoints = dragState.originalPoints.get(shapeId);
-							if (originalPoints) {
-								updates.points = originalPoints.map((p: { x: number; y: number }) => ({
-									x: p.x + dx,
-									y: p.y + dy,
-								}));
-							}
-						}
-
-						updateShape(shapeId, updates);
-					}
-				});
-			} else {
-				// Move single shape
-				const shape = shapes[dragState.draggedShapeId];
-				const updates: any = {
-					x: dragState.originalX + dx,
-					y: dragState.originalY + dy,
-				};
-
-				// For freedraw shapes, also update points
-				if (shape && shape.type === "freedraw" && "points" in shape && dragState.originalPoints) {
-					const originalPoints = dragState.originalPoints.get(dragState.draggedShapeId);
-					if (originalPoints) {
-						updates.points = originalPoints.map((p: { x: number; y: number }) => ({
-							x: p.x + dx,
-							y: p.y + dy,
-						}));
-					}
-				}
-
-				updateShape(dragState.draggedShapeId, updates);
+			// Capture pointer for drag tracking
+			if (svgRef.current) {
+				svgRef.current.setPointerCapture(e.pointerId);
 			}
 		},
-		[dragState, camera, updateShape, shapes],
+		[activeTool, shapes, camera, toolMachine],
 	);
 
-	const handleShapePointerUp = useCallback(
+	const handlePointerMove = useCallback(
 		(e: React.PointerEvent<SVGSVGElement>) => {
-			if (!dragState.isDragging) return;
+			if (activeTool !== "select") return;
 
-			setDragState({
-				isDragging: false,
-				draggedShapeId: null,
-				startX: 0,
-				startY: 0,
-				originalX: 0,
-				originalY: 0,
-			});
+			const point = screenToCanvas(e.clientX, e.clientY);
+			toolMachine.handlePointerMove(point, e);
+		},
+		[activeTool, camera, toolMachine],
+	);
 
-			// Release pointer capture from the SVG element
+	const handlePointerUp = useCallback(
+		(e: React.PointerEvent<SVGSVGElement>) => {
+			if (activeTool !== "select") return;
+
+			const point = screenToCanvas(e.clientX, e.clientY);
+			toolMachine.handlePointerUp(point, e);
+
+			// Release pointer capture
 			if (svgRef.current) {
 				svgRef.current.releasePointerCapture(e.pointerId);
-			} else {
-				e.currentTarget.releasePointerCapture(e.pointerId);
 			}
 		},
-		[dragState],
+		[activeTool, camera, toolMachine],
 	);
 
 	// Handle background pointer events for drag selection
@@ -157,110 +82,16 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			const target = e.target as Element;
 			if (target.tagName !== "rect" || !target.hasAttribute("data-background")) return;
 
-			const rect = e.currentTarget.getBoundingClientRect();
-			const x = (e.clientX - rect.left - camera.x) / camera.zoom;
-			const y = (e.clientY - rect.top - camera.y) / camera.zoom;
+			const point = screenToCanvas(e.clientX, e.clientY);
+			toolMachine.handlePointerDown(point, e);
 
-			// Store original selection for modifier key handling
-			const store = whiteboardStore.getState();
-			const originalSelection = new Set(store.selectedShapeIds);
-
-			setSelectionBox({
-				isSelecting: true,
-				startX: x,
-				startY: y,
-				currentX: x,
-				currentY: y,
-				originalSelection,
-			});
-
-			// Clear selection on background click (unless shift/cmd is held)
-			if (!e.shiftKey && !e.metaKey) {
-				store.clearSelection();
+			// Capture pointer for drag tracking
+			if (svgRef.current) {
+				svgRef.current.setPointerCapture(e.pointerId);
 			}
-
-			e.currentTarget.setPointerCapture(e.pointerId);
 			e.preventDefault();
 		},
-		[activeTool, camera],
-	);
-
-	const handleBackgroundPointerMove = useCallback(
-		(e: React.PointerEvent<SVGSVGElement>) => {
-			if (!selectionBox.isSelecting) return;
-
-			const rect = e.currentTarget.getBoundingClientRect();
-			const x = (e.clientX - rect.left - camera.x) / camera.zoom;
-			const y = (e.clientY - rect.top - camera.y) / camera.zoom;
-
-			setSelectionBox((prev) => ({
-				...prev,
-				currentX: x,
-				currentY: y,
-			}));
-
-			// Calculate selection bounds in real-time
-			const minX = Math.min(selectionBox.startX, x);
-			const minY = Math.min(selectionBox.startY, y);
-			const maxX = Math.max(selectionBox.startX, x);
-			const maxY = Math.max(selectionBox.startY, y);
-
-			// Find shapes within current selection box
-			const selectedIds: string[] = [];
-			Object.values(shapes).forEach((shape) => {
-				const shapeWidth = "width" in shape ? shape.width : 100;
-				const shapeHeight = "height" in shape ? shape.height : 100;
-
-				// Check if shape intersects with selection box
-				if (
-					shape.x < maxX &&
-					shape.x + shapeWidth > minX &&
-					shape.y < maxY &&
-					shape.y + shapeHeight > minY
-				) {
-					selectedIds.push(shape.id);
-				}
-			});
-
-			// Update store selection in real-time
-			const store = whiteboardStore.getState();
-			if (e.shiftKey || e.metaKey) {
-				// Add to existing selection (preserve original selection from drag start)
-				const originalSelection = selectionBox.originalSelection || new Set();
-				const combined = new Set([...originalSelection, ...selectedIds]);
-				store.setSelection(Array.from(combined));
-			} else {
-				// Replace selection
-				store.setSelection(selectedIds);
-			}
-		},
-		[
-			selectionBox.isSelecting,
-			selectionBox.startX,
-			selectionBox.startY,
-			selectionBox.originalSelection,
-			camera,
-			shapes,
-		],
-	);
-
-	const handleBackgroundPointerUp = useCallback(
-		(e: React.PointerEvent<SVGSVGElement>) => {
-			if (!selectionBox.isSelecting) return;
-
-			// Selection is already updated in real-time during move
-			// Just clean up the selection box state
-			setSelectionBox({
-				isSelecting: false,
-				startX: 0,
-				startY: 0,
-				currentX: 0,
-				currentY: 0,
-			});
-
-			e.currentTarget.releasePointerCapture(e.pointerId);
-		},
-		[selectionBox.isSelecting],
+		[activeTool, camera, toolMachine],
 	);
 
 	return (
@@ -277,21 +108,11 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 				width: "100%",
 				height: "100%",
 				overflow: "visible",
-				cursor: dragState.isDragging
-					? "grabbing"
-					: selectionBox.isSelecting
-						? "crosshair"
-						: "default",
+				cursor: "default", // Let XState control cursor
 			}}
 			onPointerDown={handleBackgroundPointerDown}
-			onPointerMove={(e) => {
-				handleShapePointerMove(e);
-				handleBackgroundPointerMove(e);
-			}}
-			onPointerUp={(e) => {
-				handleShapePointerUp(e);
-				handleBackgroundPointerUp(e);
-			}}
+			onPointerMove={handlePointerMove}
+			onPointerUp={handlePointerUp}
 		>
 			<g transform={`translate(${camera.x}, ${camera.y}) scale(${camera.zoom})`}>
 				{/* Invisible background rect for capturing pointer events */}
@@ -311,7 +132,6 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 						key={shape.id}
 						shape={shape}
 						isSelected={selectedShapeIds.has(shape.id)}
-						onClick={(e) => handleShapeClick(shape.id, e)}
 						onPointerDown={(e) => handleShapePointerDown(shape.id, e)}
 					/>
 				))}
