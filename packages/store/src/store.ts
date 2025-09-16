@@ -35,11 +35,22 @@ export interface SnapGuide {
 	style?: "solid" | "dashed" | "dotted"; // Line style
 }
 
+export interface SnapSettings {
+	enabled: boolean; // Master switch
+	gridSnap: boolean; // Grid snapping
+	gridSize: number; // Grid size
+	shapeSnap: boolean; // Shape to shape snapping
+	snapThreshold: number; // Snap threshold distance
+	showGuides: boolean; // Show alignment guides
+	showDistances: boolean; // Show distance indicators
+}
+
 export interface WhiteboardStore extends WhiteboardState {
 	// State additions
 	activeTool: string;
 	selectionIndicator: SelectionIndicatorState;
 	snapGuides: SnapGuide[];
+	snapSettings: SnapSettings;
 	effects: Record<string, Effect>;
 	effectToolConfig: {
 		effectType: string; // Allow any effect type for extensibility
@@ -94,6 +105,11 @@ export interface WhiteboardStore extends WhiteboardState {
 	setSnapGuides: (guides: SnapGuide[]) => void;
 	clearSnapGuides: () => void;
 
+	// Snap Settings actions
+	updateSnapSettings: (settings: Partial<SnapSettings>) => void;
+	toggleGridSnap: () => void;
+	toggleShapeSnap: () => void;
+
 	// Undo/Redo
 	undo: () => void;
 	redo: () => void;
@@ -125,6 +141,15 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 		selectedCount: 0,
 	},
 	snapGuides: [],
+	snapSettings: {
+		enabled: true,
+		gridSnap: false, // Changed default to false for better UX
+		gridSize: 20,
+		shapeSnap: true,
+		snapThreshold: 8,
+		showGuides: true,
+		showDistances: true,
+	},
 	effects: {},
 	effectToolConfig: {
 		effectType: "ripple",
@@ -565,6 +590,34 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 
 	distributeShapesVertically: async () => {
 		await whiteboardStore.getState().distributeShapes("vertical");
+	},
+
+	// Snap Settings actions
+	updateSnapSettings: (settings: Partial<SnapSettings>) => {
+		set((state) => ({
+			...state,
+			snapSettings: { ...state.snapSettings, ...settings },
+		}));
+	},
+
+	toggleGridSnap: () => {
+		set((state) => ({
+			...state,
+			snapSettings: {
+				...state.snapSettings,
+				gridSnap: !state.snapSettings.gridSnap,
+			},
+		}));
+	},
+
+	toggleShapeSnap: () => {
+		set((state) => ({
+			...state,
+			snapSettings: {
+				...state.snapSettings,
+				shapeSnap: !state.snapSettings.shapeSnap,
+			},
+		}));
 	},
 
 	// Undo/Redo placeholders

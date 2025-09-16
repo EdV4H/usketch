@@ -75,10 +75,25 @@ export type SelectToolEvent =
 			target?: string;
 			shiftKey?: boolean;
 			ctrlKey?: boolean;
+			altKey?: boolean;
 			metaKey?: boolean;
 	  }
-	| { type: "POINTER_MOVE"; point: Point; shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean }
-	| { type: "POINTER_UP"; point: Point; shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean }
+	| {
+			type: "POINTER_MOVE";
+			point: Point;
+			shiftKey?: boolean;
+			ctrlKey?: boolean;
+			altKey?: boolean;
+			metaKey?: boolean;
+	  }
+	| {
+			type: "POINTER_UP";
+			point: Point;
+			shiftKey?: boolean;
+			ctrlKey?: boolean;
+			altKey?: boolean;
+			metaKey?: boolean;
+	  }
 	| { type: "DOUBLE_CLICK"; point: Point; target?: string }
 	| { type: "KEY_DOWN"; key: string }
 	| { type: "ESCAPE" }
@@ -318,6 +333,9 @@ export const selectToolMachine = setup({
 			if (event.type !== "POINTER_MOVE" || !context.dragState || !context.dragState.isDragging)
 				return {};
 
+			// Check if Alt key is pressed to disable snapping
+			const isAltPressed = event.altKey || false;
+
 			const offset = {
 				x: event.point.x - context.dragState.startPoint.x,
 				y: event.point.y - context.dragState.startPoint.y,
@@ -337,7 +355,7 @@ export const selectToolMachine = setup({
 			let finalOffset = offset;
 			let guides: SnapGuide[] = [];
 
-			if (firstInitial && firstShape) {
+			if (firstInitial && firstShape && !isAltPressed) {
 				// Calculate the new position
 				const newPosition = {
 					x: firstInitial.x + offset.x,
@@ -358,8 +376,9 @@ export const selectToolMachine = setup({
 				// First try shape-to-shape snapping
 				let snappedPosition = newPosition;
 				let snapped = false;
+				const { snapSettings } = store;
 
-				if (targetShapes.length > 0) {
+				if (targetShapes.length > 0 && snapSettings.shapeSnap && snapSettings.enabled) {
 					// Calculate moving shape bounds
 					const movingShape = {
 						x: newPosition.x,
@@ -384,10 +403,12 @@ export const selectToolMachine = setup({
 				}
 
 				// If no shape snapping occurred, try grid snapping
-				if (!snapped) {
+				if (!snapped && snapSettings.gridSnap && snapSettings.enabled) {
 					const gridSnapResult = snapEngine.snap(snappedPosition, {
-						snapEnabled: true,
-						gridSnap: true,
+						snapEnabled: snapSettings.enabled,
+						gridSnap: snapSettings.gridSnap,
+						gridSize: snapSettings.gridSize,
+						snapThreshold: snapSettings.snapThreshold,
 					});
 
 					if (gridSnapResult.snapped) {
