@@ -397,9 +397,15 @@ export const selectToolMachine = setup({
 						snapped = true;
 					}
 
-					// Always generate smart guides when moving near other shapes
-					const smartGuides = snapEngine.generateSmartGuides(movingShape, targetShapes);
-					guides = [...guides, ...smartGuides];
+					// Generate smart guides when enabled and moving near other shapes
+					if (snapSettings.showGuides) {
+						const smartGuides = snapEngine.generateSmartGuides(movingShape, targetShapes);
+						// Filter distance guides based on showDistances setting
+						const filteredSmartGuides = snapSettings.showDistances
+							? smartGuides
+							: smartGuides.filter((g) => g.type !== "distance");
+						guides = [...guides, ...filteredSmartGuides];
+					}
 				}
 
 				// If no shape snapping occurred, try grid snapping
@@ -415,22 +421,24 @@ export const selectToolMachine = setup({
 						snappedPosition = gridSnapResult.position;
 						snapped = true;
 
-						// Generate grid snap guides
-						if (snappedPosition.x !== newPosition.x) {
-							guides.push({
-								type: "vertical",
-								position: snappedPosition.x,
-								start: { x: snappedPosition.x, y: -10000 },
-								end: { x: snappedPosition.x, y: 10000 },
-							});
-						}
-						if (snappedPosition.y !== newPosition.y) {
-							guides.push({
-								type: "horizontal",
-								position: snappedPosition.y,
-								start: { x: -10000, y: snappedPosition.y },
-								end: { x: 10000, y: snappedPosition.y },
-							});
+						// Generate grid snap guides if showGuides is enabled
+						if (snapSettings.showGuides) {
+							if (snappedPosition.x !== newPosition.x) {
+								guides.push({
+									type: "vertical",
+									position: snappedPosition.x,
+									start: { x: snappedPosition.x, y: -10000 },
+									end: { x: snappedPosition.x, y: 10000 },
+								});
+							}
+							if (snappedPosition.y !== newPosition.y) {
+								guides.push({
+									type: "horizontal",
+									position: snappedPosition.y,
+									start: { x: -10000, y: snappedPosition.y },
+									end: { x: 10000, y: snappedPosition.y },
+								});
+							}
 						}
 					}
 				}
@@ -468,8 +476,13 @@ export const selectToolMachine = setup({
 				}
 			});
 
-			// Update snap guides in store
-			whiteboardStore.getState().setSnapGuides(guides);
+			// Update snap guides in store (only if guides are enabled)
+			const { snapSettings } = whiteboardStore.getState();
+			if (snapSettings.showGuides) {
+				whiteboardStore.getState().setSnapGuides(guides);
+			} else {
+				whiteboardStore.getState().setSnapGuides([]);
+			}
 
 			return {
 				dragState: {
