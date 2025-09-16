@@ -136,7 +136,9 @@ export const selectToolMachine = setup({
 		}),
 
 		startDragging: assign(({ context }) => {
-			if (!context.dragState) return {};
+			if (!context.dragState) {
+				return {};
+			}
 			return {
 				dragState: {
 					...context.dragState,
@@ -658,10 +660,12 @@ export const selectToolMachine = setup({
 			return !!shape;
 		},
 
-		isPointOnSelectedShape: ({ context, event }) => {
+		isPointOnSelectedShape: ({ event }) => {
 			if (!("point" in event)) return false;
 			const shape = getShapeAtPoint(event.point!);
-			const result = shape ? context.selectedIds.has(shape.id) : false;
+			// Use Zustand store for selected IDs instead of context
+			const store = whiteboardStore.getState();
+			const result = shape ? store.selectedShapeIds.has(shape.id) : false;
 			return result;
 		},
 
@@ -798,19 +802,19 @@ export const selectToolMachine = setup({
 
 		// === 準備状態: ドラッグ前の準備 ===
 		readyToDrag: {
+			always: [
+				{
+					// Automatically transition to translating if hasMovedEnough
+					target: "translating",
+					guard: "hasMovedEnough",
+					actions: "startDragging",
+				},
+			],
 			on: {
-				POINTER_MOVE: [
-					{
-						// Check movement threshold first
-						actions: "checkMovementThreshold",
-					},
-					{
-						// If moved enough, start dragging
-						target: "translating",
-						guard: "hasMovedEnough",
-						actions: "startDragging",
-					},
-				],
+				POINTER_MOVE: {
+					// Check movement threshold
+					actions: "checkMovementThreshold",
+				},
 				POINTER_UP: {
 					target: "idle",
 				},
@@ -823,7 +827,7 @@ export const selectToolMachine = setup({
 
 		// === ドラッグ状態 ===
 		translating: {
-			entry: ["setCursorMove"],
+			entry: "setCursorMove",
 			exit: "commitTranslation",
 
 			on: {

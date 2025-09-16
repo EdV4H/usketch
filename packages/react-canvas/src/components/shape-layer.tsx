@@ -43,7 +43,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			// Send event to XState with shape context
 			toolMachine.handlePointerDown({ ...point, shapeId }, e);
 
-			// Capture pointer for drag tracking
+			// Capture pointer for drag tracking on SVG element
 			if (svgRef.current) {
 				svgRef.current.setPointerCapture(e.pointerId);
 			}
