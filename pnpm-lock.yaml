@@ -228,6 +228,9 @@ importers:
       '@usketch/tools':
         specifier: workspace:*
         version: link:../tools
+      '@xstate/react':
+        specifier: 6.0.0
+        version: 6.0.0(@types/react@19.1.13)(react@19.1.1)(xstate@5.21.0)
       framer-motion:
         specifier: 11.18.2
         version: 11.18.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -3062,6 +3065,16 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
+  '@xstate/react@6.0.0(@types/react@19.1.13)(react@19.1.1)(xstate@5.21.0)':
+    dependencies:
+      react: 19.1.1
+      use-isomorphic-layout-effect: 1.2.1(@types/react@19.1.13)(react@19.1.1)
+      use-sync-external-store: 1.5.0(react@19.1.1)
+    optionalDependencies:
+      xstate: 5.21.0
+    transitivePeerDependencies:
+      - '@types/react'
+
   acorn-jsx@5.3.2(acorn@8.15.0):
     dependencies:
       acorn: 8.15.0
@@ -4038,6 +4051,12 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.1.13
 
+  use-isomorphic-layout-effect@1.2.1(@types/react@19.1.13)(react@19.1.1):
+    dependencies:
+      react: 19.1.1
+    optionalDependencies:
+      '@types/react': 19.1.13
+
   use-sync-external-store@1.5.0(react@18.3.1):
     dependencies:
       react: 18.3.1
@@ -4045,7 +4064,6 @@ snapshots:
   use-sync-external-store@1.5.0(react@19.1.1):
     dependencies:
       react: 19.1.1
-    optional: true
 
   uuid@13.0.0: {}
 
