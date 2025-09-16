@@ -101,11 +101,13 @@ export const selectToolMachine = setup({
 			cursor: "move",
 		}),
 
-		prepareForDrag: assign(({ event }) => {
+		prepareForDrag: assign(({ event, context }) => {
 			if (event.type !== "POINTER_DOWN") return {};
 			// Prepare drag state but don't start dragging yet
 			const store = whiteboardStore.getState();
 			const selectedIds = store.selectedShapeIds;
+
+			console.log("prepareForDrag: selectedIds from store=", Array.from(selectedIds));
 
 			// Record initial positions and points of all selected shapes
 			const positions = new Map<string, Point>();
@@ -131,12 +133,16 @@ export const selectToolMachine = setup({
 					initialPoints: points,
 				},
 				hasMovedEnough: false,
-				selectedIds: new Set(selectedIds), // Local copy for machine state
+				selectedIds: new Set(selectedIds), // Update selectedIds from store
 			};
 		}),
 
 		startDragging: assign(({ context }) => {
 			if (!context.dragState) return {};
+			console.log(
+				"startDragging: transitioning to drag mode, selectedIds=",
+				context.selectedIds?.size || 0,
+			);
 			return {
 				dragState: {
 					...context.dragState,
@@ -145,7 +151,7 @@ export const selectToolMachine = setup({
 			};
 		}),
 
-		selectShape: assign(({ event, context }) => {
+		selectShape: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
 			const shape = getShapeAtPoint(event.point);
 			if (!shape) return {};
@@ -299,6 +305,13 @@ export const selectToolMachine = setup({
 			const dy = event.point.y - context.dragState.startPoint.y;
 			const distance = Math.sqrt(dx * dx + dy * dy);
 
+			console.log(
+				"checkMovementThreshold: distance=",
+				distance,
+				"selectedIds=",
+				context.selectedIds?.size || 0,
+			);
+
 			// Check if moved enough to start dragging (3 pixels threshold)
 			if (distance > 3) {
 				return {
@@ -316,13 +329,24 @@ export const selectToolMachine = setup({
 			if (event.type !== "POINTER_MOVE" || !context.dragState || !context.dragState.isDragging)
 				return {};
 
+			console.log(
+				"updateTranslation: selectedIds=",
+				context.selectedIds?.size || 0,
+				"isDragging=",
+				context.dragState?.isDragging,
+			);
+
 			const offset = {
 				x: event.point.x - context.dragState.startPoint.x,
 				y: event.point.y - context.dragState.startPoint.y,
 			};
 
 			// Get the first shape position for snapping
-			const firstShapeId = Array.from(context.selectedIds)[0];
+			const selectedShapeIds =
+				context.selectedIds && context.selectedIds.size > 0
+					? context.selectedIds
+					: whiteboardStore.getState().selectedShapeIds;
+			const firstShapeId = Array.from(selectedShapeIds)[0];
 			const firstInitial = firstShapeId
 				? context.dragState.initialPositions.get(firstShapeId)
 				: null;
@@ -344,7 +368,7 @@ export const selectToolMachine = setup({
 				// Filter and convert to snappable shapes
 				const targetShapes: SnappableShape[] = [];
 				for (const shape of allShapes) {
-					if (!context.selectedIds.has(shape.id) && hasSnapDimensions(shape)) {
+					if (!selectedShapeIds.has(shape.id) && hasSnapDimensions(shape)) {
 						targetShapes.push(shape);
 					}
 				}
@@ -416,7 +440,7 @@ export const selectToolMachine = setup({
 			}
 
 			// Apply translation to all selected shapes
-			context.selectedIds.forEach((id) => {
+			selectedShapeIds.forEach((id) => {
 				const initial = context.dragState?.initialPositions.get(id);
 				const shape = getShape(id);
 				if (initial && shape) {
@@ -464,7 +488,11 @@ export const selectToolMachine = setup({
 			if (!context.dragState) return {};
 
 			// Restore original positions for all shapes
-			context.selectedIds.forEach((id) => {
+			const selectedShapeIds =
+				context.selectedIds && context.selectedIds.size > 0
+					? context.selectedIds
+					: whiteboardStore.getState().selectedShapeIds;
+			selectedShapeIds.forEach((id) => {
 				const originalPos = context.dragState?.initialPositions.get(id);
 				const shape = getShape(id);
 				if (originalPos && shape) {
@@ -536,7 +564,7 @@ export const selectToolMachine = setup({
 		},
 
 		// Resize actions
-		startResize: assign(({ event }) => {
+		startResize: assign(({ event, context }) => {
 			if (event.type !== "POINTER_DOWN") return {};
 
 			// Get the selected shape from store
@@ -733,9 +761,9 @@ export const selectToolMachine = setup({
 						actions: ["selectShape", "prepareForDrag"],
 					},
 					{
-						// Click on empty space - start brush selection
+						// Click on empty space - clear selection and start brush selection
 						target: "selecting.brush",
-						actions: "startBrushSelection",
+						actions: ["clearSelection", "startBrushSelection"],
 					},
 				],
 
@@ -911,5 +939,6 @@ export const selectToolMachine = setup({
 });
 
 export function createSelectTool() {
+	// Machine will sync with store on actions
 	return selectToolMachine;
 }

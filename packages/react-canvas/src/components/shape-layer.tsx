@@ -37,6 +37,8 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			const shape = shapes[shapeId];
 			if (!shape) return;
 
+			console.log("ShapeLayer.handleShapePointerDown:", { shapeId, point });
+
 			// Send event to XState with shape context
 			toolMachine.handlePointerDown({ ...point, shapeId }, e);
 
@@ -53,6 +55,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			if (activeTool !== "select") return;
 
 			const point = screenToCanvas(e.clientX, e.clientY);
+			console.log("ShapeLayer.handlePointerMove:", { point });
 			toolMachine.handlePointerMove(point, e);
 		},
 		[activeTool, camera, toolMachine],
@@ -82,7 +85,11 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			const target = e.target as Element;
 			if (target.tagName !== "rect" || !target.hasAttribute("data-background")) return;
 
+			// Don't handle if already handled by WhiteboardCanvas
+			e.stopPropagation();
 			const point = screenToCanvas(e.clientX, e.clientY);
+
+			// Send pointer down event to XState machine (it handles selection clearing/brush)
 			toolMachine.handlePointerDown(point, e);
 
 			// Capture pointer for drag tracking
@@ -91,7 +98,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			}
 			e.preventDefault();
 		},
-		[activeTool, camera, toolMachine],
+		[activeTool, screenToCanvas, toolMachine],
 	);
 
 	return (
@@ -109,6 +116,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 				height: "100%",
 				overflow: "visible",
 				cursor: "default", // Let XState control cursor
+				pointerEvents: "all", // Ensure SVG receives events
 			}}
 			onPointerDown={handleBackgroundPointerDown}
 			onPointerMove={handlePointerMove}
