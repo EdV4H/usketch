@@ -1,13 +1,14 @@
 import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
 import { createSelectTool, getEffectTool } from "@usketch/tools";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { createActor } from "xstate";
 
 export const useToolMachine = () => {
-	const { currentTool } = useWhiteboardStore();
+	const { currentTool, shapes, selectedShapeIds } = useWhiteboardStore();
 	const selectToolActorRef = useRef<any>(null);
 
+	// Create select tool machine with Zustand store data as input
 	useEffect(() => {
 		// Create and start select tool actor when needed
 		if (currentTool === "select" && !selectToolActorRef.current) {
@@ -29,13 +30,24 @@ export const useToolMachine = () => {
 		};
 	}, [currentTool]);
 
+	// Get state from XState actor
+	const dragState = useMemo(() => {
+		if (!selectToolActorRef.current) return null;
+		return selectToolActorRef.current.getSnapshot().context.dragState;
+	}, [selectToolActorRef.current]);
+
+	const snapGuides = useMemo(() => {
+		if (!selectToolActorRef.current) return [];
+		return selectToolActorRef.current.getSnapshot().context.snapGuides || [];
+	}, [selectToolActorRef.current]);
+
 	const sendEvent = (event: any) => {
 		if (selectToolActorRef.current && currentTool === "select") {
 			selectToolActorRef.current.send(event);
 		}
 	};
 
-	const handlePointerDown = (point: Point, e: React.PointerEvent) => {
+	const handlePointerDown = (point: Point & { shapeId?: string }, e: React.PointerEvent) => {
 		if (currentTool === "select") {
 			// Check if we're clicking on a resize handle
 			const target = e.target as HTMLElement;
@@ -96,6 +108,8 @@ export const useToolMachine = () => {
 		handlePointerUp,
 		handleKeyDown,
 		sendEvent,
+		dragState,
+		snapGuides,
 		isSelectTool: currentTool === "select",
 		isEffectTool: currentTool === "effect",
 	};
