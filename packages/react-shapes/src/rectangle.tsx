@@ -44,8 +44,6 @@ export const Rectangle: React.FC<RectangleProps> = ({
 				style={{ cursor: "pointer" }}
 				onClick={onClick}
 				onPointerDown={onPointerDown}
-				onPointerMove={onPointerMove}
-				onPointerUp={onPointerUp}
 			/>
 			{isSelected && (
 				<rect

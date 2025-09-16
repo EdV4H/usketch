@@ -59,8 +59,6 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 				style={{ cursor: "pointer" }}
 				onClick={onClick}
 				onPointerDown={onPointerDown}
-				onPointerMove={onPointerMove}
-				onPointerUp={onPointerUp}
 			/>
 			<path
 				d={pathData}
