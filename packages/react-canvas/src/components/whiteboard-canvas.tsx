@@ -44,7 +44,7 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">
 				overflow: "hidden",
 				cursor: interactions.cursor,
 			}}
-			{...interactions.getCanvasProps()}
+			onWheel={interactions.getCanvasProps().onWheel}
 		>
 			<BackgroundLayer camera={camera} options={background} />
 			<ShapeLayer shapes={shapes} camera={camera} activeTool={interactions.activeTool} />

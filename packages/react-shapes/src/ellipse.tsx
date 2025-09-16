@@ -15,8 +15,6 @@ export const Ellipse: React.FC<EllipseProps> = ({
 	isSelected = false,
 	onClick,
 	onPointerDown,
-	onPointerMove,
-	onPointerUp,
 }) => {
 	const cx = shape.x + shape.width / 2;
 	const cy = shape.y + shape.height / 2;
@@ -47,8 +45,6 @@ export const Ellipse: React.FC<EllipseProps> = ({
 				style={{ cursor: "pointer" }}
 				onClick={onClick}
 				onPointerDown={onPointerDown}
-				onPointerMove={onPointerMove}
-				onPointerUp={onPointerUp}
 			/>
 			{isSelected && (
 				<ellipse
