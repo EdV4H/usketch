@@ -398,12 +398,25 @@ export const selectToolMachine = setup({
 					}
 
 					// Generate smart guides when enabled and moving near other shapes
-					if (snapSettings.showGuides) {
+					if (
+						snapSettings.showGuides ||
+						snapSettings.showAlignmentGuides ||
+						snapSettings.showDistances
+					) {
 						const smartGuides = snapEngine.generateSmartGuides(movingShape, targetShapes);
-						// Filter distance guides based on showDistances setting
-						const filteredSmartGuides = snapSettings.showDistances
-							? smartGuides
-							: smartGuides.filter((g) => g.type !== "distance");
+						// Filter guides based on settings
+						const filteredSmartGuides = smartGuides.filter((g) => {
+							// Filter distance guides based on showDistances setting
+							if (g.type === "distance") {
+								return snapSettings.showDistances;
+							}
+							// Filter alignment guides (solid lines) based on showAlignmentGuides setting
+							if (g.style === "solid") {
+								return snapSettings.showAlignmentGuides;
+							}
+							// Other guides (dashed) controlled by showGuides
+							return snapSettings.showGuides;
+						});
 						guides = [...guides, ...filteredSmartGuides];
 					}
 				}
@@ -476,9 +489,13 @@ export const selectToolMachine = setup({
 				}
 			});
 
-			// Update snap guides in store (only if guides are enabled)
+			// Update snap guides in store (only if any guide type is enabled)
 			const { snapSettings } = whiteboardStore.getState();
-			if (snapSettings.showGuides) {
+			if (
+				snapSettings.showGuides ||
+				snapSettings.showAlignmentGuides ||
+				snapSettings.showDistances
+			) {
 				whiteboardStore.getState().setSnapGuides(guides);
 			} else {
 				whiteboardStore.getState().setSnapGuides([]);

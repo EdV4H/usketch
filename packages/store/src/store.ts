@@ -41,8 +41,9 @@ export interface SnapSettings {
 	gridSize: number; // Grid size
 	shapeSnap: boolean; // Shape to shape snapping
 	snapThreshold: number; // Snap threshold distance
-	showGuides: boolean; // Show alignment guides
+	showGuides: boolean; // Show snap guides (dashed lines when snapped)
 	showDistances: boolean; // Show distance indicators
+	showAlignmentGuides: boolean; // Show alignment guides (solid lines)
 }
 
 export interface WhiteboardStore extends WhiteboardState {
@@ -149,6 +150,7 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 		snapThreshold: 8,
 		showGuides: true,
 		showDistances: true,
+		showAlignmentGuides: true,
 	},
 	effects: {},
 	effectToolConfig: {

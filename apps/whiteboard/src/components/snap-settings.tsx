@@ -1,5 +1,4 @@
 import type { SnapSettings } from "@usketch/store";
-import { whiteboardStore } from "@usketch/store";
 import type React from "react";
 import { useState } from "react";
 import { useStore } from "../hooks/use-store";
@@ -261,12 +260,27 @@ export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 
 			<div className="snap-setting-group">
 				<div className="snap-setting-row">
-					<label className="snap-setting-label">ガイド表示</label>
+					<label className="snap-setting-label">スナップガイド</label>
 					<button
 						type="button"
 						className={`snap-toggle ${snapSettings.showGuides ? "active" : ""}`}
 						onClick={() => handleSettingChange("showGuides", !snapSettings.showGuides)}
-						aria-label="ガイド表示有効/無効"
+						aria-label="スナップガイド有効/無効"
+						disabled={!snapSettings.enabled}
+					>
+						<div className="snap-toggle-handle" />
+					</button>
+				</div>
+
+				<div className="snap-setting-row">
+					<label className="snap-setting-label">整列ガイド</label>
+					<button
+						type="button"
+						className={`snap-toggle ${snapSettings.showAlignmentGuides ? "active" : ""}`}
+						onClick={() =>
+							handleSettingChange("showAlignmentGuides", !snapSettings.showAlignmentGuides)
+						}
+						aria-label="整列ガイド有効/無効"
 						disabled={!snapSettings.enabled}
 					>
 						<div className="snap-toggle-handle" />
