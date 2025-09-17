@@ -40,6 +40,9 @@ export type DistributionType = "horizontal" | "vertical";
 // Constants for smart guides
 const MAX_GUIDE_DISTANCE = 100; // Maximum distance to show distance guides
 const ALIGNMENT_THRESHOLD = 5; // Threshold for detecting alignment
+const EQUAL_SPACING_THRESHOLD = 5; // Tolerance for equal spacing detection
+const ALIGNMENT_Y_TOLERANCE = 50; // Y-axis tolerance for horizontal alignment detection
+const ALIGNMENT_X_TOLERANCE = 50; // X-axis tolerance for vertical alignment detection
 
 export class SnapEngine {
 	private gridSize = 20;
@@ -200,6 +203,8 @@ export class SnapEngine {
 			});
 
 			// Corner snapping (x-axis)
+			// Note: Left corners (TL, BL) share same X value, as do right corners (TR, BR)
+			// This is intentional to enable corner-to-corner alignment
 			// Top-left corner to top-left
 			snapPoints.push({
 				axis: "x",
@@ -218,7 +223,7 @@ export class SnapEngine {
 				edgeType: "corner-tr-to-tr",
 				targetPosition: target.x + targetWidth,
 			});
-			// Bottom-left corner to bottom-left
+			// Bottom-left corner to bottom-left (same X as TL)
 			snapPoints.push({
 				axis: "x",
 				value: target.x,
@@ -227,7 +232,7 @@ export class SnapEngine {
 				edgeType: "corner-bl-to-bl",
 				targetPosition: target.x,
 			});
-			// Bottom-right corner to bottom-right
+			// Bottom-right corner to bottom-right (same X as TR)
 			snapPoints.push({
 				axis: "x",
 				value: target.x + targetWidth - width,
@@ -286,6 +291,8 @@ export class SnapEngine {
 			});
 
 			// Corner snapping (y-axis)
+			// Note: Top corners (TL, TR) share same Y value, as do bottom corners (BL, BR)
+			// This is intentional to enable corner-to-corner alignment
 			// Top-left corner to top-left
 			snapPoints.push({
 				axis: "y",
@@ -295,7 +302,7 @@ export class SnapEngine {
 				edgeType: "corner-tl-to-tl",
 				targetPosition: target.y,
 			});
-			// Top-right corner to top-right
+			// Top-right corner to top-right (same Y as TL)
 			snapPoints.push({
 				axis: "y",
 				value: target.y,
@@ -313,7 +320,7 @@ export class SnapEngine {
 				edgeType: "corner-bl-to-bl",
 				targetPosition: target.y + targetHeight,
 			});
-			// Bottom-right corner to bottom-right
+			// Bottom-right corner to bottom-right (same Y as BL)
 			snapPoints.push({
 				axis: "y",
 				value: target.y + targetHeight - height,
@@ -623,7 +630,6 @@ export class SnapEngine {
 		}>,
 	): SnapGuide[] {
 		const guides: SnapGuide[] = [];
-		const SPACING_THRESHOLD = 5; // Tolerance for equal spacing detection
 
 		// Find pairs of shapes with similar spacing
 		if (targetShapes.length >= 2) {
@@ -645,7 +651,7 @@ export class SnapEngine {
 
 					// Check if shapes are horizontally aligned (roughly same Y position)
 					const yDiff = Math.abs(shape1.y - shape2.y);
-					if (yDiff < 50) {
+					if (yDiff < ALIGNMENT_Y_TOLERANCE) {
 						if (shape1Right < shape2.x) {
 							const spacing = shape2.x - shape1Right;
 							horizontalSpacings.push({
@@ -674,7 +680,7 @@ export class SnapEngine {
 					const targetRight = target.x + target.width;
 					// Check if moving shape is aligned with this target
 					const yDiff = Math.abs(movingShape.y - target.y);
-					if (yDiff < 50) {
+					if (yDiff < ALIGNMENT_Y_TOLERANCE) {
 						// Check spacing between moving shape and target
 						let currentSpacing = 0;
 						if (movingRight < target.x) {
@@ -684,7 +690,10 @@ export class SnapEngine {
 						}
 
 						// If spacing is similar, show equal spacing indicator
-						if (Math.abs(currentSpacing - spacing) < SPACING_THRESHOLD && currentSpacing > 0) {
+						if (
+							Math.abs(currentSpacing - spacing) < EQUAL_SPACING_THRESHOLD &&
+							currentSpacing > 0
+						) {
 							// Add visual indicator for equal spacing
 							guides.push({
 								type: "distance",
@@ -724,7 +733,7 @@ export class SnapEngine {
 
 					// Check if shapes are vertically aligned (roughly same X position)
 					const xDiff = Math.abs(shape1.x - shape2.x);
-					if (xDiff < 50) {
+					if (xDiff < ALIGNMENT_X_TOLERANCE) {
 						if (shape1Bottom < shape2.y) {
 							const spacing = shape2.y - shape1Bottom;
 							verticalSpacings.push({
@@ -753,7 +762,7 @@ export class SnapEngine {
 					const targetBottom = target.y + target.height;
 					// Check if moving shape is aligned with this target
 					const xDiff = Math.abs(movingShape.x - target.x);
-					if (xDiff < 50) {
+					if (xDiff < ALIGNMENT_X_TOLERANCE) {
 						// Check spacing between moving shape and target
 						let currentSpacing = 0;
 						if (movingBottom < target.y) {
@@ -763,7 +772,10 @@ export class SnapEngine {
 						}
 
 						// If spacing is similar, show equal spacing indicator
-						if (Math.abs(currentSpacing - spacing) < SPACING_THRESHOLD && currentSpacing > 0) {
+						if (
+							Math.abs(currentSpacing - spacing) < EQUAL_SPACING_THRESHOLD &&
+							currentSpacing > 0
+						) {
 							// Add visual indicator for equal spacing
 							guides.push({
 								type: "distance",
