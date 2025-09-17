@@ -6,7 +6,8 @@ describe("SnapEngine", () => {
 	let snapEngine: SnapEngine;
 
 	beforeEach(() => {
-		snapEngine = new SnapEngine(10, 10); // gridSize=10, snapThreshold=10 (increased for testing)
+		// Using default parameters with custom calculation range for testing
+		snapEngine = new SnapEngine(10, 10, 200, 200); // gridSize=10, snapThreshold=10, snapCalcRange=200, viewportMargin=200
 	});
 
 	describe("Grid Snapping", () => {
@@ -321,6 +322,89 @@ describe("SnapEngine", () => {
 			if (stats.quadTreeStats) {
 				expect(stats.quadTreeStats.totalItems).toBe(0);
 			}
+		});
+	});
+
+	describe("Snap Calculation Range Settings", () => {
+		it("should update snap calculation range", () => {
+			snapEngine.updateSnapRange(500, 300);
+			const settings = snapEngine.getSnapRangeSettings();
+
+			expect(settings.snapCalculationRange).toBe(500);
+			expect(settings.viewportMargin).toBe(300);
+		});
+
+		it("should update only snapCalculationRange when viewportMargin not provided", () => {
+			snapEngine.updateSnapRange(600);
+			const settings = snapEngine.getSnapRangeSettings();
+
+			expect(settings.snapCalculationRange).toBe(600);
+			expect(settings.viewportMargin).toBe(200); // Should remain unchanged
+		});
+
+		it("should update only viewportMargin when snapCalculationRange not provided", () => {
+			snapEngine.updateSnapRange(undefined, 400);
+			const settings = snapEngine.getSnapRangeSettings();
+
+			expect(settings.snapCalculationRange).toBe(200); // Should remain unchanged
+			expect(settings.viewportMargin).toBe(400);
+		});
+
+		it("should use custom snapCalculationRange in snapToShapes", () => {
+			const targetShapes = [
+				{ id: "far-shape", x: 400, y: 400, width: 100, height: 100 }, // Far shape (400 units away)
+			];
+
+			const movingShape = { x: 0, y: 0, width: 50, height: 50 };
+
+			// With default range (200), should not snap to far shape
+			let result = snapEngine.snapToShapes(movingShape, targetShapes, { x: 0, y: 0 });
+			expect(result.snapped).toBe(false);
+
+			// With custom range (500), should snap to far shape
+			result = snapEngine.snapToShapes(
+				movingShape,
+				targetShapes,
+				{ x: 0, y: 0 },
+				{
+					snapCalculationRange: 500,
+				},
+			);
+			expect(result.snapped).toBe(false); // Still too far for actual snapping
+
+			// But the shape should be considered as a candidate
+			// Move closer within snap threshold
+			result = snapEngine.snapToShapes(
+				movingShape,
+				targetShapes,
+				{ x: 395, y: 395 },
+				{
+					snapCalculationRange: 500,
+				},
+			);
+			expect(result.snapped).toBe(true);
+			expect(result.position.x).toBe(400); // Snapped to shape edge
+			expect(result.position.y).toBe(400);
+		});
+
+		it("should clear cache when snapCalculationRange changes", () => {
+			const targetShapes = [{ id: "shape1", x: 100, y: 100, width: 100, height: 100 }];
+
+			// First call should cache
+			snapEngine.snapToShapes({ x: 95, y: 95, width: 50, height: 50 }, targetShapes, {
+				x: 95,
+				y: 95,
+			});
+
+			const stats1 = snapEngine.getPerformanceStats();
+			const cacheSize1 = stats1.cacheSize;
+			expect(cacheSize1).toBeGreaterThan(0);
+
+			// Update range should clear cache
+			snapEngine.updateSnapRange(300);
+
+			const stats2 = snapEngine.getPerformanceStats();
+			expect(stats2.cacheSize).toBe(0);
 		});
 	});
 

@@ -9,6 +9,9 @@ export interface SnapOptions {
 	shapeSnap?: boolean;
 	gridSize?: number;
 	snapThreshold?: number;
+	// Performance options for snap calculation range
+	snapCalculationRange?: number; // Maximum distance to search for snap candidates (default: 200)
+	viewportMargin?: number; // Extra margin around viewport for shape culling (default: 200)
 }
 
 export interface SnapResult {
@@ -60,6 +63,8 @@ type ShapeWithBounds = {
 export class SnapEngine {
 	private gridSize = 20;
 	private snapThreshold = 15;
+	private snapCalculationRange = 200; // Default calculation range
+	private viewportMargin = 200; // Default viewport margin
 	private activeGuides: SnapGuide[] = [];
 	private quadTree: QuadTree | null = null;
 	private viewport: { x: number; y: number; width: number; height: number } | null = null;
@@ -68,9 +73,31 @@ export class SnapEngine {
 	private previousGuides: SnapGuide[] = [];
 	private guidesUpdateFrame: number | null = null;
 
-	constructor(gridSize = 20, snapThreshold = 15) {
+	constructor(gridSize = 20, snapThreshold = 15, snapCalculationRange = 200, viewportMargin = 200) {
 		this.gridSize = gridSize;
 		this.snapThreshold = snapThreshold;
+		this.snapCalculationRange = snapCalculationRange;
+		this.viewportMargin = viewportMargin;
+	}
+
+	// Update snap calculation range settings
+	updateSnapRange(snapCalculationRange?: number, viewportMargin?: number): void {
+		if (snapCalculationRange !== undefined) {
+			this.snapCalculationRange = snapCalculationRange;
+			// Clear cache when range changes
+			this.snapCandidatesCache.clear();
+		}
+		if (viewportMargin !== undefined) {
+			this.viewportMargin = viewportMargin;
+		}
+	}
+
+	// Get current snap range settings
+	getSnapRangeSettings(): { snapCalculationRange: number; viewportMargin: number } {
+		return {
+			snapCalculationRange: this.snapCalculationRange,
+			viewportMargin: this.viewportMargin,
+		};
 	}
 
 	// Initialize QuadTree with canvas bounds
@@ -112,16 +139,17 @@ export class SnapEngine {
 	}
 
 	// Get shapes within viewport plus margin
-	private getShapesInViewport(allShapes: ShapeWithBounds[], margin = 200): ShapeWithBounds[] {
+	private getShapesInViewport(allShapes: ShapeWithBounds[], margin?: number): ShapeWithBounds[] {
 		if (!this.viewport) {
 			return allShapes; // No viewport culling
 		}
 
+		const actualMargin = margin ?? this.viewportMargin;
 		const expandedViewport = {
-			x: this.viewport.x - margin,
-			y: this.viewport.y - margin,
-			width: this.viewport.width + margin * 2,
-			height: this.viewport.height + margin * 2,
+			x: this.viewport.x - actualMargin,
+			y: this.viewport.y - actualMargin,
+			width: this.viewport.width + actualMargin * 2,
+			height: this.viewport.height + actualMargin * 2,
 		};
 
 		// Use QuadTree if available
@@ -148,12 +176,14 @@ export class SnapEngine {
 	private getNearbyShapes(
 		position: Point,
 		allShapes: ShapeWithBounds[],
-		maxDistance = 200,
+		maxDistance?: number,
 	): ShapeWithBounds[] {
 		// If no shapes, return empty
 		if (!allShapes || allShapes.length === 0) {
 			return [];
 		}
+
+		const actualMaxDistance = maxDistance ?? this.snapCalculationRange;
 
 		// Check cache first
 		const cacheKey = `${Math.round(position.x / 10)},${Math.round(position.y / 10)}`;
@@ -165,7 +195,7 @@ export class SnapEngine {
 
 		if (this.quadTree) {
 			// Use QuadTree for efficient spatial query
-			const items = this.quadTree.findNearest(position.x, position.y, maxDistance, 20);
+			const items = this.quadTree.findNearest(position.x, position.y, actualMaxDistance, 20);
 			nearbyShapes = items
 				.map((item) => allShapes.find((shape) => shape.id === item.id))
 				.filter((shape): shape is ShapeWithBounds => shape !== undefined);
@@ -176,7 +206,7 @@ export class SnapEngine {
 					shape,
 					distance: this.calculateDistanceToShape(position, shape),
 				}))
-				.filter(({ distance }) => distance <= maxDistance)
+				.filter(({ distance }) => distance <= actualMaxDistance)
 				.sort((a, b) => a.distance - b.distance)
 				.slice(0, 20)
 				.map(({ shape }) => shape);
@@ -244,6 +274,7 @@ export class SnapEngine {
 			[key: string]: any;
 		}>,
 		currentPosition: Point,
+		options?: Pick<SnapOptions, "snapCalculationRange" | "viewportMargin">,
 	): SnapResult {
 		// Convert targetShapes to ShapeWithBounds if needed
 		const shapesWithBounds: ShapeWithBounds[] = targetShapes.map((shape, index) => ({
@@ -251,9 +282,13 @@ export class SnapEngine {
 			id: shape.id || `shape-${index}`,
 		}));
 
-		// Use optimized shape querying
-		const nearbyShapes = this.getNearbyShapes(currentPosition, shapesWithBounds);
-		const visibleShapes = this.getShapesInViewport(nearbyShapes);
+		// Use optimized shape querying with optional overrides
+		const nearbyShapes = this.getNearbyShapes(
+			currentPosition,
+			shapesWithBounds,
+			options?.snapCalculationRange,
+		);
+		const visibleShapes = this.getShapesInViewport(nearbyShapes, options?.viewportMargin);
 
 		const snapPoints = this.findSnapPoints(movingShape, visibleShapes, currentPosition);
 		const { position: snappedPosition, activeSnapPoints } = this.calculateSnappedPositionWithActive(

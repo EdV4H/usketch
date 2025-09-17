@@ -40,7 +40,25 @@ function hasSnapDimensions(shape: { [key: string]: any }): shape is SnappableSha
 }
 
 // Create a singleton instance of SnapEngine with default values
-const snapEngine = new SnapEngine(GRID_SIZE, SNAP_THRESHOLD);
+// Increased snap calculation range from 200 to 500 for better snap detection
+const DEFAULT_SNAP_CALCULATION_RANGE = 500; // Increased for better range
+const DEFAULT_VIEWPORT_MARGIN = 300; // Increased for better viewport coverage
+const snapEngine = new SnapEngine(
+	GRID_SIZE,
+	SNAP_THRESHOLD,
+	DEFAULT_SNAP_CALCULATION_RANGE,
+	DEFAULT_VIEWPORT_MARGIN,
+);
+
+// Export function to update snap range settings
+export function updateSnapRange(snapCalculationRange?: number, viewportMargin?: number): void {
+	snapEngine.updateSnapRange(snapCalculationRange, viewportMargin);
+}
+
+// Export function to get current snap range settings
+export function getSnapRangeSettings(): { snapCalculationRange: number; viewportMargin: number } {
+	return snapEngine.getSnapRangeSettings();
+}
 
 // === Select Tool Context ===
 export interface SelectToolContext extends ToolContext {
