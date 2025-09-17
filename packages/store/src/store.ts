@@ -44,6 +44,9 @@ export interface SnapSettings {
 	showGuides: boolean; // Show snap guides (dashed lines when snapped)
 	showDistances: boolean; // Show distance indicators
 	showAlignmentGuides: boolean; // Show alignment guides (solid lines)
+	// Performance settings
+	snapCalculationRange: number; // Maximum distance to search for snap candidates (pixels)
+	viewportMargin: number; // Extra margin around viewport for shape culling (pixels)
 }
 
 export interface WhiteboardStore extends WhiteboardState {
@@ -151,6 +154,8 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 		showGuides: true,
 		showDistances: true,
 		showAlignmentGuides: false, // Changed default to false for better UX
+		snapCalculationRange: 500, // Increased default for better snap detection
+		viewportMargin: 300, // Increased default for better coverage
 	},
 	effects: {},
 	effectToolConfig: {
