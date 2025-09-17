@@ -446,6 +446,14 @@ export const selectToolMachine = setup({
 						snapSettings.showAlignmentGuides ||
 						snapSettings.showDistances
 					) {
+						// Use snapped position for smart guides to show guides at the actual shape position
+						const shapeForGuides = {
+							x: snappedPosition.x,
+							y: snappedPosition.y,
+							width: "width" in firstShape ? firstShape.width : DEFAULT_SHAPE_SIZE,
+							height: "height" in firstShape ? firstShape.height : DEFAULT_SHAPE_SIZE,
+						};
+
 						// Gather all selected shapes for group alignment
 						const selectedShapeBounds: Array<{
 							x: number;
@@ -453,12 +461,21 @@ export const selectToolMachine = setup({
 							width: number;
 							height: number;
 						}> = [];
+
+						// Calculate the final offset based on the snapped position
+						const snappedOffset = {
+							x: snappedPosition.x - firstInitial.x,
+							y: snappedPosition.y - firstInitial.y,
+						};
+
 						selectedShapeIds.forEach((id) => {
 							const shape = getShape(id);
-							if (shape && hasSnapDimensions(shape)) {
+							const initialPos = context.dragState?.initialPositions.get(id);
+							if (shape && hasSnapDimensions(shape) && initialPos) {
+								// Use snapped offset for all shapes in the group
 								selectedShapeBounds.push({
-									x: shape.x,
-									y: shape.y,
+									x: initialPos.x + snappedOffset.x,
+									y: initialPos.y + snappedOffset.y,
 									width: shape.width,
 									height: shape.height,
 								});
@@ -466,7 +483,7 @@ export const selectToolMachine = setup({
 						});
 
 						const smartGuides = snapEngine.generateSmartGuides(
-							movingShape,
+							shapeForGuides,
 							targetShapes,
 							selectedShapeBounds.length > 1 ? selectedShapeBounds : undefined,
 							event.point, // Pass mouse position for distance guides
@@ -477,8 +494,8 @@ export const selectToolMachine = setup({
 						const filteredSmartGuides = smartGuides.filter((g) => {
 							// Filter distance guides based on their purpose
 							if (g.type === "distance") {
-								// Equal spacing guides (with "=" label) are controlled by showEqualSpacing
-								if (g.label === "=") {
+								// Equal spacing guides have isEqualSpacing flag
+								if (g.isEqualSpacing) {
 									return snapSettings.showEqualSpacing;
 								}
 								// Regular distance guides are controlled by showDistances
