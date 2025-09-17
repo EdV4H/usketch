@@ -652,8 +652,8 @@ export class SnapEngine {
 					guides.push({
 						type: "horizontal",
 						position: snapPoint.targetPosition,
-						start: { x: -1000, y: snapPoint.targetPosition },
-						end: { x: 1000, y: snapPoint.targetPosition },
+						start: { x: -2000, y: snapPoint.targetPosition },
+						end: { x: 2000, y: snapPoint.targetPosition },
 						style: "dashed",
 					});
 				}
@@ -671,8 +671,8 @@ export class SnapEngine {
 					guides.push({
 						type: "horizontal",
 						position: snapPoint.value,
-						start: { x: -1000, y: snapPoint.value },
-						end: { x: 1000, y: snapPoint.value },
+						start: { x: -2000, y: snapPoint.value },
+						end: { x: 2000, y: snapPoint.value },
 						style: "dashed",
 					});
 				}
@@ -806,24 +806,84 @@ export class SnapEngine {
 			}
 
 			// Extension lines for alignment
-			// Vertical alignment extension
+			// Vertical alignment extension (left edges)
 			if (Math.abs(effectiveShape.x - target.x) < ALIGNMENT_THRESHOLD) {
+				const minY = Math.min(effectiveShape.y, target.y);
+				const maxY = Math.max(movingBottom, targetBottom);
 				guides.push({
 					type: "vertical",
 					position: target.x,
-					start: { x: target.x, y: Math.min(effectiveShape.y, target.y) - 50 },
-					end: { x: target.x, y: Math.max(movingBottom, targetBottom) + 50 },
+					start: { x: target.x, y: minY - 100 },
+					end: { x: target.x, y: maxY + 100 },
 					style: "solid",
 				});
 			}
 
-			// Horizontal alignment extension
+			// Vertical alignment extension (right edges)
+			if (Math.abs(movingRight - targetRight) < ALIGNMENT_THRESHOLD) {
+				const minY = Math.min(effectiveShape.y, target.y);
+				const maxY = Math.max(movingBottom, targetBottom);
+				guides.push({
+					type: "vertical",
+					position: targetRight,
+					start: { x: targetRight, y: minY - 100 },
+					end: { x: targetRight, y: maxY + 100 },
+					style: "solid",
+				});
+			}
+
+			// Vertical alignment extension (center)
+			const movingCenterX = effectiveShape.x + effectiveShape.width / 2;
+			const targetCenterX = target.x + target.width / 2;
+			if (Math.abs(movingCenterX - targetCenterX) < ALIGNMENT_THRESHOLD) {
+				const minY = Math.min(effectiveShape.y, target.y);
+				const maxY = Math.max(movingBottom, targetBottom);
+				guides.push({
+					type: "vertical",
+					position: targetCenterX,
+					start: { x: targetCenterX, y: minY - 100 },
+					end: { x: targetCenterX, y: maxY + 100 },
+					style: "solid",
+				});
+			}
+
+			// Horizontal alignment extension (top edges)
 			if (Math.abs(effectiveShape.y - target.y) < ALIGNMENT_THRESHOLD) {
+				const minX = Math.min(effectiveShape.x, target.x);
+				const maxX = Math.max(movingRight, targetRight);
 				guides.push({
 					type: "horizontal",
 					position: target.y,
-					start: { x: Math.min(effectiveShape.x, target.x) - 50, y: target.y },
-					end: { x: Math.max(movingRight, targetRight) + 50, y: target.y },
+					start: { x: minX - 100, y: target.y },
+					end: { x: maxX + 100, y: target.y },
+					style: "solid",
+				});
+			}
+
+			// Horizontal alignment extension (bottom edges)
+			if (Math.abs(movingBottom - targetBottom) < ALIGNMENT_THRESHOLD) {
+				const minX = Math.min(effectiveShape.x, target.x);
+				const maxX = Math.max(movingRight, targetRight);
+				guides.push({
+					type: "horizontal",
+					position: targetBottom,
+					start: { x: minX - 100, y: targetBottom },
+					end: { x: maxX + 100, y: targetBottom },
+					style: "solid",
+				});
+			}
+
+			// Horizontal alignment extension (center)
+			const movingCenterY = effectiveShape.y + effectiveShape.height / 2;
+			const targetCenterY = target.y + target.height / 2;
+			if (Math.abs(movingCenterY - targetCenterY) < ALIGNMENT_THRESHOLD) {
+				const minX = Math.min(effectiveShape.x, target.x);
+				const maxX = Math.max(movingRight, targetRight);
+				guides.push({
+					type: "horizontal",
+					position: targetCenterY,
+					start: { x: minX - 100, y: targetCenterY },
+					end: { x: maxX + 100, y: targetCenterY },
 					style: "solid",
 				});
 			}
