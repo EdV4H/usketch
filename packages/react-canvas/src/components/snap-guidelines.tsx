@@ -34,6 +34,10 @@ export const SnapGuidelines: React.FC<SnapGuidelinesProps> = ({ guides, camera }
 		switch (type) {
 			case "distance":
 				return "#FF9500"; // Orange for distance
+			case "diagonal":
+				return "#9B59B6"; // Purple for diagonal alignment
+			case "threshold":
+				return "#E74C3C"; // Red for snap threshold
 			default:
 				// Use different blue shades for different styles
 				if (style === "solid") return "#0066CC"; // Darker blue for solid alignment
@@ -92,6 +96,45 @@ export const SnapGuidelines: React.FC<SnapGuidelinesProps> = ({ guides, camera }
 										fill={strokeColor}
 										opacity={strokeOpacity}
 									/>
+								</>
+							)}
+							{/* Special rendering for diagonal guides */}
+							{guide.type === "diagonal" && guide.label && (
+								<text
+									x={(guide.start.x + guide.end.x) / 2}
+									y={(guide.start.y + guide.end.y) / 2 - 10}
+									fill={strokeColor}
+									fontSize={12 / camera.zoom}
+									textAnchor="middle"
+									fontFamily="monospace"
+									fontWeight="bold"
+								>
+									{guide.label}
+								</text>
+							)}
+							{/* Special rendering for threshold guides */}
+							{guide.type === "threshold" && guide.label && (
+								<>
+									<rect
+										x={(guide.start.x + guide.end.x) / 2 - 20}
+										y={(guide.start.y + guide.end.y) / 2 - 8}
+										width={40}
+										height={16}
+										fill="white"
+										opacity={0.8}
+										rx={2}
+										ry={2}
+									/>
+									<text
+										x={(guide.start.x + guide.end.x) / 2}
+										y={(guide.start.y + guide.end.y) / 2 + 4}
+										fill={strokeColor}
+										fontSize={10 / camera.zoom}
+										textAnchor="middle"
+										fontFamily="monospace"
+									>
+										{guide.label}
+									</text>
 								</>
 							)}
 							{guide.type === "distance" && guide.distance !== undefined && (

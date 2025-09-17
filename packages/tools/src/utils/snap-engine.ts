@@ -17,7 +17,7 @@ export interface SnapResult {
 }
 
 export interface SnapGuide {
-	type: "horizontal" | "vertical" | "distance";
+	type: "horizontal" | "vertical" | "distance" | "diagonal" | "threshold";
 	position: number;
 	start: Point;
 	end: Point;
@@ -43,6 +43,9 @@ const ALIGNMENT_THRESHOLD = 5; // Threshold for detecting alignment
 const EQUAL_SPACING_THRESHOLD = 5; // Tolerance for equal spacing detection
 const ALIGNMENT_Y_TOLERANCE = 50; // Y-axis tolerance for horizontal alignment detection
 const ALIGNMENT_X_TOLERANCE = 50; // X-axis tolerance for vertical alignment detection
+const DIAGONAL_ALIGNMENT_THRESHOLD = 10; // Threshold for diagonal alignment detection
+const DIAGONAL_ANGLE_45 = Math.PI / 4; // 45 degrees in radians
+const DIAGONAL_ANGLE_135 = (3 * Math.PI) / 4; // 135 degrees in radians
 
 // Shape type for equal spacing detection
 type ShapeWithBounds = {
@@ -511,27 +514,48 @@ export class SnapEngine {
 			height: number;
 			[key: string]: any;
 		}>,
+		selectedShapes?: Array<{ x: number; y: number; width: number; height: number }>,
+		mousePosition?: Point,
+		showSnapThreshold?: boolean,
 	): SnapGuide[] {
 		const guides: SnapGuide[] = [];
 
+		// If multiple shapes are selected, calculate group bounds
+		let effectiveShape = movingShape;
+		if (selectedShapes && selectedShapes.length > 1) {
+			effectiveShape = this.calculateGroupBounds(selectedShapes);
+		}
+
 		// Check for equal spacing between shapes
-		const equalSpacingGuides = this.detectEqualSpacing(movingShape, targetShapes);
+		const equalSpacingGuides = this.detectEqualSpacing(effectiveShape, targetShapes);
 		guides.push(...equalSpacingGuides);
 
+		// Add mouse pointer distance guides if mouse position is provided
+		if (mousePosition) {
+			const mouseDistanceGuides = this.generateMouseDistanceGuides(mousePosition, targetShapes);
+			guides.push(...mouseDistanceGuides);
+		}
+
+		// Add snap threshold visualization if requested
+		if (showSnapThreshold && mousePosition) {
+			const thresholdGuides = this.generateSnapThresholdIndicators(effectiveShape, targetShapes);
+			guides.push(...thresholdGuides);
+		}
+
 		targetShapes.forEach((target) => {
-			const movingRight = movingShape.x + movingShape.width;
-			const movingBottom = movingShape.y + movingShape.height;
+			const movingRight = effectiveShape.x + effectiveShape.width;
+			const movingBottom = effectiveShape.y + effectiveShape.height;
 			const targetRight = target.x + target.width;
 			const targetBottom = target.y + target.height;
 
 			// Horizontal distance guides
 			let horizontalGap = 0;
 			if (movingRight < target.x) {
-				// movingShape is to the left of target
+				// effectiveShape is to the left of target
 				horizontalGap = target.x - movingRight;
-			} else if (targetRight < movingShape.x) {
-				// target is to the left of movingShape
-				horizontalGap = movingShape.x - targetRight;
+			} else if (targetRight < effectiveShape.x) {
+				// target is to the left of effectiveShape
+				horizontalGap = effectiveShape.x - targetRight;
 			} else {
 				// shapes overlap horizontally
 				horizontalGap = 0;
@@ -544,18 +568,18 @@ export class SnapEngine {
 					guides.push({
 						type: "distance",
 						position: 0,
-						start: { x: movingRight, y: movingShape.y + movingShape.height / 2 },
+						start: { x: movingRight, y: effectiveShape.y + effectiveShape.height / 2 },
 						end: { x: target.x, y: target.y + target.height / 2 },
 						distance: Math.round(horizontalGap),
 						style: "dotted",
 					});
-				} else if (targetRight < movingShape.x) {
+				} else if (targetRight < effectiveShape.x) {
 					// Target is to the left
 					guides.push({
 						type: "distance",
 						position: 0,
 						start: { x: targetRight, y: target.y + target.height / 2 },
-						end: { x: movingShape.x, y: movingShape.y + movingShape.height / 2 },
+						end: { x: effectiveShape.x, y: effectiveShape.y + effectiveShape.height / 2 },
 						distance: Math.round(horizontalGap),
 						style: "dotted",
 					});
@@ -565,11 +589,11 @@ export class SnapEngine {
 			// Vertical distance guides
 			let verticalGap = 0;
 			if (movingBottom < target.y) {
-				// movingShape is above target
+				// effectiveShape is above target
 				verticalGap = target.y - movingBottom;
-			} else if (targetBottom < movingShape.y) {
-				// target is above movingShape
-				verticalGap = movingShape.y - targetBottom;
+			} else if (targetBottom < effectiveShape.y) {
+				// target is above effectiveShape
+				verticalGap = effectiveShape.y - targetBottom;
 			} else {
 				// shapes overlap vertically
 				verticalGap = 0;
@@ -582,18 +606,18 @@ export class SnapEngine {
 					guides.push({
 						type: "distance",
 						position: 0,
-						start: { x: movingShape.x + movingShape.width / 2, y: movingBottom },
+						start: { x: effectiveShape.x + effectiveShape.width / 2, y: movingBottom },
 						end: { x: target.x + target.width / 2, y: target.y },
 						distance: Math.round(verticalGap),
 						style: "dotted",
 					});
-				} else if (targetBottom < movingShape.y) {
+				} else if (targetBottom < effectiveShape.y) {
 					// Target is above
 					guides.push({
 						type: "distance",
 						position: 0,
 						start: { x: target.x + target.width / 2, y: targetBottom },
-						end: { x: movingShape.x + movingShape.width / 2, y: movingShape.y },
+						end: { x: effectiveShape.x + effectiveShape.width / 2, y: effectiveShape.y },
 						distance: Math.round(verticalGap),
 						style: "dotted",
 					});
@@ -602,27 +626,273 @@ export class SnapEngine {
 
 			// Extension lines for alignment
 			// Vertical alignment extension
-			if (Math.abs(movingShape.x - target.x) < ALIGNMENT_THRESHOLD) {
+			if (Math.abs(effectiveShape.x - target.x) < ALIGNMENT_THRESHOLD) {
 				guides.push({
 					type: "vertical",
 					position: target.x,
-					start: { x: target.x, y: Math.min(movingShape.y, target.y) - 50 },
+					start: { x: target.x, y: Math.min(effectiveShape.y, target.y) - 50 },
 					end: { x: target.x, y: Math.max(movingBottom, targetBottom) + 50 },
 					style: "solid",
 				});
 			}
 
 			// Horizontal alignment extension
-			if (Math.abs(movingShape.y - target.y) < ALIGNMENT_THRESHOLD) {
+			if (Math.abs(effectiveShape.y - target.y) < ALIGNMENT_THRESHOLD) {
 				guides.push({
 					type: "horizontal",
 					position: target.y,
-					start: { x: Math.min(movingShape.x, target.x) - 50, y: target.y },
+					start: { x: Math.min(effectiveShape.x, target.x) - 50, y: target.y },
 					end: { x: Math.max(movingRight, targetRight) + 50, y: target.y },
 					style: "solid",
 				});
 			}
+
+			// Diagonal alignment detection (45° and 135°)
+			const diagonalGuides = this.detectDiagonalAlignment(effectiveShape, target);
+			guides.push(...diagonalGuides);
 		});
+
+		return guides;
+	}
+
+	// Generate snap threshold visualization indicators
+	private generateSnapThresholdIndicators(
+		movingShape: { x: number; y: number; width: number; height: number },
+		targetShapes: Array<{
+			x: number;
+			y: number;
+			width: number;
+			height: number;
+			[key: string]: any;
+		}>,
+	): SnapGuide[] {
+		const guides: SnapGuide[] = [];
+
+		// Find shapes within snap threshold
+		targetShapes.forEach((target) => {
+			// Check edges
+			const edges = [
+				{ axis: "x" as const, value: target.x, label: "left" },
+				{ axis: "x" as const, value: target.x + target.width, label: "right" },
+				{ axis: "y" as const, value: target.y, label: "top" },
+				{ axis: "y" as const, value: target.y + target.height, label: "bottom" },
+			];
+
+			edges.forEach((edge) => {
+				if (edge.axis === "x") {
+					// Check if moving shape's edges are within threshold
+					const movingEdges = [movingShape.x, movingShape.x + movingShape.width];
+					movingEdges.forEach((movingEdge) => {
+						const distance = Math.abs(movingEdge - edge.value);
+						if (distance > 0 && distance <= this.snapThreshold) {
+							// Add threshold indicator (vertical line with threshold radius)
+							guides.push({
+								type: "threshold",
+								position: edge.value,
+								start: { x: edge.value - this.snapThreshold, y: target.y },
+								end: { x: edge.value + this.snapThreshold, y: target.y + target.height },
+								distance: this.snapThreshold,
+								style: "dotted",
+								label: `±${this.snapThreshold}px`,
+							});
+						}
+					});
+				} else {
+					// Check if moving shape's edges are within threshold
+					const movingEdges = [movingShape.y, movingShape.y + movingShape.height];
+					movingEdges.forEach((movingEdge) => {
+						const distance = Math.abs(movingEdge - edge.value);
+						if (distance > 0 && distance <= this.snapThreshold) {
+							// Add threshold indicator (horizontal line with threshold radius)
+							guides.push({
+								type: "threshold",
+								position: edge.value,
+								start: { x: target.x, y: edge.value - this.snapThreshold },
+								end: { x: target.x + target.width, y: edge.value + this.snapThreshold },
+								distance: this.snapThreshold,
+								style: "dotted",
+								label: `±${this.snapThreshold}px`,
+							});
+						}
+					});
+				}
+			});
+		});
+
+		return guides;
+	}
+
+	// Generate distance guides from mouse pointer to nearby shapes
+	private generateMouseDistanceGuides(
+		mousePosition: Point,
+		targetShapes: Array<{
+			x: number;
+			y: number;
+			width: number;
+			height: number;
+			[key: string]: any;
+		}>,
+	): SnapGuide[] {
+		const guides: SnapGuide[] = [];
+		const MAX_MOUSE_DISTANCE = 150; // Maximum distance to show mouse guides
+
+		targetShapes.forEach((shape) => {
+			// Find the closest point on the shape to the mouse
+			const closestX = Math.max(shape.x, Math.min(mousePosition.x, shape.x + shape.width));
+			const closestY = Math.max(shape.y, Math.min(mousePosition.y, shape.y + shape.height));
+
+			// Calculate distance from mouse to closest point
+			const dx = mousePosition.x - closestX;
+			const dy = mousePosition.y - closestY;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+
+			// Only show guides for nearby shapes
+			if (distance > 0 && distance < MAX_MOUSE_DISTANCE) {
+				// Determine if it's primarily horizontal or vertical
+				if (Math.abs(dx) > Math.abs(dy)) {
+					// Horizontal distance is dominant
+					guides.push({
+						type: "distance",
+						position: 0,
+						start: mousePosition,
+						end: { x: closestX, y: mousePosition.y },
+						distance: Math.round(Math.abs(dx)),
+						style: "dotted",
+						label: `${Math.round(Math.abs(dx))}px`,
+					});
+				} else {
+					// Vertical distance is dominant
+					guides.push({
+						type: "distance",
+						position: 0,
+						start: mousePosition,
+						end: { x: mousePosition.x, y: closestY },
+						distance: Math.round(Math.abs(dy)),
+						style: "dotted",
+						label: `${Math.round(Math.abs(dy))}px`,
+					});
+				}
+			}
+		});
+
+		return guides;
+	}
+
+	// Calculate bounding box for a group of shapes
+	private calculateGroupBounds(
+		shapes: Array<{ x: number; y: number; width: number; height: number }>,
+	): { x: number; y: number; width: number; height: number } {
+		if (shapes.length === 0) {
+			return { x: 0, y: 0, width: 0, height: 0 };
+		}
+
+		let minX = Number.POSITIVE_INFINITY;
+		let minY = Number.POSITIVE_INFINITY;
+		let maxX = Number.NEGATIVE_INFINITY;
+		let maxY = Number.NEGATIVE_INFINITY;
+
+		for (const shape of shapes) {
+			minX = Math.min(minX, shape.x);
+			minY = Math.min(minY, shape.y);
+			maxX = Math.max(maxX, shape.x + shape.width);
+			maxY = Math.max(maxY, shape.y + shape.height);
+		}
+
+		return {
+			x: minX,
+			y: minY,
+			width: maxX - minX,
+			height: maxY - minY,
+		};
+	}
+
+	// Detect diagonal alignment between shapes (45° and 135°)
+	private detectDiagonalAlignment(
+		movingShape: { x: number; y: number; width: number; height: number },
+		target: { x: number; y: number; width: number; height: number },
+	): SnapGuide[] {
+		const guides: SnapGuide[] = [];
+
+		// Get center points
+		const movingCenterX = movingShape.x + movingShape.width / 2;
+		const movingCenterY = movingShape.y + movingShape.height / 2;
+		const targetCenterX = target.x + target.width / 2;
+		const targetCenterY = target.y + target.height / 2;
+
+		// Calculate angle between centers
+		const dx = movingCenterX - targetCenterX;
+		const dy = movingCenterY - targetCenterY;
+		const angle = Math.atan2(dy, dx);
+
+		// Normalize angle to 0-2π range
+		const normalizedAngle = angle < 0 ? angle + 2 * Math.PI : angle;
+
+		// Check for 45° alignment (π/4, 5π/4)
+		const angle45_1 = DIAGONAL_ANGLE_45;
+		const angle45_2 = angle45_1 + Math.PI; // 225°
+
+		// Check for 135° alignment (3π/4, 7π/4)
+		const angle135_1 = DIAGONAL_ANGLE_135;
+		const angle135_2 = angle135_1 + Math.PI; // 315°
+
+		// Helper function to check if angles are close
+		const isAngleClose = (a1: number, a2: number, threshold: number = 0.1) => {
+			// Handle angle wrapping
+			const diff = Math.abs(a1 - a2);
+			return diff < threshold || Math.abs(diff - 2 * Math.PI) < threshold;
+		};
+
+		// Check 45° diagonal
+		if (isAngleClose(normalizedAngle, angle45_1) || isAngleClose(normalizedAngle, angle45_2)) {
+			// Calculate the extended line points for 45° diagonal
+			const distance = Math.sqrt(dx * dx + dy * dy);
+			if (distance < MAX_GUIDE_DISTANCE * 2) {
+				const extendLength = 100;
+				const unitX = Math.cos(angle45_1);
+				const unitY = Math.sin(angle45_1);
+
+				guides.push({
+					type: "diagonal",
+					position: 0,
+					start: {
+						x: targetCenterX - unitX * extendLength,
+						y: targetCenterY - unitY * extendLength,
+					},
+					end: {
+						x: movingCenterX + unitX * extendLength,
+						y: movingCenterY + unitY * extendLength,
+					},
+					style: "dashed",
+					label: "45°",
+				});
+			}
+		}
+
+		// Check 135° diagonal
+		if (isAngleClose(normalizedAngle, angle135_1) || isAngleClose(normalizedAngle, angle135_2)) {
+			// Calculate the extended line points for 135° diagonal
+			const distance = Math.sqrt(dx * dx + dy * dy);
+			if (distance < MAX_GUIDE_DISTANCE * 2) {
+				const extendLength = 100;
+				const unitX = Math.cos(angle135_1);
+				const unitY = Math.sin(angle135_1);
+
+				guides.push({
+					type: "diagonal",
+					position: 0,
+					start: {
+						x: targetCenterX - unitX * extendLength,
+						y: targetCenterY - unitY * extendLength,
+					},
+					end: {
+						x: movingCenterX + unitX * extendLength,
+						y: movingCenterY + unitY * extendLength,
+					},
+					style: "dashed",
+					label: "135°",
+				});
+			}
+		}
 
 		return guides;
 	}

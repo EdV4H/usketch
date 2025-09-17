@@ -25,7 +25,7 @@ export interface SelectionIndicatorState {
 }
 
 export interface SnapGuide {
-	type: "horizontal" | "vertical" | "distance";
+	type: "horizontal" | "vertical" | "distance" | "diagonal" | "threshold";
 	position: number;
 	start: { x: number; y: number };
 	end: { x: number; y: number };
