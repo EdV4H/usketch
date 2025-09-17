@@ -1,6 +1,10 @@
 import type { SnapGuide } from "@usketch/tools";
 import type React from "react";
 
+// Constants for label positioning
+const DISTANCE_LABEL_X_OFFSET = 20;
+const DISTANCE_LABEL_Y_OFFSET = 4;
+
 interface SnapGuidelinesProps {
 	guides: SnapGuide[];
 	camera: {
@@ -26,12 +30,14 @@ export const SnapGuidelines: React.FC<SnapGuidelinesProps> = ({ guides, camera }
 		}
 	};
 
-	const getStrokeColor = (type: string) => {
+	const getStrokeColor = (type: string, style?: string) => {
 		switch (type) {
 			case "distance":
 				return "#FF9500"; // Orange for distance
 			default:
-				return "#007AFF"; // Blue for alignment
+				// Use different blue shades for different styles
+				if (style === "solid") return "#0066CC"; // Darker blue for solid alignment
+				return "#007AFF"; // Default blue for dashed guides
 		}
 	};
 
@@ -52,8 +58,10 @@ export const SnapGuidelines: React.FC<SnapGuidelinesProps> = ({ guides, camera }
 		>
 			<g transform={`translate(${camera.x}, ${camera.y}) scale(${camera.zoom})`}>
 				{guides.map((guide, index) => {
-					const strokeColor = getStrokeColor(guide.type);
+					const strokeColor = getStrokeColor(guide.type, guide.style);
 					const strokeDasharray = getStrokeDashArray(guide.style);
+					const strokeOpacity = guide.style === "solid" ? 0.8 : 0.6;
+					const strokeWidth = guide.style === "solid" ? 1.5 / camera.zoom : 1 / camera.zoom;
 
 					return (
 						<g key={`${guide.type}-${guide.position}-${index}`}>
@@ -63,17 +71,36 @@ export const SnapGuidelines: React.FC<SnapGuidelinesProps> = ({ guides, camera }
 								x2={guide.end.x}
 								y2={guide.end.y}
 								stroke={strokeColor}
-								strokeWidth={1 / camera.zoom}
+								strokeWidth={strokeWidth}
 								strokeDasharray={strokeDasharray}
-								opacity={0.6}
+								opacity={strokeOpacity}
 							/>
+							{/* Add end caps for solid alignment guides */}
+							{guide.style === "solid" && guide.type !== "distance" && (
+								<>
+									<circle
+										cx={guide.start.x}
+										cy={guide.start.y}
+										r={3 / camera.zoom}
+										fill={strokeColor}
+										opacity={strokeOpacity}
+									/>
+									<circle
+										cx={guide.end.x}
+										cy={guide.end.y}
+										r={3 / camera.zoom}
+										fill={strokeColor}
+										opacity={strokeOpacity}
+									/>
+								</>
+							)}
 							{guide.type === "distance" && guide.distance !== undefined && (
 								<>
 									{/* Distance label background */}
 									<rect
-										x={(guide.start.x + guide.end.x) / 2 - 15}
+										x={(guide.start.x + guide.end.x) / 2 - (guide.label === "=" ? 10 : 15)}
 										y={(guide.start.y + guide.end.y) / 2 - 8}
-										width={30}
+										width={guide.label === "=" ? 20 : 30}
 										height={16}
 										fill="white"
 										opacity={0.9}
@@ -90,8 +117,22 @@ export const SnapGuidelines: React.FC<SnapGuidelinesProps> = ({ guides, camera }
 										fontFamily="monospace"
 										fontWeight="bold"
 									>
-										{guide.distance}
+										{guide.label === "=" ? "=" : guide.distance}
 									</text>
+									{/* Show distance value next to = sign if both are present */}
+									{guide.label === "=" && (
+										<text
+											x={(guide.start.x + guide.end.x) / 2 + DISTANCE_LABEL_X_OFFSET / camera.zoom}
+											y={(guide.start.y + guide.end.y) / 2 + DISTANCE_LABEL_Y_OFFSET}
+											fill={strokeColor}
+											fontSize={10 / camera.zoom}
+											textAnchor="start"
+											fontFamily="monospace"
+											opacity={0.7}
+										>
+											{guide.distance}px
+										</text>
+									)}
 								</>
 							)}
 						</g>

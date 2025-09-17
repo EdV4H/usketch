@@ -40,6 +40,18 @@ export type DistributionType = "horizontal" | "vertical";
 // Constants for smart guides
 const MAX_GUIDE_DISTANCE = 100; // Maximum distance to show distance guides
 const ALIGNMENT_THRESHOLD = 5; // Threshold for detecting alignment
+const EQUAL_SPACING_THRESHOLD = 5; // Tolerance for equal spacing detection
+const ALIGNMENT_Y_TOLERANCE = 50; // Y-axis tolerance for horizontal alignment detection
+const ALIGNMENT_X_TOLERANCE = 50; // X-axis tolerance for vertical alignment detection
+
+// Shape type for equal spacing detection
+type ShapeWithBounds = {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	[key: string]: any;
+};
 
 export class SnapEngine {
 	private gridSize = 20;
@@ -199,6 +211,46 @@ export class SnapEngine {
 				targetPosition: targetCenterX,
 			});
 
+			// Corner snapping (x-axis)
+			// Note: Left corners (TL, BL) share same X value, as do right corners (TR, BR)
+			// This is intentional to enable corner-to-corner alignment
+			// Top-left corner to top-left
+			snapPoints.push({
+				axis: "x",
+				value: target.x,
+				priority: 2,
+				targetId,
+				edgeType: "corner-tl-to-tl",
+				targetPosition: target.x,
+			});
+			// Top-right corner to top-right
+			snapPoints.push({
+				axis: "x",
+				value: target.x + targetWidth - width,
+				priority: 2,
+				targetId,
+				edgeType: "corner-tr-to-tr",
+				targetPosition: target.x + targetWidth,
+			});
+			// Bottom-left corner to bottom-left (same X as TL)
+			snapPoints.push({
+				axis: "x",
+				value: target.x,
+				priority: 2,
+				targetId,
+				edgeType: "corner-bl-to-bl",
+				targetPosition: target.x,
+			});
+			// Bottom-right corner to bottom-right (same X as TR)
+			snapPoints.push({
+				axis: "x",
+				value: target.x + targetWidth - width,
+				priority: 2,
+				targetId,
+				edgeType: "corner-br-to-br",
+				targetPosition: target.x + targetWidth,
+			});
+
 			// Vertical snap points (y-axis)
 			// Top edge to top edge
 			snapPoints.push({
@@ -245,6 +297,46 @@ export class SnapEngine {
 				targetId,
 				edgeType: "center-to-center",
 				targetPosition: targetCenterY,
+			});
+
+			// Corner snapping (y-axis)
+			// Note: Top corners (TL, TR) share same Y value, as do bottom corners (BL, BR)
+			// This is intentional to enable corner-to-corner alignment
+			// Top-left corner to top-left
+			snapPoints.push({
+				axis: "y",
+				value: target.y,
+				priority: 2,
+				targetId,
+				edgeType: "corner-tl-to-tl",
+				targetPosition: target.y,
+			});
+			// Top-right corner to top-right (same Y as TL)
+			snapPoints.push({
+				axis: "y",
+				value: target.y,
+				priority: 2,
+				targetId,
+				edgeType: "corner-tr-to-tr",
+				targetPosition: target.y,
+			});
+			// Bottom-left corner to bottom-left
+			snapPoints.push({
+				axis: "y",
+				value: target.y + targetHeight - height,
+				priority: 2,
+				targetId,
+				edgeType: "corner-bl-to-bl",
+				targetPosition: target.y + targetHeight,
+			});
+			// Bottom-right corner to bottom-right (same Y as BL)
+			snapPoints.push({
+				axis: "y",
+				value: target.y + targetHeight - height,
+				priority: 2,
+				targetId,
+				edgeType: "corner-br-to-br",
+				targetPosition: target.y + targetHeight,
 			});
 		});
 
@@ -310,23 +402,38 @@ export class SnapEngine {
 	): T | null {
 		if (snapPoints.length === 0) return null;
 
-		// Sort by distance and priority
-		const sorted = snapPoints
-			.map((point) => ({
-				...point,
-				distance: Math.abs(value - point.value),
-			}))
-			.filter((point) => point.distance < this.snapThreshold)
+		// Calculate weighted score for each snap point
+		const scoredPoints = snapPoints
+			.map((point) => {
+				const distance = Math.abs(value - point.value);
+				// Only consider points within threshold
+				if (distance >= this.snapThreshold) return null;
+
+				// Calculate score: lower priority and closer distance = better score
+				// Priority weight: 1.0 for priority 1, 1.5 for priority 2, 2.0 for priority 3
+				const priorityWeight = 0.5 + point.priority * 0.5;
+				// Distance weight: normalized from 0 to 1
+				const distanceWeight = distance / this.snapThreshold;
+				// Combined score (lower is better)
+				const score = priorityWeight * (1 + distanceWeight);
+
+				return {
+					...point,
+					distance,
+					score,
+				};
+			})
+			.filter((point): point is NonNullable<typeof point> => point !== null)
 			.sort((a, b) => {
-				// First sort by priority (lower is better)
-				if (a.priority !== b.priority) {
-					return a.priority - b.priority;
+				// Sort by score (lower is better)
+				if (Math.abs(a.score - b.score) > 0.01) {
+					return a.score - b.score;
 				}
-				// Then by distance
+				// If scores are very close, prefer smaller distance
 				return a.distance - b.distance;
 			});
 
-		return sorted[0] || null;
+		return scoredPoints[0] || null;
 	}
 
 	private generateGuidesFromActivePoints(
@@ -406,6 +513,10 @@ export class SnapEngine {
 		}>,
 	): SnapGuide[] {
 		const guides: SnapGuide[] = [];
+
+		// Check for equal spacing between shapes
+		const equalSpacingGuides = this.detectEqualSpacing(movingShape, targetShapes);
+		guides.push(...equalSpacingGuides);
 
 		targetShapes.forEach((target) => {
 			const movingRight = movingShape.x + movingShape.width;
@@ -512,6 +623,183 @@ export class SnapEngine {
 				});
 			}
 		});
+
+		return guides;
+	}
+
+	// Detect equal spacing between shapes
+	private detectEqualSpacing(
+		movingShape: { x: number; y: number; width: number; height: number },
+		targetShapes: Array<ShapeWithBounds>,
+	): SnapGuide[] {
+		const guides: SnapGuide[] = [];
+
+		// Find pairs of shapes with similar spacing
+		if (targetShapes.length >= 2) {
+			// Check horizontal spacing
+			const horizontalSpacings: Array<{
+				shape1: ShapeWithBounds;
+				shape2: ShapeWithBounds;
+				spacing: number;
+				midpoint: number;
+			}> = [];
+
+			// Calculate all horizontal spacings between target shapes
+			for (let i = 0; i < targetShapes.length; i++) {
+				for (let j = i + 1; j < targetShapes.length; j++) {
+					const shape1 = targetShapes[i];
+					const shape2 = targetShapes[j];
+					const shape1Right = shape1.x + shape1.width;
+					const shape2Right = shape2.x + shape2.width;
+
+					// Check if shapes are horizontally aligned (roughly same Y position)
+					const yDiff = Math.abs(shape1.y - shape2.y);
+					if (yDiff < ALIGNMENT_Y_TOLERANCE) {
+						if (shape1Right < shape2.x) {
+							const spacing = shape2.x - shape1Right;
+							horizontalSpacings.push({
+								shape1,
+								shape2,
+								spacing,
+								midpoint: (shape1Right + shape2.x) / 2,
+							});
+						} else if (shape2Right < shape1.x) {
+							const spacing = shape1.x - shape2Right;
+							horizontalSpacings.push({
+								shape1: shape2,
+								shape2: shape1,
+								spacing,
+								midpoint: (shape2Right + shape1.x) / 2,
+							});
+						}
+					}
+				}
+			}
+
+			// Check if moving shape creates equal spacing
+			const movingRight = movingShape.x + movingShape.width;
+			horizontalSpacings.forEach(({ spacing }) => {
+				targetShapes.forEach((target) => {
+					const targetRight = target.x + target.width;
+					// Check if moving shape is aligned with this target
+					const yDiff = Math.abs(movingShape.y - target.y);
+					if (yDiff < ALIGNMENT_Y_TOLERANCE) {
+						// Check spacing between moving shape and target
+						let currentSpacing = 0;
+						if (movingRight < target.x) {
+							currentSpacing = target.x - movingRight;
+						} else if (targetRight < movingShape.x) {
+							currentSpacing = movingShape.x - targetRight;
+						}
+
+						// If spacing is similar, show equal spacing indicator
+						if (
+							Math.abs(currentSpacing - spacing) < EQUAL_SPACING_THRESHOLD &&
+							currentSpacing > 0
+						) {
+							// Add visual indicator for equal spacing
+							guides.push({
+								type: "distance",
+								position: 0,
+								start: {
+									x: movingRight < target.x ? movingRight : targetRight,
+									y: movingShape.y + movingShape.height / 2,
+								},
+								end: {
+									x: movingRight < target.x ? target.x : movingShape.x,
+									y: movingShape.y + movingShape.height / 2,
+								},
+								distance: Math.round(spacing),
+								style: "dotted",
+								label: "=", // Equal spacing indicator
+							});
+						}
+					}
+				});
+			});
+
+			// Similar logic for vertical spacing
+			const verticalSpacings: Array<{
+				shape1: ShapeWithBounds;
+				shape2: ShapeWithBounds;
+				spacing: number;
+				midpoint: number;
+			}> = [];
+
+			// Calculate all vertical spacings between target shapes
+			for (let i = 0; i < targetShapes.length; i++) {
+				for (let j = i + 1; j < targetShapes.length; j++) {
+					const shape1 = targetShapes[i];
+					const shape2 = targetShapes[j];
+					const shape1Bottom = shape1.y + shape1.height;
+					const shape2Bottom = shape2.y + shape2.height;
+
+					// Check if shapes are vertically aligned (roughly same X position)
+					const xDiff = Math.abs(shape1.x - shape2.x);
+					if (xDiff < ALIGNMENT_X_TOLERANCE) {
+						if (shape1Bottom < shape2.y) {
+							const spacing = shape2.y - shape1Bottom;
+							verticalSpacings.push({
+								shape1,
+								shape2,
+								spacing,
+								midpoint: (shape1Bottom + shape2.y) / 2,
+							});
+						} else if (shape2Bottom < shape1.y) {
+							const spacing = shape1.y - shape2Bottom;
+							verticalSpacings.push({
+								shape1: shape2,
+								shape2: shape1,
+								spacing,
+								midpoint: (shape2Bottom + shape1.y) / 2,
+							});
+						}
+					}
+				}
+			}
+
+			// Check if moving shape creates equal vertical spacing
+			const movingBottom = movingShape.y + movingShape.height;
+			verticalSpacings.forEach(({ spacing }) => {
+				targetShapes.forEach((target) => {
+					const targetBottom = target.y + target.height;
+					// Check if moving shape is aligned with this target
+					const xDiff = Math.abs(movingShape.x - target.x);
+					if (xDiff < ALIGNMENT_X_TOLERANCE) {
+						// Check spacing between moving shape and target
+						let currentSpacing = 0;
+						if (movingBottom < target.y) {
+							currentSpacing = target.y - movingBottom;
+						} else if (targetBottom < movingShape.y) {
+							currentSpacing = movingShape.y - targetBottom;
+						}
+
+						// If spacing is similar, show equal spacing indicator
+						if (
+							Math.abs(currentSpacing - spacing) < EQUAL_SPACING_THRESHOLD &&
+							currentSpacing > 0
+						) {
+							// Add visual indicator for equal spacing
+							guides.push({
+								type: "distance",
+								position: 0,
+								start: {
+									x: movingShape.x + movingShape.width / 2,
+									y: movingBottom < target.y ? movingBottom : targetBottom,
+								},
+								end: {
+									x: movingShape.x + movingShape.width / 2,
+									y: movingBottom < target.y ? target.y : movingShape.y,
+								},
+								distance: Math.round(spacing),
+								style: "dotted",
+								label: "=", // Equal spacing indicator
+							});
+						}
+					}
+				});
+			});
+		}
 
 		return guides;
 	}
