@@ -471,11 +471,17 @@ export const selectToolMachine = setup({
 							selectedShapeBounds.length > 1 ? selectedShapeBounds : undefined,
 							event.point, // Pass mouse position for distance guides
 							snapSettings.showDistances, // Enable threshold visualization if distances are shown
+							snapSettings.showEqualSpacing, // Enable equal spacing detection
 						);
 						// Filter guides based on settings
 						const filteredSmartGuides = smartGuides.filter((g) => {
-							// Filter distance guides based on showDistances setting
+							// Filter distance guides based on their purpose
 							if (g.type === "distance") {
+								// Equal spacing guides (with "=" label) are controlled by showEqualSpacing
+								if (g.label === "=") {
+									return snapSettings.showEqualSpacing;
+								}
+								// Regular distance guides are controlled by showDistances
 								return snapSettings.showDistances;
 							}
 							// Filter alignment guides (solid lines) based on showAlignmentGuides setting

@@ -44,7 +44,7 @@ export type DistributionType = "horizontal" | "vertical";
 // Constants for smart guides
 const MAX_GUIDE_DISTANCE = 100; // Maximum distance to show distance guides
 const ALIGNMENT_THRESHOLD = 5; // Threshold for detecting alignment
-const EQUAL_SPACING_THRESHOLD = 5; // Tolerance for equal spacing detection
+const EQUAL_SPACING_THRESHOLD = 15; // Tolerance for equal spacing detection (increased for better UX)
 const ALIGNMENT_Y_TOLERANCE = 50; // Y-axis tolerance for horizontal alignment detection
 const ALIGNMENT_X_TOLERANCE = 50; // X-axis tolerance for vertical alignment detection
 
@@ -288,6 +288,7 @@ export class SnapEngine {
 		const visibleShapes = this.getShapesInViewport(nearbyShapes, options?.viewportMargin);
 
 		const snapPoints = this.findSnapPoints(movingShape, visibleShapes, currentPosition);
+
 		const { position: snappedPosition, activeSnapPoints } = this.calculateSnappedPositionWithActive(
 			currentPosition,
 			snapPoints,
@@ -336,6 +337,9 @@ export class SnapEngine {
 
 		// First, detect equal spacing positions and add them as snap points
 		const equalSpacingSnapPoints = this.findEqualSpacingSnapPoints(movingShape, targetShapes);
+		if (equalSpacingSnapPoints.length > 0) {
+			console.log("[SnapEngine] Equal spacing snap points found:", equalSpacingSnapPoints);
+		}
 		snapPoints.push(...equalSpacingSnapPoints);
 
 		targetShapes.forEach((target) => {
@@ -1107,6 +1111,8 @@ export class SnapEngine {
 	}
 
 	// Find snap points for equal spacing positions
+
+	// Find snap points for equal spacing
 	private findEqualSpacingSnapPoints(
 		movingShape: { x: number; y: number; width?: number; height?: number },
 		targetShapes: Array<{
@@ -1130,131 +1136,181 @@ export class SnapEngine {
 			priority: number;
 			targetId?: string;
 			edgeType?: string;
-			targetPosition?: number;
 		}> = [];
 
 		const width = movingShape.width || 0;
 		const height = movingShape.height || 0;
+		const ALIGNMENT_X_TOLERANCE = 50;
+		const ALIGNMENT_Y_TOLERANCE = 50;
+		const EQUAL_SPACING_THRESHOLD = 15; // Use the same tolerance as global constant
 
-		if (targetShapes.length >= 2) {
-			// Find horizontal equal spacing positions
-			for (let i = 0; i < targetShapes.length; i++) {
-				for (let j = i + 1; j < targetShapes.length; j++) {
-					const shape1 = targetShapes[i];
-					const shape2 = targetShapes[j];
+		// Convert to ShapeWithBounds for consistency
+		const shapesWithBounds: ShapeWithBounds[] = targetShapes.map((shape, index) => ({
+			...shape,
+			id: shape.id || `shape-${index}`,
+		}));
 
-					// Check if shapes are horizontally aligned
-					const yDiff = Math.abs(shape1.y - shape2.y);
-					if (yDiff < ALIGNMENT_Y_TOLERANCE) {
-						const shape1Right = shape1.x + shape1.width;
-						const shape2Right = shape2.x + shape2.width;
-
-						let spacing = 0;
-						let snapX = 0;
-
-						// Calculate spacing and snap position
-						if (shape1Right < shape2.x) {
-							// shape1 is to the left of shape2
-							spacing = shape2.x - shape1Right;
-							// Snap position would be shape1 left - spacing - width
-							snapX = shape1.x - spacing - width;
-							snapPoints.push({
-								axis: "x",
-								value: snapX,
-								priority: 3, // Lower priority than direct edge snapping
-								edgeType: "equal-spacing-left",
-								targetPosition: shape1.x,
-							});
-							// Or shape2 right + spacing
-							snapX = shape2Right + spacing;
-							snapPoints.push({
-								axis: "x",
-								value: snapX,
-								priority: 3,
-								edgeType: "equal-spacing-right",
-								targetPosition: shape2Right,
-							});
-						} else if (shape2Right < shape1.x) {
-							// shape2 is to the left of shape1
-							spacing = shape1.x - shape2Right;
-							// Snap position would be shape2 left - spacing - width
-							snapX = shape2.x - spacing - width;
-							snapPoints.push({
-								axis: "x",
-								value: snapX,
-								priority: 3,
-								edgeType: "equal-spacing-left",
-								targetPosition: shape2.x,
-							});
-							// Or shape1 right + spacing
-							snapX = shape1Right + spacing;
-							snapPoints.push({
-								axis: "x",
-								value: snapX,
-								priority: 3,
-								edgeType: "equal-spacing-right",
-								targetPosition: shape1Right,
-							});
-						}
-					}
-
-					// Check if shapes are vertically aligned
-					const xDiff = Math.abs(shape1.x - shape2.x);
-					if (xDiff < ALIGNMENT_X_TOLERANCE) {
-						const shape1Bottom = shape1.y + shape1.height;
-						const shape2Bottom = shape2.y + shape2.height;
-
-						let spacing = 0;
-						let snapY = 0;
-
-						// Calculate spacing and snap position
-						if (shape1Bottom < shape2.y) {
-							// shape1 is above shape2
-							spacing = shape2.y - shape1Bottom;
-							// Snap position would be shape1 top - spacing - height
-							snapY = shape1.y - spacing - height;
-							snapPoints.push({
-								axis: "y",
-								value: snapY,
-								priority: 3,
-								edgeType: "equal-spacing-top",
-								targetPosition: shape1.y,
-							});
-							// Or shape2 bottom + spacing
-							snapY = shape2Bottom + spacing;
-							snapPoints.push({
-								axis: "y",
-								value: snapY,
-								priority: 3,
-								edgeType: "equal-spacing-bottom",
-								targetPosition: shape2Bottom,
-							});
-						} else if (shape2Bottom < shape1.y) {
-							// shape2 is above shape1
-							spacing = shape1.y - shape2Bottom;
-							// Snap position would be shape2 top - spacing - height
-							snapY = shape2.y - spacing - height;
-							snapPoints.push({
-								axis: "y",
-								value: snapY,
-								priority: 3,
-								edgeType: "equal-spacing-top",
-								targetPosition: shape2.y,
-							});
-							// Or shape1 bottom + spacing
-							snapY = shape1Bottom + spacing;
-							snapPoints.push({
-								axis: "y",
-								value: snapY,
-								priority: 3,
-								edgeType: "equal-spacing-bottom",
-								targetPosition: shape1Bottom,
-							});
-						}
-					}
+		// Group shapes by horizontal alignment (similar Y position)
+		const horizontalGroups = new Map<number, ShapeWithBounds[]>();
+		shapesWithBounds.forEach((shape) => {
+			let foundGroup = false;
+			for (const [y, group] of horizontalGroups.entries()) {
+				if (Math.abs(shape.y - y) < ALIGNMENT_Y_TOLERANCE) {
+					group.push(shape);
+					foundGroup = true;
+					break;
 				}
 			}
-		}
+			if (!foundGroup) {
+				horizontalGroups.set(shape.y, [shape]);
+			}
+		});
+
+		// For each horizontal group, find equal spacing positions
+		horizontalGroups.forEach((group) => {
+			if (group.length < 2) return;
+
+			// Sort shapes by X position
+			const sortedShapes = [...group].sort((a, b) => a.x - b.x);
+
+			// Calculate spacings between consecutive shapes
+			const spacings: number[] = [];
+			for (let i = 0; i < sortedShapes.length - 1; i++) {
+				const shape1Right = sortedShapes[i].x + sortedShapes[i].width;
+				const shape2Left = sortedShapes[i + 1].x;
+				const spacing = shape2Left - shape1Right;
+				if (spacing > 0) {
+					spacings.push(spacing);
+				}
+			}
+
+			// Find the most common spacing (if there are at least 2 equal spacings)
+			const spacingCounts = new Map<number, number>();
+			spacings.forEach((spacing) => {
+				for (const [existingSpacing, count] of spacingCounts.entries()) {
+					if (Math.abs(spacing - existingSpacing) < EQUAL_SPACING_THRESHOLD) {
+						spacingCounts.set(existingSpacing, count + 1);
+						return;
+					}
+				}
+				spacingCounts.set(spacing, 1);
+			});
+
+			// Find spacing patterns with at least 2 occurrences
+			const commonSpacings = Array.from(spacingCounts.entries())
+				.filter(([, count]) => count >= 2)
+				.map(([spacing]) => spacing);
+
+			if (commonSpacings.length === 0) return;
+
+			const targetSpacing = commonSpacings[0]; // Use the first common spacing
+			const groupY = sortedShapes[0].y;
+
+			// Check if moving shape is aligned with this group
+			if (Math.abs(movingShape.y - groupY) < ALIGNMENT_Y_TOLERANCE) {
+				// Add snap points before and after each shape in the group
+				sortedShapes.forEach((shape, index) => {
+					// Snap point to the left of the shape
+					const leftSnapX = shape.x - targetSpacing - width;
+					snapPoints.push({
+						axis: "x",
+						value: leftSnapX,
+						priority: 1, // High priority for equal spacing
+						edgeType: "equal-spacing-left",
+					});
+
+					// Snap point to the right of the shape
+					const rightSnapX = shape.x + shape.width + targetSpacing;
+					snapPoints.push({
+						axis: "x",
+						value: rightSnapX,
+						priority: 1, // High priority for equal spacing
+						edgeType: "equal-spacing-right",
+					});
+				});
+			}
+		});
+
+		// Group shapes by vertical alignment (similar X position)
+		const verticalGroups = new Map<number, ShapeWithBounds[]>();
+		shapesWithBounds.forEach((shape) => {
+			let foundGroup = false;
+			for (const [x, group] of verticalGroups.entries()) {
+				if (Math.abs(shape.x - x) < ALIGNMENT_X_TOLERANCE) {
+					group.push(shape);
+					foundGroup = true;
+					break;
+				}
+			}
+			if (!foundGroup) {
+				verticalGroups.set(shape.x, [shape]);
+			}
+		});
+
+		// For each vertical group, find equal spacing positions
+		verticalGroups.forEach((group) => {
+			if (group.length < 2) return;
+
+			// Sort shapes by Y position
+			const sortedShapes = [...group].sort((a, b) => a.y - b.y);
+
+			// Calculate spacings between consecutive shapes
+			const spacings: number[] = [];
+			for (let i = 0; i < sortedShapes.length - 1; i++) {
+				const shape1Bottom = sortedShapes[i].y + sortedShapes[i].height;
+				const shape2Top = sortedShapes[i + 1].y;
+				const spacing = shape2Top - shape1Bottom;
+				if (spacing > 0) {
+					spacings.push(spacing);
+				}
+			}
+
+			// Find the most common spacing
+			const spacingCounts = new Map<number, number>();
+			spacings.forEach((spacing) => {
+				for (const [existingSpacing, count] of spacingCounts.entries()) {
+					if (Math.abs(spacing - existingSpacing) < EQUAL_SPACING_THRESHOLD) {
+						spacingCounts.set(existingSpacing, count + 1);
+						return;
+					}
+				}
+				spacingCounts.set(spacing, 1);
+			});
+
+			// Find spacing patterns with at least 2 occurrences
+			const commonSpacings = Array.from(spacingCounts.entries())
+				.filter(([, count]) => count >= 2)
+				.map(([spacing]) => spacing);
+
+			if (commonSpacings.length === 0) return;
+
+			const targetSpacing = commonSpacings[0];
+			const groupX = sortedShapes[0].x;
+
+			// Check if moving shape is aligned with this group
+			if (Math.abs(movingShape.x - groupX) < ALIGNMENT_X_TOLERANCE) {
+				// Add snap points above and below each shape in the group
+				sortedShapes.forEach((shape) => {
+					// Snap point above the shape
+					const topSnapY = shape.y - targetSpacing - height;
+					snapPoints.push({
+						axis: "y",
+						value: topSnapY,
+						priority: 1, // High priority for equal spacing
+						edgeType: "equal-spacing-top",
+					});
+
+					// Snap point below the shape
+					const bottomSnapY = shape.y + shape.height + targetSpacing;
+					snapPoints.push({
+						axis: "y",
+						value: bottomSnapY,
+						priority: 1, // High priority for equal spacing
+						edgeType: "equal-spacing-bottom",
+					});
+				});
+			}
+		});
 
 		return snapPoints;
 	}
@@ -1266,228 +1322,216 @@ export class SnapEngine {
 	): SnapGuide[] {
 		const guides: SnapGuide[] = [];
 
-		// Find pairs of shapes with similar spacing
-		if (targetShapes.length >= 2) {
-			// Check horizontal spacing
-			const horizontalSpacings: Array<{
-				shape1: ShapeWithBounds;
-				shape2: ShapeWithBounds;
-				spacing: number;
-				midpoint: number;
-			}> = [];
-
-			// Calculate all horizontal spacings between target shapes
-			for (let i = 0; i < targetShapes.length; i++) {
-				for (let j = i + 1; j < targetShapes.length; j++) {
-					const shape1 = targetShapes[i];
-					const shape2 = targetShapes[j];
-					const shape1Right = shape1.x + shape1.width;
-					const shape2Right = shape2.x + shape2.width;
-
-					// Check if shapes are horizontally aligned (roughly same Y position)
-					const yDiff = Math.abs(shape1.y - shape2.y);
-					if (yDiff < ALIGNMENT_Y_TOLERANCE) {
-						if (shape1Right < shape2.x) {
-							const spacing = shape2.x - shape1Right;
-							horizontalSpacings.push({
-								shape1,
-								shape2,
-								spacing,
-								midpoint: (shape1Right + shape2.x) / 2,
-							});
-						} else if (shape2Right < shape1.x) {
-							const spacing = shape1.x - shape2Right;
-							horizontalSpacings.push({
-								shape1: shape2,
-								shape2: shape1,
-								spacing,
-								midpoint: (shape2Right + shape1.x) / 2,
-							});
-						}
-					}
-				}
-			}
-
-			// Check if moving shape creates equal spacing with any pair
-			const movingRight = movingShape.x + movingShape.width;
-
-			// For each existing spacing, check if moving shape creates the same spacing
-			horizontalSpacings.forEach(({ shape1, shape2, spacing, midpoint }) => {
-				// Check each target shape to see if moving shape creates equal spacing with it
-				targetShapes.forEach((target) => {
-					const targetRight = target.x + target.width;
-
-					// Check if moving shape is aligned horizontally with target
-					const yDiff = Math.abs(movingShape.y - target.y);
-					if (yDiff < ALIGNMENT_Y_TOLERANCE) {
-						// Calculate actual spacing between moving shape and target
-						let currentSpacing = 0;
-						let isValidSpacing = false;
-
-						if (movingRight < target.x) {
-							// Moving shape is to the left of target
-							currentSpacing = target.x - movingRight;
-							isValidSpacing = true;
-						} else if (targetRight < movingShape.x) {
-							// Target is to the left of moving shape
-							currentSpacing = movingShape.x - targetRight;
-							isValidSpacing = true;
-						}
-
-						// If spacing matches, show equal spacing indicator
-						if (
-							isValidSpacing &&
-							Math.abs(currentSpacing - spacing) < EQUAL_SPACING_THRESHOLD &&
-							currentSpacing > 0
-						) {
-							// Add visual indicator for equal spacing between moving shape and target
-							guides.push({
-								type: "distance",
-								position: 0,
-								start: {
-									x: movingRight < target.x ? movingRight : targetRight,
-									y: movingShape.y + movingShape.height / 2,
-								},
-								end: {
-									x: movingRight < target.x ? target.x : movingShape.x,
-									y: movingShape.y + movingShape.height / 2,
-								},
-								distance: Math.round(spacing),
-								style: "dotted",
-								label: "=", // Equal spacing indicator
-							});
-
-							// Also show the reference spacing that we're matching
-							guides.push({
-								type: "distance",
-								position: 0,
-								start: {
-									x: shape1.x + shape1.width,
-									y: shape1.y + shape1.height / 2,
-								},
-								end: {
-									x: shape2.x,
-									y: shape2.y + shape2.height / 2,
-								},
-								distance: Math.round(spacing),
-								style: "dotted",
-								label: "=",
-							});
-						}
-					}
-				});
-			});
-
-			// Similar logic for vertical spacing
-			const verticalSpacings: Array<{
-				shape1: ShapeWithBounds;
-				shape2: ShapeWithBounds;
-				spacing: number;
-				midpoint: number;
-			}> = [];
-
-			// Calculate all vertical spacings between target shapes
-			for (let i = 0; i < targetShapes.length; i++) {
-				for (let j = i + 1; j < targetShapes.length; j++) {
-					const shape1 = targetShapes[i];
-					const shape2 = targetShapes[j];
-					const shape1Bottom = shape1.y + shape1.height;
-					const shape2Bottom = shape2.y + shape2.height;
-
-					// Check if shapes are vertically aligned (roughly same X position)
-					const xDiff = Math.abs(shape1.x - shape2.x);
-					if (xDiff < ALIGNMENT_X_TOLERANCE) {
-						if (shape1Bottom < shape2.y) {
-							const spacing = shape2.y - shape1Bottom;
-							verticalSpacings.push({
-								shape1,
-								shape2,
-								spacing,
-								midpoint: (shape1Bottom + shape2.y) / 2,
-							});
-						} else if (shape2Bottom < shape1.y) {
-							const spacing = shape1.y - shape2Bottom;
-							verticalSpacings.push({
-								shape1: shape2,
-								shape2: shape1,
-								spacing,
-								midpoint: (shape2Bottom + shape1.y) / 2,
-							});
-						}
-					}
-				}
-			}
-
-			// Check if moving shape creates equal vertical spacing with any pair
-			const movingBottom = movingShape.y + movingShape.height;
-
-			// For each existing spacing, check if moving shape creates the same spacing
-			verticalSpacings.forEach(({ shape1, shape2, spacing, midpoint }) => {
-				// Check each target shape to see if moving shape creates equal spacing with it
-				targetShapes.forEach((target) => {
-					const targetBottom = target.y + target.height;
-
-					// Check if moving shape is aligned vertically with target
-					const xDiff = Math.abs(movingShape.x - target.x);
-					if (xDiff < ALIGNMENT_X_TOLERANCE) {
-						// Calculate actual spacing between moving shape and target
-						let currentSpacing = 0;
-						let isValidSpacing = false;
-
-						if (movingBottom < target.y) {
-							// Moving shape is above target
-							currentSpacing = target.y - movingBottom;
-							isValidSpacing = true;
-						} else if (targetBottom < movingShape.y) {
-							// Target is above moving shape
-							currentSpacing = movingShape.y - targetBottom;
-							isValidSpacing = true;
-						}
-
-						// If spacing matches, show equal spacing indicator
-						if (
-							isValidSpacing &&
-							Math.abs(currentSpacing - spacing) < EQUAL_SPACING_THRESHOLD &&
-							currentSpacing > 0
-						) {
-							// Add visual indicator for equal spacing between moving shape and target
-							guides.push({
-								type: "distance",
-								position: 0,
-								start: {
-									x: movingShape.x + movingShape.width / 2,
-									y: movingBottom < target.y ? movingBottom : targetBottom,
-								},
-								end: {
-									x: movingShape.x + movingShape.width / 2,
-									y: movingBottom < target.y ? target.y : movingShape.y,
-								},
-								distance: Math.round(spacing),
-								style: "dotted",
-								label: "=", // Equal spacing indicator
-							});
-
-							// Also show the reference spacing that we're matching
-							guides.push({
-								type: "distance",
-								position: 0,
-								start: {
-									x: shape1.x + shape1.width / 2,
-									y: shape1.y + shape1.height,
-								},
-								end: {
-									x: shape2.x + shape2.width / 2,
-									y: shape2.y,
-								},
-								distance: Math.round(spacing),
-								style: "dotted",
-								label: "=",
-							});
-						}
-					}
-				});
-			});
+		if (targetShapes.length < 2) {
+			return guides;
 		}
+
+		// Check horizontal equal spacing (shapes aligned in a row)
+		// Group shapes that are horizontally aligned
+		const horizontalGroups: Map<number, ShapeWithBounds[]> = new Map();
+
+		targetShapes.forEach((shape) => {
+			// Find if there's an existing group at a similar Y position
+			let foundGroup = false;
+			for (const [y, group] of horizontalGroups.entries()) {
+				if (Math.abs(shape.y - y) < ALIGNMENT_Y_TOLERANCE) {
+					group.push(shape);
+					foundGroup = true;
+					break;
+				}
+			}
+			if (!foundGroup) {
+				horizontalGroups.set(shape.y, [shape]);
+			}
+		});
+
+		// For each horizontal group with at least 2 shapes, check for equal spacing
+		horizontalGroups.forEach((group, groupY) => {
+			if (group.length < 2) {
+				return;
+			}
+
+			// Sort shapes by X position
+			const sortedShapes = [...group].sort((a, b) => a.x - b.x);
+
+			// Find equal spacings in this group
+			const spacings: number[] = [];
+			for (let i = 0; i < sortedShapes.length - 1; i++) {
+				const shape1Right = sortedShapes[i].x + sortedShapes[i].width;
+				const shape2Left = sortedShapes[i + 1].x;
+				const spacing = shape2Left - shape1Right;
+				spacings.push(spacing);
+			}
+
+			// Check if there are at least 2 equal spacings
+			let foundEqualSpacing = false;
+			for (let i = 0; i < spacings.length - 1; i++) {
+				for (let j = i + 1; j < spacings.length; j++) {
+					if (Math.abs(spacings[i] - spacings[j]) < EQUAL_SPACING_THRESHOLD) {
+						// Found equal spacing pattern
+						const equalSpacing = (spacings[i] + spacings[j]) / 2;
+						foundEqualSpacing = true;
+
+						// Now check if moving shape aligns with this group and creates equal spacing
+						const movingY = movingShape.y;
+						const groupY = sortedShapes[0].y;
+
+						if (Math.abs(movingY - groupY) < ALIGNMENT_Y_TOLERANCE) {
+							// Moving shape is aligned with this group
+							// Include moving shape in the group for complete equal spacing detection
+							const allShapes = [...sortedShapes];
+
+							// Find where to insert the moving shape in the sorted array
+							let insertIndex = 0;
+							for (let k = 0; k < sortedShapes.length; k++) {
+								if (movingShape.x < sortedShapes[k].x) {
+									break;
+								}
+								insertIndex = k + 1;
+							}
+							allShapes.splice(insertIndex, 0, movingShape);
+
+							// Recalculate all spacings with moving shape included
+							const allSpacings: Array<{ spacing: number; fromIndex: number; toIndex: number }> =
+								[];
+							for (let k = 0; k < allShapes.length - 1; k++) {
+								const shape1Right = allShapes[k].x + allShapes[k].width;
+								const shape2Left = allShapes[k + 1].x;
+								const spacing = shape2Left - shape1Right;
+								allSpacings.push({ spacing, fromIndex: k, toIndex: k + 1 });
+							}
+
+							// Show guides for all pairs that match the equal spacing
+							for (const spacingInfo of allSpacings) {
+								if (Math.abs(spacingInfo.spacing - equalSpacing) < EQUAL_SPACING_THRESHOLD) {
+									const shape1 = allShapes[spacingInfo.fromIndex];
+									const shape2 = allShapes[spacingInfo.toIndex];
+									const shape1Right = shape1.x + shape1.width;
+									const shape2Left = shape2.x;
+
+									guides.push({
+										type: "distance",
+										position: 0,
+										start: {
+											x: shape1Right,
+											y: shape1.y + shape1.height / 2,
+										},
+										end: {
+											x: shape2Left,
+											y: shape2.y + shape2.height / 2,
+										},
+										distance: Math.round(equalSpacing),
+										style: "dotted",
+										label: "=",
+									});
+								}
+							}
+						}
+					}
+				}
+			}
+		});
+
+		// Similar logic for vertical equal spacing
+		const verticalGroups: Map<number, ShapeWithBounds[]> = new Map();
+
+		targetShapes.forEach((shape) => {
+			// Find if there's an existing group at a similar X position
+			let foundGroup = false;
+			for (const [x, group] of verticalGroups.entries()) {
+				if (Math.abs(shape.x - x) < ALIGNMENT_X_TOLERANCE) {
+					group.push(shape);
+					foundGroup = true;
+					break;
+				}
+			}
+			if (!foundGroup) {
+				verticalGroups.set(shape.x, [shape]);
+			}
+		});
+
+		// For each vertical group with at least 2 shapes, check for equal spacing
+		verticalGroups.forEach((group) => {
+			if (group.length < 2) return;
+
+			// Sort shapes by Y position
+			const sortedShapes = [...group].sort((a, b) => a.y - b.y);
+
+			// Find equal spacings in this group
+			const spacings: number[] = [];
+			for (let i = 0; i < sortedShapes.length - 1; i++) {
+				const shape1Bottom = sortedShapes[i].y + sortedShapes[i].height;
+				const shape2Top = sortedShapes[i + 1].y;
+				const spacing = shape2Top - shape1Bottom;
+				spacings.push(spacing);
+			}
+
+			// Check if there are at least 2 equal spacings
+			for (let i = 0; i < spacings.length - 1; i++) {
+				for (let j = i + 1; j < spacings.length; j++) {
+					if (Math.abs(spacings[i] - spacings[j]) < EQUAL_SPACING_THRESHOLD) {
+						// Found equal spacing pattern
+						const equalSpacing = (spacings[i] + spacings[j]) / 2;
+
+						// Now check if moving shape aligns with this group and creates equal spacing
+						const movingX = movingShape.x;
+						const groupX = sortedShapes[0].x;
+
+						if (Math.abs(movingX - groupX) < ALIGNMENT_X_TOLERANCE) {
+							// Moving shape is aligned with this group
+							// Include moving shape in the group for complete equal spacing detection
+							const allShapes = [...sortedShapes];
+
+							// Find where to insert the moving shape in the sorted array
+							let insertIndex = 0;
+							for (let k = 0; k < sortedShapes.length; k++) {
+								if (movingShape.y < sortedShapes[k].y) {
+									break;
+								}
+								insertIndex = k + 1;
+							}
+							allShapes.splice(insertIndex, 0, movingShape);
+
+							// Recalculate all spacings with moving shape included
+							const allSpacings: Array<{ spacing: number; fromIndex: number; toIndex: number }> =
+								[];
+							for (let k = 0; k < allShapes.length - 1; k++) {
+								const shape1Bottom = allShapes[k].y + allShapes[k].height;
+								const shape2Top = allShapes[k + 1].y;
+								const spacing = shape2Top - shape1Bottom;
+								allSpacings.push({ spacing, fromIndex: k, toIndex: k + 1 });
+							}
+
+							// Show guides for all pairs that match the equal spacing
+							for (const spacingInfo of allSpacings) {
+								if (Math.abs(spacingInfo.spacing - equalSpacing) < EQUAL_SPACING_THRESHOLD) {
+									const shape1 = allShapes[spacingInfo.fromIndex];
+									const shape2 = allShapes[spacingInfo.toIndex];
+									const shape1Bottom = shape1.y + shape1.height;
+									const shape2Top = shape2.y;
+
+									guides.push({
+										type: "distance",
+										position: 0,
+										start: {
+											x: shape1.x + shape1.width / 2,
+											y: shape1Bottom,
+										},
+										end: {
+											x: shape2.x + shape2.width / 2,
+											y: shape2Top,
+										},
+										distance: Math.round(equalSpacing),
+										style: "dotted",
+										label: "=",
+									});
+								}
+							}
+						}
+					}
+				}
+			}
+		});
 
 		return guides;
 	}
