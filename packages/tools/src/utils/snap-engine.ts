@@ -150,6 +150,11 @@ export class SnapEngine {
 		allShapes: ShapeWithBounds[],
 		maxDistance = 200,
 	): ShapeWithBounds[] {
+		// If no shapes, return empty
+		if (!allShapes || allShapes.length === 0) {
+			return [];
+		}
+
 		// Check cache first
 		const cacheKey = `${Math.round(position.x / 10)},${Math.round(position.y / 10)}`;
 		if (this.snapCandidatesCache.has(cacheKey)) {
@@ -200,18 +205,22 @@ export class SnapEngine {
 		let snapped = false;
 
 		if (options.gridSnap) {
-			const gridX = Math.round(position.x / this.gridSize) * this.gridSize;
-			const gridY = Math.round(position.y / this.gridSize) * this.gridSize;
+			const gridSize = options.gridSize || this.gridSize;
+			const snapThreshold =
+				options.snapThreshold !== undefined ? options.snapThreshold : this.snapThreshold;
+
+			const gridX = Math.round(position.x / gridSize) * gridSize;
+			const gridY = Math.round(position.y / gridSize) * gridSize;
 
 			const deltaX = Math.abs(position.x - gridX);
 			const deltaY = Math.abs(position.y - gridY);
 
 			// Only snap if within threshold
-			if (deltaX < this.snapThreshold) {
+			if (deltaX < snapThreshold) {
 				snappedPosition.x = gridX;
 				snapped = true;
 			}
-			if (deltaY < this.snapThreshold) {
+			if (deltaY < snapThreshold) {
 				snappedPosition.y = gridY;
 				snapped = true;
 			}
@@ -236,8 +245,14 @@ export class SnapEngine {
 		}>,
 		currentPosition: Point,
 	): SnapResult {
+		// Convert targetShapes to ShapeWithBounds if needed
+		const shapesWithBounds: ShapeWithBounds[] = targetShapes.map((shape, index) => ({
+			...shape,
+			id: shape.id || `shape-${index}`,
+		}));
+
 		// Use optimized shape querying
-		const nearbyShapes = this.getNearbyShapes(currentPosition, targetShapes);
+		const nearbyShapes = this.getNearbyShapes(currentPosition, shapesWithBounds);
 		const visibleShapes = this.getShapesInViewport(nearbyShapes);
 
 		const snapPoints = this.findSnapPoints(movingShape, visibleShapes, currentPosition);

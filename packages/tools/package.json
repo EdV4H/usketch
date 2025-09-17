@@ -24,6 +24,9 @@
 		"dev": "tsc --watch",
 		"build": "tsc",
 		"typecheck": "tsc --noEmit",
+		"test": "vitest",
+		"test:run": "vitest run",
+		"test:coverage": "vitest run --coverage",
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
@@ -35,7 +38,10 @@
 	"devDependencies": {
 		"@types/node": "24.5.1",
 		"@types/react": "19.1.13",
-		"typescript": "5.9.2"
+		"typescript": "5.9.2",
+		"vitest": "^2.0.0",
+		"@vitest/coverage-v8": "^2.0.0",
+		"jsdom": "^24.0.0"
 	},
 	"peerDependencies": {
 		"react": "^18.3.1"
