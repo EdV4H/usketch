@@ -114,7 +114,9 @@ describe("SnapEngine", () => {
 		it("should snap to center alignment", () => {
 			// Moving shape is close to center alignment
 			// Target shape1 is at 100,100 with size 100x100, so its center is at 150,150
-			// For center-to-center snap, the snap point is calculated differently
+			// Moving shape at 120,120 with size 50x50 has center at 145,145
+			// To align centers at 150,150, moving shape needs to be at x=125, y=125
+			// Distance from current position: 5px for x, 5px for y (within threshold)
 			const movingShape = { x: 120, y: 120, width: 50, height: 50 };
 			const result = snapEngine.snapToShapes(movingShape, targetShapes, { x: 120, y: 120 });
 
@@ -135,6 +137,8 @@ describe("SnapEngine", () => {
 		});
 
 		it("should not snap when outside threshold", () => {
+			// Shape at (90, 150) with width 50 should be outside threshold
+			// Closest edge: shape1's left edge at x=100, distance=10 (threshold is 5)
 			const movingShape = { x: 90, y: 150, width: 50, height: 50 };
 			const result = snapEngine.snapToShapes(movingShape, targetShapes, { x: 90, y: 150 });
 

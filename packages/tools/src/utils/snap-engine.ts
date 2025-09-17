@@ -567,9 +567,16 @@ export class SnapEngine {
 			});
 		});
 
-		// Add diagonal (45°) snap points
-		const diagonalSnapPoints = this.findDiagonalSnapPoints(movingShape, targetShapes);
-		snapPoints.push(...diagonalSnapPoints);
+		// Add diagonal (45°) snap points only when applicable
+		// Check if we have high priority snap points (edge or center alignment)
+		const hasHighPrioritySnaps = snapPoints.some((p) => p.priority <= 3);
+
+		// Only add diagonal snap points if no high priority snaps are available
+		// or if the shape is already very close to diagonal alignment
+		if (!hasHighPrioritySnaps) {
+			const diagonalSnapPoints = this.findDiagonalSnapPoints(movingShape, targetShapes);
+			snapPoints.push(...diagonalSnapPoints);
+		}
 
 		return snapPoints;
 	}
@@ -1226,6 +1233,17 @@ export class SnapEngine {
 				return;
 			}
 
+			// Check if already close to 45° alignment (within tolerance)
+			const absDx = Math.abs(dx);
+			const absDy = Math.abs(dy);
+			const ratio = absDx > 0 ? absDy / absDx : 0;
+			const DIAGONAL_TOLERANCE = 0.3; // Allow 30% deviation from perfect diagonal
+
+			// Only add diagonal snap points if we're already close to a diagonal
+			if (Math.abs(ratio - 1.0) > DIAGONAL_TOLERANCE) {
+				return; // Not close enough to diagonal, skip
+			}
+
 			// For 45° alignment, |dx| should equal |dy|
 			// We'll create snap points that would make this true
 
@@ -1252,7 +1270,7 @@ export class SnapEngine {
 			}
 
 			// Southeast (315°/-45°): dx = -dy
-			if (dx > 0 && dy > 0) {
+			else if (dx > 0 && dy > 0) {
 				const avgDistance = (Math.abs(dx) + Math.abs(dy)) / 2;
 				snapPoints.push({
 					axis: "x",
@@ -1273,7 +1291,7 @@ export class SnapEngine {
 			}
 
 			// Southwest (225°): dx = dy (both negative from target)
-			if (dx < 0 && dy > 0) {
+			else if (dx < 0 && dy > 0) {
 				const avgDistance = (Math.abs(dx) + Math.abs(dy)) / 2;
 				snapPoints.push({
 					axis: "x",
@@ -1294,7 +1312,7 @@ export class SnapEngine {
 			}
 
 			// Northwest (135°): dx = -dy
-			if (dx < 0 && dy < 0) {
+			else if (dx < 0 && dy < 0) {
 				const avgDistance = (Math.abs(dx) + Math.abs(dy)) / 2;
 				snapPoints.push({
 					axis: "x",
