@@ -29,6 +29,7 @@ export interface SnapGuide {
 	distance?: number; // Distance value to display
 	label?: string; // Optional label for the guide
 	style?: "solid" | "dashed" | "dotted"; // Line style
+	isEqualSpacing?: boolean; // Flag to identify equal spacing guides
 }
 
 export type AlignmentType =
@@ -297,10 +298,50 @@ export class SnapEngine {
 		const snapped =
 			snappedPosition.x !== currentPosition.x || snappedPosition.y !== currentPosition.y;
 
+		// Generate diagonal guide if diagonal snap is active
+		const diagonalGuides: SnapGuide[] = [];
+		if (snapped) {
+			const diagonalSnapPoint = activeSnapPoints.find((p) => p.edgeType === "diagonal-45");
+			if (diagonalSnapPoint && diagonalSnapPoint.targetId) {
+				// Find the target shape to calculate the diagonal guide
+				const targetShape = targetShapes.find((s) => s.id === diagonalSnapPoint.targetId);
+				if (targetShape) {
+					const movingCenterX = snappedPosition.x + (movingShape.width || 0) / 2;
+					const movingCenterY = snappedPosition.y + (movingShape.height || 0) / 2;
+					const targetCenterX = targetShape.x + targetShape.width / 2;
+					const targetCenterY = targetShape.y + targetShape.height / 2;
+
+					// Calculate angle for display
+					const dx = movingCenterX - targetCenterX;
+					const dy = movingCenterY - targetCenterY;
+					const angleRad = Math.atan2(Math.abs(dy), Math.abs(dx));
+					const angleDeg = Math.round((angleRad * 180) / Math.PI);
+
+					diagonalGuides.push({
+						type: "diagonal",
+						position: 0,
+						start: {
+							x: targetCenterX,
+							y: targetCenterY,
+						},
+						end: {
+							x: movingCenterX,
+							y: movingCenterY,
+						},
+						style: "dashed",
+						label: `${angleDeg}°`,
+					});
+				}
+			}
+		}
+
 		return {
 			position: snappedPosition,
 			guides: snapped
-				? this.generateGuidesFromActivePoints(activeSnapPoints, movingShape, targetShapes)
+				? [
+						...this.generateGuidesFromActivePoints(activeSnapPoints, movingShape, targetShapes),
+						...diagonalGuides,
+					]
 				: [],
 			snapped,
 		};
@@ -341,6 +382,10 @@ export class SnapEngine {
 			console.log("[SnapEngine] Equal spacing snap points found:", equalSpacingSnapPoints);
 		}
 		snapPoints.push(...equalSpacingSnapPoints);
+
+		// Add diagonal (45°) snap points
+		const diagonalSnapPoints = this.findDiagonalSnapPoints(movingShape, targetShapes);
+		snapPoints.push(...diagonalSnapPoints);
 
 		targetShapes.forEach((target) => {
 			if (!target) return;
@@ -642,7 +687,22 @@ export class SnapEngine {
 	): SnapGuide[] {
 		const guides: SnapGuide[] = [];
 
+		// Check if we have diagonal snap points active
+		const hasDiagonalSnap = activeSnapPoints.some((p) => p.edgeType === "diagonal-45");
+
 		activeSnapPoints.forEach((snapPoint) => {
+			// Skip generating alignment guides for equal spacing snap points
+			// Equal spacing guides are generated separately in generateSmartGuides
+			if (snapPoint.edgeType?.startsWith("equal-spacing")) {
+				return;
+			}
+
+			// Skip vertical/horizontal guides when diagonal snap is active
+			// We want to show only the diagonal guide in this case
+			if (hasDiagonalSnap && snapPoint.edgeType !== "diagonal-45") {
+				return;
+			}
+
 			if (snapPoint.targetPosition !== undefined) {
 				// Use the actual target position for the guide
 				if (snapPoint.axis === "x") {
@@ -894,7 +954,10 @@ export class SnapEngine {
 			}
 
 			// Diagonal alignment detection (45° and 135°)
-			const diagonalGuides = this.detectDiagonalAlignment(effectiveShape, target);
+			// Use the actual first selected shape for diagonal guides, not the group bounds
+			const shapeForDiagonal =
+				selectedShapes && selectedShapes.length > 0 ? selectedShapes[0] : movingShape;
+			const diagonalGuides = this.detectDiagonalAlignment(shapeForDiagonal, target);
 			guides.push(...diagonalGuides);
 		});
 
@@ -1111,6 +1174,149 @@ export class SnapEngine {
 	}
 
 	// Find snap points for equal spacing positions
+
+	// Find snap points for 45° diagonal alignment
+	private findDiagonalSnapPoints(
+		movingShape: { x: number; y: number; width?: number; height?: number },
+		targetShapes: Array<{
+			x: number;
+			y: number;
+			width: number;
+			height: number;
+			[key: string]: any;
+		}>,
+	): Array<{
+		axis: "x" | "y";
+		value: number;
+		priority: number;
+		targetId?: string;
+		edgeType?: string;
+		targetPosition?: number;
+	}> {
+		const snapPoints: Array<{
+			axis: "x" | "y";
+			value: number;
+			priority: number;
+			targetId?: string;
+			edgeType?: string;
+			targetPosition?: number;
+		}> = [];
+
+		const width = movingShape.width || 0;
+		const height = movingShape.height || 0;
+		const movingCenterX = movingShape.x + width / 2;
+		const movingCenterY = movingShape.y + height / 2;
+
+		targetShapes.forEach((target) => {
+			const targetCenterX = target.x + target.width / 2;
+			const targetCenterY = target.y + target.height / 2;
+
+			// Calculate the position that would place the moving shape at 45° from the target
+			// There are 8 possible 45° positions (NE, E, SE, S, SW, W, NW, N directions)
+
+			// For each direction, calculate where the moving shape should be to maintain 45° alignment
+			// We'll use the center-to-center distance and project it along the 45° lines
+
+			const dx = movingCenterX - targetCenterX;
+			const dy = movingCenterY - targetCenterY;
+			const currentDistance = Math.sqrt(dx * dx + dy * dy);
+
+			// Skip if shapes are too far apart
+			if (currentDistance > MAX_GUIDE_DISTANCE * 2) {
+				return;
+			}
+
+			// For 45° alignment, |dx| should equal |dy|
+			// We'll create snap points that would make this true
+
+			// Northeast (45°): dx = dy (both positive from target)
+			if (dx > 0 && dy < 0) {
+				// Snap to make dx = -dy
+				const avgDistance = (Math.abs(dx) + Math.abs(dy)) / 2;
+				snapPoints.push({
+					axis: "x",
+					value: targetCenterX + avgDistance - width / 2,
+					priority: 4, // Lower priority than edge/center snaps
+					targetId: target.id,
+					edgeType: "diagonal-45",
+					targetPosition: targetCenterX,
+				});
+				snapPoints.push({
+					axis: "y",
+					value: targetCenterY - avgDistance - height / 2,
+					priority: 4, // Lower priority than edge/center snaps
+					targetId: target.id,
+					edgeType: "diagonal-45",
+					targetPosition: targetCenterY,
+				});
+			}
+
+			// Southeast (315°/-45°): dx = -dy
+			if (dx > 0 && dy > 0) {
+				const avgDistance = (Math.abs(dx) + Math.abs(dy)) / 2;
+				snapPoints.push({
+					axis: "x",
+					value: targetCenterX + avgDistance - width / 2,
+					priority: 4, // Lower priority than edge/center snaps
+					targetId: target.id,
+					edgeType: "diagonal-45",
+					targetPosition: targetCenterX,
+				});
+				snapPoints.push({
+					axis: "y",
+					value: targetCenterY + avgDistance - height / 2,
+					priority: 4, // Lower priority than edge/center snaps
+					targetId: target.id,
+					edgeType: "diagonal-45",
+					targetPosition: targetCenterY,
+				});
+			}
+
+			// Southwest (225°): dx = dy (both negative from target)
+			if (dx < 0 && dy > 0) {
+				const avgDistance = (Math.abs(dx) + Math.abs(dy)) / 2;
+				snapPoints.push({
+					axis: "x",
+					value: targetCenterX - avgDistance - width / 2,
+					priority: 4, // Lower priority than edge/center snaps
+					targetId: target.id,
+					edgeType: "diagonal-45",
+					targetPosition: targetCenterX,
+				});
+				snapPoints.push({
+					axis: "y",
+					value: targetCenterY + avgDistance - height / 2,
+					priority: 4, // Lower priority than edge/center snaps
+					targetId: target.id,
+					edgeType: "diagonal-45",
+					targetPosition: targetCenterY,
+				});
+			}
+
+			// Northwest (135°): dx = -dy
+			if (dx < 0 && dy < 0) {
+				const avgDistance = (Math.abs(dx) + Math.abs(dy)) / 2;
+				snapPoints.push({
+					axis: "x",
+					value: targetCenterX - avgDistance - width / 2,
+					priority: 4, // Lower priority than edge/center snaps
+					targetId: target.id,
+					edgeType: "diagonal-45",
+					targetPosition: targetCenterX,
+				});
+				snapPoints.push({
+					axis: "y",
+					value: targetCenterY - avgDistance - height / 2,
+					priority: 4, // Lower priority than edge/center snaps
+					targetId: target.id,
+					edgeType: "diagonal-45",
+					targetPosition: targetCenterY,
+				});
+			}
+		});
+
+		return snapPoints;
+	}
 
 	// Find snap points for equal spacing
 	private findEqualSpacingSnapPoints(
@@ -1409,20 +1615,24 @@ export class SnapEngine {
 									const shape1Right = shape1.x + shape1.width;
 									const shape2Left = shape2.x;
 
+									// Use a consistent Y position for equal spacing guides
+									// based on the average Y position of the group
+									const guideY = groupY + sortedShapes[0].height / 2;
 									guides.push({
 										type: "distance",
 										position: 0,
 										start: {
 											x: shape1Right,
-											y: shape1.y + shape1.height / 2,
+											y: guideY,
 										},
 										end: {
 											x: shape2Left,
-											y: shape2.y + shape2.height / 2,
+											y: guideY,
 										},
 										distance: Math.round(equalSpacing),
 										style: "dotted",
-										label: "=",
+										label: `${Math.round(equalSpacing)}px`,
+										isEqualSpacing: true,
 									});
 								}
 							}
@@ -1510,20 +1720,24 @@ export class SnapEngine {
 									const shape1Bottom = shape1.y + shape1.height;
 									const shape2Top = shape2.y;
 
+									// Use a consistent X position for equal spacing guides
+									// based on the average X position of the group
+									const guideX = groupX + sortedShapes[0].width / 2;
 									guides.push({
 										type: "distance",
 										position: 0,
 										start: {
-											x: shape1.x + shape1.width / 2,
+											x: guideX,
 											y: shape1Bottom,
 										},
 										end: {
-											x: shape2.x + shape2.width / 2,
+											x: guideX,
 											y: shape2Top,
 										},
 										distance: Math.round(equalSpacing),
 										style: "dotted",
-										label: "=",
+										label: `${Math.round(equalSpacing)}px`,
+										isEqualSpacing: true,
 									});
 								}
 							}
