@@ -44,6 +44,15 @@ const EQUAL_SPACING_THRESHOLD = 5; // Tolerance for equal spacing detection
 const ALIGNMENT_Y_TOLERANCE = 50; // Y-axis tolerance for horizontal alignment detection
 const ALIGNMENT_X_TOLERANCE = 50; // X-axis tolerance for vertical alignment detection
 
+// Shape type for equal spacing detection
+type ShapeWithBounds = {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	[key: string]: any;
+};
+
 export class SnapEngine {
 	private gridSize = 20;
 	private snapThreshold = 15;
@@ -621,13 +630,7 @@ export class SnapEngine {
 	// Detect equal spacing between shapes
 	private detectEqualSpacing(
 		movingShape: { x: number; y: number; width: number; height: number },
-		targetShapes: Array<{
-			x: number;
-			y: number;
-			width: number;
-			height: number;
-			[key: string]: any;
-		}>,
+		targetShapes: Array<ShapeWithBounds>,
 	): SnapGuide[] {
 		const guides: SnapGuide[] = [];
 
@@ -635,8 +638,8 @@ export class SnapEngine {
 		if (targetShapes.length >= 2) {
 			// Check horizontal spacing
 			const horizontalSpacings: Array<{
-				shape1: any;
-				shape2: any;
+				shape1: ShapeWithBounds;
+				shape2: ShapeWithBounds;
 				spacing: number;
 				midpoint: number;
 			}> = [];
@@ -717,8 +720,8 @@ export class SnapEngine {
 
 			// Similar logic for vertical spacing
 			const verticalSpacings: Array<{
-				shape1: any;
-				shape2: any;
+				shape1: ShapeWithBounds;
+				shape2: ShapeWithBounds;
 				spacing: number;
 				midpoint: number;
 			}> = [];

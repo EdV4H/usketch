@@ -1,6 +1,10 @@
 import type { SnapGuide } from "@usketch/tools";
 import type React from "react";
 
+// Constants for label positioning
+const DISTANCE_LABEL_X_OFFSET = 20;
+const DISTANCE_LABEL_Y_OFFSET = 4;
+
 interface SnapGuidelinesProps {
 	guides: SnapGuide[];
 	camera: {
@@ -118,8 +122,8 @@ export const SnapGuidelines: React.FC<SnapGuidelinesProps> = ({ guides, camera }
 									{/* Show distance value next to = sign if both are present */}
 									{guide.label === "=" && (
 										<text
-											x={(guide.start.x + guide.end.x) / 2 + 20}
-											y={(guide.start.y + guide.end.y) / 2 + 4}
+											x={(guide.start.x + guide.end.x) / 2 + DISTANCE_LABEL_X_OFFSET / camera.zoom}
+											y={(guide.start.y + guide.end.y) / 2 + DISTANCE_LABEL_Y_OFFSET}
 											fill={strokeColor}
 											fontSize={10 / camera.zoom}
 											textAnchor="start"
