@@ -365,10 +365,35 @@ export const selectToolMachine = setup({
 				// Get all shapes that are not being dragged for shape-to-shape snapping
 				const store = whiteboardStore.getState();
 				const allShapes = Object.values(store.shapes);
-				// Filter and convert to snappable shapes
-				const targetShapes: SnappableShape[] = [];
+
+				// Index shapes for efficient spatial queries
+				const allSnappableShapes: SnappableShape[] = [];
 				for (const shape of allShapes) {
-					if (!selectedShapeIds.has(shape.id) && hasSnapDimensions(shape)) {
+					if (hasSnapDimensions(shape)) {
+						allSnappableShapes.push(shape);
+					}
+				}
+
+				// Initialize spatial index if we have many shapes
+				if (allSnappableShapes.length > 50) {
+					snapEngine.indexShapes(allSnappableShapes);
+				}
+
+				// Set viewport for culling
+				const camera = store.camera;
+				if (camera && typeof window !== "undefined") {
+					snapEngine.setViewport({
+						x: -camera.x / camera.zoom,
+						y: -camera.y / camera.zoom,
+						width: window.innerWidth / camera.zoom,
+						height: window.innerHeight / camera.zoom,
+					});
+				}
+
+				// Filter out selected shapes
+				const targetShapes: SnappableShape[] = [];
+				for (const shape of allSnappableShapes) {
+					if (!selectedShapeIds.has(shape.id)) {
 						targetShapes.push(shape);
 					}
 				}
@@ -403,7 +428,32 @@ export const selectToolMachine = setup({
 						snapSettings.showAlignmentGuides ||
 						snapSettings.showDistances
 					) {
-						const smartGuides = snapEngine.generateSmartGuides(movingShape, targetShapes);
+						// Gather all selected shapes for group alignment
+						const selectedShapeBounds: Array<{
+							x: number;
+							y: number;
+							width: number;
+							height: number;
+						}> = [];
+						selectedShapeIds.forEach((id) => {
+							const shape = getShape(id);
+							if (shape && hasSnapDimensions(shape)) {
+								selectedShapeBounds.push({
+									x: shape.x,
+									y: shape.y,
+									width: shape.width,
+									height: shape.height,
+								});
+							}
+						});
+
+						const smartGuides = snapEngine.generateSmartGuides(
+							movingShape,
+							targetShapes,
+							selectedShapeBounds.length > 1 ? selectedShapeBounds : undefined,
+							event.point, // Pass mouse position for distance guides
+							snapSettings.showDistances, // Enable threshold visualization if distances are shown
+						);
 						// Filter guides based on settings
 						const filteredSmartGuides = smartGuides.filter((g) => {
 							// Filter distance guides based on showDistances setting

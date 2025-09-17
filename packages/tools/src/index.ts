@@ -39,6 +39,7 @@ export type {
 } from "./types/state";
 // Utils
 export * from "./utils/geometry";
+export { QuadTree } from "./utils/quad-tree";
 export {
 	type AlignmentType,
 	type DistributionType,

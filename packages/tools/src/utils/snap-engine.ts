@@ -1,6 +1,7 @@
 // === Snap Engine for alignment assistance ===
 
 import type { Point, Shape } from "../types/index";
+import { QuadTree } from "./quad-tree";
 
 export interface SnapOptions {
 	snapEnabled?: boolean;
@@ -60,10 +61,133 @@ export class SnapEngine {
 	private gridSize = 20;
 	private snapThreshold = 15;
 	private activeGuides: SnapGuide[] = [];
+	private quadTree: QuadTree | null = null;
+	private viewport: { x: number; y: number; width: number; height: number } | null = null;
+	private snapCandidatesCache: Map<string, ShapeWithBounds[]> = new Map();
+	private lastCacheKey = "";
+	private previousGuides: SnapGuide[] = [];
+	private guidesUpdateFrame: number | null = null;
 
 	constructor(gridSize = 20, snapThreshold = 15) {
 		this.gridSize = gridSize;
 		this.snapThreshold = snapThreshold;
+	}
+
+	// Initialize QuadTree with canvas bounds
+	initializeQuadTree(bounds: { x: number; y: number; width: number; height: number }): void {
+		this.quadTree = new QuadTree(bounds);
+	}
+
+	// Update viewport for culling
+	setViewport(viewport: { x: number; y: number; width: number; height: number }): void {
+		this.viewport = viewport;
+		// Clear cache when viewport changes significantly
+		const viewportKey = `${Math.floor(viewport.x / 100)},${Math.floor(viewport.y / 100)}`;
+		if (viewportKey !== this.lastCacheKey) {
+			this.snapCandidatesCache.clear();
+			this.lastCacheKey = viewportKey;
+		}
+	}
+
+	// Add shapes to spatial index
+	indexShapes(shapes: ShapeWithBounds[]): void {
+		if (!this.quadTree) {
+			// Auto-initialize with reasonable bounds if not set
+			this.initializeQuadTree({ x: -10000, y: -10000, width: 20000, height: 20000 });
+		}
+
+		// Clear and rebuild index
+		this.quadTree!.clear();
+		for (const shape of shapes) {
+			if (shape.id && typeof shape.x === "number" && typeof shape.y === "number") {
+				this.quadTree!.insert({
+					id: shape.id,
+					x: shape.x,
+					y: shape.y,
+					width: shape.width || 0,
+					height: shape.height || 0,
+				});
+			}
+		}
+	}
+
+	// Get shapes within viewport plus margin
+	private getShapesInViewport(allShapes: ShapeWithBounds[], margin = 200): ShapeWithBounds[] {
+		if (!this.viewport) {
+			return allShapes; // No viewport culling
+		}
+
+		const expandedViewport = {
+			x: this.viewport.x - margin,
+			y: this.viewport.y - margin,
+			width: this.viewport.width + margin * 2,
+			height: this.viewport.height + margin * 2,
+		};
+
+		// Use QuadTree if available
+		if (this.quadTree) {
+			const items = this.quadTree.query(expandedViewport);
+			// Map back to original shapes
+			return items
+				.map((item) => allShapes.find((shape) => shape.id === item.id))
+				.filter((shape): shape is ShapeWithBounds => shape !== undefined);
+		}
+
+		// Fallback to manual filtering
+		return allShapes.filter((shape) => {
+			return !(
+				shape.x + shape.width < expandedViewport.x ||
+				shape.x > expandedViewport.x + expandedViewport.width ||
+				shape.y + shape.height < expandedViewport.y ||
+				shape.y > expandedViewport.y + expandedViewport.height
+			);
+		});
+	}
+
+	// Get nearby shapes using QuadTree
+	private getNearbyShapes(
+		position: Point,
+		allShapes: ShapeWithBounds[],
+		maxDistance = 200,
+	): ShapeWithBounds[] {
+		// Check cache first
+		const cacheKey = `${Math.round(position.x / 10)},${Math.round(position.y / 10)}`;
+		if (this.snapCandidatesCache.has(cacheKey)) {
+			return this.snapCandidatesCache.get(cacheKey)!;
+		}
+
+		let nearbyShapes: ShapeWithBounds[];
+
+		if (this.quadTree) {
+			// Use QuadTree for efficient spatial query
+			const items = this.quadTree.findNearest(position.x, position.y, maxDistance, 20);
+			nearbyShapes = items
+				.map((item) => allShapes.find((shape) => shape.id === item.id))
+				.filter((shape): shape is ShapeWithBounds => shape !== undefined);
+		} else {
+			// Fallback to distance calculation
+			nearbyShapes = allShapes
+				.map((shape) => ({
+					shape,
+					distance: this.calculateDistanceToShape(position, shape),
+				}))
+				.filter(({ distance }) => distance <= maxDistance)
+				.sort((a, b) => a.distance - b.distance)
+				.slice(0, 20)
+				.map(({ shape }) => shape);
+		}
+
+		// Cache the result
+		this.snapCandidatesCache.set(cacheKey, nearbyShapes);
+		return nearbyShapes;
+	}
+
+	private calculateDistanceToShape(point: Point, shape: ShapeWithBounds): number {
+		const centerX = shape.x + shape.width / 2;
+		const centerY = shape.y + shape.height / 2;
+		const dx = point.x - centerX;
+		const dy = point.y - centerY;
+		return Math.sqrt(dx * dx + dy * dy);
 	}
 
 	// Basic grid snapping
@@ -112,7 +236,11 @@ export class SnapEngine {
 		}>,
 		currentPosition: Point,
 	): SnapResult {
-		const snapPoints = this.findSnapPoints(movingShape, targetShapes, currentPosition);
+		// Use optimized shape querying
+		const nearbyShapes = this.getNearbyShapes(currentPosition, targetShapes as ShapeWithBounds[]);
+		const visibleShapes = this.getShapesInViewport(nearbyShapes);
+
+		const snapPoints = this.findSnapPoints(movingShape, visibleShapes, currentPosition);
 		const { position: snappedPosition, activeSnapPoints } = this.calculateSnappedPositionWithActive(
 			currentPosition,
 			snapPoints,
@@ -652,7 +780,8 @@ export class SnapEngine {
 			guides.push(...diagonalGuides);
 		});
 
-		return guides;
+		// Use differential update with RAF
+		return this.updateGuidesWithRAF(guides);
 	}
 
 	// Generate snap threshold visualization indicators
@@ -1232,9 +1361,78 @@ export class SnapEngine {
 
 	clearGuides(): void {
 		this.activeGuides = [];
+		this.previousGuides = [];
+		if (this.guidesUpdateFrame !== null) {
+			cancelAnimationFrame(this.guidesUpdateFrame);
+			this.guidesUpdateFrame = null;
+		}
 	}
 
 	cleanup(): void {
 		this.clearGuides();
+		this.snapCandidatesCache.clear();
+		if (this.quadTree) {
+			this.quadTree.clear();
+		}
+	}
+
+	// Differential guide update with requestAnimationFrame
+	private updateGuidesWithRAF(newGuides: SnapGuide[]): SnapGuide[] {
+		// Check if guides have actually changed
+		if (this.areGuidesEqual(newGuides, this.previousGuides)) {
+			return this.previousGuides; // Return cached guides
+		}
+
+		// Cancel any pending update
+		if (this.guidesUpdateFrame !== null) {
+			cancelAnimationFrame(this.guidesUpdateFrame);
+		}
+
+		// Schedule update in next animation frame
+		this.guidesUpdateFrame = requestAnimationFrame(() => {
+			this.previousGuides = newGuides;
+			this.guidesUpdateFrame = null;
+		});
+
+		return newGuides;
+	}
+
+	// Check if two guide arrays are equal
+	private areGuidesEqual(guides1: SnapGuide[], guides2: SnapGuide[]): boolean {
+		if (guides1.length !== guides2.length) return false;
+
+		for (let i = 0; i < guides1.length; i++) {
+			const g1 = guides1[i];
+			const g2 = guides2[i];
+
+			if (
+				g1.type !== g2.type ||
+				g1.position !== g2.position ||
+				g1.start.x !== g2.start.x ||
+				g1.start.y !== g2.start.y ||
+				g1.end.x !== g2.end.x ||
+				g1.end.y !== g2.end.y ||
+				g1.style !== g2.style ||
+				g1.distance !== g2.distance ||
+				g1.label !== g2.label
+			) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	// Get performance statistics
+	getPerformanceStats(): {
+		cacheSize: number;
+		quadTreeStats: any;
+		viewportEnabled: boolean;
+	} {
+		return {
+			cacheSize: this.snapCandidatesCache.size,
+			quadTreeStats: this.quadTree?.getStats() || null,
+			viewportEnabled: this.viewport !== null,
+		};
 	}
 }
