@@ -423,6 +423,10 @@ export const selectToolMachine = setup({
 
 				// If no shape snapping occurred, try grid snapping
 				if (!snapped && snapSettings.gridSnap && snapSettings.enabled) {
+					// Update snap engine settings
+					snapEngine.setGridSize(snapSettings.gridSize);
+					snapEngine.setSnapThreshold(snapSettings.snapThreshold || SNAP_THRESHOLD);
+
 					const gridSnapResult = snapEngine.snap(snappedPosition, {
 						snapEnabled: snapSettings.enabled,
 						gridSnap: snapSettings.gridSnap,
