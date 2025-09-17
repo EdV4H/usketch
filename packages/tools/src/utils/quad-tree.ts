@@ -75,7 +75,7 @@ export class QuadTree {
 
 		// Subdivide if not already divided
 		if (!node.divided) {
-			this.subdivide(node);
+			this.subdivide(node, depth);
 		}
 
 		// Try to insert into child nodes
@@ -90,7 +90,7 @@ export class QuadTree {
 		return true;
 	}
 
-	private subdivide(node: QuadTreeNode): void {
+	private subdivide(node: QuadTreeNode, depth = 0): void {
 		const { x, y, width, height } = node.bounds;
 		const halfWidth = width / 2;
 		const halfHeight = height / 2;
@@ -121,7 +121,7 @@ export class QuadTree {
 		for (const item of items) {
 			let inserted = false;
 			for (const childNode of node.nodes) {
-				if (this.insertIntoNode(childNode, item, 1)) {
+				if (this.insertIntoNode(childNode, item, depth + 1)) {
 					inserted = true;
 					break;
 				}

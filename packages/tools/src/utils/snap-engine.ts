@@ -237,7 +237,7 @@ export class SnapEngine {
 		currentPosition: Point,
 	): SnapResult {
 		// Use optimized shape querying
-		const nearbyShapes = this.getNearbyShapes(currentPosition, targetShapes as ShapeWithBounds[]);
+		const nearbyShapes = this.getNearbyShapes(currentPosition, targetShapes);
 		const visibleShapes = this.getShapesInViewport(nearbyShapes);
 
 		const snapPoints = this.findSnapPoints(movingShape, visibleShapes, currentPosition);
