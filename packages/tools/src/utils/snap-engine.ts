@@ -47,9 +47,6 @@ const ALIGNMENT_THRESHOLD = 5; // Threshold for detecting alignment
 const EQUAL_SPACING_THRESHOLD = 5; // Tolerance for equal spacing detection
 const ALIGNMENT_Y_TOLERANCE = 50; // Y-axis tolerance for horizontal alignment detection
 const ALIGNMENT_X_TOLERANCE = 50; // X-axis tolerance for vertical alignment detection
-const DIAGONAL_ALIGNMENT_THRESHOLD = 10; // Threshold for diagonal alignment detection
-const DIAGONAL_ANGLE_45 = Math.PI / 4; // 45 degrees in radians
-const DIAGONAL_ANGLE_135 = (3 * Math.PI) / 4; // 135 degrees in radians
 
 // Shape type for equal spacing detection
 type ShapeWithBounds = {
