@@ -334,6 +334,10 @@ export class SnapEngine {
 		const width = movingShape.width || 0;
 		const height = movingShape.height || 0;
 
+		// First, detect equal spacing positions and add them as snap points
+		const equalSpacingSnapPoints = this.findEqualSpacingSnapPoints(movingShape, targetShapes);
+		snapPoints.push(...equalSpacingSnapPoints);
+
 		targetShapes.forEach((target) => {
 			if (!target) return;
 
@@ -1102,6 +1106,159 @@ export class SnapEngine {
 		return guides;
 	}
 
+	// Find snap points for equal spacing positions
+	private findEqualSpacingSnapPoints(
+		movingShape: { x: number; y: number; width?: number; height?: number },
+		targetShapes: Array<{
+			x: number;
+			y: number;
+			width: number;
+			height: number;
+			[key: string]: any;
+		}>,
+	): Array<{
+		axis: "x" | "y";
+		value: number;
+		priority: number;
+		targetId?: string;
+		edgeType?: string;
+		targetPosition?: number;
+	}> {
+		const snapPoints: Array<{
+			axis: "x" | "y";
+			value: number;
+			priority: number;
+			targetId?: string;
+			edgeType?: string;
+			targetPosition?: number;
+		}> = [];
+
+		const width = movingShape.width || 0;
+		const height = movingShape.height || 0;
+
+		if (targetShapes.length >= 2) {
+			// Find horizontal equal spacing positions
+			for (let i = 0; i < targetShapes.length; i++) {
+				for (let j = i + 1; j < targetShapes.length; j++) {
+					const shape1 = targetShapes[i];
+					const shape2 = targetShapes[j];
+
+					// Check if shapes are horizontally aligned
+					const yDiff = Math.abs(shape1.y - shape2.y);
+					if (yDiff < ALIGNMENT_Y_TOLERANCE) {
+						const shape1Right = shape1.x + shape1.width;
+						const shape2Right = shape2.x + shape2.width;
+
+						let spacing = 0;
+						let snapX = 0;
+
+						// Calculate spacing and snap position
+						if (shape1Right < shape2.x) {
+							// shape1 is to the left of shape2
+							spacing = shape2.x - shape1Right;
+							// Snap position would be shape1 left - spacing - width
+							snapX = shape1.x - spacing - width;
+							snapPoints.push({
+								axis: "x",
+								value: snapX,
+								priority: 3, // Lower priority than direct edge snapping
+								edgeType: "equal-spacing-left",
+								targetPosition: shape1.x,
+							});
+							// Or shape2 right + spacing
+							snapX = shape2Right + spacing;
+							snapPoints.push({
+								axis: "x",
+								value: snapX,
+								priority: 3,
+								edgeType: "equal-spacing-right",
+								targetPosition: shape2Right,
+							});
+						} else if (shape2Right < shape1.x) {
+							// shape2 is to the left of shape1
+							spacing = shape1.x - shape2Right;
+							// Snap position would be shape2 left - spacing - width
+							snapX = shape2.x - spacing - width;
+							snapPoints.push({
+								axis: "x",
+								value: snapX,
+								priority: 3,
+								edgeType: "equal-spacing-left",
+								targetPosition: shape2.x,
+							});
+							// Or shape1 right + spacing
+							snapX = shape1Right + spacing;
+							snapPoints.push({
+								axis: "x",
+								value: snapX,
+								priority: 3,
+								edgeType: "equal-spacing-right",
+								targetPosition: shape1Right,
+							});
+						}
+					}
+
+					// Check if shapes are vertically aligned
+					const xDiff = Math.abs(shape1.x - shape2.x);
+					if (xDiff < ALIGNMENT_X_TOLERANCE) {
+						const shape1Bottom = shape1.y + shape1.height;
+						const shape2Bottom = shape2.y + shape2.height;
+
+						let spacing = 0;
+						let snapY = 0;
+
+						// Calculate spacing and snap position
+						if (shape1Bottom < shape2.y) {
+							// shape1 is above shape2
+							spacing = shape2.y - shape1Bottom;
+							// Snap position would be shape1 top - spacing - height
+							snapY = shape1.y - spacing - height;
+							snapPoints.push({
+								axis: "y",
+								value: snapY,
+								priority: 3,
+								edgeType: "equal-spacing-top",
+								targetPosition: shape1.y,
+							});
+							// Or shape2 bottom + spacing
+							snapY = shape2Bottom + spacing;
+							snapPoints.push({
+								axis: "y",
+								value: snapY,
+								priority: 3,
+								edgeType: "equal-spacing-bottom",
+								targetPosition: shape2Bottom,
+							});
+						} else if (shape2Bottom < shape1.y) {
+							// shape2 is above shape1
+							spacing = shape1.y - shape2Bottom;
+							// Snap position would be shape2 top - spacing - height
+							snapY = shape2.y - spacing - height;
+							snapPoints.push({
+								axis: "y",
+								value: snapY,
+								priority: 3,
+								edgeType: "equal-spacing-top",
+								targetPosition: shape2.y,
+							});
+							// Or shape1 bottom + spacing
+							snapY = shape1Bottom + spacing;
+							snapPoints.push({
+								axis: "y",
+								value: snapY,
+								priority: 3,
+								edgeType: "equal-spacing-bottom",
+								targetPosition: shape1Bottom,
+							});
+						}
+					}
+				}
+			}
+		}
+
+		return snapPoints;
+	}
+
 	// Detect equal spacing between shapes
 	private detectEqualSpacing(
 		movingShape: { x: number; y: number; width: number; height: number },
@@ -1151,28 +1308,39 @@ export class SnapEngine {
 				}
 			}
 
-			// Check if moving shape creates equal spacing
+			// Check if moving shape creates equal spacing with any pair
 			const movingRight = movingShape.x + movingShape.width;
-			horizontalSpacings.forEach(({ spacing }) => {
+
+			// For each existing spacing, check if moving shape creates the same spacing
+			horizontalSpacings.forEach(({ shape1, shape2, spacing, midpoint }) => {
+				// Check each target shape to see if moving shape creates equal spacing with it
 				targetShapes.forEach((target) => {
 					const targetRight = target.x + target.width;
-					// Check if moving shape is aligned with this target
+
+					// Check if moving shape is aligned horizontally with target
 					const yDiff = Math.abs(movingShape.y - target.y);
 					if (yDiff < ALIGNMENT_Y_TOLERANCE) {
-						// Check spacing between moving shape and target
+						// Calculate actual spacing between moving shape and target
 						let currentSpacing = 0;
+						let isValidSpacing = false;
+
 						if (movingRight < target.x) {
+							// Moving shape is to the left of target
 							currentSpacing = target.x - movingRight;
+							isValidSpacing = true;
 						} else if (targetRight < movingShape.x) {
+							// Target is to the left of moving shape
 							currentSpacing = movingShape.x - targetRight;
+							isValidSpacing = true;
 						}
 
-						// If spacing is similar, show equal spacing indicator
+						// If spacing matches, show equal spacing indicator
 						if (
+							isValidSpacing &&
 							Math.abs(currentSpacing - spacing) < EQUAL_SPACING_THRESHOLD &&
 							currentSpacing > 0
 						) {
-							// Add visual indicator for equal spacing
+							// Add visual indicator for equal spacing between moving shape and target
 							guides.push({
 								type: "distance",
 								position: 0,
@@ -1187,6 +1355,23 @@ export class SnapEngine {
 								distance: Math.round(spacing),
 								style: "dotted",
 								label: "=", // Equal spacing indicator
+							});
+
+							// Also show the reference spacing that we're matching
+							guides.push({
+								type: "distance",
+								position: 0,
+								start: {
+									x: shape1.x + shape1.width,
+									y: shape1.y + shape1.height / 2,
+								},
+								end: {
+									x: shape2.x,
+									y: shape2.y + shape2.height / 2,
+								},
+								distance: Math.round(spacing),
+								style: "dotted",
+								label: "=",
 							});
 						}
 					}
@@ -1233,28 +1418,39 @@ export class SnapEngine {
 				}
 			}
 
-			// Check if moving shape creates equal vertical spacing
+			// Check if moving shape creates equal vertical spacing with any pair
 			const movingBottom = movingShape.y + movingShape.height;
-			verticalSpacings.forEach(({ spacing }) => {
+
+			// For each existing spacing, check if moving shape creates the same spacing
+			verticalSpacings.forEach(({ shape1, shape2, spacing, midpoint }) => {
+				// Check each target shape to see if moving shape creates equal spacing with it
 				targetShapes.forEach((target) => {
 					const targetBottom = target.y + target.height;
-					// Check if moving shape is aligned with this target
+
+					// Check if moving shape is aligned vertically with target
 					const xDiff = Math.abs(movingShape.x - target.x);
 					if (xDiff < ALIGNMENT_X_TOLERANCE) {
-						// Check spacing between moving shape and target
+						// Calculate actual spacing between moving shape and target
 						let currentSpacing = 0;
+						let isValidSpacing = false;
+
 						if (movingBottom < target.y) {
+							// Moving shape is above target
 							currentSpacing = target.y - movingBottom;
+							isValidSpacing = true;
 						} else if (targetBottom < movingShape.y) {
+							// Target is above moving shape
 							currentSpacing = movingShape.y - targetBottom;
+							isValidSpacing = true;
 						}
 
-						// If spacing is similar, show equal spacing indicator
+						// If spacing matches, show equal spacing indicator
 						if (
+							isValidSpacing &&
 							Math.abs(currentSpacing - spacing) < EQUAL_SPACING_THRESHOLD &&
 							currentSpacing > 0
 						) {
-							// Add visual indicator for equal spacing
+							// Add visual indicator for equal spacing between moving shape and target
 							guides.push({
 								type: "distance",
 								position: 0,
@@ -1269,6 +1465,23 @@ export class SnapEngine {
 								distance: Math.round(spacing),
 								style: "dotted",
 								label: "=", // Equal spacing indicator
+							});
+
+							// Also show the reference spacing that we're matching
+							guides.push({
+								type: "distance",
+								position: 0,
+								start: {
+									x: shape1.x + shape1.width / 2,
+									y: shape1.y + shape1.height,
+								},
+								end: {
+									x: shape2.x + shape2.width / 2,
+									y: shape2.y,
+								},
+								distance: Math.round(spacing),
+								style: "dotted",
+								label: "=",
 							});
 						}
 					}
