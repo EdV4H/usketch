@@ -383,10 +383,6 @@ export class SnapEngine {
 		}
 		snapPoints.push(...equalSpacingSnapPoints);
 
-		// Add diagonal (45°) snap points
-		const diagonalSnapPoints = this.findDiagonalSnapPoints(movingShape, targetShapes);
-		snapPoints.push(...diagonalSnapPoints);
-
 		targetShapes.forEach((target) => {
 			if (!target) return;
 
@@ -570,6 +566,10 @@ export class SnapEngine {
 				targetPosition: target.y + targetHeight,
 			});
 		});
+
+		// Add diagonal (45°) snap points
+		const diagonalSnapPoints = this.findDiagonalSnapPoints(movingShape, targetShapes);
+		snapPoints.push(...diagonalSnapPoints);
 
 		return snapPoints;
 	}
