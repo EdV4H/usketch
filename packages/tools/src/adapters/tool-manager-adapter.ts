@@ -309,7 +309,7 @@ export class ToolManager {
 		});
 
 		// Check if tool created a shape (for compatibility with legacy behavior)
-		if (window?.__lastCreatedShape) {
+		if (typeof window !== "undefined" && window.__lastCreatedShape) {
 			const shape = window.__lastCreatedShape;
 			delete window.__lastCreatedShape;
 

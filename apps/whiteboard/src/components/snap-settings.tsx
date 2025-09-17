@@ -237,7 +237,13 @@ export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 							type="number"
 							className="snap-number-input"
 							value={snapSettings.gridSize}
-							onChange={(e) => handleSettingChange("gridSize", parseInt(e.target.value, 10) || 20)}
+							onChange={(e) => {
+								const value = parseInt(e.target.value, 10);
+								handleSettingChange(
+									"gridSize",
+									Number.isNaN(value) ? snapSettings.gridSize : value,
+								);
+							}}
 							min="5"
 							max="100"
 							step="5"
