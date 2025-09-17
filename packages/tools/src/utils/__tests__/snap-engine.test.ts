@@ -188,6 +188,7 @@ describe("SnapEngine", () => {
 				undefined,
 				undefined,
 				true, // showDistances
+				true, // showEqualSpacing
 			);
 
 			const distanceGuide = guides.find((g) => g.type === "distance");

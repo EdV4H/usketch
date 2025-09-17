@@ -694,7 +694,8 @@ export class SnapEngine {
 		}>,
 		selectedShapes?: Array<{ x: number; y: number; width: number; height: number }>,
 		mousePosition?: Point,
-		showSnapThreshold?: boolean,
+		showDistances?: boolean,
+		showEqualSpacing?: boolean,
 	): SnapGuide[] {
 		const guides: SnapGuide[] = [];
 
@@ -704,18 +705,20 @@ export class SnapEngine {
 			effectiveShape = this.calculateGroupBounds(selectedShapes);
 		}
 
-		// Check for equal spacing between shapes
-		const equalSpacingGuides = this.detectEqualSpacing(effectiveShape, targetShapes);
-		guides.push(...equalSpacingGuides);
+		// Check for equal spacing between shapes (if enabled)
+		if (showEqualSpacing !== false) {
+			const equalSpacingGuides = this.detectEqualSpacing(effectiveShape, targetShapes);
+			guides.push(...equalSpacingGuides);
+		}
 
-		// Add mouse pointer distance guides if mouse position is provided
-		if (mousePosition) {
+		// Add mouse pointer distance guides if mouse position is provided and distances are enabled
+		if (mousePosition && showDistances !== false) {
 			const mouseDistanceGuides = this.generateMouseDistanceGuides(mousePosition, targetShapes);
 			guides.push(...mouseDistanceGuides);
 		}
 
 		// Add snap threshold visualization if requested
-		if (showSnapThreshold && mousePosition) {
+		if (showDistances && mousePosition) {
 			const thresholdGuides = this.generateSnapThresholdIndicators(effectiveShape, targetShapes);
 			guides.push(...thresholdGuides);
 		}

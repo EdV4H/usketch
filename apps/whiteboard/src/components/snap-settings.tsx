@@ -311,6 +311,19 @@ export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 						<div className="snap-toggle-handle" />
 					</button>
 				</div>
+
+				<div className="snap-setting-row">
+					<span className="snap-setting-label">等間隔表示</span>
+					<button
+						type="button"
+						className={`snap-toggle ${snapSettings.showEqualSpacing ? "active" : ""}`}
+						onClick={() => handleSettingChange("showEqualSpacing", !snapSettings.showEqualSpacing)}
+						aria-label="等間隔表示有効/無効"
+						disabled={!snapSettings.enabled}
+					>
+						<div className="snap-toggle-handle" />
+					</button>
+				</div>
 			</div>
 
 			<div className="snap-divider" />
