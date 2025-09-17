@@ -21,7 +21,6 @@ export const SnapGuidelines: React.FC<SnapGuidelinesProps> = ({ guides, camera }
 				return "none";
 			case "dotted":
 				return "2,2";
-			case "dashed":
 			default:
 				return "5,5";
 		}
@@ -31,8 +30,6 @@ export const SnapGuidelines: React.FC<SnapGuidelinesProps> = ({ guides, camera }
 		switch (type) {
 			case "distance":
 				return "#FF9500"; // Orange for distance
-			case "vertical":
-			case "horizontal":
 			default:
 				return "#007AFF"; // Blue for alignment
 		}

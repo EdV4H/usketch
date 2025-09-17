@@ -11,6 +11,7 @@ export const useKeyboardShortcuts = () => {
 		redo,
 		setActiveTool,
 		alignShapes,
+		toggleGridSnap,
 	} = useWhiteboardStore();
 
 	const handleKeyDown = useCallback(
@@ -62,6 +63,13 @@ export const useKeyboardShortcuts = () => {
 			if ((cmdOrCtrl && e.key === "z" && e.shiftKey) || (cmdOrCtrl && e.key === "y")) {
 				e.preventDefault();
 				redo();
+				return;
+			}
+
+			// Grid snap toggle (Shift + G)
+			if (e.shiftKey && !cmdOrCtrl && (e.key === "g" || e.key === "G")) {
+				e.preventDefault();
+				toggleGridSnap();
 				return;
 			}
 
@@ -135,6 +143,7 @@ export const useKeyboardShortcuts = () => {
 			redo,
 			setActiveTool,
 			alignShapes,
+			toggleGridSnap,
 		],
 	);
 

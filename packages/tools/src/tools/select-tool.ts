@@ -75,10 +75,25 @@ export type SelectToolEvent =
 			target?: string;
 			shiftKey?: boolean;
 			ctrlKey?: boolean;
+			altKey?: boolean;
 			metaKey?: boolean;
 	  }
-	| { type: "POINTER_MOVE"; point: Point; shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean }
-	| { type: "POINTER_UP"; point: Point; shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean }
+	| {
+			type: "POINTER_MOVE";
+			point: Point;
+			shiftKey?: boolean;
+			ctrlKey?: boolean;
+			altKey?: boolean;
+			metaKey?: boolean;
+	  }
+	| {
+			type: "POINTER_UP";
+			point: Point;
+			shiftKey?: boolean;
+			ctrlKey?: boolean;
+			altKey?: boolean;
+			metaKey?: boolean;
+	  }
 	| { type: "DOUBLE_CLICK"; point: Point; target?: string }
 	| { type: "KEY_DOWN"; key: string }
 	| { type: "ESCAPE" }
@@ -318,6 +333,9 @@ export const selectToolMachine = setup({
 			if (event.type !== "POINTER_MOVE" || !context.dragState || !context.dragState.isDragging)
 				return {};
 
+			// Check if Alt key is pressed to disable snapping
+			const isAltPressed = event.altKey || false;
+
 			const offset = {
 				x: event.point.x - context.dragState.startPoint.x,
 				y: event.point.y - context.dragState.startPoint.y,
@@ -337,7 +355,7 @@ export const selectToolMachine = setup({
 			let finalOffset = offset;
 			let guides: SnapGuide[] = [];
 
-			if (firstInitial && firstShape) {
+			if (firstInitial && firstShape && !isAltPressed) {
 				// Calculate the new position
 				const newPosition = {
 					x: firstInitial.x + offset.x,
@@ -358,8 +376,9 @@ export const selectToolMachine = setup({
 				// First try shape-to-shape snapping
 				let snappedPosition = newPosition;
 				let snapped = false;
+				const { snapSettings } = store;
 
-				if (targetShapes.length > 0) {
+				if (targetShapes.length > 0 && snapSettings.shapeSnap && snapSettings.enabled) {
 					// Calculate moving shape bounds
 					const movingShape = {
 						x: newPosition.x,
@@ -378,38 +397,61 @@ export const selectToolMachine = setup({
 						snapped = true;
 					}
 
-					// Always generate smart guides when moving near other shapes
-					const smartGuides = snapEngine.generateSmartGuides(movingShape, targetShapes);
-					guides = [...guides, ...smartGuides];
+					// Generate smart guides when enabled and moving near other shapes
+					if (
+						snapSettings.showGuides ||
+						snapSettings.showAlignmentGuides ||
+						snapSettings.showDistances
+					) {
+						const smartGuides = snapEngine.generateSmartGuides(movingShape, targetShapes);
+						// Filter guides based on settings
+						const filteredSmartGuides = smartGuides.filter((g) => {
+							// Filter distance guides based on showDistances setting
+							if (g.type === "distance") {
+								return snapSettings.showDistances;
+							}
+							// Filter alignment guides (solid lines) based on showAlignmentGuides setting
+							if (g.style === "solid") {
+								return snapSettings.showAlignmentGuides;
+							}
+							// Other guides (dashed) controlled by showGuides
+							return snapSettings.showGuides;
+						});
+						guides = [...guides, ...filteredSmartGuides];
+					}
 				}
 
 				// If no shape snapping occurred, try grid snapping
-				if (!snapped) {
+				if (!snapped && snapSettings.gridSnap && snapSettings.enabled) {
 					const gridSnapResult = snapEngine.snap(snappedPosition, {
-						snapEnabled: true,
-						gridSnap: true,
+						snapEnabled: snapSettings.enabled,
+						gridSnap: snapSettings.gridSnap,
+						gridSize: snapSettings.gridSize,
+						snapThreshold: snapSettings.snapThreshold,
 					});
 
 					if (gridSnapResult.snapped) {
 						snappedPosition = gridSnapResult.position;
 						snapped = true;
 
-						// Generate grid snap guides
-						if (snappedPosition.x !== newPosition.x) {
-							guides.push({
-								type: "vertical",
-								position: snappedPosition.x,
-								start: { x: snappedPosition.x, y: -10000 },
-								end: { x: snappedPosition.x, y: 10000 },
-							});
-						}
-						if (snappedPosition.y !== newPosition.y) {
-							guides.push({
-								type: "horizontal",
-								position: snappedPosition.y,
-								start: { x: -10000, y: snappedPosition.y },
-								end: { x: 10000, y: snappedPosition.y },
-							});
+						// Generate grid snap guides if showGuides is enabled
+						if (snapSettings.showGuides) {
+							if (snappedPosition.x !== newPosition.x) {
+								guides.push({
+									type: "vertical",
+									position: snappedPosition.x,
+									start: { x: snappedPosition.x, y: -10000 },
+									end: { x: snappedPosition.x, y: 10000 },
+								});
+							}
+							if (snappedPosition.y !== newPosition.y) {
+								guides.push({
+									type: "horizontal",
+									position: snappedPosition.y,
+									start: { x: -10000, y: snappedPosition.y },
+									end: { x: 10000, y: snappedPosition.y },
+								});
+							}
 						}
 					}
 				}
@@ -447,8 +489,17 @@ export const selectToolMachine = setup({
 				}
 			});
 
-			// Update snap guides in store
-			whiteboardStore.getState().setSnapGuides(guides);
+			// Update snap guides in store (only if any guide type is enabled)
+			const { snapSettings } = whiteboardStore.getState();
+			if (
+				snapSettings.showGuides ||
+				snapSettings.showAlignmentGuides ||
+				snapSettings.showDistances
+			) {
+				whiteboardStore.getState().setSnapGuides(guides);
+			} else {
+				whiteboardStore.getState().setSnapGuides([]);
+			}
 
 			return {
 				dragState: {

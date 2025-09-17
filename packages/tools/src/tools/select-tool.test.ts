@@ -1,4 +1,3 @@
-import { whiteboardStore } from "@usketch/store";
 import { describe, expect, it, vi } from "vitest";
 import { createActor } from "xstate";
 import { selectToolMachine } from "./select-tool";

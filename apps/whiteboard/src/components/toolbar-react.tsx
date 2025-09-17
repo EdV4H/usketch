@@ -3,6 +3,7 @@ import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { CUSTOM_BACKGROUNDS_METADATA } from "../backgrounds/register-backgrounds";
 import { useStore } from "../hooks/use-store";
+import { SnapSettingsButton } from "./snap-settings";
 
 export interface ToolbarProps {
 	onBackgroundChange?: (background: { id: string; config?: any }) => void;
@@ -379,6 +380,13 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 						<span>{tool.name}</span>
 					</button>
 				))}
+			</div>
+
+			<div className="toolbar-separator" />
+
+			{/* Snap Settings Button */}
+			<div className="toolbar-group">
+				<SnapSettingsButton />
 			</div>
 
 			<div className="toolbar-separator" />
