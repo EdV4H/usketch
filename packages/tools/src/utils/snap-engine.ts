@@ -1061,71 +1061,45 @@ export class SnapEngine {
 		const targetCenterX = target.x + target.width / 2;
 		const targetCenterY = target.y + target.height / 2;
 
-		// Calculate angle between centers
+		// Calculate differences
 		const dx = movingCenterX - targetCenterX;
 		const dy = movingCenterY - targetCenterY;
-		const angle = Math.atan2(dy, dx);
 
-		// Normalize angle to 0-2π range
-		const normalizedAngle = angle < 0 ? angle + 2 * Math.PI : angle;
+		// Check if the shapes form a diagonal alignment
+		// For perfect 45° diagonal, |dx| should equal |dy|
+		const absDx = Math.abs(dx);
+		const absDy = Math.abs(dy);
+		const distance = Math.sqrt(dx * dx + dy * dy);
 
-		// Check for 45° alignment (π/4, 5π/4)
-		const angle45_1 = DIAGONAL_ANGLE_45;
-		const angle45_2 = angle45_1 + Math.PI; // 225°
-
-		// Check for 135° alignment (3π/4, 7π/4)
-		const angle135_1 = DIAGONAL_ANGLE_135;
-		const angle135_2 = angle135_1 + Math.PI; // 315°
-
-		// Helper function to check if angles are close
-		const isAngleClose = (a1: number, a2: number, threshold: number = 0.1) => {
-			// Handle angle wrapping
-			const diff = Math.abs(a1 - a2);
-			return diff < threshold || Math.abs(diff - 2 * Math.PI) < threshold;
-		};
-
-		// Check 45° diagonal
-		if (isAngleClose(normalizedAngle, angle45_1) || isAngleClose(normalizedAngle, angle45_2)) {
-			// Connect shape centers directly for 45° diagonal
-			const distance = Math.sqrt(dx * dx + dy * dy);
-			if (distance < MAX_GUIDE_DISTANCE * 2) {
-				guides.push({
-					type: "diagonal",
-					position: 0,
-					start: {
-						x: targetCenterX,
-						y: targetCenterY,
-					},
-					end: {
-						x: movingCenterX,
-						y: movingCenterY,
-					},
-					style: "dashed",
-					label: "45°",
-				});
-			}
+		// Skip if too far apart
+		if (distance >= MAX_GUIDE_DISTANCE * 2) {
+			return guides;
 		}
 
-		// Check 135° diagonal
-		if (isAngleClose(normalizedAngle, angle135_1) || isAngleClose(normalizedAngle, angle135_2)) {
-			// Connect shape centers directly for 135° diagonal
-			const distance = Math.sqrt(dx * dx + dy * dy);
-			if (distance < MAX_GUIDE_DISTANCE * 2) {
-				guides.push({
-					type: "diagonal",
-					position: 0,
-					start: {
-						x: targetCenterX,
-						y: targetCenterY,
-					},
-					end: {
-						x: movingCenterX,
-						y: movingCenterY,
-					},
-					style: "dashed",
-					label: "135°",
-				});
-			}
+		// Calculate the ratio to determine if it's close to 45° or 135°
+		const ratio = absDx > 0 ? absDy / absDx : 0;
+		const DIAGONAL_TOLERANCE = 0.15; // Allow 15% deviation from perfect diagonal
+
+		// Check if it's close to a 45° diagonal (ratio should be close to 1)
+		if (Math.abs(ratio - 1.0) < DIAGONAL_TOLERANCE) {
+			// Calculate actual angle in degrees for display
+			const angleRad = Math.atan2(Math.abs(dy), Math.abs(dx));
+			const angleDeg = Math.round((angleRad * 180) / Math.PI);
+
+			guides.push({
+				type: "diagonal",
+				position: 0,
+				start: {
+					x: targetCenterX,
+					y: targetCenterY,
+				},
+				end: {
+					x: movingCenterX,
+					y: movingCenterY,
+				},
+				style: "dashed",
+				label: `${angleDeg}°`, // Show actual angle
+			});
 		}
 
 		return guides;
