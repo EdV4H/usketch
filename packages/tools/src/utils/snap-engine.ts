@@ -567,16 +567,10 @@ export class SnapEngine {
 			});
 		});
 
-		// Add diagonal (45°) snap points only when applicable
-		// Check if we have high priority snap points (edge or center alignment)
-		const hasHighPrioritySnaps = snapPoints.some((p) => p.priority <= 3);
-
-		// Only add diagonal snap points if no high priority snaps are available
-		// or if the shape is already very close to diagonal alignment
-		if (!hasHighPrioritySnaps) {
-			const diagonalSnapPoints = this.findDiagonalSnapPoints(movingShape, targetShapes);
-			snapPoints.push(...diagonalSnapPoints);
-		}
+		// Add diagonal (45°) snap points with lower priority
+		// They will only be used if no better snap points are within range
+		const diagonalSnapPoints = this.findDiagonalSnapPoints(movingShape, targetShapes);
+		snapPoints.push(...diagonalSnapPoints);
 
 		return snapPoints;
 	}
@@ -1237,11 +1231,25 @@ export class SnapEngine {
 			const absDx = Math.abs(dx);
 			const absDy = Math.abs(dy);
 			const ratio = absDx > 0 ? absDy / absDx : 0;
-			const DIAGONAL_TOLERANCE = 0.3; // Allow 30% deviation from perfect diagonal
+			const DIAGONAL_TOLERANCE = 0.2; // Allow 20% deviation from perfect diagonal
 
 			// Only add diagonal snap points if we're already close to a diagonal
 			if (Math.abs(ratio - 1.0) > DIAGONAL_TOLERANCE) {
 				return; // Not close enough to diagonal, skip
+			}
+
+			// Also check if we're close enough to actually snap
+			const avgDistance = (absDx + absDy) / 2;
+			const distanceFromPerfect45 = Math.max(
+				Math.abs(absDx - avgDistance),
+				Math.abs(absDy - avgDistance),
+			);
+
+			// Only create snap points if we're VERY close to perfect 45°
+			// This ensures we don't interfere with other snap types
+			if (distanceFromPerfect45 > this.snapThreshold * 0.5) {
+				// Not close enough to perfect 45° position
+				return;
 			}
 
 			// For 45° alignment, |dx| should equal |dy|
@@ -1254,7 +1262,7 @@ export class SnapEngine {
 				snapPoints.push({
 					axis: "x",
 					value: targetCenterX + avgDistance - width / 2,
-					priority: 4, // Lower priority than edge/center snaps
+					priority: 5, // Very low priority - only used when no other snaps are available
 					targetId: target.id,
 					edgeType: "diagonal-45",
 					targetPosition: targetCenterX,
@@ -1262,7 +1270,7 @@ export class SnapEngine {
 				snapPoints.push({
 					axis: "y",
 					value: targetCenterY - avgDistance - height / 2,
-					priority: 4, // Lower priority than edge/center snaps
+					priority: 5, // Very low priority - only used when no other snaps are available
 					targetId: target.id,
 					edgeType: "diagonal-45",
 					targetPosition: targetCenterY,
