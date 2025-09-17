@@ -30,7 +30,7 @@
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/store": "workspace:*",
 		"xstate": "5.21.0",
-		"zod": "4.1.8"
+		"zod": "4.1.9"
 	},
 	"devDependencies": {
 		"@types/node": "24.5.1",
