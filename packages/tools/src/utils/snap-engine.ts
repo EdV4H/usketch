@@ -1086,23 +1086,19 @@ export class SnapEngine {
 
 		// Check 45° diagonal
 		if (isAngleClose(normalizedAngle, angle45_1) || isAngleClose(normalizedAngle, angle45_2)) {
-			// Calculate the extended line points for 45° diagonal
+			// Connect shape centers directly for 45° diagonal
 			const distance = Math.sqrt(dx * dx + dy * dy);
 			if (distance < MAX_GUIDE_DISTANCE * 2) {
-				const extendLength = 100;
-				const unitX = Math.cos(angle45_1);
-				const unitY = Math.sin(angle45_1);
-
 				guides.push({
 					type: "diagonal",
 					position: 0,
 					start: {
-						x: targetCenterX - unitX * extendLength,
-						y: targetCenterY - unitY * extendLength,
+						x: targetCenterX,
+						y: targetCenterY,
 					},
 					end: {
-						x: movingCenterX + unitX * extendLength,
-						y: movingCenterY + unitY * extendLength,
+						x: movingCenterX,
+						y: movingCenterY,
 					},
 					style: "dashed",
 					label: "45°",
@@ -1112,23 +1108,19 @@ export class SnapEngine {
 
 		// Check 135° diagonal
 		if (isAngleClose(normalizedAngle, angle135_1) || isAngleClose(normalizedAngle, angle135_2)) {
-			// Calculate the extended line points for 135° diagonal
+			// Connect shape centers directly for 135° diagonal
 			const distance = Math.sqrt(dx * dx + dy * dy);
 			if (distance < MAX_GUIDE_DISTANCE * 2) {
-				const extendLength = 100;
-				const unitX = Math.cos(angle135_1);
-				const unitY = Math.sin(angle135_1);
-
 				guides.push({
 					type: "diagonal",
 					position: 0,
 					start: {
-						x: targetCenterX - unitX * extendLength,
-						y: targetCenterY - unitY * extendLength,
+						x: targetCenterX,
+						y: targetCenterY,
 					},
 					end: {
-						x: movingCenterX + unitX * extendLength,
-						y: movingCenterY + unitY * extendLength,
+						x: movingCenterX,
+						y: movingCenterY,
 					},
 					style: "dashed",
 					label: "135°",
