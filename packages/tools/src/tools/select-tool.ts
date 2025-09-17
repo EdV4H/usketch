@@ -40,7 +40,25 @@ function hasSnapDimensions(shape: { [key: string]: any }): shape is SnappableSha
 }
 
 // Create a singleton instance of SnapEngine with default values
-const snapEngine = new SnapEngine(GRID_SIZE, SNAP_THRESHOLD);
+// Increased snap calculation range from 200 to 500 for better snap detection
+const DEFAULT_SNAP_CALCULATION_RANGE = 500; // Increased for better range
+const DEFAULT_VIEWPORT_MARGIN = 300; // Increased for better viewport coverage
+const snapEngine = new SnapEngine(
+	GRID_SIZE,
+	SNAP_THRESHOLD,
+	DEFAULT_SNAP_CALCULATION_RANGE,
+	DEFAULT_VIEWPORT_MARGIN,
+);
+
+// Export function to update snap range settings
+export function updateSnapRange(snapCalculationRange?: number, viewportMargin?: number): void {
+	snapEngine.updateSnapRange(snapCalculationRange, viewportMargin);
+}
+
+// Export function to get current snap range settings
+export function getSnapRangeSettings(): { snapCalculationRange: number; viewportMargin: number } {
+	return snapEngine.getSnapRangeSettings();
+}
 
 // === Select Tool Context ===
 export interface SelectToolContext extends ToolContext {
@@ -365,10 +383,35 @@ export const selectToolMachine = setup({
 				// Get all shapes that are not being dragged for shape-to-shape snapping
 				const store = whiteboardStore.getState();
 				const allShapes = Object.values(store.shapes);
-				// Filter and convert to snappable shapes
-				const targetShapes: SnappableShape[] = [];
+
+				// Index shapes for efficient spatial queries
+				const allSnappableShapes: SnappableShape[] = [];
 				for (const shape of allShapes) {
-					if (!selectedShapeIds.has(shape.id) && hasSnapDimensions(shape)) {
+					if (hasSnapDimensions(shape)) {
+						allSnappableShapes.push(shape);
+					}
+				}
+
+				// Initialize spatial index if we have many shapes
+				if (allSnappableShapes.length > 50) {
+					snapEngine.indexShapes(allSnappableShapes);
+				}
+
+				// Set viewport for culling
+				const camera = store.camera;
+				if (camera && typeof window !== "undefined") {
+					snapEngine.setViewport({
+						x: -camera.x / camera.zoom,
+						y: -camera.y / camera.zoom,
+						width: window.innerWidth / camera.zoom,
+						height: window.innerHeight / camera.zoom,
+					});
+				}
+
+				// Filter out selected shapes
+				const targetShapes: SnappableShape[] = [];
+				for (const shape of allSnappableShapes) {
+					if (!selectedShapeIds.has(shape.id)) {
 						targetShapes.push(shape);
 					}
 				}
@@ -403,11 +446,59 @@ export const selectToolMachine = setup({
 						snapSettings.showAlignmentGuides ||
 						snapSettings.showDistances
 					) {
-						const smartGuides = snapEngine.generateSmartGuides(movingShape, targetShapes);
+						// Use snapped position for smart guides to show guides at the actual shape position
+						const shapeForGuides = {
+							x: snappedPosition.x,
+							y: snappedPosition.y,
+							width: "width" in firstShape ? firstShape.width : DEFAULT_SHAPE_SIZE,
+							height: "height" in firstShape ? firstShape.height : DEFAULT_SHAPE_SIZE,
+						};
+
+						// Gather all selected shapes for group alignment
+						const selectedShapeBounds: Array<{
+							x: number;
+							y: number;
+							width: number;
+							height: number;
+						}> = [];
+
+						// Calculate the final offset based on the snapped position
+						const snappedOffset = {
+							x: snappedPosition.x - firstInitial.x,
+							y: snappedPosition.y - firstInitial.y,
+						};
+
+						selectedShapeIds.forEach((id) => {
+							const shape = getShape(id);
+							const initialPos = context.dragState?.initialPositions.get(id);
+							if (shape && hasSnapDimensions(shape) && initialPos) {
+								// Use snapped offset for all shapes in the group
+								selectedShapeBounds.push({
+									x: initialPos.x + snappedOffset.x,
+									y: initialPos.y + snappedOffset.y,
+									width: shape.width,
+									height: shape.height,
+								});
+							}
+						});
+
+						const smartGuides = snapEngine.generateSmartGuides(
+							shapeForGuides,
+							targetShapes,
+							selectedShapeBounds.length > 1 ? selectedShapeBounds : undefined,
+							event.point, // Pass mouse position for distance guides
+							snapSettings.showDistances, // Enable threshold visualization if distances are shown
+							snapSettings.showEqualSpacing, // Enable equal spacing detection
+						);
 						// Filter guides based on settings
 						const filteredSmartGuides = smartGuides.filter((g) => {
-							// Filter distance guides based on showDistances setting
+							// Filter distance guides based on their purpose
 							if (g.type === "distance") {
+								// Equal spacing guides have isEqualSpacing flag
+								if (g.isEqualSpacing) {
+									return snapSettings.showEqualSpacing;
+								}
+								// Regular distance guides are controlled by showDistances
 								return snapSettings.showDistances;
 							}
 							// Filter alignment guides (solid lines) based on showAlignmentGuides setting

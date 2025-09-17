@@ -11,6 +11,8 @@ export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 	const snapSettings = useStore((state) => state.snapSettings);
 	const updateSnapSettings = useStore((state) => state.updateSnapSettings);
 	const gridSizeInputId = useId();
+	const snapRangeInputId = useId();
+	const viewportMarginInputId = useId();
 
 	const handleSettingChange = (key: keyof SnapSettings, value: boolean | number) => {
 		updateSnapSettings({ [key]: value });
@@ -309,6 +311,87 @@ export const SnapSettingsPanel: React.FC<SnapSettingsProps> = ({ onClose }) => {
 						<div className="snap-toggle-handle" />
 					</button>
 				</div>
+
+				<div className="snap-setting-row">
+					<span className="snap-setting-label">等間隔表示</span>
+					<button
+						type="button"
+						className={`snap-toggle ${snapSettings.showEqualSpacing ? "active" : ""}`}
+						onClick={() => handleSettingChange("showEqualSpacing", !snapSettings.showEqualSpacing)}
+						aria-label="等間隔表示有効/無効"
+						disabled={!snapSettings.enabled}
+					>
+						<div className="snap-toggle-handle" />
+					</button>
+				</div>
+			</div>
+
+			<div className="snap-divider" />
+
+			<div className="snap-setting-group">
+				<div className="snap-setting-row">
+					<span className="snap-setting-label">パフォーマンス設定</span>
+				</div>
+
+				<div className="snap-setting-row">
+					<label
+						className="snap-setting-label"
+						htmlFor={snapRangeInputId}
+						style={{ fontSize: "12px" }}
+					>
+						スナップ検出範囲
+					</label>
+					<div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+						<input
+							id={snapRangeInputId}
+							type="number"
+							className="snap-number-input"
+							value={snapSettings.snapCalculationRange}
+							onChange={(e) => {
+								const value = parseInt(e.target.value, 10);
+								if (!Number.isNaN(value) && value >= 100 && value <= 2000) {
+									handleSettingChange("snapCalculationRange", value);
+								}
+							}}
+							min="100"
+							max="2000"
+							step="50"
+							disabled={!snapSettings.enabled}
+						/>
+						<span style={{ fontSize: "12px", color: "#666" }}>px</span>
+					</div>
+				</div>
+				<div className="snap-setting-hint">近くの図形を検索する最大距離</div>
+
+				<div className="snap-setting-row">
+					<label
+						className="snap-setting-label"
+						htmlFor={viewportMarginInputId}
+						style={{ fontSize: "12px" }}
+					>
+						ビューポート余白
+					</label>
+					<div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+						<input
+							id={viewportMarginInputId}
+							type="number"
+							className="snap-number-input"
+							value={snapSettings.viewportMargin}
+							onChange={(e) => {
+								const value = parseInt(e.target.value, 10);
+								if (!Number.isNaN(value) && value >= 100 && value <= 1000) {
+									handleSettingChange("viewportMargin", value);
+								}
+							}}
+							min="100"
+							max="1000"
+							step="50"
+							disabled={!snapSettings.enabled}
+						/>
+						<span style={{ fontSize: "12px", color: "#666" }}>px</span>
+					</div>
+				</div>
+				<div className="snap-setting-hint">画面外の図形を含む範囲</div>
 			</div>
 
 			<div className="keyboard-hint">

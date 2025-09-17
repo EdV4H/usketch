@@ -19,6 +19,14 @@ export const SnapGuidelines: React.FC<SnapGuidelinesProps> = ({ guides, camera }
 		return null;
 	}
 
+	// Debug: Log horizontal guides for investigation
+	if (typeof window !== "undefined" && window.location.hash === "#debug-snap") {
+		const horizontalGuides = guides.filter((g) => g.type === "horizontal");
+		if (horizontalGuides.length > 0) {
+			console.log("Horizontal guides:", horizontalGuides);
+		}
+	}
+
 	const getStrokeDashArray = (style?: "solid" | "dashed" | "dotted") => {
 		switch (style) {
 			case "solid":
