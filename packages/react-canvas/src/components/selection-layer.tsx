@@ -4,11 +4,6 @@ import { useCallback, useMemo, useRef } from "react";
 import { useToolMachine } from "../hooks/use-tool-machine";
 import type { SelectionLayerProps } from "../types";
 
-// Interface for mock target object to avoid 'as any'
-interface ResizeHandleTarget {
-	getAttribute: (name: string) => string | null;
-}
-
 export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 	selectedIds,
 	shapes,
@@ -47,16 +42,18 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 
 			const point = screenToCanvas(e.clientX, e.clientY);
 
-			// Create a proper typed mock target object
-			const mockTarget: ResizeHandleTarget = {
-				getAttribute: (name: string) => (name === "data-resize-handle" ? handle : null),
+			// Create a new event with the resize handle as the target attribute
+			// This avoids complex type assertions while maintaining functionality
+			const eventWithHandle: React.PointerEvent = {
+				...e,
+				target: {
+					...e.target,
+					getAttribute: (name: string) => (name === "data-resize-handle" ? handle : null),
+				} as EventTarget & Element,
 			};
 
 			// Send event to XState with resize handle info
-			toolMachine.handlePointerDown(point, {
-				...e,
-				target: mockTarget as unknown as EventTarget,
-			} as React.PointerEvent);
+			toolMachine.handlePointerDown(point, eventWithHandle);
 
 			// Capture pointer for drag tracking on the element itself
 			const element = e.currentTarget as HTMLElement;
@@ -65,12 +62,22 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 			// Add move and up handlers to the element that captured the pointer
 			const handleMove = (moveEvent: PointerEvent) => {
 				const movePoint = screenToCanvas(moveEvent.clientX, moveEvent.clientY);
-				toolMachine.handlePointerMove(movePoint, moveEvent as unknown as React.PointerEvent);
+				// Pass only the properties that the tool machine needs
+				toolMachine.handlePointerMove(movePoint, {
+					shiftKey: moveEvent.shiftKey,
+					ctrlKey: moveEvent.ctrlKey,
+					metaKey: moveEvent.metaKey,
+				} as React.PointerEvent);
 			};
 
 			const handleUp = (upEvent: PointerEvent) => {
 				const upPoint = screenToCanvas(upEvent.clientX, upEvent.clientY);
-				toolMachine.handlePointerUp(upPoint, upEvent as unknown as React.PointerEvent);
+				// Pass only the properties that the tool machine needs
+				toolMachine.handlePointerUp(upPoint, {
+					shiftKey: upEvent.shiftKey,
+					ctrlKey: upEvent.ctrlKey,
+					metaKey: upEvent.metaKey,
+				} as React.PointerEvent);
 
 				// Clean up event listeners
 				element.removeEventListener("pointermove", handleMove);
@@ -84,9 +91,6 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 		},
 		[screenToCanvas, toolMachine],
 	);
-
-	// Note: handleResizePointerMove and handleResizePointerUp are no longer needed
-	// as they are now handled within handleResizePointerDown
 
 	const boundingBox = useMemo(() => {
 		if (selectedShapes.length === 0) return null;
