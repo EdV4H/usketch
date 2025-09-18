@@ -23,13 +23,13 @@
 		"@usketch/store": "workspace:*",
 		"@usketch/tools": "workspace:*",
 		"@usketch/ui-components": "workspace:*",
-		"framer-motion": "11.18.2",
+		"framer-motion": "12.23.14",
 		"react": "19.1.1",
 		"react-dom": "19.1.1",
 		"zustand": "5.0.8"
 	},
 	"devDependencies": {
-		"@types/node": "24.5.1",
+		"@types/node": "24.5.2",
 		"@types/react": "19.1.13",
 		"@types/react-dom": "19.1.9",
 		"@typescript-eslint/eslint-plugin": "8.44.0",
