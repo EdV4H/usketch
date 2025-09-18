@@ -31,13 +31,25 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 
 	const handleShapePointerDown = useCallback(
 		(shapeId: string, e: React.PointerEvent) => {
+			console.log(
+				"[ShapeLayer] handleShapePointerDown - activeTool:",
+				activeTool,
+				"shapeId:",
+				shapeId,
+			);
+
 			// Allow both select and effect tools
-			if (activeTool !== "select" && activeTool !== "effect") return;
+			if (activeTool !== "select" && activeTool !== "effect") {
+				console.log("[ShapeLayer] Tool not allowed, returning. activeTool:", activeTool);
+				return;
+			}
 
 			e.stopPropagation(); // Prevent background handler
 			const point = screenToCanvas(e.clientX, e.clientY);
+			console.log("[ShapeLayer] Converted point:", point);
 
 			if (activeTool === "select") {
+				console.log("[ShapeLayer] Processing select tool");
 				// Get shape at point to pass to XState
 				const shape = shapes[shapeId];
 				if (!shape) return;
@@ -50,6 +62,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 					svgRef.current.setPointerCapture(e.pointerId);
 				}
 			} else if (activeTool === "effect") {
+				console.log("[ShapeLayer] Processing effect tool, calling toolMachine.handlePointerDown");
 				// Handle effect tool
 				toolMachine.handlePointerDown(point, e);
 			}
@@ -87,18 +100,34 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 	// Handle background pointer events for drag selection or effect creation
 	const handleBackgroundPointerDown = useCallback(
 		(e: React.PointerEvent<SVGSVGElement>) => {
+			console.log("[ShapeLayer] handleBackgroundPointerDown - activeTool:", activeTool);
+
 			// Allow both select and effect tools
-			if (activeTool !== "select" && activeTool !== "effect") return;
+			if (activeTool !== "select" && activeTool !== "effect") {
+				console.log(
+					"[ShapeLayer] Background: Tool not allowed, returning. activeTool:",
+					activeTool,
+				);
+				return;
+			}
 
 			// Check if clicking on the background rect
 			const target = e.target as Element;
-			if (target.tagName !== "rect" || !target.hasAttribute("data-background")) return;
+			if (target.tagName !== "rect" || !target.hasAttribute("data-background")) {
+				console.log(
+					"[ShapeLayer] Not clicking on background rect, returning. tagName:",
+					target.tagName,
+				);
+				return;
+			}
 
 			// Don't handle if already handled by WhiteboardCanvas
 			e.stopPropagation();
 			const point = screenToCanvas(e.clientX, e.clientY);
+			console.log("[ShapeLayer] Background click point:", point);
 
 			if (activeTool === "select") {
+				console.log("[ShapeLayer] Background: Processing select tool");
 				// Send pointer down event to XState machine (it handles selection clearing/brush)
 				toolMachine.handlePointerDown(point, e);
 
@@ -107,6 +136,9 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 					svgRef.current.setPointerCapture(e.pointerId);
 				}
 			} else if (activeTool === "effect") {
+				console.log(
+					"[ShapeLayer] Background: Processing effect tool, calling toolMachine.handlePointerDown",
+				);
 				// Handle effect tool
 				toolMachine.handlePointerDown(point, e);
 			}

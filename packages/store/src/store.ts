@@ -224,11 +224,15 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 	},
 
 	setCurrentTool: (tool: string) => {
+		console.log("[Store] setCurrentTool called with tool:", tool);
 		set((state) => ({ ...state, currentTool: tool }));
+		console.log("[Store] currentTool set to:", tool);
 	},
 
 	setActiveTool: (tool: string) => {
+		console.log("[Store] setActiveTool called with tool:", tool);
 		set((state) => ({ ...state, activeTool: tool }));
+		console.log("[Store] activeTool set to:", tool);
 	},
 
 	deleteShapes: (ids: string[]) => {
@@ -640,10 +644,16 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 
 	// Effect actions
 	addEffect: (effect: Effect) => {
-		set((state) => ({
-			...state,
-			effects: { ...state.effects, [effect.id]: effect },
-		}));
+		console.log("[Store] addEffect called with effect:", effect);
+		set((state) => {
+			const newState = {
+				...state,
+				effects: { ...state.effects, [effect.id]: effect },
+			};
+			console.log("[Store] New effects state:", newState.effects);
+			return newState;
+		});
+		console.log("[Store] addEffect completed");
 	},
 
 	removeEffect: (id: string) => {

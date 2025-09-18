@@ -55,7 +55,10 @@ export const useToolMachine = () => {
 	};
 
 	const handlePointerDown = (point: Point & { shapeId?: string }, e: React.PointerEvent) => {
+		console.log("[useToolMachine] handlePointerDown - currentTool:", currentTool, "point:", point);
+
 		if (currentTool === "select") {
+			console.log("[useToolMachine] Processing select tool");
 			// Check if we're clicking on a resize handle
 			const target = e.target as HTMLElement;
 			const resizeHandle = target.getAttribute("data-resize-handle");
@@ -69,9 +72,15 @@ export const useToolMachine = () => {
 				metaKey: e.metaKey,
 			});
 		} else if (currentTool === "effect") {
+			console.log("[useToolMachine] Processing effect tool, getting effectTool instance");
 			// Delegate to effect tool
 			const effectTool = getEffectTool();
-			effectTool.handlePointerDown(point);
+			console.log("[useToolMachine] effectTool instance:", effectTool);
+			console.log("[useToolMachine] Calling effectTool.handlePointerDown with point:", point);
+			const result = effectTool.handlePointerDown(point);
+			console.log("[useToolMachine] effectTool.handlePointerDown result:", result);
+		} else {
+			console.log("[useToolMachine] Unknown tool, not processing:", currentTool);
 		}
 	};
 
