@@ -19,11 +19,11 @@ export function createAppEffect(point: Point, config: EffectToolConfig): Effect 
 				type: "ripple",
 				x,
 				y,
-				radius: effectConfig["radius"] || 60,
-				color: effectConfig["color"] || "#4ECDC4",
-				opacity: effectConfig["opacity"] || 1.0,
+				radius: effectConfig.radius || 60,
+				color: effectConfig.color || "#4ECDC4",
+				opacity: effectConfig.opacity || 1.0,
 				createdAt: Date.now(),
-				duration: effectConfig["duration"] || 600,
+				duration: effectConfig.duration || 600,
 			};
 			effect = rippleEffect;
 			break;
@@ -35,10 +35,10 @@ export function createAppEffect(point: Point, config: EffectToolConfig): Effect 
 				type: "pin",
 				x,
 				y,
-				color: effectConfig["color"] || "#ff6b6b",
-				size: effectConfig["size"] || 24,
-				message: effectConfig["message"] || "Comment",
-				label: effectConfig["label"] || "📌",
+				color: effectConfig.color || "#ff6b6b",
+				size: effectConfig.size || 24,
+				message: effectConfig.message || "Comment",
+				label: effectConfig.label || "📌",
 				createdAt: Date.now(),
 			};
 			effect = pinEffect;
@@ -51,14 +51,14 @@ export function createAppEffect(point: Point, config: EffectToolConfig): Effect 
 				type: "fading-pin",
 				x,
 				y,
-				color: effectConfig["color"] || "#9b59b6",
-				size: effectConfig["size"] || 24,
-				message: effectConfig["message"] || "Temporary note",
-				label: effectConfig["label"] || "📍",
+				color: effectConfig.color || "#9b59b6",
+				size: effectConfig.size || 24,
+				message: effectConfig.message || "Temporary note",
+				label: effectConfig.label || "📍",
 				createdAt: Date.now(),
-				duration: effectConfig["fadeDuration"] || 5000,
+				duration: effectConfig.fadeDuration || 5000,
 				metadata: {
-					fadeDelay: effectConfig["fadeDelay"] || 3000,
+					fadeDelay: effectConfig.fadeDelay || 3000,
 				},
 			};
 			effect = fadingPinEffect;

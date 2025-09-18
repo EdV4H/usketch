@@ -153,6 +153,10 @@ export interface WhiteboardStore extends WhiteboardState {
 	undo: () => boolean;
 	redo: () => boolean;
 	clearHistory: () => void;
+	getHistoryDebugInfo: () => {
+		commands: Array<{ description: string; timestamp: number; id: string }>;
+		currentIndex: number;
+	};
 
 	// Effect actions
 	addEffect: (effect: Effect) => void;
@@ -183,12 +187,26 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 		currentTool: get().currentTool,
 	}),
 	setState: (updater: (state: WhiteboardState) => void) => {
-		set((state: WhiteboardStore) => {
-			const newState = { ...state };
-			// Create a new shapes object to ensure React detects changes
-			newState.shapes = { ...state.shapes };
-			updater(newState);
-			return newState;
+		set((currentState: WhiteboardStore) => {
+			// Create a mutable copy of the current state for the updater
+			const mutableState = {
+				shapes: { ...currentState.shapes },
+				selectedShapeIds: new Set(currentState.selectedShapeIds),
+				camera: { ...currentState.camera },
+				currentTool: currentState.currentTool,
+			};
+
+			// Apply the updates
+			updater(mutableState);
+
+			// Return the new state with updates applied
+			return {
+				...currentState,
+				shapes: mutableState.shapes,
+				selectedShapeIds: mutableState.selectedShapeIds,
+				camera: mutableState.camera,
+				currentTool: mutableState.currentTool,
+			};
 		});
 	},
 });
@@ -757,12 +775,23 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
 	},
 
 	endBatch: () => {
-		historyManager.endBatch();
+		historyManager.endBatch(context);
 		set({
 			canUndo: historyManager.canUndo,
 			canRedo: historyManager.canRedo,
 		});
->>>>>>> 11172b8 (✨ feat: Undo/Redo機能の実装完了)
+	},
+
+	getHistoryDebugInfo: () => {
+		const commands = historyManager.commandHistory;
+		return {
+			commands: commands.map((cmd) => ({
+				description: cmd.description,
+				timestamp: cmd.timestamp,
+				id: cmd.id,
+			})),
+			currentIndex: historyManager.currentCommandIndex,
+		};
 	},
 
 	// Effect actions

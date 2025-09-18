@@ -83,7 +83,13 @@ export class BatchUpdateShapesCommand extends BaseCommand {
 	override merge(other: Command): Command {
 		if (!(other instanceof BatchUpdateShapesCommand)) return this;
 
-		// Use the newer updates
-		return new BatchUpdateShapesCommand(other.updates, this.description);
+		// Create new command with newer updates but preserve original previousStates
+		const mergedCommand = new BatchUpdateShapesCommand(other.updates, this.description);
+
+		// Preserve the original previousStates from the first command (this)
+		// This is crucial for undo to work properly
+		mergedCommand.previousStates = new Map(this.previousStates);
+
+		return mergedCommand;
 	}
 }

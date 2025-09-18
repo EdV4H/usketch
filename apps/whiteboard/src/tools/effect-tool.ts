@@ -68,11 +68,11 @@ export class EffectTool implements Tool {
 					type: "ripple",
 					x,
 					y,
-					radius: config["radius"] || 60,
-					color: config["color"] || "#4ECDC4",
-					opacity: config["opacity"] || 1.0,
+					radius: config.radius || 60,
+					color: config.color || "#4ECDC4",
+					opacity: config.opacity || 1.0,
 					createdAt: Date.now(),
-					duration: config["duration"] || 600,
+					duration: config.duration || 600,
 				};
 				break;
 
@@ -82,10 +82,10 @@ export class EffectTool implements Tool {
 					type: "pin",
 					x,
 					y,
-					color: config["color"] || "#ff6b6b",
-					size: config["size"] || 24,
-					message: config["message"] || "Comment",
-					label: config["label"] || "📌",
+					color: config.color || "#ff6b6b",
+					size: config.size || 24,
+					message: config.message || "Comment",
+					label: config.label || "📌",
 					createdAt: Date.now(),
 				};
 				break;
@@ -96,14 +96,14 @@ export class EffectTool implements Tool {
 					type: "fading-pin",
 					x,
 					y,
-					color: config["color"] || "#9b59b6",
-					size: config["size"] || 24,
-					message: config["message"] || "Temporary note",
-					label: config["label"] || "📍",
+					color: config.color || "#9b59b6",
+					size: config.size || 24,
+					message: config.message || "Temporary note",
+					label: config.label || "📍",
 					createdAt: Date.now(),
-					duration: config["fadeDuration"] || 5000,
+					duration: config.fadeDuration || 5000,
 					metadata: {
-						fadeDelay: config["fadeDelay"] || 3000,
+						fadeDelay: config.fadeDelay || 3000,
 					},
 				};
 				break;

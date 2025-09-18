@@ -39,7 +39,7 @@ test.describe("Simple Distribution Test", () => {
 		await page.mouse.up();
 
 		// Check that at least 3 shapes exist
-		const shapes = await page.evaluate(() => {
+		const _shapes = await page.evaluate(() => {
 			const store = (window as any).whiteboardStore.getState();
 			return Object.values(store.shapes);
 		});

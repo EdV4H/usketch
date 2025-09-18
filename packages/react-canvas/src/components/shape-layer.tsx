@@ -59,7 +59,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 				toolMachine.handlePointerDown(point, e);
 			}
 		},
-		[currentTool, activeTool, shapes, screenToCanvas, toolMachine],
+		[currentTool, shapes, screenToCanvas, toolMachine],
 	);
 
 	const handlePointerMove = useCallback(
@@ -123,7 +123,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			}
 			e.preventDefault();
 		},
-		[currentTool, activeTool, screenToCanvas, toolMachine],
+		[currentTool, screenToCanvas, toolMachine],
 	);
 
 	return (
