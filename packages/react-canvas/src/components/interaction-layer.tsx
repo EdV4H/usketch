@@ -258,6 +258,11 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 		);
 	}
 
+	// For effect tool, don't render anything - let ShapeLayer handle events
+	if (activeTool === "effect") {
+		return null;
+	}
+
 	return (
 		<div
 			className={`interaction-layer ${className}`.trim()}

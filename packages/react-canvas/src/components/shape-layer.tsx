@@ -12,7 +12,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 	className = "",
 }) => {
 	const shapeArray = Object.values(shapes);
-	const { selectedShapeIds } = useWhiteboardStore();
+	const { selectedShapeIds, currentTool } = useWhiteboardStore();
 	const toolMachine = useToolMachine();
 	const svgRef = useRef<SVGSVGElement>(null);
 
@@ -31,74 +31,99 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 
 	const handleShapePointerDown = useCallback(
 		(shapeId: string, e: React.PointerEvent) => {
-			if (activeTool !== "select") return;
+			// Use currentTool from store directly for consistency
+			const actualTool = currentTool;
+
+			// Allow both select and effect tools - use currentTool for accuracy
+			if (actualTool !== "select" && actualTool !== "effect") {
+				return;
+			}
 
 			e.stopPropagation(); // Prevent background handler
 			const point = screenToCanvas(e.clientX, e.clientY);
 
-			// Get shape at point to pass to XState
-			const shape = shapes[shapeId];
-			if (!shape) return;
+			if (actualTool === "select") {
+				// Get shape at point to pass to XState
+				const shape = shapes[shapeId];
+				if (!shape) return;
 
-			// Send event to XState with shape context
-			toolMachine.handlePointerDown({ ...point, shapeId }, e);
+				// Send event to XState with shape context
+				toolMachine.handlePointerDown({ ...point, shapeId }, e);
 
-			// Capture pointer for drag tracking on SVG element
-			if (svgRef.current) {
-				svgRef.current.setPointerCapture(e.pointerId);
+				// Capture pointer for drag tracking on SVG element
+				if (svgRef.current) {
+					svgRef.current.setPointerCapture(e.pointerId);
+				}
+			} else if (actualTool === "effect") {
+				// Handle effect tool
+				toolMachine.handlePointerDown(point, e);
 			}
 		},
-		[activeTool, shapes, screenToCanvas, toolMachine],
+		[currentTool, activeTool, shapes, screenToCanvas, toolMachine],
 	);
 
 	const handlePointerMove = useCallback(
 		(e: React.PointerEvent<SVGSVGElement>) => {
-			if (activeTool !== "select") return;
+			// Allow both select and effect tools - use currentTool
+			if (currentTool !== "select" && currentTool !== "effect") return;
 
 			const point = screenToCanvas(e.clientX, e.clientY);
 			toolMachine.handlePointerMove(point, e);
 		},
-		[activeTool, screenToCanvas, toolMachine],
+		[currentTool, screenToCanvas, toolMachine],
 	);
 
 	const handlePointerUp = useCallback(
 		(e: React.PointerEvent<SVGSVGElement>) => {
-			if (activeTool !== "select") return;
+			// Allow both select and effect tools - use currentTool
+			if (currentTool !== "select" && currentTool !== "effect") return;
 
 			const point = screenToCanvas(e.clientX, e.clientY);
 			toolMachine.handlePointerUp(point, e);
 
-			// Release pointer capture
-			if (svgRef.current) {
+			// Release pointer capture for select tool
+			if (currentTool === "select" && svgRef.current) {
 				svgRef.current.releasePointerCapture(e.pointerId);
 			}
 		},
-		[activeTool, screenToCanvas, toolMachine],
+		[currentTool, screenToCanvas, toolMachine],
 	);
 
-	// Handle background pointer events for drag selection
+	// Handle background pointer events for drag selection or effect creation
 	const handleBackgroundPointerDown = useCallback(
 		(e: React.PointerEvent<SVGSVGElement>) => {
-			if (activeTool !== "select") return;
+			const actualTool = currentTool;
+
+			// Allow both select and effect tools - use currentTool
+			if (actualTool !== "select" && actualTool !== "effect") {
+				return;
+			}
 
 			// Check if clicking on the background rect
 			const target = e.target as Element;
-			if (target.tagName !== "rect" || !target.hasAttribute("data-background")) return;
+			if (target.tagName !== "rect" || !target.hasAttribute("data-background")) {
+				return;
+			}
 
 			// Don't handle if already handled by WhiteboardCanvas
 			e.stopPropagation();
 			const point = screenToCanvas(e.clientX, e.clientY);
 
-			// Send pointer down event to XState machine (it handles selection clearing/brush)
-			toolMachine.handlePointerDown(point, e);
+			if (actualTool === "select") {
+				// Send pointer down event to XState machine (it handles selection clearing/brush)
+				toolMachine.handlePointerDown(point, e);
 
-			// Capture pointer for drag tracking
-			if (svgRef.current) {
-				svgRef.current.setPointerCapture(e.pointerId);
+				// Capture pointer for drag tracking
+				if (svgRef.current) {
+					svgRef.current.setPointerCapture(e.pointerId);
+				}
+			} else if (actualTool === "effect") {
+				// Handle effect tool
+				toolMachine.handlePointerDown(point, e);
 			}
 			e.preventDefault();
 		},
-		[activeTool, screenToCanvas, toolMachine],
+		[currentTool, activeTool, screenToCanvas, toolMachine],
 	);
 
 	return (

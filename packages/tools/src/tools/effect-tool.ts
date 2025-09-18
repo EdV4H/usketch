@@ -43,7 +43,7 @@ export class EffectTool {
 		const { x, y } = point;
 		const { effectType, effectConfig = {} } = this.config;
 
-		return {
+		const newEffect = {
 			id: `${effectType}-${Date.now()}`,
 			type: effectType,
 			x,
@@ -51,6 +51,8 @@ export class EffectTool {
 			createdAt: Date.now(),
 			...effectConfig,
 		};
+
+		return newEffect;
 	}
 
 	/**
@@ -89,5 +91,6 @@ export function getEffectTool(): EffectTool {
 			}
 		});
 	}
+
 	return effectToolInstance;
 }
