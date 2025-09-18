@@ -1,6 +1,7 @@
 import { globalShapeRegistry as ShapeRegistry } from "@usketch/shape-registry";
 import type React from "react";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { useToolMachine } from "../hooks/use-tool-machine";
 import type { SelectionLayerProps } from "../types";
 
 export const SelectionLayer: React.FC<SelectionLayerProps> = ({
@@ -9,11 +10,66 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 	camera,
 	className = "",
 }) => {
+	const toolMachine = useToolMachine();
 	const selectedShapes = useMemo(() => {
 		return Array.from(selectedIds)
 			.map((id) => shapes[id])
 			.filter(Boolean);
 	}, [selectedIds, shapes]);
+
+	// Helper function to convert screen coordinates to canvas coordinates
+	const screenToCanvas = useCallback(
+		(clientX: number, clientY: number) => {
+			const rect = document.querySelector(".shape-layer")?.getBoundingClientRect();
+			if (!rect) return { x: 0, y: 0 };
+			return {
+				x: (clientX - rect.left - camera.x) / camera.zoom,
+				y: (clientY - rect.top - camera.y) / camera.zoom,
+			};
+		},
+		[camera.x, camera.y, camera.zoom],
+	);
+
+	// Handle resize handle pointer down
+	const handleResizePointerDown = useCallback(
+		(e: React.PointerEvent, handle: string) => {
+			e.stopPropagation();
+			e.preventDefault();
+
+			const point = screenToCanvas(e.clientX, e.clientY);
+
+			// Send event to XState with resize handle info
+			toolMachine.handlePointerDown(point, {
+				...e,
+				target: { getAttribute: () => handle } as any,
+			} as React.PointerEvent);
+
+			// Capture pointer for drag tracking
+			(e.target as HTMLElement).setPointerCapture(e.pointerId);
+		},
+		[screenToCanvas, toolMachine],
+	);
+
+	// Handle resize handle pointer move
+	const handleResizePointerMove = useCallback(
+		(e: React.PointerEvent) => {
+			const point = screenToCanvas(e.clientX, e.clientY);
+			toolMachine.handlePointerMove(point, e);
+		},
+		[screenToCanvas, toolMachine],
+	);
+
+	// Handle resize handle pointer up
+	const handleResizePointerUp = useCallback(
+		(e: React.PointerEvent) => {
+			const point = screenToCanvas(e.clientX, e.clientY);
+			toolMachine.handlePointerUp(point, e);
+
+			// Release pointer capture
+			(e.target as HTMLElement).releasePointerCapture(e.pointerId);
+		},
+		[screenToCanvas, toolMachine],
+	);
 
 	const boundingBox = useMemo(() => {
 		if (selectedShapes.length === 0) return null;
@@ -123,6 +179,88 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 			{/* Show resize handles for single selection */}
 			{selectedShapes.length === 1 && (
 				<>
+					{/* Invisible edge resize areas (full edge length) */}
+					{/* Top edge */}
+					<div
+						className="resize-edge n"
+						data-resize-handle="n"
+						data-testid="resize-edge-n"
+						style={{
+							position: "absolute",
+							left: boundingBox.x + 10,
+							top: boundingBox.y - 5,
+							width: boundingBox.width - 20,
+							height: 10,
+							cursor: "n-resize",
+							pointerEvents: "auto",
+							zIndex: 9,
+							background: "transparent",
+						}}
+						onPointerDown={(e) => handleResizePointerDown(e, "n")}
+						onPointerMove={handleResizePointerMove}
+						onPointerUp={handleResizePointerUp}
+					/>
+					{/* Right edge */}
+					<div
+						className="resize-edge e"
+						data-resize-handle="e"
+						data-testid="resize-edge-e"
+						style={{
+							position: "absolute",
+							left: boundingBox.x + boundingBox.width - 5,
+							top: boundingBox.y + 10,
+							width: 10,
+							height: boundingBox.height - 20,
+							cursor: "e-resize",
+							pointerEvents: "auto",
+							zIndex: 9,
+							background: "transparent",
+						}}
+						onPointerDown={(e) => handleResizePointerDown(e, "e")}
+						onPointerMove={handleResizePointerMove}
+						onPointerUp={handleResizePointerUp}
+					/>
+					{/* Bottom edge */}
+					<div
+						className="resize-edge s"
+						data-resize-handle="s"
+						data-testid="resize-edge-s"
+						style={{
+							position: "absolute",
+							left: boundingBox.x + 10,
+							top: boundingBox.y + boundingBox.height - 5,
+							width: boundingBox.width - 20,
+							height: 10,
+							cursor: "s-resize",
+							pointerEvents: "auto",
+							zIndex: 9,
+							background: "transparent",
+						}}
+						onPointerDown={(e) => handleResizePointerDown(e, "s")}
+						onPointerMove={handleResizePointerMove}
+						onPointerUp={handleResizePointerUp}
+					/>
+					{/* Left edge */}
+					<div
+						className="resize-edge w"
+						data-resize-handle="w"
+						data-testid="resize-edge-w"
+						style={{
+							position: "absolute",
+							left: boundingBox.x - 5,
+							top: boundingBox.y + 10,
+							width: 10,
+							height: boundingBox.height - 20,
+							cursor: "w-resize",
+							pointerEvents: "auto",
+							zIndex: 9,
+							background: "transparent",
+						}}
+						onPointerDown={(e) => handleResizePointerDown(e, "w")}
+						onPointerMove={handleResizePointerMove}
+						onPointerUp={handleResizePointerUp}
+					/>
+
 					{/* Corner handles with larger interaction area */}
 					<div
 						className="resize-handle nw"
@@ -143,6 +281,9 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 							alignItems: "center",
 							justifyContent: "center",
 						}}
+						onPointerDown={(e) => handleResizePointerDown(e, "nw")}
+						onPointerMove={handleResizePointerMove}
+						onPointerUp={handleResizePointerUp}
 					>
 						{/* Visible handle */}
 						<div
@@ -174,6 +315,9 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 							alignItems: "center",
 							justifyContent: "center",
 						}}
+						onPointerDown={(e) => handleResizePointerDown(e, "ne")}
+						onPointerMove={handleResizePointerMove}
+						onPointerUp={handleResizePointerUp}
 					>
 						<div
 							style={{
@@ -204,6 +348,9 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 							alignItems: "center",
 							justifyContent: "center",
 						}}
+						onPointerDown={(e) => handleResizePointerDown(e, "sw")}
+						onPointerMove={handleResizePointerMove}
+						onPointerUp={handleResizePointerUp}
 					>
 						<div
 							style={{
@@ -234,6 +381,9 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 							alignItems: "center",
 							justifyContent: "center",
 						}}
+						onPointerDown={(e) => handleResizePointerDown(e, "se")}
+						onPointerMove={handleResizePointerMove}
+						onPointerUp={handleResizePointerUp}
 					>
 						<div
 							style={{
