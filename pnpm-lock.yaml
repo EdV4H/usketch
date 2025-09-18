@@ -520,7 +520,7 @@ importers:
         version: link:../store
     devDependencies:
       '@types/react':
-        specifier: ^19.0.7
+        specifier: ^19.1.13
         version: 19.1.13
       '@usketch/tsconfig':
         specifier: workspace:*

@@ -1,11 +1,12 @@
 import { whiteboardStore } from "@usketch/store";
+import type React from "react";
 import { useEffect, useState } from "react";
 
 interface HistoryDebugPanelProps {
 	onClose?: () => void;
 }
 
-export function HistoryDebugPanel({ onClose }: HistoryDebugPanelProps) {
+export const HistoryDebugPanel: React.FC<HistoryDebugPanelProps> = ({ onClose }) => {
 	const [isOpen, setIsOpen] = useState(true);
 	const [isExpanded, setIsExpanded] = useState(true);
 	const [historyInfo, setHistoryInfo] = useState<{
@@ -310,7 +311,7 @@ export function HistoryDebugPanel({ onClose }: HistoryDebugPanelProps) {
 						</div>
 					) : (
 						<div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-							{historyInfo.commands.map((cmd, index) => {
+							{historyInfo.commands.map((cmd: any, index: number) => {
 								const isCurrent = index === historyInfo.currentIndex;
 								const isPast = index <= historyInfo.currentIndex;
 								const isFuture = index > historyInfo.currentIndex;
@@ -504,4 +505,4 @@ export function HistoryDebugPanel({ onClose }: HistoryDebugPanelProps) {
 			</div>
 		</div>
 	);
-}
+};

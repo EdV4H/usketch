@@ -694,39 +694,20 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
 		}));
 	},
 
-<<<<<<< HEAD
-	// Command execution
-	executeCommand: (command: Command) => {
-		const context = createCommandContext(get, set);
-		get().history.execute(command, context);
-		set({
-			canUndo: get().history.canUndo,
-			canRedo: get().history.canRedo,
-		});
-	},
-
 	// Batch operations
 	beginBatch: (description?: string) => {
-		get().history.beginBatch(description);
+		historyManager.beginBatch(description);
 	},
 
 	endBatch: () => {
 		const context = createCommandContext(get, set);
-		get().history.endBatch(context);
+		historyManager.endBatch(context);
 		set({
-			canUndo: get().history.canUndo,
-			canRedo: get().history.canRedo,
+			canUndo: historyManager.canUndo,
+			canRedo: historyManager.canRedo,
 		});
 	},
 
-	// Undo/Redo
-	undo: () => {
-		const context = createCommandContext(get, set);
-		const result = get().history.undo(context);
-		set({
-			canUndo: get().history.canUndo,
-			canRedo: get().history.canRedo,
-=======
 	// Undo/Redo
 	undo: () => {
 		const context = createCommandContext(get, set);
@@ -734,51 +715,25 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
 		set({
 			canUndo: historyManager.canUndo,
 			canRedo: historyManager.canRedo,
->>>>>>> 11172b8 (✨ feat: Undo/Redo機能の実装完了)
 		});
 		return result;
 	},
 
 	redo: () => {
 		const context = createCommandContext(get, set);
-<<<<<<< HEAD
-		const result = get().history.redo(context);
-		set({
-			canUndo: get().history.canUndo,
-			canRedo: get().history.canRedo,
-=======
 		const result = historyManager.redo(context);
 		set({
 			canUndo: historyManager.canUndo,
 			canRedo: historyManager.canRedo,
->>>>>>> 11172b8 (✨ feat: Undo/Redo機能の実装完了)
 		});
 		return result;
 	},
 
 	clearHistory: () => {
-<<<<<<< HEAD
-		get().history.clear();
-=======
 		historyManager.clear();
->>>>>>> 11172b8 (✨ feat: Undo/Redo機能の実装完了)
 		set({
 			canUndo: false,
 			canRedo: false,
-		});
-<<<<<<< HEAD
-=======
-	},
-
-	beginBatch: (description?: string) => {
-		historyManager.beginBatch(description);
-	},
-
-	endBatch: () => {
-		historyManager.endBatch(context);
-		set({
-			canUndo: historyManager.canUndo,
-			canRedo: historyManager.canRedo,
 		});
 	},
 

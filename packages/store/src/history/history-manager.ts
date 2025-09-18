@@ -35,8 +35,7 @@ export class HistoryManager {
 		if (this.currentIndex >= 0 && this.currentIndex < this.commands.length) {
 			const lastCommand = this.commands[this.currentIndex];
 			if (
-				lastCommand &&
-				lastCommand.canMerge &&
+				lastCommand?.canMerge &&
 				command.canMerge &&
 				command.timestamp - lastCommand.timestamp < this.mergeThreshold &&
 				lastCommand.canMerge(command)
