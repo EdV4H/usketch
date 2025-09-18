@@ -95,7 +95,7 @@ export const pinPlugin: EffectPlugin<PinEffect> = {
 	}),
 
 	validate: (effect) => {
-		return effect.type === "pin" && typeof effect.color === "string";
+		return effect.type === "pin" && typeof effect["color"] === "string";
 	},
 
 	interactive: true,
