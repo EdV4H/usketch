@@ -1,4 +1,5 @@
 import { whiteboardStore } from "@usketch/store";
+import { HistoryControls } from "@usketch/ui-components";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { CUSTOM_BACKGROUNDS_METADATA } from "../backgrounds/register-backgrounds";
@@ -365,6 +366,13 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 					}
 				`}
 			</style>
+
+			{/* History Controls */}
+			<div className="toolbar-group">
+				<HistoryControls />
+			</div>
+
+			<div className="toolbar-separator" />
 
 			<div className="toolbar-group">
 				{tools.map((tool) => (

@@ -10,10 +10,16 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@usketch/shared-types": "workspace:*"
+		"@usketch/shared-types": "workspace:*",
+		"@usketch/store": "workspace:*"
+	},
+	"peerDependencies": {
+		"react": ">=18.0.0"
 	},
 	"devDependencies": {
+		"@types/react": "^19.0.7",
 		"@usketch/tsconfig": "workspace:*",
+		"react": "^19.1.1",
 		"typescript": "5.9.2"
 	}
 }

@@ -8,6 +8,13 @@ import type {
 } from "@usketch/shared-types";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
+import { SetCameraCommand } from "./commands/camera";
+import {
+	ClearSelectionCommand,
+	DeselectShapeCommand,
+	SelectShapeCommand,
+	SetSelectionCommand,
+} from "./commands/selection";
 import { CreateShapeCommand, DeleteShapeCommand, UpdateShapeCommand } from "./commands/shape";
 import { calculateDistribution, type DistributionDirection } from "./distribution-utils";
 import { HistoryManager } from "./history/history-manager";
@@ -211,11 +218,21 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
 		effectType: "ripple",
 		effectConfig: {},
 	},
+	canUndo: false,
+	canRedo: false,
 
 	// History management
 	history: historyManager,
-	canUndo: false,
-	canRedo: false,
+
+	// Command execution
+	executeCommand: (command: Command) => {
+		const context = createCommandContext(get, set);
+		historyManager.execute(command, context);
+		set({
+			canUndo: historyManager.canUndo,
+			canRedo: historyManager.canRedo,
+		});
+	},
 
 	// Actions - Now using commands for undo/redo support
 	addShape: (shape: Shape) => {
@@ -231,29 +248,19 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
 	},
 
 	selectShape: (id: string) => {
-		set((state) => ({
-			...state,
-			selectedShapeIds: new Set([...state.selectedShapeIds, id]),
-		}));
+		get().executeCommand(new SelectShapeCommand(id));
 	},
 
 	deselectShape: (id: string) => {
-		set((state) => {
-			const newSelectedIds = new Set(state.selectedShapeIds);
-			newSelectedIds.delete(id);
-			return { ...state, selectedShapeIds: newSelectedIds };
-		});
+		get().executeCommand(new DeselectShapeCommand(id));
 	},
 
 	clearSelection: () => {
-		set((state) => ({ ...state, selectedShapeIds: new Set() }));
+		get().executeCommand(new ClearSelectionCommand());
 	},
 
 	setCamera: (camera: Partial<Camera>) => {
-		set((state) => ({
-			...state,
-			camera: { ...state.camera, ...camera },
-		}));
+		get().executeCommand(new SetCameraCommand(camera));
 	},
 
 	setCurrentTool: (tool: string) => {
@@ -317,10 +324,7 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
 	},
 
 	setSelection: (ids: string[]) => {
-		set((state) => ({
-			...state,
-			selectedShapeIds: new Set(ids),
-		}));
+		get().executeCommand(new SetSelectionCommand(ids));
 	},
 
 	removeSelectedShapes: () => {
@@ -662,6 +666,7 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
 		}));
 	},
 
+<<<<<<< HEAD
 	// Command execution
 	executeCommand: (command: Command) => {
 		const context = createCommandContext(get, set);
@@ -693,26 +698,61 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
 		set({
 			canUndo: get().history.canUndo,
 			canRedo: get().history.canRedo,
+=======
+	// Undo/Redo
+	undo: () => {
+		const context = createCommandContext(get, set);
+		const result = historyManager.undo(context);
+		set({
+			canUndo: historyManager.canUndo,
+			canRedo: historyManager.canRedo,
+>>>>>>> 11172b8 (✨ feat: Undo/Redo機能の実装完了)
 		});
 		return result;
 	},
 
 	redo: () => {
 		const context = createCommandContext(get, set);
+<<<<<<< HEAD
 		const result = get().history.redo(context);
 		set({
 			canUndo: get().history.canUndo,
 			canRedo: get().history.canRedo,
+=======
+		const result = historyManager.redo(context);
+		set({
+			canUndo: historyManager.canUndo,
+			canRedo: historyManager.canRedo,
+>>>>>>> 11172b8 (✨ feat: Undo/Redo機能の実装完了)
 		});
 		return result;
 	},
 
 	clearHistory: () => {
+<<<<<<< HEAD
 		get().history.clear();
+=======
+		historyManager.clear();
+>>>>>>> 11172b8 (✨ feat: Undo/Redo機能の実装完了)
 		set({
 			canUndo: false,
 			canRedo: false,
 		});
+<<<<<<< HEAD
+=======
+	},
+
+	beginBatch: (description?: string) => {
+		historyManager.beginBatch(description);
+	},
+
+	endBatch: () => {
+		historyManager.endBatch();
+		set({
+			canUndo: historyManager.canUndo,
+			canRedo: historyManager.canRedo,
+		});
+>>>>>>> 11172b8 (✨ feat: Undo/Redo機能の実装完了)
 	},
 
 	// Effect actions
