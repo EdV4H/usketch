@@ -291,10 +291,11 @@ export const selectToolMachine = setup({
 				newSelectedIds = new Set(intersecting.map((s) => s.id));
 			}
 
-			// Update store with new selection
-			store.setSelection(Array.from(newSelectedIds));
+			// DON'T update store during drag to avoid creating History entries
+			// We'll update it once when drag ends in finalizeSelection
+			// store.setSelection(Array.from(newSelectedIds)); // REMOVED
 
-			// Update selection indicator in store
+			// Update selection indicator in store (visual feedback only)
 			whiteboardStore.getState().setSelectionIndicator({
 				bounds: box,
 				visible: true,
@@ -303,11 +304,17 @@ export const selectToolMachine = setup({
 
 			return {
 				selectionBox: box,
-				selectedIds: newSelectedIds,
+				selectedIds: newSelectedIds, // Keep track locally
 			};
 		}),
 
-		finalizeSelection: assign(() => {
+		finalizeSelection: assign(({ context }) => {
+			// Now update the store with the final selection
+			// This creates only ONE History entry instead of many
+			if (context.selectedIds && context.selectedIds.size >= 0) {
+				whiteboardStore.getState().setSelection(Array.from(context.selectedIds));
+			}
+
 			// Update Zustand store directly
 			whiteboardStore.getState().hideSelectionIndicator();
 
