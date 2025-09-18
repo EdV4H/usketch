@@ -105,7 +105,9 @@ export class HistoryManager {
 
 	beginBatch(description?: string): void {
 		if (this.batchMode) {
-			console.warn("Already in batch mode");
+			console.warn(
+				`beginBatch called when already in batch mode. Current batch: "${this.batchDescription}", commands: ${this.batchCommands.length}`,
+			);
 			return;
 		}
 		this.batchMode = true;
@@ -115,7 +117,9 @@ export class HistoryManager {
 
 	endBatch(context: CommandContext): void {
 		if (!this.batchMode) {
-			console.warn("Not in batch mode");
+			console.warn(
+				`endBatch called when not in batch mode. Current batchMode: ${this.batchMode}, batchCommands length: ${this.batchCommands?.length ?? 0}, batchDescription: "${this.batchDescription ?? ""}"`,
+			);
 			return;
 		}
 

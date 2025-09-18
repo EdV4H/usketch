@@ -25,8 +25,9 @@ export class DeleteShapeCommand extends BaseCommand {
 
 	undo(context: CommandContext): void {
 		if (this.deletedShape) {
+			const shape = this.deletedShape;
 			context.setState((state) => {
-				state.shapes[this.shapeId] = this.deletedShape!;
+				state.shapes[this.shapeId] = shape;
 				if (this.wasSelected) {
 					state.selectedShapeIds.add(this.shapeId);
 				}
