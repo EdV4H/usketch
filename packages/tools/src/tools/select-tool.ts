@@ -559,6 +559,7 @@ export const selectToolMachine = setup({
 			}
 
 			// Apply translation to all selected shapes
+			const batchUpdates: Array<{ id: string; updates: any }> = [];
 			selectedShapeIds.forEach((id) => {
 				const initial = context.dragState?.initialPositions.get(id);
 				const shape = getShape(id);
@@ -580,9 +581,24 @@ export const selectToolMachine = setup({
 						}
 					}
 
-					updateShape(id, updates);
+					batchUpdates.push({ id, updates });
 				}
 			});
+
+			// Use batch update if multiple shapes, single update otherwise
+			if (batchUpdates.length > 1) {
+				const { batchUpdateShapes } = whiteboardStore.getState();
+				if (batchUpdateShapes) {
+					batchUpdateShapes(batchUpdates);
+				} else {
+					// Fallback to individual updates
+					batchUpdates.forEach(({ id, updates }) => {
+						updateShape(id, updates);
+					});
+				}
+			} else if (batchUpdates.length === 1) {
+				updateShape(batchUpdates[0].id, batchUpdates[0].updates);
+			}
 
 			// Update snap guides in store (only if any guide type is enabled)
 			const { snapSettings } = whiteboardStore.getState();
@@ -620,6 +636,8 @@ export const selectToolMachine = setup({
 				context.selectedIds && context.selectedIds.size > 0
 					? context.selectedIds
 					: whiteboardStore.getState().selectedShapeIds;
+
+			const batchUpdates: Array<{ id: string; updates: any }> = [];
 			selectedShapeIds.forEach((id) => {
 				const originalPos = context.dragState?.initialPositions.get(id);
 				const shape = getShape(id);
@@ -634,9 +652,24 @@ export const selectToolMachine = setup({
 						}
 					}
 
-					updateShape(id, updates);
+					batchUpdates.push({ id, updates });
 				}
 			});
+
+			// Use batch update if multiple shapes, single update otherwise
+			if (batchUpdates.length > 1) {
+				const { batchUpdateShapes } = whiteboardStore.getState();
+				if (batchUpdateShapes) {
+					batchUpdateShapes(batchUpdates);
+				} else {
+					// Fallback to individual updates
+					batchUpdates.forEach(({ id, updates }) => {
+						updateShape(id, updates);
+					});
+				}
+			} else if (batchUpdates.length === 1) {
+				updateShape(batchUpdates[0].id, batchUpdates[0].updates);
+			}
 			// Clear snap guides when dragging is cancelled
 			whiteboardStore.getState().setSnapGuides([]);
 			return {

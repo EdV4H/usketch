@@ -15,7 +15,12 @@ import {
 	SelectShapeCommand,
 	SetSelectionCommand,
 } from "./commands/selection";
-import { CreateShapeCommand, DeleteShapeCommand, UpdateShapeCommand } from "./commands/shape";
+import {
+	BatchUpdateShapesCommand,
+	CreateShapeCommand,
+	DeleteShapeCommand,
+	UpdateShapeCommand,
+} from "./commands/shape";
 import { calculateDistribution, type DistributionDirection } from "./distribution-utils";
 import { HistoryManager } from "./history/history-manager";
 
@@ -86,6 +91,7 @@ export interface WhiteboardStore extends WhiteboardState {
 	// Actions
 	addShape: (shape: Shape) => void;
 	updateShape: (id: string, updates: Partial<Shape>) => void;
+	batchUpdateShapes: (updates: Array<{ id: string; updates: Partial<Shape> }>) => void;
 	removeShape: (id: string) => void;
 	deleteShapes: (ids: string[]) => void;
 	selectShape: (id: string) => void;
@@ -241,6 +247,10 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
 
 	updateShape: (id: string, updates: Partial<Shape>) => {
 		get().executeCommand(new UpdateShapeCommand(id, updates));
+	},
+
+	batchUpdateShapes: (updates: Array<{ id: string; updates: Partial<Shape> }>) => {
+		get().executeCommand(new BatchUpdateShapesCommand(updates));
 	},
 
 	removeShape: (id: string) => {
