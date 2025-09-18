@@ -1,7 +1,16 @@
-import type { Camera, Effect, Shape, WhiteboardState } from "@usketch/shared-types";
+import type {
+	Camera,
+	Command,
+	CommandContext,
+	Effect,
+	Shape,
+	WhiteboardState,
+} from "@usketch/shared-types";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
+import { CreateShapeCommand, DeleteShapeCommand, UpdateShapeCommand } from "./commands/shape";
 import { calculateDistribution, type DistributionDirection } from "./distribution-utils";
+import { HistoryManager } from "./history/history-manager";
 
 export type AlignmentDirection =
 	| "left"
@@ -62,6 +71,11 @@ export interface WhiteboardStore extends WhiteboardState {
 		effectConfig?: Record<string, any>;
 	};
 
+	// History management
+	history: HistoryManager;
+	canUndo: boolean;
+	canRedo: boolean;
+
 	// Actions
 	addShape: (shape: Shape) => void;
 	updateShape: (id: string, updates: Partial<Shape>) => void;
@@ -115,9 +129,17 @@ export interface WhiteboardStore extends WhiteboardState {
 	toggleGridSnap: () => void;
 	toggleShapeSnap: () => void;
 
+	// Command execution
+	executeCommand: (command: Command) => void;
+
+	// Batch operations
+	beginBatch: (description?: string) => void;
+	endBatch: () => void;
+
 	// Undo/Redo
-	undo: () => void;
-	redo: () => void;
+	undo: () => boolean;
+	redo: () => boolean;
+	clearHistory: () => void;
 
 	// Effect actions
 	addEffect: (effect: Effect) => void;
@@ -133,7 +155,32 @@ export interface WhiteboardStore extends WhiteboardState {
 	) => void;
 }
 
-export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
+// Create history manager instance
+const historyManager = new HistoryManager({
+	maxSize: 100,
+	mergeThreshold: 1000,
+});
+
+// Helper function to create CommandContext
+const createCommandContext = (get: any, set: any): CommandContext => ({
+	getState: () => ({
+		shapes: get().shapes,
+		selectedShapeIds: get().selectedShapeIds,
+		camera: get().camera,
+		currentTool: get().currentTool,
+	}),
+	setState: (updater: (state: WhiteboardState) => void) => {
+		set((state: WhiteboardStore) => {
+			const newState = { ...state };
+			// Create a new shapes object to ensure React detects changes
+			newState.shapes = { ...state.shapes };
+			updater(newState);
+			return newState;
+		});
+	},
+});
+
+export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
 	// Initial state
 	shapes: {},
 	selectedShapeIds: new Set(),
@@ -165,36 +212,22 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 		effectConfig: {},
 	},
 
-	// Actions
+	// History management
+	history: historyManager,
+	canUndo: false,
+	canRedo: false,
+
+	// Actions - Now using commands for undo/redo support
 	addShape: (shape: Shape) => {
-		set((state) => ({
-			...state,
-			shapes: { ...state.shapes, [shape.id]: shape },
-		}));
+		get().executeCommand(new CreateShapeCommand(shape));
 	},
 
 	updateShape: (id: string, updates: Partial<Shape>) => {
-		set((state) => ({
-			...state,
-			shapes: {
-				...state.shapes,
-				[id]: { ...state.shapes[id], ...updates } as Shape,
-			},
-		}));
+		get().executeCommand(new UpdateShapeCommand(id, updates));
 	},
 
 	removeShape: (id: string) => {
-		set((state) => {
-			const newShapes = { ...state.shapes };
-			delete newShapes[id];
-			const newSelectedIds = new Set(state.selectedShapeIds);
-			newSelectedIds.delete(id);
-			return {
-				...state,
-				shapes: newShapes,
-				selectedShapeIds: newSelectedIds,
-			};
-		});
+		get().executeCommand(new DeleteShapeCommand(id));
 	},
 
 	selectShape: (id: string) => {
@@ -629,13 +662,57 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 		}));
 	},
 
-	// Undo/Redo placeholders
+	// Command execution
+	executeCommand: (command: Command) => {
+		const context = createCommandContext(get, set);
+		get().history.execute(command, context);
+		set({
+			canUndo: get().history.canUndo,
+			canRedo: get().history.canRedo,
+		});
+	},
+
+	// Batch operations
+	beginBatch: (description?: string) => {
+		get().history.beginBatch(description);
+	},
+
+	endBatch: () => {
+		const context = createCommandContext(get, set);
+		get().history.endBatch(context);
+		set({
+			canUndo: get().history.canUndo,
+			canRedo: get().history.canRedo,
+		});
+	},
+
+	// Undo/Redo
 	undo: () => {
-		// Undo not implemented
+		const context = createCommandContext(get, set);
+		const result = get().history.undo(context);
+		set({
+			canUndo: get().history.canUndo,
+			canRedo: get().history.canRedo,
+		});
+		return result;
 	},
 
 	redo: () => {
-		// Redo not implemented
+		const context = createCommandContext(get, set);
+		const result = get().history.redo(context);
+		set({
+			canUndo: get().history.canUndo,
+			canRedo: get().history.canRedo,
+		});
+		return result;
+	},
+
+	clearHistory: () => {
+		get().history.clear();
+		set({
+			canUndo: false,
+			canRedo: false,
+		});
 	},
 
 	// Effect actions
