@@ -1,25 +1,45 @@
 import { useWhiteboardStore } from "@usketch/store";
 import type React from "react";
+import { useState } from "react";
+import { ConfirmDialog } from "../dialogs/confirm-dialog";
+import { InputDialog } from "../dialogs/input-dialog";
 import "./style-presets.css";
 
 export const StylePresets: React.FC = () => {
 	const stylePresets = useWhiteboardStore((state) => state.stylePresets);
-	const applyPreset = useWhiteboardStore((state) => state.applyPreset);
-	const saveAsPreset = useWhiteboardStore((state) => state.saveAsPreset);
-	const deletePreset = useWhiteboardStore((state) => state.deletePreset);
+	const applyStylePreset = useWhiteboardStore((state) => state.applyStylePreset);
+	const saveStylePreset = useWhiteboardStore((state) => state.saveStylePreset);
+	const deleteStylePreset = useWhiteboardStore((state) => state.deleteStylePreset);
 	const selectedShapeIds = useWhiteboardStore((state) => state.selectedShapeIds);
 
+	// Dialog states
+	const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+	const [presetToDelete, setPresetToDelete] = useState<string | null>(null);
+	const [presetNameToDelete, setPresetNameToDelete] = useState<string>("");
+
 	const handleSaveAsPreset = () => {
-		const name = prompt("プリセット名を入力してください:");
-		if (name) {
-			saveAsPreset(name);
-		}
+		setIsSaveDialogOpen(true);
 	};
 
-	const handleDeletePreset = (presetId: string) => {
-		if (confirm("このプリセットを削除しますか？")) {
-			deletePreset(presetId);
+	const handleSaveConfirm = (name: string) => {
+		saveStylePreset(name);
+		setIsSaveDialogOpen(false);
+	};
+
+	const handleDeletePreset = (presetId: string, presetName: string) => {
+		setPresetToDelete(presetId);
+		setPresetNameToDelete(presetName);
+		setIsDeleteDialogOpen(true);
+	};
+
+	const handleDeleteConfirm = () => {
+		if (presetToDelete) {
+			deleteStylePreset(presetToDelete);
 		}
+		setIsDeleteDialogOpen(false);
+		setPresetToDelete(null);
+		setPresetNameToDelete("");
 	};
 
 	const hasSelection = selectedShapeIds.size > 0;
@@ -46,7 +66,7 @@ export const StylePresets: React.FC = () => {
 						<button
 							type="button"
 							className="preset-button"
-							onClick={() => applyPreset(preset.id)}
+							onClick={() => applyStylePreset(preset.id)}
 							disabled={!hasSelection}
 							aria-label={`プリセット「${preset.name}」を適用`}
 						>
@@ -72,7 +92,7 @@ export const StylePresets: React.FC = () => {
 							<button
 								type="button"
 								className="delete-preset-button"
-								onClick={() => handleDeletePreset(preset.id)}
+								onClick={() => handleDeletePreset(preset.id, preset.name)}
 								aria-label={`プリセット「${preset.name}」を削除`}
 							>
 								×
@@ -90,6 +110,32 @@ export const StylePresets: React.FC = () => {
 					</p>
 				</div>
 			)}
+
+			{/* Save Preset Dialog */}
+			<InputDialog
+				isOpen={isSaveDialogOpen}
+				title="プリセットを保存"
+				message="プリセット名を入力してください:"
+				placeholder="例: マイスタイル"
+				onConfirm={handleSaveConfirm}
+				onCancel={() => setIsSaveDialogOpen(false)}
+			/>
+
+			{/* Delete Preset Confirm Dialog */}
+			<ConfirmDialog
+				isOpen={isDeleteDialogOpen}
+				title="プリセットの削除"
+				message={`「${presetNameToDelete}」プリセットを削除してもよろしいですか？`}
+				confirmText="削除"
+				cancelText="キャンセル"
+				variant="danger"
+				onConfirm={handleDeleteConfirm}
+				onCancel={() => {
+					setIsDeleteDialogOpen(false);
+					setPresetToDelete(null);
+					setPresetNameToDelete("");
+				}}
+			/>
 		</div>
 	);
 };

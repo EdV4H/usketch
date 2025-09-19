@@ -36,6 +36,9 @@ const PRESET_COLORS = [
 	"#991b1b",
 ];
 
+// Constants for validation patterns
+const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
+
 export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, label }) => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [customColor, setCustomColor] = useState(color);
@@ -148,7 +151,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, label
 								value={customColor}
 								onChange={(e) => {
 									const newColor = e.target.value;
-									if (/^#[0-9A-Fa-f]{6}$/.test(newColor)) {
+									if (HEX_COLOR_PATTERN.test(newColor)) {
 										handleColorChange(newColor);
 									} else {
 										setCustomColor(newColor);
