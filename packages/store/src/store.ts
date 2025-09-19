@@ -282,19 +282,19 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 	selectShape: (id: string) => {
 		get().executeCommand(new SelectShapeCommand(id));
 		// Update selected shape styles
-		setTimeout(() => get().updateSelectedShapeStyles?.(), 0);
+		get().updateSelectedShapeStyles?.();
 	},
 
 	deselectShape: (id: string) => {
 		get().executeCommand(new DeselectShapeCommand(id));
 		// Update selected shape styles
-		setTimeout(() => get().updateSelectedShapeStyles?.(), 0);
+		get().updateSelectedShapeStyles?.();
 	},
 
 	clearSelection: () => {
 		get().executeCommand(new ClearSelectionCommand());
 		// Update selected shape styles
-		setTimeout(() => get().updateSelectedShapeStyles?.(), 0);
+		get().updateSelectedShapeStyles?.();
 	},
 
 	setCamera: (camera: Partial<Camera>) => {

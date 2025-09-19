@@ -1,5 +1,6 @@
 import {
 	DEFAULT_STYLE_PRESETS,
+	type Shape,
 	type StylePreset,
 	type StyleProperties,
 	type StyleState,
@@ -75,7 +76,7 @@ export const createStyleSlice: StateCreator<StoreState, [], [], StyleSlice> = (
 			description: "Update shape styles",
 			execute: () => {
 				const { batchUpdateShapes } = get();
-				const updates: Array<{ id: string; updates: Partial<any> }> = [];
+				const updates: Array<{ id: string; updates: Partial<Shape> }> = [];
 
 				Array.from(selectedShapeIds).forEach((id) => {
 					updates.push({ id, updates: styles });
@@ -86,7 +87,7 @@ export const createStyleSlice: StateCreator<StoreState, [], [], StyleSlice> = (
 			},
 			undo: () => {
 				const { batchUpdateShapes } = get();
-				const updates: Array<{ id: string; updates: Partial<any> }> = [];
+				const updates: Array<{ id: string; updates: Partial<Shape> }> = [];
 
 				previousStyles.forEach((prevStyle, id) => {
 					updates.push({ id, updates: prevStyle });
