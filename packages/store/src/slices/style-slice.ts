@@ -74,27 +74,29 @@ export const createStyleSlice: StateCreator<StoreState, [], [], StyleSlice> = (
 			id: nanoid(),
 			timestamp: Date.now(),
 			description: "Update shape styles",
-			execute: () => {
-				const { batchUpdateShapes } = get();
-				const updates: Array<{ id: string; updates: Partial<Shape> }> = [];
-
-				Array.from(selectedShapeIds).forEach((id) => {
-					updates.push({ id, updates: styles });
+			execute: (context) => {
+				// Directly update shapes without creating nested commands
+				context.setState((state) => {
+					const newShapes = { ...state.shapes };
+					Array.from(selectedShapeIds).forEach((id) => {
+						if (newShapes[id]) {
+							newShapes[id] = { ...newShapes[id], ...styles } as Shape;
+						}
+					});
+					state.shapes = newShapes;
 				});
-
-				batchUpdateShapes(updates);
-				get().updateSelectedShapeStyles();
 			},
-			undo: () => {
-				const { batchUpdateShapes } = get();
-				const updates: Array<{ id: string; updates: Partial<Shape> }> = [];
-
-				previousStyles.forEach((prevStyle, id) => {
-					updates.push({ id, updates: prevStyle });
+			undo: (context) => {
+				// Directly restore previous styles without creating nested commands
+				context.setState((state) => {
+					const newShapes = { ...state.shapes };
+					previousStyles.forEach((prevStyle, id) => {
+						if (newShapes[id]) {
+							newShapes[id] = { ...newShapes[id], ...prevStyle } as Shape;
+						}
+					});
+					state.shapes = newShapes;
 				});
-
-				batchUpdateShapes(updates);
-				get().updateSelectedShapeStyles();
 			},
 		};
 
