@@ -8,7 +8,7 @@ import { Shape } from "./shape";
 export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 	shapes,
 	camera,
-	activeTool,
+	activeTool: _activeTool,
 	className = "",
 }) => {
 	const shapeArray = Object.values(shapes);

@@ -150,6 +150,7 @@ export const HistoryDebugPanel: React.FC<HistoryDebugPanelProps> = ({ onClose })
 								strokeWidth="2"
 								aria-label="History icon"
 							>
+								<title>History icon</title>
 								<circle cx="12" cy="12" r="10" />
 								<polyline points="12 6 12 12 16 14" />
 							</svg>
@@ -177,8 +178,12 @@ export const HistoryDebugPanel: React.FC<HistoryDebugPanelProps> = ({ onClose })
 								justifyContent: "center",
 							}}
 							title={isExpanded ? "Collapse" : "Expand"}
-							onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.3)")}
-							onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)")}
+							onMouseEnter={(e) => {
+								e.currentTarget.style.background = "rgba(255, 255, 255, 0.3)";
+							}}
+							onMouseLeave={(e) => {
+								e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)";
+							}}
 						>
 							<svg
 								width="16"
@@ -189,6 +194,7 @@ export const HistoryDebugPanel: React.FC<HistoryDebugPanelProps> = ({ onClose })
 								strokeWidth="2"
 								aria-label={isExpanded ? "Collapse" : "Expand"}
 							>
+								<title>{isExpanded ? "Collapse" : "Expand"}</title>
 								{isExpanded ? (
 									<polyline points="18 15 12 9 6 15" />
 								) : (
@@ -211,8 +217,12 @@ export const HistoryDebugPanel: React.FC<HistoryDebugPanelProps> = ({ onClose })
 								justifyContent: "center",
 							}}
 							title="Close"
-							onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.3)")}
-							onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)")}
+							onMouseEnter={(e) => {
+								e.currentTarget.style.background = "rgba(255, 255, 255, 0.3)";
+							}}
+							onMouseLeave={(e) => {
+								e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)";
+							}}
 						>
 							<svg
 								width="16"
@@ -223,6 +233,7 @@ export const HistoryDebugPanel: React.FC<HistoryDebugPanelProps> = ({ onClose })
 								strokeWidth="2"
 								aria-label="Close"
 							>
+								<title>Close</title>
 								<line x1="18" y1="6" x2="6" y2="18" />
 								<line x1="6" y1="6" x2="18" y2="18" />
 							</svg>
@@ -303,6 +314,7 @@ export const HistoryDebugPanel: React.FC<HistoryDebugPanelProps> = ({ onClose })
 								style={{ margin: "0 auto 1rem", opacity: 0.5 }}
 								aria-label="Empty history"
 							>
+								<title>Empty history</title>
 								<polygon points="12 2 2 7 2 17 12 22 22 17 22 7 12 2" />
 								<polyline points="2 7 12 12 22 7" />
 								<polyline points="12 22 12 12" />
