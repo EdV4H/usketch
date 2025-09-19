@@ -28,7 +28,6 @@ export function generateDebugShapes(
 			return generateGridShapes(options);
 		case "overlapping":
 			return generateOverlappingShapes(options);
-		case "variety":
 		default:
 			return generateVarietyShapes(options);
 	}
@@ -133,7 +132,7 @@ function generateOverlappingShapes(options: DebugShapeOptions): any[] {
 }
 
 // 様々な種類のシェイプをランダムに配置
-function generateVarietyShapes(options: DebugShapeOptions): any[] {
+function generateVarietyShapes(_options: DebugShapeOptions): any[] {
 	const shapes: any[] = [];
 	const timestamp = Date.now();
 

@@ -1,5 +1,5 @@
 import type { Point, Shape } from "@usketch/shared-types";
-import { useWhiteboardStore } from "@usketch/store";
+import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import { useCallback } from "react";
 
 export const useShapeManagement = () => {
@@ -57,15 +57,26 @@ export const useShapeManagement = () => {
 
 	const moveSelectedShapes = useCallback(
 		(delta: Point) => {
+			const updates: Array<{ id: string; updates: Partial<Shape> }> = [];
 			selectedShapeIds.forEach((id) => {
 				const shape = shapes[id];
 				if (shape) {
-					updateShape(id, {
-						x: shape.x + delta.x,
-						y: shape.y + delta.y,
+					updates.push({
+						id,
+						updates: {
+							x: shape.x + delta.x,
+							y: shape.y + delta.y,
+						},
 					});
 				}
 			});
+
+			// Use batch update if multiple shapes, single update otherwise
+			if (updates.length > 1 && whiteboardStore.getState().batchUpdateShapes) {
+				whiteboardStore.getState().batchUpdateShapes(updates);
+			} else if (updates.length === 1) {
+				updateShape(updates[0].id, updates[0].updates);
+			}
 		},
 		[shapes, selectedShapeIds, updateShape],
 	);

@@ -291,10 +291,11 @@ export const selectToolMachine = setup({
 				newSelectedIds = new Set(intersecting.map((s) => s.id));
 			}
 
-			// Update store with new selection
-			store.setSelection(Array.from(newSelectedIds));
+			// DON'T update store during drag to avoid creating History entries
+			// We'll update it once when drag ends in finalizeSelection
+			// store.setSelection(Array.from(newSelectedIds)); // REMOVED
 
-			// Update selection indicator in store
+			// Update selection indicator in store (visual feedback only)
 			whiteboardStore.getState().setSelectionIndicator({
 				bounds: box,
 				visible: true,
@@ -303,11 +304,17 @@ export const selectToolMachine = setup({
 
 			return {
 				selectionBox: box,
-				selectedIds: newSelectedIds,
+				selectedIds: newSelectedIds, // Keep track locally
 			};
 		}),
 
-		finalizeSelection: assign(() => {
+		finalizeSelection: assign(({ context }) => {
+			// Now update the store with the final selection
+			// This creates only ONE History entry instead of many
+			if (context.selectedIds && context.selectedIds.size >= 0) {
+				whiteboardStore.getState().setSelection(Array.from(context.selectedIds));
+			}
+
 			// Update Zustand store directly
 			whiteboardStore.getState().hideSelectionIndicator();
 
@@ -559,6 +566,7 @@ export const selectToolMachine = setup({
 			}
 
 			// Apply translation to all selected shapes
+			const batchUpdates: Array<{ id: string; updates: any }> = [];
 			selectedShapeIds.forEach((id) => {
 				const initial = context.dragState?.initialPositions.get(id);
 				const shape = getShape(id);
@@ -580,9 +588,24 @@ export const selectToolMachine = setup({
 						}
 					}
 
-					updateShape(id, updates);
+					batchUpdates.push({ id, updates });
 				}
 			});
+
+			// Use batch update if multiple shapes, single update otherwise
+			if (batchUpdates.length > 1) {
+				const { batchUpdateShapes } = whiteboardStore.getState();
+				if (batchUpdateShapes) {
+					batchUpdateShapes(batchUpdates);
+				} else {
+					// Fallback to individual updates
+					batchUpdates.forEach(({ id, updates }) => {
+						updateShape(id, updates);
+					});
+				}
+			} else if (batchUpdates.length === 1) {
+				updateShape(batchUpdates[0].id, batchUpdates[0].updates);
+			}
 
 			// Update snap guides in store (only if any guide type is enabled)
 			const { snapSettings } = whiteboardStore.getState();
@@ -620,6 +643,8 @@ export const selectToolMachine = setup({
 				context.selectedIds && context.selectedIds.size > 0
 					? context.selectedIds
 					: whiteboardStore.getState().selectedShapeIds;
+
+			const batchUpdates: Array<{ id: string; updates: any }> = [];
 			selectedShapeIds.forEach((id) => {
 				const originalPos = context.dragState?.initialPositions.get(id);
 				const shape = getShape(id);
@@ -634,9 +659,24 @@ export const selectToolMachine = setup({
 						}
 					}
 
-					updateShape(id, updates);
+					batchUpdates.push({ id, updates });
 				}
 			});
+
+			// Use batch update if multiple shapes, single update otherwise
+			if (batchUpdates.length > 1) {
+				const { batchUpdateShapes } = whiteboardStore.getState();
+				if (batchUpdateShapes) {
+					batchUpdateShapes(batchUpdates);
+				} else {
+					// Fallback to individual updates
+					batchUpdates.forEach(({ id, updates }) => {
+						updateShape(id, updates);
+					});
+				}
+			} else if (batchUpdates.length === 1) {
+				updateShape(batchUpdates[0].id, batchUpdates[0].updates);
+			}
 			// Clear snap guides when dragging is cancelled
 			whiteboardStore.getState().setSnapGuides([]);
 			return {

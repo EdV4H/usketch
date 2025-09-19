@@ -515,10 +515,19 @@ importers:
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../shared-types
+      '@usketch/store':
+        specifier: workspace:*
+        version: link:../store
     devDependencies:
+      '@types/react':
+        specifier: ^19.1.13
+        version: 19.1.13
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      react:
+        specifier: ^19.1.1
+        version: 19.1.1
       typescript:
         specifier: 5.9.2
         version: 5.9.2

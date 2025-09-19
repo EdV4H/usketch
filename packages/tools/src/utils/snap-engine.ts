@@ -302,7 +302,7 @@ export class SnapEngine {
 		const diagonalGuides: SnapGuide[] = [];
 		if (snapped) {
 			const diagonalSnapPoint = activeSnapPoints.find((p) => p.edgeType === "diagonal-45");
-			if (diagonalSnapPoint && diagonalSnapPoint.targetId) {
+			if (diagonalSnapPoint?.targetId) {
 				// Find the target shape to calculate the diagonal guide
 				const targetShape = targetShapes.find((s) => s.id === diagonalSnapPoint.targetId);
 				if (targetShape) {
@@ -1441,7 +1441,7 @@ export class SnapEngine {
 			// Check if moving shape is aligned with this group
 			if (Math.abs(movingShape.y - groupY) < ALIGNMENT_Y_TOLERANCE) {
 				// Add snap points before and after each shape in the group
-				sortedShapes.forEach((shape, index) => {
+				sortedShapes.forEach((shape, _index) => {
 					// Snap point to the left of the shape
 					const leftSnapX = shape.x - targetSpacing - width;
 					snapPoints.push({
@@ -1578,7 +1578,7 @@ export class SnapEngine {
 		});
 
 		// For each horizontal group with at least 2 shapes, check for equal spacing
-		horizontalGroups.forEach((group, groupY) => {
+		horizontalGroups.forEach((group, _groupY) => {
 			if (group.length < 2) {
 				return;
 			}
@@ -1596,13 +1596,13 @@ export class SnapEngine {
 			}
 
 			// Check if there are at least 2 equal spacings
-			let foundEqualSpacing = false;
+			let _foundEqualSpacing = false;
 			for (let i = 0; i < spacings.length - 1; i++) {
 				for (let j = i + 1; j < spacings.length; j++) {
 					if (Math.abs(spacings[i] - spacings[j]) < EQUAL_SPACING_THRESHOLD) {
 						// Found equal spacing pattern
 						const equalSpacing = (spacings[i] + spacings[j]) / 2;
-						foundEqualSpacing = true;
+						_foundEqualSpacing = true;
 
 						// Now check if moving shape aligns with this group and creates equal spacing
 						const movingY = movingShape.y;
