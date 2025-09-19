@@ -1,8 +1,10 @@
 import { whiteboardStore } from "@usketch/store";
+import { HistoryControls } from "@usketch/ui-components";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { CUSTOM_BACKGROUNDS_METADATA } from "../backgrounds/register-backgrounds";
 import { useStore } from "../hooks/use-store";
+import { SnapSettingsButton } from "./snap-settings";
 
 export interface ToolbarProps {
 	onBackgroundChange?: (background: { id: string; config?: any }) => void;
@@ -35,6 +37,9 @@ const PRESET_BACKGROUNDS = {
 export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => {
 	const currentTool = useStore((state) => state.currentTool);
 	const setCurrentTool = useStore((state) => state.setCurrentTool);
+	const selectedShapeIds = useStore((state) => state.selectedShapeIds);
+	const distributeShapesHorizontally = useStore((state) => state.distributeShapesHorizontally);
+	const distributeShapesVertically = useStore((state) => state.distributeShapesVertically);
 	const [currentBackground, setCurrentBackground] = useState("usketch.dots");
 	const [showBackgroundMenu, setShowBackgroundMenu] = useState(false);
 	const [showEffectMenu, setShowEffectMenu] = useState(false);
@@ -362,6 +367,13 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 				`}
 			</style>
 
+			{/* History Controls */}
+			<div className="toolbar-group">
+				<HistoryControls />
+			</div>
+
+			<div className="toolbar-separator" />
+
 			<div className="toolbar-group">
 				{tools.map((tool) => (
 					<button
@@ -379,6 +391,42 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 			</div>
 
 			<div className="toolbar-separator" />
+
+			{/* Snap Settings Button */}
+			<div className="toolbar-group">
+				<SnapSettingsButton />
+			</div>
+
+			<div className="toolbar-separator" />
+
+			{/* Distribution buttons - show when select tool is active and 3+ shapes are selected */}
+			{currentTool === "select" && selectedShapeIds.size >= 3 && (
+				<>
+					<div className="toolbar-group">
+						<button
+							type="button"
+							className="tool-button"
+							onClick={() => distributeShapesHorizontally()}
+							data-testid="distribute-horizontal"
+							title="水平方向に等間隔配置"
+						>
+							<span className="tool-icon">⇄</span>
+							<span>水平分散</span>
+						</button>
+						<button
+							type="button"
+							className="tool-button"
+							onClick={() => distributeShapesVertically()}
+							data-testid="distribute-vertical"
+							title="垂直方向に等間隔配置"
+						>
+							<span className="tool-icon">⇅</span>
+							<span>垂直分散</span>
+						</button>
+					</div>
+					<div className="toolbar-separator" />
+				</>
+			)}
 
 			{currentTool === "effect" && (
 				<>

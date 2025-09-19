@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { useCanvas } from "../hooks/use-canvas";
 import { useInteraction } from "../hooks/use-interaction";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
+import { useSnapSettingsSync } from "../hooks/use-snap-settings-sync";
 import { EffectLayer } from "../layers/effect-layer";
 import type { CanvasProps } from "../types";
 import { BackgroundLayer } from "./background-layer";
@@ -21,11 +22,12 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">
 	onReady,
 }) => {
 	const containerRef = useRef<HTMLDivElement>(null);
-	const { shapes, camera, selectedShapeIds, snapGuides } = useWhiteboardStore();
+	const { shapes, camera, selectedShapeIds, snapGuides, snapSettings } = useWhiteboardStore();
 	const canvasManager = useCanvas();
 	const interactions = useInteraction();
 
 	useKeyboardShortcuts();
+	useSnapSettingsSync(snapSettings);
 
 	useEffect(() => {
 		if (onReady && canvasManager) {
@@ -44,7 +46,7 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">
 				overflow: "hidden",
 				cursor: interactions.cursor,
 			}}
-			{...interactions.getCanvasProps()}
+			onWheel={interactions.getCanvasProps().onWheel}
 		>
 			<BackgroundLayer camera={camera} options={background} />
 			<ShapeLayer shapes={shapes} camera={camera} activeTool={interactions.activeTool} />

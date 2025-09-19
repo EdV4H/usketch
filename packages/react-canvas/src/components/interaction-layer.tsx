@@ -19,8 +19,8 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 	camera,
 	activeTool,
 	selectionIndicator,
-	selectionIndicatorClassName,
-	selectionIndicatorStyle,
+	selectionIndicatorClassName: _selectionIndicatorClassName,
+	selectionIndicatorStyle: _selectionIndicatorStyle,
 	className = "",
 }) => {
 	const [dragState, setDragState] = useState<DragState>({
@@ -256,6 +256,11 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 				selectedCount={selectedCount}
 			/>
 		);
+	}
+
+	// For effect tool, don't render anything - let ShapeLayer handle events
+	if (activeTool === "effect") {
+		return null;
 	}
 
 	return (

@@ -46,7 +46,8 @@
 			},
 			"complexity": {
 				"noBannedTypes": "off",
-				"noStaticOnlyClass": "off"
+				"noStaticOnlyClass": "off",
+				"useLiteralKeys": "off"
 			},
 			"correctness": {
 				"noUnusedVariables": "warn",

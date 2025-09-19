@@ -7,6 +7,8 @@
 		"declaration": true,
 		"declarationMap": true,
 		"baseUrl": ".",
+		"jsx": "react-jsx",
+		"lib": ["ES2020", "DOM", "DOM.Iterable"],
 		"paths": {
 			"@whiteboard/shared-types": ["../shared-types/dist"]
 		}

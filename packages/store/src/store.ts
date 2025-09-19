@@ -1,6 +1,28 @@
-import type { Camera, Effect, Shape, WhiteboardState } from "@usketch/shared-types";
+import type {
+	Camera,
+	Command,
+	CommandContext,
+	Effect,
+	Shape,
+	WhiteboardState,
+} from "@usketch/shared-types";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
+import { SetCameraCommand } from "./commands/camera";
+import {
+	ClearSelectionCommand,
+	DeselectShapeCommand,
+	SelectShapeCommand,
+	SetSelectionCommand,
+} from "./commands/selection";
+import {
+	BatchUpdateShapesCommand,
+	CreateShapeCommand,
+	DeleteShapeCommand,
+	UpdateShapeCommand,
+} from "./commands/shape";
+import { calculateDistribution, type DistributionDirection } from "./distribution-utils";
+import { HistoryManager } from "./history/history-manager";
 
 export type AlignmentDirection =
 	| "left"
@@ -9,6 +31,8 @@ export type AlignmentDirection =
 	| "bottom"
 	| "center-horizontal"
 	| "center-vertical";
+
+export type { DistributionDirection } from "./distribution-utils";
 
 export interface SelectionIndicatorState {
 	bounds: {
@@ -22,7 +46,7 @@ export interface SelectionIndicatorState {
 }
 
 export interface SnapGuide {
-	type: "horizontal" | "vertical" | "distance";
+	type: "horizontal" | "vertical" | "distance" | "diagonal" | "threshold";
 	position: number;
 	start: { x: number; y: number };
 	end: { x: number; y: number };
@@ -32,20 +56,42 @@ export interface SnapGuide {
 	style?: "solid" | "dashed" | "dotted"; // Line style
 }
 
+export interface SnapSettings {
+	enabled: boolean; // Master switch
+	gridSnap: boolean; // Grid snapping
+	gridSize: number; // Grid size
+	shapeSnap: boolean; // Shape to shape snapping
+	snapThreshold: number; // Snap threshold distance
+	showGuides: boolean; // Show snap guides (dashed lines when snapped)
+	showDistances: boolean; // Show distance indicators (measurements between shapes)
+	showEqualSpacing: boolean; // Show equal spacing indicators
+	showAlignmentGuides: boolean; // Show alignment guides (solid lines)
+	// Performance settings
+	snapCalculationRange: number; // Maximum distance to search for snap candidates (pixels)
+	viewportMargin: number; // Extra margin around viewport for shape culling (pixels)
+}
+
 export interface WhiteboardStore extends WhiteboardState {
 	// State additions
 	activeTool: string;
 	selectionIndicator: SelectionIndicatorState;
 	snapGuides: SnapGuide[];
+	snapSettings: SnapSettings;
 	effects: Record<string, Effect>;
 	effectToolConfig: {
 		effectType: string; // Allow any effect type for extensibility
 		effectConfig?: Record<string, any>;
 	};
 
+	// History management
+	history: HistoryManager;
+	canUndo: boolean;
+	canRedo: boolean;
+
 	// Actions
 	addShape: (shape: Shape) => void;
 	updateShape: (id: string, updates: Partial<Shape>) => void;
+	batchUpdateShapes: (updates: Array<{ id: string; updates: Partial<Shape> }>) => void;
 	removeShape: (id: string) => void;
 	deleteShapes: (ids: string[]) => void;
 	selectShape: (id: string) => void;
@@ -72,6 +118,11 @@ export interface WhiteboardStore extends WhiteboardState {
 	alignShapesCenterHorizontal: () => void;
 	alignShapesCenterVertical: () => void;
 
+	// Distribution actions
+	distributeShapes: (direction: DistributionDirection) => Promise<void>;
+	distributeShapesHorizontally: () => Promise<void>;
+	distributeShapesVertically: () => Promise<void>;
+
 	// Selection Indicator actions
 	setSelectionIndicator: (state: Partial<SelectionIndicatorState>) => void;
 	showSelectionIndicator: (bounds?: {
@@ -86,9 +137,26 @@ export interface WhiteboardStore extends WhiteboardState {
 	setSnapGuides: (guides: SnapGuide[]) => void;
 	clearSnapGuides: () => void;
 
+	// Snap Settings actions
+	updateSnapSettings: (settings: Partial<SnapSettings>) => void;
+	toggleGridSnap: () => void;
+	toggleShapeSnap: () => void;
+
+	// Command execution
+	executeCommand: (command: Command) => void;
+
+	// Batch operations
+	beginBatch: (description?: string) => void;
+	endBatch: () => void;
+
 	// Undo/Redo
-	undo: () => void;
-	redo: () => void;
+	undo: () => boolean;
+	redo: () => boolean;
+	clearHistory: () => void;
+	getHistoryDebugInfo: () => {
+		commands: Array<{ description: string; timestamp: number; id: string }>;
+		currentIndex: number;
+	};
 
 	// Effect actions
 	addEffect: (effect: Effect) => void;
@@ -104,7 +172,46 @@ export interface WhiteboardStore extends WhiteboardState {
 	) => void;
 }
 
-export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
+// Create history manager instance
+const historyManager = new HistoryManager({
+	maxSize: 100,
+	mergeThreshold: 1000,
+});
+
+// Helper function to create CommandContext
+const createCommandContext = (get: any, set: any): CommandContext => ({
+	getState: () => ({
+		shapes: get().shapes,
+		selectedShapeIds: get().selectedShapeIds,
+		camera: get().camera,
+		currentTool: get().currentTool,
+	}),
+	setState: (updater: (state: WhiteboardState) => void) => {
+		set((currentState: WhiteboardStore) => {
+			// Create a mutable copy of the current state for the updater
+			const mutableState = {
+				shapes: { ...currentState.shapes },
+				selectedShapeIds: new Set(currentState.selectedShapeIds),
+				camera: { ...currentState.camera },
+				currentTool: currentState.currentTool,
+			};
+
+			// Apply the updates
+			updater(mutableState);
+
+			// Return the new state with updates applied
+			return {
+				...currentState,
+				shapes: mutableState.shapes,
+				selectedShapeIds: mutableState.selectedShapeIds,
+				camera: mutableState.camera,
+				currentTool: mutableState.currentTool,
+			};
+		});
+	},
+});
+
+export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
 	// Initial state
 	shapes: {},
 	selectedShapeIds: new Set(),
@@ -117,68 +224,71 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 		selectedCount: 0,
 	},
 	snapGuides: [],
+	snapSettings: {
+		enabled: true,
+		gridSnap: false, // Changed default to false for better UX
+		gridSize: 20,
+		shapeSnap: true,
+		snapThreshold: 8,
+		showGuides: true,
+		showDistances: false, // Changed default to false for cleaner UI
+		showEqualSpacing: true, // Show equal spacing by default
+		showAlignmentGuides: false, // Changed default to false for better UX
+		snapCalculationRange: 500, // Increased default for better snap detection
+		viewportMargin: 300, // Increased default for better coverage
+	},
 	effects: {},
 	effectToolConfig: {
 		effectType: "ripple",
 		effectConfig: {},
 	},
+	canUndo: false,
+	canRedo: false,
 
-	// Actions
+	// History management
+	history: historyManager,
+
+	// Command execution
+	executeCommand: (command: Command) => {
+		const context = createCommandContext(get, set);
+		historyManager.execute(command, context);
+		set({
+			canUndo: historyManager.canUndo,
+			canRedo: historyManager.canRedo,
+		});
+	},
+
+	// Actions - Now using commands for undo/redo support
 	addShape: (shape: Shape) => {
-		set((state) => ({
-			...state,
-			shapes: { ...state.shapes, [shape.id]: shape },
-		}));
+		get().executeCommand(new CreateShapeCommand(shape));
 	},
 
 	updateShape: (id: string, updates: Partial<Shape>) => {
-		set((state) => ({
-			...state,
-			shapes: {
-				...state.shapes,
-				[id]: { ...state.shapes[id], ...updates } as Shape,
-			},
-		}));
+		get().executeCommand(new UpdateShapeCommand(id, updates));
+	},
+
+	batchUpdateShapes: (updates: Array<{ id: string; updates: Partial<Shape> }>) => {
+		get().executeCommand(new BatchUpdateShapesCommand(updates));
 	},
 
 	removeShape: (id: string) => {
-		set((state) => {
-			const newShapes = { ...state.shapes };
-			delete newShapes[id];
-			const newSelectedIds = new Set(state.selectedShapeIds);
-			newSelectedIds.delete(id);
-			return {
-				...state,
-				shapes: newShapes,
-				selectedShapeIds: newSelectedIds,
-			};
-		});
+		get().executeCommand(new DeleteShapeCommand(id));
 	},
 
 	selectShape: (id: string) => {
-		set((state) => ({
-			...state,
-			selectedShapeIds: new Set([...state.selectedShapeIds, id]),
-		}));
+		get().executeCommand(new SelectShapeCommand(id));
 	},
 
 	deselectShape: (id: string) => {
-		set((state) => {
-			const newSelectedIds = new Set(state.selectedShapeIds);
-			newSelectedIds.delete(id);
-			return { ...state, selectedShapeIds: newSelectedIds };
-		});
+		get().executeCommand(new DeselectShapeCommand(id));
 	},
 
 	clearSelection: () => {
-		set((state) => ({ ...state, selectedShapeIds: new Set() }));
+		get().executeCommand(new ClearSelectionCommand());
 	},
 
 	setCamera: (camera: Partial<Camera>) => {
-		set((state) => ({
-			...state,
-			camera: { ...state.camera, ...camera },
-		}));
+		get().executeCommand(new SetCameraCommand(camera));
 	},
 
 	setCurrentTool: (tool: string) => {
@@ -242,10 +352,7 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 	},
 
 	setSelection: (ids: string[]) => {
-		set((state) => ({
-			...state,
-			selectedShapeIds: new Set(ids),
-		}));
+		get().executeCommand(new SetSelectionCommand(ids));
 	},
 
 	removeSelectedShapes: () => {
@@ -527,13 +634,119 @@ export const whiteboardStore = createStore<WhiteboardStore>((set) => ({
 		});
 	},
 
-	// Undo/Redo placeholders
+	// Distribution actions
+	distributeShapes: async (direction: DistributionDirection) => {
+		set((state) => {
+			const selectedShapes = Array.from(state.selectedShapeIds)
+				.map((id) => state.shapes[id])
+				.filter((s): s is Shape => s !== undefined);
+
+			if (selectedShapes.length < 3) return state; // Need at least 3 shapes
+
+			// Calculate distribution
+			const updates = calculateDistribution(selectedShapes, direction);
+
+			const updatedShapes = { ...state.shapes };
+			updates.forEach((position: { x: number; y: number }, shapeId: string) => {
+				const shape = state.shapes[shapeId];
+				if (shape) {
+					updatedShapes[shapeId] = { ...shape, ...position } as Shape;
+				}
+			});
+
+			return { ...state, shapes: updatedShapes };
+		});
+	},
+
+	distributeShapesHorizontally: async () => {
+		await whiteboardStore.getState().distributeShapes("horizontal");
+	},
+
+	distributeShapesVertically: async () => {
+		await whiteboardStore.getState().distributeShapes("vertical");
+	},
+
+	// Snap Settings actions
+	updateSnapSettings: (settings: Partial<SnapSettings>) => {
+		set((state) => ({
+			...state,
+			snapSettings: { ...state.snapSettings, ...settings },
+		}));
+	},
+
+	toggleGridSnap: () => {
+		set((state) => ({
+			...state,
+			snapSettings: {
+				...state.snapSettings,
+				gridSnap: !state.snapSettings.gridSnap,
+			},
+		}));
+	},
+
+	toggleShapeSnap: () => {
+		set((state) => ({
+			...state,
+			snapSettings: {
+				...state.snapSettings,
+				shapeSnap: !state.snapSettings.shapeSnap,
+			},
+		}));
+	},
+
+	// Batch operations
+	beginBatch: (description?: string) => {
+		historyManager.beginBatch(description);
+	},
+
+	endBatch: () => {
+		const context = createCommandContext(get, set);
+		historyManager.endBatch(context);
+		set({
+			canUndo: historyManager.canUndo,
+			canRedo: historyManager.canRedo,
+		});
+	},
+
+	// Undo/Redo
 	undo: () => {
-		// Undo not implemented
+		const context = createCommandContext(get, set);
+		const result = historyManager.undo(context);
+		set({
+			canUndo: historyManager.canUndo,
+			canRedo: historyManager.canRedo,
+		});
+		return result;
 	},
 
 	redo: () => {
-		// Redo not implemented
+		const context = createCommandContext(get, set);
+		const result = historyManager.redo(context);
+		set({
+			canUndo: historyManager.canUndo,
+			canRedo: historyManager.canRedo,
+		});
+		return result;
+	},
+
+	clearHistory: () => {
+		historyManager.clear();
+		set({
+			canUndo: false,
+			canRedo: false,
+		});
+	},
+
+	getHistoryDebugInfo: () => {
+		const commands = historyManager.commandHistory;
+		return {
+			commands: commands.map((cmd) => ({
+				description: cmd.description,
+				timestamp: cmd.timestamp,
+				id: cmd.id,
+			})),
+			currentIndex: historyManager.currentCommandIndex,
+		};
 	},
 
 	// Effect actions

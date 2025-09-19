@@ -165,7 +165,7 @@ export function getResizeHandleAtPoint(point: Point, shapeId: string): ResizeHan
 }
 
 // Get crop handle at point (not yet implemented)
-export function getCropHandleAtPoint(point: Point): any {
+export function getCropHandleAtPoint(_point: Point): any {
 	// TODO: Implement actual crop handle detection
 	return null;
 }
@@ -178,11 +178,11 @@ export function getShape(id: string): Shape | null {
 
 // Update shape properties
 export function updateShape(id: string, updates: Partial<Shape>): void {
-	const state = whiteboardStore.getState();
-	const shape = state.shapes[id];
+	const { shapes, updateShape: updateShapeFn } = whiteboardStore.getState();
+	const shape = shapes[id];
 	if (shape) {
 		// Updates is already Partial<Shape> which is compatible
-		state.updateShape(id, updates);
+		updateShapeFn(id, updates);
 	}
 }
 

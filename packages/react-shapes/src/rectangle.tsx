@@ -15,8 +15,6 @@ export const Rectangle: React.FC<RectangleProps> = ({
 	isSelected = false,
 	onClick,
 	onPointerDown,
-	onPointerMove,
-	onPointerUp,
 }) => {
 	const transform = shape.rotation
 		? `rotate(${shape.rotation} ${shape.x + shape.width / 2} ${shape.y + shape.height / 2})`
@@ -44,8 +42,6 @@ export const Rectangle: React.FC<RectangleProps> = ({
 				style={{ cursor: "pointer" }}
 				onClick={onClick}
 				onPointerDown={onPointerDown}
-				onPointerMove={onPointerMove}
-				onPointerUp={onPointerUp}
 			/>
 			{isSelected && (
 				<rect
