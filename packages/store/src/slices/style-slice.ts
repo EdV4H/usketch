@@ -22,6 +22,11 @@ export interface StyleActions {
 	applyStylePreset: (presetId: string) => void;
 	deleteStylePreset: (presetId: string) => void;
 
+	// エイリアス（UIで使用）
+	saveAsPreset: (name: string) => void;
+	applyPreset: (presetId: string) => void;
+	deletePreset: (presetId: string) => void;
+
 	// カラー履歴
 	addRecentColor: (color: string) => void;
 
@@ -173,6 +178,22 @@ export const createStyleSlice: StateCreator<StoreState, [], [], StyleSlice> = (
 		set({
 			recentColors: newColors.slice(0, MAX_RECENT_COLORS),
 		});
+	},
+
+	// エイリアス（UIで使用）
+	saveAsPreset: (name) => {
+		const { saveStylePreset } = get();
+		saveStylePreset(name);
+	},
+
+	applyPreset: (presetId) => {
+		const { applyStylePreset } = get();
+		applyStylePreset(presetId);
+	},
+
+	deletePreset: (presetId) => {
+		const { deleteStylePreset } = get();
+		deleteStylePreset(presetId);
 	},
 
 	updateSelectedShapeStyles: () => {
