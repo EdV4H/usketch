@@ -23,6 +23,7 @@ import {
 } from "./commands/shape";
 import { calculateDistribution, type DistributionDirection } from "./distribution-utils";
 import { HistoryManager } from "./history/history-manager";
+import { createStyleSlice, type StyleSlice } from "./slices/style-slice";
 
 export type AlignmentDirection =
 	| "left"
@@ -71,7 +72,7 @@ export interface SnapSettings {
 	viewportMargin: number; // Extra margin around viewport for shape culling (pixels)
 }
 
-export interface WhiteboardStore extends WhiteboardState {
+export interface WhiteboardStore extends WhiteboardState, StyleSlice {
 	// State additions
 	activeTool: string;
 	selectionIndicator: SelectionIndicatorState;
@@ -172,6 +173,9 @@ export interface WhiteboardStore extends WhiteboardState {
 	) => void;
 }
 
+// Export StoreState type for StyleSlice
+export type StoreState = WhiteboardStore;
+
 // Create history manager instance
 const historyManager = new HistoryManager({
 	maxSize: 100,
@@ -211,7 +215,7 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 	},
 });
 
-export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
+export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) => ({
 	// Initial state
 	shapes: {},
 	selectedShapeIds: new Set(),
@@ -277,14 +281,20 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
 
 	selectShape: (id: string) => {
 		get().executeCommand(new SelectShapeCommand(id));
+		// Update selected shape styles
+		setTimeout(() => get().updateSelectedShapeStyles?.(), 0);
 	},
 
 	deselectShape: (id: string) => {
 		get().executeCommand(new DeselectShapeCommand(id));
+		// Update selected shape styles
+		setTimeout(() => get().updateSelectedShapeStyles?.(), 0);
 	},
 
 	clearSelection: () => {
 		get().executeCommand(new ClearSelectionCommand());
+		// Update selected shape styles
+		setTimeout(() => get().updateSelectedShapeStyles?.(), 0);
 	},
 
 	setCamera: (camera: Partial<Camera>) => {
@@ -814,6 +824,9 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get) => ({
 			effectToolConfig: { ...state.effectToolConfig, ...config },
 		}));
 	},
+
+	// Add StyleSlice
+	...createStyleSlice(set, get, store),
 }));
 
 // Export convenient accessor functions

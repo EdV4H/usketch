@@ -2,6 +2,7 @@
 export * from "./background";
 export * from "./defaults/shape-styles";
 export * from "./effects";
+export * from "./styles";
 
 // Common geometry types
 export interface Point {
