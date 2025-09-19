@@ -117,8 +117,14 @@ interface StylePreset {
 
 #### 1. コンポーネント構造
 
+**配置オプション:**
+- **オプション1**: `apps/whiteboard/src/components/property-panel/` に直接配置
+- **オプション2**: `packages/ui-examples/` パッケージを新規作成し、既存UIコンポーネントと統合
+
 ```
-packages/ui-components/src/property-panel/
+apps/whiteboard/src/components/property-panel/
+# または
+packages/ui-examples/src/property-panel/
 ├── index.ts
 ├── property-panel.tsx              # メインコンテナ
 ├── sections/
@@ -127,7 +133,7 @@ packages/ui-components/src/property-panel/
 │   └── effects-section.tsx        # エフェクト設定セクション
 ├── controls/
 │   ├── color-picker/
-│   │   ├── color-picker.tsx       # カラーピッカー本体
+│   │   ├── color-picker.tsx       # カスタムカラーピッカー本体
 │   │   ├── color-palette.tsx      # カラーパレット
 │   │   └── recent-colors.tsx      # 最近使った色
 │   ├── stroke-width-slider.tsx    # 線幅スライダー
@@ -141,7 +147,8 @@ packages/ui-components/src/property-panel/
 #### 2. プロパティパネル実装
 
 ```typescript
-// packages/ui-components/src/property-panel/property-panel.tsx
+// apps/whiteboard/src/components/property-panel/property-panel.tsx
+// または packages/ui-examples/src/property-panel/property-panel.tsx
 export const PropertyPanel: React.FC = () => {
   const selectedShapeIds = useStore(state => state.selectedShapeIds);
   const shapes = useStore(state => state.shapes);
@@ -178,9 +185,13 @@ export const PropertyPanel: React.FC = () => {
 
 #### 3. カラーピッカー実装
 
+**実装方針**: react-colorfulの更新が停止しているため、以下のいずれかで実装
+- **オプション1**: カスタムカラーピッカーの自作
+- **オプション2**: Ark UIを使用した実装
+
 ```typescript
-// packages/ui-components/src/property-panel/controls/color-picker/color-picker.tsx
-import { HexColorPicker } from 'react-colorful';
+// apps/whiteboard/src/components/property-panel/controls/color-picker/color-picker.tsx
+// カスタム実装またはArk UIを使用
 
 interface ColorPickerProps {
   color: string;
@@ -209,7 +220,8 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
       
       {isOpen && (
         <Popover>
-          <HexColorPicker color={color} onChange={onChange} />
+          {/* カスタム実装 or Ark UIのColorPicker */}
+          <CustomColorPicker color={color} onChange={onChange} />
           <RecentColors 
             colors={recentColors} 
             onSelect={onChange}
@@ -265,7 +277,8 @@ pasteStyleToSelection: () => {
 #### 2. スタイルプリセット機能
 
 ```typescript
-// packages/ui-components/src/property-panel/presets/style-presets.tsx
+// apps/whiteboard/src/components/property-panel/presets/style-presets.tsx
+// または packages/ui-examples/src/property-panel/presets/style-presets.tsx
 export const StylePresets: React.FC = () => {
   const presets = useStore(state => state.stylePresets);
   const applyPreset = useStore(state => state.applyStylePreset);
@@ -338,7 +351,7 @@ const shortcuts = {
 
 ### Week 2（9月30日〜10月6日）
 - **Day 6-7**: カラーピッカー実装
-  - react-colorfulの統合
+  - カスタムカラーピッカーの自作またはArk UI統合
   - カラーパレット
   - 最近使った色の管理
   
@@ -403,11 +416,13 @@ test('ショートカットキーの動作');
 ### 新規導入予定のライブラリ
 ```json
 {
-  "react-colorful": "^5.6.1",     // 軽量カラーピッカー
+  "@ark-ui/react": "^latest",          // UIコンポーネント（カラーピッカー含む）
   "@radix-ui/react-slider": "^1.1.2",  // アクセシブルなスライダー
   "@radix-ui/react-popover": "^1.0.7"  // ポップオーバーUI
 }
 ```
+
+**注**: カラーピッカーは自作またはArk UIを使用して実装
 
 ## ⚡ パフォーマンス最適化
 
