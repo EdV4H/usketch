@@ -74,14 +74,19 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, label
 		addRecentColor(newColor);
 	};
 
-	const handleCustomColorInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const newColor = e.target.value;
-		setCustomColor(newColor);
-	};
-
 	const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const newColor = e.target.value;
+		setCustomColor(newColor);
 		handleColorChange(newColor);
+	};
+
+	const handleTextColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const newColor = e.target.value;
+		if (HEX_COLOR_PATTERN.test(newColor)) {
+			handleColorChange(newColor);
+		} else {
+			setCustomColor(newColor);
+		}
 	};
 
 	return (
@@ -142,21 +147,13 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, label
 							<input
 								type="color"
 								value={customColor}
-								onInput={handleCustomColorInput}
 								onChange={handleCustomColorChange}
 								className="color-input"
 							/>
 							<input
 								type="text"
 								value={customColor}
-								onChange={(e) => {
-									const newColor = e.target.value;
-									if (HEX_COLOR_PATTERN.test(newColor)) {
-										handleColorChange(newColor);
-									} else {
-										setCustomColor(newColor);
-									}
-								}}
+								onChange={handleTextColorChange}
 								className="color-text-input"
 								placeholder="#000000"
 							/>

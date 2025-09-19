@@ -25,58 +25,52 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 }) => {
 	const titleId = useId();
 
-	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Escape") {
-			onCancel();
-		}
-	};
-
 	if (!isOpen) return null;
 
 	return (
-		<div
-			className="confirm-dialog-overlay"
-			role="button"
-			tabIndex={0}
-			onClick={onCancel}
-			onKeyDown={handleKeyDown}
-			aria-label="Close dialog"
-		>
-			<div
-				className="confirm-dialog-container"
-				role="dialog"
-				aria-labelledby={titleId}
-				aria-modal="true"
-				onClick={(e) => e.stopPropagation()}
-				onKeyDown={(e) => e.stopPropagation()}
-			>
-				<div className="confirm-dialog-header">
-					<h3 id={titleId} className="confirm-dialog-title">
-						{title}
-					</h3>
-				</div>
-				<div className="confirm-dialog-body">
-					<p className="confirm-dialog-message">{message}</p>
-				</div>
-				<div className="confirm-dialog-footer">
-					<button
-						type="button"
-						className="confirm-dialog-button confirm-dialog-button--cancel"
-						onClick={onCancel}
-					>
-						{cancelText}
-					</button>
-					<button
-						type="button"
-						className={`confirm-dialog-button confirm-dialog-button--confirm ${
-							variant === "danger" ? "confirm-dialog-button--danger" : ""
-						}`}
-						onClick={onConfirm}
-					>
-						{confirmText}
-					</button>
+		<>
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: Overlay is meant to be clickable to close dialog */}
+			{/* biome-ignore lint/a11y/useKeyWithClickEvents: Escape key handled on dialog container */}
+			<div className="confirm-dialog-overlay" onClick={onCancel}>
+				<div
+					className="confirm-dialog-container"
+					role="dialog"
+					aria-labelledby={titleId}
+					aria-modal="true"
+					onClick={(e) => e.stopPropagation()}
+					onKeyDown={(e) => {
+						if (e.key === "Escape") onCancel();
+						e.stopPropagation();
+					}}
+				>
+					<div className="confirm-dialog-header">
+						<h3 id={titleId} className="confirm-dialog-title">
+							{title}
+						</h3>
+					</div>
+					<div className="confirm-dialog-body">
+						<p className="confirm-dialog-message">{message}</p>
+					</div>
+					<div className="confirm-dialog-footer">
+						<button
+							type="button"
+							className="confirm-dialog-button confirm-dialog-button--cancel"
+							onClick={onCancel}
+						>
+							{cancelText}
+						</button>
+						<button
+							type="button"
+							className={`confirm-dialog-button confirm-dialog-button--confirm ${
+								variant === "danger" ? "confirm-dialog-button--danger" : ""
+							}`}
+							onClick={onConfirm}
+						>
+							{confirmText}
+						</button>
+					</div>
 				</div>
 			</div>
-		</div>
+		</>
 	);
 };

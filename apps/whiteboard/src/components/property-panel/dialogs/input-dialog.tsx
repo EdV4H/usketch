@@ -50,53 +50,57 @@ export const InputDialog: React.FC<InputDialogProps> = ({
 	if (!isOpen) return null;
 
 	return (
-		<div
-			className="dialog-overlay"
-			role="button"
-			tabIndex={0}
-			onClick={onCancel}
-			onKeyDown={(e) => e.key === "Escape" && onCancel()}
-			aria-label="Close dialog"
-		>
-			<div
-				className="dialog-container"
-				role="dialog"
-				aria-labelledby={titleId}
-				aria-modal="true"
-				onClick={(e) => e.stopPropagation()}
-				onKeyDown={(e) => e.stopPropagation()}
-			>
-				<div className="dialog-header">
-					<h3 id={titleId} className="dialog-title">
-						{title}
-					</h3>
-				</div>
-				<div className="dialog-body">
-					<p className="dialog-message">{message}</p>
-					<input
-						ref={inputRef}
-						type="text"
-						className="dialog-input"
-						value={inputValue}
-						onChange={(e) => setInputValue(e.target.value)}
-						onKeyDown={handleKeyDown}
-						placeholder={placeholder}
-					/>
-				</div>
-				<div className="dialog-footer">
-					<button type="button" className="dialog-button dialog-button--cancel" onClick={onCancel}>
-						キャンセル
-					</button>
-					<button
-						type="button"
-						className="dialog-button dialog-button--confirm"
-						onClick={handleConfirm}
-						disabled={!inputValue.trim()}
-					>
-						OK
-					</button>
+		<>
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: Overlay is meant to be clickable to close dialog */}
+			{/* biome-ignore lint/a11y/useKeyWithClickEvents: Escape key handled on dialog container */}
+			<div className="dialog-overlay" onClick={onCancel}>
+				<div
+					className="dialog-container"
+					role="dialog"
+					aria-labelledby={titleId}
+					aria-modal="true"
+					onClick={(e) => e.stopPropagation()}
+					onKeyDown={(e) => {
+						if (e.key === "Escape") onCancel();
+						e.stopPropagation();
+					}}
+				>
+					<div className="dialog-header">
+						<h3 id={titleId} className="dialog-title">
+							{title}
+						</h3>
+					</div>
+					<div className="dialog-body">
+						<p className="dialog-message">{message}</p>
+						<input
+							ref={inputRef}
+							type="text"
+							className="dialog-input"
+							value={inputValue}
+							onChange={(e) => setInputValue(e.target.value)}
+							onKeyDown={handleKeyDown}
+							placeholder={placeholder}
+						/>
+					</div>
+					<div className="dialog-footer">
+						<button
+							type="button"
+							className="dialog-button dialog-button--cancel"
+							onClick={onCancel}
+						>
+							キャンセル
+						</button>
+						<button
+							type="button"
+							className="dialog-button dialog-button--confirm"
+							onClick={handleConfirm}
+							disabled={!inputValue.trim()}
+						>
+							OK
+						</button>
+					</div>
 				</div>
 			</div>
-		</div>
+		</>
 	);
 };

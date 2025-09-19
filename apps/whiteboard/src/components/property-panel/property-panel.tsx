@@ -18,11 +18,11 @@ export const PropertyPanel: React.FC = () => {
 
 	// 選択変更時にスタイルを更新
 	const updateSelectedShapeStyles = useWhiteboardStore((state) => state.updateSelectedShapeStyles);
-	const shapes = useWhiteboardStore((state) => state.shapes);
+	const _shapes = useWhiteboardStore((state) => state.shapes);
 
 	useEffect(() => {
 		updateSelectedShapeStyles();
-	}, [selectedShapeIds, shapes, updateSelectedShapeStyles]);
+	}, [updateSelectedShapeStyles]);
 
 	// 選択中の形状がない場合
 	if (selectedShapeIds.size === 0) {
