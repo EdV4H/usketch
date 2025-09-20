@@ -1,4 +1,6 @@
 import {
+	type Command,
+	type CommandContext,
 	DEFAULT_STYLE_PRESETS,
 	type Shape,
 	type StylePreset,
@@ -70,11 +72,11 @@ export const createStyleSlice: StateCreator<StoreState, [], [], StyleSlice> = (
 		});
 
 		// Apply the style changes through a command (for undo/redo support)
-		const command = {
+		const command: Command = {
 			id: nanoid(),
 			timestamp: Date.now(),
 			description: "Update shape styles",
-			execute: (context) => {
+			execute: (context: CommandContext) => {
 				// Directly update shapes without creating nested commands
 				context.setState((state) => {
 					const newShapes = { ...state.shapes };
@@ -86,7 +88,7 @@ export const createStyleSlice: StateCreator<StoreState, [], [], StyleSlice> = (
 					state.shapes = newShapes;
 				});
 			},
-			undo: (context) => {
+			undo: (context: CommandContext) => {
 				// Directly restore previous styles without creating nested commands
 				context.setState((state) => {
 					const newShapes = { ...state.shapes };
