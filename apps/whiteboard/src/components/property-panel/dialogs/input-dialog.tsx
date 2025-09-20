@@ -2,6 +2,9 @@ import type React from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import "./input-dialog.css";
 
+// Constants
+const FOCUS_DELAY_MS = 100;
+
 interface InputDialogProps {
 	isOpen: boolean;
 	title: string;
@@ -29,7 +32,7 @@ export const InputDialog: React.FC<InputDialogProps> = ({
 		if (isOpen) {
 			setInputValue(defaultValue);
 			// Focus input when dialog opens
-			setTimeout(() => inputRef.current?.focus(), 100);
+			setTimeout(() => inputRef.current?.focus(), FOCUS_DELAY_MS);
 		}
 	}, [isOpen, defaultValue]);
 

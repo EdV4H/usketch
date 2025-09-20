@@ -5,6 +5,9 @@ import { ConfirmDialog } from "../dialogs/confirm-dialog";
 import { InputDialog } from "../dialogs/input-dialog";
 import "./style-presets.css";
 
+// Constants
+const MAX_PREVIEW_STROKE_WIDTH = 3;
+
 export const StylePresets: React.FC = () => {
 	const stylePresets = useWhiteboardStore((state) => state.stylePresets);
 	const applyStylePreset = useWhiteboardStore((state) => state.applyStylePreset);
@@ -82,7 +85,7 @@ export const StylePresets: React.FC = () => {
 									className="preview-stroke"
 									style={{
 										borderColor: preset.style.strokeColor,
-										borderWidth: `${Math.min(preset.style.strokeWidth, 3)}px`,
+										borderWidth: `${Math.min(preset.style.strokeWidth, MAX_PREVIEW_STROKE_WIDTH)}px`,
 									}}
 								/>
 							</div>
