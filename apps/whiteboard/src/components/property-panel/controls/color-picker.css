@@ -1,0 +1,153 @@
+.color-picker {
+	position: relative;
+}
+
+.color-picker__label {
+	display: block;
+	margin-bottom: 4px;
+	font-size: 12px;
+	color: #666;
+	font-weight: 500;
+}
+
+.color-picker__trigger {
+	width: 100%;
+	padding: 8px 12px;
+	background: white;
+	border: 1px solid #d1d5db;
+	border-radius: 6px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	transition: border-color 0.2s;
+}
+
+.color-picker__trigger:hover {
+	border-color: #9ca3af;
+}
+
+.color-picker__trigger:focus {
+	outline: none;
+	border-color: #3b82f6;
+	box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.color-preview {
+	width: 24px;
+	height: 24px;
+	border-radius: 4px;
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	flex-shrink: 0;
+}
+
+.color-value {
+	flex: 1;
+	text-align: left;
+	font-size: 13px;
+	color: #333;
+	font-family: monospace;
+}
+
+.dropdown-arrow {
+	font-size: 10px;
+	color: #666;
+}
+
+.color-picker__dropdown {
+	position: absolute;
+	top: calc(100% + 4px);
+	left: 0;
+	right: 0;
+	background: white;
+	border: 1px solid #d1d5db;
+	border-radius: 8px;
+	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+	z-index: 1000;
+	padding: 12px;
+	min-width: 240px;
+}
+
+.color-picker__section {
+	margin-bottom: 12px;
+}
+
+.color-picker__section:last-child {
+	margin-bottom: 0;
+}
+
+.section-label {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: #666;
+	margin-bottom: 8px;
+	letter-spacing: 0.5px;
+}
+
+.color-palette {
+	display: grid;
+	grid-template-columns: repeat(6, 1fr);
+	gap: 4px;
+}
+
+.color-swatch {
+	width: 32px;
+	height: 32px;
+	border: 2px solid transparent;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: transform 0.1s;
+	position: relative;
+}
+
+.color-swatch:hover {
+	transform: scale(1.1);
+	z-index: 1;
+}
+
+.color-swatch--active {
+	border-color: #3b82f6;
+	box-shadow:
+		0 0 0 2px white,
+		0 0 0 4px #3b82f6;
+}
+
+.custom-color-input {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.color-input {
+	width: 48px;
+	height: 32px;
+	border: 1px solid #d1d5db;
+	border-radius: 4px;
+	cursor: pointer;
+	padding: 2px;
+}
+
+.color-input::-webkit-color-swatch-wrapper {
+	padding: 0;
+}
+
+.color-input::-webkit-color-swatch {
+	border: none;
+	border-radius: 2px;
+}
+
+.color-text-input {
+	flex: 1;
+	padding: 6px 8px;
+	border: 1px solid #d1d5db;
+	border-radius: 4px;
+	font-size: 13px;
+	font-family: monospace;
+}
+
+.color-text-input:focus {
+	outline: none;
+	border-color: #3b82f6;
+	box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}

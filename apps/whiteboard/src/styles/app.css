@@ -73,6 +73,12 @@
 	border-color: #0056b3;
 }
 
+.main-content {
+	flex: 1;
+	display: flex;
+	overflow: hidden;
+}
+
 .whiteboard-container {
 	flex: 1;
 	position: relative;

@@ -37,6 +37,7 @@ export interface StylePreset {
 	name: string;
 	style: StyleProperties;
 	createdAt: Date;
+	isDefault?: boolean;
 }
 
 export interface StyleState {
@@ -65,6 +66,7 @@ export const DEFAULT_STYLE_PRESETS: StylePreset[] = [
 			opacity: 1,
 		},
 		createdAt: new Date("2025-09-19"),
+		isDefault: true,
 	},
 	{
 		id: "default-2",
@@ -76,6 +78,7 @@ export const DEFAULT_STYLE_PRESETS: StylePreset[] = [
 			opacity: 1,
 		},
 		createdAt: new Date("2025-09-19"),
+		isDefault: true,
 	},
 	{
 		id: "default-3",
@@ -87,5 +90,6 @@ export const DEFAULT_STYLE_PRESETS: StylePreset[] = [
 			opacity: 0.8,
 		},
 		createdAt: new Date("2025-09-19"),
+		isDefault: true,
 	},
 ];

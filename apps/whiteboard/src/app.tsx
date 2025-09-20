@@ -8,6 +8,7 @@ import { getEffectTool } from "@usketch/tools";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
 import { DebugMenu } from "./components/debug-menu";
+import { PropertyPanel } from "./components/property-panel/property-panel";
 import { ToolbarReact } from "./components/toolbar-react";
 import { customShapePlugins } from "./custom-shapes";
 import type { EffectPlugin } from "./effects";
@@ -115,14 +116,17 @@ function App() {
 	return (
 		<div className="app">
 			<ToolbarReact onBackgroundChange={setBackground} />
-			<div className="whiteboard-container">
-				<WhiteboardCanvas
-					shapes={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
-					effects={effectPlugins}
-					className="whiteboard"
-					background={background}
-					onReady={handleCanvasReady}
-				/>
+			<div className="main-content">
+				<div className="whiteboard-container">
+					<WhiteboardCanvas
+						shapes={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
+						effects={effectPlugins}
+						className="whiteboard"
+						background={background}
+						onReady={handleCanvasReady}
+					/>
+				</div>
+				<PropertyPanel />
 			</div>
 			<DebugMenu />
 		</div>
