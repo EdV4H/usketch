@@ -37,9 +37,11 @@ export const EffectRegistryProvider: React.FC<EffectRegistryProviderProps> = ({
 	);
 
 	useEffect(() => {
-		// Register plugins
+		// Register plugins only if not already registered
 		for (const plugin of plugins) {
-			registry.register(plugin);
+			if (!registry.hasPlugin(plugin.type)) {
+				registry.register(plugin);
+			}
 		}
 
 		// Update available types

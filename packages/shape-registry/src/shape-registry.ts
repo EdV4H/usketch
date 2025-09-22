@@ -17,7 +17,11 @@ export class ShapeRegistry {
 		}
 
 		if (this.plugins.has(plugin.type)) {
-			console.warn(`Plugin for type '${plugin.type}' is already registered. Overwriting.`);
+			// Only log in development and use debug level
+			if (process.env.NODE_ENV === "development") {
+				console.debug(`Plugin for type '${plugin.type}' is already registered. Skipping.`);
+			}
+			return; // Skip re-registration
 		}
 
 		// Use type assertion to handle generic variance
