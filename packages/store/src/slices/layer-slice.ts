@@ -22,9 +22,10 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 	// Layer CRUD operations
 	addLayer: (name) => {
 		const id = nanoid();
+		const currentLayers = get().layers;
 		const newLayer: Layer = {
 			id,
-			name: name || `Layer ${get().layers.size + 1}`,
+			name: name || `Layer ${currentLayers.size + 1}`,
 			visible: true,
 			locked: false,
 			opacity: 1,
@@ -36,13 +37,19 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 			updatedAt: new Date(),
 		};
 
-		set(
-			produce((state) => {
-				state.layers.set(id, newLayer);
-				state.layerOrder.unshift(id); // Add to top
-				state.activeLayerId = id;
-			}),
-		);
+		set((state) => {
+			// Create new objects/arrays for immutability
+			const newLayers = new Map(state.layers);
+			newLayers.set(id, newLayer);
+			const newLayerOrder = [id, ...state.layerOrder];
+
+			return {
+				...state,
+				layers: newLayers,
+				layerOrder: newLayerOrder,
+				activeLayerId: id,
+			};
+		});
 
 		return id;
 	},
@@ -59,48 +66,47 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 		const layer = layers.get(layerId);
 		if (!layer) return;
 
-		// Move shapes to default layer
-		const defaultLayer = layers.get(DEFAULT_LAYER.id);
-		if (defaultLayer && layer.shapeIds.length > 0) {
-			set(
-				produce((state) => {
-					const targetLayer = state.layers.get(DEFAULT_LAYER.id);
-					if (targetLayer) {
-						targetLayer.shapeIds.push(...layer.shapeIds);
-					}
-					state.layers.delete(layerId);
-					state.layerOrder = state.layerOrder.filter((id: string) => id !== layerId);
+		set((state) => {
+			const newLayers = new Map(state.layers);
+			const defaultLayer = newLayers.get(DEFAULT_LAYER.id);
 
-					// Update active layer if deleted
-					if (state.activeLayerId === layerId) {
-						state.activeLayerId = DEFAULT_LAYER.id;
-					}
-				}),
-			);
-		} else {
-			set(
-				produce((state) => {
-					state.layers.delete(layerId);
-					state.layerOrder = state.layerOrder.filter((id: string) => id !== layerId);
+			// Move shapes to default layer if needed
+			if (defaultLayer && layer.shapeIds.length > 0) {
+				defaultLayer.shapeIds.push(...layer.shapeIds);
+				newLayers.set(DEFAULT_LAYER.id, { ...defaultLayer });
+			}
 
-					if (state.activeLayerId === layerId) {
-						state.activeLayerId = DEFAULT_LAYER.id;
-					}
-				}),
-			);
-		}
+			newLayers.delete(layerId);
+			const newLayerOrder = state.layerOrder.filter((id) => id !== layerId);
+			const newActiveLayerId =
+				state.activeLayerId === layerId ? DEFAULT_LAYER.id : state.activeLayerId;
+
+			return {
+				...state,
+				layers: newLayers,
+				layerOrder: newLayerOrder,
+				activeLayerId: newActiveLayerId,
+			};
+		});
 	},
 
 	renameLayer: (layerId, name) => {
-		set(
-			produce((state) => {
-				const layer = state.layers.get(layerId);
-				if (layer) {
-					layer.name = name;
-					layer.updatedAt = new Date();
-				}
-			}),
-		);
+		set((state) => {
+			const layer = state.layers.get(layerId);
+			if (!layer) return state;
+
+			const newLayers = new Map(state.layers);
+			newLayers.set(layerId, {
+				...layer,
+				name,
+				updatedAt: new Date(),
+			});
+
+			return {
+				...state,
+				layers: newLayers,
+			};
+		});
 	},
 
 	duplicateLayer: (layerId) => {
@@ -117,41 +123,62 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 			updatedAt: new Date(),
 		};
 
-		set(
-			produce((state) => {
-				state.layers.set(id, duplicatedLayer);
-				const index = state.layerOrder.indexOf(layerId);
-				state.layerOrder.splice(index, 0, id);
-				state.activeLayerId = id;
-			}),
-		);
+		set((state) => {
+			const newLayers = new Map(state.layers);
+			newLayers.set(id, duplicatedLayer);
+
+			const newLayerOrder = [...state.layerOrder];
+			const index = newLayerOrder.indexOf(layerId);
+			newLayerOrder.splice(index, 0, id);
+
+			return {
+				...state,
+				layers: newLayers,
+				layerOrder: newLayerOrder,
+				activeLayerId: id,
+			};
+		});
 
 		return id;
 	},
 
 	// Layer visibility and locking
 	toggleLayerVisibility: (layerId) => {
-		set(
-			produce((state) => {
-				const layer = state.layers.get(layerId);
-				if (layer) {
-					layer.visible = !layer.visible;
-					layer.updatedAt = new Date();
-				}
-			}),
-		);
+		set((state) => {
+			const layer = state.layers.get(layerId);
+			if (!layer) return state;
+
+			const newLayers = new Map(state.layers);
+			newLayers.set(layerId, {
+				...layer,
+				visible: !layer.visible,
+				updatedAt: new Date(),
+			});
+
+			return {
+				...state,
+				layers: newLayers,
+			};
+		});
 	},
 
 	toggleLayerLock: (layerId) => {
-		set(
-			produce((state) => {
-				const layer = state.layers.get(layerId);
-				if (layer) {
-					layer.locked = !layer.locked;
-					layer.updatedAt = new Date();
-				}
-			}),
-		);
+		set((state) => {
+			const layer = state.layers.get(layerId);
+			if (!layer) return state;
+
+			const newLayers = new Map(state.layers);
+			newLayers.set(layerId, {
+				...layer,
+				locked: !layer.locked,
+				updatedAt: new Date(),
+			});
+
+			return {
+				...state,
+				layers: newLayers,
+			};
+		});
 	},
 
 	setLayerOpacity: (layerId, opacity) => {
@@ -214,11 +241,10 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 	},
 
 	reorderLayers: (newOrder) => {
-		set(
-			produce((state) => {
-				state.layerOrder = newOrder;
-			}),
-		);
+		set((state) => ({
+			...state,
+			layerOrder: newOrder,
+		}));
 	},
 
 	// Shape-layer association

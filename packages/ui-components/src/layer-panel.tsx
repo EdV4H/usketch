@@ -104,7 +104,11 @@ export function LayerPanel({ layerState, layerActions, className = "" }: LayerPa
 				<h3 style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>Layers</h3>
 				<button
 					type="button"
-					onClick={() => layerActions.addLayer()}
+					onClick={() => {
+						console.log("Add Layer clicked");
+						const newLayerId = layerActions.addLayer();
+						console.log("New layer created with ID:", newLayerId);
+					}}
 					style={{
 						padding: "4px 12px",
 						border: "1px solid #ddd",
