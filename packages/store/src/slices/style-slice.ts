@@ -62,12 +62,16 @@ export const createStyleSlice: StateCreator<StoreState, [], [], StyleSlice> = (
 		const previousStyles = new Map<string, Partial<StyleProperties>>();
 		affectedShapes.forEach((shape) => {
 			if (shape) {
-				previousStyles.set(shape.id, {
+				const prevStyle: Partial<StyleProperties> = {
 					fillColor: shape.fillColor,
 					strokeColor: shape.strokeColor,
 					strokeWidth: shape.strokeWidth,
 					opacity: shape.opacity,
-				});
+				};
+				if (shape.shadow !== undefined) {
+					prevStyle.shadow = shape.shadow;
+				}
+				previousStyles.set(shape.id, prevStyle);
 			}
 		});
 
@@ -118,13 +122,17 @@ export const createStyleSlice: StateCreator<StoreState, [], [], StyleSlice> = (
 		const shape = shapes[firstId];
 		if (!shape) return;
 
+		const style: StyleProperties = {
+			fillColor: shape.fillColor,
+			strokeColor: shape.strokeColor,
+			strokeWidth: shape.strokeWidth,
+			opacity: shape.opacity,
+		};
+		if (shape.shadow !== undefined) {
+			style.shadow = shape.shadow;
+		}
 		set({
-			copiedStyle: {
-				fillColor: shape.fillColor,
-				strokeColor: shape.strokeColor,
-				strokeWidth: shape.strokeWidth,
-				opacity: shape.opacity,
-			},
+			copiedStyle: style,
 		});
 	},
 
@@ -210,6 +218,9 @@ export const createStyleSlice: StateCreator<StoreState, [], [], StyleSlice> = (
 			strokeWidth: firstShape.strokeWidth,
 			opacity: firstShape.opacity,
 		};
+		if (firstShape.shadow !== undefined) {
+			commonStyles.shadow = firstShape.shadow;
+		}
 
 		// Check if all shapes have the same values
 		for (const shape of selectedShapes.slice(1)) {
@@ -226,6 +237,9 @@ export const createStyleSlice: StateCreator<StoreState, [], [], StyleSlice> = (
 			}
 			if (shape.opacity !== commonStyles.opacity) {
 				delete commonStyles.opacity;
+			}
+			if (JSON.stringify(shape.shadow) !== JSON.stringify(commonStyles.shadow)) {
+				delete commonStyles.shadow;
 			}
 		}
 
