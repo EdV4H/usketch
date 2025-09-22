@@ -272,7 +272,7 @@ export const createZIndexSlice: StateCreator<StoreState, [], [], ZIndexSlice> = 
 					const layerId = layerOrder[i];
 					const layer = layerId ? layers.get(layerId) : undefined;
 
-					if (layer && layer.visible) {
+					if (layer?.visible) {
 						// Assign z-indices to shapes in this layer
 						for (const shapeId of layer.shapeIds) {
 							if (shapes[shapeId]) {
