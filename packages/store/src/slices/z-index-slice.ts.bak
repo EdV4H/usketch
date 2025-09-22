@@ -1,0 +1,272 @@
+import type { StateCreator } from "zustand";
+import type { StoreState } from "../store";
+
+export interface ZIndexState {
+	// Shape ID to z-index mapping
+	shapeZIndices: Map<string, number>;
+	// Next available z-index
+	nextZIndex: number;
+}
+
+export interface ZIndexActions {
+	// Get z-index for a shape
+	getZIndex: (shapeId: string) => number;
+	
+	// Z-order manipulation
+	moveToFront: (shapeId: string) => void;
+	moveToBack: (shapeId: string) => void;
+	moveForward: (shapeId: string) => void;
+	moveBackward: (shapeId: string) => void;
+	swapZIndex: (shapeId1: string, shapeId2: string) => void;
+	
+	// Batch operations
+	bringSelectedToFront: () => void;
+	sendSelectedToBack: () => void;
+	
+	// Initialize z-index for new shape
+	assignZIndex: (shapeId: string) => number;
+	removeZIndex: (shapeId: string) => void;
+	
+	// Recalculate z-indices based on layer order
+	recalculateZIndices: () => void;
+}
+
+export type ZIndexSlice = ZIndexState & ZIndexActions;
+
+export const createZIndexSlice: StateCreator<StoreState, [], [], ZIndexSlice> = (
+	set,
+	get,
+) => ({
+	// Initial state
+	shapeZIndices: new Map(),
+	nextZIndex: 1,
+
+	// Get z-index for a shape
+	getZIndex: (shapeId) => {
+		const { shapeZIndices } = get();
+		return shapeZIndices.get(shapeId) ?? 0;
+	},
+
+	// Z-order manipulation
+	moveToFront: (shapeId) => {
+		const { shapeZIndices, nextZIndex } = get();
+		const currentZ = shapeZIndices.get(shapeId);
+		
+		if (currentZ === undefined) return;
+
+		set(produce((state) => {
+			// Find the maximum z-index
+			let maxZ = 0;
+			for (const z of state.shapeZIndices.values()) {
+				if (z > maxZ) maxZ = z;
+			}
+			
+			// Set to max + 1
+			state.shapeZIndices.set(shapeId, maxZ + 1);
+			state.nextZIndex = maxZ + 2;
+		});
+	},
+
+	moveToBack: (shapeId) => {
+		const { shapeZIndices } = get();
+		const currentZ = shapeZIndices.get(shapeId);
+		
+		if (currentZ === undefined) return;
+
+		set(produce((state) => {
+			// Find the minimum z-index
+			let minZ = Number.MAX_SAFE_INTEGER;
+			for (const z of state.shapeZIndices.values()) {
+				if (z < minZ) minZ = z;
+			}
+			
+			// Set to min - 1 (but not less than 1)
+			state.shapeZIndices.set(shapeId, Math.max(1, minZ - 1));
+		});
+	},
+
+	moveForward: (shapeId) => {
+		const { shapeZIndices } = get();
+		const currentZ = shapeZIndices.get(shapeId);
+		
+		if (currentZ === undefined) return;
+
+		// Find the next higher z-index
+		let nextHigher: number | null = null;
+		let nextHigherId: string | null = null;
+		
+		for (const [id, z] of shapeZIndices.entries()) {
+			if (z > currentZ) {
+				if (nextHigher === null || z < nextHigher) {
+					nextHigher = z;
+					nextHigherId = id;
+				}
+			}
+		}
+
+		if (nextHigher !== null && nextHigherId !== null) {
+			set(produce((state) => {
+				// Swap z-indices
+				state.shapeZIndices.set(shapeId, nextHigher);
+				state.shapeZIndices.set(nextHigherId, currentZ);
+			});
+		}
+	},
+
+	moveBackward: (shapeId) => {
+		const { shapeZIndices } = get();
+		const currentZ = shapeZIndices.get(shapeId);
+		
+		if (currentZ === undefined) return;
+
+		// Find the next lower z-index
+		let nextLower: number | null = null;
+		let nextLowerId: string | null = null;
+		
+		for (const [id, z] of shapeZIndices.entries()) {
+			if (z < currentZ) {
+				if (nextLower === null || z > nextLower) {
+					nextLower = z;
+					nextLowerId = id;
+				}
+			}
+		}
+
+		if (nextLower !== null && nextLowerId !== null) {
+			set(produce((state) => {
+				// Swap z-indices
+				state.shapeZIndices.set(shapeId, nextLower);
+				state.shapeZIndices.set(nextLowerId, currentZ);
+			});
+		}
+	},
+
+	swapZIndex: (shapeId1, shapeId2) => {
+		const { shapeZIndices } = get();
+		const z1 = shapeZIndices.get(shapeId1);
+		const z2 = shapeZIndices.get(shapeId2);
+		
+		if (z1 === undefined || z2 === undefined) return;
+
+		set(produce((state) => {
+			state.shapeZIndices.set(shapeId1, z2);
+			state.shapeZIndices.set(shapeId2, z1);
+		});
+	},
+
+	// Batch operations
+	bringSelectedToFront: () => {
+		const { selectedShapeIds, shapeZIndices } = get();
+		if (selectedShapeIds.size === 0) return;
+
+		set(produce((state) => {
+			// Find max z-index
+			let maxZ = 0;
+			for (const z of state.shapeZIndices.values()) {
+				if (z > maxZ) maxZ = z;
+			}
+
+			// Assign incrementing z-indices to selected shapes
+			let currentZ = maxZ + 1;
+			for (const shapeId of selectedShapeIds) {
+				if (state.shapeZIndices.has(shapeId)) {
+					state.shapeZIndices.set(shapeId, currentZ++);
+				}
+			}
+			state.nextZIndex = currentZ;
+		});
+	},
+
+	sendSelectedToBack: () => {
+		const { selectedShapeIds, shapeZIndices } = get();
+		if (selectedShapeIds.size === 0) return;
+
+		set(produce((state) => {
+			// Find min z-index
+			let minZ = Number.MAX_SAFE_INTEGER;
+			for (const z of state.shapeZIndices.values()) {
+				if (z < minZ) minZ = z;
+			}
+
+			// Assign decrementing z-indices to selected shapes
+			let currentZ = Math.max(1, minZ - selectedShapeIds.size);
+			for (const shapeId of selectedShapeIds) {
+				if (state.shapeZIndices.has(shapeId)) {
+					state.shapeZIndices.set(shapeId, currentZ++);
+				}
+			}
+		});
+	},
+
+	// Initialize z-index for new shape
+	assignZIndex: (shapeId) => {
+		const { nextZIndex, layers, activeLayerId } = get();
+		
+		// Calculate z-index based on layer position
+		const layerOrder = get().layerOrder;
+		const layerIndex = activeLayerId ? layerOrder.indexOf(activeLayerId) : -1;
+		
+		// Base z-index from layer (higher layers have higher base z-index)
+		const baseZ = layerIndex >= 0 ? (layerOrder.length - layerIndex) * 1000 : 0;
+		const zIndex = baseZ + nextZIndex;
+
+		set(produce((state) => {
+			state.shapeZIndices.set(shapeId, zIndex);
+			state.nextZIndex = nextZIndex + 1;
+			
+			// Add shape to active layer
+			if (state.activeLayerId) {
+				const layer = state.layers.get(state.activeLayerId);
+				if (layer && !layer.shapeIds.includes(shapeId)) {
+					layer.shapeIds.push(shapeId);
+					layer.updatedAt = new Date();
+				}
+			}
+		});
+
+		return zIndex;
+	},
+
+	removeZIndex: (shapeId) => {
+		set(produce((state) => {
+			state.shapeZIndices.delete(shapeId);
+			
+			// Remove from all layers
+			for (const layer of state.layers.values()) {
+				const index = layer.shapeIds.indexOf(shapeId);
+				if (index !== -1) {
+					layer.shapeIds.splice(index, 1);
+					layer.updatedAt = new Date();
+				}
+			}
+		});
+	},
+
+	// Recalculate z-indices based on layer order
+	recalculateZIndices: () => {
+		const { layers, layerOrder, shapes } = get();
+		
+		set(produce((state) => {
+			const newZIndices = new Map<string, number>();
+			let currentZ = 1;
+			
+			// Process layers from bottom to top
+			for (let i = layerOrder.length - 1; i >= 0; i--) {
+				const layerId = layerOrder[i];
+				const layer = layers.get(layerId);
+				
+				if (layer && layer.visible) {
+					// Assign z-indices to shapes in this layer
+					for (const shapeId of layer.shapeIds) {
+						if (shapes[shapeId]) {
+							newZIndices.set(shapeId, currentZ++);
+						}
+					}
+				}
+			}
+			
+			state.shapeZIndices = newZIndices;
+			state.nextZIndex = currentZ;
+		});
+	},
+});
