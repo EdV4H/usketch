@@ -13,7 +13,11 @@ export class EffectRegistry {
 	 */
 	register<T extends Effect>(plugin: EffectPlugin<T>): void {
 		if (this.plugins.has(plugin.type)) {
-			console.warn(`Effect plugin "${plugin.type}" is already registered. Overwriting.`);
+			// Only log in development and use debug level
+			if (process.env.NODE_ENV === "development") {
+				console.debug(`Effect plugin "${plugin.type}" is already registered. Skipping.`);
+			}
+			return; // Skip re-registration
 		}
 		this.plugins.set(plugin.type, plugin as unknown as EffectPlugin);
 		this.notifyListeners({

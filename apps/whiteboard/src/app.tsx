@@ -3,8 +3,9 @@ import { defaultShapePlugins } from "@usketch/shape-plugins";
 import type { ShapePlugin } from "@usketch/shape-registry";
 import type { Shape } from "@usketch/shared-types";
 import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
-import { whiteboardStore } from "@usketch/store";
+import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import { getEffectTool } from "@usketch/tools";
+import { LayerPanel } from "@usketch/ui-components";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
 import { DebugMenu } from "./components/debug-menu";
@@ -40,6 +41,37 @@ function App() {
 			color: "#d0d0d0",
 		},
 	});
+	const [showLayerPanel, setShowLayerPanel] = useState(true);
+
+	// Get layer state and actions from store
+	const {
+		layers,
+		layerOrder,
+		activeLayerId,
+		layerGroups,
+		addLayer,
+		deleteLayer,
+		renameLayer,
+		duplicateLayer,
+		toggleLayerVisibility,
+		toggleLayerLock,
+		setLayerOpacity,
+		moveLayerUp,
+		moveLayerDown,
+		moveLayerToTop,
+		moveLayerToBottom,
+		reorderLayers,
+		moveShapeToLayer,
+		moveShapesToLayer,
+		groupLayers,
+		ungroupLayers,
+		toggleGroupCollapse,
+		selectLayer,
+		selectMultipleLayers,
+		getLayerByShapeId,
+		getShapesInLayer,
+		mergeLayersDown,
+	} = useWhiteboardStore();
 
 	// デモ用のシェイプを追加（E2Eテストモード時のみ保持）
 	const addDemoShapes = useCallback((_plugins?: ShapePlugin<any>[]) => {
@@ -113,6 +145,38 @@ function App() {
 		}
 	};
 
+	const layerState = {
+		layers,
+		layerOrder,
+		activeLayerId,
+		layerGroups,
+	};
+
+	const layerActions = {
+		addLayer,
+		deleteLayer,
+		renameLayer,
+		duplicateLayer,
+		toggleLayerVisibility,
+		toggleLayerLock,
+		setLayerOpacity,
+		moveLayerUp,
+		moveLayerDown,
+		moveLayerToTop,
+		moveLayerToBottom,
+		reorderLayers,
+		moveShapeToLayer,
+		moveShapesToLayer,
+		groupLayers,
+		ungroupLayers,
+		toggleGroupCollapse,
+		selectLayer,
+		selectMultipleLayers,
+		getLayerByShapeId,
+		getShapesInLayer,
+		mergeLayersDown,
+	};
+
 	return (
 		<div className="app">
 			<ToolbarReact onBackgroundChange={setBackground} />
@@ -125,7 +189,27 @@ function App() {
 						background={background}
 						onReady={handleCanvasReady}
 					/>
+					{/* Toggle button for layer panel */}
+					<button
+						type="button"
+						onClick={() => setShowLayerPanel(!showLayerPanel)}
+						style={{
+							position: "absolute",
+							right: showLayerPanel ? "290px" : "10px",
+							top: "10px",
+							padding: "8px",
+							border: "1px solid #ddd",
+							borderRadius: "4px",
+							backgroundColor: "white",
+							cursor: "pointer",
+							zIndex: 10,
+						}}
+						data-testid="toggle-layer-panel"
+					>
+						{showLayerPanel ? "Hide Layers" : "Show Layers"}
+					</button>
 				</div>
+				{showLayerPanel && <LayerPanel layerState={layerState} layerActions={layerActions} />}
 				<PropertyPanel />
 			</div>
 			<DebugMenu />

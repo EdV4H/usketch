@@ -23,7 +23,9 @@ import {
 } from "./commands/shape";
 import { calculateDistribution, type DistributionDirection } from "./distribution-utils";
 import { HistoryManager } from "./history/history-manager";
+import { createLayerSlice, type LayerSlice } from "./slices/layer-slice";
 import { createStyleSlice, type StyleSlice } from "./slices/style-slice";
+import { createZIndexSlice, type ZIndexSlice } from "./slices/z-index-slice";
 
 export type AlignmentDirection =
 	| "left"
@@ -72,7 +74,7 @@ export interface SnapSettings {
 	viewportMargin: number; // Extra margin around viewport for shape culling (pixels)
 }
 
-export interface WhiteboardStore extends WhiteboardState, StyleSlice {
+export interface WhiteboardStore extends WhiteboardState, StyleSlice, LayerSlice, ZIndexSlice {
 	// State additions
 	activeTool: string;
 	selectionIndicator: SelectionIndicatorState;
@@ -265,6 +267,8 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 	// Actions - Now using commands for undo/redo support
 	addShape: (shape: Shape) => {
 		get().executeCommand(new CreateShapeCommand(shape));
+		// Assign z-index and add to active layer
+		get().assignZIndex(shape.id);
 	},
 
 	updateShape: (id: string, updates: Partial<Shape>) => {
@@ -827,6 +831,10 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 
 	// Add StyleSlice
 	...createStyleSlice(set, get, store),
+	// Add LayerSlice
+	...createLayerSlice(set, get, store),
+	// Add ZIndexSlice
+	...createZIndexSlice(set, get, store),
 }));
 
 // Export convenient accessor functions
