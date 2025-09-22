@@ -3,6 +3,7 @@ import { useWhiteboardStore } from "@usketch/store";
 import { useEffect, useState } from "react";
 import { ColorPicker } from "./controls/color-picker";
 import { OpacitySlider } from "./controls/opacity-slider";
+import { ShadowSettings } from "./controls/shadow-settings";
 import { StrokeWidthSlider } from "./controls/stroke-width-slider";
 import { StyleActions } from "./controls/style-actions";
 import { StylePresets } from "./controls/style-presets";
@@ -103,6 +104,10 @@ export const PropertyPanel: React.FC = () => {
 								value={selectedShapeStyles?.opacity ?? 1}
 								onChange={(opacity) => handleStyleChange({ opacity })}
 							/>
+						</div>
+
+						<div className="property-control">
+							<ShadowSettings />
 						</div>
 					</section>
 
