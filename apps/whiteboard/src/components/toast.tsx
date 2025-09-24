@@ -28,7 +28,7 @@ let toastList: Toast[] = [];
 
 export const showToast = (message: string, type?: "success" | "error" | "info") => {
 	const id = Math.random().toString(36).slice(2);
-	const newToast: Toast = { id, message, type };
+	const newToast: Toast = type ? { id, message, type } : { id, message };
 	toastList = [...toastList, newToast];
 	for (const listener of toastListeners) {
 		listener(toastList);
