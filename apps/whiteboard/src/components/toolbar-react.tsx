@@ -8,6 +8,8 @@ import { SnapSettingsButton } from "./snap-settings";
 
 export interface ToolbarProps {
 	onBackgroundChange?: (background: { id: string; config?: any }) => void;
+	isPanelOpen?: boolean;
+	onPanelToggle?: () => void;
 }
 
 // プリセット背景の設定
@@ -34,7 +36,11 @@ const PRESET_BACKGROUNDS = {
 	},
 };
 
-export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => {
+export const ToolbarReact: React.FC<ToolbarProps> = ({
+	onBackgroundChange,
+	isPanelOpen,
+	onPanelToggle,
+}) => {
 	const currentTool = useStore((state) => state.currentTool);
 	const setCurrentTool = useStore((state) => state.setCurrentTool);
 	const selectedShapeIds = useStore((state) => state.selectedShapeIds);
@@ -615,6 +621,20 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({ onBackgroundChange }) => 
 						</div>
 					)}
 				</div>
+			</div>
+
+			{/* Panel Toggle Button - aligned to the right */}
+			<div style={{ marginLeft: "auto" }}>
+				<button
+					type="button"
+					className={`tool-button ${isPanelOpen ? "active" : ""}`}
+					onClick={onPanelToggle}
+					data-testid="panel-toggle"
+					title={isPanelOpen ? "パネルを隠す" : "パネルを表示"}
+				>
+					<span className="tool-icon">{isPanelOpen ? "◀" : "▶"}</span>
+					<span>プロパティ</span>
+				</button>
 			</div>
 		</div>
 	);

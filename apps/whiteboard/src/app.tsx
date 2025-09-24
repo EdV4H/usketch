@@ -9,11 +9,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
 import { DebugMenu } from "./components/debug-menu";
 import { PropertyPanel } from "./components/property-panel/property-panel";
+import { ToastContainer } from "./components/toast";
 import { ToolbarReact } from "./components/toolbar-react";
 import { customShapePlugins } from "./custom-shapes";
 import type { EffectPlugin } from "./effects";
 import { fadingPinPlugin, pinPlugin, ripplePlugin } from "./effects";
 import { createAppEffect } from "./effects/effect-factory";
+import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import "./styles/app.css";
 
 // Helper function to add shape with delay
@@ -32,6 +34,13 @@ function App() {
 	const backgroundsRegisteredRef = useRef(false);
 	const [shapePlugins, setShapePlugins] = useState<ShapePlugin<any>[]>([]);
 	const [effectPlugins] = useState<EffectPlugin<any>[]>([ripplePlugin, pinPlugin, fadingPinPlugin]);
+	const [isPanelOpen, setIsPanelOpen] = useState(true);
+
+	// Setup keyboard shortcuts
+	useKeyboardShortcuts({
+		onPanelToggle: () => setIsPanelOpen((prev) => !prev),
+	});
+
 	const [background, setBackground] = useState<any>({
 		id: "usketch.dots",
 		config: {
@@ -115,7 +124,11 @@ function App() {
 
 	return (
 		<div className="app">
-			<ToolbarReact onBackgroundChange={setBackground} />
+			<ToolbarReact
+				onBackgroundChange={setBackground}
+				isPanelOpen={isPanelOpen}
+				onPanelToggle={() => setIsPanelOpen(!isPanelOpen)}
+			/>
 			<div className="main-content">
 				<div className="whiteboard-container">
 					<WhiteboardCanvas
@@ -126,9 +139,10 @@ function App() {
 						onReady={handleCanvasReady}
 					/>
 				</div>
-				<PropertyPanel />
+				{isPanelOpen && <PropertyPanel />}
 			</div>
 			<DebugMenu />
+			<ToastContainer />
 		</div>
 	);
 }
