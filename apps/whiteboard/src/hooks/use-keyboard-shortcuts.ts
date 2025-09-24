@@ -20,7 +20,19 @@ export const useKeyboardShortcuts = ({ onPanelToggle }: KeyboardShortcutsOptions
 				return;
 			}
 
-			const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+			// Platform detection with fallback for deprecated navigator.platform
+			const isMac = (() => {
+				// Try modern approach first
+				if (navigator.userAgentData?.platform) {
+					return navigator.userAgentData.platform.toUpperCase().includes("MAC");
+				}
+				// Fallback to userAgent parsing
+				if (navigator.userAgent) {
+					return /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+				}
+				// Last resort: deprecated but still widely supported
+				return navigator.platform?.toUpperCase().indexOf("MAC") >= 0;
+			})();
 			const modKey = isMac ? e.metaKey : e.ctrlKey;
 
 			// Cmd/Ctrl + Shift + C: Copy style

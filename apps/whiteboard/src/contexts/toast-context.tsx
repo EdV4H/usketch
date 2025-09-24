@@ -19,7 +19,11 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	const [toasts, setToasts] = useState<Toast[]>([]);
 
 	const showToast = useCallback((message: string, type?: "success" | "error" | "info") => {
-		const id = crypto.randomUUID();
+		// Use crypto.randomUUID() with fallback for compatibility
+		const id =
+			typeof crypto !== "undefined" && crypto.randomUUID
+				? crypto.randomUUID()
+				: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 		const newToast: Toast = type ? { id, message, type } : { id, message };
 
 		setToasts((prev) => [...prev, newToast]);
