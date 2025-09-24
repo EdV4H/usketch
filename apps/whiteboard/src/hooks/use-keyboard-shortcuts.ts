@@ -1,6 +1,6 @@
 import { useWhiteboardStore } from "@usketch/store";
 import { useEffect } from "react";
-import { showToast } from "../components/toast";
+import { useToast } from "../contexts/toast-context";
 
 interface KeyboardShortcutsOptions {
 	onPanelToggle?: () => void;
@@ -11,6 +11,7 @@ export const useKeyboardShortcuts = ({ onPanelToggle }: KeyboardShortcutsOptions
 	const pasteStyleToSelection = useWhiteboardStore((state) => state.pasteStyleToSelection);
 	const undo = useWhiteboardStore((state) => state.undo);
 	const redo = useWhiteboardStore((state) => state.redo);
+	const { showToast } = useToast();
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -73,5 +74,5 @@ export const useKeyboardShortcuts = ({ onPanelToggle }: KeyboardShortcutsOptions
 
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [copyStyleFromSelection, pasteStyleToSelection, undo, redo, onPanelToggle]);
+	}, [copyStyleFromSelection, pasteStyleToSelection, undo, redo, onPanelToggle, showToast]);
 };

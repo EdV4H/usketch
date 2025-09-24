@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useToast } from "../contexts/toast-context";
 
 interface Toast {
 	id: string;
@@ -12,52 +13,34 @@ interface ToastProps {
 }
 
 const ToastItem: React.FC<ToastProps> = ({ toast, onRemove }) => {
+	const timerRef = useRef<NodeJS.Timeout | null>(null);
+
 	useEffect(() => {
-		const timer = setTimeout(() => {
+		// Clear any existing timer
+		if (timerRef.current) {
+			clearTimeout(timerRef.current);
+		}
+
+		// Set new timer
+		timerRef.current = setTimeout(() => {
 			onRemove(toast.id);
+			timerRef.current = null;
 		}, 3000);
-		return () => clearTimeout(timer);
+
+		// Cleanup on unmount
+		return () => {
+			if (timerRef.current) {
+				clearTimeout(timerRef.current);
+				timerRef.current = null;
+			}
+		};
 	}, [toast.id, onRemove]);
 
 	return <div className={`toast toast-${toast.type || "info"}`}>{toast.message}</div>;
 };
 
-// Global toast state
-let toastListeners: ((toasts: Toast[]) => void)[] = [];
-let toastList: Toast[] = [];
-
-export const showToast = (message: string, type?: "success" | "error" | "info") => {
-	const id = Math.random().toString(36).slice(2);
-	const newToast: Toast = type ? { id, message, type } : { id, message };
-	toastList = [...toastList, newToast];
-	for (const listener of toastListeners) {
-		listener(toastList);
-	}
-
-	// Auto-remove after 3 seconds
-	setTimeout(() => {
-		toastList = toastList.filter((t) => t.id !== id);
-		for (const listener of toastListeners) {
-			listener(toastList);
-		}
-	}, 3000);
-};
-
 export const ToastContainer: React.FC = () => {
-	const [toasts, setToasts] = useState<Toast[]>([]);
-
-	useEffect(() => {
-		const listener = (newToasts: Toast[]) => setToasts(newToasts);
-		toastListeners.push(listener);
-		return () => {
-			toastListeners = toastListeners.filter((l) => l !== listener);
-		};
-	}, []);
-
-	const removeToast = (id: string) => {
-		toastList = toastList.filter((t) => t.id !== id);
-		setToasts(toastList);
-	};
+	const { toasts, removeToast } = useToast();
 
 	return (
 		<div className="toast-container">

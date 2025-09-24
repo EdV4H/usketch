@@ -11,6 +11,7 @@ import { DebugMenu } from "./components/debug-menu";
 import { PropertyPanel } from "./components/property-panel/property-panel";
 import { ToastContainer } from "./components/toast";
 import { ToolbarReact } from "./components/toolbar-react";
+import { ToastProvider } from "./contexts/toast-context";
 import { customShapePlugins } from "./custom-shapes";
 import type { EffectPlugin } from "./effects";
 import { fadingPinPlugin, pinPlugin, ripplePlugin } from "./effects";
@@ -28,7 +29,7 @@ const addShapeWithDelay = (shape: Shape, delay: number) => {
 // Calculate delay based on shape index
 const calculateDelay = (index: number, baseDelay = 100) => index * baseDelay;
 
-function App() {
+function AppContent() {
 	const canvasRef = useRef<any>(null);
 	const shapesAddedRef = useRef(false);
 	const backgroundsRegisteredRef = useRef(false);
@@ -144,6 +145,14 @@ function App() {
 			<DebugMenu />
 			<ToastContainer />
 		</div>
+	);
+}
+
+function App() {
+	return (
+		<ToastProvider>
+			<AppContent />
+		</ToastProvider>
 	);
 }
 
