@@ -12,7 +12,7 @@
 	},
 	"dependencies": {
 		"@usketch/shared-types": "workspace:*",
-		"nanoid": "5.1.5",
+		"nanoid": "5.1.6",
 		"zustand": "5.0.8"
 	},
 	"devDependencies": {
