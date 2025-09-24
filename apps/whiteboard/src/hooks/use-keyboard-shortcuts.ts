@@ -25,8 +25,12 @@ export const useKeyboardShortcuts = ({ onPanelToggle }: KeyboardShortcutsOptions
 			// Cmd/Ctrl + Shift + C: Copy style
 			if (modKey && e.shiftKey && e.key.toLowerCase() === "c") {
 				e.preventDefault();
-				copyStyleFromSelection();
-				showToast("スタイルをコピーしました", "success");
+				const result = copyStyleFromSelection();
+				if (result) {
+					showToast("スタイルをコピーしました", "success");
+				} else {
+					showToast("形状が選択されていません", "error");
+				}
 				return;
 			}
 

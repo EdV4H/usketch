@@ -16,8 +16,8 @@ export interface StyleActions {
 	updateSelectedShapesStyle: (styles: Partial<StyleProperties>) => void;
 
 	// スタイルコピー/ペースト
-	copyStyleFromSelection: () => void;
-	pasteStyleToSelection: () => void;
+	copyStyleFromSelection: () => boolean;
+	pasteStyleToSelection: () => boolean;
 
 	// プリセット管理
 	saveStylePreset: (name: string) => void;
@@ -122,12 +122,12 @@ export const createStyleSlice: StateCreator<StoreState, [], [], StyleSlice> = (
 
 	copyStyleFromSelection: () => {
 		const { selectedShapeIds, shapes } = get();
-		if (selectedShapeIds.size === 0) return;
+		if (selectedShapeIds.size === 0) return false;
 
 		const firstId = Array.from(selectedShapeIds)[0];
-		if (!firstId) return;
+		if (!firstId) return false;
 		const shape = shapes[firstId];
-		if (!shape) return;
+		if (!shape) return false;
 
 		const style: StyleProperties = {
 			fillColor: shape.fillColor,
@@ -141,13 +141,15 @@ export const createStyleSlice: StateCreator<StoreState, [], [], StyleSlice> = (
 		set({
 			copiedStyle: style,
 		});
+		return true;
 	},
 
 	pasteStyleToSelection: () => {
 		const { copiedStyle, updateSelectedShapesStyle } = get();
-		if (!copiedStyle) return;
+		if (!copiedStyle) return false;
 
 		updateSelectedShapesStyle(copiedStyle);
+		return true;
 	},
 
 	saveStylePreset: (name) => {
