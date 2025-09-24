@@ -20,6 +20,14 @@ export const Rectangle: React.FC<RectangleProps> = ({
 		? `rotate(${shape.rotation} ${shape.x + shape.width / 2} ${shape.y + shape.height / 2})`
 		: undefined;
 
+	// Create filter style for shadow effect
+	const filterStyle = shape.shadow
+		? {
+				filter: `drop-shadow(${shape.shadow.offsetX}px ${shape.shadow.offsetY}px ${shape.shadow.blur}px ${shape.shadow.color})`,
+				cursor: "pointer" as const,
+			}
+		: { cursor: "pointer" as const };
+
 	return (
 		<g
 			data-shape-id={shape.id}
@@ -39,7 +47,7 @@ export const Rectangle: React.FC<RectangleProps> = ({
 				fill={shape.fillColor || "transparent"}
 				stroke={shape.strokeColor || "#000"}
 				strokeWidth={shape.strokeWidth || 1}
-				style={{ cursor: "pointer" }}
+				style={filterStyle}
 				onClick={onClick}
 				onPointerDown={onPointerDown}
 			/>

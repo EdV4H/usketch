@@ -4,6 +4,8 @@ export * from "./defaults/shape-styles";
 export * from "./effects";
 export * from "./styles";
 
+import type { ShadowProperties } from "./styles";
+
 // Common geometry types
 export interface Point {
 	x: number;
@@ -28,6 +30,7 @@ export interface BaseShape {
 	strokeColor: string;
 	fillColor: string;
 	strokeWidth: number;
+	shadow?: ShadowProperties; // Optional shadow settings
 }
 
 // Rectangle shape

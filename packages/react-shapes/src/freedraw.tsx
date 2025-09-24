@@ -36,6 +36,13 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 		? `translate(${shape.x}, ${shape.y}) rotate(${shape.rotation} ${shape.width / 2} ${shape.height / 2})`
 		: `translate(${shape.x}, ${shape.y})`;
 
+	// Create filter style for shadow effect
+	const filterStyle = shape.shadow
+		? {
+				filter: `drop-shadow(${shape.shadow.offsetX}px ${shape.shadow.offsetY}px ${shape.shadow.blur}px ${shape.shadow.color})`,
+			}
+		: {};
+
 	return (
 		<g
 			data-shape-id={shape.id}
@@ -45,6 +52,7 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 			className={`shape-freedraw ${isSelected ? "selected" : ""}`}
 			transform={transform}
 			opacity={shape.opacity ?? 1}
+			style={filterStyle}
 		>
 			{/* Invisible rect for better click detection */}
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: SVG elements need interactions */}
