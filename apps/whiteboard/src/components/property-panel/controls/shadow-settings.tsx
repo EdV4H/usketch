@@ -34,10 +34,10 @@ export const ShadowSettings = () => {
 
 			// Parse color to hex and opacity
 			const rgba = firstShape.shadow.color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+),?\s*([\d.]+)?\)/);
-			if (rgba) {
-				const r = parseInt(rgba[1]);
-				const g = parseInt(rgba[2]);
-				const b = parseInt(rgba[3]);
+			if (rgba?.[1] && rgba[2] && rgba[3]) {
+				const r = parseInt(rgba[1], 10);
+				const g = parseInt(rgba[2], 10);
+				const b = parseInt(rgba[3], 10);
 				const a = parseFloat(rgba[4] || "1");
 				setColorHex(`#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`);
 				setOpacity(Math.round(a * 100));
@@ -57,8 +57,20 @@ export const ShadowSettings = () => {
 
 	const handleShadowToggle = (enabled: boolean) => {
 		setIsEnabled(enabled);
-		const newShadow = enabled ? shadowSettings : undefined;
-		updateSelectedShapesStyle({ shadow: newShadow });
+		if (enabled) {
+			updateSelectedShapesStyle({ shadow: shadowSettings });
+		} else {
+			// Pass an empty shadow to indicate removal
+			// The store will handle the removal properly
+			updateSelectedShapesStyle({
+				shadow: {
+					offsetX: 0,
+					offsetY: 0,
+					blur: 0,
+					color: "rgba(0,0,0,0)",
+				},
+			});
+		}
 	};
 
 	const handleShadowChange = (property: keyof ShadowProperties, value: number | string) => {
@@ -121,7 +133,13 @@ export const ShadowSettings = () => {
 		<div className="shadow-settings">
 			<div className="shadow-settings__header">
 				<div className="shadow-settings__title">
-					<svg className="shadow-settings__icon" viewBox="0 0 20 20" fill="currentColor">
+					<svg
+						className="shadow-settings__icon"
+						viewBox="0 0 20 20"
+						fill="currentColor"
+						aria-label="Shadow icon"
+						role="img"
+					>
 						<path
 							fillRule="evenodd"
 							d="M10 1a9 9 0 100 18 9 9 0 000-18zm0 2a7 7 0 110 14 7 7 0 010-14z"
@@ -143,10 +161,10 @@ export const ShadowSettings = () => {
 			<div className={`shadow-settings__content ${!isEnabled ? "shadow-settings--disabled" : ""}`}>
 				{/* X方向のオフセット */}
 				<div className="shadow-control">
-					<label className="shadow-control__label">
+					<div className="shadow-control__label">
 						<span>X方向オフセット</span>
 						<span className="shadow-control__value">{shadowSettings.offsetX}px</span>
-					</label>
+					</div>
 					<div className="shadow-control__slider-wrapper">
 						<input
 							type="range"
@@ -162,10 +180,10 @@ export const ShadowSettings = () => {
 
 				{/* Y方向のオフセット */}
 				<div className="shadow-control">
-					<label className="shadow-control__label">
+					<div className="shadow-control__label">
 						<span>Y方向オフセット</span>
 						<span className="shadow-control__value">{shadowSettings.offsetY}px</span>
-					</label>
+					</div>
 					<div className="shadow-control__slider-wrapper">
 						<input
 							type="range"
@@ -181,10 +199,10 @@ export const ShadowSettings = () => {
 
 				{/* ぼかし */}
 				<div className="shadow-control">
-					<label className="shadow-control__label">
+					<div className="shadow-control__label">
 						<span>ぼかし</span>
 						<span className="shadow-control__value">{shadowSettings.blur}px</span>
-					</label>
+					</div>
 					<div className="shadow-control__slider-wrapper">
 						<input
 							type="range"
@@ -200,9 +218,9 @@ export const ShadowSettings = () => {
 
 				{/* シャドウの色 */}
 				<div className="shadow-color-control">
-					<label className="shadow-control__label">
+					<div className="shadow-control__label">
 						<span>シャドウの色</span>
-					</label>
+					</div>
 					<div className="shadow-color-control__input-group">
 						<div className="shadow-color-control__picker">
 							<input
@@ -222,7 +240,7 @@ export const ShadowSettings = () => {
 						/>
 					</div>
 					<div className="shadow-opacity-control">
-						<label className="shadow-opacity-control__label">透明度</label>
+						<span className="shadow-opacity-control__label">透明度</span>
 						<input
 							type="range"
 							className="shadow-control__slider shadow-opacity-control__slider"
@@ -238,9 +256,10 @@ export const ShadowSettings = () => {
 
 				{/* プリセット */}
 				<div className="shadow-presets">
-					<label className="shadow-presets__label">プリセット</label>
+					<div className="shadow-presets__label">プリセット</div>
 					<div className="shadow-presets__grid">
 						<button
+							type="button"
 							className="shadow-preset-button"
 							onClick={() => applyPreset({ offsetX: 0, offsetY: 1, blur: 2, opacity: 10 })}
 							disabled={!isEnabled}
@@ -248,6 +267,7 @@ export const ShadowSettings = () => {
 							極小
 						</button>
 						<button
+							type="button"
 							className="shadow-preset-button"
 							onClick={() => applyPreset({ offsetX: 0, offsetY: 2, blur: 4, opacity: 15 })}
 							disabled={!isEnabled}
@@ -255,6 +275,7 @@ export const ShadowSettings = () => {
 							小
 						</button>
 						<button
+							type="button"
 							className="shadow-preset-button"
 							onClick={() => applyPreset({ offsetX: 0, offsetY: 4, blur: 8, opacity: 25 })}
 							disabled={!isEnabled}
@@ -262,6 +283,7 @@ export const ShadowSettings = () => {
 							標準
 						</button>
 						<button
+							type="button"
 							className="shadow-preset-button"
 							onClick={() => applyPreset({ offsetX: 0, offsetY: 8, blur: 16, opacity: 35 })}
 							disabled={!isEnabled}
@@ -269,6 +291,7 @@ export const ShadowSettings = () => {
 							大
 						</button>
 						<button
+							type="button"
 							className="shadow-preset-button"
 							onClick={() => applyPreset({ offsetX: 0, offsetY: 16, blur: 32, opacity: 45 })}
 							disabled={!isEnabled}
@@ -276,6 +299,7 @@ export const ShadowSettings = () => {
 							極大
 						</button>
 						<button
+							type="button"
 							className="shadow-preset-button"
 							onClick={() => applyPreset({ offsetX: 4, offsetY: 4, blur: 0, opacity: 50 })}
 							disabled={!isEnabled}

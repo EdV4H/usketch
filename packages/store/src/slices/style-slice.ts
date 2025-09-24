@@ -86,7 +86,14 @@ export const createStyleSlice: StateCreator<StoreState, [], [], StyleSlice> = (
 					const newShapes = { ...state.shapes };
 					Array.from(selectedShapeIds).forEach((id) => {
 						if (newShapes[id]) {
-							newShapes[id] = { ...newShapes[id], ...styles } as Shape;
+							const updatedShape = { ...newShapes[id] };
+							// Apply non-undefined values
+							Object.entries(styles).forEach(([key, value]) => {
+								if (value !== undefined) {
+									(updatedShape as any)[key] = value;
+								}
+							});
+							newShapes[id] = updatedShape as Shape;
 						}
 					});
 					state.shapes = newShapes;
