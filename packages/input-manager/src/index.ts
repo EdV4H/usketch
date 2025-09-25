@@ -1,12 +1,19 @@
 // Managers
+
+export { GestureManager } from "./gesture-manager";
 export { KeyboardManager } from "./keyboard-manager";
+export { MouseManager } from "./mouse-manager";
 
 // Types
 export type {
 	CommandHandler,
 	CommandRegistry,
 	DragState,
+	GestureBinding,
+	GestureBindings,
+	GestureConfig,
 	GestureEvent,
+	GesturePreset,
 	GestureState,
 	GestureType,
 	IGestureManager,
@@ -24,4 +31,7 @@ export type {
 	MouseConfig,
 	MousePreset,
 	PanEvent,
+	PinchEvent,
+	RotateEvent,
+	SwipeEvent,
 } from "./types";

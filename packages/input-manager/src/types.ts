@@ -1,9 +1,9 @@
 import type {
 	GestureType,
+	MouseBinding as InputMouseBinding,
+	MouseBindings as InputMouseBindings,
 	KeyBindings,
 	KeyboardPreset,
-	MouseBinding,
-	MouseBindings,
 	MousePreset,
 } from "@usketch/input-presets";
 
@@ -11,10 +11,17 @@ export type {
 	GestureType,
 	KeyBindings,
 	KeyboardPreset,
-	MouseBinding,
-	MouseBindings,
 	MousePreset,
 } from "@usketch/input-presets";
+
+// ローカルのMouseBinding（commandフィールドを必須に）
+export interface MouseBinding extends InputMouseBinding {
+	command: string;
+}
+
+export interface MouseBindings {
+	[command: string]: MouseBinding;
+}
 
 // Keyboard types
 export interface KeyboardConfig {
@@ -40,10 +47,36 @@ export interface KeyboardContext {
 // Mouse types
 export interface MouseConfig {
 	preset?: MousePreset;
-	customBindings?: MouseBindings;
+	customBindings?: InputMouseBindings;
 	sensitivity?: number;
 	invertScroll?: boolean;
 	debug?: boolean;
+}
+
+// Gesture types
+export interface GestureConfig {
+	preset?: GesturePreset;
+	customBindings?: GestureBindings;
+	sensitivity?: number;
+	debug?: boolean;
+}
+
+export interface GestureBinding {
+	command: string;
+	gesture: GestureType;
+	modifiers?: string[];
+	threshold?: number;
+}
+
+export interface GestureBindings {
+	[command: string]: GestureBinding;
+}
+
+export interface GesturePreset {
+	id: string;
+	name: string;
+	description: string;
+	bindings: GestureBindings;
 }
 
 export interface DragState {
@@ -72,15 +105,41 @@ export interface GestureEvent {
 	deltaY?: number; // パン用
 	velocity?: number; // スワイプ用
 	direction?: "up" | "down" | "left" | "right";
+	centerX?: number;
+	centerY?: number;
+	distance?: number;
+	startDistance?: number;
+}
+
+// 具体的なジェスチャーイベント型
+export interface PinchEvent extends GestureEvent {
+	type: "pinch";
+	scale: number;
+	centerX: number;
+	centerY: number;
+	startDistance: number;
+}
+
+export interface RotateEvent extends GestureEvent {
+	type: "rotate";
+	rotation: number;
+	centerX: number;
+	centerY: number;
+}
+
+export interface SwipeEvent extends GestureEvent {
+	type: "swipe";
+	direction: "up" | "down" | "left" | "right";
+	distance: number;
+	velocity: number;
+	deltaX: number;
+	deltaY: number;
 }
 
 export interface GestureState {
-	id: number;
-	startX: number;
-	startY: number;
-	currentX: number;
-	currentY: number;
-	timestamp: number;
+	type: GestureType;
+	startTime: number;
+	isActive: boolean;
 }
 
 // Command types
@@ -124,7 +183,16 @@ export interface IMouseManager {
 }
 
 export interface IGestureManager {
-	processPointerEvent(event: PointerEvent): GestureEvent | null;
-	reset(): void;
+	initialize(config: GestureConfig): void;
+	setBinding(command: string, binding: GestureBinding): void;
+	setBindings(bindings: GestureBindings): void;
+	removeBinding(command: string): void;
+	loadPreset(preset: GesturePreset): void;
+	registerCommand(name: string, handler: CommandHandler): void;
+	unregisterCommand(name: string): void;
+	executeCommand(command: string, event: GestureEvent): boolean;
+	handleTouchStart(event: TouchEvent): boolean;
+	handleTouchMove(event: TouchEvent): boolean;
+	handleTouchEnd(event: TouchEvent): boolean;
 	destroy(): void;
 }
