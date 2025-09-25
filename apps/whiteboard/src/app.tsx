@@ -17,7 +17,8 @@ import { customShapePlugins } from "./custom-shapes";
 import type { EffectPlugin } from "./effects";
 import { fadingPinPlugin, pinPlugin, ripplePlugin } from "./effects";
 import { createAppEffect } from "./effects/effect-factory";
-import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
+// import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
+import { useIntegratedInput } from "./hooks/use-integrated-input";
 import "./styles/app.css";
 
 // Helper function to add shape with delay
@@ -38,11 +39,21 @@ function AppContent() {
 	const [effectPlugins] = useState<EffectPlugin<any>[]>([ripplePlugin, pinPlugin, fadingPinPlugin]);
 	const [isPanelOpen, setIsPanelOpen] = useState(true);
 	const [showInputDemo, setShowInputDemo] = useState(false);
+	const [keyboardPreset] = useState<"default" | "vim">("default");
+	const [mousePreset] = useState<"default" | "trackpad" | "gaming">("default");
 
-	// Setup keyboard shortcuts
-	useKeyboardShortcuts({
+	// 統合入力システムを使用（キーボード・マウス・ジェスチャーをCanvasと接続）
+	useIntegratedInput({
+		keyboardPreset,
+		mousePreset,
+		debug: true, // デバッグログを有効化
 		onPanelToggle: () => setIsPanelOpen((prev) => !prev),
 	});
+
+	// Setup keyboard shortcuts（旧実装は無効化）
+	// useKeyboardShortcuts({
+	// 	onPanelToggle: () => setIsPanelOpen((prev) => !prev),
+	// });
 
 	const [background, setBackground] = useState<any>({
 		id: "usketch.dots",
