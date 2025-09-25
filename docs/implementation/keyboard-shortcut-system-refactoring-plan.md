@@ -936,7 +936,449 @@ export function registerCameraCommands(
 4. コマンド登録の統合
 5. イベントハンドラーの最適化
 
-### フェーズ4: UI実装（2-3日）
+### フェーズ4: apps/whiteboardへの統合（2-3日）
+
+#### 4.1 アプリケーション層への統合
+
+##### 実装詳細
+
+```tsx
+// apps/whiteboard/src/app.tsx
+import { InputProvider } from '@usketch/react-canvas';
+import { defaultKeymap, vimKeymap } from '@usketch/input-presets';
+import { defaultMouseMap, trackpadPreset } from '@usketch/input-presets';
+
+export function App() {
+  const [keyboardPreset, setKeyboardPreset] = useState(
+    localStorage.getItem('keyboardPreset') || 'default'
+  );
+  const [mousePreset, setMousePreset] = useState(
+    localStorage.getItem('mousePreset') || 'default'
+  );
+
+  const customKeyBindings = useMemo(() => {
+    const saved = localStorage.getItem('customKeyBindings');
+    return saved ? JSON.parse(saved) : {};
+  }, []);
+
+  const customMouseBindings = useMemo(() => {
+    const saved = localStorage.getItem('customMouseBindings');
+    return saved ? JSON.parse(saved) : {};
+  }, []);
+
+  const handleInputBindingChange = useCallback((type: string, bindings: any) => {
+    localStorage.setItem(`custom${type}Bindings`, JSON.stringify(bindings));
+  }, []);
+
+  return (
+    <InputProvider
+      keyboardPreset={keyboardPreset === 'vim' ? vimKeymap : defaultKeymap}
+      mousePreset={mousePreset === 'trackpad' ? trackpadPreset : defaultMouseMap}
+      customKeyBindings={customKeyBindings}
+      customMouseBindings={customMouseBindings}
+      onBindingChange={handleInputBindingChange}
+    >
+      <WhiteboardCanvas />
+      <SettingsPanel 
+        onKeyboardPresetChange={setKeyboardPreset}
+        onMousePresetChange={setMousePreset}
+      />
+    </InputProvider>
+  );
+}
+```
+
+##### グローバル入力設定の初期化
+
+```tsx
+// apps/whiteboard/src/providers/app-input-provider.tsx
+import { useInput } from '@usketch/react-canvas';
+import { useWhiteboardStore } from '@usketch/store';
+
+export const AppInputProvider: React.FC<PropsWithChildren> = ({ children }) => {
+  const { keyboard, mouse } = useInput();
+  const store = useWhiteboardStore();
+  
+  useEffect(() => {
+    if (!keyboard || !mouse) return;
+
+    // アプリケーション固有のコマンドハンドラー登録
+    
+    // プロパティパネルのトグル
+    keyboard.registerCommand('togglePropertyPanel', () => {
+      store.togglePropertyPanel();
+      return true;
+    });
+
+    // デバッグパネルのトグル
+    keyboard.registerCommand('toggleDebugPanel', () => {
+      store.toggleDebugPanel();
+      return true;
+    });
+
+    // スタイルのコピー＆ペースト
+    let copiedStyle: ShapeStyle | null = null;
+    
+    keyboard.registerCommand('copyStyle', () => {
+      const selectedShapes = store.getSelectedShapes();
+      if (selectedShapes.length > 0) {
+        copiedStyle = selectedShapes[0].style;
+        return true;
+      }
+      return false;
+    });
+
+    keyboard.registerCommand('pasteStyle', () => {
+      if (copiedStyle) {
+        const selectedShapes = store.getSelectedShapes();
+        selectedShapes.forEach(shape => {
+          store.updateShapeStyle(shape.id, copiedStyle);
+        });
+        return true;
+      }
+      return false;
+    });
+
+    // エクスポート機能
+    keyboard.registerCommand('exportAsPNG', () => {
+      exportCanvasAsPNG();
+      return true;
+    });
+
+    keyboard.registerCommand('exportAsSVG', () => {
+      exportCanvasAsSVG();
+      return true;
+    });
+    
+    // クリーンアップ
+    return () => {
+      keyboard.unregisterCommand('togglePropertyPanel');
+      keyboard.unregisterCommand('toggleDebugPanel');
+      keyboard.unregisterCommand('copyStyle');
+      keyboard.unregisterCommand('pasteStyle');
+      keyboard.unregisterCommand('exportAsPNG');
+      keyboard.unregisterCommand('exportAsSVG');
+    };
+  }, [keyboard, mouse, store]);
+
+  return <>{children}</>;
+};
+```
+
+#### 4.2 既存機能の移行
+
+##### 移行対象ファイル
+
+1. `apps/whiteboard/src/hooks/use-keyboard-shortcuts.ts` → 削除
+2. 重複実装の統合
+
+```tsx
+// 移行前 (apps/whiteboard/src/hooks/use-keyboard-shortcuts.ts)
+const handleKeyDown = (e: KeyboardEvent) => {
+  // 旧実装...
+};
+
+// 移行後 (InputProviderに統合済み)
+// すべてのキーボードショートカットは@usketch/input-managerで管理
+```
+
+##### 重複解消の実装
+
+```tsx
+// packages/react-canvas/src/commands/register-all-commands.ts
+export function registerAllCommands(
+  keyboard: KeyboardManager,
+  mouse: MouseManager,
+  store: WhiteboardStore
+) {
+  // 基本コマンド（削除、選択、エスケープ等）
+  registerBasicCommands(keyboard, store);
+  
+  // ツール切り替えコマンド
+  registerToolCommands(keyboard, store);
+  
+  // アライメントコマンド
+  registerAlignmentCommands(keyboard, store);
+  
+  // カメラ操作コマンド
+  registerCameraCommands(keyboard, mouse, store);
+  
+  // Undo/Redoコマンド（重複を解消）
+  registerHistoryCommands(keyboard, store);
+  
+  // スナップコマンド
+  registerSnapCommands(keyboard, store);
+}
+```
+
+#### 4.3 設定UIの実装
+
+##### 入力設定パネル
+
+```tsx
+// apps/whiteboard/src/components/settings/input-settings.tsx
+import { useInput } from '@usketch/react-canvas';
+import { availablePresets } from '@usketch/input-presets';
+
+export const InputSettings: React.FC = () => {
+  const { 
+    keyBindings, 
+    mouseBindings, 
+    updateKeyBinding, 
+    updateMouseBinding,
+    resetToPreset 
+  } = useInput();
+  
+  const [editingCommand, setEditingCommand] = useState<string | null>(null);
+  const [recordingKeys, setRecordingKeys] = useState(false);
+  
+  const handleRecordKeys = (command: string) => {
+    setEditingCommand(command);
+    setRecordingKeys(true);
+  };
+  
+  const handleKeyPress = useCallback((e: KeyboardEvent) => {
+    if (!recordingKeys || !editingCommand) return;
+    
+    e.preventDefault();
+    const keys = normalizeKeyEvent(e);
+    updateKeyBinding(editingCommand, [keys]);
+    setRecordingKeys(false);
+    setEditingCommand(null);
+  }, [recordingKeys, editingCommand, updateKeyBinding]);
+  
+  useEffect(() => {
+    if (recordingKeys) {
+      window.addEventListener('keydown', handleKeyPress);
+      return () => window.removeEventListener('keydown', handleKeyPress);
+    }
+  }, [recordingKeys, handleKeyPress]);
+  
+  return (
+    <div className="input-settings">
+      <Tabs defaultValue="keyboard">
+        <TabsList>
+          <TabsTrigger value="keyboard">キーボード</TabsTrigger>
+          <TabsTrigger value="mouse">マウス</TabsTrigger>
+          <TabsTrigger value="gestures">ジェスチャー</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="keyboard">
+          <div className="preset-selector">
+            <Select onValueChange={(preset) => resetToPreset('keyboard', preset)}>
+              <SelectTrigger>
+                <SelectValue placeholder="プリセットを選択" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default</SelectItem>
+                <SelectItem value="vim">Vim-style</SelectItem>
+                <SelectItem value="custom">カスタム</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="keybindings-list">
+            {Object.entries(keyBindings).map(([command, keys]) => (
+              <div key={command} className="keybinding-item">
+                <span className="command-name">{command}</span>
+                <span className="keys">{keys.join(', ')}</span>
+                <Button
+                  size="sm"
+                  onClick={() => handleRecordKeys(command)}
+                  disabled={recordingKeys}
+                >
+                  {editingCommand === command && recordingKeys ? 'キー入力待機中...' : '変更'}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="mouse">
+          <div className="preset-selector">
+            <Select onValueChange={(preset) => resetToPreset('mouse', preset)}>
+              <SelectTrigger>
+                <SelectValue placeholder="プリセットを選択" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Standard Mouse</SelectItem>
+                <SelectItem value="trackpad">Trackpad</SelectItem>
+                <SelectItem value="gaming">Gaming Mouse</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="mouse-bindings-list">
+            {Object.entries(mouseBindings).map(([command, binding]) => (
+              <MouseBindingEditor
+                key={command}
+                command={command}
+                binding={binding}
+                onChange={(newBinding) => updateMouseBinding(command, newBinding)}
+              />
+            ))}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="gestures">
+          <GestureSettings />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+```
+
+##### ローカルストレージへの永続化
+
+```tsx
+// apps/whiteboard/src/hooks/use-persisted-input-settings.ts
+export const usePersistedInputSettings = () => {
+  const { keyBindings, mouseBindings } = useInput();
+  
+  // 設定変更時に自動保存
+  useEffect(() => {
+    localStorage.setItem('keyBindings', JSON.stringify(keyBindings));
+  }, [keyBindings]);
+  
+  useEffect(() => {
+    localStorage.setItem('mouseBindings', JSON.stringify(mouseBindings));
+  }, [mouseBindings]);
+  
+  // 初回ロード時に復元
+  useEffect(() => {
+    const savedKeyBindings = localStorage.getItem('keyBindings');
+    const savedMouseBindings = localStorage.getItem('mouseBindings');
+    
+    if (savedKeyBindings) {
+      const bindings = JSON.parse(savedKeyBindings);
+      Object.entries(bindings).forEach(([command, keys]) => {
+        updateKeyBinding(command, keys as string[]);
+      });
+    }
+    
+    if (savedMouseBindings) {
+      const bindings = JSON.parse(savedMouseBindings);
+      Object.entries(bindings).forEach(([command, binding]) => {
+        updateMouseBinding(command, binding as MouseBinding);
+      });
+    }
+  }, []);
+};
+```
+
+#### 4.4 パフォーマンス最適化
+
+```tsx
+// apps/whiteboard/src/hooks/use-optimized-input.ts
+export const useOptimizedInput = () => {
+  const { keyboard, mouse } = useInput();
+  
+  // イベントハンドラーのメモ化
+  const handleKeyDown = useMemo(() => 
+    throttle((e: KeyboardEvent) => keyboard?.handleKeyDown(e), 10),
+    [keyboard]
+  );
+  
+  const handlePointerMove = useMemo(() =>
+    throttle((e: PointerEvent) => mouse?.handlePointerMove(e), 5),
+    [mouse]
+  );
+  
+  // デバウンス処理
+  const handleWheel = useMemo(() =>
+    debounce((e: WheelEvent) => mouse?.handleWheel(e), 50),
+    [mouse]
+  );
+  
+  // メモリリーク対策
+  useEffect(() => {
+    const controller = new AbortController();
+    
+    document.addEventListener('keydown', handleKeyDown, { 
+      signal: controller.signal 
+    });
+    document.addEventListener('pointermove', handlePointerMove, { 
+      signal: controller.signal,
+      passive: true
+    });
+    document.addEventListener('wheel', handleWheel, { 
+      signal: controller.signal,
+      passive: false
+    });
+    
+    return () => controller.abort();
+  }, [handleKeyDown, handlePointerMove, handleWheel]);
+};
+```
+
+#### 4.5 統合テスト
+
+```tsx
+// apps/e2e/tests/input-integration.spec.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('Input System Integration', () => {
+  test('keyboard shortcuts work with InputProvider', async ({ page }) => {
+    await page.goto('/');
+    
+    // 矩形ツールへの切り替え
+    await page.keyboard.press('r');
+    const activeTool = await page.getAttribute('[data-testid="active-tool"]', 'data-tool');
+    expect(activeTool).toBe('rectangle');
+    
+    // Undo/Redo
+    await page.keyboard.press('Control+z');
+    await page.keyboard.press('Control+Shift+z');
+    
+    // カメラ操作
+    await page.keyboard.press('Control+=');
+    const zoom = await page.getAttribute('[data-testid="zoom-level"]', 'data-zoom');
+    expect(parseFloat(zoom)).toBeGreaterThan(1);
+  });
+  
+  test('mouse operations work with InputProvider', async ({ page }) => {
+    await page.goto('/');
+    
+    // ホイールズーム
+    await page.mouse.wheel(0, -100);
+    await page.waitForTimeout(100);
+    
+    // 中クリックパン
+    await page.mouse.down({ button: 'middle' });
+    await page.mouse.move(100, 100);
+    await page.mouse.up({ button: 'middle' });
+    
+    // スペース+ドラッグパン
+    await page.keyboard.down('Space');
+    await page.mouse.down();
+    await page.mouse.move(200, 200);
+    await page.mouse.up();
+    await page.keyboard.up('Space');
+  });
+  
+  test('settings UI persists configuration', async ({ page }) => {
+    await page.goto('/settings');
+    
+    // プリセット変更
+    await page.selectOption('[data-testid="keyboard-preset"]', 'vim');
+    await page.reload();
+    
+    const preset = await page.inputValue('[data-testid="keyboard-preset"]');
+    expect(preset).toBe('vim');
+    
+    // カスタムバインディング
+    await page.click('[data-testid="edit-binding-zoomIn"]');
+    await page.keyboard.press('Alt+Plus');
+    
+    await page.reload();
+    const binding = await page.textContent('[data-testid="binding-zoomIn"]');
+    expect(binding).toContain('Alt+Plus');
+  });
+});
+```
+
+### フェーズ5: UI実装（2-3日）
 
 1. 入力設定パネルコンポーネント
 2. キーボード・マウスバインディング表示
@@ -944,7 +1386,7 @@ export function registerCameraCommands(
 4. プリセット選択UI
 5. ジェスチャー設定UI
 
-### フェーズ5: テスト・最適化（2日）
+### フェーズ6: テスト・最適化（2日）
 
 1. ユニットテスト作成
 2. E2Eテスト追加（マウス操作含む）
@@ -1112,14 +1554,61 @@ store.panBy(100, 50);
 
 これにより、ユーザーの生産性向上と、開発者の保守性向上の両方を達成します。
 
+## 更新されたタイムライン（apps/whiteboard統合版）
+
+### 全体期間: 12-15日（当初10-12日から延長）
+
+#### 詳細スケジュール
+
+**週1（5日）**
+- Day 1-2: `@usketch/input-presets` パッケージ作成
+- Day 3-4: `@usketch/input-manager` パッケージ作成（KeyboardManager, MouseManager）
+- Day 5: `@usketch/input-manager` パッケージ作成（GestureManager, コマンドシステム）
+
+**週2（5日）**
+- Day 6: カメラ操作実装（Store統合、基本コマンド）
+- Day 7: カメラ操作実装（マウス/ジェスチャー対応）
+- Day 8-9: React統合層（InputProvider, useInputフック）
+- Day 10: apps/whiteboardへの統合（基本統合）
+
+**週3（4-5日）**
+- Day 11: apps/whiteboardへの統合（既存機能移行、重複解消）
+- Day 12: apps/whiteboardへの統合（設定UI、永続化）
+- Day 13: UI実装とパフォーマンス最適化
+- Day 14: テスト作成（ユニット、E2E、統合テスト）
+- Day 15: ドキュメント作成と最終調整
+
+### フェーズ別所要時間の内訳
+
+1. **パッケージ構築**: 4-5日（変更なし）
+2. **カメラ操作実装**: 2日（変更なし）
+3. **React統合**: 2日（1日短縮）
+4. **apps/whiteboard統合**: 3日（新規追加）
+5. **UI実装**: 1-2日（1日短縮）
+6. **テスト・最適化**: 2日（変更なし）
+
+### 追加作業による影響
+
+**追加された作業**:
+- アプリケーション層への深い統合
+- 既存機能の完全移行
+- 設定の永続化機能
+- 統合テストの充実
+
+**効率化による短縮**:
+- React統合とUI実装の一部をapps/whiteboard統合に吸収
+- 並行作業可能な部分の特定
+
 ## 実装優先順位
 
 1. **高優先度**
    - キーボードショートカット基盤
+   - apps/whiteboardへの基本統合
    - マウスホイールズーム
    - 基本的なプリセット
 
 2. **中優先度**
+   - 設定UI実装
    - ジェスチャー認識
    - カスタマイズUI
    - トラックパッド最適化
