@@ -1,0 +1,25 @@
+{
+	"name": "@usketch/input-presets",
+	"version": "0.0.0",
+	"main": "./dist/index.js",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.ts",
+	"sideEffects": false,
+	"license": "MIT",
+	"files": [
+		"dist/**"
+	],
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@usketch/tsconfig": "workspace:*",
+		"tsup": "^8.3.5",
+		"typescript": "^5.8.0-beta"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}
