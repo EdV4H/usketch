@@ -1,0 +1,32 @@
+{
+	"name": "@usketch/input-presets",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./keyboard": {
+			"import": "./dist/keyboard/index.js",
+			"types": "./dist/keyboard/index.d.ts"
+		},
+		"./mouse": {
+			"import": "./dist/mouse/index.js",
+			"types": "./dist/mouse/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc",
+		"clean": "rm -rf dist",
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@usketch/tsconfig": "workspace:*",
+		"typescript": "^5.8.0"
+	}
+}

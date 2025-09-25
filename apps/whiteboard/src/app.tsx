@@ -8,6 +8,7 @@ import { getEffectTool } from "@usketch/tools";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
 import { DebugMenu } from "./components/debug-menu";
+import { InputDemo } from "./components/input-demo";
 import { PropertyPanel } from "./components/property-panel/property-panel";
 import { ToastContainer } from "./components/toast";
 import { ToolbarReact } from "./components/toolbar-react";
@@ -16,7 +17,8 @@ import { customShapePlugins } from "./custom-shapes";
 import type { EffectPlugin } from "./effects";
 import { fadingPinPlugin, pinPlugin, ripplePlugin } from "./effects";
 import { createAppEffect } from "./effects/effect-factory";
-import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
+// import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
+import { useIntegratedInput } from "./hooks/use-integrated-input";
 import "./styles/app.css";
 
 // Helper function to add shape with delay
@@ -36,11 +38,22 @@ function AppContent() {
 	const [shapePlugins, setShapePlugins] = useState<ShapePlugin<any>[]>([]);
 	const [effectPlugins] = useState<EffectPlugin<any>[]>([ripplePlugin, pinPlugin, fadingPinPlugin]);
 	const [isPanelOpen, setIsPanelOpen] = useState(true);
+	const [showInputDemo, setShowInputDemo] = useState(false);
+	const [keyboardPreset] = useState<"default" | "vim">("default");
+	const [mousePreset] = useState<"default" | "trackpad" | "gaming">("default");
 
-	// Setup keyboard shortcuts
-	useKeyboardShortcuts({
+	// 統合入力システムを使用（キーボード・マウス・ジェスチャーをCanvasと接続）
+	useIntegratedInput({
+		keyboardPreset,
+		mousePreset,
+		debug: true, // デバッグログを有効化
 		onPanelToggle: () => setIsPanelOpen((prev) => !prev),
 	});
+
+	// Setup keyboard shortcuts（旧実装は無効化）
+	// useKeyboardShortcuts({
+	// 	onPanelToggle: () => setIsPanelOpen((prev) => !prev),
+	// });
 
 	const [background, setBackground] = useState<any>({
 		id: "usketch.dots",
@@ -131,19 +144,43 @@ function AppContent() {
 				onPanelToggle={() => setIsPanelOpen(!isPanelOpen)}
 			/>
 			<div className="main-content">
-				<div className="whiteboard-container">
-					<WhiteboardCanvas
-						shapes={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
-						effects={effectPlugins}
-						className="whiteboard"
-						background={background}
-						onReady={handleCanvasReady}
-					/>
-				</div>
-				{isPanelOpen && <PropertyPanel />}
+				{showInputDemo ? (
+					<InputDemo />
+				) : (
+					<>
+						<div className="whiteboard-container">
+							<WhiteboardCanvas
+								shapes={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
+								effects={effectPlugins}
+								className="whiteboard"
+								background={background}
+								onReady={handleCanvasReady}
+							/>
+						</div>
+						{isPanelOpen && <PropertyPanel />}
+					</>
+				)}
 			</div>
 			<DebugMenu />
 			<ToastContainer />
+			<button
+				type="button"
+				onClick={() => setShowInputDemo(!showInputDemo)}
+				style={{
+					position: "fixed",
+					bottom: "20px",
+					left: "20px",
+					padding: "10px 20px",
+					background: "#2196F3",
+					color: "white",
+					border: "none",
+					borderRadius: "4px",
+					cursor: "pointer",
+					zIndex: 1000,
+				}}
+			>
+				{showInputDemo ? "Show Canvas" : "Show Input Demo"}
+			</button>
 		</div>
 	);
 }

@@ -99,7 +99,6 @@ export interface WhiteboardStore extends WhiteboardState, StyleSlice {
 	deselectShape: (id: string) => void;
 	clearSelection: () => void;
 	setCamera: (camera: Partial<Camera>) => void;
-	setCurrentTool: (tool: string) => void;
 	setActiveTool: (tool: string) => void;
 
 	// Multiple selection actions
@@ -210,6 +209,7 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 				selectedShapeIds: mutableState.selectedShapeIds,
 				camera: mutableState.camera,
 				currentTool: mutableState.currentTool,
+				activeTool: mutableState.currentTool, // Keep activeTool in sync
 			};
 		});
 	},
@@ -220,7 +220,7 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 	shapes: {},
 	selectedShapeIds: new Set(),
 	camera: { x: 0, y: 0, zoom: 1 },
-	currentTool: "select",
+	currentTool: "select", // For WhiteboardState compatibility
 	activeTool: "select",
 	selectionIndicator: {
 		bounds: null,
@@ -301,12 +301,8 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 		get().executeCommand(new SetCameraCommand(camera));
 	},
 
-	setCurrentTool: (tool: string) => {
-		set((state) => ({ ...state, currentTool: tool }));
-	},
-
 	setActiveTool: (tool: string) => {
-		set((state) => ({ ...state, activeTool: tool }));
+		set((state) => ({ ...state, activeTool: tool, currentTool: tool }));
 	},
 
 	deleteShapes: (ids: string[]) => {
