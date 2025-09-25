@@ -122,7 +122,7 @@ export const defaultKeymap: KeyboardPreset = {
     'alignRight': ['mod+shift+ArrowRight'],
     'alignTop': ['mod+shift+ArrowUp'],
     'alignBottom': ['mod+shift+ArrowDown'],
-    'alignCenterH': ['mod+shift+h'],  // 'c'から'h'に変更（copyStyleとの競合回避）
+    'alignCenterH': ['mod+shift+h'],  // 'h'を使用（HorizontalのH、直感的なキー割り当て）
     'alignCenterV': ['mod+shift+m'],
     
     // カメラ操作（新規）
@@ -177,8 +177,8 @@ export const defaultMouseMap: MousePreset = {
     
     // カメラ操作
     'pan': { button: 1, action: 'drag' }, // 中ボタンドラッグ
-    'panAlternative': { button: 2, action: 'drag', modifiers: ['space'] }, // スペース+右ドラッグ
-    'panWithHand': { button: 0, action: 'drag', modifiers: ['space'] }, // スペース+左ドラッグ（手のひらツール）
+    // 注: キーボード併用操作は別システムで管理
+    // スペースキー押下中の動作は KeyboardManager と連携して実装
     
     // 修飾キー付き操作
     'multiSelect': { button: 0, modifiers: ['shift'] },
@@ -453,12 +453,19 @@ export class MouseManager {
     return false;
   }
   
+  /**
+   * 修飾キーの状態を取得
+   * 'mod'はプラットフォーム非依存の抽象化キー：
+   * - macOS: Cmd (metaKey)
+   * - Windows/Linux: Ctrl (ctrlKey)
+   * これにより同じキーバインディングで全プラットフォームに対応
+   */
   private getModifiers(event: MouseEvent | KeyboardEvent): string[] {
     const modifiers: string[] = [];
-    if (event.ctrlKey || event.metaKey) modifiers.push('mod'); // 'ctrl'から'mod'に統一
+    if (event.ctrlKey || event.metaKey) modifiers.push('mod'); // プラットフォーム非依存
     if (event.shiftKey) modifiers.push('shift');
     if (event.altKey) modifiers.push('alt');
-    // スペースキーの状態は別途管理が必要
+    // 注: スペースキーの状態は別途グローバル状態管理が必要
     return modifiers;
   }
 }
@@ -762,11 +769,24 @@ export function registerCameraCommands(
     if (!panStartCamera) return false;
     
     // ドラッグ量に応じてカメラを移動
+    // マウスを右にドラッグ → ビューポートを左に移動（カメラを右に移動）
+    // これによりコンテンツが左にスクロールする感覚を実現
     const sensitivity = 1.0; // 感度調整
-    store.setCamera({
-      x: panStartCamera.x + event.deltaX * sensitivity,
-      y: panStartCamera.y + event.deltaY * sensitivity
-    });
+    const invertDirection = true; // trueの場合、自然なドラッグ感覚（コンテンツをつかんで動かす）
+    
+    if (invertDirection) {
+      // コンテンツをつかんで動かす感覚（推奨）
+      store.setCamera({
+        x: panStartCamera.x - event.deltaX * sensitivity,
+        y: panStartCamera.y - event.deltaY * sensitivity
+      });
+    } else {
+      // ビューポートを動かす感覚
+      store.setCamera({
+        x: panStartCamera.x + event.deltaX * sensitivity,
+        y: panStartCamera.y + event.deltaY * sensitivity
+      });
+    }
     return true;
   });
   
@@ -775,28 +795,52 @@ export function registerCameraCommands(
     return true;
   });
   
-  // スペース+ドラッグによるパン（手のひらツール）
-  manager.registerCommand('panWithHand:start', (event: PointerEvent) => {
-    panStartCamera = { ...store.camera };
-    // カーソルを手のひらに変更
-    document.body.style.cursor = 'grabbing';
-    event.preventDefault();
-    return true;
+  // キーボード併用パン操作（手のひらツール）
+  // スペースキー押下状態はKeyboardManagerで管理
+  let isSpacePressed = false;
+  
+  // KeyboardManagerからの状態通知を受信
+  keyboardManager.on('space:down', () => {
+    isSpacePressed = true;
+    document.body.style.cursor = 'grab';
   });
   
-  manager.registerCommand('panWithHand:move', (event: PanEvent) => {
-    if (!panStartCamera) return false;
+  keyboardManager.on('space:up', () => {
+    isSpacePressed = false;
+    document.body.style.cursor = 'default';
+  });
+  
+  // マウス操作時にスペースキー状態をチェック
+  manager.registerCommand('drag:start', (event: PointerEvent) => {
+    if (isSpacePressed && event.button === 0) { // スペース+左クリック
+      panStartCamera = { ...store.camera };
+      document.body.style.cursor = 'grabbing';
+      event.preventDefault();
+      return true;
+    }
+    return false;
+  });
+  
+  manager.registerCommand('drag:move', (event: PanEvent) => {
+    if (!panStartCamera || !isSpacePressed) return false;
     
+    // 自然なドラッグ感覚（コンテンツをつかんで動かす）
     store.setCamera({
-      x: panStartCamera.x + event.deltaX,
-      y: panStartCamera.y + event.deltaY
+      x: panStartCamera.x - event.deltaX,  // 反転
+      y: panStartCamera.y - event.deltaY   // 反転
     });
     return true;
   });
   
-  manager.registerCommand('panWithHand:end', () => {
-    panStartCamera = null;
-    document.body.style.cursor = 'default';
+  manager.registerCommand('drag:end', () => {
+    if (panStartCamera) {
+      panStartCamera = null;
+      if (isSpacePressed) {
+        document.body.style.cursor = 'grab';
+      } else {
+        document.body.style.cursor = 'default';
+      }
+    }
     return true;
   });
   
