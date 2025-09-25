@@ -32,6 +32,20 @@ export { useInteraction } from "./hooks/use-interaction";
 export { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 export { useSelectionIndicator } from "./hooks/use-selection-indicator";
 export { useShapeManagement } from "./hooks/use-shape-management";
+
+// Input System
+export {
+	type CommandRegistration,
+	createAppCommands,
+	createCameraCommands,
+	type InputContextValue,
+	InputProvider,
+	type InputProviderProps,
+	useCommand,
+	useCommandRegistration,
+	useInput,
+	useWhiteboardCommands,
+} from "./input";
 export { EffectLayer } from "./layers/effect-layer";
 
 // Types

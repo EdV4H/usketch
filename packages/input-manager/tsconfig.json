@@ -5,7 +5,7 @@
 		"outDir": "./dist",
 		"declaration": true,
 		"target": "es2020",
-		"module": "commonjs",
+		"module": "esnext",
 		"moduleResolution": "node",
 		"verbatimModuleSyntax": false,
 		"exactOptionalPropertyTypes": false

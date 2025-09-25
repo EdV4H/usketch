@@ -241,6 +241,12 @@ importers:
       '@usketch/effect-registry':
         specifier: workspace:*
         version: link:../effect-registry
+      '@usketch/input-manager':
+        specifier: workspace:*
+        version: link:../input-manager
+      '@usketch/input-presets':
+        specifier: workspace:*
+        version: link:../input-presets
       '@usketch/react-shapes':
         specifier: workspace:*
         version: link:../react-shapes
