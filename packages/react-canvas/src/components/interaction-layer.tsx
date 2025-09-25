@@ -17,7 +17,7 @@ interface DragState {
 
 export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 	camera,
-	activeTool,
+	currentTool,
 	selectionIndicator,
 	selectionIndicatorClassName: _selectionIndicatorClassName,
 	selectionIndicatorStyle: _selectionIndicatorStyle,
@@ -34,10 +34,10 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 	const [drawPath, setDrawPath] = useState<string>("");
 	const pathRef = useRef<string[]>([]);
 
-	const { addShape, setActiveTool } = useWhiteboardStore();
+	const { addShape, setCurrentTool } = useWhiteboardStore();
 
 	// Selection indicator state from hook
-	const { bounds, visible, selectedCount } = useSelectionIndicator(activeTool);
+	const { bounds, visible, selectedCount } = useSelectionIndicator(currentTool);
 
 	// Use custom indicator or default
 	const SelectionIndicatorComponent = selectionIndicator || DefaultSelectionIndicator;
@@ -59,7 +59,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			const screenY = e.clientY - rect.top;
 			const { x, y } = screenToCanvas(screenX, screenY);
 
-			if (activeTool === "rectangle" || activeTool === "ellipse") {
+			if (currentTool === "rectangle" || currentTool === "ellipse") {
 				setDragState({
 					startX: x,
 					startY: y,
@@ -67,7 +67,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 					currentY: y,
 					isDragging: true,
 				});
-			} else if (activeTool === "draw") {
+			} else if (currentTool === "draw") {
 				pathRef.current = [`M ${x} ${y}`];
 				setDrawPath(`M ${x} ${y}`);
 				setDragState({ ...dragState, isDragging: true });
@@ -75,7 +75,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 			e.currentTarget.setPointerCapture(e.pointerId);
 		},
-		[activeTool, screenToCanvas, dragState],
+		[currentTool, screenToCanvas, dragState],
 	);
 
 	const handlePointerMove = useCallback(
@@ -87,18 +87,18 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			const screenY = e.clientY - rect.top;
 			const { x, y } = screenToCanvas(screenX, screenY);
 
-			if (activeTool === "rectangle" || activeTool === "ellipse") {
+			if (currentTool === "rectangle" || currentTool === "ellipse") {
 				setDragState((prev) => ({
 					...prev,
 					currentX: x,
 					currentY: y,
 				}));
-			} else if (activeTool === "draw") {
+			} else if (currentTool === "draw") {
 				pathRef.current.push(`L ${x} ${y}`);
 				setDrawPath(pathRef.current.join(" "));
 			}
 		},
-		[activeTool, screenToCanvas, dragState.isDragging],
+		[currentTool, screenToCanvas, dragState.isDragging],
 	);
 
 	const calculatePathBounds = useCallback((pathCommands: string[]) => {
@@ -136,7 +136,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			const screenY = e.clientY - rect.top;
 			const { x, y } = screenToCanvas(screenX, screenY);
 
-			if (activeTool === "rectangle" || activeTool === "ellipse") {
+			if (currentTool === "rectangle" || currentTool === "ellipse") {
 				const minX = Math.min(dragState.startX, x);
 				const minY = Math.min(dragState.startY, y);
 				const width = Math.abs(x - dragState.startX);
@@ -145,7 +145,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 				if (width > 5 && height > 5) {
 					addShape({
 						id: uuidv4(),
-						type: activeTool === "ellipse" ? "ellipse" : "rectangle",
+						type: currentTool === "ellipse" ? "ellipse" : "rectangle",
 						x: minX,
 						y: minY,
 						width,
@@ -157,7 +157,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 						rotation: 0,
 					});
 				}
-			} else if (activeTool === "draw" && drawPath) {
+			} else if (currentTool === "draw" && drawPath) {
 				const bounds = calculatePathBounds(pathRef.current);
 				if (bounds.width > 5 || bounds.height > 5) {
 					// Extract points from path commands
@@ -204,7 +204,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 			e.currentTarget.releasePointerCapture(e.pointerId);
 		},
-		[activeTool, screenToCanvas, dragState, drawPath, addShape, calculatePathBounds],
+		[currentTool, screenToCanvas, dragState, drawPath, addShape, calculatePathBounds],
 	);
 
 	// Handle escape key to cancel drawing
@@ -223,7 +223,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 				pathRef.current = [];
 				setDrawPath("");
 				// Switch back to select tool
-				setActiveTool("select");
+				setCurrentTool("select");
 			}
 		};
 
@@ -231,10 +231,10 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 		return () => {
 			window.removeEventListener("keydown", handleKeyDown);
 		};
-	}, [dragState.isDragging, setActiveTool]);
+	}, [dragState.isDragging, setCurrentTool]);
 
 	const getCursor = () => {
-		switch (activeTool) {
+		switch (currentTool) {
 			case "select":
 				return "default";
 			case "rectangle":
@@ -247,7 +247,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 	};
 
 	// Render selection indicator for select tool
-	if (activeTool === "select") {
+	if (currentTool === "select") {
 		return (
 			<SelectionIndicatorComponent
 				bounds={bounds}
@@ -259,7 +259,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 	}
 
 	// For effect tool, don't render anything - let ShapeLayer handle events
-	if (activeTool === "effect") {
+	if (currentTool === "effect") {
 		return null;
 	}
 
@@ -274,7 +274,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 				height: "100%",
 				cursor: getCursor(),
 			}}
-			data-active-tool={activeTool}
+			data-active-tool={currentTool}
 			onPointerDown={handlePointerDown}
 			onPointerMove={handlePointerMove}
 			onPointerUp={handlePointerUp}
@@ -293,7 +293,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 					aria-label="Drawing preview"
 				>
 					<g transform={`translate(${camera.x}, ${camera.y}) scale(${camera.zoom})`}>
-						{activeTool === "rectangle" && (
+						{currentTool === "rectangle" && (
 							<rect
 								x={Math.min(dragState.startX, dragState.currentX)}
 								y={Math.min(dragState.startY, dragState.currentY)}
@@ -305,7 +305,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 								opacity={DEFAULT_SHAPE_STYLES.opacity * 0.5}
 							/>
 						)}
-						{activeTool === "ellipse" && (
+						{currentTool === "ellipse" && (
 							<ellipse
 								cx={(dragState.startX + dragState.currentX) / 2}
 								cy={(dragState.startY + dragState.currentY) / 2}
@@ -317,7 +317,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 								opacity={DEFAULT_SHAPE_STYLES.opacity * 0.5}
 							/>
 						)}
-						{activeTool === "draw" && drawPath && (
+						{currentTool === "draw" && drawPath && (
 							<path
 								d={drawPath}
 								fill="none"

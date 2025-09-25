@@ -24,7 +24,7 @@ export interface LayerProps {
 
 export interface ShapeLayerProps extends LayerProps {
 	shapes: Record<string, Shape>;
-	activeTool?: string;
+	currentTool?: string;
 }
 
 export interface SelectionLayerProps extends LayerProps {
@@ -53,7 +53,7 @@ export interface SelectionIndicatorProps {
 }
 
 export interface InteractionLayerProps extends LayerProps {
-	activeTool?: string;
+	currentTool?: string;
 	// カスタムSelectionIndicator
 	selectionIndicator?: React.ComponentType<SelectionIndicatorProps>;
 	selectionIndicatorClassName?: string;
