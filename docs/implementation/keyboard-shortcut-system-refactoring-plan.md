@@ -1,8 +1,8 @@
-# キーボードショートカットシステム改修計画書
+# キーボード・マウス操作システム改修計画書
 
 ## 概要
 
-現在のキーボードショートカット実装を拡張し、初期化時の設定可能性、動的な変更機能、カメラ操作への対応を実現する包括的なリファクタリングを行う。
+現在のキーボードショートカット・マウス操作実装を拡張し、初期化時の設定可能性、動的な変更機能、カメラ操作への対応を実現する包括的なリファクタリングを行う。キーボードとマウスの両方の入力デバイスに対して統一的な設定・管理システムを構築する。
 
 ## 現状分析
 
@@ -49,13 +49,21 @@
    - Cmd/Ctrl + ,: プロパティパネル切り替え
    ```
 
+3. **現在のマウス操作**
+   - InteractionLayerでPointerEventを処理
+   - 描画ツール（矩形、楕円、フリーハンド）
+   - 選択・ドラッグ操作
+   - ホイールによるズーム（実装箇所不明）
+   - スペース+ドラッグによるパン
+
 ### 問題点
 
-1. **ハードコーディング**: キーバインディングがコード内に直接記述
-2. **分散実装**: 2箇所に分かれており、一貫性が欠如
-3. **拡張性の欠如**: 新しいショートカット追加が困難
+1. **ハードコーディング**: キー・マウスバインディングがコード内に直接記述
+2. **分散実装**: 複数箇所に分かれており、一貫性が欠如
+3. **拡張性の欠如**: 新しいショートカット・ジェスチャー追加が困難
 4. **設定不可**: ユーザーによるカスタマイズが不可能
-5. **カメラ操作未対応**: ズーム・パン操作のキーボードサポートなし
+5. **カメラ操作未統合**: ズーム・パン操作が統一されていない
+6. **マウス操作の設定不可**: マウスボタン割り当て、ジェスチャーのカスタマイズ不可
 
 ## 設計方針
 
@@ -63,13 +71,16 @@
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              @usketch/keyboard-presets           │
-│         （デフォルトキーバインディング定義）          │
+│              @usketch/input-presets              │
+│    （デフォルトキー・マウスバインディング定義）        │
 └─────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────┐
-│             @usketch/keyboard-manager            │
-│  （キーボード管理・設定システム・コマンド実行）       │
+│              @usketch/input-manager              │
+│  （入力デバイス統合管理・設定システム・コマンド実行）   │
+│      - KeyboardManager: キーボード入力管理        │
+│      - MouseManager: マウス入力管理               │
+│      - GestureManager: ジェスチャー認識          │
 └─────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────┐
@@ -80,9 +91,9 @@
 
 ### 主要コンポーネント
 
-#### 1. `@usketch/keyboard-presets` パッケージ（新規）
+#### 1. `@usketch/input-presets` パッケージ（新規）
 
-**責務**: デフォルトキーバインディングの提供
+**責務**: デフォルトキー・マウスバインディングの提供
 
 ```typescript
 // src/presets/default.ts
@@ -152,11 +163,49 @@ export const vimKeymap: KeyboardPreset = {
     // ... その他Vimスタイルのバインディング
   }
 };
+
+// src/presets/mouse-default.ts
+export const defaultMouseMap: MousePreset = {
+  id: 'default',
+  name: 'Default Mouse',
+  description: 'Standard mouse bindings',
+  bindings: {
+    // 基本操作
+    'select': { button: 0 }, // 左クリック
+    'contextMenu': { button: 2 }, // 右クリック
+    'pan': { button: 1 }, // 中クリック
+    
+    // 修飾キー付き
+    'multiSelect': { button: 0, modifiers: ['shift'] },
+    'duplicateDrag': { button: 0, modifiers: ['alt'] },
+    
+    // ホイール操作
+    'zoom': { wheel: true },
+    'horizontalScroll': { wheel: true, modifiers: ['shift'] },
+    
+    // ジェスチャー
+    'rotate': { gesture: 'rotate' },
+    'pinchZoom': { gesture: 'pinch' }
+  }
+};
+
+// src/presets/trackpad.ts
+export const trackpadPreset: MousePreset = {
+  id: 'trackpad',
+  name: 'Trackpad Optimized',
+  description: 'Optimized for trackpad/touchpad',
+  bindings: {
+    'pan': { gesture: 'twoFingerDrag' },
+    'zoom': { gesture: 'pinch' },
+    'rotate': { gesture: 'twoFingerRotate' },
+    'smartZoom': { gesture: 'doubleTapTwoFinger' }
+  }
+};
 ```
 
-#### 2. `@usketch/keyboard-manager` パッケージ（新規）
+#### 2. `@usketch/input-manager` パッケージ（新規）
 
-**責務**: キーボードイベント管理、設定システム、コマンドマッピング
+**責務**: 統合入力管理、設定システム、コマンドマッピング
 
 ```typescript
 // src/keyboard-manager.ts
@@ -277,59 +326,245 @@ export interface CameraCommands {
   zoomToSelection: () => void;
   panBy: (deltaX: number, deltaY: number) => void;
 }
+
+// src/mouse-manager.ts
+export class MouseManager {
+  private bindings: Map<string, MouseBinding>;
+  private gestureRecognizer: GestureRecognizer;
+  private commandHandlers: Map<string, CommandHandler>;
+  
+  constructor(config?: MouseConfig) {
+    this.bindings = new Map();
+    this.gestureRecognizer = new GestureRecognizer();
+    this.commandHandlers = new Map();
+    
+    if (config?.preset) {
+      this.loadPreset(config.preset);
+    }
+  }
+  
+  // マウスボタン設定
+  setButtonBinding(command: string, button: number, modifiers?: string[]): void {
+    this.bindings.set(command, { 
+      command, 
+      button, 
+      modifiers,
+      type: 'button'
+    });
+  }
+  
+  // ホイール設定
+  setWheelBinding(command: string, direction: 'up' | 'down', modifiers?: string[]): void {
+    this.bindings.set(command, {
+      command,
+      wheel: direction,
+      modifiers,
+      type: 'wheel'
+    });
+  }
+  
+  // ジェスチャー設定
+  setGestureBinding(command: string, gesture: GestureType): void {
+    this.bindings.set(command, {
+      command,
+      gesture,
+      type: 'gesture'
+    });
+  }
+  
+  // イベントハンドリング
+  handlePointerDown(event: PointerEvent): boolean {
+    const binding = this.findBinding('button', event.button, event);
+    if (binding) {
+      return this.executeCommand(binding.command, event);
+    }
+    return false;
+  }
+  
+  handleWheel(event: WheelEvent): boolean {
+    const direction = event.deltaY > 0 ? 'down' : 'up';
+    const binding = this.findBinding('wheel', direction, event);
+    if (binding) {
+      return this.executeCommand(binding.command, event);
+    }
+    return false;
+  }
+  
+  handleGesture(gesture: GestureEvent): boolean {
+    const binding = this.findBinding('gesture', gesture.type);
+    if (binding) {
+      return this.executeCommand(binding.command, gesture);
+    }
+    return false;
+  }
+}
+
+// src/gesture-manager.ts
+export class GestureManager {
+  private activeGestures: Map<number, GestureState>;
+  private recognizers: GestureRecognizer[];
+  
+  constructor() {
+    this.activeGestures = new Map();
+    this.recognizers = [
+      new PinchRecognizer(),
+      new RotateRecognizer(),
+      new SwipeRecognizer(),
+      new TwoFingerDragRecognizer()
+    ];
+  }
+  
+  // タッチ/ポインターイベントからジェスチャーを認識
+  processPointerEvent(event: PointerEvent): GestureEvent | null {
+    // ポインターの追跡
+    if (event.type === 'pointerdown') {
+      this.activeGestures.set(event.pointerId, {
+        id: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        currentX: event.clientX,
+        currentY: event.clientY,
+        timestamp: event.timeStamp
+      });
+    } else if (event.type === 'pointermove') {
+      const gesture = this.activeGestures.get(event.pointerId);
+      if (gesture) {
+        gesture.currentX = event.clientX;
+        gesture.currentY = event.clientY;
+      }
+    } else if (event.type === 'pointerup' || event.type === 'pointercancel') {
+      this.activeGestures.delete(event.pointerId);
+    }
+    
+    // ジェスチャー認識
+    const pointers = Array.from(this.activeGestures.values());
+    for (const recognizer of this.recognizers) {
+      const gesture = recognizer.recognize(pointers);
+      if (gesture) {
+        return gesture;
+      }
+    }
+    
+    return null;
+  }
+}
+
+// src/types.ts
+export interface MouseBinding {
+  command: string;
+  button?: number;
+  wheel?: 'up' | 'down' | boolean;
+  gesture?: GestureType;
+  modifiers?: string[];
+  type: 'button' | 'wheel' | 'gesture';
+}
+
+export interface GestureEvent {
+  type: GestureType;
+  scale?: number;      // ピンチズーム用
+  rotation?: number;   // 回転用
+  deltaX?: number;     // パン用
+  deltaY?: number;     // パン用
+  velocity?: number;   // スワイプ用
+  direction?: 'up' | 'down' | 'left' | 'right';
+}
+
+export type GestureType = 
+  | 'pinch'
+  | 'rotate' 
+  | 'swipe'
+  | 'twoFingerDrag'
+  | 'doubleTap'
+  | 'longPress'
+  | 'drag';
 ```
 
 #### 3. React統合層の改修
 
 ```typescript
-// packages/react-canvas/src/providers/keyboard-provider.tsx
-export const KeyboardProvider: React.FC<KeyboardProviderProps> = ({
+// packages/react-canvas/src/providers/input-provider.tsx
+export const InputProvider: React.FC<InputProviderProps> = ({
   children,
-  preset = defaultKeymap,
-  customBindings,
+  keyboardPreset = defaultKeymap,
+  mousePreset = defaultMouseMap,
+  customKeyBindings,
+  customMouseBindings,
   onBindingChange
 }) => {
-  const managerRef = useRef<KeyboardManager>();
+  const keyboardManagerRef = useRef<KeyboardManager>();
+  const mouseManagerRef = useRef<MouseManager>();
+  const gestureManagerRef = useRef<GestureManager>();
   const store = useWhiteboardStore();
   
   useEffect(() => {
-    const manager = new KeyboardManager({ preset, customBindings });
+    const keyboardManager = new KeyboardManager({ 
+      preset: keyboardPreset, 
+      customBindings: customKeyBindings 
+    });
+    
+    const mouseManager = new MouseManager({
+      preset: mousePreset,
+      customBindings: customMouseBindings
+    });
+    
+    const gestureManager = new GestureManager();
     
     // コマンドハンドラーの登録
-    registerStandardCommands(manager, store);
-    registerCameraCommands(manager, store);
-    registerToolCommands(manager, store);
+    registerStandardCommands(keyboardManager, mouseManager, store);
+    registerCameraCommands(keyboardManager, mouseManager, store);
+    registerToolCommands(keyboardManager, mouseManager, store);
     
-    managerRef.current = manager;
+    keyboardManagerRef.current = keyboardManager;
+    mouseManagerRef.current = mouseManager;
+    gestureManagerRef.current = gestureManager;
   }, []);
   
   return (
-    <KeyboardContext.Provider value={{ manager: managerRef.current }}>
+    <InputContext.Provider value={{ 
+      keyboard: keyboardManagerRef.current,
+      mouse: mouseManagerRef.current,
+      gesture: gestureManagerRef.current
+    }}>
       {children}
-    </KeyboardContext.Provider>
+    </InputContext.Provider>
   );
 };
 
-// packages/react-canvas/src/hooks/use-keyboard.ts
-export const useKeyboard = () => {
-  const context = useContext(KeyboardContext);
-  const [bindings, setBindings] = useState<KeyBindings>({});
+// packages/react-canvas/src/hooks/use-input.ts
+export const useInput = () => {
+  const context = useContext(InputContext);
+  const [keyBindings, setKeyBindings] = useState<KeyBindings>({});
+  const [mouseBindings, setMouseBindings] = useState<MouseBindings>({});
   
-  const updateBinding = useCallback((command: string, keys: string[]) => {
-    context.manager?.setBinding(command, keys);
-    setBindings(prev => ({ ...prev, [command]: keys }));
-  }, [context.manager]);
+  const updateKeyBinding = useCallback((command: string, keys: string[]) => {
+    context.keyboard?.setBinding(command, keys);
+    setKeyBindings(prev => ({ ...prev, [command]: keys }));
+  }, [context.keyboard]);
   
-  const resetToPreset = useCallback((preset: KeyboardPreset) => {
-    context.manager?.loadPreset(preset);
-    setBindings(preset.bindings);
-  }, [context.manager]);
+  const updateMouseBinding = useCallback((command: string, binding: MouseBinding) => {
+    context.mouse?.setBinding(command, binding);
+    setMouseBindings(prev => ({ ...prev, [command]: binding }));
+  }, [context.mouse]);
+  
+  const resetToPreset = useCallback((type: 'keyboard' | 'mouse', preset: any) => {
+    if (type === 'keyboard') {
+      context.keyboard?.loadPreset(preset);
+      setKeyBindings(preset.bindings);
+    } else {
+      context.mouse?.loadPreset(preset);
+      setMouseBindings(preset.bindings);
+    }
+  }, [context]);
   
   return {
-    bindings,
-    updateBinding,
+    keyBindings,
+    mouseBindings,
+    updateKeyBinding,
+    updateMouseBinding,
     resetToPreset,
-    manager: context.manager
+    keyboard: context.keyboard,
+    mouse: context.mouse,
+    gesture: context.gesture
   };
 };
 ```
@@ -429,47 +664,100 @@ export function registerCameraCommands(
     });
     return true;
   });
+  
+  // マウスホイールによるズーム
+  manager.registerCommand('wheelZoom', (event: WheelEvent) => {
+    event.preventDefault();
+    const delta = event.deltaY;
+    const zoomFactor = delta > 0 ? 0.9 : 1.1;
+    
+    // マウス位置を中心にズーム
+    const rect = (event.target as HTMLElement).getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    const currentZoom = store.camera.zoom;
+    const newZoom = Math.max(0.1, Math.min(5, currentZoom * zoomFactor));
+    
+    // ズーム中心点の調整
+    const zoomDiff = newZoom - currentZoom;
+    const offsetX = (x - store.camera.x) * (zoomDiff / currentZoom);
+    const offsetY = (y - store.camera.y) * (zoomDiff / currentZoom);
+    
+    store.setCamera({ 
+      zoom: newZoom,
+      x: store.camera.x - offsetX,
+      y: store.camera.y - offsetY
+    });
+    return true;
+  });
+  
+  // トラックパッドジェスチャー
+  manager.registerCommand('pinchZoom', (event: GestureEvent) => {
+    if (event.scale) {
+      const currentZoom = store.camera.zoom;
+      const newZoom = Math.max(0.1, Math.min(5, currentZoom * event.scale));
+      store.setCamera({ zoom: newZoom });
+    }
+    return true;
+  });
+  
+  manager.registerCommand('twoFingerPan', (event: GestureEvent) => {
+    if (event.deltaX !== undefined && event.deltaY !== undefined) {
+      store.setCamera({
+        x: store.camera.x + event.deltaX,
+        y: store.camera.y + event.deltaY
+      });
+    }
+    return true;
+  });
 }
 ```
 
 ## 実装計画
 
-### フェーズ1: パッケージ構築（2-3日）
+### フェーズ1: パッケージ構築（3-4日）
 
-1. `@usketch/keyboard-presets` パッケージ作成
-   - デフォルトプリセット定義
-   - Vimプリセット定義
-   - 型定義
+1. `@usketch/input-presets` パッケージ作成
+   - キーボードプリセット定義（Default, Vim）
+   - マウスプリセット定義（Default, Trackpad）
+   - 型定義とインターフェース
 
-2. `@usketch/keyboard-manager` パッケージ作成
+2. `@usketch/input-manager` パッケージ作成
    - KeyboardManagerクラス実装
+   - MouseManagerクラス実装
+   - GestureManagerクラス実装
    - コマンドシステム実装
    - コンテキスト管理実装
 
-### フェーズ2: カメラ操作実装（1-2日）
+### フェーズ2: カメラ操作実装（2日）
 
 1. Storeにカメラ操作アクション追加
-2. カメラコマンドハンドラー実装
+2. キーボード・マウスカメラコマンドハンドラー実装
 3. ビューポート計算ユーティリティ実装
+4. マウスホイールズーム実装
+5. ジェスチャーによるズーム・パン実装
 
-### フェーズ3: React統合（2日）
+### フェーズ3: React統合（2-3日）
 
-1. KeyboardProvider実装
-2. useKeyboardフック実装
+1. InputProvider実装
+2. useInputフック実装
 3. 既存フックの移行
 4. コマンド登録の統合
+5. イベントハンドラーの最適化
 
-### フェーズ4: UI実装（2日）
+### フェーズ4: UI実装（2-3日）
 
-1. キーボード設定パネルコンポーネント
-2. ショートカット一覧表示
-3. カスタマイズUI
+1. 入力設定パネルコンポーネント
+2. キーボード・マウスバインディング表示
+3. カスタマイズUI（キー割り当て、マウスボタン設定）
 4. プリセット選択UI
+5. ジェスチャー設定UI
 
-### フェーズ5: テスト・最適化（1-2日）
+### フェーズ5: テスト・最適化（2日）
 
 1. ユニットテスト作成
-2. E2Eテスト追加
+2. E2Eテスト追加（マウス操作含む）
 3. パフォーマンス最適化
 4. ドキュメント作成
 
@@ -481,12 +769,16 @@ export function registerCameraCommands(
 // 初期化時の設定
 <WhiteboardCanvas
   keyboardPreset="default"
+  mousePreset="trackpad"
   customKeyBindings={{
     'customAction': ['ctrl+shift+x']
   }}
-  onKeyBindingChange={(bindings) => {
+  customMouseBindings={{
+    'specialTool': { button: 3, modifiers: ['ctrl'] }
+  }}
+  onInputBindingChange={(type, bindings) => {
     // 設定の永続化
-    localStorage.setItem('keyBindings', JSON.stringify(bindings));
+    localStorage.setItem(`${type}Bindings`, JSON.stringify(bindings));
   }}
 />
 ```
@@ -494,32 +786,61 @@ export function registerCameraCommands(
 ### プログラマティックな変更
 
 ```tsx
-function KeyboardSettings() {
-  const { bindings, updateBinding, resetToPreset } = useKeyboard();
+function InputSettings() {
+  const { 
+    keyBindings, 
+    mouseBindings, 
+    updateKeyBinding, 
+    updateMouseBinding,
+    resetToPreset 
+  } = useInput();
   
-  const handleBindingChange = (command: string, newKeys: string[]) => {
-    updateBinding(command, newKeys);
+  const handleKeyBindingChange = (command: string, newKeys: string[]) => {
+    updateKeyBinding(command, newKeys);
   };
   
-  const handlePresetChange = (presetId: string) => {
-    const preset = presets.find(p => p.id === presetId);
+  const handleMouseBindingChange = (command: string, binding: MouseBinding) => {
+    updateMouseBinding(command, binding);
+  };
+  
+  const handlePresetChange = (type: 'keyboard' | 'mouse', presetId: string) => {
+    const preset = presets[type].find(p => p.id === presetId);
     if (preset) {
-      resetToPreset(preset);
+      resetToPreset(type, preset);
     }
   };
   
   return (
     <div>
-      <select onChange={(e) => handlePresetChange(e.target.value)}>
-        <option value="default">Default</option>
-        <option value="vim">Vim-style</option>
-        <option value="custom">Custom</option>
-      </select>
+      {/* キーボード設定 */}
+      <section>
+        <h3>キーボード設定</h3>
+        <select onChange={(e) => handlePresetChange('keyboard', e.target.value)}>
+          <option value="default">Default</option>
+          <option value="vim">Vim-style</option>
+          <option value="custom">Custom</option>
+        </select>
+        
+        <KeyBindingList
+          bindings={keyBindings}
+          onChange={handleKeyBindingChange}
+        />
+      </section>
       
-      <KeyBindingList
-        bindings={bindings}
-        onChange={handleBindingChange}
-      />
+      {/* マウス設定 */}
+      <section>
+        <h3>マウス設定</h3>
+        <select onChange={(e) => handlePresetChange('mouse', e.target.value)}>
+          <option value="default">Standard Mouse</option>
+          <option value="trackpad">Trackpad</option>
+          <option value="gaming">Gaming Mouse</option>
+        </select>
+        
+        <MouseBindingList
+          bindings={mouseBindings}
+          onChange={handleMouseBindingChange}
+        />
+      </section>
     </div>
   );
 }
@@ -536,6 +857,16 @@ function KeyboardSettings() {
 // Cmd/Ctrl + 2: 選択範囲にズーム
 // Shift + 矢印キー: パン操作
 
+// マウス操作
+// ホイール: ズーム（マウス位置中心）
+// 中クリック + ドラッグ: パン
+// Shift + ホイール: 水平スクロール
+
+// トラックパッドジェスチャー
+// ピンチ: ズーム
+// 2本指ドラッグ: パン
+// 2本指回転: キャンバス回転（将来実装）
+
 // プログラマティックな使用
 const store = useWhiteboardStore();
 store.zoomIn(1.5);
@@ -545,11 +876,15 @@ store.panBy(100, 50);
 
 ## 成功指標
 
-1. **設定可能性**: すべてのキーバインディングが変更可能
-2. **拡張性**: 新しいコマンドの追加が容易
-3. **パフォーマンス**: キー入力の遅延 < 10ms
+1. **設定可能性**: すべてのキー・マウスバインディングが変更可能
+2. **拡張性**: 新しいコマンド・ジェスチャーの追加が容易
+3. **パフォーマンス**: 
+   - キー入力の遅延 < 10ms
+   - マウス操作の遅延 < 5ms
+   - ジェスチャー認識 < 20ms
 4. **互換性**: 既存機能の完全な維持
 5. **テストカバレッジ**: 90%以上
+6. **アクセシビリティ**: キーボードのみでの完全操作可能
 
 ## リスクと対策
 
@@ -572,12 +907,31 @@ store.panBy(100, 50);
 
 ## まとめ
 
-この改修により、uSketchのキーボードショートカットシステムは以下を実現します：
+この改修により、uSketchの入力システムは以下を実現します：
 
-- ✅ 初期化時の設定可能性
-- ✅ 実行時の動的変更
-- ✅ カメラ操作のフルサポート
+- ✅ キーボード・マウス両方の初期化時設定
+- ✅ 実行時の動的バインディング変更
+- ✅ カメラ操作のフルサポート（キーボード・マウス・ジェスチャー）
 - ✅ プリセットによる簡単な切り替え
-- ✅ 拡張可能なアーキテクチャ
+- ✅ ジェスチャー認識とカスタマイズ
+- ✅ 拡張可能な統合アーキテクチャ
+- ✅ デバイス別最適化（マウス/トラックパッド）
 
 これにより、ユーザーの生産性向上と、開発者の保守性向上の両方を達成します。
+
+## 実装優先順位
+
+1. **高優先度**
+   - キーボードショートカット基盤
+   - マウスホイールズーム
+   - 基本的なプリセット
+
+2. **中優先度**
+   - ジェスチャー認識
+   - カスタマイズUI
+   - トラックパッド最適化
+
+3. **低優先度**
+   - 高度なジェスチャー
+   - マクロ機能
+   - アニメーション付きカメラ操作
