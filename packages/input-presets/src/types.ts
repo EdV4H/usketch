@@ -31,6 +31,7 @@ export interface MouseBinding {
 	action?: "click" | "drag";
 	wheel?: boolean | "up" | "down";
 	gesture?: GestureType;
+	direction?: "up" | "down" | "left" | "right"; // ジェスチャーの方向
 	modifiers?: ModifierKey[];
 }
 
@@ -40,7 +41,11 @@ export type GestureType =
 	| "pinch"
 	| "rotate"
 	| "swipe"
+	| "pan"
 	| "twoFingerDrag"
+	| "threeFingerSwipe"
 	| "doubleTap"
 	| "longPress"
-	| "drag";
+	| "drag"
+	| "pinchStart"
+	| "pinchEnd";

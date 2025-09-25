@@ -1,5 +1,5 @@
 {
-	"extends": "@usketch/tsconfig/tsconfig.lib.json",
+	"extends": "../tsconfig/tsconfig.lib.json",
 	"compilerOptions": {
 		"outDir": "./dist",
 		"rootDir": "./src"

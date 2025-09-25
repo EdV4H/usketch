@@ -30,11 +30,11 @@ export const trackpadMousePreset: MousePreset = {
 		// スワイプジェスチャー
 		"navigate.back": {
 			gesture: "swipe",
-			modifiers: ["left"],
+			direction: "left",
 		},
 		"navigate.forward": {
 			gesture: "swipe",
-			modifiers: ["right"],
+			direction: "right",
 		},
 
 		// 修飾キー付き操作
