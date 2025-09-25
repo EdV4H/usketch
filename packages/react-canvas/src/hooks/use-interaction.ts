@@ -5,7 +5,7 @@ import { useToolMachine } from "./use-tool-machine";
 
 interface InteractionResult {
 	cursor: string;
-	activeTool: string;
+	currentTool: string;
 	getCanvasProps: () => {
 		onPointerDown: (e: React.PointerEvent) => void;
 		onPointerMove: (e: React.PointerEvent) => void;
@@ -16,7 +16,7 @@ interface InteractionResult {
 
 export const useInteraction = (): InteractionResult => {
 	const { currentTool, camera, setCamera } = useWhiteboardStore();
-	const activeTool = currentTool || "select";
+	const tool = currentTool || "select";
 	const [cursor, setCursor] = useState("default");
 	const [isPanning, setIsPanning] = useState(false);
 	const panStartRef = useRef<Point | null>(null);
@@ -47,7 +47,7 @@ export const useInteraction = (): InteractionResult => {
 			}
 
 			// Left click for tool interaction
-			if (e.button === 0 && activeTool) {
+			if (e.button === 0 && tool) {
 				const point = getCanvasPoint(e);
 
 				// Handle tool interactions
@@ -58,7 +58,7 @@ export const useInteraction = (): InteractionResult => {
 				}
 			}
 		},
-		[camera, getCanvasPoint, activeTool, toolMachine],
+		[camera, getCanvasPoint, tool, toolMachine],
 	);
 
 	const handlePointerMove = useCallback(
@@ -80,18 +80,18 @@ export const useInteraction = (): InteractionResult => {
 				}
 
 				// Update cursor based on tool
-				if (activeTool === "select") {
+				if (tool === "select") {
 					setCursor("default");
-				} else if (activeTool === "pan") {
+				} else if (tool === "pan") {
 					setCursor("grab");
-				} else if (activeTool === "effect") {
+				} else if (tool === "effect") {
 					setCursor("crosshair");
 				} else {
 					setCursor("crosshair");
 				}
 			}
 		},
-		[isPanning, setCamera, activeTool, getCanvasPoint, toolMachine],
+		[isPanning, setCamera, tool, getCanvasPoint, toolMachine],
 	);
 
 	const handlePointerUp = useCallback(
@@ -142,7 +142,7 @@ export const useInteraction = (): InteractionResult => {
 
 	return {
 		cursor,
-		activeTool,
+		currentTool: tool,
 		getCanvasProps: () => ({
 			onPointerDown: handlePointerDown,
 			onPointerMove: handlePointerMove,

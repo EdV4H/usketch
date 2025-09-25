@@ -738,15 +738,15 @@ engine.toolManager.registerDrawingTool(lineTool);
 
 // ツール切り替え
 document.getElementById('rect-btn')?.addEventListener('click', () => {
-  engine.toolManager.setActiveTool('rectangle');
+  engine.toolManager.setCurrentTool('rectangle');
 });
 
 document.getElementById('ellipse-btn')?.addEventListener('click', () => {
-  engine.toolManager.setActiveTool('ellipse');
+  engine.toolManager.setCurrentTool('ellipse');
 });
 
 document.getElementById('line-btn')?.addEventListener('click', () => {
-  engine.toolManager.setActiveTool('line');
+  engine.toolManager.setCurrentTool('line');
 });
 
 // イベント監視

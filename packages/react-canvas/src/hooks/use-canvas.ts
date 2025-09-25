@@ -29,7 +29,7 @@ export const useCanvas = (): CanvasManager => {
 			},
 
 			setTool: (tool: string) => {
-				store.setActiveTool(tool);
+				store.setCurrentTool(tool);
 			},
 
 			undo: () => {

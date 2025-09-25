@@ -74,7 +74,6 @@ export interface SnapSettings {
 
 export interface WhiteboardStore extends WhiteboardState, StyleSlice {
 	// State additions
-	activeTool: string;
 	selectionIndicator: SelectionIndicatorState;
 	snapGuides: SnapGuide[];
 	snapSettings: SnapSettings;
@@ -100,7 +99,6 @@ export interface WhiteboardStore extends WhiteboardState, StyleSlice {
 	clearSelection: () => void;
 	setCamera: (camera: Partial<Camera>) => void;
 	setCurrentTool: (tool: string) => void;
-	setActiveTool: (tool: string) => void;
 
 	// Multiple selection actions
 	toggleSelection: (id: string) => void;
@@ -221,7 +219,6 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 	selectedShapeIds: new Set(),
 	camera: { x: 0, y: 0, zoom: 1 },
 	currentTool: "select",
-	activeTool: "select",
 	selectionIndicator: {
 		bounds: null,
 		visible: false,
@@ -302,11 +299,10 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 	},
 
 	setCurrentTool: (tool: string) => {
-		set((state) => ({ ...state, currentTool: tool }));
-	},
-
-	setActiveTool: (tool: string) => {
-		set((state) => ({ ...state, activeTool: tool }));
+		set((state) => ({
+			...state,
+			currentTool: tool,
+		}));
 	},
 
 	deleteShapes: (ids: string[]) => {
