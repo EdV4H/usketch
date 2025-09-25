@@ -1,0 +1,97 @@
+.confirm-dialog-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+	animation: fadeIn 0.2s ease-out;
+}
+
+.confirm-dialog-container {
+	background: white;
+	border-radius: 8px;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+	min-width: 350px;
+	max-width: 450px;
+	animation: slideIn 0.3s ease-out;
+}
+
+.confirm-dialog-header {
+	padding: 20px 24px;
+	border-bottom: 1px solid #e5e5e5;
+}
+
+.confirm-dialog-title {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 600;
+	color: #333;
+}
+
+.confirm-dialog-body {
+	padding: 24px;
+}
+
+.confirm-dialog-message {
+	margin: 0;
+	font-size: 14px;
+	color: #666;
+	line-height: 1.5;
+}
+
+.confirm-dialog-footer {
+	padding: 16px 24px;
+	background: #f9f9f9;
+	border-top: 1px solid #e5e5e5;
+	border-radius: 0 0 8px 8px;
+	display: flex;
+	justify-content: flex-end;
+	gap: 12px;
+}
+
+.confirm-dialog-button {
+	padding: 8px 20px;
+	border: none;
+	border-radius: 6px;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.confirm-dialog-button--cancel {
+	background: white;
+	color: #666;
+	border: 1px solid #e5e5e5;
+}
+
+.confirm-dialog-button--cancel:hover {
+	background: #f5f5f5;
+}
+
+.confirm-dialog-button--confirm {
+	background: #3b82f6;
+	color: white;
+}
+
+.confirm-dialog-button--confirm:hover {
+	background: #2563eb;
+}
+
+.confirm-dialog-button--danger {
+	background: #ef4444;
+}
+
+.confirm-dialog-button--danger:hover {
+	background: #dc2626;
+}
+
+.confirm-dialog-button:focus {
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}

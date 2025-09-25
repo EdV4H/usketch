@@ -2,6 +2,9 @@
 export * from "./background";
 export * from "./defaults/shape-styles";
 export * from "./effects";
+export * from "./styles";
+
+import type { ShadowProperties } from "./styles";
 
 // Common geometry types
 export interface Point {
@@ -27,6 +30,7 @@ export interface BaseShape {
 	strokeColor: string;
 	fillColor: string;
 	strokeWidth: number;
+	shadow?: ShadowProperties; // Optional shadow settings
 }
 
 // Rectangle shape
@@ -91,9 +95,57 @@ export interface WhiteboardState {
 	currentTool: string;
 }
 
+// Command Pattern types for Undo/Redo
+export interface Command {
+	id: string;
+	timestamp: number;
+	description: string;
+	execute(context: CommandContext): void;
+	undo(context: CommandContext): void;
+	redo?(context: CommandContext): void;
+	canMerge?(other: Command): boolean;
+	merge?(other: Command): Command;
+}
+
+export interface CommandContext {
+	getState: () => WhiteboardState;
+	setState: (updater: (state: WhiteboardState) => void) => void;
+}
+
+export interface HistoryState {
+	canUndo: boolean;
+	canRedo: boolean;
+	undoStack: ReadonlyArray<Command>;
+	redoStack: ReadonlyArray<Command>;
+}
+
 // Background options
 export interface BackgroundOptions {
 	renderer?: string;
 	color?: string;
 	config?: any;
+}
+
+// Command Pattern types for Undo/Redo
+export interface CommandContext {
+	getState: () => WhiteboardState;
+	setState: (updater: (state: WhiteboardState) => void) => void;
+}
+
+export interface Command {
+	id: string;
+	timestamp: number;
+	description: string;
+	execute(context: CommandContext): void;
+	undo(context: CommandContext): void;
+	redo?(context: CommandContext): void;
+	canMerge?(other: Command): boolean;
+	merge?(other: Command): Command;
+}
+
+export interface HistoryState {
+	canUndo: boolean;
+	canRedo: boolean;
+	commandCount: number;
+	currentIndex: number;
 }

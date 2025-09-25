@@ -7,14 +7,18 @@
 	"scripts": {
 		"build": "tsc",
 		"dev": "tsc --watch",
-		"clean": "rm -rf dist"
+		"clean": "rm -rf dist",
+		"test": "vitest"
 	},
 	"dependencies": {
 		"@usketch/shared-types": "workspace:*",
+		"nanoid": "5.1.6",
 		"zustand": "5.0.8"
 	},
 	"devDependencies": {
 		"@usketch/tsconfig": "workspace:*",
-		"typescript": "5.9.2"
+		"@vitest/ui": "3.2.4",
+		"typescript": "5.9.2",
+		"vitest": "3.2.4"
 	}
 }

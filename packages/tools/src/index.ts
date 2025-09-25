@@ -16,7 +16,12 @@ export type { EffectFactory, EffectToolConfig } from "./tools/effect-tool";
 // Effect Tool
 export { EffectTool, getEffectTool } from "./tools/effect-tool";
 export type { SelectToolContext, SelectToolEvent } from "./tools/select-tool";
-export { createSelectTool, selectToolMachine } from "./tools/select-tool";
+export {
+	createSelectTool,
+	getSnapRangeSettings,
+	selectToolMachine,
+	updateSnapRange,
+} from "./tools/select-tool";
 // Event types
 export type {
 	ToolEvent as ToolEventType,
@@ -39,6 +44,7 @@ export type {
 } from "./types/state";
 // Utils
 export * from "./utils/geometry";
+export { QuadTree } from "./utils/quad-tree";
 export {
 	type AlignmentType,
 	type DistributionType,

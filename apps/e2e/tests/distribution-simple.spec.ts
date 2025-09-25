@@ -39,13 +39,10 @@ test.describe("Simple Distribution Test", () => {
 		await page.mouse.up();
 
 		// Check that at least 3 shapes exist
-		const shapes = await page.evaluate(() => {
+		const _shapes = await page.evaluate(() => {
 			const store = (window as any).whiteboardStore.getState();
 			return Object.values(store.shapes);
 		});
-
-		// Get only the last 3 shapes (the ones we just created)
-		const lastThreeShapes = shapes.slice(-3);
 
 		// Switch to select tool and select all
 		await page.click('[data-testid="tool-select"]');

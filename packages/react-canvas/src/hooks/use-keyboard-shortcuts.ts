@@ -9,8 +9,11 @@ export const useKeyboardShortcuts = () => {
 		clearSelection,
 		undo,
 		redo,
+		canUndo,
+		canRedo,
 		setActiveTool,
 		alignShapes,
+		toggleGridSnap,
 	} = useWhiteboardStore();
 
 	const handleKeyDown = useCallback(
@@ -54,14 +57,25 @@ export const useKeyboardShortcuts = () => {
 			// Undo (Cmd/Ctrl + Z)
 			if (cmdOrCtrl && e.key === "z" && !e.shiftKey) {
 				e.preventDefault();
-				undo();
+				if (canUndo) {
+					undo();
+				}
 				return;
 			}
 
 			// Redo (Cmd/Ctrl + Shift + Z or Cmd/Ctrl + Y)
 			if ((cmdOrCtrl && e.key === "z" && e.shiftKey) || (cmdOrCtrl && e.key === "y")) {
 				e.preventDefault();
-				redo();
+				if (canRedo) {
+					redo();
+				}
+				return;
+			}
+
+			// Grid snap toggle (Shift + G)
+			if (e.shiftKey && !cmdOrCtrl && (e.key === "g" || e.key === "G")) {
+				e.preventDefault();
+				toggleGridSnap();
 				return;
 			}
 
@@ -133,8 +147,11 @@ export const useKeyboardShortcuts = () => {
 			clearSelection,
 			undo,
 			redo,
+			canUndo,
+			canRedo,
 			setActiveTool,
 			alignShapes,
+			toggleGridSnap,
 		],
 	);
 

@@ -1,0 +1,152 @@
+.style-presets {
+	width: 100%;
+}
+
+.preset-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 12px;
+}
+
+.preset-title {
+	margin: 0;
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: #666;
+	letter-spacing: 0.5px;
+}
+
+.save-preset-button {
+	padding: 4px 12px;
+	background: #3b82f6;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background-color 0.2s;
+}
+
+.save-preset-button:hover {
+	background: #2563eb;
+}
+
+.preset-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 8px;
+}
+
+.preset-item {
+	position: relative;
+}
+
+.preset-button {
+	width: 100%;
+	padding: 8px;
+	background: white;
+	border: 1px solid #e5e5e5;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: all 0.2s;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+}
+
+.preset-button:hover:not(:disabled) {
+	border-color: #3b82f6;
+	box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.preset-button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.preset-preview {
+	width: 40px;
+	height: 40px;
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.preview-fill {
+	position: absolute;
+	width: 32px;
+	height: 32px;
+	border-radius: 4px;
+}
+
+.preview-stroke {
+	position: absolute;
+	width: 32px;
+	height: 32px;
+	border-style: solid;
+	border-radius: 4px;
+	box-sizing: border-box;
+	background: transparent;
+	pointer-events: none;
+}
+
+.preset-name {
+	font-size: 11px;
+	color: #666;
+	text-align: center;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 100%;
+}
+
+.delete-preset-button {
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	width: 20px;
+	height: 20px;
+	background: rgba(239, 68, 68, 0.9);
+	color: white;
+	border: none;
+	border-radius: 50%;
+	font-size: 14px;
+	font-weight: bold;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0;
+	transition: opacity 0.2s;
+}
+
+.preset-item:hover .delete-preset-button {
+	opacity: 1;
+}
+
+.delete-preset-button:hover {
+	background: #dc2626;
+}
+
+.preset-empty-state {
+	padding: 24px 16px;
+	text-align: center;
+	color: #999;
+	background: #f9f9f9;
+	border-radius: 6px;
+}
+
+.preset-empty-state p {
+	margin: 0 0 8px 0;
+	font-size: 13px;
+}
+
+.preset-hint {
+	font-size: 11px;
+	color: #aaa;
+}
