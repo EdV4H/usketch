@@ -100,6 +100,20 @@ export class KeyboardManager implements EventEmitter {
 
 		const key = this.normalizeKey(event);
 
+		if (this.config.debug) {
+			console.log("[KeyboardManager] handleKeyDown:", {
+				key,
+				rawKey: event.key,
+				code: event.code,
+				ctrlKey: event.ctrlKey,
+				metaKey: event.metaKey,
+				shiftKey: event.shiftKey,
+				altKey: event.altKey,
+				bindings: this.getBindings(),
+				commandHandlers: Array.from(this.commandHandlers.keys()),
+			});
+		}
+
 		// 修飾キーの状態を更新
 		this.updateModifiers(event);
 
@@ -110,6 +124,10 @@ export class KeyboardManager implements EventEmitter {
 
 		// マッチするコマンドを検索
 		const command = this.findCommand(key);
+
+		if (this.config.debug && command) {
+			console.log("[KeyboardManager] Found command:", command, "for key:", key);
+		}
 
 		if (command) {
 			const result = this.executeCommand(command, event);
