@@ -21,6 +21,7 @@ export interface MouseBindings {
 }
 
 export interface MouseBinding {
+	command?: string;
 	button?: number;
 	action?: "click" | "drag";
 	wheel?: boolean | "up" | "down";
