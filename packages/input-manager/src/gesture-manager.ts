@@ -43,8 +43,10 @@ class PinchRecognizer extends GestureRecognizer {
 	recognize(touches: TouchList): PinchEvent | null {
 		if (touches.length !== 2) return null;
 
-		const touch1 = touches[0]!;
-		const touch2 = touches[1]!;
+		const touch1 = touches[0];
+		const touch2 = touches[1];
+		if (!touch1 || !touch2) return null;
+
 		this.initialDistance = this.getDistance(touch1, touch2);
 		this.previousScale = 1;
 
@@ -60,8 +62,10 @@ class PinchRecognizer extends GestureRecognizer {
 	update(touches: TouchList): PinchEvent | null {
 		if (touches.length !== 2 || this.initialDistance === 0) return null;
 
-		const touch1 = touches[0]!;
-		const touch2 = touches[1]!;
+		const touch1 = touches[0];
+		const touch2 = touches[1];
+		if (!touch1 || !touch2) return null;
+
 		const currentDistance = this.getDistance(touch1, touch2);
 		const scale = currentDistance / this.initialDistance;
 
@@ -102,8 +106,10 @@ class RotateRecognizer extends GestureRecognizer {
 	recognize(touches: TouchList): RotateEvent | null {
 		if (touches.length !== 2) return null;
 
-		const touch1 = touches[0]!;
-		const touch2 = touches[1]!;
+		const touch1 = touches[0];
+		const touch2 = touches[1];
+		if (!touch1 || !touch2) return null;
+
 		this.initialAngle = this.getAngle(touch1, touch2);
 		this.previousRotation = 0;
 
@@ -118,8 +124,10 @@ class RotateRecognizer extends GestureRecognizer {
 	update(touches: TouchList): RotateEvent | null {
 		if (touches.length !== 2 || this.initialAngle === 0) return null;
 
-		const touch1 = touches[0]!;
-		const touch2 = touches[1]!;
+		const touch1 = touches[0];
+		const touch2 = touches[1];
+		if (!touch1 || !touch2) return null;
+
 		const currentAngle = this.getAngle(touch1, touch2);
 		let rotation = currentAngle - this.initialAngle;
 
@@ -164,7 +172,9 @@ class SwipeRecognizer extends GestureRecognizer {
 	recognize(touches: TouchList, startTime: number): SwipeEvent | null {
 		if (touches.length !== 1) return null;
 
-		const touch = touches[0]!;
+		const touch = touches[0];
+		if (!touch) return null;
+
 		this.startX = touch.clientX;
 		this.startY = touch.clientY;
 		this.startTime = startTime;
@@ -179,7 +189,9 @@ class SwipeRecognizer extends GestureRecognizer {
 	end(touches: TouchList, endTime: number): SwipeEvent | null {
 		if (touches.length !== 1 || this.startX === 0) return null;
 
-		const touch = touches[0]!;
+		const touch = touches[0];
+		if (!touch) return null;
+
 		const deltaX = touch.clientX - this.startX;
 		const deltaY = touch.clientY - this.startY;
 		const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -229,8 +241,10 @@ class TwoFingerDragRecognizer extends GestureRecognizer {
 	recognize(touches: TouchList): GestureEvent | null {
 		if (touches.length !== 2) return null;
 
-		const touch1 = touches[0]!;
-		const touch2 = touches[1]!;
+		const touch1 = touches[0];
+		const touch2 = touches[1];
+		if (!touch1 || !touch2) return null;
+
 		this.startCenterX = (touch1.clientX + touch2.clientX) / 2;
 		this.startCenterY = (touch1.clientY + touch2.clientY) / 2;
 
@@ -246,8 +260,10 @@ class TwoFingerDragRecognizer extends GestureRecognizer {
 	update(touches: TouchList): GestureEvent | null {
 		if (touches.length !== 2 || this.startCenterX === 0) return null;
 
-		const touch1 = touches[0]!;
-		const touch2 = touches[1]!;
+		const touch1 = touches[0];
+		const touch2 = touches[1];
+		if (!touch1 || !touch2) return null;
+
 		const centerX = (touch1.clientX + touch2.clientX) / 2;
 		const centerY = (touch1.clientY + touch2.clientY) / 2;
 
