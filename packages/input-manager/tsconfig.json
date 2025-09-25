@@ -1,0 +1,5 @@
+{
+	"extends": "@usketch/tsconfig/lib",
+	"include": ["src/**/*"],
+	"exclude": ["dist", "build", "node_modules"]
+}
