@@ -122,7 +122,7 @@ export const defaultKeymap: KeyboardPreset = {
     'alignRight': ['mod+shift+ArrowRight'],
     'alignTop': ['mod+shift+ArrowUp'],
     'alignBottom': ['mod+shift+ArrowDown'],
-    'alignCenterH': ['mod+shift+c'],
+    'alignCenterH': ['mod+shift+h'],  // 'c'から'h'に変更（copyStyleとの競合回避）
     'alignCenterV': ['mod+shift+m'],
     
     // カメラ操作（新規）
@@ -187,7 +187,7 @@ export const defaultMouseMap: MousePreset = {
     
     // ホイール操作
     'zoom': { wheel: true },
-    'zoomPrecise': { wheel: true, modifiers: ['ctrl'] }, // 精密ズーム
+    'zoomPrecise': { wheel: true, modifiers: ['mod'] }, // 精密ズーム（ctrlからmodに統一）
     'horizontalScroll': { wheel: true, modifiers: ['shift'] },
     
     // ジェスチャー
@@ -321,8 +321,13 @@ export interface KeyBinding {
   when?: string; // 条件式
 }
 
+/**
+ * コマンドハンドラーのインターフェース
+ * @param event - イベントオブジェクト（KeyboardEvent, MouseEvent, PanEvent等）
+ * @returns true: イベントを処理した（preventDefault済み）、false: イベントを処理しなかった
+ */
 export interface CommandHandler {
-  (event: KeyboardEvent): boolean;
+  (event: KeyboardEvent | MouseEvent | PanEvent | GestureEvent): boolean;
 }
 
 export interface CameraCommands {
@@ -407,12 +412,15 @@ export class MouseManager {
     
     const binding = this.findBinding('button', this.dragState.button, event);
     if (binding && binding.action === 'drag') {
-      const dragEvent = {
-        ...event,
+      // PanEventタイプで一貫性を保つ
+      const panEvent: PanEvent = {
+        originalEvent: event,
         deltaX: event.clientX - this.dragState.startX,
-        deltaY: event.clientY - this.dragState.startY
+        deltaY: event.clientY - this.dragState.startY,
+        clientX: event.clientX,
+        clientY: event.clientY
       };
-      return this.executeCommand(`${binding.command}:move`, dragEvent);
+      return this.executeCommand(`${binding.command}:move`, panEvent);
     }
     return false;
   }
@@ -447,7 +455,7 @@ export class MouseManager {
   
   private getModifiers(event: MouseEvent | KeyboardEvent): string[] {
     const modifiers: string[] = [];
-    if (event.ctrlKey || event.metaKey) modifiers.push('ctrl');
+    if (event.ctrlKey || event.metaKey) modifiers.push('mod'); // 'ctrl'から'mod'に統一
     if (event.shiftKey) modifiers.push('shift');
     if (event.altKey) modifiers.push('alt');
     // スペースキーの状態は別途管理が必要
@@ -523,6 +531,15 @@ export interface DragState {
   modifiers: string[];
   lastX?: number;
   lastY?: number;
+}
+
+// パン操作用の統一イベントタイプ
+export interface PanEvent {
+  originalEvent: PointerEvent;
+  deltaX: number;
+  deltaY: number;
+  clientX: number;
+  clientY: number;
 }
 
 export interface GestureEvent {
@@ -741,7 +758,7 @@ export function registerCameraCommands(
     return true;
   });
   
-  manager.registerCommand('pan:move', (event: DragEvent) => {
+  manager.registerCommand('pan:move', (event: PanEvent) => {
     if (!panStartCamera) return false;
     
     // ドラッグ量に応じてカメラを移動
@@ -767,7 +784,7 @@ export function registerCameraCommands(
     return true;
   });
   
-  manager.registerCommand('panWithHand:move', (event: DragEvent) => {
+  manager.registerCommand('panWithHand:move', (event: PanEvent) => {
     if (!panStartCamera) return false;
     
     store.setCamera({
@@ -992,7 +1009,7 @@ function InputSettings() {
 // スペース + 左ドラッグ: 手のひらツールパン
 // スペース + 右ドラッグ: 代替パン
 // Shift + ホイール: 水平スクロール
-// Ctrl + ホイール: 精密ズーム
+// Cmd/Ctrl + ホイール: 精密ズーム
 
 // トラックパッドジェスチャー
 // ピンチ: ズーム
