@@ -1,0 +1,148 @@
+.input-demo {
+	padding: 20px;
+	background: #f5f5f5;
+	border-radius: 8px;
+	max-width: 800px;
+	margin: 20px auto;
+}
+
+.input-demo-header {
+	text-align: center;
+	margin-bottom: 30px;
+}
+
+.input-demo-header h2 {
+	color: #333;
+	margin: 0 0 10px 0;
+}
+
+.input-demo-header p {
+	color: #666;
+	margin: 0;
+}
+
+.input-demo-controls {
+	display: flex;
+	gap: 20px;
+	justify-content: center;
+	margin-bottom: 30px;
+	flex-wrap: wrap;
+}
+
+.control-group {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.control-group label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: #555;
+}
+
+.control-group select {
+	padding: 5px 10px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	background: white;
+}
+
+.input-demo-shortcuts {
+	background: white;
+	padding: 20px;
+	border-radius: 8px;
+	margin-bottom: 20px;
+}
+
+.input-demo-shortcuts h3 {
+	margin: 0 0 15px 0;
+	color: #333;
+}
+
+.shortcuts-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 20px;
+}
+
+.shortcuts-grid strong {
+	display: block;
+	margin-bottom: 8px;
+	color: #555;
+}
+
+.shortcuts-grid ul {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.shortcuts-grid li {
+	padding: 4px 0;
+	color: #666;
+	font-size: 14px;
+}
+
+.input-demo-events {
+	background: white;
+	padding: 20px;
+	border-radius: 8px;
+}
+
+.input-demo-events h3 {
+	margin: 0 0 15px 0;
+	color: #333;
+}
+
+.events-list {
+	min-height: 200px;
+	max-height: 400px;
+	overflow-y: auto;
+	border: 1px solid #e0e0e0;
+	border-radius: 4px;
+	padding: 10px;
+	background: #fafafa;
+}
+
+.empty-state {
+	text-align: center;
+	color: #999;
+	padding: 40px 20px;
+}
+
+.event-item {
+	padding: 8px 12px;
+	margin: 4px 0;
+	background: white;
+	border-left: 3px solid #4caf50;
+	border-radius: 4px;
+	animation: slideIn 0.3s ease;
+}
+
+.clear-button {
+	margin-top: 10px;
+	padding: 8px 16px;
+	background: #f44336;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.clear-button:hover {
+	background: #d32f2f;
+}
+
+@keyframes slideIn {
+	from {
+		opacity: 0;
+		transform: translateX(-20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}

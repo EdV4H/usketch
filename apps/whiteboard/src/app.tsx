@@ -153,6 +153,7 @@ function AppContent() {
 			<DebugMenu />
 			<ToastContainer />
 			<button
+				type="button"
 				onClick={() => setShowInputDemo(!showInputDemo)}
 				style={{
 					position: "fixed",
