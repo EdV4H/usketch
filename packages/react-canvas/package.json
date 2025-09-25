@@ -26,7 +26,7 @@
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/store": "workspace:*",
 		"@usketch/tools": "workspace:*",
-		"framer-motion": "12.23.21",
+		"framer-motion": "12.23.22",
 		"uuid": "13.0.0",
 		"xstate": "5.22.0",
 		"zustand": "5.0.8"
