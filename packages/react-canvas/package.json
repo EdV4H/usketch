@@ -21,6 +21,8 @@
 	"dependencies": {
 		"@usketch/background-presets": "workspace:*",
 		"@usketch/effect-registry": "workspace:*",
+		"@usketch/input-manager": "workspace:*",
+		"@usketch/input-presets": "workspace:*",
 		"@usketch/react-shapes": "workspace:*",
 		"@usketch/shape-registry": "workspace:*",
 		"@usketch/shared-types": "workspace:*",
