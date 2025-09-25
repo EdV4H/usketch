@@ -70,31 +70,41 @@ export function useIntegratedInput(options: UseIntegratedInputOptions = {}) {
 
 		// ツール切り替えコマンド
 		inputManager.registerCommand("tool.select", () => {
-			setActiveTool("select");
+			const state = whiteboardStore.getState();
+			state.setActiveTool("select");
+			state.setCurrentTool("select");
 			if (debug) console.log("Tool: Select");
 			return true;
 		});
 
 		inputManager.registerCommand("tool.rectangle", () => {
-			setActiveTool("rectangle");
+			const state = whiteboardStore.getState();
+			state.setActiveTool("rectangle");
+			state.setCurrentTool("rectangle");
 			if (debug) console.log("Tool: Rectangle");
 			return true;
 		});
 
 		inputManager.registerCommand("tool.ellipse", () => {
-			setActiveTool("ellipse");
+			const state = whiteboardStore.getState();
+			state.setActiveTool("ellipse");
+			state.setCurrentTool("ellipse");
 			if (debug) console.log("Tool: Ellipse");
 			return true;
 		});
 
 		inputManager.registerCommand("tool.freedraw", () => {
-			setActiveTool("freedraw");
+			const state = whiteboardStore.getState();
+			state.setActiveTool("freedraw");
+			state.setCurrentTool("freedraw");
 			if (debug) console.log("Tool: Free Draw");
 			return true;
 		});
 
 		inputManager.registerCommand("tool.pan", () => {
-			setActiveTool("pan");
+			const state = whiteboardStore.getState();
+			state.setActiveTool("pan");
+			state.setCurrentTool("pan");
 			if (debug) console.log("Tool: Pan");
 			return true;
 		});
@@ -167,6 +177,7 @@ export function useIntegratedInput(options: UseIntegratedInputOptions = {}) {
 				state.clearSelection();
 			}
 			state.setActiveTool("select");
+			state.setCurrentTool("select");
 			if (debug) console.log("Escape");
 			return true;
 		});
@@ -293,8 +304,10 @@ export function useIntegratedInput(options: UseIntegratedInputOptions = {}) {
 		});
 
 		inputManager.registerCommand("camera.pan", () => {
+			const state = whiteboardStore.getState();
+			state.setActiveTool("pan");
+			state.setCurrentTool("pan");
 			if (debug) console.log("Camera: Pan");
-			setActiveTool("pan");
 			return true;
 		});
 
