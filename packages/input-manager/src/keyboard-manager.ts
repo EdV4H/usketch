@@ -87,7 +87,7 @@ export class KeyboardManager implements IKeyboardManager {
 		const priority = this.contexts.size;
 		this.contexts.set(name, {
 			name,
-			bindings,
+			bindings: bindings || undefined,
 			priority,
 		});
 		this.activeContext = name;

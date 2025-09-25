@@ -2,7 +2,6 @@
 	"name": "@usketch/input-manager",
 	"version": "0.0.0",
 	"main": "./dist/index.js",
-	"module": "./dist/index.mjs",
 	"types": "./dist/index.d.ts",
 	"sideEffects": false,
 	"license": "MIT",
@@ -10,8 +9,8 @@
 		"dist/**"
 	],
 	"scripts": {
-		"build": "tsup",
-		"dev": "tsup --watch",
+		"build": "tsc",
+		"dev": "tsc --watch",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"test:watch": "vitest"
@@ -22,7 +21,6 @@
 	"devDependencies": {
 		"@usketch/tsconfig": "workspace:*",
 		"@usketch/test-utils": "workspace:*",
-		"tsup": "^8.3.5",
 		"typescript": "^5.8.0-beta",
 		"vitest": "^2.1.1"
 	},
