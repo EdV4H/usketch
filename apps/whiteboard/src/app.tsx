@@ -8,6 +8,7 @@ import { getEffectTool } from "@usketch/tools";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
 import { DebugMenu } from "./components/debug-menu";
+import { InputDemo } from "./components/input-demo";
 import { PropertyPanel } from "./components/property-panel/property-panel";
 import { ToastContainer } from "./components/toast";
 import { ToolbarReact } from "./components/toolbar-react";
@@ -36,6 +37,7 @@ function AppContent() {
 	const [shapePlugins, setShapePlugins] = useState<ShapePlugin<any>[]>([]);
 	const [effectPlugins] = useState<EffectPlugin<any>[]>([ripplePlugin, pinPlugin, fadingPinPlugin]);
 	const [isPanelOpen, setIsPanelOpen] = useState(true);
+	const [showInputDemo, setShowInputDemo] = useState(false);
 
 	// Setup keyboard shortcuts
 	useKeyboardShortcuts({
@@ -131,19 +133,42 @@ function AppContent() {
 				onPanelToggle={() => setIsPanelOpen(!isPanelOpen)}
 			/>
 			<div className="main-content">
-				<div className="whiteboard-container">
-					<WhiteboardCanvas
-						shapes={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
-						effects={effectPlugins}
-						className="whiteboard"
-						background={background}
-						onReady={handleCanvasReady}
-					/>
-				</div>
-				{isPanelOpen && <PropertyPanel />}
+				{showInputDemo ? (
+					<InputDemo />
+				) : (
+					<>
+						<div className="whiteboard-container">
+							<WhiteboardCanvas
+								shapes={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
+								effects={effectPlugins}
+								className="whiteboard"
+								background={background}
+								onReady={handleCanvasReady}
+							/>
+						</div>
+						{isPanelOpen && <PropertyPanel />}
+					</>
+				)}
 			</div>
 			<DebugMenu />
 			<ToastContainer />
+			<button
+				onClick={() => setShowInputDemo(!showInputDemo)}
+				style={{
+					position: "fixed",
+					bottom: "20px",
+					left: "20px",
+					padding: "10px 20px",
+					background: "#2196F3",
+					color: "white",
+					border: "none",
+					borderRadius: "4px",
+					cursor: "pointer",
+					zIndex: 1000,
+				}}
+			>
+				{showInputDemo ? "Show Canvas" : "Show Input Demo"}
+			</button>
 		</div>
 	);
 }

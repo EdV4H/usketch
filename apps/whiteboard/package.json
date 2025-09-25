@@ -13,6 +13,8 @@
 	},
 	"dependencies": {
 		"@usketch/effect-registry": "workspace:*",
+		"@usketch/input-manager": "workspace:*",
+		"@usketch/input-presets": "workspace:*",
 		"@usketch/react-canvas": "workspace:*",
 		"@usketch/react-shapes": "workspace:*",
 		"@usketch/shape-abstraction": "workspace:*",

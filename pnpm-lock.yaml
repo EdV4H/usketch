@@ -38,6 +38,12 @@ importers:
       '@usketch/effect-registry':
         specifier: workspace:*
         version: link:../../packages/effect-registry
+      '@usketch/input-manager':
+        specifier: workspace:*
+        version: link:../../packages/input-manager
+      '@usketch/input-presets':
+        specifier: workspace:*
+        version: link:../../packages/input-presets
       '@usketch/react-canvas':
         specifier: workspace:*
         version: link:../../packages/react-canvas
@@ -210,10 +216,16 @@ importers:
       '@usketch/input-presets':
         specifier: workspace:*
         version: link:../input-presets
+      react:
+        specifier: ^18.0.0 || ^19.0.0
+        version: 19.1.1
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.17
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.1.13
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
