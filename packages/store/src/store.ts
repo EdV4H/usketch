@@ -74,8 +74,6 @@ export interface SnapSettings {
 
 export interface WhiteboardStore extends WhiteboardState, StyleSlice {
 	// State additions
-	/** @deprecated Use currentTool instead. Will be removed in the next major version. */
-	activeTool: string;
 	selectionIndicator: SelectionIndicatorState;
 	snapGuides: SnapGuide[];
 	snapSettings: SnapSettings;
@@ -101,8 +99,6 @@ export interface WhiteboardStore extends WhiteboardState, StyleSlice {
 	clearSelection: () => void;
 	setCamera: (camera: Partial<Camera>) => void;
 	setCurrentTool: (tool: string) => void;
-	/** @deprecated Use setCurrentTool instead. Will be removed in the next major version. */
-	setActiveTool: (tool: string) => void;
 
 	// Multiple selection actions
 	toggleSelection: (id: string) => void;
@@ -223,7 +219,6 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 	selectedShapeIds: new Set(),
 	camera: { x: 0, y: 0, zoom: 1 },
 	currentTool: "select",
-	activeTool: "select",
 	selectionIndicator: {
 		bounds: null,
 		visible: false,
@@ -307,14 +302,7 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 		set((state) => ({
 			...state,
 			currentTool: tool,
-			activeTool: tool, // Keep both in sync temporarily for backward compatibility
 		}));
-	},
-
-	/** @deprecated Use setCurrentTool instead. This is now an alias for setCurrentTool. */
-	setActiveTool: (tool: string) => {
-		// Now acts as an alias to setCurrentTool
-		get().setCurrentTool(tool);
 	},
 
 	deleteShapes: (ids: string[]) => {

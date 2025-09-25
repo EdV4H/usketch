@@ -11,7 +11,7 @@ export const useKeyboardShortcuts = () => {
 		redo,
 		canUndo,
 		canRedo,
-		setActiveTool,
+		setCurrentTool,
 		alignShapes,
 		toggleGridSnap,
 	} = useWhiteboardStore();
@@ -43,7 +43,7 @@ export const useKeyboardShortcuts = () => {
 					clearSelection();
 				}
 				// Always switch back to select tool when escape is pressed
-				setActiveTool("select");
+				setCurrentTool("select");
 				return;
 			}
 
@@ -117,25 +117,25 @@ export const useKeyboardShortcuts = () => {
 					case "v":
 					case "s":
 						e.preventDefault();
-						setActiveTool("select");
+						setCurrentTool("select");
 						break;
 					case "r":
 						e.preventDefault();
-						setActiveTool("rectangle");
+						setCurrentTool("rectangle");
 						break;
 					case "o":
 					case "e":
 						e.preventDefault();
-						setActiveTool("ellipse");
+						setCurrentTool("ellipse");
 						break;
 					case "d":
 					case "p":
 						e.preventDefault();
-						setActiveTool("freedraw");
+						setCurrentTool("freedraw");
 						break;
 					case "h":
 						e.preventDefault();
-						setActiveTool("pan");
+						setCurrentTool("pan");
 						break;
 				}
 			}
@@ -149,7 +149,7 @@ export const useKeyboardShortcuts = () => {
 			redo,
 			canUndo,
 			canRedo,
-			setActiveTool,
+			setCurrentTool,
 			alignShapes,
 			toggleGridSnap,
 		],

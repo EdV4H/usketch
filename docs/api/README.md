@@ -239,8 +239,8 @@ class TextTool implements Tool { /* ... */ }
 class ToolManager {
   registerTool(tool: Tool): void;
   unregisterTool(toolId: string): void;
-  setActiveTool(toolId: string): void;
-  getActiveTool(): Tool | null;
+  setCurrentTool(toolId: string): void;
+  getCurrentTool(): Tool | null;
   getAllTools(): Tool[];
 }
 ```
@@ -459,7 +459,7 @@ engine.on('shape:created', (event) => {
 });
 
 // ツールの切り替え
-engine.toolManager.setActiveTool('rectangle');
+engine.toolManager.setCurrentTool('rectangle');
 ```
 
 ### 高度な使用例
