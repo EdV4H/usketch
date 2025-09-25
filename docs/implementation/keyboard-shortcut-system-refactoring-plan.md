@@ -55,6 +55,7 @@
    - 選択・ドラッグ操作
    - ホイールによるズーム（実装箇所不明）
    - スペース+ドラッグによるパン
+   - カメラパン操作なし（今回追加）
 
 ### 問題点
 
@@ -173,14 +174,20 @@ export const defaultMouseMap: MousePreset = {
     // 基本操作
     'select': { button: 0 }, // 左クリック
     'contextMenu': { button: 2 }, // 右クリック
-    'pan': { button: 1 }, // 中クリック
     
-    // 修飾キー付き
+    // カメラ操作
+    'pan': { button: 1, action: 'drag' }, // 中ボタンドラッグ
+    'panAlternative': { button: 2, action: 'drag', modifiers: ['space'] }, // スペース+右ドラッグ
+    'panWithHand': { button: 0, action: 'drag', modifiers: ['space'] }, // スペース+左ドラッグ（手のひらツール）
+    
+    // 修飾キー付き操作
     'multiSelect': { button: 0, modifiers: ['shift'] },
-    'duplicateDrag': { button: 0, modifiers: ['alt'] },
+    'duplicateDrag': { button: 0, action: 'drag', modifiers: ['alt'] },
+    'constrainedMove': { button: 0, action: 'drag', modifiers: ['shift'] }, // 水平/垂直移動
     
     // ホイール操作
     'zoom': { wheel: true },
+    'zoomPrecise': { wheel: true, modifiers: ['ctrl'] }, // 精密ズーム
     'horizontalScroll': { wheel: true, modifiers: ['shift'] },
     
     // ジェスチャー
@@ -332,6 +339,7 @@ export class MouseManager {
   private bindings: Map<string, MouseBinding>;
   private gestureRecognizer: GestureRecognizer;
   private commandHandlers: Map<string, CommandHandler>;
+  private dragState: DragState | null = null;
   
   constructor(config?: MouseConfig) {
     this.bindings = new Map();
@@ -344,10 +352,11 @@ export class MouseManager {
   }
   
   // マウスボタン設定
-  setButtonBinding(command: string, button: number, modifiers?: string[]): void {
+  setButtonBinding(command: string, button: number, action?: 'click' | 'drag', modifiers?: string[]): void {
     this.bindings.set(command, { 
       command, 
-      button, 
+      button,
+      action: action || 'click',
       modifiers,
       type: 'button'
     });
@@ -374,9 +383,47 @@ export class MouseManager {
   
   // イベントハンドリング
   handlePointerDown(event: PointerEvent): boolean {
+    // ドラッグ操作の開始を記録
+    this.dragState = {
+      startX: event.clientX,
+      startY: event.clientY,
+      button: event.button,
+      modifiers: this.getModifiers(event)
+    };
+    
     const binding = this.findBinding('button', event.button, event);
     if (binding) {
+      if (binding.action === 'drag') {
+        // ドラッグ開始コマンドを実行
+        return this.executeCommand(`${binding.command}:start`, event);
+      }
       return this.executeCommand(binding.command, event);
+    }
+    return false;
+  }
+  
+  handlePointerMove(event: PointerEvent): boolean {
+    if (!this.dragState) return false;
+    
+    const binding = this.findBinding('button', this.dragState.button, event);
+    if (binding && binding.action === 'drag') {
+      const dragEvent = {
+        ...event,
+        deltaX: event.clientX - this.dragState.startX,
+        deltaY: event.clientY - this.dragState.startY
+      };
+      return this.executeCommand(`${binding.command}:move`, dragEvent);
+    }
+    return false;
+  }
+  
+  handlePointerUp(event: PointerEvent): boolean {
+    if (this.dragState) {
+      const binding = this.findBinding('button', this.dragState.button, event);
+      if (binding && binding.action === 'drag') {
+        this.executeCommand(`${binding.command}:end`, event);
+      }
+      this.dragState = null;
     }
     return false;
   }
@@ -396,6 +443,15 @@ export class MouseManager {
       return this.executeCommand(binding.command, gesture);
     }
     return false;
+  }
+  
+  private getModifiers(event: MouseEvent | KeyboardEvent): string[] {
+    const modifiers: string[] = [];
+    if (event.ctrlKey || event.metaKey) modifiers.push('ctrl');
+    if (event.shiftKey) modifiers.push('shift');
+    if (event.altKey) modifiers.push('alt');
+    // スペースキーの状態は別途管理が必要
+    return modifiers;
   }
 }
 
@@ -453,10 +509,20 @@ export class GestureManager {
 export interface MouseBinding {
   command: string;
   button?: number;
+  action?: 'click' | 'drag'; // クリックかドラッグか
   wheel?: 'up' | 'down' | boolean;
   gesture?: GestureType;
   modifiers?: string[];
   type: 'button' | 'wheel' | 'gesture';
+}
+
+export interface DragState {
+  startX: number;
+  startY: number;
+  button: number;
+  modifiers: string[];
+  lastX?: number;
+  lastY?: number;
 }
 
 export interface GestureEvent {
@@ -665,6 +731,58 @@ export function registerCameraCommands(
     return true;
   });
   
+  // マウスによるパン操作（ドラッグ）
+  let panStartCamera: { x: number; y: number } | null = null;
+  
+  manager.registerCommand('pan:start', (event: PointerEvent) => {
+    // パン開始時のカメラ位置を記録
+    panStartCamera = { ...store.camera };
+    event.preventDefault();
+    return true;
+  });
+  
+  manager.registerCommand('pan:move', (event: DragEvent) => {
+    if (!panStartCamera) return false;
+    
+    // ドラッグ量に応じてカメラを移動
+    const sensitivity = 1.0; // 感度調整
+    store.setCamera({
+      x: panStartCamera.x + event.deltaX * sensitivity,
+      y: panStartCamera.y + event.deltaY * sensitivity
+    });
+    return true;
+  });
+  
+  manager.registerCommand('pan:end', () => {
+    panStartCamera = null;
+    return true;
+  });
+  
+  // スペース+ドラッグによるパン（手のひらツール）
+  manager.registerCommand('panWithHand:start', (event: PointerEvent) => {
+    panStartCamera = { ...store.camera };
+    // カーソルを手のひらに変更
+    document.body.style.cursor = 'grabbing';
+    event.preventDefault();
+    return true;
+  });
+  
+  manager.registerCommand('panWithHand:move', (event: DragEvent) => {
+    if (!panStartCamera) return false;
+    
+    store.setCamera({
+      x: panStartCamera.x + event.deltaX,
+      y: panStartCamera.y + event.deltaY
+    });
+    return true;
+  });
+  
+  manager.registerCommand('panWithHand:end', () => {
+    panStartCamera = null;
+    document.body.style.cursor = 'default';
+    return true;
+  });
+  
   // マウスホイールによるズーム
   manager.registerCommand('wheelZoom', (event: WheelEvent) => {
     event.preventDefault();
@@ -688,6 +806,17 @@ export function registerCameraCommands(
       zoom: newZoom,
       x: store.camera.x - offsetX,
       y: store.camera.y - offsetY
+    });
+    return true;
+  });
+  
+  // Shift+ホイールで水平スクロール
+  manager.registerCommand('horizontalScroll', (event: WheelEvent) => {
+    event.preventDefault();
+    const scrollAmount = event.deltaY * 0.5;
+    
+    store.setCamera({
+      x: store.camera.x - scrollAmount
     });
     return true;
   });
@@ -859,8 +988,11 @@ function InputSettings() {
 
 // マウス操作
 // ホイール: ズーム（マウス位置中心）
-// 中クリック + ドラッグ: パン
+// 中クリック + ドラッグ: カメラパン（上下左右移動）
+// スペース + 左ドラッグ: 手のひらツールパン
+// スペース + 右ドラッグ: 代替パン
 // Shift + ホイール: 水平スクロール
+// Ctrl + ホイール: 精密ズーム
 
 // トラックパッドジェスチャー
 // ピンチ: ズーム
