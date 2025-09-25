@@ -41,8 +41,8 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 	isPanelOpen,
 	onPanelToggle,
 }) => {
-	const currentTool = useStore((state) => state.currentTool);
-	const setCurrentTool = useStore((state) => state.setCurrentTool);
+	const activeTool = useStore((state) => state.activeTool);
+	const setActiveTool = useStore((state) => state.setActiveTool);
 	const selectedShapeIds = useStore((state) => state.selectedShapeIds);
 	const distributeShapesHorizontally = useStore((state) => state.distributeShapesHorizontally);
 	const distributeShapesVertically = useStore((state) => state.distributeShapesVertically);
@@ -76,7 +76,7 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 
 	// effectToolConfigを更新
 	useEffect(() => {
-		if (currentTool === "effect") {
+		if (activeTool === "effect") {
 			const effectConfig =
 				currentEffectType === "ripple"
 					? { color: "#4ECDC4", radius: 60, duration: 600 }
@@ -96,7 +96,7 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 				effectConfig,
 			});
 		}
-	}, [currentTool, currentEffectType]);
+	}, [activeTool, currentEffectType]);
 
 	// 外側クリックでメニューを閉じる
 	useEffect(() => {
@@ -385,8 +385,8 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 					<button
 						type="button"
 						key={tool.id}
-						className={`tool-button ${currentTool === tool.id ? "active" : ""}`}
-						onClick={() => setCurrentTool(tool.id)}
+						className={`tool-button ${activeTool === tool.id ? "active" : ""}`}
+						onClick={() => setActiveTool(tool.id)}
 						data-testid={`tool-${tool.id}`}
 						title={tool.name}
 					>
@@ -406,7 +406,7 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 			<div className="toolbar-separator" />
 
 			{/* Distribution buttons - show when select tool is active and 3+ shapes are selected */}
-			{currentTool === "select" && selectedShapeIds.size >= 3 && (
+			{activeTool === "select" && selectedShapeIds.size >= 3 && (
 				<>
 					<div className="toolbar-group">
 						<button
@@ -434,7 +434,7 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 				</>
 			)}
 
-			{currentTool === "effect" && (
+			{activeTool === "effect" && (
 				<>
 					<div className="toolbar-group">
 						<div className="background-dropdown" ref={effectDropdownRef}>

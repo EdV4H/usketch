@@ -51,28 +51,10 @@ export function useIntegratedInput(options: UseIntegratedInputOptions = {}) {
 
 	// Canvasの操作と入力システムを接続
 	useEffect(() => {
-		const {
-			setActiveTool,
-			deleteShapes,
-			selectedShapeIds,
-			selectAllShapes,
-			clearSelection,
-			undo,
-			redo,
-			canUndo,
-			canRedo,
-			alignShapes,
-			toggleGridSnap,
-			toggleShapeSnap,
-			copyStyleFromSelection,
-			pasteStyleToSelection,
-		} = whiteboardStore.getState();
-
 		// ツール切り替えコマンド
 		inputManager.registerCommand("tool.select", () => {
 			const state = whiteboardStore.getState();
 			state.setActiveTool("select");
-			state.setCurrentTool("select");
 			if (debug) console.log("Tool: Select");
 			return true;
 		});
@@ -80,7 +62,6 @@ export function useIntegratedInput(options: UseIntegratedInputOptions = {}) {
 		inputManager.registerCommand("tool.rectangle", () => {
 			const state = whiteboardStore.getState();
 			state.setActiveTool("rectangle");
-			state.setCurrentTool("rectangle");
 			if (debug) console.log("Tool: Rectangle");
 			return true;
 		});
@@ -88,7 +69,6 @@ export function useIntegratedInput(options: UseIntegratedInputOptions = {}) {
 		inputManager.registerCommand("tool.ellipse", () => {
 			const state = whiteboardStore.getState();
 			state.setActiveTool("ellipse");
-			state.setCurrentTool("ellipse");
 			if (debug) console.log("Tool: Ellipse");
 			return true;
 		});
@@ -96,7 +76,6 @@ export function useIntegratedInput(options: UseIntegratedInputOptions = {}) {
 		inputManager.registerCommand("tool.freedraw", () => {
 			const state = whiteboardStore.getState();
 			state.setActiveTool("freedraw");
-			state.setCurrentTool("freedraw");
 			if (debug) console.log("Tool: Free Draw");
 			return true;
 		});
@@ -104,7 +83,6 @@ export function useIntegratedInput(options: UseIntegratedInputOptions = {}) {
 		inputManager.registerCommand("tool.pan", () => {
 			const state = whiteboardStore.getState();
 			state.setActiveTool("pan");
-			state.setCurrentTool("pan");
 			if (debug) console.log("Tool: Pan");
 			return true;
 		});
@@ -177,7 +155,6 @@ export function useIntegratedInput(options: UseIntegratedInputOptions = {}) {
 				state.clearSelection();
 			}
 			state.setActiveTool("select");
-			state.setCurrentTool("select");
 			if (debug) console.log("Escape");
 			return true;
 		});
@@ -306,7 +283,6 @@ export function useIntegratedInput(options: UseIntegratedInputOptions = {}) {
 		inputManager.registerCommand("camera.pan", () => {
 			const state = whiteboardStore.getState();
 			state.setActiveTool("pan");
-			state.setCurrentTool("pan");
 			if (debug) console.log("Camera: Pan");
 			return true;
 		});
