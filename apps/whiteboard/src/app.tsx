@@ -30,7 +30,7 @@ const addShapeWithDelay = (shape: Shape, delay: number) => {
 // Calculate delay based on shape index
 const calculateDelay = (index: number, baseDelay = 100) => index * baseDelay;
 
-function AppContent() {
+function WhiteboardApp() {
 	const canvasRef = useRef<any>(null);
 	const shapesAddedRef = useRef(false);
 	const backgroundsRegisteredRef = useRef(false);
@@ -38,7 +38,7 @@ function AppContent() {
 	const [effectPlugins] = useState<EffectPlugin<any>[]>([ripplePlugin, pinPlugin, fadingPinPlugin]);
 	const [isPanelOpen, setIsPanelOpen] = useState(true);
 
-	// Setup input commands with the new system
+	// Setup input commands with the new system - now inside InputProvider
 	useInputCommands({
 		onPanelToggle: () => setIsPanelOpen((prev) => !prev),
 	});
@@ -125,28 +125,34 @@ function AppContent() {
 	};
 
 	return (
-		<InputProvider keyboardPreset={defaultKeymap} mousePreset={defaultMouseMap} debug={false}>
-			<div className="app">
-				<ToolbarReact
-					onBackgroundChange={setBackground}
-					isPanelOpen={isPanelOpen}
-					onPanelToggle={() => setIsPanelOpen(!isPanelOpen)}
-				/>
-				<div className="main-content">
-					<div className="whiteboard-container">
-						<WhiteboardCanvas
-							shapes={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
-							effects={effectPlugins}
-							className="whiteboard"
-							background={background}
-							onReady={handleCanvasReady}
-						/>
-					</div>
-					{isPanelOpen && <PropertyPanel />}
+		<div className="app">
+			<ToolbarReact
+				onBackgroundChange={setBackground}
+				isPanelOpen={isPanelOpen}
+				onPanelToggle={() => setIsPanelOpen(!isPanelOpen)}
+			/>
+			<div className="main-content">
+				<div className="whiteboard-container">
+					<WhiteboardCanvas
+						shapes={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
+						effects={effectPlugins}
+						className="whiteboard"
+						background={background}
+						onReady={handleCanvasReady}
+					/>
 				</div>
-				<DebugMenu />
-				<ToastContainer />
+				{isPanelOpen && <PropertyPanel />}
 			</div>
+			<DebugMenu />
+			<ToastContainer />
+		</div>
+	);
+}
+
+function AppContent() {
+	return (
+		<InputProvider keyboardPreset={defaultKeymap} mousePreset={defaultMouseMap} debug={false}>
+			<WhiteboardApp />
 		</InputProvider>
 	);
 }
