@@ -1,4 +1,5 @@
-import { WhiteboardCanvas } from "@usketch/react-canvas";
+import { defaultKeymap, defaultMouseMap } from "@usketch/input-presets";
+import { InputProvider, WhiteboardCanvas } from "@usketch/react-canvas";
 import { defaultShapePlugins } from "@usketch/shape-plugins";
 import type { ShapePlugin } from "@usketch/shape-registry";
 import type { Shape } from "@usketch/shared-types";
@@ -16,7 +17,7 @@ import { customShapePlugins } from "./custom-shapes";
 import type { EffectPlugin } from "./effects";
 import { fadingPinPlugin, pinPlugin, ripplePlugin } from "./effects";
 import { createAppEffect } from "./effects/effect-factory";
-import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
+import { useInputCommands } from "./hooks/use-input-commands";
 import "./styles/app.css";
 
 // Helper function to add shape with delay
@@ -37,8 +38,8 @@ function AppContent() {
 	const [effectPlugins] = useState<EffectPlugin<any>[]>([ripplePlugin, pinPlugin, fadingPinPlugin]);
 	const [isPanelOpen, setIsPanelOpen] = useState(true);
 
-	// Setup keyboard shortcuts
-	useKeyboardShortcuts({
+	// Setup input commands with the new system
+	useInputCommands({
 		onPanelToggle: () => setIsPanelOpen((prev) => !prev),
 	});
 
@@ -124,27 +125,29 @@ function AppContent() {
 	};
 
 	return (
-		<div className="app">
-			<ToolbarReact
-				onBackgroundChange={setBackground}
-				isPanelOpen={isPanelOpen}
-				onPanelToggle={() => setIsPanelOpen(!isPanelOpen)}
-			/>
-			<div className="main-content">
-				<div className="whiteboard-container">
-					<WhiteboardCanvas
-						shapes={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
-						effects={effectPlugins}
-						className="whiteboard"
-						background={background}
-						onReady={handleCanvasReady}
-					/>
+		<InputProvider keyboardPreset={defaultKeymap} mousePreset={defaultMouseMap} debug={false}>
+			<div className="app">
+				<ToolbarReact
+					onBackgroundChange={setBackground}
+					isPanelOpen={isPanelOpen}
+					onPanelToggle={() => setIsPanelOpen(!isPanelOpen)}
+				/>
+				<div className="main-content">
+					<div className="whiteboard-container">
+						<WhiteboardCanvas
+							shapes={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
+							effects={effectPlugins}
+							className="whiteboard"
+							background={background}
+							onReady={handleCanvasReady}
+						/>
+					</div>
+					{isPanelOpen && <PropertyPanel />}
 				</div>
-				{isPanelOpen && <PropertyPanel />}
+				<DebugMenu />
+				<ToastContainer />
 			</div>
-			<DebugMenu />
-			<ToastContainer />
-		</div>
+		</InputProvider>
 	);
 }
 
