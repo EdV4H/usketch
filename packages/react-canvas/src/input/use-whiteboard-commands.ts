@@ -1,8 +1,11 @@
 import { useWhiteboardStore } from "@usketch/store";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { createAppCommands } from "./app-commands";
 import { createCameraCommands } from "./camera-commands";
 import { type CommandRegistration, useCommandRegistration } from "./use-command-registration";
+
+// グローバルなコマンドインスタンスキャッシュ（StrictMode対策）
+const globalCommandsCache = new WeakMap<any, CommandRegistration>();
 
 /**
  * ホワイトボード用のコマンドを一括登録するフック
@@ -10,12 +13,17 @@ import { type CommandRegistration, useCommandRegistration } from "./use-command-
 export function useWhiteboardCommands() {
 	const store = useWhiteboardStore();
 
-	// コマンドハンドラーを生成
-	const commands: CommandRegistration = useMemo(() => {
+	// storeをキーとしてグローバルにコマンドをキャッシュ
+	const commands = useMemo(() => {
+		// すでに作成済みならそれを返す
+		if (globalCommandsCache.has(store)) {
+			return globalCommandsCache.get(store)!;
+		}
+
 		const cameraCommands = createCameraCommands(store);
 		const appCommands = createAppCommands(store);
 
-		return {
+		const newCommands: CommandRegistration = {
 			keyboard: {
 				...cameraCommands.keyboard,
 				...appCommands.keyboard,
@@ -23,6 +31,10 @@ export function useWhiteboardCommands() {
 			mouse: cameraCommands.mouse,
 			gesture: cameraCommands.gesture,
 		};
+
+		// グローバルキャッシュに保存
+		globalCommandsCache.set(store, newCommands);
+		return newCommands;
 	}, [store]);
 
 	// コマンドを登録
