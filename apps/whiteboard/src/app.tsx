@@ -1,5 +1,4 @@
-import { defaultKeymap, defaultMouseMap } from "@usketch/input-presets";
-import { InputProvider, WhiteboardCanvas } from "@usketch/react-canvas";
+import { WhiteboardCanvas } from "@usketch/react-canvas";
 import { defaultShapePlugins } from "@usketch/shape-plugins";
 import type { ShapePlugin } from "@usketch/shape-registry";
 import type { Shape } from "@usketch/shared-types";
@@ -8,7 +7,9 @@ import { whiteboardStore } from "@usketch/store";
 import { getEffectTool } from "@usketch/tools";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
+import { ConfiguredInputProvider } from "./components/configured-input-provider";
 import { DebugMenu } from "./components/debug-menu";
+import { InputSettingsPanel } from "./components/input-settings/input-settings-panel";
 import { PropertyPanel } from "./components/property-panel/property-panel";
 import { ToastContainer } from "./components/toast";
 import { ToolbarReact } from "./components/toolbar-react";
@@ -37,6 +38,7 @@ function WhiteboardApp() {
 	const [shapePlugins, setShapePlugins] = useState<ShapePlugin<any>[]>([]);
 	const [effectPlugins] = useState<EffectPlugin<any>[]>([ripplePlugin, pinPlugin, fadingPinPlugin]);
 	const [isPanelOpen, setIsPanelOpen] = useState(true);
+	const [isInputSettingsOpen, setIsInputSettingsOpen] = useState(false);
 
 	// Setup input commands with the new system - now inside InputProvider
 	useInputCommands({
@@ -130,6 +132,7 @@ function WhiteboardApp() {
 				onBackgroundChange={setBackground}
 				isPanelOpen={isPanelOpen}
 				onPanelToggle={() => setIsPanelOpen(!isPanelOpen)}
+				onInputSettingsToggle={() => setIsInputSettingsOpen(true)}
 			/>
 			<div className="main-content">
 				<div className="whiteboard-container">
@@ -143,24 +146,22 @@ function WhiteboardApp() {
 				</div>
 				{isPanelOpen && <PropertyPanel />}
 			</div>
+			<InputSettingsPanel
+				isOpen={isInputSettingsOpen}
+				onClose={() => setIsInputSettingsOpen(false)}
+			/>
 			<DebugMenu />
 			<ToastContainer />
 		</div>
 	);
 }
 
-function AppContent() {
-	return (
-		<InputProvider keyboardPreset={defaultKeymap} mousePreset={defaultMouseMap} debug={false}>
-			<WhiteboardApp />
-		</InputProvider>
-	);
-}
-
 function App() {
 	return (
 		<ToastProvider>
-			<AppContent />
+			<ConfiguredInputProvider debug={false}>
+				<WhiteboardApp />
+			</ConfiguredInputProvider>
 		</ToastProvider>
 	);
 }
