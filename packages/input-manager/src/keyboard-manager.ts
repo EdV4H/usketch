@@ -8,7 +8,7 @@ import type {
 	KeyboardContext,
 	KeyboardPreset,
 } from "./types";
-import { ScreenReaderAnnouncer, formatShortcutLabel } from "./utils/accessibility";
+import { formatShortcutLabel, ScreenReaderAnnouncer } from "./utils/accessibility";
 
 export class KeyboardManager implements IKeyboardManager {
 	private bindings: Map<string, KeyBinding>;
@@ -144,7 +144,7 @@ export class KeyboardManager implements IKeyboardManager {
 			if (this.config.debug) {
 				console.log(`[KeyboardManager] Command executed: ${command} -> ${result}`);
 			}
-			
+
 			// スクリーンリーダーにコマンド実行を通知
 			if (this.screenReader && result) {
 				const binding = this.bindings.get(command);
@@ -153,7 +153,7 @@ export class KeyboardManager implements IKeyboardManager {
 					this.screenReader.announce(`${command} (${shortcutLabel})`);
 				}
 			}
-			
+
 			return result;
 		}
 		return false;
@@ -201,7 +201,7 @@ export class KeyboardManager implements IKeyboardManager {
 		this.commandHandlers = {};
 		this.listeners.clear();
 		this.pressedKeys.clear();
-		
+
 		// スクリーンリーダーのクリーンアップ
 		if (this.screenReader) {
 			this.screenReader.destroy();

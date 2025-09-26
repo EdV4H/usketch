@@ -1,9 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { defaultKeymap, defaultMouseMap } from "@usketch/input-presets";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { GestureManager } from "../gesture-manager";
 import { KeyboardManager } from "../keyboard-manager";
 import { MouseManager } from "../mouse-manager";
-import { GestureManager } from "../gesture-manager";
-import { defaultKeymap } from "@usketch/input-presets";
-import { defaultMouseMap } from "@usketch/input-presets";
 
 describe("Input System Integration", () => {
 	let keyboard: KeyboardManager;
@@ -194,7 +193,7 @@ describe("Input System Integration", () => {
 				expect.objectContaining({
 					delta: expect.any(Number),
 					center: expect.any(Object),
-				})
+				}),
 			);
 		});
 
@@ -314,7 +313,7 @@ describe("Input System Integration", () => {
 	describe("Performance", () => {
 		it("should handle rapid key presses efficiently", () => {
 			const startTime = performance.now();
-			
+
 			// 100回の高速キー入力をシミュレート
 			for (let i = 0; i < 100; i++) {
 				const event = new KeyboardEvent("keydown", { key: "v" });
