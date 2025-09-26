@@ -177,6 +177,10 @@ export function PresetSelector() {
 							key={preset.id}
 							className={`preset-item ${selectedKeyboardPreset === preset.id ? "active" : ""}`}
 							onClick={() => handleKeyboardPresetChange(preset.id)}
+							onKeyDown={(e) => e.key === "Enter" && handleKeyboardPresetChange(preset.id)}
+							role="button"
+							tabIndex={0}
+							aria-label={`${preset.name}プリセットを選択`}
 						>
 							<div className="preset-header">
 								<input
@@ -202,6 +206,10 @@ export function PresetSelector() {
 							key={preset.id}
 							className={`preset-item ${selectedMousePreset === preset.id ? "active" : ""}`}
 							onClick={() => handleMousePresetChange(preset.id)}
+							onKeyDown={(e) => e.key === "Enter" && handleMousePresetChange(preset.id)}
+							role="button"
+							tabIndex={0}
+							aria-label={`${preset.name}プリセットを選択`}
 						>
 							<div className="preset-header">
 								<input
