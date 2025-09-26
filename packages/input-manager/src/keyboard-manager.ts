@@ -69,6 +69,14 @@ export class KeyboardManager implements IKeyboardManager {
 		this.bindings.delete(command);
 	}
 
+	getBindings(): KeyBindings {
+		const bindings: KeyBindings = {};
+		for (const [command, binding] of this.bindings) {
+			bindings[command] = binding.keys;
+		}
+		return bindings;
+	}
+
 	loadPreset(preset: KeyboardPreset): void {
 		// 既存のバインディングをクリア
 		this.bindings.clear();

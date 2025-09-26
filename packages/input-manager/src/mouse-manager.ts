@@ -66,6 +66,14 @@ export class MouseManager implements IMouseManager {
 		this.bindings.delete(command);
 	}
 
+	getBindings(): MouseBindings {
+		const bindings: MouseBindings = {};
+		for (const [command, binding] of this.bindings) {
+			bindings[command] = binding;
+		}
+		return bindings;
+	}
+
 	loadPreset(preset: MousePreset): void {
 		// 既存のバインディングをクリア
 		this.bindings.clear();

@@ -10,6 +10,7 @@ export interface ToolbarProps {
 	onBackgroundChange?: (background: { id: string; config?: any }) => void;
 	isPanelOpen?: boolean;
 	onPanelToggle?: () => void;
+	onInputSettingsToggle?: () => void;
 }
 
 // プリセット背景の設定
@@ -40,6 +41,7 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 	onBackgroundChange,
 	isPanelOpen,
 	onPanelToggle,
+	onInputSettingsToggle,
 }) => {
 	const currentTool = useStore((state) => state.currentTool);
 	const setCurrentTool = useStore((state) => state.setCurrentTool);
@@ -624,7 +626,19 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 			</div>
 
 			{/* Panel Toggle Button - aligned to the right */}
-			<div style={{ marginLeft: "auto" }}>
+			<div style={{ marginLeft: "auto", display: "flex", gap: "0.375rem" }}>
+				{onInputSettingsToggle && (
+					<button
+						type="button"
+						className="tool-button"
+						onClick={onInputSettingsToggle}
+						data-testid="input-settings"
+						title="入力設定"
+					>
+						<span className="tool-icon">⌨</span>
+						<span>入力設定</span>
+					</button>
+				)}
 				<button
 					type="button"
 					className={`tool-button ${isPanelOpen ? "active" : ""}`}
