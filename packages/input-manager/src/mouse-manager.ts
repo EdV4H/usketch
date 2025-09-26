@@ -9,6 +9,7 @@ import type {
 	MousePreset,
 	PanEvent,
 } from "./types";
+import { throttle } from "./utils/debounce";
 
 export class MouseManager implements IMouseManager {
 	private bindings: Map<string, MouseBinding>;
@@ -16,6 +17,7 @@ export class MouseManager implements IMouseManager {
 	private config: MouseConfig;
 	private dragState: DragState | null = null;
 	private listeners: Map<string, Set<(data: any) => void>>;
+	private throttledWheel: (event: WheelEvent) => boolean;
 
 	constructor(config?: MouseConfig) {
 		this.bindings = new Map();
@@ -31,6 +33,9 @@ export class MouseManager implements IMouseManager {
 		if (config?.preset) {
 			this.loadPreset(config.preset);
 		}
+
+		// ホイールイベントをスロットル化（16ms = 60fps）
+		this.throttledWheel = throttle(this.handleWheelInternal.bind(this), 16);
 	}
 
 	initialize(config: MouseConfig): void {
@@ -161,6 +166,11 @@ export class MouseManager implements IMouseManager {
 	}
 
 	handleWheel(event: WheelEvent): boolean {
+		// スロットル化されたハンドラーを呼び出し
+		return this.throttledWheel(event);
+	}
+
+	private handleWheelInternal(event: WheelEvent): boolean {
 		// スクロール方向の判定
 		let direction: "up" | "down";
 		if (this.config.invertScroll) {
@@ -179,6 +189,12 @@ export class MouseManager implements IMouseManager {
 		if (wheelBinding) {
 			return this.executeCommand(wheelBinding.command, event);
 		}
+
+		// ズームイベントを発行
+		this.emit("zoom", {
+			delta: event.deltaY * (this.config.sensitivity ?? 1.0),
+			center: { x: event.clientX, y: event.clientY },
+		});
 
 		return false;
 	}
@@ -264,11 +280,11 @@ export class MouseManager implements IMouseManager {
 		this.listeners.get(event)?.delete(listener);
 	}
 
-	// private emit(event: string, data: any): void {
-	// 	this.listeners.get(event)?.forEach((listener) => {
-	// 		listener(data);
-	// 	});
-	// }
+	private emit(event: string, data: any): void {
+		this.listeners.get(event)?.forEach((listener) => {
+			listener(data);
+		});
+	}
 
 	// 公開メソッド
 	getActiveBindings(): MouseBinding[] {
