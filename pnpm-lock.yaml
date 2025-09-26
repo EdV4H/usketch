@@ -38,6 +38,9 @@ importers:
       '@usketch/effect-registry':
         specifier: workspace:*
         version: link:../../packages/effect-registry
+      '@usketch/input-presets':
+        specifier: workspace:*
+        version: link:../../packages/input-presets
       '@usketch/react-canvas':
         specifier: workspace:*
         version: link:../../packages/react-canvas

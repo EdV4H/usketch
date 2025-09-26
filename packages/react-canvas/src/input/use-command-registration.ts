@@ -1,4 +1,9 @@
-import type { CommandHandler } from "@usketch/input-manager";
+import type {
+	CommandHandler,
+	GestureManager,
+	KeyboardManager,
+	MouseManager,
+} from "@usketch/input-manager";
 import { useEffect } from "react";
 import { useInput } from "./input-context";
 
