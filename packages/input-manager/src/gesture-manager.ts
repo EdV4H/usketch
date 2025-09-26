@@ -418,6 +418,9 @@ export class GestureManager implements IGestureManager {
 			if (recognizer && state.isActive) {
 				const gestureEvent = recognizer.update(event.touches, timestamp);
 				if (gestureEvent) {
+					// イベントを発行
+					this.emit(type, gestureEvent);
+
 					const binding = this.findBinding(type);
 					if (binding) {
 						this.executeCommand(`${binding.command}:move`, gestureEvent);
@@ -488,11 +491,11 @@ export class GestureManager implements IGestureManager {
 		this.listeners.get(event)?.delete(listener);
 	}
 
-	// private emit(event: string, data: any): void {
-	// 	this.listeners.get(event)?.forEach((listener) => {
-	// 		listener(data);
-	// 	});
-	// }
+	private emit(event: string, data: any): void {
+		this.listeners.get(event)?.forEach((listener) => {
+			listener(data);
+		});
+	}
 
 	// 公開メソッド
 	getActiveBindings(): GestureBinding[] {

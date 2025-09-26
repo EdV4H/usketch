@@ -139,6 +139,16 @@ export class MouseManager implements IMouseManager {
 	handlePointerMove(event: PointerEvent): boolean {
 		if (!this.dragState) return false;
 
+		// ドラッグイベントを発行
+		this.emit("drag", {
+			startX: this.dragState.startX,
+			startY: this.dragState.startY,
+			currentX: event.clientX,
+			currentY: event.clientY,
+			deltaX: event.clientX - this.dragState.startX,
+			deltaY: event.clientY - this.dragState.startY,
+		});
+
 		const binding = this.findBinding("button", this.dragState.button, event);
 		if (binding && binding.action === "drag") {
 			// PanEventタイプで一貫性を保つ

@@ -44,7 +44,7 @@ export class ScreenReaderAnnouncer {
 	}
 
 	destroy(): void {
-		if (this.liveRegion && this.liveRegion.parentNode) {
+		if (this.liveRegion?.parentNode) {
 			this.liveRegion.parentNode.removeChild(this.liveRegion);
 		}
 		this.liveRegion = null;
@@ -217,7 +217,9 @@ export class KeyboardOnlyUserDetector {
 	private setKeyboardUser(value: boolean): void {
 		if (this.isKeyboardUser !== value) {
 			this.isKeyboardUser = value;
-			this.listeners.forEach((listener) => listener(value));
+			this.listeners.forEach((listener) => {
+				listener(value);
+			});
 		}
 	}
 
