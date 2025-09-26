@@ -206,8 +206,12 @@ export function KeyboardShortcuts() {
 														onKeyDown={handleKeyRecord}
 														placeholder="キーを押してください..."
 													/>
-													<button type="button" onClick={handleSave}>保存</button>
-													<button type="button" onClick={handleCancel}>キャンセル</button>
+													<button type="button" onClick={handleSave}>
+														保存
+													</button>
+													<button type="button" onClick={handleCancel}>
+														キャンセル
+													</button>
 												</div>
 											) : (
 												<>
@@ -217,12 +221,14 @@ export function KeyboardShortcuts() {
 														</span>
 													))}
 													<button
+														type="button"
 														className="edit-button"
 														onClick={() => handleEdit(shortcut.command)}
 													>
 														編集
 													</button>
 													<button
+														type="button"
 														className="reset-button"
 														onClick={() => handleReset(shortcut.command)}
 													>
