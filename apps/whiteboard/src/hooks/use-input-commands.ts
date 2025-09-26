@@ -1,7 +1,5 @@
 import {
 	type CommandRegistration,
-	createAppCommands,
-	createCameraCommands,
 	useCommandRegistration,
 	useWhiteboardCommands,
 } from "@usketch/react-canvas";

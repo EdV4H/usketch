@@ -222,13 +222,13 @@ export function PresetSelector() {
 			<div className="preset-actions">
 				<h3>設定管理</h3>
 				<div className="action-buttons">
-					<button className="export-button" onClick={exportSettings}>
+					<button type="button" className="export-button" onClick={exportSettings}>
 						設定をエクスポート
 					</button>
-					<button className="import-button" onClick={importSettings}>
+					<button type="button" className="import-button" onClick={importSettings}>
 						設定をインポート
 					</button>
-					<button className="reset-button" onClick={resetAllSettings}>
+					<button type="button" className="reset-button" onClick={resetAllSettings}>
 						すべてリセット
 					</button>
 				</div>
