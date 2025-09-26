@@ -205,10 +205,9 @@ export function KeyboardShortcuts() {
 														value={recordingKeys.map(formatKey).join(", ")}
 														onKeyDown={handleKeyRecord}
 														placeholder="キーを押してください..."
-														autoFocus
 													/>
-													<button onClick={handleSave}>保存</button>
-													<button onClick={handleCancel}>キャンセル</button>
+													<button type="button" onClick={handleSave}>保存</button>
+													<button type="button" onClick={handleCancel}>キャンセル</button>
 												</div>
 											) : (
 												<>

@@ -67,7 +67,7 @@ export const EffectRegistryProvider: React.FC<EffectRegistryProviderProps> = ({
 		};
 		// pluginsを依存配列から削除し、registryのみに依存
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [registry]);
+	}, [registry, plugins]);
 
 	return (
 		<EffectRegistryContext.Provider value={{ registry, availableTypes }}>

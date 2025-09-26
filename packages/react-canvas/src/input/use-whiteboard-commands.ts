@@ -1,5 +1,5 @@
 import { useWhiteboardStore } from "@usketch/store";
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { createAppCommands } from "./app-commands";
 import { createCameraCommands } from "./camera-commands";
 import { type CommandRegistration, useCommandRegistration } from "./use-command-registration";

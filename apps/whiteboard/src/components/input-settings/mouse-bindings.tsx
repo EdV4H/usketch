@@ -90,22 +90,20 @@ export function MouseBindings() {
 
 	const formatModifiers = (modifiers?: string[]) => {
 		if (!modifiers || modifiers.length === 0) return "";
-		return (
-			modifiers
-				.map((mod) => {
-					switch (mod) {
-						case "mod":
-							return "⌘/Ctrl";
-						case "shift":
-							return "Shift";
-						case "alt":
-							return "Alt";
-						default:
-							return mod;
-					}
-				})
-				.join(" + ") + " + "
-		);
+		return `${modifiers
+			.map((mod) => {
+				switch (mod) {
+					case "mod":
+						return "⌘/Ctrl";
+					case "shift":
+						return "Shift";
+					case "alt":
+						return "Alt";
+					default:
+						return mod;
+				}
+			})
+			.join(" + ")} + `;
 	};
 
 	const formatBinding = (binding: MouseBindingItem["binding"]) => {

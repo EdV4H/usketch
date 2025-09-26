@@ -21,25 +21,28 @@ export function InputSettingsPanel({ isOpen, onClose }: InputSettingsPanelProps)
 			<div className="input-settings-panel" onClick={(e) => e.stopPropagation()}>
 				<div className="input-settings-header">
 					<h2>入力設定</h2>
-					<button className="close-button" onClick={onClose} aria-label="閉じる">
+					<button type="button" className="close-button" onClick={onClose} aria-label="閉じる">
 						×
 					</button>
 				</div>
 
 				<div className="input-settings-tabs">
 					<button
+						type="button"
 						className={`tab-button ${activeTab === "keyboard" ? "active" : ""}`}
 						onClick={() => setActiveTab("keyboard")}
 					>
 						キーボード
 					</button>
 					<button
+						type="button"
 						className={`tab-button ${activeTab === "mouse" ? "active" : ""}`}
 						onClick={() => setActiveTab("mouse")}
 					>
 						マウス
 					</button>
 					<button
+						type="button"
 						className={`tab-button ${activeTab === "presets" ? "active" : ""}`}
 						onClick={() => setActiveTab("presets")}
 					>
