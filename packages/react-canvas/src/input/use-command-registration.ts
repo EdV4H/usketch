@@ -61,7 +61,9 @@ export function useCommandRegistration(commands: CommandRegistration) {
 				});
 			}
 		};
-	}, [keyboard, mouse, gesture, commands]);
+		// commandsを依存配列から削除し、個別のフィールドを監視
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [keyboard, mouse, gesture]);
 }
 
 /**

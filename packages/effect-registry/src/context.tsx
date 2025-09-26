@@ -37,9 +37,14 @@ export const EffectRegistryProvider: React.FC<EffectRegistryProviderProps> = ({
 	);
 
 	useEffect(() => {
-		// Register plugins
+		// Register plugins (only once per plugin)
+		const registeredTypes = new Set<string>();
 		for (const plugin of plugins) {
-			registry.register(plugin);
+			// Check if this plugin type is already registered
+			if (!registry.getPlugin(plugin.type)) {
+				registry.register(plugin);
+				registeredTypes.add(plugin.type);
+			}
 		}
 
 		// Update available types
@@ -55,9 +60,14 @@ export const EffectRegistryProvider: React.FC<EffectRegistryProviderProps> = ({
 
 		return () => {
 			registry.removeEventListener(updateTypes);
-			// Note: We don't unregister plugins on unmount as they might be used elsewhere
+			// Unregister only the plugins we registered
+			for (const type of registeredTypes) {
+				registry.unregister(type);
+			}
 		};
-	}, [plugins, registry]);
+		// pluginsを依存配列から削除し、registryのみに依存
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [registry]);
 
 	return (
 		<EffectRegistryContext.Provider value={{ registry, availableTypes }}>
