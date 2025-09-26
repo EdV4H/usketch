@@ -29,6 +29,7 @@ export interface KeyboardConfig {
 	customBindings?: KeyBindings;
 	enableInInput?: boolean;
 	debug?: boolean;
+	enableAccessibility?: boolean;
 }
 
 export interface KeyBinding {

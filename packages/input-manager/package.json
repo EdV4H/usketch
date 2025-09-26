@@ -19,8 +19,9 @@
 		"@usketch/input-presets": "workspace:*"
 	},
 	"devDependencies": {
-		"@usketch/tsconfig": "workspace:*",
 		"@usketch/test-utils": "workspace:*",
+		"@usketch/tsconfig": "workspace:*",
+		"happy-dom": "18.0.1",
 		"typescript": "^5.8.0-beta",
 		"vitest": "^2.1.1"
 	},
