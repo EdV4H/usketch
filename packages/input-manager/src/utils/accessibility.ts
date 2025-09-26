@@ -182,7 +182,7 @@ export function formatShortcutLabel(keys: string[]): string {
  */
 export function updateAriaAttributes(
 	element: HTMLElement,
-	attributes: Record<string, string | boolean | number>
+	attributes: Record<string, string | boolean | number>,
 ): void {
 	Object.entries(attributes).forEach(([key, value]) => {
 		if (key.startsWith("aria-")) {
