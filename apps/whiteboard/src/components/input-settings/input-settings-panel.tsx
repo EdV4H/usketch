@@ -17,8 +17,21 @@ export function InputSettingsPanel({ isOpen, onClose }: InputSettingsPanelProps)
 	if (!isOpen) return null;
 
 	return (
-		<div className="input-settings-overlay" onClick={onClose}>
-			<div className="input-settings-panel" onClick={(e) => e.stopPropagation()}>
+		<div
+			className="input-settings-overlay"
+			onClick={onClose}
+			onKeyDown={(e) => e.key === "Escape" && onClose()}
+			role="button"
+			tabIndex={0}
+			aria-label="設定を閉じる"
+		>
+			<div
+				className="input-settings-panel"
+				onClick={(e) => e.stopPropagation()}
+				onKeyDown={(e) => e.stopPropagation()}
+				role="dialog"
+				aria-label="入力設定パネル"
+			>
 				<div className="input-settings-header">
 					<h2>入力設定</h2>
 					<button type="button" className="close-button" onClick={onClose} aria-label="閉じる">

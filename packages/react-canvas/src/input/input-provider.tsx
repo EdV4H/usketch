@@ -278,7 +278,15 @@ export function InputProvider({
 			updateGestureBinding,
 			resetToPreset,
 		}),
-		[keyBindings, mouseBindings, gestureBindings],
+		[
+			keyBindings,
+			mouseBindings,
+			gestureBindings,
+			updateKeyBinding,
+			updateMouseBinding,
+			updateGestureBinding,
+			resetToPreset,
+		],
 	);
 
 	return <InputContext.Provider value={contextValue}>{children}</InputContext.Provider>;
