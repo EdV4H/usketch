@@ -173,12 +173,12 @@ export function PresetSelector() {
 		localStorage.removeItem("rotateSensitivity");
 
 		// Apply default settings dynamically
-		if (keyboard && keyboardPresets.default) {
-			keyboard.initialize({ preset: keyboardPresets.default });
+		if (keyboard && keyboardPresets["default"]) {
+			keyboard.initialize({ preset: keyboardPresets["default"] });
 			setSelectedKeyboardPreset("default");
 		}
-		if (mouse && mousePresets.default) {
-			mouse.initialize({ preset: mousePresets.default });
+		if (mouse && mousePresets["default"]) {
+			mouse.initialize({ preset: mousePresets["default"] });
 			setSelectedMousePreset("default");
 		}
 	};

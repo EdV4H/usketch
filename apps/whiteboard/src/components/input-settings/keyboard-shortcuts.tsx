@@ -78,6 +78,19 @@ const shortcutCategories = [
 	},
 ];
 
+function getCommandCategory(command: string): string {
+	// Find category for the command
+	for (const category of shortcutCategories) {
+		for (const item of category.items) {
+			if (item.command === command) {
+				return item.category;
+			}
+		}
+	}
+	// Default category for unknown commands
+	return "カスタム";
+}
+
 export function KeyboardShortcuts() {
 	const { keyboard } = useInput();
 	const [shortcuts, setShortcuts] = useState<ShortcutItem[]>([]);
@@ -141,6 +154,7 @@ export function KeyboardShortcuts() {
 			label: command.charAt(0).toUpperCase() + command.slice(1).replace(/([A-Z])/g, " $1"),
 			keys: keys as string[],
 			command,
+			category: getCommandCategory(command),
 		}));
 		setShortcuts(newShortcuts);
 
@@ -172,6 +186,7 @@ export function KeyboardShortcuts() {
 			label: cmd.charAt(0).toUpperCase() + cmd.slice(1).replace(/([A-Z])/g, " $1"),
 			keys: keys as string[],
 			command: cmd,
+			category: getCommandCategory(cmd),
 		}));
 		setShortcuts(newShortcuts);
 	};
