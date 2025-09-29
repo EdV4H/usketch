@@ -102,9 +102,7 @@ export class KeyboardManager
 
 		// Check global bindings
 		for (const [command, binding] of this.bindings) {
-			// binding is of type string[]
-			const keys = binding as string[];
-			if (this.matchesBinding(event, keys)) {
+			if (this.matchesBinding(event, binding)) {
 				this.announceCommand(command);
 				if (this.executeCommand(command, event)) {
 					return true;

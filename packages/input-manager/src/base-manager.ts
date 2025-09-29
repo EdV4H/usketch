@@ -66,8 +66,9 @@ export abstract class BaseInputManager<
 			if (this.config.debug) {
 				console.log(`[${this.constructor.name}] Executing command:`, command);
 			}
-			// @ts-expect-error - Event type conversion is handled by each subclass
-			return handler(event);
+			// Cast to any since handler expects different event types
+			// The actual type safety is ensured by each subclass implementation
+			return handler(event as any);
 		}
 		return false;
 	}

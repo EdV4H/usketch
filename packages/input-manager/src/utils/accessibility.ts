@@ -174,11 +174,11 @@ export function formatShortcutLabel(keys: string[]): string {
 					return key.toUpperCase();
 			}
 		})
-		.join(isMac ? "" : "+");
+		.join(isMac ? " " : "+");
 }
 
 /**
- * ARIA属性の更新ヘルパー
+ * ARIA attribute update helper
  */
 export function updateAriaAttributes(
 	element: HTMLElement,
