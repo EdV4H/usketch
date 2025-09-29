@@ -7,10 +7,10 @@ import type { IInputManager, IManagerConfig } from "./types/base-manager";
  */
 export abstract class BaseInputManager<
 	TConfig extends IManagerConfig = IManagerConfig,
-	TBinding = unknown,
+	TBinding = Record<string, any>,
 	TBindings = Record<string, TBinding>,
-	TPreset = unknown,
-	TEvent = unknown,
+	TPreset = { name: string; bindings: TBindings },
+	TEvent = Event,
 > implements IInputManager<TConfig, TBinding, TBindings, TPreset, TEvent>
 {
 	protected bindings: Map<string, TBinding> = new Map();
@@ -108,11 +108,11 @@ export abstract class BaseInputManager<
 /**
  * Mixin for Managers with context functionality
  */
-export class ContextMixin {
-	private contextStack: Array<{ name: string; bindings: Map<string, unknown> }> = [];
+export class ContextMixin<TBinding = Record<string, any>> {
+	private contextStack: Array<{ name: string; bindings: Map<string, TBinding> }> = [];
 
-	pushContext(name: string, bindings?: Record<string, unknown>): void {
-		const contextBindings = new Map<string, unknown>();
+	pushContext(name: string, bindings?: Record<string, TBinding>): void {
+		const contextBindings = new Map<string, TBinding>();
 		if (bindings) {
 			Object.entries(bindings).forEach(([key, value]) => {
 				contextBindings.set(key, value);
@@ -125,7 +125,7 @@ export class ContextMixin {
 		this.contextStack.pop();
 	}
 
-	getCurrentContext(): { name: string; bindings: Map<string, unknown> } | undefined {
+	getCurrentContext(): { name: string; bindings: Map<string, TBinding> } | undefined {
 		return this.contextStack[this.contextStack.length - 1];
 	}
 
@@ -137,7 +137,7 @@ export class ContextMixin {
 /**
  * Mixin for Managers with drag functionality
  */
-export class DragMixin<TDragState = unknown> {
+export class DragMixin<TDragState = Record<string, any>> {
 	protected dragState: TDragState | null = null;
 
 	isDragging(): boolean {

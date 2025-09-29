@@ -3,7 +3,7 @@ import {
 	useCommandRegistration,
 	useWhiteboardCommands,
 } from "@usketch/react-canvas";
-import { useWhiteboardStore } from "@usketch/store";
+import { useWhiteboardStore, type WhiteboardStore } from "@usketch/store";
 import { useEffect, useMemo, useRef } from "react";
 import { useToast } from "../contexts/toast-context";
 
@@ -12,8 +12,9 @@ interface InputCommandsOptions {
 }
 
 // グローバルなコマンドインスタンスキャッシュ（StrictMode対策）
-// storeをキーとして使用（onPanelToggleは関数なので毎回変わる）
-const globalCustomCommandsCache = new Map<any, CommandRegistration>();
+// storeをキーとして使用。onPanelToggleが変更されてもキャッシュは更新されません。
+// 注意: onPanelToggleの変更を反映させるには、useEffectで別途処理が必要です。
+const globalCustomCommandsCache = new Map<WhiteboardStore, CommandRegistration>();
 let commandsInstanceId = 0;
 
 /**

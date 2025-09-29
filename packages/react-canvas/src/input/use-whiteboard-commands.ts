@@ -1,11 +1,11 @@
-import { useWhiteboardStore } from "@usketch/store";
+import { useWhiteboardStore, type WhiteboardStore } from "@usketch/store";
 import { useMemo } from "react";
 import { createAppCommands } from "./app-commands";
 import { createCameraCommands } from "./camera-commands";
 import { type CommandRegistration, useCommandRegistration } from "./use-command-registration";
 
 // グローバルなコマンドインスタンスキャッシュ（StrictMode対策）
-const globalCommandsCache = new WeakMap<any, CommandRegistration>();
+const globalCommandsCache = new WeakMap<WhiteboardStore, CommandRegistration>();
 
 /**
  * ホワイトボード用のコマンドを一括登録するフック
