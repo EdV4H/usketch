@@ -88,7 +88,7 @@ function getCommandCategory(command: string): string {
 		}
 	}
 	// Default category for unknown commands
-	return "カスタム";
+	return "Custom";
 }
 
 export function KeyboardShortcuts() {

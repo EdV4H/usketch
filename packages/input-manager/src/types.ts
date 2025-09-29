@@ -14,7 +14,7 @@ export type {
 	MousePreset,
 } from "@usketch/input-presets";
 
-// ローカルのMouseBinding（commandフィールドを必須に）
+// Local MouseBinding (making command field required)
 export interface MouseBinding extends InputMouseBinding {
 	command: string;
 }

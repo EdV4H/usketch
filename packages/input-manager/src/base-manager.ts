@@ -25,13 +25,13 @@ export abstract class BaseInputManager<
 		}
 	}
 
-	// 抽象メソッド（サブクラスで実装必須）
+	// Abstract methods (must be implemented by subclasses)
 	abstract getDefaultConfig(): TConfig;
 	abstract initialize(config: TConfig): void;
 	abstract loadPreset(preset: TPreset): void;
 	abstract getBindings(): TBindings;
 
-	// 共通実装
+	// Common implementation
 	setBinding(command: string, binding: TBinding): void {
 		if (this.config.debug) {
 			console.log(`[${this.constructor.name}] Setting binding:`, command, binding);
@@ -66,7 +66,7 @@ export abstract class BaseInputManager<
 			if (this.config.debug) {
 				console.log(`[${this.constructor.name}] Executing command:`, command);
 			}
-			// @ts-expect-error - event型の変換は各サブクラスで処理
+			// @ts-expect-error - Event type conversion is handled by each subclass
 			return handler(event);
 		}
 		return false;
@@ -76,7 +76,7 @@ export abstract class BaseInputManager<
 		return Array.from(this.bindings.values());
 	}
 
-	// イベントエミッター機能
+	// Event emitter functionality
 	on(event: string, listener: (data: any) => void): void {
 		if (!this.listeners.has(event)) {
 			this.listeners.set(event, new Set());

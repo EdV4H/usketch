@@ -235,5 +235,5 @@ export class MouseManager
 	}
 }
 
-// デフォルトエクスポート
+// Default export
 export default MouseManager;

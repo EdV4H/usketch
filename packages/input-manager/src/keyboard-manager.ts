@@ -14,7 +14,6 @@ export class KeyboardManager
 	private contextMixin = new ContextMixin();
 	private modifierState = new Map<string, boolean>();
 	private announcer?: ScreenReaderAnnouncer;
-	private commandCache = new WeakMap<KeyboardEvent, Set<string>>();
 
 	constructor(config?: Partial<KeyboardConfig>) {
 		super(config);
@@ -82,19 +81,6 @@ export class KeyboardManager
 
 	// KeyboardManager specific methods
 	handleKeyDown(event: KeyboardEvent): boolean {
-		// Cache check
-		if (this.commandCache.has(event)) {
-			const cachedCommands = this.commandCache.get(event);
-			if (cachedCommands?.size) {
-				for (const command of cachedCommands) {
-					if (this.executeCommand(command, event)) {
-						return true;
-					}
-				}
-			}
-			return false;
-		}
-
 		const key = this.normalizeKey(event);
 		this.updateModifierState(key, true);
 
@@ -115,21 +101,17 @@ export class KeyboardManager
 		}
 
 		// Check global bindings
-		const matchedCommands = new Set<string>();
 		for (const [command, binding] of this.bindings) {
 			// binding is of type string[]
 			const keys = binding as string[];
 			if (this.matchesBinding(event, keys)) {
-				matchedCommands.add(command);
 				this.announceCommand(command);
 				if (this.executeCommand(command, event)) {
-					this.commandCache.set(event, matchedCommands);
 					return true;
 				}
 			}
 		}
 
-		this.commandCache.set(event, matchedCommands);
 		return false;
 	}
 
@@ -231,10 +213,9 @@ export class KeyboardManager
 		super.destroy();
 		this.contextMixin.clearContexts();
 		this.modifierState.clear();
-		this.commandCache = new WeakMap();
 		this.announcer?.destroy();
 	}
 }
 
-// デフォルトエクスポート
+// Default export
 export default KeyboardManager;
