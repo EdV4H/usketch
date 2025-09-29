@@ -161,34 +161,23 @@ export function InputProvider({
 	// バインディング状態の更新
 	useEffect(() => {
 		if (keyboardManagerRef.current) {
-			const bindings = keyboardManagerRef.current.getActiveBindings();
-			const bindingsObject: KeyBindings = {};
-			bindings.forEach((binding) => {
-				bindingsObject[binding.command] = binding.keys;
-			});
-			setKeyBindings(bindingsObject);
+			// getBindingsメソッドを使用（リファクタリング後のAPIに対応）
+			const bindings = keyboardManagerRef.current.getBindings();
+			setKeyBindings(bindings);
 		}
 	}, []);
 
 	useEffect(() => {
 		if (mouseManagerRef.current) {
-			const bindings = mouseManagerRef.current.getActiveBindings();
-			const bindingsObject: MouseBindings = {};
-			bindings.forEach((binding) => {
-				bindingsObject[binding.command] = binding;
-			});
-			setMouseBindings(bindingsObject);
+			const bindings = mouseManagerRef.current.getBindings();
+			setMouseBindings(bindings);
 		}
 	}, []);
 
 	useEffect(() => {
 		if (gestureManagerRef.current) {
-			const bindings = gestureManagerRef.current.getActiveBindings();
-			const bindingsObject: GestureBindings = {};
-			bindings.forEach((binding) => {
-				bindingsObject[binding.command] = binding;
-			});
-			setGestureBindings(bindingsObject);
+			const bindings = gestureManagerRef.current.getBindings();
+			setGestureBindings(bindings);
 		}
 	}, []);
 
@@ -228,37 +217,25 @@ export function InputProvider({
 			case "keyboard":
 				if (keyboardManagerRef.current) {
 					keyboardManagerRef.current.loadPreset(preset as KeyboardPreset);
-					const bindings = keyboardManagerRef.current.getActiveBindings();
-					const bindingsObject: KeyBindings = {};
-					bindings.forEach((binding) => {
-						bindingsObject[binding.command] = binding.keys;
-					});
-					setKeyBindings(bindingsObject);
-					onBindingChange?.("keyboard", bindingsObject);
+					const bindings = keyboardManagerRef.current.getBindings();
+					setKeyBindings(bindings);
+					onBindingChange?.("keyboard", bindings);
 				}
 				break;
 			case "mouse":
 				if (mouseManagerRef.current) {
 					mouseManagerRef.current.loadPreset(preset as MousePreset);
-					const bindings = mouseManagerRef.current.getActiveBindings();
-					const bindingsObject: MouseBindings = {};
-					bindings.forEach((binding) => {
-						bindingsObject[binding.command] = binding;
-					});
-					setMouseBindings(bindingsObject);
-					onBindingChange?.("mouse", bindingsObject);
+					const bindings = mouseManagerRef.current.getBindings();
+					setMouseBindings(bindings);
+					onBindingChange?.("mouse", bindings);
 				}
 				break;
 			case "gesture":
 				if (gestureManagerRef.current) {
 					gestureManagerRef.current.loadPreset(preset as GesturePreset);
-					const bindings = gestureManagerRef.current.getActiveBindings();
-					const bindingsObject: GestureBindings = {};
-					bindings.forEach((binding) => {
-						bindingsObject[binding.command] = binding;
-					});
-					setGestureBindings(bindingsObject);
-					onBindingChange?.("gesture", bindingsObject);
+					const bindings = gestureManagerRef.current.getBindings();
+					setGestureBindings(bindings);
+					onBindingChange?.("gesture", bindings);
 				}
 				break;
 		}
