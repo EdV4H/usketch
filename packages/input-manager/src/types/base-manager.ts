@@ -1,72 +1,72 @@
 import type { CommandHandler, CommandRegistry } from "../types";
 
 /**
- * 基底Managerインターフェース
- * すべてのInput Manager（Keyboard, Mouse, Gesture）が実装すべき共通インターフェース
+ * Base Manager Interface
+ * Common interface that all Input Managers (Keyboard, Mouse, Gesture) should implement
  */
 export interface IInputManager<
-	TConfig = unknown,
-	TBinding = unknown,
+	TConfig = Record<string, any>,
+	TBinding = Record<string, any>,
 	TBindings = Record<string, TBinding>,
-	TPreset = unknown,
-	TEvent = unknown,
+	TPreset = { name: string; bindings: TBindings },
+	TEvent = Event,
 > {
-	// 初期化・破棄
+	// Initialization and cleanup
 	initialize(config: TConfig): void;
 	destroy(): void;
 
-	// バインディング管理
+	// Binding management
 	setBinding(command: string, binding: TBinding): void;
 	removeBinding(command: string): void;
 	loadPreset(preset: TPreset): void;
 
-	// コマンド管理
+	// Command management
 	registerCommand(name: string, handler: CommandHandler): void;
 	unregisterCommand(name: string): void;
 	executeCommand(command: string, event: TEvent): boolean;
 
-	// 現在の状態取得
+	// Current state retrieval
 	getBindings(): TBindings;
 	getActiveBindings(): TBinding[];
 
-	// イベントエミッター
+	// Event emitter
 	on(event: string, listener: (data: any) => void): void;
 	off(event: string, listener: (data: any) => void): void;
 }
 
 /**
- * 拡張Managerインターフェース
- * 特定のManagerが追加で実装する機能
+ * Extended Manager Interfaces
+ * Additional features that specific Managers implement
  */
 export interface IContextAwareManager {
-	// コンテキスト管理（主にKeyboardManager用）
-	pushContext(name: string, bindings?: unknown): void;
+	// Context management (mainly for KeyboardManager)
+	pushContext(name: string, bindings?: Record<string, any>): void;
 	popContext(): void;
 }
 
 export interface IDragAwareManager {
-	// ドラッグ状態管理（主にMouseManager用）
+	// Drag state management (mainly for MouseManager)
 	isDragging(): boolean;
-	getDragState(): unknown | null;
+	getDragState(): Record<string, any> | null;
 }
 
 export interface IGestureAwareManager {
-	// ジェスチャー状態管理（GestureManager用）
+	// Gesture state management (for GestureManager)
 	isGestureActive(): boolean;
-	getActiveGestures(): Map<string, unknown>;
+	getActiveGestures(): Map<string, Record<string, any>>;
 }
 
 /**
- * Manager共通の設定インターフェース
+ * Common Manager configuration interface
  */
 export interface IManagerConfig {
 	debug?: boolean;
-	preset?: unknown;
-	customBindings?: unknown;
+	preset?: { name: string; bindings: Record<string, any> };
+	customBindings?: Record<string, any>;
 }
 
 /**
- * Manager共通の内部状態
+ * Common Manager internal state
  */
 export interface IManagerState<TBinding = unknown> {
 	bindings: Map<string, TBinding>;
