@@ -32,7 +32,7 @@ export class MouseManager
 		if (config?.preset) {
 			this.loadPreset(config.preset);
 		}
-		// ホイールイベントをスロットル化（16ms = 60fps）
+		// Throttle wheel events (16ms = 60fps)
 		this.throttledWheel = throttle(this.handleWheelInternal.bind(this), 16);
 		this.initialize(this.config);
 	}
@@ -52,7 +52,7 @@ export class MouseManager
 		}
 		if (config.customBindings) {
 			Object.entries(config.customBindings).forEach(([command, binding]) => {
-				// commandフィールドを追加
+				// Add command field
 				const safeBinding: MouseBinding = { ...binding, command };
 				this.setBinding(command, safeBinding);
 			});
@@ -79,7 +79,7 @@ export class MouseManager
 		return bindings;
 	}
 
-	// ドラッグ状態管理
+	// Drag state management
 	isDragging(): boolean {
 		return this.dragState !== null;
 	}
@@ -88,13 +88,13 @@ export class MouseManager
 		return this.dragState;
 	}
 
-	// MouseManager固有のメソッド
+	// MouseManager specific methods
 	handlePointerDown(event: PointerEvent): boolean {
 		if (this.config.debug) {
 			console.log("[MouseManager] Pointer down:", event);
 		}
 
-		// ドラッグ状態を開始
+		// Start drag state
 		const dragState: DragState = {
 			startX: event.clientX,
 			startY: event.clientY,
@@ -106,7 +106,7 @@ export class MouseManager
 		const binding = this.findBinding("button", event.button, event);
 		if (binding) {
 			if (binding.action === "drag") {
-				// ドラッグ開始コマンド
+				// Drag start command
 				return this.executeCommand(`${binding.command}:start`, event);
 			}
 			return this.executeCommand(binding.command, event);
@@ -120,7 +120,7 @@ export class MouseManager
 		const dragState = this.getDragState();
 		if (!dragState) return false;
 
-		// ドラッグイベントを発行
+		// Emit drag event
 		this.emit("drag", {
 			startX: dragState.startX,
 			startY: dragState.startY,
@@ -161,7 +161,7 @@ export class MouseManager
 	}
 
 	private handleWheelInternal(event: WheelEvent): boolean {
-		// ホイール方向の判定
+		// Determine wheel direction
 		const direction = event.deltaY > 0 ? "down" : "up";
 		const wheelBinding = this.findBinding("wheel", direction, event);
 
@@ -169,7 +169,7 @@ export class MouseManager
 			return this.executeCommand(wheelBinding.command, event);
 		}
 
-		// ズームイベントを発行
+		// Emit zoom event
 		this.emit("zoom", {
 			delta: event.deltaY * (this.config.sensitivity ?? 1.0),
 			center: { x: event.clientX, y: event.clientY },
@@ -178,26 +178,26 @@ export class MouseManager
 		return false;
 	}
 
-	// ヘルパーメソッド
+	// Helper methods
 	private findBinding(
 		type: "button" | "wheel" | "gesture",
 		value: number | string | boolean,
 		event?: MouseEvent | WheelEvent,
 	): MouseBinding | undefined {
 		for (const [, binding] of this.bindings) {
-			// タイプチェック
+			// Type check
 			if (type === "button" && binding.button === undefined) continue;
 			if (type === "wheel" && binding.wheel === undefined) continue;
 			if (type === "gesture" && binding.gesture === undefined) continue;
 
-			// 値のマッチング
+			// Value matching
 			if (type === "button" && binding.button !== value) continue;
 			if (type === "wheel") {
 				if (typeof binding.wheel === "string" && binding.wheel !== value) continue;
 				if (typeof binding.wheel === "boolean" && !binding.wheel) continue;
 			}
 
-			// 修飾キーのチェック
+			// Check modifier keys
 			if (event && !this.checkModifiers(binding.modifiers || [], event)) {
 				continue;
 			}
@@ -210,14 +210,14 @@ export class MouseManager
 	private checkModifiers(requiredModifiers: string[], event: MouseEvent | WheelEvent): boolean {
 		const activeModifiers = this.getModifiers(event);
 
-		// 必要な修飾キーがすべて押されているか
+		// Check if all required modifiers are pressed
 		for (const required of requiredModifiers) {
 			if (!activeModifiers.includes(required)) {
 				return false;
 			}
 		}
 
-		// 余分な修飾キーがないか（厳密なマッチング）
+		// Check for no extra modifiers (strict matching)
 		return activeModifiers.length === requiredModifiers.length;
 	}
 

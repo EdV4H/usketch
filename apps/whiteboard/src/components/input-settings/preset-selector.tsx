@@ -141,8 +141,17 @@ export function PresetSelector() {
 					localStorage.setItem("rotateSensitivity", settings.rotateSensitivity);
 				}
 
-				// ページをリロード
-				window.location.reload();
+				// Apply settings dynamically
+				if (settings.keyboardPreset && keyboard) {
+					const kbPreset = keyboardPresets[settings.keyboardPreset];
+					if (kbPreset) keyboard.initialize({ preset: kbPreset });
+					setSelectedKeyboardPreset(settings.keyboardPreset);
+				}
+				if (settings.mousePreset && mouse) {
+					const msPreset = mousePresets[settings.mousePreset];
+					if (msPreset) mouse.initialize({ preset: msPreset });
+					setSelectedMousePreset(settings.mousePreset);
+				}
 			} catch (error) {
 				console.error("設定のインポートに失敗しました:", error);
 				alert("設定ファイルの読み込みに失敗しました。");
@@ -163,8 +172,15 @@ export function PresetSelector() {
 		localStorage.removeItem("pinchSensitivity");
 		localStorage.removeItem("rotateSensitivity");
 
-		// ページをリロード
-		window.location.reload();
+		// Apply default settings dynamically
+		if (keyboard && keyboardPresets.default) {
+			keyboard.initialize({ preset: keyboardPresets.default });
+			setSelectedKeyboardPreset("default");
+		}
+		if (mouse && mousePresets.default) {
+			mouse.initialize({ preset: mousePresets.default });
+			setSelectedMousePreset("default");
+		}
 	};
 
 	return (

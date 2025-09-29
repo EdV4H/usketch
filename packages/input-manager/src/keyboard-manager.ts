@@ -65,7 +65,7 @@ export class KeyboardManager
 		return bindings;
 	}
 
-	// Context管理のデリゲート
+	// Context management delegation
 	pushContext(name: string, bindings?: KeyBindings): void {
 		this.contextMixin.pushContext(name, bindings);
 		if (this.config.debug) {
@@ -80,9 +80,9 @@ export class KeyboardManager
 		}
 	}
 
-	// KeyboardManager固有のメソッド
+	// KeyboardManager specific methods
 	handleKeyDown(event: KeyboardEvent): boolean {
-		// キャッシュチェック
+		// Cache check
 		if (this.commandCache.has(event)) {
 			const cachedCommands = this.commandCache.get(event);
 			if (cachedCommands?.size) {
@@ -98,12 +98,12 @@ export class KeyboardManager
 		const key = this.normalizeKey(event);
 		this.updateModifierState(key, true);
 
-		// スペースキーのイベントを発火
+		// Emit space key event
 		if (key === "space") {
 			this.emit("space:down", event);
 		}
 
-		// コンテキスト内のバインディングを優先
+		// Prioritize bindings in context
 		const context = this.contextMixin.getCurrentContext();
 		if (context?.bindings) {
 			for (const [command, keys] of context.bindings) {
@@ -114,10 +114,10 @@ export class KeyboardManager
 			}
 		}
 
-		// グローバルバインディングをチェック
+		// Check global bindings
 		const matchedCommands = new Set<string>();
 		for (const [command, binding] of this.bindings) {
-			// bindingはstring[]型
+			// binding is of type string[]
 			const keys = binding as string[];
 			if (this.matchesBinding(event, keys)) {
 				matchedCommands.add(command);
@@ -137,7 +137,7 @@ export class KeyboardManager
 		const key = this.normalizeKey(event);
 		this.updateModifierState(key, false);
 
-		// スペースキーのイベントを発火
+		// Emit space key event
 		if (key === "space") {
 			this.emit("space:up", event);
 		}
@@ -149,7 +149,7 @@ export class KeyboardManager
 		return this.modifierState.get(modifier) || false;
 	}
 
-	// ヘルパーメソッド
+	// Helper methods
 	private normalizeKey(event: KeyboardEvent): string {
 		const key = event.key.toLowerCase();
 		return key === " " ? "space" : key;
@@ -180,14 +180,14 @@ export class KeyboardManager
 
 			if (bindingKey !== pressedKey) continue;
 
-			// 修飾キーのマッチング
+			// Match modifier keys
 			const requiredMods = new Set(bindingModifiers);
 			const activeMods = new Set(modifiers);
 
-			// "mod"をプラットフォーム依存のキーに変換
+			// Convert "mod" to platform-specific key
 			if (requiredMods.has("mod")) {
 				requiredMods.delete("mod");
-				// metaKeyが押されている場合はcmd、ctrlKeyが押されている場合はctrlとして扱う
+				// Treat metaKey as cmd, ctrlKey as ctrl
 				if (event.metaKey) {
 					requiredMods.add("cmd");
 				} else if (event.ctrlKey) {

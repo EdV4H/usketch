@@ -1,3 +1,4 @@
+import { defaultKeymap } from "@usketch/input-presets";
 import { useInput } from "@usketch/react-canvas";
 import { useEffect, useState } from "react";
 
@@ -126,19 +127,25 @@ export function KeyboardShortcuts() {
 	const handleSave = () => {
 		if (!keyboard || editingCommand === null || recordingKeys.length === 0) return;
 
-		// 新しいバインディングを設定
+		// Set new binding dynamically
 		keyboard.setBinding(editingCommand, recordingKeys);
 
-		// LocalStorageに保存
+		// Save to LocalStorage
 		const customBindings = JSON.parse(localStorage.getItem("customKeyboardBindings") || "{}");
 		customBindings[editingCommand] = recordingKeys;
 		localStorage.setItem("customKeyboardBindings", JSON.stringify(customBindings));
 
+		// Update local state to reflect changes immediately
+		const updatedBindings = keyboard.getBindings();
+		const newShortcuts = Object.entries(updatedBindings).map(([command, keys]) => ({
+			label: command.charAt(0).toUpperCase() + command.slice(1).replace(/([A-Z])/g, " $1"),
+			keys: keys as string[],
+			command,
+		}));
+		setShortcuts(newShortcuts);
+
 		setEditingCommand(null);
 		setRecordingKeys([]);
-
-		// リロードして反映
-		window.location.reload();
 	};
 
 	const handleCancel = () => {
@@ -149,13 +156,24 @@ export function KeyboardShortcuts() {
 	const handleReset = (command: string) => {
 		if (!keyboard) return;
 
-		// カスタムバインディングを削除
+		// Remove custom binding
 		const customBindings = JSON.parse(localStorage.getItem("customKeyboardBindings") || "{}");
 		delete customBindings[command];
 		localStorage.setItem("customKeyboardBindings", JSON.stringify(customBindings));
 
-		// リロードして反映
-		window.location.reload();
+		// Reset to default binding from preset
+		if (defaultKeymap?.bindings[command]) {
+			keyboard.setBinding(command, defaultKeymap.bindings[command]);
+		}
+
+		// Update local state immediately
+		const updatedBindings = keyboard.getBindings();
+		const newShortcuts = Object.entries(updatedBindings).map(([cmd, keys]) => ({
+			label: cmd.charAt(0).toUpperCase() + cmd.slice(1).replace(/([A-Z])/g, " $1"),
+			keys: keys as string[],
+			command: cmd,
+		}));
+		setShortcuts(newShortcuts);
 	};
 
 	const filteredShortcuts = shortcuts.filter(

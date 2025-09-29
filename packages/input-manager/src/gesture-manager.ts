@@ -13,7 +13,7 @@ import type {
 } from "./types";
 import type { IUnifiedGestureManager } from "./types/unified-types";
 
-// ジェスチャー認識器の基底クラス
+// Base class for gesture recognizers
 abstract class GestureRecognizer {
 	abstract readonly type: GestureType;
 	protected threshold: number = 10;
@@ -33,7 +33,7 @@ abstract class GestureRecognizer {
 	abstract end(touches: TouchList, endTime: number): GestureEvent | null;
 }
 
-// ピンチジェスチャー認識器
+// Pinch gesture recognizer
 class PinchRecognizer extends GestureRecognizer {
 	readonly type: GestureType = "pinch";
 	private initialDistance: number = 0;
@@ -68,7 +68,7 @@ class PinchRecognizer extends GestureRecognizer {
 		const currentDistance = this.getDistance(touch1, touch2);
 		const scale = currentDistance / this.initialDistance;
 
-		// 微小な変化は無視
+		// Ignore small changes
 		if (Math.abs(scale - this.previousScale) < 0.01) return null;
 
 		this.previousScale = scale;
@@ -96,7 +96,7 @@ class PinchRecognizer extends GestureRecognizer {
 	}
 }
 
-// ローテーションジェスチャー認識器
+// Rotation gesture recognizer
 class RotateRecognizer extends GestureRecognizer {
 	readonly type: GestureType = "rotate";
 	private initialAngle: number = 0;
@@ -130,11 +130,11 @@ class RotateRecognizer extends GestureRecognizer {
 		const currentAngle = this.getAngle(touch1, touch2);
 		let rotation = currentAngle - this.initialAngle;
 
-		// 角度の正規化 (-180 to 180)
+		// Normalize angle (-180 to 180)
 		while (rotation > 180) rotation -= 360;
 		while (rotation < -180) rotation += 360;
 
-		// 微小な変化は無視
+		// Ignore small changes
 		if (Math.abs(rotation - this.previousRotation) < 1) return null;
 
 		this.previousRotation = rotation;
@@ -161,7 +161,7 @@ class RotateRecognizer extends GestureRecognizer {
 	}
 }
 
-// スワイプジェスチャー認識器
+// Swipe gesture recognizer
 class SwipeRecognizer extends GestureRecognizer {
 	readonly type: GestureType = "swipe";
 	private startX: number = 0;
@@ -178,11 +178,11 @@ class SwipeRecognizer extends GestureRecognizer {
 		this.startY = touch.clientY;
 		this.startTime = startTime;
 
-		return null; // スワイプは動きが完了してから判定
+		return null; // Swipe is determined after movement completion
 	}
 
 	update(_touches: TouchList): SwipeEvent | null {
-		return null; // スワイプは終了時のみ判定
+		return null; // Swipe is only determined at end
 	}
 
 	end(touches: TouchList, endTime: number): SwipeEvent | null {
@@ -196,13 +196,13 @@ class SwipeRecognizer extends GestureRecognizer {
 		const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 		const duration = endTime - this.startTime;
 
-		// しきい値チェック
+		// Check threshold
 		if (distance < this.threshold || duration > this.maxDuration) {
 			this.reset();
 			return null;
 		}
 
-		// 方向の判定
+		// Determine direction
 		let direction: "up" | "down" | "left" | "right";
 		if (Math.abs(deltaX) > Math.abs(deltaY)) {
 			direction = deltaX > 0 ? "right" : "left";
@@ -231,7 +231,7 @@ class SwipeRecognizer extends GestureRecognizer {
 	}
 }
 
-// 2本指ドラッグ認識器
+// Two-finger drag recognizer
 class TwoFingerDragRecognizer extends GestureRecognizer {
 	readonly type: GestureType = "twoFingerDrag";
 	private startCenterX: number = 0;
@@ -304,7 +304,7 @@ export class GestureManager
 	constructor(config?: Partial<GestureConfig>) {
 		super(config);
 
-		// ジェスチャー認識器の初期化
+		// Initialize gesture recognizers
 		this.recognizers = new Map();
 		this.recognizers.set("pinch", new PinchRecognizer());
 		this.recognizers.set("rotate", new RotateRecognizer());
@@ -359,7 +359,7 @@ export class GestureManager
 		return bindings;
 	}
 
-	// GestureManager固有のメソッド
+	// GestureManager specific methods
 	setBindings(bindings: GestureBindings): void {
 		Object.entries(bindings).forEach(([command, binding]) => {
 			const safeBinding: GestureBinding = { ...binding, command };
@@ -371,7 +371,7 @@ export class GestureManager
 		this.isActive = true;
 		const timestamp = Date.now();
 
-		// 全ての認識器で新しいジェスチャーを開始
+		// Start new gesture with all recognizers
 		for (const [type, recognizer] of this.recognizers) {
 			const gestureEvent = recognizer.recognize(event.touches, timestamp);
 			if (gestureEvent) {
@@ -381,7 +381,7 @@ export class GestureManager
 					isActive: true,
 				});
 
-				// 対応するバインディングを実行
+				// Execute corresponding binding
 				const binding = this.findBinding(type);
 				if (binding) {
 					this.executeCommand(`${binding.command}:start`, gestureEvent);
@@ -398,13 +398,13 @@ export class GestureManager
 		const timestamp = Date.now();
 		let handled = false;
 
-		// アクティブなジェスチャーを更新
+		// Update active gestures
 		for (const [type, state] of this.activeGestures) {
 			const recognizer = this.recognizers.get(type);
 			if (recognizer && state.isActive) {
 				const gestureEvent = recognizer.update(event.touches, timestamp);
 				if (gestureEvent) {
-					// イベントを発行
+					// Emit event
 					this.emit(type, gestureEvent);
 
 					const binding = this.findBinding(type);
@@ -423,7 +423,7 @@ export class GestureManager
 		const timestamp = Date.now();
 		let handled = false;
 
-		// アクティブなジェスチャーを終了
+		// End active gestures
 		for (const [type, state] of this.activeGestures) {
 			const recognizer = this.recognizers.get(type);
 			if (recognizer && state.isActive) {
@@ -438,7 +438,7 @@ export class GestureManager
 			}
 		}
 
-		// タッチがなくなったらリセット
+		// Reset when no touches
 		if (event.touches.length === 0) {
 			this.activeGestures.clear();
 			this.isActive = false;
@@ -461,7 +461,7 @@ export class GestureManager
 		);
 	}
 
-	// ヘルパーメソッド
+	// Helper methods
 	private findBinding(gestureType: GestureType): GestureBinding | undefined {
 		for (const [, binding] of this.bindings) {
 			if (binding.gesture === gestureType) {
@@ -479,5 +479,5 @@ export class GestureManager
 	}
 }
 
-// デフォルトエクスポート
+// Default export
 export default GestureManager;
