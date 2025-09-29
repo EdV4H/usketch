@@ -2,8 +2,8 @@ import type { CommandHandler, CommandRegistry } from "./types";
 import type { IInputManager, IManagerConfig } from "./types/base-manager";
 
 /**
- * すべてのManagerの基底クラス
- * 共通機能の実装を提供
+ * Base class for all Managers
+ * Provides common functionality implementation
  */
 export abstract class BaseInputManager<
 	TConfig extends IManagerConfig = IManagerConfig,
@@ -106,7 +106,7 @@ export abstract class BaseInputManager<
 }
 
 /**
- * コンテキスト機能を持つManager用のMixin
+ * Mixin for Managers with context functionality
  */
 export class ContextMixin {
 	private contextStack: Array<{ name: string; bindings: Map<string, unknown> }> = [];
@@ -135,7 +135,7 @@ export class ContextMixin {
 }
 
 /**
- * ドラッグ機能を持つManager用のMixin
+ * Mixin for Managers with drag functionality
  */
 export class DragMixin<TDragState = unknown> {
 	protected dragState: TDragState | null = null;

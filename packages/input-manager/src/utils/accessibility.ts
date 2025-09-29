@@ -1,9 +1,9 @@
 /**
- * アクセシビリティ関連のユーティリティ
+ * Accessibility-related utilities
  */
 
 /**
- * スクリーンリーダー用のアナウンスメント
+ * Screen reader announcements
  */
 export class ScreenReaderAnnouncer {
 	private liveRegion: HTMLElement | null = null;
@@ -35,7 +35,7 @@ export class ScreenReaderAnnouncer {
 		this.liveRegion.setAttribute("aria-live", priority);
 		this.liveRegion.textContent = message;
 
-		// メッセージをクリアして次のアナウンスを可能にする
+		// Clear the message to enable the next announcement
 		setTimeout(() => {
 			if (this.liveRegion) {
 				this.liveRegion.textContent = "";
@@ -52,34 +52,34 @@ export class ScreenReaderAnnouncer {
 }
 
 /**
- * キーボードナビゲーションのヘルパー
+ * Keyboard navigation helper
  */
 export class KeyboardNavigationHelper {
 	private focusTrap: HTMLElement | null = null;
 	private previousFocus: HTMLElement | null = null;
 
 	/**
-	 * フォーカストラップを設定
+	 * Set up focus trap
 	 */
 	trapFocus(container: HTMLElement): void {
 		this.focusTrap = container;
 		this.previousFocus = document.activeElement as HTMLElement;
 
-		// タブ可能な要素を取得
+		// Get focusable elements
 		const focusableElements = this.getFocusableElements(container);
 		if (focusableElements.length === 0) return;
 
-		// 最初の要素にフォーカス
+		// Focus first element
 		if (focusableElements[0]) {
 			focusableElements[0].focus();
 		}
 
-		// タブキーのハンドリング
+		// Handle tab key
 		container.addEventListener("keydown", this.handleTrapKeydown);
 	}
 
 	/**
-	 * フォーカストラップを解除
+	 * Release focus trap
 	 */
 	releaseFocus(): void {
 		if (this.focusTrap) {
@@ -118,7 +118,7 @@ export class KeyboardNavigationHelper {
 	};
 
 	/**
-	 * フォーカス可能な要素を取得
+	 * Get focusable elements
 	 */
 	private getFocusableElements(container: HTMLElement): HTMLElement[] {
 		const selector = `
@@ -135,14 +135,14 @@ export class KeyboardNavigationHelper {
 }
 
 /**
- * キーボードショートカットのラベル生成
+ * Generate keyboard shortcut labels
  */
 export function formatShortcutLabel(keys: string[]): string {
 	const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
 
 	return keys
 		.map((key) => {
-			// プラットフォーム固有の修飾キーを適切な記号に変換
+			// Convert platform-specific modifier keys to appropriate symbols
 			switch (key.toLowerCase()) {
 				case "mod":
 					return isMac ? "⌘" : "Ctrl";
@@ -192,7 +192,7 @@ export function updateAriaAttributes(
 }
 
 /**
- * キーボードのみのユーザーかどうかを検出
+ * Detect whether the user is using keyboard only
  */
 export class KeyboardOnlyUserDetector {
 	private isKeyboardUser = false;
@@ -201,12 +201,12 @@ export class KeyboardOnlyUserDetector {
 	constructor() {
 		if (typeof window === "undefined") return;
 
-		// マウスクリックでキーボードユーザーフラグをクリア
+		// Clear keyboard user flag on mouse click
 		window.addEventListener("mousedown", () => {
 			this.setKeyboardUser(false);
 		});
 
-		// タブキーでキーボードユーザーフラグを設定
+		// Set keyboard user flag on Tab key
 		window.addEventListener("keydown", (event) => {
 			if (event.key === "Tab") {
 				this.setKeyboardUser(true);

@@ -74,8 +74,8 @@ export function throttle<T extends (...args: any[]) => any>(
 }
 
 /**
- * ラフ関数（RequestAnimationFrame版のデバウンス）
- * @param func 実行する関数
+ * RAF function (RequestAnimationFrame version of debounce)
+ * @param func Function to execute
  */
 export function raf<T extends (...args: any[]) => any>(func: T): (...args: Parameters<T>) => void {
 	let rafId: number | null = null;

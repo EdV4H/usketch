@@ -5,7 +5,7 @@ import { ScreenReaderAnnouncer } from "./utils/accessibility";
 
 /**
  * KeyboardManager
- * BaseInputManagerとContextMixinを使用した実装
+ * Implementation using BaseInputManager and ContextMixin
  */
 export class KeyboardManager
 	extends BaseInputManager<KeyboardConfig, string[], KeyBindings, KeyboardPreset, KeyboardEvent>
