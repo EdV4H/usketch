@@ -1,10 +1,10 @@
-// Managers (リファクタリング済み実装を使用)
+// Managers
 
 // Base classes and mixins
 export { BaseInputManager, ContextMixin, DragMixin } from "./base-manager";
-export { GestureManager } from "./gesture-manager-refactored";
-export { KeyboardManager } from "./keyboard-manager-refactored";
-export { MouseManager } from "./mouse-manager-refactored";
+export { GestureManager } from "./gesture-manager";
+export { KeyboardManager } from "./keyboard-manager";
+export { MouseManager } from "./mouse-manager";
 
 // Types
 export type {

@@ -1,74 +1,74 @@
+import { BaseInputManager } from "./base-manager";
 import type {
-	CommandHandler,
-	CommandRegistry,
 	DragState,
-	IMouseManager,
 	MouseBinding,
 	MouseBindings,
 	MouseConfig,
 	MousePreset,
 	PanEvent,
 } from "./types";
+import type { IUnifiedMouseManager } from "./types/unified-types";
 import { throttle } from "./utils/debounce";
 
-export class MouseManager implements IMouseManager {
-	private bindings: Map<string, MouseBinding>;
-	private commandHandlers: CommandRegistry;
-	private config: MouseConfig;
+/**
+ * MouseManager
+ * BaseInputManagerを使用した実装
+ */
+export class MouseManager
+	extends BaseInputManager<
+		MouseConfig,
+		MouseBinding,
+		MouseBindings,
+		MousePreset,
+		MouseEvent | WheelEvent | PanEvent
+	>
+	implements IUnifiedMouseManager
+{
 	private dragState: DragState | null = null;
-	private listeners: Map<string, Set<(data: any) => void>>;
 	private throttledWheel: (event: WheelEvent) => boolean;
 
-	constructor(config?: MouseConfig) {
-		this.bindings = new Map();
-		this.commandHandlers = {};
-		this.listeners = new Map();
-		this.config = {
-			sensitivity: 1.0,
-			invertScroll: false,
-			debug: false,
-			...config,
-		};
-
+	constructor(config?: Partial<MouseConfig>) {
+		super(config);
 		if (config?.preset) {
 			this.loadPreset(config.preset);
 		}
-
 		// ホイールイベントをスロットル化（16ms = 60fps）
 		this.throttledWheel = throttle(this.handleWheelInternal.bind(this), 16);
+		this.initialize(this.config);
+	}
+
+	getDefaultConfig(): MouseConfig {
+		return {
+			sensitivity: 1.0,
+			invertScroll: false,
+			debug: false,
+		};
 	}
 
 	initialize(config: MouseConfig): void {
 		this.config = { ...this.config, ...config };
-
 		if (config.preset) {
 			this.loadPreset(config.preset);
 		}
 		if (config.customBindings) {
-			// 型変換：commandフィールドを追加
-			const safeBindings: MouseBindings = {};
 			Object.entries(config.customBindings).forEach(([command, binding]) => {
-				safeBindings[command] = { ...binding, command };
+				// commandフィールドを追加
+				const safeBinding: MouseBinding = { ...binding, command };
+				this.setBinding(command, safeBinding);
 			});
-			this.setBindings(safeBindings);
 		}
 	}
 
-	setBinding(command: string, binding: MouseBinding): void {
-		this.bindings.set(command, { ...binding, command });
-		if (this.config.debug) {
-			console.log(`[MouseManager] Binding set: ${command}`, binding);
-		}
-	}
-
-	setBindings(bindings: MouseBindings): void {
-		Object.entries(bindings).forEach(([command, binding]) => {
-			this.setBinding(command, binding);
+	loadPreset(preset: MousePreset): void {
+		this.bindings.clear();
+		Object.entries(preset.bindings).forEach(([command, binding]) => {
+			const safeBinding: MouseBinding = { ...binding, command };
+			this.setBinding(command, safeBinding);
 		});
-	}
 
-	removeBinding(command: string): void {
-		this.bindings.delete(command);
+		if (this.config.debug) {
+			console.log(`[MouseManager] Loaded preset: ${preset.name}`);
+		}
 	}
 
 	getBindings(): MouseBindings {
@@ -79,56 +79,34 @@ export class MouseManager implements IMouseManager {
 		return bindings;
 	}
 
-	loadPreset(preset: MousePreset): void {
-		// 既存のバインディングをクリア
-		this.bindings.clear();
-
-		// プリセットのバインディングを設定（commandフィールドを追加）
-		Object.entries(preset.bindings).forEach(([command, binding]) => {
-			this.setBinding(command, { ...binding, command });
-		});
-
-		if (this.config.debug) {
-			console.log(`[MouseManager] Loaded preset: ${preset.name}`);
-		}
+	// ドラッグ状態管理
+	isDragging(): boolean {
+		return this.dragState !== null;
 	}
 
-	registerCommand(name: string, handler: CommandHandler): void {
-		this.commandHandlers[name] = handler;
-		if (this.config.debug) {
-			console.log(`[MouseManager] Command registered: ${name}`);
-		}
+	getDragState(): DragState | null {
+		return this.dragState;
 	}
 
-	unregisterCommand(name: string): void {
-		delete this.commandHandlers[name];
-	}
-
-	executeCommand(command: string, event: MouseEvent | WheelEvent | PanEvent): boolean {
-		const handler = this.commandHandlers[command];
-		if (handler) {
-			const result = handler(event);
-			if (this.config.debug) {
-				console.log(`[MouseManager] Command executed: ${command} -> ${result}`);
-			}
-			return result;
-		}
-		return false;
-	}
-
+	// MouseManager固有のメソッド
 	handlePointerDown(event: PointerEvent): boolean {
-		// ドラッグ操作の開始を記録
-		this.dragState = {
+		if (this.config.debug) {
+			console.log("[MouseManager] Pointer down:", event);
+		}
+
+		// ドラッグ状態を開始
+		const dragState: DragState = {
 			startX: event.clientX,
 			startY: event.clientY,
 			button: event.button,
 			modifiers: this.getModifiers(event),
 		};
+		this.dragState = dragState;
 
 		const binding = this.findBinding("button", event.button, event);
 		if (binding) {
 			if (binding.action === "drag") {
-				// ドラッグ開始コマンドを実行
+				// ドラッグ開始コマンド
 				return this.executeCommand(`${binding.command}:start`, event);
 			}
 			return this.executeCommand(binding.command, event);
@@ -137,25 +115,27 @@ export class MouseManager implements IMouseManager {
 	}
 
 	handlePointerMove(event: PointerEvent): boolean {
-		if (!this.dragState) return false;
+		if (!this.isDragging()) return false;
+
+		const dragState = this.getDragState();
+		if (!dragState) return false;
 
 		// ドラッグイベントを発行
 		this.emit("drag", {
-			startX: this.dragState.startX,
-			startY: this.dragState.startY,
+			startX: dragState.startX,
+			startY: dragState.startY,
 			currentX: event.clientX,
 			currentY: event.clientY,
-			deltaX: event.clientX - this.dragState.startX,
-			deltaY: event.clientY - this.dragState.startY,
+			deltaX: event.clientX - dragState.startX,
+			deltaY: event.clientY - dragState.startY,
 		});
 
-		const binding = this.findBinding("button", this.dragState.button, event);
+		const binding = this.findBinding("button", dragState.button, event);
 		if (binding && binding.action === "drag") {
-			// PanEventタイプで一貫性を保つ
 			const panEvent: PanEvent = {
 				originalEvent: event,
-				deltaX: event.clientX - this.dragState.startX,
-				deltaY: event.clientY - this.dragState.startY,
+				deltaX: event.clientX - dragState.startX,
+				deltaY: event.clientY - dragState.startY,
 				clientX: event.clientX,
 				clientY: event.clientY,
 			};
@@ -165,8 +145,9 @@ export class MouseManager implements IMouseManager {
 	}
 
 	handlePointerUp(event: PointerEvent): boolean {
-		if (this.dragState) {
-			const binding = this.findBinding("button", this.dragState.button, event);
+		const dragState = this.getDragState();
+		if (dragState) {
+			const binding = this.findBinding("button", dragState.button, event);
 			if (binding && binding.action === "drag") {
 				this.executeCommand(`${binding.command}:end`, event);
 			}
@@ -176,26 +157,14 @@ export class MouseManager implements IMouseManager {
 	}
 
 	handleWheel(event: WheelEvent): boolean {
-		// スロットル化されたハンドラーを呼び出し
 		return this.throttledWheel(event);
 	}
 
 	private handleWheelInternal(event: WheelEvent): boolean {
-		// スクロール方向の判定
-		let direction: "up" | "down";
-		if (this.config.invertScroll) {
-			direction = event.deltaY > 0 ? "up" : "down";
-		} else {
-			direction = event.deltaY > 0 ? "down" : "up";
-		}
+		// ホイール方向の判定
+		const direction = event.deltaY > 0 ? "down" : "up";
+		const wheelBinding = this.findBinding("wheel", direction, event);
 
-		const binding = this.findBinding("wheel", direction, event);
-		if (binding) {
-			return this.executeCommand(binding.command, event);
-		}
-
-		// 一般的なwheel bindingも確認
-		const wheelBinding = this.findBinding("wheel", true, event);
 		if (wheelBinding) {
 			return this.executeCommand(wheelBinding.command, event);
 		}
@@ -209,13 +178,6 @@ export class MouseManager implements IMouseManager {
 		return false;
 	}
 
-	destroy(): void {
-		this.bindings.clear();
-		this.commandHandlers = {};
-		this.listeners.clear();
-		this.dragState = null;
-	}
-
 	// ヘルパーメソッド
 	private findBinding(
 		type: "button" | "wheel" | "gesture",
@@ -223,89 +185,55 @@ export class MouseManager implements IMouseManager {
 		event?: MouseEvent | WheelEvent,
 	): MouseBinding | undefined {
 		for (const [, binding] of this.bindings) {
-			// タイプが違う場合はスキップ
+			// タイプチェック
 			if (type === "button" && binding.button === undefined) continue;
 			if (type === "wheel" && binding.wheel === undefined) continue;
 			if (type === "gesture" && binding.gesture === undefined) continue;
 
-			// 値の一致確認
+			// 値のマッチング
 			if (type === "button" && binding.button !== value) continue;
-			if (type === "wheel" && typeof binding.wheel === "string" && binding.wheel !== value)
-				continue;
-			if (type === "wheel" && typeof binding.wheel === "boolean" && binding.wheel !== true)
-				continue;
+			if (type === "wheel") {
+				if (typeof binding.wheel === "string" && binding.wheel !== value) continue;
+				if (typeof binding.wheel === "boolean" && !binding.wheel) continue;
+			}
 
-			// 修飾キーの確認
+			// 修飾キーのチェック
 			if (event && !this.checkModifiers(binding.modifiers || [], event)) {
 				continue;
 			}
 
 			return binding;
 		}
-
 		return undefined;
 	}
 
 	private checkModifiers(requiredModifiers: string[], event: MouseEvent | WheelEvent): boolean {
 		const activeModifiers = this.getModifiers(event);
 
-		// 要求される修飾キーが全て押されているかチェック
+		// 必要な修飾キーがすべて押されているか
 		for (const required of requiredModifiers) {
 			if (!activeModifiers.includes(required)) {
 				return false;
 			}
 		}
 
-		// 余分な修飾キーがないかチェック（厳密なマッチング）
-		if (activeModifiers.length !== requiredModifiers.length) {
-			return false;
-		}
-
-		return true;
+		// 余分な修飾キーがないか（厳密なマッチング）
+		return activeModifiers.length === requiredModifiers.length;
 	}
 
-	/**
-	 * 修飾キーの状態を取得
-	 * 'mod'はプラットフォーム非依存の抽象化キー：
-	 * - macOS: Cmd (metaKey)
-	 * - Windows/Linux: Ctrl (ctrlKey)
-	 */
 	private getModifiers(event: MouseEvent | KeyboardEvent): string[] {
 		const modifiers: string[] = [];
-		if (event.ctrlKey || event.metaKey) modifiers.push("mod"); // プラットフォーム非依存
+		if (event.ctrlKey || event.metaKey) modifiers.push("mod");
 		if (event.shiftKey) modifiers.push("shift");
 		if (event.altKey) modifiers.push("alt");
 		return modifiers;
 	}
 
-	// イベントエミッター機能
-	on(event: string, listener: (data: any) => void): void {
-		if (!this.listeners.has(event)) {
-			this.listeners.set(event, new Set());
-		}
-		this.listeners.get(event)?.add(listener);
-	}
-
-	off(event: string, listener: (data: any) => void): void {
-		this.listeners.get(event)?.delete(listener);
-	}
-
-	private emit(event: string, data: any): void {
-		this.listeners.get(event)?.forEach((listener) => {
-			listener(data);
-		});
-	}
-
-	// 公開メソッド
-	getActiveBindings(): MouseBinding[] {
-		return Array.from(this.bindings.values());
-	}
-
-	isDragging(): boolean {
-		return this.dragState !== null;
-	}
-
-	getDragState(): DragState | null {
-		return this.dragState;
+	override destroy(): void {
+		super.destroy();
+		this.dragState = null;
 	}
 }
+
+// デフォルトエクスポート
+export default MouseManager;

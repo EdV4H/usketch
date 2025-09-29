@@ -1,6 +1,5 @@
+import { BaseInputManager } from "./base-manager";
 import type {
-	CommandHandler,
-	CommandRegistry,
 	GestureBinding,
 	GestureBindings,
 	GestureConfig,
@@ -8,11 +7,11 @@ import type {
 	GesturePreset,
 	GestureState,
 	GestureType,
-	IGestureManager,
 	PinchEvent,
 	RotateEvent,
 	SwipeEvent,
 } from "./types";
+import type { IUnifiedGestureManager } from "./types/unified-types";
 
 // ジェスチャー認識器の基底クラス
 abstract class GestureRecognizer {
@@ -284,25 +283,26 @@ class TwoFingerDragRecognizer extends GestureRecognizer {
 	}
 }
 
-export class GestureManager implements IGestureManager {
-	private bindings: Map<string, GestureBinding>;
-	private commandHandlers: CommandRegistry;
-	private config: GestureConfig;
+/**
+ * GestureManager
+ * BaseInputManagerを使用した実装
+ */
+export class GestureManager
+	extends BaseInputManager<
+		GestureConfig,
+		GestureBinding,
+		GestureBindings,
+		GesturePreset,
+		GestureEvent
+	>
+	implements IUnifiedGestureManager
+{
 	private recognizers: Map<GestureType, GestureRecognizer>;
 	private activeGestures: Map<GestureType, GestureState>;
-	private listeners: Map<string, Set<(data: any) => void>>;
 	private isActive: boolean = false;
 
-	constructor(config?: GestureConfig) {
-		this.bindings = new Map();
-		this.commandHandlers = {};
-		this.listeners = new Map();
-		this.activeGestures = new Map();
-		this.config = {
-			sensitivity: 1.0,
-			debug: false,
-			...config,
-		};
+	constructor(config?: Partial<GestureConfig>) {
+		super(config);
 
 		// ジェスチャー認識器の初期化
 		this.recognizers = new Map();
@@ -311,9 +311,20 @@ export class GestureManager implements IGestureManager {
 		this.recognizers.set("swipe", new SwipeRecognizer());
 		this.recognizers.set("twoFingerDrag", new TwoFingerDragRecognizer());
 
+		this.activeGestures = new Map();
+
 		if (config?.preset) {
 			this.loadPreset(config.preset);
 		}
+
+		this.initialize(this.config);
+	}
+
+	getDefaultConfig(): GestureConfig {
+		return {
+			sensitivity: 1.0,
+			debug: false,
+		};
 	}
 
 	initialize(config: GestureConfig): void {
@@ -327,30 +338,12 @@ export class GestureManager implements IGestureManager {
 		}
 	}
 
-	setBinding(command: string, binding: GestureBinding): void {
-		this.bindings.set(command, { ...binding, command });
-		if (this.config.debug) {
-			console.log(`[GestureManager] Binding set: ${command}`, binding);
-		}
-	}
-
-	setBindings(bindings: GestureBindings): void {
-		Object.entries(bindings).forEach(([command, binding]) => {
-			this.setBinding(command, binding);
-		});
-	}
-
-	removeBinding(command: string): void {
-		this.bindings.delete(command);
-	}
-
 	loadPreset(preset: GesturePreset): void {
-		// 既存のバインディングをクリア
 		this.bindings.clear();
 
-		// プリセットのバインディングを設定
 		Object.entries(preset.bindings).forEach(([command, binding]) => {
-			this.setBinding(command, binding);
+			const safeBinding: GestureBinding = { ...binding, command };
+			this.setBinding(command, safeBinding);
 		});
 
 		if (this.config.debug) {
@@ -358,27 +351,20 @@ export class GestureManager implements IGestureManager {
 		}
 	}
 
-	registerCommand(name: string, handler: CommandHandler): void {
-		this.commandHandlers[name] = handler;
-		if (this.config.debug) {
-			console.log(`[GestureManager] Command registered: ${name}`);
+	getBindings(): GestureBindings {
+		const bindings: GestureBindings = {};
+		for (const [command, binding] of this.bindings) {
+			bindings[command] = binding;
 		}
+		return bindings;
 	}
 
-	unregisterCommand(name: string): void {
-		delete this.commandHandlers[name];
-	}
-
-	executeCommand(command: string, event: GestureEvent): boolean {
-		const handler = this.commandHandlers[command];
-		if (handler) {
-			const result = handler(event);
-			if (this.config.debug) {
-				console.log(`[GestureManager] Command executed: ${command} -> ${result}`);
-			}
-			return result;
-		}
-		return false;
+	// GestureManager固有のメソッド
+	setBindings(bindings: GestureBindings): void {
+		Object.entries(bindings).forEach(([command, binding]) => {
+			const safeBinding: GestureBinding = { ...binding, command };
+			this.setBinding(command, safeBinding);
+		});
 	}
 
 	handleTouchStart(event: TouchEvent): boolean {
@@ -461,12 +447,18 @@ export class GestureManager implements IGestureManager {
 		return handled;
 	}
 
-	destroy(): void {
-		this.bindings.clear();
-		this.commandHandlers = {};
-		this.listeners.clear();
-		this.activeGestures.clear();
-		this.isActive = false;
+	isGestureActive(): boolean {
+		return this.isActive && this.activeGestures.size > 0;
+	}
+
+	isGestureTypeActive(type: GestureType): boolean {
+		return this.activeGestures.has(type) && this.activeGestures.get(type)?.isActive === true;
+	}
+
+	getActiveGestures(): GestureType[] {
+		return Array.from(this.activeGestures.keys()).filter(
+			(type) => this.activeGestures.get(type)?.isActive,
+		);
 	}
 
 	// ヘルパーメソッド
@@ -479,36 +471,13 @@ export class GestureManager implements IGestureManager {
 		return undefined;
 	}
 
-	// イベントエミッター機能
-	on(event: string, listener: (data: any) => void): void {
-		if (!this.listeners.has(event)) {
-			this.listeners.set(event, new Set());
-		}
-		this.listeners.get(event)?.add(listener);
-	}
-
-	off(event: string, listener: (data: any) => void): void {
-		this.listeners.get(event)?.delete(listener);
-	}
-
-	private emit(event: string, data: any): void {
-		this.listeners.get(event)?.forEach((listener) => {
-			listener(data);
-		});
-	}
-
-	// 公開メソッド
-	getActiveBindings(): GestureBinding[] {
-		return Array.from(this.bindings.values());
-	}
-
-	isGestureActive(type: GestureType): boolean {
-		return this.activeGestures.has(type) && this.activeGestures.get(type)?.isActive === true;
-	}
-
-	getActiveGestures(): GestureType[] {
-		return Array.from(this.activeGestures.keys()).filter(
-			(type) => this.activeGestures.get(type)?.isActive,
-		);
+	override destroy(): void {
+		super.destroy();
+		this.activeGestures.clear();
+		this.recognizers.clear();
+		this.isActive = false;
 	}
 }
+
+// デフォルトエクスポート
+export default GestureManager;

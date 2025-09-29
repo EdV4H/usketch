@@ -64,10 +64,11 @@ describe("Input System Integration", () => {
 		});
 
 		it("should handle modified shortcuts", () => {
-			// Cmd+A for select all
+			// Cmd+A for select all (macOSではmetaKey、WindowsではctrlKey)
 			const event = new KeyboardEvent("keydown", {
 				key: "a",
 				metaKey: true,
+				ctrlKey: false,
 			});
 			keyboard.handleKeyDown(event);
 			expect(commandExecuted["selectAll"]).toBe(true);
