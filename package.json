@@ -21,7 +21,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.2.4",
 		"glob": "11.0.3",
-		"lefthook": "1.13.4",
+		"lefthook": "1.13.5",
 		"turbo": "2.5.8"
 	},
 	"packageManager": "pnpm@10.17.1"
