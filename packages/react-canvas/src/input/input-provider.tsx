@@ -12,7 +12,7 @@ import {
 	type MousePreset,
 } from "@usketch/input-manager";
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InputContext, type InputContextValue } from "./input-context";
 
 export interface InputProviderProps {
@@ -182,64 +182,76 @@ export function InputProvider({
 	}, []);
 
 	// バインディング更新メソッド
-	const updateKeyBinding = (command: string, keys: string[]) => {
-		if (!keyboardManagerRef.current) return;
+	const updateKeyBinding = useCallback(
+		(command: string, keys: string[]) => {
+			if (!keyboardManagerRef.current) return;
 
-		keyboardManagerRef.current.setBinding(command, keys);
-		const newBindings = { ...keyBindings, [command]: keys };
-		setKeyBindings(newBindings);
-		onBindingChange?.("keyboard", newBindings);
-	};
+			keyboardManagerRef.current.setBinding(command, keys);
+			const newBindings = { ...keyBindings, [command]: keys };
+			setKeyBindings(newBindings);
+			onBindingChange?.("keyboard", newBindings);
+		},
+		[keyBindings, onBindingChange],
+	);
 
-	const updateMouseBinding = (command: string, binding: MouseBinding) => {
-		if (!mouseManagerRef.current) return;
+	const updateMouseBinding = useCallback(
+		(command: string, binding: MouseBinding) => {
+			if (!mouseManagerRef.current) return;
 
-		mouseManagerRef.current.setBinding(command, binding);
-		const newBindings = { ...mouseBindings, [command]: binding };
-		setMouseBindings(newBindings);
-		onBindingChange?.("mouse", newBindings);
-	};
+			mouseManagerRef.current.setBinding(command, binding);
+			const newBindings = { ...mouseBindings, [command]: binding };
+			setMouseBindings(newBindings);
+			onBindingChange?.("mouse", newBindings);
+		},
+		[mouseBindings, onBindingChange],
+	);
 
-	const updateGestureBinding = (command: string, binding: GestureBinding) => {
-		if (!gestureManagerRef.current) return;
+	const updateGestureBinding = useCallback(
+		(command: string, binding: GestureBinding) => {
+			if (!gestureManagerRef.current) return;
 
-		gestureManagerRef.current.setBinding(command, binding);
-		const newBindings = { ...gestureBindings, [command]: binding };
-		setGestureBindings(newBindings);
-		onBindingChange?.("gesture", newBindings);
-	};
+			gestureManagerRef.current.setBinding(command, binding);
+			const newBindings = { ...gestureBindings, [command]: binding };
+			setGestureBindings(newBindings);
+			onBindingChange?.("gesture", newBindings);
+		},
+		[gestureBindings, onBindingChange],
+	);
 
-	const resetToPreset = (
-		type: "keyboard" | "mouse" | "gesture",
-		preset: KeyboardPreset | MousePreset | GesturePreset,
-	) => {
-		switch (type) {
-			case "keyboard":
-				if (keyboardManagerRef.current) {
-					keyboardManagerRef.current.loadPreset(preset as KeyboardPreset);
-					const bindings = keyboardManagerRef.current.getBindings();
-					setKeyBindings(bindings);
-					onBindingChange?.("keyboard", bindings);
-				}
-				break;
-			case "mouse":
-				if (mouseManagerRef.current) {
-					mouseManagerRef.current.loadPreset(preset as MousePreset);
-					const bindings = mouseManagerRef.current.getBindings();
-					setMouseBindings(bindings);
-					onBindingChange?.("mouse", bindings);
-				}
-				break;
-			case "gesture":
-				if (gestureManagerRef.current) {
-					gestureManagerRef.current.loadPreset(preset as GesturePreset);
-					const bindings = gestureManagerRef.current.getBindings();
-					setGestureBindings(bindings);
-					onBindingChange?.("gesture", bindings);
-				}
-				break;
-		}
-	};
+	const resetToPreset = useCallback(
+		(
+			type: "keyboard" | "mouse" | "gesture",
+			preset: KeyboardPreset | MousePreset | GesturePreset,
+		) => {
+			switch (type) {
+				case "keyboard":
+					if (keyboardManagerRef.current) {
+						keyboardManagerRef.current.loadPreset(preset as KeyboardPreset);
+						const bindings = keyboardManagerRef.current.getBindings();
+						setKeyBindings(bindings);
+						onBindingChange?.("keyboard", bindings);
+					}
+					break;
+				case "mouse":
+					if (mouseManagerRef.current) {
+						mouseManagerRef.current.loadPreset(preset as MousePreset);
+						const bindings = mouseManagerRef.current.getBindings();
+						setMouseBindings(bindings);
+						onBindingChange?.("mouse", bindings);
+					}
+					break;
+				case "gesture":
+					if (gestureManagerRef.current) {
+						gestureManagerRef.current.loadPreset(preset as GesturePreset);
+						const bindings = gestureManagerRef.current.getBindings();
+						setGestureBindings(bindings);
+						onBindingChange?.("gesture", bindings);
+					}
+					break;
+			}
+		},
+		[onBindingChange],
+	);
 
 	// コンテキスト値
 	const contextValue: InputContextValue = useMemo(

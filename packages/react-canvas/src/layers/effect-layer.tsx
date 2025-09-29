@@ -24,8 +24,6 @@ export const EffectLayer: FC<EffectLayerProps> = memo(({ className }) => {
 		}, 1000); // Check every second
 
 		return () => clearInterval(interval);
-		// clearExpiredEffectsは安定しているので依存配列を空に
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [clearExpiredEffects]);
 
 	const renderEffect = useCallback(
