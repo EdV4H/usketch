@@ -9,7 +9,7 @@ export function debounce<T extends (...args: any[]) => any>(
 	wait: number,
 	immediate = false,
 ): (...args: Parameters<T>) => void {
-	let timeout: number | null = null;
+	let timeout: ReturnType<typeof setTimeout> | null = null;
 
 	return function (this: any, ...args: Parameters<T>) {
 		const callNow = immediate && !timeout;
@@ -43,7 +43,7 @@ export function throttle<T extends (...args: any[]) => any>(
 	limit: number,
 ): (...args: Parameters<T>) => ReturnType<T> {
 	let inThrottle = false;
-	let lastFunc: number | null = null;
+	let lastFunc: ReturnType<typeof setTimeout> | null = null;
 	let lastRan = 0;
 
 	let lastResult: ReturnType<T>;
