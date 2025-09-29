@@ -1,8 +1,10 @@
-// Managers
+// Managers (リファクタリング済み実装を使用)
 
-export { GestureManager } from "./gesture-manager";
-export { KeyboardManager } from "./keyboard-manager";
-export { MouseManager } from "./mouse-manager";
+// Base classes and mixins
+export { BaseInputManager, ContextMixin, DragMixin } from "./base-manager";
+export { GestureManager } from "./gesture-manager-refactored";
+export { KeyboardManager } from "./keyboard-manager-refactored";
+export { MouseManager } from "./mouse-manager-refactored";
 
 // Types
 export type {
@@ -35,3 +37,21 @@ export type {
 	RotateEvent,
 	SwipeEvent,
 } from "./types";
+
+// Unified interfaces
+export type {
+	IContextAwareManager,
+	IDragAwareManager,
+	IGestureAwareManager,
+	IInputManager,
+	IManagerConfig,
+	IManagerState,
+} from "./types/base-manager";
+
+export type {
+	IInputCoordinator,
+	IInputManagerFactory,
+	IUnifiedGestureManager,
+	IUnifiedKeyboardManager,
+	IUnifiedMouseManager,
+} from "./types/unified-types";
