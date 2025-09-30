@@ -449,8 +449,8 @@ importers:
   packages/test-utils:
     dependencies:
       '@testing-library/jest-dom':
-        specifier: 6.8.0
-        version: 6.8.0
+        specifier: 6.9.0
+        version: 6.9.0
     devDependencies:
       '@types/node':
         specifier: 24.6.0
@@ -1111,8 +1111,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@testing-library/jest-dom@6.8.0':
-    resolution: {integrity: sha512-WgXcWzVM6idy5JaftTVC8Vs83NKRmGJz4Hqs4oyOuO2J4r/y79vvKZsb+CaGyCSEbUPI6OsewfPd0G1A0/TUZQ==}
+  '@testing-library/jest-dom@6.9.0':
+    resolution: {integrity: sha512-QHdxYMJ0YPGKYofMc6zYvo7LOViVhdc6nPg/OtM2cf9MQrwEcTxFCs7d/GJ5eSyPkHzOiBkc/KfLdFJBHzldtQ==}
     engines: {node: '>=14', npm: '>=6', yarn: '>=1'}
 
   '@types/babel__core@7.20.5':
@@ -2972,7 +2972,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.50.2':
     optional: true
 
-  '@testing-library/jest-dom@6.8.0':
+  '@testing-library/jest-dom@6.9.0':
     dependencies:
       '@adobe/css-tools': 4.4.4
       aria-query: 5.3.2
