@@ -1,6 +1,6 @@
 import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useToolMachine } from "./use-tool-machine";
 
 interface InteractionResult {
@@ -19,9 +19,41 @@ export const useInteraction = (): InteractionResult => {
 	const tool = currentTool || "select";
 	const [cursor, setCursor] = useState("default");
 	const [isPanning, setIsPanning] = useState(false);
+	const [isSpacePressed, setIsSpacePressed] = useState(false);
 	const panStartRef = useRef<Point | null>(null);
 	const cameraPosRef = useRef<Point | null>(null);
 	const toolMachine = useToolMachine();
+
+	// Handle Space key for panning
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.code === "Space" && !e.repeat) {
+				e.preventDefault();
+				setIsSpacePressed(true);
+				if (!isPanning) {
+					setCursor("grab");
+				}
+			}
+		};
+
+		const handleKeyUp = (e: KeyboardEvent) => {
+			if (e.code === "Space") {
+				e.preventDefault();
+				setIsSpacePressed(false);
+				if (!isPanning) {
+					setCursor("default");
+				}
+			}
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		window.addEventListener("keyup", handleKeyUp);
+
+		return () => {
+			window.removeEventListener("keydown", handleKeyDown);
+			window.removeEventListener("keyup", handleKeyUp);
+		};
+	}, [isPanning]);
 
 	const getCanvasPoint = useCallback(
 		(e: React.PointerEvent): Point => {
@@ -37,7 +69,7 @@ export const useInteraction = (): InteractionResult => {
 	const handlePointerDown = useCallback(
 		(e: React.PointerEvent) => {
 			// Middle mouse button or space + left click for panning
-			if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+			if (e.button === 1 || (e.button === 0 && (e.shiftKey || isSpacePressed))) {
 				setIsPanning(true);
 				panStartRef.current = { x: e.clientX, y: e.clientY };
 				cameraPosRef.current = { x: camera.x, y: camera.y };
@@ -58,7 +90,7 @@ export const useInteraction = (): InteractionResult => {
 				}
 			}
 		},
-		[camera, getCanvasPoint, tool, toolMachine],
+		[camera, isSpacePressed, getCanvasPoint, tool, toolMachine],
 	);
 
 	const handlePointerMove = useCallback(
@@ -100,7 +132,7 @@ export const useInteraction = (): InteractionResult => {
 				setIsPanning(false);
 				panStartRef.current = null;
 				cameraPosRef.current = null;
-				setCursor("default");
+				setCursor(isSpacePressed ? "grab" : "default");
 			} else {
 				const point = getCanvasPoint(e);
 
@@ -110,35 +142,15 @@ export const useInteraction = (): InteractionResult => {
 				}
 			}
 		},
-		[isPanning, getCanvasPoint, toolMachine],
+		[isPanning, isSpacePressed, getCanvasPoint, toolMachine],
 	);
 
-	const handleWheel = useCallback(
-		(e: React.WheelEvent) => {
-			e.preventDefault();
-
-			const zoomSpeed = 0.1;
-			const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
-			const newZoom = Math.max(0.1, Math.min(5, camera.zoom * (1 + delta)));
-
-			// Calculate zoom center point
-			const rect = e.currentTarget.getBoundingClientRect();
-			const x = e.clientX - rect.left;
-			const y = e.clientY - rect.top;
-
-			// Adjust camera position to zoom towards mouse position
-			const scale = newZoom / camera.zoom;
-			const newX = x - (x - camera.x) * scale;
-			const newY = y - (y - camera.y) * scale;
-
-			setCamera({
-				zoom: newZoom,
-				x: newX,
-				y: newY,
-			});
-		},
-		[camera, setCamera],
-	);
+	const handleWheel = useCallback((e: React.WheelEvent) => {
+		// Let the input manager handle wheel events
+		// This is now handled by the camera-commands through the input system
+		// We just need to prevent default browser behavior
+		// e.preventDefault(); // This is handled in camera-commands
+	}, []);
 
 	return {
 		cursor,
