@@ -13,8 +13,8 @@
 		"@playwright/test": "1.55.1"
 	},
 	"devDependencies": {
-		"@types/node": "24.6.0",
+		"@types/node": "24.6.1",
 		"@usketch/tsconfig": "workspace:*",
-		"typescript": "5.9.2"
+		"typescript": "5.9.3"
 	}
 }

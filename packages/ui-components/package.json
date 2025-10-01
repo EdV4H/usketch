@@ -20,6 +20,6 @@
 		"@types/react": "^19.1.13",
 		"@usketch/tsconfig": "workspace:*",
 		"react": "^19.1.1",
-		"typescript": "5.9.2"
+		"typescript": "5.9.3"
 	}
 }
