@@ -98,12 +98,13 @@ function WhiteboardApp() {
 
 			// Expose store to window for E2E testing
 			if (typeof window !== "undefined") {
+				// Expose the store instance itself, not just the state
 				(window as any).__whiteboardStore = whiteboardStore.getState();
-				// Update store reference when store changes
-				const unsubscribe = whiteboardStore.subscribe((state) => {
-					(window as any).__whiteboardStore = state;
+				// Keep updating the reference with latest state
+				const unsubscribe = whiteboardStore.subscribe(() => {
+					(window as any).__whiteboardStore = whiteboardStore.getState();
 				});
-				// Clean up on unmount
+				// Clean up on unmount (though this won't actually run due to the guard)
 				return () => {
 					unsubscribe();
 					delete (window as any).__whiteboardStore;
