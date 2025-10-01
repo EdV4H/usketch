@@ -95,6 +95,20 @@ function WhiteboardApp() {
 			// Set up the effect factory for the effect tool
 			const effectTool = getEffectTool();
 			effectTool.setEffectFactory(createAppEffect);
+
+			// Expose store to window for E2E testing
+			if (typeof window !== "undefined") {
+				(window as any).__whiteboardStore = whiteboardStore.getState();
+				// Update store reference when store changes
+				const unsubscribe = whiteboardStore.subscribe((state) => {
+					(window as any).__whiteboardStore = state;
+				});
+				// Clean up on unmount
+				return () => {
+					unsubscribe();
+					delete (window as any).__whiteboardStore;
+				};
+			}
 		}
 
 		// Load custom shapes and combine with default shapes

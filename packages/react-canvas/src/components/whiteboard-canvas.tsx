@@ -39,6 +39,7 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">
 		<div
 			ref={containerRef}
 			className={`whiteboard-canvas ${className}`.trim()}
+			data-testid="canvas-container"
 			style={{
 				position: "relative",
 				width: "100%",
