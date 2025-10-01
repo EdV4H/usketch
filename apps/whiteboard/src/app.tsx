@@ -7,7 +7,9 @@ import { whiteboardStore } from "@usketch/store";
 import { getEffectTool } from "@usketch/tools";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
+import { ConfiguredInputProvider } from "./components/configured-input-provider";
 import { DebugMenu } from "./components/debug-menu";
+import { InputSettingsPanel } from "./components/input-settings/input-settings-panel";
 import { PropertyPanel } from "./components/property-panel/property-panel";
 import { ToastContainer } from "./components/toast";
 import { ToolbarReact } from "./components/toolbar-react";
@@ -16,7 +18,7 @@ import { customShapePlugins } from "./custom-shapes";
 import type { EffectPlugin } from "./effects";
 import { fadingPinPlugin, pinPlugin, ripplePlugin } from "./effects";
 import { createAppEffect } from "./effects/effect-factory";
-import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
+import { useInputCommands } from "./hooks/use-input-commands";
 import "./styles/app.css";
 
 // Helper function to add shape with delay
@@ -29,16 +31,17 @@ const addShapeWithDelay = (shape: Shape, delay: number) => {
 // Calculate delay based on shape index
 const calculateDelay = (index: number, baseDelay = 100) => index * baseDelay;
 
-function AppContent() {
+function WhiteboardApp() {
 	const canvasRef = useRef<any>(null);
 	const shapesAddedRef = useRef(false);
 	const backgroundsRegisteredRef = useRef(false);
 	const [shapePlugins, setShapePlugins] = useState<ShapePlugin<any>[]>([]);
 	const [effectPlugins] = useState<EffectPlugin<any>[]>([ripplePlugin, pinPlugin, fadingPinPlugin]);
 	const [isPanelOpen, setIsPanelOpen] = useState(true);
+	const [isInputSettingsOpen, setIsInputSettingsOpen] = useState(false);
 
-	// Setup keyboard shortcuts
-	useKeyboardShortcuts({
+	// Setup input commands with the new system - now inside InputProvider
+	useInputCommands({
 		onPanelToggle: () => setIsPanelOpen((prev) => !prev),
 	});
 
@@ -129,6 +132,7 @@ function AppContent() {
 				onBackgroundChange={setBackground}
 				isPanelOpen={isPanelOpen}
 				onPanelToggle={() => setIsPanelOpen(!isPanelOpen)}
+				onInputSettingsToggle={() => setIsInputSettingsOpen(true)}
 			/>
 			<div className="main-content">
 				<div className="whiteboard-container">
@@ -142,6 +146,10 @@ function AppContent() {
 				</div>
 				{isPanelOpen && <PropertyPanel />}
 			</div>
+			<InputSettingsPanel
+				isOpen={isInputSettingsOpen}
+				onClose={() => setIsInputSettingsOpen(false)}
+			/>
 			<DebugMenu />
 			<ToastContainer />
 		</div>
@@ -151,7 +159,9 @@ function AppContent() {
 function App() {
 	return (
 		<ToastProvider>
-			<AppContent />
+			<ConfiguredInputProvider debug={false}>
+				<WhiteboardApp />
+			</ConfiguredInputProvider>
 		</ToastProvider>
 	);
 }
