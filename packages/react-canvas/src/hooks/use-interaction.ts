@@ -11,6 +11,9 @@ interface InteractionResult {
 		onPointerMove: (e: React.PointerEvent) => void;
 		onPointerUp: (e: React.PointerEvent) => void;
 		onWheel: (e: React.WheelEvent) => void;
+		onTouchStart: (e: React.TouchEvent) => void;
+		onTouchMove: (e: React.TouchEvent) => void;
+		onTouchEnd: (e: React.TouchEvent) => void;
 	};
 }
 
@@ -23,6 +26,9 @@ export const useInteraction = (): InteractionResult => {
 	const panStartRef = useRef<Point | null>(null);
 	const cameraPosRef = useRef<Point | null>(null);
 	const toolMachine = useToolMachine();
+
+	// Touch gesture state
+	const touchPrevRef = useRef<{ x: number; y: number; distance: number } | null>(null);
 
 	// Handle Space key for panning
 	useEffect(() => {
@@ -65,6 +71,23 @@ export const useInteraction = (): InteractionResult => {
 		},
 		[camera],
 	);
+
+	// Touch gesture helpers
+	const getTouchCenter = useCallback((touches: React.TouchList): { x: number; y: number } => {
+		if (touches.length === 1) {
+			return { x: touches[0].clientX, y: touches[0].clientY };
+		}
+		const x = (touches[0].clientX + touches[1].clientX) / 2;
+		const y = (touches[0].clientY + touches[1].clientY) / 2;
+		return { x, y };
+	}, []);
+
+	const getTouchDistance = useCallback((touches: React.TouchList): number => {
+		if (touches.length < 2) return 0;
+		const dx = touches[1].clientX - touches[0].clientX;
+		const dy = touches[1].clientY - touches[0].clientY;
+		return Math.sqrt(dx * dx + dy * dy);
+	}, []);
 
 	const handlePointerDown = useCallback(
 		(e: React.PointerEvent) => {
@@ -145,62 +168,101 @@ export const useInteraction = (): InteractionResult => {
 		[isPanning, isSpacePressed, getCanvasPoint, toolMachine],
 	);
 
+	// タッチジェスチャー専用ハンドラー
+	const handleTouchStart = useCallback(
+		(e: React.TouchEvent) => {
+			if (e.touches.length === 2) {
+				// 2本指ジェスチャー開始
+				const center = getTouchCenter(e.touches);
+				const distance = getTouchDistance(e.touches);
+				touchPrevRef.current = { x: center.x, y: center.y, distance };
+				e.preventDefault();
+			}
+		},
+		[getTouchCenter, getTouchDistance],
+	);
+
+	const handleTouchMove = useCallback(
+		(e: React.TouchEvent) => {
+			if (e.touches.length !== 2 || !touchPrevRef.current) return;
+
+			const center = getTouchCenter(e.touches);
+			const distance = getTouchDistance(e.touches);
+
+			// 前フレームとの差分
+			const distanceRatio = distance / touchPrevRef.current.distance;
+			const dx = center.x - touchPrevRef.current.x;
+			const dy = center.y - touchPrevRef.current.y;
+
+			// ズームと パンを同時に適用
+			const newZoom = Math.max(0.1, Math.min(5, camera.zoom * distanceRatio));
+
+			setCamera({
+				zoom: newZoom,
+				x: camera.x + dx,
+				y: camera.y + dy,
+			});
+
+			// 次フレーム用に保存
+			touchPrevRef.current = { x: center.x, y: center.y, distance };
+
+			e.preventDefault();
+		},
+		[camera, setCamera, getTouchCenter, getTouchDistance],
+	);
+
+	const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+		if (e.touches.length < 2) {
+			touchPrevRef.current = null;
+		}
+	}, []);
+
+	// マウスホイール専用ハンドラー（タッチイベントは別処理）
 	const handleWheel = useCallback(
 		(e: React.WheelEvent) => {
-			// ctrlKey + wheelはピンチズーム（ズーム操作）
-			const isPinchZoom = e.ctrlKey;
-
-			// Shift+Wheelは水平スクロールとして扱う
-			if (e.shiftKey && !isPinchZoom) {
-				e.preventDefault();
-				// Shift+Wheelの場合、ブラウザによってdeltaXまたはdeltaYに値が入る
-				// どちらか値がある方を使う
-				const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
-				const scrollAmount = delta * 0.5;
-				const newX = camera.x - scrollAmount / camera.zoom;
-				setCamera({
-					x: newX,
-				});
-				return;
-			}
-
-			// ピンチズームでない場合、deltaXがあれば二本指パン（マウスホイールはdeltaXが0）
-			if (!isPinchZoom && e.deltaX !== 0) {
-				e.preventDefault();
-				const scrollAmountX = e.deltaX * 0.5;
-				const scrollAmountY = e.deltaY * 0.5;
-				setCamera({
-					x: camera.x - scrollAmountX / camera.zoom,
-					y: camera.y - scrollAmountY / camera.zoom,
-				});
-				return;
-			}
-
-			// ctrlKeyなしでdeltaYのみ（垂直方向）の場合も二本指パンの可能性
-			// マウスホイールと区別するため、deltaYが小さい場合は二本指パンと判定
-			if (!isPinchZoom && e.deltaX === 0 && Math.abs(e.deltaY) < 50) {
-				e.preventDefault();
-				const scrollAmountY = e.deltaY * 0.5;
-				setCamera({
-					y: camera.y - scrollAmountY / camera.zoom,
-				});
-				return;
-			}
-
-			// ピンチズームまたはマウスホイールによるズーム
 			e.preventDefault();
 
-			// ピンチズームの場合は感度を下げる
-			const zoomSpeed = isPinchZoom ? 0.05 : 0.1;
+			// Shift+Wheel: 水平スクロール
+			if (e.shiftKey) {
+				const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+				const scrollAmount = delta * 0.5;
+				setCamera({
+					x: camera.x - scrollAmount / camera.zoom,
+				});
+				return;
+			}
+
+			// Ctrl+Wheel: ピンチズーム（感度低め）
+			if (e.ctrlKey) {
+				const zoomSpeed = 0.05;
+				const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+				const newZoom = Math.max(0.1, Math.min(5, camera.zoom * (1 + delta)));
+
+				const rect = e.currentTarget.getBoundingClientRect();
+				const x = e.clientX - rect.left;
+				const y = e.clientY - rect.top;
+
+				const scale = newZoom / camera.zoom;
+				const newX = x - (x - camera.x) * scale;
+				const newY = y - (y - camera.y) * scale;
+
+				setCamera({
+					zoom: newZoom,
+					x: newX,
+					y: newY,
+				});
+				return;
+			}
+
+			// 通常のホイール: ズーム
+			const zoomSpeed = 0.1;
 			const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
 			const newZoom = Math.max(0.1, Math.min(5, camera.zoom * (1 + delta)));
 
-			// Calculate zoom center point
 			const rect = e.currentTarget.getBoundingClientRect();
 			const x = e.clientX - rect.left;
 			const y = e.clientY - rect.top;
 
-			// Adjust camera position to zoom towards mouse position
 			const scale = newZoom / camera.zoom;
 			const newX = x - (x - camera.x) * scale;
 			const newY = y - (y - camera.y) * scale;
@@ -222,6 +284,9 @@ export const useInteraction = (): InteractionResult => {
 			onPointerMove: handlePointerMove,
 			onPointerUp: handlePointerUp,
 			onWheel: handleWheel,
+			onTouchStart: handleTouchStart,
+			onTouchMove: handleTouchMove,
+			onTouchEnd: handleTouchEnd,
 		}),
 	};
 };
