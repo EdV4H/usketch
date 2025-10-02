@@ -147,6 +147,16 @@ export const useInteraction = (): InteractionResult => {
 
 	const handleWheel = useCallback(
 		(e: React.WheelEvent) => {
+			// Shift+Wheelは水平スクロールとして扱う
+			if (e.shiftKey) {
+				e.preventDefault();
+				const scrollAmount = e.deltaY * 0.5;
+				setCamera({
+					x: camera.x - scrollAmount / camera.zoom,
+				});
+				return;
+			}
+
 			e.preventDefault();
 
 			const zoomSpeed = 0.1;
