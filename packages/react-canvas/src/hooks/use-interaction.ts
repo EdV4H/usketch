@@ -145,12 +145,32 @@ export const useInteraction = (): InteractionResult => {
 		[isPanning, isSpacePressed, getCanvasPoint, toolMachine],
 	);
 
-	const handleWheel = useCallback((e: React.WheelEvent) => {
-		// Let the input manager handle wheel events
-		// This is now handled by the camera-commands through the input system
-		// We just need to prevent default browser behavior
-		// e.preventDefault(); // This is handled in camera-commands
-	}, []);
+	const handleWheel = useCallback(
+		(e: React.WheelEvent) => {
+			e.preventDefault();
+
+			const zoomSpeed = 0.1;
+			const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+			const newZoom = Math.max(0.1, Math.min(5, camera.zoom * (1 + delta)));
+
+			// Calculate zoom center point
+			const rect = e.currentTarget.getBoundingClientRect();
+			const x = e.clientX - rect.left;
+			const y = e.clientY - rect.top;
+
+			// Adjust camera position to zoom towards mouse position
+			const scale = newZoom / camera.zoom;
+			const newX = x - (x - camera.x) * scale;
+			const newY = y - (y - camera.y) * scale;
+
+			setCamera({
+				zoom: newZoom,
+				x: newX,
+				y: newY,
+			});
+		},
+		[camera, setCamera],
+	);
 
 	return {
 		cursor,
