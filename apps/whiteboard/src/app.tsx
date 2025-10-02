@@ -86,6 +86,25 @@ function WhiteboardApp() {
 		}
 	}, []);
 
+	// Prevent browser default pinch zoom with touch events
+	useEffect(() => {
+		const preventDefaultTouchZoom = (e: TouchEvent) => {
+			// Prevent default if there are 2 or more touches (pinch gesture)
+			if (e.touches.length > 1) {
+				e.preventDefault();
+			}
+		};
+
+		// Use passive: false to allow preventDefault
+		document.addEventListener("touchstart", preventDefaultTouchZoom, { passive: false });
+		document.addEventListener("touchmove", preventDefaultTouchZoom, { passive: false });
+
+		return () => {
+			document.removeEventListener("touchstart", preventDefaultTouchZoom);
+			document.removeEventListener("touchmove", preventDefaultTouchZoom);
+		};
+	}, []);
+
 	// カスタム背景とシェイプを登録（一度だけ）
 	useEffect(() => {
 		if (!backgroundsRegisteredRef.current) {
