@@ -147,8 +147,11 @@ export const useInteraction = (): InteractionResult => {
 
 	const handleWheel = useCallback(
 		(e: React.WheelEvent) => {
+			// ctrlKey + wheelはピンチズーム（ズーム操作）
+			const isPinchZoom = e.ctrlKey;
+
 			// Shift+Wheelは水平スクロールとして扱う
-			if (e.shiftKey) {
+			if (e.shiftKey && !isPinchZoom) {
 				e.preventDefault();
 				// Shift+Wheelの場合、ブラウザによってdeltaXまたはdeltaYに値が入る
 				// どちらか値がある方を使う
@@ -161,6 +164,19 @@ export const useInteraction = (): InteractionResult => {
 				return;
 			}
 
+			// ピンチズームでない場合、deltaXまたはdeltaYがあれば二本指パン
+			if (!isPinchZoom && (e.deltaX !== 0 || e.deltaY !== 0)) {
+				e.preventDefault();
+				const scrollAmountX = e.deltaX * 0.5;
+				const scrollAmountY = e.deltaY * 0.5;
+				setCamera({
+					x: camera.x - scrollAmountX / camera.zoom,
+					y: camera.y - scrollAmountY / camera.zoom,
+				});
+				return;
+			}
+
+			// ピンチズームまたはマウスホイールによるズーム
 			e.preventDefault();
 
 			const zoomSpeed = 0.1;
