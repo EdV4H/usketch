@@ -95,21 +95,21 @@ function WhiteboardApp() {
 			// Set up the effect factory for the effect tool
 			const effectTool = getEffectTool();
 			effectTool.setEffectFactory(createAppEffect);
+		}
 
-			// Expose store to window for E2E testing
-			if (typeof window !== "undefined") {
-				// Expose the store instance itself, not just the state
+		// Expose store to window for E2E testing
+		if (typeof window !== "undefined") {
+			// Expose the store instance itself, not just the state
+			(window as any).__whiteboardStore = whiteboardStore.getState();
+			// Keep updating the reference with latest state
+			const unsubscribe = whiteboardStore.subscribe(() => {
 				(window as any).__whiteboardStore = whiteboardStore.getState();
-				// Keep updating the reference with latest state
-				const unsubscribe = whiteboardStore.subscribe(() => {
-					(window as any).__whiteboardStore = whiteboardStore.getState();
-				});
-				// Clean up on unmount (though this won't actually run due to the guard)
-				return () => {
-					unsubscribe();
-					delete (window as any).__whiteboardStore;
-				};
-			}
+			});
+			// Clean up on unmount
+			return () => {
+				unsubscribe();
+				delete (window as any).__whiteboardStore;
+			};
 		}
 
 		// Load custom shapes and combine with default shapes
@@ -123,6 +123,9 @@ function WhiteboardApp() {
 			}
 		};
 		loadShapes();
+
+		// Return undefined for server-side rendering
+		return undefined;
 	}, [addDemoShapes]);
 
 	// Add demo shapes when both canvas and plugins are ready
