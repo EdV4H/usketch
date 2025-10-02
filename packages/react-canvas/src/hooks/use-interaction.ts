@@ -150,9 +150,13 @@ export const useInteraction = (): InteractionResult => {
 			// Shift+Wheelは水平スクロールとして扱う
 			if (e.shiftKey) {
 				e.preventDefault();
-				const scrollAmount = e.deltaY * 0.5;
+				// Shift+Wheelの場合、ブラウザによってdeltaXまたはdeltaYに値が入る
+				// どちらか値がある方を使う
+				const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+				const scrollAmount = delta * 0.5;
+				const newX = camera.x - scrollAmount / camera.zoom;
 				setCamera({
-					x: camera.x - scrollAmount / camera.zoom,
+					x: newX,
 				});
 				return;
 			}
