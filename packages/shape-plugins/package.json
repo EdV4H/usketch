@@ -19,7 +19,7 @@
 		"@usketch/react-shapes": "workspace:*",
 		"@usketch/shape-registry": "workspace:*",
 		"@usketch/shared-types": "workspace:*",
-		"react": "19.1.1"
+		"react": "19.2.0"
 	},
 	"devDependencies": {
 		"@types/react": "19.2.0",
