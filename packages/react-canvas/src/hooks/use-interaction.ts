@@ -164,8 +164,8 @@ export const useInteraction = (): InteractionResult => {
 				return;
 			}
 
-			// ピンチズームでない場合、deltaXまたはdeltaYがあれば二本指パン
-			if (!isPinchZoom && (e.deltaX !== 0 || e.deltaY !== 0)) {
+			// ピンチズームでない場合、deltaXがあれば二本指パン（マウスホイールはdeltaXが0）
+			if (!isPinchZoom && e.deltaX !== 0) {
 				e.preventDefault();
 				const scrollAmountX = e.deltaX * 0.5;
 				const scrollAmountY = e.deltaY * 0.5;
