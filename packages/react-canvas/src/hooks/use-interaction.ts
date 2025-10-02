@@ -179,7 +179,8 @@ export const useInteraction = (): InteractionResult => {
 			// ピンチズームまたはマウスホイールによるズーム
 			e.preventDefault();
 
-			const zoomSpeed = 0.1;
+			// ピンチズームの場合は感度を下げる
+			const zoomSpeed = isPinchZoom ? 0.05 : 0.1;
 			const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
 			const newZoom = Math.max(0.1, Math.min(5, camera.zoom * (1 + delta)));
 
