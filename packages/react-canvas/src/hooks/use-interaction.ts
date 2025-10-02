@@ -176,6 +176,17 @@ export const useInteraction = (): InteractionResult => {
 				return;
 			}
 
+			// ctrlKeyなしでdeltaYのみ（垂直方向）の場合も二本指パンの可能性
+			// マウスホイールと区別するため、deltaYが小さい場合は二本指パンと判定
+			if (!isPinchZoom && e.deltaX === 0 && Math.abs(e.deltaY) < 50) {
+				e.preventDefault();
+				const scrollAmountY = e.deltaY * 0.5;
+				setCamera({
+					y: camera.y - scrollAmountY / camera.zoom,
+				});
+				return;
+			}
+
 			// ピンチズームまたはマウスホイールによるズーム
 			e.preventDefault();
 
