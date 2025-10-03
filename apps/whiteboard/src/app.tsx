@@ -86,6 +86,25 @@ function WhiteboardApp() {
 		}
 	}, []);
 
+	// Prevent browser default pinch zoom with touch events
+	useEffect(() => {
+		const preventDefaultTouchZoom = (e: TouchEvent) => {
+			// Prevent default if there are 2 or more touches (pinch gesture)
+			if (e.touches.length > 1) {
+				e.preventDefault();
+			}
+		};
+
+		// Use passive: false to allow preventDefault
+		document.addEventListener("touchstart", preventDefaultTouchZoom, { passive: false });
+		document.addEventListener("touchmove", preventDefaultTouchZoom, { passive: false });
+
+		return () => {
+			document.removeEventListener("touchstart", preventDefaultTouchZoom);
+			document.removeEventListener("touchmove", preventDefaultTouchZoom);
+		};
+	}, []);
+
 	// カスタム背景とシェイプを登録（一度だけ）
 	useEffect(() => {
 		if (!backgroundsRegisteredRef.current) {
@@ -95,6 +114,21 @@ function WhiteboardApp() {
 			// Set up the effect factory for the effect tool
 			const effectTool = getEffectTool();
 			effectTool.setEffectFactory(createAppEffect);
+		}
+
+		// Expose store to window for E2E testing
+		if (typeof window !== "undefined") {
+			// Expose the store instance itself, not just the state
+			(window as any).__whiteboardStore = whiteboardStore.getState();
+			// Keep updating the reference with latest state
+			const unsubscribe = whiteboardStore.subscribe(() => {
+				(window as any).__whiteboardStore = whiteboardStore.getState();
+			});
+			// Clean up on unmount
+			return () => {
+				unsubscribe();
+				delete (window as any).__whiteboardStore;
+			};
 		}
 
 		// Load custom shapes and combine with default shapes
@@ -108,6 +142,9 @@ function WhiteboardApp() {
 			}
 		};
 		loadShapes();
+
+		// Return undefined for server-side rendering
+		return undefined;
 	}, [addDemoShapes]);
 
 	// Add demo shapes when both canvas and plugins are ready

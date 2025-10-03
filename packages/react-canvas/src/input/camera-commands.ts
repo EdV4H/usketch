@@ -196,6 +196,9 @@ export function createCameraCommands(store: WhiteboardStore) {
 		wheelZoom: (event) => {
 			if (!(event instanceof WheelEvent)) return false;
 
+			// Shiftキーが押されている場合は水平スクロールに任せる
+			if (event.shiftKey) return false;
+
 			event.preventDefault();
 			const delta = event.deltaY;
 			const zoomFactor = delta > 0 ? 0.9 : 1.1;
@@ -236,9 +239,10 @@ export function createCameraCommands(store: WhiteboardStore) {
 			const panEvent = event as PanEvent;
 			const currentCamera = store.camera;
 
+			// パンの方向を修正（deltaを加算）
 			store.setCamera({
-				x: currentCamera.x - panEvent.deltaX / currentCamera.zoom,
-				y: currentCamera.y - panEvent.deltaY / currentCamera.zoom,
+				x: currentCamera.x + panEvent.deltaX / currentCamera.zoom,
+				y: currentCamera.y + panEvent.deltaY / currentCamera.zoom,
 			});
 
 			return true;
@@ -252,6 +256,9 @@ export function createCameraCommands(store: WhiteboardStore) {
 		// 水平スクロール
 		horizontalScroll: (event) => {
 			if (!(event instanceof WheelEvent)) return false;
+
+			// Shiftキーが押されていない場合はスキップ
+			if (!event.shiftKey) return false;
 
 			event.preventDefault();
 			const scrollAmount = event.deltaY * 0.5;

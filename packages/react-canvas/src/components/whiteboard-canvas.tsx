@@ -35,10 +35,13 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">
 		}
 	}, [onReady, canvasManager]);
 
+	const canvasProps = interactions.getCanvasProps();
+
 	return (
 		<div
 			ref={containerRef}
 			className={`whiteboard-canvas ${className}`.trim()}
+			data-testid="canvas-container"
 			style={{
 				position: "relative",
 				width: "100%",
@@ -46,7 +49,10 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">
 				overflow: "hidden",
 				cursor: interactions.cursor,
 			}}
-			onWheel={interactions.getCanvasProps().onWheel}
+			onWheel={canvasProps.onWheel}
+			onTouchStart={canvasProps.onTouchStart}
+			onTouchMove={canvasProps.onTouchMove}
+			onTouchEnd={canvasProps.onTouchEnd}
 		>
 			<BackgroundLayer camera={camera} options={background} />
 			<ShapeLayer shapes={shapes} camera={camera} currentTool={interactions.currentTool} />

@@ -9,9 +9,14 @@ body {
 	padding: 0;
 	font-family: Arial, sans-serif;
 	background-color: #f5f5f5;
+	/* Prevent browser default pinch zoom */
+	touch-action: none;
+	overscroll-behavior: none;
 }
 
 #root {
 	width: 100vw;
 	height: 100vh;
+	/* Prevent browser default pinch zoom */
+	touch-action: none;
 }
