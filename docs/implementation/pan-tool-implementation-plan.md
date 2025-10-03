@@ -109,6 +109,7 @@ packages/tools/src/tools/
 ```typescript
 import { assign, setup } from 'xstate';
 import type { Point, ToolContext } from '../types/index';
+import { whiteboardStore } from '@usketch/store';
 
 // === コンテキスト定義 ===
 export interface PanToolContext extends ToolContext {
