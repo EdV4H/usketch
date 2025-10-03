@@ -19,7 +19,7 @@
 		"@usketch/shape-abstraction": "workspace:*",
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/store": "workspace:*",
-		"react": "19.1.1"
+		"react": "19.2.0"
 	},
 	"devDependencies": {
 		"@types/react": "19.2.0",

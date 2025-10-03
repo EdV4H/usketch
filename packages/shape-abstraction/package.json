@@ -26,8 +26,8 @@
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/shared-utils": "workspace:*",
 		"@usketch/store": "workspace:*",
-		"react": "19.1.1",
-		"react-dom": "19.1.1"
+		"react": "19.2.0",
+		"react-dom": "19.2.0"
 	},
 	"devDependencies": {
 		"@types/react": "19.2.0",

@@ -19,10 +19,10 @@
 	"author": "",
 	"license": "ISC",
 	"devDependencies": {
-		"@biomejs/biome": "2.2.4",
+		"@biomejs/biome": "2.2.5",
 		"glob": "11.0.3",
 		"lefthook": "1.13.6",
 		"turbo": "2.5.8"
 	},
-	"packageManager": "pnpm@10.17.1"
+	"packageManager": "pnpm@10.18.0"
 }
