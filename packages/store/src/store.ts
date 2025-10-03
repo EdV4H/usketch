@@ -98,6 +98,7 @@ export interface WhiteboardStore extends WhiteboardState, StyleSlice {
 	deselectShape: (id: string) => void;
 	clearSelection: () => void;
 	setCamera: (camera: Partial<Camera>) => void;
+	setViewport: (viewport: Partial<{ x: number; y: number; zoom: number }>) => void;
 	setCurrentTool: (tool: string) => void;
 
 	// Multiple selection actions
@@ -296,6 +297,11 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 
 	setCamera: (camera: Partial<Camera>) => {
 		get().executeCommand(new SetCameraCommand(camera));
+	},
+
+	// Alias for setCamera to provide viewport-like API
+	setViewport: (viewport: Partial<{ x: number; y: number; zoom: number }>) => {
+		get().setCamera(viewport);
 	},
 
 	setCurrentTool: (tool: string) => {

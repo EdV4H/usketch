@@ -59,6 +59,7 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 
 	const tools = [
 		{ id: "select", name: "選択", icon: "↖" },
+		{ id: "pan", name: "パン", icon: "✋" },
 		{ id: "rectangle", name: "四角形", icon: "□" },
 		{ id: "ellipse", name: "楕円", icon: "○" },
 		{ id: "line", name: "線", icon: "╱" },

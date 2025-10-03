@@ -15,6 +15,8 @@ export { createDrawingTool } from "./tools/drawing-tool";
 export type { EffectFactory, EffectToolConfig } from "./tools/effect-tool";
 // Effect Tool
 export { EffectTool, getEffectTool } from "./tools/effect-tool";
+export type { PanToolContext, PanToolEvent } from "./tools/pan-tool";
+export { createPanTool, panToolMachine } from "./tools/pan-tool";
 export type { SelectToolContext, SelectToolEvent } from "./tools/select-tool";
 export {
 	createSelectTool,

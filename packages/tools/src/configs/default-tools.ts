@@ -1,5 +1,6 @@
 import type { ToolBehaviors, ToolConfig } from "../schemas";
 import { createDrawingTool } from "../tools/drawing-tool";
+import { createPanTool } from "../tools/pan-tool";
 import { createRectangleTool } from "../tools/rectangle-tool";
 import { createSelectTool } from "../tools/select-tool";
 import { getShapeAtPoint } from "../utils/geometry";
@@ -71,6 +72,14 @@ const rectangleToolBehaviors: ToolBehaviors = {
 };
 
 /**
+ * Pan tool behaviors - handle canvas panning
+ */
+const panToolBehaviors: ToolBehaviors = {
+	// Pan tool doesn't need special behaviors
+	// All logic is handled in the state machine
+};
+
+/**
  * Get default tool configurations
  */
 export function getDefaultTools(): ToolConfig[] {
@@ -119,6 +128,21 @@ export function getDefaultTools(): ToolConfig[] {
 				category: "drawing",
 			},
 			behaviors: drawingToolBehaviors,
+		},
+		{
+			id: "pan",
+			machine: createPanTool(),
+			displayName: "Hand",
+			icon: "hand",
+			shortcut: "h",
+			enabled: true,
+			metadata: {
+				author: "uSketch Team",
+				version: "1.0.0",
+				description: "Pan the canvas by dragging",
+				category: "navigation",
+			},
+			behaviors: panToolBehaviors,
 		},
 	];
 }
