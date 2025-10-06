@@ -1,7 +1,7 @@
-import type { Point } from "@usketch/shared-types";
+import type { Point, Shape } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
 import { createDefaultToolManager, type ToolManager } from "@usketch/tools";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * Hook to integrate ToolManager with React
@@ -10,8 +10,9 @@ import { useCallback, useEffect, useRef } from "react";
 export const useToolManager = () => {
 	const toolManagerRef = useRef<ToolManager | null>(null);
 	const { currentTool, setCurrentTool } = useWhiteboardStore();
+	const [previewShape, setPreviewShape] = useState<Shape | null>(null);
 
-	// Initialize ToolManager
+	// Initialize ToolManager once
 	useEffect(() => {
 		if (!toolManagerRef.current) {
 			toolManagerRef.current = createDefaultToolManager({
@@ -27,7 +28,8 @@ export const useToolManager = () => {
 			toolManagerRef.current?.destroy();
 			toolManagerRef.current = null;
 		};
-	}, [currentTool, setCurrentTool]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []); // Initialize only once
 
 	// Sync currentTool from store to ToolManager
 	useEffect(() => {
@@ -75,6 +77,10 @@ export const useToolManager = () => {
 			const worldPos = screenToWorld(screenX, screenY, camera);
 
 			toolManagerRef.current.handlePointerMove(e, worldPos);
+
+			// Update preview shape
+			const preview = toolManagerRef.current.getPreviewShape();
+			setPreviewShape(preview);
 		},
 		[screenToWorld],
 	);
@@ -108,11 +114,6 @@ export const useToolManager = () => {
 		toolManagerRef.current.setActiveTool(toolId);
 	}, []);
 
-	const getPreviewShape = useCallback(() => {
-		if (!toolManagerRef.current) return null;
-		return toolManagerRef.current.getPreviewShape();
-	}, []);
-
 	return {
 		toolManager: toolManagerRef.current,
 		handlePointerDown,
@@ -121,6 +122,6 @@ export const useToolManager = () => {
 		handleKeyDown,
 		handleKeyUp,
 		setActiveTool,
-		getPreviewShape,
+		getPreviewShape: () => previewShape,
 	};
 };
