@@ -125,6 +125,10 @@ test.describe("Pan Tool", () => {
 	});
 
 	test("should not create shapes when panning", async ({ page }) => {
+		// Verify no shapes exist initially
+		const initialShapes = await page.locator('[data-shape="true"]').count();
+		expect(initialShapes).toBe(0);
+
 		// Switch to pan tool
 		await page.click('button:has-text("パン")');
 

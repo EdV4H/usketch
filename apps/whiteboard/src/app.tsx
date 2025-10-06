@@ -54,15 +54,15 @@ function WhiteboardApp() {
 		},
 	});
 
-	// デモ用のシェイプを追加（E2Eテストモード時のみ保持）
+	// デモ用のシェイプを追加（E2Eテストモード時は追加しない）
 	const addDemoShapes = useCallback((_plugins?: ShapePlugin<any>[]) => {
-		// Only add demo shapes during E2E tests
+		// Do not add demo shapes during E2E tests
 		const isE2E = new URLSearchParams(window.location.search).has("e2e");
 
-		if (!shapesAddedRef.current && isE2E) {
+		if (!shapesAddedRef.current && !isE2E) {
 			shapesAddedRef.current = true;
 
-			// Demo shapes for E2E testing only
+			// Demo shapes for manual testing only
 			const demoShapes: any[] = [
 				{
 					id: `test-rect-${Date.now()}`,
@@ -79,7 +79,7 @@ function WhiteboardApp() {
 				},
 			];
 
-			// Add test shapes for E2E
+			// Add test shapes for manual testing
 			demoShapes.forEach((shape, index) => {
 				addShapeWithDelay(shape, calculateDelay(index + 1));
 			});

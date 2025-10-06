@@ -98,12 +98,13 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 			if (currentTool === "pan") {
 				// Pan tool: update camera position based on drag delta
+				// Camera moves in opposite direction of drag (drag left = camera right)
 				const dx = screenX - dragState.startX;
 				const dy = screenY - dragState.startY;
 
 				setCamera({
-					x: storeCamera.x + dx,
-					y: storeCamera.y + dy,
+					x: storeCamera.x - dx,
+					y: storeCamera.y - dy,
 				});
 
 				// Update drag state to reflect new position
@@ -111,6 +112,8 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 					...prev,
 					startX: screenX,
 					startY: screenY,
+					currentX: screenX,
+					currentY: screenY,
 				}));
 			} else if (currentTool === "rectangle" || currentTool === "ellipse") {
 				setDragState((prev) => ({
