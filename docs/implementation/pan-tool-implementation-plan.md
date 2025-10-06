@@ -296,11 +296,13 @@ const tools = [
 ];
 ```
 
-### Phase 5: スペースキー連携
+### Phase 5: スペースキー連携（今後の実装予定）
 
-**実装済み**: `apps/whiteboard/src/hooks/use-keyboard-shortcuts.ts`
+スペースキー押下時に一時的にパンツールに切り替え、リリース時に元のツールに復帰する機能は、別途実装予定です。
 
-スペースキー押下時に一時的にパンツールに切り替え、リリース時に元のツールに復帰する機能は既に実装されています。
+この機能は以下のISSUEで実装される予定です:
+- [ ] グローバルキーボードショートカットシステムの改善
+- [ ] スペースキーによる一時的なツール切り替え機能
 
 ## 🧪 テスト計画
 
@@ -431,8 +433,7 @@ test.describe('Pan Tool', () => {
 1. `packages/tools/src/configs/default-tools.ts` - パンツール設定追加 ✅
 2. `packages/tools/src/index.ts` - エクスポート追加 ✅
 3. `apps/whiteboard/src/components/toolbar-react.tsx` - UIボタン追加 ✅
-4. `apps/whiteboard/src/hooks/use-keyboard-shortcuts.ts` - スペースキー連携 ✅
-5. `packages/react-canvas/src/components/interaction-layer.tsx` - パンツール処理追加 ✅
+4. `packages/react-canvas/src/components/interaction-layer.tsx` - パンツール処理追加 ✅
 
 ## 🚀 実装スケジュール
 
@@ -442,21 +443,22 @@ test.describe('Pan Tool', () => {
 | Phase 2 | ツール設定への登録 | 30分 | Developer | ✅ 完了 |
 | Phase 3 | Zustandストア確認・拡張 | 30分 | Developer | ✅ 完了 |
 | Phase 4 | UI統合（ツールバー） | 1時間 | Developer | ✅ 完了 |
-| Phase 5 | スペースキー連携 | 1時間 | Developer | ✅ 完了 |
+| Phase 5 | スペースキー連携 | 1時間 | Developer | 📋 今後の実装予定 |
 | Testing | ユニット＋E2Eテスト | 2時間 | Tester | 🚧 進行中 |
 | Review | コードレビュー＋修正 | 1時間 | Architect | - |
 
-**合計**: 約8時間 (Phase 1-5完了)
+**合計**: 約8時間 (Phase 1-4完了、Phase 5は別途実装)
 
 ## 🎯 成功基準
 
 - ✅ パンツールボタンをクリックして有効化できる
 - ✅ ドラッグ操作でキャンバスがスムーズに移動する
-- ✅ スペースキー押下で一時的にパンモードに切り替わる
-- ✅ スペースキーリリースで元のツールに復帰する
 - ✅ カーソルが適切に変化する（grab ↔ grabbing）
-- ✅ 全ユニットテストが合格
-- ✅ 全E2Eテストが合格
+- 🚧 全E2Eテストが合格（進行中）
+
+### 今後の実装予定（Phase 5）
+- [ ] スペースキー押下で一時的にパンモードに切り替わる
+- [ ] スペースキーリリースで元のツールに復帰する
 
 ## 📚 参考資料
 

@@ -11,15 +11,9 @@ export const useKeyboardShortcuts = ({ onPanelToggle }: KeyboardShortcutsOptions
 	const pasteStyleToSelection = useWhiteboardStore((state) => state.pasteStyleToSelection);
 	const undo = useWhiteboardStore((state) => state.undo);
 	const redo = useWhiteboardStore((state) => state.redo);
-	const currentTool = useWhiteboardStore((state) => state.currentTool);
-	const setCurrentTool = useWhiteboardStore((state) => state.setCurrentTool);
 	const { showToast } = useToast();
 
 	useEffect(() => {
-		// Track previous tool for space key toggle
-		let previousTool: string | null = null;
-		let isSpacePressed = false;
-
 		const handleKeyDown = (e: KeyboardEvent) => {
 			// Prevent shortcuts when typing in input fields
 			if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -40,15 +34,6 @@ export const useKeyboardShortcuts = ({ onPanelToggle }: KeyboardShortcutsOptions
 				return navigator.platform?.toUpperCase().indexOf("MAC") >= 0;
 			})();
 			const modKey = isMac ? e.metaKey : e.ctrlKey;
-
-			// Space key: Temporarily switch to pan tool
-			if (e.code === "Space" && !e.repeat && !isSpacePressed) {
-				e.preventDefault();
-				isSpacePressed = true;
-				previousTool = currentTool;
-				setCurrentTool("pan");
-				return;
-			}
 
 			// Cmd/Ctrl + Shift + C: Copy style
 			if (modKey && e.shiftKey && e.key.toLowerCase() === "c") {
@@ -99,32 +84,9 @@ export const useKeyboardShortcuts = ({ onPanelToggle }: KeyboardShortcutsOptions
 			}
 		};
 
-		const handleKeyUp = (e: KeyboardEvent) => {
-			// Space key release: Return to previous tool
-			if (e.code === "Space" && isSpacePressed) {
-				e.preventDefault();
-				isSpacePressed = false;
-				if (previousTool) {
-					setCurrentTool(previousTool);
-					previousTool = null;
-				}
-			}
-		};
-
 		window.addEventListener("keydown", handleKeyDown);
-		window.addEventListener("keyup", handleKeyUp);
 		return () => {
 			window.removeEventListener("keydown", handleKeyDown);
-			window.removeEventListener("keyup", handleKeyUp);
 		};
-	}, [
-		copyStyleFromSelection,
-		pasteStyleToSelection,
-		undo,
-		redo,
-		currentTool,
-		setCurrentTool,
-		onPanelToggle,
-		showToast,
-	]);
+	}, [copyStyleFromSelection, pasteStyleToSelection, undo, redo, onPanelToggle, showToast]);
 };
