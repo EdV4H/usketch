@@ -12,9 +12,11 @@ export { toolManagerMachine } from "./core/tool-manager";
 // Machine exports for advanced usage
 export type { DrawingToolContext, DrawingToolEvent } from "./tools/drawing-tool";
 export { createDrawingTool } from "./tools/drawing-tool";
-export type { EffectFactory, EffectToolConfig } from "./tools/effect-tool";
-// Effect Tool
-export { EffectTool, getEffectTool } from "./tools/effect-tool";
+// Effect Tool (now registry-based)
+export type { EffectToolConfig } from "./tools/effect-tool";
+export { EffectTool } from "./tools/effect-tool";
+export type { EffectToolContext, EffectToolEvent } from "./tools/effect-tool-machine";
+export { createEffectTool, effectToolMachine } from "./tools/effect-tool-machine";
 export type { PanToolContext, PanToolEvent } from "./tools/pan-tool";
 export { createPanTool, panToolMachine } from "./tools/pan-tool";
 export type { SelectToolContext, SelectToolEvent } from "./tools/select-tool";
