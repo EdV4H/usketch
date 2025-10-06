@@ -259,6 +259,15 @@ export class ToolManager {
 			ctrlKey: event.ctrlKey,
 			metaKey: event.metaKey,
 		});
+
+		// Check if tool created an effect (for effect tool)
+		if ((window as any).__lastCreatedEffect) {
+			const effect = (window as any).__lastCreatedEffect;
+			delete (window as any).__lastCreatedEffect;
+
+			// Add effect to store
+			whiteboardStore.getState().addEffect(effect);
+		}
 	}
 
 	handlePointerMove(event: PointerEvent, worldPos: Point): void {

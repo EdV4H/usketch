@@ -1,4 +1,5 @@
 import type { ToolBehaviors, ToolConfig } from "../schemas";
+import { createEffectTool } from "../tools/effect-tool-machine";
 import { createPanTool } from "../tools/pan-tool";
 import { createSelectTool } from "../tools/select-tool";
 import {
@@ -70,6 +71,14 @@ const shapeToolBehaviors: ToolBehaviors = {
 const panToolBehaviors: ToolBehaviors = {
 	// Pan tool doesn't need special behaviors
 	// All logic is handled in the state machine
+};
+
+/**
+ * Effect tool behaviors - handle effect creation
+ * Note: Effect creation is handled in tool-manager-adapter.ts after state machine processing
+ */
+const effectToolBehaviors: ToolBehaviors = {
+	// No special behaviors needed - handled in tool-manager-adapter
 };
 
 /**
@@ -151,6 +160,21 @@ export function getDefaultTools(): ToolConfig[] {
 				category: "navigation",
 			},
 			behaviors: panToolBehaviors,
+		},
+		{
+			id: "effect",
+			machine: createEffectTool(),
+			displayName: "Effect",
+			icon: "sparkles",
+			shortcut: "e",
+			enabled: true,
+			metadata: {
+				author: "uSketch Team",
+				version: "1.0.0",
+				description: "Add visual effects",
+				category: "effect",
+			},
+			behaviors: effectToolBehaviors,
 		},
 	];
 }

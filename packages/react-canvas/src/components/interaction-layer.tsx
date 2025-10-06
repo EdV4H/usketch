@@ -90,6 +90,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			case "rectangle":
 			case "ellipse":
 			case "draw":
+			case "effect":
 				return "crosshair";
 			default:
 				return "default";
@@ -125,11 +126,6 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 				/>
 			</div>
 		);
-	}
-
-	// For effect tool, don't render anything - let ShapeLayer handle events
-	if (currentTool === "effect") {
-		return null;
 	}
 
 	return (
