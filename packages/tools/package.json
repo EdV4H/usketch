@@ -33,7 +33,7 @@
 		"@usketch/effect-registry": "workspace:*",
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/store": "workspace:*",
-		"uuid": "11.0.5",
+		"uuid": "11.1.0",
 		"xstate": "5.22.1",
 		"zod": "4.1.11"
 	},
