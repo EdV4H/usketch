@@ -50,9 +50,9 @@ test.describe("Pan Tool", () => {
 			return store?.camera?.x || 0;
 		});
 
-		// Camera should have moved in opposite direction of drag
-		// Dragged left (-100px), so camera should move right (+100px)
-		expect(newCameraX).toBeGreaterThan(initialCameraX);
+		// Camera should have moved in same direction as drag
+		// Dragged left (-100px), so camera should also move left (-100px)
+		expect(newCameraX).toBeLessThan(initialCameraX);
 	});
 
 	test("should maintain pan state during drag", async ({ page }) => {
@@ -99,7 +99,7 @@ test.describe("Pan Tool", () => {
 
 		const initialCamera = await getCamera();
 
-		// Pan right (drag left)
+		// Pan left (drag left)
 		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 		await page.mouse.down();
 		await page.mouse.move(box.x + box.width / 2 - 100, box.y + box.height / 2, {
@@ -108,10 +108,10 @@ test.describe("Pan Tool", () => {
 		await page.mouse.up();
 		await page.waitForTimeout(100);
 
-		const afterRightPan = await getCamera();
-		expect(afterRightPan.x).toBeGreaterThan(initialCamera.x);
+		const afterLeftPan = await getCamera();
+		expect(afterLeftPan.x).toBeLessThan(initialCamera.x);
 
-		// Pan down (drag up)
+		// Pan up (drag up)
 		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 		await page.mouse.down();
 		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 - 100, {
@@ -120,8 +120,8 @@ test.describe("Pan Tool", () => {
 		await page.mouse.up();
 		await page.waitForTimeout(100);
 
-		const afterDownPan = await getCamera();
-		expect(afterDownPan.y).toBeGreaterThan(initialCamera.y);
+		const afterUpPan = await getCamera();
+		expect(afterUpPan.y).toBeLessThan(initialCamera.y);
 	});
 
 	test("should not create shapes when panning", async ({ page }) => {

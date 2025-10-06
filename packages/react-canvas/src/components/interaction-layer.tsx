@@ -98,13 +98,13 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 			if (currentTool === "pan") {
 				// Pan tool: update camera position based on drag delta
-				// Camera moves in opposite direction of drag (drag left = camera right)
+				// Camera moves in same direction as drag to create pan effect
 				const dx = screenX - dragState.startX;
 				const dy = screenY - dragState.startY;
 
 				setCamera({
-					x: storeCamera.x - dx,
-					y: storeCamera.y - dy,
+					x: storeCamera.x + dx,
+					y: storeCamera.y + dy,
 				});
 
 				// Update drag state to reflect new position
