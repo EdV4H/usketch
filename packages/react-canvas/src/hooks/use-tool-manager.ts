@@ -64,7 +64,7 @@ export const useToolManager = () => {
 
 			toolManagerRef.current.handlePointerDown(e, worldPos);
 		},
-		[screenToWorld, currentTool],
+		[screenToWorld],
 	);
 
 	const handlePointerMove = useCallback(
@@ -82,7 +82,7 @@ export const useToolManager = () => {
 			const preview = toolManagerRef.current.getPreviewShape();
 			setPreviewShape(preview);
 		},
-		[screenToWorld, currentTool],
+		[screenToWorld],
 	);
 
 	const handlePointerUp = useCallback(

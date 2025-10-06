@@ -254,7 +254,7 @@ export class ToolManager {
 			position: worldPos, // For compatibility
 			target: shapeId,
 			event: event,
-			resizeHandle: resizeHandle, // Pass resize handle to state machine
+			resizeHandle, // Pass resize handle to state machine
 			shiftKey: event.shiftKey,
 			ctrlKey: event.ctrlKey,
 			metaKey: event.metaKey,
