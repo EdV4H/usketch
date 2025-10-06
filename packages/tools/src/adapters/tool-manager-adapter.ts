@@ -245,12 +245,16 @@ export class ToolManager {
 		const shape = getShapeAtPoint(worldPos);
 		const shapeId = shape?.id;
 
+		// Check if event has resizeHandle property (from SelectionLayer)
+		const resizeHandle = (event as any).resizeHandle;
+
 		this.toolManagerActor.send({
 			type: "POINTER_DOWN" as const,
 			point: worldPos,
 			position: worldPos, // For compatibility
 			target: shapeId,
 			event: event,
+			resizeHandle: resizeHandle, // Pass resize handle to state machine
 			shiftKey: event.shiftKey,
 			ctrlKey: event.ctrlKey,
 			metaKey: event.metaKey,

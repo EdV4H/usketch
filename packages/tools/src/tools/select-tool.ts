@@ -744,9 +744,9 @@ export const selectToolMachine = setup({
 			const shape = getShape(shapeId);
 			if (!shape || !("width" in shape && "height" in shape)) return {};
 
-			// Check if we have a resize handle from event target
-			// This is set by the DOM data-resize-handle attribute
-			const handle = event.target || getResizeHandleAtPoint(event.point, shapeId);
+			// Check if we have a resize handle from event (set by SelectionLayer)
+			// or fall back to point-based detection
+			const handle = (event as any).resizeHandle || getResizeHandleAtPoint(event.point, shapeId);
 			if (!handle) return {};
 
 			return {
@@ -880,8 +880,8 @@ export const selectToolMachine = setup({
 
 			// Check if we have a resize handle identifier from DOM (data-resize-handle attribute)
 			// The target field contains shapeId, not resize handle, so we need a separate field
-			// For now, use point-based detection only
 			const resizeHandle = (event as any).resizeHandle;
+
 			if (resizeHandle && typeof resizeHandle === "string" && resizeHandle.length <= 2) {
 				// Valid resize handles are: "nw", "n", "ne", "e", "se", "s", "sw", "w"
 				return true;
