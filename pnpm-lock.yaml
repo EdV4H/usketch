@@ -513,6 +513,9 @@ importers:
 
   packages/tools:
     dependencies:
+      '@usketch/effect-registry':
+        specifier: workspace:*
+        version: link:../effect-registry
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../shared-types

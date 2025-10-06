@@ -30,6 +30,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@usketch/effect-registry": "workspace:*",
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/store": "workspace:*",
 		"uuid": "11.0.5",
