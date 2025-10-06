@@ -4,7 +4,6 @@ import type { ShapePlugin } from "@usketch/shape-registry";
 import type { Shape } from "@usketch/shared-types";
 import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
-import { getEffectTool } from "@usketch/tools";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
 import { ConfiguredInputProvider } from "./components/configured-input-provider";
@@ -17,7 +16,6 @@ import { ToastProvider } from "./contexts/toast-context";
 import { customShapePlugins } from "./custom-shapes";
 import type { EffectPlugin } from "./effects";
 import { fadingPinPlugin, pinPlugin, ripplePlugin } from "./effects";
-import { createAppEffect } from "./effects/effect-factory";
 import { useInputCommands } from "./hooks/use-input-commands";
 import "./styles/app.css";
 
@@ -91,10 +89,6 @@ function WhiteboardApp() {
 		if (!backgroundsRegisteredRef.current) {
 			backgroundsRegisteredRef.current = true;
 			registerCustomBackgrounds();
-
-			// Set up the effect factory for the effect tool
-			const effectTool = getEffectTool();
-			effectTool.setEffectFactory(createAppEffect);
 		}
 
 		// Load custom shapes and combine with default shapes

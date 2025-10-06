@@ -1,96 +1,77 @@
+import type { EffectRegistry } from "@usketch/effect-registry";
 import type { Effect, Point } from "@usketch/shared-types";
-import { whiteboardStore } from "@usketch/store";
 
 export interface EffectToolConfig {
 	effectType: string;
 	effectConfig?: Record<string, any>;
 }
 
-export type EffectFactory = (point: Point, config: EffectToolConfig) => Effect | null;
-
 /**
- * Effect tool handler for creating effects
- * This abstracts the effect creation logic from the canvas
+ * Registry-based Effect Tool
+ * Decoupled from effect creation logic - uses EffectRegistry plugins
  */
 export class EffectTool {
 	private config: EffectToolConfig;
-	private effectFactory?: EffectFactory;
+	private registry: EffectRegistry;
 
-	constructor(config: EffectToolConfig, effectFactory?: EffectFactory) {
+	constructor(config: EffectToolConfig, registry: EffectRegistry) {
 		this.config = config;
-		this.effectFactory = effectFactory;
+		this.registry = registry;
 	}
 
 	updateConfig(config: EffectToolConfig): void {
 		this.config = config;
 	}
 
-	setEffectFactory(factory: EffectFactory): void {
-		this.effectFactory = factory;
+	setRegistry(registry: EffectRegistry): void {
+		this.registry = registry;
 	}
 
 	/**
-	 * Create an effect at the given point
+	 * Create an effect at the given point using registered plugin
 	 * @param point World coordinates where to create the effect
 	 * @returns The created effect or null if creation failed
 	 */
 	createEffect(point: Point): Effect | null {
-		if (this.effectFactory) {
-			return this.effectFactory(point, this.config);
-		}
-
-		// Default generic effect creation
 		const { x, y } = point;
 		const { effectType, effectConfig = {} } = this.config;
 
-		const newEffect = {
-			id: `${effectType}-${Date.now()}`,
-			type: effectType,
-			x,
-			y,
-			createdAt: Date.now(),
-			...effectConfig,
-		};
+		// Get plugin from registry
+		const plugin = this.registry.getPlugin(effectType);
+		if (!plugin) {
+			console.warn(`No plugin registered for effect type: ${effectType}`);
+			return null;
+		}
 
-		return newEffect;
+		// Generate unique ID
+		const id = `${effectType}-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+
+		// Use plugin's createDefaultEffect
+		try {
+			const effect = plugin.createDefaultEffect({
+				id,
+				x,
+				y,
+				...effectConfig,
+			});
+			return effect;
+		} catch (error) {
+			console.error(`Failed to create effect of type ${effectType}:`, error);
+			return null;
+		}
 	}
 
 	/**
-	 * Handle pointer down event for effect creation
-	 * @param point World coordinates
-	 * @returns true if effect was created
+	 * Get current effect type
 	 */
-	handlePointerDown(point: Point): boolean {
-		const effect = this.createEffect(point);
-
-		if (effect) {
-			const { addEffect } = whiteboardStore.getState();
-			addEffect(effect);
-			return true;
-		}
-
-		return false;
-	}
-}
-
-// Singleton instance for the effect tool
-let effectToolInstance: EffectTool | null = null;
-
-/**
- * Get or create the effect tool instance
- */
-export function getEffectTool(): EffectTool {
-	if (!effectToolInstance) {
-		const { effectToolConfig } = whiteboardStore.getState();
-		effectToolInstance = new EffectTool(effectToolConfig);
-
-		// Subscribe to config changes
-		whiteboardStore.subscribe((state, prevState) => {
-			if (state.effectToolConfig !== prevState.effectToolConfig) {
-				effectToolInstance?.updateConfig(state.effectToolConfig);
-			}
-		});
+	getCurrentEffectType(): string {
+		return this.config.effectType;
 	}
 
-	return effectToolInstance;
+	/**
+	 * Check if the current effect type is registered
+	 */
+	isCurrentEffectTypeRegistered(): boolean {
+		return this.registry.hasPlugin(this.config.effectType);
+	}
 }

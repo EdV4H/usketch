@@ -1,3 +1,4 @@
+import { useEffectRegistry } from "@usketch/effect-registry";
 import type { Point, Shape } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
 import { createDefaultToolManager, type ToolManager } from "@usketch/tools";
@@ -11,6 +12,7 @@ export const useToolManager = () => {
 	const toolManagerRef = useRef<ToolManager | null>(null);
 	const { currentTool, setCurrentTool } = useWhiteboardStore();
 	const [previewShape, setPreviewShape] = useState<Shape | null>(null);
+	const effectRegistry = useEffectRegistry();
 
 	// Initialize ToolManager once
 	useEffect(() => {
@@ -30,6 +32,29 @@ export const useToolManager = () => {
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []); // Initialize only once
+
+	// Set the effect registry whenever it changes or tool manager is ready
+	useEffect(() => {
+		if (!toolManagerRef.current || !effectRegistry) return;
+
+		// Access private toolManagerActor to send registry to effect tool
+		// This is a temporary solution until ToolManager provides a public API
+		const toolManagerInternal = toolManagerRef.current as unknown as {
+			toolManagerActor?: {
+				getSnapshot: () => {
+					children?: Record<string, { send: (event: unknown) => void }>;
+				};
+			};
+		};
+
+		if (toolManagerInternal.toolManagerActor) {
+			const snapshot = toolManagerInternal.toolManagerActor.getSnapshot();
+			const effectToolActor = snapshot.children?.effect;
+			if (effectToolActor) {
+				effectToolActor.send({ type: "SET_REGISTRY", registry: effectRegistry });
+			}
+		}
+	}, [effectRegistry, toolManagerRef.current]); // Update when registry or toolManager changes
 
 	// Sync currentTool from store to ToolManager
 	useEffect(() => {
