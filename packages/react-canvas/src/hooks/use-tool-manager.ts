@@ -37,9 +37,18 @@ export const useToolManager = () => {
 	useEffect(() => {
 		if (!toolManagerRef.current || !effectRegistry) return;
 
-		const toolManager = toolManagerRef.current as any;
-		if (toolManager.toolManagerActor) {
-			const snapshot = toolManager.toolManagerActor.getSnapshot();
+		// Access private toolManagerActor to send registry to effect tool
+		// This is a temporary solution until ToolManager provides a public API
+		const toolManagerInternal = toolManagerRef.current as unknown as {
+			toolManagerActor?: {
+				getSnapshot: () => {
+					children?: Record<string, { send: (event: unknown) => void }>;
+				};
+			};
+		};
+
+		if (toolManagerInternal.toolManagerActor) {
+			const snapshot = toolManagerInternal.toolManagerActor.getSnapshot();
 			const effectToolActor = snapshot.children?.effect;
 			if (effectToolActor) {
 				effectToolActor.send({ type: "SET_REGISTRY", registry: effectRegistry });
