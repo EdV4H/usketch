@@ -51,8 +51,8 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">
 			<BackgroundLayer camera={camera} options={background} />
 			<ShapeLayer shapes={shapes} camera={camera} currentTool={interactions.currentTool} />
 			<SnapGuidelines guides={snapGuides} camera={camera} />
-			<SelectionLayer selectedIds={selectedShapeIds} shapes={shapes} camera={camera} />
 			<InteractionLayer camera={camera} currentTool={interactions.currentTool} />
+			<SelectionLayer selectedIds={selectedShapeIds} shapes={shapes} camera={camera} />
 			<EffectLayer className="effect-layer" />
 		</div>
 	);
