@@ -24,6 +24,14 @@ export {
 	selectToolMachine,
 	updateSnapRange,
 } from "./tools/select-tool";
+// Shape Drawing Tools
+export type { ShapeDrawingContext, ShapeDrawingEvent, ShapeType } from "./tools/shape-drawing-tool";
+export {
+	createShapeDrawingTool,
+	ellipseToolMachine,
+	freedrawToolMachine,
+	rectangleToolMachine,
+} from "./tools/shape-drawing-tool";
 // Event types
 export type {
 	ToolEvent as ToolEventType,

@@ -1,8 +1,11 @@
 import type { ToolBehaviors, ToolConfig } from "../schemas";
-import { createDrawingTool } from "../tools/drawing-tool";
 import { createPanTool } from "../tools/pan-tool";
-import { createRectangleTool } from "../tools/rectangle-tool";
 import { createSelectTool } from "../tools/select-tool";
+import {
+	ellipseToolMachine,
+	freedrawToolMachine,
+	rectangleToolMachine,
+} from "../tools/shape-drawing-tool";
 import { getShapeAtPoint } from "../utils/geometry";
 
 /**
@@ -52,19 +55,9 @@ const selectToolBehaviors: ToolBehaviors = {
 };
 
 /**
- * Drawing tool behaviors - handle shape creation
+ * Shape tool behaviors - handle shape creation (rectangle, ellipse, freedraw)
  */
-const drawingToolBehaviors: ToolBehaviors = {
-	onShapeCreated: ({ shape, store }) => {
-		// Add the created shape to the store
-		store.addShape(shape);
-	},
-};
-
-/**
- * Rectangle tool behaviors - handle shape creation
- */
-const rectangleToolBehaviors: ToolBehaviors = {
+const shapeToolBehaviors: ToolBehaviors = {
 	onShapeCreated: ({ shape, store }) => {
 		// Add the created shape to the store
 		store.addShape(shape);
@@ -101,7 +94,7 @@ export function getDefaultTools(): ToolConfig[] {
 		},
 		{
 			id: "rectangle",
-			machine: createRectangleTool(),
+			machine: rectangleToolMachine,
 			displayName: "Rectangle",
 			icon: "square",
 			shortcut: "r",
@@ -112,11 +105,26 @@ export function getDefaultTools(): ToolConfig[] {
 				description: "Draw rectangles",
 				category: "drawing",
 			},
-			behaviors: rectangleToolBehaviors,
+			behaviors: shapeToolBehaviors,
+		},
+		{
+			id: "ellipse",
+			machine: ellipseToolMachine,
+			displayName: "Ellipse",
+			icon: "circle",
+			shortcut: "o",
+			enabled: true,
+			metadata: {
+				author: "uSketch Team",
+				version: "1.0.0",
+				description: "Draw ellipses",
+				category: "drawing",
+			},
+			behaviors: shapeToolBehaviors,
 		},
 		{
 			id: "draw",
-			machine: createDrawingTool(),
+			machine: freedrawToolMachine,
 			displayName: "Draw",
 			icon: "pencil",
 			shortcut: "d",
@@ -127,7 +135,7 @@ export function getDefaultTools(): ToolConfig[] {
 				description: "Free-hand drawing",
 				category: "drawing",
 			},
-			behaviors: drawingToolBehaviors,
+			behaviors: shapeToolBehaviors,
 		},
 		{
 			id: "pan",
