@@ -1,10 +1,10 @@
+import { globalEffectRegistry } from "@usketch/effect-registry";
 import { WhiteboardCanvas } from "@usketch/react-canvas";
 import { defaultShapePlugins } from "@usketch/shape-plugins";
 import type { ShapePlugin } from "@usketch/shape-registry";
 import type { Shape } from "@usketch/shared-types";
 import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
-import { getEffectTool } from "@usketch/tools";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
 import { ConfiguredInputProvider } from "./components/configured-input-provider";
@@ -17,7 +17,6 @@ import { ToastProvider } from "./contexts/toast-context";
 import { customShapePlugins } from "./custom-shapes";
 import type { EffectPlugin } from "./effects";
 import { fadingPinPlugin, pinPlugin, ripplePlugin } from "./effects";
-import { createAppEffect } from "./effects/effect-factory";
 import { useInputCommands } from "./hooks/use-input-commands";
 import "./styles/app.css";
 
@@ -92,9 +91,17 @@ function WhiteboardApp() {
 			backgroundsRegisteredRef.current = true;
 			registerCustomBackgrounds();
 
-			// Set up the effect factory for the effect tool
-			const effectTool = getEffectTool();
-			effectTool.setEffectFactory(createAppEffect);
+			// Register effect plugins in the global registry (check if not already registered)
+			const registeredTypes = globalEffectRegistry.getAvailableTypes();
+			if (!registeredTypes.includes("ripple")) {
+				globalEffectRegistry.register(ripplePlugin as any);
+			}
+			if (!registeredTypes.includes("pin")) {
+				globalEffectRegistry.register(pinPlugin as any);
+			}
+			if (!registeredTypes.includes("fading-pin")) {
+				globalEffectRegistry.register(fadingPinPlugin as any);
+			}
 		}
 
 		// Load custom shapes and combine with default shapes

@@ -1,13 +1,21 @@
+import { useEffectRegistry } from "@usketch/effect-registry";
 import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
-import { createSelectTool, getEffectTool } from "@usketch/tools";
-import { useEffect, useRef, useState } from "react";
+import { createSelectTool, EffectTool } from "@usketch/tools";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createActor } from "xstate";
 
 export const useToolMachine = () => {
-	const { currentTool } = useWhiteboardStore();
+	const { currentTool, effectToolConfig, addEffect } = useWhiteboardStore();
 	const selectToolActorRef = useRef<any>(null);
 	const [actorSnapshot, setActorSnapshot] = useState<any>(null);
+	const effectRegistry = useEffectRegistry();
+
+	// Create effect tool instance with registry
+	const effectTool = useMemo(
+		() => new EffectTool(effectToolConfig, effectRegistry),
+		[effectToolConfig, effectRegistry],
+	);
 
 	// Create select tool machine with Zustand store data as input
 	useEffect(() => {
@@ -69,9 +77,11 @@ export const useToolMachine = () => {
 				metaKey: e.metaKey,
 			});
 		} else if (currentTool === "effect") {
-			// Delegate to effect tool
-			const effectTool = getEffectTool();
-			effectTool.handlePointerDown(point);
+			// Create effect at the pointer location
+			const effect = effectTool.createEffect(point);
+			if (effect) {
+				addEffect(effect);
+			}
 		}
 	};
 
