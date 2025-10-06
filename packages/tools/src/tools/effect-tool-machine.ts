@@ -35,11 +35,11 @@ export function createEffectTool() {
 				const config = context.effectConfig || {};
 
 				// Create effect based on type
-				let effect: Effect;
+				let _effect: Effect;
 
 				switch (context.effectType) {
 					case "ripple":
-						effect = {
+						_effect = {
 							id: `ripple-${Date.now()}`,
 							type: "ripple",
 							x,
@@ -53,7 +53,7 @@ export function createEffectTool() {
 						break;
 
 					case "pin":
-						effect = {
+						_effect = {
 							id: `pin-${Date.now()}`,
 							type: "pin",
 							x,
@@ -67,7 +67,7 @@ export function createEffectTool() {
 						break;
 
 					case "fading-pin":
-						effect = {
+						_effect = {
 							id: `fading-pin-${Date.now()}`,
 							type: "fading-pin",
 							x,
@@ -88,8 +88,10 @@ export function createEffectTool() {
 						return;
 				}
 
+				// TODO: Remove after refactoring to use EffectRegistry (Issue #152)
+				// This code is not executed since EffectTool is disabled
 				// Store effect in global window object (for compatibility)
-				(window as any).__lastCreatedEffect = effect;
+				// (window as any).__lastCreatedEffect = effect;
 			},
 
 			setEffectType: assign(({ event }) => {
