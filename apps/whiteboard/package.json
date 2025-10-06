@@ -30,7 +30,7 @@
 		"zustand": "5.0.8"
 	},
 	"devDependencies": {
-		"@types/node": "24.6.2",
+		"@types/node": "24.7.0",
 		"@types/react": "19.2.0",
 		"@types/react-dom": "19.2.0",
 		"@typescript-eslint/eslint-plugin": "8.45.0",
