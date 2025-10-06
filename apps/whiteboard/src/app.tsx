@@ -1,4 +1,3 @@
-import { globalEffectRegistry } from "@usketch/effect-registry";
 import { WhiteboardCanvas } from "@usketch/react-canvas";
 import { defaultShapePlugins } from "@usketch/shape-plugins";
 import type { ShapePlugin } from "@usketch/shape-registry";
@@ -90,18 +89,6 @@ function WhiteboardApp() {
 		if (!backgroundsRegisteredRef.current) {
 			backgroundsRegisteredRef.current = true;
 			registerCustomBackgrounds();
-
-			// Register effect plugins in the global registry (check if not already registered)
-			const registeredTypes = globalEffectRegistry.getAvailableTypes();
-			if (!registeredTypes.includes("ripple")) {
-				globalEffectRegistry.register(ripplePlugin);
-			}
-			if (!registeredTypes.includes("pin")) {
-				globalEffectRegistry.register(pinPlugin);
-			}
-			if (!registeredTypes.includes("fading-pin")) {
-				globalEffectRegistry.register(fadingPinPlugin);
-			}
 		}
 
 		// Load custom shapes and combine with default shapes
