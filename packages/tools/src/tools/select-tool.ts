@@ -744,9 +744,9 @@ export const selectToolMachine = setup({
 			const shape = getShape(shapeId);
 			if (!shape || !("width" in shape && "height" in shape)) return {};
 
-			// Check if we have a resize handle from event target
-			// This is set by the DOM data-resize-handle attribute
-			const handle = event.target || getResizeHandleAtPoint(event.point, shapeId);
+			// Check if we have a resize handle from event (set by SelectionLayer)
+			// or fall back to point-based detection
+			const handle = (event as any).resizeHandle || getResizeHandleAtPoint(event.point, shapeId);
 			if (!handle) return {};
 
 			return {
@@ -855,8 +855,19 @@ export const selectToolMachine = setup({
 			return result;
 		},
 
-		hasMovedEnough: ({ context }) => {
-			return context.hasMovedEnough === true;
+		hasMovedEnough: ({ context, event }) => {
+			// Check if already marked as moved enough
+			if (context.hasMovedEnough === true) return true;
+
+			// Or check distance directly from event
+			if (event.type === "POINTER_MOVE" && context.dragState) {
+				const dx = event.point.x - context.dragState.startPoint.x;
+				const dy = event.point.y - context.dragState.startPoint.y;
+				const distance = Math.sqrt(dx * dx + dy * dy);
+				return distance > 3;
+			}
+
+			return false;
 		},
 
 		isPointOnCropHandle: ({ event }) => {
@@ -867,8 +878,12 @@ export const selectToolMachine = setup({
 		isPointOnResizeHandle: ({ event }) => {
 			if (event.type !== "POINTER_DOWN") return false;
 
-			// First check if we have a target from DOM (data-resize-handle attribute)
-			if (event.target) {
+			// Check if we have a resize handle identifier from DOM (data-resize-handle attribute)
+			// The target field contains shapeId, not resize handle, so we need a separate field
+			const resizeHandle = (event as any).resizeHandle;
+
+			if (resizeHandle && typeof resizeHandle === "string" && resizeHandle.length <= 2) {
+				// Valid resize handles are: "nw", "n", "ne", "e", "se", "s", "sw", "w"
 				return true;
 			}
 
@@ -988,19 +1003,19 @@ export const selectToolMachine = setup({
 
 		// === 準備状態: ドラッグ前の準備 ===
 		readyToDrag: {
-			always: [
-				{
-					// Automatically transition to translating if hasMovedEnough
-					target: "translating",
-					guard: "hasMovedEnough",
-					actions: "startDragging",
-				},
-			],
 			on: {
-				POINTER_MOVE: {
-					// Check movement threshold
-					actions: "checkMovementThreshold",
-				},
+				POINTER_MOVE: [
+					{
+						// Transition to translating if hasMovedEnough
+						target: "translating",
+						guard: "hasMovedEnough",
+						actions: ["checkMovementThreshold", "startDragging"],
+					},
+					{
+						// Otherwise just check movement threshold
+						actions: "checkMovementThreshold",
+					},
+				],
 				POINTER_UP: {
 					target: "idle",
 				},

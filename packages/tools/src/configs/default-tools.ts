@@ -1,8 +1,13 @@
 import type { ToolBehaviors, ToolConfig } from "../schemas";
-import { createDrawingTool } from "../tools/drawing-tool";
+// NOTE: createEffectTool temporarily disabled (Issue #152)
+// import { createEffectTool } from "../tools/effect-tool-machine";
 import { createPanTool } from "../tools/pan-tool";
-import { createRectangleTool } from "../tools/rectangle-tool";
 import { createSelectTool } from "../tools/select-tool";
+import {
+	ellipseToolMachine,
+	freedrawToolMachine,
+	rectangleToolMachine,
+} from "../tools/shape-drawing-tool";
 import { getShapeAtPoint } from "../utils/geometry";
 
 /**
@@ -52,19 +57,9 @@ const selectToolBehaviors: ToolBehaviors = {
 };
 
 /**
- * Drawing tool behaviors - handle shape creation
+ * Shape tool behaviors - handle shape creation (rectangle, ellipse, freedraw)
  */
-const drawingToolBehaviors: ToolBehaviors = {
-	onShapeCreated: ({ shape, store }) => {
-		// Add the created shape to the store
-		store.addShape(shape);
-	},
-};
-
-/**
- * Rectangle tool behaviors - handle shape creation
- */
-const rectangleToolBehaviors: ToolBehaviors = {
+const shapeToolBehaviors: ToolBehaviors = {
 	onShapeCreated: ({ shape, store }) => {
 		// Add the created shape to the store
 		store.addShape(shape);
@@ -78,6 +73,14 @@ const panToolBehaviors: ToolBehaviors = {
 	// Pan tool doesn't need special behaviors
 	// All logic is handled in the state machine
 };
+
+/**
+ * Effect tool behaviors - temporarily disabled (Issue #152)
+ * TODO: Remove after Effect/EffectTool refactoring
+ */
+// const effectToolBehaviors: ToolBehaviors = {
+// 	// No special behaviors needed - handled in tool-manager-adapter
+// };
 
 /**
  * Get default tool configurations
@@ -101,7 +104,7 @@ export function getDefaultTools(): ToolConfig[] {
 		},
 		{
 			id: "rectangle",
-			machine: createRectangleTool(),
+			machine: rectangleToolMachine,
 			displayName: "Rectangle",
 			icon: "square",
 			shortcut: "r",
@@ -112,11 +115,26 @@ export function getDefaultTools(): ToolConfig[] {
 				description: "Draw rectangles",
 				category: "drawing",
 			},
-			behaviors: rectangleToolBehaviors,
+			behaviors: shapeToolBehaviors,
+		},
+		{
+			id: "ellipse",
+			machine: ellipseToolMachine,
+			displayName: "Ellipse",
+			icon: "circle",
+			shortcut: "o",
+			enabled: true,
+			metadata: {
+				author: "uSketch Team",
+				version: "1.0.0",
+				description: "Draw ellipses",
+				category: "drawing",
+			},
+			behaviors: shapeToolBehaviors,
 		},
 		{
 			id: "draw",
-			machine: createDrawingTool(),
+			machine: freedrawToolMachine,
 			displayName: "Draw",
 			icon: "pencil",
 			shortcut: "d",
@@ -127,7 +145,7 @@ export function getDefaultTools(): ToolConfig[] {
 				description: "Free-hand drawing",
 				category: "drawing",
 			},
-			behaviors: drawingToolBehaviors,
+			behaviors: shapeToolBehaviors,
 		},
 		{
 			id: "pan",
@@ -144,6 +162,23 @@ export function getDefaultTools(): ToolConfig[] {
 			},
 			behaviors: panToolBehaviors,
 		},
+		// TODO: Re-enable after refactoring to use EffectRegistry (Issue #152)
+		// Effect tool temporarily disabled due to global state pattern
+		// {
+		// 	id: "effect",
+		// 	machine: createEffectTool(),
+		// 	displayName: "Effect",
+		// 	icon: "sparkles",
+		// 	shortcut: "e",
+		// 	enabled: true,
+		// 	metadata: {
+		// 		author: "uSketch Team",
+		// 		version: "1.0.0",
+		// 		description: "Add visual effects",
+		// 		category: "effect",
+		// 	},
+		// 	behaviors: effectToolBehaviors,
+		// },
 	];
 }
 

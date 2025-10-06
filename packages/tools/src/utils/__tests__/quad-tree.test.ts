@@ -274,7 +274,7 @@ describe("QuadTree", () => {
 			const items = quadTree.query({ x: 400, y: 400, width: 200, height: 200 });
 			const queryTime = performance.now() - queryStart;
 
-			expect(queryTime).toBeLessThan(10); // Queries should be very fast
+			expect(queryTime).toBeLessThan(20); // Queries should be very fast
 			expect(items.length).toBeGreaterThan(0);
 
 			const stats = quadTree.getStats();

@@ -245,16 +245,31 @@ export class ToolManager {
 		const shape = getShapeAtPoint(worldPos);
 		const shapeId = shape?.id;
 
+		// Check if event has resizeHandle property (from SelectionLayer)
+		const resizeHandle = (event as any).resizeHandle;
+
 		this.toolManagerActor.send({
 			type: "POINTER_DOWN" as const,
 			point: worldPos,
 			position: worldPos, // For compatibility
 			target: shapeId,
 			event: event,
+			resizeHandle, // Pass resize handle to state machine
 			shiftKey: event.shiftKey,
 			ctrlKey: event.ctrlKey,
 			metaKey: event.metaKey,
 		});
+
+		// TODO: Remove after Effect/EffectTool refactoring (Issue #152)
+		// Effect tool is temporarily disabled, so this code is not needed
+		// Check if tool created an effect (for effect tool)
+		// if ((window as any).__lastCreatedEffect) {
+		// 	const effect = (window as any).__lastCreatedEffect;
+		// 	delete (window as any).__lastCreatedEffect;
+		//
+		// 	// Add effect to store
+		// 	whiteboardStore.getState().addEffect(effect);
+		// }
 	}
 
 	handlePointerMove(event: PointerEvent, worldPos: Point): void {
