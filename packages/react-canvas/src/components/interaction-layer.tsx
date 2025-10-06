@@ -90,7 +90,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			case "rectangle":
 			case "ellipse":
 			case "draw":
-			case "effect":
+				// NOTE: "effect" case removed - tool temporarily disabled (Issue #152)
 				return "crosshair";
 			default:
 				return "default";

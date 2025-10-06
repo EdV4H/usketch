@@ -1,5 +1,6 @@
 import type { ToolBehaviors, ToolConfig } from "../schemas";
-import { createEffectTool } from "../tools/effect-tool-machine";
+// NOTE: createEffectTool temporarily disabled (Issue #152)
+// import { createEffectTool } from "../tools/effect-tool-machine";
 import { createPanTool } from "../tools/pan-tool";
 import { createSelectTool } from "../tools/select-tool";
 import {
@@ -74,12 +75,12 @@ const panToolBehaviors: ToolBehaviors = {
 };
 
 /**
- * Effect tool behaviors - handle effect creation
- * Note: Effect creation is handled in tool-manager-adapter.ts after state machine processing
+ * Effect tool behaviors - temporarily disabled (Issue #152)
+ * TODO: Remove after Effect/EffectTool refactoring
  */
-const effectToolBehaviors: ToolBehaviors = {
-	// No special behaviors needed - handled in tool-manager-adapter
-};
+// const effectToolBehaviors: ToolBehaviors = {
+// 	// No special behaviors needed - handled in tool-manager-adapter
+// };
 
 /**
  * Get default tool configurations
@@ -161,21 +162,23 @@ export function getDefaultTools(): ToolConfig[] {
 			},
 			behaviors: panToolBehaviors,
 		},
-		{
-			id: "effect",
-			machine: createEffectTool(),
-			displayName: "Effect",
-			icon: "sparkles",
-			shortcut: "e",
-			enabled: true,
-			metadata: {
-				author: "uSketch Team",
-				version: "1.0.0",
-				description: "Add visual effects",
-				category: "effect",
-			},
-			behaviors: effectToolBehaviors,
-		},
+		// TODO: Re-enable after refactoring to use EffectRegistry (Issue #152)
+		// Effect tool temporarily disabled due to global state pattern
+		// {
+		// 	id: "effect",
+		// 	machine: createEffectTool(),
+		// 	displayName: "Effect",
+		// 	icon: "sparkles",
+		// 	shortcut: "e",
+		// 	enabled: true,
+		// 	metadata: {
+		// 		author: "uSketch Team",
+		// 		version: "1.0.0",
+		// 		description: "Add visual effects",
+		// 		category: "effect",
+		// 	},
+		// 	behaviors: effectToolBehaviors,
+		// },
 	];
 }
 

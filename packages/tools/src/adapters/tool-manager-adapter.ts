@@ -260,14 +260,16 @@ export class ToolManager {
 			metaKey: event.metaKey,
 		});
 
+		// TODO: Remove after Effect/EffectTool refactoring (Issue #152)
+		// Effect tool is temporarily disabled, so this code is not needed
 		// Check if tool created an effect (for effect tool)
-		if ((window as any).__lastCreatedEffect) {
-			const effect = (window as any).__lastCreatedEffect;
-			delete (window as any).__lastCreatedEffect;
-
-			// Add effect to store
-			whiteboardStore.getState().addEffect(effect);
-		}
+		// if ((window as any).__lastCreatedEffect) {
+		// 	const effect = (window as any).__lastCreatedEffect;
+		// 	delete (window as any).__lastCreatedEffect;
+		//
+		// 	// Add effect to store
+		// 	whiteboardStore.getState().addEffect(effect);
+		// }
 	}
 
 	handlePointerMove(event: PointerEvent, worldPos: Point): void {
