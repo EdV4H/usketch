@@ -7,10 +7,10 @@ import type { InteractionLayerProps } from "../types";
 import { DefaultSelectionIndicator } from "./default-selection-indicator";
 
 /**
- * InteractionLayer - ToolManager integrated version
+ * InteractionLayer V2 - ToolManager integrated version
  * Uses XState-based ToolManager for all tool interactions
  */
-export const InteractionLayer: React.FC<InteractionLayerProps> = ({
+export const InteractionLayerV2: React.FC<InteractionLayerProps> = ({
 	camera,
 	currentTool,
 	selectionIndicator,
