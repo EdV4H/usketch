@@ -299,11 +299,6 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 		get().executeCommand(new SetCameraCommand(camera));
 	},
 
-	// Alias for setCamera to provide viewport-like API
-	setViewport: (viewport: Partial<{ x: number; y: number; zoom: number }>) => {
-		get().setCamera(viewport);
-	},
-
 	setCurrentTool: (tool: string) => {
 		set((state) => ({
 			...state,

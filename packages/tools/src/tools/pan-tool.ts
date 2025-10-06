@@ -30,7 +30,8 @@ export const panToolMachine = setup({
 		startPan: assign(({ context, event }) => {
 			if (event.type !== "POINTER_DOWN") return context;
 
-			const camera = whiteboardStore.getState().camera;
+			const state = whiteboardStore.getState();
+			const camera = state.camera;
 
 			return {
 				...context,
@@ -48,10 +49,10 @@ export const panToolMachine = setup({
 			const dx = event.point.x - context.startPoint.x;
 			const dy = event.point.y - context.startPoint.y;
 
-			// Move viewport in opposite direction (canvas moves in drag direction)
-			whiteboardStore.getState().setViewport({
-				x: context.initialViewport.x - dx,
-				y: context.initialViewport.y - dy,
+			// Camera moves in same direction as drag to create pan effect
+			whiteboardStore.getState().setCamera({
+				x: context.initialViewport.x + dx,
+				y: context.initialViewport.y + dy,
 			});
 		},
 

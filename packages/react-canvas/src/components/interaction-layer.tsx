@@ -13,6 +13,8 @@ interface DragState {
 	currentX: number;
 	currentY: number;
 	isDragging: boolean;
+	initialCameraX?: number;
+	initialCameraY?: number;
 }
 
 export const InteractionLayer: React.FC<InteractionLayerProps> = ({
@@ -67,6 +69,8 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 					currentX: screenX,
 					currentY: screenY,
 					isDragging: true,
+					initialCameraX: storeCamera.x,
+					initialCameraY: storeCamera.y,
 				});
 			} else if (currentTool === "rectangle" || currentTool === "ellipse") {
 				setDragState({
@@ -84,7 +88,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 			e.currentTarget.setPointerCapture(e.pointerId);
 		},
-		[currentTool, screenToCanvas, dragState],
+		[currentTool, screenToCanvas, dragState, storeCamera.x, storeCamera.y],
 	);
 
 	const handlePointerMove = useCallback(
@@ -97,21 +101,19 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			const { x, y } = screenToCanvas(screenX, screenY);
 
 			if (currentTool === "pan") {
-				// Pan tool: update camera position based on drag delta
+				// Pan tool: update camera position based on drag delta from initial position
 				// Camera moves in same direction as drag to create pan effect
 				const dx = screenX - dragState.startX;
 				const dy = screenY - dragState.startY;
 
 				setCamera({
-					x: storeCamera.x + dx,
-					y: storeCamera.y + dy,
+					x: (dragState.initialCameraX ?? 0) + dx,
+					y: (dragState.initialCameraY ?? 0) + dy,
 				});
 
-				// Update drag state to reflect new position
+				// Update current position only (keep initial position fixed)
 				setDragState((prev) => ({
 					...prev,
-					startX: screenX,
-					startY: screenY,
 					currentX: screenX,
 					currentY: screenY,
 				}));
@@ -132,8 +134,9 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			dragState.isDragging,
 			dragState.startX,
 			dragState.startY,
+			dragState.initialCameraX,
+			dragState.initialCameraY,
 			setCamera,
-			storeCamera,
 		],
 	);
 
