@@ -94,13 +94,13 @@ function WhiteboardApp() {
 			// Register effect plugins in the global registry (check if not already registered)
 			const registeredTypes = globalEffectRegistry.getAvailableTypes();
 			if (!registeredTypes.includes("ripple")) {
-				globalEffectRegistry.register(ripplePlugin as any);
+				globalEffectRegistry.register(ripplePlugin);
 			}
 			if (!registeredTypes.includes("pin")) {
-				globalEffectRegistry.register(pinPlugin as any);
+				globalEffectRegistry.register(pinPlugin);
 			}
 			if (!registeredTypes.includes("fading-pin")) {
-				globalEffectRegistry.register(fadingPinPlugin as any);
+				globalEffectRegistry.register(fadingPinPlugin);
 			}
 		}
 

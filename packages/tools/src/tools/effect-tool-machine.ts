@@ -54,7 +54,7 @@ export function createEffectTool(registry?: EffectRegistry) {
 				// Generate unique ID
 				const id = `${effectToolConfig.effectType}-${Date.now()}-${Math.random()
 					.toString(36)
-					.substr(2, 9)}`;
+					.slice(2, 11)}`;
 
 				try {
 					// Use plugin's createDefaultEffect

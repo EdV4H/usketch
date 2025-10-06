@@ -44,7 +44,7 @@ export class EffectTool {
 		}
 
 		// Generate unique ID
-		const id = `${effectType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+		const id = `${effectType}-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
 		// Use plugin's createDefaultEffect
 		try {
