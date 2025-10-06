@@ -85,6 +85,8 @@ export const useKeyboardShortcuts = ({ onPanelToggle }: KeyboardShortcutsOptions
 		};
 
 		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
+		return () => {
+			window.removeEventListener("keydown", handleKeyDown);
+		};
 	}, [copyStyleFromSelection, pasteStyleToSelection, undo, redo, onPanelToggle, showToast]);
 };

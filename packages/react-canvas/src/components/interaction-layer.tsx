@@ -13,6 +13,8 @@ interface DragState {
 	currentX: number;
 	currentY: number;
 	isDragging: boolean;
+	initialCameraX?: number;
+	initialCameraY?: number;
 }
 
 export const InteractionLayer: React.FC<InteractionLayerProps> = ({
@@ -34,7 +36,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 	const [drawPath, setDrawPath] = useState<string>("");
 	const pathRef = useRef<string[]>([]);
 
-	const { addShape, setCurrentTool } = useWhiteboardStore();
+	const { addShape, setCurrentTool, setCamera, camera: storeCamera } = useWhiteboardStore();
 
 	// Selection indicator state from hook
 	const { bounds, visible, selectedCount } = useSelectionIndicator(currentTool);
@@ -59,7 +61,18 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			const screenY = e.clientY - rect.top;
 			const { x, y } = screenToCanvas(screenX, screenY);
 
-			if (currentTool === "rectangle" || currentTool === "ellipse") {
+			if (currentTool === "pan") {
+				// Pan tool: store screen coordinates and initial camera position
+				setDragState({
+					startX: screenX,
+					startY: screenY,
+					currentX: screenX,
+					currentY: screenY,
+					isDragging: true,
+					initialCameraX: storeCamera.x,
+					initialCameraY: storeCamera.y,
+				});
+			} else if (currentTool === "rectangle" || currentTool === "ellipse") {
 				setDragState({
 					startX: x,
 					startY: y,
@@ -75,7 +88,7 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 			e.currentTarget.setPointerCapture(e.pointerId);
 		},
-		[currentTool, screenToCanvas, dragState],
+		[currentTool, screenToCanvas, dragState, storeCamera.x, storeCamera.y],
 	);
 
 	const handlePointerMove = useCallback(
@@ -87,7 +100,24 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 			const screenY = e.clientY - rect.top;
 			const { x, y } = screenToCanvas(screenX, screenY);
 
-			if (currentTool === "rectangle" || currentTool === "ellipse") {
+			if (currentTool === "pan") {
+				// Pan tool: update camera position based on drag delta from initial position
+				// Camera moves in same direction as drag to create pan effect
+				const dx = screenX - dragState.startX;
+				const dy = screenY - dragState.startY;
+
+				setCamera({
+					x: (dragState.initialCameraX ?? 0) + dx,
+					y: (dragState.initialCameraY ?? 0) + dy,
+				});
+
+				// Update current position only (keep initial position fixed)
+				setDragState((prev) => ({
+					...prev,
+					currentX: screenX,
+					currentY: screenY,
+				}));
+			} else if (currentTool === "rectangle" || currentTool === "ellipse") {
 				setDragState((prev) => ({
 					...prev,
 					currentX: x,
@@ -98,7 +128,16 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 				setDrawPath(pathRef.current.join(" "));
 			}
 		},
-		[currentTool, screenToCanvas, dragState.isDragging],
+		[
+			currentTool,
+			screenToCanvas,
+			dragState.isDragging,
+			dragState.startX,
+			dragState.startY,
+			dragState.initialCameraX,
+			dragState.initialCameraY,
+			setCamera,
+		],
 	);
 
 	const calculatePathBounds = useCallback((pathCommands: string[]) => {
@@ -237,6 +276,8 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 		switch (currentTool) {
 			case "select":
 				return "default";
+			case "pan":
+				return dragState.isDragging ? "grabbing" : "grab";
 			case "rectangle":
 			case "ellipse":
 			case "draw":
@@ -261,6 +302,27 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 	// For effect tool, don't render anything - let ShapeLayer handle events
 	if (currentTool === "effect") {
 		return null;
+	}
+
+	// For pan tool, render interaction layer without preview
+	if (currentTool === "pan") {
+		return (
+			<div
+				className={`interaction-layer ${className}`.trim()}
+				style={{
+					position: "absolute",
+					top: 0,
+					left: 0,
+					width: "100%",
+					height: "100%",
+					cursor: getCursor(),
+				}}
+				data-active-tool={currentTool}
+				onPointerDown={handlePointerDown}
+				onPointerMove={handlePointerMove}
+				onPointerUp={handlePointerUp}
+			/>
+		);
 	}
 
 	return (
