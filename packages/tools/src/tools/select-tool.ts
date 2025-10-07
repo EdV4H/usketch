@@ -1,3 +1,4 @@
+import type { PointerCoordinates } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { assign, setup } from "xstate";
 import type { Bounds, Point, ToolContext } from "../types/index";
@@ -60,6 +61,11 @@ export function getSnapRangeSettings(): { snapCalculationRange: number; viewport
 	return snapEngine.getSnapRangeSettings();
 }
 
+// Helper function to extract world coordinates from Point or PointerCoordinates
+function extractWorldPoint(point: Point | PointerCoordinates): Point {
+	return "world" in point ? point.world : point;
+}
+
 // === Select Tool Context ===
 export interface SelectToolContext extends ToolContext {
 	// Drag state (consolidated)
@@ -89,7 +95,7 @@ export interface SelectToolContext extends ToolContext {
 export type SelectToolEvent =
 	| {
 			type: "POINTER_DOWN";
-			point: Point;
+			point: Point | PointerCoordinates;
 			target?: string;
 			shiftKey?: boolean;
 			ctrlKey?: boolean;
@@ -98,7 +104,7 @@ export type SelectToolEvent =
 	  }
 	| {
 			type: "POINTER_MOVE";
-			point: Point;
+			point: Point | PointerCoordinates;
 			shiftKey?: boolean;
 			ctrlKey?: boolean;
 			altKey?: boolean;
@@ -106,13 +112,13 @@ export type SelectToolEvent =
 	  }
 	| {
 			type: "POINTER_UP";
-			point: Point;
+			point: Point | PointerCoordinates;
 			shiftKey?: boolean;
 			ctrlKey?: boolean;
 			altKey?: boolean;
 			metaKey?: boolean;
 	  }
-	| { type: "DOUBLE_CLICK"; point: Point; target?: string }
+	| { type: "DOUBLE_CLICK"; point: Point | PointerCoordinates; target?: string }
 	| { type: "KEY_DOWN"; key: string }
 	| { type: "ESCAPE" }
 	| { type: "DELETE" }
@@ -157,8 +163,8 @@ export const selectToolMachine = setup({
 			return {
 				dragState: {
 					isDragging: false,
-					startPoint: event.point,
-					currentPoint: event.point,
+					startPoint: extractWorldPoint(event.point),
+					currentPoint: extractWorldPoint(event.point),
 					offset: { x: 0, y: 0 },
 					initialPositions: positions,
 					initialPoints: points,
@@ -182,7 +188,7 @@ export const selectToolMachine = setup({
 
 		selectShape: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
-			const shape = getShapeAtPoint(event.point);
+			const shape = getShapeAtPoint(extractWorldPoint(event.point));
 			if (!shape) return {};
 
 			const store = whiteboardStore.getState();
@@ -214,7 +220,7 @@ export const selectToolMachine = setup({
 
 		toggleShapeSelection: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
-			const shape = getShapeAtPoint(event.point);
+			const shape = getShapeAtPoint(extractWorldPoint(event.point));
 			if (!shape) return {};
 
 			const store = whiteboardStore.getState();
@@ -241,15 +247,15 @@ export const selectToolMachine = setup({
 			return {
 				dragState: {
 					isDragging: true,
-					startPoint: event.point,
-					currentPoint: event.point,
+					startPoint: extractWorldPoint(event.point),
+					currentPoint: extractWorldPoint(event.point),
 					offset: { x: 0, y: 0 },
 					initialPositions: new Map(),
 					initialPoints: new Map(),
 				},
 				selectionBox: {
-					x: event.point.x,
-					y: event.point.y,
+					x: extractWorldPoint(event.point).x,
+					y: extractWorldPoint(event.point).y,
 					width: 0,
 					height: 0,
 				},
@@ -262,8 +268,8 @@ export const selectToolMachine = setup({
 			// Use the fixed drag start point from drag state
 			const startX = context.dragState.startPoint.x;
 			const startY = context.dragState.startPoint.y;
-			const currentX = event.point.x;
-			const currentY = event.point.y;
+			const currentX = extractWorldPoint(event.point).x;
+			const currentY = extractWorldPoint(event.point).y;
 
 			// Calculate the box with proper min/max to handle all drag directions
 			const box = {
@@ -337,8 +343,8 @@ export const selectToolMachine = setup({
 		checkMovementThreshold: assign(({ context, event }) => {
 			if (event.type !== "POINTER_MOVE" || !context.dragState) return {};
 
-			const dx = event.point.x - context.dragState.startPoint.x;
-			const dy = event.point.y - context.dragState.startPoint.y;
+			const dx = extractWorldPoint(event.point).x - context.dragState.startPoint.x;
+			const dy = extractWorldPoint(event.point).y - context.dragState.startPoint.y;
 			const distance = Math.sqrt(dx * dx + dy * dy);
 
 			// Check if moved enough to start dragging (3 pixels threshold)
@@ -347,7 +353,7 @@ export const selectToolMachine = setup({
 					hasMovedEnough: true,
 					dragState: {
 						...context.dragState,
-						currentPoint: event.point,
+						currentPoint: extractWorldPoint(event.point),
 					},
 				};
 			}
@@ -362,8 +368,8 @@ export const selectToolMachine = setup({
 			const isAltPressed = event.altKey || false;
 
 			const offset = {
-				x: event.point.x - context.dragState.startPoint.x,
-				y: event.point.y - context.dragState.startPoint.y,
+				x: extractWorldPoint(event.point).x - context.dragState.startPoint.x,
+				y: extractWorldPoint(event.point).y - context.dragState.startPoint.y,
 			};
 
 			// Get the first shape position for snapping
@@ -493,7 +499,7 @@ export const selectToolMachine = setup({
 							shapeForGuides,
 							targetShapes,
 							selectedShapeBounds.length > 1 ? selectedShapeBounds : undefined,
-							event.point, // Pass mouse position for distance guides
+							extractWorldPoint(event.point), // Pass mouse position for distance guides
 							snapSettings.showDistances, // Enable threshold visualization if distances are shown
 							snapSettings.showEqualSpacing, // Enable equal spacing detection
 						);
@@ -623,7 +629,7 @@ export const selectToolMachine = setup({
 				dragState: {
 					...context.dragState,
 					offset: finalOffset,
-					currentPoint: event.point,
+					currentPoint: extractWorldPoint(event.point),
 				},
 				snapGuides: guides,
 			};
@@ -703,7 +709,7 @@ export const selectToolMachine = setup({
 
 		enterCropMode: assign(({ event }) => {
 			if (event.type !== "DOUBLE_CLICK") return {};
-			const shape = getShapeAtPoint(event.point);
+			const shape = getShapeAtPoint(extractWorldPoint(event.point));
 			if (!shape) return {};
 
 			return {
@@ -746,7 +752,9 @@ export const selectToolMachine = setup({
 
 			// Check if we have a resize handle from event (set by SelectionLayer)
 			// or fall back to point-based detection
-			const handle = (event as any).resizeHandle || getResizeHandleAtPoint(event.point, shapeId);
+			const handle =
+				(event as any).resizeHandle ||
+				getResizeHandleAtPoint(extractWorldPoint(event.point), shapeId);
 			if (!handle) return {};
 
 			return {
@@ -754,8 +762,8 @@ export const selectToolMachine = setup({
 				resizingShapeId: shapeId,
 				dragState: {
 					isDragging: false,
-					startPoint: event.point,
-					currentPoint: event.point,
+					startPoint: extractWorldPoint(event.point),
+					currentPoint: extractWorldPoint(event.point),
 					offset: { x: 0, y: 0 },
 					initialPositions: new Map(),
 					initialPoints: new Map(),
@@ -782,8 +790,8 @@ export const selectToolMachine = setup({
 			}
 
 			const delta = {
-				x: event.point.x - context.dragState.startPoint.x,
-				y: event.point.y - context.dragState.startPoint.y,
+				x: extractWorldPoint(event.point).x - context.dragState.startPoint.x,
+				y: extractWorldPoint(event.point).y - context.dragState.startPoint.y,
 			};
 
 			const newBounds = calculateNewBounds(
@@ -842,13 +850,13 @@ export const selectToolMachine = setup({
 
 		isPointOnShape: ({ event }) => {
 			if (!("point" in event)) return false;
-			const shape = getShapeAtPoint(event.point!);
+			const shape = getShapeAtPoint(extractWorldPoint(event.point)!);
 			return !!shape;
 		},
 
 		isPointOnSelectedShape: ({ event }) => {
 			if (!("point" in event)) return false;
-			const shape = getShapeAtPoint(event.point!);
+			const shape = getShapeAtPoint(extractWorldPoint(event.point)!);
 			// Use Zustand store for selected IDs instead of context
 			const store = whiteboardStore.getState();
 			const result = shape ? store.selectedShapeIds.has(shape.id) : false;
@@ -861,8 +869,8 @@ export const selectToolMachine = setup({
 
 			// Or check distance directly from event
 			if (event.type === "POINTER_MOVE" && context.dragState) {
-				const dx = event.point.x - context.dragState.startPoint.x;
-				const dy = event.point.y - context.dragState.startPoint.y;
+				const dx = extractWorldPoint(event.point).x - context.dragState.startPoint.x;
+				const dy = extractWorldPoint(event.point).y - context.dragState.startPoint.y;
 				const distance = Math.sqrt(dx * dx + dy * dy);
 				return distance > 3;
 			}
@@ -872,7 +880,7 @@ export const selectToolMachine = setup({
 
 		isPointOnCropHandle: ({ event }) => {
 			if (!("point" in event)) return false;
-			return !!getCropHandleAtPoint(event.point!);
+			return !!getCropHandleAtPoint(extractWorldPoint(event.point)!);
 		},
 
 		isPointOnResizeHandle: ({ event }) => {
@@ -893,7 +901,7 @@ export const selectToolMachine = setup({
 			if (selectedIds.size !== 1) return false;
 
 			const shapeId = Array.from(selectedIds)[0];
-			const handle = getResizeHandleAtPoint(event.point, shapeId);
+			const handle = getResizeHandleAtPoint(extractWorldPoint(event.point), shapeId);
 			return !!handle;
 		},
 	},
@@ -929,7 +937,7 @@ export const selectToolMachine = setup({
 						// Shift+Click on shape - toggle selection
 						target: "idle",
 						guard: ({ event }) => {
-							return event.shiftKey === true && !!getShapeAtPoint(event.point);
+							return event.shiftKey === true && !!getShapeAtPoint(extractWorldPoint(event.point));
 						},
 						actions: "toggleShapeSelection",
 					},

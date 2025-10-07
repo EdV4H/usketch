@@ -1,5 +1,5 @@
 import { type EffectRegistry, globalEffectRegistry } from "@usketch/effect-registry";
-import type { Point } from "@usketch/shared-types";
+import type { Point, PointerCoordinates } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { assign, setup } from "xstate";
 
@@ -14,9 +14,9 @@ export interface EffectToolContext {
  * Effect Tool Events
  */
 export type EffectToolEvent =
-	| { type: "POINTER_DOWN"; point: Point; position: Point }
-	| { type: "POINTER_MOVE"; point: Point; position: Point }
-	| { type: "POINTER_UP"; point: Point; position: Point }
+	| { type: "POINTER_DOWN"; point: Point | PointerCoordinates; position: Point }
+	| { type: "POINTER_MOVE"; point: Point | PointerCoordinates; position: Point }
+	| { type: "POINTER_UP"; point: Point | PointerCoordinates; position: Point }
 	| { type: "SET_REGISTRY"; registry: EffectRegistry };
 
 /**
@@ -41,7 +41,8 @@ export function createEffectTool(registry?: EffectRegistry) {
 					return;
 				}
 
-				const { point } = event;
+				// Extract world coordinates for effect placement
+				const worldPoint = "world" in event.point ? event.point.world : event.point;
 				const { effectToolConfig, addEffect } = whiteboardStore.getState();
 
 				// Get plugin from registry
@@ -60,8 +61,8 @@ export function createEffectTool(registry?: EffectRegistry) {
 					// Use plugin's createDefaultEffect
 					const effect = plugin.createDefaultEffect({
 						id,
-						x: point.x,
-						y: point.y,
+						x: worldPoint.x,
+						y: worldPoint.y,
 						...effectToolConfig.effectConfig,
 					});
 
