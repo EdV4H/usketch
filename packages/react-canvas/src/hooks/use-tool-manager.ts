@@ -1,6 +1,6 @@
 import { useEffectRegistry } from "@usketch/effect-registry";
 import type { Point, Shape } from "@usketch/shared-types";
-import { useWhiteboardStore } from "@usketch/store";
+import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import { createDefaultToolManager, type ToolManager } from "@usketch/tools";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -31,7 +31,10 @@ export const useToolManager = () => {
 			toolManagerRef.current = null;
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []); // Initialize only once
+	}, [
+		currentTool, // Sync ToolManager state with Zustand store
+		setCurrentTool,
+	]); // Initialize only once
 
 	// Set the effect registry whenever it changes or tool manager is ready
 	useEffect(() => {
@@ -54,7 +57,7 @@ export const useToolManager = () => {
 				effectToolActor.send({ type: "SET_REGISTRY", registry: effectRegistry });
 			}
 		}
-	}, [effectRegistry, toolManagerRef.current]); // Update when registry or toolManager changes
+	}, [effectRegistry]); // Update when registry or toolManager changes
 
 	// Sync currentTool from store to ToolManager
 	useEffect(() => {
@@ -154,6 +157,50 @@ export const useToolManager = () => {
 		toolManagerRef.current.setActiveTool(toolId);
 	}, []);
 
+	const handleWheel = useCallback(
+		(e: WheelEvent, camera: { x: number; y: number; zoom: number }) => {
+			e.preventDefault();
+
+			const zoomSpeed = 0.1;
+			const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+			const newZoom = Math.max(0.1, Math.min(5, camera.zoom * (1 + delta)));
+
+			// Calculate zoom center point
+			const rect = (e.target as HTMLElement).getBoundingClientRect();
+			const x = e.clientX - rect.left;
+			const y = e.clientY - rect.top;
+
+			// Adjust camera position to zoom towards mouse position
+			const scale = newZoom / camera.zoom;
+			const newX = x - (x - camera.x) * scale;
+			const newY = y - (y - camera.y) * scale;
+
+			const { setCamera } = whiteboardStore.getState();
+			setCamera({
+				zoom: newZoom,
+				x: newX,
+				y: newY,
+			});
+		},
+		[],
+	);
+
+	const getCursor = useCallback(() => {
+		switch (currentTool) {
+			case "select":
+				return "default";
+			case "pan":
+				return "grab";
+			case "rectangle":
+			case "ellipse":
+			case "draw":
+			case "effect":
+				return "crosshair";
+			default:
+				return "default";
+		}
+	}, [currentTool]);
+
 	return {
 		toolManager: toolManagerRef.current,
 		handlePointerDown,
@@ -161,7 +208,9 @@ export const useToolManager = () => {
 		handlePointerUp,
 		handleKeyDown,
 		handleKeyUp,
+		handleWheel,
 		setActiveTool,
 		getPreviewShape: () => previewShape,
+		getCursor,
 	};
 };
