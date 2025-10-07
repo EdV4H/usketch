@@ -34,6 +34,7 @@ export const freedrawPlugin: ShapePlugin<FreedrawShape> = {
 		}
 
 		// Calculate bounds from points
+		// Note: shape.points are in absolute world coordinates
 		let minX = shape.points[0].x;
 		let maxX = shape.points[0].x;
 		let minY = shape.points[0].y;
@@ -47,8 +48,8 @@ export const freedrawPlugin: ShapePlugin<FreedrawShape> = {
 		}
 
 		return {
-			x: shape.x + minX,
-			y: shape.y + minY,
+			x: minX, // Use absolute coordinates directly
+			y: minY,
 			width: maxX - minX,
 			height: maxY - minY,
 		};
@@ -64,13 +65,14 @@ export const freedrawPlugin: ShapePlugin<FreedrawShape> = {
 		const toleranceSq = tolerance * tolerance;
 
 		for (let i = 0; i < shape.points.length - 1; i++) {
+			// Note: shape.points are in absolute world coordinates
 			const p1 = {
-				x: shape.x + shape.points[i].x,
-				y: shape.y + shape.points[i].y,
+				x: shape.points[i].x,
+				y: shape.points[i].y,
 			};
 			const p2 = {
-				x: shape.x + shape.points[i + 1].x,
-				y: shape.y + shape.points[i + 1].y,
+				x: shape.points[i + 1].x,
+				y: shape.points[i + 1].y,
 			};
 
 			// Calculate distance from point to line segment
