@@ -1,6 +1,6 @@
 import { useEffectRegistry } from "@usketch/effect-registry";
 import type { Point, Shape } from "@usketch/shared-types";
-import { useWhiteboardStore } from "@usketch/store";
+import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import { createDefaultToolManager, type ToolManager } from "@usketch/tools";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -15,6 +15,7 @@ export const useToolManager = () => {
 	const effectRegistry = useEffectRegistry();
 
 	// Initialize ToolManager once
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Intentionally excluding dependencies to ensure single initialization
 	useEffect(() => {
 		if (!toolManagerRef.current) {
 			toolManagerRef.current = createDefaultToolManager({
@@ -31,7 +32,7 @@ export const useToolManager = () => {
 			toolManagerRef.current = null;
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []); // Initialize only once
+	}, []); // Initialize only once - dependencies intentionally excluded
 
 	// Set the effect registry whenever it changes or tool manager is ready
 	useEffect(() => {
@@ -54,7 +55,7 @@ export const useToolManager = () => {
 				effectToolActor.send({ type: "SET_REGISTRY", registry: effectRegistry });
 			}
 		}
-	}, [effectRegistry, toolManagerRef.current]); // Update when registry or toolManager changes
+	}, [effectRegistry]); // Update when registry or toolManager changes
 
 	// Sync currentTool from store to ToolManager
 	useEffect(() => {
@@ -85,11 +86,16 @@ export const useToolManager = () => {
 			const rect = (e.target as HTMLElement).getBoundingClientRect();
 			const screenX = e.clientX - rect.left;
 			const screenY = e.clientY - rect.top;
-			const worldPos = screenToWorld(screenX, screenY, camera);
 
-			toolManagerRef.current.handlePointerDown(e, worldPos);
+			// Pan tool needs screen coordinates, others need world coordinates
+			const pos =
+				currentTool === "pan"
+					? { x: e.clientX, y: e.clientY }
+					: screenToWorld(screenX, screenY, camera);
+
+			toolManagerRef.current.handlePointerDown(e, pos);
 		},
-		[screenToWorld],
+		[screenToWorld, currentTool],
 	);
 
 	const handlePointerMove = useCallback(
@@ -99,15 +105,20 @@ export const useToolManager = () => {
 			const rect = (e.target as HTMLElement).getBoundingClientRect();
 			const screenX = e.clientX - rect.left;
 			const screenY = e.clientY - rect.top;
-			const worldPos = screenToWorld(screenX, screenY, camera);
 
-			toolManagerRef.current.handlePointerMove(e, worldPos);
+			// Pan tool needs screen coordinates, others need world coordinates
+			const pos =
+				currentTool === "pan"
+					? { x: e.clientX, y: e.clientY }
+					: screenToWorld(screenX, screenY, camera);
+
+			toolManagerRef.current.handlePointerMove(e, pos);
 
 			// Update preview shape
 			const preview = toolManagerRef.current.getPreviewShape();
 			setPreviewShape(preview);
 		},
-		[screenToWorld],
+		[screenToWorld, currentTool],
 	);
 
 	const handlePointerUp = useCallback(
@@ -117,11 +128,16 @@ export const useToolManager = () => {
 			const rect = (e.target as HTMLElement).getBoundingClientRect();
 			const screenX = e.clientX - rect.left;
 			const screenY = e.clientY - rect.top;
-			const worldPos = screenToWorld(screenX, screenY, camera);
 
-			toolManagerRef.current.handlePointerUp(e, worldPos);
+			// Pan tool needs screen coordinates, others need world coordinates
+			const pos =
+				currentTool === "pan"
+					? { x: e.clientX, y: e.clientY }
+					: screenToWorld(screenX, screenY, camera);
+
+			toolManagerRef.current.handlePointerUp(e, pos);
 		},
-		[screenToWorld],
+		[screenToWorld, currentTool],
 	);
 
 	const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -139,6 +155,50 @@ export const useToolManager = () => {
 		toolManagerRef.current.setActiveTool(toolId);
 	}, []);
 
+	const handleWheel = useCallback(
+		(e: WheelEvent, camera: { x: number; y: number; zoom: number }) => {
+			e.preventDefault();
+
+			const zoomSpeed = 0.1;
+			const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+			const newZoom = Math.max(0.1, Math.min(5, camera.zoom * (1 + delta)));
+
+			// Calculate zoom center point
+			const rect = (e.target as HTMLElement).getBoundingClientRect();
+			const x = e.clientX - rect.left;
+			const y = e.clientY - rect.top;
+
+			// Adjust camera position to zoom towards mouse position
+			const scale = newZoom / camera.zoom;
+			const newX = x - (x - camera.x) * scale;
+			const newY = y - (y - camera.y) * scale;
+
+			const { setCamera } = whiteboardStore.getState();
+			setCamera({
+				zoom: newZoom,
+				x: newX,
+				y: newY,
+			});
+		},
+		[],
+	);
+
+	const getCursor = useCallback(() => {
+		switch (currentTool) {
+			case "select":
+				return "default";
+			case "pan":
+				return "grab";
+			case "rectangle":
+			case "ellipse":
+			case "draw":
+			case "effect":
+				return "crosshair";
+			default:
+				return "default";
+		}
+	}, [currentTool]);
+
 	return {
 		toolManager: toolManagerRef.current,
 		handlePointerDown,
@@ -146,7 +206,9 @@ export const useToolManager = () => {
 		handlePointerUp,
 		handleKeyDown,
 		handleKeyUp,
+		handleWheel,
 		setActiveTool,
 		getPreviewShape: () => previewShape,
+		getCursor,
 	};
 };

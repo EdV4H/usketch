@@ -1,14 +1,16 @@
 import { useEffectRegistry } from "@usketch/effect-registry";
 import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
-import { createSelectTool, EffectTool } from "@usketch/tools";
+import { createPanTool, createSelectTool, EffectTool } from "@usketch/tools";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createActor } from "xstate";
+import { createActor, type Subscription } from "xstate";
 
 export const useToolMachine = () => {
 	const { currentTool, effectToolConfig, addEffect } = useWhiteboardStore();
 	const selectToolActorRef = useRef<any>(null);
+	const panToolActorRef = useRef<any>(null);
 	const [actorSnapshot, setActorSnapshot] = useState<any>(null);
+	const [panActorSnapshot, setPanActorSnapshot] = useState<any>(null);
 	const effectRegistry = useEffectRegistry();
 
 	// Create effect tool instance with registry
@@ -19,6 +21,8 @@ export const useToolMachine = () => {
 
 	// Create select tool machine with Zustand store data as input
 	useEffect(() => {
+		let subscription: Subscription | null = null;
+
 		// Create and start select tool actor when needed
 		if (currentTool === "select" && !selectToolActorRef.current) {
 			const selectToolMachine = createSelectTool();
@@ -26,15 +30,11 @@ export const useToolMachine = () => {
 			selectToolActorRef.current = actor;
 
 			// Subscribe to actor state changes
-			const subscription = actor.subscribe((snapshot) => {
+			subscription = actor.subscribe((snapshot) => {
 				setActorSnapshot(snapshot);
 			});
 
 			actor.start();
-
-			return () => {
-				subscription.unsubscribe();
-			};
 		} else if (currentTool !== "select" && selectToolActorRef.current) {
 			// Stop and cleanup when switching away from select tool
 			selectToolActorRef.current.stop();
@@ -43,11 +43,50 @@ export const useToolMachine = () => {
 		}
 
 		return () => {
+			// Cleanup subscription
+			subscription?.unsubscribe();
+
 			// Cleanup on unmount
 			if (selectToolActorRef.current) {
 				selectToolActorRef.current.stop();
 				selectToolActorRef.current = null;
 				setActorSnapshot(null);
+			}
+		};
+	}, [currentTool]);
+
+	// Create pan tool machine
+	useEffect(() => {
+		let subscription: Subscription | null = null;
+
+		// Create and start pan tool actor when needed
+		if (currentTool === "pan" && !panToolActorRef.current) {
+			const panToolMachine = createPanTool();
+			const actor = createActor(panToolMachine);
+			panToolActorRef.current = actor;
+
+			// Subscribe to actor state changes
+			subscription = actor.subscribe((snapshot) => {
+				setPanActorSnapshot(snapshot);
+			});
+
+			actor.start();
+		} else if (currentTool !== "pan" && panToolActorRef.current) {
+			// Stop and cleanup when switching away from pan tool
+			panToolActorRef.current.stop();
+			panToolActorRef.current = null;
+			setPanActorSnapshot(null);
+		}
+
+		return () => {
+			// Cleanup subscription
+			subscription?.unsubscribe();
+
+			// Cleanup on unmount
+			if (panToolActorRef.current) {
+				panToolActorRef.current.stop();
+				panToolActorRef.current = null;
+				setPanActorSnapshot(null);
 			}
 		};
 	}, [currentTool]);
@@ -59,6 +98,8 @@ export const useToolMachine = () => {
 	const sendEvent = (event: any) => {
 		if (selectToolActorRef.current && currentTool === "select") {
 			selectToolActorRef.current.send(event);
+		} else if (panToolActorRef.current && currentTool === "pan") {
+			panToolActorRef.current.send(event);
 		}
 	};
 
@@ -82,6 +123,11 @@ export const useToolMachine = () => {
 			if (effect) {
 				addEffect(effect);
 			}
+		} else if (currentTool === "pan") {
+			sendEvent({
+				type: "POINTER_DOWN",
+				point,
+			});
 		}
 	};
 
@@ -94,6 +140,11 @@ export const useToolMachine = () => {
 				ctrlKey: e.ctrlKey,
 				metaKey: e.metaKey,
 			});
+		} else if (currentTool === "pan") {
+			sendEvent({
+				type: "POINTER_MOVE",
+				point,
+			});
 		}
 	};
 
@@ -105,6 +156,11 @@ export const useToolMachine = () => {
 				shiftKey: e.shiftKey,
 				ctrlKey: e.ctrlKey,
 				metaKey: e.metaKey,
+			});
+		} else if (currentTool === "pan") {
+			sendEvent({
+				type: "POINTER_UP",
+				point,
 			});
 		}
 	};
@@ -129,5 +185,7 @@ export const useToolMachine = () => {
 		snapGuides,
 		isSelectTool: currentTool === "select",
 		isEffectTool: currentTool === "effect",
+		isPanTool: currentTool === "pan",
+		panCursor: panActorSnapshot?.context?.cursor || "grab",
 	};
 };

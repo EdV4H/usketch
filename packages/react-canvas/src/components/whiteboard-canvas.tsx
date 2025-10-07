@@ -2,11 +2,11 @@ import { EffectRegistryProvider } from "@usketch/effect-registry";
 import { ShapeRegistryProvider } from "@usketch/shape-registry";
 import { useWhiteboardStore } from "@usketch/store";
 import type React from "react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useCanvas } from "../hooks/use-canvas";
-import { useInteraction } from "../hooks/use-interaction";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { useSnapSettingsSync } from "../hooks/use-snap-settings-sync";
+import { useToolManager } from "../hooks/use-tool-manager";
 import { EffectLayer } from "../layers/effect-layer";
 import type { CanvasProps } from "../types";
 import { BackgroundLayer } from "./background-layer";
@@ -22,9 +22,10 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">
 	onReady,
 }) => {
 	const containerRef = useRef<HTMLDivElement>(null);
-	const { shapes, camera, selectedShapeIds, snapGuides, snapSettings } = useWhiteboardStore();
+	const { shapes, camera, selectedShapeIds, snapGuides, snapSettings, currentTool } =
+		useWhiteboardStore();
 	const canvasManager = useCanvas();
-	const interactions = useInteraction();
+	const toolManager = useToolManager();
 
 	useKeyboardShortcuts();
 	useSnapSettingsSync(snapSettings);
@@ -35,6 +36,13 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">
 		}
 	}, [onReady, canvasManager]);
 
+	const handleWheel = useCallback(
+		(e: React.WheelEvent) => {
+			toolManager.handleWheel(e.nativeEvent, camera);
+		},
+		[toolManager, camera],
+	);
+
 	return (
 		<div
 			ref={containerRef}
@@ -44,14 +52,14 @@ const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "effects">
 				width: "100%",
 				height: "100%",
 				overflow: "hidden",
-				cursor: interactions.cursor,
+				cursor: toolManager.getCursor(),
 			}}
-			onWheel={interactions.getCanvasProps().onWheel}
+			onWheel={handleWheel}
 		>
 			<BackgroundLayer camera={camera} options={background} />
-			<ShapeLayer shapes={shapes} camera={camera} currentTool={interactions.currentTool} />
+			<ShapeLayer shapes={shapes} camera={camera} currentTool={currentTool} />
 			<SnapGuidelines guides={snapGuides} camera={camera} />
-			<InteractionLayer camera={camera} currentTool={interactions.currentTool} />
+			<InteractionLayer camera={camera} currentTool={currentTool} />
 			<SelectionLayer selectedIds={selectedShapeIds} shapes={shapes} camera={camera} />
 			<EffectLayer className="effect-layer" />
 		</div>

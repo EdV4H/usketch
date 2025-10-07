@@ -581,3 +581,4 @@ class DebugManager {
 - [API仕様書](../api/) - 詳細なAPI リファレンス
 - [開発ガイド](../development/) - 実装ガイドライン
 - [パフォーマンスガイド](./performance.md) - 最適化の詳細
+- [座標変換戦略](./coordinate-conversion-strategy.md) - 座標変換アーキテクチャの設計判断
