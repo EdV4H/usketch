@@ -11,7 +11,7 @@
 		"test:codegen": "playwright codegen http://localhost:3001"
 	},
 	"devDependencies": {
-		"@playwright/test": "1.55.1",
+		"@playwright/test": "1.56.0",
 		"@usketch/e2e-tests": "workspace:*",
 		"@usketch/tsconfig": "workspace:*"
 	}
