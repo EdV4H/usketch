@@ -85,11 +85,16 @@ export const useToolManager = () => {
 			const rect = (e.target as HTMLElement).getBoundingClientRect();
 			const screenX = e.clientX - rect.left;
 			const screenY = e.clientY - rect.top;
-			const worldPos = screenToWorld(screenX, screenY, camera);
 
-			toolManagerRef.current.handlePointerDown(e, worldPos);
+			// Pan tool needs screen coordinates, others need world coordinates
+			const pos =
+				currentTool === "pan"
+					? { x: e.clientX, y: e.clientY }
+					: screenToWorld(screenX, screenY, camera);
+
+			toolManagerRef.current.handlePointerDown(e, pos);
 		},
-		[screenToWorld],
+		[screenToWorld, currentTool],
 	);
 
 	const handlePointerMove = useCallback(
@@ -99,15 +104,20 @@ export const useToolManager = () => {
 			const rect = (e.target as HTMLElement).getBoundingClientRect();
 			const screenX = e.clientX - rect.left;
 			const screenY = e.clientY - rect.top;
-			const worldPos = screenToWorld(screenX, screenY, camera);
 
-			toolManagerRef.current.handlePointerMove(e, worldPos);
+			// Pan tool needs screen coordinates, others need world coordinates
+			const pos =
+				currentTool === "pan"
+					? { x: e.clientX, y: e.clientY }
+					: screenToWorld(screenX, screenY, camera);
+
+			toolManagerRef.current.handlePointerMove(e, pos);
 
 			// Update preview shape
 			const preview = toolManagerRef.current.getPreviewShape();
 			setPreviewShape(preview);
 		},
-		[screenToWorld],
+		[screenToWorld, currentTool],
 	);
 
 	const handlePointerUp = useCallback(
@@ -117,11 +127,16 @@ export const useToolManager = () => {
 			const rect = (e.target as HTMLElement).getBoundingClientRect();
 			const screenX = e.clientX - rect.left;
 			const screenY = e.clientY - rect.top;
-			const worldPos = screenToWorld(screenX, screenY, camera);
 
-			toolManagerRef.current.handlePointerUp(e, worldPos);
+			// Pan tool needs screen coordinates, others need world coordinates
+			const pos =
+				currentTool === "pan"
+					? { x: e.clientX, y: e.clientY }
+					: screenToWorld(screenX, screenY, camera);
+
+			toolManagerRef.current.handlePointerUp(e, pos);
 		},
-		[screenToWorld],
+		[screenToWorld, currentTool],
 	);
 
 	const handleKeyDown = useCallback((e: KeyboardEvent) => {

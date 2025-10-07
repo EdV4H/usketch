@@ -42,19 +42,32 @@ export const panToolMachine = setup({
 		}),
 
 		// Update viewport during drag
-		updateViewport: ({ context, event }) => {
-			if (event.type !== "POINTER_MOVE") return;
-			if (!context.startPoint || !context.initialViewport) return;
+		updateViewport: (() => {
+			let rafId: number | null = null;
 
-			const dx = event.point.x - context.startPoint.x;
-			const dy = event.point.y - context.startPoint.y;
+			return ({ context, event }) => {
+				if (event.type !== "POINTER_MOVE") return;
+				if (!context.startPoint || !context.initialViewport) return;
 
-			// Camera moves in same direction as drag to create pan effect
-			whiteboardStore.getState().setCamera({
-				x: context.initialViewport.x + dx,
-				y: context.initialViewport.y + dy,
-			});
-		},
+				const dx = event.point.x - context.startPoint.x;
+				const dy = event.point.y - context.startPoint.y;
+
+				// Cancel previous frame request
+				if (rafId !== null) {
+					cancelAnimationFrame(rafId);
+				}
+
+				// Use requestAnimationFrame to batch camera updates
+				rafId = requestAnimationFrame(() => {
+					// Camera moves in same direction as drag to create pan effect
+					whiteboardStore.getState().setCamera({
+						x: context.initialViewport.x + dx,
+						y: context.initialViewport.y + dy,
+					});
+					rafId = null;
+				});
+			};
+		})(),
 
 		// Cleanup when pan ends
 		endPan: assign(({ context }) => ({

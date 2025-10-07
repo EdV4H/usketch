@@ -1,14 +1,16 @@
 import { useEffectRegistry } from "@usketch/effect-registry";
 import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
-import { createSelectTool, EffectTool } from "@usketch/tools";
+import { createPanTool, createSelectTool, EffectTool } from "@usketch/tools";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createActor } from "xstate";
 
 export const useToolMachine = () => {
 	const { currentTool, effectToolConfig, addEffect } = useWhiteboardStore();
 	const selectToolActorRef = useRef<any>(null);
+	const panToolActorRef = useRef<any>(null);
 	const [actorSnapshot, setActorSnapshot] = useState<any>(null);
+	const [panActorSnapshot, setPanActorSnapshot] = useState<any>(null);
 	const effectRegistry = useEffectRegistry();
 
 	// Create effect tool instance with registry
@@ -52,6 +54,41 @@ export const useToolMachine = () => {
 		};
 	}, [currentTool]);
 
+	// Create pan tool machine
+	useEffect(() => {
+		// Create and start pan tool actor when needed
+		if (currentTool === "pan" && !panToolActorRef.current) {
+			const panToolMachine = createPanTool();
+			const actor = createActor(panToolMachine);
+			panToolActorRef.current = actor;
+
+			// Subscribe to actor state changes
+			const subscription = actor.subscribe((snapshot) => {
+				setPanActorSnapshot(snapshot);
+			});
+
+			actor.start();
+
+			return () => {
+				subscription.unsubscribe();
+			};
+		} else if (currentTool !== "pan" && panToolActorRef.current) {
+			// Stop and cleanup when switching away from pan tool
+			panToolActorRef.current.stop();
+			panToolActorRef.current = null;
+			setPanActorSnapshot(null);
+		}
+
+		return () => {
+			// Cleanup on unmount
+			if (panToolActorRef.current) {
+				panToolActorRef.current.stop();
+				panToolActorRef.current = null;
+				setPanActorSnapshot(null);
+			}
+		};
+	}, [currentTool]);
+
 	// Get state from XState actor snapshot
 	const dragState = actorSnapshot?.context?.dragState || null;
 	const snapGuides = actorSnapshot?.context?.snapGuides || [];
@@ -82,6 +119,14 @@ export const useToolMachine = () => {
 			if (effect) {
 				addEffect(effect);
 			}
+		} else if (currentTool === "pan") {
+			// Send event to pan tool
+			if (panToolActorRef.current) {
+				panToolActorRef.current.send({
+					type: "POINTER_DOWN",
+					point,
+				});
+			}
 		}
 	};
 
@@ -94,6 +139,14 @@ export const useToolMachine = () => {
 				ctrlKey: e.ctrlKey,
 				metaKey: e.metaKey,
 			});
+		} else if (currentTool === "pan") {
+			// Send event to pan tool
+			if (panToolActorRef.current) {
+				panToolActorRef.current.send({
+					type: "POINTER_MOVE",
+					point,
+				});
+			}
 		}
 	};
 
@@ -106,6 +159,14 @@ export const useToolMachine = () => {
 				ctrlKey: e.ctrlKey,
 				metaKey: e.metaKey,
 			});
+		} else if (currentTool === "pan") {
+			// Send event to pan tool
+			if (panToolActorRef.current) {
+				panToolActorRef.current.send({
+					type: "POINTER_UP",
+					point,
+				});
+			}
 		}
 	};
 
@@ -129,5 +190,7 @@ export const useToolMachine = () => {
 		snapGuides,
 		isSelectTool: currentTool === "select",
 		isEffectTool: currentTool === "effect",
+		isPanTool: currentTool === "pan",
+		panCursor: panActorSnapshot?.context?.cursor || "grab",
 	};
 };
