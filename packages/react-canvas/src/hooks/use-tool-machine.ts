@@ -3,7 +3,7 @@ import type { Point } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
 import { createPanTool, createSelectTool, EffectTool } from "@usketch/tools";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createActor } from "xstate";
+import { createActor, type Subscription } from "xstate";
 
 export const useToolMachine = () => {
 	const { currentTool, effectToolConfig, addEffect } = useWhiteboardStore();
@@ -21,6 +21,8 @@ export const useToolMachine = () => {
 
 	// Create select tool machine with Zustand store data as input
 	useEffect(() => {
+		let subscription: Subscription | null = null;
+
 		// Create and start select tool actor when needed
 		if (currentTool === "select" && !selectToolActorRef.current) {
 			const selectToolMachine = createSelectTool();
@@ -28,15 +30,11 @@ export const useToolMachine = () => {
 			selectToolActorRef.current = actor;
 
 			// Subscribe to actor state changes
-			const subscription = actor.subscribe((snapshot) => {
+			subscription = actor.subscribe((snapshot) => {
 				setActorSnapshot(snapshot);
 			});
 
 			actor.start();
-
-			return () => {
-				subscription.unsubscribe();
-			};
 		} else if (currentTool !== "select" && selectToolActorRef.current) {
 			// Stop and cleanup when switching away from select tool
 			selectToolActorRef.current.stop();
@@ -45,6 +43,9 @@ export const useToolMachine = () => {
 		}
 
 		return () => {
+			// Cleanup subscription
+			subscription?.unsubscribe();
+
 			// Cleanup on unmount
 			if (selectToolActorRef.current) {
 				selectToolActorRef.current.stop();
@@ -56,6 +57,8 @@ export const useToolMachine = () => {
 
 	// Create pan tool machine
 	useEffect(() => {
+		let subscription: Subscription | null = null;
+
 		// Create and start pan tool actor when needed
 		if (currentTool === "pan" && !panToolActorRef.current) {
 			const panToolMachine = createPanTool();
@@ -63,15 +66,11 @@ export const useToolMachine = () => {
 			panToolActorRef.current = actor;
 
 			// Subscribe to actor state changes
-			const subscription = actor.subscribe((snapshot) => {
+			subscription = actor.subscribe((snapshot) => {
 				setPanActorSnapshot(snapshot);
 			});
 
 			actor.start();
-
-			return () => {
-				subscription.unsubscribe();
-			};
 		} else if (currentTool !== "pan" && panToolActorRef.current) {
 			// Stop and cleanup when switching away from pan tool
 			panToolActorRef.current.stop();
@@ -80,6 +79,9 @@ export const useToolMachine = () => {
 		}
 
 		return () => {
+			// Cleanup subscription
+			subscription?.unsubscribe();
+
 			// Cleanup on unmount
 			if (panToolActorRef.current) {
 				panToolActorRef.current.stop();
@@ -96,6 +98,8 @@ export const useToolMachine = () => {
 	const sendEvent = (event: any) => {
 		if (selectToolActorRef.current && currentTool === "select") {
 			selectToolActorRef.current.send(event);
+		} else if (panToolActorRef.current && currentTool === "pan") {
+			panToolActorRef.current.send(event);
 		}
 	};
 
@@ -120,13 +124,10 @@ export const useToolMachine = () => {
 				addEffect(effect);
 			}
 		} else if (currentTool === "pan") {
-			// Send event to pan tool
-			if (panToolActorRef.current) {
-				panToolActorRef.current.send({
-					type: "POINTER_DOWN",
-					point,
-				});
-			}
+			sendEvent({
+				type: "POINTER_DOWN",
+				point,
+			});
 		}
 	};
 
@@ -140,13 +141,10 @@ export const useToolMachine = () => {
 				metaKey: e.metaKey,
 			});
 		} else if (currentTool === "pan") {
-			// Send event to pan tool
-			if (panToolActorRef.current) {
-				panToolActorRef.current.send({
-					type: "POINTER_MOVE",
-					point,
-				});
-			}
+			sendEvent({
+				type: "POINTER_MOVE",
+				point,
+			});
 		}
 	};
 
@@ -160,13 +158,10 @@ export const useToolMachine = () => {
 				metaKey: e.metaKey,
 			});
 		} else if (currentTool === "pan") {
-			// Send event to pan tool
-			if (panToolActorRef.current) {
-				panToolActorRef.current.send({
-					type: "POINTER_UP",
-					point,
-				});
-			}
+			sendEvent({
+				type: "POINTER_UP",
+				point,
+			});
 		}
 	};
 
