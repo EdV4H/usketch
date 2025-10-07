@@ -1,4 +1,4 @@
-import type { Point, Shape } from "@usketch/shared-types";
+import type { Point, PointerCoordinates, Shape } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import type { Actor, AnyStateMachine } from "xstate";
 import { createActor } from "xstate";
@@ -226,7 +226,9 @@ export class ToolManager {
 	}
 
 	// Event handling with behaviors support
-	handlePointerDown(event: PointerEvent, worldPos: Point): void {
+	handlePointerDown(event: PointerEvent, pos: PointerCoordinates | Point): void {
+		// Support both PointerCoordinates and legacy Point
+		const worldPos = "world" in pos ? pos.world : pos;
 		const currentTool = this.toolConfigs.get(this.currentToolId);
 
 		// Execute tool-specific pre-processing
@@ -250,7 +252,7 @@ export class ToolManager {
 
 		this.toolManagerActor.send({
 			type: "POINTER_DOWN" as const,
-			point: worldPos,
+			point: pos,
 			position: worldPos, // For compatibility
 			target: shapeId,
 			event: event,
@@ -272,7 +274,9 @@ export class ToolManager {
 		// }
 	}
 
-	handlePointerMove(event: PointerEvent, worldPos: Point): void {
+	handlePointerMove(event: PointerEvent, pos: PointerCoordinates | Point): void {
+		// Support both PointerCoordinates and legacy Point
+		const worldPos = "world" in pos ? pos.world : pos;
 		const currentTool = this.toolConfigs.get(this.currentToolId);
 
 		// Execute tool-specific pre-processing
@@ -289,7 +293,7 @@ export class ToolManager {
 		// Default processing
 		this.toolManagerActor.send({
 			type: "POINTER_MOVE" as const,
-			point: worldPos,
+			point: pos,
 			position: worldPos,
 			event: event,
 			shiftKey: event.shiftKey,
@@ -298,7 +302,9 @@ export class ToolManager {
 		});
 	}
 
-	handlePointerUp(event: PointerEvent, worldPos: Point): void {
+	handlePointerUp(event: PointerEvent, pos: PointerCoordinates | Point): void {
+		// Support both PointerCoordinates and legacy Point
+		const worldPos = "world" in pos ? pos.world : pos;
 		const currentTool = this.toolConfigs.get(this.currentToolId);
 
 		// Execute tool-specific pre-processing
@@ -315,7 +321,7 @@ export class ToolManager {
 		// Default processing
 		this.toolManagerActor.send({
 			type: "POINTER_UP" as const,
-			point: worldPos,
+			point: pos,
 			position: worldPos,
 			event: event,
 			shiftKey: event.shiftKey,

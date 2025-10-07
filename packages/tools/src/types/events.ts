@@ -1,6 +1,6 @@
 // Event type definitions for tool machines
 
-import type { Point } from "@usketch/shared-types";
+import type { Point, PointerCoordinates } from "@usketch/shared-types";
 
 // Base event types that all tools support
 export interface BaseToolEvent {
@@ -9,7 +9,7 @@ export interface BaseToolEvent {
 
 export interface PointerDownEvent extends BaseToolEvent {
 	type: "POINTER_DOWN";
-	point: Point;
+	point: Point | PointerCoordinates;
 	shiftKey?: boolean;
 	ctrlKey?: boolean;
 	metaKey?: boolean;
@@ -19,12 +19,12 @@ export interface PointerDownEvent extends BaseToolEvent {
 
 export interface PointerMoveEvent extends BaseToolEvent {
 	type: "POINTER_MOVE";
-	point: Point;
+	point: Point | PointerCoordinates;
 }
 
 export interface PointerUpEvent extends BaseToolEvent {
 	type: "POINTER_UP";
-	point: Point;
+	point: Point | PointerCoordinates;
 }
 
 export interface DoubleClickEvent extends BaseToolEvent {

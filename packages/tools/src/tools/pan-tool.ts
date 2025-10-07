@@ -1,3 +1,4 @@
+import type { PointerCoordinates } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { assign, setup } from "xstate";
 import type { Point, ToolContext } from "../types/index";
@@ -14,9 +15,9 @@ export interface PanToolContext extends ToolContext {
 
 // === Pan Tool Events ===
 export type PanToolEvent =
-	| { type: "POINTER_DOWN"; point: Point }
-	| { type: "POINTER_MOVE"; point: Point }
-	| { type: "POINTER_UP"; point: Point }
+	| { type: "POINTER_DOWN"; point: Point | PointerCoordinates }
+	| { type: "POINTER_MOVE"; point: Point | PointerCoordinates }
+	| { type: "POINTER_UP"; point: Point | PointerCoordinates }
 	| { type: "CANCEL" };
 
 // === Pan Tool Machine (XState v5) ===
@@ -33,9 +34,12 @@ export const panToolMachine = setup({
 			const state = whiteboardStore.getState();
 			const camera = state.camera;
 
+			// Use screen coordinates for panning
+			const screenPoint = "screen" in event.point ? event.point.screen : event.point;
+
 			return {
 				...context,
-				startPoint: event.point,
+				startPoint: screenPoint,
 				initialViewport: { x: camera.x, y: camera.y },
 				cursor: "grabbing" as const,
 			};
@@ -49,8 +53,11 @@ export const panToolMachine = setup({
 				if (event.type !== "POINTER_MOVE") return;
 				if (!context.startPoint || !context.initialViewport) return;
 
-				const dx = event.point.x - context.startPoint.x;
-				const dy = event.point.y - context.startPoint.y;
+				// Use screen coordinates for panning
+				const screenPoint = "screen" in event.point ? event.point.screen : event.point;
+
+				const dx = screenPoint.x - context.startPoint.x;
+				const dy = screenPoint.y - context.startPoint.y;
 
 				// Cancel previous frame request to avoid race conditions
 				if (rafId !== null) {

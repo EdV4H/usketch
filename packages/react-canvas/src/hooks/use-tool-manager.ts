@@ -1,5 +1,5 @@
 import { useEffectRegistry } from "@usketch/effect-registry";
-import type { Point, Shape } from "@usketch/shared-types";
+import type { Point, PointerCoordinates, Shape } from "@usketch/shared-types";
 import { useWhiteboardStore, whiteboardStore } from "@usketch/store";
 import { createDefaultToolManager, type ToolManager } from "@usketch/tools";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -87,15 +87,15 @@ export const useToolManager = () => {
 			const screenX = e.clientX - rect.left;
 			const screenY = e.clientY - rect.top;
 
-			// Pan tool needs screen coordinates, others need world coordinates
-			const pos =
-				currentTool === "pan"
-					? { x: e.clientX, y: e.clientY }
-					: screenToWorld(screenX, screenY, camera);
+			// Provide both screen and world coordinates
+			const pos: PointerCoordinates = {
+				screen: { x: e.clientX, y: e.clientY },
+				world: screenToWorld(screenX, screenY, camera),
+			};
 
 			toolManagerRef.current.handlePointerDown(e, pos);
 		},
-		[screenToWorld, currentTool],
+		[screenToWorld],
 	);
 
 	const handlePointerMove = useCallback(
@@ -106,11 +106,11 @@ export const useToolManager = () => {
 			const screenX = e.clientX - rect.left;
 			const screenY = e.clientY - rect.top;
 
-			// Pan tool needs screen coordinates, others need world coordinates
-			const pos =
-				currentTool === "pan"
-					? { x: e.clientX, y: e.clientY }
-					: screenToWorld(screenX, screenY, camera);
+			// Provide both screen and world coordinates
+			const pos: PointerCoordinates = {
+				screen: { x: e.clientX, y: e.clientY },
+				world: screenToWorld(screenX, screenY, camera),
+			};
 
 			toolManagerRef.current.handlePointerMove(e, pos);
 
@@ -118,7 +118,7 @@ export const useToolManager = () => {
 			const preview = toolManagerRef.current.getPreviewShape();
 			setPreviewShape(preview);
 		},
-		[screenToWorld, currentTool],
+		[screenToWorld],
 	);
 
 	const handlePointerUp = useCallback(
@@ -129,15 +129,15 @@ export const useToolManager = () => {
 			const screenX = e.clientX - rect.left;
 			const screenY = e.clientY - rect.top;
 
-			// Pan tool needs screen coordinates, others need world coordinates
-			const pos =
-				currentTool === "pan"
-					? { x: e.clientX, y: e.clientY }
-					: screenToWorld(screenX, screenY, camera);
+			// Provide both screen and world coordinates
+			const pos: PointerCoordinates = {
+				screen: { x: e.clientX, y: e.clientY },
+				world: screenToWorld(screenX, screenY, camera),
+			};
 
 			toolManagerRef.current.handlePointerUp(e, pos);
 		},
-		[screenToWorld, currentTool],
+		[screenToWorld],
 	);
 
 	const handleKeyDown = useCallback((e: KeyboardEvent) => {
