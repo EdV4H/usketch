@@ -15,6 +15,7 @@ export const useToolManager = () => {
 	const effectRegistry = useEffectRegistry();
 
 	// Initialize ToolManager once
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Intentionally excluding dependencies to ensure single initialization
 	useEffect(() => {
 		if (!toolManagerRef.current) {
 			toolManagerRef.current = createDefaultToolManager({
@@ -31,10 +32,7 @@ export const useToolManager = () => {
 			toolManagerRef.current = null;
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [
-		currentTool, // Sync ToolManager state with Zustand store
-		setCurrentTool,
-	]); // Initialize only once
+	}, []); // Initialize only once - dependencies intentionally excluded
 
 	// Set the effect registry whenever it changes or tool manager is ready
 	useEffect(() => {

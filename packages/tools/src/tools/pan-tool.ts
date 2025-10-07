@@ -52,9 +52,10 @@ export const panToolMachine = setup({
 				const dx = event.point.x - context.startPoint.x;
 				const dy = event.point.y - context.startPoint.y;
 
-				// Cancel previous frame request
+				// Cancel previous frame request to avoid race conditions
 				if (rafId !== null) {
 					cancelAnimationFrame(rafId);
+					rafId = null;
 				}
 
 				// Use requestAnimationFrame to batch camera updates
