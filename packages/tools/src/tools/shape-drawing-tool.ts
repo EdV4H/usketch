@@ -1,4 +1,4 @@
-import type { Point, Shape } from "@usketch/shared-types";
+import type { Point, PointerCoordinates, Shape } from "@usketch/shared-types";
 import { DEFAULT_FREEDRAW_STYLES, DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { v4 as uuidv4 } from "uuid";
 import { assign, setup } from "xstate";
@@ -15,9 +15,9 @@ export interface ShapeDrawingContext {
 }
 
 export type ShapeDrawingEvent =
-	| { type: "POINTER_DOWN"; point: Point; position: Point }
-	| { type: "POINTER_MOVE"; point: Point; position: Point }
-	| { type: "POINTER_UP"; point: Point; position: Point }
+	| { type: "POINTER_DOWN"; point: Point | PointerCoordinates; position: Point }
+	| { type: "POINTER_MOVE"; point: Point | PointerCoordinates; position: Point }
+	| { type: "POINTER_UP"; point: Point | PointerCoordinates; position: Point }
 	| { type: "ESCAPE" }
 	| { type: "CANCEL" };
 
@@ -35,7 +35,8 @@ export function createShapeDrawingTool(shapeType: ShapeType) {
 			startDrawing: assign(({ context, event }) => {
 				if (event.type !== "POINTER_DOWN") return {};
 
-				const startPoint = event.point;
+				// Extract world coordinates for drawing
+				const startPoint = "world" in event.point ? event.point.world : event.point;
 
 				// For freedraw, initialize path
 				if (context.shapeType === "freedraw") {
@@ -55,7 +56,8 @@ export function createShapeDrawingTool(shapeType: ShapeType) {
 			updateDrawing: assign(({ context, event }) => {
 				if (event.type !== "POINTER_MOVE") return {};
 
-				const currentPoint = event.point;
+				// Extract world coordinates for drawing
+				const currentPoint = "world" in event.point ? event.point.world : event.point;
 
 				// For freedraw, add line command
 				if (context.shapeType === "freedraw" && context.pathCommands) {

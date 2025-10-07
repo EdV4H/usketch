@@ -81,10 +81,10 @@ export interface Camera {
 	zoom: number;
 }
 
-// Point interface
-export interface Point {
-	x: number;
-	y: number;
+// Pointer coordinate types with both screen and world coordinates
+export interface PointerCoordinates {
+	screen: Point; // Screen coordinates (relative to viewport)
+	world: Point; // World coordinates (accounting for camera transform)
 }
 
 // Whiteboard state
