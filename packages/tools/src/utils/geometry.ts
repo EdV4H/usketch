@@ -38,24 +38,9 @@ function hasWidthHeight(shape: Shape): shape is Shape & { width: number; height:
 function isPointInShape(point: Point, shape: Shape): boolean {
 	// Handle different shape types
 	if (shape.type === "freedraw") {
-		// For freedraw shapes with x, y, width, height (new approach)
-		if (
-			shape.x !== undefined &&
-			shape.y !== undefined &&
-			shape.width !== undefined &&
-			shape.height !== undefined
-		) {
-			const padding = 10;
-			const isInside =
-				point.x >= shape.x - padding &&
-				point.x <= shape.x + shape.width + padding &&
-				point.y >= shape.y - padding &&
-				point.y <= shape.y + shape.height + padding;
-
-			return isInside;
-		}
-		// Fallback for freedraw shapes with points array (old approach)
-		else if (shape.points) {
+		// For freedraw shapes, always use points array if available
+		// Points are in absolute world coordinates
+		if (shape.points && shape.points.length > 0) {
 			const minX = Math.min(...shape.points.map((p: Point) => p.x));
 			const minY = Math.min(...shape.points.map((p: Point) => p.y));
 			const maxX = Math.max(...shape.points.map((p: Point) => p.x));
@@ -98,13 +83,15 @@ function isShapeInBounds(shape: Shape, bounds: Bounds): boolean {
 	let shapeX: number, shapeY: number, shapeWidth: number, shapeHeight: number;
 
 	// Handle different shape types
-	if (shape.type === "freedraw" && shape.points) {
+	if (shape.type === "freedraw" && shape.points && shape.points.length > 0) {
 		// Calculate bounding box for freedraw shapes
+		// Note: shape.points are in absolute world coordinates
 		const minX = Math.min(...shape.points.map((p: Point) => p.x));
 		const minY = Math.min(...shape.points.map((p: Point) => p.y));
 		const maxX = Math.max(...shape.points.map((p: Point) => p.x));
 		const maxY = Math.max(...shape.points.map((p: Point) => p.y));
 
+		// Use absolute coordinates directly (points are already in world space)
 		shapeX = minX;
 		shapeY = minY;
 		shapeWidth = maxX - minX;
@@ -131,9 +118,30 @@ function isShapeInBounds(shape: Shape, bounds: Bounds): boolean {
 // Get resize handle at point
 export function getResizeHandleAtPoint(point: Point, shapeId: string): ResizeHandle | null {
 	const shape = getShape(shapeId);
-	if (!shape || !hasWidthHeight(shape)) return null;
+	if (!shape) return null;
 
-	const { x, y, width, height } = shape;
+	let x: number, y: number, width: number, height: number;
+
+	// Calculate actual bounds for freedraw shapes
+	if (shape.type === "freedraw" && shape.points && shape.points.length > 0) {
+		const minX = Math.min(...shape.points.map((p: Point) => p.x));
+		const minY = Math.min(...shape.points.map((p: Point) => p.y));
+		const maxX = Math.max(...shape.points.map((p: Point) => p.x));
+		const maxY = Math.max(...shape.points.map((p: Point) => p.y));
+
+		x = minX;
+		y = minY;
+		width = maxX - minX;
+		height = maxY - minY;
+	} else if (hasWidthHeight(shape)) {
+		x = shape.x;
+		y = shape.y;
+		width = shape.width;
+		height = shape.height;
+	} else {
+		return null;
+	}
+
 	const handleSize = 15; // Increased handle hit area size for easier clicking
 	const halfHandle = handleSize / 2;
 
