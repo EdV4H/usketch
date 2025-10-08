@@ -1,6 +1,8 @@
 import type { LayerMetadata, LayerTreeNode, Shape, ShapeGroup } from "@usketch/shared-types";
-import { DEFAULT_LAYER_METADATA } from "@usketch/shared-types";
+import { createDefaultGroup, DEFAULT_LAYER_METADATA } from "@usketch/shared-types";
+import { nanoid } from "nanoid";
 import type { StateCreator } from "zustand";
+import { GroupShapesCommand, ReorderCommand, UngroupShapesCommand } from "../commands/layer";
 import type { StoreState } from "../store";
 
 /**
@@ -8,10 +10,10 @@ import type { StoreState } from "../store";
  */
 export interface LayerState {
 	/** グループ情報のマップ */
-	groups: Record<string, ShapeGroup>;
+	groups?: Record<string, ShapeGroup>;
 
 	/** Z-index順の配列（形状IDまたはグループID） */
-	zOrder: string[];
+	zOrder?: string[];
 
 	/** レイヤーパネルの開閉状態 */
 	layerPanelOpen: boolean;
@@ -97,16 +99,48 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 	layerPanelOpen: false,
 	selectedLayerId: null,
 
-	// Actions (スタブ実装 - Phase 7.2で実装)
+	// Actions
 	groupShapes: (name?: string) => {
-		// TODO: Phase 7.2で実装
-		console.warn("groupShapes not yet implemented", name);
-		return null;
+		const { selectedShapeIds, shapes, executeCommand, groups } = get();
+		if (selectedShapeIds.size < 2) return null;
+
+		const shapeIds = Array.from(selectedShapeIds);
+		const groupId = nanoid();
+
+		// グループ数を数えて名前を決定
+		const groupCount = groups ? Object.keys(groups).length : 0;
+		const groupName = name || `グループ ${groupCount + 1}`;
+
+		// 選択中の形状の最大zIndexを取得
+		const maxZIndex = Math.max(
+			...shapeIds.map((id) => {
+				const shape = shapes[id];
+				return shape?.layer?.zIndex ?? 0;
+			}),
+		);
+
+		// グループを作成
+		const group: ShapeGroup = {
+			...createDefaultGroup(groupName),
+			id: groupId,
+			childIds: [...shapeIds],
+			zIndex: maxZIndex,
+		};
+
+		const command = new GroupShapesCommand(shapeIds, group);
+		executeCommand(command);
+
+		return groupId;
 	},
 
 	ungroupShapes: (groupId: string) => {
-		// TODO: Phase 7.2で実装
-		console.warn("ungroupShapes not yet implemented", groupId);
+		const { groups, executeCommand } = get();
+		if (!groups) return;
+		const group = groups[groupId];
+		if (!group) return;
+
+		const command = new UngroupShapesCommand(groupId, group.childIds);
+		executeCommand(command);
 	},
 
 	addToGroup: (groupId: string, shapeIds: string[]) => {
@@ -121,6 +155,7 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 
 	renameGroup: (groupId: string, name: string) => {
 		set((state) => {
+			if (!state.groups) return state;
 			const group = state.groups[groupId];
 			if (!group) return state;
 
@@ -156,6 +191,7 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 
 	toggleGroupVisibility: (groupId: string) => {
 		set((state) => {
+			if (!state.groups) return state;
 			const group = state.groups[groupId];
 			if (!group) return state;
 
@@ -210,6 +246,7 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 
 	toggleGroupLock: (groupId: string) => {
 		set((state) => {
+			if (!state.groups) return state;
 			const group = state.groups[groupId];
 			if (!group) return state;
 
@@ -242,23 +279,47 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 	},
 
 	bringToFront: (id: string) => {
-		// TODO: Phase 7.2で実装（コマンドパターン使用）
-		console.warn("bringToFront not yet implemented", id);
+		const { zOrder, executeCommand } = get();
+		if (!zOrder) return;
+		const currentIndex = zOrder.indexOf(id);
+		if (currentIndex === -1 || currentIndex === zOrder.length - 1) return;
+
+		const newIndex = zOrder.length - 1;
+		const command = new ReorderCommand(id, currentIndex, newIndex);
+		executeCommand(command);
 	},
 
 	sendToBack: (id: string) => {
-		// TODO: Phase 7.2で実装（コマンドパターン使用）
-		console.warn("sendToBack not yet implemented", id);
+		const { zOrder, executeCommand } = get();
+		if (!zOrder) return;
+		const currentIndex = zOrder.indexOf(id);
+		if (currentIndex === -1 || currentIndex === 0) return;
+
+		const newIndex = 0;
+		const command = new ReorderCommand(id, currentIndex, newIndex);
+		executeCommand(command);
 	},
 
 	bringForward: (id: string) => {
-		// TODO: Phase 7.2で実装（コマンドパターン使用）
-		console.warn("bringForward not yet implemented", id);
+		const { zOrder, executeCommand } = get();
+		if (!zOrder) return;
+		const currentIndex = zOrder.indexOf(id);
+		if (currentIndex === -1 || currentIndex === zOrder.length - 1) return;
+
+		const newIndex = currentIndex + 1;
+		const command = new ReorderCommand(id, currentIndex, newIndex);
+		executeCommand(command);
 	},
 
 	sendBackward: (id: string) => {
-		// TODO: Phase 7.2で実装（コマンドパターン使用）
-		console.warn("sendBackward not yet implemented", id);
+		const { zOrder, executeCommand } = get();
+		if (!zOrder) return;
+		const currentIndex = zOrder.indexOf(id);
+		if (currentIndex === -1 || currentIndex === 0) return;
+
+		const newIndex = currentIndex - 1;
+		const command = new ReorderCommand(id, currentIndex, newIndex);
+		executeCommand(command);
 	},
 
 	reorderLayers: (newOrder: string[]) => {
@@ -300,6 +361,8 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 	getLayerTree: () => {
 		const { shapes, groups, zOrder } = get();
 		const tree: LayerTreeNode[] = [];
+
+		if (!zOrder || !groups) return tree;
 
 		// zOrder順に処理（逆順で最前面から表示）
 		[...zOrder].reverse().forEach((id) => {

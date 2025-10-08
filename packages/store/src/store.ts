@@ -188,6 +188,8 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 		selectedShapeIds: get().selectedShapeIds,
 		camera: get().camera,
 		currentTool: get().currentTool,
+		groups: get().groups,
+		zOrder: get().zOrder,
 	}),
 	setState: (updater: (state: WhiteboardState) => void) => {
 		set((currentState: WhiteboardStore) => {
@@ -197,6 +199,8 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 				selectedShapeIds: new Set(currentState.selectedShapeIds),
 				camera: { ...currentState.camera },
 				currentTool: currentState.currentTool,
+				groups: currentState.groups ? { ...currentState.groups } : {},
+				zOrder: currentState.zOrder ? [...currentState.zOrder] : [],
 			};
 
 			// Apply the updates
@@ -209,6 +213,8 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 				selectedShapeIds: mutableState.selectedShapeIds,
 				camera: mutableState.camera,
 				currentTool: mutableState.currentTool,
+				groups: mutableState.groups,
+				zOrder: mutableState.zOrder,
 			};
 		});
 	},

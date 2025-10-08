@@ -6,7 +6,7 @@ export * from "./effects";
 export * from "./layer";
 export * from "./styles";
 
-import type { LayerMetadata } from "./layer";
+import type { LayerMetadata, ShapeGroup } from "./layer";
 import type { ShadowProperties } from "./styles";
 
 // Common geometry types
@@ -97,6 +97,8 @@ export interface WhiteboardState {
 	selectedShapeIds: Set<string>;
 	camera: Camera;
 	currentTool: string;
+	groups?: Record<string, ShapeGroup>;
+	zOrder?: string[];
 }
 
 // Command Pattern types for Undo/Redo
