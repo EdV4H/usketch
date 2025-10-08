@@ -1,5 +1,6 @@
 import { useWhiteboardStore } from "@usketch/store";
 import type React from "react";
+import { useMemo } from "react";
 import { LayerToolbar } from "./layer-toolbar";
 import { LayerTree } from "./layer-tree";
 import "./layer-panel.css";
@@ -11,7 +12,15 @@ import "./layer-panel.css";
 export const LayerPanel: React.FC = () => {
 	const layerPanelOpen = useWhiteboardStore((state) => state.layerPanelOpen);
 	const toggleLayerPanel = useWhiteboardStore((state) => state.toggleLayerPanel);
-	const layerTree = useWhiteboardStore((state) => state.getLayerTree());
+
+	// getLayerTreeは毎回新しい配列を返すため、依存する状態を直接購読してメモ化
+	const shapes = useWhiteboardStore((state) => state.shapes);
+	const groups = useWhiteboardStore((state) => state.groups);
+	const zOrder = useWhiteboardStore((state) => state.zOrder);
+	const getLayerTreeFn = useWhiteboardStore((state) => state.getLayerTree);
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: getLayerTreeFn内部でshapes/groups/zOrderを参照するため必要
+	const layerTree = useMemo(() => getLayerTreeFn(), [getLayerTreeFn, shapes, groups, zOrder]);
 
 	if (!layerPanelOpen) {
 		return (
