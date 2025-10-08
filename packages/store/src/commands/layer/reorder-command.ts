@@ -1,4 +1,4 @@
-import type { CommandContext } from "@usketch/shared-types";
+import type { CommandContext, WhiteboardState } from "@usketch/shared-types";
 import { DEFAULT_LAYER_METADATA } from "@usketch/shared-types";
 import { BaseCommand } from "../base-command";
 
@@ -51,7 +51,7 @@ export class ReorderCommand extends BaseCommand {
 		});
 	}
 
-	private updateZIndices(state: any, zOrder: string[]): void {
+	private updateZIndices(state: WhiteboardState, zOrder: string[]): void {
 		zOrder.forEach((id, index) => {
 			if (state.shapes[id]) {
 				if (!state.shapes[id].layer) {

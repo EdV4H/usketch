@@ -145,12 +145,16 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 
 	addToGroup: (groupId: string, shapeIds: string[]) => {
 		// TODO: Phase 7.2で実装
-		console.warn("addToGroup not yet implemented", groupId, shapeIds);
+		throw new Error(
+			`addToGroup not yet implemented: groupId=${groupId}, shapeIds=${JSON.stringify(shapeIds)}`,
+		);
 	},
 
 	removeFromGroup: (groupId: string, shapeIds: string[]) => {
 		// TODO: Phase 7.2で実装
-		console.warn("removeFromGroup not yet implemented", groupId, shapeIds);
+		throw new Error(
+			`removeFromGroup not yet implemented: groupId=${groupId}, shapeIds=${JSON.stringify(shapeIds)}`,
+		);
 	},
 
 	renameGroup: (groupId: string, name: string) => {
