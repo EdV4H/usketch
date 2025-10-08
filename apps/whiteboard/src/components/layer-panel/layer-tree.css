@@ -1,0 +1,14 @@
+.layer-tree {
+	padding: 4px 0;
+}
+
+.layer-tree--empty {
+	padding: 32px 16px;
+	text-align: center;
+	color: var(--color-text-tertiary, #9ca3af);
+}
+
+.layer-tree--empty p {
+	margin: 0;
+	font-size: 13px;
+}
