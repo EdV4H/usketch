@@ -1,6 +1,7 @@
 import type { LayerMetadata, Shape } from "@usketch/shared-types";
 import { useWhiteboardStore } from "@usketch/store";
 import type React from "react";
+import { useState } from "react";
 import { LayerThumbnail } from "../layer-thumbnail";
 import "./layer-item.css";
 
@@ -21,6 +22,11 @@ export const ShapeLayerItem: React.FC<ShapeLayerItemProps> = ({ shape, metadata,
 	const toggleShapeVisibility = useWhiteboardStore((state) => state.toggleShapeVisibility);
 	const toggleShapeLock = useWhiteboardStore((state) => state.toggleShapeLock);
 	const getLayerName = useWhiteboardStore((state) => state.getLayerName);
+	const zOrder = useWhiteboardStore((state) => state.zOrder);
+	const reorderLayers = useWhiteboardStore((state) => state.reorderLayers);
+
+	const [isDragging, setIsDragging] = useState(false);
+	const [isDragOver, setIsDragOver] = useState(false);
 
 	const isSelected = selectedShapeIds.has(shape.id);
 	const layerName = getLayerName(shape.id);
@@ -44,15 +50,62 @@ export const ShapeLayerItem: React.FC<ShapeLayerItemProps> = ({ shape, metadata,
 		}
 	};
 
+	// Drag and drop handlers
+	const handleDragStart = (e: React.DragEvent) => {
+		e.dataTransfer.effectAllowed = "move";
+		e.dataTransfer.setData("application/layer-item", shape.id);
+		setIsDragging(true);
+	};
+
+	const handleDragEnd = () => {
+		setIsDragging(false);
+	};
+
+	const handleDragOver = (e: React.DragEvent) => {
+		e.preventDefault();
+		e.dataTransfer.dropEffect = "move";
+		setIsDragOver(true);
+	};
+
+	const handleDragLeave = () => {
+		setIsDragOver(false);
+	};
+
+	const handleDrop = (e: React.DragEvent) => {
+		e.preventDefault();
+		setIsDragOver(false);
+
+		const draggedId = e.dataTransfer.getData("application/layer-item");
+		if (draggedId && draggedId !== shape.id && zOrder) {
+			// Create new order: place dragged item before this item
+			const newOrder = zOrder.filter((id) => id !== draggedId);
+			const targetIndex = newOrder.indexOf(shape.id);
+
+			if (targetIndex !== -1) {
+				// Insert dragged item before target
+				newOrder.splice(targetIndex, 0, draggedId);
+				reorderLayers(newOrder);
+			}
+		}
+	};
+
 	return (
 		<div
 			role="button"
 			tabIndex={metadata.locked ? -1 : 0}
 			className={`layer-item ${isSelected ? "layer-item--selected" : ""} ${
 				metadata.locked ? "layer-item--locked" : ""
-			} ${!metadata.visible ? "layer-item--hidden" : ""}`}
+			} ${!metadata.visible ? "layer-item--hidden" : ""} ${isDragging ? "layer-item--dragging" : ""} ${
+				isDragOver ? "layer-item--drag-over" : ""
+			}`}
 			onClick={handleClick}
 			onKeyDown={handleKeyDown}
+			draggable={!metadata.locked}
+			onDragStart={handleDragStart}
+			onDragEnd={handleDragEnd}
+			onDragOver={handleDragOver}
+			onDragLeave={handleDragLeave}
+			onDrop={handleDrop}
 			style={{ paddingLeft: `${level * 20 + 8}px` }}
 			data-testid={`layer-item-${shape.id}`}
 			aria-label={`${layerName}を選択`}

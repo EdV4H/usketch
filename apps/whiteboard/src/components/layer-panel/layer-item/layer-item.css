@@ -101,3 +101,17 @@
 	border-left: 1px solid var(--color-border, #e5e7eb);
 	padding-left: 4px;
 }
+
+/* Drag and drop states */
+.layer-item--dragging {
+	opacity: 0.5;
+	cursor: grabbing;
+}
+
+.layer-item--drag-over {
+	border-top: 2px solid var(--color-primary, #3b82f6);
+}
+
+.layer-item[draggable="true"] {
+	cursor: grab;
+}
