@@ -20,8 +20,13 @@ export function getShapeAtPoint(point: Point): Shape | null {
 	const shapes = Object.values(state.shapes);
 
 	// Check shapes in reverse order (top to bottom)
+	// Skip invisible or locked shapes
 	for (let i = shapes.length - 1; i >= 0; i--) {
 		const shape = shapes[i];
+		// Skip invisible or locked shapes
+		if (shape.layer?.visible === false || shape.layer?.locked) {
+			continue;
+		}
 		if (isPointInShape(point, shape)) {
 			return shape;
 		}
@@ -74,6 +79,10 @@ export function getShapesInBounds(bounds: Bounds): Shape[] {
 	const shapes = Object.values(state.shapes);
 
 	return shapes.filter((shape) => {
+		// Skip invisible or locked shapes
+		if (shape.layer?.visible === false || shape.layer?.locked) {
+			return false;
+		}
 		return isShapeInBounds(shape, bounds);
 	});
 }
