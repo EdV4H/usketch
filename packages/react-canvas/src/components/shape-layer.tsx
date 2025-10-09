@@ -10,9 +10,13 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 	currentTool: _currentTool,
 	className = "",
 }) => {
-	const shapeArray = Object.values(shapes);
-	const { selectedShapeIds } = useWhiteboardStore();
+	const { selectedShapeIds, zOrder } = useWhiteboardStore();
 	const svgRef = useRef<SVGSVGElement>(null);
+
+	// Sort shapes by zOrder (back to front)
+	const shapeArray = zOrder
+		? zOrder.map((id) => shapes[id]).filter((shape) => shape !== undefined)
+		: Object.values(shapes);
 
 	// Note: Event handling has been moved to InteractionLayer with ToolManager integration
 	// ShapeLayer now only renders shapes and does not handle pointer events
