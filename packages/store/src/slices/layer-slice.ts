@@ -178,6 +178,13 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 			if (!shape) return state;
 
 			const currentLayer = shape.layer || DEFAULT_LAYER_METADATA;
+			const newVisible = !currentLayer.visible;
+
+			// If hiding the shape, remove it from selection
+			const newSelectedIds = newVisible
+				? state.selectedShapeIds
+				: new Set([...state.selectedShapeIds].filter((id) => id !== shapeId));
+
 			return {
 				shapes: {
 					...state.shapes,
@@ -185,10 +192,11 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 						...shape,
 						layer: {
 							...currentLayer,
-							visible: !currentLayer.visible,
+							visible: newVisible,
 						},
 					},
 				},
+				selectedShapeIds: newSelectedIds,
 			};
 		});
 	},
@@ -233,6 +241,13 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 			if (!shape) return state;
 
 			const currentLayer = shape.layer || DEFAULT_LAYER_METADATA;
+			const newLocked = !currentLayer.locked;
+
+			// If locking the shape, remove it from selection
+			const newSelectedIds = !newLocked
+				? state.selectedShapeIds
+				: new Set([...state.selectedShapeIds].filter((id) => id !== shapeId));
+
 			return {
 				shapes: {
 					...state.shapes,
@@ -240,10 +255,11 @@ export const createLayerSlice: StateCreator<StoreState, [], [], LayerSlice> = (s
 						...shape,
 						layer: {
 							...currentLayer,
-							locked: !currentLayer.locked,
+							locked: newLocked,
 						},
 					},
 				},
+				selectedShapeIds: newSelectedIds,
 			};
 		});
 	},

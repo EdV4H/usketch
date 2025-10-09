@@ -32,7 +32,8 @@ export const ShapeLayerItem: React.FC<ShapeLayerItemProps> = ({ shape, metadata,
 	const layerName = getLayerName(shape.id);
 
 	const handleClick = (e: React.MouseEvent) => {
-		if (metadata.locked) return;
+		// Don't select locked or invisible shapes
+		if (metadata.locked || !metadata.visible) return;
 
 		if (e.metaKey || e.ctrlKey) {
 			// 複数選択
