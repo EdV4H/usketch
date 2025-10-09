@@ -12,3 +12,31 @@
 	margin: 0;
 	font-size: 13px;
 }
+
+.layer-tree__drop-zone {
+	min-height: 40px;
+	margin: 4px;
+	padding: 8px;
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background-color 0.15s;
+}
+
+.layer-tree__drop-zone--active {
+	background: var(--color-primary-bg, #eff6ff);
+	border: 2px dashed var(--color-primary, #3b82f6);
+}
+
+.layer-tree__drop-indicator {
+	font-size: 12px;
+	color: var(--color-text-tertiary, #9ca3af);
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+
+.layer-tree__drop-zone--active .layer-tree__drop-indicator {
+	opacity: 1;
+	color: var(--color-primary, #3b82f6);
+}
