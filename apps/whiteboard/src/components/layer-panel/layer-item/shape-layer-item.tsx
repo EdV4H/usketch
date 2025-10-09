@@ -78,13 +78,14 @@ export const ShapeLayerItem: React.FC<ShapeLayerItemProps> = ({ shape, metadata,
 
 		const draggedId = e.dataTransfer.getData("application/layer-item");
 		if (draggedId && draggedId !== shape.id && zOrder) {
-			// Create new order: place dragged item before this item
+			// Create new order: place dragged item after this item (visually above in UI)
+			// Layer tree displays in reverse order (last item = top of list = front)
 			const newOrder = zOrder.filter((id) => id !== draggedId);
 			const targetIndex = newOrder.indexOf(shape.id);
 
 			if (targetIndex !== -1) {
-				// Insert dragged item before target
-				newOrder.splice(targetIndex, 0, draggedId);
+				// Insert dragged item after target in zOrder (which appears above in UI)
+				newOrder.splice(targetIndex + 1, 0, draggedId);
 				reorderLayers(newOrder);
 			}
 		}
