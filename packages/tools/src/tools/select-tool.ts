@@ -146,13 +146,14 @@ export const selectToolMachine = setup({
 			const store = whiteboardStore.getState();
 			const selectedIds = store.selectedShapeIds;
 
-			// Record initial positions and points of all selected shapes
+			// Record initial positions and points of all selected shapes (skip locked shapes)
 			const positions = new Map<string, Point>();
 			const points = new Map<string, Point[]>();
 
 			selectedIds.forEach((id) => {
 				const shape = getShape(id);
-				if (shape) {
+				// Skip locked shapes
+				if (shape && !shape.layer?.locked) {
 					positions.set(id, { x: shape.x, y: shape.y });
 					// For freedraw shapes, store initial points
 					if (shape.type === "freedraw" && (shape as any).points) {
@@ -191,6 +192,9 @@ export const selectToolMachine = setup({
 			const shape = getShapeAtPoint(extractWorldPoint(event.point));
 			if (!shape) return {};
 
+			// Don't select locked shapes
+			if (shape.layer?.locked) return {};
+
 			const store = whiteboardStore.getState();
 
 			// Handle Shift+Click for multiple selection
@@ -222,6 +226,9 @@ export const selectToolMachine = setup({
 			if (event.type !== "POINTER_DOWN") return {};
 			const shape = getShapeAtPoint(extractWorldPoint(event.point));
 			if (!shape) return {};
+
+			// Don't select locked shapes
+			if (shape.layer?.locked) return {};
 
 			const store = whiteboardStore.getState();
 			const currentSelection = new Set(store.selectedShapeIds);
@@ -749,6 +756,9 @@ export const selectToolMachine = setup({
 			const shapeId = Array.from(selectedIds)[0];
 			const shape = getShape(shapeId);
 			if (!shape || !("width" in shape && "height" in shape)) return {};
+
+			// Don't resize locked shapes
+			if (shape.layer?.locked) return {};
 
 			// Check if we have a resize handle from event (set by SelectionLayer)
 			// or fall back to point-based detection

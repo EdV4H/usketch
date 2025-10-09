@@ -45,10 +45,12 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 					fill="transparent"
 				/>
 
-				{/* Render shapes */}
-				{shapeArray.map((shape) => (
-					<Shape key={shape.id} shape={shape} isSelected={selectedShapeIds.has(shape.id)} />
-				))}
+				{/* Render shapes (filter out invisible shapes) */}
+				{shapeArray
+					.filter((shape) => shape.layer?.visible !== false)
+					.map((shape) => (
+						<Shape key={shape.id} shape={shape} isSelected={selectedShapeIds.has(shape.id)} />
+					))}
 			</g>
 		</svg>
 	);
