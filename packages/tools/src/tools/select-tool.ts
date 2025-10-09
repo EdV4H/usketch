@@ -152,8 +152,8 @@ export const selectToolMachine = setup({
 
 			selectedIds.forEach((id) => {
 				const shape = getShape(id);
-				// Skip locked shapes
-				if (shape && !shape.layer?.locked) {
+				// Skip locked or invisible shapes
+				if (shape && !shape.layer?.locked && shape.layer?.visible !== false) {
 					positions.set(id, { x: shape.x, y: shape.y });
 					// For freedraw shapes, store initial points
 					if (shape.type === "freedraw" && (shape as any).points) {
@@ -192,8 +192,8 @@ export const selectToolMachine = setup({
 			const shape = getShapeAtPoint(extractWorldPoint(event.point));
 			if (!shape) return {};
 
-			// Don't select locked shapes
-			if (shape.layer?.locked) return {};
+			// Don't select locked or invisible shapes
+			if (shape.layer?.locked || shape.layer?.visible === false) return {};
 
 			const store = whiteboardStore.getState();
 
@@ -227,8 +227,8 @@ export const selectToolMachine = setup({
 			const shape = getShapeAtPoint(extractWorldPoint(event.point));
 			if (!shape) return {};
 
-			// Don't select locked shapes
-			if (shape.layer?.locked) return {};
+			// Don't select locked or invisible shapes
+			if (shape.layer?.locked || shape.layer?.visible === false) return {};
 
 			const store = whiteboardStore.getState();
 			const currentSelection = new Set(store.selectedShapeIds);
@@ -757,8 +757,8 @@ export const selectToolMachine = setup({
 			const shape = getShape(shapeId);
 			if (!shape || !("width" in shape && "height" in shape)) return {};
 
-			// Don't resize locked shapes
-			if (shape.layer?.locked) return {};
+			// Don't resize locked or invisible shapes
+			if (shape.layer?.locked || shape.layer?.visible === false) return {};
 
 			// Check if we have a resize handle from event (set by SelectionLayer)
 			// or fall back to point-based detection
