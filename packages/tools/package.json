@@ -34,7 +34,7 @@
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/store": "workspace:*",
 		"uuid": "11.1.0",
-		"xstate": "5.22.1",
+		"xstate": "5.23.0",
 		"zod": "4.1.12"
 	},
 	"devDependencies": {
