@@ -284,8 +284,8 @@ export const selectToolMachine = setup({
 				newSelectedIds = new Set(intersecting.map((s) => s.id));
 			}
 
-			// Update store during drag for real-time selection feedback
-			store.setSelection(Array.from(newSelectedIds));
+			// Update store during drag for real-time selection feedback (without history)
+			store.setSelectionWithoutHistory(Array.from(newSelectedIds));
 
 			// Update selection indicator in store (visual feedback only)
 			whiteboardStore.getState().setSelectionIndicator({
