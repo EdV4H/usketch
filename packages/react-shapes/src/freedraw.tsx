@@ -62,7 +62,7 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 				width={shape.width}
 				height={shape.height}
 				fill="transparent"
-				style={{ cursor: "pointer" }}
+				style={{ pointerEvents: "none" }}
 				onClick={onClick}
 				onPointerDown={onPointerDown}
 			/>
@@ -74,7 +74,7 @@ export const Freedraw: React.FC<FreedrawProps> = ({
 				strokeLinecap="round"
 				strokeLinejoin="round"
 				pointerEvents="none"
-				style={{ cursor: "pointer" }}
+				style={{ pointerEvents: "none" }}
 			/>
 			{isSelected && (
 				<rect

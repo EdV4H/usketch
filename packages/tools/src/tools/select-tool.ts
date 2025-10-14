@@ -189,38 +189,25 @@ export const selectToolMachine = setup({
 		selectShape: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
 			const shape = getShapeAtPoint(extractWorldPoint(event.point));
+
 			if (!shape) return {};
 
 			const store = whiteboardStore.getState();
 
-			// Handle Shift+Click for multiple selection
-			if (event.shiftKey) {
-				const currentSelection = new Set(store.selectedShapeIds);
-				if (currentSelection.has(shape.id)) {
-					// Deselect if already selected
-					currentSelection.delete(shape.id);
-				} else {
-					// Add to selection
-					currentSelection.add(shape.id);
-				}
-				store.setSelection(Array.from(currentSelection));
-				return {
-					selectedIds: currentSelection,
-					hoveredId: shape.id,
-				};
-			} else {
-				// Normal click - replace selection
-				store.setSelection([shape.id]);
-				return {
-					selectedIds: new Set([shape.id]),
-					hoveredId: shape.id,
-				};
-			}
+			// Normal click - replace selection
+			// (Shift+Click is handled separately in toggleShapeSelection)
+			store.setSelection([shape.id]);
+			return {
+				selectedIds: new Set([shape.id]),
+				hoveredId: shape.id,
+			};
 		}),
 
 		toggleShapeSelection: assign(({ event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
+
 			const shape = getShapeAtPoint(extractWorldPoint(event.point));
+
 			if (!shape) return {};
 
 			const store = whiteboardStore.getState();
@@ -928,13 +915,7 @@ export const selectToolMachine = setup({
 			on: {
 				POINTER_DOWN: [
 					{
-						// Check for resize handle first
-						target: "resizing",
-						guard: "isPointOnResizeHandle",
-						actions: "startResize",
-					},
-					{
-						// Shift+Click on shape - toggle selection
+						// Shift+Click on shape - toggle selection (check this BEFORE resize handle)
 						target: "idle",
 						guard: ({ event }) => {
 							return event.shiftKey === true && !!getShapeAtPoint(extractWorldPoint(event.point));
@@ -942,15 +923,31 @@ export const selectToolMachine = setup({
 						actions: "toggleShapeSelection",
 					},
 					{
+						// Check for resize handle
+						target: "resizing",
+						guard: "isPointOnResizeHandle",
+						actions: "startResize",
+					},
+					{
 						// Click on selected shape - prepare for drag
+						// (but not on Shift+Click, which is handled above)
 						target: "readyToDrag",
-						guard: "isPointOnSelectedShape",
+						guard: ({ event }) => {
+							if (event.type !== "POINTER_DOWN") return false;
+							if (event.shiftKey) return false; // Exclude Shift+Click
+							const shape = getShapeAtPoint(extractWorldPoint(event.point));
+							const store = whiteboardStore.getState();
+							return shape ? store.selectedShapeIds.has(shape.id) : false;
+						},
 						actions: "prepareForDrag",
 					},
 					{
 						// Click on unselected shape - select and prepare for drag
+						// (but not on Shift+Click, which is handled above)
 						target: "readyToDrag",
-						guard: "isPointOnShape",
+						guard: ({ event }) => {
+							return !event.shiftKey && !!getShapeAtPoint(extractWorldPoint(event.point));
+						},
 						actions: ["selectShape", "prepareForDrag"],
 					},
 					{

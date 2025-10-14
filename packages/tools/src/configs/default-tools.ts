@@ -26,12 +26,9 @@ const selectToolBehaviors: ToolBehaviors = {
 		if (shapeId) {
 			// Clicking on a shape
 			if (event.shiftKey || event.ctrlKey || event.metaKey) {
-				// Toggle selection with modifier keys
-				if (store.selectedShapeIds.has(shapeId)) {
-					store.deselectShape(shapeId);
-				} else {
-					store.selectShape(shapeId);
-				}
+				// DO NOT handle selection here when modifier keys are pressed
+				// Let the XState machine handle Shift+Click logic properly
+				// This prevents selection state from changing before the machine processes the event
 			} else {
 				// If clicking on already selected shape, don't change selection
 				// This allows dragging multiple selected shapes
