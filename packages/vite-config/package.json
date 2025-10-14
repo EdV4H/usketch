@@ -15,7 +15,7 @@
 		"dev": "tsup src/index.ts --format esm --dts --watch"
 	},
 	"dependencies": {
-		"vite": "7.1.9"
+		"vite": "7.1.10"
 	},
 	"devDependencies": {
 		"@usketch/tsconfig": "workspace:*",
