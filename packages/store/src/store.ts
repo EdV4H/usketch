@@ -105,8 +105,7 @@ export interface WhiteboardStore extends WhiteboardState, StyleSlice {
 	selectAll: () => void;
 	selectAllShapes: () => void;
 	selectShapes: (ids: string[]) => void;
-	setSelection: (ids: string[]) => void;
-	setSelectionWithoutHistory: (ids: string[]) => void;
+	setSelection: (ids: string[], options?: { skipHistory?: boolean }) => void;
 	removeSelectedShapes: () => void;
 
 	// Alignment actions
@@ -358,15 +357,15 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 		}));
 	},
 
-	setSelection: (ids: string[]) => {
-		get().executeCommand(new SetSelectionCommand(ids));
-	},
-
-	setSelectionWithoutHistory: (ids: string[]) => {
-		set((state) => ({
-			...state,
-			selectedShapeIds: new Set(ids),
-		}));
+	setSelection: (ids: string[], options?: { skipHistory?: boolean }) => {
+		if (options?.skipHistory) {
+			set((state) => ({
+				...state,
+				selectedShapeIds: new Set(ids),
+			}));
+		} else {
+			get().executeCommand(new SetSelectionCommand(ids));
+		}
 	},
 
 	removeSelectedShapes: () => {

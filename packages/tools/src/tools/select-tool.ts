@@ -285,7 +285,7 @@ export const selectToolMachine = setup({
 			}
 
 			// Update store during drag for real-time selection feedback (without history)
-			store.setSelectionWithoutHistory(Array.from(newSelectedIds));
+			store.setSelection(Array.from(newSelectedIds), { skipHistory: true });
 
 			// Update selection indicator in store (visual feedback only)
 			whiteboardStore.getState().setSelectionIndicator({
