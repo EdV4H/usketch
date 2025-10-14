@@ -142,7 +142,7 @@ export interface WhiteboardStore extends WhiteboardState, StyleSlice {
 	toggleShapeSnap: () => void;
 
 	// Command execution
-	executeCommand: (command: Command) => void;
+	executeCommand: (command: Command, options?: { skipHistory?: boolean }) => void;
 
 	// Batch operations
 	beginBatch: (description?: string) => void;
@@ -250,13 +250,18 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 	history: historyManager,
 
 	// Command execution
-	executeCommand: (command: Command) => {
+	executeCommand: (command: Command, options?: { skipHistory?: boolean }) => {
 		const context = createCommandContext(get, set);
-		historyManager.execute(command, context);
-		set({
-			canUndo: historyManager.canUndo,
-			canRedo: historyManager.canRedo,
-		});
+		if (options?.skipHistory) {
+			// Execute command directly without adding to history
+			command.execute(context);
+		} else {
+			historyManager.execute(command, context);
+			set({
+				canUndo: historyManager.canUndo,
+				canRedo: historyManager.canRedo,
+			});
+		}
 	},
 
 	// Actions - Now using commands for undo/redo support
@@ -358,14 +363,7 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 	},
 
 	setSelection: (ids: string[], options?: { skipHistory?: boolean }) => {
-		if (options?.skipHistory) {
-			set((state) => ({
-				...state,
-				selectedShapeIds: new Set(ids),
-			}));
-		} else {
-			get().executeCommand(new SetSelectionCommand(ids));
-		}
+		get().executeCommand(new SetSelectionCommand(ids), options);
 	},
 
 	removeSelectedShapes: () => {
