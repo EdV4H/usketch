@@ -284,9 +284,8 @@ export const selectToolMachine = setup({
 				newSelectedIds = new Set(intersecting.map((s) => s.id));
 			}
 
-			// DON'T update store during drag to avoid creating History entries
-			// We'll update it once when drag ends in finalizeSelection
-			// store.setSelection(Array.from(newSelectedIds)); // REMOVED
+			// Update store during drag for real-time selection feedback
+			store.setSelection(Array.from(newSelectedIds));
 
 			// Update selection indicator in store (visual feedback only)
 			whiteboardStore.getState().setSelectionIndicator({
