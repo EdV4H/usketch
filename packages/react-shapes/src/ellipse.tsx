@@ -27,9 +27,9 @@ export const Ellipse: React.FC<EllipseProps> = ({
 	const filterStyle = shape.shadow
 		? {
 				filter: `drop-shadow(${shape.shadow.offsetX}px ${shape.shadow.offsetY}px ${shape.shadow.blur}px ${shape.shadow.color})`,
-				cursor: "pointer" as const,
+				pointerEvents: "none" as const,
 			}
-		: { cursor: "pointer" as const };
+		: { pointerEvents: "none" as const };
 
 	return (
 		<g
