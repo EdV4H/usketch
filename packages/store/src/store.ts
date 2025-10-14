@@ -105,7 +105,7 @@ export interface WhiteboardStore extends WhiteboardState, StyleSlice {
 	selectAll: () => void;
 	selectAllShapes: () => void;
 	selectShapes: (ids: string[]) => void;
-	setSelection: (ids: string[]) => void;
+	setSelection: (ids: string[], options?: { skipHistory?: boolean }) => void;
 	removeSelectedShapes: () => void;
 
 	// Alignment actions
@@ -142,7 +142,7 @@ export interface WhiteboardStore extends WhiteboardState, StyleSlice {
 	toggleShapeSnap: () => void;
 
 	// Command execution
-	executeCommand: (command: Command) => void;
+	executeCommand: (command: Command, options?: { skipHistory?: boolean }) => void;
 
 	// Batch operations
 	beginBatch: (description?: string) => void;
@@ -250,13 +250,18 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 	history: historyManager,
 
 	// Command execution
-	executeCommand: (command: Command) => {
+	executeCommand: (command: Command, options?: { skipHistory?: boolean }) => {
 		const context = createCommandContext(get, set);
-		historyManager.execute(command, context);
-		set({
-			canUndo: historyManager.canUndo,
-			canRedo: historyManager.canRedo,
-		});
+		if (options?.skipHistory) {
+			// Execute command directly without adding to history
+			command.execute(context);
+		} else {
+			historyManager.execute(command, context);
+			set({
+				canUndo: historyManager.canUndo,
+				canRedo: historyManager.canRedo,
+			});
+		}
 	},
 
 	// Actions - Now using commands for undo/redo support
@@ -357,8 +362,8 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 		}));
 	},
 
-	setSelection: (ids: string[]) => {
-		get().executeCommand(new SetSelectionCommand(ids));
+	setSelection: (ids: string[], options?: { skipHistory?: boolean }) => {
+		get().executeCommand(new SetSelectionCommand(ids), options);
 	},
 
 	removeSelectedShapes: () => {
