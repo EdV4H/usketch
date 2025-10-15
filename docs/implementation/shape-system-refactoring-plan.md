@@ -84,7 +84,7 @@ class ShapeRegistry {
 
   register(plugin: ShapePlugin): void;
   getPlugin(type: string): ShapePlugin | undefined;
-  createShape(type: string, props: any): BaseShape | null;
+  createDefaultShape(type: string, props: any): BaseShape | null;
 }
 ```
 
@@ -421,6 +421,7 @@ useEffect(() => {
   const div = document.createElement("div");
   div.style.position = "absolute";
   div.dataset.shapeId = renderer.shape.id;
+  div.className = "html-shape-container";
 
   // Find the HTML shapes layer
   const canvasContainer =
@@ -629,7 +630,7 @@ if (parentHasTransform) {
 │  ┌────────────────────────────────────────────────────┐     │
 │  │  ShapePlugin (Enhanced)                            │     │
 │  │  - component: React.ComponentType                  │     │
-│  │  - createShape(props): Shape                       │     │
+│  │  - createDefaultShape(props): Shape                │     │
 │  │  - getBounds(shape): Bounds                        │     │
 │  │  - hitTest(shape, point): boolean                  │     │
 │  │  - すべて Pure Function で実装                     │     │
@@ -683,12 +684,16 @@ class ShapeRegistry {
     this.emit({ type: 'register', shapeType: plugin.type, plugin });
   }
 
+  registerMultiple(plugins: ShapePlugin[]): void {
+    plugins.forEach(plugin => this.register(plugin));
+  }
+
   // Factory 機能を統合
   getComponent(type: string): React.ComponentType | undefined {
     return this.plugins.get(type)?.component;
   }
 
-  createShape(type: string, props: CreateShapeProps): Shape | null {
+  createDefaultShape(type: string, props: CreateShapeProps): Shape | null {
     const plugin = this.plugins.get(type);
     return plugin ? plugin.createDefaultShape(props) : null;
   }
@@ -821,7 +826,7 @@ export const rectanglePlugin: ShapePlugin<RectangleShape> = {
 #### 案3: UnifiedShapeRenderer を簡素化
 
 **Before (63行)**
-```typescript
+```tsx
 export const UnifiedShapeRenderer: React.FC = ({
   shape,
   isSelected,
@@ -870,7 +875,7 @@ export const UnifiedShapeRenderer: React.FC = ({
 ```
 
 **After (~25行)**
-```typescript
+```tsx
 // ✅ シンプルな実装
 export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   shape,
@@ -1023,7 +1028,7 @@ function MyShape({ shape }: { shape: Shape }) {
 #### 案5: HtmlWrapper を分割
 
 **Before (284行)**
-```typescript
+```tsx
 // ❌ 1つのコンポーネントで2つのモードを管理
 export const HtmlWrapper: React.FC = ({ renderer, ... }) => {
   const [useForeignObject, setUseForeignObject] = useState(true);
@@ -1045,7 +1050,7 @@ export const HtmlWrapper: React.FC = ({ renderer, ... }) => {
 ```
 
 **After**
-```typescript
+```tsx
 // ✅ ForeignObject 専用コンポーネント (~80行)
 export const ForeignObjectShape: React.FC<ForeignObjectShapeProps> = ({
   shape,
@@ -1137,7 +1142,7 @@ export const PortalShape: React.FC<PortalShapeProps> = ({
 #### 案6: Dependency Injection 導入
 
 **Before**
-```typescript
+```tsx
 // ❌ グローバルシングルトン
 export const globalShapeRegistry = new ShapeRegistry();
 
@@ -1161,7 +1166,7 @@ test('test 2', () => {
 ```
 
 **After**
-```typescript
+```tsx
 // ✅ グローバルシングルトンを削除
 
 // ✅ Context 経由で Registry を注入
@@ -1440,7 +1445,7 @@ rectanglePlugin
 ### 2. テスタビリティの向上
 
 **Before**
-```typescript
+```tsx
 // ❌ テストが困難
 test('renders shape', () => {
   // グローバル状態のセットアップ
@@ -1459,7 +1464,7 @@ test('renders shape', () => {
 ```
 
 **After**
-```typescript
+```tsx
 // ✅ テストが簡単
 test('renders shape', () => {
   const registry = createMockRegistry([rectanglePlugin]);
@@ -1495,7 +1500,7 @@ const renderer = useMemo(() => {
 ```
 
 **After**
-```typescript
+```tsx
 // ✅ コンポーネントはメモ化不要
 const ShapeComponent = registry.getComponent(shape.type);
 
@@ -1514,7 +1519,7 @@ return <ShapeComponent shape={shape} />;
 ### 4. 拡張性の向上
 
 **Before**
-```typescript
+```tsx
 // ❌ 新しい Shape を追加するには...
 // 1. BaseShape を継承したクラスを作る
 class TriangleRenderer extends BaseShape<TriangleShape> {
@@ -1542,7 +1547,7 @@ globalShapeRegistry.register(plugin);
 ```
 
 **After**
-```typescript
+```tsx
 // ✅ Plugin を1つ定義するだけ
 export const trianglePlugin: ShapePlugin<TriangleShape> = {
   type: "triangle",
@@ -1595,7 +1600,7 @@ getBounds: (shape) => {
 ```
 
 **After**
-```typescript
+```tsx
 // ✅ 完全な型推論
 export const rectanglePlugin: ShapePlugin<RectangleShape> = {
   //                                      ^^^^^^^^^^^^^^
