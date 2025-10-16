@@ -48,126 +48,125 @@ const CounterComponent: React.FC<{
 	};
 
 	return (
-		<div
-			style={{
-				position: "absolute",
-				left: shape.x,
-				top: shape.y,
-				width: shape.width,
-				height: shape.height,
-				display: "flex",
-				alignItems: "center",
-				gap: "10px",
-				userSelect: "none",
-				padding: "10px",
-				pointerEvents: "all",
-			}}
-		>
-			{/* Decrement Button */}
-			<button
-				type="button"
-				onClick={handleDecrement}
-				style={{
-					width: "40px",
-					height: "40px",
-					borderRadius: "50%",
-					backgroundColor: "#FF6B6B",
-					color: "white",
-					border: "none",
-					fontSize: "24px",
-					fontWeight: "bold",
-					cursor: "pointer",
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					transition: "all 0.3s",
-					boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-				}}
-				onMouseEnter={(e) => {
-					e.currentTarget.style.transform = "scale(1.1)";
-				}}
-				onMouseLeave={(e) => {
-					e.currentTarget.style.transform = "scale(1)";
-				}}
-			>
-				−
-			</button>
-
-			{/* Counter Display */}
+		<foreignObject x={shape.x} y={shape.y} width={shape.width + 120} height={shape.height + 20}>
 			<div
 				style={{
-					width: `${shape.width}px`,
-					height: `${shape.height}px`,
-					backgroundColor: shape.fillColor,
-					border: `${shape.strokeWidth}px solid ${shape.strokeColor}`,
-					borderRadius: "20px",
 					display: "flex",
-					flexDirection: "column",
 					alignItems: "center",
-					justifyContent: "center",
-					fontSize: "16px",
-					fontWeight: "600",
-					boxShadow: isSelected
-						? "0 0 0 2px #0066FF, 0 4px 12px rgba(0,0,0,0.08)"
-						: "0 4px 12px rgba(0,0,0,0.08)",
-					transition: "all 0.3s",
+					gap: "10px",
+					userSelect: "none",
+					padding: "10px",
+					pointerEvents: "all",
+					width: "100%",
+					height: "100%",
 				}}
 			>
-				<div
+				{/* Decrement Button */}
+				<button
+					type="button"
+					onClick={handleDecrement}
 					style={{
-						fontSize: "14px",
-						color: "#888",
-						marginBottom: "4px",
-						textTransform: "uppercase",
-						letterSpacing: "1px",
-					}}
-				>
-					Counter
-				</div>
-				<div
-					style={{
-						fontSize: "42px",
+						width: "40px",
+						height: "40px",
+						borderRadius: "50%",
+						backgroundColor: "#FF6B6B",
+						color: "white",
+						border: "none",
+						fontSize: "24px",
 						fontWeight: "bold",
-						background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-						WebkitBackgroundClip: "text",
-						WebkitTextFillColor: "transparent",
-						backgroundClip: "text",
+						cursor: "pointer",
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						transition: "all 0.3s",
+						boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+					}}
+					onMouseEnter={(e) => {
+						e.currentTarget.style.transform = "scale(1.1)";
+					}}
+					onMouseLeave={(e) => {
+						e.currentTarget.style.transform = "scale(1)";
 					}}
 				>
-					{localCount}
-				</div>
-			</div>
+					−
+				</button>
 
-			{/* Increment Button */}
-			<button
-				type="button"
-				onClick={handleIncrement}
-				style={{
-					width: "40px",
-					height: "40px",
-					borderRadius: "50%",
-					backgroundColor: "#51CF66",
-					color: "white",
-					border: "none",
-					fontSize: "24px",
-					fontWeight: "bold",
-					cursor: "pointer",
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					transition: "all 0.3s",
-					boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-				}}
-				onMouseEnter={(e) => {
-					e.currentTarget.style.transform = "scale(1.1)";
-				}}
-				onMouseLeave={(e) => {
-					e.currentTarget.style.transform = "scale(1)";
-				}}
-			>
-				+
-			</button>
-		</div>
+				{/* Counter Display */}
+				<div
+					style={{
+						width: `${shape.width}px`,
+						height: `${shape.height}px`,
+						backgroundColor: shape.fillColor,
+						border: `${shape.strokeWidth}px solid ${shape.strokeColor}`,
+						borderRadius: "20px",
+						display: "flex",
+						flexDirection: "column",
+						alignItems: "center",
+						justifyContent: "center",
+						fontSize: "16px",
+						fontWeight: "600",
+						boxShadow: isSelected
+							? "0 0 0 2px #0066FF, 0 4px 12px rgba(0,0,0,0.08)"
+							: "0 4px 12px rgba(0,0,0,0.08)",
+						transition: "all 0.3s",
+					}}
+				>
+					<div
+						style={{
+							fontSize: "14px",
+							color: "#888",
+							marginBottom: "4px",
+							textTransform: "uppercase",
+							letterSpacing: "1px",
+						}}
+					>
+						Counter
+					</div>
+					<div
+						style={{
+							fontSize: "42px",
+							fontWeight: "bold",
+							background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+							WebkitBackgroundClip: "text",
+							WebkitTextFillColor: "transparent",
+							backgroundClip: "text",
+						}}
+					>
+						{localCount}
+					</div>
+				</div>
+
+				{/* Increment Button */}
+				<button
+					type="button"
+					onClick={handleIncrement}
+					style={{
+						width: "40px",
+						height: "40px",
+						borderRadius: "50%",
+						backgroundColor: "#51CF66",
+						color: "white",
+						border: "none",
+						fontSize: "24px",
+						fontWeight: "bold",
+						cursor: "pointer",
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						transition: "all 0.3s",
+						boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+					}}
+					onMouseEnter={(e) => {
+						e.currentTarget.style.transform = "scale(1.1)";
+					}}
+					onMouseLeave={(e) => {
+						e.currentTarget.style.transform = "scale(1)";
+					}}
+				>
+					+
+				</button>
+			</div>
+		</foreignObject>
 	);
 };
 
