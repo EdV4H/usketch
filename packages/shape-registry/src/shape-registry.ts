@@ -124,6 +124,13 @@ export class ShapeRegistry {
 	}
 
 	/**
+	 * Log a warning for unregistered plugin
+	 */
+	private warnUnregisteredPlugin(type: string): void {
+		console.warn(`No plugin registered for shape type: ${type}`);
+	}
+
+	/**
 	 * Create a default shape using the registered plugin
 	 */
 	createShape(type: string, props: any): BaseShape | null {
@@ -224,7 +231,7 @@ export class ShapeRegistry {
 	getBounds(shape: BaseShape) {
 		const plugin = this.getPlugin(shape.type);
 		if (!plugin) {
-			console.warn(`No plugin registered for shape type: ${shape.type}`);
+			this.warnUnregisteredPlugin(shape.type);
 			return null;
 		}
 
@@ -247,7 +254,7 @@ export class ShapeRegistry {
 	hitTest(shape: BaseShape, point: Point): boolean {
 		const plugin = this.getPlugin(shape.type);
 		if (!plugin) {
-			console.warn(`No plugin registered for shape type: ${shape.type}`);
+			this.warnUnregisteredPlugin(shape.type);
 			return false;
 		}
 

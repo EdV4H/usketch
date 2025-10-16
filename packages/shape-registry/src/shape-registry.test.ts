@@ -2,6 +2,24 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { ShapeRegistry } from "./shape-registry";
 import type { ShapePlugin } from "./types";
 
+// Helper function for rectangle hit test
+const createRectangleHitTest = () => {
+	return (shape: any, point: any) => {
+		const bounds = {
+			x: shape.x,
+			y: shape.y,
+			width: shape.width,
+			height: shape.height,
+		};
+		return (
+			point.x >= bounds.x &&
+			point.x <= bounds.x + bounds.width &&
+			point.y >= bounds.y &&
+			point.y <= bounds.y + bounds.height
+		);
+	};
+};
+
 describe("ShapeRegistry", () => {
 	let registry: ShapeRegistry;
 
@@ -140,20 +158,7 @@ describe("ShapeRegistry", () => {
 				component: () => null,
 				createDefaultShape: (props) => ({ ...props, type: "rectangle" }),
 				getBounds: (shape) => ({ x: shape.x, y: shape.y, width: 100, height: 100 }),
-				hitTest: (shape, point) => {
-					const bounds = {
-						x: shape.x,
-						y: shape.y,
-						width: shape.width,
-						height: shape.height,
-					};
-					return (
-						point.x >= bounds.x &&
-						point.x <= bounds.x + bounds.width &&
-						point.y >= bounds.y &&
-						point.y <= bounds.y + bounds.height
-					);
-				},
+				hitTest: createRectangleHitTest(),
 			};
 
 			registry.register(mockPlugin);
@@ -177,20 +182,7 @@ describe("ShapeRegistry", () => {
 				component: () => null,
 				createDefaultShape: (props) => ({ ...props, type: "rectangle" }),
 				getBounds: (shape) => ({ x: shape.x, y: shape.y, width: 100, height: 100 }),
-				hitTest: (shape, point) => {
-					const bounds = {
-						x: shape.x,
-						y: shape.y,
-						width: shape.width,
-						height: shape.height,
-					};
-					return (
-						point.x >= bounds.x &&
-						point.x <= bounds.x + bounds.width &&
-						point.y >= bounds.y &&
-						point.y <= bounds.y + bounds.height
-					);
-				},
+				hitTest: createRectangleHitTest(),
 			};
 
 			registry.register(mockPlugin);
