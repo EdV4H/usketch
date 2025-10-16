@@ -31,6 +31,7 @@
 	},
 	"dependencies": {
 		"@usketch/effect-registry": "workspace:*",
+		"@usketch/shape-registry": "workspace:*",
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/store": "workspace:*",
 		"uuid": "11.1.0",
