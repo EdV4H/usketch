@@ -22,7 +22,7 @@ export interface HtmlCounterShape extends CustomBaseShape {
 	count: number;
 }
 
-// React component for the counter UI (SVG-based)
+// React component for the counter UI (HTML-based)
 const CounterComponent: React.FC<{
 	shape: HtmlCounterShape;
 	isSelected?: boolean;
@@ -30,190 +30,150 @@ const CounterComponent: React.FC<{
 	onPointerDown?: (e: React.PointerEvent) => void;
 	onPointerMove?: (e: React.PointerEvent) => void;
 	onPointerUp?: (e: React.PointerEvent) => void;
-}> = ({ shape, isSelected, onClick, onPointerDown, onPointerMove, onPointerUp }) => {
-	const buttonRadius = 20;
-	const buttonGap = 10;
-	const padding = 10;
-
-	return (
-		<g
-			role="button"
-			onClick={onClick}
-			onPointerDown={onPointerDown}
-			onPointerMove={onPointerMove}
-			onPointerUp={onPointerUp}
-			style={{ cursor: "pointer" }}
-		>
-			{/* Decrement Button */}
-			<circle
-				cx={shape.x - buttonRadius - buttonGap}
-				cy={shape.y + shape.height / 2}
-				r={buttonRadius}
-				fill="#FF6B6B"
-				stroke="#CC5555"
-				strokeWidth={2}
-				style={{ cursor: "pointer" }}
-			/>
-			<text
-				x={shape.x - buttonRadius - buttonGap}
-				y={shape.y + shape.height / 2}
-				fill="white"
-				fontSize="24"
-				fontWeight="bold"
-				textAnchor="middle"
-				dominantBaseline="middle"
-				style={{ pointerEvents: "none", userSelect: "none" }}
-			>
-				−
-			</text>
-
-			{/* Counter Display */}
-			<rect
-				x={shape.x}
-				y={shape.y}
-				width={shape.width}
-				height={shape.height}
-				rx={20}
-				fill={shape.fillColor}
-				stroke={shape.strokeColor}
-				strokeWidth={shape.strokeWidth}
-				opacity={shape.opacity}
-			/>
-			<text
-				x={shape.x + shape.width / 2}
-				y={shape.y + shape.height / 2 - 15}
-				fill="#888"
-				fontSize="12"
-				textAnchor="middle"
-				style={{ userSelect: "none" }}
-			>
-				COUNTER
-			</text>
-			<text
-				x={shape.x + shape.width / 2}
-				y={shape.y + shape.height / 2 + 15}
-				fill="#667eea"
-				fontSize="36"
-				fontWeight="bold"
-				textAnchor="middle"
-				dominantBaseline="middle"
-				style={{ userSelect: "none" }}
-			>
-				{shape.count}
-			</text>
-
-			{/* Increment Button */}
-			<circle
-				cx={shape.x + shape.width + buttonRadius + buttonGap}
-				cy={shape.y + shape.height / 2}
-				r={buttonRadius}
-				fill="#51CF66"
-				stroke="#41B856"
-				strokeWidth={2}
-				style={{ cursor: "pointer" }}
-			/>
-			<text
-				x={shape.x + shape.width + buttonRadius + buttonGap}
-				y={shape.y + shape.height / 2}
-				fill="white"
-				fontSize="24"
-				fontWeight="bold"
-				textAnchor="middle"
-				dominantBaseline="middle"
-				style={{ pointerEvents: "none", userSelect: "none" }}
-			>
-				+
-			</text>
-
-			{/* Selection highlight */}
-			{isSelected && (
-				<rect
-					x={shape.x - buttonRadius - buttonGap - padding}
-					y={shape.y - padding}
-					width={shape.width + (buttonRadius + buttonGap + padding) * 2}
-					height={shape.height + padding * 2}
-					fill="none"
-					stroke="#0066FF"
-					strokeWidth={2}
-					strokeDasharray="5,5"
-					opacity={0.5}
-					style={{ pointerEvents: "none" }}
-				/>
-			)}
-		</g>
-	);
-};
-
-// Wrapper component to handle interactivity
-const InteractiveCounterComponent: React.FC<{
-	shape: HtmlCounterShape;
-	isSelected?: boolean;
-	onClick?: (e: React.MouseEvent) => void;
-	onPointerDown?: (e: React.PointerEvent) => void;
-	onPointerMove?: (e: React.PointerEvent) => void;
-	onPointerUp?: (e: React.PointerEvent) => void;
-}> = (props) => {
-	const [localCount, setLocalCount] = useState(props.shape.count);
+}> = ({ shape, isSelected }) => {
+	const [localCount, setLocalCount] = useState(shape.count);
 
 	React.useEffect(() => {
-		setLocalCount(props.shape.count);
-	}, [props.shape.count]);
+		setLocalCount(shape.count);
+	}, [shape.count]);
 
-	const handleClick = (e: React.MouseEvent) => {
-		const buttonRadius = 20;
-		const buttonGap = 10;
-		const svgElement = (e.target as SVGElement).ownerSVGElement;
-		if (!svgElement) return;
+	const handleIncrement = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		setLocalCount((prev) => prev + 1);
+	};
 
-		const point = svgElement.createSVGPoint();
-		point.x = e.clientX;
-		point.y = e.clientY;
-		const svgPoint = point.matrixTransform(svgElement.getScreenCTM()?.inverse());
-
-		// Check if clicked on decrement button
-		const decrementX = props.shape.x - buttonRadius - buttonGap;
-		const decrementY = props.shape.y + props.shape.height / 2;
-		const decrementDist = Math.sqrt(
-			(svgPoint.x - decrementX) ** 2 + (svgPoint.y - decrementY) ** 2,
-		);
-
-		if (decrementDist <= buttonRadius) {
-			setLocalCount((prev) => prev - 1);
-			e.stopPropagation();
-			return;
-		}
-
-		// Check if clicked on increment button
-		const incrementX = props.shape.x + props.shape.width + buttonRadius + buttonGap;
-		const incrementY = props.shape.y + props.shape.height / 2;
-		const incrementDist = Math.sqrt(
-			(svgPoint.x - incrementX) ** 2 + (svgPoint.y - incrementY) ** 2,
-		);
-
-		if (incrementDist <= buttonRadius) {
-			setLocalCount((prev) => prev + 1);
-			e.stopPropagation();
-			return;
-		}
-
-		// Otherwise, pass through to default handler
-		if (props.onClick) {
-			props.onClick(e);
-		}
+	const handleDecrement = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		setLocalCount((prev) => prev - 1);
 	};
 
 	return (
-		<CounterComponent
-			{...props}
-			shape={{ ...props.shape, count: localCount }}
-			onClick={handleClick}
-		/>
+		<div
+			style={{
+				position: "absolute",
+				left: shape.x,
+				top: shape.y,
+				width: shape.width,
+				height: shape.height,
+				display: "flex",
+				alignItems: "center",
+				gap: "10px",
+				userSelect: "none",
+				padding: "10px",
+				pointerEvents: "all",
+			}}
+		>
+			{/* Decrement Button */}
+			<button
+				type="button"
+				onClick={handleDecrement}
+				style={{
+					width: "40px",
+					height: "40px",
+					borderRadius: "50%",
+					backgroundColor: "#FF6B6B",
+					color: "white",
+					border: "none",
+					fontSize: "24px",
+					fontWeight: "bold",
+					cursor: "pointer",
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					transition: "all 0.3s",
+					boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+				}}
+				onMouseEnter={(e) => {
+					e.currentTarget.style.transform = "scale(1.1)";
+				}}
+				onMouseLeave={(e) => {
+					e.currentTarget.style.transform = "scale(1)";
+				}}
+			>
+				−
+			</button>
+
+			{/* Counter Display */}
+			<div
+				style={{
+					width: `${shape.width}px`,
+					height: `${shape.height}px`,
+					backgroundColor: shape.fillColor,
+					border: `${shape.strokeWidth}px solid ${shape.strokeColor}`,
+					borderRadius: "20px",
+					display: "flex",
+					flexDirection: "column",
+					alignItems: "center",
+					justifyContent: "center",
+					fontSize: "16px",
+					fontWeight: "600",
+					boxShadow: isSelected
+						? "0 0 0 2px #0066FF, 0 4px 12px rgba(0,0,0,0.08)"
+						: "0 4px 12px rgba(0,0,0,0.08)",
+					transition: "all 0.3s",
+				}}
+			>
+				<div
+					style={{
+						fontSize: "14px",
+						color: "#888",
+						marginBottom: "4px",
+						textTransform: "uppercase",
+						letterSpacing: "1px",
+					}}
+				>
+					Counter
+				</div>
+				<div
+					style={{
+						fontSize: "42px",
+						fontWeight: "bold",
+						background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+						WebkitBackgroundClip: "text",
+						WebkitTextFillColor: "transparent",
+						backgroundClip: "text",
+					}}
+				>
+					{localCount}
+				</div>
+			</div>
+
+			{/* Increment Button */}
+			<button
+				type="button"
+				onClick={handleIncrement}
+				style={{
+					width: "40px",
+					height: "40px",
+					borderRadius: "50%",
+					backgroundColor: "#51CF66",
+					color: "white",
+					border: "none",
+					fontSize: "24px",
+					fontWeight: "bold",
+					cursor: "pointer",
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					transition: "all 0.3s",
+					boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+				}}
+				onMouseEnter={(e) => {
+					e.currentTarget.style.transform = "scale(1.1)";
+				}}
+				onMouseLeave={(e) => {
+					e.currentTarget.style.transform = "scale(1)";
+				}}
+			>
+				+
+			</button>
+		</div>
 	);
 };
 
 export const htmlCounterPlugin: ShapePlugin<HtmlCounterShape> = {
 	type: "html-counter",
-	component: InteractiveCounterComponent,
+	component: CounterComponent,
 	createDefaultShape: (props: {
 		id: string;
 		x: number;
@@ -235,13 +195,13 @@ export const htmlCounterPlugin: ShapePlugin<HtmlCounterShape> = {
 		count: 0,
 	}),
 	getBounds: (shape: HtmlCounterShape) => {
-		const buttonRadius = 20;
-		const buttonGap = 10;
+		const buttonWidth = 40;
+		const gap = 10;
 		const padding = 10;
 		return {
-			x: shape.x - buttonRadius - buttonGap - padding,
+			x: shape.x - padding,
 			y: shape.y - padding,
-			width: shape.width + (buttonRadius + buttonGap + padding) * 2,
+			width: shape.width + buttonWidth * 2 + gap * 2 + padding * 2,
 			height: shape.height + padding * 2,
 		};
 	},
