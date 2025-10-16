@@ -194,14 +194,12 @@ export const htmlCounterPlugin: ShapePlugin<HtmlCounterShape> = {
 		count: 0,
 	}),
 	getBounds: (shape: HtmlCounterShape) => {
-		const buttonWidth = 40;
-		const gap = 10;
-		const padding = 10;
+		// Match foreignObject dimensions: width + 120, height + 20
 		return {
-			x: shape.x - padding,
-			y: shape.y - padding,
-			width: shape.width + buttonWidth * 2 + gap * 2 + padding * 2,
-			height: shape.height + padding * 2,
+			x: shape.x,
+			y: shape.y,
+			width: shape.width + 120,
+			height: shape.height + 20,
 		};
 	},
 	hitTest: (shape: HtmlCounterShape, point: { x: number; y: number }) => {
