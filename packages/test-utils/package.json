@@ -53,9 +53,7 @@
 		"clean": "rm -rf dist coverage .turbo"
 	},
 	"dependencies": {
-		"@testing-library/jest-dom": "6.9.1",
-		"@usketch/shape-registry": "workspace:*",
-		"@usketch/shared-types": "workspace:*"
+		"@testing-library/jest-dom": "6.9.1"
 	},
 	"devDependencies": {
 		"@types/node": "24.8.0",
@@ -66,6 +64,8 @@
 		"vitest": "3.2.4"
 	},
 	"peerDependencies": {
+		"@usketch/shape-registry": "workspace:*",
+		"@usketch/shared-types": "workspace:*",
 		"vitest": "^3.0.0 || ^4.0.0 || ^5.0.0"
 	},
 	"engines": {
