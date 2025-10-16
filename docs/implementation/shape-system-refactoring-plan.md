@@ -12,6 +12,7 @@
 - [現在の設計分析](#現在の設計分析)
 - [問題点の詳細](#問題点の詳細)
 - [リファクタリング提案](#リファクタリング提案)
+- [リファクタリング効果の比較](#リファクタリング効果の比較)
 - [移行計画](#移行計画)
 - [期待される効果](#期待される効果)
 
@@ -113,19 +114,22 @@ abstract class BaseShape<T> implements ShapeRenderer<T> {
 #### 4. ShapePlugin（`@usketch/shape-registry`）
 
 ```typescript
-interface ShapePlugin<T extends BaseShape> {
+interface ShapePlugin<TShape extends Shape> {
   type: string;
   name?: string;
-  component: ComponentType<ShapeComponentProps<T>>;
-  toolComponent?: ComponentType<ToolProps>;
+  component: React.ComponentType<ShapeComponentProps<TShape>>;
+  toolComponent?: React.ComponentType<ToolProps>;
 
-  createDefaultShape: (props: CreateShapeProps) => T;
-  getBounds: (shape: T) => Bounds;
-  hitTest: (shape: T, point: Point) => boolean;
+  createDefaultShape: (props: CreateShapeProps) => TShape;
+  getBounds: (shape: TShape) => Bounds;
+  hitTest: (shape: TShape, point: Point) => boolean;
 
-  serialize?: (shape: T) => any;
-  deserialize?: (data: any) => T;
-  validate?: (shape: T) => boolean;
+  serialize?: (shape: TShape) => any;
+  deserialize?: (data: any) => TShape;
+  validate?: (shape: TShape) => boolean;
+
+  getResizeHandles?: (shape: TShape) => Point[];
+  getRotationHandle?: (shape: TShape) => Point;
 }
 ```
 
@@ -681,7 +685,6 @@ class ShapeRegistry {
 
   register(plugin: ShapePlugin): void {
     this.plugins.set(plugin.type, plugin);
-    this.emit({ type: 'register', shapeType: plugin.type, plugin });
   }
 
   registerMultiple(plugins: ShapePlugin[]): void {
@@ -1705,9 +1708,9 @@ export const rectanglePlugin: ShapePlugin<RectangleShape> = {
 
 本リファクタリング計画について質問や提案がある場合は、以下の方法で連絡してください：
 
-- **GitHub Issue**: [新しい Issue を作成](../../issues/new)
-- **Discussion**: [GitHub Discussions](../../discussions)
-- **Pull Request**: 部分的な改善提案は PR で歓迎します
+- **GitHub Issue**: [新しい Issue を作成](https://github.com/EdV4H/usketch/issues/new/choose)
+- **Discussion**: [GitHub Discussions](https://github.com/EdV4H/usketch/discussions)
+- **Pull Request**: [新しい PR を作成](https://github.com/EdV4H/usketch/compare) — 部分的な改善提案は PR で歓迎します
 
 ---
 
