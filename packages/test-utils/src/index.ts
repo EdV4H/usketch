@@ -48,7 +48,17 @@ export {
 	mockElementDimensions,
 	waitForElement,
 } from "./dom-helpers";
-
+// Shape Helpers
+export {
+	createMockEllipse,
+	createMockPlugin,
+	createMockRectangle,
+	createMockRegistry,
+	createMockShape,
+	createMockShapes,
+	createPoint,
+	isPointInBounds,
+} from "./shape-helpers";
 // Storage Mocks
 export {
 	createPersistentStorage,
