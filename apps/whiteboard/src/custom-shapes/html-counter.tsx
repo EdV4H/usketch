@@ -53,7 +53,13 @@ const CounterComponent: React.FC<{
 	const totalHeight = shape.height + 40;
 
 	return (
-		<foreignObject x={shape.x} y={shape.y} width={totalWidth} height={totalHeight}>
+		<foreignObject
+			x={shape.x}
+			y={shape.y}
+			width={totalWidth}
+			height={totalHeight}
+			style={{ pointerEvents: "auto" }}
+		>
 			<div
 				style={{
 					display: "flex",
@@ -61,7 +67,7 @@ const CounterComponent: React.FC<{
 					gap: "10px",
 					userSelect: "none",
 					padding: "10px",
-					pointerEvents: "all",
+					pointerEvents: "auto",
 					width: "100%",
 					height: "100%",
 				}}
