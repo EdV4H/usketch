@@ -57,7 +57,7 @@ const CounterComponent: React.FC<{
 			y={shape.y}
 			width={totalWidth}
 			height={totalHeight}
-			style={{ pointerEvents: "auto" }}
+			style={{ pointerEvents: "all" }}
 		>
 			<div
 				style={{
