@@ -21,7 +21,7 @@
 	"devDependencies": {
 		"@usketch/tsconfig": "workspace:*",
 		"@types/react": "19.2.2",
-		"react": "19.1.1",
+		"react": "19.2.0",
 		"typescript": "5.9.3",
 		"vitest": "3.2.4"
 	},
