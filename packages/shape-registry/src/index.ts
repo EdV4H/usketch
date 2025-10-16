@@ -28,6 +28,7 @@ export { globalShapeRegistry, ShapeRegistry } from "./shape-registry";
 export type {
 	Bounds,
 	CreateShapeProps,
+	MinimalShape,
 	RegistryEvent,
 	RegistryEventListener,
 	RegistryEventType,

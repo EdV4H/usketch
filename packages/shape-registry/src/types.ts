@@ -24,7 +24,7 @@ export interface CreateShapeProps {
 /**
  * Props for shape components
  */
-export interface ShapeComponentProps<T extends BaseShape = BaseShape> {
+export interface ShapeComponentProps<T extends MinimalShape = BaseShape> {
 	shape: T;
 	isSelected?: boolean;
 	onClick?: (e: React.MouseEvent) => void;
@@ -43,9 +43,19 @@ export interface ToolProps {
 }
 
 /**
+ * Minimal shape interface that all shapes must satisfy
+ */
+export interface MinimalShape {
+	id: string;
+	type: string;
+	x: number;
+	y: number;
+}
+
+/**
  * Shape plugin definition
  */
-export interface ShapePlugin<T extends BaseShape = BaseShape> {
+export interface ShapePlugin<T extends MinimalShape = BaseShape> {
 	/** Unique identifier for the shape type */
 	type: string;
 
