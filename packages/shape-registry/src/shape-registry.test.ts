@@ -1,10 +1,17 @@
+import type { BaseShape, Point } from "@usketch/shared-types";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ShapeRegistry } from "./shape-registry";
 import type { ShapePlugin } from "./types";
 
+// Types for test shapes
+interface RectangleShape extends BaseShape {
+	width: number;
+	height: number;
+}
+
 // Helper function for rectangle hit test
 const createRectangleHitTest = () => {
-	return (shape: any, point: any) => {
+	return (shape: RectangleShape, point: Point): boolean => {
 		const bounds = {
 			x: shape.x,
 			y: shape.y,
@@ -19,6 +26,20 @@ const createRectangleHitTest = () => {
 		);
 	};
 };
+
+// Helper function to create mock rectangle plugin
+const createMockRectanglePlugin = (): ShapePlugin<RectangleShape> => ({
+	type: "rectangle",
+	component: () => null,
+	createDefaultShape: (props) => ({ ...props, type: "rectangle", width: 0, height: 0 }),
+	getBounds: (shape) => ({
+		x: shape.x,
+		y: shape.y,
+		width: shape.width,
+		height: shape.height,
+	}),
+	hitTest: createRectangleHitTest(),
+});
 
 describe("ShapeRegistry", () => {
 	let registry: ShapeRegistry;
@@ -106,18 +127,7 @@ describe("ShapeRegistry", () => {
 
 	describe("getBounds", () => {
 		it("should return bounds from plugin", () => {
-			const mockPlugin: ShapePlugin<any> = {
-				type: "rectangle",
-				component: () => null,
-				createDefaultShape: (props) => ({ ...props, type: "rectangle" }),
-				getBounds: (shape) => ({
-					x: shape.x,
-					y: shape.y,
-					width: shape.width,
-					height: shape.height,
-				}),
-				hitTest: () => true,
-			};
+			const mockPlugin = createMockRectanglePlugin();
 
 			registry.register(mockPlugin);
 
@@ -153,13 +163,7 @@ describe("ShapeRegistry", () => {
 
 	describe("hitTest", () => {
 		it("should return true when point is inside shape", () => {
-			const mockPlugin: ShapePlugin<any> = {
-				type: "rectangle",
-				component: () => null,
-				createDefaultShape: (props) => ({ ...props, type: "rectangle" }),
-				getBounds: (shape) => ({ x: shape.x, y: shape.y, width: 100, height: 100 }),
-				hitTest: createRectangleHitTest(),
-			};
+			const mockPlugin = createMockRectanglePlugin();
 
 			registry.register(mockPlugin);
 
@@ -177,13 +181,7 @@ describe("ShapeRegistry", () => {
 		});
 
 		it("should return false when point is outside shape", () => {
-			const mockPlugin: ShapePlugin<any> = {
-				type: "rectangle",
-				component: () => null,
-				createDefaultShape: (props) => ({ ...props, type: "rectangle" }),
-				getBounds: (shape) => ({ x: shape.x, y: shape.y, width: 100, height: 100 }),
-				hitTest: createRectangleHitTest(),
-			};
+			const mockPlugin = createMockRectanglePlugin();
 
 			registry.register(mockPlugin);
 
