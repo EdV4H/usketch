@@ -47,8 +47,12 @@ const CounterComponent: React.FC<{
 		setLocalCount((prev) => prev - 1);
 	};
 
+	// Calculate actual width: button(40) + gap(10) + counter(width) + gap(10) + button(40) + padding(20)
+	const totalWidth = 40 + 10 + shape.width + 10 + 40 + 20;
+	const totalHeight = shape.height + 20;
+
 	return (
-		<foreignObject x={shape.x} y={shape.y} width={shape.width + 120} height={shape.height + 20}>
+		<foreignObject x={shape.x} y={shape.y} width={totalWidth} height={totalHeight}>
 			<div
 				style={{
 					display: "flex",
@@ -194,12 +198,14 @@ export const htmlCounterPlugin: ShapePlugin<HtmlCounterShape> = {
 		count: 0,
 	}),
 	getBounds: (shape: HtmlCounterShape) => {
-		// Match foreignObject dimensions: width + 120, height + 20
+		// Calculate actual width: button(40) + gap(10) + counter(width) + gap(10) + button(40) + padding(20)
+		const totalWidth = 40 + 10 + shape.width + 10 + 40 + 20;
+		const totalHeight = shape.height + 20;
 		return {
 			x: shape.x,
 			y: shape.y,
-			width: shape.width + 120,
-			height: shape.height + 20,
+			width: totalWidth,
+			height: totalHeight,
 		};
 	},
 	hitTest: (shape: HtmlCounterShape, point: { x: number; y: number }) => {
