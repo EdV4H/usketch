@@ -171,8 +171,8 @@ importers:
         specifier: workspace:*
         version: link:../tsconfig
       react:
-        specifier: 19.1.1
-        version: 19.1.1
+        specifier: 19.2.0
+        version: 19.2.0
       typescript:
         specifier: 5.9.3
         version: 5.9.3
