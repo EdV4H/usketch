@@ -16,7 +16,6 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@usketch/shape-abstraction": "workspace:*",
 		"@usketch/shared-types": "workspace:*",
 		"@usketch/store": "workspace:*",
 		"react": "19.2.0"

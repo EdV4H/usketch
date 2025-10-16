@@ -35,4 +35,3 @@ export type {
 	ShapePlugin,
 	ToolProps,
 } from "./types";
-export { UnifiedShapePluginAdapter } from "./unified-shape-plugin-adapter";

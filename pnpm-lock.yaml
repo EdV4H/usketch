@@ -432,9 +432,6 @@ importers:
 
   packages/shape-registry:
     dependencies:
-      '@usketch/shape-abstraction':
-        specifier: workspace:*
-        version: link:../shape-abstraction
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../shared-types
