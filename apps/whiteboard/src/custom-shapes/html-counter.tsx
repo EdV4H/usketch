@@ -57,7 +57,8 @@ const CounterComponent: React.FC<{
 			y={shape.y}
 			width={totalWidth}
 			height={totalHeight}
-			style={{ pointerEvents: "all" }}
+			style={{ pointerEvents: "auto", isolation: "isolate" }}
+			data-interactive="true"
 		>
 			<div
 				style={{
