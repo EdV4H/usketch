@@ -1,3 +1,4 @@
+import { globalShapeRegistry } from "@usketch/shape-registry";
 import type { PointerCoordinates } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { assign, setup } from "xstate";
@@ -29,7 +30,40 @@ interface SnappableShape {
 	[key: string]: any;
 }
 
-// Type guard to check if a shape has dimensions for snapping
+// Helper function to get snappable bounds from a shape using shape-registry
+function getSnappableBounds(shape: any): SnappableShape | null {
+	if (!shape || typeof shape.x !== "number" || typeof shape.y !== "number") {
+		return null;
+	}
+
+	// Try to get bounds from shape-registry plugin
+	const plugin = globalShapeRegistry.getPlugin(shape.type);
+	if (plugin?.getBounds) {
+		const bounds = plugin.getBounds(shape);
+		return {
+			...shape,
+			x: bounds.x,
+			y: bounds.y,
+			width: bounds.width,
+			height: bounds.height,
+		};
+	}
+
+	// Fallback to shape's own width/height if available
+	if (typeof shape.width === "number" && typeof shape.height === "number") {
+		return {
+			...shape,
+			x: shape.x,
+			y: shape.y,
+			width: shape.width,
+			height: shape.height,
+		};
+	}
+
+	return null;
+}
+
+// Type guard to check if a shape has dimensions for snapping (deprecated, use getSnappableBounds)
 function hasSnapDimensions(shape: { [key: string]: any }): shape is SnappableShape {
 	return (
 		shape &&
@@ -383,11 +417,12 @@ export const selectToolMachine = setup({
 				const store = whiteboardStore.getState();
 				const allShapes = Object.values(store.shapes);
 
-				// Index shapes for efficient spatial queries
+				// Index shapes for efficient spatial queries, using shape-registry getBounds
 				const allSnappableShapes: SnappableShape[] = [];
 				for (const shape of allShapes) {
-					if (hasSnapDimensions(shape)) {
-						allSnappableShapes.push(shape);
+					const snappableBounds = getSnappableBounds(shape);
+					if (snappableBounds) {
+						allSnappableShapes.push(snappableBounds);
 					}
 				}
 
