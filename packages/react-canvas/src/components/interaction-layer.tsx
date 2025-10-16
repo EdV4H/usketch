@@ -29,13 +29,6 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 	const handlePointerDown = useCallback(
 		(e: React.PointerEvent) => {
-			// Check if click is on foreignObject (HTML interactive elements)
-			const target = e.target as HTMLElement;
-			if (target.closest("foreignObject")) {
-				// Let the foreignObject handle the event
-				return;
-			}
-
 			// Convert to PointerEvent for ToolManager
 			const nativeEvent = e.nativeEvent;
 			toolManager.handlePointerDown(nativeEvent, camera);
@@ -47,12 +40,6 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 	const handlePointerMove = useCallback(
 		(e: React.PointerEvent) => {
-			// Check if pointer is on foreignObject
-			const target = e.target as HTMLElement;
-			if (target.closest("foreignObject")) {
-				return;
-			}
-
 			const nativeEvent = e.nativeEvent;
 			toolManager.handlePointerMove(nativeEvent, camera);
 		},
@@ -61,12 +48,6 @@ export const InteractionLayer: React.FC<InteractionLayerProps> = ({
 
 	const handlePointerUp = useCallback(
 		(e: React.PointerEvent) => {
-			// Check if pointer is on foreignObject
-			const target = e.target as HTMLElement;
-			if (target.closest("foreignObject")) {
-				return;
-			}
-
 			const nativeEvent = e.nativeEvent;
 			toolManager.handlePointerUp(nativeEvent, camera);
 

@@ -39,13 +39,6 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 		(e: React.PointerEvent, handle: string) => {
 			if (!toolManager) return;
 
-			// Check if click is on foreignObject interactive element (e.g., buttons)
-			const target = e.target as HTMLElement;
-			if (target.closest('[data-interactive="true"]') || target.closest("button")) {
-				// Let the interactive element handle the event
-				return;
-			}
-
 			e.stopPropagation();
 			e.preventDefault();
 

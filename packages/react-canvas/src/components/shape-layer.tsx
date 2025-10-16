@@ -31,13 +31,10 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 				width: "100%",
 				height: "100%",
 				overflow: "visible",
-				pointerEvents: "auto", // Allow foreignObject to receive events
+				pointerEvents: "none", // Let InteractionLayer handle all events
 			}}
 		>
-			<g
-				transform={`translate(${camera.x}, ${camera.y}) scale(${camera.zoom})`}
-				style={{ pointerEvents: "none" } as React.CSSProperties}
-			>
+			<g transform={`translate(${camera.x}, ${camera.y}) scale(${camera.zoom})`}>
 				{/* Invisible background rect (no longer captures events) */}
 				<rect
 					data-background="true"
