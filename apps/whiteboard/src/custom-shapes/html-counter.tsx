@@ -47,10 +47,9 @@ const CounterComponent: React.FC<{
 		setLocalCount((prev) => prev - 1);
 	};
 
-	// Calculate actual width with extra margin for safety
-	// button(40) + gap(10) + counter(width) + gap(10) + button(40) + padding(20) = 160
-	const totalWidth = shape.width + 160;
-	const totalHeight = shape.height + 40;
+	// Calculate actual width: button(40) + gap(10) + counter(width) + gap(10) + button(40) + padding(20)
+	const totalWidth = 40 + 10 + shape.width + 10 + 40 + 20; // = width + 120
+	const totalHeight = shape.height + 20;
 
 	return (
 		<foreignObject
@@ -205,9 +204,9 @@ export const htmlCounterPlugin: ShapePlugin<HtmlCounterShape> = {
 		count: 0,
 	}),
 	getBounds: (shape: HtmlCounterShape) => {
-		// Match foreignObject dimensions with extra margin
-		const totalWidth = shape.width + 160;
-		const totalHeight = shape.height + 40;
+		// Match foreignObject dimensions: button(40) + gap(10) + counter(width) + gap(10) + button(40) + padding(20)
+		const totalWidth = 40 + 10 + shape.width + 10 + 40 + 20; // = width + 120
+		const totalHeight = shape.height + 20;
 		return {
 			x: shape.x,
 			y: shape.y,
