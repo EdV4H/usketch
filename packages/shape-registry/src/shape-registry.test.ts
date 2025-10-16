@@ -65,4 +65,158 @@ describe("ShapeRegistry", () => {
 		expect(registry.getPlugin("test")).toBe(mockPlugin2);
 		expect(registry.getAllPlugins()).toHaveLength(1);
 	});
+
+	describe("getComponent", () => {
+		it("should return component for registered plugin", () => {
+			const TestComponent = () => null;
+			const mockPlugin: ShapePlugin<any> = {
+				type: "test-shape",
+				component: TestComponent,
+				createDefaultShape: (props) => ({ ...props, type: "test-shape" }),
+				getBounds: (shape) => ({ x: shape.x, y: shape.y, width: 100, height: 100 }),
+				hitTest: () => true,
+			};
+
+			registry.register(mockPlugin);
+			expect(registry.getComponent("test-shape")).toBe(TestComponent);
+		});
+
+		it("should return undefined for unregistered plugin", () => {
+			expect(registry.getComponent("non-existent")).toBeUndefined();
+		});
+	});
+
+	describe("getBounds", () => {
+		it("should return bounds from plugin", () => {
+			const mockPlugin: ShapePlugin<any> = {
+				type: "rectangle",
+				component: () => null,
+				createDefaultShape: (props) => ({ ...props, type: "rectangle" }),
+				getBounds: (shape) => ({
+					x: shape.x,
+					y: shape.y,
+					width: shape.width,
+					height: shape.height,
+				}),
+				hitTest: () => true,
+			};
+
+			registry.register(mockPlugin);
+
+			const shape = {
+				id: "1",
+				type: "rectangle",
+				x: 100,
+				y: 200,
+				width: 300,
+				height: 400,
+			};
+
+			const bounds = registry.getBounds(shape);
+			expect(bounds).toEqual({
+				x: 100,
+				y: 200,
+				width: 300,
+				height: 400,
+			});
+		});
+
+		it("should return null for unregistered shape type", () => {
+			const shape = {
+				id: "1",
+				type: "unknown",
+				x: 0,
+				y: 0,
+			};
+
+			expect(registry.getBounds(shape)).toBeNull();
+		});
+	});
+
+	describe("hitTest", () => {
+		it("should return true when point is inside shape", () => {
+			const mockPlugin: ShapePlugin<any> = {
+				type: "rectangle",
+				component: () => null,
+				createDefaultShape: (props) => ({ ...props, type: "rectangle" }),
+				getBounds: (shape) => ({ x: shape.x, y: shape.y, width: 100, height: 100 }),
+				hitTest: (shape, point) => {
+					const bounds = {
+						x: shape.x,
+						y: shape.y,
+						width: shape.width,
+						height: shape.height,
+					};
+					return (
+						point.x >= bounds.x &&
+						point.x <= bounds.x + bounds.width &&
+						point.y >= bounds.y &&
+						point.y <= bounds.y + bounds.height
+					);
+				},
+			};
+
+			registry.register(mockPlugin);
+
+			const shape = {
+				id: "1",
+				type: "rectangle",
+				x: 100,
+				y: 100,
+				width: 200,
+				height: 200,
+			};
+
+			expect(registry.hitTest(shape, { x: 150, y: 150 })).toBe(true);
+			expect(registry.hitTest(shape, { x: 250, y: 250 })).toBe(true);
+		});
+
+		it("should return false when point is outside shape", () => {
+			const mockPlugin: ShapePlugin<any> = {
+				type: "rectangle",
+				component: () => null,
+				createDefaultShape: (props) => ({ ...props, type: "rectangle" }),
+				getBounds: (shape) => ({ x: shape.x, y: shape.y, width: 100, height: 100 }),
+				hitTest: (shape, point) => {
+					const bounds = {
+						x: shape.x,
+						y: shape.y,
+						width: shape.width,
+						height: shape.height,
+					};
+					return (
+						point.x >= bounds.x &&
+						point.x <= bounds.x + bounds.width &&
+						point.y >= bounds.y &&
+						point.y <= bounds.y + bounds.height
+					);
+				},
+			};
+
+			registry.register(mockPlugin);
+
+			const shape = {
+				id: "1",
+				type: "rectangle",
+				x: 100,
+				y: 100,
+				width: 200,
+				height: 200,
+			};
+
+			expect(registry.hitTest(shape, { x: 50, y: 50 })).toBe(false);
+			expect(registry.hitTest(shape, { x: 350, y: 350 })).toBe(false);
+		});
+
+		it("should return false for unregistered shape type", () => {
+			const shape = {
+				id: "1",
+				type: "unknown",
+				x: 0,
+				y: 0,
+			};
+
+			expect(registry.hitTest(shape, { x: 10, y: 10 })).toBe(false);
+		});
+	});
 });

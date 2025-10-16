@@ -1,4 +1,4 @@
-import type { BaseShape } from "@usketch/shared-types";
+import type { BaseShape, Point } from "@usketch/shared-types";
 import type { RegistryEvent, RegistryEventListener, ShapePlugin } from "./types";
 
 /**
@@ -188,6 +188,70 @@ export class ShapeRegistry {
 			hasToolSupport,
 			hasSerializationSupport,
 		};
+	}
+
+	/**
+	 * Get the React component for rendering a shape
+	 *
+	 * @param type - Shape type
+	 * @returns React component or undefined if not found
+	 *
+	 * @example
+	 * ```tsx
+	 * const RectangleComponent = registry.getComponent('rectangle');
+	 * if (RectangleComponent) {
+	 *   return <RectangleComponent shape={shape} />;
+	 * }
+	 * ```
+	 */
+	getComponent(type: string) {
+		const plugin = this.getPlugin(type);
+		return plugin?.component;
+	}
+
+	/**
+	 * Get the bounding box of a shape using its plugin
+	 *
+	 * @param shape - Shape object
+	 * @returns Bounding box or null if plugin not found
+	 *
+	 * @example
+	 * ```ts
+	 * const bounds = registry.getBounds(rectangleShape);
+	 * // => { x: 100, y: 100, width: 200, height: 150 }
+	 * ```
+	 */
+	getBounds(shape: BaseShape) {
+		const plugin = this.getPlugin(shape.type);
+		if (!plugin) {
+			console.warn(`No plugin registered for shape type: ${shape.type}`);
+			return null;
+		}
+
+		return plugin.getBounds(shape);
+	}
+
+	/**
+	 * Test if a point is inside a shape using its plugin
+	 *
+	 * @param shape - Shape object
+	 * @param point - Point to test
+	 * @returns True if point is inside the shape, false otherwise
+	 *
+	 * @example
+	 * ```ts
+	 * const isInside = registry.hitTest(rectangleShape, { x: 150, y: 150 });
+	 * // => true
+	 * ```
+	 */
+	hitTest(shape: BaseShape, point: Point): boolean {
+		const plugin = this.getPlugin(shape.type);
+		if (!plugin) {
+			console.warn(`No plugin registered for shape type: ${shape.type}`);
+			return false;
+		}
+
+		return plugin.hitTest(shape, point);
 	}
 }
 
