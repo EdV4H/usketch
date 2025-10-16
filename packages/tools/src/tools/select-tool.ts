@@ -456,13 +456,21 @@ export const selectToolMachine = setup({
 				const { snapSettings } = store;
 
 				if (targetShapes.length > 0 && snapSettings.shapeSnap && snapSettings.enabled) {
-					// Calculate moving shape bounds
-					const movingShape = {
-						x: newPosition.x,
-						y: newPosition.y,
-						width: "width" in firstShape ? firstShape.width : DEFAULT_SHAPE_SIZE,
-						height: "height" in firstShape ? firstShape.height : DEFAULT_SHAPE_SIZE,
-					};
+					// Calculate moving shape bounds using shape-registry getBounds
+					const movingShapeBounds = getSnappableBounds(firstShape);
+					const movingShape = movingShapeBounds
+						? {
+								x: newPosition.x,
+								y: newPosition.y,
+								width: movingShapeBounds.width,
+								height: movingShapeBounds.height,
+							}
+						: {
+								x: newPosition.x,
+								y: newPosition.y,
+								width: DEFAULT_SHAPE_SIZE,
+								height: DEFAULT_SHAPE_SIZE,
+							};
 
 					// Pass filtered shapes with dimensions to snap engine
 					// targetShapes is already type-checked by hasSnapDimensions guard
