@@ -1,4 +1,4 @@
-import { globalShapeRegistry } from "@usketch/shape-registry";
+import type { ShapeRegistry } from "@usketch/shape-registry";
 import type { PointerCoordinates } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { assign, setup } from "xstate";
@@ -31,13 +31,13 @@ interface SnappableShape {
 }
 
 // Helper function to get snappable bounds from a shape using shape-registry
-function getSnappableBounds(shape: any): SnappableShape | null {
+function getSnappableBounds(shape: any, registry?: ShapeRegistry): SnappableShape | null {
 	if (!shape || typeof shape.x !== "number" || typeof shape.y !== "number") {
 		return null;
 	}
 
 	// Try to get bounds from shape-registry plugin
-	const plugin = globalShapeRegistry.getPlugin(shape.type);
+	const plugin = registry?.getPlugin(shape.type);
 	if (plugin?.getBounds) {
 		const bounds = plugin.getBounds(shape);
 		return {
@@ -420,7 +420,7 @@ export const selectToolMachine = setup({
 				// Index shapes for efficient spatial queries, using shape-registry getBounds
 				const allSnappableShapes: SnappableShape[] = [];
 				for (const shape of allShapes) {
-					const snappableBounds = getSnappableBounds(shape);
+					const snappableBounds = getSnappableBounds(shape, context.shapeRegistry);
 					if (snappableBounds) {
 						allSnappableShapes.push(snappableBounds);
 					}
@@ -457,7 +457,7 @@ export const selectToolMachine = setup({
 
 				if (targetShapes.length > 0 && snapSettings.shapeSnap && snapSettings.enabled) {
 					// Calculate moving shape bounds using shape-registry getBounds
-					const movingShapeBounds = getSnappableBounds(firstShape);
+					const movingShapeBounds = getSnappableBounds(firstShape, context.shapeRegistry);
 					const movingShape = movingShapeBounds
 						? {
 								x: newPosition.x,
