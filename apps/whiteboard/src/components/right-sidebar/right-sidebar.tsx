@@ -31,10 +31,10 @@ export const RightSidebar: React.FC = () => {
 
 	return (
 		<div className={`right-sidebar ${isOpen ? "right-sidebar--open" : "right-sidebar--closed"}`}>
-			{isOpen && panels.length > 0 && (
+			{panels.length > 0 && (
 				<>
 					<SidebarTabs panels={panels} activeTab={activeTab} onTabChange={setActiveTab} />
-					<SidebarContent>{activePanel?.content}</SidebarContent>
+					{isOpen && <SidebarContent>{activePanel?.content}</SidebarContent>}
 				</>
 			)}
 			<SidebarToggle isOpen={isOpen} onToggle={toggleSidebar} />

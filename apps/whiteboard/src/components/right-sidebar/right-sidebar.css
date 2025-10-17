@@ -17,6 +17,17 @@
 	width: 40px;
 }
 
+/* Hide labels when closed */
+.right-sidebar--closed .sidebar-tab__label,
+.right-sidebar--closed .sidebar-tab__badge {
+	display: none;
+}
+
+.right-sidebar--closed .sidebar-tab {
+	padding: 8px;
+	justify-content: center;
+}
+
 /* Sidebar Tabs - Tab Header */
 .sidebar-tabs {
 	display: flex;
