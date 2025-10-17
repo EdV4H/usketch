@@ -40,6 +40,7 @@ export interface ToolContext {
 	cursor: string;
 	selectedIds: Set<string>;
 	hoveredId: string | null;
+	shapeRegistry?: any; // ShapeRegistry instance injected from outside
 }
 
 // === Tool Event Base Type ===
