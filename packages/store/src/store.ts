@@ -23,6 +23,7 @@ import {
 } from "./commands/shape";
 import { calculateDistribution, type DistributionDirection } from "./distribution-utils";
 import { HistoryManager } from "./history/history-manager";
+import { createLayerSlice, type LayerSlice } from "./slices/layer-slice";
 import { createStyleSlice, type StyleSlice } from "./slices/style-slice";
 
 export type AlignmentDirection =
@@ -72,7 +73,7 @@ export interface SnapSettings {
 	viewportMargin: number; // Extra margin around viewport for shape culling (pixels)
 }
 
-export interface WhiteboardStore extends WhiteboardState, StyleSlice {
+export interface WhiteboardStore extends WhiteboardState, LayerSlice, StyleSlice {
 	// State additions
 	selectionIndicator: SelectionIndicatorState;
 	snapGuides: SnapGuide[];
@@ -187,6 +188,8 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 		selectedShapeIds: get().selectedShapeIds,
 		camera: get().camera,
 		currentTool: get().currentTool,
+		groups: get().groups,
+		zOrder: get().zOrder,
 	}),
 	setState: (updater: (state: WhiteboardState) => void) => {
 		set((currentState: WhiteboardStore) => {
@@ -196,6 +199,8 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 				selectedShapeIds: new Set(currentState.selectedShapeIds),
 				camera: { ...currentState.camera },
 				currentTool: currentState.currentTool,
+				groups: currentState.groups ? { ...currentState.groups } : {},
+				zOrder: currentState.zOrder ? [...currentState.zOrder] : [],
 			};
 
 			// Apply the updates
@@ -208,6 +213,8 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 				selectedShapeIds: mutableState.selectedShapeIds,
 				camera: mutableState.camera,
 				currentTool: mutableState.currentTool,
+				groups: mutableState.groups,
+				zOrder: mutableState.zOrder,
 			};
 		});
 	},
@@ -825,6 +832,9 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 			effectToolConfig: { ...state.effectToolConfig, ...config },
 		}));
 	},
+
+	// Add LayerSlice
+	...createLayerSlice(set, get, store),
 
 	// Add StyleSlice
 	...createStyleSlice(set, get, store),

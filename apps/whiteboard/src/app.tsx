@@ -9,6 +9,7 @@ import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
 import { ConfiguredInputProvider } from "./components/configured-input-provider";
 import { DebugMenu } from "./components/debug-menu";
 import { InputSettingsPanel } from "./components/input-settings/input-settings-panel";
+import { LayerPanel } from "./components/layer-panel";
 import { PropertyPanel } from "./components/property-panel/property-panel";
 import { ToastContainer } from "./components/toast";
 import { ToolbarReact } from "./components/toolbar-react";
@@ -139,6 +140,7 @@ function WhiteboardApp() {
 					/>
 				</div>
 				{isPanelOpen && <PropertyPanel />}
+				<LayerPanel />
 			</div>
 			<InputSettingsPanel
 				isOpen={isInputSettingsOpen}

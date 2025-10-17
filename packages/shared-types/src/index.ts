@@ -1,9 +1,12 @@
 // Export all types
 export * from "./background";
+export * from "./defaults/layer-defaults";
 export * from "./defaults/shape-styles";
 export * from "./effects";
+export * from "./layer";
 export * from "./styles";
 
+import type { LayerMetadata, ShapeGroup } from "./layer";
 import type { ShadowProperties } from "./styles";
 
 // Common geometry types
@@ -31,6 +34,7 @@ export interface BaseShape {
 	fillColor: string;
 	strokeWidth: number;
 	shadow?: ShadowProperties; // Optional shadow settings
+	layer?: LayerMetadata; // Optional layer metadata
 }
 
 // Rectangle shape
@@ -93,6 +97,8 @@ export interface WhiteboardState {
 	selectedShapeIds: Set<string>;
 	camera: Camera;
 	currentTool: string;
+	groups?: Record<string, ShapeGroup>;
+	zOrder?: string[];
 }
 
 // Command Pattern types for Undo/Redo
