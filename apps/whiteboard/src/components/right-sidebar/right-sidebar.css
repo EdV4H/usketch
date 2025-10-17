@@ -17,33 +17,40 @@
 	width: 40px;
 }
 
-/* Hide labels when closed */
+/* Closed state - icon only */
+.right-sidebar--closed .sidebar-tabs {
+	flex-direction: column;
+	padding: 4px 2px;
+}
+
 .right-sidebar--closed .sidebar-tab__label,
 .right-sidebar--closed .sidebar-tab__badge {
 	display: none;
 }
 
 .right-sidebar--closed .sidebar-tab {
-	padding: 8px;
+	padding: 6px;
 	justify-content: center;
+	min-width: 32px;
 }
 
 /* Sidebar Tabs - Tab Header */
 .sidebar-tabs {
 	display: flex;
-	flex-direction: column;
+	flex-direction: row;
 	gap: 2px;
-	padding: 8px 4px;
+	padding: 4px;
 	background: #f9f9f9;
 	border-bottom: 1px solid #e5e5e5;
+	flex-shrink: 0;
 }
 
 /* Tab Button */
 .sidebar-tab {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 10px 12px;
+	gap: 6px;
+	padding: 6px 10px;
 	background: transparent;
 	border: 1px solid transparent;
 	border-radius: 6px;
@@ -53,6 +60,8 @@
 	color: #666;
 	text-align: left;
 	position: relative;
+	white-space: nowrap;
+	flex-shrink: 0;
 }
 
 .sidebar-tab:hover {
