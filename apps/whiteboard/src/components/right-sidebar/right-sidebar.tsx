@@ -25,15 +25,23 @@ import "./right-sidebar.css";
  * ```
  */
 export const RightSidebar: React.FC = () => {
-	const { panels, activeTab, setActiveTab, isOpen, toggleSidebar } = useSidebar();
+	const { panels, activeTab, setActiveTab, isOpen, toggleSidebar, setSidebarOpen } = useSidebar();
 
 	const activePanel = panels.find((p) => p.id === activeTab);
+
+	// Handle tab change - open sidebar if closed and switch tab
+	const handleTabChange = (tabId: string) => {
+		setActiveTab(tabId);
+		if (!isOpen) {
+			setSidebarOpen(true);
+		}
+	};
 
 	return (
 		<div className={`right-sidebar ${isOpen ? "right-sidebar--open" : "right-sidebar--closed"}`}>
 			{panels.length > 0 && (
 				<>
-					<SidebarTabs panels={panels} activeTab={activeTab} onTabChange={setActiveTab} />
+					<SidebarTabs panels={panels} activeTab={activeTab} onTabChange={handleTabChange} />
 					{isOpen && <SidebarContent>{activePanel?.content}</SidebarContent>}
 				</>
 			)}

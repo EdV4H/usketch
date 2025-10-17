@@ -44,9 +44,7 @@ export const PropertyPanelContent: React.FC = () => {
 	};
 
 	return (
-		<div
-			className={`property-panel-content ${isCollapsed ? "property-panel-content--collapsed" : ""}`}
-		>
+		<>
 			<div className="property-panel__header">
 				<h3>プロパティ</h3>
 				<div className="property-panel__header-actions">
@@ -124,6 +122,6 @@ export const PropertyPanelContent: React.FC = () => {
 					</div>
 				</div>
 			)}
-		</div>
+		</>
 	);
 };
