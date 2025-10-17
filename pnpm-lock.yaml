@@ -541,6 +541,9 @@ importers:
       '@usketch/effect-registry':
         specifier: workspace:*
         version: link:../effect-registry
+      '@usketch/shape-registry':
+        specifier: workspace:*
+        version: link:../shape-registry
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../shared-types
