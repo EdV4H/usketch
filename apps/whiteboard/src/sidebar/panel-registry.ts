@@ -46,8 +46,16 @@ export class SidebarPanelRegistry {
 	 * @param panel - The panel to register
 	 */
 	register(panel: SidebarPanel): void {
+		const existing = this.panels.get(panel.id);
+
+		// Only notify if panel is new or content has changed
+		const hasChanged = !existing || existing.content !== panel.content;
+
 		this.panels.set(panel.id, panel);
-		this.notifyListeners();
+
+		if (hasChanged) {
+			this.notifyListeners();
+		}
 	}
 
 	/**

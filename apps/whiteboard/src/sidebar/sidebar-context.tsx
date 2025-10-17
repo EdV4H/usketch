@@ -210,5 +210,6 @@ export function useRegisterPanel(panel: SidebarPanel | null): void {
 		}
 		// Empty return for when panel is null
 		return undefined;
-	}, [panel, registry]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [panel?.id, registry]);
 }
