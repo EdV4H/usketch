@@ -98,20 +98,24 @@ export function SidebarProvider({
 	const registry = useMemo(() => customRegistry || new SidebarPanelRegistry(), [customRegistry]);
 
 	// Track registered panels (reactive)
-	const [panels, setPanels] = useState<SidebarPanel[]>(() => registry.getAll());
+	const [panels, setPanels] = useState<SidebarPanel[]>([]);
 
 	// Sidebar state
 	const [isOpen, setIsOpen] = useState(defaultOpen);
-	const [activeTab, setActiveTab] = useState<string | null>(() => {
-		if (defaultActiveTab) {
-			return defaultActiveTab;
-		}
-		const initialPanels = registry.getAll();
-		return initialPanels.length > 0 ? (initialPanels[0]?.id ?? null) : null;
-	});
+	const [activeTab, setActiveTab] = useState<string | null>(defaultActiveTab ?? null);
 
-	// Subscribe to registry changes
+	// Subscribe to registry changes and initialize panels
 	useEffect(() => {
+		// Initial panel load
+		const initialPanels = registry.getAll();
+		setPanels(initialPanels);
+
+		// Set initial active tab if not already set and panels exist
+		if (!activeTab && initialPanels.length > 0) {
+			setActiveTab(initialPanels[0]?.id ?? null);
+		}
+
+		// Subscribe to future changes
 		const unsubscribe = registry.subscribe(() => {
 			const updatedPanels = registry.getAll();
 			setPanels(updatedPanels);
