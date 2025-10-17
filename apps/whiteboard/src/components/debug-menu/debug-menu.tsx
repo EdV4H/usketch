@@ -2,8 +2,8 @@ import { whiteboardStore } from "@usketch/store";
 import { HistoryDebugPanel } from "@usketch/ui-components";
 import type React from "react";
 import { useState } from "react";
-import { useStore } from "../hooks/use-store";
-import { type DebugShapeType, generateDebugShapes } from "../utils/debug-shapes";
+import { useStore } from "../../hooks/use-store";
+import { type DebugShapeType, generateDebugShapes } from "../../utils/debug-shapes";
 
 export const DebugMenu: React.FC = () => {
 	const [isOpen, setIsOpen] = useState(false);
