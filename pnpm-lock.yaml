@@ -451,9 +451,6 @@ importers:
       '@types/react':
         specifier: 19.2.2
         version: 19.2.2
-      '@usketch/test-utils':
-        specifier: workspace:*
-        version: link:../test-utils
       jsdom:
         specifier: ^26.0.0
         version: 26.1.0
