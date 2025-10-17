@@ -47,9 +47,6 @@ importers:
       '@usketch/react-shapes':
         specifier: workspace:*
         version: link:../../packages/react-shapes
-      '@usketch/shape-abstraction':
-        specifier: workspace:*
-        version: link:../../packages/shape-abstraction
       '@usketch/shape-plugins':
         specifier: workspace:*
         version: link:../../packages/shape-plugins
@@ -364,43 +361,6 @@ importers:
       vite:
         specifier: 7.1.10
         version: 7.1.10(@types/node@24.8.1)
-      vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/node@24.8.1)(@vitest/ui@3.2.4)(happy-dom@18.0.1)(jsdom@27.0.0(postcss@8.5.6))
-
-  packages/shape-abstraction:
-    dependencies:
-      '@usketch/shared-types':
-        specifier: workspace:*
-        version: link:../shared-types
-      '@usketch/shared-utils':
-        specifier: workspace:*
-        version: link:../shared-utils
-      '@usketch/store':
-        specifier: workspace:*
-        version: link:../store
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-    devDependencies:
-      '@types/react':
-        specifier: 19.2.2
-        version: 19.2.2
-      '@types/react-dom':
-        specifier: 19.2.2
-        version: 19.2.2(@types/react@19.2.2)
-      '@usketch/test-utils':
-        specifier: workspace:*
-        version: link:../test-utils
-      '@usketch/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
       vitest:
         specifier: 3.2.4
         version: 3.2.4(@types/node@24.8.1)(@vitest/ui@3.2.4)(happy-dom@18.0.1)(jsdom@27.0.0(postcss@8.5.6))
