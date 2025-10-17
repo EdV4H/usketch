@@ -4,7 +4,7 @@ import type { ShapePlugin } from "@usketch/shape-registry";
 import type { Shape } from "@usketch/shared-types";
 import { DEFAULT_SHAPE_STYLES } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
 import { ConfiguredInputProvider } from "./components/configured-input-provider";
 import { DebugPanelContent } from "./components/debug-menu";
@@ -42,52 +42,42 @@ function SidebarPanels() {
 	// Check if we're in development mode
 	const isDev = import.meta.env.DEV;
 
-	// Memoize panels to prevent re-registration on every render
-	const propertyPanel = useMemo(
-		() => ({
-			id: "properties",
-			label: "プロパティ",
-			icon: "⚙️",
-			content: <PropertyPanelContent />,
-			order: 1,
-		}),
-		[],
+	// Property Panel - always visible
+	useRegisterPanel({
+		id: "properties",
+		label: "プロパティ",
+		icon: "⚙️",
+		content: <PropertyPanelContent />,
+		order: 1,
+	});
+
+	// Debug Panel - dev only
+	useRegisterPanel(
+		isDev
+			? {
+					id: "debug",
+					label: "デバッグ",
+					icon: "🔧",
+					content: <DebugPanelContent />,
+					devOnly: true,
+					order: 2,
+				}
+			: null,
 	);
 
-	const debugPanel = useMemo(
-		() =>
-			isDev
-				? {
-						id: "debug",
-						label: "デバッグ",
-						icon: "🔧",
-						content: <DebugPanelContent />,
-						devOnly: true,
-						order: 2,
-					}
-				: null,
-		[isDev],
+	// History Panel - dev only
+	useRegisterPanel(
+		isDev
+			? {
+					id: "history",
+					label: "履歴",
+					icon: "🕐",
+					content: <HistoryPanelContent />,
+					devOnly: true,
+					order: 3,
+				}
+			: null,
 	);
-
-	const historyPanel = useMemo(
-		() =>
-			isDev
-				? {
-						id: "history",
-						label: "履歴",
-						icon: "🕐",
-						content: <HistoryPanelContent />,
-						devOnly: true,
-						order: 3,
-					}
-				: null,
-		[isDev],
-	);
-
-	// Register panels
-	useRegisterPanel(propertyPanel);
-	useRegisterPanel(debugPanel);
-	useRegisterPanel(historyPanel);
 
 	return null;
 }
