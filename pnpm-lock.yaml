@@ -432,9 +432,6 @@ importers:
 
   packages/shape-registry:
     dependencies:
-      '@usketch/shape-abstraction':
-        specifier: workspace:*
-        version: link:../shape-abstraction
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../shared-types
@@ -517,6 +514,12 @@ importers:
       '@types/node':
         specifier: 24.8.0
         version: 24.8.0
+      '@usketch/shape-registry':
+        specifier: workspace:*
+        version: link:../shape-registry
+      '@usketch/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -538,6 +541,9 @@ importers:
       '@usketch/effect-registry':
         specifier: workspace:*
         version: link:../effect-registry
+      '@usketch/shape-registry':
+        specifier: workspace:*
+        version: link:../shape-registry
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../shared-types

@@ -1,266 +1,244 @@
-import type { BaseShapeConfig, Bounds } from "@usketch/shape-abstraction";
-import { BaseShape } from "@usketch/shape-abstraction";
-import { UnifiedShapePluginAdapter } from "@usketch/shape-registry";
+import type { ShapePlugin } from "@usketch/shape-registry";
 import type React from "react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
-// Define the video player shape data structure
-export interface VideoPlayerShape {
+// Custom base shape interface
+interface CustomBaseShape {
 	id: string;
-	type: "video-player";
+	type: string;
 	x: number;
 	y: number;
 	width: number;
 	height: number;
 	rotation: number;
 	opacity: number;
+	strokeColor: string;
+	fillColor: string;
+	strokeWidth: number;
+}
+
+// Define the video player shape data structure
+export interface VideoPlayerShape extends CustomBaseShape {
+	type: "video-player";
 	videoUrl: string;
 	title: string;
 	autoplay: boolean;
 }
 
-/**
- * Video Player Shape using HTML rendering
- * Demonstrates embedding rich media content
- */
-class VideoPlayer extends BaseShape<VideoPlayerShape> {
-	constructor(shape: VideoPlayerShape, config: BaseShapeConfig<VideoPlayerShape>) {
-		super(shape, {
-			...config,
-			renderMode: "html", // HTML for video elements
-			enableInteractivity: true,
-		});
-	}
-
-	render(): React.ReactElement {
-		return <VideoPlayerComponent shape={this.shape} />;
-	}
-
-	getBounds(): Bounds {
-		return {
-			x: this.shape.x,
-			y: this.shape.y,
-			width: this.shape.width,
-			height: this.shape.height,
-		};
-	}
-
-	hitTest(point: { x: number; y: number }): boolean {
-		const bounds = this.getBounds();
-		return (
-			point.x >= bounds.x &&
-			point.x <= bounds.x + bounds.width &&
-			point.y >= bounds.y &&
-			point.y <= bounds.y + bounds.height
-		);
-	}
-}
-
-// React component for the video player
-const VideoPlayerComponent: React.FC<{ shape: VideoPlayerShape }> = ({ shape }) => {
-	const videoRef = useRef<HTMLVideoElement>(null);
+// React component for the video player (SVG placeholder)
+const VideoPlayerComponent: React.FC<{
+	shape: VideoPlayerShape;
+	isSelected?: boolean;
+	onClick?: (e: React.MouseEvent) => void;
+	onPointerDown?: (e: React.PointerEvent) => void;
+	onPointerMove?: (e: React.PointerEvent) => void;
+	onPointerUp?: (e: React.PointerEvent) => void;
+}> = ({ shape, isSelected, onClick, onPointerDown, onPointerMove, onPointerUp }) => {
 	const [isPlaying, setIsPlaying] = useState(false);
-	const [currentTime, setCurrentTime] = useState(0);
-	const [duration, setDuration] = useState(0);
 
-	const togglePlayPause = () => {
-		if (videoRef.current) {
-			if (isPlaying) {
-				videoRef.current.pause();
-			} else {
-				videoRef.current.play();
-			}
-			setIsPlaying(!isPlaying);
-		}
+	const handlePlayPause = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		setIsPlaying(!isPlaying);
 	};
 
-	const handleTimeUpdate = () => {
-		if (videoRef.current) {
-			setCurrentTime(videoRef.current.currentTime);
-		}
-	};
-
-	const handleLoadedMetadata = () => {
-		if (videoRef.current) {
-			setDuration(videoRef.current.duration);
-		}
-	};
-
-	const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const time = parseFloat(e.target.value);
-		if (videoRef.current) {
-			videoRef.current.currentTime = time;
-			setCurrentTime(time);
-		}
-	};
-
-	const formatTime = (seconds: number): string => {
-		const mins = Math.floor(seconds / 60);
-		const secs = Math.floor(seconds % 60);
-		return `${mins}:${secs.toString().padStart(2, "0")}`;
-	};
+	const controlBarHeight = 40;
 
 	return (
-		<div
-			style={{
-				position: "relative",
-				left: 0,
-				top: 0,
-				width: shape.width,
-				height: shape.height,
-				background: "#000",
-				border: "2px solid #333",
-				borderRadius: "8px",
-				overflow: "hidden",
-				opacity: shape.opacity,
-				transform: `rotate(${shape.rotation}deg)`,
-				transformOrigin: "center",
-			}}
+		<g
+			role="button"
+			onClick={onClick}
+			onPointerDown={onPointerDown}
+			onPointerMove={onPointerMove}
+			onPointerUp={onPointerUp}
 		>
-			{/* Title bar */}
-			<div
-				style={{
-					background: "linear-gradient(to bottom, #333, #222)",
-					color: "white",
-					padding: "8px",
-					fontSize: "12px",
-					fontWeight: "bold",
-					borderBottom: "1px solid #111",
-				}}
+			{/* Video area background */}
+			<rect
+				x={shape.x}
+				y={shape.y}
+				width={shape.width}
+				height={shape.height - controlBarHeight}
+				fill="#1a1a1a"
+				stroke="#333"
+				strokeWidth={2}
+				rx={8}
+			/>
+
+			{/* Video placeholder icon */}
+			<g opacity={0.3}>
+				<circle
+					cx={shape.x + shape.width / 2}
+					cy={shape.y + (shape.height - controlBarHeight) / 2}
+					r={40}
+					fill="#555"
+				/>
+				<polygon
+					points={`
+						${shape.x + shape.width / 2 - 12},${shape.y + (shape.height - controlBarHeight) / 2 - 20}
+						${shape.x + shape.width / 2 - 12},${shape.y + (shape.height - controlBarHeight) / 2 + 20}
+						${shape.x + shape.width / 2 + 20},${shape.y + (shape.height - controlBarHeight) / 2}
+					`}
+					fill="#888"
+				/>
+			</g>
+
+			{/* Title overlay */}
+			<rect x={shape.x} y={shape.y} width={shape.width} height={30} fill="rgba(0,0,0,0.7)" rx={8} />
+			<text
+				x={shape.x + 10}
+				y={shape.y + 20}
+				fill="white"
+				fontSize="14"
+				fontWeight="bold"
+				style={{ userSelect: "none" }}
 			>
 				{shape.title}
-			</div>
+			</text>
 
-			{/* Video element */}
-			<div
-				style={{
-					position: "relative",
-					width: "100%",
-					height: `calc(100% - 80px)`,
-					background: "#000",
-				}}
-			>
-				{shape.videoUrl ? (
-					<video
-						ref={videoRef}
-						style={{
-							width: "100%",
-							height: "100%",
-							objectFit: "contain",
-						}}
-						onTimeUpdate={handleTimeUpdate}
-						onLoadedMetadata={handleLoadedMetadata}
-						autoPlay={shape.autoplay}
-						loop
-					>
-						<source src={shape.videoUrl} type="video/mp4" />
-						<track kind="captions" />
-						{/* Fallback for demo - using a placeholder */}
-						Your browser does not support the video tag.
-					</video>
-				) : (
-					<div
-						style={{
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							height: "100%",
-							color: "#666",
-							fontSize: "14px",
-						}}
-					>
-						{/* Placeholder SVG for demo */}
-						<svg width="60" height="60" viewBox="0 0 24 24" fill="none">
-							<title>Video Player Placeholder</title>
-							<path
-								d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-								fill="#666"
-							/>
-							<path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#666" strokeWidth="2" />
-						</svg>
-					</div>
-				)}
-			</div>
+			{/* Control bar */}
+			<rect
+				x={shape.x}
+				y={shape.y + shape.height - controlBarHeight}
+				width={shape.width}
+				height={controlBarHeight}
+				fill="#2a2a2a"
+				stroke="#333"
+				strokeWidth={2}
+				rx={8}
+			/>
 
-			{/* Controls */}
-			<div
-				style={{
-					position: "absolute",
-					bottom: 0,
-					left: 0,
-					right: 0,
-					background: "linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.7))",
-					padding: "8px",
-				}}
-			>
-				{/* Progress bar */}
-				<input
-					type="range"
-					min="0"
-					max={duration || 100}
-					value={currentTime}
-					onChange={handleSeek}
-					style={{
-						width: "100%",
-						height: "4px",
-						marginBottom: "8px",
-						cursor: "pointer",
-					}}
+			{/* Play/Pause button */}
+			<circle
+				role="button"
+				cx={shape.x + 30}
+				cy={shape.y + shape.height - controlBarHeight / 2}
+				r={15}
+				fill="#4a4a4a"
+				stroke="#666"
+				strokeWidth={2}
+				style={{ cursor: "pointer" }}
+				onClick={handlePlayPause}
+			/>
+
+			{isPlaying ? (
+				// Pause icon
+				<g role="button" onClick={handlePlayPause} style={{ cursor: "pointer" }}>
+					<rect
+						x={shape.x + 24}
+						y={shape.y + shape.height - controlBarHeight / 2 - 8}
+						width={4}
+						height={16}
+						fill="white"
+					/>
+					<rect
+						x={shape.x + 32}
+						y={shape.y + shape.height - controlBarHeight / 2 - 8}
+						width={4}
+						height={16}
+						fill="white"
+					/>
+				</g>
+			) : (
+				// Play icon
+				<polygon
+					role="button"
+					points={`
+						${shape.x + 24},${shape.y + shape.height - controlBarHeight / 2 - 8}
+						${shape.x + 24},${shape.y + shape.height - controlBarHeight / 2 + 8}
+						${shape.x + 36},${shape.y + shape.height - controlBarHeight / 2}
+					`}
+					fill="white"
+					style={{ cursor: "pointer" }}
+					onClick={handlePlayPause}
 				/>
+			)}
 
-				{/* Control buttons */}
-				<div
-					style={{
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "space-between",
-					}}
-				>
-					<button
-						type="button"
-						onClick={togglePlayPause}
-						style={{
-							background: "none",
-							border: "none",
-							color: "white",
-							fontSize: "20px",
-							cursor: "pointer",
-							padding: "4px 8px",
-						}}
-					>
-						{isPlaying ? "⏸" : "▶"}
-					</button>
+			{/* Progress bar */}
+			<rect
+				x={shape.x + 60}
+				y={shape.y + shape.height - controlBarHeight / 2 - 3}
+				width={shape.width - 80}
+				height={6}
+				fill="#555"
+				rx={3}
+			/>
+			<rect
+				x={shape.x + 60}
+				y={shape.y + shape.height - controlBarHeight / 2 - 3}
+				width={isPlaying ? (shape.width - 80) * 0.3 : 0}
+				height={6}
+				fill="#FF6B6B"
+				rx={3}
+			/>
 
-					<span
-						style={{
-							color: "white",
-							fontSize: "11px",
-						}}
-					>
-						{formatTime(currentTime)} / {formatTime(duration)}
-					</span>
-				</div>
-			</div>
-		</div>
+			{/* Video URL label */}
+			<text
+				x={shape.x + shape.width / 2}
+				y={shape.y + (shape.height - controlBarHeight) / 2 + 60}
+				fill="#888"
+				fontSize="10"
+				textAnchor="middle"
+				style={{ userSelect: "none" }}
+			>
+				{shape.videoUrl}
+			</text>
+
+			{/* Selection highlight */}
+			{isSelected && (
+				<rect
+					x={shape.x}
+					y={shape.y}
+					width={shape.width}
+					height={shape.height}
+					fill="none"
+					stroke="#0066FF"
+					strokeWidth={2}
+					strokeDasharray="5,5"
+					opacity={0.5}
+					style={{ pointerEvents: "none" }}
+					rx={8}
+				/>
+			)}
+		</g>
 	);
 };
 
-// Create the plugin using the adapter
-export const videoPlayerPlugin = UnifiedShapePluginAdapter.fromBaseShape(
-	"video-player",
-	VideoPlayer,
-	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
+export const videoPlayerPlugin: ShapePlugin<VideoPlayerShape> = {
+	type: "video-player",
+	component: VideoPlayerComponent,
+	createDefaultShape: (props: {
+		id: string;
+		x: number;
+		y: number;
+		width?: number;
+		height?: number;
+	}) => ({
 		id: props.id,
-		type: "video-player",
+		type: "video-player" as const,
 		x: props.x,
 		y: props.y,
 		width: props.width || 320,
 		height: props.height || 240,
 		rotation: 0,
 		opacity: 1,
-		videoUrl: "", // Empty for demo, can be set to actual video URL
-		title: "Video Player Shape",
+		strokeColor: "#333333",
+		fillColor: "#1a1a1a",
+		strokeWidth: 2,
+		videoUrl: "https://example.com/video.mp4",
+		title: "Video Player",
 		autoplay: false,
 	}),
-	"Video Player (Unified)",
-);
+	getBounds: (shape: VideoPlayerShape) => ({
+		x: shape.x,
+		y: shape.y,
+		width: shape.width,
+		height: shape.height,
+	}),
+	hitTest: (shape: VideoPlayerShape, point: { x: number; y: number }) => {
+		return (
+			point.x >= shape.x &&
+			point.x <= shape.x + shape.width &&
+			point.y >= shape.y &&
+			point.y <= shape.y + shape.height
+		);
+	},
+};

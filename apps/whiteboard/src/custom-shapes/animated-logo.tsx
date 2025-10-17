@@ -1,82 +1,39 @@
-import type { BaseShapeConfig, Bounds } from "@usketch/shape-abstraction";
-import { BaseShape } from "@usketch/shape-abstraction";
-import { UnifiedShapePluginAdapter } from "@usketch/shape-registry";
+import type { ShapePlugin } from "@usketch/shape-registry";
 import type React from "react";
 import { useEffect, useState } from "react";
 
-// Define the animated logo shape data structure
-export interface AnimatedLogoShape {
+// Custom base shape interface
+interface CustomBaseShape {
 	id: string;
-	type: "animated-logo";
+	type: string;
 	x: number;
 	y: number;
 	width: number;
 	height: number;
 	rotation: number;
 	opacity: number;
+	strokeColor: string;
+	fillColor: string;
+	strokeWidth: number;
+}
+
+// Define the animated logo shape data structure
+export interface AnimatedLogoShape extends CustomBaseShape {
+	type: "animated-logo";
 	primaryColor: string;
 	secondaryColor: string;
 	animationSpeed: number;
 }
 
-/**
- * Animated Logo Shape using pure SVG
- * Demonstrates SVG animations and transformations
- */
-class AnimatedLogo extends BaseShape<AnimatedLogoShape> {
-	constructor(shape: AnimatedLogoShape, config: BaseShapeConfig<AnimatedLogoShape>) {
-		super(shape, {
-			...config,
-			renderMode: "svg", // Pure SVG for smooth animations
-			enableInteractivity: true,
-		});
-	}
-
-	render(): React.ReactElement {
-		// Return the component with spread props to allow data attributes
-		return (
-			<AnimatedLogoComponent
-				shape={this.shape}
-				shapeId={this.shape.id}
-				shapeType={this.shape.type}
-			/>
-		);
-	}
-
-	getBounds(): Bounds {
-		return {
-			x: this.shape.x,
-			y: this.shape.y,
-			width: this.shape.width,
-			height: this.shape.height,
-		};
-	}
-
-	hitTest(point: { x: number; y: number }): boolean {
-		const bounds = this.getBounds();
-		return (
-			point.x >= bounds.x &&
-			point.x <= bounds.x + bounds.width &&
-			point.y >= bounds.y &&
-			point.y <= bounds.y + bounds.height
-		);
-	}
-}
-
 // React component for the animated logo
-interface AnimatedLogoComponentProps {
+const AnimatedLogoComponent: React.FC<{
 	shape: AnimatedLogoShape;
-	shapeId?: string;
-	shapeType?: string;
-	[key: string]: any; // Allow additional props from SvgWrapper
-}
-
-const AnimatedLogoComponent: React.FC<AnimatedLogoComponentProps> = ({
-	shape,
-	shapeId,
-	shapeType,
-	...rest
-}) => {
+	isSelected?: boolean;
+	onClick?: (e: React.MouseEvent) => void;
+	onPointerDown?: (e: React.PointerEvent) => void;
+	onPointerMove?: (e: React.PointerEvent) => void;
+	onPointerUp?: (e: React.PointerEvent) => void;
+}> = ({ shape, isSelected, onClick, onPointerDown, onPointerMove, onPointerUp }) => {
 	const [rotation, setRotation] = useState(0);
 	const [scale, setScale] = useState(1);
 	const [hovered, _setHovered] = useState(false);
@@ -103,12 +60,14 @@ const AnimatedLogoComponent: React.FC<AnimatedLogoComponentProps> = ({
 
 	return (
 		<g
+			role="button"
 			transform={`translate(${shape.x}, ${shape.y})`}
 			opacity={shape.opacity}
 			style={{ cursor: "pointer" }}
-			data-shape-id={shapeId}
-			data-shape-type={shapeType}
-			{...rest}
+			onClick={onClick}
+			onPointerDown={onPointerDown}
+			onPointerMove={onPointerMove}
+			onPointerUp={onPointerUp}
 		>
 			{/* Inner group for rotation */}
 			<g transform={`rotate(${shape.rotation}, ${centerX}, ${centerY})`}>
@@ -234,7 +193,22 @@ const AnimatedLogoComponent: React.FC<AnimatedLogoComponentProps> = ({
 					Animated Logo
 				</text>
 			</g>
-			{/* Close rotation group */}
+
+			{/* Selection highlight */}
+			{isSelected && (
+				<rect
+					x={0}
+					y={0}
+					width={shape.width}
+					height={shape.height}
+					fill="none"
+					stroke="#0066FF"
+					strokeWidth={2}
+					strokeDasharray="5,5"
+					opacity={0.5}
+					style={{ pointerEvents: "none" }}
+				/>
+			)}
 		</g>
 	);
 };
@@ -262,22 +236,43 @@ function generateTrianglePoints(radius: number): string {
 	return points.join(" ");
 }
 
-// Create the plugin using the adapter
-export const animatedLogoPlugin = UnifiedShapePluginAdapter.fromBaseShape(
-	"animated-logo",
-	AnimatedLogo,
-	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
+export const animatedLogoPlugin: ShapePlugin<AnimatedLogoShape> = {
+	type: "animated-logo",
+	component: AnimatedLogoComponent,
+	createDefaultShape: (props: {
+		id: string;
+		x: number;
+		y: number;
+		width?: number;
+		height?: number;
+	}) => ({
 		id: props.id,
-		type: "animated-logo",
+		type: "animated-logo" as const,
 		x: props.x,
 		y: props.y,
 		width: props.width || 200,
 		height: props.height || 200,
 		rotation: 0,
 		opacity: 1,
+		strokeColor: "#333333",
+		fillColor: "#FFFFFF",
+		strokeWidth: 2,
 		primaryColor: "#FF6B6B",
 		secondaryColor: "#4ECDC4",
 		animationSpeed: 1,
 	}),
-	"Animated Logo (Unified)",
-);
+	getBounds: (shape: AnimatedLogoShape) => ({
+		x: shape.x,
+		y: shape.y,
+		width: shape.width,
+		height: shape.height,
+	}),
+	hitTest: (shape: AnimatedLogoShape, point: { x: number; y: number }) => {
+		return (
+			point.x >= shape.x &&
+			point.x <= shape.x + shape.width &&
+			point.y >= shape.y &&
+			point.y <= shape.y + shape.height
+		);
+	},
+};

@@ -1,73 +1,40 @@
-import type { BaseShapeConfig, Bounds } from "@usketch/shape-abstraction";
-import { BaseShape } from "@usketch/shape-abstraction";
-import { UnifiedShapePluginAdapter } from "@usketch/shape-registry";
+import type { ShapePlugin } from "@usketch/shape-registry";
 import type React from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 
-// Define the color picker shape data structure
-export interface ColorPickerShape {
+// Custom base shape interface
+interface CustomBaseShape {
 	id: string;
-	type: "color-picker";
+	type: string;
 	x: number;
 	y: number;
 	width: number;
 	height: number;
 	rotation: number;
 	opacity: number;
+	strokeColor: string;
+	fillColor: string;
+	strokeWidth: number;
+}
+
+// Define the color picker shape data structure
+export interface ColorPickerShape extends CustomBaseShape {
+	type: "color-picker";
 	selectedColor: string;
 	label: string;
 }
 
-/**
- * Interactive Color Picker Shape using unified abstraction
- * Demonstrates HTML-based interactive components with state management
- */
-class ColorPicker extends BaseShape<ColorPickerShape> {
-	constructor(shape: ColorPickerShape, config: BaseShapeConfig<ColorPickerShape>) {
-		super(shape, {
-			...config,
-			renderMode: "html", // Use HTML rendering for interactive components
-			enableInteractivity: true,
-		});
-	}
-
-	render(): React.ReactElement {
-		return <ColorPickerComponent shape={this.shape} onColorChange={this.handleColorChange} />;
-	}
-
-	getBounds(): Bounds {
-		return {
-			x: this.shape.x,
-			y: this.shape.y,
-			width: this.shape.width,
-			height: this.shape.height,
-		};
-	}
-
-	hitTest(point: { x: number; y: number }): boolean {
-		const bounds = this.getBounds();
-		return (
-			point.x >= bounds.x &&
-			point.x <= bounds.x + bounds.width &&
-			point.y >= bounds.y &&
-			point.y <= bounds.y + bounds.height
-		);
-	}
-
-	private handleColorChange = (color: string) => {
-		// Update shape state
-		this.shape.selectedColor = color;
-		// Trigger re-render
-		this.config.onUpdate?.(this.shape);
-	};
-}
-
-// React component for the color picker
+// React component for the color picker (SVG-based)
 const ColorPickerComponent: React.FC<{
 	shape: ColorPickerShape;
-	onColorChange: (color: string) => void;
-}> = ({ shape, onColorChange }) => {
+	isSelected?: boolean;
+	onClick?: (e: React.MouseEvent) => void;
+	onPointerDown?: (e: React.PointerEvent) => void;
+	onPointerMove?: (e: React.PointerEvent) => void;
+	onPointerUp?: (e: React.PointerEvent) => void;
+}> = ({ shape, isSelected, onClick, onPointerDown, onPointerMove, onPointerUp }) => {
 	const [localColor, setLocalColor] = useState(shape.selectedColor);
+	const gradientId = useId();
 
 	const colors = [
 		"#FF6B6B", // Red
@@ -82,121 +49,181 @@ const ColorPickerComponent: React.FC<{
 		"#F4A460", // Sandy Brown
 	];
 
-	const handleColorSelect = (color: string, e?: React.MouseEvent) => {
-		e?.stopPropagation();
+	const handleColorSelect = (color: string, e: React.MouseEvent) => {
+		e.stopPropagation();
 		setLocalColor(color);
-		onColorChange(color);
 	};
 
+	const headerHeight = 30;
+	const padding = 12;
+	const colorSize = 30;
+	const colorGap = 6;
+	const colorsPerRow = 5;
+
 	return (
-		<div
-			style={{
-				position: "relative",
-				left: 0,
-				top: 0,
-				width: shape.width,
-				height: shape.height,
-				background: "white",
-				border: "2px solid #333",
-				borderRadius: "8px",
-				boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-				opacity: shape.opacity,
-				transform: `rotate(${shape.rotation}deg)`,
-				transformOrigin: "center",
-				userSelect: "none",
-				display: "flex",
-				flexDirection: "column",
-				overflow: "hidden",
-			}}
+		<g
+			role="button"
+			onClick={onClick}
+			onPointerDown={onPointerDown}
+			onPointerMove={onPointerMove}
+			onPointerUp={onPointerUp}
 		>
-			{/* Draggable header */}
-			<div
-				style={{
-					padding: "8px 12px",
-					background: "linear-gradient(to bottom, #f5f5f5, #e0e0e0)",
-					borderBottom: "1px solid #999",
-					cursor: "move",
-					fontSize: "14px",
-					fontWeight: "bold",
-					color: "#333",
-				}}
-				title="Drag here to move"
+			{/* Background */}
+			<rect
+				x={shape.x}
+				y={shape.y}
+				width={shape.width}
+				height={shape.height}
+				fill="white"
+				stroke="#333"
+				strokeWidth={2}
+				rx={8}
+			/>
+
+			{/* Header */}
+			<rect
+				x={shape.x}
+				y={shape.y}
+				width={shape.width}
+				height={headerHeight}
+				fill={`url(#${gradientId})`}
+				stroke="#999"
+				strokeWidth={1}
+				rx={8}
+			/>
+			<defs>
+				<linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
+					<stop offset="0%" stopColor="#f5f5f5" />
+					<stop offset="100%" stopColor="#e0e0e0" />
+				</linearGradient>
+			</defs>
+			<text
+				x={shape.x + shape.width / 2}
+				y={shape.y + headerHeight / 2}
+				fill="#333"
+				fontSize="14"
+				fontWeight="bold"
+				textAnchor="middle"
+				dominantBaseline="middle"
+				style={{ userSelect: "none" }}
 			>
 				{shape.label}
-			</div>
+			</text>
 
-			{/* Content area */}
-			<div style={{ padding: "12px", flex: 1 }}>
-				<div
-					style={{
-						display: "grid",
-						gridTemplateColumns: "repeat(5, 1fr)",
-						gap: "6px",
-						marginBottom: "12px",
-					}}
-				>
-					{colors.map((color) => (
-						<button
-							type="button"
-							key={color}
+			{/* Color grid */}
+			{colors.map((color, index) => {
+				const row = Math.floor(index / colorsPerRow);
+				const col = index % colorsPerRow;
+				const x = shape.x + padding + col * (colorSize + colorGap);
+				const y = shape.y + headerHeight + padding + row * (colorSize + colorGap);
+				const isSelected = localColor === color;
+
+				return (
+					<g key={color}>
+						<rect
+							role="button"
+							x={x}
+							y={y}
+							width={colorSize}
+							height={colorSize}
+							fill={color}
+							stroke={isSelected ? "#333" : "#ccc"}
+							strokeWidth={isSelected ? 3 : 1}
+							rx={4}
+							style={{ cursor: "pointer" }}
 							onClick={(e) => handleColorSelect(color, e)}
-							style={{
-								width: "30px",
-								height: "30px",
-								background: color,
-								border: localColor === color ? "3px solid #333" : "1px solid #ccc",
-								borderRadius: "4px",
-								cursor: "pointer",
-								transition: "all 0.2s",
-								transform: localColor === color ? "scale(1.1)" : "scale(1)",
-							}}
-							aria-label={`Select color ${color}`}
 						/>
-					))}
-				</div>
+					</g>
+				);
+			})}
 
-				<div
-					style={{
-						display: "flex",
-						alignItems: "center",
-						gap: "8px",
-					}}
-				>
-					<div
-						style={{
-							width: "40px",
-							height: "40px",
-							background: localColor,
-							border: "2px solid #333",
-							borderRadius: "4px",
-						}}
-					/>
-					<div>
-						<div style={{ fontSize: "12px", color: "#666" }}>Selected:</div>
-						<div style={{ fontSize: "14px", fontWeight: "bold", color: "#333" }}>{localColor}</div>
-					</div>
-				</div>
-			</div>
-			{/* Close content area */}
-		</div>
+			{/* Selected color display */}
+			<rect
+				x={shape.x + padding}
+				y={shape.y + headerHeight + padding + 2 * (colorSize + colorGap) + 12}
+				width={40}
+				height={40}
+				fill={localColor}
+				stroke="#333"
+				strokeWidth={2}
+				rx={4}
+			/>
+			<text
+				x={shape.x + padding + 50}
+				y={shape.y + headerHeight + padding + 2 * (colorSize + colorGap) + 22}
+				fill="#666"
+				fontSize="12"
+				style={{ userSelect: "none" }}
+			>
+				Selected:
+			</text>
+			<text
+				x={shape.x + padding + 50}
+				y={shape.y + headerHeight + padding + 2 * (colorSize + colorGap) + 38}
+				fill="#333"
+				fontSize="14"
+				fontWeight="bold"
+				style={{ userSelect: "none" }}
+			>
+				{localColor}
+			</text>
+
+			{/* Selection highlight */}
+			{isSelected && (
+				<rect
+					x={shape.x}
+					y={shape.y}
+					width={shape.width}
+					height={shape.height}
+					fill="none"
+					stroke="#0066FF"
+					strokeWidth={2}
+					strokeDasharray="5,5"
+					opacity={0.5}
+					style={{ pointerEvents: "none" }}
+					rx={8}
+				/>
+			)}
+		</g>
 	);
 };
 
-// Create the plugin using the adapter
-export const colorPickerPlugin = UnifiedShapePluginAdapter.fromBaseShape(
-	"color-picker",
-	ColorPicker,
-	(props: { id: string; x: number; y: number; width?: number; height?: number }) => ({
+export const colorPickerPlugin: ShapePlugin<ColorPickerShape> = {
+	type: "color-picker",
+	component: ColorPickerComponent,
+	createDefaultShape: (props: {
+		id: string;
+		x: number;
+		y: number;
+		width?: number;
+		height?: number;
+	}) => ({
 		id: props.id,
-		type: "color-picker",
+		type: "color-picker" as const,
 		x: props.x,
 		y: props.y,
 		width: props.width || 220,
 		height: props.height || 180,
 		rotation: 0,
 		opacity: 1,
+		strokeColor: "#333333",
+		fillColor: "#FFFFFF",
+		strokeWidth: 2,
 		selectedColor: "#FF6B6B",
 		label: "Color Picker",
 	}),
-	"Color Picker (Unified)",
-);
+	getBounds: (shape: ColorPickerShape) => ({
+		x: shape.x,
+		y: shape.y,
+		width: shape.width,
+		height: shape.height,
+	}),
+	hitTest: (shape: ColorPickerShape, point: { x: number; y: number }) => {
+		return (
+			point.x >= shape.x &&
+			point.x <= shape.x + shape.width &&
+			point.y >= shape.y &&
+			point.y <= shape.y + shape.height
+		);
+	},
+};
