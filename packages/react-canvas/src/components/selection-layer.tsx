@@ -1,4 +1,4 @@
-import { globalShapeRegistry as ShapeRegistry } from "@usketch/shape-registry";
+import { useShapeRegistry } from "@usketch/shape-registry";
 import type React from "react";
 import { useCallback, useMemo, useRef } from "react";
 import { useToolManager } from "../hooks/use-tool-manager";
@@ -11,6 +11,7 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 	className = "",
 }) => {
 	const { toolManager } = useToolManager();
+	const { registry } = useShapeRegistry();
 	const containerRef = useRef<HTMLDivElement>(null);
 	const selectedShapes = useMemo(() => {
 		return Array.from(selectedIds)
@@ -93,7 +94,7 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 
 		selectedShapes.forEach((shape) => {
 			// Try to get bounds from plugin, fall back to shape dimensions
-			const plugin = ShapeRegistry.getPlugin(shape.type);
+			const plugin = registry.getPlugin(shape.type);
 			let bounds = {
 				x: shape.x,
 				y: shape.y,
@@ -117,7 +118,7 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 			width: maxX - minX,
 			height: maxY - minY,
 		};
-	}, [selectedShapes]);
+	}, [selectedShapes, registry]);
 
 	if (!boundingBox) return null;
 
@@ -158,7 +159,7 @@ export const SelectionLayer: React.FC<SelectionLayerProps> = ({
 				/* Show individual selection boxes */
 				selectedShapes.map((shape) => {
 					// Try to get bounds from plugin, fall back to shape dimensions
-					const plugin = ShapeRegistry.getPlugin(shape.type);
+					const plugin = registry.getPlugin(shape.type);
 					let bounds = {
 						x: shape.x,
 						y: shape.y,

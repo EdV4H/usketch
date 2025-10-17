@@ -1,4 +1,4 @@
-import { globalShapeRegistry } from "@usketch/shape-registry";
+import type { ShapeRegistry } from "@usketch/shape-registry";
 import type { PointerCoordinates } from "@usketch/shared-types";
 import { whiteboardStore } from "@usketch/store";
 import { assign, setup } from "xstate";
@@ -31,13 +31,13 @@ interface SnappableShape {
 }
 
 // Helper function to get snappable bounds from a shape using shape-registry
-function getSnappableBounds(shape: any): SnappableShape | null {
+function getSnappableBounds(shape: any, registry?: ShapeRegistry): SnappableShape | null {
 	if (!shape || typeof shape.x !== "number" || typeof shape.y !== "number") {
 		return null;
 	}
 
 	// Try to get bounds from shape-registry plugin
-	const plugin = globalShapeRegistry.getPlugin(shape.type);
+	const plugin = registry?.getPlugin(shape.type);
 	if (plugin?.getBounds) {
 		const bounds = plugin.getBounds(shape);
 		return {
@@ -220,9 +220,9 @@ export const selectToolMachine = setup({
 			};
 		}),
 
-		selectShape: assign(({ event }) => {
+		selectShape: assign(({ context, event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
-			const shape = getShapeAtPoint(extractWorldPoint(event.point));
+			const shape = getShapeAtPoint(extractWorldPoint(event.point), context.shapeRegistry);
 
 			if (!shape) return {};
 
@@ -237,10 +237,10 @@ export const selectToolMachine = setup({
 			};
 		}),
 
-		toggleShapeSelection: assign(({ event }) => {
+		toggleShapeSelection: assign(({ context, event }) => {
 			if (event.type !== "POINTER_DOWN") return {};
 
-			const shape = getShapeAtPoint(extractWorldPoint(event.point));
+			const shape = getShapeAtPoint(extractWorldPoint(event.point), context.shapeRegistry);
 
 			if (!shape) return {};
 
@@ -420,7 +420,7 @@ export const selectToolMachine = setup({
 				// Index shapes for efficient spatial queries, using shape-registry getBounds
 				const allSnappableShapes: SnappableShape[] = [];
 				for (const shape of allShapes) {
-					const snappableBounds = getSnappableBounds(shape);
+					const snappableBounds = getSnappableBounds(shape, context.shapeRegistry);
 					if (snappableBounds) {
 						allSnappableShapes.push(snappableBounds);
 					}
@@ -457,7 +457,7 @@ export const selectToolMachine = setup({
 
 				if (targetShapes.length > 0 && snapSettings.shapeSnap && snapSettings.enabled) {
 					// Calculate moving shape bounds using shape-registry getBounds
-					const movingShapeBounds = getSnappableBounds(firstShape);
+					const movingShapeBounds = getSnappableBounds(firstShape, context.shapeRegistry);
 					const movingShape = movingShapeBounds
 						? {
 								x: newPosition.x,
@@ -736,9 +736,9 @@ export const selectToolMachine = setup({
 			// TODO: Implement shape deletion
 		},
 
-		enterCropMode: assign(({ event }) => {
+		enterCropMode: assign(({ context, event }) => {
 			if (event.type !== "DOUBLE_CLICK") return {};
-			const shape = getShapeAtPoint(extractWorldPoint(event.point));
+			const shape = getShapeAtPoint(extractWorldPoint(event.point), context.shapeRegistry);
 			if (!shape) return {};
 
 			return {
@@ -877,15 +877,15 @@ export const selectToolMachine = setup({
 			return event.shiftKey === true;
 		},
 
-		isPointOnShape: ({ event }) => {
+		isPointOnShape: ({ context, event }) => {
 			if (!("point" in event)) return false;
-			const shape = getShapeAtPoint(extractWorldPoint(event.point)!);
+			const shape = getShapeAtPoint(extractWorldPoint(event.point)!, context.shapeRegistry);
 			return !!shape;
 		},
 
-		isPointOnSelectedShape: ({ event }) => {
+		isPointOnSelectedShape: ({ context, event }) => {
 			if (!("point" in event)) return false;
-			const shape = getShapeAtPoint(extractWorldPoint(event.point)!);
+			const shape = getShapeAtPoint(extractWorldPoint(event.point)!, context.shapeRegistry);
 			// Use Zustand store for selected IDs instead of context
 			const store = whiteboardStore.getState();
 			const result = shape ? store.selectedShapeIds.has(shape.id) : false;
@@ -959,8 +959,11 @@ export const selectToolMachine = setup({
 					{
 						// Shift+Click on shape - toggle selection (check this BEFORE resize handle)
 						target: "idle",
-						guard: ({ event }) => {
-							return event.shiftKey === true && !!getShapeAtPoint(extractWorldPoint(event.point));
+						guard: ({ context, event }) => {
+							return (
+								event.shiftKey === true &&
+								!!getShapeAtPoint(extractWorldPoint(event.point), context.shapeRegistry)
+							);
 						},
 						actions: "toggleShapeSelection",
 					},
@@ -974,10 +977,10 @@ export const selectToolMachine = setup({
 						// Click on selected shape - prepare for drag
 						// (but not on Shift+Click, which is handled above)
 						target: "readyToDrag",
-						guard: ({ event }) => {
+						guard: ({ context, event }) => {
 							if (event.type !== "POINTER_DOWN") return false;
 							if (event.shiftKey) return false; // Exclude Shift+Click
-							const shape = getShapeAtPoint(extractWorldPoint(event.point));
+							const shape = getShapeAtPoint(extractWorldPoint(event.point), context.shapeRegistry);
 							const store = whiteboardStore.getState();
 							return shape ? store.selectedShapeIds.has(shape.id) : false;
 						},
@@ -987,8 +990,11 @@ export const selectToolMachine = setup({
 						// Click on unselected shape - select and prepare for drag
 						// (but not on Shift+Click, which is handled above)
 						target: "readyToDrag",
-						guard: ({ event }) => {
-							return !event.shiftKey && !!getShapeAtPoint(extractWorldPoint(event.point));
+						guard: ({ context, event }) => {
+							return (
+								!event.shiftKey &&
+								!!getShapeAtPoint(extractWorldPoint(event.point), context.shapeRegistry)
+							);
 						},
 						actions: ["selectShape", "prepareForDrag"],
 					},

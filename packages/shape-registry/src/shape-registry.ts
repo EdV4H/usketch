@@ -262,5 +262,12 @@ export class ShapeRegistry {
 	}
 }
 
-// Create a singleton instance for global use
+/**
+ * @deprecated Global singleton is deprecated. Use ShapeRegistryProvider and useShapeRegistry() hook instead.
+ * This will be removed in a future version.
+ *
+ * Migration guide:
+ * - In React components: Use useShapeRegistry() hook
+ * - In non-React code: Pass registry as function parameter via Dependency Injection
+ */
 export const globalShapeRegistry = new ShapeRegistry();

@@ -1,5 +1,7 @@
 // === Common Types for XState Tool System ===
 
+import type { ShapeRegistry } from "@usketch/shape-registry";
+
 export interface Point {
 	x: number;
 	y: number;
@@ -40,6 +42,7 @@ export interface ToolContext {
 	cursor: string;
 	selectedIds: Set<string>;
 	hoveredId: string | null;
+	shapeRegistry?: ShapeRegistry; // ShapeRegistry instance injected from outside
 }
 
 // === Tool Event Base Type ===

@@ -7,7 +7,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { globalShapeRegistry, type ShapeRegistry } from "./shape-registry";
+import { ShapeRegistry } from "./shape-registry";
 import type { RegistryEvent, ShapePlugin } from "./types";
 
 /**
@@ -46,9 +46,9 @@ export function ShapeRegistryProvider({
 	plugins = [],
 	onRegistryChange,
 }: ShapeRegistryProviderProps) {
-	// Use custom registry, global registry, or create a new one
-	// Default to global registry to ensure consistency across the app
-	const registryRef = useRef<ShapeRegistry>(customRegistry || globalShapeRegistry);
+	// Use custom registry or create a new one (no longer defaults to global singleton)
+	// This promotes proper dependency injection and testability
+	const registryRef = useRef<ShapeRegistry>(customRegistry || new ShapeRegistry());
 	const registry = registryRef.current;
 
 	// Track registered types for reactivity

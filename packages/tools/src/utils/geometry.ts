@@ -1,6 +1,6 @@
 // === Geometry Utility Functions ===
 
-import { globalShapeRegistry } from "@usketch/shape-registry";
+import { globalShapeRegistry, type ShapeRegistry } from "@usketch/shape-registry";
 import {
 	DEFAULT_SHAPE_SIZE,
 	DEFAULT_SHAPE_STYLES,
@@ -16,14 +16,14 @@ export type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 type Shape = SharedShape;
 
 // Get shape at a specific point
-export function getShapeAtPoint(point: Point): Shape | null {
+export function getShapeAtPoint(point: Point, registry?: ShapeRegistry): Shape | null {
 	const state = whiteboardStore.getState();
 	const shapes = Object.values(state.shapes);
 
 	// Check shapes in reverse order (top to bottom)
 	for (let i = shapes.length - 1; i >= 0; i--) {
 		const shape = shapes[i];
-		if (isPointInShape(point, shape)) {
+		if (isPointInShape(point, shape, registry)) {
 			return shape;
 		}
 	}
@@ -36,9 +36,11 @@ function hasWidthHeight(shape: Shape): shape is Shape & { width: number; height:
 }
 
 // Check if a point is inside a shape
-function isPointInShape(point: Point, shape: Shape): boolean {
+function isPointInShape(point: Point, shape: Shape, registry?: ShapeRegistry): boolean {
 	// First try to use shape-registry's hitTest for proper detection
-	const plugin = globalShapeRegistry.getPlugin(shape.type);
+	// Fall back to global registry if no registry provided (temporary for backward compatibility)
+	const effectiveRegistry = registry || globalShapeRegistry;
+	const plugin = effectiveRegistry.getPlugin(shape.type);
 	if (plugin?.hitTest) {
 		return plugin.hitTest(shape, point);
 	}
