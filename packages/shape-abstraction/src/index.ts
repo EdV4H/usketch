@@ -5,8 +5,6 @@ export type { Bounds, Camera, Point, Shape } from "@usketch/shared-types";
 export { BaseShape } from "./base-shape";
 export { HtmlWrapper } from "./components/html-wrapper";
 export { SvgWrapper } from "./components/svg-wrapper";
-// Components
-export { UnifiedShapeRenderer } from "./components/unified-shape-renderer";
 export { ShapeFactory } from "./shape-factory";
 // Types
 export type {
