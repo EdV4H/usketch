@@ -1,6 +1,6 @@
 // === Geometry Utility Functions ===
 
-import type { ShapeRegistry } from "@usketch/shape-registry";
+import { globalShapeRegistry, type ShapeRegistry } from "@usketch/shape-registry";
 import {
 	DEFAULT_SHAPE_SIZE,
 	DEFAULT_SHAPE_STYLES,
@@ -38,7 +38,9 @@ function hasWidthHeight(shape: Shape): shape is Shape & { width: number; height:
 // Check if a point is inside a shape
 function isPointInShape(point: Point, shape: Shape, registry?: ShapeRegistry): boolean {
 	// First try to use shape-registry's hitTest for proper detection
-	const plugin = registry?.getPlugin(shape.type);
+	// Fall back to global registry if no registry provided (temporary for backward compatibility)
+	const effectiveRegistry = registry || globalShapeRegistry;
+	const plugin = effectiveRegistry.getPlugin(shape.type);
 	if (plugin?.hitTest) {
 		return plugin.hitTest(shape, point);
 	}
