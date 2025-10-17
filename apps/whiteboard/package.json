@@ -16,7 +16,6 @@
 		"@usketch/input-presets": "workspace:*",
 		"@usketch/react-canvas": "workspace:*",
 		"@usketch/react-shapes": "workspace:*",
-		"@usketch/shape-abstraction": "workspace:*",
 		"@usketch/shape-plugins": "workspace:*",
 		"@usketch/shape-registry": "workspace:*",
 		"@usketch/shared-types": "workspace:*",

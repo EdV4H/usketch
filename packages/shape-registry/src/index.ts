@@ -1,5 +1,7 @@
 // Core exports
 
+export type { ForeignObjectShapeProps } from "./components/foreign-object-shape";
+export { ForeignObjectShape } from "./components/foreign-object-shape";
 // React Context and Provider
 export {
 	ShapeRegistryProvider,
