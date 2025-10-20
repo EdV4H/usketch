@@ -21,7 +21,7 @@
 	"devDependencies": {
 		"@usketch/test-utils": "workspace:*",
 		"@usketch/tsconfig": "workspace:*",
-		"happy-dom": "18.0.1",
+		"happy-dom": "20.0.7",
 		"typescript": "^5.8.0-beta",
 		"vitest": "^2.1.1"
 	},
