@@ -50,7 +50,7 @@ import { ripplePlugin, pinPlugin } from "./effects";
 
 function App() {
   return (
-    <Whiteboard.Root className="my-app">
+    <div className="my-app">
       <Whiteboard.ShapeRegistry plugins={defaultShapePlugins}>
         <Whiteboard.EffectRegistry plugins={[ripplePlugin, pinPlugin]}>
           <Whiteboard.Canvas
@@ -59,10 +59,12 @@ function App() {
           />
         </Whiteboard.EffectRegistry>
       </Whiteboard.ShapeRegistry>
-    </Whiteboard.Root>
+    </div>
   );
 }
 ```
+
+**Note**: `Whiteboard.Root` is optional and provided for convenience. You can use your own container element instead.
 
 **Pros:**
 - ✅ Explicit provider visibility
@@ -77,7 +79,7 @@ function App() {
 
 ### `Whiteboard.Root`
 
-The outermost container component. Optional but useful for styling.
+An optional container component provided for convenience. You can use your own container element instead.
 
 ```tsx
 <Whiteboard.Root className="custom-app-container">
@@ -88,6 +90,8 @@ The outermost container component. Optional but useful for styling.
 **Props:**
 - `className?: string` - CSS class name
 - `children: ReactNode` - Child components
+
+**Note**: This component is completely optional. It's just a simple `div` wrapper for convenience.
 
 ### `Whiteboard.ShapeRegistry`
 
@@ -152,7 +156,7 @@ const customEffectRegistry = new EffectRegistry();
 
 function App() {
   return (
-    <Whiteboard.Root>
+    <div className="app">
       <Whiteboard.ShapeRegistry
         registry={customShapeRegistry}
         plugins={defaultShapePlugins}
@@ -165,7 +169,7 @@ function App() {
           <Whiteboard.Canvas />
         </Whiteboard.EffectRegistry>
       </Whiteboard.ShapeRegistry>
-    </Whiteboard.Root>
+    </div>
   );
 }
 ```
@@ -181,7 +185,7 @@ function App() {
   const canvas = <Whiteboard.Canvas />;
 
   return (
-    <Whiteboard.Root>
+    <div className="app">
       <Whiteboard.ShapeRegistry plugins={defaultShapePlugins}>
         {enableEffects ? (
           <Whiteboard.EffectRegistry plugins={[ripplePlugin]}>
@@ -191,7 +195,7 @@ function App() {
           canvas
         )}
       </Whiteboard.ShapeRegistry>
-    </Whiteboard.Root>
+    </div>
   );
 }
 ```
@@ -209,11 +213,9 @@ test("renders whiteboard with custom registry", () => {
   const mockRegistry = new ShapeRegistry();
 
   const { container } = render(
-    <Whiteboard.Root>
-      <Whiteboard.ShapeRegistry registry={mockRegistry} plugins={[]}>
-        <Whiteboard.Canvas />
-      </Whiteboard.ShapeRegistry>
-    </Whiteboard.Root>
+    <Whiteboard.ShapeRegistry registry={mockRegistry} plugins={[]}>
+      <Whiteboard.Canvas />
+    </Whiteboard.ShapeRegistry>
   );
 
   expect(container.querySelector(".whiteboard-canvas")).toBeInTheDocument();
@@ -231,14 +233,12 @@ const sharedRegistry = new ShapeRegistry();
 
 function App() {
   return (
-    <Whiteboard.Root>
-      <Whiteboard.ShapeRegistry registry={sharedRegistry} plugins={defaultShapePlugins}>
-        <div className="dual-canvas-layout">
-          <Whiteboard.Canvas className="canvas-1" />
-          <Whiteboard.Canvas className="canvas-2" />
-        </div>
-      </Whiteboard.ShapeRegistry>
-    </Whiteboard.Root>
+    <Whiteboard.ShapeRegistry registry={sharedRegistry} plugins={defaultShapePlugins}>
+      <div className="dual-canvas-layout">
+        <Whiteboard.Canvas className="canvas-1" />
+        <Whiteboard.Canvas className="canvas-2" />
+      </div>
+    </Whiteboard.ShapeRegistry>
   );
 }
 ```
@@ -259,16 +259,14 @@ function App() {
 
 **After:**
 ```tsx
-<Whiteboard.Root>
-  <Whiteboard.ShapeRegistry plugins={plugins}>
-    <Whiteboard.EffectRegistry plugins={effects}>
-      <Whiteboard.Canvas
-        className="whiteboard"
-        background={{ id: "usketch.dots" }}
-      />
-    </Whiteboard.EffectRegistry>
-  </Whiteboard.ShapeRegistry>
-</Whiteboard.Root>
+<Whiteboard.ShapeRegistry plugins={plugins}>
+  <Whiteboard.EffectRegistry plugins={effects}>
+    <Whiteboard.Canvas
+      className="whiteboard"
+      background={{ id: "usketch.dots" }}
+    />
+  </Whiteboard.EffectRegistry>
+</Whiteboard.ShapeRegistry>
 ```
 
 ## Best Practices
@@ -316,13 +314,11 @@ This pattern is inspired by Radix UI's Anatomy pattern:
 
 **Whiteboard Example:**
 ```tsx
-<Whiteboard.Root>
-  <Whiteboard.ShapeRegistry>
-    <Whiteboard.EffectRegistry>
-      <Whiteboard.Canvas />
-    </Whiteboard.EffectRegistry>
-  </Whiteboard.ShapeRegistry>
-</Whiteboard.Root>
+<Whiteboard.ShapeRegistry>
+  <Whiteboard.EffectRegistry>
+    <Whiteboard.Canvas />
+  </Whiteboard.EffectRegistry>
+</Whiteboard.ShapeRegistry>
 ```
 
 Both provide explicit control over component composition while maintaining flexibility.

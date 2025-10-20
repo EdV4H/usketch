@@ -188,19 +188,17 @@ function WhiteboardApp() {
 			/>
 			<div className="main-content">
 				<div className="whiteboard-container">
-					<Whiteboard.Root>
-						<Whiteboard.ShapeRegistry
-							plugins={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
-						>
-							<Whiteboard.EffectRegistry plugins={effectPlugins}>
-								<Whiteboard.Canvas
-									className="whiteboard"
-									background={background}
-									onReady={handleCanvasReady}
-								/>
-							</Whiteboard.EffectRegistry>
-						</Whiteboard.ShapeRegistry>
-					</Whiteboard.Root>
+					<Whiteboard.ShapeRegistry
+						plugins={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
+					>
+						<Whiteboard.EffectRegistry plugins={effectPlugins}>
+							<Whiteboard.Canvas
+								className="whiteboard"
+								background={background}
+								onReady={handleCanvasReady}
+							/>
+						</Whiteboard.EffectRegistry>
+					</Whiteboard.ShapeRegistry>
 				</div>
 				<RightSidebar />
 			</div>
