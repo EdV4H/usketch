@@ -32,7 +32,6 @@ export {
 	type WhiteboardShapeRegistryProps,
 } from "./components/whiteboard";
 export { WhiteboardCanvas } from "./components/whiteboard-canvas";
-export { WhiteboardCanvasInternal } from "./components/whiteboard-canvas-internal";
 // Hooks
 export { useBackgroundRenderer } from "./hooks/use-background-renderer";
 export { useCanvas } from "./hooks/use-canvas";
