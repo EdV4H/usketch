@@ -27,7 +27,7 @@ const ShapeRegistryContext = createContext<ShapeRegistryContextValue | null>(nul
 /**
  * Shape Registry Provider Props
  */
-interface ShapeRegistryProviderProps {
+export interface ShapeRegistryProviderProps {
 	children: ReactNode;
 	/** Optional: Use a custom registry instance */
 	registry?: ShapeRegistry;
