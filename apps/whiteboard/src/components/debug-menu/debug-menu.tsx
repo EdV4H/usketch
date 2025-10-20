@@ -1,5 +1,4 @@
 import { whiteboardStore } from "@usketch/store";
-import { HistoryDebugPanel } from "@usketch/ui-components";
 import type React from "react";
 import { useState } from "react";
 import { useStore } from "../../hooks/use-store";
@@ -7,7 +6,6 @@ import { type DebugShapeType, generateDebugShapes } from "../../utils/debug-shap
 
 export const DebugMenu: React.FC = () => {
 	const [isOpen, setIsOpen] = useState(false);
-	const [showHistoryPanel, setShowHistoryPanel] = useState(false);
 	const addShape = useStore((state) => state.addShape);
 	const shapes = useStore((state) => state.shapes);
 
@@ -182,20 +180,6 @@ export const DebugMenu: React.FC = () => {
 					</div>
 
 					<div className="debug-menu-section">
-						<div className="debug-menu-section-title">Debug Panels</div>
-						<button
-							type="button"
-							className="debug-menu-item"
-							onClick={() => {
-								setShowHistoryPanel(true);
-								setIsOpen(false);
-							}}
-						>
-							🔍 History Debug Panel
-						</button>
-					</div>
-
-					<div className="debug-menu-section">
 						<div className="debug-menu-section-title">Actions</div>
 						<button type="button" className="debug-menu-item danger" onClick={handleClearShapes}>
 							🗑️ Clear All Shapes
@@ -204,9 +188,6 @@ export const DebugMenu: React.FC = () => {
 					</div>
 				</div>
 			)}
-
-			{/* History Debug Panel */}
-			{showHistoryPanel && <HistoryDebugPanel onClose={() => setShowHistoryPanel(false)} />}
 		</div>
 	);
 };
