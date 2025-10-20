@@ -23,6 +23,7 @@ import {
 } from "./commands/shape";
 import { calculateDistribution, type DistributionDirection } from "./distribution-utils";
 import { HistoryManager } from "./history/history-manager";
+import { createLayerSlice, type LayerSlice } from "./slices/layer-slice";
 import { createStyleSlice, type StyleSlice } from "./slices/style-slice";
 
 export type AlignmentDirection =
@@ -72,7 +73,7 @@ export interface SnapSettings {
 	viewportMargin: number; // Extra margin around viewport for shape culling (pixels)
 }
 
-export interface WhiteboardStore extends WhiteboardState, StyleSlice {
+export interface WhiteboardStore extends WhiteboardState, StyleSlice, LayerSlice {
 	// State additions
 	selectionIndicator: SelectionIndicatorState;
 	snapGuides: SnapGuide[];
@@ -828,6 +829,9 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 
 	// Add StyleSlice
 	...createStyleSlice(set, get, store),
+
+	// Add LayerSlice
+	...createLayerSlice(set, get, store),
 }));
 
 // Export convenient accessor functions
