@@ -5,6 +5,7 @@ export { ForeignObjectShape } from "./components/foreign-object-shape";
 // React Context and Provider
 export {
 	ShapeRegistryProvider,
+	type ShapeRegistryProviderProps,
 	useAvailableShapeTypes,
 	useRegisterPlugin,
 	useRegisterPlugins,

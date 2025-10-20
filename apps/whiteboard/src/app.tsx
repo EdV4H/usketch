@@ -1,4 +1,4 @@
-import { WhiteboardCanvas } from "@usketch/react-canvas";
+import { Whiteboard } from "@usketch/react-canvas";
 import { defaultShapePlugins } from "@usketch/shape-plugins";
 import type { ShapePlugin } from "@usketch/shape-registry";
 import type { Shape } from "@usketch/shared-types";
@@ -188,13 +188,17 @@ function WhiteboardApp() {
 			/>
 			<div className="main-content">
 				<div className="whiteboard-container">
-					<WhiteboardCanvas
-						shapes={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
-						effects={effectPlugins}
-						className="whiteboard"
-						background={background}
-						onReady={handleCanvasReady}
-					/>
+					<Whiteboard.ShapeRegistry
+						plugins={shapePlugins.length > 0 ? shapePlugins : defaultShapePlugins}
+					>
+						<Whiteboard.EffectRegistry plugins={effectPlugins}>
+							<Whiteboard.Canvas
+								className="whiteboard"
+								background={background}
+								onReady={handleCanvasReady}
+							/>
+						</Whiteboard.EffectRegistry>
+					</Whiteboard.ShapeRegistry>
 				</div>
 				<RightSidebar />
 			</div>

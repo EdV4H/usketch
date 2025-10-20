@@ -24,6 +24,13 @@ export { DefaultSelectionIndicator } from "./components/default-selection-indica
 export { InteractionLayer } from "./components/interaction-layer";
 export { SelectionLayer } from "./components/selection-layer";
 export { ShapeLayer } from "./components/shape-layer";
+export {
+	Whiteboard,
+	type WhiteboardCanvasProps,
+	type WhiteboardEffectRegistryProps,
+	type WhiteboardRootProps,
+	type WhiteboardShapeRegistryProps,
+} from "./components/whiteboard";
 export { WhiteboardCanvas } from "./components/whiteboard-canvas";
 // Hooks
 export { useBackgroundRenderer } from "./hooks/use-background-renderer";
