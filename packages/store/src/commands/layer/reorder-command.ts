@@ -1,0 +1,36 @@
+import type { CommandContext } from "@usketch/shared-types";
+import { BaseCommand } from "../base-command";
+
+/**
+ * Z-index順序変更コマンド
+ * レイヤーの順序を変更する（Undo/Redo対応）
+ */
+export class ReorderCommand extends BaseCommand {
+	private newOrder: string[];
+	private previousOrder: string[] = [];
+
+	constructor(newOrder: string[]) {
+		super("Reorder layers");
+		this.newOrder = newOrder;
+	}
+
+	execute(context: CommandContext): void {
+		const state = context.getState();
+		const store = state as any;
+
+		// 現在の順序を保存
+		this.previousOrder = [...(store.zOrder || [])];
+
+		context.setState((draft) => {
+			const draftStore = draft as any;
+			draftStore.zOrder = this.newOrder;
+		});
+	}
+
+	undo(context: CommandContext): void {
+		context.setState((draft) => {
+			const draftStore = draft as any;
+			draftStore.zOrder = this.previousOrder;
+		});
+	}
+}

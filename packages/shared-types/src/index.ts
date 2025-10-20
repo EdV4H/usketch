@@ -2,8 +2,10 @@
 export * from "./background";
 export * from "./defaults/shape-styles";
 export * from "./effects";
+export * from "./layer";
 export * from "./styles";
 
+import type { LayerMetadata } from "./layer";
 import type { ShadowProperties } from "./styles";
 
 // Common geometry types
@@ -31,6 +33,7 @@ export interface BaseShape {
 	fillColor: string;
 	strokeWidth: number;
 	shadow?: ShadowProperties; // Optional shadow settings
+	layer?: LayerMetadata; // Layer information (optional for backward compatibility)
 }
 
 // Rectangle shape
