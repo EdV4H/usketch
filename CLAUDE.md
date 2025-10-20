@@ -49,10 +49,13 @@ XStateによる状態マシン駆動のツールシステム、プラグイン�
   - Zodスキーマによるツール設定検証
 
 ### 形状システム（プラグインアーキテクチャ）
-- **@usketch/shape-abstraction** (`packages/shape-abstraction/`): 基底形状クラス、HTML/SVGラッパー
+**注**: 2025-10にリファクタリング完了（詳細: `docs/implementation/shape-system-refactoring-plan.md`）
+
+- **@usketch/shape-registry** (`packages/shape-registry/`): 形状プラグイン管理、ShapeRenderer、ForeignObjectShape
+- **@usketch/shape-plugins** (`packages/shape-plugins/`): 標準形状プラグイン実装（Pure Function）
+- **@usketch/coordinate-system** (`packages/coordinate-system/`): 座標変換サービス（CoordinateTransformer）
 - **@usketch/react-shapes** (`packages/react-shapes/`): React形状コンポーネント（矩形、楕円、フリーハンド）
-- **@usketch/shape-registry** (`packages/shape-registry/`): 形状プラグイン管理システム
-- **@usketch/shape-plugins** (`packages/shape-plugins/`): 標準形状プラグイン実装
+- **@usketch/shape-abstraction** (`packages/shape-abstraction/`): 基底形状クラス（deprecated、後方互換性のため保持）
 
 ### UI層
 - **@usketch/ui-components** (`packages/ui-components/`): 再利用可能なUIコンポーネント
@@ -60,6 +63,7 @@ XStateによる状態マシン駆動のツールシステム、プラグイン�
 
 ### 基盤層
 - **@usketch/store** (`packages/store/`): Zustandによるグローバル状態管理
+- **@usketch/coordinate-system** (`packages/coordinate-system/`): 座標変換サービス
 - **@usketch/shared-types** (`packages/shared-types/`): 共通型定義
 - **@usketch/shared-utils** (`packages/shared-utils/`): ユーティリティ関数
 
@@ -100,6 +104,7 @@ docs/
 │   ├── functional-statemachine-design.md
 │   ├── multi-selection-implementation-plan.md
 │   ├── react-migration-plan.md
+│   ├── shape-system-refactoring-plan.md  # ✅ 完了（2025-10-17）
 │   ├── tool-manager-refactoring-plan.md
 │   ├── tool-system-refactoring-plan.md
 │   ├── xstate-tool-system-design.md
