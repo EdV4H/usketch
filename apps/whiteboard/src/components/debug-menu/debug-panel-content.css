@@ -1,0 +1,93 @@
+/* Debug Panel Content */
+.debug-panel-content {
+	padding: 12px;
+}
+
+.debug-menu-title {
+	font-size: 14px;
+	font-weight: 600;
+	color: #333;
+	margin-bottom: 12px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid #e0e0e0;
+}
+
+.debug-menu-section {
+	margin-bottom: 12px;
+}
+
+.debug-menu-section-title {
+	font-size: 12px;
+	font-weight: 600;
+	color: #666;
+	margin-bottom: 8px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.debug-menu-item {
+	display: block;
+	width: 100%;
+	text-align: left;
+	background: #f5f5f5;
+	border: 1px solid #e0e0e0;
+	padding: 8px 12px;
+	margin-bottom: 4px;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 13px;
+	color: #333;
+	transition: all 0.15s;
+}
+
+.debug-menu-item:hover {
+	background: #e8e8e8;
+	border-color: #d0d0d0;
+}
+
+.debug-menu-item.danger {
+	background: #ffebee;
+	border-color: #ffcdd2;
+	color: #c62828;
+}
+
+.debug-menu-item.danger:hover {
+	background: #ffcdd2;
+	border-color: #ef9a9a;
+}
+
+.shape-count {
+	font-size: 11px;
+	color: #999;
+	margin-top: 4px;
+}
+
+.debug-panel-notice {
+	margin-top: 12px;
+	padding: 12px;
+	background: #e3f2fd;
+	border: 1px solid #90caf9;
+	border-radius: 6px;
+	font-size: 13px;
+	color: #1565c0;
+}
+
+.debug-panel-notice p {
+	margin: 0 0 8px 0;
+}
+
+.debug-panel-notice button {
+	padding: 4px 12px;
+	background: #1976d2;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 12px;
+	font-weight: 600;
+	transition: background 0.2s;
+}
+
+.debug-panel-notice button:hover {
+	background: #1565c0;
+}

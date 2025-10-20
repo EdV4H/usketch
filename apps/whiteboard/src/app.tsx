@@ -7,9 +7,11 @@ import { whiteboardStore } from "@usketch/store";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { registerCustomBackgrounds } from "./backgrounds/register-backgrounds";
 import { ConfiguredInputProvider } from "./components/configured-input-provider";
-import { DebugMenu } from "./components/debug-menu";
+import { DebugPanelContent } from "./components/debug-menu";
+import { HistoryPanelContent } from "./components/history-panel";
 import { InputSettingsPanel } from "./components/input-settings/input-settings-panel";
-import { PropertyPanel } from "./components/property-panel/property-panel";
+import { PropertyPanelContent } from "./components/property-panel";
+import { RightSidebar } from "./components/right-sidebar";
 import { ToastContainer } from "./components/toast";
 import { ToolbarReact } from "./components/toolbar-react";
 import { ToastProvider } from "./contexts/toast-context";
@@ -17,6 +19,7 @@ import { customShapePlugins } from "./custom-shapes";
 import type { EffectPlugin } from "./effects";
 import { fadingPinPlugin, pinPlugin, ripplePlugin } from "./effects";
 import { useInputCommands } from "./hooks/use-input-commands";
+import { SidebarProvider, useRegisterPanel, useSidebar } from "./sidebar/sidebar-context";
 import "./styles/app.css";
 
 // Helper function to add shape with delay
@@ -29,18 +32,70 @@ const addShapeWithDelay = (shape: Shape, delay: number) => {
 // Calculate delay based on shape index
 const calculateDelay = (index: number, baseDelay = 100) => index * baseDelay;
 
+/**
+ * Panel Registration Component
+ *
+ * Registers all sidebar panels when mounted.
+ * Automatically unregisters when unmounted.
+ */
+function SidebarPanels() {
+	// Check if we're in development mode
+	const isDev = import.meta.env.DEV;
+
+	// Property Panel - always visible
+	useRegisterPanel({
+		id: "properties",
+		label: "プロパティ",
+		icon: "⚙️",
+		content: <PropertyPanelContent />,
+		order: 1,
+	});
+
+	// Debug Panel - dev only
+	useRegisterPanel(
+		isDev
+			? {
+					id: "debug",
+					label: "デバッグ",
+					icon: "🔧",
+					content: <DebugPanelContent />,
+					devOnly: true,
+					order: 2,
+				}
+			: null,
+	);
+
+	// History Panel - dev only
+	useRegisterPanel(
+		isDev
+			? {
+					id: "history",
+					label: "履歴",
+					icon: "🕐",
+					content: <HistoryPanelContent />,
+					devOnly: true,
+					order: 3,
+				}
+			: null,
+	);
+
+	return null;
+}
+
 function WhiteboardApp() {
 	const canvasRef = useRef<any>(null);
 	const shapesAddedRef = useRef(false);
 	const backgroundsRegisteredRef = useRef(false);
 	const [shapePlugins, setShapePlugins] = useState<ShapePlugin<any>[]>([]);
 	const [effectPlugins] = useState<EffectPlugin<any>[]>([ripplePlugin, pinPlugin, fadingPinPlugin]);
-	const [isPanelOpen, setIsPanelOpen] = useState(true);
 	const [isInputSettingsOpen, setIsInputSettingsOpen] = useState(false);
+
+	// Access sidebar state from context
+	const { toggleSidebar, isOpen: isSidebarOpen } = useSidebar();
 
 	// Setup input commands with the new system - now inside InputProvider
 	useInputCommands({
-		onPanelToggle: () => setIsPanelOpen((prev) => !prev),
+		onPanelToggle: toggleSidebar,
 	});
 
 	const [background, setBackground] = useState<any>({
@@ -122,10 +177,13 @@ function WhiteboardApp() {
 
 	return (
 		<div className="app">
+			{/* Register sidebar panels */}
+			<SidebarPanels />
+
 			<ToolbarReact
 				onBackgroundChange={setBackground}
-				isPanelOpen={isPanelOpen}
-				onPanelToggle={() => setIsPanelOpen(!isPanelOpen)}
+				isPanelOpen={isSidebarOpen}
+				onPanelToggle={toggleSidebar}
 				onInputSettingsToggle={() => setIsInputSettingsOpen(true)}
 			/>
 			<div className="main-content">
@@ -138,13 +196,12 @@ function WhiteboardApp() {
 						onReady={handleCanvasReady}
 					/>
 				</div>
-				{isPanelOpen && <PropertyPanel />}
+				<RightSidebar />
 			</div>
 			<InputSettingsPanel
 				isOpen={isInputSettingsOpen}
 				onClose={() => setIsInputSettingsOpen(false)}
 			/>
-			<DebugMenu />
 			<ToastContainer />
 		</div>
 	);
@@ -154,7 +211,9 @@ function App() {
 	return (
 		<ToastProvider>
 			<ConfiguredInputProvider debug={false}>
-				<WhiteboardApp />
+				<SidebarProvider defaultOpen={true} defaultActiveTab="properties">
+					<WhiteboardApp />
+				</SidebarProvider>
 			</ConfiguredInputProvider>
 		</ToastProvider>
 	);
