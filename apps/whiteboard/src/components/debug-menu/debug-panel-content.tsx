@@ -98,18 +98,25 @@ export const DebugPanelContent: React.FC = () => {
 			store.setSelection(["red-box", "green-box"]);
 			const groupId = store.groupShapes("左側グループ");
 			console.log("✅ グループID:", groupId);
-			console.log("グループ情報:", store.groups);
+			// グループ化後に最新のストア状態を取得
+			const updatedStore = whiteboardStore.getState();
+			console.log("グループ情報:", updatedStore.groups);
+			console.log("Z-order:", updatedStore.zOrder);
 
 			// Undo/Redo
 			setTimeout(() => {
 				console.log("\n⏪ ステップ3: Undo");
 				store.undo();
-				console.log("✅ グループ解除:", store.groups);
+				const afterUndo = whiteboardStore.getState();
+				console.log("✅ グループ解除:", afterUndo.groups);
+				console.log("Z-order:", afterUndo.zOrder);
 
 				setTimeout(() => {
 					console.log("\n⏩ ステップ4: Redo");
 					store.redo();
-					console.log("✅ グループ復元:", store.groups);
+					const afterRedo = whiteboardStore.getState();
+					console.log("✅ グループ復元:", afterRedo.groups);
+					console.log("Z-order:", afterRedo.zOrder);
 
 					// 可視性
 					setTimeout(() => {
@@ -124,27 +131,31 @@ export const DebugPanelContent: React.FC = () => {
 							// Z-index操作
 							setTimeout(() => {
 								console.log("\n📊 ステップ6: Z-index操作");
-								console.log("初期Z-order:", store.zOrder);
+								const beforeZ = whiteboardStore.getState();
+								console.log("初期Z-order:", beforeZ.zOrder);
 
 								store.bringToFront("red-box");
-								console.log("✅ 赤を最前面:", store.zOrder);
+								const afterFront = whiteboardStore.getState();
+								console.log("✅ 赤を最前面:", afterFront.zOrder);
 
 								store.sendToBack("blue-box");
-								console.log("✅ 青を最背面:", store.zOrder);
+								const afterBack = whiteboardStore.getState();
+								console.log("✅ 青を最背面:", afterBack.zOrder);
 
 								// 最終状態
 								setTimeout(() => {
 									console.log("\n📋 ステップ7: 最終状態");
-									const tree = store.getLayerTree();
+									const finalState = whiteboardStore.getState();
+									const tree = finalState.getLayerTree();
 									console.log("レイヤーツリー:", tree);
 
 									console.log("\n✨ デモ完了！");
 									console.log("ストアの全状態:", {
-										shapes: store.shapes,
-										groups: store.groups,
-										zOrder: store.zOrder,
-										canUndo: store.canUndo,
-										canRedo: store.canRedo,
+										shapes: finalState.shapes,
+										groups: finalState.groups,
+										zOrder: finalState.zOrder,
+										canUndo: finalState.canUndo,
+										canRedo: finalState.canRedo,
 									});
 								}, 1000);
 							}, 1000);
