@@ -48,7 +48,42 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 	const selectedShapeIds = useStore((state) => state.selectedShapeIds);
 	const distributeShapesHorizontally = useStore((state) => state.distributeShapesHorizontally);
 	const distributeShapesVertically = useStore((state) => state.distributeShapesVertically);
+	const groupShapes = useStore((state) => state.groupShapes);
+	const ungroupShapes = useStore((state) => state.ungroupShapes);
+	const groups = useStore((state) => state.groups);
+	const shapes = useStore((state) => state.shapes);
 	const [currentBackground, setCurrentBackground] = useState("usketch.dots");
+
+	// Check if selected shapes belong to a single group
+	const getSelectedGroup = (): string | null => {
+		if (selectedShapeIds.size === 0) return null;
+
+		// Check if all selected shapes belong to the same group
+		const selectedIds = Array.from(selectedShapeIds) as string[];
+		const firstId = selectedIds[0];
+		if (!firstId) return null;
+
+		const firstShape = shapes[firstId];
+		const groupId = firstShape?.layer?.parentId;
+
+		if (!groupId) return null;
+
+		// Verify all selected shapes belong to the same group
+		const allInSameGroup = selectedIds.every((id) => shapes[id]?.layer?.parentId === groupId);
+
+		return allInSameGroup ? groupId : null;
+	};
+
+	// Check if a single group is selected (not individual shapes)
+	const isSingleGroupSelected = (): string | null => {
+		if (selectedShapeIds.size !== 1) return null;
+		const selectedId = Array.from(selectedShapeIds)[0] as string;
+		if (!selectedId) return null;
+		return groups[selectedId] ? selectedId : null;
+	};
+
+	const selectedGroup = getSelectedGroup();
+	const selectedGroupId = isSingleGroupSelected();
 	const [showBackgroundMenu, setShowBackgroundMenu] = useState(false);
 	const [showEffectMenu, setShowEffectMenu] = useState(false);
 	const [currentEffectType, setCurrentEffectType] = useState<"ripple" | "pin" | "fading-pin">(
@@ -407,6 +442,61 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 			</div>
 
 			<div className="toolbar-separator" />
+
+			{/* Group/Ungroup buttons - show when select tool is active and shapes are selected */}
+			{currentTool === "select" && selectedShapeIds.size >= 2 && (
+				<>
+					<div className="toolbar-group">
+						{/* Group button - show when 2+ shapes selected and not in same group */}
+						{!selectedGroup && (
+							<button
+								type="button"
+								className="tool-button"
+								onClick={() => groupShapes()}
+								data-testid="group-shapes"
+								title="選択した図形をグループ化"
+							>
+								<span className="tool-icon">📦</span>
+								<span>グループ化</span>
+							</button>
+						)}
+
+						{/* Ungroup button - show when shapes belong to same group */}
+						{selectedGroup && (
+							<button
+								type="button"
+								className="tool-button"
+								onClick={() => ungroupShapes(selectedGroup)}
+								data-testid="ungroup-shapes"
+								title="グループを解除"
+							>
+								<span className="tool-icon">📂</span>
+								<span>グループ解除</span>
+							</button>
+						)}
+					</div>
+					<div className="toolbar-separator" />
+				</>
+			)}
+
+			{/* Single group selected - show ungroup button */}
+			{currentTool === "select" && selectedGroupId && (
+				<>
+					<div className="toolbar-group">
+						<button
+							type="button"
+							className="tool-button"
+							onClick={() => ungroupShapes(selectedGroupId)}
+							data-testid="ungroup-single"
+							title="グループを解除"
+						>
+							<span className="tool-icon">📂</span>
+							<span>グループ解除</span>
+						</button>
+					</div>
+					<div className="toolbar-separator" />
+				</>
+			)}
 
 			{/* Distribution buttons - show when select tool is active and 3+ shapes are selected */}
 			{currentTool === "select" && selectedShapeIds.size >= 3 && (
