@@ -180,6 +180,34 @@ export const selectToolMachine = setup({
 			const store = whiteboardStore.getState();
 			const selectedIds = store.selectedShapeIds;
 
+			// Check if any selected shape is locked
+			let hasLockedShape = false;
+			for (const id of selectedIds) {
+				const shape = getShape(id);
+				if (!shape) continue;
+
+				// Check if shape is locked
+				const isLocked = shape.layer?.locked ?? false;
+				if (isLocked) {
+					hasLockedShape = true;
+					break;
+				}
+
+				// Check if parent group is locked
+				if (shape.layer?.parentId) {
+					const parentGroup = store.groups[shape.layer.parentId];
+					if (parentGroup?.locked) {
+						hasLockedShape = true;
+						break;
+					}
+				}
+			}
+
+			// Don't prepare for drag if any shape is locked
+			if (hasLockedShape) {
+				return {};
+			}
+
 			// Record initial positions and points of all selected shapes
 			const positions = new Map<string, Point>();
 			const points = new Map<string, Point[]>();
@@ -778,6 +806,16 @@ export const selectToolMachine = setup({
 			const shapeId = Array.from(selectedIds)[0];
 			const shape = getShape(shapeId);
 			if (!shape || !("width" in shape && "height" in shape)) return {};
+
+			// Check if shape is locked
+			const isLocked = shape.layer?.locked ?? false;
+			if (isLocked) return {};
+
+			// Check if parent group is locked
+			if (shape.layer?.parentId) {
+				const parentGroup = store.groups[shape.layer.parentId];
+				if (parentGroup?.locked) return {};
+			}
 
 			// Check if we have a resize handle from event (set by SelectionLayer)
 			// or fall back to point-based detection

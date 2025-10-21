@@ -14,13 +14,30 @@ export class DeleteShapeCommand extends BaseCommand {
 	execute(context: CommandContext): void {
 		const state = context.getState();
 		const shape = state.shapes[this.shapeId];
-		if (shape) {
-			this.deletedShape = shape;
+
+		if (!shape) return;
+
+		// Check if shape is locked
+		const isLocked = shape.layer?.locked ?? false;
+		if (isLocked) {
+			console.warn(`Cannot delete locked shape: ${this.shapeId}`);
+			return;
 		}
+
+		// Check if parent group is locked
+		const fullStore = whiteboardStore.getState();
+		if (shape.layer?.parentId) {
+			const parentGroup = fullStore.groups[shape.layer.parentId];
+			if (parentGroup?.locked) {
+				console.warn(`Cannot delete shape in locked group: ${this.shapeId}`);
+				return;
+			}
+		}
+
+		this.deletedShape = shape;
 		this.wasSelected = state.selectedShapeIds.has(this.shapeId);
 
 		// Save zOrder index for undo
-		const fullStore = whiteboardStore.getState();
 		this.previousZOrderIndex = fullStore.zOrder?.indexOf(this.shapeId) ?? -1;
 
 		context.setState((state) => {
