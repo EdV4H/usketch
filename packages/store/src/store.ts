@@ -192,11 +192,15 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 	setState: (updater: (state: WhiteboardState) => void) => {
 		set((currentState: WhiteboardStore) => {
 			// Create a mutable copy of the current state for the updater
-			const mutableState = {
+			// Include LayerSlice properties for commands that need them
+			const mutableState: any = {
 				shapes: { ...currentState.shapes },
 				selectedShapeIds: new Set(currentState.selectedShapeIds),
 				camera: { ...currentState.camera },
 				currentTool: currentState.currentTool,
+				// LayerSlice properties
+				groups: currentState.groups ? { ...currentState.groups } : {},
+				zOrder: currentState.zOrder ? [...currentState.zOrder] : [],
 			};
 
 			// Apply the updates
@@ -209,6 +213,9 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 				selectedShapeIds: mutableState.selectedShapeIds,
 				camera: mutableState.camera,
 				currentTool: mutableState.currentTool,
+				// LayerSlice properties
+				groups: mutableState.groups,
+				zOrder: mutableState.zOrder,
 			};
 		});
 	},
