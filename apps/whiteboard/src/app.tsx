@@ -10,6 +10,7 @@ import { ConfiguredInputProvider } from "./components/configured-input-provider"
 import { DebugPanelContent } from "./components/debug-menu";
 import { HistoryPanelContent } from "./components/history-panel";
 import { InputSettingsPanel } from "./components/input-settings/input-settings-panel";
+import { LayerPanel } from "./components/layer-panel/layer-panel";
 import { PropertyPanelContent } from "./components/property-panel";
 import { RightSidebar } from "./components/right-sidebar";
 import { ToastContainer } from "./components/toast";
@@ -200,6 +201,7 @@ function WhiteboardApp() {
 						</Whiteboard.EffectRegistry>
 					</Whiteboard.ShapeRegistry>
 				</div>
+				<LayerPanel />
 				<RightSidebar />
 			</div>
 			<InputSettingsPanel

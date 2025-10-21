@@ -72,6 +72,9 @@ export interface LayerActions {
 	/** レイヤー選択 */
 	selectLayer: (id: string) => void;
 
+	/** 選択レイヤーを設定（null可能） */
+	setSelectedLayerId: (id: string | null) => void;
+
 	// ユーティリティ
 	/** レイヤーツリーを取得（UI表示用） */
 	getLayerTree: () => LayerTreeNode[];
@@ -316,6 +319,10 @@ export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice>
 	},
 
 	selectLayer: (id: string) => {
+		set({ selectedLayerId: id });
+	},
+
+	setSelectedLayerId: (id: string | null) => {
 		set({ selectedLayerId: id });
 	},
 
