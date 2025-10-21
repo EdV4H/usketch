@@ -15,12 +15,12 @@
 }
 
 .layer-tree-item:hover {
-	background-color: var(--color-surface-hover);
+	background-color: #f0f0f0;
 }
 
 .layer-tree-item.selected {
-	background-color: var(--color-primary-alpha-10);
-	border: 1px solid var(--color-primary);
+	background-color: #e3f2fd;
+	border: 1px solid #2196f3;
 }
 
 .layer-tree-item.locked {
@@ -38,12 +38,12 @@
 	align-items: center;
 	justify-content: center;
 	font-size: 10px;
-	color: var(--color-text-secondary);
+	color: #666;
 	transition: transform 0.2s ease;
 }
 
 .layer-tree-item-expand:hover {
-	color: var(--color-text-primary);
+	color: #333;
 }
 
 .layer-tree-item-icon {
@@ -55,7 +55,7 @@
 .layer-tree-item-name {
 	flex: 1;
 	font-size: 13px;
-	color: var(--color-text-primary);
+	color: #333;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -94,7 +94,7 @@
 
 .layer-tree-item-visibility:hover,
 .layer-tree-item-lock:hover {
-	background-color: var(--color-surface-hover);
+	background-color: #e0e0e0;
 }
 
 .layer-tree-item-visibility.hidden {
@@ -102,36 +102,9 @@
 }
 
 .layer-tree-item-lock.locked {
-	color: var(--color-warning);
+	color: #ff9800;
 }
 
 .layer-tree-item-children {
 	margin-left: 0;
-}
-
-/* CSS Variables (to be defined in global styles) */
-:root {
-	--color-surface: #ffffff;
-	--color-surface-elevated: #f8f9fa;
-	--color-surface-hover: #e9ecef;
-	--color-border: #dee2e6;
-	--color-text-primary: #212529;
-	--color-text-secondary: #6c757d;
-	--color-primary: #0d6efd;
-	--color-primary-alpha-10: rgba(13, 110, 253, 0.1);
-	--color-warning: #fd7e14;
-}
-
-@media (prefers-color-scheme: dark) {
-	:root {
-		--color-surface: #1a1a1a;
-		--color-surface-elevated: #2a2a2a;
-		--color-surface-hover: #3a3a3a;
-		--color-border: #404040;
-		--color-text-primary: #e9ecef;
-		--color-text-secondary: #adb5bd;
-		--color-primary: #0d6efd;
-		--color-primary-alpha-10: rgba(13, 110, 253, 0.2);
-		--color-warning: #fd7e14;
-	}
 }
