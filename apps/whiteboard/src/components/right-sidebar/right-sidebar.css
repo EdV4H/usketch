@@ -21,6 +21,8 @@
 .right-sidebar--closed .sidebar-tabs {
 	flex-direction: column;
 	padding: 4px 2px;
+	overflow-x: hidden;
+	overflow-y: auto;
 }
 
 .right-sidebar--closed .sidebar-tab__label,
@@ -43,6 +45,28 @@
 	background: #f9f9f9;
 	border-bottom: 1px solid #e5e5e5;
 	flex-shrink: 0;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: thin;
+	scrollbar-color: #d0d0d0 #f9f9f9;
+}
+
+/* Custom scrollbar for tabs */
+.sidebar-tabs::-webkit-scrollbar {
+	height: 6px;
+}
+
+.sidebar-tabs::-webkit-scrollbar-track {
+	background: #f9f9f9;
+}
+
+.sidebar-tabs::-webkit-scrollbar-thumb {
+	background: #d0d0d0;
+	border-radius: 3px;
+}
+
+.sidebar-tabs::-webkit-scrollbar-thumb:hover {
+	background: #b0b0b0;
 }
 
 /* Tab Button */
