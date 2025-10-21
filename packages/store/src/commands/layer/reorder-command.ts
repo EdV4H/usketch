@@ -1,4 +1,5 @@
 import type { CommandContext } from "@usketch/shared-types";
+import { whiteboardStore } from "../../store";
 import { BaseCommand } from "../base-command";
 
 /**
@@ -15,11 +16,10 @@ export class ReorderCommand extends BaseCommand {
 	}
 
 	execute(context: CommandContext): void {
-		const state = context.getState();
-		const store = state as any;
+		const fullStore = whiteboardStore.getState();
 
 		// 現在の順序を保存
-		this.previousOrder = [...(store.zOrder || [])];
+		this.previousOrder = fullStore.zOrder ? [...fullStore.zOrder] : [];
 
 		context.setState((draft) => {
 			const draftStore = draft as any;

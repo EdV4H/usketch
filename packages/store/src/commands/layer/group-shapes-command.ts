@@ -1,6 +1,7 @@
 import type { CommandContext, Shape, ShapeGroup } from "@usketch/shared-types";
 import { createDefaultGroup, DEFAULT_LAYER_METADATA } from "@usketch/shared-types";
 import { nanoid } from "nanoid";
+import { whiteboardStore } from "../../store";
 import { BaseCommand } from "../base-command";
 
 /**
@@ -23,13 +24,14 @@ export class GroupShapesCommand extends BaseCommand {
 
 	execute(context: CommandContext): void {
 		const state = context.getState();
+		const fullStore = whiteboardStore.getState();
 
 		// 現在の状態を保存（Undo用）
 		this.previousShapeStates = this.shapeIds.map((id) => ({
 			id,
 			layer: state.shapes[id]?.layer,
 		}));
-		this.previousZOrder = [...(state as any).zOrder];
+		this.previousZOrder = fullStore.zOrder ? [...fullStore.zOrder] : [];
 
 		context.setState((draft) => {
 			const store = draft as any;
@@ -56,10 +58,14 @@ export class GroupShapesCommand extends BaseCommand {
 				}
 			});
 
-			// zOrderを更新
-			const newZOrder = store.zOrder.filter((id: string) => !this.shapeIds.includes(id));
+			// zOrderを更新（存在しない場合は初期化）
+			const currentZOrder = store.zOrder || [];
+			const newZOrder = currentZOrder.filter((id: string) => !this.shapeIds.includes(id));
 			newZOrder.push(this.groupId);
 
+			if (!store.groups) {
+				store.groups = {};
+			}
 			store.groups = { ...store.groups, [this.groupId]: newGroup };
 			store.zOrder = newZOrder;
 		});
@@ -70,9 +76,11 @@ export class GroupShapesCommand extends BaseCommand {
 			const store = draft as any;
 
 			// グループを削除
-			const newGroups = { ...store.groups };
-			delete newGroups[this.groupId];
-			store.groups = newGroups;
+			if (store.groups) {
+				const newGroups = { ...store.groups };
+				delete newGroups[this.groupId];
+				store.groups = newGroups;
+			}
 
 			// 形状の状態を復元
 			this.previousShapeStates.forEach(({ id, layer }) => {
