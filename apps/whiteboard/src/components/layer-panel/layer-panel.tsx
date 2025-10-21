@@ -1,7 +1,7 @@
 import type { LayerTreeNode } from "@usketch/shared-types";
 import { DEFAULT_LAYER_METADATA } from "@usketch/shared-types";
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useStore } from "../../hooks/use-store";
 import { LayerTreeItem } from "./layer-tree-item";
 import "./layer-panel.css";
@@ -17,7 +17,6 @@ import "./layer-panel.css";
  * - Z-order manipulation
  */
 export const LayerPanel: React.FC = () => {
-	const [collapsed, setCollapsed] = useState(false);
 	const shapes = useStore((state) => state.shapes);
 	const groups = useStore((state) => state.groups);
 	const zOrder = useStore((state) => state.zOrder);
@@ -47,39 +46,8 @@ export const LayerPanel: React.FC = () => {
 		return tree;
 	}, [shapes, groups, zOrder]);
 
-	const handleTogglePanel = () => {
-		setCollapsed(!collapsed);
-	};
-
-	if (collapsed) {
-		return (
-			<div className="layer-panel collapsed">
-				<button
-					type="button"
-					className="layer-panel-toggle"
-					onClick={handleTogglePanel}
-					aria-label="Expand layer panel"
-				>
-					▶
-				</button>
-			</div>
-		);
-	}
-
 	return (
 		<div className="layer-panel">
-			<div className="layer-panel-header">
-				<h3 className="layer-panel-title">Layers</h3>
-				<button
-					type="button"
-					className="layer-panel-toggle"
-					onClick={handleTogglePanel}
-					aria-label="Collapse layer panel"
-				>
-					◀
-				</button>
-			</div>
-
 			<div className="layer-panel-content">
 				{layerTree.length === 0 ? (
 					<div className="layer-panel-empty">No layers</div>
