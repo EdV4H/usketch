@@ -23,6 +23,19 @@ export function getShapeAtPoint(point: Point, registry?: ShapeRegistry): Shape |
 	// Check shapes in reverse order (top to bottom)
 	for (let i = shapes.length - 1; i >= 0; i--) {
 		const shape = shapes[i];
+
+		// Skip invisible shapes
+		const isVisible = shape.layer?.visible ?? true;
+		if (!isVisible) continue;
+
+		// Skip if parent group is invisible
+		if (shape.layer?.parentId) {
+			const parentGroup = state.groups[shape.layer.parentId];
+			if (parentGroup && !parentGroup.visible) {
+				continue;
+			}
+		}
+
 		if (isPointInShape(point, shape, registry)) {
 			return shape;
 		}
@@ -84,6 +97,18 @@ export function getShapesInBounds(bounds: Bounds): Shape[] {
 	const shapes = Object.values(state.shapes);
 
 	return shapes.filter((shape) => {
+		// Skip invisible shapes
+		const isVisible = shape.layer?.visible ?? true;
+		if (!isVisible) return false;
+
+		// Skip if parent group is invisible
+		if (shape.layer?.parentId) {
+			const parentGroup = state.groups[shape.layer.parentId];
+			if (parentGroup && !parentGroup.visible) {
+				return false;
+			}
+		}
+
 		return isShapeInBounds(shape, bounds);
 	});
 }
