@@ -11,7 +11,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 	className = "",
 }) => {
 	const shapeArray = Object.values(shapes);
-	const { selectedShapeIds } = useWhiteboardStore();
+	const { selectedShapeIds, groups } = useWhiteboardStore();
 	const svgRef = useRef<SVGSVGElement>(null);
 
 	// Note: Event handling has been moved to InteractionLayer with ToolManager integration
@@ -45,10 +45,22 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 					fill="transparent"
 				/>
 
-				{/* Render shapes */}
-				{shapeArray.map((shape) => (
-					<Shape key={shape.id} shape={shape} isSelected={selectedShapeIds.has(shape.id)} />
-				))}
+				{/* Render shapes (skip invisible shapes) */}
+				{shapeArray.map((shape) => {
+					// Skip if shape is explicitly set to invisible
+					const isVisible = shape.layer?.visible ?? true;
+					if (!isVisible) return null;
+
+					// Skip if parent group is invisible
+					if (shape.layer?.parentId) {
+						const parentGroup = groups[shape.layer.parentId];
+						if (parentGroup && !parentGroup.visible) {
+							return null;
+						}
+					}
+
+					return <Shape key={shape.id} shape={shape} isSelected={selectedShapeIds.has(shape.id)} />;
+				})}
 			</g>
 		</svg>
 	);
