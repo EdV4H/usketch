@@ -91,3 +91,18 @@
 .debug-panel-notice button:hover {
 	background: #1565c0;
 }
+
+.debug-info {
+	margin-top: 8px;
+	padding: 8px;
+	background: #f9f9f9;
+	border: 1px solid #e0e0e0;
+	border-radius: 4px;
+	font-size: 11px;
+	color: #666;
+	line-height: 1.4;
+}
+
+.debug-info small {
+	display: block;
+}
