@@ -1,0 +1,137 @@
+.layer-tree-item-wrapper {
+	width: 100%;
+}
+
+.layer-tree-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	cursor: pointer;
+	user-select: none;
+	transition: background-color 0.15s ease;
+	border-radius: 4px;
+	margin: 2px 4px;
+}
+
+.layer-tree-item:hover {
+	background-color: var(--color-surface-hover);
+}
+
+.layer-tree-item.selected {
+	background-color: var(--color-primary-alpha-10);
+	border: 1px solid var(--color-primary);
+}
+
+.layer-tree-item.locked {
+	opacity: 0.6;
+}
+
+.layer-tree-item-expand {
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 0;
+	width: 16px;
+	height: 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 10px;
+	color: var(--color-text-secondary);
+	transition: transform 0.2s ease;
+}
+
+.layer-tree-item-expand:hover {
+	color: var(--color-text-primary);
+}
+
+.layer-tree-item-icon {
+	font-size: 14px;
+	width: 20px;
+	text-align: center;
+}
+
+.layer-tree-item-name {
+	flex: 1;
+	font-size: 13px;
+	color: var(--color-text-primary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.layer-tree-item-controls {
+	display: flex;
+	gap: 4px;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+.layer-tree-item:hover .layer-tree-item-controls {
+	opacity: 1;
+}
+
+.layer-tree-item.selected .layer-tree-item-controls {
+	opacity: 1;
+}
+
+.layer-tree-item-visibility,
+.layer-tree-item-lock {
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 4px;
+	width: 24px;
+	height: 24px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 12px;
+	border-radius: 3px;
+	transition: background-color 0.15s ease;
+}
+
+.layer-tree-item-visibility:hover,
+.layer-tree-item-lock:hover {
+	background-color: var(--color-surface-hover);
+}
+
+.layer-tree-item-visibility.hidden {
+	opacity: 0.5;
+}
+
+.layer-tree-item-lock.locked {
+	color: var(--color-warning);
+}
+
+.layer-tree-item-children {
+	margin-left: 0;
+}
+
+/* CSS Variables (to be defined in global styles) */
+:root {
+	--color-surface: #ffffff;
+	--color-surface-elevated: #f8f9fa;
+	--color-surface-hover: #e9ecef;
+	--color-border: #dee2e6;
+	--color-text-primary: #212529;
+	--color-text-secondary: #6c757d;
+	--color-primary: #0d6efd;
+	--color-primary-alpha-10: rgba(13, 110, 253, 0.1);
+	--color-warning: #fd7e14;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--color-surface: #1a1a1a;
+		--color-surface-elevated: #2a2a2a;
+		--color-surface-hover: #3a3a3a;
+		--color-border: #404040;
+		--color-text-primary: #e9ecef;
+		--color-text-secondary: #adb5bd;
+		--color-primary: #0d6efd;
+		--color-primary-alpha-10: rgba(13, 110, 253, 0.2);
+		--color-warning: #fd7e14;
+	}
+}
