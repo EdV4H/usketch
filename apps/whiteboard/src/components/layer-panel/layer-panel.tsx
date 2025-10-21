@@ -1,6 +1,7 @@
 import type { LayerTreeNode } from "@usketch/shared-types";
+import { DEFAULT_LAYER_METADATA } from "@usketch/shared-types";
 import type React from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useStore } from "../../hooks/use-store";
 import { LayerTreeItem } from "./layer-tree-item";
 import "./layer-panel.css";
@@ -17,9 +18,34 @@ import "./layer-panel.css";
  */
 export const LayerPanel: React.FC = () => {
 	const [collapsed, setCollapsed] = useState(false);
-	const layerTree = useStore((state) => state.getLayerTree());
+	const shapes = useStore((state) => state.shapes);
+	const groups = useStore((state) => state.groups);
+	const zOrder = useStore((state) => state.zOrder);
 	const selectedLayerId = useStore((state) => state.selectedLayerId);
 	const setSelectedLayerId = useStore((state) => state.setSelectedLayerId);
+
+	// Compute layer tree with useMemo to avoid infinite loops
+	const layerTree = useMemo<LayerTreeNode[]>(() => {
+		const tree: LayerTreeNode[] = [];
+
+		// Build tree in zOrder (back to front)
+		for (const id of zOrder) {
+			// Check if it's a group
+			const group = groups[id];
+			if (group) {
+				tree.push({ type: "group", group });
+			} else {
+				// It's a shape
+				const shape = shapes[id];
+				if (shape) {
+					const metadata = shape.layer || DEFAULT_LAYER_METADATA;
+					tree.push({ type: "shape", shape, metadata });
+				}
+			}
+		}
+
+		return tree;
+	}, [shapes, groups, zOrder]);
 
 	const handleTogglePanel = () => {
 		setCollapsed(!collapsed);
