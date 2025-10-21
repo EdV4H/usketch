@@ -1,4 +1,5 @@
 import type { CommandContext, Shape, ShapeGroup } from "@usketch/shared-types";
+import { whiteboardStore } from "../../store";
 import { BaseCommand } from "../base-command";
 
 /**
@@ -18,17 +19,17 @@ export class UngroupShapesCommand extends BaseCommand {
 
 	execute(context: CommandContext): void {
 		const state = context.getState();
-		const store = state as any;
+		const fullStore = whiteboardStore.getState();
 
 		// 現在の状態を保存（Undo用）
-		this.previousGroup = store.groups?.[this.groupId] || null;
+		this.previousGroup = fullStore.groups?.[this.groupId] || null;
 		if (!this.previousGroup) return;
 
 		this.previousShapeStates = this.previousGroup.childIds.map((id) => ({
 			id,
 			layer: state.shapes[id]?.layer,
 		}));
-		this.previousZOrder = [...(store.zOrder || [])];
+		this.previousZOrder = fullStore.zOrder ? [...fullStore.zOrder] : [];
 
 		context.setState((draft) => {
 			const draftStore = draft as any;
