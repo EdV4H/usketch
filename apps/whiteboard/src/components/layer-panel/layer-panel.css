@@ -14,7 +14,7 @@
 .layer-panel-empty {
 	padding: 24px;
 	text-align: center;
-	color: var(--color-text-secondary);
+	color: #999;
 	font-size: 13px;
 }
 
@@ -32,10 +32,10 @@
 }
 
 .layer-panel-content::-webkit-scrollbar-thumb {
-	background: var(--color-border);
+	background: #d0d0d0;
 	border-radius: 4px;
 }
 
 .layer-panel-content::-webkit-scrollbar-thumb:hover {
-	background: var(--color-text-secondary);
+	background: #b0b0b0;
 }
