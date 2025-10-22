@@ -50,7 +50,7 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 	const distributeShapesVertically = useStore((state) => state.distributeShapesVertically);
 	const groupShapes = useStore((state) => state.groupShapes);
 	const ungroupShapes = useStore((state) => state.ungroupShapes);
-	const groups = useStore((state) => state.groups);
+	const getGroups = useStore((state) => state.getGroups);
 	const shapes = useStore((state) => state.shapes);
 	const [currentBackground, setCurrentBackground] = useState("usketch.dots");
 
@@ -79,6 +79,7 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 		if (selectedShapeIds.size !== 1) return null;
 		const selectedId = Array.from(selectedShapeIds)[0] as string;
 		if (!selectedId) return null;
+		const groups = getGroups();
 		return groups[selectedId] ? selectedId : null;
 	};
 
