@@ -213,7 +213,6 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 				camera: mutableState.camera,
 				currentTool: mutableState.currentTool,
 				// LayerSlice properties
-				groups: mutableState.groups,
 				zOrder: mutableState.zOrder,
 			};
 		});

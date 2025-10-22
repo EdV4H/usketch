@@ -77,8 +77,8 @@ export const ToolbarReact: React.FC<ToolbarProps> = ({
 	// Check if a single group is selected (not individual shapes)
 	const isSingleGroupSelected = (): string | null => {
 		if (selectedShapeIds.size !== 1) return null;
-		const selectedId = Array.from(selectedShapeIds)[0] as string;
-		if (!selectedId) return null;
+		const selectedId = Array.from(selectedShapeIds)[0];
+		if (!selectedId || typeof selectedId !== "string") return null;
 		const groups = getGroups();
 		return groups[selectedId] ? selectedId : null;
 	};

@@ -68,6 +68,9 @@ export interface LayerActions {
 	/** Z-index順を直接設定（ドラッグ&ドロップ用） */
 	reorderLayers: (newOrder: string[]) => void;
 
+	/** zOrderから指定IDを削除 */
+	removeFromZOrder: (id: string) => void;
+
 	// レイヤーパネル
 	/** レイヤーパネルの開閉を切り替え */
 	toggleLayerPanel: () => void;
@@ -312,8 +315,11 @@ export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice>
 
 		const newZOrder = [...state.zOrder];
 		const temp = newZOrder[currentIndex];
-		newZOrder[currentIndex] = newZOrder[currentIndex + 1]!;
-		newZOrder[currentIndex + 1] = temp!;
+		const nextItem = newZOrder[currentIndex + 1];
+		if (temp !== undefined && nextItem !== undefined) {
+			newZOrder[currentIndex] = nextItem;
+			newZOrder[currentIndex + 1] = temp;
+		}
 
 		set({ zOrder: newZOrder });
 	},
@@ -326,8 +332,11 @@ export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice>
 
 		const newZOrder = [...state.zOrder];
 		const temp = newZOrder[currentIndex];
-		newZOrder[currentIndex] = newZOrder[currentIndex - 1]!;
-		newZOrder[currentIndex - 1] = temp!;
+		const prevItem = newZOrder[currentIndex - 1];
+		if (temp !== undefined && prevItem !== undefined) {
+			newZOrder[currentIndex] = prevItem;
+			newZOrder[currentIndex - 1] = temp;
+		}
 
 		set({ zOrder: newZOrder });
 	},
@@ -336,6 +345,12 @@ export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice>
 		const state = get();
 		const command = new ReorderCommand(newOrder);
 		state.executeCommand(command);
+	},
+
+	removeFromZOrder: (id: string) => {
+		set((state) => ({
+			zOrder: state.zOrder.filter((zId) => zId !== id),
+		}));
 	},
 
 	// レイヤーパネル
