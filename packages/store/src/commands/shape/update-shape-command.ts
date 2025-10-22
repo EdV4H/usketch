@@ -1,4 +1,5 @@
 import type { Command, CommandContext, Shape } from "@usketch/shared-types";
+import { whiteboardStore } from "../../store";
 import { BaseCommand } from "../base-command";
 
 export class UpdateShapeCommand extends BaseCommand {
@@ -16,6 +17,28 @@ export class UpdateShapeCommand extends BaseCommand {
 		const shape = state.shapes[this.shapeId];
 
 		if (!shape) return;
+
+		// Check if shape is locked (allow layer metadata updates)
+		const isLocked = shape.layer?.locked ?? false;
+		const isLayerUpdate = "layer" in this.updates;
+
+		if (isLocked && !isLayerUpdate) {
+			console.warn(`Cannot update locked shape: ${this.shapeId}`);
+			return;
+		}
+
+		// Check if parent group is locked (allow layer metadata updates)
+		const fullStore = whiteboardStore.getState();
+		if (shape.layer?.parentId && !isLayerUpdate) {
+			const parentGroupShape = fullStore.shapes[shape.layer.parentId];
+			if (parentGroupShape && parentGroupShape.type === "group") {
+				const isParentLocked = parentGroupShape.layer?.locked ?? false;
+				if (isParentLocked) {
+					console.warn(`Cannot update shape in locked group: ${this.shapeId}`);
+					return;
+				}
+			}
+		}
 
 		// Save previous state for undo
 		this.previousState = {};

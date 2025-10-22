@@ -10,9 +10,52 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 	currentTool: _currentTool,
 	className = "",
 }) => {
-	const shapeArray = Object.values(shapes);
-	const { selectedShapeIds } = useWhiteboardStore();
+	const { selectedShapeIds, zOrder } = useWhiteboardStore();
 	const svgRef = useRef<SVGSVGElement>(null);
+
+	// Recursive function to render a shape and its children
+	const renderShapeWithChildren = (shape: (typeof shapes)[string]): React.ReactNode[] => {
+		const result: React.ReactNode[] = [];
+
+		// Skip if shape is invisible
+		const isVisible = shape.layer?.visible ?? true;
+		if (!isVisible) return result;
+
+		// Skip if parent group is invisible
+		if (shape.layer?.parentId) {
+			const parentGroupShape = shapes[shape.layer.parentId];
+			if (parentGroupShape && parentGroupShape.type === "group") {
+				const isParentVisible = parentGroupShape.layer?.visible ?? true;
+				if (!isParentVisible) {
+					return result;
+				}
+			}
+		}
+
+		// If it's a group, render its children first, then the group bounding box
+		if (shape.type === "group" && shape.childIds) {
+			for (const childId of shape.childIds) {
+				const childShape = shapes[childId];
+				if (childShape) {
+					result.push(...renderShapeWithChildren(childShape));
+				}
+			}
+			// Render group bounding box after children
+			result.push(
+				<Shape key={shape.id} shape={shape} isSelected={selectedShapeIds.has(shape.id)} />,
+			);
+		} else {
+			// Render the shape itself
+			result.push(
+				<Shape key={shape.id} shape={shape} isSelected={selectedShapeIds.has(shape.id)} />,
+			);
+		}
+
+		return result;
+	};
+
+	// Build shape array in zOrder (back to front for correct layering)
+	const orderedShapes = zOrder.map((id) => shapes[id]).filter((shape) => shape !== undefined);
 
 	// Note: Event handling has been moved to InteractionLayer with ToolManager integration
 	// ShapeLayer now only renders shapes and does not handle pointer events
@@ -45,10 +88,8 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 					fill="transparent"
 				/>
 
-				{/* Render shapes */}
-				{shapeArray.map((shape) => (
-					<Shape key={shape.id} shape={shape} isSelected={selectedShapeIds.has(shape.id)} />
-				))}
+				{/* Render shapes in zOrder with children (skip invisible shapes) */}
+				{orderedShapes.flatMap((shape) => renderShapeWithChildren(shape))}
 			</g>
 		</svg>
 	);

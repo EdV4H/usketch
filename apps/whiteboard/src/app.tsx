@@ -10,6 +10,7 @@ import { ConfiguredInputProvider } from "./components/configured-input-provider"
 import { DebugPanelContent } from "./components/debug-menu";
 import { HistoryPanelContent } from "./components/history-panel";
 import { InputSettingsPanel } from "./components/input-settings/input-settings-panel";
+import { LayerPanel } from "./components/layer-panel/layer-panel";
 import { PropertyPanelContent } from "./components/property-panel";
 import { RightSidebar } from "./components/right-sidebar";
 import { ToastContainer } from "./components/toast";
@@ -42,13 +43,22 @@ function SidebarPanels() {
 	// Check if we're in development mode
 	const isDev = import.meta.env.DEV;
 
+	// Layer Panel - always visible
+	useRegisterPanel({
+		id: "layers",
+		label: "レイヤー",
+		icon: "📁",
+		content: <LayerPanel />,
+		order: 1,
+	});
+
 	// Property Panel - always visible
 	useRegisterPanel({
 		id: "properties",
 		label: "プロパティ",
 		icon: "⚙️",
 		content: <PropertyPanelContent />,
-		order: 1,
+		order: 2,
 	});
 
 	// Debug Panel - dev only
@@ -60,7 +70,7 @@ function SidebarPanels() {
 					icon: "🔧",
 					content: <DebugPanelContent />,
 					devOnly: true,
-					order: 2,
+					order: 3,
 				}
 			: null,
 	);
@@ -74,7 +84,7 @@ function SidebarPanels() {
 					icon: "🕐",
 					content: <HistoryPanelContent />,
 					devOnly: true,
-					order: 3,
+					order: 4,
 				}
 			: null,
 	);
@@ -215,7 +225,7 @@ function App() {
 	return (
 		<ToastProvider>
 			<ConfiguredInputProvider debug={false}>
-				<SidebarProvider defaultOpen={true} defaultActiveTab="properties">
+				<SidebarProvider defaultOpen={true} defaultActiveTab="layers">
 					<WhiteboardApp />
 				</SidebarProvider>
 			</ConfiguredInputProvider>

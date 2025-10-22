@@ -1,0 +1,41 @@
+.layer-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+}
+
+.layer-panel-content {
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+.layer-panel-empty {
+	padding: 24px;
+	text-align: center;
+	color: #999;
+	font-size: 13px;
+}
+
+.layer-tree {
+	padding: 8px 0;
+}
+
+/* Scrollbar styling */
+.layer-panel-content::-webkit-scrollbar {
+	width: 8px;
+}
+
+.layer-panel-content::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.layer-panel-content::-webkit-scrollbar-thumb {
+	background: #d0d0d0;
+	border-radius: 4px;
+}
+
+.layer-panel-content::-webkit-scrollbar-thumb:hover {
+	background: #b0b0b0;
+}

@@ -23,6 +23,7 @@ import {
 } from "./commands/shape";
 import { calculateDistribution, type DistributionDirection } from "./distribution-utils";
 import { HistoryManager } from "./history/history-manager";
+import { createLayerSlice, type LayerSlice } from "./slices/layer-slice";
 import { createStyleSlice, type StyleSlice } from "./slices/style-slice";
 
 export type AlignmentDirection =
@@ -72,7 +73,7 @@ export interface SnapSettings {
 	viewportMargin: number; // Extra margin around viewport for shape culling (pixels)
 }
 
-export interface WhiteboardStore extends WhiteboardState, StyleSlice {
+export interface WhiteboardStore extends WhiteboardState, StyleSlice, LayerSlice {
 	// State additions
 	selectionIndicator: SelectionIndicatorState;
 	snapGuides: SnapGuide[];
@@ -191,11 +192,14 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 	setState: (updater: (state: WhiteboardState) => void) => {
 		set((currentState: WhiteboardStore) => {
 			// Create a mutable copy of the current state for the updater
-			const mutableState = {
+			// Include LayerSlice properties for commands that need them
+			const mutableState: any = {
 				shapes: { ...currentState.shapes },
 				selectedShapeIds: new Set(currentState.selectedShapeIds),
 				camera: { ...currentState.camera },
 				currentTool: currentState.currentTool,
+				// LayerSlice properties
+				zOrder: currentState.zOrder ? [...currentState.zOrder] : [],
 			};
 
 			// Apply the updates
@@ -208,6 +212,8 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 				selectedShapeIds: mutableState.selectedShapeIds,
 				camera: mutableState.camera,
 				currentTool: mutableState.currentTool,
+				// LayerSlice properties
+				zOrder: mutableState.zOrder,
 			};
 		});
 	},
@@ -828,6 +834,9 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 
 	// Add StyleSlice
 	...createStyleSlice(set, get, store),
+
+	// Add LayerSlice
+	...createLayerSlice(set, get, store),
 }));
 
 // Export convenient accessor functions
