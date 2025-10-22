@@ -30,9 +30,12 @@ export function getShapeAtPoint(point: Point, registry?: ShapeRegistry): Shape |
 
 		// Skip if parent group is invisible
 		if (shape.layer?.parentId) {
-			const parentGroup = state.groups[shape.layer.parentId];
-			if (parentGroup && !parentGroup.visible) {
-				continue;
+			const parentGroupShape = state.shapes[shape.layer.parentId];
+			if (parentGroupShape && parentGroupShape.type === "group") {
+				const isParentVisible = parentGroupShape.layer?.visible ?? true;
+				if (!isParentVisible) {
+					continue;
+				}
 			}
 		}
 
@@ -103,9 +106,12 @@ export function getShapesInBounds(bounds: Bounds): Shape[] {
 
 		// Skip if parent group is invisible
 		if (shape.layer?.parentId) {
-			const parentGroup = state.groups[shape.layer.parentId];
-			if (parentGroup && !parentGroup.visible) {
-				return false;
+			const parentGroupShape = state.shapes[shape.layer.parentId];
+			if (parentGroupShape && parentGroupShape.type === "group") {
+				const isParentVisible = parentGroupShape.layer?.visible ?? true;
+				if (!isParentVisible) {
+					return false;
+				}
 			}
 		}
 

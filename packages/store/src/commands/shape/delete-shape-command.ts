@@ -27,10 +27,13 @@ export class DeleteShapeCommand extends BaseCommand {
 		// Check if parent group is locked
 		const fullStore = whiteboardStore.getState();
 		if (shape.layer?.parentId) {
-			const parentGroup = fullStore.groups[shape.layer.parentId];
-			if (parentGroup?.locked) {
-				console.warn(`Cannot delete shape in locked group: ${this.shapeId}`);
-				return;
+			const parentGroupShape = fullStore.shapes[shape.layer.parentId];
+			if (parentGroupShape && parentGroupShape.type === "group") {
+				const isParentLocked = parentGroupShape.layer?.locked ?? false;
+				if (isParentLocked) {
+					console.warn(`Cannot delete shape in locked group: ${this.shapeId}`);
+					return;
+				}
 			}
 		}
 

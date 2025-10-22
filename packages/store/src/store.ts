@@ -199,7 +199,6 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 				camera: { ...currentState.camera },
 				currentTool: currentState.currentTool,
 				// LayerSlice properties
-				groups: currentState.groups ? { ...currentState.groups } : {},
 				zOrder: currentState.zOrder ? [...currentState.zOrder] : [],
 			};
 

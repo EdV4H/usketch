@@ -1,4 +1,4 @@
-import type { CommandContext, Shape, ShapeGroup } from "@usketch/shared-types";
+import type { CommandContext, GroupShape, Shape } from "@usketch/shared-types";
 import { whiteboardStore } from "../../store";
 import { BaseCommand } from "../base-command";
 
@@ -8,7 +8,7 @@ import { BaseCommand } from "../base-command";
  */
 export class UngroupShapesCommand extends BaseCommand {
 	private groupId: string;
-	private previousGroup: ShapeGroup | null = null;
+	private previousGroup: GroupShape | null = null;
 	private previousShapeStates: Array<{ id: string; layer?: any }> = [];
 	private previousZOrder: string[] = [];
 
@@ -22,9 +22,10 @@ export class UngroupShapesCommand extends BaseCommand {
 		const fullStore = whiteboardStore.getState();
 
 		// 現在の状態を保存（Undo用）
-		this.previousGroup = fullStore.groups?.[this.groupId] || null;
-		if (!this.previousGroup) return;
+		const groupShape = state.shapes[this.groupId];
+		if (!groupShape || groupShape.type !== "group") return;
 
+		this.previousGroup = groupShape as GroupShape;
 		this.previousShapeStates = this.previousGroup.childIds.map((id) => ({
 			id,
 			layer: state.shapes[id]?.layer,
@@ -34,9 +35,11 @@ export class UngroupShapesCommand extends BaseCommand {
 		context.setState((draft) => {
 			const draftStore = draft as any;
 
-			// グループを取得
-			const group = draftStore.groups?.[this.groupId];
-			if (!group) return;
+			// GroupShapeを取得
+			const groupShape = draft.shapes[this.groupId];
+			if (!groupShape || groupShape.type !== "group") return;
+
+			const group = groupShape as GroupShape;
 
 			// 形状からグループ参照を削除
 			group.childIds.forEach((id: string) => {
@@ -47,10 +50,8 @@ export class UngroupShapesCommand extends BaseCommand {
 				}
 			});
 
-			// グループを削除
-			const newGroups = { ...draftStore.groups };
-			delete newGroups[this.groupId];
-			draftStore.groups = newGroups;
+			// GroupShapeをshapesから削除
+			delete draft.shapes[this.groupId];
 
 			// zOrderを更新
 			const newZOrder = draftStore.zOrder.flatMap((id: string) =>
@@ -66,8 +67,8 @@ export class UngroupShapesCommand extends BaseCommand {
 		context.setState((draft) => {
 			const store = draft as any;
 
-			// グループを復元
-			store.groups = { ...store.groups, [this.groupId]: this.previousGroup };
+			// GroupShapeを復元
+			draft.shapes[this.groupId] = this.previousGroup as Shape;
 
 			// 形状の状態を復元
 			this.previousShapeStates.forEach(({ id, layer }) => {
