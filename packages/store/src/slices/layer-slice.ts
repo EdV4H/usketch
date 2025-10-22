@@ -126,7 +126,7 @@ export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice>
 		state.executeCommand(command);
 
 		// Return the groupId from the command
-		return (command as any).groupId;
+		return command.getGroupId();
 	},
 
 	ungroupShapes: (groupId: string) => {

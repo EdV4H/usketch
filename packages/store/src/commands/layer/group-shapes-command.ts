@@ -1,7 +1,7 @@
 import type { CommandContext, GroupShape, Shape } from "@usketch/shared-types";
 import { createDefaultGroupShape, DEFAULT_LAYER_METADATA } from "@usketch/shared-types";
 import { nanoid } from "nanoid";
-import { whiteboardStore } from "../../store";
+import { type ExtendedWhiteboardState, whiteboardStore } from "../../store";
 import { BaseCommand } from "../base-command";
 
 /**
@@ -22,6 +22,10 @@ export class GroupShapesCommand extends BaseCommand {
 		this.groupId = nanoid();
 	}
 
+	getGroupId(): string {
+		return this.groupId;
+	}
+
 	execute(context: CommandContext): void {
 		const state = context.getState();
 		const fullStore = whiteboardStore.getState();
@@ -34,7 +38,7 @@ export class GroupShapesCommand extends BaseCommand {
 		this.previousZOrder = fullStore.zOrder ? [...fullStore.zOrder] : [];
 
 		context.setState((draft) => {
-			const store = draft as any;
+			const store = draft as ExtendedWhiteboardState;
 
 			// Calculate bounding box for the group
 			let minX = Number.POSITIVE_INFINITY;
@@ -108,7 +112,7 @@ export class GroupShapesCommand extends BaseCommand {
 
 	undo(context: CommandContext): void {
 		context.setState((draft) => {
-			const store = draft as any;
+			const store = draft as ExtendedWhiteboardState;
 
 			// GroupShapeをshapesから削除
 			delete draft.shapes[this.groupId];

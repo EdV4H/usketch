@@ -181,6 +181,11 @@ const historyManager = new HistoryManager({
 	mergeThreshold: 1000,
 });
 
+// Extended state type for commands that need LayerSlice properties
+export type ExtendedWhiteboardState = WhiteboardState & {
+	zOrder?: string[];
+};
+
 // Helper function to create CommandContext
 const createCommandContext = (get: any, set: any): CommandContext => ({
 	getState: () => ({
@@ -193,7 +198,7 @@ const createCommandContext = (get: any, set: any): CommandContext => ({
 		set((currentState: WhiteboardStore) => {
 			// Create a mutable copy of the current state for the updater
 			// Include LayerSlice properties for commands that need them
-			const mutableState: any = {
+			const mutableState: ExtendedWhiteboardState = {
 				shapes: { ...currentState.shapes },
 				selectedShapeIds: new Set(currentState.selectedShapeIds),
 				camera: { ...currentState.camera },

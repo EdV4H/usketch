@@ -1,4 +1,5 @@
 import type { CommandContext, Shape } from "@usketch/shared-types";
+import type { ExtendedWhiteboardState } from "../../store";
 import { BaseCommand } from "../base-command";
 
 export class CreateShapeCommand extends BaseCommand {
@@ -8,7 +9,7 @@ export class CreateShapeCommand extends BaseCommand {
 
 	execute(context: CommandContext): void {
 		context.setState((state) => {
-			const store = state as any;
+			const store = state as ExtendedWhiteboardState;
 
 			// Add shape to shapes
 			state.shapes[this.shape.id] = this.shape;

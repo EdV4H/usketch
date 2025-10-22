@@ -1,4 +1,5 @@
 import type { CommandContext } from "@usketch/shared-types";
+import type { ExtendedWhiteboardState } from "../../store";
 import { whiteboardStore } from "../../store";
 import { BaseCommand } from "../base-command";
 
@@ -22,14 +23,14 @@ export class ReorderCommand extends BaseCommand {
 		this.previousOrder = fullStore.zOrder ? [...fullStore.zOrder] : [];
 
 		context.setState((draft) => {
-			const draftStore = draft as any;
+			const draftStore = draft as ExtendedWhiteboardState;
 			draftStore.zOrder = this.newOrder;
 		});
 	}
 
 	undo(context: CommandContext): void {
 		context.setState((draft) => {
-			const draftStore = draft as any;
+			const draftStore = draft as ExtendedWhiteboardState;
 			draftStore.zOrder = this.previousOrder;
 		});
 	}

@@ -1,5 +1,5 @@
 import type { CommandContext, GroupShape, Shape } from "@usketch/shared-types";
-import { whiteboardStore } from "../../store";
+import { type ExtendedWhiteboardState, whiteboardStore } from "../../store";
 import { BaseCommand } from "../base-command";
 
 /**
@@ -33,7 +33,7 @@ export class UngroupShapesCommand extends BaseCommand {
 		this.previousZOrder = fullStore.zOrder ? [...fullStore.zOrder] : [];
 
 		context.setState((draft) => {
-			const draftStore = draft as any;
+			const draftStore = draft as ExtendedWhiteboardState;
 
 			// GroupShapeを取得
 			const groupShape = draft.shapes[this.groupId];
@@ -65,7 +65,7 @@ export class UngroupShapesCommand extends BaseCommand {
 		if (!this.previousGroup) return;
 
 		context.setState((draft) => {
-			const store = draft as any;
+			const store = draft as ExtendedWhiteboardState;
 
 			// GroupShapeを復元
 			draft.shapes[this.groupId] = this.previousGroup as Shape;

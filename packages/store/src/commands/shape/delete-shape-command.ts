@@ -1,5 +1,5 @@
 import type { CommandContext, Shape } from "@usketch/shared-types";
-import { whiteboardStore } from "../../store";
+import { type ExtendedWhiteboardState, whiteboardStore } from "../../store";
 import { BaseCommand } from "../base-command";
 
 export class DeleteShapeCommand extends BaseCommand {
@@ -44,14 +44,14 @@ export class DeleteShapeCommand extends BaseCommand {
 		this.previousZOrderIndex = fullStore.zOrder?.indexOf(this.shapeId) ?? -1;
 
 		context.setState((state) => {
-			const store = state as any;
+			const store = state as ExtendedWhiteboardState;
 
 			// Remove shape
 			delete state.shapes[this.shapeId];
 			state.selectedShapeIds.delete(this.shapeId);
 
 			// Remove from zOrder if present
-			store.zOrder = store.zOrder?.filter((id: string) => id !== this.shapeId) || [];
+			store.zOrder = store.zOrder?.filter((id) => id !== this.shapeId) || [];
 		});
 	}
 
@@ -59,7 +59,7 @@ export class DeleteShapeCommand extends BaseCommand {
 		if (this.deletedShape) {
 			const shape = this.deletedShape;
 			context.setState((state) => {
-				const store = state as any;
+				const store = state as ExtendedWhiteboardState;
 
 				// Restore shape
 				state.shapes[this.shapeId] = shape;
