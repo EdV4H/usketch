@@ -32,7 +32,7 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 			}
 		}
 
-		// If it's a group, render its children first (in order)
+		// If it's a group, render its children first, then the group bounding box
 		if (shape.type === "group" && shape.childIds) {
 			for (const childId of shape.childIds) {
 				const childShape = shapes[childId];
@@ -40,6 +40,10 @@ export const ShapeLayer: React.FC<ShapeLayerProps> = ({
 					result.push(...renderShapeWithChildren(childShape));
 				}
 			}
+			// Render group bounding box after children
+			result.push(
+				<Shape key={shape.id} shape={shape} isSelected={selectedShapeIds.has(shape.id)} />,
+			);
 		} else {
 			// Render the shape itself
 			result.push(

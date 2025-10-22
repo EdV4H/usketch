@@ -1,4 +1,4 @@
-import type { LayerTreeNode } from "@usketch/shared-types";
+import type { GroupShape, LayerTreeNode } from "@usketch/shared-types";
 import type React from "react";
 import { useState } from "react";
 import { useStore } from "../../hooks/use-store";
@@ -283,7 +283,7 @@ export const LayerTreeItem: React.FC<LayerTreeItemProps> = ({
 						// Check if child is a GroupShape
 						if (childShape.type === "group") {
 							// Get the group data from shapes (it's a GroupShape now)
-							const childGroupShape = childShape as any; // GroupShape
+							const childGroupShape = childShape as GroupShape;
 							const childGroup = {
 								id: childGroupShape.id,
 								name: childGroupShape.name,
@@ -292,7 +292,9 @@ export const LayerTreeItem: React.FC<LayerTreeItemProps> = ({
 								locked: childGroupShape.layer?.locked ?? false,
 								collapsed: childGroupShape.collapsed,
 								zIndex: childGroupShape.layer?.zIndex ?? 0,
-								parentId: childGroupShape.layer?.parentId,
+								...(childGroupShape.layer?.parentId
+									? { parentId: childGroupShape.layer.parentId }
+									: {}),
 							};
 
 							const childNode: LayerTreeNode = {

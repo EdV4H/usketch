@@ -50,10 +50,8 @@ export class DeleteShapeCommand extends BaseCommand {
 			delete state.shapes[this.shapeId];
 			state.selectedShapeIds.delete(this.shapeId);
 
-			// Remove from zOrder
-			if (store.zOrder) {
-				store.zOrder = store.zOrder.filter((id: string) => id !== this.shapeId);
-			}
+			// Remove from zOrder if present
+			store.zOrder = store.zOrder?.filter((id: string) => id !== this.shapeId) || [];
 		});
 	}
 
