@@ -195,10 +195,13 @@ export const selectToolMachine = setup({
 
 				// Check if parent group is locked
 				if (shape.layer?.parentId) {
-					const parentGroup = store.groups[shape.layer.parentId];
-					if (parentGroup?.locked) {
-						hasLockedShape = true;
-						break;
+					const parentGroupShape = store.shapes[shape.layer.parentId];
+					if (parentGroupShape && parentGroupShape.type === "group") {
+						const isParentLocked = parentGroupShape.layer?.locked ?? false;
+						if (isParentLocked) {
+							hasLockedShape = true;
+							break;
+						}
 					}
 				}
 			}
@@ -813,8 +816,11 @@ export const selectToolMachine = setup({
 
 			// Check if parent group is locked
 			if (shape.layer?.parentId) {
-				const parentGroup = store.groups[shape.layer.parentId];
-				if (parentGroup?.locked) return {};
+				const parentGroupShape = store.shapes[shape.layer.parentId];
+				if (parentGroupShape && parentGroupShape.type === "group") {
+					const isParentLocked = parentGroupShape.layer?.locked ?? false;
+					if (isParentLocked) return {};
+				}
 			}
 
 			// Check if we have a resize handle from event (set by SelectionLayer)

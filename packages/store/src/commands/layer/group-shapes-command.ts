@@ -1,5 +1,5 @@
-import type { CommandContext, Shape, ShapeGroup } from "@usketch/shared-types";
-import { createDefaultGroup, DEFAULT_LAYER_METADATA } from "@usketch/shared-types";
+import type { CommandContext, GroupShape, Shape } from "@usketch/shared-types";
+import { createDefaultGroupShape, DEFAULT_LAYER_METADATA } from "@usketch/shared-types";
 import { nanoid } from "nanoid";
 import { whiteboardStore } from "../../store";
 import { BaseCommand } from "../base-command";
@@ -36,13 +36,50 @@ export class GroupShapesCommand extends BaseCommand {
 		context.setState((draft) => {
 			const store = draft as any;
 
-			// グループを作成
-			const newGroup: ShapeGroup = {
-				id: this.groupId,
-				...createDefaultGroup(this.groupName),
-				childIds: this.shapeIds,
-				zIndex: Math.max(...this.shapeIds.map((id) => draft.shapes[id]?.layer?.zIndex ?? 0)),
+			// Calculate bounding box for the group
+			let minX = Number.POSITIVE_INFINITY;
+			let minY = Number.POSITIVE_INFINITY;
+			let maxX = Number.NEGATIVE_INFINITY;
+			let maxY = Number.NEGATIVE_INFINITY;
+
+			this.shapeIds.forEach((id) => {
+				const shape = draft.shapes[id];
+				if (shape) {
+					const x = shape.x;
+					const y = shape.y;
+					const width = "width" in shape ? shape.width : 0;
+					const height = "height" in shape ? shape.height : 0;
+
+					minX = Math.min(minX, x);
+					minY = Math.min(minY, y);
+					maxX = Math.max(maxX, x + width);
+					maxY = Math.max(maxY, y + height);
+				}
+			});
+
+			const bounds = {
+				x: minX,
+				y: minY,
+				width: maxX - minX,
+				height: maxY - minY,
 			};
+
+			// グループをGroupShapeとして作成
+			const newGroupShape: GroupShape = createDefaultGroupShape(
+				this.groupId,
+				this.groupName,
+				bounds,
+			);
+			newGroupShape.childIds = this.shapeIds;
+			const maxZIndex = Math.max(
+				...this.shapeIds.map((id) => draft.shapes[id]?.layer?.zIndex ?? 0),
+			);
+			if (newGroupShape.layer) {
+				newGroupShape.layer = {
+					...newGroupShape.layer,
+					zIndex: maxZIndex,
+				};
+			}
 
 			// 形状にグループ参照を追加
 			this.shapeIds.forEach((id) => {
@@ -58,15 +95,13 @@ export class GroupShapesCommand extends BaseCommand {
 				}
 			});
 
+			// GroupShapeをshapesに追加
+			draft.shapes[this.groupId] = newGroupShape;
+
 			// zOrderを更新（存在しない場合は初期化）
 			const currentZOrder = store.zOrder || [];
 			const newZOrder = currentZOrder.filter((id: string) => !this.shapeIds.includes(id));
 			newZOrder.push(this.groupId);
-
-			if (!store.groups) {
-				store.groups = {};
-			}
-			store.groups = { ...store.groups, [this.groupId]: newGroup };
 			store.zOrder = newZOrder;
 		});
 	}
@@ -75,12 +110,8 @@ export class GroupShapesCommand extends BaseCommand {
 		context.setState((draft) => {
 			const store = draft as any;
 
-			// グループを削除
-			if (store.groups) {
-				const newGroups = { ...store.groups };
-				delete newGroups[this.groupId];
-				store.groups = newGroups;
-			}
+			// GroupShapeをshapesから削除
+			delete draft.shapes[this.groupId];
 
 			// 形状の状態を復元
 			this.previousShapeStates.forEach(({ id, layer }) => {

@@ -30,10 +30,13 @@ export class UpdateShapeCommand extends BaseCommand {
 		// Check if parent group is locked (allow layer metadata updates)
 		const fullStore = whiteboardStore.getState();
 		if (shape.layer?.parentId && !isLayerUpdate) {
-			const parentGroup = fullStore.groups[shape.layer.parentId];
-			if (parentGroup?.locked) {
-				console.warn(`Cannot update shape in locked group: ${this.shapeId}`);
-				return;
+			const parentGroupShape = fullStore.shapes[shape.layer.parentId];
+			if (parentGroupShape && parentGroupShape.type === "group") {
+				const isParentLocked = parentGroupShape.layer?.locked ?? false;
+				if (isParentLocked) {
+					console.warn(`Cannot update shape in locked group: ${this.shapeId}`);
+					return;
+				}
 			}
 		}
 

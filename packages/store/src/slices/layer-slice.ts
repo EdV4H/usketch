@@ -1,13 +1,16 @@
-import type { LayerMetadata, LayerTreeNode, Shape, ShapeGroup } from "@usketch/shared-types";
-import { DEFAULT_LAYER_METADATA } from "@usketch/shared-types";
+import type {
+	GroupShape,
+	LayerMetadata,
+	LayerTreeNode,
+	Shape,
+	ShapeGroup,
+} from "@usketch/shared-types";
+import { DEFAULT_LAYER_METADATA, groupShapeToShapeGroup } from "@usketch/shared-types";
 import type { StateCreator } from "zustand";
 import { GroupShapesCommand, ReorderCommand, UngroupShapesCommand } from "../commands/layer";
 import type { WhiteboardStore } from "../store";
 
 export interface LayerState {
-	/** グループ情報のマップ */
-	groups: Record<string, ShapeGroup>;
-
 	/** Z-index順の配列（形状IDまたはグループID） */
 	zOrder: string[];
 
@@ -81,6 +84,12 @@ export interface LayerActions {
 
 	/** 形状のレイヤー名を取得（自動生成含む） */
 	getLayerName: (shapeId: string) => string;
+
+	/**
+	 * GroupShapeをShapeGroupに変換して取得
+	 * 後方互換性のためのヘルパー関数
+	 */
+	getGroups: () => Record<string, ShapeGroup>;
 }
 
 export type LayerSlice = LayerState & LayerActions;
@@ -90,7 +99,6 @@ export type LayerSlice = LayerState & LayerActions;
  */
 export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice> = (set, get) => ({
 	// Initial state
-	groups: {},
 	zOrder: [],
 	layerPanelOpen: false,
 	selectedLayerId: null,
@@ -104,7 +112,11 @@ export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice>
 			return null; // Need at least 2 shapes to group
 		}
 
-		const groupName = name || `Group ${Object.keys(state.groups).length + 1}`;
+		// Count existing groups from shapes
+		const existingGroupCount = Object.values(state.shapes).filter(
+			(shape) => shape.type === "group",
+		).length;
+		const groupName = name || `Group ${existingGroupCount + 1}`;
 		const command = new GroupShapesCommand(selectedIds, groupName);
 
 		// Execute command with history
@@ -122,16 +134,18 @@ export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice>
 
 	addToGroup: (groupId: string, shapeIds: string[]) => {
 		const state = get();
-		const group = state.groups[groupId];
+		const groupShape = state.shapes[groupId];
 
-		if (!group) return;
+		if (!groupShape || groupShape.type !== "group") return;
 
-		const updatedGroup = {
-			...group,
-			childIds: [...group.childIds, ...shapeIds],
-		};
+		const updatedGroupShape = {
+			...groupShape,
+			childIds: [...groupShape.childIds, ...shapeIds],
+		} as GroupShape;
 
 		const updatedShapes = { ...state.shapes };
+		updatedShapes[groupId] = updatedGroupShape;
+
 		shapeIds.forEach((id) => {
 			const shape = updatedShapes[id];
 			if (shape) {
@@ -145,24 +159,23 @@ export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice>
 			}
 		});
 
-		set({
-			groups: { ...state.groups, [groupId]: updatedGroup },
-			shapes: updatedShapes,
-		});
+		set({ shapes: updatedShapes });
 	},
 
 	removeFromGroup: (groupId: string, shapeIds: string[]) => {
 		const state = get();
-		const group = state.groups[groupId];
+		const groupShape = state.shapes[groupId];
 
-		if (!group) return;
+		if (!groupShape || groupShape.type !== "group") return;
 
-		const updatedGroup = {
-			...group,
-			childIds: group.childIds.filter((id) => !shapeIds.includes(id)),
-		};
+		const updatedGroupShape = {
+			...groupShape,
+			childIds: groupShape.childIds.filter((id) => !shapeIds.includes(id)),
+		} as GroupShape;
 
 		const updatedShapes = { ...state.shapes };
+		updatedShapes[groupId] = updatedGroupShape;
+
 		shapeIds.forEach((id) => {
 			const shape = updatedShapes[id];
 			if (shape?.layer) {
@@ -174,22 +187,24 @@ export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice>
 			}
 		});
 
-		set({
-			groups: { ...state.groups, [groupId]: updatedGroup },
-			shapes: updatedShapes,
-		});
+		set({ shapes: updatedShapes });
 	},
 
 	renameGroup: (groupId: string, name: string) => {
 		const state = get();
-		const group = state.groups[groupId];
+		const groupShape = state.shapes[groupId];
 
-		if (!group) return;
+		if (!groupShape || groupShape.type !== "group") return;
+
+		const updatedGroupShape = {
+			...groupShape,
+			name,
+		} as GroupShape;
 
 		set({
-			groups: {
-				...state.groups,
-				[groupId]: { ...group, name },
+			shapes: {
+				...state.shapes,
+				[groupId]: updatedGroupShape,
 			},
 		});
 	},
@@ -216,15 +231,20 @@ export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice>
 
 	toggleGroupVisibility: (groupId: string) => {
 		const state = get();
-		const group = state.groups[groupId];
+		const groupShape = state.shapes[groupId];
 
-		if (!group) return;
+		if (!groupShape || groupShape.type !== "group") return;
+
+		const updatedGroupShape = {
+			...groupShape,
+			layer: {
+				...(groupShape.layer || DEFAULT_LAYER_METADATA),
+				visible: !(groupShape.layer?.visible ?? true),
+			},
+		} as Shape;
 
 		set({
-			groups: {
-				...state.groups,
-				[groupId]: { ...group, visible: !group.visible },
-			},
+			shapes: { ...state.shapes, [groupId]: updatedGroupShape },
 		});
 	},
 
@@ -250,15 +270,20 @@ export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice>
 
 	toggleGroupLock: (groupId: string) => {
 		const state = get();
-		const group = state.groups[groupId];
+		const groupShape = state.shapes[groupId];
 
-		if (!group) return;
+		if (!groupShape || groupShape.type !== "group") return;
+
+		const updatedGroupShape = {
+			...groupShape,
+			layer: {
+				...(groupShape.layer || DEFAULT_LAYER_METADATA),
+				locked: !(groupShape.layer?.locked ?? false),
+			},
+		} as Shape;
 
 		set({
-			groups: {
-				...state.groups,
-				[groupId]: { ...group, locked: !group.locked },
-			},
+			shapes: { ...state.shapes, [groupId]: updatedGroupShape },
 		});
 	},
 
@@ -330,20 +355,23 @@ export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice>
 	getLayerTree: () => {
 		const state = get();
 		const tree: LayerTreeNode[] = [];
+		const groups = get().getGroups();
 
 		// Build tree in zOrder (back to front)
 		for (const id of state.zOrder) {
-			// Check if it's a group
-			const group = state.groups[id];
-			if (group) {
-				tree.push({ type: "group", group });
-			} else {
-				// It's a shape
-				const shape = state.shapes[id];
-				if (shape) {
-					const metadata: LayerMetadata = shape.layer || DEFAULT_LAYER_METADATA;
-					tree.push({ type: "shape", shape, metadata });
+			const shape = state.shapes[id];
+			if (!shape) continue;
+
+			// Check if it's a GroupShape
+			if (shape.type === "group") {
+				const group = groups[id];
+				if (group) {
+					tree.push({ type: "group", group });
 				}
+			} else {
+				// It's a regular shape
+				const metadata: LayerMetadata = shape.layer || DEFAULT_LAYER_METADATA;
+				tree.push({ type: "shape", shape, metadata });
 			}
 		}
 
@@ -368,8 +396,24 @@ export const createLayerSlice: StateCreator<WhiteboardStore, [], [], LayerSlice>
 			line: "Line",
 			text: "Text",
 			freedraw: "Freedraw",
+			group: "Group",
 		};
 
 		return typeNames[shape.type] || shape.type;
+	},
+
+	getGroups: () => {
+		const state = get();
+		const groups: Record<string, ShapeGroup> = {};
+
+		// Convert all GroupShape instances to ShapeGroup format
+		Object.values(state.shapes).forEach((shape) => {
+			if (shape.type === "group") {
+				const groupShape = shape as GroupShape;
+				groups[groupShape.id] = groupShapeToShapeGroup(groupShape);
+			}
+		});
+
+		return groups;
 	},
 });
