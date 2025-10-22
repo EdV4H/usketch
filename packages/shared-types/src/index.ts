@@ -24,7 +24,7 @@ export interface Bounds {
 // Base shape interface
 export interface BaseShape {
 	id: string;
-	type: "rectangle" | "ellipse" | "line" | "text" | "freedraw";
+	type: "rectangle" | "ellipse" | "line" | "text" | "freedraw" | "group";
 	x: number; // World coordinates
 	y: number; // World coordinates
 	rotation: number; // Radians
@@ -74,8 +74,24 @@ export interface FreedrawShape extends BaseShape {
 	path?: string; // SVG path data
 }
 
+// Group shape (composite pattern)
+export interface GroupShape extends BaseShape {
+	type: "group";
+	width: number; // Bounding box width
+	height: number; // Bounding box height
+	name: string; // Group name
+	childIds: string[]; // IDs of shapes in this group
+	collapsed: boolean; // UI state for layer panel
+}
+
 // Union type for all shapes
-export type Shape = RectangleShape | EllipseShape | LineShape | TextShape | FreedrawShape;
+export type Shape =
+	| RectangleShape
+	| EllipseShape
+	| LineShape
+	| TextShape
+	| FreedrawShape
+	| GroupShape;
 
 // Camera/Viewport state
 export interface Camera {
