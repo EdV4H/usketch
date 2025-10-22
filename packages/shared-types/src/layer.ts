@@ -24,6 +24,9 @@ export interface LayerMetadata {
 /**
  * グループ情報
  * 複数の形状をまとめて管理
+ *
+ * @deprecated GroupShapeに統合されました。後方互換性のために残していますが、
+ * 新しいコードではGroupShapeを使用してください。
  */
 export interface ShapeGroup {
 	/** グループID */
@@ -63,6 +66,7 @@ export const DEFAULT_LAYER_METADATA: LayerMetadata = {
 
 /**
  * デフォルトのグループ生成関数
+ * @deprecated createDefaultGroupShapeを使用してください
  */
 export const createDefaultGroup = (name: string): Omit<ShapeGroup, "id"> => ({
 	name,
@@ -72,3 +76,92 @@ export const createDefaultGroup = (name: string): Omit<ShapeGroup, "id"> => ({
 	collapsed: false,
 	zIndex: 0,
 });
+
+/**
+ * デフォルトのGroupShape生成関数
+ */
+export const createDefaultGroupShape = (
+	id: string,
+	name: string,
+	bounds: { x: number; y: number; width: number; height: number },
+): import("./index").GroupShape => ({
+	id,
+	type: "group",
+	name,
+	childIds: [],
+	collapsed: false,
+	x: bounds.x,
+	y: bounds.y,
+	width: bounds.width,
+	height: bounds.height,
+	rotation: 0,
+	opacity: 1,
+	strokeColor: "transparent",
+	fillColor: "transparent",
+	strokeWidth: 0,
+	layer: {
+		visible: true,
+		locked: false,
+		zIndex: 0,
+	},
+});
+
+/**
+ * ShapeGroup → GroupShape への変換
+ * 後方互換性のためのヘルパー関数
+ */
+export const shapeGroupToGroupShape = (
+	group: ShapeGroup,
+	bounds: { x: number; y: number; width: number; height: number } = {
+		x: 0,
+		y: 0,
+		width: 100,
+		height: 100,
+	},
+): import("./index").GroupShape => {
+	const layer: LayerMetadata = {
+		visible: group.visible,
+		locked: group.locked,
+		zIndex: group.zIndex,
+	};
+	if (group.parentId !== undefined) {
+		layer.parentId = group.parentId;
+	}
+	return {
+		id: group.id,
+		type: "group",
+		name: group.name,
+		childIds: group.childIds,
+		collapsed: group.collapsed,
+		x: bounds.x,
+		y: bounds.y,
+		width: bounds.width,
+		height: bounds.height,
+		rotation: 0,
+		opacity: 1,
+		strokeColor: "transparent",
+		fillColor: "transparent",
+		strokeWidth: 0,
+		layer,
+	};
+};
+
+/**
+ * GroupShape → ShapeGroup への変換
+ * 後方互換性のためのヘルパー関数
+ */
+export const groupShapeToShapeGroup = (shape: import("./index").GroupShape): ShapeGroup => {
+	const group: ShapeGroup = {
+		id: shape.id,
+		name: shape.name,
+		childIds: shape.childIds,
+		collapsed: shape.collapsed,
+		visible: shape.layer?.visible ?? true,
+		locked: shape.layer?.locked ?? false,
+		zIndex: shape.layer?.zIndex ?? 0,
+	};
+	if (shape.layer?.parentId !== undefined) {
+		group.parentId = shape.layer.parentId;
+	}
+	return group;
+};
