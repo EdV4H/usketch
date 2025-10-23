@@ -147,6 +147,133 @@ export const DebugPanelContent: React.FC = () => {
 		}, 500);
 	};
 
+	// Phase 3 Relationship Graph Demo
+	const handleRelationshipDemo = () => {
+		const store = whiteboardStore.getState();
+
+		console.log("🚀 Phase 3 関係グラフデモ開始");
+
+		// 既存の図形をクリア
+		const existingIds = Object.keys(shapes);
+		if (existingIds.length > 0) {
+			store.deleteShapes(existingIds);
+		}
+
+		// 親図形（大きな矩形）を作成
+		console.log("\n📦 ステップ1: 親図形を作成");
+		const parentRect = {
+			id: "parent-container",
+			type: "rectangle" as const,
+			x: 100,
+			y: 100,
+			width: 400,
+			height: 300,
+			rotation: 0,
+			opacity: 0.3,
+			strokeColor: "#4CAF50",
+			fillColor: "#E8F5E9",
+			strokeWidth: 3,
+		};
+
+		store.addShape(parentRect);
+		console.log("✅ 親コンテナを作成しました");
+
+		// 子図形を複数作成
+		setTimeout(() => {
+			console.log("\n📦 ステップ2: 子図形を作成");
+			const child1 = {
+				id: "child-rect-1",
+				type: "rectangle" as const,
+				x: 150,
+				y: 150,
+				width: 80,
+				height: 80,
+				rotation: 0,
+				opacity: 1,
+				strokeColor: "#2196F3",
+				fillColor: "#BBDEFB",
+				strokeWidth: 2,
+			};
+
+			const child2 = {
+				id: "child-rect-2",
+				type: "ellipse" as const,
+				x: 280,
+				y: 150,
+				width: 80,
+				height: 80,
+				rotation: 0,
+				opacity: 1,
+				strokeColor: "#FF9800",
+				fillColor: "#FFE0B2",
+				strokeWidth: 2,
+			};
+
+			const child3 = {
+				id: "child-rect-3",
+				type: "rectangle" as const,
+				x: 380,
+				y: 250,
+				width: 80,
+				height: 80,
+				rotation: 0,
+				opacity: 1,
+				strokeColor: "#9C27B0",
+				fillColor: "#E1BEE7",
+				strokeWidth: 2,
+			};
+
+			store.addShape(child1);
+			store.addShape(child2);
+			store.addShape(child3);
+			console.log("✅ 3つの子図形を作成しました");
+
+			// 関係を明示的に作成
+			setTimeout(() => {
+				console.log("\n🔗 ステップ3: 親子関係を作成");
+
+				// 子図形との関係を明示的に作成
+				const relationship1 = {
+					id: `rel-${Date.now()}-1`,
+					type: "containment" as const,
+					parentId: "parent-container",
+					childId: "child-rect-1",
+					createdAt: Date.now(),
+					effects: [{ type: "move-with-parent" as const }, { type: "rotate-with-parent" as const }],
+				};
+
+				const relationship2 = {
+					id: `rel-${Date.now()}-2`,
+					type: "containment" as const,
+					parentId: "parent-container",
+					childId: "child-rect-2",
+					createdAt: Date.now(),
+					effects: [{ type: "move-with-parent" as const }, { type: "rotate-with-parent" as const }],
+				};
+
+				const relationship3 = {
+					id: `rel-${Date.now()}-3`,
+					type: "containment" as const,
+					parentId: "parent-container",
+					childId: "child-rect-3",
+					createdAt: Date.now(),
+					effects: [{ type: "move-with-parent" as const }],
+				};
+
+				store.addRelationship(relationship1);
+				store.addRelationship(relationship2);
+				store.addRelationship(relationship3);
+
+				const updatedStore = whiteboardStore.getState();
+				console.log("✅ 作成された関係:", updatedStore.relationships);
+
+				console.log("\n✨ デモ完了！");
+				console.log("親子関係が形成されました。親図形を移動すると子図形も一緒に動きます。");
+				console.log("右サイドバーの「関係」タブで確認できます。");
+			}, 500);
+		}, 500);
+	};
+
 	// Phase 7 レイヤー管理デモ
 	const handleLayerDemo = () => {
 		const store = whiteboardStore.getState();
@@ -316,6 +443,20 @@ export const DebugPanelContent: React.FC = () => {
 				>
 					🎨 Variety Pack
 				</button>
+			</div>
+
+			<div className="debug-menu-section">
+				<div className="debug-menu-section-title">Phase 3 Relationship Graph</div>
+				<button type="button" className="debug-menu-item" onClick={handleRelationshipDemo}>
+					🔗 Run Relationship Demo
+				</button>
+				<div className="debug-info">
+					<small>
+						親図形と子図形を作成し、自動的に関係グラフを形成します。
+						<br />
+						親図形を移動すると子図形も一緒に動きます。
+					</small>
+				</div>
 			</div>
 
 			<div className="debug-menu-section">
