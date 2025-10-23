@@ -365,6 +365,22 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(@types/node@24.9.1)(@vitest/ui@3.2.4)(happy-dom@20.0.8)(jsdom@27.0.0(postcss@8.5.6))
 
+  packages/relationship-graph:
+    dependencies:
+      '@usketch/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+    devDependencies:
+      '@usketch/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/node@24.9.1)(@vitest/ui@3.2.4)(happy-dom@20.0.8)(jsdom@27.0.0(postcss@8.5.6))
+
   packages/shape-plugins:
     dependencies:
       '@usketch/react-shapes':

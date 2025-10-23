@@ -3,6 +3,7 @@ export * from "./background";
 export * from "./defaults/shape-styles";
 export * from "./effects";
 export * from "./layer";
+export * from "./relationship";
 export * from "./styles";
 
 import type { LayerMetadata } from "./layer";
