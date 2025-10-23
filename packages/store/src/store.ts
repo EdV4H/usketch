@@ -1,9 +1,17 @@
+import {
+	OverlapDetector,
+	RelationshipGraph,
+	RelationshipRuleEngine,
+	standardRelationshipRules,
+} from "@usketch/relationship-graph";
 import type {
 	Camera,
 	Command,
 	CommandContext,
 	Effect,
+	RelationshipRule,
 	Shape,
+	ShapeRelationship,
 	WhiteboardState,
 } from "@usketch/shared-types";
 import { useStore } from "zustand";
@@ -83,6 +91,11 @@ export interface WhiteboardStore extends WhiteboardState, StyleSlice, LayerSlice
 		effectType: string; // Allow any effect type for extensibility
 		effectConfig?: Record<string, any>;
 	};
+
+	// Relationship graph state
+	relationships: ShapeRelationship[];
+	relationshipGraph: RelationshipGraph;
+	relationshipRuleEngine: RelationshipRuleEngine;
 
 	// History management
 	history: HistoryManager;
@@ -170,6 +183,19 @@ export interface WhiteboardStore extends WhiteboardState, StyleSlice, LayerSlice
 			effectConfig?: Record<string, any>;
 		}>,
 	) => void;
+
+	// Relationship management actions
+	addRelationship: (relationship: ShapeRelationship) => void;
+	removeRelationship: (relationshipId: string) => void;
+	getChildRelationships: (parentId: string) => ShapeRelationship[];
+	getParentRelationships: (childId: string) => ShapeRelationship[];
+	registerRelationshipRule: (rule: RelationshipRule) => void;
+	applyEffectsToChildren: (
+		parentId: string,
+		changeType: "position" | "size" | "rotation" | "style",
+	) => void;
+	checkAndFormRelationships: (shapeId: string) => void;
+	breakRelationshipsForShape: (shapeId: string) => void;
 }
 
 // Export StoreState type for StyleSlice
@@ -180,6 +206,15 @@ const historyManager = new HistoryManager({
 	maxSize: 100,
 	mergeThreshold: 1000,
 });
+
+// Create relationship graph and rule engine instances
+const relationshipGraph = new RelationshipGraph();
+const relationshipRuleEngine = new RelationshipRuleEngine(relationshipGraph);
+
+// Register standard relationship rules
+for (const rule of standardRelationshipRules) {
+	relationshipRuleEngine.registerRule(rule);
+}
 
 // Helper function to create CommandContext
 const createCommandContext = (get: any, set: any): CommandContext => ({
@@ -251,6 +286,11 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 	},
 	canUndo: false,
 	canRedo: false,
+
+	// Relationship graph state
+	relationships: [],
+	relationshipGraph,
+	relationshipRuleEngine,
 
 	// History management
 	history: historyManager,
@@ -830,6 +870,135 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 			...state,
 			effectToolConfig: { ...state.effectToolConfig, ...config },
 		}));
+	},
+
+	// Relationship management actions
+	addRelationship: (relationship: ShapeRelationship) => {
+		relationshipGraph.addRelationship(relationship);
+		set((state) => ({
+			...state,
+			relationships: relationshipGraph.toArray(),
+		}));
+
+		// Apply initial effects when relationship is added
+		const shapes = get().shapes;
+		relationshipRuleEngine.onRelationshipChanged(relationship, "added", shapes);
+	},
+
+	removeRelationship: (relationshipId: string) => {
+		const relationship = relationshipGraph.getRelationship(relationshipId);
+		const removed = relationshipGraph.removeRelationship(relationshipId);
+		if (removed) {
+			set((state) => ({
+				...state,
+				relationships: relationshipGraph.toArray(),
+			}));
+
+			// Handle relationship removal
+			if (relationship) {
+				const shapes = get().shapes;
+				relationshipRuleEngine.onRelationshipChanged(relationship, "removed", shapes);
+			}
+		}
+	},
+
+	getChildRelationships: (parentId: string) => {
+		return relationshipGraph.getChildRelationships(parentId);
+	},
+
+	getParentRelationships: (childId: string) => {
+		return relationshipGraph.getParentRelationships(childId);
+	},
+
+	registerRelationshipRule: (rule: RelationshipRule) => {
+		relationshipRuleEngine.registerRule(rule);
+	},
+
+	applyEffectsToChildren: (
+		parentId: string,
+		changeType: "position" | "size" | "rotation" | "style",
+	) => {
+		const shapes = get().shapes;
+		const updatedShapes = relationshipRuleEngine.applyEffectsToChildren(
+			parentId,
+			changeType,
+			shapes,
+		);
+
+		if (updatedShapes.length > 0) {
+			set((state) => {
+				const newShapes = { ...state.shapes };
+				for (const shape of updatedShapes) {
+					newShapes[shape.id] = shape;
+				}
+				return { ...state, shapes: newShapes };
+			});
+		}
+	},
+
+	checkAndFormRelationships: (shapeId: string) => {
+		const state = get();
+		const shape = state.shapes[shapeId];
+		if (!shape) return;
+
+		const allShapes = Object.values(state.shapes);
+		const existingRelations = relationshipGraph.toArray();
+
+		// Check overlap with all other shapes
+		for (const otherShape of allShapes) {
+			if (otherShape.id === shapeId) continue;
+
+			// Check if shape can be a child
+			const overlapType = OverlapDetector.getOverlapType(otherShape, shape);
+			if (overlapType) {
+				const rule = relationshipRuleEngine.checkOverlap(
+					otherShape,
+					shape,
+					overlapType,
+					existingRelations,
+				);
+
+				if (rule) {
+					const relationship = relationshipRuleEngine.createRelationship(
+						otherShape.id,
+						shape.id,
+						rule,
+					);
+					state.addRelationship(relationship);
+				}
+			}
+
+			// Check if shape can be a parent
+			const reverseOverlapType = OverlapDetector.getOverlapType(shape, otherShape);
+			if (reverseOverlapType) {
+				const rule = relationshipRuleEngine.checkOverlap(
+					shape,
+					otherShape,
+					reverseOverlapType,
+					existingRelations,
+				);
+
+				if (rule) {
+					const relationship = relationshipRuleEngine.createRelationship(
+						shape.id,
+						otherShape.id,
+						rule,
+					);
+					state.addRelationship(relationship);
+				}
+			}
+		}
+	},
+
+	breakRelationshipsForShape: (shapeId: string) => {
+		const state = get();
+		const childRels = state.getChildRelationships(shapeId);
+		const parentRels = state.getParentRelationships(shapeId);
+
+		// Remove all relationships involving this shape
+		for (const rel of [...childRels, ...parentRels]) {
+			state.removeRelationship(rel.id);
+		}
 	},
 
 	// Add StyleSlice

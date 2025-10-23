@@ -467,6 +467,9 @@ importers:
 
   packages/store:
     dependencies:
+      '@usketch/relationship-graph':
+        specifier: workspace:*
+        version: link:../relationship-graph
       '@usketch/shared-types':
         specifier: workspace:*
         version: link:../shared-types
