@@ -11,6 +11,7 @@ import type {
 	Shape,
 	ShapeRelationship,
 } from "@usketch/shared-types";
+import { effectHandlers } from "./effects";
 import type { RelationshipGraph } from "./relationship-graph";
 
 /**
@@ -194,14 +195,14 @@ export class RelationshipRuleEngine {
 	 * エフェクトを適用（実装は個別のエフェクトハンドラに委譲）
 	 */
 	private applyEffect(
-		_effect: RelationshipEffect,
-		_parent: Shape,
-		_child: Shape,
-		_shapes: Record<string, Shape>,
+		effect: RelationshipEffect,
+		parent: Shape,
+		child: Shape,
+		shapes: Record<string, Shape>,
 	): Shape | null {
-		// Phase 2で実装予定
-		// 現在はnullを返す（エフェクトハンドラ未実装）
-		return null;
+		const handler = effectHandlers[effect.type];
+		if (!handler) return null;
+		return handler(parent, child, effect.config, shapes);
 	}
 
 	/**
