@@ -53,6 +53,35 @@ export class UpdateShapeCommand extends BaseCommand {
 				...this.updates,
 			} as Shape;
 		});
+
+		// Apply effects to children if position/rotation/size changed
+		const hasPositionChange = "x" in this.updates || "y" in this.updates;
+		const hasRotationChange = "rotation" in this.updates;
+		const hasSizeChange = "width" in this.updates || "height" in this.updates;
+
+		if (hasPositionChange || hasRotationChange || hasSizeChange) {
+			const fullStore = whiteboardStore.getState();
+
+			// Calculate delta for position changes
+			if (hasPositionChange && shape) {
+				const deltaX = (this.updates.x ?? shape.x) - shape.x;
+				const deltaY = (this.updates.y ?? shape.y) - shape.y;
+
+				// Apply move-with-parent effect
+				const childRelationships = fullStore.getChildRelationships(this.shapeId);
+				for (const rel of childRelationships) {
+					if (rel.effects?.some((e) => e.type === "move-with-parent")) {
+						const childShape = fullStore.shapes[rel.childId];
+						if (childShape) {
+							fullStore.updateShape(rel.childId, {
+								x: childShape.x + deltaX,
+								y: childShape.y + deltaY,
+							});
+						}
+					}
+				}
+			}
+		}
 	}
 
 	undo(context: CommandContext): void {

@@ -1,4 +1,5 @@
 import type { Command, CommandContext, Shape } from "@usketch/shared-types";
+import { whiteboardStore } from "../../store";
 import { BaseCommand } from "../base-command";
 
 export interface ShapeUpdate {
@@ -37,6 +38,33 @@ export class BatchUpdateShapesCommand extends BaseCommand {
 			}
 			state.shapes = newShapes;
 		});
+
+		// Apply effects to children for each updated shape
+		const fullStore = whiteboardStore.getState();
+		for (const update of this.updates) {
+			const hasPositionChange = "x" in update.updates || "y" in update.updates;
+			if (hasPositionChange) {
+				const previousShape = this.previousStates.get(update.id);
+				if (previousShape) {
+					const deltaX = (update.updates.x ?? previousShape.x) - previousShape.x;
+					const deltaY = (update.updates.y ?? previousShape.y) - previousShape.y;
+
+					// Apply move-with-parent effect
+					const childRelationships = fullStore.getChildRelationships(update.id);
+					for (const rel of childRelationships) {
+						if (rel.effects?.some((e) => e.type === "move-with-parent")) {
+							const childShape = fullStore.shapes[rel.childId];
+							if (childShape) {
+								fullStore.updateShape(rel.childId, {
+									x: childShape.x + deltaX,
+									y: childShape.y + deltaY,
+								});
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	undo(context: CommandContext): void {
