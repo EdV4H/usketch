@@ -6,6 +6,7 @@ import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { useSnapSettingsSync } from "../hooks/use-snap-settings-sync";
 import { useToolManager } from "../hooks/use-tool-manager";
 import { EffectLayer } from "../layers/effect-layer";
+import { RelationshipLayer } from "../layers/relationship-layer";
 import type { CanvasProps } from "../types";
 import { BackgroundLayer } from "./background-layer";
 import { InteractionLayer } from "./interaction-layer";
@@ -61,6 +62,7 @@ export const WhiteboardCanvasInternal: React.FC<Omit<CanvasProps, "shapes" | "ef
 		>
 			<BackgroundLayer camera={camera} options={background} />
 			<ShapeLayer shapes={shapes} camera={camera} currentTool={currentTool} />
+			<RelationshipLayer shapes={shapes} camera={camera} showRelationships={false} />
 			<SnapGuidelines guides={snapGuides} camera={camera} />
 			<InteractionLayer camera={camera} currentTool={currentTool} />
 			<SelectionLayer selectedIds={selectedShapeIds} shapes={shapes} camera={camera} />
