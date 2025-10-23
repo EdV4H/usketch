@@ -12,6 +12,7 @@ import { HistoryPanelContent } from "./components/history-panel";
 import { InputSettingsPanel } from "./components/input-settings/input-settings-panel";
 import { LayerPanel } from "./components/layer-panel/layer-panel";
 import { PropertyPanelContent } from "./components/property-panel";
+import { RelationshipPanel } from "./components/relationship-panel";
 import { RightSidebar } from "./components/right-sidebar";
 import { ToastContainer } from "./components/toast";
 import { ToolbarReact } from "./components/toolbar-react";
@@ -61,6 +62,15 @@ function SidebarPanels() {
 		order: 2,
 	});
 
+	// Relationship Panel - always visible
+	useRegisterPanel({
+		id: "relationships",
+		label: "関係",
+		icon: "🔗",
+		content: <RelationshipPanel />,
+		order: 3,
+	});
+
 	// Debug Panel - dev only
 	useRegisterPanel(
 		isDev
@@ -70,7 +80,7 @@ function SidebarPanels() {
 					icon: "🔧",
 					content: <DebugPanelContent />,
 					devOnly: true,
-					order: 3,
+					order: 4,
 				}
 			: null,
 	);
@@ -84,7 +94,7 @@ function SidebarPanels() {
 					icon: "🕐",
 					content: <HistoryPanelContent />,
 					devOnly: true,
-					order: 4,
+					order: 5,
 				}
 			: null,
 	);
