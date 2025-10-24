@@ -34,7 +34,10 @@ export function applyInheritStyle(
 	for (const prop of properties) {
 		if (prop in parent && prop in updates) {
 			// Type-safe dynamic property access with validation
-			(updates as Record<string, unknown>)[prop] = (parent as Record<string, unknown>)[prop];
+			// Use 'unknown' intermediate type to satisfy TypeScript's strict checking
+			(updates as unknown as Record<string, unknown>)[prop] = (
+				parent as unknown as Record<string, unknown>
+			)[prop];
 			hasChanges = true;
 		}
 	}
