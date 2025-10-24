@@ -32,9 +32,9 @@ export function applyInheritStyle(
 	let hasChanges = false;
 
 	for (const prop of properties) {
-		if (prop in parent) {
-			// biome-ignore lint/suspicious/noExplicitAny: Dynamic property access
-			(updates as any)[prop] = (parent as any)[prop];
+		if (prop in parent && prop in updates) {
+			// Type-safe dynamic property access with validation
+			(updates as Record<string, unknown>)[prop] = (parent as Record<string, unknown>)[prop];
 			hasChanges = true;
 		}
 	}
@@ -147,6 +147,11 @@ function findNearestEdgePoint(
 	bounds: { x: number; y: number; width: number; height: number },
 	point: { x: number; y: number },
 ): { x: number; y: number } {
+	// Validate bounds to prevent invalid calculations
+	if (bounds.width <= 0 || bounds.height <= 0) {
+		return point;
+	}
+
 	// 各エッジへの距離を計算
 	const edges = [
 		{ x: point.x, y: bounds.y }, // top

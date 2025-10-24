@@ -16,7 +16,8 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@usketch/shared-types": "workspace:*"
+		"@usketch/shared-types": "workspace:*",
+		"nanoid": "^5.0.9"
 	},
 	"devDependencies": {
 		"@usketch/tsconfig": "workspace:*",

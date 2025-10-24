@@ -11,6 +11,7 @@ import type {
 	Shape,
 	ShapeRelationship,
 } from "@usketch/shared-types";
+import { nanoid } from "nanoid";
 import { effectHandlers } from "./effects";
 import type { RelationshipGraph } from "./relationship-graph";
 
@@ -209,7 +210,7 @@ export class RelationshipRuleEngine {
 	 * ユニークIDを生成
 	 */
 	private generateId(): string {
-		return `rel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+		return `rel-${nanoid()}`;
 	}
 
 	/**

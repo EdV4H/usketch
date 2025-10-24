@@ -945,6 +945,8 @@ export const whiteboardStore = createStore<WhiteboardStore>((set, get, store) =>
 		const existingRelations = relationshipGraph.toArray();
 
 		// Check overlap with all other shapes
+		// TODO: Optimize with spatial indexing (quadtree/R-tree) for O(n) → O(log n) performance
+		// Current implementation: O(n²) complexity for large canvases
 		for (const otherShape of allShapes) {
 			if (otherShape.id === shapeId) continue;
 

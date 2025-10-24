@@ -67,17 +67,20 @@ export class UpdateShapeCommand extends BaseCommand {
 				const deltaX = (this.updates.x ?? shape.x) - shape.x;
 				const deltaY = (this.updates.y ?? shape.y) - shape.y;
 
-				// Apply move-with-parent effect
+				// Apply move-with-parent effect directly to prevent infinite recursion
 				const childRelationships = fullStore.getChildRelationships(this.shapeId);
 				for (const rel of childRelationships) {
 					if (rel.effects?.some((e) => e.type === "move-with-parent")) {
-						const childShape = fullStore.shapes[rel.childId];
-						if (childShape) {
-							fullStore.updateShape(rel.childId, {
-								x: childShape.x + deltaX,
-								y: childShape.y + deltaY,
-							});
-						}
+						context.setState((state) => {
+							const childShape = state.shapes[rel.childId];
+							if (childShape) {
+								state.shapes[rel.childId] = {
+									...childShape,
+									x: childShape.x + deltaX,
+									y: childShape.y + deltaY,
+								};
+							}
+						});
 					}
 				}
 			}
