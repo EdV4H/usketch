@@ -79,17 +79,17 @@ importers:
         version: 19.2.0(react@19.2.0)
       zustand:
         specifier: 5.0.8
-        version: 5.0.8(@types/react@19.2.3)(react@19.2.0)(use-sync-external-store@1.5.0(react@19.2.0))
+        version: 5.0.8(@types/react@19.2.4)(react@19.2.0)(use-sync-external-store@1.5.0(react@19.2.0))
     devDependencies:
       '@types/node':
         specifier: 24.10.1
         version: 24.10.1
       '@types/react':
-        specifier: 19.2.3
-        version: 19.2.3
+        specifier: 19.2.4
+        version: 19.2.4
       '@types/react-dom':
         specifier: 19.2.3
-        version: 19.2.3(@types/react@19.2.3)
+        version: 19.2.3(@types/react@19.2.4)
       '@typescript-eslint/eslint-plugin':
         specifier: 8.46.4
         version: 8.46.4(@typescript-eslint/parser@8.46.4(eslint@9.39.1)(typescript@5.9.3))(eslint@9.39.1)(typescript@5.9.3)
@@ -134,11 +134,11 @@ importers:
         version: 19.1.1(react@19.1.1)
     devDependencies:
       '@types/react':
-        specifier: 19.2.3
-        version: 19.2.3
+        specifier: 19.2.4
+        version: 19.2.4
       '@types/react-dom':
         specifier: 19.2.3
-        version: 19.2.3(@types/react@19.2.3)
+        version: 19.2.3(@types/react@19.2.4)
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -162,8 +162,8 @@ importers:
         version: link:../shared-types
     devDependencies:
       '@types/react':
-        specifier: 19.2.3
-        version: 19.2.3
+        specifier: 19.2.4
+        version: 19.2.4
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -206,11 +206,11 @@ importers:
         version: 19.1.1(react@19.1.1)
     devDependencies:
       '@types/react':
-        specifier: 19.2.3
-        version: 19.2.3
+        specifier: 19.2.4
+        version: 19.2.4
       '@types/react-dom':
         specifier: 19.2.3
-        version: 19.2.3(@types/react@19.2.3)
+        version: 19.2.3(@types/react@19.2.4)
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -304,14 +304,14 @@ importers:
         version: 5.24.0
       zustand:
         specifier: 5.0.8
-        version: 5.0.8(@types/react@19.2.3)(react@19.2.0)(use-sync-external-store@1.5.0(react@19.2.0))
+        version: 5.0.8(@types/react@19.2.4)(react@19.2.0)(use-sync-external-store@1.5.0(react@19.2.0))
     devDependencies:
       '@types/react':
-        specifier: 19.2.3
-        version: 19.2.3
+        specifier: 19.2.4
+        version: 19.2.4
       '@types/react-dom':
         specifier: 19.2.3
-        version: 19.2.3(@types/react@19.2.3)
+        version: 19.2.3(@types/react@19.2.4)
       '@types/uuid':
         specifier: 11.0.0
         version: 11.0.0
@@ -344,8 +344,8 @@ importers:
         version: 19.1.1
     devDependencies:
       '@types/react':
-        specifier: 19.2.3
-        version: 19.2.3
+        specifier: 19.2.4
+        version: 19.2.4
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -381,8 +381,8 @@ importers:
         version: 19.2.0
     devDependencies:
       '@types/react':
-        specifier: 19.2.3
-        version: 19.2.3
+        specifier: 19.2.4
+        version: 19.2.4
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -407,10 +407,10 @@ importers:
         version: 6.9.1
       '@testing-library/react':
         specifier: 16.3.0
-        version: 16.3.0(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.3))(@types/react@19.2.3)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        version: 16.3.0(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.4))(@types/react@19.2.4)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@types/react':
-        specifier: 19.2.3
-        version: 19.2.3
+        specifier: 19.2.4
+        version: 19.2.4
       jsdom:
         specifier: ^26.0.0
         version: 26.1.0
@@ -424,8 +424,8 @@ importers:
   packages/shared-types:
     devDependencies:
       '@types/react':
-        specifier: 19.2.3
-        version: 19.2.3
+        specifier: 19.2.4
+        version: 19.2.4
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -459,7 +459,7 @@ importers:
         version: 5.1.6
       zustand:
         specifier: 5.0.8
-        version: 5.0.8(@types/react@19.2.3)(react@19.2.0)(use-sync-external-store@1.5.0(react@19.2.0))
+        version: 5.0.8(@types/react@19.2.4)(react@19.2.0)(use-sync-external-store@1.5.0(react@19.2.0))
     devDependencies:
       '@usketch/tsconfig':
         specifier: workspace:*
@@ -536,8 +536,8 @@ importers:
         specifier: 24.10.1
         version: 24.10.1
       '@types/react':
-        specifier: 19.2.3
-        version: 19.2.3
+        specifier: 19.2.4
+        version: 19.2.4
       '@types/uuid':
         specifier: 11.0.0
         version: 11.0.0
@@ -567,7 +567,7 @@ importers:
     devDependencies:
       '@types/react':
         specifier: ^19.1.13
-        version: 19.2.3
+        version: 19.2.4
       '@usketch/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -1250,8 +1250,8 @@ packages:
     peerDependencies:
       '@types/react': ^19.2.0
 
-  '@types/react@19.2.3':
-    resolution: {integrity: sha512-k5dJVszUiNr1DSe8Cs+knKR6IrqhqdhpUwzqhkS8ecQTSf3THNtbfIp/umqHMpX2bv+9dkx3fwDv/86LcSfvSg==}
+  '@types/react@19.2.4':
+    resolution: {integrity: sha512-tBFxBp9Nfyy5rsmefN+WXc1JeW/j2BpBHFdLZbEVfs9wn3E3NRFxwV0pJg8M1qQAexFpvz73hJXFofV0ZAu92A==}
 
   '@types/uuid@11.0.0':
     resolution: {integrity: sha512-HVyk8nj2m+jcFRNazzqyVKiZezyhDKrGUA3jlEcg/nZ6Ms+qHwocba1Y/AaVaznJTAM9xpdFSh+ptbNrhOGvZA==}
@@ -3277,15 +3277,15 @@ snapshots:
       picocolors: 1.1.1
       redent: 3.0.0
 
-  '@testing-library/react@16.3.0(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.3))(@types/react@19.2.3)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@testing-library/react@16.3.0(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.4))(@types/react@19.2.4)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
       '@babel/runtime': 7.28.4
       '@testing-library/dom': 10.4.1
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
     optionalDependencies:
-      '@types/react': 19.2.3
-      '@types/react-dom': 19.2.3(@types/react@19.2.3)
+      '@types/react': 19.2.4
+      '@types/react-dom': 19.2.3(@types/react@19.2.4)
 
   '@types/aria-query@5.0.4': {}
 
@@ -3328,11 +3328,11 @@ snapshots:
     dependencies:
       undici-types: 7.16.0
 
-  '@types/react-dom@19.2.3(@types/react@19.2.3)':
+  '@types/react-dom@19.2.3(@types/react@19.2.4)':
     dependencies:
-      '@types/react': 19.2.3
+      '@types/react': 19.2.4
 
-  '@types/react@19.2.3':
+  '@types/react@19.2.4':
     dependencies:
       csstype: 3.1.3
 
@@ -4852,8 +4852,8 @@ snapshots:
 
   zod@4.1.12: {}
 
-  zustand@5.0.8(@types/react@19.2.3)(react@19.2.0)(use-sync-external-store@1.5.0(react@19.2.0)):
+  zustand@5.0.8(@types/react@19.2.4)(react@19.2.0)(use-sync-external-store@1.5.0(react@19.2.0)):
     optionalDependencies:
-      '@types/react': 19.2.3
+      '@types/react': 19.2.4
       react: 19.2.0
       use-sync-external-store: 1.5.0(react@19.2.0)

@@ -40,7 +40,7 @@
 	},
 	"devDependencies": {
 		"@types/node": "24.10.1",
-		"@types/react": "19.2.3",
+		"@types/react": "19.2.4",
 		"@types/uuid": "11.0.0",
 		"typescript": "5.9.3",
 		"vitest": "^3.0.0",
