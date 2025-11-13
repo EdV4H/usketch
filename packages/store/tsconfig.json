@@ -8,7 +8,8 @@
 		"declarationMap": true,
 		"baseUrl": ".",
 		"paths": {
-			"@usketch/shared-types": ["../shared-types/dist"]
+			"@usketch/shared-types": ["../shared-types/dist"],
+			"@usketch/relationship-graph": ["../relationship-graph/dist"]
 		}
 	},
 	"include": ["src/**/*"],

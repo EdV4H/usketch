@@ -1,4 +1,5 @@
 import type { Command, CommandContext, Shape } from "@usketch/shared-types";
+import { whiteboardStore } from "../../store";
 import { BaseCommand } from "../base-command";
 
 export interface ShapeUpdate {
@@ -27,14 +28,46 @@ export class BatchUpdateShapesCommand extends BaseCommand {
 			}
 		}
 
-		// Apply updates
+		const fullStore = whiteboardStore.getState();
+
+		// Apply updates in a single batch including child effects
 		context.setState((state) => {
 			const newShapes = { ...state.shapes };
+
+			// First, apply parent updates
 			for (const update of this.updates) {
 				if (newShapes[update.id]) {
 					newShapes[update.id] = { ...newShapes[update.id], ...update.updates } as Shape;
 				}
 			}
+
+			// Then, apply child effects in the same batch
+			for (const update of this.updates) {
+				const hasPositionChange = "x" in update.updates || "y" in update.updates;
+				if (hasPositionChange) {
+					const previousShape = this.previousStates.get(update.id);
+					if (previousShape) {
+						const deltaX = (update.updates.x ?? previousShape.x) - previousShape.x;
+						const deltaY = (update.updates.y ?? previousShape.y) - previousShape.y;
+
+						// Apply move-with-parent effect to children
+						const childRelationships = fullStore.getChildRelationships(update.id);
+						for (const rel of childRelationships) {
+							if (rel.effects?.some((e) => e.type === "move-with-parent")) {
+								const childShape = newShapes[rel.childId];
+								if (childShape) {
+									newShapes[rel.childId] = {
+										...childShape,
+										x: childShape.x + deltaX,
+										y: childShape.y + deltaY,
+									};
+								}
+							}
+						}
+					}
+				}
+			}
+
 			state.shapes = newShapes;
 		});
 	}
