@@ -30,10 +30,10 @@
 	},
 	"devDependencies": {
 		"@types/node": "24.10.1",
-		"@types/react": "19.2.5",
+		"@types/react": "19.2.6",
 		"@types/react-dom": "19.2.3",
-		"@typescript-eslint/eslint-plugin": "8.46.4",
-		"@typescript-eslint/parser": "8.46.4",
+		"@typescript-eslint/eslint-plugin": "8.47.0",
+		"@typescript-eslint/parser": "8.47.0",
 		"@usketch/tsconfig": "workspace:*",
 		"@usketch/vite-config": "workspace:*",
 		"@vitejs/plugin-react": "5.1.1",
