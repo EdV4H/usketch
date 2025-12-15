@@ -19,7 +19,7 @@
 	"author": "",
 	"license": "ISC",
 	"devDependencies": {
-		"@biomejs/biome": "2.3.8",
+		"@biomejs/biome": "2.3.9",
 		"glob": "11.1.0",
 		"lefthook": "1.13.6",
 		"turbo": "2.6.3"
