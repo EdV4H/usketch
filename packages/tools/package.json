@@ -36,7 +36,7 @@
 		"@usketch/store": "workspace:*",
 		"uuid": "11.1.0",
 		"xstate": "5.25.0",
-		"zod": "4.1.13"
+		"zod": "4.2.0"
 	},
 	"devDependencies": {
 		"@types/node": "24.10.4",
