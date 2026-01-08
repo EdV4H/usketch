@@ -23,7 +23,7 @@
 		"@usketch/store": "workspace:*",
 		"@usketch/tools": "workspace:*",
 		"@usketch/ui-components": "workspace:*",
-		"framer-motion": "12.24.11",
+		"framer-motion": "12.24.12",
 		"react": "19.2.3",
 		"react-dom": "19.2.3",
 		"zustand": "5.0.9"
