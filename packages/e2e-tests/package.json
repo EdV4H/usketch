@@ -10,7 +10,7 @@
 	},
 	"scripts": {},
 	"dependencies": {
-		"@playwright/test": "1.58.0"
+		"@playwright/test": "1.58.1"
 	},
 	"devDependencies": {
 		"@types/node": "24.10.9",
