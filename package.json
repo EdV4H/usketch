@@ -22,7 +22,7 @@
 		"@biomejs/biome": "2.4.2",
 		"glob": "11.1.0",
 		"lefthook": "1.13.6",
-		"turbo": "2.8.9"
+		"turbo": "2.8.10"
 	},
 	"packageManager": "pnpm@10.30.0"
 }
