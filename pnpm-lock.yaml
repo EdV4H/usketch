@@ -175,7 +175,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 3.2.4
-        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@27.4.0)
+        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@27.4.0)
 
   packages/e2e-tests:
     dependencies:
@@ -240,14 +240,14 @@ importers:
         specifier: workspace:*
         version: link:../tsconfig
       happy-dom:
-        specifier: 20.6.3
-        version: 20.6.3
+        specifier: 20.7.0
+        version: 20.7.0
       typescript:
         specifier: ^5.8.0-beta
         version: 5.9.3
       vitest:
         specifier: ^3.0.0
-        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@27.4.0)
+        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@27.4.0)
 
   packages/input-presets:
     devDependencies:
@@ -332,7 +332,7 @@ importers:
         version: 7.3.1(@types/node@24.10.13)
       vitest:
         specifier: 3.2.4
-        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@27.4.0)
+        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@27.4.0)
 
   packages/react-shapes:
     dependencies:
@@ -363,7 +363,7 @@ importers:
         version: 7.3.1(@types/node@24.10.13)
       vitest:
         specifier: 3.2.4
-        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@27.4.0)
+        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@27.4.0)
 
   packages/shape-plugins:
     dependencies:
@@ -388,7 +388,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 3.2.4
-        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@27.4.0)
+        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@27.4.0)
 
   packages/shape-registry:
     dependencies:
@@ -419,7 +419,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 3.2.4
-        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@26.1.0)
+        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@26.1.0)
 
   packages/shared-types:
     devDependencies:
@@ -434,7 +434,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 3.2.4
-        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@27.4.0)
+        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@27.4.0)
 
   packages/shared-utils:
     dependencies:
@@ -472,7 +472,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 3.2.4
-        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@27.4.0)
+        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@27.4.0)
 
   packages/test-utils:
     dependencies:
@@ -503,7 +503,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: 3.2.4
-        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@27.4.0)
+        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@27.4.0)
 
   packages/tools:
     dependencies:
@@ -552,7 +552,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.0.0
-        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@27.0.0(postcss@8.5.6))
+        version: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@27.0.0(postcss@8.5.6))
 
   packages/tsconfig: {}
 
@@ -1814,8 +1814,8 @@ packages:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
     engines: {node: '>=18'}
 
-  happy-dom@20.6.3:
-    resolution: {integrity: sha512-QAMY7d228dHs8gb9NG4SJ3OxQo4r+NGN8pOXGZ3SGfQf/XYuuYubrtZ25QVY2WoUQdskhRXSXb4R4mcRk+hV1w==}
+  happy-dom@20.7.0:
+    resolution: {integrity: sha512-hR/uLYQdngTyEfxnOoa+e6KTcfBFyc1hgFj/Cc144A5JJUuHFYqIEBDcD4FeGqUeKLRZqJ9eN9u7/GDjYEgS1g==}
     engines: {node: '>=20.0.0'}
 
   has-flag@4.0.0:
@@ -3534,7 +3534,7 @@ snapshots:
       std-env: 3.9.0
       test-exclude: 7.0.1
       tinyrainbow: 2.0.0
-      vitest: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@27.0.0(postcss@8.5.6))
+      vitest: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@27.0.0(postcss@8.5.6))
     transitivePeerDependencies:
       - supports-color
 
@@ -3583,7 +3583,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 2.0.0
-      vitest: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@27.4.0)
+      vitest: 3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@27.4.0)
 
   '@vitest/utils@3.2.4':
     dependencies:
@@ -3984,7 +3984,7 @@ snapshots:
 
   globals@14.0.0: {}
 
-  happy-dom@20.6.3:
+  happy-dom@20.7.0:
     dependencies:
       '@types/node': 24.10.13
       '@types/whatwg-mimetype': 3.0.2
@@ -4759,7 +4759,7 @@ snapshots:
       '@types/node': 24.10.13
       fsevents: 2.3.3
 
-  vitest@3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@26.1.0):
+  vitest@3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@26.1.0):
     dependencies:
       '@types/chai': 5.2.2
       '@vitest/expect': 3.2.4
@@ -4787,7 +4787,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.10.13
       '@vitest/ui': 3.2.4(vitest@3.2.4)
-      happy-dom: 20.6.3
+      happy-dom: 20.7.0
       jsdom: 26.1.0
     transitivePeerDependencies:
       - jiti
@@ -4803,7 +4803,7 @@ snapshots:
       - tsx
       - yaml
 
-  vitest@3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@27.0.0(postcss@8.5.6)):
+  vitest@3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@27.0.0(postcss@8.5.6)):
     dependencies:
       '@types/chai': 5.2.2
       '@vitest/expect': 3.2.4
@@ -4831,7 +4831,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.10.13
       '@vitest/ui': 3.2.4(vitest@3.2.4)
-      happy-dom: 20.6.3
+      happy-dom: 20.7.0
       jsdom: 27.0.0(postcss@8.5.6)
     transitivePeerDependencies:
       - jiti
@@ -4847,7 +4847,7 @@ snapshots:
       - tsx
       - yaml
 
-  vitest@3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.6.3)(jsdom@27.4.0):
+  vitest@3.2.4(@types/node@24.10.13)(@vitest/ui@3.2.4)(happy-dom@20.7.0)(jsdom@27.4.0):
     dependencies:
       '@types/chai': 5.2.2
       '@vitest/expect': 3.2.4
@@ -4875,7 +4875,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.10.13
       '@vitest/ui': 3.2.4(vitest@3.2.4)
-      happy-dom: 20.6.3
+      happy-dom: 20.7.0
       jsdom: 27.4.0
     transitivePeerDependencies:
       - jiti
