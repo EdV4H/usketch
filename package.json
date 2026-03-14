@@ -3,5 +3,21 @@
 	"version": "0.0.0",
 	"private": true,
 	"description": "Real-time collaborative whiteboard application",
-	"license": "ISC"
+	"license": "ISC",
+	"packageManager": "pnpm@10.11.0",
+	"scripts": {
+		"dev": "turbo run dev",
+		"build": "turbo run build",
+		"test": "turbo run test",
+		"lint": "biome check .",
+		"format": "biome check --write .",
+		"format:check": "biome check .",
+		"typecheck": "turbo run typecheck",
+		"clean": "turbo run clean"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.2.3",
+		"turbo": "2.5.6",
+		"typescript": "5.8.3"
+	}
 }
