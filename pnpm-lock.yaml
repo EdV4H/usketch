@@ -33,12 +33,33 @@ importers:
 
   apps/web:
     dependencies:
+      '@usketch/canvas-engine':
+        specifier: workspace:*
+        version: link:../../packages/canvas-engine
       '@usketch/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@usketch/plugin-shape-ellipse':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-shape-ellipse
+      '@usketch/plugin-shape-freedraw':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-shape-freedraw
+      '@usketch/plugin-shape-rect':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-shape-rect
+      '@usketch/plugin-tool-pan':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-tool-pan
+      '@usketch/plugin-tool-select':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-tool-select
       '@usketch/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@usketch/store':
+        specifier: workspace:*
+        version: link:../../packages/store
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -73,7 +94,19 @@ importers:
       '@usketch/shared':
         specifier: workspace:*
         version: link:../shared
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+      react-dom:
+        specifier: '>=19'
+        version: 19.1.0(react@19.1.0)
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      '@types/react-dom':
+        specifier: 19.1.6
+        version: 19.1.6(@types/react@19.1.8)
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -96,6 +129,9 @@ importers:
 
   packages/shared:
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -191,7 +227,16 @@ importers:
       '@usketch/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@usketch/store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      react:
+        specifier: '>=19'
+        version: 19.1.0
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -207,7 +252,16 @@ importers:
       '@usketch/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@usketch/store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      react:
+        specifier: '>=19'
+        version: 19.1.0
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -223,7 +277,16 @@ importers:
       '@usketch/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@usketch/store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      react:
+        specifier: '>=19'
+        version: 19.1.0
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -271,7 +334,16 @@ importers:
       '@usketch/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@usketch/store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      react:
+        specifier: '>=19'
+        version: 19.1.0
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -287,7 +359,16 @@ importers:
       '@usketch/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@usketch/store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      react:
+        specifier: '>=19'
+        version: 19.1.0
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3

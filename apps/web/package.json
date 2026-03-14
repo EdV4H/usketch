@@ -11,8 +11,15 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@usketch/canvas-engine": "workspace:*",
 		"@usketch/core": "workspace:*",
+		"@usketch/plugin-shape-ellipse": "workspace:*",
+		"@usketch/plugin-shape-freedraw": "workspace:*",
+		"@usketch/plugin-shape-rect": "workspace:*",
+		"@usketch/plugin-tool-pan": "workspace:*",
+		"@usketch/plugin-tool-select": "workspace:*",
 		"@usketch/shared": "workspace:*",
+		"@usketch/store": "workspace:*",
 		"react": "19.1.0",
 		"react-dom": "19.1.0"
 	},

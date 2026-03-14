@@ -1,1 +1,8 @@
-export const PACKAGE_NAME = "@usketch/store" as const;
+export type { BoardState } from "./board-store.js";
+export { createBoardStore } from "./board-store.js";
+export {
+	createAddShapeCommand,
+	createDeleteShapeCommand,
+	createMoveShapesCommand,
+	createUpdateShapeCommand,
+} from "./commands.js";
