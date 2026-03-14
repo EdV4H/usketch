@@ -169,9 +169,19 @@ usketch-v2/
 // core/src/index.ts
 export { PluginRegistry } from './plugin-registry'
 export { LayerManager } from './layer-manager'
+export { TransientRegistry } from './transient-registry'
 export { createApp } from './app'
-export type { UsketchPlugin, ToolPlugin, ShapePlugin, BackgroundPlugin, FeaturePlugin } from './types'
+export type {
+  UsketchPlugin, ToolPlugin, ShapePlugin, BackgroundPlugin, FeaturePlugin,
+  TransientObject, TransientRenderer,
+} from './types'
 ```
+
+**コアの責務**:
+- プラグインの登録・ライフサイクル管理
+- レイヤーの `order` 順描画
+- 一時オブジェクト（Transient）の管理・Yjs Awareness同期・TTL自動消滅
+- カーソル・プレゼンスの基本実装
 
 ### 5.2 描画エンジン（canvas-engine）
 

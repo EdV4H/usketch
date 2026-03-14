@@ -216,6 +216,51 @@
 
 ---
 
+### UC-10b: リップルで注目を集める
+
+**アクター**: ユーザーA（発信者）、ユーザーB（閲覧者）
+
+```
+1. ユーザーAがキャンバス上の任意の位置をダブルクリック
+2. クリック位置にリップルアニメーションが表示される
+3. リップルはユーザーAの色で表示
+4. ユーザーBの画面にも同じリップルが即座に表示される（Yjs Awareness経由）
+5. 2秒後にリップルが自動消滅（TTL）
+6. この操作はUndoの対象外、Yjsドキュメントに保存されない
+```
+
+**データフロー（Persistent との違い）**:
+```
+シェイプ操作:  Yjs Document → WebSocket → 永続化・Undo対象
+リップル:      Yjs Awareness → WebSocket → TTLで自動消滅・Undo対象外
+```
+
+**関与するプラグイン**:
+| プラグイン | 役割 |
+|-----------|------|
+| `usketch-plugin-effect-ripple` | `ctx.transient.registerType('ripple', ...)` でレンダラー登録、ダブルクリックで `ctx.transient.emit()` |
+
+---
+
+### UC-10c: リアクションを送る
+
+**アクター**: ユーザー
+
+```
+1. ツールバーまたはショートカットからリアクションメニューを開く
+2. 絵文字を選択（👍 ❤️ 🎉 等）
+3. ボード中央付近にフローティング絵文字が表示される
+4. 他のユーザーの画面にも同じ絵文字が表示される
+5. 3秒後に自動消滅
+```
+
+**関与するプラグイン**:
+| プラグイン | 役割 |
+|-----------|------|
+| `usketch-plugin-reaction` | `ctx.transient.registerType('reaction', ...)` でレンダラー登録 |
+
+---
+
 ## 4. 保存・エクスポート
 
 ### UC-11: ボードを自動保存する
@@ -342,6 +387,8 @@
 | UC-08: 背景切り替え | bg-grid, bg-dots |
 | UC-09: リアルタイム共同編集 | core + store（組み込み） |
 | UC-10: オフライン編集 | core + store（組み込み） |
+| UC-10b: リップルで注目を集める | effect-ripple（TransientRegistry経由） |
+| UC-10c: リアクションを送る | reaction（TransientRegistry経由） |
 | UC-11: 自動保存 | core + store（組み込み） |
 | UC-12: エクスポート | export |
 | UC-13: ボード管理 | apps/web（組み込み） |
@@ -364,4 +411,5 @@
 | **必須** | UC-14（ゲスト利用） |
 | Should | UC-07（スタイル変更: 基本のみ） |
 | Should | UC-08（背景: グリッドのみ） |
-| Later | UC-10, UC-13, UC-15, UC-16 |
+| Should | UC-10b（リップル: TransientRegistryの実証） |
+| Later | UC-10, UC-10c, UC-13, UC-15, UC-16 |

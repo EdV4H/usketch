@@ -8,7 +8,7 @@
 ## 1. 概要
 
 uSketch v2では、**全ての描画機能をプラグインとして実装**する。
-コアフレームワークは薄いプラグインAPI + レイヤーシステムのみを提供し、具体的な機能（ツール、シェイプ、背景、エクスポート等）は全てプラグインパッケージとして分離する。
+コアフレームワークはプラグインAPI + レイヤーシステム + 一時オブジェクト管理（TransientRegistry）を提供し、具体的な機能（ツール、シェイプ、背景、エクスポート等）は全てプラグインパッケージとして分離する。
 
 ### 設計目標
 
@@ -28,19 +28,21 @@ uSketch v2では、**全ての描画機能をプラグインとして実装**す
 
 ```
 ┌────────────────────────────┐  ← 最前面
-│  Overlay Layer (100)       │  カーソル、プレゼンス表示
+│  Transient Layer (90)      │  コア組み込み: カーソル、リップル、リアクション等
 ├────────────────────────────┤
-│  Guide Layer (80)          │  スナップガイド、アライメント
+│  Guide Layer (80)          │  プラグイン: スナップガイド、アライメント
 ├────────────────────────────┤
-│  UI Layer (70)             │  選択ハンドル、リサイズグリップ
+│  UI Layer (70)             │  プラグイン: 選択ハンドル、リサイズグリップ
 ├────────────────────────────┤
-│  Shape Layer (50)          │  シェイプ描画（メインコンテンツ）
+│  Shape Layer (50)          │  コア: シェイプ描画（メインコンテンツ）
 ├────────────────────────────┤
-│  Background Layer (10)     │  グリッド、ドット等の背景
+│  Background Layer (10)     │  プラグイン: グリッド、ドット等の背景
 ├────────────────────────────┤
-│  Base Layer (0)            │  キャンバス背景色
+│  Base Layer (0)            │  コア: キャンバス背景色
 └────────────────────────────┘  ← 最背面
 ```
+
+**Transient Layer** はコア組み込みのレイヤーで、一時的・非永続的なオブジェクト（カーソル、エフェクト、リアクション等）を描画する。詳細は [セクション6: 一時オブジェクトシステム](#6-一時オブジェクトシステムtransient) を参照。
 
 ### レイヤーAPI
 
@@ -109,6 +111,7 @@ interface PluginContext {
   commands: CommandRegistry                // コマンド登録（undo/redo対応）
   shortcuts: ShortcutRegistry              // キーボードショートカット登録
   events: EventBus                         // プラグイン間イベント通信
+  transient: TransientRegistry             // 一時オブジェクト管理（コア組み込み）
 }
 ```
 
@@ -489,7 +492,239 @@ type CoreEvents = {
 
 ---
 
-## 6. 命名規則
+## 6. 一時オブジェクトシステム（Transient）
+
+### 6.1 概要
+
+コラボレーションツールにおいて、**一時的に表示され、永続化されず、編集不可能なオブジェクト**はコアの関心事である。v1ではこれを「エフェクト」と呼んでいたが、実際にはより広い概念。
+
+| 例 | 特性 |
+|----|------|
+| カーソル・プレゼンス | 接続中のみ表示 |
+| リップルエフェクト | 数秒で自動消滅 |
+| ピンエフェクト | 手動で消すまで表示 |
+| リアクション（絵文字） | 数秒で自動消滅 |
+| レーザーポインター | 軌跡が徐々に消える |
+| 「入力中...」インジケータ | 状態に連動して消滅 |
+
+**共通する特性**:
+- Yjsドキュメント（永続データ）に**保存しない**
+- Undo/Redoの対象**ではない**
+- 選択・移動・リサイズ**できない**
+- 他のユーザーに**伝播する**（Yjs Awarenessチャネル経由）
+- 一定時間経過やイベントで**自動消滅する**
+
+### 6.2 データの性質による分類
+
+```
+┌────────────────────────────────────────┐
+│  Persistent（永続）     Transient（一時） │
+│  ┌──────────────┐    ┌──────────────┐  │
+│  │ シェイプ       │    │ カーソル       │  │
+│  │ レイヤー順序    │    │ プレゼンス     │  │
+│  │ スタイル       │    │ リップル       │  │
+│  │ ボード設定     │    │ ピン          │  │
+│  │              │    │ レーザー       │  │
+│  │ → Yjs Doc    │    │ リアクション    │  │
+│  │ → Undo/Redo  │    │              │  │
+│  │ → IndexedDB  │    │ → Awareness  │  │
+│  │              │    │ → 自動消滅     │  │
+│  │              │    │ → 編集不可     │  │
+│  └──────────────┘    └──────────────┘  │
+└────────────────────────────────────────┘
+```
+
+### 6.3 TransientRegistry API
+
+コアが提供する一時オブジェクトの管理API。
+
+```typescript
+interface TransientRegistry {
+  /** 一時オブジェクトの種別を登録（プラグインがレンダラーを提供） */
+  registerType(type: string, renderer: TransientRenderer): void
+
+  /** 一時オブジェクトを表示（他ユーザーにも伝播） */
+  emit(obj: TransientObject): void
+
+  /** 一時オブジェクトを削除 */
+  dismiss(id: string): void
+
+  /** 現在表示中の一時オブジェクト一覧 */
+  getAll(): ReadonlyMap<string, TransientObject>
+}
+
+interface TransientObject {
+  id: string
+  type: string                    // 登録された種別（"cursor", "ripple", "reaction" 等）
+  sourceUserId: string            // 発信元ユーザー
+  position: Point                 // 表示位置
+  data: Record<string, unknown>   // 種別固有のデータ
+  ttl?: number                    // 自動消滅までのms（省略 = 手動消滅）
+  createdAt: number
+}
+
+interface TransientRenderer {
+  render: (obj: TransientObject, ctx: LayerRenderContext) => React.ReactElement
+}
+```
+
+### 6.4 コア組み込みの Transient Layer
+
+コアが `order: 90` で組み込みレイヤーを管理する。プラグインがレイヤーを登録する必要はない。
+
+```typescript
+// core/src/transient-layer.ts（コア内部実装）
+const transientLayer: Layer = {
+  id: '__transient__',
+  order: 90,
+  render: (renderCtx) => {
+    const objects = transientRegistry.getAll()
+    return (
+      <>
+        {[...objects.values()].map(obj => {
+          const renderer = transientRegistry.getRenderer(obj.type)
+          return renderer ? renderer.render(obj, renderCtx) : null
+        })}
+      </>
+    )
+  },
+}
+```
+
+### 6.5 同期チャネル
+
+一時オブジェクトは **Yjs Awareness Protocol** で同期する。Yjsドキュメントとは別チャネル。
+
+```
+TransientObject
+  → Yjs Awareness (local state)
+  → WebSocket
+  → Durable Object
+  → 他クライアントの Awareness
+  → TransientRegistry.getAll() で描画
+
+TTL経過 → TransientRegistry が自動削除 → 再描画で消滅
+```
+
+### 6.6 プラグインでの利用例
+
+**リップルエフェクトプラグイン**:
+
+```typescript
+// plugins/usketch-plugin-effect-ripple/src/index.ts
+export const ripplePlugin: FeaturePlugin = {
+  id: 'usketch-plugin-effect-ripple',
+  name: 'リップル',
+  type: 'feature',
+
+  setup(ctx) {
+    // 一時オブジェクトの種別をコアに登録
+    ctx.transient.registerType('ripple', {
+      render: (obj, renderCtx) => (
+        <RippleAnimation
+          position={obj.position}
+          color={obj.data.color as string}
+          startTime={obj.createdAt}
+        />
+      ),
+    })
+
+    // ダブルクリックでリップルを発信
+    ctx.events.on('canvas:dblclick', (event) => {
+      ctx.transient.emit({
+        id: nanoid(),
+        type: 'ripple',
+        sourceUserId: ctx.store.currentUserId,
+        position: event.point,
+        data: { color: ctx.store.currentUserColor },
+        ttl: 2000,
+        createdAt: Date.now(),
+      })
+    })
+  },
+}
+```
+
+**リアクションプラグイン**:
+
+```typescript
+// plugins/usketch-plugin-reaction/src/index.ts
+export const reactionPlugin: FeaturePlugin = {
+  id: 'usketch-plugin-reaction',
+  name: 'リアクション',
+  type: 'feature',
+
+  setup(ctx) {
+    ctx.transient.registerType('reaction', {
+      render: (obj) => (
+        <FloatingEmoji
+          emoji={obj.data.emoji as string}
+          position={obj.position}
+          userName={obj.data.userName as string}
+        />
+      ),
+    })
+
+    ctx.commands.register('send-reaction', (emoji: string) => {
+      ctx.transient.emit({
+        id: nanoid(),
+        type: 'reaction',
+        sourceUserId: ctx.store.currentUserId,
+        position: ctx.store.viewport.center,
+        data: {
+          emoji,
+          userName: ctx.store.currentUserName,
+        },
+        ttl: 3000,
+        createdAt: Date.now(),
+      })
+    })
+  },
+}
+```
+
+**カーソル・プレゼンス（コア組み込み）**:
+
+```typescript
+// core/src/presence.ts（コア内部で登録）
+transientRegistry.registerType('cursor', {
+  render: (obj) => (
+    <UserCursor
+      position={obj.position}
+      userName={obj.data.name as string}
+      color={obj.data.color as string}
+    />
+  ),
+})
+
+// ポインタ移動のたびに自身のカーソルを更新
+canvas.on('pointermove', (event) => {
+  transientRegistry.emit({
+    id: `cursor-${currentUserId}`,
+    type: 'cursor',
+    sourceUserId: currentUserId,
+    position: event.worldPoint,
+    data: { name: currentUserName, color: currentUserColor },
+    // ttl なし = 手動管理（接続切断時に消える）
+    createdAt: Date.now(),
+  })
+})
+```
+
+### 6.7 設計判断
+
+| 判断 | 理由 |
+|------|------|
+| コア組み込み | コラボレーションツールの基本機能。カーソル、リアクション、エフェクトは全てこの仕組みの上に乗る |
+| Yjs Awareness で同期 | Yjsドキュメント（永続データ）を汚さない。プレゼンス情報と同じチャネルで自然 |
+| 単一レイヤー（order: 90） | 複数の一時オブジェクト種別が同じレイヤーで合成される。order競合問題が発生しない |
+| TTLによる自動消滅 | コアが保証するので、プラグインがタイマー管理を自前実装する必要がない |
+| `registerType` + `emit` の分離 | 種別の定義（レンダラー登録）と発信（オブジェクト生成）を分離。異なるプラグインが同じ種別を発信することも可能 |
+
+---
+
+## 7. 命名規則
+
 
 | 種別 | パッケージ名パターン | 例 |
 |------|---------------------|-----|
@@ -502,7 +737,7 @@ npmスコープ: `@usketch/plugin-tool-select` 等でも可（モノレポ内で
 
 ---
 
-## 7. サードパーティプラグイン（将来構想）
+## 8. サードパーティプラグイン（将来構想）
 
 ```typescript
 // ユーザーが独自プラグインを作成
@@ -525,7 +760,7 @@ const app = createApp({
 
 ---
 
-## 8. まとめ
+## 9. まとめ
 
 | 設計判断 | 理由 |
 |----------|------|
@@ -535,3 +770,4 @@ const app = createApp({
 | レイヤーベース描画 | プラグインが描画に参加する明確な仕組み。order値で描画順を制御 |
 | EventBus | プラグイン間の疎結合な通信。スナップがツールの動きを監視する等のユースケース |
 | Zodスキーマ必須 | プラグインデータのランタイム検証。CRDT同期時のデータ整合性保証 |
+| TransientRegistry（コア組み込み） | カーソル、エフェクト、リアクション等の一時オブジェクトはコラボレーションの基本機能。Yjs Awarenessで同期、TTLで自動消滅 |
