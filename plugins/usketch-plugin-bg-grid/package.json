@@ -1,5 +1,5 @@
 {
-	"name": "@usketch/store",
+	"name": "@usketch/plugin-bg-grid",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",

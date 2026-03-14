@@ -1,5 +1,5 @@
 {
-	"name": "@usketch/store",
+	"name": "@usketch/shared",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -16,10 +16,6 @@
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run --passWithNoTests",
 		"clean": "rm -rf dist"
-	},
-	"dependencies": {
-		"@usketch/core": "workspace:*",
-		"@usketch/shared": "workspace:*"
 	},
 	"devDependencies": {
 		"typescript": "5.8.3",

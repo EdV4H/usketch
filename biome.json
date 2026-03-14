@@ -1,87 +1,30 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.7/schema.json",
-	"vcs": {
-		"enabled": true,
-		"clientKind": "git",
-		"useIgnoreFile": true
-	},
-	"files": {
-		"ignoreUnknown": false,
-		"experimentalScannerIgnores": [
-			"**/node_modules",
-			"**/dist",
-			"**/build",
-			"**/.turbo",
-			"**/coverage",
-			"**/playwright-report",
-			"**/test-results",
-			"**/.next",
-			"**/.cache",
-			"**/public",
-			"**/*.min.js",
-			"**/*.min.css"
-		]
-	},
-	"formatter": {
-		"enabled": true,
-		"formatWithErrors": false,
-		"indentStyle": "tab",
-		"indentWidth": 2,
-		"lineEnding": "lf",
-		"lineWidth": 100,
-		"attributePosition": "auto"
+	"$schema": "https://biomejs.dev/schemas/2.2.3/schema.json",
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
 	},
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true,
-			"suspicious": {
-				"noExplicitAny": "off",
-				"noArrayIndexKey": "off"
-			},
-			"style": {
-				"noNonNullAssertion": "off",
-				"useConst": "error",
-				"useTemplate": "error"
-			},
-			"complexity": {
-				"noBannedTypes": "off",
-				"noStaticOnlyClass": "off",
-				"useLiteralKeys": "off"
-			},
-			"correctness": {
-				"noUnusedVariables": "warn",
-				"useExhaustiveDependencies": "warn"
-			},
-			"a11y": {
-				"useButtonType": "warn",
-				"useSemanticElements": "off",
-				"useMediaCaption": "warn"
-			}
+			"recommended": true
 		}
 	},
-	"javascript": {
-		"formatter": {
-			"jsxQuoteStyle": "double",
-			"quoteProperties": "asNeeded",
-			"trailingCommas": "all",
-			"semicolons": "always",
-			"arrowParentheses": "always",
-			"bracketSpacing": true,
-			"bracketSameLine": false,
-			"quoteStyle": "double",
-			"attributePosition": "auto"
-		}
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"lineWidth": 100
 	},
-	"css": {
-		"formatter": {
-			"enabled": true,
-			"indentStyle": "tab",
-			"indentWidth": 2,
-			"lineWidth": 100
-		},
-		"linter": {
-			"enabled": true
-		}
+	"files": {
+		"includes": ["**"],
+		"experimentalScannerIgnores": [
+			"**/dist/**",
+			"**/node_modules/**",
+			"**/.turbo/**",
+			"**/pnpm-lock.yaml"
+		]
 	}
 }

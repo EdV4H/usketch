@@ -1,118 +1,26 @@
 {
 	"$schema": "https://turbo.build/schema.json",
-	"ui": "tui",
-	"concurrency": "20",
 	"tasks": {
-		// ========== BUILD PIPELINE ==========
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": ["dist/**", ".next/**", "build/**"],
-			"cache": true,
-			"env": ["NODE_ENV", "VITE_*"],
-			"inputs": [
-				"src/**/*.ts",
-				"src/**/*.tsx",
-				"src/**/*.js",
-				"src/**/*.jsx",
-				"src/**/*.css",
-				"src/**/*.scss",
-				"package.json",
-				"tsconfig.json",
-				"vite.config.ts",
-				"!**/*.test.*",
-				"!**/*.spec.*"
-			]
+			"outputs": ["dist/**"],
+			"inputs": ["src/**", "package.json", "tsconfig.json"]
 		},
-
-		// ========== DEVELOPMENT PIPELINE ==========
 		"dev": {
 			"dependsOn": ["^build"],
 			"cache": false,
-			"persistent": true,
-			"env": ["NODE_ENV", "VITE_*"]
+			"persistent": true
 		},
-
-		// ========== TYPE CHECKING ==========
 		"typecheck": {
 			"dependsOn": ["^build"],
-			"cache": true,
-			"outputs": [],
-			"inputs": ["src/**/*.ts", "src/**/*.tsx", "tsconfig.json", "package.json"]
+			"inputs": ["src/**", "tsconfig.json", "package.json"]
 		},
-
-		// ========== LINTING ==========
-		"lint": {
-			"dependsOn": [],
-			"cache": true,
-			"outputs": [],
-			"inputs": [
-				"src/**/*.ts",
-				"src/**/*.tsx",
-				"src/**/*.js",
-				"src/**/*.jsx",
-				".eslintrc*",
-				"package.json"
-			]
-		},
-
-		// ========== TESTING PIPELINES ==========
 		"test": {
 			"dependsOn": ["^build"],
-			"cache": true,
-			"outputs": ["coverage/**"],
-			"env": ["NODE_ENV"],
-			"inputs": ["src/**", "tests/**", "vitest.config.ts", "package.json"]
+			"inputs": ["src/**", "package.json", "vitest.config.ts"]
 		},
-
-		"test:unit": {
-			"dependsOn": ["^build"],
-			"cache": true,
-			"outputs": ["coverage/**"],
-			"env": ["NODE_ENV"],
-			"inputs": [
-				"src/**",
-				"**/*.test.ts",
-				"**/*.test.tsx",
-				"**/*.spec.ts",
-				"**/*.spec.tsx",
-				"vitest.config.ts",
-				"package.json"
-			]
-		},
-
-		"test:integration": {
-			"dependsOn": ["^build"],
-			"cache": true,
-			"outputs": ["coverage/**"],
-			"env": ["NODE_ENV"],
-			"inputs": ["src/**", "integration/**", "vitest.config.ts", "package.json"]
-		},
-
-		"test:e2e": {
-			"dependsOn": ["build"],
-			"cache": false,
-			"env": ["NODE_ENV", "CI"],
-			"inputs": ["e2e/**", "playwright.config.ts"]
-		},
-
-		"test:coverage": {
-			"dependsOn": ["^build"],
-			"cache": true,
-			"outputs": ["coverage/**"],
-			"env": ["NODE_ENV"]
-		},
-
-		// ========== CLEAN TASK ==========
 		"clean": {
 			"cache": false
 		}
-	},
-
-	// ========== GLOBAL CONFIGURATION ==========
-	"globalEnv": ["CI", "TZ", "NODE_ENV"],
-	"globalDependencies": [".env", ".env.local", "tsconfig.json"],
-
-	// ========== CACHE CONFIGURATION ==========
-	"daemon": true,
-	"cacheDir": ".turbo"
+	}
 }

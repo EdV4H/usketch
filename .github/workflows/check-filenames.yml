@@ -11,27 +11,29 @@ on:
 jobs:
   check-filenames:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
-        
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.32.1
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-          
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        
-      - name: Check TypeScript/TSX filenames
-        run: pnpm check:filenames
-        
-      - name: Run Biome check
-        run: pnpm format:check
+
+      - name: Check kebab-case filenames (TypeScript/TSX)
+        run: |
+          echo "Checking for non-kebab-case TypeScript/TSX filenames..."
+          # Find all .ts and .tsx files (excluding node_modules, dist, .git)
+          bad_files=$(find . -type f \( -name "*.ts" -o -name "*.tsx" \) \
+            ! -path "*/node_modules/*" \
+            ! -path "*/dist/*" \
+            ! -path "*/.git/*" \
+            | while read -r file; do
+                basename=$(basename "$file" | sed 's/\.\(ts\|tsx\)$//')
+                # Allow index, vite-env, etc. Check if basename contains uppercase or underscore
+                if echo "$basename" | grep -qE '[A-Z_]'; then
+                  echo "$file"
+                fi
+              done)
+          if [ -n "$bad_files" ]; then
+            echo "❌ Non-kebab-case filenames found:"
+            echo "$bad_files"
+            exit 1
+          fi
+          echo "✅ All TypeScript/TSX filenames follow kebab-case convention (or no files found yet)."

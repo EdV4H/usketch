@@ -1,5 +1,5 @@
 {
-	"name": "@usketch/store",
+	"name": "@usketch/plugin-shape-ellipse",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
