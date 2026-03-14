@@ -64,38 +64,60 @@
 
 ## 3. パッケージ構成
 
-前プロジェクトの18パッケージから**8パッケージ**に統合。
+**レイヤーベースアーキテクチャ + 統一プラグインシステム** を採用。
+コア（薄いフレームワーク） + プラグイン（機能の実体）という構造で、全ての描画機能をプラグインとして提供する。
 
 ```
 usketch-v2/
 ├── apps/
-│   ├── web/                      # メインWebアプリ（React + Vite）
-│   └── server/                   # Edge APIサーバー（Hono + Cloudflare Workers）
+│   ├── web/                          # メインWebアプリ（React + Vite）
+│   └── server/                       # Edge APIサーバー（Hono + Cloudflare Workers）
 │
 ├── packages/
-│   ├── canvas-engine/            # 描画エンジン（旧: react-canvas + coordinate-system）
-│   ├── tools/                    # ツールシステム（XState状態マシン）
-│   ├── shapes/                   # 形状定義 + レジストリ（旧: shape-registry + shape-plugins + react-shapes 統合）
-│   ├── store/                    # 状態管理（Zustand + Yjs統合）
-│   ├── ui/                       # UIコンポーネント（旧: ui-components + background-presets 統合）
-│   └── shared/                   # 共有型定義 + ユーティリティ（旧: shared-types + shared-utils 統合）
+│   ├── core/                         # コアフレームワーク（プラグインAPI、レイヤーシステム）
+│   ├── canvas-engine/                # 描画エンジン + ビューポート + 座標変換
+│   ├── store/                        # 状態管理（Zustand + Yjs統合）
+│   ├── ui/                           # コアUIコンポーネント（ツールバー、パネル等のフレーム）
+│   └── shared/                       # 共有型定義 + ユーティリティ
+│
+├── plugins/
+│   ├── usketch-plugin-tool-select/   # 選択・移動・リサイズツール
+│   ├── usketch-plugin-tool-pan/      # パン（Hand）ツール
+│   ├── usketch-plugin-shape-rect/    # 矩形シェイプ + 矩形描画ツール
+│   ├── usketch-plugin-shape-ellipse/ # 楕円シェイプ + 楕円描画ツール
+│   ├── usketch-plugin-shape-freedraw/# フリーハンドシェイプ + 描画ツール
+│   ├── usketch-plugin-shape-text/    # テキストシェイプ + テキストツール
+│   ├── usketch-plugin-bg-grid/       # グリッド背景
+│   ├── usketch-plugin-bg-dots/       # ドット背景
+│   ├── usketch-plugin-snap/          # スナップ・スマートガイド機能
+│   └── usketch-plugin-export/        # PNG/SVG/PDFエクスポート
 │
 ├── turbo.json
 ├── package.json
 └── biome.json
 ```
 
-### パッケージ統合マッピング
+### 設計思想
 
-| v2パッケージ | v1パッケージ（統合元） |
-|-------------|----------------------|
+- **コア（packages/）**: プラグインの登録・実行・レイヤー管理を担う薄いフレームワーク
+- **プラグイン（plugins/）**: 全ての具体的な機能はプラグインとして実装
+- **shapeプラグイン**: シェイプ定義とそれを作成するツールを1つのプラグインにバンドル
+- **toolプラグイン**: シェイプを持たない汎用ツール（選択、パン等）
+- **bgプラグイン**: 背景レンダリング
+- **機能プラグイン**: スナップ、エクスポート等の横断的機能
+
+### v1との対応
+
+| v2 | v1（統合元） |
+|----|------------|
+| `core` | 新規（プラグインフレームワーク） |
 | `canvas-engine` | `react-canvas` + `coordinate-system` |
-| `tools` | `tools`（そのまま） |
-| `shapes` | `shape-registry` + `shape-plugins` + `react-shapes` |
-| `store` | `store` + Yjs同期レイヤー追加 |
-| `ui` | `ui-components` + `background-presets` |
-| `shared` | `shared-types` + `shared-utils` |
-| **削除** | `shape-abstraction`（deprecated）、`effect-registry`、`input-manager`、`e2e-tests`、`test-utils` |
+| `store` | `store` + Yjs同期レイヤー |
+| `usketch-plugin-shape-rect` | `shape-plugins/rectangle` + `react-shapes/rectangle` + `tools/rectangle-tool` |
+| `usketch-plugin-tool-select` | `tools/select-tool` |
+| `usketch-plugin-bg-*` | `background-presets` |
+| `usketch-plugin-snap` | `tools/utils/snap-engine` + `tools/utils/quad-tree` |
+| **削除** | `shape-abstraction`, `effect-registry`, `input-manager`, `e2e-tests`, `test-utils` |
 
 ---
 
@@ -139,7 +161,19 @@ usketch-v2/
 
 ## 5. コアモジュール設計
 
-### 5.1 描画エンジン（canvas-engine）
+### 5.1 プラグインフレームワーク（core）
+
+全プラグイン種別に統一的なインターフェースを提供する。詳細は [プラグインシステム設計書](./plugin-system-design.md) を参照。
+
+```typescript
+// core/src/index.ts
+export { PluginRegistry } from './plugin-registry'
+export { LayerManager } from './layer-manager'
+export { createApp } from './app'
+export type { UsketchPlugin, ToolPlugin, ShapePlugin, BackgroundPlugin, FeaturePlugin } from './types'
+```
+
+### 5.2 描画エンジン（canvas-engine）
 
 前プロジェクトの `react-canvas` + `coordinate-system` を統合。
 
@@ -149,62 +183,15 @@ export { Canvas } from './components/canvas'
 export { useCanvas } from './hooks/use-canvas'
 export { CoordinateTransformer } from './coordinate-transformer'
 export { Viewport } from './viewport'
-
-// 座標変換は内部モジュールとして統合
-// 外部には useCanvas フック経由でAPIを提供
 ```
 
 **設計方針**:
 - React コンポーネント（`<Canvas />`）として提供
 - DOM レンダリング（SVG/HTML要素）を基本とし、パフォーマンスが必要な部分のみ Canvas2D にフォールバック
 - ビューポート管理（パン、ズーム）を内蔵
+- レイヤーシステムと連携し、プラグインが登録したレイヤーを適切な順序で描画
 
-### 5.2 ツールシステム（tools）
-
-前プロジェクトからほぼそのまま移植。XState状態マシンが安定していたため。
-
-```typescript
-// tools/src/index.ts
-export { createSelectTool } from './select-tool'
-export { createDrawTool } from './draw-tool'
-export { createPanTool } from './pan-tool'
-export { createTextTool } from './text-tool'  // 新規
-export { createToolManager } from './tool-manager'
-
-// Zodスキーマによる設定検証を維持
-```
-
-**変更点（v1 → v2）**:
-- Crop/Effectツールは削除（MVP外）
-- テキストツールを新規追加
-- ツール切り替えのショートカット定義を簡素化
-
-### 5.3 形状システム（shapes）
-
-v1の3パッケージを1パッケージに統合。
-
-```typescript
-// shapes/src/index.ts
-export { ShapeRegistry } from './registry'
-export { rectanglePlugin, ellipsePlugin, freedrawPlugin, textPlugin } from './plugins'
-export { ShapeRenderer } from './renderer'
-
-// プラグインは純関数のまま維持（v1の良い設計を踏襲）
-```
-
-**形状プラグインのインターフェース**:
-```typescript
-interface ShapePlugin<T extends ShapeData = ShapeData> {
-  type: string
-  schema: z.ZodType<T>
-  render: (data: T) => React.ReactElement
-  getBounds: (data: T) => BoundingBox
-  hitTest: (data: T, point: Point) => boolean
-  resize: (data: T, handle: ResizeHandle, delta: Point) => T
-}
-```
-
-### 5.4 状態管理 + 同期（store）
+### 5.3 状態管理 + 同期（store）
 
 Zustand + Yjs を統合した状態管理レイヤー。
 
@@ -493,8 +480,14 @@ GitHub Push → GitHub Actions
 
 v2アーキテクチャの核心は:
 
-1. **パッケージの簡素化**: 18 → 8。必要になったら分割する
-2. **Yjs統合**: 保存とコラボレーションをアーキテクチャレベルで組み込む
-3. **Edge-First**: Cloudflareスタックで低コスト・低レイテンシ
-4. **前プロジェクトの強みを活かす**: XStateツールシステム、形状プラグイン、座標変換は移植
-5. **前プロジェクトの失敗を繰り返さない**: MVP → ユーザーフィードバック → 拡張のサイクルを守る
+1. **統一プラグインアーキテクチャ**: ツール・シェイプ・背景・機能を全て同じプラグインAPIで管理
+2. **レイヤーベース描画**: プラグインがレイヤーを登録し、コアが描画順序を制御
+3. **Yjs統合**: 保存とコラボレーションをアーキテクチャレベルで組み込む
+4. **Edge-First**: Cloudflareスタックで低コスト・低レイテンシ
+5. **前プロジェクトの強みを活かす**: XStateツールシステム、形状プラグイン、座標変換は移植
+6. **前プロジェクトの失敗を繰り返さない**: MVP → ユーザーフィードバック → 拡張のサイクルを守る
+
+## 関連ドキュメント
+
+- [プラグインシステム設計書](./plugin-system-design.md) — 統一プラグインAPI、レイヤーシステムの詳細
+- [ユースケース集](./use-cases.md) — 主要なユーザーシナリオと対応するプラグインの動作

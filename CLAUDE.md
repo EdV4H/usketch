@@ -47,14 +47,25 @@ v1の技術的知見を活かしつつ、MVPファーストで再構築する。
 
 ```
 apps/
-  web/          — メインWebアプリ
-  server/       — Edge APIサーバー
+  web/            — メインWebアプリ
+  server/         — Edge APIサーバー
 
 packages/
-  canvas-engine/ — 描画エンジン
-  tools/         — ツールシステム（XState）
-  shapes/        — 形状定義 + レジストリ
-  store/         — 状態管理（Zustand + Yjs）
-  ui/            — UIコンポーネント
-  shared/        — 共有型定義 + ユーティリティ
+  core/           — プラグインAPI、レイヤーシステム
+  canvas-engine/  — 描画エンジン + ビューポート + 座標変換
+  store/          — 状態管理（Zustand + Yjs）
+  ui/             — コアUIコンポーネント
+  shared/         — 共有型定義 + ユーティリティ
+
+plugins/
+  usketch-plugin-tool-select/    — 選択ツール
+  usketch-plugin-tool-pan/       — パンツール
+  usketch-plugin-shape-rect/     — 矩形（シェイプ+描画ツール）
+  usketch-plugin-shape-ellipse/  — 楕円（シェイプ+描画ツール）
+  usketch-plugin-shape-freedraw/ — フリーハンド（シェイプ+描画ツール）
+  usketch-plugin-shape-text/     — テキスト（シェイプ+テキストツール）
+  usketch-plugin-bg-grid/        — グリッド背景
+  usketch-plugin-bg-dots/        — ドット背景
+  usketch-plugin-snap/           — スナップ・スマートガイド
+  usketch-plugin-export/         — PNG/SVG/PDFエクスポート
 ```

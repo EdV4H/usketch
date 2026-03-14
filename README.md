@@ -13,14 +13,17 @@
 | [ポストモーテム](docs/postmortem.md) | v1プロジェクトの振り返り・教訓 |
 | [プロダクト企画書](docs/new-product-proposal.md) | v2のビジョン・MVPスコープ・ビジネスモデル |
 | [アーキテクチャ設計書](docs/architecture-v2.md) | v2の技術設計・パッケージ構成・データモデル |
+| [プラグインシステム設計書](docs/plugin-system-design.md) | 統一プラグインAPI・レイヤーシステムの詳細 |
+| [ユースケース集](docs/use-cases.md) | 主要ユーザーシナリオとプラグインの動作 |
 | [v1ドキュメント](docs/v1/) | 旧プロジェクトのドキュメント（参考資料） |
 
 ## v2の方向性
 
 - **MVP First**: 保存・共有・コラボレーションを最初から組み込む
+- **統一プラグインアーキテクチャ**: ツール・シェイプ・背景を全て `UsketchPlugin` で統一
+- **レイヤーベース描画**: プラグインがレイヤーを登録し、コアが描画順序を制御
 - **Edge-First**: Cloudflare Workers + Durable Objects で低コスト運用
 - **Offline-First**: Yjs（CRDT）によるローカル動作 + オンライン同期
-- **パッケージ簡素化**: v1の18パッケージ → 8パッケージに統合
 
 ## ライセンス
 
