@@ -24,6 +24,7 @@ jobs:
             "docs/architecture-v2.md"
             "docs/plugin-system-design.md"
             "docs/use-cases.md"
+            "docs/roadmap.md"
           )
           missing=0
           for f in "${files[@]}"; do
