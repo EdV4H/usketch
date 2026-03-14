@@ -1,28 +1,7 @@
 {
-	"name": "usketch-monorepo",
+	"name": "usketch-v2",
 	"version": "0.0.0",
 	"private": true,
-	"scripts": {
-		"dev": "turbo run dev",
-		"build": "turbo run build",
-		"test": "turbo run test",
-		"test:e2e": "turbo run test:e2e",
-		"lint": "turbo run lint",
-		"typecheck": "turbo run typecheck",
-		"clean": "turbo run clean",
-		"format": "biome check --write --no-errors-on-unmatched .",
-		"format:check": "biome check .",
-		"check:filenames": "node scripts/check-filenames.js",
-		"prepare": "lefthook install"
-	},
-	"keywords": [],
-	"author": "",
-	"license": "ISC",
-	"devDependencies": {
-		"@biomejs/biome": "2.4.7",
-		"glob": "11.1.0",
-		"lefthook": "1.13.6",
-		"turbo": "2.8.17"
-	},
-	"packageManager": "pnpm@10.32.1"
+	"description": "Real-time collaborative whiteboard application",
+	"license": "ISC"
 }
