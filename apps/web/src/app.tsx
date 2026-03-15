@@ -1,11 +1,11 @@
-import { AppProvider, Canvas } from "@usketch/canvas-engine";
-import { type AppInstance, createApp } from "@usketch/core";
-import { ellipsePlugin } from "@usketch/plugin-shape-ellipse";
-import { freedrawPlugin } from "@usketch/plugin-shape-freedraw";
-import { rectPlugin } from "@usketch/plugin-shape-rect";
-import { panToolPlugin } from "@usketch/plugin-tool-pan";
-import { selectToolPlugin } from "@usketch/plugin-tool-select";
-import { createBoardStore } from "@usketch/store";
+import { AppProvider, Canvas } from "@edv4h/usketch-canvas-engine";
+import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { ellipsePlugin } from "@edv4h/usketch-plugin-shape-ellipse";
+import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
+import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
+import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
+import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
+import { createBoardStore } from "@edv4h/usketch-store";
 import { useEffect, useState } from "react";
 import { Toolbar } from "./components/toolbar.js";
 
@@ -15,11 +15,16 @@ export function App() {
 	const [app, setApp] = useState<AppInstance | null>(null);
 
 	useEffect(() => {
+		let cancelled = false;
 		let instance: AppInstance | null = null;
 		const store = createBoardStore();
 
 		// Register built-in shape layer
 		createApp({ store, plugins }).then((created) => {
+			if (cancelled) {
+				created.destroy();
+				return;
+			}
 			instance = created;
 			// Register the built-in shapes layer
 			instance.layers.register({
@@ -32,6 +37,7 @@ export function App() {
 		});
 
 		return () => {
+			cancelled = true;
 			instance?.destroy();
 		};
 	}, []);

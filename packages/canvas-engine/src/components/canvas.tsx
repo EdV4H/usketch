@@ -1,5 +1,5 @@
-import type { CanvasPointerEvent } from "@usketch/shared";
-import { DEFAULT_THEME } from "@usketch/shared";
+import type { CanvasPointerEvent } from "@edv4h/usketch-shared";
+import { DEFAULT_THEME } from "@edv4h/usketch-shared";
 import { useCallback, useMemo, useRef } from "react";
 import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
@@ -52,7 +52,7 @@ export function Canvas() {
 			if (!svgRef.current) return;
 			const canvasEvent = toCanvasEvent(e, svgRef, viewport);
 
-			// Middle mouse button -> pan regardless of tool
+			// TODO: Implement middle-click pan handler (currently no listener for canvas:pan-start)
 			if (e.button === 1) {
 				app.events.emit("canvas:pan-start", canvasEvent);
 				return;

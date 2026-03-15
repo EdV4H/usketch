@@ -4,38 +4,7 @@ import type {
 	Point,
 	ToolContext,
 	UsketchPlugin,
-} from "@usketch/shared";
-
-// ── Local pan state ──
-
-let panState: { lastPoint: Point } | null = null;
-
-// ── Tool handlers ──
-
-function onPointerDown(_ctx: ToolContext, event: CanvasPointerEvent) {
-	panState = {
-		lastPoint: { x: event.screenPoint.x, y: event.screenPoint.y },
-	};
-}
-
-function onPointerMove(ctx: ToolContext, event: CanvasPointerEvent) {
-	if (!panState) return;
-
-	const dx = event.screenPoint.x - panState.lastPoint.x;
-	const dy = event.screenPoint.y - panState.lastPoint.y;
-
-	ctx.store.panBy(dx, dy);
-
-	panState.lastPoint = { x: event.screenPoint.x, y: event.screenPoint.y };
-}
-
-function onPointerUp(_ctx: ToolContext, _event: CanvasPointerEvent) {
-	panState = null;
-}
-
-function onDeactivate(_ctx: ToolContext) {
-	panState = null;
-}
+} from "@edv4h/usketch-shared";
 
 // ── Icon ──
 
@@ -62,6 +31,34 @@ export const panToolPlugin: UsketchPlugin = {
 	type: "tool",
 
 	setup(ctx: PluginContext) {
+		// ── Local pan state (scoped to this setup closure) ──
+		let panState: { lastPoint: Point } | null = null;
+
+		function onPointerDown(_toolCtx: ToolContext, event: CanvasPointerEvent) {
+			panState = {
+				lastPoint: { x: event.screenPoint.x, y: event.screenPoint.y },
+			};
+		}
+
+		function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+			if (!panState) return;
+
+			const dx = event.screenPoint.x - panState.lastPoint.x;
+			const dy = event.screenPoint.y - panState.lastPoint.y;
+
+			toolCtx.store.panBy(dx, dy);
+
+			panState.lastPoint = { x: event.screenPoint.x, y: event.screenPoint.y };
+		}
+
+		function onPointerUp(_toolCtx: ToolContext, _event: CanvasPointerEvent) {
+			panState = null;
+		}
+
+		function onDeactivate(_toolCtx: ToolContext) {
+			panState = null;
+		}
+
 		ctx.tools.register("pan", {
 			icon: PanIcon,
 			shortcut: "h",

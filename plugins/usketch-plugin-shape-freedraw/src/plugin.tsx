@@ -9,8 +9,8 @@ import {
 	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
-} from "@usketch/shared";
-import { createAddShapeCommand } from "@usketch/store";
+} from "@edv4h/usketch-shared";
+import { createAddShapeCommand } from "@edv4h/usketch-store";
 
 function render(data: ShapeData) {
 	const points = (data.points as Point[]) ?? [];
@@ -156,35 +156,6 @@ function createDefault(params: { id: string; x: number; y: number }): ShapeData 
 	};
 }
 
-// ── Draw Tool ──
-
-let drawState: { shapeId: string; points: Point[] } | null = null;
-
-function onPointerDown(ctx: ToolContext, event: CanvasPointerEvent) {
-	const id = generateId();
-	const startPoint: Point = { x: event.worldPoint.x, y: event.worldPoint.y };
-	drawState = { shapeId: id, points: [startPoint] };
-	const shape = createDefault({ id, x: startPoint.x, y: startPoint.y });
-	shape.points = [startPoint];
-	shape.style = { ...ctx.store.getStyleSettings() };
-	ctx.store.addShape(shape);
-}
-
-function onPointerMove(ctx: ToolContext, event: CanvasPointerEvent) {
-	if (!drawState) return;
-	const newPoint: Point = { x: event.worldPoint.x, y: event.worldPoint.y };
-	drawState.points.push(newPoint);
-
-	const bounds = computeBounds(drawState.points);
-	ctx.store.updateShape(drawState.shapeId, {
-		x: bounds.x,
-		y: bounds.y,
-		width: bounds.width,
-		height: bounds.height,
-		points: [...drawState.points],
-	});
-}
-
 function computeBounds(points: Point[]): BoundingBox {
 	let minX = Number.POSITIVE_INFINITY;
 	let minY = Number.POSITIVE_INFINITY;
@@ -197,20 +168,6 @@ function computeBounds(points: Point[]): BoundingBox {
 		if (p.y > maxY) maxY = p.y;
 	}
 	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
-
-function onPointerUp(ctx: ToolContext) {
-	if (!drawState) return;
-	const shape = ctx.store.getShape(drawState.shapeId);
-	if (shape && drawState.points.length > 1) {
-		// Replace with undoable command
-		ctx.store.deleteShape(drawState.shapeId);
-		ctx.commands.execute(createAddShapeCommand(ctx.store, shape));
-	} else {
-		ctx.store.deleteShape(drawState.shapeId);
-	}
-	drawState = null;
-	ctx.store.setActiveToolId("select");
 }
 
 function FreedrawIcon() {
@@ -233,6 +190,48 @@ export const freedrawPlugin: UsketchPlugin = {
 	type: "shape",
 
 	setup(ctx: PluginContext) {
+		// ── Local draw state (scoped to this setup closure) ──
+		let drawState: { shapeId: string; points: Point[] } | null = null;
+
+		function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+			const id = generateId();
+			const startPoint: Point = { x: event.worldPoint.x, y: event.worldPoint.y };
+			drawState = { shapeId: id, points: [startPoint] };
+			const shape = createDefault({ id, x: startPoint.x, y: startPoint.y });
+			shape.points = [startPoint];
+			shape.style = { ...toolCtx.store.getStyleSettings() };
+			toolCtx.store.addShape(shape);
+		}
+
+		function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+			if (!drawState) return;
+			const newPoint: Point = { x: event.worldPoint.x, y: event.worldPoint.y };
+			drawState.points.push(newPoint);
+
+			const bounds = computeBounds(drawState.points);
+			toolCtx.store.updateShape(drawState.shapeId, {
+				x: bounds.x,
+				y: bounds.y,
+				width: bounds.width,
+				height: bounds.height,
+				points: [...drawState.points],
+			});
+		}
+
+		function onPointerUp(toolCtx: ToolContext) {
+			if (!drawState) return;
+			const shape = toolCtx.store.getShape(drawState.shapeId);
+			if (shape && drawState.points.length > 1) {
+				// Replace with undoable command
+				toolCtx.store.deleteShape(drawState.shapeId);
+				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+			} else {
+				toolCtx.store.deleteShape(drawState.shapeId);
+			}
+			drawState = null;
+			toolCtx.store.setActiveToolId("select");
+		}
+
 		ctx.shapes.register("freedraw", {
 			render,
 			getBounds,

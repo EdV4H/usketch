@@ -9,8 +9,8 @@ import {
 	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
-} from "@usketch/shared";
-import { createAddShapeCommand } from "@usketch/store";
+} from "@edv4h/usketch-shared";
+import { createAddShapeCommand } from "@edv4h/usketch-store";
 
 function render(data: ShapeData) {
 	const cx = data.x + data.width / 2;
@@ -99,43 +99,6 @@ function createDefault(params: { id: string; x: number; y: number }): ShapeData 
 	};
 }
 
-// ── Draw Tool ──
-
-let drawState: { startX: number; startY: number; shapeId: string } | null = null;
-
-function onPointerDown(ctx: ToolContext, event: CanvasPointerEvent) {
-	const id = generateId();
-	drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
-	const shape = createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
-	shape.width = 0;
-	shape.height = 0;
-	shape.style = { ...ctx.store.getStyleSettings() };
-	ctx.store.addShape(shape);
-}
-
-function onPointerMove(ctx: ToolContext, event: CanvasPointerEvent) {
-	if (!drawState) return;
-	const x = Math.min(drawState.startX, event.worldPoint.x);
-	const y = Math.min(drawState.startY, event.worldPoint.y);
-	const width = Math.abs(event.worldPoint.x - drawState.startX);
-	const height = Math.abs(event.worldPoint.y - drawState.startY);
-	ctx.store.updateShape(drawState.shapeId, { x, y, width, height });
-}
-
-function onPointerUp(ctx: ToolContext) {
-	if (!drawState) return;
-	const shape = ctx.store.getShape(drawState.shapeId);
-	if (shape && shape.width > 2 && shape.height > 2) {
-		// Replace with undoable command
-		ctx.store.deleteShape(drawState.shapeId);
-		ctx.commands.execute(createAddShapeCommand(ctx.store, shape));
-	} else {
-		ctx.store.deleteShape(drawState.shapeId);
-	}
-	drawState = null;
-	ctx.store.setActiveToolId("select");
-}
-
 function EllipseIcon() {
 	return (
 		<svg width="20" height="20" viewBox="0 0 20 20">
@@ -150,6 +113,42 @@ export const ellipsePlugin: UsketchPlugin = {
 	type: "shape",
 
 	setup(ctx: PluginContext) {
+		// ── Local draw state (scoped to this setup closure) ──
+		let drawState: { startX: number; startY: number; shapeId: string } | null = null;
+
+		function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+			const id = generateId();
+			drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
+			const shape = createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
+			shape.width = 0;
+			shape.height = 0;
+			shape.style = { ...toolCtx.store.getStyleSettings() };
+			toolCtx.store.addShape(shape);
+		}
+
+		function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+			if (!drawState) return;
+			const x = Math.min(drawState.startX, event.worldPoint.x);
+			const y = Math.min(drawState.startY, event.worldPoint.y);
+			const width = Math.abs(event.worldPoint.x - drawState.startX);
+			const height = Math.abs(event.worldPoint.y - drawState.startY);
+			toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
+		}
+
+		function onPointerUp(toolCtx: ToolContext) {
+			if (!drawState) return;
+			const shape = toolCtx.store.getShape(drawState.shapeId);
+			if (shape && shape.width > 2 && shape.height > 2) {
+				// Replace with undoable command
+				toolCtx.store.deleteShape(drawState.shapeId);
+				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+			} else {
+				toolCtx.store.deleteShape(drawState.shapeId);
+			}
+			drawState = null;
+			toolCtx.store.setActiveToolId("select");
+		}
+
 		ctx.shapes.register("ellipse", {
 			render,
 			getBounds,
