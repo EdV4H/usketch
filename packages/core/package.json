@@ -1,5 +1,5 @@
 {
-	"name": "@usketch/core",
+	"name": "@edv4h/usketch-core",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -18,7 +18,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@usketch/shared": "workspace:*"
+		"@edv4h/usketch-shared": "workspace:*"
 	},
 	"devDependencies": {
 		"typescript": "5.8.3",
