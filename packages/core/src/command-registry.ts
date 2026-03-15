@@ -3,41 +3,40 @@ import type { Command, CommandRegistry } from "@edv4h/usketch-shared";
 const MAX_HISTORY = 100;
 
 export function createCommandRegistry(): CommandRegistry {
-	const undoStack: Command[] = [];
-	const redoStack: Command[] = [];
+	const history: Command[] = [];
+	let cursor = -1;
 
 	return {
 		execute(command: Command): void {
+			// Discard redo history beyond cursor
+			history.length = cursor + 1;
 			command.execute();
-			undoStack.push(command);
-			redoStack.length = 0;
-			if (undoStack.length > MAX_HISTORY) {
-				undoStack.shift();
+			history.push(command);
+			cursor++;
+			if (history.length > MAX_HISTORY) {
+				history.shift();
+				cursor--;
 			}
 		},
 
 		undo(): void {
-			const command = undoStack.pop();
-			if (command) {
-				command.undo();
-				redoStack.push(command);
-			}
+			if (cursor < 0) return;
+			history[cursor].undo();
+			cursor--;
 		},
 
 		redo(): void {
-			const command = redoStack.pop();
-			if (command) {
-				command.execute();
-				undoStack.push(command);
-			}
+			if (cursor >= history.length - 1) return;
+			cursor++;
+			history[cursor].execute();
 		},
 
 		canUndo(): boolean {
-			return undoStack.length > 0;
+			return cursor >= 0;
 		},
 
 		canRedo(): boolean {
-			return redoStack.length > 0;
+			return cursor < history.length - 1;
 		},
 	};
 }
