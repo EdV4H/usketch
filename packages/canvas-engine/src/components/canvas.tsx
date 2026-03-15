@@ -4,8 +4,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
-import { HtmlShapeLayer } from "./html-shape-layer.js";
-import { SvgShapeLayer } from "./svg-shape-layer.js";
+import { ShapeLayer } from "./shape-layer.js";
 
 function toCanvasEvent(
 	containerRef: React.RefObject<HTMLDivElement | null>,
@@ -126,8 +125,8 @@ export function Canvas() {
 	};
 
 	const layers = app.layers.getLayers();
-	const svgLayers = layers.filter((l) => l.renderTarget !== "html");
-	const htmlLayers = layers.filter((l) => l.renderTarget === "html");
+	const bgLayers = layers.filter((l) => l.id !== "__shapes__" && l.renderTarget !== "html");
+	const overlayLayers = layers.filter((l) => l.id !== "__shapes__" && l.renderTarget === "html");
 
 	return (
 		<div
@@ -145,26 +144,26 @@ export function Canvas() {
 			onPointerMove={handlePointerMove}
 			onPointerUp={handlePointerUp}
 		>
-			{/* SVG layer */}
-			<svg
-				style={{
-					position: "absolute",
-					inset: 0,
-					width: "100%",
-					height: "100%",
-					display: "block",
-				}}
-			>
-				<g transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}>
-					{svgLayers.map((layer) => {
-						if (layer.id === "__shapes_svg__") {
-							return <SvgShapeLayer key={layer.id} ctx={renderCtx} shapeRegistry={app.shapes} />;
-						}
-						return <g key={layer.id}>{layer.render(renderCtx)}</g>;
-					})}
-				</g>
-			</svg>
-			{/* HTML overlay layer */}
+			{/* SVG background layers (grid, dots, etc.) */}
+			{bgLayers.length > 0 && (
+				<svg
+					style={{
+						position: "absolute",
+						inset: 0,
+						width: "100%",
+						height: "100%",
+						display: "block",
+						pointerEvents: "none",
+					}}
+				>
+					<g transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}>
+						{bgLayers.map((layer) => (
+							<g key={layer.id}>{layer.render(renderCtx)}</g>
+						))}
+					</g>
+				</svg>
+			)}
+			{/* Unified shape layer — all shapes in a single stacking context */}
 			<div
 				style={{
 					position: "absolute",
@@ -179,18 +178,32 @@ export function Canvas() {
 						transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
 					}}
 				>
-					{htmlLayers.map((layer) => {
-						if (layer.id === "__shapes_html__") {
-							return <HtmlShapeLayer key={layer.id} ctx={renderCtx} shapeRegistry={app.shapes} />;
-						}
-						return (
+					<ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />
+				</div>
+			</div>
+			{/* HTML overlay layers */}
+			{overlayLayers.length > 0 && (
+				<div
+					style={{
+						position: "absolute",
+						inset: 0,
+						pointerEvents: "none",
+					}}
+				>
+					<div
+						style={{
+							transformOrigin: "0 0",
+							transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+						}}
+					>
+						{overlayLayers.map((layer) => (
 							<div key={layer.id} style={{ pointerEvents: "auto" }}>
 								{layer.render(renderCtx)}
 							</div>
-						);
-					})}
+						))}
+					</div>
 				</div>
-			</div>
+			)}
 		</div>
 	);
 }

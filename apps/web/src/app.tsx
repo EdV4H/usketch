@@ -36,18 +36,11 @@ export function App() {
 				return;
 			}
 			instance = created;
-			// Register built-in shape layers (SVG + HTML)
+			// Register built-in shape layer (unified SVG + HTML)
 			instance.layers.register({
-				id: "__shapes_svg__",
+				id: "__shapes__",
 				order: 50,
 				render: () => null, // Handled by Canvas component
-				renderTarget: "svg",
-			});
-			instance.layers.register({
-				id: "__shapes_html__",
-				order: 51,
-				render: () => null, // Handled by Canvas component
-				renderTarget: "html",
 			});
 
 			setApp(instance);
