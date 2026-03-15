@@ -1,6 +1,6 @@
 import type { CanvasPointerEvent } from "@edv4h/usketch-shared";
 import { DEFAULT_THEME } from "@edv4h/usketch-shared";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
@@ -83,13 +83,17 @@ export function Canvas() {
 		[viewport, activeTool, toolCtx, app.events],
 	);
 
-	const handleWheel = useCallback(
-		(e: React.WheelEvent) => {
+	// Native non-passive wheel listener to reliably prevent browser zoom
+	useEffect(() => {
+		const el = svgRef.current;
+		if (!el) return;
+
+		const onWheel = (e: WheelEvent) => {
 			e.preventDefault();
-			const rect = svgRef.current?.getBoundingClientRect();
+			const rect = el.getBoundingClientRect();
 			const screenPoint = {
-				x: rect ? e.clientX - rect.left : e.clientX,
-				y: rect ? e.clientY - rect.top : e.clientY,
+				x: e.clientX - rect.left,
+				y: e.clientY - rect.top,
 			};
 			app.events.emit("canvas:wheel", {
 				screenPoint,
@@ -100,9 +104,21 @@ export function Canvas() {
 				metaKey: e.metaKey,
 				shiftKey: e.shiftKey,
 			});
-		},
-		[viewport, app.events],
-	);
+		};
+
+		// Prevent Safari gesture zoom (pinch)
+		const onGesture = (e: Event) => e.preventDefault();
+
+		el.addEventListener("wheel", onWheel, { passive: false });
+		el.addEventListener("gesturestart", onGesture);
+		el.addEventListener("gesturechange", onGesture);
+
+		return () => {
+			el.removeEventListener("wheel", onWheel);
+			el.removeEventListener("gesturestart", onGesture);
+			el.removeEventListener("gesturechange", onGesture);
+		};
+	}, [viewport, app.events]);
 
 	const renderCtx = {
 		viewport,
@@ -122,11 +138,11 @@ export function Canvas() {
 				display: "block",
 				background: DEFAULT_THEME.canvasBackground,
 				cursor: activeTool?.cursor ?? "default",
+				touchAction: "none",
 			}}
 			onPointerDown={handlePointerDown}
 			onPointerMove={handlePointerMove}
 			onPointerUp={handlePointerUp}
-			onWheel={handleWheel}
 		>
 			<g transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}>
 				{layers.map((layer) => {
