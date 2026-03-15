@@ -1,1 +1,1 @@
-export const PLUGIN_NAME = "usketch-plugin-tool-pan" as const;
+export { panToolPlugin } from "./plugin.js";

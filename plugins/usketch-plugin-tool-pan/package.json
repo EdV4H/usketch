@@ -1,5 +1,5 @@
 {
-	"name": "@usketch/plugin-tool-pan",
+	"name": "@edv4h/usketch-plugin-tool-pan",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -18,10 +18,15 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@usketch/core": "workspace:*",
-		"@usketch/shared": "workspace:*"
+		"@edv4h/usketch-core": "workspace:*",
+		"@edv4h/usketch-shared": "workspace:*",
+		"@edv4h/usketch-store": "workspace:*"
+	},
+	"peerDependencies": {
+		"react": ">=19"
 	},
 	"devDependencies": {
+		"@types/react": "19.1.8",
 		"typescript": "5.8.3",
 		"vitest": "3.2.4"
 	}

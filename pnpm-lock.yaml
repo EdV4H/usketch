@@ -33,12 +33,42 @@ importers:
 
   apps/web:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-canvas-engine':
+        specifier: workspace:*
+        version: link:../../packages/canvas-engine
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-plugin-effect-ripple':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-effect-ripple
+      '@edv4h/usketch-plugin-shape-counter':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-shape-counter
+      '@edv4h/usketch-plugin-shape-ellipse':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-shape-ellipse
+      '@edv4h/usketch-plugin-shape-freedraw':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-shape-freedraw
+      '@edv4h/usketch-plugin-shape-rect':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-shape-rect
+      '@edv4h/usketch-plugin-tool-pan':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-tool-pan
+      '@edv4h/usketch-plugin-tool-select':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-tool-select
+      '@edv4h/usketch-plugin-viewport-nav':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-viewport-nav
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -67,13 +97,25 @@ importers:
 
   packages/canvas-engine:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../shared
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+      react-dom:
+        specifier: '>=19'
+        version: 19.1.0(react@19.1.0)
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      '@types/react-dom':
+        specifier: 19.1.6
+        version: 19.1.6(@types/react@19.1.8)
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -83,7 +125,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -95,7 +137,17 @@ importers:
         version: 3.2.4
 
   packages/shared:
+    dependencies:
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+      xid-ts:
+        specifier: 1.2.2
+        version: 1.2.2
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -105,10 +157,10 @@ importers:
 
   packages/store:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -121,10 +173,10 @@ importers:
 
   packages/ui:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -137,10 +189,10 @@ importers:
 
   plugins/usketch-plugin-bg-dots:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
@@ -153,13 +205,32 @@ importers:
 
   plugins/usketch-plugin-bg-grid:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4
+
+  plugins/usketch-plugin-effect-ripple:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -169,13 +240,38 @@ importers:
 
   plugins/usketch-plugin-export:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4
+
+  plugins/usketch-plugin-shape-counter:
+    dependencies:
+      '@edv4h/usketch-core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -185,13 +281,22 @@ importers:
 
   plugins/usketch-plugin-shape-ellipse:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      react:
+        specifier: '>=19'
+        version: 19.1.0
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -201,13 +306,22 @@ importers:
 
   plugins/usketch-plugin-shape-freedraw:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      react:
+        specifier: '>=19'
+        version: 19.1.0
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -217,13 +331,22 @@ importers:
 
   plugins/usketch-plugin-shape-rect:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      react:
+        specifier: '>=19'
+        version: 19.1.0
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -233,10 +356,10 @@ importers:
 
   plugins/usketch-plugin-shape-text:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
@@ -249,10 +372,10 @@ importers:
 
   plugins/usketch-plugin-snap:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
@@ -265,13 +388,22 @@ importers:
 
   plugins/usketch-plugin-tool-pan:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      react:
+        specifier: '>=19'
+        version: 19.1.0
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -281,12 +413,40 @@ importers:
 
   plugins/usketch-plugin-tool-select:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4
+
+  plugins/usketch-plugin-viewport-nav:
+    dependencies:
+      '@edv4h/usketch-core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
     devDependencies:
       typescript:
         specifier: 5.8.3
@@ -1129,6 +1289,10 @@ packages:
     engines: {node: '>=8'}
     hasBin: true
 
+  xid-ts@1.2.2:
+    resolution: {integrity: sha512-pVhEAc09t9cJqB02+NY4bk9bOxs3Kw68OZzYRVpqEQyeyINXhya+4dUK8YCN4aXAtv01YERBOPStfWAHuRsI2g==}
+    engines: {node: '>=18.0.0'}
+
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
@@ -1854,5 +2018,7 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  xid-ts@1.2.2: {}
 
   yallist@3.1.1: {}

@@ -1,1 +1,1 @@
-export const PACKAGE_NAME = "@usketch/ui" as const;
+export const PACKAGE_NAME = "@edv4h/usketch-ui" as const;

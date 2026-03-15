@@ -1,5 +1,5 @@
 {
-	"name": "@usketch/shared",
+	"name": "@edv4h/usketch-shared",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -17,8 +17,15 @@
 		"test": "vitest run --passWithNoTests",
 		"clean": "rm -rf dist"
 	},
+	"peerDependencies": {
+		"react": ">=19"
+	},
 	"devDependencies": {
+		"@types/react": "19.1.8",
 		"typescript": "5.8.3",
 		"vitest": "3.2.4"
+	},
+	"dependencies": {
+		"xid-ts": "1.2.2"
 	}
 }

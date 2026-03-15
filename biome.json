@@ -1,5 +1,10 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.2.3/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
 	"assist": {
 		"actions": {
 			"source": {
@@ -10,7 +15,10 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"a11y": {
+				"noSvgWithoutTitle": "off"
+			}
 		}
 	},
 	"formatter": {
@@ -19,12 +27,7 @@
 		"lineWidth": 100
 	},
 	"files": {
-		"includes": ["**"],
-		"experimentalScannerIgnores": [
-			"**/dist/**",
-			"**/node_modules/**",
-			"**/.turbo/**",
-			"**/pnpm-lock.yaml"
-		]
+		"includes": ["apps/**", "packages/**", "plugins/**", "biome.json", "turbo.json"],
+		"experimentalScannerIgnores": ["**/dist/**", "**/node_modules/**"]
 	}
 }
