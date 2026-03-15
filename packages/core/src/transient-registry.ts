@@ -4,6 +4,13 @@ export function createTransientRegistry(): TransientRegistry {
 	const types = new Map<string, TransientRenderer>();
 	const objects = new Map<string, TransientObject>();
 	const timers = new Map<string, ReturnType<typeof setTimeout>>();
+	const listeners = new Set<() => void>();
+
+	function notify() {
+		for (const listener of listeners) {
+			listener();
+		}
+	}
 
 	function scheduleExpiry(obj: TransientObject) {
 		if (obj.ttl != null) {
@@ -12,6 +19,7 @@ export function createTransientRegistry(): TransientRegistry {
 			const timer = setTimeout(() => {
 				objects.delete(obj.id);
 				timers.delete(obj.id);
+				notify();
 			}, remaining);
 			timers.set(obj.id, timer);
 		}
@@ -22,11 +30,16 @@ export function createTransientRegistry(): TransientRegistry {
 			types.set(type, renderer);
 		},
 
+		getRenderer(type: string): TransientRenderer | undefined {
+			return types.get(type);
+		},
+
 		emit(obj: TransientObject): void {
 			const existing = timers.get(obj.id);
 			if (existing) clearTimeout(existing);
 			objects.set(obj.id, obj);
 			scheduleExpiry(obj);
+			notify();
 		},
 
 		dismiss(id: string): void {
@@ -36,10 +49,18 @@ export function createTransientRegistry(): TransientRegistry {
 				clearTimeout(timer);
 				timers.delete(id);
 			}
+			notify();
 		},
 
 		getAll(): ReadonlyMap<string, TransientObject> {
 			return objects;
+		},
+
+		subscribe(listener: () => void): () => void {
+			listeners.add(listener);
+			return () => {
+				listeners.delete(listener);
+			};
 		},
 	};
 }

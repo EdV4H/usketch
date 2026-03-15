@@ -139,9 +139,11 @@ export interface TransientRenderer {
 
 export interface TransientRegistry {
 	registerType(type: string, renderer: TransientRenderer): void;
+	getRenderer(type: string): TransientRenderer | undefined;
 	emit(obj: TransientObject): void;
 	dismiss(id: string): void;
 	getAll(): ReadonlyMap<string, TransientObject>;
+	subscribe(listener: () => void): () => void;
 }
 
 // ── Store ──

@@ -5,6 +5,7 @@ import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
 import { ShapeLayer } from "./shape-layer.js";
+import { TransientLayer } from "./transient-layer.js";
 
 function toCanvasEvent(
 	containerRef: React.RefObject<HTMLDivElement | null>,
@@ -179,6 +180,7 @@ export function Canvas() {
 					}}
 				>
 					<ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />
+					<TransientLayer registry={app.transient} ctx={renderCtx} />
 				</div>
 			</div>
 			{/* HTML overlay layers */}

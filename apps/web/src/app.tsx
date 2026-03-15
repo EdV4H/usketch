@@ -1,5 +1,6 @@
 import { AppProvider, Canvas } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
 import { ellipsePlugin } from "@edv4h/usketch-plugin-shape-ellipse";
 import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
@@ -19,6 +20,7 @@ const plugins = [
 	ellipsePlugin,
 	freedrawPlugin,
 	counterPlugin,
+	rippleEffectPlugin,
 ];
 
 export function App() {
