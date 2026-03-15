@@ -52,9 +52,8 @@ export function Canvas() {
 			if (!svgRef.current) return;
 			const canvasEvent = toCanvasEvent(e, svgRef, viewport);
 
-			// TODO: Implement middle-click pan handler (currently no listener for canvas:pan-start)
 			if (e.button === 1) {
-				app.events.emit("canvas:pan-start", canvasEvent);
+				app.events.emit("canvas:middle-down", canvasEvent);
 				return;
 			}
 
@@ -87,21 +86,22 @@ export function Canvas() {
 	const handleWheel = useCallback(
 		(e: React.WheelEvent) => {
 			e.preventDefault();
-			if (e.ctrlKey || e.metaKey) {
-				// Zoom
-				const rect = svgRef.current?.getBoundingClientRect();
-				const center = {
-					x: rect ? e.clientX - rect.left : e.clientX,
-					y: rect ? e.clientY - rect.top : e.clientY,
-				};
-				const delta = e.deltaY > 0 ? 0.9 : 1.1;
-				app.store.zoomTo(viewport.zoom * delta, center);
-			} else {
-				// Pan
-				app.store.panBy(-e.deltaX, -e.deltaY);
-			}
+			const rect = svgRef.current?.getBoundingClientRect();
+			const screenPoint = {
+				x: rect ? e.clientX - rect.left : e.clientX,
+				y: rect ? e.clientY - rect.top : e.clientY,
+			};
+			app.events.emit("canvas:wheel", {
+				screenPoint,
+				worldPoint: screenToWorld(screenPoint, viewport),
+				deltaX: e.deltaX,
+				deltaY: e.deltaY,
+				ctrlKey: e.ctrlKey,
+				metaKey: e.metaKey,
+				shiftKey: e.shiftKey,
+			});
 		},
-		[viewport, app.store],
+		[viewport, app.events],
 	);
 
 	const renderCtx = {

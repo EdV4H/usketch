@@ -71,6 +71,16 @@ export interface CanvasPointerEvent {
 	button: number;
 }
 
+export interface CanvasWheelEvent {
+	screenPoint: Point;
+	worldPoint: Point;
+	deltaX: number;
+	deltaY: number;
+	ctrlKey: boolean;
+	metaKey: boolean;
+	shiftKey: boolean;
+}
+
 export interface ToolRegistry {
 	register(id: string, definition: ToolDefinition): void;
 	get(id: string): ToolDefinition | undefined;

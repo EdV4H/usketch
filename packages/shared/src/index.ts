@@ -4,6 +4,7 @@ export type { BoundingBox, Point, Viewport } from "./types/geometry.js";
 export type {
 	BoardStore,
 	CanvasPointerEvent,
+	CanvasWheelEvent,
 	Command,
 	CommandRegistry,
 	EventBus,

@@ -5,11 +5,19 @@ import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
+import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { useEffect, useState } from "react";
 import { Toolbar } from "./components/toolbar.js";
 
-const plugins = [selectToolPlugin, panToolPlugin, rectPlugin, ellipsePlugin, freedrawPlugin];
+const plugins = [
+	selectToolPlugin,
+	panToolPlugin,
+	viewportNavPlugin,
+	rectPlugin,
+	ellipsePlugin,
+	freedrawPlugin,
+];
 
 export function App() {
 	const [app, setApp] = useState<AppInstance | null>(null);
