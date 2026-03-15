@@ -13,10 +13,12 @@
 		"format": "biome check --write .",
 		"format:check": "biome check .",
 		"typecheck": "turbo run typecheck",
-		"clean": "turbo run clean"
+		"clean": "turbo run clean",
+		"prepare": "prek install"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.3",
+		"@j178/prek": "0.3.3",
 		"turbo": "2.5.6",
 		"typescript": "5.8.3"
 	}
