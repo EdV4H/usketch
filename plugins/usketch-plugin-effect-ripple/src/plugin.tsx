@@ -2,6 +2,7 @@ import {
 	type CanvasPointerEvent,
 	generateId,
 	type PluginContext,
+	type ToolContext,
 	type TransientObject,
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
@@ -25,6 +26,32 @@ function RippleEffect({ obj }: { obj: TransientObject }) {
 				animation: `usketch-ripple ${RIPPLE_TTL}ms ease-out forwards`,
 			}}
 		/>
+	);
+}
+
+function RippleIcon() {
+	return (
+		<svg width="20" height="20" viewBox="0 0 20 20">
+			<circle cx="10" cy="10" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+			<circle
+				cx="10"
+				cy="10"
+				r="6"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="1"
+				opacity="0.6"
+			/>
+			<circle
+				cx="10"
+				cy="10"
+				r="9"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="0.5"
+				opacity="0.3"
+			/>
+		</svg>
 	);
 }
 
@@ -54,7 +81,7 @@ export const rippleEffectPlugin: UsketchPlugin = {
 			render: (obj) => <RippleEffect obj={obj} />,
 		});
 
-		ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
+		function onPointerDown(_toolCtx: ToolContext, event: CanvasPointerEvent) {
 			ctx.transient.emit({
 				id: generateId(),
 				type: "ripple",
@@ -64,6 +91,14 @@ export const rippleEffectPlugin: UsketchPlugin = {
 				ttl: RIPPLE_TTL,
 				createdAt: Date.now(),
 			});
+		}
+
+		ctx.tools.register("effect-ripple", {
+			icon: RippleIcon,
+			cursor: "crosshair",
+			shortcut: "r",
+			order: 50,
+			onPointerDown,
 		});
 	},
 };
