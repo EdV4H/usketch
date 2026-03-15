@@ -29,20 +29,16 @@ export function App() {
 		let instance: AppInstance | null = null;
 		const store = createBoardStore();
 
-		// Register built-in shape layer
-		createApp({ store, plugins }).then((created) => {
+		createApp({
+			store,
+			plugins,
+			layers: [{ id: "__shapes__" }],
+		}).then((created) => {
 			if (cancelled) {
 				created.destroy();
 				return;
 			}
 			instance = created;
-			// Register built-in shape layer (unified SVG + HTML)
-			instance.layers.register({
-				id: "__shapes__",
-				order: 50,
-				render: () => null, // Handled by Canvas component
-			});
-
 			setApp(instance);
 		});
 
