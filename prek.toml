@@ -1,0 +1,15 @@
+[[repos]]
+repo = "local"
+hooks = [
+	{ id = "biome-check", name = "biome check", language = "system", entry = "pnpm biome check --no-errors-on-unmatched", types_or = ["ts", "tsx", "json"], pass_filenames = true },
+	{ id = "typecheck", name = "typecheck", language = "system", entry = "pnpm turbo typecheck", pass_filenames = false, always_run = true },
+]
+
+[[repos]]
+repo = "https://github.com/pre-commit/pre-commit-hooks"
+rev = "v5.0.0"
+hooks = [
+	{ id = "trailing-whitespace" },
+	{ id = "end-of-file-fixer" },
+	{ id = "check-yaml" },
+]
