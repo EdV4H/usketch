@@ -16,14 +16,6 @@ export type RenderTarget = "svg" | "html";
 
 export interface Layer {
 	id: string;
-	order?: number;
-	render?: (ctx: LayerRenderContext) => ReactElement | null;
-	interactable?: boolean;
-	renderTarget?: RenderTarget;
-}
-
-export interface ResolvedLayer {
-	id: string;
 	order: number;
 	render: (ctx: LayerRenderContext) => ReactElement | null;
 	interactable?: boolean;
@@ -33,7 +25,7 @@ export interface ResolvedLayer {
 export interface LayerManager {
 	register(layer: Layer): void;
 	unregister(layerId: string): void;
-	getLayers(): readonly ResolvedLayer[];
+	getLayers(): readonly Layer[];
 }
 
 // ── Shape System ──

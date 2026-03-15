@@ -2,7 +2,6 @@ import type {
 	BoardStore,
 	CommandRegistry,
 	EventBus,
-	Layer,
 	LayerManager,
 	PluginContext,
 	ShapeRegistry,
@@ -36,23 +35,12 @@ export interface AppInstance {
 export interface CreateAppOptions {
 	store: BoardStore;
 	plugins: UsketchPlugin[];
-	layers?: Layer[];
 }
 
 export async function createApp(options: CreateAppOptions): Promise<AppInstance> {
-	const { store, plugins, layers: layerConfigs = [] } = options;
+	const { store, plugins } = options;
 
 	const layers = createLayerManager();
-
-	// Built-in shapes layer (default order: 50)
-	const shapesConfig = layerConfigs.find((l) => l.id === "__shapes__");
-	layers.register({ id: "__shapes__", order: 50, ...shapesConfig });
-
-	// Register additional layers
-	for (const config of layerConfigs) {
-		if (config.id === "__shapes__") continue;
-		layers.register(config);
-	}
 	const tools = createToolRegistry();
 	const shapes = createShapeRegistry();
 	const commands = createCommandRegistry();

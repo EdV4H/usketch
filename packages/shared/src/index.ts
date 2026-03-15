@@ -13,7 +13,6 @@ export type {
 	LayerRenderContext,
 	PluginContext,
 	RenderTarget,
-	ResolvedLayer,
 	ShapeDefinition,
 	ShapeRegistry,
 	ShortcutRegistry,
