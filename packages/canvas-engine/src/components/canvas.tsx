@@ -7,11 +7,11 @@ import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
 import { ShapeLayer } from "./shape-layer.js";
 
 function toCanvasEvent(
-	e: React.PointerEvent,
-	svgRef: React.RefObject<SVGSVGElement | null>,
+	containerRef: React.RefObject<HTMLDivElement | null>,
 	viewport: { x: number; y: number; zoom: number },
+	e: React.PointerEvent,
 ): CanvasPointerEvent {
-	const rect = svgRef.current?.getBoundingClientRect();
+	const rect = containerRef.current?.getBoundingClientRect();
 	const screenPoint = {
 		x: rect ? e.clientX - rect.left : e.clientX,
 		y: rect ? e.clientY - rect.top : e.clientY,
@@ -28,7 +28,7 @@ function toCanvasEvent(
 
 export function Canvas() {
 	const app = useApp();
-	const svgRef = useRef<SVGSVGElement | null>(null);
+	const containerRef = useRef<HTMLDivElement | null>(null);
 
 	const viewport = useStoreSubscribe(app.store, (s) => s.getViewport());
 	const shapes = useStoreSubscribe(app.store, (s) => s.getShapes());
@@ -49,8 +49,7 @@ export function Canvas() {
 
 	const handlePointerDown = useCallback(
 		(e: React.PointerEvent) => {
-			if (!svgRef.current) return;
-			const canvasEvent = toCanvasEvent(e, svgRef, viewport);
+			const canvasEvent = toCanvasEvent(containerRef, viewport, e);
 
 			if (e.button === 1) {
 				app.events.emit("canvas:middle-down", canvasEvent);
@@ -65,8 +64,7 @@ export function Canvas() {
 
 	const handlePointerMove = useCallback(
 		(e: React.PointerEvent) => {
-			if (!svgRef.current) return;
-			const canvasEvent = toCanvasEvent(e, svgRef, viewport);
+			const canvasEvent = toCanvasEvent(containerRef, viewport, e);
 			activeTool?.onPointerMove?.(toolCtx, canvasEvent);
 			app.events.emit("canvas:pointermove", canvasEvent);
 		},
@@ -75,8 +73,7 @@ export function Canvas() {
 
 	const handlePointerUp = useCallback(
 		(e: React.PointerEvent) => {
-			if (!svgRef.current) return;
-			const canvasEvent = toCanvasEvent(e, svgRef, viewport);
+			const canvasEvent = toCanvasEvent(containerRef, viewport, e);
 			activeTool?.onPointerUp?.(toolCtx, canvasEvent);
 			app.events.emit("canvas:pointerup", canvasEvent);
 		},
@@ -85,7 +82,7 @@ export function Canvas() {
 
 	// Native non-passive wheel listener to reliably prevent browser zoom
 	useEffect(() => {
-		const el = svgRef.current;
+		const el = containerRef.current;
 		if (!el) return;
 
 		const onWheel = (e: WheelEvent) => {
@@ -128,14 +125,17 @@ export function Canvas() {
 	};
 
 	const layers = app.layers.getLayers();
+	const bgLayers = layers.filter((l) => l.id !== "__shapes__" && l.renderTarget !== "html");
+	const overlayLayers = layers.filter((l) => l.id !== "__shapes__" && l.renderTarget === "html");
 
 	return (
-		<svg
-			ref={svgRef}
+		<div
+			ref={containerRef}
 			style={{
+				position: "relative",
 				width: "100%",
 				height: "100%",
-				display: "block",
+				overflow: "hidden",
 				background: DEFAULT_THEME.canvasBackground,
 				cursor: activeTool?.cursor ?? "default",
 				touchAction: "none",
@@ -144,14 +144,66 @@ export function Canvas() {
 			onPointerMove={handlePointerMove}
 			onPointerUp={handlePointerUp}
 		>
-			<g transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}>
-				{layers.map((layer) => {
-					if (layer.id === "__shapes__") {
-						return <ShapeLayer key={layer.id} ctx={renderCtx} shapeRegistry={app.shapes} />;
-					}
-					return <g key={layer.id}>{layer.render(renderCtx)}</g>;
-				})}
-			</g>
-		</svg>
+			{/* SVG background layers (grid, dots, etc.) */}
+			{bgLayers.length > 0 && (
+				<svg
+					style={{
+						position: "absolute",
+						inset: 0,
+						width: "100%",
+						height: "100%",
+						display: "block",
+						pointerEvents: "none",
+					}}
+				>
+					<g transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}>
+						{bgLayers.map((layer) => (
+							<g key={layer.id}>{layer.render(renderCtx)}</g>
+						))}
+					</g>
+				</svg>
+			)}
+			{/* Unified shape layer — all shapes in a single stacking context */}
+			<div
+				style={{
+					position: "absolute",
+					inset: 0,
+					pointerEvents: "none",
+					overflow: "hidden",
+				}}
+			>
+				<div
+					style={{
+						transformOrigin: "0 0",
+						transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+					}}
+				>
+					<ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />
+				</div>
+			</div>
+			{/* HTML overlay layers */}
+			{overlayLayers.length > 0 && (
+				<div
+					style={{
+						position: "absolute",
+						inset: 0,
+						pointerEvents: "none",
+					}}
+				>
+					<div
+						style={{
+							transformOrigin: "0 0",
+							transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+						}}
+					>
+						{overlayLayers.map((layer) => (
+							<div key={layer.id} style={{ pointerEvents: "auto" }}>
+								{layer.render(renderCtx)}
+							</div>
+						))}
+					</div>
+				</div>
+			)}
+		</div>
 	);
 }

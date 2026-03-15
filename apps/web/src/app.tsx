@@ -1,5 +1,6 @@
 import { AppProvider, Canvas } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
 import { ellipsePlugin } from "@edv4h/usketch-plugin-shape-ellipse";
 import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
@@ -17,6 +18,7 @@ const plugins = [
 	rectPlugin,
 	ellipsePlugin,
 	freedrawPlugin,
+	counterPlugin,
 ];
 
 export function App() {
@@ -34,7 +36,7 @@ export function App() {
 				return;
 			}
 			instance = created;
-			// Register the built-in shapes layer
+			// Register built-in shape layer (unified SVG + HTML)
 			instance.layers.register({
 				id: "__shapes__",
 				order: 50,
