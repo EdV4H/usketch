@@ -12,6 +12,7 @@ export type {
 	LayerManager,
 	LayerRenderContext,
 	PluginContext,
+	RenderTarget,
 	ShapeDefinition,
 	ShapeRegistry,
 	ShortcutRegistry,

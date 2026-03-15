@@ -12,11 +12,14 @@ export interface LayerRenderContext {
 	theme: Theme;
 }
 
+export type RenderTarget = "svg" | "html";
+
 export interface Layer {
 	id: string;
 	order: number;
 	render: (ctx: LayerRenderContext) => ReactElement | null;
 	interactable?: boolean;
+	renderTarget?: RenderTarget;
 }
 
 export interface LayerManager {
@@ -33,6 +36,7 @@ export interface ShapeDefinition {
 	hitTest: (data: ShapeData, point: Point) => boolean;
 	resize: (data: ShapeData, handle: ResizeHandle, delta: Point) => ShapeData;
 	createDefault: (params: { id: string; x: number; y: number }) => ShapeData;
+	renderTarget?: RenderTarget;
 }
 
 export interface ShapeRegistry {
