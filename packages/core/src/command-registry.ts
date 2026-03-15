@@ -1,4 +1,4 @@
-import type { Command, CommandRegistry } from "@usketch/shared";
+import type { Command, CommandRegistry } from "@edv4h/usketch-shared";
 
 const MAX_HISTORY = 100;
 

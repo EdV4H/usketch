@@ -1,5 +1,5 @@
-import type { BoardStore, Point, ShapeData, ShapeStyle, Viewport } from "@usketch/shared";
-import { DEFAULT_STYLE } from "@usketch/shared";
+import type { BoardStore, Point, ShapeData, ShapeStyle, Viewport } from "@edv4h/usketch-shared";
+import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
 
 export interface BoardState {
 	shapes: Map<string, ShapeData>;

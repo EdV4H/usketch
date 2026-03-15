@@ -1,4 +1,4 @@
-import type { ShapeDefinition, ShapeRegistry } from "@usketch/shared";
+import type { ShapeDefinition, ShapeRegistry } from "@edv4h/usketch-shared";
 
 export function createShapeRegistry(): ShapeRegistry {
 	const definitions = new Map<string, ShapeDefinition>();

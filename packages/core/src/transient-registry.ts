@@ -1,4 +1,4 @@
-import type { TransientObject, TransientRegistry, TransientRenderer } from "@usketch/shared";
+import type { TransientObject, TransientRegistry, TransientRenderer } from "@edv4h/usketch-shared";
 
 export function createTransientRegistry(): TransientRegistry {
 	const types = new Map<string, TransientRenderer>();

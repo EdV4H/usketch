@@ -1,5 +1,5 @@
 {
-	"name": "@usketch/plugin-shape-ellipse",
+	"name": "@edv4h/usketch-plugin-shape-ellipse",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -18,9 +18,9 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@usketch/core": "workspace:*",
-		"@usketch/shared": "workspace:*",
-		"@usketch/store": "workspace:*"
+		"@edv4h/usketch-core": "workspace:*",
+		"@edv4h/usketch-shared": "workspace:*",
+		"@edv4h/usketch-store": "workspace:*"
 	},
 	"peerDependencies": {
 		"react": ">=19"

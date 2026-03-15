@@ -1,4 +1,4 @@
-import type { UsketchPlugin } from "@usketch/shared";
+import type { UsketchPlugin } from "@edv4h/usketch-shared";
 
 export function createPluginRegistry() {
 	const plugins = new Map<string, UsketchPlugin>();

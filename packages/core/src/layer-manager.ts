@@ -1,4 +1,4 @@
-import type { Layer, LayerManager } from "@usketch/shared";
+import type { Layer, LayerManager } from "@edv4h/usketch-shared";
 
 export function createLayerManager(): LayerManager {
 	const layers = new Map<string, Layer>();

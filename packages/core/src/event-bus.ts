@@ -1,4 +1,4 @@
-import type { EventBus } from "@usketch/shared";
+import type { EventBus } from "@edv4h/usketch-shared";
 
 export function createEventBus(): EventBus {
 	const listeners = new Map<string, Set<(data: unknown) => void>>();

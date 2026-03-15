@@ -33,31 +33,31 @@ importers:
 
   apps/web:
     dependencies:
-      '@usketch/canvas-engine':
+      '@edv4h/usketch-canvas-engine':
         specifier: workspace:*
         version: link:../../packages/canvas-engine
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/plugin-shape-ellipse':
+      '@edv4h/usketch-plugin-shape-ellipse':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-ellipse
-      '@usketch/plugin-shape-freedraw':
+      '@edv4h/usketch-plugin-shape-freedraw':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-freedraw
-      '@usketch/plugin-shape-rect':
+      '@edv4h/usketch-plugin-shape-rect':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-rect
-      '@usketch/plugin-tool-pan':
+      '@edv4h/usketch-plugin-tool-pan':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-tool-pan
-      '@usketch/plugin-tool-select':
+      '@edv4h/usketch-plugin-tool-select':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-tool-select
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@usketch/store':
+      '@edv4h/usketch-store':
         specifier: workspace:*
         version: link:../../packages/store
       react:
@@ -88,10 +88,10 @@ importers:
 
   packages/canvas-engine:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../shared
       react:
@@ -116,7 +116,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -141,10 +141,10 @@ importers:
 
   packages/store:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -157,10 +157,10 @@ importers:
 
   packages/ui:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -173,10 +173,10 @@ importers:
 
   plugins/usketch-plugin-bg-dots:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
@@ -189,10 +189,10 @@ importers:
 
   plugins/usketch-plugin-bg-grid:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
@@ -205,10 +205,10 @@ importers:
 
   plugins/usketch-plugin-export:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
@@ -221,13 +221,13 @@ importers:
 
   plugins/usketch-plugin-shape-ellipse:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@usketch/store':
+      '@edv4h/usketch-store':
         specifier: workspace:*
         version: link:../../packages/store
       react:
@@ -246,13 +246,13 @@ importers:
 
   plugins/usketch-plugin-shape-freedraw:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@usketch/store':
+      '@edv4h/usketch-store':
         specifier: workspace:*
         version: link:../../packages/store
       react:
@@ -271,13 +271,13 @@ importers:
 
   plugins/usketch-plugin-shape-rect:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@usketch/store':
+      '@edv4h/usketch-store':
         specifier: workspace:*
         version: link:../../packages/store
       react:
@@ -296,10 +296,10 @@ importers:
 
   plugins/usketch-plugin-shape-text:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
@@ -312,10 +312,10 @@ importers:
 
   plugins/usketch-plugin-snap:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
@@ -328,13 +328,13 @@ importers:
 
   plugins/usketch-plugin-tool-pan:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@usketch/store':
+      '@edv4h/usketch-store':
         specifier: workspace:*
         version: link:../../packages/store
       react:
@@ -353,13 +353,13 @@ importers:
 
   plugins/usketch-plugin-tool-select:
     dependencies:
-      '@usketch/core':
+      '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@usketch/shared':
+      '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@usketch/store':
+      '@edv4h/usketch-store':
         specifier: workspace:*
         version: link:../../packages/store
       react:

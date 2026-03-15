@@ -9,7 +9,7 @@ import type {
 	ToolRegistry,
 	TransientRegistry,
 	UsketchPlugin,
-} from "@usketch/shared";
+} from "@edv4h/usketch-shared";
 import { createCommandRegistry } from "./command-registry.js";
 import { createEventBus } from "./event-bus.js";
 import { createLayerManager } from "./layer-manager.js";

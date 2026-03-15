@@ -1,4 +1,4 @@
-import type { BoardStore } from "@usketch/shared";
+import type { BoardStore } from "@edv4h/usketch-shared";
 import { useCallback, useSyncExternalStore } from "react";
 
 export function useStoreSubscribe<T>(store: BoardStore, selector: (store: BoardStore) => T): T {

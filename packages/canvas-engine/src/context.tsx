@@ -1,4 +1,4 @@
-import type { AppInstance } from "@usketch/core";
+import type { AppInstance } from "@edv4h/usketch-core";
 import { createContext, type ReactNode, useContext } from "react";
 
 const AppContext = createContext<AppInstance | null>(null);

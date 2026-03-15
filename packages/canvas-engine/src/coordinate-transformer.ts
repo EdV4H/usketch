@@ -1,4 +1,4 @@
-import type { Point, Viewport } from "@usketch/shared";
+import type { Point, Viewport } from "@edv4h/usketch-shared";
 
 export function screenToWorld(point: Point, viewport: Viewport): Point {
 	return {

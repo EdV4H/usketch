@@ -1,4 +1,4 @@
-import { useApp, useStoreSubscribe } from "@usketch/canvas-engine";
+import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
 
 export function Toolbar() {
 	const app = useApp();

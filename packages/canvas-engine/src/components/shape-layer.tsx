@@ -1,4 +1,4 @@
-import type { LayerRenderContext, ShapeRegistry } from "@usketch/shared";
+import type { LayerRenderContext, ShapeRegistry } from "@edv4h/usketch-shared";
 
 export function ShapeLayer({
 	ctx,

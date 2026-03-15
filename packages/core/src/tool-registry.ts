@@ -1,4 +1,4 @@
-import type { ToolDefinition, ToolRegistry } from "@usketch/shared";
+import type { ToolDefinition, ToolRegistry } from "@edv4h/usketch-shared";
 
 export function createToolRegistry(): ToolRegistry {
 	const tools = new Map<string, ToolDefinition>();

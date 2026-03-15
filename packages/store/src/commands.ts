@@ -1,4 +1,4 @@
-import type { BoardStore, Command, ShapeData } from "@usketch/shared";
+import type { BoardStore, Command, ShapeData } from "@edv4h/usketch-shared";
 
 export function createAddShapeCommand(store: BoardStore, shape: ShapeData): Command {
 	return {

@@ -1,4 +1,4 @@
-import type { ShortcutRegistry } from "@usketch/shared";
+import type { ShortcutRegistry } from "@edv4h/usketch-shared";
 
 function normalizeCombo(combo: string): string {
 	return combo
