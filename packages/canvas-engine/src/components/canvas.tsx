@@ -121,7 +121,7 @@ export function Canvas() {
 				height: "100%",
 				display: "block",
 				background: DEFAULT_THEME.canvasBackground,
-				cursor: getCursorForTool(activeToolId),
+				cursor: activeTool?.cursor ?? "default",
 			}}
 			onPointerDown={handlePointerDown}
 			onPointerMove={handlePointerMove}
@@ -138,15 +138,4 @@ export function Canvas() {
 			</g>
 		</svg>
 	);
-}
-
-function getCursorForTool(toolId: string): string {
-	switch (toolId) {
-		case "select":
-			return "default";
-		case "pan":
-			return "grab";
-		default:
-			return "crosshair";
-	}
 }

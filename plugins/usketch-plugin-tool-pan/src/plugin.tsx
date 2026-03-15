@@ -61,6 +61,7 @@ export const panToolPlugin: UsketchPlugin = {
 
 		ctx.tools.register("pan", {
 			icon: PanIcon,
+			cursor: "grab",
 			shortcut: "h",
 			order: 1,
 			onPointerDown,

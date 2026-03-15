@@ -149,6 +149,7 @@ export const selectToolPlugin: UsketchPlugin = {
 
 		ctx.tools.register("select", {
 			icon: SelectIcon,
+			cursor: "default",
 			shortcut: "v",
 			order: 0,
 			onPointerDown,

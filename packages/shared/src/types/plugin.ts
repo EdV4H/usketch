@@ -45,6 +45,7 @@ export interface ShapeRegistry {
 
 export interface ToolDefinition {
 	icon: () => ReactElement;
+	cursor?: string;
 	shortcut?: string;
 	order?: number;
 	onActivate?: (ctx: ToolContext) => void;

@@ -242,6 +242,7 @@ export const freedrawPlugin: UsketchPlugin = {
 
 		ctx.tools.register("freedraw-draw", {
 			icon: FreedrawIcon,
+			cursor: "crosshair",
 			shortcut: "p",
 			order: 30,
 			onPointerDown,

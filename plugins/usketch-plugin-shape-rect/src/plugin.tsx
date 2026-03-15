@@ -164,6 +164,7 @@ export const rectPlugin: UsketchPlugin = {
 
 		ctx.tools.register("rectangle-draw", {
 			icon: RectIcon,
+			cursor: "crosshair",
 			shortcut: "r",
 			order: 10,
 			onPointerDown,

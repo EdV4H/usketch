@@ -159,6 +159,7 @@ export const ellipsePlugin: UsketchPlugin = {
 
 		ctx.tools.register("ellipse-draw", {
 			icon: EllipseIcon,
+			cursor: "crosshair",
 			shortcut: "o",
 			order: 20,
 			onPointerDown,
