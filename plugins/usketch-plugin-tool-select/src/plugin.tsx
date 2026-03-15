@@ -55,7 +55,6 @@ function deleteSelectedShapes(ctx: PluginContext) {
 export const selectToolPlugin: UsketchPlugin = {
 	id: "usketch-plugin-tool-select",
 	name: "選択",
-	type: "tool",
 
 	setup(ctx: PluginContext) {
 		// ── Local drag state (scoped to this setup closure) ──

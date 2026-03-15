@@ -110,7 +110,6 @@ function EllipseIcon() {
 export const ellipsePlugin: UsketchPlugin = {
 	id: "usketch-plugin-shape-ellipse",
 	name: "楕円",
-	type: "shape",
 
 	setup(ctx: PluginContext) {
 		// ── Local draw state (scoped to this setup closure) ──

@@ -28,7 +28,6 @@ function PanIcon() {
 export const panToolPlugin: UsketchPlugin = {
 	id: "usketch-plugin-tool-pan",
 	name: "パン",
-	type: "tool",
 
 	setup(ctx: PluginContext) {
 		// ── Local pan state (scoped to this setup closure) ──

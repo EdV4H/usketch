@@ -9,7 +9,6 @@ import type {
 export const viewportNavPlugin: UsketchPlugin = {
 	id: "usketch-plugin-viewport-nav",
 	name: "ビューポートナビゲーション",
-	type: "feature",
 
 	setup(ctx: PluginContext) {
 		// ── Local pan state (scoped to this setup closure) ──

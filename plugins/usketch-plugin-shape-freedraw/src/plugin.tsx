@@ -187,7 +187,6 @@ function FreedrawIcon() {
 export const freedrawPlugin: UsketchPlugin = {
 	id: "usketch-plugin-shape-freedraw",
 	name: "フリーハンド",
-	type: "shape",
 
 	setup(ctx: PluginContext) {
 		// ── Local draw state (scoped to this setup closure) ──

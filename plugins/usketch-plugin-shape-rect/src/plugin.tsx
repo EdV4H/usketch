@@ -115,7 +115,6 @@ function RectIcon() {
 export const rectPlugin: UsketchPlugin = {
 	id: "usketch-plugin-shape-rect",
 	name: "矩形",
-	type: "shape",
 
 	setup(ctx: PluginContext) {
 		// ── Local draw state (scoped to this setup closure) ──

@@ -185,7 +185,6 @@ export interface PluginContext {
 export interface UsketchPlugin {
 	readonly id: string;
 	readonly name: string;
-	readonly type: "tool" | "shape" | "background" | "feature";
 	setup(ctx: PluginContext): void | Promise<void>;
 	teardown?(): void;
 }

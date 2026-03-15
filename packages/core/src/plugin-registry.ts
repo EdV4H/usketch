@@ -15,9 +15,5 @@ export function createPluginRegistry() {
 		getAll(): readonly UsketchPlugin[] {
 			return [...plugins.values()];
 		},
-
-		getByType(type: UsketchPlugin["type"]): readonly UsketchPlugin[] {
-			return [...plugins.values()].filter((p) => p.type === type);
-		},
 	};
 }
