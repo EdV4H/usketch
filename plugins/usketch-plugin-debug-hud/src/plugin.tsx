@@ -45,6 +45,10 @@ export const debugHudPlugin: UsketchPlugin = {
 					fpsCounter={fpsCounter}
 					eventLogger={eventLogger}
 					pointerTracker={pointerTracker}
+					commands={ctx.commands}
+					tools={ctx.tools}
+					layers={ctx.layers}
+					shapes={ctx.shapes}
 					ctx={renderCtx}
 				/>
 			),

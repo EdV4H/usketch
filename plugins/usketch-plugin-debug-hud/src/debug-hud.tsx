@@ -1,41 +1,32 @@
-import type { BoardStore, LayerRenderContext } from "@edv4h/usketch-shared";
+import type {
+	BoardStore,
+	CommandRegistry,
+	LayerManager,
+	LayerRenderContext,
+	ShapeRegistry,
+	ToolRegistry,
+} from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
+import { Minimap } from "./overlays/minimap.js";
+import { ShapeBoundsOverlay } from "./overlays/shape-bounds-overlay.js";
+import { EventsPanel } from "./panels/events-panel.js";
+import { GeneralPanel } from "./panels/general-panel.js";
+import { ShapesPanel } from "./panels/shapes-panel.js";
 import type { PointerTracker } from "./pointer-tracker.js";
+import { FONT_FAMILY, TEXT_MUTED } from "./styles.js";
 
 interface DebugHudProps {
 	store: BoardStore;
 	fpsCounter: FpsCounter;
 	eventLogger: EventLogger;
 	pointerTracker: PointerTracker;
+	commands: CommandRegistry;
+	tools: ToolRegistry;
+	layers: LayerManager;
+	shapes: ShapeRegistry;
 	ctx: LayerRenderContext;
-}
-
-const LABEL_STYLE: React.CSSProperties = {
-	color: "#8b8b8b",
-	fontSize: 10,
-	marginBottom: 2,
-};
-
-const SECTION_STYLE: React.CSSProperties = {
-	marginBottom: 6,
-};
-
-const SCROLLABLE_STYLE: React.CSSProperties = {
-	maxHeight: 160,
-	overflowY: "auto",
-	pointerEvents: "auto",
-	fontSize: 10,
-	lineHeight: "14px",
-};
-
-function fmt(n: number): string {
-	return Number.isInteger(n) ? String(n) : n.toFixed(1);
-}
-
-function shortId(id: string): string {
-	return id.length > 8 ? `${id.slice(0, 8)}…` : id;
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -44,10 +35,27 @@ function isEditableTarget(target: EventTarget | null): boolean {
 	return tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable;
 }
 
-export function DebugHud({ store, fpsCounter, eventLogger, pointerTracker, ctx }: DebugHudProps) {
+export function DebugHud({
+	store,
+	fpsCounter,
+	eventLogger,
+	pointerTracker,
+	commands,
+	tools,
+	layers,
+	shapes,
+	ctx,
+}: DebugHudProps) {
 	const [visible, setVisible] = useState(false);
+	const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
 
-	// Keyboard shortcut (backtick) — skip when focus is on editable elements
+	// Force re-render on store changes (for undo/redo state etc.)
+	useSyncExternalStore(
+		useCallback((cb: () => void) => store.subscribe(cb), [store]),
+		() => store.getShapes(),
+	);
+
+	// Keyboard shortcut (backtick)
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
 			if (isEditableTarget(e.target)) return;
@@ -62,169 +70,67 @@ export function DebugHud({ store, fpsCounter, eventLogger, pointerTracker, ctx }
 		return () => window.removeEventListener("keydown", handler);
 	}, []);
 
-	const fps = useSyncExternalStore(
-		useCallback((cb: () => void) => fpsCounter.subscribe(cb), [fpsCounter]),
-		() => fpsCounter.getSnapshot(),
-	);
-
-	const events = useSyncExternalStore(
-		useCallback((cb: () => void) => eventLogger.subscribe(cb), [eventLogger]),
-		() => eventLogger.getSnapshot(),
-	);
-
-	const pointer = useSyncExternalStore(
-		useCallback((cb: () => void) => pointerTracker.subscribe(cb), [pointerTracker]),
-		() => pointerTracker.getSnapshot(),
-	);
-
-	const { viewport, shapes, selection } = ctx;
+	const { viewport, shapes: shapeMap, selection } = ctx;
 	const activeToolId = store.getActiveToolId();
-	const shapeEntries = Array.from(shapes.values());
 
-	// Toggle button (always visible)
-	const toggleButton = (
-		<button
-			type="button"
-			onClick={() => setVisible((v) => !v)}
+	const hoveredShape = hoveredShapeId ? shapeMap.get(hoveredShapeId) : undefined;
+
+	// Shortcut hint — top-left (always visible)
+	const hint = (
+		<div
 			style={{
 				position: "absolute",
-				top: 8,
-				right: 8,
-				width: 28,
-				height: 28,
-				border: "none",
-				borderRadius: 6,
-				background: visible ? "rgba(99, 102, 241, 0.8)" : "rgba(0, 0, 0, 0.5)",
-				color: "#e0e0e0",
-				fontSize: 14,
-				fontFamily: "monospace",
-				cursor: "pointer",
-				display: "flex",
-				alignItems: "center",
-				justifyContent: "center",
-				pointerEvents: "auto",
-				backdropFilter: "blur(4px)",
-				lineHeight: 1,
+				bottom: 8,
+				left: "50%",
+				transform: "translateX(-50%)",
+				color: TEXT_MUTED,
+				fontSize: 10,
+				fontFamily: FONT_FAMILY,
+				pointerEvents: "none",
 			}}
-			title="Toggle Debug HUD (`)"
 		>
-			D
-		</button>
+			Debug HUD · press <kbd style={{ color: "#e0e0e0" }}>`</kbd> to {visible ? "close" : "open"}
+		</div>
 	);
 
 	if (!visible) {
-		return toggleButton;
+		return hint;
 	}
 
 	return (
 		<>
-			{toggleButton}
-			<div
-				style={{
-					position: "absolute",
-					top: 44,
-					right: 8,
-					width: 260,
-					padding: 10,
-					background: "rgba(0, 0, 0, 0.82)",
-					color: "#e0e0e0",
-					fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
-					fontSize: 11,
-					lineHeight: "16px",
-					borderRadius: 8,
-					backdropFilter: "blur(8px)",
-					userSelect: "none",
-				}}
-			>
-				{/* FPS */}
-				<div style={SECTION_STYLE}>
-					<span style={{ color: fps >= 50 ? "#4ade80" : fps >= 30 ? "#fbbf24" : "#f87171" }}>
-						{fps} FPS
-					</span>
-				</div>
+			{hint}
 
-				{/* Viewport */}
-				<div style={SECTION_STYLE}>
-					<div style={LABEL_STYLE}>Viewport</div>
-					<div>
-						x: {fmt(viewport.x)} y: {fmt(viewport.y)} zoom: {fmt(viewport.zoom)}
-					</div>
-				</div>
+			{/* Bounding box overlay (behind panels, no pointer events) */}
+			<ShapeBoundsOverlay shape={hoveredShape} store={store} />
 
-				{/* Shapes */}
-				<div style={SECTION_STYLE}>
-					<div style={LABEL_STYLE}>Shapes</div>
-					<div>{shapes.size}</div>
-				</div>
+			{/* Right-top: General Panel */}
+			<GeneralPanel
+				store={store}
+				fpsCounter={fpsCounter}
+				pointerTracker={pointerTracker}
+				commands={commands}
+				tools={tools}
+				layers={layers}
+				shapes={shapes}
+				viewport={viewport}
+				activeToolId={activeToolId}
+			/>
 
-				{/* Selection */}
-				<div style={SECTION_STYLE}>
-					<div style={LABEL_STYLE}>Selection</div>
-					<div>
-						{selection.size === 0
-							? "none"
-							: `${selection.size}: ${Array.from(selection).map(shortId).join(", ")}`}
-					</div>
-				</div>
+			{/* Left-center: Shapes Inspector */}
+			<ShapesPanel
+				store={store}
+				commands={commands}
+				shapes={shapeMap}
+				selection={selection}
+				onHoverShape={setHoveredShapeId}
+			/>
 
-				{/* Active Tool */}
-				<div style={SECTION_STYLE}>
-					<div style={LABEL_STYLE}>Active Tool</div>
-					<div>{activeToolId}</div>
-				</div>
+			{/* Right-bottom: Event Log */}
+			<EventsPanel eventLogger={eventLogger} />
 
-				{/* Pointer */}
-				<div style={SECTION_STYLE}>
-					<div style={LABEL_STYLE}>Pointer</div>
-					<div>
-						world: ({fmt(pointer.world.x)}, {fmt(pointer.world.y)}) screen: ({fmt(pointer.screen.x)}
-						, {fmt(pointer.screen.y)})
-					</div>
-				</div>
-
-				{/* Shape List */}
-				<div style={SECTION_STYLE}>
-					<div style={LABEL_STYLE}>Shape List</div>
-					<div style={SCROLLABLE_STYLE}>
-						{shapeEntries.length === 0 ? (
-							<div style={{ color: "#6b7280" }}>No shapes</div>
-						) : (
-							shapeEntries.map((s) => (
-								<div
-									key={s.id}
-									style={{
-										padding: "1px 4px",
-										borderRadius: 3,
-										background: selection.has(s.id) ? "rgba(99, 102, 241, 0.3)" : "transparent",
-									}}
-								>
-									{shortId(s.id)} {s.type} ({fmt(s.x)}, {fmt(s.y)}) {fmt(s.width)}
-									&times;{fmt(s.height)}
-								</div>
-							))
-						)}
-					</div>
-				</div>
-
-				{/* Event Log */}
-				<div>
-					<div style={LABEL_STYLE}>Event Log</div>
-					<div style={SCROLLABLE_STYLE}>
-						{events.length === 0 ? (
-							<div style={{ color: "#6b7280" }}>No events</div>
-						) : (
-							[...events].reverse().map((entry, i) => (
-								<div key={`${entry.timestamp}-${i}`} style={{ color: "#a0a0a0" }}>
-									<span style={{ color: "#6b7280" }}>
-										{new Date(entry.timestamp).toLocaleTimeString()}{" "}
-									</span>
-									{entry.event}
-								</div>
-							))
-						)}
-					</div>
-				</div>
-			</div>
+			{/* Bottom-left: Minimap */}
+			<Minimap shapes={shapeMap} viewport={viewport} selection={selection} />
 		</>
 	);
 }

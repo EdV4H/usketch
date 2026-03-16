@@ -1,9 +1,12 @@
+const HISTORY_SIZE = 60;
+
 export class FpsCounter {
 	private frameCount = 0;
 	private lastTime = 0;
 	private currentFps = 0;
 	private rafId = 0;
 	private listeners = new Set<() => void>();
+	private historyBuffer: number[] = [];
 
 	start(): void {
 		this.lastTime = performance.now();
@@ -24,6 +27,10 @@ export class FpsCounter {
 		return this.currentFps;
 	}
 
+	getHistory(): readonly number[] {
+		return this.historyBuffer;
+	}
+
 	private tick = (): void => {
 		this.rafId = requestAnimationFrame(this.tick);
 		this.frameCount++;
@@ -33,6 +40,10 @@ export class FpsCounter {
 			this.currentFps = Math.round((this.frameCount * 1000) / elapsed);
 			this.frameCount = 0;
 			this.lastTime = now;
+			this.historyBuffer.push(this.currentFps);
+			if (this.historyBuffer.length > HISTORY_SIZE) {
+				this.historyBuffer.shift();
+			}
 			for (const listener of this.listeners) {
 				listener();
 			}
