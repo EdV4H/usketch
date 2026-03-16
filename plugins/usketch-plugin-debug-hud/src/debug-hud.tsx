@@ -6,7 +6,7 @@ import type {
 	ShapeRegistry,
 	ToolRegistry,
 } from "@edv4h/usketch-shared";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
 import { Minimap } from "./overlays/minimap.js";
@@ -48,12 +48,6 @@ export function DebugHud({
 }: DebugHudProps) {
 	const [visible, setVisible] = useState(false);
 	const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
-
-	// Force re-render on store changes (for undo/redo state etc.)
-	useSyncExternalStore(
-		useCallback((cb: () => void) => store.subscribe(cb), [store]),
-		() => store.getShapes(),
-	);
 
 	// Keyboard shortcut (backtick)
 	useEffect(() => {

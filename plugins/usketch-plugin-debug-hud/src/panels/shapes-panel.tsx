@@ -1,5 +1,5 @@
 import type { BoardStore, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
 	ACCENT_DIM,
 	fmt,
@@ -35,12 +35,16 @@ function EditableField({
 	const [editing, setEditing] = useState(false);
 	const [draft, setDraft] = useState("");
 
+	const committedRef = useRef(false);
+
 	const start = () => {
+		committedRef.current = false;
 		setDraft(String(value));
 		setEditing(true);
 	};
-
 	const commit = () => {
+		if (committedRef.current) return;
+		committedRef.current = true;
 		const n = Number.parseFloat(draft);
 		if (!Number.isNaN(n)) onCommit(n);
 		setEditing(false);
