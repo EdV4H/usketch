@@ -85,6 +85,16 @@ export const snapPlugin: UsketchPlugin = {
 		window.addEventListener("keydown", onKeyDown);
 		window.addEventListener("keyup", onKeyUp);
 
+		// ── Settings API via EventBus ──
+
+		const offConfigure = ctx.events.on<Partial<SnapSettings>>("snap:configure", (patch) => {
+			Object.assign(settings, patch);
+		});
+
+		const offGetSettings = ctx.events.on<(s: SnapSettings) => void>("snap:get-settings", (cb) => {
+			cb({ ...settings });
+		});
+
 		// ── Monkey-patch store.updateShape ──
 
 		const originalUpdateShape = ctx.store.updateShape.bind(ctx.store);
@@ -166,6 +176,8 @@ export const snapPlugin: UsketchPlugin = {
 		(this as UsketchPlugin).teardown = () => {
 			offPointerDown();
 			offPointerUp();
+			offConfigure();
+			offGetSettings();
 			window.removeEventListener("keydown", onKeyDown);
 			window.removeEventListener("keyup", onKeyUp);
 			ctx.store.updateShape = originalUpdateShape;
