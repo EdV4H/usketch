@@ -158,6 +158,35 @@ describe("calculateSnap", () => {
 		expect(yLine?.indicators.length).toBe(4);
 	});
 
+	it("snaps at exactly the threshold distance", () => {
+		const moving: BoundingBox = { x: 108, y: 50, width: 40, height: 30 };
+		const candidates = makeCandidates({
+			target: { x: 100, y: 150, width: 60, height: 40 },
+		});
+
+		// dist = 8 = threshold, should snap
+		const result = calculateSnap(moving, new Set(["moving"]), candidates, {
+			...defaults,
+			centerSnap: false,
+		});
+		expect(result.dx).toBe(-8);
+	});
+
+	it("does not snap at threshold + 1", () => {
+		const moving: BoundingBox = { x: 109, y: 50, width: 40, height: 30 };
+		const candidates = makeCandidates({
+			target: { x: 100, y: 150, width: 60, height: 40 },
+		});
+
+		// moving left=109, right=149; target left=100(dist=9>8), right=160(dist=11>8)
+		// center: moving=129, target=130(dist=1) — but centerSnap is off
+		const result = calculateSnap(moving, new Set(["moving"]), candidates, {
+			...defaults,
+			centerSnap: false,
+		});
+		expect(result.dx).toBe(0);
+	});
+
 	it("excludes moving shapes from candidates", () => {
 		const moving: BoundingBox = { x: 100, y: 50, width: 40, height: 30 };
 		const candidates = makeCandidates({

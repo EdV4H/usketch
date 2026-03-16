@@ -128,12 +128,12 @@ function findBestSnap(
 	threshold: number,
 ): SnapMatch | null {
 	let best: SnapMatch | null = null;
-	let bestDist = threshold + 1;
+	let bestDist = threshold;
 
 	for (const mp of movingPoints) {
 		for (const cp of candidatePoints) {
 			const dist = Math.abs(mp.value - cp.value);
-			if (dist < bestDist) {
+			if (dist <= bestDist) {
 				bestDist = dist;
 				best = { dx: cp.value - mp.value, moving: mp, candidate: cp };
 			}
