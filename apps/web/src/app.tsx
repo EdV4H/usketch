@@ -42,7 +42,6 @@ export function App() {
 		let instance: AppInstance | null = null;
 		const store = createBoardStore();
 
-		// Register built-in shape layer
 		loadPlugins()
 			.then((plugins) => createApp({ store, plugins }))
 			.then((created) => {
@@ -51,16 +50,12 @@ export function App() {
 					return;
 				}
 				instance = created;
-				// Register built-in shape layer
 				const app = instance;
-				// Register built-in shape layer
 				app.layers.register({
 					id: "shapes",
 					order: 50,
 					render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />,
 				});
-
-				// Register transient layer (cursors, ephemeral effects)
 				app.layers.register({
 					id: "transient",
 					order: 100,
