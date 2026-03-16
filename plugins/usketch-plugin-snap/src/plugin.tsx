@@ -187,7 +187,6 @@ export const snapPlugin: UsketchPlugin = {
 			id: "snap-guides",
 			order: 90,
 			render: () => <SnapGuideOverlay />,
-			renderTarget: "html",
 		});
 
 		// ── Teardown ──

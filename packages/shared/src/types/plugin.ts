@@ -19,7 +19,6 @@ export interface Layer {
 	order: number;
 	render: (ctx: LayerRenderContext) => ReactElement | null;
 	interactable?: boolean;
-	renderTarget?: RenderTarget;
 	fixed?: boolean;
 }
 
