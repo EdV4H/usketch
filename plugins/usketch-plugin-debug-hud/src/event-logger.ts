@@ -3,7 +3,7 @@ export interface EventLogEntry {
 	timestamp: number;
 }
 
-const MAX_ENTRIES = 50;
+const MAX_ENTRIES = 200;
 
 export class EventLogger {
 	private entries: EventLogEntry[] = [];

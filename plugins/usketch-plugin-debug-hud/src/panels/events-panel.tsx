@@ -1,9 +1,55 @@
-import { useCallback, useState, useSyncExternalStore } from "react";
-import type { EventLogger } from "../event-logger.js";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import type { EventLogEntry, EventLogger } from "../event-logger.js";
 import { LABEL_STYLE, MINI_BUTTON, PANEL_BASE, SCROLLABLE_STYLE, TEXT_MUTED } from "../styles.js";
 
 interface EventsPanelProps {
 	eventLogger: EventLogger;
+}
+
+const EVENT_COLORS: Record<string, string> = {
+	// canvas events — each action gets its own shade
+	"canvas:pointerdown": "#3b82f6", // blue
+	"canvas:pointerup": "#60a5fa", // light blue
+	"canvas:pointermove": "#93c5fd", // lighter blue
+	"canvas:wheel": "#2563eb", // dark blue
+	"canvas:middle-down": "#1d4ed8", // darker blue
+	// shape events
+	shape: "#4ade80", // green
+	// tool events
+	tool: "#fbbf24", // yellow
+	// selection events
+	selection: "#c084fc", // purple
+	// viewport events
+	viewport: "#f472b6", // pink
+	// command events
+	command: "#fb923c", // orange
+};
+
+const DEFAULT_EVENT_COLOR = "#a0a0a0";
+
+function eventColor(event: string): string {
+	// Try exact match first, then prefix
+	return EVENT_COLORS[event] ?? EVENT_COLORS[event.split(":")[0]] ?? DEFAULT_EVENT_COLOR;
+}
+
+interface GroupedEntry {
+	event: string;
+	timestamp: number;
+	count: number;
+}
+
+function groupConsecutive(entries: readonly EventLogEntry[]): GroupedEntry[] {
+	const groups: GroupedEntry[] = [];
+	for (const entry of entries) {
+		const last = groups[groups.length - 1];
+		if (last && last.event === entry.event) {
+			last.count++;
+			last.timestamp = entry.timestamp;
+		} else {
+			groups.push({ event: entry.event, timestamp: entry.timestamp, count: 1 });
+		}
+	}
+	return groups;
 }
 
 export function EventsPanel({ eventLogger }: EventsPanelProps) {
@@ -17,6 +63,8 @@ export function EventsPanel({ eventLogger }: EventsPanelProps) {
 	const filtered = filter
 		? events.filter((e) => e.event.toLowerCase().includes(filter.toLowerCase()))
 		: events;
+
+	const grouped = useMemo(() => groupConsecutive(filtered), [filtered]);
 
 	return (
 		<div
@@ -62,15 +110,16 @@ export function EventsPanel({ eventLogger }: EventsPanelProps) {
 				}}
 			/>
 			<div style={{ ...SCROLLABLE_STYLE, flexGrow: 1 }}>
-				{filtered.length === 0 ? (
+				{grouped.length === 0 ? (
 					<div style={{ color: TEXT_MUTED }}>No events</div>
 				) : (
-					[...filtered].reverse().map((entry, i) => (
-						<div key={`${entry.timestamp}-${i}`} style={{ color: "#a0a0a0" }}>
+					[...grouped].reverse().map((entry, i) => (
+						<div key={`${entry.timestamp}-${i}`} style={{ color: eventColor(entry.event) }}>
 							<span style={{ color: TEXT_MUTED }}>
 								{new Date(entry.timestamp).toLocaleTimeString()}{" "}
 							</span>
 							{entry.event}
+							{entry.count > 1 && <span style={{ color: TEXT_MUTED }}> ({entry.count})</span>}
 						</div>
 					))
 				)}

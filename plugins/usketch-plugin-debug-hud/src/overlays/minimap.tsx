@@ -14,13 +14,18 @@ const PAD = 20;
 export function Minimap({ shapes, viewport, selection }: MinimapProps) {
 	const shapeArr = Array.from(shapes.values());
 
+	// viewport.x/y is a screen-space translate offset, not a world origin.
+	// World coordinate of the viewport top-left:
+	const vpWorldX = -viewport.x / viewport.zoom;
+	const vpWorldY = -viewport.y / viewport.zoom;
+	const vpWorldW = window.innerWidth / viewport.zoom;
+	const vpWorldH = window.innerHeight / viewport.zoom;
+
 	// Compute world bounds (start with viewport)
-	const vpRight = viewport.x + window.innerWidth / viewport.zoom;
-	const vpBottom = viewport.y + window.innerHeight / viewport.zoom;
-	let minX = viewport.x;
-	let minY = viewport.y;
-	let maxX = vpRight;
-	let maxY = vpBottom;
+	let minX = vpWorldX;
+	let minY = vpWorldY;
+	let maxX = vpWorldX + vpWorldW;
+	let maxY = vpWorldY + vpWorldH;
 
 	for (const s of shapeArr) {
 		if (s.x < minX) minX = s.x;
@@ -37,10 +42,10 @@ export function Minimap({ shapes, viewport, selection }: MinimapProps) {
 	const toMapY = (wy: number) => (wy - minY + PAD) * scale;
 
 	// Viewport rect in minimap
-	const vx = toMapX(viewport.x);
-	const vy = toMapY(viewport.y);
-	const vw = (window.innerWidth / viewport.zoom) * scale;
-	const vh = (window.innerHeight / viewport.zoom) * scale;
+	const vx = toMapX(vpWorldX);
+	const vy = toMapY(vpWorldY);
+	const vw = vpWorldW * scale;
+	const vh = vpWorldH * scale;
 
 	return (
 		<div
