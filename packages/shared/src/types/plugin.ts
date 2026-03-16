@@ -151,6 +151,11 @@ export interface TransientRegistry {
 
 // ── Store ──
 
+export interface StoreEvent {
+	type: string;
+	payload?: unknown;
+}
+
 export interface BoardStore {
 	getShapes(): ReadonlyMap<string, ShapeData>;
 	getShape(id: string): ShapeData | undefined;
@@ -176,6 +181,7 @@ export interface BoardStore {
 	setStyleSettings(style: Partial<ShapeStyle>): void;
 
 	subscribe(listener: () => void): () => void;
+	onMutation(listener: (event: StoreEvent) => void): () => void;
 }
 
 // ── Plugin ──

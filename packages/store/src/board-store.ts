@@ -1,4 +1,11 @@
-import type { BoardStore, Point, ShapeData, ShapeStyle, Viewport } from "@edv4h/usketch-shared";
+import type {
+	BoardStore,
+	Point,
+	ShapeData,
+	ShapeStyle,
+	StoreEvent,
+	Viewport,
+} from "@edv4h/usketch-shared";
 import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
 
 export interface BoardState {
@@ -19,10 +26,18 @@ export function createBoardStore(): BoardStore {
 	};
 
 	const listeners = new Set<() => void>();
+	const mutationListeners = new Set<(event: StoreEvent) => void>();
 
 	function notify() {
 		for (const listener of listeners) {
 			listener();
+		}
+	}
+
+	function notifyMutation(type: string, payload?: unknown) {
+		const event: StoreEvent = payload !== undefined ? { type, payload } : { type };
+		for (const listener of mutationListeners) {
+			listener(event);
 		}
 	}
 
@@ -34,6 +49,7 @@ export function createBoardStore(): BoardStore {
 			state.shapes = new Map(state.shapes);
 			state.shapes.set(shape.id, shape);
 			notify();
+			notifyMutation("shape:added", { id: shape.id });
 		},
 
 		updateShape(id: string, updates: Partial<ShapeData>) {
@@ -42,6 +58,7 @@ export function createBoardStore(): BoardStore {
 			state.shapes = new Map(state.shapes);
 			state.shapes.set(id, { ...existing, ...updates });
 			notify();
+			notifyMutation("shape:updated", { id });
 		},
 
 		deleteShape(id: string) {
@@ -50,6 +67,7 @@ export function createBoardStore(): BoardStore {
 			state.selection = new Set(state.selection);
 			state.selection.delete(id);
 			notify();
+			notifyMutation("shape:removed", { id });
 		},
 
 		getSelection: () => state.selection,
@@ -57,24 +75,28 @@ export function createBoardStore(): BoardStore {
 		setSelection(ids: string[]) {
 			state.selection = new Set(ids);
 			notify();
+			notifyMutation("selection:changed", { ids });
 		},
 
 		addToSelection(id: string) {
 			state.selection = new Set(state.selection);
 			state.selection.add(id);
 			notify();
+			notifyMutation("selection:changed");
 		},
 
 		removeFromSelection(id: string) {
 			state.selection = new Set(state.selection);
 			state.selection.delete(id);
 			notify();
+			notifyMutation("selection:changed");
 		},
 
 		clearSelection() {
 			if (state.selection.size === 0) return;
 			state.selection = new Set();
 			notify();
+			notifyMutation("selection:changed");
 		},
 
 		getActiveToolId: () => state.activeToolId,
@@ -83,6 +105,7 @@ export function createBoardStore(): BoardStore {
 			if (state.activeToolId === id) return;
 			state.activeToolId = id;
 			notify();
+			notifyMutation("tool:changed", { id });
 		},
 
 		getViewport: () => state.viewport,
@@ -90,6 +113,7 @@ export function createBoardStore(): BoardStore {
 		setViewport(viewport: Viewport) {
 			state.viewport = viewport;
 			notify();
+			notifyMutation("viewport:changed");
 		},
 
 		panBy(dx: number, dy: number) {
@@ -99,6 +123,7 @@ export function createBoardStore(): BoardStore {
 				y: state.viewport.y + dy,
 			};
 			notify();
+			notifyMutation("viewport:changed");
 		},
 
 		zoomTo(zoom: number, center: Point) {
@@ -111,6 +136,7 @@ export function createBoardStore(): BoardStore {
 				zoom: clampedZoom,
 			};
 			notify();
+			notifyMutation("viewport:changed");
 		},
 
 		getStyleSettings: () => state.styleSettings,
@@ -118,12 +144,20 @@ export function createBoardStore(): BoardStore {
 		setStyleSettings(style: Partial<ShapeStyle>) {
 			state.styleSettings = { ...state.styleSettings, ...style };
 			notify();
+			notifyMutation("style:changed");
 		},
 
 		subscribe(listener: () => void): () => void {
 			listeners.add(listener);
 			return () => {
 				listeners.delete(listener);
+			};
+		},
+
+		onMutation(listener: (event: StoreEvent) => void): () => void {
+			mutationListeners.add(listener);
+			return () => {
+				mutationListeners.delete(listener);
 			};
 		},
 	};
