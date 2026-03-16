@@ -1,41 +1,33 @@
-import {
-	GUIDE_COLOR,
-	GUIDE_DASH,
-	GUIDE_STROKE_WIDTH,
-	INDICATOR_DIAMOND_SIZE,
-	INDICATOR_RADIUS,
-} from "./constants.js";
-import type { SnapIndicator, SnapLine } from "./engine/types.js";
+import type { GuideStyle, SnapIndicator, SnapLine } from "./engine/types.js";
 
 interface GuideLayerProps {
 	lines: SnapLine[];
+	style: GuideStyle;
 }
 
 function lineKey(line: SnapLine): string {
 	return `${line.axis}-${line.position}-${line.from}-${line.to}`;
 }
 
-function renderIndicator(ind: SnapIndicator, key: string) {
+function renderIndicator(ind: SnapIndicator, key: string, style: GuideStyle) {
 	if (ind.edge === "center") {
-		// Diamond for center snap
-		const s = INDICATOR_DIAMOND_SIZE;
+		const s = style.diamondSize;
 		const d = `M${ind.x},${ind.y - s}L${ind.x + s},${ind.y}L${ind.x},${ind.y + s}L${ind.x - s},${ind.y}Z`;
-		return <path key={key} d={d} fill={GUIDE_COLOR} vectorEffect="non-scaling-stroke" />;
+		return <path key={key} d={d} fill={style.color} vectorEffect="non-scaling-stroke" />;
 	}
-	// Circle for edge snap
 	return (
 		<circle
 			key={key}
 			cx={ind.x}
 			cy={ind.y}
-			r={INDICATOR_RADIUS}
-			fill={GUIDE_COLOR}
+			r={style.indicatorRadius}
+			fill={style.color}
 			vectorEffect="non-scaling-stroke"
 		/>
 	);
 }
 
-export function GuideLayer({ lines }: GuideLayerProps) {
+export function GuideLayer({ lines, style }: GuideLayerProps) {
 	if (lines.length === 0) return null;
 
 	return (
@@ -52,9 +44,9 @@ export function GuideLayer({ lines }: GuideLayerProps) {
 							y1={line.from}
 							x2={line.position}
 							y2={line.to}
-							stroke={GUIDE_COLOR}
-							strokeWidth={GUIDE_STROKE_WIDTH}
-							strokeDasharray={GUIDE_DASH}
+							stroke={style.color}
+							strokeWidth={style.strokeWidth}
+							strokeDasharray={style.dash}
 							vectorEffect="non-scaling-stroke"
 						/>,
 					);
@@ -66,16 +58,16 @@ export function GuideLayer({ lines }: GuideLayerProps) {
 							y1={line.position}
 							x2={line.to}
 							y2={line.position}
-							stroke={GUIDE_COLOR}
-							strokeWidth={GUIDE_STROKE_WIDTH}
-							strokeDasharray={GUIDE_DASH}
+							stroke={style.color}
+							strokeWidth={style.strokeWidth}
+							strokeDasharray={style.dash}
 							vectorEffect="non-scaling-stroke"
 						/>,
 					);
 				}
 
 				for (let j = 0; j < line.indicators.length; j++) {
-					elements.push(renderIndicator(line.indicators[j], `${key}-ind-${j}`));
+					elements.push(renderIndicator(line.indicators[j], `${key}-ind-${j}`, style));
 				}
 
 				return elements;

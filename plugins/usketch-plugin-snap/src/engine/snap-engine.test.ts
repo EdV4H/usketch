@@ -9,6 +9,13 @@ const defaults: SnapSettings = {
 	edgeSnap: true,
 	centerSnap: true,
 	viewportOnly: false,
+	guideStyle: {
+		color: "#3b82f6",
+		dash: "4 3",
+		strokeWidth: 1,
+		indicatorRadius: 3,
+		diamondSize: 4,
+	},
 };
 
 function makeCandidates(boxes: Record<string, BoundingBox>): Map<string, BoundingBox> {

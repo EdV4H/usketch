@@ -28,10 +28,19 @@ export interface SnapResult {
 	lines: SnapLine[];
 }
 
+export interface GuideStyle {
+	color: string;
+	dash: string;
+	strokeWidth: number;
+	indicatorRadius: number;
+	diamondSize: number;
+}
+
 export interface SnapSettings {
 	enabled: boolean;
 	threshold: number;
 	edgeSnap: boolean;
 	centerSnap: boolean;
 	viewportOnly: boolean;
+	guideStyle: GuideStyle;
 }

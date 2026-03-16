@@ -8,38 +8,41 @@ import type {
 	Viewport,
 } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
-import { DEFAULT_SNAP_THRESHOLD } from "./constants.js";
+import { DEFAULT_GUIDE_STYLE, DEFAULT_SNAP_THRESHOLD } from "./constants.js";
 import { calculateSnap } from "./engine/snap-engine.js";
-import type { SnapLine, SnapResult, SnapSettings } from "./engine/types.js";
+import type { GuideStyle, SnapLine, SnapResult, SnapSettings } from "./engine/types.js";
 import { GuideLayer } from "./guide-layer.js";
 
 // ── Shared mutable state for the plugin ──
 
-let currentLines: SnapLine[] = [];
-const lineListeners: Set<() => void> = new Set();
-
-function setLines(lines: SnapLine[]) {
-	currentLines = lines;
-	for (const fn of lineListeners) fn();
+interface SnapGuideState {
+	lines: SnapLine[];
+	guideStyle: GuideStyle;
 }
 
-function subscribeLines(cb: () => void): () => void {
-	lineListeners.add(cb);
-	return () => lineListeners.delete(cb);
+let currentState: SnapGuideState = { lines: [], guideStyle: { ...DEFAULT_GUIDE_STYLE } };
+const stateListeners: Set<() => void> = new Set();
+
+function setState(patch: Partial<SnapGuideState>) {
+	currentState = { ...currentState, ...patch };
+	for (const fn of stateListeners) fn();
 }
 
-function getLines(): SnapLine[] {
-	return currentLines;
+function subscribeState(cb: () => void): () => void {
+	stateListeners.add(cb);
+	return () => stateListeners.delete(cb);
 }
 
-// ── Guide layer wrapper that subscribes to snap line updates ──
+function getState(): SnapGuideState {
+	return currentState;
+}
 
-function SnapGuideOverlay(_props: { viewport: { x: number; y: number; zoom: number } }) {
-	const lines = useSyncExternalStore(subscribeLines, getLines, getLines);
-	if (lines.length === 0) return null;
+// ── Guide layer wrapper that subscribes to snap state updates ──
 
-	// HTML overlay layer already has viewport CSS transform applied,
-	// so SVG content is in world coordinates directly.
+function SnapGuideOverlay() {
+	const state = useSyncExternalStore(subscribeState, getState, getState);
+	if (state.lines.length === 0) return null;
+
 	return (
 		<svg
 			style={{
@@ -50,7 +53,7 @@ function SnapGuideOverlay(_props: { viewport: { x: number; y: number; zoom: numb
 				pointerEvents: "none",
 			}}
 		>
-			<GuideLayer lines={lines} />
+			<GuideLayer lines={state.lines} style={state.guideStyle} />
 		</svg>
 	);
 }
@@ -68,7 +71,11 @@ export const snapPlugin: UsketchPlugin = {
 			edgeSnap: true,
 			centerSnap: true,
 			viewportOnly: true,
+			guideStyle: { ...DEFAULT_GUIDE_STYLE },
 		};
+
+		// Sync initial guide style to shared state
+		setState({ guideStyle: settings.guideStyle });
 
 		let pointerDown = false;
 		let altKeyHeld = false;
@@ -87,7 +94,7 @@ export const snapPlugin: UsketchPlugin = {
 		const offPointerUp = ctx.events.on<CanvasPointerEvent>("canvas:pointerup", () => {
 			pointerDown = false;
 			frameSnapResult = null;
-			setLines([]);
+			setState({ lines: [] });
 		});
 
 		// ── Alt key tracking ──
@@ -104,11 +111,16 @@ export const snapPlugin: UsketchPlugin = {
 		// ── Settings API via EventBus ──
 
 		const offConfigure = ctx.events.on<Partial<SnapSettings>>("snap:configure", (patch) => {
-			Object.assign(settings, patch);
+			if (patch.guideStyle) {
+				settings.guideStyle = { ...settings.guideStyle, ...patch.guideStyle };
+				setState({ guideStyle: settings.guideStyle });
+			}
+			const { guideStyle: _gs, ...rest } = patch;
+			Object.assign(settings, rest);
 		});
 
 		const offGetSettings = ctx.events.on<(s: SnapSettings) => void>("snap:get-settings", (cb) => {
-			cb({ ...settings });
+			cb({ ...settings, guideStyle: { ...settings.guideStyle } });
 		});
 
 		// ── Monkey-patch store.updateShape ──
@@ -122,9 +134,8 @@ export const snapPlugin: UsketchPlugin = {
 
 			if (!shouldSnap) {
 				originalUpdateShape(id, updates);
-				// Clear guides if pointer is down but alt is held
 				if (pointerDown && altKeyHeld) {
-					setLines([]);
+					setState({ lines: [] });
 				}
 				return;
 			}
@@ -133,14 +144,11 @@ export const snapPlugin: UsketchPlugin = {
 			const currentFrame = frameId;
 
 			if (frameSnapResult && currentFrame === frameId) {
-				// Reuse cached snap result for subsequent shapes in the same frame
 				const snapped = applySnapToUpdates(updates, frameSnapResult);
 				originalUpdateShape(id, snapped);
 				return;
 			}
 
-			// First shape in this frame — compute snap
-			// Apply the updates temporarily to get the resulting bounding box
 			const shape = ctx.store.getShape(id);
 			if (!shape) {
 				originalUpdateShape(id, updates);
@@ -150,17 +158,14 @@ export const snapPlugin: UsketchPlugin = {
 			const selection = ctx.store.getSelection();
 			const movingIds = selection.size > 0 && selection.has(id) ? selection : new Set([id]);
 
-			// Build the combined bounding box of all moving shapes (with updates applied)
 			const movingBox = getMovingBoundingBox(ctx.store, movingIds, id, updates);
 
-			// Build candidate boxes (non-moving shapes, optionally viewport-filtered)
 			const viewport = settings.viewportOnly ? ctx.store.getViewport() : null;
 			const candidateBoxes = getCandidateBoxes(ctx.store, ctx, movingIds, viewport);
 
 			const result = calculateSnap(movingBox, movingIds, candidateBoxes, settings);
 			frameSnapResult = result;
 
-			// Schedule frame reset
 			requestAnimationFrame(() => {
 				if (frameId === currentFrame) {
 					frameId++;
@@ -168,12 +173,10 @@ export const snapPlugin: UsketchPlugin = {
 				}
 			});
 
-			// Apply snap
 			const snapped = applySnapToUpdates(updates, result);
 			originalUpdateShape(id, snapped);
 
-			// Update guide lines
-			setLines(result.lines);
+			setState({ lines: result.lines });
 		}
 
 		ctx.store.updateShape = patchedUpdateShape;
@@ -183,7 +186,7 @@ export const snapPlugin: UsketchPlugin = {
 		ctx.layers.register({
 			id: "snap-guides",
 			order: 90,
-			render: (renderCtx) => <SnapGuideOverlay viewport={renderCtx.viewport} />,
+			render: () => <SnapGuideOverlay />,
 			renderTarget: "html",
 		});
 
@@ -198,8 +201,8 @@ export const snapPlugin: UsketchPlugin = {
 			window.removeEventListener("keyup", onKeyUp);
 			ctx.store.updateShape = originalUpdateShape;
 			ctx.layers.unregister("snap-guides");
-			setLines([]);
-			lineListeners.clear();
+			setState({ lines: [], guideStyle: { ...DEFAULT_GUIDE_STYLE } });
+			stateListeners.clear();
 		};
 	},
 };
@@ -264,7 +267,6 @@ function getMovingBoundingBox(
 }
 
 function getVisibleWorldRect(viewport: Viewport): BoundingBox {
-	// Screen (0,0) → world top-left, screen (window.innerWidth, window.innerHeight) → world bottom-right
 	const w = window.innerWidth;
 	const h = window.innerHeight;
 	return {
