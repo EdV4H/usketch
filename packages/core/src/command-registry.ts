@@ -38,5 +38,13 @@ export function createCommandRegistry(): CommandRegistry {
 		canRedo(): boolean {
 			return cursor < history.length - 1;
 		},
+
+		getHistorySize(): number {
+			return history.length;
+		},
+
+		getCursor(): number {
+			return cursor;
+		},
 	};
 }

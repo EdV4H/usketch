@@ -8,11 +8,12 @@ import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
+import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { useEffect, useState } from "react";
 import { Toolbar } from "./components/toolbar.js";
 
-const plugins = [
+const basePlugins: UsketchPlugin[] = [
 	selectToolPlugin,
 	panToolPlugin,
 	viewportNavPlugin,
@@ -23,6 +24,14 @@ const plugins = [
 	rippleEffectPlugin,
 ];
 
+async function loadPlugins(): Promise<UsketchPlugin[]> {
+	if (import.meta.env.DEV) {
+		const { debugHudPlugin } = await import("@edv4h/usketch-plugin-debug-hud");
+		return [...basePlugins, debugHudPlugin];
+	}
+	return basePlugins;
+}
+
 export function App() {
 	const [app, setApp] = useState<AppInstance | null>(null);
 
@@ -32,21 +41,23 @@ export function App() {
 		const store = createBoardStore();
 
 		// Register built-in shape layer
-		createApp({ store, plugins }).then((created) => {
-			if (cancelled) {
-				created.destroy();
-				return;
-			}
-			instance = created;
-			// Register built-in shape layer (unified SVG + HTML)
-			instance.layers.register({
-				id: "__shapes__",
-				order: 50,
-				render: () => null, // Handled by Canvas component
-			});
+		loadPlugins()
+			.then((plugins) => createApp({ store, plugins }))
+			.then((created) => {
+				if (cancelled) {
+					created.destroy();
+					return;
+				}
+				instance = created;
+				// Register built-in shape layer (unified SVG + HTML)
+				instance.layers.register({
+					id: "__shapes__",
+					order: 50,
+					render: () => null, // Handled by Canvas component
+				});
 
-			setApp(instance);
-		});
+				setApp(instance);
+			});
 
 		return () => {
 			cancelled = true;

@@ -20,6 +20,7 @@ export interface Layer {
 	render: (ctx: LayerRenderContext) => ReactElement | null;
 	interactable?: boolean;
 	renderTarget?: RenderTarget;
+	fixed?: boolean;
 }
 
 export interface LayerManager {
@@ -105,6 +106,8 @@ export interface CommandRegistry {
 	redo(): void;
 	canUndo(): boolean;
 	canRedo(): boolean;
+	getHistorySize(): number;
+	getCursor(): number;
 }
 
 // ── Shortcut System ──

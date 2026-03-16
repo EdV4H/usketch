@@ -127,7 +127,12 @@ export function Canvas() {
 
 	const layers = app.layers.getLayers();
 	const bgLayers = layers.filter((l) => l.id !== "__shapes__" && l.renderTarget !== "html");
-	const overlayLayers = layers.filter((l) => l.id !== "__shapes__" && l.renderTarget === "html");
+	const overlayLayers = layers.filter(
+		(l) => l.id !== "__shapes__" && l.renderTarget === "html" && !l.fixed,
+	);
+	const fixedLayers = layers.filter(
+		(l) => l.id !== "__shapes__" && l.renderTarget === "html" && l.fixed,
+	);
 
 	return (
 		<div
@@ -204,6 +209,22 @@ export function Canvas() {
 							</div>
 						))}
 					</div>
+				</div>
+			)}
+			{/* Fixed HTML layers (no viewport transform) */}
+			{fixedLayers.length > 0 && (
+				<div
+					style={{
+						position: "absolute",
+						inset: 0,
+						pointerEvents: "none",
+					}}
+				>
+					{fixedLayers.map((layer) => (
+						<div key={layer.id} style={{ pointerEvents: "auto" }}>
+							{layer.render(renderCtx)}
+						</div>
+					))}
 				</div>
 			)}
 		</div>
