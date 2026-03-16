@@ -49,6 +49,8 @@ function SnapGuideOverlay() {
 				position: "absolute",
 				left: 0,
 				top: 0,
+				width: "100%",
+				height: "100%",
 				overflow: "visible",
 				pointerEvents: "none",
 			}}
@@ -183,7 +185,7 @@ export const snapPlugin: UsketchPlugin = {
 			const result = calculateSnap(movingBox, movingIds, candidateBoxes, settings);
 			frameSnapResult = result;
 
-			requestAnimationFrame(() => {
+			queueMicrotask(() => {
 				if (frameId === currentFrame) {
 					frameId++;
 					frameSnapResult = null;
