@@ -34,9 +34,25 @@ function getLines(): SnapLine[] {
 
 // ── Guide layer wrapper that subscribes to snap line updates ──
 
-function SnapGuideLayer() {
+function SnapGuideOverlay(_props: { viewport: { x: number; y: number; zoom: number } }) {
 	const lines = useSyncExternalStore(subscribeLines, getLines, getLines);
-	return <GuideLayer lines={lines} />;
+	if (lines.length === 0) return null;
+
+	// HTML overlay layer already has viewport CSS transform applied,
+	// so SVG content is in world coordinates directly.
+	return (
+		<svg
+			style={{
+				position: "absolute",
+				left: 0,
+				top: 0,
+				overflow: "visible",
+				pointerEvents: "none",
+			}}
+		>
+			<GuideLayer lines={lines} />
+		</svg>
+	);
 }
 
 // ── Plugin ──
@@ -162,13 +178,13 @@ export const snapPlugin: UsketchPlugin = {
 
 		ctx.store.updateShape = patchedUpdateShape;
 
-		// ── Register SVG guide layer ──
+		// ── Register overlay guide layer (above shapes) ──
 
 		ctx.layers.register({
 			id: "snap-guides",
 			order: 90,
-			render: () => <SnapGuideLayer />,
-			renderTarget: "svg",
+			render: (renderCtx) => <SnapGuideOverlay viewport={renderCtx.viewport} />,
+			renderTarget: "html",
 		});
 
 		// ── Teardown ──

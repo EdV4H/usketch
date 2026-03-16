@@ -6,11 +6,20 @@ export interface SnapPoint {
 	edge: SnapEdge;
 }
 
+export interface SnapIndicator {
+	x: number;
+	y: number;
+	edge: SnapEdge;
+}
+
 export interface SnapLine {
 	axis: "x" | "y";
 	position: number;
 	from: number;
 	to: number;
+	movingEdge: SnapEdge;
+	candidateEdge: SnapEdge;
+	indicators: SnapIndicator[];
 }
 
 export interface SnapResult {

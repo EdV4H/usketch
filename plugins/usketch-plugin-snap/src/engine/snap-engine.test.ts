@@ -127,7 +127,7 @@ describe("calculateSnap", () => {
 		expect(result.lines).toHaveLength(0);
 	});
 
-	it("produces guide lines when snapping", () => {
+	it("produces guide lines with indicators when snapping", () => {
 		const moving: BoundingBox = { x: 102, y: 202, width: 40, height: 30 };
 		const candidates = makeCandidates({
 			target: { x: 100, y: 200, width: 60, height: 40 },
@@ -142,6 +142,12 @@ describe("calculateSnap", () => {
 		expect(yLine).toBeDefined();
 		expect(xLine?.position).toBe(100);
 		expect(yLine?.position).toBe(200);
+
+		// Each line has edge info and indicators
+		expect(xLine?.movingEdge).toBeDefined();
+		expect(xLine?.candidateEdge).toBeDefined();
+		expect(xLine?.indicators.length).toBe(2);
+		expect(yLine?.indicators.length).toBe(2);
 	});
 
 	it("excludes moving shapes from candidates", () => {

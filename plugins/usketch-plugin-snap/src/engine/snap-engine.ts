@@ -1,7 +1,7 @@
 import type { BoundingBox } from "@edv4h/usketch-shared";
 import { DEFAULT_SNAP_THRESHOLD } from "../constants.js";
 import { extractSnapPoints } from "./snap-points.js";
-import type { SnapLine, SnapPoint, SnapResult, SnapSettings } from "./types.js";
+import type { SnapIndicator, SnapLine, SnapPoint, SnapResult, SnapSettings } from "./types.js";
 
 export function calculateSnap(
 	movingBox: BoundingBox,
@@ -32,46 +32,105 @@ export function calculateSnap(
 	const xSnap = findBestSnap(moving.xPoints, candidateX, threshold);
 	const ySnap = findBestSnap(moving.yPoints, candidateY, threshold);
 
-	// Build guide lines
+	// Build guide lines with indicators
 	const lines: SnapLine[] = [];
+	const snapDx = xSnap?.dx ?? 0;
+	const snapDy = ySnap?.dx ?? 0;
+
+	// Snapped moving box position
+	const snappedMoving = {
+		x: movingBox.x + snapDx,
+		y: movingBox.y + snapDy,
+		width: movingBox.width,
+		height: movingBox.height,
+	};
 
 	if (xSnap) {
 		const position = xSnap.candidate.value;
-		// Vertical guide line — compute extent along Y axis
 		const yExtent = computeExtent(
-			movingBox.y + xSnap.dx,
-			movingBox.y + movingBox.height + xSnap.dx,
+			snappedMoving.y,
+			snappedMoving.y + snappedMoving.height,
 			candidateBoxes,
 			movingShapeIds,
 			xSnap.candidate.sourceShapeId,
 			"y",
 		);
-		lines.push({ axis: "x", position, from: yExtent.min, to: yExtent.max });
+		// Indicators at snap points on the vertical guide line (x fixed, y varies)
+		const indicators: SnapIndicator[] = [
+			{
+				x: position,
+				y: edgePos(snappedMoving.y, snappedMoving.height, xSnap.moving.edge),
+				edge: xSnap.moving.edge,
+			},
+			{
+				x: position,
+				y: edgePosFromBox(
+					candidateBoxes.get(xSnap.candidate.sourceShapeId),
+					"y",
+					xSnap.candidate.edge,
+				),
+				edge: xSnap.candidate.edge,
+			},
+		];
+		lines.push({
+			axis: "x",
+			position,
+			from: yExtent.min,
+			to: yExtent.max,
+			movingEdge: xSnap.moving.edge,
+			candidateEdge: xSnap.candidate.edge,
+			indicators,
+		});
 	}
 
 	if (ySnap) {
 		const position = ySnap.candidate.value;
-		// Horizontal guide line — compute extent along X axis
 		const xExtent = computeExtent(
-			movingBox.x + ySnap.dx,
-			movingBox.x + movingBox.width + ySnap.dx,
+			snappedMoving.x,
+			snappedMoving.x + snappedMoving.width,
 			candidateBoxes,
 			movingShapeIds,
 			ySnap.candidate.sourceShapeId,
 			"x",
 		);
-		lines.push({ axis: "y", position, from: xExtent.min, to: xExtent.max });
+		// Indicators at snap points on the horizontal guide line (y fixed, x varies)
+		const indicators: SnapIndicator[] = [
+			{
+				x: edgePos(snappedMoving.x, snappedMoving.width, ySnap.moving.edge),
+				y: position,
+				edge: ySnap.moving.edge,
+			},
+			{
+				x: edgePosFromBox(
+					candidateBoxes.get(ySnap.candidate.sourceShapeId),
+					"x",
+					ySnap.candidate.edge,
+				),
+				y: position,
+				edge: ySnap.candidate.edge,
+			},
+		];
+		lines.push({
+			axis: "y",
+			position,
+			from: xExtent.min,
+			to: xExtent.max,
+			movingEdge: ySnap.moving.edge,
+			candidateEdge: ySnap.candidate.edge,
+			indicators,
+		});
 	}
 
 	return {
-		dx: xSnap?.dx ?? 0,
-		dy: ySnap?.dx ?? 0,
+		dx: snapDx,
+		dy: snapDy,
 		lines,
 	};
 }
 
 interface SnapMatch {
 	dx: number;
+	moving: SnapPoint;
 	candidate: SnapPoint;
 }
 
@@ -88,7 +147,7 @@ function findBestSnap(
 			const dist = Math.abs(mp.value - cp.value);
 			if (dist < bestDist) {
 				bestDist = dist;
-				best = { dx: cp.value - mp.value, candidate: cp };
+				best = { dx: cp.value - mp.value, moving: mp, candidate: cp };
 			}
 		}
 	}
@@ -116,4 +175,26 @@ function computeExtent(
 	}
 
 	return { min, max };
+}
+
+function edgePos(origin: number, size: number, edge: SnapPoint["edge"]): number {
+	switch (edge) {
+		case "min":
+			return origin;
+		case "center":
+			return origin + size / 2;
+		case "max":
+			return origin + size;
+	}
+}
+
+function edgePosFromBox(
+	box: BoundingBox | undefined,
+	axis: "x" | "y",
+	edge: SnapPoint["edge"],
+): number {
+	if (!box) return 0;
+	const origin = axis === "x" ? box.x : box.y;
+	const size = axis === "x" ? box.width : box.height;
+	return edgePos(origin, size, edge);
 }
