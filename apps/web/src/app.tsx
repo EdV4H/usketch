@@ -55,14 +55,14 @@ export function App() {
 				const app = instance;
 				// Register built-in shape layer
 				app.layers.register({
-					id: "__shapes__",
+					id: "shapes",
 					order: 50,
 					render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />,
 				});
 
 				// Register transient layer (cursors, ephemeral effects)
 				app.layers.register({
-					id: "__transient__",
+					id: "transient",
 					order: 100,
 					render: (renderCtx) => <TransientLayer registry={app.transient} ctx={renderCtx} />,
 				});
