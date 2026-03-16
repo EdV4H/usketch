@@ -55,22 +55,17 @@ export function calculateSnap(
 			xSnap.candidate.sourceShapeId,
 			"y",
 		);
-		// Indicators at snap points on the vertical guide line (x fixed, y varies)
+		// Indicators on the vertical guide line (x fixed, y varies)
+		// Edge snap: show dots at both ends of the edge
+		// Center snap: show diamond at center point
 		const indicators: SnapIndicator[] = [
-			{
-				x: position,
-				y: edgePos(snappedMoving.y, snappedMoving.height, xSnap.moving.edge),
-				edge: xSnap.moving.edge,
-			},
-			{
-				x: position,
-				y: edgePosFromBox(
-					candidateBoxes.get(xSnap.candidate.sourceShapeId),
-					"y",
-					xSnap.candidate.edge,
-				),
-				edge: xSnap.candidate.edge,
-			},
+			...edgeIndicators(position, snappedMoving, "x", xSnap.moving.edge),
+			...edgeIndicatorsFromBox(
+				position,
+				candidateBoxes.get(xSnap.candidate.sourceShapeId),
+				"x",
+				xSnap.candidate.edge,
+			),
 		];
 		lines.push({
 			axis: "x",
@@ -93,22 +88,15 @@ export function calculateSnap(
 			ySnap.candidate.sourceShapeId,
 			"x",
 		);
-		// Indicators at snap points on the horizontal guide line (y fixed, x varies)
+		// Indicators on the horizontal guide line (y fixed, x varies)
 		const indicators: SnapIndicator[] = [
-			{
-				x: edgePos(snappedMoving.x, snappedMoving.width, ySnap.moving.edge),
-				y: position,
-				edge: ySnap.moving.edge,
-			},
-			{
-				x: edgePosFromBox(
-					candidateBoxes.get(ySnap.candidate.sourceShapeId),
-					"x",
-					ySnap.candidate.edge,
-				),
-				y: position,
-				edge: ySnap.candidate.edge,
-			},
+			...edgeIndicators(position, snappedMoving, "y", ySnap.moving.edge),
+			...edgeIndicatorsFromBox(
+				position,
+				candidateBoxes.get(ySnap.candidate.sourceShapeId),
+				"y",
+				ySnap.candidate.edge,
+			),
 		];
 		lines.push({
 			axis: "y",
@@ -177,24 +165,48 @@ function computeExtent(
 	return { min, max };
 }
 
-function edgePos(origin: number, size: number, edge: SnapPoint["edge"]): number {
-	switch (edge) {
-		case "min":
-			return origin;
-		case "center":
-			return origin + size / 2;
-		case "max":
-			return origin + size;
+/**
+ * Generate indicators for a snap on a given box.
+ * - Edge snap (min/max): two dots at both corners of that edge
+ * - Center snap: one diamond at the center point
+ *
+ * `snapAxis` is the axis of the snap line ("x" for vertical, "y" for horizontal).
+ * For a vertical snap line (axis="x"), the snapped edge is an x-edge,
+ * and the cross axis (y) gives the two corner positions.
+ */
+function edgeIndicators(
+	snapPosition: number,
+	box: BoundingBox,
+	snapAxis: "x" | "y",
+	edge: SnapPoint["edge"],
+): SnapIndicator[] {
+	if (edge === "center") {
+		// Single diamond at center
+		const cx = snapAxis === "x" ? snapPosition : box.x + box.width / 2;
+		const cy = snapAxis === "y" ? snapPosition : box.y + box.height / 2;
+		return [{ x: cx, y: cy, edge }];
 	}
+	// Two dots at both ends of the edge
+	if (snapAxis === "x") {
+		// Vertical guide: x is fixed, y varies along the box's height
+		return [
+			{ x: snapPosition, y: box.y, edge },
+			{ x: snapPosition, y: box.y + box.height, edge },
+		];
+	}
+	// Horizontal guide: y is fixed, x varies along the box's width
+	return [
+		{ x: box.x, y: snapPosition, edge },
+		{ x: box.x + box.width, y: snapPosition, edge },
+	];
 }
 
-function edgePosFromBox(
+function edgeIndicatorsFromBox(
+	snapPosition: number,
 	box: BoundingBox | undefined,
-	axis: "x" | "y",
+	snapAxis: "x" | "y",
 	edge: SnapPoint["edge"],
-): number {
-	if (!box) return 0;
-	const origin = axis === "x" ? box.x : box.y;
-	const size = axis === "x" ? box.width : box.height;
-	return edgePos(origin, size, edge);
+): SnapIndicator[] {
+	if (!box) return [];
+	return edgeIndicators(snapPosition, box, snapAxis, edge);
 }

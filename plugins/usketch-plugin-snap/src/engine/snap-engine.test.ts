@@ -146,8 +146,9 @@ describe("calculateSnap", () => {
 		// Each line has edge info and indicators
 		expect(xLine?.movingEdge).toBeDefined();
 		expect(xLine?.candidateEdge).toBeDefined();
-		expect(xLine?.indicators.length).toBe(2);
-		expect(yLine?.indicators.length).toBe(2);
+		// Edge snap: 2 dots per shape (both corners) × 2 shapes = 4
+		expect(xLine?.indicators.length).toBe(4);
+		expect(yLine?.indicators.length).toBe(4);
 	});
 
 	it("excludes moving shapes from candidates", () => {
