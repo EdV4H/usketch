@@ -1,4 +1,4 @@
-import { AppProvider, Canvas } from "@edv4h/usketch-canvas-engine";
+import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
@@ -51,11 +51,20 @@ export function App() {
 					return;
 				}
 				instance = created;
-				// Register built-in shape layer (unified SVG + HTML)
-				instance.layers.register({
+				// Register built-in shape layer
+				const app = instance;
+				// Register built-in shape layer
+				app.layers.register({
 					id: "__shapes__",
 					order: 50,
-					render: () => null, // Handled by Canvas component
+					render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />,
+				});
+
+				// Register transient layer (cursors, ephemeral effects)
+				app.layers.register({
+					id: "__transient__",
+					order: 100,
+					render: (renderCtx) => <TransientLayer registry={app.transient} ctx={renderCtx} />,
 				});
 
 				setApp(instance);
