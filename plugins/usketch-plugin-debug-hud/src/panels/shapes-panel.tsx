@@ -160,7 +160,6 @@ export function ShapesPanel({
 									<ShapeDetail
 										shape={s}
 										store={store}
-										commands={commands}
 										selection={selection}
 										onUpdate={updateField}
 										onDelete={deleteShape}
@@ -178,14 +177,12 @@ export function ShapesPanel({
 function ShapeDetail({
 	shape,
 	store,
-	commands: _commands,
 	selection,
 	onUpdate,
 	onDelete,
 }: {
 	shape: ShapeData;
 	store: BoardStore;
-	commands: CommandRegistry;
 	selection: ReadonlySet<string>;
 	onUpdate: (id: string, field: string, value: number) => void;
 	onDelete: (id: string) => void;

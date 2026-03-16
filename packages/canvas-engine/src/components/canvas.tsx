@@ -221,7 +221,9 @@ export function Canvas() {
 					}}
 				>
 					{fixedLayers.map((layer) => (
-						<div key={layer.id}>{layer.render(renderCtx)}</div>
+						<div key={layer.id} style={{ pointerEvents: "auto" }}>
+							{layer.render(renderCtx)}
+						</div>
 					))}
 				</div>
 			)}

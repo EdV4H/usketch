@@ -75,7 +75,7 @@ export function DebugHud({
 
 	const hoveredShape = hoveredShapeId ? shapeMap.get(hoveredShapeId) : undefined;
 
-	// Shortcut hint — top-left (always visible)
+	// Shortcut hint — bottom-center (always visible)
 	const hint = (
 		<div
 			style={{
