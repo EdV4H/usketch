@@ -8,6 +8,7 @@ const defaults: SnapSettings = {
 	threshold: 8,
 	edgeSnap: true,
 	centerSnap: true,
+	viewportOnly: false,
 };
 
 function makeCandidates(boxes: Record<string, BoundingBox>): Map<string, BoundingBox> {

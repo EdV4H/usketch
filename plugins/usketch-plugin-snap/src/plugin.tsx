@@ -5,6 +5,7 @@ import type {
 	PluginContext,
 	ShapeData,
 	UsketchPlugin,
+	Viewport,
 } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { DEFAULT_SNAP_THRESHOLD } from "./constants.js";
@@ -50,6 +51,7 @@ export const snapPlugin: UsketchPlugin = {
 			threshold: DEFAULT_SNAP_THRESHOLD,
 			edgeSnap: true,
 			centerSnap: true,
+			viewportOnly: true,
 		};
 
 		let pointerDown = false;
@@ -125,8 +127,9 @@ export const snapPlugin: UsketchPlugin = {
 			// Build the combined bounding box of all moving shapes (with updates applied)
 			const movingBox = getMovingBoundingBox(ctx.store, movingIds, id, updates);
 
-			// Build candidate boxes (all non-moving shapes)
-			const candidateBoxes = getCandidateBoxes(ctx.store, ctx, movingIds);
+			// Build candidate boxes (non-moving shapes, optionally viewport-filtered)
+			const viewport = settings.viewportOnly ? ctx.store.getViewport() : null;
+			const candidateBoxes = getCandidateBoxes(ctx.store, ctx, movingIds, viewport);
 
 			const result = calculateSnap(movingBox, movingIds, candidateBoxes, settings);
 			frameSnapResult = result;
@@ -232,20 +235,38 @@ function getMovingBoundingBox(
 	};
 }
 
+function getVisibleWorldRect(viewport: Viewport): BoundingBox {
+	// Screen (0,0) → world top-left, screen (window.innerWidth, window.innerHeight) → world bottom-right
+	const w = window.innerWidth;
+	const h = window.innerHeight;
+	return {
+		x: -viewport.x / viewport.zoom,
+		y: -viewport.y / viewport.zoom,
+		width: w / viewport.zoom,
+		height: h / viewport.zoom,
+	};
+}
+
+function boxesOverlap(a: BoundingBox, b: BoundingBox): boolean {
+	return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
 function getCandidateBoxes(
 	store: BoardStore,
 	ctx: PluginContext,
 	movingIds: ReadonlySet<string>,
+	viewport: Viewport | null,
 ): Map<string, BoundingBox> {
+	const visibleRect = viewport ? getVisibleWorldRect(viewport) : null;
 	const boxes = new Map<string, BoundingBox>();
 	for (const [id, shape] of store.getShapes()) {
 		if (movingIds.has(id)) continue;
 		const def = ctx.shapes.get(shape.type);
-		if (def) {
-			boxes.set(id, def.getBounds(shape));
-		} else {
-			boxes.set(id, { x: shape.x, y: shape.y, width: shape.width, height: shape.height });
-		}
+		const box = def
+			? def.getBounds(shape)
+			: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+		if (visibleRect && !boxesOverlap(box, visibleRect)) continue;
+		boxes.set(id, box);
 	}
 	return boxes;
 }

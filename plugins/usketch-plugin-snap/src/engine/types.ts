@@ -24,4 +24,5 @@ export interface SnapSettings {
 	threshold: number;
 	edgeSnap: boolean;
 	centerSnap: boolean;
+	viewportOnly: boolean;
 }
