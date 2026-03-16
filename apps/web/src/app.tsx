@@ -1,10 +1,11 @@
-import { AppProvider, Canvas } from "@edv4h/usketch-canvas-engine";
+import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
 import { ellipsePlugin } from "@edv4h/usketch-plugin-shape-ellipse";
 import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
+import { snapPlugin } from "@edv4h/usketch-plugin-snap";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
@@ -22,6 +23,7 @@ const basePlugins: UsketchPlugin[] = [
 	freedrawPlugin,
 	counterPlugin,
 	rippleEffectPlugin,
+	snapPlugin,
 ];
 
 async function loadPlugins(): Promise<UsketchPlugin[]> {
@@ -40,7 +42,6 @@ export function App() {
 		let instance: AppInstance | null = null;
 		const store = createBoardStore();
 
-		// Register built-in shape layer
 		loadPlugins()
 			.then((plugins) => createApp({ store, plugins }))
 			.then((created) => {
@@ -49,11 +50,16 @@ export function App() {
 					return;
 				}
 				instance = created;
-				// Register built-in shape layer (unified SVG + HTML)
-				instance.layers.register({
-					id: "__shapes__",
+				const app = instance;
+				app.layers.register({
+					id: "shapes",
 					order: 50,
-					render: () => null, // Handled by Canvas component
+					render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />,
+				});
+				app.layers.register({
+					id: "transient",
+					order: 100,
+					render: (renderCtx) => <TransientLayer registry={app.transient} ctx={renderCtx} />,
 				});
 
 				setApp(instance);

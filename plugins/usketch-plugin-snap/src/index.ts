@@ -1,1 +1,2 @@
-export const PLUGIN_NAME = "usketch-plugin-snap" as const;
+export type { GuideStyle, SnapLine, SnapResult, SnapSettings } from "./engine/types.js";
+export { snapPlugin } from "./plugin.js";

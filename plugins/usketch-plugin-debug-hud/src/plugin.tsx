@@ -102,7 +102,6 @@ export const debugHudPlugin: UsketchPlugin = {
 		ctx.layers.register({
 			id: "debug-hud",
 			order: 9999,
-			renderTarget: "html",
 			fixed: true,
 			render: (renderCtx) => (
 				<DebugHud

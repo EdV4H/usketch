@@ -575,7 +575,7 @@ interface TransientRenderer {
 ```typescript
 // core/src/transient-layer.ts（コア内部実装）
 const transientLayer: Layer = {
-  id: '__transient__',
+  id: 'transient',
   order: 90,
   render: (renderCtx) => {
     const objects = transientRegistry.getAll()

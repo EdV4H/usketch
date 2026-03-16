@@ -122,16 +122,20 @@ export const selectToolPlugin: UsketchPlugin = {
 			}
 		}
 
-		function onPointerUp(toolCtx: ToolContext, event: CanvasPointerEvent) {
+		function onPointerUp(toolCtx: ToolContext, _event: CanvasPointerEvent) {
 			if (!dragState) return;
 
-			const dx = event.worldPoint.x - dragState.startPoint.x;
-			const dy = event.worldPoint.y - dragState.startPoint.y;
+			// Calculate actual displacement from current (snap-adjusted) positions
+			const shapeIds = [...dragState.startPositions.keys()];
+			const firstId = shapeIds[0];
+			const firstStart = dragState.startPositions.get(firstId);
+			const firstCurrent = firstId ? toolCtx.store.getShape(firstId) : undefined;
+
+			const dx = firstCurrent && firstStart ? firstCurrent.x - firstStart.x : 0;
+			const dy = firstCurrent && firstStart ? firstCurrent.y - firstStart.y : 0;
 
 			// Only create undoable command if shapes actually moved
 			if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-				const shapeIds = [...dragState.startPositions.keys()];
-
 				// Reset positions to start, then execute command for undo support
 				for (const [id, startPos] of dragState.startPositions) {
 					toolCtx.store.updateShape(id, { x: startPos.x, y: startPos.y });

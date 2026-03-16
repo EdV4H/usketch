@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
-import { ShapeLayer } from "./shape-layer.js";
-import { TransientLayer } from "./transient-layer.js";
 
 function toCanvasEvent(
 	containerRef: React.RefObject<HTMLDivElement | null>,
@@ -23,6 +21,7 @@ function toCanvasEvent(
 		shiftKey: e.shiftKey,
 		ctrlKey: e.ctrlKey,
 		metaKey: e.metaKey,
+		altKey: e.altKey,
 		button: e.button,
 	};
 }
@@ -126,13 +125,7 @@ export function Canvas() {
 	};
 
 	const layers = app.layers.getLayers();
-	const bgLayers = layers.filter((l) => l.id !== "__shapes__" && l.renderTarget !== "html");
-	const overlayLayers = layers.filter(
-		(l) => l.id !== "__shapes__" && l.renderTarget === "html" && !l.fixed,
-	);
-	const fixedLayers = layers.filter(
-		(l) => l.id !== "__shapes__" && l.renderTarget === "html" && l.fixed,
-	);
+	const viewportTransform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
 
 	return (
 		<div
@@ -150,83 +143,43 @@ export function Canvas() {
 			onPointerMove={handlePointerMove}
 			onPointerUp={handlePointerUp}
 		>
-			{/* SVG background layers (grid, dots, etc.) */}
-			{bgLayers.length > 0 && (
-				<svg
-					style={{
-						position: "absolute",
-						inset: 0,
-						width: "100%",
-						height: "100%",
-						display: "block",
-						pointerEvents: "none",
-					}}
-				>
-					<g transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}>
-						{bgLayers.map((layer) => (
-							<g key={layer.id}>{layer.render(renderCtx)}</g>
-						))}
-					</g>
-				</svg>
-			)}
-			{/* Unified shape layer — all shapes in a single stacking context */}
-			<div
-				style={{
-					position: "absolute",
-					inset: 0,
-					pointerEvents: "none",
-					overflow: "hidden",
-				}}
-			>
-				<div
-					style={{
-						transformOrigin: "0 0",
-						transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-					}}
-				>
-					<ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />
-					<TransientLayer registry={app.transient} ctx={renderCtx} />
-				</div>
-			</div>
-			{/* HTML overlay layers */}
-			{overlayLayers.length > 0 && (
-				<div
-					style={{
-						position: "absolute",
-						inset: 0,
-						pointerEvents: "none",
-					}}
-				>
+			{layers.map((layer) => {
+				if (layer.fixed) {
+					return (
+						<div
+							key={layer.id}
+							style={{
+								position: "absolute",
+								inset: 0,
+								pointerEvents: "none",
+							}}
+						>
+							<div style={{ pointerEvents: "auto" }}>{layer.render(renderCtx)}</div>
+						</div>
+					);
+				}
+
+				return (
 					<div
+						key={layer.id}
 						style={{
-							transformOrigin: "0 0",
-							transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+							position: "absolute",
+							inset: 0,
+							pointerEvents: "none",
+							overflow: "hidden",
 						}}
 					>
-						{overlayLayers.map((layer) => (
-							<div key={layer.id} style={{ pointerEvents: "auto" }}>
-								{layer.render(renderCtx)}
-							</div>
-						))}
-					</div>
-				</div>
-			)}
-			{/* Fixed HTML layers (no viewport transform) */}
-			{fixedLayers.length > 0 && (
-				<div
-					style={{
-						position: "absolute",
-						inset: 0,
-						pointerEvents: "none",
-					}}
-				>
-					{fixedLayers.map((layer) => (
-						<div key={layer.id} style={{ pointerEvents: "auto" }}>
-							{layer.render(renderCtx)}
+						<div
+							style={{
+								transformOrigin: "0 0",
+								transform: viewportTransform,
+							}}
+						>
+							<div style={{ pointerEvents: "auto" }}>{layer.render(renderCtx)}</div>
 						</div>
-					))}
-				</div>
-			)}
+					</div>
+				);
+			})}
 		</div>
 	);
 }

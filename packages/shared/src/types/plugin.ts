@@ -19,7 +19,6 @@ export interface Layer {
 	order: number;
 	render: (ctx: LayerRenderContext) => ReactElement | null;
 	interactable?: boolean;
-	renderTarget?: RenderTarget;
 	fixed?: boolean;
 }
 
@@ -73,6 +72,7 @@ export interface CanvasPointerEvent {
 	shiftKey: boolean;
 	ctrlKey: boolean;
 	metaKey: boolean;
+	altKey: boolean;
 	button: number;
 }
 
