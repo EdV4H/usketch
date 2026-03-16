@@ -1,13 +1,11 @@
-import type { CanvasPointerEvent, EventBus, Point, UsketchPlugin } from "@edv4h/usketch-shared";
-import { createRef } from "react";
+import type { CanvasPointerEvent, EventBus, UsketchPlugin } from "@edv4h/usketch-shared";
 import { DebugHud } from "./debug-hud.js";
 import { EventLogger } from "./event-logger.js";
 import { FpsCounter } from "./fps-counter.js";
+import { PointerTracker } from "./pointer-tracker.js";
 
 // Excluded from event log to avoid noise
 const EXCLUDED_EVENTS = new Set(["canvas:pointermove"]);
-
-let teardownFn: (() => void) | null = null;
 
 export const debugHudPlugin: UsketchPlugin = {
 	id: "debug-hud",
@@ -16,11 +14,7 @@ export const debugHudPlugin: UsketchPlugin = {
 	setup(ctx) {
 		const fpsCounter = new FpsCounter();
 		const eventLogger = new EventLogger();
-		const pointerRef = createRef<{ world: Point; screen: Point }>() as React.MutableRefObject<{
-			world: Point;
-			screen: Point;
-		}>;
-		pointerRef.current = { world: { x: 0, y: 0 }, screen: { x: 0, y: 0 } };
+		const pointerTracker = new PointerTracker();
 
 		// Start FPS counter
 		fpsCounter.start();
@@ -36,10 +30,7 @@ export const debugHudPlugin: UsketchPlugin = {
 
 		// Track pointer coordinates
 		const unsubPointer = ctx.events.on<CanvasPointerEvent>("canvas:pointermove", (data) => {
-			pointerRef.current = {
-				world: data.worldPoint,
-				screen: data.screenPoint,
-			};
+			pointerTracker.update(data.worldPoint, data.screenPoint);
 		});
 
 		// Register the fixed layer — always renders, visibility toggled inside component
@@ -53,22 +44,23 @@ export const debugHudPlugin: UsketchPlugin = {
 					store={ctx.store}
 					fpsCounter={fpsCounter}
 					eventLogger={eventLogger}
-					pointerRef={pointerRef}
+					pointerTracker={pointerTracker}
 					ctx={renderCtx}
 				/>
 			),
 		});
 
-		teardownFn = () => {
+		// Store teardown in closure — no module-level state
+		this.teardown = () => {
 			fpsCounter.stop();
+			pointerTracker.dispose();
 			(ctx.events as { emit: EventBus["emit"] }).emit = originalEmit;
 			unsubPointer();
 			ctx.layers.unregister("debug-hud");
-			teardownFn = null;
 		};
 	},
 
 	teardown() {
-		teardownFn?.();
+		// overwritten by setup()
 	},
 };

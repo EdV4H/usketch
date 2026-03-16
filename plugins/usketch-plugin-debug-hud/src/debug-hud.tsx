@@ -1,13 +1,14 @@
-import type { BoardStore, LayerRenderContext, Point } from "@edv4h/usketch-shared";
+import type { BoardStore, LayerRenderContext } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
+import type { PointerTracker } from "./pointer-tracker.js";
 
 interface DebugHudProps {
 	store: BoardStore;
 	fpsCounter: FpsCounter;
 	eventLogger: EventLogger;
-	pointerRef: React.RefObject<{ world: Point; screen: Point }>;
+	pointerTracker: PointerTracker;
 	ctx: LayerRenderContext;
 }
 
@@ -37,12 +38,19 @@ function shortId(id: string): string {
 	return id.length > 8 ? `${id.slice(0, 8)}…` : id;
 }
 
-export function DebugHud({ store, fpsCounter, eventLogger, pointerRef, ctx }: DebugHudProps) {
+function isEditableTarget(target: EventTarget | null): boolean {
+	if (!(target instanceof HTMLElement)) return false;
+	const tag = target.tagName;
+	return tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable;
+}
+
+export function DebugHud({ store, fpsCounter, eventLogger, pointerTracker, ctx }: DebugHudProps) {
 	const [visible, setVisible] = useState(false);
 
-	// Keyboard shortcut (backtick)
+	// Keyboard shortcut (backtick) — skip when focus is on editable elements
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
+			if (isEditableTarget(e.target)) return;
 			if (e.key === "`" || e.code === "Backquote") {
 				if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
 					e.preventDefault();
@@ -64,7 +72,11 @@ export function DebugHud({ store, fpsCounter, eventLogger, pointerRef, ctx }: De
 		() => eventLogger.getSnapshot(),
 	);
 
-	const pointer = pointerRef.current;
+	const pointer = useSyncExternalStore(
+		useCallback((cb: () => void) => pointerTracker.subscribe(cb), [pointerTracker]),
+		() => pointerTracker.getSnapshot(),
+	);
+
 	const { viewport, shapes, selection } = ctx;
 	const activeToolId = store.getActiveToolId();
 	const shapeEntries = Array.from(shapes.values());
