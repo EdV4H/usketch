@@ -73,6 +73,7 @@ export interface CanvasPointerEvent {
 	shiftKey: boolean;
 	ctrlKey: boolean;
 	metaKey: boolean;
+	altKey: boolean;
 	button: number;
 }
 

@@ -5,6 +5,7 @@ import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
 import { ellipsePlugin } from "@edv4h/usketch-plugin-shape-ellipse";
 import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
+import { snapPlugin } from "@edv4h/usketch-plugin-snap";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
@@ -22,6 +23,7 @@ const basePlugins: UsketchPlugin[] = [
 	freedrawPlugin,
 	counterPlugin,
 	rippleEffectPlugin,
+	snapPlugin,
 ];
 
 async function loadPlugins(): Promise<UsketchPlugin[]> {

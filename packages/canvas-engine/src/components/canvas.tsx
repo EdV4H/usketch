@@ -23,6 +23,7 @@ function toCanvasEvent(
 		shiftKey: e.shiftKey,
 		ctrlKey: e.ctrlKey,
 		metaKey: e.metaKey,
+		altKey: e.altKey,
 		button: e.button,
 	};
 }
