@@ -80,8 +80,9 @@ export const snapPlugin: UsketchPlugin = {
 		let pointerDown = false;
 		let altKeyHeld = false;
 
-		// Frame-level cache for multi-shape snap consistency
+		// Frame-level caches for multi-shape snap consistency
 		let frameSnapResult: SnapResult | null = null;
+		let frameCandidateBoxes: Map<string, BoundingBox> | null = null;
 		let frameId = 0;
 
 		// ── Pointer tracking ──
@@ -89,11 +90,13 @@ export const snapPlugin: UsketchPlugin = {
 		const offPointerDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", () => {
 			pointerDown = true;
 			frameSnapResult = null;
+			frameCandidateBoxes = null;
 		});
 
 		const offPointerUp = ctx.events.on<CanvasPointerEvent>("canvas:pointerup", () => {
 			pointerDown = false;
 			frameSnapResult = null;
+			frameCandidateBoxes = null;
 			setState({ lines: [] });
 		});
 
@@ -105,8 +108,12 @@ export const snapPlugin: UsketchPlugin = {
 		function onKeyUp(e: KeyboardEvent) {
 			if (e.key === "Alt") altKeyHeld = false;
 		}
+		function onBlur() {
+			altKeyHeld = false;
+		}
 		window.addEventListener("keydown", onKeyDown);
 		window.addEventListener("keyup", onKeyUp);
+		window.addEventListener("blur", onBlur);
 
 		// ── Settings API via EventBus ──
 
@@ -158,10 +165,20 @@ export const snapPlugin: UsketchPlugin = {
 			const selection = ctx.store.getSelection();
 			const movingIds = selection.size > 0 && selection.has(id) ? selection : new Set([id]);
 
-			const movingBox = getMovingBoundingBox(ctx.store, movingIds, id, updates);
+			// Compute translation delta from this shape's update and apply to all moving shapes
+			const dx = "x" in updates && typeof updates.x === "number" ? updates.x - shape.x : 0;
+			const dy = "y" in updates && typeof updates.y === "number" ? updates.y - shape.y : 0;
+			const movingBox = getMovingBoundingBox(ctx.store, movingIds, dx, dy);
 
-			const viewport = settings.viewportOnly ? ctx.store.getViewport() : null;
-			const candidateBoxes = getCandidateBoxes(ctx.store, ctx, movingIds, viewport);
+			const candidateBoxes =
+				frameCandidateBoxes ??
+				getCandidateBoxes(
+					ctx.store,
+					ctx,
+					movingIds,
+					settings.viewportOnly ? ctx.store.getViewport() : null,
+				);
+			frameCandidateBoxes = candidateBoxes;
 
 			const result = calculateSnap(movingBox, movingIds, candidateBoxes, settings);
 			frameSnapResult = result;
@@ -170,6 +187,7 @@ export const snapPlugin: UsketchPlugin = {
 				if (frameId === currentFrame) {
 					frameId++;
 					frameSnapResult = null;
+					frameCandidateBoxes = null;
 				}
 			});
 
@@ -198,6 +216,7 @@ export const snapPlugin: UsketchPlugin = {
 			offGetSettings();
 			window.removeEventListener("keydown", onKeyDown);
 			window.removeEventListener("keyup", onKeyUp);
+			window.removeEventListener("blur", onBlur);
 			ctx.store.updateShape = originalUpdateShape;
 			ctx.layers.unregister("snap-guides");
 			setState({ lines: [], guideStyle: { ...DEFAULT_GUIDE_STYLE } });
@@ -228,8 +247,8 @@ function applySnapToUpdates(updates: Partial<ShapeData>, result: SnapResult): Pa
 function getMovingBoundingBox(
 	store: BoardStore,
 	movingIds: ReadonlySet<string>,
-	currentId: string,
-	currentUpdates: Partial<ShapeData>,
+	dx: number,
+	dy: number,
 ): BoundingBox {
 	let minX = Number.POSITIVE_INFINITY;
 	let minY = Number.POSITIVE_INFINITY;
@@ -240,21 +259,13 @@ function getMovingBoundingBox(
 		const shape = store.getShape(id);
 		if (!shape) continue;
 
-		const x = id === currentId && "x" in currentUpdates ? (currentUpdates.x as number) : shape.x;
-		const y = id === currentId && "y" in currentUpdates ? (currentUpdates.y as number) : shape.y;
-		const w =
-			id === currentId && "width" in currentUpdates
-				? (currentUpdates.width as number)
-				: shape.width;
-		const h =
-			id === currentId && "height" in currentUpdates
-				? (currentUpdates.height as number)
-				: shape.height;
+		const x = shape.x + dx;
+		const y = shape.y + dy;
 
 		minX = Math.min(minX, x);
 		minY = Math.min(minY, y);
-		maxX = Math.max(maxX, x + w);
-		maxY = Math.max(maxY, y + h);
+		maxX = Math.max(maxX, x + shape.width);
+		maxY = Math.max(maxY, y + shape.height);
 	}
 
 	return {
