@@ -79,6 +79,9 @@ importers:
         specifier: 19.1.0
         version: 19.1.0(react@19.1.0)
     devDependencies:
+      '@edv4h/usketch-plugin-debug-hud':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-debug-hud
       '@types/react':
         specifier: 19.1.8
         version: 19.1.8
@@ -215,6 +218,25 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4
+
+  plugins/usketch-plugin-debug-hud:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
