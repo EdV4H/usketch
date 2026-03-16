@@ -20,6 +20,7 @@ export interface Layer {
 	render: (ctx: LayerRenderContext) => ReactElement | null;
 	interactable?: boolean;
 	renderTarget?: RenderTarget;
+	fixed?: boolean;
 }
 
 export interface LayerManager {
