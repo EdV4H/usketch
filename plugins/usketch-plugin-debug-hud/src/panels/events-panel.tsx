@@ -52,17 +52,22 @@ function groupConsecutive(entries: readonly EventLogEntry[]): GroupedEntry[] {
 	return groups;
 }
 
+const DEFAULT_EXCLUDED = new Set(["viewport:changed"]);
+
 export function EventsPanel({ eventLogger }: EventsPanelProps) {
 	const [filter, setFilter] = useState("");
+	const [showExcluded, setShowExcluded] = useState(false);
 
 	const events = useSyncExternalStore(
 		useCallback((cb: () => void) => eventLogger.subscribe(cb), [eventLogger]),
 		() => eventLogger.getSnapshot(),
 	);
 
-	const filtered = filter
-		? events.filter((e) => e.event.toLowerCase().includes(filter.toLowerCase()))
-		: events;
+	const filtered = events.filter((e) => {
+		if (!showExcluded && DEFAULT_EXCLUDED.has(e.event.split(" ")[0])) return false;
+		if (filter && !e.event.toLowerCase().includes(filter.toLowerCase())) return false;
+		return true;
+	});
 
 	const grouped = useMemo(() => groupConsecutive(filtered), [filtered]);
 
@@ -88,9 +93,22 @@ export function EventsPanel({ eventLogger }: EventsPanelProps) {
 				}}
 			>
 				<span>Event Log ({filtered.length})</span>
-				<button type="button" style={MINI_BUTTON} onClick={() => eventLogger.clear()}>
-					Clear
-				</button>
+				<div style={{ display: "flex", gap: 4 }}>
+					<button
+						type="button"
+						style={{
+							...MINI_BUTTON,
+							opacity: showExcluded ? 1 : 0.5,
+						}}
+						onClick={() => setShowExcluded((v) => !v)}
+						title="Toggle viewport:changed events"
+					>
+						VP
+					</button>
+					<button type="button" style={MINI_BUTTON} onClick={() => eventLogger.clear()}>
+						Clear
+					</button>
+				</div>
 			</div>
 			<input
 				type="text"
