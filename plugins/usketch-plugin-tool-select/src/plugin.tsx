@@ -182,25 +182,26 @@ export const selectToolPlugin: UsketchPlugin = {
 			}
 
 			if (dragState.mode === "resize") {
-				const rawDelta: Point = {
-					x: event.worldPoint.x - dragState.startPoint.x,
-					y: event.worldPoint.y - dragState.startPoint.y,
-				};
 				const def = toolCtx.shapes.get(dragState.startData.type);
 				if (!def) return;
 
-				// Flip detection: if delta would make width/height negative, flip handle
-				const flip = applyFlip(dragState.handle, dragState.startData, rawDelta);
+				// Flip detection: if pointer crossed the anchor edge, flip handle
+				const flip = applyFlip(dragState.handle, dragState.startData, event.worldPoint);
 				if (flip.flipped) {
-					// Update drag state with flipped handle and new anchor
+					const newStartData = { ...dragState.startData, ...flip.startData };
+					// Reset startPoint to the anchor edge on flipped axes only
+					const newStartPoint = { ...dragState.startPoint };
+					if (flip.startData.width === 0 && dragState.startData.width !== 0) {
+						newStartPoint.x = flip.startData.x;
+					}
+					if (flip.startData.height === 0 && dragState.startData.height !== 0) {
+						newStartPoint.y = flip.startData.y;
+					}
 					dragState = {
 						...dragState,
 						handle: flip.handle,
-						startData: { ...dragState.startData, ...flip.startData },
-						startPoint: {
-							x: event.worldPoint.x - flip.delta.x,
-							y: event.worldPoint.y - flip.delta.y,
-						},
+						startData: newStartData,
+						startPoint: newStartPoint,
 					};
 					setOverrideCursor(getCursorForHandle(flip.handle));
 				}

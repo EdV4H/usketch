@@ -134,27 +134,25 @@ const FLIP_Y: Record<ResizeHandle, ResizeHandle> = {
 };
 
 /**
- * Compute the raw (unclamped) width/height after applying delta,
- * and if either goes negative, flip the handle and adjust startData/delta.
+ * Detect if the pointer has crossed the anchor edge and flip the handle.
  *
- * Returns the effective handle, delta, and startData to use for def.resize().
- * If no flip occurred, returns the inputs unchanged.
+ * Uses the pointer's world position relative to the anchor edge (the edge
+ * opposite to the one being dragged). This works regardless of minSize
+ * clamping — the flip triggers when the pointer physically crosses the
+ * anchor, not when width/height reaches zero.
  */
 export function applyFlip(
 	handle: ResizeHandle,
 	startData: { x: number; y: number; width: number; height: number },
-	delta: Point,
+	worldPoint: Point,
 ): {
 	handle: ResizeHandle;
-	delta: Point;
 	startData: { x: number; y: number; width: number; height: number };
 	flipped: boolean;
 } {
 	const axes = handleAxes(handle);
 	const movesMin = handleMovesMin(handle);
 	let h = handle;
-	let dx = delta.x;
-	let dy = delta.y;
 	let sx = startData.x;
 	let sy = startData.y;
 	let sw = startData.width;
@@ -162,41 +160,51 @@ export function applyFlip(
 	let flipped = false;
 
 	if (axes.x) {
-		const rawWidth = movesMin.x ? sw - dx : sw + dx;
-		if (rawWidth < 0) {
-			flipped = true;
-			h = FLIP_X[h];
-			// Anchor flips to the opposite edge; excess delta drives new size
-			if (movesMin.x) {
-				// Was dragging left edge past right edge
-				dx = dx - sw;
-				sx = sx + sw;
-			} else {
-				// Was dragging right edge past left edge
-				dx = dx + sw;
+		if (movesMin.x) {
+			// Dragging left edge → anchor is right edge
+			const anchorX = sx + sw;
+			if (worldPoint.x > anchorX) {
+				flipped = true;
+				h = FLIP_X[h];
+				sx = anchorX;
+				sw = 0;
 			}
-			sw = 0;
+		} else {
+			// Dragging right edge → anchor is left edge
+			const anchorX = sx;
+			if (worldPoint.x < anchorX) {
+				flipped = true;
+				h = FLIP_X[h];
+				sx = anchorX;
+				sw = 0;
+			}
 		}
 	}
 
 	if (axes.y) {
-		const rawHeight = movesMin.y ? sh - dy : sh + dy;
-		if (rawHeight < 0) {
-			flipped = true;
-			h = FLIP_Y[h];
-			if (movesMin.y) {
-				dy = dy - sh;
-				sy = sy + sh;
-			} else {
-				dy = dy + sh;
+		if (movesMin.y) {
+			// Dragging top edge → anchor is bottom edge
+			const anchorY = sy + sh;
+			if (worldPoint.y > anchorY) {
+				flipped = true;
+				h = FLIP_Y[h];
+				sy = anchorY;
+				sh = 0;
 			}
-			sh = 0;
+		} else {
+			// Dragging bottom edge → anchor is top edge
+			const anchorY = sy;
+			if (worldPoint.y < anchorY) {
+				flipped = true;
+				h = FLIP_Y[h];
+				sy = anchorY;
+				sh = 0;
+			}
 		}
 	}
 
 	return {
 		handle: h,
-		delta: { x: dx, y: dy },
 		startData: { x: sx, y: sy, width: sw, height: sh },
 		flipped,
 	};
