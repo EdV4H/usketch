@@ -2,10 +2,18 @@ import type {
 	CanvasPointerEvent,
 	PluginContext,
 	Point,
+	ResizeHandle,
+	ShapeData,
 	ToolContext,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
-import { createDeleteShapeCommand, createMoveShapesCommand } from "@edv4h/usketch-store";
+import {
+	createDeleteShapeCommand,
+	createMoveShapesCommand,
+	createUpdateShapeCommand,
+} from "@edv4h/usketch-store";
+import { findHandleAtScreenPoint, getCursorForHandle } from "./resize-utils.js";
+import { SelectionOverlay } from "./selection-overlay.js";
 
 // ── Hit test helpers ──
 
@@ -50,6 +58,19 @@ function deleteSelectedShapes(ctx: PluginContext) {
 	ctx.store.clearSelection();
 }
 
+// ── Drag state types ──
+
+type DragState =
+	| { mode: "move"; startPoint: Point; startPositions: Map<string, Point> }
+	| {
+			mode: "resize";
+			shapeId: string;
+			handle: ResizeHandle;
+			startPoint: Point;
+			startData: ShapeData;
+	  }
+	| null;
+
 // ── Plugin ──
 
 export const selectToolPlugin: UsketchPlugin = {
@@ -58,15 +79,48 @@ export const selectToolPlugin: UsketchPlugin = {
 
 	setup(ctx: PluginContext) {
 		// ── Local drag state (scoped to this setup closure) ──
-		let dragState: {
-			mode: "move";
-			startPoint: Point;
-			startPositions: Map<string, Point>;
-		} | null = null;
+		let dragState: DragState = null;
+		let overrideCursor = "";
+
+		// Inject a <style> tag to override canvas cursor via !important
+		const styleEl = document.createElement("style");
+		styleEl.dataset.selectTool = "";
+		document.head.appendChild(styleEl);
+
+		function setOverrideCursor(cursor: string) {
+			if (cursor === overrideCursor) return;
+			overrideCursor = cursor;
+			styleEl.textContent = cursor ? `* { cursor: ${cursor} !important; }` : "";
+		}
 
 		// ── Tool handlers ──
 
 		function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+			const viewport = toolCtx.store.getViewport();
+
+			// 1. Check resize handle hit first (single selection only)
+			const handleHit = findHandleAtScreenPoint(
+				event.screenPoint,
+				toolCtx.shapes,
+				toolCtx.store,
+				viewport,
+			);
+			if (handleHit) {
+				const shape = toolCtx.store.getShape(handleHit.shapeId);
+				if (shape) {
+					setOverrideCursor(getCursorForHandle(handleHit.handle));
+					dragState = {
+						mode: "resize",
+						shapeId: handleHit.shapeId,
+						handle: handleHit.handle,
+						startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
+						startData: { ...shape },
+					};
+					return;
+				}
+			}
+
+			// 2. Existing move/selection logic
 			const hitId = findShapeAtPoint(toolCtx, event.worldPoint);
 			const selection = toolCtx.store.getSelection();
 
@@ -109,8 +163,44 @@ export const selectToolPlugin: UsketchPlugin = {
 		}
 
 		function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
-			if (!dragState) return;
+			if (!dragState) {
+				// Hover: check for handle and update cursor
+				const viewport = toolCtx.store.getViewport();
+				const handleHit = findHandleAtScreenPoint(
+					event.screenPoint,
+					toolCtx.shapes,
+					toolCtx.store,
+					viewport,
+				);
+				setOverrideCursor(handleHit ? getCursorForHandle(handleHit.handle) : "");
+				return;
+			}
 
+			if (dragState.mode === "resize") {
+				const delta: Point = {
+					x: event.worldPoint.x - dragState.startPoint.x,
+					y: event.worldPoint.y - dragState.startPoint.y,
+				};
+				const def = toolCtx.shapes.get(dragState.startData.type);
+				if (!def) return;
+
+				const resized = def.resize(dragState.startData, dragState.handle, delta);
+				const updates: Partial<ShapeData> = {};
+				for (const key of Object.keys(resized)) {
+					if (key === "id" || key === "type" || key === "style") continue;
+					const resizedValue = resized[key];
+					const startValue = dragState.startData[key];
+					if (resizedValue !== startValue) {
+						updates[key] = resizedValue;
+					}
+				}
+				if (Object.keys(updates).length > 0) {
+					toolCtx.store.updateShape(dragState.shapeId, updates);
+				}
+				return;
+			}
+
+			// mode === "move"
 			const dx = event.worldPoint.x - dragState.startPoint.x;
 			const dy = event.worldPoint.y - dragState.startPoint.y;
 
@@ -125,6 +215,36 @@ export const selectToolPlugin: UsketchPlugin = {
 		function onPointerUp(toolCtx: ToolContext, _event: CanvasPointerEvent) {
 			if (!dragState) return;
 
+			if (dragState.mode === "resize") {
+				setOverrideCursor("");
+				const currentShape = toolCtx.store.getShape(dragState.shapeId);
+				if (currentShape) {
+					// Build from/to diffs for undo
+					const from: Partial<ShapeData> = {};
+					const to: Partial<ShapeData> = {};
+					for (const key of Object.keys(currentShape)) {
+						if (key === "id" || key === "type" || key === "style") continue;
+						const currentValue = currentShape[key];
+						const startValue = dragState.startData[key];
+						if (currentValue !== startValue) {
+							from[key] = startValue;
+							to[key] = currentValue;
+						}
+					}
+
+					if (Object.keys(to).length > 0) {
+						// Reset to start, then execute command for undo support
+						toolCtx.store.updateShape(dragState.shapeId, from);
+						toolCtx.commands.execute(
+							createUpdateShapeCommand(toolCtx.store, dragState.shapeId, from, to),
+						);
+					}
+				}
+				dragState = null;
+				return;
+			}
+
+			// mode === "move"
 			// Calculate actual displacement from current (snap-adjusted) positions
 			const shapeIds = [...dragState.startPositions.keys()];
 			const firstId = shapeIds[0];
@@ -148,6 +268,7 @@ export const selectToolPlugin: UsketchPlugin = {
 
 		function onDeactivate(_toolCtx: ToolContext) {
 			dragState = null;
+			setOverrideCursor("");
 		}
 
 		ctx.tools.register("select", {
@@ -161,8 +282,26 @@ export const selectToolPlugin: UsketchPlugin = {
 			onDeactivate,
 		});
 
+		// ── Selection overlay layer ──
+
+		ctx.layers.register({
+			id: "selection-overlay",
+			order: 80,
+			fixed: true,
+			render: (renderCtx) => (
+				<SelectionOverlay store={ctx.store} shapes={ctx.shapes} viewport={renderCtx.viewport} />
+			),
+		});
+
 		// Delete selected shapes
 		ctx.shortcuts.register("Delete", () => deleteSelectedShapes(ctx));
 		ctx.shortcuts.register("Backspace", () => deleteSelectedShapes(ctx));
+
+		// ── Teardown ──
+		(this as UsketchPlugin).teardown = () => {
+			setOverrideCursor("");
+			styleEl.remove();
+			ctx.layers.unregister("selection-overlay");
+		};
 	},
 };
