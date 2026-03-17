@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import type { EventLogEntry, EventLogger } from "../event-logger.js";
 import { LABEL_STYLE, MINI_BUTTON, PANEL_BASE, SCROLLABLE_STYLE, TEXT_MUTED } from "../styles.js";
 
@@ -32,26 +32,6 @@ function eventColor(event: string): string {
 	return EVENT_COLORS[event] ?? EVENT_COLORS[event.split(":")[0]] ?? DEFAULT_EVENT_COLOR;
 }
 
-interface GroupedEntry {
-	event: string;
-	timestamp: number;
-	count: number;
-}
-
-function groupConsecutive(entries: readonly EventLogEntry[]): GroupedEntry[] {
-	const groups: GroupedEntry[] = [];
-	for (const entry of entries) {
-		const last = groups[groups.length - 1];
-		if (last && last.event === entry.event) {
-			last.count++;
-			last.timestamp = entry.timestamp;
-		} else {
-			groups.push({ event: entry.event, timestamp: entry.timestamp, count: 1 });
-		}
-	}
-	return groups;
-}
-
 export function EventsPanel({ eventLogger }: EventsPanelProps) {
 	const [filter, setFilter] = useState("");
 
@@ -60,11 +40,9 @@ export function EventsPanel({ eventLogger }: EventsPanelProps) {
 		() => eventLogger.getSnapshot(),
 	);
 
-	const filtered = filter
+	const filtered: readonly EventLogEntry[] = filter
 		? events.filter((e) => e.event.toLowerCase().includes(filter.toLowerCase()))
 		: events;
-
-	const grouped = useMemo(() => groupConsecutive(filtered), [filtered]);
 
 	return (
 		<div
@@ -110,10 +88,10 @@ export function EventsPanel({ eventLogger }: EventsPanelProps) {
 				}}
 			/>
 			<div style={{ ...SCROLLABLE_STYLE, flexGrow: 1 }}>
-				{grouped.length === 0 ? (
+				{filtered.length === 0 ? (
 					<div style={{ color: TEXT_MUTED }}>No events</div>
 				) : (
-					[...grouped].reverse().map((entry, i) => (
+					[...filtered].reverse().map((entry, i) => (
 						<div key={`${entry.timestamp}-${i}`} style={{ color: eventColor(entry.event) }}>
 							<span style={{ color: TEXT_MUTED }}>
 								{new Date(entry.timestamp).toLocaleTimeString()}{" "}

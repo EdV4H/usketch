@@ -16,6 +16,7 @@ export type {
 	ShapeDefinition,
 	ShapeRegistry,
 	ShortcutRegistry,
+	StoreEvent,
 	ToolContext,
 	ToolDefinition,
 	ToolRegistry,
