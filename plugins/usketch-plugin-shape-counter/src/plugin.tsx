@@ -137,7 +137,7 @@ function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData 
 			height += delta.y;
 			break;
 	}
-	return { ...data, x, y, width: Math.max(60, width), height: Math.max(60, height) };
+	return { ...data, x, y, width: Math.max(100, width), height: Math.max(100, height) };
 }
 
 function createDefault(params: { id: string; x: number; y: number }): ShapeData {
@@ -242,6 +242,7 @@ export const counterPlugin: UsketchPlugin = {
 				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 			}
 			drawState = null;
+			toolCtx.store.setActiveToolId("select");
 		}
 
 		ctx.tools.register("counter-draw", {
