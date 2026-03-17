@@ -62,12 +62,17 @@ export function createBoardStore(): BoardStore {
 		},
 
 		deleteShape(id: string) {
+			if (!state.shapes.has(id)) return;
 			state.shapes = new Map(state.shapes);
 			state.shapes.delete(id);
+			const wasSelected = state.selection.has(id);
 			state.selection = new Set(state.selection);
 			state.selection.delete(id);
 			notify();
 			notifyMutation("shape:removed", { id });
+			if (wasSelected) {
+				notifyMutation("selection:changed");
+			}
 		},
 
 		getSelection: () => state.selection,

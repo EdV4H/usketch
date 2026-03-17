@@ -62,7 +62,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 
 	// Bridge store mutations to EventBus
 	const unsubMutation = store.onMutation((event) => {
-		events.emit(event.type, event.payload ?? null);
+		events.emit(event.type, event.payload);
 	});
 
 	// Register and setup plugins
