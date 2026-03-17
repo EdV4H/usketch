@@ -109,9 +109,6 @@ export const selectToolPlugin: UsketchPlugin = {
 				const shape = toolCtx.store.getShape(handleHit.shapeId);
 				if (shape) {
 					setOverrideCursor(getCursorForHandle(handleHit.handle));
-					// Suspend snap during resize — snap's applySnapToUpdates only adjusts x/y
-					// which causes the opposite edge to shift instead of the dragged edge
-					toolCtx.events.emit("snap:configure", { enabled: false });
 					dragState = {
 						mode: "resize",
 						shapeId: handleHit.shapeId,
@@ -220,7 +217,6 @@ export const selectToolPlugin: UsketchPlugin = {
 
 			if (dragState.mode === "resize") {
 				setOverrideCursor("");
-				toolCtx.events.emit("snap:configure", { enabled: true });
 				const currentShape = toolCtx.store.getShape(dragState.shapeId);
 				if (currentShape) {
 					// Build from/to diffs for undo
@@ -270,10 +266,7 @@ export const selectToolPlugin: UsketchPlugin = {
 			dragState = null;
 		}
 
-		function onDeactivate(toolCtx: ToolContext) {
-			if (dragState?.mode === "resize") {
-				toolCtx.events.emit("snap:configure", { enabled: true });
-			}
+		function onDeactivate(_toolCtx: ToolContext) {
 			dragState = null;
 			setOverrideCursor("");
 		}
