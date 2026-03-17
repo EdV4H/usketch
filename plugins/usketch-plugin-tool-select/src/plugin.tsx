@@ -393,6 +393,48 @@ export const selectToolPlugin: UsketchPlugin = {
 					x: event.worldPoint.x - dragState.startPoint.x,
 					y: event.worldPoint.y - dragState.startPoint.y,
 				};
+
+				// Flip detection on the group bounding box
+				const rawGroupBounds = computeRawBounds(
+					dragState.startGroupBounds,
+					dragState.handle,
+					delta,
+				);
+				const flip = applyFlip(dragState.handle, rawGroupBounds, event.worldPoint);
+				if (flip.flipped) {
+					const anchor = getAnchorEdges(dragState.handle, rawGroupBounds);
+					// Reset group bounds to zero-size at anchor
+					const flippedGroupBounds = { ...dragState.startGroupBounds };
+					if (flip.flippedX && anchor.x !== undefined) {
+						flippedGroupBounds.x = anchor.x;
+						flippedGroupBounds.width = 0;
+					}
+					if (flip.flippedY && anchor.y !== undefined) {
+						flippedGroupBounds.y = anchor.y;
+						flippedGroupBounds.height = 0;
+					}
+					// Collapse all shapes to anchor position
+					const flippedShapeData = new Map<string, MultiResizeShapeEntry>();
+					for (const [id, data] of dragState.startShapeData) {
+						flippedShapeData.set(id, {
+							...data,
+							x: flip.flippedX && anchor.x !== undefined ? anchor.x : data.x,
+							y: flip.flippedY && anchor.y !== undefined ? anchor.y : data.y,
+							width: flip.flippedX ? 0 : data.width,
+							height: flip.flippedY ? 0 : data.height,
+						});
+					}
+					dragState = {
+						...dragState,
+						handle: flip.handle,
+						startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
+						startGroupBounds: flippedGroupBounds,
+						startShapeData: flippedShapeData,
+					};
+					setOverrideCursor(getCursorForHandle(flip.handle));
+					return;
+				}
+
 				const multiUpdates = computeMultiResizeUpdates(
 					dragState.handle,
 					dragState.startGroupBounds,

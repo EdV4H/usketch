@@ -388,14 +388,18 @@ export function computeMultiResizeUpdates(
 	let minGroupH = MIN_GROUP_SIZE;
 	if (startGroupBounds.width > 0) {
 		for (const data of startShapeData.values()) {
-			const requiredGroupW = (data.minWidth / data.width) * startGroupBounds.width;
-			if (requiredGroupW > minGroupW) minGroupW = requiredGroupW;
+			if (data.width > 0) {
+				const requiredGroupW = (data.minWidth / data.width) * startGroupBounds.width;
+				if (requiredGroupW > minGroupW) minGroupW = requiredGroupW;
+			}
 		}
 	}
 	if (startGroupBounds.height > 0) {
 		for (const data of startShapeData.values()) {
-			const requiredGroupH = (data.minHeight / data.height) * startGroupBounds.height;
-			if (requiredGroupH > minGroupH) minGroupH = requiredGroupH;
+			if (data.height > 0) {
+				const requiredGroupH = (data.minHeight / data.height) * startGroupBounds.height;
+				if (requiredGroupH > minGroupH) minGroupH = requiredGroupH;
+			}
 		}
 	}
 
