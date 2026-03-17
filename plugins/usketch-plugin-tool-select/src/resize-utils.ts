@@ -136,18 +136,16 @@ const FLIP_Y: Record<ResizeHandle, ResizeHandle> = {
 /**
  * Detect if the pointer has crossed the anchor edge and flip the handle.
  *
- * Uses the pointer's world position relative to the anchor edge (the edge
- * opposite to the one being dragged). This works regardless of minSize
- * clamping — the flip triggers when the pointer physically crosses the
- * anchor, not when width/height reaches zero.
+ * `bounds` should be unclamped (raw) bounds so that minSize clamping
+ * doesn't prevent flip detection. The flip triggers when the pointer
+ * physically crosses the anchor edge.
  */
 export function applyFlip(
 	handle: ResizeHandle,
-	startData: { x: number; y: number; width: number; height: number },
+	bounds: { x: number; y: number; width: number; height: number },
 	worldPoint: Point,
 ): {
 	handle: ResizeHandle;
-	startData: { x: number; y: number; width: number; height: number };
 	flipped: boolean;
 	flippedX: boolean;
 	flippedY: boolean;
@@ -155,56 +153,43 @@ export function applyFlip(
 	const axes = handleAxes(handle);
 	const movesMin = handleMovesMin(handle);
 	let h = handle;
-	let sx = startData.x;
-	let sy = startData.y;
-	let sw = startData.width;
-	let sh = startData.height;
 	let flippedX = false;
 	let flippedY = false;
 
 	if (axes.x) {
 		if (movesMin.x) {
-			const anchorX = sx + sw;
+			const anchorX = bounds.x + bounds.width;
 			if (worldPoint.x > anchorX) {
 				flippedX = true;
 				h = FLIP_X[h];
-				sx = anchorX;
-				sw = 0;
 			}
 		} else {
-			const anchorX = sx;
+			const anchorX = bounds.x;
 			if (worldPoint.x < anchorX) {
 				flippedX = true;
 				h = FLIP_X[h];
-				sx = anchorX;
-				sw = 0;
 			}
 		}
 	}
 
 	if (axes.y) {
 		if (movesMin.y) {
-			const anchorY = sy + sh;
+			const anchorY = bounds.y + bounds.height;
 			if (worldPoint.y > anchorY) {
 				flippedY = true;
 				h = FLIP_Y[h];
-				sy = anchorY;
-				sh = 0;
 			}
 		} else {
-			const anchorY = sy;
+			const anchorY = bounds.y;
 			if (worldPoint.y < anchorY) {
 				flippedY = true;
 				h = FLIP_Y[h];
-				sy = anchorY;
-				sh = 0;
 			}
 		}
 	}
 
 	return {
 		handle: h,
-		startData: { x: sx, y: sy, width: sw, height: sh },
 		flipped: flippedX || flippedY,
 		flippedX,
 		flippedY,
@@ -260,6 +245,59 @@ export function getAnchorEdges(
 	const y = axes.y ? (movesMin.y ? startData.y + startData.height : startData.y) : undefined;
 
 	return { x, y };
+}
+
+/**
+ * Compute raw (unclamped) bounds after applying a resize delta.
+ *
+ * Unlike `def.resize()`, this does NOT apply minSize clamping,
+ * so width/height can go negative. This is essential for flip
+ * detection — the pointer must be compared against the true
+ * geometric anchor, not the clamped one.
+ */
+export function computeRawBounds(
+	startData: { x: number; y: number; width: number; height: number },
+	handle: ResizeHandle,
+	delta: { x: number; y: number },
+): { x: number; y: number; width: number; height: number } {
+	let { x, y, width, height } = startData;
+	switch (handle) {
+		case "se":
+			width += delta.x;
+			height += delta.y;
+			break;
+		case "nw":
+			x += delta.x;
+			y += delta.y;
+			width -= delta.x;
+			height -= delta.y;
+			break;
+		case "ne":
+			y += delta.y;
+			width += delta.x;
+			height -= delta.y;
+			break;
+		case "sw":
+			x += delta.x;
+			width -= delta.x;
+			height += delta.y;
+			break;
+		case "e":
+			width += delta.x;
+			break;
+		case "w":
+			x += delta.x;
+			width -= delta.x;
+			break;
+		case "n":
+			y += delta.y;
+			height -= delta.y;
+			break;
+		case "s":
+			height += delta.y;
+			break;
+	}
+	return { x, y, width, height };
 }
 
 export { HANDLE_SIZE };

@@ -14,6 +14,7 @@ import {
 } from "@edv4h/usketch-store";
 import {
 	applyFlip,
+	computeRawBounds,
 	findHandleAtScreenPoint,
 	fixAnchorDrift,
 	getAnchorEdges,
@@ -186,38 +187,49 @@ export const selectToolPlugin: UsketchPlugin = {
 				const def = toolCtx.shapes.get(dragState.startData.type);
 				if (!def) return;
 
-				// Flip detection: if pointer crossed the anchor edge, flip handle
-				const flip = applyFlip(dragState.handle, dragState.startData, event.worldPoint);
-				if (flip.flipped) {
-					const currentShape = toolCtx.store.getShape(dragState.shapeId);
-					if (currentShape) {
-						// Mirror only on the flipped axis
-						const anchor = getAnchorEdges(dragState.handle, dragState.startData);
-						const mirrored = { ...currentShape };
-						if (flip.flippedX && anchor.x !== undefined) {
-							mirrored.x = anchor.x;
-						}
-						if (flip.flippedY && anchor.y !== undefined) {
-							mirrored.y = anchor.y;
-						}
-						dragState = {
-							...dragState,
-							handle: flip.handle,
-							startData: { ...mirrored },
-							startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
-						};
-						toolCtx.store.updateShape(dragState.shapeId, {
-							x: mirrored.x,
-							y: mirrored.y,
-						});
-					}
-					setOverrideCursor(getCursorForHandle(flip.handle));
-				}
-
 				const delta: Point = {
 					x: event.worldPoint.x - dragState.startPoint.x,
 					y: event.worldPoint.y - dragState.startPoint.y,
 				};
+
+				// Flip detection: use unclamped (raw) bounds so minSize doesn't
+				// prevent the pointer from crossing the anchor edge.
+				const rawBounds = computeRawBounds(dragState.startData, dragState.handle, delta);
+				const flip = applyFlip(dragState.handle, rawBounds, event.worldPoint);
+				if (flip.flipped) {
+					const currentShape = toolCtx.store.getShape(dragState.shapeId);
+					if (currentShape) {
+						const anchor = getAnchorEdges(dragState.handle, rawBounds);
+						// Reset to zero-size shape at anchor position.
+						// This ensures the flipped handle's anchor is at the
+						// pointer's crossing point, preventing immediate re-flip.
+						const flippedData = { ...currentShape };
+						if (flip.flippedX && anchor.x !== undefined) {
+							flippedData.x = anchor.x;
+							flippedData.width = 0;
+						}
+						if (flip.flippedY && anchor.y !== undefined) {
+							flippedData.y = anchor.y;
+							flippedData.height = 0;
+						}
+						dragState = {
+							...dragState,
+							handle: flip.handle,
+							startData: flippedData,
+							startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
+						};
+						// Update store — def.resize will expand from zero on next frame
+						toolCtx.store.updateShape(dragState.shapeId, {
+							x: flippedData.x,
+							y: flippedData.y,
+						});
+						setOverrideCursor(getCursorForHandle(flip.handle));
+					}
+					// Skip resize this frame — next frame will use the new
+					// startData/startPoint with the flipped handle.
+					return;
+				}
+
 				const resized = def.resize(dragState.startData, dragState.handle, delta);
 				// Fix anchor drift from minSize clamping
 				const fixed = fixAnchorDrift(dragState.handle, dragState.startData, resized);
