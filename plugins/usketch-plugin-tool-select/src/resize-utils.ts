@@ -211,30 +211,58 @@ export function applyFlip(
 }
 
 /**
- * Fix anchor drift caused by minSize clamping in def.resize().
+ * Fix position after minSize clamping in def.resize().
  *
- * When a shape clamps width/height to a minimum, the dragged edge stops
- * but x/y may still shift — causing the anchored (opposite) edge to move.
- * This corrects x/y so the anchored edge stays fixed.
+ * Normal case (no clamping): anchor the opposite edge so it stays fixed.
+ * Clamped case: the dragged edge follows the pointer, and the shape slides
+ * at minSize until the pointer crosses the anchor and a flip occurs.
  */
 export function fixAnchorDrift(
 	handle: ResizeHandle,
 	startData: { x: number; y: number; width: number; height: number },
 	resized: { x: number; y: number; width: number; height: number },
+	worldPoint: Point,
 ): { x: number; y: number } {
+	const axes = handleAxes(handle);
 	const movesMin = handleMovesMin(handle);
 	let { x, y } = resized;
 
-	if (movesMin.x) {
-		// Left edge is moving → right edge (x + width) must stay fixed
+	if (axes.x) {
 		const anchorRight = startData.x + startData.width;
-		x = anchorRight - resized.width;
+		const anchorLeft = startData.x;
+		// Compute raw (unclamped) width to detect clamping
+		const rawWidth = movesMin.x ? anchorRight - worldPoint.x : worldPoint.x - anchorLeft;
+		const clamped = resized.width > rawWidth;
+
+		if (clamped) {
+			// MinSize reached: dragged edge follows pointer, shape slides
+			if (movesMin.x) {
+				x = worldPoint.x;
+			} else {
+				x = worldPoint.x - resized.width;
+			}
+		} else if (movesMin.x) {
+			// Normal: anchor the right edge
+			x = anchorRight - resized.width;
+		}
+		// movesMax + no clamp: x stays as resized (unchanged from startData.x)
 	}
 
-	if (movesMin.y) {
-		// Top edge is moving → bottom edge (y + height) must stay fixed
+	if (axes.y) {
 		const anchorBottom = startData.y + startData.height;
-		y = anchorBottom - resized.height;
+		const anchorTop = startData.y;
+		const rawHeight = movesMin.y ? anchorBottom - worldPoint.y : worldPoint.y - anchorTop;
+		const clamped = resized.height > rawHeight;
+
+		if (clamped) {
+			if (movesMin.y) {
+				y = worldPoint.y;
+			} else {
+				y = worldPoint.y - resized.height;
+			}
+		} else if (movesMin.y) {
+			y = anchorBottom - resized.height;
+		}
 	}
 
 	return { x, y };

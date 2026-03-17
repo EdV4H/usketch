@@ -212,7 +212,12 @@ export const selectToolPlugin: UsketchPlugin = {
 				};
 				const resized = def.resize(dragState.startData, dragState.handle, delta);
 				// Fix anchor drift from minSize clamping
-				const fixed = fixAnchorDrift(dragState.handle, dragState.startData, resized);
+				const fixed = fixAnchorDrift(
+					dragState.handle,
+					dragState.startData,
+					resized,
+					event.worldPoint,
+				);
 				resized.x = fixed.x;
 				resized.y = fixed.y;
 				const updates: Partial<ShapeData> = {};
