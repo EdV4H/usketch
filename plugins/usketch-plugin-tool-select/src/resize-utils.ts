@@ -88,4 +88,118 @@ export function getCursorForHandle(handle: ResizeHandle): string {
 	return CURSOR_MAP[handle];
 }
 
+// ── Flip support ──
+
+/** Which axes a handle affects */
+function handleAxes(handle: ResizeHandle): { x: boolean; y: boolean } {
+	switch (handle) {
+		case "e":
+		case "w":
+			return { x: true, y: false };
+		case "n":
+		case "s":
+			return { x: false, y: true };
+		default:
+			return { x: true, y: true };
+	}
+}
+
+/** Whether the handle moves the min edge (left/top) on each axis */
+function handleMovesMin(handle: ResizeHandle): { x: boolean; y: boolean } {
+	const movesMinX = handle === "nw" || handle === "w" || handle === "sw";
+	const movesMinY = handle === "nw" || handle === "n" || handle === "ne";
+	return { x: movesMinX, y: movesMinY };
+}
+
+const FLIP_X: Record<ResizeHandle, ResizeHandle> = {
+	nw: "ne",
+	ne: "nw",
+	sw: "se",
+	se: "sw",
+	w: "e",
+	e: "w",
+	n: "n",
+	s: "s",
+};
+
+const FLIP_Y: Record<ResizeHandle, ResizeHandle> = {
+	nw: "sw",
+	sw: "nw",
+	ne: "se",
+	se: "ne",
+	n: "s",
+	s: "n",
+	e: "e",
+	w: "w",
+};
+
+/**
+ * Compute the raw (unclamped) width/height after applying delta,
+ * and if either goes negative, flip the handle and adjust startData/delta.
+ *
+ * Returns the effective handle, delta, and startData to use for def.resize().
+ * If no flip occurred, returns the inputs unchanged.
+ */
+export function applyFlip(
+	handle: ResizeHandle,
+	startData: { x: number; y: number; width: number; height: number },
+	delta: Point,
+): {
+	handle: ResizeHandle;
+	delta: Point;
+	startData: { x: number; y: number; width: number; height: number };
+	flipped: boolean;
+} {
+	const axes = handleAxes(handle);
+	const movesMin = handleMovesMin(handle);
+	let h = handle;
+	let dx = delta.x;
+	let dy = delta.y;
+	let sx = startData.x;
+	let sy = startData.y;
+	let sw = startData.width;
+	let sh = startData.height;
+	let flipped = false;
+
+	if (axes.x) {
+		const rawWidth = movesMin.x ? sw - dx : sw + dx;
+		if (rawWidth < 0) {
+			flipped = true;
+			h = FLIP_X[h];
+			// Anchor flips to the opposite edge; excess delta drives new size
+			if (movesMin.x) {
+				// Was dragging left edge past right edge
+				dx = dx - sw;
+				sx = sx + sw;
+			} else {
+				// Was dragging right edge past left edge
+				dx = dx + sw;
+			}
+			sw = 0;
+		}
+	}
+
+	if (axes.y) {
+		const rawHeight = movesMin.y ? sh - dy : sh + dy;
+		if (rawHeight < 0) {
+			flipped = true;
+			h = FLIP_Y[h];
+			if (movesMin.y) {
+				dy = dy - sh;
+				sy = sy + sh;
+			} else {
+				dy = dy + sh;
+			}
+			sh = 0;
+		}
+	}
+
+	return {
+		handle: h,
+		delta: { x: dx, y: dy },
+		startData: { x: sx, y: sy, width: sw, height: sh },
+		flipped,
+	};
+}
+
 export { HANDLE_SIZE };

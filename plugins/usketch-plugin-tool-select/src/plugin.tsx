@@ -12,7 +12,7 @@ import {
 	createMoveShapesCommand,
 	createUpdateShapeCommand,
 } from "@edv4h/usketch-store";
-import { findHandleAtScreenPoint, getCursorForHandle } from "./resize-utils.js";
+import { applyFlip, findHandleAtScreenPoint, getCursorForHandle } from "./resize-utils.js";
 import { SelectionOverlay } from "./selection-overlay.js";
 
 // ── Hit test helpers ──
@@ -177,13 +177,33 @@ export const selectToolPlugin: UsketchPlugin = {
 			}
 
 			if (dragState.mode === "resize") {
-				const delta: Point = {
+				const rawDelta: Point = {
 					x: event.worldPoint.x - dragState.startPoint.x,
 					y: event.worldPoint.y - dragState.startPoint.y,
 				};
 				const def = toolCtx.shapes.get(dragState.startData.type);
 				if (!def) return;
 
+				// Flip detection: if delta would make width/height negative, flip handle
+				const flip = applyFlip(dragState.handle, dragState.startData, rawDelta);
+				if (flip.flipped) {
+					// Update drag state with flipped handle and new anchor
+					dragState = {
+						...dragState,
+						handle: flip.handle,
+						startData: { ...dragState.startData, ...flip.startData },
+						startPoint: {
+							x: event.worldPoint.x - flip.delta.x,
+							y: event.worldPoint.y - flip.delta.y,
+						},
+					};
+					setOverrideCursor(getCursorForHandle(flip.handle));
+				}
+
+				const delta: Point = {
+					x: event.worldPoint.x - dragState.startPoint.x,
+					y: event.worldPoint.y - dragState.startPoint.y,
+				};
 				const resized = def.resize(dragState.startData, dragState.handle, delta);
 				const updates: Partial<ShapeData> = {};
 				for (const key of Object.keys(resized)) {
