@@ -39,9 +39,38 @@ function getState(): SnapGuideState {
 
 // ── Guide layer wrapper that subscribes to snap state updates ──
 
-function SnapGuideOverlay() {
+interface SnapGuideOverlayProps {
+	viewport: { x: number; y: number; zoom: number };
+}
+
+function worldToScreen(wx: number, wy: number, vp: { x: number; y: number; zoom: number }) {
+	return { x: wx * vp.zoom + vp.x, y: wy * vp.zoom + vp.y };
+}
+
+function toScreenLines(lines: SnapLine[], vp: { x: number; y: number; zoom: number }): SnapLine[] {
+	return lines.map((line) => {
+		const indicators = line.indicators.map((ind) => {
+			const s = worldToScreen(ind.x, ind.y, vp);
+			return { ...ind, x: s.x, y: s.y };
+		});
+		if (line.axis === "x") {
+			const pos = worldToScreen(line.position, 0, vp).x;
+			const from = worldToScreen(0, line.from, vp).y;
+			const to = worldToScreen(0, line.to, vp).y;
+			return { ...line, position: pos, from, to, indicators };
+		}
+		const pos = worldToScreen(0, line.position, vp).y;
+		const from = worldToScreen(line.from, 0, vp).x;
+		const to = worldToScreen(line.to, 0, vp).x;
+		return { ...line, position: pos, from, to, indicators };
+	});
+}
+
+function SnapGuideOverlay({ viewport }: SnapGuideOverlayProps) {
 	const state = useSyncExternalStore(subscribeState, getState, getState);
 	if (state.lines.length === 0) return null;
+
+	const screenLines = toScreenLines(state.lines, viewport);
 
 	return (
 		<svg
@@ -55,7 +84,7 @@ function SnapGuideOverlay() {
 				pointerEvents: "none",
 			}}
 		>
-			<GuideLayer lines={state.lines} style={state.guideStyle} />
+			<GuideLayer lines={screenLines} style={state.guideStyle} />
 		</svg>
 	);
 }
@@ -206,7 +235,8 @@ export const snapPlugin: UsketchPlugin = {
 		ctx.layers.register({
 			id: "snap-guides",
 			order: 90,
-			render: () => <SnapGuideOverlay />,
+			fixed: true,
+			render: (renderCtx) => <SnapGuideOverlay viewport={renderCtx.viewport} />,
 		});
 
 		// ── Teardown ──

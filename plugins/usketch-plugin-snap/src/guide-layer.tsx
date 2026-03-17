@@ -13,18 +13,9 @@ function renderIndicator(ind: SnapIndicator, key: string, style: GuideStyle) {
 	if (ind.edge === "center") {
 		const s = style.diamondSize;
 		const d = `M${ind.x},${ind.y - s}L${ind.x + s},${ind.y}L${ind.x},${ind.y + s}L${ind.x - s},${ind.y}Z`;
-		return <path key={key} d={d} fill={style.color} vectorEffect="non-scaling-stroke" />;
+		return <path key={key} d={d} fill={style.color} />;
 	}
-	return (
-		<circle
-			key={key}
-			cx={ind.x}
-			cy={ind.y}
-			r={style.indicatorRadius}
-			fill={style.color}
-			vectorEffect="non-scaling-stroke"
-		/>
-	);
+	return <circle key={key} cx={ind.x} cy={ind.y} r={style.indicatorRadius} fill={style.color} />;
 }
 
 export function GuideLayer({ lines, style }: GuideLayerProps) {
@@ -47,7 +38,6 @@ export function GuideLayer({ lines, style }: GuideLayerProps) {
 							stroke={style.color}
 							strokeWidth={style.strokeWidth}
 							strokeDasharray={style.dash}
-							vectorEffect="non-scaling-stroke"
 						/>,
 					);
 				} else {
@@ -61,7 +51,6 @@ export function GuideLayer({ lines, style }: GuideLayerProps) {
 							stroke={style.color}
 							strokeWidth={style.strokeWidth}
 							strokeDasharray={style.dash}
-							vectorEffect="non-scaling-stroke"
 						/>,
 					);
 				}
