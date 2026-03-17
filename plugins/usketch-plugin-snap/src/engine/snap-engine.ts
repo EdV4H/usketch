@@ -8,15 +8,17 @@ export function calculateSnap(
 	movingShapeIds: ReadonlySet<string>,
 	candidateBoxes: ReadonlyMap<string, BoundingBox>,
 	settings: SnapSettings,
+	movingSnapOverrides?: Pick<SnapSettings, "edgeSnap" | "centerSnap">,
 ): SnapResult {
 	if (!settings.enabled) {
 		return { dx: 0, dy: 0, lines: [] };
 	}
 
 	const threshold = settings.threshold ?? DEFAULT_SNAP_THRESHOLD;
+	const movingSnapSettings = movingSnapOverrides ?? settings;
 
 	// Extract snap points from the moving shape(s)' combined bounding box
-	const moving = extractSnapPoints(movingBox, "__moving__", settings);
+	const moving = extractSnapPoints(movingBox, "__moving__", movingSnapSettings);
 
 	// Collect candidate snap points from all non-moving shapes
 	const candidateX: SnapPoint[] = [];
