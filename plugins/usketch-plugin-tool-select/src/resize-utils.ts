@@ -240,4 +240,25 @@ export function fixAnchorDrift(
 	return { x, y };
 }
 
+/**
+ * Get the anchor edge positions for a handle.
+ *
+ * Returns the x/y position of the anchor edge (the edge that stays fixed).
+ * - movesMin.x → anchor is right edge (x + width)
+ * - !movesMin.x → anchor is left edge (x) — but only if the handle moves x at all
+ * - undefined means that axis has no anchor (e.g. "n"/"s" have no x anchor)
+ */
+export function getAnchorEdges(
+	handle: ResizeHandle,
+	startData: { x: number; y: number; width: number; height: number },
+): { x: number | undefined; y: number | undefined } {
+	const axes = handleAxes(handle);
+	const movesMin = handleMovesMin(handle);
+
+	const x = axes.x ? (movesMin.x ? startData.x + startData.width : startData.x) : undefined;
+	const y = axes.y ? (movesMin.y ? startData.y + startData.height : startData.y) : undefined;
+
+	return { x, y };
+}
+
 export { HANDLE_SIZE };

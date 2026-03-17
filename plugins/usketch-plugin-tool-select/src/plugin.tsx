@@ -16,6 +16,7 @@ import {
 	applyFlip,
 	findHandleAtScreenPoint,
 	fixAnchorDrift,
+	getAnchorEdges,
 	getCursorForHandle,
 } from "./resize-utils.js";
 import { SelectionOverlay } from "./selection-overlay.js";
@@ -188,15 +189,28 @@ export const selectToolPlugin: UsketchPlugin = {
 				// Flip detection: if pointer crossed the anchor edge, flip handle
 				const flip = applyFlip(dragState.handle, dragState.startData, event.worldPoint);
 				if (flip.flipped) {
-					// Use the current (clamped) shape as new startData so there's no size jump
 					const currentShape = toolCtx.store.getShape(dragState.shapeId);
 					if (currentShape) {
+						// Mirror the shape across the anchor edge
+						const anchor = getAnchorEdges(dragState.handle, dragState.startData);
+						const mirrored = { ...currentShape };
+						if (anchor.x !== undefined) {
+							mirrored.x = anchor.x;
+						}
+						if (anchor.y !== undefined) {
+							mirrored.y = anchor.y;
+						}
 						dragState = {
 							...dragState,
 							handle: flip.handle,
-							startData: { ...currentShape },
+							startData: { ...mirrored },
 							startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
 						};
+						// Apply the mirrored position immediately
+						toolCtx.store.updateShape(dragState.shapeId, {
+							x: mirrored.x,
+							y: mirrored.y,
+						});
 					}
 					setOverrideCursor(getCursorForHandle(flip.handle));
 				}
