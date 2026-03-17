@@ -12,7 +12,12 @@ import {
 	createMoveShapesCommand,
 	createUpdateShapeCommand,
 } from "@edv4h/usketch-store";
-import { applyFlip, findHandleAtScreenPoint, getCursorForHandle } from "./resize-utils.js";
+import {
+	applyFlip,
+	findHandleAtScreenPoint,
+	fixAnchorDrift,
+	getCursorForHandle,
+} from "./resize-utils.js";
 import { SelectionOverlay } from "./selection-overlay.js";
 
 // ── Hit test helpers ──
@@ -205,6 +210,10 @@ export const selectToolPlugin: UsketchPlugin = {
 					y: event.worldPoint.y - dragState.startPoint.y,
 				};
 				const resized = def.resize(dragState.startData, dragState.handle, delta);
+				// Fix anchor drift from minSize clamping
+				const fixed = fixAnchorDrift(dragState.handle, dragState.startData, resized);
+				resized.x = fixed.x;
+				resized.y = fixed.y;
 				const updates: Partial<ShapeData> = {};
 				for (const key of Object.keys(resized)) {
 					if (key === "id" || key === "type" || key === "style") continue;

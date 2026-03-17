@@ -202,4 +202,34 @@ export function applyFlip(
 	};
 }
 
+/**
+ * Fix anchor drift caused by minSize clamping in def.resize().
+ *
+ * When a shape clamps width/height to a minimum, the dragged edge stops
+ * but x/y may still shift — causing the anchored (opposite) edge to move.
+ * This corrects x/y so the anchored edge stays fixed.
+ */
+export function fixAnchorDrift(
+	handle: ResizeHandle,
+	startData: { x: number; y: number; width: number; height: number },
+	resized: { x: number; y: number; width: number; height: number },
+): { x: number; y: number } {
+	const movesMin = handleMovesMin(handle);
+	let { x, y } = resized;
+
+	if (movesMin.x) {
+		// Left edge is moving → right edge (x + width) must stay fixed
+		const anchorRight = startData.x + startData.width;
+		x = anchorRight - resized.width;
+	}
+
+	if (movesMin.y) {
+		// Top edge is moving → bottom edge (y + height) must stay fixed
+		const anchorBottom = startData.y + startData.height;
+		y = anchorBottom - resized.height;
+	}
+
+	return { x, y };
+}
+
 export { HANDLE_SIZE };
