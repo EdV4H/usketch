@@ -26,6 +26,7 @@ import {
 	getAnchorEdges,
 	getCursorForHandle,
 	getMultiSelectionBounds,
+	type MultiResizeShapeEntry,
 } from "./resize-utils.js";
 import { SelectionOverlay } from "./selection-overlay.js";
 
@@ -115,7 +116,7 @@ type DragState =
 			handle: ResizeHandle;
 			startPoint: Point;
 			startGroupBounds: BoundingBox;
-			startShapeData: Map<string, { x: number; y: number; width: number; height: number }>;
+			startShapeData: Map<string, MultiResizeShapeEntry>;
 	  }
 	| {
 			mode: "marquee";
@@ -186,18 +187,19 @@ export const selectToolPlugin: UsketchPlugin = {
 					);
 					if (multiHandle) {
 						setOverrideCursor(getCursorForHandle(multiHandle));
-						const startShapeData = new Map<
-							string,
-							{ x: number; y: number; width: number; height: number }
-						>();
+						const startShapeData = new Map<string, MultiResizeShapeEntry>();
 						for (const id of selection) {
 							const shape = toolCtx.store.getShape(id);
 							if (shape) {
+								const def = toolCtx.shapes.get(shape.type);
+								const minSize = def?.minSize ?? { width: 1, height: 1 };
 								startShapeData.set(id, {
 									x: shape.x,
 									y: shape.y,
 									width: shape.width,
 									height: shape.height,
+									minWidth: minSize.width,
+									minHeight: minSize.height,
 								});
 							}
 						}

@@ -362,29 +362,55 @@ export function findMultiHandleAtScreenPoint(
 
 const MIN_GROUP_SIZE = 10;
 
+export interface MultiResizeShapeEntry {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	minWidth: number;
+	minHeight: number;
+}
+
 export function computeMultiResizeUpdates(
 	handle: ResizeHandle,
 	startGroupBounds: BoundingBox,
 	delta: Point,
-	startShapeData: Map<string, { x: number; y: number; width: number; height: number }>,
+	startShapeData: Map<string, MultiResizeShapeEntry>,
 ): Map<string, { x: number; y: number; width: number; height: number }> {
 	const raw = computeRawBounds(startGroupBounds, handle, delta);
 
-	// Clamp to minimum group size
 	const axes = handleAxes(handle);
 	const movesMin = handleMovesMin(handle);
 
-	if (axes.x && raw.width < MIN_GROUP_SIZE) {
-		if (movesMin.x) {
-			raw.x = raw.x + raw.width - MIN_GROUP_SIZE;
+	// Compute minimum group size from the largest per-shape minSize,
+	// scaled by the ratio of shape size to group size.
+	let minGroupW = MIN_GROUP_SIZE;
+	let minGroupH = MIN_GROUP_SIZE;
+	if (startGroupBounds.width > 0) {
+		for (const data of startShapeData.values()) {
+			const requiredGroupW = (data.minWidth / data.width) * startGroupBounds.width;
+			if (requiredGroupW > minGroupW) minGroupW = requiredGroupW;
 		}
-		raw.width = MIN_GROUP_SIZE;
 	}
-	if (axes.y && raw.height < MIN_GROUP_SIZE) {
-		if (movesMin.y) {
-			raw.y = raw.y + raw.height - MIN_GROUP_SIZE;
+	if (startGroupBounds.height > 0) {
+		for (const data of startShapeData.values()) {
+			const requiredGroupH = (data.minHeight / data.height) * startGroupBounds.height;
+			if (requiredGroupH > minGroupH) minGroupH = requiredGroupH;
 		}
-		raw.height = MIN_GROUP_SIZE;
+	}
+
+	// Clamp to minimum group size
+	if (axes.x && raw.width < minGroupW) {
+		if (movesMin.x) {
+			raw.x = raw.x + raw.width - minGroupW;
+		}
+		raw.width = minGroupW;
+	}
+	if (axes.y && raw.height < minGroupH) {
+		if (movesMin.y) {
+			raw.y = raw.y + raw.height - minGroupH;
+		}
+		raw.height = minGroupH;
 	}
 
 	// Compute scale factors
@@ -404,8 +430,8 @@ export function computeMultiResizeUpdates(
 	for (const [id, data] of startShapeData) {
 		const newX = newAnchorX + (data.x - anchorX) * scaleX;
 		const newY = newAnchorY + (data.y - anchorY) * scaleY;
-		const newWidth = Math.max(1, data.width * Math.abs(scaleX));
-		const newHeight = Math.max(1, data.height * Math.abs(scaleY));
+		const newWidth = Math.max(data.minWidth, data.width * Math.abs(scaleX));
+		const newHeight = Math.max(data.minHeight, data.height * Math.abs(scaleY));
 		result.set(id, { x: newX, y: newY, width: newWidth, height: newHeight });
 	}
 

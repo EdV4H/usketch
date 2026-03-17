@@ -190,6 +190,7 @@ export const counterPlugin: UsketchPlugin = {
 			resize,
 			createDefault,
 			renderTarget: "html",
+			minSize: { width: 100, height: 100 },
 		});
 
 		// Listen for counter updates from the rendered buttons
