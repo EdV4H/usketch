@@ -149,6 +149,8 @@ export function applyFlip(
 	handle: ResizeHandle;
 	startData: { x: number; y: number; width: number; height: number };
 	flipped: boolean;
+	flippedX: boolean;
+	flippedY: boolean;
 } {
 	const axes = handleAxes(handle);
 	const movesMin = handleMovesMin(handle);
@@ -157,23 +159,22 @@ export function applyFlip(
 	let sy = startData.y;
 	let sw = startData.width;
 	let sh = startData.height;
-	let flipped = false;
+	let flippedX = false;
+	let flippedY = false;
 
 	if (axes.x) {
 		if (movesMin.x) {
-			// Dragging left edge → anchor is right edge
 			const anchorX = sx + sw;
 			if (worldPoint.x > anchorX) {
-				flipped = true;
+				flippedX = true;
 				h = FLIP_X[h];
 				sx = anchorX;
 				sw = 0;
 			}
 		} else {
-			// Dragging right edge → anchor is left edge
 			const anchorX = sx;
 			if (worldPoint.x < anchorX) {
-				flipped = true;
+				flippedX = true;
 				h = FLIP_X[h];
 				sx = anchorX;
 				sw = 0;
@@ -183,19 +184,17 @@ export function applyFlip(
 
 	if (axes.y) {
 		if (movesMin.y) {
-			// Dragging top edge → anchor is bottom edge
 			const anchorY = sy + sh;
 			if (worldPoint.y > anchorY) {
-				flipped = true;
+				flippedY = true;
 				h = FLIP_Y[h];
 				sy = anchorY;
 				sh = 0;
 			}
 		} else {
-			// Dragging bottom edge → anchor is top edge
 			const anchorY = sy;
 			if (worldPoint.y < anchorY) {
-				flipped = true;
+				flippedY = true;
 				h = FLIP_Y[h];
 				sy = anchorY;
 				sh = 0;
@@ -206,7 +205,9 @@ export function applyFlip(
 	return {
 		handle: h,
 		startData: { x: sx, y: sy, width: sw, height: sh },
-		flipped,
+		flipped: flippedX || flippedY,
+		flippedX,
+		flippedY,
 	};
 }
 

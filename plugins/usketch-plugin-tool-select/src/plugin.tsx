@@ -191,13 +191,13 @@ export const selectToolPlugin: UsketchPlugin = {
 				if (flip.flipped) {
 					const currentShape = toolCtx.store.getShape(dragState.shapeId);
 					if (currentShape) {
-						// Mirror the shape across the anchor edge
+						// Mirror only on the flipped axis
 						const anchor = getAnchorEdges(dragState.handle, dragState.startData);
 						const mirrored = { ...currentShape };
-						if (anchor.x !== undefined) {
+						if (flip.flippedX && anchor.x !== undefined) {
 							mirrored.x = anchor.x;
 						}
-						if (anchor.y !== undefined) {
+						if (flip.flippedY && anchor.y !== undefined) {
 							mirrored.y = anchor.y;
 						}
 						dragState = {
@@ -206,7 +206,6 @@ export const selectToolPlugin: UsketchPlugin = {
 							startData: { ...mirrored },
 							startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
 						};
-						// Apply the mirrored position immediately
 						toolCtx.store.updateShape(dragState.shapeId, {
 							x: mirrored.x,
 							y: mirrored.y,
