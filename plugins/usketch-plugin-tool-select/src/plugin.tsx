@@ -403,25 +403,32 @@ export const selectToolPlugin: UsketchPlugin = {
 				const flip = applyFlip(dragState.handle, rawGroupBounds, event.worldPoint);
 				if (flip.flipped) {
 					const anchor = getAnchorEdges(dragState.handle, rawGroupBounds);
-					// Reset group bounds to zero-size at anchor
+					// Mirror group bounds across the anchor axis
 					const flippedGroupBounds = { ...dragState.startGroupBounds };
 					if (flip.flippedX && anchor.x !== undefined) {
-						flippedGroupBounds.x = anchor.x;
-						flippedGroupBounds.width = 0;
+						flippedGroupBounds.x = 2 * anchor.x - flippedGroupBounds.x - flippedGroupBounds.width;
 					}
 					if (flip.flippedY && anchor.y !== undefined) {
-						flippedGroupBounds.y = anchor.y;
-						flippedGroupBounds.height = 0;
+						flippedGroupBounds.y = 2 * anchor.y - flippedGroupBounds.y - flippedGroupBounds.height;
 					}
-					// Collapse all shapes to anchor position
+					// Mirror each shape across the anchor axis
 					const flippedShapeData = new Map<string, MultiResizeShapeEntry>();
 					for (const [id, data] of dragState.startShapeData) {
-						flippedShapeData.set(id, {
-							...data,
-							x: flip.flippedX && anchor.x !== undefined ? anchor.x : data.x,
-							y: flip.flippedY && anchor.y !== undefined ? anchor.y : data.y,
-							width: flip.flippedX ? 0 : data.width,
-							height: flip.flippedY ? 0 : data.height,
+						const mirroredX =
+							flip.flippedX && anchor.x !== undefined ? 2 * anchor.x - data.x - data.width : data.x;
+						const mirroredY =
+							flip.flippedY && anchor.y !== undefined
+								? 2 * anchor.y - data.y - data.height
+								: data.y;
+						flippedShapeData.set(id, { ...data, x: mirroredX, y: mirroredY });
+					}
+					// Update store to show mirrored positions immediately
+					for (const [id, data] of flippedShapeData) {
+						toolCtx.store.updateShape(id, {
+							x: data.x,
+							y: data.y,
+							width: data.width,
+							height: data.height,
 						});
 					}
 					dragState = {
