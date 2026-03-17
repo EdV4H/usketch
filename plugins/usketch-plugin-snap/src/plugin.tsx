@@ -220,7 +220,8 @@ export const snapPlugin: UsketchPlugin = {
 				);
 			frameCandidateBoxes = candidateBoxes;
 
-			const result = calculateSnap(movingBox, movingIds, candidateBoxes, settings);
+			const snapSettings = isResize ? { ...settings, centerSnap: false } : settings;
+			const result = calculateSnap(movingBox, movingIds, candidateBoxes, snapSettings);
 			frameSnapResult = result;
 
 			queueMicrotask(() => {
