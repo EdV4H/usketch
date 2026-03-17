@@ -66,9 +66,14 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	});
 
 	// Register and setup plugins
-	for (const plugin of plugins) {
-		pluginRegistry.register(plugin);
-		await plugin.setup(ctx);
+	try {
+		for (const plugin of plugins) {
+			pluginRegistry.register(plugin);
+			await plugin.setup(ctx);
+		}
+	} catch (error) {
+		unsubMutation();
+		throw error;
 	}
 
 	// Register core shortcuts
