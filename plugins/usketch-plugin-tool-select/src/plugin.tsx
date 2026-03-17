@@ -188,21 +188,16 @@ export const selectToolPlugin: UsketchPlugin = {
 				// Flip detection: if pointer crossed the anchor edge, flip handle
 				const flip = applyFlip(dragState.handle, dragState.startData, event.worldPoint);
 				if (flip.flipped) {
-					const newStartData = { ...dragState.startData, ...flip.startData };
-					// Reset startPoint to the anchor edge on flipped axes only
-					const newStartPoint = { ...dragState.startPoint };
-					if (flip.startData.width === 0 && dragState.startData.width !== 0) {
-						newStartPoint.x = flip.startData.x;
+					// Use the current (clamped) shape as new startData so there's no size jump
+					const currentShape = toolCtx.store.getShape(dragState.shapeId);
+					if (currentShape) {
+						dragState = {
+							...dragState,
+							handle: flip.handle,
+							startData: { ...currentShape },
+							startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
+						};
 					}
-					if (flip.startData.height === 0 && dragState.startData.height !== 0) {
-						newStartPoint.y = flip.startData.y;
-					}
-					dragState = {
-						...dragState,
-						handle: flip.handle,
-						startData: newStartData,
-						startPoint: newStartPoint,
-					};
 					setOverrideCursor(getCursorForHandle(flip.handle));
 				}
 
@@ -212,12 +207,7 @@ export const selectToolPlugin: UsketchPlugin = {
 				};
 				const resized = def.resize(dragState.startData, dragState.handle, delta);
 				// Fix anchor drift from minSize clamping
-				const fixed = fixAnchorDrift(
-					dragState.handle,
-					dragState.startData,
-					resized,
-					event.worldPoint,
-				);
+				const fixed = fixAnchorDrift(dragState.handle, dragState.startData, resized);
 				resized.x = fixed.x;
 				resized.y = fixed.y;
 				const updates: Partial<ShapeData> = {};
