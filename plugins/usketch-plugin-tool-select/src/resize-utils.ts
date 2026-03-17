@@ -91,7 +91,7 @@ export function getCursorForHandle(handle: ResizeHandle): string {
 // ── Flip support ──
 
 /** Which axes a handle affects */
-function handleAxes(handle: ResizeHandle): { x: boolean; y: boolean } {
+export function handleAxes(handle: ResizeHandle): { x: boolean; y: boolean } {
 	switch (handle) {
 		case "e":
 		case "w":
@@ -105,7 +105,7 @@ function handleAxes(handle: ResizeHandle): { x: boolean; y: boolean } {
 }
 
 /** Whether the handle moves the min edge (left/top) on each axis */
-function handleMovesMin(handle: ResizeHandle): { x: boolean; y: boolean } {
+export function handleMovesMin(handle: ResizeHandle): { x: boolean; y: boolean } {
 	const movesMinX = handle === "nw" || handle === "w" || handle === "sw";
 	const movesMinY = handle === "nw" || handle === "n" || handle === "ne";
 	return { x: movesMinX, y: movesMinY };
@@ -298,6 +298,118 @@ export function computeRawBounds(
 			break;
 	}
 	return { x, y, width, height };
+}
+
+// ── Multi-selection helpers ──
+
+export function getShapeBounds(
+	store: BoardStore,
+	shapes: ShapeRegistry,
+	id: string,
+): BoundingBox | null {
+	const shape = store.getShape(id);
+	if (!shape) return null;
+	const def = shapes.get(shape.type);
+	return def
+		? def.getBounds(shape)
+		: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+}
+
+export function getMultiSelectionBounds(
+	store: BoardStore,
+	shapes: ShapeRegistry,
+	selection: ReadonlySet<string>,
+): BoundingBox | null {
+	let minX = Number.POSITIVE_INFINITY;
+	let minY = Number.POSITIVE_INFINITY;
+	let maxX = Number.NEGATIVE_INFINITY;
+	let maxY = Number.NEGATIVE_INFINITY;
+
+	for (const id of selection) {
+		const bounds = getShapeBounds(store, shapes, id);
+		if (!bounds) continue;
+		minX = Math.min(minX, bounds.x);
+		minY = Math.min(minY, bounds.y);
+		maxX = Math.max(maxX, bounds.x + bounds.width);
+		maxY = Math.max(maxY, bounds.y + bounds.height);
+	}
+
+	if (!Number.isFinite(minX)) return null;
+	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+export function findMultiHandleAtScreenPoint(
+	screenPoint: Point,
+	groupBounds: BoundingBox,
+	viewport: Viewport,
+): ResizeHandle | null {
+	const positions = getHandlePositions(groupBounds, viewport);
+	const halfHit = HIT_AREA / 2;
+	for (const handle of ALL_HANDLES) {
+		const pos = positions.get(handle);
+		if (!pos) continue;
+		if (
+			screenPoint.x >= pos.x - halfHit &&
+			screenPoint.x <= pos.x + halfHit &&
+			screenPoint.y >= pos.y - halfHit &&
+			screenPoint.y <= pos.y + halfHit
+		) {
+			return handle;
+		}
+	}
+	return null;
+}
+
+const MIN_GROUP_SIZE = 10;
+
+export function computeMultiResizeUpdates(
+	handle: ResizeHandle,
+	startGroupBounds: BoundingBox,
+	delta: Point,
+	startShapeData: Map<string, { x: number; y: number; width: number; height: number }>,
+): Map<string, { x: number; y: number; width: number; height: number }> {
+	const raw = computeRawBounds(startGroupBounds, handle, delta);
+
+	// Clamp to minimum group size
+	const axes = handleAxes(handle);
+	const movesMin = handleMovesMin(handle);
+
+	if (axes.x && raw.width < MIN_GROUP_SIZE) {
+		if (movesMin.x) {
+			raw.x = raw.x + raw.width - MIN_GROUP_SIZE;
+		}
+		raw.width = MIN_GROUP_SIZE;
+	}
+	if (axes.y && raw.height < MIN_GROUP_SIZE) {
+		if (movesMin.y) {
+			raw.y = raw.y + raw.height - MIN_GROUP_SIZE;
+		}
+		raw.height = MIN_GROUP_SIZE;
+	}
+
+	// Compute scale factors
+	const scaleX = axes.x && startGroupBounds.width !== 0 ? raw.width / startGroupBounds.width : 1;
+	const scaleY = axes.y && startGroupBounds.height !== 0 ? raw.height / startGroupBounds.height : 1;
+
+	// Anchor point: the corner/edge that stays fixed
+	const anchorX = movesMin.x ? startGroupBounds.x + startGroupBounds.width : startGroupBounds.x;
+	const anchorY = movesMin.y ? startGroupBounds.y + startGroupBounds.height : startGroupBounds.y;
+
+	// New anchor after resize
+	const newAnchorX = movesMin.x ? raw.x + raw.width : raw.x;
+	const newAnchorY = movesMin.y ? raw.y + raw.height : raw.y;
+
+	const result = new Map<string, { x: number; y: number; width: number; height: number }>();
+
+	for (const [id, data] of startShapeData) {
+		const newX = newAnchorX + (data.x - anchorX) * scaleX;
+		const newY = newAnchorY + (data.y - anchorY) * scaleY;
+		const newWidth = Math.max(1, data.width * Math.abs(scaleX));
+		const newHeight = Math.max(1, data.height * Math.abs(scaleY));
+		result.set(id, { x: newX, y: newY, width: newWidth, height: newHeight });
+	}
+
+	return result;
 }
 
 export { HANDLE_SIZE };

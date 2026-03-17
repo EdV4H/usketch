@@ -9,6 +9,7 @@ import type {
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import {
+	createBatchUpdateShapesCommand,
 	createDeleteShapeCommand,
 	createMoveShapesCommand,
 	createUpdateShapeCommand,
@@ -17,11 +18,14 @@ import type { MarqueeMode, MarqueeRect } from "./marquee-state.js";
 import { clearMarqueeListeners, setMarquee, setMarqueeMode } from "./marquee-state.js";
 import {
 	applyFlip,
+	computeMultiResizeUpdates,
 	computeRawBounds,
 	findHandleAtScreenPoint,
+	findMultiHandleAtScreenPoint,
 	fixAnchorDrift,
 	getAnchorEdges,
 	getCursorForHandle,
+	getMultiSelectionBounds,
 } from "./resize-utils.js";
 import { SelectionOverlay } from "./selection-overlay.js";
 
@@ -107,6 +111,13 @@ type DragState =
 			startData: ShapeData;
 	  }
 	| {
+			mode: "multi-resize";
+			handle: ResizeHandle;
+			startPoint: Point;
+			startGroupBounds: BoundingBox;
+			startShapeData: Map<string, { x: number; y: number; width: number; height: number }>;
+	  }
+	| {
 			mode: "marquee";
 			startWorldPoint: Point;
 			startScreenPoint: Point;
@@ -163,9 +174,47 @@ export const selectToolPlugin: UsketchPlugin = {
 				}
 			}
 
+			// 1b. Check multi-selection resize handle hit
+			const selection = toolCtx.store.getSelection();
+			if (selection.size > 1) {
+				const groupBounds = getMultiSelectionBounds(toolCtx.store, toolCtx.shapes, selection);
+				if (groupBounds) {
+					const multiHandle = findMultiHandleAtScreenPoint(
+						event.screenPoint,
+						groupBounds,
+						viewport,
+					);
+					if (multiHandle) {
+						setOverrideCursor(getCursorForHandle(multiHandle));
+						const startShapeData = new Map<
+							string,
+							{ x: number; y: number; width: number; height: number }
+						>();
+						for (const id of selection) {
+							const shape = toolCtx.store.getShape(id);
+							if (shape) {
+								startShapeData.set(id, {
+									x: shape.x,
+									y: shape.y,
+									width: shape.width,
+									height: shape.height,
+								});
+							}
+						}
+						dragState = {
+							mode: "multi-resize",
+							handle: multiHandle,
+							startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
+							startGroupBounds: groupBounds,
+							startShapeData,
+						};
+						return;
+					}
+				}
+			}
+
 			// 2. Existing move/selection logic
 			const hitId = findShapeAtPoint(toolCtx, event.worldPoint);
-			const selection = toolCtx.store.getSelection();
 
 			if (hitId) {
 				if (event.shiftKey) {
@@ -220,7 +269,31 @@ export const selectToolPlugin: UsketchPlugin = {
 					toolCtx.store,
 					viewport,
 				);
-				setOverrideCursor(handleHit ? getCursorForHandle(handleHit.handle) : "");
+				if (handleHit) {
+					setOverrideCursor(getCursorForHandle(handleHit.handle));
+					return;
+				}
+				// Check multi-selection handles
+				const hoverSelection = toolCtx.store.getSelection();
+				if (hoverSelection.size > 1) {
+					const groupBounds = getMultiSelectionBounds(
+						toolCtx.store,
+						toolCtx.shapes,
+						hoverSelection,
+					);
+					if (groupBounds) {
+						const multiHandle = findMultiHandleAtScreenPoint(
+							event.screenPoint,
+							groupBounds,
+							viewport,
+						);
+						if (multiHandle) {
+							setOverrideCursor(getCursorForHandle(multiHandle));
+							return;
+						}
+					}
+				}
+				setOverrideCursor("");
 				return;
 			}
 
@@ -313,6 +386,23 @@ export const selectToolPlugin: UsketchPlugin = {
 				return;
 			}
 
+			if (dragState.mode === "multi-resize") {
+				const delta: Point = {
+					x: event.worldPoint.x - dragState.startPoint.x,
+					y: event.worldPoint.y - dragState.startPoint.y,
+				};
+				const multiUpdates = computeMultiResizeUpdates(
+					dragState.handle,
+					dragState.startGroupBounds,
+					delta,
+					dragState.startShapeData,
+				);
+				for (const [id, upd] of multiUpdates) {
+					toolCtx.store.updateShape(id, upd);
+				}
+				return;
+			}
+
 			// mode === "move"
 			const dx = event.worldPoint.x - dragState.startPoint.x;
 			const dy = event.worldPoint.y - dragState.startPoint.y;
@@ -386,6 +476,39 @@ export const selectToolPlugin: UsketchPlugin = {
 							createUpdateShapeCommand(toolCtx.store, dragState.shapeId, from, to),
 						);
 					}
+				}
+				dragState = null;
+				return;
+			}
+
+			if (dragState.mode === "multi-resize") {
+				setOverrideCursor("");
+				const batchUpdates: Array<{
+					id: string;
+					from: Partial<ShapeData>;
+					to: Partial<ShapeData>;
+				}> = [];
+				for (const [id, startData] of dragState.startShapeData) {
+					const currentShape = toolCtx.store.getShape(id);
+					if (!currentShape) continue;
+					const from: Partial<ShapeData> = {};
+					const to: Partial<ShapeData> = {};
+					for (const key of ["x", "y", "width", "height"] as const) {
+						if (currentShape[key] !== startData[key]) {
+							from[key] = startData[key];
+							to[key] = currentShape[key];
+						}
+					}
+					if (Object.keys(to).length > 0) {
+						batchUpdates.push({ id, from, to });
+					}
+				}
+				if (batchUpdates.length > 0) {
+					// Reset all shapes to start state, then execute batch command
+					for (const { id, from } of batchUpdates) {
+						toolCtx.store.updateShape(id, from);
+					}
+					toolCtx.commands.execute(createBatchUpdateShapesCommand(toolCtx.store, batchUpdates));
 				}
 				dragState = null;
 				return;

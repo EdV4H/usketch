@@ -67,3 +67,17 @@ export function createUpdateShapeCommand(
 		},
 	};
 }
+
+export function createBatchUpdateShapesCommand(
+	store: BoardStore,
+	updates: Array<{ id: string; from: Partial<ShapeData>; to: Partial<ShapeData> }>,
+): Command {
+	return {
+		execute() {
+			for (const { id, to } of updates) store.updateShape(id, to);
+		},
+		undo() {
+			for (const { id, from } of updates) store.updateShape(id, from);
+		},
+	};
+}
