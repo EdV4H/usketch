@@ -20,6 +20,7 @@ import {
 	PANEL_BASE,
 	SECTION_STYLE,
 } from "../styles.js";
+import type { SyncStatusTrackerLike } from "../sync-status-types.js";
 
 interface GeneralPanelProps {
 	store: BoardStore;
@@ -29,8 +30,29 @@ interface GeneralPanelProps {
 	tools: ToolRegistry;
 	layers: LayerManager;
 	shapes: ShapeRegistry;
+	syncStatus?: SyncStatusTrackerLike;
 	viewport: Viewport;
 	activeToolId: string;
+}
+
+const SYNC_STATE_COLORS: Record<string, string> = {
+	loading: "#fbbf24",
+	synced: "#4ade80",
+	syncing: "#60a5fa",
+	error: "#f87171",
+};
+
+const SYNC_STATE_LABELS: Record<string, string> = {
+	loading: "Loading…",
+	synced: "Synced",
+	syncing: "Syncing…",
+	error: "Error",
+};
+
+function formatTimestamp(ts: number | null): string {
+	if (ts === null) return "—";
+	const d = new Date(ts);
+	return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}:${d.getSeconds().toString().padStart(2, "0")}`;
 }
 
 export function GeneralPanel({
@@ -41,6 +63,7 @@ export function GeneralPanel({
 	tools,
 	layers,
 	shapes,
+	syncStatus,
 	viewport,
 	activeToolId,
 }: GeneralPanelProps) {
@@ -52,6 +75,20 @@ export function GeneralPanel({
 	const pointer = useSyncExternalStore(
 		useCallback((cb: () => void) => pointerTracker.subscribe(cb), [pointerTracker]),
 		() => pointerTracker.getSnapshot(),
+	);
+
+	const defaultSyncSnapshot = {
+		state: "loading" as const,
+		shapeCount: 0,
+		lastSyncedAt: null,
+		error: null,
+	};
+	const syncSnapshot = useSyncExternalStore(
+		useCallback(
+			(cb: () => void) => (syncStatus ? syncStatus.subscribe(cb) : () => {}),
+			[syncStatus],
+		),
+		() => syncStatus?.getSnapshot() ?? defaultSyncSnapshot,
 	);
 
 	const canUndo = commands.canUndo();
@@ -179,6 +216,31 @@ export function GeneralPanel({
 						Redo ⟶
 					</button>
 				</div>
+			</div>
+
+			{/* Sync Status */}
+			<div style={SECTION_STYLE}>
+				<div style={LABEL_STYLE}>Persistence (Yjs + IndexedDB)</div>
+				<div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+					<span
+						style={{
+							display: "inline-block",
+							width: 7,
+							height: 7,
+							borderRadius: "50%",
+							background: SYNC_STATE_COLORS[syncSnapshot.state] ?? "#888",
+						}}
+					/>
+					<span style={{ color: SYNC_STATE_COLORS[syncSnapshot.state] ?? "#888" }}>
+						{SYNC_STATE_LABELS[syncSnapshot.state] ?? syncSnapshot.state}
+					</span>
+				</div>
+				<div>
+					Shapes: {syncSnapshot.shapeCount} · Last: {formatTimestamp(syncSnapshot.lastSyncedAt)}
+				</div>
+				{syncSnapshot.error && (
+					<div style={{ color: "#f87171", fontSize: 10 }}>{syncSnapshot.error}</div>
+				)}
 			</div>
 
 			{/* System Info */}

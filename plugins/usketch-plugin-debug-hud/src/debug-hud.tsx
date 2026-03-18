@@ -16,6 +16,7 @@ import { GeneralPanel } from "./panels/general-panel.js";
 import { ShapesPanel } from "./panels/shapes-panel.js";
 import type { PointerTracker } from "./pointer-tracker.js";
 import { FONT_FAMILY, TEXT_MUTED } from "./styles.js";
+import type { SyncStatusTrackerLike } from "./sync-status-types.js";
 
 interface DebugHudProps {
 	store: BoardStore;
@@ -26,6 +27,7 @@ interface DebugHudProps {
 	tools: ToolRegistry;
 	layers: LayerManager;
 	shapes: ShapeRegistry;
+	syncStatus?: SyncStatusTrackerLike;
 	ctx: LayerRenderContext;
 }
 
@@ -44,6 +46,7 @@ export function DebugHud({
 	tools,
 	layers,
 	shapes,
+	syncStatus,
 	ctx,
 }: DebugHudProps) {
 	const [visible, setVisible] = useState(false);
@@ -107,6 +110,7 @@ export function DebugHud({
 				tools={tools}
 				layers={layers}
 				shapes={shapes}
+				syncStatus={syncStatus}
 				viewport={viewport}
 				activeToolId={activeToolId}
 			/>
