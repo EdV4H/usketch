@@ -33,7 +33,7 @@ export function createMoveShapesCommand(
 	dx: number,
 	dy: number,
 ): Command {
-	let snapshots: Map<string, ShapeData>;
+	let snapshots = new Map<string, ShapeData>();
 	return {
 		execute() {
 			snapshots = new Map();

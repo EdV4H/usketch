@@ -121,6 +121,8 @@ type DragState =
 			startShapeData: Map<string, MultiResizeShapeEntry>;
 			originalShapeData: Map<string, MultiResizeShapeEntry>;
 			originalFullShapes: Map<string, ShapeData>;
+			/** Base data for applyBounds — updated on flip to avoid stale geometry */
+			applyBoundsBase: Map<string, ShapeData>;
 	  }
 	| {
 			mode: "marquee";
@@ -222,6 +224,7 @@ export const selectToolPlugin: UsketchPlugin = {
 							startShapeData,
 							originalShapeData: new Map(startShapeData),
 							originalFullShapes,
+							applyBoundsBase: new Map(originalFullShapes),
 						};
 						return;
 					}
@@ -456,13 +459,20 @@ export const selectToolPlugin: UsketchPlugin = {
 						}
 						toolCtx.store.updateShape(id, update);
 					}
+					// Snapshot current shapes as new base for applyBounds
+					const flippedApplyBoundsBase = new Map<string, ShapeData>();
+					for (const id of flippedShapeData.keys()) {
+						const current = toolCtx.store.getShape(id);
+						if (current) flippedApplyBoundsBase.set(id, { ...current });
+					}
 					dragState = {
 						...dragState,
 						handle: flip.handle,
 						startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
 						startGroupBounds: flippedGroupBounds,
 						startShapeData: flippedShapeData,
-						// originalShapeData is preserved for undo
+						applyBoundsBase: flippedApplyBoundsBase,
+						// originalShapeData/originalFullShapes preserved for undo
 					};
 					setOverrideCursor(getCursorForHandle(flip.handle));
 					return;
@@ -475,10 +485,26 @@ export const selectToolPlugin: UsketchPlugin = {
 					dragState.startShapeData,
 				);
 				for (const [id, upd] of multiUpdates) {
-					const origShape = dragState.originalFullShapes.get(id);
-					const def = origShape ? toolCtx.shapes.get(origShape.type) : undefined;
-					if (def?.applyBounds && origShape) {
-						toolCtx.store.updateShape(id, def.applyBounds(origShape, upd));
+					const baseShape = dragState.applyBoundsBase.get(id);
+					const def = baseShape ? toolCtx.shapes.get(baseShape.type) : undefined;
+					if (def?.applyBounds && baseShape) {
+						// Pass {x,y,width,height} first so snap plugin can adjust
+						toolCtx.store.updateShape(id, upd);
+						// Read back snapped bounds and derive geometry
+						const snapped = toolCtx.store.getShape(id);
+						if (snapped) {
+							const snappedBounds = {
+								x: snapped.x,
+								y: snapped.y,
+								width: snapped.width,
+								height: snapped.height,
+							};
+							const geom = def.applyBounds(baseShape, snappedBounds);
+							const { x: _x, y: _y, width: _w, height: _h, ...rest } = geom;
+							if (Object.keys(rest).length > 0) {
+								toolCtx.store.updateShape(id, rest);
+							}
+						}
 					} else {
 						toolCtx.store.updateShape(id, upd);
 					}
@@ -491,14 +517,25 @@ export const selectToolPlugin: UsketchPlugin = {
 			const dy = event.worldPoint.y - dragState.startPoint.y;
 
 			for (const [id, snapshot] of dragState.startShapeSnapshots) {
+				// Always pass {x, y} first so snap plugin can adjust them
+				toolCtx.store.updateShape(id, {
+					x: snapshot.x + dx,
+					y: snapshot.y + dy,
+				});
 				const def = toolCtx.shapes.get(snapshot.type);
 				if (def?.move) {
-					toolCtx.store.updateShape(id, def.move(snapshot, dx, dy));
-				} else {
-					toolCtx.store.updateShape(id, {
-						x: snapshot.x + dx,
-						y: snapshot.y + dy,
-					});
+					// Read back the (possibly snap-adjusted) position and derive geometry
+					const snapped = toolCtx.store.getShape(id);
+					if (snapped) {
+						const snappedDx = snapped.x - snapshot.x;
+						const snappedDy = snapped.y - snapshot.y;
+						const geom = def.move(snapshot, snappedDx, snappedDy);
+						// Remove x/y to avoid re-triggering snap
+						const { x: _x, y: _y, ...rest } = geom;
+						if (Object.keys(rest).length > 0) {
+							toolCtx.store.updateShape(id, rest);
+						}
+					}
 				}
 			}
 		}
