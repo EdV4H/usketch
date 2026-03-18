@@ -446,7 +446,9 @@ export const selectToolPlugin: UsketchPlugin = {
 						}
 						flippedShapeData.set(id, newRel);
 					}
-					// Update store: only reset the flipped dimension(s)
+					// Temporarily disable snap during flip-reset to prevent
+					// snap from altering the zero-size anchor positioning
+					toolCtx.events.emit("snap:configure", { enabled: false });
 					for (const [id, data] of flippedShapeData) {
 						const update: Partial<ShapeData> = {};
 						if (flip.flippedX) {
@@ -459,6 +461,7 @@ export const selectToolPlugin: UsketchPlugin = {
 						}
 						toolCtx.store.updateShape(id, update);
 					}
+					toolCtx.events.emit("snap:configure", { enabled: true });
 					// Snapshot current shapes as new base for applyBounds
 					const flippedApplyBoundsBase = new Map<string, ShapeData>();
 					for (const id of flippedShapeData.keys()) {
