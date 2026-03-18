@@ -7,3 +7,8 @@ export {
 	createMoveShapesCommand,
 	createUpdateShapeCommand,
 } from "./commands.js";
+export {
+	createYjsSync,
+	type YjsSyncHandle,
+	type YjsSyncOptions,
+} from "./yjs-sync.js";
