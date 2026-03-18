@@ -369,6 +369,22 @@ export interface MultiResizeShapeEntry {
 	height: number;
 	minWidth: number;
 	minHeight: number;
+	// Normalized relative ratios (position & size within group, 0–1)
+	relX: number;
+	relY: number;
+	relWidth: number;
+	relHeight: number;
+}
+
+export function computeRelativeProps(
+	shapeData: { x: number; y: number; width: number; height: number },
+	groupBounds: BoundingBox,
+): { relX: number; relY: number; relWidth: number; relHeight: number } {
+	const relX = groupBounds.width > 0 ? (shapeData.x - groupBounds.x) / groupBounds.width : 0;
+	const relY = groupBounds.height > 0 ? (shapeData.y - groupBounds.y) / groupBounds.height : 0;
+	const relWidth = groupBounds.width > 0 ? shapeData.width / groupBounds.width : 1;
+	const relHeight = groupBounds.height > 0 ? shapeData.height / groupBounds.height : 1;
+	return { relX, relY, relWidth, relHeight };
 }
 
 export function computeMultiResizeUpdates(
@@ -383,23 +399,19 @@ export function computeMultiResizeUpdates(
 	const movesMin = handleMovesMin(handle);
 
 	// Compute minimum group size from the largest per-shape minSize,
-	// scaled by the ratio of shape size to group size.
+	// using relative ratios so it works even when startGroupBounds is zero-size.
 	let minGroupW = MIN_GROUP_SIZE;
 	let minGroupH = MIN_GROUP_SIZE;
-	if (startGroupBounds.width > 0) {
-		for (const data of startShapeData.values()) {
-			if (data.width > 0) {
-				const requiredGroupW = (data.minWidth / data.width) * startGroupBounds.width;
-				if (requiredGroupW > minGroupW) minGroupW = requiredGroupW;
-			}
+	for (const data of startShapeData.values()) {
+		if (data.relWidth > 0) {
+			const requiredGroupW = data.minWidth / data.relWidth;
+			if (requiredGroupW > minGroupW) minGroupW = requiredGroupW;
 		}
 	}
-	if (startGroupBounds.height > 0) {
-		for (const data of startShapeData.values()) {
-			if (data.height > 0) {
-				const requiredGroupH = (data.minHeight / data.height) * startGroupBounds.height;
-				if (requiredGroupH > minGroupH) minGroupH = requiredGroupH;
-			}
+	for (const data of startShapeData.values()) {
+		if (data.relHeight > 0) {
+			const requiredGroupH = data.minHeight / data.relHeight;
+			if (requiredGroupH > minGroupH) minGroupH = requiredGroupH;
 		}
 	}
 
@@ -417,25 +429,13 @@ export function computeMultiResizeUpdates(
 		raw.height = minGroupH;
 	}
 
-	// Compute scale factors
-	const scaleX = axes.x && startGroupBounds.width !== 0 ? raw.width / startGroupBounds.width : 1;
-	const scaleY = axes.y && startGroupBounds.height !== 0 ? raw.height / startGroupBounds.height : 1;
-
-	// Anchor point: the corner/edge that stays fixed
-	const anchorX = movesMin.x ? startGroupBounds.x + startGroupBounds.width : startGroupBounds.x;
-	const anchorY = movesMin.y ? startGroupBounds.y + startGroupBounds.height : startGroupBounds.y;
-
-	// New anchor after resize
-	const newAnchorX = movesMin.x ? raw.x + raw.width : raw.x;
-	const newAnchorY = movesMin.y ? raw.y + raw.height : raw.y;
-
 	const result = new Map<string, { x: number; y: number; width: number; height: number }>();
 
 	for (const [id, data] of startShapeData) {
-		const newX = newAnchorX + (data.x - anchorX) * scaleX;
-		const newY = newAnchorY + (data.y - anchorY) * scaleY;
-		const newWidth = Math.max(data.minWidth, data.width * Math.abs(scaleX));
-		const newHeight = Math.max(data.minHeight, data.height * Math.abs(scaleY));
+		const newX = raw.x + data.relX * raw.width;
+		const newY = raw.y + data.relY * raw.height;
+		const newWidth = Math.max(data.minWidth, data.relWidth * raw.width);
+		const newHeight = Math.max(data.minHeight, data.relHeight * raw.height);
 		result.set(id, { x: newX, y: newY, width: newWidth, height: newHeight });
 	}
 

@@ -14,12 +14,14 @@ import {
 	createMoveShapesCommand,
 	createUpdateShapeCommand,
 } from "@edv4h/usketch-store";
+import { clearDraggingListeners, setDragging } from "./drag-state.js";
 import type { MarqueeMode, MarqueeRect } from "./marquee-state.js";
 import { clearMarqueeListeners, setMarquee, setMarqueeMode } from "./marquee-state.js";
 import {
 	applyFlip,
 	computeMultiResizeUpdates,
 	computeRawBounds,
+	computeRelativeProps,
 	findHandleAtScreenPoint,
 	findMultiHandleAtScreenPoint,
 	fixAnchorDrift,
@@ -117,6 +119,7 @@ type DragState =
 			startPoint: Point;
 			startGroupBounds: BoundingBox;
 			startShapeData: Map<string, MultiResizeShapeEntry>;
+			originalShapeData: Map<string, MultiResizeShapeEntry>;
 	  }
 	| {
 			mode: "marquee";
@@ -193,6 +196,10 @@ export const selectToolPlugin: UsketchPlugin = {
 							if (shape) {
 								const def = toolCtx.shapes.get(shape.type);
 								const minSize = def?.minSize ?? { width: 1, height: 1 };
+								const rel = computeRelativeProps(
+									{ x: shape.x, y: shape.y, width: shape.width, height: shape.height },
+									groupBounds,
+								);
 								startShapeData.set(id, {
 									x: shape.x,
 									y: shape.y,
@@ -200,6 +207,7 @@ export const selectToolPlugin: UsketchPlugin = {
 									height: shape.height,
 									minWidth: minSize.width,
 									minHeight: minSize.height,
+									...rel,
 								});
 							}
 						}
@@ -209,6 +217,7 @@ export const selectToolPlugin: UsketchPlugin = {
 							startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
 							startGroupBounds: groupBounds,
 							startShapeData,
+							originalShapeData: new Map(startShapeData),
 						};
 						return;
 					}
@@ -242,6 +251,7 @@ export const selectToolPlugin: UsketchPlugin = {
 						startPositions.set(id, { x: shape.x, y: shape.y });
 					}
 				}
+				setDragging(true);
 				dragState = {
 					mode: "move",
 					startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
@@ -403,33 +413,36 @@ export const selectToolPlugin: UsketchPlugin = {
 				const flip = applyFlip(dragState.handle, rawGroupBounds, event.worldPoint);
 				if (flip.flipped) {
 					const anchor = getAnchorEdges(dragState.handle, rawGroupBounds);
-					// Mirror group bounds across the anchor axis
+					// Reset group bounds to zero-size at anchor position (same approach as single resize)
 					const flippedGroupBounds = { ...dragState.startGroupBounds };
 					if (flip.flippedX && anchor.x !== undefined) {
-						flippedGroupBounds.x = 2 * anchor.x - flippedGroupBounds.x - flippedGroupBounds.width;
+						flippedGroupBounds.x = anchor.x;
+						flippedGroupBounds.width = 0;
 					}
 					if (flip.flippedY && anchor.y !== undefined) {
-						flippedGroupBounds.y = 2 * anchor.y - flippedGroupBounds.y - flippedGroupBounds.height;
+						flippedGroupBounds.y = anchor.y;
+						flippedGroupBounds.height = 0;
 					}
-					// Mirror each shape across the anchor axis
+					// Mirror relative ratios and reset positions to anchor
 					const flippedShapeData = new Map<string, MultiResizeShapeEntry>();
 					for (const [id, data] of dragState.startShapeData) {
-						const mirroredX =
-							flip.flippedX && anchor.x !== undefined ? 2 * anchor.x - data.x - data.width : data.x;
-						const mirroredY =
-							flip.flippedY && anchor.y !== undefined
-								? 2 * anchor.y - data.y - data.height
-								: data.y;
-						flippedShapeData.set(id, { ...data, x: mirroredX, y: mirroredY });
+						const newRel = { ...data };
+						if (flip.flippedX) {
+							newRel.relX = 1 - data.relX - data.relWidth;
+						}
+						if (flip.flippedY) {
+							newRel.relY = 1 - data.relY - data.relHeight;
+						}
+						// Reset position to anchor (zero-size, all shapes collapse to same point)
+						newRel.x = flippedGroupBounds.x;
+						newRel.y = flippedGroupBounds.y;
+						newRel.width = 0;
+						newRel.height = 0;
+						flippedShapeData.set(id, newRel);
 					}
-					// Update store to show mirrored positions immediately
+					// Update store to show collapsed positions immediately
 					for (const [id, data] of flippedShapeData) {
-						toolCtx.store.updateShape(id, {
-							x: data.x,
-							y: data.y,
-							width: data.width,
-							height: data.height,
-						});
+						toolCtx.store.updateShape(id, { x: data.x, y: data.y, width: 0, height: 0 });
 					}
 					dragState = {
 						...dragState,
@@ -437,6 +450,7 @@ export const selectToolPlugin: UsketchPlugin = {
 						startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
 						startGroupBounds: flippedGroupBounds,
 						startShapeData: flippedShapeData,
+						// originalShapeData is preserved for undo
 					};
 					setOverrideCursor(getCursorForHandle(flip.handle));
 					return;
@@ -539,14 +553,14 @@ export const selectToolPlugin: UsketchPlugin = {
 					from: Partial<ShapeData>;
 					to: Partial<ShapeData>;
 				}> = [];
-				for (const [id, startData] of dragState.startShapeData) {
+				for (const [id, origData] of dragState.originalShapeData) {
 					const currentShape = toolCtx.store.getShape(id);
 					if (!currentShape) continue;
 					const from: Partial<ShapeData> = {};
 					const to: Partial<ShapeData> = {};
 					for (const key of ["x", "y", "width", "height"] as const) {
-						if (currentShape[key] !== startData[key]) {
-							from[key] = startData[key];
+						if (currentShape[key] !== origData[key]) {
+							from[key] = origData[key];
 							to[key] = currentShape[key];
 						}
 					}
@@ -566,6 +580,7 @@ export const selectToolPlugin: UsketchPlugin = {
 			}
 
 			// mode === "move"
+			setDragging(false);
 			// Calculate actual displacement from current (snap-adjusted) positions
 			const shapeIds = [...dragState.startPositions.keys()];
 			const firstId = shapeIds[0];
@@ -589,6 +604,7 @@ export const selectToolPlugin: UsketchPlugin = {
 
 		function onDeactivate(_toolCtx: ToolContext) {
 			dragState = null;
+			setDragging(false);
 			setMarquee(null);
 			setOverrideCursor("");
 		}
@@ -622,8 +638,10 @@ export const selectToolPlugin: UsketchPlugin = {
 		// ── Teardown ──
 		(this as UsketchPlugin).teardown = () => {
 			setOverrideCursor("");
+			setDragging(false);
 			setMarquee(null);
 			clearMarqueeListeners();
+			clearDraggingListeners();
 			styleEl.remove();
 			ctx.layers.unregister("selection-overlay");
 		};
