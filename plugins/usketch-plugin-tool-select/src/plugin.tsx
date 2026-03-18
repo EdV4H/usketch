@@ -105,7 +105,7 @@ function deleteSelectedShapes(ctx: PluginContext) {
 // ── Drag state types ──
 
 type DragState =
-	| { mode: "move"; startPoint: Point; startPositions: Map<string, Point> }
+	| { mode: "move"; startPoint: Point; startShapeSnapshots: Map<string, ShapeData> }
 	| {
 			mode: "resize";
 			shapeId: string;
@@ -120,6 +120,9 @@ type DragState =
 			startGroupBounds: BoundingBox;
 			startShapeData: Map<string, MultiResizeShapeEntry>;
 			originalShapeData: Map<string, MultiResizeShapeEntry>;
+			originalFullShapes: Map<string, ShapeData>;
+			/** Base data for applyBounds — updated on flip to avoid stale geometry */
+			applyBoundsBase: Map<string, ShapeData>;
 	  }
 	| {
 			mode: "marquee";
@@ -191,9 +194,11 @@ export const selectToolPlugin: UsketchPlugin = {
 					if (multiHandle) {
 						setOverrideCursor(getCursorForHandle(multiHandle));
 						const startShapeData = new Map<string, MultiResizeShapeEntry>();
+						const originalFullShapes = new Map<string, ShapeData>();
 						for (const id of selection) {
 							const shape = toolCtx.store.getShape(id);
 							if (shape) {
+								originalFullShapes.set(id, { ...shape });
 								const def = toolCtx.shapes.get(shape.type);
 								const minSize = def?.minSize ?? { width: 1, height: 1 };
 								const rel = computeRelativeProps(
@@ -218,6 +223,8 @@ export const selectToolPlugin: UsketchPlugin = {
 							startGroupBounds: groupBounds,
 							startShapeData,
 							originalShapeData: new Map(startShapeData),
+							originalFullShapes,
+							applyBoundsBase: new Map(originalFullShapes),
 						};
 						return;
 					}
@@ -244,18 +251,18 @@ export const selectToolPlugin: UsketchPlugin = {
 
 				// Start drag-move for all selected shapes
 				const currentSelection = toolCtx.store.getSelection();
-				const startPositions = new Map<string, Point>();
+				const startShapeSnapshots = new Map<string, ShapeData>();
 				for (const id of currentSelection) {
 					const shape = toolCtx.store.getShape(id);
 					if (shape) {
-						startPositions.set(id, { x: shape.x, y: shape.y });
+						startShapeSnapshots.set(id, { ...shape });
 					}
 				}
 				setMovingSelection(true);
 				dragState = {
 					mode: "move",
 					startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
-					startPositions,
+					startShapeSnapshots,
 				};
 			} else {
 				// Click on empty — start marquee selection
@@ -439,7 +446,9 @@ export const selectToolPlugin: UsketchPlugin = {
 						}
 						flippedShapeData.set(id, newRel);
 					}
-					// Update store: only reset the flipped dimension(s)
+					// Temporarily disable snap during flip-reset to prevent
+					// snap from altering the zero-size anchor positioning
+					toolCtx.events.emit("snap:configure", { enabled: false });
 					for (const [id, data] of flippedShapeData) {
 						const update: Partial<ShapeData> = {};
 						if (flip.flippedX) {
@@ -452,13 +461,21 @@ export const selectToolPlugin: UsketchPlugin = {
 						}
 						toolCtx.store.updateShape(id, update);
 					}
+					toolCtx.events.emit("snap:configure", { enabled: true });
+					// Snapshot current shapes as new base for applyBounds
+					const flippedApplyBoundsBase = new Map<string, ShapeData>();
+					for (const id of flippedShapeData.keys()) {
+						const current = toolCtx.store.getShape(id);
+						if (current) flippedApplyBoundsBase.set(id, { ...current });
+					}
 					dragState = {
 						...dragState,
 						handle: flip.handle,
 						startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
 						startGroupBounds: flippedGroupBounds,
 						startShapeData: flippedShapeData,
-						// originalShapeData is preserved for undo
+						applyBoundsBase: flippedApplyBoundsBase,
+						// originalShapeData/originalFullShapes preserved for undo
 					};
 					setOverrideCursor(getCursorForHandle(flip.handle));
 					return;
@@ -471,7 +488,29 @@ export const selectToolPlugin: UsketchPlugin = {
 					dragState.startShapeData,
 				);
 				for (const [id, upd] of multiUpdates) {
-					toolCtx.store.updateShape(id, upd);
+					const baseShape = dragState.applyBoundsBase.get(id);
+					const def = baseShape ? toolCtx.shapes.get(baseShape.type) : undefined;
+					if (def?.applyBounds && baseShape) {
+						// Pass {x,y,width,height} first so snap plugin can adjust
+						toolCtx.store.updateShape(id, upd);
+						// Read back snapped bounds and derive geometry
+						const snapped = toolCtx.store.getShape(id);
+						if (snapped) {
+							const snappedBounds = {
+								x: snapped.x,
+								y: snapped.y,
+								width: snapped.width,
+								height: snapped.height,
+							};
+							const geom = def.applyBounds(baseShape, snappedBounds);
+							const { x: _x, y: _y, width: _w, height: _h, ...rest } = geom;
+							if (Object.keys(rest).length > 0) {
+								toolCtx.store.updateShape(id, rest);
+							}
+						}
+					} else {
+						toolCtx.store.updateShape(id, upd);
+					}
 				}
 				return;
 			}
@@ -480,11 +519,27 @@ export const selectToolPlugin: UsketchPlugin = {
 			const dx = event.worldPoint.x - dragState.startPoint.x;
 			const dy = event.worldPoint.y - dragState.startPoint.y;
 
-			for (const [id, startPos] of dragState.startPositions) {
+			for (const [id, snapshot] of dragState.startShapeSnapshots) {
+				// Always pass {x, y} first so snap plugin can adjust them
 				toolCtx.store.updateShape(id, {
-					x: startPos.x + dx,
-					y: startPos.y + dy,
+					x: snapshot.x + dx,
+					y: snapshot.y + dy,
 				});
+				const def = toolCtx.shapes.get(snapshot.type);
+				if (def?.move) {
+					// Read back the (possibly snap-adjusted) position and derive geometry
+					const snapped = toolCtx.store.getShape(id);
+					if (snapped) {
+						const snappedDx = snapped.x - snapshot.x;
+						const snappedDy = snapped.y - snapshot.y;
+						const geom = def.move(snapshot, snappedDx, snappedDy);
+						// Remove x/y to avoid re-triggering snap
+						const { x: _x, y: _y, ...rest } = geom;
+						if (Object.keys(rest).length > 0) {
+							toolCtx.store.updateShape(id, rest);
+						}
+					}
+				}
 			}
 		}
 
@@ -543,11 +598,12 @@ export const selectToolPlugin: UsketchPlugin = {
 					}
 
 					if (Object.keys(to).length > 0) {
-						// Reset to start, then execute command for undo support
-						toolCtx.store.updateShape(dragState.shapeId, from);
-						toolCtx.commands.execute(
-							createUpdateShapeCommand(toolCtx.store, dragState.shapeId, from, to),
-						);
+						// Defer reset+execute to after canvas:pointerup disables snap
+						const shapeId = dragState.shapeId;
+						queueMicrotask(() => {
+							toolCtx.store.updateShape(shapeId, from);
+							toolCtx.commands.execute(createUpdateShapeCommand(toolCtx.store, shapeId, from, to));
+						});
 					}
 				}
 				dragState = null;
@@ -561,15 +617,18 @@ export const selectToolPlugin: UsketchPlugin = {
 					from: Partial<ShapeData>;
 					to: Partial<ShapeData>;
 				}> = [];
-				for (const [id, origData] of dragState.originalShapeData) {
+				for (const [id, origFullShape] of dragState.originalFullShapes) {
 					const currentShape = toolCtx.store.getShape(id);
 					if (!currentShape) continue;
 					const from: Partial<ShapeData> = {};
 					const to: Partial<ShapeData> = {};
-					for (const key of ["x", "y", "width", "height"] as const) {
-						if (currentShape[key] !== origData[key]) {
-							from[key] = origData[key];
-							to[key] = currentShape[key];
+					for (const key of Object.keys(currentShape)) {
+						if (key === "id" || key === "type" || key === "style") continue;
+						const currentValue = currentShape[key];
+						const origValue = origFullShape[key];
+						if (JSON.stringify(currentValue) !== JSON.stringify(origValue)) {
+							from[key] = origValue;
+							to[key] = currentValue;
 						}
 					}
 					if (Object.keys(to).length > 0) {
@@ -577,11 +636,14 @@ export const selectToolPlugin: UsketchPlugin = {
 					}
 				}
 				if (batchUpdates.length > 0) {
-					// Reset all shapes to start state, then execute batch command
-					for (const { id, from } of batchUpdates) {
-						toolCtx.store.updateShape(id, from);
-					}
-					toolCtx.commands.execute(createBatchUpdateShapesCommand(toolCtx.store, batchUpdates));
+					// Defer reset+execute to after canvas:pointerup disables snap
+					const storeRef = toolCtx.store;
+					queueMicrotask(() => {
+						for (const { id, from } of batchUpdates) {
+							storeRef.updateShape(id, from);
+						}
+						toolCtx.commands.execute(createBatchUpdateShapesCommand(storeRef, batchUpdates));
+					});
 				}
 				dragState = null;
 				return;
@@ -589,22 +651,30 @@ export const selectToolPlugin: UsketchPlugin = {
 
 			// mode === "move"
 			setMovingSelection(false);
-			// Calculate actual displacement from current (snap-adjusted) positions
-			const shapeIds = [...dragState.startPositions.keys()];
-			const firstId = shapeIds[0];
-			const firstStart = dragState.startPositions.get(firstId);
-			const firstCurrent = firstId ? toolCtx.store.getShape(firstId) : undefined;
-
-			const dx = firstCurrent && firstStart ? firstCurrent.x - firstStart.x : 0;
-			const dy = firstCurrent && firstStart ? firstCurrent.y - firstStart.y : 0;
-
-			// Only create undoable command if shapes actually moved
-			if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-				// Reset positions to start, then execute command for undo support
-				for (const [id, startPos] of dragState.startPositions) {
-					toolCtx.store.updateShape(id, { x: startPos.x, y: startPos.y });
+			// Build before/after snapshots for undoable command
+			const beforeSnapshots = dragState.startShapeSnapshots;
+			const afterSnapshots = new Map<string, ShapeData>();
+			let hasMoved = false;
+			for (const [id, before] of beforeSnapshots) {
+				const current = toolCtx.store.getShape(id);
+				if (current) {
+					afterSnapshots.set(id, { ...current });
+					if (Math.abs(current.x - before.x) > 0.5 || Math.abs(current.y - before.y) > 0.5) {
+						hasMoved = true;
+					}
 				}
-				toolCtx.commands.execute(createMoveShapesCommand(toolCtx.store, shapeIds, dx, dy));
+			}
+
+			if (hasMoved) {
+				// Defer reset+execute to after canvas:pointerup disables snap
+				queueMicrotask(() => {
+					for (const [id, before] of beforeSnapshots) {
+						toolCtx.store.updateShape(id, before);
+					}
+					toolCtx.commands.execute(
+						createMoveShapesCommand(toolCtx.store, beforeSnapshots, afterSnapshots),
+					);
+				});
 			}
 
 			dragState = null;

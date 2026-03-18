@@ -143,6 +143,32 @@ function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData 
 	};
 }
 
+function move(data: ShapeData, dx: number, dy: number): Partial<ShapeData> {
+	const points = (data.points as Point[]) ?? [];
+	return {
+		x: data.x + dx,
+		y: data.y + dy,
+		points: points.map((p) => ({ x: p.x + dx, y: p.y + dy })),
+	};
+}
+
+function applyBounds(data: ShapeData, newBounds: BoundingBox): Partial<ShapeData> {
+	const points = (data.points as Point[]) ?? [];
+	const oldBounds = getBounds(data);
+	const scaleX = oldBounds.width !== 0 ? newBounds.width / oldBounds.width : 1;
+	const scaleY = oldBounds.height !== 0 ? newBounds.height / oldBounds.height : 1;
+	return {
+		x: newBounds.x,
+		y: newBounds.y,
+		width: newBounds.width,
+		height: newBounds.height,
+		points: points.map((p) => ({
+			x: newBounds.x + (p.x - oldBounds.x) * scaleX,
+			y: newBounds.y + (p.y - oldBounds.y) * scaleY,
+		})),
+	};
+}
+
 function createDefault(params: { id: string; x: number; y: number }): ShapeData {
 	return {
 		id: params.id,
@@ -237,6 +263,8 @@ export const freedrawPlugin: UsketchPlugin = {
 			hitTest,
 			resize,
 			createDefault,
+			move,
+			applyBounds,
 		});
 
 		ctx.tools.register("freedraw-draw", {

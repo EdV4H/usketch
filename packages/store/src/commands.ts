@@ -28,25 +28,18 @@ export function createDeleteShapeCommand(store: BoardStore, shapeId: string): Co
 
 export function createMoveShapesCommand(
 	store: BoardStore,
-	shapeIds: string[],
-	dx: number,
-	dy: number,
+	beforeSnapshots: Map<string, ShapeData>,
+	afterSnapshots: Map<string, ShapeData>,
 ): Command {
 	return {
 		execute() {
-			for (const id of shapeIds) {
-				const shape = store.getShape(id);
-				if (shape) {
-					store.updateShape(id, { x: shape.x + dx, y: shape.y + dy });
-				}
+			for (const [id, after] of afterSnapshots) {
+				store.updateShape(id, after);
 			}
 		},
 		undo() {
-			for (const id of shapeIds) {
-				const shape = store.getShape(id);
-				if (shape) {
-					store.updateShape(id, { x: shape.x - dx, y: shape.y - dy });
-				}
+			for (const [id, before] of beforeSnapshots) {
+				store.updateShape(id, before);
 			}
 		},
 	};
