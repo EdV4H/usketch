@@ -25,6 +25,10 @@ export interface SnapLine {
 export interface SnapResult {
 	dx: number;
 	dy: number;
+	/** Which edge of the moving box matched on the X axis (null if no x snap) */
+	xEdge: SnapEdge | null;
+	/** Which edge of the moving box matched on the Y axis (null if no y snap) */
+	yEdge: SnapEdge | null;
 	lines: SnapLine[];
 }
 
