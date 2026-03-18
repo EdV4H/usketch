@@ -1,5 +1,6 @@
-import type { BoardStore, BoundingBox, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
+import type { BoardStore, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
+import { getMovingSelection, subscribeMovingSelection } from "./drag-state.js";
 import type { MarqueeMode } from "./marquee-state.js";
 import {
 	getMarqueeHitIds,
@@ -7,7 +8,12 @@ import {
 	getMarqueeRect,
 	subscribeMarquee,
 } from "./marquee-state.js";
-import { getHandlePositions, HANDLE_SIZE } from "./resize-utils.js";
+import {
+	getHandlePositions,
+	getMultiSelectionBounds,
+	getShapeBounds,
+	HANDLE_SIZE,
+} from "./resize-utils.js";
 
 interface SelectionOverlayProps {
 	store: BoardStore;
@@ -16,38 +22,6 @@ interface SelectionOverlayProps {
 }
 
 const STROKE_COLOR = "#2680eb";
-
-function getShapeBounds(store: BoardStore, shapes: ShapeRegistry, id: string): BoundingBox | null {
-	const shape = store.getShape(id);
-	if (!shape) return null;
-	const def = shapes.get(shape.type);
-	return def
-		? def.getBounds(shape)
-		: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
-}
-
-function getMultiSelectionBounds(
-	store: BoardStore,
-	shapes: ShapeRegistry,
-	selection: ReadonlySet<string>,
-): BoundingBox | null {
-	let minX = Number.POSITIVE_INFINITY;
-	let minY = Number.POSITIVE_INFINITY;
-	let maxX = Number.NEGATIVE_INFINITY;
-	let maxY = Number.NEGATIVE_INFINITY;
-
-	for (const id of selection) {
-		const bounds = getShapeBounds(store, shapes, id);
-		if (!bounds) continue;
-		minX = Math.min(minX, bounds.x);
-		minY = Math.min(minY, bounds.y);
-		maxX = Math.max(maxX, bounds.x + bounds.width);
-		maxY = Math.max(maxY, bounds.y + bounds.height);
-	}
-
-	if (!Number.isFinite(minX)) return null;
-	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
 
 function ShapeBoundingBox({
 	store,
@@ -96,7 +70,14 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 		getMarqueeMode,
 	);
 
+	const isMoving = useSyncExternalStore(
+		subscribeMovingSelection,
+		getMovingSelection,
+		getMovingSelection,
+	);
+
 	if (activeToolId !== "select") return null;
+	if (isMoving) return null;
 
 	// Single selection: bounding box + handles
 	if (selection.size === 1 && !marqueeRect) {
@@ -185,16 +166,30 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 				))}
 			{/* Combined bounding box for confirmed selection */}
 			{multiBounds && (
-				<rect
-					x={multiBounds.x * viewport.zoom + viewport.x}
-					y={multiBounds.y * viewport.zoom + viewport.y}
-					width={multiBounds.width * viewport.zoom}
-					height={multiBounds.height * viewport.zoom}
-					fill="none"
-					stroke={STROKE_COLOR}
-					strokeWidth={1}
-					strokeDasharray="4 2"
-				/>
+				<>
+					<rect
+						x={multiBounds.x * viewport.zoom + viewport.x}
+						y={multiBounds.y * viewport.zoom + viewport.y}
+						width={multiBounds.width * viewport.zoom}
+						height={multiBounds.height * viewport.zoom}
+						fill="none"
+						stroke={STROKE_COLOR}
+						strokeWidth={1}
+						strokeDasharray="4 2"
+					/>
+					{[...getHandlePositions(multiBounds, viewport).entries()].map(([handle, pos]) => (
+						<rect
+							key={`multi-handle-${handle}`}
+							x={pos.x - HANDLE_SIZE / 2}
+							y={pos.y - HANDLE_SIZE / 2}
+							width={HANDLE_SIZE}
+							height={HANDLE_SIZE}
+							fill="#ffffff"
+							stroke={STROKE_COLOR}
+							strokeWidth={1}
+						/>
+					))}
+				</>
 			)}
 			{/* Individual bounding boxes for marquee-hovered shapes */}
 			{hasMarqueeHits &&

@@ -37,6 +37,7 @@ export interface ShapeDefinition {
 	resize: (data: ShapeData, handle: ResizeHandle, delta: Point) => ShapeData;
 	createDefault: (params: { id: string; x: number; y: number }) => ShapeData;
 	renderTarget?: RenderTarget;
+	minSize?: { width: number; height: number };
 }
 
 export interface ShapeRegistry {

@@ -91,7 +91,7 @@ export function getCursorForHandle(handle: ResizeHandle): string {
 // ── Flip support ──
 
 /** Which axes a handle affects */
-function handleAxes(handle: ResizeHandle): { x: boolean; y: boolean } {
+export function handleAxes(handle: ResizeHandle): { x: boolean; y: boolean } {
 	switch (handle) {
 		case "e":
 		case "w":
@@ -105,7 +105,7 @@ function handleAxes(handle: ResizeHandle): { x: boolean; y: boolean } {
 }
 
 /** Whether the handle moves the min edge (left/top) on each axis */
-function handleMovesMin(handle: ResizeHandle): { x: boolean; y: boolean } {
+export function handleMovesMin(handle: ResizeHandle): { x: boolean; y: boolean } {
 	const movesMinX = handle === "nw" || handle === "w" || handle === "sw";
 	const movesMinY = handle === "nw" || handle === "n" || handle === "ne";
 	return { x: movesMinX, y: movesMinY };
@@ -298,6 +298,148 @@ export function computeRawBounds(
 			break;
 	}
 	return { x, y, width, height };
+}
+
+// ── Multi-selection helpers ──
+
+export function getShapeBounds(
+	store: BoardStore,
+	shapes: ShapeRegistry,
+	id: string,
+): BoundingBox | null {
+	const shape = store.getShape(id);
+	if (!shape) return null;
+	const def = shapes.get(shape.type);
+	return def
+		? def.getBounds(shape)
+		: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+}
+
+export function getMultiSelectionBounds(
+	store: BoardStore,
+	shapes: ShapeRegistry,
+	selection: ReadonlySet<string>,
+): BoundingBox | null {
+	let minX = Number.POSITIVE_INFINITY;
+	let minY = Number.POSITIVE_INFINITY;
+	let maxX = Number.NEGATIVE_INFINITY;
+	let maxY = Number.NEGATIVE_INFINITY;
+
+	for (const id of selection) {
+		const bounds = getShapeBounds(store, shapes, id);
+		if (!bounds) continue;
+		minX = Math.min(minX, bounds.x);
+		minY = Math.min(minY, bounds.y);
+		maxX = Math.max(maxX, bounds.x + bounds.width);
+		maxY = Math.max(maxY, bounds.y + bounds.height);
+	}
+
+	if (!Number.isFinite(minX)) return null;
+	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+export function findMultiHandleAtScreenPoint(
+	screenPoint: Point,
+	groupBounds: BoundingBox,
+	viewport: Viewport,
+): ResizeHandle | null {
+	const positions = getHandlePositions(groupBounds, viewport);
+	const halfHit = HIT_AREA / 2;
+	for (const handle of ALL_HANDLES) {
+		const pos = positions.get(handle);
+		if (!pos) continue;
+		if (
+			screenPoint.x >= pos.x - halfHit &&
+			screenPoint.x <= pos.x + halfHit &&
+			screenPoint.y >= pos.y - halfHit &&
+			screenPoint.y <= pos.y + halfHit
+		) {
+			return handle;
+		}
+	}
+	return null;
+}
+
+const MIN_GROUP_SIZE = 10;
+
+export interface MultiResizeShapeEntry {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	minWidth: number;
+	minHeight: number;
+	// Normalized relative ratios (position & size within group, 0–1)
+	relX: number;
+	relY: number;
+	relWidth: number;
+	relHeight: number;
+}
+
+export function computeRelativeProps(
+	shapeData: { x: number; y: number; width: number; height: number },
+	groupBounds: BoundingBox,
+): { relX: number; relY: number; relWidth: number; relHeight: number } {
+	const relX = groupBounds.width > 0 ? (shapeData.x - groupBounds.x) / groupBounds.width : 0;
+	const relY = groupBounds.height > 0 ? (shapeData.y - groupBounds.y) / groupBounds.height : 0;
+	const relWidth = groupBounds.width > 0 ? shapeData.width / groupBounds.width : 1;
+	const relHeight = groupBounds.height > 0 ? shapeData.height / groupBounds.height : 1;
+	return { relX, relY, relWidth, relHeight };
+}
+
+export function computeMultiResizeUpdates(
+	handle: ResizeHandle,
+	startGroupBounds: BoundingBox,
+	delta: Point,
+	startShapeData: Map<string, MultiResizeShapeEntry>,
+): Map<string, { x: number; y: number; width: number; height: number }> {
+	const raw = computeRawBounds(startGroupBounds, handle, delta);
+
+	const axes = handleAxes(handle);
+	const movesMin = handleMovesMin(handle);
+
+	// Compute minimum group size from the largest per-shape minSize,
+	// using relative ratios so it works even when startGroupBounds is zero-size.
+	let minGroupW = MIN_GROUP_SIZE;
+	let minGroupH = MIN_GROUP_SIZE;
+	for (const data of startShapeData.values()) {
+		if (data.relWidth > 0) {
+			const requiredGroupW = data.minWidth / data.relWidth;
+			if (requiredGroupW > minGroupW) minGroupW = requiredGroupW;
+		}
+	}
+	for (const data of startShapeData.values()) {
+		if (data.relHeight > 0) {
+			const requiredGroupH = data.minHeight / data.relHeight;
+			if (requiredGroupH > minGroupH) minGroupH = requiredGroupH;
+		}
+	}
+
+	// Clamp to minimum group size
+	if (axes.x && raw.width < minGroupW) {
+		if (movesMin.x) {
+			raw.x = raw.x + raw.width - minGroupW;
+		}
+		raw.width = minGroupW;
+	}
+	if (axes.y && raw.height < minGroupH) {
+		if (movesMin.y) {
+			raw.y = raw.y + raw.height - minGroupH;
+		}
+		raw.height = minGroupH;
+	}
+
+	const result = new Map<string, { x: number; y: number; width: number; height: number }>();
+
+	for (const [id, data] of startShapeData) {
+		const newX = raw.x + data.relX * raw.width;
+		const newY = raw.y + data.relY * raw.height;
+		const newWidth = Math.max(data.minWidth, data.relWidth * raw.width);
+		const newHeight = Math.max(data.minHeight, data.relHeight * raw.height);
+		result.set(id, { x: newX, y: newY, width: newWidth, height: newHeight });
+	}
+
+	return result;
 }
 
 export { HANDLE_SIZE };

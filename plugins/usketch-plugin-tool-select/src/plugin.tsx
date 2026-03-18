@@ -9,19 +9,26 @@ import type {
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import {
+	createBatchUpdateShapesCommand,
 	createDeleteShapeCommand,
 	createMoveShapesCommand,
 	createUpdateShapeCommand,
 } from "@edv4h/usketch-store";
+import { clearMovingSelectionListeners, setMovingSelection } from "./drag-state.js";
 import type { MarqueeMode, MarqueeRect } from "./marquee-state.js";
 import { clearMarqueeListeners, setMarquee, setMarqueeMode } from "./marquee-state.js";
 import {
 	applyFlip,
+	computeMultiResizeUpdates,
 	computeRawBounds,
+	computeRelativeProps,
 	findHandleAtScreenPoint,
+	findMultiHandleAtScreenPoint,
 	fixAnchorDrift,
 	getAnchorEdges,
 	getCursorForHandle,
+	getMultiSelectionBounds,
+	type MultiResizeShapeEntry,
 } from "./resize-utils.js";
 import { SelectionOverlay } from "./selection-overlay.js";
 
@@ -107,6 +114,14 @@ type DragState =
 			startData: ShapeData;
 	  }
 	| {
+			mode: "multi-resize";
+			handle: ResizeHandle;
+			startPoint: Point;
+			startGroupBounds: BoundingBox;
+			startShapeData: Map<string, MultiResizeShapeEntry>;
+			originalShapeData: Map<string, MultiResizeShapeEntry>;
+	  }
+	| {
 			mode: "marquee";
 			startWorldPoint: Point;
 			startScreenPoint: Point;
@@ -163,9 +178,54 @@ export const selectToolPlugin: UsketchPlugin = {
 				}
 			}
 
+			// 1b. Check multi-selection resize handle hit
+			const selection = toolCtx.store.getSelection();
+			if (selection.size > 1) {
+				const groupBounds = getMultiSelectionBounds(toolCtx.store, toolCtx.shapes, selection);
+				if (groupBounds) {
+					const multiHandle = findMultiHandleAtScreenPoint(
+						event.screenPoint,
+						groupBounds,
+						viewport,
+					);
+					if (multiHandle) {
+						setOverrideCursor(getCursorForHandle(multiHandle));
+						const startShapeData = new Map<string, MultiResizeShapeEntry>();
+						for (const id of selection) {
+							const shape = toolCtx.store.getShape(id);
+							if (shape) {
+								const def = toolCtx.shapes.get(shape.type);
+								const minSize = def?.minSize ?? { width: 1, height: 1 };
+								const rel = computeRelativeProps(
+									{ x: shape.x, y: shape.y, width: shape.width, height: shape.height },
+									groupBounds,
+								);
+								startShapeData.set(id, {
+									x: shape.x,
+									y: shape.y,
+									width: shape.width,
+									height: shape.height,
+									minWidth: minSize.width,
+									minHeight: minSize.height,
+									...rel,
+								});
+							}
+						}
+						dragState = {
+							mode: "multi-resize",
+							handle: multiHandle,
+							startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
+							startGroupBounds: groupBounds,
+							startShapeData,
+							originalShapeData: new Map(startShapeData),
+						};
+						return;
+					}
+				}
+			}
+
 			// 2. Existing move/selection logic
 			const hitId = findShapeAtPoint(toolCtx, event.worldPoint);
-			const selection = toolCtx.store.getSelection();
 
 			if (hitId) {
 				if (event.shiftKey) {
@@ -191,6 +251,7 @@ export const selectToolPlugin: UsketchPlugin = {
 						startPositions.set(id, { x: shape.x, y: shape.y });
 					}
 				}
+				setMovingSelection(true);
 				dragState = {
 					mode: "move",
 					startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
@@ -220,7 +281,31 @@ export const selectToolPlugin: UsketchPlugin = {
 					toolCtx.store,
 					viewport,
 				);
-				setOverrideCursor(handleHit ? getCursorForHandle(handleHit.handle) : "");
+				if (handleHit) {
+					setOverrideCursor(getCursorForHandle(handleHit.handle));
+					return;
+				}
+				// Check multi-selection handles
+				const hoverSelection = toolCtx.store.getSelection();
+				if (hoverSelection.size > 1) {
+					const groupBounds = getMultiSelectionBounds(
+						toolCtx.store,
+						toolCtx.shapes,
+						hoverSelection,
+					);
+					if (groupBounds) {
+						const multiHandle = findMultiHandleAtScreenPoint(
+							event.screenPoint,
+							groupBounds,
+							viewport,
+						);
+						if (multiHandle) {
+							setOverrideCursor(getCursorForHandle(multiHandle));
+							return;
+						}
+					}
+				}
+				setOverrideCursor("");
 				return;
 			}
 
@@ -313,6 +398,84 @@ export const selectToolPlugin: UsketchPlugin = {
 				return;
 			}
 
+			if (dragState.mode === "multi-resize") {
+				const delta: Point = {
+					x: event.worldPoint.x - dragState.startPoint.x,
+					y: event.worldPoint.y - dragState.startPoint.y,
+				};
+
+				// Flip detection on the group bounding box
+				const rawGroupBounds = computeRawBounds(
+					dragState.startGroupBounds,
+					dragState.handle,
+					delta,
+				);
+				const flip = applyFlip(dragState.handle, rawGroupBounds, event.worldPoint);
+				if (flip.flipped) {
+					const anchor = getAnchorEdges(dragState.handle, rawGroupBounds);
+					// Reset group bounds to zero-size at anchor position (same approach as single resize)
+					const flippedGroupBounds = { ...dragState.startGroupBounds };
+					if (flip.flippedX && anchor.x !== undefined) {
+						flippedGroupBounds.x = anchor.x;
+						flippedGroupBounds.width = 0;
+					}
+					if (flip.flippedY && anchor.y !== undefined) {
+						flippedGroupBounds.y = anchor.y;
+						flippedGroupBounds.height = 0;
+					}
+					// Mirror relative ratios and reset only the flipped axis
+					const flippedShapeData = new Map<string, MultiResizeShapeEntry>();
+					for (const [id, data] of dragState.startShapeData) {
+						const newRel = { ...data };
+						if (flip.flippedX) {
+							newRel.relX = 1 - data.relX - data.relWidth;
+							newRel.x = flippedGroupBounds.x;
+							newRel.width = 0;
+						}
+						if (flip.flippedY) {
+							newRel.relY = 1 - data.relY - data.relHeight;
+							newRel.y = flippedGroupBounds.y;
+							newRel.height = 0;
+						}
+						flippedShapeData.set(id, newRel);
+					}
+					// Update store: only reset the flipped dimension(s)
+					for (const [id, data] of flippedShapeData) {
+						const update: Partial<ShapeData> = {};
+						if (flip.flippedX) {
+							update.x = data.x;
+							update.width = 0;
+						}
+						if (flip.flippedY) {
+							update.y = data.y;
+							update.height = 0;
+						}
+						toolCtx.store.updateShape(id, update);
+					}
+					dragState = {
+						...dragState,
+						handle: flip.handle,
+						startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
+						startGroupBounds: flippedGroupBounds,
+						startShapeData: flippedShapeData,
+						// originalShapeData is preserved for undo
+					};
+					setOverrideCursor(getCursorForHandle(flip.handle));
+					return;
+				}
+
+				const multiUpdates = computeMultiResizeUpdates(
+					dragState.handle,
+					dragState.startGroupBounds,
+					delta,
+					dragState.startShapeData,
+				);
+				for (const [id, upd] of multiUpdates) {
+					toolCtx.store.updateShape(id, upd);
+				}
+				return;
+			}
+
 			// mode === "move"
 			const dx = event.worldPoint.x - dragState.startPoint.x;
 			const dy = event.worldPoint.y - dragState.startPoint.y;
@@ -391,7 +554,41 @@ export const selectToolPlugin: UsketchPlugin = {
 				return;
 			}
 
+			if (dragState.mode === "multi-resize") {
+				setOverrideCursor("");
+				const batchUpdates: Array<{
+					id: string;
+					from: Partial<ShapeData>;
+					to: Partial<ShapeData>;
+				}> = [];
+				for (const [id, origData] of dragState.originalShapeData) {
+					const currentShape = toolCtx.store.getShape(id);
+					if (!currentShape) continue;
+					const from: Partial<ShapeData> = {};
+					const to: Partial<ShapeData> = {};
+					for (const key of ["x", "y", "width", "height"] as const) {
+						if (currentShape[key] !== origData[key]) {
+							from[key] = origData[key];
+							to[key] = currentShape[key];
+						}
+					}
+					if (Object.keys(to).length > 0) {
+						batchUpdates.push({ id, from, to });
+					}
+				}
+				if (batchUpdates.length > 0) {
+					// Reset all shapes to start state, then execute batch command
+					for (const { id, from } of batchUpdates) {
+						toolCtx.store.updateShape(id, from);
+					}
+					toolCtx.commands.execute(createBatchUpdateShapesCommand(toolCtx.store, batchUpdates));
+				}
+				dragState = null;
+				return;
+			}
+
 			// mode === "move"
+			setMovingSelection(false);
 			// Calculate actual displacement from current (snap-adjusted) positions
 			const shapeIds = [...dragState.startPositions.keys()];
 			const firstId = shapeIds[0];
@@ -415,6 +612,7 @@ export const selectToolPlugin: UsketchPlugin = {
 
 		function onDeactivate(_toolCtx: ToolContext) {
 			dragState = null;
+			setMovingSelection(false);
 			setMarquee(null);
 			setOverrideCursor("");
 		}
@@ -448,8 +646,10 @@ export const selectToolPlugin: UsketchPlugin = {
 		// ── Teardown ──
 		(this as UsketchPlugin).teardown = () => {
 			setOverrideCursor("");
+			setMovingSelection(false);
 			setMarquee(null);
 			clearMarqueeListeners();
+			clearMovingSelectionListeners();
 			styleEl.remove();
 			ctx.layers.unregister("selection-overlay");
 		};
