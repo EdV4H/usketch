@@ -105,7 +105,7 @@ function deleteSelectedShapes(ctx: PluginContext) {
 // ── Drag state types ──
 
 type DragState =
-	| { mode: "move"; startPoint: Point; startPositions: Map<string, Point> }
+	| { mode: "move"; startPoint: Point; startShapeSnapshots: Map<string, ShapeData> }
 	| {
 			mode: "resize";
 			shapeId: string;
@@ -120,6 +120,7 @@ type DragState =
 			startGroupBounds: BoundingBox;
 			startShapeData: Map<string, MultiResizeShapeEntry>;
 			originalShapeData: Map<string, MultiResizeShapeEntry>;
+			originalFullShapes: Map<string, ShapeData>;
 	  }
 	| {
 			mode: "marquee";
@@ -191,9 +192,11 @@ export const selectToolPlugin: UsketchPlugin = {
 					if (multiHandle) {
 						setOverrideCursor(getCursorForHandle(multiHandle));
 						const startShapeData = new Map<string, MultiResizeShapeEntry>();
+						const originalFullShapes = new Map<string, ShapeData>();
 						for (const id of selection) {
 							const shape = toolCtx.store.getShape(id);
 							if (shape) {
+								originalFullShapes.set(id, { ...shape });
 								const def = toolCtx.shapes.get(shape.type);
 								const minSize = def?.minSize ?? { width: 1, height: 1 };
 								const rel = computeRelativeProps(
@@ -218,6 +221,7 @@ export const selectToolPlugin: UsketchPlugin = {
 							startGroupBounds: groupBounds,
 							startShapeData,
 							originalShapeData: new Map(startShapeData),
+							originalFullShapes,
 						};
 						return;
 					}
@@ -244,18 +248,18 @@ export const selectToolPlugin: UsketchPlugin = {
 
 				// Start drag-move for all selected shapes
 				const currentSelection = toolCtx.store.getSelection();
-				const startPositions = new Map<string, Point>();
+				const startShapeSnapshots = new Map<string, ShapeData>();
 				for (const id of currentSelection) {
 					const shape = toolCtx.store.getShape(id);
 					if (shape) {
-						startPositions.set(id, { x: shape.x, y: shape.y });
+						startShapeSnapshots.set(id, { ...shape });
 					}
 				}
 				setMovingSelection(true);
 				dragState = {
 					mode: "move",
 					startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
-					startPositions,
+					startShapeSnapshots,
 				};
 			} else {
 				// Click on empty — start marquee selection
@@ -471,7 +475,13 @@ export const selectToolPlugin: UsketchPlugin = {
 					dragState.startShapeData,
 				);
 				for (const [id, upd] of multiUpdates) {
-					toolCtx.store.updateShape(id, upd);
+					const origShape = dragState.originalFullShapes.get(id);
+					const def = origShape ? toolCtx.shapes.get(origShape.type) : undefined;
+					if (def?.applyBounds && origShape) {
+						toolCtx.store.updateShape(id, def.applyBounds(origShape, upd));
+					} else {
+						toolCtx.store.updateShape(id, upd);
+					}
 				}
 				return;
 			}
@@ -480,11 +490,16 @@ export const selectToolPlugin: UsketchPlugin = {
 			const dx = event.worldPoint.x - dragState.startPoint.x;
 			const dy = event.worldPoint.y - dragState.startPoint.y;
 
-			for (const [id, startPos] of dragState.startPositions) {
-				toolCtx.store.updateShape(id, {
-					x: startPos.x + dx,
-					y: startPos.y + dy,
-				});
+			for (const [id, snapshot] of dragState.startShapeSnapshots) {
+				const def = toolCtx.shapes.get(snapshot.type);
+				if (def?.move) {
+					toolCtx.store.updateShape(id, def.move(snapshot, dx, dy));
+				} else {
+					toolCtx.store.updateShape(id, {
+						x: snapshot.x + dx,
+						y: snapshot.y + dy,
+					});
+				}
 			}
 		}
 
@@ -561,15 +576,18 @@ export const selectToolPlugin: UsketchPlugin = {
 					from: Partial<ShapeData>;
 					to: Partial<ShapeData>;
 				}> = [];
-				for (const [id, origData] of dragState.originalShapeData) {
+				for (const [id, origFullShape] of dragState.originalFullShapes) {
 					const currentShape = toolCtx.store.getShape(id);
 					if (!currentShape) continue;
 					const from: Partial<ShapeData> = {};
 					const to: Partial<ShapeData> = {};
-					for (const key of ["x", "y", "width", "height"] as const) {
-						if (currentShape[key] !== origData[key]) {
-							from[key] = origData[key];
-							to[key] = currentShape[key];
+					for (const key of Object.keys(currentShape)) {
+						if (key === "id" || key === "type" || key === "style") continue;
+						const currentValue = currentShape[key];
+						const origValue = origFullShape[key];
+						if (JSON.stringify(currentValue) !== JSON.stringify(origValue)) {
+							from[key] = origValue;
+							to[key] = currentValue;
 						}
 					}
 					if (Object.keys(to).length > 0) {
@@ -590,21 +608,23 @@ export const selectToolPlugin: UsketchPlugin = {
 			// mode === "move"
 			setMovingSelection(false);
 			// Calculate actual displacement from current (snap-adjusted) positions
-			const shapeIds = [...dragState.startPositions.keys()];
+			const shapeIds = [...dragState.startShapeSnapshots.keys()];
 			const firstId = shapeIds[0];
-			const firstStart = dragState.startPositions.get(firstId);
+			const firstSnapshot = dragState.startShapeSnapshots.get(firstId);
 			const firstCurrent = firstId ? toolCtx.store.getShape(firstId) : undefined;
 
-			const dx = firstCurrent && firstStart ? firstCurrent.x - firstStart.x : 0;
-			const dy = firstCurrent && firstStart ? firstCurrent.y - firstStart.y : 0;
+			const dx = firstCurrent && firstSnapshot ? firstCurrent.x - firstSnapshot.x : 0;
+			const dy = firstCurrent && firstSnapshot ? firstCurrent.y - firstSnapshot.y : 0;
 
 			// Only create undoable command if shapes actually moved
 			if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-				// Reset positions to start, then execute command for undo support
-				for (const [id, startPos] of dragState.startPositions) {
-					toolCtx.store.updateShape(id, { x: startPos.x, y: startPos.y });
+				// Reset to start state, then execute command for undo support
+				for (const [id, snapshot] of dragState.startShapeSnapshots) {
+					toolCtx.store.updateShape(id, snapshot);
 				}
-				toolCtx.commands.execute(createMoveShapesCommand(toolCtx.store, shapeIds, dx, dy));
+				toolCtx.commands.execute(
+					createMoveShapesCommand(toolCtx.store, toolCtx.shapes, shapeIds, dx, dy),
+				);
 			}
 
 			dragState = null;

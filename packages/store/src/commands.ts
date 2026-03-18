@@ -1,4 +1,4 @@
-import type { BoardStore, Command, ShapeData } from "@edv4h/usketch-shared";
+import type { BoardStore, Command, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
 
 export function createAddShapeCommand(store: BoardStore, shape: ShapeData): Command {
 	return {
@@ -28,25 +28,27 @@ export function createDeleteShapeCommand(store: BoardStore, shapeId: string): Co
 
 export function createMoveShapesCommand(
 	store: BoardStore,
+	shapes: ShapeRegistry,
 	shapeIds: string[],
 	dx: number,
 	dy: number,
 ): Command {
+	let snapshots: Map<string, ShapeData>;
 	return {
 		execute() {
+			snapshots = new Map();
 			for (const id of shapeIds) {
 				const shape = store.getShape(id);
-				if (shape) {
-					store.updateShape(id, { x: shape.x + dx, y: shape.y + dy });
-				}
+				if (!shape) continue;
+				snapshots.set(id, { ...shape });
+				const def = shapes.get(shape.type);
+				const updates = def?.move ? def.move(shape, dx, dy) : { x: shape.x + dx, y: shape.y + dy };
+				store.updateShape(id, updates);
 			}
 		},
 		undo() {
-			for (const id of shapeIds) {
-				const shape = store.getShape(id);
-				if (shape) {
-					store.updateShape(id, { x: shape.x - dx, y: shape.y - dy });
-				}
+			for (const [id, snap] of snapshots) {
+				store.updateShape(id, snap);
 			}
 		},
 	};
