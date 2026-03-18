@@ -46,6 +46,7 @@ export function App() {
 		const store = createBoardStore();
 
 		syncHandle = createYjsSync({ store, docName: "usketch-default" });
+		window.__usketchSyncStatus = syncHandle.status;
 
 		Promise.all([loadPlugins(), syncHandle.whenSynced])
 			.then(([plugins]) => createApp({ store, plugins }))
