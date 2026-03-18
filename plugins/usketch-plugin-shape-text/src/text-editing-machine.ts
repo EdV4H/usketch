@@ -33,7 +33,7 @@ interface TextMachineSchema extends MachineSchema {
 	};
 	state: "idle" | "clicked" | "creating" | "editing" | "editing.settling" | "editing.active";
 	event: TextEvent;
-	guard: "hasShape" | "isSameShape" | "isEditingTarget" | "isEditingTargetBlur";
+	guard: "hasShape" | "isSameShape" | "isEditingTarget";
 	action:
 		| "setClicked"
 		| "startClickTimer"
@@ -85,7 +85,7 @@ const textEditingMachine = createMachine<TextMachineSchema>({
 		clicked: {
 			on: {
 				POINTER_DOWN: [
-					{ guard: "isSameShape", target: "editing", actions: ["enterEdit"] },
+					{ guard: "isSameShape", target: "editing", actions: ["setEditing", "enterEdit"] },
 					{
 						guard: "hasShape",
 						target: "clicked",
@@ -121,7 +121,7 @@ const textEditingMachine = createMachine<TextMachineSchema>({
 				active: {
 					on: {
 						TEXT_INPUT: { guard: "isEditingTarget", actions: ["updateText"] },
-						TEXT_BLUR: { guard: "isEditingTargetBlur", target: "idle", actions: ["exitEdit"] },
+						TEXT_BLUR: { guard: "isEditingTarget", target: "idle", actions: ["exitEdit"] },
 						OUTSIDE_CLICK: { target: "idle", actions: ["exitEdit"] },
 						TEXT_ESCAPE: { guard: "isEditingTarget", target: "idle", actions: ["exitEdit"] },
 						DESELECTED: { target: "idle", actions: ["exitEdit"] },
@@ -140,9 +140,6 @@ const textEditingMachine = createMachine<TextMachineSchema>({
 				return event.shapeId != null && event.shapeId === context.get("clickedShapeId");
 			},
 			isEditingTarget({ context, event }) {
-				return event.id === context.get("editingShapeId");
-			},
-			isEditingTargetBlur({ context, event }) {
 				return event.id === context.get("editingShapeId");
 			},
 		},

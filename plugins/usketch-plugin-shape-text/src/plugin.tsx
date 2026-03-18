@@ -200,7 +200,8 @@ export const textPlugin: UsketchPlugin = {
 
 	setup(ctx: PluginContext) {
 		// ── State Machine ──
-		const { send, matches, stop: stopMachine, context: machineCtx } = createTextEditingService(ctx);
+		const service = createTextEditingService(ctx);
+		const { send, matches, stop: stopMachine } = service;
 
 		// ── CustomEvent listeners ──
 		const onTextInput = (e: Event) => {
@@ -249,7 +250,7 @@ export const textPlugin: UsketchPlugin = {
 
 		// ── Selection change monitoring ──
 		const unsubscribe = ctx.store.subscribe(() => {
-			const editingShapeId = machineCtx.editingShapeId;
+			const editingShapeId = service.context.editingShapeId;
 			if (!editingShapeId) return;
 			const selection = ctx.store.getSelection();
 			if (!selection.has(editingShapeId)) {
