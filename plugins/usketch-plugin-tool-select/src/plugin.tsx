@@ -595,11 +595,12 @@ export const selectToolPlugin: UsketchPlugin = {
 					}
 
 					if (Object.keys(to).length > 0) {
-						// Reset to start, then execute command for undo support
-						toolCtx.store.updateShape(dragState.shapeId, from);
-						toolCtx.commands.execute(
-							createUpdateShapeCommand(toolCtx.store, dragState.shapeId, from, to),
-						);
+						// Defer reset+execute to after canvas:pointerup disables snap
+						const shapeId = dragState.shapeId;
+						queueMicrotask(() => {
+							toolCtx.store.updateShape(shapeId, from);
+							toolCtx.commands.execute(createUpdateShapeCommand(toolCtx.store, shapeId, from, to));
+						});
 					}
 				}
 				dragState = null;
@@ -632,11 +633,14 @@ export const selectToolPlugin: UsketchPlugin = {
 					}
 				}
 				if (batchUpdates.length > 0) {
-					// Reset all shapes to start state, then execute batch command
-					for (const { id, from } of batchUpdates) {
-						toolCtx.store.updateShape(id, from);
-					}
-					toolCtx.commands.execute(createBatchUpdateShapesCommand(toolCtx.store, batchUpdates));
+					// Defer reset+execute to after canvas:pointerup disables snap
+					const storeRef = toolCtx.store;
+					queueMicrotask(() => {
+						for (const { id, from } of batchUpdates) {
+							storeRef.updateShape(id, from);
+						}
+						toolCtx.commands.execute(createBatchUpdateShapesCommand(storeRef, batchUpdates));
+					});
 				}
 				dragState = null;
 				return;
@@ -644,24 +648,30 @@ export const selectToolPlugin: UsketchPlugin = {
 
 			// mode === "move"
 			setMovingSelection(false);
-			// Calculate actual displacement from current (snap-adjusted) positions
-			const shapeIds = [...dragState.startShapeSnapshots.keys()];
-			const firstId = shapeIds[0];
-			const firstSnapshot = dragState.startShapeSnapshots.get(firstId);
-			const firstCurrent = firstId ? toolCtx.store.getShape(firstId) : undefined;
-
-			const dx = firstCurrent && firstSnapshot ? firstCurrent.x - firstSnapshot.x : 0;
-			const dy = firstCurrent && firstSnapshot ? firstCurrent.y - firstSnapshot.y : 0;
-
-			// Only create undoable command if shapes actually moved
-			if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-				// Reset to start state, then execute command for undo support
-				for (const [id, snapshot] of dragState.startShapeSnapshots) {
-					toolCtx.store.updateShape(id, snapshot);
+			// Build before/after snapshots for undoable command
+			const beforeSnapshots = dragState.startShapeSnapshots;
+			const afterSnapshots = new Map<string, ShapeData>();
+			let hasMoved = false;
+			for (const [id, before] of beforeSnapshots) {
+				const current = toolCtx.store.getShape(id);
+				if (current) {
+					afterSnapshots.set(id, { ...current });
+					if (Math.abs(current.x - before.x) > 0.5 || Math.abs(current.y - before.y) > 0.5) {
+						hasMoved = true;
+					}
 				}
-				toolCtx.commands.execute(
-					createMoveShapesCommand(toolCtx.store, toolCtx.shapes, shapeIds, dx, dy),
-				);
+			}
+
+			if (hasMoved) {
+				// Defer reset+execute to after canvas:pointerup disables snap
+				queueMicrotask(() => {
+					for (const [id, before] of beforeSnapshots) {
+						toolCtx.store.updateShape(id, before);
+					}
+					toolCtx.commands.execute(
+						createMoveShapesCommand(toolCtx.store, beforeSnapshots, afterSnapshots),
+					);
+				});
 			}
 
 			dragState = null;
