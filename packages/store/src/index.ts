@@ -8,6 +8,11 @@ export {
 	createUpdateShapeCommand,
 } from "./commands.js";
 export {
+	type SyncState,
+	type SyncStatusSnapshot,
+	SyncStatusTracker,
+} from "./sync-status-tracker.js";
+export {
 	createYjsSync,
 	type YjsSyncHandle,
 	type YjsSyncOptions,

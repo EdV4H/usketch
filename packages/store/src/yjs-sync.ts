@@ -1,6 +1,7 @@
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { IndexeddbPersistence } from "y-indexeddb";
 import * as Y from "yjs";
+import { SyncStatusTracker } from "./sync-status-tracker.js";
 
 export interface YjsSyncOptions {
 	store: BoardStore;
@@ -9,6 +10,7 @@ export interface YjsSyncOptions {
 
 export interface YjsSyncHandle {
 	doc: Y.Doc;
+	status: SyncStatusTracker;
 	whenSynced: Promise<void>;
 	destroy(): void;
 }
@@ -23,6 +25,7 @@ export function createYjsSync(options: YjsSyncOptions): YjsSyncHandle {
 	const doc = new Y.Doc();
 	const idbProvider = new IndexeddbPersistence(docName, doc);
 	const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
+	const status = new SyncStatusTracker();
 
 	let isSyncing = false;
 	let destroyed = false;
@@ -48,6 +51,12 @@ export function createYjsSync(options: YjsSyncOptions): YjsSyncHandle {
 				break;
 			}
 		}
+
+		status.update({
+			state: "synced",
+			shapeCount: shapesMap.size,
+			lastSyncedAt: Date.now(),
+		});
 	});
 
 	// Yjs → Store: observe Y.Map changes (for future remote sync + initial load reconciliation)
@@ -107,6 +116,12 @@ export function createYjsSync(options: YjsSyncOptions): YjsSyncHandle {
 				isSyncing = false;
 			}
 
+			status.update({
+				state: "synced",
+				shapeCount: shapesMap.size,
+				lastSyncedAt: Date.now(),
+			});
+
 			resolve();
 		});
 	});
@@ -120,5 +135,5 @@ export function createYjsSync(options: YjsSyncOptions): YjsSyncHandle {
 		idbProvider.destroy();
 	}
 
-	return { doc, whenSynced, destroy };
+	return { doc, status, whenSynced, destroy };
 }
