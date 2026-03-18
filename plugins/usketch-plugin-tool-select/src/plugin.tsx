@@ -14,7 +14,7 @@ import {
 	createMoveShapesCommand,
 	createUpdateShapeCommand,
 } from "@edv4h/usketch-store";
-import { clearDraggingListeners, setDragging } from "./drag-state.js";
+import { clearMovingSelectionListeners, setMovingSelection } from "./drag-state.js";
 import type { MarqueeMode, MarqueeRect } from "./marquee-state.js";
 import { clearMarqueeListeners, setMarquee, setMarqueeMode } from "./marquee-state.js";
 import {
@@ -251,7 +251,7 @@ export const selectToolPlugin: UsketchPlugin = {
 						startPositions.set(id, { x: shape.x, y: shape.y });
 					}
 				}
-				setDragging(true);
+				setMovingSelection(true);
 				dragState = {
 					mode: "move",
 					startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
@@ -423,26 +423,34 @@ export const selectToolPlugin: UsketchPlugin = {
 						flippedGroupBounds.y = anchor.y;
 						flippedGroupBounds.height = 0;
 					}
-					// Mirror relative ratios and reset positions to anchor
+					// Mirror relative ratios and reset only the flipped axis
 					const flippedShapeData = new Map<string, MultiResizeShapeEntry>();
 					for (const [id, data] of dragState.startShapeData) {
 						const newRel = { ...data };
 						if (flip.flippedX) {
 							newRel.relX = 1 - data.relX - data.relWidth;
+							newRel.x = flippedGroupBounds.x;
+							newRel.width = 0;
 						}
 						if (flip.flippedY) {
 							newRel.relY = 1 - data.relY - data.relHeight;
+							newRel.y = flippedGroupBounds.y;
+							newRel.height = 0;
 						}
-						// Reset position to anchor (zero-size, all shapes collapse to same point)
-						newRel.x = flippedGroupBounds.x;
-						newRel.y = flippedGroupBounds.y;
-						newRel.width = 0;
-						newRel.height = 0;
 						flippedShapeData.set(id, newRel);
 					}
-					// Update store to show collapsed positions immediately
+					// Update store: only reset the flipped dimension(s)
 					for (const [id, data] of flippedShapeData) {
-						toolCtx.store.updateShape(id, { x: data.x, y: data.y, width: 0, height: 0 });
+						const update: Partial<ShapeData> = {};
+						if (flip.flippedX) {
+							update.x = data.x;
+							update.width = 0;
+						}
+						if (flip.flippedY) {
+							update.y = data.y;
+							update.height = 0;
+						}
+						toolCtx.store.updateShape(id, update);
 					}
 					dragState = {
 						...dragState,
@@ -580,7 +588,7 @@ export const selectToolPlugin: UsketchPlugin = {
 			}
 
 			// mode === "move"
-			setDragging(false);
+			setMovingSelection(false);
 			// Calculate actual displacement from current (snap-adjusted) positions
 			const shapeIds = [...dragState.startPositions.keys()];
 			const firstId = shapeIds[0];
@@ -604,7 +612,7 @@ export const selectToolPlugin: UsketchPlugin = {
 
 		function onDeactivate(_toolCtx: ToolContext) {
 			dragState = null;
-			setDragging(false);
+			setMovingSelection(false);
 			setMarquee(null);
 			setOverrideCursor("");
 		}
@@ -638,10 +646,10 @@ export const selectToolPlugin: UsketchPlugin = {
 		// ── Teardown ──
 		(this as UsketchPlugin).teardown = () => {
 			setOverrideCursor("");
-			setDragging(false);
+			setMovingSelection(false);
 			setMarquee(null);
 			clearMarqueeListeners();
-			clearDraggingListeners();
+			clearMovingSelectionListeners();
 			styleEl.remove();
 			ctx.layers.unregister("selection-overlay");
 		};

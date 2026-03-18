@@ -1,25 +1,25 @@
-let dragging = false;
+let movingSelection = false;
 const listeners: Set<() => void> = new Set();
 
 function notify() {
 	for (const fn of listeners) fn();
 }
 
-export function setDragging(value: boolean): void {
-	if (dragging === value) return;
-	dragging = value;
+export function setMovingSelection(value: boolean): void {
+	if (movingSelection === value) return;
+	movingSelection = value;
 	notify();
 }
 
-export function getDragging(): boolean {
-	return dragging;
+export function getMovingSelection(): boolean {
+	return movingSelection;
 }
 
-export function subscribeDragging(cb: () => void): () => void {
+export function subscribeMovingSelection(cb: () => void): () => void {
 	listeners.add(cb);
 	return () => listeners.delete(cb);
 }
 
-export function clearDraggingListeners(): void {
+export function clearMovingSelectionListeners(): void {
 	listeners.clear();
 }

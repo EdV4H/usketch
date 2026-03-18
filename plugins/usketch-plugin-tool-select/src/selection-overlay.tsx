@@ -1,6 +1,6 @@
 import type { BoardStore, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
-import { getDragging, subscribeDragging } from "./drag-state.js";
+import { getMovingSelection, subscribeMovingSelection } from "./drag-state.js";
 import type { MarqueeMode } from "./marquee-state.js";
 import {
 	getMarqueeHitIds,
@@ -70,10 +70,14 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 		getMarqueeMode,
 	);
 
-	const isDragging = useSyncExternalStore(subscribeDragging, getDragging, getDragging);
+	const isMoving = useSyncExternalStore(
+		subscribeMovingSelection,
+		getMovingSelection,
+		getMovingSelection,
+	);
 
 	if (activeToolId !== "select") return null;
-	if (isDragging) return null;
+	if (isMoving) return null;
 
 	// Single selection: bounding box + handles
 	if (selection.size === 1 && !marqueeRect) {
