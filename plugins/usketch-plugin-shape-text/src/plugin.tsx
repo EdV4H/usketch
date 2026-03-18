@@ -54,7 +54,7 @@ function render(data: ShapeData) {
 	return (
 		// biome-ignore lint/a11y/useSemanticElements: contentEditable div is standard for rich text editing
 		<div
-			contentEditable
+			contentEditable="plaintext-only"
 			suppressContentEditableWarning
 			role="textbox"
 			aria-multiline="true"
@@ -229,8 +229,9 @@ export const textPlugin: UsketchPlugin = {
 		const onWindowPointerDown = (e: PointerEvent) => {
 			if (!matches("editing")) return;
 			// If the click target is inside the editing contentEditable, ignore
-			const target = e.target as HTMLElement;
-			if (target.closest?.("[contenteditable=true]")) return;
+			// e.target can be a Text node, so walk up to nearest Element
+			const target = e.target instanceof Element ? e.target : (e.target as Node).parentElement;
+			if (target?.closest("[contenteditable=true]")) return;
 			send({ type: "OUTSIDE_CLICK" });
 		};
 		window.addEventListener("pointerdown", onWindowPointerDown, true);
