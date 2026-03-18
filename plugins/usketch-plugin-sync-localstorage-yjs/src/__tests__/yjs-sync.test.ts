@@ -1,9 +1,72 @@
 import "fake-indexeddb/auto";
-import type { ShapeData } from "@edv4h/usketch-shared";
+import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createBoardStore } from "../board-store.js";
 import type { YjsSyncHandle } from "../yjs-sync.js";
 import { createYjsSync } from "../yjs-sync.js";
+
+// Minimal BoardStore implementation for testing (avoids depending on @edv4h/usketch-store)
+function createTestStore(): BoardStore {
+	const shapes = new Map<string, ShapeData>();
+	const listeners = new Set<() => void>();
+	const mutationListeners = new Set<(event: { type: string; payload?: unknown }) => void>();
+
+	function notify() {
+		for (const fn of listeners) fn();
+	}
+	function notifyMutation(type: string, payload?: unknown) {
+		const event = payload !== undefined ? { type, payload } : { type };
+		for (const fn of mutationListeners) fn(event);
+	}
+
+	return {
+		getShapes: () => shapes,
+		getShape: (id) => shapes.get(id),
+		addShape(shape) {
+			shapes.set(shape.id, shape);
+			notify();
+			notifyMutation("shape:added", { id: shape.id });
+		},
+		updateShape(id, updates) {
+			const existing = shapes.get(id);
+			if (!existing) return;
+			shapes.set(id, { ...existing, ...updates });
+			notify();
+			notifyMutation("shape:updated", { id });
+		},
+		deleteShape(id) {
+			if (!shapes.has(id)) return;
+			shapes.delete(id);
+			notify();
+			notifyMutation("shape:removed", { id });
+		},
+		getSelection: () => new Set<string>(),
+		setSelection() {},
+		addToSelection() {},
+		removeFromSelection() {},
+		clearSelection() {},
+		getActiveToolId: () => "select",
+		setActiveToolId() {},
+		getViewport: () => ({ x: 0, y: 0, zoom: 1 }),
+		setViewport() {},
+		panBy() {},
+		zoomTo() {},
+		getStyleSettings: () => ({
+			fill: "#ffffff",
+			stroke: "#1e1e1e",
+			strokeWidth: 2,
+			opacity: 1,
+		}),
+		setStyleSettings() {},
+		subscribe(listener) {
+			listeners.add(listener);
+			return () => listeners.delete(listener);
+		},
+		onMutation(listener) {
+			mutationListeners.add(listener);
+			return () => mutationListeners.delete(listener);
+		},
+	};
+}
 
 function makeShape(overrides: Partial<ShapeData> = {}): ShapeData {
 	return {
@@ -19,11 +82,11 @@ function makeShape(overrides: Partial<ShapeData> = {}): ShapeData {
 }
 
 describe("createYjsSync", () => {
-	let store: ReturnType<typeof createBoardStore>;
+	let store: BoardStore;
 	let syncHandle: YjsSyncHandle;
 
 	beforeEach(() => {
-		store = createBoardStore();
+		store = createTestStore();
 	});
 
 	afterEach(() => {
@@ -31,7 +94,7 @@ describe("createYjsSync", () => {
 	});
 
 	it("store.addShape → Y.Map に反映", async () => {
-		syncHandle = createYjsSync({ store, docName: `test-add-${crypto.randomUUID()}` });
+		syncHandle = createYjsSync(store, `test-add-${crypto.randomUUID()}`);
 		await syncHandle.whenSynced;
 
 		const shape = makeShape({ id: "s1" });
@@ -46,7 +109,7 @@ describe("createYjsSync", () => {
 	});
 
 	it("store.updateShape → Y.Map 更新", async () => {
-		syncHandle = createYjsSync({ store, docName: `test-update-${crypto.randomUUID()}` });
+		syncHandle = createYjsSync(store, `test-update-${crypto.randomUUID()}`);
 		await syncHandle.whenSynced;
 
 		const shape = makeShape({ id: "s2" });
@@ -60,7 +123,7 @@ describe("createYjsSync", () => {
 	});
 
 	it("store.deleteShape → Y.Map 削除", async () => {
-		syncHandle = createYjsSync({ store, docName: `test-delete-${crypto.randomUUID()}` });
+		syncHandle = createYjsSync(store, `test-delete-${crypto.randomUUID()}`);
 		await syncHandle.whenSynced;
 
 		const shape = makeShape({ id: "s3" });
@@ -75,8 +138,8 @@ describe("createYjsSync", () => {
 		const docName = `test-restore-${crypto.randomUUID()}`;
 
 		// Phase 1: populate Y.Doc + persist
-		const doc1Store = createBoardStore();
-		const handle1 = createYjsSync({ store: doc1Store, docName });
+		const doc1Store = createTestStore();
+		const handle1 = createYjsSync(doc1Store, docName);
 		await handle1.whenSynced;
 
 		const shape = makeShape({ id: "s4", x: 42 });
@@ -87,8 +150,8 @@ describe("createYjsSync", () => {
 		handle1.destroy();
 
 		// Phase 2: new store should restore from IndexedDB
-		const freshStore = createBoardStore();
-		syncHandle = createYjsSync({ store: freshStore, docName });
+		const freshStore = createTestStore();
+		syncHandle = createYjsSync(freshStore, docName);
 		await syncHandle.whenSynced;
 
 		const restored = freshStore.getShape("s4");
@@ -97,10 +160,7 @@ describe("createYjsSync", () => {
 	});
 
 	it("フィードバックループなし — addShape で Y.Map への書き込みが1回のみ", async () => {
-		syncHandle = createYjsSync({
-			store,
-			docName: `test-loop-${crypto.randomUUID()}`,
-		});
+		syncHandle = createYjsSync(store, `test-loop-${crypto.randomUUID()}`);
 		await syncHandle.whenSynced;
 
 		const shapesMap = syncHandle.doc.getMap("shapes");
@@ -114,32 +174,25 @@ describe("createYjsSync", () => {
 	});
 
 	it("destroy でクリーンアップ — destroy 後の mutation が Y.Map に届かない", async () => {
-		syncHandle = createYjsSync({
-			store,
-			docName: `test-destroy-${crypto.randomUUID()}`,
-		});
+		syncHandle = createYjsSync(store, `test-destroy-${crypto.randomUUID()}`);
 		await syncHandle.whenSynced;
 
 		const shapesMap = syncHandle.doc.getMap("shapes");
 
-		// Add a shape before destroy
 		const shape1 = makeShape({ id: "s6" });
 		store.addShape(shape1);
 		expect(shapesMap.has("s6")).toBe(true);
 
-		// Destroy sync
 		syncHandle.destroy();
 
-		// Add another shape after destroy
 		const shape2 = makeShape({ id: "s7" });
 		store.addShape(shape2);
 
-		// s7 should NOT be in the Y.Map
 		expect(shapesMap.has("s7")).toBe(false);
 	});
 
 	it("複数シェイプの追加・削除が正しく同期", async () => {
-		syncHandle = createYjsSync({ store, docName: `test-multi-${crypto.randomUUID()}` });
+		syncHandle = createYjsSync(store, `test-multi-${crypto.randomUUID()}`);
 		await syncHandle.whenSynced;
 
 		const shapesMap = syncHandle.doc.getMap("shapes");

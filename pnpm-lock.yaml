@@ -63,6 +63,9 @@ importers:
       '@edv4h/usketch-plugin-snap':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-snap
+      '@edv4h/usketch-plugin-sync-localstorage-yjs':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-sync-localstorage-yjs
       '@edv4h/usketch-plugin-tool-pan':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-tool-pan
@@ -175,16 +178,7 @@ importers:
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../shared
-      y-indexeddb:
-        specifier: ^9.0.0
-        version: 9.0.12(yjs@13.6.30)
-      yjs:
-        specifier: ^13.6.0
-        version: 13.6.30
     devDependencies:
-      fake-indexeddb:
-        specifier: ^6.0.0
-        version: 6.2.5
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -440,6 +434,28 @@ importers:
       '@types/react':
         specifier: 19.1.8
         version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4
+
+  plugins/usketch-plugin-sync-localstorage-yjs:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      y-indexeddb:
+        specifier: ^9.0.0
+        version: 9.0.12(yjs@13.6.30)
+      yjs:
+        specifier: ^13.6.0
+        version: 13.6.30
+    devDependencies:
+      fake-indexeddb:
+        specifier: ^6.0.0
+        version: 6.2.5
       typescript:
         specifier: 5.8.3
         version: 5.8.3

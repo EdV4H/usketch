@@ -7,15 +7,17 @@ import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
 import { snapPlugin } from "@edv4h/usketch-plugin-snap";
+import { syncLocalstorageYjsPlugin } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
-import { createBoardStore, createYjsSync, type YjsSyncHandle } from "@edv4h/usketch-store";
+import { createBoardStore } from "@edv4h/usketch-store";
 import { useEffect, useState } from "react";
 import { Toolbar } from "./components/toolbar.js";
 
 const basePlugins: UsketchPlugin[] = [
+	syncLocalstorageYjsPlugin,
 	selectToolPlugin,
 	panToolPlugin,
 	viewportNavPlugin,
@@ -42,18 +44,13 @@ export function App() {
 	useEffect(() => {
 		let cancelled = false;
 		let instance: AppInstance | null = null;
-		let syncHandle: YjsSyncHandle | null = null;
 		const store = createBoardStore();
 
-		syncHandle = createYjsSync({ store, docName: "usketch-default" });
-		window.__usketchSyncStatus = syncHandle.status;
-
-		Promise.all([loadPlugins(), syncHandle.whenSynced])
-			.then(([plugins]) => createApp({ store, plugins }))
+		loadPlugins()
+			.then((plugins) => createApp({ store, plugins }))
 			.then((created) => {
 				if (cancelled) {
 					created.destroy();
-					syncHandle?.destroy();
 					return;
 				}
 				instance = created;
@@ -75,8 +72,6 @@ export function App() {
 		return () => {
 			cancelled = true;
 			instance?.destroy();
-			syncHandle?.destroy();
-			delete window.__usketchSyncStatus;
 		};
 	}, []);
 

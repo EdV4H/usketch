@@ -3,11 +3,6 @@ import { IndexeddbPersistence } from "y-indexeddb";
 import * as Y from "yjs";
 import { SyncStatusTracker } from "./sync-status-tracker.js";
 
-export interface YjsSyncOptions {
-	store: BoardStore;
-	docName?: string;
-}
-
 export interface YjsSyncHandle {
 	doc: Y.Doc;
 	status: SyncStatusTracker;
@@ -19,9 +14,7 @@ function toPlainObject(shape: ShapeData): Record<string, unknown> {
 	return JSON.parse(JSON.stringify(shape));
 }
 
-export function createYjsSync(options: YjsSyncOptions): YjsSyncHandle {
-	const { store, docName = "usketch-default" } = options;
-
+export function createYjsSync(store: BoardStore, docName: string): YjsSyncHandle {
 	const doc = new Y.Doc();
 	const idbProvider = new IndexeddbPersistence(docName, doc);
 	const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
@@ -136,7 +129,6 @@ export function createYjsSync(options: YjsSyncOptions): YjsSyncHandle {
 		destroyed = true;
 		unsubMutation();
 		shapesMap.unobserve(observer);
-		// Destroy doc first so y-indexeddb's internal listeners are still valid during cleanup
 		doc.destroy();
 		idbProvider.destroy();
 	}
