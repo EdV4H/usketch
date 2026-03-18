@@ -35,6 +35,13 @@ interface GeneralPanelProps {
 	activeToolId: string;
 }
 
+const DEFAULT_SYNC_SNAPSHOT = {
+	state: "loading" as const,
+	shapeCount: 0,
+	lastSyncedAt: null,
+	error: null,
+};
+
 const SYNC_STATE_COLORS: Record<string, string> = {
 	loading: "#fbbf24",
 	synced: "#4ade80",
@@ -77,18 +84,12 @@ export function GeneralPanel({
 		() => pointerTracker.getSnapshot(),
 	);
 
-	const defaultSyncSnapshot = {
-		state: "loading" as const,
-		shapeCount: 0,
-		lastSyncedAt: null,
-		error: null,
-	};
 	const syncSnapshot = useSyncExternalStore(
 		useCallback(
 			(cb: () => void) => (syncStatus ? syncStatus.subscribe(cb) : () => {}),
 			[syncStatus],
 		),
-		() => syncStatus?.getSnapshot() ?? defaultSyncSnapshot,
+		() => syncStatus?.getSnapshot() ?? DEFAULT_SYNC_SNAPSHOT,
 	);
 
 	const canUndo = commands.canUndo();

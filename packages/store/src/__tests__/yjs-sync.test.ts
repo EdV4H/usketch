@@ -31,7 +31,7 @@ describe("createYjsSync", () => {
 	});
 
 	it("store.addShape → Y.Map に反映", async () => {
-		syncHandle = createYjsSync({ store, docName: `test-add-${Date.now()}` });
+		syncHandle = createYjsSync({ store, docName: `test-add-${crypto.randomUUID()}` });
 		await syncHandle.whenSynced;
 
 		const shape = makeShape({ id: "s1" });
@@ -46,7 +46,7 @@ describe("createYjsSync", () => {
 	});
 
 	it("store.updateShape → Y.Map 更新", async () => {
-		syncHandle = createYjsSync({ store, docName: `test-update-${Date.now()}` });
+		syncHandle = createYjsSync({ store, docName: `test-update-${crypto.randomUUID()}` });
 		await syncHandle.whenSynced;
 
 		const shape = makeShape({ id: "s2" });
@@ -60,7 +60,7 @@ describe("createYjsSync", () => {
 	});
 
 	it("store.deleteShape → Y.Map 削除", async () => {
-		syncHandle = createYjsSync({ store, docName: `test-delete-${Date.now()}` });
+		syncHandle = createYjsSync({ store, docName: `test-delete-${crypto.randomUUID()}` });
 		await syncHandle.whenSynced;
 
 		const shape = makeShape({ id: "s3" });
@@ -72,7 +72,7 @@ describe("createYjsSync", () => {
 	});
 
 	it("Y.Map プリセット → store 復元", async () => {
-		const docName = `test-restore-${Date.now()}`;
+		const docName = `test-restore-${crypto.randomUUID()}`;
 
 		// Phase 1: populate Y.Doc + persist
 		const doc1Store = createBoardStore();
@@ -99,7 +99,7 @@ describe("createYjsSync", () => {
 	it("フィードバックループなし — addShape で Y.Map への書き込みが1回のみ", async () => {
 		syncHandle = createYjsSync({
 			store,
-			docName: `test-loop-${Date.now()}`,
+			docName: `test-loop-${crypto.randomUUID()}`,
 		});
 		await syncHandle.whenSynced;
 
@@ -116,7 +116,7 @@ describe("createYjsSync", () => {
 	it("destroy でクリーンアップ — destroy 後の mutation が Y.Map に届かない", async () => {
 		syncHandle = createYjsSync({
 			store,
-			docName: `test-destroy-${Date.now()}`,
+			docName: `test-destroy-${crypto.randomUUID()}`,
 		});
 		await syncHandle.whenSynced;
 
@@ -139,7 +139,7 @@ describe("createYjsSync", () => {
 	});
 
 	it("複数シェイプの追加・削除が正しく同期", async () => {
-		syncHandle = createYjsSync({ store, docName: `test-multi-${Date.now()}` });
+		syncHandle = createYjsSync({ store, docName: `test-multi-${crypto.randomUUID()}` });
 		await syncHandle.whenSynced;
 
 		const shapesMap = syncHandle.doc.getMap("shapes");

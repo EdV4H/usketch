@@ -76,6 +76,7 @@ export function App() {
 			cancelled = true;
 			instance?.destroy();
 			syncHandle?.destroy();
+			delete window.__usketchSyncStatus;
 		};
 	}, []);
 
