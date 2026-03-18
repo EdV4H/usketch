@@ -10,11 +10,8 @@ import {
 	type ToolContext,
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
-import {
-	createAddShapeCommand,
-	createDeleteShapeCommand,
-	createUpdateShapeCommand,
-} from "@edv4h/usketch-store";
+import { createAddShapeCommand } from "@edv4h/usketch-store";
+import { createTextEditingService } from "./text-editing-machine.js";
 
 // ── Shape Definition ──
 
@@ -64,7 +61,9 @@ function render(data: ShapeData) {
 			tabIndex={0}
 			ref={(el: HTMLDivElement | null) => {
 				if (!el) return;
-				// Defer focus to next frame so it works even during pointerdown
+				// Only focus once when first entering edit mode
+				if (el.dataset.focused) return;
+				el.dataset.focused = "1";
 				requestAnimationFrame(() => focusAtEnd(el));
 			}}
 			onInput={(e: React.FormEvent<HTMLDivElement>) => {
@@ -200,83 +199,25 @@ export const textPlugin: UsketchPlugin = {
 	name: "テキスト",
 
 	setup(ctx: PluginContext) {
-		// ── Editing state (scoped to closure) ──
-		let editingShapeId: string | null = null;
-		let textSnapshot: string | null = null;
-		let enterEditModeTime = 0;
-
-		// ── Double-click detection ──
-		let lastPointerDownTime = 0;
-		let lastPointerDownShapeId: string | null = null;
-
-		function enterEditMode(id: string) {
-			if (editingShapeId === id) return;
-			if (editingShapeId) exitEditMode();
-
-			const shape = ctx.store.getShape(id);
-			if (!shape || shape.type !== "text") return;
-
-			editingShapeId = id;
-			textSnapshot = (shape.text as string) ?? "";
-			enterEditModeTime = Date.now();
-			ctx.store.updateShape(id, { isEditing: true });
-		}
-
-		function exitEditMode() {
-			if (!editingShapeId) return;
-			const id = editingShapeId;
-			const prevText = textSnapshot;
-			editingShapeId = null;
-			textSnapshot = null;
-
-			const shape = ctx.store.getShape(id);
-			if (!shape) return;
-
-			ctx.store.updateShape(id, { isEditing: false });
-
-			const currentText = (shape.text as string) ?? "";
-
-			if (currentText.trim() === "") {
-				// Empty text — delete shape
-				ctx.commands.execute(createDeleteShapeCommand(ctx.store, id));
-			} else if (currentText !== prevText) {
-				// Text changed — create undo command
-				ctx.commands.execute(
-					createUpdateShapeCommand(
-						ctx.store,
-						id,
-						{ text: prevText, height: shape.height },
-						{ text: currentText, height: shape.height },
-					),
-				);
-			}
-		}
+		// ── State Machine ──
+		const { send, matches, stop: stopMachine, context: machineCtx } = createTextEditingService(ctx);
 
 		// ── CustomEvent listeners ──
 		const onTextInput = (e: Event) => {
 			const { id, text, scrollHeight } = (e as CustomEvent).detail;
-			if (id !== editingShapeId) return;
-			const shape = ctx.store.getShape(id);
-			if (!shape) return;
-			const newHeight = Math.max(28, scrollHeight);
-			ctx.store.updateShape(id, { text, height: newHeight });
+			send({ type: "TEXT_INPUT", id, text, scrollHeight });
 		};
 
 		const onTextBlur = (e: Event) => {
 			const { id } = (e as CustomEvent).detail;
-			if (id !== editingShapeId) return;
-			// Ignore blur during initial focus setup after enterEditMode
-			if (Date.now() - enterEditModeTime < 200) return;
 			requestAnimationFrame(() => {
-				if (id !== editingShapeId) return;
-				exitEditMode();
+				send({ type: "TEXT_BLUR", id });
 			});
 		};
 
 		const onTextEscape = (e: Event) => {
 			const { id } = (e as CustomEvent).detail;
-			if (id !== editingShapeId) return;
-			exitEditMode();
+			send({ type: "TEXT_ESCAPE", id });
 		};
 
 		window.addEventListener("usketch:text-input", onTextInput);
@@ -285,21 +226,16 @@ export const textPlugin: UsketchPlugin = {
 
 		// ── Global pointerdown to exit edit mode on outside click ──
 		const onWindowPointerDown = (e: PointerEvent) => {
-			if (!editingShapeId) return;
-			// Ignore clicks during initial focus setup after enterEditMode
-			if (Date.now() - enterEditModeTime < 200) return;
+			if (!matches("editing")) return;
 			// If the click target is inside the editing contentEditable, ignore
 			const target = e.target as HTMLElement;
 			if (target.closest?.("[contenteditable=true]")) return;
-			exitEditMode();
+			send({ type: "OUTSIDE_CLICK" });
 		};
 		window.addEventListener("pointerdown", onWindowPointerDown, true);
 
 		// ── Double-click detection via EventBus ──
 		const offPointerDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
-			const now = Date.now();
-			const timeDiff = now - lastPointerDownTime;
-
 			// Find text shape under pointer
 			const shapes = ctx.store.getShapes();
 			let hitShapeId: string | null = null;
@@ -308,23 +244,16 @@ export const textPlugin: UsketchPlugin = {
 					hitShapeId = id;
 				}
 			}
-
-			if (hitShapeId && hitShapeId === lastPointerDownShapeId && timeDiff < 300) {
-				enterEditMode(hitShapeId);
-				lastPointerDownTime = 0;
-				lastPointerDownShapeId = null;
-			} else {
-				lastPointerDownTime = now;
-				lastPointerDownShapeId = hitShapeId;
-			}
+			send({ type: "POINTER_DOWN", shapeId: hitShapeId });
 		});
 
 		// ── Selection change monitoring ──
 		const unsubscribe = ctx.store.subscribe(() => {
+			const editingShapeId = machineCtx.editingShapeId;
 			if (!editingShapeId) return;
 			const selection = ctx.store.getSelection();
 			if (!selection.has(editingShapeId)) {
-				exitEditMode();
+				send({ type: "DESELECTED" });
 			}
 		});
 
@@ -353,23 +282,21 @@ export const textPlugin: UsketchPlugin = {
 				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 				toolCtx.store.setSelection([id]);
 				toolCtx.store.setActiveToolId("select");
-				// Enter edit mode — focus is deferred via rAF in ref callback
-				enterEditMode(id);
+				send({ type: "CREATE_SHAPE", shapeId: id });
 			},
 			onPointerMove() {},
 			onPointerUp() {},
 		});
 
 		// ── Teardown ──
-		const originalTeardown = textPlugin.teardown;
-		textPlugin.teardown = () => {
+		(this as UsketchPlugin).teardown = () => {
+			stopMachine();
 			window.removeEventListener("usketch:text-input", onTextInput);
 			window.removeEventListener("usketch:text-blur", onTextBlur);
 			window.removeEventListener("usketch:text-escape", onTextEscape);
 			window.removeEventListener("pointerdown", onWindowPointerDown, true);
 			offPointerDown();
 			unsubscribe();
-			originalTeardown?.();
 		};
 	},
 };
