@@ -37,19 +37,24 @@ export function createYjsSync(options: YjsSyncOptions): YjsSyncHandle {
 		const payload = event.payload as { id: string } | undefined;
 		if (!payload?.id) return;
 
-		switch (event.type) {
-			case "shape:added":
-			case "shape:updated": {
-				const shape = store.getShape(payload.id);
-				if (shape) {
-					shapesMap.set(payload.id, toPlainObject(shape));
+		isSyncing = true;
+		try {
+			switch (event.type) {
+				case "shape:added":
+				case "shape:updated": {
+					const shape = store.getShape(payload.id);
+					if (shape) {
+						shapesMap.set(payload.id, toPlainObject(shape));
+					}
+					break;
 				}
-				break;
+				case "shape:removed": {
+					shapesMap.delete(payload.id);
+					break;
+				}
 			}
-			case "shape:removed": {
-				shapesMap.delete(payload.id);
-				break;
-			}
+		} finally {
+			isSyncing = false;
 		}
 
 		status.update({
@@ -127,6 +132,7 @@ export function createYjsSync(options: YjsSyncOptions): YjsSyncHandle {
 	});
 
 	function destroy() {
+		if (destroyed) return;
 		destroyed = true;
 		unsubMutation();
 		shapesMap.unobserve(observer);

@@ -94,7 +94,9 @@ function render(data: ShapeData) {
 					window.dispatchEvent(new CustomEvent("usketch:text-escape", { detail: { id: data.id } }));
 				}
 			}}
-			onBlur={() => {
+			onBlur={(e: React.FocusEvent<HTMLDivElement>) => {
+				// Clear focused flag so next edit session re-initializes textContent + focus
+				delete e.currentTarget.dataset.focused;
 				window.dispatchEvent(new CustomEvent("usketch:text-blur", { detail: { id: data.id } }));
 			}}
 			onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
