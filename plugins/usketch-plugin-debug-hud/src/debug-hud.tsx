@@ -16,6 +16,7 @@ import { GeneralPanel } from "./panels/general-panel.js";
 import { ShapesPanel } from "./panels/shapes-panel.js";
 import type { PointerTracker } from "./pointer-tracker.js";
 import { FONT_FAMILY, TEXT_MUTED } from "./styles.js";
+import type { SyncStatusTrackerLike } from "./sync-status-types.js";
 
 interface DebugHudProps {
 	store: BoardStore;
@@ -26,6 +27,7 @@ interface DebugHudProps {
 	tools: ToolRegistry;
 	layers: LayerManager;
 	shapes: ShapeRegistry;
+	syncStatus?: SyncStatusTrackerLike;
 	ctx: LayerRenderContext;
 }
 
@@ -44,9 +46,17 @@ export function DebugHud({
 	tools,
 	layers,
 	shapes,
+	syncStatus,
 	ctx,
 }: DebugHudProps) {
-	const [visible, setVisible] = useState(false);
+	const STORAGE_KEY = "usketch-debug-hud-visible";
+	const [visible, setVisible] = useState(() => {
+		try {
+			return localStorage.getItem(STORAGE_KEY) === "1";
+		} catch {
+			return false;
+		}
+	});
 	const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
 
 	// Keyboard shortcut (backtick)
@@ -56,7 +66,15 @@ export function DebugHud({
 			if (e.key === "`" || e.code === "Backquote") {
 				if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
 					e.preventDefault();
-					setVisible((v) => !v);
+					setVisible((v) => {
+						const next = !v;
+						try {
+							localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+						} catch {
+							// ignore
+						}
+						return next;
+					});
 				}
 			}
 		};
@@ -107,6 +125,7 @@ export function DebugHud({
 				tools={tools}
 				layers={layers}
 				shapes={shapes}
+				syncStatus={syncStatus}
 				viewport={viewport}
 				activeToolId={activeToolId}
 			/>

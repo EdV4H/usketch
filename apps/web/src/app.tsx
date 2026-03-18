@@ -7,6 +7,7 @@ import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
 import { snapPlugin } from "@edv4h/usketch-plugin-snap";
+import { syncLocalstorageYjsPlugin } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
@@ -16,6 +17,7 @@ import { useEffect, useState } from "react";
 import { Toolbar } from "./components/toolbar.js";
 
 const basePlugins: UsketchPlugin[] = [
+	syncLocalstorageYjsPlugin,
 	selectToolPlugin,
 	panToolPlugin,
 	viewportNavPlugin,

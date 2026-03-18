@@ -9,8 +9,8 @@ import type {
 } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { DEFAULT_GUIDE_STYLE, DEFAULT_SNAP_THRESHOLD } from "./constants.js";
-import { calculateSnap } from "./engine/snap-engine.js";
-import type { GuideStyle, SnapLine, SnapResult, SnapSettings } from "./engine/types.js";
+import { calculateSnap, type SnapEdgeFilter } from "./engine/snap-engine.js";
+import type { GuideStyle, SnapEdge, SnapLine, SnapResult, SnapSettings } from "./engine/types.js";
 import { GuideLayer } from "./guide-layer.js";
 
 // ── Shared mutable state for the plugin ──
@@ -189,18 +189,10 @@ export const snapPlugin: UsketchPlugin = {
 			// Get current frame ID to cache snap results across multi-shape updates
 			const currentFrame = frameId;
 
-			if (frameSnapResult && currentFrame === frameId) {
-				const snapped = isResize
-					? applySnapToResize(updates, frameSnapResult)
-					: applySnapToUpdates(updates, frameSnapResult);
-				originalUpdateShape(id, snapped);
-				return;
-			}
-
+			// Build movingBox early so it can be used in both cached and fresh paths
 			const selection = ctx.store.getSelection();
 			const movingIds = selection.size > 0 && selection.has(id) ? selection : new Set([id]);
 
-			// Build the bounding box that snap should evaluate against
 			const movingBox = isResize
 				? getResizedBoundingBox(shape, updates)
 				: getMovingBoundingBox(
@@ -209,6 +201,14 @@ export const snapPlugin: UsketchPlugin = {
 						"x" in updates && typeof updates.x === "number" ? updates.x - shape.x : 0,
 						"y" in updates && typeof updates.y === "number" ? updates.y - shape.y : 0,
 					);
+
+			if (frameSnapResult && currentFrame === frameId) {
+				const snapped = isResize
+					? applySnapToResize(updates, frameSnapResult, shape, movingBox)
+					: applySnapToUpdates(updates, frameSnapResult);
+				originalUpdateShape(id, snapped);
+				return;
+			}
 
 			const candidateBoxes =
 				frameCandidateBoxes ??
@@ -223,7 +223,15 @@ export const snapPlugin: UsketchPlugin = {
 			const movingOverrides = isResize
 				? { edgeSnap: settings.edgeSnap, centerSnap: false as const }
 				: undefined;
-			const result = calculateSnap(movingBox, movingIds, candidateBoxes, settings, movingOverrides);
+			const edgeFilter = isResize ? getResizeEdgeFilter(shape, movingBox) : undefined;
+			const result = calculateSnap(
+				movingBox,
+				movingIds,
+				candidateBoxes,
+				settings,
+				movingOverrides,
+				edgeFilter,
+			);
 			frameSnapResult = result;
 
 			queueMicrotask(() => {
@@ -235,7 +243,7 @@ export const snapPlugin: UsketchPlugin = {
 			});
 
 			const snapped = isResize
-				? applySnapToResize(updates, result)
+				? applySnapToResize(updates, result, shape, movingBox)
 				: applySnapToUpdates(updates, result);
 			originalUpdateShape(id, snapped);
 
@@ -298,48 +306,75 @@ function applySnapToUpdates(updates: Partial<ShapeData>, result: SnapResult): Pa
 /**
  * Apply snap delta correctly for resize operations.
  *
- * During resize, snap delta must be applied to the edge being dragged:
- * - If `x` is in updates (left edge moving): dx adjusts x and width inversely
- * - If only `width` is in updates (right edge moving): dx adjusts width
- * - Same logic for y/height
+ * Uses the xEdge/yEdge from the snap result to know which edge was matched,
+ * and adjusts position + size accordingly:
+ * - min edge matched: shift x/y by dx/dy, compensate width/height inversely
+ * - max edge matched: only adjust width/height by dx/dy
  */
-function applySnapToResize(updates: Partial<ShapeData>, result: SnapResult): Partial<ShapeData> {
+function applySnapToResize(
+	updates: Partial<ShapeData>,
+	result: SnapResult,
+	shape: ShapeData,
+	movingBox: BoundingBox,
+): Partial<ShapeData> {
 	if (result.dx === 0 && result.dy === 0) return updates;
 
 	const snapped = { ...updates };
-	const hasX = "x" in snapped && typeof snapped.x === "number";
-	const hasW = "width" in snapped && typeof snapped.width === "number";
-	const hasY = "y" in snapped && typeof snapped.y === "number";
-	const hasH = "height" in snapped && typeof snapped.height === "number";
+	const s = snapped as Record<string, unknown>;
 
-	if (result.dx !== 0) {
-		if (hasX && hasW) {
-			// Left edge is moving: shift x and compensate width
-			(snapped as Record<string, unknown>).x = (snapped.x as number) + result.dx;
-			(snapped as Record<string, unknown>).width = (snapped.width as number) - result.dx;
-		} else if (hasW) {
-			// Right edge is moving: adjust width only
-			(snapped as Record<string, unknown>).width = (snapped.width as number) + result.dx;
-		} else if (hasX) {
-			// Pure horizontal move (shouldn't happen in resize, but fallback)
-			(snapped as Record<string, unknown>).x = (snapped.x as number) + result.dx;
-		}
+	// Determine which edges are moving by comparing movingBox to current store shape
+	const leftMoved = Math.abs(movingBox.x - shape.x) > 0.001;
+	const rightMoved = Math.abs(movingBox.x + movingBox.width - (shape.x + shape.width)) > 0.001;
+
+	if (result.dx !== 0 && result.xEdge === "min" && leftMoved) {
+		// Left edge snapped: shift x, compensate width
+		if (typeof snapped.x === "number") s.x = snapped.x + result.dx;
+		if (typeof snapped.width === "number") s.width = (snapped.width as number) - result.dx;
+	} else if (result.dx !== 0 && result.xEdge === "max" && rightMoved) {
+		// Right edge snapped: adjust width only
+		if (typeof snapped.width === "number") s.width = (snapped.width as number) + result.dx;
 	}
 
-	if (result.dy !== 0) {
-		if (hasY && hasH) {
-			// Top edge is moving: shift y and compensate height
-			(snapped as Record<string, unknown>).y = (snapped.y as number) + result.dy;
-			(snapped as Record<string, unknown>).height = (snapped.height as number) - result.dy;
-		} else if (hasH) {
-			// Bottom edge is moving: adjust height only
-			(snapped as Record<string, unknown>).height = (snapped.height as number) + result.dy;
-		} else if (hasY) {
-			(snapped as Record<string, unknown>).y = (snapped.y as number) + result.dy;
-		}
+	const topMoved = Math.abs(movingBox.y - shape.y) > 0.001;
+	const bottomMoved = Math.abs(movingBox.y + movingBox.height - (shape.y + shape.height)) > 0.001;
+
+	if (result.dy !== 0 && result.yEdge === "min" && topMoved) {
+		// Top edge snapped: shift y, compensate height
+		if (typeof snapped.y === "number") s.y = snapped.y + result.dy;
+		if (typeof snapped.height === "number") s.height = (snapped.height as number) - result.dy;
+	} else if (result.dy !== 0 && result.yEdge === "max" && bottomMoved) {
+		// Bottom edge snapped: adjust height only
+		if (typeof snapped.height === "number") s.height = (snapped.height as number) + result.dy;
 	}
 
 	return snapped;
+}
+
+/**
+ * Determine which edges are being dragged during resize by comparing
+ * the updated bounding box to the current store shape.
+ *
+ * This is more reliable than inferring from update keys, because multi-resize
+ * always sends all 4 properties even when only some edges move.
+ */
+function getResizeEdgeFilter(shape: ShapeData, movingBox: BoundingBox): SnapEdgeFilter {
+	const xEdges: SnapEdge[] = [];
+	const yEdges: SnapEdge[] = [];
+
+	const leftMoved = Math.abs(movingBox.x - shape.x) > 0.001;
+	const rightMoved = Math.abs(movingBox.x + movingBox.width - (shape.x + shape.width)) > 0.001;
+	const topMoved = Math.abs(movingBox.y - shape.y) > 0.001;
+	const bottomMoved = Math.abs(movingBox.y + movingBox.height - (shape.y + shape.height)) > 0.001;
+
+	if (leftMoved) xEdges.push("min");
+	if (rightMoved) xEdges.push("max");
+	if (topMoved) yEdges.push("min");
+	if (bottomMoved) yEdges.push("max");
+
+	return {
+		xEdges: xEdges.length > 0 ? xEdges : undefined,
+		yEdges: yEdges.length > 0 ? yEdges : undefined,
+	};
 }
 
 /** Build the bounding box after applying resize updates to a shape */

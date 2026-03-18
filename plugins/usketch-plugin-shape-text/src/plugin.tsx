@@ -61,9 +61,12 @@ function render(data: ShapeData) {
 			tabIndex={0}
 			ref={(el: HTMLDivElement | null) => {
 				if (!el) return;
-				// Only focus once when first entering edit mode
+				// Only set text + focus once when first entering edit mode.
+				// After that, the DOM owns the text content — React must NOT
+				// replace it, or the cursor position will be lost.
 				if (el.dataset.focused) return;
 				el.dataset.focused = "1";
+				el.textContent = (data.text as string) ?? "";
 				requestAnimationFrame(() => focusAtEnd(el));
 			}}
 			onInput={(e: React.FormEvent<HTMLDivElement>) => {
@@ -91,14 +94,14 @@ function render(data: ShapeData) {
 					window.dispatchEvent(new CustomEvent("usketch:text-escape", { detail: { id: data.id } }));
 				}
 			}}
-			onBlur={() => {
+			onBlur={(e: React.FocusEvent<HTMLDivElement>) => {
+				// Clear focused flag so next edit session re-initializes textContent + focus
+				delete e.currentTarget.dataset.focused;
 				window.dispatchEvent(new CustomEvent("usketch:text-blur", { detail: { id: data.id } }));
 			}}
 			onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
 			style={{ ...textStyle(data), cursor: "text", pointerEvents: "auto", userSelect: "auto" }}
-		>
-			{(data.text as string) ?? ""}
-		</div>
+		/>
 	);
 }
 

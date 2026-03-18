@@ -1,7 +1,21 @@
 import type { BoundingBox } from "@edv4h/usketch-shared";
 import { DEFAULT_SNAP_THRESHOLD } from "../constants.js";
 import { extractSnapPoints } from "./snap-points.js";
-import type { SnapIndicator, SnapLine, SnapPoint, SnapResult, SnapSettings } from "./types.js";
+import type {
+	SnapEdge,
+	SnapIndicator,
+	SnapLine,
+	SnapPoint,
+	SnapResult,
+	SnapSettings,
+} from "./types.js";
+
+export interface SnapEdgeFilter {
+	/** Restrict X-axis snap to only these edges of the moving box */
+	xEdges?: SnapEdge[];
+	/** Restrict Y-axis snap to only these edges of the moving box */
+	yEdges?: SnapEdge[];
+}
 
 export function calculateSnap(
 	movingBox: BoundingBox,
@@ -9,9 +23,10 @@ export function calculateSnap(
 	candidateBoxes: ReadonlyMap<string, BoundingBox>,
 	settings: SnapSettings,
 	movingSnapOverrides?: Pick<SnapSettings, "edgeSnap" | "centerSnap">,
+	edgeFilter?: SnapEdgeFilter,
 ): SnapResult {
 	if (!settings.enabled) {
-		return { dx: 0, dy: 0, lines: [] };
+		return { dx: 0, dy: 0, xEdge: null, yEdge: null, lines: [] };
 	}
 
 	const threshold = settings.threshold ?? DEFAULT_SNAP_THRESHOLD;
@@ -19,6 +34,16 @@ export function calculateSnap(
 
 	// Extract snap points from the moving shape(s)' combined bounding box
 	const moving = extractSnapPoints(movingBox, "__moving__", movingSnapSettings);
+
+	// Filter moving snap points to only the edges being dragged (during resize)
+	if (edgeFilter?.xEdges) {
+		const allowed = new Set(edgeFilter.xEdges);
+		moving.xPoints = moving.xPoints.filter((p) => allowed.has(p.edge));
+	}
+	if (edgeFilter?.yEdges) {
+		const allowed = new Set(edgeFilter.yEdges);
+		moving.yPoints = moving.yPoints.filter((p) => allowed.has(p.edge));
+	}
 
 	// Collect candidate snap points from all non-moving shapes
 	const candidateX: SnapPoint[] = [];
@@ -114,6 +139,8 @@ export function calculateSnap(
 	return {
 		dx: snapDx,
 		dy: snapDy,
+		xEdge: xSnap?.moving.edge ?? null,
+		yEdge: ySnap?.moving.edge ?? null,
 		lines,
 	};
 }
