@@ -57,6 +57,9 @@ importers:
       '@edv4h/usketch-plugin-shape-rect':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-rect
+      '@edv4h/usketch-plugin-shape-text':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-shape-text
       '@edv4h/usketch-plugin-snap':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-snap
@@ -390,7 +393,22 @@ importers:
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      '@zag-js/core':
+        specifier: ^1.37.0
+        version: 1.37.0
+      '@zag-js/vanilla':
+        specifier: ^1.37.0
+        version: 1.37.0
+      react:
+        specifier: '>=19'
+        version: 19.1.0
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -996,6 +1014,24 @@ packages:
   '@vitest/utils@3.2.4':
     resolution: {integrity: sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA==}
 
+  '@zag-js/core@1.37.0':
+    resolution: {integrity: sha512-KtMccuGPIR8MF7XKKNBgudyt4W37jnM0PFSFZmYrlOZOqUe3kBDdVqDcRKcEPUj1+XwUGTANmFAahNqsSt8I7Q==}
+
+  '@zag-js/dom-query@1.37.0':
+    resolution: {integrity: sha512-nL3z5UOvRMDL5iBrNMs6Rm8vm5qC6Vt0FykFAhEL++mC01W0xpO/KKJNcpdooGFYQxwHBbgI/djE+sq9yY3pNw==}
+
+  '@zag-js/store@1.37.0':
+    resolution: {integrity: sha512-7/wHuiSPVlq+OK9TMpZMWB8QC1LidWV9w1eelpID9oL274441re4ydB+bcHWJFtBv6Mio5ujDmFoVhDgLDig6A==}
+
+  '@zag-js/types@1.37.0':
+    resolution: {integrity: sha512-auzzQI7+MtZvU8q5C9yNkg/DQqAT3ar9drE4rQFz1OERpaXtyp/JaeT3/t7IXDrocJBy0CY7vfrJSb+CIfjPzw==}
+
+  '@zag-js/utils@1.37.0':
+    resolution: {integrity: sha512-3YUZAT5LMiBK0FwEBLOaujbsHMC2uAQ7RyCEhiFYkRm0zvmqehPLCqccMtOnh9lBsLG3GKf+OWKxwfTtkvbh3w==}
+
+  '@zag-js/vanilla@1.37.0':
+    resolution: {integrity: sha512-2k3KME2WXRqqR8MRi09UWExcaZx8Y1050fGYxqL4KfOZaXPDNMfiQChEAMU9atdudnzx//HcxEl/orZU8G+qFg==}
+
   assertion-error@2.0.1:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
@@ -1283,6 +1319,9 @@ packages:
   postcss@8.5.8:
     resolution: {integrity: sha512-OW/rX8O/jXnm82Ey1k44pObPtdblfiuWnrd8X7GJ7emImCOstunGbXUpp7HdBrFQX6rJzn3sPT397Wp5aCwCHg==}
     engines: {node: ^10 || ^12 || >=14}
+
+  proxy-compare@3.0.1:
+    resolution: {integrity: sha512-V9plBAt3qjMlS1+nC8771KNf6oJ12gExvaxnNzN/9yVRLdTv/lc+oJlnSzrdYDAvBfTStPCoiaCOTmTs0adv7Q==}
 
   proxy-from-env@1.1.0:
     resolution: {integrity: sha512-D+zkORCbA9f1tdWRK0RaCR3GPv50cMxcrz4X8k5LTSUD1Dkw47mKJEZQNunItRTkWwgtaUSo1RVFRIG9ZXiFYg==}
@@ -1917,6 +1956,32 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
+  '@zag-js/core@1.37.0':
+    dependencies:
+      '@zag-js/dom-query': 1.37.0
+      '@zag-js/utils': 1.37.0
+
+  '@zag-js/dom-query@1.37.0':
+    dependencies:
+      '@zag-js/types': 1.37.0
+
+  '@zag-js/store@1.37.0':
+    dependencies:
+      proxy-compare: 3.0.1
+
+  '@zag-js/types@1.37.0':
+    dependencies:
+      csstype: 3.2.3
+
+  '@zag-js/utils@1.37.0': {}
+
+  '@zag-js/vanilla@1.37.0':
+    dependencies:
+      '@zag-js/core': 1.37.0
+      '@zag-js/store': 1.37.0
+      '@zag-js/types': 1.37.0
+      '@zag-js/utils': 1.37.0
+
   assertion-error@2.0.1: {}
 
   asynckit@0.4.0: {}
@@ -2183,6 +2248,8 @@ snapshots:
       nanoid: 3.3.11
       picocolors: 1.1.1
       source-map-js: 1.2.1
+
+  proxy-compare@3.0.1: {}
 
   proxy-from-env@1.1.0: {}
 
