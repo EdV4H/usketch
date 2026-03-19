@@ -5,7 +5,7 @@ main = "src/index.ts"
 [[d1_databases]]
 binding = "DB"
 database_name = "usketch-db"
-database_id = "local"
+database_id = "00000000-0000-0000-0000-000000000000" # デプロイ時に実際のIDに置き換え
 
 [durable_objects]
 bindings = [

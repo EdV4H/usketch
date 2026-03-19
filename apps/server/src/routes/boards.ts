@@ -107,8 +107,9 @@ boardsApp.get("/:id", async (c) => {
 	const board = result[0];
 
 	// アクセス制御: メンバーであるかパブリックボードのみ閲覧可能
+	// 非メンバーには404を返し、ボードIDの存在をリークしない
 	if (board.role === null && !board.isPublic) {
-		return c.json({ error: "Forbidden" }, 403);
+		return c.json({ error: "Board not found" }, 404);
 	}
 
 	return c.json(board);

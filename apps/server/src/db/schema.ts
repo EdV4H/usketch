@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
 	id: text("id").primaryKey(),
@@ -33,5 +33,8 @@ export const boardMembers = sqliteTable(
 			.notNull()
 			.default("editor"),
 	},
-	(table) => [primaryKey({ columns: [table.boardId, table.userId] })],
+	(table) => [
+		primaryKey({ columns: [table.boardId, table.userId] }),
+		index("idx_board_members_user_id").on(table.userId),
+	],
 );

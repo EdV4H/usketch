@@ -26,21 +26,19 @@ app.use(
 	}),
 );
 
-// DB middleware — inject Drizzle instance
+// Health check
+app.get("/", (c) => c.json({ status: "ok", name: "usketch-server" }));
+
+// Auth routes (no auth middleware needed, no DB needed)
+app.route("/api/auth", authApp);
+
+// Protected routes: auth first, then DB injection
+app.use("/api/*", authMiddleware);
 app.use("/api/*", async (c, next) => {
 	const db = drizzle(c.env.DB, { schema });
 	c.set("db", db);
 	await next();
 });
-
-// Health check
-app.get("/", (c) => c.json({ status: "ok", name: "usketch-server" }));
-
-// Auth routes (no auth middleware needed)
-app.route("/api/auth", authApp);
-
-// Protected routes
-app.use("/api/*", authMiddleware);
 app.route("/api/boards", boardsApp);
 
 export default app;
