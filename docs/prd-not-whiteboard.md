@@ -231,7 +231,7 @@ MVP基盤インフラ（`architecture-v2.md` / `plugin-system-design.md` で設�
 
 | タイプ | 用途 | TTL | Phase |
 |---|---|---|---|
-| `laser-trail` | レーザーポインタの軌跡 | 1,000ms（ポイントごと） | NW-2 |
+| `laser-trail` | レーザーポインタの軌跡（ポイントごとにユニーク `id` で `emit`、各ポイントが独立にフェードアウト） | 1,000ms（ポイントごと） | NW-2 |
 | `spotlight` | フォーカスモードのハイライト | なし（手動制御） | NW-4 |
 | `chat-bubble` | 一時的な空間チャットメッセージ | 10,000ms | NW-1 |
 | `user-status` | ユーザーステータス表示 | なし（手動更新） | NW-1 |
