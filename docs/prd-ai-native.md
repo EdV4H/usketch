@@ -165,7 +165,7 @@ interface AiResponse {
 ```
 
 **既存インフラとの統合:**
-- `EventBus.emit('ai:request', { prompt, canvasSnapshot })` / `EventBus.on('ai:response', handler)` でプラグイン間通信
+- `ctx.events.emit('ai:request', { prompt, canvasSnapshot })` / `ctx.events.on('ai:response', handler)` でプラグイン間通信
 - AI の mutation → `ctx.commands.execute(createXxxCommand(...))` → `BoardStore`（Undo 可能）
 - AI 提案 → `TransientRegistry` の `ai-suggestion` タイプ（`TransientObject.ttl` で自動消去）
 - AI カーソル → `TransientRegistry` の `ai-cursor` タイプ
