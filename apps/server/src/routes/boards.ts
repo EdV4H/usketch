@@ -29,28 +29,26 @@ boardsApp.post("/", zValidator("json", createBoardSchema), async (c) => {
 	const userId = c.get("userId");
 	const body = c.req.valid("json");
 
-	// ユーザーが存在しない場合は自動作成（開発時・初回ログイン時）
-	const existingUser = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-	if (existingUser.length === 0) {
-		await db.insert(users).values({ id: userId });
-	}
-
 	const id = crypto.randomUUID();
 	const now = new Date().toISOString();
 
-	await db.insert(boards).values({
-		id,
-		title: body.title ?? "Untitled",
-		ownerId: userId,
-		createdAt: now,
-		updatedAt: now,
-	});
-
-	await db.insert(boardMembers).values({
-		boardId: id,
-		userId,
-		role: "owner",
-	});
+	// ユーザー自動作成（ON CONFLICT DO NOTHING でレースコンディション回避）+
+	// ボード作成 + メンバー追加をバッチ実行でアトミックに
+	await db.batch([
+		db.insert(users).values({ id: userId }).onConflictDoNothing(),
+		db.insert(boards).values({
+			id,
+			title: body.title ?? "Untitled",
+			ownerId: userId,
+			createdAt: now,
+			updatedAt: now,
+		}),
+		db.insert(boardMembers).values({
+			boardId: id,
+			userId,
+			role: "owner",
+		}),
+	]);
 
 	return c.json({ id, title: body.title ?? "Untitled", createdAt: now }, 201);
 });
@@ -138,13 +136,14 @@ boardsApp.patch("/:id", zValidator("json", updateBoardSchema), async (c) => {
 		return c.json({ error: "Forbidden" }, 403);
 	}
 
-	const updates: Record<string, unknown> = {
-		updatedAt: new Date().toISOString(),
-	};
-	if (body.title !== undefined) updates.title = body.title;
-	if (body.isPublic !== undefined) updates.isPublic = body.isPublic;
-
-	await db.update(boards).set(updates).where(eq(boards.id, boardId));
+	await db
+		.update(boards)
+		.set({
+			updatedAt: new Date().toISOString(),
+			...(body.title !== undefined && { title: body.title }),
+			...(body.isPublic !== undefined && { isPublic: body.isPublic }),
+		})
+		.where(eq(boards.id, boardId));
 
 	return c.json({ ok: true });
 });
