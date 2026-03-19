@@ -15,6 +15,7 @@ v1の技術的知見を活かしつつ、MVPファーストで再構築する。
 - `docs/new-product-proposal.md` — v2のプロダクト企画
 - `docs/architecture-v2.md` — v2のアーキテクチャ設計
 - `docs/prd-ai-native.md` — AIネイティブ機能のPRD
+- `docs/prd-not-whiteboard.md` — Not Whiteboard（コミュニケーション空間）のPRD
 - `docs/v1/` — v1の旧ドキュメント（参考資料）
 
 ## ファイル命名規則
@@ -73,4 +74,13 @@ plugins/
   usketch-plugin-ai-chat/        — (planned) チャットパネルUI + NL2Canvasコマンド
   usketch-plugin-ai-copilot/     — (planned) リアルタイム提案エンジン（ゴーストシェイプ）
   usketch-plugin-ai-actions/     — (planned) コンテキストメニュー スマートアクション
+  usketch-plugin-presence-enhanced/ — (planned) 拡張プレゼンス（永続メンバー、ゴーストアバター）
+  usketch-plugin-spatial-chat/   — (planned) 空間チャットバブル
+  usketch-plugin-laser/          — (planned) レーザーポインタ
+  usketch-plugin-follow-me/      — (planned) プレゼンタービューポート追従
+  usketch-plugin-comments/       — (planned) シェイプアンカーコメント
+  usketch-plugin-spotlight/      — (planned) フォーカスモード
+  usketch-plugin-voting/         — (planned) 空間投票
+  usketch-plugin-activity-feed/  — (planned) アクティビティタイムライン
+  usketch-plugin-sub-space/      — (planned) サブスペース（道具としてのホワイトボード）
 ```
