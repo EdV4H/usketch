@@ -214,11 +214,11 @@ uSketch は「フロア」（ステップ1-2）であって「ホワイトボー
 
 ### 4.1 原則: コミュニケーション機能 = プラグイン
 
-すべてのコミュニケーション機能は標準 `UsketchPlugin`（`FeaturePlugin`）として実装。`packages/core` はコミュニケーションのために変更しない。
+すべてのコミュニケーション機能は標準 `UsketchPlugin` として実装（`plugin-system-design.md` で定義された `FeaturePlugin` サブタイプを使用予定）。`packages/core` はコミュニケーションのために変更しない。
 
-既存インフラが Not Whiteboard の要件を満たすことを確認:
+MVP基盤インフラ（`architecture-v2.md` / `plugin-system-design.md` で設計済み、MVP期間中に実装予定）が Not Whiteboard の要件を満たすことを確認:
 
-| 既存インフラ | Not Whiteboard での役割 |
+| MVP基盤インフラ（設計済み） | Not Whiteboard での役割 |
 |---|---|
 | `TransientRegistry` | レーザー軌跡、チャットバブル、リアクション、投票、ステータス等の一時オブジェクト管理 |
 | `EventBus` | `follow:start`, `vote:cast`, `chat:send` 等のプラグイン間イベント通信 |
@@ -346,11 +346,11 @@ plugins/（追加予定）
   usketch-plugin-sub-space/          — サブスペース（道具としてのホワイトボード）
 ```
 
-各プラグインは `FeaturePlugin` として実装し、`setup(ctx)` 内で:
+各プラグインは `UsketchPlugin`（`FeaturePlugin` サブタイプ、`plugin-system-design.md` で設計済み）として実装し、`setup(ctx)` 内で:
 - `ctx.transient.registerType()` で一時オブジェクトの種別を登録
 - `ctx.events.on()` でイベントを購読
 - `ctx.layers.register()` で必要なレイヤーを登録
-- `ctx.commands.register()` でユーザーコマンドを登録
+- `ctx.commands.execute()` でコマンドを実行（Undo対応）
 
 ---
 
@@ -392,11 +392,11 @@ Not Whiteboard 機能は既存 MVP ロードマップをブロックしない。
 
 ### Phase 0: MVP 基盤（Week 1-8、既存ロードマップ）
 
-コミュニケーション作業なし。ただし MVP 中に以下の基盤が自然に構築される:
-- `TransientRegistry`（カーソル、リップルエフェクト用に実装済み）
-- Yjs Awareness（プレゼンス用に実装済み）
-- `EventBus`（プラグイン間通信用に実装済み）
-- D1 `board_members`（アクセス制御用に実装済み）
+コミュニケーション作業なし。ただし MVP 中に以下の基盤が構築される（設計済み、MVP期間中に実装予定）:
+- `TransientRegistry`（カーソル、リップルエフェクト用）
+- Yjs Awareness（プレゼンス用）
+- `EventBus`（プラグイン間通信用）
+- D1 `board_members`（アクセス制御用）
 
 ### Phase NW-1: リアクション + 空間チャット（Week 9-10、2週間）
 
