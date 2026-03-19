@@ -42,8 +42,7 @@ v1 の教訓「ユーザー価値を先に出せ」を守りつつ、AI を後�
 AI を Yjs Awareness のピアとしてボードに接続。他ユーザーと同じプレゼンス（カーソル・選択・色）を持つ。
 
 - キャンバスの `ShapeData` マップを読み取り、LLM に構造化コンテキストとして渡す
-- AI の操作は `BoardStore.addShape()` / `updateShape()` / `deleteShape()` 経由
-- `CommandRegistry` を通すので全操作が Undo 可能
+- AI の操作は `CommandRegistry.execute()` 経由で `BoardStore` を変更（全操作が Undo 可能）
 - プラグイン: `usketch-plugin-ai-agent`
 
 ### 2.2 Natural Language → Canvas（NL2Canvas）
@@ -167,9 +166,9 @@ interface AiResponse {
 
 **既存インフラとの統合:**
 - `EventBus.emit('ai:request')` / `EventBus.on('ai:response')` でプラグイン間通信
-- AI の mutation → `BoardStore` → `CommandRegistry`（Undo 可能）
-- AI 提案 → `TransientRegistry.registerType('ai-suggestion')` + TTL
-- AI カーソル → `TransientRegistry.registerType('ai-cursor')`
+- AI の mutation → `CommandRegistry.execute()` → `BoardStore`（Undo 可能）
+- AI 提案 → `TransientRegistry` の `ai-suggestion` タイプ（`TransientObject.ttl` で自動消去）
+- AI カーソル → `TransientRegistry` の `ai-cursor` タイプ
 - AI 生成シェイプ = 標準 `ShapeData`（特別なシェイプ型不要）
 
 ### 4.4 サーバーサイド AI プロキシ

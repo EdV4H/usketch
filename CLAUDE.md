@@ -69,8 +69,8 @@ plugins/
   usketch-plugin-bg-dots/        — ドット背景
   usketch-plugin-snap/           — スナップ・スマートガイド
   usketch-plugin-export/         — PNG/SVG/PDFエクスポート
-  usketch-plugin-ai-agent/       — AI基盤: プレゼンス、キャンバス読取、LLMブリッジ
-  usketch-plugin-ai-chat/        — チャットパネルUI + NL2Canvasコマンド
-  usketch-plugin-ai-copilot/     — リアルタイム提案エンジン（ゴーストシェイプ）
-  usketch-plugin-ai-actions/     — コンテキストメニュー スマートアクション
+  usketch-plugin-ai-agent/       — (planned) AI基盤: プレゼンス、キャンバス読取、LLMブリッジ
+  usketch-plugin-ai-chat/        — (planned) チャットパネルUI + NL2Canvasコマンド
+  usketch-plugin-ai-copilot/     — (planned) リアルタイム提案エンジン（ゴーストシェイプ）
+  usketch-plugin-ai-actions/     — (planned) コンテキストメニュー スマートアクション
 ```
