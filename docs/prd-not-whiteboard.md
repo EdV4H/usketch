@@ -239,7 +239,7 @@ MVP基盤インフラ（`architecture-v2.md` / `plugin-system-design.md` で設�
 | `applause` | 拍手/紙吹雪エフェクト | 5,000ms | NW-1 |
 | `activity-halo` | アクティブメンバーの光輪 | 30,000ms | NW-2 |
 | `follow-indicator` | Follow Me の追従インジケータ | なし（Follow中） | NW-2 |
-| `sub-space-thumbnail` | 折りたたまれたサブスペースのサムネイル | なし（永続的） | NW-5 |
+| `sub-space-thumbnail` | 折りたたまれたサブスペースのサムネイル | なし（セッション中保持、永続化は Y.Map `subSpaces` の state で管理） | NW-5 |
 
 ### 4.3 永続コミュニケーションのデータモデル
 
