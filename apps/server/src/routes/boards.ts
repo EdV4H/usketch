@@ -32,7 +32,7 @@ boardsApp.post("/", zValidator("json", createBoardSchema), async (c) => {
 	const id = crypto.randomUUID();
 	const now = new Date().toISOString();
 
-	// ユーザー自動作成（ON CONFLICT DO NOTHING でレースコンディション回避）+
+	// ユーザー自動作成（ON CONFLICT DO NOTHING でレースコンディション回避）
 	// ボード作成 + メンバー追加をバッチ実行でアトミックに
 	await db.batch([
 		db.insert(users).values({ id: userId }).onConflictDoNothing(),

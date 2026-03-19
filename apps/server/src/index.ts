@@ -11,7 +11,7 @@ type HonoEnv = {
 	Bindings: Env;
 	Variables: {
 		db: ReturnType<typeof drizzle<typeof schema>>;
-		userId: string;
+		userId?: string;
 	};
 };
 

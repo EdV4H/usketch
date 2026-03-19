@@ -1,12 +1,6 @@
 import { Hono } from "hono";
 
-type AuthEnv = {
-	Variables: {
-		userId: string;
-	};
-};
-
-const authApp = new Hono<AuthEnv>();
+const authApp = new Hono();
 
 // TODO: Week 3-4 で Better Auth を統合
 // 現時点では認証スタブとして機能
