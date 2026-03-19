@@ -165,7 +165,7 @@ interface AiResponse {
 ```
 
 **既存インフラとの統合:**
-- `EventBus.emit('ai:request')` / `EventBus.on('ai:response')` でプラグイン間通信
+- `EventBus.emit('ai:request', { prompt, canvasSnapshot })` / `EventBus.on('ai:response', handler)` でプラグイン間通信
 - AI の mutation → `CommandRegistry.execute()` → `BoardStore`（Undo 可能）
 - AI 提案 → `TransientRegistry` の `ai-suggestion` タイプ（`TransientObject.ttl` で自動消去）
 - AI カーソル → `TransientRegistry` の `ai-cursor` タイプ
@@ -174,7 +174,7 @@ interface AiResponse {
 ### 4.4 サーバーサイド AI プロキシ
 
 ```
-apps/server/src/routes/ai.ts
+apps/server/src/routes/ai.ts  （新設予定）
   POST /api/ai/complete    — LLM API プロキシ（ストリーミング対応）
   POST /api/ai/understand  — キャンバス → 要約
 ```
@@ -198,8 +198,8 @@ apps/server/src/routes/ai.ts
 |---|---|---|
 | `ai-cursor` | AI のプレゼンス表示 | なし（手動制御） |
 | `ai-thinking` | 処理中パルスインジケータ | なし（手動制御） |
-| `ai-suggestion` | 確定/却下可能なゴーストシェイプ | 30秒 or 却下まで |
-| `ai-highlight` | AI が参照しているシェイプのハイライト | 10秒 |
+| `ai-suggestion` | 確定/却下可能なゴーストシェイプ | 30,000ms or 却下まで |
+| `ai-highlight` | AI が参照しているシェイプのハイライト | 10,000ms |
 
 ---
 
