@@ -16,7 +16,7 @@ v1 の教訓「ユーザー価値を先に出せ」を守りつつ、AI を後�
 |---|---|---|
 | AI の居場所 | サイドバー / モーダルダイアログ | キャンバス上（他のユーザーと同じ空間） |
 | AI の出力 | バッチ生成 → 一括挿入 | ストリーミングで目の前に描画 |
-| AI のキャンバス認識 | スクリーンショット or 限定API | `Y.Map<ShapeData>` を直接読み書き |
+| AI のキャンバス認識 | スクリーンショット or 限定API | `BoardStore` 経由でシェイプを読み書き（内部的にYjsへ同期） |
 | AI のコラボ参加 | 生成結果は静的 | Yjs セッションにリアルタイム参加 |
 | Undo | AI操作のUndoが不完全 | CommandRegistry 経由で完全Undo |
 | 拡張性 | ベンダー定義のAI機能のみ | 誰でもAIプラグインを作れる |
@@ -42,7 +42,7 @@ v1 の教訓「ユーザー価値を先に出せ」を守りつつ、AI を後�
 AI を Yjs Awareness のピアとしてボードに接続。他ユーザーと同じプレゼンス（カーソル・選択・色）を持つ。
 
 - キャンバスの `ShapeData` マップを読み取り、LLM に構造化コンテキストとして渡す
-- AI の操作は `CommandRegistry.execute()` 経由で `BoardStore` を変更（全操作が Undo 可能）
+- AI の操作は `ctx.commands.execute(createAddShapeCommand(...))` 等の Command 経由で `BoardStore` を変更（全操作が Undo 可能）
 - プラグイン: `usketch-plugin-ai-agent`
 
 ### 2.2 Natural Language → Canvas（NL2Canvas）
@@ -136,7 +136,7 @@ AI が EventBus イベントを監視し、ゴーストシェイプとして提�
 ### 4.2 プラグイン構成
 
 ```
-plugins/
+plugins/  （以下すべて追加予定）
   usketch-plugin-ai-agent/        — 基盤: AI プレゼンス、キャンバス読取、LLM ブリッジ
   usketch-plugin-ai-chat/         — チャットパネル UI + NL2Canvas コマンド
   usketch-plugin-ai-copilot/      — リアルタイム提案エンジン（ゴーストシェイプ）
@@ -166,7 +166,7 @@ interface AiResponse {
 
 **既存インフラとの統合:**
 - `EventBus.emit('ai:request', { prompt, canvasSnapshot })` / `EventBus.on('ai:response', handler)` でプラグイン間通信
-- AI の mutation → `CommandRegistry.execute()` → `BoardStore`（Undo 可能）
+- AI の mutation → `ctx.commands.execute(createXxxCommand(...))` → `BoardStore`（Undo 可能）
 - AI 提案 → `TransientRegistry` の `ai-suggestion` タイプ（`TransientObject.ttl` で自動消去）
 - AI カーソル → `TransientRegistry` の `ai-cursor` タイプ
 - AI 生成シェイプ = 標準 `ShapeData`（特別なシェイプ型不要）
