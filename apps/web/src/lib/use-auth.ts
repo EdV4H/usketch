@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { signOut, useSession } from "./auth-client.js";
 import { devLogout, getDevUser, isDevMode } from "./dev-auth.js";
 
@@ -8,39 +9,33 @@ import { devLogout, getDevUser, isDevMode } from "./dev-auth.js";
 export function useAuth() {
 	const { data: session, isPending } = useSession();
 
-	if (session?.user) {
-		return {
-			user: session.user,
-			isPending,
-			isDevUser: false,
-			logout: () => signOut(),
-		};
-	}
+	const devId = isDevMode() ? (getDevUser()?.id ?? null) : null;
+	const devName = isDevMode() ? (getDevUser()?.name ?? null) : null;
 
-	if (isDevMode()) {
-		const devUser = getDevUser();
-		if (devUser) {
+	const user = useMemo(() => {
+		if (session?.user) return session.user;
+		if (devId && devName) {
 			return {
-				user: {
-					id: devUser.id,
-					name: devUser.name,
-					email: `${devUser.id}@dev.local`,
-					image: null,
-				},
-				isPending: false,
-				isDevUser: true,
-				logout: () => {
-					devLogout();
-					window.location.reload();
-				},
+				id: devId,
+				name: devName,
+				email: `${devId}@dev.local`,
+				image: null as string | null,
 			};
 		}
-	}
+		return null;
+	}, [session?.user, devId, devName]);
 
-	return {
-		user: null,
-		isPending,
-		isDevUser: false,
-		logout: () => signOut(),
-	};
+	const isDevUser = !session?.user && !!devId;
+
+	const logout = useMemo(() => {
+		if (isDevUser) {
+			return () => {
+				devLogout();
+				window.location.reload();
+			};
+		}
+		return () => signOut();
+	}, [isDevUser]);
+
+	return { user, isPending: !devId && isPending, isDevUser, logout };
 }
