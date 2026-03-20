@@ -36,44 +36,48 @@ export interface ExportOptions {
 
 /**
  * シェイプレイヤーのみをエクスポートする。
- * data-layer="shapes" のDIVを探してクローンし、シェイプ全体にフィットさせてキャプチャする。
+ * Canvasコンテナをクローンし、ビューポートをシェイプ全体にフィットさせ、
+ * シェイプレイヤー以外のレイヤーを除外してキャプチャする。
  */
 export async function exportCanvas(
 	shapes: Map<string, ShapeData>,
 	options: ExportOptions,
 ): Promise<Blob> {
-	const shapesLayer = document.querySelector<HTMLElement>('[data-layer="shapes"]');
-	if (!shapesLayer) {
-		throw new Error("Shapes layer not found");
-	}
+	// Canvasコンテナを取得
+	const canvas = document.querySelector<HTMLElement>("[style*='touch-action: none']");
+	if (!canvas) throw new Error("Canvas not found");
 
 	const bounds = computeBounds(shapes);
 	const pixelRatio = options.pixelRatio ?? 2;
 	const background = options.background ?? "#ffffff";
 
-	// シェイプレイヤーのクローンを作成し、独立したコンテナに配置
-	const container = document.createElement("div");
-	container.style.position = "fixed";
-	container.style.left = "-99999px";
-	container.style.top = "0";
-	container.style.width = `${bounds.width}px`;
-	container.style.height = `${bounds.height}px`;
-	container.style.overflow = "hidden";
-	container.style.background = background;
+	// クローンを作成してビューポートを上書き
+	const clone = canvas.cloneNode(true) as HTMLElement;
+	clone.style.position = "fixed";
+	clone.style.left = "-99999px";
+	clone.style.top = "0";
+	clone.style.width = `${bounds.width}px`;
+	clone.style.height = `${bounds.height}px`;
+	clone.style.background = background;
 
-	// ビューポートをシェイプ全体にフィット（zoom=1, パン位置をオフセット）
-	const transformWrapper = document.createElement("div");
-	transformWrapper.style.transformOrigin = "0 0";
-	transformWrapper.style.transform = `translate(${-bounds.minX}px, ${-bounds.minY}px)`;
+	// transientレイヤー等を除外（shapesレイヤーのみ残す）
+	for (const layerEl of clone.querySelectorAll<HTMLElement>("[data-layer-id]")) {
+		if (layerEl.dataset.layerId !== "shapes") {
+			layerEl.remove();
+		}
+	}
 
-	const clone = shapesLayer.cloneNode(true) as HTMLElement;
-	transformWrapper.appendChild(clone);
-	container.appendChild(transformWrapper);
-	document.body.appendChild(container);
+	// ビューポートtransformを上書き（zoom=1, シェイプ全体にフィット）
+	const transformDiv = clone.querySelector<HTMLElement>("[style*='transform-origin']");
+	if (transformDiv) {
+		transformDiv.style.transform = `translate(${-bounds.minX}px, ${-bounds.minY}px) scale(1)`;
+	}
+
+	document.body.appendChild(clone);
 
 	try {
 		if (options.format === "svg") {
-			const dataUrl = await toSvg(container, {
+			const dataUrl = await toSvg(clone, {
 				width: bounds.width,
 				height: bounds.height,
 				backgroundColor: background,
@@ -82,7 +86,7 @@ export async function exportCanvas(
 			return new Blob([svgStr], { type: "image/svg+xml" });
 		}
 
-		const dataUrl = await toPng(container, {
+		const dataUrl = await toPng(clone, {
 			width: bounds.width,
 			height: bounds.height,
 			pixelRatio,
@@ -91,7 +95,7 @@ export async function exportCanvas(
 		const res = await fetch(dataUrl);
 		return res.blob();
 	} finally {
-		document.body.removeChild(container);
+		document.body.removeChild(clone);
 	}
 }
 
