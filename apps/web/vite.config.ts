@@ -9,4 +9,7 @@ export default defineConfig({
 	server: {
 		port: 4578,
 	},
+	test: {
+		exclude: ["**/node_modules/**", "**/dist/**", "**/e2e/**"],
+	},
 });
