@@ -1,5 +1,11 @@
 import { DurableObject } from "cloudflare:workers";
-import { MSG_BROADCAST, MSG_SYNC_STEP1, MSG_SYNC_STEP2, MSG_YJS_UPDATE } from "@edv4h/usketch-sync";
+import {
+	MSG_AWARENESS,
+	MSG_BROADCAST,
+	MSG_SYNC_STEP1,
+	MSG_SYNC_STEP2,
+	MSG_YJS_UPDATE,
+} from "@edv4h/usketch-sync";
 import type { Env } from "./types.js";
 
 /**
@@ -51,8 +57,11 @@ export class BoardRoom extends DurableObject<Env> {
 				this.broadcast(ws, data);
 				break;
 			}
+			case MSG_AWARENESS:
 			case MSG_BROADCAST: {
-				// 一時データ（Awareness, Transient等）は蓄積不要、中継のみ
+				// Awareness: 状態共有（最新値、切断時にYjsが自動クリーンアップ）
+				// Broadcast: イベント中継（fire-and-forget）
+				// どちらも蓄積不要、中継のみ
 				this.broadcast(ws, data);
 				break;
 			}

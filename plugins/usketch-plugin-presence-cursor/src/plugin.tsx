@@ -20,14 +20,6 @@ function getUserColor(userId: string): string {
 	return CURSOR_COLORS[Math.abs(hash) % CURSOR_COLORS.length];
 }
 
-interface CursorBroadcast {
-	kind: "cursor";
-	userId: string;
-	name: string;
-	color: string;
-	cursor: { x: number; y: number } | null;
-}
-
 function RemoteCursor({ obj }: { obj: TransientObject }) {
 	const color = (obj.data.color as string) ?? "#999";
 	const name = (obj.data.name as string) ?? "";
@@ -78,6 +70,7 @@ export interface PresenceCursorOptions {
 export function createPresenceCursorPlugin(options: PresenceCursorOptions): UsketchPlugin {
 	const { wsProvider, userId, userName } = options;
 	const color = getUserColor(userId);
+	const { awareness } = wsProvider;
 
 	return {
 		id: "usketch-plugin-presence-cursor",
@@ -88,44 +81,56 @@ export function createPresenceCursorPlugin(options: PresenceCursorOptions): Uske
 				render: (obj) => <RemoteCursor obj={obj} />,
 			});
 
-			// リモートカーソルの受信
-			const unsubBroadcast = wsProvider.onBroadcast((msg) => {
-				if (msg.kind !== "cursor") return;
-				const data = msg as unknown as CursorBroadcast;
+			// Awarenessにローカルユーザー情報を設定
+			awareness.setLocalStateField("user", { name: userName, color });
 
-				if (data.cursor) {
+			// Awareness変更 → TransientRegistryに反映
+			function onAwarenessChange() {
+				// 既存のリモートカーソルをクリア
+				for (const [, obj] of ctx.transient.getAll()) {
+					if (obj.type === "remote-cursor") {
+						ctx.transient.dismiss(obj.id);
+					}
+				}
+
+				// 全Awarenessステートを走査
+				for (const [clientId, state] of awareness.getStates()) {
+					if (clientId === awareness.doc.clientID) continue; // 自分は除外
+					const user = state.user as { name: string; color: string } | undefined;
+					const cursor = state.cursor as { x: number; y: number } | undefined;
+					if (!user || !cursor) continue;
+
 					ctx.transient.emit({
-						id: `cursor-${data.userId}`,
+						id: `cursor-${clientId}`,
 						type: "remote-cursor",
-						sourceUserId: data.userId,
-						position: data.cursor,
-						data: { name: data.name, color: data.color },
+						sourceUserId: String(clientId),
+						position: cursor,
+						data: { name: user.name, color: user.color },
 						ttl: 5000,
 						createdAt: Date.now(),
 					});
-				} else {
-					ctx.transient.dismiss(`cursor-${data.userId}`);
 				}
-			});
+			}
+
+			awareness.on("change", onAwarenessChange);
 
 			// ローカルカーソルの送信
 			const handleMouseMove = (e: MouseEvent) => {
 				const viewport = ctx.store.getViewport();
 				const x = (e.clientX - viewport.x) / viewport.zoom;
 				const y = (e.clientY - viewport.y) / viewport.zoom;
-
-				wsProvider.broadcast({ kind: "cursor", userId, name: userName, color, cursor: { x, y } });
+				awareness.setLocalStateField("cursor", { x, y });
 			};
 
 			const handleMouseLeave = () => {
-				wsProvider.broadcast({ kind: "cursor", userId, name: userName, color, cursor: null });
+				awareness.setLocalStateField("cursor", null);
 			};
 
 			window.addEventListener("mousemove", handleMouseMove);
 			window.addEventListener("mouseleave", handleMouseLeave);
 
 			(this as unknown as Record<string, unknown>)._cleanup = () => {
-				unsubBroadcast();
+				awareness.off("change", onAwarenessChange);
 				window.removeEventListener("mousemove", handleMouseMove);
 				window.removeEventListener("mouseleave", handleMouseLeave);
 			};
