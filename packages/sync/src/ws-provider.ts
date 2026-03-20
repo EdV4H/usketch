@@ -1,13 +1,11 @@
 import * as Y from "yjs";
-
-/**
- * メッセージプロトコル（server/board-room.tsと一致）
- */
-const MSG_SYNC_STEP1 = 0;
-const MSG_SYNC_STEP2 = 1;
-const MSG_YJS_UPDATE = 2;
-const MSG_AWARENESS = 3;
-const MSG_TRANSIENT = 4;
+import {
+	MSG_AWARENESS,
+	MSG_SYNC_STEP1,
+	MSG_SYNC_STEP2,
+	MSG_TRANSIENT,
+	MSG_YJS_UPDATE,
+} from "./protocol.js";
 
 export interface AwarenessState {
 	userId: string;
