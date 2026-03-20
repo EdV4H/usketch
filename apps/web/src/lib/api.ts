@@ -1,9 +1,9 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 
 async function fetchApi<T>(path: string, init?: RequestInit): Promise<T> {
-	const headers: Record<string, string> = { ...(init?.headers as Record<string, string>) };
+	const headers = new Headers(init?.headers);
 	if (init?.body) {
-		headers["Content-Type"] = "application/json";
+		headers.set("Content-Type", "application/json");
 	}
 
 	const res = await fetch(`${API_URL}${path}`, {

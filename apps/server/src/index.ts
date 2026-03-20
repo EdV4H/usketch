@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/d1";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { ALLOWED_ORIGINS } from "./config.js";
 import * as schema from "./db/schema.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { authApp } from "./routes/auth.js";
@@ -21,7 +22,7 @@ const app = new Hono<HonoEnv>();
 app.use(
 	"*",
 	cors({
-		origin: ["http://localhost:4578", "http://localhost:5173", "http://localhost:4173"],
+		origin: ALLOWED_ORIGINS,
 		credentials: true,
 	}),
 );

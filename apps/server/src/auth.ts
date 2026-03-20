@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { drizzle } from "drizzle-orm/d1";
+import { ALLOWED_ORIGINS } from "./config.js";
 import * as schema from "./db/schema.js";
 import type { Env } from "./types.js";
 
@@ -35,7 +36,7 @@ export function createAuth(env: Env) {
 					},
 				}),
 		},
-		trustedOrigins: ["http://localhost:4578", "http://localhost:5173", "http://localhost:4173"],
+		trustedOrigins: ALLOWED_ORIGINS,
 		emailAndPassword: {
 			enabled: true,
 		},

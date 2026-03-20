@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { api, type Board } from "../lib/api.js";
 import { signOut, useSession } from "../lib/auth-client.js";
 import { type LocalBoard, localBoards } from "../lib/local-boards.js";
 
 export function DashboardPage() {
+	const navigate = useNavigate();
 	const { data: session } = useSession();
 	const [boards, setBoards] = useState<Board[]>([]);
 	const [locals, setLocals] = useState<LocalBoard[]>([]);
@@ -41,7 +43,7 @@ export function DashboardPage() {
 	const handleCreate = async () => {
 		try {
 			const board = await api.boards.create();
-			window.location.href = `/boards/${board.id}`;
+			navigate(`/boards/${board.id}`);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Failed to create board");
 		}
@@ -49,7 +51,7 @@ export function DashboardPage() {
 
 	const handleCreateLocal = () => {
 		const board = localBoards.create();
-		window.location.href = `/local/${board.id}`;
+		navigate(`/local/${board.id}`);
 	};
 
 	const handleDelete = async (id: string) => {
@@ -104,7 +106,7 @@ export function DashboardPage() {
 								signOut({
 									fetchOptions: {
 										onSuccess: () => {
-											window.location.href = "/login";
+											navigate("/login");
 										},
 									},
 								})

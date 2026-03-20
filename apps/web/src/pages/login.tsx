@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { useNavigate } from "react-router";
 import { signIn, signUp } from "../lib/auth-client.js";
 
 const inputStyle = {
@@ -25,6 +26,7 @@ export function LoginPage() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [name, setName] = useState("");
+	const navigate = useNavigate();
 	const [error, setError] = useState("");
 
 	const handleSubmit = async (e: FormEvent) => {
@@ -39,7 +41,7 @@ export function LoginPage() {
 				fetchOptions: {
 					onError: (ctx) => setError(ctx.error.message),
 					onSuccess: () => {
-						window.location.href = "/";
+						navigate("/");
 					},
 				},
 			});
@@ -51,7 +53,7 @@ export function LoginPage() {
 				fetchOptions: {
 					onError: (ctx) => setError(ctx.error.message),
 					onSuccess: () => {
-						window.location.href = "/";
+						navigate("/");
 					},
 				},
 			});

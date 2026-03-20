@@ -41,6 +41,7 @@ async function loadPlugins(): Promise<UsketchPlugin[]> {
 export function App() {
 	const { boardId } = useParams<{ boardId: string }>();
 	const [app, setApp] = useState<AppInstance | null>(null);
+	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!boardId) return;
@@ -56,32 +57,38 @@ export function App() {
 		// DebugHUD用にsyncステータスを公開
 		(globalThis as Record<string, unknown>).__usketchSyncStatus = syncHandle.status;
 
-		syncHandle.whenSynced.then(() => {
-			if (cancelled) return;
+		syncHandle.whenSynced
+			.then(() => {
+				if (cancelled) return;
 
-			return loadPlugins()
-				.then((plugins) => createApp({ store, plugins }))
-				.then((created) => {
-					if (cancelled) {
-						created.destroy();
-						return;
-					}
-					instance = created;
-					const app = instance;
-					app.layers.register({
-						id: "shapes",
-						order: 50,
-						render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />,
-					});
-					app.layers.register({
-						id: "transient",
-						order: 100,
-						render: (renderCtx) => <TransientLayer registry={app.transient} ctx={renderCtx} />,
-					});
+				return loadPlugins()
+					.then((plugins) => createApp({ store, plugins }))
+					.then((created) => {
+						if (cancelled) {
+							created.destroy();
+							return;
+						}
+						instance = created;
+						const app = instance;
+						app.layers.register({
+							id: "shapes",
+							order: 50,
+							render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />,
+						});
+						app.layers.register({
+							id: "transient",
+							order: 100,
+							render: (renderCtx) => <TransientLayer registry={app.transient} ctx={renderCtx} />,
+						});
 
-					setApp(instance);
-				});
-		});
+						setApp(instance);
+					});
+			})
+			.catch((e) => {
+				if (!cancelled) {
+					setError(e instanceof Error ? e.message : "Failed to initialize board");
+				}
+			});
 
 		return () => {
 			cancelled = true;
@@ -116,6 +123,15 @@ export function App() {
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [app]);
+
+	if (error) {
+		return (
+			<div style={{ padding: "24px", fontFamily: "system-ui, sans-serif", color: "#c33" }}>
+				<p>Error: {error}</p>
+				<a href="/">Back to Dashboard</a>
+			</div>
+		);
+	}
 
 	if (!app) return null;
 
