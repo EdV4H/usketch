@@ -32,27 +32,30 @@ export function LoginPage() {
 		setError("");
 
 		if (isSignUp) {
-			const { error } = await signUp.email(
-				{ email, password, name },
-				{
+			const result = await signUp.email({
+				email,
+				password,
+				name,
+				fetchOptions: {
 					onError: (ctx) => setError(ctx.error.message),
 					onSuccess: () => {
 						window.location.href = "/";
 					},
 				},
-			);
-			if (error) setError(error.message ?? "Sign up failed");
+			});
+			if (result.error) setError(result.error.message ?? "Sign up failed");
 		} else {
-			const { error } = await signIn.email(
-				{ email, password },
-				{
+			const result = await signIn.email({
+				email,
+				password,
+				fetchOptions: {
 					onError: (ctx) => setError(ctx.error.message),
 					onSuccess: () => {
 						window.location.href = "/";
 					},
 				},
-			);
-			if (error) setError(error.message ?? "Sign in failed");
+			});
+			if (result.error) setError(result.error.message ?? "Sign in failed");
 		}
 	};
 
