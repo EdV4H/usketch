@@ -42,7 +42,18 @@ app.use("/api/*", async (c, next) => {
 });
 app.route("/api/boards", boardsApp);
 
+// WebSocket — Durable Objectに接続を委譲
+app.get("/api/boards/:boardId/ws", async (c) => {
+	const boardId = c.req.param("boardId");
+	const id = c.env.BOARD_ROOM.idFromName(boardId);
+	const room = c.env.BOARD_ROOM.get(id);
+
+	// DO にリクエストを転送（WebSocket upgradeはDO内で処理）
+	const url = new URL(c.req.url);
+	url.pathname = "/ws";
+	return room.fetch(new Request(url.toString(), c.req.raw));
+});
+
 export default app;
 
-// Durable Object export (stub — Week 5-6 で実装)
 export { BoardRoom } from "./board-room.js";

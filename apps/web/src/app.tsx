@@ -14,7 +14,7 @@ import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useLocation, useParams } from "react-router";
 import { Toolbar } from "./components/toolbar.js";
 
 const basePlugins: UsketchPlugin[] = [
@@ -40,6 +40,8 @@ async function loadPlugins(): Promise<UsketchPlugin[]> {
 
 export function App() {
 	const { boardId } = useParams<{ boardId: string }>();
+	const location = useLocation();
+	const isCloudBoard = location.pathname.startsWith("/boards/");
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +58,13 @@ export function App() {
 
 		// DebugHUD用にsyncステータスを公開
 		(globalThis as Record<string, unknown>).__usketchSyncStatus = syncHandle.status;
+
+		// Cloud Boardの場合はWebSocket接続を開始
+		if (isCloudBoard) {
+			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+			const wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
+			syncHandle.connectWebSocket(wsUrl);
+		}
 
 		syncHandle.whenSynced
 			.then(() => {
@@ -97,7 +106,7 @@ export function App() {
 			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 			setApp(null);
 		};
-	}, [boardId]);
+	}, [boardId, isCloudBoard]);
 
 	// キーボードショートカット
 	useEffect(() => {

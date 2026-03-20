@@ -2,11 +2,14 @@ import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { IndexeddbPersistence } from "y-indexeddb";
 import * as Y from "yjs";
 import { SyncStatusTracker } from "./sync-status-tracker.js";
+import { createWsProvider, type WsProviderHandle } from "./ws-provider.js";
 
 export interface YjsSyncHandle {
 	doc: Y.Doc;
 	status: SyncStatusTracker;
 	whenSynced: Promise<void>;
+	/** WebSocket接続を開始してリアルタイム同期を有効化 */
+	connectWebSocket(url: string): void;
 	destroy(): void;
 }
 
@@ -124,14 +127,22 @@ export function createYjsSync(store: BoardStore, docName: string): YjsSyncHandle
 		});
 	});
 
+	let wsProvider: WsProviderHandle | null = null;
+
+	function connectWebSocket(url: string) {
+		if (destroyed || wsProvider) return;
+		wsProvider = createWsProvider({ url, doc });
+	}
+
 	function destroy() {
 		if (destroyed) return;
 		destroyed = true;
+		wsProvider?.destroy();
 		unsubMutation();
 		shapesMap.unobserve(observer);
 		doc.destroy();
 		idbProvider.destroy();
 	}
 
-	return { doc, status, whenSynced, destroy };
+	return { doc, status, whenSynced, connectWebSocket, destroy };
 }
