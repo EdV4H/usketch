@@ -11,15 +11,6 @@ import type { WsProviderHandle } from "@edv4h/usketch-sync";
 const RIPPLE_TTL = 600;
 const RIPPLE_SIZE = 80;
 
-interface RippleBroadcast {
-	kind: "ripple";
-	id: string;
-	sourceUserId: string;
-	position: { x: number; y: number };
-	color: string;
-	ttl: number;
-}
-
 function RippleEffect({ obj }: { obj: TransientObject }) {
 	const color = (obj.data.color as string) ?? "rgba(59, 130, 246, 0.5)";
 
@@ -98,15 +89,26 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			if (wsProvider) {
 				unsubBroadcast = wsProvider.onBroadcast((msg) => {
 					if (msg.kind !== "ripple") return;
-					const data = msg as unknown as RippleBroadcast;
+
+					// バリデーション
+					const id = msg.id;
+					const position = msg.position as Record<string, unknown> | undefined;
+					if (
+						typeof id !== "string" ||
+						!position ||
+						typeof position.x !== "number" ||
+						typeof position.y !== "number"
+					) {
+						return;
+					}
 
 					ctx.transient.emit({
-						id: data.id,
+						id,
 						type: "ripple",
-						sourceUserId: data.sourceUserId,
-						position: data.position,
-						data: { color: data.color },
-						ttl: data.ttl,
+						sourceUserId: typeof msg.sourceUserId === "string" ? msg.sourceUserId : "remote",
+						position: { x: position.x, y: position.y },
+						data: { color: typeof msg.color === "string" ? msg.color : "rgba(59, 130, 246, 0.5)" },
+						ttl: typeof msg.ttl === "number" ? msg.ttl : RIPPLE_TTL,
 						createdAt: Date.now(),
 					});
 				});

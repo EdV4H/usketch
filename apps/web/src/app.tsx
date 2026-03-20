@@ -14,8 +14,8 @@ import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
-import { createWsProvider } from "@edv4h/usketch-sync";
-import { useEffect, useState } from "react";
+import { createWsProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router";
 import { Toolbar } from "./components/toolbar.js";
 import { useSession } from "./lib/auth-client.js";
@@ -46,11 +46,11 @@ export function App() {
 	const location = useLocation();
 	const isCloudBoard = location.pathname.startsWith("/boards/");
 	const { data: session } = useSession();
-	const sessionUserId = session?.user?.id;
-	const sessionUserName = session?.user?.name ?? "Anonymous";
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const wsProviderRef = useRef<WsProviderHandle | null>(null);
 
+	// ボード初期化（boardId/isCloudBoardのみに依存）
 	useEffect(() => {
 		if (!boardId) return;
 
@@ -59,28 +59,26 @@ export function App() {
 		const store = createBoardStore();
 		const syncHandle = createYjsSync(store, `usketch-board-${boardId}`);
 
-		// DebugHUD用にsyncステータスを公開
 		(globalThis as Record<string, unknown>).__usketchSyncStatus = syncHandle.status;
 
-		// Cloud Boardの場合はWebSocket接続 + プレゼンス/エフェクト同期
 		const extraPlugins: UsketchPlugin[] = [];
-		let wsProvider: ReturnType<typeof createWsProvider> | null = null;
+		let wsProvider: WsProviderHandle | null = null;
 
 		if (isCloudBoard) {
 			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 			const wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
 			wsProvider = createWsProvider({ url: wsUrl, doc: syncHandle.doc });
+			wsProviderRef.current = wsProvider;
 
 			extraPlugins.push(createRippleEffectPlugin(wsProvider));
-			if (sessionUserId) {
-				extraPlugins.push(
-					createPresenceCursorPlugin({
-						wsProvider,
-						userId: sessionUserId,
-						userName: sessionUserName,
-					}),
-				);
-			}
+			// presenceは常にプラグインとして追加（ユーザー情報は後から設定）
+			extraPlugins.push(
+				createPresenceCursorPlugin({
+					wsProvider,
+					userId: "anonymous",
+					userName: "Anonymous",
+				}),
+			);
 		} else {
 			extraPlugins.push(rippleEffectPlugin);
 		}
@@ -122,11 +120,24 @@ export function App() {
 			cancelled = true;
 			instance?.destroy();
 			wsProvider?.destroy();
+			wsProviderRef.current = null;
 			syncHandle.destroy();
 			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 			setApp(null);
 		};
-	}, [boardId, isCloudBoard, sessionUserId, sessionUserName]);
+	}, [boardId, isCloudBoard]);
+
+	// セッション情報が確定したらAwarenessのローカル状態を更新
+	const sessionUser = session?.user;
+	useEffect(() => {
+		const wsProvider = wsProviderRef.current;
+		if (!wsProvider || !sessionUser) return;
+
+		wsProvider.awareness.setLocalStateField("user", {
+			name: sessionUser.name ?? "Anonymous",
+			color: "",
+		});
+	}, [sessionUser]);
 
 	// キーボードショートカット
 	useEffect(() => {

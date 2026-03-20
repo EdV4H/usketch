@@ -1,4 +1,9 @@
-import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
+import {
+	Awareness,
+	applyAwarenessUpdate,
+	encodeAwarenessUpdate,
+	removeAwarenessStates,
+} from "y-protocols/awareness";
 import * as Y from "yjs";
 import {
 	MSG_AWARENESS,
@@ -154,6 +159,11 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 
 		ws.addEventListener("close", () => {
 			connected = false;
+			// 切断時にリモートクライアントのAwareness statesをクリア
+			const remoteClients = Array.from(awareness.getStates().keys()).filter(
+				(id) => id !== doc.clientID,
+			);
+			removeAwarenessStates(awareness, remoteClients, "remote");
 			if (!destroyed) {
 				reconnectTimer = setTimeout(connect, 3000);
 			}
