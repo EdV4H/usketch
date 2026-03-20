@@ -148,6 +148,7 @@ export function Canvas() {
 					return (
 						<div
 							key={layer.id}
+							data-layer-id={layer.id}
 							style={{
 								position: "absolute",
 								inset: 0,
@@ -162,6 +163,7 @@ export function Canvas() {
 				return (
 					<div
 						key={layer.id}
+						data-layer-id={layer.id}
 						style={{
 							position: "absolute",
 							inset: 0,

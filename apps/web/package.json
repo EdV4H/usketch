@@ -8,12 +8,14 @@
 		"build": "vite build",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run --passWithNoTests",
+		"test:e2e": "playwright test",
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
 		"@edv4h/usketch-canvas-engine": "workspace:*",
 		"@edv4h/usketch-core": "workspace:*",
 		"@edv4h/usketch-plugin-effect-ripple": "workspace:*",
+		"@edv4h/usketch-plugin-export": "workspace:*",
 		"@edv4h/usketch-plugin-presence-cursor": "workspace:*",
 		"@edv4h/usketch-plugin-shape-counter": "workspace:*",
 		"@edv4h/usketch-plugin-shape-ellipse": "workspace:*",
@@ -35,6 +37,7 @@
 	},
 	"devDependencies": {
 		"@edv4h/usketch-plugin-debug-hud": "workspace:*",
+		"@playwright/test": "1.58.2",
 		"@types/react": "19.1.8",
 		"@types/react-dom": "19.1.6",
 		"@vitejs/plugin-react": "4.5.2",

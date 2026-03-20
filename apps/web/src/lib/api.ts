@@ -47,5 +47,22 @@ export const api = {
 			fetchApi<{ ok: boolean }>(`/api/boards/${id}`, {
 				method: "DELETE",
 			}),
+		members: (id: string) =>
+			fetchApi<{ userId: string; role: string; name: string; image: string | null }[]>(
+				`/api/boards/${id}/members`,
+			),
+		addMember: (id: string, email: string, role?: "editor" | "viewer") =>
+			fetchApi<{ ok: boolean }>(`/api/boards/${id}/members`, {
+				method: "POST",
+				body: JSON.stringify({ email, role }),
+			}),
+		removeMember: (boardId: string, userId: string) =>
+			fetchApi<{ ok: boolean }>(`/api/boards/${boardId}/members/${userId}`, {
+				method: "DELETE",
+			}),
+		toggleShare: (id: string) =>
+			fetchApi<{ isPublic: boolean }>(`/api/boards/${id}/share`, {
+				method: "POST",
+			}),
 	},
 };

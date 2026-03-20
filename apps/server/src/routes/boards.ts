@@ -187,4 +187,140 @@ boardsApp.delete("/:id", async (c) => {
 	return c.json({ ok: true });
 });
 
+// GET /api/boards/:id/members — メンバー一覧（メンバーのみアクセス可）
+boardsApp.get("/:id/members", async (c) => {
+	const db = c.get("db");
+	const currentUserId = c.get("userId");
+	const boardId = c.req.param("id");
+
+	// メンバーシップ確認
+	const membership = await db
+		.select({ role: boardMembers.role })
+		.from(boardMembers)
+		.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, currentUserId)))
+		.limit(1);
+
+	if (membership.length === 0) {
+		return c.json({ error: "Board not found" }, 404);
+	}
+
+	const result = await db
+		.select({
+			userId: boardMembers.userId,
+			role: boardMembers.role,
+			name: users.name,
+			image: users.image,
+		})
+		.from(boardMembers)
+		.innerJoin(users, eq(boardMembers.userId, users.id))
+		.where(eq(boardMembers.boardId, boardId));
+
+	return c.json(result);
+});
+
+const addMemberSchema = z.object({
+	email: z.string().email(),
+	role: z.enum(["editor", "viewer"]).optional(),
+});
+
+// POST /api/boards/:id/members — メンバー追加
+boardsApp.post("/:id/members", zValidator("json", addMemberSchema), async (c) => {
+	const db = c.get("db");
+	const currentUserId = c.get("userId");
+	const boardId = c.req.param("id");
+	const body = c.req.valid("json");
+
+	// オーナー確認
+	const board = await db
+		.select({ ownerId: boards.ownerId })
+		.from(boards)
+		.where(eq(boards.id, boardId))
+		.limit(1);
+
+	if (board.length === 0) {
+		return c.json({ error: "Board not found" }, 404);
+	}
+	if (board[0].ownerId !== currentUserId) {
+		return c.json({ error: "Forbidden" }, 403);
+	}
+
+	// メールからユーザーを検索
+	const user = await db.select().from(users).where(eq(users.email, body.email)).limit(1);
+
+	if (user.length === 0) {
+		return c.json({ error: "User not found" }, 404);
+	}
+
+	await db
+		.insert(boardMembers)
+		.values({
+			boardId,
+			userId: user[0].id,
+			role: body.role ?? "editor",
+		})
+		.onConflictDoNothing();
+
+	return c.json({ ok: true }, 201);
+});
+
+// DELETE /api/boards/:id/members/:userId — メンバー削除
+boardsApp.delete("/:id/members/:userId", async (c) => {
+	const db = c.get("db");
+	const currentUserId = c.get("userId");
+	const boardId = c.req.param("id");
+	const targetUserId = c.req.param("userId");
+
+	// オーナー確認
+	const board = await db
+		.select({ ownerId: boards.ownerId })
+		.from(boards)
+		.where(eq(boards.id, boardId))
+		.limit(1);
+
+	if (board.length === 0) {
+		return c.json({ error: "Board not found" }, 404);
+	}
+	if (board[0].ownerId !== currentUserId) {
+		return c.json({ error: "Forbidden" }, 403);
+	}
+	// オーナー自身は削除不可
+	if (targetUserId === board[0].ownerId) {
+		return c.json({ error: "Cannot remove owner" }, 400);
+	}
+
+	await db
+		.delete(boardMembers)
+		.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, targetUserId)));
+
+	return c.json({ ok: true });
+});
+
+// POST /api/boards/:id/share — パブリックリンクの切り替え
+boardsApp.post("/:id/share", async (c) => {
+	const db = c.get("db");
+	const currentUserId = c.get("userId");
+	const boardId = c.req.param("id");
+
+	const board = await db
+		.select({ ownerId: boards.ownerId, isPublic: boards.isPublic })
+		.from(boards)
+		.where(eq(boards.id, boardId))
+		.limit(1);
+
+	if (board.length === 0) {
+		return c.json({ error: "Board not found" }, 404);
+	}
+	if (board[0].ownerId !== currentUserId) {
+		return c.json({ error: "Forbidden" }, 403);
+	}
+
+	const newIsPublic = !board[0].isPublic;
+	await db
+		.update(boards)
+		.set({ isPublic: newIsPublic, updatedAt: new Date().toISOString() })
+		.where(eq(boards.id, boardId));
+
+	return c.json({ isPublic: newIsPublic });
+});
+
 export { boardsApp };
