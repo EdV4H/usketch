@@ -33,14 +33,24 @@ export function LoginPage() {
 
 		if (isSignUp) {
 			const { error } = await signUp.email(
-				{ email, password, name, callbackURL: "/" },
-				{ onError: (ctx) => setError(ctx.error.message) },
+				{ email, password, name },
+				{
+					onError: (ctx) => setError(ctx.error.message),
+					onSuccess: () => {
+						window.location.href = "/";
+					},
+				},
 			);
 			if (error) setError(error.message ?? "Sign up failed");
 		} else {
 			const { error } = await signIn.email(
-				{ email, password, callbackURL: "/" },
-				{ onError: (ctx) => setError(ctx.error.message) },
+				{ email, password },
+				{
+					onError: (ctx) => setError(ctx.error.message),
+					onSuccess: () => {
+						window.location.href = "/";
+					},
+				},
 			);
 			if (error) setError(error.message ?? "Sign in failed");
 		}
