@@ -210,6 +210,9 @@ boardsApp.get("/:id/members", async (c) => {
 			role: boardMembers.role,
 			name: users.name,
 			image: users.image,
+			lastViewport: boardMembers.lastViewport,
+			lastSeenAt: boardMembers.lastSeenAt,
+			status: boardMembers.status,
 		})
 		.from(boardMembers)
 		.innerJoin(users, eq(boardMembers.userId, users.id))

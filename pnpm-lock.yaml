@@ -66,15 +66,24 @@ importers:
       '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@edv4h/usketch-plugin-avatar':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-avatar
       '@edv4h/usketch-plugin-effect-ripple':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-effect-ripple
       '@edv4h/usketch-plugin-export':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-export
+      '@edv4h/usketch-plugin-laser':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-laser
       '@edv4h/usketch-plugin-presence-cursor':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-presence-cursor
+      '@edv4h/usketch-plugin-reactions':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-reactions
       '@edv4h/usketch-plugin-shape-counter':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-counter
@@ -260,6 +269,28 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(tsx@4.21.0)
 
+  plugins/usketch-plugin-avatar:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
   plugins/usketch-plugin-bg-dots:
     dependencies:
       '@edv4h/usketch-core':
@@ -364,7 +395,51 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(tsx@4.21.0)
 
+  plugins/usketch-plugin-laser:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
   plugins/usketch-plugin-presence-cursor:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-reactions:
     dependencies:
       '@edv4h/usketch-shared':
         specifier: workspace:*
