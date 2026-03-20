@@ -326,4 +326,24 @@ boardsApp.post("/:id/share", async (c) => {
 	return c.json({ isPublic: newIsPublic });
 });
 
+// PATCH /api/boards/:id/viewport — 自分のビューポート位置を保存
+const viewportSchema = z.object({
+	x: z.number(),
+	y: z.number(),
+});
+
+boardsApp.patch("/:id/viewport", zValidator("json", viewportSchema), async (c) => {
+	const db = c.get("db");
+	const userId = c.get("userId");
+	const boardId = c.req.param("id");
+	const body = c.req.valid("json");
+
+	await db
+		.update(boardMembers)
+		.set({ lastViewport: JSON.stringify(body) })
+		.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
+
+	return c.json({ ok: true });
+});
+
 export { boardsApp };
