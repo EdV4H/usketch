@@ -13,6 +13,7 @@ if (root) {
 				<Routes>
 					<Route path="/login" element={<LoginPage />} />
 					<Route path="/boards/:boardId" element={<App />} />
+					<Route path="/local/:boardId" element={<App />} />
 					<Route path="/" element={<DashboardPage />} />
 				</Routes>
 			</BrowserRouter>
