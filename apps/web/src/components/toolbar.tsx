@@ -126,22 +126,32 @@ export function Toolbar({ boardId, isCloudBoard }: { boardId?: string; isCloudBo
 				>
 					SVG
 				</button>
-
-				{/* 共有（Cloud Boardのみ） */}
-				{isCloudBoard && boardId && (
-					<>
-						<Divider />
-						<button
-							type="button"
-							onClick={() => setShowShare(true)}
-							title="Share"
-							style={{ ...actionBtnStyle, fontSize: 13 }}
-						>
-							Share
-						</button>
-					</>
-				)}
 			</div>
+
+			{/* 共有ボタン（右上、Cloud Boardのみ） */}
+			{isCloudBoard && boardId && (
+				<button
+					type="button"
+					onClick={() => setShowShare(true)}
+					style={{
+						position: "fixed",
+						top: 12,
+						right: 12,
+						padding: "8px 16px",
+						background: "#0066ff",
+						color: "#fff",
+						border: "none",
+						borderRadius: 8,
+						fontSize: 13,
+						fontWeight: 600,
+						cursor: "pointer",
+						boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+						zIndex: 100,
+					}}
+				>
+					Share
+				</button>
+			)}
 
 			{showShare && boardId && (
 				<ShareDialog boardId={boardId} onClose={() => setShowShare(false)} />
