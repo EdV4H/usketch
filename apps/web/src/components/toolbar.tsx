@@ -10,7 +10,12 @@ export function Toolbar({
 	boardId?: string;
 	isCloudBoard?: boolean;
 	wsProvider?: {
-		awareness: { setLocalStateField: (field: string, value: unknown) => void };
+		awareness: {
+			setLocalStateField: (field: string, value: unknown) => void;
+			getLocalState: () => Record<string, unknown> | null;
+			getStates: () => Map<number, Record<string, unknown>>;
+			doc: { clientID: number };
+		};
 	} | null;
 }) {
 	const app = useApp();
@@ -21,6 +26,8 @@ export function Toolbar({
 	const [showShare, setShowShare] = useState(false);
 	const [showStatus, setShowStatus] = useState(false);
 	const [currentStatus, setCurrentStatus] = useState("active");
+	const [isPresenting, setIsPresenting] = useState(false);
+	const [followingName, setFollowingName] = useState<string | null>(null);
 
 	const handleExport = useCallback(
 		async (format: "png" | "svg") => {
@@ -169,6 +176,81 @@ export function Toolbar({
 							))}
 						</div>
 					)}
+				</div>
+			)}
+
+			{/* Present / Follow（左下、ステータスの右） */}
+			{isCloudBoard && wsProvider && (
+				<div
+					style={{
+						position: "fixed",
+						bottom: 12,
+						left: wsProvider ? 140 : 12,
+						zIndex: 100,
+						display: "flex",
+						gap: 6,
+					}}
+				>
+					<button
+						type="button"
+						onClick={() => {
+							const next = !isPresenting;
+							setIsPresenting(next);
+							wsProvider.awareness.setLocalStateField("presenting", next);
+						}}
+						style={{
+							height: 36,
+							padding: "0 14px",
+							background: isPresenting ? "#0066ff" : "white",
+							color: isPresenting ? "#fff" : "#333",
+							border: "none",
+							borderRadius: 8,
+							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+							fontSize: 12,
+							fontWeight: 600,
+							cursor: "pointer",
+						}}
+						title="Start/Stop presenting (p)"
+					>
+						{isPresenting ? "Stop Present" : "Present"}
+					</button>
+					<button
+						type="button"
+						onClick={() => {
+							if (followingName) {
+								// フォロー解除 — follow-meプラグインのショートカットfをシミュレート
+								window.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true }));
+								setFollowingName(null);
+							} else {
+								// プレゼンター中のユーザーを探してフォロー
+								const states = wsProvider.awareness.getStates();
+								for (const [clientId, state] of states) {
+									if (clientId === wsProvider.awareness.doc.clientID) continue;
+									if (state.presenting === true) {
+										const user = state.user as { name?: string } | undefined;
+										setFollowingName(user?.name ?? "Unknown");
+										window.dispatchEvent(new KeyboardEvent("keydown", { key: "f", bubbles: true }));
+										return;
+									}
+								}
+							}
+						}}
+						style={{
+							height: 36,
+							padding: "0 14px",
+							background: followingName ? "#e3f2fd" : "white",
+							color: followingName ? "#1976d2" : "#333",
+							border: "none",
+							borderRadius: 8,
+							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+							fontSize: 12,
+							fontWeight: 600,
+							cursor: "pointer",
+						}}
+						title="Follow presenter (f)"
+					>
+						{followingName ? `Unfollow ${followingName}` : "Follow"}
+					</button>
 				</div>
 			)}
 
