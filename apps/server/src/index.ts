@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/d1";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { ALLOWED_ORIGINS } from "./config.js";
 import * as schema from "./db/schema.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { authApp } from "./routes/auth.js";
@@ -21,7 +22,7 @@ const app = new Hono<HonoEnv>();
 app.use(
 	"*",
 	cors({
-		origin: ["http://localhost:5173", "http://localhost:4173"],
+		origin: ALLOWED_ORIGINS,
 		credentials: true,
 	}),
 );
@@ -29,7 +30,7 @@ app.use(
 // Health check
 app.get("/", (c) => c.json({ status: "ok", name: "usketch-server" }));
 
-// Auth routes (no auth middleware needed, no DB needed)
+// Auth routes (Better Auth handles all /api/auth/*)
 app.route("/api/auth", authApp);
 
 // Protected routes: auth first, then DB injection

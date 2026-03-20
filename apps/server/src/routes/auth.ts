@@ -1,12 +1,17 @@
 import { Hono } from "hono";
+import { createAuth } from "../auth.js";
+import type { Env } from "../types.js";
 
-const authApp = new Hono();
+type AuthEnv = {
+	Bindings: Env;
+};
 
-// TODO: Week 3-4 で Better Auth を統合
-// 現時点では認証スタブとして機能
+const authApp = new Hono<AuthEnv>();
 
-authApp.get("/session", async (c) => {
-	return c.json({ user: null });
+// Better Auth handles all /api/auth/* routes
+authApp.on(["GET", "POST"], "/*", async (c) => {
+	const auth = createAuth(c.env);
+	return auth.handler(c.req.raw);
 });
 
 export { authApp };

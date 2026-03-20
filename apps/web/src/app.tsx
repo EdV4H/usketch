@@ -7,17 +7,17 @@ import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
 import { snapPlugin } from "@edv4h/usketch-plugin-snap";
-import { syncLocalstorageYjsPlugin } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
+import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { useEffect, useState } from "react";
+import { useParams } from "react-router";
 import { Toolbar } from "./components/toolbar.js";
 
 const basePlugins: UsketchPlugin[] = [
-	syncLocalstorageYjsPlugin,
 	selectToolPlugin,
 	panToolPlugin,
 	viewportNavPlugin,
@@ -39,47 +39,71 @@ async function loadPlugins(): Promise<UsketchPlugin[]> {
 }
 
 export function App() {
+	const { boardId } = useParams<{ boardId: string }>();
 	const [app, setApp] = useState<AppInstance | null>(null);
+	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
+		if (!boardId) return;
+
 		let cancelled = false;
 		let instance: AppInstance | null = null;
+		let syncHandle: ReturnType<typeof createYjsSync> | null = null;
 		const store = createBoardStore();
 
-		loadPlugins()
-			.then((plugins) => createApp({ store, plugins }))
-			.then((created) => {
-				if (cancelled) {
-					created.destroy();
-					return;
-				}
-				instance = created;
-				const app = instance;
-				app.layers.register({
-					id: "shapes",
-					order: 50,
-					render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />,
-				});
-				app.layers.register({
-					id: "transient",
-					order: 100,
-					render: (renderCtx) => <TransientLayer registry={app.transient} ctx={renderCtx} />,
-				});
+		// ボードIDに基づいてYjsドキュメントを作成（ボードごとに独立）
+		syncHandle = createYjsSync(store, `usketch-board-${boardId}`);
 
-				setApp(instance);
+		// DebugHUD用にsyncステータスを公開
+		(globalThis as Record<string, unknown>).__usketchSyncStatus = syncHandle.status;
+
+		syncHandle.whenSynced
+			.then(() => {
+				if (cancelled) return;
+
+				return loadPlugins()
+					.then((plugins) => createApp({ store, plugins }))
+					.then((created) => {
+						if (cancelled) {
+							created.destroy();
+							return;
+						}
+						instance = created;
+						const app = instance;
+						app.layers.register({
+							id: "shapes",
+							order: 50,
+							render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />,
+						});
+						app.layers.register({
+							id: "transient",
+							order: 100,
+							render: (renderCtx) => <TransientLayer registry={app.transient} ctx={renderCtx} />,
+						});
+
+						setApp(instance);
+					});
+			})
+			.catch((e) => {
+				if (!cancelled) {
+					setError(e instanceof Error ? e.message : "Failed to initialize board");
+				}
 			});
 
 		return () => {
 			cancelled = true;
 			instance?.destroy();
+			syncHandle?.destroy();
+			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
+			setApp(null);
 		};
-	}, []);
+	}, [boardId]);
 
+	// キーボードショートカット
 	useEffect(() => {
 		if (!app) return;
 
 		const handleKeyDown = (e: KeyboardEvent) => {
-			// Let shortcuts handle tool switching
 			const tools = app.tools.getAll();
 			for (const [id, def] of tools) {
 				if (
@@ -99,6 +123,15 @@ export function App() {
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [app]);
+
+	if (error) {
+		return (
+			<div style={{ padding: "24px", fontFamily: "system-ui, sans-serif", color: "#c33" }}>
+				<p>Error: {error}</p>
+				<a href="/">Back to Dashboard</a>
+			</div>
+		);
+	}
 
 	if (!app) return null;
 
