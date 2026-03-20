@@ -36,7 +36,9 @@ export interface ExportOptions {
 
 /**
  * シェイプデータからSVG文字列を構築してエクスポートする。
- * DOMクローンに依存せず、ShapeRegistryのrender関数を使用。
+ *
+ * - SVGシェイプ（rect, ellipse, freedraw）→ renderToStaticMarkupでSVG要素化
+ * - HTMLシェイプ（text, counter）→ foreignObjectでHTMLを埋め込み
  */
 export async function exportCanvas(
 	shapes: Map<string, ShapeData>,
@@ -50,7 +52,6 @@ export async function exportCanvas(
 	const bounds = computeBounds(shapes);
 	const background = options.background ?? "#ffffff";
 
-	// 各シェイプのSVG要素をrenderToStaticMarkupで文字列化
 	const shapeElements: string[] = [];
 	for (const shape of shapes.values()) {
 		const def = shapeRegistry.get(shape.type);
@@ -58,7 +59,18 @@ export async function exportCanvas(
 
 		const element = def.render(shape);
 		const markup = renderToStaticMarkup(element);
-		shapeElements.push(markup);
+
+		if (def.renderTarget === "html") {
+			// HTMLシェイプ → foreignObjectでラップ
+			shapeElements.push(
+				`<foreignObject x="${shape.x}" y="${shape.y}" width="${shape.width}" height="${shape.height}">
+<div xmlns="http://www.w3.org/1999/xhtml">${markup}</div>
+</foreignObject>`,
+			);
+		} else {
+			// SVGシェイプ → そのまま
+			shapeElements.push(markup);
+		}
 	}
 
 	const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${bounds.width}" height="${bounds.height}" viewBox="${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}">
