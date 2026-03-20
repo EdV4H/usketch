@@ -29,8 +29,9 @@ export class BoardRoom extends DurableObject<Env> {
 				return new Response("Expected WebSocket", { status: 426 });
 			}
 
+			const userId = url.searchParams.get("userId") ?? "anonymous";
 			const pair = new WebSocketPair();
-			this.ctx.acceptWebSocket(pair[1]);
+			this.ctx.acceptWebSocket(pair[1], [userId]);
 
 			// 新規接続に蓄積された更新を送信
 			for (const update of this.updates) {

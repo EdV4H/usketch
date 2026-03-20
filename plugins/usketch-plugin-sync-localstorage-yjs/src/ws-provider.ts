@@ -8,14 +8,24 @@ const MSG_SYNC_STEP2 = 1;
 const MSG_YJS_UPDATE = 2;
 const MSG_AWARENESS = 3;
 
+export interface AwarenessState {
+	userId: string;
+	name: string;
+	color: string;
+	cursor: { x: number; y: number } | null;
+}
+
 export interface WsProviderOptions {
 	url: string;
 	doc: Y.Doc;
-	awareness?: { update: Uint8Array; onChange: (handler: (data: Uint8Array) => void) => void };
 }
 
 export interface WsProviderHandle {
 	connected: boolean;
+	/** ローカルのAwareness状態を更新してブロードキャスト */
+	setAwareness(state: AwarenessState): void;
+	/** リモートのAwareness状態変更を監視 */
+	onAwarenessChange(handler: (states: Map<string, AwarenessState>) => void): () => void;
 	destroy(): void;
 }
 
@@ -26,9 +36,33 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 	let connected = false;
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
+	// Awareness管理
+	let localAwareness: AwarenessState | null = null;
+	const remoteAwareness = new Map<string, AwarenessState>();
+	const awarenessListeners = new Set<(states: Map<string, AwarenessState>) => void>();
+
+	function notifyAwareness() {
+		for (const listener of awarenessListeners) {
+			listener(remoteAwareness);
+		}
+	}
+
 	const handle: WsProviderHandle = {
 		get connected() {
 			return connected;
+		},
+		setAwareness(state: AwarenessState) {
+			localAwareness = state;
+			if (!ws || ws.readyState !== WebSocket.OPEN) return;
+			const encoded = new TextEncoder().encode(JSON.stringify(state));
+			const msg = new Uint8Array(encoded.length + 1);
+			msg[0] = MSG_AWARENESS;
+			msg.set(encoded, 1);
+			ws.send(msg);
+		},
+		onAwarenessChange(handler: (states: Map<string, AwarenessState>) => void): () => void {
+			awarenessListeners.add(handler);
+			return () => awarenessListeners.delete(handler);
 		},
 		destroy() {
 			destroyed = true;
@@ -38,12 +72,13 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 				ws = null;
 			}
 			doc.off("update", onDocUpdate);
+			awarenessListeners.clear();
+			remoteAwareness.clear();
 		},
 	};
 
 	// Doc → Server: ローカル変更をサーバーに送信
 	function onDocUpdate(update: Uint8Array, origin: unknown) {
-		// リモートから来た更新は再送しない
 		if (origin === "remote" || !ws || ws.readyState !== WebSocket.OPEN) return;
 		const msg = new Uint8Array(update.length + 1);
 		msg[0] = MSG_YJS_UPDATE;
@@ -61,8 +96,11 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 
 		ws.addEventListener("open", () => {
 			connected = true;
-			// 同期リクエストを送信
 			ws?.send(new Uint8Array([MSG_SYNC_STEP1]));
+			// 再接続時にAwareness状態を再送
+			if (localAwareness) {
+				handle.setAwareness(localAwareness);
+			}
 		});
 
 		ws.addEventListener("message", (event) => {
@@ -76,12 +114,19 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			switch (msgType) {
 				case MSG_SYNC_STEP2:
 				case MSG_YJS_UPDATE: {
-					// リモート更新をdocに適用（origin: "remote"でループ防止）
 					Y.applyUpdate(doc, payload, "remote");
 					break;
 				}
 				case MSG_AWARENESS: {
-					// TODO: Awareness更新のハンドリング（Week 5-6 後半）
+					try {
+						const state = JSON.parse(new TextDecoder().decode(payload)) as AwarenessState;
+						if (state.userId) {
+							remoteAwareness.set(state.userId, state);
+							notifyAwareness();
+						}
+					} catch {
+						// 不正なAwarenessメッセージは無視
+					}
 					break;
 				}
 			}
@@ -89,8 +134,10 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 
 		ws.addEventListener("close", () => {
 			connected = false;
+			// 切断時にリモートAwarenessをクリア
+			remoteAwareness.clear();
+			notifyAwareness();
 			if (!destroyed) {
-				// 自動再接続（3秒後）
 				reconnectTimer = setTimeout(connect, 3000);
 			}
 		});

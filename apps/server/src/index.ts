@@ -42,15 +42,19 @@ app.use("/api/*", async (c, next) => {
 });
 app.route("/api/boards", boardsApp);
 
-// WebSocket — Durable Objectに接続を委譲
+// WebSocket — 認証済みユーザーのみDurable Objectに接続
 app.get("/api/boards/:boardId/ws", async (c) => {
+	const userId = c.get("userId");
+	if (!userId) return c.json({ error: "Unauthorized" }, 401);
+
 	const boardId = c.req.param("boardId");
 	const id = c.env.BOARD_ROOM.idFromName(boardId);
 	const room = c.env.BOARD_ROOM.get(id);
 
-	// DO にリクエストを転送（WebSocket upgradeはDO内で処理）
+	// userId をDOに伝達（WebSocketタグで識別）
 	const url = new URL(c.req.url);
 	url.pathname = "/ws";
+	url.searchParams.set("userId", userId);
 	return room.fetch(new Request(url.toString(), c.req.raw));
 });
 

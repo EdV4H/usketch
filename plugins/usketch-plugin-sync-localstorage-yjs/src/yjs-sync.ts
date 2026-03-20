@@ -9,7 +9,7 @@ export interface YjsSyncHandle {
 	status: SyncStatusTracker;
 	whenSynced: Promise<void>;
 	/** WebSocket接続を開始してリアルタイム同期を有効化 */
-	connectWebSocket(url: string): void;
+	connectWebSocket(url: string): WsProviderHandle | null;
 	destroy(): void;
 }
 
@@ -129,9 +129,10 @@ export function createYjsSync(store: BoardStore, docName: string): YjsSyncHandle
 
 	let wsProvider: WsProviderHandle | null = null;
 
-	function connectWebSocket(url: string) {
-		if (destroyed || wsProvider) return;
+	function connectWebSocket(url: string): WsProviderHandle | null {
+		if (destroyed || wsProvider) return wsProvider;
 		wsProvider = createWsProvider({ url, doc });
+		return wsProvider;
 	}
 
 	function destroy() {
