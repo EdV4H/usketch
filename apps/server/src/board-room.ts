@@ -8,6 +8,9 @@ import {
 } from "@edv4h/usketch-sync";
 import type { Env } from "./types.js";
 
+/** バッファの最大件数。超えたら古い更新から間引く */
+const MAX_UPDATES_BUFFER = 500;
+
 /**
  * BoardRoom Durable Object
  * ボードごとに1インスタンス。WebSocket接続を管理し、Yjs updateを中継する。
@@ -28,14 +31,7 @@ export class BoardRoom extends DurableObject<Env> {
 			const pair = new WebSocketPair();
 			this.ctx.acceptWebSocket(pair[1], [userId]);
 
-			// 新規接続に蓄積された更新を送信
-			for (const update of this.updates) {
-				const msg = new Uint8Array(update.length + 1);
-				msg[0] = MSG_YJS_UPDATE;
-				msg.set(update, 1);
-				pair[1].send(msg);
-			}
-
+			// 初期同期はクライアントのMSG_SYNC_STEP1リクエストで行う
 			return new Response(null, { status: 101, webSocket: pair[0] });
 		}
 
@@ -54,18 +50,20 @@ export class BoardRoom extends DurableObject<Env> {
 		switch (msgType) {
 			case MSG_YJS_UPDATE: {
 				this.updates.push(payload);
+				// バッファサイズ制限
+				if (this.updates.length > MAX_UPDATES_BUFFER) {
+					this.updates = this.updates.slice(-MAX_UPDATES_BUFFER);
+				}
 				this.broadcast(ws, data);
 				break;
 			}
 			case MSG_AWARENESS:
 			case MSG_BROADCAST: {
-				// Awareness: 状態共有（最新値、切断時にYjsが自動クリーンアップ）
-				// Broadcast: イベント中継（fire-and-forget）
-				// どちらも蓄積不要、中継のみ
 				this.broadcast(ws, data);
 				break;
 			}
 			case MSG_SYNC_STEP1: {
+				// クライアントからの初期同期リクエスト — 蓄積された全更新を返送
 				for (const update of this.updates) {
 					const msg = new Uint8Array(update.length + 1);
 					msg[0] = MSG_SYNC_STEP2;

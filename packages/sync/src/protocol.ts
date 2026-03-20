@@ -2,7 +2,7 @@
  * WebSocketメッセージプロトコル
  * クライアント（ws-provider）とサーバー（board-room DO）で共有
  *
- * - SYNC_STEP1/2: 初期同期（Yjs state vector exchange）
+ * - SYNC_STEP1/2: 初期同期（クライアントがSTEP1を送信→サーバーが蓄積updateをSTEP2で返送）
  * - YJS_UPDATE: Yjs差分更新（蓄積＋ブロードキャスト）
  * - AWARENESS: Yjs Awareness状態の共有（最新値を保持、切断時に自動消滅）
  * - BROADCAST: イベントの中継（fire-and-forget、蓄積なし）

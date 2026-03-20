@@ -81,6 +81,8 @@ function injectStyle() {
 }
 
 function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
+	let cleanup: (() => void) | undefined;
+
 	return {
 		id: "usketch-plugin-effect-ripple",
 		name: "リップルエフェクト",
@@ -92,7 +94,6 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				render: (obj) => <RippleEffect obj={obj} />,
 			});
 
-			// リモートリップルの受信
 			let unsubBroadcast: (() => void) | undefined;
 			if (wsProvider) {
 				unsubBroadcast = wsProvider.onBroadcast((msg) => {
@@ -143,15 +144,12 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				onPointerDown,
 			});
 
-			(this as unknown as Record<string, unknown>)._cleanup = () => {
+			cleanup = () => {
 				unsubBroadcast?.();
 			};
 		},
 
 		teardown() {
-			const cleanup = (this as unknown as Record<string, unknown>)._cleanup as
-				| (() => void)
-				| undefined;
 			cleanup?.();
 		},
 	};

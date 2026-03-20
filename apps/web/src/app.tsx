@@ -46,6 +46,8 @@ export function App() {
 	const location = useLocation();
 	const isCloudBoard = location.pathname.startsWith("/boards/");
 	const { data: session } = useSession();
+	const sessionUserId = session?.user?.id;
+	const sessionUserName = session?.user?.name ?? "Anonymous";
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
@@ -70,12 +72,12 @@ export function App() {
 			wsProvider = createWsProvider({ url: wsUrl, doc: syncHandle.doc });
 
 			extraPlugins.push(createRippleEffectPlugin(wsProvider));
-			if (session?.user) {
+			if (sessionUserId) {
 				extraPlugins.push(
 					createPresenceCursorPlugin({
 						wsProvider,
-						userId: session.user.id,
-						userName: session.user.name ?? "Anonymous",
+						userId: sessionUserId,
+						userName: sessionUserName,
 					}),
 				);
 			}
@@ -124,7 +126,7 @@ export function App() {
 			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 			setApp(null);
 		};
-	}, [boardId, isCloudBoard, session]);
+	}, [boardId, isCloudBoard, sessionUserId, sessionUserName]);
 
 	// キーボードショートカット
 	useEffect(() => {
