@@ -3,8 +3,10 @@ import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
 import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { exportPlugin } from "@edv4h/usketch-plugin-export";
+import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
+import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
 import { createReactionsPlugin, reactionsPlugin } from "@edv4h/usketch-plugin-reactions";
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
 import { ellipsePlugin } from "@edv4h/usketch-plugin-shape-ellipse";
@@ -12,6 +14,7 @@ import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
 import { snapPlugin } from "@edv4h/usketch-plugin-snap";
+import { createSpatialChatPlugin, spatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
 import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
@@ -78,6 +81,8 @@ export function App() {
 			extraPlugins.push(createRippleEffectPlugin(wsProvider));
 			extraPlugins.push(createReactionsPlugin(wsProvider));
 			extraPlugins.push(createLaserPlugin(wsProvider));
+			extraPlugins.push(createSpatialChatPlugin(wsProvider));
+			extraPlugins.push(createFollowMePlugin({ wsProvider }));
 			// presenceは常にプラグインとして追加（ユーザー情報は後から設定）
 			extraPlugins.push(
 				createPresenceCursorPlugin({
@@ -93,10 +98,18 @@ export function App() {
 					userName: "Anonymous",
 				}),
 			);
+			extraPlugins.push(
+				createPresenceEnhancedPlugin({
+					wsProvider,
+					boardId,
+					apiUrl,
+				}),
+			);
 		} else {
 			extraPlugins.push(rippleEffectPlugin);
 			extraPlugins.push(reactionsPlugin);
 			extraPlugins.push(laserPlugin);
+			extraPlugins.push(spatialChatPlugin);
 		}
 
 		syncHandle.whenSynced
@@ -141,6 +154,30 @@ export function App() {
 			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 			setApp(null);
 		};
+	}, [boardId, isCloudBoard]);
+
+	// ページ離脱時にビューポート位置を保存（ゴーストアバター用）
+	useEffect(() => {
+		if (!isCloudBoard || !boardId) return;
+
+		const saveViewport = () => {
+			const ws = wsProviderRef.current;
+			if (!ws) return;
+			const local = ws.awareness.getLocalState();
+			const vc = local?.viewportCenter as { x: number; y: number } | undefined;
+			if (!vc) return;
+			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+			fetch(`${apiUrl}/api/boards/${boardId}/viewport`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(vc),
+				credentials: "include",
+				keepalive: true,
+			}).catch(() => {});
+		};
+
+		window.addEventListener("beforeunload", saveViewport);
+		return () => window.removeEventListener("beforeunload", saveViewport);
 	}, [boardId, isCloudBoard]);
 
 	// セッション情報が確定したらAwarenessのローカル状態を更新
@@ -199,7 +236,7 @@ export function App() {
 		<AppProvider app={app}>
 			<div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
 				<Canvas />
-				<Toolbar boardId={boardId} isCloudBoard={isCloudBoard} />
+				<Toolbar boardId={boardId} isCloudBoard={isCloudBoard} wsProvider={wsProviderRef.current} />
 			</div>
 		</AppProvider>
 	);
