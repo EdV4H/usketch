@@ -78,9 +78,46 @@ export const boardMembers = sqliteTable(
 		role: text("role", { enum: ["owner", "editor", "viewer"] })
 			.notNull()
 			.default("editor"),
+		lastViewport: text("last_viewport"),
+		lastSeenAt: text("last_seen_at"),
+		status: text("status").default("offline"),
 	},
 	(table) => [
 		primaryKey({ columns: [table.boardId, table.userId] }),
 		index("idx_board_members_user_id").on(table.userId),
 	],
+);
+
+// ── Phase 2: Not Whiteboard テーブル ──
+
+export const activityLog = sqliteTable(
+	"activity_log",
+	{
+		id: text("id").primaryKey(),
+		boardId: text("board_id")
+			.notNull()
+			.references(() => boards.id, { onDelete: "cascade" }),
+		userId: text("user_id").notNull(),
+		action: text("action").notNull(),
+		targetId: text("target_id"),
+		summary: text("summary"),
+		createdAt: text("created_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+	},
+	(table) => [index("idx_activity_log_board").on(table.boardId, table.createdAt)],
+);
+
+export const notifications = sqliteTable(
+	"notifications",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id").notNull(),
+		boardId: text("board_id")
+			.notNull()
+			.references(() => boards.id, { onDelete: "cascade" }),
+		type: text("type").notNull(),
+		payload: text("payload").notNull(),
+		read: integer("read").notNull().default(0),
+		createdAt: text("created_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+	},
+	(table) => [index("idx_notifications_user").on(table.userId, table.read, table.createdAt)],
 );

@@ -78,6 +78,7 @@ app.get("/api/boards/:boardId/ws", async (c) => {
 	const url = new URL(c.req.url);
 	url.pathname = "/ws";
 	url.searchParams.set("userId", userId);
+	url.searchParams.set("boardId", boardId);
 	return room.fetch(new Request(url.toString(), c.req.raw));
 });
 
