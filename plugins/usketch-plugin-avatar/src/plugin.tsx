@@ -122,7 +122,6 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 							name: avatar.name || "",
 							image: avatar.image ?? null,
 						},
-						ttl: 10000,
 						createdAt: Date.now(),
 					});
 				}

@@ -107,15 +107,28 @@ export class BoardRoom extends DurableObject<Env> {
 		const userId = tags[0];
 		const boardId = tags[1];
 		if (userId && userId !== "anonymous" && boardId) {
-			try {
-				const db = drizzle(this.env.DB);
-				const now = new Date().toISOString();
-				await db
-					.update(boardMembers)
-					.set({ status: "offline", lastSeenAt: now })
-					.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
-			} catch {
-				// DB更新失敗はWebSocket切断をブロックしない
+			// 同じユーザー+ボードで他のWebSocket接続が残っていないか確認
+			let hasOtherConnection = false;
+			for (const otherWs of this.ctx.getWebSockets()) {
+				if (otherWs === ws) continue;
+				const otherTags = this.ctx.getTags(otherWs);
+				if (otherTags[0] === userId && otherTags[1] === boardId) {
+					hasOtherConnection = true;
+					break;
+				}
+			}
+
+			if (!hasOtherConnection) {
+				try {
+					const db = drizzle(this.env.DB);
+					const now = new Date().toISOString();
+					await db
+						.update(boardMembers)
+						.set({ status: "offline", lastSeenAt: now })
+						.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
+				} catch {
+					// DB更新失敗はWebSocket切断をブロックしない
+				}
 			}
 		}
 		ws.close(code);

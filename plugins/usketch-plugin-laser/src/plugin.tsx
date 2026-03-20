@@ -38,6 +38,8 @@ interface Stroke {
  */
 const strokeStore = {
 	strokes: new Map<string, Stroke>(),
+	/** rAFを起動するためのコールバック（LaserCanvasが設定） */
+	onStrokeAdded: null as (() => void) | null,
 
 	getOrCreate(key: string, color: string): Stroke {
 		let s = this.strokes.get(key);
@@ -51,7 +53,14 @@ const strokeStore = {
 	reset(key: string, color: string): Stroke {
 		const s: Stroke = { points: [], color, finished: false };
 		this.strokes.set(key, s);
+		this.onStrokeAdded?.();
 		return s;
+	},
+
+	addPoint(key: string, point: { x: number; y: number }, color: string) {
+		const stroke = this.getOrCreate(key, color);
+		stroke.points.push({ x: point.x, y: point.y, t: Date.now() });
+		this.onStrokeAdded?.();
 	},
 
 	remove(key: string) {
@@ -174,12 +183,12 @@ function LaserCanvas({ ctx: renderCtx }: { ctx: LayerRenderContext }) {
 			}
 		}
 
-		// 初回起動 + strokeStoreに変更があったら起動するためにインターバルでチェック
-		const checkInterval = setInterval(() => {
-			if (strokeStore.strokes.size > 0 && rafRef.current === 0) {
+		// ストローク追加時にrAFループを起動するコールバック
+		strokeStore.onStrokeAdded = () => {
+			if (rafRef.current === 0 && running) {
 				rafRef.current = requestAnimationFrame(draw);
 			}
-		}, 50);
+		};
 
 		// 初回起動
 		if (strokeStore.strokes.size > 0) {
@@ -188,7 +197,7 @@ function LaserCanvas({ ctx: renderCtx }: { ctx: LayerRenderContext }) {
 
 		return () => {
 			running = false;
-			clearInterval(checkInterval);
+			strokeStore.onStrokeAdded = null;
 			if (rafRef.current) {
 				cancelAnimationFrame(rafRef.current);
 			}
@@ -258,8 +267,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			}
 
 			function addPointToStroke(key: string, point: { x: number; y: number }, color: string) {
-				const stroke = strokeStore.getOrCreate(key, color);
-				stroke.points.push({ x: point.x, y: point.y, t: Date.now() });
+				strokeStore.addPoint(key, point, color);
 			}
 
 			function finishStroke(key: string) {
