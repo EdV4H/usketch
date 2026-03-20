@@ -5,15 +5,30 @@ import { devLogout, getDevUser, isDevMode } from "./dev-auth.js";
 /**
  * 認証状態を統一的に取得するフック。
  * Better Authのセッションを優先し、DEV_MODEではdevユーザーにフォールバック。
+ * 全依存をプリミティブ値にして参照安定性を保証する。
  */
 export function useAuth() {
 	const { data: session, isPending } = useSession();
 
+	// Better Auth のセッションからプリミティブ値を抽出
+	const sessionId = session?.user?.id ?? null;
+	const sessionName = session?.user?.name ?? null;
+	const sessionEmail = session?.user?.email ?? null;
+	const sessionImage = session?.user?.image ?? null;
+
+	// DEV_MODE のフォールバック
 	const devId = isDevMode() ? (getDevUser()?.id ?? null) : null;
 	const devName = isDevMode() ? (getDevUser()?.name ?? null) : null;
 
 	const user = useMemo(() => {
-		if (session?.user) return session.user;
+		if (sessionId) {
+			return {
+				id: sessionId,
+				name: sessionName,
+				email: sessionEmail,
+				image: sessionImage,
+			};
+		}
 		if (devId && devName) {
 			return {
 				id: devId,
@@ -23,9 +38,9 @@ export function useAuth() {
 			};
 		}
 		return null;
-	}, [session?.user, devId, devName]);
+	}, [sessionId, sessionName, sessionEmail, sessionImage, devId, devName]);
 
-	const isDevUser = !session?.user && !!devId;
+	const isDevUser = !sessionId && !!devId;
 
 	const logout = useMemo(() => {
 		if (isDevUser) {

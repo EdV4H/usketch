@@ -189,19 +189,22 @@ export function App() {
 	}, [boardId, isCloudBoard]);
 
 	// セッション情報が確定したらAwarenessのローカル状態を更新
+	const authUserId = authUser?.id;
+	const authUserName = authUser?.name;
+	const authUserImage = authUser?.image;
 	useEffect(() => {
 		const wsProvider = wsProviderRef.current;
-		if (!wsProvider || !authUser) return;
+		if (!wsProvider || !authUserId) return;
 
 		wsProvider.awareness.setLocalStateField("user", {
-			name: authUser.name ?? "Anonymous",
+			name: authUserName ?? "Anonymous",
 		});
 		wsProvider.awareness.setLocalStateField("avatar", {
-			name: authUser.name ?? "Anonymous",
-			image: authUser.image ?? null,
-			userId: authUser.id ?? "anonymous",
+			name: authUserName ?? "Anonymous",
+			image: authUserImage ?? null,
+			userId: authUserId,
 		});
-	}, [authUser]);
+	}, [authUserId, authUserName, authUserImage]);
 
 	// キーボードショートカット
 	useEffect(() => {
