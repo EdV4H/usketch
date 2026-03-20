@@ -108,7 +108,6 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 		},
 	};
 
-	// Doc → Server: ローカル変更をサーバーに送信
 	function onDocUpdate(update: Uint8Array, origin: unknown) {
 		if (origin === "remote" || !ws || ws.readyState !== WebSocket.OPEN) return;
 		const msg = new Uint8Array(update.length + 1);
@@ -128,7 +127,6 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 		ws.addEventListener("open", () => {
 			connected = true;
 			ws?.send(new Uint8Array([MSG_SYNC_STEP1]));
-			// 再接続時にAwareness状態を再送
 			if (localAwareness) {
 				handle.setAwareness(localAwareness);
 			}
@@ -176,7 +174,6 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 
 		ws.addEventListener("close", () => {
 			connected = false;
-			// 切断時にリモートAwarenessをクリア
 			remoteAwareness.clear();
 			notifyAwareness();
 			if (!destroyed) {

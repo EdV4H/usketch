@@ -105,6 +105,9 @@ importers:
       '@edv4h/usketch-store':
         specifier: workspace:*
         version: link:../../packages/store
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
       better-auth:
         specifier: 1.5.5
         version: 1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.1(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(vitest@3.2.4(tsx@4.21.0))
@@ -216,6 +219,19 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(tsx@4.21.0)
 
+  packages/sync:
+    dependencies:
+      yjs:
+        specifier: ^13.6.0
+        version: 13.6.30
+    devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
   packages/ui:
     dependencies:
       '@edv4h/usketch-core':
@@ -285,12 +301,12 @@ importers:
 
   plugins/usketch-plugin-effect-ripple:
     dependencies:
-      '@edv4h/usketch-plugin-sync-localstorage-yjs':
-        specifier: workspace:*
-        version: link:../usketch-plugin-sync-localstorage-yjs
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
       react:
         specifier: '>=19'
         version: 19.1.0
@@ -323,12 +339,12 @@ importers:
 
   plugins/usketch-plugin-presence-cursor:
     dependencies:
-      '@edv4h/usketch-plugin-sync-localstorage-yjs':
-        specifier: workspace:*
-        version: link:../usketch-plugin-sync-localstorage-yjs
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
       react:
         specifier: '>=19'
         version: 19.1.0

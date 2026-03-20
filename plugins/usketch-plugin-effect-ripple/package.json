@@ -18,7 +18,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@edv4h/usketch-plugin-sync-localstorage-yjs": "workspace:*",
+		"@edv4h/usketch-sync": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*"
 	},
 	"peerDependencies": {

@@ -1,4 +1,3 @@
-import type { WsProviderHandle } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import {
 	type CanvasPointerEvent,
 	generateId,
@@ -7,6 +6,7 @@ import {
 	type TransientObject,
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
+import type { WsProviderHandle } from "@edv4h/usketch-sync";
 
 const RIPPLE_TTL = 600;
 const RIPPLE_SIZE = 80;

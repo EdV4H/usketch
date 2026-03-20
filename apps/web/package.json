@@ -27,6 +27,7 @@
 		"@edv4h/usketch-plugin-viewport-nav": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
 		"@edv4h/usketch-store": "workspace:*",
+		"@edv4h/usketch-sync": "workspace:*",
 		"better-auth": "1.5.5",
 		"react": "19.1.0",
 		"react-dom": "19.1.0",

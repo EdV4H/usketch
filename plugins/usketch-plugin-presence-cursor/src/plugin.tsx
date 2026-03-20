@@ -1,5 +1,5 @@
-import type { AwarenessState, WsProviderHandle } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import type { PluginContext, TransientObject, UsketchPlugin } from "@edv4h/usketch-shared";
+import type { AwarenessState, WsProviderHandle } from "@edv4h/usketch-sync";
 
 const CURSOR_COLORS = [
 	"#e74c3c",

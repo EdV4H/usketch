@@ -14,6 +14,7 @@ import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
+import { createWsProvider } from "@edv4h/usketch-sync";
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router";
 import { Toolbar } from "./components/toolbar.js";
@@ -61,25 +62,22 @@ export function App() {
 
 		// Cloud Boardの場合はWebSocket接続 + プレゼンス/エフェクト同期
 		const extraPlugins: UsketchPlugin[] = [];
+		let wsProvider: ReturnType<typeof createWsProvider> | null = null;
 
 		if (isCloudBoard) {
 			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 			const wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
-			const wsProvider = syncHandle.connectWebSocket(wsUrl);
+			wsProvider = createWsProvider({ url: wsUrl, doc: syncHandle.doc });
 
-			if (wsProvider) {
-				extraPlugins.push(createRippleEffectPlugin(wsProvider));
-				if (session?.user) {
-					extraPlugins.push(
-						createPresenceCursorPlugin({
-							wsProvider,
-							userId: session.user.id,
-							userName: session.user.name ?? "Anonymous",
-						}),
-					);
-				}
-			} else {
-				extraPlugins.push(rippleEffectPlugin);
+			extraPlugins.push(createRippleEffectPlugin(wsProvider));
+			if (session?.user) {
+				extraPlugins.push(
+					createPresenceCursorPlugin({
+						wsProvider,
+						userId: session.user.id,
+						userName: session.user.name ?? "Anonymous",
+					}),
+				);
 			}
 		} else {
 			extraPlugins.push(rippleEffectPlugin);
@@ -121,6 +119,7 @@ export function App() {
 		return () => {
 			cancelled = true;
 			instance?.destroy();
+			wsProvider?.destroy();
 			syncHandle.destroy();
 			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 			setApp(null);
