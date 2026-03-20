@@ -1,27 +1,6 @@
 import * as Y from "yjs";
 import { MSG_BROADCAST, MSG_SYNC_STEP1, MSG_SYNC_STEP2, MSG_YJS_UPDATE } from "./protocol.js";
 
-export interface AwarenessState {
-	userId: string;
-	name: string;
-	color: string;
-	cursor: { x: number; y: number } | null;
-}
-
-export interface TransientMessage {
-	id: string;
-	type: string;
-	sourceUserId: string;
-	position: { x: number; y: number };
-	data: Record<string, unknown>;
-	ttl?: number;
-}
-
-/** MSG_BROADCAST のペイロード。kind で中身を区別する */
-export type BroadcastMessage =
-	| { kind: "awareness"; payload: AwarenessState }
-	| { kind: "transient"; payload: TransientMessage };
-
 export interface WsProviderOptions {
 	url: string;
 	doc: Y.Doc;
@@ -29,21 +8,10 @@ export interface WsProviderOptions {
 
 export interface WsProviderHandle {
 	connected: boolean;
-
-	/** 汎用ブロードキャスト（サーバーは中身を見ずに中継するだけ） */
-	broadcast(msg: BroadcastMessage): void;
-	/** 汎用ブロードキャスト受信 */
-	onBroadcast(handler: (msg: BroadcastMessage) => void): () => void;
-
-	/** Awarenessヘルパー: ローカル状態を更新してブロードキャスト */
-	setAwareness(state: AwarenessState): void;
-	/** Awarenessヘルパー: リモート状態変更を監視 */
-	onAwarenessChange(handler: (states: Map<string, AwarenessState>) => void): () => void;
-	/** Transientヘルパー: オブジェクトをブロードキャスト */
-	broadcastTransient(msg: TransientMessage): void;
-	/** Transientヘルパー: リモートオブジェクトを監視 */
-	onTransient(handler: (msg: TransientMessage) => void): () => void;
-
+	/** JSONメッセージをブロードキャスト（サーバーは中身を見ずに中継） */
+	broadcast(msg: Record<string, unknown>): void;
+	/** リモートからのブロードキャストを受信 */
+	onBroadcast(handler: (msg: Record<string, unknown>) => void): () => void;
 	destroy(): void;
 }
 
@@ -54,24 +22,9 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 	let connected = false;
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-	// Broadcast listeners
-	const broadcastListeners = new Set<(msg: BroadcastMessage) => void>();
+	const broadcastListeners = new Set<(msg: Record<string, unknown>) => void>();
 
-	// Awareness（broadcastの上に構築）
-	let localAwareness: AwarenessState | null = null;
-	const remoteAwareness = new Map<string, AwarenessState>();
-	const awarenessListeners = new Set<(states: Map<string, AwarenessState>) => void>();
-
-	// Transient（broadcastの上に構築）
-	const transientListeners = new Set<(msg: TransientMessage) => void>();
-
-	function notifyAwareness() {
-		for (const listener of awarenessListeners) {
-			listener(remoteAwareness);
-		}
-	}
-
-	function sendBroadcast(msg: BroadcastMessage) {
+	function sendBroadcast(msg: Record<string, unknown>) {
 		if (!ws || ws.readyState !== WebSocket.OPEN) return;
 		const encoded = new TextEncoder().encode(JSON.stringify(msg));
 		const buf = new Uint8Array(encoded.length + 1);
@@ -80,60 +33,15 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 		ws.send(buf);
 	}
 
-	function handleBroadcast(msg: BroadcastMessage) {
-		// 汎用リスナーに通知
-		for (const listener of broadcastListeners) {
-			listener(msg);
-		}
-		// 型別リスナーに通知
-		switch (msg.kind) {
-			case "awareness": {
-				const state = msg.payload;
-				if (state.userId) {
-					remoteAwareness.set(state.userId, state);
-					notifyAwareness();
-				}
-				break;
-			}
-			case "transient": {
-				for (const listener of transientListeners) {
-					listener(msg.payload);
-				}
-				break;
-			}
-		}
-	}
-
 	const handle: WsProviderHandle = {
 		get connected() {
 			return connected;
 		},
-
 		broadcast: sendBroadcast,
-		onBroadcast(handler: (msg: BroadcastMessage) => void): () => void {
+		onBroadcast(handler: (msg: Record<string, unknown>) => void): () => void {
 			broadcastListeners.add(handler);
 			return () => broadcastListeners.delete(handler);
 		},
-
-		// Awareness ヘルパー
-		setAwareness(state: AwarenessState) {
-			localAwareness = state;
-			sendBroadcast({ kind: "awareness", payload: state });
-		},
-		onAwarenessChange(handler: (states: Map<string, AwarenessState>) => void): () => void {
-			awarenessListeners.add(handler);
-			return () => awarenessListeners.delete(handler);
-		},
-
-		// Transient ヘルパー
-		broadcastTransient(msg: TransientMessage) {
-			sendBroadcast({ kind: "transient", payload: msg });
-		},
-		onTransient(handler: (msg: TransientMessage) => void): () => void {
-			transientListeners.add(handler);
-			return () => transientListeners.delete(handler);
-		},
-
 		destroy() {
 			destroyed = true;
 			if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -143,9 +51,6 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			}
 			doc.off("update", onDocUpdate);
 			broadcastListeners.clear();
-			awarenessListeners.clear();
-			transientListeners.clear();
-			remoteAwareness.clear();
 		},
 	};
 
@@ -168,9 +73,6 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 		ws.addEventListener("open", () => {
 			connected = true;
 			ws?.send(new Uint8Array([MSG_SYNC_STEP1]));
-			if (localAwareness) {
-				handle.setAwareness(localAwareness);
-			}
 		});
 
 		ws.addEventListener("message", (event) => {
@@ -189,8 +91,10 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 				}
 				case MSG_BROADCAST: {
 					try {
-						const msg = JSON.parse(new TextDecoder().decode(payload)) as BroadcastMessage;
-						handleBroadcast(msg);
+						const msg = JSON.parse(new TextDecoder().decode(payload)) as Record<string, unknown>;
+						for (const listener of broadcastListeners) {
+							listener(msg);
+						}
 					} catch {
 						// 不正なメッセージは無視
 					}
@@ -201,8 +105,6 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 
 		ws.addEventListener("close", () => {
 			connected = false;
-			remoteAwareness.clear();
-			notifyAwareness();
 			if (!destroyed) {
 				reconnectTimer = setTimeout(connect, 3000);
 			}

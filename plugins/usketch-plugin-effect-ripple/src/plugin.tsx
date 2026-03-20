@@ -11,6 +11,15 @@ import type { WsProviderHandle } from "@edv4h/usketch-sync";
 const RIPPLE_TTL = 600;
 const RIPPLE_SIZE = 80;
 
+interface RippleBroadcast {
+	kind: "ripple";
+	id: string;
+	sourceUserId: string;
+	position: { x: number; y: number };
+	color: string;
+	ttl: number;
+}
+
 function RippleEffect({ obj }: { obj: TransientObject }) {
 	const color = (obj.data.color as string) ?? "rgba(59, 130, 246, 0.5)";
 
@@ -83,45 +92,46 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				render: (obj) => <RippleEffect obj={obj} />,
 			});
 
-			// リモートのリップルを受信して表示
-			let unsubTransient: (() => void) | undefined;
+			// リモートリップルの受信
+			let unsubBroadcast: (() => void) | undefined;
 			if (wsProvider) {
-				unsubTransient = wsProvider.onTransient((msg) => {
-					if (msg.type === "ripple") {
-						ctx.transient.emit({
-							id: msg.id,
-							type: "ripple",
-							sourceUserId: msg.sourceUserId,
-							position: msg.position,
-							data: msg.data,
-							ttl: msg.ttl ?? RIPPLE_TTL,
-							createdAt: Date.now(),
-						});
-					}
+				unsubBroadcast = wsProvider.onBroadcast((msg) => {
+					if (msg.kind !== "ripple") return;
+					const data = msg as unknown as RippleBroadcast;
+
+					ctx.transient.emit({
+						id: data.id,
+						type: "ripple",
+						sourceUserId: data.sourceUserId,
+						position: data.position,
+						data: { color: data.color },
+						ttl: data.ttl,
+						createdAt: Date.now(),
+					});
 				});
 			}
 
 			function onPointerDown(_toolCtx: ToolContext, event: CanvasPointerEvent) {
-				const obj = {
-					id: generateId(),
+				const id = generateId();
+				const color = "rgba(59, 130, 246, 0.5)";
+
+				ctx.transient.emit({
+					id,
 					type: "ripple",
 					sourceUserId: "local",
 					position: event.worldPoint,
-					data: { color: "rgba(59, 130, 246, 0.5)" },
+					data: { color },
 					ttl: RIPPLE_TTL,
 					createdAt: Date.now(),
-				};
+				});
 
-				ctx.transient.emit(obj);
-
-				// リモートにもブロードキャスト
-				wsProvider?.broadcastTransient({
-					id: obj.id,
-					type: obj.type,
-					sourceUserId: obj.sourceUserId,
-					position: obj.position,
-					data: obj.data,
-					ttl: obj.ttl,
+				wsProvider?.broadcast({
+					kind: "ripple",
+					id,
+					sourceUserId: "local",
+					position: event.worldPoint,
+					color,
+					ttl: RIPPLE_TTL,
 				});
 			}
 
@@ -134,7 +144,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			});
 
 			(this as unknown as Record<string, unknown>)._cleanup = () => {
-				unsubTransient?.();
+				unsubBroadcast?.();
 			};
 		},
 
