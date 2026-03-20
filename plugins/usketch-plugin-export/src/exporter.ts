@@ -40,8 +40,9 @@ let fontCache: ArrayBuffer | null = null;
 
 async function loadFont(): Promise<ArrayBuffer> {
 	if (fontCache) return fontCache;
+	// Inter Regular woff2（ラテン文字、安定したURL）
 	const res = await fetch(
-		"https://fonts.gstatic.com/s/notosansjp/v53/KFRmCnaiYGBBV6LlrOS_2-3_OKTbpQ.woff2",
+		"https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.woff2",
 	);
 	fontCache = await res.arrayBuffer();
 	return fontCache;
@@ -55,7 +56,7 @@ async function htmlShapeToSvg(element: ReactNode, shape: ShapeData): Promise<str
 		height: shape.height,
 		fonts: [
 			{
-				name: "Noto Sans JP",
+				name: "Inter",
 				data: fontData,
 				weight: 400,
 				style: "normal",
