@@ -1,8 +1,11 @@
 import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
 import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { exportPlugin } from "@edv4h/usketch-plugin-export";
+import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
+import { createReactionsPlugin, reactionsPlugin } from "@edv4h/usketch-plugin-reactions";
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
 import { ellipsePlugin } from "@edv4h/usketch-plugin-shape-ellipse";
 import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
@@ -73,6 +76,8 @@ export function App() {
 			wsProviderRef.current = wsProvider;
 
 			extraPlugins.push(createRippleEffectPlugin(wsProvider));
+			extraPlugins.push(createReactionsPlugin(wsProvider));
+			extraPlugins.push(createLaserPlugin(wsProvider));
 			// presenceは常にプラグインとして追加（ユーザー情報は後から設定）
 			extraPlugins.push(
 				createPresenceCursorPlugin({
@@ -81,8 +86,17 @@ export function App() {
 					userName: "Anonymous",
 				}),
 			);
+			extraPlugins.push(
+				createAvatarPlugin({
+					wsProvider,
+					userId: "anonymous",
+					userName: "Anonymous",
+				}),
+			);
 		} else {
 			extraPlugins.push(rippleEffectPlugin);
+			extraPlugins.push(reactionsPlugin);
+			extraPlugins.push(laserPlugin);
 		}
 
 		syncHandle.whenSynced
@@ -137,6 +151,11 @@ export function App() {
 
 		wsProvider.awareness.setLocalStateField("user", {
 			name: sessionUser.name ?? "Anonymous",
+		});
+		wsProvider.awareness.setLocalStateField("avatar", {
+			name: sessionUser.name ?? "Anonymous",
+			image: sessionUser.image ?? null,
+			userId: sessionUser.id ?? "anonymous",
 		});
 	}, [sessionUser]);
 
