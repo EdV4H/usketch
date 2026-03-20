@@ -12,23 +12,23 @@ export function Toolbar() {
 		setExporting(true);
 		try {
 			const shapes = new Map(app.store.getShapes());
-			const blob = await exportCanvas(shapes, { format: "png" });
+			const blob = await exportCanvas(shapes, app.shapes, { format: "png" });
 			downloadBlob(blob, "usketch-export.png");
 		} finally {
 			setExporting(false);
 		}
-	}, [app.store]);
+	}, [app.store, app.shapes]);
 
 	const handleExportSvg = useCallback(async () => {
 		setExporting(true);
 		try {
 			const shapes = new Map(app.store.getShapes());
-			const blob = await exportCanvas(shapes, { format: "svg" });
+			const blob = await exportCanvas(shapes, app.shapes, { format: "svg" });
 			downloadBlob(blob, "usketch-export.svg");
 		} finally {
 			setExporting(false);
 		}
-	}, [app.store]);
+	}, [app.store, app.shapes]);
 
 	return (
 		<div

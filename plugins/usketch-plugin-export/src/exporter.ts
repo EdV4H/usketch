@@ -1,5 +1,5 @@
-import type { ShapeData } from "@edv4h/usketch-shared";
-import { toPng, toSvg } from "html-to-image";
+import type { ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
+import { renderToStaticMarkup } from "react-dom/server";
 
 /** シェイプ全体のバウンディングボックスを計算 */
 function computeBounds(shapes: Map<string, ShapeData>) {
@@ -35,68 +35,76 @@ export interface ExportOptions {
 }
 
 /**
- * シェイプレイヤーのみをエクスポートする。
- * Canvasコンテナをクローンし、ビューポートをシェイプ全体にフィットさせ、
- * シェイプレイヤー以外のレイヤーを除外してキャプチャする。
+ * シェイプデータからSVG文字列を構築してエクスポートする。
+ * DOMクローンに依存せず、ShapeRegistryのrender関数を使用。
  */
 export async function exportCanvas(
 	shapes: Map<string, ShapeData>,
+	shapeRegistry: ShapeRegistry,
 	options: ExportOptions,
 ): Promise<Blob> {
-	// Canvasコンテナを取得
-	const canvas = document.querySelector<HTMLElement>("[style*='touch-action: none']");
-	if (!canvas) throw new Error("Canvas not found");
+	if (shapes.size === 0) {
+		throw new Error("No shapes to export");
+	}
 
 	const bounds = computeBounds(shapes);
-	const pixelRatio = options.pixelRatio ?? 2;
 	const background = options.background ?? "#ffffff";
 
-	// クローンを作成してビューポートを上書き
-	const clone = canvas.cloneNode(true) as HTMLElement;
-	clone.style.position = "fixed";
-	clone.style.left = "-99999px";
-	clone.style.top = "0";
-	clone.style.width = `${bounds.width}px`;
-	clone.style.height = `${bounds.height}px`;
-	clone.style.background = background;
+	// 各シェイプのSVG要素をrenderToStaticMarkupで文字列化
+	const shapeElements: string[] = [];
+	for (const shape of shapes.values()) {
+		const def = shapeRegistry.get(shape.type);
+		if (!def) continue;
 
-	// transientレイヤー等を除外（shapesレイヤーのみ残す）
-	for (const layerEl of clone.querySelectorAll<HTMLElement>("[data-layer-id]")) {
-		if (layerEl.dataset.layerId !== "shapes") {
-			layerEl.remove();
-		}
+		const element = def.render(shape);
+		const markup = renderToStaticMarkup(element);
+		shapeElements.push(markup);
 	}
 
-	// ビューポートtransformを上書き（zoom=1, シェイプ全体にフィット）
-	const transformDiv = clone.querySelector<HTMLElement>("[style*='transform-origin']");
-	if (transformDiv) {
-		transformDiv.style.transform = `translate(${-bounds.minX}px, ${-bounds.minY}px) scale(1)`;
+	const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${bounds.width}" height="${bounds.height}" viewBox="${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}">
+<rect x="${bounds.minX}" y="${bounds.minY}" width="${bounds.width}" height="${bounds.height}" fill="${background}" />
+${shapeElements.join("\n")}
+</svg>`;
+
+	if (options.format === "svg") {
+		return new Blob([svgContent], { type: "image/svg+xml" });
 	}
 
-	document.body.appendChild(clone);
+	// PNG: SVGをCanvasに描画してBlobに変換
+	const pixelRatio = options.pixelRatio ?? 2;
+	const img = new Image();
+	const svgBlob = new Blob([svgContent], { type: "image/svg+xml" });
+	const url = URL.createObjectURL(svgBlob);
 
-	try {
-		if (options.format === "svg") {
-			const dataUrl = await toSvg(clone, {
-				width: bounds.width,
-				height: bounds.height,
-				backgroundColor: background,
-			});
-			const svgStr = decodeURIComponent(dataUrl.split(",")[1]);
-			return new Blob([svgStr], { type: "image/svg+xml" });
-		}
+	return new Promise<Blob>((resolve, reject) => {
+		img.onload = () => {
+			const canvas = document.createElement("canvas");
+			canvas.width = bounds.width * pixelRatio;
+			canvas.height = bounds.height * pixelRatio;
+			const ctx = canvas.getContext("2d");
+			if (!ctx) {
+				reject(new Error("Failed to get canvas context"));
+				return;
+			}
+			ctx.scale(pixelRatio, pixelRatio);
+			ctx.drawImage(img, 0, 0, bounds.width, bounds.height);
+			URL.revokeObjectURL(url);
 
-		const dataUrl = await toPng(clone, {
-			width: bounds.width,
-			height: bounds.height,
-			pixelRatio,
-			backgroundColor: background,
-		});
-		const res = await fetch(dataUrl);
-		return res.blob();
-	} finally {
-		document.body.removeChild(clone);
-	}
+			canvas.toBlob(
+				(blob) => {
+					if (blob) resolve(blob);
+					else reject(new Error("Failed to create PNG blob"));
+				},
+				"image/png",
+				1,
+			);
+		};
+		img.onerror = () => {
+			URL.revokeObjectURL(url);
+			reject(new Error("Failed to load SVG for PNG conversion"));
+		};
+		img.src = url;
+	});
 }
 
 /** Blobをファイルとしてダウンロードする */
