@@ -7,17 +7,17 @@ import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
 import { snapPlugin } from "@edv4h/usketch-plugin-snap";
-import { syncLocalstorageYjsPlugin } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
+import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { useEffect, useState } from "react";
+import { useParams } from "react-router";
 import { Toolbar } from "./components/toolbar.js";
 
 const basePlugins: UsketchPlugin[] = [
-	syncLocalstorageYjsPlugin,
 	selectToolPlugin,
 	panToolPlugin,
 	viewportNavPlugin,
@@ -39,66 +39,54 @@ async function loadPlugins(): Promise<UsketchPlugin[]> {
 }
 
 export function App() {
+	const { boardId } = useParams<{ boardId: string }>();
 	const [app, setApp] = useState<AppInstance | null>(null);
 
 	useEffect(() => {
+		if (!boardId) return;
+
 		let cancelled = false;
 		let instance: AppInstance | null = null;
+		let syncHandle: ReturnType<typeof createYjsSync> | null = null;
 		const store = createBoardStore();
 
-		loadPlugins()
-			.then((plugins) => createApp({ store, plugins }))
-			.then((created) => {
-				if (cancelled) {
-					created.destroy();
-					return;
-				}
-				instance = created;
-				const app = instance;
-				app.layers.register({
-					id: "shapes",
-					order: 50,
-					render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />,
-				});
-				app.layers.register({
-					id: "transient",
-					order: 100,
-					render: (renderCtx) => <TransientLayer registry={app.transient} ctx={renderCtx} />,
-				});
+		// ボードIDに基づいてYjsドキュメントを作成（ボードごとに独立）
+		syncHandle = createYjsSync(store, `usketch-board-${boardId}`);
 
-				setApp(instance);
-			});
+		syncHandle.whenSynced.then(() => {
+			if (cancelled) return;
+
+			return loadPlugins()
+				.then((plugins) => createApp({ store, plugins }))
+				.then((created) => {
+					if (cancelled) {
+						created.destroy();
+						return;
+					}
+					instance = created;
+					const app = instance;
+					app.layers.register({
+						id: "shapes",
+						order: 50,
+						render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />,
+					});
+					app.layers.register({
+						id: "transient",
+						order: 100,
+						render: (renderCtx) => <TransientLayer registry={app.transient} ctx={renderCtx} />,
+					});
+
+					setApp(instance);
+				});
+		});
 
 		return () => {
 			cancelled = true;
 			instance?.destroy();
+			syncHandle?.destroy();
+			setApp(null);
 		};
-	}, []);
-
-	useEffect(() => {
-		if (!app) return;
-
-		const handleKeyDown = (e: KeyboardEvent) => {
-			// Let shortcuts handle tool switching
-			const tools = app.tools.getAll();
-			for (const [id, def] of tools) {
-				if (
-					def.shortcut &&
-					e.key.toLowerCase() === def.shortcut.toLowerCase() &&
-					!e.ctrlKey &&
-					!e.metaKey &&
-					!e.altKey
-				) {
-					app.store.setActiveToolId(id);
-					return;
-				}
-			}
-			app.shortcuts.handleKeyDown(e);
-		};
-
-		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [app]);
+	}, [boardId]);
 
 	if (!app) return null;
 
