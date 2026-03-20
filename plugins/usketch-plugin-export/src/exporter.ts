@@ -40,9 +40,9 @@ let fontCache: ArrayBuffer | null = null;
 
 async function loadFont(): Promise<ArrayBuffer> {
 	if (fontCache) return fontCache;
-	// Inter Regular woff2（ラテン文字、安定したURL）
+	// Inter Regular ttf（Satoriはwoff2非対応、ttf/otfのみ）
 	const res = await fetch(
-		"https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.woff2",
+		"https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.ttf",
 	);
 	fontCache = await res.arrayBuffer();
 	return fontCache;
