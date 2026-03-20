@@ -1,11 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import {
-	MSG_AWARENESS,
-	MSG_SYNC_STEP1,
-	MSG_SYNC_STEP2,
-	MSG_TRANSIENT,
-	MSG_YJS_UPDATE,
-} from "@edv4h/usketch-sync";
+import { MSG_BROADCAST, MSG_SYNC_STEP1, MSG_SYNC_STEP2, MSG_YJS_UPDATE } from "@edv4h/usketch-sync";
 import type { Env } from "./types.js";
 
 /**
@@ -53,20 +47,16 @@ export class BoardRoom extends DurableObject<Env> {
 
 		switch (msgType) {
 			case MSG_YJS_UPDATE: {
-				// 更新をバッファに蓄積（新規接続の初期同期用）
 				this.updates.push(payload);
-				// 他の全クライアントに中継
 				this.broadcast(ws, data);
 				break;
 			}
-			case MSG_AWARENESS:
-			case MSG_TRANSIENT: {
-				// Awareness/Transientは蓄積不要、リアルタイムで中継のみ
+			case MSG_BROADCAST: {
+				// 一時データ（Awareness, Transient等）は蓄積不要、中継のみ
 				this.broadcast(ws, data);
 				break;
 			}
 			case MSG_SYNC_STEP1: {
-				// クライアントからの同期リクエスト — 蓄積された全更新を返送
 				for (const update of this.updates) {
 					const msg = new Uint8Array(update.length + 1);
 					msg[0] = MSG_SYNC_STEP2;
