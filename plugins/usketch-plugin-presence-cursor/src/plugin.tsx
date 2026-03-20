@@ -20,9 +20,18 @@ function getUserColor(userId: string): string {
 	return CURSOR_COLORS[Math.abs(hash) % CURSOR_COLORS.length];
 }
 
+const STATUS_EMOJI: Record<string, string> = {
+	active: "",
+	away: "💤",
+	busy: "🔴",
+	presenting: "📺",
+};
+
 function RemoteCursor({ obj }: { obj: TransientObject }) {
 	const color = (obj.data.color as string) || "#999";
 	const name = (obj.data.name as string) || "";
+	const status = (obj.data.status as string) || "active";
+	const statusEmoji = STATUS_EMOJI[status] ?? "";
 
 	return (
 		<>
@@ -39,7 +48,7 @@ function RemoteCursor({ obj }: { obj: TransientObject }) {
 					strokeWidth="1"
 				/>
 			</svg>
-			{name && (
+			{(name || statusEmoji) && (
 				<div
 					style={{
 						position: "absolute",
@@ -54,6 +63,7 @@ function RemoteCursor({ obj }: { obj: TransientObject }) {
 						pointerEvents: "none",
 					}}
 				>
+					{statusEmoji && <span style={{ marginRight: 2 }}>{statusEmoji}</span>}
 					{name}
 				</div>
 			)}
@@ -93,7 +103,7 @@ export function createPresenceCursorPlugin(options: PresenceCursorOptions): Uske
 
 				for (const [clientId, state] of states) {
 					if (clientId === awareness.doc.clientID) continue;
-					const user = state.user as { name?: string; color?: string } | undefined;
+					const user = state.user as { name?: string; color?: string; status?: string } | undefined;
 					const cursor = state.cursor as Record<string, unknown> | undefined;
 
 					// バリデーション
@@ -107,7 +117,11 @@ export function createPresenceCursorPlugin(options: PresenceCursorOptions): Uske
 						type: "remote-cursor",
 						sourceUserId: String(clientId),
 						position: { x: cursor.x, y: cursor.y },
-						data: { name: user.name || "", color: user.color || getUserColor(String(clientId)) },
+						data: {
+							name: user.name || "",
+							color: user.color || getUserColor(String(clientId)),
+							status: user.status ?? (state.presenting === true ? "presenting" : "active"),
+						},
 						ttl: 5000,
 						createdAt: Date.now(),
 					});

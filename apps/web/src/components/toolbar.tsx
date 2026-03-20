@@ -2,13 +2,25 @@ import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
 import { useCallback, useState } from "react";
 import { ShareDialog } from "./share-dialog.js";
 
-export function Toolbar({ boardId, isCloudBoard }: { boardId?: string; isCloudBoard?: boolean }) {
+export function Toolbar({
+	boardId,
+	isCloudBoard,
+	wsProvider,
+}: {
+	boardId?: string;
+	isCloudBoard?: boolean;
+	wsProvider?: {
+		awareness: { setLocalStateField: (field: string, value: unknown) => void };
+	} | null;
+}) {
 	const app = useApp();
 	const activeToolId = useStoreSubscribe(app.store, (s) => s.getActiveToolId());
 	const tools = app.tools.getOrdered();
 	const [exporting, setExporting] = useState(false);
 	const [showExportMenu, setShowExportMenu] = useState(false);
 	const [showShare, setShowShare] = useState(false);
+	const [showStatus, setShowStatus] = useState(false);
+	const [currentStatus, setCurrentStatus] = useState("active");
 
 	const handleExport = useCallback(
 		async (format: "png" | "svg") => {
@@ -101,6 +113,64 @@ export function Toolbar({ boardId, isCloudBoard }: { boardId?: string; isCloudBo
 					↪
 				</button>
 			</div>
+
+			{/* ステータス（左下） */}
+			{isCloudBoard && wsProvider && (
+				<div style={{ position: "fixed", bottom: 12, left: 12, zIndex: 100 }}>
+					<button
+						type="button"
+						onClick={() => setShowStatus((v) => !v)}
+						style={{
+							height: 36,
+							padding: "0 12px",
+							background: "white",
+							border: "none",
+							borderRadius: 8,
+							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+							fontSize: 12,
+							cursor: "pointer",
+							color: "#333",
+						}}
+					>
+						{currentStatus === "active" ? "🟢" : currentStatus === "away" ? "💤" : "🔴"}{" "}
+						{currentStatus}
+					</button>
+					{showStatus && (
+						<div
+							style={{
+								position: "absolute",
+								bottom: 42,
+								left: 0,
+								background: "white",
+								borderRadius: 8,
+								boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+								overflow: "hidden",
+								minWidth: 120,
+							}}
+						>
+							{(["active", "away", "busy"] as const).map((s) => (
+								<button
+									key={s}
+									type="button"
+									onClick={() => {
+										setCurrentStatus(s);
+										setShowStatus(false);
+										wsProvider.awareness.setLocalStateField("user", {
+											status: s,
+										});
+									}}
+									style={{
+										...menuItemStyle,
+										fontWeight: currentStatus === s ? 600 : 400,
+									}}
+								>
+									{s === "active" ? "🟢" : s === "away" ? "💤" : "🔴"} {s}
+								</button>
+							))}
+						</div>
+					)}
+				</div>
+			)}
 
 			{/* エクスポート（右上、Shareの左） */}
 			<div
