@@ -46,10 +46,10 @@ export function createAuth(env: Env) {
 			},
 		},
 		advanced: {
-			defaultCookieAttributes: {
-				sameSite: "none",
-				secure: true,
-			},
+			defaultCookieAttributes:
+				env.DEV_MODE === "true"
+					? { sameSite: "lax", secure: false }
+					: { sameSite: "none", secure: true },
 		},
 	});
 }
