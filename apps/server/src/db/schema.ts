@@ -6,7 +6,7 @@ export const users = sqliteTable("users", {
 	name: text("name"),
 	email: text("email").unique(),
 	avatarUrl: text("avatar_url"),
-	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	createdAt: text("created_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
 });
 
 export const boards = sqliteTable("boards", {
@@ -15,8 +15,8 @@ export const boards = sqliteTable("boards", {
 	ownerId: text("owner_id")
 		.notNull()
 		.references(() => users.id),
-	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-	updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+	createdAt: text("created_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+	updatedAt: text("updated_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
 	isPublic: integer("is_public", { mode: "boolean" }).notNull().default(false),
 });
 

@@ -15,6 +15,13 @@
 			"when": 1773913862525,
 			"tag": "0001_lethal_thanos",
 			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "6",
+			"when": 1773956735517,
+			"tag": "0002_mighty_stick",
+			"breakpoints": true
 		}
 	]
 }
