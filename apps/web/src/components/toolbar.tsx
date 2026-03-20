@@ -48,7 +48,7 @@ export function Toolbar({ boardId, isCloudBoard }: { boardId?: string; isCloudBo
 				<a
 					href="/"
 					title="Dashboard"
-					style={{ ...actionBtnStyle, textDecoration: "none", fontSize: 14 }}
+					style={{ ...actionBtnStyle, textDecoration: "none", fontSize: 20 }}
 				>
 					⌂
 				</a>
