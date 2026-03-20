@@ -1,5 +1,6 @@
 name = "usketch-server"
 compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
 main = "src/index.ts"
 
 [[d1_databases]]
