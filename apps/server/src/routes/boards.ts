@@ -187,17 +187,28 @@ boardsApp.delete("/:id", async (c) => {
 	return c.json({ ok: true });
 });
 
-// GET /api/boards/:id/members — メンバー一覧
+// GET /api/boards/:id/members — メンバー一覧（メンバーのみアクセス可）
 boardsApp.get("/:id/members", async (c) => {
 	const db = c.get("db");
+	const currentUserId = c.get("userId");
 	const boardId = c.req.param("id");
+
+	// メンバーシップ確認
+	const membership = await db
+		.select({ role: boardMembers.role })
+		.from(boardMembers)
+		.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, currentUserId)))
+		.limit(1);
+
+	if (membership.length === 0) {
+		return c.json({ error: "Board not found" }, 404);
+	}
 
 	const result = await db
 		.select({
 			userId: boardMembers.userId,
 			role: boardMembers.role,
 			name: users.name,
-			email: users.email,
 			image: users.image,
 		})
 		.from(boardMembers)
@@ -304,7 +315,10 @@ boardsApp.post("/:id/share", async (c) => {
 	}
 
 	const newIsPublic = !board[0].isPublic;
-	await db.update(boards).set({ isPublic: newIsPublic }).where(eq(boards.id, boardId));
+	await db
+		.update(boards)
+		.set({ isPublic: newIsPublic, updatedAt: new Date().toISOString() })
+		.where(eq(boards.id, boardId));
 
 	return c.json({ isPublic: newIsPublic });
 });

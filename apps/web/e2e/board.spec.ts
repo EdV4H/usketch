@@ -23,9 +23,9 @@ test.describe("Board", () => {
 		await page.goto("/");
 		await page.click("text=New Local Board");
 		await page.waitForURL(/\/local\//);
-		// ツールバーが表示される
-		await expect(page.locator("text=Undo")).toBeHidden(); // ↩ icon, not text
-		// Exportボタンが表示される
+		// ツールバーのUndoボタン（titleで特定）
+		await expect(page.locator('button[title*="Undo"]')).toBeVisible();
+		// Exportボタン
 		await expect(page.locator("button", { hasText: "Export" })).toBeVisible();
 	});
 });

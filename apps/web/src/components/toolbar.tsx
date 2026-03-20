@@ -1,5 +1,4 @@
 import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
-import { downloadBlob, exportCanvas } from "@edv4h/usketch-plugin-export";
 import { useCallback, useState } from "react";
 import { ShareDialog } from "./share-dialog.js";
 
@@ -16,9 +15,12 @@ export function Toolbar({ boardId, isCloudBoard }: { boardId?: string; isCloudBo
 			setExporting(true);
 			setShowExportMenu(false);
 			try {
+				const { exportCanvas, downloadBlob } = await import("@edv4h/usketch-plugin-export");
 				const shapes = new Map(app.store.getShapes());
 				const blob = await exportCanvas(shapes, app.shapes, { format });
 				downloadBlob(blob, `usketch-export.${format}`);
+			} catch (e) {
+				console.error("Export failed:", e);
 			} finally {
 				setExporting(false);
 			}
@@ -48,7 +50,7 @@ export function Toolbar({ boardId, isCloudBoard }: { boardId?: string; isCloudBo
 				<a
 					href="/"
 					title="Dashboard"
-					style={{ ...actionBtnStyle, textDecoration: "none", fontSize: 20 }}
+					style={{ ...actionBtnStyle, textDecoration: "none", fontSize: 14 }}
 				>
 					⌂
 				</a>

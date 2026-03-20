@@ -48,9 +48,9 @@ export const api = {
 				method: "DELETE",
 			}),
 		members: (id: string) =>
-			fetchApi<
-				{ userId: string; role: string; name: string; email: string; image: string | null }[]
-			>(`/api/boards/${id}/members`),
+			fetchApi<{ userId: string; role: string; name: string; image: string | null }[]>(
+				`/api/boards/${id}/members`,
+			),
 		addMember: (id: string, email: string, role?: "editor" | "viewer") =>
 			fetchApi<{ ok: boolean }>(`/api/boards/${id}/members`, {
 				method: "POST",

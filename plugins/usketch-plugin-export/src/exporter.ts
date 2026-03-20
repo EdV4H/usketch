@@ -1,5 +1,5 @@
 import type { ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import satori from "satori";
 
@@ -40,10 +40,12 @@ let fontCache: ArrayBuffer | null = null;
 
 async function loadFont(): Promise<ArrayBuffer> {
 	if (fontCache) return fontCache;
-	// Inter Regular ttf（Satoriはwoff2非対応、ttf/otfのみ）
 	const res = await fetch(
-		"https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.ttf",
+		"https://cdn.jsdelivr.net/fontsource/fonts/inter@5.1.1/latin-400-normal.ttf",
 	);
+	if (!res.ok) {
+		throw new Error(`Failed to load font: ${res.status}`);
+	}
 	fontCache = await res.arrayBuffer();
 	return fontCache;
 }
@@ -51,28 +53,18 @@ async function loadFont(): Promise<ArrayBuffer> {
 /** HTMLシェイプをSatoriでSVG文字列に変換（foreignObject不使用、taint安全） */
 async function htmlShapeToSvg(element: ReactNode, shape: ShapeData): Promise<string> {
 	const fontData = await loadFont();
-	const svg = await satori(element as React.ReactElement, {
+	const svg = await satori(element as ReactElement, {
 		width: shape.width,
 		height: shape.height,
-		fonts: [
-			{
-				name: "Inter",
-				data: fontData,
-				weight: 400,
-				style: "normal",
-			},
-		],
+		fonts: [{ name: "Inter", data: fontData, weight: 400, style: "normal" }],
 	});
-	// SatoriのSVGからルート<svg>タグを除去し、中身をグループ化
 	const inner = svg.replace(/<svg[^>]*>/, "").replace(/<\/svg>$/, "");
 	return `<g transform="translate(${shape.x}, ${shape.y})">${inner}</g>`;
 }
 
 /**
  * シェイプデータからSVG文字列を構築してエクスポートする。
- *
- * - SVGシェイプ → renderToStaticMarkupでSVG要素化
- * - HTMLシェイプ → SVGエクスポート: foreignObject、PNGエクスポート: Satori
+ * SVGシェイプ → renderToStaticMarkup、HTMLシェイプ → Satori(PNG) / foreignObject(SVG)
  */
 export async function exportCanvas(
 	shapes: Map<string, ShapeData>,
@@ -85,7 +77,7 @@ export async function exportCanvas(
 
 	const bounds = computeBounds(shapes);
 	const background = options.background ?? "#ffffff";
-	const useSatori = options.format === "png"; // PNG時のみSatori使用
+	const useSatori = options.format === "png";
 
 	const shapeElements: string[] = [];
 	for (const shape of shapes.values()) {
@@ -96,11 +88,9 @@ export async function exportCanvas(
 
 		if (def.renderTarget === "html") {
 			if (useSatori) {
-				// PNG: SatoriでHTMLをSVGに変換（taint安全）
 				const svgMarkup = await htmlShapeToSvg(element, shape);
 				shapeElements.push(svgMarkup);
 			} else {
-				// SVG: foreignObjectでHTMLを埋め込み（ブラウザで正常表示される）
 				const markup = renderToStaticMarkup(element);
 				shapeElements.push(
 					`<foreignObject x="${shape.x}" y="${shape.y}" width="${shape.width}" height="${shape.height}">
@@ -132,10 +122,11 @@ ${shapeElements.join("\n")}
 	return new Promise<Blob>((resolve, reject) => {
 		img.onload = () => {
 			const canvas = document.createElement("canvas");
-			canvas.width = bounds.width * pixelRatio;
-			canvas.height = bounds.height * pixelRatio;
+			canvas.width = Math.ceil(bounds.width * pixelRatio);
+			canvas.height = Math.ceil(bounds.height * pixelRatio);
 			const ctx = canvas.getContext("2d");
 			if (!ctx) {
+				URL.revokeObjectURL(url);
 				reject(new Error("Failed to get canvas context"));
 				return;
 			}
@@ -167,5 +158,5 @@ export function downloadBlob(blob: Blob, filename: string) {
 	a.href = url;
 	a.download = filename;
 	a.click();
-	URL.revokeObjectURL(url);
+	setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

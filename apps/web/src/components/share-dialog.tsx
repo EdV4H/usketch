@@ -5,7 +5,6 @@ interface Member {
 	userId: string;
 	role: string;
 	name: string;
-	email: string;
 	image: string | null;
 }
 
@@ -63,11 +62,24 @@ export function ShareDialog({ boardId, onClose }: { boardId: string; onClose: ()
 		}
 	};
 
-	const handleCopyLink = () => {
-		navigator.clipboard.writeText(window.location.href);
-		setCopied(true);
-		setTimeout(() => setCopied(false), 2000);
+	const handleCopyLink = async () => {
+		try {
+			await navigator.clipboard.writeText(window.location.href);
+			setCopied(true);
+			setTimeout(() => setCopied(false), 2000);
+		} catch {
+			setError("Failed to copy link");
+		}
 	};
+
+	// Escapeキーで閉じる
+	useEffect(() => {
+		const handleKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") onClose();
+		};
+		window.addEventListener("keydown", handleKey);
+		return () => window.removeEventListener("keydown", handleKey);
+	}, [onClose]);
 
 	return (
 		<>
@@ -217,7 +229,7 @@ export function ShareDialog({ boardId, onClose }: { boardId: string; onClose: ()
 							}}
 						>
 							<div>
-								<div style={{ fontSize: 13, fontWeight: 500 }}>{m.name || m.email}</div>
+								<div style={{ fontSize: 13, fontWeight: 500 }}>{m.name || "Unknown"}</div>
 								<div style={{ fontSize: 11, color: "#888" }}>{m.role}</div>
 							</div>
 							{m.role !== "owner" && (
