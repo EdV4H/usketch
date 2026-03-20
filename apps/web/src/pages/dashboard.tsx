@@ -15,6 +15,7 @@ export function DashboardPage() {
 		setLocals(localBoards.list());
 		setError("");
 		if (session?.user) {
+			setLoading(true);
 			try {
 				const result = await api.boards.list();
 				setBoards(result);
@@ -25,9 +26,12 @@ export function DashboardPage() {
 				} else {
 					setError(msg);
 				}
+			} finally {
+				setLoading(false);
 			}
+		} else {
+			setLoading(false);
 		}
-		setLoading(false);
 	}, [session]);
 
 	useEffect(() => {
@@ -35,8 +39,12 @@ export function DashboardPage() {
 	}, [loadBoards]);
 
 	const handleCreate = async () => {
-		const board = await api.boards.create();
-		window.location.href = `/boards/${board.id}`;
+		try {
+			const board = await api.boards.create();
+			window.location.href = `/boards/${board.id}`;
+		} catch (e) {
+			setError(e instanceof Error ? e.message : "Failed to create board");
+		}
 	};
 
 	const handleCreateLocal = () => {
@@ -45,8 +53,12 @@ export function DashboardPage() {
 	};
 
 	const handleDelete = async (id: string) => {
-		await api.boards.delete(id);
-		loadBoards();
+		try {
+			await api.boards.delete(id);
+			loadBoards();
+		} catch (e) {
+			setError(e instanceof Error ? e.message : "Failed to delete board");
+		}
 	};
 
 	const handleDeleteLocal = (id: string) => {

@@ -33,23 +33,22 @@ boardsApp.post("/", zValidator("json", createBoardSchema), async (c) => {
 	const id = crypto.randomUUID();
 	const now = new Date().toISOString();
 
+	// DEV_MODE時のみ: Better Auth外のユーザーを自動作成
+	if (c.env.DEV_MODE === "true") {
+		await db
+			.insert(users)
+			.values({
+				id: userId,
+				name: "Dev User",
+				email: `${userId}@dev.local`,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			})
+			.onConflictDoNothing();
+	}
+
 	// ボード作成 + メンバー追加をバッチ実行でアトミックに
-	const statements = [
-		// DEV_MODE時のみ: Better Auth外のユーザーを自動作成
-		...(c.env.DEV_MODE === "true"
-			? [
-					db
-						.insert(users)
-						.values({
-							id: userId,
-							name: "Dev User",
-							email: `${userId}@dev.local`,
-							createdAt: new Date(),
-							updatedAt: new Date(),
-						})
-						.onConflictDoNothing(),
-				]
-			: []),
+	await db.batch([
 		db.insert(boards).values({
 			id,
 			title: body.title ?? "Untitled",
@@ -62,8 +61,7 @@ boardsApp.post("/", zValidator("json", createBoardSchema), async (c) => {
 			userId,
 			role: "owner",
 		}),
-	] as const;
-	await db.batch(statements as any);
+	]);
 
 	return c.json({ id, title: body.title ?? "Untitled", createdAt: now }, 201);
 });
