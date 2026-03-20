@@ -1,5 +1,7 @@
 import type { ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
+import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import satori from "satori";
 
 /** シェイプ全体のバウンディングボックスを計算 */
 function computeBounds(shapes: Map<string, ShapeData>) {
@@ -34,11 +36,23 @@ export interface ExportOptions {
 	background?: string;
 }
 
+/** HTMLシェイプをSatoriでSVG文字列に変換（foreignObject不使用、taint安全） */
+async function htmlShapeToSvg(element: ReactNode, shape: ShapeData): Promise<string> {
+	const svg = await satori(element as React.ReactElement, {
+		width: shape.width,
+		height: shape.height,
+		fonts: [],
+	});
+	// SatoriのSVGからルート<svg>タグを除去し、中身をグループ化
+	const inner = svg.replace(/<svg[^>]*>/, "").replace(/<\/svg>$/, "");
+	return `<g transform="translate(${shape.x}, ${shape.y})">${inner}</g>`;
+}
+
 /**
  * シェイプデータからSVG文字列を構築してエクスポートする。
  *
- * - SVGシェイプ（rect, ellipse, freedraw）→ renderToStaticMarkupでSVG要素化
- * - HTMLシェイプ（text, counter）→ foreignObjectでHTMLを埋め込み
+ * - SVGシェイプ → renderToStaticMarkupでSVG要素化
+ * - HTMLシェイプ → SVGエクスポート: foreignObject、PNGエクスポート: Satori
  */
 export async function exportCanvas(
 	shapes: Map<string, ShapeData>,
@@ -51,6 +65,7 @@ export async function exportCanvas(
 
 	const bounds = computeBounds(shapes);
 	const background = options.background ?? "#ffffff";
+	const useSatori = options.format === "png"; // PNG時のみSatori使用
 
 	const shapeElements: string[] = [];
 	for (const shape of shapes.values()) {
@@ -58,17 +73,23 @@ export async function exportCanvas(
 		if (!def) continue;
 
 		const element = def.render(shape);
-		const markup = renderToStaticMarkup(element);
 
 		if (def.renderTarget === "html") {
-			// HTMLシェイプ → foreignObjectでラップ
-			shapeElements.push(
-				`<foreignObject x="${shape.x}" y="${shape.y}" width="${shape.width}" height="${shape.height}">
+			if (useSatori) {
+				// PNG: SatoriでHTMLをSVGに変換（taint安全）
+				const svgMarkup = await htmlShapeToSvg(element, shape);
+				shapeElements.push(svgMarkup);
+			} else {
+				// SVG: foreignObjectでHTMLを埋め込み（ブラウザで正常表示される）
+				const markup = renderToStaticMarkup(element);
+				shapeElements.push(
+					`<foreignObject x="${shape.x}" y="${shape.y}" width="${shape.width}" height="${shape.height}">
 <div xmlns="http://www.w3.org/1999/xhtml">${markup}</div>
 </foreignObject>`,
-			);
+				);
+			}
 		} else {
-			// SVGシェイプ → そのまま
+			const markup = renderToStaticMarkup(element);
 			shapeElements.push(markup);
 		}
 	}
