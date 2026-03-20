@@ -104,10 +104,25 @@ export function Toolbar({ boardId, isCloudBoard }: { boardId?: string; isCloudBo
 				>
 					↪
 				</button>
+			</div>
 
-				<Divider />
-
-				{/* エクスポート */}
+			{/* エクスポート（右上、Shareの左） */}
+			<div
+				style={{
+					position: "fixed",
+					top: 12,
+					right: isCloudBoard && boardId ? 92 : 12,
+					height: 44,
+					display: "flex",
+					gap: 4,
+					padding: 4,
+					background: "white",
+					borderRadius: 8,
+					boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+					zIndex: 100,
+					alignItems: "center",
+				}}
+			>
 				<button
 					type="button"
 					onClick={handleExportPng}
