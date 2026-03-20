@@ -89,12 +89,17 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 			// 初期同期
 			syncLocalViewportCenter();
 
-			// ユーザー情報をAwarenessに設定
-			awareness.setLocalStateField("avatar", {
-				name: userName,
-				image: userImage ?? null,
-				userId,
-			});
+			// ユーザー情報をAwarenessに設定（既にセッション情報で設定済みなら上書きしない）
+			const existingAvatar = awareness.getLocalState()?.avatar as
+				| { name?: string; image?: string | null; userId?: string }
+				| undefined;
+			if (!existingAvatar || existingAvatar.userId === "anonymous") {
+				awareness.setLocalStateField("avatar", {
+					name: userName,
+					image: userImage ?? null,
+					userId,
+				});
+			}
 
 			function registerSelfLayer() {
 				ctx.layers.unregister("avatar-self");
