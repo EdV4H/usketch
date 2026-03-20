@@ -14,6 +14,7 @@
 		"@edv4h/usketch-canvas-engine": "workspace:*",
 		"@edv4h/usketch-core": "workspace:*",
 		"@edv4h/usketch-plugin-effect-ripple": "workspace:*",
+		"@edv4h/usketch-plugin-presence-cursor": "workspace:*",
 		"@edv4h/usketch-plugin-shape-counter": "workspace:*",
 		"@edv4h/usketch-plugin-shape-ellipse": "workspace:*",
 		"@edv4h/usketch-plugin-shape-freedraw": "workspace:*",
