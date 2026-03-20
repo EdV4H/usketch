@@ -2,10 +2,6 @@ import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
 import { downloadBlob, exportCanvas } from "@edv4h/usketch-plugin-export";
 import { useCallback, useState } from "react";
 
-function getCanvasContainer(): HTMLElement | null {
-	return document.querySelector<HTMLElement>("[style*='touch-action: none']");
-}
-
 export function Toolbar() {
 	const app = useApp();
 	const activeToolId = useStoreSubscribe(app.store, (s) => s.getActiveToolId());
@@ -13,12 +9,10 @@ export function Toolbar() {
 	const [exporting, setExporting] = useState(false);
 
 	const handleExportPng = useCallback(async () => {
-		const container = getCanvasContainer();
-		if (!container) return;
 		setExporting(true);
 		try {
 			const shapes = new Map(app.store.getShapes());
-			const blob = await exportCanvas(container, shapes, { format: "png" });
+			const blob = await exportCanvas(shapes, { format: "png" });
 			downloadBlob(blob, "usketch-export.png");
 		} finally {
 			setExporting(false);
@@ -26,12 +20,10 @@ export function Toolbar() {
 	}, [app.store]);
 
 	const handleExportSvg = useCallback(async () => {
-		const container = getCanvasContainer();
-		if (!container) return;
 		setExporting(true);
 		try {
 			const shapes = new Map(app.store.getShapes());
-			const blob = await exportCanvas(container, shapes, { format: "svg" });
+			const blob = await exportCanvas(shapes, { format: "svg" });
 			downloadBlob(blob, "usketch-export.svg");
 		} finally {
 			setExporting(false);
