@@ -36,12 +36,31 @@ export interface ExportOptions {
 	background?: string;
 }
 
+let fontCache: ArrayBuffer | null = null;
+
+async function loadFont(): Promise<ArrayBuffer> {
+	if (fontCache) return fontCache;
+	const res = await fetch(
+		"https://fonts.gstatic.com/s/notosansjp/v53/KFRmCnaiYGBBV6LlrOS_2-3_OKTbpQ.woff2",
+	);
+	fontCache = await res.arrayBuffer();
+	return fontCache;
+}
+
 /** HTMLシェイプをSatoriでSVG文字列に変換（foreignObject不使用、taint安全） */
 async function htmlShapeToSvg(element: ReactNode, shape: ShapeData): Promise<string> {
+	const fontData = await loadFont();
 	const svg = await satori(element as React.ReactElement, {
 		width: shape.width,
 		height: shape.height,
-		fonts: [],
+		fonts: [
+			{
+				name: "Noto Sans JP",
+				data: fontData,
+				weight: 400,
+				style: "normal",
+			},
+		],
 	});
 	// SatoriのSVGからルート<svg>タグを除去し、中身をグループ化
 	const inner = svg.replace(/<svg[^>]*>/, "").replace(/<\/svg>$/, "");
