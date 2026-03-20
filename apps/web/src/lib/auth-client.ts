@@ -6,4 +6,5 @@ const client = createAuthClient({
 
 export const useSession = client.useSession;
 export const signIn = client.signIn;
+export const signUp = client.signUp;
 export const signOut = client.signOut;

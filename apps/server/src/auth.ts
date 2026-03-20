@@ -35,6 +35,9 @@ export function createAuth(env: Env) {
 					},
 				}),
 		},
+		emailAndPassword: {
+			enabled: true,
+		},
 		session: {
 			cookieCache: {
 				enabled: false, // Cloudflare KV との互換性問題を回避
