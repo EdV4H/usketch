@@ -42,7 +42,13 @@ export function createAuth(env: Env) {
 		},
 		session: {
 			cookieCache: {
-				enabled: false, // Cloudflare KV との互換性問題を回避
+				enabled: false,
+			},
+		},
+		advanced: {
+			defaultCookieAttributes: {
+				sameSite: "none",
+				secure: true,
 			},
 		},
 	});
