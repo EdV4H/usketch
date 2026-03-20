@@ -21,8 +21,8 @@ function getUserColor(userId: string): string {
 }
 
 function RemoteCursor({ obj }: { obj: TransientObject }) {
-	const color = (obj.data.color as string) ?? "#999";
-	const name = (obj.data.name as string) ?? "";
+	const color = (obj.data.color as string) || "#999";
+	const name = (obj.data.name as string) || "";
 
 	return (
 		<>
@@ -107,7 +107,7 @@ export function createPresenceCursorPlugin(options: PresenceCursorOptions): Uske
 						type: "remote-cursor",
 						sourceUserId: String(clientId),
 						position: { x: cursor.x, y: cursor.y },
-						data: { name: user.name ?? "", color: user.color ?? "#999" },
+						data: { name: user.name || "", color: user.color || getUserColor(String(clientId)) },
 						ttl: 5000,
 						createdAt: Date.now(),
 					});

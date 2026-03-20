@@ -135,7 +135,6 @@ export function App() {
 
 		wsProvider.awareness.setLocalStateField("user", {
 			name: sessionUser.name ?? "Anonymous",
-			color: "",
 		});
 	}, [sessionUser]);
 
