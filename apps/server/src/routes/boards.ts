@@ -3,9 +3,10 @@ import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { boardMembers, boards, users } from "../db/schema.js";
-import type { AppDb } from "../types.js";
+import type { AppDb, Env } from "../types.js";
 
 type BoardsEnv = {
+	Bindings: Env;
 	Variables: {
 		db: AppDb;
 		userId: string;
@@ -32,19 +33,23 @@ boardsApp.post("/", zValidator("json", createBoardSchema), async (c) => {
 	const id = crypto.randomUUID();
 	const now = new Date().toISOString();
 
-	// ユーザー存在確認（DEV_MODE時のみ必要、本番ではBetter Authが管理）
 	// ボード作成 + メンバー追加をバッチ実行でアトミックに
-	await db.batch([
-		db
-			.insert(users)
-			.values({
-				id: userId,
-				name: "Dev User",
-				email: `${userId}@dev.local`,
-				createdAt: new Date(),
-				updatedAt: new Date(),
-			})
-			.onConflictDoNothing(),
+	const statements = [
+		// DEV_MODE時のみ: Better Auth外のユーザーを自動作成
+		...(c.env.DEV_MODE === "true"
+			? [
+					db
+						.insert(users)
+						.values({
+							id: userId,
+							name: "Dev User",
+							email: `${userId}@dev.local`,
+							createdAt: new Date(),
+							updatedAt: new Date(),
+						})
+						.onConflictDoNothing(),
+				]
+			: []),
 		db.insert(boards).values({
 			id,
 			title: body.title ?? "Untitled",
@@ -57,7 +62,8 @@ boardsApp.post("/", zValidator("json", createBoardSchema), async (c) => {
 			userId,
 			role: "owner",
 		}),
-	]);
+	] as const;
+	await db.batch(statements as any);
 
 	return c.json({ id, title: body.title ?? "Untitled", createdAt: now }, 201);
 });

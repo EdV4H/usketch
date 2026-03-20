@@ -53,6 +53,9 @@ export function App() {
 		// ボードIDに基づいてYjsドキュメントを作成（ボードごとに独立）
 		syncHandle = createYjsSync(store, `usketch-board-${boardId}`);
 
+		// DebugHUD用にsyncステータスを公開
+		(globalThis as Record<string, unknown>).__usketchSyncStatus = syncHandle.status;
+
 		syncHandle.whenSynced.then(() => {
 			if (cancelled) return;
 
@@ -84,9 +87,35 @@ export function App() {
 			cancelled = true;
 			instance?.destroy();
 			syncHandle?.destroy();
+			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 			setApp(null);
 		};
 	}, [boardId]);
+
+	// キーボードショートカット
+	useEffect(() => {
+		if (!app) return;
+
+		const handleKeyDown = (e: KeyboardEvent) => {
+			const tools = app.tools.getAll();
+			for (const [id, def] of tools) {
+				if (
+					def.shortcut &&
+					e.key.toLowerCase() === def.shortcut.toLowerCase() &&
+					!e.ctrlKey &&
+					!e.metaKey &&
+					!e.altKey
+				) {
+					app.store.setActiveToolId(id);
+					return;
+				}
+			}
+			app.shortcuts.handleKeyDown(e);
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [app]);
 
 	if (!app) return null;
 

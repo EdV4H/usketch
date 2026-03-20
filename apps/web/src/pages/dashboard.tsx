@@ -9,14 +9,22 @@ export function DashboardPage() {
 	const [locals, setLocals] = useState<LocalBoard[]>([]);
 	const [loading, setLoading] = useState(true);
 
+	const [error, setError] = useState("");
+
 	const loadBoards = useCallback(async () => {
 		setLocals(localBoards.list());
+		setError("");
 		if (session?.user) {
 			try {
 				const result = await api.boards.list();
 				setBoards(result);
-			} catch {
-				setBoards([]);
+			} catch (e) {
+				const msg = e instanceof Error ? e.message : "Failed to load boards";
+				if (msg.includes("401")) {
+					setBoards([]);
+				} else {
+					setError(msg);
+				}
 			}
 		}
 		setLoading(false);
@@ -224,7 +232,9 @@ export function DashboardPage() {
 						</button>
 					</div>
 
-					{loading ? (
+					{error ? (
+						<p style={{ color: "#c33" }}>{error}</p>
+					) : loading ? (
 						<p style={{ color: "#999" }}>Loading...</p>
 					) : boards.length === 0 ? (
 						<p style={{ color: "#999" }}>No cloud boards yet.</p>
