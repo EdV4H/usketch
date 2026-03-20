@@ -8,6 +8,7 @@
 		"build": "vite build",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run --passWithNoTests",
+		"test:e2e": "playwright test",
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
@@ -36,6 +37,7 @@
 	},
 	"devDependencies": {
 		"@edv4h/usketch-plugin-debug-hud": "workspace:*",
+		"@playwright/test": "1.58.2",
 		"@types/react": "19.1.8",
 		"@types/react-dom": "19.1.6",
 		"@vitejs/plugin-react": "4.5.2",

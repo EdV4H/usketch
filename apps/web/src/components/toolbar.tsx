@@ -1,9 +1,42 @@
 import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
+import { downloadBlob, exportCanvas } from "@edv4h/usketch-plugin-export";
+import { useCallback, useState } from "react";
+
+function getCanvasContainer(): HTMLElement | null {
+	return document.querySelector<HTMLElement>("[style*='touch-action: none']");
+}
 
 export function Toolbar() {
 	const app = useApp();
 	const activeToolId = useStoreSubscribe(app.store, (s) => s.getActiveToolId());
 	const tools = app.tools.getOrdered();
+	const [exporting, setExporting] = useState(false);
+
+	const handleExportPng = useCallback(async () => {
+		const container = getCanvasContainer();
+		if (!container) return;
+		setExporting(true);
+		try {
+			const shapes = new Map(app.store.getShapes());
+			const blob = await exportCanvas(container, shapes, { format: "png" });
+			downloadBlob(blob, "usketch-export.png");
+		} finally {
+			setExporting(false);
+		}
+	}, [app.store]);
+
+	const handleExportSvg = useCallback(async () => {
+		const container = getCanvasContainer();
+		if (!container) return;
+		setExporting(true);
+		try {
+			const shapes = new Map(app.store.getShapes());
+			const blob = await exportCanvas(container, shapes, { format: "svg" });
+			downloadBlob(blob, "usketch-export.svg");
+		} finally {
+			setExporting(false);
+		}
+	}, [app.store]);
 
 	return (
 		<div
@@ -19,8 +52,21 @@ export function Toolbar() {
 				borderRadius: 8,
 				boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
 				zIndex: 100,
+				alignItems: "center",
 			}}
 		>
+			{/* ホームリンク */}
+			<a
+				href="/"
+				title="Dashboard"
+				style={{ ...actionBtnStyle, textDecoration: "none", fontSize: 14 }}
+			>
+				⌂
+			</a>
+
+			<Divider />
+
+			{/* ツール */}
 			{tools.map(({ id, definition }) => (
 				<button
 					key={id}
@@ -43,12 +89,15 @@ export function Toolbar() {
 					{definition.icon()}
 				</button>
 			))}
-			<div style={{ width: 1, background: "#e0e0e0", margin: "4px 2px" }} />
+
+			<Divider />
+
+			{/* Undo/Redo */}
 			<button
 				type="button"
 				onClick={() => app.commands.undo()}
 				title="Undo (Ctrl+Z)"
-				style={actionButtonStyle}
+				style={actionBtnStyle}
 			>
 				↩
 			</button>
@@ -56,15 +105,41 @@ export function Toolbar() {
 				type="button"
 				onClick={() => app.commands.redo()}
 				title="Redo (Ctrl+Shift+Z)"
-				style={actionButtonStyle}
+				style={actionBtnStyle}
 			>
 				↪
+			</button>
+
+			<Divider />
+
+			{/* エクスポート */}
+			<button
+				type="button"
+				onClick={handleExportPng}
+				disabled={exporting}
+				title="Export PNG (Ctrl+Shift+E)"
+				style={actionBtnStyle}
+			>
+				PNG
+			</button>
+			<button
+				type="button"
+				onClick={handleExportSvg}
+				disabled={exporting}
+				title="Export SVG (Ctrl+Shift+Alt+E)"
+				style={actionBtnStyle}
+			>
+				SVG
 			</button>
 		</div>
 	);
 }
 
-const actionButtonStyle: React.CSSProperties = {
+function Divider() {
+	return <div style={{ width: 1, height: 24, background: "#e0e0e0", margin: "0 2px" }} />;
+}
+
+const actionBtnStyle: React.CSSProperties = {
 	width: 36,
 	height: 36,
 	display: "flex",
@@ -75,5 +150,6 @@ const actionButtonStyle: React.CSSProperties = {
 	background: "transparent",
 	color: "#666",
 	cursor: "pointer",
-	fontSize: 16,
+	fontSize: 11,
+	fontWeight: 600,
 };
