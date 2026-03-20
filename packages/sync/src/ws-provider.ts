@@ -13,6 +13,8 @@ import {
 	MSG_YJS_UPDATE,
 } from "./protocol.js";
 
+export type WsConnectionStatus = "connecting" | "connected" | "disconnected" | "failed";
+
 export interface WsProviderOptions {
 	url: string;
 	doc: Y.Doc;
@@ -29,6 +31,9 @@ export interface WsProviderHandle {
 	/** リモートからのブロードキャストイベントを受信 */
 	onBroadcast(handler: (msg: Record<string, unknown>) => void): () => void;
 
+	/** 接続状態の変化を購読 */
+	onStatusChange(handler: (status: WsConnectionStatus) => void): () => void;
+
 	destroy(): void;
 }
 
@@ -42,6 +47,14 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 	const broadcastListeners = new Set<(msg: Record<string, unknown>) => void>();
+	const statusListeners = new Set<(status: WsConnectionStatus) => void>();
+	let consecutiveFailures = 0;
+
+	function notifyStatus(status: WsConnectionStatus) {
+		for (const listener of statusListeners) {
+			listener(status);
+		}
+	}
 
 	// Awareness → Server: ローカル変更を送信
 	function onAwarenessUpdate({
@@ -94,6 +107,10 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			broadcastListeners.add(handler);
 			return () => broadcastListeners.delete(handler);
 		},
+		onStatusChange(handler: (status: WsConnectionStatus) => void): () => void {
+			statusListeners.add(handler);
+			return () => statusListeners.delete(handler);
+		},
 		destroy() {
 			destroyed = true;
 			if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -105,17 +122,21 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 				ws = null;
 			}
 			broadcastListeners.clear();
+			statusListeners.clear();
 		},
 	};
 
 	function connect() {
 		if (destroyed) return;
 
+		notifyStatus("connecting");
 		ws = new WebSocket(url);
 		ws.binaryType = "arraybuffer";
 
 		ws.addEventListener("open", () => {
 			connected = true;
+			consecutiveFailures = 0;
+			notifyStatus("connected");
 			ws?.send(new Uint8Array([MSG_SYNC_STEP1]));
 			// 接続時にローカルAwareness状態を送信
 			const encoded = encodeAwarenessUpdate(awareness, [doc.clientID]);
@@ -158,14 +179,27 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 		});
 
 		ws.addEventListener("close", () => {
+			const wasConnected = connected;
 			connected = false;
 			// 切断時にリモートクライアントのAwareness statesをクリア
 			const remoteClients = Array.from(awareness.getStates().keys()).filter(
 				(id) => id !== doc.clientID,
 			);
 			removeAwarenessStates(awareness, remoteClients, "remote");
+
+			// 一度も接続できなかった場合（handshake失敗）
+			if (!wasConnected) {
+				consecutiveFailures++;
+			}
+
 			if (!destroyed) {
-				reconnectTimer = setTimeout(connect, 3000);
+				// 連続3回失敗したら「failed」として通知し、リトライを停止
+				if (consecutiveFailures >= 3) {
+					notifyStatus("failed");
+				} else {
+					notifyStatus("disconnected");
+					reconnectTimer = setTimeout(connect, 3000);
+				}
 			}
 		});
 
