@@ -69,6 +69,9 @@ importers:
       '@edv4h/usketch-plugin-effect-ripple':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-effect-ripple
+      '@edv4h/usketch-plugin-export':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-export
       '@edv4h/usketch-plugin-presence-cursor':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-presence-cursor
@@ -335,7 +338,16 @@ importers:
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      html-to-image:
+        specifier: 1.11.13
+        version: 1.11.13
+      react:
+        specifier: '>=19'
+        version: 19.1.0
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -2303,6 +2315,9 @@ packages:
     resolution: {integrity: sha512-QkACju9MiN59CKSY5JsGZCYmPZkA6sIW6OFCUp7qDjZu6S6KHtJHhAc9Uy9mV9F8PJ1/HQ3ybZF2yjCa/73fvQ==}
     engines: {node: '>=16.9.0'}
 
+  html-to-image@1.11.13:
+    resolution: {integrity: sha512-cuOPoI7WApyhBElTTb9oqsawRvZ0rHhaHwghRLlTuffoD1B2aDemlCruLeZrUIIdvG7gs9xeELEPm6PhuASqrg==}
+
   isomorphic.js@0.2.5:
     resolution: {integrity: sha512-PIeMbHqMt4DnUP3MA/Flc0HElYjMXArsw1qwJZcm9sqR8mq3l8NYizFMty0pWwE/tzIGH3EKK5+jes5mAr85yw==}
 
@@ -4057,6 +4072,8 @@ snapshots:
       function-bind: 1.1.2
 
   hono@4.7.10: {}
+
+  html-to-image@1.11.13: {}
 
   isomorphic.js@0.2.5: {}
 

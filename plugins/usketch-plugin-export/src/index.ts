@@ -1,1 +1,2 @@
-export const PLUGIN_NAME = "usketch-plugin-export" as const;
+export { downloadBlob, type ExportOptions, exportCanvas } from "./exporter.js";
+export { exportPlugin } from "./plugin.js";

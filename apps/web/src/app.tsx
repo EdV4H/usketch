@@ -1,6 +1,7 @@
 import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
+import { exportPlugin } from "@edv4h/usketch-plugin-export";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
 import { ellipsePlugin } from "@edv4h/usketch-plugin-shape-ellipse";
@@ -30,6 +31,7 @@ const basePlugins: UsketchPlugin[] = [
 	textPlugin,
 	counterPlugin,
 	snapPlugin,
+	exportPlugin,
 ];
 
 async function loadPlugins(extra: UsketchPlugin[]): Promise<UsketchPlugin[]> {
