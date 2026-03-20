@@ -8,29 +8,23 @@ export function Toolbar({ boardId, isCloudBoard }: { boardId?: string; isCloudBo
 	const activeToolId = useStoreSubscribe(app.store, (s) => s.getActiveToolId());
 	const tools = app.tools.getOrdered();
 	const [exporting, setExporting] = useState(false);
+	const [showExportMenu, setShowExportMenu] = useState(false);
 	const [showShare, setShowShare] = useState(false);
 
-	const handleExportPng = useCallback(async () => {
-		setExporting(true);
-		try {
-			const shapes = new Map(app.store.getShapes());
-			const blob = await exportCanvas(shapes, app.shapes, { format: "png" });
-			downloadBlob(blob, "usketch-export.png");
-		} finally {
-			setExporting(false);
-		}
-	}, [app.store, app.shapes]);
-
-	const handleExportSvg = useCallback(async () => {
-		setExporting(true);
-		try {
-			const shapes = new Map(app.store.getShapes());
-			const blob = await exportCanvas(shapes, app.shapes, { format: "svg" });
-			downloadBlob(blob, "usketch-export.svg");
-		} finally {
-			setExporting(false);
-		}
-	}, [app.store, app.shapes]);
+	const handleExport = useCallback(
+		async (format: "png" | "svg") => {
+			setExporting(true);
+			setShowExportMenu(false);
+			try {
+				const shapes = new Map(app.store.getShapes());
+				const blob = await exportCanvas(shapes, app.shapes, { format });
+				downloadBlob(blob, `usketch-export.${format}`);
+			} finally {
+				setExporting(false);
+			}
+		},
+		[app.store, app.shapes],
+	);
 
 	return (
 		<>
@@ -112,35 +106,49 @@ export function Toolbar({ boardId, isCloudBoard }: { boardId?: string; isCloudBo
 					position: "fixed",
 					top: 12,
 					right: isCloudBoard && boardId ? 92 : 12,
-					height: 44,
-					display: "flex",
-					gap: 4,
-					padding: 4,
-					background: "white",
-					borderRadius: 8,
-					boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
 					zIndex: 100,
-					alignItems: "center",
 				}}
 			>
 				<button
 					type="button"
-					onClick={handleExportPng}
+					onClick={() => setShowExportMenu((v) => !v)}
 					disabled={exporting}
-					title="Export PNG (Ctrl+Shift+E)"
-					style={actionBtnStyle}
+					style={{
+						height: 44,
+						padding: "0 16px",
+						background: "white",
+						border: "none",
+						borderRadius: 8,
+						boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+						fontSize: 13,
+						fontWeight: 600,
+						color: "#333",
+						cursor: "pointer",
+					}}
 				>
-					PNG
+					{exporting ? "Exporting..." : "Export"}
 				</button>
-				<button
-					type="button"
-					onClick={handleExportSvg}
-					disabled={exporting}
-					title="Export SVG (Ctrl+Shift+Alt+E)"
-					style={actionBtnStyle}
-				>
-					SVG
-				</button>
+				{showExportMenu && (
+					<div
+						style={{
+							position: "absolute",
+							top: 50,
+							right: 0,
+							background: "white",
+							borderRadius: 8,
+							boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+							overflow: "hidden",
+							minWidth: 140,
+						}}
+					>
+						<button type="button" onClick={() => handleExport("png")} style={menuItemStyle}>
+							PNG
+						</button>
+						<button type="button" onClick={() => handleExport("svg")} style={menuItemStyle}>
+							SVG
+						</button>
+					</div>
+				)}
 			</div>
 
 			{/* 共有ボタン（右上、Cloud Boardのみ） */}
@@ -179,6 +187,18 @@ export function Toolbar({ boardId, isCloudBoard }: { boardId?: string; isCloudBo
 function Divider() {
 	return <div style={{ width: 1, height: 24, background: "#e0e0e0", margin: "0 2px" }} />;
 }
+
+const menuItemStyle: React.CSSProperties = {
+	display: "block",
+	width: "100%",
+	padding: "10px 16px",
+	border: "none",
+	background: "none",
+	textAlign: "left",
+	fontSize: 13,
+	cursor: "pointer",
+	color: "#333",
+};
 
 const actionBtnStyle: React.CSSProperties = {
 	width: 36,
