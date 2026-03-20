@@ -69,3 +69,7 @@ out/
 
 # Lefthook
 .lefthook-local/
+
+# Wrangler
+.wrangler/
+.dev.vars

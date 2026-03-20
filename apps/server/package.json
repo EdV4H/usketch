@@ -6,15 +6,24 @@
 	"main": "./dist/index.js",
 	"scripts": {
 		"build": "tsc -p tsconfig.json",
+		"dev": "wrangler dev",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run --passWithNoTests",
-		"clean": "rm -rf dist"
+		"clean": "rm -rf dist",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate:local": "wrangler d1 migrations apply usketch-db --local"
 	},
 	"dependencies": {
-		"hono": "4.7.10"
+		"@hono/zod-validator": "0.7.6",
+		"drizzle-orm": "0.45.1",
+		"hono": "4.7.10",
+		"zod": "4.3.6"
 	},
 	"devDependencies": {
+		"@cloudflare/workers-types": "4.20260317.1",
+		"drizzle-kit": "0.31.10",
 		"typescript": "5.8.3",
-		"vitest": "3.2.4"
+		"vitest": "3.2.4",
+		"wrangler": "4.75.0"
 	}
 }
