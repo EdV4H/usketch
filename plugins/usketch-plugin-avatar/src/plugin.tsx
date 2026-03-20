@@ -188,10 +188,26 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 
 			awareness.on("change", onAwarenessChange);
 
+			// 既にawarenessに設定されているavatar情報を読んで初期表示に反映
+			const existingState = awareness.getLocalState();
+			const existingAv = existingState?.avatar as
+				| { name?: string; image?: string | null; userId?: string }
+				| undefined;
+			if (existingAv) {
+				selfName = existingAv.name ?? userName;
+				selfImage = existingAv.image ?? userImage ?? null;
+				selfUserId = existingAv.userId ?? userId;
+			}
+
 			// 自分のアバターをfixedレイヤーとして初期登録
 			registerSelfLayer();
 
+			// セッション情報はプラグイン初期化後に非同期で設定されるため、
+			// 遅延チェックでavatar情報の更新を拾う
+			const delayedCheck = setTimeout(() => onAwarenessChange(), 2000);
+
 			cleanup = () => {
+				clearTimeout(delayedCheck);
 				awareness.off("change", onAwarenessChange);
 				unsubStore();
 				ctx.layers.unregister("avatar-self");
