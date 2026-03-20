@@ -21,20 +21,21 @@ export function useAuth() {
 	const devName = isDevMode() ? (getDevUser()?.name ?? null) : null;
 
 	const user = useMemo(() => {
-		if (sessionId) {
-			return {
-				id: sessionId,
-				name: sessionName,
-				email: sessionEmail,
-				image: sessionImage,
-			};
-		}
+		// DEV_MODE: devUserが設定されていればBetter Authセッションより優先
 		if (devId && devName) {
 			return {
 				id: devId,
 				name: devName,
 				email: `${devId}@dev.local`,
 				image: null as string | null,
+			};
+		}
+		if (sessionId) {
+			return {
+				id: sessionId,
+				name: sessionName,
+				email: sessionEmail,
+				image: sessionImage,
 			};
 		}
 		return null;
