@@ -154,13 +154,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build packages (excluding web)
+        run: pnpm turbo run build --filter='!@edv4h/usketch-web'
+
       - name: Deploy Server (Cloudflare Workers)
         run: pnpm exec wrangler deploy
         working-directory: apps/server
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
-      - name: Build Web
+      - name: Build Web (with production API URL)
         run: pnpm build
         working-directory: apps/web
         env:
