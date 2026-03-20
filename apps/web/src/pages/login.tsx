@@ -143,14 +143,14 @@ export function LoginPage() {
 			>
 				<button
 					type="button"
-					onClick={() => signIn.social({ provider: "google", callbackURL: "/" })}
+					onClick={() => signIn.social({ provider: "google", callbackURL: window.location.origin })}
 					style={btnStyle}
 				>
 					Continue with Google
 				</button>
 				<button
 					type="button"
-					onClick={() => signIn.social({ provider: "github", callbackURL: "/" })}
+					onClick={() => signIn.social({ provider: "github", callbackURL: window.location.origin })}
 					style={btnStyle}
 				>
 					Continue with GitHub
