@@ -132,3 +132,42 @@ jobs:
       - name: Run E2E tests
         run: npx playwright test
         working-directory: apps/web
+
+  deploy:
+    name: Deploy to Cloudflare
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, typecheck, test, build, e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy Server (Cloudflare Workers)
+        run: pnpm exec wrangler deploy
+        working-directory: apps/server
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Build Web
+        run: pnpm build
+        working-directory: apps/web
+        env:
+          VITE_API_URL: https://usketch-server.circlemountain-ym.workers.dev
+
+      - name: Deploy Web (Cloudflare Pages)
+        run: npx wrangler pages deploy dist --project-name usketch-web
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

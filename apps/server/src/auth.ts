@@ -38,12 +38,18 @@ export function createAuth(env: Env) {
 		},
 		trustedOrigins: ALLOWED_ORIGINS,
 		emailAndPassword: {
-			enabled: true,
+			enabled: false,
 		},
 		session: {
 			cookieCache: {
-				enabled: false, // Cloudflare KV との互換性問題を回避
+				enabled: false,
 			},
+		},
+		advanced: {
+			defaultCookieAttributes:
+				env.DEV_MODE === "true"
+					? { sameSite: "lax", secure: false }
+					: { sameSite: "none", secure: true },
 		},
 	});
 }

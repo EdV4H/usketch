@@ -9,7 +9,7 @@ test.describe("Board", () => {
 	test("login page loads", async ({ page }) => {
 		await page.goto("/login");
 		await expect(page.locator("h1")).toContainText("uSketch");
-		await expect(page.locator('input[type="email"]')).toBeVisible();
+		await expect(page.locator("text=Continue with GitHub")).toBeVisible();
 	});
 
 	test("local board can be created and opened", async ({ page }) => {

@@ -6,7 +6,7 @@ main = "src/index.ts"
 [[d1_databases]]
 binding = "DB"
 database_name = "usketch-db"
-database_id = "00000000-0000-0000-0000-000000000000" # デプロイ時に実際のIDに置き換え
+database_id = "2a61b7ae-f239-4caf-a34c-357ad1ad49d9"
 
 [durable_objects]
 bindings = [
@@ -15,4 +15,4 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_classes = ["BoardRoom"]
+new_sqlite_classes = ["BoardRoom"]
