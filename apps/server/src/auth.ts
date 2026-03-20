@@ -38,7 +38,7 @@ export function createAuth(env: Env) {
 		},
 		trustedOrigins: ALLOWED_ORIGINS,
 		emailAndPassword: {
-			enabled: true,
+			enabled: false,
 		},
 		session: {
 			cookieCache: {
