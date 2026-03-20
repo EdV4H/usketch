@@ -7,6 +7,7 @@ const MSG_SYNC_STEP1 = 0;
 const MSG_SYNC_STEP2 = 1;
 const MSG_YJS_UPDATE = 2;
 const MSG_AWARENESS = 3;
+const MSG_TRANSIENT = 4;
 
 export interface AwarenessState {
 	userId: string;
@@ -20,12 +21,26 @@ export interface WsProviderOptions {
 	doc: Y.Doc;
 }
 
+/** WebSocket経由で送受信するTransientオブジェクト */
+export interface TransientMessage {
+	id: string;
+	type: string;
+	sourceUserId: string;
+	position: { x: number; y: number };
+	data: Record<string, unknown>;
+	ttl?: number;
+}
+
 export interface WsProviderHandle {
 	connected: boolean;
 	/** ローカルのAwareness状態を更新してブロードキャスト */
 	setAwareness(state: AwarenessState): void;
 	/** リモートのAwareness状態変更を監視 */
 	onAwarenessChange(handler: (states: Map<string, AwarenessState>) => void): () => void;
+	/** Transientオブジェクトをブロードキャスト */
+	broadcastTransient(msg: TransientMessage): void;
+	/** リモートのTransientオブジェクトを監視 */
+	onTransient(handler: (msg: TransientMessage) => void): () => void;
 	destroy(): void;
 }
 
@@ -40,6 +55,9 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 	let localAwareness: AwarenessState | null = null;
 	const remoteAwareness = new Map<string, AwarenessState>();
 	const awarenessListeners = new Set<(states: Map<string, AwarenessState>) => void>();
+
+	// Transient管理
+	const transientListeners = new Set<(msg: TransientMessage) => void>();
 
 	function notifyAwareness() {
 		for (const listener of awarenessListeners) {
@@ -64,6 +82,18 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			awarenessListeners.add(handler);
 			return () => awarenessListeners.delete(handler);
 		},
+		broadcastTransient(msg: TransientMessage) {
+			if (!ws || ws.readyState !== WebSocket.OPEN) return;
+			const encoded = new TextEncoder().encode(JSON.stringify(msg));
+			const buf = new Uint8Array(encoded.length + 1);
+			buf[0] = MSG_TRANSIENT;
+			buf.set(encoded, 1);
+			ws.send(buf);
+		},
+		onTransient(handler: (msg: TransientMessage) => void): () => void {
+			transientListeners.add(handler);
+			return () => transientListeners.delete(handler);
+		},
 		destroy() {
 			destroyed = true;
 			if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -73,6 +103,7 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			}
 			doc.off("update", onDocUpdate);
 			awarenessListeners.clear();
+			transientListeners.clear();
 			remoteAwareness.clear();
 		},
 	};
@@ -126,6 +157,17 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 						}
 					} catch {
 						// 不正なAwarenessメッセージは無視
+					}
+					break;
+				}
+				case MSG_TRANSIENT: {
+					try {
+						const msg = JSON.parse(new TextDecoder().decode(payload)) as TransientMessage;
+						for (const listener of transientListeners) {
+							listener(msg);
+						}
+					} catch {
+						// 不正なTransientメッセージは無視
 					}
 					break;
 				}

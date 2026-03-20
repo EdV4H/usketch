@@ -7,11 +7,13 @@ import type { Env } from "./types.js";
  * - type 1: Yjs sync step 2 (server → client)
  * - type 2: Yjs update (bidirectional)
  * - type 3: Awareness update (bidirectional)
+ * - type 4: Transient object (bidirectional, broadcast only)
  */
 const MSG_SYNC_STEP1 = 0;
 const MSG_SYNC_STEP2 = 1;
 const MSG_YJS_UPDATE = 2;
 const MSG_AWARENESS = 3;
+const MSG_TRANSIENT = 4;
 
 /**
  * BoardRoom Durable Object
@@ -64,8 +66,9 @@ export class BoardRoom extends DurableObject<Env> {
 				this.broadcast(ws, data);
 				break;
 			}
-			case MSG_AWARENESS: {
-				// Awarenessは蓄積不要、リアルタイムで中継のみ
+			case MSG_AWARENESS:
+			case MSG_TRANSIENT: {
+				// Awareness/Transientは蓄積不要、リアルタイムで中継のみ
 				this.broadcast(ws, data);
 				break;
 			}

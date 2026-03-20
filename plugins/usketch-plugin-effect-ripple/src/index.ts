@@ -1,1 +1,1 @@
-export { rippleEffectPlugin } from "./plugin.js";
+export { createRippleEffectPlugin, rippleEffectPlugin } from "./plugin.js";

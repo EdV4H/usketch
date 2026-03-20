@@ -1,6 +1,6 @@
 import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
-import { rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
+import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
 import { ellipsePlugin } from "@edv4h/usketch-plugin-shape-ellipse";
@@ -8,7 +8,7 @@ import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
 import { snapPlugin } from "@edv4h/usketch-plugin-snap";
-import { createYjsSync, type WsProviderHandle } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
+import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
@@ -28,7 +28,6 @@ const basePlugins: UsketchPlugin[] = [
 	freedrawPlugin,
 	textPlugin,
 	counterPlugin,
-	rippleEffectPlugin,
 	snapPlugin,
 ];
 
@@ -60,24 +59,30 @@ export function App() {
 		// DebugHUD用にsyncステータスを公開
 		(globalThis as Record<string, unknown>).__usketchSyncStatus = syncHandle.status;
 
-		// Cloud Boardの場合はWebSocket接続 + プレゼンスプラグイン
-		let wsProvider: WsProviderHandle | null = null;
+		// Cloud Boardの場合はWebSocket接続 + プレゼンス/エフェクト同期
 		const extraPlugins: UsketchPlugin[] = [];
 
 		if (isCloudBoard) {
 			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 			const wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
-			wsProvider = syncHandle.connectWebSocket(wsUrl);
+			const wsProvider = syncHandle.connectWebSocket(wsUrl);
 
-			if (wsProvider && session?.user) {
-				extraPlugins.push(
-					createPresenceCursorPlugin({
-						wsProvider,
-						userId: session.user.id,
-						userName: session.user.name ?? "Anonymous",
-					}),
-				);
+			if (wsProvider) {
+				extraPlugins.push(createRippleEffectPlugin(wsProvider));
+				if (session?.user) {
+					extraPlugins.push(
+						createPresenceCursorPlugin({
+							wsProvider,
+							userId: session.user.id,
+							userName: session.user.name ?? "Anonymous",
+						}),
+					);
+				}
+			} else {
+				extraPlugins.push(rippleEffectPlugin);
 			}
+		} else {
+			extraPlugins.push(rippleEffectPlugin);
 		}
 
 		syncHandle.whenSynced

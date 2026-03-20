@@ -285,6 +285,9 @@ importers:
 
   plugins/usketch-plugin-effect-ripple:
     dependencies:
+      '@edv4h/usketch-plugin-sync-localstorage-yjs':
+        specifier: workspace:*
+        version: link:../usketch-plugin-sync-localstorage-yjs
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
