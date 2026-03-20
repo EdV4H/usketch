@@ -154,8 +154,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build all packages
-        run: pnpm build
+      - name: Build packages (excluding web)
+        run: pnpm turbo run build --filter='!@edv4h/usketch-web'
 
       - name: Deploy Server (Cloudflare Workers)
         run: pnpm exec wrangler deploy
