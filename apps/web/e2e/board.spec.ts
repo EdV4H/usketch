@@ -15,18 +15,17 @@ test.describe("Board", () => {
 	test("local board can be created and opened", async ({ page }) => {
 		await page.goto("/");
 		await page.click("text=New Local Board");
-		// ボードエディタが開かれることを確認
 		await page.waitForURL(/\/local\//);
-		// Canvasが表示されることを確認
 		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 	});
 
-	test("toolbar is visible on board page", async ({ page }) => {
+	test("toolbar and export button visible on board page", async ({ page }) => {
 		await page.goto("/");
 		await page.click("text=New Local Board");
 		await page.waitForURL(/\/local\//);
 		// ツールバーが表示される
-		await expect(page.locator("text=PNG")).toBeVisible();
-		await expect(page.locator("text=SVG")).toBeVisible();
+		await expect(page.locator("text=Undo")).toBeHidden(); // ↩ icon, not text
+		// Exportボタンが表示される
+		await expect(page.locator("button", { hasText: "Export" })).toBeVisible();
 	});
 });
