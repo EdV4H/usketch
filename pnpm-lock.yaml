@@ -23,6 +23,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
       '@hono/zod-validator':
         specifier: 0.7.6
         version: 0.7.6(hono@4.7.10)(zod@4.3.6)
@@ -66,6 +69,9 @@ importers:
       '@edv4h/usketch-plugin-effect-ripple':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-effect-ripple
+      '@edv4h/usketch-plugin-presence-cursor':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-presence-cursor
       '@edv4h/usketch-plugin-shape-counter':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-counter
@@ -102,6 +108,9 @@ importers:
       '@edv4h/usketch-store':
         specifier: workspace:*
         version: link:../../packages/store
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
       better-auth:
         specifier: 1.5.5
         version: 1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.1(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(vitest@3.2.4(tsx@4.21.0))
@@ -213,6 +222,22 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(tsx@4.21.0)
 
+  packages/sync:
+    dependencies:
+      y-protocols:
+        specifier: 1.0.7
+        version: 1.0.7(yjs@13.6.30)
+      yjs:
+        specifier: ^13.6.0
+        version: 13.6.30
+    devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
   packages/ui:
     dependencies:
       '@edv4h/usketch-core':
@@ -285,6 +310,9 @@ importers:
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
       react:
         specifier: '>=19'
         version: 19.1.0
@@ -308,6 +336,28 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-presence-cursor:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -2720,6 +2770,12 @@ packages:
     peerDependencies:
       yjs: ^13.0.0
 
+  y-protocols@1.0.7:
+    resolution: {integrity: sha512-YSVsLoXxO67J6eE/nV4AtFtT3QEotZf5sK5BHxFBXso7VDUT3Tx07IfA6hsu5Q5OmBdMkQVmFZ9QOA7fikWvnw==}
+    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
+    peerDependencies:
+      yjs: ^13.0.0
+
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
@@ -4424,6 +4480,11 @@ snapshots:
   xid-ts@1.2.2: {}
 
   y-indexeddb@9.0.12(yjs@13.6.30):
+    dependencies:
+      lib0: 0.2.117
+      yjs: 13.6.30
+
+  y-protocols@1.0.7(yjs@13.6.30):
     dependencies:
       lib0: 0.2.117
       yjs: 13.6.30

@@ -1,3 +1,4 @@
+import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -42,7 +43,44 @@ app.use("/api/*", async (c, next) => {
 });
 app.route("/api/boards", boardsApp);
 
+// WebSocket — 認証 + ボードレベルのアクセス制御後にDurable Objectに接続
+app.get("/api/boards/:boardId/ws", async (c) => {
+	const userId = c.get("userId");
+	if (!userId) return c.json({ error: "Unauthorized" }, 401);
+
+	const db = c.get("db")!;
+	const boardId = c.req.param("boardId");
+
+	// ボードの存在確認 + メンバーシップ/公開ボード判定
+	const result = await db
+		.select({
+			isPublic: schema.boards.isPublic,
+			role: schema.boardMembers.role,
+		})
+		.from(schema.boards)
+		.leftJoin(
+			schema.boardMembers,
+			and(
+				eq(schema.boards.id, schema.boardMembers.boardId),
+				eq(schema.boardMembers.userId, userId),
+			),
+		)
+		.where(eq(schema.boards.id, boardId))
+		.limit(1);
+
+	if (result.length === 0 || (result[0].role === null && !result[0].isPublic)) {
+		return c.json({ error: "Board not found" }, 404);
+	}
+
+	const id = c.env.BOARD_ROOM.idFromName(boardId);
+	const room = c.env.BOARD_ROOM.get(id);
+
+	const url = new URL(c.req.url);
+	url.pathname = "/ws";
+	url.searchParams.set("userId", userId);
+	return room.fetch(new Request(url.toString(), c.req.raw));
+});
+
 export default app;
 
-// Durable Object export (stub — Week 5-6 で実装)
 export { BoardRoom } from "./board-room.js";

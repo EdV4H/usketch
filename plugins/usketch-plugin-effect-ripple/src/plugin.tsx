@@ -6,6 +6,7 @@ import {
 	type TransientObject,
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
+import type { WsProviderHandle } from "@edv4h/usketch-sync";
 
 const RIPPLE_TTL = 600;
 const RIPPLE_SIZE = 80;
@@ -32,6 +33,7 @@ function RippleEffect({ obj }: { obj: TransientObject }) {
 function RippleIcon() {
 	return (
 		<svg width="20" height="20" viewBox="0 0 20 20">
+			<title>Ripple</title>
 			<circle cx="10" cy="10" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
 			<circle
 				cx="10"
@@ -55,7 +57,6 @@ function RippleIcon() {
 	);
 }
 
-// Inject keyframes once
 let styleInjected = false;
 function injectStyle() {
 	if (styleInjected) return;
@@ -70,35 +71,96 @@ function injectStyle() {
 	document.head.appendChild(style);
 }
 
-export const rippleEffectPlugin: UsketchPlugin = {
-	id: "usketch-plugin-effect-ripple",
-	name: "リップルエフェクト",
+function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
+	let cleanup: (() => void) | undefined;
 
-	setup(ctx: PluginContext) {
-		injectStyle();
+	return {
+		id: "usketch-plugin-effect-ripple",
+		name: "リップルエフェクト",
 
-		ctx.transient.registerType("ripple", {
-			render: (obj) => <RippleEffect obj={obj} />,
-		});
+		setup(ctx: PluginContext) {
+			injectStyle();
 
-		function onPointerDown(_toolCtx: ToolContext, event: CanvasPointerEvent) {
-			ctx.transient.emit({
-				id: generateId(),
-				type: "ripple",
-				sourceUserId: "local",
-				position: event.worldPoint,
-				data: { color: "rgba(59, 130, 246, 0.5)" },
-				ttl: RIPPLE_TTL,
-				createdAt: Date.now(),
+			ctx.transient.registerType("ripple", {
+				render: (obj) => <RippleEffect obj={obj} />,
 			});
-		}
 
-		ctx.tools.register("effect-ripple", {
-			icon: RippleIcon,
-			cursor: "crosshair",
-			shortcut: "r",
-			order: 50,
-			onPointerDown,
-		});
-	},
-};
+			let unsubBroadcast: (() => void) | undefined;
+			if (wsProvider) {
+				unsubBroadcast = wsProvider.onBroadcast((msg) => {
+					if (msg.kind !== "ripple") return;
+
+					// バリデーション
+					const id = msg.id;
+					const position = msg.position as Record<string, unknown> | undefined;
+					if (
+						typeof id !== "string" ||
+						!position ||
+						typeof position.x !== "number" ||
+						typeof position.y !== "number"
+					) {
+						return;
+					}
+
+					ctx.transient.emit({
+						id,
+						type: "ripple",
+						sourceUserId: typeof msg.sourceUserId === "string" ? msg.sourceUserId : "remote",
+						position: { x: position.x, y: position.y },
+						data: { color: typeof msg.color === "string" ? msg.color : "rgba(59, 130, 246, 0.5)" },
+						ttl: typeof msg.ttl === "number" ? msg.ttl : RIPPLE_TTL,
+						createdAt: Date.now(),
+					});
+				});
+			}
+
+			function onPointerDown(_toolCtx: ToolContext, event: CanvasPointerEvent) {
+				const id = generateId();
+				const color = "rgba(59, 130, 246, 0.5)";
+
+				ctx.transient.emit({
+					id,
+					type: "ripple",
+					sourceUserId: "local",
+					position: event.worldPoint,
+					data: { color },
+					ttl: RIPPLE_TTL,
+					createdAt: Date.now(),
+				});
+
+				wsProvider?.broadcast({
+					kind: "ripple",
+					id,
+					sourceUserId: "local",
+					position: event.worldPoint,
+					color,
+					ttl: RIPPLE_TTL,
+				});
+			}
+
+			ctx.tools.register("effect-ripple", {
+				icon: RippleIcon,
+				cursor: "crosshair",
+				shortcut: "r",
+				order: 50,
+				onPointerDown,
+			});
+
+			cleanup = () => {
+				unsubBroadcast?.();
+			};
+		},
+
+		teardown() {
+			cleanup?.();
+		},
+	};
+}
+
+/** WsProvider付きファクトリ（リアルタイム同期対応） */
+export function createRippleEffectPlugin(wsProvider: WsProviderHandle): UsketchPlugin {
+	return createPlugin(wsProvider);
+}
+
+/** ローカル専用（後方互換） */
+export const rippleEffectPlugin: UsketchPlugin = createPlugin();

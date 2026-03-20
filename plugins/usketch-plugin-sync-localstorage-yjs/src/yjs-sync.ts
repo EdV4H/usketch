@@ -57,7 +57,7 @@ export function createYjsSync(store: BoardStore, docName: string): YjsSyncHandle
 		});
 	});
 
-	// Yjs → Store: observe Y.Map changes (for future remote sync + initial load reconciliation)
+	// Yjs → Store: observe Y.Map changes (for remote sync + initial load reconciliation)
 	const observer = (events: Y.YMapEvent<Record<string, unknown>>, _txn: Y.Transaction) => {
 		if (isSyncing || destroyed) return;
 

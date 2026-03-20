@@ -1,6 +1,7 @@
 import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
-import { rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
+import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
+import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
 import { ellipsePlugin } from "@edv4h/usketch-plugin-shape-ellipse";
 import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
@@ -13,9 +14,11 @@ import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
-import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { createWsProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useParams } from "react-router";
 import { Toolbar } from "./components/toolbar.js";
+import { useSession } from "./lib/auth-client.js";
 
 const basePlugins: UsketchPlugin[] = [
 	selectToolPlugin,
@@ -26,42 +29,65 @@ const basePlugins: UsketchPlugin[] = [
 	freedrawPlugin,
 	textPlugin,
 	counterPlugin,
-	rippleEffectPlugin,
 	snapPlugin,
 ];
 
-async function loadPlugins(): Promise<UsketchPlugin[]> {
+async function loadPlugins(extra: UsketchPlugin[]): Promise<UsketchPlugin[]> {
+	const plugins = [...basePlugins, ...extra];
 	if (import.meta.env.DEV) {
 		const { debugHudPlugin } = await import("@edv4h/usketch-plugin-debug-hud");
-		return [...basePlugins, debugHudPlugin];
+		return [...plugins, debugHudPlugin];
 	}
-	return basePlugins;
+	return plugins;
 }
 
 export function App() {
 	const { boardId } = useParams<{ boardId: string }>();
+	const location = useLocation();
+	const isCloudBoard = location.pathname.startsWith("/boards/");
+	const { data: session } = useSession();
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const wsProviderRef = useRef<WsProviderHandle | null>(null);
 
+	// ボード初期化（boardId/isCloudBoardのみに依存）
 	useEffect(() => {
 		if (!boardId) return;
 
 		let cancelled = false;
 		let instance: AppInstance | null = null;
-		let syncHandle: ReturnType<typeof createYjsSync> | null = null;
 		const store = createBoardStore();
+		const syncHandle = createYjsSync(store, `usketch-board-${boardId}`);
 
-		// ボードIDに基づいてYjsドキュメントを作成（ボードごとに独立）
-		syncHandle = createYjsSync(store, `usketch-board-${boardId}`);
-
-		// DebugHUD用にsyncステータスを公開
 		(globalThis as Record<string, unknown>).__usketchSyncStatus = syncHandle.status;
+
+		const extraPlugins: UsketchPlugin[] = [];
+		let wsProvider: WsProviderHandle | null = null;
+
+		if (isCloudBoard) {
+			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+			const wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
+			wsProvider = createWsProvider({ url: wsUrl, doc: syncHandle.doc });
+			wsProviderRef.current = wsProvider;
+
+			extraPlugins.push(createRippleEffectPlugin(wsProvider));
+			// presenceは常にプラグインとして追加（ユーザー情報は後から設定）
+			extraPlugins.push(
+				createPresenceCursorPlugin({
+					wsProvider,
+					userId: "anonymous",
+					userName: "Anonymous",
+				}),
+			);
+		} else {
+			extraPlugins.push(rippleEffectPlugin);
+		}
 
 		syncHandle.whenSynced
 			.then(() => {
 				if (cancelled) return;
 
-				return loadPlugins()
+				return loadPlugins(extraPlugins)
 					.then((plugins) => createApp({ store, plugins }))
 					.then((created) => {
 						if (cancelled) {
@@ -69,16 +95,16 @@ export function App() {
 							return;
 						}
 						instance = created;
-						const app = instance;
-						app.layers.register({
+						const a = instance;
+						a.layers.register({
 							id: "shapes",
 							order: 50,
-							render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={app.shapes} />,
+							render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={a.shapes} />,
 						});
-						app.layers.register({
+						a.layers.register({
 							id: "transient",
 							order: 100,
-							render: (renderCtx) => <TransientLayer registry={app.transient} ctx={renderCtx} />,
+							render: (renderCtx) => <TransientLayer registry={a.transient} ctx={renderCtx} />,
 						});
 
 						setApp(instance);
@@ -93,11 +119,24 @@ export function App() {
 		return () => {
 			cancelled = true;
 			instance?.destroy();
-			syncHandle?.destroy();
+			wsProvider?.destroy();
+			wsProviderRef.current = null;
+			syncHandle.destroy();
 			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 			setApp(null);
 		};
-	}, [boardId]);
+	}, [boardId, isCloudBoard]);
+
+	// セッション情報が確定したらAwarenessのローカル状態を更新
+	const sessionUser = session?.user;
+	useEffect(() => {
+		const wsProvider = wsProviderRef.current;
+		if (!wsProvider || !sessionUser) return;
+
+		wsProvider.awareness.setLocalStateField("user", {
+			name: sessionUser.name ?? "Anonymous",
+		});
+	}, [sessionUser]);
 
 	// キーボードショートカット
 	useEffect(() => {
