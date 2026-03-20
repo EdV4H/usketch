@@ -44,36 +44,51 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 			let followingClientId: number | null = null;
 			let followingName = "";
 
-			// バナーレイヤー
-			ctx.layers.register({
-				id: "follow-banner",
-				order: 95,
-				fixed: true,
-				render: () => {
-					if (followingClientId === null) return null;
-					return <FollowBanner name={followingName} />;
-				},
-			});
+			function updateBanner() {
+				ctx.layers.unregister("follow-banner");
+				ctx.layers.register({
+					id: "follow-banner",
+					order: 95,
+					fixed: true,
+					render: () => {
+						if (followingClientId === null) return null;
+						return <FollowBanner name={followingName} />;
+					},
+				});
+			}
+
+			// バナーレイヤー初期登録
+			updateBanner();
+
+			function startFollow(clientId: number, name: string) {
+				followingClientId = clientId;
+				followingName = name;
+				updateBanner();
+			}
+
+			function stopFollow() {
+				followingClientId = null;
+				followingName = "";
+				updateBanner();
+			}
 
 			function onAwarenessChange() {
 				const states = awareness.getStates();
 
-				// フォロー中のプレゼンターが切断されたらフォロー解除
+				// フォロー中のユーザーが切断されたらフォロー解除
 				if (followingClientId !== null && !states.has(followingClientId)) {
-					followingClientId = null;
-					followingName = "";
+					stopFollow();
 					return;
 				}
 
-				// フォロー中なら、プレゼンターのviewportに追従
+				// フォロー中なら、対象のviewportに追従
 				if (followingClientId !== null) {
-					const presenterState = states.get(followingClientId);
-					if (!presenterState) return;
+					const targetState = states.get(followingClientId);
+					if (!targetState) return;
 
-					const vc = presenterState.viewportCenter as { x: number; y: number } | undefined;
+					const vc = targetState.viewportCenter as { x: number; y: number } | undefined;
 					if (!vc || typeof vc.x !== "number" || typeof vc.y !== "number") return;
 
-					// プレゼンターのビューポート中央に自分のビューポートを合わせる
 					const viewport = ctx.store.getViewport();
 					const screenCenterX = window.innerWidth / 2;
 					const screenCenterY = window.innerHeight / 2;
@@ -93,23 +108,30 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				awareness.setLocalStateField("presenting", !isPresenting);
 			});
 
-			// フォローのトグル: プレゼンターをクリック or ショートカット
+			// EventBus経由で任意のユーザーをフォロー
+			const unsubFollowEvent = ctx.events.on<{ clientId: number; name: string }>(
+				"follow:start",
+				({ clientId, name }) => {
+					startFollow(clientId, name);
+				},
+			);
+			const unsubUnfollowEvent = ctx.events.on("follow:stop", () => {
+				stopFollow();
+			});
+
+			// ショートカットf: プレゼンター優先、なければフォロー解除
 			const unsubFollow = ctx.shortcuts.register("f", () => {
 				if (followingClientId !== null) {
-					// フォロー解除
-					followingClientId = null;
-					followingName = "";
+					stopFollow();
 					return;
 				}
 
-				// プレゼンター中のユーザーを探す
 				const states = awareness.getStates();
 				for (const [clientId, state] of states) {
 					if (clientId === awareness.doc.clientID) continue;
 					if (state.presenting === true) {
 						const user = state.user as { name?: string } | undefined;
-						followingClientId = clientId;
-						followingName = user?.name ?? "Unknown";
+						startFollow(clientId, user?.name ?? "Unknown");
 						return;
 					}
 				}
@@ -119,6 +141,8 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				awareness.off("change", onAwarenessChange);
 				unsubPresent();
 				unsubFollow();
+				unsubFollowEvent();
+				unsubUnfollowEvent();
 				ctx.layers.unregister("follow-banner");
 				followingClientId = null;
 			};
