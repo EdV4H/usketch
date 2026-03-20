@@ -66,6 +66,8 @@ const strokeStore = {
 function LaserCanvas({ ctx: renderCtx }: { ctx: LayerRenderContext }) {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const rafRef = useRef<number>(0);
+	const viewportRef = useRef(renderCtx.viewport);
+	viewportRef.current = renderCtx.viewport;
 
 	useEffect(() => {
 		if (!canvasRef.current) return;
@@ -91,7 +93,7 @@ function LaserCanvas({ ctx: renderCtx }: { ctx: LayerRenderContext }) {
 			c2d.setTransform(dpr, 0, 0, dpr, 0, 0);
 			c2d.clearRect(0, 0, w, h);
 
-			const { x: vx, y: vy, zoom } = renderCtx.viewport;
+			const { x: vx, y: vy, zoom } = viewportRef.current;
 			const now = Date.now();
 			let hasContent = false;
 
@@ -191,7 +193,7 @@ function LaserCanvas({ ctx: renderCtx }: { ctx: LayerRenderContext }) {
 				cancelAnimationFrame(rafRef.current);
 			}
 		};
-	});
+	}, []);
 
 	return (
 		<canvas
@@ -294,10 +296,8 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			// ── ローカル ──
 			let lastEmitTime = 0;
 			let isDrawing = false;
-			const laserColor = getUserLaserColor(
-				wsProvider ? String(wsProvider.awareness.doc.clientID) : "local",
-			);
-			const LOCAL_KEY = "local";
+			const LOCAL_KEY = wsProvider ? String(wsProvider.awareness.doc.clientID) : "local";
+			const laserColor = getUserLaserColor(LOCAL_KEY);
 
 			function addPoint(point: { x: number; y: number }, isStart: boolean, isEnd = false) {
 				const now = Date.now();

@@ -80,7 +80,7 @@ export const boardMembers = sqliteTable(
 			.default("editor"),
 		lastViewport: text("last_viewport"),
 		lastSeenAt: text("last_seen_at"),
-		status: text("status").default("offline"),
+		status: text("status").notNull().default("offline"),
 	},
 	(table) => [
 		primaryKey({ columns: [table.boardId, table.userId] }),

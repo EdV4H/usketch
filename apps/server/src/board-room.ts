@@ -37,7 +37,7 @@ export class BoardRoom extends DurableObject<Env> {
 
 			const userId = url.searchParams.get("userId") ?? "anonymous";
 			const pair = new WebSocketPair();
-			this.ctx.acceptWebSocket(pair[1], [userId]);
+			this.ctx.acceptWebSocket(pair[1], [userId, this.boardId]);
 
 			// 接続時にステータスをonlineに更新
 			if (userId !== "anonymous" && this.boardId) {
@@ -105,14 +105,15 @@ export class BoardRoom extends DurableObject<Env> {
 		// 切断時にメンバーのステータスとlast_seen_atを更新
 		const tags = this.ctx.getTags(ws);
 		const userId = tags[0];
-		if (userId && userId !== "anonymous") {
+		const boardId = tags[1];
+		if (userId && userId !== "anonymous" && boardId) {
 			try {
 				const db = drizzle(this.env.DB);
 				const now = new Date().toISOString();
 				await db
 					.update(boardMembers)
 					.set({ status: "offline", lastSeenAt: now })
-					.where(and(eq(boardMembers.boardId, this.boardId), eq(boardMembers.userId, userId)));
+					.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
 			} catch {
 				// DB更新失敗はWebSocket切断をブロックしない
 			}

@@ -72,8 +72,12 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				});
 			}
 
-			// ビューポート変更時に自分の位置を同期
+			// ビューポート変更時のみ自分の位置を同期（他のstore変更は無視）
+			let lastVp = ctx.store.getViewport();
 			const unsubStore = ctx.store.subscribe(() => {
+				const vp = ctx.store.getViewport();
+				if (vp.x === lastVp.x && vp.y === lastVp.y && vp.zoom === lastVp.zoom) return;
+				lastVp = vp;
 				syncLocalViewportCenter();
 			});
 
@@ -138,29 +142,40 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 			awareness.on("change", onAwarenessChange);
 
 			// 自分のアバターをfixedレイヤーとして表示
+			// Awarenessのlocal stateから読むことで、セッション更新後も最新情報を反映
 			ctx.layers.register({
 				id: "avatar-self",
 				order: 85,
 				fixed: true,
-				render: () => (
-					<div
-						style={{
-							position: "absolute",
-							left: "50%",
-							top: "50%",
-							transform: "translate(-50%, -50%)",
-							pointerEvents: "none",
-						}}
-					>
-						<AvatarCircle
-							image={userImage ?? null}
-							name={userName}
-							userId={userId}
-							size={AVATAR_SIZE}
-							opacity={0.6}
-						/>
-					</div>
-				),
+				render: () => {
+					const localState = awareness.getLocalState();
+					const av = localState?.avatar as
+						| { name?: string; image?: string | null; userId?: string }
+						| undefined;
+					const selfName = av?.name ?? userName;
+					const selfImage = av?.image ?? userImage ?? null;
+					const selfUserId = av?.userId ?? userId;
+
+					return (
+						<div
+							style={{
+								position: "absolute",
+								left: "50%",
+								top: "50%",
+								transform: "translate(-50%, -50%)",
+								pointerEvents: "none",
+							}}
+						>
+							<AvatarCircle
+								image={selfImage}
+								name={selfName}
+								userId={selfUserId}
+								size={AVATAR_SIZE}
+								opacity={0.6}
+							/>
+						</div>
+					);
+				},
 			});
 
 			cleanup = () => {

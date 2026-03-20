@@ -2,7 +2,7 @@
 -- board_members に拡張プレゼンス用カラム追加
 ALTER TABLE board_members ADD COLUMN last_viewport TEXT;
 ALTER TABLE board_members ADD COLUMN last_seen_at TEXT;
-ALTER TABLE board_members ADD COLUMN status TEXT DEFAULT 'offline';
+ALTER TABLE board_members ADD COLUMN status TEXT NOT NULL DEFAULT 'offline';
 
 -- アクティビティログ（NW-4c: アクティビティフィード用）
 CREATE TABLE activity_log (
