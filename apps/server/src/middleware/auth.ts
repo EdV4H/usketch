@@ -13,9 +13,9 @@ export const authMiddleware: MiddlewareHandler<{
 		userId: string;
 	};
 }> = async (c, next) => {
-	// 開発モード: X-User-Id ヘッダーを受け付ける
+	// 開発モード: X-User-Id ヘッダーまたは devUserId クエリパラメータを受け付ける
 	if (c.env.DEV_MODE === "true") {
-		const devUserId = c.req.header("X-User-Id");
+		const devUserId = c.req.header("X-User-Id") || c.req.query("devUserId");
 		if (devUserId) {
 			c.set("userId", devUserId);
 			await next();

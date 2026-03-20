@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { api, type Board } from "../lib/api.js";
-import { signOut, useSession } from "../lib/auth-client.js";
 import { type LocalBoard, localBoards } from "../lib/local-boards.js";
+import { useAuth } from "../lib/use-auth.js";
 
 export function DashboardPage() {
 	const navigate = useNavigate();
-	const { data: session } = useSession();
+	const { user: sessionUser, logout } = useAuth();
 	const [boards, setBoards] = useState<Board[]>([]);
 	const [locals, setLocals] = useState<LocalBoard[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -16,7 +16,7 @@ export function DashboardPage() {
 	const loadBoards = useCallback(async () => {
 		setLocals(localBoards.list());
 		setError("");
-		if (session?.user) {
+		if (sessionUser) {
 			setLoading(true);
 			try {
 				const result = await api.boards.list();
@@ -34,7 +34,7 @@ export function DashboardPage() {
 		} else {
 			setLoading(false);
 		}
-	}, [session]);
+	}, [sessionUser]);
 
 	useEffect(() => {
 		loadBoards();
@@ -96,21 +96,16 @@ export function DashboardPage() {
 			>
 				<h1 style={{ fontSize: "1.5rem", margin: 0 }}>uSketch</h1>
 				<div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-					{session?.user && (
-						<span style={{ fontSize: "14px", color: "#666" }}>{session.user.name}</span>
+					{sessionUser && (
+						<span style={{ fontSize: "14px", color: "#666" }}>{sessionUser.name}</span>
 					)}
-					{session?.user ? (
+					{sessionUser ? (
 						<button
 							type="button"
-							onClick={() =>
-								signOut({
-									fetchOptions: {
-										onSuccess: () => {
-											navigate("/login");
-										},
-									},
-								})
-							}
+							onClick={() => {
+								logout();
+								navigate("/login");
+							}}
 							style={{
 								padding: "6px 12px",
 								fontSize: "12px",
@@ -218,7 +213,7 @@ export function DashboardPage() {
 			)}
 
 			{/* Cloud Boards */}
-			{session?.user && (
+			{sessionUser && (
 				<>
 					<div
 						style={{

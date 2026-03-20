@@ -25,7 +25,8 @@ import { createWsProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router";
 import { Toolbar } from "./components/toolbar.js";
-import { useSession } from "./lib/auth-client.js";
+import { getDevUser } from "./lib/dev-auth.js";
+import { useAuth } from "./lib/use-auth.js";
 
 const basePlugins: UsketchPlugin[] = [
 	selectToolPlugin,
@@ -53,7 +54,7 @@ export function App() {
 	const { boardId } = useParams<{ boardId: string }>();
 	const location = useLocation();
 	const isCloudBoard = location.pathname.startsWith("/boards/");
-	const { data: session } = useSession();
+	const { user: authUser } = useAuth();
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const wsProviderRef = useRef<WsProviderHandle | null>(null);
@@ -74,7 +75,14 @@ export function App() {
 
 		if (isCloudBoard) {
 			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
-			const wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
+			let wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
+			// DEV_MODE: WebSocketはカスタムヘッダーを送れないのでクエリパラメータで認証
+			if (import.meta.env.DEV) {
+				const devUser = getDevUser();
+				if (devUser) {
+					wsUrl += `?devUserId=${encodeURIComponent(devUser.id)}`;
+				}
+			}
 			wsProvider = createWsProvider({ url: wsUrl, doc: syncHandle.doc });
 			wsProviderRef.current = wsProvider;
 
@@ -181,20 +189,19 @@ export function App() {
 	}, [boardId, isCloudBoard]);
 
 	// セッション情報が確定したらAwarenessのローカル状態を更新
-	const sessionUser = session?.user;
 	useEffect(() => {
 		const wsProvider = wsProviderRef.current;
-		if (!wsProvider || !sessionUser) return;
+		if (!wsProvider || !authUser) return;
 
 		wsProvider.awareness.setLocalStateField("user", {
-			name: sessionUser.name ?? "Anonymous",
+			name: authUser.name ?? "Anonymous",
 		});
 		wsProvider.awareness.setLocalStateField("avatar", {
-			name: sessionUser.name ?? "Anonymous",
-			image: sessionUser.image ?? null,
-			userId: sessionUser.id ?? "anonymous",
+			name: authUser.name ?? "Anonymous",
+			image: authUser.image ?? null,
+			userId: authUser.id ?? "anonymous",
 		});
-	}, [sessionUser]);
+	}, [authUser]);
 
 	// キーボードショートカット
 	useEffect(() => {

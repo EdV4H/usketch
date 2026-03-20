@@ -1,6 +1,8 @@
+import { useNavigate } from "react-router";
 import { signIn } from "../lib/auth-client.js";
+import { devLogin } from "../lib/dev-auth.js";
 
-const btnStyle = {
+const btnStyle: React.CSSProperties = {
 	padding: "12px 24px",
 	fontSize: "14px",
 	cursor: "pointer",
@@ -10,7 +12,11 @@ const btnStyle = {
 	width: "100%",
 };
 
+const isDev = import.meta.env.DEV;
+
 export function LoginPage() {
+	const navigate = useNavigate();
+
 	return (
 		<div
 			style={{
@@ -42,6 +48,41 @@ export function LoginPage() {
 				>
 					Continue with GitHub
 				</button>
+
+				{isDev && (
+					<>
+						<div
+							style={{
+								textAlign: "center",
+								fontSize: 12,
+								color: "#999",
+								margin: "8px 0 0",
+							}}
+						>
+							Development Mode
+						</div>
+						<button
+							type="button"
+							onClick={() => {
+								devLogin("dev-user-1", "Dev User 1");
+								navigate("/");
+							}}
+							style={{ ...btnStyle, background: "#f0f0f0", color: "#333" }}
+						>
+							Dev Login (User 1)
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								devLogin("dev-user-2", "Dev User 2");
+								navigate("/");
+							}}
+							style={{ ...btnStyle, background: "#f0f0f0", color: "#333" }}
+						>
+							Dev Login (User 2)
+						</button>
+					</>
+				)}
 			</div>
 		</div>
 	);
