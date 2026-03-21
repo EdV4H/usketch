@@ -1,349 +1,266 @@
-import { useCallback, useEffect, useState } from "react";
+import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
+import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
+import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
+import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
+import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
+import { createReactionsPlugin, reactionsPlugin } from "@edv4h/usketch-plugin-reactions";
+import { createBoardPortalPlugin } from "@edv4h/usketch-plugin-shape-board-portal";
+import { createSpatialChatPlugin, spatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
+import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
+import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
+import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
+import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
+import type { UsketchPlugin } from "@edv4h/usketch-shared";
+import { createBoardStore } from "@edv4h/usketch-store";
+import { createWsProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { api, type Board, type DiscoverBoard } from "../lib/api.js";
-import { type LocalBoard, localBoards } from "../lib/local-boards.js";
+import { api } from "../lib/api.js";
+import { getDevUser } from "../lib/dev-auth.js";
 import { useAuth } from "../lib/use-auth.js";
 
-function BoardCard({
-	title,
-	href,
-	ownerName,
-	ownerImage,
-	updatedAt,
-	badge,
-	onDelete,
-}: {
-	title: string;
-	href: string;
-	ownerName?: string;
-	ownerImage?: string | null;
-	updatedAt: string;
-	badge?: string;
-	onDelete?: () => void;
-}) {
-	return (
-		<a
-			href={href}
-			style={{
-				display: "block",
-				padding: 16,
-				background: "#fff",
-				borderRadius: 12,
-				border: "1px solid #eee",
-				textDecoration: "none",
-				color: "#333",
-				transition: "box-shadow 0.15s, transform 0.15s",
-				position: "relative",
-			}}
-			onMouseEnter={(e) => {
-				e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.1)";
-				e.currentTarget.style.transform = "translateY(-2px)";
-			}}
-			onMouseLeave={(e) => {
-				e.currentTarget.style.boxShadow = "none";
-				e.currentTarget.style.transform = "none";
-			}}
-		>
-			<div
-				style={{
-					height: 80,
-					background: "#f8f8f8",
-					borderRadius: 8,
-					marginBottom: 12,
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					fontSize: 24,
-					color: "#ccc",
-				}}
-			>
-				⌂
-			</div>
-			<div
-				style={{
-					fontWeight: 600,
-					fontSize: 14,
-					marginBottom: 4,
-					overflow: "hidden",
-					textOverflow: "ellipsis",
-					whiteSpace: "nowrap",
-				}}
-			>
-				{title}
-			</div>
-			<div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#999" }}>
-				{ownerImage && (
-					<img src={ownerImage} alt="" style={{ width: 16, height: 16, borderRadius: "50%" }} />
-				)}
-				{ownerName && <span>{ownerName}</span>}
-				{badge && (
-					<span
-						style={{
-							background: "#f0f0f0",
-							padding: "1px 6px",
-							borderRadius: 3,
-							fontSize: 10,
-						}}
-					>
-						{badge}
-					</span>
-				)}
-				<span style={{ marginLeft: "auto" }}>{new Date(updatedAt).toLocaleDateString()}</span>
-			</div>
-			{onDelete && (
-				<button
-					type="button"
-					onClick={(e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						onDelete();
-					}}
-					style={{
-						position: "absolute",
-						top: 8,
-						right: 8,
-						width: 24,
-						height: 24,
-						border: "none",
-						borderRadius: "50%",
-						background: "rgba(255,255,255,0.9)",
-						color: "#c33",
-						fontSize: 12,
-						cursor: "pointer",
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
-					}}
-				>
-					x
-				</button>
-			)}
-		</a>
-	);
-}
+const COMMUNITY_BOARD_ID = "community-lobby";
 
 export function CommunityPage() {
 	const navigate = useNavigate();
-	const { user: sessionUser, logout } = useAuth();
-	const [myBoards, setMyBoards] = useState<Board[]>([]);
-	const [publicBoards, setPublicBoards] = useState<DiscoverBoard[]>([]);
-	const [locals, setLocals] = useState<LocalBoard[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
-
-	const load = useCallback(async () => {
-		setLocals(localBoards.list());
-		setError("");
-		setLoading(true);
-		try {
-			const [mine, discover] = await Promise.all([
-				sessionUser ? api.boards.list().catch(() => [] as Board[]) : Promise.resolve([] as Board[]),
-				api.boards.discover().catch(() => [] as DiscoverBoard[]),
-			]);
-			setMyBoards(mine);
-			// discoverから自分のボードを除外
-			const myIds = new Set(mine.map((b) => b.id));
-			setPublicBoards(discover.filter((b) => !myIds.has(b.id)));
-		} catch (e) {
-			setError(e instanceof Error ? e.message : "Failed to load");
-		} finally {
-			setLoading(false);
-		}
-	}, [sessionUser]);
+	const { user: authUser } = useAuth();
+	const authUserId = authUser?.id ?? null;
+	const authUserName = authUser?.name ?? null;
+	const authUserImage = authUser?.image ?? null;
+	const [app, setApp] = useState<AppInstance | null>(null);
+	const [error, setError] = useState<string | null>(null);
+	const wsProviderRef = useRef<WsProviderHandle | null>(null);
 
 	useEffect(() => {
-		load();
-	}, [load]);
+		let cancelled = false;
+		let instance: AppInstance | null = null;
+		const store = createBoardStore();
+		const syncHandle = createYjsSync(store, `usketch-community-${COMMUNITY_BOARD_ID}`);
 
-	const handleCreate = async () => {
-		try {
-			const board = await api.boards.create();
-			navigate(`/boards/${board.id}`);
-		} catch (e) {
-			setError(e instanceof Error ? e.message : "Failed to create board");
+		const extraPlugins: UsketchPlugin[] = [];
+		let wsProvider: WsProviderHandle | null = null;
+
+		// コミュニティ空間にはboard-portalシェイプ + コミュニケーション系プラグインのみ
+		const portalPlugin = createBoardPortalPlugin({
+			onPortalOpen: (boardId) => {
+				navigate(`/boards/${boardId}`);
+			},
+			onPortalCreate: async (shapeId, _position) => {
+				// ボードを作成してシェイプにboardIdを紐付け
+				try {
+					const board = await api.boards.create("New Board");
+					store.updateShape(shapeId, {
+						boardId: board.id,
+						boardTitle: board.title,
+						ownerName: authUserName ?? "",
+						ownerImage: authUserImage ?? "",
+					});
+				} catch (e) {
+					console.error("Failed to create board:", e);
+					store.deleteShape(shapeId);
+				}
+			},
+		});
+
+		const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+		// Cloud sync（認証済みの場合）
+		if (authUserId) {
+			let wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${COMMUNITY_BOARD_ID}/ws`;
+			if (import.meta.env.DEV) {
+				const devUser = getDevUser();
+				if (devUser) {
+					wsUrl += `?devUserId=${encodeURIComponent(devUser.id)}`;
+				}
+			}
+			wsProvider = createWsProvider({ url: wsUrl, doc: syncHandle.doc });
+			wsProviderRef.current = wsProvider;
+
+			extraPlugins.push(createRippleEffectPlugin(wsProvider));
+			extraPlugins.push(createReactionsPlugin(wsProvider));
+			extraPlugins.push(createLaserPlugin(wsProvider));
+			extraPlugins.push(createSpatialChatPlugin(wsProvider));
+			extraPlugins.push(
+				createPresenceCursorPlugin({
+					wsProvider,
+					userId: authUserId ?? "anonymous",
+					userName: authUserName ?? "Anonymous",
+				}),
+			);
+			extraPlugins.push(
+				createAvatarPlugin({
+					wsProvider,
+					userId: authUserId ?? "anonymous",
+					userName: authUserName ?? "Anonymous",
+					userImage: authUserImage,
+				}),
+			);
+		} else {
+			extraPlugins.push(rippleEffectPlugin);
+			extraPlugins.push(reactionsPlugin);
+			extraPlugins.push(laserPlugin);
+			extraPlugins.push(spatialChatPlugin);
 		}
-	};
 
-	const handleCreateLocal = () => {
-		const board = localBoards.create();
-		navigate(`/local/${board.id}`);
-	};
+		const basePlugins: UsketchPlugin[] = [
+			selectToolPlugin,
+			panToolPlugin,
+			viewportNavPlugin,
+			portalPlugin,
+		];
 
-	const handleDelete = async (id: string) => {
-		await api.boards.delete(id).catch(() => {});
-		load();
-	};
+		syncHandle.whenSynced
+			.then(() => {
+				if (cancelled) return;
 
-	const handleDeleteLocal = (id: string) => {
-		localBoards.delete(id);
-		setLocals(localBoards.list());
-	};
+				const plugins = [...basePlugins, ...extraPlugins];
+				return createApp({ store, plugins }).then((created) => {
+					if (cancelled) {
+						created.destroy();
+						return;
+					}
+					instance = created;
+					const a = instance;
+					a.layers.register({
+						id: "shapes",
+						order: 50,
+						render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={a.shapes} />,
+					});
+					a.layers.register({
+						id: "transient",
+						order: 100,
+						render: (renderCtx) => <TransientLayer registry={a.transient} ctx={renderCtx} />,
+					});
 
-	const gridStyle: React.CSSProperties = {
-		display: "grid",
-		gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-		gap: 16,
-		marginBottom: 32,
-	};
+					setApp(instance);
+				});
+			})
+			.catch((e) => {
+				if (!cancelled) {
+					setError(e instanceof Error ? e.message : "Failed to initialize community");
+				}
+			});
+
+		return () => {
+			cancelled = true;
+			instance?.destroy();
+			wsProvider?.destroy();
+			wsProviderRef.current = null;
+			syncHandle.destroy();
+			setApp(null);
+		};
+	}, [authUserId, authUserName, authUserImage, navigate]);
+
+	// キーボードショートカット
+	useEffect(() => {
+		if (!app) return;
+
+		const handleKeyDown = (e: KeyboardEvent) => {
+			const tools = app.tools.getAll();
+			for (const [id, def] of tools) {
+				if (
+					def.shortcut &&
+					e.key.toLowerCase() === def.shortcut.toLowerCase() &&
+					!e.ctrlKey &&
+					!e.metaKey &&
+					!e.altKey
+				) {
+					app.store.setActiveToolId(id);
+					return;
+				}
+			}
+			app.shortcuts.handleKeyDown(e);
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [app]);
+
+	if (error) {
+		return (
+			<div style={{ padding: 24, fontFamily: "system-ui, sans-serif", color: "#c33" }}>
+				<p>Error: {error}</p>
+			</div>
+		);
+	}
+
+	if (!app) return null;
+
+	return (
+		<AppProvider app={app}>
+			<div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
+				<Canvas />
+				{/* コミュニティヘッダー */}
+				<CommunityHeader />
+			</div>
+		</AppProvider>
+	);
+}
+
+function CommunityHeader() {
+	const navigate = useNavigate();
+	const { user: sessionUser, logout } = useAuth();
 
 	return (
 		<div
 			style={{
-				maxWidth: 1200,
-				margin: "0 auto",
-				padding: "24px 32px",
-				fontFamily: "system-ui, sans-serif",
+				position: "fixed",
+				top: 12,
+				left: 12,
+				zIndex: 100,
+				display: "flex",
+				gap: 8,
+				alignItems: "center",
 			}}
 		>
-			{/* Header */}
-			<header
+			<div
 				style={{
-					display: "flex",
-					justifyContent: "space-between",
-					alignItems: "center",
-					marginBottom: 32,
+					background: "white",
+					borderRadius: 8,
+					padding: "6px 14px",
+					boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+					fontSize: 14,
+					fontWeight: 600,
+					fontFamily: "system-ui, sans-serif",
 				}}
 			>
-				<div>
-					<h1 style={{ fontSize: "1.5rem", margin: 0 }}>uSketch</h1>
-					<p style={{ fontSize: 13, color: "#999", margin: "4px 0 0" }}>Community Space</p>
-				</div>
-				<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-					{sessionUser && <span style={{ fontSize: 14, color: "#666" }}>{sessionUser.name}</span>}
-					{sessionUser ? (
-						<button
-							type="button"
-							onClick={() => {
-								logout();
-								navigate("/login");
-							}}
-							style={{
-								padding: "6px 12px",
-								fontSize: 12,
-								cursor: "pointer",
-								border: "1px solid #ddd",
-								borderRadius: 6,
-								background: "#fff",
-								color: "#333",
-							}}
-						>
-							Sign Out
-						</button>
-					) : (
-						<a
-							href="/login"
-							style={{
-								padding: "6px 12px",
-								fontSize: 12,
-								textDecoration: "none",
-								border: "1px solid #ddd",
-								borderRadius: 6,
-								color: "#333",
-							}}
-						>
-							Sign In
-						</a>
-					)}
-				</div>
-			</header>
-
-			{error && <p style={{ color: "#c33", marginBottom: 16 }}>{error}</p>}
-
-			{/* Create buttons */}
-			<div style={{ display: "flex", gap: 12, marginBottom: 32 }}>
-				{sessionUser && (
-					<button
-						type="button"
-						onClick={handleCreate}
-						style={{
-							padding: "10px 20px",
-							fontSize: 14,
-							fontWeight: 600,
-							cursor: "pointer",
-							border: "none",
-							borderRadius: 8,
-							background: "#0066ff",
-							color: "#fff",
-						}}
-					>
-						New Cloud Board
-					</button>
-				)}
+				uSketch
+			</div>
+			{sessionUser ? (
 				<button
 					type="button"
-					onClick={handleCreateLocal}
+					onClick={() => {
+						logout();
+						navigate("/login");
+					}}
 					style={{
-						padding: "10px 20px",
-						fontSize: 14,
-						fontWeight: 600,
-						cursor: "pointer",
-						border: "1px solid #0066ff",
+						background: "white",
+						border: "none",
 						borderRadius: 8,
-						background: "#fff",
+						padding: "6px 12px",
+						boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+						fontSize: 12,
+						cursor: "pointer",
+						color: "#666",
+					}}
+				>
+					{sessionUser.name} — Sign Out
+				</button>
+			) : (
+				<a
+					href="/login"
+					style={{
+						background: "white",
+						borderRadius: 8,
+						padding: "6px 12px",
+						boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+						fontSize: 12,
+						textDecoration: "none",
 						color: "#0066ff",
 					}}
 				>
-					New Local Board
-				</button>
-			</div>
-
-			{loading && <p style={{ color: "#999" }}>Loading...</p>}
-
-			{/* My Boards */}
-			{(myBoards.length > 0 || locals.length > 0) && (
-				<>
-					<h2 style={{ fontSize: "1.1rem", margin: "0 0 16px", color: "#333" }}>My Boards</h2>
-					<div style={gridStyle}>
-						{myBoards.map((b) => (
-							<BoardCard
-								key={b.id}
-								title={b.title}
-								href={`/boards/${b.id}`}
-								updatedAt={b.updatedAt}
-								badge={b.role ?? undefined}
-								onDelete={b.role === "owner" ? () => handleDelete(b.id) : undefined}
-							/>
-						))}
-						{locals.map((b) => (
-							<BoardCard
-								key={b.id}
-								title={b.title}
-								href={`/local/${b.id}`}
-								updatedAt={b.updatedAt}
-								badge="local"
-								onDelete={() => handleDeleteLocal(b.id)}
-							/>
-						))}
-					</div>
-				</>
-			)}
-
-			{/* Discover */}
-			{publicBoards.length > 0 && (
-				<>
-					<h2 style={{ fontSize: "1.1rem", margin: "0 0 16px", color: "#333" }}>
-						Discover Public Boards
-					</h2>
-					<div style={gridStyle}>
-						{publicBoards.map((b) => (
-							<BoardCard
-								key={b.id}
-								title={b.title}
-								href={`/boards/${b.id}`}
-								ownerName={b.ownerName}
-								ownerImage={b.ownerImage}
-								updatedAt={b.updatedAt}
-							/>
-						))}
-					</div>
-				</>
-			)}
-
-			{!loading && myBoards.length === 0 && locals.length === 0 && publicBoards.length === 0 && (
-				<div style={{ textAlign: "center", padding: 48, color: "#999" }}>
-					<p style={{ fontSize: 18, marginBottom: 8 }}>No boards yet</p>
-					<p style={{ fontSize: 13 }}>Create your first board to get started</p>
-				</div>
+					Sign In
+				</a>
 			)}
 		</div>
 	);
