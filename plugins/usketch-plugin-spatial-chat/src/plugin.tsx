@@ -241,17 +241,13 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 
 			floatingInput.setOnPlace(emitBubble);
 
-			ctx.tools.register("spatial-chat", {
+			const TOOL_ID = "spatial-chat";
+
+			ctx.tools.register(TOOL_ID, {
 				icon: ChatIcon,
 				cursor: "text",
 				shortcut: "c",
 				order: 65,
-				onActivate: () => {
-					floatingInput.show();
-				},
-				onDeactivate: () => {
-					floatingInput.hide();
-				},
 				onPointerMove: (_toolCtx: ToolContext, event: CanvasPointerEvent) => {
 					floatingInput.moveTo(event.screenPoint.x, event.screenPoint.y, event.worldPoint);
 				},
@@ -260,8 +256,23 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				},
 			});
 
+			// onActivateが未実装なので、store subscribeでツール切替を検知
+			let wasActive = ctx.store.getActiveToolId() === TOOL_ID;
+			if (wasActive) floatingInput.show();
+
+			const unsubToolChange = ctx.store.subscribe(() => {
+				const isActive = ctx.store.getActiveToolId() === TOOL_ID;
+				if (isActive && !wasActive) {
+					floatingInput.show();
+				} else if (!isActive && wasActive) {
+					floatingInput.hide();
+				}
+				wasActive = isActive;
+			});
+
 			cleanup = () => {
 				unsubBroadcast?.();
+				unsubToolChange();
 				floatingInput.destroy();
 			};
 		},
