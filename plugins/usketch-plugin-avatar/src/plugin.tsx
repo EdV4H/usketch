@@ -115,6 +115,11 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				}));
 			}
 
+			// キャンバスクリックでメニューを閉じる
+			const unsubCanvasDown = ctx.events.on("canvas:pointerdown", () => {
+				if (radialMenuVisible) hideRadialMenu();
+			});
+
 			function showRadialMenu() {
 				radialMenuVisible = true;
 				const vp = ctx.store.getViewport();
@@ -274,6 +279,7 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				clearTimeout(delayedCheck);
 				awareness.off("change", onAwarenessChange);
 				unsubStore();
+				unsubCanvasDown();
 				hideRadialMenu();
 				ctx.layers.unregister("avatar-self");
 			};
