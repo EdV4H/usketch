@@ -11,6 +11,7 @@ export interface AiAgentOptions {
 export function createAiAgentPlugin(options: AiAgentOptions): UsketchPlugin {
 	const { apiUrl, extraHeaders } = options;
 	let busy = false;
+	let cleanup: (() => void) | undefined;
 
 	return {
 		id: "usketch-plugin-ai-agent",
@@ -59,12 +60,10 @@ export function createAiAgentPlugin(options: AiAgentOptions): UsketchPlugin {
 				}
 			});
 
-			// teardownで返すためにクロージャに保持
-			(this as { _cleanup?: () => void })._cleanup = unsubRequest;
+			cleanup = unsubRequest;
 		},
 
 		teardown() {
-			const cleanup = (this as { _cleanup?: () => void })._cleanup;
 			cleanup?.();
 		},
 	};

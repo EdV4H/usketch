@@ -138,12 +138,25 @@ export function createCommandPalette(options: CommandPaletteOptions): {
 		const statusEl = paletteEl.querySelector(".ai-palette-status") as HTMLDivElement | null;
 		if (!statusEl) return;
 
+		// DOM操作で更新（XSS防止のためinnerHTMLは使わない）
+		while (statusEl.firstChild) {
+			statusEl.removeChild(statusEl.firstChild);
+		}
+
 		if (isLoading && statusText) {
 			statusEl.style.display = "flex";
-			statusEl.innerHTML = `<div class="ai-palette-spinner"></div><span>${statusText}</span>`;
+			const spinnerEl = document.createElement("div");
+			spinnerEl.className = "ai-palette-spinner";
+			const textEl = document.createElement("span");
+			textEl.textContent = statusText;
+			statusEl.appendChild(spinnerEl);
+			statusEl.appendChild(textEl);
 		} else if (errorMessage) {
 			statusEl.style.display = "flex";
-			statusEl.innerHTML = `<span class="ai-palette-error">${errorMessage}</span>`;
+			const errorEl = document.createElement("span");
+			errorEl.className = "ai-palette-error";
+			errorEl.textContent = errorMessage;
+			statusEl.appendChild(errorEl);
 		} else {
 			statusEl.style.display = "none";
 		}

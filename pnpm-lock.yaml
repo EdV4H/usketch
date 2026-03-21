@@ -39,8 +39,8 @@ importers:
         specifier: 4.7.10
         version: 4.7.10
       yjs:
-        specifier: 13.6.27
-        version: 13.6.27
+        specifier: ^13.6.0
+        version: 13.6.30
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -3179,10 +3179,6 @@ packages:
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
-  yjs@13.6.27:
-    resolution: {integrity: sha512-OIDwaflOaq4wC6YlPBy2L6ceKeKuF7DeTxx+jPzv1FHn9tCZ0ZwSRnUBxD05E3yed46fv/FWJbvR+Ud7x0L7zw==}
-    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
-
   yjs@13.6.30:
     resolution: {integrity: sha512-vv/9h42eCMC81ZHDFswuu/MKzkl/vyq1BhaNGfHyOonwlG4CJbQF4oiBBJPvfdeCt/PlVDWh7Nov9D34YY09uQ==}
     engines: {node: '>=16.0.0', npm: '>=8.0.0'}
@@ -4982,10 +4978,6 @@ snapshots:
       yjs: 13.6.30
 
   yallist@3.1.1: {}
-
-  yjs@13.6.27:
-    dependencies:
-      lib0: 0.2.117
 
   yjs@13.6.30:
     dependencies:

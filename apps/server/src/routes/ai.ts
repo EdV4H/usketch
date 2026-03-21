@@ -1,7 +1,9 @@
 import { zValidator } from "@hono/zod-validator";
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
+import { boardMembers, boards } from "../db/schema.js";
 import type { AppDb, Env } from "../types.js";
 
 type AiEnv = {
@@ -20,6 +22,9 @@ const completeSchema = z.object({
 	boardId: z.string().min(1),
 	model: z.string().optional().default("gpt-4o"),
 });
+
+/** シェイプ数の上限 */
+const MAX_SHAPES_PER_REQUEST = 50;
 
 const SYSTEM_PROMPT = `You are an AI assistant for uSketch, a collaborative whiteboard.
 You create diagrams, flowcharts, wireframes, and visual layouts on a shared canvas.
@@ -134,9 +139,44 @@ interface PlaceShapeItem {
 	};
 }
 
+/** LLM出力のシェイプをバリデーション・サニタイズする */
+function validateShapes(raw: PlaceShapeItem[]): PlaceShapeItem[] {
+	const clamped = raw.slice(0, MAX_SHAPES_PER_REQUEST);
+	const valid: PlaceShapeItem[] = [];
+	for (const s of clamped) {
+		if (typeof s.type !== "string" || !s.type) continue;
+		const x = Number.isFinite(s.x) ? s.x : 0;
+		const y = Number.isFinite(s.y) ? s.y : 0;
+		const width = Number.isFinite(s.width) && s.width > 0 ? Math.min(s.width, 10000) : 100;
+		const height = Number.isFinite(s.height) && s.height > 0 ? Math.min(s.height, 10000) : 80;
+		valid.push({ ...s, x, y, width, height });
+	}
+	return valid;
+}
+
 // POST /api/ai/complete — AIによるシェイプ生成
 aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 	const { prompt, canvasContext, boardId, model } = c.req.valid("json");
+	const userId = c.get("userId");
+
+	// ボードアクセス制御: メンバーまたは公開ボードのみ許可
+	const db = c.get("db");
+	const result = await db
+		.select({
+			isPublic: boards.isPublic,
+			role: boardMembers.role,
+		})
+		.from(boards)
+		.leftJoin(
+			boardMembers,
+			and(eq(boards.id, boardMembers.boardId), eq(boardMembers.userId, userId)),
+		)
+		.where(eq(boards.id, boardId))
+		.limit(1);
+
+	if (result.length === 0 || (result[0].role === null && !result[0].isPublic)) {
+		return c.json({ error: "Not found" }, 404);
+	}
 
 	const apiKey = c.env.OPENAI_API_KEY;
 	if (!apiKey) {
@@ -186,7 +226,7 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 				return;
 			}
 
-			const result = (await response.json()) as {
+			const apiResult = (await response.json()) as {
 				choices: Array<{
 					message: {
 						tool_calls?: Array<{
@@ -196,7 +236,7 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 				}>;
 			};
 
-			const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+			const toolCall = apiResult.choices?.[0]?.message?.tool_calls?.[0];
 			if (!toolCall || toolCall.function.name !== "place_shapes") {
 				await stream.writeSSE({
 					event: "error",
@@ -210,17 +250,19 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 			const args = JSON.parse(toolCall.function.arguments) as {
 				shapes: PlaceShapeItem[];
 			};
-			const shapes = args.shapes;
 
-			if (!shapes || shapes.length === 0) {
+			// 3. LLM出力をバリデーション・サニタイズ
+			const shapes = validateShapes(args.shapes ?? []);
+
+			if (shapes.length === 0) {
 				await stream.writeSSE({
 					event: "error",
-					data: JSON.stringify({ message: "AI produced no shapes" }),
+					data: JSON.stringify({ message: "AI produced no valid shapes" }),
 				});
 				return;
 			}
 
-			// 3. Placing状態を通知
+			// 4. Placing状態を通知
 			await stream.writeSSE({
 				event: "status",
 				data: JSON.stringify({
@@ -229,7 +271,7 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 				}),
 			});
 
-			// 4. BoardRoom DOにHTTP経由でシェイプ配置を転送
+			// 5. BoardRoom DOにHTTP経由でシェイプ配置を転送
 			const doId = c.env.BOARD_ROOM.idFromName(boardId);
 			const room = c.env.BOARD_ROOM.get(doId);
 			const placeResponse = await room.fetch(
@@ -262,7 +304,7 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 				}>;
 			};
 
-			// 5. 完了通知
+			// 6. 完了通知
 			await stream.writeSSE({
 				event: "result",
 				data: JSON.stringify({ shapes: placed.placedShapes }),

@@ -158,7 +158,12 @@ export class BoardRoom extends DurableObject<Env> {
 				doc.transact(() => {
 					for (const shape of shapes) {
 						const id = generateShapeId();
-						const style = { ...DEFAULT_STYLE, ...shape.style };
+						// textシェイプはデフォルトでfill:transparent, strokeWidth:0
+						const baseStyle =
+							shape.type === "text"
+								? { ...DEFAULT_STYLE, fill: "transparent", strokeWidth: 0 }
+								: DEFAULT_STYLE;
+						const style = { ...baseStyle, ...shape.style };
 
 						const shapeData: Record<string, unknown> = {
 							id,

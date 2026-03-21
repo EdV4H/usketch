@@ -32,6 +32,9 @@ export async function requestAiCompletion(
 
 	const decoder = new TextDecoder();
 	let buffer = "";
+	// チャンク境界を跨いでも状態を保持
+	let currentEvent = "";
+	let currentData = "";
 
 	return new Promise<AiResponseEvent>((resolve, reject) => {
 		function processChunk(chunk: string): void {
@@ -40,19 +43,16 @@ export async function requestAiCompletion(
 			// 最後の行は不完全な可能性があるのでバッファに残す
 			buffer = lines.pop() ?? "";
 
-			let event = "";
-			let data = "";
-
 			for (const line of lines) {
 				if (line.startsWith("event: ")) {
-					event = line.slice(7).trim();
+					currentEvent = line.slice(7).trim();
 				} else if (line.startsWith("data: ")) {
-					data = line.slice(6).trim();
-				} else if (line === "" && event && data) {
+					currentData = line.slice(6).trim();
+				} else if (line === "" && currentEvent && currentData) {
 					// 空行でイベント完了
-					handleEvent(event, data);
-					event = "";
-					data = "";
+					handleEvent(currentEvent, currentData);
+					currentEvent = "";
+					currentData = "";
 				}
 			}
 		}
