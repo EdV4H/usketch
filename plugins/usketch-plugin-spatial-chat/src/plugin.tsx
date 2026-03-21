@@ -274,8 +274,9 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 					if (inputEl?.value.trim()) {
 						emitBubble(inputEl.value.trim(), event.worldPoint);
 						inputEl.value = "";
-						inputEl.focus();
 					}
+					// pointerdown後にブラウザがキャンバスにフォーカスを移すので遅延で戻す
+					setTimeout(() => inputEl?.focus(), 0);
 				},
 			});
 
