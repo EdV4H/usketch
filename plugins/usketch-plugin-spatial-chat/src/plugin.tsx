@@ -79,8 +79,6 @@ function createChatInputDialog() {
 		inset: "0",
 		zIndex: "200",
 		display: "none",
-		alignItems: "center",
-		justifyContent: "center",
 	});
 
 	// 背景クリックでキャンセル
@@ -92,11 +90,12 @@ function createChatInputDialog() {
 
 	const dialog = document.createElement("div");
 	Object.assign(dialog.style, {
+		position: "absolute",
 		background: "#fff",
 		borderRadius: "12px",
 		padding: "16px",
 		boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
-		minWidth: "280px",
+		minWidth: "240px",
 	});
 	dialog.addEventListener("pointerdown", (e) => e.stopPropagation());
 
@@ -134,11 +133,16 @@ function createChatInputDialog() {
 	overlay.appendChild(dialog);
 	document.body.appendChild(overlay);
 
-	function show(point: { x: number; y: number }) {
+	function show(point: { x: number; y: number }, screenX: number, screenY: number) {
 		worldPoint = point;
 		input.value = "";
-		overlay.style.display = "flex";
-		// 次のマイクロタスクでfocusしないとpointerdownと競合する
+		// 画面端からはみ出さないよう位置を調整
+		const pad = 8;
+		const left = Math.min(screenX, window.innerWidth - 260 - pad);
+		const top = Math.min(screenY + 12, window.innerHeight - 80 - pad);
+		dialog.style.left = `${Math.max(pad, left)}px`;
+		dialog.style.top = `${Math.max(pad, top)}px`;
+		overlay.style.display = "block";
 		requestAnimationFrame(() => input.focus());
 	}
 
@@ -239,7 +243,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			chatDialog.setOnSubmit(emitBubble);
 
 			function onPointerDown(_toolCtx: ToolContext, event: CanvasPointerEvent) {
-				chatDialog.show(event.worldPoint);
+				chatDialog.show(event.worldPoint, event.screenPoint.x, event.screenPoint.y);
 			}
 
 			ctx.tools.register("spatial-chat", {
