@@ -1,6 +1,7 @@
 import type { PluginContext, TransientObject, UsketchPlugin } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { AvatarCircle } from "./avatar-circle.js";
+import { createRadialMenu, type RadialMenuItem } from "./radial-menu.js";
 
 const AVATAR_SIZE = 40;
 
@@ -101,6 +102,35 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				});
 			}
 
+			// ツールIDからアイコン文字のマッピング
+			const TOOL_ICONS: Record<string, string> = {
+				select: "🔲",
+				"rectangle-draw": "⬜",
+				"ellipse-draw": "⭕",
+				"freedraw-draw": "✏️",
+				"text-draw": "T",
+				"effect-ripple": "💧",
+				reaction: "😀",
+				laser: "🔴",
+				"spatial-chat": "💬",
+				spotlight: "🔦",
+				voting: "📊",
+				"board-portal-create": "🏠",
+			};
+
+			const radialMenu = createRadialMenu((toolId) => {
+				ctx.store.setActiveToolId(toolId);
+			});
+
+			function getToolMenuItems(): RadialMenuItem[] {
+				const tools = ctx.tools.getOrdered();
+				return tools.map(({ id, definition }) => ({
+					id,
+					label: `${id}${definition.shortcut ? ` (${definition.shortcut})` : ""}`,
+					icon: TOOL_ICONS[id] ?? "•",
+				}));
+			}
+
 			function registerSelfLayer() {
 				ctx.layers.unregister("avatar-self");
 				ctx.layers.register({
@@ -114,7 +144,15 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 								left: "50%",
 								top: "50%",
 								transform: "translate(-50%, -50%)",
-								pointerEvents: "none",
+								pointerEvents: "auto",
+								cursor: "pointer",
+							}}
+							onPointerDown={(e) => {
+								e.stopPropagation();
+								const rect = e.currentTarget.getBoundingClientRect();
+								const cx = rect.left + rect.width / 2;
+								const cy = rect.top + rect.height / 2;
+								radialMenu.toggle(cx, cy, getToolMenuItems());
 							}}
 						>
 							<AvatarCircle
@@ -215,6 +253,7 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				clearTimeout(delayedCheck);
 				awareness.off("change", onAwarenessChange);
 				unsubStore();
+				radialMenu.destroy();
 				ctx.layers.unregister("avatar-self");
 			};
 		},
