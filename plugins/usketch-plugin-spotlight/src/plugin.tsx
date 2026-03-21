@@ -1,50 +1,131 @@
 import type {
 	CanvasPointerEvent,
+	LayerRenderContext,
 	PluginContext,
 	ToolContext,
-	TransientObject,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
+import { useEffect, useRef } from "react";
 
-const SPOTLIGHT_ID = "spotlight-active";
+const SPOTLIGHT_RADIUS = 150;
 
-function SpotlightOverlay({ obj }: { obj: TransientObject }) {
-	const cx = obj.position.x;
-	const cy = obj.position.y;
-	const radius = (obj.data.radius as number) || 150;
+/** スポットライトの状態（モジュールレベルシングルトン） */
+const spotlightState: {
+	active: boolean;
+	worldX: number;
+	worldY: number;
+	onUpdate: (() => void) | null;
+} = {
+	active: false,
+	worldX: 0,
+	worldY: 0,
+	onUpdate: null,
+};
+
+function SpotlightCanvas({ ctx: renderCtx }: { ctx: LayerRenderContext }) {
+	const canvasRef = useRef<HTMLCanvasElement | null>(null);
+	const rafRef = useRef<number>(0);
+	const viewportRef = useRef(renderCtx.viewport);
+	viewportRef.current = renderCtx.viewport;
+
+	useEffect(() => {
+		if (!canvasRef.current) return;
+		const canvas: HTMLCanvasElement = canvasRef.current;
+		const c2d = canvas.getContext("2d") as CanvasRenderingContext2D;
+		if (!c2d) return;
+		let running = true;
+
+		function draw() {
+			if (!running) return;
+
+			const dpr = window.devicePixelRatio || 1;
+			const w = window.innerWidth;
+			const h = window.innerHeight;
+
+			if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+				canvas.width = w * dpr;
+				canvas.height = h * dpr;
+				canvas.style.width = `${w}px`;
+				canvas.style.height = `${h}px`;
+			}
+
+			c2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+			c2d.clearRect(0, 0, w, h);
+
+			if (spotlightState.active) {
+				const { x: vx, y: vy, zoom } = viewportRef.current;
+				// ワールド座標→スクリーン座標
+				const screenX = spotlightState.worldX * zoom + vx;
+				const screenY = spotlightState.worldY * zoom + vy;
+				const screenRadius = SPOTLIGHT_RADIUS * zoom;
+
+				// 全画面を暗くする
+				c2d.fillStyle = "rgba(0, 0, 0, 0.6)";
+				c2d.fillRect(0, 0, w, h);
+
+				// 穴を開ける（destination-outで円形を切り抜き）
+				c2d.globalCompositeOperation = "destination-out";
+				c2d.beginPath();
+				c2d.arc(screenX, screenY, screenRadius, 0, Math.PI * 2);
+				c2d.fill();
+
+				// ソフトエッジ（グラデーション）
+				const gradient = c2d.createRadialGradient(
+					screenX,
+					screenY,
+					screenRadius * 0.8,
+					screenX,
+					screenY,
+					screenRadius,
+				);
+				gradient.addColorStop(0, "rgba(0,0,0,1)");
+				gradient.addColorStop(1, "rgba(0,0,0,0)");
+				c2d.fillStyle = gradient;
+				c2d.beginPath();
+				c2d.arc(screenX, screenY, screenRadius, 0, Math.PI * 2);
+				c2d.fill();
+
+				c2d.globalCompositeOperation = "source-over";
+
+				rafRef.current = requestAnimationFrame(draw);
+			} else {
+				rafRef.current = 0;
+			}
+		}
+
+		// 状態変更通知用コールバック
+		spotlightState.onUpdate = () => {
+			if (rafRef.current === 0 && running) {
+				rafRef.current = requestAnimationFrame(draw);
+			}
+		};
+
+		if (spotlightState.active) {
+			rafRef.current = requestAnimationFrame(draw);
+		}
+
+		return () => {
+			running = false;
+			spotlightState.onUpdate = null;
+			if (rafRef.current) cancelAnimationFrame(rafRef.current);
+		};
+	}, []);
 
 	return (
-		<svg
-			width="1"
-			height="1"
-			viewBox="0 0 1 1"
+		<canvas
+			ref={canvasRef}
 			style={{
 				position: "absolute",
-				left: -cx,
-				top: -cy,
-				width: "100vw",
-				height: "100vh",
-				overflow: "visible",
+				inset: 0,
 				pointerEvents: "none",
 			}}
-		>
-			<defs>
-				<mask id={`spotlight-mask-${obj.id}`}>
-					<rect x="0" y="0" width="100%" height="100%" fill="white" />
-					<circle cx={cx} cy={cy} r={radius} fill="black" />
-				</mask>
-			</defs>
-			<rect
-				x="0"
-				y="0"
-				width="100%"
-				height="100%"
-				fill="rgba(0,0,0,0.6)"
-				mask={`url(#spotlight-mask-${obj.id})`}
-			/>
-		</svg>
+		/>
 	);
+}
+
+function notifyUpdate() {
+	spotlightState.onUpdate?.();
 }
 
 function SpotlightIcon() {
@@ -74,8 +155,12 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 		name: "スポットライト",
 
 		setup(ctx: PluginContext) {
-			ctx.transient.registerType("spotlight", {
-				render: (obj) => <SpotlightOverlay obj={obj} />,
+			// fixedレイヤーとしてCanvas2Dを登録
+			ctx.layers.register({
+				id: "spotlight",
+				order: 95,
+				fixed: true,
+				render: (renderCtx) => <SpotlightCanvas ctx={renderCtx} />,
 			});
 
 			let isActive = false;
@@ -88,42 +173,33 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 						if (!position || typeof position.x !== "number" || typeof position.y !== "number") {
 							return;
 						}
-						ctx.transient.dismiss(SPOTLIGHT_ID);
-						ctx.transient.emit({
-							id: SPOTLIGHT_ID,
-							type: "spotlight",
-							sourceUserId: typeof msg.sourceUserId === "string" ? msg.sourceUserId : "remote",
-							position: { x: position.x, y: position.y },
-							data: { radius: typeof msg.radius === "number" ? msg.radius : 150 },
-							createdAt: Date.now(),
-						});
+						spotlightState.active = true;
+						spotlightState.worldX = position.x;
+						spotlightState.worldY = position.y;
+						notifyUpdate();
 					} else if (msg.kind === "spotlight-dismiss") {
-						ctx.transient.dismiss(SPOTLIGHT_ID);
+						spotlightState.active = false;
+						notifyUpdate();
 					}
 				});
 			}
 
 			function updateSpotlight(point: { x: number; y: number }) {
-				ctx.transient.dismiss(SPOTLIGHT_ID);
-				ctx.transient.emit({
-					id: SPOTLIGHT_ID,
-					type: "spotlight",
-					sourceUserId: "local",
-					position: point,
-					data: { radius: 150 },
-					createdAt: Date.now(),
-				});
+				spotlightState.active = true;
+				spotlightState.worldX = point.x;
+				spotlightState.worldY = point.y;
+				notifyUpdate();
 
 				wsProvider?.broadcast({
 					kind: "spotlight-update",
 					sourceUserId: "local",
 					position: point,
-					radius: 150,
 				});
 			}
 
 			function dismissSpotlight() {
-				ctx.transient.dismiss(SPOTLIGHT_ID);
+				spotlightState.active = false;
+				notifyUpdate();
 				wsProvider?.broadcast({ kind: "spotlight-dismiss" });
 			}
 
@@ -136,7 +212,6 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				order: 70,
 				onPointerDown: (_toolCtx: ToolContext, event: CanvasPointerEvent) => {
 					if (isActive) {
-						// 2回目のクリックで解除してselectに戻る
 						dismissSpotlight();
 						isActive = false;
 						ctx.store.setActiveToolId("select");
@@ -151,7 +226,6 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				},
 			});
 
-			// ツール切替でスポットライト解除
 			let wasToolActive = ctx.store.getActiveToolId() === TOOL_ID;
 			const unsubToolChange = ctx.store.subscribe(() => {
 				const isToolActive = ctx.store.getActiveToolId() === TOOL_ID;
@@ -165,7 +239,8 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			cleanup = () => {
 				unsubBroadcast?.();
 				unsubToolChange();
-				ctx.transient.dismiss(SPOTLIGHT_ID);
+				ctx.layers.unregister("spotlight");
+				spotlightState.active = false;
 			};
 		},
 
