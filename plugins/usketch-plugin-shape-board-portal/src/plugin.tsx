@@ -219,7 +219,7 @@ function PortalIcon() {
 
 export interface BoardPortalPluginOptions {
 	onPortalOpen?: (boardId: string) => void;
-	onPortalCreate?: (shapeId: string, position: { x: number; y: number }) => void;
+	onPortalCreate?: (shapeId: string, position: { x: number; y: number }, isPublic: boolean) => void;
 }
 
 export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): UsketchPlugin {
@@ -266,7 +266,12 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 			});
 
 			// ポータル作成ツール
-			let drawState: { startX: number; startY: number; shapeId: string } | null = null;
+			let drawState: {
+				startX: number;
+				startY: number;
+				shapeId: string;
+				isPublic: boolean;
+			} | null = null;
 
 			ctx.tools.register("board-portal-create", {
 				icon: PortalIcon,
@@ -274,10 +279,12 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 				order: 5,
 				onPointerDown: (toolCtx: ToolContext, event: CanvasPointerEvent) => {
 					const id = generateId();
+					const isPublic = !event.shiftKey;
 					drawState = {
 						startX: event.worldPoint.x,
 						startY: event.worldPoint.y,
 						shapeId: id,
+						isPublic,
 					};
 					const shape = createDefault({
 						id,
@@ -286,6 +293,7 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 					});
 					shape.width = 0;
 					shape.height = 0;
+					shape.isPublic = isPublic;
 					toolCtx.store.addShape(shape);
 				},
 				onPointerMove: (toolCtx: ToolContext, event: CanvasPointerEvent) => {
@@ -301,10 +309,11 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 					const shape = toolCtx.store.getShape(drawState.shapeId);
 					if (shape && shape.width > 20 && shape.height > 20) {
 						// ポータル作成をアプリに通知
-						options?.onPortalCreate?.(drawState.shapeId, {
-							x: shape.x,
-							y: shape.y,
-						});
+						options?.onPortalCreate?.(
+							drawState.shapeId,
+							{ x: shape.x, y: shape.y },
+							drawState.isPublic,
+						);
 					} else {
 						toolCtx.store.deleteShape(drawState.shapeId);
 					}

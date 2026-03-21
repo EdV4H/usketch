@@ -49,18 +49,19 @@ export function CommunityPage() {
 			onPortalOpen: (boardId) => {
 				navigate(`/boards/${boardId}`);
 			},
-			onPortalCreate: async (shapeId, _position) => {
+			onPortalCreate: async (shapeId, _position, isPublic) => {
 				// ボードを作成してシェイプにboardIdを紐付け
 				try {
 					const board = await api.boards.create("New Board");
-					// コミュニティから作成したボードはデフォルト公開
-					await api.boards.update(board.id, { isPublic: true });
+					if (isPublic) {
+						await api.boards.update(board.id, { isPublic: true });
+					}
 					store.updateShape(shapeId, {
 						boardId: board.id,
 						boardTitle: board.title,
 						ownerName: authUserName ?? "",
 						ownerImage: authUserImage ?? "",
-						isPublic: true,
+						isPublic,
 					});
 				} catch (e) {
 					console.error("Failed to create board:", e);
