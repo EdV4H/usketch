@@ -65,100 +65,98 @@ function ChatIcon() {
 }
 
 /**
- * チャット入力ダイアログをDOMで直接管理。
- * Reactのレンダーサイクルに依存せず即座に表示/非表示を切り替える。
+ * カーソルに追従するフローティングInput。
+ * ツール選択中は常に表示され、マウス移動に追従する。
  */
-function createChatInputDialog() {
-	let onSubmit: ((text: string, point: { x: number; y: number }) => void) | null = null;
-	let worldPoint = { x: 0, y: 0 };
+function createFloatingInput() {
+	let onPlace: ((text: string, worldPoint: { x: number; y: number }) => void) | null = null;
+	let currentWorldPoint = { x: 0, y: 0 };
 
-	// ルートコンテナ
-	const overlay = document.createElement("div");
-	Object.assign(overlay.style, {
+	const container = document.createElement("div");
+	Object.assign(container.style, {
 		position: "fixed",
-		inset: "0",
-		zIndex: "200",
+		zIndex: "150",
 		display: "none",
+		pointerEvents: "none",
 	});
 
-	// 背景クリックでキャンセル
-	overlay.addEventListener("pointerdown", (e) => {
-		if (e.target === overlay) {
-			hide();
-		}
-	});
-
-	const dialog = document.createElement("div");
-	Object.assign(dialog.style, {
-		position: "absolute",
+	const inputWrap = document.createElement("div");
+	Object.assign(inputWrap.style, {
 		background: "#fff",
-		borderRadius: "12px",
-		padding: "16px",
-		boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
-		minWidth: "240px",
+		borderRadius: "10px",
+		padding: "6px 10px",
+		boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+		border: "2px solid #0066ff",
+		pointerEvents: "auto",
+		minWidth: "180px",
 	});
-	dialog.addEventListener("pointerdown", (e) => e.stopPropagation());
 
 	const input = document.createElement("input");
 	input.type = "text";
-	input.placeholder = "Type a message...";
+	input.placeholder = "Type and click to place...";
 	input.maxLength = 200;
 	Object.assign(input.style, {
 		width: "100%",
-		padding: "8px 12px",
-		fontSize: "14px",
-		border: "1px solid #ddd",
-		borderRadius: "8px",
+		padding: "4px 6px",
+		fontSize: "13px",
+		border: "none",
 		outline: "none",
 		fontFamily: "system-ui, sans-serif",
 		boxSizing: "border-box",
+		background: "transparent",
 	});
 
 	input.addEventListener("keydown", (e) => {
 		e.stopPropagation();
 		if (e.key === "Enter" && input.value.trim()) {
-			onSubmit?.(input.value.trim(), worldPoint);
-			hide();
-		} else if (e.key === "Escape") {
-			hide();
+			onPlace?.(input.value.trim(), currentWorldPoint);
+			input.value = "";
+			input.focus();
 		}
 	});
 
-	const hint = document.createElement("div");
-	Object.assign(hint.style, { fontSize: "11px", color: "#999", marginTop: "4px" });
-	hint.textContent = "Enter to send, Esc to cancel";
+	inputWrap.appendChild(input);
+	container.appendChild(inputWrap);
+	document.body.appendChild(container);
 
-	dialog.appendChild(input);
-	dialog.appendChild(hint);
-	overlay.appendChild(dialog);
-	document.body.appendChild(overlay);
-
-	function show(point: { x: number; y: number }, screenX: number, screenY: number) {
-		worldPoint = point;
+	function show() {
+		container.style.display = "block";
 		input.value = "";
-		// 画面端からはみ出さないよう位置を調整
-		const pad = 8;
-		const left = Math.min(screenX, window.innerWidth - 260 - pad);
-		const top = Math.min(screenY + 12, window.innerHeight - 80 - pad);
-		dialog.style.left = `${Math.max(pad, left)}px`;
-		dialog.style.top = `${Math.max(pad, top)}px`;
-		overlay.style.display = "block";
 		requestAnimationFrame(() => input.focus());
 	}
 
 	function hide() {
-		overlay.style.display = "none";
+		container.style.display = "none";
+		input.value = "";
+	}
+
+	function moveTo(screenX: number, screenY: number, worldPoint: { x: number; y: number }) {
+		currentWorldPoint = worldPoint;
+		// Inputはカーソルの右下に表示
+		const pad = 8;
+		const left = Math.min(screenX + 16, window.innerWidth - 200 - pad);
+		const top = Math.min(screenY + 16, window.innerHeight - 40 - pad);
+		container.style.left = `${Math.max(pad, left)}px`;
+		container.style.top = `${Math.max(pad, top)}px`;
+	}
+
+	function placeAtCursor() {
+		if (input.value.trim()) {
+			onPlace?.(input.value.trim(), currentWorldPoint);
+			input.value = "";
+			input.focus();
+		}
 	}
 
 	function destroy() {
-		overlay.remove();
+		container.remove();
 	}
 
-	function setOnSubmit(fn: (text: string, point: { x: number; y: number }) => void) {
-		onSubmit = fn;
+	function setOnPlace(fn: (text: string, worldPoint: { x: number; y: number }) => void) {
+		onPlace = fn;
 	}
 
-	return { show, hide, destroy, setOnSubmit };
+	return { show, hide, moveTo, placeAtCursor, destroy, setOnPlace };
 }
 
 function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
@@ -173,7 +171,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				render: (obj) => <ChatBubble obj={obj} />,
 			});
 
-			const chatDialog = createChatInputDialog();
+			const floatingInput = createFloatingInput();
 			let bubbleCounter = 0;
 
 			let unsubBroadcast: (() => void) | undefined;
@@ -240,23 +238,30 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				});
 			}
 
-			chatDialog.setOnSubmit(emitBubble);
-
-			function onPointerDown(_toolCtx: ToolContext, event: CanvasPointerEvent) {
-				chatDialog.show(event.worldPoint, event.screenPoint.x, event.screenPoint.y);
-			}
+			floatingInput.setOnPlace(emitBubble);
 
 			ctx.tools.register("spatial-chat", {
 				icon: ChatIcon,
 				cursor: "text",
 				shortcut: "c",
 				order: 65,
-				onPointerDown,
+				onActivate: () => {
+					floatingInput.show();
+				},
+				onDeactivate: () => {
+					floatingInput.hide();
+				},
+				onPointerMove: (_toolCtx: ToolContext, event: CanvasPointerEvent) => {
+					floatingInput.moveTo(event.screenPoint.x, event.screenPoint.y, event.worldPoint);
+				},
+				onPointerDown: () => {
+					floatingInput.placeAtCursor();
+				},
 			});
 
 			cleanup = () => {
 				unsubBroadcast?.();
-				chatDialog.destroy();
+				floatingInput.destroy();
 			};
 		},
 
