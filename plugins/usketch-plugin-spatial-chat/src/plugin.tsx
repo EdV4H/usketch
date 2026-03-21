@@ -77,7 +77,6 @@ function createFloatingInput() {
 		position: "fixed",
 		zIndex: "150",
 		display: "none",
-		pointerEvents: "none",
 	});
 
 	const inputWrap = document.createElement("div");
@@ -122,7 +121,8 @@ function createFloatingInput() {
 	function show() {
 		container.style.display = "block";
 		input.value = "";
-		requestAnimationFrame(() => input.focus());
+		// 確実にフォーカスが当たるよう少し遅延
+		setTimeout(() => input.focus(), 50);
 	}
 
 	function hide() {
@@ -214,6 +214,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			}
 
 			function emitBubble(text: string, point: { x: number; y: number }) {
+				console.log("[chat] emitBubble", { text, point });
 				const id = `chat-${Date.now()}-${bubbleCounter++}`;
 				const { name, color } = getUserInfo();
 
