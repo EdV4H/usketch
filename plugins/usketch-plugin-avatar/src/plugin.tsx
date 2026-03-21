@@ -1,7 +1,8 @@
 import type { PluginContext, TransientObject, UsketchPlugin } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { AvatarCircle } from "./avatar-circle.js";
-import { createRadialMenu, type RadialMenuItem } from "./radial-menu.js";
+import type { RadialMenuItem } from "./radial-menu.js";
+import { RadialMenuRenderer } from "./radial-menu-renderer.js";
 
 const AVATAR_SIZE = 40;
 
@@ -102,34 +103,53 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				});
 			}
 
-			// ツールIDからアイコン文字のマッピング
-			const TOOL_ICONS: Record<string, string> = {
-				select: "🔲",
-				"rectangle-draw": "⬜",
-				"ellipse-draw": "⭕",
-				"freedraw-draw": "✏️",
-				"text-draw": "T",
-				"effect-ripple": "💧",
-				reaction: "😀",
-				laser: "🔴",
-				"spatial-chat": "💬",
-				spotlight: "🔦",
-				voting: "📊",
-				"board-portal-create": "🏠",
-			};
-
-			const radialMenu = createRadialMenu((toolId) => {
-				ctx.store.setActiveToolId(toolId);
-			});
+			const RADIAL_MENU_ID = "avatar-radial-menu";
+			let radialMenuVisible = false;
 
 			function getToolMenuItems(): RadialMenuItem[] {
 				const tools = ctx.tools.getOrdered();
 				return tools.map(({ id, definition }) => ({
 					id,
 					label: `${id}${definition.shortcut ? ` (${definition.shortcut})` : ""}`,
-					icon: TOOL_ICONS[id] ?? "•",
+					icon: definition.icon,
 				}));
 			}
+
+			function showRadialMenu() {
+				radialMenuVisible = true;
+				const vp = ctx.store.getViewport();
+				const worldCenterX = (window.innerWidth / 2 - vp.x) / vp.zoom;
+				const worldCenterY = (window.innerHeight / 2 - vp.y) / vp.zoom;
+				ctx.transient.dismiss(RADIAL_MENU_ID);
+				ctx.transient.emit({
+					id: RADIAL_MENU_ID,
+					type: "radial-menu",
+					sourceUserId: "local",
+					position: { x: worldCenterX, y: worldCenterY },
+					data: {
+						items: getToolMenuItems(),
+						interactive: true,
+					},
+					createdAt: Date.now(),
+				});
+			}
+
+			function hideRadialMenu() {
+				radialMenuVisible = false;
+				ctx.transient.dismiss(RADIAL_MENU_ID);
+			}
+
+			ctx.transient.registerType("radial-menu", {
+				render: (obj) => (
+					<RadialMenuRenderer
+						obj={obj}
+						onSelect={(toolId) => {
+							ctx.store.setActiveToolId(toolId);
+							hideRadialMenu();
+						}}
+					/>
+				),
+			});
 
 			function registerSelfLayer() {
 				ctx.layers.unregister("avatar-self");
@@ -149,10 +169,11 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 							}}
 							onPointerDown={(e) => {
 								e.stopPropagation();
-								const rect = e.currentTarget.getBoundingClientRect();
-								const cx = rect.left + rect.width / 2;
-								const cy = rect.top + rect.height / 2;
-								radialMenu.toggle(cx, cy, getToolMenuItems());
+								if (radialMenuVisible) {
+									hideRadialMenu();
+								} else {
+									showRadialMenu();
+								}
 							}}
 						>
 							<AvatarCircle
@@ -253,7 +274,7 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				clearTimeout(delayedCheck);
 				awareness.off("change", onAwarenessChange);
 				unsubStore();
-				radialMenu.destroy();
+				hideRadialMenu();
 				ctx.layers.unregister("avatar-self");
 			};
 		},
