@@ -107,7 +107,7 @@ function createFloatingInput() {
 
 	input.addEventListener("keydown", (e) => {
 		e.stopPropagation();
-		if (e.key === "Enter") {
+		if (e.key === "Enter" && !e.isComposing) {
 			e.preventDefault();
 			if (input.value.trim()) {
 				onPlace?.(input.value.trim(), currentWorldPoint);
