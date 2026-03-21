@@ -53,6 +53,8 @@ export function CommunityPage() {
 				// ボードを作成してシェイプにboardIdを紐付け
 				try {
 					const board = await api.boards.create("New Board");
+					// コミュニティから作成したボードはデフォルト公開
+					await api.boards.update(board.id, { isPublic: true });
 					store.updateShape(shapeId, {
 						boardId: board.id,
 						boardTitle: board.title,
