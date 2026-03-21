@@ -19,6 +19,7 @@ function renderContent(data: ShapeData) {
 	const ownerName = (data.ownerName as string) || "";
 	const ownerImage = (data.ownerImage as string) || "";
 	const memberCount = (data.memberCount as number) || 0;
+	const isPublic = data.isPublic !== false;
 
 	return (
 		<div
@@ -27,7 +28,7 @@ function renderContent(data: ShapeData) {
 				height: "100%",
 				background: "#fff",
 				borderRadius: 12,
-				outline: "2px solid #e0e0e0",
+				outline: `2px solid ${isPublic ? "#e0e0e0" : "#f0c040"}`,
 				outlineOffset: -2,
 				overflow: "hidden",
 				fontFamily: "system-ui, sans-serif",
@@ -40,15 +41,33 @@ function renderContent(data: ShapeData) {
 			<div
 				style={{
 					flex: 1,
-					background: "#f8f9fa",
+					background: isPublic ? "#f8f9fa" : "#fffbe6",
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
 					fontSize: 32,
 					color: "#ddd",
+					position: "relative",
 				}}
 			>
 				⌂
+				{!isPublic && (
+					<div
+						style={{
+							position: "absolute",
+							top: 6,
+							right: 6,
+							fontSize: 14,
+							color: "#c0960a",
+						}}
+						title="Private board"
+					>
+						<svg width="16" height="16" viewBox="0 0 16 16">
+							<rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" opacity="0.8" />
+							<path d="M5 7V5a3 3 0 016 0v2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+						</svg>
+					</div>
+				)}
 			</div>
 			{/* 情報バー */}
 			<div
@@ -173,6 +192,7 @@ function createDefault(params: { id: string; x: number; y: number }): ShapeData 
 		ownerName: "",
 		ownerImage: "",
 		memberCount: 0,
+		isPublic: true,
 	};
 }
 

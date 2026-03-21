@@ -60,6 +60,7 @@ export function CommunityPage() {
 						boardTitle: board.title,
 						ownerName: authUserName ?? "",
 						ownerImage: authUserImage ?? "",
+						isPublic: true,
 					});
 				} catch (e) {
 					console.error("Failed to create board:", e);
