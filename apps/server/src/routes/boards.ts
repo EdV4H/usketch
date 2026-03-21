@@ -2,7 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { boardMembers, boards, users } from "../db/schema.js";
+import { activityLog, boardMembers, boards, users } from "../db/schema.js";
 import type { AppDb, Env } from "../types.js";
 
 type BoardsEnv = {
@@ -355,6 +355,33 @@ boardsApp.patch("/:id/viewport", zValidator("json", viewportSchema), async (c) =
 		.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
 
 	return c.json({ ok: true });
+});
+
+// GET /api/boards/:id/activity — アクティビティログ取得
+boardsApp.get("/:id/activity", async (c) => {
+	const db = c.get("db");
+	const userId = c.get("userId");
+	const boardId = c.req.param("id");
+
+	// メンバーシップ確認
+	const membership = await db
+		.select({ role: boardMembers.role })
+		.from(boardMembers)
+		.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)))
+		.limit(1);
+
+	if (membership.length === 0) {
+		return c.json({ error: "Board not found" }, 404);
+	}
+
+	const entries = await db
+		.select()
+		.from(activityLog)
+		.where(eq(activityLog.boardId, boardId))
+		.orderBy(desc(activityLog.createdAt))
+		.limit(50);
+
+	return c.json(entries);
 });
 
 export { boardsApp };
