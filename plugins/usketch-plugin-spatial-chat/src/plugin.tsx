@@ -101,8 +101,7 @@ function ChatInput({
 					background: "#fff",
 					borderRadius: 10,
 					padding: "6px 10px",
-					boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
-					border: "2px solid #0066ff",
+					border: "1px solid #ddd",
 					minWidth: 180,
 				}}
 			>
