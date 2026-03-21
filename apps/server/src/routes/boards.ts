@@ -66,6 +66,29 @@ boardsApp.post("/", zValidator("json", createBoardSchema), async (c) => {
 	return c.json({ id, title: body.title ?? "Untitled", createdAt: now }, 201);
 });
 
+// GET /api/boards/discover — 公開ボード一覧（コミュニティエリア用）
+boardsApp.get("/discover", async (c) => {
+	const db = c.get("db");
+
+	const result = await db
+		.select({
+			id: boards.id,
+			title: boards.title,
+			ownerId: boards.ownerId,
+			ownerName: users.name,
+			ownerImage: users.image,
+			createdAt: boards.createdAt,
+			updatedAt: boards.updatedAt,
+		})
+		.from(boards)
+		.innerJoin(users, eq(boards.ownerId, users.id))
+		.where(eq(boards.isPublic, true))
+		.orderBy(desc(boards.updatedAt))
+		.limit(50);
+
+	return c.json(result);
+});
+
 // GET /api/boards — ボード一覧（自分がメンバーのボード）
 boardsApp.get("/", async (c) => {
 	const db = c.get("db");

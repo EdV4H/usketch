@@ -39,9 +39,20 @@ export interface Board {
 	role: string | null;
 }
 
+export interface DiscoverBoard {
+	id: string;
+	title: string;
+	ownerId: string;
+	ownerName: string;
+	ownerImage: string | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export const api = {
 	boards: {
 		list: () => fetchApi<Board[]>("/api/boards"),
+		discover: () => fetchApi<DiscoverBoard[]>("/api/boards/discover"),
 		get: (id: string) => fetchApi<Board>(`/api/boards/${id}`),
 		create: (title?: string) =>
 			fetchApi<{ id: string; title: string; createdAt: string }>("/api/boards", {
