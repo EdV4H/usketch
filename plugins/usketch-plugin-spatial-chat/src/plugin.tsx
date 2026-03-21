@@ -6,8 +6,10 @@ import type {
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
+import { useRef } from "react";
 
 const BUBBLE_TTL = 10000;
+const INPUT_ID = "chat-input-active";
 
 function ChatBubble({ obj }: { obj: TransientObject }) {
 	const text = (obj.data.text as string) || "";
@@ -48,6 +50,62 @@ function ChatBubble({ obj }: { obj: TransientObject }) {
 	);
 }
 
+function ChatInput({ onPlace }: { onPlace: (text: string) => void }) {
+	const inputRef = useRef<HTMLInputElement>(null);
+
+	return (
+		<div
+			style={{
+				position: "absolute",
+				left: 16,
+				top: -16,
+			}}
+		>
+			<div
+				style={{
+					background: "#fff",
+					borderRadius: 10,
+					padding: "6px 10px",
+					boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+					border: "2px solid #0066ff",
+					minWidth: 180,
+				}}
+			>
+				<input
+					ref={inputRef}
+					// biome-ignore lint/a11y/noAutofocus: chat input needs immediate focus
+					autoFocus
+					type="text"
+					placeholder="Type and Enter..."
+					maxLength={200}
+					style={{
+						width: "100%",
+						padding: "4px 6px",
+						fontSize: 13,
+						border: "none",
+						outline: "none",
+						fontFamily: "system-ui, sans-serif",
+						boxSizing: "border-box",
+						background: "transparent",
+					}}
+					onKeyDown={(e) => {
+						e.stopPropagation();
+						if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+							e.preventDefault();
+							const val = e.currentTarget.value.trim();
+							if (val) {
+								onPlace(val);
+								e.currentTarget.value = "";
+							}
+						}
+					}}
+					onPointerDown={(e) => e.stopPropagation()}
+				/>
+			</div>
+		</div>
+	);
+}
+
 function ChatIcon() {
 	return (
 		<svg width="20" height="20" viewBox="0 0 20 20">
@@ -64,103 +122,6 @@ function ChatIcon() {
 	);
 }
 
-/**
- * カーソルに追従するフローティングInput。
- * ツール選択中は常に表示され、マウス移動に追従する。
- */
-function createFloatingInput() {
-	let onPlace: ((text: string, worldPoint: { x: number; y: number }) => void) | null = null;
-	let currentWorldPoint = { x: 0, y: 0 };
-
-	const container = document.createElement("div");
-	Object.assign(container.style, {
-		position: "fixed",
-		zIndex: "150",
-		display: "none",
-	});
-
-	const inputWrap = document.createElement("div");
-	Object.assign(inputWrap.style, {
-		background: "#fff",
-		borderRadius: "10px",
-		padding: "6px 10px",
-		boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
-		border: "2px solid #0066ff",
-		pointerEvents: "auto",
-		minWidth: "180px",
-	});
-
-	const input = document.createElement("input");
-	input.type = "text";
-	input.placeholder = "Type and click to place...";
-	input.maxLength = 200;
-	Object.assign(input.style, {
-		width: "100%",
-		padding: "4px 6px",
-		fontSize: "13px",
-		border: "none",
-		outline: "none",
-		fontFamily: "system-ui, sans-serif",
-		boxSizing: "border-box",
-		background: "transparent",
-	});
-
-	input.addEventListener("keydown", (e) => {
-		e.stopPropagation();
-		if (e.key === "Enter" && !e.isComposing) {
-			e.preventDefault();
-			if (input.value.trim()) {
-				onPlace?.(input.value.trim(), currentWorldPoint);
-				input.value = "";
-			}
-		}
-	});
-
-	inputWrap.appendChild(input);
-	container.appendChild(inputWrap);
-	document.body.appendChild(container);
-
-	function show() {
-		container.style.display = "block";
-		input.value = "";
-		// 確実にフォーカスが当たるよう少し遅延
-		setTimeout(() => input.focus(), 50);
-	}
-
-	function hide() {
-		container.style.display = "none";
-		input.value = "";
-	}
-
-	function moveTo(screenX: number, screenY: number, worldPoint: { x: number; y: number }) {
-		currentWorldPoint = worldPoint;
-		// Inputはカーソルの右下に表示
-		const pad = 8;
-		const left = Math.min(screenX + 16, window.innerWidth - 200 - pad);
-		const top = Math.min(screenY + 16, window.innerHeight - 40 - pad);
-		container.style.left = `${Math.max(pad, left)}px`;
-		container.style.top = `${Math.max(pad, top)}px`;
-	}
-
-	function placeAtCursor() {
-		if (input.value.trim()) {
-			onPlace?.(input.value.trim(), currentWorldPoint);
-			input.value = "";
-			input.focus();
-		}
-	}
-
-	function destroy() {
-		container.remove();
-	}
-
-	function setOnPlace(fn: (text: string, worldPoint: { x: number; y: number }) => void) {
-		onPlace = fn;
-	}
-
-	return { show, hide, moveTo, placeAtCursor, destroy, setOnPlace };
-}
-
 function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 	let cleanup: (() => void) | undefined;
 
@@ -169,12 +130,54 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 		name: "空間チャット",
 
 		setup(ctx: PluginContext) {
+			let bubbleCounter = 0;
+			let currentWorldPoint = { x: 0, y: 0 };
+
+			function getUserInfo(): { name: string; color: string } {
+				if (!wsProvider) return { name: "", color: "#333" };
+				const local = wsProvider.awareness.getLocalState();
+				const user = local?.user as { name?: string; color?: string } | undefined;
+				return { name: user?.name ?? "", color: user?.color ?? "#333" };
+			}
+
+			function emitBubble(text: string, point: { x: number; y: number }) {
+				const id = `chat-${Date.now()}-${bubbleCounter++}`;
+				const { name, color } = getUserInfo();
+
+				ctx.transient.emit({
+					id,
+					type: "chat-bubble",
+					sourceUserId: "local",
+					position: point,
+					data: { text, name, color },
+					ttl: BUBBLE_TTL,
+					createdAt: Date.now(),
+				});
+
+				wsProvider?.broadcast({
+					kind: "chat-bubble",
+					id,
+					sourceUserId: "local",
+					position: point,
+					text,
+					name,
+					color,
+				});
+			}
+
 			ctx.transient.registerType("chat-bubble", {
 				render: (obj) => <ChatBubble obj={obj} />,
 			});
 
-			const floatingInput = createFloatingInput();
-			let bubbleCounter = 0;
+			ctx.transient.registerType("chat-input", {
+				render: () => (
+					<ChatInput
+						onPlace={(text) => {
+							emitBubble(text, currentWorldPoint);
+						}}
+					/>
+				),
+			});
 
 			let unsubBroadcast: (() => void) | undefined;
 			if (wsProvider) {
@@ -208,40 +211,22 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				});
 			}
 
-			function getUserInfo(): { name: string; color: string } {
-				if (!wsProvider) return { name: "", color: "#333" };
-				const local = wsProvider.awareness.getLocalState();
-				const user = local?.user as { name?: string; color?: string } | undefined;
-				return { name: user?.name ?? "", color: user?.color ?? "#333" };
-			}
-
-			function emitBubble(text: string, point: { x: number; y: number }) {
-				console.log("[chat] emitBubble", { text, point });
-				const id = `chat-${Date.now()}-${bubbleCounter++}`;
-				const { name, color } = getUserInfo();
-
+			function showInput(point: { x: number; y: number }) {
+				currentWorldPoint = point;
+				ctx.transient.dismiss(INPUT_ID);
 				ctx.transient.emit({
-					id,
-					type: "chat-bubble",
+					id: INPUT_ID,
+					type: "chat-input",
 					sourceUserId: "local",
 					position: point,
-					data: { text, name, color },
-					ttl: BUBBLE_TTL,
+					data: { interactive: true },
 					createdAt: Date.now(),
 				});
-
-				wsProvider?.broadcast({
-					kind: "chat-bubble",
-					id,
-					sourceUserId: "local",
-					position: point,
-					text,
-					name,
-					color,
-				});
 			}
 
-			floatingInput.setOnPlace(emitBubble);
+			function hideInput() {
+				ctx.transient.dismiss(INPUT_ID);
+			}
 
 			const TOOL_ID = "spatial-chat";
 
@@ -251,23 +236,26 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				shortcut: "c",
 				order: 65,
 				onPointerMove: (_toolCtx: ToolContext, event: CanvasPointerEvent) => {
-					floatingInput.moveTo(event.screenPoint.x, event.screenPoint.y, event.worldPoint);
+					showInput(event.worldPoint);
 				},
-				onPointerDown: () => {
-					floatingInput.placeAtCursor();
+				onPointerDown: (_toolCtx: ToolContext, event: CanvasPointerEvent) => {
+					const inputEl = document.querySelector<HTMLInputElement>(
+						'input[placeholder="Type and Enter..."]',
+					);
+					if (inputEl && inputEl.value.trim()) {
+						emitBubble(inputEl.value.trim(), event.worldPoint);
+						inputEl.value = "";
+					}
+					currentWorldPoint = event.worldPoint;
 				},
 			});
 
-			// onActivateが未実装なので、store subscribeでツール切替を検知
+			// ツール切替でInput表示/非表示
 			let wasActive = ctx.store.getActiveToolId() === TOOL_ID;
-			if (wasActive) floatingInput.show();
-
 			const unsubToolChange = ctx.store.subscribe(() => {
 				const isActive = ctx.store.getActiveToolId() === TOOL_ID;
-				if (isActive && !wasActive) {
-					floatingInput.show();
-				} else if (!isActive && wasActive) {
-					floatingInput.hide();
+				if (!isActive && wasActive) {
+					hideInput();
 				}
 				wasActive = isActive;
 			});
@@ -275,7 +263,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			cleanup = () => {
 				unsubBroadcast?.();
 				unsubToolChange();
-				floatingInput.destroy();
+				hideInput();
 			};
 		},
 

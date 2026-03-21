@@ -22,7 +22,7 @@ export function TransientLayer({
 							position: "absolute",
 							left: obj.position.x,
 							top: obj.position.y,
-							pointerEvents: "none",
+							pointerEvents: obj.data.interactive ? "auto" : "none",
 						}}
 					>
 						{renderer.render(obj, ctx)}
