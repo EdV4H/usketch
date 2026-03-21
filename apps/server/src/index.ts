@@ -55,6 +55,19 @@ app.get("/api/boards/:boardId/ws", async (c) => {
 
 	if (boardId === COMMUNITY_BOARD_ID) {
 		// コミュニティロビーは全認証ユーザーにオープン — 存在しなければ自動作成
+		// DEV_MODE: ユーザーが存在しない場合はFK制約のため自動作成
+		if (c.env.DEV_MODE === "true") {
+			await db
+				.insert(schema.users)
+				.values({
+					id: userId,
+					name: "Dev User",
+					email: `${userId}@dev.local`,
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				})
+				.onConflictDoNothing();
+		}
 		// onConflictDoNothingで並行作成に対応
 		const now = new Date().toISOString();
 		await db

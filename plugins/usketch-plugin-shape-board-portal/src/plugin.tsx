@@ -224,8 +224,6 @@ export interface BoardPortalPluginOptions {
 }
 
 export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): UsketchPlugin {
-	let cleanup: (() => void) | undefined;
-
 	function renderWithDblClick(data: ShapeData) {
 		const boardId = data.boardId as string;
 		return (
@@ -328,12 +326,6 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 					toolCtx.store.setActiveToolId("select");
 				},
 			});
-
-			cleanup = undefined;
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }
