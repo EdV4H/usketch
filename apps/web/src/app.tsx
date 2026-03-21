@@ -181,9 +181,14 @@ export function App() {
 			const vc = local?.viewportCenter as { x: number; y: number } | undefined;
 			if (!vc) return;
 			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+			const headers: Record<string, string> = { "Content-Type": "application/json" };
+			if (import.meta.env.DEV) {
+				const devUser = getDevUser();
+				if (devUser) headers["X-User-Id"] = devUser.id;
+			}
 			fetch(`${apiUrl}/api/boards/${boardId}/viewport`, {
 				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
+				headers,
 				body: JSON.stringify(vc),
 				credentials: "include",
 				keepalive: true,
@@ -273,7 +278,7 @@ export function App() {
 						Unable to connect — you may not have access to this board
 					</div>
 				)}
-				{isCloudBoard && wsStatus === "connecting" && !app && (
+				{isCloudBoard && wsStatus === "connecting" && (
 					<div
 						style={{
 							position: "fixed",

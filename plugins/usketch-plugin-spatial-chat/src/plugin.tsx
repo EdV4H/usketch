@@ -62,7 +62,10 @@ function ChatInput({
 }: {
 	obj: TransientObject;
 	onPlace: (text: string, worldPoint: { x: number; y: number }) => void;
-	events: { on: <T>(event: string, handler: (data: T) => void) => () => void };
+	events: {
+		on: <T>(event: string, handler: (data: T) => void) => () => void;
+		emit: <T>(event: string, data: T) => void;
+	};
 }) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -85,6 +88,24 @@ function ChatInput({
 	useEffect(() => {
 		setTimeout(() => inputRef.current?.focus(), 50);
 	}, []);
+
+	// クリック配置イベントを受信
+	useEffect(() => {
+		const unsub = events.on<{ worldX: number; worldY: number }>(
+			"chat:place",
+			({ worldX, worldY }) => {
+				const val = inputRef.current?.value.trim();
+				if (val) {
+					onPlace(val, { x: worldX, y: worldY });
+					if (inputRef.current) inputRef.current.value = "";
+					setTimeout(() => inputRef.current?.focus(), 0);
+				} else {
+					events.emit("chat:empty-click", {});
+				}
+			},
+		);
+		return unsub;
+	}, [events, onPlace]);
 
 	return (
 		<div
@@ -267,19 +288,15 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 					});
 				},
 				onPointerDown: (_toolCtx: ToolContext, event: CanvasPointerEvent) => {
-					const inputEl = document.querySelector<HTMLInputElement>(
-						'input[placeholder="Type and Enter..."]',
-					);
-					if (inputEl?.value.trim()) {
-						emitBubble(inputEl.value.trim(), event.worldPoint);
-						inputEl.value = "";
-						// pointerdown後にブラウザがキャンバスにフォーカスを移すので遅延で戻す
-						setTimeout(() => inputEl?.focus(), 0);
-					} else {
-						// 未入力クリックはSelectツールに戻る
-						ctx.store.setActiveToolId("select");
-					}
+					ctx.events.emit("chat:place", {
+						worldX: event.worldPoint.x,
+						worldY: event.worldPoint.y,
+					});
 				},
+			});
+
+			const unsubEmptyClick = ctx.events.on("chat:empty-click", () => {
+				ctx.store.setActiveToolId("select");
 			});
 
 			let wasActive = ctx.store.getActiveToolId() === TOOL_ID;
@@ -298,6 +315,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			cleanup = () => {
 				unsubBroadcast?.();
 				unsubToolChange();
+				unsubEmptyClick();
 				hideInput();
 			};
 		},

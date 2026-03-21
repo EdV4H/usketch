@@ -95,7 +95,9 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 					const newX = screenCenterX - vc.x * viewport.zoom;
 					const newY = screenCenterY - vc.y * viewport.zoom;
 
-					ctx.store.setViewport({ ...viewport, x: newX, y: newY });
+					if (viewport.x !== newX || viewport.y !== newY) {
+						ctx.store.setViewport({ ...viewport, x: newX, y: newY });
+					}
 				}
 			}
 

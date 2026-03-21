@@ -109,6 +109,8 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 		},
 		onStatusChange(handler: (status: WsConnectionStatus) => void): () => void {
 			statusListeners.add(handler);
+			// 現在の状態を即座に通知
+			handler(connected ? "connected" : "connecting");
 			return () => statusListeners.delete(handler);
 		},
 		destroy() {

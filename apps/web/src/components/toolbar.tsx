@@ -172,7 +172,10 @@ export function Toolbar({
 									onClick={() => {
 										setCurrentStatus(s);
 										setShowStatus(false);
+										const existing =
+											(wsProvider.awareness.getLocalState()?.user as Record<string, unknown>) ?? {};
 										wsProvider.awareness.setLocalStateField("user", {
+											...existing,
 											status: s,
 										});
 									}}
