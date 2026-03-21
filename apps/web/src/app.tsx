@@ -1,5 +1,6 @@
 import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
 import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { exportPlugin } from "@edv4h/usketch-plugin-export";
@@ -15,10 +16,12 @@ import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
 import { snapPlugin } from "@edv4h/usketch-plugin-snap";
 import { createSpatialChatPlugin, spatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
+import { createSpotlightPlugin, spotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
 import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
+import { createVotingPlugin, votingPlugin } from "@edv4h/usketch-plugin-voting";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import {
@@ -119,11 +122,22 @@ export function App() {
 					apiUrl,
 				}),
 			);
+			extraPlugins.push(createSpotlightPlugin(wsProvider));
+			extraPlugins.push(createVotingPlugin(wsProvider));
+			extraPlugins.push(
+				createActivityFeedPlugin({
+					wsProvider,
+					boardId,
+					apiUrl,
+				}),
+			);
 		} else {
 			extraPlugins.push(rippleEffectPlugin);
 			extraPlugins.push(reactionsPlugin);
 			extraPlugins.push(laserPlugin);
 			extraPlugins.push(spatialChatPlugin);
+			extraPlugins.push(spotlightPlugin);
+			extraPlugins.push(votingPlugin);
 		}
 
 		syncHandle.whenSynced

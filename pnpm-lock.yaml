@@ -66,6 +66,9 @@ importers:
       '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@edv4h/usketch-plugin-activity-feed':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-activity-feed
       '@edv4h/usketch-plugin-avatar':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-avatar
@@ -111,6 +114,9 @@ importers:
       '@edv4h/usketch-plugin-spatial-chat':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-spatial-chat
+      '@edv4h/usketch-plugin-spotlight':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-spotlight
       '@edv4h/usketch-plugin-sync-localstorage-yjs':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-sync-localstorage-yjs
@@ -123,6 +129,9 @@ importers:
       '@edv4h/usketch-plugin-viewport-nav':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-viewport-nav
+      '@edv4h/usketch-plugin-voting':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-voting
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -271,6 +280,28 @@ importers:
         specifier: workspace:*
         version: link:../shared
     devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-activity-feed:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -689,6 +720,28 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(tsx@4.21.0)
 
+  plugins/usketch-plugin-spotlight:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
   plugins/usketch-plugin-sync-localstorage-yjs:
     dependencies:
       '@edv4h/usketch-shared':
@@ -773,6 +826,28 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
     devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-voting:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
