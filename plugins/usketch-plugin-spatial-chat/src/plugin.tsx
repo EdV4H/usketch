@@ -107,10 +107,12 @@ function createFloatingInput() {
 
 	input.addEventListener("keydown", (e) => {
 		e.stopPropagation();
-		if (e.key === "Enter" && input.value.trim()) {
-			onPlace?.(input.value.trim(), currentWorldPoint);
-			input.value = "";
-			input.focus();
+		if (e.key === "Enter") {
+			e.preventDefault();
+			if (input.value.trim()) {
+				onPlace?.(input.value.trim(), currentWorldPoint);
+				input.value = "";
+			}
 		}
 	});
 
