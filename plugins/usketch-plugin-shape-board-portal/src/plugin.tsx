@@ -14,89 +14,87 @@ import {
 const PORTAL_WIDTH = 240;
 const PORTAL_HEIGHT = 160;
 
-function render(data: ShapeData) {
+function renderContent(data: ShapeData) {
 	const title = (data.boardTitle as string) || "Untitled";
 	const ownerName = (data.ownerName as string) || "";
 	const ownerImage = (data.ownerImage as string) || "";
 	const memberCount = (data.memberCount as number) || 0;
 
 	return (
-		<foreignObject x={data.x} y={data.y} width={data.width} height={data.height}>
+		<div
+			style={{
+				width: "100%",
+				height: "100%",
+				background: "#fff",
+				borderRadius: 12,
+				border: "2px solid #e0e0e0",
+				overflow: "hidden",
+				fontFamily: "system-ui, sans-serif",
+				display: "flex",
+				flexDirection: "column",
+				cursor: "pointer",
+			}}
+		>
+			{/* プレビュー領域 */}
 			<div
 				style={{
-					width: "100%",
-					height: "100%",
-					background: "#fff",
-					borderRadius: 12,
-					border: "2px solid #e0e0e0",
-					overflow: "hidden",
-					fontFamily: "system-ui, sans-serif",
+					flex: 1,
+					background: "#f8f9fa",
 					display: "flex",
-					flexDirection: "column",
-					cursor: "pointer",
+					alignItems: "center",
+					justifyContent: "center",
+					fontSize: 32,
+					color: "#ddd",
 				}}
 			>
-				{/* プレビュー領域 */}
+				⌂
+			</div>
+			{/* 情報バー */}
+			<div
+				style={{
+					padding: "8px 12px",
+					borderTop: "1px solid #eee",
+					background: "#fff",
+				}}
+			>
 				<div
 					style={{
-						flex: 1,
-						background: "#f8f9fa",
+						fontSize: 13,
+						fontWeight: 600,
+						color: "#333",
+						overflow: "hidden",
+						textOverflow: "ellipsis",
+						whiteSpace: "nowrap",
+					}}
+				>
+					{title}
+				</div>
+				<div
+					style={{
 						display: "flex",
 						alignItems: "center",
-						justifyContent: "center",
-						fontSize: 32,
-						color: "#ddd",
+						gap: 4,
+						marginTop: 4,
+						fontSize: 11,
+						color: "#999",
 					}}
 				>
-					⌂
-				</div>
-				{/* 情報バー */}
-				<div
-					style={{
-						padding: "8px 12px",
-						borderTop: "1px solid #eee",
-						background: "#fff",
-					}}
-				>
-					<div
-						style={{
-							fontSize: 13,
-							fontWeight: 600,
-							color: "#333",
-							overflow: "hidden",
-							textOverflow: "ellipsis",
-							whiteSpace: "nowrap",
-						}}
-					>
-						{title}
-					</div>
-					<div
-						style={{
-							display: "flex",
-							alignItems: "center",
-							gap: 4,
-							marginTop: 4,
-							fontSize: 11,
-							color: "#999",
-						}}
-					>
-						{ownerImage && (
-							<img
-								src={ownerImage}
-								alt=""
-								style={{
-									width: 14,
-									height: 14,
-									borderRadius: "50%",
-								}}
-							/>
-						)}
-						{ownerName && <span>{ownerName}</span>}
-						{memberCount > 0 && <span style={{ marginLeft: "auto" }}>{memberCount} online</span>}
-					</div>
+					{ownerImage && (
+						<img
+							src={ownerImage}
+							alt=""
+							style={{
+								width: 14,
+								height: 14,
+								borderRadius: "50%",
+							}}
+						/>
+					)}
+					{ownerName && <span>{ownerName}</span>}
+					{memberCount > 0 && <span style={{ marginLeft: "auto" }}>{memberCount} online</span>}
 				</div>
 			</div>
-		</foreignObject>
+		</div>
 	);
 }
 
@@ -206,27 +204,44 @@ export interface BoardPortalPluginOptions {
 export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): UsketchPlugin {
 	let cleanup: (() => void) | undefined;
 
+	function renderWithDblClick(data: ShapeData) {
+		const boardId = data.boardId as string;
+		return (
+			<foreignObject x={data.x} y={data.y} width={data.width} height={data.height}>
+				{/* biome-ignore lint/a11y/useSemanticElements: foreignObject内でbuttonは使えない */}
+				<div
+					role="button"
+					tabIndex={0}
+					onDoubleClick={() => {
+						if (boardId) options?.onPortalOpen?.(boardId);
+					}}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" && boardId) options?.onPortalOpen?.(boardId);
+					}}
+					style={{
+						width: "100%",
+						height: "100%",
+					}}
+				>
+					{renderContent(data)}
+				</div>
+			</foreignObject>
+		);
+	}
+
 	return {
 		id: "usketch-plugin-shape-board-portal",
 		name: "ボードポータル",
 
 		setup(ctx: PluginContext) {
 			ctx.shapes.register("board-portal", {
-				render,
+				render: renderWithDblClick,
 				getBounds,
 				hitTest,
 				resize,
 				createDefault,
 				renderTarget: "html",
 				minSize: { width: 160, height: 120 },
-			});
-
-			// ダブルクリックでボードを開く
-			const unsubDblClick = ctx.events.on<{ shapeId: string }>("shape:dblclick", ({ shapeId }) => {
-				const shape = ctx.store.getShape(shapeId);
-				if (shape?.type === "board-portal" && shape.boardId) {
-					options?.onPortalOpen?.(shape.boardId as string);
-				}
 			});
 
 			// ポータル作成ツール
@@ -277,9 +292,7 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 				},
 			});
 
-			cleanup = () => {
-				unsubDblClick();
-			};
+			cleanup = undefined;
 		},
 
 		teardown() {
