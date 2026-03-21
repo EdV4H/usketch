@@ -1,8 +1,9 @@
 import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
 import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
-import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
+import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createReactionsPlugin, reactionsPlugin } from "@edv4h/usketch-plugin-reactions";
 import { createBoardPortalPlugin } from "@edv4h/usketch-plugin-shape-board-portal";
@@ -11,6 +12,7 @@ import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
+import { createVotingPlugin, votingPlugin } from "@edv4h/usketch-plugin-voting";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { createWsProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
@@ -78,8 +80,9 @@ export function CommunityPage() {
 
 			extraPlugins.push(createRippleEffectPlugin(wsProvider));
 			extraPlugins.push(createReactionsPlugin(wsProvider));
-			extraPlugins.push(createLaserPlugin(wsProvider));
 			extraPlugins.push(createSpatialChatPlugin(wsProvider));
+			extraPlugins.push(createVotingPlugin(wsProvider));
+			extraPlugins.push(createFollowMePlugin({ wsProvider }));
 			extraPlugins.push(
 				createPresenceCursorPlugin({
 					wsProvider,
@@ -95,11 +98,18 @@ export function CommunityPage() {
 					userImage: authUserImage,
 				}),
 			);
+			extraPlugins.push(
+				createActivityFeedPlugin({
+					wsProvider,
+					boardId: COMMUNITY_BOARD_ID,
+					apiUrl,
+				}),
+			);
 		} else {
 			extraPlugins.push(rippleEffectPlugin);
 			extraPlugins.push(reactionsPlugin);
-			extraPlugins.push(laserPlugin);
 			extraPlugins.push(spatialChatPlugin);
+			extraPlugins.push(votingPlugin);
 		}
 
 		const basePlugins: UsketchPlugin[] = [
