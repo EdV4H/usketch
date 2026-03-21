@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { activityLog, boardMembers, boards, users } from "../db/schema.js";
@@ -82,7 +82,7 @@ boardsApp.get("/discover", async (c) => {
 		})
 		.from(boards)
 		.innerJoin(users, eq(boards.ownerId, users.id))
-		.where(eq(boards.isPublic, true))
+		.where(and(eq(boards.isPublic, true), ne(boards.id, "community-lobby")))
 		.orderBy(desc(boards.updatedAt))
 		.limit(50);
 
@@ -106,7 +106,7 @@ boardsApp.get("/", async (c) => {
 		})
 		.from(boards)
 		.innerJoin(boardMembers, eq(boards.id, boardMembers.boardId))
-		.where(eq(boardMembers.userId, userId))
+		.where(and(eq(boardMembers.userId, userId), ne(boards.id, "community-lobby")))
 		.orderBy(desc(boards.updatedAt));
 
 	return c.json(result);
