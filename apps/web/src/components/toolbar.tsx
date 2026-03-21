@@ -26,7 +26,6 @@ export function Toolbar({
 	const [showShare, setShowShare] = useState(false);
 	const [showStatus, setShowStatus] = useState(false);
 	const [currentStatus, setCurrentStatus] = useState("active");
-	const [isPresenting, setIsPresenting] = useState(false);
 	const [followingName, setFollowingName] = useState<string | null>(null);
 	const [showFollowMenu, setShowFollowMenu] = useState(false);
 
@@ -192,29 +191,6 @@ export function Toolbar({
 						gap: 6,
 					}}
 				>
-					<button
-						type="button"
-						onClick={() => {
-							const next = !isPresenting;
-							setIsPresenting(next);
-							wsProvider.awareness.setLocalStateField("presenting", next);
-						}}
-						style={{
-							height: 36,
-							padding: "0 14px",
-							background: isPresenting ? "#0066ff" : "white",
-							color: isPresenting ? "#fff" : "#333",
-							border: "none",
-							borderRadius: 8,
-							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-							fontSize: 12,
-							fontWeight: 600,
-							cursor: "pointer",
-						}}
-						title="Start/Stop presenting (p)"
-					>
-						{isPresenting ? "Stop Present" : "Present"}
-					</button>
 					<div style={{ position: "relative" }}>
 						<button
 							type="button"

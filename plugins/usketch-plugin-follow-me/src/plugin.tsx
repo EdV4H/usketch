@@ -101,13 +101,6 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 
 			awareness.on("change", onAwarenessChange);
 
-			// プレゼンテーション開始/停止ショートカット
-			const unsubPresent = ctx.shortcuts.register("p", () => {
-				const local = awareness.getLocalState();
-				const isPresenting = local?.presenting === true;
-				awareness.setLocalStateField("presenting", !isPresenting);
-			});
-
 			// EventBus経由で任意のユーザーをフォロー
 			const unsubFollowEvent = ctx.events.on<{ clientId: number; name: string }>(
 				"follow:start",
@@ -139,7 +132,6 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 
 			cleanup = () => {
 				awareness.off("change", onAwarenessChange);
-				unsubPresent();
 				unsubFollow();
 				unsubFollowEvent();
 				unsubUnfollowEvent();
