@@ -121,9 +121,19 @@ export function Toolbar({
 				</button>
 			</div>
 
-			{/* ステータス（左下） */}
+			{/* ステータス + Follow（左下） */}
 			{isCloudBoard && wsProvider && (
-				<div style={{ position: "fixed", bottom: 12, left: 12, zIndex: 100 }}>
+				<div
+					style={{
+						position: "fixed",
+						bottom: 12,
+						left: 12,
+						zIndex: 100,
+						display: "flex",
+						gap: 6,
+						alignItems: "center",
+					}}
+				>
 					<button
 						type="button"
 						onClick={() => setShowStatus((v) => !v)}
@@ -176,21 +186,6 @@ export function Toolbar({
 							))}
 						</div>
 					)}
-				</div>
-			)}
-
-			{/* Present / Follow（左下、ステータスの右） */}
-			{isCloudBoard && wsProvider && (
-				<div
-					style={{
-						position: "fixed",
-						bottom: 12,
-						left: wsProvider ? 140 : 12,
-						zIndex: 100,
-						display: "flex",
-						gap: 6,
-					}}
-				>
 					<div style={{ position: "relative" }}>
 						<button
 							type="button"
