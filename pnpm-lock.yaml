@@ -75,12 +75,18 @@ importers:
       '@edv4h/usketch-plugin-export':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-export
+      '@edv4h/usketch-plugin-follow-me':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-follow-me
       '@edv4h/usketch-plugin-laser':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-laser
       '@edv4h/usketch-plugin-presence-cursor':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-presence-cursor
+      '@edv4h/usketch-plugin-presence-enhanced':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-presence-enhanced
       '@edv4h/usketch-plugin-reactions':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-reactions
@@ -102,6 +108,9 @@ importers:
       '@edv4h/usketch-plugin-snap':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-snap
+      '@edv4h/usketch-plugin-spatial-chat':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-spatial-chat
       '@edv4h/usketch-plugin-sync-localstorage-yjs':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-sync-localstorage-yjs
@@ -395,6 +404,28 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(tsx@4.21.0)
 
+  plugins/usketch-plugin-follow-me:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
   plugins/usketch-plugin-laser:
     dependencies:
       '@edv4h/usketch-shared':
@@ -418,6 +449,28 @@ importers:
         version: 3.2.4(tsx@4.21.0)
 
   plugins/usketch-plugin-presence-cursor:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-presence-enhanced:
     dependencies:
       '@edv4h/usketch-shared':
         specifier: workspace:*
@@ -600,6 +653,28 @@ importers:
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-spatial-chat:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
       react:
         specifier: '>=19'
         version: 19.1.0

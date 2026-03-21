@@ -55,6 +55,11 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 
 			const activeAvatars = new Set<number>();
 
+			// self-avatar用の状態（awareness変更時に更新→レイヤー再登録）
+			let selfName = userName;
+			let selfImage = userImage ?? null;
+			let selfUserId = userId;
+
 			function syncLocalViewportCenter() {
 				const viewport = ctx.store.getViewport();
 				// ビューポートの中央をワールド座標で計算
@@ -84,14 +89,62 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 			// 初期同期
 			syncLocalViewportCenter();
 
-			// ユーザー情報をAwarenessに設定
-			awareness.setLocalStateField("avatar", {
-				name: userName,
-				image: userImage ?? null,
-				userId,
-			});
+			// ユーザー情報をAwarenessに設定（既にセッション情報で設定済みなら上書きしない）
+			const existingAvatar = awareness.getLocalState()?.avatar as
+				| { name?: string; image?: string | null; userId?: string }
+				| undefined;
+			if (!existingAvatar || existingAvatar.userId === "anonymous") {
+				awareness.setLocalStateField("avatar", {
+					name: userName,
+					image: userImage ?? null,
+					userId,
+				});
+			}
+
+			function registerSelfLayer() {
+				ctx.layers.unregister("avatar-self");
+				ctx.layers.register({
+					id: "avatar-self",
+					order: 85,
+					fixed: true,
+					render: () => (
+						<div
+							style={{
+								position: "absolute",
+								left: "50%",
+								top: "50%",
+								transform: "translate(-50%, -50%)",
+								pointerEvents: "none",
+							}}
+						>
+							<AvatarCircle
+								image={selfImage}
+								name={selfName}
+								userId={selfUserId}
+								size={AVATAR_SIZE}
+								opacity={0.6}
+							/>
+						</div>
+					),
+				});
+			}
 
 			function onAwarenessChange() {
+				// self-avatar情報をawarenessから更新
+				const localState = awareness.getLocalState();
+				const av = localState?.avatar as
+					| { name?: string; image?: string | null; userId?: string }
+					| undefined;
+				const newName = av?.name ?? userName;
+				const newImage = av?.image ?? userImage ?? null;
+				const newUserId = av?.userId ?? userId;
+				if (newName !== selfName || newImage !== selfImage || newUserId !== selfUserId) {
+					selfName = newName;
+					selfImage = newImage;
+					selfUserId = newUserId;
+					registerSelfLayer();
+				}
+
 				const states = awareness.getStates();
 				const currentClients = new Set<number>();
 
@@ -140,44 +193,26 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 
 			awareness.on("change", onAwarenessChange);
 
-			// 自分のアバターをfixedレイヤーとして表示
-			// Awarenessのlocal stateから読むことで、セッション更新後も最新情報を反映
-			ctx.layers.register({
-				id: "avatar-self",
-				order: 85,
-				fixed: true,
-				render: () => {
-					const localState = awareness.getLocalState();
-					const av = localState?.avatar as
-						| { name?: string; image?: string | null; userId?: string }
-						| undefined;
-					const selfName = av?.name ?? userName;
-					const selfImage = av?.image ?? userImage ?? null;
-					const selfUserId = av?.userId ?? userId;
+			// 既にawarenessに設定されているavatar情報を読んで初期表示に反映
+			const existingState = awareness.getLocalState();
+			const existingAv = existingState?.avatar as
+				| { name?: string; image?: string | null; userId?: string }
+				| undefined;
+			if (existingAv) {
+				selfName = existingAv.name ?? userName;
+				selfImage = existingAv.image ?? userImage ?? null;
+				selfUserId = existingAv.userId ?? userId;
+			}
 
-					return (
-						<div
-							style={{
-								position: "absolute",
-								left: "50%",
-								top: "50%",
-								transform: "translate(-50%, -50%)",
-								pointerEvents: "none",
-							}}
-						>
-							<AvatarCircle
-								image={selfImage}
-								name={selfName}
-								userId={selfUserId}
-								size={AVATAR_SIZE}
-								opacity={0.6}
-							/>
-						</div>
-					);
-				},
-			});
+			// 自分のアバターをfixedレイヤーとして初期登録
+			registerSelfLayer();
+
+			// セッション情報はプラグイン初期化後に非同期で設定されるため、
+			// 遅延チェックでavatar情報の更新を拾う
+			const delayedCheck = setTimeout(() => onAwarenessChange(), 2000);
 
 			cleanup = () => {
+				clearTimeout(delayedCheck);
 				awareness.off("change", onAwarenessChange);
 				unsubStore();
 				ctx.layers.unregister("avatar-self");

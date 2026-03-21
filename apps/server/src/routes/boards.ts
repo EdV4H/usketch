@@ -326,4 +326,35 @@ boardsApp.post("/:id/share", async (c) => {
 	return c.json({ isPublic: newIsPublic });
 });
 
+// PATCH /api/boards/:id/viewport — 自分のビューポート位置を保存
+const viewportSchema = z.object({
+	x: z.number(),
+	y: z.number(),
+});
+
+boardsApp.patch("/:id/viewport", zValidator("json", viewportSchema), async (c) => {
+	const db = c.get("db");
+	const userId = c.get("userId");
+	const boardId = c.req.param("id");
+	const body = c.req.valid("json");
+
+	// メンバーシップ確認
+	const membership = await db
+		.select({ role: boardMembers.role })
+		.from(boardMembers)
+		.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)))
+		.limit(1);
+
+	if (membership.length === 0) {
+		return c.json({ error: "Board not found" }, 404);
+	}
+
+	await db
+		.update(boardMembers)
+		.set({ lastViewport: JSON.stringify(body) })
+		.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
+
+	return c.json({ ok: true });
+});
+
 export { boardsApp };

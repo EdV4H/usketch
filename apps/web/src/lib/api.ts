@@ -1,9 +1,19 @@
+import { getDevUser, isDevMode } from "./dev-auth.js";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 
 async function fetchApi<T>(path: string, init?: RequestInit): Promise<T> {
 	const headers = new Headers(init?.headers);
 	if (init?.body) {
 		headers.set("Content-Type", "application/json");
+	}
+
+	// DEV_MODE: X-User-Idヘッダーでサーバー側認証をバイパス
+	if (isDevMode()) {
+		const devUser = getDevUser();
+		if (devUser) {
+			headers.set("X-User-Id", devUser.id);
+		}
 	}
 
 	const res = await fetch(`${API_URL}${path}`, {
