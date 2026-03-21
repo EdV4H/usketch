@@ -6,7 +6,7 @@ import type {
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 const BUBBLE_TTL = 10000;
 const INPUT_ID = "chat-input-active";
@@ -50,15 +50,50 @@ function ChatBubble({ obj }: { obj: TransientObject }) {
 	);
 }
 
-function ChatInput({ onPlace }: { onPlace: (text: string) => void }) {
+/**
+ * チャットInput: transientとして1回だけemitされる。
+ * EventBus経由でマウス位置を受け取り、DOM直接操作で追従。
+ * Reactの再マウントを避けてフォーカスを維持する。
+ */
+function ChatInput({
+	obj,
+	onPlace,
+	events,
+}: {
+	obj: TransientObject;
+	onPlace: (text: string, worldPoint: { x: number; y: number }) => void;
+	events: { on: <T>(event: string, handler: (data: T) => void) => () => void };
+}) {
+	const containerRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const worldPointRef = useRef(obj.position);
+
+	useEffect(() => {
+		const unsub = events.on<{ screenX: number; screenY: number; worldX: number; worldY: number }>(
+			"chat:cursormove",
+			({ screenX, screenY, worldX, worldY }) => {
+				worldPointRef.current = { x: worldX, y: worldY };
+				if (containerRef.current) {
+					containerRef.current.style.left = `${screenX + 16}px`;
+					containerRef.current.style.top = `${screenY - 16}px`;
+				}
+			},
+		);
+		return unsub;
+	}, [events]);
+
+	useEffect(() => {
+		setTimeout(() => inputRef.current?.focus(), 50);
+	}, []);
 
 	return (
 		<div
+			ref={containerRef}
 			style={{
-				position: "absolute",
-				left: 16,
-				top: -16,
+				position: "fixed",
+				zIndex: 150,
+				left: 0,
+				top: 0,
 			}}
 		>
 			<div
@@ -73,8 +108,6 @@ function ChatInput({ onPlace }: { onPlace: (text: string) => void }) {
 			>
 				<input
 					ref={inputRef}
-					// biome-ignore lint/a11y/noAutofocus: chat input needs immediate focus
-					autoFocus
 					type="text"
 					placeholder="Type and Enter..."
 					maxLength={200}
@@ -94,7 +127,7 @@ function ChatInput({ onPlace }: { onPlace: (text: string) => void }) {
 							e.preventDefault();
 							const val = e.currentTarget.value.trim();
 							if (val) {
-								onPlace(val);
+								onPlace(val, worldPointRef.current);
 								e.currentTarget.value = "";
 							}
 						}
@@ -131,7 +164,6 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 
 		setup(ctx: PluginContext) {
 			let bubbleCounter = 0;
-			let currentWorldPoint = { x: 0, y: 0 };
 
 			function getUserInfo(): { name: string; color: string } {
 				if (!wsProvider) return { name: "", color: "#333" };
@@ -170,13 +202,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			});
 
 			ctx.transient.registerType("chat-input", {
-				render: () => (
-					<ChatInput
-						onPlace={(text) => {
-							emitBubble(text, currentWorldPoint);
-						}}
-					/>
-				),
+				render: (obj) => <ChatInput obj={obj} onPlace={emitBubble} events={ctx.events} />,
 			});
 
 			let unsubBroadcast: (() => void) | undefined;
@@ -211,14 +237,12 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				});
 			}
 
-			function showInput(point: { x: number; y: number }) {
-				currentWorldPoint = point;
-				ctx.transient.dismiss(INPUT_ID);
+			function showInput() {
 				ctx.transient.emit({
 					id: INPUT_ID,
 					type: "chat-input",
 					sourceUserId: "local",
-					position: point,
+					position: { x: 0, y: 0 },
 					data: { interactive: true },
 					createdAt: Date.now(),
 				});
@@ -236,25 +260,33 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				shortcut: "c",
 				order: 65,
 				onPointerMove: (_toolCtx: ToolContext, event: CanvasPointerEvent) => {
-					showInput(event.worldPoint);
+					ctx.events.emit("chat:cursormove", {
+						screenX: event.screenPoint.x,
+						screenY: event.screenPoint.y,
+						worldX: event.worldPoint.x,
+						worldY: event.worldPoint.y,
+					});
 				},
 				onPointerDown: (_toolCtx: ToolContext, event: CanvasPointerEvent) => {
 					const inputEl = document.querySelector<HTMLInputElement>(
 						'input[placeholder="Type and Enter..."]',
 					);
-					if (inputEl && inputEl.value.trim()) {
+					if (inputEl?.value.trim()) {
 						emitBubble(inputEl.value.trim(), event.worldPoint);
 						inputEl.value = "";
+						inputEl.focus();
 					}
-					currentWorldPoint = event.worldPoint;
 				},
 			});
 
-			// ツール切替でInput表示/非表示
 			let wasActive = ctx.store.getActiveToolId() === TOOL_ID;
+			if (wasActive) showInput();
+
 			const unsubToolChange = ctx.store.subscribe(() => {
 				const isActive = ctx.store.getActiveToolId() === TOOL_ID;
-				if (!isActive && wasActive) {
+				if (isActive && !wasActive) {
+					showInput();
+				} else if (!isActive && wasActive) {
 					hideInput();
 				}
 				wasActive = isActive;
