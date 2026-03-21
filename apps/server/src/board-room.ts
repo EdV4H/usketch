@@ -21,14 +21,9 @@ const DEFAULT_STYLE = {
 	opacity: 1,
 };
 
-/** 簡易ID生成（サーバー側用） */
+/** ID生成（サーバー側用、crypto.randomUUIDで衝突リスク排除） */
 function generateShapeId(): string {
-	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-	let id = "";
-	for (let i = 0; i < 12; i++) {
-		id += chars[Math.floor(Math.random() * chars.length)];
-	}
-	return id;
+	return crypto.randomUUID();
 }
 
 interface AiShapeInput {

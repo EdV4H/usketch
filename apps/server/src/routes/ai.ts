@@ -139,7 +139,10 @@ interface PlaceShapeItem {
 	};
 }
 
-/** LLM出力のシェイプをバリデーション・サニタイズする */
+const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+const MAX_TEXT_LENGTH = 1000;
+
+/** LLM出力のシェイプをバリデーション・サニタイズする（未知フィールドは除去） */
 function validateShapes(raw: PlaceShapeItem[]): PlaceShapeItem[] {
 	const clamped = raw.slice(0, MAX_SHAPES_PER_REQUEST);
 	const valid: PlaceShapeItem[] = [];
@@ -149,7 +152,44 @@ function validateShapes(raw: PlaceShapeItem[]): PlaceShapeItem[] {
 		const y = Number.isFinite(s.y) ? s.y : 0;
 		const width = Number.isFinite(s.width) && s.width > 0 ? Math.min(s.width, 10000) : 100;
 		const height = Number.isFinite(s.height) && s.height > 0 ? Math.min(s.height, 10000) : 80;
-		valid.push({ ...s, x, y, width, height });
+
+		const sanitized: PlaceShapeItem = { type: s.type, x, y, width, height };
+
+		// text
+		if (typeof s.text === "string" && s.text.trim()) {
+			sanitized.text = s.text.trim().slice(0, MAX_TEXT_LENGTH);
+		}
+
+		// fontSize
+		if (Number.isFinite(s.fontSize)) {
+			sanitized.fontSize = Math.min(256, Math.max(8, s.fontSize as number));
+		}
+
+		// style: 許可キーのみ、値をサニタイズ
+		if (s.style && typeof s.style === "object") {
+			const si = s.style;
+			const so: PlaceShapeItem["style"] = {};
+			if (
+				typeof si.fill === "string" &&
+				(HEX_COLOR_RE.test(si.fill) || si.fill === "transparent")
+			) {
+				so.fill = si.fill;
+			}
+			if (typeof si.stroke === "string" && HEX_COLOR_RE.test(si.stroke)) {
+				so.stroke = si.stroke;
+			}
+			if (Number.isFinite(si.strokeWidth)) {
+				so.strokeWidth = Math.min(100, Math.max(0, si.strokeWidth as number));
+			}
+			if (Number.isFinite(si.opacity)) {
+				so.opacity = Math.min(1, Math.max(0, si.opacity as number));
+			}
+			if (Object.keys(so).length > 0) {
+				sanitized.style = so;
+			}
+		}
+
+		valid.push(sanitized);
 	}
 	return valid;
 }
