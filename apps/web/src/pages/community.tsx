@@ -8,6 +8,7 @@ import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-curso
 import { createReactionsPlugin, reactionsPlugin } from "@edv4h/usketch-plugin-reactions";
 import { createBoardPortalPlugin } from "@edv4h/usketch-plugin-shape-board-portal";
 import { createSpatialChatPlugin, spatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
+import { createSpotlightPlugin, spotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
 import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
@@ -82,6 +83,7 @@ export function CommunityPage() {
 			extraPlugins.push(createReactionsPlugin(wsProvider));
 			extraPlugins.push(createSpatialChatPlugin(wsProvider));
 			extraPlugins.push(createVotingPlugin(wsProvider));
+			extraPlugins.push(createSpotlightPlugin(wsProvider));
 			extraPlugins.push(createFollowMePlugin({ wsProvider }));
 			extraPlugins.push(
 				createPresenceCursorPlugin({
@@ -110,6 +112,7 @@ export function CommunityPage() {
 			extraPlugins.push(reactionsPlugin);
 			extraPlugins.push(spatialChatPlugin);
 			extraPlugins.push(votingPlugin);
+			extraPlugins.push(spotlightPlugin);
 		}
 
 		const basePlugins: UsketchPlugin[] = [
