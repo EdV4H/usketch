@@ -38,6 +38,9 @@ importers:
       hono:
         specifier: 4.7.10
         version: 4.7.10
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -69,6 +72,12 @@ importers:
       '@edv4h/usketch-plugin-activity-feed':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-activity-feed
+      '@edv4h/usketch-plugin-ai-agent':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-ai-agent
+      '@edv4h/usketch-plugin-ai-chat':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-ai-chat
       '@edv4h/usketch-plugin-avatar':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-avatar
@@ -305,6 +314,35 @@ importers:
       '@types/react':
         specifier: 19.1.8
         version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-ai-agent:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-ai-chat:
+    dependencies:
+      '@edv4h/usketch-plugin-ai-agent':
+        specifier: workspace:*
+        version: link:../usketch-plugin-ai-agent
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -3141,6 +3179,10 @@ packages:
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
+  yjs@13.6.27:
+    resolution: {integrity: sha512-OIDwaflOaq4wC6YlPBy2L6ceKeKuF7DeTxx+jPzv1FHn9tCZ0ZwSRnUBxD05E3yed46fv/FWJbvR+Ud7x0L7zw==}
+    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
+
   yjs@13.6.30:
     resolution: {integrity: sha512-vv/9h42eCMC81ZHDFswuu/MKzkl/vyq1BhaNGfHyOonwlG4CJbQF4oiBBJPvfdeCt/PlVDWh7Nov9D34YY09uQ==}
     engines: {node: '>=16.0.0', npm: '>=8.0.0'}
@@ -4940,6 +4982,10 @@ snapshots:
       yjs: 13.6.30
 
   yallist@3.1.1: {}
+
+  yjs@13.6.27:
+    dependencies:
+      lib0: 0.2.117
 
   yjs@13.6.30:
     dependencies:
