@@ -553,6 +553,9 @@ importers:
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
       react:
         specifier: '>=19'
         version: 19.1.0

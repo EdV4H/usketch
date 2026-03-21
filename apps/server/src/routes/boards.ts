@@ -155,6 +155,7 @@ boardsApp.get("/:id", async (c) => {
 boardsApp.patch("/:id", zValidator("json", updateBoardSchema), async (c) => {
 	const db = c.get("db");
 	const boardId = c.req.param("id");
+	if (boardId === "community-lobby") return c.json({ error: "Cannot modify community lobby" }, 403);
 	const body = c.req.valid("json");
 	const currentUserId = c.get("userId");
 
@@ -190,6 +191,7 @@ boardsApp.delete("/:id", async (c) => {
 	const db = c.get("db");
 	const userId = c.get("userId");
 	const boardId = c.req.param("id");
+	if (boardId === "community-lobby") return c.json({ error: "Cannot delete community lobby" }, 403);
 
 	const board = await db
 		.select({ ownerId: boards.ownerId })

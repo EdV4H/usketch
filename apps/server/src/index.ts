@@ -55,23 +55,19 @@ app.get("/api/boards/:boardId/ws", async (c) => {
 
 	if (boardId === COMMUNITY_BOARD_ID) {
 		// コミュニティロビーは全認証ユーザーにオープン — 存在しなければ自動作成
-		const existing = await db
-			.select({ id: schema.boards.id })
-			.from(schema.boards)
-			.where(eq(schema.boards.id, COMMUNITY_BOARD_ID))
-			.limit(1);
-
-		if (existing.length === 0) {
-			const now = new Date().toISOString();
-			await db.insert(schema.boards).values({
+		// onConflictDoNothingで並行作成に対応
+		const now = new Date().toISOString();
+		await db
+			.insert(schema.boards)
+			.values({
 				id: COMMUNITY_BOARD_ID,
 				title: "Community Lobby",
 				ownerId: userId,
 				createdAt: now,
 				updatedAt: now,
 				isPublic: true,
-			});
-		}
+			})
+			.onConflictDoNothing();
 	} else {
 		// 通常ボード: 存在確認 + メンバーシップ/公開ボード判定
 		const result = await db

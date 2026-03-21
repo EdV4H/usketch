@@ -10,6 +10,7 @@ import {
 	type ToolContext,
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
+import { createAddShapeCommand } from "@edv4h/usketch-store";
 
 const PORTAL_WIDTH = 240;
 const PORTAL_HEIGHT = 160;
@@ -237,7 +238,10 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 						if (boardId) options?.onPortalOpen?.(boardId);
 					}}
 					onKeyDown={(e) => {
-						if (e.key === "Enter" && boardId) options?.onPortalOpen?.(boardId);
+						if ((e.key === "Enter" || e.key === " ") && boardId) {
+							e.preventDefault();
+							options?.onPortalOpen?.(boardId);
+						}
 					}}
 					style={{
 						width: "100%",
@@ -308,6 +312,9 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 					if (!drawState) return;
 					const shape = toolCtx.store.getShape(drawState.shapeId);
 					if (shape && shape.width > 20 && shape.height > 20) {
+						// undo可能なコマンドに置き換え
+						toolCtx.store.deleteShape(drawState.shapeId);
+						toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 						// ポータル作成をアプリに通知
 						options?.onPortalCreate?.(
 							drawState.shapeId,
