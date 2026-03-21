@@ -1,5 +1,7 @@
 import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
+import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
 import { exportPlugin } from "@edv4h/usketch-plugin-export";
 import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
@@ -104,6 +106,15 @@ export function App() {
 					apiUrl,
 				}),
 			);
+
+			// AI プラグイン
+			const aiHeaders: Record<string, string> = {};
+			if (import.meta.env.DEV) {
+				const devUser = getDevUser();
+				if (devUser) aiHeaders["X-User-Id"] = devUser.id;
+			}
+			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
+			extraPlugins.push(createAiChatPlugin({ boardId }));
 		} else {
 			extraPlugins.push(laserPlugin);
 			extraPlugins.push(spotlightPlugin);
@@ -199,6 +210,11 @@ export function App() {
 		if (!app) return;
 
 		const handleKeyDown = (e: KeyboardEvent) => {
+			// テキスト入力中はショートカットを無視
+			const tag = (e.target as HTMLElement)?.tagName;
+			if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) {
+				return;
+			}
 			const tools = app.tools.getAll();
 			for (const [id, def] of tools) {
 				if (
