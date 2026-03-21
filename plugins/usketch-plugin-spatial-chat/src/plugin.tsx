@@ -42,16 +42,7 @@ function ChatBubble({ obj }: { obj: TransientObject }) {
 				{text}
 			</div>
 			{name && (
-				<div
-					style={{
-						fontSize: 10,
-						color: "#999",
-						textAlign: "center",
-						marginTop: 2,
-					}}
-				>
-					{name}
-				</div>
+				<div style={{ fontSize: 10, color: "#999", textAlign: "center", marginTop: 2 }}>{name}</div>
 			)}
 		</div>
 	);
@@ -73,89 +64,97 @@ function ChatIcon() {
 	);
 }
 
-let styleInjected = false;
-function injectStyle() {
-	if (styleInjected) return;
-	styleInjected = true;
-	const style = document.createElement("style");
-	style.textContent = `
-		@keyframes usketch-chat-fade {
-			0% { opacity: 1; }
-			80% { opacity: 1; }
-			100% { opacity: 0; }
+/**
+ * チャット入力ダイアログをDOMで直接管理。
+ * Reactのレンダーサイクルに依存せず即座に表示/非表示を切り替える。
+ */
+function createChatInputDialog() {
+	let onSubmit: ((text: string, point: { x: number; y: number }) => void) | null = null;
+	let worldPoint = { x: 0, y: 0 };
+
+	// ルートコンテナ
+	const overlay = document.createElement("div");
+	Object.assign(overlay.style, {
+		position: "fixed",
+		inset: "0",
+		zIndex: "200",
+		display: "none",
+		alignItems: "center",
+		justifyContent: "center",
+	});
+
+	// 背景クリックでキャンセル
+	overlay.addEventListener("pointerdown", (e) => {
+		if (e.target === overlay) {
+			hide();
 		}
-	`;
-	document.head.appendChild(style);
-}
+	});
 
-/** チャット入力を管理するグローバル状態 */
-const chatInput = {
-	active: false,
-	text: "",
-	worldPoint: { x: 0, y: 0 },
-	onSubmit: null as ((text: string, point: { x: number; y: number }) => void) | null,
-	onCancel: null as (() => void) | null,
-};
+	const dialog = document.createElement("div");
+	Object.assign(dialog.style, {
+		background: "#fff",
+		borderRadius: "12px",
+		padding: "16px",
+		boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
+		minWidth: "280px",
+	});
+	dialog.addEventListener("pointerdown", (e) => e.stopPropagation());
 
-function ChatInputOverlay() {
-	if (!chatInput.active) return null;
+	const input = document.createElement("input");
+	input.type = "text";
+	input.placeholder = "Type a message...";
+	input.maxLength = 200;
+	Object.assign(input.style, {
+		width: "100%",
+		padding: "8px 12px",
+		fontSize: "14px",
+		border: "1px solid #ddd",
+		borderRadius: "8px",
+		outline: "none",
+		fontFamily: "system-ui, sans-serif",
+		boxSizing: "border-box",
+	});
 
-	return (
-		<div
-			style={{
-				position: "fixed",
-				inset: 0,
-				zIndex: 200,
-				display: "flex",
-				alignItems: "center",
-				justifyContent: "center",
-			}}
-			onPointerDown={(e) => {
-				e.stopPropagation();
-				chatInput.onCancel?.();
-			}}
-		>
-			<div
-				onPointerDown={(e) => e.stopPropagation()}
-				style={{
-					background: "#fff",
-					borderRadius: 12,
-					padding: 16,
-					boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
-					minWidth: 280,
-				}}
-			>
-				<input
-					// biome-ignore lint/a11y/noAutofocus: chat input needs immediate focus
-					autoFocus
-					type="text"
-					placeholder="Type a message..."
-					maxLength={200}
-					style={{
-						width: "100%",
-						padding: "8px 12px",
-						fontSize: 14,
-						border: "1px solid #ddd",
-						borderRadius: 8,
-						outline: "none",
-						fontFamily: "system-ui, sans-serif",
-						boxSizing: "border-box",
-					}}
-					onKeyDown={(e) => {
-						if (e.key === "Enter" && e.currentTarget.value.trim()) {
-							chatInput.onSubmit?.(e.currentTarget.value.trim(), chatInput.worldPoint);
-							chatInput.active = false;
-						} else if (e.key === "Escape") {
-							chatInput.onCancel?.();
-						}
-					}}
-				/>
-				<div style={{ fontSize: 11, color: "#999", marginTop: 4 }}>
-					Enter to send, Esc to cancel
-				</div>
-			</div>
-		</div>
-	);
+	input.addEventListener("keydown", (e) => {
+		e.stopPropagation();
+		if (e.key === "Enter" && input.value.trim()) {
+			onSubmit?.(input.value.trim(), worldPoint);
+			hide();
+		} else if (e.key === "Escape") {
+			hide();
+		}
+	});
+
+	const hint = document.createElement("div");
+	Object.assign(hint.style, { fontSize: "11px", color: "#999", marginTop: "4px" });
+	hint.textContent = "Enter to send, Esc to cancel";
+
+	dialog.appendChild(input);
+	dialog.appendChild(hint);
+	overlay.appendChild(dialog);
+	document.body.appendChild(overlay);
+
+	function show(point: { x: number; y: number }) {
+		worldPoint = point;
+		input.value = "";
+		overlay.style.display = "flex";
+		// 次のマイクロタスクでfocusしないとpointerdownと競合する
+		requestAnimationFrame(() => input.focus());
+	}
+
+	function hide() {
+		overlay.style.display = "none";
+	}
+
+	function destroy() {
+		overlay.remove();
+	}
+
+	function setOnSubmit(fn: (text: string, point: { x: number; y: number }) => void) {
+		onSubmit = fn;
+	}
+
+	return { show, hide, destroy, setOnSubmit };
 }
 
 function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
@@ -166,12 +165,11 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 		name: "空間チャット",
 
 		setup(ctx: PluginContext) {
-			injectStyle();
-
 			ctx.transient.registerType("chat-bubble", {
 				render: (obj) => <ChatBubble obj={obj} />,
 			});
 
+			const chatDialog = createChatInputDialog();
 			let bubbleCounter = 0;
 
 			let unsubBroadcast: (() => void) | undefined;
@@ -238,22 +236,10 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				});
 			}
 
-			// チャット入力UIをfixedレイヤーとして登録
-			ctx.layers.register({
-				id: "spatial-chat-input",
-				order: 200,
-				fixed: true,
-				render: () => <ChatInputOverlay />,
-			});
-
-			chatInput.onSubmit = emitBubble;
-			chatInput.onCancel = () => {
-				chatInput.active = false;
-			};
+			chatDialog.setOnSubmit(emitBubble);
 
 			function onPointerDown(_toolCtx: ToolContext, event: CanvasPointerEvent) {
-				chatInput.worldPoint = event.worldPoint;
-				chatInput.active = true;
+				chatDialog.show(event.worldPoint);
 			}
 
 			ctx.tools.register("spatial-chat", {
@@ -266,10 +252,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 
 			cleanup = () => {
 				unsubBroadcast?.();
-				ctx.layers.unregister("spatial-chat-input");
-				chatInput.active = false;
-				chatInput.onSubmit = null;
-				chatInput.onCancel = null;
+				chatDialog.destroy();
 			};
 		},
 
