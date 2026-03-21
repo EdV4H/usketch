@@ -1,27 +1,20 @@
 import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
-import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
-import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
-import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { exportPlugin } from "@edv4h/usketch-plugin-export";
-import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
-import { createReactionsPlugin, reactionsPlugin } from "@edv4h/usketch-plugin-reactions";
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
 import { ellipsePlugin } from "@edv4h/usketch-plugin-shape-ellipse";
 import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
 import { snapPlugin } from "@edv4h/usketch-plugin-snap";
-import { createSpatialChatPlugin, spatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
 import { createSpotlightPlugin, spotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
 import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
-import { createVotingPlugin, votingPlugin } from "@edv4h/usketch-plugin-voting";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import {
@@ -95,21 +88,10 @@ export function App() {
 			wsProviderRef.current = wsProvider;
 			wsProvider.onStatusChange(setWsStatus);
 
-			extraPlugins.push(createRippleEffectPlugin(wsProvider));
-			extraPlugins.push(createReactionsPlugin(wsProvider));
 			extraPlugins.push(createLaserPlugin(wsProvider));
-			extraPlugins.push(createSpatialChatPlugin(wsProvider));
-			extraPlugins.push(createFollowMePlugin({ wsProvider }));
-			// presenceは常にプラグインとして追加（ユーザー情報は後から設定）
+			extraPlugins.push(createSpotlightPlugin(wsProvider));
 			extraPlugins.push(
 				createPresenceCursorPlugin({
-					wsProvider,
-					userId: "anonymous",
-					userName: "Anonymous",
-				}),
-			);
-			extraPlugins.push(
-				createAvatarPlugin({
 					wsProvider,
 					userId: "anonymous",
 					userName: "Anonymous",
@@ -122,22 +104,9 @@ export function App() {
 					apiUrl,
 				}),
 			);
-			extraPlugins.push(createSpotlightPlugin(wsProvider));
-			extraPlugins.push(createVotingPlugin(wsProvider));
-			extraPlugins.push(
-				createActivityFeedPlugin({
-					wsProvider,
-					boardId,
-					apiUrl,
-				}),
-			);
 		} else {
-			extraPlugins.push(rippleEffectPlugin);
-			extraPlugins.push(reactionsPlugin);
 			extraPlugins.push(laserPlugin);
-			extraPlugins.push(spatialChatPlugin);
 			extraPlugins.push(spotlightPlugin);
-			extraPlugins.push(votingPlugin);
 		}
 
 		syncHandle.whenSynced
@@ -216,7 +185,6 @@ export function App() {
 	// セッション情報が確定したらAwarenessのローカル状態を更新
 	const authUserId = authUser?.id;
 	const authUserName = authUser?.name;
-	const authUserImage = authUser?.image;
 	useEffect(() => {
 		const wsProvider = wsProviderRef.current;
 		if (!wsProvider || !authUserId) return;
@@ -224,12 +192,7 @@ export function App() {
 		wsProvider.awareness.setLocalStateField("user", {
 			name: authUserName ?? "Anonymous",
 		});
-		wsProvider.awareness.setLocalStateField("avatar", {
-			name: authUserName ?? "Anonymous",
-			image: authUserImage ?? null,
-			userId: authUserId,
-		});
-	}, [authUserId, authUserName, authUserImage]);
+	}, [authUserId, authUserName]);
 
 	// キーボードショートカット
 	useEffect(() => {
@@ -271,7 +234,7 @@ export function App() {
 		<AppProvider app={app}>
 			<div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
 				<Canvas />
-				<Toolbar boardId={boardId} isCloudBoard={isCloudBoard} wsProvider={wsProviderRef.current} />
+				<Toolbar boardId={boardId} isCloudBoard={isCloudBoard} />
 				{isCloudBoard && wsStatus === "failed" && (
 					<div
 						style={{

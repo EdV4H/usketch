@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { activityLog, boardMembers, boards, users } from "../db/schema.js";
@@ -66,6 +66,29 @@ boardsApp.post("/", zValidator("json", createBoardSchema), async (c) => {
 	return c.json({ id, title: body.title ?? "Untitled", createdAt: now }, 201);
 });
 
+// GET /api/boards/discover — 公開ボード一覧（コミュニティエリア用）
+boardsApp.get("/discover", async (c) => {
+	const db = c.get("db");
+
+	const result = await db
+		.select({
+			id: boards.id,
+			title: boards.title,
+			ownerId: boards.ownerId,
+			ownerName: users.name,
+			ownerImage: users.image,
+			createdAt: boards.createdAt,
+			updatedAt: boards.updatedAt,
+		})
+		.from(boards)
+		.innerJoin(users, eq(boards.ownerId, users.id))
+		.where(and(eq(boards.isPublic, true), ne(boards.id, "community-lobby")))
+		.orderBy(desc(boards.updatedAt))
+		.limit(50);
+
+	return c.json(result);
+});
+
 // GET /api/boards — ボード一覧（自分がメンバーのボード）
 boardsApp.get("/", async (c) => {
 	const db = c.get("db");
@@ -83,7 +106,7 @@ boardsApp.get("/", async (c) => {
 		})
 		.from(boards)
 		.innerJoin(boardMembers, eq(boards.id, boardMembers.boardId))
-		.where(eq(boardMembers.userId, userId))
+		.where(and(eq(boardMembers.userId, userId), ne(boards.id, "community-lobby")))
 		.orderBy(desc(boards.updatedAt));
 
 	return c.json(result);
@@ -132,6 +155,7 @@ boardsApp.get("/:id", async (c) => {
 boardsApp.patch("/:id", zValidator("json", updateBoardSchema), async (c) => {
 	const db = c.get("db");
 	const boardId = c.req.param("id");
+	if (boardId === "community-lobby") return c.json({ error: "Cannot modify community lobby" }, 403);
 	const body = c.req.valid("json");
 	const currentUserId = c.get("userId");
 
@@ -167,6 +191,7 @@ boardsApp.delete("/:id", async (c) => {
 	const db = c.get("db");
 	const userId = c.get("userId");
 	const boardId = c.req.param("id");
+	if (boardId === "community-lobby") return c.json({ error: "Cannot delete community lobby" }, 403);
 
 	const board = await db
 		.select({ ownerId: boards.ownerId })
