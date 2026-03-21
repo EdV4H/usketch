@@ -255,7 +255,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 
 			ctx.tools.register(TOOL_ID, {
 				icon: ChatIcon,
-				cursor: "text",
+				cursor: "default",
 				shortcut: "c",
 				order: 65,
 				onPointerMove: (_toolCtx: ToolContext, event: CanvasPointerEvent) => {
