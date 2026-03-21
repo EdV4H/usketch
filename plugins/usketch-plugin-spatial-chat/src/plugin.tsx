@@ -273,9 +273,12 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 					if (inputEl?.value.trim()) {
 						emitBubble(inputEl.value.trim(), event.worldPoint);
 						inputEl.value = "";
+						// pointerdown後にブラウザがキャンバスにフォーカスを移すので遅延で戻す
+						setTimeout(() => inputEl?.focus(), 0);
+					} else {
+						// 未入力クリックはSelectツールに戻る
+						ctx.store.setActiveToolId("select");
 					}
-					// pointerdown後にブラウザがキャンバスにフォーカスを移すので遅延で戻す
-					setTimeout(() => inputEl?.focus(), 0);
 				},
 			});
 
