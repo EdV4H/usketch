@@ -1,5 +1,6 @@
 import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { createAiActionsPlugin } from "@edv4h/usketch-plugin-ai-actions";
 import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
 import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
 import { exportPlugin } from "@edv4h/usketch-plugin-export";
@@ -115,6 +116,7 @@ export function App() {
 			}
 			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
 			extraPlugins.push(createAiChatPlugin({ boardId }));
+			extraPlugins.push(createAiActionsPlugin({ boardId }));
 		} else {
 			extraPlugins.push(laserPlugin);
 			extraPlugins.push(spotlightPlugin);

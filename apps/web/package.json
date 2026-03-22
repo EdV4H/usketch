@@ -15,6 +15,7 @@
 		"@edv4h/usketch-canvas-engine": "workspace:*",
 		"@edv4h/usketch-core": "workspace:*",
 		"@edv4h/usketch-plugin-activity-feed": "workspace:*",
+		"@edv4h/usketch-plugin-ai-actions": "workspace:*",
 		"@edv4h/usketch-plugin-ai-agent": "workspace:*",
 		"@edv4h/usketch-plugin-ai-chat": "workspace:*",
 		"@edv4h/usketch-plugin-avatar": "workspace:*",
