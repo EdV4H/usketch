@@ -31,6 +31,11 @@ export { DEFAULT_STYLE } from "./types/shape.js";
 // Theme
 export type { Theme } from "./types/theme.js";
 export { DEFAULT_THEME } from "./types/theme.js";
-
+export {
+	boundsToScreenRect,
+	getSelectionBounds,
+	screenToWorld,
+	worldToScreen,
+} from "./utils/geometry.js";
 // Utils
 export { generateId } from "./utils/id.js";

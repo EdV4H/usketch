@@ -1,5 +1,6 @@
 import type { AiStatusEvent } from "@edv4h/usketch-plugin-ai-agent";
-import type { BoardStore, EventBus, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
+import type { BoardStore, EventBus, ShapeRegistry } from "@edv4h/usketch-shared";
+import { boundsToScreenRect, getSelectionBounds } from "@edv4h/usketch-shared";
 import type { SmartActionRequestEvent } from "./types.js";
 
 const STYLE_ID = "usketch-ai-action-bar-styles";
@@ -154,10 +155,6 @@ export interface FloatingActionBarOptions {
 
 type BarMode = "actions" | "input" | "thinking" | "done" | "error";
 
-function worldToScreen(wx: number, wy: number, vp: Viewport): { x: number; y: number } {
-	return { x: wx * vp.zoom + vp.x, y: wy * vp.zoom + vp.y };
-}
-
 export function createFloatingActionBar(options: FloatingActionBarOptions): {
 	destroy: () => void;
 } {
@@ -177,6 +174,15 @@ export function createFloatingActionBar(options: FloatingActionBarOptions): {
 		document.head.appendChild(styleEl);
 	}
 
+	function getShapeBounds(id: string) {
+		const shape = store.getShape(id);
+		if (!shape) return null;
+		const def = shapes.get(shape.type);
+		return def
+			? def.getBounds(shape)
+			: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+	}
+
 	function getSelectionScreenBounds(): {
 		centerX: number;
 		bottomY: number;
@@ -184,34 +190,12 @@ export function createFloatingActionBar(options: FloatingActionBarOptions): {
 		const selection = store.getSelection();
 		if (selection.size === 0) return null;
 
-		let minX = Number.POSITIVE_INFINITY;
-		let minY = Number.POSITIVE_INFINITY;
-		let maxX = Number.NEGATIVE_INFINITY;
-		let maxY = Number.NEGATIVE_INFINITY;
-
-		for (const id of selection) {
-			const shape = store.getShape(id);
-			if (!shape) continue;
-			const def = shapes.get(shape.type);
-			const bounds = def
-				? def.getBounds(shape)
-				: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
-			minX = Math.min(minX, bounds.x);
-			minY = Math.min(minY, bounds.y);
-			maxX = Math.max(maxX, bounds.x + bounds.width);
-			maxY = Math.max(maxY, bounds.y + bounds.height);
-		}
-
-		if (!Number.isFinite(minX)) return null;
+		const bounds = getSelectionBounds(selection, getShapeBounds);
+		if (!bounds) return null;
 
 		const vp = store.getViewport();
-		const tl = worldToScreen(minX, minY, vp);
-		const br = worldToScreen(maxX, maxY, vp);
-
-		return {
-			centerX: (tl.x + br.x) / 2,
-			bottomY: br.y,
-		};
+		const screen = boundsToScreenRect(bounds, vp);
+		return { centerX: screen.centerX, bottomY: screen.bottom };
 	}
 
 	function emitAction(
