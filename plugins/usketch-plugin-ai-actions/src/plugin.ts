@@ -1,5 +1,5 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
-import { createContextMenu } from "./context-menu.js";
+import { createFloatingActionBar } from "./floating-action-bar.js";
 
 export interface AiActionsOptions {
 	boardId: string;
@@ -13,14 +13,15 @@ export function createAiActionsPlugin(options: AiActionsOptions): UsketchPlugin 
 		name: "AI Smart Actions",
 
 		setup(ctx: PluginContext) {
-			const menu = createContextMenu({
+			const bar = createFloatingActionBar({
 				events: ctx.events,
 				store: ctx.store,
+				shapes: ctx.shapes,
 				boardId: options.boardId,
 			});
 
 			cleanup = () => {
-				menu.destroy();
+				bar.destroy();
 			};
 		},
 
