@@ -1,5 +1,5 @@
 {
-	"name": "@edv4h/usketch-plugin-ai-chat",
+	"name": "@edv4h/usketch-plugin-comments",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -19,7 +19,6 @@
 	},
 	"dependencies": {
 		"@edv4h/usketch-shared": "workspace:*",
-		"@edv4h/usketch-plugin-ai-agent": "workspace:*",
 		"@edv4h/usketch-plugin-side-panel": "workspace:*"
 	},
 	"peerDependencies": {

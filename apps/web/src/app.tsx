@@ -7,6 +7,7 @@ import { createAiCopilotPlugin } from "@edv4h/usketch-plugin-ai-copilot";
 import { createAiImagePlugin } from "@edv4h/usketch-plugin-ai-image";
 import { createAiRecognizePlugin } from "@edv4h/usketch-plugin-ai-recognize";
 import { createAiVoicePlugin } from "@edv4h/usketch-plugin-ai-voice";
+import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { exportPlugin } from "@edv4h/usketch-plugin-export";
 import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
@@ -17,6 +18,7 @@ import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { imageShapePlugin } from "@edv4h/usketch-plugin-shape-image";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
+import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { snapPlugin } from "@edv4h/usketch-plugin-snap";
 import { createSpotlightPlugin, spotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
 import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
@@ -114,12 +116,18 @@ export function App() {
 				}),
 			);
 
-			// AI プラグイン
+			// サイドパネル + コメント
+			extraPlugins.push(createSidePanelPlugin());
+
 			const aiHeaders: Record<string, string> = {};
 			if (import.meta.env.DEV) {
 				const devUser = getDevUser();
 				if (devUser) aiHeaders["X-User-Id"] = devUser.id;
 			}
+
+			extraPlugins.push(createCommentsPlugin({ boardId, apiUrl, extraHeaders: aiHeaders }));
+
+			// AI プラグイン
 			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
 			extraPlugins.push(createAiChatPlugin({ boardId }));
 			extraPlugins.push(createAiActionsPlugin({ boardId }));
