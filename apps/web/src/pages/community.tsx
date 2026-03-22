@@ -5,6 +5,9 @@ import { createAiActionsPlugin } from "@edv4h/usketch-plugin-ai-actions";
 import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
 import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
 import { createAiCopilotPlugin } from "@edv4h/usketch-plugin-ai-copilot";
+import { createAiImagePlugin } from "@edv4h/usketch-plugin-ai-image";
+import { createAiRecognizePlugin } from "@edv4h/usketch-plugin-ai-recognize";
+import { createAiVoicePlugin } from "@edv4h/usketch-plugin-ai-voice";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
 import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
@@ -128,6 +131,9 @@ export function CommunityPage() {
 			extraPlugins.push(
 				createAiCopilotPlugin({ apiUrl, boardId: COMMUNITY_BOARD_ID, extraHeaders: aiHeaders }),
 			);
+			extraPlugins.push(createAiVoicePlugin({ boardId: COMMUNITY_BOARD_ID }));
+			extraPlugins.push(createAiImagePlugin({ boardId: COMMUNITY_BOARD_ID }));
+			extraPlugins.push(createAiRecognizePlugin({ boardId: COMMUNITY_BOARD_ID }));
 		} else {
 			extraPlugins.push(rippleEffectPlugin);
 			extraPlugins.push(reactionsPlugin);

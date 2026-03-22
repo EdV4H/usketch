@@ -261,6 +261,17 @@ export function createFloatingActionBar(options: FloatingActionBarOptions): {
 		requestAnimationFrame(() => positionBar());
 	}
 
+	/** freedrawまたはimageのみ選択されている場合にRecognize可能 */
+	function canRecognize(): boolean {
+		const selection = store.getSelection();
+		if (selection.size === 0) return false;
+		for (const id of selection) {
+			const shape = store.getShape(id);
+			if (!shape || (shape.type !== "freedraw" && shape.type !== "image")) return false;
+		}
+		return true;
+	}
+
 	function renderActions(): void {
 		if (!barEl) return;
 
@@ -279,6 +290,16 @@ export function createFloatingActionBar(options: FloatingActionBarOptions): {
 			emitAction("label");
 		});
 		barEl.appendChild(labelBtn);
+
+		if (canRecognize()) {
+			const recognizeBtn = document.createElement("button");
+			recognizeBtn.className = "ab-btn";
+			recognizeBtn.textContent = "✍ Recognize";
+			recognizeBtn.addEventListener("click", () => {
+				events.emit("ai:recognize", {});
+			});
+			barEl.appendChild(recognizeBtn);
+		}
 
 		const sep = document.createElement("div");
 		sep.className = "ab-sep";

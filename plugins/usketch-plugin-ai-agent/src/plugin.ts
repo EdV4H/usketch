@@ -43,6 +43,7 @@ export function createAiAgentPlugin(options: AiAgentOptions): UsketchPlugin {
 				prompt: string,
 				boardId: string,
 				selectedIds?: ReadonlySet<string>,
+				image?: string,
 			): Promise<void> {
 				if (busy) return;
 				busy = true;
@@ -61,7 +62,7 @@ export function createAiAgentPlugin(options: AiAgentOptions): UsketchPlugin {
 
 					const response = await requestAiCompletion(
 						apiUrl,
-						{ prompt, canvasContext, boardId },
+						{ prompt, canvasContext, boardId, image },
 						onStatus,
 						extraHeaders,
 					);
@@ -79,7 +80,7 @@ export function createAiAgentPlugin(options: AiAgentOptions): UsketchPlugin {
 
 			// ai:request イベントを購読（Cmd+Kパレット）
 			const unsubRequest = ctx.events.on<AiRequestEvent>("ai:request", (event) => {
-				executeAiRequest(event.prompt, event.boardId);
+				executeAiRequest(event.prompt, event.boardId, undefined, event.image);
 			});
 
 			// ai:smart-action イベントを購読（コンテキストメニュー）

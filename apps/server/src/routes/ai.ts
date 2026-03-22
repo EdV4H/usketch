@@ -20,6 +20,7 @@ const completeSchema = z.object({
 	prompt: z.string().min(1).max(4000),
 	canvasContext: z.string().max(32000),
 	boardId: z.string().min(1),
+	image: z.string().max(10_000_000).optional(),
 	model: z.string().optional().default("gpt-4o"),
 });
 
@@ -346,7 +347,7 @@ When the user asks to modify existing shapes (tidy, label, translate, etc.):
 
 // POST /api/ai/complete — AIによるシェイプ生成
 aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
-	const { prompt, canvasContext, boardId, model } = c.req.valid("json");
+	const { prompt, canvasContext, boardId, image, model } = c.req.valid("json");
 	const userId = c.get("userId");
 
 	// ボードアクセス制御: メンバーまたは公開ボードのみ許可
@@ -395,6 +396,19 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 				: SYSTEM_PROMPT;
 
 			// 3. OpenAI API呼び出し
+			const userContent = image
+				? [
+						{
+							type: "text" as const,
+							text: `Canvas context:\n${canvasContext}\n\nUser request: ${prompt}`,
+						},
+						{
+							type: "image_url" as const,
+							image_url: { url: image, detail: "low" as const },
+						},
+					]
+				: `Canvas context:\n${canvasContext}\n\nUser request: ${prompt}`;
+
 			const response = await fetch("https://api.openai.com/v1/chat/completions", {
 				method: "POST",
 				headers: {
@@ -405,13 +419,11 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 					model,
 					messages: [
 						{ role: "system", content: systemPrompt },
-						{
-							role: "user",
-							content: `Canvas context:\n${canvasContext}\n\nUser request: ${prompt}`,
-						},
+						{ role: "user", content: userContent },
 					],
 					tools: [PLACE_SHAPES_TOOL, MODIFY_SHAPES_TOOL],
-					tool_choice: "auto",
+					// 画像付きリクエストではplace_shapesを強制（テキスト応答のみ返却を防止）
+					tool_choice: image ? { type: "function", function: { name: "place_shapes" } } : "auto",
 				}),
 			});
 
@@ -586,7 +598,7 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 
 // POST /api/ai/suggest — Copilot用: LLM提案のみ返す（Y.Docには書き込まない）
 aiApp.post("/suggest", zValidator("json", completeSchema), async (c) => {
-	const { prompt, canvasContext, boardId, model } = c.req.valid("json");
+	const { prompt, canvasContext, boardId, image, model } = c.req.valid("json");
 	const userId = c.get("userId");
 
 	// ボードアクセス制御
@@ -617,6 +629,19 @@ aiApp.post("/suggest", zValidator("json", completeSchema), async (c) => {
 				data: JSON.stringify({ status: "thinking" }),
 			});
 
+			const suggestUserContent = image
+				? [
+						{
+							type: "text" as const,
+							text: `Canvas context:\n${canvasContext}\n\nUser request: ${prompt}`,
+						},
+						{
+							type: "image_url" as const,
+							image_url: { url: image, detail: "low" as const },
+						},
+					]
+				: `Canvas context:\n${canvasContext}\n\nUser request: ${prompt}`;
+
 			const response = await fetch("https://api.openai.com/v1/chat/completions", {
 				method: "POST",
 				headers: {
@@ -627,10 +652,7 @@ aiApp.post("/suggest", zValidator("json", completeSchema), async (c) => {
 					model,
 					messages: [
 						{ role: "system", content: SYSTEM_PROMPT },
-						{
-							role: "user",
-							content: `Canvas context:\n${canvasContext}\n\nUser request: ${prompt}`,
-						},
+						{ role: "user", content: suggestUserContent },
 					],
 					tools: [PLACE_SHAPES_TOOL],
 					tool_choice: { type: "function", function: { name: "place_shapes" } },

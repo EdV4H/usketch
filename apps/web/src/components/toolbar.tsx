@@ -1,5 +1,5 @@
 import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ShareDialog } from "./share-dialog.js";
 
 export function Toolbar({
@@ -133,6 +133,7 @@ export function Toolbar({
 					<>
 						<Divider />
 						<CopilotToggle />
+						<VoiceButton />
 					</>
 				)}
 			</div>
@@ -431,6 +432,35 @@ function CopilotToggle() {
 			}}
 		>
 			{enabled ? "✦" : "✧"}
+		</button>
+	);
+}
+
+function VoiceButton() {
+	const app = useApp();
+	const [listening, setListening] = useState(false);
+
+	useEffect(() => {
+		const unsub = app.events.on<{ status: string }>("voice:status", (e) => {
+			setListening(e.status === "listening");
+		});
+		return unsub;
+	}, [app.events]);
+
+	return (
+		<button
+			type="button"
+			onClick={() => app.events.emit("voice:toggle", {})}
+			title="Voice input"
+			style={{
+				...actionBtnStyle,
+				background: listening ? "#fce4ec" : "transparent",
+				color: listening ? "#c62828" : "#999",
+				fontSize: 14,
+				animation: listening ? "voice-pulse 1s infinite" : "none",
+			}}
+		>
+			🎤
 		</button>
 	);
 }
