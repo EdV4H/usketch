@@ -16,9 +16,15 @@ export function GhostShape({
 	const fill = suggestion.style?.fill ?? "#e3f2fd";
 	const stroke = suggestion.style?.stroke ?? "#90caf9";
 
+	const label = suggestion.text
+		? `Accept suggestion: ${suggestion.text}`
+		: `Accept suggested ${suggestion.type}`;
+
 	return (
 		<button
 			type="button"
+			aria-label={label}
+			title={label}
 			style={{
 				position: "absolute",
 				left: suggestion.x,
@@ -64,6 +70,7 @@ export function GhostShape({
 			</div>
 			{/* Accept indicator on hover */}
 			<div
+				aria-hidden="true"
 				style={{
 					position: "absolute",
 					top: -8,

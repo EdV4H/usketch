@@ -1,5 +1,5 @@
 import type { AiStatusEvent } from "@edv4h/usketch-plugin-ai-agent";
-import type { PluginContext, ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
+import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
 
 import { GhostShape } from "./ghost-shape.js";
@@ -11,7 +11,7 @@ const STYLES = `
 	from { opacity: 0; transform: scale(0.95); }
 	to { opacity: 1; transform: scale(1); }
 }
-div:hover > .ai-ghost-accept-btn {
+button:hover > .ai-ghost-accept-btn {
 	opacity: 1 !important;
 }
 `;
@@ -41,6 +41,7 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 			let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 			let aiIsBusy = false;
 			let requesting = false;
+			let activeController: AbortController | null = null;
 			const activeSuggestionIds = new Set<string>();
 
 			// Inject styles
@@ -51,32 +52,47 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 				document.head.appendChild(styleEl);
 			}
 
-			// Accept handler: convert suggestion to real shape
+			// Accept handler: ShapeDefinition.createDefault を使って正しいデフォルトで生成
 			function acceptSuggestion(suggestion: CopilotSuggestion): void {
-				const shape: ShapeData = {
-					id: generateId(),
-					type: suggestion.type,
-					x: suggestion.x,
-					y: suggestion.y,
-					width: suggestion.width,
-					height: suggestion.height,
-					style: {
-						fill: suggestion.style?.fill ?? "#ffffff",
-						stroke: suggestion.style?.stroke ?? "#1e1e1e",
-						strokeWidth: suggestion.style?.strokeWidth ?? 2,
-						opacity: suggestion.style?.opacity ?? 1,
-					},
-				};
-				if (suggestion.text !== undefined) {
-					(shape as Record<string, unknown>).text = suggestion.text;
+				const id = generateId();
+				const def = ctx.shapes.get(suggestion.type);
+
+				let shape: import("@edv4h/usketch-shared").ShapeData;
+				if (def) {
+					// ShapeDefinitionのcreateDefaultで正しいデフォルトを取得
+					shape = def.createDefault({ id, x: suggestion.x, y: suggestion.y });
+					shape.width = suggestion.width;
+					shape.height = suggestion.height;
+					if (suggestion.text !== undefined) {
+						(shape as Record<string, unknown>).text = suggestion.text;
+					}
+					if (suggestion.style) {
+						shape.style = { ...shape.style, ...suggestion.style };
+					}
+				} else {
+					shape = {
+						id,
+						type: suggestion.type,
+						x: suggestion.x,
+						y: suggestion.y,
+						width: suggestion.width,
+						height: suggestion.height,
+						style: {
+							fill: suggestion.style?.fill ?? "#ffffff",
+							stroke: suggestion.style?.stroke ?? "#1e1e1e",
+							strokeWidth: suggestion.style?.strokeWidth ?? 2,
+							opacity: suggestion.style?.opacity ?? 1,
+						},
+					};
 				}
-				if (suggestion.type === "text") {
-					(shape as Record<string, unknown>).fontSize = 16;
-					(shape as Record<string, unknown>).fontFamily = "system-ui, sans-serif";
-					(shape as Record<string, unknown>).isEditing = false;
-				}
-				ctx.store.addShape(shape);
-				// Dismiss the accepted suggestion
+
+				// Command経由でUndo可能に
+				const snapshot = { ...shape };
+				ctx.commands.execute({
+					execute: () => ctx.store.addShape(snapshot),
+					undo: () => ctx.store.deleteShape(id),
+				});
+
 				ctx.transient.dismiss(suggestion.id);
 				activeSuggestionIds.delete(suggestion.id);
 			}
@@ -96,18 +112,28 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 				activeSuggestionIds.clear();
 			}
 
+			// Abort active request
+			function abortActiveRequest(): void {
+				if (activeController) {
+					activeController.abort();
+					activeController = null;
+				}
+			}
+
 			// Request suggestions from AI
 			async function requestSuggestions(): Promise<void> {
 				if (requesting || aiIsBusy || !enabled) return;
 				requesting = true;
+				abortActiveRequest();
+
+				const controller = new AbortController();
+				activeController = controller;
 
 				try {
-					// Serialize recent shapes (last 10 for context)
 					const shapes = ctx.store.getShapes();
 					const viewport = ctx.store.getViewport();
 					const availableTypes = [...ctx.shapes.getAll().keys()];
 
-					// Simple context: last few shapes + viewport
 					const shapeList = [...shapes.values()].slice(-10).map((s) => ({
 						id: s.id,
 						type: s.type,
@@ -130,7 +156,6 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 						shapeCount: shapes.size,
 					});
 
-					const controller = new AbortController();
 					const response = await fetch(`${apiUrl}/api/ai/suggest`, {
 						method: "POST",
 						headers: {
@@ -148,43 +173,47 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 
 					if (!response.ok || !response.body) return;
 
-					// Parse SSE stream for result
 					const reader = response.body.getReader();
 					const decoder = new TextDecoder();
 					let buffer = "";
 					let currentEvent = "";
 					let currentData = "";
 
-					while (true) {
-						const { done, value } = await reader.read();
-						if (done) break;
+					try {
+						while (true) {
+							const { done, value } = await reader.read();
+							if (done) break;
 
-						buffer += decoder.decode(value, { stream: true });
-						const lines = buffer.split("\n");
-						buffer = lines.pop() ?? "";
+							buffer += decoder.decode(value, { stream: true });
+							const lines = buffer.split("\n");
+							buffer = lines.pop() ?? "";
 
-						for (const line of lines) {
-							if (line.startsWith("event: ")) {
-								currentEvent = line.slice(7).trim();
-							} else if (line.startsWith("data: ")) {
-								currentData = line.slice(6).trim();
-							} else if (line === "" && currentEvent && currentData) {
-								if (currentEvent === "result") {
-									const parsed = JSON.parse(currentData);
-									const suggestions = (parsed.shapes ?? []).slice(0, maxSuggestions);
-									showSuggestions(suggestions);
+							for (const line of lines) {
+								if (line.startsWith("event: ")) {
+									currentEvent = line.slice(7).trim();
+								} else if (line.startsWith("data: ")) {
+									currentData = line.slice(6).trim();
+								} else if (line === "" && currentEvent && currentData) {
+									if (currentEvent === "result") {
+										const parsed = JSON.parse(currentData);
+										const suggestions = (parsed.shapes ?? []).slice(0, maxSuggestions);
+										showSuggestions(suggestions);
+									}
+									currentEvent = "";
+									currentData = "";
 								}
-								currentEvent = "";
-								currentData = "";
 							}
 						}
+					} finally {
+						reader.cancel().catch(() => {});
 					}
-
-					reader.cancel().catch(() => {});
 				} catch {
 					// Silently fail — copilot suggestions are best-effort
 				} finally {
 					requesting = false;
+					if (activeController === controller) {
+						activeController = null;
+					}
 				}
 			}
 
@@ -223,11 +252,11 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 			const unsubStatus = ctx.events.on<AiStatusEvent>("ai:status", (status) => {
 				aiIsBusy = status.status === "thinking" || status.status === "placing";
 				if (aiIsBusy) {
-					// Cancel pending suggestion request
 					if (debounceTimer) {
 						clearTimeout(debounceTimer);
 						debounceTimer = null;
 					}
+					abortActiveRequest();
 					dismissAll();
 				}
 			});
@@ -245,6 +274,7 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 				enabled = data.enabled;
 				if (!enabled) {
 					dismissAll();
+					abortActiveRequest();
 					if (debounceTimer) {
 						clearTimeout(debounceTimer);
 						debounceTimer = null;
@@ -254,6 +284,7 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 
 			cleanup = () => {
 				if (debounceTimer) clearTimeout(debounceTimer);
+				abortActiveRequest();
 				dismissAll();
 				unsubAdded();
 				unsubUpdated();
