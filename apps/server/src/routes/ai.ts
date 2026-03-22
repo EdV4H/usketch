@@ -123,6 +123,90 @@ const PLACE_SHAPES_TOOL = {
 	},
 };
 
+const MODIFY_SHAPES_TOOL = {
+	type: "function" as const,
+	function: {
+		name: "modify_shapes",
+		description:
+			"Update existing shapes on the canvas. Each update targets a shape by ID and can change position, size, text, or style.",
+		parameters: {
+			type: "object",
+			properties: {
+				updates: {
+					type: "array",
+					items: {
+						type: "object",
+						properties: {
+							id: {
+								type: "string",
+								description: "The shape ID to update",
+							},
+							x: { type: "number", description: "New X position (left edge)" },
+							y: { type: "number", description: "New Y position (top edge)" },
+							width: {
+								type: "number",
+								description: "New width in pixels",
+							},
+							height: {
+								type: "number",
+								description: "New height in pixels",
+							},
+							text: {
+								type: "string",
+								description: "New text content",
+							},
+							fontSize: {
+								type: "number",
+								description: "New font size in px",
+							},
+							style: {
+								type: "object",
+								description: "Style overrides",
+								properties: {
+									fill: {
+										type: "string",
+										description: "Fill color (hex)",
+									},
+									stroke: {
+										type: "string",
+										description: "Stroke color (hex)",
+									},
+									strokeWidth: {
+										type: "number",
+										description: "Stroke width in px",
+									},
+									opacity: {
+										type: "number",
+										description: "Opacity 0-1",
+									},
+								},
+							},
+						},
+						required: ["id"],
+					},
+				},
+			},
+			required: ["updates"],
+		},
+	},
+};
+
+interface ModifyShapeItem {
+	id: string;
+	x?: number;
+	y?: number;
+	width?: number;
+	height?: number;
+	text?: string;
+	fontSize?: number;
+	style?: {
+		fill?: string;
+		stroke?: string;
+		strokeWidth?: number;
+		opacity?: number;
+	};
+}
+
 interface PlaceShapeItem {
 	type: string;
 	x: number;
@@ -194,6 +278,72 @@ function validateShapes(raw: PlaceShapeItem[]): PlaceShapeItem[] {
 	return valid;
 }
 
+/** LLM出力のシェイプ更新をバリデーション・サニタイズする（未知フィールドは除去） */
+function validateModifications(raw: ModifyShapeItem[]): ModifyShapeItem[] {
+	const clamped = raw.slice(0, MAX_SHAPES_PER_REQUEST);
+	const valid: ModifyShapeItem[] = [];
+	for (const s of clamped) {
+		if (typeof s.id !== "string" || !s.id) continue;
+
+		const sanitized: ModifyShapeItem = { id: s.id };
+
+		if (Number.isFinite(s.x)) sanitized.x = s.x;
+		if (Number.isFinite(s.y)) sanitized.y = s.y;
+		if (Number.isFinite(s.width) && (s.width as number) > 0) {
+			sanitized.width = Math.min(s.width as number, 10000);
+		}
+		if (Number.isFinite(s.height) && (s.height as number) > 0) {
+			sanitized.height = Math.min(s.height as number, 10000);
+		}
+
+		// text
+		if (typeof s.text === "string" && s.text.trim()) {
+			sanitized.text = s.text.trim().slice(0, MAX_TEXT_LENGTH);
+		}
+
+		// fontSize
+		if (Number.isFinite(s.fontSize)) {
+			sanitized.fontSize = Math.min(256, Math.max(8, s.fontSize as number));
+		}
+
+		// style: 許可キーのみ、値をサニタイズ
+		if (s.style && typeof s.style === "object") {
+			const si = s.style;
+			const so: ModifyShapeItem["style"] = {};
+			if (
+				typeof si.fill === "string" &&
+				(HEX_COLOR_RE.test(si.fill) || si.fill === "transparent")
+			) {
+				so.fill = si.fill;
+			}
+			if (typeof si.stroke === "string" && HEX_COLOR_RE.test(si.stroke)) {
+				so.stroke = si.stroke;
+			}
+			if (Number.isFinite(si.strokeWidth)) {
+				so.strokeWidth = Math.min(100, Math.max(0, si.strokeWidth as number));
+			}
+			if (Number.isFinite(si.opacity)) {
+				so.opacity = Math.min(1, Math.max(0, si.opacity as number));
+			}
+			if (Object.keys(so).length > 0) {
+				sanitized.style = so;
+			}
+		}
+
+		valid.push(sanitized);
+	}
+	return valid;
+}
+
+const SMART_ACTIONS_ADDENDUM = `
+
+When the user asks to modify existing shapes (tidy, label, translate, etc.):
+- Use modify_shapes to update existing shapes by their ID
+- For "tidy": Rearrange shapes into a clean grid or flow layout. Align edges, equalize spacing.
+- For "label": Add new text shapes near unlabeled shapes to describe them.
+- For "translate": Update the text content of text shapes to the target language.
+- You can use BOTH place_shapes (to add new shapes) AND modify_shapes (to update existing) in the same response.`;
+
 // POST /api/ai/complete — AIによるシェイプ生成
 aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 	const { prompt, canvasContext, boardId, model } = c.req.valid("json");
@@ -231,7 +381,13 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 				data: JSON.stringify({ status: "thinking" }),
 			});
 
-			// 2. OpenAI API呼び出し
+			// 2. システムプロンプトを構築（選択シェイプがある場合はアドオン追加）
+			const hasSelectedShapes = canvasContext.includes("selectedShapes");
+			const systemPrompt = hasSelectedShapes
+				? SYSTEM_PROMPT + SMART_ACTIONS_ADDENDUM
+				: SYSTEM_PROMPT;
+
+			// 3. OpenAI API呼び出し
 			const response = await fetch("https://api.openai.com/v1/chat/completions", {
 				method: "POST",
 				headers: {
@@ -241,17 +397,14 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 				body: JSON.stringify({
 					model,
 					messages: [
-						{ role: "system", content: SYSTEM_PROMPT },
+						{ role: "system", content: systemPrompt },
 						{
 							role: "user",
 							content: `Canvas context:\n${canvasContext}\n\nUser request: ${prompt}`,
 						},
 					],
-					tools: [PLACE_SHAPES_TOOL],
-					tool_choice: {
-						type: "function",
-						function: { name: "place_shapes" },
-					},
+					tools: [PLACE_SHAPES_TOOL, MODIFY_SHAPES_TOOL],
+					tool_choice: "auto",
 				}),
 			});
 
@@ -276,8 +429,8 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 				}>;
 			};
 
-			const toolCall = apiResult.choices?.[0]?.message?.tool_calls?.[0];
-			if (!toolCall || toolCall.function.name !== "place_shapes") {
+			const toolCalls = apiResult.choices?.[0]?.message?.tool_calls ?? [];
+			if (toolCalls.length === 0) {
 				await stream.writeSSE({
 					event: "error",
 					data: JSON.stringify({
@@ -287,68 +440,120 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 				return;
 			}
 
-			const args = JSON.parse(toolCall.function.arguments) as {
-				shapes: PlaceShapeItem[];
-			};
+			const doId = c.env.BOARD_ROOM.idFromName(boardId);
+			const room = c.env.BOARD_ROOM.get(doId);
 
-			// 3. LLM出力をバリデーション・サニタイズ
-			const shapes = validateShapes(args.shapes ?? []);
+			let hasResult = false;
 
-			if (shapes.length === 0) {
+			for (const toolCall of toolCalls) {
+				const fnName = toolCall.function.name;
+
+				if (fnName === "place_shapes") {
+					const args = JSON.parse(toolCall.function.arguments) as {
+						shapes: PlaceShapeItem[];
+					};
+
+					// LLM出力をバリデーション・サニタイズ
+					const shapes = validateShapes(args.shapes ?? []);
+					if (shapes.length === 0) continue;
+
+					// Placing状態を通知
+					await stream.writeSSE({
+						event: "status",
+						data: JSON.stringify({
+							status: "placing",
+							shapeCount: shapes.length,
+						}),
+					});
+
+					// BoardRoom DOにHTTP経由でシェイプ配置を転送
+					const placeResponse = await room.fetch(
+						new Request("http://do/ai-place-shapes", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ shapes }),
+						}),
+					);
+
+					if (!placeResponse.ok) {
+						const errText = await placeResponse.text();
+						await stream.writeSSE({
+							event: "error",
+							data: JSON.stringify({
+								message: `Failed to place shapes: ${errText}`,
+							}),
+						});
+						return;
+					}
+
+					const placed = (await placeResponse.json()) as {
+						placedShapes: Array<{
+							id: string;
+							type: string;
+							x: number;
+							y: number;
+							width: number;
+							height: number;
+						}>;
+					};
+
+					await stream.writeSSE({
+						event: "result",
+						data: JSON.stringify({ shapes: placed.placedShapes }),
+					});
+					hasResult = true;
+				} else if (fnName === "modify_shapes") {
+					const args = JSON.parse(toolCall.function.arguments) as {
+						updates: ModifyShapeItem[];
+					};
+
+					// LLM出力をバリデーション・サニタイズ
+					const updates = validateModifications(args.updates ?? []);
+					if (updates.length === 0) continue;
+
+					// Updating状態を通知
+					await stream.writeSSE({
+						event: "status",
+						data: JSON.stringify({
+							status: "placing",
+							shapeCount: updates.length,
+						}),
+					});
+
+					// BoardRoom DOにHTTP経由でシェイプ更新を転送
+					const updateResponse = await room.fetch(
+						new Request("http://do/ai-update-shapes", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ updates }),
+						}),
+					);
+
+					if (!updateResponse.ok) {
+						const errText = await updateResponse.text();
+						await stream.writeSSE({
+							event: "error",
+							data: JSON.stringify({
+								message: `Failed to update shapes: ${errText}`,
+							}),
+						});
+						return;
+					}
+
+					await stream.writeSSE({
+						event: "result",
+						data: JSON.stringify({ updates }),
+					});
+					hasResult = true;
+				}
+			}
+
+			if (!hasResult) {
 				await stream.writeSSE({
 					event: "error",
 					data: JSON.stringify({ message: "AI produced no valid shapes" }),
 				});
-				return;
 			}
-
-			// 4. Placing状態を通知
-			await stream.writeSSE({
-				event: "status",
-				data: JSON.stringify({
-					status: "placing",
-					shapeCount: shapes.length,
-				}),
-			});
-
-			// 5. BoardRoom DOにHTTP経由でシェイプ配置を転送
-			const doId = c.env.BOARD_ROOM.idFromName(boardId);
-			const room = c.env.BOARD_ROOM.get(doId);
-			const placeResponse = await room.fetch(
-				new Request("http://do/ai-place-shapes", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ shapes }),
-				}),
-			);
-
-			if (!placeResponse.ok) {
-				const errText = await placeResponse.text();
-				await stream.writeSSE({
-					event: "error",
-					data: JSON.stringify({
-						message: `Failed to place shapes: ${errText}`,
-					}),
-				});
-				return;
-			}
-
-			const placed = (await placeResponse.json()) as {
-				placedShapes: Array<{
-					id: string;
-					type: string;
-					x: number;
-					y: number;
-					width: number;
-					height: number;
-				}>;
-			};
-
-			// 6. 完了通知
-			await stream.writeSSE({
-				event: "result",
-				data: JSON.stringify({ shapes: placed.placedShapes }),
-			});
 		} catch (err) {
 			await stream.writeSSE({
 				event: "error",
