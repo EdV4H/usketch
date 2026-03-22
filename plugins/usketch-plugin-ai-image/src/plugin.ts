@@ -103,13 +103,17 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 				input.accept = "image/*";
 				input.style.display = "none";
 
+				const removeInput = () => input.remove();
+
 				input.addEventListener("change", () => {
 					const file = input.files?.[0];
 					if (file) {
 						placeImageShape(file);
 					}
-					input.remove();
+					removeInput();
 				});
+				// キャンセル時にもDOMから除去
+				input.addEventListener("cancel", removeInput);
 
 				document.body.appendChild(input);
 				input.click();

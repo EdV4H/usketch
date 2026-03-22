@@ -451,7 +451,7 @@ function VoiceButton() {
 		<button
 			type="button"
 			onClick={() => app.events.emit("voice:toggle", {})}
-			title="Voice input (Shift+V)"
+			title="Voice input"
 			style={{
 				...actionBtnStyle,
 				background: listening ? "#fce4ec" : "transparent",
