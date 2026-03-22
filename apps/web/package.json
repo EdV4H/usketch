@@ -18,6 +18,7 @@
 		"@edv4h/usketch-plugin-ai-actions": "workspace:*",
 		"@edv4h/usketch-plugin-ai-agent": "workspace:*",
 		"@edv4h/usketch-plugin-ai-chat": "workspace:*",
+		"@edv4h/usketch-plugin-ai-copilot": "workspace:*",
 		"@edv4h/usketch-plugin-avatar": "workspace:*",
 		"@edv4h/usketch-plugin-effect-ripple": "workspace:*",
 		"@edv4h/usketch-plugin-shape-board-portal": "workspace:*",
