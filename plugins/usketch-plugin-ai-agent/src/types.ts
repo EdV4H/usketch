@@ -2,6 +2,7 @@ export interface AiCompleteRequest {
 	prompt: string;
 	canvasContext: string;
 	boardId: string;
+	image?: string;
 	model?: string;
 }
 
@@ -25,6 +26,7 @@ export interface AiResponseEvent {
 export interface AiRequestEvent {
 	prompt: string;
 	boardId: string;
+	image?: string;
 }
 
 export type SmartActionType = "tidy" | "label" | "translate" | "custom";
