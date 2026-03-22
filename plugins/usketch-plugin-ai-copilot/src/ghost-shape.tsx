@@ -4,7 +4,6 @@ import type { CopilotSuggestion } from "./types.js";
 
 export function GhostShape({
 	obj,
-	ctx,
 	onAccept,
 }: {
 	obj: TransientObject;
@@ -12,14 +11,8 @@ export function GhostShape({
 	onAccept: (suggestion: CopilotSuggestion) => void;
 }) {
 	const suggestion = obj.data.suggestion as CopilotSuggestion;
-	const vp = ctx.viewport;
 
-	// World to screen conversion
-	const screenX = suggestion.x * vp.zoom + vp.x;
-	const screenY = suggestion.y * vp.zoom + vp.y;
-	const screenW = suggestion.width * vp.zoom;
-	const screenH = suggestion.height * vp.zoom;
-
+	// ワールド座標をそのまま使用（Canvasのviewport transformが変換する）
 	const fill = suggestion.style?.fill ?? "#e3f2fd";
 	const stroke = suggestion.style?.stroke ?? "#90caf9";
 
@@ -28,10 +21,10 @@ export function GhostShape({
 			type="button"
 			style={{
 				position: "absolute",
-				left: screenX,
-				top: screenY,
-				width: screenW,
-				height: screenH,
+				left: suggestion.x,
+				top: suggestion.y,
+				width: suggestion.width,
+				height: suggestion.height,
 				pointerEvents: "auto",
 				cursor: "pointer",
 				padding: 0,
@@ -56,7 +49,7 @@ export function GhostShape({
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
-					fontSize: Math.max(10, 13 * vp.zoom),
+					fontSize: 13,
 					color: "#666",
 					fontFamily: "system-ui, sans-serif",
 					overflow: "hidden",
