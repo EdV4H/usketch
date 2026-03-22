@@ -14,6 +14,7 @@ import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enh
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
 import { ellipsePlugin } from "@edv4h/usketch-plugin-shape-ellipse";
 import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
+import { imageShapePlugin } from "@edv4h/usketch-plugin-shape-image";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
 import { snapPlugin } from "@edv4h/usketch-plugin-snap";
@@ -43,6 +44,7 @@ const basePlugins: UsketchPlugin[] = [
 	ellipsePlugin,
 	freedrawPlugin,
 	textPlugin,
+	imageShapePlugin,
 	counterPlugin,
 	snapPlugin,
 	exportPlugin,

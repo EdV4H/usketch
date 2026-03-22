@@ -1,12 +1,10 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import { generateId } from "@edv4h/usketch-shared";
 import { fileToBase64, resizeImage, validateImage } from "./image-utils.js";
 import type { ImageOptions } from "./types.js";
 
-const DEFAULT_PROMPT =
-	"Analyze this image and recreate its structure as editable shapes on the canvas. Create rectangles, ellipses, and text shapes that match the layout.";
-
 export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
-	const { boardId, maxSizeMB = 4, maxDimension = 2048 } = options;
+	const { maxSizeMB = 4, maxDimension = 2048 } = options;
 	let cleanup: (() => void) | undefined;
 
 	return {
@@ -14,8 +12,8 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 		name: "AI Image",
 
 		setup(ctx: PluginContext) {
-			/** Process an image file: validate, resize, convert, and emit ai:request */
-			async function processImageFile(file: File): Promise<void> {
+			/** 画像をimageシェイプとしてキャンバスに配置 */
+			async function placeImageShape(file: File): Promise<void> {
 				const validation = validateImage(file, maxSizeMB);
 				if (!validation.valid) {
 					ctx.events.emit("ai:status", {
@@ -29,11 +27,40 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 					let dataUrl = await fileToBase64(file);
 					dataUrl = await resizeImage(dataUrl, maxDimension);
 
-					ctx.events.emit("ai:request", {
-						prompt: DEFAULT_PROMPT,
-						boardId,
-						image: dataUrl,
+					// ビューポート中央にシェイプを配置
+					const viewport = ctx.store.getViewport();
+					const centerX = -viewport.x / viewport.zoom + window.innerWidth / 2 / viewport.zoom;
+					const centerY = -viewport.y / viewport.zoom + window.innerHeight / 2 / viewport.zoom;
+
+					// 画像サイズを取得してアスペクト比を維持
+					const { width, height } = await getImageDimensions(dataUrl);
+					const maxSize = 400;
+					const scale = Math.min(maxSize / width, maxSize / height, 1);
+					const w = Math.round(width * scale);
+					const h = Math.round(height * scale);
+
+					const id = generateId();
+					const shape = {
+						id,
+						type: "image",
+						x: Math.round(centerX - w / 2),
+						y: Math.round(centerY - h / 2),
+						width: w,
+						height: h,
+						style: {
+							fill: "#f5f5f5",
+							stroke: "#e0e0e0",
+							strokeWidth: 1,
+							opacity: 1,
+						},
+						src: dataUrl,
+					};
+
+					ctx.commands.execute({
+						execute: () => ctx.store.addShape(shape),
+						undo: () => ctx.store.deleteShape(id),
 					});
+					ctx.store.setSelection([id]);
 				} catch (err) {
 					ctx.events.emit("ai:status", {
 						status: "error",
@@ -44,6 +71,16 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 
 			/** Handle paste events with image data */
 			function handlePaste(event: ClipboardEvent): void {
+				// テキスト入力中はスキップ
+				const tag = (event.target as HTMLElement)?.tagName;
+				if (
+					tag === "INPUT" ||
+					tag === "TEXTAREA" ||
+					(event.target as HTMLElement)?.isContentEditable
+				) {
+					return;
+				}
+
 				const items = event.clipboardData?.items;
 				if (!items) return;
 
@@ -52,7 +89,7 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 						const file = item.getAsFile();
 						if (file) {
 							event.preventDefault();
-							processImageFile(file);
+							placeImageShape(file);
 							return;
 						}
 					}
@@ -69,7 +106,7 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 				input.addEventListener("change", () => {
 					const file = input.files?.[0];
 					if (file) {
-						processImageFile(file);
+						placeImageShape(file);
 					}
 					input.remove();
 				});
@@ -91,4 +128,14 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 			cleanup?.();
 		},
 	};
+}
+
+/** 画像の実寸サイズを取得 */
+function getImageDimensions(dataUrl: string): Promise<{ width: number; height: number }> {
+	return new Promise((resolve, reject) => {
+		const img = new Image();
+		img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+		img.onerror = () => reject(new Error("Failed to load image"));
+		img.src = dataUrl;
+	});
 }

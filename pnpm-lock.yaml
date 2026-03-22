@@ -129,6 +129,9 @@ importers:
       '@edv4h/usketch-plugin-shape-freedraw':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-freedraw
+      '@edv4h/usketch-plugin-shape-image':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-shape-image
       '@edv4h/usketch-plugin-shape-rect':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-rect
@@ -770,6 +773,25 @@ importers:
       '@edv4h/usketch-store':
         specifier: workspace:*
         version: link:../../packages/store
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-shape-image:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       react:
         specifier: '>=19'
         version: 19.1.0
