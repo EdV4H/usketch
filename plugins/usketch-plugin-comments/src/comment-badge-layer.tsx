@@ -82,7 +82,10 @@ export function CommentBadgeLayer({ ctx, store, shapes, events }: CommentBadgeLa
 					<button
 						key={badge.shapeId}
 						type="button"
-						onClick={() => {
+						onPointerDown={(e) => e.stopPropagation()}
+						onPointerUp={(e) => e.stopPropagation()}
+						onClick={(e) => {
+							e.stopPropagation();
 							events.emit<SidePanelOpenEvent>("side-panel:open", { tabId: "comments" });
 						}}
 						style={{

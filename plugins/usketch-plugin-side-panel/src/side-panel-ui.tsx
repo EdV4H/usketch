@@ -57,12 +57,16 @@ export function SidePanelUI({ events, tabStore }: SidePanelUIProps) {
 	if (!open || tabs.length === 0) return null;
 
 	return (
-		<div
-			role="dialog"
+		<aside
+			aria-label="Side Panel"
 			onPointerDown={(e) => e.stopPropagation()}
 			onPointerUp={(e) => e.stopPropagation()}
 			onClick={(e) => e.stopPropagation()}
-			onKeyDown={(e) => e.stopPropagation()}
+			onKeyDown={(e) => {
+				// Cmd/Ctrl ショートカットはグローバルリスナー（Cmd+K等）に伝播させる
+				if (e.metaKey || e.ctrlKey) return;
+				e.stopPropagation();
+			}}
 			onWheel={(e) => e.stopPropagation()}
 			style={{
 				position: "fixed",
@@ -135,6 +139,6 @@ export function SidePanelUI({ events, tabStore }: SidePanelUIProps) {
 			<div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
 				{activeTab ? activeTab.render() : null}
 			</div>
-		</div>
+		</aside>
 	);
 }

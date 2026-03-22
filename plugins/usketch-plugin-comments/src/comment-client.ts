@@ -19,9 +19,13 @@ export function createCommentClient(options: CommentClientOptions) {
 	}
 
 	async function list(): Promise<CommentThread[]> {
-		const res = await fetch(base, { credentials: "include", headers: headers() });
-		if (!res.ok) return [];
-		return res.json() as Promise<CommentThread[]>;
+		try {
+			const res = await fetch(base, { credentials: "include", headers: headers() });
+			if (!res.ok) return [];
+			return (await res.json()) as CommentThread[];
+		} catch {
+			return [];
+		}
 	}
 
 	async function createThread(params: {
@@ -30,44 +34,60 @@ export function createCommentClient(options: CommentClientOptions) {
 		anchorY?: number;
 		text: string;
 	}): Promise<CommentThread | null> {
-		const res = await fetch(base, {
-			method: "POST",
-			credentials: "include",
-			headers: headers(),
-			body: JSON.stringify(params),
-		});
-		if (!res.ok) return null;
-		return res.json() as Promise<CommentThread>;
+		try {
+			const res = await fetch(base, {
+				method: "POST",
+				credentials: "include",
+				headers: headers(),
+				body: JSON.stringify(params),
+			});
+			if (!res.ok) return null;
+			return (await res.json()) as CommentThread;
+		} catch {
+			return null;
+		}
 	}
 
 	async function addMessage(commentId: string, text: string): Promise<CommentMessage | null> {
-		const res = await fetch(`${base}/${commentId}/messages`, {
-			method: "POST",
-			credentials: "include",
-			headers: headers(),
-			body: JSON.stringify({ text }),
-		});
-		if (!res.ok) return null;
-		return res.json() as Promise<CommentMessage>;
+		try {
+			const res = await fetch(`${base}/${commentId}/messages`, {
+				method: "POST",
+				credentials: "include",
+				headers: headers(),
+				body: JSON.stringify({ text }),
+			});
+			if (!res.ok) return null;
+			return (await res.json()) as CommentMessage;
+		} catch {
+			return null;
+		}
 	}
 
 	async function resolve(commentId: string, resolved: boolean): Promise<boolean> {
-		const res = await fetch(`${base}/${commentId}`, {
-			method: "PATCH",
-			credentials: "include",
-			headers: headers(),
-			body: JSON.stringify({ resolved }),
-		});
-		return res.ok;
+		try {
+			const res = await fetch(`${base}/${commentId}`, {
+				method: "PATCH",
+				credentials: "include",
+				headers: headers(),
+				body: JSON.stringify({ resolved }),
+			});
+			return res.ok;
+		} catch {
+			return false;
+		}
 	}
 
 	async function deleteThread(commentId: string): Promise<boolean> {
-		const res = await fetch(`${base}/${commentId}`, {
-			method: "DELETE",
-			credentials: "include",
-			headers: headers(),
-		});
-		return res.ok;
+		try {
+			const res = await fetch(`${base}/${commentId}`, {
+				method: "DELETE",
+				credentials: "include",
+				headers: headers(),
+			});
+			return res.ok;
+		} catch {
+			return false;
+		}
 	}
 
 	return { list, createThread, addMessage, resolve, deleteThread };

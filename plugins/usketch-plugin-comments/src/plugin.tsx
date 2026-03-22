@@ -32,10 +32,11 @@ export function createCommentsPlugin(options: CommentsPluginOptions): UsketchPlu
 				},
 			});
 
-			// バッジレイヤー（非fixedレイヤー = キャンバス座標系）
+			// バッジレイヤー（fixedレイヤー = スクリーン座標系で描画）
 			ctx.layers.register({
 				id: "comment-badges",
 				order: 55,
+				fixed: true,
 				render: (renderCtx) => (
 					<CommentBadgeLayer
 						ctx={renderCtx}

@@ -256,35 +256,55 @@ export function CommentsTab({ client, events, focusThreadId }: CommentsTabProps)
 		});
 	}, [events]);
 
+	// バッジレイヤーにスレッド一覧を同期
+	const syncBadges = useCallback(
+		(updated: CommentThread[]) => {
+			events.emit("comments:threads-loaded", updated);
+		},
+		[events],
+	);
+
 	const handleReply = useCallback(
 		async (threadId: string, text: string) => {
 			const msg = await client.addMessage(threadId, text);
 			if (!msg) return;
-			setThreads((prev) =>
-				prev.map((t) => (t.id === threadId ? { ...t, messages: [...t.messages, msg] } : t)),
-			);
+			setThreads((prev) => {
+				const updated = prev.map((t) =>
+					t.id === threadId ? { ...t, messages: [...t.messages, msg] } : t,
+				);
+				syncBadges(updated);
+				return updated;
+			});
 		},
-		[client],
+		[client, syncBadges],
 	);
 
 	const handleResolve = useCallback(
 		async (threadId: string, resolved: boolean) => {
 			const ok = await client.resolve(threadId, resolved);
 			if (!ok) return;
-			setThreads((prev) =>
-				prev.map((t) => (t.id === threadId ? { ...t, resolved: resolved ? 1 : 0 } : t)),
-			);
+			setThreads((prev) => {
+				const updated = prev.map((t) =>
+					t.id === threadId ? { ...t, resolved: resolved ? 1 : 0 } : t,
+				);
+				syncBadges(updated);
+				return updated;
+			});
 		},
-		[client],
+		[client, syncBadges],
 	);
 
 	const handleDelete = useCallback(
 		async (threadId: string) => {
 			const ok = await client.deleteThread(threadId);
 			if (!ok) return;
-			setThreads((prev) => prev.filter((t) => t.id !== threadId));
+			setThreads((prev) => {
+				const updated = prev.filter((t) => t.id !== threadId);
+				syncBadges(updated);
+				return updated;
+			});
 		},
-		[client],
+		[client, syncBadges],
 	);
 
 	const handleCreateThread = useCallback(
