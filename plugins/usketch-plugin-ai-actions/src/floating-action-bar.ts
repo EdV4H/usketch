@@ -405,17 +405,21 @@ export function createFloatingActionBar(options: FloatingActionBarOptions): {
 		const selection = store.getSelection();
 		const newSize = selection.size;
 
+		// done/error中はタイマーに任せて再描画しない
+		if (mode === "done" || mode === "error") {
+			lastSelectionSize = newSize;
+			return;
+		}
+
 		if (
 			newSize > 0 &&
 			(mode === "thinking" ||
-				mode === "done" ||
-				mode === "error" ||
 				newSize !== lastSelectionSize ||
 				!barEl ||
 				barEl.classList.contains("hidden"))
 		) {
 			showBar();
-		} else if (newSize === 0 && mode !== "thinking" && mode !== "done") {
+		} else if (newSize === 0 && mode !== "thinking") {
 			hideBar();
 		} else if (newSize > 0) {
 			positionBar();
