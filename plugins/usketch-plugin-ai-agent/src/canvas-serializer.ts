@@ -8,6 +8,7 @@ export function canvasToPrompt(
 	shapes: ReadonlyMap<string, ShapeData>,
 	viewport: Viewport,
 	availableTypes: string[],
+	selectedIds?: ReadonlySet<string>,
 ): string {
 	const viewportCenter = {
 		x: Math.round(
@@ -51,13 +52,23 @@ export function canvasToPrompt(
 	const useAll = allJson.length / 4 < 8000;
 	const shapesToSend = useAll ? allShapes : viewportShapes;
 
-	const context = {
+	const context: Record<string, unknown> = {
 		viewportCenter,
 		availableShapeTypes: availableTypes,
 		existingShapes: shapesToSend,
 		shapeCount: shapes.size,
 		visibleShapeCount: viewportShapes.length,
 	};
+
+	// 選択シェイプがある場合は詳細情報を含める
+	if (selectedIds && selectedIds.size > 0) {
+		const selectedShapes: Array<Record<string, unknown>> = [];
+		for (const id of selectedIds) {
+			const shape = shapes.get(id);
+			if (shape) selectedShapes.push(serializeShape(shape));
+		}
+		context.selectedShapes = selectedShapes;
+	}
 
 	return JSON.stringify(context);
 }
