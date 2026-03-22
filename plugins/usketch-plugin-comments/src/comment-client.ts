@@ -10,17 +10,20 @@ export function createCommentClient(options: CommentClientOptions) {
 	const { apiUrl, boardId, extraHeaders } = options;
 	const base = `${apiUrl}/api/boards/${boardId}/comments`;
 
-	function headers(extra?: Record<string, string>): Record<string, string> {
+	function jsonHeaders(): Record<string, string> {
 		return {
 			"Content-Type": "application/json",
 			...extraHeaders,
-			...extra,
 		};
+	}
+
+	function baseHeaders(): Record<string, string> {
+		return { ...extraHeaders };
 	}
 
 	async function list(): Promise<CommentThread[]> {
 		try {
-			const res = await fetch(base, { credentials: "include", headers: headers() });
+			const res = await fetch(base, { credentials: "include", headers: baseHeaders() });
 			if (!res.ok) return [];
 			return (await res.json()) as CommentThread[];
 		} catch {
@@ -38,7 +41,7 @@ export function createCommentClient(options: CommentClientOptions) {
 			const res = await fetch(base, {
 				method: "POST",
 				credentials: "include",
-				headers: headers(),
+				headers: jsonHeaders(),
 				body: JSON.stringify(params),
 			});
 			if (!res.ok) return null;
@@ -53,7 +56,7 @@ export function createCommentClient(options: CommentClientOptions) {
 			const res = await fetch(`${base}/${commentId}/messages`, {
 				method: "POST",
 				credentials: "include",
-				headers: headers(),
+				headers: jsonHeaders(),
 				body: JSON.stringify({ text }),
 			});
 			if (!res.ok) return null;
@@ -68,7 +71,7 @@ export function createCommentClient(options: CommentClientOptions) {
 			const res = await fetch(`${base}/${commentId}`, {
 				method: "PATCH",
 				credentials: "include",
-				headers: headers(),
+				headers: jsonHeaders(),
 				body: JSON.stringify({ resolved }),
 			});
 			return res.ok;
@@ -82,7 +85,7 @@ export function createCommentClient(options: CommentClientOptions) {
 			const res = await fetch(`${base}/${commentId}`, {
 				method: "DELETE",
 				credentials: "include",
-				headers: headers(),
+				headers: baseHeaders(),
 			});
 			return res.ok;
 		} catch {
