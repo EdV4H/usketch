@@ -84,6 +84,15 @@ importers:
       '@edv4h/usketch-plugin-ai-copilot':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-ai-copilot
+      '@edv4h/usketch-plugin-ai-image':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-ai-image
+      '@edv4h/usketch-plugin-ai-recognize':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-ai-recognize
+      '@edv4h/usketch-plugin-ai-voice':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-ai-voice
       '@edv4h/usketch-plugin-avatar':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-avatar
@@ -387,6 +396,54 @@ importers:
       '@types/react':
         specifier: 19.1.8
         version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-ai-image:
+    dependencies:
+      '@edv4h/usketch-plugin-ai-agent':
+        specifier: workspace:*
+        version: link:../usketch-plugin-ai-agent
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-ai-recognize:
+    dependencies:
+      '@edv4h/usketch-plugin-ai-agent':
+        specifier: workspace:*
+        version: link:../usketch-plugin-ai-agent
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-ai-voice:
+    dependencies:
+      '@edv4h/usketch-plugin-ai-agent':
+        specifier: workspace:*
+        version: link:../usketch-plugin-ai-agent
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
       typescript:
         specifier: 5.8.3
         version: 5.8.3
