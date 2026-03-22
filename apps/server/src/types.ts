@@ -11,6 +11,7 @@ export interface Env {
 	GOOGLE_CLIENT_SECRET?: string;
 	GITHUB_CLIENT_ID?: string;
 	GITHUB_CLIENT_SECRET?: string;
+	OPENAI_API_KEY?: string;
 }
 
 export type AppDb = DrizzleD1Database<typeof schema>;

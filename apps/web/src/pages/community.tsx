@@ -1,6 +1,8 @@
 import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
+import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
+import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
 import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
@@ -111,6 +113,15 @@ export function CommunityPage() {
 					apiUrl,
 				}),
 			);
+
+			// AI プラグイン
+			const aiHeaders: Record<string, string> = {};
+			if (import.meta.env.DEV) {
+				const devUser = getDevUser();
+				if (devUser) aiHeaders["X-User-Id"] = devUser.id;
+			}
+			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
+			extraPlugins.push(createAiChatPlugin({ boardId: COMMUNITY_BOARD_ID }));
 		} else {
 			extraPlugins.push(rippleEffectPlugin);
 			extraPlugins.push(reactionsPlugin);
@@ -173,6 +184,11 @@ export function CommunityPage() {
 		if (!app) return;
 
 		const handleKeyDown = (e: KeyboardEvent) => {
+			// テキスト入力中はショートカットを無視
+			const tag = (e.target as HTMLElement)?.tagName;
+			if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) {
+				return;
+			}
 			const tools = app.tools.getAll();
 			for (const [id, def] of tools) {
 				if (

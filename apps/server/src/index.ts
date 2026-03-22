@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import { ALLOWED_ORIGINS } from "./config.js";
 import * as schema from "./db/schema.js";
 import { authMiddleware } from "./middleware/auth.js";
+import { aiApp } from "./routes/ai.js";
 import { authApp } from "./routes/auth.js";
 import { boardsApp } from "./routes/boards.js";
 import type { Env } from "./types.js";
@@ -42,6 +43,7 @@ app.use("/api/*", async (c, next) => {
 	await next();
 });
 app.route("/api/boards", boardsApp);
+app.route("/api/ai", aiApp);
 
 const COMMUNITY_BOARD_ID = "community-lobby";
 
