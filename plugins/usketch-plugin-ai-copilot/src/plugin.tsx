@@ -131,7 +131,7 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 					});
 
 					const controller = new AbortController();
-					const response = await fetch(`${apiUrl}/api/ai/complete`, {
+					const response = await fetch(`${apiUrl}/api/ai/suggest`, {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
