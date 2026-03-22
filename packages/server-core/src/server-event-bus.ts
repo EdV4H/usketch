@@ -20,7 +20,11 @@ export function createServerEventBus(): ServerEventBus {
 			const handlers = listeners.get(event);
 			if (handlers) {
 				for (const handler of handlers) {
-					handler(data);
+					try {
+						handler(data);
+					} catch (error) {
+						console.error("Error in server event handler for event", event, error);
+					}
 				}
 			}
 		},

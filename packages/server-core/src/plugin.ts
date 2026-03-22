@@ -10,8 +10,8 @@ import type { Hono } from "hono";
 export type HonoEnv = {
 	Bindings: Record<string, unknown>;
 	Variables: {
-		db: DrizzleD1Database<Record<string, unknown>>;
-		userId: string;
+		db?: DrizzleD1Database<Record<string, unknown>>;
+		userId?: string;
 	};
 };
 

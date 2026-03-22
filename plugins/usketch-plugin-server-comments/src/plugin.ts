@@ -13,8 +13,11 @@ export interface CommentsPluginSchema {
 	commentMessages: SQLiteTableWithColumns<any>;
 }
 
-type CommentsEnv = HonoEnv & {
-	Variables: HonoEnv["Variables"] & {
+type CommentsEnv = {
+	Bindings: HonoEnv["Bindings"];
+	Variables: {
+		db: NonNullable<HonoEnv["Variables"]["db"]>;
+		userId: NonNullable<HonoEnv["Variables"]["userId"]>;
 		boardId: string;
 	};
 };
