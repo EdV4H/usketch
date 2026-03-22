@@ -121,3 +121,40 @@ export const notifications = sqliteTable(
 	},
 	(table) => [index("idx_notifications_user").on(table.userId, table.read, table.createdAt)],
 );
+
+// ── Phase AI-4 / NW-3a: コメントテーブル ──
+
+export const comments = sqliteTable(
+	"comments",
+	{
+		id: text("id").primaryKey(),
+		boardId: text("board_id")
+			.notNull()
+			.references(() => boards.id, { onDelete: "cascade" }),
+		anchorShapeId: text("anchor_shape_id").notNull(),
+		anchorX: integer("anchor_x").notNull().default(0),
+		anchorY: integer("anchor_y").notNull().default(0),
+		resolved: integer("resolved").notNull().default(0),
+		createdBy: text("created_by").notNull(),
+		createdAt: text("created_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+		updatedAt: text("updated_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+	},
+	(table) => [
+		index("idx_comments_board").on(table.boardId),
+		index("idx_comments_shape").on(table.anchorShapeId),
+	],
+);
+
+export const commentMessages = sqliteTable(
+	"comment_messages",
+	{
+		id: text("id").primaryKey(),
+		commentId: text("comment_id")
+			.notNull()
+			.references(() => comments.id, { onDelete: "cascade" }),
+		authorId: text("author_id").notNull(),
+		text: text("text").notNull(),
+		createdAt: text("created_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+	},
+	(table) => [index("idx_comment_messages_comment").on(table.commentId)],
+);

@@ -8,6 +8,7 @@ import { authMiddleware } from "./middleware/auth.js";
 import { aiApp } from "./routes/ai.js";
 import { authApp } from "./routes/auth.js";
 import { boardsApp } from "./routes/boards.js";
+import { commentsApp } from "./routes/comments.js";
 import type { Env } from "./types.js";
 
 type HonoEnv = {
@@ -43,6 +44,7 @@ app.use("/api/*", async (c, next) => {
 	await next();
 });
 app.route("/api/boards", boardsApp);
+app.route("/api/boards/:boardId/comments", commentsApp);
 app.route("/api/ai", aiApp);
 
 const COMMUNITY_BOARD_ID = "community-lobby";
@@ -52,7 +54,8 @@ app.get("/api/boards/:boardId/ws", async (c) => {
 	const userId = c.get("userId");
 	if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
-	const db = c.get("db")!;
+	const db = c.get("db");
+	if (!db) return c.json({ error: "Internal error" }, 500);
 	const boardId = c.req.param("boardId");
 
 	if (boardId === COMMUNITY_BOARD_ID) {

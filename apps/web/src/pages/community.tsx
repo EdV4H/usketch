@@ -9,11 +9,13 @@ import { createAiImagePlugin } from "@edv4h/usketch-plugin-ai-image";
 import { createAiRecognizePlugin } from "@edv4h/usketch-plugin-ai-recognize";
 import { createAiVoicePlugin } from "@edv4h/usketch-plugin-ai-voice";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
+import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createReactionsPlugin, reactionsPlugin } from "@edv4h/usketch-plugin-reactions";
 import { createBoardPortalPlugin } from "@edv4h/usketch-plugin-shape-board-portal";
+import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { createSpatialChatPlugin, spatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
 import { createSpotlightPlugin, spotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
 import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
@@ -119,12 +121,24 @@ export function CommunityPage() {
 				}),
 			);
 
-			// AI プラグイン
+			// サイドパネル + コメント
+			extraPlugins.push(createSidePanelPlugin());
+
 			const aiHeaders: Record<string, string> = {};
 			if (import.meta.env.DEV) {
 				const devUser = getDevUser();
 				if (devUser) aiHeaders["X-User-Id"] = devUser.id;
 			}
+
+			extraPlugins.push(
+				createCommentsPlugin({
+					boardId: COMMUNITY_BOARD_ID,
+					apiUrl,
+					extraHeaders: aiHeaders,
+				}),
+			);
+
+			// AI プラグイン
 			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
 			extraPlugins.push(createAiChatPlugin({ boardId: COMMUNITY_BOARD_ID }));
 			extraPlugins.push(createAiActionsPlugin({ boardId: COMMUNITY_BOARD_ID }));

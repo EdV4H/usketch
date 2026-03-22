@@ -1,5 +1,5 @@
 {
-	"name": "@edv4h/usketch-plugin-ai-chat",
+	"name": "@edv4h/usketch-plugin-side-panel",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -18,9 +18,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@edv4h/usketch-shared": "workspace:*",
-		"@edv4h/usketch-plugin-ai-agent": "workspace:*",
-		"@edv4h/usketch-plugin-side-panel": "workspace:*"
+		"@edv4h/usketch-shared": "workspace:*"
 	},
 	"peerDependencies": {
 		"react": ">=19"

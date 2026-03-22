@@ -305,6 +305,16 @@ export function createFloatingActionBar(options: FloatingActionBarOptions): {
 		sep.className = "ab-sep";
 		barEl.appendChild(sep);
 
+		const commentBtn = document.createElement("button");
+		commentBtn.className = "ab-btn";
+		commentBtn.textContent = "💬 Comment";
+		commentBtn.addEventListener("click", () => {
+			events.emit("comments:start-thread", {
+				selectedShapeIds: Array.from(store.getSelection()),
+			});
+		});
+		barEl.appendChild(commentBtn);
+
 		const askBtn = document.createElement("button");
 		askBtn.className = "ab-btn";
 		askBtn.textContent = "⌨ Ask AI";

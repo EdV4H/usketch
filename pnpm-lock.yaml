@@ -96,6 +96,9 @@ importers:
       '@edv4h/usketch-plugin-avatar':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-avatar
+      '@edv4h/usketch-plugin-comments':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-comments
       '@edv4h/usketch-plugin-effect-ripple':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-effect-ripple
@@ -138,6 +141,9 @@ importers:
       '@edv4h/usketch-plugin-shape-text':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-text
+      '@edv4h/usketch-plugin-side-panel':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-side-panel
       '@edv4h/usketch-plugin-snap':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-snap
@@ -373,10 +379,19 @@ importers:
       '@edv4h/usketch-plugin-ai-agent':
         specifier: workspace:*
         version: link:../usketch-plugin-ai-agent
+      '@edv4h/usketch-plugin-side-panel':
+        specifier: workspace:*
+        version: link:../usketch-plugin-side-panel
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      react:
+        specifier: '>=19'
+        version: 19.1.0
     devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -501,6 +516,28 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-comments:
+    dependencies:
+      '@edv4h/usketch-plugin-side-panel':
+        specifier: workspace:*
+        version: link:../usketch-plugin-side-panel
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -848,6 +885,25 @@ importers:
       '@zag-js/vanilla':
         specifier: ^1.37.0
         version: 1.37.0
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(tsx@4.21.0)
+
+  plugins/usketch-plugin-side-panel:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       react:
         specifier: '>=19'
         version: 19.1.0
