@@ -198,8 +198,8 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 						id: suggestionId,
 						type: "ai-suggestion",
 						sourceUserId: "ai-copilot",
-						position: { x: shape.x, y: shape.y },
-						data: { suggestion: { ...shape, id: suggestionId } },
+						position: { x: 0, y: 0 },
+						data: { suggestion: { ...shape, id: suggestionId }, interactive: true },
 						ttl: 30000,
 						createdAt: Date.now(),
 					});
