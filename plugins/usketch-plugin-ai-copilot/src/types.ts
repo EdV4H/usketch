@@ -6,6 +6,7 @@ export interface CopilotSuggestion {
 	width: number;
 	height: number;
 	text?: string;
+	fontSize?: number;
 	style?: {
 		fill?: string;
 		stroke?: string;

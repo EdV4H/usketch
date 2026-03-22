@@ -66,6 +66,9 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 					if (suggestion.text !== undefined) {
 						(shape as Record<string, unknown>).text = suggestion.text;
 					}
+					if (suggestion.fontSize !== undefined) {
+						(shape as Record<string, unknown>).fontSize = suggestion.fontSize;
+					}
 					if (suggestion.style) {
 						shape.style = { ...shape.style, ...suggestion.style };
 					}
