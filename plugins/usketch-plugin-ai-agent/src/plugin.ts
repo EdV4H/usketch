@@ -9,13 +9,18 @@ export interface AiAgentOptions {
 }
 
 /** Smart Actionタイプ → プロンプトテンプレート */
-const ACTION_PROMPTS: Record<string, (opts?: { targetLanguage?: string }) => string> = {
+const ACTION_PROMPTS: Record<
+	string,
+	(opts?: { targetLanguage?: string; customPrompt?: string }) => string
+> = {
 	tidy: () =>
 		"Tidy up the selected shapes: align edges, equalize spacing, arrange into a clean grid or flow layout. Use modify_shapes to update positions.",
 	label: () =>
 		"Add descriptive text labels near each unlabeled shape in the selection. Use place_shapes to add new text shapes.",
 	translate: (opts) =>
 		`Translate all text content in the selected shapes to ${opts?.targetLanguage ?? "English"}. Use modify_shapes to update the text field.`,
+	custom: (opts) =>
+		`Apply the following instruction to the selected shapes: ${opts?.customPrompt ?? ""}`,
 };
 
 export function createAiAgentPlugin(options: AiAgentOptions): UsketchPlugin {
@@ -78,7 +83,10 @@ export function createAiAgentPlugin(options: AiAgentOptions): UsketchPlugin {
 				(event) => {
 					const promptFn = ACTION_PROMPTS[event.action];
 					if (!promptFn) return;
-					const prompt = promptFn({ targetLanguage: event.targetLanguage });
+					const prompt = promptFn({
+						targetLanguage: event.targetLanguage,
+						customPrompt: event.customPrompt,
+					});
 					const selectedIds = new Set(event.selectedShapeIds);
 					executeAiRequest(prompt, event.boardId, selectedIds);
 				},

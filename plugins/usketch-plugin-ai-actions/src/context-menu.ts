@@ -87,6 +87,39 @@ function injectStyles(): void {
 .usketch-ai-ctx-submenu-item:hover {
 	background: #f0f0f0;
 }
+
+.usketch-ai-ctx-separator {
+	height: 1px;
+	background: #e5e5e5;
+	margin: 4px 0;
+}
+
+.usketch-ai-ctx-custom {
+	display: flex;
+	align-items: center;
+	padding: 6px 12px;
+	gap: 6px;
+}
+
+.usketch-ai-ctx-custom input {
+	flex: 1;
+	border: 1px solid #ddd;
+	border-radius: 6px;
+	padding: 6px 8px;
+	font: inherit;
+	font-size: 13px;
+	outline: none;
+	background: #fafafa;
+}
+
+.usketch-ai-ctx-custom input:focus {
+	border-color: #999;
+	background: #fff;
+}
+
+.usketch-ai-ctx-custom input::placeholder {
+	color: #aaa;
+}
 `;
 	document.head.appendChild(style);
 }
@@ -169,6 +202,49 @@ export function createContextMenu(options: ContextMenuOptions): {
 
 		translateItem.appendChild(submenu);
 		menu.appendChild(translateItem);
+
+		// Separator
+		const separator = document.createElement("div");
+		separator.className = "usketch-ai-ctx-separator";
+		menu.appendChild(separator);
+
+		// Custom prompt input
+		const customWrap = document.createElement("div");
+		customWrap.className = "usketch-ai-ctx-custom";
+
+		const customInput = document.createElement("input");
+		customInput.type = "text";
+		customInput.placeholder = "Custom instruction...";
+
+		let isComposing = false;
+		customInput.addEventListener("compositionstart", () => {
+			isComposing = true;
+		});
+		customInput.addEventListener("compositionend", () => {
+			isComposing = false;
+		});
+		customInput.addEventListener("keydown", (e) => {
+			e.stopPropagation();
+			if (e.key === "Enter" && !isComposing) {
+				const text = customInput.value.trim();
+				if (text) {
+					const selectedShapeIds = getSelectedIds(store);
+					events.emit("ai:smart-action", {
+						action: "custom",
+						selectedShapeIds,
+						boardId,
+						customPrompt: text,
+					} satisfies SmartActionRequestEvent);
+					closeMenu();
+				}
+			}
+			if (e.key === "Escape") {
+				closeMenu();
+			}
+		});
+
+		customWrap.appendChild(customInput);
+		menu.appendChild(customWrap);
 
 		return menu;
 	}
