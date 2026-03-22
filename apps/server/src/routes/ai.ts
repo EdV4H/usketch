@@ -584,4 +584,108 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 	});
 });
 
+// POST /api/ai/suggest — Copilot用: LLM提案のみ返す（Y.Docには書き込まない）
+aiApp.post("/suggest", zValidator("json", completeSchema), async (c) => {
+	const { prompt, canvasContext, boardId, model } = c.req.valid("json");
+	const userId = c.get("userId");
+
+	// ボードアクセス制御
+	const db = c.get("db");
+	const result = await db
+		.select({ isPublic: boards.isPublic, role: boardMembers.role })
+		.from(boards)
+		.leftJoin(
+			boardMembers,
+			and(eq(boards.id, boardMembers.boardId), eq(boardMembers.userId, userId)),
+		)
+		.where(eq(boards.id, boardId))
+		.limit(1);
+
+	if (result.length === 0 || (result[0].role === null && !result[0].isPublic)) {
+		return c.json({ error: "Not found" }, 404);
+	}
+
+	const apiKey = c.env.OPENAI_API_KEY;
+	if (!apiKey) {
+		return c.json({ error: "OPENAI_API_KEY is not configured" }, 500);
+	}
+
+	return streamSSE(c, async (stream) => {
+		try {
+			await stream.writeSSE({
+				event: "status",
+				data: JSON.stringify({ status: "thinking" }),
+			});
+
+			const response = await fetch("https://api.openai.com/v1/chat/completions", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${apiKey}`,
+				},
+				body: JSON.stringify({
+					model,
+					messages: [
+						{ role: "system", content: SYSTEM_PROMPT },
+						{
+							role: "user",
+							content: `Canvas context:\n${canvasContext}\n\nUser request: ${prompt}`,
+						},
+					],
+					tools: [PLACE_SHAPES_TOOL],
+					tool_choice: { type: "function", function: { name: "place_shapes" } },
+				}),
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				await stream.writeSSE({
+					event: "error",
+					data: JSON.stringify({
+						message: `OpenAI API error: ${response.status} ${errorText}`,
+					}),
+				});
+				return;
+			}
+
+			const apiResult = (await response.json()) as {
+				choices: Array<{
+					message: {
+						tool_calls?: Array<{
+							function: { name: string; arguments: string };
+						}>;
+					};
+				}>;
+			};
+
+			const toolCall = apiResult.choices?.[0]?.message?.tool_calls?.[0];
+			if (!toolCall || toolCall.function.name !== "place_shapes") {
+				await stream.writeSSE({
+					event: "error",
+					data: JSON.stringify({ message: "AI did not produce suggestions" }),
+				});
+				return;
+			}
+
+			const args = JSON.parse(toolCall.function.arguments) as {
+				shapes: PlaceShapeItem[];
+			};
+			const shapes = validateShapes(args.shapes ?? []);
+
+			// DOには書き込まず、提案としてそのまま返す
+			await stream.writeSSE({
+				event: "result",
+				data: JSON.stringify({ shapes }),
+			});
+		} catch (err) {
+			await stream.writeSSE({
+				event: "error",
+				data: JSON.stringify({
+					message: err instanceof Error ? err.message : "Unknown error",
+				}),
+			});
+		}
+	});
+});
+
 export { aiApp };

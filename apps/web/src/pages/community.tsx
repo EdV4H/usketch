@@ -4,6 +4,7 @@ import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
 import { createAiActionsPlugin } from "@edv4h/usketch-plugin-ai-actions";
 import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
 import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
+import { createAiCopilotPlugin } from "@edv4h/usketch-plugin-ai-copilot";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
 import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
@@ -124,6 +125,9 @@ export function CommunityPage() {
 			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
 			extraPlugins.push(createAiChatPlugin({ boardId: COMMUNITY_BOARD_ID }));
 			extraPlugins.push(createAiActionsPlugin({ boardId: COMMUNITY_BOARD_ID }));
+			extraPlugins.push(
+				createAiCopilotPlugin({ apiUrl, boardId: COMMUNITY_BOARD_ID, extraHeaders: aiHeaders }),
+			);
 		} else {
 			extraPlugins.push(rippleEffectPlugin);
 			extraPlugins.push(reactionsPlugin);
