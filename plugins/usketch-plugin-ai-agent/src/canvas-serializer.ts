@@ -1,5 +1,8 @@
 import type { ShapeData, Viewport } from "@edv4h/usketch-shared";
 
+/** 近接判定の閾値（px） */
+const PROXIMITY_THRESHOLD = 20;
+
 /**
  * キャンバスの状態をAI向けのプロンプト文字列にシリアライズする。
  * ビューポート内のシェイプを優先し、推定8000トークンを超える場合はビューポート内のみに絞る。
@@ -8,6 +11,7 @@ export function canvasToPrompt(
 	shapes: ReadonlyMap<string, ShapeData>,
 	viewport: Viewport,
 	availableTypes: string[],
+	selectedIds?: ReadonlySet<string>,
 ): string {
 	const viewportCenter = {
 		x: Math.round(
@@ -51,13 +55,38 @@ export function canvasToPrompt(
 	const useAll = allJson.length / 4 < 8000;
 	const shapesToSend = useAll ? allShapes : viewportShapes;
 
-	const context = {
+	const context: Record<string, unknown> = {
 		viewportCenter,
 		availableShapeTypes: availableTypes,
 		existingShapes: shapesToSend,
 		shapeCount: shapes.size,
 		visibleShapeCount: viewportShapes.length,
 	};
+
+	// 選択シェイプがある場合は詳細情報 + 空間関係を含める
+	if (selectedIds && selectedIds.size > 0) {
+		const selectedShapes: Array<Record<string, unknown>> = [];
+		for (const id of selectedIds) {
+			const shape = shapes.get(id);
+			if (!shape) continue;
+			const serialized = serializeShape(shape);
+
+			// 近接テキストラベルを検出（textシェイプが選択シェイプの内部or近くにある場合）
+			const nearbyLabels = findNearbyLabels(shape, shapes);
+			if (nearbyLabels.length > 0) {
+				serialized.nearbyLabels = nearbyLabels;
+			}
+
+			// 内包するシェイプを検出（選択シェイプの中に含まれるシェイプ）
+			const containedShapes = findContainedShapes(shape, shapes, selectedIds);
+			if (containedShapes.length > 0) {
+				serialized.contains = containedShapes;
+			}
+
+			selectedShapes.push(serialized);
+		}
+		context.selectedShapes = selectedShapes;
+	}
 
 	return JSON.stringify(context);
 }
@@ -93,4 +122,72 @@ function serializeShape(shape: ShapeData): Record<string, unknown> {
 	}
 
 	return result;
+}
+
+/**
+ * 指定シェイプの近くにあるテキストシェイプを検出する。
+ * テキストがシェイプの内部にある、または近接している場合にラベルとして扱う。
+ */
+function findNearbyLabels(
+	target: ShapeData,
+	allShapes: ReadonlyMap<string, ShapeData>,
+): Array<{ id: string; text: string }> {
+	const labels: Array<{ id: string; text: string }> = [];
+
+	for (const [id, shape] of allShapes) {
+		if (id === target.id) continue;
+		if (shape.type !== "text") continue;
+		if (!shape.text) continue;
+
+		// テキストの中心がターゲットの内部 or 近くにあるか
+		const textCx = shape.x + shape.width / 2;
+		const textCy = shape.y + shape.height / 2;
+
+		const isInside =
+			textCx >= target.x &&
+			textCx <= target.x + target.width &&
+			textCy >= target.y &&
+			textCy <= target.y + target.height;
+
+		const isNearby =
+			textCx >= target.x - PROXIMITY_THRESHOLD &&
+			textCx <= target.x + target.width + PROXIMITY_THRESHOLD &&
+			textCy >= target.y - PROXIMITY_THRESHOLD &&
+			textCy <= target.y + target.height + PROXIMITY_THRESHOLD;
+
+		if (isInside || isNearby) {
+			labels.push({ id, text: shape.text as string });
+		}
+	}
+
+	return labels;
+}
+
+/**
+ * 指定シェイプの中に完全に含まれる非テキストシェイプを検出する。
+ */
+function findContainedShapes(
+	container: ShapeData,
+	allShapes: ReadonlyMap<string, ShapeData>,
+	selectedIds: ReadonlySet<string>,
+): Array<{ id: string; type: string }> {
+	const contained: Array<{ id: string; type: string }> = [];
+
+	for (const [id, shape] of allShapes) {
+		if (id === container.id) continue;
+		if (selectedIds.has(id)) continue; // 選択済みは除外
+		if (shape.type === "text") continue; // テキストはnearbyLabelsで処理
+
+		// 完全に内包されているか
+		if (
+			shape.x >= container.x &&
+			shape.y >= container.y &&
+			shape.x + shape.width <= container.x + container.width &&
+			shape.y + shape.height <= container.y + container.height
+		) {
+			contained.push({ id, type: shape.type });
+		}
+	}
+
+	return contained;
 }

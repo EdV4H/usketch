@@ -1,6 +1,7 @@
 import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
+import { createAiActionsPlugin } from "@edv4h/usketch-plugin-ai-actions";
 import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
 import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
@@ -122,6 +123,7 @@ export function CommunityPage() {
 			}
 			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
 			extraPlugins.push(createAiChatPlugin({ boardId: COMMUNITY_BOARD_ID }));
+			extraPlugins.push(createAiActionsPlugin({ boardId: COMMUNITY_BOARD_ID }));
 		} else {
 			extraPlugins.push(rippleEffectPlugin);
 			extraPlugins.push(reactionsPlugin);

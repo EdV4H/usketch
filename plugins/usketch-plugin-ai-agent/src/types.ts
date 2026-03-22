@@ -26,3 +26,13 @@ export interface AiRequestEvent {
 	prompt: string;
 	boardId: string;
 }
+
+export type SmartActionType = "tidy" | "label" | "translate" | "custom";
+
+export interface AiSmartActionRequestEvent {
+	action: SmartActionType;
+	selectedShapeIds: string[];
+	boardId: string;
+	targetLanguage?: string;
+	customPrompt?: string;
+}

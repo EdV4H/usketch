@@ -47,6 +47,15 @@ export function Toolbar({
 		[app.store, app.shapes],
 	);
 
+	const handleExportJson = useCallback(() => {
+		setShowExportMenu(false);
+		import("@edv4h/usketch-plugin-export").then(({ exportJson, downloadBlob }) => {
+			const shapes = new Map(app.store.getShapes());
+			const blob = exportJson(shapes);
+			downloadBlob(blob, "usketch-export.json");
+		});
+	}, [app.store]);
+
 	return (
 		<>
 			<div
@@ -320,6 +329,9 @@ export function Toolbar({
 						</button>
 						<button type="button" onClick={() => handleExport("svg")} style={menuItemStyle}>
 							SVG
+						</button>
+						<button type="button" onClick={handleExportJson} style={menuItemStyle}>
+							JSON
 						</button>
 					</div>
 				)}

@@ -6,15 +6,12 @@ import type {
 	ShapeRegistry,
 	Viewport,
 } from "@edv4h/usketch-shared";
+import { getSelectionBounds, worldToScreen } from "@edv4h/usketch-shared";
 
 const HANDLE_SIZE = 8;
 const HIT_AREA = 20;
 
 const ALL_HANDLES: ResizeHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
-
-function worldToScreen(wx: number, wy: number, vp: Viewport): Point {
-	return { x: wx * vp.zoom + vp.x, y: wy * vp.zoom + vp.y };
-}
 
 export function getHandlePositions(
 	bounds: BoundingBox,
@@ -320,22 +317,7 @@ export function getMultiSelectionBounds(
 	shapes: ShapeRegistry,
 	selection: ReadonlySet<string>,
 ): BoundingBox | null {
-	let minX = Number.POSITIVE_INFINITY;
-	let minY = Number.POSITIVE_INFINITY;
-	let maxX = Number.NEGATIVE_INFINITY;
-	let maxY = Number.NEGATIVE_INFINITY;
-
-	for (const id of selection) {
-		const bounds = getShapeBounds(store, shapes, id);
-		if (!bounds) continue;
-		minX = Math.min(minX, bounds.x);
-		minY = Math.min(minY, bounds.y);
-		maxX = Math.max(maxX, bounds.x + bounds.width);
-		maxY = Math.max(maxY, bounds.y + bounds.height);
-	}
-
-	if (!Number.isFinite(minX)) return null;
-	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+	return getSelectionBounds(selection, (id) => getShapeBounds(store, shapes, id));
 }
 
 export function findMultiHandleAtScreenPoint(

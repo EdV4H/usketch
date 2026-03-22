@@ -26,6 +26,22 @@ function generateShapeId(): string {
 	return crypto.randomUUID();
 }
 
+interface AiShapeUpdate {
+	id: string;
+	x?: number;
+	y?: number;
+	width?: number;
+	height?: number;
+	text?: string;
+	fontSize?: number;
+	style?: {
+		fill?: string;
+		stroke?: string;
+		strokeWidth?: number;
+		opacity?: number;
+	};
+}
+
 interface AiShapeInput {
 	type: string;
 	x: number;
@@ -111,6 +127,11 @@ export class BoardRoom extends DurableObject<Env> {
 		// AI シェイプ配置エンドポイント
 		if (url.pathname === "/ai-place-shapes" && request.method === "POST") {
 			return this.handleAiPlaceShapes(request);
+		}
+
+		// AI シェイプ更新エンドポイント（Smart Actions）
+		if (url.pathname === "/ai-update-shapes" && request.method === "POST") {
+			return this.handleAiUpdateShapes(request);
 		}
 
 		return new Response("BoardRoom OK", { status: 200 });
@@ -212,6 +233,106 @@ export class BoardRoom extends DurableObject<Env> {
 			}
 
 			return new Response(JSON.stringify({ placedShapes }), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			});
+		} catch (err) {
+			return new Response(
+				JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
+				{ status: 500, headers: { "Content-Type": "application/json" } },
+			);
+		}
+	}
+
+	/** AIシェイプ更新: 既存シェイプのプロパティを更新 → Yjs updateを全クライアントにbroadcast */
+	private async handleAiUpdateShapes(request: Request): Promise<Response> {
+		try {
+			const body = (await request.json()) as { updates: AiShapeUpdate[] };
+			const updates = body.updates;
+			if (!updates || !Array.isArray(updates) || updates.length === 0) {
+				return new Response(JSON.stringify({ error: "No updates provided" }), {
+					status: 400,
+					headers: { "Content-Type": "application/json" },
+				});
+			}
+
+			const { doc } = await this.getOrCreateDoc();
+			const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
+			const updatedShapes: Array<{
+				id: string;
+				type: string;
+				x: number;
+				y: number;
+				width: number;
+				height: number;
+			}> = [];
+
+			// updateイベントをキャプチャしてbroadcastする
+			const pendingUpdates: Uint8Array[] = [];
+			const onUpdate = (update: Uint8Array) => {
+				pendingUpdates.push(update);
+			};
+			doc.on("update", onUpdate);
+
+			try {
+				doc.transact(() => {
+					for (const update of updates) {
+						const existing = shapesMap.get(update.id);
+						if (!existing) continue;
+
+						// 既存シェイプをコピーして更新フィールドを適用
+						const updated: Record<string, unknown> = { ...existing };
+
+						if (update.x !== undefined) updated.x = update.x;
+						if (update.y !== undefined) updated.y = update.y;
+						if (update.width !== undefined) updated.width = update.width;
+						if (update.height !== undefined) updated.height = update.height;
+						if (update.text !== undefined) updated.text = update.text;
+
+						// テキストシェイプのfontSize更新（既存のfontFamily/isEditingは保持）
+						if (update.fontSize !== undefined) {
+							updated.fontSize = update.fontSize;
+						}
+
+						// スタイルはマージ（既存スタイルを保持しつつ更新フィールドを上書き）
+						if (update.style !== undefined) {
+							const existingStyle = (existing.style ?? {}) as Record<string, unknown>;
+							updated.style = { ...existingStyle, ...update.style };
+						}
+
+						// プレーンオブジェクトとして書き戻し
+						shapesMap.set(update.id, updated);
+
+						updatedShapes.push({
+							id: update.id,
+							type: updated.type as string,
+							x: updated.x as number,
+							y: updated.y as number,
+							width: updated.width as number,
+							height: updated.height as number,
+						});
+					}
+				});
+			} finally {
+				doc.off("update", onUpdate);
+			}
+
+			// 生成されたupdatesをbroadcast + バッファに追加
+			for (const update of pendingUpdates) {
+				this.updates.push(update);
+				// MSG_YJS_UPDATE としてフレーミング
+				const msg = new Uint8Array(update.length + 1);
+				msg[0] = MSG_YJS_UPDATE;
+				msg.set(update, 1);
+				this.broadcastAll(msg);
+			}
+
+			// バッファサイズ制限
+			if (this.updates.length > MAX_UPDATES_BUFFER) {
+				this.updates = this.updates.slice(-MAX_UPDATES_BUFFER);
+			}
+
+			return new Response(JSON.stringify({ updatedShapes }), {
 				status: 200,
 				headers: { "Content-Type": "application/json" },
 			});
