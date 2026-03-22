@@ -254,7 +254,6 @@ export const freedrawPlugin: UsketchPlugin = {
 				toolCtx.store.deleteShape(drawState.shapeId);
 			}
 			drawState = null;
-			toolCtx.store.setActiveToolId("select");
 		}
 
 		ctx.shapes.register("freedraw", {
