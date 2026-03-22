@@ -395,9 +395,9 @@ export function createFloatingActionBar(options: FloatingActionBarOptions): {
 
 	function hideBar(): void {
 		if (!barEl) return;
-		barEl.classList.add("hidden");
 		// thinking中は非表示にしない
 		if (mode === "thinking") return;
+		barEl.classList.add("hidden");
 		mode = "actions";
 	}
 

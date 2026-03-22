@@ -6,7 +6,7 @@ import type {
 	ShapeRegistry,
 	Viewport,
 } from "@edv4h/usketch-shared";
-import { worldToScreen } from "@edv4h/usketch-shared";
+import { getSelectionBounds, worldToScreen } from "@edv4h/usketch-shared";
 
 const HANDLE_SIZE = 8;
 const HIT_AREA = 20;
@@ -298,8 +298,6 @@ export function computeRawBounds(
 }
 
 // ── Multi-selection helpers ──
-
-import { getSelectionBounds } from "@edv4h/usketch-shared";
 
 export function getShapeBounds(
 	store: BoardStore,
