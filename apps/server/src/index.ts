@@ -1,122 +1,47 @@
-import { and, eq } from "drizzle-orm";
+import { createAiPlugin } from "@edv4h/usketch-plugin-server-ai";
+import { createAuthPlugin } from "@edv4h/usketch-plugin-server-auth";
+import { createBoardsPlugin } from "@edv4h/usketch-plugin-server-boards";
+import { createCommentsPlugin } from "@edv4h/usketch-plugin-server-comments";
+import { createServerApp } from "@edv4h/usketch-server-core";
 import { drizzle } from "drizzle-orm/d1";
-import { Hono } from "hono";
-import { cors } from "hono/cors";
+import { createAuth } from "./auth.js";
 import { ALLOWED_ORIGINS } from "./config.js";
 import * as schema from "./db/schema.js";
 import { authMiddleware } from "./middleware/auth.js";
-import { aiApp } from "./routes/ai.js";
-import { authApp } from "./routes/auth.js";
-import { boardsApp } from "./routes/boards.js";
-import { commentsApp } from "./routes/comments.js";
 import type { Env } from "./types.js";
 
-type HonoEnv = {
-	Bindings: Env;
-	Variables: {
-		db?: ReturnType<typeof drizzle<typeof schema>>;
-		userId?: string;
-	};
-};
-
-const app = new Hono<HonoEnv>();
-
-// CORS
-app.use(
-	"*",
-	cors({
-		origin: ALLOWED_ORIGINS,
-		credentials: true,
-	}),
-);
-
-// Health check
-app.get("/", (c) => c.json({ status: "ok", name: "usketch-server" }));
-
-// Auth routes (Better Auth handles all /api/auth/*)
-app.route("/api/auth", authApp);
-
-// Protected routes: auth first, then DB injection
-app.use("/api/*", authMiddleware);
-app.use("/api/*", async (c, next) => {
-	const db = drizzle(c.env.DB, { schema });
-	c.set("db", db);
-	await next();
-});
-app.route("/api/boards", boardsApp);
-app.route("/api/boards/:boardId/comments", commentsApp);
-app.route("/api/ai", aiApp);
-
-const COMMUNITY_BOARD_ID = "community-lobby";
-
-// WebSocket — 認証 + ボードレベルのアクセス制御後にDurable Objectに接続
-app.get("/api/boards/:boardId/ws", async (c) => {
-	const userId = c.get("userId");
-	if (!userId) return c.json({ error: "Unauthorized" }, 401);
-
-	const db = c.get("db");
-	if (!db) return c.json({ error: "Internal error" }, 500);
-	const boardId = c.req.param("boardId");
-
-	if (boardId === COMMUNITY_BOARD_ID) {
-		// コミュニティロビーは全認証ユーザーにオープン — 存在しなければ自動作成
-		// DEV_MODE: ユーザーが存在しない場合はFK制約のため自動作成
-		if (c.env.DEV_MODE === "true") {
-			await db
-				.insert(schema.users)
-				.values({
-					id: userId,
-					name: "Dev User",
-					email: `${userId}@dev.local`,
-					createdAt: new Date(),
-					updatedAt: new Date(),
-				})
-				.onConflictDoNothing();
-		}
-		// onConflictDoNothingで並行作成に対応
-		const now = new Date().toISOString();
-		await db
-			.insert(schema.boards)
-			.values({
-				id: COMMUNITY_BOARD_ID,
-				title: "Community Lobby",
-				ownerId: userId,
-				createdAt: now,
-				updatedAt: now,
-				isPublic: true,
-			})
-			.onConflictDoNothing();
-	} else {
-		// 通常ボード: 存在確認 + メンバーシップ/公開ボード判定
-		const result = await db
-			.select({
-				isPublic: schema.boards.isPublic,
-				role: schema.boardMembers.role,
-			})
-			.from(schema.boards)
-			.leftJoin(
-				schema.boardMembers,
-				and(
-					eq(schema.boards.id, schema.boardMembers.boardId),
-					eq(schema.boardMembers.userId, userId),
-				),
-			)
-			.where(eq(schema.boards.id, boardId))
-			.limit(1);
-
-		if (result.length === 0 || (result[0].role === null && !result[0].isPublic)) {
-			return c.json({ error: "Board not found" }, 404);
-		}
-	}
-
-	const id = c.env.BOARD_ROOM.idFromName(boardId);
-	const room = c.env.BOARD_ROOM.get(id);
-
-	const url = new URL(c.req.url);
-	url.pathname = "/ws";
-	url.searchParams.set("userId", userId);
-	url.searchParams.set("boardId", boardId);
-	return room.fetch(new Request(url.toString(), c.req.raw));
+const app = await createServerApp({
+	plugins: [
+		createAuthPlugin({
+			handler: (req, env) => {
+				const auth = createAuth(env as unknown as Env);
+				return auth.handler(req);
+			},
+		}),
+		createBoardsPlugin({
+			users: schema.users,
+			boards: schema.boards,
+			boardMembers: schema.boardMembers,
+			activityLog: schema.activityLog,
+		}),
+		createCommentsPlugin({
+			boards: schema.boards,
+			boardMembers: schema.boardMembers,
+			comments: schema.comments,
+			commentMessages: schema.commentMessages,
+		}),
+		createAiPlugin({
+			boards: schema.boards,
+			boardMembers: schema.boardMembers,
+		}),
+	],
+	corsOrigins: ALLOWED_ORIGINS,
+	authMiddleware: authMiddleware as any,
+	dbMiddleware: async (c, next) => {
+		const db = drizzle((c.env as unknown as Env).DB, { schema });
+		c.set("db", db as any);
+		await next();
+	},
 });
 
 export default app;
