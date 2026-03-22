@@ -151,6 +151,20 @@ ${shapeElements.join("\n")}
 	});
 }
 
+/**
+ * ストアの全シェイプデータをJSON形式でエクスポートする。
+ * Yjsドキュメントの"shapes" Mapと同等のプレーンオブジェクト構造。
+ */
+export function exportJson(shapes: Map<string, ShapeData>): Blob {
+	const data: Record<string, unknown> = {};
+	for (const [id, shape] of shapes) {
+		// ShapeDataをプレーンオブジェクトに変換（循環参照回避）
+		data[id] = JSON.parse(JSON.stringify(shape));
+	}
+	const json = JSON.stringify(data, null, 2);
+	return new Blob([json], { type: "application/json" });
+}
+
 /** Blobをファイルとしてダウンロードする */
 export function downloadBlob(blob: Blob, filename: string) {
 	const url = URL.createObjectURL(blob);

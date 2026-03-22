@@ -1,5 +1,5 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
-import { downloadBlob, exportCanvas } from "./exporter.js";
+import { downloadBlob, exportCanvas, exportJson } from "./exporter.js";
 
 export const exportPlugin: UsketchPlugin = {
 	id: "usketch-plugin-export",
@@ -20,9 +20,16 @@ export const exportPlugin: UsketchPlugin = {
 				.catch((e) => console.error("SVG export failed:", e));
 		});
 
+		const unsub3 = ctx.shortcuts.register("ctrl+shift+j", () => {
+			const shapes = new Map(ctx.store.getShapes());
+			const blob = exportJson(shapes);
+			downloadBlob(blob, "usketch-export.json");
+		});
+
 		(this as unknown as Record<string, unknown>)._cleanup = () => {
 			unsub1();
 			unsub2();
+			unsub3();
 		};
 	},
 
