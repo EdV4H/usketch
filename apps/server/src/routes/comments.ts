@@ -2,7 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { boardMembers, commentMessages, comments } from "../db/schema.js";
+import { boardMembers, boards, commentMessages, comments } from "../db/schema.js";
 import type { AppDb, Env } from "../types.js";
 
 type CommentsEnv = {
@@ -24,14 +24,19 @@ commentsApp.use("*", async (c, next) => {
 	await next();
 });
 
-/** ボードのメンバーであればアクセス許可 */
+/** ボードのメンバーかパブリックボードであればアクセス許可 */
 async function assertBoardAccess(db: AppDb, boardId: string, userId: string): Promise<boolean> {
-	const membership = await db
-		.select({ role: boardMembers.role })
-		.from(boardMembers)
-		.where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)))
+	const result = await db
+		.select({ isPublic: boards.isPublic, role: boardMembers.role })
+		.from(boards)
+		.leftJoin(
+			boardMembers,
+			and(eq(boards.id, boardMembers.boardId), eq(boardMembers.userId, userId)),
+		)
+		.where(eq(boards.id, boardId))
 		.limit(1);
-	return membership.length > 0;
+	if (result.length === 0) return false;
+	return result[0].role !== null || !!result[0].isPublic;
 }
 
 // GET /api/boards/:boardId/comments — スレッド一覧（メッセージ含む）
@@ -52,22 +57,17 @@ commentsApp.get("/", async (c) => {
 
 	if (threads.length === 0) return c.json([]);
 
-	// D1ではIN句が制限されるため、スレッドごとにメッセージを取得
-	const allMessages: {
-		id: string;
-		commentId: string;
-		authorId: string;
-		text: string;
-		createdAt: string;
-	}[] = [];
-	for (const t of threads) {
-		const msgs = await db
-			.select()
-			.from(commentMessages)
-			.where(eq(commentMessages.commentId, t.id))
-			.orderBy(commentMessages.createdAt);
-		allMessages.push(...msgs);
-	}
+	// D1ではIN句が制限されるため、スレッドごとにメッセージを並列取得
+	const messageResults = await Promise.all(
+		threads.map((t) =>
+			db
+				.select()
+				.from(commentMessages)
+				.where(eq(commentMessages.commentId, t.id))
+				.orderBy(commentMessages.createdAt),
+		),
+	);
+	const allMessages = messageResults.flat();
 
 	const messagesByThread = new Map<string, (typeof allMessages)[number][]>();
 	for (const msg of allMessages) {

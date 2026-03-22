@@ -29,7 +29,7 @@ export function CommentBadgeLayer({ ctx, store, shapes, events }: CommentBadgeLa
 		);
 
 		unsubs.push(
-			events.on<CommentThread>("comments:thread-created", (thread) => {
+			events.on<CommentThread>("comments:badge-update", (thread) => {
 				setThreads((prev) => [thread, ...prev]);
 			}),
 		);
@@ -40,20 +40,18 @@ export function CommentBadgeLayer({ ctx, store, shapes, events }: CommentBadgeLa
 	}, [events]);
 
 	// シェイプごとにバッジ集約
-	const badgesByShape = new Map<string, { count: number; threadId: string }>();
+	const badgesByShape = new Map<string, number>();
 	for (const t of threads) {
 		if (t.resolved) continue;
-		const existing = badgesByShape.get(t.anchorShapeId);
-		if (existing) {
-			existing.count += t.messages.length;
-		} else {
-			badgesByShape.set(t.anchorShapeId, { count: t.messages.length, threadId: t.id });
-		}
+		badgesByShape.set(
+			t.anchorShapeId,
+			(badgesByShape.get(t.anchorShapeId) ?? 0) + t.messages.length,
+		);
 	}
 
-	const badges: { shapeId: string; x: number; y: number; count: number; threadId: string }[] = [];
+	const badges: { shapeId: string; x: number; y: number; count: number }[] = [];
 
-	for (const [shapeId, info] of badgesByShape) {
+	for (const [shapeId, count] of badgesByShape) {
 		const shape = store.getShape(shapeId);
 		if (!shape) continue;
 		const def = shapes.get(shape.type);
@@ -66,8 +64,7 @@ export function CommentBadgeLayer({ ctx, store, shapes, events }: CommentBadgeLa
 			shapeId,
 			x: bounds.x + bounds.width,
 			y: bounds.y,
-			count: info.count,
-			threadId: info.threadId,
+			count,
 		});
 	}
 
@@ -87,7 +84,6 @@ export function CommentBadgeLayer({ ctx, store, shapes, events }: CommentBadgeLa
 						type="button"
 						onClick={() => {
 							events.emit<SidePanelOpenEvent>("side-panel:open", { tabId: "comments" });
-							events.emit("comments:focus-thread", { threadId: badge.threadId });
 						}}
 						style={{
 							position: "absolute",

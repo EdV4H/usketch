@@ -46,11 +46,6 @@ export function createCommentsPlugin(options: CommentsPluginOptions): UsketchPlu
 				),
 			});
 
-			// 初期ロード: スレッド一覧を取得してイベントで配信
-			client.list().then((threads) => {
-				ctx.events.emit("comments:threads-loaded", threads);
-			});
-
 			// フローティングバーからのコメント開始イベント
 			const unsubStartThread = ctx.events.on<{ selectedShapeIds: string[] }>(
 				"comments:start-thread",

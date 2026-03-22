@@ -44,8 +44,9 @@ export function SidePanelUI({ events, tabStore }: SidePanelUIProps) {
 		};
 	}, [events]);
 
-	// activeTabIdがnullかつタブがある場合、最初のタブを選択
-	const resolvedTabId = activeTabId ?? tabs[0]?.id ?? null;
+	// activeTabIdがnull、または存在しないタブを指している場合、最初のタブにフォールバック
+	const validTabId = activeTabId && tabs.some((t) => t.id === activeTabId) ? activeTabId : null;
+	const resolvedTabId = validTabId ?? tabs[0]?.id ?? null;
 	const activeTab = tabs.find((t) => t.id === resolvedTabId);
 
 	const handleClose = useCallback(() => {
@@ -62,6 +63,7 @@ export function SidePanelUI({ events, tabStore }: SidePanelUIProps) {
 			onPointerUp={(e) => e.stopPropagation()}
 			onClick={(e) => e.stopPropagation()}
 			onKeyDown={(e) => e.stopPropagation()}
+			onWheel={(e) => e.stopPropagation()}
 			style={{
 				position: "fixed",
 				top: 60,

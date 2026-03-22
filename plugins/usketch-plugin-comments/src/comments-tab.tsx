@@ -241,16 +241,13 @@ export function CommentsTab({ client, events, focusThreadId }: CommentsTabProps)
 		fetchedRef.current = true;
 		client
 			.list()
-			.then(setThreads)
+			.then((loaded) => {
+				setThreads(loaded);
+				// バッジレイヤーにもデータを共有
+				events.emit("comments:threads-loaded", loaded);
+			})
 			.finally(() => setLoading(false));
-	}, [client]);
-
-	// 外部からのスレッド追加イベントをリッスン
-	useEffect(() => {
-		return events.on<CommentThread>("comments:thread-created", (thread) => {
-			setThreads((prev) => [thread, ...prev]);
-		});
-	}, [events]);
+	}, [client, events]);
 
 	// 新規スレッド作成プロンプトをリッスン
 	useEffect(() => {
@@ -301,7 +298,8 @@ export function CommentsTab({ client, events, focusThreadId }: CommentsTabProps)
 			});
 			if (thread) {
 				setThreads((prev) => [thread, ...prev]);
-				events.emit("comments:thread-created", thread);
+				// バッジレイヤー用にイベント発火（タブ内のリスナーはスキップ）
+				events.emit("comments:badge-update", thread);
 			}
 			setNewThreadPrompt(null);
 		},

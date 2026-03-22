@@ -1,11 +1,11 @@
-import type { ReactElement } from "react";
+import type { ReactNode } from "react";
 
 export interface SidePanelTab {
 	id: string;
 	label: string;
 	icon: string;
 	order: number;
-	render: () => ReactElement;
+	render: () => ReactNode;
 }
 
 export interface SidePanelRegisterEvent {
