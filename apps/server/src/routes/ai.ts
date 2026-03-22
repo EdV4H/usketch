@@ -382,7 +382,14 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 			});
 
 			// 2. システムプロンプトを構築（選択シェイプがある場合はアドオン追加）
-			const hasSelectedShapes = canvasContext.includes("selectedShapes");
+			let hasSelectedShapes = false;
+			try {
+				const parsed = JSON.parse(canvasContext);
+				hasSelectedShapes =
+					Array.isArray(parsed.selectedShapes) && parsed.selectedShapes.length > 0;
+			} catch {
+				// パース失敗時は選択なしとみなす
+			}
 			const systemPrompt = hasSelectedShapes
 				? SYSTEM_PROMPT + SMART_ACTIONS_ADDENDUM
 				: SYSTEM_PROMPT;
@@ -443,7 +450,16 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 			const doId = c.env.BOARD_ROOM.idFromName(boardId);
 			const room = c.env.BOARD_ROOM.get(doId);
 
-			let hasResult = false;
+			// 全tool_callの結果を集約してから1回のresultイベントで送信
+			const allPlacedShapes: Array<{
+				id: string;
+				type: string;
+				x: number;
+				y: number;
+				width: number;
+				height: number;
+			}> = [];
+			let totalCount = 0;
 
 			for (const toolCall of toolCalls) {
 				const fnName = toolCall.function.name;
@@ -452,21 +468,19 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 					const args = JSON.parse(toolCall.function.arguments) as {
 						shapes: PlaceShapeItem[];
 					};
-
-					// LLM出力をバリデーション・サニタイズ
 					const shapes = validateShapes(args.shapes ?? []);
 					if (shapes.length === 0) continue;
 
-					// Placing状態を通知
+					totalCount += shapes.length;
 					await stream.writeSSE({
 						event: "status",
 						data: JSON.stringify({
 							status: "placing",
-							shapeCount: shapes.length,
+							shapeCount: totalCount,
+							message: `Placing ${shapes.length} shapes...`,
 						}),
 					});
 
-					// BoardRoom DOにHTTP経由でシェイプ配置を転送
 					const placeResponse = await room.fetch(
 						new Request("http://do/ai-place-shapes", {
 							method: "POST",
@@ -496,31 +510,24 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 							height: number;
 						}>;
 					};
-
-					await stream.writeSSE({
-						event: "result",
-						data: JSON.stringify({ shapes: placed.placedShapes }),
-					});
-					hasResult = true;
+					allPlacedShapes.push(...placed.placedShapes);
 				} else if (fnName === "modify_shapes") {
 					const args = JSON.parse(toolCall.function.arguments) as {
 						updates: ModifyShapeItem[];
 					};
-
-					// LLM出力をバリデーション・サニタイズ
 					const updates = validateModifications(args.updates ?? []);
 					if (updates.length === 0) continue;
 
-					// Updating状態を通知
+					totalCount += updates.length;
 					await stream.writeSSE({
 						event: "status",
 						data: JSON.stringify({
 							status: "placing",
-							shapeCount: updates.length,
+							shapeCount: totalCount,
+							message: `Updating ${updates.length} shapes...`,
 						}),
 					});
 
-					// BoardRoom DOにHTTP経由でシェイプ更新を転送
 					const updateResponse = await room.fetch(
 						new Request("http://do/ai-update-shapes", {
 							method: "POST",
@@ -540,18 +547,30 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 						return;
 					}
 
-					await stream.writeSSE({
-						event: "result",
-						data: JSON.stringify({ updates }),
-					});
-					hasResult = true;
+					const { updatedShapes } = (await updateResponse.json()) as {
+						updatedShapes: Array<{
+							id: string;
+							type: string;
+							x: number;
+							y: number;
+							width: number;
+							height: number;
+						}>;
+					};
+					allPlacedShapes.push(...updatedShapes);
 				}
 			}
 
-			if (!hasResult) {
+			if (allPlacedShapes.length === 0) {
 				await stream.writeSSE({
 					event: "error",
 					data: JSON.stringify({ message: "AI produced no valid shapes" }),
+				});
+			} else {
+				// 集約結果を1回のresultイベントで送信
+				await stream.writeSSE({
+					event: "result",
+					data: JSON.stringify({ shapes: allPlacedShapes }),
 				});
 			}
 		} catch (err) {

@@ -1,16 +1,21 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { requestAiCompletion } from "./ai-client.js";
 import { canvasToPrompt } from "./canvas-serializer.js";
-import type { AiRequestEvent, AiSmartActionRequestEvent, AiStatusEvent } from "./types.js";
+import type {
+	AiRequestEvent,
+	AiSmartActionRequestEvent,
+	AiStatusEvent,
+	SmartActionType,
+} from "./types.js";
 
 export interface AiAgentOptions {
 	apiUrl: string;
 	extraHeaders?: Record<string, string>;
 }
 
-/** Smart Actionタイプ → プロンプトテンプレート */
+/** Smart Actionタイプ → プロンプトテンプレート（網羅性を型で保証） */
 const ACTION_PROMPTS: Record<
-	string,
+	SmartActionType,
 	(opts?: { targetLanguage?: string; customPrompt?: string }) => string
 > = {
 	tidy: () =>
@@ -81,9 +86,7 @@ export function createAiAgentPlugin(options: AiAgentOptions): UsketchPlugin {
 			const unsubSmartAction = ctx.events.on<AiSmartActionRequestEvent>(
 				"ai:smart-action",
 				(event) => {
-					const promptFn = ACTION_PROMPTS[event.action];
-					if (!promptFn) return;
-					const prompt = promptFn({
+					const prompt = ACTION_PROMPTS[event.action]({
 						targetLanguage: event.targetLanguage,
 						customPrompt: event.customPrompt,
 					});
