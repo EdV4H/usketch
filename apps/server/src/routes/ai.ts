@@ -422,7 +422,8 @@ aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
 						{ role: "user", content: userContent },
 					],
 					tools: [PLACE_SHAPES_TOOL, MODIFY_SHAPES_TOOL],
-					tool_choice: "auto",
+					// 画像付きリクエストではplace_shapesを強制（テキスト応答のみ返却を防止）
+					tool_choice: image ? { type: "function", function: { name: "place_shapes" } } : "auto",
 				}),
 			});
 
