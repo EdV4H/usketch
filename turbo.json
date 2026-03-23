@@ -21,6 +21,10 @@
 		},
 		"clean": {
 			"cache": false
+		},
+		"docs#build": {
+			"outputs": ["dist/**"],
+			"inputs": ["src/**", "astro.config.mjs", "package.json"]
 		}
 	}
 }
