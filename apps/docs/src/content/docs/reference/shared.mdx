@@ -1,0 +1,286 @@
+---
+title: "Shared Types — @edv4h/usketch-shared"
+description: Complete type reference for the shared package.
+---
+
+The `@edv4h/usketch-shared` package exports all type definitions used across uSketch.
+
+## Geometry
+
+```ts
+interface Point {
+  x: number;
+  y: number;
+}
+
+interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface Viewport {
+  x: number;
+  y: number;
+  zoom: number;
+}
+```
+
+## Shape
+
+```ts
+interface ShapeStyle {
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  opacity: number;
+}
+
+interface ShapeData {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  style: ShapeStyle;
+  rotation?: number;
+  [key: string]: unknown;
+}
+
+type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+
+const DEFAULT_STYLE: ShapeStyle = {
+  fill: "#ffffff",
+  stroke: "#1e1e1e",
+  strokeWidth: 2,
+  opacity: 1,
+};
+```
+
+## Plugin
+
+```ts
+interface UsketchPlugin {
+  readonly id: string;
+  readonly name: string;
+  setup(ctx: PluginContext): void | Promise<void>;
+  teardown?(): void;
+}
+
+interface PluginContext {
+  store: BoardStore;
+  layers: LayerManager;
+  tools: ToolRegistry;
+  shapes: ShapeRegistry;
+  commands: CommandRegistry;
+  shortcuts: ShortcutRegistry;
+  events: EventBus;
+  transient: TransientRegistry;
+}
+```
+
+## Shape System
+
+```ts
+interface ShapeDefinition {
+  render: (data: ShapeData) => ReactElement;
+  getBounds: (data: ShapeData) => BoundingBox;
+  hitTest: (data: ShapeData, point: Point) => boolean;
+  resize: (data: ShapeData, handle: ResizeHandle, delta: Point) => ShapeData;
+  createDefault: (params: { id: string; x: number; y: number }) => ShapeData;
+  renderTarget?: "svg" | "html";
+  minSize?: { width: number; height: number };
+  move?: (data: ShapeData, dx: number, dy: number) => Partial<ShapeData>;
+  applyBounds?: (data: ShapeData, newBounds: BoundingBox) => Partial<ShapeData>;
+}
+
+interface ShapeRegistry {
+  register(type: string, definition: ShapeDefinition): void;
+  get(type: string): ShapeDefinition | undefined;
+  getAll(): ReadonlyMap<string, ShapeDefinition>;
+}
+```
+
+## Tool System
+
+```ts
+interface ToolDefinition {
+  icon: () => ReactElement;
+  cursor?: string;
+  shortcut?: string;
+  order?: number;
+  onActivate?: (ctx: ToolContext) => void;
+  onDeactivate?: (ctx: ToolContext) => void;
+  onPointerDown?: (ctx: ToolContext, event: CanvasPointerEvent) => void;
+  onPointerMove?: (ctx: ToolContext, event: CanvasPointerEvent) => void;
+  onPointerUp?: (ctx: ToolContext, event: CanvasPointerEvent) => void;
+}
+
+interface ToolContext {
+  store: BoardStore;
+  shapes: ShapeRegistry;
+  commands: CommandRegistry;
+  events: EventBus;
+}
+
+interface CanvasPointerEvent {
+  worldPoint: Point;
+  screenPoint: Point;
+  shiftKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  button: number;
+}
+
+interface CanvasWheelEvent {
+  screenPoint: Point;
+  worldPoint: Point;
+  deltaX: number;
+  deltaY: number;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+}
+
+interface ToolRegistry {
+  register(id: string, definition: ToolDefinition): void;
+  get(id: string): ToolDefinition | undefined;
+  getAll(): ReadonlyMap<string, ToolDefinition>;
+  getOrdered(): readonly { id: string; definition: ToolDefinition }[];
+}
+```
+
+## Layer System
+
+```ts
+interface Layer {
+  id: string;
+  order: number;
+  render: (ctx: LayerRenderContext) => ReactElement | null;
+  interactable?: boolean;
+  fixed?: boolean;
+}
+
+interface LayerRenderContext {
+  viewport: Viewport;
+  shapes: ReadonlyMap<string, ShapeData>;
+  selection: ReadonlySet<string>;
+  theme: Theme;
+}
+
+interface LayerManager {
+  register(layer: Layer): void;
+  unregister(layerId: string): void;
+  getLayers(): readonly Layer[];
+}
+```
+
+## Command System
+
+```ts
+interface Command {
+  execute(): void;
+  undo(): void;
+}
+
+interface CommandRegistry {
+  execute(command: Command): void;
+  undo(): void;
+  redo(): void;
+  canUndo(): boolean;
+  canRedo(): boolean;
+  getHistorySize(): number;
+  getCursor(): number;
+}
+```
+
+## Shortcut System
+
+```ts
+interface ShortcutRegistry {
+  register(combo: string, callback: () => void): () => void;
+  handleKeyDown(event: KeyboardEvent): boolean;
+}
+```
+
+## Event Bus
+
+```ts
+interface EventBus {
+  on<T = unknown>(event: string, handler: (data: T) => void): () => void;
+  emit<T = unknown>(event: string, data: T): void;
+}
+```
+
+## Transient System
+
+```ts
+interface TransientObject {
+  id: string;
+  type: string;
+  sourceUserId: string;
+  position: Point;
+  data: Record<string, unknown>;
+  ttl?: number;
+  createdAt: number;
+}
+
+interface TransientRenderer {
+  render: (obj: TransientObject, ctx: LayerRenderContext) => ReactElement;
+}
+
+interface TransientRegistry {
+  registerType(type: string, renderer: TransientRenderer): void;
+  getRenderer(type: string): TransientRenderer | undefined;
+  emit(obj: TransientObject): void;
+  dismiss(id: string): void;
+  getAll(): ReadonlyMap<string, TransientObject>;
+  subscribe(listener: () => void): () => void;
+}
+```
+
+## Board Store
+
+```ts
+interface BoardStore {
+  // Shape CRUD
+  getShapes(): ReadonlyMap<string, ShapeData>;
+  getShape(id: string): ShapeData | undefined;
+  addShape(shape: ShapeData): void;
+  updateShape(id: string, updates: Partial<ShapeData>): void;
+  deleteShape(id: string): void;
+
+  // Selection
+  getSelection(): ReadonlySet<string>;
+  setSelection(ids: string[]): void;
+  addToSelection(id: string): void;
+  removeFromSelection(id: string): void;
+  clearSelection(): void;
+
+  // Active tool
+  getActiveToolId(): string;
+  setActiveToolId(id: string): void;
+
+  // Viewport
+  getViewport(): Viewport;
+  setViewport(viewport: Viewport): void;
+  panBy(dx: number, dy: number): void;
+  zoomTo(zoom: number, center: Point): void;
+
+  // Style
+  getStyleSettings(): ShapeStyle;
+  setStyleSettings(style: Partial<ShapeStyle>): void;
+
+  // Subscriptions
+  subscribe(listener: () => void): () => void;
+  onMutation(listener: (event: StoreEvent) => void): () => void;
+}
+
+interface StoreEvent {
+  type: string;
+  payload?: unknown;
+}
+```

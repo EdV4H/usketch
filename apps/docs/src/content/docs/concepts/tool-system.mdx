@@ -1,0 +1,102 @@
+---
+title: Tool System
+description: How tools handle canvas interactions.
+---
+
+## ToolDefinition
+
+A tool defines how the canvas responds to user pointer events:
+
+```ts
+interface ToolDefinition {
+  icon: () => ReactElement;
+  cursor?: string;
+  shortcut?: string;
+  order?: number;
+  onActivate?: (ctx: ToolContext) => void;
+  onDeactivate?: (ctx: ToolContext) => void;
+  onPointerDown?: (ctx: ToolContext, event: CanvasPointerEvent) => void;
+  onPointerMove?: (ctx: ToolContext, event: CanvasPointerEvent) => void;
+  onPointerUp?: (ctx: ToolContext, event: CanvasPointerEvent) => void;
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `icon` | Component rendered in the toolbar. |
+| `cursor` | CSS cursor value when this tool is active (e.g., `"crosshair"`). |
+| `shortcut` | Keyboard shortcut to activate (e.g., `"r"` for rectangle). |
+| `order` | Position in the toolbar. Lower values appear first. |
+| `onActivate` | Called when the tool becomes active. |
+| `onDeactivate` | Called when switching away from this tool. |
+| `onPointerDown/Move/Up` | Canvas pointer event handlers. |
+
+## ToolContext
+
+Tool event handlers receive a `ToolContext` (a subset of `PluginContext`):
+
+```ts
+interface ToolContext {
+  store: BoardStore;
+  shapes: ShapeRegistry;
+  commands: CommandRegistry;
+  events: EventBus;
+}
+```
+
+This gives tools access to the board state and the ability to execute undoable commands.
+
+## CanvasPointerEvent
+
+```ts
+interface CanvasPointerEvent {
+  worldPoint: Point;   // Position in world (canvas) coordinates
+  screenPoint: Point;  // Position in screen (pixel) coordinates
+  shiftKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  button: number;
+}
+```
+
+Both `worldPoint` and `screenPoint` are provided so tools can work in whichever coordinate space is appropriate.
+
+## ToolRegistry
+
+Register tools during `setup()`:
+
+```ts
+ctx.tools.register("rectangle-draw", {
+  icon: RectIcon,
+  cursor: "crosshair",
+  shortcut: "r",
+  order: 10,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+});
+```
+
+Query tools at runtime:
+
+```ts
+ctx.tools.get("rectangle-draw");
+ctx.tools.getAll();            // ReadonlyMap<string, ToolDefinition>
+ctx.tools.getOrdered();        // Sorted by order for toolbar rendering
+```
+
+## Active Tool
+
+The currently active tool is stored in `BoardStore`:
+
+```ts
+const toolId = ctx.store.getActiveToolId();
+ctx.store.setActiveToolId("select");
+```
+
+When the active tool changes, the canvas dispatches `onDeactivate` on the old tool and `onActivate` on the new one.
+
+## Example
+
+See the [Tool Plugin Guide](/usketch/guides/tool-plugin/) for a complete walkthrough.

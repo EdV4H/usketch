@@ -1,0 +1,68 @@
+---
+title: Event Bus
+description: Decoupled inter-plugin communication.
+---
+
+## Overview
+
+The `EventBus` enables plugins to communicate without direct dependencies. One plugin emits an event; any number of plugins can listen.
+
+## API
+
+```ts
+interface EventBus {
+  on<T = unknown>(event: string, handler: (data: T) => void): () => void;
+  emit<T = unknown>(event: string, data: T): void;
+}
+```
+
+- `on()` returns an unsubscribe function. Call it in `teardown()` to clean up.
+- `emit()` synchronously calls all registered handlers for the event.
+
+## Store Mutation Bridge
+
+The core automatically bridges `BoardStore` mutations to the `EventBus`. When a shape is added, updated, or deleted through the store, the corresponding mutation event is emitted on the bus.
+
+```ts
+// This happens automatically in core:
+store.onMutation((event) => {
+  events.emit(event.type, event.payload);
+});
+```
+
+This means plugins can listen for store changes without directly subscribing to the store.
+
+## Usage Example: Snap Plugin
+
+```ts
+setup(ctx: PluginContext) {
+  // Listen for drag events from tools
+  const unsub = ctx.events.on("tool:drag", (event) => {
+    const snapped = calculateSnap(event.point, event.shapes);
+    updateSnapGuides(snapped);
+  });
+
+  // Store the unsubscribe function for teardown
+  this._unsub = unsub;
+}
+
+teardown() {
+  this._unsub?.();
+}
+```
+
+## Event Naming Conventions
+
+While the event bus is fully dynamic (any string works), we recommend these patterns:
+
+| Pattern | Example | Description |
+|---------|---------|-------------|
+| `{system}:{action}` | `tool:activate` | Core system events |
+| `shape:{action}` | `shape:created` | Shape lifecycle events |
+| `plugin:{id}:{action}` | `plugin:snap:calculated` | Plugin-specific events |
+
+## Tips
+
+- Keep event payloads **serializable** when possible — this helps with debugging and future sync scenarios.
+- Prefer events over direct cross-plugin imports. If plugin A needs data from plugin B, have B emit an event rather than exposing an internal API.
+- The `EventBus` is synchronous. If you need async processing, handle it inside your handler.

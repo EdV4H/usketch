@@ -1,0 +1,84 @@
+---
+title: Plugin Architecture
+description: How UsketchPlugin, PluginContext, and the lifecycle work together.
+---
+
+## Overview
+
+In uSketch v2, **every feature is a plugin**. The core framework provides registries and services; plugins register shapes, tools, layers, commands, and event handlers during setup.
+
+## The Plugin Interface
+
+```ts
+interface UsketchPlugin {
+  readonly id: string;
+  readonly name: string;
+  setup(ctx: PluginContext): void | Promise<void>;
+  teardown?(): void;
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `id` | Unique identifier, e.g. `"usketch-plugin-shape-rect"` |
+| `name` | Human-readable display name |
+| `setup(ctx)` | Called once during app initialization. Register everything here. |
+| `teardown()` | Optional. Called when the app is destroyed. Clean up subscriptions. |
+
+## PluginContext
+
+The `ctx` argument passed to `setup()` provides access to all registries:
+
+```ts
+interface PluginContext {
+  store: BoardStore;          // State management
+  layers: LayerManager;       // Rendering layer registration
+  tools: ToolRegistry;        // Tool registration
+  shapes: ShapeRegistry;      // Shape type registration
+  commands: CommandRegistry;   // Undo/redo command execution
+  shortcuts: ShortcutRegistry; // Keyboard shortcut registration
+  events: EventBus;           // Inter-plugin communication
+  transient: TransientRegistry; // Ephemeral objects (cursors, effects)
+}
+```
+
+## Lifecycle
+
+```
+createApp({ store, plugins })
+  │
+  ├─ 1. Register plugins in PluginRegistry
+  │
+  ├─ 2. Call setup(ctx) for each plugin (in order)
+  │     ├─ Register layers
+  │     ├─ Register tools
+  │     ├─ Register shapes
+  │     ├─ Register commands
+  │     ├─ Register shortcuts
+  │     └─ Subscribe to events
+  │
+  ├─ 3. Mount the React tree
+  │
+  └─ [On destroy]
+      └─ Call teardown() for each plugin
+```
+
+Plugins are initialized **sequentially** in the order they appear in the `plugins` array. This means a plugin can depend on registrations made by an earlier plugin.
+
+## Self-Contained Plugins
+
+A shape plugin typically bundles both the **shape definition** and the **drawing tool** in a single package. For example, the rectangle plugin registers:
+
+- A shape type (`"rectangle"`) in `ShapeRegistry`
+- A drawing tool (`"rectangle-draw"`) in `ToolRegistry`
+
+This keeps the concept of "rectangle" self-contained in one package.
+
+## Naming Conventions
+
+| Category | Package pattern | Example |
+|----------|----------------|---------|
+| Tool plugin | `usketch-plugin-tool-{name}` | `usketch-plugin-tool-select` |
+| Shape plugin | `usketch-plugin-shape-{name}` | `usketch-plugin-shape-rect` |
+| Background plugin | `usketch-plugin-bg-{name}` | `usketch-plugin-bg-grid` |
+| Feature plugin | `usketch-plugin-{name}` | `usketch-plugin-snap` |

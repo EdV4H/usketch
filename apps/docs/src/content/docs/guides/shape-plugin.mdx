@@ -1,0 +1,189 @@
+---
+title: Building a Shape Plugin
+description: Create a complete shape plugin with rendering, hit testing, and a drawing tool.
+---
+
+This guide walks through the **rectangle plugin** (`usketch-plugin-shape-rect`) as a real-world example. By the end, you'll know how to create a shape plugin that:
+
+- Renders a shape on the SVG canvas
+- Supports hit testing and selection
+- Handles resize from all eight handles
+- Includes a drawing tool with live preview
+- Integrates with the undo/redo system
+
+## The Full Picture
+
+A shape plugin typically registers two things:
+
+1. A **ShapeDefinition** in the `ShapeRegistry`
+2. A **ToolDefinition** in the `ToolRegistry` (for the drawing tool)
+
+Both are registered inside a single `setup()` function.
+
+## Step-by-Step
+
+### 1. Define the Shape Functions
+
+First, implement the required `ShapeDefinition` methods:
+
+```tsx
+import type { BoundingBox, Point, ResizeHandle, ShapeData } from "@edv4h/usketch-shared";
+
+function render(data: ShapeData) {
+  return (
+    <rect
+      x={data.x}
+      y={data.y}
+      width={data.width}
+      height={data.height}
+      rx={(data.cornerRadius as number) ?? 0}
+      fill={data.style.fill}
+      stroke={data.style.stroke}
+      strokeWidth={data.style.strokeWidth}
+      opacity={data.style.opacity}
+    />
+  );
+}
+
+function getBounds(data: ShapeData): BoundingBox {
+  return { x: data.x, y: data.y, width: data.width, height: data.height };
+}
+
+function hitTest(data: ShapeData, point: Point): boolean {
+  return (
+    point.x >= data.x &&
+    point.x <= data.x + data.width &&
+    point.y >= data.y &&
+    point.y <= data.y + data.height
+  );
+}
+
+function createDefault(params: { id: string; x: number; y: number }): ShapeData {
+  return {
+    id: params.id,
+    type: "rectangle",
+    x: params.x,
+    y: params.y,
+    width: 100,
+    height: 80,
+    style: { ...DEFAULT_STYLE },
+    cornerRadius: 0,
+  };
+}
+```
+
+### 2. Implement Resize Logic
+
+Handle all eight resize handles:
+
+```tsx
+function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData {
+  let { x, y, width, height } = data;
+  switch (handle) {
+    case "se":
+      width += delta.x;
+      height += delta.y;
+      break;
+    case "nw":
+      x += delta.x;
+      y += delta.y;
+      width -= delta.x;
+      height -= delta.y;
+      break;
+    // ... handle all 8 directions
+  }
+  return {
+    ...data,
+    x, y,
+    width: Math.max(1, width),
+    height: Math.max(1, height),
+  };
+}
+```
+
+Always clamp `width` and `height` to a minimum value to prevent zero-size shapes.
+
+### 3. Create the Drawing Tool
+
+The drawing tool uses a **three-phase pattern**:
+
+```tsx
+import { createAddShapeCommand } from "@edv4h/usketch-store";
+import type { CanvasPointerEvent, ToolContext } from "@edv4h/usketch-shared";
+
+let drawState: { startX: number; startY: number; shapeId: string } | null = null;
+
+function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+  const id = generateId();
+  drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
+
+  // Create a temporary shape for live preview
+  const shape = createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
+  shape.width = 0;
+  shape.height = 0;
+  shape.style = { ...toolCtx.store.getStyleSettings() };
+  toolCtx.store.addShape(shape);
+}
+
+function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+  if (!drawState) return;
+  const x = Math.min(drawState.startX, event.worldPoint.x);
+  const y = Math.min(drawState.startY, event.worldPoint.y);
+  const width = Math.abs(event.worldPoint.x - drawState.startX);
+  const height = Math.abs(event.worldPoint.y - drawState.startY);
+  toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
+}
+
+function onPointerUp(toolCtx: ToolContext) {
+  if (!drawState) return;
+  const shape = toolCtx.store.getShape(drawState.shapeId);
+  if (shape && shape.width > 2 && shape.height > 2) {
+    // Replace temporary shape with an undoable command
+    toolCtx.store.deleteShape(drawState.shapeId);
+    toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+  } else {
+    // Too small — discard
+    toolCtx.store.deleteShape(drawState.shapeId);
+  }
+  drawState = null;
+  toolCtx.store.setActiveToolId("select");
+}
+```
+
+**Key pattern**: Create a temporary shape directly on the store for live preview, then replace it with an undoable command on pointer up.
+
+### 4. Wire Everything in setup()
+
+```tsx
+export const rectPlugin: UsketchPlugin = {
+  id: "usketch-plugin-shape-rect",
+  name: "Rectangle",
+
+  setup(ctx: PluginContext) {
+    ctx.shapes.register("rectangle", {
+      render,
+      getBounds,
+      hitTest,
+      resize,
+      createDefault,
+    });
+
+    ctx.tools.register("rectangle-draw", {
+      icon: RectIcon,
+      cursor: "crosshair",
+      shortcut: "r",
+      order: 10,
+      onPointerDown,
+      onPointerMove,
+      onPointerUp,
+    });
+  },
+};
+```
+
+## Key Takeaways
+
+- Shape + tool live in the **same plugin** — they're a single concept.
+- Use **direct store mutations** for live preview, **commands** for the final action.
+- Always handle the case where the user barely drags (width/height < threshold).
+- Switch back to the select tool after drawing — this is the expected UX.

@@ -1,0 +1,73 @@
+---
+title: Dev Setup
+description: Clone the monorepo and start developing plugins locally.
+---
+
+## Prerequisites
+
+| Tool | Version |
+|------|---------|
+| Node.js | 22+ |
+| pnpm | 10+ |
+| Git | 2.x |
+
+## Clone & Install
+
+```bash
+git clone https://github.com/EdV4H/usketch.git
+cd usketch
+pnpm install
+```
+
+## Monorepo Structure
+
+```
+apps/
+  web/            — Main web application
+  server/         — Edge API server
+  docs/           — This documentation site
+
+packages/
+  core/           — Plugin API, layer system, app bootstrap
+  shared/         — Shared type definitions & utilities
+  store/          — State management (Zustand + Yjs)
+  canvas-engine/  — Rendering engine, viewport, coordinate transforms
+  ui/             — Core UI components
+  sync/           — Real-time sync layer
+
+plugins/
+  usketch-plugin-shape-rect/     — Rectangle shape + draw tool
+  usketch-plugin-shape-ellipse/  — Ellipse shape + draw tool
+  usketch-plugin-tool-select/    — Selection tool
+  usketch-plugin-tool-pan/       — Pan tool
+  ...                            — Many more plugins
+```
+
+## Common Commands
+
+```bash
+# Start everything in dev mode
+pnpm dev
+
+# Build all packages
+pnpm build
+
+# Run all tests
+pnpm test
+
+# Type-check
+pnpm typecheck
+
+# Lint & format (Biome)
+pnpm lint
+pnpm format
+```
+
+## Developing a Plugin
+
+1. Create your plugin directory under `plugins/`.
+2. Add `@edv4h/usketch-shared` as a `workspace:*` dependency.
+3. Implement the `UsketchPlugin` interface.
+4. Register it in `apps/web/src/main.tsx` (or your app entry) to test.
+
+See the [Quick Start](/usketch/getting-started/quick-start/) for a step-by-step example.

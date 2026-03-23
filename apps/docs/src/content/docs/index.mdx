@@ -1,0 +1,36 @@
+---
+title: uSketch Plugin SDK
+description: Build plugins for the uSketch collaborative whiteboard.
+template: splash
+hero:
+  tagline: Everything you need to extend uSketch with custom shapes, tools, and features.
+  actions:
+    - text: Get Started
+      link: /usketch/getting-started/introduction/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/EdV4H/usketch
+      icon: external
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Why Plugins?
+
+uSketch v2 is built on a **plugin-first architecture**. Every drawing feature — shapes, tools, backgrounds, and more — is implemented as a plugin. The same API used internally is available to you.
+
+<CardGrid>
+  <Card title="Shapes" icon="pencil">
+    Define custom shape types with rendering, hit testing, and resize logic.
+  </Card>
+  <Card title="Tools" icon="setting">
+    Create interactive drawing tools with pointer event handling.
+  </Card>
+  <Card title="Layers" icon="list-format">
+    Add custom rendering layers for guides, overlays, and backgrounds.
+  </Card>
+  <Card title="Events" icon="rocket">
+    Communicate between plugins via a decoupled event bus.
+  </Card>
+</CardGrid>

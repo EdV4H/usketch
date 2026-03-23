@@ -1,0 +1,42 @@
+---
+title: Introduction
+description: What is the uSketch Plugin SDK and why it exists.
+---
+
+## What is uSketch?
+
+uSketch is a **real-time collaborative whiteboard** application built for the browser. Version 2 is a ground-up rewrite that adopts a plugin-first architecture — every drawing feature is implemented as a plugin.
+
+## What is the Plugin SDK?
+
+The Plugin SDK is the public surface of `@edv4h/usketch-shared` and `@edv4h/usketch-core`. It provides:
+
+- **`UsketchPlugin`** — the interface every plugin implements.
+- **`PluginContext`** — the registries and services available inside `setup()`.
+- **Type definitions** for shapes, tools, layers, commands, events, and transient objects.
+
+## Architecture at a Glance
+
+```
+createApp({ store, plugins })
+  │
+  ├─ Register each plugin in PluginRegistry
+  ├─ Call plugin.setup(ctx) sequentially
+  │   ├─ Register shapes  → ShapeRegistry
+  │   ├─ Register tools   → ToolRegistry
+  │   ├─ Register layers  → LayerManager
+  │   ├─ Register commands → CommandRegistry
+  │   └─ Subscribe events → EventBus
+  │
+  └─ Mount React tree
+      ├─ Canvas (renders layers by order)
+      ├─ Toolbar (shows registered tools)
+      └─ PropertyPanel (shape-specific UI)
+```
+
+A plugin is a plain object with an `id`, a `name`, and a `setup` function. That's it.
+
+## Next Steps
+
+- [Quick Start](/usketch/getting-started/quick-start/) — build a minimal plugin in 5 minutes.
+- [Dev Setup](/usketch/getting-started/dev-setup/) — clone the monorepo and run locally.

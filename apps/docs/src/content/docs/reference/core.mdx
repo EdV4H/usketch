@@ -1,0 +1,118 @@
+---
+title: "Core API — @edv4h/usketch-core"
+description: The createApp function and AppInstance interface.
+---
+
+The `@edv4h/usketch-core` package provides the application bootstrap function.
+
+## createApp
+
+```ts
+import { createApp } from "@edv4h/usketch-core";
+
+const app = await createApp({
+  store: myBoardStore,
+  plugins: [selectPlugin, panPlugin, rectPlugin, /* ... */],
+});
+```
+
+### CreateAppOptions
+
+```ts
+interface CreateAppOptions {
+  store: BoardStore;
+  plugins: UsketchPlugin[];
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `store` | A `BoardStore` instance (typically created via `@edv4h/usketch-store`). |
+| `plugins` | Array of plugins to initialize. Order matters — plugins are set up sequentially. |
+
+### AppInstance
+
+The return value of `createApp`:
+
+```ts
+interface AppInstance {
+  store: BoardStore;
+  layers: LayerManager;
+  tools: ToolRegistry;
+  shapes: ShapeRegistry;
+  commands: CommandRegistry;
+  shortcuts: ShortcutRegistry;
+  events: EventBus;
+  transient: TransientRegistry;
+  plugins: readonly UsketchPlugin[];
+  destroy(): void;
+}
+```
+
+All registries are populated after `createApp` resolves. You can query them to inspect what plugins registered.
+
+### destroy()
+
+Call `destroy()` to tear down the app:
+
+```ts
+app.destroy();
+```
+
+This calls `teardown()` on every plugin (in registration order) and cleans up internal subscriptions.
+
+## Initialization Flow
+
+```
+createApp({ store, plugins })
+  │
+  ├─ Create registries
+  │   ├─ LayerManager
+  │   ├─ ToolRegistry
+  │   ├─ ShapeRegistry
+  │   ├─ CommandRegistry
+  │   ├─ ShortcutRegistry
+  │   ├─ EventBus
+  │   └─ TransientRegistry
+  │
+  ├─ Bridge store mutations → EventBus
+  │
+  ├─ For each plugin:
+  │   ├─ Register in PluginRegistry
+  │   └─ await plugin.setup(ctx)
+  │
+  ├─ Register core shortcuts
+  │   ├─ Ctrl+Z → undo
+  │   └─ Ctrl+Shift+Z → redo
+  │
+  └─ Return AppInstance
+```
+
+## Error Handling
+
+If any plugin's `setup()` throws, `createApp` will:
+
+1. Clean up the store mutation subscription.
+2. Re-throw the error.
+
+Plugins that were already set up will **not** have `teardown()` called in this case. Design your plugins to be safe even if partially initialized.
+
+## Usage with React
+
+Typically you create the app instance once and provide the registries to React via context:
+
+```tsx
+const app = await createApp({ store, plugins });
+
+function App() {
+  return (
+    <UsketchProvider app={app}>
+      <Canvas />
+      <Toolbar />
+      <PropertyPanel />
+    </UsketchProvider>
+  );
+}
+```
+
+The `UsketchProvider` and React integration components are part of `apps/web` — they are not in the core package.
