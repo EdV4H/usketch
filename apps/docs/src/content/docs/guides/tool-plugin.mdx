@@ -1,0 +1,126 @@
+---
+title: Building a Tool Plugin
+description: Create a standalone tool plugin that interacts with the canvas.
+---
+
+Not every tool creates shapes. The **select tool** and **pan tool** are standalone tools that manipulate existing shapes or the viewport. This guide shows how to build a tool-only plugin.
+
+## Example: Eraser Tool
+
+We'll build a simple eraser tool that deletes shapes on click.
+
+### 1. Define the Tool Icon
+
+```tsx
+function EraserIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20">
+      <path
+        d="M4 16l4-4m0 0l8-8m-8 8L4 8m4 4l8 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+```
+
+### 2. Implement the Pointer Handler
+
+```tsx
+import type { CanvasPointerEvent, ToolContext } from "@edv4h/usketch-shared";
+
+function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+  const { store, shapes } = toolCtx;
+
+  // Find the topmost shape under the pointer (iterate in reverse insertion order)
+  for (const [id, data] of Array.from(store.getShapes()).reverse()) {
+    const def = shapes.get(data.type);
+    if (def?.hitTest(data, event.worldPoint)) {
+      // Delete via command for undo support
+      toolCtx.commands.execute({
+        execute() { store.deleteShape(id); },
+        undo() { store.addShape(data); },
+      });
+      return;
+    }
+  }
+}
+```
+
+### 3. Create the Plugin
+
+```tsx
+import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+
+export const eraserPlugin: UsketchPlugin = {
+  id: "usketch-plugin-tool-eraser",
+  name: "Eraser",
+
+  setup(ctx: PluginContext) {
+    ctx.tools.register("eraser", {
+      icon: EraserIcon,
+      cursor: "pointer",
+      shortcut: "e",
+      order: 5,
+      onPointerDown,
+    });
+  },
+};
+```
+
+## Tool Lifecycle
+
+```
+User clicks tool in toolbar (or presses shortcut)
+  → store.setActiveToolId("eraser")
+
+User interacts with canvas
+  → onPointerDown / onPointerMove / onPointerUp
+
+User switches to another tool
+  → store.setActiveToolId("select")
+```
+
+> **Note:** `onActivate` and `onDeactivate` are defined in `ToolDefinition` for future use but are not currently called by the runtime. Use them to prepare for upcoming lifecycle support.
+
+## Adding Custom Layers
+
+Tools can register layers for visual feedback. For example, a lasso-select tool might show the selection area:
+
+```tsx
+setup(ctx: PluginContext) {
+  let lassoPath: Point[] = [];
+
+  ctx.layers.register({
+    id: "lasso-overlay",
+    order: 75,
+    render: () => lassoPath.length > 0
+      ? <LassoPath points={lassoPath} />
+      : null,
+  });
+
+  ctx.tools.register("lasso-select", {
+    icon: LassoIcon,
+    onPointerDown: (toolCtx, event) => {
+      lassoPath = [event.worldPoint];
+    },
+    onPointerMove: (toolCtx, event) => {
+      lassoPath.push(event.worldPoint);
+    },
+    onPointerUp: (toolCtx) => {
+      selectShapesInPath(toolCtx.store, lassoPath);
+      lassoPath = [];
+    },
+  });
+}
+```
+
+## Tips
+
+- Use `onActivate` / `onDeactivate` for setup and cleanup (e.g., changing cursor state, resetting internal state).
+- Keep tool state in **closures** within `setup()`, not on the plugin object. This avoids shared mutable state issues.
+- Emit events via `ctx.events.emit()` if other plugins need to react to your tool's actions.
+- Set `order` thoughtfully — tools appear left-to-right in the toolbar sorted by `order`.

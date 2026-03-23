@@ -1,0 +1,96 @@
+---
+title: Shape System
+description: How shapes are defined, registered, and rendered.
+---
+
+## ShapeData
+
+Every shape on the canvas is represented by a `ShapeData` object:
+
+```ts
+interface ShapeData {
+  id: string;
+  type: string;        // Must match a registered ShapeDefinition
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  style: ShapeStyle;
+  rotation?: number;
+  [key: string]: unknown;  // Shape-specific extra properties
+}
+
+interface ShapeStyle {
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  opacity: number;
+}
+```
+
+The `type` field links the data to its `ShapeDefinition`. Shape-specific properties (e.g., `cornerRadius` for rectangles) are stored as extra keys.
+
+## ShapeDefinition
+
+A `ShapeDefinition` tells the system how to render and interact with a shape type:
+
+```ts
+interface ShapeDefinition {
+  render: (data: ShapeData) => ReactElement;
+  getBounds: (data: ShapeData) => BoundingBox;
+  hitTest: (data: ShapeData, point: Point) => boolean;
+  resize: (data: ShapeData, handle: ResizeHandle, delta: Point) => ShapeData;
+  createDefault: (params: { id: string; x: number; y: number }) => ShapeData;
+  renderTarget?: "svg" | "html";
+  minSize?: { width: number; height: number };
+  move?: (data: ShapeData, dx: number, dy: number) => Partial<ShapeData>;
+  applyBounds?: (data: ShapeData, newBounds: BoundingBox) => Partial<ShapeData>;
+}
+```
+
+| Method | Purpose |
+|--------|---------|
+| `render` | Returns JSX for the shape. SVG elements for `"svg"` target. |
+| `getBounds` | Returns the axis-aligned bounding box. |
+| `hitTest` | Returns `true` if a world-space point is inside the shape. |
+| `resize` | Returns updated shape data after a resize handle drag. |
+| `createDefault` | Creates a new shape with sensible defaults at a given position. |
+| `move` | Optional. Custom move logic (e.g., for shapes with absolute point arrays). |
+| `applyBounds` | Optional. Fit shape data to a new bounding box during multi-select resize. |
+
+## ShapeRegistry
+
+Register shape definitions during `setup()`:
+
+```ts
+setup(ctx: PluginContext) {
+  ctx.shapes.register("rectangle", {
+    render,
+    getBounds,
+    hitTest,
+    resize,
+    createDefault,
+  });
+}
+```
+
+Retrieve definitions at runtime:
+
+```ts
+const def = ctx.shapes.get("rectangle");
+const allShapes = ctx.shapes.getAll(); // ReadonlyMap<string, ShapeDefinition>
+```
+
+## Resize Handles
+
+The `ResizeHandle` type represents the eight handles around a selected shape:
+
+```ts
+type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+```
+
+Your `resize` function receives the handle being dragged and a `delta: Point` representing the movement in world coordinates.
+
+## Example: Rectangle
+
+See the full rectangle plugin in the [Shape Plugin Guide](/usketch/guides/shape-plugin/).

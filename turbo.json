@@ -21,6 +21,10 @@
 		},
 		"clean": {
 			"cache": false
+		},
+		"@edv4h/usketch-docs#build": {
+			"outputs": ["dist/**"],
+			"inputs": ["src/**", "public/**", "astro.config.mjs", "tsconfig.json", "package.json"]
 		}
 	}
 }

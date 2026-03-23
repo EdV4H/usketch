@@ -1,0 +1,77 @@
+---
+title: Command System
+description: Undoable commands and the undo/redo stack.
+---
+
+## Overview
+
+All user actions that modify the board should go through the **command system** to support undo and redo.
+
+## Command Interface
+
+```ts
+interface Command {
+  execute(): void;
+  undo(): void;
+}
+```
+
+A command encapsulates both the forward action and its inverse. When executed via the registry, it is pushed onto the undo stack.
+
+## CommandRegistry
+
+```ts
+interface CommandRegistry {
+  execute(command: Command): void;
+  undo(): void;
+  redo(): void;
+  canUndo(): boolean;
+  canRedo(): boolean;
+  getHistorySize(): number;
+  getCursor(): number;
+}
+```
+
+| Method | Description |
+|--------|-------------|
+| `execute(cmd)` | Calls `cmd.execute()` and pushes it onto the history. |
+| `undo()` | Calls `undo()` on the most recent command and moves the cursor back. |
+| `redo()` | Calls `execute()` on the next command and moves the cursor forward. |
+| `canUndo/canRedo` | Check if undo/redo is available. |
+
+## Built-in Shortcuts
+
+The core registers `Ctrl+Z` for undo and `Ctrl+Shift+Z` for redo automatically.
+
+## Example: Add Shape Command
+
+```ts
+function createAddShapeCommand(store: BoardStore, shape: ShapeData): Command {
+  return {
+    execute() {
+      store.addShape(shape);
+    },
+    undo() {
+      store.deleteShape(shape.id);
+    },
+  };
+}
+
+// Usage in a tool's onPointerUp:
+function onPointerUp(toolCtx: ToolContext) {
+  const shape = /* ... built shape ... */;
+  toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+}
+```
+
+## Best Practice
+
+Always create shapes through commands rather than directly mutating the store. Direct mutations (`store.addShape()`) work but won't appear in the undo history.
+
+A common pattern for drawing tools:
+
+1. **onPointerDown** — Create a temporary shape directly on the store (for live preview).
+2. **onPointerMove** — Update the temporary shape directly.
+3. **onPointerUp** — Delete the temporary shape, then execute an `AddShapeCommand` with the final data.
+
+This gives users a live preview while ensuring the final result is undoable.

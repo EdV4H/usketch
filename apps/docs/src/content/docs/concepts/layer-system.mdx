@@ -1,0 +1,95 @@
+---
+title: Layer System
+description: How rendering layers are stacked and managed.
+---
+
+## Overview
+
+The canvas is rendered as a **stack of layers**, each responsible for a different visual concern. Plugins register layers to participate in rendering.
+
+## Layer Interface
+
+```ts
+interface Layer {
+  id: string;
+  order: number;
+  render: (ctx: LayerRenderContext) => ReactElement | null;
+  interactable?: boolean;
+  fixed?: boolean;
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `id` | Unique layer identifier. |
+| `order` | Rendering order. Lower values render behind higher values. |
+| `render` | Returns JSX for this layer. Receives the current render context. |
+| `interactable` | Reserved for future use. Intended to control whether the layer receives pointer events. |
+| `fixed` | If `true`, the layer is not affected by viewport pan/zoom. |
+
+## LayerRenderContext
+
+```ts
+interface LayerRenderContext {
+  viewport: Viewport;                       // Current pan & zoom
+  shapes: ReadonlyMap<string, ShapeData>;   // All shapes on the board
+  selection: ReadonlySet<string>;           // Currently selected shape IDs
+  theme: Theme;                             // Active theme
+}
+```
+
+## Standard Layer Stack
+
+The typical rendering order:
+
+| Order | Layer | Source |
+|-------|-------|--------|
+| — | Canvas background (set via container CSS) | Core |
+| 10 | Background (grid, dots) | Plugin |
+| 50 | Shapes (main content) | Core |
+| 80 | UI (selection handles, resize grips) | Plugin |
+| 85 | Guides (snap lines, alignment) | Plugin |
+| 100 | Transient (cursors, effects) | Core |
+
+## LayerManager API
+
+```ts
+interface LayerManager {
+  register(layer: Layer): void;
+  unregister(layerId: string): void;
+  getLayers(): readonly Layer[];  // Sorted by order
+}
+```
+
+## Example: Background Grid
+
+```ts
+setup(ctx: PluginContext) {
+  ctx.layers.register({
+    id: "bg-grid",
+    order: 10,
+    render: (renderCtx) => (
+      <GridPattern viewport={renderCtx.viewport} />
+    ),
+  });
+}
+```
+
+## Example: Selection Handles
+
+```ts
+setup(ctx: PluginContext) {
+  ctx.layers.register({
+    id: "select-handles",
+    order: 80,
+    fixed: true,
+    render: (renderCtx) => (
+      <SelectionHandles
+        shapes={renderCtx.shapes}
+        selection={renderCtx.selection}
+        viewport={renderCtx.viewport}
+      />
+    ),
+  });
+}
+```
