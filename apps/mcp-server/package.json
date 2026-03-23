@@ -1,0 +1,30 @@
+{
+	"name": "@edv4h/usketch-mcp-server",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"main": "./dist/index.js",
+	"bin": {
+		"usketch-mcp": "./dist/index.js"
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"dev": "tsc -p tsconfig.json --watch",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@edv4h/usketch-shared": "workspace:*",
+		"@edv4h/usketch-sync": "workspace:*",
+		"@modelcontextprotocol/sdk": "^1.12.1",
+		"ws": "^8.18.0",
+		"yjs": "^13.6.0",
+		"zod": "^3.24.0"
+	},
+	"devDependencies": {
+		"@types/ws": "^8.5.10",
+		"typescript": "5.8.3",
+		"vitest": "3.2.4"
+	}
+}
