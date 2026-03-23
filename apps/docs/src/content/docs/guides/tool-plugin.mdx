@@ -35,8 +35,8 @@ import type { CanvasPointerEvent, ToolContext } from "@edv4h/usketch-shared";
 function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
   const { store, shapes } = toolCtx;
 
-  // Find the topmost shape under the pointer
-  for (const [id, data] of store.getShapes()) {
+  // Find the topmost shape under the pointer (iterate in reverse insertion order)
+  for (const [id, data] of Array.from(store.getShapes()).reverse()) {
     const def = shapes.get(data.type);
     if (def?.hitTest(data, event.worldPoint)) {
       // Delete via command for undo support

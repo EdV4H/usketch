@@ -30,8 +30,30 @@ Create `package.json`:
     "@edv4h/usketch-shared": "workspace:*"
   },
   "devDependencies": {
+    "@types/react": "^19",
     "typescript": "^5.8"
+  },
+  "peerDependencies": {
+    "react": "^19"
   }
+}
+```
+
+Create `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "declaration": true,
+    "outDir": "dist",
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"]
 }
 ```
 

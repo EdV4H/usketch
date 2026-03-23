@@ -28,6 +28,7 @@ First, implement the required `ShapeDefinition` methods:
 
 ```tsx
 import type { BoundingBox, Point, ResizeHandle, ShapeData } from "@edv4h/usketch-shared";
+import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
 
 function render(data: ShapeData) {
   return (
@@ -109,8 +110,9 @@ The drawing tool uses a **three-phase pattern**:
 
 ```tsx
 import { createAddShapeCommand } from "@edv4h/usketch-store";
-import type { CanvasPointerEvent, ToolContext } from "@edv4h/usketch-shared";
+import { generateId, type CanvasPointerEvent, type ToolContext } from "@edv4h/usketch-shared";
 
+// In the actual plugin, drawState lives inside the setup() closure — not at module scope.
 let drawState: { startX: number; startY: number; shapeId: string } | null = null;
 
 function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {

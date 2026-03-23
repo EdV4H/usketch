@@ -2,7 +2,7 @@ import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
 
 export default defineConfig({
-	site: "https://EdV4H.github.io",
+	site: "https://edv4h.github.io",
 	base: "/usketch/",
 	integrations: [
 		starlight({

@@ -2,7 +2,7 @@ name: Deploy Docs
 on:
   push:
     branches: [main]
-    paths: ['apps/docs/**', '.github/workflows/docs.yml']
+    paths: ['apps/docs/**', '.github/workflows/docs.yml', 'pnpm-lock.yaml']
   workflow_dispatch:
 
 permissions:
