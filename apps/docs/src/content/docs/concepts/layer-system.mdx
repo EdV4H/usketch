@@ -24,7 +24,7 @@ interface Layer {
 | `id` | Unique layer identifier. |
 | `order` | Rendering order. Lower values render behind higher values. |
 | `render` | Returns JSX for this layer. Receives the current render context. |
-| `interactable` | If `true`, this layer receives pointer events. |
+| `interactable` | Reserved for future use. Intended to control whether the layer receives pointer events. |
 | `fixed` | If `true`, the layer is not affected by viewport pan/zoom. |
 
 ## LayerRenderContext
@@ -47,9 +47,9 @@ The typical rendering order:
 | 0 | Base (canvas background color) | Core |
 | 10 | Background (grid, dots) | Plugin |
 | 50 | Shapes (main content) | Core |
-| 70 | UI (selection handles, resize grips) | Plugin |
-| 80 | Guides (snap lines, alignment) | Plugin |
-| 90 | Transient (cursors, effects) | Core |
+| 80 | UI (selection handles, resize grips) | Plugin |
+| 85 | Guides (snap lines, alignment) | Plugin |
+| 100 | Transient (cursors, effects) | Core |
 
 ## LayerManager API
 
@@ -81,8 +81,8 @@ setup(ctx: PluginContext) {
 setup(ctx: PluginContext) {
   ctx.layers.register({
     id: "select-handles",
-    order: 70,
-    interactable: true,
+    order: 80,
+    fixed: true,
     render: (renderCtx) => (
       <SelectionHandles
         shapes={renderCtx.shapes}

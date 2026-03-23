@@ -22,7 +22,7 @@
 		"clean": {
 			"cache": false
 		},
-		"docs#build": {
+		"@edv4h/usketch-docs#build": {
 			"outputs": ["dist/**"],
 			"inputs": ["src/**", "public/**", "astro.config.mjs", "tsconfig.json", "package.json"]
 		}

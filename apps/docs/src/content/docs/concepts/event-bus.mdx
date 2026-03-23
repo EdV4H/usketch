@@ -35,20 +35,25 @@ This means plugins can listen for store changes without directly subscribing to 
 ## Usage Example: Snap Plugin
 
 ```ts
-setup(ctx: PluginContext) {
-  // Listen for drag events from tools
-  const unsub = ctx.events.on("tool:drag", (event) => {
-    const snapped = calculateSnap(event.point, event.shapes);
-    updateSnapGuides(snapped);
-  });
+// Keep unsubscribe references in a closure, not on the plugin object
+let unsub: (() => void) | null = null;
 
-  // Store the unsubscribe function for teardown
-  this._unsub = unsub;
-}
+const snapPlugin: UsketchPlugin = {
+  id: "usketch-plugin-snap",
+  name: "Snap",
 
-teardown() {
-  this._unsub?.();
-}
+  setup(ctx: PluginContext) {
+    unsub = ctx.events.on("tool:drag", (event) => {
+      const snapped = calculateSnap(event.point, event.shapes);
+      updateSnapGuides(snapped);
+    });
+  },
+
+  teardown() {
+    unsub?.();
+    unsub = null;
+  },
+};
 ```
 
 ## Event Naming Conventions
