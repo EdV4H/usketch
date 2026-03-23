@@ -95,7 +95,7 @@ const toolId = ctx.store.getActiveToolId();
 ctx.store.setActiveToolId("select");
 ```
 
-When the active tool changes, the canvas dispatches `onDeactivate` on the old tool and `onActivate` on the new one.
+`onActivate` and `onDeactivate` are defined in `ToolDefinition` for future lifecycle support but are not currently called by the runtime. Only pointer event handlers (`onPointerDown`, `onPointerMove`, `onPointerUp`) are invoked today.
 
 ## Example
 
