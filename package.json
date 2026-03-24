@@ -20,6 +20,6 @@
 		"@biomejs/biome": "2.2.3",
 		"@j178/prek": "0.3.3",
 		"turbo": "2.5.6",
-		"typescript": "5.8.3"
+		"typescript": "5.9.3"
 	}
 }
