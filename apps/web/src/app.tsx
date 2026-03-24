@@ -18,6 +18,7 @@ import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { imageShapePlugin } from "@edv4h/usketch-plugin-shape-image";
 import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
+import { wireframePlugin } from "@edv4h/usketch-plugin-shape-wireframe";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { snapPlugin } from "@edv4h/usketch-plugin-snap";
 import { createSpotlightPlugin, spotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
@@ -48,6 +49,7 @@ const basePlugins: UsketchPlugin[] = [
 	textPlugin,
 	imageShapePlugin,
 	counterPlugin,
+	wireframePlugin,
 	snapPlugin,
 	exportPlugin,
 ];

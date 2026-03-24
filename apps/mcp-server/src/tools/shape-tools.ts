@@ -24,7 +24,7 @@ const shapeInputSchema = z
 		type: z
 			.string()
 			.describe(
-				'シェイプタイプ: "rectangle" | "ellipse" | "text" | "board-portal" | "freedraw" 等',
+				'シェイプタイプ: "rectangle" | "ellipse" | "text" | "board-portal" | "freedraw" | "wireframe-button" | "wireframe-input" | "wireframe-select" | "wireframe-checkbox" | "wireframe-card" | "wireframe-container"。wireframe系はカスタムプロパティを持つ: button→label,variant("primary"|"secondary"|"outline") / input→placeholder,inputLabel,inputType / select→placeholder,options(string[]) / checkbox→checkboxLabel,checked(boolean) / card→cardTitle,cardContent / container→containerTitle,borderStyle("solid"|"dashed")',
 			),
 		x: z.number().describe("X座標"),
 		y: z.number().describe("Y座標"),
