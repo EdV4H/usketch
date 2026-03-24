@@ -18,7 +18,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.2.3",
-		"@j178/prek": "0.3.3",
+		"@j178/prek": "0.3.8",
 		"turbo": "2.5.6",
 		"typescript": "5.9.3"
 	}
