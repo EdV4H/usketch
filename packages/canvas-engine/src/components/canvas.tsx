@@ -82,12 +82,19 @@ export function Canvas() {
 	);
 
 	// ── Re-render when layers change dynamically ──
+	// Plugins that register/unregister layers at runtime must emit
+	// "layers:changed" via ctx.events after mutation.
 	useEffect(() => {
 		return app.events.on("layers:changed", () => setLayerVersion((v) => v + 1));
 	}, [app.events]);
 
 	// ── Tool activate / deactivate lifecycle ──
 	const prevToolIdRef = useRef<string | null>(null);
+	const activeToolRef = useRef(activeTool);
+	activeToolRef.current = activeTool;
+	const toolCtxRef = useRef(toolCtx);
+	toolCtxRef.current = toolCtx;
+
 	useEffect(() => {
 		const prevId = prevToolIdRef.current;
 		prevToolIdRef.current = activeToolId;
@@ -101,6 +108,11 @@ export function Canvas() {
 		}
 		// Bump layer version so dynamically registered layers are picked up
 		setLayerVersion((v) => v + 1);
+
+		// Cleanup: call onDeactivate when Canvas unmounts
+		return () => {
+			activeToolRef.current?.onDeactivate?.(toolCtxRef.current);
+		};
 	}, [activeToolId, activeTool, toolCtx, app.tools]);
 
 	// Native non-passive wheel listener to reliably prevent browser zoom

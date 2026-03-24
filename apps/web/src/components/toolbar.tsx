@@ -466,6 +466,7 @@ function ToolButton({
 }) {
 	const app = useApp();
 	const [showPicker, setShowPicker] = useState(false);
+	const [wireframeSubtype, setWireframeSubtype] = useState(WIREFRAME_SUBTYPES[0].type);
 	const isWireframe = id === "wireframe-draw";
 
 	return (
@@ -494,7 +495,9 @@ function ToolButton({
 			</button>
 			{isWireframe && isActive && showPicker && (
 				<WireframePicker
+					currentType={wireframeSubtype}
 					onSelect={(type) => {
+						setWireframeSubtype(type);
 						app.events.emit("wireframe:select-subtype", { type });
 					}}
 				/>
@@ -503,9 +506,13 @@ function ToolButton({
 	);
 }
 
-function WireframePicker({ onSelect }: { onSelect: (type: string) => void }) {
-	const [currentType, setCurrentType] = useState(WIREFRAME_SUBTYPES[0].type);
-
+function WireframePicker({
+	currentType,
+	onSelect,
+}: {
+	currentType: string;
+	onSelect: (type: string) => void;
+}) {
 	return (
 		<div
 			style={{
@@ -533,10 +540,7 @@ function WireframePicker({ onSelect }: { onSelect: (type: string) => void }) {
 					<button
 						key={sub.type}
 						type="button"
-						onClick={() => {
-							setCurrentType(sub.type);
-							onSelect(sub.type);
-						}}
+						onClick={() => onSelect(sub.type)}
 						style={{
 							display: "flex",
 							flexDirection: "column",
