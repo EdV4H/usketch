@@ -1,6 +1,6 @@
 /**
  * ボード管理ツール
- * board_list, board_create, board_get, board_delete
+ * board_list, board_create, board_get, board_delete, board_update
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

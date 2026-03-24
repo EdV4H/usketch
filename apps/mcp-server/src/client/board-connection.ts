@@ -37,16 +37,28 @@ export class BoardConnection {
 			const userId = this.config.devMode ? this.config.devUserId : "mcp-client";
 			const wsUrl = `${this.config.wsUrl}/api/boards/${this.boardId}/ws?boardId=${this.boardId}&userId=${userId}${this.config.devMode ? `&devUserId=${userId}` : ""}`;
 
-			const ws = new WebSocket(wsUrl);
+			const wsOptions: WebSocket.ClientOptions = {};
+			if (!this.config.devMode && this.config.apiToken) {
+				wsOptions.headers = { Authorization: `Bearer ${this.config.apiToken}` };
+			}
+			const ws = new WebSocket(wsUrl, wsOptions);
 			ws.binaryType = "arraybuffer";
 			this.ws = ws;
 
 			let syncReceived = false;
+			let settled = false;
 			const syncTimeout = setTimeout(() => {
-				if (!syncReceived) {
-					// タイムアウトしても接続自体は成功とみなす
-					this.connected = true;
-					resolve();
+				if (!syncReceived && !settled) {
+					if (ws.readyState === WebSocket.OPEN) {
+						// 接続はあるが同期データなし — 空ボードとみなす
+						settled = true;
+						this.connected = true;
+						resolve();
+					} else {
+						// 接続が確立されていない
+						settled = true;
+						reject(new Error("WebSocket connection timed out"));
+					}
 				}
 			}, 5000);
 
@@ -70,8 +82,9 @@ export class BoardConnection {
 					case MSG_SYNC_STEP2:
 					case MSG_YJS_UPDATE: {
 						Y.applyUpdate(this.doc, payload, "remote");
-						if (msgType === MSG_SYNC_STEP2 && !syncReceived) {
+						if (msgType === MSG_SYNC_STEP2 && !syncReceived && !settled) {
 							syncReceived = true;
+							settled = true;
 							clearTimeout(syncTimeout);
 							this.connected = true;
 							resolve();
@@ -81,14 +94,28 @@ export class BoardConnection {
 				}
 			});
 
+			ws.on("unexpected-response", (_req, res) => {
+				if (!settled) {
+					settled = true;
+					clearTimeout(syncTimeout);
+					reject(new Error(`WebSocket upgrade rejected: ${res.statusCode}`));
+				}
+			});
+
 			ws.on("error", (err) => {
-				if (!this.connected) {
+				if (!settled) {
+					settled = true;
 					clearTimeout(syncTimeout);
 					reject(new Error(`WebSocket connection failed: ${err.message}`));
 				}
 			});
 
 			ws.on("close", () => {
+				if (!settled) {
+					settled = true;
+					clearTimeout(syncTimeout);
+					reject(new Error("WebSocket closed before sync completed"));
+				}
 				this.connected = false;
 				this.ws = null;
 				this.connectPromise = null;

@@ -15,7 +15,13 @@ async function main(): Promise<void> {
 	const args = process.argv.slice(2);
 	const isHttp = args.includes("--http");
 	const portIndex = args.indexOf("--port");
-	const _port = portIndex >= 0 ? Number(args[portIndex + 1]) : 3100;
+	let _port = 3100;
+	if (portIndex >= 0 && portIndex + 1 < args.length) {
+		const parsedPort = Number(args[portIndex + 1]);
+		if (Number.isFinite(parsedPort)) {
+			_port = parsedPort;
+		}
+	}
 
 	const config = loadConfig();
 	const { server, connections } = createMcpServer(config);
@@ -31,6 +37,11 @@ async function main(): Promise<void> {
 			const url = new URL(req.url ?? "/", `http://localhost:${_port}`);
 
 			if (url.pathname === "/sse") {
+				if (sseTransport) {
+					res.writeHead(409);
+					res.end("SSE connection already active");
+					return;
+				}
 				sseTransport = new SSEServerTransport("/messages", res);
 				await server.connect(sseTransport);
 				return;
