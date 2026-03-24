@@ -18,7 +18,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"hono": "4.7.10"
+		"hono": "4.12.9"
 	},
 	"peerDependencies": {
 		"drizzle-orm": ">=0.45.0"
