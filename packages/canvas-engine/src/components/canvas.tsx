@@ -108,12 +108,15 @@ export function Canvas() {
 		}
 		// Bump layer version so dynamically registered layers are picked up
 		setLayerVersion((v) => v + 1);
-
-		// Cleanup: call onDeactivate when Canvas unmounts
-		return () => {
-			activeToolRef.current?.onDeactivate?.(toolCtxRef.current);
-		};
 	}, [activeToolId, activeTool, toolCtx, app.tools]);
+
+	// Ensure onDeactivate is called once when Canvas unmounts
+	useEffect(
+		() => () => {
+			activeToolRef.current?.onDeactivate?.(toolCtxRef.current);
+		},
+		[],
+	);
 
 	// Native non-passive wheel listener to reliably prevent browser zoom
 	useEffect(() => {
