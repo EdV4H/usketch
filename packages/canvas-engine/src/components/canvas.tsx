@@ -1,6 +1,6 @@
 import type { CanvasPointerEvent } from "@edv4h/usketch-shared";
 import { DEFAULT_THEME } from "@edv4h/usketch-shared";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
@@ -36,6 +36,7 @@ export function Canvas() {
 	const activeToolId = useStoreSubscribe(app.store, (s) => s.getActiveToolId());
 
 	const activeTool = app.tools.get(activeToolId);
+	const [, setLayerVersion] = useState(0);
 
 	const toolCtx = useMemo(
 		() => ({
@@ -79,6 +80,28 @@ export function Canvas() {
 		},
 		[viewport, activeTool, toolCtx, app.events],
 	);
+
+	// ── Re-render when layers change dynamically ──
+	useEffect(() => {
+		return app.events.on("layers:changed", () => setLayerVersion((v) => v + 1));
+	}, [app.events]);
+
+	// ── Tool activate / deactivate lifecycle ──
+	const prevToolIdRef = useRef<string | null>(null);
+	useEffect(() => {
+		const prevId = prevToolIdRef.current;
+		prevToolIdRef.current = activeToolId;
+
+		if (prevId && prevId !== activeToolId) {
+			const prevTool = app.tools.get(prevId);
+			prevTool?.onDeactivate?.(toolCtx);
+		}
+		if (activeToolId && activeToolId !== prevId) {
+			activeTool?.onActivate?.(toolCtx);
+		}
+		// Bump layer version so dynamically registered layers are picked up
+		setLayerVersion((v) => v + 1);
+	}, [activeToolId, activeTool, toolCtx, app.tools]);
 
 	// Native non-passive wheel listener to reliably prevent browser zoom
 	useEffect(() => {
