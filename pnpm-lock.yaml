@@ -89,7 +89,7 @@ importers:
         version: 0.7.6(hono@4.7.10)(zod@4.3.6)
       better-auth:
         specifier: 1.5.5
-        version: 1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.1(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(vitest@3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0))
+        version: 1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.1(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0))
       drizzle-orm:
         specifier: 0.45.1
         version: 0.45.1(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13)
@@ -240,16 +240,16 @@ importers:
         version: link:../../packages/sync
       better-auth:
         specifier: 1.5.5
-        version: 1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.1(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(vitest@3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0))
+        version: 1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.1(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0))
       react:
-        specifier: 19.1.0
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
       react-dom:
-        specifier: 19.1.0
-        version: 19.1.0(react@19.1.0)
+        specifier: 19.2.4
+        version: 19.2.4(react@19.2.4)
       react-router:
         specifier: 7.13.1
-        version: 7.13.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
     devDependencies:
       '@edv4h/usketch-plugin-debug-hud':
         specifier: workspace:*
@@ -258,11 +258,11 @@ importers:
         specifier: 1.58.2
         version: 1.58.2
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       '@types/react-dom':
-        specifier: 19.1.6
-        version: 19.1.6(@types/react@19.1.8)
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.14)
       '@vitejs/plugin-react':
         specifier: 4.5.2
         version: 4.5.2(vite@7.0.0(@types/node@24.12.0)(tsx@4.21.0))
@@ -286,17 +286,17 @@ importers:
         version: link:../shared
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
       react-dom:
         specifier: '>=19'
-        version: 19.1.0(react@19.1.0)
+        version: 19.2.4(react@19.2.4)
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       '@types/react-dom':
-        specifier: 19.1.6
-        version: 19.1.6(@types/react@19.1.8)
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -340,14 +340,14 @@ importers:
     dependencies:
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
       xid-ts:
         specifier: 1.2.2
         version: 1.2.2
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -413,11 +413,11 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -467,11 +467,11 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -489,11 +489,11 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -559,11 +559,11 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -613,11 +613,11 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -632,11 +632,11 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -654,11 +654,11 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -676,20 +676,20 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
       react-dom:
         specifier: '>=19'
-        version: 19.1.0(react@19.1.0)
+        version: 19.2.4(react@19.2.4)
       satori:
         specifier: 0.26.0
         version: 0.26.0
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       '@types/react-dom':
-        specifier: 19.1.6
-        version: 19.1.6(@types/react@19.1.8)
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -707,11 +707,11 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -729,11 +729,11 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -751,11 +751,11 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -773,11 +773,11 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -795,11 +795,11 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -920,11 +920,11 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -945,11 +945,11 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -970,11 +970,11 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -995,11 +995,11 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -1014,11 +1014,11 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -1039,11 +1039,11 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -1070,11 +1070,11 @@ importers:
         version: 1.37.0
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -1092,11 +1092,11 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -1111,11 +1111,11 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -1133,11 +1133,11 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -1155,11 +1155,11 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -1177,11 +1177,11 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -1224,11 +1224,11 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -1249,11 +1249,11 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -1290,11 +1290,11 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.1.0
+        version: 19.2.4
     devDependencies:
       '@types/react':
-        specifier: 19.1.8
-        version: 19.1.8
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -2695,13 +2695,13 @@ packages:
   '@types/node@24.12.0':
     resolution: {integrity: sha512-GYDxsZi3ChgmckRT9HPU0WEhKLP08ev/Yfcq2AstjrDASOYCSXeyjDsHg4v5t4jOj7cyDX3vmprafKlWIG9MXQ==}
 
-  '@types/react-dom@19.1.6':
-    resolution: {integrity: sha512-4hOiT/dwO8Ko0gV1m/TJZYk3y0KBnY9vzDh7W+DH17b2HFSOGgdj33dhihPeuy3l0q23+4e+hoXHV6hCC4dCXw==}
+  '@types/react-dom@19.2.3':
+    resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
     peerDependencies:
-      '@types/react': ^19.0.0
+      '@types/react': ^19.2.0
 
-  '@types/react@19.1.8':
-    resolution: {integrity: sha512-AwAfQ2Wa5bCx9WP8nZL2uMZWod7J7/JSplxbTmBQ5ms6QpqNYm672H0Vu9ZVKVngQ+ii4R/byguVEUZQyeg44g==}
+  '@types/react@19.2.14':
+    resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
 
   '@types/sax@1.2.7':
     resolution: {integrity: sha512-rO73L89PJxeYM3s3pPPjiPgVVcymqU490g0YO5n5By0k2Erzj6tay/4lr1CHAAU4JyOWd1rpQ8bCf6cZfHU96A==}
@@ -4312,10 +4312,10 @@ packages:
     resolution: {integrity: sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==}
     engines: {node: '>= 0.10'}
 
-  react-dom@19.1.0:
-    resolution: {integrity: sha512-Xs1hdnE+DyKgeHJeJznQmYMIBG3TKIHJJT95Q58nHLSrElKlGQqDTR2HQ9fx5CN/Gk6Vh/kupBTDLU11/nDk/g==}
+  react-dom@19.2.4:
+    resolution: {integrity: sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ==}
     peerDependencies:
-      react: ^19.1.0
+      react: ^19.2.4
 
   react-refresh@0.17.0:
     resolution: {integrity: sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ==}
@@ -4331,8 +4331,8 @@ packages:
       react-dom:
         optional: true
 
-  react@19.1.0:
-    resolution: {integrity: sha512-FS+XFBNvn3GTAWq26joslQgWNoFu08F4kl0J4CgdNKADkdSGXQyTCnKteIAJy96Br6YbpEU1LSzV5dYtjMkMDg==}
+  react@19.2.4:
+    resolution: {integrity: sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ==}
     engines: {node: '>=0.10.0'}
 
   readdirp@5.0.0:
@@ -4452,8 +4452,8 @@ packages:
     resolution: {integrity: sha512-6R3J5M4AcbtLUdZmRv2SygeVaM7IhrLXu9BmnOGmmACak8fiUtOsYNWUS4uK7upbmHIBbLBeFeI//477BKLBzA==}
     engines: {node: '>=11.0.0'}
 
-  scheduler@0.26.0:
-    resolution: {integrity: sha512-NlHwttCI/l5gCPR3D1nNXtWABUmBwvZpEQiD4IXSbIDq8BzLIK/7Ir5gTFSGZDUu37K5cMNp0hFtzO38sC7gWA==}
+  scheduler@0.27.0:
+    resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
 
   semver@6.3.1:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
@@ -6227,11 +6227,11 @@ snapshots:
     dependencies:
       undici-types: 7.16.0
 
-  '@types/react-dom@19.1.6(@types/react@19.1.8)':
+  '@types/react-dom@19.2.3(@types/react@19.2.14)':
     dependencies:
-      '@types/react': 19.1.8
+      '@types/react': 19.2.14
 
-  '@types/react@19.1.8':
+  '@types/react@19.2.14':
     dependencies:
       csstype: 3.2.3
 
@@ -6525,7 +6525,7 @@ snapshots:
       is-alphanumerical: 2.0.1
       is-decimal: 2.0.1
 
-  better-auth@1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.1(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(vitest@3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)):
+  better-auth@1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.1(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vitest@3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)):
     dependencies:
       '@better-auth/core': 1.5.5(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@cloudflare/workers-types@4.20260317.1)(better-call@1.3.2(zod@4.3.6))(jose@6.2.2)(kysely@0.28.13)(nanostores@1.2.0)
       '@better-auth/drizzle-adapter': 1.5.5(@better-auth/core@1.5.5(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@cloudflare/workers-types@4.20260317.1)(better-call@1.3.2(zod@4.3.6))(jose@6.2.2)(kysely@0.28.13)(nanostores@1.2.0))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.1(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))
@@ -6548,8 +6548,8 @@ snapshots:
       drizzle-kit: 0.31.10
       drizzle-orm: 0.45.1(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13)
       mongodb: 7.1.0
-      react: 19.1.0
-      react-dom: 19.1.0(react@19.1.0)
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
       vitest: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
@@ -8242,22 +8242,22 @@ snapshots:
       iconv-lite: 0.7.2
       unpipe: 1.0.0
 
-  react-dom@19.1.0(react@19.1.0):
+  react-dom@19.2.4(react@19.2.4):
     dependencies:
-      react: 19.1.0
-      scheduler: 0.26.0
+      react: 19.2.4
+      scheduler: 0.27.0
 
   react-refresh@0.17.0: {}
 
-  react-router@7.13.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+  react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
       cookie: 1.1.1
-      react: 19.1.0
+      react: 19.2.4
       set-cookie-parser: 2.7.2
     optionalDependencies:
-      react-dom: 19.1.0(react@19.1.0)
+      react-dom: 19.2.4(react@19.2.4)
 
-  react@19.1.0: {}
+  react@19.2.4: {}
 
   readdirp@5.0.0: {}
 
@@ -8494,7 +8494,7 @@ snapshots:
 
   sax@1.6.0: {}
 
-  scheduler@0.26.0: {}
+  scheduler@0.27.0: {}
 
   semver@6.3.1: {}
 
