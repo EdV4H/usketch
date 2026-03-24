@@ -1,4 +1,5 @@
 import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
+import { WIREFRAME_SUBTYPES } from "@edv4h/usketch-plugin-shape-wireframe";
 import { useCallback, useEffect, useState } from "react";
 import { ShareDialog } from "./share-dialog.js";
 
@@ -87,26 +88,13 @@ export function Toolbar({
 
 				{/* ツール */}
 				{tools.map(({ id, definition }) => (
-					<button
+					<ToolButton
 						key={id}
-						type="button"
-						onClick={() => app.store.setActiveToolId(id)}
-						title={`${id}${definition.shortcut ? ` (${definition.shortcut})` : ""}`}
-						style={{
-							width: 36,
-							height: 36,
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							border: "none",
-							borderRadius: 6,
-							background: activeToolId === id ? "#e3f2fd" : "transparent",
-							color: activeToolId === id ? "#1976d2" : "#333",
-							cursor: "pointer",
-						}}
-					>
-						{definition.icon()}
-					</button>
+						id={id}
+						definition={definition}
+						isActive={activeToolId === id}
+						onSelect={() => app.store.setActiveToolId(id)}
+					/>
 				))}
 
 				<Divider />
@@ -462,5 +450,114 @@ function VoiceButton() {
 		>
 			🎤
 		</button>
+	);
+}
+
+function ToolButton({
+	id,
+	definition,
+	isActive,
+	onSelect,
+}: {
+	id: string;
+	definition: { icon: () => React.ReactElement; shortcut?: string };
+	isActive: boolean;
+	onSelect: () => void;
+}) {
+	const app = useApp();
+	const [showPicker, setShowPicker] = useState(false);
+	const isWireframe = id === "wireframe-draw";
+
+	return (
+		<div style={{ position: "relative" }}>
+			<button
+				type="button"
+				onClick={() => {
+					onSelect();
+					if (isWireframe) setShowPicker((v) => !v || !isActive);
+				}}
+				title={`${id}${definition.shortcut ? ` (${definition.shortcut})` : ""}`}
+				style={{
+					width: 36,
+					height: 36,
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					border: "none",
+					borderRadius: 6,
+					background: isActive ? "#e3f2fd" : "transparent",
+					color: isActive ? "#1976d2" : "#333",
+					cursor: "pointer",
+				}}
+			>
+				{definition.icon()}
+			</button>
+			{isWireframe && isActive && showPicker && (
+				<WireframePicker
+					onSelect={(type) => {
+						app.events.emit("wireframe:select-subtype", { type });
+					}}
+				/>
+			)}
+		</div>
+	);
+}
+
+function WireframePicker({ onSelect }: { onSelect: (type: string) => void }) {
+	const [currentType, setCurrentType] = useState(WIREFRAME_SUBTYPES[0].type);
+
+	return (
+		<div
+			style={{
+				position: "absolute",
+				top: 44,
+				left: "50%",
+				transform: "translateX(-50%)",
+				background: "#fff",
+				border: "1px solid #e0e0e0",
+				borderRadius: 10,
+				padding: 8,
+				display: "grid",
+				gridTemplateColumns: "repeat(3, 1fr)",
+				gap: 4,
+				boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+				zIndex: 150,
+				fontFamily: "system-ui, sans-serif",
+				whiteSpace: "nowrap",
+			}}
+		>
+			{WIREFRAME_SUBTYPES.map((sub) => {
+				const Icon = sub.icon;
+				const isActive = sub.type === currentType;
+				return (
+					<button
+						key={sub.type}
+						type="button"
+						onClick={() => {
+							setCurrentType(sub.type);
+							onSelect(sub.type);
+						}}
+						style={{
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+							gap: 2,
+							padding: "6px 10px",
+							border: "none",
+							borderRadius: 6,
+							background: isActive ? "#eff6ff" : "transparent",
+							color: isActive ? "#3b82f6" : "#555",
+							cursor: "pointer",
+							fontSize: 11,
+							fontWeight: isActive ? 600 : 400,
+							minWidth: 64,
+						}}
+					>
+						<Icon />
+						{sub.label}
+					</button>
+				);
+			})}
+		</div>
 	);
 }

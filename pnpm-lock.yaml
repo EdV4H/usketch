@@ -199,6 +199,9 @@ importers:
       '@edv4h/usketch-plugin-shape-text':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-text
+      '@edv4h/usketch-plugin-shape-wireframe':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-shape-wireframe
       '@edv4h/usketch-plugin-side-panel':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-side-panel
@@ -1065,6 +1068,28 @@ importers:
       '@zag-js/vanilla':
         specifier: ^1.37.0
         version: 1.37.0
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
+
+  plugins/usketch-plugin-shape-wireframe:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
       react:
         specifier: '>=19'
         version: 19.1.0
