@@ -73,3 +73,6 @@ out/
 # Wrangler
 .wrangler/
 .dev.vars
+
+# MCP (user-local config)
+.mcp.json

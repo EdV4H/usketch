@@ -4,7 +4,6 @@ import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
 import { createAiActionsPlugin } from "@edv4h/usketch-plugin-ai-actions";
 import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
 import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
-import { createAiCopilotPlugin } from "@edv4h/usketch-plugin-ai-copilot";
 import { createAiImagePlugin } from "@edv4h/usketch-plugin-ai-image";
 import { createAiRecognizePlugin } from "@edv4h/usketch-plugin-ai-recognize";
 import { createAiVoicePlugin } from "@edv4h/usketch-plugin-ai-voice";
@@ -142,9 +141,6 @@ export function CommunityPage() {
 			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
 			extraPlugins.push(createAiChatPlugin({ boardId: COMMUNITY_BOARD_ID }));
 			extraPlugins.push(createAiActionsPlugin({ boardId: COMMUNITY_BOARD_ID }));
-			extraPlugins.push(
-				createAiCopilotPlugin({ apiUrl, boardId: COMMUNITY_BOARD_ID, extraHeaders: aiHeaders }),
-			);
 			extraPlugins.push(createAiVoicePlugin({ boardId: COMMUNITY_BOARD_ID }));
 			extraPlugins.push(createAiImagePlugin({ boardId: COMMUNITY_BOARD_ID }));
 			extraPlugins.push(createAiRecognizePlugin({ boardId: COMMUNITY_BOARD_ID }));
