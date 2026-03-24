@@ -53,7 +53,50 @@ export function ShapeLayer({
 		<div data-layer="shapes">
 			{shapes.map((shape, index) => {
 				const def = shapeRegistry.get(shape.type);
-				if (!def) return null;
+				if (!def) {
+					return (
+						<div
+							key={shape.id}
+							style={{
+								position: "absolute",
+								left: shape.x,
+								top: shape.y,
+								width: shape.width,
+								height: shape.height,
+								zIndex: index,
+								pointerEvents: "auto",
+							}}
+						>
+							<svg
+								width={shape.width}
+								height={shape.height}
+								viewBox={`${shape.x} ${shape.y} ${shape.width} ${shape.height}`}
+								style={{ display: "block", overflow: "visible" }}
+							>
+								<rect
+									x={shape.x}
+									y={shape.y}
+									width={shape.width}
+									height={shape.height}
+									fill="rgba(200,200,200,0.3)"
+									stroke="#999"
+									strokeWidth={1}
+									strokeDasharray="4 2"
+								/>
+								<text
+									x={shape.x + shape.width / 2}
+									y={shape.y + shape.height / 2}
+									textAnchor="middle"
+									dominantBaseline="central"
+									fontSize={11}
+									fill="#999"
+								>
+									{shape.type}
+								</text>
+							</svg>
+						</div>
+					);
+				}
 				return <ShapeWrapper key={shape.id} shape={shape} index={index} def={def} />;
 			})}
 		</div>
