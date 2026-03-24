@@ -20,7 +20,7 @@ export interface McpServerContext {
 export function createMcpServer(config: McpConfig): McpServerContext {
 	const server = new McpServer({
 		name: "usketch",
-		version: "0.1.0",
+		version: "0.0.0",
 	});
 
 	const client = new UsketchClient(config);

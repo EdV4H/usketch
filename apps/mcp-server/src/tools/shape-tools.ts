@@ -191,9 +191,20 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 						const existingStyle = (existing.style ?? {}) as Record<string, unknown>;
 						updated.style = { ...existingStyle, ...updateStyle };
 					}
-					// カスタムプロパティを反映
+					// カスタムプロパティを反映（予約キーは除外）
+					const reservedKeys = new Set([
+						"id",
+						"type",
+						"x",
+						"y",
+						"width",
+						"height",
+						"text",
+						"fontSize",
+						"style",
+					]);
 					for (const [key, value] of Object.entries(extra)) {
-						if (value !== undefined) updated[key] = value;
+						if (value !== undefined && !reservedKeys.has(key)) updated[key] = value;
 					}
 
 					shapesMap.set(id, updated);

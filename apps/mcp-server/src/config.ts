@@ -21,6 +21,13 @@ export function loadConfig(): McpConfig {
 	const devUserId = process.env.USKETCH_DEV_USER_ID ?? "dev-user-1";
 	const apiToken = process.env.USKETCH_API_TOKEN;
 
+	if (!devMode && !apiToken) {
+		throw new Error(
+			"USKETCH_API_TOKEN is required when USKETCH_DEV_MODE is not enabled. " +
+				"Set USKETCH_DEV_MODE=true for local development or provide an API token.",
+		);
+	}
+
 	// HTTP → WS URL 変換
 	const wsUrl = serverUrl.replace(/^http/, "ws");
 

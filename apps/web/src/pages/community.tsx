@@ -141,10 +141,6 @@ export function CommunityPage() {
 			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
 			extraPlugins.push(createAiChatPlugin({ boardId: COMMUNITY_BOARD_ID }));
 			extraPlugins.push(createAiActionsPlugin({ boardId: COMMUNITY_BOARD_ID }));
-			// communityではAI suggestをオフ
-			// extraPlugins.push(
-			// 	createAiCopilotPlugin({ apiUrl, boardId: COMMUNITY_BOARD_ID, extraHeaders: aiHeaders }),
-			// );
 			extraPlugins.push(createAiVoicePlugin({ boardId: COMMUNITY_BOARD_ID }));
 			extraPlugins.push(createAiImagePlugin({ boardId: COMMUNITY_BOARD_ID }));
 			extraPlugins.push(createAiRecognizePlugin({ boardId: COMMUNITY_BOARD_ID }));

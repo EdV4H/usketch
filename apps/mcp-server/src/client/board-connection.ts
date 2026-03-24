@@ -60,7 +60,7 @@ export class BoardConnection {
 						reject(new Error("WebSocket connection timed out"));
 					}
 				}
-			}, 5000);
+			}, 200);
 
 			ws.on("open", () => {
 				// MSG_SYNC_STEP1 を送信して初期同期をリクエスト
