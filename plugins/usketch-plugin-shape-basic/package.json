@@ -1,5 +1,5 @@
 {
-	"name": "@edv4h/usketch-plugin-shape-rect",
+	"name": "@edv4h/usketch-plugin-shape-basic",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",

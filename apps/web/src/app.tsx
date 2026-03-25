@@ -12,11 +12,10 @@ import { exportPlugin } from "@edv4h/usketch-plugin-export";
 import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
+import { basicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
-import { ellipsePlugin } from "@edv4h/usketch-plugin-shape-ellipse";
 import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { imageShapePlugin } from "@edv4h/usketch-plugin-shape-image";
-import { rectPlugin } from "@edv4h/usketch-plugin-shape-rect";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
 import { wireframePlugin } from "@edv4h/usketch-plugin-shape-wireframe";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
@@ -43,8 +42,7 @@ const basePlugins: UsketchPlugin[] = [
 	selectToolPlugin,
 	panToolPlugin,
 	viewportNavPlugin,
-	rectPlugin,
-	ellipsePlugin,
+	basicShapePlugin,
 	freedrawPlugin,
 	textPlugin,
 	imageShapePlugin,

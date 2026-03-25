@@ -1,4 +1,5 @@
 import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
+import { BASIC_SHAPE_SUBTYPES } from "@edv4h/usketch-plugin-shape-basic";
 import { WIREFRAME_SUBTYPES } from "@edv4h/usketch-plugin-shape-wireframe";
 import { useCallback, useEffect, useState } from "react";
 import { ShareDialog } from "./share-dialog.js";
@@ -468,6 +469,8 @@ function ToolButton({
 	const [showPicker, setShowPicker] = useState(false);
 	const [wireframeSubtype, setWireframeSubtype] = useState(WIREFRAME_SUBTYPES[0].type);
 	const isWireframe = id === "wireframe-draw";
+	const isBasicShape = id === "basic-shape-draw";
+	const hasPicker = isWireframe || isBasicShape;
 
 	return (
 		<div style={{ position: "relative" }}>
@@ -475,7 +478,7 @@ function ToolButton({
 				type="button"
 				onClick={() => {
 					onSelect();
-					if (isWireframe) setShowPicker((v) => !v || !isActive);
+					if (hasPicker) setShowPicker((v) => !v || !isActive);
 				}}
 				title={`${id}${definition.shortcut ? ` (${definition.shortcut})` : ""}`}
 				style={{
@@ -493,6 +496,13 @@ function ToolButton({
 			>
 				{definition.icon()}
 			</button>
+			{isBasicShape && isActive && showPicker && (
+				<BasicShapePicker
+					onSelect={(type) => {
+						app.events.emit("basic-shape:select-subtype", { type });
+					}}
+				/>
+			)}
 			{isWireframe && isActive && showPicker && (
 				<WireframePicker
 					currentType={wireframeSubtype}
@@ -502,6 +512,65 @@ function ToolButton({
 					}}
 				/>
 			)}
+		</div>
+	);
+}
+
+function BasicShapePicker({ onSelect }: { onSelect: (type: string) => void }) {
+	const [currentType, setCurrentType] = useState(BASIC_SHAPE_SUBTYPES[0].type);
+
+	return (
+		<div
+			style={{
+				position: "absolute",
+				top: 44,
+				left: "50%",
+				transform: "translateX(-50%)",
+				background: "#fff",
+				border: "1px solid #e0e0e0",
+				borderRadius: 10,
+				padding: 8,
+				display: "grid",
+				gridTemplateColumns: "repeat(4, 1fr)",
+				gap: 4,
+				boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+				zIndex: 150,
+				fontFamily: "system-ui, sans-serif",
+				whiteSpace: "nowrap",
+			}}
+		>
+			{BASIC_SHAPE_SUBTYPES.map((sub) => {
+				const Icon = sub.icon;
+				const isActive = sub.type === currentType;
+				return (
+					<button
+						key={sub.type}
+						type="button"
+						onClick={() => {
+							setCurrentType(sub.type);
+							onSelect(sub.type);
+						}}
+						style={{
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+							gap: 2,
+							padding: "6px 8px",
+							border: "none",
+							borderRadius: 6,
+							background: isActive ? "#eff6ff" : "transparent",
+							color: isActive ? "#3b82f6" : "#555",
+							cursor: "pointer",
+							fontSize: 10,
+							fontWeight: isActive ? 600 : 400,
+							minWidth: 56,
+						}}
+					>
+						<Icon />
+						{sub.label}
+					</button>
+				);
+			})}
 		</div>
 	);
 }

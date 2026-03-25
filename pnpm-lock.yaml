@@ -178,24 +178,21 @@ importers:
       '@edv4h/usketch-plugin-reactions':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-reactions
+      '@edv4h/usketch-plugin-shape-basic':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-shape-basic
       '@edv4h/usketch-plugin-shape-board-portal':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-board-portal
       '@edv4h/usketch-plugin-shape-counter':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-counter
-      '@edv4h/usketch-plugin-shape-ellipse':
-        specifier: workspace:*
-        version: link:../../plugins/usketch-plugin-shape-ellipse
       '@edv4h/usketch-plugin-shape-freedraw':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-freedraw
       '@edv4h/usketch-plugin-shape-image':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-image
-      '@edv4h/usketch-plugin-shape-rect':
-        specifier: workspace:*
-        version: link:../../plugins/usketch-plugin-shape-rect
       '@edv4h/usketch-plugin-shape-text':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-text
@@ -286,10 +283,10 @@ importers:
         version: link:../shared
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
       react-dom:
         specifier: '>=19'
-        version: 19.2.4(react@19.2.4)
+        version: 19.1.0(react@19.1.0)
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -340,7 +337,7 @@ importers:
     dependencies:
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
       xid-ts:
         specifier: 1.2.2
         version: 1.2.2
@@ -413,7 +410,7 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -467,7 +464,7 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -489,7 +486,7 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -559,7 +556,7 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -613,7 +610,7 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -632,7 +629,7 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -654,7 +651,7 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -676,10 +673,10 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
       react-dom:
         specifier: '>=19'
-        version: 19.2.4(react@19.2.4)
+        version: 19.1.0(react@19.1.0)
       satori:
         specifier: 0.26.0
         version: 0.26.0
@@ -707,7 +704,7 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -729,7 +726,7 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -751,7 +748,7 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -773,7 +770,7 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -795,7 +792,7 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -910,6 +907,31 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
 
+  plugins/usketch-plugin-shape-basic:
+    dependencies:
+      '@edv4h/usketch-core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      react:
+        specifier: '>=19'
+        version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
+
   plugins/usketch-plugin-shape-board-portal:
     dependencies:
       '@edv4h/usketch-shared':
@@ -920,7 +942,7 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -945,32 +967,7 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.2.4
-    devDependencies:
-      '@types/react':
-        specifier: 19.2.14
-        version: 19.2.14
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
-
-  plugins/usketch-plugin-shape-ellipse:
-    dependencies:
-      '@edv4h/usketch-core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@edv4h/usketch-shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@edv4h/usketch-store':
-        specifier: workspace:*
-        version: link:../../packages/store
-      react:
-        specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -995,7 +992,7 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1014,32 +1011,7 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.2.4
-    devDependencies:
-      '@types/react':
-        specifier: 19.2.14
-        version: 19.2.14
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
-
-  plugins/usketch-plugin-shape-rect:
-    dependencies:
-      '@edv4h/usketch-core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@edv4h/usketch-shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@edv4h/usketch-store':
-        specifier: workspace:*
-        version: link:../../packages/store
-      react:
-        specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1070,7 +1042,7 @@ importers:
         version: 1.37.0
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1092,7 +1064,7 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1111,7 +1083,7 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1133,7 +1105,7 @@ importers:
         version: link:../../packages/shared
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1155,7 +1127,7 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1177,7 +1149,7 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1224,7 +1196,7 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1249,7 +1221,7 @@ importers:
         version: link:../../packages/store
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1290,7 +1262,7 @@ importers:
         version: link:../../packages/sync
       react:
         specifier: '>=19'
-        version: 19.2.4
+        version: 19.1.0
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -4375,6 +4347,11 @@ packages:
     resolution: {integrity: sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==}
     engines: {node: '>= 0.10'}
 
+  react-dom@19.1.0:
+    resolution: {integrity: sha512-Xs1hdnE+DyKgeHJeJznQmYMIBG3TKIHJJT95Q58nHLSrElKlGQqDTR2HQ9fx5CN/Gk6Vh/kupBTDLU11/nDk/g==}
+    peerDependencies:
+      react: ^19.1.0
+
   react-dom@19.2.4:
     resolution: {integrity: sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ==}
     peerDependencies:
@@ -4393,6 +4370,10 @@ packages:
     peerDependenciesMeta:
       react-dom:
         optional: true
+
+  react@19.1.0:
+    resolution: {integrity: sha512-FS+XFBNvn3GTAWq26joslQgWNoFu08F4kl0J4CgdNKADkdSGXQyTCnKteIAJy96Br6YbpEU1LSzV5dYtjMkMDg==}
+    engines: {node: '>=0.10.0'}
 
   react@19.2.4:
     resolution: {integrity: sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ==}
@@ -4514,6 +4495,9 @@ packages:
   sax@1.6.0:
     resolution: {integrity: sha512-6R3J5M4AcbtLUdZmRv2SygeVaM7IhrLXu9BmnOGmmACak8fiUtOsYNWUS4uK7upbmHIBbLBeFeI//477BKLBzA==}
     engines: {node: '>=11.0.0'}
+
+  scheduler@0.26.0:
+    resolution: {integrity: sha512-NlHwttCI/l5gCPR3D1nNXtWABUmBwvZpEQiD4IXSbIDq8BzLIK/7Ir5gTFSGZDUu37K5cMNp0hFtzO38sC7gWA==}
 
   scheduler@0.27.0:
     resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
@@ -8333,6 +8317,11 @@ snapshots:
       iconv-lite: 0.7.2
       unpipe: 1.0.0
 
+  react-dom@19.1.0(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+      scheduler: 0.26.0
+
   react-dom@19.2.4(react@19.2.4):
     dependencies:
       react: 19.2.4
@@ -8347,6 +8336,8 @@ snapshots:
       set-cookie-parser: 2.7.2
     optionalDependencies:
       react-dom: 19.2.4(react@19.2.4)
+
+  react@19.1.0: {}
 
   react@19.2.4: {}
 
@@ -8584,6 +8575,8 @@ snapshots:
       yoga-layout: 3.2.1
 
   sax@1.6.0: {}
+
+  scheduler@0.26.0: {}
 
   scheduler@0.27.0: {}
 
