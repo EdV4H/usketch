@@ -1,7 +1,7 @@
 import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
 import type { ShapeData, ShapeStyle } from "@edv4h/usketch-shared";
 import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 export function StylePanel() {
 	const app = useApp();
@@ -27,6 +27,12 @@ export function StylePanel() {
 	// Get current display values
 	const currentStyle = isSelectionMode ? getMergedStyle(styleableIds, shapes) : styleSettings;
 
+	// Clear pending snapshots when selection changes to avoid stale refs
+	// biome-ignore lint/correctness/useExhaustiveDependencies: selection is intentional trigger
+	useEffect(() => {
+		beforeSnapshotsRef.current = null;
+	}, [selection]);
+
 	const captureBeforeSnapshots = useCallback(() => {
 		if (beforeSnapshotsRef.current) return;
 		const snapshots = new Map<string, ShapeData>();
@@ -50,6 +56,10 @@ export function StylePanel() {
 			}
 		}
 		if (updates.length > 0) {
+			// Revert to before state, then let the command be the single source of truth
+			for (const [id, snapshot] of before) {
+				store.updateShape(id, { style: snapshot.style });
+			}
 			app.commands.execute(createBatchUpdateShapesCommand(store, updates));
 		}
 	}, [app.commands, store]);
@@ -73,8 +83,7 @@ export function StylePanel() {
 			if (isSelectionMode) {
 				captureBeforeSnapshots();
 				applyStyle(key, color);
-				// commit on next tick so beforeSnapshots is set
-				setTimeout(() => commitCommand(), 0);
+				queueMicrotask(commitCommand);
 			} else {
 				applyStyle(key, color);
 			}
@@ -102,13 +111,17 @@ export function StylePanel() {
 
 	const handleNumberChange = useCallback(
 		(key: keyof ShapeStyle) => (e: React.ChangeEvent<HTMLInputElement>) => {
-			const value = Number(e.target.value);
+			const raw = e.target.value;
+			if (raw === "") return;
+			const value = Number(raw);
+			if (!Number.isFinite(value)) return;
+			const clamped = Math.max(0, Math.min(20, value));
 			if (isSelectionMode) {
 				captureBeforeSnapshots();
-				applyStyle(key, value);
+				applyStyle(key, clamped);
 				commitCommand();
 			} else {
-				applyStyle(key, value);
+				applyStyle(key, clamped);
 			}
 		},
 		[isSelectionMode, captureBeforeSnapshots, applyStyle, commitCommand],
