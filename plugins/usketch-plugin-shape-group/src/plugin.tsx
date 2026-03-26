@@ -28,6 +28,7 @@ export const groupPlugin: UsketchPlugin = {
 			resize: resizeGroup,
 			createDefault: createDefaultGroup,
 			minSize: { width: 1, height: 1 },
+			resizable: false,
 		});
 
 		function groupSelected() {

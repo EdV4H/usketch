@@ -17,11 +17,13 @@ import {
 	getTopLevelAncestor,
 } from "@edv4h/usketch-store";
 import { clearMovingSelectionListeners, setMovingSelection } from "./drag-state.js";
+import { clearDropTargetListeners, setDropTargetId } from "./drop-target-state.js";
 import {
 	clearEditingGroupListeners,
 	getEditingGroupId,
 	setEditingGroupId,
 } from "./group-edit-state.js";
+import { clearHoveredShapeListeners, setHoveredShapeId } from "./hover-state.js";
 import type { MarqueeMode, MarqueeRect } from "./marquee-state.js";
 import { clearMarqueeListeners, setMarquee, setMarqueeMode } from "./marquee-state.js";
 import {
@@ -56,8 +58,14 @@ function findShapeAtPoint(ctx: ToolContext, point: Point): string | null {
 			continue;
 		}
 
-		// If this shape has a parent, resolve to the top-level ancestor
+		// If this shape has a parent, check the parent type:
+		// - Frame children are directly selectable (frames are containers)
+		// - Group children resolve to the top-level group ancestor
 		if (typeof data.parentId === "string") {
+			const parent = ctx.store.getShape(data.parentId);
+			if (parent?.type === "frame") {
+				return id;
+			}
 			const ancestor = getTopLevelAncestor(ctx.store, id);
 			if (ancestor) return ancestor.id;
 			continue;
@@ -86,10 +94,15 @@ function findShapesInRect(ctx: ToolContext, rect: BoundingBox, mode: MarqueeMode
 			continue;
 		}
 
-		// Skip children — resolve to their top-level ancestor
+		// Frame children are directly selectable; group children resolve to ancestor
 		if (typeof data.parentId === "string") {
-			const ancestor = getTopLevelAncestor(ctx.store, id);
-			if (ancestor) ids.add(ancestor.id);
+			const parent = ctx.store.getShape(data.parentId);
+			if (parent?.type === "frame") {
+				ids.add(id);
+			} else {
+				const ancestor = getTopLevelAncestor(ctx.store, id);
+				if (ancestor) ids.add(ancestor.id);
+			}
 			continue;
 		}
 
@@ -390,6 +403,9 @@ export const selectToolPlugin: UsketchPlugin = {
 					}
 				}
 				setOverrideCursor("");
+				// Hover indicator: detect shape under cursor
+				const hoverHitId = findShapeAtPoint(toolCtx, event.worldPoint);
+				setHoveredShapeId(hoverHitId);
 				return;
 			}
 
@@ -596,6 +612,7 @@ export const selectToolPlugin: UsketchPlugin = {
 			const dx = event.worldPoint.x - dragState.startPoint.x;
 			const dy = event.worldPoint.y - dragState.startPoint.y;
 
+			const movingIds = new Set(dragState.startShapeSnapshots.keys());
 			for (const [id, snapshot] of dragState.startShapeSnapshots) {
 				// Always pass {x, y} first so snap plugin can adjust them
 				toolCtx.store.updateShape(id, {
@@ -618,9 +635,33 @@ export const selectToolPlugin: UsketchPlugin = {
 					}
 				}
 			}
+
+			// Drop target: find frame/group under the cursor (excluding dragged shapes)
+			const allShapes = toolCtx.store.getShapes();
+			let dropTarget: string | null = null;
+			const entries = [...allShapes.entries()].reverse();
+			for (const [id, shape] of entries) {
+				if (movingIds.has(id)) continue;
+				if (shape.type !== "frame" && shape.type !== "group") continue;
+				const def = toolCtx.shapes.get(shape.type);
+				const bounds = def
+					? def.getBounds(shape)
+					: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+				if (
+					event.worldPoint.x >= bounds.x &&
+					event.worldPoint.x <= bounds.x + bounds.width &&
+					event.worldPoint.y >= bounds.y &&
+					event.worldPoint.y <= bounds.y + bounds.height
+				) {
+					dropTarget = id;
+					break;
+				}
+			}
+			setDropTargetId(dropTarget);
 		}
 
 		function onPointerUp(toolCtx: ToolContext, _event: CanvasPointerEvent) {
+			setDropTargetId(null);
 			if (!dragState) return;
 
 			if (dragState.mode === "marquee") {
@@ -769,6 +810,8 @@ export const selectToolPlugin: UsketchPlugin = {
 			setMarquee(null);
 			setOverrideCursor("");
 			setEditingGroupId(null);
+			setHoveredShapeId(null);
+			setDropTargetId(null);
 		}
 
 		ctx.tools.register("select", {
@@ -803,9 +846,13 @@ export const selectToolPlugin: UsketchPlugin = {
 			setMovingSelection(false);
 			setMarquee(null);
 			setEditingGroupId(null);
+			setHoveredShapeId(null);
+			setDropTargetId(null);
 			clearMarqueeListeners();
 			clearMovingSelectionListeners();
 			clearEditingGroupListeners();
+			clearHoveredShapeListeners();
+			clearDropTargetListeners();
 			styleEl.remove();
 			ctx.layers.unregister("selection-overlay");
 		};
