@@ -3,6 +3,7 @@ import { BASIC_SHAPE_SUBTYPES } from "@edv4h/usketch-plugin-shape-basic";
 import { WIREFRAME_SUBTYPES } from "@edv4h/usketch-plugin-shape-wireframe";
 import { useCallback, useEffect, useState } from "react";
 import { ShareDialog } from "./share-dialog.js";
+import { StylePanel } from "./style-panel.js";
 
 export function Toolbar({
 	boardId,
@@ -363,6 +364,8 @@ export function Toolbar({
 			{showShare && boardId && (
 				<ShareDialog boardId={boardId} onClose={() => setShowShare(false)} />
 			)}
+
+			<StylePanel />
 		</>
 	);
 }
@@ -400,7 +403,7 @@ const actionBtnStyle: React.CSSProperties = {
 
 function CopilotToggle() {
 	const app = useApp();
-	const [enabled, setEnabled] = useState(true);
+	const [enabled, setEnabled] = useState(false);
 
 	const toggle = useCallback(() => {
 		const next = !enabled;
