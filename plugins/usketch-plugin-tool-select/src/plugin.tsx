@@ -10,11 +10,18 @@ import type {
 } from "@edv4h/usketch-shared";
 import {
 	createBatchUpdateShapesCommand,
-	createDeleteShapeCommand,
+	createDeleteWithChildrenCommand,
 	createMoveShapesCommand,
 	createUpdateShapeCommand,
+	getChildShapes,
+	getTopLevelAncestor,
 } from "@edv4h/usketch-store";
 import { clearMovingSelectionListeners, setMovingSelection } from "./drag-state.js";
+import {
+	clearEditingGroupListeners,
+	getEditingGroupId,
+	setEditingGroupId,
+} from "./group-edit-state.js";
 import type { MarqueeMode, MarqueeRect } from "./marquee-state.js";
 import { clearMarqueeListeners, setMarquee, setMarqueeMode } from "./marquee-state.js";
 import {
@@ -36,13 +43,27 @@ import { SelectionOverlay } from "./selection-overlay.js";
 
 function findShapeAtPoint(ctx: ToolContext, point: Point): string | null {
 	const shapes = ctx.store.getShapes();
+	const editingGroupId = getEditingGroupId();
 	// Iterate in reverse insertion order (top-most shape first)
 	const entries = [...shapes.entries()].reverse();
 	for (const [id, data] of entries) {
 		const def = ctx.shapes.get(data.type);
-		if (def?.hitTest(data, point)) {
-			return id;
+		if (!def?.hitTest(data, point)) continue;
+
+		// If inside a group editing session, only hit children of that group
+		if (editingGroupId) {
+			if (data.parentId === editingGroupId) return id;
+			continue;
 		}
+
+		// If this shape has a parent, resolve to the top-level ancestor
+		if (typeof data.parentId === "string") {
+			const ancestor = getTopLevelAncestor(ctx.store, id);
+			if (ancestor) return ancestor.id;
+			continue;
+		}
+
+		return id;
 	}
 	return null;
 }
@@ -50,17 +71,31 @@ function findShapeAtPoint(ctx: ToolContext, point: Point): string | null {
 function findShapesInRect(ctx: ToolContext, rect: BoundingBox, mode: MarqueeMode): string[] {
 	const test = mode === "contain" ? boxContains : boxesIntersect;
 	const shapes = ctx.store.getShapes();
-	const ids: string[] = [];
+	const editingGroupId = getEditingGroupId();
+	const ids = new Set<string>();
 	for (const [id, data] of shapes) {
 		const def = ctx.shapes.get(data.type);
 		const bounds = def
 			? def.getBounds(data)
 			: { x: data.x, y: data.y, width: data.width, height: data.height };
-		if (test(rect, bounds)) {
-			ids.push(id);
+		if (!test(rect, bounds)) continue;
+
+		// If in group edit mode, only select children of that group
+		if (editingGroupId) {
+			if (data.parentId === editingGroupId) ids.add(id);
+			continue;
 		}
+
+		// Skip children — resolve to their top-level ancestor
+		if (typeof data.parentId === "string") {
+			const ancestor = getTopLevelAncestor(ctx.store, id);
+			if (ancestor) ids.add(ancestor.id);
+			continue;
+		}
+
+		ids.add(id);
 	}
-	return ids;
+	return [...ids];
 }
 
 function boxesIntersect(a: BoundingBox, b: BoundingBox): boolean {
@@ -97,7 +132,12 @@ function deleteSelectedShapes(ctx: PluginContext) {
 	if (selection.size === 0) return;
 	if (ctx.store.getActiveToolId() !== "select") return;
 	for (const id of selection) {
-		ctx.commands.execute(createDeleteShapeCommand(ctx.store, id));
+		const shape = ctx.store.getShape(id);
+		if (shape && (shape.type === "group" || shape.type === "frame")) {
+			ctx.commands.execute(createDeleteWithChildrenCommand(ctx.store, id));
+		} else {
+			ctx.commands.execute(createDeleteWithChildrenCommand(ctx.store, id));
+		}
 	}
 	ctx.store.clearSelection();
 }
@@ -142,6 +182,8 @@ export const selectToolPlugin: UsketchPlugin = {
 		// ── Local drag state (scoped to this setup closure) ──
 		let dragState: DragState = null;
 		let overrideCursor = "";
+		let lastClickTime = 0;
+		let lastClickId: string | null = null;
 
 		// Inject a <style> tag to override canvas cursor via !important
 		const styleEl = document.createElement("style");
@@ -231,8 +273,34 @@ export const selectToolPlugin: UsketchPlugin = {
 				}
 			}
 
-			// 2. Existing move/selection logic
-			const hitId = findShapeAtPoint(toolCtx, event.worldPoint);
+			// 2. Double-click detection for group enter/exit
+			const now = Date.now();
+			const rawHitId = findShapeAtPoint(toolCtx, event.worldPoint);
+
+			if (rawHitId && now - lastClickTime < 400 && lastClickId === rawHitId) {
+				const shape = toolCtx.store.getShape(rawHitId);
+				if (shape?.type === "group" || shape?.type === "frame") {
+					// Enter group editing mode
+					setEditingGroupId(rawHitId);
+					toolCtx.store.clearSelection();
+					lastClickTime = 0;
+					lastClickId = null;
+					return;
+				}
+			}
+			lastClickTime = now;
+			lastClickId = rawHitId;
+
+			// If clicking outside the editing group, exit group edit mode
+			const editingGroupId = getEditingGroupId();
+			if (editingGroupId && rawHitId !== editingGroupId) {
+				const hitShape = rawHitId ? toolCtx.store.getShape(rawHitId) : null;
+				if (!hitShape || hitShape.parentId !== editingGroupId) {
+					setEditingGroupId(null);
+				}
+			}
+
+			const hitId = rawHitId;
 
 			if (hitId) {
 				if (event.shiftKey) {
@@ -249,13 +317,22 @@ export const selectToolPlugin: UsketchPlugin = {
 					}
 				}
 
-				// Start drag-move for all selected shapes
+				// Start drag-move for all selected shapes (including children of groups/frames)
 				const currentSelection = toolCtx.store.getSelection();
 				const startShapeSnapshots = new Map<string, ShapeData>();
 				for (const id of currentSelection) {
 					const shape = toolCtx.store.getShape(id);
 					if (shape) {
 						startShapeSnapshots.set(id, { ...shape });
+						// Include children of groups/frames so they move together
+						if (shape.type === "group" || shape.type === "frame") {
+							const children = getChildShapes(toolCtx.store, id);
+							for (const child of children) {
+								if (!startShapeSnapshots.has(child.id)) {
+									startShapeSnapshots.set(child.id, { ...child });
+								}
+							}
+						}
 					}
 				}
 				setMovingSelection(true);
@@ -666,7 +743,11 @@ export const selectToolPlugin: UsketchPlugin = {
 			}
 
 			if (hasMoved) {
-				// Defer reset+execute to after canvas:pointerup disables snap
+				// Collect the user-selected shapes (not their implicitly-moved children)
+				const userSelectedIds = [...toolCtx.store.getSelection()];
+
+				// Defer reset+execute to after canvas:pointerup disables snap,
+				// then notify plugins for auto-parenting
 				queueMicrotask(() => {
 					for (const [id, before] of beforeSnapshots) {
 						toolCtx.store.updateShape(id, before);
@@ -674,6 +755,8 @@ export const selectToolPlugin: UsketchPlugin = {
 					toolCtx.commands.execute(
 						createMoveShapesCommand(toolCtx.store, beforeSnapshots, afterSnapshots),
 					);
+					// Notify after the move command is committed so reparent won't be undone
+					toolCtx.events.emit("shapes:move-end", { shapeIds: userSelectedIds });
 				});
 			}
 
@@ -685,6 +768,7 @@ export const selectToolPlugin: UsketchPlugin = {
 			setMovingSelection(false);
 			setMarquee(null);
 			setOverrideCursor("");
+			setEditingGroupId(null);
 		}
 
 		ctx.tools.register("select", {
@@ -718,8 +802,10 @@ export const selectToolPlugin: UsketchPlugin = {
 			setOverrideCursor("");
 			setMovingSelection(false);
 			setMarquee(null);
+			setEditingGroupId(null);
 			clearMarqueeListeners();
 			clearMovingSelectionListeners();
+			clearEditingGroupListeners();
 			styleEl.remove();
 			ctx.layers.unregister("selection-overlay");
 		};

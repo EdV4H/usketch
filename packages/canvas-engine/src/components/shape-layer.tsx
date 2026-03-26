@@ -12,6 +12,12 @@ function ShapeWrapper({
 	const bounds = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
 	const isHtml = def.renderTarget === "html";
 
+	// For SVG shapes with zero width or height, use a minimum viewBox size
+	// to avoid NaN from SVG coordinate scaling (e.g. horizontal/vertical lines,
+	// groups with no children, connectors between aligned shapes).
+	const svgW = Math.max(bounds.width, 1);
+	const svgH = Math.max(bounds.height, 1);
+
 	return (
 		<div
 			style={{
@@ -28,9 +34,9 @@ function ShapeWrapper({
 				def.render(shape)
 			) : (
 				<svg
-					width={bounds.width}
-					height={bounds.height}
-					viewBox={`${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`}
+					width={svgW}
+					height={svgH}
+					viewBox={`${bounds.x} ${bounds.y} ${svgW} ${svgH}`}
 					style={{ display: "block", overflow: "visible" }}
 				>
 					{def.render(shape)}
@@ -52,40 +58,50 @@ export function ShapeLayer({
 	return (
 		<div data-layer="shapes">
 			{shapes.map((shape, index) => {
+				// Skip invalid shapes (e.g. leaked Yjs internal objects)
+				if (!shape || typeof shape.id !== "string" || typeof shape.type !== "string") {
+					return null;
+				}
 				const def = shapeRegistry.get(shape.type);
 				if (!def) {
+					const sx = shape.x || 0;
+					const sy = shape.y || 0;
+					const sw = shape.width || 0;
+					const sh = shape.height || 0;
+					const fbW = Math.max(sw, 1);
+					const fbH = Math.max(sh, 1);
 					return (
 						<div
 							key={shape.id}
 							style={{
 								position: "absolute",
-								left: shape.x,
-								top: shape.y,
-								width: shape.width,
-								height: shape.height,
+								left: sx,
+								top: sy,
+								width: sw,
+								height: sh,
 								zIndex: index,
 								pointerEvents: "auto",
 							}}
 						>
 							<svg
-								width={shape.width}
-								height={shape.height}
-								viewBox={`${shape.x} ${shape.y} ${shape.width} ${shape.height}`}
+								width={fbW}
+								height={fbH}
+								viewBox={`${sx} ${sy} ${fbW} ${fbH}`}
 								style={{ display: "block", overflow: "visible" }}
 							>
 								<rect
-									x={shape.x}
-									y={shape.y}
-									width={shape.width}
-									height={shape.height}
+									x={sx}
+									y={sy}
+									width={sw}
+									height={sh}
 									fill="rgba(200,200,200,0.3)"
 									stroke="#999"
 									strokeWidth={1}
 									strokeDasharray="4 2"
 								/>
 								<text
-									x={shape.x + shape.width / 2}
-									y={shape.y + shape.height / 2}
+									x={sx + sw / 2}
+									y={sy + sh / 2}
 									textAnchor="middle"
 									dominantBaseline="central"
 									fontSize={11}
