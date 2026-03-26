@@ -259,13 +259,13 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 						shapeId={id}
 					/>
 				))}
-			{/* Marquee rectangle */}
+			{/* Marquee rectangle (world-space → screen-space) */}
 			{marqueeRect && (
 				<rect
-					x={marqueeRect.x}
-					y={marqueeRect.y}
-					width={marqueeRect.width}
-					height={marqueeRect.height}
+					x={marqueeRect.x * viewport.zoom + viewport.x}
+					y={marqueeRect.y * viewport.zoom + viewport.y}
+					width={marqueeRect.width * viewport.zoom}
+					height={marqueeRect.height * viewport.zoom}
 					fill={marqueeMode === "contain" ? "rgba(38, 128, 235, 0.08)" : "rgba(38, 128, 235, 0.1)"}
 					stroke={STROKE_COLOR}
 					strokeWidth={1}
