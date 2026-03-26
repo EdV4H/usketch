@@ -582,6 +582,12 @@ function WireframePicker({
 	currentType: string;
 	onSelect: (type: string) => void;
 }) {
+	const categories = ["Form", "Nav", "Content", "Feedback", "Layout"];
+	const grouped = categories.map((cat) => ({
+		label: cat,
+		items: WIREFRAME_SUBTYPES.filter((s) => s.category === cat),
+	}));
+
 	return (
 		<div
 			style={{
@@ -593,44 +599,62 @@ function WireframePicker({
 				border: "1px solid #e0e0e0",
 				borderRadius: 10,
 				padding: 8,
-				display: "grid",
-				gridTemplateColumns: "repeat(3, 1fr)",
-				gap: 4,
 				boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
 				zIndex: 150,
 				fontFamily: "system-ui, sans-serif",
 				whiteSpace: "nowrap",
+				maxHeight: 400,
+				overflowY: "auto",
+				width: 260,
 			}}
 		>
-			{WIREFRAME_SUBTYPES.map((sub) => {
-				const Icon = sub.icon;
-				const isActive = sub.type === currentType;
-				return (
-					<button
-						key={sub.type}
-						type="button"
-						onClick={() => onSelect(sub.type)}
+			{grouped.map((group) => (
+				<div key={group.label}>
+					<div
 						style={{
-							display: "flex",
-							flexDirection: "column",
-							alignItems: "center",
-							gap: 2,
-							padding: "6px 10px",
-							border: "none",
-							borderRadius: 6,
-							background: isActive ? "#eff6ff" : "transparent",
-							color: isActive ? "#3b82f6" : "#555",
-							cursor: "pointer",
-							fontSize: 11,
-							fontWeight: isActive ? 600 : 400,
-							minWidth: 64,
+							fontSize: 10,
+							fontWeight: 600,
+							color: "#999",
+							textTransform: "uppercase",
+							letterSpacing: "0.05em",
+							padding: "6px 8px 2px",
 						}}
 					>
-						<Icon />
-						{sub.label}
-					</button>
-				);
-			})}
+						{group.label}
+					</div>
+					<div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2 }}>
+						{group.items.map((sub) => {
+							const Icon = sub.icon;
+							const isActive = sub.type === currentType;
+							return (
+								<button
+									key={sub.type}
+									type="button"
+									onClick={() => onSelect(sub.type)}
+									style={{
+										display: "flex",
+										flexDirection: "column",
+										alignItems: "center",
+										gap: 2,
+										padding: "5px 4px",
+										border: "none",
+										borderRadius: 6,
+										background: isActive ? "#eff6ff" : "transparent",
+										color: isActive ? "#3b82f6" : "#555",
+										cursor: "pointer",
+										fontSize: 10,
+										fontWeight: isActive ? 600 : 400,
+										minWidth: 0,
+									}}
+								>
+									<Icon />
+									{sub.label}
+								</button>
+							);
+						})}
+					</div>
+				</div>
+			))}
 		</div>
 	);
 }
