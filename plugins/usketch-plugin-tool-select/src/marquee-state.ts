@@ -1,5 +1,5 @@
 export interface MarqueeRect {
-	x: number; // screen-space
+	x: number; // world-space
 	y: number;
 	width: number;
 	height: number;

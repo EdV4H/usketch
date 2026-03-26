@@ -180,7 +180,6 @@ type DragState =
 	| {
 			mode: "marquee";
 			startWorldPoint: Point;
-			startScreenPoint: Point;
 			shiftKey: boolean;
 	  }
 	| null;
@@ -362,7 +361,6 @@ export const selectToolPlugin: UsketchPlugin = {
 				dragState = {
 					mode: "marquee",
 					startWorldPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
-					startScreenPoint: { x: event.screenPoint.x, y: event.screenPoint.y },
 					shiftKey: event.shiftKey,
 				};
 			}
@@ -410,24 +408,19 @@ export const selectToolPlugin: UsketchPlugin = {
 			}
 
 			if (dragState.mode === "marquee") {
-				const x = Math.min(dragState.startScreenPoint.x, event.screenPoint.x);
-				const y = Math.min(dragState.startScreenPoint.y, event.screenPoint.y);
-				const width = Math.abs(event.screenPoint.x - dragState.startScreenPoint.x);
-				const height = Math.abs(event.screenPoint.y - dragState.startScreenPoint.y);
-				const screenRect: MarqueeRect = { x, y, width, height };
-
 				// Alt key toggles between intersect and contain mode
 				const mode: MarqueeMode = event.altKey ? "contain" : "intersect";
 				setMarqueeMode(mode);
 
-				// Compute world-space marquee for hit testing
+				// Compute world-space marquee (used for both hit testing and rendering)
 				const wx = Math.min(dragState.startWorldPoint.x, event.worldPoint.x);
 				const wy = Math.min(dragState.startWorldPoint.y, event.worldPoint.y);
 				const ww = Math.abs(event.worldPoint.x - dragState.startWorldPoint.x);
 				const wh = Math.abs(event.worldPoint.y - dragState.startWorldPoint.y);
-				const hitIds = findShapesInRect(toolCtx, { x: wx, y: wy, width: ww, height: wh }, mode);
+				const worldRect: MarqueeRect = { x: wx, y: wy, width: ww, height: wh };
+				const hitIds = findShapesInRect(toolCtx, worldRect, mode);
 
-				setMarquee(screenRect, hitIds);
+				setMarquee(worldRect, hitIds);
 				return;
 			}
 
