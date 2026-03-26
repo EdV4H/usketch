@@ -13,8 +13,11 @@ import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
 import { basicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
+import { connectorPlugin } from "@edv4h/usketch-plugin-shape-connector";
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
+import { framePlugin } from "@edv4h/usketch-plugin-shape-frame";
 import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
+import { groupPlugin } from "@edv4h/usketch-plugin-shape-group";
 import { imageShapePlugin } from "@edv4h/usketch-plugin-shape-image";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
 import { wireframePlugin } from "@edv4h/usketch-plugin-shape-wireframe";
@@ -43,6 +46,9 @@ const basePlugins: UsketchPlugin[] = [
 	panToolPlugin,
 	viewportNavPlugin,
 	basicShapePlugin,
+	groupPlugin,
+	framePlugin,
+	connectorPlugin,
 	freedrawPlugin,
 	textPlugin,
 	imageShapePlugin,
