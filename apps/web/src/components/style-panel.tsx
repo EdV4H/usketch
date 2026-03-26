@@ -211,6 +211,8 @@ export function StylePanel() {
 					onPointerDown={handleOpacityStart}
 					onChange={handleOpacityChange}
 					onPointerUp={handleOpacityEnd}
+					onFocus={handleOpacityStart}
+					onBlur={handleOpacityEnd}
 					style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
 				/>
 				<span style={{ width: 36, textAlign: "right", color: "#333" }}>
@@ -313,6 +315,8 @@ function ColorField({
 							type="button"
 							onClick={() => onSwatchClick(color)}
 							title={isTrans ? "Transparent" : color}
+							aria-label={isTrans ? "Transparent" : color}
+							aria-pressed={isActive}
 							style={{
 								width: 20,
 								height: 20,
