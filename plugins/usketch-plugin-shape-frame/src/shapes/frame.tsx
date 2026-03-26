@@ -51,11 +51,21 @@ export function getBoundsFrame(data: ShapeData): BoundingBox {
 }
 
 export function hitTestFrame(data: ShapeData, point: Point): boolean {
-	return (
+	// Frame body
+	if (
 		point.x >= data.x &&
 		point.x <= data.x + data.width &&
 		point.y >= data.y &&
 		point.y <= data.y + data.height
+	) {
+		return true;
+	}
+	// Title label above the frame
+	return (
+		point.x >= data.x &&
+		point.x <= data.x + data.width &&
+		point.y >= data.y - TITLE_HEIGHT &&
+		point.y < data.y
 	);
 }
 
