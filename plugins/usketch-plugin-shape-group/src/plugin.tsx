@@ -79,10 +79,10 @@ export const groupPlugin: UsketchPlugin = {
 			ctx.store.setSelection(restoredChildIds);
 		}
 
-		// Cmd+G / Ctrl+G to group
-		ctx.shortcuts.register("Cmd+g", groupSelected);
-		// Cmd+Shift+G / Ctrl+Shift+G to ungroup
-		ctx.shortcuts.register("Cmd+Shift+g", ungroupSelected);
+		// Ctrl+G (Cmd+G on Mac) to group
+		ctx.shortcuts.register("Ctrl+g", groupSelected);
+		// Ctrl+Shift+G (Cmd+Shift+G on Mac) to ungroup
+		ctx.shortcuts.register("Ctrl+Shift+g", ungroupSelected);
 
 		// Override delete for groups to cascade
 		ctx.events.on<{ shapeId: string }>("group:delete-request", (data) => {
