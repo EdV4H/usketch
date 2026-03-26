@@ -31,7 +31,7 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 	const { apiUrl, boardId, extraHeaders, debounceMs = 2000, maxSuggestions = 3 } = options;
 
 	let cleanup: (() => void) | undefined;
-	let enabled = options.enabled ?? true;
+	let enabled = options.enabled ?? false;
 
 	return {
 		id: "usketch-plugin-ai-copilot",

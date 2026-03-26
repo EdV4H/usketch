@@ -24,7 +24,13 @@ const shapeInputSchema = z
 		type: z
 			.string()
 			.describe(
-				'シェイプタイプ: "rectangle" | "rounded-rect" | "ellipse" | "triangle" | "diamond" | "star" | "arrow" | "line" | "text" | "board-portal" | "freedraw" | "group" | "frame" | "connector" | "wireframe-button" | "wireframe-input" | "wireframe-select" | "wireframe-checkbox" | "wireframe-card" | "wireframe-container"。wireframe系はカスタムプロパティを持つ: button→label,variant("primary"|"secondary"|"outline") / input→placeholder,inputLabel,inputType / select→placeholder,options(string[]) / checkbox→checkboxLabel,checked(boolean) / card→cardTitle,cardContent / container→containerTitle,borderStyle("solid"|"dashed")。group→childrenIds不要(別途parentIdで管理) / frame→frameTitle(string) / connector→sourceId,targetId,sourceAnchor("auto"|"top"|"right"|"bottom"|"left"),targetAnchor(同),arrowHead("none"|"forward"|"backward"|"both"),pathType("straight"|"elbow")',
+				'シェイプタイプ: "rectangle" | "rounded-rect" | "ellipse" | "triangle" | "diamond" | "star" | "arrow" | "line" | "text" | "board-portal" | "freedraw" | "group" | "frame" | "connector" + wireframe系21種。' +
+					"group→childrenIds不要(別途parentIdで管理) / frame→frameTitle(string) / connector→sourceId,targetId,sourceAnchor,targetAnchor,arrowHead,pathType。" +
+					"[Form] wireframe-button(label,variant) / wireframe-input(placeholder,inputLabel,inputType) / wireframe-select(placeholder,options[]) / wireframe-checkbox(checkboxLabel,checked). " +
+					"[Nav] wireframe-navbar(items[],brand) / wireframe-tabs(tabs[],activeIndex) / wireframe-breadcrumb(items[]) / wireframe-sidebar(items[],sidebarTitle). " +
+					"[Content] wireframe-card(cardTitle,cardContent) / wireframe-avatar(avatarLabel) / wireframe-image(imageAlt) / wireframe-badge(badgeLabel,badgeVariant) / wireframe-table(columns[],rows) / wireframe-list(listItems[]). " +
+					"[Feedback] wireframe-alert(alertMessage,alertType) / wireframe-modal(modalTitle,modalContent) / wireframe-toast(toastMessage,toastType) / wireframe-progress(progress,progressLabel). " +
+					"[Layout] wireframe-container(containerTitle,borderStyle) / wireframe-divider(dividerStyle) / wireframe-accordion(sections[],expandedIndex).",
 			),
 		x: z.number().describe("X座標"),
 		y: z.number().describe("Y座標"),

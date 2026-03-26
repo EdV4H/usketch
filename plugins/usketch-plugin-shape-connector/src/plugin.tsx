@@ -25,18 +25,23 @@ function ConnectorIcon() {
 	);
 }
 
-/** Find a shape at a point (excluding connectors) */
+/** Find a shape at a point (excluding connectors and frames/groups — prefer their children) */
 function findShapeAtPoint(ctx: ToolContext, point: Point): ShapeData | null {
 	const shapes = ctx.store.getShapes();
 	const entries = [...shapes.entries()].reverse();
+	let fallbackContainer: ShapeData | null = null;
 	for (const [, data] of entries) {
 		if (data.type === "connector") continue;
 		const def = ctx.shapes.get(data.type);
-		if (def?.hitTest(data, point)) {
-			return data;
+		if (!def?.hitTest(data, point)) continue;
+		// Prefer non-container shapes; remember container as fallback
+		if (data.type === "frame" || data.type === "group") {
+			if (!fallbackContainer) fallbackContainer = data;
+			continue;
 		}
+		return data;
 	}
-	return null;
+	return fallbackContainer;
 }
 
 export const connectorPlugin: UsketchPlugin = {
@@ -52,6 +57,7 @@ export const connectorPlugin: UsketchPlugin = {
 			resize: (data) => ({ ...data }),
 			createDefault: createDefaultConnector,
 			renderTarget: "svg",
+			resizable: false,
 		});
 
 		// Drawing tool state

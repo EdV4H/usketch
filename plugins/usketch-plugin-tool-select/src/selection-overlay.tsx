@@ -1,6 +1,8 @@
 import type { BoardStore, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { getMovingSelection, subscribeMovingSelection } from "./drag-state.js";
+import { getDropTargetId, subscribeDropTarget } from "./drop-target-state.js";
+import { getHoveredShapeId, subscribeHoveredShape } from "./hover-state.js";
 import type { MarqueeMode } from "./marquee-state.js";
 import {
 	getMarqueeHitIds,
@@ -76,8 +78,58 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 		getMovingSelection,
 	);
 
+	const hoveredId = useSyncExternalStore(
+		subscribeHoveredShape,
+		getHoveredShapeId,
+		getHoveredShapeId,
+	);
+	const dropTargetId = useSyncExternalStore(subscribeDropTarget, getDropTargetId, getDropTargetId);
+
 	if (activeToolId !== "select") return null;
-	if (isMoving) return null;
+
+	// Drop target indicator: shown during move even when isMoving is true
+	const dropBounds = dropTargetId ? getShapeBounds(store, shapes, dropTargetId) : null;
+	const dropIndicator = dropBounds ? (
+		<svg
+			style={{
+				position: "absolute",
+				left: 0,
+				top: 0,
+				width: "100%",
+				height: "100%",
+				overflow: "visible",
+				pointerEvents: "none",
+			}}
+		>
+			<rect
+				x={dropBounds.x * viewport.zoom + viewport.x}
+				y={dropBounds.y * viewport.zoom + viewport.y}
+				width={dropBounds.width * viewport.zoom}
+				height={dropBounds.height * viewport.zoom}
+				fill="none"
+				stroke={STROKE_COLOR}
+				strokeWidth={2}
+			/>
+		</svg>
+	) : null;
+
+	if (isMoving) return dropIndicator;
+
+	// Hover indicator: show outline on shape under cursor (if not already selected)
+	const showHover = hoveredId && !selection.has(hoveredId);
+	const hoverBounds = showHover ? getShapeBounds(store, shapes, hoveredId) : null;
+	const hoverIndicator = hoverBounds ? (
+		<rect
+			x={hoverBounds.x * viewport.zoom + viewport.x}
+			y={hoverBounds.y * viewport.zoom + viewport.y}
+			width={hoverBounds.width * viewport.zoom}
+			height={hoverBounds.height * viewport.zoom}
+			fill="none"
+			stroke={STROKE_COLOR}
+			strokeWidth={2}
+			opacity={0.8}
+		/>
+	) : null;
 
 	// Single selection: bounding box + handles
 	if (selection.size === 1 && !marqueeRect) {
@@ -95,6 +147,8 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 		const sw = bounds.width * viewport.zoom;
 		const sh = bounds.height * viewport.zoom;
 
+		// Hide resize handles when shape definition declares resizable: false
+		const hideHandles = def?.resizable === false;
 		const positions = getHandlePositions(bounds, viewport);
 		const half = HANDLE_SIZE / 2;
 
@@ -110,6 +164,7 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 					pointerEvents: "none",
 				}}
 			>
+				{hoverIndicator}
 				<rect
 					x={sx}
 					y={sy}
@@ -119,18 +174,19 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 					stroke={STROKE_COLOR}
 					strokeWidth={1}
 				/>
-				{[...positions.entries()].map(([handle, pos]) => (
-					<rect
-						key={handle}
-						x={pos.x - half}
-						y={pos.y - half}
-						width={HANDLE_SIZE}
-						height={HANDLE_SIZE}
-						fill="#ffffff"
-						stroke={STROKE_COLOR}
-						strokeWidth={1}
-					/>
-				))}
+				{!hideHandles &&
+					[...positions.entries()].map(([handle, pos]) => (
+						<rect
+							key={handle}
+							x={pos.x - half}
+							y={pos.y - half}
+							width={HANDLE_SIZE}
+							height={HANDLE_SIZE}
+							fill="#ffffff"
+							stroke={STROKE_COLOR}
+							strokeWidth={1}
+						/>
+					))}
 			</svg>
 		);
 	}
@@ -139,7 +195,7 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 	const multiBounds = selection.size > 1 ? getMultiSelectionBounds(store, shapes, selection) : null;
 	const hasMarqueeHits = marqueeRect && marqueeHitIds.length > 0;
 
-	if (!multiBounds && !marqueeRect) return null;
+	if (!multiBounds && !marqueeRect && !hoverIndicator) return null;
 
 	return (
 		<svg
@@ -153,6 +209,7 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 				pointerEvents: "none",
 			}}
 		>
+			{hoverIndicator}
 			{/* Individual bounding boxes for confirmed selection */}
 			{multiBounds &&
 				[...selection].map((id) => (
