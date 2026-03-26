@@ -46,33 +46,14 @@ function getBounds(data: ShapeData): BoundingBox {
 	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
-function distanceToSegment(point: Point, a: Point, b: Point): number {
-	const dx = b.x - a.x;
-	const dy = b.y - a.y;
-	const lenSq = dx * dx + dy * dy;
-	if (lenSq === 0) {
-		const ex = point.x - a.x;
-		const ey = point.y - a.y;
-		return Math.sqrt(ex * ex + ey * ey);
-	}
-	let t = ((point.x - a.x) * dx + (point.y - a.y) * dy) / lenSq;
-	t = Math.max(0, Math.min(1, t));
-	const projX = a.x + t * dx;
-	const projY = a.y + t * dy;
-	const ex = point.x - projX;
-	const ey = point.y - projY;
-	return Math.sqrt(ex * ex + ey * ey);
-}
-
 function hitTest(data: ShapeData, point: Point): boolean {
-	const points = (data.points as Point[]) ?? [];
-	const threshold = 5;
-	for (let i = 0; i < points.length - 1; i++) {
-		if (distanceToSegment(point, points[i], points[i + 1]) <= threshold) {
-			return true;
-		}
-	}
-	return false;
+	const bounds = getBounds(data);
+	return (
+		point.x >= bounds.x &&
+		point.x <= bounds.x + bounds.width &&
+		point.y >= bounds.y &&
+		point.y <= bounds.y + bounds.height
+	);
 }
 
 function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData {
@@ -271,6 +252,12 @@ export const freedrawPlugin: UsketchPlugin = {
 			cursor: "crosshair",
 			shortcut: "p",
 			order: 30,
+			onActivate(toolCtx) {
+				toolCtx.events.emit("snap:configure", { enabled: false });
+			},
+			onDeactivate(toolCtx) {
+				toolCtx.events.emit("snap:configure", { enabled: true });
+			},
 			onPointerDown,
 			onPointerMove,
 			onPointerUp,
