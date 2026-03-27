@@ -1,5 +1,10 @@
 import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
 import { BASIC_SHAPE_SUBTYPES } from "@edv4h/usketch-plugin-shape-basic";
+import {
+	DEFAULT_STICKY_COLOR,
+	STICKY_COLOR_KEYS,
+	STICKY_COLORS,
+} from "@edv4h/usketch-plugin-shape-sticky";
 import { WIREFRAME_SUBTYPES } from "@edv4h/usketch-plugin-shape-wireframe";
 import { useCallback, useEffect, useState } from "react";
 import { ShareDialog } from "./share-dialog.js";
@@ -471,9 +476,11 @@ function ToolButton({
 	const app = useApp();
 	const [showPicker, setShowPicker] = useState(false);
 	const [wireframeSubtype, setWireframeSubtype] = useState(WIREFRAME_SUBTYPES[0].type);
+	const [stickyColor, setStickyColor] = useState(DEFAULT_STICKY_COLOR);
 	const isWireframe = id === "wireframe-draw";
 	const isBasicShape = id === "basic-shape-draw";
-	const hasPicker = isWireframe || isBasicShape;
+	const isSticky = id === "sticky-draw";
+	const hasPicker = isWireframe || isBasicShape || isSticky;
 
 	return (
 		<div style={{ position: "relative" }}>
@@ -503,6 +510,15 @@ function ToolButton({
 				<BasicShapePicker
 					onSelect={(type) => {
 						app.events.emit("basic-shape:select-subtype", { type });
+					}}
+				/>
+			)}
+			{isSticky && isActive && showPicker && (
+				<StickyColorPicker
+					currentColor={stickyColor}
+					onSelect={(color) => {
+						setStickyColor(color);
+						app.events.emit("sticky:select-color", { color });
 					}}
 				/>
 			)}
@@ -572,6 +588,55 @@ function BasicShapePicker({ onSelect }: { onSelect: (type: string) => void }) {
 						<Icon />
 						{sub.label}
 					</button>
+				);
+			})}
+		</div>
+	);
+}
+
+function StickyColorPicker({
+	currentColor,
+	onSelect,
+}: {
+	currentColor: string;
+	onSelect: (color: string) => void;
+}) {
+	return (
+		<div
+			style={{
+				position: "absolute",
+				top: 44,
+				left: "50%",
+				transform: "translateX(-50%)",
+				background: "#fff",
+				border: "1px solid #e0e0e0",
+				borderRadius: 10,
+				padding: 8,
+				display: "flex",
+				gap: 6,
+				boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+				zIndex: 150,
+			}}
+		>
+			{STICKY_COLOR_KEYS.map((key) => {
+				const isActive = key === currentColor;
+				return (
+					<button
+						key={key}
+						type="button"
+						onClick={() => onSelect(key)}
+						title={key}
+						style={{
+							width: 28,
+							height: 28,
+							borderRadius: "50%",
+							border: isActive ? "2px solid #333" : "2px solid transparent",
+							background: STICKY_COLORS[key],
+							cursor: "pointer",
+							outline: isActive ? "2px solid #93b5fd" : "none",
+							outlineOffset: 1,
+						}}
+					/>
 				);
 			})}
 		</div>
