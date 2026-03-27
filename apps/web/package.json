@@ -43,6 +43,7 @@
 		"@edv4h/usketch-plugin-shape-frame": "workspace:*",
 		"@edv4h/usketch-plugin-shape-group": "workspace:*",
 		"@edv4h/usketch-plugin-shape-freedraw": "workspace:*",
+		"@edv4h/usketch-plugin-shape-sticky": "workspace:*",
 		"@edv4h/usketch-plugin-shape-text": "workspace:*",
 		"@edv4h/usketch-plugin-shape-wireframe": "workspace:*",
 		"@edv4h/usketch-plugin-snap": "workspace:*",

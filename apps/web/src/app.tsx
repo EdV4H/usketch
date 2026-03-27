@@ -19,6 +19,7 @@ import { framePlugin } from "@edv4h/usketch-plugin-shape-frame";
 import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { groupPlugin } from "@edv4h/usketch-plugin-shape-group";
 import { imageShapePlugin } from "@edv4h/usketch-plugin-shape-image";
+import { stickyPlugin } from "@edv4h/usketch-plugin-shape-sticky";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
 import { wireframePlugin } from "@edv4h/usketch-plugin-shape-wireframe";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
@@ -51,6 +52,7 @@ const basePlugins: UsketchPlugin[] = [
 	connectorPlugin,
 	freedrawPlugin,
 	textPlugin,
+	stickyPlugin,
 	imageShapePlugin,
 	counterPlugin,
 	wireframePlugin,
