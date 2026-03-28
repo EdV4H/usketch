@@ -1,4 +1,5 @@
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
+import { worldToScreen } from "@edv4h/usketch-shared";
 import { useCallback, useSyncExternalStore } from "react";
 
 interface ShapeBoundsOverlayProps {
@@ -15,10 +16,12 @@ export function ShapeBoundsOverlay({ shape, store }: ShapeBoundsOverlayProps) {
 
 	if (!shape) return null;
 
-	const screenX = shape.x * viewport.zoom + viewport.x;
-	const screenY = shape.y * viewport.zoom + viewport.y;
-	const screenW = shape.width * viewport.zoom;
-	const screenH = shape.height * viewport.zoom;
+	const tl = worldToScreen(shape.x, shape.y, viewport);
+	const br = worldToScreen(shape.x + shape.width, shape.y + shape.height, viewport);
+	const screenX = tl.x;
+	const screenY = tl.y;
+	const screenW = br.x - tl.x;
+	const screenH = br.y - tl.y;
 
 	return (
 		<div
