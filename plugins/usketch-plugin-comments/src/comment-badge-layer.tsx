@@ -5,6 +5,7 @@ import type {
 	LayerRenderContext,
 	ShapeRegistry,
 } from "@edv4h/usketch-shared";
+import { worldToScreen } from "@edv4h/usketch-shared";
 import { useEffect, useState } from "react";
 import type { CommentThread } from "./types.js";
 
@@ -75,8 +76,7 @@ export function CommentBadgeLayer({ ctx, store, shapes, events }: CommentBadgeLa
 	return (
 		<>
 			{badges.map((badge) => {
-				const screenX = (badge.x - viewport.x) * viewport.zoom;
-				const screenY = (badge.y - viewport.y) * viewport.zoom;
+				const screen = worldToScreen(badge.x, badge.y, viewport);
 
 				return (
 					<button
@@ -90,8 +90,8 @@ export function CommentBadgeLayer({ ctx, store, shapes, events }: CommentBadgeLa
 						}}
 						style={{
 							position: "absolute",
-							left: screenX - 10,
-							top: screenY - 10,
+							left: screen.x - 10,
+							top: screen.y - 10,
 							width: 20,
 							height: 20,
 							borderRadius: "50%",

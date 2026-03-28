@@ -436,13 +436,22 @@ importers:
 
   plugins/usketch-plugin-ai-actions:
     dependencies:
+      '@edv4h/usketch-canvas-engine':
+        specifier: workspace:*
+        version: link:../../packages/canvas-engine
       '@edv4h/usketch-plugin-ai-agent':
         specifier: workspace:*
         version: link:../usketch-plugin-ai-agent
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      react:
+        specifier: '>=19'
+        version: 19.2.4
     devDependencies:
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.9.3
         version: 5.9.3
