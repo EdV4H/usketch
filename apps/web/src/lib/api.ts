@@ -32,6 +32,7 @@ async function fetchApi<T>(path: string, init?: RequestInit): Promise<T> {
 export interface Board {
 	id: string;
 	title: string;
+	description: string;
 	ownerId: string;
 	createdAt: string;
 	updatedAt: string;
@@ -42,6 +43,7 @@ export interface Board {
 export interface DiscoverBoard {
 	id: string;
 	title: string;
+	description: string;
 	ownerId: string;
 	ownerName: string;
 	ownerImage: string | null;
@@ -59,7 +61,7 @@ export const api = {
 				method: "POST",
 				body: JSON.stringify({ title }),
 			}),
-		update: (id: string, data: { title?: string; isPublic?: boolean }) =>
+		update: (id: string, data: { title?: string; isPublic?: boolean; description?: string }) =>
 			fetchApi<{ ok: boolean }>(`/api/boards/${id}`, {
 				method: "PATCH",
 				body: JSON.stringify(data),
