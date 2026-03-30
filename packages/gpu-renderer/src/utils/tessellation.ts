@@ -12,7 +12,7 @@ export function tessellatePolyline(
 	opacity: number,
 ): { vertices: Float32Array; vertexCount: number } {
 	const pointCount = points.length / 2;
-	if (pointCount < 2) {
+	if (pointCount < 2 || !Number.isFinite(halfWidth) || halfWidth <= 0) {
 		return { vertices: new Float32Array(0), vertexCount: 0 };
 	}
 

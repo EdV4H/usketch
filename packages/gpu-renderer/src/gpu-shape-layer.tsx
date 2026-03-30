@@ -25,6 +25,9 @@ export function GpuShapeLayer({
 	const hoveredIdRef = useRef<string | null>(null);
 	const claimedIdsRef = useRef<Set<string>>(new Set());
 
+	const eventsRef = useRef(events);
+	eventsRef.current = events;
+
 	const initGpu = useCallback((canvas: HTMLCanvasElement | null) => {
 		canvasRef.current = canvas;
 		if (!canvas) return;
@@ -37,6 +40,15 @@ export function GpuShapeLayer({
 				console.warn("[gpu-renderer] WebGPU initialization failed, falling back to DOM");
 				return;
 			}
+			gpuCtx.onDeviceLost((reason) => {
+				console.warn(`[gpu-renderer] Device lost (${reason}), falling back to DOM`);
+				rendererRef.current?.destroy();
+				rendererRef.current = null;
+				readyRef.current = false;
+				initPromiseRef.current = null;
+				eventsRef.current.emit("renderer:claim-shapes", { ids: new Set<string>() });
+				setTick((t) => t + 1);
+			});
 			rendererRef.current = createGpuRenderer(gpuCtx);
 			readyRef.current = true;
 			setTick((t) => t + 1);
@@ -95,7 +107,7 @@ export function GpuShapeLayer({
 		const renderer = rendererRef.current;
 		const canvas = canvasRef.current;
 		renderer.setViewport(ctx.viewport, canvas.clientWidth, canvas.clientHeight);
-		const claimedIds = renderer.render(ctx.shapes, shapeRegistry, {
+		const { claimedIds, stats } = renderer.render(ctx.shapes, shapeRegistry, {
 			selection: ctx.selection,
 			hoveredId: hoveredIdRef.current,
 		});
@@ -103,6 +115,7 @@ export function GpuShapeLayer({
 		if (claimedIds.size > 0) {
 			events.emit("renderer:claim-shapes", { ids: claimedIds });
 		}
+		events.emit("gpu-renderer:stats", stats);
 	}
 
 	return (

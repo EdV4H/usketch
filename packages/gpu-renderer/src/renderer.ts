@@ -8,14 +8,42 @@ export interface GpuRenderOptions {
 	hoveredId: string | null;
 }
 
+export interface GpuRenderStats {
+	gpuShapeCount: number;
+	sdfCount: number;
+	polylineCount: number;
+}
+
 export interface GpuRenderer {
 	setViewport(viewport: Viewport, canvasWidth: number, canvasHeight: number): void;
 	render(
 		shapes: ReadonlyMap<string, ShapeData>,
 		shapeRegistry: ShapeRegistry,
 		options: GpuRenderOptions,
-	): Set<string>;
+	): { claimedIds: Set<string>; stats: GpuRenderStats };
 	destroy(): void;
+}
+
+const MAX_SHAPE_SIZE = 100000;
+
+function isValidPrimitive(prim: GpuPrimitive): boolean {
+	const { bounds } = prim;
+	// Skip zero-size shapes
+	if (bounds.width <= 0 || bounds.height <= 0) return false;
+	// Skip NaN/Infinity
+	if (
+		!Number.isFinite(bounds.x) ||
+		!Number.isFinite(bounds.y) ||
+		!Number.isFinite(bounds.width) ||
+		!Number.isFinite(bounds.height)
+	) {
+		return false;
+	}
+	// Skip extremely large shapes
+	if (bounds.width > MAX_SHAPE_SIZE || bounds.height > MAX_SHAPE_SIZE) return false;
+	// Skip invalid opacity/strokeWidth
+	if (!Number.isFinite(prim.opacity) || !Number.isFinite(prim.strokeWidth)) return false;
+	return true;
 }
 
 // Selection highlight color: blue outline
@@ -100,6 +128,7 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 				if (!def?.gpuPrimitive) continue;
 				const prim = def.gpuPrimitive(shape);
 				if (!prim) continue;
+				if (!isValidPrimitive(prim)) continue;
 
 				claimedIds.add(id);
 				if (prim.kind === "rect" || prim.kind === "ellipse") {
@@ -141,7 +170,14 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 
 			device.queue.submit([encoder.finish()]);
 
-			return claimedIds;
+			return {
+				claimedIds,
+				stats: {
+					gpuShapeCount: claimedIds.size,
+					sdfCount: sdfShapes.length,
+					polylineCount: polylines.length,
+				},
+			};
 		},
 
 		destroy() {

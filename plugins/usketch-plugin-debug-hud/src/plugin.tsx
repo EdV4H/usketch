@@ -64,6 +64,7 @@ export const debugHudPlugin: UsketchPlugin = {
 					layers={ctx.layers}
 					shapes={ctx.shapes}
 					syncStatus={syncStatus}
+					events={ctx.events}
 					ctx={renderCtx}
 				/>
 			),

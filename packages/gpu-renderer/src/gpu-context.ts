@@ -3,6 +3,8 @@ export interface GpuContext {
 	format: GPUTextureFormat;
 	canvas: HTMLCanvasElement;
 	gpuCtx: GPUCanvasContext;
+	/** Register a callback invoked when the device is lost. */
+	onDeviceLost(cb: (reason: string) => void): void;
 }
 
 export async function initGpuContext(canvas: HTMLCanvasElement): Promise<GpuContext | null> {
@@ -18,5 +20,19 @@ export async function initGpuContext(canvas: HTMLCanvasElement): Promise<GpuCont
 	const format = navigator.gpu.getPreferredCanvasFormat();
 	gpuCtx.configure({ device, format, alphaMode: "premultiplied" });
 
-	return { device, format, canvas, gpuCtx };
+	const lostCallbacks: ((reason: string) => void)[] = [];
+	device.lost.then((info) => {
+		const reason = info.reason ?? "unknown";
+		for (const cb of lostCallbacks) cb(reason);
+	});
+
+	return {
+		device,
+		format,
+		canvas,
+		gpuCtx,
+		onDeviceLost(cb) {
+			lostCallbacks.push(cb);
+		},
+	};
 }

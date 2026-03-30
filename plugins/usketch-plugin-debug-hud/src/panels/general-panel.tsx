@@ -1,12 +1,13 @@
 import type {
 	BoardStore,
 	CommandRegistry,
+	EventBus,
 	LayerManager,
 	ShapeRegistry,
 	ToolRegistry,
 	Viewport,
 } from "@edv4h/usketch-shared";
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { FpsGraph } from "../components/fps-graph.js";
 import type { FpsCounter } from "../fps-counter.js";
 import type { PointerTracker } from "../pointer-tracker.js";
@@ -22,6 +23,12 @@ import {
 } from "../styles.js";
 import type { SyncStatusTrackerLike } from "../sync-status-types.js";
 
+interface GpuStats {
+	gpuShapeCount: number;
+	sdfCount: number;
+	polylineCount: number;
+}
+
 interface GeneralPanelProps {
 	store: BoardStore;
 	fpsCounter: FpsCounter;
@@ -31,6 +38,7 @@ interface GeneralPanelProps {
 	layers: LayerManager;
 	shapes: ShapeRegistry;
 	syncStatus?: SyncStatusTrackerLike;
+	events: EventBus;
 	viewport: Viewport;
 	activeToolId: string;
 }
@@ -71,6 +79,7 @@ export function GeneralPanel({
 	layers,
 	shapes,
 	syncStatus,
+	events,
 	viewport,
 	activeToolId,
 }: GeneralPanelProps) {
@@ -100,6 +109,12 @@ export function GeneralPanel({
 	const toolCount = tools.getAll().size;
 	const layerCount = layers.getLayers().length;
 	const shapeTypeCount = shapes.getAll().size;
+
+	// GPU renderer stats (emitted by gpu-renderer plugin)
+	const [gpuStats, setGpuStats] = useState<GpuStats | null>(null);
+	useEffect(() => {
+		return events.on<GpuStats>("gpu-renderer:stats", setGpuStats);
+	}, [events]);
 
 	// Phase 2: viewport editing
 	const [editingViewport, setEditingViewport] = useState(false);
@@ -245,11 +260,27 @@ export function GeneralPanel({
 			</div>
 
 			{/* System Info */}
-			<div>
+			<div style={SECTION_STYLE}>
 				<div style={LABEL_STYLE}>System</div>
 				<div>
 					Tools: {toolCount} · Layers: {layerCount} · Shape types: {shapeTypeCount}
 				</div>
+			</div>
+
+			{/* GPU Renderer */}
+			<div>
+				<div style={LABEL_STYLE}>GPU Renderer</div>
+				{gpuStats ? (
+					<div>
+						<div style={{ color: "#4ade80" }}>Active</div>
+						<div>
+							GPU: {gpuStats.gpuShapeCount} (SDF: {gpuStats.sdfCount}, Lines:{" "}
+							{gpuStats.polylineCount})
+						</div>
+					</div>
+				) : (
+					<div style={{ color: "#888" }}>Inactive (DOM only)</div>
+				)}
 			</div>
 		</div>
 	);

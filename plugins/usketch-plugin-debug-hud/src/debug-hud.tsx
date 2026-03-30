@@ -1,6 +1,7 @@
 import type {
 	BoardStore,
 	CommandRegistry,
+	EventBus,
 	LayerManager,
 	LayerRenderContext,
 	ShapeRegistry,
@@ -28,6 +29,7 @@ interface DebugHudProps {
 	layers: LayerManager;
 	shapes: ShapeRegistry;
 	syncStatus?: SyncStatusTrackerLike;
+	events: EventBus;
 	ctx: LayerRenderContext;
 }
 
@@ -47,6 +49,7 @@ export function DebugHud({
 	layers,
 	shapes,
 	syncStatus,
+	events,
 	ctx,
 }: DebugHudProps) {
 	const STORAGE_KEY = "usketch-debug-hud-visible";
@@ -126,6 +129,7 @@ export function DebugHud({
 				layers={layers}
 				shapes={shapes}
 				syncStatus={syncStatus}
+				events={events}
 				viewport={viewport}
 				activeToolId={activeToolId}
 			/>
