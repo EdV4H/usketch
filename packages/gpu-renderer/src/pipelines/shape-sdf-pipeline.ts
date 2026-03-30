@@ -18,6 +18,13 @@ export interface ShapeSdfPipeline {
 		uniforms: GPUBuffer,
 		shapes: GpuPrimitive[],
 	): void;
+	/** Render shapes on top of existing content (loadOp: "load"). */
+	renderOverlay(
+		encoder: GPUCommandEncoder,
+		view: GPUTextureView,
+		uniforms: GPUBuffer,
+		shapes: GpuPrimitive[],
+	): void;
 	destroy(): void;
 }
 
@@ -83,61 +90,72 @@ export function createShapeSdfPipeline(ctx: GpuContext): ShapeSdfPipeline {
 		usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
 	});
 
+	function drawShapes(
+		encoder: GPUCommandEncoder,
+		view: GPUTextureView,
+		uniformBuffer: GPUBuffer,
+		shapes: GpuPrimitive[],
+		loadOp: GPULoadOp,
+	) {
+		if (shapes.length === 0) return;
+		const count = Math.min(shapes.length, MAX_INSTANCES);
+
+		const data = new Float32Array(count * INSTANCE_FLOATS);
+		for (let i = 0; i < count; i++) {
+			const s = shapes[i];
+			const off = i * INSTANCE_FLOATS;
+			data[off + 0] = s.bounds.x;
+			data[off + 1] = s.bounds.y;
+			data[off + 2] = s.bounds.width;
+			data[off + 3] = s.bounds.height;
+			data[off + 4] = s.fill[0];
+			data[off + 5] = s.fill[1];
+			data[off + 6] = s.fill[2];
+			data[off + 7] = s.fill[3];
+			data[off + 8] = s.stroke[0];
+			data[off + 9] = s.stroke[1];
+			data[off + 10] = s.stroke[2];
+			data[off + 11] = s.stroke[3];
+			data[off + 12] = s.cornerRadius ?? 0;
+			data[off + 13] = s.strokeWidth;
+			data[off + 14] = s.opacity;
+			data[off + 15] = s.kind === "ellipse" ? KIND_ELLIPSE : KIND_RECT;
+		}
+		device.queue.writeBuffer(instanceBuffer, 0, data);
+
+		const bindGroup = device.createBindGroup({
+			layout: bindGroupLayout,
+			entries: [
+				{ binding: 0, resource: { buffer: uniformBuffer } },
+				{ binding: 1, resource: { buffer: instanceBuffer } },
+			],
+		});
+
+		const pass = encoder.beginRenderPass({
+			colorAttachments: [
+				{
+					view,
+					...(loadOp === "clear"
+						? { clearValue: { r: 0, g: 0, b: 0, a: 0 }, loadOp: "clear" as const }
+						: { loadOp: "load" as const }),
+					storeOp: "store" as const,
+				},
+			],
+		});
+
+		pass.setPipeline(pipeline);
+		pass.setBindGroup(0, bindGroup);
+		pass.draw(4, count, 0, 0);
+		pass.end();
+	}
+
 	return {
 		render(encoder, view, uniformBuffer, shapes) {
-			if (shapes.length === 0) return;
-			const count = Math.min(shapes.length, MAX_INSTANCES);
+			drawShapes(encoder, view, uniformBuffer, shapes, "clear");
+		},
 
-			const data = new Float32Array(count * INSTANCE_FLOATS);
-			for (let i = 0; i < count; i++) {
-				const s = shapes[i];
-				const off = i * INSTANCE_FLOATS;
-				// posSize
-				data[off + 0] = s.bounds.x;
-				data[off + 1] = s.bounds.y;
-				data[off + 2] = s.bounds.width;
-				data[off + 3] = s.bounds.height;
-				// fillColor
-				data[off + 4] = s.fill[0];
-				data[off + 5] = s.fill[1];
-				data[off + 6] = s.fill[2];
-				data[off + 7] = s.fill[3];
-				// strokeColor
-				data[off + 8] = s.stroke[0];
-				data[off + 9] = s.stroke[1];
-				data[off + 10] = s.stroke[2];
-				data[off + 11] = s.stroke[3];
-				// params: cornerRadius, strokeWidth, opacity, shapeKind
-				data[off + 12] = s.cornerRadius ?? 0;
-				data[off + 13] = s.strokeWidth;
-				data[off + 14] = s.opacity;
-				data[off + 15] = s.kind === "ellipse" ? KIND_ELLIPSE : KIND_RECT;
-			}
-			device.queue.writeBuffer(instanceBuffer, 0, data);
-
-			const bindGroup = device.createBindGroup({
-				layout: bindGroupLayout,
-				entries: [
-					{ binding: 0, resource: { buffer: uniformBuffer } },
-					{ binding: 1, resource: { buffer: instanceBuffer } },
-				],
-			});
-
-			const pass = encoder.beginRenderPass({
-				colorAttachments: [
-					{
-						view,
-						clearValue: { r: 0, g: 0, b: 0, a: 0 },
-						loadOp: "clear",
-						storeOp: "store",
-					},
-				],
-			});
-
-			pass.setPipeline(pipeline);
-			pass.setBindGroup(0, bindGroup);
-			pass.draw(4, count, 0, 0);
-			pass.end();
+		renderOverlay(encoder, view, uniformBuffer, shapes) {
+			drawShapes(encoder, view, uniformBuffer, shapes, "load");
 		},
 
 		destroy() {

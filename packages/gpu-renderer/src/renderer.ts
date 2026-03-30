@@ -3,11 +3,27 @@ import type { GpuContext } from "./gpu-context.js";
 import { createPolylinePipeline, type PolylinePipeline } from "./pipelines/polyline-pipeline.js";
 import { createShapeSdfPipeline, type ShapeSdfPipeline } from "./pipelines/shape-sdf-pipeline.js";
 
+export interface GpuRenderOptions {
+	selection: ReadonlySet<string>;
+	hoveredId: string | null;
+}
+
 export interface GpuRenderer {
 	setViewport(viewport: Viewport, canvasWidth: number, canvasHeight: number): void;
-	render(shapes: ReadonlyMap<string, ShapeData>, shapeRegistry: ShapeRegistry): Set<string>;
+	render(
+		shapes: ReadonlyMap<string, ShapeData>,
+		shapeRegistry: ShapeRegistry,
+		options: GpuRenderOptions,
+	): Set<string>;
 	destroy(): void;
 }
+
+// Selection highlight color: blue outline
+const SELECTION_COLOR: [number, number, number, number] = [0.2, 0.5, 1.0, 1.0];
+const SELECTION_STROKE_WIDTH = 2;
+// Hover highlight color: lighter blue
+const HOVER_COLOR: [number, number, number, number] = [0.4, 0.65, 1.0, 0.6];
+const HOVER_STROKE_WIDTH = 1.5;
 
 export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 	const { device } = ctx;
@@ -54,7 +70,7 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 			canvasH = height;
 		},
 
-		render(shapes, shapeRegistry) {
+		render(shapes, shapeRegistry, options) {
 			const canvas = ctx.canvas;
 			const dpr = globalThis.devicePixelRatio ?? 1;
 			const displayW = Math.round(canvas.clientWidth * dpr);
@@ -76,6 +92,7 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 			// Collect GPU primitives
 			const sdfShapes: GpuPrimitive[] = [];
 			const polylines: GpuPrimitive[] = [];
+			const highlightShapes: GpuPrimitive[] = [];
 			const claimedIds = new Set<string>();
 
 			for (const [id, shape] of shapes) {
@@ -90,6 +107,24 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 				} else if (prim.kind === "polyline") {
 					polylines.push(prim);
 				}
+
+				// Selection / hover highlight
+				const isSelected = options.selection.has(id);
+				const isHovered = options.hoveredId === id && !isSelected;
+
+				if (isSelected || isHovered) {
+					const color = isSelected ? SELECTION_COLOR : HOVER_COLOR;
+					const sw = isSelected ? SELECTION_STROKE_WIDTH : HOVER_STROKE_WIDTH;
+					highlightShapes.push({
+						kind: prim.kind === "polyline" ? "rect" : prim.kind,
+						bounds: prim.bounds,
+						cornerRadius: prim.cornerRadius,
+						fill: [0, 0, 0, 0],
+						stroke: color,
+						strokeWidth: sw,
+						opacity: 1,
+					});
+				}
 			}
 
 			// Render
@@ -99,6 +134,10 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 
 			shapeSdfPipeline.render(encoder, view, uniformBuffer, sdfShapes);
 			polylinePipeline.render(encoder, view, uniformBuffer, polylines);
+			// Highlights on top
+			if (highlightShapes.length > 0) {
+				shapeSdfPipeline.renderOverlay(encoder, view, uniformBuffer, highlightShapes);
+			}
 
 			device.queue.submit([encoder.finish()]);
 
