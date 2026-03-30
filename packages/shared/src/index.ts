@@ -8,6 +8,8 @@ export type {
 	Command,
 	CommandRegistry,
 	EventBus,
+	GpuPrimitive,
+	GpuPrimitiveKind,
 	Layer,
 	LayerManager,
 	LayerRenderContext,
@@ -31,6 +33,8 @@ export { DEFAULT_STYLE } from "./types/shape.js";
 // Theme
 export type { Theme } from "./types/theme.js";
 export { DEFAULT_THEME } from "./types/theme.js";
+// Color
+export { cssColorToRgba, cssColorToRgbaOrDefault } from "./utils/color.js";
 export {
 	boundsToScreenRect,
 	getSelectionBounds,

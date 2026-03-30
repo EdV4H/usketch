@@ -1,6 +1,7 @@
 import { AppProvider, Canvas, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
+import { createGpuRendererPlugin } from "@edv4h/usketch-gpu-renderer";
 import { createAiActionsPlugin } from "@edv4h/usketch-plugin-ai-actions";
 import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
 import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
@@ -59,6 +60,7 @@ const basePlugins: UsketchPlugin[] = [
 	wireframePlugin,
 	snapPlugin,
 	exportPlugin,
+	createGpuRendererPlugin(),
 	createDomRendererPlugin(),
 ];
 
