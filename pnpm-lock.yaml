@@ -130,6 +130,9 @@ importers:
       '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@edv4h/usketch-dom-renderer':
+        specifier: workspace:*
+        version: link:../../packages/dom-renderer
       '@edv4h/usketch-plugin-activity-feed':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-activity-feed
@@ -325,6 +328,31 @@ importers:
         specifier: workspace:*
         version: link:../shared
     devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
+
+  packages/dom-renderer:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../shared
+      react:
+        specifier: '>=19'
+        version: 19.2.4
+      react-dom:
+        specifier: '>=19'
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: 5.9.3
         version: 5.9.3

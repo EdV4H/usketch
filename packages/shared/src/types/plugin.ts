@@ -187,6 +187,9 @@ export interface BoardStore {
 	getStyleSettings(): ShapeStyle;
 	setStyleSettings(style: Partial<ShapeStyle>): void;
 
+	/** Return shape IDs whose bounds intersect the given world-space viewport. */
+	getVisibleShapeIds(viewportBounds: BoundingBox): string[];
+
 	subscribe(listener: () => void): () => void;
 	onMutation(listener: (event: StoreEvent) => void): () => void;
 }

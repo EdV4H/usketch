@@ -1,5 +1,6 @@
-import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
+import { AppProvider, Canvas, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
 import { createAiActionsPlugin } from "@edv4h/usketch-plugin-ai-actions";
 import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
 import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
@@ -58,6 +59,7 @@ const basePlugins: UsketchPlugin[] = [
 	wireframePlugin,
 	snapPlugin,
 	exportPlugin,
+	createDomRendererPlugin(),
 ];
 
 async function loadPlugins(extra: UsketchPlugin[]): Promise<UsketchPlugin[]> {
@@ -161,11 +163,6 @@ export function App() {
 						}
 						instance = created;
 						const a = instance;
-						a.layers.register({
-							id: "shapes",
-							order: 50,
-							render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={a.shapes} />,
-						});
 						a.layers.register({
 							id: "transient",
 							order: 100,
