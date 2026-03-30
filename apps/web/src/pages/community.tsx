@@ -1,11 +1,6 @@
-import {
-	AppProvider,
-	Canvas,
-	ShapeLayer,
-	TransientLayer,
-	useApp,
-} from "@edv4h/usketch-canvas-engine";
+import { AppProvider, Canvas, TransientLayer, useApp } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
 import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
 import { createBoardInfoPanelPlugin } from "@edv4h/usketch-plugin-board-info-panel";
@@ -157,6 +152,7 @@ export function CommunityPage() {
 			panToolPlugin,
 			viewportNavPlugin,
 			portalPlugin,
+			createDomRendererPlugin(),
 		];
 
 		syncHandle.whenSynced
@@ -171,11 +167,6 @@ export function CommunityPage() {
 					}
 					instance = created;
 					const a = instance;
-					a.layers.register({
-						id: "shapes",
-						order: 50,
-						render: (renderCtx) => <ShapeLayer ctx={renderCtx} shapeRegistry={a.shapes} />,
-					});
 					a.layers.register({
 						id: "transient",
 						order: 100,

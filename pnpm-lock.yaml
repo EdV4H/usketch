@@ -130,6 +130,12 @@ importers:
       '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@edv4h/usketch-dom-renderer':
+        specifier: workspace:*
+        version: link:../../packages/dom-renderer
+      '@edv4h/usketch-gpu-renderer':
+        specifier: workspace:*
+        version: link:../../packages/gpu-renderer
       '@edv4h/usketch-plugin-activity-feed':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-activity-feed
@@ -325,6 +331,59 @@ importers:
         specifier: workspace:*
         version: link:../shared
     devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
+
+  packages/dom-renderer:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../shared
+      react:
+        specifier: '>=19'
+        version: 19.2.4
+      react-dom:
+        specifier: '>=19'
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
+
+  packages/gpu-renderer:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../shared
+      react:
+        specifier: '>=19'
+        version: 19.2.4
+      react-dom:
+        specifier: '>=19'
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      '@webgpu/types':
+        specifier: 0.1.69
+        version: 0.1.69
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -2951,6 +3010,9 @@ packages:
 
   '@vitest/utils@3.2.4':
     resolution: {integrity: sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA==}
+
+  '@webgpu/types@0.1.69':
+    resolution: {integrity: sha512-RPmm6kgRbI8e98zSD3RVACvnuktIja5+yLgDAkTmxLr90BEwdTXRQWNLF3ETTTyH/8mKhznZuN5AveXYFEsMGQ==}
 
   '@zag-js/core@1.37.0':
     resolution: {integrity: sha512-KtMccuGPIR8MF7XKKNBgudyt4W37jnM0PFSFZmYrlOZOqUe3kBDdVqDcRKcEPUj1+XwUGTANmFAahNqsSt8I7Q==}
@@ -6501,6 +6563,8 @@ snapshots:
       '@vitest/pretty-format': 3.2.4
       loupe: 3.2.1
       tinyrainbow: 2.0.0
+
+  '@webgpu/types@0.1.69': {}
 
   '@zag-js/core@1.37.0':
     dependencies:

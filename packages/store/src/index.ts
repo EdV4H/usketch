@@ -29,3 +29,5 @@ export {
 	getTopLevelShapes,
 	wouldCreateCycle,
 } from "./hierarchy-utils.js";
+export type { SpatialIndex } from "./spatial-index.js";
+export { createSpatialIndex } from "./spatial-index.js";

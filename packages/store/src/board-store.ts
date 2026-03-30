@@ -1,5 +1,6 @@
 import type {
 	BoardStore,
+	BoundingBox,
 	Point,
 	ShapeData,
 	ShapeStyle,
@@ -7,6 +8,7 @@ import type {
 	Viewport,
 } from "@edv4h/usketch-shared";
 import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
+import { createSpatialIndex } from "./spatial-index.js";
 
 export interface BoardState {
 	shapes: Map<string, ShapeData>;
@@ -25,8 +27,13 @@ export function createBoardStore(): BoardStore {
 		styleSettings: { ...DEFAULT_STYLE },
 	};
 
+	const spatialIndex = createSpatialIndex();
 	const listeners = new Set<() => void>();
 	const mutationListeners = new Set<(event: StoreEvent) => void>();
+
+	function shapeToBounds(shape: ShapeData): BoundingBox {
+		return { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+	}
 
 	function notify() {
 		for (const listener of listeners) {
@@ -48,6 +55,7 @@ export function createBoardStore(): BoardStore {
 		addShape(shape: ShapeData) {
 			state.shapes = new Map(state.shapes);
 			state.shapes.set(shape.id, shape);
+			spatialIndex.insert(shape.id, shapeToBounds(shape));
 			notify();
 			notifyMutation("shape:added", { id: shape.id });
 		},
@@ -56,7 +64,9 @@ export function createBoardStore(): BoardStore {
 			const existing = state.shapes.get(id);
 			if (!existing) return;
 			state.shapes = new Map(state.shapes);
-			state.shapes.set(id, { ...existing, ...updates });
+			const updated = { ...existing, ...updates };
+			state.shapes.set(id, updated);
+			spatialIndex.update(id, shapeToBounds(updated));
 			notify();
 			notifyMutation("shape:updated", { id });
 		},
@@ -68,6 +78,7 @@ export function createBoardStore(): BoardStore {
 			if (existed) {
 				state.shapes = new Map(state.shapes);
 				state.shapes.delete(id);
+				spatialIndex.remove(id);
 			}
 			if (wasSelected) {
 				state.selection = new Set(state.selection);
@@ -159,6 +170,10 @@ export function createBoardStore(): BoardStore {
 			state.styleSettings = { ...state.styleSettings, ...style };
 			notify();
 			notifyMutation("style:changed");
+		},
+
+		getVisibleShapeIds(viewportBounds: BoundingBox): string[] {
+			return spatialIndex.query(viewportBounds);
 		},
 
 		subscribe(listener: () => void): () => void {

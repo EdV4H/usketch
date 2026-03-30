@@ -1,7 +1,10 @@
 import {
 	type CanvasPointerEvent,
+	cssColorToRgbaOrDefault,
+	type GpuPrimitive,
 	generateId,
 	type PluginContext,
+	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
@@ -49,6 +52,67 @@ const SHAPE_HIT_TESTS: Record<string, HitTestFn> = {
 	line: lineHitTest,
 };
 
+type GpuPrimitiveFn = (data: ShapeData) => GpuPrimitive | null;
+
+function rectGpuPrimitive(data: ShapeData): GpuPrimitive | null {
+	return {
+		kind: "rect",
+		bounds: { x: data.x, y: data.y, width: data.width, height: data.height },
+		cornerRadius: (data.cornerRadius as number) ?? 0,
+		fill: cssColorToRgbaOrDefault(data.style.fill),
+		stroke: cssColorToRgbaOrDefault(data.style.stroke),
+		strokeWidth: data.style.strokeWidth,
+		opacity: data.style.opacity,
+		rotation: data.rotation,
+	};
+}
+
+function roundedRectGpuPrimitive(data: ShapeData): GpuPrimitive | null {
+	const cornerRadius = Math.min(data.width, data.height) / 4;
+	return {
+		kind: "rect",
+		bounds: { x: data.x, y: data.y, width: data.width, height: data.height },
+		cornerRadius,
+		fill: cssColorToRgbaOrDefault(data.style.fill),
+		stroke: cssColorToRgbaOrDefault(data.style.stroke),
+		strokeWidth: data.style.strokeWidth,
+		opacity: data.style.opacity,
+		rotation: data.rotation,
+	};
+}
+
+function ellipseGpuPrimitive(data: ShapeData): GpuPrimitive | null {
+	return {
+		kind: "ellipse",
+		bounds: { x: data.x, y: data.y, width: data.width, height: data.height },
+		fill: cssColorToRgbaOrDefault(data.style.fill),
+		stroke: cssColorToRgbaOrDefault(data.style.stroke),
+		strokeWidth: data.style.strokeWidth,
+		opacity: data.style.opacity,
+		rotation: data.rotation,
+	};
+}
+
+function lineGpuPrimitive(data: ShapeData): GpuPrimitive | null {
+	const verts = new Float32Array([data.x, data.y, data.x + data.width, data.y + data.height]);
+	return {
+		kind: "polyline",
+		bounds: { x: data.x, y: data.y, width: data.width, height: data.height },
+		vertices: verts,
+		fill: [0, 0, 0, 0],
+		stroke: cssColorToRgbaOrDefault(data.style.stroke),
+		strokeWidth: data.style.strokeWidth,
+		opacity: data.style.opacity,
+	};
+}
+
+const SHAPE_GPU_PRIMITIVES: Record<string, GpuPrimitiveFn> = {
+	rectangle: rectGpuPrimitive,
+	"rounded-rect": roundedRectGpuPrimitive,
+	ellipse: ellipseGpuPrimitive,
+	line: lineGpuPrimitive,
+};
+
 function BasicShapeIcon() {
 	return (
 		<svg width="20" height="20" viewBox="0 0 20 20">
@@ -77,12 +141,14 @@ export const basicShapePlugin: UsketchPlugin = {
 			const hitTestFn = SHAPE_HIT_TESTS[subtype.type];
 			if (!renderer || !hitTestFn) continue;
 
+			const gpuFn = SHAPE_GPU_PRIMITIVES[subtype.type];
 			ctx.shapes.register(subtype.type, {
 				render: renderer,
 				getBounds,
 				hitTest: hitTestFn,
 				resize: createResize(1, 1),
 				createDefault: subtype.createDefault,
+				gpuPrimitive: gpuFn,
 			});
 		}
 

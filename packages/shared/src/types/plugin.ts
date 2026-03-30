@@ -14,6 +14,23 @@ export interface LayerRenderContext {
 
 export type RenderTarget = "svg" | "html";
 
+// ── GPU Rendering ──
+
+export type GpuPrimitiveKind = "rect" | "ellipse" | "polyline" | "polygon";
+
+export interface GpuPrimitive {
+	kind: GpuPrimitiveKind;
+	bounds: BoundingBox;
+	cornerRadius?: number;
+	vertices?: Float32Array;
+	indices?: Uint16Array;
+	fill: [number, number, number, number];
+	stroke: [number, number, number, number];
+	strokeWidth: number;
+	opacity: number;
+	rotation?: number;
+}
+
 export interface Layer {
 	id: string;
 	order: number;
@@ -44,6 +61,8 @@ export interface ShapeDefinition {
 	move?: (data: ShapeData, dx: number, dy: number) => Partial<ShapeData>;
 	/** Fit shape data to new bounding box (for multi-resize). Default: apply newBounds as-is. */
 	applyBounds?: (data: ShapeData, newBounds: BoundingBox) => Partial<ShapeData>;
+	/** Return GPU-renderable primitive data, or null to fall back to DOM rendering. */
+	gpuPrimitive?: (data: ShapeData) => GpuPrimitive | null;
 }
 
 export interface ShapeRegistry {
@@ -186,6 +205,9 @@ export interface BoardStore {
 
 	getStyleSettings(): ShapeStyle;
 	setStyleSettings(style: Partial<ShapeStyle>): void;
+
+	/** Return shape IDs whose bounds intersect the given world-space viewport. */
+	getVisibleShapeIds(viewportBounds: BoundingBox): string[];
 
 	subscribe(listener: () => void): () => void;
 	onMutation(listener: (event: StoreEvent) => void): () => void;
