@@ -29,6 +29,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 			const updateBoardSchema = z.object({
 				title: z.string().min(1).max(200).optional(),
 				isPublic: z.boolean().optional(),
+				description: z.string().max(1000).optional(),
 			});
 
 			// POST /api/boards — ボード作成
@@ -81,6 +82,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					.select({
 						id: boards.id,
 						title: boards.title,
+						description: boards.description,
 						ownerId: boards.ownerId,
 						ownerName: users.name,
 						ownerImage: users.image,
@@ -129,6 +131,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					.select({
 						id: boards.id,
 						title: boards.title,
+						description: boards.description,
 						ownerId: boards.ownerId,
 						createdAt: boards.createdAt,
 						updatedAt: boards.updatedAt,
@@ -188,6 +191,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 						updatedAt: new Date().toISOString(),
 						...(body.title !== undefined && { title: body.title }),
 						...(body.isPublic !== undefined && { isPublic: body.isPublic }),
+						...(body.description !== undefined && { description: body.description }),
 					})
 					.where(eq(boards.id, boardId));
 
@@ -221,7 +225,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				return c.json({ ok: true });
 			});
 
-			// GET /api/boards/:id/members — メンバー一覧（メンバーのみアクセス可）
+			// GET /api/boards/:id/members — メンバー一覧（メンバーまたは公開ボードからアクセス可）
 			boardsApp.get("/:id/members", async (c) => {
 				const db = c.get("db") as any;
 				const currentUserId = c.get("userId");
@@ -235,7 +239,16 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					.limit(1);
 
 				if (membership.length === 0) {
-					return c.json({ error: "Board not found" }, 404);
+					// 公開ボードならメンバーでなくても閲覧可能
+					const board = await db
+						.select({ isPublic: boards.isPublic })
+						.from(boards)
+						.where(eq(boards.id, boardId))
+						.limit(1);
+
+					if (board.length === 0 || !board[0].isPublic) {
+						return c.json({ error: "Board not found" }, 404);
+					}
 				}
 
 				const result = await db
@@ -488,6 +501,45 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 			});
 
 			ctx.routes.register({ path: "/api/boards", app: boardsApp });
+
+			// サムネイル（認証不要の public route — img タグから直接アクセスされるため）
+			const thumbnailApp = new Hono<HonoEnv>();
+
+			thumbnailApp.get("/:id/thumbnail", async (c) => {
+				const boardId = c.req.param("id");
+				const w = c.req.query("w") ?? "240";
+				const h = c.req.query("h") ?? "160";
+
+				// DB注入（public route なので dbMiddleware が適用されない場合に備える）
+				const env = c.env as any;
+				let db = c.get("db") as any;
+				if (!db && env.DB) {
+					const { drizzle: makeDrizzle } = await import("drizzle-orm/d1");
+					db = makeDrizzle(env.DB);
+				}
+
+				// 公開ボードのみ（認証なしなのでメンバーチェックは行わない）
+				const result = await db
+					.select({ isPublic: boards.isPublic })
+					.from(boards)
+					.where(eq(boards.id, boardId))
+					.limit(1);
+
+				if (result.length === 0 || !result[0].isPublic) {
+					return c.json({ error: "Board not found" }, 404);
+				}
+
+				const id = env.BOARD_ROOM.idFromName(boardId);
+				const room = env.BOARD_ROOM.get(id);
+				const thumbnailUrl = new URL(`https://internal/thumbnail?w=${w}&h=${h}`);
+				const res = await room.fetch(thumbnailUrl.toString());
+				return new Response(res.body, {
+					status: res.status,
+					headers: res.headers,
+				});
+			});
+
+			ctx.routes.register({ path: "/public/boards", app: thumbnailApp, public: true });
 		},
 	};
 }
