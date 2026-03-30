@@ -39,3 +39,11 @@ export {
 } from "./utils/geometry.js";
 // Utils
 export { generateId } from "./utils/id.js";
+// Minimap
+export type {
+	MinimapInput,
+	MinimapRect,
+	MinimapResult,
+	MinimapViewportRect,
+} from "./utils/minimap.js";
+export { computeMinimap, minimapToSvg } from "./utils/minimap.js";

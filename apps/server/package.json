@@ -14,6 +14,7 @@
 		"db:migrate:local": "wrangler d1 migrations apply usketch-db --local"
 	},
 	"dependencies": {
+		"@edv4h/usketch-shared": "workspace:*",
 		"@edv4h/usketch-server-core": "workspace:*",
 		"@edv4h/usketch-plugin-server-auth": "workspace:*",
 		"@edv4h/usketch-plugin-server-boards": "workspace:*",

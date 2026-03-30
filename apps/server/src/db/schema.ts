@@ -64,6 +64,7 @@ export const boards = sqliteTable("boards", {
 	createdAt: text("created_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
 	updatedAt: text("updated_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
 	isPublic: integer("is_public", { mode: "boolean" }).notNull().default(false),
+	description: text("description").notNull().default(""),
 });
 
 export const boardMembers = sqliteTable(

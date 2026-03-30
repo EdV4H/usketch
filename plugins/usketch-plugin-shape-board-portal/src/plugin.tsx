@@ -19,102 +19,123 @@ function renderContent(data: ShapeData) {
 	const title = (data.boardTitle as string) || "Untitled";
 	const ownerName = (data.ownerName as string) || "";
 	const ownerImage = (data.ownerImage as string) || "";
-	const memberCount = (data.memberCount as number) || 0;
 	const isPublic = data.isPublic !== false;
+	// サムネイル URL はシェイプデータの thumbnailUrl フィールドから取得（設定済みの場合のみ表示）
+	const thumbnailUrl = (data.thumbnailUrl as string) || null;
 
 	return (
 		<div
 			style={{
 				width: "100%",
 				height: "100%",
-				background: "#fff",
-				borderRadius: 12,
-				outline: `2px solid ${isPublic ? "#e0e0e0" : "#f0c040"}`,
-				outlineOffset: -2,
+				borderRadius: 8,
 				overflow: "hidden",
-				fontFamily: "system-ui, sans-serif",
-				display: "flex",
-				flexDirection: "column",
-				cursor: "pointer",
+				position: "relative",
+				pointerEvents: "none",
+				userSelect: "none",
+				background: "#f0f0f0",
 			}}
 		>
-			{/* プレビュー領域 */}
+			{/* サムネイル（全面表示） */}
+			{thumbnailUrl ? (
+				<img
+					src={thumbnailUrl}
+					alt={title}
+					draggable={false}
+					style={{
+						width: "100%",
+						height: "100%",
+						objectFit: "cover",
+						display: "block",
+					}}
+				/>
+			) : (
+				<div
+					style={{
+						width: "100%",
+						height: "100%",
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						fontSize: 32,
+						color: "#ccc",
+						background: isPublic ? "#f8f9fa" : "#fffbe6",
+					}}
+				>
+					⌂
+				</div>
+			)}
+
+			{/* ホバーオーバーレイ（CSS hover は使えないので常時薄く表示） */}
 			<div
 				style={{
-					flex: 1,
-					background: isPublic ? "#f8f9fa" : "#fffbe6",
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					fontSize: 32,
-					color: "#ddd",
-					position: "relative",
-				}}
-			>
-				⌂
-				{!isPublic && (
-					<div
-						style={{
-							position: "absolute",
-							top: 6,
-							right: 6,
-							fontSize: 14,
-							color: "#c0960a",
-						}}
-						title="Private board"
-					>
-						<svg width="16" height="16" viewBox="0 0 16 16">
-							<rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" opacity="0.8" />
-							<path d="M5 7V5a3 3 0 016 0v2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-						</svg>
-					</div>
-				)}
-			</div>
-			{/* 情報バー */}
-			<div
-				style={{
-					padding: "8px 12px",
-					borderTop: "1px solid #eee",
-					background: "#fff",
+					position: "absolute",
+					bottom: 0,
+					left: 0,
+					right: 0,
+					padding: "20px 10px 8px",
+					background: "linear-gradient(transparent, rgba(0,0,0,0.6))",
+					fontFamily: "system-ui, sans-serif",
 				}}
 			>
 				<div
 					style={{
-						fontSize: 13,
+						fontSize: 12,
 						fontWeight: 600,
-						color: "#333",
+						color: "#fff",
 						overflow: "hidden",
 						textOverflow: "ellipsis",
 						whiteSpace: "nowrap",
+						textShadow: "0 1px 2px rgba(0,0,0,0.3)",
 					}}
 				>
 					{title}
 				</div>
+				{ownerName && (
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: 4,
+							marginTop: 3,
+							fontSize: 10,
+							color: "rgba(255,255,255,0.75)",
+						}}
+					>
+						{ownerImage && (
+							<img
+								src={ownerImage}
+								alt=""
+								draggable={false}
+								style={{
+									width: 12,
+									height: 12,
+									borderRadius: "50%",
+								}}
+							/>
+						)}
+						<span>{ownerName}</span>
+					</div>
+				)}
+			</div>
+
+			{/* 非公開バッジ */}
+			{!isPublic && (
 				<div
 					style={{
-						display: "flex",
-						alignItems: "center",
-						gap: 4,
-						marginTop: 4,
-						fontSize: 11,
-						color: "#999",
+						position: "absolute",
+						top: 6,
+						right: 6,
+						color: "rgba(255,255,255,0.8)",
+						filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))",
 					}}
 				>
-					{ownerImage && (
-						<img
-							src={ownerImage}
-							alt=""
-							style={{
-								width: 14,
-								height: 14,
-								borderRadius: "50%",
-							}}
-						/>
-					)}
-					{ownerName && <span>{ownerName}</span>}
-					{memberCount > 0 && <span style={{ marginLeft: "auto" }}>{memberCount} online</span>}
+					<svg width="14" height="14" viewBox="0 0 16 16">
+						<rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" opacity="0.9" />
+						<path d="M5 7V5a3 3 0 016 0v2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+					</svg>
 				</div>
-			</div>
+			)}
 		</div>
 	);
 }
@@ -224,32 +245,8 @@ export interface BoardPortalPluginOptions {
 }
 
 export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): UsketchPlugin {
-	function renderWithDblClick(data: ShapeData) {
-		const boardId = data.boardId as string;
-		return (
-			<foreignObject x={data.x} y={data.y} width={data.width} height={data.height}>
-				{/* biome-ignore lint/a11y/useSemanticElements: foreignObject内でbuttonは使えない */}
-				<div
-					role="button"
-					tabIndex={0}
-					onDoubleClick={() => {
-						if (boardId) options?.onPortalOpen?.(boardId);
-					}}
-					onKeyDown={(e) => {
-						if ((e.key === "Enter" || e.key === " ") && boardId) {
-							e.preventDefault();
-							options?.onPortalOpen?.(boardId);
-						}
-					}}
-					style={{
-						width: "100%",
-						height: "100%",
-					}}
-				>
-					{renderContent(data)}
-				</div>
-			</foreignObject>
-		);
+	function renderPortal(data: ShapeData) {
+		return renderContent(data);
 	}
 
 	return {
@@ -258,7 +255,7 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 
 		setup(ctx: PluginContext) {
 			ctx.shapes.register("board-portal", {
-				render: renderWithDblClick,
+				render: renderPortal,
 				getBounds,
 				hitTest,
 				resize,

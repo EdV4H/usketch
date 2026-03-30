@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { computeMinimap, minimapToSvg, type ShapeData } from "@edv4h/usketch-shared";
 import {
 	MSG_AWARENESS,
 	MSG_BROADCAST,
@@ -78,9 +79,43 @@ export class BoardRoom extends DurableObject<Env> {
 	private boardId = "";
 	/** AI操作用のY.Doc（遅延初期化、動的importで構築） */
 	private doc: unknown | null = null;
+	/** storage から updates を読み込み済みか */
+	private loaded = false;
+
+	/** storage から updates を復元（初回のみ） */
+	private async loadUpdates(): Promise<void> {
+		if (this.loaded) return;
+		this.loaded = true;
+		const stored = await this.ctx.storage.get<string>("yjs_updates");
+		if (stored) {
+			try {
+				const arr = JSON.parse(stored) as number[][];
+				for (const a of arr) {
+					this.updates.push(new Uint8Array(a));
+				}
+			} catch {
+				// 破損データは無視
+			}
+		}
+	}
+
+	/** 永続化スケジュール済みか */
+	private saveScheduled = false;
+
+	/** updates を storage に永続化（デバウンス: 最大5秒ごと） */
+	private scheduleSave(): void {
+		if (this.saveScheduled) return;
+		this.saveScheduled = true;
+		setTimeout(async () => {
+			this.saveScheduled = false;
+			const data = this.updates.slice(-MAX_UPDATES_BUFFER).map((u) => Array.from(u));
+			await this.ctx.storage.put("yjs_updates", JSON.stringify(data));
+		}, 5000);
+	}
 
 	/** 蓄積されたupdatesからY.Docを構築/取得 */
 	private async getOrCreateDoc(): Promise<{ doc: import("yjs").Doc }> {
+		await this.loadUpdates();
 		const Y = await getYjs();
 		if (!this.doc) {
 			this.doc = new Y.Doc();
@@ -93,6 +128,7 @@ export class BoardRoom extends DurableObject<Env> {
 	}
 
 	async fetch(request: Request): Promise<Response> {
+		await this.loadUpdates();
 		const url = new URL(request.url);
 
 		if (url.pathname === "/ws") {
@@ -132,6 +168,11 @@ export class BoardRoom extends DurableObject<Env> {
 		// AI シェイプ更新エンドポイント（Smart Actions）
 		if (url.pathname === "/ai-update-shapes" && request.method === "POST") {
 			return this.handleAiUpdateShapes(request);
+		}
+
+		// サムネイル SVG エンドポイント
+		if (url.pathname === "/thumbnail") {
+			return this.handleThumbnail(url);
 		}
 
 		return new Response("BoardRoom OK", { status: 200 });
@@ -232,6 +273,7 @@ export class BoardRoom extends DurableObject<Env> {
 				this.updates = this.updates.slice(-MAX_UPDATES_BUFFER);
 			}
 
+			this.scheduleSave();
 			return new Response(JSON.stringify({ placedShapes }), {
 				status: 200,
 				headers: { "Content-Type": "application/json" },
@@ -332,6 +374,7 @@ export class BoardRoom extends DurableObject<Env> {
 				this.updates = this.updates.slice(-MAX_UPDATES_BUFFER);
 			}
 
+			this.scheduleSave();
 			return new Response(JSON.stringify({ updatedShapes }), {
 				status: 200,
 				headers: { "Content-Type": "application/json" },
@@ -366,6 +409,8 @@ export class BoardRoom extends DurableObject<Env> {
 					this.updates = this.updates.slice(-MAX_UPDATES_BUFFER);
 				}
 				this.broadcast(ws, data);
+				// updates を永続化（非同期、エラーは無視）
+				this.scheduleSave();
 				break;
 			}
 			case MSG_AWARENESS:
@@ -425,6 +470,73 @@ export class BoardRoom extends DurableObject<Env> {
 			ws.close(code);
 		} catch {
 			// 既に閉じているソケットは無視
+		}
+	}
+
+	/** サムネイル SVG を生成して返す */
+	private async handleThumbnail(url: URL): Promise<Response> {
+		try {
+			const width = Math.min(Math.max(Number(url.searchParams.get("w")) || 240, 16), 1024);
+			const height = Math.min(Math.max(Number(url.searchParams.get("h")) || 160, 16), 1024);
+
+			const { doc } = await this.getOrCreateDoc();
+			const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
+
+			const shapes: ShapeData[] = [];
+			for (const [, value] of shapesMap) {
+				const s = value as Record<string, unknown>;
+				if (
+					typeof s.id === "string" &&
+					typeof s.x === "number" &&
+					typeof s.y === "number" &&
+					typeof s.width === "number" &&
+					typeof s.height === "number"
+				) {
+					shapes.push({
+						id: s.id,
+						type: (s.type as string) ?? "unknown",
+						x: s.x,
+						y: s.y,
+						width: s.width,
+						height: s.height,
+						style: {
+							fill: ((s.style as Record<string, unknown>)?.fill as string) ?? "#ffffff",
+							stroke: ((s.style as Record<string, unknown>)?.stroke as string) ?? "#1e1e1e",
+							strokeWidth: ((s.style as Record<string, unknown>)?.strokeWidth as number) ?? 2,
+							opacity: ((s.style as Record<string, unknown>)?.opacity as number) ?? 1,
+						},
+					});
+				}
+			}
+
+			const result = computeMinimap({
+				shapes,
+				mapWidth: width,
+				mapHeight: height,
+				padding: 20,
+				minSize: 2,
+			});
+
+			const svg = minimapToSvg(result, width, height, {
+				background: "#f8f9fa",
+				strokeColor: "#e2e8f0",
+			});
+
+			return new Response(svg, {
+				status: 200,
+				headers: {
+					"Content-Type": "image/svg+xml",
+					"Cache-Control": "public, max-age=30",
+				},
+			});
+		} catch {
+			return new Response(
+				`<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160"><rect width="240" height="160" fill="#f8f9fa" rx="4"/></svg>`,
+				{
+					status: 200,
+					headers: { "Content-Type": "image/svg+xml" },
+				},
+			);
 		}
 	}
 
