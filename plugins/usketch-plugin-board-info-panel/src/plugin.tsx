@@ -45,7 +45,7 @@ export function createBoardInfoPanelPlugin(options: BoardInfoPanelPluginOptions)
 			// ポータルシェイプにサムネイル URL を設定（未設定の場合のみ）
 			function ensureThumbnailUrl(shapeId: string, boardId: string) {
 				const shape = ctx.store.getShape(shapeId);
-				if (shape && !shape.thumbnailUrl) {
+				if (shape && !shape.thumbnailUrl && shape.isPublic !== false) {
 					ctx.store.updateShape(shapeId, {
 						thumbnailUrl: `${apiUrl}/public/boards/${boardId}/thumbnail?w=240&h=160`,
 					});

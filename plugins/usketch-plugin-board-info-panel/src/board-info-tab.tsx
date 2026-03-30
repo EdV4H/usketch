@@ -169,8 +169,12 @@ function BoardListView({
 		const vp = store.getViewport();
 		const w = 240;
 		const h = 160;
-		const cx = vp.x + window.innerWidth / 2 / vp.zoom - w / 2;
-		const cy = vp.y + window.innerHeight / 2 / vp.zoom - h / 2;
+		// ビューポートの世界座標系での左上位置
+		const worldLeft = -vp.x / vp.zoom;
+		const worldTop = -vp.y / vp.zoom;
+		// ビューポート中央の世界座標にポータルを配置
+		const cx = worldLeft + window.innerWidth / 2 / vp.zoom - w / 2;
+		const cy = worldTop + window.innerHeight / 2 / vp.zoom - h / 2;
 
 		store.addShape({
 			id: crypto.randomUUID(),

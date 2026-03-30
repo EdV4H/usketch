@@ -1,5 +1,14 @@
 import type { ShapeData } from "../types/shape.js";
 
+/** XML 属性値をエスケープして XSS を防止 */
+function escapeXmlAttr(value: string): string {
+	return value
+		.replace(/&/g, "&amp;")
+		.replace(/"/g, "&quot;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;");
+}
+
 /** ミニマップ上の矩形データ */
 export interface MinimapRect {
 	id: string;
@@ -140,7 +149,7 @@ export function minimapToSvg(
 	const shapeSvg = result.rects
 		.map(
 			(r) =>
-				`<rect x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" fill="${r.fill}" opacity="0.7" rx="1"/>`,
+				`<rect x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" fill="${escapeXmlAttr(r.fill)}" opacity="0.7" rx="1"/>`,
 		)
 		.join("\n");
 

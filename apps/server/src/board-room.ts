@@ -387,9 +387,6 @@ export class BoardRoom extends DurableObject<Env> {
 		if (data.length === 0) return;
 
 		const msgType = data[0];
-		console.log(
-			`[BoardRoom] webSocketMessage: type=${msgType}, len=${data.length}, board=${this.boardId}`,
-		);
 		const payload = data.slice(1);
 
 		switch (msgType) {
@@ -472,8 +469,8 @@ export class BoardRoom extends DurableObject<Env> {
 	/** サムネイル SVG を生成して返す */
 	private async handleThumbnail(url: URL): Promise<Response> {
 		try {
-			const width = Number(url.searchParams.get("w")) || 240;
-			const height = Number(url.searchParams.get("h")) || 160;
+			const width = Math.min(Math.max(Number(url.searchParams.get("w")) || 240, 16), 1024);
+			const height = Math.min(Math.max(Number(url.searchParams.get("h")) || 160, 16), 1024);
 
 			const { doc } = await this.getOrCreateDoc();
 			const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
