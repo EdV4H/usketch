@@ -517,6 +517,9 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					const { drizzle: makeDrizzle } = await import("drizzle-orm/d1");
 					db = makeDrizzle(env.DB);
 				}
+				if (!db) {
+					return c.json({ error: "Internal error: database unavailable" }, 500);
+				}
 
 				// 公開ボードのみ（認証なしなのでメンバーチェックは行わない）
 				const result = await db

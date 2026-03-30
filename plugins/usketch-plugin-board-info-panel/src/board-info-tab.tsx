@@ -190,7 +190,7 @@ function BoardListView({
 			ownerImage: "",
 			memberCount: 0,
 			isPublic: board.isPublic,
-			thumbnailUrl: client.getThumbnailUrl(board.id),
+			thumbnailUrl: board.isPublic ? client.getThumbnailUrl(board.id) : undefined,
 			style: DEFAULT_STYLE,
 		});
 	}

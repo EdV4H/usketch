@@ -99,11 +99,18 @@ export class BoardRoom extends DurableObject<Env> {
 		}
 	}
 
-	/** updates を storage に永続化 */
-	private async saveUpdates(): Promise<void> {
-		// 最新の MAX_UPDATES_BUFFER 件のみ保存
-		const data = this.updates.slice(-MAX_UPDATES_BUFFER).map((u) => Array.from(u));
-		await this.ctx.storage.put("yjs_updates", JSON.stringify(data));
+	/** 永続化スケジュール済みか */
+	private saveScheduled = false;
+
+	/** updates を storage に永続化（デバウンス: 最大5秒ごと） */
+	private scheduleSave(): void {
+		if (this.saveScheduled) return;
+		this.saveScheduled = true;
+		setTimeout(async () => {
+			this.saveScheduled = false;
+			const data = this.updates.slice(-MAX_UPDATES_BUFFER).map((u) => Array.from(u));
+			await this.ctx.storage.put("yjs_updates", JSON.stringify(data));
+		}, 5000);
 	}
 
 	/** 蓄積されたupdatesからY.Docを構築/取得 */
@@ -266,7 +273,7 @@ export class BoardRoom extends DurableObject<Env> {
 				this.updates = this.updates.slice(-MAX_UPDATES_BUFFER);
 			}
 
-			await this.saveUpdates();
+			this.scheduleSave();
 			return new Response(JSON.stringify({ placedShapes }), {
 				status: 200,
 				headers: { "Content-Type": "application/json" },
@@ -367,7 +374,7 @@ export class BoardRoom extends DurableObject<Env> {
 				this.updates = this.updates.slice(-MAX_UPDATES_BUFFER);
 			}
 
-			await this.saveUpdates();
+			this.scheduleSave();
 			return new Response(JSON.stringify({ updatedShapes }), {
 				status: 200,
 				headers: { "Content-Type": "application/json" },
@@ -403,7 +410,7 @@ export class BoardRoom extends DurableObject<Env> {
 				}
 				this.broadcast(ws, data);
 				// updates を永続化（非同期、エラーは無視）
-				this.saveUpdates().catch(() => {});
+				this.scheduleSave();
 				break;
 			}
 			case MSG_AWARENESS:
