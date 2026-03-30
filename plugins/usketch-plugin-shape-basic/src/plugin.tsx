@@ -93,10 +93,24 @@ function ellipseGpuPrimitive(data: ShapeData): GpuPrimitive | null {
 	};
 }
 
+function lineGpuPrimitive(data: ShapeData): GpuPrimitive | null {
+	const verts = new Float32Array([data.x, data.y, data.x + data.width, data.y + data.height]);
+	return {
+		kind: "polyline",
+		bounds: { x: data.x, y: data.y, width: data.width, height: data.height },
+		vertices: verts,
+		fill: [0, 0, 0, 0],
+		stroke: cssColorToRgbaOrDefault(data.style.stroke),
+		strokeWidth: data.style.strokeWidth,
+		opacity: data.style.opacity,
+	};
+}
+
 const SHAPE_GPU_PRIMITIVES: Record<string, GpuPrimitiveFn> = {
 	rectangle: rectGpuPrimitive,
 	"rounded-rect": roundedRectGpuPrimitive,
 	ellipse: ellipseGpuPrimitive,
+	line: lineGpuPrimitive,
 };
 
 function BasicShapeIcon() {

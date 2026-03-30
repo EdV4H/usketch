@@ -1,11 +1,10 @@
 import type { GpuPrimitive, ShapeData, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
 import type { GpuContext } from "./gpu-context.js";
-import { createRectPipeline, type RectPipeline } from "./pipelines/rect-pipeline.js";
+import { createPolylinePipeline, type PolylinePipeline } from "./pipelines/polyline-pipeline.js";
+import { createShapeSdfPipeline, type ShapeSdfPipeline } from "./pipelines/shape-sdf-pipeline.js";
 
 export interface GpuRenderer {
-	/** Update viewport for the camera matrix. */
 	setViewport(viewport: Viewport, canvasWidth: number, canvasHeight: number): void;
-	/** Collect GPU primitives from shapes and render. */
 	render(shapes: ReadonlyMap<string, ShapeData>, shapeRegistry: ShapeRegistry): Set<string>;
 	destroy(): void;
 }
@@ -13,33 +12,27 @@ export interface GpuRenderer {
 export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 	const { device } = ctx;
 
-	// Uniform buffer: mat4x4 (64 bytes) + resolution (8 bytes) + padding (8 bytes) = 80 bytes
 	const uniformBuffer = device.createBuffer({
 		size: 80,
 		usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
 	});
 
-	const rectPipeline: RectPipeline = createRectPipeline(ctx);
+	const shapeSdfPipeline: ShapeSdfPipeline = createShapeSdfPipeline(ctx);
+	const polylinePipeline: PolylinePipeline = createPolylinePipeline(ctx);
 
 	let currentViewport: Viewport = { x: 0, y: 0, zoom: 1 };
 	let canvasW = 1;
 	let canvasH = 1;
 
 	function updateUniforms() {
-		// Build an orthographic projection that maps world coordinates to clip space,
-		// incorporating the viewport pan and zoom.
 		const vp = currentViewport;
-		// World-space bounds visible on screen:
-		// left = -vp.x / vp.zoom, right = (canvasW - vp.x) / vp.zoom
-		// top = -vp.y / vp.zoom, bottom = (canvasH - vp.y) / vp.zoom
 		const left = -vp.x / vp.zoom;
 		const right = (canvasW - vp.x) / vp.zoom;
 		const top = -vp.y / vp.zoom;
 		const bottom = (canvasH - vp.y) / vp.zoom;
 
-		// Orthographic projection matrix (column-major for WebGPU)
 		const sx = 2.0 / (right - left);
-		const sy = 2.0 / (top - bottom); // flip Y
+		const sy = 2.0 / (top - bottom);
 		const tx = -(right + left) / (right - left);
 		const ty = -(top + bottom) / (top - bottom);
 
@@ -62,7 +55,6 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 		},
 
 		render(shapes, shapeRegistry) {
-			// Resize canvas to match display size
 			const canvas = ctx.canvas;
 			const dpr = globalThis.devicePixelRatio ?? 1;
 			const displayW = Math.round(canvas.clientWidth * dpr);
@@ -82,7 +74,8 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 			updateUniforms();
 
 			// Collect GPU primitives
-			const rects: GpuPrimitive[] = [];
+			const sdfShapes: GpuPrimitive[] = [];
+			const polylines: GpuPrimitive[] = [];
 			const claimedIds = new Set<string>();
 
 			for (const [id, shape] of shapes) {
@@ -92,10 +85,11 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 				if (!prim) continue;
 
 				claimedIds.add(id);
-				if (prim.kind === "rect") {
-					rects.push(prim);
+				if (prim.kind === "rect" || prim.kind === "ellipse") {
+					sdfShapes.push(prim);
+				} else if (prim.kind === "polyline") {
+					polylines.push(prim);
 				}
-				// ellipse, polyline, polygon will be added in Phase 2
 			}
 
 			// Render
@@ -103,7 +97,8 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 			const view = texture.createView();
 			const encoder = device.createCommandEncoder();
 
-			rectPipeline.render(encoder, view, uniformBuffer, rects);
+			shapeSdfPipeline.render(encoder, view, uniformBuffer, sdfShapes);
+			polylinePipeline.render(encoder, view, uniformBuffer, polylines);
 
 			device.queue.submit([encoder.finish()]);
 
@@ -111,7 +106,8 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 		},
 
 		destroy() {
-			rectPipeline.destroy();
+			shapeSdfPipeline.destroy();
+			polylinePipeline.destroy();
 			uniformBuffer.destroy();
 		},
 	};

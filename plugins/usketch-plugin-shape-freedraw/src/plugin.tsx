@@ -1,7 +1,9 @@
 import {
 	type BoundingBox,
 	type CanvasPointerEvent,
+	cssColorToRgbaOrDefault,
 	DEFAULT_STYLE,
+	type GpuPrimitive,
 	generateId,
 	type PluginContext,
 	type Point,
@@ -237,6 +239,25 @@ export const freedrawPlugin: UsketchPlugin = {
 			drawState = null;
 		}
 
+		function gpuPrimitive(data: ShapeData): GpuPrimitive | null {
+			const pts = (data.points as Point[]) ?? [];
+			if (pts.length < 2) return null;
+			const verts = new Float32Array(pts.length * 2);
+			for (let i = 0; i < pts.length; i++) {
+				verts[i * 2] = pts[i].x;
+				verts[i * 2 + 1] = pts[i].y;
+			}
+			return {
+				kind: "polyline",
+				bounds: getBounds(data),
+				vertices: verts,
+				fill: [0, 0, 0, 0],
+				stroke: cssColorToRgbaOrDefault(data.style.stroke),
+				strokeWidth: data.style.strokeWidth,
+				opacity: data.style.opacity,
+			};
+		}
+
 		ctx.shapes.register("freedraw", {
 			render,
 			getBounds,
@@ -245,6 +266,7 @@ export const freedrawPlugin: UsketchPlugin = {
 			createDefault,
 			move,
 			applyBounds,
+			gpuPrimitive,
 		});
 
 		ctx.tools.register("freedraw-draw", {
