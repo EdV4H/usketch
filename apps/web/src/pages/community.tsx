@@ -1,13 +1,14 @@
-import { AppProvider, Canvas, ShapeLayer, TransientLayer } from "@edv4h/usketch-canvas-engine";
+import {
+	AppProvider,
+	Canvas,
+	ShapeLayer,
+	TransientLayer,
+	useApp,
+} from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
-import { createAiActionsPlugin } from "@edv4h/usketch-plugin-ai-actions";
-import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
-import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
-import { createAiImagePlugin } from "@edv4h/usketch-plugin-ai-image";
-import { createAiRecognizePlugin } from "@edv4h/usketch-plugin-ai-recognize";
-import { createAiVoicePlugin } from "@edv4h/usketch-plugin-ai-voice";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
+import { createBoardInfoPanelPlugin } from "@edv4h/usketch-plugin-board-info-panel";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
@@ -51,6 +52,7 @@ export function CommunityPage() {
 
 		const extraPlugins: UsketchPlugin[] = [];
 		let wsProvider: WsProviderHandle | null = null;
+		const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 
 		// コミュニティ空間にはboard-portalシェイプ + コミュニケーション系プラグインのみ
 		const portalPlugin = createBoardPortalPlugin({
@@ -77,8 +79,6 @@ export function CommunityPage() {
 				}
 			},
 		});
-
-		const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 		// Cloud sync（認証済みの場合）
 		if (authUserId) {
 			let wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${COMMUNITY_BOARD_ID}/ws`;
@@ -120,30 +120,30 @@ export function CommunityPage() {
 				}),
 			);
 
-			// サイドパネル + コメント
+			// サイドパネル + ボード情報パネル + コメント
 			extraPlugins.push(createSidePanelPlugin());
-
-			const aiHeaders: Record<string, string> = {};
+			const infoHeaders: Record<string, string> = {};
 			if (import.meta.env.DEV) {
 				const devUser = getDevUser();
-				if (devUser) aiHeaders["X-User-Id"] = devUser.id;
+				if (devUser) infoHeaders["X-User-Id"] = devUser.id;
 			}
+			extraPlugins.push(
+				createBoardInfoPanelPlugin({
+					apiUrl,
+					extraHeaders: Object.keys(infoHeaders).length > 0 ? infoHeaders : undefined,
+					onOpenBoard: (boardId: string) => {
+						navigate(`/boards/${boardId}`);
+					},
+				}),
+			);
 
 			extraPlugins.push(
 				createCommentsPlugin({
 					boardId: COMMUNITY_BOARD_ID,
 					apiUrl,
-					extraHeaders: aiHeaders,
+					extraHeaders: Object.keys(infoHeaders).length > 0 ? infoHeaders : undefined,
 				}),
 			);
-
-			// AI プラグイン
-			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
-			extraPlugins.push(createAiChatPlugin({ boardId: COMMUNITY_BOARD_ID }));
-			extraPlugins.push(createAiActionsPlugin({ boardId: COMMUNITY_BOARD_ID }));
-			extraPlugins.push(createAiVoicePlugin({ boardId: COMMUNITY_BOARD_ID }));
-			extraPlugins.push(createAiImagePlugin({ boardId: COMMUNITY_BOARD_ID }));
-			extraPlugins.push(createAiRecognizePlugin({ boardId: COMMUNITY_BOARD_ID }));
 		} else {
 			extraPlugins.push(rippleEffectPlugin);
 			extraPlugins.push(reactionsPlugin);
@@ -255,68 +255,119 @@ export function CommunityPage() {
 function CommunityHeader() {
 	const navigate = useNavigate();
 	const { user: sessionUser, logout } = useAuth();
+	const app = useApp();
 
 	return (
-		<div
-			style={{
-				position: "fixed",
-				top: 12,
-				left: 12,
-				zIndex: 100,
-				display: "flex",
-				gap: 8,
-				alignItems: "center",
-			}}
-		>
+		<>
 			<div
 				style={{
-					background: "white",
-					borderRadius: 8,
-					padding: "6px 14px",
-					boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-					fontSize: 14,
-					fontWeight: 600,
-					fontFamily: "system-ui, sans-serif",
+					position: "fixed",
+					top: 12,
+					left: 12,
+					zIndex: 100,
+					display: "flex",
+					gap: 8,
+					alignItems: "center",
 				}}
 			>
-				uSketch
+				<div
+					style={{
+						background: "white",
+						borderRadius: 8,
+						padding: "6px 14px",
+						boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+						fontSize: 14,
+						fontWeight: 600,
+						fontFamily: "system-ui, sans-serif",
+					}}
+				>
+					uSketch
+				</div>
+				{sessionUser ? (
+					<button
+						type="button"
+						onClick={() => {
+							logout();
+							navigate("/login");
+						}}
+						style={{
+							background: "white",
+							border: "none",
+							borderRadius: 8,
+							padding: "6px 12px",
+							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+							fontSize: 12,
+							cursor: "pointer",
+							color: "#666",
+						}}
+					>
+						{sessionUser.name} — Sign Out
+					</button>
+				) : (
+					<a
+						href="/login"
+						style={{
+							background: "white",
+							borderRadius: 8,
+							padding: "6px 12px",
+							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+							fontSize: 12,
+							textDecoration: "none",
+							color: "#0066ff",
+						}}
+					>
+						Sign In
+					</a>
+				)}
 			</div>
-			{sessionUser ? (
-				<button
-					type="button"
-					onClick={() => {
-						logout();
-						navigate("/login");
-					}}
+			{/* 右上: サイドパネル開閉ボタン */}
+			{sessionUser && (
+				<div
 					style={{
-						background: "white",
-						border: "none",
-						borderRadius: 8,
-						padding: "6px 12px",
-						boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-						fontSize: 12,
-						cursor: "pointer",
-						color: "#666",
+						position: "fixed",
+						top: 12,
+						right: 12,
+						zIndex: 100,
+						display: "flex",
+						gap: 6,
 					}}
 				>
-					{sessionUser.name} — Sign Out
-				</button>
-			) : (
-				<a
-					href="/login"
-					style={{
-						background: "white",
-						borderRadius: 8,
-						padding: "6px 12px",
-						boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-						fontSize: 12,
-						textDecoration: "none",
-						color: "#0066ff",
-					}}
-				>
-					Sign In
-				</a>
+					<button
+						type="button"
+						onClick={() => app.events.emit("side-panel:toggle", { tabId: "board-info" })}
+						style={{
+							background: "white",
+							border: "none",
+							borderRadius: 8,
+							padding: "6px 10px",
+							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+							fontSize: 14,
+							cursor: "pointer",
+							color: "#475569",
+						}}
+						title="Board Info"
+					>
+						📋
+					</button>
+					<button
+						type="button"
+						onClick={() => app.events.emit("side-panel:toggle", { tabId: "comments" })}
+						style={{
+							background: "white",
+							border: "none",
+							borderRadius: 8,
+							padding: "6px 10px",
+							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+							fontSize: 14,
+							cursor: "pointer",
+							color: "#475569",
+						}}
+						title="Comments"
+					>
+						💬
+					</button>
+				</div>
 			)}
-		</div>
+		</>
 	);
 }
