@@ -12,130 +12,198 @@ import {
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 
-const PORTAL_WIDTH = 240;
-const PORTAL_HEIGHT = 160;
+const PORTAL_WIDTH = 64;
+const PORTAL_HEIGHT = 80;
+const MIN_PIN_W = 40;
+
+/**
+ * HSL ベースのカラーパレット — 彩度・明度を揃えて統一感を出す
+ */
+const PIN_HUES = [210, 0, 150, 35, 265, 330, 175, 20, 240, 190];
+
+function pinHue(boardId: string): number {
+	let hash = 0;
+	for (let i = 0; i < boardId.length; i++) {
+		hash = (hash * 31 + boardId.charCodeAt(i)) | 0;
+	}
+	return PIN_HUES[Math.abs(hash) % PIN_HUES.length];
+}
+
+/**
+ * Google Maps 風ドロップピンの SVG path を生成。
+ * cx, cy: 円の中心。r: 円の半径。tipY: 先端の Y 座標。
+ */
+function pinPath(cx: number, cy: number, r: number, tipY: number): string {
+	const angle = Math.PI / 5;
+	const sinA = Math.sin(angle);
+	const cosA = Math.cos(angle);
+	const tx = cx + r * sinA;
+	const ty = cy + r * cosA;
+	const lx = cx - r * sinA;
+	const ly = ty;
+	return [`M${cx} ${tipY}`, `L${tx} ${ty}`, `A${r} ${r} 0 1 0 ${lx} ${ly}`, "Z"].join(" ");
+}
 
 function renderContent(data: ShapeData) {
 	const title = (data.boardTitle as string) || "Untitled";
-	const ownerName = (data.ownerName as string) || "";
-	const ownerImage = (data.ownerImage as string) || "";
 	const isPublic = data.isPublic !== false;
-	// サムネイル URL はシェイプデータの thumbnailUrl フィールドから取得（設定済みの場合のみ表示）
-	const thumbnailUrl = (data.thumbnailUrl as string) || null;
+	const hue = pinHue((data.boardId as string) || data.id);
+	const w = data.width;
+	const h = data.height;
+
+	// すべて比率ベースでレイアウト（サイズ変更で崩れない）
+	const labelH = h * 0.25; // 下25%がラベル（2行分）
+	const pinH = h - labelH;
+
+	const r = w * 0.4; // 円の半径 = 幅の40%
+	const cx = w / 2;
+	const cy = h * 0.02 + r; // 円の中心（上端2% + r）
+	const tipY = pinH - h * 0.01; // 先端
+
+	const uid = `pin-${data.id}`;
+	const lightColor = `hsl(${hue}, 70%, 68%)`;
+	const darkColor = `hsl(${hue}, 60%, 38%)`;
+	const iconColor = `hsl(${hue}, 55%, 45%)`;
 
 	return (
 		<div
 			style={{
 				width: "100%",
 				height: "100%",
-				borderRadius: 8,
-				overflow: "hidden",
 				position: "relative",
 				pointerEvents: "none",
 				userSelect: "none",
-				background: "#f0f0f0",
+				overflow: "hidden",
 			}}
 		>
-			{/* サムネイル（全面表示） */}
-			{thumbnailUrl ? (
-				<img
-					src={thumbnailUrl}
-					alt={title}
-					draggable={false}
-					style={{
-						width: "100%",
-						height: "100%",
-						objectFit: "cover",
-						display: "block",
-					}}
-				/>
-			) : (
-				<div
-					style={{
-						width: "100%",
-						height: "100%",
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
-						fontSize: 32,
-						color: "#ccc",
-						background: isPublic ? "#f8f9fa" : "#fffbe6",
-					}}
-				>
-					⌂
-				</div>
-			)}
+			<svg
+				width={w}
+				height={pinH}
+				viewBox={`0 0 ${w} ${pinH}`}
+				style={{ position: "absolute", top: 0, left: 0 }}
+			>
+				<title>{title}</title>
+				<defs>
+					<linearGradient id={`${uid}-grad`} x1="0" y1="0" x2="0.3" y2="1">
+						<stop offset="0%" stopColor={lightColor} />
+						<stop offset="100%" stopColor={darkColor} />
+					</linearGradient>
+					<radialGradient id={`${uid}-hl`} cx="0.4" cy="0.35" r="0.6">
+						<stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
+						<stop offset="100%" stopColor="rgba(255,255,255,0)" />
+					</radialGradient>
+				</defs>
 
-			{/* ホバーオーバーレイ（CSS hover は使えないので常時薄く表示） */}
+				{/* 地面の影 */}
+				<ellipse cx={cx} cy={tipY + 1} rx={r * 0.3} ry={2} fill="rgba(0,0,0,0.1)" />
+
+				{/* ピン本体 */}
+				<path d={pinPath(cx, cy, r, tipY)} fill={`url(#${uid}-grad)`} />
+
+				{/* ハイライト */}
+				<circle cx={cx} cy={cy} r={r} fill={`url(#${uid}-hl)`} />
+
+				{/* 白い内円 */}
+				<circle cx={cx} cy={cy} r={r * 0.58} fill="#fff" />
+
+				{/* アイコン: ホワイトボード (Public) / ロック (Private) */}
+				{isPublic ? (
+					<g transform={`translate(${cx - r * 0.32}, ${cy - r * 0.32}) scale(${(r * 0.64) / 24})`}>
+						{/* ボード外枠 */}
+						<rect
+							x="1"
+							y="3"
+							width="22"
+							height="16"
+							rx="2.5"
+							fill="none"
+							stroke={iconColor}
+							strokeWidth="2"
+						/>
+						{/* 付箋1 */}
+						<rect x="4" y="6" width="6" height="5" rx="0.8" fill={`hsl(${hue}, 60%, 75%)`} />
+						{/* 付箋2 */}
+						<rect
+							x="12"
+							y="6"
+							width="8"
+							height="4"
+							rx="0.8"
+							fill={`hsl(${(hue + 40) % 360}, 55%, 72%)`}
+						/>
+						{/* テキスト行 */}
+						<line
+							x1="12"
+							y1="13"
+							x2="20"
+							y2="13"
+							stroke={iconColor}
+							strokeWidth="1.5"
+							strokeLinecap="round"
+						/>
+						<line
+							x1="4"
+							y1="15"
+							x2="10"
+							y2="15"
+							stroke={iconColor}
+							strokeWidth="1.2"
+							strokeLinecap="round"
+							opacity="0.5"
+						/>
+					</g>
+				) : (
+					<g transform={`translate(${cx - r * 0.25}, ${cy - r * 0.32}) scale(${(r * 0.5) / 16})`}>
+						<rect x="2" y="7" width="12" height="9" rx="2" fill={iconColor} />
+						<path
+							d="M5 7V5a3 3 0 016 0v2"
+							fill="none"
+							stroke={iconColor}
+							strokeWidth="2"
+							strokeLinecap="round"
+						/>
+					</g>
+				)}
+
+				{/* キャッチライト */}
+				<circle cx={cx - r * 0.28} cy={cy - r * 0.28} r={r * 0.08} fill="rgba(255,255,255,0.5)" />
+			</svg>
+
+			{/* タイトルラベル — bounds 内下部に配置 */}
 			<div
 				style={{
 					position: "absolute",
 					bottom: 0,
 					left: 0,
-					right: 0,
-					padding: "20px 10px 8px",
-					background: "linear-gradient(transparent, rgba(0,0,0,0.6))",
-					fontFamily: "system-ui, sans-serif",
+					width: w,
+					height: labelH,
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
 				}}
 			>
-				<div
+				<span
 					style={{
-						fontSize: 12,
+						fontSize: Math.max(9, Math.min(13, h * 0.11)),
 						fontWeight: 600,
-						color: "#fff",
+						color: "#334155",
+						fontFamily: "system-ui, sans-serif",
+						background: "rgba(255,255,255,0.88)",
+						padding: "2px 6px",
+						borderRadius: 8,
+						maxWidth: "100%",
 						overflow: "hidden",
-						textOverflow: "ellipsis",
-						whiteSpace: "nowrap",
-						textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+						display: "-webkit-box",
+						WebkitLineClamp: 2,
+						WebkitBoxOrient: "vertical",
+						textAlign: "center",
+						lineHeight: 1.25,
+						wordBreak: "break-word",
 					}}
 				>
 					{title}
-				</div>
-				{ownerName && (
-					<div
-						style={{
-							display: "flex",
-							alignItems: "center",
-							gap: 4,
-							marginTop: 3,
-							fontSize: 10,
-							color: "rgba(255,255,255,0.75)",
-						}}
-					>
-						{ownerImage && (
-							<img
-								src={ownerImage}
-								alt=""
-								draggable={false}
-								style={{
-									width: 12,
-									height: 12,
-									borderRadius: "50%",
-								}}
-							/>
-						)}
-						<span>{ownerName}</span>
-					</div>
-				)}
+				</span>
 			</div>
-
-			{/* 非公開バッジ */}
-			{!isPublic && (
-				<div
-					style={{
-						position: "absolute",
-						top: 6,
-						right: 6,
-						color: "rgba(255,255,255,0.8)",
-						filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))",
-					}}
-				>
-					<svg width="14" height="14" viewBox="0 0 16 16">
-						<rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" opacity="0.9" />
-						<path d="M5 7V5a3 3 0 016 0v2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-					</svg>
-				</div>
-			)}
 		</div>
 	);
 }
@@ -153,51 +221,90 @@ function hitTest(data: ShapeData, point: Point): boolean {
 	);
 }
 
+const ASPECT = PORTAL_HEIGHT / PORTAL_WIDTH; // 1.25
+
 function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData {
 	let { x, y, width, height } = data;
 	switch (handle) {
 		case "se":
 			width += delta.x;
-			height += delta.y;
+			height = width * ASPECT;
 			break;
-		case "nw":
-			x += delta.x;
-			y += delta.y;
-			width -= delta.x;
-			height -= delta.y;
+		case "nw": {
+			const newW = width - delta.x;
+			x = data.x + data.width - newW;
+			y = data.y + data.height - newW * ASPECT;
+			width = newW;
+			height = newW * ASPECT;
 			break;
-		case "ne":
-			y += delta.y;
+		}
+		case "ne": {
 			width += delta.x;
-			height -= delta.y;
+			y = data.y + data.height - width * ASPECT;
+			height = width * ASPECT;
 			break;
-		case "sw":
-			x += delta.x;
-			width -= delta.x;
-			height += delta.y;
+		}
+		case "sw": {
+			const newW = width - delta.x;
+			x = data.x + data.width - newW;
+			width = newW;
+			height = newW * ASPECT;
 			break;
+		}
 		case "e":
 			width += delta.x;
+			height = width * ASPECT;
 			break;
-		case "w":
-			x += delta.x;
-			width -= delta.x;
+		case "w": {
+			const newW = width - delta.x;
+			x = data.x + data.width - newW;
+			width = newW;
+			height = newW * ASPECT;
 			break;
-		case "n":
-			y += delta.y;
+		}
+		case "n": {
 			height -= delta.y;
+			const newW = height / ASPECT;
+			x = data.x + (data.width - newW) / 2;
+			y += delta.y;
+			width = newW;
 			break;
+		}
 		case "s":
 			height += delta.y;
+			width = height / ASPECT;
+			x = data.x + (data.width - width) / 2;
 			break;
 	}
-	return {
-		...data,
-		x,
-		y,
-		width: Math.max(160, width),
-		height: Math.max(120, height),
-	};
+	const minW = MIN_PIN_W;
+	const minH = minW * ASPECT;
+	if (width < minW) {
+		// clamp してから x/y を再計算（アンカー辺がジャンプしないように）
+		const clampedW = minW;
+		const clampedH = minH;
+		switch (handle) {
+			case "nw":
+				x = data.x + data.width - clampedW;
+				y = data.y + data.height - clampedH;
+				break;
+			case "ne":
+				y = data.y + data.height - clampedH;
+				break;
+			case "sw":
+				x = data.x + data.width - clampedW;
+				break;
+			case "w":
+				x = data.x + data.width - clampedW;
+				break;
+			case "n":
+			case "s":
+				x = data.x + (data.width - clampedW) / 2;
+				break;
+		}
+		width = clampedW;
+		height = clampedH;
+	}
+	return { ...data, x, y, width, height };
 }
 
 function createDefault(params: { id: string; x: number; y: number }): ShapeData {
@@ -261,7 +368,7 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 				resize,
 				createDefault,
 				renderTarget: "html",
-				minSize: { width: 160, height: 120 },
+				minSize: { width: MIN_PIN_W, height: MIN_PIN_W * ASPECT },
 			});
 
 			// ポータル作成ツール

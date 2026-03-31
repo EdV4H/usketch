@@ -4,16 +4,23 @@ import { AvatarCircle } from "./avatar-circle.js";
 import type { RadialMenuItem } from "./radial-menu.js";
 import { RadialMenuRenderer } from "./radial-menu-renderer.js";
 
-const AVATAR_SIZE = 40;
+const AVATAR_BASE_SIZE = 40;
+/** アバターの最小ピクセルサイズ */
+const AVATAR_MIN_SIZE = 20;
+
+function avatarSize(zoom: number): number {
+	return Math.max(AVATAR_MIN_SIZE, AVATAR_BASE_SIZE * zoom);
+}
 
 function WorldAvatar({ obj }: { obj: TransientObject }) {
 	const name = (obj.data.name as string) || "";
 	const image = (obj.data.image as string | null) ?? null;
 	const userId = obj.sourceUserId;
+	const size = AVATAR_BASE_SIZE;
 
 	return (
-		<div style={{ position: "absolute", left: -AVATAR_SIZE / 2, top: -AVATAR_SIZE / 2 }}>
-			<AvatarCircle image={image} name={name} userId={userId} size={AVATAR_SIZE} />
+		<div style={{ position: "absolute", left: -size / 2, top: -size / 2 }}>
+			<AvatarCircle image={image} name={name} userId={userId} size={size} />
 			{name && (
 				<div
 					style={{
@@ -84,8 +91,14 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 			const unsubStore = ctx.store.subscribe(() => {
 				const vp = ctx.store.getViewport();
 				if (vp.x === lastVp.x && vp.y === lastVp.y && vp.zoom === lastVp.zoom) return;
+				const zoomChanged = vp.zoom !== lastVp.zoom;
 				lastVp = vp;
 				syncLocalViewportCenter();
+				// ズームが変わったらアバターサイズを更新
+				if (zoomChanged) {
+					currentZoom = vp.zoom;
+					registerSelfLayer();
+				}
 			});
 
 			// 初期同期
@@ -156,7 +169,10 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				),
 			});
 
+			let currentZoom = ctx.store.getViewport().zoom;
+
 			function registerSelfLayer() {
+				const size = avatarSize(currentZoom);
 				ctx.layers.unregister("avatar-self");
 				ctx.layers.register({
 					id: "avatar-self",
@@ -185,7 +201,7 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 								image={selfImage}
 								name={selfName}
 								userId={selfUserId}
-								size={AVATAR_SIZE}
+								size={size}
 								opacity={0.6}
 							/>
 						</div>

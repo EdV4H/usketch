@@ -70,8 +70,23 @@ export function BoardInfoTab({ boardId, client, store, onOpenBoard }: BoardInfoT
 	const onlineMembers = members.filter((m) => m.status === "online");
 	const offlineMembers = members.filter((m) => m.status !== "online");
 
+	const detailThumbUrl = board.isPublic ? client.getThumbnailUrl(board.id) : null;
+
 	return (
 		<div style={styles.container}>
+			{/* Thumbnail */}
+			{detailThumbUrl && (
+				<div
+					style={{ ...styles.section, padding: 0, overflow: "hidden" as const, borderRadius: 8 }}
+				>
+					<img
+						src={detailThumbUrl}
+						alt={board.title}
+						style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }}
+					/>
+				</div>
+			)}
+
 			{/* Board Info Section */}
 			<div style={styles.section}>
 				<div style={styles.titleRow}>
@@ -167,8 +182,8 @@ function BoardListView({
 	/** ビューポート中央にboard-portalシェイプを追加 */
 	function addPortalToCanvas(board: BoardListItem) {
 		const vp = store.getViewport();
-		const w = 240;
-		const h = 160;
+		const w = 64;
+		const h = 80;
 		// ビューポートの世界座標系での左上位置
 		const worldLeft = -vp.x / vp.zoom;
 		const worldTop = -vp.y / vp.zoom;
@@ -230,11 +245,12 @@ function BoardListView({
 			{boards.length === 0 ? (
 				<p style={styles.emptyText}>No boards yet</p>
 			) : (
-				<div style={{ display: "flex", flexDirection: "column" as const, gap: 4 }}>
+				<div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
 					{boards.map((b) => {
 						const alreadyOnCanvas = existingIds.has(b.id);
+						const thumbUrl = b.isPublic ? client.getThumbnailUrl(b.id) : null;
 						return (
-							<div key={b.id} style={styles.boardRow}>
+							<div key={b.id} style={styles.boardCard}>
 								<button
 									type="button"
 									onClick={() => {
@@ -244,26 +260,39 @@ function BoardListView({
 											addPortalToCanvas(b);
 										}
 									}}
-									style={styles.boardRowClickable}
+									style={styles.boardCardClickable}
 								>
-									<div style={{ flex: 1, overflow: "hidden" }}>
+									{/* サムネイル */}
+									<div style={styles.thumbContainer}>
+										{thumbUrl ? (
+											<img src={thumbUrl} alt={b.title} style={styles.thumbImg} />
+										) : (
+											<div style={styles.thumbFallback}>
+												<span style={{ fontSize: 20 }}>🔒</span>
+											</div>
+										)}
+									</div>
+									{/* 情報 */}
+									<div style={styles.boardCardInfo}>
 										<div style={styles.boardRowTitle}>{b.title}</div>
 										<div style={styles.boardRowMeta}>
 											{new Date(b.updatedAt).toLocaleDateString()}
 											{b.role && <span> · {b.role}</span>}
 										</div>
+										<div style={{ marginTop: 4 }}>
+											{alreadyOnCanvas ? (
+												<span style={styles.badgeOnCanvas}>On canvas</span>
+											) : (
+												<span style={styles.badgeAdd}>+ Add</span>
+											)}
+										</div>
 									</div>
-									{alreadyOnCanvas ? (
-										<span style={styles.badgeOnCanvas}>On canvas</span>
-									) : (
-										<span style={styles.badgeAdd}>+ Add</span>
-									)}
 								</button>
 								{b.role === "owner" && (
 									<button
 										type="button"
 										onClick={() => handleDelete(b.id)}
-										style={styles.deleteButton}
+										style={styles.cardDeleteButton}
 										title="Delete board"
 									>
 										✕
@@ -455,37 +484,61 @@ const styles = {
 		fontSize: 11,
 		color: "#94a3b8",
 	},
-	boardRow: {
-		display: "flex",
-		alignItems: "center",
-		gap: 4,
-		padding: "0 0 0 0",
+	boardCard: {
+		position: "relative" as const,
 		border: "1px solid #f1f5f9",
-		borderRadius: 8,
+		borderRadius: 10,
 		background: "#fff",
 		overflow: "hidden" as const,
 	},
-	boardRowClickable: {
+	boardCardClickable: {
 		display: "flex",
-		alignItems: "center",
-		gap: 8,
-		flex: 1,
-		padding: "8px 12px",
+		flexDirection: "column" as const,
+		width: "100%",
 		border: "none",
 		background: "none",
 		cursor: "pointer",
 		textAlign: "left" as const,
 		fontFamily: "system-ui, sans-serif",
+		padding: 0,
+	},
+	thumbContainer: {
+		width: "100%",
+		height: 100,
+		background: "#f8f9fa",
+		borderBottom: "1px solid #f1f5f9",
 		overflow: "hidden" as const,
 	},
-	deleteButton: {
+	thumbImg: {
+		width: "100%",
+		height: "100%",
+		objectFit: "cover" as const,
+		display: "block",
+	},
+	thumbFallback: {
+		width: "100%",
+		height: "100%",
+		display: "flex",
+		alignItems: "center",
+		justifyContent: "center",
+		background: "#fffbe6",
+	},
+	boardCardInfo: {
+		padding: "8px 12px 10px",
+		overflow: "hidden" as const,
+	},
+	cardDeleteButton: {
+		position: "absolute" as const,
+		top: 4,
+		right: 4,
 		border: "none",
-		background: "none",
+		background: "rgba(255,255,255,0.85)",
+		borderRadius: 4,
 		cursor: "pointer",
-		color: "#cbd5e1",
+		color: "#94a3b8",
 		fontSize: 12,
-		padding: "8px 10px",
-		flexShrink: 0,
+		padding: "2px 6px",
+		lineHeight: 1,
 	},
 	boardRowTitle: {
 		fontSize: 13,

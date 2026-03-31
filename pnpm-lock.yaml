@@ -75,6 +75,9 @@ importers:
       '@edv4h/usketch-plugin-server-boards':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-server-boards
+      '@edv4h/usketch-plugin-server-chat':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-server-chat
       '@edv4h/usketch-plugin-server-comments':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-server-comments
@@ -169,6 +172,9 @@ importers:
       '@edv4h/usketch-plugin-comments':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-comments
+      '@edv4h/usketch-plugin-community-chat':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-community-chat
       '@edv4h/usketch-plugin-effect-ripple':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-effect-ripple
@@ -733,6 +739,31 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
 
+  plugins/usketch-plugin-community-chat:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      react:
+        specifier: '>=19'
+        version: 19.2.4
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
+
   plugins/usketch-plugin-debug-hud:
     dependencies:
       '@edv4h/usketch-shared':
@@ -963,6 +994,34 @@ importers:
         version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
 
   plugins/usketch-plugin-server-boards:
+    dependencies:
+      '@edv4h/usketch-server-core':
+        specifier: workspace:*
+        version: link:../../packages/server-core
+      '@hono/zod-validator':
+        specifier: 0.7.6
+        version: 0.7.6(hono@4.12.9)(zod@4.3.6)
+      drizzle-orm:
+        specifier: 0.45.1
+        version: 0.45.1(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13)
+      hono:
+        specifier: 4.12.9
+        version: 4.12.9
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: 4.20260317.1
+        version: 4.20260317.1
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
+
+  plugins/usketch-plugin-server-chat:
     dependencies:
       '@edv4h/usketch-server-core':
         specifier: workspace:*
