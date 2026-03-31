@@ -12,6 +12,7 @@ export function createKeyboardShortcutsPlugin(
 	options?: KeyboardShortcutsPluginOptions,
 ): UsketchPlugin {
 	let cleanups: (() => void)[] = [];
+	let palette: CommandPaletteController | null = null;
 
 	return {
 		id: "usketch-plugin-keyboard-shortcuts",
@@ -39,7 +40,6 @@ export function createKeyboardShortcutsPlugin(
 			);
 
 			// ── Command palette (if wsProvider available) ──
-			let palette: CommandPaletteController | null = null;
 			if (options?.wsProvider) {
 				palette = createCommandPalette(ctx.layers, store, options.wsProvider);
 			}
@@ -101,6 +101,11 @@ export function createKeyboardShortcutsPlugin(
 				}),
 			);
 			cleanups.push(
+				shortcuts.register("+", () => {
+					zoomIn(store);
+				}),
+			);
+			cleanups.push(
 				shortcuts.register("-", () => {
 					zoomOut(store);
 				}),
@@ -157,6 +162,7 @@ export function createKeyboardShortcutsPlugin(
 		teardown() {
 			for (const fn of cleanups) fn();
 			cleanups = [];
+			palette?.dispose();
 		},
 	};
 }

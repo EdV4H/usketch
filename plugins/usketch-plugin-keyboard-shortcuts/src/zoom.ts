@@ -41,7 +41,9 @@ export function zoomFit(store: BoardStore): void {
 	const contentH = maxY - minY;
 	if (contentW <= 0 || contentH <= 0) return;
 
-	const zoom = Math.min(window.innerWidth / contentW, window.innerHeight / contentH) * FIT_PADDING;
+	const rawZoom =
+		Math.min(window.innerWidth / contentW, window.innerHeight / contentH) * FIT_PADDING;
+	const zoom = Math.min(10, Math.max(0.1, rawZoom));
 
 	const cx = (minX + maxX) / 2;
 	const cy = (minY + maxY) / 2;

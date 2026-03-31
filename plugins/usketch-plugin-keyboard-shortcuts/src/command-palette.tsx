@@ -183,7 +183,7 @@ function CommandPaletteUI({
 								/>
 								<span>{user.name}</span>
 								{!user.viewportCenter && (
-									<span style={{ fontSize: 11, color: "#9ca3af" }}>(offline)</span>
+									<span style={{ fontSize: 11, color: "#9ca3af" }}>(location unavailable)</span>
 								)}
 							</li>
 						))}
@@ -230,42 +230,7 @@ export interface CommandPaletteController {
 	isOpen: () => boolean;
 	open: () => void;
 	close: () => void;
-}
-
-/** Subscribe/notify pattern for useSyncExternalStore */
-let paletteOpen = false;
-const listeners = new Set<() => void>();
-
-function subscribe(cb: () => void): () => void {
-	listeners.add(cb);
-	return () => listeners.delete(cb);
-}
-
-function getSnapshot(): boolean {
-	return paletteOpen;
-}
-
-function setPaletteOpen(value: boolean) {
-	paletteOpen = value;
-	for (const cb of listeners) cb();
-}
-
-/**
- * Wrapper component that subscribes to the external open state
- * and renders the palette when open.
- */
-function CommandPaletteGate({
-	wsProvider,
-	store,
-	onClose,
-}: {
-	wsProvider: WsProviderHandle;
-	store: BoardStore;
-	onClose: () => void;
-}) {
-	const open = useSyncExternalStore(subscribe, getSnapshot);
-	if (!open) return null;
-	return <CommandPaletteUI wsProvider={wsProvider} store={store} onClose={onClose} />;
+	dispose: () => void;
 }
 
 export function createCommandPalette(
@@ -273,6 +238,29 @@ export function createCommandPalette(
 	store: BoardStore,
 	wsProvider: WsProviderHandle,
 ): CommandPaletteController {
+	let paletteOpen = false;
+	const listeners = new Set<() => void>();
+
+	function subscribe(cb: () => void): () => void {
+		listeners.add(cb);
+		return () => listeners.delete(cb);
+	}
+
+	function getSnapshot(): boolean {
+		return paletteOpen;
+	}
+
+	function setPaletteOpen(value: boolean) {
+		paletteOpen = value;
+		for (const cb of listeners) cb();
+	}
+
+	function CommandPaletteGate() {
+		const open = useSyncExternalStore(subscribe, getSnapshot);
+		if (!open) return null;
+		return <CommandPaletteUI wsProvider={wsProvider} store={store} onClose={close} />;
+	}
+
 	function close() {
 		setPaletteOpen(false);
 	}
@@ -281,12 +269,17 @@ export function createCommandPalette(
 		id: "command-palette",
 		order: 999,
 		fixed: true,
-		render: () => <CommandPaletteGate wsProvider={wsProvider} store={store} onClose={close} />,
+		render: () => <CommandPaletteGate />,
 	});
 
 	return {
 		isOpen: () => paletteOpen,
 		open: () => setPaletteOpen(true),
 		close,
+		dispose: () => {
+			setPaletteOpen(false);
+			listeners.clear();
+			layers.unregister("command-palette");
+		},
 	};
 }
