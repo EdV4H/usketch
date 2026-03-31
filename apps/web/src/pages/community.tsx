@@ -8,6 +8,7 @@ import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createCommunityChatPlugin } from "@edv4h/usketch-plugin-community-chat";
 import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
+import { createKeyboardShortcutsPlugin } from "@edv4h/usketch-plugin-keyboard-shortcuts";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createReactionsPlugin, reactionsPlugin } from "@edv4h/usketch-plugin-reactions";
 import { createBoardPortalPlugin } from "@edv4h/usketch-plugin-shape-board-portal";
@@ -150,12 +151,14 @@ export function CommunityPage() {
 					userName: authUserName ?? "Anonymous",
 				}),
 			);
+			extraPlugins.push(createKeyboardShortcutsPlugin({ wsProvider }));
 		} else {
 			extraPlugins.push(rippleEffectPlugin);
 			extraPlugins.push(reactionsPlugin);
 			extraPlugins.push(spatialChatPlugin);
 			extraPlugins.push(votingPlugin);
 			extraPlugins.push(spotlightPlugin);
+			extraPlugins.push(createKeyboardShortcutsPlugin());
 		}
 
 		const basePlugins: UsketchPlugin[] = [
@@ -208,9 +211,19 @@ export function CommunityPage() {
 		if (!app) return;
 
 		const handleKeyDown = (e: KeyboardEvent) => {
-			// テキスト入力中はショートカットを無視
 			const tag = (e.target as HTMLElement)?.tagName;
-			if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) {
+			const isInput =
+				tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable;
+
+			// Escape はテキスト入力中でも通す（入力欄からblurしてツールをselectに戻す）
+			if (e.key === "Escape" && isInput) {
+				(e.target as HTMLElement)?.blur();
+				app.shortcuts.handleKeyDown(e);
+				return;
+			}
+
+			// テキスト入力中はそれ以外のショートカットを無視
+			if (isInput) {
 				return;
 			}
 			const tools = app.tools.getAll();

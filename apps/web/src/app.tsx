@@ -237,9 +237,19 @@ export function App() {
 		if (!app) return;
 
 		const handleKeyDown = (e: KeyboardEvent) => {
-			// テキスト入力中はショートカットを無視
 			const tag = (e.target as HTMLElement)?.tagName;
-			if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) {
+			const isInput =
+				tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable;
+
+			// Escape はテキスト入力中でも通す（入力欄からblurしてツールをselectに戻す）
+			if (e.key === "Escape" && isInput) {
+				(e.target as HTMLElement)?.blur();
+				app.shortcuts.handleKeyDown(e);
+				return;
+			}
+
+			// テキスト入力中はそれ以外のショートカットを無視
+			if (isInput) {
 				return;
 			}
 			const tools = app.tools.getAll();
