@@ -159,3 +159,22 @@ export const commentMessages = sqliteTable(
 	},
 	(table) => [index("idx_comment_messages_comment").on(table.commentId)],
 );
+
+// ── チャットメッセージ ──
+
+export const chatMessages = sqliteTable(
+	"chat_messages",
+	{
+		id: text("id").primaryKey(),
+		boardId: text("board_id").notNull(),
+		threadId: text("thread_id").notNull().default("default"),
+		authorId: text("author_id").notNull(),
+		authorName: text("author_name").notNull(),
+		text: text("text").notNull(),
+		createdAt: text("created_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+	},
+	(table) => [
+		index("idx_chat_messages_board").on(table.boardId),
+		index("idx_chat_messages_thread").on(table.boardId, table.threadId, table.createdAt),
+	],
+);

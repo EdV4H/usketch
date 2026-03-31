@@ -1,6 +1,7 @@
 import { createAiPlugin } from "@edv4h/usketch-plugin-server-ai";
 import { createAuthPlugin } from "@edv4h/usketch-plugin-server-auth";
 import { createBoardsPlugin } from "@edv4h/usketch-plugin-server-boards";
+import { createChatPlugin } from "@edv4h/usketch-plugin-server-chat";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-server-comments";
 import { createServerApp } from "@edv4h/usketch-server-core";
 import { drizzle } from "drizzle-orm/d1";
@@ -29,6 +30,11 @@ const app = await createServerApp({
 			boardMembers: schema.boardMembers,
 			comments: schema.comments,
 			commentMessages: schema.commentMessages,
+		}),
+		createChatPlugin({
+			boards: schema.boards,
+			boardMembers: schema.boardMembers,
+			chatMessages: schema.chatMessages,
 		}),
 		createAiPlugin({
 			boards: schema.boards,

@@ -18,6 +18,7 @@
 		"@edv4h/usketch-server-core": "workspace:*",
 		"@edv4h/usketch-plugin-server-auth": "workspace:*",
 		"@edv4h/usketch-plugin-server-boards": "workspace:*",
+		"@edv4h/usketch-plugin-server-chat": "workspace:*",
 		"@edv4h/usketch-plugin-server-comments": "workspace:*",
 		"@edv4h/usketch-plugin-server-ai": "workspace:*",
 		"@edv4h/usketch-sync": "workspace:*",
