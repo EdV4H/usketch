@@ -181,7 +181,7 @@ function IndicatorItem({
 				gap: 4,
 				animation: "usketch-whistle-indicator-in 200ms ease-out forwards",
 				boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-				zIndex: 1,
+				zIndex: 200,
 			}}
 		>
 			<span style={{ fontSize: 16 }}>📢</span>
@@ -254,6 +254,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 	const cleanups: (() => void)[] = [];
 	let indicators: WhistleIndicatorData[] = [];
 	const indicatorListeners = new Set<() => void>();
+	const indicatorTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 	function indicatorSubscribe(cb: () => void): () => void {
 		indicatorListeners.add(cb);
@@ -272,12 +273,17 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			removeIndicator(data.id);
 		}, INDICATOR_TTL);
 
-		cleanups.push(() => clearTimeout(timer));
+		indicatorTimers.set(data.id, timer);
 	}
 
 	function removeIndicator(id: string) {
 		const prev = indicators;
 		indicators = indicators.filter((i) => i.id !== id);
+		const timer = indicatorTimers.get(id);
+		if (timer !== undefined) {
+			clearTimeout(timer);
+			indicatorTimers.delete(id);
+		}
 		if (prev !== indicators) {
 			for (const cb of indicatorListeners) cb();
 		}
@@ -301,9 +307,10 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				if (!wsProvider) return "";
 				const states = wsProvider.awareness.getStates();
 				const localId = wsProvider.awareness.doc.clientID;
-				const localState = states.get(localId);
-				const avatar = localState?.avatar as { name?: string } | undefined;
-				return avatar?.name ?? "";
+				const localState = states.get(localId) as
+					| { avatar?: { name?: string }; user?: { name?: string } }
+					| undefined;
+				return localState?.avatar?.name ?? localState?.user?.name ?? "";
 			}
 
 			function handleWhistle() {
@@ -335,7 +342,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				});
 			}
 
-			cleanups.push(ctx.shortcuts.register("w", handleWhistle));
+			cleanups.push(ctx.shortcuts.register("Shift+W", handleWhistle));
 
 			// ── Broadcast receiver ──
 			if (wsProvider) {
@@ -412,6 +419,8 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 		teardown() {
 			for (const fn of cleanups) fn();
 			cleanups.length = 0;
+			for (const timer of indicatorTimers.values()) clearTimeout(timer);
+			indicatorTimers.clear();
 			indicators = [];
 			indicatorListeners.clear();
 		},
