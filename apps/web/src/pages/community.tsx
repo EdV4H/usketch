@@ -5,6 +5,7 @@ import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
 import { createBoardInfoPanelPlugin } from "@edv4h/usketch-plugin-board-info-panel";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
+import { createCommunityChatPlugin } from "@edv4h/usketch-plugin-community-chat";
 import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
@@ -137,6 +138,16 @@ export function CommunityPage() {
 					boardId: COMMUNITY_BOARD_ID,
 					apiUrl,
 					extraHeaders: Object.keys(infoHeaders).length > 0 ? infoHeaders : undefined,
+				}),
+			);
+
+			extraPlugins.push(
+				createCommunityChatPlugin({
+					apiUrl: `${apiUrl}/api/boards/${COMMUNITY_BOARD_ID}/chat`,
+					extraHeaders: Object.keys(infoHeaders).length > 0 ? infoHeaders : undefined,
+					wsProvider,
+					userId: authUserId,
+					userName: authUserName ?? "Anonymous",
 				}),
 			);
 		} else {
@@ -356,6 +367,23 @@ function CommunityHeader() {
 						title="Comments"
 					>
 						💬
+					</button>
+					<button
+						type="button"
+						onClick={() => app.events.emit("side-panel:toggle", { tabId: "community-chat" })}
+						style={{
+							background: "white",
+							border: "none",
+							borderRadius: 8,
+							padding: "6px 10px",
+							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+							fontSize: 14,
+							cursor: "pointer",
+							color: "#475569",
+						}}
+						title="Chat"
+					>
+						🗨️
 					</button>
 				</div>
 			)}
