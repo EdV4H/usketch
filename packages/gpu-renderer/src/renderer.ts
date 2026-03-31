@@ -161,12 +161,12 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 			const view = texture.createView();
 			const encoder = device.createCommandEncoder();
 
-			shapeSdfPipeline.render(encoder, view, uniformBuffer, sdfShapes);
+			// Append highlights after shapes so they render on top
+			const allSdfShapes =
+				highlightShapes.length > 0 ? [...sdfShapes, ...highlightShapes] : sdfShapes;
+
+			shapeSdfPipeline.render(encoder, view, uniformBuffer, allSdfShapes);
 			polylinePipeline.render(encoder, view, uniformBuffer, polylines);
-			// Highlights on top
-			if (highlightShapes.length > 0) {
-				shapeSdfPipeline.renderOverlay(encoder, view, uniformBuffer, highlightShapes);
-			}
 
 			device.queue.submit([encoder.finish()]);
 
