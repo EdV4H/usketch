@@ -97,7 +97,6 @@ interface WhistleIndicatorData {
 	name: string;
 	worldX: number;
 	worldY: number;
-	createdAt: number;
 }
 
 function computeIndicatorPosition(
@@ -277,14 +276,14 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 	}
 
 	function removeIndicator(id: string) {
-		const prev = indicators;
+		const prevLen = indicators.length;
 		indicators = indicators.filter((i) => i.id !== id);
 		const timer = indicatorTimers.get(id);
 		if (timer !== undefined) {
 			clearTimeout(timer);
 			indicatorTimers.delete(id);
 		}
-		if (prev !== indicators) {
+		if (indicators.length < prevLen) {
 			for (const cb of indicatorListeners) cb();
 		}
 	}
@@ -337,6 +336,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				wsProvider?.broadcast({
 					kind: "whistle",
 					id,
+					sourceUserId: "local",
 					sourceName: name,
 					position: { x: worldX, y: worldY },
 				});
@@ -363,6 +363,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 					}
 
 					const name = typeof sourceName === "string" ? sourceName : "";
+					const userId = typeof msg.sourceUserId === "string" ? msg.sourceUserId : "remote";
 					const vp = ctx.store.getViewport();
 					const pos = computeIndicatorPosition(position.x, position.y, vp);
 
@@ -370,7 +371,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 						ctx.transient.emit({
 							id,
 							type: "whistle",
-							sourceUserId: "remote",
+							sourceUserId: userId,
 							position: { x: position.x, y: position.y },
 							data: { name },
 							ttl: WHISTLE_TTL,
@@ -381,7 +382,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 						ctx.transient.emit({
 							id,
 							type: "whistle",
-							sourceUserId: "remote",
+							sourceUserId: userId,
 							position: { x: position.x, y: position.y },
 							data: { name },
 							ttl: WHISTLE_TTL,
@@ -393,7 +394,6 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 							name,
 							worldX: position.x,
 							worldY: position.y,
-							createdAt: Date.now(),
 						});
 					}
 				});
