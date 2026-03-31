@@ -232,6 +232,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			ctx.tools.register("voting", {
 				icon: VotingIcon,
 				cursor: "crosshair",
+				shortcut: "n",
 				order: 75,
 				onPointerDown: (_toolCtx, event) => {
 					createPoll("Vote", ["Yes", "No"], event.worldPoint);

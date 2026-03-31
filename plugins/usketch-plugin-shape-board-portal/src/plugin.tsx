@@ -382,6 +382,7 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 			ctx.tools.register("board-portal-create", {
 				icon: PortalIcon,
 				cursor: "crosshair",
+				shortcut: "b",
 				order: 5,
 				onPointerDown: (toolCtx: ToolContext, event: CanvasPointerEvent) => {
 					const id = generateId();
