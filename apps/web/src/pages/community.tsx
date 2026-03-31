@@ -382,6 +382,7 @@ function CommunityHeader() {
 							color: "#475569",
 						}}
 						title="Chat"
+						aria-label="Chat"
 					>
 						🗨️
 					</button>

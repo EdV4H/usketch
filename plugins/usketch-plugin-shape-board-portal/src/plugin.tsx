@@ -14,6 +14,7 @@ import { createAddShapeCommand } from "@edv4h/usketch-store";
 
 const PORTAL_WIDTH = 64;
 const PORTAL_HEIGHT = 80;
+const MIN_PIN_W = 40;
 
 /**
  * HSL ベースのカラーパレット — 彩度・明度を揃えて統一感を出す
@@ -220,7 +221,7 @@ function hitTest(data: ShapeData, point: Point): boolean {
 	);
 }
 
-const ASPECT = PORTAL_HEIGHT / PORTAL_WIDTH; // 1.5
+const ASPECT = PORTAL_HEIGHT / PORTAL_WIDTH; // 1.25
 
 function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData {
 	let { x, y, width, height } = data;
@@ -275,11 +276,33 @@ function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData 
 			x = data.x + (data.width - width) / 2;
 			break;
 	}
-	const minW = 40;
+	const minW = MIN_PIN_W;
 	const minH = minW * ASPECT;
 	if (width < minW) {
-		width = minW;
-		height = minH;
+		// clamp してから x/y を再計算（アンカー辺がジャンプしないように）
+		const clampedW = minW;
+		const clampedH = minH;
+		switch (handle) {
+			case "nw":
+				x = data.x + data.width - clampedW;
+				y = data.y + data.height - clampedH;
+				break;
+			case "ne":
+				y = data.y + data.height - clampedH;
+				break;
+			case "sw":
+				x = data.x + data.width - clampedW;
+				break;
+			case "w":
+				x = data.x + data.width - clampedW;
+				break;
+			case "n":
+			case "s":
+				x = data.x + (data.width - clampedW) / 2;
+				break;
+		}
+		width = clampedW;
+		height = clampedH;
 	}
 	return { ...data, x, y, width, height };
 }
@@ -345,7 +368,7 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 				resize,
 				createDefault,
 				renderTarget: "html",
-				minSize: { width: 40, height: 55 },
+				minSize: { width: MIN_PIN_W, height: MIN_PIN_W * ASPECT },
 			});
 
 			// ポータル作成ツール

@@ -166,7 +166,9 @@ export const chatMessages = sqliteTable(
 	"chat_messages",
 	{
 		id: text("id").primaryKey(),
-		boardId: text("board_id").notNull(),
+		boardId: text("board_id")
+			.notNull()
+			.references(() => boards.id, { onDelete: "cascade" }),
 		threadId: text("thread_id").notNull().default("default"),
 		authorId: text("author_id").notNull(),
 		authorName: text("author_name").notNull(),
