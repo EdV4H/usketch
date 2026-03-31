@@ -170,7 +170,7 @@ jobs:
           VITE_API_URL: https://usketch-server.circlemountain-ym.workers.dev
 
       - name: Deploy Web (Cloudflare Pages)
-        run: npx wrangler pages deploy dist --project-name usketch-web
+        run: pnpm exec wrangler pages deploy dist --project-name usketch-web
         working-directory: apps/web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
