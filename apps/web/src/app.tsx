@@ -31,6 +31,7 @@ import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
+import { createWhistlePlugin, whistlePlugin } from "@edv4h/usketch-plugin-whistle";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import {
@@ -147,9 +148,11 @@ export function App() {
 			extraPlugins.push(createAiVoicePlugin({ boardId }));
 			extraPlugins.push(createAiImagePlugin({ boardId }));
 			extraPlugins.push(createAiRecognizePlugin({ boardId }));
+			extraPlugins.push(createWhistlePlugin(wsProvider));
 		} else {
 			extraPlugins.push(laserPlugin);
 			extraPlugins.push(spotlightPlugin);
+			extraPlugins.push(whistlePlugin);
 		}
 
 		syncHandle.whenSynced

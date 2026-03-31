@@ -20,6 +20,7 @@ import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
 import { createVotingPlugin, votingPlugin } from "@edv4h/usketch-plugin-voting";
+import { createWhistlePlugin, whistlePlugin } from "@edv4h/usketch-plugin-whistle";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { createWsProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
@@ -152,6 +153,7 @@ export function CommunityPage() {
 				}),
 			);
 			extraPlugins.push(createKeyboardShortcutsPlugin({ wsProvider }));
+			extraPlugins.push(createWhistlePlugin(wsProvider));
 		} else {
 			extraPlugins.push(rippleEffectPlugin);
 			extraPlugins.push(reactionsPlugin);
@@ -159,6 +161,7 @@ export function CommunityPage() {
 			extraPlugins.push(votingPlugin);
 			extraPlugins.push(spotlightPlugin);
 			extraPlugins.push(createKeyboardShortcutsPlugin());
+			extraPlugins.push(whistlePlugin);
 		}
 
 		const basePlugins: UsketchPlugin[] = [
