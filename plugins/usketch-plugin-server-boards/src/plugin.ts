@@ -586,17 +586,59 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				},
 			];
 
+			// DB取得ヘルパー（public route では dbMiddleware が効かないため）
+			async function getDb(c: any) {
+				let db = c.get("db") as any;
+				if (!db && (c.env as any).DB) {
+					const { drizzle: makeDrizzle } = await import("drizzle-orm/d1");
+					db = makeDrizzle((c.env as any).DB);
+				}
+				return db;
+			}
+
+			// テーブルが空なら初期地域データを自動シード
+			async function ensureSeed(db: any) {
+				const count = await db
+					.select({ boardId: communityBoards.boardId })
+					.from(communityBoards)
+					.limit(1);
+				if (count.length > 0) return;
+
+				const now = new Date().toISOString();
+				await db
+					.insert(users)
+					.values({
+						id: "system",
+						name: "System",
+						email: "system@usketch.local",
+						createdAt: new Date(),
+						updatedAt: new Date(),
+					})
+					.onConflictDoNothing();
+				for (const seed of SEED_REGIONS) {
+					await db
+						.insert(boards)
+						.values({
+							id: seed.boardId,
+							title: seed.displayName,
+							ownerId: "system",
+							createdAt: now,
+							updatedAt: now,
+							isPublic: true,
+						})
+						.onConflictDoNothing();
+					await db.insert(communityBoards).values(seed).onConflictDoNothing();
+				}
+			}
+
 			// GET /api/community-boards — 全地域一覧（認証不要）
 			communityApp.get("/", async (c) => {
-				const env = c.env as any;
-				let db = c.get("db") as any;
-				if (!db && env.DB) {
-					const { drizzle: makeDrizzle } = await import("drizzle-orm/d1");
-					db = makeDrizzle(env.DB);
-				}
+				const db = await getDb(c);
 				if (!db) return c.json({ error: "Internal error" }, 500);
 
-				let result = await db
+				await ensureSeed(db);
+
+				const result = await db
 					.select({
 						boardId: communityBoards.boardId,
 						slug: communityBoards.slug,
@@ -610,62 +652,15 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					.from(communityBoards)
 					.orderBy(communityBoards.sortOrder);
 
-				// テーブルが空なら初期データを自動シード
-				if (result.length === 0) {
-					const now = new Date().toISOString();
-					// システムユーザー作成（boards の FK 制約用）
-					await db
-						.insert(users)
-						.values({
-							id: "system",
-							name: "System",
-							email: "system@usketch.local",
-							createdAt: new Date(),
-							updatedAt: new Date(),
-						})
-						.onConflictDoNothing();
-					for (const seed of SEED_REGIONS) {
-						// boards テーブルにも作成（FK制約のため）
-						await db
-							.insert(boards)
-							.values({
-								id: seed.boardId,
-								title: seed.displayName,
-								ownerId: "system",
-								createdAt: now,
-								updatedAt: now,
-								isPublic: true,
-							})
-							.onConflictDoNothing();
-						await db.insert(communityBoards).values(seed).onConflictDoNothing();
-					}
-					result = await db
-						.select({
-							boardId: communityBoards.boardId,
-							slug: communityBoards.slug,
-							displayName: communityBoards.displayName,
-							description: communityBoards.description,
-							themeColor: communityBoards.themeColor,
-							icon: communityBoards.icon,
-							gridX: communityBoards.gridX,
-							gridY: communityBoards.gridY,
-						})
-						.from(communityBoards)
-						.orderBy(communityBoards.sortOrder);
-				}
-
 				return c.json(result);
 			});
 
 			// GET /api/community-boards/:slug — slug → boardId 解決（認証不要）
 			communityApp.get("/:slug", async (c) => {
-				const env = c.env as any;
-				let db = c.get("db") as any;
-				if (!db && env.DB) {
-					const { drizzle: makeDrizzle } = await import("drizzle-orm/d1");
-					db = makeDrizzle(env.DB);
-				}
+				const db = await getDb(c);
 				if (!db) return c.json({ error: "Internal error" }, 500);
+
+				await ensureSeed(db);
 
 				const slug = c.req.param("slug");
 				const result = await db

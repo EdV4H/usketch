@@ -163,11 +163,14 @@ export function createCommunityRegionPlugin(options?: CommunityRegionPluginOptio
 
 				const unsub = ctx.store.subscribe(() => {
 					const selection = ctx.store.getSelection();
-					if (selection.size !== 1 || selection.size === prevSelection.size) {
+
+					// 単一選択以外の場合は単に前回状態を更新して終了
+					if (selection.size !== 1) {
 						prevSelection = new Set(selection);
 						return;
 					}
-					// 新しく1つだけ選択された場合
+
+					// 新しく選択されたシェイプがあるかチェック
 					const [shapeId] = selection;
 					if (prevSelection.has(shapeId)) {
 						prevSelection = new Set(selection);
@@ -177,7 +180,6 @@ export function createCommunityRegionPlugin(options?: CommunityRegionPluginOptio
 
 					const shape = ctx.store.getShapes().get(shapeId);
 					if (shape?.type === "community-region" && shape.slug) {
-						// 選択を解除してから遷移
 						ctx.store.clearSelection();
 						onClick(shape.slug as string);
 					}
