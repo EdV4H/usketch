@@ -27,6 +27,50 @@ const CARD_WIDTH = 200;
 const CARD_HEIGHT = 160;
 const FIT_PADDING = 0.8;
 
+// API 取得失敗時のフォールバック
+const FALLBACK_REGIONS: CommunityRegionData[] = [
+	{
+		boardId: "community-lobby",
+		slug: "lobby",
+		displayName: "Lobby",
+		description: "",
+		themeColor: "#6366f1",
+		icon: "\u{1F3E0}",
+		gridX: 0,
+		gridY: 0,
+	},
+	{
+		boardId: "community-workshop",
+		slug: "workshop",
+		displayName: "Workshop",
+		description: "",
+		themeColor: "#f59e0b",
+		icon: "\u{1F528}",
+		gridX: 1,
+		gridY: 0,
+	},
+	{
+		boardId: "community-gallery",
+		slug: "gallery",
+		displayName: "Gallery",
+		description: "",
+		themeColor: "#ec4899",
+		icon: "\u{1F3A8}",
+		gridX: 0,
+		gridY: 1,
+	},
+	{
+		boardId: "community-playground",
+		slug: "playground",
+		displayName: "Playground",
+		description: "",
+		themeColor: "#10b981",
+		icon: "\u{1F3AE}",
+		gridX: 1,
+		gridY: 1,
+	},
+];
+
 function zoomFitAll(store: ReturnType<typeof createBoardStore>) {
 	const shapes = store.getShapes();
 	if (shapes.size === 0) return;
@@ -74,10 +118,15 @@ export function WorldMapPage() {
 
 		(async () => {
 			try {
-				// 1. API から地域一覧取得
-				const res = await fetch(`${apiUrl}/api/community-boards`);
-				if (!res.ok) throw new Error("Failed to fetch community boards");
-				const regions: CommunityRegionData[] = await res.json();
+				// 1. API から地域一覧取得（失敗時はフォールバック）
+				let regions: CommunityRegionData[];
+				try {
+					const res = await fetch(`${apiUrl}/api/community-boards`);
+					if (!res.ok) throw new Error("API error");
+					regions = await res.json();
+				} catch {
+					regions = FALLBACK_REGIONS;
+				}
 
 				if (cancelled) return;
 
