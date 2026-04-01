@@ -25,14 +25,13 @@ import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { createWsProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { api } from "../lib/api.js";
 import { getDevUser } from "../lib/dev-auth.js";
 import { useAuth } from "../lib/use-auth.js";
 
-const COMMUNITY_BOARD_ID = "community-lobby";
-
 export function CommunityPage() {
+	const { slug } = useParams<{ slug: string }>();
 	const navigate = useNavigate();
 	const { user: authUser } = useAuth();
 	const authUserId = authUser?.id ?? null;
@@ -40,174 +39,188 @@ export function CommunityPage() {
 	const authUserImage = authUser?.image ?? null;
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [regionName, setRegionName] = useState<string>("");
 	const wsProviderRef = useRef<WsProviderHandle | null>(null);
 
 	useEffect(() => {
+		if (!slug) return;
+
 		let cancelled = false;
 		let instance: AppInstance | null = null;
-		const store = createBoardStore();
-		const syncHandle = createYjsSync(store, `usketch-community-${COMMUNITY_BOARD_ID}`);
-
-		const extraPlugins: UsketchPlugin[] = [];
+		let store: ReturnType<typeof createBoardStore> | null = null;
+		let syncHandle: ReturnType<typeof createYjsSync> | null = null;
 		let wsProvider: WsProviderHandle | null = null;
 		const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 
-		// コミュニティ空間にはboard-portalシェイプ + コミュニケーション系プラグインのみ
-		const portalPlugin = createBoardPortalPlugin({
-			onPortalOpen: (boardId) => {
-				navigate(`/boards/${boardId}`);
-			},
-			onPortalCreate: async (shapeId, _position, isPublic) => {
-				// ボードを作成してシェイプにboardIdを紐付け
-				try {
-					const board = await api.boards.create("New Board");
-					if (isPublic) {
-						await api.boards.update(board.id, { isPublic: true });
-					}
-					store.updateShape(shapeId, {
-						boardId: board.id,
-						boardTitle: board.title,
-						ownerName: authUserName ?? "",
-						ownerImage: authUserImage ?? "",
-						isPublic,
-					});
-				} catch (e) {
-					console.error("Failed to create board:", e);
-					store.deleteShape(shapeId);
-				}
-			},
-		});
-		// Cloud sync（認証済みの場合）
-		if (authUserId) {
-			let wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${COMMUNITY_BOARD_ID}/ws`;
-			if (import.meta.env.DEV) {
-				const devUser = getDevUser();
-				if (devUser) {
-					wsUrl += `?devUserId=${encodeURIComponent(devUser.id)}`;
-				}
-			}
-			wsProvider = createWsProvider({ url: wsUrl, doc: syncHandle.doc });
-			wsProviderRef.current = wsProvider;
+		(async () => {
+			try {
+				// slug → boardId 解決
+				const res = await fetch(`${apiUrl}/api/community-boards/${slug}`);
+				if (!res.ok) throw new Error("Community board not found");
+				const regionData = await res.json();
+				const boardId: string = regionData.boardId;
+				if (cancelled) return;
+				setRegionName(regionData.displayName);
 
-			extraPlugins.push(createRippleEffectPlugin(wsProvider));
-			extraPlugins.push(createReactionsPlugin(wsProvider));
-			extraPlugins.push(createSpatialChatPlugin(wsProvider));
-			extraPlugins.push(createVotingPlugin(wsProvider));
-			extraPlugins.push(createSpotlightPlugin(wsProvider));
-			extraPlugins.push(createFollowMePlugin({ wsProvider }));
-			extraPlugins.push(
-				createPresenceCursorPlugin({
-					wsProvider,
-					userId: authUserId ?? "anonymous",
-					userName: authUserName ?? "Anonymous",
-				}),
-			);
-			extraPlugins.push(
-				createAvatarPlugin({
-					wsProvider,
-					userId: authUserId ?? "anonymous",
-					userName: authUserName ?? "Anonymous",
-					userImage: authUserImage,
-				}),
-			);
-			extraPlugins.push(
-				createActivityFeedPlugin({
-					wsProvider,
-					boardId: COMMUNITY_BOARD_ID,
-					apiUrl,
-				}),
-			);
+				store = createBoardStore();
+				syncHandle = createYjsSync(store, `usketch-community-${boardId}`);
 
-			// サイドパネル + ボード情報パネル + コメント
-			extraPlugins.push(createSidePanelPlugin());
-			const infoHeaders: Record<string, string> = {};
-			if (import.meta.env.DEV) {
-				const devUser = getDevUser();
-				if (devUser) infoHeaders["X-User-Id"] = devUser.id;
-			}
-			extraPlugins.push(
-				createBoardInfoPanelPlugin({
-					apiUrl,
-					extraHeaders: Object.keys(infoHeaders).length > 0 ? infoHeaders : undefined,
-					onOpenBoard: (boardId: string) => {
-						navigate(`/boards/${boardId}`);
+				const extraPlugins: UsketchPlugin[] = [];
+
+				// コミュニティ空間にはboard-portalシェイプ + コミュニケーション系プラグインのみ
+				const portalPlugin = createBoardPortalPlugin({
+					onPortalOpen: (portalBoardId) => {
+						navigate(`/boards/${portalBoardId}`);
 					},
-				}),
-			);
+					onPortalCreate: async (shapeId, _position, isPublic) => {
+						try {
+							const board = await api.boards.create("New Board");
+							if (isPublic) {
+								await api.boards.update(board.id, { isPublic: true });
+							}
+							store!.updateShape(shapeId, {
+								boardId: board.id,
+								boardTitle: board.title,
+								ownerName: authUserName ?? "",
+								ownerImage: authUserImage ?? "",
+								isPublic,
+							});
+						} catch (e) {
+							console.error("Failed to create board:", e);
+							store!.deleteShape(shapeId);
+						}
+					},
+				});
 
-			extraPlugins.push(
-				createCommentsPlugin({
-					boardId: COMMUNITY_BOARD_ID,
-					apiUrl,
-					extraHeaders: Object.keys(infoHeaders).length > 0 ? infoHeaders : undefined,
-				}),
-			);
+				// Cloud sync（認証済みの場合）
+				if (authUserId) {
+					let wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
+					if (import.meta.env.DEV) {
+						const devUser = getDevUser();
+						if (devUser) {
+							wsUrl += `?devUserId=${encodeURIComponent(devUser.id)}`;
+						}
+					}
+					wsProvider = createWsProvider({ url: wsUrl, doc: syncHandle!.doc });
+					wsProviderRef.current = wsProvider;
 
-			extraPlugins.push(
-				createCommunityChatPlugin({
-					apiUrl: `${apiUrl}/api/boards/${COMMUNITY_BOARD_ID}/chat`,
-					extraHeaders: Object.keys(infoHeaders).length > 0 ? infoHeaders : undefined,
-					wsProvider,
-					userId: authUserId,
-					userName: authUserName ?? "Anonymous",
-				}),
-			);
-			extraPlugins.push(createKeyboardShortcutsPlugin({ wsProvider }));
-			extraPlugins.push(createWhistlePlugin(wsProvider));
-		} else {
-			extraPlugins.push(rippleEffectPlugin);
-			extraPlugins.push(reactionsPlugin);
-			extraPlugins.push(spatialChatPlugin);
-			extraPlugins.push(votingPlugin);
-			extraPlugins.push(spotlightPlugin);
-			extraPlugins.push(createKeyboardShortcutsPlugin());
-			extraPlugins.push(whistlePlugin);
-		}
+					extraPlugins.push(createRippleEffectPlugin(wsProvider));
+					extraPlugins.push(createReactionsPlugin(wsProvider));
+					extraPlugins.push(createSpatialChatPlugin(wsProvider));
+					extraPlugins.push(createVotingPlugin(wsProvider));
+					extraPlugins.push(createSpotlightPlugin(wsProvider));
+					extraPlugins.push(createFollowMePlugin({ wsProvider }));
+					extraPlugins.push(
+						createPresenceCursorPlugin({
+							wsProvider,
+							userId: authUserId ?? "anonymous",
+							userName: authUserName ?? "Anonymous",
+						}),
+					);
+					extraPlugins.push(
+						createAvatarPlugin({
+							wsProvider,
+							userId: authUserId ?? "anonymous",
+							userName: authUserName ?? "Anonymous",
+							userImage: authUserImage,
+						}),
+					);
+					extraPlugins.push(
+						createActivityFeedPlugin({
+							wsProvider,
+							boardId,
+							apiUrl,
+						}),
+					);
 
-		const basePlugins: UsketchPlugin[] = [
-			selectToolPlugin,
-			panToolPlugin,
-			viewportNavPlugin,
-			portalPlugin,
-			createDomRendererPlugin(),
-		];
+					// サイドパネル + ボード情報パネル + コメント
+					extraPlugins.push(createSidePanelPlugin());
+					const infoHeaders: Record<string, string> = {};
+					if (import.meta.env.DEV) {
+						const devUser = getDevUser();
+						if (devUser) infoHeaders["X-User-Id"] = devUser.id;
+					}
+					extraPlugins.push(
+						createBoardInfoPanelPlugin({
+							apiUrl,
+							extraHeaders: Object.keys(infoHeaders).length > 0 ? infoHeaders : undefined,
+							onOpenBoard: (openBoardId: string) => {
+								navigate(`/boards/${openBoardId}`);
+							},
+						}),
+					);
 
-		syncHandle.whenSynced
-			.then(() => {
+					extraPlugins.push(
+						createCommentsPlugin({
+							boardId,
+							apiUrl,
+							extraHeaders: Object.keys(infoHeaders).length > 0 ? infoHeaders : undefined,
+						}),
+					);
+
+					extraPlugins.push(
+						createCommunityChatPlugin({
+							apiUrl: `${apiUrl}/api/boards/${boardId}/chat`,
+							extraHeaders: Object.keys(infoHeaders).length > 0 ? infoHeaders : undefined,
+							wsProvider,
+							userId: authUserId,
+							userName: authUserName ?? "Anonymous",
+						}),
+					);
+					extraPlugins.push(createKeyboardShortcutsPlugin({ wsProvider }));
+					extraPlugins.push(createWhistlePlugin(wsProvider));
+				} else {
+					extraPlugins.push(rippleEffectPlugin);
+					extraPlugins.push(reactionsPlugin);
+					extraPlugins.push(spatialChatPlugin);
+					extraPlugins.push(votingPlugin);
+					extraPlugins.push(spotlightPlugin);
+					extraPlugins.push(createKeyboardShortcutsPlugin());
+					extraPlugins.push(whistlePlugin);
+				}
+
+				const basePlugins: UsketchPlugin[] = [
+					selectToolPlugin,
+					panToolPlugin,
+					viewportNavPlugin,
+					portalPlugin,
+					createDomRendererPlugin(),
+				];
+
+				await syncHandle!.whenSynced;
 				if (cancelled) return;
 
 				const plugins = [...basePlugins, ...extraPlugins];
-				return createApp({ store, plugins }).then((created) => {
-					if (cancelled) {
-						created.destroy();
-						return;
-					}
-					instance = created;
-					const a = instance;
-					a.layers.register({
-						id: "transient",
-						order: 100,
-						render: (renderCtx) => <TransientLayer registry={a.transient} ctx={renderCtx} />,
-					});
-
-					setApp(instance);
+				const created = await createApp({ store: store!, plugins });
+				if (cancelled) {
+					created.destroy();
+					return;
+				}
+				instance = created;
+				const a = instance;
+				a.layers.register({
+					id: "transient",
+					order: 100,
+					render: (renderCtx) => <TransientLayer registry={a.transient} ctx={renderCtx} />,
 				});
-			})
-			.catch((e) => {
+
+				setApp(instance);
+			} catch (e) {
 				if (!cancelled) {
 					setError(e instanceof Error ? e.message : "Failed to initialize community");
 				}
-			});
+			}
+		})();
 
 		return () => {
 			cancelled = true;
 			instance?.destroy();
 			wsProvider?.destroy();
 			wsProviderRef.current = null;
-			syncHandle.destroy();
+			syncHandle?.destroy();
 			setApp(null);
 		};
-	}, [authUserId, authUserName, authUserImage, navigate]);
+	}, [slug, authUserId, authUserName, authUserImage, navigate]);
 
 	// キーボードショートカット
 	useEffect(() => {
@@ -264,13 +277,13 @@ export function CommunityPage() {
 			<div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
 				<Canvas />
 				{/* コミュニティヘッダー */}
-				<CommunityHeader />
+				<CommunityHeader regionName={regionName} />
 			</div>
 		</AppProvider>
 	);
 }
 
-function CommunityHeader() {
+function CommunityHeader({ regionName }: { regionName: string }) {
 	const navigate = useNavigate();
 	const { user: sessionUser, logout } = useAuth();
 	const app = useApp();
@@ -288,6 +301,23 @@ function CommunityHeader() {
 					alignItems: "center",
 				}}
 			>
+				<button
+					type="button"
+					onClick={() => navigate("/community")}
+					style={{
+						background: "white",
+						border: "none",
+						borderRadius: 8,
+						padding: "6px 12px",
+						boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+						fontSize: 14,
+						cursor: "pointer",
+						color: "#0066ff",
+						fontFamily: "system-ui, sans-serif",
+					}}
+				>
+					World Map
+				</button>
 				<div
 					style={{
 						background: "white",
@@ -299,7 +329,7 @@ function CommunityHeader() {
 						fontFamily: "system-ui, sans-serif",
 					}}
 				>
-					uSketch
+					{regionName || "uSketch"}
 				</div>
 				{sessionUser ? (
 					<button

@@ -24,6 +24,7 @@ const app = await createServerApp({
 			boards: schema.boards,
 			boardMembers: schema.boardMembers,
 			activityLog: schema.activityLog,
+			communityBoards: schema.communityBoards,
 		}),
 		createCommentsPlugin({
 			boards: schema.boards,

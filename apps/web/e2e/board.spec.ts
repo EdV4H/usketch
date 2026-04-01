@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test.describe("Board", () => {
 	test("community page loads", async ({ page }) => {
 		await page.goto("/");
-		await expect(page.locator("text=uSketch")).toBeVisible();
+		await expect(page.locator("text=uSketch World")).toBeVisible();
 	});
 
 	test("login page loads", async ({ page }) => {

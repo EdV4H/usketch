@@ -160,6 +160,23 @@ export const commentMessages = sqliteTable(
 	(table) => [index("idx_comment_messages_comment").on(table.commentId)],
 );
 
+// ── コミュニティボード（ワールドマップ地域） ──
+
+export const communityBoards = sqliteTable("community_boards", {
+	boardId: text("board_id")
+		.primaryKey()
+		.references(() => boards.id, { onDelete: "cascade" }),
+	slug: text("slug").notNull().unique(),
+	displayName: text("display_name").notNull(),
+	description: text("description").notNull().default(""),
+	themeColor: text("theme_color").notNull().default("#6366f1"),
+	icon: text("icon").notNull().default("🏠"),
+	gridX: integer("grid_x").notNull().default(0),
+	gridY: integer("grid_y").notNull().default(0),
+	sortOrder: integer("sort_order").notNull().default(0),
+	createdAt: text("created_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+});
+
 // ── チャットメッセージ ──
 
 export const chatMessages = sqliteTable(

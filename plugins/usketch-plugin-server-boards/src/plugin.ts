@@ -1,6 +1,6 @@
 import type { HonoEnv, ServerPlugin } from "@edv4h/usketch-server-core";
 import { zValidator } from "@hono/zod-validator";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, notInArray } from "drizzle-orm";
 import type { SQLiteTableWithColumns } from "drizzle-orm/sqlite-core";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -11,10 +11,11 @@ export interface BoardsPluginSchema {
 	boards: SQLiteTableWithColumns<any>;
 	boardMembers: SQLiteTableWithColumns<any>;
 	activityLog: SQLiteTableWithColumns<any>;
+	communityBoards: SQLiteTableWithColumns<any>;
 }
 
 export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
-	const { users, boards, boardMembers, activityLog } = schema;
+	const { users, boards, boardMembers, activityLog, communityBoards } = schema;
 
 	return {
 		id: "server-boards",
@@ -91,7 +92,15 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					})
 					.from(boards)
 					.innerJoin(users, eq(boards.ownerId, users.id))
-					.where(and(eq(boards.isPublic, true), ne(boards.id, "community-lobby")))
+					.where(
+						and(
+							eq(boards.isPublic, true),
+							notInArray(
+								boards.id,
+								db.select({ id: communityBoards.boardId }).from(communityBoards),
+							),
+						),
+					)
 					.orderBy(desc(boards.updatedAt))
 					.limit(50);
 
@@ -115,7 +124,15 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					})
 					.from(boards)
 					.innerJoin(boardMembers, eq(boards.id, boardMembers.boardId))
-					.where(and(eq(boardMembers.userId, userId), ne(boards.id, "community-lobby")))
+					.where(
+						and(
+							eq(boardMembers.userId, userId),
+							notInArray(
+								boards.id,
+								db.select({ id: communityBoards.boardId }).from(communityBoards),
+							),
+						),
+					)
 					.orderBy(desc(boards.updatedAt));
 
 				return c.json(result);
@@ -165,8 +182,13 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 			boardsApp.patch("/:id", zValidator("json", updateBoardSchema), async (c) => {
 				const db = c.get("db") as any;
 				const boardId = c.req.param("id");
-				if (boardId === "community-lobby")
-					return c.json({ error: "Cannot modify community lobby" }, 403);
+				// コミュニティボードは変更不可
+				const isCommunity = await db
+					.select({ boardId: communityBoards.boardId })
+					.from(communityBoards)
+					.where(eq(communityBoards.boardId, boardId))
+					.limit(1);
+				if (isCommunity.length > 0) return c.json({ error: "Cannot modify community board" }, 403);
 				const body = c.req.valid("json");
 				const currentUserId = c.get("userId");
 
@@ -203,8 +225,14 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				const db = c.get("db") as any;
 				const userId = c.get("userId");
 				const boardId = c.req.param("id");
-				if (boardId === "community-lobby")
-					return c.json({ error: "Cannot delete community lobby" }, 403);
+				// コミュニティボードは削除不可
+				const isCommunityDel = await db
+					.select({ boardId: communityBoards.boardId })
+					.from(communityBoards)
+					.where(eq(communityBoards.boardId, boardId))
+					.limit(1);
+				if (isCommunityDel.length > 0)
+					return c.json({ error: "Cannot delete community board" }, 403);
 
 				const board = await db
 					.select({ ownerId: boards.ownerId })
@@ -432,8 +460,6 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 			});
 
 			// WebSocket — 認証 + ボードレベルのアクセス制御後にDurable Objectに接続
-			const COMMUNITY_BOARD_ID = "community-lobby";
-
 			boardsApp.get("/:boardId/ws", async (c) => {
 				const userId = c.get("userId");
 				if (!userId) return c.json({ error: "Unauthorized" }, 401);
@@ -442,8 +468,15 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				if (!db) return c.json({ error: "Internal error" }, 500);
 				const boardId = c.req.param("boardId");
 
-				if (boardId === COMMUNITY_BOARD_ID) {
-					// コミュニティロビーは全認証ユーザーにオープン — 存在しなければ自動作成
+				// コミュニティボード判定（community_boards テーブルに存在するか）
+				const communityEntry = await db
+					.select({ boardId: communityBoards.boardId, displayName: communityBoards.displayName })
+					.from(communityBoards)
+					.where(eq(communityBoards.boardId, boardId))
+					.limit(1);
+
+				if (communityEntry.length > 0) {
+					// コミュニティボードは全認証ユーザーにオープン — 存在しなければ自動作成
 					// DEV_MODE: ユーザーが存在しない場合はFK制約のため自動作成
 					if ((c.env as any).DEV_MODE === "true") {
 						await db
@@ -462,8 +495,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 					await db
 						.insert(boards)
 						.values({
-							id: COMMUNITY_BOARD_ID,
-							title: "Community Lobby",
+							id: boardId,
+							title: communityEntry[0].displayName,
 							ownerId: userId,
 							createdAt: now,
 							updatedAt: now,
@@ -501,6 +534,158 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 			});
 
 			ctx.routes.register({ path: "/api/boards", app: boardsApp });
+
+			// ── コミュニティボード（ワールドマップ地域）API ──
+			const communityApp = new Hono<HonoEnv>();
+
+			// 初期地域データ（テーブルが空の場合に自動シード）
+			const SEED_REGIONS = [
+				{
+					boardId: "community-lobby",
+					slug: "lobby",
+					displayName: "Lobby",
+					description: "メインロビー",
+					themeColor: "#6366f1",
+					icon: "🏠",
+					gridX: 0,
+					gridY: 0,
+					sortOrder: 0,
+				},
+				{
+					boardId: "community-workshop",
+					slug: "workshop",
+					displayName: "Workshop",
+					description: "作業スペース",
+					themeColor: "#f59e0b",
+					icon: "🔨",
+					gridX: 1,
+					gridY: 0,
+					sortOrder: 1,
+				},
+				{
+					boardId: "community-gallery",
+					slug: "gallery",
+					displayName: "Gallery",
+					description: "ギャラリー",
+					themeColor: "#ec4899",
+					icon: "🎨",
+					gridX: 0,
+					gridY: 1,
+					sortOrder: 2,
+				},
+				{
+					boardId: "community-playground",
+					slug: "playground",
+					displayName: "Playground",
+					description: "実験場",
+					themeColor: "#10b981",
+					icon: "🎮",
+					gridX: 1,
+					gridY: 1,
+					sortOrder: 3,
+				},
+			];
+
+			// DB取得ヘルパー（public route では dbMiddleware が効かないため）
+			async function getDb(c: any) {
+				let db = c.get("db") as any;
+				if (!db && (c.env as any).DB) {
+					const { drizzle: makeDrizzle } = await import("drizzle-orm/d1");
+					db = makeDrizzle((c.env as any).DB);
+				}
+				return db;
+			}
+
+			// テーブルが空なら初期地域データを自動シード
+			async function ensureSeed(db: any) {
+				const count = await db
+					.select({ boardId: communityBoards.boardId })
+					.from(communityBoards)
+					.limit(1);
+				if (count.length > 0) return;
+
+				const now = new Date().toISOString();
+				await db
+					.insert(users)
+					.values({
+						id: "system",
+						name: "System",
+						email: "system@usketch.local",
+						createdAt: new Date(),
+						updatedAt: new Date(),
+					})
+					.onConflictDoNothing();
+				for (const seed of SEED_REGIONS) {
+					await db
+						.insert(boards)
+						.values({
+							id: seed.boardId,
+							title: seed.displayName,
+							ownerId: "system",
+							createdAt: now,
+							updatedAt: now,
+							isPublic: true,
+						})
+						.onConflictDoNothing();
+					await db.insert(communityBoards).values(seed).onConflictDoNothing();
+				}
+			}
+
+			// GET /api/community-boards — 全地域一覧（認証不要）
+			communityApp.get("/", async (c) => {
+				const db = await getDb(c);
+				if (!db) return c.json({ error: "Internal error" }, 500);
+
+				await ensureSeed(db);
+
+				const result = await db
+					.select({
+						boardId: communityBoards.boardId,
+						slug: communityBoards.slug,
+						displayName: communityBoards.displayName,
+						description: communityBoards.description,
+						themeColor: communityBoards.themeColor,
+						icon: communityBoards.icon,
+						gridX: communityBoards.gridX,
+						gridY: communityBoards.gridY,
+					})
+					.from(communityBoards)
+					.orderBy(communityBoards.sortOrder);
+
+				return c.json(result);
+			});
+
+			// GET /api/community-boards/:slug — slug → boardId 解決（認証不要）
+			communityApp.get("/:slug", async (c) => {
+				const db = await getDb(c);
+				if (!db) return c.json({ error: "Internal error" }, 500);
+
+				await ensureSeed(db);
+
+				const slug = c.req.param("slug");
+				const result = await db
+					.select({
+						boardId: communityBoards.boardId,
+						slug: communityBoards.slug,
+						displayName: communityBoards.displayName,
+						description: communityBoards.description,
+						themeColor: communityBoards.themeColor,
+						icon: communityBoards.icon,
+						gridX: communityBoards.gridX,
+						gridY: communityBoards.gridY,
+					})
+					.from(communityBoards)
+					.where(eq(communityBoards.slug, slug))
+					.limit(1);
+
+				if (result.length === 0) {
+					return c.json({ error: "Community board not found" }, 404);
+				}
+
+				return c.json(result[0]);
+			});
+
+			ctx.routes.register({ path: "/api/community-boards", app: communityApp, public: true });
 
 			// サムネイル（認証不要の public route — img タグから直接アクセスされるため）
 			const thumbnailApp = new Hono<HonoEnv>();

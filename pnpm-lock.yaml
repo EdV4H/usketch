@@ -205,6 +205,9 @@ importers:
       '@edv4h/usketch-plugin-shape-board-portal':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-board-portal
+      '@edv4h/usketch-plugin-shape-community-region':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-shape-community-region
       '@edv4h/usketch-plugin-shape-connector':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-connector
@@ -1147,6 +1150,25 @@ importers:
       react:
         specifier: '>=19'
         version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
+
+  plugins/usketch-plugin-shape-community-region:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      react:
+        specifier: '>=19'
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
