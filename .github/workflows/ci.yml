@@ -157,6 +157,12 @@ jobs:
       - name: Build packages (excluding web)
         run: pnpm turbo run build --filter='!@edv4h/usketch-web'
 
+      - name: Apply D1 Migrations
+        run: pnpm exec wrangler d1 migrations apply usketch-db --remote
+        working-directory: apps/server
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
       - name: Deploy Server (Cloudflare Workers)
         run: pnpm exec wrangler deploy
         working-directory: apps/server
