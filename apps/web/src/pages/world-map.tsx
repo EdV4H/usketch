@@ -1,0 +1,257 @@
+import { AppProvider, Canvas } from "@edv4h/usketch-canvas-engine";
+import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
+import { createCommunityRegionPlugin } from "@edv4h/usketch-plugin-shape-community-region";
+import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
+import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
+import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
+import { createBoardStore } from "@edv4h/usketch-store";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { useAuth } from "../lib/use-auth.js";
+
+interface CommunityRegionData {
+	boardId: string;
+	slug: string;
+	displayName: string;
+	description: string;
+	themeColor: string;
+	icon: string;
+	gridX: number;
+	gridY: number;
+}
+
+const GRID_SPACING_X = 280;
+const GRID_SPACING_Y = 220;
+const CARD_WIDTH = 200;
+const CARD_HEIGHT = 160;
+const FIT_PADDING = 0.8;
+
+function zoomFitAll(store: ReturnType<typeof createBoardStore>) {
+	const shapes = store.getShapes();
+	if (shapes.size === 0) return;
+
+	let minX = Infinity;
+	let minY = Infinity;
+	let maxX = -Infinity;
+	let maxY = -Infinity;
+
+	for (const shape of shapes.values()) {
+		minX = Math.min(minX, shape.x);
+		minY = Math.min(minY, shape.y);
+		maxX = Math.max(maxX, shape.x + shape.width);
+		maxY = Math.max(maxY, shape.y + shape.height);
+	}
+
+	const contentW = maxX - minX;
+	const contentH = maxY - minY;
+	if (contentW <= 0 || contentH <= 0) return;
+
+	const rawZoom =
+		Math.min(window.innerWidth / contentW, window.innerHeight / contentH) * FIT_PADDING;
+	const zoom = Math.min(10, Math.max(0.1, rawZoom));
+
+	const cx = (minX + maxX) / 2;
+	const cy = (minY + maxY) / 2;
+
+	store.setViewport({
+		x: window.innerWidth / 2 - cx * zoom,
+		y: window.innerHeight / 2 - cy * zoom,
+		zoom,
+	});
+}
+
+export function WorldMapPage() {
+	const navigate = useNavigate();
+	const { user: authUser, logout } = useAuth();
+	const [app, setApp] = useState<AppInstance | null>(null);
+	const [error, setError] = useState<string | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		let instance: AppInstance | null = null;
+		const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+
+		(async () => {
+			try {
+				// 1. API から地域一覧取得
+				const res = await fetch(`${apiUrl}/api/community-boards`);
+				if (!res.ok) throw new Error("Failed to fetch community boards");
+				const regions: CommunityRegionData[] = await res.json();
+
+				if (cancelled) return;
+
+				// 2. ローカルストア作成（同期なし）
+				const store = createBoardStore();
+
+				// 3. 地域データを community-region シェイプとして配置
+				for (const region of regions) {
+					store.addShape({
+						id: `region-${region.slug}`,
+						type: "community-region",
+						x: region.gridX * GRID_SPACING_X,
+						y: region.gridY * GRID_SPACING_Y,
+						width: CARD_WIDTH,
+						height: CARD_HEIGHT,
+						style: { fill: "transparent", stroke: "transparent", strokeWidth: 0, opacity: 1 },
+						slug: region.slug,
+						displayName: region.displayName,
+						themeColor: region.themeColor,
+						icon: region.icon,
+						onlineCount: 0,
+					});
+				}
+
+				// 4. キャンバス初期化
+				const plugins = [
+					selectToolPlugin,
+					panToolPlugin,
+					viewportNavPlugin,
+					createCommunityRegionPlugin({
+						onRegionClick: (regionSlug: string) => {
+							navigate(`/community/${regionSlug}`);
+						},
+					}),
+					createDomRendererPlugin(),
+				];
+
+				const created = await createApp({ store, plugins });
+				if (cancelled) {
+					created.destroy();
+					return;
+				}
+
+				instance = created;
+
+				// 5. 全シェイプが収まるように初期ビューポート設定
+				zoomFitAll(store);
+
+				setApp(instance);
+			} catch (e) {
+				if (!cancelled) {
+					setError(e instanceof Error ? e.message : "Failed to load world map");
+				}
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+			instance?.destroy();
+			setApp(null);
+		};
+	}, [navigate]);
+
+	if (error) {
+		return (
+			<div style={{ padding: 24, fontFamily: "system-ui, sans-serif", color: "#c33" }}>
+				<p>Error: {error}</p>
+			</div>
+		);
+	}
+
+	if (!app) return null;
+
+	return (
+		<AppProvider app={app}>
+			<div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
+				<Canvas />
+				<WorldMapHeader
+					user={authUser ? { name: authUser.name ?? "User" } : null}
+					onLogout={() => {
+						logout();
+						navigate("/login");
+					}}
+				/>
+			</div>
+		</AppProvider>
+	);
+}
+
+function WorldMapHeader({
+	user,
+	onLogout,
+}: {
+	user: { name: string } | null;
+	onLogout: () => void;
+}) {
+	const navigate = useNavigate();
+
+	return (
+		<div
+			style={{
+				position: "fixed",
+				top: 12,
+				left: 12,
+				zIndex: 100,
+				display: "flex",
+				gap: 8,
+				alignItems: "center",
+			}}
+		>
+			<div
+				style={{
+					background: "white",
+					borderRadius: 8,
+					padding: "6px 14px",
+					boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+					fontSize: 14,
+					fontWeight: 600,
+					fontFamily: "system-ui, sans-serif",
+				}}
+			>
+				uSketch World
+			</div>
+			{user ? (
+				<>
+					<button
+						type="button"
+						onClick={() => navigate("/dashboard")}
+						style={{
+							background: "white",
+							border: "none",
+							borderRadius: 8,
+							padding: "6px 12px",
+							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+							fontSize: 12,
+							cursor: "pointer",
+							color: "#0066ff",
+						}}
+					>
+						Dashboard
+					</button>
+					<button
+						type="button"
+						onClick={onLogout}
+						style={{
+							background: "white",
+							border: "none",
+							borderRadius: 8,
+							padding: "6px 12px",
+							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+							fontSize: 12,
+							cursor: "pointer",
+							color: "#666",
+						}}
+					>
+						{user.name} — Sign Out
+					</button>
+				</>
+			) : (
+				<a
+					href="/login"
+					style={{
+						background: "white",
+						borderRadius: 8,
+						padding: "6px 12px",
+						boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+						fontSize: 12,
+						textDecoration: "none",
+						color: "#0066ff",
+					}}
+				>
+					Sign In
+				</a>
+			)}
+		</div>
+	);
+}
