@@ -533,6 +533,24 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				return room.fetch(new Request(url.toString(), c.req.raw));
 			});
 
+			// ── Durable Object プロキシ: snapshot API ──
+			// 認証済みユーザーのリクエストを BoardRoom Durable Object にプロキシする
+			async function proxyToDurableObject(c: any) {
+				const userId = c.get("userId");
+				if (!userId) return c.json({ error: "Unauthorized" }, 401);
+				const boardId = c.req.param("boardId");
+				const env = c.env as any;
+				const id = env.BOARD_ROOM.idFromName(boardId);
+				const room = env.BOARD_ROOM.get(id);
+				const url = new URL(c.req.url);
+				url.pathname = url.pathname.replace(`/api/boards/${boardId}`, "");
+				return room.fetch(new Request(url.toString(), c.req.raw));
+			}
+
+			boardsApp.all("/:boardId/snapshots/*", proxyToDurableObject);
+			boardsApp.all("/:boardId/snapshots", proxyToDurableObject);
+			boardsApp.post("/:boardId/snapshot", proxyToDurableObject);
+
 			ctx.routes.register({ path: "/api/boards", app: boardsApp });
 
 			// ── コミュニティボード（ワールドマップ地域）API ──
