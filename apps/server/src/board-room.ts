@@ -3,6 +3,8 @@ import { computeMinimap, minimapToSvg, type ShapeData } from "@edv4h/usketch-sha
 import {
 	MSG_AWARENESS,
 	MSG_BROADCAST,
+	MSG_PARTITION_META,
+	MSG_PARTITION_REQUEST,
 	MSG_SYNC_STEP1,
 	MSG_SYNC_STEP2,
 	MSG_YJS_UPDATE,
@@ -82,6 +84,20 @@ export class BoardRoom extends DurableObject<Env> {
 	/** storage から updates を読み込み済みか */
 	private loaded = false;
 
+	/**
+	 * パーティション別 updates バッファ。
+	 * キー: パーティション名（例: "shapes:2026-Q1"）
+	 * 値: そのパーティションの Y.Map に対応する updates
+	 * "shapes:active" は現在の四半期（デフォルト同期対象）
+	 */
+	private partitionUpdates = new Map<string, Uint8Array[]>();
+	/** パーティションメタデータ（利用可能パーティション一覧） */
+	private partitionMeta: {
+		partitions: string[];
+		activePartition: string;
+		shapeCount: Record<string, number>;
+	} | null = null;
+
 	/** storage から updates を復元（初回のみ） */
 	private async loadUpdates(): Promise<void> {
 		if (this.loaded) return;
@@ -97,6 +113,98 @@ export class BoardRoom extends DurableObject<Env> {
 				// 破損データは無視
 			}
 		}
+
+		// パーティションメタデータをロード
+		const metaStr = await this.ctx.storage.get<string>("partition_meta");
+		if (metaStr) {
+			try {
+				this.partitionMeta = JSON.parse(metaStr);
+			} catch {
+				// 破損データは無視
+			}
+		}
+
+		// パーティション別 updates をロード
+		if (this.partitionMeta) {
+			for (const name of this.partitionMeta.partitions) {
+				const key = `yjs_updates:${name}`;
+				const data = await this.ctx.storage.get<string>(key);
+				if (data) {
+					try {
+						const arr = JSON.parse(data) as number[][];
+						this.partitionUpdates.set(
+							name,
+							arr.map((a) => new Uint8Array(a)),
+						);
+					} catch {
+						// 破損データは無視
+					}
+				}
+			}
+		}
+	}
+
+	/** 現在の四半期のパーティション名を返す */
+	getCurrentPartitionName(): string {
+		const now = new Date();
+		const q = Math.floor(now.getMonth() / 3) + 1;
+		return `shapes:${now.getFullYear()}-Q${q}`;
+	}
+
+	/** パーティションメタデータを永続化 */
+	async savePartitionMeta(): Promise<void> {
+		if (this.partitionMeta) {
+			await this.ctx.storage.put("partition_meta", JSON.stringify(this.partitionMeta));
+		}
+	}
+
+	/** パーティション別 updates を永続化 */
+	schedulePartitionSave(partitionName: string): void {
+		setTimeout(async () => {
+			const updates = this.partitionUpdates.get(partitionName);
+			if (!updates) return;
+			const data = updates.slice(-MAX_UPDATES_BUFFER).map((u) => Array.from(u));
+			await this.ctx.storage.put(`yjs_updates:${partitionName}`, JSON.stringify(data));
+		}, 5000);
+	}
+
+	/** パーティションにupdateを追加し、メタデータを更新 */
+	async addToPartition(update: Uint8Array, shapeCount: number): Promise<void> {
+		const partName = this.getCurrentPartitionName();
+
+		if (!this.partitionMeta) {
+			this.partitionMeta = {
+				partitions: [partName],
+				activePartition: partName,
+				shapeCount: {},
+			};
+		}
+
+		if (!this.partitionMeta.partitions.includes(partName)) {
+			this.partitionMeta.partitions.push(partName);
+		}
+		this.partitionMeta.activePartition = partName;
+		this.partitionMeta.shapeCount[partName] = shapeCount;
+
+		let updates = this.partitionUpdates.get(partName);
+		if (!updates) {
+			updates = [];
+			this.partitionUpdates.set(partName, updates);
+		}
+		updates.push(update);
+
+		this.schedulePartitionSave(partName);
+		await this.savePartitionMeta();
+	}
+
+	/** パーティションメタデータをクライアントに送信 */
+	private sendPartitionMeta(ws: WebSocket): void {
+		if (!this.partitionMeta) return;
+		const encoded = new TextEncoder().encode(JSON.stringify(this.partitionMeta));
+		const msg = new Uint8Array(encoded.length + 1);
+		msg[0] = MSG_PARTITION_META;
+		msg.set(encoded, 1);
+		ws.send(msg);
 	}
 
 	/** 永続化スケジュール済みか */
@@ -157,6 +265,7 @@ export class BoardRoom extends DurableObject<Env> {
 			}
 
 			// 初期同期はクライアントのMSG_SYNC_STEP1リクエストで行う
+			this.scheduleAutoSnapshot();
 			return new Response(null, { status: 101, webSocket: pair[0] });
 		}
 
@@ -173,6 +282,18 @@ export class BoardRoom extends DurableObject<Env> {
 		// サムネイル SVG エンドポイント
 		if (url.pathname === "/thumbnail") {
 			return this.handleThumbnail(url);
+		}
+
+		// Snapshot endpoints
+		if (url.pathname === "/snapshots" && request.method === "GET") {
+			return this.handleListSnapshots();
+		}
+		if (url.pathname === "/snapshot" && request.method === "POST") {
+			return this.handleCreateSnapshot();
+		}
+		if (url.pathname.startsWith("/snapshots/") && request.method === "GET") {
+			const ts = url.pathname.split("/snapshots/")[1];
+			return this.handleGetSnapshot(ts);
 		}
 
 		return new Response("BoardRoom OK", { status: 200 });
@@ -404,9 +525,32 @@ export class BoardRoom extends DurableObject<Env> {
 					const Y = await getYjs();
 					Y.applyUpdate(this.doc as import("yjs").Doc, payload);
 				}
+				// パーティション別にもupdateを追記
+				const partName = this.getCurrentPartitionName();
+				let partUpdates = this.partitionUpdates.get(partName);
+				if (!partUpdates) {
+					partUpdates = [];
+					this.partitionUpdates.set(partName, partUpdates);
+				}
+				partUpdates.push(payload);
+				// パーティションメタ更新（初回または新四半期）
+				if (!this.partitionMeta) {
+					this.partitionMeta = {
+						partitions: [partName],
+						activePartition: partName,
+						shapeCount: {},
+					};
+				} else if (!this.partitionMeta.partitions.includes(partName)) {
+					this.partitionMeta.partitions.push(partName);
+					this.partitionMeta.activePartition = partName;
+				}
+				this.schedulePartitionSave(partName);
 				// バッファサイズ制限
 				if (this.updates.length > MAX_UPDATES_BUFFER) {
 					this.updates = this.updates.slice(-MAX_UPDATES_BUFFER);
+				}
+				if (partUpdates.length > MAX_UPDATES_BUFFER) {
+					this.partitionUpdates.set(partName, partUpdates.slice(-MAX_UPDATES_BUFFER));
 				}
 				this.broadcast(ws, data);
 				// updates を永続化（非同期、エラーは無視）
@@ -425,6 +569,30 @@ export class BoardRoom extends DurableObject<Env> {
 					msg[0] = MSG_SYNC_STEP2;
 					msg.set(update, 1);
 					ws.send(msg);
+				}
+				// パーティションメタデータも送信（利用可能な場合）
+				this.sendPartitionMeta(ws);
+				break;
+			}
+			case MSG_PARTITION_REQUEST: {
+				// クライアントからの追加パーティション要求
+				try {
+					const request = JSON.parse(new TextDecoder().decode(payload)) as {
+						partitions: string[];
+					};
+					for (const name of request.partitions) {
+						const updates = this.partitionUpdates.get(name);
+						if (updates) {
+							for (const update of updates) {
+								const msg = new Uint8Array(update.length + 1);
+								msg[0] = MSG_SYNC_STEP2;
+								msg.set(update, 1);
+								ws.send(msg);
+							}
+						}
+					}
+				} catch {
+					// 不正なリクエストは無視
 				}
 				break;
 			}
@@ -471,6 +639,119 @@ export class BoardRoom extends DurableObject<Env> {
 		} catch {
 			// 既に閉じているソケットは無視
 		}
+	}
+
+	/** スナップショットを作成して保存 */
+	private async handleCreateSnapshot(): Promise<Response> {
+		try {
+			const Y = await getYjs();
+			const { doc } = await this.getOrCreateDoc();
+			const snapshot = Y.snapshot(doc as import("yjs").Doc);
+			const encoded = Y.encodeSnapshot(snapshot);
+			const ts = Date.now();
+
+			// Save snapshot binary
+			await this.ctx.storage.put(`snapshot:${ts}`, Array.from(encoded));
+
+			// Update snapshot index
+			const indexStr = await this.ctx.storage.get<string>("snapshots:index");
+			const index: { timestamp: number; shapeCount: number }[] = indexStr
+				? JSON.parse(indexStr)
+				: [];
+			const shapesMap = (doc as import("yjs").Doc).getMap<Record<string, unknown>>("shapes");
+			index.push({ timestamp: ts, shapeCount: shapesMap.size });
+
+			// Keep max 100 snapshots
+			if (index.length > 100) {
+				const removed = index.splice(0, index.length - 100);
+				for (const r of removed) {
+					await this.ctx.storage.delete(`snapshot:${r.timestamp}`);
+				}
+			}
+
+			await this.ctx.storage.put("snapshots:index", JSON.stringify(index));
+			return new Response(JSON.stringify({ timestamp: ts, shapeCount: shapesMap.size }), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			});
+		} catch (err) {
+			return new Response(
+				JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
+				{ status: 500, headers: { "Content-Type": "application/json" } },
+			);
+		}
+	}
+
+	/** スナップショット一覧を返す */
+	private async handleListSnapshots(): Promise<Response> {
+		const indexStr = await this.ctx.storage.get<string>("snapshots:index");
+		const index: { timestamp: number; shapeCount: number }[] = indexStr ? JSON.parse(indexStr) : [];
+		return new Response(JSON.stringify({ snapshots: index }), {
+			status: 200,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+
+	/** 特定のスナップショットからシェイプデータを返す */
+	private async handleGetSnapshot(timestampStr: string): Promise<Response> {
+		try {
+			const ts = Number(timestampStr);
+			if (Number.isNaN(ts)) {
+				return new Response(JSON.stringify({ error: "Invalid timestamp" }), {
+					status: 400,
+					headers: { "Content-Type": "application/json" },
+				});
+			}
+
+			const stored = await this.ctx.storage.get<number[]>(`snapshot:${ts}`);
+			if (!stored) {
+				return new Response(JSON.stringify({ error: "Snapshot not found" }), {
+					status: 404,
+					headers: { "Content-Type": "application/json" },
+				});
+			}
+
+			const Y = await getYjs();
+			const { doc } = await this.getOrCreateDoc();
+			const snapshot = Y.decodeSnapshot(new Uint8Array(stored));
+			const snapshotDoc = Y.createDocFromSnapshot(doc as import("yjs").Doc, snapshot);
+			const shapesMap = snapshotDoc.getMap<Record<string, unknown>>("shapes");
+
+			const shapes: Record<string, unknown>[] = [];
+			for (const [, value] of shapesMap) {
+				shapes.push(value);
+			}
+
+			snapshotDoc.destroy();
+
+			return new Response(JSON.stringify({ timestamp: ts, shapes }), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			});
+		} catch (err) {
+			return new Response(
+				JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
+				{ status: 500, headers: { "Content-Type": "application/json" } },
+			);
+		}
+	}
+
+	/** 自動スナップショット — アクティブ接続がある間、1時間ごとに実行 */
+	private snapshotTimer: ReturnType<typeof setTimeout> | null = null;
+	private scheduleAutoSnapshot(): void {
+		if (this.snapshotTimer) return;
+		const SNAPSHOT_INTERVAL = 60 * 60 * 1000; // 1 hour
+		this.snapshotTimer = setTimeout(async () => {
+			this.snapshotTimer = null;
+			if (this.ctx.getWebSockets().length > 0) {
+				try {
+					await this.handleCreateSnapshot();
+				} catch {
+					// スナップショット作成失敗は無視
+				}
+				this.scheduleAutoSnapshot();
+			}
+		}, SNAPSHOT_INTERVAL);
 	}
 
 	/** サムネイル SVG を生成して返す */
