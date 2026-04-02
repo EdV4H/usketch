@@ -53,18 +53,24 @@ export function createBoardStore(): BoardStore {
 		getShape: (id) => state.shapes.get(id),
 
 		addShape(shape: ShapeData) {
+			const now = Date.now();
+			const stamped = {
+				...shape,
+				_createdAt: (shape as Record<string, unknown>)._createdAt ?? now,
+				_updatedAt: now,
+			};
 			state.shapes = new Map(state.shapes);
-			state.shapes.set(shape.id, shape);
-			spatialIndex.insert(shape.id, shapeToBounds(shape));
+			state.shapes.set(stamped.id, stamped);
+			spatialIndex.insert(stamped.id, shapeToBounds(stamped));
 			notify();
-			notifyMutation("shape:added", { id: shape.id });
+			notifyMutation("shape:added", { id: stamped.id });
 		},
 
 		updateShape(id: string, updates: Partial<ShapeData>) {
 			const existing = state.shapes.get(id);
 			if (!existing) return;
 			state.shapes = new Map(state.shapes);
-			const updated = { ...existing, ...updates };
+			const updated = { ...existing, ...updates, _updatedAt: Date.now() };
 			state.shapes.set(id, updated);
 			spatialIndex.update(id, shapeToBounds(updated));
 			notify();
