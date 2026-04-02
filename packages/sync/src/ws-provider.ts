@@ -8,6 +8,8 @@ import * as Y from "yjs";
 import {
 	MSG_AWARENESS,
 	MSG_BROADCAST,
+	MSG_PARTITION_META,
+	MSG_PARTITION_REQUEST,
 	MSG_SYNC_STEP1,
 	MSG_SYNC_STEP2,
 	MSG_YJS_UPDATE,
@@ -18,6 +20,12 @@ export type WsConnectionStatus = "connecting" | "connected" | "disconnected" | "
 export interface WsProviderOptions {
 	url: string;
 	doc: Y.Doc;
+}
+
+export interface PartitionMeta {
+	partitions: string[];
+	activePartition: string;
+	shapeCount: Record<string, number>;
 }
 
 export interface WsProviderHandle {
@@ -34,6 +42,11 @@ export interface WsProviderHandle {
 	/** 接続状態の変化を購読 */
 	onStatusChange(handler: (status: WsConnectionStatus) => void): () => void;
 
+	/** 追加パーティションの読み込みを要求 */
+	requestPartition(names: string[]): void;
+	/** サーバーからのパーティションメタデータを購読 */
+	onPartitionMeta(handler: (meta: PartitionMeta) => void): () => void;
+
 	destroy(): void;
 }
 
@@ -48,6 +61,7 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 
 	const broadcastListeners = new Set<(msg: Record<string, unknown>) => void>();
 	const statusListeners = new Set<(status: WsConnectionStatus) => void>();
+	const partitionMetaListeners = new Set<(meta: PartitionMeta) => void>();
 	let consecutiveFailures = 0;
 
 	function notifyStatus(status: WsConnectionStatus) {
@@ -113,6 +127,18 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			handler(connected ? "connected" : "connecting");
 			return () => statusListeners.delete(handler);
 		},
+		requestPartition(names: string[]): void {
+			if (!ws || ws.readyState !== WebSocket.OPEN) return;
+			const encoded = new TextEncoder().encode(JSON.stringify({ partitions: names }));
+			const buf = new Uint8Array(encoded.length + 1);
+			buf[0] = MSG_PARTITION_REQUEST;
+			buf.set(encoded, 1);
+			ws.send(buf);
+		},
+		onPartitionMeta(handler: (meta: PartitionMeta) => void): () => void {
+			partitionMetaListeners.add(handler);
+			return () => partitionMetaListeners.delete(handler);
+		},
 		destroy() {
 			destroyed = true;
 			if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -125,6 +151,7 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			}
 			broadcastListeners.clear();
 			statusListeners.clear();
+			partitionMetaListeners.clear();
 		},
 	};
 
@@ -171,6 +198,17 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 						const msg = JSON.parse(new TextDecoder().decode(payload)) as Record<string, unknown>;
 						for (const listener of broadcastListeners) {
 							listener(msg);
+						}
+					} catch {
+						// 不正なメッセージは無視
+					}
+					break;
+				}
+				case MSG_PARTITION_META: {
+					try {
+						const meta = JSON.parse(new TextDecoder().decode(payload)) as PartitionMeta;
+						for (const listener of partitionMetaListeners) {
+							listener(meta);
 						}
 					} catch {
 						// 不正なメッセージは無視
