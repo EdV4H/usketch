@@ -56,7 +56,20 @@ export function DomShapeLayer({
 	/** Shape IDs already claimed by another renderer (e.g. GPU). These are skipped. */
 	claimedIds?: ReadonlySet<string>;
 }) {
-	const shapes = [...ctx.shapes.values()];
+	// Sort shapes so containers (frame/island) render below their children.
+	// Shapes with parentId get a higher z-index than their parent.
+	const CONTAINER_TYPES = new Set(["frame", "island", "group"]);
+	const shapes = [...ctx.shapes.values()].sort((a, b) => {
+		const aIsContainer = CONTAINER_TYPES.has(a.type);
+		const bIsContainer = CONTAINER_TYPES.has(b.type);
+		// If one is a container of the other, container goes first (lower z)
+		if (a.parentId === b.id) return 1; // a is child of b → b first
+		if (b.parentId === a.id) return -1; // b is child of a → a first
+		// Containers before non-containers at same level
+		if (aIsContainer && !bIsContainer) return -1;
+		if (!aIsContainer && bIsContainer) return 1;
+		return 0;
+	});
 
 	return (
 		<div data-layer="shapes">

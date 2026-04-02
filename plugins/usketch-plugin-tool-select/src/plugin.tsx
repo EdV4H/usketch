@@ -60,11 +60,15 @@ function findShapeAtPoint(ctx: ToolContext, point: Point): string | null {
 
 		// If this shape has a parent, check the parent type:
 		// - Frame children are directly selectable (frames are containers)
+		// - Island children resolve to the island (island moves as a unit)
 		// - Group children resolve to the top-level group ancestor
 		if (typeof data.parentId === "string") {
 			const parent = ctx.store.getShape(data.parentId);
 			if (parent?.type === "frame") {
 				return id;
+			}
+			if (parent?.type === "island") {
+				return parent.id;
 			}
 			const ancestor = getTopLevelAncestor(ctx.store, id);
 			if (ancestor) return ancestor.id;
@@ -336,12 +340,24 @@ export const selectToolPlugin: UsketchPlugin = {
 					const shape = toolCtx.store.getShape(id);
 					if (shape) {
 						startShapeSnapshots.set(id, { ...shape });
-						// Include children of groups/frames so they move together
-						if (shape.type === "group" || shape.type === "frame") {
-							const children = getChildShapes(toolCtx.store, id);
-							for (const child of children) {
-								if (!startShapeSnapshots.has(child.id)) {
-									startShapeSnapshots.set(child.id, { ...child });
+						// Include all descendants of groups/frames/islands so they move together
+						if (shape.type === "group" || shape.type === "frame" || shape.type === "island") {
+							const queue = [id];
+							while (queue.length > 0) {
+								const parentId = queue.pop()!;
+								const children = getChildShapes(toolCtx.store, parentId);
+								for (const child of children) {
+									if (!startShapeSnapshots.has(child.id)) {
+										startShapeSnapshots.set(child.id, { ...child });
+										// Recurse into nested containers
+										if (
+											child.type === "group" ||
+											child.type === "frame" ||
+											child.type === "island"
+										) {
+											queue.push(child.id);
+										}
+									}
 								}
 							}
 						}
