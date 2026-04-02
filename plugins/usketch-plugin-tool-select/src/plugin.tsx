@@ -47,7 +47,12 @@ function findShapeAtPoint(ctx: ToolContext, point: Point): string | null {
 	const shapes = ctx.store.getShapes();
 	const editingGroupId = getEditingGroupId();
 	// Iterate in reverse insertion order (top-most shape first)
+	// but prioritize non-container shapes over containers (island/frame)
+	const CONTAINER_TYPES = new Set(["island", "frame"]);
 	const entries = [...shapes.entries()].reverse();
+
+	// First pass: find non-container shapes
+	let containerHit: string | null = null;
 	for (const [id, data] of entries) {
 		const def = ctx.shapes.get(data.type);
 		if (!def?.hitTest(data, point)) continue;
@@ -59,25 +64,28 @@ function findShapeAtPoint(ctx: ToolContext, point: Point): string | null {
 		}
 
 		// If this shape has a parent, check the parent type:
-		// - Frame children are directly selectable (frames are containers)
-		// - Island children resolve to the island (island moves as a unit)
+		// - Frame/Island children are directly selectable (containers)
 		// - Group children resolve to the top-level group ancestor
 		if (typeof data.parentId === "string") {
 			const parent = ctx.store.getShape(data.parentId);
-			if (parent?.type === "frame") {
+			if (parent?.type === "frame" || parent?.type === "island") {
 				return id;
-			}
-			if (parent?.type === "island") {
-				return parent.id;
 			}
 			const ancestor = getTopLevelAncestor(ctx.store, id);
 			if (ancestor) return ancestor.id;
 			continue;
 		}
 
+		// Defer containers — prefer their children first
+		if (CONTAINER_TYPES.has(data.type)) {
+			if (!containerHit) containerHit = id;
+			continue;
+		}
+
 		return id;
 	}
-	return null;
+	// No non-container shape found, return the container itself
+	return containerHit;
 }
 
 function findShapesInRect(ctx: ToolContext, rect: BoundingBox, mode: MarqueeMode): string[] {

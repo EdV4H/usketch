@@ -18,6 +18,9 @@ function ShapeWrapper({
 	const svgW = Math.max(bounds.width, 1);
 	const svgH = Math.max(bounds.height, 1);
 
+	// Containers (island/frame/group) use pointerEvents: none to let children receive clicks
+	const isContainer = shape.type === "island" || shape.type === "group";
+
 	return (
 		<div
 			style={{
@@ -27,7 +30,7 @@ function ShapeWrapper({
 				width: bounds.width,
 				height: bounds.height,
 				zIndex: index,
-				pointerEvents: "auto",
+				pointerEvents: isContainer ? "none" : "auto",
 			}}
 		>
 			{isHtml ? (
