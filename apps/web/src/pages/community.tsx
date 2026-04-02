@@ -12,6 +12,8 @@ import { createKeyboardShortcutsPlugin } from "@edv4h/usketch-plugin-keyboard-sh
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createReactionsPlugin, reactionsPlugin } from "@edv4h/usketch-plugin-reactions";
 import { createBoardPortalPlugin } from "@edv4h/usketch-plugin-shape-board-portal";
+import { groupPlugin } from "@edv4h/usketch-plugin-shape-group";
+import { islandPlugin } from "@edv4h/usketch-plugin-shape-island";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { createSpatialChatPlugin, spatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
 import { createSpotlightPlugin, spotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
@@ -184,6 +186,8 @@ export function CommunityPage() {
 					panToolPlugin,
 					viewportNavPlugin,
 					portalPlugin,
+					groupPlugin,
+					islandPlugin,
 					createDomRendererPlugin(),
 				];
 
