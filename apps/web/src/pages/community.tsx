@@ -4,6 +4,7 @@ import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
 import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
 import { createBoardInfoPanelPlugin } from "@edv4h/usketch-plugin-board-info-panel";
+import { createFilterPlugin } from "@edv4h/usketch-plugin-canvas-filter";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createCommunityChatPlugin } from "@edv4h/usketch-plugin-community-chat";
 import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
@@ -171,6 +172,12 @@ export function CommunityPage() {
 					);
 					extraPlugins.push(createKeyboardShortcutsPlugin({ wsProvider }));
 					extraPlugins.push(createWhistlePlugin(wsProvider));
+					// Filter plugin after side-panel so tab registration works
+					extraPlugins.push(
+						createFilterPlugin({
+							boardRoomApiUrl: `${apiUrl}/api/boards/${boardId}`,
+						}),
+					);
 				} else {
 					extraPlugins.push(rippleEffectPlugin);
 					extraPlugins.push(reactionsPlugin);
@@ -179,6 +186,7 @@ export function CommunityPage() {
 					extraPlugins.push(spotlightPlugin);
 					extraPlugins.push(createKeyboardShortcutsPlugin());
 					extraPlugins.push(whistlePlugin);
+					extraPlugins.push(createFilterPlugin());
 				}
 
 				const basePlugins: UsketchPlugin[] = [
@@ -207,6 +215,23 @@ export function CommunityPage() {
 					order: 100,
 					render: (renderCtx) => <TransientLayer registry={a.transient} ctx={renderCtx} />,
 				});
+
+				// Partition request relay: filter plugin → wsProvider → syncHandle
+				if (wsProvider && syncHandle) {
+					const wp = wsProvider;
+					const sh = syncHandle;
+					a.events.on<{ partitions: string[] }>("partition:request", (data) => {
+						wp.requestPartition(data.partitions);
+						for (const name of data.partitions) {
+							sh.loadPartition(name);
+						}
+					});
+					a.events.on<{ partitions: string[] }>("partition:unload", (data) => {
+						for (const name of data.partitions) {
+							sh.unloadPartition(name);
+						}
+					});
+				}
 
 				setApp(instance);
 			} catch (e) {

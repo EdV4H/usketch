@@ -169,6 +169,9 @@ importers:
       '@edv4h/usketch-plugin-board-info-panel':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-board-info-panel
+      '@edv4h/usketch-plugin-canvas-filter':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-canvas-filter
       '@edv4h/usketch-plugin-comments':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-comments
@@ -718,6 +721,28 @@ importers:
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      react:
+        specifier: '>=19'
+        version: 19.2.4
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@24.12.0)(tsx@4.21.0)
+
+  plugins/usketch-plugin-canvas-filter:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
       react:
         specifier: '>=19'
         version: 19.2.4
