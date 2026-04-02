@@ -3,7 +3,9 @@ import { DEFAULT_THEME } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
+import { useFilterPredicate } from "../hooks/use-filter-predicate.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
+import { useTimeTravelShapes } from "../hooks/use-time-travel.js";
 
 function toCanvasEvent(
 	containerRef: React.RefObject<HTMLDivElement | null>,
@@ -155,9 +157,25 @@ export function Canvas() {
 		};
 	}, [viewport, app.events]);
 
+	const filterPredicate = useFilterPredicate(app.events);
+	const timeTravelShapes = useTimeTravelShapes(app.events);
+
+	const filteredShapes = useMemo(() => {
+		// Time-travel mode: override with snapshot shapes
+		if (timeTravelShapes) return timeTravelShapes;
+		if (!filterPredicate) return shapes;
+		const filtered = new Map<string, import("@edv4h/usketch-shared").ShapeData>();
+		for (const [id, shape] of shapes) {
+			if (filterPredicate(shape)) {
+				filtered.set(id, shape);
+			}
+		}
+		return filtered;
+	}, [shapes, filterPredicate, timeTravelShapes]);
+
 	const renderCtx = {
 		viewport,
-		shapes,
+		shapes: filteredShapes,
 		selection,
 		theme: DEFAULT_THEME,
 	};
