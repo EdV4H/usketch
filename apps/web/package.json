@@ -32,6 +32,7 @@
 		"@edv4h/usketch-plugin-effect-ripple": "workspace:*",
 		"@edv4h/usketch-plugin-shape-board-portal": "workspace:*",
 		"@edv4h/usketch-plugin-shape-community-region": "workspace:*",
+		"@edv4h/usketch-plugin-shape-island": "workspace:*",
 		"@edv4h/usketch-plugin-shape-image": "workspace:*",
 		"@edv4h/usketch-plugin-export": "workspace:*",
 		"@edv4h/usketch-plugin-follow-me": "workspace:*",

@@ -47,7 +47,12 @@ function findShapeAtPoint(ctx: ToolContext, point: Point): string | null {
 	const shapes = ctx.store.getShapes();
 	const editingGroupId = getEditingGroupId();
 	// Iterate in reverse insertion order (top-most shape first)
+	// but prioritize non-container shapes over containers (island/frame)
+	const CONTAINER_TYPES = new Set(["island", "frame"]);
 	const entries = [...shapes.entries()].reverse();
+
+	// First pass: find non-container shapes
+	let containerHit: string | null = null;
 	for (const [id, data] of entries) {
 		const def = ctx.shapes.get(data.type);
 		if (!def?.hitTest(data, point)) continue;
@@ -59,11 +64,11 @@ function findShapeAtPoint(ctx: ToolContext, point: Point): string | null {
 		}
 
 		// If this shape has a parent, check the parent type:
-		// - Frame children are directly selectable (frames are containers)
+		// - Frame/Island children are directly selectable (containers)
 		// - Group children resolve to the top-level group ancestor
 		if (typeof data.parentId === "string") {
 			const parent = ctx.store.getShape(data.parentId);
-			if (parent?.type === "frame") {
+			if (parent?.type === "frame" || parent?.type === "island") {
 				return id;
 			}
 			const ancestor = getTopLevelAncestor(ctx.store, id);
@@ -71,9 +76,16 @@ function findShapeAtPoint(ctx: ToolContext, point: Point): string | null {
 			continue;
 		}
 
+		// Defer containers — prefer their children first
+		if (CONTAINER_TYPES.has(data.type)) {
+			if (!containerHit) containerHit = id;
+			continue;
+		}
+
 		return id;
 	}
-	return null;
+	// No non-container shape found, return the container itself
+	return containerHit;
 }
 
 function findShapesInRect(ctx: ToolContext, rect: BoundingBox, mode: MarqueeMode): string[] {
@@ -336,12 +348,24 @@ export const selectToolPlugin: UsketchPlugin = {
 					const shape = toolCtx.store.getShape(id);
 					if (shape) {
 						startShapeSnapshots.set(id, { ...shape });
-						// Include children of groups/frames so they move together
-						if (shape.type === "group" || shape.type === "frame") {
-							const children = getChildShapes(toolCtx.store, id);
-							for (const child of children) {
-								if (!startShapeSnapshots.has(child.id)) {
-									startShapeSnapshots.set(child.id, { ...child });
+						// Include all descendants of groups/frames/islands so they move together
+						if (shape.type === "group" || shape.type === "frame" || shape.type === "island") {
+							const queue = [id];
+							while (queue.length > 0) {
+								const parentId = queue.pop()!;
+								const children = getChildShapes(toolCtx.store, parentId);
+								for (const child of children) {
+									if (!startShapeSnapshots.has(child.id)) {
+										startShapeSnapshots.set(child.id, { ...child });
+										// Recurse into nested containers
+										if (
+											child.type === "group" ||
+											child.type === "frame" ||
+											child.type === "island"
+										) {
+											queue.push(child.id);
+										}
+									}
 								}
 							}
 						}
