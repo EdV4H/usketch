@@ -28,7 +28,7 @@ export function TimeTravelPanel({
 	useEffect(() => {
 		let cancelled = false;
 		setLoading(true);
-		fetch(`${apiBaseUrl}/snapshots`)
+		fetch(`${apiBaseUrl}/snapshots`, { credentials: "include" })
 			.then((r) => r.json())
 			.then((data: { snapshots: SnapshotEntry[] }) => {
 				if (!cancelled) {
@@ -52,7 +52,7 @@ export function TimeTravelPanel({
 			setLoading(true);
 			setError(null);
 			try {
-				const res = await fetch(`${apiBaseUrl}/snapshots/${ts}`);
+				const res = await fetch(`${apiBaseUrl}/snapshots/${ts}`, { credentials: "include" });
 				const data = (await res.json()) as {
 					timestamp: number;
 					shapes: Record<string, unknown>[];
@@ -82,7 +82,7 @@ export function TimeTravelPanel({
 	const handleCreateSnapshot = useCallback(async () => {
 		setLoading(true);
 		try {
-			const res = await fetch(`${apiBaseUrl}/snapshot`, { method: "POST" });
+			const res = await fetch(`${apiBaseUrl}/snapshot`, { method: "POST", credentials: "include" });
 			const data = (await res.json()) as SnapshotEntry;
 			setSnapshots((prev) => [...prev, data]);
 		} catch {
