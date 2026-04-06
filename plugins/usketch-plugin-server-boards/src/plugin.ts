@@ -36,7 +36,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 
 			// POST /api/boards — ボード作成
 			boardsApp.post("/", zValidator("json", createBoardSchema), async (c) => {
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 				const userId = c.get("userId");
 				const body = c.req.valid("json");
 
@@ -78,7 +79,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 
 			// GET /api/boards/discover — 公開ボード一覧（コミュニティエリア用）
 			boardsApp.get("/discover", async (c) => {
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 
 				const result = await db
 					.select({
@@ -110,7 +112,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 
 			// GET /api/boards — ボード一覧（自分がメンバーのボード）
 			boardsApp.get("/", async (c) => {
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 				const userId = c.get("userId");
 
 				const result = await db
@@ -141,7 +144,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 
 			// GET /api/boards/:id — ボード取得
 			boardsApp.get("/:id", async (c) => {
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 				const currentUserId = c.get("userId");
 				const boardId = c.req.param("id");
 
@@ -181,7 +185,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 
 			// PATCH /api/boards/:id — ボード更新
 			boardsApp.patch("/:id", zValidator("json", updateBoardSchema), async (c) => {
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 				const boardId = c.req.param("id");
 				// コミュニティボードは変更不可
 				const isCommunity = await db
@@ -223,7 +228,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 
 			// DELETE /api/boards/:id — ボード削除
 			boardsApp.delete("/:id", async (c) => {
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 				const userId = c.get("userId");
 				const boardId = c.req.param("id");
 				// コミュニティボードは削除不可
@@ -256,7 +262,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 
 			// GET /api/boards/:id/members — メンバー一覧（メンバーまたは公開ボードからアクセス可）
 			boardsApp.get("/:id/members", async (c) => {
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 				const currentUserId = c.get("userId");
 				const boardId = c.req.param("id");
 
@@ -304,7 +311,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 
 			// POST /api/boards/:id/members — メンバー追加
 			boardsApp.post("/:id/members", zValidator("json", addMemberSchema), async (c) => {
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 				const currentUserId = c.get("userId");
 				const boardId = c.req.param("id");
 				const body = c.req.valid("json");
@@ -344,7 +352,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 
 			// DELETE /api/boards/:id/members/:userId — メンバー削除
 			boardsApp.delete("/:id/members/:userId", async (c) => {
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 				const currentUserId = c.get("userId");
 				const boardId = c.req.param("id");
 				const targetUserId = c.req.param("userId");
@@ -376,7 +385,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 
 			// POST /api/boards/:id/share — パブリックリンクの切り替え
 			boardsApp.post("/:id/share", async (c) => {
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 				const currentUserId = c.get("userId");
 				const boardId = c.req.param("id");
 
@@ -409,7 +419,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 			});
 
 			boardsApp.patch("/:id/viewport", zValidator("json", viewportSchema), async (c) => {
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 				const userId = c.get("userId");
 				const boardId = c.req.param("id");
 				const body = c.req.valid("json");
@@ -435,7 +446,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 
 			// GET /api/boards/:id/activity — アクティビティログ取得
 			boardsApp.get("/:id/activity", async (c) => {
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 				const userId = c.get("userId");
 				const boardId = c.req.param("id");
 
@@ -465,7 +477,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				const userId = c.get("userId");
 				if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
-				const db = c.get("db")!;
+				const db = c.get("db");
 				if (!db) return c.json({ error: "Internal error" }, 500);
 				const boardId = c.req.param("boardId");
 
@@ -539,7 +551,8 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 			async function proxyToDurableObject(c: Context<HonoEnv>) {
 				const userId = c.get("userId");
 				if (!userId) return c.json({ error: "Unauthorized" }, 401);
-				const boardId = c.req.param("boardId")!;
+				const boardId = c.req.param("boardId");
+				if (!boardId) return c.json({ error: "Bad request" }, 400);
 				const env = c.env;
 				const id = env.BOARD_ROOM.idFromName(boardId);
 				const room = env.BOARD_ROOM.get(id);

@@ -356,7 +356,8 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 				const userId = c.get("userId");
 
 				// ボードアクセス制御: メンバーまたは公開ボードのみ許可
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 				const result = await db
 					.select({
 						isPublic: boards.isPublic,
@@ -609,7 +610,8 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 				const userId = c.get("userId");
 
 				// ボードアクセス制御
-				const db = c.get("db")!;
+				const db = c.get("db");
+				if (!db) return c.json({ error: "Internal error" }, 500);
 				const result = await db
 					.select({ isPublic: boards.isPublic, role: boardMembers.role })
 					.from(boards)
