@@ -186,7 +186,11 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			switch (msgType) {
 				case MSG_SYNC_STEP2:
 				case MSG_YJS_UPDATE: {
-					Y.applyUpdate(doc, payload, "remote");
+					try {
+						Y.applyUpdate(doc, payload, "remote");
+					} catch (e) {
+						console.error("[WsProvider] Corrupt Yjs update from server, skipping:", e);
+					}
 					break;
 				}
 				case MSG_AWARENESS: {
@@ -233,13 +237,11 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			}
 
 			if (!destroyed) {
-				// 連続3回失敗したら「failed」として通知し、リトライを停止
-				if (consecutiveFailures >= 3) {
-					notifyStatus("failed");
-				} else {
-					notifyStatus("disconnected");
-					reconnectTimer = setTimeout(connect, 3000);
-				}
+				notifyStatus("disconnected");
+				// Exponential backoff with jitter: 1s, 2s, 4s, 8s, ... 最大30s
+				const baseDelay = Math.min(1000 * 2 ** consecutiveFailures, 30000);
+				const jitter = Math.random() * 1000;
+				reconnectTimer = setTimeout(connect, baseDelay + jitter);
 			}
 		});
 

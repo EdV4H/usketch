@@ -229,7 +229,11 @@ export class BoardRoom extends DurableObject<Env> {
 			this.doc = new Y.Doc();
 			// 蓄積されたupdatesをすべて適用して現在状態を復元
 			for (const update of this.updates) {
-				Y.applyUpdate(this.doc as import("yjs").Doc, update);
+				try {
+					Y.applyUpdate(this.doc as import("yjs").Doc, update);
+				} catch (e) {
+					console.error("[BoardRoom] Corrupt Yjs update during doc init, skipping:", e);
+				}
 			}
 		}
 		return { doc: this.doc as import("yjs").Doc };
@@ -522,8 +526,13 @@ export class BoardRoom extends DurableObject<Env> {
 				this.updates.push(payload);
 				// Y.Docが構築済みならupdateを適用（動的importを使うため非同期）
 				if (this.doc) {
-					const Y = await getYjs();
-					Y.applyUpdate(this.doc as import("yjs").Doc, payload);
+					try {
+						const Y = await getYjs();
+						Y.applyUpdate(this.doc as import("yjs").Doc, payload);
+					} catch (e) {
+						console.error("[BoardRoom] Corrupt Yjs update from client, skipping:", e);
+						return;
+					}
 				}
 				// パーティション別にもupdateを追記
 				const partName = this.getCurrentPartitionName();
@@ -638,6 +647,12 @@ export class BoardRoom extends DurableObject<Env> {
 			ws.close(code);
 		} catch {
 			// 既に閉じているソケットは無視
+		}
+
+		// 全接続が閉じられたらY.Docを破棄してメモリを解放
+		if (this.ctx.getWebSockets().length === 0 && this.doc) {
+			(this.doc as import("yjs").Doc).destroy();
+			this.doc = null;
 		}
 	}
 
