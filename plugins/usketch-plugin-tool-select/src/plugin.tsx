@@ -157,12 +157,7 @@ function deleteSelectedShapes(ctx: PluginContext) {
 	if (selection.size === 0) return;
 	if (ctx.store.getActiveToolId() !== "select") return;
 	for (const id of selection) {
-		const shape = ctx.store.getShape(id);
-		if (shape && (shape.type === "group" || shape.type === "frame")) {
-			ctx.commands.execute(createDeleteWithChildrenCommand(ctx.store, id));
-		} else {
-			ctx.commands.execute(createDeleteWithChildrenCommand(ctx.store, id));
-		}
+		ctx.commands.execute(createDeleteWithChildrenCommand(ctx.store, id));
 	}
 	ctx.store.clearSelection();
 }
@@ -761,7 +756,7 @@ export const selectToolPlugin: UsketchPlugin = {
 						if (key === "id" || key === "type" || key === "style") continue;
 						const currentValue = currentShape[key];
 						const origValue = origFullShape[key];
-						if (JSON.stringify(currentValue) !== JSON.stringify(origValue)) {
+						if (currentValue !== origValue) {
 							from[key] = origValue;
 							to[key] = currentValue;
 						}
