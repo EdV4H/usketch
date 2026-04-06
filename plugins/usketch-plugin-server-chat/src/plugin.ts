@@ -59,7 +59,7 @@ export function createChatPlugin(schema: ChatPluginSchema): ServerPlugin {
 
 			// GET /api/boards/:boardId/chat — メッセージ一覧（スレッド別）
 			chatApp.get("/", zValidator("query", listSchema), async (c) => {
-				const db = c.get("db") as any;
+				const db = c.get("db");
 				const userId = c.get("userId");
 				const boardId = c.get("boardId");
 				const { limit, before, threadId } = c.req.valid("query");
@@ -91,7 +91,7 @@ export function createChatPlugin(schema: ChatPluginSchema): ServerPlugin {
 
 			// POST /api/boards/:boardId/chat — メッセージ投稿
 			chatApp.post("/", zValidator("json", postSchema), async (c) => {
-				const db = c.get("db") as any;
+				const db = c.get("db");
 				const userId = c.get("userId");
 				const boardId = c.get("boardId");
 				const body = c.req.valid("json");

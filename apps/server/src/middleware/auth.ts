@@ -1,3 +1,4 @@
+import type { HonoEnv } from "@edv4h/usketch-server-core";
 import type { MiddlewareHandler } from "hono";
 import { createAuth } from "../auth.js";
 import type { Env } from "../types.js";
@@ -7,12 +8,7 @@ import type { Env } from "../types.js";
  * Better Auth のセッションを検証し、userId を設定する。
  * DEV_MODE が有効な場合は X-User-Id ヘッダーも受け付ける（開発用）。
  */
-export const authMiddleware: MiddlewareHandler<{
-	Bindings: Env;
-	Variables: {
-		userId: string;
-	};
-}> = async (c, next) => {
+export const authMiddleware: MiddlewareHandler<HonoEnv> = async (c, next) => {
 	// 開発モード: X-User-Id ヘッダーまたは devUserId クエリパラメータを受け付ける
 	// 本番環境では DEV_MODE が有効でも無視する（誤設定による認証バイパス防止）
 	if (c.env.DEV_MODE === "true" && c.env.ENVIRONMENT !== "production") {
@@ -25,7 +21,7 @@ export const authMiddleware: MiddlewareHandler<{
 	}
 
 	// Better Auth セッション検証
-	const auth = createAuth(c.env);
+	const auth = createAuth(c.env as unknown as Env);
 	const session = await auth.api.getSession({ headers: c.req.raw.headers });
 
 	if (!session) {

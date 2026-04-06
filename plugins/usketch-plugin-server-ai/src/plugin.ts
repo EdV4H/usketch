@@ -356,7 +356,7 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 				const userId = c.get("userId");
 
 				// ボードアクセス制御: メンバーまたは公開ボードのみ許可
-				const db = c.get("db") as any;
+				const db = c.get("db")!;
 				const result = await db
 					.select({
 						isPublic: boards.isPublic,
@@ -374,7 +374,7 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 					return c.json({ error: "Not found" }, 404);
 				}
 
-				const apiKey = (c.env as any).OPENAI_API_KEY;
+				const apiKey = c.env.OPENAI_API_KEY;
 				if (!apiKey) {
 					return c.json({ error: "OPENAI_API_KEY is not configured" }, 500);
 				}
@@ -466,8 +466,8 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 							return;
 						}
 
-						const doId = (c.env as any).BOARD_ROOM.idFromName(boardId);
-						const room = (c.env as any).BOARD_ROOM.get(doId);
+						const doId = c.env.BOARD_ROOM.idFromName(boardId);
+						const room = c.env.BOARD_ROOM.get(doId);
 
 						// 全tool_callの結果を集約してから1回のresultイベントで送信
 						const allPlacedShapes: Array<{
@@ -609,7 +609,7 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 				const userId = c.get("userId");
 
 				// ボードアクセス制御
-				const db = c.get("db") as any;
+				const db = c.get("db")!;
 				const result = await db
 					.select({ isPublic: boards.isPublic, role: boardMembers.role })
 					.from(boards)
@@ -624,7 +624,7 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 					return c.json({ error: "Not found" }, 404);
 				}
 
-				const apiKey = (c.env as any).OPENAI_API_KEY;
+				const apiKey = c.env.OPENAI_API_KEY;
 				if (!apiKey) {
 					return c.json({ error: "OPENAI_API_KEY is not configured" }, 500);
 				}

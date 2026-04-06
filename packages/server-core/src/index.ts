@@ -4,6 +4,7 @@ export type {
 	HonoEnv,
 	RouteEntry,
 	RouteRegistry,
+	ServerBindings,
 	ServerEventBus,
 	ServerPlugin,
 	ServerPluginContext,
