@@ -7,6 +7,7 @@ export type {
 	CanvasWheelEvent,
 	Command,
 	CommandRegistry,
+	CoreEventMap,
 	EventBus,
 	GpuPrimitive,
 	GpuPrimitiveKind,
