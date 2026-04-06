@@ -5,6 +5,7 @@ export interface Env {
 	DB: D1Database;
 	BOARD_ROOM: DurableObjectNamespace;
 	DEV_MODE?: string;
+	ENVIRONMENT?: string;
 	BETTER_AUTH_SECRET: string;
 	BETTER_AUTH_URL: string;
 	GOOGLE_CLIENT_ID?: string;

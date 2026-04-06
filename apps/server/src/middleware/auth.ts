@@ -14,7 +14,8 @@ export const authMiddleware: MiddlewareHandler<{
 	};
 }> = async (c, next) => {
 	// 開発モード: X-User-Id ヘッダーまたは devUserId クエリパラメータを受け付ける
-	if (c.env.DEV_MODE === "true") {
+	// 本番環境では DEV_MODE が有効でも無視する（誤設定による認証バイパス防止）
+	if (c.env.DEV_MODE === "true" && c.env.ENVIRONMENT !== "production") {
 		const devUserId = c.req.header("X-User-Id") || c.req.query("devUserId");
 		if (devUserId) {
 			c.set("userId", devUserId);
