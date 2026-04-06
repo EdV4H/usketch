@@ -130,6 +130,8 @@ function BasicShapeIcon() {
 	);
 }
 
+let cleanupFn: (() => void) | null = null;
+
 export const basicShapePlugin: UsketchPlugin = {
 	id: "usketch-plugin-shape-basic",
 	name: "基本シェイプ",
@@ -157,9 +159,10 @@ export const basicShapePlugin: UsketchPlugin = {
 		let drawState: { startX: number; startY: number; shapeId: string } | null = null;
 
 		// Listen for subtype changes from the toolbar picker
-		ctx.events.on<{ type: string }>("basic-shape:select-subtype", (data) => {
+		const offSubtype = ctx.events.on<{ type: string }>("basic-shape:select-subtype", (data) => {
 			currentSubtype = data.type;
 		});
+		cleanupFn = offSubtype;
 
 		function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
 			const subtype = BASIC_SHAPE_SUBTYPES.find((s) => s.type === currentSubtype);
@@ -205,5 +208,10 @@ export const basicShapePlugin: UsketchPlugin = {
 			onPointerMove,
 			onPointerUp,
 		});
+	},
+
+	teardown() {
+		cleanupFn?.();
+		cleanupFn = null;
 	},
 };
