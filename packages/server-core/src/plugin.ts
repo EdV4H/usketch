@@ -7,8 +7,20 @@ import type { Hono } from "hono";
  * server-core は apps/server に依存しないため、Bindings を generic にして
  * createServerApp 側で具体型を注入する。
  */
+/**
+ * サーバーバインディングの共通インターフェース。
+ * apps/server の Env はこれを拡張する。
+ */
+export interface ServerBindings {
+	DB: D1Database;
+	DEV_MODE?: string;
+	ENVIRONMENT?: string;
+	BOARD_ROOM: DurableObjectNamespace;
+	[key: string]: unknown;
+}
+
 export type HonoEnv = {
-	Bindings: Record<string, unknown>;
+	Bindings: ServerBindings;
 	Variables: {
 		db?: DrizzleD1Database<Record<string, unknown>>;
 		userId?: string;

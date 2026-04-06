@@ -43,10 +43,10 @@ const app = await createServerApp({
 		}),
 	],
 	corsOrigins: ALLOWED_ORIGINS,
-	authMiddleware: authMiddleware as any,
+	authMiddleware,
 	dbMiddleware: async (c, next) => {
-		const db = drizzle((c.env as unknown as Env).DB, { schema });
-		c.set("db", db as any);
+		const db = drizzle(c.env.DB, { schema });
+		c.set("db", db);
 		await next();
 	},
 });

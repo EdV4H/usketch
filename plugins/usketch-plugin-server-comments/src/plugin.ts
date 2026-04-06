@@ -56,7 +56,7 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 
 			// GET /api/boards/:boardId/comments — スレッド一覧（メッセージ含む）
 			commentsApp.get("/", async (c) => {
-				const db = c.get("db") as any;
+				const db = c.get("db");
 				const userId = c.get("userId");
 				const boardId = c.get("boardId");
 
@@ -108,7 +108,7 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 
 			// POST /api/boards/:boardId/comments — スレッド作成（初期メッセージ付き）
 			commentsApp.post("/", zValidator("json", createThreadSchema), async (c) => {
-				const db = c.get("db") as any;
+				const db = c.get("db");
 				const userId = c.get("userId");
 				const boardId = c.get("boardId");
 				const body = c.req.valid("json");
@@ -172,7 +172,7 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 
 			// POST /api/boards/:boardId/comments/:commentId/messages — メッセージ追加
 			commentsApp.post("/:commentId/messages", zValidator("json", addMessageSchema), async (c) => {
-				const db = c.get("db") as any;
+				const db = c.get("db");
 				const userId = c.get("userId");
 				const boardId = c.get("boardId");
 				const commentId = c.req.param("commentId");
@@ -225,7 +225,7 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 
 			// PATCH /api/boards/:boardId/comments/:commentId — 解決/未解決切替
 			commentsApp.patch("/:commentId", zValidator("json", resolveSchema), async (c) => {
-				const db = c.get("db") as any;
+				const db = c.get("db");
 				const userId = c.get("userId");
 				const boardId = c.get("boardId");
 				const commentId = c.req.param("commentId");
@@ -255,7 +255,7 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 
 			// DELETE /api/boards/:boardId/comments/:commentId — スレッド削除
 			commentsApp.delete("/:commentId", async (c) => {
-				const db = c.get("db") as any;
+				const db = c.get("db");
 				const userId = c.get("userId");
 				const boardId = c.get("boardId");
 				const commentId = c.req.param("commentId");
