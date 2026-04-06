@@ -145,8 +145,28 @@ export interface ShortcutRegistry {
 
 // ── Event Bus ──
 
+/**
+ * コアイベントの型マップ。
+ * プラグインは独自イベントを自由に emit/on できる（string フォールバック）。
+ * 既知イベントはここに追加することで型安全な emit/on が可能になる。
+ */
+export interface CoreEventMap {
+	"canvas:pointerdown": { worldX: number; worldY: number };
+	"canvas:pointermove": { worldX: number; worldY: number };
+	"canvas:pointerup": { worldX: number; worldY: number };
+	"layers:changed": Record<string, never>;
+	"filter:changed": { predicate: ((shape: ShapeData) => boolean) | null; config: unknown };
+	"time-travel:enter": { shapes: Map<string, ShapeData> };
+	"time-travel:exit": Record<string, never>;
+	"shapes:move-end": { shapeIds: string[] };
+	"snap:configure": { enabled: boolean };
+	"partition:request": { partitions: string[] };
+}
+
 export interface EventBus {
+	on<K extends keyof CoreEventMap>(event: K, handler: (data: CoreEventMap[K]) => void): () => void;
 	on<T = unknown>(event: string, handler: (data: T) => void): () => void;
+	emit<K extends keyof CoreEventMap>(event: K, data: CoreEventMap[K]): void;
 	emit<T = unknown>(event: string, data: T): void;
 }
 
