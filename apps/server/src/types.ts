@@ -1,11 +1,8 @@
+import type { ServerBindings } from "@edv4h/usketch-server-core";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type * as schema from "./db/schema.js";
 
-export interface Env {
-	DB: D1Database;
-	BOARD_ROOM: DurableObjectNamespace;
-	DEV_MODE?: string;
-	ENVIRONMENT?: string;
+export interface Env extends ServerBindings {
 	BETTER_AUTH_SECRET: string;
 	BETTER_AUTH_URL: string;
 	GOOGLE_CLIENT_ID?: string;

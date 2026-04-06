@@ -21,7 +21,7 @@ export const authMiddleware: MiddlewareHandler<HonoEnv> = async (c, next) => {
 	}
 
 	// Better Auth セッション検証
-	const auth = createAuth(c.env as unknown as Env);
+	const auth = createAuth(c.env as Env);
 	const session = await auth.api.getSession({ headers: c.req.raw.headers });
 
 	if (!session) {
