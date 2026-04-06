@@ -1,9 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
-import { computeMinimap, minimapToSvg, type ShapeData } from "@edv4h/usketch-shared";
 import {
 	MSG_AWARENESS,
 	MSG_BROADCAST,
-	MSG_PARTITION_META,
 	MSG_PARTITION_REQUEST,
 	MSG_SYNC_STEP1,
 	MSG_SYNC_STEP2,
@@ -12,504 +10,98 @@ import {
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { boardMembers } from "./db/schema.js";
+import { handleAiPlaceShapes, handleAiUpdateShapes } from "./rooms/ai-handler.js";
+import { createPartitionManager } from "./rooms/partition-manager.js";
+import { createSnapshotManager } from "./rooms/snapshot-manager.js";
+import { handleThumbnail } from "./rooms/thumbnail-handler.js";
+import { createYjsSync } from "./rooms/yjs-sync.js";
 import type { Env } from "./types.js";
-
-/** バッファの最大件数。超えたら古い更新から間引く */
-const MAX_UPDATES_BUFFER = 500;
-
-const DEFAULT_STYLE = {
-	fill: "#ffffff",
-	stroke: "#1e1e1e",
-	strokeWidth: 2,
-	opacity: 1,
-};
-
-/** ID生成（サーバー側用、crypto.randomUUIDで衝突リスク排除） */
-function generateShapeId(): string {
-	return crypto.randomUUID();
-}
-
-interface AiShapeUpdate {
-	id: string;
-	x?: number;
-	y?: number;
-	width?: number;
-	height?: number;
-	text?: string;
-	fontSize?: number;
-	style?: {
-		fill?: string;
-		stroke?: string;
-		strokeWidth?: number;
-		opacity?: number;
-	};
-}
-
-interface AiShapeInput {
-	type: string;
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	text?: string;
-	fontSize?: number;
-	style?: {
-		fill?: string;
-		stroke?: string;
-		strokeWidth?: number;
-		opacity?: number;
-	};
-}
-
-// yjs を動的importするためのキャッシュ
-let yjsModule: typeof import("yjs") | null = null;
-async function getYjs(): Promise<typeof import("yjs")> {
-	if (!yjsModule) {
-		yjsModule = await import("yjs");
-	}
-	return yjsModule;
-}
 
 /**
  * BoardRoom Durable Object
  * ボードごとに1インスタンス。WebSocket接続を管理し、Yjs updateを中継する。
  */
 export class BoardRoom extends DurableObject<Env> {
-	/** 蓄積されたYjs更新のバッファ（新規接続時の初期同期用） */
-	private updates: Uint8Array[] = [];
-	/** このDurable Objectに対応するボードID */
 	private boardId = "";
-	/** AI操作用のY.Doc（遅延初期化、動的importで構築） */
-	private doc: unknown | null = null;
-	/** storage から updates を読み込み済みか */
-	private loaded = false;
 
-	/**
-	 * パーティション別 updates バッファ。
-	 * キー: パーティション名（例: "shapes:2026-Q1"）
-	 * 値: そのパーティションの Y.Map に対応する updates
-	 * "shapes:active" は現在の四半期（デフォルト同期対象）
-	 */
-	private partitionUpdates = new Map<string, Uint8Array[]>();
-	/** パーティションメタデータ（利用可能パーティション一覧） */
-	private partitionMeta: {
-		partitions: string[];
-		activePartition: string;
-		shapeCount: Record<string, number>;
-	} | null = null;
-
-	/** storage から updates を復元（初回のみ） */
-	private async loadUpdates(): Promise<void> {
-		if (this.loaded) return;
-		this.loaded = true;
-		const stored = await this.ctx.storage.get<string>("yjs_updates");
-		if (stored) {
-			try {
-				const arr = JSON.parse(stored) as number[][];
-				for (const a of arr) {
-					this.updates.push(new Uint8Array(a));
-				}
-			} catch {
-				// 破損データは無視
-			}
-		}
-
-		// パーティションメタデータをロード
-		const metaStr = await this.ctx.storage.get<string>("partition_meta");
-		if (metaStr) {
-			try {
-				this.partitionMeta = JSON.parse(metaStr);
-			} catch {
-				// 破損データは無視
-			}
-		}
-
-		// パーティション別 updates をロード
-		if (this.partitionMeta) {
-			for (const name of this.partitionMeta.partitions) {
-				const key = `yjs_updates:${name}`;
-				const data = await this.ctx.storage.get<string>(key);
-				if (data) {
-					try {
-						const arr = JSON.parse(data) as number[][];
-						this.partitionUpdates.set(
-							name,
-							arr.map((a) => new Uint8Array(a)),
-						);
-					} catch {
-						// 破損データは無視
-					}
-				}
-			}
-		}
-	}
-
-	/** 現在の四半期のパーティション名を返す */
-	getCurrentPartitionName(): string {
-		const now = new Date();
-		const q = Math.floor(now.getMonth() / 3) + 1;
-		return `shapes:${now.getFullYear()}-Q${q}`;
-	}
-
-	/** パーティションメタデータを永続化 */
-	async savePartitionMeta(): Promise<void> {
-		if (this.partitionMeta) {
-			await this.ctx.storage.put("partition_meta", JSON.stringify(this.partitionMeta));
-		}
-	}
-
-	/** パーティション別 updates を永続化 */
-	schedulePartitionSave(partitionName: string): void {
-		setTimeout(async () => {
-			const updates = this.partitionUpdates.get(partitionName);
-			if (!updates) return;
-			const data = updates.slice(-MAX_UPDATES_BUFFER).map((u) => Array.from(u));
-			await this.ctx.storage.put(`yjs_updates:${partitionName}`, JSON.stringify(data));
-		}, 5000);
-	}
-
-	/** パーティションにupdateを追加し、メタデータを更新 */
-	async addToPartition(update: Uint8Array, shapeCount: number): Promise<void> {
-		const partName = this.getCurrentPartitionName();
-
-		if (!this.partitionMeta) {
-			this.partitionMeta = {
-				partitions: [partName],
-				activePartition: partName,
-				shapeCount: {},
-			};
-		}
-
-		if (!this.partitionMeta.partitions.includes(partName)) {
-			this.partitionMeta.partitions.push(partName);
-		}
-		this.partitionMeta.activePartition = partName;
-		this.partitionMeta.shapeCount[partName] = shapeCount;
-
-		let updates = this.partitionUpdates.get(partName);
-		if (!updates) {
-			updates = [];
-			this.partitionUpdates.set(partName, updates);
-		}
-		updates.push(update);
-
-		this.schedulePartitionSave(partName);
-		await this.savePartitionMeta();
-	}
-
-	/** パーティションメタデータをクライアントに送信 */
-	private sendPartitionMeta(ws: WebSocket): void {
-		if (!this.partitionMeta) return;
-		const encoded = new TextEncoder().encode(JSON.stringify(this.partitionMeta));
-		const msg = new Uint8Array(encoded.length + 1);
-		msg[0] = MSG_PARTITION_META;
-		msg.set(encoded, 1);
-		ws.send(msg);
-	}
-
-	/** 永続化スケジュール済みか */
-	private saveScheduled = false;
-
-	/** updates を storage に永続化（デバウンス: 最大5秒ごと） */
-	private scheduleSave(): void {
-		if (this.saveScheduled) return;
-		this.saveScheduled = true;
-		setTimeout(async () => {
-			this.saveScheduled = false;
-			const data = this.updates.slice(-MAX_UPDATES_BUFFER).map((u) => Array.from(u));
-			await this.ctx.storage.put("yjs_updates", JSON.stringify(data));
-		}, 5000);
-	}
-
-	/** 蓄積されたupdatesからY.Docを構築/取得 */
-	private async getOrCreateDoc(): Promise<{ doc: import("yjs").Doc }> {
-		await this.loadUpdates();
-		const Y = await getYjs();
-		if (!this.doc) {
-			this.doc = new Y.Doc();
-			// 蓄積されたupdatesをすべて適用して現在状態を復元
-			for (const update of this.updates) {
-				try {
-					Y.applyUpdate(this.doc as import("yjs").Doc, update);
-				} catch (e) {
-					console.error("[BoardRoom] Corrupt Yjs update during doc init, skipping:", e);
-				}
-			}
-		}
-		return { doc: this.doc as import("yjs").Doc };
-	}
+	private readonly yjsSync = createYjsSync({ storage: this.ctx.storage });
+	private readonly partitions = createPartitionManager({ storage: this.ctx.storage });
+	private readonly snapshots = createSnapshotManager({
+		storage: this.ctx.storage,
+		getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
+		getWebSockets: () => this.ctx.getWebSockets(),
+	});
 
 	async fetch(request: Request): Promise<Response> {
-		await this.loadUpdates();
+		await this.yjsSync.loadUpdates();
+		await this.partitions.loadFromStorage();
 		const url = new URL(request.url);
 
 		if (url.pathname === "/ws") {
-			// boardIdをクエリパラメータから取得（接続時に1度だけ設定）
-			const bid = url.searchParams.get("boardId");
-			if (bid) this.boardId = bid;
-			if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
-				return new Response("Expected WebSocket", { status: 426 });
-			}
-
-			const userId = url.searchParams.get("userId") ?? "anonymous";
-			const pair = new WebSocketPair();
-			this.ctx.acceptWebSocket(pair[1], [userId, this.boardId]);
-
-			// 接続時にステータスをonlineに更新
-			if (userId !== "anonymous" && this.boardId) {
-				try {
-					const db = drizzle(this.env.DB);
-					await db
-						.update(boardMembers)
-						.set({ status: "online", lastSeenAt: new Date().toISOString() })
-						.where(and(eq(boardMembers.boardId, this.boardId), eq(boardMembers.userId, userId)));
-				} catch {
-					// DB更新失敗は接続をブロックしない
-				}
-			}
-
-			// 初期同期はクライアントのMSG_SYNC_STEP1リクエストで行う
-			this.scheduleAutoSnapshot();
-			return new Response(null, { status: 101, webSocket: pair[0] });
+			return this.handleWebSocketUpgrade(request, url);
 		}
 
-		// AI シェイプ配置エンドポイント
 		if (url.pathname === "/ai-place-shapes" && request.method === "POST") {
-			return this.handleAiPlaceShapes(request);
+			return handleAiPlaceShapes(request, {
+				getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
+				pushUpdate: (u) => this.yjsSync.pushUpdate(u),
+				broadcastAll: (d) => this.broadcastAll(d),
+				scheduleSave: () => this.yjsSync.scheduleSave(),
+			});
 		}
 
-		// AI シェイプ更新エンドポイント（Smart Actions）
 		if (url.pathname === "/ai-update-shapes" && request.method === "POST") {
-			return this.handleAiUpdateShapes(request);
+			return handleAiUpdateShapes(request, {
+				getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
+				pushUpdate: (u) => this.yjsSync.pushUpdate(u),
+				broadcastAll: (d) => this.broadcastAll(d),
+				scheduleSave: () => this.yjsSync.scheduleSave(),
+			});
 		}
 
-		// サムネイル SVG エンドポイント
 		if (url.pathname === "/thumbnail") {
-			return this.handleThumbnail(url);
+			return handleThumbnail(url, () => this.yjsSync.getOrCreateDoc());
 		}
 
-		// Snapshot endpoints
 		if (url.pathname === "/snapshots" && request.method === "GET") {
-			return this.handleListSnapshots();
+			return this.snapshots.handleListSnapshots();
 		}
 		if (url.pathname === "/snapshot" && request.method === "POST") {
-			return this.handleCreateSnapshot();
+			return this.snapshots.handleCreateSnapshot();
 		}
 		if (url.pathname.startsWith("/snapshots/") && request.method === "GET") {
 			const ts = url.pathname.split("/snapshots/")[1];
-			return this.handleGetSnapshot(ts);
+			return this.snapshots.handleGetSnapshot(ts);
 		}
 
 		return new Response("BoardRoom OK", { status: 200 });
 	}
 
-	/** AIシェイプ配置: Y.Docに書き込み → Yjs updateを全クライアントにbroadcast */
-	private async handleAiPlaceShapes(request: Request): Promise<Response> {
-		try {
-			const body = (await request.json()) as { shapes: AiShapeInput[] };
-			const shapes = body.shapes;
-			if (!shapes || !Array.isArray(shapes) || shapes.length === 0) {
-				return new Response(JSON.stringify({ error: "No shapes provided" }), {
-					status: 400,
-					headers: { "Content-Type": "application/json" },
-				});
-			}
-
-			const { doc } = await this.getOrCreateDoc();
-			const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
-			const placedShapes: Array<{
-				id: string;
-				type: string;
-				x: number;
-				y: number;
-				width: number;
-				height: number;
-			}> = [];
-
-			// updateイベントをキャプチャしてbroadcastする
-			const pendingUpdates: Uint8Array[] = [];
-			const onUpdate = (update: Uint8Array) => {
-				pendingUpdates.push(update);
-			};
-			doc.on("update", onUpdate);
-
-			try {
-				// トランザクション内で全シェイプを一括書き込み
-				// クライアントの同期プラグインはプレーンオブジェクトを期待するため
-				// Y.Mapではなくプレーンオブジェクトとして書き込む
-				doc.transact(() => {
-					for (const shape of shapes) {
-						const id = generateShapeId();
-						// textシェイプはデフォルトでfill:transparent, strokeWidth:0
-						const baseStyle =
-							shape.type === "text"
-								? { ...DEFAULT_STYLE, fill: "transparent", strokeWidth: 0 }
-								: DEFAULT_STYLE;
-						const style = { ...baseStyle, ...shape.style };
-
-						const shapeData: Record<string, unknown> = {
-							id,
-							type: shape.type,
-							x: shape.x,
-							y: shape.y,
-							width: shape.width,
-							height: shape.height,
-							style,
-						};
-
-						// テキスト固有フィールド
-						if (shape.text !== undefined) {
-							shapeData.text = shape.text;
-						}
-						if (shape.type === "text") {
-							shapeData.fontSize = shape.fontSize ?? 16;
-							shapeData.fontFamily = "system-ui, sans-serif";
-							shapeData.isEditing = false;
-						}
-
-						shapesMap.set(id, shapeData);
-
-						placedShapes.push({
-							id,
-							type: shape.type,
-							x: shape.x,
-							y: shape.y,
-							width: shape.width,
-							height: shape.height,
-						});
-					}
-				});
-			} finally {
-				doc.off("update", onUpdate);
-			}
-
-			// 生成されたupdatesをbroadcast + バッファに追加
-			for (const update of pendingUpdates) {
-				this.updates.push(update);
-				// MSG_YJS_UPDATE としてフレーミング
-				const msg = new Uint8Array(update.length + 1);
-				msg[0] = MSG_YJS_UPDATE;
-				msg.set(update, 1);
-				this.broadcastAll(msg);
-			}
-
-			// バッファサイズ制限
-			if (this.updates.length > MAX_UPDATES_BUFFER) {
-				this.updates = this.updates.slice(-MAX_UPDATES_BUFFER);
-			}
-
-			this.scheduleSave();
-			return new Response(JSON.stringify({ placedShapes }), {
-				status: 200,
-				headers: { "Content-Type": "application/json" },
-			});
-		} catch (err) {
-			return new Response(
-				JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-				{ status: 500, headers: { "Content-Type": "application/json" } },
-			);
+	private async handleWebSocketUpgrade(request: Request, url: URL): Promise<Response> {
+		const bid = url.searchParams.get("boardId");
+		if (bid) this.boardId = bid;
+		if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+			return new Response("Expected WebSocket", { status: 426 });
 		}
-	}
 
-	/** AIシェイプ更新: 既存シェイプのプロパティを更新 → Yjs updateを全クライアントにbroadcast */
-	private async handleAiUpdateShapes(request: Request): Promise<Response> {
-		try {
-			const body = (await request.json()) as { updates: AiShapeUpdate[] };
-			const updates = body.updates;
-			if (!updates || !Array.isArray(updates) || updates.length === 0) {
-				return new Response(JSON.stringify({ error: "No updates provided" }), {
-					status: 400,
-					headers: { "Content-Type": "application/json" },
-				});
-			}
+		const userId = url.searchParams.get("userId") ?? "anonymous";
+		const pair = new WebSocketPair();
+		this.ctx.acceptWebSocket(pair[1], [userId, this.boardId]);
 
-			const { doc } = await this.getOrCreateDoc();
-			const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
-			const updatedShapes: Array<{
-				id: string;
-				type: string;
-				x: number;
-				y: number;
-				width: number;
-				height: number;
-			}> = [];
-
-			// updateイベントをキャプチャしてbroadcastする
-			const pendingUpdates: Uint8Array[] = [];
-			const onUpdate = (update: Uint8Array) => {
-				pendingUpdates.push(update);
-			};
-			doc.on("update", onUpdate);
-
+		if (userId !== "anonymous" && this.boardId) {
 			try {
-				doc.transact(() => {
-					for (const update of updates) {
-						const existing = shapesMap.get(update.id);
-						if (!existing) continue;
-
-						// 既存シェイプをコピーして更新フィールドを適用
-						const updated: Record<string, unknown> = { ...existing };
-
-						if (update.x !== undefined) updated.x = update.x;
-						if (update.y !== undefined) updated.y = update.y;
-						if (update.width !== undefined) updated.width = update.width;
-						if (update.height !== undefined) updated.height = update.height;
-						if (update.text !== undefined) updated.text = update.text;
-
-						// テキストシェイプのfontSize更新（既存のfontFamily/isEditingは保持）
-						if (update.fontSize !== undefined) {
-							updated.fontSize = update.fontSize;
-						}
-
-						// スタイルはマージ（既存スタイルを保持しつつ更新フィールドを上書き）
-						if (update.style !== undefined) {
-							const existingStyle = (existing.style ?? {}) as Record<string, unknown>;
-							updated.style = { ...existingStyle, ...update.style };
-						}
-
-						// プレーンオブジェクトとして書き戻し
-						shapesMap.set(update.id, updated);
-
-						updatedShapes.push({
-							id: update.id,
-							type: updated.type as string,
-							x: updated.x as number,
-							y: updated.y as number,
-							width: updated.width as number,
-							height: updated.height as number,
-						});
-					}
-				});
-			} finally {
-				doc.off("update", onUpdate);
+				const db = drizzle(this.env.DB);
+				await db
+					.update(boardMembers)
+					.set({ status: "online", lastSeenAt: new Date().toISOString() })
+					.where(and(eq(boardMembers.boardId, this.boardId), eq(boardMembers.userId, userId)));
+			} catch {
+				// DB更新失敗は接続をブロックしない
 			}
-
-			// 生成されたupdatesをbroadcast + バッファに追加
-			for (const update of pendingUpdates) {
-				this.updates.push(update);
-				// MSG_YJS_UPDATE としてフレーミング
-				const msg = new Uint8Array(update.length + 1);
-				msg[0] = MSG_YJS_UPDATE;
-				msg.set(update, 1);
-				this.broadcastAll(msg);
-			}
-
-			// バッファサイズ制限
-			if (this.updates.length > MAX_UPDATES_BUFFER) {
-				this.updates = this.updates.slice(-MAX_UPDATES_BUFFER);
-			}
-
-			this.scheduleSave();
-			return new Response(JSON.stringify({ updatedShapes }), {
-				status: 200,
-				headers: { "Content-Type": "application/json" },
-			});
-		} catch (err) {
-			return new Response(
-				JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-				{ status: 500, headers: { "Content-Type": "application/json" } },
-			);
 		}
+
+		this.snapshots.scheduleAutoSnapshot();
+		return new Response(null, { status: 101, webSocket: pair[0] });
 	}
 
 	async webSocketMessage(ws: WebSocket, message: ArrayBuffer | string): Promise<void> {
@@ -523,47 +115,11 @@ export class BoardRoom extends DurableObject<Env> {
 
 		switch (msgType) {
 			case MSG_YJS_UPDATE: {
-				this.updates.push(payload);
-				// Y.Docが構築済みならupdateを適用（動的importを使うため非同期）
-				if (this.doc) {
-					try {
-						const Y = await getYjs();
-						Y.applyUpdate(this.doc as import("yjs").Doc, payload);
-					} catch (e) {
-						console.error("[BoardRoom] Corrupt Yjs update from client, skipping:", e);
-						return;
-					}
-				}
-				// パーティション別にもupdateを追記
-				const partName = this.getCurrentPartitionName();
-				let partUpdates = this.partitionUpdates.get(partName);
-				if (!partUpdates) {
-					partUpdates = [];
-					this.partitionUpdates.set(partName, partUpdates);
-				}
-				partUpdates.push(payload);
-				// パーティションメタ更新（初回または新四半期）
-				if (!this.partitionMeta) {
-					this.partitionMeta = {
-						partitions: [partName],
-						activePartition: partName,
-						shapeCount: {},
-					};
-				} else if (!this.partitionMeta.partitions.includes(partName)) {
-					this.partitionMeta.partitions.push(partName);
-					this.partitionMeta.activePartition = partName;
-				}
-				this.schedulePartitionSave(partName);
-				// バッファサイズ制限
-				if (this.updates.length > MAX_UPDATES_BUFFER) {
-					this.updates = this.updates.slice(-MAX_UPDATES_BUFFER);
-				}
-				if (partUpdates.length > MAX_UPDATES_BUFFER) {
-					this.partitionUpdates.set(partName, partUpdates.slice(-MAX_UPDATES_BUFFER));
-				}
+				this.yjsSync.pushUpdate(payload);
+				await this.yjsSync.applyClientUpdate(payload);
+				this.partitions.trackUpdate(payload);
 				this.broadcast(ws, data);
-				// updates を永続化（非同期、エラーは無視）
-				this.scheduleSave();
+				this.yjsSync.scheduleSave();
 				break;
 			}
 			case MSG_AWARENESS:
@@ -572,25 +128,22 @@ export class BoardRoom extends DurableObject<Env> {
 				break;
 			}
 			case MSG_SYNC_STEP1: {
-				// クライアントからの初期同期リクエスト — 蓄積された全更新を返送
-				for (const update of this.updates) {
+				for (const update of this.yjsSync.getUpdates()) {
 					const msg = new Uint8Array(update.length + 1);
 					msg[0] = MSG_SYNC_STEP2;
 					msg.set(update, 1);
 					ws.send(msg);
 				}
-				// パーティションメタデータも送信（利用可能な場合）
-				this.sendPartitionMeta(ws);
+				this.partitions.sendPartitionMeta(ws);
 				break;
 			}
 			case MSG_PARTITION_REQUEST: {
-				// クライアントからの追加パーティション要求
 				try {
 					const request = JSON.parse(new TextDecoder().decode(payload)) as {
 						partitions: string[];
 					};
 					for (const name of request.partitions) {
-						const updates = this.partitionUpdates.get(name);
+						const updates = this.partitions.getPartitionUpdates(name);
 						if (updates) {
 							for (const update of updates) {
 								const msg = new Uint8Array(update.length + 1);
@@ -614,12 +167,10 @@ export class BoardRoom extends DurableObject<Env> {
 		_reason: string,
 		_wasClean: boolean,
 	): Promise<void> {
-		// 切断時にメンバーのステータスとlast_seen_atを更新
 		const tags = this.ctx.getTags(ws);
 		const userId = tags[0];
 		const boardId = tags[1];
 		if (userId && userId !== "anonymous" && boardId) {
-			// 同じユーザー+ボードで他のWebSocket接続が残っていないか確認
 			let hasOtherConnection = false;
 			for (const otherWs of this.ctx.getWebSockets()) {
 				if (otherWs === ws) continue;
@@ -649,190 +200,8 @@ export class BoardRoom extends DurableObject<Env> {
 			// 既に閉じているソケットは無視
 		}
 
-		// 全接続が閉じられたらY.Docを破棄してメモリを解放
-		if (this.ctx.getWebSockets().length === 0 && this.doc) {
-			(this.doc as import("yjs").Doc).destroy();
-			this.doc = null;
-		}
-	}
-
-	/** スナップショットを作成して保存 */
-	private async handleCreateSnapshot(): Promise<Response> {
-		try {
-			const Y = await getYjs();
-			const { doc } = await this.getOrCreateDoc();
-			const snapshot = Y.snapshot(doc as import("yjs").Doc);
-			const encoded = Y.encodeSnapshot(snapshot);
-			const ts = Date.now();
-
-			// Save snapshot binary
-			await this.ctx.storage.put(`snapshot:${ts}`, Array.from(encoded));
-
-			// Update snapshot index
-			const indexStr = await this.ctx.storage.get<string>("snapshots:index");
-			const index: { timestamp: number; shapeCount: number }[] = indexStr
-				? JSON.parse(indexStr)
-				: [];
-			const shapesMap = (doc as import("yjs").Doc).getMap<Record<string, unknown>>("shapes");
-			index.push({ timestamp: ts, shapeCount: shapesMap.size });
-
-			// Keep max 100 snapshots
-			if (index.length > 100) {
-				const removed = index.splice(0, index.length - 100);
-				for (const r of removed) {
-					await this.ctx.storage.delete(`snapshot:${r.timestamp}`);
-				}
-			}
-
-			await this.ctx.storage.put("snapshots:index", JSON.stringify(index));
-			return new Response(JSON.stringify({ timestamp: ts, shapeCount: shapesMap.size }), {
-				status: 200,
-				headers: { "Content-Type": "application/json" },
-			});
-		} catch (err) {
-			return new Response(
-				JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-				{ status: 500, headers: { "Content-Type": "application/json" } },
-			);
-		}
-	}
-
-	/** スナップショット一覧を返す */
-	private async handleListSnapshots(): Promise<Response> {
-		const indexStr = await this.ctx.storage.get<string>("snapshots:index");
-		const index: { timestamp: number; shapeCount: number }[] = indexStr ? JSON.parse(indexStr) : [];
-		return new Response(JSON.stringify({ snapshots: index }), {
-			status: 200,
-			headers: { "Content-Type": "application/json" },
-		});
-	}
-
-	/** 特定のスナップショットからシェイプデータを返す */
-	private async handleGetSnapshot(timestampStr: string): Promise<Response> {
-		try {
-			const ts = Number(timestampStr);
-			if (Number.isNaN(ts)) {
-				return new Response(JSON.stringify({ error: "Invalid timestamp" }), {
-					status: 400,
-					headers: { "Content-Type": "application/json" },
-				});
-			}
-
-			const stored = await this.ctx.storage.get<number[]>(`snapshot:${ts}`);
-			if (!stored) {
-				return new Response(JSON.stringify({ error: "Snapshot not found" }), {
-					status: 404,
-					headers: { "Content-Type": "application/json" },
-				});
-			}
-
-			const Y = await getYjs();
-			const { doc } = await this.getOrCreateDoc();
-			const snapshot = Y.decodeSnapshot(new Uint8Array(stored));
-			const snapshotDoc = Y.createDocFromSnapshot(doc as import("yjs").Doc, snapshot);
-			const shapesMap = snapshotDoc.getMap<Record<string, unknown>>("shapes");
-
-			const shapes: Record<string, unknown>[] = [];
-			for (const [, value] of shapesMap) {
-				shapes.push(value);
-			}
-
-			snapshotDoc.destroy();
-
-			return new Response(JSON.stringify({ timestamp: ts, shapes }), {
-				status: 200,
-				headers: { "Content-Type": "application/json" },
-			});
-		} catch (err) {
-			return new Response(
-				JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-				{ status: 500, headers: { "Content-Type": "application/json" } },
-			);
-		}
-	}
-
-	/** 自動スナップショット — アクティブ接続がある間、1時間ごとに実行 */
-	private snapshotTimer: ReturnType<typeof setTimeout> | null = null;
-	private scheduleAutoSnapshot(): void {
-		if (this.snapshotTimer) return;
-		const SNAPSHOT_INTERVAL = 60 * 60 * 1000; // 1 hour
-		this.snapshotTimer = setTimeout(async () => {
-			this.snapshotTimer = null;
-			if (this.ctx.getWebSockets().length > 0) {
-				try {
-					await this.handleCreateSnapshot();
-				} catch {
-					// スナップショット作成失敗は無視
-				}
-				this.scheduleAutoSnapshot();
-			}
-		}, SNAPSHOT_INTERVAL);
-	}
-
-	/** サムネイル SVG を生成して返す */
-	private async handleThumbnail(url: URL): Promise<Response> {
-		try {
-			const width = Math.min(Math.max(Number(url.searchParams.get("w")) || 240, 16), 1024);
-			const height = Math.min(Math.max(Number(url.searchParams.get("h")) || 160, 16), 1024);
-
-			const { doc } = await this.getOrCreateDoc();
-			const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
-
-			const shapes: ShapeData[] = [];
-			for (const [, value] of shapesMap) {
-				const s = value as Record<string, unknown>;
-				if (
-					typeof s.id === "string" &&
-					typeof s.x === "number" &&
-					typeof s.y === "number" &&
-					typeof s.width === "number" &&
-					typeof s.height === "number"
-				) {
-					shapes.push({
-						id: s.id,
-						type: (s.type as string) ?? "unknown",
-						x: s.x,
-						y: s.y,
-						width: s.width,
-						height: s.height,
-						style: {
-							fill: ((s.style as Record<string, unknown>)?.fill as string) ?? "#ffffff",
-							stroke: ((s.style as Record<string, unknown>)?.stroke as string) ?? "#1e1e1e",
-							strokeWidth: ((s.style as Record<string, unknown>)?.strokeWidth as number) ?? 2,
-							opacity: ((s.style as Record<string, unknown>)?.opacity as number) ?? 1,
-						},
-					});
-				}
-			}
-
-			const result = computeMinimap({
-				shapes,
-				mapWidth: width,
-				mapHeight: height,
-				padding: 20,
-				minSize: 2,
-			});
-
-			const svg = minimapToSvg(result, width, height, {
-				background: "#f8f9fa",
-				strokeColor: "#e2e8f0",
-			});
-
-			return new Response(svg, {
-				status: 200,
-				headers: {
-					"Content-Type": "image/svg+xml",
-					"Cache-Control": "public, max-age=30",
-				},
-			});
-		} catch {
-			return new Response(
-				`<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160"><rect width="240" height="160" fill="#f8f9fa" rx="4"/></svg>`,
-				{
-					status: 200,
-					headers: { "Content-Type": "image/svg+xml" },
-				},
-			);
+		if (this.ctx.getWebSockets().length === 0) {
+			this.yjsSync.destroyDoc();
 		}
 	}
 
@@ -849,7 +218,7 @@ export class BoardRoom extends DurableObject<Env> {
 		}
 	}
 
-	/** 全接続にメッセージを送信（AI操作など、送信元がWebSocketではない場合） */
+	/** 全接続にメッセージを送信 */
 	private broadcastAll(data: Uint8Array): void {
 		for (const ws of this.ctx.getWebSockets()) {
 			try {
