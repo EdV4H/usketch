@@ -5,6 +5,7 @@ import {
 	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
+	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { ReactElement } from "react";
@@ -114,7 +115,7 @@ export const wireframePlugin: UsketchPlugin = {
 			ctx.shapes.register(subtype.type, {
 				render: renderer,
 				getBounds,
-				hitTest,
+				hitTest: withRotation(hitTest),
 				resize: createResize(minSize.width, minSize.height),
 				createDefault: subtype.createDefault,
 				renderTarget: "html",

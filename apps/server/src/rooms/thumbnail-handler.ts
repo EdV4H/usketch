@@ -25,18 +25,23 @@ export async function handleThumbnail(
 				typeof s.width === "number" &&
 				typeof s.height === "number"
 			) {
+				const style =
+					typeof s.style === "object" && s.style !== null
+						? (s.style as Record<string, unknown>)
+						: undefined;
+
 				shapes.push({
 					id: s.id,
-					type: (s.type as string) ?? "unknown",
+					type: typeof s.type === "string" ? s.type : "unknown",
 					x: s.x,
 					y: s.y,
 					width: s.width,
 					height: s.height,
 					style: {
-						fill: ((s.style as Record<string, unknown>)?.fill as string) ?? "#ffffff",
-						stroke: ((s.style as Record<string, unknown>)?.stroke as string) ?? "#1e1e1e",
-						strokeWidth: ((s.style as Record<string, unknown>)?.strokeWidth as number) ?? 2,
-						opacity: ((s.style as Record<string, unknown>)?.opacity as number) ?? 1,
+						fill: typeof style?.fill === "string" ? style.fill : "#ffffff",
+						stroke: typeof style?.stroke === "string" ? style.stroke : "#1e1e1e",
+						strokeWidth: typeof style?.strokeWidth === "number" ? style.strokeWidth : 2,
+						opacity: typeof style?.opacity === "number" ? style.opacity : 1,
 					},
 				});
 			}

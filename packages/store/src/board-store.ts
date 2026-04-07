@@ -7,7 +7,7 @@ import type {
 	StoreEvent,
 	Viewport,
 } from "@edv4h/usketch-shared";
-import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
+import { DEFAULT_STYLE, getRotatedAABB, safeRotation } from "@edv4h/usketch-shared";
 import { createSpatialIndex } from "./spatial-index.js";
 
 export interface BoardState {
@@ -32,7 +32,10 @@ export function createBoardStore(): BoardStore {
 	const mutationListeners = new Set<(event: StoreEvent) => void>();
 
 	function shapeToBounds(shape: ShapeData): BoundingBox {
-		return { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+		const bounds = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+		const rotation = safeRotation(shape.rotation);
+		if (rotation === 0) return bounds;
+		return getRotatedAABB(bounds, rotation);
 	}
 
 	function notify() {

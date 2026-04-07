@@ -19,23 +19,36 @@ export interface YjsSyncDeps {
 export function createYjsSync(deps: YjsSyncDeps) {
 	let updates: Uint8Array[] = [];
 	let loaded = false;
+	let loadPromise: Promise<void> | null = null;
 	let doc: import("yjs").Doc | null = null;
 	let saveScheduled = false;
 
-	/** storage から updates を復元（初回のみ） */
+	/** storage から updates を復元（初回のみ、並行呼び出し安全） */
 	async function loadUpdates(): Promise<void> {
 		if (loaded) return;
-		loaded = true;
-		const stored = await deps.storage.get<string>("yjs_updates");
-		if (stored) {
-			try {
-				const arr = JSON.parse(stored) as number[][];
-				for (const a of arr) {
-					updates.push(new Uint8Array(a));
+		if (loadPromise) {
+			await loadPromise;
+			return;
+		}
+		loadPromise = (async () => {
+			const stored = await deps.storage.get<string>("yjs_updates");
+			if (stored) {
+				try {
+					const arr = JSON.parse(stored) as number[][];
+					for (const a of arr) {
+						updates.push(new Uint8Array(a));
+					}
+				} catch {
+					// 破損データは無視
 				}
-			} catch {
-				// 破損データは無視
 			}
+			loaded = true;
+		})();
+		try {
+			await loadPromise;
+		} catch (e) {
+			loadPromise = null;
+			throw e;
 		}
 	}
 
@@ -43,10 +56,17 @@ export function createYjsSync(deps: YjsSyncDeps) {
 	function scheduleSave(): void {
 		if (saveScheduled) return;
 		saveScheduled = true;
-		setTimeout(async () => {
-			saveScheduled = false;
-			const data = updates.slice(-MAX_UPDATES_BUFFER).map((u) => Array.from(u));
-			await deps.storage.put("yjs_updates", JSON.stringify(data));
+		setTimeout(() => {
+			void (async () => {
+				try {
+					const data = updates.slice(-MAX_UPDATES_BUFFER).map((u) => Array.from(u));
+					await deps.storage.put("yjs_updates", JSON.stringify(data));
+				} catch (e) {
+					console.error("[BoardRoom] Failed to persist Yjs updates:", e);
+				} finally {
+					saveScheduled = false;
+				}
+			})();
 		}, 5000);
 	}
 
@@ -75,16 +95,18 @@ export function createYjsSync(deps: YjsSyncDeps) {
 		}
 	}
 
-	/** クライアントからの update を Y.Doc に適用 */
-	async function applyClientUpdate(payload: Uint8Array): Promise<void> {
+	/** クライアントからの update を Y.Doc に適用。成功時 true、失敗時 false を返す */
+	async function applyClientUpdate(payload: Uint8Array): Promise<boolean> {
 		if (doc) {
 			try {
 				const Y = await getYjs();
 				Y.applyUpdate(doc, payload);
 			} catch (e) {
 				console.error("[BoardRoom] Corrupt Yjs update from client, skipping:", e);
+				return false;
 			}
 		}
+		return true;
 	}
 
 	/** 蓄積された全 updates を返す（初期同期用） */

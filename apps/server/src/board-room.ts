@@ -115,8 +115,11 @@ export class BoardRoom extends DurableObject<Env> {
 
 		switch (msgType) {
 			case MSG_YJS_UPDATE: {
+				const applied = await this.yjsSync.applyClientUpdate(payload);
+				if (!applied) {
+					break;
+				}
 				this.yjsSync.pushUpdate(payload);
-				await this.yjsSync.applyClientUpdate(payload);
 				this.partitions.trackUpdate(payload);
 				this.broadcast(ws, data);
 				this.yjsSync.scheduleSave();

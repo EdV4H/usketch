@@ -16,6 +16,10 @@ export interface PartitionManagerDeps {
 export function createPartitionManager(deps: PartitionManagerDeps) {
 	const partitionUpdates = new Map<string, Uint8Array[]>();
 	let partitionMeta: PartitionMeta | null = null;
+	let loaded = false;
+	let loadPromise: Promise<void> | null = null;
+	/** パーティションごとの保存デバウンスフラグ */
+	const saveScheduled = new Map<string, boolean>();
 
 	/** 現在の四半期のパーティション名を返す */
 	function getCurrentPartitionName(): string {
@@ -27,17 +31,31 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 	/** パーティションメタデータを永続化 */
 	async function savePartitionMeta(): Promise<void> {
 		if (partitionMeta) {
-			await deps.storage.put("partition_meta", JSON.stringify(partitionMeta));
+			try {
+				await deps.storage.put("partition_meta", JSON.stringify(partitionMeta));
+			} catch (e) {
+				console.error("[BoardRoom] Failed to persist partition meta:", e);
+			}
 		}
 	}
 
-	/** パーティション別 updates を永続化 */
+	/** パーティション別 updates を永続化（デバウンス済み） */
 	function schedulePartitionSave(partitionName: string): void {
-		setTimeout(async () => {
-			const updates = partitionUpdates.get(partitionName);
-			if (!updates) return;
-			const data = updates.slice(-MAX_UPDATES_BUFFER).map((u) => Array.from(u));
-			await deps.storage.put(`yjs_updates:${partitionName}`, JSON.stringify(data));
+		if (saveScheduled.get(partitionName)) return;
+		saveScheduled.set(partitionName, true);
+		setTimeout(() => {
+			void (async () => {
+				try {
+					const updates = partitionUpdates.get(partitionName);
+					if (!updates) return;
+					const data = updates.slice(-MAX_UPDATES_BUFFER).map((u) => Array.from(u));
+					await deps.storage.put(`yjs_updates:${partitionName}`, JSON.stringify(data));
+				} catch (e) {
+					console.error("[BoardRoom] Failed to persist partition updates:", e);
+				} finally {
+					saveScheduled.set(partitionName, false);
+				}
+			})();
 		}, 5000);
 	}
 
@@ -90,15 +108,21 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 		}
 		partUpdates.push(payload);
 
+		let metaChanged = false;
 		if (!partitionMeta) {
 			partitionMeta = {
 				partitions: [partName],
 				activePartition: partName,
 				shapeCount: {},
 			};
+			metaChanged = true;
 		} else if (!partitionMeta.partitions.includes(partName)) {
 			partitionMeta.partitions.push(partName);
 			partitionMeta.activePartition = partName;
+			metaChanged = true;
+		}
+		if (metaChanged) {
+			void savePartitionMeta();
 		}
 		schedulePartitionSave(partName);
 
@@ -108,33 +132,47 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 		}
 	}
 
-	/** ストレージからパーティションデータをロード */
+	/** ストレージからパーティションデータをロード（初回のみ、並行呼び出し安全） */
 	async function loadFromStorage(): Promise<void> {
-		const metaStr = await deps.storage.get<string>("partition_meta");
-		if (metaStr) {
-			try {
-				partitionMeta = JSON.parse(metaStr);
-			} catch {
-				// 破損データは無視
-			}
+		if (loaded) return;
+		if (loadPromise) {
+			await loadPromise;
+			return;
 		}
+		loadPromise = (async () => {
+			const metaStr = await deps.storage.get<string>("partition_meta");
+			if (metaStr) {
+				try {
+					partitionMeta = JSON.parse(metaStr);
+				} catch {
+					// 破損データは無視
+				}
+			}
 
-		if (partitionMeta) {
-			for (const name of partitionMeta.partitions) {
-				const key = `yjs_updates:${name}`;
-				const data = await deps.storage.get<string>(key);
-				if (data) {
-					try {
-						const arr = JSON.parse(data) as number[][];
-						partitionUpdates.set(
-							name,
-							arr.map((a) => new Uint8Array(a)),
-						);
-					} catch {
-						// 破損データは無視
+			if (partitionMeta) {
+				for (const name of partitionMeta.partitions) {
+					const key = `yjs_updates:${name}`;
+					const data = await deps.storage.get<string>(key);
+					if (data) {
+						try {
+							const arr = JSON.parse(data) as number[][];
+							partitionUpdates.set(
+								name,
+								arr.map((a) => new Uint8Array(a)),
+							);
+						} catch {
+							// 破損データは無視
+						}
 					}
 				}
 			}
+			loaded = true;
+		})();
+		try {
+			await loadPromise;
+		} catch (e) {
+			loadPromise = null;
+			throw e;
 		}
 	}
 

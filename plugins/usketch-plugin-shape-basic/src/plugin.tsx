@@ -7,6 +7,7 @@ import {
 	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
+	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { BASIC_SHAPE_SUBTYPES } from "./registry.js";
@@ -42,14 +43,14 @@ type HitTestFn = (
 ) => boolean;
 
 const SHAPE_HIT_TESTS: Record<string, HitTestFn> = {
-	rectangle: aabbHitTest,
-	"rounded-rect": aabbHitTest,
-	ellipse: ellipseHitTest,
-	triangle: (data, point) => pointInPolygon(point, getTrianglePoints(data)),
-	diamond: (data, point) => pointInPolygon(point, getDiamondPoints(data)),
-	star: (data, point) => pointInPolygon(point, getStarPoints(data)),
-	arrow: (data, point) => pointInPolygon(point, getArrowPoints(data)),
-	line: lineHitTest,
+	rectangle: withRotation(aabbHitTest),
+	"rounded-rect": withRotation(aabbHitTest),
+	ellipse: withRotation(ellipseHitTest),
+	triangle: withRotation((data, point) => pointInPolygon(point, getTrianglePoints(data))),
+	diamond: withRotation((data, point) => pointInPolygon(point, getDiamondPoints(data))),
+	star: withRotation((data, point) => pointInPolygon(point, getStarPoints(data))),
+	arrow: withRotation((data, point) => pointInPolygon(point, getArrowPoints(data))),
+	line: withRotation(lineHitTest),
 };
 
 type GpuPrimitiveFn = (data: ShapeData) => GpuPrimitive | null;
