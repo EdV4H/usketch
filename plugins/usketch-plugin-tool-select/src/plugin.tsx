@@ -497,7 +497,10 @@ export const selectToolPlugin: UsketchPlugin = {
 						event.worldPoint.x - dragState.center.x,
 					) *
 					(180 / Math.PI);
-				let newRotation = dragState.startRotation + (currentAngle - dragState.startAngle);
+				// Wrap angle diff to [-180, 180] to avoid ±360° jumps at atan2 boundary
+				let angleDiff = currentAngle - dragState.startAngle;
+				angleDiff = ((angleDiff + 540) % 360) - 180;
+				let newRotation = dragState.startRotation + angleDiff;
 				if (event.shiftKey) {
 					newRotation = snapAngle(newRotation, 15);
 				}
@@ -541,9 +544,10 @@ export const selectToolPlugin: UsketchPlugin = {
 				// Un-rotate the world point for flip detection in local space
 				let worldPointForFlip = event.worldPoint;
 				if (rotation) {
+					// Use rawBounds center (not startData) since resize changes x/y/width/height
 					const center = {
-						x: dragState.startData.x + dragState.startData.width / 2,
-						y: dragState.startData.y + dragState.startData.height / 2,
+						x: rawBounds.x + rawBounds.width / 2,
+						y: rawBounds.y + rawBounds.height / 2,
 					};
 					worldPointForFlip = unrotatePoint(event.worldPoint, center, (rotation * Math.PI) / 180);
 				}
