@@ -16,8 +16,13 @@ export interface GpuRenderStats {
 
 export interface GpuRenderer {
 	setViewport(viewport: Viewport, canvasWidth: number, canvasHeight: number): void;
+	/**
+	 * Render shapes in the given order (caller is expected to pass a z-sorted array).
+	 * Returns the set of shape IDs that were successfully rendered by GPU so the
+	 * DOM renderer can skip them.
+	 */
 	render(
-		shapes: ReadonlyMap<string, ShapeData>,
+		shapes: readonly ShapeData[],
 		shapeRegistry: ShapeRegistry,
 		options: GpuRenderOptions,
 	): { claimedIds: Set<string>; stats: GpuRenderStats };
@@ -123,7 +128,8 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 			const highlightShapes: GpuPrimitive[] = [];
 			const claimedIds = new Set<string>();
 
-			for (const [id, shape] of shapes) {
+			for (const shape of shapes) {
+				const id = shape.id;
 				const def = shapeRegistry.get(shape.type);
 				if (!def?.gpuPrimitive) continue;
 				const prim = def.gpuPrimitive(shape);

@@ -69,17 +69,17 @@ export function GpuShapeLayer({
 			const wp = e.worldPoint;
 			let found: string | null = null;
 
-			// Check GPU-claimed shapes for AABB hit
-			for (const id of claimedIdsRef.current) {
-				const shape = ctx.shapes.get(id);
-				if (!shape) continue;
+			// Iterate GPU-claimed shapes in z-order (ascending = back to front).
+			// Later (frontmost) hits override earlier ones.
+			for (const shape of ctx.shapesSorted) {
+				if (!claimedIdsRef.current.has(shape.id)) continue;
 				if (
 					wp.x >= shape.x &&
 					wp.x <= shape.x + shape.width &&
 					wp.y >= shape.y &&
 					wp.y <= shape.y + shape.height
 				) {
-					found = id;
+					found = shape.id;
 					// Don't break — later shapes are on top (higher z)
 				}
 			}
@@ -90,7 +90,7 @@ export function GpuShapeLayer({
 			}
 		});
 		return unsub;
-	}, [events, ctx.shapes]);
+	}, [events, ctx.shapesSorted]);
 
 	// Cleanup on unmount
 	useEffect(() => {
@@ -107,7 +107,7 @@ export function GpuShapeLayer({
 		const renderer = rendererRef.current;
 		const canvas = canvasRef.current;
 		renderer.setViewport(ctx.viewport, canvas.clientWidth, canvas.clientHeight);
-		const { claimedIds, stats } = renderer.render(ctx.shapes, shapeRegistry, {
+		const { claimedIds, stats } = renderer.render(ctx.shapesSorted, shapeRegistry, {
 			selection: ctx.selection,
 			hoveredId: hoveredIdRef.current,
 		});

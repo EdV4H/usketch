@@ -57,7 +57,7 @@ export function ShapeLayer({
 	ctx: LayerRenderContext;
 	shapeRegistry: ShapeRegistry;
 }) {
-	const shapes = [...ctx.shapes.values()];
+	const shapes = ctx.shapesSorted;
 
 	return (
 		<div data-layer="shapes">

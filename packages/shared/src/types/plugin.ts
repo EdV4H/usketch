@@ -8,6 +8,8 @@ import type { Theme } from "./theme.js";
 export interface LayerRenderContext {
 	viewport: Viewport;
 	shapes: ReadonlyMap<string, ShapeData>;
+	/** Shapes sorted by zIndex ascending (back to front). Reflects any active filter. */
+	shapesSorted: readonly ShapeData[];
 	selection: ReadonlySet<string>;
 	theme: Theme;
 }
