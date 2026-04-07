@@ -118,19 +118,33 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 
 	// Hover indicator: show outline on shape under cursor (if not already selected)
 	const showHover = hoveredId && !selection.has(hoveredId);
+	const hoverShape = showHover ? store.getShape(hoveredId) : null;
 	const hoverBounds = showHover ? getShapeBounds(store, shapes, hoveredId) : null;
-	const hoverIndicator = hoverBounds ? (
-		<rect
-			x={hoverBounds.x * viewport.zoom + viewport.x}
-			y={hoverBounds.y * viewport.zoom + viewport.y}
-			width={hoverBounds.width * viewport.zoom}
-			height={hoverBounds.height * viewport.zoom}
-			fill="none"
-			stroke={STROKE_COLOR}
-			strokeWidth={2}
-			opacity={0.8}
-		/>
-	) : null;
+	const hoverRotation = safeRotation(hoverShape?.rotation);
+	const hoverIndicator = hoverBounds
+		? (() => {
+				const hx = hoverBounds.x * viewport.zoom + viewport.x;
+				const hy = hoverBounds.y * viewport.zoom + viewport.y;
+				const hw = hoverBounds.width * viewport.zoom;
+				const hh = hoverBounds.height * viewport.zoom;
+				const hcx = hx + hw / 2;
+				const hcy = hy + hh / 2;
+				return (
+					<g transform={hoverRotation ? `rotate(${hoverRotation}, ${hcx}, ${hcy})` : undefined}>
+						<rect
+							x={hx}
+							y={hy}
+							width={hw}
+							height={hh}
+							fill="none"
+							stroke={STROKE_COLOR}
+							strokeWidth={2}
+							opacity={0.8}
+						/>
+					</g>
+				);
+			})()
+		: null;
 
 	// Single selection: bounding box + handles + rotation handle
 	if (selection.size === 1 && !marqueeRect) {
