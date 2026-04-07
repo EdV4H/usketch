@@ -9,6 +9,13 @@ import type {
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import {
+	deltaToLocal,
+	normalizeAngle,
+	safeRotation,
+	snapAngle,
+	unrotatePoint,
+} from "@edv4h/usketch-shared";
+import {
 	createBatchUpdateShapesCommand,
 	createDeleteWithChildrenCommand,
 	createMoveShapesCommand,
@@ -33,10 +40,12 @@ import {
 	computeRelativeProps,
 	findHandleAtScreenPoint,
 	findMultiHandleAtScreenPoint,
+	findRotationHandleAtScreenPoint,
 	fixAnchorDrift,
 	getAnchorEdges,
 	getCursorForHandle,
 	getMultiSelectionBounds,
+	getRotatedCursorForHandle,
 	type MultiResizeShapeEntry,
 } from "./resize-utils.js";
 import { SelectionOverlay } from "./selection-overlay.js";
@@ -174,6 +183,13 @@ type DragState =
 			startData: ShapeData;
 	  }
 	| {
+			mode: "rotate";
+			shapeId: string;
+			startAngle: number;
+			startRotation: number;
+			center: Point;
+	  }
+	| {
 			mode: "multi-resize";
 			handle: ResizeHandle;
 			startPoint: Point;
@@ -220,6 +236,32 @@ export const selectToolPlugin: UsketchPlugin = {
 		function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
 			const viewport = toolCtx.store.getViewport();
 
+			// 0. Check rotation handle hit first (outside bounding box, no conflict with resize)
+			const rotationHit = findRotationHandleAtScreenPoint(
+				event.screenPoint,
+				toolCtx.shapes,
+				toolCtx.store,
+				viewport,
+			);
+			if (rotationHit) {
+				const shape = toolCtx.store.getShape(rotationHit);
+				if (shape) {
+					const cx = shape.x + shape.width / 2;
+					const cy = shape.y + shape.height / 2;
+					const startAngle =
+						Math.atan2(event.worldPoint.y - cy, event.worldPoint.x - cx) * (180 / Math.PI);
+					setOverrideCursor("grabbing");
+					dragState = {
+						mode: "rotate",
+						shapeId: rotationHit,
+						startAngle,
+						startRotation: safeRotation(shape.rotation),
+						center: { x: cx, y: cy },
+					};
+					return;
+				}
+			}
+
 			// 1. Check resize handle hit first (single selection only)
 			const handleHit = findHandleAtScreenPoint(
 				event.screenPoint,
@@ -230,7 +272,12 @@ export const selectToolPlugin: UsketchPlugin = {
 			if (handleHit) {
 				const shape = toolCtx.store.getShape(handleHit.shapeId);
 				if (shape) {
-					setOverrideCursor(getCursorForHandle(handleHit.handle));
+					const shapeRotation = safeRotation(shape.rotation);
+					setOverrideCursor(
+						shapeRotation
+							? getRotatedCursorForHandle(handleHit.handle, shapeRotation)
+							: getCursorForHandle(handleHit.handle),
+					);
 					dragState = {
 						mode: "resize",
 						shapeId: handleHit.shapeId,
@@ -387,8 +434,19 @@ export const selectToolPlugin: UsketchPlugin = {
 
 		function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
 			if (!dragState) {
-				// Hover: check for handle and update cursor
+				// Hover: check for rotation handle first
 				const viewport = toolCtx.store.getViewport();
+				const rotHover = findRotationHandleAtScreenPoint(
+					event.screenPoint,
+					toolCtx.shapes,
+					toolCtx.store,
+					viewport,
+				);
+				if (rotHover) {
+					setOverrideCursor("grab");
+					return;
+				}
+				// Hover: check for resize handle and update cursor
 				const handleHit = findHandleAtScreenPoint(
 					event.screenPoint,
 					toolCtx.shapes,
@@ -396,7 +454,13 @@ export const selectToolPlugin: UsketchPlugin = {
 					viewport,
 				);
 				if (handleHit) {
-					setOverrideCursor(getCursorForHandle(handleHit.handle));
+					const hoverShape = toolCtx.store.getShape(handleHit.shapeId);
+					const hoverRotation = safeRotation(hoverShape?.rotation);
+					setOverrideCursor(
+						hoverRotation
+							? getRotatedCursorForHandle(handleHit.handle, hoverRotation)
+							: getCursorForHandle(handleHit.handle),
+					);
 					return;
 				}
 				// Check multi-selection handles
@@ -426,6 +490,22 @@ export const selectToolPlugin: UsketchPlugin = {
 				return;
 			}
 
+			if (dragState.mode === "rotate") {
+				const currentAngle =
+					Math.atan2(
+						event.worldPoint.y - dragState.center.y,
+						event.worldPoint.x - dragState.center.x,
+					) *
+					(180 / Math.PI);
+				let newRotation = dragState.startRotation + (currentAngle - dragState.startAngle);
+				if (event.shiftKey) {
+					newRotation = snapAngle(newRotation, 15);
+				}
+				newRotation = normalizeAngle(newRotation);
+				toolCtx.store.updateShape(dragState.shapeId, { rotation: newRotation });
+				return;
+			}
+
 			if (dragState.mode === "marquee") {
 				// Alt key toggles between intersect and contain mode
 				const mode: MarqueeMode = event.altKey ? "contain" : "intersect";
@@ -447,15 +527,27 @@ export const selectToolPlugin: UsketchPlugin = {
 				const def = toolCtx.shapes.get(dragState.startData.type);
 				if (!def) return;
 
-				const delta: Point = {
+				const rotation = safeRotation(dragState.startData.rotation);
+				const worldDelta: Point = {
 					x: event.worldPoint.x - dragState.startPoint.x,
 					y: event.worldPoint.y - dragState.startPoint.y,
 				};
+				// Transform delta to local (un-rotated) space for rotated shapes
+				const delta = rotation ? deltaToLocal(worldDelta, rotation) : worldDelta;
 
 				// Flip detection: use unclamped (raw) bounds so minSize doesn't
 				// prevent the pointer from crossing the anchor edge.
 				const rawBounds = computeRawBounds(dragState.startData, dragState.handle, delta);
-				const flip = applyFlip(dragState.handle, rawBounds, event.worldPoint);
+				// Un-rotate the world point for flip detection in local space
+				let worldPointForFlip = event.worldPoint;
+				if (rotation) {
+					const center = {
+						x: dragState.startData.x + dragState.startData.width / 2,
+						y: dragState.startData.y + dragState.startData.height / 2,
+					};
+					worldPointForFlip = unrotatePoint(event.worldPoint, center, (rotation * Math.PI) / 180);
+				}
+				const flip = applyFlip(dragState.handle, rawBounds, worldPointForFlip);
 				if (flip.flipped) {
 					const currentShape = toolCtx.store.getShape(dragState.shapeId);
 					if (currentShape) {
@@ -483,7 +575,11 @@ export const selectToolPlugin: UsketchPlugin = {
 							x: flippedData.x,
 							y: flippedData.y,
 						});
-						setOverrideCursor(getCursorForHandle(flip.handle));
+						setOverrideCursor(
+							rotation
+								? getRotatedCursorForHandle(flip.handle, rotation)
+								: getCursorForHandle(flip.handle),
+						);
 					}
 					// Skip resize this frame — next frame will use the new
 					// startData/startPoint with the flipped handle.
@@ -675,6 +771,24 @@ export const selectToolPlugin: UsketchPlugin = {
 		function onPointerUp(toolCtx: ToolContext, _event: CanvasPointerEvent) {
 			setDropTargetId(null);
 			if (!dragState) return;
+
+			if (dragState.mode === "rotate") {
+				setOverrideCursor("");
+				const currentShape = toolCtx.store.getShape(dragState.shapeId);
+				if (currentShape) {
+					const from = { rotation: dragState.startRotation };
+					const to = { rotation: safeRotation(currentShape.rotation) };
+					if (from.rotation !== to.rotation) {
+						const shapeId = dragState.shapeId;
+						queueMicrotask(() => {
+							toolCtx.store.updateShape(shapeId, from);
+							toolCtx.commands.execute(createUpdateShapeCommand(toolCtx.store, shapeId, from, to));
+						});
+					}
+				}
+				dragState = null;
+				return;
+			}
 
 			if (dragState.mode === "marquee") {
 				setMarquee(null);
