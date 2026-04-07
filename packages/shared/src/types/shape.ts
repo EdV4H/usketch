@@ -14,6 +14,8 @@ export interface ShapeData {
 	height: number;
 	style: ShapeStyle;
 	rotation?: number;
+	/** Fractional index for z-order (higher lexicographic order = front). */
+	zIndex?: string;
 	[key: string]: unknown;
 }
 

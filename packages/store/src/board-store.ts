@@ -7,7 +7,14 @@ import type {
 	StoreEvent,
 	Viewport,
 } from "@edv4h/usketch-shared";
-import { DEFAULT_STYLE, getRotatedAABB, safeRotation } from "@edv4h/usketch-shared";
+import {
+	compareZIndex,
+	DEFAULT_STYLE,
+	getRotatedAABB,
+	safeRotation,
+	zIndexAfterAll,
+	zIndexBetween,
+} from "@edv4h/usketch-shared";
 import { createSpatialIndex } from "./spatial-index.js";
 
 export interface BoardState {
@@ -30,6 +37,11 @@ export function createBoardStore(): BoardStore {
 	const spatialIndex = createSpatialIndex();
 	const listeners = new Set<() => void>();
 	const mutationListeners = new Set<(event: StoreEvent) => void>();
+	let sortedCache: readonly ShapeData[] | null = null;
+
+	function invalidateSort() {
+		sortedCache = null;
+	}
 
 	function shapeToBounds(shape: ShapeData): BoundingBox {
 		const bounds = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
@@ -53,18 +65,31 @@ export function createBoardStore(): BoardStore {
 
 	return {
 		getShapes: () => state.shapes,
+
+		getShapesSorted() {
+			if (sortedCache) return sortedCache;
+			sortedCache = [...state.shapes.values()].sort((a, b) => compareZIndex(a.zIndex, b.zIndex));
+			return sortedCache;
+		},
+
 		getShape: (id) => state.shapes.get(id),
 
 		addShape(shape: ShapeData) {
 			const now = Date.now();
+			const needsZIndex = typeof shape.zIndex !== "string";
+			const zIndex = needsZIndex
+				? zIndexAfterAll([...state.shapes.values()].map((s) => s.zIndex))
+				: shape.zIndex;
 			const stamped = {
 				...shape,
+				zIndex,
 				_createdAt: (shape as Record<string, unknown>)._createdAt ?? now,
 				_updatedAt: now,
 			};
 			state.shapes = new Map(state.shapes);
 			state.shapes.set(stamped.id, stamped);
 			spatialIndex.insert(stamped.id, shapeToBounds(stamped));
+			invalidateSort();
 			notify();
 			notifyMutation("shape:added", { id: stamped.id });
 		},
@@ -76,6 +101,7 @@ export function createBoardStore(): BoardStore {
 			const updated = { ...existing, ...updates, _updatedAt: Date.now() };
 			state.shapes.set(id, updated);
 			spatialIndex.update(id, shapeToBounds(updated));
+			invalidateSort();
 			notify();
 			notifyMutation("shape:updated", { id });
 		},
@@ -88,6 +114,7 @@ export function createBoardStore(): BoardStore {
 				state.shapes = new Map(state.shapes);
 				state.shapes.delete(id);
 				spatialIndex.remove(id);
+				invalidateSort();
 			}
 			if (wasSelected) {
 				state.selection = new Set(state.selection);
@@ -102,6 +129,33 @@ export function createBoardStore(): BoardStore {
 			if (wasSelected) {
 				notifyMutation("selection:changed");
 			}
+		},
+
+		ensureZIndex() {
+			// Assign zIndex to shapes that lack one, in current Map iteration order.
+			// Chain zIndexBetween so each assigned key is strictly after the previous.
+			const missing: ShapeData[] = [];
+			let lastKey: string | null = null;
+			for (const shape of state.shapes.values()) {
+				if (typeof shape.zIndex === "string") {
+					// Track the current max of existing keys
+					if (lastKey === null || shape.zIndex > lastKey) lastKey = shape.zIndex;
+				} else {
+					missing.push(shape);
+				}
+			}
+			if (missing.length === 0) return;
+
+			const newMap = new Map(state.shapes);
+			for (const shape of missing) {
+				const newKey = zIndexBetween(lastKey, null);
+				newMap.set(shape.id, { ...shape, zIndex: newKey });
+				lastKey = newKey;
+			}
+			state.shapes = newMap;
+			invalidateSort();
+			notify();
+			notifyMutation("shapes:z-index-initialized", { count: missing.length });
 		},
 
 		getSelection: () => state.selection,

@@ -4,11 +4,17 @@ import { createBoardStore } from "../board-store.js";
 import {
 	createAddShapeCommand,
 	createBatchUpdateShapesCommand,
+	createBringForwardCommand,
+	createBringSelectionToFrontCommand,
+	createBringToFrontCommand,
 	createDeleteShapeCommand,
 	createDeleteWithChildrenCommand,
 	createGroupCommand,
 	createMoveShapesCommand,
 	createReparentCommand,
+	createSendBackwardCommand,
+	createSendSelectionToBackCommand,
+	createSendToBackCommand,
 	createUngroupCommand,
 	createUpdateShapeCommand,
 } from "../commands.js";
@@ -204,6 +210,124 @@ describe("Commands", () => {
 			expect(store.getShape("s1")).toBeUndefined();
 			expect(store.getShape("conn1")).toBeUndefined();
 			expect(store.getShape("s2")).toBeDefined();
+		});
+	});
+
+	describe("Z-order commands", () => {
+		function setupThree() {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "s1" }));
+			store.addShape(makeShape({ id: "s2" }));
+			store.addShape(makeShape({ id: "s3" }));
+			return store;
+		}
+
+		it("createBringToFrontCommand: moves shape to front", () => {
+			const store = setupThree();
+			const originalS1Z = store.getShape("s1")!.zIndex;
+			const cmd = createBringToFrontCommand(store, "s1");
+			cmd.execute();
+			const sorted = store.getShapesSorted().map((s) => s.id);
+			expect(sorted).toEqual(["s2", "s3", "s1"]);
+			cmd.undo();
+			expect(store.getShape("s1")!.zIndex).toBe(originalS1Z);
+			expect(store.getShapesSorted().map((s) => s.id)).toEqual(["s1", "s2", "s3"]);
+		});
+
+		it("createSendToBackCommand: moves shape to back", () => {
+			const store = setupThree();
+			const cmd = createSendToBackCommand(store, "s3");
+			cmd.execute();
+			expect(store.getShapesSorted().map((s) => s.id)).toEqual(["s3", "s1", "s2"]);
+			cmd.undo();
+			expect(store.getShapesSorted().map((s) => s.id)).toEqual(["s1", "s2", "s3"]);
+		});
+
+		it("createBringForwardCommand: swaps with next shape", () => {
+			const store = setupThree();
+			const cmd = createBringForwardCommand(store, "s1");
+			cmd.execute();
+			expect(store.getShapesSorted().map((s) => s.id)).toEqual(["s2", "s1", "s3"]);
+			cmd.undo();
+			expect(store.getShapesSorted().map((s) => s.id)).toEqual(["s1", "s2", "s3"]);
+		});
+
+		it("createSendBackwardCommand: swaps with previous shape", () => {
+			const store = setupThree();
+			const cmd = createSendBackwardCommand(store, "s3");
+			cmd.execute();
+			expect(store.getShapesSorted().map((s) => s.id)).toEqual(["s1", "s3", "s2"]);
+			cmd.undo();
+			expect(store.getShapesSorted().map((s) => s.id)).toEqual(["s1", "s2", "s3"]);
+		});
+
+		it("createBringForwardCommand: no-op when already at front", () => {
+			const store = setupThree();
+			const originalZ = store.getShape("s3")!.zIndex;
+			const cmd = createBringForwardCommand(store, "s3");
+			cmd.execute();
+			expect(store.getShape("s3")!.zIndex).toBe(originalZ);
+		});
+
+		it("createSendBackwardCommand: no-op when already at back", () => {
+			const store = setupThree();
+			const originalZ = store.getShape("s1")!.zIndex;
+			const cmd = createSendBackwardCommand(store, "s1");
+			cmd.execute();
+			expect(store.getShape("s1")!.zIndex).toBe(originalZ);
+		});
+
+		it("createBringSelectionToFrontCommand: preserves relative order", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "s1" }));
+			store.addShape(makeShape({ id: "s2" }));
+			store.addShape(makeShape({ id: "s3" }));
+			store.addShape(makeShape({ id: "s4" }));
+			// Select s1 and s3 — bringing to front should place them above s2 and s4,
+			// with s1 still below s3 (preserved relative order).
+			const cmd = createBringSelectionToFrontCommand(store, ["s1", "s3"]);
+			cmd.execute();
+			expect(store.getShapesSorted().map((s) => s.id)).toEqual(["s2", "s4", "s1", "s3"]);
+			cmd.undo();
+			expect(store.getShapesSorted().map((s) => s.id)).toEqual(["s1", "s2", "s3", "s4"]);
+		});
+
+		it("createSendSelectionToBackCommand: preserves relative order", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "s1" }));
+			store.addShape(makeShape({ id: "s2" }));
+			store.addShape(makeShape({ id: "s3" }));
+			store.addShape(makeShape({ id: "s4" }));
+			// Select s2 and s4 — sending to back should place them below s1 and s3,
+			// with s2 still below s4 (preserved relative order).
+			const cmd = createSendSelectionToBackCommand(store, ["s2", "s4"]);
+			cmd.execute();
+			expect(store.getShapesSorted().map((s) => s.id)).toEqual(["s2", "s4", "s1", "s3"]);
+			cmd.undo();
+			expect(store.getShapesSorted().map((s) => s.id)).toEqual(["s1", "s2", "s3", "s4"]);
+		});
+
+		it("z-order commands only affect same parentId siblings", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "frame" }));
+			store.addShape(makeShape({ id: "child1", parentId: "frame" }));
+			store.addShape(makeShape({ id: "child2", parentId: "frame" }));
+			store.addShape(makeShape({ id: "top" }));
+
+			// bringToFront on child1 should only reorder within frame's children
+			const cmd = createBringToFrontCommand(store, "child1");
+			cmd.execute();
+			const children = store
+				.getShapesSorted()
+				.filter((s) => s.parentId === "frame")
+				.map((s) => s.id);
+			expect(children).toEqual(["child2", "child1"]);
+			// top-level shapes unchanged
+			const topLevel = store
+				.getShapesSorted()
+				.filter((s) => !s.parentId)
+				.map((s) => s.id);
+			expect(topLevel).toEqual(["frame", "top"]);
 		});
 	});
 });

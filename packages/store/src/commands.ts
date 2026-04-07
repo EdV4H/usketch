@@ -1,4 +1,5 @@
 import type { BoardStore, Command, ShapeData } from "@edv4h/usketch-shared";
+import { compareZIndex, zIndexBetween } from "@edv4h/usketch-shared";
 
 export function createAddShapeCommand(store: BoardStore, shape: ShapeData): Command {
 	return {
@@ -199,4 +200,189 @@ export function createDeleteWithChildrenCommand(store: BoardStore, shapeId: stri
 			}
 		},
 	};
+}
+
+// ─── z-order commands ───────────────────────────────────────────────────────
+
+const NOOP_COMMAND: Command = {
+	execute() {},
+	undo() {},
+};
+
+/** Return shapes in the same sibling group (same parentId), sorted by zIndex. */
+function getSiblings(store: BoardStore, shape: ShapeData): ShapeData[] {
+	const parent = shape.parentId ?? null;
+	return store.getShapesSorted().filter((s) => (s.parentId ?? null) === parent);
+}
+
+/** Move a single shape to the front of its sibling group. */
+export function createBringToFrontCommand(store: BoardStore, shapeId: string): Command {
+	const shape = store.getShape(shapeId);
+	if (!shape) return NOOP_COMMAND;
+	const siblings = getSiblings(store, shape).filter((s) => s.id !== shapeId);
+	if (siblings.length === 0) return NOOP_COMMAND;
+	const topKey = siblings[siblings.length - 1]?.zIndex ?? null;
+	if (topKey === null) return NOOP_COMMAND;
+	// Already at front?
+	if (shape.zIndex && compareZIndex(shape.zIndex, topKey) > 0) return NOOP_COMMAND;
+	const newKey = zIndexBetween(topKey, null);
+	return createUpdateShapeCommand(store, shapeId, { zIndex: shape.zIndex }, { zIndex: newKey });
+}
+
+/** Move a single shape to the back of its sibling group. */
+export function createSendToBackCommand(store: BoardStore, shapeId: string): Command {
+	const shape = store.getShape(shapeId);
+	if (!shape) return NOOP_COMMAND;
+	const siblings = getSiblings(store, shape).filter((s) => s.id !== shapeId);
+	if (siblings.length === 0) return NOOP_COMMAND;
+	const bottomKey = siblings[0]?.zIndex ?? null;
+	if (bottomKey === null) return NOOP_COMMAND;
+	if (shape.zIndex && compareZIndex(shape.zIndex, bottomKey) < 0) return NOOP_COMMAND;
+	const newKey = zIndexBetween(null, bottomKey);
+	return createUpdateShapeCommand(store, shapeId, { zIndex: shape.zIndex }, { zIndex: newKey });
+}
+
+/** Move a single shape one step toward the front within its sibling group. */
+export function createBringForwardCommand(store: BoardStore, shapeId: string): Command {
+	const shape = store.getShape(shapeId);
+	if (!shape) return NOOP_COMMAND;
+	const siblings = getSiblings(store, shape);
+	const index = siblings.findIndex((s) => s.id === shapeId);
+	if (index < 0 || index === siblings.length - 1) return NOOP_COMMAND;
+	const above = siblings[index + 1];
+	if (!above) return NOOP_COMMAND;
+	const aboveAbove = siblings[index + 2];
+	const newKey = zIndexBetween(above.zIndex ?? null, aboveAbove?.zIndex ?? null);
+	return createUpdateShapeCommand(store, shapeId, { zIndex: shape.zIndex }, { zIndex: newKey });
+}
+
+/** Move a single shape one step toward the back within its sibling group. */
+export function createSendBackwardCommand(store: BoardStore, shapeId: string): Command {
+	const shape = store.getShape(shapeId);
+	if (!shape) return NOOP_COMMAND;
+	const siblings = getSiblings(store, shape);
+	const index = siblings.findIndex((s) => s.id === shapeId);
+	if (index <= 0) return NOOP_COMMAND;
+	const below = siblings[index - 1];
+	if (!below) return NOOP_COMMAND;
+	const belowBelow = siblings[index - 2];
+	const newKey = zIndexBetween(belowBelow?.zIndex ?? null, below.zIndex ?? null);
+	return createUpdateShapeCommand(store, shapeId, { zIndex: shape.zIndex }, { zIndex: newKey });
+}
+
+/**
+ * Move a selection of shapes to the front, preserving their relative z-order.
+ * Shapes from different parentId groups are moved independently within their own group.
+ */
+export function createBringSelectionToFrontCommand(
+	store: BoardStore,
+	shapeIds: readonly string[],
+): Command {
+	const updates = computeBringSelectionToFrontUpdates(store, shapeIds);
+	if (updates.length === 0) return NOOP_COMMAND;
+	return createBatchUpdateShapesCommand(store, updates);
+}
+
+/**
+ * Move a selection of shapes to the back, preserving their relative z-order.
+ */
+export function createSendSelectionToBackCommand(
+	store: BoardStore,
+	shapeIds: readonly string[],
+): Command {
+	const updates = computeSendSelectionToBackUpdates(store, shapeIds);
+	if (updates.length === 0) return NOOP_COMMAND;
+	return createBatchUpdateShapesCommand(store, updates);
+}
+
+function computeBringSelectionToFrontUpdates(
+	store: BoardStore,
+	shapeIds: readonly string[],
+): Array<{ id: string; from: Partial<ShapeData>; to: Partial<ShapeData> }> {
+	const idSet = new Set(shapeIds);
+	const sorted = store.getShapesSorted();
+	// Group selected shapes by parentId
+	const byParent = new Map<string | null, ShapeData[]>();
+	for (const shape of sorted) {
+		if (!idSet.has(shape.id)) continue;
+		const parent = (shape.parentId as string | undefined) ?? null;
+		let group = byParent.get(parent);
+		if (!group) {
+			group = [];
+			byParent.set(parent, group);
+		}
+		group.push(shape);
+	}
+
+	const updates: Array<{
+		id: string;
+		from: Partial<ShapeData>;
+		to: Partial<ShapeData>;
+	}> = [];
+	for (const [parent, selectedGroup] of byParent) {
+		const siblings = sorted.filter((s) => ((s.parentId as string | undefined) ?? null) === parent);
+		const unselected = siblings.filter((s) => !idSet.has(s.id));
+		let lastKey: string | null = unselected[unselected.length - 1]?.zIndex ?? null;
+		// selectedGroup is already in zIndex ascending order; assign new keys in that order
+		for (const shape of selectedGroup) {
+			const newKey = zIndexBetween(lastKey, null);
+			updates.push({
+				id: shape.id,
+				from: { zIndex: shape.zIndex },
+				to: { zIndex: newKey },
+			});
+			lastKey = newKey;
+		}
+	}
+	return updates;
+}
+
+function computeSendSelectionToBackUpdates(
+	store: BoardStore,
+	shapeIds: readonly string[],
+): Array<{ id: string; from: Partial<ShapeData>; to: Partial<ShapeData> }> {
+	const idSet = new Set(shapeIds);
+	const sorted = store.getShapesSorted();
+	const byParent = new Map<string | null, ShapeData[]>();
+	for (const shape of sorted) {
+		if (!idSet.has(shape.id)) continue;
+		const parent = (shape.parentId as string | undefined) ?? null;
+		let group = byParent.get(parent);
+		if (!group) {
+			group = [];
+			byParent.set(parent, group);
+		}
+		group.push(shape);
+	}
+
+	const updates: Array<{
+		id: string;
+		from: Partial<ShapeData>;
+		to: Partial<ShapeData>;
+	}> = [];
+	for (const [parent, selectedGroup] of byParent) {
+		const siblings = sorted.filter((s) => ((s.parentId as string | undefined) ?? null) === parent);
+		const unselected = siblings.filter((s) => !idSet.has(s.id));
+		const upperKey: string | null = unselected[0]?.zIndex ?? null;
+		// Assign keys in reverse order so the last-assigned key ends up just below upperKey
+		// while preserving relative order among selected shapes.
+		const newKeys: string[] = [];
+		let currentUpper = upperKey;
+		for (let i = selectedGroup.length - 1; i >= 0; i--) {
+			const newKey = zIndexBetween(null, currentUpper);
+			newKeys.unshift(newKey);
+			currentUpper = newKey;
+		}
+		for (let i = 0; i < selectedGroup.length; i++) {
+			const shape = selectedGroup[i];
+			const newKey = newKeys[i];
+			if (!shape || !newKey) continue;
+			updates.push({
+				id: shape.id,
+				from: { zIndex: shape.zIndex },
+				to: { zIndex: newKey },
+			});
+		}
+	}
+	return updates;
 }

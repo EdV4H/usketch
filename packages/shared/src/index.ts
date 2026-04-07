@@ -63,3 +63,10 @@ export {
 	unrotatePoint,
 	withRotation,
 } from "./utils/rotation.js";
+// Z-order
+export {
+	compareZIndex,
+	zIndexAfterAll,
+	zIndexBeforeAll,
+	zIndexBetween,
+} from "./utils/z-order.js";
