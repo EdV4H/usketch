@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
+import type { ShapeData } from "../types/shape.js";
 import {
 	deltaToLocal,
 	getRotatedAABB,
 	normalizeAngle,
 	rotatePoint,
+	safeRotation,
 	snapAngle,
 	unrotatePoint,
+	withRotation,
 } from "../utils/rotation.js";
 
 describe("rotatePoint", () => {
@@ -142,5 +145,73 @@ describe("deltaToLocal", () => {
 		const result = deltaToLocal({ x: 10, y: 5 }, 180);
 		expect(result.x).toBeCloseTo(-10);
 		expect(result.y).toBeCloseTo(-5);
+	});
+});
+
+describe("safeRotation", () => {
+	it("有限数をそのまま返す", () => {
+		expect(safeRotation(45)).toBe(45);
+	});
+
+	it("undefined → 0", () => {
+		expect(safeRotation(undefined)).toBe(0);
+	});
+
+	it("NaN → 0", () => {
+		expect(safeRotation(Number.NaN)).toBe(0);
+	});
+
+	it("Infinity → 0", () => {
+		expect(safeRotation(Number.POSITIVE_INFINITY)).toBe(0);
+	});
+
+	it("文字列 → 0", () => {
+		expect(safeRotation("45")).toBe(0);
+	});
+});
+
+describe("withRotation", () => {
+	function makeShape(rotation?: number): ShapeData {
+		return {
+			id: "s1",
+			type: "rectangle",
+			x: 0,
+			y: 0,
+			width: 100,
+			height: 100,
+			rotation,
+			style: { fill: "#fff", stroke: "#000", strokeWidth: 1, opacity: 1 },
+		};
+	}
+
+	const alwaysTrue = () => true;
+	const aabbHit = (data: ShapeData, point: { x: number; y: number }) =>
+		point.x >= data.x &&
+		point.x <= data.x + data.width &&
+		point.y >= data.y &&
+		point.y <= data.y + data.height;
+
+	it("rotation=0 で元の関数をそのまま呼ぶ", () => {
+		const wrapped = withRotation(aabbHit);
+		expect(wrapped(makeShape(0), { x: 50, y: 50 })).toBe(true);
+		expect(wrapped(makeShape(0), { x: 150, y: 50 })).toBe(false);
+	});
+
+	it("rotation=undefined で元の関数をそのまま呼ぶ", () => {
+		const wrapped = withRotation(aabbHit);
+		expect(wrapped(makeShape(), { x: 50, y: 50 })).toBe(true);
+	});
+
+	it("rotation=90 でポイントを逆回転してからテスト", () => {
+		const wrapped = withRotation(aabbHit);
+		// 100x100 の正方形を90°回転しても同じ正方形なので、中心付近は当たる
+		expect(wrapped(makeShape(90), { x: 50, y: 50 })).toBe(true);
+		// AABB の外は当たらない
+		expect(wrapped(makeShape(90), { x: 150, y: 50 })).toBe(false);
+	});
+
+	it("NaN rotation で元の関数にフォールバック", () => {
+		const wrapped = withRotation(alwaysTrue);
+		expect(wrapped(makeShape(Number.NaN), { x: 0, y: 0 })).toBe(true);
 	});
 });

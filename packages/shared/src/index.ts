@@ -58,6 +58,7 @@ export {
 	getRotatedAABB,
 	normalizeAngle,
 	rotatePoint,
+	safeRotation,
 	snapAngle,
 	unrotatePoint,
 	withRotation,

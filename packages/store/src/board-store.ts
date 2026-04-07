@@ -7,7 +7,7 @@ import type {
 	StoreEvent,
 	Viewport,
 } from "@edv4h/usketch-shared";
-import { DEFAULT_STYLE, getRotatedAABB } from "@edv4h/usketch-shared";
+import { DEFAULT_STYLE, getRotatedAABB, safeRotation } from "@edv4h/usketch-shared";
 import { createSpatialIndex } from "./spatial-index.js";
 
 export interface BoardState {
@@ -33,7 +33,7 @@ export function createBoardStore(): BoardStore {
 
 	function shapeToBounds(shape: ShapeData): BoundingBox {
 		const bounds = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
-		const rotation = shape.rotation ?? 0;
+		const rotation = safeRotation(shape.rotation);
 		if (rotation === 0) return bounds;
 		return getRotatedAABB(bounds, rotation);
 	}

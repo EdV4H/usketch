@@ -1,6 +1,12 @@
 import type { BoundingBox, Point } from "../types/geometry.js";
 import type { ShapeData } from "../types/shape.js";
 
+/** rotation 値を安全な有限数に変換する（NaN/Infinity/非数値 → 0） */
+export function safeRotation(value: unknown): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+	return value;
+}
+
 /**
  * 点を中心周りに回転する。
  * @param point 回転する点
@@ -102,7 +108,7 @@ export function withRotation(
 	hitTestFn: (data: ShapeData, point: Point) => boolean,
 ): (data: ShapeData, point: Point) => boolean {
 	return (data, point) => {
-		const rotation = data.rotation ?? 0;
+		const rotation = safeRotation(data.rotation);
 		if (rotation === 0) return hitTestFn(data, point);
 		const center = { x: data.x + data.width / 2, y: data.y + data.height / 2 };
 		const unrotated = unrotatePoint(point, center, (rotation * Math.PI) / 180);
