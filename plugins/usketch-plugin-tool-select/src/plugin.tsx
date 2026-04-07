@@ -46,7 +46,6 @@ import {
 	getCursorForHandle,
 	getMultiSelectionBounds,
 	getRotatedCursorForHandle,
-	getRotationCursor,
 	type MultiResizeShapeEntry,
 } from "./resize-utils.js";
 import { SelectionOverlay } from "./selection-overlay.js";
@@ -232,9 +231,19 @@ export const selectToolPlugin: UsketchPlugin = {
 			styleEl.textContent = cursor ? `* { cursor: ${cursor} !important; }` : "";
 		}
 
+		// Prevent text selection during drag operations
+		const preventSelect = (e: Event) => e.preventDefault();
+		function disableTextSelection() {
+			document.addEventListener("selectstart", preventSelect);
+		}
+		function enableTextSelection() {
+			document.removeEventListener("selectstart", preventSelect);
+		}
+
 		// ── Tool handlers ──
 
 		function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+			disableTextSelection();
 			const viewport = toolCtx.store.getViewport();
 
 			// 0. Check rotation handle hit first (outside bounding box, no conflict with resize)
@@ -245,16 +254,16 @@ export const selectToolPlugin: UsketchPlugin = {
 				viewport,
 			);
 			if (rotationHit) {
-				const shape = toolCtx.store.getShape(rotationHit.shapeId);
+				const shape = toolCtx.store.getShape(rotationHit);
 				if (shape) {
 					const cx = shape.x + shape.width / 2;
 					const cy = shape.y + shape.height / 2;
 					const startAngle =
 						Math.atan2(event.worldPoint.y - cy, event.worldPoint.x - cx) * (180 / Math.PI);
-					setOverrideCursor(getRotationCursor(rotationHit.cornerAngle));
+					setOverrideCursor("grabbing");
 					dragState = {
 						mode: "rotate",
-						shapeId: rotationHit.shapeId,
+						shapeId: rotationHit,
 						startAngle,
 						startRotation: safeRotation(shape.rotation),
 						center: { x: cx, y: cy },
@@ -444,7 +453,7 @@ export const selectToolPlugin: UsketchPlugin = {
 					viewport,
 				);
 				if (rotHover) {
-					setOverrideCursor(getRotationCursor(rotHover.cornerAngle));
+					setOverrideCursor("grab");
 					return;
 				}
 				// Hover: check for resize handle and update cursor
@@ -774,6 +783,7 @@ export const selectToolPlugin: UsketchPlugin = {
 		}
 
 		function onPointerUp(toolCtx: ToolContext, _event: CanvasPointerEvent) {
+			enableTextSelection();
 			setDropTargetId(null);
 			if (!dragState) return;
 
@@ -937,6 +947,7 @@ export const selectToolPlugin: UsketchPlugin = {
 
 		function onDeactivate(_toolCtx: ToolContext) {
 			dragState = null;
+			enableTextSelection();
 			setMovingSelection(false);
 			setMarquee(null);
 			setOverrideCursor("");

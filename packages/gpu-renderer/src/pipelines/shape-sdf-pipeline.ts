@@ -2,8 +2,8 @@ import type { GpuPrimitive } from "@edv4h/usketch-shared";
 import type { GpuContext } from "../gpu-context.js";
 import { SHAPE_SDF_SHADER } from "../shaders/shape-sdf.js";
 
-// Per-instance data layout: 16 floats = 64 bytes
-const INSTANCE_FLOATS = 16;
+// Per-instance data layout: 20 floats = 80 bytes (posSize + fillColor + strokeColor + params + extra)
+const INSTANCE_FLOATS = 20;
 const INSTANCE_BYTES = INSTANCE_FLOATS * 4;
 const MAX_INSTANCES = 16384;
 
@@ -120,6 +120,11 @@ export function createShapeSdfPipeline(ctx: GpuContext): ShapeSdfPipeline {
 			data[off + 13] = s.strokeWidth;
 			data[off + 14] = s.opacity;
 			data[off + 15] = s.kind === "ellipse" ? KIND_ELLIPSE : KIND_RECT;
+			// extra: rotationDeg, _pad, _pad, _pad
+			data[off + 16] = s.rotation ?? 0;
+			data[off + 17] = 0;
+			data[off + 18] = 0;
+			data[off + 19] = 0;
 		}
 		device.queue.writeBuffer(instanceBuffer, 0, data);
 

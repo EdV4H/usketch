@@ -39,16 +39,26 @@ function ShapeBoundingBox({
 }) {
 	const bounds = getShapeBounds(store, shapes, shapeId);
 	if (!bounds) return null;
+	const shape = store.getShape(shapeId);
+	const rotation = safeRotation(shape?.rotation);
+	const bx = bounds.x * viewport.zoom + viewport.x;
+	const by = bounds.y * viewport.zoom + viewport.y;
+	const bw = bounds.width * viewport.zoom;
+	const bh = bounds.height * viewport.zoom;
+	const bcx = bx + bw / 2;
+	const bcy = by + bh / 2;
 	return (
-		<rect
-			x={bounds.x * viewport.zoom + viewport.x}
-			y={bounds.y * viewport.zoom + viewport.y}
-			width={bounds.width * viewport.zoom}
-			height={bounds.height * viewport.zoom}
-			fill="none"
-			stroke={STROKE_COLOR}
-			strokeWidth={1}
-		/>
+		<g transform={rotation ? `rotate(${rotation}, ${bcx}, ${bcy})` : undefined}>
+			<rect
+				x={bx}
+				y={by}
+				width={bw}
+				height={bh}
+				fill="none"
+				stroke={STROKE_COLOR}
+				strokeWidth={1}
+			/>
+		</g>
 	);
 }
 
@@ -118,19 +128,33 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 
 	// Hover indicator: show outline on shape under cursor (if not already selected)
 	const showHover = hoveredId && !selection.has(hoveredId);
+	const hoverShape = showHover ? store.getShape(hoveredId) : null;
 	const hoverBounds = showHover ? getShapeBounds(store, shapes, hoveredId) : null;
-	const hoverIndicator = hoverBounds ? (
-		<rect
-			x={hoverBounds.x * viewport.zoom + viewport.x}
-			y={hoverBounds.y * viewport.zoom + viewport.y}
-			width={hoverBounds.width * viewport.zoom}
-			height={hoverBounds.height * viewport.zoom}
-			fill="none"
-			stroke={STROKE_COLOR}
-			strokeWidth={2}
-			opacity={0.8}
-		/>
-	) : null;
+	const hoverRotation = safeRotation(hoverShape?.rotation);
+	const hoverIndicator = hoverBounds
+		? (() => {
+				const hx = hoverBounds.x * viewport.zoom + viewport.x;
+				const hy = hoverBounds.y * viewport.zoom + viewport.y;
+				const hw = hoverBounds.width * viewport.zoom;
+				const hh = hoverBounds.height * viewport.zoom;
+				const hcx = hx + hw / 2;
+				const hcy = hy + hh / 2;
+				return (
+					<g transform={hoverRotation ? `rotate(${hoverRotation}, ${hcx}, ${hcy})` : undefined}>
+						<rect
+							x={hx}
+							y={hy}
+							width={hw}
+							height={hh}
+							fill="none"
+							stroke={STROKE_COLOR}
+							strokeWidth={2}
+							opacity={0.8}
+						/>
+					</g>
+				);
+			})()
+		: null;
 
 	// Single selection: bounding box + handles + rotation handle
 	if (selection.size === 1 && !marqueeRect) {
