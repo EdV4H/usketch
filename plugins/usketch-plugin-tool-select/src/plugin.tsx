@@ -231,9 +231,19 @@ export const selectToolPlugin: UsketchPlugin = {
 			styleEl.textContent = cursor ? `* { cursor: ${cursor} !important; }` : "";
 		}
 
+		// Prevent text selection during drag operations
+		const preventSelect = (e: Event) => e.preventDefault();
+		function disableTextSelection() {
+			document.addEventListener("selectstart", preventSelect);
+		}
+		function enableTextSelection() {
+			document.removeEventListener("selectstart", preventSelect);
+		}
+
 		// ── Tool handlers ──
 
 		function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+			disableTextSelection();
 			const viewport = toolCtx.store.getViewport();
 
 			// 0. Check rotation handle hit first (outside bounding box, no conflict with resize)
@@ -773,6 +783,7 @@ export const selectToolPlugin: UsketchPlugin = {
 		}
 
 		function onPointerUp(toolCtx: ToolContext, _event: CanvasPointerEvent) {
+			enableTextSelection();
 			setDropTargetId(null);
 			if (!dragState) return;
 
@@ -936,6 +947,7 @@ export const selectToolPlugin: UsketchPlugin = {
 
 		function onDeactivate(_toolCtx: ToolContext) {
 			dragState = null;
+			enableTextSelection();
 			setMovingSelection(false);
 			setMarquee(null);
 			setOverrideCursor("");
