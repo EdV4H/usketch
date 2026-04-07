@@ -52,3 +52,13 @@ export type {
 	MinimapViewportRect,
 } from "./utils/minimap.js";
 export { computeMinimap, minimapToSvg } from "./utils/minimap.js";
+// Rotation
+export {
+	deltaToLocal,
+	getRotatedAABB,
+	normalizeAngle,
+	rotatePoint,
+	snapAngle,
+	unrotatePoint,
+	withRotation,
+} from "./utils/rotation.js";
