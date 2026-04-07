@@ -39,16 +39,26 @@ function ShapeBoundingBox({
 }) {
 	const bounds = getShapeBounds(store, shapes, shapeId);
 	if (!bounds) return null;
+	const shape = store.getShape(shapeId);
+	const rotation = safeRotation(shape?.rotation);
+	const bx = bounds.x * viewport.zoom + viewport.x;
+	const by = bounds.y * viewport.zoom + viewport.y;
+	const bw = bounds.width * viewport.zoom;
+	const bh = bounds.height * viewport.zoom;
+	const bcx = bx + bw / 2;
+	const bcy = by + bh / 2;
 	return (
-		<rect
-			x={bounds.x * viewport.zoom + viewport.x}
-			y={bounds.y * viewport.zoom + viewport.y}
-			width={bounds.width * viewport.zoom}
-			height={bounds.height * viewport.zoom}
-			fill="none"
-			stroke={STROKE_COLOR}
-			strokeWidth={1}
-		/>
+		<g transform={rotation ? `rotate(${rotation}, ${bcx}, ${bcy})` : undefined}>
+			<rect
+				x={bx}
+				y={by}
+				width={bw}
+				height={bh}
+				fill="none"
+				stroke={STROKE_COLOR}
+				strokeWidth={1}
+			/>
+		</g>
 	);
 }
 
