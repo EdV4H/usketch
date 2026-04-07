@@ -12,7 +12,6 @@ import {
 	DEFAULT_STYLE,
 	getRotatedAABB,
 	safeRotation,
-	zIndexAfterAll,
 	zIndexBetween,
 } from "@edv4h/usketch-shared";
 import { createSpatialIndex } from "./spatial-index.js";
@@ -38,9 +37,23 @@ export function createBoardStore(): BoardStore {
 	const listeners = new Set<() => void>();
 	const mutationListeners = new Set<(event: StoreEvent) => void>();
 	let sortedCache: readonly ShapeData[] | null = null;
+	// Incremental max-zIndex tracking: updated on add/update/delete so that
+	// `addShape` can append a new tail key in O(1) without rescanning all shapes.
+	// `null` means we need to recompute (e.g. after deletion of the current max).
+	let maxZIndex: string | null = null;
 
 	function invalidateSort() {
 		sortedCache = null;
+	}
+
+	function recomputeMaxZIndex(): void {
+		let max: string | null = null;
+		for (const shape of state.shapes.values()) {
+			if (typeof shape.zIndex === "string" && (max === null || shape.zIndex > max)) {
+				max = shape.zIndex;
+			}
+		}
+		maxZIndex = max;
 	}
 
 	function shapeToBounds(shape: ShapeData): BoundingBox {
@@ -77,9 +90,9 @@ export function createBoardStore(): BoardStore {
 		addShape(shape: ShapeData) {
 			const now = Date.now();
 			const needsZIndex = typeof shape.zIndex !== "string";
-			const zIndex = needsZIndex
-				? zIndexAfterAll([...state.shapes.values()].map((s) => s.zIndex))
-				: shape.zIndex;
+			// Fast path: use the tracked max-zIndex to append a tail key in O(1)
+			// rather than rescanning all existing shapes on every insert.
+			const zIndex = needsZIndex ? zIndexBetween(maxZIndex, null) : shape.zIndex;
 			const stamped = {
 				...shape,
 				zIndex,
@@ -89,6 +102,10 @@ export function createBoardStore(): BoardStore {
 			state.shapes = new Map(state.shapes);
 			state.shapes.set(stamped.id, stamped);
 			spatialIndex.insert(stamped.id, shapeToBounds(stamped));
+			// Update tracked max if this new key is greater
+			if (typeof zIndex === "string" && (maxZIndex === null || zIndex > maxZIndex)) {
+				maxZIndex = zIndex;
+			}
 			invalidateSort();
 			notify();
 			notifyMutation("shape:added", { id: stamped.id });
@@ -101,6 +118,18 @@ export function createBoardStore(): BoardStore {
 			const updated = { ...existing, ...updates, _updatedAt: Date.now() };
 			state.shapes.set(id, updated);
 			spatialIndex.update(id, shapeToBounds(updated));
+			// If zIndex was touched, the cached max may be stale. Recompute lazily
+			// only when the changed key could be (or was) the current max.
+			if ("zIndex" in updates) {
+				const oldZ = existing.zIndex;
+				const newZ = updated.zIndex;
+				if (
+					oldZ === maxZIndex ||
+					(typeof newZ === "string" && (maxZIndex === null || newZ > maxZIndex))
+				) {
+					recomputeMaxZIndex();
+				}
+			}
 			invalidateSort();
 			notify();
 			notifyMutation("shape:updated", { id });
@@ -111,9 +140,14 @@ export function createBoardStore(): BoardStore {
 			const wasSelected = state.selection.has(id);
 			if (!existed && !wasSelected) return;
 			if (existed) {
+				const removed = state.shapes.get(id);
 				state.shapes = new Map(state.shapes);
 				state.shapes.delete(id);
 				spatialIndex.remove(id);
+				// If we just deleted the shape holding the tracked max, recompute
+				if (removed && removed.zIndex === maxZIndex) {
+					recomputeMaxZIndex();
+				}
 				invalidateSort();
 			}
 			if (wasSelected) {
@@ -132,30 +166,37 @@ export function createBoardStore(): BoardStore {
 		},
 
 		ensureZIndex() {
-			// Assign zIndex to shapes that lack one, in current Map iteration order.
-			// Chain zIndexBetween so each assigned key is strictly after the previous.
-			const missing: ShapeData[] = [];
-			let lastKey: string | null = null;
+			// Assign zIndex to shapes that are missing one, appending them after the
+			// current maximum existing key. Missing shapes are processed in their Map
+			// iteration order, so their relative order (between themselves) is preserved.
+			//
+			// Note: this does NOT reindex shapes that already have a zIndex — it only
+			// backfills missing keys. Mixed stores therefore keep their existing keys
+			// intact and the newly-assigned shapes land above the highest known key.
+			let tailKey: string | null = null;
 			for (const shape of state.shapes.values()) {
-				if (typeof shape.zIndex === "string") {
-					// Track the current max of existing keys
-					if (lastKey === null || shape.zIndex > lastKey) lastKey = shape.zIndex;
-				} else {
-					missing.push(shape);
+				if (typeof shape.zIndex === "string" && (tailKey === null || shape.zIndex > tailKey)) {
+					tailKey = shape.zIndex;
 				}
 			}
-			if (missing.length === 0) return;
 
-			const newMap = new Map(state.shapes);
-			for (const shape of missing) {
-				const newKey = zIndexBetween(lastKey, null);
-				newMap.set(shape.id, { ...shape, zIndex: newKey });
-				lastKey = newKey;
+			let count = 0;
+			let newMap: Map<string, ShapeData> | null = null;
+			for (const [id, shape] of state.shapes) {
+				if (typeof shape.zIndex === "string") continue;
+				if (!newMap) newMap = new Map(state.shapes);
+				const newKey = zIndexBetween(tailKey, null);
+				newMap.set(id, { ...shape, zIndex: newKey });
+				tailKey = newKey;
+				count++;
 			}
+			if (!newMap) return;
+
 			state.shapes = newMap;
+			maxZIndex = tailKey;
 			invalidateSort();
 			notify();
-			notifyMutation("shapes:z-index-initialized", { count: missing.length });
+			notifyMutation("shapes:z-index-initialized", { count });
 		},
 
 		getSelection: () => state.selection,

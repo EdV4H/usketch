@@ -295,36 +295,63 @@ export function createSendSelectionToBackCommand(
 	return createBatchUpdateShapesCommand(store, updates);
 }
 
+interface SiblingGroup {
+	/** All shapes sharing this parentId, in zIndex ascending order. */
+	siblings: ShapeData[];
+	/** Subset of siblings that are selected, in zIndex ascending order. */
+	selected: ShapeData[];
+	/** Subset of siblings that are NOT selected, in zIndex ascending order. */
+	unselected: ShapeData[];
+}
+
+function parentKey(shape: ShapeData): string | null {
+	return (shape.parentId as string | undefined) ?? null;
+}
+
+/**
+ * Group shapes by parentId in a single pass over the sorted array. For each
+ * parent, emit the full sibling list along with selected/unselected subsets.
+ * All three arrays preserve the input zIndex ascending order.
+ */
+function groupByParentForSelection(
+	sorted: readonly ShapeData[],
+	idSet: ReadonlySet<string>,
+): Map<string | null, SiblingGroup> {
+	const byParent = new Map<string | null, SiblingGroup>();
+	for (const shape of sorted) {
+		const parent = parentKey(shape);
+		let group = byParent.get(parent);
+		if (!group) {
+			group = { siblings: [], selected: [], unselected: [] };
+			byParent.set(parent, group);
+		}
+		group.siblings.push(shape);
+		if (idSet.has(shape.id)) group.selected.push(shape);
+		else group.unselected.push(shape);
+	}
+	// Drop parents with no selected shapes so callers can iterate directly
+	for (const [parent, group] of byParent) {
+		if (group.selected.length === 0) byParent.delete(parent);
+	}
+	return byParent;
+}
+
 function computeBringSelectionToFrontUpdates(
 	store: BoardStore,
 	shapeIds: readonly string[],
 ): Array<{ id: string; from: Partial<ShapeData>; to: Partial<ShapeData> }> {
 	const idSet = new Set(shapeIds);
-	const sorted = store.getShapesSorted();
-	// Group selected shapes by parentId
-	const byParent = new Map<string | null, ShapeData[]>();
-	for (const shape of sorted) {
-		if (!idSet.has(shape.id)) continue;
-		const parent = (shape.parentId as string | undefined) ?? null;
-		let group = byParent.get(parent);
-		if (!group) {
-			group = [];
-			byParent.set(parent, group);
-		}
-		group.push(shape);
-	}
+	const byParent = groupByParentForSelection(store.getShapesSorted(), idSet);
 
 	const updates: Array<{
 		id: string;
 		from: Partial<ShapeData>;
 		to: Partial<ShapeData>;
 	}> = [];
-	for (const [parent, selectedGroup] of byParent) {
-		const siblings = sorted.filter((s) => ((s.parentId as string | undefined) ?? null) === parent);
-		const unselected = siblings.filter((s) => !idSet.has(s.id));
+	for (const { selected, unselected } of byParent.values()) {
 		let lastKey: string | null = unselected[unselected.length - 1]?.zIndex ?? null;
-		// selectedGroup is already in zIndex ascending order; assign new keys in that order
-		for (const shape of selectedGroup) {
+		// `selected` is already in zIndex ascending order; assign new keys in that order
+		for (const shape of selected) {
 			const newKey = zIndexBetween(lastKey, null);
 			updates.push({
 				id: shape.id,
@@ -342,39 +369,26 @@ function computeSendSelectionToBackUpdates(
 	shapeIds: readonly string[],
 ): Array<{ id: string; from: Partial<ShapeData>; to: Partial<ShapeData> }> {
 	const idSet = new Set(shapeIds);
-	const sorted = store.getShapesSorted();
-	const byParent = new Map<string | null, ShapeData[]>();
-	for (const shape of sorted) {
-		if (!idSet.has(shape.id)) continue;
-		const parent = (shape.parentId as string | undefined) ?? null;
-		let group = byParent.get(parent);
-		if (!group) {
-			group = [];
-			byParent.set(parent, group);
-		}
-		group.push(shape);
-	}
+	const byParent = groupByParentForSelection(store.getShapesSorted(), idSet);
 
 	const updates: Array<{
 		id: string;
 		from: Partial<ShapeData>;
 		to: Partial<ShapeData>;
 	}> = [];
-	for (const [parent, selectedGroup] of byParent) {
-		const siblings = sorted.filter((s) => ((s.parentId as string | undefined) ?? null) === parent);
-		const unselected = siblings.filter((s) => !idSet.has(s.id));
+	for (const { selected, unselected } of byParent.values()) {
 		const upperKey: string | null = unselected[0]?.zIndex ?? null;
 		// Assign keys in reverse order so the last-assigned key ends up just below upperKey
 		// while preserving relative order among selected shapes.
 		const newKeys: string[] = [];
 		let currentUpper = upperKey;
-		for (let i = selectedGroup.length - 1; i >= 0; i--) {
+		for (let i = selected.length - 1; i >= 0; i--) {
 			const newKey = zIndexBetween(null, currentUpper);
 			newKeys.unshift(newKey);
 			currentUpper = newKey;
 		}
-		for (let i = 0; i < selectedGroup.length; i++) {
-			const shape = selectedGroup[i];
+		for (let i = 0; i < selected.length; i++) {
+			const shape = selected[i];
 			const newKey = newKeys[i];
 			if (!shape || !newKey) continue;
 			updates.push({

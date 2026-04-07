@@ -290,17 +290,43 @@ describe("BoardStore", () => {
 			expect(third.map((s) => s.id)).toEqual(["s1", "s2", "s3"]);
 		});
 
-		it("ensureZIndex: assigns zIndex to shapes missing one", () => {
+		it("ensureZIndex: no-op when all shapes already have zIndex", () => {
 			const store = createBoardStore();
-			// Bypass addShape auto-assignment by directly injecting via explicit empty zIndex
-			store.addShape(makeShape({ id: "s1", zIndex: "a0" }));
-			// Simulate a loaded shape without zIndex by mutating via updateShape-compatible API:
-			// we add with a key then strip via updateShape cannot remove — instead inject
-			// via addShape overriding with undefined-equivalent. We'll add with a string "" to
-			// force missing path — but "" is still a string. Instead test ensureZIndex no-op
-			// when everything is assigned.
+			store.addShape(makeShape({ id: "s1" }));
+			const before = store.getShape("s1")?.zIndex;
 			store.ensureZIndex();
-			expect(store.getShape("s1")!.zIndex).toBe("a0");
+			expect(store.getShape("s1")?.zIndex).toBe(before);
+		});
+
+		it("ensureZIndex: backfills missing keys after the current max", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "keyed1" }));
+			store.addShape(makeShape({ id: "keyed2" }));
+			const keyedMax = store.getShape("keyed2")?.zIndex;
+			expect(typeof keyedMax).toBe("string");
+
+			// Simulate legacy shapes loaded without a zIndex. `updateShape` with an
+			// explicit `undefined` drops the key (object spread overwrites the field).
+			store.addShape(makeShape({ id: "legacy1" }));
+			store.addShape(makeShape({ id: "legacy2" }));
+			store.updateShape("legacy1", { zIndex: undefined });
+			store.updateShape("legacy2", { zIndex: undefined });
+			expect(store.getShape("legacy1")?.zIndex).toBeUndefined();
+			expect(store.getShape("legacy2")?.zIndex).toBeUndefined();
+
+			store.ensureZIndex();
+
+			const l1 = store.getShape("legacy1")?.zIndex;
+			const l2 = store.getShape("legacy2")?.zIndex;
+			expect(typeof l1).toBe("string");
+			expect(typeof l2).toBe("string");
+			// Legacy shapes land above the existing max
+			expect(l1! > (keyedMax as string)).toBe(true);
+			expect(l2! > (keyedMax as string)).toBe(true);
+			// And preserve their relative Map-iteration order
+			expect(l1! < l2!).toBe(true);
+			// Keyed shapes are untouched
+			expect(store.getShape("keyed2")?.zIndex).toBe(keyedMax);
 		});
 	});
 });
