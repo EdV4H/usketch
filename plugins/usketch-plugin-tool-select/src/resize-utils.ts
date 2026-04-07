@@ -9,7 +9,6 @@ import type {
 import {
 	getSelectionBounds,
 	normalizeAngle,
-	rotatePoint,
 	safeRotation,
 	unrotatePoint,
 	worldToScreen,
@@ -17,9 +16,6 @@ import {
 
 const HANDLE_SIZE = 8;
 const HIT_AREA = 20;
-const ROTATION_HANDLE_OFFSET = 24;
-const ROTATION_HANDLE_RADIUS = 5;
-const ROTATION_HIT_AREA = 14;
 
 const ALL_HANDLES: ResizeHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 
@@ -93,7 +89,9 @@ export function findHandleAtScreenPoint(
 	return null;
 }
 
-/** 回転ハンドルがスクリーン座標でヒットしたかを判定する */
+/** Figma 方式: 角のリサイズハンドルの外側エリアで回転を検出する */
+const ROTATION_OUTER_MARGIN = 12;
+
 export function findRotationHandleAtScreenPoint(
 	screenPoint: Point,
 	shapes: ShapeRegistry,
@@ -116,22 +114,36 @@ export function findRotationHandleAtScreenPoint(
 
 	const rotation = safeRotation(shape.rotation);
 
-	// Rotation handle in un-rotated screen space: top-center, offset up
+	// Un-rotate the screen point to test in axis-aligned space
 	const screenCenter = worldToScreen(
 		bounds.x + bounds.width / 2,
 		bounds.y + bounds.height / 2,
 		viewport,
 	);
-	const topCenter = worldToScreen(bounds.x + bounds.width / 2, bounds.y, viewport);
-	let handlePos: Point = { x: topCenter.x, y: topCenter.y - ROTATION_HANDLE_OFFSET };
-
-	// Rotate the handle position by the shape's rotation
+	let testPoint = screenPoint;
 	if (rotation !== 0) {
-		handlePos = rotatePoint(handlePos, screenCenter, (rotation * Math.PI) / 180);
+		testPoint = unrotatePoint(screenPoint, screenCenter, (rotation * Math.PI) / 180);
 	}
 
-	const dist = Math.hypot(screenPoint.x - handlePos.x, screenPoint.y - handlePos.y);
-	return dist <= ROTATION_HIT_AREA ? shapeId : null;
+	// Check if the point is near a corner but OUTSIDE the resize handle hit area
+	const positions = getHandlePositions(bounds, viewport);
+	const cornerHandles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
+	const halfHit = HIT_AREA / 2;
+	const outerDist = halfHit + ROTATION_OUTER_MARGIN;
+
+	for (const handle of cornerHandles) {
+		const pos = positions.get(handle);
+		if (!pos) continue;
+		const dx = testPoint.x - pos.x;
+		const dy = testPoint.y - pos.y;
+		const dist = Math.hypot(dx, dy);
+		// Outside resize hit area but within rotation area
+		if (dist > halfHit && dist <= outerDist) {
+			return shapeId;
+		}
+	}
+
+	return null;
 }
 
 /** 回転済みシェイプのリサイズカーソルを返す */
@@ -506,4 +518,4 @@ export function computeMultiResizeUpdates(
 	return result;
 }
 
-export { HANDLE_SIZE, ROTATION_HANDLE_OFFSET, ROTATION_HANDLE_RADIUS };
+export { HANDLE_SIZE };

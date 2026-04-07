@@ -16,8 +16,6 @@ import {
 	getMultiSelectionBounds,
 	getShapeBounds,
 	HANDLE_SIZE,
-	ROTATION_HANDLE_OFFSET,
-	ROTATION_HANDLE_RADIUS,
 } from "./resize-utils.js";
 
 interface SelectionOverlayProps {
@@ -195,27 +193,6 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 								strokeWidth={1}
 							/>
 						))}
-					{/* Rotation handle: line + circle above top-center */}
-					{!hideHandles && (
-						<>
-							<line
-								x1={sx + sw / 2}
-								y1={sy}
-								x2={sx + sw / 2}
-								y2={sy - ROTATION_HANDLE_OFFSET}
-								stroke={STROKE_COLOR}
-								strokeWidth={1}
-							/>
-							<circle
-								cx={sx + sw / 2}
-								cy={sy - ROTATION_HANDLE_OFFSET}
-								r={ROTATION_HANDLE_RADIUS}
-								fill="#ffffff"
-								stroke={STROKE_COLOR}
-								strokeWidth={1.5}
-							/>
-						</>
-					)}
 				</g>
 			</svg>
 		);
