@@ -14,6 +14,7 @@ struct Instance {
   fillColor: vec4<f32>,    // RGBA 0-1
   strokeColor: vec4<f32>,  // RGBA 0-1
   params: vec4<f32>,       // cornerRadius, strokeWidth, opacity, shapeKind
+  extra: vec4<f32>,        // rotationDeg, _pad, _pad, _pad
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -45,11 +46,21 @@ fn vs_main(
 
   let uv = quadPos[vertexIndex];
   let strokeW = inst.params.y;
+  let rotationDeg = inst.extra.x;
   let expand = strokeW * 0.5 + 1.0;
-  let worldPos = vec2<f32>(
-    x - expand + uv.x * (w + expand * 2.0),
-    y - expand + uv.y * (h + expand * 2.0),
+  var localPos2 = vec2<f32>(
+    -expand + uv.x * (w + expand * 2.0) - w * 0.5,
+    -expand + uv.y * (h + expand * 2.0) - h * 0.5,
   );
+  let angleRad = rotationDeg * 3.14159265359 / 180.0;
+  let cosA = cos(angleRad);
+  let sinA = sin(angleRad);
+  let rotatedPos = vec2<f32>(
+    localPos2.x * cosA - localPos2.y * sinA,
+    localPos2.x * sinA + localPos2.y * cosA,
+  );
+  let center = vec2<f32>(x + w * 0.5, y + h * 0.5);
+  let worldPos = center + rotatedPos;
 
   var output: VertexOutput;
   output.position = uniforms.viewProjection * vec4<f32>(worldPos, 0.0, 1.0);

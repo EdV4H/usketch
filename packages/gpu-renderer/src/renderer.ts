@@ -152,6 +152,7 @@ export function createGpuRenderer(ctx: GpuContext): GpuRenderer {
 						stroke: color,
 						strokeWidth: sw,
 						opacity: 1,
+						rotation: prim.rotation,
 					});
 				}
 			}
