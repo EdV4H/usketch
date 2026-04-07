@@ -6,10 +6,20 @@ import type {
 	ShapeRegistry,
 	Viewport,
 } from "@edv4h/usketch-shared";
-import { getSelectionBounds, worldToScreen } from "@edv4h/usketch-shared";
+import {
+	getSelectionBounds,
+	normalizeAngle,
+	rotatePoint,
+	safeRotation,
+	unrotatePoint,
+	worldToScreen,
+} from "@edv4h/usketch-shared";
 
 const HANDLE_SIZE = 8;
 const HIT_AREA = 20;
+const ROTATION_HANDLE_OFFSET = 24;
+const ROTATION_HANDLE_RADIUS = 5;
+const ROTATION_HIT_AREA = 14;
 
 const ALL_HANDLES: ResizeHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 
@@ -53,21 +63,93 @@ export function findHandleAtScreenPoint(
 		: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
 	const positions = getHandlePositions(bounds, viewport);
 
+	// Un-rotate the screen point if shape is rotated, so handle positions
+	// (which are computed in un-rotated screen space) can be compared correctly.
+	const rotation = safeRotation(shape.rotation);
+	let testPoint = screenPoint;
+	if (rotation !== 0) {
+		const screenCenter = worldToScreen(
+			bounds.x + bounds.width / 2,
+			bounds.y + bounds.height / 2,
+			viewport,
+		);
+		testPoint = unrotatePoint(screenPoint, screenCenter, (rotation * Math.PI) / 180);
+	}
+
 	const halfHit = HIT_AREA / 2;
 	for (const handle of ALL_HANDLES) {
 		const pos = positions.get(handle);
 		if (!pos) continue;
 		if (
-			screenPoint.x >= pos.x - halfHit &&
-			screenPoint.x <= pos.x + halfHit &&
-			screenPoint.y >= pos.y - halfHit &&
-			screenPoint.y <= pos.y + halfHit
+			testPoint.x >= pos.x - halfHit &&
+			testPoint.x <= pos.x + halfHit &&
+			testPoint.y >= pos.y - halfHit &&
+			testPoint.y <= pos.y + halfHit
 		) {
 			return { shapeId, handle };
 		}
 	}
 
 	return null;
+}
+
+/** 回転ハンドルがスクリーン座標でヒットしたかを判定する */
+export function findRotationHandleAtScreenPoint(
+	screenPoint: Point,
+	shapes: ShapeRegistry,
+	store: BoardStore,
+	viewport: Viewport,
+): string | null {
+	const selection = store.getSelection();
+	if (selection.size !== 1) return null;
+
+	const shapeId = [...selection][0];
+	const shape = store.getShape(shapeId);
+	if (!shape) return null;
+
+	const def = shapes.get(shape.type);
+	if (def?.resizable === false) return null;
+
+	const bounds = def
+		? def.getBounds(shape)
+		: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+
+	const rotation = safeRotation(shape.rotation);
+
+	// Rotation handle in un-rotated screen space: top-center, offset up
+	const screenCenter = worldToScreen(
+		bounds.x + bounds.width / 2,
+		bounds.y + bounds.height / 2,
+		viewport,
+	);
+	const topCenter = worldToScreen(bounds.x + bounds.width / 2, bounds.y, viewport);
+	let handlePos: Point = { x: topCenter.x, y: topCenter.y - ROTATION_HANDLE_OFFSET };
+
+	// Rotate the handle position by the shape's rotation
+	if (rotation !== 0) {
+		handlePos = rotatePoint(handlePos, screenCenter, (rotation * Math.PI) / 180);
+	}
+
+	const dist = Math.hypot(screenPoint.x - handlePos.x, screenPoint.y - handlePos.y);
+	return dist <= ROTATION_HIT_AREA ? shapeId : null;
+}
+
+/** 回転済みシェイプのリサイズカーソルを返す */
+export function getRotatedCursorForHandle(handle: ResizeHandle, rotationDeg: number): string {
+	const baseAngles: Record<ResizeHandle, number> = {
+		n: 0,
+		ne: 45,
+		e: 90,
+		se: 135,
+		s: 180,
+		sw: 225,
+		w: 270,
+		nw: 315,
+	};
+	const angle = normalizeAngle(baseAngles[handle] + rotationDeg);
+	const snapped = Math.round(angle / 45) % 4;
+	const cursors = ["ns-resize", "nesw-resize", "ew-resize", "nwse-resize"];
+	return cursors[snapped];
 }
 
 const CURSOR_MAP: Record<ResizeHandle, string> = {
@@ -424,4 +506,4 @@ export function computeMultiResizeUpdates(
 	return result;
 }
 
-export { HANDLE_SIZE };
+export { HANDLE_SIZE, ROTATION_HANDLE_OFFSET, ROTATION_HANDLE_RADIUS };
