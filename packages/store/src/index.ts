@@ -11,11 +11,17 @@ export {
 export {
 	createAddShapeCommand,
 	createBatchUpdateShapesCommand,
+	createBringForwardCommand,
+	createBringSelectionToFrontCommand,
+	createBringToFrontCommand,
 	createDeleteShapeCommand,
 	createDeleteWithChildrenCommand,
 	createGroupCommand,
 	createMoveShapesCommand,
 	createReparentCommand,
+	createSendBackwardCommand,
+	createSendSelectionToBackCommand,
+	createSendToBackCommand,
 	createUngroupCommand,
 	createUpdateShapeCommand,
 } from "./commands.js";
