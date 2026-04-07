@@ -1,4 +1,5 @@
 import type { LayerRenderContext, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
+import { safeRotation } from "@edv4h/usketch-shared";
 
 function ShapeWrapper({
 	shape,
@@ -10,6 +11,7 @@ function ShapeWrapper({
 	def: { render: (data: ShapeData) => React.ReactElement; renderTarget?: string };
 }) {
 	const bounds = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+	const rotation = safeRotation(shape.rotation);
 	const isHtml = def.renderTarget === "html";
 
 	// For SVG shapes with zero width or height, use a minimum viewBox size
@@ -31,6 +33,8 @@ function ShapeWrapper({
 				height: bounds.height,
 				zIndex: index,
 				pointerEvents: isContainer ? "none" : "auto",
+				transform: rotation ? `rotate(${rotation}deg)` : undefined,
+				transformOrigin: "center center",
 			}}
 		>
 			{isHtml ? (
@@ -93,6 +97,7 @@ export function DomShapeLayer({
 					const sh = shape.height || 0;
 					const fbW = Math.max(sw, 1);
 					const fbH = Math.max(sh, 1);
+					const fbRotation = safeRotation(shape.rotation);
 					return (
 						<div
 							key={shape.id}
@@ -104,6 +109,8 @@ export function DomShapeLayer({
 								height: sh,
 								zIndex: index,
 								pointerEvents: "auto",
+								transform: fbRotation ? `rotate(${fbRotation}deg)` : undefined,
+								transformOrigin: "center center",
 							}}
 						>
 							<svg

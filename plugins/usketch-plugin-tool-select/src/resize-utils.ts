@@ -97,7 +97,7 @@ export function findRotationHandleAtScreenPoint(
 	shapes: ShapeRegistry,
 	store: BoardStore,
 	viewport: Viewport,
-): string | null {
+): { shapeId: string; cornerAngle: number } | null {
 	const selection = store.getSelection();
 	if (selection.size !== 1) return null;
 
@@ -131,6 +131,7 @@ export function findRotationHandleAtScreenPoint(
 	const halfHit = HIT_AREA / 2;
 	const outerDist = halfHit + ROTATION_OUTER_MARGIN;
 
+	const cornerBaseAngles: Record<string, number> = { nw: -45, ne: 45, se: 135, sw: -135 };
 	for (const handle of cornerHandles) {
 		const pos = positions.get(handle);
 		if (!pos) continue;
@@ -139,11 +140,19 @@ export function findRotationHandleAtScreenPoint(
 		const dist = Math.hypot(dx, dy);
 		// Outside resize hit area but within rotation area
 		if (dist > halfHit && dist <= outerDist) {
-			return shapeId;
+			return { shapeId, cornerAngle: cornerBaseAngles[handle] + rotation };
 		}
 	}
 
 	return null;
+}
+
+/** 回転カーソル（SVG data URI）を角度に応じて生成する */
+export function getRotationCursor(angleDeg: number): string {
+	// Circular arrow icon rotated by the given angle
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(${angleDeg} 12 12)"><path d="M21 12a9 9 0 1 1-9-9"/><polyline points="21 3 21 9 15 9"/></svg>`;
+	const encoded = encodeURIComponent(svg);
+	return `url("data:image/svg+xml,${encoded}") 12 12, crosshair`;
 }
 
 /** 回転済みシェイプのリサイズカーソルを返す */

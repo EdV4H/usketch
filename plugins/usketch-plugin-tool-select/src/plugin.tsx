@@ -46,6 +46,7 @@ import {
 	getCursorForHandle,
 	getMultiSelectionBounds,
 	getRotatedCursorForHandle,
+	getRotationCursor,
 	type MultiResizeShapeEntry,
 } from "./resize-utils.js";
 import { SelectionOverlay } from "./selection-overlay.js";
@@ -244,16 +245,16 @@ export const selectToolPlugin: UsketchPlugin = {
 				viewport,
 			);
 			if (rotationHit) {
-				const shape = toolCtx.store.getShape(rotationHit);
+				const shape = toolCtx.store.getShape(rotationHit.shapeId);
 				if (shape) {
 					const cx = shape.x + shape.width / 2;
 					const cy = shape.y + shape.height / 2;
 					const startAngle =
 						Math.atan2(event.worldPoint.y - cy, event.worldPoint.x - cx) * (180 / Math.PI);
-					setOverrideCursor("grabbing");
+					setOverrideCursor(getRotationCursor(rotationHit.cornerAngle));
 					dragState = {
 						mode: "rotate",
-						shapeId: rotationHit,
+						shapeId: rotationHit.shapeId,
 						startAngle,
 						startRotation: safeRotation(shape.rotation),
 						center: { x: cx, y: cy },
@@ -443,7 +444,7 @@ export const selectToolPlugin: UsketchPlugin = {
 					viewport,
 				);
 				if (rotHover) {
-					setOverrideCursor("grab");
+					setOverrideCursor(getRotationCursor(rotHover.cornerAngle));
 					return;
 				}
 				// Hover: check for resize handle and update cursor
