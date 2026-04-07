@@ -1,4 +1,5 @@
 import type { BoardStore, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
+import { safeRotation } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { getMovingSelection, subscribeMovingSelection } from "./drag-state.js";
 import { getDropTargetId, subscribeDropTarget } from "./drop-target-state.js";
@@ -131,7 +132,7 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 		/>
 	) : null;
 
-	// Single selection: bounding box + handles
+	// Single selection: bounding box + handles + rotation handle
 	if (selection.size === 1 && !marqueeRect) {
 		const shapeId = [...selection][0];
 		const shape = store.getShape(shapeId);
@@ -146,6 +147,10 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 		const sy = bounds.y * viewport.zoom + viewport.y;
 		const sw = bounds.width * viewport.zoom;
 		const sh = bounds.height * viewport.zoom;
+
+		const rotation = safeRotation(shape.rotation);
+		const screenCx = sx + sw / 2;
+		const screenCy = sy + sh / 2;
 
 		// Hide resize handles when shape definition declares resizable: false
 		const hideHandles = def?.resizable === false;
@@ -165,28 +170,30 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 				}}
 			>
 				{hoverIndicator}
-				<rect
-					x={sx}
-					y={sy}
-					width={sw}
-					height={sh}
-					fill="none"
-					stroke={STROKE_COLOR}
-					strokeWidth={1}
-				/>
-				{!hideHandles &&
-					[...positions.entries()].map(([handle, pos]) => (
-						<rect
-							key={handle}
-							x={pos.x - half}
-							y={pos.y - half}
-							width={HANDLE_SIZE}
-							height={HANDLE_SIZE}
-							fill="#ffffff"
-							stroke={STROKE_COLOR}
-							strokeWidth={1}
-						/>
-					))}
+				<g transform={rotation ? `rotate(${rotation}, ${screenCx}, ${screenCy})` : undefined}>
+					<rect
+						x={sx}
+						y={sy}
+						width={sw}
+						height={sh}
+						fill="none"
+						stroke={STROKE_COLOR}
+						strokeWidth={1}
+					/>
+					{!hideHandles &&
+						[...positions.entries()].map(([handle, pos]) => (
+							<rect
+								key={handle}
+								x={pos.x - half}
+								y={pos.y - half}
+								width={HANDLE_SIZE}
+								height={HANDLE_SIZE}
+								fill="#ffffff"
+								stroke={STROKE_COLOR}
+								strokeWidth={1}
+							/>
+						))}
+				</g>
 			</svg>
 		);
 	}

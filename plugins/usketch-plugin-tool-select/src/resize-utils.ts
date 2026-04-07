@@ -6,7 +6,13 @@ import type {
 	ShapeRegistry,
 	Viewport,
 } from "@edv4h/usketch-shared";
-import { getSelectionBounds, worldToScreen } from "@edv4h/usketch-shared";
+import {
+	getSelectionBounds,
+	normalizeAngle,
+	safeRotation,
+	unrotatePoint,
+	worldToScreen,
+} from "@edv4h/usketch-shared";
 
 const HANDLE_SIZE = 8;
 const HIT_AREA = 20;
@@ -53,21 +59,118 @@ export function findHandleAtScreenPoint(
 		: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
 	const positions = getHandlePositions(bounds, viewport);
 
+	// Un-rotate the screen point if shape is rotated, so handle positions
+	// (which are computed in un-rotated screen space) can be compared correctly.
+	const rotation = safeRotation(shape.rotation);
+	let testPoint = screenPoint;
+	if (rotation !== 0) {
+		const screenCenter = worldToScreen(
+			bounds.x + bounds.width / 2,
+			bounds.y + bounds.height / 2,
+			viewport,
+		);
+		testPoint = unrotatePoint(screenPoint, screenCenter, (rotation * Math.PI) / 180);
+	}
+
 	const halfHit = HIT_AREA / 2;
 	for (const handle of ALL_HANDLES) {
 		const pos = positions.get(handle);
 		if (!pos) continue;
 		if (
-			screenPoint.x >= pos.x - halfHit &&
-			screenPoint.x <= pos.x + halfHit &&
-			screenPoint.y >= pos.y - halfHit &&
-			screenPoint.y <= pos.y + halfHit
+			testPoint.x >= pos.x - halfHit &&
+			testPoint.x <= pos.x + halfHit &&
+			testPoint.y >= pos.y - halfHit &&
+			testPoint.y <= pos.y + halfHit
 		) {
 			return { shapeId, handle };
 		}
 	}
 
 	return null;
+}
+
+/** Figma 方式: 角のリサイズハンドルの外側エリアで回転を検出する */
+const ROTATION_OUTER_MARGIN = 12;
+
+export function findRotationHandleAtScreenPoint(
+	screenPoint: Point,
+	shapes: ShapeRegistry,
+	store: BoardStore,
+	viewport: Viewport,
+): { shapeId: string; cornerAngle: number } | null {
+	const selection = store.getSelection();
+	if (selection.size !== 1) return null;
+
+	const shapeId = [...selection][0];
+	const shape = store.getShape(shapeId);
+	if (!shape) return null;
+
+	const def = shapes.get(shape.type);
+	if (def?.resizable === false) return null;
+
+	const bounds = def
+		? def.getBounds(shape)
+		: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+
+	const rotation = safeRotation(shape.rotation);
+
+	// Un-rotate the screen point to test in axis-aligned space
+	const screenCenter = worldToScreen(
+		bounds.x + bounds.width / 2,
+		bounds.y + bounds.height / 2,
+		viewport,
+	);
+	let testPoint = screenPoint;
+	if (rotation !== 0) {
+		testPoint = unrotatePoint(screenPoint, screenCenter, (rotation * Math.PI) / 180);
+	}
+
+	// Check if the point is near a corner but OUTSIDE the resize handle hit area
+	const positions = getHandlePositions(bounds, viewport);
+	const cornerHandles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
+	const halfHit = HIT_AREA / 2;
+	const outerDist = halfHit + ROTATION_OUTER_MARGIN;
+
+	const cornerBaseAngles: Record<string, number> = { nw: -45, ne: 45, se: 135, sw: -135 };
+	for (const handle of cornerHandles) {
+		const pos = positions.get(handle);
+		if (!pos) continue;
+		const dx = testPoint.x - pos.x;
+		const dy = testPoint.y - pos.y;
+		const dist = Math.hypot(dx, dy);
+		// Outside resize hit area but within rotation area
+		if (dist > halfHit && dist <= outerDist) {
+			return { shapeId, cornerAngle: cornerBaseAngles[handle] + rotation };
+		}
+	}
+
+	return null;
+}
+
+/** 回転カーソル（SVG data URI）を角度に応じて生成する */
+export function getRotationCursor(angleDeg: number): string {
+	// Circular arrow icon rotated by the given angle
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(${angleDeg} 12 12)"><path d="M21 12a9 9 0 1 1-9-9"/><polyline points="21 3 21 9 15 9"/></svg>`;
+	const encoded = encodeURIComponent(svg);
+	return `url("data:image/svg+xml,${encoded}") 12 12, crosshair`;
+}
+
+/** 回転済みシェイプのリサイズカーソルを返す */
+export function getRotatedCursorForHandle(handle: ResizeHandle, rotationDeg: number): string {
+	const baseAngles: Record<ResizeHandle, number> = {
+		n: 0,
+		ne: 45,
+		e: 90,
+		se: 135,
+		s: 180,
+		sw: 225,
+		w: 270,
+		nw: 315,
+	};
+	const angle = normalizeAngle(baseAngles[handle] + rotationDeg);
+	const snapped = Math.round(angle / 45) % 4;
+	const cursors = ["ns-resize", "nesw-resize", "ew-resize", "nwse-resize"];
+	return cursors[snapped];
 }
 
 const CURSOR_MAP: Record<ResizeHandle, string> = {
