@@ -6,6 +6,7 @@ import {
 	type ResizeHandle,
 	type ShapeData,
 	type UsketchPlugin,
+	withRotation,
 } from "@edv4h/usketch-shared";
 
 function render(data: ShapeData) {
@@ -120,7 +121,7 @@ export const imageShapePlugin: UsketchPlugin = {
 		ctx.shapes.register("image", {
 			render,
 			getBounds,
-			hitTest,
+			hitTest: withRotation(hitTest),
 			resize,
 			createDefault,
 			renderTarget: "html",

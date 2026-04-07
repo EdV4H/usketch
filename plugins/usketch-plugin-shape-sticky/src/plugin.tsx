@@ -8,6 +8,7 @@ import {
 	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
+	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand, createUpdateShapeCommand } from "@edv4h/usketch-store";
 import { createMachine, type MachineSchema } from "@zag-js/core";
@@ -474,7 +475,7 @@ export const stickyPlugin: UsketchPlugin = {
 		ctx.shapes.register("sticky", {
 			render,
 			getBounds,
-			hitTest,
+			hitTest: withRotation(hitTest),
 			resize,
 			createDefault,
 			renderTarget: "html",

@@ -9,6 +9,7 @@ import {
 	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
+	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { createTextEditingService } from "./text-editing-machine.js";
@@ -266,7 +267,7 @@ export const textPlugin: UsketchPlugin = {
 		ctx.shapes.register("text", {
 			render,
 			getBounds,
-			hitTest,
+			hitTest: withRotation(hitTest),
 			resize,
 			createDefault,
 			renderTarget: "html",
