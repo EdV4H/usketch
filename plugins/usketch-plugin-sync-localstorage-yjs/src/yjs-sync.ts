@@ -110,11 +110,27 @@ export function createYjsSync(store: BoardStore, docName: string): YjsSyncHandle
 
 			isSyncing = true;
 			try {
+				const idsNeedingZIndex: string[] = [];
 				for (const [id, value] of shapesMap.entries()) {
 					const shape = value as unknown as ShapeData;
 					if (!store.getShape(id)) {
 						store.addShape(shape);
 					}
+					// Track legacy shapes that were persisted before z-order was introduced.
+					if (typeof shape.zIndex !== "string") {
+						idsNeedingZIndex.push(id);
+					}
+				}
+
+				// Backfill zIndex for legacy shapes: addShape auto-assigned one, so push
+				// the new value back to Y.Map so we don't re-randomize on every load.
+				if (idsNeedingZIndex.length > 0) {
+					doc.transact(() => {
+						for (const id of idsNeedingZIndex) {
+							const current = store.getShape(id);
+							if (current) shapesMap.set(id, toPlainObject(current));
+						}
+					});
 				}
 			} finally {
 				isSyncing = false;

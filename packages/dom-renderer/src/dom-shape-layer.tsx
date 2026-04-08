@@ -1,6 +1,57 @@
 import type { LayerRenderContext, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
 import { safeRotation } from "@edv4h/usketch-shared";
 
+/**
+ * Reorder shapes so that each child appears immediately after its parent container,
+ * while preserving the relative order within each sibling group. The input must
+ * already be sorted by z-order (e.g. zIndex ascending).
+ *
+ * Rationale: DOM z-ordering is controlled by source order + zIndex; containers
+ * (frame/island/group) must render before their children so the child elements
+ * appear on top. Using a stable group-by-parent pass keeps the zIndex-based
+ * order within siblings intact.
+ */
+function stableParentSort(
+	sorted: readonly ShapeData[],
+	_containerTypes: ReadonlySet<string>,
+): ShapeData[] {
+	// Group children by parentId (preserving order from `sorted`)
+	const childrenByParent = new Map<string, ShapeData[]>();
+	const topLevel: ShapeData[] = [];
+	for (const shape of sorted) {
+		const parentId =
+			typeof shape.parentId === "string" && shape.parentId.length > 0 ? shape.parentId : null;
+		if (parentId === null) {
+			topLevel.push(shape);
+		} else {
+			let bucket = childrenByParent.get(parentId);
+			if (!bucket) {
+				bucket = [];
+				childrenByParent.set(parentId, bucket);
+			}
+			bucket.push(shape);
+		}
+	}
+
+	// Recursive emit: parent first, then its children (each child may also be a parent)
+	const result: ShapeData[] = [];
+	function emit(shape: ShapeData) {
+		result.push(shape);
+		const children = childrenByParent.get(shape.id);
+		if (children) {
+			for (const child of children) emit(child);
+		}
+	}
+	for (const shape of topLevel) emit(shape);
+
+	// Append orphaned children (whose parent is missing) in their original order
+	const emittedIds = new Set(result.map((s) => s.id));
+	for (const shape of sorted) {
+		if (!emittedIds.has(shape.id)) result.push(shape);
+	}
+	return result;
+}
+
 function ShapeWrapper({
 	shape,
 	index,
@@ -63,20 +114,12 @@ export function DomShapeLayer({
 	/** Shape IDs already claimed by another renderer (e.g. GPU). These are skipped. */
 	claimedIds?: ReadonlySet<string>;
 }) {
-	// Sort shapes so containers (frame/island) render below their children.
-	// Shapes with parentId get a higher z-index than their parent.
+	// Use pre-sorted shapes (by zIndex ascending) from the layer render context,
+	// then reorder so that each child appears immediately after its parent container.
+	// This preserves user-controlled z-order within each sibling group while keeping
+	// the container-before-child invariant required by the DOM stacking context.
 	const CONTAINER_TYPES = new Set(["frame", "island", "group"]);
-	const shapes = [...ctx.shapes.values()].sort((a, b) => {
-		const aIsContainer = CONTAINER_TYPES.has(a.type);
-		const bIsContainer = CONTAINER_TYPES.has(b.type);
-		// If one is a container of the other, container goes first (lower z)
-		if (a.parentId === b.id) return 1; // a is child of b → b first
-		if (b.parentId === a.id) return -1; // b is child of a → a first
-		// Containers before non-containers at same level
-		if (aIsContainer && !bIsContainer) return -1;
-		if (!aIsContainer && bIsContainer) return 1;
-		return 0;
-	});
+	const shapes = stableParentSort(ctx.shapesSorted, CONTAINER_TYPES);
 
 	return (
 		<div data-layer="shapes">

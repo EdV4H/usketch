@@ -1,6 +1,10 @@
 import { ShapeAnchorOverlay, useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
 import type { ShapeData, ShapeStyle } from "@edv4h/usketch-shared";
-import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
+import {
+	createBatchUpdateShapesCommand,
+	createBringSelectionToFrontCommand,
+	createSendSelectionToBackCommand,
+} from "@edv4h/usketch-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export function StylePanel() {
@@ -129,6 +133,16 @@ export function StylePanel() {
 		commitCommand();
 	}, [commitCommand]);
 
+	const handleBringToFront = useCallback(() => {
+		if (styleableIds.length === 0) return;
+		app.commands.execute(createBringSelectionToFrontCommand(store, styleableIds));
+	}, [app.commands, store, styleableIds]);
+
+	const handleSendToBack = useCallback(() => {
+		if (styleableIds.length === 0) return;
+		app.commands.execute(createSendSelectionToBackCommand(store, styleableIds));
+	}, [app.commands, store, styleableIds]);
+
 	if (!isSelectionMode || hasOnlyNonStyleable) return null;
 
 	return (
@@ -183,10 +197,48 @@ export function StylePanel() {
 				<span style={{ fontSize: 10, color: "#666", minWidth: 28, textAlign: "right" }}>
 					{currentStyle.opacity !== undefined ? `${Math.round(currentStyle.opacity * 100)}%` : "—"}
 				</span>
+				<div style={barSepStyle} />
+				<button
+					type="button"
+					onClick={handleSendToBack}
+					title="Send to back (Ctrl+Shift+[)"
+					style={zOrderButtonStyle}
+				>
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+						<title>Send to back</title>
+						<rect x="1" y="1" width="9" height="9" fill="#2680eb" stroke="#1e1e1e" />
+						<rect x="6" y="6" width="9" height="9" fill="#ffffff" stroke="#1e1e1e" />
+					</svg>
+				</button>
+				<button
+					type="button"
+					onClick={handleBringToFront}
+					title="Bring to front (Ctrl+Shift+])"
+					style={zOrderButtonStyle}
+				>
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+						<title>Bring to front</title>
+						<rect x="1" y="1" width="9" height="9" fill="#ffffff" stroke="#1e1e1e" />
+						<rect x="6" y="6" width="9" height="9" fill="#2680eb" stroke="#1e1e1e" />
+					</svg>
+				</button>
 			</div>
 		</ShapeAnchorOverlay>
 	);
 }
+
+const zOrderButtonStyle: React.CSSProperties = {
+	width: 24,
+	height: 24,
+	padding: 0,
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "center",
+	background: "transparent",
+	border: "1px solid transparent",
+	borderRadius: 4,
+	cursor: "pointer",
+};
 
 const TRANSPARENT = "transparent";
 const COLOR_PALETTE = [

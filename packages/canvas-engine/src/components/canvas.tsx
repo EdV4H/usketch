@@ -1,5 +1,5 @@
 import type { CanvasPointerEvent } from "@edv4h/usketch-shared";
-import { DEFAULT_THEME } from "@edv4h/usketch-shared";
+import { compareZIndex, DEFAULT_THEME } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
@@ -173,9 +173,15 @@ export function Canvas() {
 		return filtered;
 	}, [shapes, filterPredicate, timeTravelShapes]);
 
+	const shapesSorted = useMemo(
+		() => [...filteredShapes.values()].sort((a, b) => compareZIndex(a.zIndex, b.zIndex)),
+		[filteredShapes],
+	);
+
 	const renderCtx = {
 		viewport,
 		shapes: filteredShapes,
+		shapesSorted,
 		selection,
 		theme: DEFAULT_THEME,
 	};

@@ -1,4 +1,10 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import {
+	createBringForwardCommand,
+	createBringSelectionToFrontCommand,
+	createSendBackwardCommand,
+	createSendSelectionToBackCommand,
+} from "@edv4h/usketch-store";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { copyShapes, duplicateShapes, pasteShapes } from "./clipboard.js";
 import { type CommandPaletteController, createCommandPalette } from "./command-palette.js";
@@ -91,6 +97,46 @@ export function createKeyboardShortcutsPlugin(
 			cleanups.push(
 				shortcuts.register("Ctrl+D", () => {
 					duplicateShapes(store, commands);
+				}),
+			);
+
+			// ── Z-order ──
+			// ] / [ = bring forward / send backward
+			// Ctrl+Shift+] / Ctrl+Shift+[ = bring to front / send to back
+			cleanups.push(
+				shortcuts.register("]", () => {
+					if (store.getActiveToolId() !== "select") return;
+					const selection = store.getSelection();
+					if (selection.size === 0) return;
+					for (const id of selection) {
+						commands.execute(createBringForwardCommand(store, id));
+					}
+				}),
+			);
+			cleanups.push(
+				shortcuts.register("[", () => {
+					if (store.getActiveToolId() !== "select") return;
+					const selection = store.getSelection();
+					if (selection.size === 0) return;
+					for (const id of selection) {
+						commands.execute(createSendBackwardCommand(store, id));
+					}
+				}),
+			);
+			cleanups.push(
+				shortcuts.register("Ctrl+Shift+]", () => {
+					if (store.getActiveToolId() !== "select") return;
+					const selection = store.getSelection();
+					if (selection.size === 0) return;
+					commands.execute(createBringSelectionToFrontCommand(store, [...selection]));
+				}),
+			);
+			cleanups.push(
+				shortcuts.register("Ctrl+Shift+[", () => {
+					if (store.getActiveToolId() !== "select") return;
+					const selection = store.getSelection();
+					if (selection.size === 0) return;
+					commands.execute(createSendSelectionToBackCommand(store, [...selection]));
 				}),
 			);
 
