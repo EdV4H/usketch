@@ -9,6 +9,8 @@ const TEST_DURATION_MS = 5_000;
 const PAN_SPEED = 3;
 const WARMUP_FRAMES = 10;
 
+type BenchPhase = "idle" | "lod-off" | "lod-on";
+
 interface BenchResult {
 	off: PerfStats;
 	on: PerfStats;
@@ -19,7 +21,7 @@ interface BenchResult {
 export function BenchmarkPage() {
 	const [shapeCount, setShapeCount] = useState(1_000);
 	const [shapeMix, setShapeMix] = useState<ShapeMix>("mixed");
-	const [running, setRunning] = useState(false);
+	const [phase, setPhase] = useState<BenchPhase>("idle");
 	const [results, setResults] = useState<BenchResult[]>([]);
 	const [liveOff, setLiveOff] = useState({ fps: 0, frameTime: 0 });
 	const [liveOn, setLiveOn] = useState({ fps: 0, frameTime: 0 });
@@ -35,7 +37,46 @@ export function BenchmarkPage() {
 		onStoreRef.current = store;
 	}, []);
 
-	function startBenchmark() {
+	/**
+	 * Run a single phase (LOD off or LOD on). Only this side's store is
+	 * animated, the other panel is hidden so its canvas and React subtree
+	 * don't steal frame time.
+	 */
+	function runPhase(store: BoardStore, isOff: boolean): Promise<PerfStats> {
+		return new Promise((resolve) => {
+			const tracker = new PerfTracker();
+			let lastTime = performance.now();
+			let elapsed = 0;
+			let frameIndex = 0;
+
+			function frame() {
+				const now = performance.now();
+				const dt = now - lastTime;
+				lastTime = now;
+				elapsed += dt;
+				frameIndex++;
+
+				if (frameIndex > WARMUP_FRAMES) tracker.recordFrame(dt);
+				store.panBy(PAN_SPEED, 0);
+
+				if (frameIndex % 5 === 0) {
+					const live = { fps: tracker.getLiveFps(), frameTime: tracker.getLiveFrameTime() };
+					if (isOff) setLiveOff(live);
+					else setLiveOn(live);
+				}
+
+				if (elapsed < TEST_DURATION_MS) {
+					rafRef.current = requestAnimationFrame(frame);
+				} else {
+					resolve(tracker.getStats());
+				}
+			}
+
+			rafRef.current = requestAnimationFrame(frame);
+		});
+	}
+
+	async function startBenchmark() {
 		const offStore = offStoreRef.current;
 		const onStore = onStoreRef.current;
 		if (!offStore || !onStore) return;
@@ -50,52 +91,22 @@ export function BenchmarkPage() {
 		offStore.setViewport({ x: 0, y: 0, zoom: 1 });
 		onStore.setViewport({ x: 0, y: 0, zoom: 1 });
 
-		setRunning(true);
+		// Phase 1: LOD off
+		setPhase("lod-off");
+		// Let React show only the off panel before we start the raf loop
+		await new Promise((r) => requestAnimationFrame(() => r(null)));
+		const offStats = await runPhase(offStore, true);
 
-		const offTracker = new PerfTracker();
-		const onTracker = new PerfTracker();
-		let lastTime = performance.now();
-		let elapsed = 0;
-		let frameIndex = 0;
+		// Phase 2: LOD on
+		setPhase("lod-on");
+		await new Promise((r) => requestAnimationFrame(() => r(null)));
+		const onStats = await runPhase(onStore, false);
 
-		function frame() {
-			const now = performance.now();
-			const dt = now - lastTime;
-			lastTime = now;
-			elapsed += dt;
-			frameIndex++;
-
-			if (frameIndex > WARMUP_FRAMES) {
-				offTracker.recordFrame(dt);
-				onTracker.recordFrame(dt);
-			}
-
-			offStore?.panBy(PAN_SPEED, 0);
-			onStore?.panBy(PAN_SPEED, 0);
-
-			if (frameIndex % 5 === 0) {
-				setLiveOff({ fps: offTracker.getLiveFps(), frameTime: offTracker.getLiveFrameTime() });
-				setLiveOn({ fps: onTracker.getLiveFps(), frameTime: onTracker.getLiveFrameTime() });
-			}
-
-			if (elapsed < TEST_DURATION_MS) {
-				rafRef.current = requestAnimationFrame(frame);
-			} else {
-				setRunning(false);
-				setResults((prev) => [
-					...prev,
-					{
-						off: offTracker.getStats(),
-						on: onTracker.getStats(),
-						shapeCount,
-						shapeMix,
-					},
-				]);
-			}
-		}
-
-		rafRef.current = requestAnimationFrame(frame);
+		setPhase("idle");
+		setResults((prev) => [...prev, { off: offStats, on: onStats, shapeCount, shapeMix }]);
 	}
+
+	const running = phase !== "idle";
 
 	function clearResults() {
 		setResults([]);
@@ -147,17 +158,30 @@ export function BenchmarkPage() {
 							cursor: running ? "not-allowed" : "pointer",
 						}}
 					>
-						{running ? "Running..." : "Start Benchmark"}
+						{phase === "lod-off"
+							? "Running LOD off..."
+							: phase === "lod-on"
+								? "Running LOD on..."
+								: "Start Benchmark"}
 					</button>
 				</div>
 			</div>
 
-			{/* Canvas panels */}
+			{/* Canvas panels — during a benchmark phase, only the active panel
+				is visible so the idle side doesn't steal frame time. */}
 			<div style={{ flex: 1, display: "flex", minHeight: 0 }}>
 				{/* LOD off panel */}
-				<div style={{ ...panelStyle, borderRight: "1px solid #333" }}>
+				<div
+					style={{
+						...panelStyle,
+						borderRight: phase === "idle" ? "1px solid #333" : undefined,
+						display: phase === "lod-on" ? "none" : "flex",
+					}}
+				>
 					<div style={panelHeaderStyle}>
-						<span style={{ fontWeight: 600 }}>LOD off (DOM only)</span>
+						<span style={{ fontWeight: 600 }}>
+							LOD off (DOM only){phase === "lod-off" ? " — measuring" : ""}
+						</span>
 						<span style={liveStatStyle}>
 							FPS: {liveOff.fps} · Frame: {liveOff.frameTime}ms
 						</span>
@@ -168,9 +192,16 @@ export function BenchmarkPage() {
 				</div>
 
 				{/* LOD on panel */}
-				<div style={panelStyle}>
+				<div
+					style={{
+						...panelStyle,
+						display: phase === "lod-off" ? "none" : "flex",
+					}}
+				>
 					<div style={panelHeaderStyle}>
-						<span style={{ fontWeight: 600 }}>LOD on (GPU + simplified DOM)</span>
+						<span style={{ fontWeight: 600 }}>
+							LOD on (GPU + simplified DOM){phase === "lod-on" ? " — measuring" : ""}
+						</span>
 						<span style={liveStatStyle}>
 							FPS: {liveOn.fps} · Frame: {liveOn.frameTime}ms
 						</span>
