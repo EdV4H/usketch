@@ -1,4 +1,5 @@
 import type { ShapeData } from "../types/shape.js";
+import { toLodShape } from "./lod-shape.js";
 
 /** XML 属性値をエスケープして XSS を防止 */
 function escapeXmlAttr(value: string): string {
@@ -9,7 +10,11 @@ function escapeXmlAttr(value: string): string {
 		.replace(/>/g, "&gt;");
 }
 
-/** ミニマップ上の矩形データ */
+/**
+ * ミニマップ上の矩形データ。
+ * `LodShape` と共通のスキーマ (id / x / y / width / height / fill) を持ち、
+ * LOD レンダラとミニマップが同じ pipeline を共有できるようにしている。
+ */
 export interface MinimapRect {
 	id: string;
 	x: number;
@@ -98,15 +103,19 @@ export function computeMinimap(input: MinimapInput): MinimapResult {
 	const toMapX = (wx: number) => (wx - minX + padding) * scale;
 	const toMapY = (wy: number) => (wy - minY + padding) * scale;
 
-	// シェイプ矩形
-	const rects: MinimapRect[] = shapes.map((s) => ({
-		id: s.id,
-		x: toMapX(s.x),
-		y: toMapY(s.y),
-		width: Math.max(minSize, s.width * scale),
-		height: Math.max(minSize, s.height * scale),
-		fill: s.style.fill || "#ffffff",
-	}));
+	// シェイプ矩形 — `toLodShape` で正規化してから map 座標に投影する。
+	// これにより LOD レンダラと fill/stroke の扱いが揃う。
+	const rects: MinimapRect[] = shapes.map((s) => {
+		const lod = toLodShape(s);
+		return {
+			id: lod.id,
+			x: toMapX(lod.x),
+			y: toMapY(lod.y),
+			width: Math.max(minSize, lod.width * scale),
+			height: Math.max(minSize, lod.height * scale),
+			fill: lod.fill,
+		};
+	});
 
 	// ビューポート矩形
 	const viewportRect = viewportWorld
