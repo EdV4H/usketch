@@ -145,15 +145,14 @@ export function DomShapeLayer({
 				}
 				const def = shapeRegistry.get(shape.type);
 				// LOD mode: render the shape's simplifiedComponent (or LodFallback)
-				// instead of its full component. This sheds React/SVG cost when
-				// shapes are too small to be interactable anyway.
+				// instead of its full component. The simplifiedComponent is
+				// responsible for its own positioning (it receives the full
+				// ShapeData and uses shape.x/y directly), so no wrapper div is
+				// needed — a wrapper without position:absolute would break
+				// zIndex stacking anyway.
 				if (isLod) {
 					const Simplified = def?.simplifiedComponent ?? LodFallback;
-					return (
-						<div key={shape.id} style={{ zIndex: index }}>
-							<Simplified shape={shape} />
-						</div>
-					);
+					return <Simplified key={shape.id} shape={shape} />;
 				}
 				if (!def) {
 					const sx = shape.x || 0;

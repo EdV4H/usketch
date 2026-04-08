@@ -15,7 +15,26 @@ export function createDomRendererPlugin(): UsketchPlugin {
 			const unsubClaim = ctx.events.on<{ ids: ReadonlySet<string> }>(
 				"renderer:claim-shapes",
 				(data) => {
-					claimedIds = data.ids;
+					// Only nudge the canvas to re-render if the claim set
+					// actually changed — otherwise we'd loop with GpuShapeLayer's
+					// post-commit emit.
+					const next = data.ids;
+					let changed = next.size !== claimedIds.size;
+					if (!changed) {
+						for (const id of next) {
+							if (!claimedIds.has(id)) {
+								changed = true;
+								break;
+							}
+						}
+					}
+					claimedIds = next;
+					if (changed) {
+						// Re-trigger the canvas layer render so DomShapeLayer
+						// picks up the new claimedIds value. Closure state
+						// alone would not cause React to re-render.
+						ctx.events.emit("layers:changed", {});
+					}
 				},
 			);
 

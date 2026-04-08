@@ -102,19 +102,29 @@ export function GpuShapeLayer({
 		};
 	}, []);
 
-	// LOD: GPU is OFF in interactive mode. Just clear our ref; the DOM layer
-	// ignores claimedIds in interactive mode anyway, so we don't need to emit
-	// (emitting during render would also be a React anti-pattern).
+	// LOD: GPU is only active in non-interactive modes. We keep the canvas
+	// mounted across mode changes to avoid expensive WebGPU re-initialization
+	// (and to avoid the race where the canvas is unmounted while a prior
+	// init promise is still in flight). In interactive mode we simply stop
+	// rendering and clear the canvas pixels.
 	const gpuActive = ctx.renderMode !== "interactive";
-	if (!gpuActive) {
-		if (claimedIdsRef.current.size > 0) {
-			claimedIdsRef.current = new Set();
-		}
-		return null;
-	}
 
-	// Render when ready
-	if (readyRef.current && rendererRef.current && canvasRef.current) {
+	// Render (and publish claims) as a side effect after commit, not during
+	// render. Emitting during render mutates plugin closure state that other
+	// components will consume on the same frame, which can leave DomShapeLayer
+	// reading stale claim sets.
+	useEffect(() => {
+		if (!gpuActive) {
+			// Canvas is hidden via display:none, so leftover pixels are not
+			// visible. We just need to release any claims so DOM resumes full
+			// rendering on the next tick.
+			if (claimedIdsRef.current.size > 0) {
+				claimedIdsRef.current = new Set();
+				events.emit("renderer:claim-shapes", { ids: claimedIdsRef.current });
+			}
+			return;
+		}
+		if (!readyRef.current || !rendererRef.current || !canvasRef.current) return;
 		const renderer = rendererRef.current;
 		const canvas = canvasRef.current;
 		renderer.setViewport(ctx.viewport, canvas.clientWidth, canvas.clientHeight);
@@ -123,11 +133,9 @@ export function GpuShapeLayer({
 			hoveredId: hoveredIdRef.current,
 		});
 		claimedIdsRef.current = claimedIds;
-		if (claimedIds.size > 0) {
-			events.emit("renderer:claim-shapes", { ids: claimedIds });
-		}
+		events.emit("renderer:claim-shapes", { ids: claimedIds });
 		events.emit("gpu-renderer:stats", stats);
-	}
+	});
 
 	return (
 		<canvas
@@ -138,6 +146,9 @@ export function GpuShapeLayer({
 				width: "100%",
 				height: "100%",
 				pointerEvents: "none",
+				// Hide the canvas in interactive mode but keep it mounted so
+				// the WebGPU context survives mode toggles.
+				display: gpuActive ? "block" : "none",
 			}}
 		/>
 	);
