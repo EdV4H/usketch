@@ -14,6 +14,34 @@ import {
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { createTextEditingService } from "./text-editing-machine.js";
 
+/**
+ * LOD component: first line of text, truncated. Dropped editing + focus ring.
+ */
+function SimplifiedText({ shape }: { shape: ShapeData }) {
+	const text = String((shape.text as string) || "").split("\n")[0] ?? "";
+	const color = (shape.style?.stroke as string) || "#222";
+	return (
+		<div
+			style={{
+				position: "absolute",
+				left: shape.x,
+				top: shape.y,
+				width: shape.width,
+				height: shape.height,
+				fontSize: (shape.fontSize as number) ?? 16,
+				fontFamily: (shape.fontFamily as string) ?? "system-ui, sans-serif",
+				color,
+				overflow: "hidden",
+				whiteSpace: "nowrap",
+				textOverflow: "ellipsis",
+				pointerEvents: "none",
+			}}
+		>
+			{text}
+		</div>
+	);
+}
+
 // ── Shape Definition ──
 
 const textStyle = (data: ShapeData): React.CSSProperties => ({
@@ -272,6 +300,7 @@ export const textPlugin: UsketchPlugin = {
 			createDefault,
 			renderTarget: "html",
 			minSize: { width: 40, height: 24 },
+			simplifiedComponent: SimplifiedText,
 		});
 
 		// ── Draw tool registration ──
