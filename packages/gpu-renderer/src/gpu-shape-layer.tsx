@@ -102,13 +102,13 @@ export function GpuShapeLayer({
 		};
 	}, []);
 
-	// LOD: GPU is OFF in interactive mode. Release any prior claims so DOM
-	// resumes full rendering of those shapes, then render nothing.
+	// LOD: GPU is OFF in interactive mode. Just clear our ref; the DOM layer
+	// ignores claimedIds in interactive mode anyway, so we don't need to emit
+	// (emitting during render would also be a React anti-pattern).
 	const gpuActive = ctx.renderMode !== "interactive";
 	if (!gpuActive) {
 		if (claimedIdsRef.current.size > 0) {
 			claimedIdsRef.current = new Set();
-			events.emit("renderer:claim-shapes", { ids: claimedIdsRef.current });
 		}
 		return null;
 	}

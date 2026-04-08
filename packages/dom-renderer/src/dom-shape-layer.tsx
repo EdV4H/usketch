@@ -118,14 +118,19 @@ export function DomShapeLayer({
 	// `gpu-only` mode: hide the DOM layer entirely (reserved for future use).
 	if (ctx.renderMode === "gpu-only") return null;
 
+	// In `interactive` mode the GPU layer does not render, so any lingering
+	// claimedIds from a previous `lod` pass must be ignored — otherwise a
+	// stale closure in the plugin layer can keep hiding shapes until the next
+	// store mutation. DOM owns the full shape set in interactive mode.
+	const isLod = ctx.renderMode === "lod";
+	const effectiveClaimedIds = isLod ? claimedIds : undefined;
+
 	// Use pre-sorted shapes (by zIndex ascending) from the layer render context,
 	// then reorder so that each child appears immediately after its parent container.
 	// This preserves user-controlled z-order within each sibling group while keeping
 	// the container-before-child invariant required by the DOM stacking context.
 	const CONTAINER_TYPES = new Set(["frame", "island", "group"]);
 	const shapes = stableParentSort(ctx.shapesSorted, CONTAINER_TYPES);
-
-	const isLod = ctx.renderMode === "lod";
 
 	return (
 		<div data-layer="shapes">
@@ -134,8 +139,8 @@ export function DomShapeLayer({
 				if (!shape || typeof shape.id !== "string" || typeof shape.type !== "string") {
 					return null;
 				}
-				// Skip shapes claimed by another renderer
-				if (claimedIds?.has(shape.id)) {
+				// Skip shapes claimed by another renderer (lod mode only)
+				if (effectiveClaimedIds?.has(shape.id)) {
 					return null;
 				}
 				const def = shapeRegistry.get(shape.type);
