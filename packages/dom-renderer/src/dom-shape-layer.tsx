@@ -118,14 +118,19 @@ export function DomShapeLayer({
 	// `gpu-only` mode: hide the DOM layer entirely (reserved for future use).
 	if (ctx.renderMode === "gpu-only") return null;
 
+	// In `interactive` mode the GPU layer does not render, so any lingering
+	// claimedIds from a previous `lod` pass must be ignored — otherwise a
+	// stale closure in the plugin layer can keep hiding shapes until the next
+	// store mutation. DOM owns the full shape set in interactive mode.
+	const isLod = ctx.renderMode === "lod";
+	const effectiveClaimedIds = isLod ? claimedIds : undefined;
+
 	// Use pre-sorted shapes (by zIndex ascending) from the layer render context,
 	// then reorder so that each child appears immediately after its parent container.
 	// This preserves user-controlled z-order within each sibling group while keeping
 	// the container-before-child invariant required by the DOM stacking context.
 	const CONTAINER_TYPES = new Set(["frame", "island", "group"]);
 	const shapes = stableParentSort(ctx.shapesSorted, CONTAINER_TYPES);
-
-	const isLod = ctx.renderMode === "lod";
 
 	return (
 		<div data-layer="shapes">
@@ -134,21 +139,27 @@ export function DomShapeLayer({
 				if (!shape || typeof shape.id !== "string" || typeof shape.type !== "string") {
 					return null;
 				}
-				// Skip shapes claimed by another renderer
-				if (claimedIds?.has(shape.id)) {
+				// Skip shapes claimed by another renderer (lod mode only)
+				if (effectiveClaimedIds?.has(shape.id)) {
 					return null;
 				}
 				const def = shapeRegistry.get(shape.type);
 				// LOD mode: render the shape's simplifiedComponent (or LodFallback)
-				// instead of its full component. This sheds React/SVG cost when
-				// shapes are too small to be interactable anyway.
+				// instead of its full component. The simplifiedComponent is
+				// responsible for its own positioning (it receives the full
+				// ShapeData and uses shape.x/y directly), so no wrapper div is
+				// needed — a wrapper without position:absolute would break
+				// zIndex stacking anyway.
+				//
+				// Additionally, skip shapes that the GPU renderer is capable of
+				// drawing (even if it has not yet claimed them on this frame).
+				// Without this, GPU-eligible shapes would briefly get a DOM
+				// LodFallback rendered on top until the next GPU claim arrives,
+				// producing a visible "double render" flash.
 				if (isLod) {
+					if (def?.gpuPrimitive) return null;
 					const Simplified = def?.simplifiedComponent ?? LodFallback;
-					return (
-						<div key={shape.id} style={{ zIndex: index }}>
-							<Simplified shape={shape} />
-						</div>
-					);
+					return <Simplified key={shape.id} shape={shape} />;
 				}
 				if (!def) {
 					const sx = shape.x || 0;

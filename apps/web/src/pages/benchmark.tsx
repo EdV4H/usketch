@@ -8,11 +8,12 @@ const SHAPE_COUNTS = [100, 1_000, 5_000, 10_000, 42_000];
 const TEST_DURATION_MS = 5_000;
 const PAN_SPEED = 3;
 const WARMUP_FRAMES = 10;
-const DEFAULT_BOARD_V2_URL = "http://localhost:3000";
+
+type BenchPhase = "idle" | "lod-off" | "lod-on";
 
 interface BenchResult {
-	dom: PerfStats;
-	gpu: PerfStats;
+	off: PerfStats;
+	on: PerfStats;
 	shapeCount: number;
 	shapeMix: ShapeMix;
 }
@@ -20,85 +21,92 @@ interface BenchResult {
 export function BenchmarkPage() {
 	const [shapeCount, setShapeCount] = useState(1_000);
 	const [shapeMix, setShapeMix] = useState<ShapeMix>("mixed");
-	const [running, setRunning] = useState(false);
+	const [phase, setPhase] = useState<BenchPhase>("idle");
 	const [results, setResults] = useState<BenchResult[]>([]);
-	const [liveDom, setLiveDom] = useState({ fps: 0, frameTime: 0 });
-	const [liveGpu, setLiveGpu] = useState({ fps: 0, frameTime: 0 });
-	const [boardV2Url, setBoardV2Url] = useState(DEFAULT_BOARD_V2_URL);
-	const [showBoardV2, setShowBoardV2] = useState(true);
+	const [liveOff, setLiveOff] = useState({ fps: 0, frameTime: 0 });
+	const [liveOn, setLiveOn] = useState({ fps: 0, frameTime: 0 });
 
-	const domStoreRef = useRef<BoardStore | null>(null);
-	const gpuStoreRef = useRef<BoardStore | null>(null);
+	const offStoreRef = useRef<BoardStore | null>(null);
+	const onStoreRef = useRef<BoardStore | null>(null);
 	const rafRef = useRef(0);
 
-	const onDomReady = useCallback((store: BoardStore) => {
-		domStoreRef.current = store;
+	const onOffReady = useCallback((store: BoardStore) => {
+		offStoreRef.current = store;
 	}, []);
-	const onGpuReady = useCallback((store: BoardStore) => {
-		gpuStoreRef.current = store;
+	const onOnReady = useCallback((store: BoardStore) => {
+		onStoreRef.current = store;
 	}, []);
 
-	function startBenchmark() {
-		const domStore = domStoreRef.current;
-		const gpuStore = gpuStoreRef.current;
-		if (!domStore || !gpuStore) return;
+	/**
+	 * Run a single phase (LOD off or LOD on). Only this side's store is
+	 * animated, the other panel is hidden so its canvas and React subtree
+	 * don't steal frame time.
+	 */
+	function runPhase(store: BoardStore, isOff: boolean): Promise<PerfStats> {
+		return new Promise((resolve) => {
+			const tracker = new PerfTracker();
+			let lastTime = performance.now();
+			let elapsed = 0;
+			let frameIndex = 0;
 
-		clearShapes(domStore);
-		clearShapes(gpuStore);
+			function frame() {
+				const now = performance.now();
+				const dt = now - lastTime;
+				lastTime = now;
+				elapsed += dt;
+				frameIndex++;
+
+				if (frameIndex > WARMUP_FRAMES) tracker.recordFrame(dt);
+				store.panBy(PAN_SPEED, 0);
+
+				if (frameIndex % 5 === 0) {
+					const live = { fps: tracker.getLiveFps(), frameTime: tracker.getLiveFrameTime() };
+					if (isOff) setLiveOff(live);
+					else setLiveOn(live);
+				}
+
+				if (elapsed < TEST_DURATION_MS) {
+					rafRef.current = requestAnimationFrame(frame);
+				} else {
+					resolve(tracker.getStats());
+				}
+			}
+
+			rafRef.current = requestAnimationFrame(frame);
+		});
+	}
+
+	async function startBenchmark() {
+		const offStore = offStoreRef.current;
+		const onStore = onStoreRef.current;
+		if (!offStore || !onStore) return;
+
+		clearShapes(offStore);
+		clearShapes(onStore);
 
 		const shapes = generateShapes(shapeCount, shapeMix);
-		loadShapes(domStore, shapes);
-		loadShapes(gpuStore, shapes);
+		loadShapes(offStore, shapes);
+		loadShapes(onStore, shapes);
 
-		domStore.setViewport({ x: 0, y: 0, zoom: 1 });
-		gpuStore.setViewport({ x: 0, y: 0, zoom: 1 });
+		offStore.setViewport({ x: 0, y: 0, zoom: 1 });
+		onStore.setViewport({ x: 0, y: 0, zoom: 1 });
 
-		setRunning(true);
+		// Phase 1: LOD off
+		setPhase("lod-off");
+		// Let React show only the off panel before we start the raf loop
+		await new Promise((r) => requestAnimationFrame(() => r(null)));
+		const offStats = await runPhase(offStore, true);
 
-		const domTracker = new PerfTracker();
-		const gpuTracker = new PerfTracker();
-		let lastTime = performance.now();
-		let elapsed = 0;
-		let frameIndex = 0;
+		// Phase 2: LOD on
+		setPhase("lod-on");
+		await new Promise((r) => requestAnimationFrame(() => r(null)));
+		const onStats = await runPhase(onStore, false);
 
-		function frame() {
-			const now = performance.now();
-			const dt = now - lastTime;
-			lastTime = now;
-			elapsed += dt;
-			frameIndex++;
-
-			if (frameIndex > WARMUP_FRAMES) {
-				domTracker.recordFrame(dt);
-				gpuTracker.recordFrame(dt);
-			}
-
-			domStore?.panBy(PAN_SPEED, 0);
-			gpuStore?.panBy(PAN_SPEED, 0);
-
-			if (frameIndex % 5 === 0) {
-				setLiveDom({ fps: domTracker.getLiveFps(), frameTime: domTracker.getLiveFrameTime() });
-				setLiveGpu({ fps: gpuTracker.getLiveFps(), frameTime: gpuTracker.getLiveFrameTime() });
-			}
-
-			if (elapsed < TEST_DURATION_MS) {
-				rafRef.current = requestAnimationFrame(frame);
-			} else {
-				setRunning(false);
-				setResults((prev) => [
-					...prev,
-					{
-						dom: domTracker.getStats(),
-						gpu: gpuTracker.getStats(),
-						shapeCount,
-						shapeMix,
-					},
-				]);
-			}
-		}
-
-		rafRef.current = requestAnimationFrame(frame);
+		setPhase("idle");
+		setResults((prev) => [...prev, { off: offStats, on: onStats, shapeCount, shapeMix }]);
 	}
+
+	const running = phase !== "idle";
 
 	function clearResults() {
 		setResults([]);
@@ -110,9 +118,7 @@ export function BenchmarkPage() {
 			<div style={headerStyle}>
 				<div style={{ display: "flex", alignItems: "center", gap: 16 }}>
 					<h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>uSketch Benchmark</h1>
-					<span style={{ fontSize: 12, color: "#888" }}>
-						DOM/SVG vs WebGPU{showBoardV2 ? " vs board-v2" : ""}
-					</span>
+					<span style={{ fontSize: 12, color: "#888" }}>LOD off vs LOD on</span>
 				</div>
 				<div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 13 }}>
 					<label>
@@ -142,22 +148,6 @@ export function BenchmarkPage() {
 							<option value="mixed">Mixed</option>
 						</select>
 					</label>
-					<label style={{ display: "flex", alignItems: "center", gap: 4 }}>
-						<input
-							type="checkbox"
-							checked={showBoardV2}
-							onChange={(e) => setShowBoardV2(e.target.checked)}
-						/>
-						board-v2
-					</label>
-					{showBoardV2 && (
-						<input
-							value={boardV2Url}
-							onChange={(e) => setBoardV2Url(e.target.value)}
-							placeholder="board-v2 URL"
-							style={{ ...selectStyle, width: 180 }}
-						/>
-					)}
 					<button
 						type="button"
 						onClick={startBenchmark}
@@ -168,83 +158,65 @@ export function BenchmarkPage() {
 							cursor: running ? "not-allowed" : "pointer",
 						}}
 					>
-						{running ? "Running..." : "Start Benchmark"}
+						{phase === "lod-off"
+							? "Running LOD off..."
+							: phase === "lod-on"
+								? "Running LOD on..."
+								: "Start Benchmark"}
 					</button>
 				</div>
 			</div>
 
-			{/* Canvas panels */}
+			{/* Canvas panels — during a benchmark phase, only the active panel
+				is visible so the idle side doesn't steal frame time. */}
 			<div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-				{/* DOM panel */}
-				<div style={{ ...panelStyle, borderRight: "1px solid #333" }}>
-					<div style={panelHeaderStyle}>
-						<span style={{ fontWeight: 600 }}>uSketch DOM/SVG</span>
-						<span style={liveStatStyle}>
-							FPS: {liveDom.fps} · Frame: {liveDom.frameTime}ms
-						</span>
-					</div>
-					<div style={{ flex: 1, position: "relative" }}>
-						<BenchmarkCanvas rendererType="dom" onReady={onDomReady} />
-					</div>
-				</div>
-
-				{/* GPU panel */}
+				{/* LOD off panel */}
 				<div
 					style={{
 						...panelStyle,
-						...(showBoardV2 ? { borderRight: "1px solid #333" } : {}),
+						borderRight: phase === "idle" ? "1px solid #333" : undefined,
+						display: phase === "lod-on" ? "none" : "flex",
 					}}
 				>
 					<div style={panelHeaderStyle}>
-						<span style={{ fontWeight: 600 }}>uSketch WebGPU</span>
+						<span style={{ fontWeight: 600 }}>
+							LOD off (DOM only){phase === "lod-off" ? " — measuring" : ""}
+						</span>
 						<span style={liveStatStyle}>
-							FPS: {liveGpu.fps} · Frame: {liveGpu.frameTime}ms
+							FPS: {liveOff.fps} · Frame: {liveOff.frameTime}ms
 						</span>
 					</div>
 					<div style={{ flex: 1, position: "relative" }}>
-						<BenchmarkCanvas rendererType="gpu" onReady={onGpuReady} />
+						<BenchmarkCanvas mode="lod-off" onReady={onOffReady} />
 					</div>
 				</div>
 
-				{/* board-v2 panel (iframe) */}
-				{showBoardV2 && (
-					<div style={panelStyle}>
-						<div style={panelHeaderStyle}>
-							<span style={{ fontWeight: 600 }}>board-v2 WebGPU</span>
-							<span style={liveStatStyle}>
-								<a
-									href={boardV2Url}
-									target="_blank"
-									rel="noopener noreferrer"
-									style={{ color: "#60a5fa", textDecoration: "none", fontSize: 11 }}
-								>
-									Open in new tab
-								</a>
-							</span>
-						</div>
-						<div style={{ flex: 1, position: "relative" }}>
-							<iframe
-								src={boardV2Url}
-								title="board-v2 benchmark"
-								style={{
-									position: "absolute",
-									inset: 0,
-									width: "100%",
-									height: "100%",
-									border: "none",
-									background: "#1a1a2e",
-								}}
-							/>
-						</div>
+				{/* LOD on panel */}
+				<div
+					style={{
+						...panelStyle,
+						display: phase === "lod-off" ? "none" : "flex",
+					}}
+				>
+					<div style={panelHeaderStyle}>
+						<span style={{ fontWeight: 600 }}>
+							LOD on (GPU + simplified DOM){phase === "lod-on" ? " — measuring" : ""}
+						</span>
+						<span style={liveStatStyle}>
+							FPS: {liveOn.fps} · Frame: {liveOn.frameTime}ms
+						</span>
 					</div>
-				)}
+					<div style={{ flex: 1, position: "relative" }}>
+						<BenchmarkCanvas mode="lod-on" onReady={onOnReady} />
+					</div>
+				</div>
 			</div>
 
 			{/* Results */}
 			{results.length > 0 && (
 				<div style={resultsStyle}>
 					<div style={resultHeaderStyle}>
-						<span style={{ fontSize: 14, fontWeight: 600 }}>Results (uSketch)</span>
+						<span style={{ fontSize: 14, fontWeight: 600 }}>Results</span>
 						<button
 							type="button"
 							onClick={clearResults}
@@ -258,19 +230,18 @@ export function BenchmarkPage() {
 							<tr style={{ color: "#888", textAlign: "left" }}>
 								<th style={thStyle}>Shapes</th>
 								<th style={thStyle}>Mix</th>
-								<th style={thStyle}>DOM FPS</th>
-								<th style={thStyle}>DOM Frame</th>
-								<th style={thStyle}>DOM P99</th>
-								<th style={thStyle}>GPU FPS</th>
-								<th style={thStyle}>GPU Frame</th>
-								<th style={thStyle}>GPU P99</th>
+								<th style={thStyle}>Off FPS</th>
+								<th style={thStyle}>Off Frame</th>
+								<th style={thStyle}>Off P99</th>
+								<th style={thStyle}>On FPS</th>
+								<th style={thStyle}>On Frame</th>
+								<th style={thStyle}>On P99</th>
 								<th style={thStyle}>Speedup</th>
 							</tr>
 						</thead>
 						<tbody>
 							{results.map((r, i) => {
-								const speedup =
-									r.dom.avgFrameTime > 0 ? r.dom.avgFrameTime / r.gpu.avgFrameTime : 0;
+								const speedup = r.off.avgFrameTime > 0 ? r.off.avgFrameTime / r.on.avgFrameTime : 0;
 								return (
 									<tr
 										key={`${r.shapeCount}-${r.shapeMix}-${i}`}
@@ -278,12 +249,12 @@ export function BenchmarkPage() {
 									>
 										<td style={tdStyle}>{r.shapeCount.toLocaleString()}</td>
 										<td style={tdStyle}>{r.shapeMix}</td>
-										<td style={tdStyle}>{r.dom.avgFps}</td>
-										<td style={tdStyle}>{r.dom.avgFrameTime}ms</td>
-										<td style={tdStyle}>{r.dom.p99FrameTime}ms</td>
-										<td style={{ ...tdStyle, color: "#4ade80" }}>{r.gpu.avgFps}</td>
-										<td style={{ ...tdStyle, color: "#4ade80" }}>{r.gpu.avgFrameTime}ms</td>
-										<td style={{ ...tdStyle, color: "#4ade80" }}>{r.gpu.p99FrameTime}ms</td>
+										<td style={tdStyle}>{r.off.avgFps}</td>
+										<td style={tdStyle}>{r.off.avgFrameTime}ms</td>
+										<td style={tdStyle}>{r.off.p99FrameTime}ms</td>
+										<td style={{ ...tdStyle, color: "#4ade80" }}>{r.on.avgFps}</td>
+										<td style={{ ...tdStyle, color: "#4ade80" }}>{r.on.avgFrameTime}ms</td>
+										<td style={{ ...tdStyle, color: "#4ade80" }}>{r.on.p99FrameTime}ms</td>
 										<td
 											style={{
 												...tdStyle,
@@ -298,12 +269,6 @@ export function BenchmarkPage() {
 							})}
 						</tbody>
 					</table>
-					{showBoardV2 && (
-						<p style={{ color: "#888", fontSize: 11, marginTop: 8 }}>
-							board-v2 の計測は board-v2 側の UI (Stress 2K ボタン / benchmark.html)
-							で実行してください。
-						</p>
-					)}
 				</div>
 			)}
 		</div>
