@@ -1,4 +1,4 @@
-import type { CanvasPointerEvent } from "@edv4h/usketch-shared";
+import type { CanvasPointerEvent, RenderMode } from "@edv4h/usketch-shared";
 import { compareZIndex, DEFAULT_THEME } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
@@ -39,6 +39,36 @@ export function Canvas() {
 
 	const activeTool = app.tools.get(activeToolId);
 	const [, setLayerVersion] = useState(0);
+	const [renderMode, setRenderMode] = useState<RenderMode>(() => app.lod.getMode());
+
+	// Subscribe to LOD mode changes
+	useEffect(() => app.lod.onModeChange(setRenderMode), [app.lod]);
+
+	// rAF loop: measure smoothed FPS and tick the LOD controller every frame.
+	// FPS is the closest available proxy for CPU/GPU load in the browser.
+	useEffect(() => {
+		let rafId = 0;
+		let lastTs = performance.now();
+		let smoothedFps = 60;
+		const ALPHA = 0.1; // EMA smoothing factor (~30 frame window)
+		const tick = (now: number) => {
+			const dt = now - lastTs;
+			lastTs = now;
+			if (dt > 0) {
+				const instantFps = 1000 / dt;
+				smoothedFps = smoothedFps * (1 - ALPHA) + instantFps * ALPHA;
+			}
+			app.lod.tick({
+				viewport: app.store.getViewport(),
+				shapeCount: app.store.getShapes().size,
+				fps: smoothedFps,
+				currentMode: app.lod.getMode(),
+			});
+			rafId = requestAnimationFrame(tick);
+		};
+		rafId = requestAnimationFrame(tick);
+		return () => cancelAnimationFrame(rafId);
+	}, [app.lod, app.store]);
 
 	const toolCtx = useMemo(
 		() => ({
@@ -184,6 +214,7 @@ export function Canvas() {
 		shapesSorted,
 		selection,
 		theme: DEFAULT_THEME,
+		renderMode,
 	};
 
 	const layers = app.layers.getLayers();

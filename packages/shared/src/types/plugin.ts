@@ -1,5 +1,6 @@
-import type { ReactElement } from "react";
+import type { ComponentType, ReactElement } from "react";
 import type { BoundingBox, Point, Viewport } from "./geometry.js";
+import type { LodController, RenderMode } from "./lod.js";
 import type { ResizeHandle, ShapeData, ShapeStyle } from "./shape.js";
 import type { Theme } from "./theme.js";
 
@@ -12,6 +13,8 @@ export interface LayerRenderContext {
 	shapesSorted: readonly ShapeData[];
 	selection: ReadonlySet<string>;
 	theme: Theme;
+	/** Current LOD render mode. Layers should adapt their output accordingly. */
+	renderMode: RenderMode;
 }
 
 export type RenderTarget = "svg" | "html";
@@ -65,6 +68,11 @@ export interface ShapeDefinition {
 	applyBounds?: (data: ShapeData, newBounds: BoundingBox) => Partial<ShapeData>;
 	/** Return GPU-renderable primitive data, or null to fall back to DOM rendering. */
 	gpuPrimitive?: (data: ShapeData) => GpuPrimitive | null;
+	/**
+	 * Lightweight component used in LOD (zoomed-out) mode. If omitted, the DOM
+	 * renderer falls back to a solid-fill rectangle using `shape.style.fill`.
+	 */
+	simplifiedComponent?: ComponentType<{ shape: ShapeData }>;
 }
 
 export interface ShapeRegistry {
@@ -250,6 +258,7 @@ export interface PluginContext {
 	shortcuts: ShortcutRegistry;
 	events: EventBus;
 	transient: TransientRegistry;
+	lod: LodController;
 }
 
 export interface UsketchPlugin {

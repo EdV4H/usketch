@@ -1,5 +1,7 @@
 // Geometry
 export type { BoundingBox, Point, Viewport } from "./types/geometry.js";
+// LOD
+export type { LodController, LodPolicy, LodPolicyContext, RenderMode } from "./types/lod.js";
 // Plugin system
 export type {
 	BoardStore,
@@ -44,6 +46,9 @@ export {
 } from "./utils/geometry.js";
 // Utils
 export { generateId } from "./utils/id.js";
+// LOD shape projection
+export type { LodShape } from "./utils/lod-shape.js";
+export { toLodShape, toLodShapes } from "./utils/lod-shape.js";
 // Minimap
 export type {
 	MinimapInput,

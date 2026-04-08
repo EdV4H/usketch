@@ -3,7 +3,9 @@ import type {
 	CommandRegistry,
 	EventBus,
 	LayerManager,
+	LodPolicy,
 	PluginContext,
+	RenderMode,
 	ShapeRegistry,
 	ShortcutRegistry,
 	ToolRegistry,
@@ -13,6 +15,13 @@ import type {
 import { createCommandRegistry } from "./command-registry.js";
 import { createEventBus } from "./event-bus.js";
 import { createLayerManager } from "./layer-manager.js";
+import {
+	createCompositeLodPolicy,
+	createLodController,
+	createShapeCountLodPolicy,
+	createZoomLodPolicy,
+	type LodControllerInternal,
+} from "./lod/index.js";
 import { createPluginRegistry } from "./plugin-registry.js";
 import { createShapeRegistry } from "./shape-registry.js";
 import { createShortcutRegistry } from "./shortcut-registry.js";
@@ -28,6 +37,7 @@ export interface AppInstance {
 	shortcuts: ShortcutRegistry;
 	events: EventBus;
 	transient: TransientRegistry;
+	lod: LodControllerInternal;
 	plugins: readonly UsketchPlugin[];
 	destroy(): void;
 }
@@ -35,6 +45,14 @@ export interface AppInstance {
 export interface CreateAppOptions {
 	store: BoardStore;
 	plugins: UsketchPlugin[];
+	/**
+	 * Optional LOD configuration. If omitted, a sensible default is used
+	 * (zoom + shape-count composite policy, starting in `interactive` mode).
+	 */
+	lod?: {
+		policy?: LodPolicy;
+		initialMode?: RenderMode;
+	};
 }
 
 export async function createApp(options: CreateAppOptions): Promise<AppInstance> {
@@ -49,6 +67,17 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	const transient = createTransientRegistry();
 	const pluginRegistry = createPluginRegistry();
 
+	const lodPolicy =
+		options.lod?.policy ??
+		createCompositeLodPolicy([
+			createZoomLodPolicy({ enterAt: 0.5, exitAt: 0.7 }),
+			createShapeCountLodPolicy({ enterAt: 1000, exitAt: 800 }),
+		]);
+	const lod = createLodController({
+		policy: lodPolicy,
+		initialMode: options.lod?.initialMode ?? "interactive",
+	});
+
 	const ctx: PluginContext = {
 		store,
 		layers,
@@ -58,6 +87,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		shortcuts,
 		events,
 		transient,
+		lod,
 	};
 
 	// Bridge store mutations to EventBus
@@ -89,11 +119,13 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		shortcuts,
 		events,
 		transient,
+		lod,
 		plugins: pluginRegistry.getAll(),
 		destroy() {
 			for (const plugin of plugins) {
 				plugin.teardown?.();
 			}
+			lod.destroy();
 			unsubMutation();
 		},
 	};
