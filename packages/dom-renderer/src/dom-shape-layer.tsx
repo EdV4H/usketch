@@ -150,7 +150,14 @@ export function DomShapeLayer({
 				// ShapeData and uses shape.x/y directly), so no wrapper div is
 				// needed — a wrapper without position:absolute would break
 				// zIndex stacking anyway.
+				//
+				// Additionally, skip shapes that the GPU renderer is capable of
+				// drawing (even if it has not yet claimed them on this frame).
+				// Without this, GPU-eligible shapes would briefly get a DOM
+				// LodFallback rendered on top until the next GPU claim arrives,
+				// producing a visible "double render" flash.
 				if (isLod) {
+					if (def?.gpuPrimitive) return null;
 					const Simplified = def?.simplifiedComponent ?? LodFallback;
 					return <Simplified key={shape.id} shape={shape} />;
 				}
