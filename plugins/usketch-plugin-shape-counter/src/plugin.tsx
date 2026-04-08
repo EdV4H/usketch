@@ -13,6 +13,38 @@ import { createAddShapeCommand } from "@edv4h/usketch-store";
 
 // ── Shape Definition ──
 
+/**
+ * Simplified LOD component: shows only the current count, large and centered.
+ * The +/- buttons are dropped because LOD mode is not interactive anyway.
+ */
+function SimplifiedCounter({ shape }: { shape: ShapeData }) {
+	const count = (shape.count as number) ?? 0;
+	return (
+		<div
+			style={{
+				position: "absolute",
+				left: shape.x,
+				top: shape.y,
+				width: shape.width,
+				height: shape.height,
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+				background: (shape.style?.fill as string) || "#ffffff",
+				border: `1px solid ${(shape.style?.stroke as string) || "#999999"}`,
+				borderRadius: 4,
+				fontSize: Math.max(12, Math.min(shape.width, shape.height) * 0.4),
+				fontWeight: 700,
+				color: "#222",
+				pointerEvents: "none",
+				overflow: "hidden",
+			}}
+		>
+			{count}
+		</div>
+	);
+}
+
 function render(data: ShapeData) {
 	const count = (data.count as number) ?? 0;
 
@@ -191,6 +223,7 @@ export const counterPlugin: UsketchPlugin = {
 			createDefault,
 			renderTarget: "html",
 			minSize: { width: 100, height: 100 },
+			simplifiedComponent: SimplifiedCounter,
 		});
 
 		// Listen for counter updates from the rendered buttons

@@ -1,5 +1,6 @@
 import type { LayerRenderContext, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
 import { safeRotation } from "@edv4h/usketch-shared";
+import { LodFallback } from "./lod-fallback.js";
 
 /**
  * Reorder shapes so that each child appears immediately after its parent container,
@@ -114,12 +115,17 @@ export function DomShapeLayer({
 	/** Shape IDs already claimed by another renderer (e.g. GPU). These are skipped. */
 	claimedIds?: ReadonlySet<string>;
 }) {
+	// `gpu-only` mode: hide the DOM layer entirely (reserved for future use).
+	if (ctx.renderMode === "gpu-only") return null;
+
 	// Use pre-sorted shapes (by zIndex ascending) from the layer render context,
 	// then reorder so that each child appears immediately after its parent container.
 	// This preserves user-controlled z-order within each sibling group while keeping
 	// the container-before-child invariant required by the DOM stacking context.
 	const CONTAINER_TYPES = new Set(["frame", "island", "group"]);
 	const shapes = stableParentSort(ctx.shapesSorted, CONTAINER_TYPES);
+
+	const isLod = ctx.renderMode === "lod";
 
 	return (
 		<div data-layer="shapes">
@@ -133,6 +139,17 @@ export function DomShapeLayer({
 					return null;
 				}
 				const def = shapeRegistry.get(shape.type);
+				// LOD mode: render the shape's simplifiedComponent (or LodFallback)
+				// instead of its full component. This sheds React/SVG cost when
+				// shapes are too small to be interactable anyway.
+				if (isLod) {
+					const Simplified = def?.simplifiedComponent ?? LodFallback;
+					return (
+						<div key={shape.id} style={{ zIndex: index }}>
+							<Simplified shape={shape} />
+						</div>
+					);
+				}
 				if (!def) {
 					const sx = shape.x || 0;
 					const sy = shape.y || 0;
