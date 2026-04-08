@@ -16,6 +16,37 @@ import { VanillaMachine } from "@zag-js/vanilla";
 import { DEFAULT_STICKY_COLOR, DEFAULT_STICKY_SIZE, STICKY_COLORS } from "./constants.js";
 import { render } from "./render.js";
 
+/**
+ * LOD component: colored rectangle with one line of text truncated.
+ * Drops the rich formatting / editing affordances.
+ */
+function SimplifiedSticky({ shape }: { shape: ShapeData }) {
+	const fill = (shape.style?.fill as string) || (shape.color as string) || "#fff59d";
+	const text = String((shape.text as string) || "").split("\n")[0] ?? "";
+	return (
+		<div
+			style={{
+				position: "absolute",
+				left: shape.x,
+				top: shape.y,
+				width: shape.width,
+				height: shape.height,
+				background: fill,
+				boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
+				padding: 6,
+				fontSize: Math.max(10, shape.height * 0.18),
+				color: "#333",
+				overflow: "hidden",
+				whiteSpace: "nowrap",
+				textOverflow: "ellipsis",
+				pointerEvents: "none",
+			}}
+		>
+			{text}
+		</div>
+	);
+}
+
 // ── Shape helpers ──
 
 function getBounds(data: ShapeData): BoundingBox {
@@ -480,6 +511,7 @@ export const stickyPlugin: UsketchPlugin = {
 			createDefault,
 			renderTarget: "html",
 			minSize: { width: 100, height: 100 },
+			simplifiedComponent: SimplifiedSticky,
 		});
 
 		// ── Draw tool registration ──
