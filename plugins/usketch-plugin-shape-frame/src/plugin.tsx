@@ -15,6 +15,43 @@ import {
 	resizeFrame,
 } from "./shapes/frame.js";
 
+/**
+ * LOD component: labeled empty frame — dashed border + top-left title.
+ * Frames are containers, so they mostly need to show where they are.
+ */
+function SimplifiedFrame({ shape }: { shape: ShapeData }) {
+	const label = (shape.name as string) || "Frame";
+	return (
+		<div
+			style={{
+				position: "absolute",
+				left: shape.x,
+				top: shape.y,
+				width: shape.width,
+				height: shape.height,
+				border: "1px dashed #999",
+				background: "rgba(255,255,255,0.3)",
+				pointerEvents: "none",
+				overflow: "hidden",
+			}}
+		>
+			<div
+				style={{
+					position: "absolute",
+					top: 4,
+					left: 6,
+					fontSize: 11,
+					color: "#666",
+					fontWeight: 500,
+					whiteSpace: "nowrap",
+				}}
+			>
+				{label}
+			</div>
+		</div>
+	);
+}
+
 function FrameIcon() {
 	return (
 		<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor">
@@ -41,6 +78,7 @@ export const framePlugin: UsketchPlugin = {
 			createDefault: createDefaultFrame,
 			renderTarget: "html",
 			minSize: { width: 50, height: 50 },
+			simplifiedComponent: SimplifiedFrame,
 		});
 
 		// Drawing tool state
