@@ -53,13 +53,23 @@ function stableParentSort(
 	return result;
 }
 
+// When dragging shapes onto a frame (drop target detected), boost their
+// zIndex so they render above the frame's opaque background.
+// Only applied when a drop target is active, not during normal selection.
+const DROP_TARGET_Z_BOOST = 100_000;
+const CONTAINER_SHAPE_TYPES = new Set(["frame", "island", "group"]);
+
 function ShapeWrapper({
 	shape,
 	index,
+	selected,
+	overDropTarget,
 	def,
 }: {
 	shape: ShapeData;
 	index: number;
+	selected: boolean;
+	overDropTarget: boolean;
 	def: { render: (data: ShapeData) => React.ReactElement; renderTarget?: string };
 }) {
 	const bounds = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
@@ -73,7 +83,8 @@ function ShapeWrapper({
 	const svgH = Math.max(bounds.height, 1);
 
 	// Containers (island/frame/group) use pointerEvents: none to let children receive clicks
-	const isContainer = shape.type === "island" || shape.type === "group";
+	const isContainer = CONTAINER_SHAPE_TYPES.has(shape.type);
+	const boosted = selected && !isContainer && overDropTarget;
 
 	return (
 		<div
@@ -83,7 +94,7 @@ function ShapeWrapper({
 				top: bounds.y,
 				width: bounds.width,
 				height: bounds.height,
-				zIndex: index,
+				zIndex: boosted ? index + DROP_TARGET_Z_BOOST : index,
 				pointerEvents: isContainer ? "none" : "auto",
 				transform: rotation ? `rotate(${rotation}deg)` : undefined,
 				transformOrigin: "center center",
@@ -109,11 +120,14 @@ export function DomShapeLayer({
 	ctx,
 	shapeRegistry,
 	claimedIds,
+	dropTargetId,
 }: {
 	ctx: LayerRenderContext;
 	shapeRegistry: ShapeRegistry;
 	/** Shape IDs already claimed by another renderer (e.g. GPU). These are skipped. */
 	claimedIds?: ReadonlySet<string>;
+	/** Frame/group ID that the dragged shapes are hovering over. */
+	dropTargetId?: string | null;
 }) {
 	// `gpu-only` mode: hide the DOM layer entirely (reserved for future use).
 	if (ctx.renderMode === "gpu-only") return null;
@@ -214,7 +228,16 @@ export function DomShapeLayer({
 						</div>
 					);
 				}
-				return <ShapeWrapper key={shape.id} shape={shape} index={index} def={def} />;
+				return (
+					<ShapeWrapper
+						key={shape.id}
+						shape={shape}
+						index={index}
+						selected={ctx.selection.has(shape.id)}
+						overDropTarget={!!dropTargetId}
+						def={def}
+					/>
+				);
 			})}
 		</div>
 	);
