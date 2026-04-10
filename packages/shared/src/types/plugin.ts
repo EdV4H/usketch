@@ -171,6 +171,7 @@ export interface CoreEventMap {
 	"shapes:move-end": { shapeIds: string[] };
 	"snap:configure": { enabled: boolean };
 	"partition:request": { partitions: string[] };
+	"canvas:drop": { files: FileList; worldPoint: Point; screenPoint: Point };
 }
 
 export interface EventBus {

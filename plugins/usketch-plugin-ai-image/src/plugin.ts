@@ -130,17 +130,16 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 			}
 
 			/** Handle file drop on canvas */
-			const unsubDrop = ctx.events.on<{
-				files: FileList;
-				worldPoint: { x: number; y: number };
-			}>("canvas:drop", (data) => {
+			const unsubDrop = ctx.events.on("canvas:drop", async (data) => {
 				const imageFiles = Array.from(data.files).filter((f) => f.type.startsWith("image/"));
 				if (imageFiles.length === 0) return;
 
+				const maxRenderedWidth = 400;
+				const gap = 20;
 				let offsetX = 0;
 				for (const file of imageFiles) {
-					placeImageShape(file, { x: data.worldPoint.x + offsetX, y: data.worldPoint.y });
-					offsetX += 220;
+					await placeImageShape(file, { x: data.worldPoint.x + offsetX, y: data.worldPoint.y });
+					offsetX += maxRenderedWidth + gap;
 				}
 			});
 
