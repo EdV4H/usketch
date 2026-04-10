@@ -53,10 +53,11 @@ function stableParentSort(
 	return result;
 }
 
-// Selected shapes get a high zIndex so they render above frames/containers
-// during drag. Without this, shapes with a lower zIndex than the target
-// frame disappear behind the frame's opaque background while being dragged.
+// Selected non-container shapes get a high zIndex so they render above
+// frames during drag. Containers (frame/island/group) are excluded so
+// their background doesn't cover their own children.
 const SELECTED_Z_BOOST = 100_000;
+const CONTAINER_SHAPE_TYPES = new Set(["frame", "island", "group"]);
 
 function ShapeWrapper({
 	shape,
@@ -80,7 +81,8 @@ function ShapeWrapper({
 	const svgH = Math.max(bounds.height, 1);
 
 	// Containers (island/frame/group) use pointerEvents: none to let children receive clicks
-	const isContainer = shape.type === "island" || shape.type === "group";
+	const isContainer = CONTAINER_SHAPE_TYPES.has(shape.type);
+	const boosted = selected && !isContainer;
 
 	return (
 		<div
@@ -90,7 +92,7 @@ function ShapeWrapper({
 				top: bounds.y,
 				width: bounds.width,
 				height: bounds.height,
-				zIndex: selected ? index + SELECTED_Z_BOOST : index,
+				zIndex: boosted ? index + SELECTED_Z_BOOST : index,
 				pointerEvents: isContainer ? "none" : "auto",
 				transform: rotation ? `rotate(${rotation}deg)` : undefined,
 				transformOrigin: "center center",
