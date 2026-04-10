@@ -188,6 +188,8 @@ type DragState =
 			startAngle: number;
 			startRotation: number;
 			center: Point;
+			/** Snapshots of child shapes for container rotation */
+			childSnapshots: Map<string, ShapeData>;
 	  }
 	| {
 			mode: "multi-resize";
@@ -266,6 +268,14 @@ export const selectToolPlugin: UsketchPlugin = {
 					const cy = shape.y + shape.height / 2;
 					const startAngle =
 						Math.atan2(event.worldPoint.y - cy, event.worldPoint.x - cx) * (180 / Math.PI);
+					// Collect child snapshots for container rotation
+					const childSnapshots = new Map<string, ShapeData>();
+					if (shape.type === "frame" || shape.type === "group" || shape.type === "island") {
+						const children = getChildShapes(toolCtx.store, rotationHit);
+						for (const child of children) {
+							childSnapshots.set(child.id, { ...child });
+						}
+					}
 					setOverrideCursor("grabbing");
 					dragState = {
 						mode: "rotate",
@@ -273,6 +283,7 @@ export const selectToolPlugin: UsketchPlugin = {
 						startAngle,
 						startRotation: safeRotation(shape.rotation),
 						center: { x: cx, y: cy },
+						childSnapshots,
 					};
 					return;
 				}
@@ -522,6 +533,28 @@ export const selectToolPlugin: UsketchPlugin = {
 				}
 				newRotation = normalizeAngle(newRotation);
 				toolCtx.store.updateShape(dragState.shapeId, { rotation: newRotation });
+
+				// Rotate child shapes around the container center
+				const deltaRad = ((newRotation - dragState.startRotation) * Math.PI) / 180;
+				const { center } = dragState;
+				for (const [childId, snap] of dragState.childSnapshots) {
+					const childCx = snap.x + snap.width / 2;
+					const childCy = snap.y + snap.height / 2;
+					const rx = childCx - center.x;
+					const ry = childCy - center.y;
+					const cos = Math.cos(deltaRad);
+					const sin = Math.sin(deltaRad);
+					const newCx = center.x + rx * cos - ry * sin;
+					const newCy = center.y + rx * sin + ry * cos;
+					const childRotation = normalizeAngle(
+						safeRotation(snap.rotation) + newRotation - dragState.startRotation,
+					);
+					toolCtx.store.updateShape(childId, {
+						x: newCx - snap.width / 2,
+						y: newCy - snap.height / 2,
+						rotation: childRotation,
+					});
+				}
 				return;
 			}
 
@@ -827,13 +860,53 @@ export const selectToolPlugin: UsketchPlugin = {
 				setOverrideCursor("");
 				const currentShape = toolCtx.store.getShape(dragState.shapeId);
 				if (currentShape) {
-					const from = { rotation: dragState.startRotation };
-					const to = { rotation: safeRotation(currentShape.rotation) };
-					if (from.rotation !== to.rotation) {
+					const parentFrom = { rotation: dragState.startRotation };
+					const parentTo = { rotation: safeRotation(currentShape.rotation) };
+					const hasMoved = parentFrom.rotation !== parentTo.rotation;
+
+					if (hasMoved) {
+						// Build before/after snapshots for parent + children
+						const beforeSnapshots = new Map<string, Partial<ShapeData>>();
+						const afterSnapshots = new Map<string, Partial<ShapeData>>();
+
 						const shapeId = dragState.shapeId;
+						beforeSnapshots.set(shapeId, { rotation: parentFrom.rotation });
+						afterSnapshots.set(shapeId, { rotation: parentTo.rotation });
+
+						for (const [childId, snap] of dragState.childSnapshots) {
+							const current = toolCtx.store.getShape(childId);
+							if (current) {
+								beforeSnapshots.set(childId, {
+									x: snap.x,
+									y: snap.y,
+									rotation: safeRotation(snap.rotation),
+								});
+								afterSnapshots.set(childId, {
+									x: current.x,
+									y: current.y,
+									rotation: safeRotation(current.rotation),
+								});
+							}
+						}
+
 						queueMicrotask(() => {
-							toolCtx.store.updateShape(shapeId, from);
-							toolCtx.commands.execute(createUpdateShapeCommand(toolCtx.store, shapeId, from, to));
+							// Revert to before state
+							for (const [id, props] of beforeSnapshots) {
+								toolCtx.store.updateShape(id, props);
+							}
+							// Execute undoable command
+							toolCtx.commands.execute({
+								execute: () => {
+									for (const [id, props] of afterSnapshots) {
+										toolCtx.store.updateShape(id, props);
+									}
+								},
+								undo: () => {
+									for (const [id, props] of beforeSnapshots) {
+										toolCtx.store.updateShape(id, props);
+									}
+								},
+							});
 						});
 					}
 				}

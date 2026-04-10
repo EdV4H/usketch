@@ -20,6 +20,7 @@ import { createTextEditingService } from "./text-editing-machine.js";
 function SimplifiedText({ shape }: { shape: ShapeData }) {
 	const text = String((shape.text as string) || "").split("\n")[0] ?? "";
 	const color = (shape.style?.stroke as string) || "#222";
+	const rotation = typeof shape.rotation === "number" ? shape.rotation : 0;
 	return (
 		<div
 			style={{
@@ -35,6 +36,8 @@ function SimplifiedText({ shape }: { shape: ShapeData }) {
 				whiteSpace: "nowrap",
 				textOverflow: "ellipsis",
 				pointerEvents: "none",
+				transform: rotation ? `rotate(${rotation}deg)` : undefined,
+				transformOrigin: "center center",
 			}}
 		>
 			{text}

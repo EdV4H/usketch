@@ -19,6 +19,7 @@ import { createAddShapeCommand } from "@edv4h/usketch-store";
  */
 function SimplifiedCounter({ shape }: { shape: ShapeData }) {
 	const count = (shape.count as number) ?? 0;
+	const rotation = typeof shape.rotation === "number" ? shape.rotation : 0;
 	return (
 		<div
 			style={{
@@ -38,6 +39,8 @@ function SimplifiedCounter({ shape }: { shape: ShapeData }) {
 				color: "#222",
 				pointerEvents: "none",
 				overflow: "hidden",
+				transform: rotation ? `rotate(${rotation}deg)` : undefined,
+				transformOrigin: "center center",
 			}}
 		>
 			{count}

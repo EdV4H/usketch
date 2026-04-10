@@ -21,6 +21,7 @@ import {
  */
 function SimplifiedFrame({ shape }: { shape: ShapeData }) {
 	const label = (shape.name as string) || "Frame";
+	const rotation = typeof shape.rotation === "number" ? shape.rotation : 0;
 	return (
 		<div
 			style={{
@@ -33,6 +34,8 @@ function SimplifiedFrame({ shape }: { shape: ShapeData }) {
 				background: "rgba(255,255,255,0.3)",
 				pointerEvents: "none",
 				overflow: "hidden",
+				transform: rotation ? `rotate(${rotation}deg)` : undefined,
+				transformOrigin: "center center",
 			}}
 		>
 			<div
