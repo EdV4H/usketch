@@ -130,7 +130,27 @@ export function DomShapeLayer({
 	// This preserves user-controlled z-order within each sibling group while keeping
 	// the container-before-child invariant required by the DOM stacking context.
 	const CONTAINER_TYPES = new Set(["frame", "island", "group"]);
-	const shapes = stableParentSort(ctx.shapesSorted, CONTAINER_TYPES);
+	const sorted = stableParentSort(ctx.shapesSorted, CONTAINER_TYPES);
+
+	// Bring selected shapes to the front so they render above frames/containers
+	// during drag. Without this, shapes with a lower zIndex than the target
+	// frame disappear behind the frame's opaque background while being dragged.
+	const { selection } = ctx;
+	let shapes: ShapeData[];
+	if (selection.size > 0) {
+		const back: ShapeData[] = [];
+		const front: ShapeData[] = [];
+		for (const s of sorted) {
+			if (selection.has(s.id)) {
+				front.push(s);
+			} else {
+				back.push(s);
+			}
+		}
+		shapes = back.concat(front);
+	} else {
+		shapes = sorted;
+	}
 
 	return (
 		<div data-layer="shapes">
