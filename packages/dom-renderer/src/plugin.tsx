@@ -11,6 +11,8 @@ export function createDomRendererPlugin(): UsketchPlugin {
 		setup(ctx: PluginContext) {
 			// Track shape IDs claimed by other renderers (e.g. GPU)
 			let claimedIds: ReadonlySet<string> = new Set();
+			// Track drop target frame (set by select tool during drag)
+			let dropTargetId: string | null = null;
 
 			const unsubClaim = ctx.events.on<{ ids: ReadonlySet<string> }>(
 				"renderer:claim-shapes",
@@ -38,6 +40,16 @@ export function createDomRendererPlugin(): UsketchPlugin {
 				},
 			);
 
+			const unsubDropTarget = ctx.events.on<{ id: string | null }>(
+				"drop-target:changed",
+				(data) => {
+					if (dropTargetId !== data.id) {
+						dropTargetId = data.id;
+						ctx.events.emit("layers:changed", {});
+					}
+				},
+			);
+
 			ctx.layers.register({
 				id: "dom-shapes",
 				order: 50,
@@ -46,12 +58,14 @@ export function createDomRendererPlugin(): UsketchPlugin {
 						ctx={renderCtx}
 						shapeRegistry={ctx.shapes}
 						claimedIds={claimedIds.size > 0 ? claimedIds : undefined}
+						dropTargetId={dropTargetId}
 					/>
 				),
 			});
 
 			cleanup = () => {
 				unsubClaim();
+				unsubDropTarget();
 				ctx.layers.unregister("dom-shapes");
 			};
 		},

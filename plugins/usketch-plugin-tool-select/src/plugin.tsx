@@ -214,6 +214,12 @@ export const selectToolPlugin: UsketchPlugin = {
 	name: "選択",
 
 	setup(ctx: PluginContext) {
+		// Wrap setDropTargetId to also emit on EventBus for DomShapeLayer
+		function updateDropTarget(id: string | null) {
+			setDropTargetId(id);
+			ctx.events.emit("drop-target:changed", { id });
+		}
+
 		// ── Local drag state (scoped to this setup closure) ──
 		let dragState: DragState = null;
 		let overrideCursor = "";
@@ -809,12 +815,12 @@ export const selectToolPlugin: UsketchPlugin = {
 					break;
 				}
 			}
-			setDropTargetId(dropTarget);
+			updateDropTarget(dropTarget);
 		}
 
 		function onPointerUp(toolCtx: ToolContext, _event: CanvasPointerEvent) {
 			enableTextSelection();
-			setDropTargetId(null);
+			updateDropTarget(null);
 			if (!dragState) return;
 
 			if (dragState.mode === "rotate") {
@@ -983,7 +989,7 @@ export const selectToolPlugin: UsketchPlugin = {
 			setOverrideCursor("");
 			setEditingGroupId(null);
 			setHoveredShapeId(null);
-			setDropTargetId(null);
+			updateDropTarget(null);
 		}
 
 		ctx.tools.register("select", {
@@ -1019,7 +1025,7 @@ export const selectToolPlugin: UsketchPlugin = {
 			setMarquee(null);
 			setEditingGroupId(null);
 			setHoveredShapeId(null);
-			setDropTargetId(null);
+			updateDropTarget(null);
 			clearMarqueeListeners();
 			clearMovingSelectionListeners();
 			clearEditingGroupListeners();
