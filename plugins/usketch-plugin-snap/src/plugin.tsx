@@ -184,6 +184,18 @@ export const snapPlugin: UsketchPlugin = {
 				return;
 			}
 
+			// Skip snap for child shapes whose parent is being dragged (in selection).
+			// Children follow their parent's snap offset; snapping them individually
+			// causes jitter because each child gets its own snap delta.
+			const parentId = shape.parentId as string | undefined;
+			if (parentId) {
+				const sel = ctx.store.getSelection();
+				if (sel.has(parentId)) {
+					originalUpdateShape(id, updates);
+					return;
+				}
+			}
+
 			const isResize = isResizeUpdate(updates);
 
 			// Get current frame ID to cache snap results across multi-shape updates
