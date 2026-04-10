@@ -113,6 +113,28 @@ export function Canvas() {
 		[viewport, activeTool, toolCtx, app.events],
 	);
 
+	const handleDragOver = useCallback((e: React.DragEvent) => {
+		e.preventDefault();
+		e.dataTransfer.dropEffect = "copy";
+	}, []);
+
+	const handleDrop = useCallback(
+		(e: React.DragEvent) => {
+			e.preventDefault();
+			const rect = containerRef.current?.getBoundingClientRect();
+			const screenPoint = {
+				x: rect ? e.clientX - rect.left : e.clientX,
+				y: rect ? e.clientY - rect.top : e.clientY,
+			};
+			app.events.emit("canvas:drop", {
+				files: e.dataTransfer.files,
+				worldPoint: screenToWorld(screenPoint, viewport),
+				screenPoint,
+			});
+		},
+		[viewport, app.events],
+	);
+
 	// ── Re-render when layers change dynamically ──
 	// Plugins that register/unregister layers at runtime must emit
 	// "layers:changed" via ctx.events after mutation.
@@ -221,6 +243,7 @@ export function Canvas() {
 	const viewportTransform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
 
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: Canvas is the interactive drawing surface
 		<div
 			ref={containerRef}
 			style={{
@@ -235,6 +258,8 @@ export function Canvas() {
 			onPointerDown={handlePointerDown}
 			onPointerMove={handlePointerMove}
 			onPointerUp={handlePointerUp}
+			onDragOver={handleDragOver}
+			onDrop={handleDrop}
 		>
 			{layers.map((layer) => {
 				if (layer.fixed) {

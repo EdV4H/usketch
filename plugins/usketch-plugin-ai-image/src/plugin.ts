@@ -13,7 +13,10 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 
 		setup(ctx: PluginContext) {
 			/** 画像をimageシェイプとしてキャンバスに配置 */
-			async function placeImageShape(file: File): Promise<void> {
+			async function placeImageShape(
+				file: File,
+				dropWorldPoint?: { x: number; y: number },
+			): Promise<void> {
 				const validation = validateImage(file, maxSizeMB);
 				if (!validation.valid) {
 					ctx.events.emit("ai:status", {
@@ -27,10 +30,17 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 					let dataUrl = await fileToBase64(file);
 					dataUrl = await resizeImage(dataUrl, maxDimension);
 
-					// ビューポート中央にシェイプを配置
-					const viewport = ctx.store.getViewport();
-					const centerX = -viewport.x / viewport.zoom + window.innerWidth / 2 / viewport.zoom;
-					const centerY = -viewport.y / viewport.zoom + window.innerHeight / 2 / viewport.zoom;
+					// 配置位置: ドロップ位置があればそこ、なければビューポート中央
+					let centerX: number;
+					let centerY: number;
+					if (dropWorldPoint) {
+						centerX = dropWorldPoint.x;
+						centerY = dropWorldPoint.y;
+					} else {
+						const viewport = ctx.store.getViewport();
+						centerX = -viewport.x / viewport.zoom + window.innerWidth / 2 / viewport.zoom;
+						centerY = -viewport.y / viewport.zoom + window.innerHeight / 2 / viewport.zoom;
+					}
 
 					// 画像サイズを取得してアスペクト比を維持
 					const { width, height } = await getImageDimensions(dataUrl);
@@ -119,12 +129,28 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 				input.click();
 			}
 
+			/** Handle file drop on canvas */
+			const unsubDrop = ctx.events.on<{
+				files: FileList;
+				worldPoint: { x: number; y: number };
+			}>("canvas:drop", (data) => {
+				const imageFiles = Array.from(data.files).filter((f) => f.type.startsWith("image/"));
+				if (imageFiles.length === 0) return;
+
+				let offsetX = 0;
+				for (const file of imageFiles) {
+					placeImageShape(file, { x: data.worldPoint.x + offsetX, y: data.worldPoint.y });
+					offsetX += 220;
+				}
+			});
+
 			window.addEventListener("paste", handlePaste);
 			const unsubUpload = ctx.events.on("image:upload", handleUpload);
 
 			cleanup = () => {
 				window.removeEventListener("paste", handlePaste);
 				unsubUpload();
+				unsubDrop();
 			};
 		},
 
