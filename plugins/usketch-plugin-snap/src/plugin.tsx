@@ -456,6 +456,9 @@ function getCandidateBoxes(
 	const boxes = new Map<string, BoundingBox>();
 	for (const [id, shape] of store.getShapes()) {
 		if (movingIds.has(id)) continue;
+		// Exclude children of moving shapes so a frame doesn't snap to its own children
+		const parentId = shape.parentId as string | undefined;
+		if (parentId && movingIds.has(parentId)) continue;
 		const def = ctx.shapes.get(shape.type);
 		const box = def
 			? def.getBounds(shape)
