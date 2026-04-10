@@ -53,13 +53,20 @@ function stableParentSort(
 	return result;
 }
 
+// Selected shapes get a high zIndex so they render above frames/containers
+// during drag. Without this, shapes with a lower zIndex than the target
+// frame disappear behind the frame's opaque background while being dragged.
+const SELECTED_Z_BOOST = 100_000;
+
 function ShapeWrapper({
 	shape,
 	index,
+	selected,
 	def,
 }: {
 	shape: ShapeData;
 	index: number;
+	selected: boolean;
 	def: { render: (data: ShapeData) => React.ReactElement; renderTarget?: string };
 }) {
 	const bounds = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
@@ -83,7 +90,7 @@ function ShapeWrapper({
 				top: bounds.y,
 				width: bounds.width,
 				height: bounds.height,
-				zIndex: index,
+				zIndex: selected ? index + SELECTED_Z_BOOST : index,
 				pointerEvents: isContainer ? "none" : "auto",
 				transform: rotation ? `rotate(${rotation}deg)` : undefined,
 				transformOrigin: "center center",
@@ -130,27 +137,7 @@ export function DomShapeLayer({
 	// This preserves user-controlled z-order within each sibling group while keeping
 	// the container-before-child invariant required by the DOM stacking context.
 	const CONTAINER_TYPES = new Set(["frame", "island", "group"]);
-	const sorted = stableParentSort(ctx.shapesSorted, CONTAINER_TYPES);
-
-	// Bring selected shapes to the front so they render above frames/containers
-	// during drag. Without this, shapes with a lower zIndex than the target
-	// frame disappear behind the frame's opaque background while being dragged.
-	const { selection } = ctx;
-	let shapes: ShapeData[];
-	if (selection.size > 0) {
-		const back: ShapeData[] = [];
-		const front: ShapeData[] = [];
-		for (const s of sorted) {
-			if (selection.has(s.id)) {
-				front.push(s);
-			} else {
-				back.push(s);
-			}
-		}
-		shapes = back.concat(front);
-	} else {
-		shapes = sorted;
-	}
+	const shapes = stableParentSort(ctx.shapesSorted, CONTAINER_TYPES);
 
 	return (
 		<div data-layer="shapes">
@@ -234,7 +221,15 @@ export function DomShapeLayer({
 						</div>
 					);
 				}
-				return <ShapeWrapper key={shape.id} shape={shape} index={index} def={def} />;
+				return (
+					<ShapeWrapper
+						key={shape.id}
+						shape={shape}
+						index={index}
+						selected={ctx.selection.has(shape.id)}
+						def={def}
+					/>
+				);
 			})}
 		</div>
 	);
