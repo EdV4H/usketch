@@ -23,6 +23,7 @@ import { render } from "./render.js";
 function SimplifiedSticky({ shape }: { shape: ShapeData }) {
 	const fill = (shape.style?.fill as string) || (shape.color as string) || "#fff59d";
 	const text = String((shape.text as string) || "").split("\n")[0] ?? "";
+	const rotation = typeof shape.rotation === "number" ? shape.rotation : 0;
 	return (
 		<div
 			style={{
@@ -40,6 +41,8 @@ function SimplifiedSticky({ shape }: { shape: ShapeData }) {
 				whiteSpace: "nowrap",
 				textOverflow: "ellipsis",
 				pointerEvents: "none",
+				transform: rotation ? `rotate(${rotation}deg)` : undefined,
+				transformOrigin: "center center",
 			}}
 		>
 			{text}

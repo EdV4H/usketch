@@ -1,4 +1,5 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
+import { safeRotation } from "@edv4h/usketch-shared";
 
 /**
  * Default lightweight component used when a shape has no `simplifiedComponent`
@@ -8,6 +9,7 @@ import type { ShapeData } from "@edv4h/usketch-shared";
  */
 export function LodFallback({ shape }: { shape: ShapeData }) {
 	const style = (shape.style ?? {}) as { fill?: string };
+	const rotation = safeRotation(shape.rotation);
 	return (
 		<div
 			style={{
@@ -18,6 +20,8 @@ export function LodFallback({ shape }: { shape: ShapeData }) {
 				height: shape.height,
 				backgroundColor: style.fill || "#cccccc",
 				pointerEvents: "none",
+				transform: rotation ? `rotate(${rotation}deg)` : undefined,
+				transformOrigin: "center center",
 			}}
 		/>
 	);
