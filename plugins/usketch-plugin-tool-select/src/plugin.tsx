@@ -735,21 +735,51 @@ export const selectToolPlugin: UsketchPlugin = {
 			const dy = event.worldPoint.y - dragState.startPoint.y;
 
 			const movingIds = new Set(dragState.startShapeSnapshots.keys());
+			const currentSelection = toolCtx.store.getSelection();
+
+			// Phase 1: Update selected (top-level) shapes first so snap adjusts them.
+			// Track the snap delta so children can follow the same offset.
+			let snapDx = 0;
+			let snapDy = 0;
 			for (const [id, snapshot] of dragState.startShapeSnapshots) {
-				// Always pass {x, y} first so snap plugin can adjust them
+				if (!currentSelection.has(id)) continue;
 				toolCtx.store.updateShape(id, {
 					x: snapshot.x + dx,
 					y: snapshot.y + dy,
 				});
+				const snapped = toolCtx.store.getShape(id);
+				if (snapped) {
+					snapDx = snapped.x - (snapshot.x + dx);
+					snapDy = snapped.y - (snapshot.y + dy);
+				}
 				const def = toolCtx.shapes.get(snapshot.type);
 				if (def?.move) {
-					// Read back the (possibly snap-adjusted) position and derive geometry
+					if (snapped) {
+						const snappedDx = snapped.x - snapshot.x;
+						const snappedDy = snapped.y - snapshot.y;
+						const geom = def.move(snapshot, snappedDx, snappedDy);
+						const { x: _x, y: _y, ...rest } = geom;
+						if (Object.keys(rest).length > 0) {
+							toolCtx.store.updateShape(id, rest);
+						}
+					}
+				}
+			}
+
+			// Phase 2: Update child shapes with the same snap delta as their parent.
+			for (const [id, snapshot] of dragState.startShapeSnapshots) {
+				if (currentSelection.has(id)) continue;
+				toolCtx.store.updateShape(id, {
+					x: snapshot.x + dx + snapDx,
+					y: snapshot.y + dy + snapDy,
+				});
+				const def = toolCtx.shapes.get(snapshot.type);
+				if (def?.move) {
 					const snapped = toolCtx.store.getShape(id);
 					if (snapped) {
 						const snappedDx = snapped.x - snapshot.x;
 						const snappedDy = snapped.y - snapshot.y;
 						const geom = def.move(snapshot, snappedDx, snappedDy);
-						// Remove x/y to avoid re-triggering snap
 						const { x: _x, y: _y, ...rest } = geom;
 						if (Object.keys(rest).length > 0) {
 							toolCtx.store.updateShape(id, rest);
