@@ -7,7 +7,7 @@ export default defineConfig(({ mode, command }) => ({
 	define: {
 		"process.env.NODE_ENV": JSON.stringify(mode),
 	},
-	resolve: command === "serve" ? { conditions: ["source"] } : {},
+	resolve: command === "serve" && !process.env.CI ? { conditions: ["source"] } : {},
 	server: {
 		port: 4578,
 	},
