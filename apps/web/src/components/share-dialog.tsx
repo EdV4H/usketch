@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api.js";
+import { getErrorMessage } from "../lib/errors.js";
 
 interface Member {
 	userId: string;
@@ -37,7 +38,7 @@ export function ShareDialog({ boardId, onClose }: { boardId: string; onClose: ()
 			const result = await api.boards.toggleShare(boardId);
 			setIsPublic(result.isPublic);
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "Failed to toggle share");
+			setError(getErrorMessage(e, "Failed to toggle share"));
 		}
 	};
 
@@ -49,7 +50,7 @@ export function ShareDialog({ boardId, onClose }: { boardId: string; onClose: ()
 			setEmail("");
 			loadData();
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "Failed to add member");
+			setError(getErrorMessage(e, "Failed to add member"));
 		}
 	};
 
@@ -58,7 +59,7 @@ export function ShareDialog({ boardId, onClose }: { boardId: string; onClose: ()
 			await api.boards.removeMember(boardId, userId);
 			loadData();
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "Failed to remove member");
+			setError(getErrorMessage(e, "Failed to remove member"));
 		}
 	};
 
