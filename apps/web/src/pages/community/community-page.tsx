@@ -3,6 +3,8 @@ import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
 import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
+import { dotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
+import { gridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createBoardInfoPanelPlugin } from "@edv4h/usketch-plugin-board-info-panel";
 import { createFilterPlugin } from "@edv4h/usketch-plugin-canvas-filter";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
@@ -193,6 +195,8 @@ export function CommunityPage() {
 				}
 
 				const basePlugins: UsketchPlugin[] = [
+					gridBgPlugin,
+					dotsBgPlugin,
 					selectToolPlugin,
 					panToolPlugin,
 					viewportNavPlugin,

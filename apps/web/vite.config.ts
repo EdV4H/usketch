@@ -2,12 +2,13 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-export default defineConfig(({ mode, command }) => ({
+export default defineConfig(({ mode }) => ({
 	plugins: [react()],
 	define: {
 		"process.env.NODE_ENV": JSON.stringify(mode),
 	},
-	resolve: command === "serve" && !process.env.CI ? { conditions: ["source"] } : {},
+	// source条件はexportプラグインのreact-dom/serverと非互換のため無効化 (#551)
+	// resolve: { conditions: ["source"] },
 	server: {
 		port: 4578,
 	},
