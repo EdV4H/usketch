@@ -41,9 +41,11 @@ import {
 } from "@edv4h/usketch-sync";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router";
-import { Toolbar } from "./components/toolbar.js";
+import { Toolbar } from "./components/toolbar/index.js";
 import { getDevUser } from "./lib/dev-auth.js";
+import { getErrorMessage } from "./lib/errors.js";
 import { useAuth } from "./lib/use-auth.js";
+import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 
 const basePlugins: UsketchPlugin[] = [
 	selectToolPlugin,
@@ -179,7 +181,7 @@ export function App() {
 			})
 			.catch((e) => {
 				if (!cancelled) {
-					setError(e instanceof Error ? e.message : "Failed to initialize board");
+					setError(getErrorMessage(e, "Failed to initialize board"));
 				}
 			});
 
@@ -236,44 +238,7 @@ export function App() {
 	}, [authUserId, authUserName]);
 
 	// キーボードショートカット
-	useEffect(() => {
-		if (!app) return;
-
-		const handleKeyDown = (e: KeyboardEvent) => {
-			const tag = (e.target as HTMLElement)?.tagName;
-			const isInput =
-				tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable;
-
-			// Escape はテキスト入力中でも通す（入力欄からblurしてツールをselectに戻す）
-			if (e.key === "Escape" && isInput) {
-				(e.target as HTMLElement)?.blur();
-				app.shortcuts.handleKeyDown(e);
-				return;
-			}
-
-			// テキスト入力中はそれ以外のショートカットを無視
-			if (isInput) {
-				return;
-			}
-			const tools = app.tools.getAll();
-			for (const [id, def] of tools) {
-				if (
-					def.shortcut &&
-					e.key.toLowerCase() === def.shortcut.toLowerCase() &&
-					!e.ctrlKey &&
-					!e.metaKey &&
-					!e.altKey
-				) {
-					app.store.setActiveToolId(id);
-					return;
-				}
-			}
-			app.shortcuts.handleKeyDown(e);
-		};
-
-		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [app]);
+	useKeyboardShortcuts(app);
 
 	if (error) {
 		return (

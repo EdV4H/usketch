@@ -8,6 +8,7 @@ import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { getErrorMessage } from "../lib/errors.js";
 import { useAuth } from "../lib/use-auth.js";
 
 interface CommunityRegionData {
@@ -178,7 +179,7 @@ export function WorldMapPage() {
 				setApp(instance);
 			} catch (e) {
 				if (!cancelled) {
-					setError(e instanceof Error ? e.message : "Failed to load world map");
+					setError(getErrorMessage(e, "Failed to load world map"));
 				}
 			}
 		})();

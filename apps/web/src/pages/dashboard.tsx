@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { api, type Board } from "../lib/api.js";
+import { getErrorMessage } from "../lib/errors.js";
 import { type LocalBoard, localBoards } from "../lib/local-boards.js";
 import { useAuth } from "../lib/use-auth.js";
 
@@ -22,7 +23,7 @@ export function DashboardPage() {
 				const result = await api.boards.list();
 				setBoards(result);
 			} catch (e) {
-				const msg = e instanceof Error ? e.message : "Failed to load boards";
+				const msg = getErrorMessage(e, "Failed to load boards");
 				if (msg.includes("401")) {
 					setBoards([]);
 				} else {
@@ -45,7 +46,7 @@ export function DashboardPage() {
 			const board = await api.boards.create();
 			navigate(`/boards/${board.id}`);
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "Failed to create board");
+			setError(getErrorMessage(e, "Failed to create board"));
 		}
 	};
 
@@ -59,7 +60,7 @@ export function DashboardPage() {
 			await api.boards.delete(id);
 			loadBoards();
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "Failed to delete board");
+			setError(getErrorMessage(e, "Failed to delete board"));
 		}
 	};
 
