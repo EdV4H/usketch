@@ -3,6 +3,7 @@ import { useState } from "react";
 import { actionBtnStyle, dividerStyle } from "../../lib/styles.js";
 import { ShareDialog } from "../share-dialog.js";
 import { StylePanel } from "../style-panel/index.js";
+import { BgToggle } from "./bg-toggle.js";
 import { CopilotToggle } from "./copilot-toggle.js";
 import { ExportMenu } from "./export-menu.js";
 import { StatusBar } from "./status-bar.js";
@@ -89,6 +90,9 @@ export function Toolbar({
 				>
 					↪
 				</button>
+
+				<Divider />
+				<BgToggle />
 
 				{isCloudBoard && (
 					<>

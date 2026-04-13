@@ -9,6 +9,8 @@ import { createAiCopilotPlugin } from "@edv4h/usketch-plugin-ai-copilot";
 import { createAiImagePlugin } from "@edv4h/usketch-plugin-ai-image";
 import { createAiRecognizePlugin } from "@edv4h/usketch-plugin-ai-recognize";
 import { createAiVoicePlugin } from "@edv4h/usketch-plugin-ai-voice";
+import { dotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
+import { gridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { exportPlugin } from "@edv4h/usketch-plugin-export";
 import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
@@ -48,6 +50,8 @@ import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 
 const basePlugins: UsketchPlugin[] = [
+	gridBgPlugin,
+	dotsBgPlugin,
 	selectToolPlugin,
 	panToolPlugin,
 	viewportNavPlugin,

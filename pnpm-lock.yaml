@@ -166,6 +166,12 @@ importers:
       '@edv4h/usketch-plugin-avatar':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-avatar
+      '@edv4h/usketch-plugin-bg-dots':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-bg-dots
+      '@edv4h/usketch-plugin-bg-grid':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-bg-grid
       '@edv4h/usketch-plugin-board-info-panel':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-board-info-panel
@@ -689,7 +695,13 @@ importers:
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      react:
+        specifier: '>=19'
+        version: 19.2.4
     devDependencies:
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -705,7 +717,13 @@ importers:
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      react:
+        specifier: '>=19'
+        version: 19.2.4
     devDependencies:
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.9.3
         version: 5.9.3
