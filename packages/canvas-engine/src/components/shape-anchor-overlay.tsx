@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useAnchorStack, useAnchorStackOffset } from "../hooks/use-anchor-stack.js";
+import { useInteracting } from "../hooks/use-interacting.js";
 import { useShapeAnchorPosition } from "../hooks/use-shape-anchor-position.js";
 import { useViewportClamp } from "../hooks/use-viewport-clamp.js";
 import type { AnchorPosition, ShapeAnchorOptions } from "../types/shape-anchor.js";
@@ -128,6 +129,8 @@ export function ShapeAnchorOverlay({
 		return () => registry.unregister(overlayId);
 	}, [registry, overlayId]);
 
+	const interacting = useInteracting();
+
 	if (!anchorResult.visible) return null;
 
 	return (
@@ -138,7 +141,8 @@ export function ShapeAnchorOverlay({
 				position: "absolute",
 				left: clamped.left,
 				top: clamped.top,
-				pointerEvents: "auto",
+				pointerEvents: interacting ? "none" : "auto",
+				visibility: interacting ? "hidden" : "visible",
 				...style,
 			}}
 		>
