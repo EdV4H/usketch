@@ -122,6 +122,7 @@ export const snapPlugin: UsketchPlugin = {
 			pointerDown = true;
 			frameSnapResult = null;
 			frameCandidateBoxes = null;
+			setState({ lines: [] });
 		});
 
 		const offPointerUp = ctx.events.on<CanvasPointerEvent>("canvas:pointerup", () => {
@@ -181,6 +182,13 @@ export const snapPlugin: UsketchPlugin = {
 			const shape = ctx.store.getShape(id);
 			if (!shape) {
 				originalUpdateShape(id, updates);
+				return;
+			}
+
+			// Skip snap for connectors — they have their own anchor/snap logic
+			if (shape.type === "connector") {
+				originalUpdateShape(id, updates);
+				setState({ lines: [] });
 				return;
 			}
 
@@ -453,12 +461,40 @@ function getCandidateBoxes(
 	viewport: Viewport | null,
 ): Map<string, BoundingBox> {
 	const visibleRect = viewport ? getVisibleWorldRect(viewport) : null;
+
+	// Determine the parent context of moving shapes.
+	// All moving shapes should share the same parent (or all be top-level).
+	let movingParentId: string | null | undefined;
+	for (const id of movingIds) {
+		const s = store.getShape(id);
+		if (!s) continue;
+		const pid = (s.parentId as string | undefined) ?? null;
+		if (movingParentId === undefined) {
+			movingParentId = pid;
+		} else if (movingParentId !== pid) {
+			// Mixed parents — skip frame-based filtering
+			movingParentId = undefined;
+			break;
+		}
+	}
+
 	const boxes = new Map<string, BoundingBox>();
 	for (const [id, shape] of store.getShapes()) {
 		if (movingIds.has(id)) continue;
+		// Connectors are never snap targets
+		if (shape.type === "connector") continue;
 		// Exclude children of moving shapes so a frame doesn't snap to its own children
-		const parentId = shape.parentId as string | undefined;
+		const parentId = (shape.parentId as string | undefined) ?? null;
 		if (parentId && movingIds.has(parentId)) continue;
+
+		// Only snap within the same frame context:
+		// - If moving shapes are inside a frame, only snap to siblings in the same frame
+		//   (also allow snapping to the parent frame itself)
+		// - If moving shapes are top-level, don't snap to shapes inside frames
+		if (movingParentId !== undefined) {
+			if (parentId !== movingParentId && id !== movingParentId) continue;
+		}
+
 		const def = ctx.shapes.get(shape.type);
 		const box = def
 			? def.getBounds(shape)
