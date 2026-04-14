@@ -1,9 +1,11 @@
 import { ShapeAnchorOverlay, useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
+import type { ShapeData } from "@edv4h/usketch-shared";
 import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import { useCallback } from "react";
+import { type AnchorType, getAnchorPoint } from "./anchor-utils.js";
 import type { ArrowHead, PathType } from "./shapes/connector.js";
 
-// ── Icons ──
+// ── Arrow Icons ──
 
 function ArrowNoneIcon() {
 	return (
@@ -41,6 +43,8 @@ function ArrowBothIcon() {
 	);
 }
 
+// ── Path Icons ──
+
 function PathStraightIcon() {
 	return (
 		<svg width="16" height="16" viewBox="0 0 16 16">
@@ -65,6 +69,17 @@ function PathCurveIcon() {
 	);
 }
 
+// ── Anchor labels ──
+
+const ANCHOR_OPTIONS: { value: AnchorType; label: string }[] = [
+	{ value: "auto", label: "自動" },
+	{ value: "top", label: "上" },
+	{ value: "right", label: "右" },
+	{ value: "bottom", label: "下" },
+	{ value: "left", label: "左" },
+	{ value: "custom", label: "手動" },
+];
+
 // ── Component ──
 
 export function ConnectorPropertyBar() {
@@ -73,7 +88,6 @@ export function ConnectorPropertyBar() {
 	const selection = useStoreSubscribe(store, (s) => s.getSelection());
 	const shapes = useStoreSubscribe(store, (s) => s.getShapes());
 
-	// Only show for single connector selection
 	const ids = [...selection];
 	if (ids.length !== 1) return null;
 	const shape = shapes.get(ids[0]);
@@ -82,22 +96,37 @@ export function ConnectorPropertyBar() {
 	const connectorId = ids[0];
 	const arrowHead = (shape.arrowHead as ArrowHead) ?? "forward";
 	const pathType = (shape.pathType as PathType) ?? "straight";
+	const sourceAnchor = (shape.sourceAnchor as AnchorType) ?? "auto";
+	const targetAnchor = (shape.targetAnchor as AnchorType) ?? "auto";
 
 	return (
-		<ShapeAnchorOverlay shapeIds={[connectorId]} position="bottom" fallback="top" gap={12}>
-			<ConnectorControls connectorId={connectorId} arrowHead={arrowHead} pathType={pathType} />
+		<ShapeAnchorOverlay shapeIds={[connectorId]} position="bottom" fallback="top">
+			<ConnectorControls
+				connectorId={connectorId}
+				connector={shape}
+				arrowHead={arrowHead}
+				pathType={pathType}
+				sourceAnchor={sourceAnchor}
+				targetAnchor={targetAnchor}
+			/>
 		</ShapeAnchorOverlay>
 	);
 }
 
 function ConnectorControls({
 	connectorId,
+	connector,
 	arrowHead,
 	pathType,
+	sourceAnchor,
+	targetAnchor,
 }: {
 	connectorId: string;
+	connector: ShapeData;
 	arrowHead: ArrowHead;
 	pathType: PathType;
+	sourceAnchor: AnchorType;
+	targetAnchor: AnchorType;
 }) {
 	const app = useApp();
 	const store = app.store;
@@ -129,8 +158,63 @@ function ConnectorControls({
 		[pathType, updateProp],
 	);
 
+	const setAnchor = useCallback(
+		(endpoint: "source" | "target", value: AnchorType) => {
+			const key = endpoint === "source" ? "sourceAnchor" : "targetAnchor";
+			const current = endpoint === "source" ? sourceAnchor : targetAnchor;
+			if (value === current) return;
+
+			// Recalculate endpoint position with new anchor
+			const sourceId = connector.sourceId as string | undefined;
+			const targetId = connector.targetId as string | undefined;
+			if (!sourceId || !targetId) return;
+
+			const sourceShape = store.getShape(sourceId);
+			const targetShape = store.getShape(targetId);
+			if (!sourceShape || !targetShape) return;
+
+			const targetCenter = {
+				x: targetShape.x + targetShape.width / 2,
+				y: targetShape.y + targetShape.height / 2,
+			};
+			const sourceCenter = {
+				x: sourceShape.x + sourceShape.width / 2,
+				y: sourceShape.y + sourceShape.height / 2,
+			};
+
+			const newSourceAnchor = endpoint === "source" ? value : sourceAnchor;
+			const newTargetAnchor = endpoint === "target" ? value : targetAnchor;
+
+			const newSourcePoint = getAnchorPoint(sourceShape, newSourceAnchor, targetCenter);
+			const newTargetPoint = getAnchorPoint(targetShape, newTargetAnchor, sourceCenter);
+
+			const from: Partial<ShapeData> = {
+				[key]: current,
+				sourcePoint: connector.sourcePoint,
+				targetPoint: connector.targetPoint,
+				x: connector.x,
+				y: connector.y,
+				width: connector.width,
+				height: connector.height,
+			};
+			const to: Partial<ShapeData> = {
+				[key]: value,
+				sourcePoint: newSourcePoint,
+				targetPoint: newTargetPoint,
+				x: Math.min(newSourcePoint.x, newTargetPoint.x),
+				y: Math.min(newSourcePoint.y, newTargetPoint.y),
+				width: Math.abs(newTargetPoint.x - newSourcePoint.x),
+				height: Math.abs(newTargetPoint.y - newSourcePoint.y),
+			};
+
+			app.commands.execute(createBatchUpdateShapesCommand(store, [{ id: connectorId, from, to }]));
+		},
+		[connectorId, connector, sourceAnchor, targetAnchor, store, app.commands],
+	);
+
 	return (
 		<div onPointerDown={(e) => e.stopPropagation()} style={barStyle}>
+			{/* Arrow head */}
 			<ToggleButton
 				active={arrowHead === "none"}
 				onClick={() => setArrowHead("none")}
@@ -162,6 +246,7 @@ function ConnectorControls({
 
 			<div style={sepStyle} />
 
+			{/* Path type */}
 			<ToggleButton
 				active={pathType === "straight"}
 				onClick={() => setPathType("straight")}
@@ -175,7 +260,40 @@ function ConnectorControls({
 			<ToggleButton active={pathType === "curve"} onClick={() => setPathType("curve")} title="曲線">
 				<PathCurveIcon />
 			</ToggleButton>
+
+			<div style={sepStyle} />
+
+			{/* Anchor selectors */}
+			<AnchorSelect label="始点" value={sourceAnchor} onChange={(v) => setAnchor("source", v)} />
+			<AnchorSelect label="終点" value={targetAnchor} onChange={(v) => setAnchor("target", v)} />
 		</div>
+	);
+}
+
+function AnchorSelect({
+	label,
+	value,
+	onChange,
+}: {
+	label: string;
+	value: AnchorType;
+	onChange: (v: AnchorType) => void;
+}) {
+	return (
+		<label style={anchorLabelStyle}>
+			<span style={{ fontSize: 10, color: "#888" }}>{label}</span>
+			<select
+				value={value}
+				onChange={(e) => onChange(e.target.value as AnchorType)}
+				style={selectStyle}
+			>
+				{ANCHOR_OPTIONS.map((opt) => (
+					<option key={opt.value} value={opt.value}>
+						{opt.label}
+					</option>
+				))}
+			</select>
+		</label>
 	);
 }
 
@@ -219,6 +337,24 @@ const sepStyle: React.CSSProperties = {
 	background: "#e0e0e0",
 	flexShrink: 0,
 	margin: "0 2px",
+};
+
+const anchorLabelStyle: React.CSSProperties = {
+	display: "flex",
+	flexDirection: "column",
+	alignItems: "center",
+	gap: 1,
+};
+
+const selectStyle: React.CSSProperties = {
+	width: 52,
+	height: 22,
+	border: "1px solid #e0e0e0",
+	borderRadius: 4,
+	padding: "0 2px",
+	fontSize: 10,
+	background: "#fff",
+	cursor: "pointer",
 };
 
 function toggleBtnStyle(active: boolean): React.CSSProperties {

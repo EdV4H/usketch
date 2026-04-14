@@ -147,7 +147,7 @@ export function StylePanel() {
 	if (!isSelectionMode || hasOnlyNonStyleable) return null;
 
 	return (
-		<ShapeAnchorOverlay shapeIds={styleableIds} position="top" fallback="bottom" gap={12}>
+		<ShapeAnchorOverlay shapeIds={styleableIds} position="top" fallback="bottom">
 			<div onPointerDown={(e) => e.stopPropagation()} style={anchoredBarStyle}>
 				<CompactColorPicker
 					label="Fill"

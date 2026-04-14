@@ -1,6 +1,6 @@
 import type { Point, ShapeData } from "@edv4h/usketch-shared";
 
-export type AnchorType = "auto" | "top" | "right" | "bottom" | "left";
+export type AnchorType = "auto" | "top" | "right" | "bottom" | "left" | "custom";
 
 /** Compute the anchor point on a shape's edge */
 export function getAnchorPoint(shape: ShapeData, anchor: AnchorType, otherCenter?: Point): Point {
@@ -16,6 +16,10 @@ export function getAnchorPoint(shape: ShapeData, anchor: AnchorType, otherCenter
 			return { x: cx, y: shape.y + shape.height };
 		case "left":
 			return { x: shape.x, y: cy };
+		case "custom":
+			// Custom anchor: caller manages the point directly.
+			// Return center as fallback (should not normally be called).
+			return { x: cx, y: cy };
 		case "auto": {
 			if (!otherCenter) return { x: cx, y: cy };
 			return computeAutoAnchor(shape, otherCenter);
@@ -95,4 +99,35 @@ export function findClosestAnchor(shape: ShapeData, point: Point): AnchorType {
 	}
 
 	return closest;
+}
+
+/** Clamp a point to the nearest position on a shape's bounding box edge. */
+export function clampToShapeEdge(shape: ShapeData, point: Point): Point {
+	const left = shape.x;
+	const right = shape.x + shape.width;
+	const top = shape.y;
+	const bottom = shape.y + shape.height;
+
+	// Project the point onto each of the 4 edges and pick the closest
+	const candidates: Point[] = [
+		{ x: clamp(point.x, left, right), y: top }, // top edge
+		{ x: clamp(point.x, left, right), y: bottom }, // bottom edge
+		{ x: left, y: clamp(point.y, top, bottom) }, // left edge
+		{ x: right, y: clamp(point.y, top, bottom) }, // right edge
+	];
+
+	let best = candidates[0];
+	let bestDist = Number.POSITIVE_INFINITY;
+	for (const c of candidates) {
+		const dist = Math.hypot(c.x - point.x, c.y - point.y);
+		if (dist < bestDist) {
+			bestDist = dist;
+			best = c;
+		}
+	}
+	return best;
+}
+
+function clamp(value: number, min: number, max: number): number {
+	return Math.max(min, Math.min(max, value));
 }

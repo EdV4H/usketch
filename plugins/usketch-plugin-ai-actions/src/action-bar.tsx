@@ -318,6 +318,19 @@ export function ActionBar({ store, events, boardId }: ActionBarProps) {
 	// Hide when no selection and not in AI processing state
 	if (selection.size === 0 && mode !== "thinking") return null;
 
+	// Hide when selection contains only connectors (they have their own property bar)
+	if (mode !== "thinking") {
+		let allConnectors = true;
+		for (const id of selection) {
+			const shape = store.getShape(id);
+			if (shape && shape.type !== "connector") {
+				allConnectors = false;
+				break;
+			}
+		}
+		if (allConnectors) return null;
+	}
+
 	const shapeIds = Array.from(selection);
 
 	return (
@@ -325,7 +338,6 @@ export function ActionBar({ store, events, boardId }: ActionBarProps) {
 			shapeIds={shapeIds}
 			position="bottom"
 			fallback="top"
-			gap={12}
 			style={{ pointerEvents: "auto" }}
 		>
 			<div style={barStyle} onPointerDown={(e) => e.stopPropagation()}>

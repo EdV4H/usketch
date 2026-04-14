@@ -45,7 +45,7 @@ export function ShapeAnchorOverlay({
 	const anchorResult = useShapeAnchorPosition(anchorOptions);
 	const overlayRef = useRef<HTMLDivElement | null>(null);
 	const registry = useAnchorStack();
-	const gap = anchorOptions.gap ?? 12;
+	const gap = anchorOptions.gap ?? 48;
 	const pad = anchorOptions.edgePadding ?? DEFAULT_EDGE_PADDING;
 
 	// Track overlay dimensions
