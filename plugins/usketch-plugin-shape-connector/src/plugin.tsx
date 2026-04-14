@@ -9,11 +9,16 @@ import type {
 import { generateId } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { type AnchorType, getAnchorPoint } from "./anchor-utils.js";
+import { ConnectorLabelEditor, handleConnectorClick, setEditingLabel } from "./connector-label.js";
+import { ConnectorPropertyBar } from "./connector-property-bar.js";
+import { EndpointOverlay } from "./endpoint-overlay.js";
+import { getDefaultControlPoint } from "./path-utils.js";
 import {
 	createDefaultConnector,
 	getBoundsConnector,
 	hitTestConnector,
 	renderConnector,
+	SimplifiedConnector,
 } from "./shapes/connector.js";
 
 function ConnectorIcon() {
@@ -26,7 +31,7 @@ function ConnectorIcon() {
 }
 
 /** Find a shape at a point (excluding connectors and frames/groups — prefer their children) */
-function findShapeAtPoint(ctx: ToolContext, point: Point): ShapeData | null {
+export function findShapeAtPoint(ctx: ToolContext | PluginContext, point: Point): ShapeData | null {
 	const shapes = ctx.store.getShapes();
 	const entries = [...shapes.entries()].reverse();
 	let fallbackContainer: ShapeData | null = null;
@@ -34,7 +39,6 @@ function findShapeAtPoint(ctx: ToolContext, point: Point): ShapeData | null {
 		if (data.type === "connector") continue;
 		const def = ctx.shapes.get(data.type);
 		if (!def?.hitTest(data, point)) continue;
-		// Prefer non-container shapes; remember container as fallback
 		if (data.type === "frame" || data.type === "group") {
 			if (!fallbackContainer) fallbackContainer = data;
 			continue;
@@ -58,9 +62,11 @@ export const connectorPlugin: UsketchPlugin = {
 			createDefault: createDefaultConnector,
 			renderTarget: "svg",
 			resizable: false,
+			simplifiedComponent: SimplifiedConnector,
 		});
 
-		// Drawing tool state
+		// ── Drawing tool ──
+
 		let drawState: {
 			connectorId: string;
 			sourceShape: ShapeData;
@@ -96,7 +102,6 @@ export const connectorPlugin: UsketchPlugin = {
 			const targetShape = findShapeAtPoint(toolCtx, event.worldPoint);
 			const targetPoint = event.worldPoint;
 
-			// Recalculate source anchor towards current target
 			const sourcePoint = getAnchorPoint(
 				drawState.sourceShape,
 				drawState.sourceAnchor,
@@ -108,7 +113,6 @@ export const connectorPlugin: UsketchPlugin = {
 				targetPoint: targetShape ? getAnchorPoint(targetShape, "auto", sourcePoint) : targetPoint,
 			};
 
-			// Update bounding box for proper rendering
 			const sp = updates.sourcePoint as Point;
 			const tp = updates.targetPoint as Point;
 			updates.x = Math.min(sp.x, tp.x);
@@ -126,13 +130,11 @@ export const connectorPlugin: UsketchPlugin = {
 			const connector = toolCtx.store.getShape(drawState.connectorId);
 
 			if (!connector || !targetShape || targetShape.id === drawState.sourceShape.id) {
-				// Invalid connection — remove preview
 				toolCtx.store.deleteShape(drawState.connectorId);
 				drawState = null;
 				return;
 			}
 
-			// Finalize connector
 			const sourcePoint = getAnchorPoint(drawState.sourceShape, drawState.sourceAnchor, {
 				x: targetShape.x + targetShape.width / 2,
 				y: targetShape.y + targetShape.height / 2,
@@ -150,7 +152,6 @@ export const connectorPlugin: UsketchPlugin = {
 				height: Math.abs(targetPoint.y - sourcePoint.y),
 			};
 
-			// Delete preview, then create undoable command
 			toolCtx.store.deleteShape(drawState.connectorId);
 			const finalShape: ShapeData = { ...connector, ...finalUpdates };
 			toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, finalShape));
@@ -175,8 +176,53 @@ export const connectorPlugin: UsketchPlugin = {
 			},
 		});
 
+		// ── Connector property bar (Phase 4) ──
+
+		ctx.layers.register({
+			id: "connector-properties",
+			order: 82,
+			fixed: true,
+			render: () => <ConnectorPropertyBar />,
+		});
+
+		// ── Endpoint overlay (Phase 5) ──
+
+		ctx.layers.register({
+			id: "connector-endpoints",
+			order: 81,
+			fixed: true,
+			render: (renderCtx) => <EndpointOverlay ctx={ctx} viewport={renderCtx.viewport} />,
+		});
+
+		// ── Label editor overlay (Phase 6) ──
+
+		ctx.layers.register({
+			id: "connector-label-editor",
+			order: 83,
+			fixed: true,
+			render: (renderCtx) => <ConnectorLabelEditor ctx={ctx} viewport={renderCtx.viewport} />,
+		});
+
+		// Double-click detection for label editing
+		const unsubLabelClick = ctx.store.onMutation((event) => {
+			if (event.type !== "selection:changed") return;
+			// Clear label editing when selection changes
+			setEditingLabel(null);
+		});
+
+		// Listen for pointer events on connectors for double-click
+		const unsubPointerForLabel = ctx.events.on<{ shapeId: string }>(
+			"shape:clicked",
+			({ shapeId }) => {
+				const shape = ctx.store.getShape(shapeId);
+				if (shape?.type === "connector") {
+					handleConnectorClick(shapeId);
+				}
+			},
+		);
+
 		// ── Position tracking: update connectors when source/target shapes move ──
-		// Build an index: shapeId -> connectorIds[] for O(1) lookup
+
 		const connectorIndex = new Map<string, Set<string>>();
 
 		function rebuildIndex() {
@@ -196,7 +242,6 @@ export const connectorPlugin: UsketchPlugin = {
 			}
 		}
 
-		// Rebuild on add/remove
 		const unsubIndex = ctx.store.onMutation((event) => {
 			if (event.type === "shape:added" || event.type === "shape:removed") {
 				rebuildIndex();
@@ -209,7 +254,6 @@ export const connectorPlugin: UsketchPlugin = {
 			const payload = event.payload as { id: string } | undefined;
 			if (!payload?.id) return;
 
-			// Fast path: skip if no connectors reference this shape
 			const connIds = connectorIndex.get(payload.id);
 			if (!connIds || connIds.size === 0) return;
 
@@ -233,24 +277,31 @@ export const connectorPlugin: UsketchPlugin = {
 				const sourcePoint = getAnchorPoint(source, sourceAnchor, targetCenter);
 				const targetPoint = getAnchorPoint(target, targetAnchor, sourceCenter);
 
-				ctx.store.updateShape(connId, {
+				const updates: Partial<ShapeData> = {
 					sourcePoint,
 					targetPoint,
 					x: Math.min(sourcePoint.x, targetPoint.x),
 					y: Math.min(sourcePoint.y, targetPoint.y),
 					width: Math.abs(targetPoint.x - sourcePoint.x),
 					height: Math.abs(targetPoint.y - sourcePoint.y),
-				});
+				};
+
+				// Update control point if auto-calculated
+				if (conn.controlPointAuto && conn.pathType === "curve") {
+					updates.controlPoint = getDefaultControlPoint(sourcePoint, targetPoint);
+				}
+
+				ctx.store.updateShape(connId, updates);
 			}
 		});
 
-		// ── Cascade delete: remove connectors when source/target is deleted ──
+		// ── Cascade delete ──
+
 		const unsubDelete = ctx.store.onMutation((event) => {
 			if (event.type !== "shape:removed") return;
 			const payload = event.payload as { id: string } | undefined;
 			if (!payload?.id) return;
 
-			// Find connectors referencing this deleted shape
 			const shapes = ctx.store.getShapes();
 			const toDelete: string[] = [];
 			for (const [id, shape] of shapes) {
@@ -270,6 +321,11 @@ export const connectorPlugin: UsketchPlugin = {
 			unsubIndex();
 			unsubMove();
 			unsubDelete();
+			unsubLabelClick();
+			unsubPointerForLabel();
+			ctx.layers.unregister("connector-properties");
+			ctx.layers.unregister("connector-endpoints");
+			ctx.layers.unregister("connector-label-editor");
 		};
 	},
 };

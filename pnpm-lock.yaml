@@ -1231,6 +1231,9 @@ importers:
 
   plugins/usketch-plugin-shape-connector:
     dependencies:
+      '@edv4h/usketch-canvas-engine':
+        specifier: workspace:*
+        version: link:../../packages/canvas-engine
       '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
