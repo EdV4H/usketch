@@ -1,7 +1,7 @@
 import type { PluginContext, Point, ShapeData, Viewport } from "@edv4h/usketch-shared";
 import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import { useCallback, useSyncExternalStore } from "react";
-import { getAnchorPoint } from "./anchor-utils.js";
+import { clampToShapeEdge, getAnchorPoint } from "./anchor-utils.js";
 import {
 	type EndpointDragState,
 	getEndpointDrag,
@@ -53,68 +53,97 @@ export function EndpointOverlay({ ctx, viewport }: EndpointOverlayProps) {
 	const showControlHandle = pathType === "curve";
 	const cp = controlPoint ?? getDefaultControlPoint(sourcePoint, targetPoint);
 
-	return (
-		<div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-			<svg
-				width="100%"
-				height="100%"
-				style={{
-					position: "absolute",
-					left: 0,
-					top: 0,
-					overflow: "visible",
-					pointerEvents: "none",
-				}}
-			>
-				{/* Preview line during drag */}
-				{dragState && dragState.connectorId === connectorId && (
-					<DragPreview dragState={dragState} connector={connector} viewport={viewport} />
-				)}
+	const srcScreen = worldToScreen(sourcePoint, viewport);
+	const tgtScreen = worldToScreen(targetPoint, viewport);
+	const cpScreen = showControlHandle ? worldToScreen(cp, viewport) : null;
 
-				{/* Target shape highlight during drag */}
-				{dragState?.targetShapeId && (
-					<TargetHighlight
-						shapeId={dragState.targetShapeId}
-						shapes={shapes}
-						shapesDefs={ctx.shapes}
-						viewport={viewport}
+	return (
+		<svg
+			style={{
+				position: "absolute",
+				left: 0,
+				top: 0,
+				width: "100%",
+				height: "100%",
+				overflow: "visible",
+				pointerEvents: "none",
+			}}
+		>
+			{/* Preview line during drag */}
+			{dragState && dragState.connectorId === connectorId && (
+				<DragPreview dragState={dragState} connector={connector} viewport={viewport} />
+			)}
+
+			{/* Target shape highlight during drag */}
+			{dragState?.targetShapeId && (
+				<TargetHighlight
+					shapeId={dragState.targetShapeId}
+					shapes={shapes}
+					shapesDefs={ctx.shapes}
+					viewport={viewport}
+				/>
+			)}
+
+			{/* Control point guide line (for curve) */}
+			{cpScreen && (
+				<>
+					<line
+						x1={srcScreen.x}
+						y1={srcScreen.y}
+						x2={cpScreen.x}
+						y2={cpScreen.y}
+						stroke={STROKE_COLOR}
+						strokeWidth={0.5}
+						opacity={0.4}
 					/>
-				)}
-			</svg>
+					<line
+						x1={cpScreen.x}
+						y1={cpScreen.y}
+						x2={tgtScreen.x}
+						y2={tgtScreen.y}
+						stroke={STROKE_COLOR}
+						strokeWidth={0.5}
+						opacity={0.4}
+					/>
+				</>
+			)}
 
 			{/* Source handle */}
 			<EndpointHandle
-				point={sourcePoint}
-				viewport={viewport}
+				screen={srcScreen}
 				endpoint="source"
 				connectorId={connectorId}
 				connector={connector}
 				ctx={ctx}
+				viewport={viewport}
+				worldPoint={sourcePoint}
 			/>
 
 			{/* Target handle */}
 			<EndpointHandle
-				point={targetPoint}
-				viewport={viewport}
+				screen={tgtScreen}
 				endpoint="target"
 				connectorId={connectorId}
 				connector={connector}
 				ctx={ctx}
+				viewport={viewport}
+				worldPoint={targetPoint}
 			/>
 
 			{/* Control point handle (for curve) */}
-			{showControlHandle && (
+			{cpScreen && (
 				<EndpointHandle
-					point={cp}
-					viewport={viewport}
+					screen={cpScreen}
 					endpoint="controlPoint"
 					connectorId={connectorId}
 					connector={connector}
 					ctx={ctx}
+					viewport={viewport}
+					worldPoint={cp}
 					isControlPoint
 				/>
 			)}
-		</div>
+		</svg>
 	);
 }
 
@@ -199,72 +228,88 @@ function TargetHighlight({
 }
 
 function EndpointHandle({
-	point,
-	viewport,
+	screen,
 	endpoint,
 	connectorId,
 	connector,
 	ctx,
+	viewport,
+	worldPoint,
 	isControlPoint,
 }: {
-	point: Point;
-	viewport: Viewport;
+	screen: Point;
 	endpoint: "source" | "target" | "controlPoint";
 	connectorId: string;
 	connector: ShapeData;
 	ctx: PluginContext;
+	viewport: Viewport;
+	worldPoint: Point;
 	isControlPoint?: boolean;
 }) {
-	const screen = worldToScreen(point, viewport);
-
 	const handlePointerDown = useCallback(
 		(e: React.PointerEvent) => {
 			e.stopPropagation();
 			e.preventDefault();
 
-			const el = e.currentTarget as HTMLElement;
-			el.setPointerCapture(e.pointerId);
+			const svgEl = (e.currentTarget as SVGElement).ownerSVGElement;
+			if (!svgEl) return;
 
 			setEndpointDrag({
 				connectorId,
 				endpoint,
-				currentPoint: point,
+				currentPoint: worldPoint,
 				targetShapeId: null,
 			});
 
+			// The shape this endpoint is currently connected to
+			const currentShapeId =
+				endpoint === "source"
+					? (connector.sourceId as string | undefined)
+					: (connector.targetId as string | undefined);
+
 			const onMove = (me: PointerEvent) => {
-				const worldPoint = screenToWorld({ x: me.clientX, y: me.clientY }, viewport);
+				const wp = screenToWorld({ x: me.clientX, y: me.clientY }, viewport);
 
 				if (endpoint === "controlPoint") {
-					// Control point drag: just update position
 					setEndpointDrag({
 						connectorId,
 						endpoint,
-						currentPoint: worldPoint,
+						currentPoint: wp,
 						targetShapeId: null,
 					});
 					return;
 				}
 
-				const targetShape = findShapeAtPoint(ctx, worldPoint);
+				// Check if we're over the same shape (slide anchor) or a different one (reconnect)
+				const hoverShape = findShapeAtPoint(ctx, wp);
 				const otherEndShapeId =
 					endpoint === "source"
 						? (connector.targetId as string | undefined)
 						: (connector.sourceId as string | undefined);
 
-				setEndpointDrag({
-					connectorId,
-					endpoint,
-					currentPoint: worldPoint,
-					targetShapeId: targetShape && targetShape.id !== otherEndShapeId ? targetShape.id : null,
-				});
+				if (hoverShape && hoverShape.id === currentShapeId) {
+					// Sliding along current shape's edge
+					const edgePoint = clampToShapeEdge(hoverShape, wp);
+					setEndpointDrag({
+						connectorId,
+						endpoint,
+						currentPoint: edgePoint,
+						targetShapeId: null,
+					});
+				} else {
+					setEndpointDrag({
+						connectorId,
+						endpoint,
+						currentPoint: wp,
+						targetShapeId: hoverShape && hoverShape.id !== otherEndShapeId ? hoverShape.id : null,
+					});
+				}
 			};
 
 			const onUp = () => {
 				const drag = getEndpointDrag();
 				if (drag && drag.connectorId === connectorId) {
 					if (drag.endpoint === "controlPoint") {
-						// Commit control point position
 						const before = {
 							controlPoint: connector.controlPoint,
 							controlPointAuto: connector.controlPointAuto,
@@ -276,50 +321,54 @@ function EndpointHandle({
 							]),
 						);
 					} else if (drag.targetShapeId) {
-						// Reconnect endpoint
+						// Reconnect to a different shape
 						const newTarget = ctx.store.getShape(drag.targetShapeId);
 						if (newTarget) {
 							commitEndpointReconnect(ctx, connectorId, connector, drag.endpoint, newTarget);
 						}
+					} else if (currentShapeId) {
+						// Slide anchor: commit the new custom position on the same shape
+						const currentShape = ctx.store.getShape(currentShapeId);
+						if (currentShape) {
+							commitAnchorSlide(
+								ctx,
+								connectorId,
+								connector,
+								drag.endpoint,
+								currentShape,
+								drag.currentPoint,
+							);
+						}
 					}
 				}
 				setEndpointDrag(null);
-				el.removeEventListener("pointermove", onMove);
-				el.removeEventListener("pointerup", onUp);
+				window.removeEventListener("pointermove", onMove);
+				window.removeEventListener("pointerup", onUp);
 			};
 
-			el.addEventListener("pointermove", onMove);
-			el.addEventListener("pointerup", onUp);
+			window.addEventListener("pointermove", onMove);
+			window.addEventListener("pointerup", onUp);
 		},
-		[connectorId, connector, endpoint, point, viewport, ctx],
+		[connectorId, connector, endpoint, worldPoint, viewport, ctx],
 	);
 
 	const r = isControlPoint ? HANDLE_RADIUS - 1 : HANDLE_RADIUS;
+	const hitR = r + 4; // Larger invisible hit area
 
 	return (
-		<div
-			onPointerDown={handlePointerDown}
-			style={{
-				position: "absolute",
-				left: screen.x - r - 1,
-				top: screen.y - r - 1,
-				width: (r + 1) * 2,
-				height: (r + 1) * 2,
-				pointerEvents: "auto",
-				cursor: "grab",
-			}}
-		>
-			<svg width={(r + 1) * 2} height={(r + 1) * 2} style={{ overflow: "visible" }}>
-				<circle
-					cx={r + 1}
-					cy={r + 1}
-					r={r}
-					fill={isControlPoint ? STROKE_COLOR : "white"}
-					stroke={STROKE_COLOR}
-					strokeWidth={1.5}
-				/>
-			</svg>
-		</div>
+		<g onPointerDown={handlePointerDown} style={{ cursor: "grab", pointerEvents: "auto" }}>
+			{/* Invisible hit area */}
+			<circle cx={screen.x} cy={screen.y} r={hitR} fill="transparent" />
+			{/* Visible handle */}
+			<circle
+				cx={screen.x}
+				cy={screen.y}
+				r={r}
+				fill={isControlPoint ? STROKE_COLOR : "white"}
+				stroke={STROKE_COLOR}
+				strokeWidth={1.5}
+			/>
+		</g>
 	);
 }
 
@@ -380,6 +429,61 @@ function commitEndpointReconnect(
 	ctx.commands.execute(
 		createBatchUpdateShapesCommand(ctx.store, [{ id: connectorId, from: fromData, to: toData }]),
 	);
+}
+
+function commitAnchorSlide(
+	ctx: PluginContext,
+	connectorId: string,
+	connector: ShapeData,
+	endpoint: "source" | "target",
+	shape: ShapeData,
+	dragPoint: Point,
+) {
+	const edgePoint = clampToShapeEdge(shape, dragPoint);
+	const anchorKey = endpoint === "source" ? "sourceAnchor" : "targetAnchor";
+	const pointKey = endpoint === "source" ? "sourcePoint" : "targetPoint";
+
+	// Recalculate the other endpoint (it depends on the new position for "auto" anchors)
+	const otherShapeId =
+		endpoint === "source" ? (connector.targetId as string) : (connector.sourceId as string);
+	const otherShape = ctx.store.getShape(otherShapeId);
+	if (!otherShape) return;
+
+	const otherAnchor =
+		endpoint === "source"
+			? ((connector.targetAnchor as string) ?? "auto")
+			: ((connector.sourceAnchor as string) ?? "auto");
+	const otherPoint =
+		otherAnchor === "custom"
+			? (connector[endpoint === "source" ? "targetPoint" : "sourcePoint"] as Point)
+			: getAnchorPoint(otherShape, otherAnchor as "auto", edgePoint);
+
+	const newSourcePoint = endpoint === "source" ? edgePoint : otherPoint;
+	const newTargetPoint = endpoint === "target" ? edgePoint : otherPoint;
+
+	const from: Partial<ShapeData> = {
+		[anchorKey]: connector[anchorKey],
+		[pointKey]: connector[pointKey],
+		sourcePoint: connector.sourcePoint,
+		targetPoint: connector.targetPoint,
+		x: connector.x,
+		y: connector.y,
+		width: connector.width,
+		height: connector.height,
+	};
+
+	const to: Partial<ShapeData> = {
+		[anchorKey]: "custom",
+		[pointKey]: edgePoint,
+		sourcePoint: newSourcePoint,
+		targetPoint: newTargetPoint,
+		x: Math.min(newSourcePoint.x, newTargetPoint.x),
+		y: Math.min(newSourcePoint.y, newTargetPoint.y),
+		width: Math.abs(newTargetPoint.x - newSourcePoint.x),
+		height: Math.abs(newTargetPoint.y - newSourcePoint.y),
+	};
+
+	ctx.commands.execute(createBatchUpdateShapesCommand(ctx.store, [{ id: connectorId, from, to }]));
 }
 
 function worldToScreen(point: Point, viewport: Viewport): Point {

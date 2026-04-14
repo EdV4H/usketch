@@ -8,7 +8,8 @@ import type {
 } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
-import { type AnchorType, getAnchorPoint } from "./anchor-utils.js";
+import { AnchorHandleOverlay, setupAnchorHandles } from "./anchor-handle-overlay.js";
+import { type AnchorType, clampToShapeEdge, getAnchorPoint } from "./anchor-utils.js";
 import { ConnectorLabelEditor, handleConnectorClick, setEditingLabel } from "./connector-label.js";
 import { ConnectorPropertyBar } from "./connector-property-bar.js";
 import { EndpointOverlay } from "./endpoint-overlay.js";
@@ -203,6 +204,17 @@ export const connectorPlugin: UsketchPlugin = {
 			render: (renderCtx) => <ConnectorLabelEditor ctx={ctx} viewport={renderCtx.viewport} />,
 		});
 
+		// ── Anchor handle overlay (hover to show anchor points) ──
+
+		ctx.layers.register({
+			id: "connector-anchor-handles",
+			order: 79,
+			fixed: true,
+			render: (renderCtx) => <AnchorHandleOverlay ctx={ctx} viewport={renderCtx.viewport} />,
+		});
+
+		const cleanupAnchorHandles = setupAnchorHandles(ctx);
+
 		// Double-click detection for label editing
 		const unsubLabelClick = ctx.store.onMutation((event) => {
 			if (event.type !== "selection:changed") return;
@@ -249,13 +261,42 @@ export const connectorPlugin: UsketchPlugin = {
 		});
 		rebuildIndex();
 
+		// Cache previous shape positions to compute deltas for custom anchors
+		const prevPositions = new Map<string, { x: number; y: number }>();
+		function cachePosition(id: string) {
+			const shape = ctx.store.getShape(id);
+			if (shape) prevPositions.set(id, { x: shape.x, y: shape.y });
+		}
+		// Initialize cache
+		for (const [id, shape] of ctx.store.getShapes()) {
+			if (shape.type !== "connector") {
+				prevPositions.set(id, { x: shape.x, y: shape.y });
+			}
+		}
+		const unsubCacheAdd = ctx.store.onMutation((event) => {
+			if (event.type === "shape:added") {
+				const payload = event.payload as { id: string } | undefined;
+				if (payload?.id) cachePosition(payload.id);
+			}
+		});
+
 		const unsubMove = ctx.store.onMutation((event) => {
 			if (event.type !== "shape:updated") return;
 			const payload = event.payload as { id: string } | undefined;
 			if (!payload?.id) return;
 
 			const connIds = connectorIndex.get(payload.id);
-			if (!connIds || connIds.size === 0) return;
+			if (!connIds || connIds.size === 0) {
+				// Still update the cache even if no connectors reference this shape
+				cachePosition(payload.id);
+				return;
+			}
+
+			// Compute move delta from cached position
+			const movedShape = ctx.store.getShape(payload.id);
+			const prev = prevPositions.get(payload.id);
+			const dx = movedShape && prev ? movedShape.x - prev.x : 0;
+			const dy = movedShape && prev ? movedShape.y - prev.y : 0;
 
 			for (const connId of connIds) {
 				const conn = ctx.store.getShape(connId);
@@ -274,8 +315,26 @@ export const connectorPlugin: UsketchPlugin = {
 				const targetCenter = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
 				const sourceCenter = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
 
-				const sourcePoint = getAnchorPoint(source, sourceAnchor, targetCenter);
-				const targetPoint = getAnchorPoint(target, targetAnchor, sourceCenter);
+				let sourcePoint: Point;
+				if (sourceAnchor === "custom" && sourceId === payload.id) {
+					// Source shape moved: shift the custom point by the delta, then clamp
+					const old = conn.sourcePoint as Point;
+					sourcePoint = clampToShapeEdge(source, { x: old.x + dx, y: old.y + dy });
+				} else if (sourceAnchor === "custom") {
+					sourcePoint = conn.sourcePoint as Point;
+				} else {
+					sourcePoint = getAnchorPoint(source, sourceAnchor, targetCenter);
+				}
+
+				let targetPoint: Point;
+				if (targetAnchor === "custom" && targetId === payload.id) {
+					const old = conn.targetPoint as Point;
+					targetPoint = clampToShapeEdge(target, { x: old.x + dx, y: old.y + dy });
+				} else if (targetAnchor === "custom") {
+					targetPoint = conn.targetPoint as Point;
+				} else {
+					targetPoint = getAnchorPoint(target, targetAnchor, sourceCenter);
+				}
 
 				const updates: Partial<ShapeData> = {
 					sourcePoint,
@@ -286,13 +345,15 @@ export const connectorPlugin: UsketchPlugin = {
 					height: Math.abs(targetPoint.y - sourcePoint.y),
 				};
 
-				// Update control point if auto-calculated
 				if (conn.controlPointAuto && conn.pathType === "curve") {
 					updates.controlPoint = getDefaultControlPoint(sourcePoint, targetPoint);
 				}
 
 				ctx.store.updateShape(connId, updates);
 			}
+
+			// Update cache after processing
+			cachePosition(payload.id);
 		});
 
 		// ── Cascade delete ──
@@ -319,13 +380,16 @@ export const connectorPlugin: UsketchPlugin = {
 
 		(this as UsketchPlugin).teardown = () => {
 			unsubIndex();
+			unsubCacheAdd();
 			unsubMove();
 			unsubDelete();
 			unsubLabelClick();
 			unsubPointerForLabel();
+			cleanupAnchorHandles();
 			ctx.layers.unregister("connector-properties");
 			ctx.layers.unregister("connector-endpoints");
 			ctx.layers.unregister("connector-label-editor");
+			ctx.layers.unregister("connector-anchor-handles");
 		};
 	},
 };
