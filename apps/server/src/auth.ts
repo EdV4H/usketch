@@ -1,5 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { bearer } from "better-auth/plugins/bearer";
+import { deviceAuthorization } from "better-auth/plugins/device-authorization";
 import { drizzle } from "drizzle-orm/d1";
 import { ALLOWED_ORIGINS } from "./config.js";
 import * as schema from "./db/schema.js";
@@ -16,6 +18,7 @@ export function createAuth(env: Env) {
 				session: schema.sessions,
 				account: schema.accounts,
 				verification: schema.verifications,
+				deviceCode: schema.deviceCodes,
 			},
 		}),
 		secret: env.BETTER_AUTH_SECRET,
@@ -45,6 +48,12 @@ export function createAuth(env: Env) {
 				enabled: false,
 			},
 		},
+		plugins: [
+			bearer(),
+			deviceAuthorization({
+				verificationUri: new URL("/device", env.BETTER_AUTH_URL).toString(),
+			}),
+		],
 		advanced: {
 			defaultCookieAttributes:
 				env.DEV_MODE === "true"

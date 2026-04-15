@@ -2,6 +2,8 @@
  * MCP サーバー設定
  * 環境変数から接続情報を読み取る
  */
+import { getApiToken } from "./auth/cli-auth.js";
+
 export interface McpConfig {
 	/** uSketch サーバーURL (例: http://localhost:8787) */
 	serverUrl: string;
@@ -15,17 +17,15 @@ export interface McpConfig {
 	apiToken: string | undefined;
 }
 
-export function loadConfig(): McpConfig {
+export async function loadConfig(): Promise<McpConfig> {
 	const serverUrl = (process.env.USKETCH_SERVER_URL ?? "http://localhost:8787").replace(/\/$/, "");
 	const devMode = process.env.USKETCH_DEV_MODE === "true";
 	const devUserId = process.env.USKETCH_DEV_USER_ID ?? "dev-user-1";
-	const apiToken = process.env.USKETCH_API_TOKEN;
+	let apiToken = process.env.USKETCH_API_TOKEN;
 
 	if (!devMode && !apiToken) {
-		throw new Error(
-			"USKETCH_API_TOKEN is required when USKETCH_DEV_MODE is not enabled. " +
-				"Set USKETCH_DEV_MODE=true for local development or provide an API token.",
-		);
+		// No token provided — try CLI authentication
+		apiToken = await getApiToken(serverUrl);
 	}
 
 	// HTTP → WS URL 変換

@@ -23,7 +23,7 @@ async function main(): Promise<void> {
 		}
 	}
 
-	const config = loadConfig();
+	const config = await loadConfig();
 	const { server, connections } = createMcpServer(config);
 
 	if (isHttp) {
