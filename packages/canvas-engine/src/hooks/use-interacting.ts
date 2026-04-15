@@ -1,10 +1,14 @@
+import type { EventBus } from "@edv4h/usketch-shared";
 import { useEffect, useSyncExternalStore } from "react";
 
 /**
- * Global "interacting" state — true when user is dragging (pointerdown + pointermove).
+ * Canvas-scoped "interacting" state — true when user is dragging on the canvas.
  *
- * Used by ShapeAnchorOverlay to hide toolbars during drag operations.
- * Purely DOM-level detection, no dependency on specific tools or plugins.
+ * Listens to canvas:pointerdown / canvas:pointermove / canvas:pointerup events
+ * via the EventBus, so only canvas interactions are detected (not scrollbar drags,
+ * panel resizes, etc.).
+ *
+ * Also handles pointercancel and window blur to avoid stuck state.
  */
 
 let interacting = false;
@@ -30,53 +34,53 @@ function subscribe(cb: () => void): () => void {
 	return () => listeners.delete(cb);
 }
 
-// Single global listener setup (shared across all hook instances)
-let listenerCount = 0;
-
-function onPointerDown() {
-	pointerIsDown = true;
-}
-
-function onPointerMove() {
-	if (pointerIsDown && !interacting) {
-		setInteracting(true);
-	}
-}
-
-function onPointerUp() {
-	pointerIsDown = false;
-	if (interacting) {
-		setInteracting(false);
-	}
-}
-
-function addGlobalListeners() {
-	window.addEventListener("pointerdown", onPointerDown, true);
-	window.addEventListener("pointermove", onPointerMove, true);
-	window.addEventListener("pointerup", onPointerUp, true);
-}
-
-function removeGlobalListeners() {
-	window.removeEventListener("pointerdown", onPointerDown, true);
-	window.removeEventListener("pointermove", onPointerMove, true);
-	window.removeEventListener("pointerup", onPointerUp, true);
+function reset() {
 	pointerIsDown = false;
 	setInteracting(false);
 }
 
 /**
- * Returns `true` when the user is currently dragging (pointerdown + pointermove).
- * Automatically manages global pointer listeners.
+ * Returns `true` when the user is currently dragging on the canvas.
+ * @param events - The app EventBus to listen for canvas pointer events.
  */
-export function useInteracting(): boolean {
+export function useInteracting(events: EventBus): boolean {
 	useEffect(() => {
-		listenerCount++;
-		if (listenerCount === 1) addGlobalListeners();
+		const offDown = events.on("canvas:pointerdown", () => {
+			pointerIsDown = true;
+		});
+
+		const offMove = events.on("canvas:pointermove", () => {
+			if (pointerIsDown && !interacting) {
+				setInteracting(true);
+			}
+		});
+
+		const offUp = events.on("canvas:pointerup", () => {
+			reset();
+		});
+
+		// Safety: reset on pointercancel / window blur / visibility change
+		function onPointerCancel() {
+			reset();
+		}
+		function onBlur() {
+			reset();
+		}
+
+		window.addEventListener("pointercancel", onPointerCancel, true);
+		window.addEventListener("blur", onBlur);
+		document.addEventListener("visibilitychange", onBlur);
+
 		return () => {
-			listenerCount--;
-			if (listenerCount === 0) removeGlobalListeners();
+			offDown();
+			offMove();
+			offUp();
+			window.removeEventListener("pointercancel", onPointerCancel, true);
+			window.removeEventListener("blur", onBlur);
+			document.removeEventListener("visibilitychange", onBlur);
+			reset();
 		};
-	}, []);
+	}, [events]);
 
 	return useSyncExternalStore(subscribe, getInteracting, getInteracting);
 }

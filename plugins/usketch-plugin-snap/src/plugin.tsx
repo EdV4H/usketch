@@ -462,18 +462,17 @@ function getCandidateBoxes(
 ): Map<string, BoundingBox> {
 	const visibleRect = viewport ? getVisibleWorldRect(viewport) : null;
 
-	// Determine the parent context of moving shapes.
-	// All moving shapes should share the same parent (or all be top-level).
-	let movingParentId: string | null | undefined;
+	// Determine the nearest frame ancestor of moving shapes.
+	// Walk up the parentId chain to find the first "frame" type ancestor.
+	// This correctly handles shapes inside groups within frames.
+	let movingFrameId: string | null | undefined;
 	for (const id of movingIds) {
-		const s = store.getShape(id);
-		if (!s) continue;
-		const pid = (s.parentId as string | undefined) ?? null;
-		if (movingParentId === undefined) {
-			movingParentId = pid;
-		} else if (movingParentId !== pid) {
-			// Mixed parents — skip frame-based filtering
-			movingParentId = undefined;
+		const frameId = getNearestFrameAncestor(store, id);
+		if (movingFrameId === undefined) {
+			movingFrameId = frameId;
+		} else if (movingFrameId !== frameId) {
+			// Mixed frame contexts — skip frame-based filtering
+			movingFrameId = undefined;
 			break;
 		}
 	}
@@ -484,15 +483,16 @@ function getCandidateBoxes(
 		// Connectors are never snap targets
 		if (shape.type === "connector") continue;
 		// Exclude children of moving shapes so a frame doesn't snap to its own children
-		const parentId = (shape.parentId as string | undefined) ?? null;
+		const parentId = shape.parentId as string | undefined;
 		if (parentId && movingIds.has(parentId)) continue;
 
 		// Only snap within the same frame context:
-		// - If moving shapes are inside a frame, only snap to siblings in the same frame
+		// - If moving shapes are inside a frame, only snap to shapes in the same frame
 		//   (also allow snapping to the parent frame itself)
 		// - If moving shapes are top-level, don't snap to shapes inside frames
-		if (movingParentId !== undefined) {
-			if (parentId !== movingParentId && id !== movingParentId) continue;
+		if (movingFrameId !== undefined) {
+			const candidateFrameId = getNearestFrameAncestor(store, id);
+			if (candidateFrameId !== movingFrameId && id !== movingFrameId) continue;
 		}
 
 		const def = ctx.shapes.get(shape.type);
@@ -503,4 +503,22 @@ function getCandidateBoxes(
 		boxes.set(id, box);
 	}
 	return boxes;
+}
+
+/** Walk up the parentId chain to find the nearest frame-type ancestor. Returns null if top-level. */
+function getNearestFrameAncestor(store: BoardStore, shapeId: string): string | null {
+	let currentId = shapeId;
+	const visited = new Set<string>();
+	for (;;) {
+		const shape = store.getShape(currentId);
+		if (!shape) return null;
+		const pid = shape.parentId as string | undefined;
+		if (!pid) return null;
+		if (visited.has(pid)) return null; // circular reference guard
+		visited.add(pid);
+		const parent = store.getShape(pid);
+		if (!parent) return null;
+		if (parent.type === "frame") return pid;
+		currentId = pid;
+	}
 }

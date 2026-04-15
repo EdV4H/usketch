@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { useApp } from "../context.js";
 import { useAnchorStack, useAnchorStackOffset } from "../hooks/use-anchor-stack.js";
 import { useInteracting } from "../hooks/use-interacting.js";
 import { useShapeAnchorPosition } from "../hooks/use-shape-anchor-position.js";
@@ -129,7 +130,8 @@ export function ShapeAnchorOverlay({
 		return () => registry.unregister(overlayId);
 	}, [registry, overlayId]);
 
-	const interacting = useInteracting();
+	const app = useApp();
+	const interacting = useInteracting(app.events);
 
 	if (!anchorResult.visible) return null;
 
