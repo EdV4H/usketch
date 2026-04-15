@@ -4,6 +4,13 @@
 			"command": "node",
 			"args": ["./apps/mcp-server/dist/index.js"],
 			"env": {
+				"USKETCH_SERVER_URL": "https://usketch-web.pages.dev"
+			}
+		},
+		"usketch-dev": {
+			"command": "node",
+			"args": ["./apps/mcp-server/dist/index.js"],
+			"env": {
 				"USKETCH_SERVER_URL": "http://localhost:8787",
 				"USKETCH_DEV_MODE": "true",
 				"USKETCH_DEV_USER_ID": "dev-user-1"
