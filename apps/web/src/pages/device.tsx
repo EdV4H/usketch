@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useAuth } from "../lib/use-auth.js";
 
@@ -151,7 +151,7 @@ export function DevicePage() {
 	);
 }
 
-function CenterLayout({ children }: { children: React.ReactNode }) {
+function CenterLayout({ children }: { children: ReactNode }) {
 	return (
 		<div
 			style={{

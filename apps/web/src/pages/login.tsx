@@ -18,7 +18,8 @@ export function LoginPage() {
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
 	const redirectParam = searchParams.get("redirect");
-	const redirectTo = redirectParam?.startsWith("/") ? redirectParam : "/";
+	const redirectTo =
+		redirectParam?.startsWith("/") && !redirectParam.startsWith("//") ? redirectParam : "/";
 
 	return (
 		<div
