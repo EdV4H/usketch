@@ -51,7 +51,7 @@ export function createAuth(env: Env) {
 		plugins: [
 			bearer(),
 			deviceAuthorization({
-				verificationUri: `${env.BETTER_AUTH_URL}/device`,
+				verificationUri: new URL("/device", env.BETTER_AUTH_URL).toString(),
 			}),
 		],
 		advanced: {

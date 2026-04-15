@@ -31,7 +31,7 @@ function readTokenFile(): TokenFile {
 
 function writeTokenFile(data: TokenFile): void {
 	ensureDir();
-	writeFileSync(TOKEN_FILE, JSON.stringify(data, null, 2), "utf-8");
+	writeFileSync(TOKEN_FILE, JSON.stringify(data, null, 2), { encoding: "utf-8", mode: 0o600 });
 }
 
 export function loadToken(serverUrl: string): StoredToken | null {
@@ -43,8 +43,10 @@ export function loadToken(serverUrl: string): StoredToken | null {
 	const expiresAt = new Date(entry.expiresAt).getTime();
 	const now = Date.now();
 	const oneHour = 60 * 60 * 1000;
-	if (expiresAt - oneHour < now) {
-		return null; // Expired or about to expire
+	if (Number.isNaN(expiresAt) || expiresAt - oneHour < now) {
+		delete data[serverUrl];
+		writeTokenFile(data);
+		return null; // Invalid, expired, or about to expire
 	}
 
 	return entry;

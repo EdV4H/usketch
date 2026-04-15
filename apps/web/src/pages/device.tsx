@@ -17,7 +17,7 @@ export function DevicePage() {
 	useEffect(() => {
 		if (isPending) return;
 		if (!user) {
-			const redirect = `/device${userCode ? `?user_code=${userCode}` : ""}`;
+			const redirect = `/device${userCode ? `?user_code=${encodeURIComponent(userCode)}` : ""}`;
 			window.location.href = `/login?redirect=${encodeURIComponent(redirect)}`;
 		}
 	}, [user, isPending, userCode]);
@@ -58,7 +58,7 @@ export function DevicePage() {
 		setStatus("denied");
 	}, [userCode]);
 
-	if (isPending) {
+	if (isPending || !user) {
 		return <CenterLayout>Loading...</CenterLayout>;
 	}
 

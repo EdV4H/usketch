@@ -17,7 +17,8 @@ const isDev = import.meta.env.DEV;
 export function LoginPage() {
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
-	const redirectTo = searchParams.get("redirect") ?? "/";
+	const redirectParam = searchParams.get("redirect");
+	const redirectTo = redirectParam?.startsWith("/") ? redirectParam : "/";
 
 	return (
 		<div
@@ -48,7 +49,7 @@ export function LoginPage() {
 					onClick={() =>
 						signIn.social({
 							provider: "github",
-							callbackURL: `${window.location.origin}${redirectTo}`,
+							callbackURL: new URL(redirectTo, window.location.origin).toString(),
 						})
 					}
 					style={{ ...btnStyle, background: "#24292e", color: "#fff", border: "none" }}
