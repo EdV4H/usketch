@@ -53,6 +53,19 @@ export const verifications = sqliteTable("verification", {
 	updatedAt: integer("updatedAt", { mode: "timestamp" }),
 });
 
+export const deviceCodes = sqliteTable("device_code", {
+	id: text("id").primaryKey(),
+	deviceCode: text("deviceCode").notNull(),
+	userCode: text("userCode").notNull(),
+	userId: text("userId"),
+	expiresAt: integer("expiresAt", { mode: "timestamp" }).notNull(),
+	status: text("status").notNull(),
+	lastPolledAt: integer("lastPolledAt", { mode: "timestamp" }),
+	pollingInterval: integer("pollingInterval"),
+	clientId: text("clientId"),
+	scope: text("scope"),
+});
+
 // ── アプリケーション テーブル ──
 
 export const boards = sqliteTable("boards", {
