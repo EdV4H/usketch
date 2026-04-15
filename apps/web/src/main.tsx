@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { App } from "./app.js";
 import { CommunityPage } from "./pages/community/index.js";
 import { DashboardPage } from "./pages/dashboard.js";
+import { DevicePage } from "./pages/device.js";
 import { LoginPage } from "./pages/login.js";
 
 const BenchmarkPage = lazy(() =>
@@ -21,6 +22,7 @@ if (root) {
 				<Suspense>
 					<Routes>
 						<Route path="/login" element={<LoginPage />} />
+						<Route path="/device" element={<DevicePage />} />
 						<Route path="/benchmark" element={<BenchmarkPage />} />
 						<Route path="/boards/:boardId" element={<App />} />
 						<Route path="/local/:boardId" element={<App />} />

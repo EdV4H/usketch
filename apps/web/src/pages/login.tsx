@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { signIn } from "../lib/auth-client.js";
 import { devLogin } from "../lib/dev-auth.js";
 
@@ -16,6 +16,8 @@ const isDev = import.meta.env.DEV;
 
 export function LoginPage() {
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
+	const redirectTo = searchParams.get("redirect") ?? "/";
 
 	return (
 		<div
@@ -43,7 +45,12 @@ export function LoginPage() {
 			>
 				<button
 					type="button"
-					onClick={() => signIn.social({ provider: "github", callbackURL: window.location.origin })}
+					onClick={() =>
+						signIn.social({
+							provider: "github",
+							callbackURL: `${window.location.origin}${redirectTo}`,
+						})
+					}
 					style={{ ...btnStyle, background: "#24292e", color: "#fff", border: "none" }}
 				>
 					Continue with GitHub
@@ -65,7 +72,7 @@ export function LoginPage() {
 							type="button"
 							onClick={() => {
 								devLogin("dev-user-1", "Dev User 1");
-								navigate("/");
+								navigate(redirectTo);
 							}}
 							style={{ ...btnStyle, background: "#f0f0f0", color: "#333" }}
 						>
@@ -75,7 +82,7 @@ export function LoginPage() {
 							type="button"
 							onClick={() => {
 								devLogin("dev-user-2", "Dev User 2");
-								navigate("/");
+								navigate(redirectTo);
 							}}
 							style={{ ...btnStyle, background: "#f0f0f0", color: "#333" }}
 						>
