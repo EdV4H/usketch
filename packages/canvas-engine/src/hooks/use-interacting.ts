@@ -8,15 +8,19 @@ import { useEffect, useSyncExternalStore } from "react";
  * via the EventBus, so only canvas interactions are detected (not scrollbar drags,
  * panel resizes, etc.).
  *
+ * Event listeners are ref-counted per EventBus instance: multiple components
+ * sharing the same EventBus reuse one set of listeners. Cleanup only detaches
+ * listeners when the last subscriber for that EventBus unmounts.
+ *
  * Also handles pointercancel and window blur to avoid stuck state.
  */
 
 let interacting = false;
 let pointerIsDown = false;
-const listeners = new Set<() => void>();
+const storeListeners = new Set<() => void>();
 
 function notify() {
-	for (const fn of listeners) fn();
+	for (const fn of storeListeners) fn();
 }
 
 function setInteracting(value: boolean) {
@@ -30,8 +34,8 @@ function getInteracting(): boolean {
 }
 
 function subscribe(cb: () => void): () => void {
-	listeners.add(cb);
-	return () => listeners.delete(cb);
+	storeListeners.add(cb);
+	return () => storeListeners.delete(cb);
 }
 
 function reset() {
@@ -39,39 +43,50 @@ function reset() {
 	setInteracting(false);
 }
 
-/**
- * Returns `true` when the user is currently dragging on the canvas.
- * @param events - The app EventBus to listen for canvas pointer events.
- */
-export function useInteracting(events: EventBus): boolean {
-	useEffect(() => {
-		const offDown = events.on("canvas:pointerdown", () => {
-			pointerIsDown = true;
-		});
+// ── Per-EventBus ref-counted listener management ──
 
-		const offMove = events.on("canvas:pointermove", () => {
-			if (pointerIsDown && !interacting) {
-				setInteracting(true);
-			}
-		});
+interface BusEntry {
+	refCount: number;
+	teardown: () => void;
+}
 
-		const offUp = events.on("canvas:pointerup", () => {
-			reset();
-		});
+const busMap = new WeakMap<EventBus, BusEntry>();
 
-		// Safety: reset on pointercancel / window blur / visibility change
-		function onPointerCancel() {
-			reset();
+function attach(events: EventBus) {
+	const existing = busMap.get(events);
+	if (existing) {
+		existing.refCount++;
+		return;
+	}
+
+	const offDown = events.on("canvas:pointerdown", () => {
+		pointerIsDown = true;
+	});
+
+	const offMove = events.on("canvas:pointermove", () => {
+		if (pointerIsDown && !interacting) {
+			setInteracting(true);
 		}
-		function onBlur() {
-			reset();
-		}
+	});
 
-		window.addEventListener("pointercancel", onPointerCancel, true);
-		window.addEventListener("blur", onBlur);
-		document.addEventListener("visibilitychange", onBlur);
+	const offUp = events.on("canvas:pointerup", () => {
+		reset();
+	});
 
-		return () => {
+	function onPointerCancel() {
+		reset();
+	}
+	function onBlur() {
+		reset();
+	}
+
+	window.addEventListener("pointercancel", onPointerCancel, true);
+	window.addEventListener("blur", onBlur);
+	document.addEventListener("visibilitychange", onBlur);
+
+	busMap.set(events, {
+		refCount: 1,
+		teardown: () => {
 			offDown();
 			offMove();
 			offUp();
@@ -79,7 +94,43 @@ export function useInteracting(events: EventBus): boolean {
 			window.removeEventListener("blur", onBlur);
 			document.removeEventListener("visibilitychange", onBlur);
 			reset();
-		};
+		},
+	});
+}
+
+function detach(events: EventBus) {
+	const entry = busMap.get(events);
+	if (!entry) return;
+	entry.refCount--;
+	if (entry.refCount > 0) return;
+	entry.teardown();
+	busMap.delete(events);
+}
+
+/**
+ * Side-effect-only hook that ensures interacting-state event listeners
+ * are attached to the given EventBus. Does NOT subscribe to the store,
+ * so calling this does not cause re-renders when `interacting` changes.
+ *
+ * Use this in components (like Canvas) that only need to keep listeners
+ * alive without reading the interacting value.
+ */
+export function useInteractingListeners(events: EventBus): void {
+	useEffect(() => {
+		attach(events);
+		return () => detach(events);
+	}, [events]);
+}
+
+/**
+ * Returns `true` when the user is currently dragging on the canvas.
+ * Also ensures listeners are attached (ref-counted).
+ * @param events - The app EventBus to listen for canvas pointer events.
+ */
+export function useInteracting(events: EventBus): boolean {
+	useEffect(() => {
+		attach(events);
+		return () => detach(events);
 	}, [events]);
 
 	return useSyncExternalStore(subscribe, getInteracting, getInteracting);
