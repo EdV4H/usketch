@@ -108,7 +108,23 @@ function detach(events: EventBus) {
 }
 
 /**
+ * Side-effect-only hook that ensures interacting-state event listeners
+ * are attached to the given EventBus. Does NOT subscribe to the store,
+ * so calling this does not cause re-renders when `interacting` changes.
+ *
+ * Use this in components (like Canvas) that only need to keep listeners
+ * alive without reading the interacting value.
+ */
+export function useInteractingListeners(events: EventBus): void {
+	useEffect(() => {
+		attach(events);
+		return () => detach(events);
+	}, [events]);
+}
+
+/**
  * Returns `true` when the user is currently dragging on the canvas.
+ * Also ensures listeners are attached (ref-counted).
  * @param events - The app EventBus to listen for canvas pointer events.
  */
 export function useInteracting(events: EventBus): boolean {

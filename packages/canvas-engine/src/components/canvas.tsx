@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
 import { useFilterPredicate } from "../hooks/use-filter-predicate.js";
-import { useInteracting } from "../hooks/use-interacting.js";
+import { useInteractingListeners } from "../hooks/use-interacting.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
 import { useTimeTravelShapes } from "../hooks/use-time-travel.js";
 
@@ -36,7 +36,8 @@ export function Canvas() {
 	// Keep interacting-state listeners alive at all times so that overlays
 	// mounted *during* a drag (direct-drag on unselected shape) still see
 	// the correct interacting flag via the shared module-scoped store.
-	useInteracting(app.events);
+	// Uses the listener-only variant to avoid unnecessary re-renders.
+	useInteractingListeners(app.events);
 
 	const viewport = useStoreSubscribe(app.store, (s) => s.getViewport());
 	const shapes = useStoreSubscribe(app.store, (s) => s.getShapes());
