@@ -8,9 +8,9 @@ import { useEffect, useSyncExternalStore } from "react";
  * via the EventBus, so only canvas interactions are detected (not scrollbar drags,
  * panel resizes, etc.).
  *
- * Event listeners are ref-counted: only one set of listeners exists regardless
- * of how many components call this hook. Cleanup only detaches listeners when
- * the last subscriber unmounts, preventing premature reset of global state.
+ * Event listeners are ref-counted per EventBus instance: multiple components
+ * sharing the same EventBus reuse one set of listeners. Cleanup only detaches
+ * listeners when the last subscriber for that EventBus unmounts.
  *
  * Also handles pointercancel and window blur to avoid stuck state.
  */
@@ -43,14 +43,21 @@ function reset() {
 	setInteracting(false);
 }
 
-// ── Singleton event listener management ──
+// ── Per-EventBus ref-counted listener management ──
 
-let refCount = 0;
-let teardown: (() => void) | null = null;
+interface BusEntry {
+	refCount: number;
+	teardown: () => void;
+}
+
+const busMap = new WeakMap<EventBus, BusEntry>();
 
 function attach(events: EventBus) {
-	refCount++;
-	if (refCount > 1) return; // already attached
+	const existing = busMap.get(events);
+	if (existing) {
+		existing.refCount++;
+		return;
+	}
 
 	const offDown = events.on("canvas:pointerdown", () => {
 		pointerIsDown = true;
@@ -77,22 +84,27 @@ function attach(events: EventBus) {
 	window.addEventListener("blur", onBlur);
 	document.addEventListener("visibilitychange", onBlur);
 
-	teardown = () => {
-		offDown();
-		offMove();
-		offUp();
-		window.removeEventListener("pointercancel", onPointerCancel, true);
-		window.removeEventListener("blur", onBlur);
-		document.removeEventListener("visibilitychange", onBlur);
-		reset();
-		teardown = null;
-	};
+	busMap.set(events, {
+		refCount: 1,
+		teardown: () => {
+			offDown();
+			offMove();
+			offUp();
+			window.removeEventListener("pointercancel", onPointerCancel, true);
+			window.removeEventListener("blur", onBlur);
+			document.removeEventListener("visibilitychange", onBlur);
+			reset();
+		},
+	});
 }
 
-function detach() {
-	refCount--;
-	if (refCount > 0) return; // still has subscribers
-	teardown?.();
+function detach(events: EventBus) {
+	const entry = busMap.get(events);
+	if (!entry) return;
+	entry.refCount--;
+	if (entry.refCount > 0) return;
+	entry.teardown();
+	busMap.delete(events);
 }
 
 /**
@@ -102,7 +114,7 @@ function detach() {
 export function useInteracting(events: EventBus): boolean {
 	useEffect(() => {
 		attach(events);
-		return () => detach();
+		return () => detach(events);
 	}, [events]);
 
 	return useSyncExternalStore(subscribe, getInteracting, getInteracting);
