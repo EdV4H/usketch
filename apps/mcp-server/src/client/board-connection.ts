@@ -9,6 +9,12 @@ import WebSocket from "ws";
 import * as Y from "yjs";
 import type { McpConfig } from "../config.js";
 
+/** TLS + WS アップグレード + 初期同期を含む全体接続タイムアウト */
+const OVERALL_CONNECT_TIMEOUT_MS = 10_000;
+
+/** OPEN 後に SYNC_STEP2 を待つ猶予時間（届かなければ空ボードとみなす） */
+const POST_OPEN_SYNC_TIMEOUT_MS = 1_000;
+
 export class BoardConnection {
 	readonly doc: Y.Doc;
 	private ws: WebSocket | null = null;
@@ -48,14 +54,25 @@ export class BoardConnection {
 			let settled = false;
 			let postOpenSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
+			// タイムアウト時にハンドシェイク中のソケットを確実に破棄する
+			const terminateSocket = () => {
+				try {
+					ws.terminate();
+				} catch {
+					// already closed
+				}
+				if (this.ws === ws) this.ws = null;
+			};
+
 			// 全体の接続タイムアウト（TLS + WS アップグレード + 初期同期を含む）
 			const overallTimeout = setTimeout(() => {
 				if (!settled) {
 					settled = true;
 					if (postOpenSyncTimer) clearTimeout(postOpenSyncTimer);
+					terminateSocket();
 					reject(new Error("WebSocket connection timed out"));
 				}
-			}, 10_000);
+			}, OVERALL_CONNECT_TIMEOUT_MS);
 
 			const clearTimers = () => {
 				clearTimeout(overallTimeout);
@@ -63,6 +80,8 @@ export class BoardConnection {
 			};
 
 			ws.on("open", () => {
+				// 既に settle 済みなら何もしない（タイムアウト後の遅延 open など）
+				if (settled) return;
 				ws.send(new Uint8Array([MSG_SYNC_STEP1]));
 				// OPEN 後に短いウィンドウだけ SYNC_STEP2 を待つ。
 				// 届かなければ空ボードとみなして resolve する。
@@ -73,7 +92,7 @@ export class BoardConnection {
 						this.connected = true;
 						resolve();
 					}
-				}, 1_000);
+				}, POST_OPEN_SYNC_TIMEOUT_MS);
 			});
 
 			ws.on("message", (raw: ArrayBuffer | Buffer) => {
