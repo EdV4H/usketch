@@ -125,6 +125,7 @@ export class BoardConnection {
 				if (!settled) {
 					settled = true;
 					clearTimers();
+					terminateSocket();
 					reject(new Error(`WebSocket upgrade rejected: ${res.statusCode}`));
 				}
 			});
@@ -133,6 +134,7 @@ export class BoardConnection {
 				if (!settled) {
 					settled = true;
 					clearTimers();
+					terminateSocket();
 					reject(new Error(`WebSocket connection failed: ${err.message}`));
 				}
 			});
