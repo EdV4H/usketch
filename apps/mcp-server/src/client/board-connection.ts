@@ -33,7 +33,7 @@ export class BoardConnection {
 		if (this.connected) return;
 		if (this.connectPromise) return this.connectPromise;
 
-		this.connectPromise = new Promise<void>((resolve, reject) => {
+		const promise = new Promise<void>((resolve, reject) => {
 			const userId = this.config.devMode ? this.config.devUserId : "mcp-client";
 			const wsUrl = `${this.config.wsUrl}/api/boards/${this.boardId}/ws?boardId=${this.boardId}&userId=${userId}${this.config.devMode ? `&devUserId=${userId}` : ""}`;
 
@@ -45,26 +45,35 @@ export class BoardConnection {
 			ws.binaryType = "arraybuffer";
 			this.ws = ws;
 
-			let syncReceived = false;
 			let settled = false;
-			const syncTimeout = setTimeout(() => {
-				if (!syncReceived && !settled) {
-					if (ws.readyState === WebSocket.OPEN) {
-						// 接続はあるが同期データなし — 空ボードとみなす
-						settled = true;
-						this.connected = true;
-						resolve();
-					} else {
-						// 接続が確立されていない
-						settled = true;
-						reject(new Error("WebSocket connection timed out"));
-					}
+			let postOpenSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
+			// 全体の接続タイムアウト（TLS + WS アップグレード + 初期同期を含む）
+			const overallTimeout = setTimeout(() => {
+				if (!settled) {
+					settled = true;
+					if (postOpenSyncTimer) clearTimeout(postOpenSyncTimer);
+					reject(new Error("WebSocket connection timed out"));
 				}
-			}, 200);
+			}, 10_000);
+
+			const clearTimers = () => {
+				clearTimeout(overallTimeout);
+				if (postOpenSyncTimer) clearTimeout(postOpenSyncTimer);
+			};
 
 			ws.on("open", () => {
-				// MSG_SYNC_STEP1 を送信して初期同期をリクエスト
 				ws.send(new Uint8Array([MSG_SYNC_STEP1]));
+				// OPEN 後に短いウィンドウだけ SYNC_STEP2 を待つ。
+				// 届かなければ空ボードとみなして resolve する。
+				postOpenSyncTimer = setTimeout(() => {
+					if (!settled && ws.readyState === WebSocket.OPEN) {
+						settled = true;
+						clearTimeout(overallTimeout);
+						this.connected = true;
+						resolve();
+					}
+				}, 1_000);
 			});
 
 			ws.on("message", (raw: ArrayBuffer | Buffer) => {
@@ -82,10 +91,9 @@ export class BoardConnection {
 					case MSG_SYNC_STEP2:
 					case MSG_YJS_UPDATE: {
 						Y.applyUpdate(this.doc, payload, "remote");
-						if (msgType === MSG_SYNC_STEP2 && !syncReceived && !settled) {
-							syncReceived = true;
+						if (msgType === MSG_SYNC_STEP2 && !settled) {
 							settled = true;
-							clearTimeout(syncTimeout);
+							clearTimers();
 							this.connected = true;
 							resolve();
 						}
@@ -97,7 +105,7 @@ export class BoardConnection {
 			ws.on("unexpected-response", (_req, res) => {
 				if (!settled) {
 					settled = true;
-					clearTimeout(syncTimeout);
+					clearTimers();
 					reject(new Error(`WebSocket upgrade rejected: ${res.statusCode}`));
 				}
 			});
@@ -105,7 +113,7 @@ export class BoardConnection {
 			ws.on("error", (err) => {
 				if (!settled) {
 					settled = true;
-					clearTimeout(syncTimeout);
+					clearTimers();
 					reject(new Error(`WebSocket connection failed: ${err.message}`));
 				}
 			});
@@ -113,13 +121,19 @@ export class BoardConnection {
 			ws.on("close", () => {
 				if (!settled) {
 					settled = true;
-					clearTimeout(syncTimeout);
+					clearTimers();
 					reject(new Error("WebSocket closed before sync completed"));
 				}
 				this.connected = false;
 				this.ws = null;
 				this.connectPromise = null;
 			});
+		});
+
+		// reject 時に connectPromise をクリアして再試行可能にする
+		this.connectPromise = promise.catch((err) => {
+			this.connectPromise = null;
+			throw err;
 		});
 
 		return this.connectPromise;
