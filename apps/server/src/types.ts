@@ -5,6 +5,7 @@ import type * as schema from "./db/schema.js";
 export interface Env extends ServerBindings {
 	BETTER_AUTH_SECRET: string;
 	BETTER_AUTH_URL: string;
+	WEB_URL?: string;
 	GOOGLE_CLIENT_ID?: string;
 	GOOGLE_CLIENT_SECRET?: string;
 	GITHUB_CLIENT_ID?: string;

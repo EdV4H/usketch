@@ -4,7 +4,7 @@
 			"command": "node",
 			"args": ["./apps/mcp-server/dist/index.js"],
 			"env": {
-				"USKETCH_SERVER_URL": "https://usketch-web.pages.dev"
+				"USKETCH_SERVER_URL": "https://usketch-server.circlemountain-ym.workers.dev"
 			}
 		},
 		"usketch-dev": {
