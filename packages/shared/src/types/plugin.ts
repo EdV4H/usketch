@@ -237,6 +237,16 @@ export interface BoardStore {
 	setViewport(viewport: Viewport): void;
 	panBy(dx: number, dy: number): void;
 	zoomTo(zoom: number, center: Point): void;
+	/**
+	 * Center the viewport so that `bounds` fits within a rectangle of
+	 * `viewportSize` (in CSS pixels), leaving `padding` pixels on each side.
+	 * `bounds` is in world coordinates.
+	 */
+	fitToBounds(
+		bounds: BoundingBox,
+		viewportSize: { width: number; height: number },
+		padding?: number,
+	): void;
 
 	getStyleSettings(): ShapeStyle;
 	setStyleSettings(style: Partial<ShapeStyle>): void;
