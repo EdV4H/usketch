@@ -99,6 +99,15 @@ export function Toolbar({
 						<Divider />
 						<CopilotToggle />
 						<VoiceButton />
+						{boardId && (
+							<a
+								href={`/presentation/${boardId}?mode=edit`}
+								title="プレゼンテーション編集モードを開く"
+								style={{ ...actionBtnStyle, textDecoration: "none", fontSize: 14 }}
+							>
+								▶
+							</a>
+						)}
 					</>
 				)}
 			</div>

@@ -26,6 +26,7 @@ if (root) {
 						<Route path="/benchmark" element={<BenchmarkPage />} />
 						<Route path="/boards/:boardId" element={<App />} />
 						<Route path="/local/:boardId" element={<App />} />
+						<Route path="/presentation/:boardId" element={<App />} />
 						<Route path="/dashboard" element={<DashboardPage />} />
 						<Route path="/community/:slug" element={<CommunityPage />} />
 						<Route path="/community" element={<WorldMapPage />} />

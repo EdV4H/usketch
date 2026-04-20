@@ -13,9 +13,11 @@ import { dotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { gridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { exportPlugin } from "@edv4h/usketch-plugin-export";
+import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
+import { createPresentationPlugin } from "@edv4h/usketch-plugin-presentation";
 import { basicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
 import { connectorPlugin } from "@edv4h/usketch-plugin-shape-connector";
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
@@ -49,30 +51,36 @@ import { getErrorMessage } from "./lib/errors.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 
-const basePlugins: UsketchPlugin[] = [
-	gridBgPlugin,
-	dotsBgPlugin,
-	selectToolPlugin,
-	panToolPlugin,
-	viewportNavPlugin,
-	basicShapePlugin,
-	groupPlugin,
-	framePlugin,
-	connectorPlugin,
-	freedrawPlugin,
-	textPlugin,
-	stickyPlugin,
-	imageShapePlugin,
-	counterPlugin,
-	wireframePlugin,
-	snapPlugin,
-	exportPlugin,
-	createGpuRendererPlugin(),
-	createDomRendererPlugin(),
-];
+type Flavor = "whiteboard" | "presentation";
 
-async function loadPlugins(extra: UsketchPlugin[]): Promise<UsketchPlugin[]> {
-	const plugins = [...basePlugins, ...extra];
+function buildBasePlugins(flavor: Flavor): UsketchPlugin[] {
+	const common: UsketchPlugin[] = [
+		selectToolPlugin,
+		panToolPlugin,
+		viewportNavPlugin,
+		basicShapePlugin,
+		groupPlugin,
+		framePlugin,
+		connectorPlugin,
+		freedrawPlugin,
+		textPlugin,
+		stickyPlugin,
+		imageShapePlugin,
+		counterPlugin,
+		wireframePlugin,
+		exportPlugin,
+		createGpuRendererPlugin(),
+		createDomRendererPlugin(),
+	];
+	if (flavor === "presentation") {
+		// 発表/編集ともに背景グリッドとスナップは外す（ノイズになる）
+		return common;
+	}
+	return [gridBgPlugin, dotsBgPlugin, snapPlugin, ...common];
+}
+
+async function loadPlugins(flavor: Flavor, extra: UsketchPlugin[]): Promise<UsketchPlugin[]> {
+	const plugins = [...buildBasePlugins(flavor), ...extra];
 	if (import.meta.env.DEV) {
 		const { debugHudPlugin } = await import("@edv4h/usketch-plugin-debug-hud");
 		return [...plugins, debugHudPlugin];
@@ -84,13 +92,19 @@ export function App() {
 	const { boardId } = useParams<{ boardId: string }>();
 	const location = useLocation();
 	const isCloudBoard = location.pathname.startsWith("/boards/");
+	const isPresentationFlavor = location.pathname.startsWith("/presentation/");
+	const flavor: Flavor = isPresentationFlavor ? "presentation" : "whiteboard";
+	const presentationMode: "edit" | "present" =
+		new URLSearchParams(location.search).get("mode") === "present" ? "present" : "edit";
+	// presentation flavor もクラウド（DB + Yjs 同期）を既定とする
+	const useCloudSync = isCloudBoard || isPresentationFlavor;
 	const { user: authUser } = useAuth();
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [wsStatus, setWsStatus] = useState<WsConnectionStatus | null>(null);
 	const wsProviderRef = useRef<WsProviderHandle | null>(null);
 
-	// ボード初期化（boardId/isCloudBoardのみに依存）
+	// ボード初期化（flavor/mode/boardId/useCloudSync に依存）
 	useEffect(() => {
 		if (!boardId) return;
 
@@ -104,7 +118,7 @@ export function App() {
 		const extraPlugins: UsketchPlugin[] = [];
 		let wsProvider: WsProviderHandle | null = null;
 
-		if (isCloudBoard) {
+		if (useCloudSync) {
 			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 			let wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
 			// DEV_MODE: WebSocketはカスタムヘッダーを送れないのでクエリパラメータで認証
@@ -117,6 +131,18 @@ export function App() {
 			wsProvider = createWsProvider({ url: wsUrl, doc: syncHandle.doc });
 			wsProviderRef.current = wsProvider;
 			wsProvider.onStatusChange(setWsStatus);
+		}
+
+		if (flavor === "presentation") {
+			// プレゼン flavor は最小構成: presentation プラグイン + 協調プレゼン向けの3種
+			extraPlugins.push(createPresentationPlugin({ mode: presentationMode }));
+			if (wsProvider) {
+				extraPlugins.push(createLaserPlugin(wsProvider));
+				extraPlugins.push(createSpotlightPlugin(wsProvider));
+				extraPlugins.push(createFollowMePlugin({ wsProvider }));
+			}
+		} else if (isCloudBoard && wsProvider) {
+			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 
 			extraPlugins.push(createLaserPlugin(wsProvider));
 			extraPlugins.push(createSpotlightPlugin(wsProvider));
@@ -165,7 +191,7 @@ export function App() {
 			.then(() => {
 				if (cancelled) return;
 
-				return loadPlugins(extraPlugins)
+				return loadPlugins(flavor, extraPlugins)
 					.then((plugins) => createApp({ store, plugins }))
 					.then((created) => {
 						if (cancelled) {
@@ -198,7 +224,7 @@ export function App() {
 			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 			setApp(null);
 		};
-	}, [boardId, isCloudBoard]);
+	}, [boardId, isCloudBoard, flavor, presentationMode, useCloudSync]);
 
 	// ページ離脱時にビューポート位置を保存（ゴーストアバター用）
 	useEffect(() => {
@@ -255,12 +281,14 @@ export function App() {
 
 	if (!app) return null;
 
+	const hideToolbar = flavor === "presentation" && presentationMode === "present";
+
 	return (
 		<AppProvider app={app}>
 			<div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
 				<Canvas />
-				<Toolbar boardId={boardId} isCloudBoard={isCloudBoard} />
-				{isCloudBoard && wsStatus === "failed" && (
+				{!hideToolbar && <Toolbar boardId={boardId} isCloudBoard={isCloudBoard} />}
+				{useCloudSync && wsStatus === "failed" && (
 					<div
 						style={{
 							position: "fixed",
@@ -280,7 +308,7 @@ export function App() {
 						Unable to connect — you may not have access to this board
 					</div>
 				)}
-				{isCloudBoard && wsStatus === "connecting" && (
+				{useCloudSync && wsStatus === "connecting" && (
 					<div
 						style={{
 							position: "fixed",

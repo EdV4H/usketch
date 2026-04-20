@@ -43,6 +43,7 @@
 		"@edv4h/usketch-plugin-laser": "workspace:*",
 		"@edv4h/usketch-plugin-presence-cursor": "workspace:*",
 		"@edv4h/usketch-plugin-presence-enhanced": "workspace:*",
+		"@edv4h/usketch-plugin-presentation": "workspace:*",
 		"@edv4h/usketch-plugin-reactions": "workspace:*",
 		"@edv4h/usketch-plugin-spatial-chat": "workspace:*",
 		"@edv4h/usketch-plugin-spotlight": "workspace:*",
