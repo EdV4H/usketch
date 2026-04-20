@@ -171,6 +171,66 @@ describe("BoardStore", () => {
 			store.zoomTo(100, { x: 0, y: 0 });
 			expect(store.getViewport().zoom).toBe(10);
 		});
+
+		describe("fitToBounds", () => {
+			it("centers viewport on bounds and fits with padding", () => {
+				const store = createBoardStore();
+				// 100x100 の領域を 1000x1000 のビューポートに padding=40 でフィット
+				store.fitToBounds(
+					{ x: 200, y: 300, width: 100, height: 100 },
+					{ width: 1000, height: 1000 },
+					40,
+				);
+				const vp = store.getViewport();
+				// 利用可能領域 = 1000 - 80 = 920 → zoom = 920 / 100 = 9.2
+				expect(vp.zoom).toBeCloseTo(9.2, 5);
+				// bounds の中心 (250, 350) がビューポートの中心 (500, 500) に来る
+				// → x = 500 - 250 * 9.2 = 500 - 2300 = -1800
+				expect(vp.x).toBeCloseTo(500 - 250 * 9.2, 5);
+				expect(vp.y).toBeCloseTo(500 - 350 * 9.2, 5);
+			});
+
+			it("clamps zoom to [0.1, 10]", () => {
+				const store = createBoardStore();
+				// very small bounds in large viewport → zoom would exceed 10
+				store.fitToBounds({ x: 0, y: 0, width: 1, height: 1 }, { width: 1000, height: 1000 }, 0);
+				expect(store.getViewport().zoom).toBe(10);
+
+				// huge bounds → zoom would drop below 0.1
+				store.fitToBounds(
+					{ x: 0, y: 0, width: 1_000_000, height: 1_000_000 },
+					{ width: 100, height: 100 },
+					0,
+				);
+				expect(store.getViewport().zoom).toBe(0.1);
+			});
+
+			it("no-ops for non-positive bounds or viewport size", () => {
+				const store = createBoardStore();
+				const before = store.getViewport();
+				store.fitToBounds({ x: 0, y: 0, width: 0, height: 100 }, { width: 800, height: 600 });
+				store.fitToBounds({ x: 0, y: 0, width: 100, height: -5 }, { width: 800, height: 600 });
+				store.fitToBounds({ x: 0, y: 0, width: 100, height: 100 }, { width: 0, height: 600 });
+				expect(store.getViewport()).toEqual(before);
+			});
+
+			it("defaults padding to 40 when omitted", () => {
+				const store = createBoardStore();
+				store.fitToBounds({ x: 0, y: 0, width: 100, height: 100 }, { width: 1000, height: 1000 });
+				// zoom = (1000 - 80) / 100 = 9.2
+				expect(store.getViewport().zoom).toBeCloseTo(9.2, 5);
+			});
+
+			it("emits viewport:changed mutation", () => {
+				const store = createBoardStore();
+				const listener = vi.fn();
+				store.onMutation(listener);
+				store.fitToBounds({ x: 0, y: 0, width: 100, height: 100 }, { width: 1000, height: 1000 });
+				expect(listener).toHaveBeenCalledWith(
+					expect.objectContaining({ type: "viewport:changed" }),
+				);
+			});
+		});
 	});
 
 	describe("Tool", () => {

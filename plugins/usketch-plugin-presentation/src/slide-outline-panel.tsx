@@ -1,14 +1,21 @@
-import type { BoardStore, LayerRenderContext, ShapeData } from "@edv4h/usketch-shared";
+import type {
+	BoardStore,
+	CommandRegistry,
+	LayerRenderContext,
+	ShapeData,
+} from "@edv4h/usketch-shared";
+import { createBringForwardCommand, createSendBackwardCommand } from "@edv4h/usketch-store";
 import { useEffect, useState } from "react";
 import type { SlideNavigator } from "./slide-navigator.js";
 
 interface Props {
 	nav: SlideNavigator;
 	store: BoardStore;
+	commands: CommandRegistry;
 	renderCtx: LayerRenderContext;
 }
 
-export function SlideOutlinePanel({ nav, store, renderCtx: _renderCtx }: Props) {
+export function SlideOutlinePanel({ nav, store, commands, renderCtx: _renderCtx }: Props) {
 	const [slides, setSlides] = useState<ShapeData[]>(nav.getSlides());
 	const [current, setCurrent] = useState(nav.getCurrentIndex());
 
@@ -108,9 +115,9 @@ export function SlideOutlinePanel({ nav, store, renderCtx: _renderCtx }: Props) 
 						label={i + 1}
 						active={i === current}
 						onClick={() => nav.gotoIndex(i)}
-						onMoveUp={i > 0 ? () => moveSlide(store, slide, slides, -1) : undefined}
+						onMoveUp={i > 0 ? () => moveSlide(store, commands, slide.id, -1) : undefined}
 						onMoveDown={
-							i < slides.length - 1 ? () => moveSlide(store, slide, slides, +1) : undefined
+							i < slides.length - 1 ? () => moveSlide(store, commands, slide.id, +1) : undefined
 						}
 					/>
 				))
@@ -192,7 +199,11 @@ function SlideThumbnail({ slide, label, active, onClick, onMoveUp, onMoveDown }:
 }
 
 function getFrameLabel(shape: ShapeData): string {
-	const name = (shape as unknown as { name?: string }).name;
+	// shape-frame プラグインは `frameTitle` にタイトルを保持する。
+	// 念のため `name` にもフォールバックする（他のフレーム系プラグインとの互換）。
+	const frameTitle = (shape as unknown as { frameTitle?: unknown }).frameTitle;
+	if (typeof frameTitle === "string" && frameTitle.trim()) return frameTitle;
+	const name = (shape as unknown as { name?: unknown }).name;
 	if (typeof name === "string" && name.trim()) return name;
 	return "(無題)";
 }
@@ -214,28 +225,18 @@ function miniButtonStyle(disabled: boolean): React.CSSProperties {
 
 /**
  * スライドを1つ上/下に移動する。
- * z-index は fractional string key なので、隣接スライドのキーから新キーを生成する。
- *
- * NOTE: zIndexBetween のロジックは store の createBringForward/SendBackward と同じだが、
- *       store 側のユーティリティは Command 経由のみ公開されているため、ここでは直接
- *       updateShape を呼んで順序入替を行う。
+ * 既存の createBringForwardCommand / createSendBackwardCommand を使って
+ * atomic かつ undoable に順序を入れ替える。
  */
 function moveSlide(
 	store: BoardStore,
-	slide: ShapeData,
-	slides: ShapeData[],
+	commands: CommandRegistry,
+	shapeId: string,
 	direction: -1 | 1,
 ): void {
-	const index = slides.findIndex((s) => s.id === slide.id);
-	if (index < 0) return;
-	const newIndex = index + direction;
-	if (newIndex < 0 || newIndex >= slides.length) return;
-
-	// 隣接と入れ替える: 2つの zIndex を swap するだけで全体順序は保たれる
-	const a = slides[index];
-	const b = slides[newIndex];
-	if (!a || !b || typeof a.zIndex !== "string" || typeof b.zIndex !== "string") return;
-
-	store.updateShape(a.id, { zIndex: b.zIndex });
-	store.updateShape(b.id, { zIndex: a.zIndex });
+	const command =
+		direction === -1
+			? createSendBackwardCommand(store, shapeId)
+			: createBringForwardCommand(store, shapeId);
+	commands.execute(command);
 }

@@ -1,4 +1,9 @@
-import type { LayerRenderContext, PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import type {
+	CommandRegistry,
+	LayerRenderContext,
+	PluginContext,
+	UsketchPlugin,
+} from "@edv4h/usketch-shared";
 import { PresentModeOverlay } from "./present-mode-overlay.js";
 import { SlideNavigator } from "./slide-navigator.js";
 import { SlideOutlinePanel } from "./slide-outline-panel.js";
@@ -28,7 +33,6 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 				const navRef = nav;
 				unregisters.push(ctx.shortcuts.register("ArrowRight", () => navRef.next()));
 				unregisters.push(ctx.shortcuts.register("ArrowLeft", () => navRef.prev()));
-				unregisters.push(ctx.shortcuts.register("Space", () => navRef.next()));
 				unregisters.push(ctx.shortcuts.register("Home", () => navRef.first()));
 				unregisters.push(ctx.shortcuts.register("End", () => navRef.last()));
 				unregisters.push(
@@ -41,11 +45,30 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 					}),
 				);
 
+				// Space キーは shortcut-registry のキー名正規化（trim）で扱えないため、
+				// window 経由で直接ハンドリングする。PageDown / PageUp も同様に発表向けで受ける。
+				const onKeyDown = (e: KeyboardEvent) => {
+					const target = e.target as HTMLElement | null;
+					if (target && (target.isContentEditable || /input|textarea/i.test(target.tagName)))
+						return;
+					if (e.ctrlKey || e.metaKey || e.altKey) return;
+					if (e.key === " " || e.key === "PageDown") {
+						e.preventDefault();
+						navRef.next();
+					} else if (e.key === "PageUp") {
+						e.preventDefault();
+						navRef.prev();
+					}
+				};
+				window.addEventListener("keydown", onKeyDown);
+				unregisters.push(() => window.removeEventListener("keydown", onKeyDown));
+
 				// 初期表示: 最初のスライドに寄せる
 				nav.first();
 			}
 
 			const layerId = "presentation-overlay";
+			const commandsRef: CommandRegistry = ctx.commands;
 			ctx.layers.register({
 				id: layerId,
 				order: mode === "present" ? 200 : 90,
@@ -55,7 +78,12 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 					return mode === "present" ? (
 						<PresentModeOverlay nav={nav} />
 					) : (
-						<SlideOutlinePanel nav={nav} store={ctx.store} renderCtx={renderCtx} />
+						<SlideOutlinePanel
+							nav={nav}
+							store={ctx.store}
+							commands={commandsRef}
+							renderCtx={renderCtx}
+						/>
 					);
 				},
 			});

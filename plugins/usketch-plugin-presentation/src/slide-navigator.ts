@@ -15,8 +15,18 @@ export class SlideNavigator {
 		getViewportSize: () => { width: number; height: number },
 	) {
 		this.getViewportSize = getViewportSize;
-		this.unsubscribeStore = store.subscribe(() => {
-			for (const l of this.changeListeners) l(this.currentIndex);
+		// スライド構成（＝フレーム追加/削除/並び替え）に関係するミューテーションだけを聞く。
+		// store.subscribe は viewport 変更でも発火するので、それを契機にリスナーを呼ぶと
+		// gotoIndex 中の fitToBounds で余計な onChange が一度走ってしまう。
+		this.unsubscribeStore = store.onMutation((event) => {
+			if (
+				event.type === "shape:added" ||
+				event.type === "shape:removed" ||
+				event.type === "shape:updated" ||
+				event.type === "shapes:z-index-initialized"
+			) {
+				for (const l of this.changeListeners) l(this.currentIndex);
+			}
 		});
 	}
 
@@ -32,6 +42,10 @@ export class SlideNavigator {
 		const slides = this.getSlides();
 		if (slides.length === 0) return;
 		const clamped = Math.max(0, Math.min(index, slides.length - 1));
+		// currentIndex を fitToBounds より先に更新して、後続の通知が
+		// 「古い index で発火し、その直後に新しい index で発火する」という
+		// 二段階発火を避ける。
+		this.currentIndex = clamped;
 		const target = slides[clamped];
 		if (target) {
 			const bounds: BoundingBox = {
@@ -42,7 +56,6 @@ export class SlideNavigator {
 			};
 			this.store.fitToBounds(bounds, this.getViewportSize());
 		}
-		this.currentIndex = clamped;
 		for (const l of this.changeListeners) l(clamped);
 	}
 
