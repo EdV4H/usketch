@@ -29,9 +29,11 @@ test.describe("Board", () => {
 		await page.goto("/dashboard");
 		await page.click("text=New Local Board");
 		await page.waitForURL(/\/local\//);
-		// ツールバーのUndoボタン（titleで特定）
-		await expect(page.locator('button[title*="Undo"]')).toBeVisible();
-		// Exportボタン
-		await expect(page.locator("button", { hasText: "Export" })).toBeVisible();
+		// 新レイアウト: Toolbar は画面下中央の data-testid="toolbar" で特定
+		await expect(page.locator('[data-testid="toolbar"]')).toBeVisible();
+		// Undo ボタン（aria-label）
+		await expect(page.locator('button[aria-label="元に戻す"]')).toBeVisible();
+		// エクスポートボタン（aria-label）
+		await expect(page.locator('button[aria-label="エクスポート"]')).toBeVisible();
 	});
 });

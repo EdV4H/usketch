@@ -43,8 +43,15 @@ import {
 	type WsConnectionStatus,
 	type WsProviderHandle,
 } from "@edv4h/usketch-sync";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
+import {
+	BoardIdentity,
+	CommunityLink,
+	TopRightCluster,
+	ZoomControls,
+} from "./components/board-frame/index.js";
+import { CommandPalette, useCommandPaletteShortcut } from "./components/command-palette.js";
 import { Toolbar } from "./components/toolbar/index.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
@@ -175,7 +182,8 @@ export function App() {
 
 			// AI プラグイン
 			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
-			extraPlugins.push(createAiChatPlugin({ boardId }));
+			// Cmd+K の UI は apps/web 側の CommandPalette が担当するため無効化
+			extraPlugins.push(createAiChatPlugin({ boardId, enableCommandPalette: false }));
 			extraPlugins.push(createAiActionsPlugin({ boardId }));
 			extraPlugins.push(createAiCopilotPlugin({ apiUrl, boardId, extraHeaders: aiHeaders }));
 			extraPlugins.push(createAiVoicePlugin({ boardId }));
@@ -284,6 +292,10 @@ export function App() {
 	// キーボードショートカット
 	useKeyboardShortcuts(app);
 
+	const [paletteOpen, setPaletteOpen] = useState(false);
+	const openPalette = useCallback(() => setPaletteOpen(true), []);
+	useCommandPaletteShortcut(openPalette);
+
 	if (error) {
 		return (
 			<div style={{ padding: "24px", fontFamily: "system-ui, sans-serif", color: "#c33" }}>
@@ -302,45 +314,67 @@ export function App() {
 		<AppProvider app={app}>
 			<div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
 				<Canvas />
-				{!hideToolbar && <Toolbar boardId={boardId} isCloudBoard={isCloudBoard} />}
+				{!hideToolbar && (
+					<>
+						<BoardIdentity
+							boardName={boardId}
+							isCloudBoard={isCloudBoard}
+							connectionStatus={wsStatus ?? undefined}
+						/>
+						<TopRightCluster boardId={boardId} isCloudBoard={isCloudBoard} />
+						<Toolbar
+							boardId={boardId}
+							isCloudBoard={isCloudBoard}
+							wsProvider={wsProviderRef.current}
+							onOpenCommandPalette={openPalette}
+						/>
+						<ZoomControls />
+						<CommunityLink />
+					</>
+				)}
+				<CommandPalette
+					open={paletteOpen}
+					onClose={() => setPaletteOpen(false)}
+					app={app}
+					boardId={boardId}
+					isCloudBoard={isCloudBoard}
+				/>
 				{isCloudBoard && wsStatus === "failed" && (
 					<div
+						className="u-surface"
 						style={{
 							position: "fixed",
-							bottom: 16,
+							bottom: 60,
 							left: "50%",
 							transform: "translateX(-50%)",
-							background: "#c33",
-							color: "#fff",
+							background: "var(--danger)",
+							color: "white",
 							padding: "8px 20px",
-							borderRadius: 8,
+							borderRadius: 10,
 							fontSize: 13,
-							fontFamily: "system-ui, sans-serif",
-							boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
 							zIndex: 200,
 						}}
 					>
-						Unable to connect — you may not have access to this board
+						接続できません — このボードへのアクセス権限がない可能性があります
 					</div>
 				)}
 				{isCloudBoard && wsStatus === "connecting" && (
 					<div
+						className="u-surface"
 						style={{
 							position: "fixed",
-							bottom: 16,
+							bottom: 60,
 							left: "50%",
 							transform: "translateX(-50%)",
-							background: "#f90",
-							color: "#fff",
+							background: "var(--warning)",
+							color: "white",
 							padding: "8px 20px",
-							borderRadius: 8,
+							borderRadius: 10,
 							fontSize: 13,
-							fontFamily: "system-ui, sans-serif",
-							boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
 							zIndex: 200,
 						}}
 					>
-						Connecting...
+						接続中…
 					</div>
 				)}
 			</div>

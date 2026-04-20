@@ -45,8 +45,8 @@ export function ToolButton({
 					justifyContent: "center",
 					border: "none",
 					borderRadius: 6,
-					background: isActive ? "#e3f2fd" : "transparent",
-					color: isActive ? "#1976d2" : "#333",
+					background: isActive ? "var(--bg-active)" : "transparent",
+					color: isActive ? "var(--brand-violet)" : "var(--fg-secondary)",
 					cursor: "pointer",
 				}}
 			>
@@ -88,11 +88,11 @@ function BasicShapePicker({ onSelect }: { onSelect: (type: string) => void }) {
 		<div
 			style={{
 				position: "absolute",
-				top: 44,
+				bottom: 44,
 				left: "50%",
 				transform: "translateX(-50%)",
-				background: "#fff",
-				border: "1px solid #e0e0e0",
+				background: "var(--bg-surface-raised)",
+				border: "1px solid var(--border-default)",
 				borderRadius: 10,
 				padding: 8,
 				display: "grid",
@@ -151,11 +151,11 @@ function StickyColorPicker({
 		<div
 			style={{
 				position: "absolute",
-				top: 44,
+				bottom: 44,
 				left: "50%",
 				transform: "translateX(-50%)",
-				background: "#fff",
-				border: "1px solid #e0e0e0",
+				background: "var(--bg-surface-raised)",
+				border: "1px solid var(--border-default)",
 				borderRadius: 10,
 				padding: 8,
 				display: "flex",
@@ -206,11 +206,11 @@ function WireframePicker({
 		<div
 			style={{
 				position: "absolute",
-				top: 44,
+				bottom: 44,
 				left: "50%",
 				transform: "translateX(-50%)",
-				background: "#fff",
-				border: "1px solid #e0e0e0",
+				background: "var(--bg-surface-raised)",
+				border: "1px solid var(--border-default)",
 				borderRadius: 10,
 				padding: 8,
 				boxShadow: "0 4px 16px rgba(0,0,0,0.12)",

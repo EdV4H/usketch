@@ -1,6 +1,6 @@
 import { useApp } from "@edv4h/usketch-canvas-engine";
 import { useCallback, useState } from "react";
-import { actionBtnStyle } from "../../lib/styles.js";
+import { I, IconBtn } from "../ui/index.js";
 
 export function CopilotToggle() {
 	const app = useApp();
@@ -13,18 +13,11 @@ export function CopilotToggle() {
 	}, [enabled, app.events]);
 
 	return (
-		<button
-			type="button"
+		<IconBtn
+			icon={I.sparkles}
+			label={`Copilot: ${enabled ? "ON" : "OFF"}`}
+			active={enabled}
 			onClick={toggle}
-			title={`Copilot: ${enabled ? "ON" : "OFF"}`}
-			style={{
-				...actionBtnStyle,
-				background: enabled ? "#e8f5e9" : "transparent",
-				color: enabled ? "#2e7d32" : "#999",
-				fontSize: 14,
-			}}
-		>
-			{enabled ? "\u2726" : "\u2727"}
-		</button>
+		/>
 	);
 }
