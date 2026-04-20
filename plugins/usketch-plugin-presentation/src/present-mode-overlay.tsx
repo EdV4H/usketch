@@ -59,6 +59,7 @@ export function PresentModeOverlay({ nav }: Props) {
 
 	const exitPresent = () => {
 		const url = new URL(window.location.href);
+		url.searchParams.set("present", "1");
 		url.searchParams.set("mode", "edit");
 		window.history.replaceState(null, "", url.toString());
 		window.dispatchEvent(new PopStateEvent("popstate"));

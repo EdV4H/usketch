@@ -51,36 +51,44 @@ import { getErrorMessage } from "./lib/errors.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 
-type Flavor = "whiteboard" | "presentation";
+type PresentationMode = "off" | "edit" | "present";
 
-function buildBasePlugins(flavor: Flavor): UsketchPlugin[] {
-	const common: UsketchPlugin[] = [
-		selectToolPlugin,
-		panToolPlugin,
-		viewportNavPlugin,
-		basicShapePlugin,
-		groupPlugin,
-		framePlugin,
-		connectorPlugin,
-		freedrawPlugin,
-		textPlugin,
-		stickyPlugin,
-		imageShapePlugin,
-		counterPlugin,
-		wireframePlugin,
-		exportPlugin,
-		createGpuRendererPlugin(),
-		createDomRendererPlugin(),
-	];
-	if (flavor === "presentation") {
-		// 発表/編集ともに背景グリッドとスナップは外す（ノイズになる）
-		return common;
-	}
-	return [gridBgPlugin, dotsBgPlugin, snapPlugin, ...common];
+/**
+ * URL から現在のプレゼンテーション状態を読む。
+ * - `?present=1` があれば edit（発表オフ時のプレゼン編集モード）
+ * - `?present=1&mode=present` があれば present（発表中）
+ * - いずれも無ければ off（通常のホワイトボード）
+ */
+function readPresentationMode(search: string): PresentationMode {
+	const params = new URLSearchParams(search);
+	if (params.get("present") !== "1") return "off";
+	return params.get("mode") === "present" ? "present" : "edit";
 }
 
-async function loadPlugins(flavor: Flavor, extra: UsketchPlugin[]): Promise<UsketchPlugin[]> {
-	const plugins = [...buildBasePlugins(flavor), ...extra];
+const basePlugins: UsketchPlugin[] = [
+	gridBgPlugin,
+	dotsBgPlugin,
+	selectToolPlugin,
+	panToolPlugin,
+	viewportNavPlugin,
+	basicShapePlugin,
+	groupPlugin,
+	framePlugin,
+	connectorPlugin,
+	freedrawPlugin,
+	textPlugin,
+	stickyPlugin,
+	imageShapePlugin,
+	counterPlugin,
+	wireframePlugin,
+	snapPlugin,
+	exportPlugin,
+	createGpuRendererPlugin(),
+	createDomRendererPlugin(),
+];
+
+async function loadPlugins(extra: UsketchPlugin[]): Promise<UsketchPlugin[]> {
+	const plugins = [...basePlugins, ...extra];
 	if (import.meta.env.DEV) {
 		const { debugHudPlugin } = await import("@edv4h/usketch-plugin-debug-hud");
 		return [...plugins, debugHudPlugin];
@@ -93,26 +101,22 @@ export function App() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const isCloudBoard = location.pathname.startsWith("/boards/");
-	const isPresentationFlavor = location.pathname.startsWith("/presentation/");
-	const flavor: Flavor = isPresentationFlavor ? "presentation" : "whiteboard";
-	const presentationMode: "edit" | "present" =
-		new URLSearchParams(location.search).get("mode") === "present" ? "present" : "edit";
-	// presentation flavor もクラウド（DB + Yjs 同期）を既定とする
-	const useCloudSync = isCloudBoard || isPresentationFlavor;
+	const presentationMode = readPresentationMode(location.search);
 	const { user: authUser } = useAuth();
 
-	// 最新の mode を useEffect 外部から参照するための ref。
-	// effect 依存に presentationMode を入れてしまうと切替のたびに app インスタンスが
-	// 作り直され、undo 履歴や WebSocket が吹き飛ぶ（Copilot 指摘）。
-	const modeRef = useRef<"edit" | "present">(presentationMode);
+	// 最新の presentation mode を useEffect 外部から参照するための ref。
+	// effect 依存に入れてしまうと ?present=1 切替のたびに app インスタンスが
+	// 作り直され、undo 履歴や WebSocket が吹き飛ぶ。presentation plugin 側が
+	// popstate で ref を読み直す設計。
+	const modeRef = useRef<PresentationMode>(presentationMode);
 	modeRef.current = presentationMode;
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [wsStatus, setWsStatus] = useState<WsConnectionStatus | null>(null);
 	const wsProviderRef = useRef<WsProviderHandle | null>(null);
 
-	// ボード初期化（boardId / isCloudBoard / flavor / useCloudSync に依存）。
-	// presentationMode は依存に入れていない（下の NOTE 参照）。
+	// ボード初期化（boardId / isCloudBoard に依存）。
+	// presentationMode は依存に入れない（presentation plugin が popstate で modeRef を読み直す）。
 	useEffect(() => {
 		if (!boardId) return;
 
@@ -126,7 +130,7 @@ export function App() {
 		const extraPlugins: UsketchPlugin[] = [];
 		let wsProvider: WsProviderHandle | null = null;
 
-		if (useCloudSync) {
+		if (isCloudBoard) {
 			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 			let wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
 			// DEV_MODE: WebSocketはカスタムヘッダーを送れないのでクエリパラメータで認証
@@ -139,30 +143,10 @@ export function App() {
 			wsProvider = createWsProvider({ url: wsUrl, doc: syncHandle.doc });
 			wsProviderRef.current = wsProvider;
 			wsProvider.onStatusChange(setWsStatus);
-		}
-
-		if (flavor === "presentation") {
-			// プレゼン flavor は最小構成: presentation プラグイン + 協調プレゼン向けの3種
-			// mode は URL で動的に変わるので ref 経由で渡す（再レンダリングの契機は plugin が popstate で受ける）
-			extraPlugins.push(
-				createPresentationPlugin({
-					getMode: () => modeRef.current,
-					// フル reload を避けるため react-router の navigate を注入する
-					navigateToBoard: () => {
-						if (boardId) navigate(`/boards/${boardId}`);
-					},
-				}),
-			);
-			if (wsProvider) {
-				extraPlugins.push(createLaserPlugin(wsProvider));
-				extraPlugins.push(createSpotlightPlugin(wsProvider));
-				extraPlugins.push(createFollowMePlugin({ wsProvider }));
-			}
-		} else if (isCloudBoard && wsProvider) {
-			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 
 			extraPlugins.push(createLaserPlugin(wsProvider));
 			extraPlugins.push(createSpotlightPlugin(wsProvider));
+			extraPlugins.push(createFollowMePlugin({ wsProvider }));
 			extraPlugins.push(
 				createPresenceCursorPlugin({
 					wsProvider,
@@ -198,6 +182,17 @@ export function App() {
 			extraPlugins.push(createAiImagePlugin({ boardId }));
 			extraPlugins.push(createAiRecognizePlugin({ boardId }));
 			extraPlugins.push(createWhistlePlugin(wsProvider));
+
+			// プレゼンテーション: 常にロードし、`?present=1` が付いた時だけ UI を出す。
+			// ルート切替せず URL クエリで切替える設計なので、アプリ再生成は起きない。
+			extraPlugins.push(
+				createPresentationPlugin({
+					getMode: () => modeRef.current,
+					navigateToBoard: () => {
+						if (boardId) navigate(`/boards/${boardId}`);
+					},
+				}),
+			);
 		} else {
 			extraPlugins.push(laserPlugin);
 			extraPlugins.push(spotlightPlugin);
@@ -208,7 +203,7 @@ export function App() {
 			.then(() => {
 				if (cancelled) return;
 
-				return loadPlugins(flavor, extraPlugins)
+				return loadPlugins(extraPlugins)
 					.then((plugins) => createApp({ store, plugins }))
 					.then((created) => {
 						if (cancelled) {
@@ -241,14 +236,13 @@ export function App() {
 			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 			setApp(null);
 		};
-		// NOTE: presentationMode は依存に入れない。mode 切替では app を再作成せず、
-		// plugin 側が modeRef 経由で最新値を読む（undo 履歴・WebSocket を残すため）。
-	}, [boardId, isCloudBoard, flavor, useCloudSync, navigate]);
+		// NOTE: presentationMode は依存に入れない。?present の切替では app を再作成せず、
+		// presentation plugin が modeRef 経由で最新値を読む（undo 履歴・WebSocket を残すため）。
+	}, [boardId, isCloudBoard, navigate]);
 
 	// ページ離脱時にビューポート位置を保存（ゴーストアバター用）
-	// プレゼン flavor も cloud 同期を使うので useCloudSync で判定する
 	useEffect(() => {
-		if (!useCloudSync || !boardId) return;
+		if (!isCloudBoard || !boardId) return;
 
 		const saveViewport = () => {
 			const ws = wsProviderRef.current;
@@ -273,7 +267,7 @@ export function App() {
 
 		window.addEventListener("beforeunload", saveViewport);
 		return () => window.removeEventListener("beforeunload", saveViewport);
-	}, [boardId, useCloudSync]);
+	}, [boardId, isCloudBoard]);
 
 	// セッション情報が確定したらAwarenessのローカル状態を更新
 	const authUserId = authUser?.id;
@@ -301,14 +295,15 @@ export function App() {
 
 	if (!app) return null;
 
-	const hideToolbar = flavor === "presentation" && presentationMode === "present";
+	// 発表モード中だけ通常のツールバーを隠す（presentation overlay のみ表示）
+	const hideToolbar = presentationMode === "present";
 
 	return (
 		<AppProvider app={app}>
 			<div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
 				<Canvas />
 				{!hideToolbar && <Toolbar boardId={boardId} isCloudBoard={isCloudBoard} />}
-				{useCloudSync && wsStatus === "failed" && (
+				{isCloudBoard && wsStatus === "failed" && (
 					<div
 						style={{
 							position: "fixed",
@@ -328,7 +323,7 @@ export function App() {
 						Unable to connect — you may not have access to this board
 					</div>
 				)}
-				{useCloudSync && wsStatus === "connecting" && (
+				{isCloudBoard && wsStatus === "connecting" && (
 					<div
 						style={{
 							position: "fixed",

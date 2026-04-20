@@ -37,6 +37,7 @@ export function SlideOutlinePanel({
 
 	const startPresent = () => {
 		const url = new URL(window.location.href);
+		url.searchParams.set("present", "1");
 		url.searchParams.set("mode", "present");
 		window.history.replaceState(null, "", url.toString());
 		window.dispatchEvent(new PopStateEvent("popstate"));

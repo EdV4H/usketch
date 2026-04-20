@@ -9,7 +9,8 @@ import { PresentModeOverlay } from "./present-mode-overlay.js";
 import { SlideNavigator } from "./slide-navigator.js";
 import { SlideOutlinePanel } from "./slide-outline-panel.js";
 
-export type PresentationMode = "edit" | "present";
+/** "off" = プレゼン UI 非表示（通常のホワイトボード扱い） */
+export type PresentationMode = "off" | "edit" | "present";
 
 export interface PresentationPluginOptions {
 	/**
@@ -38,9 +39,13 @@ function defaultSubscribeMode(listener: () => void): () => void {
 }
 
 function defaultNavigateToBoard(): void {
-	// plugin 単独での最終手段。apps/web からは navigateToBoard を注入してフル遷移を回避する。
-	const match = window.location.pathname.match(/^\/presentation\/([^/]+)/);
-	if (match) window.location.assign(`/boards/${match[1]}`);
+	// plugin 単独での最終手段。apps/web からは navigateToBoard を注入して SPA 遷移を使う。
+	// ?present / ?mode クエリを落として通常ホワイトボードに戻す。
+	const url = new URL(window.location.href);
+	url.searchParams.delete("present");
+	url.searchParams.delete("mode");
+	window.history.replaceState(null, "", url.toString());
+	window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
 export function createPresentationPlugin(opts: PresentationPluginOptions): UsketchPlugin {
@@ -90,6 +95,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 					"Escape",
 					ifPresent(() => {
 						const url = new URL(window.location.href);
+						url.searchParams.set("present", "1");
 						url.searchParams.set("mode", "edit");
 						window.history.replaceState(null, "", url.toString());
 						// replaceState は popstate を発火させないので明示的に通知する
@@ -188,11 +194,9 @@ function PresentationLayer({
 	navigateToBoard,
 }: PresentationLayerProps) {
 	const [mode, setMode] = usePresentationMode(getMode, subscribeMode);
-	if (mode === "present") {
-		return <PresentModeOverlay nav={nav} />;
-	}
-	// _setMode は使わないが、useState 戻り値として形式的に受ける
 	void setMode;
+	if (mode === "off") return null;
+	if (mode === "present") return <PresentModeOverlay nav={nav} />;
 	return (
 		<SlideOutlinePanel
 			nav={nav}

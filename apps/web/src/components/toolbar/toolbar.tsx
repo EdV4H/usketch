@@ -104,7 +104,7 @@ export function Toolbar({
 						{boardId && (
 							<button
 								type="button"
-								onClick={() => navigate(`/presentation/${boardId}?mode=edit`)}
+								onClick={() => navigate(`/boards/${boardId}?present=1`)}
 								title="プレゼンテーション編集モードを開く"
 								aria-label="プレゼンテーション編集モードを開く"
 								style={{ ...actionBtnStyle, fontSize: 14 }}
