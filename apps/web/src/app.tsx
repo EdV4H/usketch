@@ -110,7 +110,8 @@ export function App() {
 	const [wsStatus, setWsStatus] = useState<WsConnectionStatus | null>(null);
 	const wsProviderRef = useRef<WsProviderHandle | null>(null);
 
-	// ボード初期化（flavor/mode/boardId/useCloudSync に依存）
+	// ボード初期化（boardId / isCloudBoard / flavor / useCloudSync に依存）。
+	// presentationMode は依存に入れていない（下の NOTE 参照）。
 	useEffect(() => {
 		if (!boardId) return;
 

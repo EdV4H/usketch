@@ -103,6 +103,7 @@ export function Toolbar({
 							<a
 								href={`/presentation/${boardId}?mode=edit`}
 								title="プレゼンテーション編集モードを開く"
+								aria-label="プレゼンテーション編集モードを開く"
 								style={{ ...actionBtnStyle, textDecoration: "none", fontSize: 14 }}
 							>
 								▶

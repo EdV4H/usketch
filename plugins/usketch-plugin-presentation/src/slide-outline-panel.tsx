@@ -1,10 +1,11 @@
 import type {
 	BoardStore,
+	Command,
 	CommandRegistry,
 	LayerRenderContext,
 	ShapeData,
 } from "@edv4h/usketch-shared";
-import { createBringForwardCommand, createSendBackwardCommand } from "@edv4h/usketch-store";
+import { zIndexBetween } from "@edv4h/usketch-shared";
 import { useEffect, useState } from "react";
 import type { SlideNavigator } from "./slide-navigator.js";
 
@@ -228,8 +229,15 @@ function miniButtonStyle(disabled: boolean): React.CSSProperties {
 
 /**
  * スライドを1つ上/下に移動する。
- * 既存の createBringForwardCommand / createSendBackwardCommand を使って
- * atomic かつ undoable に順序を入れ替える。
+ *
+ * 注意: store の createBringForwardCommand / createSendBackwardCommand は
+ * 「同じ親を持つ shape 全体（非フレーム含む）」の中で隣接 shape と入れ替える。
+ * そのためトップレベルに非フレーム shape（ラフ描画など）が混ざっていると
+ * 1 クリックでスライド順が動かなかったり、非スライドの描画順まで変わってしまう。
+ *
+ * ここではスライドとして扱う Frame の一覧（nav.getSlides）の中で前後の Frame の
+ * zIndex を参照し、その隙間に zIndexBetween で新キーを差し込む。これにより
+ * 非フレーム shape の順序には影響せず、常に 1 クリック = 1 位置の移動になる。
  */
 function moveSlide(
 	store: BoardStore,
@@ -237,9 +245,50 @@ function moveSlide(
 	shapeId: string,
 	direction: -1 | 1,
 ): void {
-	const command =
-		direction === -1
-			? createSendBackwardCommand(store, shapeId)
-			: createBringForwardCommand(store, shapeId);
+	const slides = store.getShapesSorted().filter((s) => s.type === "frame");
+	const index = slides.findIndex((s) => s.id === shapeId);
+	if (index < 0) return;
+	const newIndex = index + direction;
+	if (newIndex < 0 || newIndex >= slides.length) return;
+
+	const current = slides[index];
+	if (!current || typeof current.zIndex !== "string") return;
+
+	// 新しい位置での前後 Frame の zIndex を取得して、その間に挟むキーを生成
+	let lower: string | null;
+	let upper: string | null;
+	if (direction === 1) {
+		// 一つ後ろへ: newIndex の Frame と newIndex+1 の Frame の間に入る
+		const after = slides[newIndex];
+		const afterNext = slides[newIndex + 1];
+		if (!after || typeof after.zIndex !== "string") return;
+		lower = after.zIndex;
+		upper =
+			afterNext && typeof afterNext.zIndex === "string" && afterNext.id !== shapeId
+				? afterNext.zIndex
+				: null;
+	} else {
+		// 一つ前へ: newIndex-1 の Frame と newIndex の Frame の間に入る
+		const before = slides[newIndex];
+		const beforePrev = slides[newIndex - 1];
+		if (!before || typeof before.zIndex !== "string") return;
+		lower =
+			beforePrev && typeof beforePrev.zIndex === "string" && beforePrev.id !== shapeId
+				? beforePrev.zIndex
+				: null;
+		upper = before.zIndex;
+	}
+
+	const nextKey = zIndexBetween(lower, upper);
+	const prevKey = current.zIndex;
+
+	const command: Command = {
+		execute() {
+			store.updateShape(shapeId, { zIndex: nextKey });
+		},
+		undo() {
+			store.updateShape(shapeId, { zIndex: prevKey });
+		},
+	};
 	commands.execute(command);
 }
