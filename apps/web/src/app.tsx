@@ -44,7 +44,7 @@ import {
 	type WsProviderHandle,
 } from "@edv4h/usketch-sync";
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { Toolbar } from "./components/toolbar/index.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
@@ -91,6 +91,7 @@ async function loadPlugins(flavor: Flavor, extra: UsketchPlugin[]): Promise<Uske
 export function App() {
 	const { boardId } = useParams<{ boardId: string }>();
 	const location = useLocation();
+	const navigate = useNavigate();
 	const isCloudBoard = location.pathname.startsWith("/boards/");
 	const isPresentationFlavor = location.pathname.startsWith("/presentation/");
 	const flavor: Flavor = isPresentationFlavor ? "presentation" : "whiteboard";
@@ -143,7 +144,15 @@ export function App() {
 		if (flavor === "presentation") {
 			// プレゼン flavor は最小構成: presentation プラグイン + 協調プレゼン向けの3種
 			// mode は URL で動的に変わるので ref 経由で渡す（再レンダリングの契機は plugin が popstate で受ける）
-			extraPlugins.push(createPresentationPlugin({ getMode: () => modeRef.current }));
+			extraPlugins.push(
+				createPresentationPlugin({
+					getMode: () => modeRef.current,
+					// フル reload を避けるため react-router の navigate を注入する
+					navigateToBoard: () => {
+						if (boardId) navigate(`/boards/${boardId}`);
+					},
+				}),
+			);
 			if (wsProvider) {
 				extraPlugins.push(createLaserPlugin(wsProvider));
 				extraPlugins.push(createSpotlightPlugin(wsProvider));
@@ -234,11 +243,12 @@ export function App() {
 		};
 		// NOTE: presentationMode は依存に入れない。mode 切替では app を再作成せず、
 		// plugin 側が modeRef 経由で最新値を読む（undo 履歴・WebSocket を残すため）。
-	}, [boardId, isCloudBoard, flavor, useCloudSync]);
+	}, [boardId, isCloudBoard, flavor, useCloudSync, navigate]);
 
 	// ページ離脱時にビューポート位置を保存（ゴーストアバター用）
+	// プレゼン flavor も cloud 同期を使うので useCloudSync で判定する
 	useEffect(() => {
-		if (!isCloudBoard || !boardId) return;
+		if (!useCloudSync || !boardId) return;
 
 		const saveViewport = () => {
 			const ws = wsProviderRef.current;
@@ -263,7 +273,7 @@ export function App() {
 
 		window.addEventListener("beforeunload", saveViewport);
 		return () => window.removeEventListener("beforeunload", saveViewport);
-	}, [boardId, isCloudBoard]);
+	}, [boardId, useCloudSync]);
 
 	// セッション情報が確定したらAwarenessのローカル状態を更新
 	const authUserId = authUser?.id;

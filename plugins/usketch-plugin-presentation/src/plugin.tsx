@@ -21,6 +21,11 @@ export interface PresentationPluginOptions {
 	 * モード変化を監視したいとき用の購読 API。省略時は window の popstate を使う。
 	 */
 	subscribeMode?: (listener: () => void) => () => void;
+	/**
+	 * 通常のホワイトボード（/boards/:boardId）へ戻るためのナビゲーション。
+	 * apps/web 側で react-router の navigate を渡す。省略時は window.location.assign。
+	 */
+	navigateToBoard?: () => void;
 }
 
 function getWindowSize(): { width: number; height: number } {
@@ -32,9 +37,16 @@ function defaultSubscribeMode(listener: () => void): () => void {
 	return () => window.removeEventListener("popstate", listener);
 }
 
+function defaultNavigateToBoard(): void {
+	// plugin 単独での最終手段。apps/web からは navigateToBoard を注入してフル遷移を回避する。
+	const match = window.location.pathname.match(/^\/presentation\/([^/]+)/);
+	if (match) window.location.assign(`/boards/${match[1]}`);
+}
+
 export function createPresentationPlugin(opts: PresentationPluginOptions): UsketchPlugin {
 	const getMode = opts.getMode;
 	const subscribeMode = opts.subscribeMode ?? defaultSubscribeMode;
+	const navigateToBoard = opts.navigateToBoard ?? defaultNavigateToBoard;
 	let nav: SlideNavigator | null = null;
 	const unregisters: Array<() => void> = [];
 
@@ -136,6 +148,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 							renderCtx={renderCtx}
 							getMode={getMode}
 							subscribeMode={subscribeMode}
+							navigateToBoard={navigateToBoard}
 						/>
 					);
 				},
@@ -162,6 +175,7 @@ interface PresentationLayerProps {
 	renderCtx: LayerRenderContext;
 	getMode: () => PresentationMode;
 	subscribeMode: (listener: () => void) => () => void;
+	navigateToBoard: () => void;
 }
 
 function PresentationLayer({
@@ -171,6 +185,7 @@ function PresentationLayer({
 	renderCtx,
 	getMode,
 	subscribeMode,
+	navigateToBoard,
 }: PresentationLayerProps) {
 	const [mode, setMode] = usePresentationMode(getMode, subscribeMode);
 	if (mode === "present") {
@@ -178,7 +193,15 @@ function PresentationLayer({
 	}
 	// _setMode は使わないが、useState 戻り値として形式的に受ける
 	void setMode;
-	return <SlideOutlinePanel nav={nav} store={store} commands={commands} renderCtx={renderCtx} />;
+	return (
+		<SlideOutlinePanel
+			nav={nav}
+			store={store}
+			commands={commands}
+			renderCtx={renderCtx}
+			navigateToBoard={navigateToBoard}
+		/>
+	);
 }
 
 function usePresentationMode(

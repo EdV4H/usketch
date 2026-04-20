@@ -14,9 +14,16 @@ interface Props {
 	store: BoardStore;
 	commands: CommandRegistry;
 	renderCtx: LayerRenderContext;
+	navigateToBoard: () => void;
 }
 
-export function SlideOutlinePanel({ nav, store, commands, renderCtx: _renderCtx }: Props) {
+export function SlideOutlinePanel({
+	nav,
+	store,
+	commands,
+	renderCtx: _renderCtx,
+	navigateToBoard,
+}: Props) {
 	const [slides, setSlides] = useState<ShapeData[]>(nav.getSlides());
 	const [current, setCurrent] = useState(nav.getCurrentIndex());
 
@@ -35,13 +42,7 @@ export function SlideOutlinePanel({ nav, store, commands, renderCtx: _renderCtx 
 		window.dispatchEvent(new PopStateEvent("popstate"));
 	};
 
-	const exitToBoard = () => {
-		// /presentation/:boardId?... → /boards/:boardId
-		const match = window.location.pathname.match(/^\/presentation\/([^/]+)/);
-		if (match) {
-			window.location.assign(`/boards/${match[1]}`);
-		}
-	};
+	const exitToBoard = () => navigateToBoard();
 
 	return (
 		<div
