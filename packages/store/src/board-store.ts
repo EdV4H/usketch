@@ -268,6 +268,28 @@ export function createBoardStore(): BoardStore {
 			notifyMutation("viewport:changed");
 		},
 
+		fitToBounds(
+			bounds: BoundingBox,
+			viewportSize: { width: number; height: number },
+			padding = 40,
+		) {
+			if (bounds.width <= 0 || bounds.height <= 0) return;
+			if (viewportSize.width <= 0 || viewportSize.height <= 0) return;
+			const availW = Math.max(1, viewportSize.width - padding * 2);
+			const availH = Math.max(1, viewportSize.height - padding * 2);
+			const rawZoom = Math.min(availW / bounds.width, availH / bounds.height);
+			const zoom = Math.min(Math.max(rawZoom, 0.1), 10);
+			const cx = bounds.x + bounds.width / 2;
+			const cy = bounds.y + bounds.height / 2;
+			state.viewport = {
+				x: viewportSize.width / 2 - cx * zoom,
+				y: viewportSize.height / 2 - cy * zoom,
+				zoom,
+			};
+			notify();
+			notifyMutation("viewport:changed");
+		},
+
 		getStyleSettings: () => state.styleSettings,
 
 		setStyleSettings(style: Partial<ShapeStyle>) {

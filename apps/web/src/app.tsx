@@ -13,9 +13,11 @@ import { dotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { gridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { exportPlugin } from "@edv4h/usketch-plugin-export";
+import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
+import { createPresentationPlugin } from "@edv4h/usketch-plugin-presentation";
 import { basicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
 import { connectorPlugin } from "@edv4h/usketch-plugin-shape-connector";
 import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
@@ -42,12 +44,26 @@ import {
 	type WsProviderHandle,
 } from "@edv4h/usketch-sync";
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { Toolbar } from "./components/toolbar/index.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
+
+type PresentationMode = "off" | "edit" | "present";
+
+/**
+ * URL から現在のプレゼンテーション状態を読む。
+ * - `?present=1` があれば edit（発表オフ時のプレゼン編集モード）
+ * - `?present=1&mode=present` があれば present（発表中）
+ * - いずれも無ければ off（通常のホワイトボード）
+ */
+function readPresentationMode(search: string): PresentationMode {
+	const params = new URLSearchParams(search);
+	if (params.get("present") !== "1") return "off";
+	return params.get("mode") === "present" ? "present" : "edit";
+}
 
 const basePlugins: UsketchPlugin[] = [
 	gridBgPlugin,
@@ -83,14 +99,24 @@ async function loadPlugins(extra: UsketchPlugin[]): Promise<UsketchPlugin[]> {
 export function App() {
 	const { boardId } = useParams<{ boardId: string }>();
 	const location = useLocation();
+	const navigate = useNavigate();
 	const isCloudBoard = location.pathname.startsWith("/boards/");
+	const presentationMode = readPresentationMode(location.search);
 	const { user: authUser } = useAuth();
+
+	// 最新の presentation mode を useEffect 外部から参照するための ref。
+	// effect 依存に入れてしまうと ?present=1 切替のたびに app インスタンスが
+	// 作り直され、undo 履歴や WebSocket が吹き飛ぶ。presentation plugin 側が
+	// popstate で ref を読み直す設計。
+	const modeRef = useRef<PresentationMode>(presentationMode);
+	modeRef.current = presentationMode;
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [wsStatus, setWsStatus] = useState<WsConnectionStatus | null>(null);
 	const wsProviderRef = useRef<WsProviderHandle | null>(null);
 
-	// ボード初期化（boardId/isCloudBoardのみに依存）
+	// ボード初期化（boardId / isCloudBoard に依存）。
+	// presentationMode は依存に入れない（presentation plugin が popstate で modeRef を読み直す）。
 	useEffect(() => {
 		if (!boardId) return;
 
@@ -120,6 +146,7 @@ export function App() {
 
 			extraPlugins.push(createLaserPlugin(wsProvider));
 			extraPlugins.push(createSpotlightPlugin(wsProvider));
+			extraPlugins.push(createFollowMePlugin({ wsProvider }));
 			extraPlugins.push(
 				createPresenceCursorPlugin({
 					wsProvider,
@@ -155,6 +182,17 @@ export function App() {
 			extraPlugins.push(createAiImagePlugin({ boardId }));
 			extraPlugins.push(createAiRecognizePlugin({ boardId }));
 			extraPlugins.push(createWhistlePlugin(wsProvider));
+
+			// プレゼンテーション: 常にロードし、`?present=1` が付いた時だけ UI を出す。
+			// ルート切替せず URL クエリで切替える設計なので、アプリ再生成は起きない。
+			extraPlugins.push(
+				createPresentationPlugin({
+					getMode: () => modeRef.current,
+					navigateToBoard: () => {
+						if (boardId) navigate(`/boards/${boardId}`);
+					},
+				}),
+			);
 		} else {
 			extraPlugins.push(laserPlugin);
 			extraPlugins.push(spotlightPlugin);
@@ -198,7 +236,9 @@ export function App() {
 			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 			setApp(null);
 		};
-	}, [boardId, isCloudBoard]);
+		// NOTE: presentationMode は依存に入れない。?present の切替では app を再作成せず、
+		// presentation plugin が modeRef 経由で最新値を読む（undo 履歴・WebSocket を残すため）。
+	}, [boardId, isCloudBoard, navigate]);
 
 	// ページ離脱時にビューポート位置を保存（ゴーストアバター用）
 	useEffect(() => {
@@ -255,11 +295,14 @@ export function App() {
 
 	if (!app) return null;
 
+	// 発表モード中だけ通常のツールバーを隠す（presentation overlay のみ表示）
+	const hideToolbar = presentationMode === "present";
+
 	return (
 		<AppProvider app={app}>
 			<div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
 				<Canvas />
-				<Toolbar boardId={boardId} isCloudBoard={isCloudBoard} />
+				{!hideToolbar && <Toolbar boardId={boardId} isCloudBoard={isCloudBoard} />}
 				{isCloudBoard && wsStatus === "failed" && (
 					<div
 						style={{

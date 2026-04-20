@@ -1,5 +1,6 @@
 import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { actionBtnStyle, dividerStyle } from "../../lib/styles.js";
 import { ShareDialog } from "../share-dialog.js";
 import { StylePanel } from "../style-panel/index.js";
@@ -30,6 +31,7 @@ export function Toolbar({
 	const activeToolId = useStoreSubscribe(app.store, (s) => s.getActiveToolId());
 	const tools = app.tools.getOrdered();
 	const [showShare, setShowShare] = useState(false);
+	const navigate = useNavigate();
 
 	return (
 		<>
@@ -99,6 +101,17 @@ export function Toolbar({
 						<Divider />
 						<CopilotToggle />
 						<VoiceButton />
+						{boardId && (
+							<button
+								type="button"
+								onClick={() => navigate(`/boards/${boardId}?present=1`)}
+								title="プレゼンテーション編集モードを開く"
+								aria-label="プレゼンテーション編集モードを開く"
+								style={{ ...actionBtnStyle, fontSize: 14 }}
+							>
+								▶
+							</button>
+						)}
 					</>
 				)}
 			</div>
