@@ -4,6 +4,31 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>uSketch</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+			rel="stylesheet"
+		/>
+		<script>
+			// 初回 flash 防止: React 起動前に data-theme を設定しておく。
+			// localStorage > prefers-color-scheme の順で決定。
+			(function () {
+				try {
+					var stored = localStorage.getItem("usketch-theme");
+					var theme = stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+					var resolved =
+						theme === "system"
+							? window.matchMedia("(prefers-color-scheme: dark)").matches
+								? "dark"
+								: "light"
+							: theme;
+					document.documentElement.dataset.theme = resolved;
+				} catch (_) {
+					document.documentElement.dataset.theme = "dark";
+				}
+			})();
+		</script>
 		<style>
 			html, body, #root {
 				margin: 0;
@@ -11,6 +36,12 @@
 				overflow: hidden;
 				width: 100%;
 				height: 100%;
+			}
+			body {
+				font-family: var(--font-sans, system-ui, sans-serif);
+				background: var(--bg-canvas, #0a0a0b);
+				color: var(--fg-primary, #ededf0);
+				-webkit-font-smoothing: antialiased;
 			}
 		</style>
 	</head>
