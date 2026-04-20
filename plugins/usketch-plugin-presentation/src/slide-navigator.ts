@@ -6,6 +6,12 @@ import type { BoardStore, BoundingBox, ShapeData } from "@edv4h/usketch-shared";
  */
 export class SlideNavigator {
 	private currentIndex = 0;
+	/**
+	 * 現在選択中のスライド（Frame）の shape id。
+	 * 並び替えや追加で index だけ覚えていると指す Frame が変わってしまうので、
+	 * 可能な限り id で追跡し、mutation 後に新しい slides 配列から index を再導出する。
+	 */
+	private currentFrameId: string | null = null;
 	private readonly changeListeners = new Set<(index: number) => void>();
 	private readonly unsubscribeStore: () => void;
 	private getViewportSize: () => { width: number; height: number };
@@ -17,20 +23,31 @@ export class SlideNavigator {
 		getViewportSize: () => { width: number; height: number },
 	) {
 		this.getViewportSize = getViewportSize;
-		this.frameIds = new Set(this.getSlides().map((s) => s.id));
+		const initialSlides = this.getSlides();
+		this.frameIds = new Set(initialSlides.map((s) => s.id));
+		this.currentFrameId = initialSlides[0]?.id ?? null;
 		// スライド構成（＝フレーム追加/削除/並び替え）に関係するミューテーションだけを聞く。
 		// store.subscribe は viewport 変更でも発火するので、それを契機にリスナーを呼ぶと
 		// gotoIndex 中の fitToBounds で余計な onChange が一度走ってしまう。
 		this.unsubscribeStore = store.onMutation((event) => {
 			if (!this.isSlideRelatedMutation(event.type, event.payload)) return;
-			// frame セットを更新
-			this.frameIds = new Set(this.getSlides().map((s) => s.id));
-			// スライド数が減って currentIndex が範囲外になっていれば clamp する。
-			const slideCount = this.frameIds.size;
-			if (slideCount === 0) {
+			// frame セットと現在の index を再構築する（並び替え時も currentFrameId を基準に再導出）
+			const slides = this.getSlides();
+			this.frameIds = new Set(slides.map((s) => s.id));
+			if (slides.length === 0) {
+				this.currentFrameId = null;
 				this.currentIndex = 0;
-			} else if (this.currentIndex >= slideCount) {
-				this.currentIndex = slideCount - 1;
+			} else {
+				// id が残っていればその新 index に、無ければ旧 index を slides 数に clamp
+				const foundIdx = this.currentFrameId
+					? slides.findIndex((s) => s.id === this.currentFrameId)
+					: -1;
+				if (foundIdx >= 0) {
+					this.currentIndex = foundIdx;
+				} else {
+					this.currentIndex = Math.min(this.currentIndex, slides.length - 1);
+					this.currentFrameId = slides[this.currentIndex]?.id ?? null;
+				}
 			}
 			for (const l of this.changeListeners) l(this.currentIndex);
 		});
@@ -70,11 +87,12 @@ export class SlideNavigator {
 		const slides = this.getSlides();
 		if (slides.length === 0) return;
 		const clamped = Math.max(0, Math.min(index, slides.length - 1));
-		// currentIndex を fitToBounds より先に更新して、後続の通知が
+		// currentIndex / currentFrameId を fitToBounds より先に更新して、後続の通知が
 		// 「古い index で発火し、その直後に新しい index で発火する」という
 		// 二段階発火を避ける。
 		this.currentIndex = clamped;
 		const target = slides[clamped];
+		this.currentFrameId = target?.id ?? null;
 		if (target) {
 			const bounds: BoundingBox = {
 				x: target.x,
