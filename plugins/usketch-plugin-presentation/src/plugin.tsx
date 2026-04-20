@@ -4,6 +4,7 @@ import type {
 	PluginContext,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
+import { useEffect, useState } from "react";
 import { PresentModeOverlay } from "./present-mode-overlay.js";
 import { SlideNavigator } from "./slide-navigator.js";
 import { SlideOutlinePanel } from "./slide-outline-panel.js";
@@ -11,15 +12,29 @@ import { SlideOutlinePanel } from "./slide-outline-panel.js";
 export type PresentationMode = "edit" | "present";
 
 export interface PresentationPluginOptions {
-	mode: PresentationMode;
+	/**
+	 * 現在のモードを返す関数。URL から動的に読む前提。
+	 * mode 切替時に app 全体を再生成しないために、getter で渡す。
+	 */
+	getMode: () => PresentationMode;
+	/**
+	 * モード変化を監視したいとき用の購読 API。省略時は window の popstate を使う。
+	 */
+	subscribeMode?: (listener: () => void) => () => void;
 }
 
 function getWindowSize(): { width: number; height: number } {
 	return { width: window.innerWidth, height: window.innerHeight };
 }
 
+function defaultSubscribeMode(listener: () => void): () => void {
+	window.addEventListener("popstate", listener);
+	return () => window.removeEventListener("popstate", listener);
+}
+
 export function createPresentationPlugin(opts: PresentationPluginOptions): UsketchPlugin {
-	const mode = opts.mode;
+	const getMode = opts.getMode;
+	const subscribeMode = opts.subscribeMode ?? defaultSubscribeMode;
 	let nav: SlideNavigator | null = null;
 	const unregisters: Array<() => void> = [];
 
@@ -28,61 +43,99 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 		name: "Presentation",
 		setup(ctx: PluginContext) {
 			nav = new SlideNavigator(ctx.store, getWindowSize);
+			const navRef = nav;
 
-			if (mode === "present") {
-				const navRef = nav;
-				unregisters.push(ctx.shortcuts.register("ArrowRight", () => navRef.next()));
-				unregisters.push(ctx.shortcuts.register("ArrowLeft", () => navRef.prev()));
-				unregisters.push(ctx.shortcuts.register("Home", () => navRef.first()));
-				unregisters.push(ctx.shortcuts.register("End", () => navRef.last()));
-				unregisters.push(
-					ctx.shortcuts.register("Escape", () => {
+			// 発表モード中のみ動くショートカット群（mode を実行時に毎回評価する）
+			const ifPresent = (fn: () => void) => () => {
+				if (getMode() === "present") fn();
+			};
+			unregisters.push(
+				ctx.shortcuts.register(
+					"ArrowRight",
+					ifPresent(() => navRef.next()),
+				),
+			);
+			unregisters.push(
+				ctx.shortcuts.register(
+					"ArrowLeft",
+					ifPresent(() => navRef.prev()),
+				),
+			);
+			unregisters.push(
+				ctx.shortcuts.register(
+					"Home",
+					ifPresent(() => navRef.first()),
+				),
+			);
+			unregisters.push(
+				ctx.shortcuts.register(
+					"End",
+					ifPresent(() => navRef.last()),
+				),
+			);
+			unregisters.push(
+				ctx.shortcuts.register(
+					"Escape",
+					ifPresent(() => {
 						const url = new URL(window.location.href);
 						url.searchParams.set("mode", "edit");
 						window.history.replaceState(null, "", url.toString());
 						// replaceState は popstate を発火させないので明示的に通知する
 						window.dispatchEvent(new PopStateEvent("popstate"));
 					}),
-				);
+				),
+			);
 
-				// Space キーは shortcut-registry のキー名正規化（trim）で扱えないため、
-				// window 経由で直接ハンドリングする。PageDown / PageUp も同様に発表向けで受ける。
-				const onKeyDown = (e: KeyboardEvent) => {
-					const target = e.target as HTMLElement | null;
-					if (target && (target.isContentEditable || /input|textarea/i.test(target.tagName)))
-						return;
-					if (e.ctrlKey || e.metaKey || e.altKey) return;
-					if (e.key === " " || e.key === "PageDown") {
-						e.preventDefault();
-						navRef.next();
-					} else if (e.key === "PageUp") {
-						e.preventDefault();
-						navRef.prev();
-					}
-				};
-				window.addEventListener("keydown", onKeyDown);
-				unregisters.push(() => window.removeEventListener("keydown", onKeyDown));
+			// Space キーは shortcut-registry のキー名正規化（trim）で扱えないため、
+			// window 経由で直接ハンドリングする。PageDown / PageUp も同様に発表向けで受ける。
+			const onKeyDown = (e: KeyboardEvent) => {
+				if (getMode() !== "present") return;
+				const target = e.target as HTMLElement | null;
+				if (target && (target.isContentEditable || /input|textarea/i.test(target.tagName))) return;
+				if (e.ctrlKey || e.metaKey || e.altKey) return;
+				if (e.key === " " || e.key === "PageDown") {
+					e.preventDefault();
+					navRef.next();
+				} else if (e.key === "PageUp") {
+					e.preventDefault();
+					navRef.prev();
+				}
+			};
+			window.addEventListener("keydown", onKeyDown);
+			unregisters.push(() => window.removeEventListener("keydown", onKeyDown));
 
-				// 初期表示: 最初のスライドに寄せる
-				nav.first();
-			}
+			// 発表モードに入ったら最初のスライドに寄せる。
+			let prevMode = getMode();
+			const syncOnModeChange = () => {
+				const current = getMode();
+				if (current !== prevMode) {
+					prevMode = current;
+					if (current === "present") navRef.first();
+				}
+			};
+			unregisters.push(subscribeMode(syncOnModeChange));
+			// 初期表示
+			if (prevMode === "present") navRef.first();
 
+			// レイヤー: mode に応じて edit (パネル) / present (オーバーレイ) を出し分ける。
+			// react 側で LayerRenderContext を経由して再 render されるので、子コンポーネント
+			// が mode を内部状態で購読する。
 			const layerId = "presentation-overlay";
 			const commandsRef: CommandRegistry = ctx.commands;
 			ctx.layers.register({
 				id: layerId,
-				order: mode === "present" ? 200 : 90,
+				order: 200,
 				fixed: true,
 				render: (renderCtx: LayerRenderContext) => {
 					if (!nav) return null;
-					return mode === "present" ? (
-						<PresentModeOverlay nav={nav} />
-					) : (
-						<SlideOutlinePanel
+					return (
+						<PresentationLayer
 							nav={nav}
 							store={ctx.store}
 							commands={commandsRef}
 							renderCtx={renderCtx}
+							getMode={getMode}
+							subscribeMode={subscribeMode}
 						/>
 					);
 				},
@@ -96,4 +149,47 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 			nav = null;
 		},
 	};
+}
+
+/**
+ * モード変化に応じて edit / present の UI を切り替えるラッパ。
+ * plugin 本体の teardown を起こさないため、URL の mode クエリをここで購読する。
+ */
+interface PresentationLayerProps {
+	nav: SlideNavigator;
+	store: PluginContext["store"];
+	commands: CommandRegistry;
+	renderCtx: LayerRenderContext;
+	getMode: () => PresentationMode;
+	subscribeMode: (listener: () => void) => () => void;
+}
+
+function PresentationLayer({
+	nav,
+	store,
+	commands,
+	renderCtx,
+	getMode,
+	subscribeMode,
+}: PresentationLayerProps) {
+	const [mode, setMode] = usePresentationMode(getMode, subscribeMode);
+	if (mode === "present") {
+		return <PresentModeOverlay nav={nav} />;
+	}
+	// _setMode は使わないが、useState 戻り値として形式的に受ける
+	void setMode;
+	return <SlideOutlinePanel nav={nav} store={store} commands={commands} renderCtx={renderCtx} />;
+}
+
+function usePresentationMode(
+	getMode: () => PresentationMode,
+	subscribeMode: (listener: () => void) => () => void,
+): [PresentationMode, (m: PresentationMode) => void] {
+	const [mode, setMode] = useState<PresentationMode>(getMode);
+	useEffect(() => {
+		const update = () => setMode(getMode());
+		update();
+		return subscribeMode(update);
+	}, [getMode, subscribeMode]);
+	return [mode, setMode];
 }

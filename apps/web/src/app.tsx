@@ -99,6 +99,12 @@ export function App() {
 	// presentation flavor もクラウド（DB + Yjs 同期）を既定とする
 	const useCloudSync = isCloudBoard || isPresentationFlavor;
 	const { user: authUser } = useAuth();
+
+	// 最新の mode を useEffect 外部から参照するための ref。
+	// effect 依存に presentationMode を入れてしまうと切替のたびに app インスタンスが
+	// 作り直され、undo 履歴や WebSocket が吹き飛ぶ（Copilot 指摘）。
+	const modeRef = useRef<"edit" | "present">(presentationMode);
+	modeRef.current = presentationMode;
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [wsStatus, setWsStatus] = useState<WsConnectionStatus | null>(null);
@@ -135,7 +141,8 @@ export function App() {
 
 		if (flavor === "presentation") {
 			// プレゼン flavor は最小構成: presentation プラグイン + 協調プレゼン向けの3種
-			extraPlugins.push(createPresentationPlugin({ mode: presentationMode }));
+			// mode は URL で動的に変わるので ref 経由で渡す（再レンダリングの契機は plugin が popstate で受ける）
+			extraPlugins.push(createPresentationPlugin({ getMode: () => modeRef.current }));
 			if (wsProvider) {
 				extraPlugins.push(createLaserPlugin(wsProvider));
 				extraPlugins.push(createSpotlightPlugin(wsProvider));
@@ -224,7 +231,9 @@ export function App() {
 			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 			setApp(null);
 		};
-	}, [boardId, isCloudBoard, flavor, presentationMode, useCloudSync]);
+		// NOTE: presentationMode は依存に入れない。mode 切替では app を再作成せず、
+		// plugin 側が modeRef 経由で最新値を読む（undo 履歴・WebSocket を残すため）。
+	}, [boardId, isCloudBoard, flavor, useCloudSync]);
 
 	// ページ離脱時にビューポート位置を保存（ゴーストアバター用）
 	useEffect(() => {

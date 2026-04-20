@@ -97,6 +97,7 @@ export function SlideOutlinePanel({ nav, store, commands, renderCtx: _renderCtx 
 						fontSize: 11,
 					}}
 					title="発表モードに切替"
+					aria-label="発表モードに切替"
 				>
 					▶
 				</button>
@@ -181,6 +182,7 @@ function SlideThumbnail({ slide, label, active, onClick, onMoveUp, onMoveDown }:
 					onClick={onMoveUp}
 					style={miniButtonStyle(!onMoveUp)}
 					title="前へ"
+					aria-label="スライドを前に移動"
 				>
 					↑
 				</button>
@@ -190,6 +192,7 @@ function SlideThumbnail({ slide, label, active, onClick, onMoveUp, onMoveDown }:
 					onClick={onMoveDown}
 					style={miniButtonStyle(!onMoveDown)}
 					title="後へ"
+					aria-label="スライドを後に移動"
 				>
 					↓
 				</button>

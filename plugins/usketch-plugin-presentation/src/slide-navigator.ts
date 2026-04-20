@@ -19,15 +19,32 @@ export class SlideNavigator {
 		// store.subscribe は viewport 変更でも発火するので、それを契機にリスナーを呼ぶと
 		// gotoIndex 中の fitToBounds で余計な onChange が一度走ってしまう。
 		this.unsubscribeStore = store.onMutation((event) => {
-			if (
-				event.type === "shape:added" ||
-				event.type === "shape:removed" ||
-				event.type === "shape:updated" ||
-				event.type === "shapes:z-index-initialized"
-			) {
-				for (const l of this.changeListeners) l(this.currentIndex);
+			if (!this.isSlideRelatedMutation(event.type, event.payload)) return;
+			// スライド数が減って currentIndex が範囲外になっていれば clamp する。
+			const slideCount = this.getSlides().length;
+			if (slideCount === 0) {
+				this.currentIndex = 0;
+			} else if (this.currentIndex >= slideCount) {
+				this.currentIndex = slideCount - 1;
 			}
+			for (const l of this.changeListeners) l(this.currentIndex);
 		});
+	}
+
+	/**
+	 * mutation がスライド一覧に影響するか判定する。
+	 * 非フレームの shape:updated（ドラッグ中の位置更新やテキスト編集など）は無視する。
+	 */
+	private isSlideRelatedMutation(type: string, payload: unknown): boolean {
+		if (type === "shape:removed" || type === "shapes:z-index-initialized") return true;
+		if (type !== "shape:added" && type !== "shape:updated") return false;
+		const id = (payload as { id?: unknown } | null | undefined)?.id;
+		if (typeof id !== "string") {
+			// id が取れない想定外形式は安全側で通す
+			return true;
+		}
+		const shape = this.store.getShape(id);
+		return shape?.type === "frame";
 	}
 
 	getSlides(): ShapeData[] {

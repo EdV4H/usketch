@@ -78,6 +78,7 @@ export function PresentModeOverlay({ nav }: Props) {
 				type="button"
 				onClick={exitPresent}
 				title="編集モードに戻る (Esc)"
+				aria-label="編集モードに戻る"
 				style={{
 					position: "absolute",
 					top: 16,
