@@ -449,8 +449,7 @@ export function App() {
 									borderRadius: 8,
 									overflow: "hidden",
 									transform: "translate(0, 0)",
-									boxShadow:
-										"0 0 0 1.5px var(--brand-violet), 0 0 0 6px color-mix(in oklab, var(--brand-violet) 18%, transparent), 0 20px 60px rgba(139,92,246,.35), 0 0 80px rgba(236,72,153,.2)",
+									boxShadow: "0 30px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06)",
 									transition:
 										"left 180ms var(--ease-out, ease-out), top 180ms var(--ease-out, ease-out), width 180ms var(--ease-out, ease-out), height 180ms var(--ease-out, ease-out)",
 								}

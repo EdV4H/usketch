@@ -127,16 +127,16 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 			{/* ステージ枠は apps/web 側で Canvas 本体に box-shadow を当てて描画。
 			    ここではサイドバー / 上部 pill / ページャーのみを重ねる。 */}
 
-			{/* サイドバー */}
+			{/* サイドバー (画面左端に貼り付け、モック準拠で不透明 bg-canvas-2) */}
 			<aside
-				className="u-surface"
 				style={{
 					position: "absolute",
-					left: 12,
-					top: 70,
-					bottom: 80,
+					left: 0,
+					top: 0,
+					bottom: 0,
 					width: SIDEBAR_WIDTH,
-					borderRadius: 12,
+					background: "var(--bg-canvas-2)",
+					borderRight: "1px solid var(--border-subtle)",
 					display: "flex",
 					flexDirection: "column",
 					pointerEvents: "auto",
@@ -181,10 +181,6 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 							index={i}
 							active={i === current}
 							onClick={() => nav.gotoIndex(i)}
-							onMoveUp={i > 0 ? () => moveSlide(store, commands, s.id, -1) : undefined}
-							onMoveDown={
-								i < slides.length - 1 ? () => moveSlide(store, commands, s.id, +1) : undefined
-							}
 						/>
 					))}
 					<button
@@ -381,11 +377,9 @@ interface ThumbProps {
 	index: number;
 	active: boolean;
 	onClick: () => void;
-	onMoveUp?: () => void;
-	onMoveDown?: () => void;
 }
 
-function SlideThumb({ slide, index, active, onClick, onMoveUp, onMoveDown }: ThumbProps) {
+function SlideThumb({ slide, index, active, onClick }: ThumbProps) {
 	const colorA = SLIDE_USER_COLORS[index % SLIDE_USER_COLORS.length];
 	const colorB = SLIDE_USER_COLORS[(index + 2) % SLIDE_USER_COLORS.length];
 	const title = getFrameLabel(slide);
@@ -448,46 +442,8 @@ function SlideThumb({ slide, index, active, onClick, onMoveUp, onMoveDown }: Thu
 					{title}
 				</div>
 			</button>
-			{(onMoveUp || onMoveDown) && (
-				<div style={{ display: "flex", gap: 4, padding: "0 6px 6px" }}>
-					<button
-						type="button"
-						disabled={!onMoveUp}
-						onClick={onMoveUp}
-						style={miniBtn(!onMoveUp)}
-						aria-label="スライドを前に移動"
-					>
-						↑
-					</button>
-					<button
-						type="button"
-						disabled={!onMoveDown}
-						onClick={onMoveDown}
-						style={miniBtn(!onMoveDown)}
-						aria-label="スライドを後に移動"
-					>
-						↓
-					</button>
-				</div>
-			)}
 		</div>
 	);
-}
-
-function miniBtn(disabled: boolean): React.CSSProperties {
-	return {
-		appearance: "none",
-		flex: 1,
-		border: "1px solid var(--border-subtle)",
-		background: "transparent",
-		color: "var(--fg-secondary)",
-		cursor: disabled ? "default" : "pointer",
-		opacity: disabled ? 0.3 : 1,
-		padding: "2px 0",
-		fontSize: 10,
-		borderRadius: 4,
-		fontFamily: "inherit",
-	};
 }
 
 function getFrameLabel(shape: ShapeData): string {
@@ -533,53 +489,6 @@ function addSlide(store: BoardStore, commands: CommandRegistry): void {
 		},
 		undo() {
 			store.deleteShape(id);
-		},
-	};
-	commands.execute(command);
-}
-
-function moveSlide(
-	store: BoardStore,
-	commands: CommandRegistry,
-	shapeId: string,
-	direction: -1 | 1,
-): void {
-	const slides = store.getShapesSorted().filter((s) => s.type === "frame");
-	const index = slides.findIndex((s) => s.id === shapeId);
-	if (index < 0) return;
-	const newIndex = index + direction;
-	if (newIndex < 0 || newIndex >= slides.length) return;
-	const current = slides[index];
-	if (!current || typeof current.zIndex !== "string") return;
-	let lower: string | null;
-	let upper: string | null;
-	if (direction === 1) {
-		const after = slides[newIndex];
-		const afterNext = slides[newIndex + 1];
-		if (!after || typeof after.zIndex !== "string") return;
-		lower = after.zIndex;
-		upper =
-			afterNext && typeof afterNext.zIndex === "string" && afterNext.id !== shapeId
-				? afterNext.zIndex
-				: null;
-	} else {
-		const before = slides[newIndex];
-		const beforePrev = slides[newIndex - 1];
-		if (!before || typeof before.zIndex !== "string") return;
-		lower =
-			beforePrev && typeof beforePrev.zIndex === "string" && beforePrev.id !== shapeId
-				? beforePrev.zIndex
-				: null;
-		upper = before.zIndex;
-	}
-	const nextKey = zIndexBetween(lower, upper);
-	const prevKey = current.zIndex;
-	const command: Command = {
-		execute() {
-			store.updateShape(shapeId, { zIndex: nextKey });
-		},
-		undo() {
-			store.updateShape(shapeId, { zIndex: prevKey });
 		},
 	};
 	commands.execute(command);

@@ -11,7 +11,8 @@
  */
 
 export const STAGE_SIDEBAR_WIDTH = 220;
-export const STAGE_SIDEBAR_MARGIN = 12;
+/** サイドバーは画面左端にぴったり貼り付ける (モックに合わせる) */
+export const STAGE_SIDEBAR_MARGIN = 0;
 export const STAGE_SIDEBAR_RESERVED = STAGE_SIDEBAR_WIDTH + STAGE_SIDEBAR_MARGIN * 2;
 export const STAGE_TOP_RESERVED = 64;
 export const STAGE_BOTTOM_RESERVED = 120;
