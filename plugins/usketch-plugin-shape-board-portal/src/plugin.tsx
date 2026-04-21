@@ -48,7 +48,7 @@ function renderContent(data: ShapeData) {
 				borderRadius: 16,
 				// モックの isPortal 背景: themeColor 20% × bg-input のグラデーション
 				background: `linear-gradient(135deg, color-mix(in oklab, ${accentColor} 20%, var(--bg-input)), var(--bg-input))`,
-				border: `1.5px dashed color-mix(in oklab, ${accentColor} 40%, transparent)`,
+				border: `1.5px solid color-mix(in oklab, ${accentColor} 40%, transparent)`,
 				padding: 14,
 				display: "flex",
 				flexDirection: "column",
