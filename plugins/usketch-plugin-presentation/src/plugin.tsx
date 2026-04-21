@@ -5,9 +5,9 @@ import type {
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { useEffect, useState } from "react";
+import { PresentEditOverlay } from "./present-edit-overlay.js";
 import { PresentModeOverlay } from "./present-mode-overlay.js";
 import { SlideNavigator } from "./slide-navigator.js";
-import { SlideOutlinePanel } from "./slide-outline-panel.js";
 
 /** "off" = プレゼン UI 非表示（通常のホワイトボード扱い） */
 export type PresentationMode = "off" | "edit" | "present";
@@ -197,12 +197,12 @@ function PresentationLayer({
 	void setMode;
 	if (mode === "off") return null;
 	if (mode === "present") return <PresentModeOverlay nav={nav} />;
+	void renderCtx;
 	return (
-		<SlideOutlinePanel
+		<PresentEditOverlay
 			nav={nav}
 			store={store}
 			commands={commands}
-			renderCtx={renderCtx}
 			navigateToBoard={navigateToBoard}
 		/>
 	);

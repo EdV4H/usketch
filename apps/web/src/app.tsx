@@ -49,6 +49,7 @@ import { useLocation, useNavigate, useParams } from "react-router";
 import {
 	BoardIdentity,
 	CommunityLink,
+	CopilotPill,
 	TopRightCluster,
 	ZoomControls,
 } from "./components/board-frame/index.js";
@@ -284,10 +285,9 @@ export function App() {
 			.then((r) => (r.ok ? r.json() : null))
 			.then((b) => {
 				if (cancelled) return;
+				const t = b as { title?: unknown; name?: unknown } | null;
 				const name =
-					b && typeof (b as { name?: unknown }).name === "string"
-						? (b as { name: string }).name
-						: null;
+					typeof t?.title === "string" ? t.title : typeof t?.name === "string" ? t.name : null;
 				setBoardName(name);
 			})
 			.catch(() => {});
@@ -402,7 +402,12 @@ export function App() {
 							isCloudBoard={isCloudBoard}
 							connectionStatus={wsStatus ?? undefined}
 						/>
-						<TopRightCluster boardId={boardId} isCloudBoard={isCloudBoard} />
+						<TopRightCluster
+							boardId={boardId}
+							isCloudBoard={isCloudBoard}
+							wsProvider={wsProviderRef.current}
+							connectionStatus={wsStatus ?? undefined}
+						/>
 						<Toolbar
 							boardId={boardId}
 							isCloudBoard={isCloudBoard}
@@ -412,6 +417,7 @@ export function App() {
 						<ZoomControls />
 						<CommunityLink />
 						{isCloudBoard && <SidePanelToggles app={app} />}
+						{isCloudBoard && <CopilotPill onOpenCommandPalette={openPalette} />}
 					</>
 				)}
 				<CommandPalette

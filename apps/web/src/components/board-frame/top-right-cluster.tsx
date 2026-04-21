@@ -1,15 +1,29 @@
+import type { WsConnectionStatus } from "@edv4h/usketch-sync";
 import { useState } from "react";
 import { ShareDialog } from "../share-dialog.js";
 import { ExportMenu } from "../toolbar/export-menu.js";
-import { I } from "../ui/index.js";
+import { I, IconBtn } from "../ui/index.js";
+import { PresencePill } from "./presence-pill.js";
+
+type WsProvider = {
+	awareness: {
+		getStates: () => Map<number, Record<string, unknown>>;
+		doc: { clientID: number };
+	};
+};
 
 interface Props {
 	boardId?: string;
 	isCloudBoard: boolean;
+	wsProvider?: WsProvider | null;
+	connectionStatus?: WsConnectionStatus;
 }
 
-/** 画面右上: Share CTA + エクスポート。Cloud ボード時のみ Share ボタンが出る。 */
-export function TopRightCluster({ boardId, isCloudBoard }: Props) {
+/**
+ * 画面右上: Presence pill + Share CTA + エクスポート/通知/オーバーフロー。
+ * Cloud ボード時のみ Presence pill と Share ボタンが出る。
+ */
+export function TopRightCluster({ boardId, isCloudBoard, wsProvider, connectionStatus }: Props) {
 	const [showShare, setShowShare] = useState(false);
 
 	return (
@@ -25,6 +39,9 @@ export function TopRightCluster({ boardId, isCloudBoard }: Props) {
 					alignItems: "center",
 				}}
 			>
+				{isCloudBoard && wsProvider && (
+					<PresencePill wsProvider={wsProvider} connectionStatus={connectionStatus} />
+				)}
 				{isCloudBoard && boardId && (
 					<button
 						type="button"
@@ -49,7 +66,23 @@ export function TopRightCluster({ boardId, isCloudBoard }: Props) {
 						共有
 					</button>
 				)}
-				<ExportMenu isCloudBoard={isCloudBoard} boardId={boardId} />
+				<div
+					className="u-surface"
+					style={{
+						display: "inline-flex",
+						padding: 3,
+						borderRadius: 10,
+						gap: 1,
+					}}
+				>
+					<ExportMenu isCloudBoard={isCloudBoard} boardId={boardId} />
+					{isCloudBoard && (
+						<>
+							<IconBtn icon={I.bell} label="通知" onClick={() => {}} />
+							<IconBtn icon={I.more} label="その他" onClick={() => {}} />
+						</>
+					)}
+				</div>
 			</div>
 			{showShare && boardId && (
 				<ShareDialog boardId={boardId} onClose={() => setShowShare(false)} />
