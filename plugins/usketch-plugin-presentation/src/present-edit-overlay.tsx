@@ -134,6 +134,24 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 				fontFamily: "var(--font-sans, system-ui)",
 			}}
 		>
+			{/* ステージ枠: Canvas を violet のリング + 外側オーラで囲む。
+			    内側は塗らず Canvas を透過。outline + box-shadow のみで構成。 */}
+			<div
+				style={{
+					position: "absolute",
+					left: stage.left,
+					top: stage.top,
+					width: stage.width,
+					height: stage.height,
+					borderRadius: 8,
+					pointerEvents: "none",
+					outline: "2.5px solid var(--brand-violet)",
+					outlineOffset: 2,
+					boxShadow:
+						"0 0 0 6px color-mix(in oklab, var(--brand-violet) 18%, transparent), 0 20px 60px rgba(139,92,246,.35), 0 0 80px rgba(236,72,153,.2)",
+				}}
+			/>
+
 			{/* サイドバー */}
 			<aside
 				className="u-surface"
