@@ -50,6 +50,13 @@ function renderChatPin(data: ShapeData) {
 	const accentColor = `hsl(${hue}, 70%, 60%)`;
 	const softColor = `hsl(${hue}, 70%, 85%)`;
 
+	// tail を含めるため、外側ラッパーは overflow: visible で、
+	// 内部の pill だけに overflow: hidden をかける。
+	// tail は pill の下辺から張り出す SVG で描画し、pill 背景と border を一筆で継承する。
+	const TAIL_W = 14;
+	const TAIL_H = 8;
+	const TAIL_OFFSET_LEFT = 24; // アバター中心の少し右下から生やす
+
 	return (
 		<div
 			style={{
@@ -59,104 +66,146 @@ function renderChatPin(data: ShapeData) {
 				pointerEvents: "none",
 				userSelect: "none",
 				boxSizing: "border-box",
-				display: "flex",
-				alignItems: "center",
-				gap: 10,
-				padding: "8px 14px 8px 8px",
-				background: "var(--bg-surface-raised)",
-				border: `1.5px solid ${accentColor}`,
-				borderRadius: 99,
-				boxShadow: `0 6px 16px color-mix(in oklab, ${accentColor} 28%, transparent)`,
-				backdropFilter: "blur(20px) saturate(1.4)",
-				WebkitBackdropFilter: "blur(20px) saturate(1.4)",
 				fontFamily: "var(--font-sans, system-ui, sans-serif)",
-				overflow: "hidden",
+				filter: `drop-shadow(0 6px 14px color-mix(in oklab, ${accentColor} 28%, transparent))`,
 			}}
 		>
-			{/* アバター (comment icon) */}
+			{/* pill 本体 */}
 			<div
 				style={{
-					width: 32,
-					height: 32,
-					borderRadius: 99,
-					flexShrink: 0,
-					background: `linear-gradient(135deg, ${accentColor}, ${softColor})`,
+					position: "absolute",
+					inset: 0,
 					display: "flex",
 					alignItems: "center",
-					justifyContent: "center",
-					position: "relative",
+					gap: 10,
+					padding: "8px 14px 8px 8px",
+					background: "var(--bg-surface-raised)",
+					border: `1.5px solid ${accentColor}`,
+					borderRadius: 99,
+					backdropFilter: "blur(20px) saturate(1.4)",
+					WebkitBackdropFilter: "blur(20px) saturate(1.4)",
+					overflow: "hidden",
+					boxSizing: "border-box",
 				}}
 			>
-				<svg
-					width="14"
-					height="14"
-					viewBox="0 0 16 16"
-					fill="none"
-					stroke="white"
-					strokeWidth="1.8"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					aria-hidden="true"
-				>
-					<path d="M2.5 7.5c0-2.8 2.5-5 5.5-5s5.5 2.2 5.5 5-2.5 5-5.5 5c-.7 0-1.4-.1-2-.3L3 13.5l.8-2.4a4.8 4.8 0 0 1-1.3-3.6Z" />
-				</svg>
-				{unread > 0 && (
-					<div
-						style={{
-							position: "absolute",
-							top: -3,
-							right: -3,
-							minWidth: 16,
-							height: 16,
-							padding: "0 4px",
-							borderRadius: 99,
-							background: "var(--danger)",
-							color: "white",
-							fontSize: 9.5,
-							fontWeight: 700,
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							border: "2px solid var(--bg-canvas)",
-						}}
-					>
-						{unread > 99 ? "99+" : unread}
-					</div>
-				)}
-			</div>
-
-			{/* タイトル + 最終メッセージ */}
-			<div style={{ minWidth: 0, lineHeight: 1.25, flex: 1 }}>
+				{/* アバター (comment icon) */}
 				<div
 					style={{
-						fontSize: 12,
-						fontWeight: 600,
-						color: "var(--fg-primary)",
-						whiteSpace: "nowrap",
-						overflow: "hidden",
-						textOverflow: "ellipsis",
+						width: 32,
+						height: 32,
+						borderRadius: 99,
+						flexShrink: 0,
+						background: `linear-gradient(135deg, ${accentColor}, ${softColor})`,
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						position: "relative",
 					}}
-					title={label}
 				>
-					{label}
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="white"
+						strokeWidth="1.8"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M2.5 7.5c0-2.8 2.5-5 5.5-5s5.5 2.2 5.5 5-2.5 5-5.5 5c-.7 0-1.4-.1-2-.3L3 13.5l.8-2.4a4.8 4.8 0 0 1-1.3-3.6Z" />
+					</svg>
+					{unread > 0 && (
+						<div
+							style={{
+								position: "absolute",
+								top: -3,
+								right: -3,
+								minWidth: 16,
+								height: 16,
+								padding: "0 4px",
+								borderRadius: 99,
+								background: "var(--danger)",
+								color: "white",
+								fontSize: 9.5,
+								fontWeight: 700,
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								border: "2px solid var(--bg-canvas)",
+							}}
+						>
+							{unread > 99 ? "99+" : unread}
+						</div>
+					)}
 				</div>
-				{lastMessage && (
+
+				{/* タイトル + 最終メッセージ */}
+				<div style={{ minWidth: 0, lineHeight: 1.25, flex: 1 }}>
 					<div
 						style={{
-							fontSize: 10.5,
-							color: "var(--fg-tertiary)",
+							fontSize: 12,
+							fontWeight: 600,
+							color: "var(--fg-primary)",
 							whiteSpace: "nowrap",
 							overflow: "hidden",
 							textOverflow: "ellipsis",
 						}}
+						title={label}
 					>
-						{lastAuthor && (
-							<span style={{ color: accentColor, fontWeight: 500 }}>{lastAuthor}: </span>
-						)}
-						{lastMessage}
+						{label}
 					</div>
-				)}
+					{lastMessage && (
+						<div
+							style={{
+								fontSize: 10.5,
+								color: "var(--fg-tertiary)",
+								whiteSpace: "nowrap",
+								overflow: "hidden",
+								textOverflow: "ellipsis",
+							}}
+						>
+							{lastAuthor && (
+								<span style={{ color: accentColor, fontWeight: 500 }}>{lastAuthor}: </span>
+							)}
+							{lastMessage}
+						</div>
+					)}
+				</div>
 			</div>
+
+			{/* tail — pill の下辺に張り出す三角 (SVG) */}
+			<svg
+				aria-hidden="true"
+				width={TAIL_W}
+				height={TAIL_H + 2}
+				viewBox={`0 0 ${TAIL_W} ${TAIL_H + 2}`}
+				style={{
+					position: "absolute",
+					left: TAIL_OFFSET_LEFT,
+					// pill の下端線にちょうど重ねる。pill の border 1.5px の外側に出すため少し上から。
+					bottom: -(TAIL_H + 1),
+					pointerEvents: "none",
+				}}
+			>
+				{/* pill の border と同色のアウトライン三角 (下向き ▼) */}
+				<path
+					d={`M0 0 L${TAIL_W} 0 L${TAIL_W / 2} ${TAIL_H} Z`}
+					fill="var(--bg-surface-raised)"
+					stroke={accentColor}
+					strokeWidth="1.5"
+					strokeLinejoin="round"
+				/>
+				{/* pill の底辺 border と tail の上端を重ねて、接地部分の 2 重線を隠す */}
+				<line
+					x1="1"
+					y1="0"
+					x2={TAIL_W - 1}
+					y2="0"
+					stroke="var(--bg-surface-raised)"
+					strokeWidth="2"
+				/>
+			</svg>
 		</div>
 	);
 }
