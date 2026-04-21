@@ -4,10 +4,11 @@ import { useEffect } from "react";
 /**
  * ツールショートカットとキーボードショートカットのハンドリングを統一するhook。
  * app.tsx と community.tsx で共通利用。
+ * `disabled=true` でショートカット全般を停止 (例: 発表モード中)。
  */
-export function useKeyboardShortcuts(app: AppInstance | null) {
+export function useKeyboardShortcuts(app: AppInstance | null, disabled = false) {
 	useEffect(() => {
-		if (!app) return;
+		if (!app || disabled) return;
 
 		const handleKeyDown = (e: KeyboardEvent) => {
 			const tag = (e.target as HTMLElement)?.tagName;
@@ -43,5 +44,5 @@ export function useKeyboardShortcuts(app: AppInstance | null) {
 
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [app]);
+	}, [app, disabled]);
 }

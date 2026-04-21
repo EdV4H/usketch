@@ -215,27 +215,29 @@ export function App() {
 			extraPlugins.push(createAiRecognizePlugin({ boardId }));
 			extraPlugins.push(createWhistlePlugin(wsProvider));
 			extraPlugins.push(createActivityFeedPlugin({ wsProvider, boardId, apiUrl }));
-
-			// プレゼンテーション: 常にロードし、`?present=1` が付いた時だけ UI を出す。
-			// ルート切替せず URL クエリで切替える設計なので、アプリ再生成は起きない。
-			extraPlugins.push(
-				createPresentationPlugin({
-					getMode: () => modeRef.current,
-					navigateToBoard: () => {
-						if (boardId) navigate(`/boards/${boardId}`);
-					},
-					getViewportSize: () => {
-						const stage = stageRectRef.current;
-						if (stage) return { width: stage.width, height: stage.height };
-						return { width: window.innerWidth, height: window.innerHeight };
-					},
-				}),
-			);
 		} else {
 			extraPlugins.push(laserPlugin);
 			extraPlugins.push(spotlightPlugin);
 			extraPlugins.push(whistlePlugin);
 		}
+
+		// プレゼンテーション: ローカル/Cloud 共通で常にロードし、`?present=1` が付いた時だけ UI を出す。
+		// ルート切替せず URL クエリで切替える設計なので、アプリ再生成は起きない。
+		extraPlugins.push(
+			createPresentationPlugin({
+				getMode: () => modeRef.current,
+				navigateToBoard: () => {
+					if (boardId) {
+						navigate(isCloudBoard ? `/boards/${boardId}` : `/local/${boardId}`);
+					}
+				},
+				getViewportSize: () => {
+					const stage = stageRectRef.current;
+					if (stage) return { width: stage.width, height: stage.height };
+					return { width: window.innerWidth, height: window.innerHeight };
+				},
+			}),
+		);
 
 		syncHandle.whenSynced
 			.then(() => {
@@ -353,7 +355,7 @@ export function App() {
 	}, [authUserId, authUserName]);
 
 	// キーボードショートカット
-	useKeyboardShortcuts(app);
+	useKeyboardShortcuts(app, presentationMode === "present");
 
 	// Info タブを SidePanel に登録（Cloud ボードのみ）
 	useEffect(() => {
@@ -421,6 +423,8 @@ export function App() {
 	const hideToolbar = presentationMode === "present";
 	// プレゼン編集モード中はスライド編集に関係ない UI を隠す
 	const isPresentEdit = presentationMode === "edit";
+	// 発表中は Canvas を readonly (シェイプ選択/ドラッグ/描画を全てオフ)
+	const isPresenting = presentationMode === "present";
 
 	return (
 		<AppProvider app={app}>
@@ -458,6 +462,8 @@ export function App() {
 							: {
 									position: "absolute",
 									inset: 0,
+									// 発表モード中は Canvas への全入力をブロックして readonly 化
+									pointerEvents: isPresenting ? "none" : undefined,
 								}
 					}
 				>
