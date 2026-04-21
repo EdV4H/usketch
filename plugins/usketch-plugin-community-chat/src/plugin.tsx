@@ -23,42 +23,32 @@ export interface CommunityChatOptions {
 }
 
 // ── ピン定数 ──
-
-const PIN_W = 64;
-const PIN_H = 80;
+// モックの ChatThreadPin (expanded 状態) 相当: 横長の pill 型
+const PIN_W = 280;
+const PIN_H = 60;
 const ASPECT = PIN_H / PIN_W;
-const MIN_W = 40;
-const PIN_HUE = 200;
+const MIN_W = 180;
+
+// threadId をハッシュしてアバター色を決める
+const THREAD_HUES = [265, 330, 195, 150, 20, 210, 0, 175, 240, 35];
+function threadHue(id: string): number {
+	let hash = 0;
+	for (let i = 0; i < id.length; i++) {
+		hash = (hash * 31 + id.charCodeAt(i)) | 0;
+	}
+	return THREAD_HUES[Math.abs(hash) % THREAD_HUES.length] ?? 265;
+}
 
 // ── ピン描画 ──
 
-function pinPath(cx: number, cy: number, r: number, tipY: number): string {
-	const angle = Math.PI / 5;
-	const sinA = Math.sin(angle);
-	const cosA = Math.cos(angle);
-	const tx = cx + r * sinA;
-	const ty = cy + r * cosA;
-	const lx = cx - r * sinA;
-	const ly = ty;
-	return [`M${cx} ${tipY}`, `L${tx} ${ty}`, `A${r} ${r} 0 1 0 ${lx} ${ly}`, "Z"].join(" ");
-}
-
 function renderChatPin(data: ShapeData) {
 	const label = (data.chatLabel as string) || "Chat";
-	const w = data.width;
-	const h = data.height;
-
-	const labelH = h * 0.25;
-	const pinH = h - labelH;
-	const r = w * 0.4;
-	const cx = w / 2;
-	const cy = h * 0.02 + r;
-	const tipY = pinH - h * 0.01;
-
-	const uid = `chat-pin-${data.id}`;
-	const lightColor = `hsl(${PIN_HUE}, 70%, 68%)`;
-	const darkColor = `hsl(${PIN_HUE}, 60%, 38%)`;
-	const iconColor = `hsl(${PIN_HUE}, 55%, 45%)`;
+	const lastMessage = (data.lastMessage as string) || "";
+	const lastAuthor = (data.lastAuthor as string) || "";
+	const unread = Number(data.unread ?? 0);
+	const hue = threadHue((data.threadId as string) || data.id);
+	const accentColor = `hsl(${hue}, 70%, 60%)`;
+	const softColor = `hsl(${hue}, 70%, 85%)`;
 
 	return (
 		<div
@@ -68,93 +58,121 @@ function renderChatPin(data: ShapeData) {
 				position: "relative",
 				pointerEvents: "none",
 				userSelect: "none",
+				boxSizing: "border-box",
+				display: "flex",
+				alignItems: "center",
+				gap: 10,
+				padding: "8px 14px 8px 8px",
+				background: "var(--bg-surface-raised)",
+				border: `1.5px solid ${accentColor}`,
+				borderRadius: 99,
+				boxShadow: `0 6px 16px color-mix(in oklab, ${accentColor} 28%, transparent)`,
+				backdropFilter: "blur(20px) saturate(1.4)",
+				WebkitBackdropFilter: "blur(20px) saturate(1.4)",
+				fontFamily: "var(--font-sans, system-ui, sans-serif)",
 				overflow: "hidden",
 			}}
 		>
-			<svg
-				width={w}
-				height={pinH}
-				viewBox={`0 0 ${w} ${pinH}`}
-				style={{ position: "absolute", top: 0, left: 0 }}
-			>
-				<title>{label}</title>
-				<defs>
-					<linearGradient id={`${uid}-grad`} x1="0" y1="0" x2="0.3" y2="1">
-						<stop offset="0%" stopColor={lightColor} />
-						<stop offset="100%" stopColor={darkColor} />
-					</linearGradient>
-					<radialGradient id={`${uid}-hl`} cx="0.4" cy="0.35" r="0.6">
-						<stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
-						<stop offset="100%" stopColor="rgba(255,255,255,0)" />
-					</radialGradient>
-				</defs>
-				<ellipse cx={cx} cy={tipY + 1} rx={r * 0.3} ry={2} fill="rgba(0,0,0,0.1)" />
-				<path d={pinPath(cx, cy, r, tipY)} fill={`url(#${uid}-grad)`} />
-				<circle cx={cx} cy={cy} r={r} fill={`url(#${uid}-hl)`} />
-				<circle cx={cx} cy={cy} r={r * 0.58} fill="#fff" />
-				<g transform={`translate(${cx - r * 0.32}, ${cy - r * 0.3}) scale(${(r * 0.64) / 20})`}>
-					<path
-						d="M4 3h12a2 2 0 012 2v7a2 2 0 01-2 2H8l-4 3v-3H4a2 2 0 01-2-2V5a2 2 0 012-2z"
-						fill="none"
-						stroke={iconColor}
-						strokeWidth="1.8"
-						strokeLinejoin="round"
-					/>
-					<line
-						x1="7"
-						y1="7"
-						x2="13"
-						y2="7"
-						stroke={iconColor}
-						strokeWidth="1.4"
-						strokeLinecap="round"
-					/>
-					<line
-						x1="7"
-						y1="10"
-						x2="11"
-						y2="10"
-						stroke={iconColor}
-						strokeWidth="1.4"
-						strokeLinecap="round"
-					/>
-				</g>
-				<circle cx={cx - r * 0.28} cy={cy - r * 0.28} r={r * 0.08} fill="rgba(255,255,255,0.5)" />
-			</svg>
+			{/* アバター (comment icon) */}
 			<div
 				style={{
-					position: "absolute",
-					bottom: 0,
-					left: 0,
-					width: w,
-					height: labelH,
+					width: 32,
+					height: 32,
+					borderRadius: 99,
+					flexShrink: 0,
+					background: `linear-gradient(135deg, ${accentColor}, ${softColor})`,
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
+					position: "relative",
 				}}
 			>
-				<span
+				<svg
+					width="14"
+					height="14"
+					viewBox="0 0 16 16"
+					fill="none"
+					stroke="white"
+					strokeWidth="1.8"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M2.5 7.5c0-2.8 2.5-5 5.5-5s5.5 2.2 5.5 5-2.5 5-5.5 5c-.7 0-1.4-.1-2-.3L3 13.5l.8-2.4a4.8 4.8 0 0 1-1.3-3.6Z" />
+				</svg>
+				{unread > 0 && (
+					<div
+						style={{
+							position: "absolute",
+							top: -3,
+							right: -3,
+							minWidth: 16,
+							height: 16,
+							padding: "0 4px",
+							borderRadius: 99,
+							background: "var(--danger)",
+							color: "white",
+							fontSize: 9.5,
+							fontWeight: 700,
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							border: "2px solid var(--bg-canvas)",
+						}}
+					>
+						{unread > 99 ? "99+" : unread}
+					</div>
+				)}
+			</div>
+
+			{/* タイトル + 最終メッセージ */}
+			<div style={{ minWidth: 0, lineHeight: 1.25, flex: 1 }}>
+				<div
 					style={{
-						fontSize: Math.max(9, Math.min(13, h * 0.11)),
+						fontSize: 12,
 						fontWeight: 600,
-						color: "#334155",
-						fontFamily: "system-ui, sans-serif",
-						background: "rgba(255,255,255,0.88)",
-						padding: "2px 6px",
-						borderRadius: 8,
-						maxWidth: "100%",
+						color: "var(--fg-primary)",
+						whiteSpace: "nowrap",
 						overflow: "hidden",
-						display: "-webkit-box",
-						WebkitLineClamp: 2,
-						WebkitBoxOrient: "vertical",
-						textAlign: "center",
-						lineHeight: 1.25,
-						wordBreak: "break-word",
+						textOverflow: "ellipsis",
 					}}
+					title={label}
 				>
 					{label}
-				</span>
+				</div>
+				{lastMessage && (
+					<div
+						style={{
+							fontSize: 10.5,
+							color: "var(--fg-tertiary)",
+							whiteSpace: "nowrap",
+							overflow: "hidden",
+							textOverflow: "ellipsis",
+						}}
+					>
+						{lastAuthor && (
+							<span style={{ color: accentColor, fontWeight: 500 }}>{lastAuthor}: </span>
+						)}
+						{lastMessage}
+					</div>
+				)}
 			</div>
+
+			{/* pin tail — 下に小さな三角 */}
+			<div
+				aria-hidden="true"
+				style={{
+					position: "absolute",
+					bottom: -5,
+					left: 20,
+					width: 8,
+					height: 8,
+					background: "var(--bg-surface-raised)",
+					borderRight: `1.5px solid ${accentColor}`,
+					borderBottom: `1.5px solid ${accentColor}`,
+					transform: "rotate(45deg)",
+				}}
+			/>
 		</div>
 	);
 }
@@ -243,9 +261,10 @@ function createDefault(params: { id: string; x: number; y: number }): ShapeData 
 		y: params.y,
 		width: PIN_W,
 		height: PIN_H,
-		style: { ...DEFAULT_STYLE, fill: "#ffffff", stroke: "#e2e8f0" },
+		style: { ...DEFAULT_STYLE, fill: "transparent", stroke: "transparent", strokeWidth: 0 },
 		chatLabel: "Chat",
 		threadId: generateId(),
+		unread: 0,
 	};
 }
 
