@@ -47,18 +47,18 @@ export function SlideOutlinePanel({
 
 	return (
 		<div
+			className="u-surface u-anim-in"
 			style={{
 				position: "fixed",
 				top: 80,
 				left: 8,
-				width: 140,
+				width: 160,
 				maxHeight: "calc(100vh - 120px)",
 				overflowY: "auto",
-				background: "rgba(20,20,24,0.85)",
-				color: "white",
-				borderRadius: 8,
-				padding: 8,
-				font: "12px system-ui",
+				color: "var(--fg-primary)",
+				borderRadius: 12,
+				padding: 10,
+				font: "12px var(--font-sans, system-ui)",
 				pointerEvents: "auto",
 				zIndex: 100,
 				display: "flex",
@@ -72,13 +72,14 @@ export function SlideOutlinePanel({
 					onClick={exitToBoard}
 					style={{
 						appearance: "none",
-						border: "1px solid rgba(255,255,255,0.3)",
+						border: "1px solid var(--border-default)",
 						background: "transparent",
-						color: "white",
+						color: "var(--fg-secondary)",
 						cursor: "pointer",
-						padding: "2px 6px",
-						borderRadius: 4,
+						padding: "3px 8px",
+						borderRadius: 5,
 						fontSize: 11,
+						fontFamily: "inherit",
 					}}
 					title="通常のホワイトボードに戻る"
 				>
@@ -90,14 +91,15 @@ export function SlideOutlinePanel({
 					disabled={slides.length === 0}
 					style={{
 						appearance: "none",
-						border: "1px solid rgba(255,255,255,0.3)",
-						background: "transparent",
-						color: "white",
+						border: "none",
+						background: slides.length === 0 ? "var(--bg-input)" : "var(--brand-gradient)",
+						color: slides.length === 0 ? "var(--fg-tertiary)" : "white",
 						cursor: slides.length === 0 ? "default" : "pointer",
-						opacity: slides.length === 0 ? 0.4 : 1,
-						padding: "2px 8px",
-						borderRadius: 4,
+						padding: "3px 10px",
+						borderRadius: 5,
 						fontSize: 11,
+						fontFamily: "inherit",
+						fontWeight: 600,
 					}}
 					title="発表モードに切替"
 					aria-label="発表モードに切替"
@@ -105,10 +107,21 @@ export function SlideOutlinePanel({
 					▶
 				</button>
 			</div>
-			<div style={{ fontWeight: 600, marginTop: 4 }}>スライド</div>
+			<div
+				style={{
+					fontSize: 10.5,
+					fontWeight: 600,
+					color: "var(--fg-tertiary)",
+					textTransform: "uppercase",
+					letterSpacing: 0.4,
+					marginTop: 4,
+				}}
+			>
+				スライド
+			</div>
 
 			{slides.length === 0 ? (
-				<div style={{ color: "rgba(255,255,255,0.5)", padding: "8px 0" }}>
+				<div style={{ color: "var(--fg-tertiary)", padding: "8px 0", fontSize: 11 }}>
 					Frame を追加するとスライドになります
 				</div>
 			) : (
@@ -144,10 +157,10 @@ function SlideThumbnail({ slide, label, active, onClick, onMoveUp, onMoveDown }:
 		<div
 			style={{
 				position: "relative",
-				border: active ? "2px solid #4f9dff" : "1px solid rgba(255,255,255,0.2)",
-				borderRadius: 4,
-				background: "rgba(255,255,255,0.05)",
-				padding: "4px 6px",
+				border: active ? "2px solid var(--brand-violet)" : "1px solid var(--border-subtle)",
+				borderRadius: 6,
+				background: active ? "var(--bg-active)" : "var(--bg-input)",
+				padding: "6px 8px",
 			}}
 		>
 			<button
@@ -157,7 +170,7 @@ function SlideThumbnail({ slide, label, active, onClick, onMoveUp, onMoveDown }:
 					appearance: "none",
 					background: "transparent",
 					border: "none",
-					color: "white",
+					color: "var(--fg-primary)",
 					cursor: "pointer",
 					width: "100%",
 					textAlign: "left",
@@ -165,7 +178,15 @@ function SlideThumbnail({ slide, label, active, onClick, onMoveUp, onMoveDown }:
 					font: "inherit",
 				}}
 			>
-				<div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>#{label}</div>
+				<div
+					style={{
+						fontSize: 10.5,
+						color: active ? "var(--brand-violet)" : "var(--fg-tertiary)",
+						fontWeight: 600,
+					}}
+				>
+					#{label}
+				</div>
 				<div
 					style={{
 						fontSize: 12,
@@ -218,14 +239,15 @@ function miniButtonStyle(disabled: boolean): React.CSSProperties {
 	return {
 		appearance: "none",
 		flex: 1,
-		border: "1px solid rgba(255,255,255,0.2)",
-		background: "rgba(255,255,255,0.05)",
-		color: "white",
+		border: "1px solid var(--border-subtle)",
+		background: "transparent",
+		color: "var(--fg-secondary)",
 		cursor: disabled ? "default" : "pointer",
 		opacity: disabled ? 0.3 : 1,
-		padding: "1px 0",
+		padding: "2px 0",
 		fontSize: 10,
-		borderRadius: 3,
+		borderRadius: 4,
+		fontFamily: "inherit",
 	};
 }
 

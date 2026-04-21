@@ -113,7 +113,7 @@ export function PresentModeOverlay({ nav }: Props) {
 					style={{
 						height: "100%",
 						width: `${progress * 100}%`,
-						background: "#4f9dff",
+						background: "var(--brand-gradient)",
 						transition: "width 0.3s",
 					}}
 				/>
