@@ -20,14 +20,6 @@ const TOP_BAR_HEIGHT = 64;
 const BOTTOM_RESERVED = 120;
 const SIDEBAR_RESERVED = SIDEBAR_WIDTH + SIDEBAR_LEFT_MARGIN * 2;
 const ASPECT = 9 / 16;
-const SLIDE_USER_COLORS = [
-	"var(--u-1)",
-	"var(--u-2)",
-	"var(--u-3)",
-	"var(--u-4)",
-	"var(--u-5)",
-	"var(--u-6)",
-];
 
 interface StageRect {
 	left: number;
@@ -406,8 +398,6 @@ const THUMB_H = 112; // 16:9
  * shape を minimap 矩形に畳んで SVG 化する。空スライドはグラデ背景にフォールバック。
  */
 function SlideThumb({ slide, index, active, onClick, store, storeRev }: ThumbProps) {
-	const colorA = SLIDE_USER_COLORS[index % SLIDE_USER_COLORS.length];
-	const colorB = SLIDE_USER_COLORS[(index + 2) % SLIDE_USER_COLORS.length];
 	const title = getFrameLabel(slide);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: storeRev 経由で shape mutation に追随する
@@ -468,7 +458,7 @@ function SlideThumb({ slide, index, active, onClick, store, storeRev }: ThumbPro
 					style={{
 						aspectRatio: "16 / 9",
 						position: "relative",
-						background: isEmpty ? `linear-gradient(135deg, ${colorA}, ${colorB})` : "#ffffff",
+						background: "#ffffff",
 						overflow: "hidden",
 					}}
 				>
@@ -504,9 +494,9 @@ function SlideThumb({ slide, index, active, onClick, store, storeRev }: ThumbPro
 							left: 6,
 							top: 4,
 							fontSize: 9,
-							color: isEmpty ? "rgba(255,255,255,.7)" : "var(--fg-tertiary)",
+							color: "var(--fg-tertiary)",
 							fontFamily: "var(--font-mono, monospace)",
-							mixBlendMode: isEmpty ? "normal" : "multiply",
+							mixBlendMode: "multiply",
 						}}
 					>
 						{String(index + 1).padStart(2, "0")}
