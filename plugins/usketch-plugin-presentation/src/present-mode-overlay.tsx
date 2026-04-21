@@ -18,6 +18,22 @@ export function PresentModeOverlay({ nav }: Props) {
 		return unsub;
 	}, [nav]);
 
+	// 発表モードに入った直後は Canvas コンテナサイズが edit → 画面全体に切り替わる
+	// 途中でもあり得る。React のレイアウト確定 (double rAF) を待って先頭スライドに fit する。
+	useEffect(() => {
+		let raf1: number;
+		let raf2 = 0;
+		raf1 = requestAnimationFrame(() => {
+			raf2 = requestAnimationFrame(() => {
+				nav.first();
+			});
+		});
+		return () => {
+			cancelAnimationFrame(raf1);
+			if (raf2) cancelAnimationFrame(raf2);
+		};
+	}, [nav]);
+
 	useEffect(() => {
 		let timer: ReturnType<typeof setTimeout> | null = null;
 		const showAndSchedule = () => {

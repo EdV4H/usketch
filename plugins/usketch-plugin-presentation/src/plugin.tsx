@@ -129,18 +129,18 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 			window.addEventListener("keydown", onKeyDown);
 			unregisters.push(() => window.removeEventListener("keydown", onKeyDown));
 
-			// 発表モードに入ったら最初のスライドに寄せる。
+			// 発表モード突入時の初回 fit は PresentModeOverlay の useEffect (mount 後) に委ねる。
+			// plugin レイヤーで即座に fit すると、Canvas コンテナの縮退解除より前の
+			// 古いサイズで計算されてズームがずれる。ここではモード変化の購読だけ行い、
+			// navRef の fit は呼ばない。
 			let prevMode = getMode();
 			const syncOnModeChange = () => {
 				const current = getMode();
 				if (current !== prevMode) {
 					prevMode = current;
-					if (current === "present") navRef.first();
 				}
 			};
 			unregisters.push(subscribeMode(syncOnModeChange));
-			// 初期表示
-			if (prevMode === "present") navRef.first();
 
 			// レイヤー: mode に応じて edit (パネル) / present (オーバーレイ) を出し分ける。
 			// react 側で LayerRenderContext を経由して再 render されるので、子コンポーネント
