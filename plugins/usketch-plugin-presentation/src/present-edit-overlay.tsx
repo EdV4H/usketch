@@ -134,21 +134,6 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 				fontFamily: "var(--font-sans, system-ui)",
 			}}
 		>
-			{/* ステージ枠: Canvas がそのまま透けて見える。violet 枠で場所だけ示す。 */}
-			<div
-				style={{
-					position: "absolute",
-					left: stage.left - 1,
-					top: stage.top - 1,
-					width: stage.width + 2,
-					height: stage.height + 2,
-					borderRadius: 8,
-					border: "1.5px solid var(--brand-violet)",
-					boxShadow: "0 0 0 4px color-mix(in oklab, var(--brand-violet) 15%, transparent)",
-					pointerEvents: "none",
-				}}
-			/>
-
 			{/* サイドバー */}
 			<aside
 				className="u-surface"
