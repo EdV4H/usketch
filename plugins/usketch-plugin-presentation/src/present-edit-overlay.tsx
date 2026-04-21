@@ -1,6 +1,7 @@
 import type { BoardStore, Command, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
 import { zIndexBetween } from "@edv4h/usketch-shared";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { SlideNavigator } from "./slide-navigator.js";
 
 interface Props {
@@ -109,7 +110,11 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 
 	const total = slides.length;
 
-	return (
+	// Canvas layer として render されるが、apps/web 側で Canvas コンテナを
+	// プレゼン編集の stage 矩形に縮退させているため、Canvas 内に描画されると
+	// overlay 自体も縮小されてしまう。Portal で document.body 直下に逃がし、
+	// ウィンドウ全体を基準とした配置に保つ。
+	return createPortal(
 		<div
 			style={{
 				position: "fixed",
@@ -328,7 +333,8 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 					Frame を追加するとスライドになります
 				</div>
 			)}
-		</div>
+		</div>,
+		document.body,
 	);
 }
 

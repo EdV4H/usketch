@@ -431,6 +431,12 @@ export function App() {
 					background: "var(--bg-canvas-2, #0a0a0b)",
 				}}
 			>
+				{/*
+					エディタ全体 (Canvas + Toolbar + BoardIdentity 等) をひとつの div で包む。
+					プレゼン編集モード中は stage 矩形に縮め、外側を発表 UI が取り囲む形にする。
+					transform を当てると内側の position: fixed 要素の containing block が
+					この div になるため、Toolbar 等を書き換えずに相対化できる (CSS spec)。
+				*/}
 				<div
 					style={
 						stageRect
@@ -442,6 +448,7 @@ export function App() {
 									height: stageRect.height,
 									borderRadius: 8,
 									overflow: "hidden",
+									transform: "translate(0, 0)",
 									boxShadow:
 										"0 0 0 1.5px var(--brand-violet), 0 0 0 6px color-mix(in oklab, var(--brand-violet) 18%, transparent), 0 20px 60px rgba(139,92,246,.35), 0 0 80px rgba(236,72,153,.2)",
 									transition:
@@ -454,32 +461,33 @@ export function App() {
 					}
 				>
 					<Canvas />
+					{!hideToolbar && (
+						<>
+							<BoardIdentity
+								boardName={boardName ?? undefined}
+								isCloudBoard={isCloudBoard}
+								connectionStatus={wsStatus ?? undefined}
+							/>
+							<TopRightCluster
+								boardId={boardId}
+								isCloudBoard={isCloudBoard}
+								wsProvider={wsProviderRef.current}
+								connectionStatus={wsStatus ?? undefined}
+							/>
+							<Toolbar
+								boardId={boardId}
+								isCloudBoard={isCloudBoard}
+								wsProvider={wsProviderRef.current}
+								onOpenCommandPalette={openPalette}
+							/>
+							<ZoomControls />
+							<CommunityLink />
+							{isCloudBoard && <SidePanelToggles app={app} />}
+							{isCloudBoard && <CopilotPill onOpenCommandPalette={openPalette} />}
+						</>
+					)}
 				</div>
-				{!hideToolbar && (
-					<>
-						<BoardIdentity
-							boardName={boardName ?? undefined}
-							isCloudBoard={isCloudBoard}
-							connectionStatus={wsStatus ?? undefined}
-						/>
-						<TopRightCluster
-							boardId={boardId}
-							isCloudBoard={isCloudBoard}
-							wsProvider={wsProviderRef.current}
-							connectionStatus={wsStatus ?? undefined}
-						/>
-						<Toolbar
-							boardId={boardId}
-							isCloudBoard={isCloudBoard}
-							wsProvider={wsProviderRef.current}
-							onOpenCommandPalette={openPalette}
-						/>
-						<ZoomControls />
-						<CommunityLink />
-						{isCloudBoard && <SidePanelToggles app={app} />}
-						{isCloudBoard && <CopilotPill onOpenCommandPalette={openPalette} />}
-					</>
-				)}
+				{/* 閉じタグ: エディタ全体ラッパーの終わり */}
 				<CommandPalette
 					open={paletteOpen}
 					onClose={() => setPaletteOpen(false)}
