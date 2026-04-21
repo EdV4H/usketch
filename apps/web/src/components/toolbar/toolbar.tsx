@@ -20,6 +20,8 @@ interface Props {
 		};
 	} | null;
 	onOpenCommandPalette: () => void;
+	/** プレゼン編集モード中は Cloud 限定ボタン群 (Copilot / Voice / Present / StatusBar) を隠す */
+	compact?: boolean;
 }
 
 /**
@@ -29,7 +31,13 @@ interface Props {
  * - 右: Cloud 専用（Copilot / Voice / Present）
  * - 上付き pill: Cmd+K ハンドル
  */
-export function Toolbar({ boardId, isCloudBoard, wsProvider, onOpenCommandPalette }: Props) {
+export function Toolbar({
+	boardId,
+	isCloudBoard,
+	wsProvider,
+	onOpenCommandPalette,
+	compact,
+}: Props) {
 	const app = useApp();
 	const activeToolId = useStoreSubscribe(app.store, (s) => s.getActiveToolId());
 	const tools = app.tools.getOrdered();
@@ -81,7 +89,7 @@ export function Toolbar({ boardId, isCloudBoard, wsProvider, onOpenCommandPalett
 					<ThemeToggle />
 				</div>
 
-				{isCloudBoard && (
+				{isCloudBoard && !compact && (
 					<>
 						<Divider vertical />
 						<CopilotToggle />
@@ -106,7 +114,7 @@ export function Toolbar({ boardId, isCloudBoard, wsProvider, onOpenCommandPalett
 				/>
 			</div>
 
-			{isCloudBoard && wsProvider && <StatusBar wsProvider={wsProvider} />}
+			{isCloudBoard && wsProvider && !compact && <StatusBar wsProvider={wsProvider} />}
 
 			<StylePanel />
 		</>

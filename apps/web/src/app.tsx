@@ -419,6 +419,8 @@ export function App() {
 
 	// 発表モード中だけ通常のツールバーを隠す（presentation overlay のみ表示）
 	const hideToolbar = presentationMode === "present";
+	// プレゼン編集モード中はスライド編集に関係ない UI を隠す
+	const isPresentEdit = presentationMode === "edit";
 
 	return (
 		<AppProvider app={app}>
@@ -467,22 +469,25 @@ export function App() {
 								isCloudBoard={isCloudBoard}
 								connectionStatus={wsStatus ?? undefined}
 							/>
-							<TopRightCluster
-								boardId={boardId}
-								isCloudBoard={isCloudBoard}
-								wsProvider={wsProviderRef.current}
-								connectionStatus={wsStatus ?? undefined}
-							/>
+							{!isPresentEdit && (
+								<TopRightCluster
+									boardId={boardId}
+									isCloudBoard={isCloudBoard}
+									wsProvider={wsProviderRef.current}
+									connectionStatus={wsStatus ?? undefined}
+								/>
+							)}
 							<Toolbar
 								boardId={boardId}
 								isCloudBoard={isCloudBoard}
 								wsProvider={wsProviderRef.current}
 								onOpenCommandPalette={openPalette}
+								compact={isPresentEdit}
 							/>
-							<ZoomControls />
-							<CommunityLink />
-							{isCloudBoard && <SidePanelToggles app={app} />}
-							{isCloudBoard && <CopilotPill onOpenCommandPalette={openPalette} />}
+							{!isPresentEdit && <ZoomControls />}
+							{!isPresentEdit && <CommunityLink />}
+							{isCloudBoard && !isPresentEdit && <SidePanelToggles app={app} />}
+							{isCloudBoard && !isPresentEdit && <CopilotPill onOpenCommandPalette={openPalette} />}
 						</>
 					)}
 				</div>
