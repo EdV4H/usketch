@@ -106,7 +106,15 @@ export function ChatTab({ client, wsProvider, userId, userName, threadId }: Chat
 	}, [input, isSending, client, threadId, userName, wsProvider, scrollToBottom]);
 
 	return (
-		<div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 300 }}>
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "column",
+				height: "100%",
+				minHeight: 300,
+				color: "var(--fg-primary)",
+			}}
+		>
 			{/* メッセージ一覧 */}
 			<div
 				ref={scrollRef}
@@ -114,13 +122,27 @@ export function ChatTab({ client, wsProvider, userId, userName, threadId }: Chat
 				style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}
 			>
 				{isLoadingMore && (
-					<div style={{ textAlign: "center", color: "#999", fontSize: 12, padding: "8px 0" }}>
-						Loading...
+					<div
+						style={{
+							textAlign: "center",
+							color: "var(--fg-tertiary)",
+							fontSize: 12,
+							padding: "8px 0",
+						}}
+					>
+						読み込み中…
 					</div>
 				)}
 				{messages.length === 0 && !isInitialLoad.current && (
-					<div style={{ textAlign: "center", color: "#999", fontSize: 13, padding: "24px 0" }}>
-						No messages yet. Start the conversation!
+					<div
+						style={{
+							textAlign: "center",
+							color: "var(--fg-tertiary)",
+							fontSize: 13,
+							padding: "24px 0",
+						}}
+					>
+						まだメッセージはありません。会話を始めましょう。
 					</div>
 				)}
 				{messages.map((msg) => {
@@ -136,7 +158,14 @@ export function ChatTab({ client, wsProvider, userId, userName, threadId }: Chat
 							}}
 						>
 							{!isOwn && (
-								<div style={{ fontSize: 11, color: "#888", marginBottom: 2, padding: "0 4px" }}>
+								<div
+									style={{
+										fontSize: 11,
+										color: "var(--fg-tertiary)",
+										marginBottom: 2,
+										padding: "0 4px",
+									}}
+								>
 									{msg.authorName}
 								</div>
 							)}
@@ -145,8 +174,8 @@ export function ChatTab({ client, wsProvider, userId, userName, threadId }: Chat
 									maxWidth: "85%",
 									padding: "8px 12px",
 									borderRadius: isOwn ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
-									background: isOwn ? "#1e1e1e" : "#f0f0f0",
-									color: isOwn ? "#fff" : "#333",
+									background: isOwn ? "var(--brand-gradient)" : "var(--bg-input)",
+									color: isOwn ? "white" : "var(--fg-primary)",
 									fontSize: 13,
 									lineHeight: 1.5,
 									wordBreak: "break-word",
@@ -154,7 +183,14 @@ export function ChatTab({ client, wsProvider, userId, userName, threadId }: Chat
 							>
 								{msg.text}
 							</div>
-							<div style={{ fontSize: 10, color: "#bbb", marginTop: 2, padding: "0 4px" }}>
+							<div
+								style={{
+									fontSize: 10,
+									color: "var(--fg-tertiary)",
+									marginTop: 2,
+									padding: "0 4px",
+								}}
+							>
 								{new Date(msg.createdAt).toLocaleTimeString([], {
 									hour: "2-digit",
 									minute: "2-digit",
@@ -168,7 +204,7 @@ export function ChatTab({ client, wsProvider, userId, userName, threadId }: Chat
 			{/* 入力欄 */}
 			<div
 				style={{
-					borderTop: "1px solid #eee",
+					borderTop: "1px solid var(--border-subtle)",
 					padding: "10px 12px",
 					display: "flex",
 					gap: 8,
@@ -184,11 +220,13 @@ export function ChatTab({ client, wsProvider, userId, userName, threadId }: Chat
 						e.stopPropagation();
 						if (e.key === "Enter" && !isComposing && !isSending) handleSend();
 					}}
-					placeholder="Type a message..."
+					placeholder="メッセージを入力…"
 					disabled={isSending}
 					style={{
 						flex: 1,
-						border: "1px solid #e5e5e5",
+						border: "1px solid var(--border-default)",
+						background: "var(--bg-input)",
+						color: "var(--fg-primary)",
 						borderRadius: 8,
 						padding: "8px 12px",
 						fontSize: 13,
@@ -202,16 +240,18 @@ export function ChatTab({ client, wsProvider, userId, userName, threadId }: Chat
 					disabled={isSending || !input.trim()}
 					style={{
 						border: "none",
-						background: isSending || !input.trim() ? "#ccc" : "#1e1e1e",
-						color: "#fff",
+						background: isSending || !input.trim() ? "var(--bg-input)" : "var(--brand-gradient)",
+						color: isSending || !input.trim() ? "var(--fg-tertiary)" : "white",
 						borderRadius: 8,
 						padding: "8px 14px",
 						fontSize: 13,
+						fontWeight: 500,
 						cursor: isSending || !input.trim() ? "default" : "pointer",
 						flexShrink: 0,
+						fontFamily: "inherit",
 					}}
 				>
-					Send
+					送信
 				</button>
 			</div>
 		</div>

@@ -14,7 +14,8 @@ const INPUT_ID = "chat-input-active";
 function ChatBubble({ obj }: { obj: TransientObject }) {
 	const text = (obj.data.text as string) || "";
 	const name = (obj.data.name as string) || "";
-	const color = (obj.data.color as string) || "#333";
+	const color = (obj.data.color as string) || "var(--brand-violet)";
+	const initial = name ? name.charAt(0).toUpperCase() : "?";
 
 	return (
 		<div
@@ -27,25 +28,66 @@ function ChatBubble({ obj }: { obj: TransientObject }) {
 			}}
 		>
 			<div
+				className="u-surface u-anim-in"
 				style={{
-					background: "#fff",
-					border: `2px solid ${color}`,
-					borderRadius: 12,
-					padding: "6px 10px",
-					fontSize: 13,
-					fontFamily: "system-ui, sans-serif",
-					color: "#333",
-					maxWidth: 200,
-					wordBreak: "break-word",
-					boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-					whiteSpace: "pre-wrap",
+					padding: "8px 12px",
+					borderRadius: 14,
+					width: "max-content",
+					maxWidth: 240,
+					background: "var(--bg-surface-raised)",
+					borderLeft: `3px solid ${color}`,
+					color: "var(--fg-primary)",
+					fontFamily: "var(--font-sans, system-ui, sans-serif)",
 				}}
 			>
-				{text}
+				{name && (
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: 6,
+							marginBottom: 3,
+						}}
+					>
+						<div
+							style={{
+								width: 14,
+								height: 14,
+								borderRadius: 99,
+								background: color,
+								color: "white",
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								fontSize: 8,
+								fontWeight: 700,
+							}}
+						>
+							{initial}
+						</div>
+						<div
+							style={{
+								fontSize: 10.5,
+								fontWeight: 500,
+								color: "var(--fg-secondary)",
+							}}
+						>
+							{name}
+						</div>
+					</div>
+				)}
+				<div
+					style={{
+						fontSize: 12.5,
+						lineHeight: 1.4,
+						overflowWrap: "break-word",
+						wordBreak: "break-word",
+						whiteSpace: "pre-wrap",
+					}}
+				>
+					{text}
+				</div>
 			</div>
-			{name && (
-				<div style={{ fontSize: 10, color: "#999", textAlign: "center", marginTop: 2 }}>{name}</div>
-			)}
 		</div>
 	);
 }
@@ -118,18 +160,18 @@ function ChatInput({
 			}}
 		>
 			<div
+				className="u-surface"
 				style={{
-					background: "#fff",
+					background: "var(--bg-surface-raised)",
 					borderRadius: 10,
 					padding: "6px 10px",
-					border: "1px solid #ddd",
-					minWidth: 180,
+					minWidth: 200,
 				}}
 			>
 				<input
 					ref={inputRef}
 					type="text"
-					placeholder="Type and Enter..."
+					placeholder="入力して Enter…"
 					maxLength={200}
 					style={{
 						width: "100%",
@@ -137,7 +179,8 @@ function ChatInput({
 						fontSize: 13,
 						border: "none",
 						outline: "none",
-						fontFamily: "system-ui, sans-serif",
+						fontFamily: "var(--font-sans, system-ui, sans-serif)",
+						color: "var(--fg-primary)",
 						boxSizing: "border-box",
 						background: "transparent",
 					}}

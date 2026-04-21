@@ -12,9 +12,9 @@ import {
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 
-const PORTAL_WIDTH = 64;
-const PORTAL_HEIGHT = 80;
-const MIN_PIN_W = 40;
+const PORTAL_WIDTH = 200;
+const PORTAL_HEIGHT = 120;
+const MIN_PORTAL_W = 140;
 
 /**
  * HSL ベースのカラーパレット — 彩度・明度を揃えて統一感を出す
@@ -26,44 +26,15 @@ function pinHue(boardId: string): number {
 	for (let i = 0; i < boardId.length; i++) {
 		hash = (hash * 31 + boardId.charCodeAt(i)) | 0;
 	}
-	return PIN_HUES[Math.abs(hash) % PIN_HUES.length];
-}
-
-/**
- * Google Maps 風ドロップピンの SVG path を生成。
- * cx, cy: 円の中心。r: 円の半径。tipY: 先端の Y 座標。
- */
-function pinPath(cx: number, cy: number, r: number, tipY: number): string {
-	const angle = Math.PI / 5;
-	const sinA = Math.sin(angle);
-	const cosA = Math.cos(angle);
-	const tx = cx + r * sinA;
-	const ty = cy + r * cosA;
-	const lx = cx - r * sinA;
-	const ly = ty;
-	return [`M${cx} ${tipY}`, `L${tx} ${ty}`, `A${r} ${r} 0 1 0 ${lx} ${ly}`, "Z"].join(" ");
+	return PIN_HUES[Math.abs(hash) % PIN_HUES.length] ?? 210;
 }
 
 function renderContent(data: ShapeData) {
 	const title = (data.boardTitle as string) || "Untitled";
 	const isPublic = data.isPublic !== false;
 	const hue = pinHue((data.boardId as string) || data.id);
-	const w = data.width;
-	const h = data.height;
-
-	// すべて比率ベースでレイアウト（サイズ変更で崩れない）
-	const labelH = h * 0.25; // 下25%がラベル（2行分）
-	const pinH = h - labelH;
-
-	const r = w * 0.4; // 円の半径 = 幅の40%
-	const cx = w / 2;
-	const cy = h * 0.02 + r; // 円の中心（上端2% + r）
-	const tipY = pinH - h * 0.01; // 先端
-
-	const uid = `pin-${data.id}`;
-	const lightColor = `hsl(${hue}, 70%, 68%)`;
-	const darkColor = `hsl(${hue}, 60%, 38%)`;
-	const iconColor = `hsl(${hue}, 55%, 45%)`;
+	// themeColor は HSL から生成 — tokens.css の var は SVG/color-mix で使う
+	const accentColor = `hsl(${hue}, 65%, 58%)`;
 
 	return (
 		<div
@@ -74,135 +45,130 @@ function renderContent(data: ShapeData) {
 				pointerEvents: "none",
 				userSelect: "none",
 				overflow: "hidden",
+				borderRadius: 16,
+				// モックの isPortal 背景: themeColor 20% × bg-input のグラデーション
+				background: `linear-gradient(135deg, color-mix(in oklab, ${accentColor} 20%, var(--bg-input)), var(--bg-input))`,
+				border: `1.5px dashed color-mix(in oklab, ${accentColor} 40%, transparent)`,
+				padding: 14,
+				display: "flex",
+				flexDirection: "column",
+				justifyContent: "space-between",
+				boxSizing: "border-box",
+				fontFamily: "var(--font-sans, system-ui, sans-serif)",
+				boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
 			}}
 		>
-			<svg
-				width={w}
-				height={pinH}
-				viewBox={`0 0 ${w} ${pinH}`}
-				style={{ position: "absolute", top: 0, left: 0 }}
-			>
-				<title>{title}</title>
-				<defs>
-					<linearGradient id={`${uid}-grad`} x1="0" y1="0" x2="0.3" y2="1">
-						<stop offset="0%" stopColor={lightColor} />
-						<stop offset="100%" stopColor={darkColor} />
-					</linearGradient>
-					<radialGradient id={`${uid}-hl`} cx="0.4" cy="0.35" r="0.6">
-						<stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
-						<stop offset="100%" stopColor="rgba(255,255,255,0)" />
-					</radialGradient>
-				</defs>
-
-				{/* 地面の影 */}
-				<ellipse cx={cx} cy={tipY + 1} rx={r * 0.3} ry={2} fill="rgba(0,0,0,0.1)" />
-
-				{/* ピン本体 */}
-				<path d={pinPath(cx, cy, r, tipY)} fill={`url(#${uid}-grad)`} />
-
-				{/* ハイライト */}
-				<circle cx={cx} cy={cy} r={r} fill={`url(#${uid}-hl)`} />
-
-				{/* 白い内円 */}
-				<circle cx={cx} cy={cy} r={r * 0.58} fill="#fff" />
-
-				{/* アイコン: ホワイトボード (Public) / ロック (Private) */}
-				{isPublic ? (
-					<g transform={`translate(${cx - r * 0.32}, ${cy - r * 0.32}) scale(${(r * 0.64) / 24})`}>
-						{/* ボード外枠 */}
-						<rect
-							x="1"
-							y="3"
-							width="22"
-							height="16"
-							rx="2.5"
-							fill="none"
-							stroke={iconColor}
-							strokeWidth="2"
-						/>
-						{/* 付箋1 */}
-						<rect x="4" y="6" width="6" height="5" rx="0.8" fill={`hsl(${hue}, 60%, 75%)`} />
-						{/* 付箋2 */}
-						<rect
-							x="12"
-							y="6"
-							width="8"
-							height="4"
-							rx="0.8"
-							fill={`hsl(${(hue + 40) % 360}, 55%, 72%)`}
-						/>
-						{/* テキスト行 */}
-						<line
-							x1="12"
-							y1="13"
-							x2="20"
-							y2="13"
-							stroke={iconColor}
-							strokeWidth="1.5"
-							strokeLinecap="round"
-						/>
-						<line
-							x1="4"
-							y1="15"
-							x2="10"
-							y2="15"
-							stroke={iconColor}
-							strokeWidth="1.2"
-							strokeLinecap="round"
-							opacity="0.5"
-						/>
-					</g>
-				) : (
-					<g transform={`translate(${cx - r * 0.25}, ${cy - r * 0.32}) scale(${(r * 0.5) / 16})`}>
-						<rect x="2" y="7" width="12" height="9" rx="2" fill={iconColor} />
-						<path
-							d="M5 7V5a3 3 0 016 0v2"
-							fill="none"
-							stroke={iconColor}
-							strokeWidth="2"
-							strokeLinecap="round"
-						/>
-					</g>
-				)}
-
-				{/* キャッチライト */}
-				<circle cx={cx - r * 0.28} cy={cy - r * 0.28} r={r * 0.08} fill="rgba(255,255,255,0.5)" />
-			</svg>
-
-			{/* タイトルラベル — bounds 内下部に配置 */}
-			<div
-				style={{
-					position: "absolute",
-					bottom: 0,
-					left: 0,
-					width: w,
-					height: labelH,
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-				}}
-			>
-				<span
+			<div>
+				<div
 					style={{
-						fontSize: Math.max(9, Math.min(13, h * 0.11)),
+						display: "flex",
+						alignItems: "center",
+						gap: 7,
+						marginBottom: 6,
+					}}
+				>
+					<div
+						style={{
+							width: 22,
+							height: 22,
+							borderRadius: 6,
+							background: `color-mix(in oklab, ${accentColor} 25%, transparent)`,
+							color: accentColor,
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+						}}
+					>
+						{isPublic ? (
+							<svg
+								width="11"
+								height="11"
+								viewBox="0 0 16 16"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
+								<path d="M7 9a2.5 2.5 0 0 0 3.5 0l2-2a2.5 2.5 0 0 0-3.5-3.5l-1 1" />
+								<path d="M9 7a2.5 2.5 0 0 0-3.5 0l-2 2A2.5 2.5 0 0 0 7 12.5l1-1" />
+							</svg>
+						) : (
+							<svg
+								width="11"
+								height="11"
+								viewBox="0 0 16 16"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
+								<rect x="3.5" y="7" width="9" height="6.5" rx="1" />
+								<path d="M5 7V5a3 3 0 0 1 6 0v2" />
+							</svg>
+						)}
+					</div>
+					<div
+						style={{
+							fontSize: 9.5,
+							fontWeight: 700,
+							color: accentColor,
+							letterSpacing: 1,
+							textTransform: "uppercase",
+						}}
+					>
+						{isPublic ? "Portal" : "Private"}
+					</div>
+				</div>
+				<div
+					style={{
+						fontSize: 14,
 						fontWeight: 600,
-						color: "#334155",
-						fontFamily: "system-ui, sans-serif",
-						background: "rgba(255,255,255,0.88)",
-						padding: "2px 6px",
-						borderRadius: 8,
-						maxWidth: "100%",
+						color: "var(--fg-primary)",
+						letterSpacing: "-0.01em",
 						overflow: "hidden",
 						display: "-webkit-box",
 						WebkitLineClamp: 2,
 						WebkitBoxOrient: "vertical",
-						textAlign: "center",
 						lineHeight: 1.25,
 						wordBreak: "break-word",
 					}}
 				>
 					{title}
-				</span>
+				</div>
+			</div>
+
+			<div
+				style={{
+					display: "inline-flex",
+					alignItems: "center",
+					gap: 5,
+					alignSelf: "flex-start",
+					padding: "4px 10px",
+					borderRadius: 6,
+					background: `color-mix(in oklab, ${accentColor} 25%, transparent)`,
+					color: accentColor,
+					fontSize: 11,
+					fontWeight: 600,
+				}}
+			>
+				開く
+				<svg
+					width="11"
+					height="11"
+					viewBox="0 0 16 16"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="1.5"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M2.5 8h11M10 4.5 13.5 8 10 11.5" />
+				</svg>
 			</div>
 		</div>
 	);
@@ -221,7 +187,7 @@ function hitTest(data: ShapeData, point: Point): boolean {
 	);
 }
 
-const ASPECT = PORTAL_HEIGHT / PORTAL_WIDTH; // 1.25
+const ASPECT = PORTAL_HEIGHT / PORTAL_WIDTH; // 0.6 (横長カード)
 
 function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData {
 	let { x, y, width, height } = data;
@@ -276,7 +242,7 @@ function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData 
 			x = data.x + (data.width - width) / 2;
 			break;
 	}
-	const minW = MIN_PIN_W;
+	const minW = MIN_PORTAL_W;
 	const minH = minW * ASPECT;
 	if (width < minW) {
 		// clamp してから x/y を再計算（アンカー辺がジャンプしないように）
@@ -368,7 +334,7 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 				resize,
 				createDefault,
 				renderTarget: "html",
-				minSize: { width: MIN_PIN_W, height: MIN_PIN_W * ASPECT },
+				minSize: { width: MIN_PORTAL_W, height: MIN_PORTAL_W * ASPECT },
 			});
 
 			// ポータル作成ツール
