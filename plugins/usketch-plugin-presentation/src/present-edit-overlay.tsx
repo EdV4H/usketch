@@ -11,9 +11,11 @@ interface Props {
 }
 
 const SIDEBAR_WIDTH = 220;
+const SIDEBAR_LEFT_MARGIN = 12;
 const STAGE_MAX_WIDTH = 1100;
 const STAGE_PADDING = 30;
 const TOP_BAR_HEIGHT = 64;
+const SIDEBAR_RESERVED = SIDEBAR_WIDTH + SIDEBAR_LEFT_MARGIN * 2;
 const ASPECT = 9 / 16;
 const SLIDE_USER_COLORS = [
 	"var(--u-1)",
@@ -33,7 +35,7 @@ interface StageRect {
 
 function computeStageRect(win: { width: number; height: number }): StageRect {
 	const available = {
-		width: Math.max(100, win.width - SIDEBAR_WIDTH - STAGE_PADDING * 2),
+		width: Math.max(100, win.width - SIDEBAR_RESERVED - STAGE_PADDING * 2),
 		height: Math.max(100, win.height - TOP_BAR_HEIGHT - STAGE_PADDING * 2 - 80),
 	};
 	let width = Math.min(available.width, STAGE_MAX_WIDTH);
@@ -42,7 +44,7 @@ function computeStageRect(win: { width: number; height: number }): StageRect {
 		height = available.height;
 		width = height / ASPECT;
 	}
-	const left = SIDEBAR_WIDTH + STAGE_PADDING + (available.width - width) / 2;
+	const left = SIDEBAR_RESERVED + STAGE_PADDING + (available.width - width) / 2;
 	const top = TOP_BAR_HEIGHT + STAGE_PADDING + (available.height - height) / 2;
 	return { left, top, width, height };
 }
@@ -130,30 +132,7 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 				fontFamily: "var(--font-sans, system-ui)",
 			}}
 		>
-			{/* Veil: 上 */}
-			<div style={veilStyle(0, 0, "100%", stage.top)} />
-			{/* Veil: 下 */}
-			<div
-				style={veilStyle(
-					0,
-					stage.top + stage.height,
-					"100%",
-					`calc(100% - ${stage.top + stage.height}px)`,
-				)}
-			/>
-			{/* Veil: 左 (サイドバー含む) */}
-			<div style={veilStyle(0, stage.top, stage.left, stage.height)} />
-			{/* Veil: 右 */}
-			<div
-				style={veilStyle(
-					stage.left + stage.width,
-					stage.top,
-					`calc(100% - ${stage.left + stage.width}px)`,
-					stage.height,
-				)}
-			/>
-
-			{/* ステージ枠の視覚的な影 (透過穴の強調) */}
+			{/* ステージ枠: Canvas がそのまま透けて見える。violet 枠で場所だけ示す。 */}
 			<div
 				style={{
 					position: "absolute",
@@ -162,25 +141,27 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 					width: stage.width + 2,
 					height: stage.height + 2,
 					borderRadius: 8,
-					boxShadow: "0 30px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05)",
+					border: "1.5px solid var(--brand-violet)",
+					boxShadow: "0 0 0 4px color-mix(in oklab, var(--brand-violet) 15%, transparent)",
 					pointerEvents: "none",
 				}}
 			/>
 
 			{/* サイドバー */}
 			<aside
+				className="u-surface"
 				style={{
 					position: "absolute",
-					left: 0,
-					top: 0,
-					bottom: 0,
+					left: 12,
+					top: 70,
+					bottom: 80,
 					width: SIDEBAR_WIDTH,
-					background: "var(--bg-canvas-2)",
-					borderRight: "1px solid var(--border-subtle)",
+					borderRadius: 12,
 					display: "flex",
 					flexDirection: "column",
 					pointerEvents: "auto",
 					color: "var(--fg-primary)",
+					overflow: "hidden",
 				}}
 			>
 				<div
@@ -254,7 +235,7 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 				style={{
 					position: "absolute",
 					top: 12,
-					left: SIDEBAR_WIDTH,
+					left: SIDEBAR_RESERVED,
 					right: 0,
 					display: "flex",
 					justifyContent: "center",
@@ -299,7 +280,7 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 				style={{
 					position: "absolute",
 					bottom: 30,
-					left: SIDEBAR_WIDTH,
+					left: SIDEBAR_RESERVED,
 					right: 0,
 					display: "flex",
 					justifyContent: "center",
@@ -374,23 +355,6 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 			)}
 		</div>
 	);
-}
-
-function veilStyle(
-	left: number | string,
-	top: number | string,
-	width: number | string,
-	height: number | string,
-): React.CSSProperties {
-	return {
-		position: "absolute",
-		left,
-		top,
-		width,
-		height,
-		background: "#0a0a0b",
-		pointerEvents: "auto",
-	};
 }
 
 function pillBtn(active: boolean): React.CSSProperties {
