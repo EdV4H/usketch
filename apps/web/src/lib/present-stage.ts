@@ -14,10 +14,11 @@ export const STAGE_SIDEBAR_WIDTH = 220;
 /** サイドバーは画面左端にぴったり貼り付ける (モックに合わせる) */
 export const STAGE_SIDEBAR_MARGIN = 0;
 export const STAGE_SIDEBAR_RESERVED = STAGE_SIDEBAR_WIDTH + STAGE_SIDEBAR_MARGIN * 2;
-export const STAGE_TOP_RESERVED = 64;
-export const STAGE_BOTTOM_RESERVED = 120;
-export const STAGE_SIDE_PADDING = 30;
-export const STAGE_MAX_WIDTH = 1100;
+export const STAGE_TOP_RESERVED = 56;
+export const STAGE_BOTTOM_RESERVED = 70;
+export const STAGE_SIDE_PADDING = 16;
+/** ステージ最大幅: ウィンドウに追従させるため上限を廃止 */
+export const STAGE_MAX_WIDTH = Number.POSITIVE_INFINITY;
 export const STAGE_ASPECT = 9 / 16;
 
 export interface StageRect {
