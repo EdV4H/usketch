@@ -212,6 +212,50 @@ export function PresentModeOverlay({ nav }: Props) {
 					ariaLabel="次のスライド"
 					direction="next"
 				/>
+				<div
+					style={{
+						width: 1,
+						height: 20,
+						background: "rgba(255,255,255,0.15)",
+						margin: "0 4px",
+					}}
+				/>
+				<button
+					type="button"
+					onClick={exitPresent}
+					title="発表を終了 (Esc)"
+					aria-label="発表を終了"
+					style={{
+						appearance: "none",
+						border: "none",
+						background: "transparent",
+						color: "white",
+						cursor: "pointer",
+						height: 34,
+						padding: "0 12px",
+						borderRadius: 999,
+						display: "flex",
+						alignItems: "center",
+						gap: 6,
+						fontSize: 12,
+						fontFamily: "inherit",
+					}}
+				>
+					<svg
+						width="12"
+						height="12"
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="1.5"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						aria-hidden="true"
+					>
+						<path d="m3.5 3.5 9 9M12.5 3.5l-9 9" />
+					</svg>
+					終了
+				</button>
 			</div>
 		</div>
 	);
