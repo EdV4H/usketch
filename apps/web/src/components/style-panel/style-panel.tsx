@@ -195,32 +195,69 @@ export function StylePanel() {
 					onBlur={handleOpacityEnd}
 					style={{ width: 48, cursor: "pointer" }}
 				/>
-				<span style={{ fontSize: 10, color: "#666", minWidth: 28, textAlign: "right" }}>
+				<span
+					style={{
+						fontSize: 10,
+						color: "var(--fg-secondary)",
+						minWidth: 28,
+						textAlign: "right",
+					}}
+				>
 					{currentStyle.opacity !== undefined ? `${Math.round(currentStyle.opacity * 100)}%` : "—"}
 				</span>
 				<div style={barSepStyle} />
 				<button
 					type="button"
 					onClick={handleSendToBack}
-					title="Send to back (Ctrl+Shift+[)"
+					title="最背面へ (Ctrl+Shift+[)"
+					aria-label="最背面へ"
 					style={zOrderButtonStyle}
 				>
 					<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-						<title>Send to back</title>
-						<rect x="1" y="1" width="9" height="9" fill="#2680eb" stroke="#1e1e1e" />
-						<rect x="6" y="6" width="9" height="9" fill="#ffffff" stroke="#1e1e1e" />
+						<title>最背面へ</title>
+						<rect
+							x="1"
+							y="1"
+							width="9"
+							height="9"
+							fill="var(--brand-violet)"
+							stroke="var(--fg-primary)"
+						/>
+						<rect
+							x="6"
+							y="6"
+							width="9"
+							height="9"
+							fill="var(--bg-surface-solid)"
+							stroke="var(--fg-primary)"
+						/>
 					</svg>
 				</button>
 				<button
 					type="button"
 					onClick={handleBringToFront}
-					title="Bring to front (Ctrl+Shift+])"
+					title="最前面へ (Ctrl+Shift+])"
+					aria-label="最前面へ"
 					style={zOrderButtonStyle}
 				>
 					<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-						<title>Bring to front</title>
-						<rect x="1" y="1" width="9" height="9" fill="#ffffff" stroke="#1e1e1e" />
-						<rect x="6" y="6" width="9" height="9" fill="#2680eb" stroke="#1e1e1e" />
+						<title>最前面へ</title>
+						<rect
+							x="1"
+							y="1"
+							width="9"
+							height="9"
+							fill="var(--bg-surface-solid)"
+							stroke="var(--fg-primary)"
+						/>
+						<rect
+							x="6"
+							y="6"
+							width="9"
+							height="9"
+							fill="var(--brand-violet)"
+							stroke="var(--fg-primary)"
+						/>
 					</svg>
 				</button>
 			</div>
@@ -245,12 +282,16 @@ const anchoredBarStyle: React.CSSProperties = {
 	display: "flex",
 	alignItems: "center",
 	gap: 4,
-	padding: "4px 8px",
-	background: "#fff",
-	borderRadius: 8,
-	boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-	fontFamily: "system-ui, sans-serif",
+	padding: "5px 9px",
+	background: "var(--bg-surface-raised)",
+	backdropFilter: "blur(20px) saturate(1.4)",
+	WebkitBackdropFilter: "blur(20px) saturate(1.4)",
+	border: "1px solid var(--border-subtle)",
+	borderRadius: 10,
+	boxShadow: "var(--shadow-2)",
+	fontFamily: "var(--font-sans, system-ui, sans-serif)",
 	fontSize: 11,
+	color: "var(--fg-primary)",
 	whiteSpace: "nowrap",
 	pointerEvents: "auto",
 };
@@ -258,18 +299,21 @@ const anchoredBarStyle: React.CSSProperties = {
 const barSepStyle: React.CSSProperties = {
 	width: 1,
 	height: 18,
-	background: "#e0e0e0",
+	background: "var(--border-default)",
 	flexShrink: 0,
 };
 
 const compactNumberStyle: React.CSSProperties = {
 	width: 36,
 	height: 22,
-	border: "1px solid #e0e0e0",
+	border: "1px solid var(--border-default)",
+	background: "var(--bg-input)",
+	color: "var(--fg-primary)",
 	borderRadius: 4,
 	padding: "0 3px",
 	fontSize: 11,
 	textAlign: "center",
+	fontFamily: "inherit",
 };
 
 type MergedStyle = { [K in keyof ShapeStyle]: ShapeStyle[K] | undefined };

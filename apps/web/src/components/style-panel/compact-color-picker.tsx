@@ -41,7 +41,7 @@ export function CompactColorPicker({
 
 	return (
 		<div style={{ position: "relative", display: "flex", alignItems: "center", gap: 3 }}>
-			<span style={{ color: "#666", fontSize: 10 }}>{label}</span>
+			<span style={{ color: "var(--fg-secondary)", fontSize: 10 }}>{label}</span>
 			<input
 				type="color"
 				value={pickerValue}
@@ -51,7 +51,7 @@ export function CompactColorPicker({
 				style={{
 					width: 20,
 					height: 20,
-					border: "1px solid #e0e0e0",
+					border: "1px solid var(--border-default)",
 					borderRadius: 4,
 					padding: 0,
 					cursor: "pointer",
@@ -69,29 +69,28 @@ export function CompactColorPicker({
 					cursor: "pointer",
 					padding: 0,
 					fontSize: 8,
-					color: "#999",
+					color: "var(--fg-tertiary)",
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
 				}}
-				title="Color palette"
+				title="カラーパレット"
+				aria-label="カラーパレットを開く"
 			>
 				▼
 			</button>
 			{showPalette && (
 				<div
+					className="u-surface"
 					style={{
 						position: "absolute",
 						top: 28,
 						left: 0,
-						background: "#fff",
-						border: "1px solid #e0e0e0",
-						borderRadius: 8,
+						background: "var(--bg-surface-raised)",
 						padding: 6,
 						display: "grid",
 						gridTemplateColumns: "repeat(6, 1fr)",
 						gap: 3,
-						boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
 						zIndex: 200,
 					}}
 				>
@@ -106,12 +105,14 @@ export function CompactColorPicker({
 									onSwatchClick(color);
 									setShowPalette(false);
 								}}
-								title={isTrans ? "Transparent" : color}
+								title={isTrans ? "透明" : color}
 								style={{
 									width: 18,
 									height: 18,
 									borderRadius: 3,
-									border: isActive ? "2px solid #3b82f6" : "1px solid #e0e0e0",
+									border: isActive
+										? "2px solid var(--brand-violet)"
+										: "1px solid var(--border-default)",
 									background: isTrans ? CHECKER_BG : color,
 									cursor: "pointer",
 									padding: 0,
@@ -127,7 +128,7 @@ export function CompactColorPicker({
 											left: -2,
 											width: "130%",
 											height: 2,
-											background: "#ef4444",
+											background: "var(--danger)",
 											transform: "rotate(-45deg)",
 											transformOrigin: "center",
 											pointerEvents: "none",
