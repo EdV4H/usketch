@@ -236,24 +236,10 @@ export function PresentModeOverlay({ nav }: Props) {
 						borderRadius: 999,
 						display: "flex",
 						alignItems: "center",
-						gap: 6,
 						fontSize: 12,
 						fontFamily: "inherit",
 					}}
 				>
-					<svg
-						width="12"
-						height="12"
-						viewBox="0 0 16 16"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="1.5"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-						aria-hidden="true"
-					>
-						<path d="m3.5 3.5 9 9M12.5 3.5l-9 9" />
-					</svg>
 					終了
 				</button>
 			</div>
