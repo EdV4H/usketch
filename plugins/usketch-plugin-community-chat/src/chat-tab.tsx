@@ -1,7 +1,8 @@
+import type { EventBus } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatClient } from "./chat-client.js";
-import type { ChatMessage } from "./types.js";
+import type { ChatMessage, ChatNewMessageEvent } from "./types.js";
 
 export interface ChatTabProps {
 	client: ChatClient;
@@ -9,11 +10,13 @@ export interface ChatTabProps {
 	userId: string;
 	userName: string;
 	threadId: string;
+	/** chat-widget シェイプの最終メッセージ表示を更新するため、送受信時に emit する */
+	events?: EventBus;
 }
 
 const LOAD_LIMIT = 50;
 
-export function ChatTab({ client, wsProvider, userId, userName, threadId }: ChatTabProps) {
+export function ChatTab({ client, wsProvider, userId, userName, threadId, events }: ChatTabProps) {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [input, setInput] = useState("");
 	const [isComposing, setIsComposing] = useState(false);
@@ -58,12 +61,18 @@ export function ChatTab({ client, wsProvider, userId, userName, threadId }: Chat
 		return wsProvider.onBroadcast((msg) => {
 			if (msg.kind !== "chat-message") return;
 			const chatMsg = msg as unknown as { kind: string; message: ChatMessage };
-			if (chatMsg.message.threadId !== threadId) return;
 			if (chatMsg.message.authorId === userId) return;
-			setMessages((prev) => [...prev, chatMsg.message]);
-			scrollToBottom();
+			// アクティブタブで見ているスレッドのみ表示に追加（他スレッドも shape 更新イベントは出す）
+			if (chatMsg.message.threadId === threadId) {
+				setMessages((prev) => [...prev, chatMsg.message]);
+				scrollToBottom();
+			}
+			events?.emit<ChatNewMessageEvent>("chat-widget:new-message", {
+				message: chatMsg.message,
+				fromActiveTab: chatMsg.message.threadId === threadId,
+			});
 		});
-	}, [wsProvider, userId, threadId, scrollToBottom]);
+	}, [wsProvider, userId, threadId, scrollToBottom, events]);
 
 	// 上スクロールで過去メッセージ読み込み
 	const handleScroll = useCallback(() => {
@@ -101,9 +110,14 @@ export function ChatTab({ client, wsProvider, userId, userName, threadId }: Chat
 			setMessages((prev) => [...prev, saved]);
 			scrollToBottom();
 			wsProvider?.broadcast({ kind: "chat-message", message: saved });
+			// 自分の送信は wsProvider.broadcast では自分に届かない想定なので明示的に emit
+			events?.emit<ChatNewMessageEvent>("chat-widget:new-message", {
+				message: saved,
+				fromActiveTab: true,
+			});
 		}
 		setIsSending(false);
-	}, [input, isSending, client, threadId, userName, wsProvider, scrollToBottom]);
+	}, [input, isSending, client, threadId, userName, wsProvider, scrollToBottom, events]);
 
 	return (
 		<div

@@ -13,6 +13,7 @@ import {
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { createChatClient } from "./chat-client.js";
+import type { ChatNewMessageEvent } from "./types.js";
 
 export interface CommunityChatOptions {
 	apiUrl: string;
@@ -39,16 +40,34 @@ function threadHue(id: string): number {
 	return THREAD_HUES[Math.abs(hash) % THREAD_HUES.length] ?? 265;
 }
 
+function formatRelativeTime(iso: string): string {
+	const then = new Date(iso).getTime();
+	if (!Number.isFinite(then)) return "";
+	const diff = Date.now() - then;
+	if (diff < 0) return "今";
+	const sec = Math.floor(diff / 1000);
+	if (sec < 60) return "今";
+	const min = Math.floor(sec / 60);
+	if (min < 60) return `${min}分前`;
+	const hr = Math.floor(min / 60);
+	if (hr < 24) return `${hr}時間前`;
+	const day = Math.floor(hr / 24);
+	if (day < 7) return `${day}日前`;
+	return new Date(iso).toLocaleDateString();
+}
+
 // ── ピン描画 ──
 
 function renderChatPin(data: ShapeData) {
 	const label = (data.chatLabel as string) || "Chat";
 	const lastMessage = (data.lastMessage as string) || "";
 	const lastAuthor = (data.lastAuthor as string) || "";
+	const lastMessageAt = (data.lastMessageAt as string) || "";
 	const unread = Number(data.unread ?? 0);
 	const hue = threadHue((data.threadId as string) || data.id);
 	const accentColor = `hsl(${hue}, 70%, 60%)`;
 	const softColor = `hsl(${hue}, 70%, 85%)`;
+	const relTime = lastMessageAt ? formatRelativeTime(lastMessageAt) : "";
 
 	// tail を含めるため、外側ラッパーは overflow: visible で、
 	// 内部の pill だけに overflow: hidden をかける。
@@ -144,16 +163,39 @@ function renderChatPin(data: ShapeData) {
 				<div style={{ minWidth: 0, lineHeight: 1.25, flex: 1 }}>
 					<div
 						style={{
-							fontSize: 12,
-							fontWeight: 600,
-							color: "var(--fg-primary)",
-							whiteSpace: "nowrap",
-							overflow: "hidden",
-							textOverflow: "ellipsis",
+							display: "flex",
+							alignItems: "baseline",
+							gap: 6,
+							minWidth: 0,
 						}}
-						title={label}
 					>
-						{label}
+						<div
+							style={{
+								fontSize: 12,
+								fontWeight: 600,
+								color: "var(--fg-primary)",
+								whiteSpace: "nowrap",
+								overflow: "hidden",
+								textOverflow: "ellipsis",
+								flex: 1,
+								minWidth: 0,
+							}}
+							title={label}
+						>
+							{label}
+						</div>
+						{relTime && (
+							<div
+								style={{
+									fontSize: 9.5,
+									color: "var(--fg-tertiary)",
+									fontFamily: "var(--font-mono)",
+									flexShrink: 0,
+								}}
+							>
+								{relTime}
+							</div>
+						)}
 					</div>
 					{lastMessage && (
 						<div
@@ -368,6 +410,7 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 							userId={options.userId}
 							userName={options.userName}
 							threadId={activeThreadId}
+							events={ctx.events}
 						/>
 					),
 				},
@@ -382,6 +425,77 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 				createDefault,
 				renderTarget: "html",
 				minSize: { width: MIN_W, height: MIN_W * ASPECT },
+			});
+
+			// chat-widget シェイプの最終メッセージ / unread を更新するイベント購読
+			const unsubNewMessage = ctx.events.on<ChatNewMessageEvent>(
+				"chat-widget:new-message",
+				({ message, fromActiveTab }) => {
+					const shapes = ctx.store.getShapes();
+					for (const [id, shape] of shapes) {
+						if (shape.type !== "chat-widget") continue;
+						if ((shape.threadId as string) !== message.threadId) continue;
+						const prevUnread = Number(shape.unread ?? 0);
+						const nextUnread = fromActiveTab ? 0 : prevUnread + 1;
+						ctx.store.updateShape(id, {
+							lastMessage: message.text,
+							lastAuthor: message.authorName,
+							lastAuthorId: message.authorId,
+							lastMessageAt: message.createdAt,
+							unread: nextUnread,
+						});
+					}
+				},
+			);
+
+			// アクティブスレッド切替時 / タブを開いた時、そのスレッドの unread をリセット
+			const clearUnreadForThread = (threadId: string) => {
+				const shapes = ctx.store.getShapes();
+				for (const [id, shape] of shapes) {
+					if (shape.type !== "chat-widget") continue;
+					if ((shape.threadId as string) !== threadId) continue;
+					if (Number(shape.unread ?? 0) === 0) continue;
+					ctx.store.updateShape(id, { unread: 0 });
+				}
+			};
+
+			// 初期ロード時: 画面にある chat-widget シェイプ全ての最新メッセージを fetch して反映
+			// （新規 shape が後から増えたときのためにも、追加時に再 fetch する）
+			const refreshShapeMetadata = async (shapeId: string, threadId: string) => {
+				const msgs = await client.list(threadId, 1);
+				const last = msgs[msgs.length - 1];
+				if (!last) return;
+				const shape = ctx.store.getShape(shapeId);
+				if (!shape || shape.type !== "chat-widget") return;
+				if (shape.lastMessageAt === last.createdAt) return; // 変更なし
+				ctx.store.updateShape(shapeId, {
+					lastMessage: last.text,
+					lastAuthor: last.authorName,
+					lastAuthorId: last.authorId,
+					lastMessageAt: last.createdAt,
+				});
+			};
+
+			// 初期同期: 現在ある chat-widget シェイプ全てを 1 回 fetch
+			setTimeout(() => {
+				const shapes = ctx.store.getShapes();
+				for (const [id, shape] of shapes) {
+					if (shape.type !== "chat-widget") continue;
+					const threadId = (shape.threadId as string) || "";
+					if (threadId) refreshShapeMetadata(id, threadId);
+				}
+			}, 0);
+
+			// 新規 chat-widget が追加されたら fetch
+			const unsubShapeAdd = ctx.store.onMutation((event) => {
+				if (event.type !== "shape:added") return;
+				const payload = event.payload as { id?: string } | null | undefined;
+				const shapeId = payload?.id;
+				if (typeof shapeId !== "string") return;
+				const shape = ctx.store.getShape(shapeId);
+				if (!shape || shape.type !== "chat-widget") return;
+				const threadId = (shape.threadId as string) || "";
+				if (threadId) refreshShapeMetadata(shapeId, threadId);
 			});
 
 			// チャットピン選択時 → そのスレッドをサイドパネルで開く
@@ -403,6 +517,7 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 				if (shapeId !== prevSelectedChatId) {
 					prevSelectedChatId = shapeId;
 					activeThreadId = threadId;
+					clearUnreadForThread(threadId);
 					// タブを再登録してスレッドを切り替え
 					ctx.events.emit("side-panel:unregister-tab", { tabId: "community-chat" });
 					ctx.events.emit("side-panel:register-tab", {
@@ -418,6 +533,7 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 									userId={options.userId}
 									userName={options.userName}
 									threadId={activeThreadId}
+									events={ctx.events}
 								/>
 							),
 						},
@@ -448,6 +564,8 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 
 			cleanup = () => {
 				unsubMutation();
+				unsubNewMessage();
+				unsubShapeAdd();
 				ctx.events.emit("side-panel:unregister-tab", { tabId: "community-chat" });
 			};
 		},
