@@ -121,6 +121,14 @@ export function App() {
 	// popstate で ref を読み直す設計。
 	const modeRef = useRef<PresentationMode>(presentationMode);
 	modeRef.current = presentationMode;
+
+	// react-router の navigate() は pushState ベースで popstate を発火しない。
+	// presentation plugin は popstate で modeRef を再読込する設計なので、
+	// ?present= の変化を検出したら明示的に popstate を dispatch する。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: presentationMode の変化をトリガーとして使用
+	useEffect(() => {
+		window.dispatchEvent(new PopStateEvent("popstate"));
+	}, [presentationMode]);
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [wsStatus, setWsStatus] = useState<WsConnectionStatus | null>(null);
