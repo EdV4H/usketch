@@ -193,7 +193,15 @@ export function WorldMapPage() {
 
 	if (error) {
 		return (
-			<div style={{ padding: 24, fontFamily: "system-ui, sans-serif", color: "#c33" }}>
+			<div
+				style={{
+					padding: 24,
+					fontFamily: "var(--font-sans)",
+					color: "var(--danger)",
+					background: "var(--bg-canvas)",
+					minHeight: "100vh",
+				}}
+			>
 				<p>Error: {error}</p>
 			</div>
 		);
@@ -239,14 +247,14 @@ function WorldMapHeader({
 			}}
 		>
 			<div
+				className="u-surface"
 				style={{
-					background: "white",
-					borderRadius: 8,
 					padding: "6px 14px",
-					boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-					fontSize: 14,
+					fontSize: 13,
 					fontWeight: 600,
-					fontFamily: "system-ui, sans-serif",
+					fontFamily: "var(--font-sans)",
+					color: "var(--fg-primary)",
+					borderRadius: 10,
 				}}
 			>
 				uSketch World
@@ -256,50 +264,50 @@ function WorldMapHeader({
 					<button
 						type="button"
 						onClick={() => navigate("/dashboard")}
+						className="u-surface"
 						style={{
-							background: "white",
 							border: "none",
-							borderRadius: 8,
 							padding: "6px 12px",
-							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
 							fontSize: 12,
 							cursor: "pointer",
-							color: "#0066ff",
+							color: "var(--brand-violet)",
+							fontFamily: "var(--font-sans)",
+							borderRadius: 10,
 						}}
 					>
-						Dashboard
+						ダッシュボード
 					</button>
 					<button
 						type="button"
 						onClick={onLogout}
+						className="u-surface"
 						style={{
-							background: "white",
 							border: "none",
-							borderRadius: 8,
 							padding: "6px 12px",
-							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-							fontSize: 12,
+							fontSize: 11.5,
 							cursor: "pointer",
-							color: "#666",
+							color: "var(--fg-tertiary)",
+							fontFamily: "var(--font-sans)",
+							borderRadius: 10,
 						}}
 					>
-						{user.name} — Sign Out
+						{user.name} — サインアウト
 					</button>
 				</>
 			) : (
 				<a
 					href="/login"
+					className="u-surface"
 					style={{
-						background: "white",
-						borderRadius: 8,
 						padding: "6px 12px",
-						boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-						fontSize: 12,
+						fontSize: 11.5,
 						textDecoration: "none",
-						color: "#0066ff",
+						color: "var(--brand-violet)",
+						fontFamily: "var(--font-sans)",
+						borderRadius: 10,
 					}}
 				>
-					Sign In
+					サインイン
 				</a>
 			)}
 		</div>

@@ -1,5 +1,6 @@
 import { useApp } from "@edv4h/usketch-canvas-engine";
 import { useNavigate } from "react-router";
+import { I, IconBtn, ThemeToggle } from "../../components/ui/index.js";
 import { useAuth } from "../../lib/use-auth.js";
 
 export function CommunityHeader({ regionName }: { regionName: string }) {
@@ -23,29 +24,32 @@ export function CommunityHeader({ regionName }: { regionName: string }) {
 				<button
 					type="button"
 					onClick={() => navigate("/community")}
+					className="u-surface"
 					style={{
-						background: "white",
 						border: "none",
-						borderRadius: 8,
 						padding: "6px 12px",
-						boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-						fontSize: 14,
+						fontSize: 12,
 						cursor: "pointer",
-						color: "#0066ff",
-						fontFamily: "system-ui, sans-serif",
+						color: "var(--fg-secondary)",
+						fontFamily: "var(--font-sans)",
+						display: "inline-flex",
+						alignItems: "center",
+						gap: 6,
+						borderRadius: 10,
 					}}
 				>
-					World Map
+					<I.map size={12} />
+					ワールドマップ
 				</button>
 				<div
+					className="u-surface"
 					style={{
-						background: "white",
-						borderRadius: 8,
 						padding: "6px 14px",
-						boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-						fontSize: 14,
+						fontSize: 13,
 						fontWeight: 600,
-						fontFamily: "system-ui, sans-serif",
+						fontFamily: "var(--font-sans)",
+						color: "var(--fg-primary)",
+						borderRadius: 10,
 					}}
 				>
 					{regionName || "uSketch"}
@@ -57,102 +61,80 @@ export function CommunityHeader({ regionName }: { regionName: string }) {
 							logout();
 							navigate("/login");
 						}}
+						className="u-surface"
 						style={{
-							background: "white",
 							border: "none",
-							borderRadius: 8,
 							padding: "6px 12px",
-							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-							fontSize: 12,
+							fontSize: 11.5,
 							cursor: "pointer",
-							color: "#666",
+							color: "var(--fg-tertiary)",
+							fontFamily: "var(--font-sans)",
+							borderRadius: 10,
 						}}
 					>
-						{sessionUser.name} — Sign Out
+						{sessionUser.name} — サインアウト
 					</button>
 				) : (
 					<a
 						href="/login"
+						className="u-surface"
 						style={{
-							background: "white",
-							borderRadius: 8,
 							padding: "6px 12px",
-							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-							fontSize: 12,
+							fontSize: 11.5,
 							textDecoration: "none",
-							color: "#0066ff",
+							color: "var(--brand-violet)",
+							fontFamily: "var(--font-sans)",
+							borderRadius: 10,
 						}}
 					>
-						Sign In
+						サインイン
 					</a>
 				)}
 			</div>
-			{/* 右上: サイドパネル開閉ボタン */}
-			{sessionUser && (
-				<div
-					style={{
-						position: "fixed",
-						top: 12,
-						right: 12,
-						zIndex: 100,
-						display: "flex",
-						gap: 6,
-					}}
-				>
-					<button
-						type="button"
-						onClick={() => app.events.emit("side-panel:toggle", { tabId: "board-info" })}
+			{/* 右上: テーマ切替 + サイドパネル開閉 */}
+			<div
+				style={{
+					position: "fixed",
+					top: 12,
+					right: 12,
+					zIndex: 100,
+					display: "flex",
+					gap: 8,
+					alignItems: "center",
+				}}
+			>
+				<ThemeToggle />
+				{sessionUser && (
+					<div
+						className="u-surface"
 						style={{
-							background: "white",
-							border: "none",
-							borderRadius: 8,
-							padding: "6px 10px",
-							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-							fontSize: 14,
-							cursor: "pointer",
-							color: "#475569",
+							padding: 3,
+							display: "flex",
+							gap: 1,
+							borderRadius: 10,
 						}}
-						title="Board Info"
 					>
-						📋
-					</button>
-					<button
-						type="button"
-						onClick={() => app.events.emit("side-panel:toggle", { tabId: "comments" })}
-						style={{
-							background: "white",
-							border: "none",
-							borderRadius: 8,
-							padding: "6px 10px",
-							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-							fontSize: 14,
-							cursor: "pointer",
-							color: "#475569",
-						}}
-						title="Comments"
-					>
-						💬
-					</button>
-					<button
-						type="button"
-						onClick={() => app.events.emit("side-panel:toggle", { tabId: "community-chat" })}
-						style={{
-							background: "white",
-							border: "none",
-							borderRadius: 8,
-							padding: "6px 10px",
-							boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-							fontSize: 14,
-							cursor: "pointer",
-							color: "#475569",
-						}}
-						title="Chat"
-						aria-label="Chat"
-					>
-						🗨️
-					</button>
-				</div>
-			)}
+						<IconBtn
+							icon={I.folder}
+							label="ボード情報"
+							tooltipPlacement="bottom"
+							onClick={() => app.events.emit("side-panel:toggle", { tabId: "board-info" })}
+						/>
+						<IconBtn
+							icon={I.comment}
+							label="コメント"
+							tooltipPlacement="bottom"
+							onClick={() => app.events.emit("side-panel:toggle", { tabId: "comments" })}
+						/>
+						<IconBtn
+							icon={I.chat}
+							label="チャット"
+							tooltipPlacement="bottom"
+							onClick={() => app.events.emit("side-panel:toggle", { tabId: "community-chat" })}
+						/>
+					</div>
+				)}
+			</div>
 		</>
 	);
 }

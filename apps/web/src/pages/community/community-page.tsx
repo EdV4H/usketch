@@ -263,7 +263,15 @@ export function CommunityPage() {
 
 	if (error) {
 		return (
-			<div style={{ padding: 24, fontFamily: "system-ui, sans-serif", color: "#c33" }}>
+			<div
+				style={{
+					padding: 24,
+					fontFamily: "var(--font-sans)",
+					color: "var(--danger)",
+					background: "var(--bg-canvas)",
+					minHeight: "100vh",
+				}}
+			>
 				<p>Error: {error}</p>
 			</div>
 		);
