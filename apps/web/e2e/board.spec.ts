@@ -15,19 +15,20 @@ test.describe("Board", () => {
 	test("dashboard loads with local board button", async ({ page }) => {
 		await page.goto("/dashboard");
 		await expect(page.locator("h1")).toContainText("uSketch");
-		await expect(page.locator("text=New Local Board")).toBeVisible();
+		// 新 UI の CTA は日本語
+		await expect(page.locator("text=新規ローカルボード")).toBeVisible();
 	});
 
 	test("local board can be created and opened", async ({ page }) => {
 		await page.goto("/dashboard");
-		await page.click("text=New Local Board");
+		await page.click("text=新規ローカルボード");
 		await page.waitForURL(/\/local\//);
 		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 	});
 
 	test("toolbar and export button visible on board page", async ({ page }) => {
 		await page.goto("/dashboard");
-		await page.click("text=New Local Board");
+		await page.click("text=新規ローカルボード");
 		await page.waitForURL(/\/local\//);
 		// 新レイアウト: Toolbar は画面下中央の data-testid="toolbar" で特定
 		await expect(page.locator('[data-testid="toolbar"]')).toBeVisible();
