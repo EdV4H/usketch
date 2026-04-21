@@ -60,6 +60,7 @@ import { Toolbar } from "./components/toolbar/index.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
+import { computePresentStage, type StageRect } from "./lib/present-stage.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 
@@ -135,6 +136,15 @@ export function App() {
 	const [wsStatus, setWsStatus] = useState<WsConnectionStatus | null>(null);
 	const [boardName, setBoardName] = useState<string | null>(null);
 	const wsProviderRef = useRef<WsProviderHandle | null>(null);
+
+	// プレゼン編集モードの stage 矩形 (Canvas を縮退させて配置する)。
+	// app 生成 useEffect で presentation plugin に getViewportSize として渡すため、
+	// ref でも保持する (stage 変更時に app を再生成しない)。
+	const stageRectRef = useRef<StageRect | null>(
+		presentationMode === "edit"
+			? computePresentStage({ width: window.innerWidth, height: window.innerHeight })
+			: null,
+	);
 
 	// ボード初期化（boardId / isCloudBoard に依存）。
 	// presentationMode は依存に入れない（presentation plugin が popstate で modeRef を読み直す）。
@@ -213,6 +223,11 @@ export function App() {
 					getMode: () => modeRef.current,
 					navigateToBoard: () => {
 						if (boardId) navigate(`/boards/${boardId}`);
+					},
+					getViewportSize: () => {
+						const stage = stageRectRef.current;
+						if (stage) return { width: stage.width, height: stage.height };
+						return { width: window.innerWidth, height: window.innerHeight };
 					},
 				}),
 			);
@@ -377,6 +392,20 @@ export function App() {
 	const openPalette = useCallback(() => setPaletteOpen(true), []);
 	useCommandPaletteShortcut(openPalette);
 
+	const [stageRect, setStageRect] = useState<StageRect | null>(stageRectRef.current);
+	stageRectRef.current = stageRect;
+	useEffect(() => {
+		if (presentationMode !== "edit") {
+			setStageRect(null);
+			return;
+		}
+		const update = () =>
+			setStageRect(computePresentStage({ width: window.innerWidth, height: window.innerHeight }));
+		update();
+		window.addEventListener("resize", update);
+		return () => window.removeEventListener("resize", update);
+	}, [presentationMode]);
+
 	if (error) {
 		return (
 			<div style={{ padding: "24px", fontFamily: "system-ui, sans-serif", color: "#c33" }}>
@@ -393,8 +422,39 @@ export function App() {
 
 	return (
 		<AppProvider app={app}>
-			<div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
-				<Canvas />
+			<div
+				style={{
+					width: "100%",
+					height: "100%",
+					overflow: "hidden",
+					position: "relative",
+					background: "var(--bg-canvas-2, #0a0a0b)",
+				}}
+			>
+				<div
+					style={
+						stageRect
+							? {
+									position: "absolute",
+									left: stageRect.left,
+									top: stageRect.top,
+									width: stageRect.width,
+									height: stageRect.height,
+									borderRadius: 8,
+									overflow: "hidden",
+									boxShadow:
+										"0 0 0 1.5px var(--brand-violet), 0 0 0 6px color-mix(in oklab, var(--brand-violet) 18%, transparent), 0 20px 60px rgba(139,92,246,.35), 0 0 80px rgba(236,72,153,.2)",
+									transition:
+										"left 180ms var(--ease-out, ease-out), top 180ms var(--ease-out, ease-out), width 180ms var(--ease-out, ease-out), height 180ms var(--ease-out, ease-out)",
+								}
+							: {
+									position: "absolute",
+									inset: 0,
+								}
+					}
+				>
+					<Canvas />
+				</div>
 				{!hideToolbar && (
 					<>
 						<BoardIdentity

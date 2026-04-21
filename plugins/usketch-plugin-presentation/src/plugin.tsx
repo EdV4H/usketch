@@ -27,9 +27,15 @@ export interface PresentationPluginOptions {
 	 * apps/web 側で react-router の navigate を渡す。省略時は window.location.assign。
 	 */
 	navigateToBoard?: () => void;
+	/**
+	 * SlideNavigator.fitToBounds で使う viewport サイズを返す。
+	 * 編集モード時は Canvas が stage 矩形に縮退するため、ウィンドウ全体ではなく
+	 * stage のサイズを返したい。省略時は window.innerWidth/Height を使う。
+	 */
+	getViewportSize?: () => { width: number; height: number };
 }
 
-function getWindowSize(): { width: number; height: number } {
+function defaultGetViewportSize(): { width: number; height: number } {
 	return { width: window.innerWidth, height: window.innerHeight };
 }
 
@@ -52,6 +58,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 	const getMode = opts.getMode;
 	const subscribeMode = opts.subscribeMode ?? defaultSubscribeMode;
 	const navigateToBoard = opts.navigateToBoard ?? defaultNavigateToBoard;
+	const getViewportSize = opts.getViewportSize ?? defaultGetViewportSize;
 	let nav: SlideNavigator | null = null;
 	const unregisters: Array<() => void> = [];
 
@@ -59,7 +66,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 		id: "presentation",
 		name: "Presentation",
 		setup(ctx: PluginContext) {
-			nav = new SlideNavigator(ctx.store, getWindowSize);
+			nav = new SlideNavigator(ctx.store, getViewportSize);
 			const navRef = nav;
 
 			// 発表モード中のみ動くショートカット群（mode を実行時に毎回評価する）

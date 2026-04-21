@@ -86,31 +86,16 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 		return () => window.removeEventListener("resize", onResize);
 	}, []);
 
-	// ステージサイズに合わせて、現在のスライドを再フィット。
-	// nav は getViewportSize 経由で画面全体サイズを返す前提だが、ここではステージ外に
-	// canvas がはみ出しても overlay で隠れるので、敢えて fitToBounds を直接呼ぶ。
+	// Canvas 自体が stage 矩形に縮退しているので、SlideNavigator の fitToBounds が
+	// そのまま正しく動く。mode 突入時や stage リサイズ時にだけ nav 経由で再フィットする。
 	useEffect(() => {
 		const slide = slides[current];
 		if (!slide) return;
-		const key = `${slide.id}:${Math.round(stage.width)}x${Math.round(stage.height)}:${Math.round(stage.left)}x${Math.round(stage.top)}`;
+		const key = `${slide.id}:${Math.round(stage.width)}x${Math.round(stage.height)}`;
 		if (lastFitRef.current === key) return;
 		lastFitRef.current = key;
-		// stage の world-to-screen 比率に合わせて viewport を手動で組む。
-		// fitToBounds はビューポート中心基準なので、ステージ中心 = 画面中心に
-		// なるよう left/top をオフセット補正する。
-		const winW = window.innerWidth;
-		const winH = window.innerHeight;
-		const stageCenterX = stage.left + stage.width / 2;
-		const stageCenterY = stage.top + stage.height / 2;
-		const screenCenterX = winW / 2;
-		const screenCenterY = winH / 2;
-		const zoom = Math.min(stage.width / slide.width, stage.height / slide.height);
-		const viewportX =
-			screenCenterX - (slide.x + slide.width / 2) * zoom + (stageCenterX - screenCenterX);
-		const viewportY =
-			screenCenterY - (slide.y + slide.height / 2) * zoom + (stageCenterY - screenCenterY);
-		store.setViewport({ x: viewportX, y: viewportY, zoom });
-	}, [slides, current, stage, store]);
+		nav.gotoIndex(current);
+	}, [slides, current, stage, nav]);
 
 	const startPresent = () => {
 		const url = new URL(window.location.href);
@@ -134,23 +119,8 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 				fontFamily: "var(--font-sans, system-ui)",
 			}}
 		>
-			{/* ステージ枠: Canvas を violet のリング + 外側オーラで囲む。
-			    内側は塗らず Canvas を透過。outline + box-shadow のみで構成。 */}
-			<div
-				style={{
-					position: "absolute",
-					left: stage.left,
-					top: stage.top,
-					width: stage.width,
-					height: stage.height,
-					borderRadius: 8,
-					pointerEvents: "none",
-					outline: "2.5px solid var(--brand-violet)",
-					outlineOffset: 2,
-					boxShadow:
-						"0 0 0 6px color-mix(in oklab, var(--brand-violet) 18%, transparent), 0 20px 60px rgba(139,92,246,.35), 0 0 80px rgba(236,72,153,.2)",
-				}}
-			/>
+			{/* ステージ枠は apps/web 側で Canvas 本体に box-shadow を当てて描画。
+			    ここではサイドバー / 上部 pill / ページャーのみを重ねる。 */}
 
 			{/* サイドバー */}
 			<aside
