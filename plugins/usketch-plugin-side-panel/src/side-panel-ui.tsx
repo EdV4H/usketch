@@ -1,5 +1,5 @@
 import type { EventBus } from "@edv4h/usketch-shared";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { TabStore } from "./tab-store.js";
 import type { SidePanelOpenEvent } from "./types.js";
 
@@ -162,7 +162,7 @@ export function SidePanelUI({ events, tabStore }: SidePanelUIProps) {
 	);
 }
 
-function TabIcon({ tab }: { tab: { icon: string; iconComponent?: () => React.ReactNode } }) {
+function TabIcon({ tab }: { tab: { icon: string; iconComponent?: () => ReactNode } }) {
 	if (tab.iconComponent) return <>{tab.iconComponent()}</>;
 	return <span style={{ fontSize: 13, lineHeight: 1 }}>{tab.icon}</span>;
 }

@@ -133,6 +133,10 @@ export function CommunityPage() {
 							userImage: authUserImage,
 						}),
 					);
+					// サイドパネル + ボード情報パネル + コメント
+					// SidePanel プラグインは `side-panel:register-tab` イベントを listen するため、
+					// タブを登録する側のプラグインより先に setup されている必要がある。
+					extraPlugins.push(createSidePanelPlugin());
 					extraPlugins.push(
 						createActivityFeedPlugin({
 							wsProvider,
@@ -140,9 +144,6 @@ export function CommunityPage() {
 							apiUrl,
 						}),
 					);
-
-					// サイドパネル + ボード情報パネル + コメント
-					extraPlugins.push(createSidePanelPlugin());
 					const infoHeaders: Record<string, string> = {};
 					if (import.meta.env.DEV) {
 						const devUser = getDevUser();

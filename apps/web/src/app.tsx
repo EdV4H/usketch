@@ -58,6 +58,7 @@ import { SidePanelToggles } from "./components/side-panel/side-panel-toggles.js"
 import { Toolbar } from "./components/toolbar/index.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
+import { localBoards } from "./lib/local-boards.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 
@@ -123,6 +124,7 @@ export function App() {
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [wsStatus, setWsStatus] = useState<WsConnectionStatus | null>(null);
+	const [boardName, setBoardName] = useState<string | null>(null);
 	const wsProviderRef = useRef<WsProviderHandle | null>(null);
 
 	// ボード初期化（boardId / isCloudBoard に依存）。
@@ -252,6 +254,40 @@ export function App() {
 		// presentation plugin が modeRef 経由で最新値を読む（undo 履歴・WebSocket を残すため）。
 	}, [boardId, isCloudBoard, navigate]);
 
+	// Cloud ボードのタイトル取得（BoardIdentity 表示用）
+	useEffect(() => {
+		if (!boardId) {
+			setBoardName(null);
+			return;
+		}
+		if (!isCloudBoard) {
+			const local = localBoards.list().find((b) => b.id === boardId);
+			setBoardName(local?.title ?? null);
+			return;
+		}
+		let cancelled = false;
+		const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+		const headers: Record<string, string> = {};
+		if (import.meta.env.DEV) {
+			const devUser = getDevUser();
+			if (devUser) headers["X-User-Id"] = devUser.id;
+		}
+		fetch(`${apiUrl}/api/boards/${boardId}`, { credentials: "include", headers })
+			.then((r) => (r.ok ? r.json() : null))
+			.then((b) => {
+				if (cancelled) return;
+				const name =
+					b && typeof (b as { name?: unknown }).name === "string"
+						? (b as { name: string }).name
+						: null;
+				setBoardName(name);
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
+	}, [boardId, isCloudBoard]);
+
 	// ページ離脱時にビューポート位置を保存（ゴーストアバター用）
 	useEffect(() => {
 		if (!isCloudBoard || !boardId) return;
@@ -354,7 +390,7 @@ export function App() {
 				{!hideToolbar && (
 					<>
 						<BoardIdentity
-							boardName={boardId}
+							boardName={boardName ?? undefined}
 							isCloudBoard={isCloudBoard}
 							connectionStatus={wsStatus ?? undefined}
 						/>

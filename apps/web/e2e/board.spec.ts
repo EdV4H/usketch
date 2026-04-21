@@ -37,4 +37,46 @@ test.describe("Board", () => {
 		// エクスポートボタン（aria-label）
 		await expect(page.locator('button[aria-label="エクスポート"]')).toBeVisible();
 	});
+
+	test("command palette opens with Cmd+K and closes with Esc", async ({ page }) => {
+		await page.goto("/dashboard");
+		await page.click("text=新規ローカルボード");
+		await page.waitForURL(/\/local\//);
+
+		// Toolbar のレンダリング完了を待つ
+		await expect(page.locator('[data-testid="toolbar"]')).toBeVisible();
+
+		// Cmd+K / Ctrl+K 両方を試す（macOS は Meta、他は Control）
+		await page.keyboard.press("ControlOrMeta+k");
+
+		const palette = page.locator('[role="dialog"][aria-label="コマンドパレット"]');
+		await expect(palette).toBeVisible();
+
+		// グループが出ている
+		await expect(palette.locator("text=アクション")).toBeVisible();
+		await expect(palette.locator("text=テーマ")).toBeVisible();
+
+		// Esc で閉じる
+		await page.keyboard.press("Escape");
+		await expect(palette).not.toBeVisible();
+	});
+
+	test("command palette executes a theme command", async ({ page }) => {
+		await page.goto("/dashboard");
+		await page.click("text=新規ローカルボード");
+		await page.waitForURL(/\/local\//);
+		await expect(page.locator('[data-testid="toolbar"]')).toBeVisible();
+
+		await page.keyboard.press("ControlOrMeta+k");
+
+		const palette = page.locator('[role="dialog"][aria-label="コマンドパレット"]');
+		await expect(palette).toBeVisible();
+
+		// 「テーマ切替: ライト」コマンドをクリックして実行
+		await palette.locator("text=テーマ切替: ライト").click();
+
+		// パレットが閉じ、data-theme が light に
+		await expect(palette).not.toBeVisible();
+		await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+	});
 });
