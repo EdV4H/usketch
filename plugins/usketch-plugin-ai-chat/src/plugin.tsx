@@ -1,6 +1,24 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { createCommandPalette } from "./command-palette.js";
 
+function AiChatIcon() {
+	return (
+		<svg
+			width={13}
+			height={13}
+			viewBox="0 0 16 16"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path d="M8 2v3M8 11v3M2 8h3M11 8h3M4.5 4.5l2 2M9.5 9.5l2 2M11.5 4.5l-2 2M6.5 9.5l-2 2" />
+		</svg>
+	);
+}
+
 export interface AiChatOptions {
 	boardId: string;
 	/**
@@ -47,9 +65,10 @@ export function createAiChatPlugin(options: AiChatOptions): UsketchPlugin {
 			ctx.events.emit("side-panel:register-tab", {
 				tab: {
 					id: "ai-chat",
-					label: "AI Chat",
+					label: "AI",
 					icon: "🤖",
-					order: 2,
+					iconComponent: () => <AiChatIcon />,
+					order: 20,
 					render: () => <AiChatTab events={ctx.events} boardId={options.boardId} />,
 				},
 			});

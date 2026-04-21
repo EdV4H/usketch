@@ -16,140 +16,110 @@ function formatTime(iso: string): string {
 	return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function ActivityPanel({ entries, onClose }: { entries: ActivityEntry[]; onClose: () => void }) {
+function ActivityTab({ boardId, apiUrl }: { boardId: string; apiUrl: string }) {
+	const [entries, setEntries] = useState<ActivityEntry[]>([]);
+	const [loading, setLoading] = useState(true);
+	const fetchedRef = useRef(false);
+
+	useEffect(() => {
+		if (fetchedRef.current) return;
+		fetchedRef.current = true;
+		setLoading(true);
+		fetch(`${apiUrl}/api/boards/${boardId}/activity`, { credentials: "include" })
+			.then((res) => (res.ok ? res.json() : []))
+			.then((data) => setEntries(data as ActivityEntry[]))
+			.catch(() => {})
+			.finally(() => setLoading(false));
+	}, [boardId, apiUrl]);
+
+	if (loading) {
+		return (
+			<div
+				style={{
+					padding: 20,
+					textAlign: "center",
+					color: "var(--fg-tertiary)",
+					fontSize: 12,
+				}}
+			>
+				読み込み中…
+			</div>
+		);
+	}
+
+	if (entries.length === 0) {
+		return (
+			<div
+				style={{
+					padding: 20,
+					textAlign: "center",
+					color: "var(--fg-tertiary)",
+					fontSize: 12,
+				}}
+			>
+				まだアクティビティがありません
+			</div>
+		);
+	}
+
 	return (
 		<div
 			style={{
-				position: "fixed",
-				top: 60,
-				right: 12,
-				width: 280,
-				maxHeight: "calc(100vh - 120px)",
-				background: "#fff",
-				borderRadius: 12,
-				boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
-				zIndex: 150,
-				overflow: "hidden",
-				fontFamily: "system-ui, sans-serif",
+				padding: "8px 0",
 				display: "flex",
 				flexDirection: "column",
 			}}
 		>
-			<div
-				style={{
-					padding: "12px 16px",
-					borderBottom: "1px solid #eee",
-					display: "flex",
-					justifyContent: "space-between",
-					alignItems: "center",
-				}}
-			>
-				<span style={{ fontSize: 14, fontWeight: 600 }}>Activity</span>
-				<button
-					type="button"
-					onClick={onClose}
+			{entries.map((entry) => (
+				<div
+					key={entry.id}
 					style={{
-						border: "none",
-						background: "none",
-						fontSize: 16,
-						cursor: "pointer",
-						color: "#999",
+						padding: "8px 16px",
+						fontSize: 12,
+						color: "var(--fg-primary)",
+						borderBottom: "1px solid var(--border-subtle)",
+						display: "flex",
+						flexDirection: "column",
+						gap: 2,
 					}}
 				>
-					x
-				</button>
-			</div>
-			<div style={{ overflowY: "auto", flex: 1, padding: "8px 0" }}>
-				{entries.length === 0 ? (
-					<div style={{ padding: "16px", textAlign: "center", color: "#999", fontSize: 13 }}>
-						No activity yet
+					<div style={{ lineHeight: 1.4 }}>
+						<span style={{ fontWeight: 500 }}>{entry.action}</span>
+						{entry.summary && (
+							<span style={{ color: "var(--fg-tertiary)" }}> — {entry.summary}</span>
+						)}
 					</div>
-				) : (
-					entries.map((entry) => (
-						<div
-							key={entry.id}
-							style={{
-								padding: "6px 16px",
-								fontSize: 12,
-								color: "#555",
-								borderBottom: "1px solid #f5f5f5",
-							}}
-						>
-							<div>
-								<span style={{ fontWeight: 500 }}>{entry.action}</span>
-								{entry.summary && <span style={{ color: "#999" }}> — {entry.summary}</span>}
-							</div>
-							<div style={{ fontSize: 10, color: "#bbb", marginTop: 2 }}>
-								{formatTime(entry.createdAt)}
-							</div>
-						</div>
-					))
-				)}
-			</div>
+					<div
+						style={{
+							fontSize: 10.5,
+							color: "var(--fg-tertiary)",
+							fontFamily: "var(--font-mono)",
+						}}
+					>
+						{formatTime(entry.createdAt)}
+					</div>
+				</div>
+			))}
 		</div>
 	);
 }
 
-function ActivityButton({ onClick }: { onClick: () => void }) {
+function ActivityIcon() {
 	return (
-		<button
-			type="button"
-			onClick={onClick}
-			title="Activity Feed"
-			style={{
-				position: "fixed",
-				bottom: 12,
-				right: 12,
-				width: 40,
-				height: 40,
-				borderRadius: "50%",
-				border: "none",
-				background: "#fff",
-				boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-				cursor: "pointer",
-				display: "flex",
-				alignItems: "center",
-				justifyContent: "center",
-				zIndex: 100,
-				fontSize: 16,
-			}}
+		<svg
+			width={13}
+			height={13}
+			viewBox="0 0 16 16"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
 		>
-			<svg width="20" height="20" viewBox="0 0 20 20">
-				<title>Activity</title>
-				<polyline
-					points="2,14 6,10 10,12 14,6 18,8"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="1.5"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-				/>
-				<circle cx="18" cy="4" r="2" fill="currentColor" opacity="0.5" />
-			</svg>
-		</button>
-	);
-}
-
-function ActivityFeedUI({ boardId, apiUrl }: { boardId: string; apiUrl: string }) {
-	const [open, setOpen] = useState(false);
-	const [entries, setEntries] = useState<ActivityEntry[]>([]);
-	const fetchedRef = useRef(false);
-
-	useEffect(() => {
-		if (!open || fetchedRef.current) return;
-		fetchedRef.current = true;
-
-		fetch(`${apiUrl}/api/boards/${boardId}/activity`, { credentials: "include" })
-			.then((res) => (res.ok ? res.json() : []))
-			.then((data) => setEntries(data as ActivityEntry[]))
-			.catch(() => {});
-	}, [open, boardId, apiUrl]);
-
-	return (
-		<>
-			<ActivityButton onClick={() => setOpen((v) => !v)} />
-			{open && <ActivityPanel entries={entries} onClose={() => setOpen(false)} />}
-		</>
+			<path d="M2.5 8a5.5 5.5 0 1 0 1.5-3.8" />
+			<path d="M2.5 3v3h3M8 5v3l2 1.5" />
+		</svg>
 	);
 }
 
@@ -169,15 +139,19 @@ export function createActivityFeedPlugin(options: ActivityFeedOptions): UsketchP
 		name: "アクティビティフィード",
 
 		setup(ctx: PluginContext) {
-			ctx.layers.register({
-				id: "activity-feed",
-				order: 200,
-				fixed: true,
-				render: () => <ActivityFeedUI boardId={boardId} apiUrl={apiUrl} />,
+			ctx.events.emit("side-panel:register-tab", {
+				tab: {
+					id: "activity",
+					label: "履歴",
+					icon: "🕒",
+					iconComponent: () => <ActivityIcon />,
+					order: 40,
+					render: () => <ActivityTab boardId={boardId} apiUrl={apiUrl} />,
+				},
 			});
 
 			cleanup = () => {
-				ctx.layers.unregister("activity-feed");
+				ctx.events.emit("side-panel:unregister-tab", { tabId: "activity" });
 			};
 		},
 

@@ -2,6 +2,7 @@ import { AppProvider, Canvas, TransientLayer } from "@edv4h/usketch-canvas-engin
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
 import { createGpuRendererPlugin } from "@edv4h/usketch-gpu-renderer";
+import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
 import { createAiActionsPlugin } from "@edv4h/usketch-plugin-ai-actions";
 import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
 import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
@@ -52,6 +53,8 @@ import {
 	ZoomControls,
 } from "./components/board-frame/index.js";
 import { CommandPalette, useCommandPaletteShortcut } from "./components/command-palette.js";
+import { InfoTab } from "./components/side-panel/info-tab.js";
+import { SidePanelToggles } from "./components/side-panel/side-panel-toggles.js";
 import { Toolbar } from "./components/toolbar/index.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
@@ -190,6 +193,7 @@ export function App() {
 			extraPlugins.push(createAiImagePlugin({ boardId }));
 			extraPlugins.push(createAiRecognizePlugin({ boardId }));
 			extraPlugins.push(createWhistlePlugin(wsProvider));
+			extraPlugins.push(createActivityFeedPlugin({ wsProvider, boardId, apiUrl }));
 
 			// プレゼンテーション: 常にロードし、`?present=1` が付いた時だけ UI を出す。
 			// ルート切替せず URL クエリで切替える設計なので、アプリ再生成は起きない。
@@ -292,6 +296,39 @@ export function App() {
 	// キーボードショートカット
 	useKeyboardShortcuts(app);
 
+	// Info タブを SidePanel に登録（Cloud ボードのみ）
+	useEffect(() => {
+		if (!app || !isCloudBoard || !boardId) return;
+		const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+		app.events.emit("side-panel:register-tab", {
+			tab: {
+				id: "info",
+				label: "情報",
+				icon: "📋",
+				iconComponent: () => (
+					<svg
+						width={13}
+						height={13}
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="1.5"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M2 4a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4Z" />
+					</svg>
+				),
+				order: 30,
+				render: () => <InfoTab boardId={boardId} apiUrl={apiUrl} />,
+			},
+		});
+		return () => {
+			app.events.emit("side-panel:unregister-tab", { tabId: "info" });
+		};
+	}, [app, boardId, isCloudBoard]);
+
 	const [paletteOpen, setPaletteOpen] = useState(false);
 	const openPalette = useCallback(() => setPaletteOpen(true), []);
 	useCommandPaletteShortcut(openPalette);
@@ -330,6 +367,7 @@ export function App() {
 						/>
 						<ZoomControls />
 						<CommunityLink />
+						{isCloudBoard && <SidePanelToggles app={app} />}
 					</>
 				)}
 				<CommandPalette

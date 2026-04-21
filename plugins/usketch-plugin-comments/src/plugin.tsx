@@ -4,6 +4,24 @@ import { CommentBadgeLayer } from "./comment-badge-layer.js";
 import { createCommentClient } from "./comment-client.js";
 import { CommentsTabWrapper } from "./comments-tab-wrapper.js";
 
+function CommentIcon() {
+	return (
+		<svg
+			width={13}
+			height={13}
+			viewBox="0 0 16 16"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path d="M2.5 7.5c0-2.8 2.5-5 5.5-5s5.5 2.2 5.5 5-2.5 5-5.5 5c-.7 0-1.4-.1-2-.3L3 13.5l.8-2.4a4.8 4.8 0 0 1-1.3-3.6Z" />
+		</svg>
+	);
+}
+
 export interface CommentsPluginOptions {
 	boardId: string;
 	apiUrl: string;
@@ -25,9 +43,10 @@ export function createCommentsPlugin(options: CommentsPluginOptions): UsketchPlu
 			ctx.events.emit<SidePanelRegisterEvent>("side-panel:register-tab", {
 				tab: {
 					id: "comments",
-					label: "Comments",
+					label: "コメント",
 					icon: "💬",
-					order: 1,
+					iconComponent: () => <CommentIcon />,
+					order: 10,
 					render: () => <CommentsTabWrapper client={client} events={ctx.events} />,
 				},
 			});
