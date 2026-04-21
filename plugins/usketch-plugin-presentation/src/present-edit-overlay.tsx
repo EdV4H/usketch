@@ -15,6 +15,8 @@ const SIDEBAR_LEFT_MARGIN = 12;
 const STAGE_MAX_WIDTH = 1100;
 const STAGE_PADDING = 30;
 const TOP_BAR_HEIGHT = 64;
+/** Toolbar (bottom: 12, 高さ約 44) + ページャー pill (高さ約 42 + 12 gap) 分の予約 */
+const BOTTOM_RESERVED = 120;
 const SIDEBAR_RESERVED = SIDEBAR_WIDTH + SIDEBAR_LEFT_MARGIN * 2;
 const ASPECT = 9 / 16;
 const SLIDE_USER_COLORS = [
@@ -36,7 +38,7 @@ interface StageRect {
 function computeStageRect(win: { width: number; height: number }): StageRect {
 	const available = {
 		width: Math.max(100, win.width - SIDEBAR_RESERVED - STAGE_PADDING * 2),
-		height: Math.max(100, win.height - TOP_BAR_HEIGHT - STAGE_PADDING * 2 - 80),
+		height: Math.max(100, win.height - TOP_BAR_HEIGHT - STAGE_PADDING - BOTTOM_RESERVED),
 	};
 	let width = Math.min(available.width, STAGE_MAX_WIDTH);
 	let height = width * ASPECT;
@@ -275,13 +277,13 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 				</div>
 			</div>
 
-			{/* 下部ナビ pill */}
+			{/* ステージ直下のページネーション pill (Toolbar と重ならないよう stage 下に追従) */}
 			<div
 				style={{
 					position: "absolute",
-					bottom: 30,
-					left: SIDEBAR_RESERVED,
-					right: 0,
+					left: stage.left + stage.width / 2,
+					top: stage.top + stage.height + 12,
+					transform: "translateX(-50%)",
 					display: "flex",
 					justifyContent: "center",
 					pointerEvents: "none",
