@@ -1,6 +1,6 @@
 import type { BoardStore, Command, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
-import { zIndexBetween } from "@edv4h/usketch-shared";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { computeMinimap, zIndexBetween } from "@edv4h/usketch-shared";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { SlideNavigator } from "./slide-navigator.js";
 
@@ -69,6 +69,20 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 		computeStageRect({ width: window.innerWidth, height: window.innerHeight }),
 	);
 	const lastFitRef = useRef<string>("");
+	// サムネ再描画用のリビジョン。shape が追加/更新/削除されたら bump。
+	const [storeRev, setStoreRev] = useState(0);
+	useEffect(() => {
+		let scheduled = false;
+		const unsub = store.onMutation(() => {
+			if (scheduled) return;
+			scheduled = true;
+			requestAnimationFrame(() => {
+				scheduled = false;
+				setStoreRev((r) => r + 1);
+			});
+		});
+		return unsub;
+	}, [store]);
 
 	useEffect(() => {
 		const unsub = nav.onChange((i) => {
@@ -181,6 +195,8 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 							index={i}
 							active={i === current}
 							onClick={() => nav.gotoIndex(i)}
+							store={store}
+							storeRev={storeRev}
 						/>
 					))}
 					<button
@@ -377,12 +393,52 @@ interface ThumbProps {
 	index: number;
 	active: boolean;
 	onClick: () => void;
+	store: BoardStore;
+	storeRev: number;
 }
 
-function SlideThumb({ slide, index, active, onClick }: ThumbProps) {
+const THUMB_W = 200;
+const THUMB_H = 112; // 16:9
+
+/**
+ * スライド frame の中身を縮小してサムネに描画する。
+ * `computeMinimap` でボード全体と同じ pipeline を共有し、frame bbox 内の
+ * shape を minimap 矩形に畳んで SVG 化する。空スライドはグラデ背景にフォールバック。
+ */
+function SlideThumb({ slide, index, active, onClick, store, storeRev }: ThumbProps) {
 	const colorA = SLIDE_USER_COLORS[index % SLIDE_USER_COLORS.length];
 	const colorB = SLIDE_USER_COLORS[(index + 2) % SLIDE_USER_COLORS.length];
 	const title = getFrameLabel(slide);
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: storeRev 経由で shape mutation に追随する
+	const thumb = useMemo(() => {
+		const frameBounds = {
+			x: slide.x,
+			y: slide.y,
+			width: slide.width,
+			height: slide.height,
+		};
+		// storeRev を参照するだけで mutation 後に再計算されるようにする (実体は store から読む)
+		void storeRev;
+		const all = store.getShapesSorted();
+		const inside: ShapeData[] = [];
+		for (const s of all) {
+			if (s.id === slide.id) continue;
+			if (s.type === "frame") continue;
+			if (rectsIntersect(s, frameBounds)) inside.push(s);
+		}
+		return computeMinimap({
+			shapes: inside,
+			viewportWorld: frameBounds,
+			mapWidth: THUMB_W,
+			mapHeight: THUMB_H,
+			padding: 0,
+			minSize: 1.5,
+		});
+	}, [slide.id, slide.x, slide.y, slide.width, slide.height, store, storeRev]);
+
+	const isEmpty = thumb.rects.length === 0;
+
 	return (
 		<div
 			style={{
@@ -411,18 +467,46 @@ function SlideThumb({ slide, index, active, onClick }: ThumbProps) {
 				<div
 					style={{
 						aspectRatio: "16 / 9",
-						background: `linear-gradient(135deg, ${colorA}, ${colorB})`,
 						position: "relative",
+						background: isEmpty ? `linear-gradient(135deg, ${colorA}, ${colorB})` : "#ffffff",
+						overflow: "hidden",
 					}}
 				>
+					{!isEmpty && (
+						<svg
+							width="100%"
+							height="100%"
+							viewBox={`0 0 ${THUMB_W} ${THUMB_H}`}
+							preserveAspectRatio="xMidYMid meet"
+							aria-hidden="true"
+							style={{ display: "block" }}
+						>
+							<title>{title}</title>
+							{thumb.rects.map((r) => (
+								<rect
+									key={r.id}
+									x={r.x}
+									y={r.y}
+									width={r.width}
+									height={r.height}
+									fill={r.fill}
+									stroke="rgba(0,0,0,0.25)"
+									strokeWidth={0.6}
+									opacity={0.92}
+									rx={1}
+								/>
+							))}
+						</svg>
+					)}
 					<div
 						style={{
 							position: "absolute",
 							left: 6,
 							top: 4,
 							fontSize: 9,
-							color: "rgba(255,255,255,.7)",
+							color: isEmpty ? "rgba(255,255,255,.7)" : "var(--fg-tertiary)",
 							fontFamily: "var(--font-mono, monospace)",
+							mixBlendMode: isEmpty ? "normal" : "multiply",
 						}}
 					>
 						{String(index + 1).padStart(2, "0")}
@@ -443,6 +527,18 @@ function SlideThumb({ slide, index, active, onClick }: ThumbProps) {
 				</div>
 			</button>
 		</div>
+	);
+}
+
+function rectsIntersect(
+	a: { x: number; y: number; width: number; height: number },
+	b: { x: number; y: number; width: number; height: number },
+): boolean {
+	return !(
+		a.x + a.width <= b.x ||
+		b.x + b.width <= a.x ||
+		a.y + a.height <= b.y ||
+		b.y + b.height <= a.y
 	);
 }
 
