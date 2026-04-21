@@ -251,12 +251,12 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 				</div>
 			</div>
 
-			{/* ステージ直下のページネーション pill (Toolbar と重ならないよう stage 下に追従) */}
+			{/* ページネーション pill: 画面最下部に固定 (stage 下の余白内) */}
 			<div
 				style={{
 					position: "absolute",
-					left: stage.left + stage.width / 2,
-					top: stage.top + stage.height + 12,
+					left: SIDEBAR_RESERVED + (window.innerWidth - SIDEBAR_RESERVED) / 2,
+					bottom: 14,
 					transform: "translateX(-50%)",
 					display: "flex",
 					justifyContent: "center",

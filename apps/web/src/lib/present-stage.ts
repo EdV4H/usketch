@@ -15,7 +15,8 @@ export const STAGE_SIDEBAR_WIDTH = 220;
 export const STAGE_SIDEBAR_MARGIN = 0;
 export const STAGE_SIDEBAR_RESERVED = STAGE_SIDEBAR_WIDTH + STAGE_SIDEBAR_MARGIN * 2;
 export const STAGE_TOP_RESERVED = 56;
-export const STAGE_BOTTOM_RESERVED = 70;
+/** Stage 下: ページャー pill (約 42px + margin) 分を確保 */
+export const STAGE_BOTTOM_RESERVED = 72;
 export const STAGE_SIDE_PADDING = 16;
 /** ステージ最大幅: ウィンドウに追従させるため上限を廃止 */
 export const STAGE_MAX_WIDTH = Number.POSITIVE_INFINITY;
