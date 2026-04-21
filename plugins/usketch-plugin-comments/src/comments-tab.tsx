@@ -50,8 +50,9 @@ function ThreadItem({
 			ref={threadRef}
 			style={{
 				padding: "12px 16px",
-				borderBottom: "1px solid #f0f0f0",
-				background: isFocused ? "#f8f9ff" : "transparent",
+				borderBottom: "1px solid var(--border-subtle)",
+				background: isFocused ? "var(--bg-active)" : "transparent",
+				color: "var(--fg-primary)",
 			}}
 		>
 			{/* ヘッダー */}
@@ -63,7 +64,7 @@ function ThreadItem({
 					marginBottom: 8,
 				}}
 			>
-				<span style={{ fontSize: 11, color: "#999" }}>
+				<span style={{ fontSize: 11, color: "var(--fg-tertiary)" }}>
 					on shape {thread.anchorShapeId.slice(0, 8)}…
 				</span>
 				<div style={{ display: "flex", gap: 4 }}>
@@ -76,7 +77,7 @@ function ThreadItem({
 							background: "none",
 							cursor: "pointer",
 							fontSize: 14,
-							color: thread.resolved ? "#16a34a" : "#999",
+							color: thread.resolved ? "var(--success)" : "var(--fg-tertiary)",
 							padding: "2px 4px",
 						}}
 					>
@@ -91,7 +92,7 @@ function ThreadItem({
 							background: "none",
 							cursor: "pointer",
 							fontSize: 12,
-							color: "#ccc",
+							color: "var(--fg-disabled)",
 							padding: "2px 4px",
 						}}
 					>
@@ -103,8 +104,10 @@ function ThreadItem({
 			{/* メッセージ一覧 */}
 			{thread.messages.map((msg) => (
 				<div key={msg.id} style={{ marginBottom: 6 }}>
-					<div style={{ fontSize: 13, color: "#333", lineHeight: 1.4 }}>{msg.text}</div>
-					<div style={{ fontSize: 10, color: "#bbb", marginTop: 2 }}>
+					<div style={{ fontSize: 13, color: "var(--fg-primary)", lineHeight: 1.4 }}>
+						{msg.text}
+					</div>
+					<div style={{ fontSize: 10, color: "var(--fg-tertiary)", marginTop: 2 }}>
 						{msg.authorId.slice(0, 8)}… · {formatTime(msg.createdAt)}
 					</div>
 				</div>
@@ -127,7 +130,9 @@ function ThreadItem({
 						placeholder="Reply…"
 						style={{
 							flex: 1,
-							border: "1px solid #e5e5e5",
+							border: "1px solid var(--border-default)",
+							background: "var(--bg-input)",
+							color: "var(--fg-primary)",
 							borderRadius: 6,
 							padding: "6px 10px",
 							fontSize: 12,
@@ -140,16 +145,18 @@ function ThreadItem({
 						onClick={handleSubmit}
 						style={{
 							border: "none",
-							background: "#1e1e1e",
-							color: "#fff",
+							background: "var(--brand-gradient)",
+							color: "white",
 							borderRadius: 6,
 							padding: "6px 10px",
 							fontSize: 12,
 							cursor: "pointer",
 							flexShrink: 0,
+							fontFamily: "inherit",
+							fontWeight: 500,
 						}}
 					>
-						Send
+						送信
 					</button>
 				</div>
 			)}
@@ -181,9 +188,15 @@ function NewThreadForm({
 	}, []);
 
 	return (
-		<div style={{ padding: "12px 16px", borderBottom: "1px solid #eee", background: "#f8f9ff" }}>
-			<div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>
-				New comment on shape {prompt.anchorShapeId.slice(0, 8)}…
+		<div
+			style={{
+				padding: "12px 16px",
+				borderBottom: "1px solid var(--border-subtle)",
+				background: "var(--bg-active)",
+			}}
+		>
+			<div style={{ fontSize: 12, color: "var(--fg-secondary)", marginBottom: 8 }}>
+				新しいコメント: {prompt.anchorShapeId.slice(0, 8)}…
 			</div>
 			<div style={{ display: "flex", gap: 6 }}>
 				<input
@@ -198,10 +211,12 @@ function NewThreadForm({
 						if (e.key === "Enter" && !isComposing && text.trim()) onSubmit(text.trim());
 						if (e.key === "Escape") onCancel();
 					}}
-					placeholder="Write a comment…"
+					placeholder="コメントを書く…"
 					style={{
 						flex: 1,
-						border: "1px solid #e5e5e5",
+						border: "1px solid var(--border-default)",
+						background: "var(--bg-input)",
+						color: "var(--fg-primary)",
 						borderRadius: 6,
 						padding: "6px 10px",
 						fontSize: 12,
@@ -214,16 +229,18 @@ function NewThreadForm({
 					onClick={() => text.trim() && onSubmit(text.trim())}
 					style={{
 						border: "none",
-						background: "#1e1e1e",
-						color: "#fff",
+						background: "var(--brand-gradient)",
+						color: "white",
 						borderRadius: 6,
 						padding: "6px 10px",
 						fontSize: 12,
 						cursor: "pointer",
 						flexShrink: 0,
+						fontFamily: "inherit",
+						fontWeight: 500,
 					}}
 				>
-					Post
+					投稿
 				</button>
 			</div>
 		</div>
@@ -328,8 +345,8 @@ export function CommentsTab({ client, events, focusThreadId }: CommentsTabProps)
 
 	if (loading) {
 		return (
-			<div style={{ padding: 16, textAlign: "center", color: "#999", fontSize: 13 }}>
-				Loading comments…
+			<div style={{ padding: 16, textAlign: "center", color: "var(--fg-tertiary)", fontSize: 13 }}>
+				コメントを読み込み中…
 			</div>
 		);
 	}
@@ -344,8 +361,15 @@ export function CommentsTab({ client, events, focusThreadId }: CommentsTabProps)
 				/>
 			)}
 			{threads.length === 0 && !newThreadPrompt ? (
-				<div style={{ padding: 24, textAlign: "center", color: "#999", fontSize: 13 }}>
-					No comments yet. Select a shape and click 💬 Comment to start a thread.
+				<div
+					style={{
+						padding: 24,
+						textAlign: "center",
+						color: "var(--fg-tertiary)",
+						fontSize: 13,
+					}}
+				>
+					まだコメントはありません。シェイプを選択してスレッドを開始してください。
 				</div>
 			) : (
 				threads.map((thread) => (

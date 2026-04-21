@@ -258,7 +258,8 @@ export function Canvas() {
 				width: "100%",
 				height: "100%",
 				overflow: "hidden",
-				background: DEFAULT_THEME.canvasBackground,
+				// `data-theme` による CSS 変数がある場合はそちらが効き、無い場合は従来の既定色にフォールバック
+				background: `var(--bg-canvas, ${DEFAULT_THEME.canvasBackground})`,
 				cursor: activeTool?.cursor ?? "default",
 				touchAction: "none",
 			}}

@@ -36,11 +36,11 @@ export function AiChatTab({ events, boardId }: AiChatTabProps) {
 			switch (status.status) {
 				case "thinking":
 					setIsLoading(true);
-					setStatusText("AI is thinking…");
+					setStatusText("AI が考えています…");
 					scrollToBottom();
 					break;
 				case "placing":
-					setStatusText(`Placing ${status.shapeCount ?? 0} shapes…`);
+					setStatusText(`${status.shapeCount ?? 0} 個のシェイプを配置中…`);
 					scrollToBottom();
 					break;
 				case "done":
@@ -52,8 +52,8 @@ export function AiChatTab({ events, boardId }: AiChatTabProps) {
 							id: nextId(),
 							role: "assistant",
 							text: status.shapeCount
-								? `Done — placed ${status.shapeCount} shapes on the canvas.`
-								: "Done!",
+								? `完了 — ${status.shapeCount} 個のシェイプを配置しました。`
+								: "完了しました。",
 							createdAt: new Date().toISOString(),
 						},
 					]);
@@ -67,7 +67,7 @@ export function AiChatTab({ events, boardId }: AiChatTabProps) {
 						{
 							id: nextId(),
 							role: "assistant",
-							text: `Error: ${status.message ?? "Something went wrong"}`,
+							text: `エラー: ${status.message ?? "予期しない問題が発生しました"}`,
 							createdAt: new Date().toISOString(),
 						},
 					]);
@@ -97,12 +97,27 @@ export function AiChatTab({ events, boardId }: AiChatTabProps) {
 	}, [input, isLoading, events, boardId, scrollToBottom]);
 
 	return (
-		<div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 300 }}>
+		<div
+			style={{
+				display: "flex",
+				flexDirection: "column",
+				height: "100%",
+				minHeight: 300,
+				color: "var(--fg-primary)",
+			}}
+		>
 			{/* メッセージ一覧 */}
 			<div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
 				{messages.length === 0 && !isLoading && (
-					<div style={{ textAlign: "center", color: "#999", fontSize: 13, padding: "24px 0" }}>
-						Ask AI to draw, modify, or organize shapes on the canvas.
+					<div
+						style={{
+							textAlign: "center",
+							color: "var(--fg-tertiary)",
+							fontSize: 13,
+							padding: "24px 0",
+						}}
+					>
+						AI にキャンバス上のシェイプの作成・編集・整列を依頼できます。
 					</div>
 				)}
 				{messages.map((msg) => (
@@ -120,8 +135,8 @@ export function AiChatTab({ events, boardId }: AiChatTabProps) {
 								maxWidth: "85%",
 								padding: "8px 12px",
 								borderRadius: msg.role === "user" ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
-								background: msg.role === "user" ? "#1e1e1e" : "#f0f0f0",
-								color: msg.role === "user" ? "#fff" : "#333",
+								background: msg.role === "user" ? "var(--brand-gradient)" : "var(--bg-input)",
+								color: msg.role === "user" ? "white" : "var(--fg-primary)",
 								fontSize: 13,
 								lineHeight: 1.5,
 								wordBreak: "break-word",
@@ -129,7 +144,14 @@ export function AiChatTab({ events, boardId }: AiChatTabProps) {
 						>
 							{msg.text}
 						</div>
-						<div style={{ fontSize: 10, color: "#bbb", marginTop: 2, padding: "0 4px" }}>
+						<div
+							style={{
+								fontSize: 10,
+								color: "var(--fg-tertiary)",
+								marginTop: 2,
+								padding: "0 4px",
+							}}
+						>
 							{new Date(msg.createdAt).toLocaleTimeString([], {
 								hour: "2-digit",
 								minute: "2-digit",
@@ -145,15 +167,15 @@ export function AiChatTab({ events, boardId }: AiChatTabProps) {
 							gap: 8,
 							padding: "8px 0",
 							fontSize: 13,
-							color: "#666",
+							color: "var(--fg-secondary)",
 						}}
 					>
 						<div
 							style={{
 								width: 14,
 								height: 14,
-								border: "2px solid #ddd",
-								borderTopColor: "#666",
+								border: "2px solid var(--border-default)",
+								borderTopColor: "var(--brand-violet)",
 								borderRadius: "50%",
 								animation: "ai-chat-spin 0.6s linear infinite",
 								flexShrink: 0,
@@ -167,7 +189,7 @@ export function AiChatTab({ events, boardId }: AiChatTabProps) {
 			{/* 入力欄 */}
 			<div
 				style={{
-					borderTop: "1px solid #eee",
+					borderTop: "1px solid var(--border-subtle)",
 					padding: "10px 12px",
 					display: "flex",
 					gap: 8,
@@ -184,11 +206,13 @@ export function AiChatTab({ events, boardId }: AiChatTabProps) {
 						e.stopPropagation();
 						if (e.key === "Enter" && !isComposing && !isLoading) handleSend();
 					}}
-					placeholder="Ask AI…"
+					placeholder="AI に依頼…"
 					disabled={isLoading}
 					style={{
 						flex: 1,
-						border: "1px solid #e5e5e5",
+						border: "1px solid var(--border-default)",
+						background: "var(--bg-input)",
+						color: "var(--fg-primary)",
 						borderRadius: 8,
 						padding: "8px 12px",
 						fontSize: 13,
@@ -202,16 +226,18 @@ export function AiChatTab({ events, boardId }: AiChatTabProps) {
 					disabled={isLoading || !input.trim()}
 					style={{
 						border: "none",
-						background: isLoading || !input.trim() ? "#ccc" : "#1e1e1e",
-						color: "#fff",
+						background: isLoading || !input.trim() ? "var(--bg-input)" : "var(--brand-gradient)",
+						color: isLoading || !input.trim() ? "var(--fg-tertiary)" : "white",
 						borderRadius: 8,
 						padding: "8px 14px",
 						fontSize: 13,
+						fontWeight: 500,
 						cursor: isLoading || !input.trim() ? "default" : "pointer",
 						flexShrink: 0,
+						fontFamily: "inherit",
 					}}
 				>
-					Send
+					送信
 				</button>
 			</div>
 

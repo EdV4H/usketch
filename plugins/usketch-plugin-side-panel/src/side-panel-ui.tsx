@@ -1,5 +1,5 @@
 import type { EventBus } from "@edv4h/usketch-shared";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { TabStore } from "./tab-store.js";
 import type { SidePanelOpenEvent } from "./types.js";
 
@@ -59,6 +59,7 @@ export function SidePanelUI({ events, tabStore }: SidePanelUIProps) {
 	return (
 		<aside
 			aria-label="Side Panel"
+			className="u-surface u-anim-in"
 			onPointerDown={(e) => e.stopPropagation()}
 			onPointerUp={(e) => e.stopPropagation()}
 			onClick={(e) => e.stopPropagation()}
@@ -70,75 +71,98 @@ export function SidePanelUI({ events, tabStore }: SidePanelUIProps) {
 			onWheel={(e) => e.stopPropagation()}
 			style={{
 				position: "fixed",
-				top: 60,
+				top: 70,
 				right: 12,
-				width: 360,
-				maxHeight: "calc(100vh - 80px)",
-				background: "#fff",
-				borderRadius: 12,
-				boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
+				width: 340,
+				maxHeight: "calc(100vh - 160px)",
+				borderRadius: 14,
 				zIndex: 160,
-				fontFamily: "system-ui, -apple-system, sans-serif",
 				display: "flex",
 				flexDirection: "column",
 				overflow: "hidden",
+				color: "var(--fg-primary)",
+				fontFamily: "var(--font-sans, system-ui, sans-serif)",
 			}}
 		>
-			{/* タブバー */}
 			<div
 				style={{
 					display: "flex",
-					borderBottom: "1px solid #eee",
+					padding: 6,
+					gap: 2,
+					borderBottom: "1px solid var(--border-subtle)",
 					alignItems: "center",
 				}}
 			>
-				<div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-					{tabs.map((tab) => (
-						<button
-							key={tab.id}
-							type="button"
-							onClick={() => setActiveTabId(tab.id)}
-							style={{
-								flex: 1,
-								padding: "10px 8px",
-								border: "none",
-								background: "none",
-								cursor: "pointer",
-								fontSize: 13,
-								fontWeight: resolvedTabId === tab.id ? 600 : 400,
-								color: resolvedTabId === tab.id ? "#1e1e1e" : "#999",
-								borderBottom:
-									resolvedTabId === tab.id ? "2px solid #1e1e1e" : "2px solid transparent",
-								whiteSpace: "nowrap",
-								overflow: "hidden",
-								textOverflow: "ellipsis",
-							}}
-						>
-							{tab.icon} {tab.label}
-						</button>
-					))}
+				<div style={{ display: "flex", flex: 1, minWidth: 0 }}>
+					{tabs.map((tab) => {
+						const active = resolvedTabId === tab.id;
+						return (
+							<button
+								key={tab.id}
+								type="button"
+								onClick={() => setActiveTabId(tab.id)}
+								title={tab.label}
+								style={{
+									flex: 1,
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									gap: 5,
+									padding: "7px 6px",
+									background: active ? "var(--bg-active)" : "transparent",
+									color: active ? "var(--brand-violet)" : "var(--fg-secondary)",
+									border: "none",
+									borderRadius: 7,
+									cursor: "pointer",
+									fontSize: 11.5,
+									fontWeight: 500,
+									fontFamily: "inherit",
+									whiteSpace: "nowrap",
+									minWidth: 0,
+									transition: "background var(--dur-fast), color var(--dur-fast)",
+								}}
+							>
+								<TabIcon tab={tab} />
+								<span
+									style={{
+										overflow: "hidden",
+										textOverflow: "ellipsis",
+									}}
+								>
+									{tab.label}
+								</span>
+							</button>
+						);
+					})}
 				</div>
 				<button
 					type="button"
 					onClick={handleClose}
+					aria-label="サイドパネルを閉じる"
 					style={{
+						padding: 7,
+						background: "transparent",
 						border: "none",
-						background: "none",
-						fontSize: 16,
+						color: "var(--fg-tertiary)",
 						cursor: "pointer",
-						color: "#999",
-						padding: "8px 12px",
+						borderRadius: 6,
+						fontSize: 14,
+						lineHeight: 1,
 						flexShrink: 0,
 					}}
 				>
-					✕
+					×
 				</button>
 			</div>
 
-			{/* タブコンテンツ */}
 			<div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
 				{activeTab ? activeTab.render() : null}
 			</div>
 		</aside>
 	);
+}
+
+function TabIcon({ tab }: { tab: { icon: string; iconComponent?: () => ReactNode } }) {
+	if (tab.iconComponent) return <>{tab.iconComponent()}</>;
+	return <span style={{ fontSize: 13, lineHeight: 1 }}>{tab.icon}</span>;
 }

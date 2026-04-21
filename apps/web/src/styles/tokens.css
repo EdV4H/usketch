@@ -1,0 +1,234 @@
+/* uSketch v2 — Design Tokens
+ *
+ * モックデザイン (whiteboard-new-design) から移植したデザイントークン。
+ * light / dark 両対応。`[data-theme="light"]` / `[data-theme="dark"]` で切替。
+ *
+ * NOTE: 既存の apps/web/src/lib/styles.ts は段階移行中のため並走させている。
+ */
+
+:root {
+	/* Brand — violet → pink gradient */
+	--brand-violet: #8b5cf6;
+	--brand-pink: #ec4899;
+	--brand-gradient: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+	--brand-gradient-soft: linear-gradient(
+		135deg,
+		rgba(139, 92, 246, 0.18) 0%,
+		rgba(236, 72, 153, 0.18) 100%
+	);
+	--brand-ring: rgba(139, 92, 246, 0.45);
+
+	/* Typography */
+	--font-sans:
+		"Inter", "IBM Plex Sans JP", "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, sans-serif;
+	--font-mono: "Geist Mono", "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+	--font-display: "Inter", "IBM Plex Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;
+
+	/* Spacing */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 20px;
+	--space-6: 24px;
+	--space-8: 32px;
+	--space-10: 40px;
+	--space-12: 48px;
+
+	/* Radius */
+	--r-xs: 4px;
+	--r-sm: 6px;
+	--r-md: 10px;
+	--r-lg: 14px;
+	--r-xl: 20px;
+	--r-pill: 999px;
+
+	/* Motion */
+	--ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+	--ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+	--dur-fast: 120ms;
+	--dur-med: 220ms;
+	--dur-slow: 400ms;
+}
+
+/* DARK (default) */
+:root,
+[data-theme="dark"] {
+	--bg-canvas: #0a0a0b;
+	--bg-canvas-2: #111114;
+	--bg-surface: rgba(22, 22, 28, 0.72);
+	--bg-surface-solid: #17171c;
+	--bg-surface-raised: rgba(30, 30, 38, 0.85);
+	--bg-hover: rgba(255, 255, 255, 0.06);
+	--bg-active: rgba(139, 92, 246, 0.15);
+	--bg-input: rgba(255, 255, 255, 0.04);
+
+	--fg-primary: #ededf0;
+	--fg-secondary: #a8a8b3;
+	--fg-tertiary: #6b6b7a;
+	--fg-disabled: #45454f;
+	--fg-inverse: #0a0a0b;
+
+	--border-subtle: rgba(255, 255, 255, 0.06);
+	--border-default: rgba(255, 255, 255, 0.1);
+	--border-strong: rgba(255, 255, 255, 0.16);
+
+	--grid-color: rgba(255, 255, 255, 0.04);
+	--dot-color: rgba(255, 255, 255, 0.1);
+
+	--success: #10b981;
+	--warning: #f59e0b;
+	--danger: #ef4444;
+	--info: #3b82f6;
+
+	/* user presence colors */
+	--u-1: #8b5cf6;
+	--u-2: #ec4899;
+	--u-3: #06b6d4;
+	--u-4: #10b981;
+	--u-5: #f59e0b;
+	--u-6: #ef4444;
+
+	/* Elevation — floating UI */
+	--shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+	--shadow-2: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.05);
+	--shadow-3: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.06);
+	--shadow-glow: 0 0 40px rgba(139, 92, 246, 0.25);
+}
+
+[data-theme="light"] {
+	--bg-canvas: #fafafa;
+	--bg-canvas-2: #f4f4f5;
+	--bg-surface: rgba(255, 255, 255, 0.82);
+	--bg-surface-solid: #ffffff;
+	--bg-surface-raised: rgba(255, 255, 255, 0.95);
+	--bg-hover: rgba(0, 0, 0, 0.05);
+	--bg-active: rgba(139, 92, 246, 0.1);
+	--bg-input: rgba(0, 0, 0, 0.03);
+
+	--fg-primary: #0a0a0b;
+	--fg-secondary: #52525b;
+	--fg-tertiary: #8b8b95;
+	--fg-disabled: #c4c4cc;
+	--fg-inverse: #ffffff;
+
+	--border-subtle: rgba(0, 0, 0, 0.06);
+	--border-default: rgba(0, 0, 0, 0.09);
+	--border-strong: rgba(0, 0, 0, 0.14);
+
+	--grid-color: rgba(0, 0, 0, 0.05);
+	--dot-color: rgba(0, 0, 0, 0.12);
+
+	--success: #10b981;
+	--warning: #f59e0b;
+	--danger: #ef4444;
+	--info: #3b82f6;
+
+	--u-1: #8b5cf6;
+	--u-2: #ec4899;
+	--u-3: #06b6d4;
+	--u-4: #10b981;
+	--u-5: #f59e0b;
+	--u-6: #ef4444;
+
+	--shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
+	--shadow-2: 0 4px 12px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
+	--shadow-3: 0 12px 32px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.06);
+	--shadow-glow: 0 0 40px rgba(139, 92, 246, 0.18);
+}
+
+/* Floating glass surface — 使う側は className="u-surface" */
+.u-surface {
+	background: var(--bg-surface);
+	backdrop-filter: blur(20px) saturate(1.4);
+	-webkit-backdrop-filter: blur(20px) saturate(1.4);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--r-lg);
+	box-shadow: var(--shadow-2);
+}
+
+/* Keyboard chip */
+.u-kbd {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 18px;
+	height: 18px;
+	padding: 0 5px;
+	font-family: var(--font-mono);
+	font-size: 10.5px;
+	font-weight: 500;
+	color: var(--fg-secondary);
+	background: var(--bg-input);
+	border: 1px solid var(--border-subtle);
+	border-radius: 4px;
+	letter-spacing: 0;
+}
+
+/* Gradient text helper */
+.u-grad-text {
+	background: var(--brand-gradient);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	color: transparent;
+}
+
+/* Animations */
+@keyframes u-fade-in {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes u-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+@keyframes u-ripple {
+	0% {
+		transform: scale(0.5);
+		opacity: 0.8;
+	}
+	100% {
+		transform: scale(2.2);
+		opacity: 0;
+	}
+}
+
+@keyframes u-ghost-dash {
+	to {
+		stroke-dashoffset: -16;
+	}
+}
+
+@keyframes u-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.u-anim-in {
+	animation: u-fade-in var(--dur-med) var(--ease-out) both;
+}
+
+/*
+ * E2E スクリーンショット差分対策 — `<body class="u-no-blur">` を付けると
+ * backdrop-filter を無効化。Playwright から任意で有効化できるようにしておく。
+ */
+body.u-no-blur .u-surface {
+	backdrop-filter: none;
+	-webkit-backdrop-filter: none;
+	background: var(--bg-surface-solid);
+}

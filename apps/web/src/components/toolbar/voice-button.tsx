@@ -1,6 +1,6 @@
 import { useApp } from "@edv4h/usketch-canvas-engine";
 import { useEffect, useState } from "react";
-import { actionBtnStyle } from "../../lib/styles.js";
+import { I, IconBtn } from "../ui/index.js";
 
 export function VoiceButton() {
 	const app = useApp();
@@ -14,19 +14,12 @@ export function VoiceButton() {
 	}, [app.events]);
 
 	return (
-		<button
-			type="button"
+		<IconBtn
+			icon={I.mic}
+			label={listening ? "音声入力（認識中）" : "音声入力"}
+			active={listening}
+			danger={listening}
 			onClick={() => app.events.emit("voice:toggle", {})}
-			title="Voice input"
-			style={{
-				...actionBtnStyle,
-				background: listening ? "#fce4ec" : "transparent",
-				color: listening ? "#c62828" : "#999",
-				fontSize: 14,
-				animation: listening ? "voice-pulse 1s infinite" : "none",
-			}}
-		>
-			🎤
-		</button>
+		/>
 	);
 }

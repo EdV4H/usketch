@@ -15,23 +15,68 @@ test.describe("Board", () => {
 	test("dashboard loads with local board button", async ({ page }) => {
 		await page.goto("/dashboard");
 		await expect(page.locator("h1")).toContainText("uSketch");
-		await expect(page.locator("text=New Local Board")).toBeVisible();
+		// 新 UI の CTA は日本語
+		await expect(page.locator("text=新規ローカルボード")).toBeVisible();
 	});
 
 	test("local board can be created and opened", async ({ page }) => {
 		await page.goto("/dashboard");
-		await page.click("text=New Local Board");
+		await page.click("text=新規ローカルボード");
 		await page.waitForURL(/\/local\//);
 		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 	});
 
 	test("toolbar and export button visible on board page", async ({ page }) => {
 		await page.goto("/dashboard");
-		await page.click("text=New Local Board");
+		await page.click("text=新規ローカルボード");
 		await page.waitForURL(/\/local\//);
-		// ツールバーのUndoボタン（titleで特定）
-		await expect(page.locator('button[title*="Undo"]')).toBeVisible();
-		// Exportボタン
-		await expect(page.locator("button", { hasText: "Export" })).toBeVisible();
+		// 新レイアウト: Toolbar は画面下中央の data-testid="toolbar" で特定
+		await expect(page.locator('[data-testid="toolbar"]')).toBeVisible();
+		// Undo ボタン（aria-label）
+		await expect(page.locator('button[aria-label="元に戻す"]')).toBeVisible();
+		// エクスポートボタン（aria-label）
+		await expect(page.locator('button[aria-label="エクスポート"]')).toBeVisible();
+	});
+
+	test("command palette opens with Cmd+K and closes with Esc", async ({ page }) => {
+		await page.goto("/dashboard");
+		await page.click("text=新規ローカルボード");
+		await page.waitForURL(/\/local\//);
+
+		// Toolbar のレンダリング完了を待つ
+		await expect(page.locator('[data-testid="toolbar"]')).toBeVisible();
+
+		// Cmd+K / Ctrl+K 両方を試す（macOS は Meta、他は Control）
+		await page.keyboard.press("ControlOrMeta+k");
+
+		const palette = page.locator('[role="dialog"][aria-label="コマンドパレット"]');
+		await expect(palette).toBeVisible();
+
+		// グループが出ている
+		await expect(palette.locator("text=アクション")).toBeVisible();
+		await expect(palette.locator("text=テーマ")).toBeVisible();
+
+		// Esc で閉じる
+		await page.keyboard.press("Escape");
+		await expect(palette).not.toBeVisible();
+	});
+
+	test("command palette executes a theme command", async ({ page }) => {
+		await page.goto("/dashboard");
+		await page.click("text=新規ローカルボード");
+		await page.waitForURL(/\/local\//);
+		await expect(page.locator('[data-testid="toolbar"]')).toBeVisible();
+
+		await page.keyboard.press("ControlOrMeta+k");
+
+		const palette = page.locator('[role="dialog"][aria-label="コマンドパレット"]');
+		await expect(palette).toBeVisible();
+
+		// 「テーマ切替: ライト」コマンドをクリックして実行
+		await palette.locator("text=テーマ切替: ライト").click();
+
+		// パレットが閉じ、data-theme が light に
+		await expect(palette).not.toBeVisible();
+		await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 	});
 });

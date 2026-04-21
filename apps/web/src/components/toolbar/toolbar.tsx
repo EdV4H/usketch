@@ -1,21 +1,14 @@
 import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
-import { useState } from "react";
 import { useNavigate } from "react-router";
-import { actionBtnStyle, dividerStyle } from "../../lib/styles.js";
-import { ShareDialog } from "../share-dialog.js";
 import { StylePanel } from "../style-panel/index.js";
+import { Divider, I, IconBtn, ThemeToggle } from "../ui/index.js";
 import { BgToggle } from "./bg-toggle.js";
 import { CopilotToggle } from "./copilot-toggle.js";
-import { ExportMenu } from "./export-menu.js";
 import { StatusBar } from "./status-bar.js";
 import { ToolButton } from "./tool-button.js";
 import { VoiceButton } from "./voice-button.js";
 
-export function Toolbar({
-	boardId,
-	isCloudBoard,
-	wsProvider,
-}: {
+interface Props {
 	boardId?: string;
 	isCloudBoard?: boolean;
 	wsProvider?: {
@@ -26,43 +19,40 @@ export function Toolbar({
 			doc: { clientID: number };
 		};
 	} | null;
-}) {
+	onOpenCommandPalette: () => void;
+}
+
+/**
+ * 画面下中央に固定された主ツールバー。
+ * - 左: ツール（select / pan / 各 shape 描画）
+ * - 中央: Undo/Redo + 背景切替 + テーマ切替
+ * - 右: Cloud 専用（Copilot / Voice / Present）
+ * - 上付き pill: Cmd+K ハンドル
+ */
+export function Toolbar({ boardId, isCloudBoard, wsProvider, onOpenCommandPalette }: Props) {
 	const app = useApp();
 	const activeToolId = useStoreSubscribe(app.store, (s) => s.getActiveToolId());
 	const tools = app.tools.getOrdered();
-	const [showShare, setShowShare] = useState(false);
 	const navigate = useNavigate();
 
 	return (
 		<>
 			<div
+				data-testid="toolbar"
+				className="u-surface"
 				style={{
 					position: "fixed",
-					top: 12,
+					bottom: 12,
 					left: "50%",
 					transform: "translateX(-50%)",
 					display: "flex",
-					gap: 4,
+					gap: 2,
 					padding: 4,
-					background: "white",
-					borderRadius: 8,
-					boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+					borderRadius: 12,
 					zIndex: 100,
 					alignItems: "center",
 				}}
 			>
-				{/* ホームリンク */}
-				<a
-					href="/"
-					title="Dashboard"
-					style={{ ...actionBtnStyle, textDecoration: "none", fontSize: 14 }}
-				>
-					⌂
-				</a>
-
-				<Divider />
-
-				{/* ツール */}
 				{tools.map(({ id, definition }) => (
 					<ToolButton
 						key={id}
@@ -73,90 +63,52 @@ export function Toolbar({
 					/>
 				))}
 
-				<Divider />
+				<Divider vertical />
 
-				{/* Undo/Redo */}
-				<button
-					type="button"
-					onClick={() => app.commands.undo()}
-					title="Undo (Ctrl+Z)"
-					style={actionBtnStyle}
-				>
-					↩
-				</button>
-				<button
-					type="button"
+				<IconBtn icon={I.undo} label="元に戻す" shortcut="⌘Z" onClick={() => app.commands.undo()} />
+				<IconBtn
+					icon={I.redo}
+					label="やり直す"
+					shortcut="⌘⇧Z"
 					onClick={() => app.commands.redo()}
-					title="Redo (Ctrl+Shift+Z)"
-					style={actionBtnStyle}
-				>
-					↪
-				</button>
+				/>
 
-				<Divider />
+				<Divider vertical />
+
 				<BgToggle />
+
+				<div style={{ padding: "0 2px", display: "inline-flex", alignItems: "center" }}>
+					<ThemeToggle />
+				</div>
 
 				{isCloudBoard && (
 					<>
-						<Divider />
+						<Divider vertical />
 						<CopilotToggle />
 						<VoiceButton />
 						{boardId && (
-							<button
-								type="button"
+							<IconBtn
+								icon={I.present}
+								label="プレゼンテーション"
 								onClick={() => navigate(`/boards/${boardId}?present=1`)}
-								title="プレゼンテーション編集モードを開く"
-								aria-label="プレゼンテーション編集モードを開く"
-								style={{ ...actionBtnStyle, fontSize: 14 }}
-							>
-								▶
-							</button>
+							/>
 						)}
 					</>
 				)}
+
+				<Divider vertical />
+
+				<IconBtn
+					icon={I.search}
+					label="コマンドパレット"
+					shortcut="⌘K"
+					onClick={onOpenCommandPalette}
+				/>
 			</div>
 
-			{/* ステータス + Follow（左下） */}
 			{isCloudBoard && wsProvider && <StatusBar wsProvider={wsProvider} />}
-
-			{/* エクスポート（右上、Shareの左） */}
-			<ExportMenu isCloudBoard={isCloudBoard} boardId={boardId} />
-
-			{/* 共有ボタン（右上、Cloud Boardのみ） */}
-			{isCloudBoard && boardId && (
-				<button
-					type="button"
-					onClick={() => setShowShare(true)}
-					style={{
-						position: "fixed",
-						top: 12,
-						right: 12,
-						height: 44,
-						padding: "0 16px",
-						background: "#0066ff",
-						color: "#fff",
-						border: "none",
-						borderRadius: 8,
-						fontSize: 13,
-						fontWeight: 600,
-						cursor: "pointer",
-						boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-						zIndex: 100,
-					}}
-				>
-					Share
-				</button>
-			)}
-
-			{showShare && boardId && (
-				<ShareDialog boardId={boardId} onClose={() => setShowShare(false)} />
-			)}
 
 			<StylePanel />
 		</>
 	);
-}
-
-function Divider() {
-	return <div style={dividerStyle} />;
 }

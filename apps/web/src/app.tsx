@@ -2,6 +2,7 @@ import { AppProvider, Canvas, TransientLayer } from "@edv4h/usketch-canvas-engin
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
 import { createGpuRendererPlugin } from "@edv4h/usketch-gpu-renderer";
+import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
 import { createAiActionsPlugin } from "@edv4h/usketch-plugin-ai-actions";
 import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
 import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
@@ -43,11 +44,21 @@ import {
 	type WsConnectionStatus,
 	type WsProviderHandle,
 } from "@edv4h/usketch-sync";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
+import {
+	BoardIdentity,
+	CommunityLink,
+	TopRightCluster,
+	ZoomControls,
+} from "./components/board-frame/index.js";
+import { CommandPalette, useCommandPaletteShortcut } from "./components/command-palette.js";
+import { InfoTab } from "./components/side-panel/info-tab.js";
+import { SidePanelToggles } from "./components/side-panel/side-panel-toggles.js";
 import { Toolbar } from "./components/toolbar/index.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
+import { localBoards } from "./lib/local-boards.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 
@@ -113,6 +124,7 @@ export function App() {
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [wsStatus, setWsStatus] = useState<WsConnectionStatus | null>(null);
+	const [boardName, setBoardName] = useState<string | null>(null);
 	const wsProviderRef = useRef<WsProviderHandle | null>(null);
 
 	// ボード初期化（boardId / isCloudBoard に依存）。
@@ -175,13 +187,15 @@ export function App() {
 
 			// AI プラグイン
 			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
-			extraPlugins.push(createAiChatPlugin({ boardId }));
+			// Cmd+K の UI は apps/web 側の CommandPalette が担当するため無効化
+			extraPlugins.push(createAiChatPlugin({ boardId, enableCommandPalette: false }));
 			extraPlugins.push(createAiActionsPlugin({ boardId }));
 			extraPlugins.push(createAiCopilotPlugin({ apiUrl, boardId, extraHeaders: aiHeaders }));
 			extraPlugins.push(createAiVoicePlugin({ boardId }));
 			extraPlugins.push(createAiImagePlugin({ boardId }));
 			extraPlugins.push(createAiRecognizePlugin({ boardId }));
 			extraPlugins.push(createWhistlePlugin(wsProvider));
+			extraPlugins.push(createActivityFeedPlugin({ wsProvider, boardId, apiUrl }));
 
 			// プレゼンテーション: 常にロードし、`?present=1` が付いた時だけ UI を出す。
 			// ルート切替せず URL クエリで切替える設計なので、アプリ再生成は起きない。
@@ -240,6 +254,40 @@ export function App() {
 		// presentation plugin が modeRef 経由で最新値を読む（undo 履歴・WebSocket を残すため）。
 	}, [boardId, isCloudBoard, navigate]);
 
+	// Cloud ボードのタイトル取得（BoardIdentity 表示用）
+	useEffect(() => {
+		if (!boardId) {
+			setBoardName(null);
+			return;
+		}
+		if (!isCloudBoard) {
+			const local = localBoards.list().find((b) => b.id === boardId);
+			setBoardName(local?.title ?? null);
+			return;
+		}
+		let cancelled = false;
+		const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+		const headers: Record<string, string> = {};
+		if (import.meta.env.DEV) {
+			const devUser = getDevUser();
+			if (devUser) headers["X-User-Id"] = devUser.id;
+		}
+		fetch(`${apiUrl}/api/boards/${boardId}`, { credentials: "include", headers })
+			.then((r) => (r.ok ? r.json() : null))
+			.then((b) => {
+				if (cancelled) return;
+				const name =
+					b && typeof (b as { name?: unknown }).name === "string"
+						? (b as { name: string }).name
+						: null;
+				setBoardName(name);
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
+	}, [boardId, isCloudBoard]);
+
 	// ページ離脱時にビューポート位置を保存（ゴーストアバター用）
 	useEffect(() => {
 		if (!isCloudBoard || !boardId) return;
@@ -284,6 +332,43 @@ export function App() {
 	// キーボードショートカット
 	useKeyboardShortcuts(app);
 
+	// Info タブを SidePanel に登録（Cloud ボードのみ）
+	useEffect(() => {
+		if (!app || !isCloudBoard || !boardId) return;
+		const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+		app.events.emit("side-panel:register-tab", {
+			tab: {
+				id: "info",
+				label: "情報",
+				icon: "📋",
+				iconComponent: () => (
+					<svg
+						width={13}
+						height={13}
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="1.5"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M2 4a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4Z" />
+					</svg>
+				),
+				order: 30,
+				render: () => <InfoTab boardId={boardId} apiUrl={apiUrl} />,
+			},
+		});
+		return () => {
+			app.events.emit("side-panel:unregister-tab", { tabId: "info" });
+		};
+	}, [app, boardId, isCloudBoard]);
+
+	const [paletteOpen, setPaletteOpen] = useState(false);
+	const openPalette = useCallback(() => setPaletteOpen(true), []);
+	useCommandPaletteShortcut(openPalette);
+
 	if (error) {
 		return (
 			<div style={{ padding: "24px", fontFamily: "system-ui, sans-serif", color: "#c33" }}>
@@ -302,45 +387,68 @@ export function App() {
 		<AppProvider app={app}>
 			<div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
 				<Canvas />
-				{!hideToolbar && <Toolbar boardId={boardId} isCloudBoard={isCloudBoard} />}
+				{!hideToolbar && (
+					<>
+						<BoardIdentity
+							boardName={boardName ?? undefined}
+							isCloudBoard={isCloudBoard}
+							connectionStatus={wsStatus ?? undefined}
+						/>
+						<TopRightCluster boardId={boardId} isCloudBoard={isCloudBoard} />
+						<Toolbar
+							boardId={boardId}
+							isCloudBoard={isCloudBoard}
+							wsProvider={wsProviderRef.current}
+							onOpenCommandPalette={openPalette}
+						/>
+						<ZoomControls />
+						<CommunityLink />
+						{isCloudBoard && <SidePanelToggles app={app} />}
+					</>
+				)}
+				<CommandPalette
+					open={paletteOpen}
+					onClose={() => setPaletteOpen(false)}
+					app={app}
+					boardId={boardId}
+					isCloudBoard={isCloudBoard}
+				/>
 				{isCloudBoard && wsStatus === "failed" && (
 					<div
+						className="u-surface"
 						style={{
 							position: "fixed",
-							bottom: 16,
+							bottom: 60,
 							left: "50%",
 							transform: "translateX(-50%)",
-							background: "#c33",
-							color: "#fff",
+							background: "var(--danger)",
+							color: "white",
 							padding: "8px 20px",
-							borderRadius: 8,
+							borderRadius: 10,
 							fontSize: 13,
-							fontFamily: "system-ui, sans-serif",
-							boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
 							zIndex: 200,
 						}}
 					>
-						Unable to connect — you may not have access to this board
+						接続できません — このボードへのアクセス権限がない可能性があります
 					</div>
 				)}
 				{isCloudBoard && wsStatus === "connecting" && (
 					<div
+						className="u-surface"
 						style={{
 							position: "fixed",
-							bottom: 16,
+							bottom: 60,
 							left: "50%",
 							transform: "translateX(-50%)",
-							background: "#f90",
-							color: "#fff",
+							background: "var(--warning)",
+							color: "white",
 							padding: "8px 20px",
-							borderRadius: 8,
+							borderRadius: 10,
 							fontSize: 13,
-							fontFamily: "system-ui, sans-serif",
-							boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
 							zIndex: 200,
 						}}
 					>
-						Connecting...
+						接続中…
 					</div>
 				)}
 			</div>

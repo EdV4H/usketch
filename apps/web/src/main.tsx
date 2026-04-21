@@ -2,10 +2,14 @@ import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { App } from "./app.js";
+import { initTheme } from "./lib/theme.js";
 import { CommunityPage } from "./pages/community/index.js";
 import { DashboardPage } from "./pages/dashboard.js";
 import { DevicePage } from "./pages/device.js";
 import { LoginPage } from "./pages/login.js";
+import "./styles/tokens.css";
+
+initTheme();
 
 const BenchmarkPage = lazy(() =>
 	import("./pages/benchmark.js").then((m) => ({ default: m.BenchmarkPage })),

@@ -1,6 +1,9 @@
 /**
  * Design tokens and reusable style objects for the demo app UI.
- * See DESIGN.md for the full design guide.
+ *
+ * NOTE: デザインモック適用の段階移行中。新規コードは `apps/web/src/styles/tokens.css`
+ * の CSS 変数（`var(--brand-gradient)` など）を優先して参照し、このファイルの
+ * 定数は既存コードの互換レイヤーとして一時的に維持している。全面移行後に削除予定。
  */
 
 // ── Colors ──
