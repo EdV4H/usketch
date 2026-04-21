@@ -259,7 +259,7 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 				</div>
 			</div>
 
-			{/* ページネーション pill: 画面最下部に固定 (stage 下の余白内) */}
+			{/* ページネーション pill: 画面最下部に固定 (発表モードと同じデザイン) */}
 			<div
 				style={{
 					position: "absolute",
@@ -272,47 +272,45 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 				}}
 			>
 				<div
-					className="u-surface"
 					style={{
 						display: "flex",
 						alignItems: "center",
 						gap: 2,
 						padding: 4,
 						borderRadius: 999,
+						background: "rgba(20,20,25,0.85)",
+						backdropFilter: "blur(20px)",
+						WebkitBackdropFilter: "blur(20px)",
+						border: "1px solid rgba(255,255,255,0.1)",
+						boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
 						pointerEvents: "auto",
 					}}
 				>
-					<button
-						type="button"
-						onClick={() => nav.prev()}
+					<PagerChevron
 						disabled={current === 0}
-						style={navBtn(current === 0)}
-						aria-label="前のスライド"
-					>
-						‹
-					</button>
+						onClick={() => nav.prev()}
+						ariaLabel="前のスライド"
+						direction="prev"
+					/>
 					<div
 						style={{
 							padding: "0 12px",
 							fontSize: 13,
-							color: "var(--fg-primary)",
 							fontFamily: "var(--font-mono, monospace)",
+							letterSpacing: 0,
 							minWidth: 60,
 							textAlign: "center",
 						}}
 					>
-						<span style={{ fontWeight: 600 }}>{total === 0 ? 0 : current + 1}</span>
-						<span style={{ color: "var(--fg-tertiary)" }}> / {total}</span>
+						<span style={{ color: "white", fontWeight: 600 }}>{total === 0 ? 0 : current + 1}</span>
+						<span style={{ color: "rgba(255,255,255,0.5)" }}> / {total}</span>
 					</div>
-					<button
-						type="button"
-						onClick={() => nav.next()}
+					<PagerChevron
 						disabled={current >= total - 1}
-						style={navBtn(current >= total - 1)}
-						aria-label="次のスライド"
-					>
-						›
-					</button>
+						onClick={() => nav.next()}
+						ariaLabel="次のスライド"
+						direction="next"
+					/>
 				</div>
 			</div>
 
@@ -360,24 +358,55 @@ function pillBtn(active: boolean): React.CSSProperties {
 	};
 }
 
-function navBtn(disabled: boolean): React.CSSProperties {
-	return {
-		appearance: "none",
-		width: 34,
-		height: 34,
-		borderRadius: 999,
-		background: "transparent",
-		border: "none",
-		color: "white",
-		cursor: disabled ? "default" : "pointer",
-		opacity: disabled ? 0.3 : 1,
-		fontSize: 18,
-		fontFamily: "inherit",
-		display: "inline-flex",
-		alignItems: "center",
-		justifyContent: "center",
-		padding: 0,
-	};
+function PagerChevron({
+	disabled,
+	onClick,
+	ariaLabel,
+	direction,
+}: {
+	disabled: boolean;
+	onClick: () => void;
+	ariaLabel: string;
+	direction: "prev" | "next";
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			disabled={disabled}
+			aria-label={ariaLabel}
+			style={{
+				appearance: "none",
+				border: "none",
+				background: "transparent",
+				color: "white",
+				cursor: disabled ? "default" : "pointer",
+				opacity: disabled ? 0.3 : 1,
+				width: 34,
+				height: 34,
+				borderRadius: 999,
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+				padding: 0,
+				transition: "background var(--dur-fast)",
+			}}
+		>
+			<svg
+				width="14"
+				height="14"
+				viewBox="0 0 16 16"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				aria-hidden="true"
+			>
+				{direction === "prev" ? <path d="m10 4-4 4 4 4" /> : <path d="m6 4 4 4-4 4" />}
+			</svg>
+		</button>
+	);
 }
 
 interface ThumbProps {
