@@ -157,22 +157,6 @@ function renderChatPin(data: ShapeData) {
 					</div>
 				)}
 			</div>
-
-			{/* pin tail — 下に小さな三角 */}
-			<div
-				aria-hidden="true"
-				style={{
-					position: "absolute",
-					bottom: -5,
-					left: 20,
-					width: 8,
-					height: 8,
-					background: "var(--bg-surface-raised)",
-					borderRight: `1.5px solid ${accentColor}`,
-					borderBottom: `1.5px solid ${accentColor}`,
-					transform: "rotate(45deg)",
-				}}
-			/>
 		</div>
 	);
 }
