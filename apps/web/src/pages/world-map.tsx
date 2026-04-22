@@ -25,7 +25,7 @@ interface CommunityRegionData {
 const GRID_SPACING_X = 280;
 const GRID_SPACING_Y = 220;
 const CARD_WIDTH = 200;
-const CARD_HEIGHT = 160;
+const CARD_HEIGHT = 180;
 const FIT_PADDING = 0.8;
 
 // API 取得失敗時のフォールバック

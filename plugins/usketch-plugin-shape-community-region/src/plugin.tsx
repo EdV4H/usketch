@@ -8,19 +8,31 @@ import {
 } from "@edv4h/usketch-shared";
 
 const CARD_WIDTH = 200;
-const CARD_HEIGHT = 160;
+const CARD_HEIGHT = 180;
 
 export interface CommunityRegionPluginOptions {
 	onRegionClick?: (slug: string) => void;
 }
 
-function renderContent(data: ShapeData) {
+/**
+ * themeColor と背景 (bg-input) を混ぜた soft な tint を生成。
+ * color-mix(in oklab) を使い、非対応ブラウザには CSS のフォールバック値で劣化表示。
+ */
+function softTint(color: string, pct: number): string {
+	return `color-mix(in oklab, ${color} ${pct}%, var(--bg-input))`;
+}
+
+function softBorder(color: string, pct: number): string {
+	return `color-mix(in oklab, ${color} ${pct}%, transparent)`;
+}
+
+function RegionCard({ data }: { data: ShapeData }) {
 	const displayName = (data.displayName as string) || "Region";
 	const themeColor = (data.themeColor as string) || "#6366f1";
 	const icon = (data.icon as string) || "🏠";
 	const onlineCount = (data.onlineCount as number) || 0;
-	const w = data.width;
-	const h = data.height;
+	const memberCount = (data.memberCount as number) ?? onlineCount;
+	const isActive = Boolean(data.active);
 
 	return (
 		<div
@@ -31,47 +43,66 @@ function renderContent(data: ShapeData) {
 				pointerEvents: "auto",
 				userSelect: "none",
 				cursor: "pointer",
+				borderRadius: 16,
+				background: softTint(themeColor, 16),
+				border: `1.5px solid ${softBorder(themeColor, 40)}`,
+				padding: 16,
+				overflow: "hidden",
+				transition: "box-shadow 200ms, transform 200ms",
+				display: "flex",
+				flexDirection: "column",
+				justifyContent: "space-between",
+				boxSizing: "border-box",
 			}}
 		>
+			{/* 大きな薄いグリフ（右上背面） */}
 			<div
+				aria-hidden="true"
 				style={{
-					width: "100%",
-					height: "100%",
-					borderRadius: 16,
-					background: `linear-gradient(135deg, ${themeColor}, ${themeColor}dd)`,
-					boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-					display: "flex",
-					flexDirection: "column",
-					alignItems: "center",
-					justifyContent: "center",
-					gap: h * 0.04,
-					overflow: "hidden",
-					transition: "box-shadow 0.2s, transform 0.2s",
+					position: "absolute",
+					top: -8,
+					right: -8,
+					fontSize: 96,
+					opacity: 0.12,
+					color: themeColor,
+					pointerEvents: "none",
+					lineHeight: 1,
+					filter: `drop-shadow(0 4px 12px ${softBorder(themeColor, 30)})`,
 				}}
 			>
-				{/* Icon */}
-				<div
-					style={{
-						fontSize: Math.max(24, Math.min(48, w * 0.22)),
-						lineHeight: 1,
-						filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))",
-					}}
-				>
-					{icon}
-				</div>
+				{icon}
+			</div>
 
-				{/* Region name */}
+			<div style={{ position: "relative", zIndex: 1 }}>
+				<div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+					<div
+						style={{
+							width: 8,
+							height: 8,
+							borderRadius: 99,
+							background: themeColor,
+							boxShadow: `0 0 8px ${themeColor}`,
+						}}
+					/>
+					{isActive && (
+						<div
+							style={{
+								fontSize: 9,
+								fontWeight: 700,
+								color: themeColor,
+								letterSpacing: 0.5,
+							}}
+						>
+							LIVE
+						</div>
+					)}
+				</div>
 				<div
 					style={{
-						color: "#fff",
-						fontSize: Math.max(12, Math.min(20, w * 0.09)),
-						fontWeight: 700,
-						fontFamily: "system-ui, sans-serif",
-						textAlign: "center",
-						textShadow: "0 1px 3px rgba(0,0,0,0.3)",
-						padding: "0 8px",
-						lineHeight: 1.2,
-						maxWidth: "100%",
+						fontSize: 18,
+						fontWeight: 600,
+						color: "var(--fg-primary)",
+						letterSpacing: "-0.01em",
 						overflow: "hidden",
 						textOverflow: "ellipsis",
 						whiteSpace: "nowrap",
@@ -79,35 +110,58 @@ function renderContent(data: ShapeData) {
 				>
 					{displayName}
 				</div>
-
-				{/* Online count badge */}
-				{onlineCount > 0 && (
+				{memberCount > 0 && (
 					<div
 						style={{
-							background: "rgba(255,255,255,0.25)",
-							color: "#fff",
-							fontSize: Math.max(10, Math.min(13, w * 0.06)),
-							fontWeight: 600,
-							fontFamily: "system-ui, sans-serif",
-							padding: "2px 10px",
-							borderRadius: 12,
-							display: "flex",
-							alignItems: "center",
-							gap: 4,
+							fontSize: 11.5,
+							color: "var(--fg-tertiary)",
+							marginTop: 2,
+							fontFamily: "var(--font-mono)",
 						}}
 					>
-						<span
-							style={{
-								width: 6,
-								height: 6,
-								borderRadius: "50%",
-								background: "#4ade80",
-								display: "inline-block",
-							}}
-						/>
-						{onlineCount}
+						{memberCount} members
 					</div>
 				)}
+			</div>
+
+			<div
+				style={{
+					position: "relative",
+					zIndex: 1,
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "space-between",
+				}}
+			>
+				<div style={{ display: "flex" }}>
+					{memberCount > 0
+						? Array.from({
+								length: Math.min(4, Math.max(1, Math.ceil(memberCount / 40))),
+							}).map((_, i) => (
+								<div
+									// biome-ignore lint/suspicious/noArrayIndexKey: decorative avatars don't reorder
+									key={i}
+									aria-hidden="true"
+									style={{
+										width: 18,
+										height: 18,
+										borderRadius: 99,
+										background: `var(--u-${(i % 6) + 1})`,
+										border: "2px solid var(--bg-input)",
+										marginLeft: i ? -5 : 0,
+									}}
+								/>
+							))
+						: null}
+				</div>
+				<div
+					style={{
+						fontSize: 10,
+						color: "var(--fg-tertiary)",
+					}}
+				>
+					参加 →
+				</div>
 			</div>
 		</div>
 	);
@@ -134,7 +188,7 @@ export function createCommunityRegionPlugin(options?: CommunityRegionPluginOptio
 					style: { fill: "transparent", stroke: "transparent", strokeWidth: 0, opacity: 1 },
 				}),
 
-				render: (data) => renderContent(data),
+				render: (data) => <RegionCard data={data} />,
 
 				getBounds: (data): BoundingBox => ({
 					x: data.x,
@@ -172,7 +226,7 @@ export function createCommunityRegionPlugin(options?: CommunityRegionPluginOptio
 
 					// 新しく選択されたシェイプがあるかチェック
 					const [shapeId] = selection;
-					if (prevSelection.has(shapeId)) {
+					if (!shapeId || prevSelection.has(shapeId)) {
 						prevSelection = new Set(selection);
 						return;
 					}

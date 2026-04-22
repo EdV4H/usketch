@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { SlideNavigator } from "./slide-navigator.js";
 
 interface Props {
@@ -16,6 +17,22 @@ export function PresentModeOverlay({ nav }: Props) {
 			setTotal(nav.getSlides().length);
 		});
 		return unsub;
+	}, [nav]);
+
+	// 発表モードに入った直後は Canvas コンテナサイズが edit → 画面全体に切り替わる
+	// 途中でもあり得る。React のレイアウト確定 (double rAF) を待って先頭スライドに fit する。
+	useEffect(() => {
+		let raf1: number;
+		let raf2 = 0;
+		raf1 = requestAnimationFrame(() => {
+			raf2 = requestAnimationFrame(() => {
+				nav.first();
+			});
+		});
+		return () => {
+			cancelAnimationFrame(raf1);
+			if (raf2) cancelAnimationFrame(raf2);
+		};
 	}, [nav]);
 
 	useEffect(() => {
@@ -36,22 +53,36 @@ export function PresentModeOverlay({ nav }: Props) {
 	}, []);
 
 	if (total === 0) {
-		return (
+		return createPortal(
 			<div
 				style={{
 					position: "fixed",
 					inset: 0,
+					zIndex: 500,
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
 					pointerEvents: "none",
-					color: "rgba(255,255,255,0.7)",
+					color: "var(--fg-secondary)",
 					background: "rgba(0,0,0,0.3)",
-					font: "14px system-ui",
+					backdropFilter: "blur(4px)",
+					WebkitBackdropFilter: "blur(4px)",
+					fontFamily: "var(--font-sans, system-ui)",
+					fontSize: 14,
 				}}
 			>
-				スライド（Frame）がありません。編集モードでフレームを追加してください。
-			</div>
+				<div
+					className="u-surface"
+					style={{
+						padding: "16px 24px",
+						borderRadius: 12,
+						background: "var(--bg-surface-raised)",
+					}}
+				>
+					スライド（Frame）がありません。編集モードでフレームを追加してください。
+				</div>
+			</div>,
+			document.body,
 		);
 	}
 
@@ -65,16 +96,19 @@ export function PresentModeOverlay({ nav }: Props) {
 		window.dispatchEvent(new PopStateEvent("popstate"));
 	};
 
-	return (
+	return createPortal(
 		<div
 			style={{
 				position: "fixed",
 				inset: 0,
+				zIndex: 500,
 				pointerEvents: "none",
 				opacity: visible ? 1 : 0,
 				transition: "opacity 0.3s",
+				fontFamily: "var(--font-sans, system-ui)",
 			}}
 		>
+			{/* 閉じるボタン (右上) */}
 			<button
 				type="button"
 				onClick={exitPresent}
@@ -85,20 +119,38 @@ export function PresentModeOverlay({ nav }: Props) {
 					top: 16,
 					right: 16,
 					appearance: "none",
-					background: "rgba(0,0,0,0.6)",
-					border: "none",
+					background: "rgba(255,255,255,0.1)",
+					backdropFilter: "blur(16px)",
+					WebkitBackdropFilter: "blur(16px)",
+					border: "1px solid rgba(255,255,255,0.1)",
 					color: "white",
 					cursor: "pointer",
 					width: 36,
 					height: 36,
-					borderRadius: "50%",
-					fontSize: 18,
-					lineHeight: 1,
+					borderRadius: 10,
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
 					pointerEvents: "auto",
+					padding: 0,
 				}}
 			>
-				✕
+				<svg
+					width="14"
+					height="14"
+					viewBox="0 0 16 16"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="1.5"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					aria-hidden="true"
+				>
+					<path d="m3.5 3.5 9 9M12.5 3.5l-9 9" />
+				</svg>
 			</button>
+
+			{/* 上部プログレスバー */}
 			<div
 				style={{
 					position: "absolute",
@@ -119,6 +171,7 @@ export function PresentModeOverlay({ nav }: Props) {
 				/>
 			</div>
 
+			{/* 下部ナビ pill */}
 			<div
 				style={{
 					position: "absolute",
@@ -127,52 +180,125 @@ export function PresentModeOverlay({ nav }: Props) {
 					transform: "translateX(-50%)",
 					display: "flex",
 					alignItems: "center",
-					gap: 12,
-					padding: "8px 16px",
-					background: "rgba(0,0,0,0.6)",
-					color: "white",
+					gap: 2,
+					padding: 4,
 					borderRadius: 999,
-					font: "14px system-ui",
+					background: "rgba(20,20,25,0.85)",
+					backdropFilter: "blur(20px)",
+					WebkitBackdropFilter: "blur(20px)",
+					border: "1px solid rgba(255,255,255,0.1)",
 					pointerEvents: "auto",
+					boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
 				}}
 			>
-				<button
-					type="button"
-					onClick={() => nav.prev()}
+				<NavButton
 					disabled={index === 0}
-					style={buttonStyle(index === 0)}
-					aria-label="前のスライド"
+					onClick={() => nav.prev()}
+					ariaLabel="前のスライド"
+					direction="prev"
+				/>
+				<div
+					style={{
+						padding: "0 12px",
+						fontSize: 13,
+						fontFamily: "var(--font-mono)",
+						letterSpacing: 0,
+						minWidth: 60,
+						textAlign: "center",
+					}}
 				>
-					‹
-				</button>
-				<span style={{ minWidth: 48, textAlign: "center" }}>
-					{index + 1} / {total}
-				</span>
+					<span style={{ color: "white", fontWeight: 600 }}>{index + 1}</span>
+					<span style={{ color: "rgba(255,255,255,0.5)" }}> / {total}</span>
+				</div>
+				<NavButton
+					disabled={index >= total - 1}
+					onClick={() => nav.next()}
+					ariaLabel="次のスライド"
+					direction="next"
+				/>
+				<div
+					style={{
+						width: 1,
+						height: 20,
+						background: "rgba(255,255,255,0.15)",
+						margin: "0 4px",
+					}}
+				/>
 				<button
 					type="button"
-					onClick={() => nav.next()}
-					disabled={index >= total - 1}
-					style={buttonStyle(index >= total - 1)}
-					aria-label="次のスライド"
+					onClick={exitPresent}
+					title="発表を終了 (Esc)"
+					aria-label="発表を終了"
+					style={{
+						appearance: "none",
+						border: "none",
+						background: "transparent",
+						color: "white",
+						cursor: "pointer",
+						height: 34,
+						padding: "0 12px",
+						borderRadius: 999,
+						display: "flex",
+						alignItems: "center",
+						fontSize: 12,
+						fontFamily: "inherit",
+					}}
 				>
-					›
+					終了
 				</button>
 			</div>
-		</div>
+		</div>,
+		document.body,
 	);
 }
 
-function buttonStyle(disabled: boolean): React.CSSProperties {
-	return {
-		appearance: "none",
-		border: "none",
-		background: "transparent",
-		color: "white",
-		cursor: disabled ? "default" : "pointer",
-		opacity: disabled ? 0.3 : 1,
-		fontSize: 20,
-		width: 28,
-		height: 28,
-		borderRadius: 4,
-	};
+function NavButton({
+	disabled,
+	onClick,
+	ariaLabel,
+	direction,
+}: {
+	disabled: boolean;
+	onClick: () => void;
+	ariaLabel: string;
+	direction: "prev" | "next";
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			disabled={disabled}
+			aria-label={ariaLabel}
+			style={{
+				appearance: "none",
+				border: "none",
+				background: "transparent",
+				color: "white",
+				cursor: disabled ? "default" : "pointer",
+				opacity: disabled ? 0.3 : 1,
+				width: 34,
+				height: 34,
+				borderRadius: 999,
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+				padding: 0,
+				transition: "background var(--dur-fast)",
+			}}
+		>
+			<svg
+				width="14"
+				height="14"
+				viewBox="0 0 16 16"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				aria-hidden="true"
+			>
+				{direction === "prev" ? <path d="m10 4-4 4 4 4" /> : <path d="m6 4 4 4-4 4" />}
+			</svg>
+		</button>
+	);
 }

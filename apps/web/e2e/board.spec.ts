@@ -16,19 +16,19 @@ test.describe("Board", () => {
 		await page.goto("/dashboard");
 		await expect(page.locator("h1")).toContainText("uSketch");
 		// 新 UI の CTA は日本語
-		await expect(page.locator("text=新規ローカルボード")).toBeVisible();
+		await expect(page.getByRole("button", { name: "新規ローカルボード" })).toBeVisible();
 	});
 
 	test("local board can be created and opened", async ({ page }) => {
 		await page.goto("/dashboard");
-		await page.click("text=新規ローカルボード");
+		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
 		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 	});
 
 	test("toolbar and export button visible on board page", async ({ page }) => {
 		await page.goto("/dashboard");
-		await page.click("text=新規ローカルボード");
+		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
 		// 新レイアウト: Toolbar は画面下中央の data-testid="toolbar" で特定
 		await expect(page.locator('[data-testid="toolbar"]')).toBeVisible();
@@ -40,7 +40,7 @@ test.describe("Board", () => {
 
 	test("command palette opens with Cmd+K and closes with Esc", async ({ page }) => {
 		await page.goto("/dashboard");
-		await page.click("text=新規ローカルボード");
+		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
 
 		// Toolbar のレンダリング完了を待つ
@@ -52,9 +52,9 @@ test.describe("Board", () => {
 		const palette = page.locator('[role="dialog"][aria-label="コマンドパレット"]');
 		await expect(palette).toBeVisible();
 
-		// グループが出ている
-		await expect(palette.locator("text=アクション")).toBeVisible();
-		await expect(palette.locator("text=テーマ")).toBeVisible();
+		// グループが出ている (複数の候補テキストが紛れ込むので最初の 1 件で特定)
+		await expect(palette.getByText("アクション", { exact: true })).toBeVisible();
+		await expect(palette.getByText("テーマ", { exact: true })).toBeVisible();
 
 		// Esc で閉じる
 		await page.keyboard.press("Escape");
@@ -63,7 +63,7 @@ test.describe("Board", () => {
 
 	test("command palette executes a theme command", async ({ page }) => {
 		await page.goto("/dashboard");
-		await page.click("text=新規ローカルボード");
+		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
 		await expect(page.locator('[data-testid="toolbar"]')).toBeVisible();
 

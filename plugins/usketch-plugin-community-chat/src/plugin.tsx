@@ -13,6 +13,7 @@ import {
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { createChatClient } from "./chat-client.js";
+import type { ChatNewMessageEvent } from "./types.js";
 
 export interface CommunityChatOptions {
 	apiUrl: string;
@@ -23,42 +24,57 @@ export interface CommunityChatOptions {
 }
 
 // ── ピン定数 ──
-
-const PIN_W = 64;
-const PIN_H = 80;
+// モックの ChatThreadPin (expanded 状態) 相当: 横長の pill 型
+const PIN_W = 280;
+const PIN_H = 60;
 const ASPECT = PIN_H / PIN_W;
-const MIN_W = 40;
-const PIN_HUE = 200;
+const MIN_W = 180;
+
+// threadId をハッシュしてアバター色を決める
+const THREAD_HUES = [265, 330, 195, 150, 20, 210, 0, 175, 240, 35];
+function threadHue(id: string): number {
+	let hash = 0;
+	for (let i = 0; i < id.length; i++) {
+		hash = (hash * 31 + id.charCodeAt(i)) | 0;
+	}
+	return THREAD_HUES[Math.abs(hash) % THREAD_HUES.length] ?? 265;
+}
+
+function formatRelativeTime(iso: string): string {
+	const then = new Date(iso).getTime();
+	if (!Number.isFinite(then)) return "";
+	const diff = Date.now() - then;
+	if (diff < 0) return "今";
+	const sec = Math.floor(diff / 1000);
+	if (sec < 60) return "今";
+	const min = Math.floor(sec / 60);
+	if (min < 60) return `${min}分前`;
+	const hr = Math.floor(min / 60);
+	if (hr < 24) return `${hr}時間前`;
+	const day = Math.floor(hr / 24);
+	if (day < 7) return `${day}日前`;
+	return new Date(iso).toLocaleDateString();
+}
 
 // ── ピン描画 ──
 
-function pinPath(cx: number, cy: number, r: number, tipY: number): string {
-	const angle = Math.PI / 5;
-	const sinA = Math.sin(angle);
-	const cosA = Math.cos(angle);
-	const tx = cx + r * sinA;
-	const ty = cy + r * cosA;
-	const lx = cx - r * sinA;
-	const ly = ty;
-	return [`M${cx} ${tipY}`, `L${tx} ${ty}`, `A${r} ${r} 0 1 0 ${lx} ${ly}`, "Z"].join(" ");
-}
-
 function renderChatPin(data: ShapeData) {
 	const label = (data.chatLabel as string) || "Chat";
-	const w = data.width;
-	const h = data.height;
+	const lastMessage = (data.lastMessage as string) || "";
+	const lastAuthor = (data.lastAuthor as string) || "";
+	const lastMessageAt = (data.lastMessageAt as string) || "";
+	const unread = Number(data.unread ?? 0);
+	const hue = threadHue((data.threadId as string) || data.id);
+	const accentColor = `hsl(${hue}, 70%, 60%)`;
+	const softColor = `hsl(${hue}, 70%, 85%)`;
+	const relTime = lastMessageAt ? formatRelativeTime(lastMessageAt) : "";
 
-	const labelH = h * 0.25;
-	const pinH = h - labelH;
-	const r = w * 0.4;
-	const cx = w / 2;
-	const cy = h * 0.02 + r;
-	const tipY = pinH - h * 0.01;
-
-	const uid = `chat-pin-${data.id}`;
-	const lightColor = `hsl(${PIN_HUE}, 70%, 68%)`;
-	const darkColor = `hsl(${PIN_HUE}, 60%, 38%)`;
-	const iconColor = `hsl(${PIN_HUE}, 55%, 45%)`;
+	// tail を含めるため、外側ラッパーは overflow: visible で、
+	// 内部の pill だけに overflow: hidden をかける。
+	// tail は pill の下辺から張り出す SVG で描画し、pill 背景と border を一筆で継承する。
+	const TAIL_W = 14;
+	const TAIL_H = 8;
+	const TAIL_OFFSET_LEFT = 24; // アバター中心の少し右下から生やす
 
 	return (
 		<div
@@ -68,93 +84,170 @@ function renderChatPin(data: ShapeData) {
 				position: "relative",
 				pointerEvents: "none",
 				userSelect: "none",
-				overflow: "hidden",
+				boxSizing: "border-box",
+				fontFamily: "var(--font-sans, system-ui, sans-serif)",
+				filter: `drop-shadow(0 6px 14px color-mix(in oklab, ${accentColor} 28%, transparent))`,
 			}}
 		>
-			<svg
-				width={w}
-				height={pinH}
-				viewBox={`0 0 ${w} ${pinH}`}
-				style={{ position: "absolute", top: 0, left: 0 }}
-			>
-				<title>{label}</title>
-				<defs>
-					<linearGradient id={`${uid}-grad`} x1="0" y1="0" x2="0.3" y2="1">
-						<stop offset="0%" stopColor={lightColor} />
-						<stop offset="100%" stopColor={darkColor} />
-					</linearGradient>
-					<radialGradient id={`${uid}-hl`} cx="0.4" cy="0.35" r="0.6">
-						<stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
-						<stop offset="100%" stopColor="rgba(255,255,255,0)" />
-					</radialGradient>
-				</defs>
-				<ellipse cx={cx} cy={tipY + 1} rx={r * 0.3} ry={2} fill="rgba(0,0,0,0.1)" />
-				<path d={pinPath(cx, cy, r, tipY)} fill={`url(#${uid}-grad)`} />
-				<circle cx={cx} cy={cy} r={r} fill={`url(#${uid}-hl)`} />
-				<circle cx={cx} cy={cy} r={r * 0.58} fill="#fff" />
-				<g transform={`translate(${cx - r * 0.32}, ${cy - r * 0.3}) scale(${(r * 0.64) / 20})`}>
-					<path
-						d="M4 3h12a2 2 0 012 2v7a2 2 0 01-2 2H8l-4 3v-3H4a2 2 0 01-2-2V5a2 2 0 012-2z"
-						fill="none"
-						stroke={iconColor}
-						strokeWidth="1.8"
-						strokeLinejoin="round"
-					/>
-					<line
-						x1="7"
-						y1="7"
-						x2="13"
-						y2="7"
-						stroke={iconColor}
-						strokeWidth="1.4"
-						strokeLinecap="round"
-					/>
-					<line
-						x1="7"
-						y1="10"
-						x2="11"
-						y2="10"
-						stroke={iconColor}
-						strokeWidth="1.4"
-						strokeLinecap="round"
-					/>
-				</g>
-				<circle cx={cx - r * 0.28} cy={cy - r * 0.28} r={r * 0.08} fill="rgba(255,255,255,0.5)" />
-			</svg>
+			{/* pill 本体 */}
 			<div
 				style={{
 					position: "absolute",
-					bottom: 0,
-					left: 0,
-					width: w,
-					height: labelH,
+					inset: 0,
 					display: "flex",
 					alignItems: "center",
-					justifyContent: "center",
+					gap: 10,
+					padding: "8px 14px 8px 8px",
+					background: "var(--bg-surface-raised)",
+					border: `1.5px solid ${accentColor}`,
+					borderRadius: 99,
+					backdropFilter: "blur(20px) saturate(1.4)",
+					WebkitBackdropFilter: "blur(20px) saturate(1.4)",
+					overflow: "hidden",
+					boxSizing: "border-box",
 				}}
 			>
-				<span
+				{/* アバター (comment icon) */}
+				<div
 					style={{
-						fontSize: Math.max(9, Math.min(13, h * 0.11)),
-						fontWeight: 600,
-						color: "#334155",
-						fontFamily: "system-ui, sans-serif",
-						background: "rgba(255,255,255,0.88)",
-						padding: "2px 6px",
-						borderRadius: 8,
-						maxWidth: "100%",
-						overflow: "hidden",
-						display: "-webkit-box",
-						WebkitLineClamp: 2,
-						WebkitBoxOrient: "vertical",
-						textAlign: "center",
-						lineHeight: 1.25,
-						wordBreak: "break-word",
+						width: 32,
+						height: 32,
+						borderRadius: 99,
+						flexShrink: 0,
+						background: `linear-gradient(135deg, ${accentColor}, ${softColor})`,
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						position: "relative",
 					}}
 				>
-					{label}
-				</span>
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="white"
+						strokeWidth="1.8"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M2.5 7.5c0-2.8 2.5-5 5.5-5s5.5 2.2 5.5 5-2.5 5-5.5 5c-.7 0-1.4-.1-2-.3L3 13.5l.8-2.4a4.8 4.8 0 0 1-1.3-3.6Z" />
+					</svg>
+					{unread > 0 && (
+						<div
+							style={{
+								position: "absolute",
+								top: -3,
+								right: -3,
+								minWidth: 16,
+								height: 16,
+								padding: "0 4px",
+								borderRadius: 99,
+								background: "var(--danger)",
+								color: "white",
+								fontSize: 9.5,
+								fontWeight: 700,
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								border: "2px solid var(--bg-canvas)",
+							}}
+						>
+							{unread > 99 ? "99+" : unread}
+						</div>
+					)}
+				</div>
+
+				{/* タイトル + 最終メッセージ */}
+				<div style={{ minWidth: 0, lineHeight: 1.25, flex: 1 }}>
+					<div
+						style={{
+							display: "flex",
+							alignItems: "baseline",
+							gap: 6,
+							minWidth: 0,
+						}}
+					>
+						<div
+							style={{
+								fontSize: 12,
+								fontWeight: 600,
+								color: "var(--fg-primary)",
+								whiteSpace: "nowrap",
+								overflow: "hidden",
+								textOverflow: "ellipsis",
+								flex: 1,
+								minWidth: 0,
+							}}
+							title={label}
+						>
+							{label}
+						</div>
+						{relTime && (
+							<div
+								style={{
+									fontSize: 9.5,
+									color: "var(--fg-tertiary)",
+									fontFamily: "var(--font-mono)",
+									flexShrink: 0,
+								}}
+							>
+								{relTime}
+							</div>
+						)}
+					</div>
+					{lastMessage && (
+						<div
+							style={{
+								fontSize: 10.5,
+								color: "var(--fg-tertiary)",
+								whiteSpace: "nowrap",
+								overflow: "hidden",
+								textOverflow: "ellipsis",
+							}}
+						>
+							{lastAuthor && (
+								<span style={{ color: accentColor, fontWeight: 500 }}>{lastAuthor}: </span>
+							)}
+							{lastMessage}
+						</div>
+					)}
+				</div>
 			</div>
+
+			{/* tail — pill の下辺に張り出す三角 (SVG) */}
+			<svg
+				aria-hidden="true"
+				width={TAIL_W}
+				height={TAIL_H + 2}
+				viewBox={`0 0 ${TAIL_W} ${TAIL_H + 2}`}
+				style={{
+					position: "absolute",
+					left: TAIL_OFFSET_LEFT,
+					// pill の下端線にちょうど重ねる。pill の border 1.5px の外側に出すため少し上から。
+					bottom: -(TAIL_H + 1),
+					pointerEvents: "none",
+				}}
+			>
+				{/* pill の border と同色のアウトライン三角 (下向き ▼) */}
+				<path
+					d={`M0 0 L${TAIL_W} 0 L${TAIL_W / 2} ${TAIL_H} Z`}
+					fill="var(--bg-surface-raised)"
+					stroke={accentColor}
+					strokeWidth="1.5"
+					strokeLinejoin="round"
+				/>
+				{/* pill の底辺 border と tail の上端を重ねて、接地部分の 2 重線を隠す */}
+				<line
+					x1="1"
+					y1="0"
+					x2={TAIL_W - 1}
+					y2="0"
+					stroke="var(--bg-surface-raised)"
+					strokeWidth="2"
+				/>
+			</svg>
 		</div>
 	);
 }
@@ -243,9 +336,10 @@ function createDefault(params: { id: string; x: number; y: number }): ShapeData 
 		y: params.y,
 		width: PIN_W,
 		height: PIN_H,
-		style: { ...DEFAULT_STYLE, fill: "#ffffff", stroke: "#e2e8f0" },
+		style: { ...DEFAULT_STYLE, fill: "transparent", stroke: "transparent", strokeWidth: 0 },
 		chatLabel: "Chat",
 		threadId: generateId(),
+		unread: 0,
 	};
 }
 
@@ -316,6 +410,7 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 							userId={options.userId}
 							userName={options.userName}
 							threadId={activeThreadId}
+							events={ctx.events}
 						/>
 					),
 				},
@@ -330,6 +425,77 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 				createDefault,
 				renderTarget: "html",
 				minSize: { width: MIN_W, height: MIN_W * ASPECT },
+			});
+
+			// chat-widget シェイプの最終メッセージ / unread を更新するイベント購読
+			const unsubNewMessage = ctx.events.on<ChatNewMessageEvent>(
+				"chat-widget:new-message",
+				({ message, fromActiveTab }) => {
+					const shapes = ctx.store.getShapes();
+					for (const [id, shape] of shapes) {
+						if (shape.type !== "chat-widget") continue;
+						if ((shape.threadId as string) !== message.threadId) continue;
+						const prevUnread = Number(shape.unread ?? 0);
+						const nextUnread = fromActiveTab ? 0 : prevUnread + 1;
+						ctx.store.updateShape(id, {
+							lastMessage: message.text,
+							lastAuthor: message.authorName,
+							lastAuthorId: message.authorId,
+							lastMessageAt: message.createdAt,
+							unread: nextUnread,
+						});
+					}
+				},
+			);
+
+			// アクティブスレッド切替時 / タブを開いた時、そのスレッドの unread をリセット
+			const clearUnreadForThread = (threadId: string) => {
+				const shapes = ctx.store.getShapes();
+				for (const [id, shape] of shapes) {
+					if (shape.type !== "chat-widget") continue;
+					if ((shape.threadId as string) !== threadId) continue;
+					if (Number(shape.unread ?? 0) === 0) continue;
+					ctx.store.updateShape(id, { unread: 0 });
+				}
+			};
+
+			// 初期ロード時: 画面にある chat-widget シェイプ全ての最新メッセージを fetch して反映
+			// （新規 shape が後から増えたときのためにも、追加時に再 fetch する）
+			const refreshShapeMetadata = async (shapeId: string, threadId: string) => {
+				const msgs = await client.list(threadId, 1);
+				const last = msgs[msgs.length - 1];
+				if (!last) return;
+				const shape = ctx.store.getShape(shapeId);
+				if (!shape || shape.type !== "chat-widget") return;
+				if (shape.lastMessageAt === last.createdAt) return; // 変更なし
+				ctx.store.updateShape(shapeId, {
+					lastMessage: last.text,
+					lastAuthor: last.authorName,
+					lastAuthorId: last.authorId,
+					lastMessageAt: last.createdAt,
+				});
+			};
+
+			// 初期同期: 現在ある chat-widget シェイプ全てを 1 回 fetch
+			setTimeout(() => {
+				const shapes = ctx.store.getShapes();
+				for (const [id, shape] of shapes) {
+					if (shape.type !== "chat-widget") continue;
+					const threadId = (shape.threadId as string) || "";
+					if (threadId) refreshShapeMetadata(id, threadId);
+				}
+			}, 0);
+
+			// 新規 chat-widget が追加されたら fetch
+			const unsubShapeAdd = ctx.store.onMutation((event) => {
+				if (event.type !== "shape:added") return;
+				const payload = event.payload as { id?: string } | null | undefined;
+				const shapeId = payload?.id;
+				if (typeof shapeId !== "string") return;
+				const shape = ctx.store.getShape(shapeId);
+				if (!shape || shape.type !== "chat-widget") return;
+				const threadId = (shape.threadId as string) || "";
+				if (threadId) refreshShapeMetadata(shapeId, threadId);
 			});
 
 			// チャットピン選択時 → そのスレッドをサイドパネルで開く
@@ -351,6 +517,7 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 				if (shapeId !== prevSelectedChatId) {
 					prevSelectedChatId = shapeId;
 					activeThreadId = threadId;
+					clearUnreadForThread(threadId);
 					// タブを再登録してスレッドを切り替え
 					ctx.events.emit("side-panel:unregister-tab", { tabId: "community-chat" });
 					ctx.events.emit("side-panel:register-tab", {
@@ -366,6 +533,7 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 									userId={options.userId}
 									userName={options.userName}
 									threadId={activeThreadId}
+									events={ctx.events}
 								/>
 							),
 						},
@@ -396,6 +564,8 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 
 			cleanup = () => {
 				unsubMutation();
+				unsubNewMessage();
+				unsubShapeAdd();
 				ctx.events.emit("side-panel:unregister-tab", { tabId: "community-chat" });
 			};
 		},

@@ -53,17 +53,25 @@ export function ExportMenu({ isCloudBoard, boardId, standalone = false }: Props)
 			}
 		: { position: "relative", display: "inline-flex" };
 
+	const trigger = (
+		<IconBtn
+			icon={I.download}
+			label="エクスポート"
+			onClick={() => setShowMenu((v) => !v)}
+			active={showMenu}
+			disabled={exporting}
+		/>
+	);
+
 	return (
 		<div style={wrapperStyle}>
-			<div className="u-surface" style={{ display: "flex", padding: 3, borderRadius: 10 }}>
-				<IconBtn
-					icon={I.download}
-					label="エクスポート"
-					onClick={() => setShowMenu((v) => !v)}
-					active={showMenu}
-					disabled={exporting}
-				/>
-			</div>
+			{standalone ? (
+				<div className="u-surface" style={{ display: "flex", padding: 3, borderRadius: 10 }}>
+					{trigger}
+				</div>
+			) : (
+				trigger
+			)}
 			{showMenu && (
 				<div
 					className="u-surface"

@@ -45,10 +45,12 @@ import {
 	type WsProviderHandle,
 } from "@edv4h/usketch-sync";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router";
 import {
 	BoardIdentity,
 	CommunityLink,
+	CopilotPill,
 	TopRightCluster,
 	ZoomControls,
 } from "./components/board-frame/index.js";
@@ -59,6 +61,7 @@ import { Toolbar } from "./components/toolbar/index.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
+import { computePresentStage, type StageRect } from "./lib/present-stage.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 
@@ -121,11 +124,28 @@ export function App() {
 	// popstate で ref を読み直す設計。
 	const modeRef = useRef<PresentationMode>(presentationMode);
 	modeRef.current = presentationMode;
+
+	// react-router の navigate() は pushState ベースで popstate を発火しない。
+	// presentation plugin は popstate で modeRef を再読込する設計なので、
+	// ?present= の変化を検出したら明示的に popstate を dispatch する。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: presentationMode の変化をトリガーとして使用
+	useEffect(() => {
+		window.dispatchEvent(new PopStateEvent("popstate"));
+	}, [presentationMode]);
 	const [app, setApp] = useState<AppInstance | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [wsStatus, setWsStatus] = useState<WsConnectionStatus | null>(null);
 	const [boardName, setBoardName] = useState<string | null>(null);
 	const wsProviderRef = useRef<WsProviderHandle | null>(null);
+
+	// プレゼン編集モードの stage 矩形 (Canvas を縮退させて配置する)。
+	// app 生成 useEffect で presentation plugin に getViewportSize として渡すため、
+	// ref でも保持する (stage 変更時に app を再生成しない)。
+	const stageRectRef = useRef<StageRect | null>(
+		presentationMode === "edit"
+			? computePresentStage({ width: window.innerWidth, height: window.innerHeight })
+			: null,
+	);
 
 	// ボード初期化（boardId / isCloudBoard に依存）。
 	// presentationMode は依存に入れない（presentation plugin が popstate で modeRef を読み直す）。
@@ -196,22 +216,29 @@ export function App() {
 			extraPlugins.push(createAiRecognizePlugin({ boardId }));
 			extraPlugins.push(createWhistlePlugin(wsProvider));
 			extraPlugins.push(createActivityFeedPlugin({ wsProvider, boardId, apiUrl }));
-
-			// プレゼンテーション: 常にロードし、`?present=1` が付いた時だけ UI を出す。
-			// ルート切替せず URL クエリで切替える設計なので、アプリ再生成は起きない。
-			extraPlugins.push(
-				createPresentationPlugin({
-					getMode: () => modeRef.current,
-					navigateToBoard: () => {
-						if (boardId) navigate(`/boards/${boardId}`);
-					},
-				}),
-			);
 		} else {
 			extraPlugins.push(laserPlugin);
 			extraPlugins.push(spotlightPlugin);
 			extraPlugins.push(whistlePlugin);
 		}
+
+		// プレゼンテーション: ローカル/Cloud 共通で常にロードし、`?present=1` が付いた時だけ UI を出す。
+		// ルート切替せず URL クエリで切替える設計なので、アプリ再生成は起きない。
+		extraPlugins.push(
+			createPresentationPlugin({
+				getMode: () => modeRef.current,
+				navigateToBoard: () => {
+					if (boardId) {
+						navigate(isCloudBoard ? `/boards/${boardId}` : `/local/${boardId}`);
+					}
+				},
+				getViewportSize: () => {
+					const stage = stageRectRef.current;
+					if (stage) return { width: stage.width, height: stage.height };
+					return { width: window.innerWidth, height: window.innerHeight };
+				},
+			}),
+		);
 
 		syncHandle.whenSynced
 			.then(() => {
@@ -276,10 +303,9 @@ export function App() {
 			.then((r) => (r.ok ? r.json() : null))
 			.then((b) => {
 				if (cancelled) return;
+				const t = b as { title?: unknown; name?: unknown } | null;
 				const name =
-					b && typeof (b as { name?: unknown }).name === "string"
-						? (b as { name: string }).name
-						: null;
+					typeof t?.title === "string" ? t.title : typeof t?.name === "string" ? t.name : null;
 				setBoardName(name);
 			})
 			.catch(() => {});
@@ -330,7 +356,7 @@ export function App() {
 	}, [authUserId, authUserName]);
 
 	// キーボードショートカット
-	useKeyboardShortcuts(app);
+	useKeyboardShortcuts(app, presentationMode === "present");
 
 	// Info タブを SidePanel に登録（Cloud ボードのみ）
 	useEffect(() => {
@@ -369,6 +395,20 @@ export function App() {
 	const openPalette = useCallback(() => setPaletteOpen(true), []);
 	useCommandPaletteShortcut(openPalette);
 
+	const [stageRect, setStageRect] = useState<StageRect | null>(stageRectRef.current);
+	stageRectRef.current = stageRect;
+	useEffect(() => {
+		if (presentationMode !== "edit") {
+			setStageRect(null);
+			return;
+		}
+		const update = () =>
+			setStageRect(computePresentStage({ width: window.innerWidth, height: window.innerHeight }));
+		update();
+		window.addEventListener("resize", update);
+		return () => window.removeEventListener("resize", update);
+	}, [presentationMode]);
+
 	if (error) {
 		return (
 			<div style={{ padding: "24px", fontFamily: "system-ui, sans-serif", color: "#c33" }}>
@@ -382,30 +422,81 @@ export function App() {
 
 	// 発表モード中だけ通常のツールバーを隠す（presentation overlay のみ表示）
 	const hideToolbar = presentationMode === "present";
+	// プレゼン編集モード中はスライド編集に関係ない UI を隠す
+	const isPresentEdit = presentationMode === "edit";
+	// 発表中は Canvas を readonly (シェイプ選択/ドラッグ/描画を全てオフ)
+	const isPresenting = presentationMode === "present";
 
 	return (
 		<AppProvider app={app}>
-			<div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
-				<Canvas />
-				{!hideToolbar && (
-					<>
-						<BoardIdentity
-							boardName={boardName ?? undefined}
-							isCloudBoard={isCloudBoard}
-							connectionStatus={wsStatus ?? undefined}
-						/>
-						<TopRightCluster boardId={boardId} isCloudBoard={isCloudBoard} />
-						<Toolbar
-							boardId={boardId}
-							isCloudBoard={isCloudBoard}
-							wsProvider={wsProviderRef.current}
-							onOpenCommandPalette={openPalette}
-						/>
-						<ZoomControls />
-						<CommunityLink />
-						{isCloudBoard && <SidePanelToggles app={app} />}
-					</>
-				)}
+			<div
+				style={{
+					width: "100%",
+					height: "100%",
+					overflow: "hidden",
+					position: "relative",
+					background: "var(--bg-canvas-2, #0a0a0b)",
+				}}
+			>
+				{/*
+					エディタ全体 (Canvas + Toolbar + BoardIdentity 等) をひとつの div で包む。
+					プレゼン編集モード中は stage 矩形に縮め、外側を発表 UI が取り囲む形にする。
+					transform を当てると内側の position: fixed 要素の containing block が
+					この div になるため、Toolbar 等を書き換えずに相対化できる (CSS spec)。
+				*/}
+				<div
+					style={
+						stageRect
+							? {
+									position: "absolute",
+									left: stageRect.left,
+									top: stageRect.top,
+									width: stageRect.width,
+									height: stageRect.height,
+									borderRadius: 8,
+									overflow: "hidden",
+									transform: "translate(0, 0)",
+									boxShadow: "0 30px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06)",
+									transition:
+										"left 180ms var(--ease-out, ease-out), top 180ms var(--ease-out, ease-out), width 180ms var(--ease-out, ease-out), height 180ms var(--ease-out, ease-out)",
+								}
+							: {
+									position: "absolute",
+									inset: 0,
+								}
+					}
+				>
+					<Canvas />
+					{!hideToolbar && (
+						<>
+							<BoardIdentity
+								boardName={boardName ?? undefined}
+								isCloudBoard={isCloudBoard}
+								connectionStatus={wsStatus ?? undefined}
+							/>
+							{!isPresentEdit && (
+								<TopRightCluster
+									boardId={boardId}
+									isCloudBoard={isCloudBoard}
+									wsProvider={wsProviderRef.current}
+									connectionStatus={wsStatus ?? undefined}
+								/>
+							)}
+							<Toolbar
+								boardId={boardId}
+								isCloudBoard={isCloudBoard}
+								wsProvider={wsProviderRef.current}
+								onOpenCommandPalette={openPalette}
+								compact={isPresentEdit}
+							/>
+							{!isPresentEdit && <ZoomControls />}
+							{!isPresentEdit && <CommunityLink />}
+							{isCloudBoard && !isPresentEdit && <SidePanelToggles app={app} />}
+							{isCloudBoard && !isPresentEdit && <CopilotPill onOpenCommandPalette={openPalette} />}
+						</>
+					)}
+				</div>
+				{/* 閉じタグ: エディタ全体ラッパーの終わり */}
 				<CommandPalette
 					open={paletteOpen}
 					onClose={() => setPaletteOpen(false)}
@@ -452,6 +543,31 @@ export function App() {
 					</div>
 				)}
 			</div>
+			{isPresenting &&
+				createPortal(
+					<div
+						aria-hidden="true"
+						style={{
+							position: "fixed",
+							inset: 0,
+							zIndex: 300,
+							cursor: "default",
+							background: "transparent",
+						}}
+						onPointerDown={(e) => {
+							e.stopPropagation();
+							e.preventDefault();
+						}}
+						onPointerMove={(e) => e.stopPropagation()}
+						onPointerUp={(e) => e.stopPropagation()}
+						onWheel={(e) => e.stopPropagation()}
+						onContextMenu={(e) => {
+							e.stopPropagation();
+							e.preventDefault();
+						}}
+					/>,
+					document.body,
+				)}
 		</AppProvider>
 	);
 }

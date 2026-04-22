@@ -236,6 +236,13 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 						createdAt: Date.now(),
 					});
 				}
+				if (shapes.length > 0) {
+					const first = shapes[0];
+					const text = first?.text
+						? `"${first.text}" を追加しませんか？`
+						: `${shapes.length} 件のシェイプを提案`;
+					ctx.events.emit("copilot:notice", { text });
+				}
 			}
 
 			// Debounced trigger

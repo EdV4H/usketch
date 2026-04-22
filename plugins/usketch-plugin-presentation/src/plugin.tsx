@@ -5,9 +5,9 @@ import type {
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { useEffect, useState } from "react";
+import { PresentEditOverlay } from "./present-edit-overlay.js";
 import { PresentModeOverlay } from "./present-mode-overlay.js";
 import { SlideNavigator } from "./slide-navigator.js";
-import { SlideOutlinePanel } from "./slide-outline-panel.js";
 
 /** "off" = プレゼン UI 非表示（通常のホワイトボード扱い） */
 export type PresentationMode = "off" | "edit" | "present";
@@ -27,9 +27,15 @@ export interface PresentationPluginOptions {
 	 * apps/web 側で react-router の navigate を渡す。省略時は window.location.assign。
 	 */
 	navigateToBoard?: () => void;
+	/**
+	 * SlideNavigator.fitToBounds で使う viewport サイズを返す。
+	 * 編集モード時は Canvas が stage 矩形に縮退するため、ウィンドウ全体ではなく
+	 * stage のサイズを返したい。省略時は window.innerWidth/Height を使う。
+	 */
+	getViewportSize?: () => { width: number; height: number };
 }
 
-function getWindowSize(): { width: number; height: number } {
+function defaultGetViewportSize(): { width: number; height: number } {
 	return { width: window.innerWidth, height: window.innerHeight };
 }
 
@@ -52,6 +58,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 	const getMode = opts.getMode;
 	const subscribeMode = opts.subscribeMode ?? defaultSubscribeMode;
 	const navigateToBoard = opts.navigateToBoard ?? defaultNavigateToBoard;
+	const getViewportSize = opts.getViewportSize ?? defaultGetViewportSize;
 	let nav: SlideNavigator | null = null;
 	const unregisters: Array<() => void> = [];
 
@@ -59,7 +66,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 		id: "presentation",
 		name: "Presentation",
 		setup(ctx: PluginContext) {
-			nav = new SlideNavigator(ctx.store, getWindowSize);
+			nav = new SlideNavigator(ctx.store, getViewportSize);
 			const navRef = nav;
 
 			// 発表モード中のみ動くショートカット群（mode を実行時に毎回評価する）
@@ -122,18 +129,18 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 			window.addEventListener("keydown", onKeyDown);
 			unregisters.push(() => window.removeEventListener("keydown", onKeyDown));
 
-			// 発表モードに入ったら最初のスライドに寄せる。
+			// 発表モード突入時の初回 fit は PresentModeOverlay の useEffect (mount 後) に委ねる。
+			// plugin レイヤーで即座に fit すると、Canvas コンテナの縮退解除より前の
+			// 古いサイズで計算されてズームがずれる。ここではモード変化の購読だけ行い、
+			// navRef の fit は呼ばない。
 			let prevMode = getMode();
 			const syncOnModeChange = () => {
 				const current = getMode();
 				if (current !== prevMode) {
 					prevMode = current;
-					if (current === "present") navRef.first();
 				}
 			};
 			unregisters.push(subscribeMode(syncOnModeChange));
-			// 初期表示
-			if (prevMode === "present") navRef.first();
 
 			// レイヤー: mode に応じて edit (パネル) / present (オーバーレイ) を出し分ける。
 			// react 側で LayerRenderContext を経由して再 render されるので、子コンポーネント
@@ -197,12 +204,12 @@ function PresentationLayer({
 	void setMode;
 	if (mode === "off") return null;
 	if (mode === "present") return <PresentModeOverlay nav={nav} />;
+	void renderCtx;
 	return (
-		<SlideOutlinePanel
+		<PresentEditOverlay
 			nav={nav}
 			store={store}
 			commands={commands}
-			renderCtx={renderCtx}
 			navigateToBoard={navigateToBoard}
 		/>
 	);
