@@ -45,6 +45,7 @@ import {
 	type WsProviderHandle,
 } from "@edv4h/usketch-sync";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router";
 import {
 	BoardIdentity,
@@ -466,40 +467,6 @@ export function App() {
 					}
 				>
 					<Canvas />
-					{isPresenting && (
-						// Canvas の前面を完全に覆うガード層。pointer event 全てを吸って
-						// シェイプ選択・ドラッグ・パンを無効化する。
-						// PresentModeOverlay は createPortal で document.body 直下にあり
-						// zIndex: 500 で配置されているので、ガード層はそれより下 (= Canvas
-						// 内部 layer より上の 400 台) に置く必要がある。
-						<div
-							aria-hidden="true"
-							style={{
-								position: "absolute",
-								inset: 0,
-								zIndex: 400,
-								cursor: "default",
-								background: "transparent",
-							}}
-							onPointerDown={(e) => {
-								e.stopPropagation();
-								e.preventDefault();
-							}}
-							onPointerMove={(e) => {
-								e.stopPropagation();
-							}}
-							onPointerUp={(e) => {
-								e.stopPropagation();
-							}}
-							onWheel={(e) => {
-								e.stopPropagation();
-							}}
-							onContextMenu={(e) => {
-								e.stopPropagation();
-								e.preventDefault();
-							}}
-						/>
-					)}
 					{!hideToolbar && (
 						<>
 							<BoardIdentity
@@ -576,6 +543,31 @@ export function App() {
 					</div>
 				)}
 			</div>
+			{isPresenting &&
+				createPortal(
+					<div
+						aria-hidden="true"
+						style={{
+							position: "fixed",
+							inset: 0,
+							zIndex: 300,
+							cursor: "default",
+							background: "transparent",
+						}}
+						onPointerDown={(e) => {
+							e.stopPropagation();
+							e.preventDefault();
+						}}
+						onPointerMove={(e) => e.stopPropagation()}
+						onPointerUp={(e) => e.stopPropagation()}
+						onWheel={(e) => e.stopPropagation()}
+						onContextMenu={(e) => {
+							e.stopPropagation();
+							e.preventDefault();
+						}}
+					/>,
+					document.body,
+				)}
 		</AppProvider>
 	);
 }

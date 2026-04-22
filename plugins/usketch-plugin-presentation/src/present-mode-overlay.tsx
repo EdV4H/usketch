@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { SlideNavigator } from "./slide-navigator.js";
 
 interface Props {
@@ -52,11 +53,12 @@ export function PresentModeOverlay({ nav }: Props) {
 	}, []);
 
 	if (total === 0) {
-		return (
+		return createPortal(
 			<div
 				style={{
 					position: "fixed",
 					inset: 0,
+					zIndex: 500,
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
@@ -79,7 +81,8 @@ export function PresentModeOverlay({ nav }: Props) {
 				>
 					スライド（Frame）がありません。編集モードでフレームを追加してください。
 				</div>
-			</div>
+			</div>,
+			document.body,
 		);
 	}
 
@@ -93,11 +96,12 @@ export function PresentModeOverlay({ nav }: Props) {
 		window.dispatchEvent(new PopStateEvent("popstate"));
 	};
 
-	return (
+	return createPortal(
 		<div
 			style={{
 				position: "fixed",
 				inset: 0,
+				zIndex: 500,
 				pointerEvents: "none",
 				opacity: visible ? 1 : 0,
 				transition: "opacity 0.3s",
@@ -243,7 +247,8 @@ export function PresentModeOverlay({ nav }: Props) {
 					終了
 				</button>
 			</div>
-		</div>
+		</div>,
+		document.body,
 	);
 }
 
