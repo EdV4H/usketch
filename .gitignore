@@ -74,5 +74,8 @@ out/
 .wrangler/
 .dev.vars
 
+# Astro (generated)
+.astro/
+
 # MCP (user-local config)
 .mcp.json

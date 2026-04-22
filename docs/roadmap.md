@@ -1,122 +1,134 @@
 # uSketch v2 開発ロードマップ
 
 **作成日**: 2026-03-14
-**最終更新**: 2026-03-14
+**最終更新**: 2026-04-22
+**現状**: 🚀 **v1.0.0 リリース準備中**（コード・ドキュメント完了、main merge + tag 作成待ち）
 
 ---
 
 ## フェーズ概要
 
-| Phase | 名称 | 期間 | ゴール |
-|-------|------|------|--------|
-| 0 | プロジェクト基盤 | 1週間 | モノレポ・CI・開発環境の構築 |
-| 1 | MVP | 8週間 | 描画・保存・コラボの最小プロダクト |
-| 2 | 成長 | 4週間 | フィードバック対応・機能拡充 |
-| 3 | 収益化 | 4週間 | 課金・チーム管理 |
-| 4 | 拡張 | 継続的 | プラグインAPI公開・AI・モバイル |
+| Phase | 名称 | 期間 | 状態 |
+|-------|------|------|------|
+| 0 | プロジェクト基盤 | 1週間 | ✅ 完了 |
+| 1 | MVP | 8週間 | ✅ 完了（v1.0.0 タグ発行待ち） |
+| 1.5 | リリース衛生 | 2〜3日 | ✅ 完了（v1.0.0 タグ発行待ち） |
+| 2 | 運用・品質強化 | 4週間 | 🚧 v1.1.0 スコープ |
+| 3 | 収益化 | 4週間 | 📋 v1.2.0 予定 |
+| 4 | 拡張 | 継続的 | 📋 継続 |
 
 ---
 
-## Phase 0: プロジェクト基盤（1週間）
+## Phase 0: プロジェクト基盤 ✅ 完了
 
-> **ゴール**: コードを書き始められる開発環境を整える
-
-### タスク
-
-- [ ] モノレポセットアップ（pnpm workspace + Turborepo）
-- [ ] `pnpm-workspace.yaml`, `turbo.json`, `biome.json` の作成
-- [ ] `packages/core`, `packages/canvas-engine`, `packages/store`, `packages/ui`, `packages/shared` のスキャフォールド
-- [ ] `plugins/` ディレクトリの初期プラグインスキャフォールド
-- [ ] `apps/web`（Vite + React 19）の初期セットアップ
-- [ ] `apps/server`（Hono + Cloudflare Workers）の初期セットアップ
-- [ ] TypeScript / Biome / Vitest の共通設定
-- [ ] **CI復旧**: lint, typecheck, test, build ジョブをv2パッケージ構成に合わせて有効化
-- [ ] Lefthook（Git hooks）のセットアップ
-- [ ] Playwright の初期設定
-- [ ] Renovate / Dependabot の設定
-
-### 完了基準
-
-- `pnpm install && pnpm build && pnpm test && pnpm lint` が全て通る
-- CIが全ジョブ green
-- `apps/web` でブランクのCanvasが表示される
+- [x] モノレポセットアップ（pnpm workspace + Turborepo）
+- [x] `packages/*`, `plugins/*` のスキャフォールド
+- [x] `apps/web`（Vite + React 19）
+- [x] `apps/server`（Hono + Cloudflare Workers）
+- [x] TypeScript / Biome / Vitest / Playwright
+- [x] CI（lint / typecheck / test / build / e2e / deploy）
+- [x] Lefthook（Git hooks）
+- [x] Renovate
 
 ---
 
-## Phase 1: MVP（8週間）
+## Phase 1: MVP ✅ 完了（v1.0.0 タグ発行待ち）
 
-> **ゴール**: 「描いて、保存して、共有して、一緒に編集できる」最小プロダクト
+### コア描画エンジン
+- [x] `packages/core` — プラグイン API、レイヤーシステム、TransientRegistry
+- [x] `packages/canvas-engine` — Canvas / ビューポート / 座標変換
+- [x] `packages/store` — Zustand ボードストア + Undo/Redo
+- [x] `plugins/usketch-plugin-shape-basic`, `shape-text`, `shape-freedraw` 等
+- [x] `plugins/usketch-plugin-tool-select`（XState）
+- [x] `plugins/usketch-plugin-tool-pan`
 
-### Week 1-2: コア描画エンジン
+### 永続化 + エクスポート
+- [x] `plugins/usketch-plugin-sync-localstorage-yjs` — y-indexeddb 永続化
+- [x] `apps/server` — Hono API + Cloudflare D1 + Drizzle ORM
+- [x] Better Auth 認証基盤
+- [x] `plugins/usketch-plugin-export` — PNG/SVG/JSON
+- [x] `plugins/usketch-plugin-shape-text`
+- [x] `plugins/usketch-plugin-bg-grid`, `bg-dots`
 
-- [ ] `packages/core` — プラグインAPI、レイヤーシステム、TransientRegistry
-- [ ] `packages/canvas-engine` — Canvas コンポーネント、ビューポート、座標変換
-- [ ] `packages/store` — Zustand ストア基盤
-- [ ] `plugins/usketch-plugin-shape-rect` — 矩形シェイプ + 描画ツール
-- [ ] `plugins/usketch-plugin-shape-ellipse` — 楕円シェイプ + 描画ツール
-- [ ] `plugins/usketch-plugin-shape-freedraw` — フリーハンドシェイプ + 描画ツール
-- [ ] `plugins/usketch-plugin-tool-select` — 選択・移動・リサイズツール（XState）
-- [ ] `plugins/usketch-plugin-tool-pan` — パンツール
-- [ ] Undo/Redo のコマンドパターン実装
+### リアルタイムコラボレーション
+- [x] `apps/server` — Durable Objects による Yjs WebSocket 同期
+- [x] `packages/sync` — WebSocket provider（awareness + 再接続）
+- [x] TransientRegistry 経由のカーソル・プレゼンス同期
+- [x] CRDT 自動マージ
+- [x] オフライン → オンライン復帰の自動同期
 
-### Week 3-4: 永続化 + エクスポート
+### 共有 + 仕上げ
+- [x] リンク共有・アクセス制御（公開/限定公開、role 管理）
+- [x] `packages/ui` + `apps/web/src/components` — Toolbar / SidePanel / ShareDialog
+- [x] ダーク/ライトテーマ
+- [x] E2E テスト（7 シナリオ）
+- [x] Cloudflare Pages / Workers へのデプロイ
 
-- [ ] `packages/store` — Yjs Document 統合、y-indexeddb ローカル保存
-- [ ] `apps/server` — Hono API（ボードCRUD）、Cloudflare D1 スキーマ
-- [ ] `apps/server` — Better Auth 認証基盤
-- [ ] `plugins/usketch-plugin-export` — PNG/SVG エクスポート
-- [ ] `plugins/usketch-plugin-shape-text` — テキストシェイプ + テキストツール
-- [ ] `plugins/usketch-plugin-bg-grid` — グリッド背景
+### Phase 1 で想定外に追加されたもの
 
-### Week 5-6: リアルタイムコラボレーション
-
-- [ ] `apps/server` — Durable Objects による Yjs WebSocket 同期
-- [ ] `packages/store` — SyncProvider（WebSocket ↔ Yjs Doc）
-- [ ] TransientRegistry — Yjs Awareness 経由のカーソル・プレゼンス同期
-- [ ] 同時編集時の競合テスト（CRDT自動マージ）
-- [ ] オフライン → オンライン復帰の自動同期
-
-### Week 7-8: 共有 + 仕上げ
-
-- [ ] リンク共有・アクセス制御（公開/限定公開）
-- [ ] `packages/ui` — ツールバー、サイドパネル、共有ダイアログ
-- [ ] UIポリッシュ、レスポンシブ対応
-- [ ] パフォーマンスチューニング（仮想化、バッチング）
-- [ ] E2E テストシナリオ（描画→保存→共有→コラボの一連フロー）
-- [ ] ベータリリース（Cloudflare Pages / Workers デプロイ）
-
-### MVP 完了基準
-
-- ユーザーがURLを開いて描画→自動保存→リンク共有→リアルタイム共同編集ができる
-- PNG/SVG エクスポートが動作する
-- オフラインで描画 → オンライン復帰で同期される
+- AI ネイティブ機能（ai-agent / ai-chat / ai-copilot / ai-voice / ai-image / ai-recognize / ai-actions）
+- プレゼンテーションモード（Frame ベース、Canvas flavor）
+- 拡張プレゼンス（presence-enhanced / follow-me / spotlight / laser / reactions / whistle）
+- コミュニティ機能（spatial-chat / community-chat / shape-community-region / shape-board-portal）
+- Comments / Voting / Activity feed
+- MCP サーバー（Claude Code 連携）
 
 ---
 
-## Phase 2: 成長（4週間）
+## Phase 1.5: リリース衛生 ✅ 完了（v1.0.0）
 
-> **ゴール**: ベータフィードバックを反映し、プロダクトとしての完成度を上げる
+- [x] LICENSE（MIT）
+- [x] SECURITY.md
+- [x] CHANGELOG.md（root + 各パッケージ）
+- [x] Changesets 導入
+- [x] 全 62 パッケージを 1.0.0 に昇格（apps/* は ignore）
+- [x] README.md 刷新
+- [x] docs/v1/ レガシー削除
 
-- [ ] ベータユーザーフィードバックの収集・対応
-- [ ] `plugins/usketch-plugin-snap` — スナップ・スマートガイド（v1資産を移植）
-- [ ] `plugins/usketch-plugin-bg-dots` — ドット背景
+---
+
+## Phase 2: 運用・品質強化（v1.1.0 スコープ）
+
+> **ゴール**: 本番運用に耐える観測性と品質を整える
+
+### 観測性
+- [ ] エラートラッキング（Sentry）の導入 — web / server 両方
+- [ ] 構造化ログ（Pino）— apps/server
+- [ ] パフォーマンスモニタリング
+
+### セキュリティ
+- [ ] `dependabot.yml` 追加
+- [ ] CI に `pnpm audit` ステップ追加
+- [ ] Privacy policy / Terms of service（`docs/privacy.md`, `docs/terms.md`）
+- [ ] apps/web フッターに PP/ToS リンク
+
+### 既知バグ消化
+- [ ] [#551](https://github.com/EdV4H/usketch/issues/551) monorepo HMR
+- [ ] [#537](https://github.com/EdV4H/usketch/issues/537) GPU/DOM z-order
+- [ ] [#510](https://github.com/EdV4H/usketch/issues/510) AI Copilot 座標変換
+- [ ] [#499](https://github.com/EdV4H/usketch/issues/499) Renovate ビルドエラー
+- [ ] [#514](https://github.com/EdV4H/usketch/issues/514) WebGPU/DOM パフォーマンス検証
+
+### テスト
+- [ ] apps/server 単体テスト拡充
+- [ ] E2E: リアルタイム同期、権限、エラーケース
+
+### 機能拡充
+- [ ] PDF エクスポート（pdf-lib）
 - [ ] テンプレートシステム（会議用、ブレスト用等）
-- [ ] PDFエクスポート（pdf-lib）
-- [ ] スタイリング強化（色、線幅、フォント、透明度）
-- [ ] キーボードショートカット一覧
-- [ ] ボード一覧ダッシュボード
+- [ ] キーボードショートカット一覧画面
 
 ---
 
-## Phase 3: 収益化（4週間）
+## Phase 3: 収益化（v1.2.0 予定）
 
 > **ゴール**: フリーミアムモデルで収益基盤を構築
 
-- [ ] Stripe 統合（課金基盤）
-- [ ] Free / Pro / Team プランの実装
-- [ ] プラン別の制限（ボード数、同時編集人数、履歴保持期間）
-- [ ] チーム管理機能（招待、ロール管理）
-- [ ] SSO対応（Team プラン）
+- [ ] Stripe 統合
+- [ ] Free / Pro / Team プラン
+- [ ] プラン別制限（ボード数、同時編集人数、履歴保持期間）
+- [ ] チーム管理機能（招待、ロール）
+- [ ] SSO（Team プラン）
 - [ ] 監査ログ
 - [ ] ランディングページ
 
@@ -124,46 +136,35 @@
 
 ## Phase 4: 拡張（継続的）
 
-> **ゴール**: エコシステムの拡大
+> **ゴール**: エコシステム拡大
 
-- [ ] プラグインAPI の公開ドキュメント
-- [ ] サードパーティプラグインの仕組み（マーケットプレイス検討）
-- [ ] AI機能（テキスト → ダイアグラム自動生成）
-- [ ] プレゼンテーションモード
+- [ ] プラグイン API 公開ドキュメント（apps/docs の拡充）
+- [ ] サードパーティプラグイン（マーケットプレイス検討）
 - [ ] モバイル対応（タッチ最適化）
-- [ ] 公開REST API
+- [ ] 公開 REST API
 - [ ] セルフホスト版
 
 ---
 
 ## 技術的マイルストーン
 
-Phase 0 で復旧が必要なCI/開発基盤と、各フェーズで追加すべき技術要素をまとめる。
-
-| マイルストーン | Phase | 内容 |
-|---------------|-------|------|
-| CI復旧 | 0 | `pnpm install`, `lint`, `typecheck`, `test`, `build` ジョブを有効化（現在はドキュメントチェックのみ） |
-| E2E基盤 | 1 | Playwright による E2E テスト追加、CI に E2E ジョブ追加 |
-| Preview環境 | 1 | PR単位の Cloudflare Pages プレビューデプロイ |
-| Staging環境 | 1 | `main` ブランチの自動デプロイ |
-| Production環境 | 2 | Git tag / 手動承認でのリリース |
-| モニタリング | 2 | エラートラッキング、パフォーマンスモニタリング |
-| 負荷テスト | 3 | 同時接続数のベンチマーク |
-
----
-
-## 現在の状態
-
-- **Phase**: Pre-0（設計完了、コードなし）
-- **ブランチ**: `renewal/v2-clean-start`（PR #429）
-- **CI**: ドキュメント存在チェック + ファイル名規約チェックのみ（Phase 0 で本格CI復旧予定）
-- **成果物**: ポストモーテム、企画書、アーキテクチャ設計書、プラグインシステム設計書、ユースケース集
+| マイルストーン | 状態 |
+|---------------|------|
+| CI 復旧（lint/typecheck/test/build/e2e/deploy） | ✅ 完了 |
+| E2E 基盤（Playwright） | ✅ 完了 |
+| Preview 環境（PR ごとの Cloudflare Pages preview） | ✅ 完了 |
+| Staging 環境（main 自動デプロイ） | ✅ 完了 |
+| Production 環境（v1.0.0 タグ発行） | 🚀 準備完了、merge 待ち |
+| モニタリング（Sentry 等） | 📋 v1.1.0 |
+| 負荷テスト | 📋 v1.2.0 |
 
 ---
 
 ## 関連ドキュメント
 
-- [プロダクト企画書](./new-product-proposal.md) — ビジョン・MVPスコープ・ビジネスモデル
-- [アーキテクチャ設計書](./architecture-v2.md) — 技術設計・パッケージ構成・データモデル
-- [プラグインシステム設計書](./plugin-system-design.md) — 統一プラグインAPI・レイヤーシステム
-- [ユースケース集](./use-cases.md) — 主要ユーザーシナリオとプラグインの動作
+- [CHANGELOG](../CHANGELOG.md) — リリース履歴
+- [プロダクト企画書](./new-product-proposal.md)
+- [アーキテクチャ設計書](./architecture-v2.md)
+- [プラグインシステム設計書](./plugin-system-design.md)
+- [ユースケース集](./use-cases.md)
+- [ポストモーテム](./postmortem.md)
