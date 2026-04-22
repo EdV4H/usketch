@@ -1,7 +1,6 @@
 {
 	"name": "@edv4h/usketch-shared",
 	"version": "1.0.0",
-	"private": true,
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -29,5 +28,22 @@
 	"dependencies": {
 		"fractional-indexing": "3.2.0",
 		"xid-ts": "1.2.2"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/EdV4H/usketch.git",
+		"directory": "packages/shared"
+	},
+	"homepage": "https://github.com/EdV4H/usketch#readme",
+	"bugs": {
+		"url": "https://github.com/EdV4H/usketch/issues"
 	}
 }
