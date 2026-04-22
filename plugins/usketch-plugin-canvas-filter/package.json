@@ -1,7 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-canvas-filter",
 	"version": "1.0.0",
-	"private": true,
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -29,5 +28,22 @@
 		"@types/react": "19.2.14",
 		"typescript": "5.9.3",
 		"vitest": "3.2.4"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/EdV4H/usketch.git",
+		"directory": "plugins/usketch-plugin-canvas-filter"
+	},
+	"homepage": "https://github.com/EdV4H/usketch#readme",
+	"bugs": {
+		"url": "https://github.com/EdV4H/usketch/issues"
 	}
 }
