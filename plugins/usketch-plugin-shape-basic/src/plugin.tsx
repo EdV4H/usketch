@@ -1,6 +1,17 @@
 import {
+	aabbHitTest,
+	createResize,
+	ellipseGpuPrimitive,
+	ellipseHitTest,
+	getBounds,
+	lineGpuPrimitive,
+	lineHitTest,
+	pointInPolygon,
+	rectGpuPrimitive,
+	roundedRectGpuPrimitive,
+} from "@edv4h/usketch-shape-utils";
+import {
 	type CanvasPointerEvent,
-	cssColorToRgbaOrDefault,
 	type GpuPrimitive,
 	generateId,
 	type PluginContext,
@@ -19,9 +30,6 @@ import { renderRectangle } from "./shapes/rectangle.js";
 import { renderRoundedRect } from "./shapes/rounded-rect.js";
 import { getStarPoints, renderStar } from "./shapes/star.js";
 import { getTrianglePoints, renderTriangle } from "./shapes/triangle.js";
-import { getBounds } from "./shared/bounds.js";
-import { aabbHitTest, ellipseHitTest, lineHitTest, pointInPolygon } from "./shared/hit-test.js";
-import { createResize } from "./shared/resize.js";
 
 const SHAPE_RENDERERS: Record<
 	string,
@@ -54,58 +62,6 @@ const SHAPE_HIT_TESTS: Record<string, HitTestFn> = {
 };
 
 type GpuPrimitiveFn = (data: ShapeData) => GpuPrimitive | null;
-
-function rectGpuPrimitive(data: ShapeData): GpuPrimitive | null {
-	return {
-		kind: "rect",
-		bounds: { x: data.x, y: data.y, width: data.width, height: data.height },
-		cornerRadius: (data.cornerRadius as number) ?? 0,
-		fill: cssColorToRgbaOrDefault(data.style.fill),
-		stroke: cssColorToRgbaOrDefault(data.style.stroke),
-		strokeWidth: data.style.strokeWidth,
-		opacity: data.style.opacity,
-		rotation: data.rotation,
-	};
-}
-
-function roundedRectGpuPrimitive(data: ShapeData): GpuPrimitive | null {
-	const cornerRadius = Math.min(data.width, data.height) / 4;
-	return {
-		kind: "rect",
-		bounds: { x: data.x, y: data.y, width: data.width, height: data.height },
-		cornerRadius,
-		fill: cssColorToRgbaOrDefault(data.style.fill),
-		stroke: cssColorToRgbaOrDefault(data.style.stroke),
-		strokeWidth: data.style.strokeWidth,
-		opacity: data.style.opacity,
-		rotation: data.rotation,
-	};
-}
-
-function ellipseGpuPrimitive(data: ShapeData): GpuPrimitive | null {
-	return {
-		kind: "ellipse",
-		bounds: { x: data.x, y: data.y, width: data.width, height: data.height },
-		fill: cssColorToRgbaOrDefault(data.style.fill),
-		stroke: cssColorToRgbaOrDefault(data.style.stroke),
-		strokeWidth: data.style.strokeWidth,
-		opacity: data.style.opacity,
-		rotation: data.rotation,
-	};
-}
-
-function lineGpuPrimitive(data: ShapeData): GpuPrimitive | null {
-	const verts = new Float32Array([data.x, data.y, data.x + data.width, data.y + data.height]);
-	return {
-		kind: "polyline",
-		bounds: { x: data.x, y: data.y, width: data.width, height: data.height },
-		vertices: verts,
-		fill: [0, 0, 0, 0],
-		stroke: cssColorToRgbaOrDefault(data.style.stroke),
-		strokeWidth: data.style.strokeWidth,
-		opacity: data.style.opacity,
-	};
-}
 
 const SHAPE_GPU_PRIMITIVES: Record<string, GpuPrimitiveFn> = {
 	rectangle: rectGpuPrimitive,
