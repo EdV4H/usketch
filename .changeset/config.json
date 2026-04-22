@@ -11,6 +11,7 @@
     "@edv4h/usketch-web",
     "@edv4h/usketch-server",
     "@edv4h/usketch-docs",
-    "@edv4h/usketch-mcp-server"
+    "@edv4h/usketch-mcp-server",
+    "@acme/usketch-plugin-shape-basic"
   ]
 }
