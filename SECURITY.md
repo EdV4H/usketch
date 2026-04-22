@@ -9,11 +9,9 @@
 
 ## Reporting a Vulnerability
 
-セキュリティ脆弱性を発見した場合は、**公開の Issue を作成せず**、以下の方法で報告してください。
+セキュリティ脆弱性を発見した場合は、**公開の Issue を作成せず**、GitHub Security Advisories を利用して非公開で報告してください。
 
-1. GitHub Security Advisories を利用する（推奨）
-   - https://github.com/EdV4H/usketch/security/advisories/new
-2. または、メンテナにメールで連絡する
+- https://github.com/EdV4H/usketch/security/advisories/new
 
 報告時には以下の情報を含めてください:
 
