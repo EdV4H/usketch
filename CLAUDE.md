@@ -7,7 +7,7 @@ v1の技術的知見を活かしつつ、MVPファーストで再構築する。
 
 ## 現在のステータス
 
-🚧 リニューアル準備中。v1コードは削除済み、ドキュメントのみの状態。
+✅ v1.0.0 リリース済み。Cloudflare Workers + Pages 上で稼働中。
 
 ## 重要ドキュメント
 
@@ -16,13 +16,12 @@ v1の技術的知見を活かしつつ、MVPファーストで再構築する。
 - `docs/architecture-v2.md` — v2のアーキテクチャ設計
 - `docs/prd-ai-native.md` — AIネイティブ機能のPRD
 - `docs/prd-not-whiteboard.md` — Not Whiteboard（コミュニケーション空間）のPRD
-- `docs/v1/` — v1の旧ドキュメント（参考資料）
 
 ## ファイル命名規則
 
 すべての `.ts` / `.tsx` ファイルは **kebab-case** で命名する。
 
-## v2 技術スタック（予定）
+## v2 技術スタック
 
 ### フロントエンド
 - React 19 / TypeScript 5.9+
@@ -45,7 +44,7 @@ v1の技術的知見を活かしつつ、MVPファーストで再構築する。
 - Vitest / Playwright
 - Lefthook（Git hooks）
 
-## v2 パッケージ構成（予定）
+## v2 パッケージ構成
 
 ```
 apps/
@@ -59,28 +58,7 @@ packages/
   ui/             — コアUIコンポーネント
   shared/         — 共有型定義 + ユーティリティ
 
-plugins/
-  usketch-plugin-tool-select/    — 選択ツール
-  usketch-plugin-tool-pan/       — パンツール
-  usketch-plugin-shape-rect/     — 矩形（シェイプ+描画ツール）
-  usketch-plugin-shape-ellipse/  — 楕円（シェイプ+描画ツール）
-  usketch-plugin-shape-freedraw/ — フリーハンド（シェイプ+描画ツール）
-  usketch-plugin-shape-text/     — テキスト（シェイプ+テキストツール）
-  usketch-plugin-bg-grid/        — グリッド背景
-  usketch-plugin-bg-dots/        — ドット背景
-  usketch-plugin-snap/           — スナップ・スマートガイド
-  usketch-plugin-export/         — PNG/SVG/PDFエクスポート
-  usketch-plugin-ai-agent/       — (planned) AI基盤: プレゼンス、キャンバス読取、LLMブリッジ
-  usketch-plugin-ai-chat/        — (planned) チャットパネルUI + NL2Canvasコマンド
-  usketch-plugin-ai-copilot/     — (planned) リアルタイム提案エンジン（ゴーストシェイプ）
-  usketch-plugin-ai-actions/     — (planned) コンテキストメニュー スマートアクション
-  usketch-plugin-presence-enhanced/ — (planned) 拡張プレゼンス（永続メンバー、ゴーストアバター）
-  usketch-plugin-spatial-chat/   — (planned) 空間チャットバブル
-  usketch-plugin-laser/          — (planned) レーザーポインタ
-  usketch-plugin-follow-me/      — (planned) プレゼンタービューポート追従
-  usketch-plugin-comments/       — (planned) シェイプアンカーコメント
-  usketch-plugin-spotlight/      — (planned) フォーカスモード
-  usketch-plugin-voting/         — (planned) 空間投票
-  usketch-plugin-activity-feed/  — (planned) アクティビティタイムライン
-  usketch-plugin-sub-space/      — (planned) サブスペース（道具としてのホワイトボード）
+plugins/        — 50+ plugin (shape / tool / sync / AI / presence / export 等)
 ```
+
+完全な一覧は `plugins/` ディレクトリと README.md を参照。
