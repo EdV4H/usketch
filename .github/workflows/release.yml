@@ -33,9 +33,19 @@ jobs:
           node-version: "22"
           cache: "pnpm"
           registry-url: "https://registry.npmjs.org"
+          scope: "@edv4h"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Configure npm auth
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          echo "@edv4h:registry=https://registry.npmjs.org/" >> ~/.npmrc
+          echo "always-auth=true" >> ~/.npmrc
+          npm whoami
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create Release PR or Publish to npm
         id: changesets
@@ -47,4 +57,5 @@ jobs:
           commit: "🎉 release: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
