@@ -1,0 +1,91 @@
+---
+title: "Shape Utils — @edv4h/usketch-shape-utils"
+description: Common helpers for writing uSketch shape plugins.
+---
+
+`@edv4h/usketch-shape-utils` は uSketch の shape プラグインを書くときに使う共通関数を提供する。React に依存しない純粋な関数群で、サードパーティが独自プラグイン（例: `@acme/usketch-plugin-shape-basic`）を作るときに、bounds 計算・ヒットテスト・リサイズ・GPU primitive のような定型処理を再利用できる。
+
+## Install
+
+```bash
+pnpm add @edv4h/usketch-shape-utils @edv4h/usketch-shared
+```
+
+## Bounds
+
+```ts
+function getBounds(data: ShapeData): BoundingBox;
+```
+
+shape の AABB を `{ x, y, width, height }` で返す。ほとんどの shape はこれをそのまま `ShapeDefinition.getBounds` に使える。
+
+## Hit Test
+
+```ts
+function aabbHitTest(data: ShapeData, point: Point): boolean;
+function ellipseHitTest(data: ShapeData, point: Point): boolean;
+function lineHitTest(data: ShapeData, point: Point, tolerance?: number): boolean;
+function pointInPolygon(point: Point, polygon: Point[]): boolean;
+```
+
+| 関数 | 用途 |
+|------|------|
+| `aabbHitTest` | 矩形 AABB |
+| `ellipseHitTest` | 楕円 |
+| `lineHitTest` | 線分（`tolerance` px 以内なら true、デフォルト 4） |
+| `pointInPolygon` | 任意多角形（三角形・六角形・星形など） |
+
+回転対応は `@edv4h/usketch-shared` の `withRotation(hitTest)` でラップする:
+
+```tsx
+import { withRotation } from "@edv4h/usketch-shared";
+import { pointInPolygon } from "@edv4h/usketch-shape-utils";
+
+const hitTest = withRotation((data, point) =>
+  pointInPolygon(point, getHexagonPoints(data)),
+);
+```
+
+## Resize
+
+```ts
+function createResize(minW: number, minH: number): (
+  data: ShapeData,
+  handle: ResizeHandle,
+  delta: Point,
+) => ShapeData;
+```
+
+8 方向（`se` / `nw` / `ne` / `sw` / `e` / `w` / `n` / `s`）のリサイズハンドルに対応した resize 関数を生成する。最小幅・最小高を指定。
+
+```ts
+import { createResize } from "@edv4h/usketch-shape-utils";
+
+const resize = createResize(10, 10); // 最小 10x10 px
+```
+
+## GPU Primitive
+
+WebGPU レンダラが有効な場合に使われる低レベル primitive を返すヘルパ。`ShapeDefinition.gpuPrimitive` に渡せば GPU 描画パスに乗る。
+
+```ts
+function rectGpuPrimitive(data: ShapeData): GpuPrimitive;
+function roundedRectGpuPrimitive(data: ShapeData): GpuPrimitive;
+function ellipseGpuPrimitive(data: ShapeData): GpuPrimitive;
+function lineGpuPrimitive(data: ShapeData): GpuPrimitive;
+```
+
+| 関数 | 返す kind | 備考 |
+|------|----------|------|
+| `rectGpuPrimitive` | `rect` | `data.cornerRadius` を反映 |
+| `roundedRectGpuPrimitive` | `rect` | `cornerRadius = min(w, h) / 4` を自動計算 |
+| `ellipseGpuPrimitive` | `ellipse` | |
+| `lineGpuPrimitive` | `polyline` | 2 頂点の polyline |
+
+GPU primitive を返さないときは `undefined` のままにするか、条件次第で `null` を返す（型は `GpuPrimitive | null`）。
+
+## 関連
+
+- [Building a Shape Plugin](../../guides/shape-plugin) — shape プラグインの基本
+- [Third-Party Plugin Authoring](../../guides/third-party-plugin) — 外部パッケージとして shape-utils を使う完全ガイド
+- [Shared Types](../shared) — `ShapeData` / `ResizeHandle` / `Point` 等の型定義

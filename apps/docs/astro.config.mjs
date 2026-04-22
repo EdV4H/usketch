@@ -45,6 +45,10 @@ export default defineConfig({
 							slug: "guides/shape-plugin",
 						},
 						{ label: "Building a Tool Plugin", slug: "guides/tool-plugin" },
+						{
+							label: "Third-Party Plugin Authoring",
+							slug: "guides/third-party-plugin",
+						},
 					],
 				},
 				{
@@ -52,6 +56,7 @@ export default defineConfig({
 					items: [
 						{ label: "Shared Types", slug: "reference/shared" },
 						{ label: "Core API", slug: "reference/core" },
+						{ label: "Shape Utils", slug: "reference/shape-utils" },
 					],
 				},
 			],

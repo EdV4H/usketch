@@ -111,6 +111,8 @@ plugins/
 | [CHANGELOG](./CHANGELOG.md) | リリース履歴 |
 | [アーキテクチャ設計書](docs/architecture-v2.md) | 技術設計・パッケージ構成・データモデル |
 | [プラグインシステム設計書](docs/plugin-system-design.md) | 統一プラグイン API の詳細 |
+| [Third-Party Plugin Authoring](apps/docs/src/content/docs/guides/third-party-plugin.mdx) | 外部パッケージから uSketch を拡張する完全ガイド |
+| [`@edv4h/usketch-shape-utils`](packages/usketch-shape-utils/README.md) | shape プラグイン共通ユーティリティ（bounds / hit-test / resize / GPU） |
 | [プロダクト企画書](docs/new-product-proposal.md) | ビジョン・MVP スコープ・ビジネスモデル |
 | [ユースケース集](docs/use-cases.md) | 主要ユーザーシナリオ |
 | [開発ロードマップ](docs/roadmap.md) | Phase 0〜4 の開発計画と実績 |
