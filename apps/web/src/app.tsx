@@ -462,12 +462,42 @@ export function App() {
 							: {
 									position: "absolute",
 									inset: 0,
-									// 発表モード中は Canvas への全入力をブロックして readonly 化
-									pointerEvents: isPresenting ? "none" : undefined,
 								}
 					}
 				>
 					<Canvas />
+					{isPresenting && (
+						// Canvas の前面を完全に覆うガード層。pointer event 全てを吸って
+						// シェイプ選択・ドラッグ・パンを無効化する。zIndex は Canvas 内部の
+						// 最上位 layer (order 200 級) より上に置く必要があるため大きめに。
+						<div
+							aria-hidden="true"
+							style={{
+								position: "absolute",
+								inset: 0,
+								zIndex: 9999,
+								cursor: "default",
+								background: "transparent",
+							}}
+							onPointerDown={(e) => {
+								e.stopPropagation();
+								e.preventDefault();
+							}}
+							onPointerMove={(e) => {
+								e.stopPropagation();
+							}}
+							onPointerUp={(e) => {
+								e.stopPropagation();
+							}}
+							onWheel={(e) => {
+								e.stopPropagation();
+							}}
+							onContextMenu={(e) => {
+								e.stopPropagation();
+								e.preventDefault();
+							}}
+						/>
+					)}
 					{!hideToolbar && (
 						<>
 							<BoardIdentity
