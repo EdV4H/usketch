@@ -240,9 +240,6 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 						← ボード
 					</button>
 					<div style={{ width: 1, background: "var(--border-default)", margin: "4px 2px" }} />
-					<button type="button" style={pillBtn(true)}>
-						編集
-					</button>
 					<button
 						type="button"
 						onClick={startPresent}
