@@ -7,7 +7,7 @@ v1の技術的知見を活かしつつ、MVPファーストで再構築する。
 
 ## 現在のステータス
 
-✅ v1.0.0 リリース済み。Cloudflare Workers + Pages 上で稼働中。
+🚀 v1.0.0 リリース準備中（コード・ドキュメント完了、main merge + tag 発行待ち）。Cloudflare Workers + Pages 上で main が稼働中。
 
 ## 重要ドキュメント
 
