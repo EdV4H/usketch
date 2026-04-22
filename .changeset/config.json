@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [],
+  "linked": [],
+  "access": "restricted",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": [
+    "@edv4h/usketch-web",
+    "@edv4h/usketch-server",
+    "@edv4h/usketch-docs",
+    "@edv4h/usketch-mcp-server"
+  ]
+}
