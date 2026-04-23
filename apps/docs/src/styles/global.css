@@ -1,0 +1,72 @@
+@import "./tokens.css";
+
+html {
+	scroll-behavior: smooth;
+	color-scheme: dark;
+}
+[data-theme="light"] {
+	color-scheme: light;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	color: var(--fg-primary);
+	font-weight: 650;
+	letter-spacing: -0.01em;
+	margin: 0;
+}
+
+p {
+	margin: 0 0 var(--space-4) 0;
+}
+
+/* Code */
+code, pre, kbd, samp {
+	font-family: var(--font-mono);
+}
+code:not(pre code) {
+	background: var(--bg-code);
+	padding: 2px 6px;
+	border-radius: var(--r-xs);
+	font-size: 0.9em;
+	color: var(--fg-primary);
+	border: 1px solid var(--border-subtle);
+}
+pre {
+	background: var(--bg-code);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--r-md);
+	padding: var(--space-4);
+	overflow-x: auto;
+	font-size: 13.5px;
+	line-height: 1.6;
+}
+
+a {
+	color: inherit;
+	text-decoration: none;
+}
+
+button {
+	font: inherit;
+	color: inherit;
+}
+
+img, svg {
+	max-width: 100%;
+	display: block;
+}
+
+[hidden] { display: none !important; }
+
+/* jp-mode visibility */
+[data-jp-mode="en"] [data-lang="jp"] { display: none; }
+[data-jp-mode="jp"] [data-lang="en"] { display: none; }
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
