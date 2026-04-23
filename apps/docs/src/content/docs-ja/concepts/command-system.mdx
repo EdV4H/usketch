@@ -1,0 +1,78 @@
+---
+title: コマンドシステム
+description: undo 可能なコマンドと undo/redo スタック。
+order: 14
+---
+
+## 概要
+
+ボードを変更するすべてのユーザー操作は、undo / redo をサポートするために**コマンドシステム**を経由すべきです。
+
+## Command インターフェース
+
+```ts
+interface Command {
+  execute(): void;
+  undo(): void;
+}
+```
+
+コマンドは「前方向の操作」と「その逆」の両方を 1 つにまとめます。レジストリ経由で実行されると、undo スタックに積まれます。
+
+## CommandRegistry
+
+```ts
+interface CommandRegistry {
+  execute(command: Command): void;
+  undo(): void;
+  redo(): void;
+  canUndo(): boolean;
+  canRedo(): boolean;
+  getHistorySize(): number;
+  getCursor(): number;
+}
+```
+
+| メソッド | 説明 |
+|--------|-------------|
+| `execute(cmd)` | `cmd.execute()` を呼び、履歴に積む。 |
+| `undo()` | 最新コマンドの `undo()` を呼び、カーソルを 1 つ戻す。 |
+| `redo()` | 次のコマンドの `execute()` を呼び、カーソルを 1 つ進める。 |
+| `canUndo/canRedo` | undo/redo が可能かを返す。 |
+
+## 組み込みショートカット
+
+コアが自動で `Ctrl+Z` を undo、`Ctrl+Shift+Z` を redo として登録します。
+
+## 例：シェイプ追加コマンド
+
+```ts
+function createAddShapeCommand(store: BoardStore, shape: ShapeData): Command {
+  return {
+    execute() {
+      store.addShape(shape);
+    },
+    undo() {
+      store.deleteShape(shape.id);
+    },
+  };
+}
+
+// ツールの onPointerUp での使用例：
+function onPointerUp(toolCtx: ToolContext) {
+  const shape = /* ... 構築したシェイプ ... */;
+  toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+}
+```
+
+## ベストプラクティス
+
+シェイプの作成は、ストアを直接変更するのではなく常にコマンド経由で行うこと。直接の変更（`store.addShape()`）は動作しますが、undo 履歴に現れません。
+
+描画ツールでの典型パターン：
+
+1. **onPointerDown** — ライブプレビュー用に一時シェイプをストアへ直接追加。
+2. **onPointerMove** — 一時シェイプを直接更新。
+3. **onPointerUp** — 一時シェイプを削除し、確定データで `AddShapeCommand` を実行。
+
+これにより、ユーザーにはライブプレビューを提供しつつ、確定結果は undo 可能になります。

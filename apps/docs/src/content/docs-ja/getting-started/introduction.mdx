@@ -1,0 +1,43 @@
+---
+title: イントロダクション
+description: uSketch Plugin SDK とは何か、なぜ存在するのか。
+order: 1
+---
+
+## uSketch とは？
+
+uSketch は、ブラウザ向けに構築された**リアルタイム協調ホワイトボード**アプリケーションです。Version 2 はプラグインファースト・アーキテクチャを採用した全面書き直しで、すべての描画機能がプラグインとして実装されています。
+
+## Plugin SDK とは？
+
+Plugin SDK は `@edv4h/usketch-shared` と `@edv4h/usketch-core` の公開 API です。以下を提供します：
+
+- **`UsketchPlugin`** — すべてのプラグインが実装するインターフェース。
+- **`PluginContext`** — `setup()` の中で使えるレジストリとサービス。
+- **型定義** — シェイプ・ツール・レイヤー・コマンド・イベント・一時オブジェクトのための型。
+
+## アーキテクチャ概観
+
+```
+createApp({ store, plugins })
+  │
+  ├─ 各プラグインを PluginRegistry に登録
+  ├─ plugin.setup(ctx) を順次呼び出し
+  │   ├─ シェイプを登録  → ShapeRegistry
+  │   ├─ ツールを登録    → ToolRegistry
+  │   ├─ レイヤーを登録  → LayerManager
+  │   ├─ コマンドを登録  → CommandRegistry
+  │   └─ イベントを購読  → EventBus
+  │
+  └─ React ツリーをマウント
+      ├─ Canvas（レイヤーを順序通りに描画）
+      ├─ Toolbar（登録されたツールを表示）
+      └─ PropertyPanel（シェイプ固有の UI）
+```
+
+プラグインは `id` と `name`、そして `setup` 関数を持つだけの素直なオブジェクトです。それだけです。
+
+## 次のステップ
+
+- [クイックスタート](/usketch/docs/ja/getting-started/quick-start/) — 5 分で最小のプラグインを作る。
+- [開発環境セットアップ](/usketch/docs/ja/getting-started/dev-setup/) — モノレポをクローンしてローカルで動かす。

@@ -1,0 +1,74 @@
+---
+title: 開発環境セットアップ
+description: モノレポをクローンしてローカルでプラグイン開発を始める。
+order: 3
+---
+
+## 前提条件
+
+| ツール | バージョン |
+|------|---------|
+| Node.js | 22+ |
+| pnpm | 10+ |
+| Git | 2.x |
+
+## クローン & インストール
+
+```bash
+git clone https://github.com/EdV4H/usketch.git
+cd usketch
+pnpm install
+```
+
+## モノレポ構成
+
+```
+apps/
+  web/            — メイン Web アプリケーション
+  server/         — エッジ API サーバー
+  docs/           — このドキュメントサイト
+
+packages/
+  core/           — プラグイン API・レイヤーシステム・アプリブートストラップ
+  shared/         — 共有の型定義とユーティリティ
+  store/          — 状態管理（Zustand + Yjs）
+  canvas-engine/  — 描画エンジン・ビューポート・座標変換
+  ui/             — コア UI コンポーネント
+  sync/           — リアルタイム同期レイヤー
+
+plugins/
+  usketch-plugin-shape-rect/     — 矩形シェイプ + 描画ツール
+  usketch-plugin-shape-ellipse/  — 楕円シェイプ + 描画ツール
+  usketch-plugin-tool-select/    — 選択ツール
+  usketch-plugin-tool-pan/       — パン（移動）ツール
+  ...                            — 他にも多数のプラグイン
+```
+
+## よく使うコマンド
+
+```bash
+# すべてを dev モードで起動
+pnpm dev
+
+# すべてのパッケージをビルド
+pnpm build
+
+# すべてのテストを実行
+pnpm test
+
+# 型チェック
+pnpm typecheck
+
+# Lint & フォーマット（Biome）
+pnpm lint
+pnpm format
+```
+
+## プラグインの開発
+
+1. `plugins/` 配下にプラグイン用ディレクトリを作成。
+2. `@edv4h/usketch-shared` を `workspace:*` 依存として追加。
+3. `UsketchPlugin` インターフェースを実装。
+4. `apps/web/src/main.tsx`（または自分のアプリのエントリ）に登録して動作確認。
+
+ステップバイステップの例は [クイックスタート](/usketch/docs/ja/getting-started/quick-start/) を参照してください。

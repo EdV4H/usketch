@@ -1,0 +1,127 @@
+---
+title: ツールプラグインを作る
+description: キャンバスと対話する単独のツールプラグインを作る。
+order: 21
+---
+
+すべてのツールがシェイプを作るわけではありません。**選択ツール**や**パンツール**は、既存のシェイプやビューポートを操作する単独のツールです。このガイドでは、ツールだけのプラグインを作る方法を紹介します。
+
+## 例：消しゴムツール
+
+クリックでシェイプを削除する、シンプルな消しゴムツールを作ります。
+
+### 1. ツールアイコンを定義する
+
+```tsx
+function EraserIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20">
+      <path
+        d="M4 16l4-4m0 0l8-8m-8 8L4 8m4 4l8 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+```
+
+### 2. ポインタハンドラを実装する
+
+```tsx
+import type { CanvasPointerEvent, ToolContext } from "@edv4h/usketch-shared";
+
+function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+  const { store, shapes } = toolCtx;
+
+  // ポインタ下にある最上位のシェイプを探す（挿入順を逆から走査）
+  for (const [id, data] of Array.from(store.getShapes()).reverse()) {
+    const def = shapes.get(data.type);
+    if (def?.hitTest(data, event.worldPoint)) {
+      // undo 対応のためコマンド経由で削除
+      toolCtx.commands.execute({
+        execute() { store.deleteShape(id); },
+        undo() { store.addShape(data); },
+      });
+      return;
+    }
+  }
+}
+```
+
+### 3. プラグインを作る
+
+```tsx
+import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+
+export const eraserPlugin: UsketchPlugin = {
+  id: "usketch-plugin-tool-eraser",
+  name: "Eraser",
+
+  setup(ctx: PluginContext) {
+    ctx.tools.register("eraser", {
+      icon: EraserIcon,
+      cursor: "pointer",
+      shortcut: "e",
+      order: 5,
+      onPointerDown,
+    });
+  },
+};
+```
+
+## ツールのライフサイクル
+
+```
+ユーザーがツールバーでツールをクリック（またはショートカット押下）
+  → store.setActiveToolId("eraser")
+
+ユーザーがキャンバスを操作
+  → onPointerDown / onPointerMove / onPointerUp
+
+ユーザーが別のツールへ切替
+  → store.setActiveToolId("select")
+```
+
+> **注意**：`onActivate` と `onDeactivate` は将来の用途のため `ToolDefinition` に定義されていますが、現時点ではランタイムから呼び出されません。今後のライフサイクルサポート準備用として使ってください。
+
+## カスタムレイヤーの追加
+
+ツールは視覚フィードバック用のレイヤーを登録できます。例えば投げ縄（lasso）選択ツールは選択範囲を表示します：
+
+```tsx
+setup(ctx: PluginContext) {
+  let lassoPath: Point[] = [];
+
+  ctx.layers.register({
+    id: "lasso-overlay",
+    order: 75,
+    render: () => lassoPath.length > 0
+      ? <LassoPath points={lassoPath} />
+      : null,
+  });
+
+  ctx.tools.register("lasso-select", {
+    icon: LassoIcon,
+    onPointerDown: (toolCtx, event) => {
+      lassoPath = [event.worldPoint];
+    },
+    onPointerMove: (toolCtx, event) => {
+      lassoPath.push(event.worldPoint);
+    },
+    onPointerUp: (toolCtx) => {
+      selectShapesInPath(toolCtx.store, lassoPath);
+      lassoPath = [];
+    },
+  });
+}
+```
+
+## ヒント
+
+- セットアップと後片付け（カーソル変更、内部状態のリセットなど）には `onActivate` / `onDeactivate` を使う。
+- ツールの状態はプラグインオブジェクトではなく、`setup()` 内の**クロージャ**に保持する。これにより共有可変状態の問題を避けられる。
+- 他プラグインが反応する必要があるなら `ctx.events.emit()` でイベントを発行する。
+- `order` は慎重に設定する — ツールバーでは `order` の昇順で左から右に並ぶ。

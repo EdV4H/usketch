@@ -1,0 +1,182 @@
+---
+title: サードパーティプラグインの作成
+description: 外部の npm パッケージとして uSketch プラグインを作り、ホストアプリに組み込む。
+order: 22
+---
+
+uSketch v2 のプラグイン API は DOM 非依存で、サードパーティが独自の npm パッケージ（例: `@acme/usketch-plugin-shape-basic`）として shape / tool プラグインを作り、host アプリから headless に組み込める。
+
+このガイドでは、`@edv4h/usketch-shape-utils` を依存に取って独自の hexagon shape を定義する実例を通して、外部パッケージの作り方と host への組み込み方を説明する。
+
+## 前提
+
+- **React 19+**: `peerDependencies` で受け取る（bundle しない）
+- **TypeScript 5.x**: 型情報も `dist` に含めて配布
+- **公式基盤パッケージ**:
+  - [`@edv4h/usketch-shared`](../../reference/shared) — 型定義と utility（`ShapeData`, `withRotation`, `generateId` など）
+  - [`@edv4h/usketch-shape-utils`](../../reference/shape-utils) — shape プラグイン用の共通関数（`getBounds`, `createResize`, `pointInPolygon` など）
+
+## Step 1: パッケージを作る
+
+```bash
+mkdir acme-usketch-plugins && cd $_
+pnpm init
+pnpm add @edv4h/usketch-shared @edv4h/usketch-shape-utils
+pnpm add -D typescript @types/react
+```
+
+`package.json`:
+
+```json
+{
+  "name": "@acme/usketch-plugin-shape-basic",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "@edv4h/usketch-shape-utils": "^1.0.0",
+    "@edv4h/usketch-shared": "^1.0.0"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  }
+}
+```
+
+ポイント:
+
+- `react` は **peerDependencies** に置く（host アプリが提供）
+- `@edv4h/usketch-*` は **dependencies** に置いて、`^1.0.0` で semver 範囲指定
+- `type: "module"` で ESM 配布、`exports` で型とコードの両方を公開
+
+## Step 2: Shape を定義する
+
+`src/shapes/hexagon.tsx`:
+
+```tsx
+import { DEFAULT_STYLE, type Point, type ShapeData } from "@edv4h/usketch-shared";
+
+export function getHexagonPoints(data: ShapeData): Point[] {
+  const cx = data.x + data.width / 2;
+  const cy = data.y + data.height / 2;
+  const rx = data.width / 2;
+  const ry = data.height / 2;
+  return Array.from({ length: 6 }, (_, i) => {
+    const angle = (Math.PI / 3) * i - Math.PI / 2;
+    return { x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle) };
+  });
+}
+
+export function renderHexagon(data: ShapeData) {
+  const points = getHexagonPoints(data)
+    .map((p) => `${p.x},${p.y}`)
+    .join(" ");
+  return (
+    <polygon
+      points={points}
+      fill={data.style.fill}
+      stroke={data.style.stroke}
+      strokeWidth={data.style.strokeWidth}
+      opacity={data.style.opacity}
+    />
+  );
+}
+
+export function createDefaultHexagon(params: { id: string; x: number; y: number }): ShapeData {
+  return {
+    id: params.id,
+    type: "acme-hexagon",
+    x: params.x,
+    y: params.y,
+    width: 120,
+    height: 104,
+    style: { ...DEFAULT_STYLE },
+  };
+}
+```
+
+## Step 3: プラグイン本体
+
+`src/plugin.tsx`:
+
+```tsx
+import {
+  type PluginContext,
+  type UsketchPlugin,
+  withRotation,
+} from "@edv4h/usketch-shared";
+import { createResize, getBounds, pointInPolygon } from "@edv4h/usketch-shape-utils";
+import {
+  createDefaultHexagon,
+  getHexagonPoints,
+  renderHexagon,
+} from "./shapes/hexagon.js";
+
+export const acmeShapeBasicPlugin: UsketchPlugin = {
+  id: "acme-shape-basic",
+  name: "Acme Shapes",
+
+  setup(ctx: PluginContext) {
+    ctx.shapes.register("acme-hexagon", {
+      render: renderHexagon,
+      getBounds,
+      hitTest: withRotation((data, point) =>
+        pointInPolygon(point, getHexagonPoints(data)),
+      ),
+      resize: createResize(10, 10),
+      createDefault: createDefaultHexagon,
+    });
+  },
+};
+```
+
+`src/index.ts`:
+
+```ts
+export { acmeShapeBasicPlugin } from "./plugin.js";
+```
+
+- `shape-utils` の `getBounds` / `createResize` / `pointInPolygon` でほぼ定型処理を済ませている
+- `withRotation` でラップすると回転に対応したヒットテストが自動で得られる
+- 独自の作成 tool が欲しい場合は、同じ `setup(ctx)` 内で `ctx.tools.register("acme-hexagon-draw", { ... })` を追加する
+
+## Step 4: ビルド & publish
+
+```bash
+pnpm tsc -p tsconfig.json
+npm publish --access public
+```
+
+scope 付きパッケージを初めて publish する場合は `--access public` が必須。2FA を使っているなら automation token を CI に登録しておくと自動 publish できる。
+
+## Step 5: Host アプリに組み込む
+
+```ts
+import { createApp } from "@edv4h/usketch-core";
+import { basicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
+import { acmeShapeBasicPlugin } from "@acme/usketch-plugin-shape-basic";
+
+const app = createApp({
+  plugins: [basicShapePlugin, acmeShapeBasicPlugin],
+});
+```
+
+これで `acme-hexagon` タイプの shape が追加され、既存ツール（select / move / resize / rotate）はすべてそのまま動く。shape の store 保存・同期（Yjs）・プレゼンテーションモードへの追従も自動。
+
+## 参照実装
+
+リポジトリ内の [`examples/usketch-plugin-acme-shape-basic/`](https://github.com/EdV4H/usketch/tree/main/examples/usketch-plugin-acme-shape-basic) に完全に動く最小実装が置いてある。fork のテンプレートとして使える。
+
+## よくある落とし穴
+
+- **`react` を dependencies にしない**: host と重複 mount の原因。必ず `peerDependencies`。
+- **id の衝突**: `UsketchPlugin.id` と `ShapeDefinition` の登録 type 名は、npm scope を含めるなど host 側プラグインと衝突しないようにする（例: `"acme-hexagon"` のように prefix をつける）。
+- **SSR 前提の `window` 参照**: `setup()` は host 側でマウント後に呼ばれるので window は触れるが、モジュールトップレベルでは避ける。

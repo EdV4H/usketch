@@ -1,0 +1,160 @@
+---
+title: クイックスタート
+description: 5 分で最小の uSketch プラグインを作る。
+order: 2
+---
+
+このガイドでは、最小のシェイププラグイン（**ダイヤモンド**）を作成し、アプリに登録するまでを順に進めます。
+
+## 1. パッケージを作成する
+
+```bash
+mkdir -p plugins/usketch-plugin-shape-diamond/src
+cd plugins/usketch-plugin-shape-diamond
+```
+
+`package.json` を作成：
+
+```json
+{
+  "name": "@edv4h/usketch-plugin-shape-diamond",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/plugin.js",
+  "types": "dist/plugin.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@edv4h/usketch-shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5.8"
+  },
+  "peerDependencies": {
+    "react": "^19"
+  }
+}
+```
+
+`tsconfig.json` を作成：
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "declaration": true,
+    "outDir": "dist",
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}
+```
+
+## 2. プラグインを実装する
+
+`src/plugin.tsx` を作成：
+
+```tsx
+import type {
+  BoundingBox,
+  PluginContext,
+  Point,
+  ShapeData,
+  UsketchPlugin,
+} from "@edv4h/usketch-shared";
+import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
+
+function render(data: ShapeData) {
+  const cx = data.x + data.width / 2;
+  const cy = data.y + data.height / 2;
+  const points = [
+    `${cx},${data.y}`,
+    `${data.x + data.width},${cy}`,
+    `${cx},${data.y + data.height}`,
+    `${data.x},${cy}`,
+  ].join(" ");
+
+  return (
+    <polygon
+      points={points}
+      fill={data.style.fill}
+      stroke={data.style.stroke}
+      strokeWidth={data.style.strokeWidth}
+      opacity={data.style.opacity}
+    />
+  );
+}
+
+function getBounds(data: ShapeData): BoundingBox {
+  return { x: data.x, y: data.y, width: data.width, height: data.height };
+}
+
+function hitTest(data: ShapeData, point: Point): boolean {
+  // 簡易 AABB チェック
+  return (
+    point.x >= data.x &&
+    point.x <= data.x + data.width &&
+    point.y >= data.y &&
+    point.y <= data.y + data.height
+  );
+}
+
+function createDefault(params: { id: string; x: number; y: number }): ShapeData {
+  return {
+    id: params.id,
+    type: "diamond",
+    x: params.x,
+    y: params.y,
+    width: 80,
+    height: 80,
+    style: { ...DEFAULT_STYLE },
+  };
+}
+
+export const diamondPlugin: UsketchPlugin = {
+  id: "usketch-plugin-shape-diamond",
+  name: "Diamond",
+
+  setup(ctx: PluginContext) {
+    ctx.shapes.register("diamond", {
+      render,
+      getBounds,
+      hitTest,
+      resize: (data, _handle, _delta) => data, // スタブ
+      createDefault,
+    });
+  },
+};
+```
+
+## 3. プラグインを登録する
+
+アプリのエントリーポイントで、`createApp` 呼び出しにプラグインを追加します：
+
+```ts
+import { createApp } from "@edv4h/usketch-core";
+import { diamondPlugin } from "@edv4h/usketch-plugin-shape-diamond";
+
+const app = await createApp({
+  store: myStore,
+  plugins: [
+    // ...他のプラグイン
+    diamondPlugin,
+  ],
+});
+```
+
+これで完了です。`diamond` 型のシェイプが利用可能になり、`BoardStore.addShape()` API から作成できます。
+
+## 次のステップ
+
+- キャンバスにダイヤモンドを描画できる**描画ツール**を追加する — [シェイププラグインを作る](/usketch/docs/ja/guides/shape-plugin/) を参照。
+- [プラグインアーキテクチャ](/usketch/docs/ja/concepts/plugin-architecture/)の全体像を学ぶ。

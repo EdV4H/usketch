@@ -1,0 +1,119 @@
+---
+title: "Core API — @edv4h/usketch-core"
+description: createApp 関数と AppInstance インターフェース。
+order: 31
+---
+
+`@edv4h/usketch-core` パッケージはアプリケーションのブートストラップ関数を提供します。
+
+## createApp
+
+```ts
+import { createApp } from "@edv4h/usketch-core";
+
+const app = await createApp({
+  store: myBoardStore,
+  plugins: [selectPlugin, panPlugin, rectPlugin, /* ... */],
+});
+```
+
+### CreateAppOptions
+
+```ts
+interface CreateAppOptions {
+  store: BoardStore;
+  plugins: UsketchPlugin[];
+}
+```
+
+| フィールド | 説明 |
+|-------|-------------|
+| `store` | `BoardStore` インスタンス（通常は `@edv4h/usketch-store` で生成）。 |
+| `plugins` | 初期化するプラグインの配列。順序は重要 — 逐次 setup される。 |
+
+### AppInstance
+
+`createApp` の戻り値：
+
+```ts
+interface AppInstance {
+  store: BoardStore;
+  layers: LayerManager;
+  tools: ToolRegistry;
+  shapes: ShapeRegistry;
+  commands: CommandRegistry;
+  shortcuts: ShortcutRegistry;
+  events: EventBus;
+  transient: TransientRegistry;
+  plugins: readonly UsketchPlugin[];
+  destroy(): void;
+}
+```
+
+`createApp` が解決された時点で、すべてのレジストリは populated されています。プラグインが登録したものを調べるにはこれらのレジストリを参照できます。
+
+### destroy()
+
+アプリを破棄するには `destroy()` を呼びます：
+
+```ts
+app.destroy();
+```
+
+これは登録順に各プラグインの `teardown()` を呼び、内部の購読を解除します。
+
+## 初期化フロー
+
+```
+createApp({ store, plugins })
+  │
+  ├─ レジストリを生成
+  │   ├─ LayerManager
+  │   ├─ ToolRegistry
+  │   ├─ ShapeRegistry
+  │   ├─ CommandRegistry
+  │   ├─ ShortcutRegistry
+  │   ├─ EventBus
+  │   └─ TransientRegistry
+  │
+  ├─ ストアの変更を EventBus にブリッジ
+  │
+  ├─ 各プラグインについて：
+  │   ├─ PluginRegistry に登録
+  │   └─ await plugin.setup(ctx)
+  │
+  ├─ コアのショートカットを登録
+  │   ├─ Ctrl+Z → undo
+  │   └─ Ctrl+Shift+Z → redo
+  │
+  └─ AppInstance を返す
+```
+
+## エラーハンドリング
+
+いずれかのプラグインの `setup()` が throw した場合、`createApp` は次を行います：
+
+1. ストア変更の購読を解除。
+2. エラーを再 throw。
+
+この場合、すでに setup 済みのプラグインの `teardown()` は**呼ばれません**。部分的に初期化された状態でも安全になるようプラグインを設計してください。
+
+## React との連携
+
+通常はアプリインスタンスを 1 回作成し、React のコンテキスト経由でレジストリを提供します：
+
+```tsx
+const app = await createApp({ store, plugins });
+
+function App() {
+  return (
+    <UsketchProvider app={app}>
+      <Canvas />
+      <Toolbar />
+      <PropertyPanel />
+    </UsketchProvider>
+  );
+}
+```
+
+`UsketchProvider` や React 統合コンポーネントは `apps/web` の一部であり、core パッケージには含まれていません。

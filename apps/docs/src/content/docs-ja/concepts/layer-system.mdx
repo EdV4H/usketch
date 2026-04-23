@@ -1,0 +1,96 @@
+---
+title: レイヤーシステム
+description: 描画レイヤーの積層と管理の仕組み。
+order: 13
+---
+
+## 概要
+
+キャンバスは**レイヤーのスタック**として描画され、各レイヤーが異なる視覚的責務を担います。プラグインはレイヤーを登録して描画に参加します。
+
+## Layer インターフェース
+
+```ts
+interface Layer {
+  id: string;
+  order: number;
+  render: (ctx: LayerRenderContext) => ReactElement | null;
+  interactable?: boolean;
+  fixed?: boolean;
+}
+```
+
+| フィールド | 説明 |
+|-------|-------------|
+| `id` | 一意なレイヤー識別子。 |
+| `order` | 描画順。値が小さいほど下、大きいほど上に描画される。 |
+| `render` | このレイヤー用の JSX を返す。現在のレンダーコンテキストを受け取る。 |
+| `interactable` | 将来の用途のために予約。レイヤーがポインタイベントを受けるかを制御する予定。 |
+| `fixed` | `true` の場合、ビューポートのパン／ズームの影響を受けない。 |
+
+## LayerRenderContext
+
+```ts
+interface LayerRenderContext {
+  viewport: Viewport;                       // 現在のパンとズーム
+  shapes: ReadonlyMap<string, ShapeData>;   // ボード上のすべてのシェイプ
+  selection: ReadonlySet<string>;           // 現在選択中のシェイプ ID
+  theme: Theme;                             // 有効なテーマ
+}
+```
+
+## 標準的なレイヤースタック
+
+一般的な描画順：
+
+| order | レイヤー | 出所 |
+|-------|-------|--------|
+| — | キャンバス背景（コンテナ CSS で設定） | コア |
+| 10 | 背景（グリッド・ドット） | プラグイン |
+| 50 | シェイプ（メインコンテンツ） | コア |
+| 80 | UI（選択ハンドル・リサイズグリップ） | プラグイン |
+| 85 | ガイド（スナップ線・整列） | プラグイン |
+| 100 | 一時オブジェクト（カーソル・エフェクト） | コア |
+
+## LayerManager API
+
+```ts
+interface LayerManager {
+  register(layer: Layer): void;
+  unregister(layerId: string): void;
+  getLayers(): readonly Layer[];  // order でソート済み
+}
+```
+
+## 例：背景グリッド
+
+```ts
+setup(ctx: PluginContext) {
+  ctx.layers.register({
+    id: "bg-grid",
+    order: 10,
+    render: (renderCtx) => (
+      <GridPattern viewport={renderCtx.viewport} />
+    ),
+  });
+}
+```
+
+## 例：選択ハンドル
+
+```ts
+setup(ctx: PluginContext) {
+  ctx.layers.register({
+    id: "select-handles",
+    order: 80,
+    fixed: true,
+    render: (renderCtx) => (
+      <SelectionHandles
+        shapes={renderCtx.shapes}
+        selection={renderCtx.selection}
+        viewport={renderCtx.viewport}
+      />
+    ),
+  });
+}
+```
