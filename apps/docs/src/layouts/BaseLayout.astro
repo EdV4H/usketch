@@ -23,7 +23,13 @@ interface Props {
 const { title, description, current, lang = "en" } = Astro.props;
 const fullTitle = current === "home" ? title : `${title} — uSketch`;
 
-const [docs, plugins] = await Promise.all([getCollection("docs"), getCollection("plugins")]);
+const docsCollection = lang === "ja" ? "docsJa" : "docs";
+const docsPrefix = lang === "ja" ? "/docs/ja/" : "/docs/";
+
+const [docs, plugins] = await Promise.all([
+	getCollection(docsCollection),
+	getCollection("plugins"),
+]);
 
 const paletteItems = [
 	...docs
@@ -32,7 +38,7 @@ const paletteItems = [
 			id: `doc-${d.id}`,
 			title: d.data.title,
 			group: "Docs" as const,
-			href: href(`/docs/${d.id}/`),
+			href: href(`${docsPrefix}${d.id}/`),
 			hint: d.data.description,
 		})),
 	...plugins.map((p) => ({

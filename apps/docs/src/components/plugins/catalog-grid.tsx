@@ -1,5 +1,5 @@
 import MiniSearch from "minisearch";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export interface Plugin {
 	id: string;
@@ -26,6 +26,15 @@ interface Props {
 export default function CatalogGrid({ plugins, categories, basePath }: Props) {
 	const [query, setQuery] = useState("");
 	const [active, setActive] = useState<Set<string>>(new Set());
+
+	// Initialize category filter from the URL query (e.g. /plugins/?cat=ai&cat=tool).
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const params = new URLSearchParams(window.location.search);
+		const validIds = new Set(categories.map((c) => c.id));
+		const fromUrl = params.getAll("cat").filter((c) => validIds.has(c));
+		if (fromUrl.length > 0) setActive(new Set(fromUrl));
+	}, [categories]);
 
 	const search = useMemo(() => {
 		const mini = new MiniSearch<Plugin>({

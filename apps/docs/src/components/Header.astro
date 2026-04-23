@@ -10,8 +10,13 @@ const { current, lang = "en" } = Astro.props;
 type JpMode = "en" | "jp" | "both";
 const initialJpMode = (lang === "ja" ? "jp" : "en") as JpMode;
 
+const docsIntro =
+	lang === "ja"
+		? "/docs/ja/getting-started/introduction/"
+		: "/docs/getting-started/introduction/";
+
 const navItems = [
-	{ id: "docs", label: "Docs", jpLabel: "ドキュメント", path: "/docs/getting-started/introduction/" },
+	{ id: "docs", label: "Docs", jpLabel: "ドキュメント", path: docsIntro },
 	{ id: "plugins", label: "Plugins", jpLabel: "プラグイン", path: "/plugins/" },
 	{ id: "examples", label: "Examples", jpLabel: "サンプル", path: "/examples/" },
 	{ id: "api", label: "API", jpLabel: "API", path: "/api/" },
