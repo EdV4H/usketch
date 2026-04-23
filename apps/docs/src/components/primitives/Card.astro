@@ -1,0 +1,67 @@
+---
+interface Props {
+	title: string;
+	icon?: string;
+	href?: string;
+}
+
+const { title, icon, href } = Astro.props;
+const Tag = href ? "a" : "div";
+---
+
+<Tag class="card" href={href}>
+	<div class="card__head">
+		{icon && <span class="card__icon" aria-hidden="true">●</span>}
+		<h3 class="card__title">{title}</h3>
+	</div>
+	<div class="card__body">
+		<slot />
+	</div>
+</Tag>
+
+<style>
+	.card {
+		display: block;
+		padding: var(--space-5);
+		border-radius: var(--r-lg);
+		background: var(--bg-surface);
+		border: 1px solid var(--border-subtle);
+		box-shadow: var(--shadow-1);
+		transition: border-color var(--dur-fast) var(--ease-out), transform var(--dur-med) var(--ease-out);
+		color: inherit;
+		text-decoration: none;
+	}
+	a.card:hover {
+		transform: translateY(-2px);
+		border-color: var(--border-strong);
+		box-shadow: var(--shadow-2);
+	}
+	.card__head {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		margin-bottom: var(--space-2);
+	}
+	.card__icon {
+		width: 28px;
+		height: 28px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 999px;
+		background: var(--brand-gradient);
+		color: white;
+		font-size: 10px;
+	}
+	.card__title {
+		font-size: 15px;
+		font-weight: 600;
+		margin: 0;
+		color: var(--fg-primary);
+	}
+	.card__body {
+		color: var(--fg-secondary);
+		font-size: 13px;
+		line-height: 1.55;
+	}
+</style>

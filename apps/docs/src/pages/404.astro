@@ -1,0 +1,34 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { href } from "../lib/href";
+---
+
+<BaseLayout title="Page not found">
+	<section class="not-found">
+		<span class="not-found__code">404</span>
+		<h1>Page not found</h1>
+		<p>The page you were looking for doesn't exist.</p>
+		<a href={href("/")} class="not-found__link">← Back to home</a>
+	</section>
+</BaseLayout>
+
+<style>
+	.not-found {
+		max-width: 520px;
+		margin: var(--space-20) auto;
+		padding: 0 var(--space-6);
+		text-align: center;
+	}
+	.not-found__code {
+		font-family: var(--font-mono);
+		color: var(--fg-tertiary);
+		font-size: 12px;
+		letter-spacing: 0.2em;
+	}
+	.not-found h1 { font-size: 32px; margin: var(--space-3) 0; }
+	.not-found p { color: var(--fg-secondary); margin-bottom: var(--space-6); }
+	.not-found__link {
+		color: var(--brand-violet);
+		font-weight: 600;
+	}
+</style>

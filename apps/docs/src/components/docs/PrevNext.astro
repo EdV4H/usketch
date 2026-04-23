@@ -1,0 +1,52 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { href } from "../../lib/href";
+
+interface Props {
+	prev?: CollectionEntry<"docs">;
+	next?: CollectionEntry<"docs">;
+}
+
+const { prev, next } = Astro.props;
+---
+
+<nav class="prev-next" aria-label="Article navigation">
+	{prev ? (
+		<a class="prev-next__card" href={href(`/docs/${prev.id}/`)} rel="prev">
+			<span class="prev-next__label">← Previous</span>
+			<span class="prev-next__title">{prev.data.title}</span>
+		</a>
+	) : <span />}
+	{next ? (
+		<a class="prev-next__card" href={href(`/docs/${next.id}/`)} rel="next">
+			<span class="prev-next__label prev-next__label--right">Next →</span>
+			<span class="prev-next__title prev-next__title--right">{next.data.title}</span>
+		</a>
+	) : <span />}
+</nav>
+
+<style>
+	.prev-next {
+		margin-top: var(--space-12);
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-4);
+	}
+	.prev-next__card {
+		display: grid;
+		gap: 4px;
+		padding: var(--space-4);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--r-md);
+		background: var(--bg-surface);
+		color: var(--fg-primary);
+		transition: border-color var(--dur-fast) var(--ease-out);
+	}
+	.prev-next__card:hover { border-color: var(--border-strong); }
+	.prev-next__label {
+		font-size: 12px;
+		color: var(--fg-tertiary);
+	}
+	.prev-next__label--right, .prev-next__title--right { text-align: right; }
+	.prev-next__title { font-size: 15px; font-weight: 600; }
+</style>
