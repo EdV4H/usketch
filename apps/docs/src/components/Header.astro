@@ -3,9 +3,12 @@ import { href } from "../lib/href";
 
 interface Props {
 	current?: "home" | "docs" | "plugins" | "examples" | "api" | "changelog";
+	lang?: "en" | "ja";
 }
 
-const { current } = Astro.props;
+const { current, lang = "en" } = Astro.props;
+type JpMode = "en" | "jp" | "both";
+const initialJpMode = (lang === "ja" ? "jp" : "en") as JpMode;
 
 const navItems = [
 	{ id: "docs", label: "Docs", jpLabel: "ドキュメント", path: "/docs/getting-started/introduction/" },
@@ -37,9 +40,9 @@ const navItems = [
 
 		<div class="site-header__actions">
 			<div class="site-header__lang" role="group" aria-label="Language">
-				<button type="button" data-jp-mode-set="en" aria-pressed="false">EN</button>
-				<button type="button" data-jp-mode-set="both" aria-pressed="false">A/あ</button>
-				<button type="button" data-jp-mode-set="jp" aria-pressed="false">JP</button>
+				<button type="button" data-jp-mode-set="en" aria-pressed={initialJpMode === "en"}>EN</button>
+				<button type="button" data-jp-mode-set="both" aria-pressed={initialJpMode === "both"}>A/あ</button>
+				<button type="button" data-jp-mode-set="jp" aria-pressed={initialJpMode === "jp"}>JP</button>
 			</div>
 
 			<button type="button" class="site-header__search" data-open-palette aria-label="Open command palette">
