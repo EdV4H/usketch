@@ -8,7 +8,12 @@ html {
 	color-scheme: light;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
 	color: var(--fg-primary);
 	font-weight: 650;
 	letter-spacing: -0.01em;
@@ -20,7 +25,10 @@ p {
 }
 
 /* Code */
-code, pre, kbd, samp {
+code,
+pre,
+kbd,
+samp {
 	font-family: var(--font-mono);
 }
 code:not(pre code) {
@@ -51,20 +59,29 @@ button {
 	color: inherit;
 }
 
-img, svg {
+img,
+svg {
 	max-width: 100%;
 	display: block;
 }
 
-[hidden] { display: none !important; }
+[hidden] {
+	display: none !important;
+}
 
 /* jp-mode visibility */
-[data-jp-mode="en"] [data-lang="jp"] { display: none; }
-[data-jp-mode="jp"] [data-lang="en"] { display: none; }
+[data-jp-mode="en"] [data-lang="jp"] {
+	display: none;
+}
+[data-jp-mode="jp"] [data-lang="en"] {
+	display: none;
+}
 
 /* reduced motion */
 @media (prefers-reduced-motion: reduce) {
-	*, *::before, *::after {
+	*,
+	*::before,
+	*::after {
 		animation-duration: 0.01ms !important;
 		animation-iteration-count: 1 !important;
 		transition-duration: 0.01ms !important;

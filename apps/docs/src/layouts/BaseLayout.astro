@@ -8,8 +8,8 @@ import "@fontsource/geist-mono/500.css";
 import "../styles/global.css";
 
 import { getCollection } from "astro:content";
-import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import Header from "../components/Header.astro";
 import CommandPalette from "../components/palette/CommandPalette";
 import TweaksPanel from "../components/tweaks/TweaksPanel";
 import { href } from "../lib/href";
@@ -23,10 +23,7 @@ interface Props {
 const { title, description, current } = Astro.props;
 const fullTitle = current === "home" ? title : `${title} — uSketch`;
 
-const [docs, plugins] = await Promise.all([
-	getCollection("docs"),
-	getCollection("plugins"),
-]);
+const [docs, plugins] = await Promise.all([getCollection("docs"), getCollection("plugins")]);
 
 const paletteItems = [
 	...docs
@@ -50,8 +47,19 @@ const paletteItems = [
 	{ id: "page-examples", title: "Examples", group: "Pages" as const, href: href("/examples/") },
 	{ id: "page-api", title: "API Reference", group: "Pages" as const, href: href("/api/") },
 	{ id: "page-changelog", title: "Changelog", group: "Pages" as const, href: href("/changelog/") },
-	{ id: "action-toggle-theme", title: "Toggle theme", group: "Actions" as const, action: "toggle-theme", hint: "dark ↔ light" },
-	{ id: "action-open-tweaks", title: "Open tweaks panel", group: "Actions" as const, action: "open-tweaks" },
+	{
+		id: "action-toggle-theme",
+		title: "Toggle theme",
+		group: "Actions" as const,
+		action: "toggle-theme",
+		hint: "dark ↔ light",
+	},
+	{
+		id: "action-open-tweaks",
+		title: "Open tweaks panel",
+		group: "Actions" as const,
+		action: "open-tweaks",
+	},
 ];
 ---
 
