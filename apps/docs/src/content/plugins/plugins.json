@@ -1,0 +1,450 @@
+[
+	{
+		"id": "shape-rect",
+		"name": "Rectangle",
+		"category": "shape",
+		"glyph": "rect",
+		"summary": "SVG rectangle with rounded corners and stroke styles.",
+		"install": "pnpm add @edv4h/usketch-shape-rect"
+	},
+	{
+		"id": "shape-ellipse",
+		"name": "Ellipse",
+		"category": "shape",
+		"glyph": "circ",
+		"summary": "Ellipse / circle primitive with perfect-circle snap.",
+		"install": "pnpm add @edv4h/usketch-shape-ellipse"
+	},
+	{
+		"id": "shape-text",
+		"name": "Text",
+		"category": "shape",
+		"glyph": "text",
+		"summary": "Editable text shape with IME support and auto-resize.",
+		"install": "pnpm add @edv4h/usketch-shape-text"
+	},
+	{
+		"id": "shape-sticky",
+		"name": "Sticky Note",
+		"category": "shape",
+		"glyph": "note",
+		"summary": "Classic sticky notes with color palette.",
+		"install": "pnpm add @edv4h/usketch-shape-sticky"
+	},
+	{
+		"id": "shape-freedraw",
+		"name": "Free Draw",
+		"category": "shape",
+		"glyph": "draw",
+		"summary": "Pressure-sensitive ink path with perfect-freehand.",
+		"install": "pnpm add @edv4h/usketch-shape-freedraw"
+	},
+	{
+		"id": "shape-brush",
+		"name": "Brush",
+		"category": "shape",
+		"glyph": "brush",
+		"summary": "Textured brush strokes for expressive sketching.",
+		"install": "pnpm add @edv4h/usketch-shape-brush"
+	},
+	{
+		"id": "shape-image",
+		"name": "Image",
+		"category": "shape",
+		"glyph": "img",
+		"summary": "Paste or drop images onto the canvas.",
+		"install": "pnpm add @edv4h/usketch-shape-image"
+	},
+	{
+		"id": "shape-frame",
+		"name": "Frame",
+		"category": "shape",
+		"glyph": "frame",
+		"summary": "Frames that group shapes — used for slides & export.",
+		"install": "pnpm add @edv4h/usketch-shape-frame"
+	},
+	{
+		"id": "shape-connector",
+		"name": "Connector",
+		"category": "shape",
+		"glyph": "conn",
+		"summary": "Arrows that auto-route between attached shapes.",
+		"install": "pnpm add @edv4h/usketch-shape-connector"
+	},
+	{
+		"id": "shape-group",
+		"name": "Group",
+		"category": "shape",
+		"glyph": "grp",
+		"summary": "Nestable group container for logical composition.",
+		"install": "pnpm add @edv4h/usketch-shape-group"
+	},
+	{
+		"id": "shape-island",
+		"name": "Island",
+		"category": "shape",
+		"glyph": "isle",
+		"summary": "Soft-edge region that collects shapes by proximity.",
+		"install": "pnpm add @edv4h/usketch-shape-island"
+	},
+	{
+		"id": "shape-counter",
+		"name": "Counter",
+		"category": "shape",
+		"glyph": "123",
+		"summary": "Incrementing number shape — great for voting.",
+		"install": "pnpm add @edv4h/usketch-shape-counter"
+	},
+	{
+		"id": "shape-wireframe",
+		"name": "Wireframe",
+		"category": "shape",
+		"glyph": "wire",
+		"summary": "UI wireframe primitives (buttons, inputs, nav).",
+		"install": "pnpm add @edv4h/usketch-shape-wireframe"
+	},
+	{
+		"id": "shape-community-region",
+		"name": "Community Region",
+		"category": "shape",
+		"glyph": "rgn",
+		"summary": "Shared regions users join spatially — breakout rooms.",
+		"install": "pnpm add @edv4h/usketch-shape-community-region"
+	},
+	{
+		"id": "shape-board-portal",
+		"name": "Board Portal",
+		"category": "shape",
+		"glyph": "prt",
+		"summary": "Embed another board as a scoped viewport inside yours.",
+		"install": "pnpm add @edv4h/usketch-shape-board-portal"
+	},
+	{
+		"id": "shape-basic",
+		"name": "Basic Shapes",
+		"category": "shape",
+		"glyph": "tri",
+		"summary": "Triangle, diamond, star — the starter pack.",
+		"install": "pnpm add @edv4h/usketch-shape-basic"
+	},
+	{
+		"id": "tool-select",
+		"name": "Select",
+		"category": "tool",
+		"glyph": "⭙",
+		"summary": "XState‑driven select/move/resize/rotate tool.",
+		"install": "pnpm add @edv4h/usketch-tool-select"
+	},
+	{
+		"id": "tool-pan",
+		"name": "Pan",
+		"category": "tool",
+		"glyph": "✋",
+		"summary": "Spacebar‑hold panning with momentum.",
+		"install": "pnpm add @edv4h/usketch-tool-pan"
+	},
+	{
+		"id": "bg-grid",
+		"name": "Grid",
+		"category": "bg",
+		"glyph": "grid",
+		"summary": "Infinite grid background with zoom‑aware density.",
+		"install": "pnpm add @edv4h/usketch-bg-grid"
+	},
+	{
+		"id": "bg-dots",
+		"name": "Dots",
+		"category": "bg",
+		"glyph": "dots",
+		"summary": "Dot pattern background, crisp at every zoom.",
+		"install": "pnpm add @edv4h/usketch-bg-dots"
+	},
+	{
+		"id": "ai-copilot",
+		"name": "AI Copilot",
+		"category": "ai",
+		"glyph": "AI",
+		"summary": "Ghost shapes suggested in real time while you sketch.",
+		"install": "pnpm add @edv4h/usketch-ai-copilot"
+	},
+	{
+		"id": "ai-chat",
+		"name": "AI Chat",
+		"category": "ai",
+		"glyph": "CH",
+		"summary": "Side‑panel conversation with canvas‑grounded context.",
+		"install": "pnpm add @edv4h/usketch-ai-chat"
+	},
+	{
+		"id": "ai-voice",
+		"name": "AI Voice",
+		"category": "ai",
+		"glyph": "VX",
+		"summary": "Speak shapes into existence — NL2Canvas.",
+		"install": "pnpm add @edv4h/usketch-ai-voice"
+	},
+	{
+		"id": "ai-image",
+		"name": "AI Image",
+		"category": "ai",
+		"glyph": "IM",
+		"summary": "Text‑to‑image generation placed on the canvas.",
+		"install": "pnpm add @edv4h/usketch-ai-image"
+	},
+	{
+		"id": "ai-actions",
+		"name": "AI Actions",
+		"category": "ai",
+		"glyph": "AC",
+		"summary": "Context menu of AI operations on selected shapes.",
+		"install": "pnpm add @edv4h/usketch-ai-actions"
+	},
+	{
+		"id": "ai-agent",
+		"name": "AI Agent",
+		"category": "ai",
+		"glyph": "AG",
+		"summary": "Autonomous agent that plans and edits the board.",
+		"install": "pnpm add @edv4h/usketch-ai-agent"
+	},
+	{
+		"id": "ai-recognize",
+		"name": "AI Recognize",
+		"category": "ai",
+		"glyph": "RG",
+		"summary": "Recognize hand‑drawn shapes into clean primitives.",
+		"install": "pnpm add @edv4h/usketch-ai-recognize"
+	},
+	{
+		"id": "server-ai",
+		"name": "Server AI Bridge",
+		"category": "server",
+		"glyph": "LLM",
+		"summary": "LLM bridge — streams deltas from edge to canvas.",
+		"install": "pnpm add @edv4h/usketch-server-ai"
+	},
+	{
+		"id": "presence-cursor",
+		"name": "Live Cursors",
+		"category": "presence",
+		"glyph": "◢",
+		"summary": "Smooth live cursor interpolation over awareness.",
+		"install": "pnpm add @edv4h/usketch-presence-cursor"
+	},
+	{
+		"id": "presence-enhanced",
+		"name": "Enhanced Presence",
+		"category": "presence",
+		"glyph": "+",
+		"summary": "Avatars, names, tool indicators on peers’ cursors.",
+		"install": "pnpm add @edv4h/usketch-presence-enhanced"
+	},
+	{
+		"id": "avatar",
+		"name": "Avatar",
+		"category": "presence",
+		"glyph": "AV",
+		"summary": "User avatars with stable identity colors.",
+		"install": "pnpm add @edv4h/usketch-avatar"
+	},
+	{
+		"id": "follow-me",
+		"name": "Follow Me",
+		"category": "presence",
+		"glyph": "↷",
+		"summary": "Sync viewport with another user — great for demos.",
+		"install": "pnpm add @edv4h/usketch-follow-me"
+	},
+	{
+		"id": "spatial-chat",
+		"name": "Spatial Chat",
+		"category": "presence",
+		"glyph": "SC",
+		"summary": "Proximity‑based voice/text bubbles on the canvas.",
+		"install": "pnpm add @edv4h/usketch-spatial-chat"
+	},
+	{
+		"id": "community-chat",
+		"name": "Community Chat",
+		"category": "presence",
+		"glyph": "CC",
+		"summary": "Chat inside a community‑region for breakouts.",
+		"install": "pnpm add @edv4h/usketch-community-chat"
+	},
+	{
+		"id": "reactions",
+		"name": "Reactions",
+		"category": "presence",
+		"glyph": "❤",
+		"summary": "Emoji reactions with physics.",
+		"install": "pnpm add @edv4h/usketch-reactions"
+	},
+	{
+		"id": "whistle",
+		"name": "Whistle",
+		"category": "presence",
+		"glyph": "♪",
+		"summary": "Sound cue to catch everyone’s attention.",
+		"install": "pnpm add @edv4h/usketch-whistle"
+	},
+	{
+		"id": "activity-feed",
+		"name": "Activity Feed",
+		"category": "presence",
+		"glyph": "○",
+		"summary": "Live feed of everyone’s recent actions.",
+		"install": "pnpm add @edv4h/usketch-activity-feed"
+	},
+	{
+		"id": "server-auth",
+		"name": "Auth",
+		"category": "server",
+		"glyph": "AU",
+		"summary": "Better Auth integration for sign‑in and sessions.",
+		"install": "pnpm add @edv4h/usketch-server-auth"
+	},
+	{
+		"id": "server-boards",
+		"name": "Boards",
+		"category": "server",
+		"glyph": "BD",
+		"summary": "Board storage — Cloudflare D1 + Durable Objects.",
+		"install": "pnpm add @edv4h/usketch-server-boards"
+	},
+	{
+		"id": "server-chat",
+		"name": "Chat Backend",
+		"category": "server",
+		"glyph": "CB",
+		"summary": "Persistent chat messages with rate limiting.",
+		"install": "pnpm add @edv4h/usketch-server-chat"
+	},
+	{
+		"id": "server-comments",
+		"name": "Comments Backend",
+		"category": "server",
+		"glyph": "CM",
+		"summary": "Comment threads tied to shape ids.",
+		"install": "pnpm add @edv4h/usketch-server-comments"
+	},
+	{
+		"id": "sync-localstorage-yjs",
+		"name": "Local Sync (Yjs)",
+		"category": "server",
+		"glyph": "SY",
+		"summary": "y‑indexeddb offline‑first persistence.",
+		"install": "pnpm add @edv4h/usketch-sync-localstorage-yjs"
+	},
+	{
+		"id": "effect-ripple",
+		"name": "Ripple",
+		"category": "effect",
+		"glyph": "◯",
+		"summary": "Pointer ripple effect on click.",
+		"install": "pnpm add @edv4h/usketch-effect-ripple"
+	},
+	{
+		"id": "laser",
+		"name": "Laser Pointer",
+		"category": "effect",
+		"glyph": "━",
+		"summary": "Disappearing laser strokes for presentations.",
+		"install": "pnpm add @edv4h/usketch-laser"
+	},
+	{
+		"id": "spotlight",
+		"name": "Spotlight",
+		"category": "effect",
+		"glyph": "☀",
+		"summary": "Highlight a region — dim everything else.",
+		"install": "pnpm add @edv4h/usketch-spotlight"
+	},
+	{
+		"id": "canvas-filter",
+		"name": "Canvas Filter",
+		"category": "effect",
+		"glyph": "FX",
+		"summary": "Blur / grain / vignette — post‑processing.",
+		"install": "pnpm add @edv4h/usketch-canvas-filter"
+	},
+	{
+		"id": "side-panel",
+		"name": "Side Panel",
+		"category": "ui",
+		"glyph": "◫",
+		"summary": "Dockable right‑side panel with tabs.",
+		"install": "pnpm add @edv4h/usketch-side-panel"
+	},
+	{
+		"id": "comments",
+		"name": "Comments",
+		"category": "ui",
+		"glyph": "\"",
+		"summary": "Pin comment threads to shapes with @mentions.",
+		"install": "pnpm add @edv4h/usketch-comments"
+	},
+	{
+		"id": "presentation",
+		"name": "Presentation",
+		"category": "ui",
+		"glyph": "▷",
+		"summary": "Frame‑based slides with edit/present modes.",
+		"install": "pnpm add @edv4h/usketch-presentation"
+	},
+	{
+		"id": "export",
+		"name": "Export",
+		"category": "ui",
+		"glyph": "⭳",
+		"summary": "Export PNG/SVG/JSON via Satori + Canvas.",
+		"install": "pnpm add @edv4h/usketch-export"
+	},
+	{
+		"id": "snap",
+		"name": "Snap & Guides",
+		"category": "ui",
+		"glyph": "┼",
+		"summary": "Smart guides and snap powered by QuadTree.",
+		"install": "pnpm add @edv4h/usketch-snap"
+	},
+	{
+		"id": "viewport-nav",
+		"name": "Viewport Nav",
+		"category": "ui",
+		"glyph": "⌘",
+		"summary": "Minimap + zoom controls + fit‑to‑selection.",
+		"install": "pnpm add @edv4h/usketch-viewport-nav"
+	},
+	{
+		"id": "keyboard-shortcuts",
+		"name": "Shortcuts",
+		"category": "ui",
+		"glyph": "K",
+		"summary": "Declarative shortcut registration with cheat‑sheet.",
+		"install": "pnpm add @edv4h/usketch-keyboard-shortcuts"
+	},
+	{
+		"id": "voting",
+		"name": "Voting",
+		"category": "ui",
+		"glyph": "✓",
+		"summary": "Dot voting on shapes for workshops.",
+		"install": "pnpm add @edv4h/usketch-voting"
+	},
+	{
+		"id": "board-info-panel",
+		"name": "Board Info",
+		"category": "ui",
+		"glyph": "i",
+		"summary": "Board metadata, sharing, and member roles.",
+		"install": "pnpm add @edv4h/usketch-board-info-panel"
+	},
+	{
+		"id": "debug-hud",
+		"name": "Debug HUD",
+		"category": "ui",
+		"glyph": "⌘",
+		"summary": "FPS, draw calls, event bus tracer.",
+		"install": "pnpm add @edv4h/usketch-debug-hud"
+	}
+]

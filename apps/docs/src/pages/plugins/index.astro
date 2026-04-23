@@ -1,0 +1,53 @@
+---
+import { getCollection } from "astro:content";
+import CatalogGrid from "../../components/plugins/CatalogGrid";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const entries = await getCollection("plugins");
+const plugins = entries.map((e) => e.data);
+
+const CATEGORIES = [
+	{ id: "shape", label: "Shapes" },
+	{ id: "tool", label: "Tools" },
+	{ id: "bg", label: "Background" },
+	{ id: "ai", label: "AI" },
+	{ id: "presence", label: "Presence" },
+	{ id: "server", label: "Server" },
+	{ id: "effect", label: "Effects" },
+	{ id: "ui", label: "UI / Utility" },
+];
+
+const basePath = import.meta.env.BASE_URL;
+---
+
+<BaseLayout title="Plugins" description="Browse uSketch plugins — shapes, tools, AI, presence and more." current="plugins">
+	<div class="plugins-page">
+		<header class="plugins-page__header">
+			<h1>Plugins</h1>
+			<p class="plugins-page__lead">
+				{plugins.length}+ plugins, one install away. Shapes, tools, AI, presence, server adapters, effects, and UI primitives.
+			</p>
+		</header>
+		<CatalogGrid client:load plugins={plugins} categories={CATEGORIES} basePath={basePath} />
+	</div>
+</BaseLayout>
+
+<style>
+	.plugins-page {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: var(--space-12) var(--space-6) var(--space-16);
+	}
+	.plugins-page__header { margin-bottom: var(--space-8); }
+	.plugins-page__header h1 {
+		font-size: 48px;
+		letter-spacing: -0.02em;
+		font-weight: 700;
+	}
+	.plugins-page__lead {
+		margin-top: var(--space-3);
+		font-size: 17px;
+		color: var(--fg-secondary);
+		max-width: 640px;
+	}
+</style>
