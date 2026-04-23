@@ -1,7 +1,7 @@
 const { chromium } = await import(
 	"/Users/yusukemaruyama/Projects/usketch/node_modules/.pnpm/playwright@1.58.2/node_modules/playwright/index.mjs"
 );
-const base = "http://localhost:4324/usketch";
+const base = process.env.BASE_URL ?? "http://localhost:4324/usketch";
 const pages = [
 	{ name: "home", path: "/" },
 	{ name: "docs-intro", path: "/docs/getting-started/introduction/" },

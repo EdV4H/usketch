@@ -11,7 +11,6 @@ import { href } from "../../lib/href";
 				<span class="u-grad-text">whiteboard</span>
 				framework.
 			</h1>
-			<p class="hero__title-jp" data-lang="jp">プラグイン・ファーストのホワイトボード・フレームワーク。</p>
 			<p class="hero__lead">
 				Compose shapes, tools, AI, presence, and real-time sync from 50+ plugins — or ship your own.
 				Everything in uSketch is a plugin, including the drawing layer itself.
@@ -44,11 +43,11 @@ import { href } from "../../lib/href";
 
 				<path class="u-ghost" d="M30 300 Q 200 280 400 310" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" fill="none" stroke-dasharray="6 4" />
 
-				<g class="u-cursor u-cursor--violet" transform="translate(170 120)">
-					<path d="M0 0 L12 4 L5 6 L3 14 Z" fill="#8b5cf6" />
+				<g transform="translate(170 120)">
+					<path class="u-cursor u-cursor--violet" d="M0 0 L12 4 L5 6 L3 14 Z" fill="#8b5cf6" />
 				</g>
-				<g class="u-cursor u-cursor--cyan" transform="translate(270 200)">
-					<path d="M0 0 L12 4 L5 6 L3 14 Z" fill="#06b6d4" />
+				<g transform="translate(270 200)">
+					<path class="u-cursor u-cursor--cyan" d="M0 0 L12 4 L5 6 L3 14 Z" fill="#06b6d4" />
 				</g>
 			</svg>
 		</div>
@@ -98,11 +97,6 @@ import { href } from "../../lib/href";
 		font-weight: 700;
 		margin: 0 0 var(--space-2);
 	}
-	.hero__title-jp {
-		font-size: 22px;
-		color: var(--fg-secondary);
-		margin-top: var(--space-2);
-	}
 	.hero__lead {
 		font-size: 17px;
 		line-height: 1.6;
@@ -142,22 +136,46 @@ import { href } from "../../lib/href";
 		filter: drop-shadow(0 20px 50px rgba(139, 92, 246, 0.25));
 	}
 
-	.u-float-a { animation: u-fade-in 600ms var(--ease-out) 120ms backwards; }
-	.u-float-b { animation: u-fade-in 600ms var(--ease-out) 260ms backwards; }
-	.u-float-c { animation: u-fade-in 600ms var(--ease-out) 400ms backwards; }
+	.u-float-a {
+		animation:
+			u-fade-in 600ms var(--ease-out) 120ms backwards,
+			u-float 5s var(--ease-in-out) 720ms infinite;
+	}
+	.u-float-b {
+		animation:
+			u-fade-in 600ms var(--ease-out) 260ms backwards,
+			u-float 5.6s var(--ease-in-out) 860ms infinite;
+	}
+	.u-float-c {
+		animation:
+			u-fade-in 600ms var(--ease-out) 400ms backwards,
+			u-float 6.2s var(--ease-in-out) 1000ms infinite;
+	}
 	.u-arrow {
 		stroke-dasharray: 120;
 		stroke-dashoffset: 120;
 		animation: u-draw 900ms var(--ease-out) 600ms forwards;
 	}
 	.u-ghost {
-		animation: u-ghost-dash 2.4s linear infinite;
+		stroke-dasharray: 6 4;
+		animation: u-ghost-dash 1.6s linear infinite;
 	}
-	.u-cursor { animation: u-cursor-wiggle 4s var(--ease-in-out) infinite; }
+	.u-cursor {
+		transform-box: fill-box;
+		transform-origin: center;
+		animation: u-cursor-wiggle 4s var(--ease-in-out) infinite;
+	}
 	.u-cursor--cyan { animation-delay: 1.2s; }
 
 	@keyframes u-draw {
 		to { stroke-dashoffset: 0; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.u-float-a, .u-float-b, .u-float-c,
+		.u-arrow, .u-ghost, .u-cursor {
+			animation: none;
+		}
 	}
 
 	@media (max-width: 980px) {
