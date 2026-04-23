@@ -23,14 +23,13 @@ interface Props {
 const { title, description, current, lang = "en" } = Astro.props;
 const fullTitle = current === "home" ? title : `${title} — uSketch`;
 
-const [docsEn, docsJa, plugins] = await Promise.all([
-	getCollection("docs"),
-	getCollection("docsJa"),
+const docsCollection = lang === "ja" ? "docsJa" : "docs";
+const docsPrefix = lang === "ja" ? "/docs/ja/" : "/docs/";
+
+const [docs, plugins] = await Promise.all([
+	getCollection(docsCollection),
 	getCollection("plugins"),
 ]);
-
-const docs = lang === "ja" ? docsJa : docsEn;
-const docsPrefix = lang === "ja" ? "/docs/ja/" : "/docs/";
 
 const paletteItems = [
 	...docs

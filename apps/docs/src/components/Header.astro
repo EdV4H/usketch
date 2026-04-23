@@ -49,20 +49,6 @@ const navItems = [
 				<button type="button" data-jp-mode-set="both" aria-pressed={initialJpMode === "both"}>A/あ</button>
 				<button type="button" data-jp-mode-set="jp" aria-pressed={initialJpMode === "jp"}>JP</button>
 			</div>
-			<script is:inline>
-				// Re-sync aria-pressed with the actual data-jp-mode, which BaseLayout's
-				// FOUC guard may have overridden from localStorage (e.g. "both").
-				(function () {
-					const mode = document.documentElement.dataset.jpMode ?? "en";
-					const buttons = document.querySelectorAll(".site-header__lang [data-jp-mode-set]");
-					for (const b of buttons) {
-						b.setAttribute(
-							"aria-pressed",
-							b.getAttribute("data-jp-mode-set") === mode ? "true" : "false",
-						);
-					}
-				})();
-			</script>
 
 			<button type="button" class="site-header__search" data-open-palette aria-label="Open command palette">
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
