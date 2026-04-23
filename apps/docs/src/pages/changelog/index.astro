@@ -1,0 +1,106 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const entries = await getCollection("releases");
+const releases = entries.map((e) => e.data).sort((a, b) => b.date.localeCompare(a.date));
+
+const LEVEL_COLOR: Record<string, string> = {
+	major: "#ec4899",
+	minor: "#8b5cf6",
+	patch: "#6b6b7a",
+};
+---
+
+<BaseLayout title="Changelog" description="uSketch release history." current="changelog">
+	<div class="changelog">
+		<header>
+			<h1>
+				<span data-lang="en">Changelog</span>
+				<span data-lang="jp">更新履歴</span>
+			</h1>
+			<p class="changelog__lead">
+				<span data-lang="en">Every release, in reverse chronological order.</span>
+				<span data-lang="jp">リリース履歴を新しい順に。</span>
+			</p>
+		</header>
+
+		<ul class="timeline">
+			{releases.map((r) => (
+				<li class="release">
+					<div class="release__head">
+						<span class="release__version">v{r.version}</span>
+						<span class="release__date">{r.date}</span>
+						<span class="release__tag" style={`color: ${LEVEL_COLOR[r.level] ?? LEVEL_COLOR.patch};`}>{r.level}</span>
+					</div>
+					<ul class="release__highlights">
+						{r.highlights.map((h) => <li>{h}</li>)}
+					</ul>
+				</li>
+			))}
+		</ul>
+	</div>
+</BaseLayout>
+
+<style>
+	.changelog {
+		max-width: 860px;
+		margin: 0 auto;
+		padding: var(--space-12) var(--space-6) var(--space-16);
+	}
+	.changelog h1 {
+		font-size: 44px;
+		letter-spacing: -0.02em;
+	}
+	.changelog__lead {
+		color: var(--fg-secondary);
+		font-size: 16px;
+		margin-top: var(--space-3);
+	}
+	.timeline {
+		list-style: none;
+		padding: 0;
+		margin: var(--space-10) 0 0;
+	}
+	.release + .release {
+		border-top: 1px solid var(--border-subtle);
+	}
+	.release {
+		padding: var(--space-6) 0;
+	}
+	.release__head {
+		display: flex;
+		align-items: center;
+		gap: var(--space-4);
+		margin-bottom: var(--space-3);
+	}
+	.release__version {
+		font-family: var(--font-mono);
+		font-size: 20px;
+		font-weight: 600;
+	}
+	.release__date {
+		color: var(--fg-tertiary);
+		font-size: 13px;
+	}
+	.release__tag {
+		margin-left: auto;
+		font-family: var(--font-mono);
+		font-size: 10.5px;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		font-weight: 600;
+	}
+	.release__highlights {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: grid;
+		gap: 6px;
+	}
+	.release__highlights li {
+		color: var(--fg-primary);
+		font-size: 14.5px;
+		line-height: 1.55;
+	}
+</style>

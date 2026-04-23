@@ -1,0 +1,74 @@
+---
+title: イベントバス
+description: プラグイン間の疎結合なコミュニケーション。
+order: 15
+---
+
+## 概要
+
+`EventBus` により、プラグイン同士が直接依存せずに通信できます。あるプラグインがイベントを発行し、任意の数のプラグインがそれを購読できます。
+
+## API
+
+```ts
+interface EventBus {
+  on<T = unknown>(event: string, handler: (data: T) => void): () => void;
+  emit<T = unknown>(event: string, data: T): void;
+}
+```
+
+- `on()` は購読解除用の関数を返します。`teardown()` で呼び出して後片付けしてください。
+- `emit()` は同期的にそのイベントの全ハンドラを呼び出します。
+
+## ストア変更のブリッジ
+
+コアは `BoardStore` の変更を `EventBus` へ自動的にブリッジします。ストア経由でシェイプが追加・更新・削除されると、対応する変更イベントがバスに emit されます。
+
+```ts
+// コア内部で自動的に行われる処理：
+store.onMutation((event) => {
+  events.emit(event.type, event.payload);
+});
+```
+
+つまりプラグインは、ストアに直接購読しなくてもストアの変更を観測できます。
+
+## 使用例：スナッププラグイン
+
+```ts
+// 購読解除用の参照はクロージャに保持する（プラグインオブジェクト上に置かない）
+let unsub: (() => void) | null = null;
+
+const snapPlugin: UsketchPlugin = {
+  id: "usketch-plugin-snap",
+  name: "Snap",
+
+  setup(ctx: PluginContext) {
+    unsub = ctx.events.on("tool:drag", (event) => {
+      const snapped = calculateSnap(event.point, event.shapes);
+      updateSnapGuides(snapped);
+    });
+  },
+
+  teardown() {
+    unsub?.();
+    unsub = null;
+  },
+};
+```
+
+## イベント命名規約
+
+イベントバスは完全に動的（任意の文字列が使えます）ですが、以下のパターンを推奨します：
+
+| パターン | 例 | 説明 |
+|---------|---------|-------------|
+| `{system}:{action}` | `tool:activate` | コアシステムのイベント |
+| `shape:{action}` | `shape:added` | シェイプライフサイクルのイベント |
+| `plugin:{id}:{action}` | `plugin:snap:calculated` | 特定プラグインのイベント |
+
+## ヒント
+
+- イベントのペイロードは可能な限り**シリアライズ可能**に保つ — デバッグや将来の同期シナリオで有効。
+- プラグイン間の直接 import より、イベントを優先する。プラグイン A がプラグイン B のデータを必要とするなら、内部 API を露出させる代わりに B からイベントを発行させる。
+- `EventBus` は同期的です。非同期処理が必要ならハンドラ内で扱ってください。

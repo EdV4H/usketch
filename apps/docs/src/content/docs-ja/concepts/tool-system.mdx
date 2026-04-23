@@ -1,0 +1,103 @@
+---
+title: ツールシステム
+description: ツールがキャンバス上の操作を処理する仕組み。
+order: 12
+---
+
+## ToolDefinition
+
+ツールは、キャンバスがユーザーのポインタイベントにどう反応するかを定義します：
+
+```ts
+interface ToolDefinition {
+  icon: () => ReactElement;
+  cursor?: string;
+  shortcut?: string;
+  order?: number;
+  onActivate?: (ctx: ToolContext) => void;
+  onDeactivate?: (ctx: ToolContext) => void;
+  onPointerDown?: (ctx: ToolContext, event: CanvasPointerEvent) => void;
+  onPointerMove?: (ctx: ToolContext, event: CanvasPointerEvent) => void;
+  onPointerUp?: (ctx: ToolContext, event: CanvasPointerEvent) => void;
+}
+```
+
+| フィールド | 説明 |
+|-------|-------------|
+| `icon` | ツールバーに描画されるコンポーネント。 |
+| `cursor` | このツールが有効な間の CSS カーソル値（例：`"crosshair"`）。 |
+| `shortcut` | 有効化するキーボードショートカット（例：矩形なら `"r"`）。 |
+| `order` | ツールバーでの位置。値が小さいほど先に表示される。 |
+| `onActivate` | このツールが有効化されたときに呼ばれる。 |
+| `onDeactivate` | このツールから他のツールに切り替わるときに呼ばれる。 |
+| `onPointerDown/Move/Up` | キャンバスのポインタイベントハンドラ。 |
+
+## ToolContext
+
+ツールのイベントハンドラは `ToolContext`（`PluginContext` のサブセット）を受け取ります：
+
+```ts
+interface ToolContext {
+  store: BoardStore;
+  shapes: ShapeRegistry;
+  commands: CommandRegistry;
+  events: EventBus;
+}
+```
+
+これによりツールはボードの状態にアクセスでき、undo 可能なコマンドを実行できます。
+
+## CanvasPointerEvent
+
+```ts
+interface CanvasPointerEvent {
+  worldPoint: Point;   // ワールド（キャンバス）座標での位置
+  screenPoint: Point;  // スクリーン（ピクセル）座標での位置
+  shiftKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  button: number;
+}
+```
+
+`worldPoint` と `screenPoint` の両方が提供されるので、ツールは用途に応じた座標系で動けます。
+
+## ToolRegistry
+
+`setup()` でツールを登録します：
+
+```ts
+ctx.tools.register("rectangle-draw", {
+  icon: RectIcon,
+  cursor: "crosshair",
+  shortcut: "r",
+  order: 10,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+});
+```
+
+実行時の参照：
+
+```ts
+ctx.tools.get("rectangle-draw");
+ctx.tools.getAll();            // ReadonlyMap<string, ToolDefinition>
+ctx.tools.getOrdered();        // order でソート済み（ツールバー描画用）
+```
+
+## 有効なツール
+
+現在有効なツールは `BoardStore` に保持されます：
+
+```ts
+const toolId = ctx.store.getActiveToolId();
+ctx.store.setActiveToolId("select");
+```
+
+`onActivate` と `onDeactivate` は将来のライフサイクルサポートのため `ToolDefinition` に定義されていますが、現時点のランタイムでは呼ばれません。現在呼び出されるのはポインタイベントハンドラ（`onPointerDown` / `onPointerMove` / `onPointerUp`）のみです。
+
+## 例
+
+完全なチュートリアルは [ツールプラグインガイド](/docs/ja/guides/tool-plugin/) を参照してください。

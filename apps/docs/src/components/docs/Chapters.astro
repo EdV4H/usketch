@@ -1,0 +1,93 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { href } from "../../lib/href";
+
+type DocEntry = CollectionEntry<"docs"> | CollectionEntry<"docsJa">;
+
+interface Chapter {
+	label: string;
+	items: DocEntry[];
+}
+
+interface Props {
+	chapters: Chapter[];
+	currentId: string;
+	locale?: "en" | "ja";
+}
+
+const { chapters, currentId, locale = "en" } = Astro.props;
+const prefix = locale === "ja" ? "/docs/ja/" : "/docs/";
+---
+
+<aside class="chapters" aria-label="Documentation chapters">
+	{chapters.map((chapter) => (
+		<section class="chapters__group">
+			<h3 class="chapters__group-title">{chapter.label}</h3>
+			<ul>
+				{chapter.items.map((item) => (
+					<li>
+						<a
+							href={href(`${prefix}${item.id}/`)}
+							class:list={["chapters__link", { "is-active": item.id === currentId }]}
+						>
+							{item.data.title}
+						</a>
+					</li>
+				))}
+			</ul>
+		</section>
+	))}
+</aside>
+
+<style>
+	.chapters {
+		position: sticky;
+		top: 80px;
+		align-self: start;
+		max-height: calc(100vh - 80px);
+		overflow-y: auto;
+		padding-right: var(--space-2);
+	}
+	.chapters__group + .chapters__group { margin-top: var(--space-6); }
+	.chapters__group-title {
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--fg-tertiary);
+		margin: 0 0 var(--space-2) 0;
+	}
+	.chapters ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: 2px;
+	}
+	.chapters__link {
+		display: block;
+		position: relative;
+		padding: 6px 10px;
+		border-radius: var(--r-sm);
+		font-size: 13.5px;
+		color: var(--fg-secondary);
+		transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+	}
+	.chapters__link:hover {
+		color: var(--fg-primary);
+		background: var(--bg-hover);
+	}
+	.chapters__link.is-active {
+		color: var(--fg-primary);
+		background: var(--bg-active);
+	}
+	.chapters__link.is-active::before {
+		content: "";
+		position: absolute;
+		left: 0;
+		top: 6px;
+		bottom: 6px;
+		width: 2px;
+		border-radius: 2px;
+		background: var(--brand-gradient);
+	}
+</style>

@@ -1,0 +1,85 @@
+---
+title: プラグインアーキテクチャ
+description: UsketchPlugin・PluginContext・ライフサイクルの仕組み。
+order: 10
+---
+
+## 概要
+
+uSketch v2 では、**すべての機能はプラグイン**です。コアフレームワークはレジストリとサービスを提供し、プラグインが setup 時にシェイプ・ツール・レイヤー・コマンド・イベントハンドラを登録します。
+
+## プラグインインターフェース
+
+```ts
+interface UsketchPlugin {
+  readonly id: string;
+  readonly name: string;
+  setup(ctx: PluginContext): void | Promise<void>;
+  teardown?(): void;
+}
+```
+
+| フィールド | 説明 |
+|-------|-------------|
+| `id` | 一意な識別子。例: `"usketch-plugin-shape-rect"` |
+| `name` | 表示用の人間可読な名前 |
+| `setup(ctx)` | アプリ初期化時に一度だけ呼ばれる。登録処理はここで行う。 |
+| `teardown()` | オプション。アプリ破棄時に呼ばれる。購読解除などのクリーンアップを行う。 |
+
+## PluginContext
+
+`setup()` に渡される `ctx` 引数は、すべてのレジストリへのアクセスを提供します：
+
+```ts
+interface PluginContext {
+  store: BoardStore;          // 状態管理
+  layers: LayerManager;       // 描画レイヤー登録
+  tools: ToolRegistry;        // ツール登録
+  shapes: ShapeRegistry;      // シェイプ型の登録
+  commands: CommandRegistry;   // undo/redo 対応のコマンド実行
+  shortcuts: ShortcutRegistry; // キーボードショートカット登録
+  events: EventBus;           // プラグイン間通信
+  transient: TransientRegistry; // 一時オブジェクト（カーソル・エフェクト）
+}
+```
+
+## ライフサイクル
+
+```
+createApp({ store, plugins })
+  │
+  ├─ 1. プラグインを PluginRegistry に登録
+  │
+  ├─ 2. 各プラグインの setup(ctx) を順に呼ぶ
+  │     ├─ レイヤーを登録
+  │     ├─ ツールを登録
+  │     ├─ シェイプを登録
+  │     ├─ コマンドを登録
+  │     ├─ ショートカットを登録
+  │     └─ イベントを購読
+  │
+  ├─ 3. React ツリーをマウント
+  │
+  └─ [破棄時]
+      └─ 各プラグインの teardown() を呼ぶ
+```
+
+プラグインは `plugins` 配列に現れる順に**逐次**初期化されます。つまり、あるプラグインは先に登録された別のプラグインに依存できます。
+
+## 自己完結型プラグイン
+
+シェイププラグインは通常、**シェイプ定義**と**描画ツール**を 1 つのパッケージに同梱します。例えば矩形プラグインは以下を登録します：
+
+- シェイプ型（`"rectangle"`）を `ShapeRegistry` に
+- 描画ツール（`"rectangle-draw"`）を `ToolRegistry` に
+
+これにより「矩形」という概念が 1 つのパッケージに自己完結します。
+
+## 命名規則
+
+| カテゴリ | パッケージ命名 | 例 |
+|----------|----------------|---------|
+| ツールプラグイン | `usketch-plugin-tool-{name}` | `usketch-plugin-tool-select` |
+| シェイププラグイン | `usketch-plugin-shape-{name}` | `usketch-plugin-shape-rect` |
+| 背景プラグイン | `usketch-plugin-bg-{name}` | `usketch-plugin-bg-grid` |
+| 機能プラグイン | `usketch-plugin-{name}` | `usketch-plugin-snap` |

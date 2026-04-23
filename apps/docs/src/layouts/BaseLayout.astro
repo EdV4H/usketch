@@ -1,0 +1,102 @@
+---
+import "@fontsource-variable/inter";
+import "@fontsource/ibm-plex-sans-jp/400.css";
+import "@fontsource/ibm-plex-sans-jp/500.css";
+import "@fontsource/ibm-plex-sans-jp/600.css";
+import "@fontsource/geist-mono/400.css";
+import "@fontsource/geist-mono/500.css";
+import "../styles/global.css";
+
+import { getCollection } from "astro:content";
+import Footer from "../components/Footer.astro";
+import Header from "../components/Header.astro";
+import CommandPalette from "../components/palette/command-palette";
+import { href } from "../lib/href";
+
+interface Props {
+	title: string;
+	description?: string;
+	current?: "home" | "docs" | "plugins" | "examples" | "api" | "changelog";
+	lang?: "en" | "ja";
+}
+
+const { title, description, current, lang = "en" } = Astro.props;
+const fullTitle = current === "home" ? title : `${title} — uSketch`;
+
+const [docs, plugins] = await Promise.all([getCollection("docs"), getCollection("plugins")]);
+
+const paletteItems = [
+	...docs
+		.sort((a, b) => (a.data.order ?? 999) - (b.data.order ?? 999))
+		.map((d) => ({
+			id: `doc-${d.id}`,
+			title: d.data.title,
+			group: "Docs" as const,
+			href: href(`/docs/${d.id}/`),
+			hint: d.data.description,
+		})),
+	...plugins.map((p) => ({
+		id: `plugin-${p.data.id}`,
+		title: p.data.name,
+		group: "Plugins" as const,
+		href: href(`/plugins/${p.data.id}/`),
+		hint: p.data.summary,
+	})),
+	{ id: "page-home", title: "Home", group: "Pages" as const, href: href("/") },
+	{ id: "page-plugins", title: "Plugin catalog", group: "Pages" as const, href: href("/plugins/") },
+	{ id: "page-examples", title: "Examples", group: "Pages" as const, href: href("/examples/") },
+	{ id: "page-api", title: "API Reference", group: "Pages" as const, href: href("/api/") },
+	{ id: "page-changelog", title: "Changelog", group: "Pages" as const, href: href("/changelog/") },
+	{
+		id: "action-toggle-theme",
+		title: "Toggle theme",
+		group: "Actions" as const,
+		action: "toggle-theme",
+		hint: "dark ↔ light",
+	},
+];
+---
+
+<!doctype html>
+<html lang={lang} data-theme="dark" data-jp-mode={lang === "ja" ? "jp" : "en"} data-base-path={import.meta.env.BASE_URL}>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>{fullTitle}</title>
+		{description && <meta name="description" content={description} />}
+		<meta property="og:title" content={fullTitle} />
+		{description && <meta property="og:description" content={description} />}
+		<link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
+
+		{/* FOUC guard: read saved theme / jp-mode before paint */}
+		<script is:inline define:vars={{ pageLang: lang }}>
+			(function () {
+				try {
+					const html = document.documentElement;
+					const theme = localStorage.getItem("usketch-theme");
+					if (theme === "light" || theme === "dark") html.dataset.theme = theme;
+					const jp = localStorage.getItem("usketch-jp-mode");
+					if (pageLang === "ja") {
+						html.dataset.jpMode = "jp";
+					} else if (jp === "en" || jp === "jp" || jp === "both") {
+						html.dataset.jpMode = jp;
+					}
+				} catch {}
+			})();
+		</script>
+	</head>
+	<body>
+		<Header current={current} lang={lang} />
+		<main class="site-main">
+			<slot />
+		</main>
+		<Footer />
+		<CommandPalette client:idle items={paletteItems} />
+	</body>
+</html>
+
+<style is:global>
+	.site-main {
+		min-height: calc(100vh - 56px - 240px);
+	}
+</style>

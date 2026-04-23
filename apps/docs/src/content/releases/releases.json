@@ -1,0 +1,47 @@
+[
+	{
+		"id": "1.2.0",
+		"version": "1.2.0",
+		"date": "2026-04-18",
+		"level": "minor",
+		"highlights": [
+			"✨ AI Copilot: ghost shapes stream in as you sketch.",
+			"✨ AI Voice: NL2Canvas — 「不作成の矩形を主要エリアに」で初期配置を生成.",
+			"✨ Presentation mode now supports laser pointer and spotlight overlays.",
+			"♻️ Refactored sync layer: awareness events moved to EventBus."
+		]
+	},
+	{
+		"id": "1.1.3",
+		"version": "1.1.3",
+		"date": "2026-04-02",
+		"level": "patch",
+		"highlights": [
+			"🐛 Fix: sticky note z‑order regressed after group ungrouping.",
+			"🐛 Fix: connector reroute missed when the attached shape rotated.",
+			"⚡️ Perf: QuadTree rebuild deferred to idle callback — ~40% faster first‑paint."
+		]
+	},
+	{
+		"id": "1.1.0",
+		"version": "1.1.0",
+		"date": "2026-03-20",
+		"level": "minor",
+		"highlights": [
+			"✨ TransientRegistry: ephemeral objects (cursors, ripples, ghosts) get their own lifecycle.",
+			"✨ Shape Island plugin — soft regions grouping shapes by proximity.",
+			"📚 Docs: every concept page now has a live example inline."
+		]
+	},
+	{
+		"id": "1.0.0",
+		"version": "1.0.0",
+		"date": "2026-02-28",
+		"level": "major",
+		"highlights": [
+			"🎉 Initial release of the plugin‑first rewrite.",
+			"✨ Real‑time collab with Yjs + Cloudflare Durable Objects.",
+			"✨ 50+ first‑party plugins ship with the reference app."
+		]
+	}
+]

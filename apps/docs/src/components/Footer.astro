@@ -1,0 +1,138 @@
+---
+import { href } from "../lib/href";
+
+const groups = [
+	{
+		title: "Product",
+		jpTitle: "プロダクト",
+		links: [
+			{ label: "Home", jpLabel: "ホーム", path: "/" },
+			{ label: "Plugins", jpLabel: "プラグイン", path: "/plugins/" },
+			{ label: "Examples", jpLabel: "サンプル", path: "/examples/" },
+			{ label: "Changelog", jpLabel: "更新履歴", path: "/changelog/" },
+		],
+	},
+	{
+		title: "Docs",
+		jpTitle: "ドキュメント",
+		links: [
+			{ label: "Getting Started", jpLabel: "はじめる", path: "/docs/getting-started/introduction/" },
+			{ label: "Core Concepts", jpLabel: "コアコンセプト", path: "/docs/concepts/plugin-architecture/" },
+			{ label: "Guides", jpLabel: "ガイド", path: "/docs/guides/shape-plugin/" },
+			{ label: "API Reference", jpLabel: "API リファレンス", path: "/api/" },
+		],
+	},
+	{
+		title: "Community",
+		jpTitle: "コミュニティ",
+		links: [
+			{ label: "GitHub", jpLabel: "GitHub", path: "https://github.com/EdV4H/usketch" },
+			{ label: "Issues", jpLabel: "Issue", path: "https://github.com/EdV4H/usketch/issues" },
+			{ label: "Discussions", jpLabel: "ディスカッション", path: "https://github.com/EdV4H/usketch/discussions" },
+		],
+	},
+] as const;
+---
+
+<footer class="site-footer">
+	<div class="site-footer__inner">
+		<div class="site-footer__brand">
+			<span class="site-footer__logo" aria-hidden="true"></span>
+			<strong>uSketch</strong>
+			<span class="site-footer__tagline" data-lang="en">Plugin‑first whiteboard framework.</span>
+			<span class="site-footer__tagline" data-lang="jp">プラグイン・ファーストのホワイトボードフレームワーク。</span>
+		</div>
+
+		<div class="site-footer__grid">
+			{groups.map((group) => (
+				<div class="site-footer__column">
+					<h4 class="site-footer__column-title">
+						<span data-lang="en">{group.title}</span>
+						<span data-lang="jp">{group.jpTitle}</span>
+					</h4>
+					<ul>
+						{group.links.map((link) => (
+							<li>
+								<a href={link.path.startsWith("http") ? link.path : href(link.path)}>
+									<span data-lang="en">{link.label}</span>
+									<span data-lang="jp">{link.jpLabel}</span>
+								</a>
+							</li>
+						))}
+					</ul>
+				</div>
+			))}
+		</div>
+
+		<div class="site-footer__meta">
+			<span>© {new Date().getFullYear()} uSketch contributors</span>
+			<span>MIT License</span>
+		</div>
+	</div>
+</footer>
+
+<style>
+	.site-footer {
+		margin-top: var(--space-20);
+		border-top: 1px solid var(--border-subtle);
+		background: var(--bg-canvas-2);
+	}
+	.site-footer__inner {
+		max-width: 1400px;
+		margin: 0 auto;
+		padding: var(--space-16) var(--space-6) var(--space-10);
+		display: grid;
+		gap: var(--space-10);
+	}
+	.site-footer__brand {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		color: var(--fg-secondary);
+		font-size: 14px;
+	}
+	.site-footer__logo {
+		width: 24px;
+		height: 24px;
+		border-radius: 7px;
+		background: var(--brand-gradient);
+	}
+	.site-footer__tagline + .site-footer__tagline { margin-left: 4px; }
+	.site-footer__grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: var(--space-10);
+	}
+	.site-footer__column-title {
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--fg-tertiary);
+		margin-bottom: var(--space-3);
+	}
+	.site-footer__column ul {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: grid;
+		gap: var(--space-2);
+	}
+	.site-footer__column a {
+		color: var(--fg-secondary);
+		font-size: 13px;
+		transition: color var(--dur-fast) var(--ease-out);
+	}
+	.site-footer__column a:hover { color: var(--fg-primary); }
+	.site-footer__meta {
+		display: flex;
+		gap: var(--space-4);
+		justify-content: space-between;
+		padding-top: var(--space-6);
+		border-top: 1px solid var(--border-subtle);
+		color: var(--fg-tertiary);
+		font-size: 12px;
+	}
+	@media (max-width: 720px) {
+		.site-footer__grid { grid-template-columns: 1fr; }
+	}
+</style>

@@ -1,0 +1,97 @@
+---
+title: シェイプシステム
+description: シェイプの定義・登録・描画の仕組み。
+order: 11
+---
+
+## ShapeData
+
+キャンバス上のすべてのシェイプは `ShapeData` オブジェクトで表現されます：
+
+```ts
+interface ShapeData {
+  id: string;
+  type: string;        // 登録済み ShapeDefinition と一致する必要あり
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  style: ShapeStyle;
+  rotation?: number;
+  [key: string]: unknown;  // シェイプ固有の追加プロパティ
+}
+
+interface ShapeStyle {
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  opacity: number;
+}
+```
+
+`type` フィールドがデータと対応する `ShapeDefinition` を紐づけます。シェイプ固有のプロパティ（矩形の `cornerRadius` など）は追加のキーとして格納されます。
+
+## ShapeDefinition
+
+`ShapeDefinition` は、あるシェイプ型をどう描画し・どう操作するかをシステムに伝えます：
+
+```ts
+interface ShapeDefinition {
+  render: (data: ShapeData) => ReactElement;
+  getBounds: (data: ShapeData) => BoundingBox;
+  hitTest: (data: ShapeData, point: Point) => boolean;
+  resize: (data: ShapeData, handle: ResizeHandle, delta: Point) => ShapeData;
+  createDefault: (params: { id: string; x: number; y: number }) => ShapeData;
+  renderTarget?: "svg" | "html";
+  minSize?: { width: number; height: number };
+  move?: (data: ShapeData, dx: number, dy: number) => Partial<ShapeData>;
+  applyBounds?: (data: ShapeData, newBounds: BoundingBox) => Partial<ShapeData>;
+}
+```
+
+| メソッド | 目的 |
+|--------|---------|
+| `render` | シェイプ用の JSX を返す。`"svg"` ターゲットでは SVG 要素。 |
+| `getBounds` | 軸平行バウンディングボックスを返す。 |
+| `hitTest` | ワールド座標の点がシェイプ内なら `true` を返す。 |
+| `resize` | リサイズハンドルのドラッグ後の更新済みシェイプデータを返す。 |
+| `createDefault` | 指定位置に妥当なデフォルト値で新しいシェイプを作る。 |
+| `move` | オプション。独自の移動ロジック（例：絶対点配列を持つシェイプ）。 |
+| `applyBounds` | オプション。複数選択リサイズ時、新しいバウンディングボックスに合わせてデータを調整。 |
+
+## ShapeRegistry
+
+`setup()` の中でシェイプ定義を登録します：
+
+```ts
+setup(ctx: PluginContext) {
+  ctx.shapes.register("rectangle", {
+    render,
+    getBounds,
+    hitTest,
+    resize,
+    createDefault,
+  });
+}
+```
+
+実行時には以下で取り出せます：
+
+```ts
+const def = ctx.shapes.get("rectangle");
+const allShapes = ctx.shapes.getAll(); // ReadonlyMap<string, ShapeDefinition>
+```
+
+## リサイズハンドル
+
+`ResizeHandle` 型は、選択シェイプ周囲の 8 個のハンドルを表します：
+
+```ts
+type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
+```
+
+`resize` 関数は、ドラッグされているハンドルと、ワールド座標での移動量を示す `delta: Point` を受け取ります。
+
+## 例：矩形
+
+完全な矩形プラグインの実装は [シェイププラグインガイド](/docs/ja/guides/shape-plugin/) を参照してください。

@@ -1,0 +1,92 @@
+---
+import type { MarkdownHeading } from "astro";
+
+interface Props {
+	headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+const items = headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+
+{items.length > 0 && (
+	<aside class="toc" aria-label="On this page">
+		<h4 class="toc__title">On this page</h4>
+		<ul>
+			{items.map((h) => (
+				<li class:list={[`toc__item--d${h.depth}`]}>
+					<a href={`#${h.slug}`} class="toc__link" data-toc-link>{h.text}</a>
+				</li>
+			))}
+		</ul>
+	</aside>
+)}
+
+<style>
+	.toc {
+		position: sticky;
+		top: 80px;
+		align-self: start;
+		max-height: calc(100vh - 80px);
+		overflow-y: auto;
+	}
+	.toc__title {
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--fg-tertiary);
+		margin: 0 0 var(--space-3) 0;
+	}
+	.toc ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+	.toc__item--d3 { padding-left: var(--space-3); }
+	.toc__link {
+		position: relative;
+		display: block;
+		padding: 4px 10px;
+		font-size: 13px;
+		color: var(--fg-secondary);
+		border-radius: var(--r-sm);
+	}
+	.toc__link:hover { color: var(--fg-primary); }
+	.toc__link.is-active {
+		color: var(--fg-primary);
+	}
+	.toc__link.is-active::before {
+		content: "";
+		position: absolute;
+		left: 0;
+		top: 6px;
+		bottom: 6px;
+		width: 2px;
+		border-radius: 2px;
+		background: var(--brand-gradient);
+	}
+</style>
+
+<script>
+	(function () {
+		const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("[data-toc-link]"));
+		if (!links.length) return;
+		const targets = links
+			.map((link) => ({ link, id: link.getAttribute("href")!.slice(1) }))
+			.map((entry) => ({ ...entry, el: document.getElementById(entry.id) }))
+			.filter((entry): entry is { link: HTMLAnchorElement; id: string; el: HTMLElement } => entry.el !== null);
+		if (!targets.length) return;
+
+		const byId = new Map(targets.map((t) => [t.id, t.link]));
+		const observer = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					const link = byId.get(entry.target.id);
+					if (!link) continue;
+					if (entry.isIntersecting) {
+						links.forEach((l) => l.classList.remove("is-active"));
+						link.classList.add("is-active");
+					}
+				}
+			},
+			{ rootMargin: "-80px 0px -70% 0px", threshold: 0 },
+		);
+		targets.forEach((t) => observer.observe(t.el));
+	})();
+</script>

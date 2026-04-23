@@ -1,0 +1,68 @@
+---
+import { href } from "../../lib/href";
+---
+
+<section class="final-cta">
+	<div class="final-cta__inner">
+		<h2>
+			<span data-lang="en">Build your own canvas.</span>
+			<span data-lang="jp">あなた自身のキャンバスを作ろう。</span>
+		</h2>
+		<p>
+			<span data-lang="en">Open source, MIT licensed, production-ready. Start in 5 minutes.</span>
+			<span data-lang="jp">オープンソース・MIT ライセンス・本番品質。5 分でスタート。</span>
+		</p>
+		<div class="final-cta__actions">
+			<a class="cta cta--primary" href={href("/docs/getting-started/quick-start/")}>
+				<span data-lang="en">Quick Start →</span>
+				<span data-lang="jp">クイックスタート →</span>
+			</a>
+			<a class="cta cta--ghost" href="https://github.com/EdV4H/usketch">
+				<span data-lang="en">Star on GitHub</span>
+				<span data-lang="jp">GitHub でスター</span>
+			</a>
+		</div>
+	</div>
+</section>
+
+<style>
+	.final-cta {
+		padding: var(--space-12) var(--space-6);
+	}
+	.final-cta__inner {
+		max-width: 1040px;
+		margin: 0 auto;
+		padding: var(--space-16) var(--space-10);
+		border-radius: var(--r-xl);
+		background: var(--brand-gradient-soft);
+		border: 1px solid var(--border-default);
+		text-align: center;
+	}
+	.final-cta h2 {
+		font-size: 48px;
+		letter-spacing: -0.02em;
+		margin: 0 0 var(--space-3);
+	}
+	.final-cta p {
+		color: var(--fg-secondary);
+		font-size: 17px;
+		margin-bottom: var(--space-6);
+	}
+	.final-cta__actions {
+		display: inline-flex;
+		gap: var(--space-3);
+	}
+	.cta {
+		display: inline-flex;
+		align-items: center;
+		height: 48px;
+		padding: 0 22px;
+		border-radius: var(--r-md);
+		font-weight: 600;
+		font-size: 14.5px;
+	}
+	.cta--primary { background: var(--brand-gradient); color: white; }
+	.cta--primary:hover { box-shadow: var(--shadow-glow); }
+	.cta--ghost { border: 1px solid var(--border-default); color: var(--fg-primary); }
+	.cta--ghost:hover { background: var(--bg-hover); }
+</style>

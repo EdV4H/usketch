@@ -1,0 +1,192 @@
+---
+title: シェイププラグインを作る
+description: 描画・ヒットテスト・描画ツールを備えた完全なシェイププラグインを作る。
+order: 20
+---
+
+このガイドでは、実際の例として **矩形プラグイン**（`usketch-plugin-shape-rect`）を題材に進めます。読み終わる頃には、次の機能を持つシェイププラグインの作り方がわかります：
+
+- SVG キャンバスへのシェイプ描画
+- ヒットテストと選択のサポート
+- 8 個のハンドル全てからのリサイズ対応
+- ライブプレビュー付きの描画ツール
+- undo/redo システムとの統合
+
+## 全体像
+
+シェイププラグインは通常、次の 2 つを登録します：
+
+1. `ShapeRegistry` への **ShapeDefinition**
+2. `ToolRegistry` への **ToolDefinition**（描画ツール）
+
+どちらも 1 つの `setup()` 関数の中で登録します。
+
+## 手順
+
+### 1. シェイプの関数を定義する
+
+まず `ShapeDefinition` の必須メソッドを実装します：
+
+```tsx
+import type { BoundingBox, Point, ResizeHandle, ShapeData } from "@edv4h/usketch-shared";
+import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
+
+function render(data: ShapeData) {
+  return (
+    <rect
+      x={data.x}
+      y={data.y}
+      width={data.width}
+      height={data.height}
+      rx={(data.cornerRadius as number) ?? 0}
+      fill={data.style.fill}
+      stroke={data.style.stroke}
+      strokeWidth={data.style.strokeWidth}
+      opacity={data.style.opacity}
+    />
+  );
+}
+
+function getBounds(data: ShapeData): BoundingBox {
+  return { x: data.x, y: data.y, width: data.width, height: data.height };
+}
+
+function hitTest(data: ShapeData, point: Point): boolean {
+  return (
+    point.x >= data.x &&
+    point.x <= data.x + data.width &&
+    point.y >= data.y &&
+    point.y <= data.y + data.height
+  );
+}
+
+function createDefault(params: { id: string; x: number; y: number }): ShapeData {
+  return {
+    id: params.id,
+    type: "rectangle",
+    x: params.x,
+    y: params.y,
+    width: 100,
+    height: 80,
+    style: { ...DEFAULT_STYLE },
+    cornerRadius: 0,
+  };
+}
+```
+
+### 2. リサイズロジックを実装する
+
+8 個のリサイズハンドルを処理します：
+
+```tsx
+function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData {
+  let { x, y, width, height } = data;
+  switch (handle) {
+    case "se":
+      width += delta.x;
+      height += delta.y;
+      break;
+    case "nw":
+      x += delta.x;
+      y += delta.y;
+      width -= delta.x;
+      height -= delta.y;
+      break;
+    // ... 8 方向すべてを処理
+  }
+  return {
+    ...data,
+    x, y,
+    width: Math.max(1, width),
+    height: Math.max(1, height),
+  };
+}
+```
+
+サイズ 0 のシェイプが生じないよう、`width` と `height` は常に最小値でクランプしてください。
+
+### 3. 描画ツールを作る
+
+描画ツールは**3 段階パターン**を使います：
+
+```tsx
+import { createAddShapeCommand } from "@edv4h/usketch-store";
+import { generateId, type CanvasPointerEvent, type ToolContext } from "@edv4h/usketch-shared";
+
+// 実際のプラグインでは drawState は setup() のクロージャ内に置き、モジュールスコープに置かない。
+let drawState: { startX: number; startY: number; shapeId: string } | null = null;
+
+function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+  const id = generateId();
+  drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
+
+  // ライブプレビュー用の一時シェイプを作成
+  const shape = createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
+  shape.width = 0;
+  shape.height = 0;
+  shape.style = { ...toolCtx.store.getStyleSettings() };
+  toolCtx.store.addShape(shape);
+}
+
+function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+  if (!drawState) return;
+  const x = Math.min(drawState.startX, event.worldPoint.x);
+  const y = Math.min(drawState.startY, event.worldPoint.y);
+  const width = Math.abs(event.worldPoint.x - drawState.startX);
+  const height = Math.abs(event.worldPoint.y - drawState.startY);
+  toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
+}
+
+function onPointerUp(toolCtx: ToolContext) {
+  if (!drawState) return;
+  const shape = toolCtx.store.getShape(drawState.shapeId);
+  if (shape && shape.width > 2 && shape.height > 2) {
+    // 一時シェイプを undo 可能なコマンドで置き換える
+    toolCtx.store.deleteShape(drawState.shapeId);
+    toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+  } else {
+    // サイズが小さすぎるので破棄
+    toolCtx.store.deleteShape(drawState.shapeId);
+  }
+  drawState = null;
+  toolCtx.store.setActiveToolId("select");
+}
+```
+
+**重要パターン**：ライブプレビューにはストアを直接変更し、ポインタアップ時にそれを undo 可能なコマンドへ置き換える。
+
+### 4. setup() で全部を繋ぐ
+
+```tsx
+export const rectPlugin: UsketchPlugin = {
+  id: "usketch-plugin-shape-rect",
+  name: "Rectangle",
+
+  setup(ctx: PluginContext) {
+    ctx.shapes.register("rectangle", {
+      render,
+      getBounds,
+      hitTest,
+      resize,
+      createDefault,
+    });
+
+    ctx.tools.register("rectangle-draw", {
+      icon: RectIcon,
+      cursor: "crosshair",
+      shortcut: "r",
+      order: 10,
+      onPointerDown,
+      onPointerMove,
+      onPointerUp,
+    });
+  },
+};
+```
+
+## まとめ
+
+- シェイプとツールは**同じプラグイン**に置く — 1 つの概念として扱う。
+- ライブプレビューには**ストアを直接変更**、確定アクションには**コマンド**を使う。
+- ユーザーが少しだけドラッグしたケース（width/height が閾値未満）を必ず扱う。
+- 描画後は選択ツールに戻す — これが期待される UX。

@@ -1,0 +1,260 @@
+---
+import { getCollection } from "astro:content";
+import PluginGlyph from "../../components/plugins/PluginGlyph.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { href } from "../../lib/href";
+
+export async function getStaticPaths() {
+	const entries = await getCollection("plugins");
+	return entries.map((entry) => ({
+		params: { id: entry.data.id },
+		props: { plugin: entry.data },
+	}));
+}
+
+const { plugin } = Astro.props;
+
+const CATEGORY_LABELS: Record<string, string> = {
+	shape: "Shapes",
+	tool: "Tools",
+	bg: "Background",
+	ai: "AI",
+	presence: "Presence",
+	server: "Server",
+	effect: "Effects",
+	ui: "UI / Utility",
+};
+
+const all = await getCollection("plugins");
+const related = all
+	.filter((p) => p.data.category === plugin.category && p.data.id !== plugin.id)
+	.slice(0, 5)
+	.map((p) => p.data);
+
+const packageId = `@edv4h/usketch-plugin-${plugin.id}`;
+const installCommand = plugin.install ?? `pnpm add ${packageId}`;
+// Derive a safe JS identifier for code samples (e.g. "snap-guides" → "SnapGuides").
+const importIdentifier = `${plugin.id
+	.split(/[^a-zA-Z0-9]+/)
+	.filter(Boolean)
+	.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+	.join("")}Plugin`;
+---
+
+<BaseLayout title={plugin.name} description={plugin.summary} current="plugins">
+	<section class="plugin-hero">
+		<div class="plugin-hero__inner">
+			<a href={href("/plugins/")} class="plugin-hero__back">← All plugins</a>
+			<div class="plugin-hero__main">
+				<PluginGlyph category={plugin.category} glyph={plugin.glyph} size={80} />
+				<div>
+					<h1 class="plugin-hero__title">{plugin.name}</h1>
+					<div class="plugin-hero__meta">
+						<span class="plugin-hero__cat">{CATEGORY_LABELS[plugin.category] ?? plugin.category}</span>
+						<code class="plugin-hero__pkg">{packageId}</code>
+					</div>
+					<p class="plugin-hero__summary">{plugin.summary}</p>
+					<div class="plugin-hero__install">
+						<code>{installCommand}</code>
+						<button type="button" class="plugin-hero__copy" data-copy={installCommand} aria-label="Copy install command">Copy</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="plugin-body">
+		<div class="plugin-body__main">
+			<h2>Overview</h2>
+			<p>
+				{plugin.name} is part of the uSketch first-party plugin set. Install it alongside
+				your uSketch app and it self-registers on startup.
+			</p>
+
+			<h2>Usage</h2>
+			<pre><code>{`import { createApp } from "@edv4h/usketch-core";
+import { ${importIdentifier} } from "${packageId}";
+
+const app = createApp({
+  plugins: [
+    ${importIdentifier},
+  ],
+});`}</code></pre>
+
+			<h2>Links</h2>
+			<ul>
+				<li><a href={`https://www.npmjs.com/package/${packageId}`} target="_blank" rel="noopener noreferrer">npm</a></li>
+				<li><a href={`https://github.com/EdV4H/usketch/tree/main/plugins/usketch-plugin-${plugin.id}`} target="_blank" rel="noopener noreferrer">Source on GitHub</a></li>
+			</ul>
+		</div>
+
+		<aside class="plugin-body__side">
+			<div class="plugin-info">
+				<h3>Package</h3>
+				<dl>
+					<dt>Name</dt><dd><code>{packageId}</code></dd>
+					<dt>Category</dt><dd>{CATEGORY_LABELS[plugin.category] ?? plugin.category}</dd>
+					<dt>License</dt><dd>MIT</dd>
+				</dl>
+			</div>
+
+			{related.length > 0 && (
+				<div class="plugin-info">
+					<h3>Related plugins</h3>
+					<ul>
+						{related.map((r) => (
+							<li>
+								<a href={href(`/plugins/${r.id}/`)}>{r.name}</a>
+							</li>
+						))}
+					</ul>
+				</div>
+			)}
+		</aside>
+	</section>
+</BaseLayout>
+
+<style>
+	.plugin-hero {
+		background: var(--brand-gradient-soft);
+		border-bottom: 1px solid var(--border-subtle);
+	}
+	.plugin-hero__inner {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: var(--space-10) var(--space-6);
+	}
+	.plugin-hero__back {
+		display: inline-block;
+		color: var(--fg-secondary);
+		font-size: 13px;
+		margin-bottom: var(--space-5);
+	}
+	.plugin-hero__back:hover { color: var(--fg-primary); }
+	.plugin-hero__main {
+		display: flex;
+		gap: var(--space-6);
+		align-items: flex-start;
+	}
+	.plugin-hero__title {
+		font-size: 44px;
+		letter-spacing: -0.02em;
+		font-weight: 650;
+		margin: 0 0 var(--space-2);
+	}
+	.plugin-hero__meta {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		margin-bottom: var(--space-3);
+	}
+	.plugin-hero__cat {
+		padding: 4px 10px;
+		border-radius: var(--r-pill);
+		background: var(--bg-input);
+		font-size: 11.5px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--fg-secondary);
+	}
+	.plugin-hero__pkg {
+		font-family: var(--font-mono);
+		font-size: 12.5px;
+		color: var(--fg-secondary);
+	}
+	.plugin-hero__summary {
+		color: var(--fg-secondary);
+		font-size: 16px;
+		max-width: 620px;
+		margin-bottom: var(--space-4);
+	}
+	.plugin-hero__install {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: 6px 6px 6px var(--space-3);
+		border: 1px solid var(--border-subtle);
+		background: var(--bg-surface);
+		border-radius: var(--r-md);
+		font-family: var(--font-mono);
+		font-size: 13px;
+	}
+	.plugin-hero__copy {
+		height: 28px;
+		padding: 0 12px;
+		border-radius: var(--r-sm);
+		background: var(--brand-gradient);
+		color: white;
+		font-family: var(--font-sans);
+		font-weight: 500;
+		font-size: 12px;
+		cursor: pointer;
+	}
+	.plugin-body {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: var(--space-12) var(--space-6);
+		display: grid;
+		grid-template-columns: 2fr 1fr;
+		gap: var(--space-10);
+	}
+	.plugin-body__main h2 {
+		font-size: 22px;
+		margin: var(--space-8) 0 var(--space-3);
+	}
+	.plugin-body__main h2:first-child { margin-top: 0; }
+	.plugin-body__main p { color: var(--fg-primary); line-height: 1.7; }
+	.plugin-body__main pre {
+		background: var(--bg-code);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--r-md);
+		padding: var(--space-4);
+		overflow-x: auto;
+		font-size: 13px;
+	}
+	.plugin-body__main ul { padding-left: var(--space-5); }
+	.plugin-info {
+		background: var(--bg-surface);
+		backdrop-filter: blur(20px) saturate(1.4);
+		-webkit-backdrop-filter: blur(20px) saturate(1.4);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--r-lg);
+		padding: var(--space-5);
+		margin-bottom: var(--space-4);
+	}
+	.plugin-info h3 {
+		font-size: 12px;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--fg-tertiary);
+		margin: 0 0 var(--space-3);
+	}
+	.plugin-info dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px var(--space-3); font-size: 13px; }
+	.plugin-info dt { color: var(--fg-tertiary); }
+	.plugin-info dd { color: var(--fg-primary); margin: 0; }
+	.plugin-info ul { margin: 0; padding-left: var(--space-4); }
+	.plugin-info li { font-size: 13.5px; margin: 4px 0; }
+	.plugin-info a { color: var(--brand-violet); }
+
+	@media (max-width: 880px) {
+		.plugin-body { grid-template-columns: 1fr; }
+		.plugin-hero__main { flex-direction: column; }
+		.plugin-hero__title { font-size: 32px; }
+	}
+</style>
+
+<script>
+	document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
+		btn.addEventListener("click", async () => {
+			const text = btn.dataset.copy;
+			if (!text) return;
+			try {
+				await navigator.clipboard.writeText(text);
+				const original = btn.textContent;
+				btn.textContent = "✓ Copied";
+				setTimeout(() => { btn.textContent = original; }, 1600);
+			} catch {}
+		});
+	});
+</script>

@@ -1,0 +1,242 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { href } from "../../lib/href";
+
+const packages = [
+	{
+		name: "@edv4h/usketch-shared",
+		summary: "Core types, schemas, and framework-agnostic helpers shared across all packages.",
+		reference: "/docs/reference/shared/",
+		install: "pnpm add @edv4h/usketch-shared",
+		exports: [
+			{
+				name: "UsketchPlugin",
+				kind: "type",
+				signature: "interface",
+				description: "Plugin interface every plugin implements.",
+			},
+			{
+				name: "PluginContext",
+				kind: "type",
+				signature: "interface",
+				description: "Registries + services exposed in setup().",
+			},
+			{
+				name: "ShapeData",
+				kind: "type",
+				signature: "type",
+				description: "Canonical shape record.",
+			},
+			{
+				name: "withRotation",
+				kind: "function",
+				signature: "(fn) => fn",
+				description: "Hit-test helper that applies shape rotation.",
+			},
+			{
+				name: "DEFAULT_STYLE",
+				kind: "const",
+				signature: "ShapeStyle",
+				description: "Default style tokens for new shapes.",
+			},
+		],
+	},
+	{
+		name: "@edv4h/usketch-core",
+		summary: "createApp factory and AppInstance implementation. Wires plugins together.",
+		reference: "/docs/reference/core/",
+		install: "pnpm add @edv4h/usketch-core",
+		exports: [
+			{
+				name: "createApp",
+				kind: "function",
+				signature: "(opts) => AppInstance",
+				description: "Entry point — constructs an app from store + plugins.",
+			},
+			{
+				name: "AppInstance",
+				kind: "type",
+				signature: "interface",
+				description: "Runtime handle to the app (dispose, plugins, ctx).",
+			},
+			{
+				name: "PluginRegistry",
+				kind: "class",
+				signature: "class",
+				description: "Registry for plugin lifecycle management.",
+			},
+		],
+	},
+	{
+		name: "@edv4h/usketch-shape-utils",
+		summary: "Pure helpers for shape bounds, hit testing, resize, and GPU primitives.",
+		reference: "/docs/reference/shape-utils/",
+		install: "pnpm add @edv4h/usketch-shape-utils",
+		exports: [
+			{
+				name: "getBounds",
+				kind: "function",
+				signature: "(data) => BoundingBox",
+				description: "Axis-aligned bounding box.",
+			},
+			{
+				name: "aabbHitTest",
+				kind: "function",
+				signature: "(data, point) => boolean",
+				description: "AABB hit test.",
+			},
+			{
+				name: "createResize",
+				kind: "function",
+				signature: "(min) => Resizer",
+				description: "Factory returning an 8-handle resize function.",
+			},
+			{
+				name: "pointInPolygon",
+				kind: "function",
+				signature: "(p, poly) => boolean",
+				description: "Ray-casting point-in-polygon check.",
+			},
+		],
+	},
+	{
+		name: "@edv4h/usketch-store",
+		summary: "Zustand + Yjs backed document store. Selectors, transactions, undo/redo.",
+		reference: "https://www.npmjs.com/package/@edv4h/usketch-store",
+		install: "pnpm add @edv4h/usketch-store",
+		exports: [
+			{
+				name: "createStore",
+				kind: "function",
+				signature: "() => Store",
+				description: "Construct an in-memory store.",
+			},
+			{
+				name: "useShape",
+				kind: "hook",
+				signature: "(id) => ShapeData",
+				description: "React hook for subscribing to a shape.",
+			},
+		],
+	},
+] as const;
+---
+
+<BaseLayout title="API Reference" description="Public API of the core uSketch packages." current="api">
+	<div class="api">
+		<header>
+			<h1>
+				<span data-lang="en">API Reference</span>
+				<span data-lang="jp">API リファレンス</span>
+			</h1>
+			<p class="api__lead">
+				<span data-lang="en">Public surface of the core packages. For full type signatures, see the package in the docs.</span>
+				<span data-lang="jp">コアパッケージの公開 API。完全な型シグネチャはドキュメントの該当ページを参照してください。</span>
+			</p>
+		</header>
+
+		{packages.map((pkg) => (
+			<section class="pkg">
+				<header class="pkg__head">
+					<h2><code>{pkg.name}</code></h2>
+					<p>{pkg.summary}</p>
+					<div class="pkg__meta">
+						<code>{pkg.install}</code>
+						<a href={pkg.reference.startsWith("http") ? pkg.reference : href(pkg.reference)}>
+							<span data-lang="en">Docs →</span>
+							<span data-lang="jp">ドキュメント →</span>
+						</a>
+					</div>
+				</header>
+
+				<table class="pkg__exports">
+					<thead>
+						<tr>
+							<th><span data-lang="en">Name</span><span data-lang="jp">名前</span></th>
+							<th><span data-lang="en">Kind</span><span data-lang="jp">種別</span></th>
+							<th><span data-lang="en">Signature</span><span data-lang="jp">シグネチャ</span></th>
+							<th><span data-lang="en">Description</span><span data-lang="jp">説明</span></th>
+						</tr>
+					</thead>
+					<tbody>
+						{pkg.exports.map((ex) => (
+							<tr>
+								<td><code>{ex.name}</code></td>
+								<td>{ex.kind}</td>
+								<td><code>{ex.signature}</code></td>
+								<td>{ex.description}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</section>
+		))}
+	</div>
+</BaseLayout>
+
+<style>
+	.api {
+		max-width: 1040px;
+		margin: 0 auto;
+		padding: var(--space-12) var(--space-6) var(--space-16);
+	}
+	.api h1 {
+		font-size: 48px;
+		letter-spacing: -0.02em;
+	}
+	.api__lead {
+		color: var(--fg-secondary);
+		font-size: 17px;
+		max-width: 640px;
+		margin-top: var(--space-3);
+	}
+	.pkg {
+		margin-top: var(--space-12);
+	}
+	.pkg__head h2 code {
+		font-size: 22px;
+		font-family: var(--font-mono);
+	}
+	.pkg__head p {
+		color: var(--fg-secondary);
+		margin-top: var(--space-2);
+	}
+	.pkg__meta {
+		display: flex;
+		gap: var(--space-3);
+		align-items: center;
+		margin-top: var(--space-3);
+		font-size: 13px;
+	}
+	.pkg__meta a {
+		color: var(--brand-violet);
+		font-weight: 600;
+	}
+	.pkg__exports {
+		width: 100%;
+		border-collapse: collapse;
+		margin-top: var(--space-5);
+		font-size: 14px;
+	}
+	.pkg__exports th, .pkg__exports td {
+		padding: 10px 12px;
+		text-align: left;
+		border-bottom: 1px solid var(--border-subtle);
+		vertical-align: top;
+	}
+	.pkg__exports th {
+		background: var(--bg-canvas-2);
+		font-weight: 600;
+		color: var(--fg-primary);
+		font-size: 12px;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+	.pkg__exports code {
+		font-family: var(--font-mono);
+		font-size: 12.5px;
+	}
+	.pkg__exports td:nth-child(4) {
+		color: var(--fg-secondary);
+	}
+</style>

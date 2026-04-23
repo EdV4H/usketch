@@ -1,0 +1,142 @@
+---
+import { href } from "../../lib/href";
+
+const aiPlugins = [
+	{
+		id: "ai-copilot",
+		name: "AI Copilot",
+		jpName: "AI コパイロット",
+		desc: "Ghost shapes streamed in as you sketch.",
+		jpDesc: "スケッチ中にゴーストシェイプをストリーミング提案。",
+	},
+	{
+		id: "ai-voice",
+		name: "AI Voice",
+		jpName: "AI ボイス",
+		desc: "NL2Canvas — speak shapes into existence.",
+		jpDesc: "NL2Canvas — 話しかけてシェイプを生成。",
+	},
+	{
+		id: "ai-agent",
+		name: "AI Agent",
+		jpName: "AI エージェント",
+		desc: "Autonomous agent that plans and edits the board.",
+		jpDesc: "自律エージェントがボードの計画と編集を実行。",
+	},
+	{
+		id: "ai-recognize",
+		name: "AI Recognize",
+		jpName: "AI 認識",
+		desc: "Hand‑drawn → clean primitives.",
+		jpDesc: "手書き線を整形済みプリミティブに変換。",
+	},
+];
+---
+
+<section class="ai-band">
+	<div class="ai-band__inner">
+		<div class="ai-band__copy">
+			<span class="ai-band__tag">AI‑Native</span>
+			<h2>
+				<span data-lang="en">The canvas knows what you mean.</span>
+				<span data-lang="jp">キャンバスは、あなたの意図を理解する。</span>
+			</h2>
+			<p>
+				<span data-lang="en">
+					uSketch's AI plugin set treats the canvas as a first-class surface for LLMs:
+					grounded context, streaming deltas, and reversible commands — not a chatbot glued on the side.
+				</span>
+				<span data-lang="jp">
+					uSketch の AI プラグイン群は、キャンバスを LLM の一級の面として扱います。
+					文脈に根ざし、差分をストリームし、取り消し可能なコマンドで編集する — 横に貼り付けたチャットボットではありません。
+				</span>
+			</p>
+			<a class="ai-band__link" href={href("/plugins/?cat=ai")}>
+				<span data-lang="en">Explore AI plugins →</span>
+				<span data-lang="jp">AI プラグインを見る →</span>
+			</a>
+		</div>
+		<div class="ai-band__grid">
+			{aiPlugins.map((p) => (
+				<a class="ai-band__card" href={href(`/plugins/${p.id}/`)}>
+					<h4>
+						<span data-lang="en">{p.name}</span>
+						<span data-lang="jp">{p.jpName}</span>
+					</h4>
+					<p>
+						<span data-lang="en">{p.desc}</span>
+						<span data-lang="jp">{p.jpDesc}</span>
+					</p>
+				</a>
+			))}
+		</div>
+	</div>
+</section>
+
+<style>
+	.ai-band {
+		background: var(--bg-canvas-2);
+		border-top: 1px solid var(--border-subtle);
+		border-bottom: 1px solid var(--border-subtle);
+	}
+	.ai-band__inner {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: var(--space-16) var(--space-6);
+		display: grid;
+		grid-template-columns: 1fr 1.2fr;
+		gap: var(--space-10);
+		align-items: center;
+	}
+	.ai-band__tag {
+		display: inline-block;
+		padding: 4px 10px;
+		border-radius: var(--r-pill);
+		font-family: var(--font-mono);
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: var(--brand-cyan);
+		border: 1px solid currentColor;
+		margin-bottom: var(--space-3);
+	}
+	.ai-band__copy h2 {
+		font-size: 34px;
+		line-height: 1.2;
+		letter-spacing: -0.01em;
+		margin: 0 0 var(--space-4);
+	}
+	.ai-band__copy p {
+		color: var(--fg-secondary);
+		max-width: 480px;
+		font-size: 16px;
+		line-height: 1.65;
+	}
+	.ai-band__link {
+		display: inline-flex;
+		color: var(--brand-violet);
+		font-weight: 600;
+		margin-top: var(--space-3);
+	}
+	.ai-band__grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: var(--space-3);
+	}
+	.ai-band__card {
+		display: block;
+		padding: var(--space-4);
+		border-radius: var(--r-md);
+		border: 1px solid var(--border-subtle);
+		background: var(--bg-surface);
+		color: var(--fg-primary);
+		transition: border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+	}
+	.ai-band__card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+	.ai-band__card h4 { font-size: 14.5px; margin: 0 0 4px; font-weight: 600; }
+	.ai-band__card p { font-size: 12.5px; color: var(--fg-secondary); margin: 0; line-height: 1.5; }
+
+	@media (max-width: 880px) {
+		.ai-band__inner { grid-template-columns: 1fr; }
+	}
+</style>

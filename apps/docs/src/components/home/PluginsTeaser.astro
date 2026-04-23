@@ -1,0 +1,104 @@
+---
+import { href } from "../../lib/href";
+
+const categories = [
+	{ id: "shape", label: "Shapes", jpLabel: "シェイプ" },
+	{ id: "tool", label: "Tools", jpLabel: "ツール" },
+	{ id: "bg", label: "Background", jpLabel: "背景" },
+	{ id: "ai", label: "AI", jpLabel: "AI" },
+	{ id: "presence", label: "Presence", jpLabel: "プレゼンス" },
+	{ id: "server", label: "Server", jpLabel: "サーバー" },
+	{ id: "effect", label: "Effects", jpLabel: "エフェクト" },
+	{ id: "ui", label: "UI", jpLabel: "UI" },
+];
+---
+
+<section class="plugins-teaser">
+	<div class="plugins-teaser__inner">
+		<h2>
+			<span data-lang="en"><span>50+ plugins,</span> <span class="u-grad-text">one install.</span></span>
+			<span data-lang="jp">50+ のプラグインが <span class="u-grad-text">1 コマンドで</span>。</span>
+		</h2>
+		<p>
+			<span data-lang="en">
+				Shapes, AI, real-time presence, export, snap, voting, comments — all first-party, all typed,
+				all swappable. Hot-replace any subsystem.
+			</span>
+			<span data-lang="jp">
+				シェイプ・AI・リアルタイムプレゼンス・エクスポート・スナップ・投票・コメント — すべて公式、すべて型付き、
+				すべて差し替え可能。どのサブシステムもホット置換できます。
+			</span>
+		</p>
+		<div class="plugins-teaser__chips">
+			{categories.map((c) => (
+				<a class="plugins-teaser__chip" href={href(`/plugins/?cat=${c.id}`)}>
+					<span data-lang="en">{c.label}</span>
+					<span data-lang="jp">{c.jpLabel}</span>
+				</a>
+			))}
+		</div>
+		<a class="plugins-teaser__link" href={href("/plugins/")}>
+			<span data-lang="en">Explore all plugins →</span>
+			<span data-lang="jp">すべてのプラグインを見る →</span>
+		</a>
+	</div>
+</section>
+
+<style>
+	.plugins-teaser {
+		padding: var(--space-16) 0;
+	}
+	.plugins-teaser__inner {
+		max-width: 1000px;
+		margin: 0 auto;
+		padding: 0 var(--space-6);
+		text-align: center;
+	}
+	.plugins-teaser h2 {
+		font-size: 44px;
+		line-height: 1.15;
+		letter-spacing: -0.02em;
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 12px;
+		margin: 0 0 var(--space-3);
+	}
+	.plugins-teaser p {
+		color: var(--fg-secondary);
+		max-width: 620px;
+		margin: 0 auto var(--space-6);
+		font-size: 16px;
+	}
+	.plugins-teaser__chips {
+		display: inline-flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		justify-content: center;
+		margin-bottom: var(--space-6);
+	}
+	.plugins-teaser__chip {
+		height: 32px;
+		padding: 0 14px;
+		display: inline-flex;
+		align-items: center;
+		border-radius: var(--r-pill);
+		background: var(--bg-input);
+		border: 1px solid var(--border-subtle);
+		color: var(--fg-secondary);
+		font-size: 13px;
+		font-weight: 500;
+		transition: all var(--dur-fast) var(--ease-out);
+	}
+	.plugins-teaser__chip:hover {
+		color: white;
+		background: var(--brand-gradient);
+		border-color: transparent;
+	}
+	.plugins-teaser__link {
+		display: inline-flex;
+		color: var(--brand-violet);
+		font-weight: 600;
+		font-size: 15px;
+	}
+</style>

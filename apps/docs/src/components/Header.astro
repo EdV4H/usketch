@@ -1,0 +1,253 @@
+---
+import { href } from "../lib/href";
+
+interface Props {
+	current?: "home" | "docs" | "plugins" | "examples" | "api" | "changelog";
+	lang?: "en" | "ja";
+}
+
+const { current, lang = "en" } = Astro.props;
+type JpMode = "en" | "jp" | "both";
+const initialJpMode = (lang === "ja" ? "jp" : "en") as JpMode;
+
+const navItems = [
+	{ id: "docs", label: "Docs", jpLabel: "ドキュメント", path: "/docs/getting-started/introduction/" },
+	{ id: "plugins", label: "Plugins", jpLabel: "プラグイン", path: "/plugins/" },
+	{ id: "examples", label: "Examples", jpLabel: "サンプル", path: "/examples/" },
+	{ id: "api", label: "API", jpLabel: "API", path: "/api/" },
+	{ id: "changelog", label: "Changelog", jpLabel: "更新履歴", path: "/changelog/" },
+] as const;
+---
+
+<header class="site-header">
+	<div class="site-header__inner">
+		<a href={href("/")} class="site-header__brand" aria-label="uSketch home">
+			<span class="site-header__logo" aria-hidden="true"></span>
+			<span class="site-header__brand-text">uSketch</span>
+		</a>
+
+		<nav class="site-header__nav" aria-label="Primary">
+			{navItems.map((item) => (
+				<a
+					href={href(item.path)}
+					class:list={["site-header__nav-link", { "is-active": current === item.id }]}
+				>
+					<span data-lang="en">{item.label}</span>
+					<span data-lang="jp">{item.jpLabel}</span>
+				</a>
+			))}
+		</nav>
+
+		<div class="site-header__actions">
+			<div class="site-header__lang" role="group" aria-label="Language">
+				<button type="button" data-jp-mode-set="en" aria-pressed={initialJpMode === "en"}>EN</button>
+				<button type="button" data-jp-mode-set="both" aria-pressed={initialJpMode === "both"}>A/あ</button>
+				<button type="button" data-jp-mode-set="jp" aria-pressed={initialJpMode === "jp"}>JP</button>
+			</div>
+
+			<button type="button" class="site-header__search" data-open-palette aria-label="Open command palette">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<circle cx="11" cy="11" r="7" />
+					<path d="M21 21l-4.3-4.3" />
+				</svg>
+				<span class="site-header__search-label">
+					<span data-lang="en">Search</span>
+					<span data-lang="jp">検索</span>
+				</span>
+				<span class="u-kbd">⌘</span><span class="u-kbd">K</span>
+			</button>
+
+			<button type="button" class="site-header__icon-btn" data-toggle-theme aria-label="Toggle theme">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<circle cx="12" cy="12" r="4" />
+					<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+				</svg>
+			</button>
+
+			<a href="https://github.com/EdV4H/usketch" class="site-header__icon-btn" aria-label="GitHub repository">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+					<path d="M12 .5C5.7.5.6 5.6.6 11.9c0 5 3.3 9.3 7.8 10.8.6.1.8-.2.8-.5v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.4-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2.9-.3 1.9-.4 2.9-.4s2 .1 2.9.4c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.9 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5 4.5-1.5 7.8-5.8 7.8-10.8C23.4 5.6 18.3.5 12 .5z" />
+				</svg>
+			</a>
+		</div>
+	</div>
+</header>
+
+<style>
+	.site-header {
+		position: sticky;
+		top: 0;
+		z-index: 50;
+		height: 56px;
+		background: var(--bg-surface);
+		backdrop-filter: blur(20px) saturate(1.4);
+		-webkit-backdrop-filter: blur(20px) saturate(1.4);
+		border-bottom: 1px solid var(--border-subtle);
+	}
+	.site-header__inner {
+		max-width: 1400px;
+		height: 100%;
+		margin: 0 auto;
+		padding: 0 var(--space-6);
+		display: grid;
+		grid-template-columns: auto 1fr auto;
+		align-items: center;
+		gap: var(--space-8);
+	}
+	.site-header__brand {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-weight: 600;
+		font-size: 16px;
+		color: var(--fg-primary);
+	}
+	.site-header__logo {
+		width: 24px;
+		height: 24px;
+		border-radius: 7px;
+		background: var(--brand-gradient);
+		box-shadow: 0 0 24px rgba(139, 92, 246, 0.4);
+	}
+	.site-header__nav {
+		display: inline-flex;
+		justify-content: center;
+		gap: var(--space-6);
+	}
+	.site-header__nav-link {
+		position: relative;
+		font-size: 14px;
+		font-weight: 500;
+		color: var(--fg-secondary);
+		padding: 6px 2px;
+		transition: color var(--dur-fast) var(--ease-out);
+	}
+	.site-header__nav-link:hover { color: var(--fg-primary); }
+	.site-header__nav-link.is-active {
+		color: var(--fg-primary);
+	}
+	.site-header__nav-link.is-active::after {
+		content: "";
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: -2px;
+		height: 2px;
+		background: var(--brand-gradient);
+		border-radius: 2px;
+	}
+	.site-header__actions {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+	.site-header__search {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		height: 32px;
+		padding: 0 10px;
+		background: var(--bg-input);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--r-md);
+		color: var(--fg-secondary);
+		font-size: 13px;
+		cursor: pointer;
+		transition: background var(--dur-fast) var(--ease-out);
+	}
+	.site-header__search:hover { background: var(--bg-hover); color: var(--fg-primary); }
+	.site-header__search-label { padding-right: var(--space-2); }
+	.site-header__icon-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border-radius: var(--r-md);
+		color: var(--fg-secondary);
+		transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+	}
+	.site-header__icon-btn:hover {
+		background: var(--bg-hover);
+		color: var(--fg-primary);
+	}
+
+	.site-header__lang {
+		display: inline-flex;
+		background: var(--bg-input);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--r-md);
+		padding: 2px;
+		gap: 2px;
+	}
+	.site-header__lang button {
+		height: 24px;
+		min-width: 36px;
+		padding: 0 8px;
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		color: var(--fg-tertiary);
+		border-radius: 4px;
+		cursor: pointer;
+		transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+	}
+	.site-header__lang button:hover { color: var(--fg-primary); }
+	[data-jp-mode="en"] .site-header__lang [data-jp-mode-set="en"],
+	[data-jp-mode="both"] .site-header__lang [data-jp-mode-set="both"],
+	[data-jp-mode="jp"] .site-header__lang [data-jp-mode-set="jp"] {
+		background: var(--bg-surface-raised);
+		color: var(--fg-primary);
+		box-shadow: inset 0 0 0 1px var(--border-subtle);
+	}
+
+	@media (max-width: 900px) {
+		.site-header__nav { display: none; }
+		.site-header__inner { grid-template-columns: auto 1fr; }
+	}
+</style>
+
+<script>
+	(function () {
+		const btn = document.querySelector<HTMLButtonElement>("[data-toggle-theme]");
+		btn?.addEventListener("click", () => {
+			const html = document.documentElement;
+			const next = html.dataset.theme === "light" ? "dark" : "light";
+			html.dataset.theme = next;
+			try { localStorage.setItem("usketch-theme", next); } catch {}
+		});
+
+		const langButtons = document.querySelectorAll<HTMLButtonElement>("[data-jp-mode-set]");
+		const BASE = (document.querySelector("base") as HTMLBaseElement | null)?.href
+			? new URL((document.querySelector("base") as HTMLBaseElement).href).pathname
+			: (document.documentElement.dataset.basePath ?? "/");
+
+		function syncLangPressed() {
+			const active = document.documentElement.dataset.jpMode ?? "en";
+			for (const b of langButtons) {
+				b.setAttribute("aria-pressed", b.dataset.jpModeSet === active ? "true" : "false");
+			}
+		}
+		syncLangPressed();
+
+		for (const b of langButtons) {
+			b.addEventListener("click", () => {
+				const mode = b.dataset.jpModeSet;
+				if (mode !== "en" && mode !== "jp" && mode !== "both") return;
+				document.documentElement.dataset.jpMode = mode;
+				try { localStorage.setItem("usketch-jp-mode", mode); } catch {}
+				syncLangPressed();
+
+				// If we're on a docs page, also navigate to the locale counterpart.
+				const path = location.pathname;
+				const docsRoot = `${BASE.replace(/\/$/, "")}/docs/`;
+				const docsJaRoot = `${BASE.replace(/\/$/, "")}/docs/ja/`;
+				if (path.startsWith(docsJaRoot) && mode === "en") {
+					location.assign(path.replace(docsJaRoot, docsRoot));
+				} else if (path.startsWith(docsRoot) && !path.startsWith(docsJaRoot) && mode === "jp") {
+					location.assign(path.replace(docsRoot, docsJaRoot));
+				}
+			});
+		}
+	})();
+</script>

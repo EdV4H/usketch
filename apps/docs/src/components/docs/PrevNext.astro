@@ -1,0 +1,58 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { href } from "../../lib/href";
+
+type DocEntry = CollectionEntry<"docs"> | CollectionEntry<"docsJa">;
+
+interface Props {
+	prev?: DocEntry;
+	next?: DocEntry;
+	locale?: "en" | "ja";
+}
+
+const { prev, next, locale = "en" } = Astro.props;
+const prefix = locale === "ja" ? "/docs/ja/" : "/docs/";
+const prevLabel = locale === "ja" ? "← 前の章" : "← Previous";
+const nextLabel = locale === "ja" ? "次の章 →" : "Next →";
+---
+
+<nav class="prev-next" aria-label="Article navigation">
+	{prev ? (
+		<a class="prev-next__card" href={href(`${prefix}${prev.id}/`)} rel="prev">
+			<span class="prev-next__label">{prevLabel}</span>
+			<span class="prev-next__title">{prev.data.title}</span>
+		</a>
+	) : <span />}
+	{next ? (
+		<a class="prev-next__card" href={href(`${prefix}${next.id}/`)} rel="next">
+			<span class="prev-next__label prev-next__label--right">{nextLabel}</span>
+			<span class="prev-next__title prev-next__title--right">{next.data.title}</span>
+		</a>
+	) : <span />}
+</nav>
+
+<style>
+	.prev-next {
+		margin-top: var(--space-12);
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-4);
+	}
+	.prev-next__card {
+		display: grid;
+		gap: 4px;
+		padding: var(--space-4);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--r-md);
+		background: var(--bg-surface);
+		color: var(--fg-primary);
+		transition: border-color var(--dur-fast) var(--ease-out);
+	}
+	.prev-next__card:hover { border-color: var(--border-strong); }
+	.prev-next__label {
+		font-size: 12px;
+		color: var(--fg-tertiary);
+	}
+	.prev-next__label--right, .prev-next__title--right { text-align: right; }
+	.prev-next__title { font-size: 15px; font-weight: 600; }
+</style>
