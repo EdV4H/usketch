@@ -1,0 +1,130 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const entries = await getCollection("examples");
+const examples = entries.map((e) => e.data);
+
+const kinds: Record<string, string> = {
+	flowchart: "linear-gradient(135deg, #8b5cf6, #6366f1)",
+	retro: "linear-gradient(135deg, #f59e0b, #ec4899)",
+	wireframe: "linear-gradient(135deg, #64748b, #334155)",
+	slides: "linear-gradient(135deg, #06b6d4, #8b5cf6)",
+	ai: "linear-gradient(135deg, #ec4899, #8b5cf6)",
+	collab: "linear-gradient(135deg, #10b981, #06b6d4)",
+};
+---
+
+<BaseLayout title="Examples" description="Real-world uSketch examples." current="examples">
+	<div class="examples">
+		<header>
+			<h1>Examples</h1>
+			<p class="examples__lead">
+				Working demos built from the public plugin set. Fork them to kickstart your own app.
+			</p>
+		</header>
+
+		<div class="examples__grid">
+			{examples.map((ex) => (
+				<article class="example">
+					<div class="example__preview" style={`background: ${kinds[ex.kind] ?? kinds.slides};`} aria-hidden="true">
+						<span>{ex.kind}</span>
+					</div>
+					<div class="example__body">
+						<h3>{ex.title}</h3>
+						<p data-lang="jp" class="example__jp">{ex.jpTitle}</p>
+						<ul class="example__tags">
+							{ex.tags.map((tag) => <li>{tag}</li>)}
+						</ul>
+						{ex.href ? (
+							<a class="example__link" href={ex.href} target="_blank" rel="noopener">Open ↗</a>
+						) : (
+							<span class="example__link example__link--disabled">Coming soon</span>
+						)}
+					</div>
+				</article>
+			))}
+		</div>
+	</div>
+</BaseLayout>
+
+<style>
+	.examples {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: var(--space-12) var(--space-6) var(--space-16);
+	}
+	.examples header { margin-bottom: var(--space-8); }
+	.examples h1 {
+		font-size: 48px;
+		letter-spacing: -0.02em;
+		font-weight: 700;
+	}
+	.examples__lead {
+		color: var(--fg-secondary);
+		font-size: 17px;
+		max-width: 620px;
+		margin-top: var(--space-3);
+	}
+	.examples__grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+		gap: var(--space-5);
+	}
+	.example {
+		background: var(--bg-surface);
+		backdrop-filter: blur(20px) saturate(1.4);
+		-webkit-backdrop-filter: blur(20px) saturate(1.4);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--r-lg);
+		overflow: hidden;
+	}
+	.example__preview {
+		aspect-ratio: 16 / 10;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: rgba(255,255,255,0.65);
+		font-family: var(--font-mono);
+		font-size: 14px;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+	}
+	.example__body {
+		padding: var(--space-4);
+	}
+	.example__body h3 {
+		font-size: 16px;
+		font-weight: 600;
+		margin: 0;
+	}
+	.example__jp {
+		font-size: 13px;
+		color: var(--fg-secondary);
+		margin: 4px 0 var(--space-3);
+	}
+	.example__tags {
+		list-style: none;
+		padding: 0;
+		margin: 0 0 var(--space-3);
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+	}
+	.example__tags li {
+		font-family: var(--font-mono);
+		font-size: 10.5px;
+		padding: 3px 7px;
+		border-radius: 4px;
+		background: var(--bg-input);
+		color: var(--fg-secondary);
+		border: 1px solid var(--border-subtle);
+	}
+	.example__link {
+		display: inline-block;
+		color: var(--brand-violet);
+		font-weight: 600;
+		font-size: 13.5px;
+	}
+	.example__link--disabled { color: var(--fg-tertiary); }
+</style>

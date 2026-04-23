@@ -1,0 +1,44 @@
+[
+	{
+		"id": "flowchart",
+		"title": "Flowchart with Connectors",
+		"jpTitle": "フローチャート",
+		"kind": "flowchart",
+		"tags": ["shape-connector", "snap"]
+	},
+	{
+		"id": "retro",
+		"title": "Team Retrospective",
+		"jpTitle": "レトロスペクティブ",
+		"kind": "retro",
+		"tags": ["sticky", "voting", "reactions"]
+	},
+	{
+		"id": "wireframe",
+		"title": "Mobile App Wireframe",
+		"jpTitle": "ワイヤーフレーム",
+		"kind": "wireframe",
+		"tags": ["wireframe", "frame"]
+	},
+	{
+		"id": "slides",
+		"title": "Slide Presentation",
+		"jpTitle": "スライド",
+		"kind": "slides",
+		"tags": ["presentation", "frame", "laser"]
+	},
+	{
+		"id": "ai-sketch",
+		"title": "AI‑Assisted Sketching",
+		"jpTitle": "AI スケッチ",
+		"kind": "ai",
+		"tags": ["ai-copilot", "ai-recognize"]
+	},
+	{
+		"id": "collab",
+		"title": "Multiplayer Brainstorm",
+		"jpTitle": "コラボブレスト",
+		"kind": "collab",
+		"tags": ["presence-cursor", "reactions", "follow-me"]
+	}
+]
