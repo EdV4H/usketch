@@ -18,6 +18,9 @@
 			"recommended": true,
 			"a11y": {
 				"noSvgWithoutTitle": "off"
+			},
+			"complexity": {
+				"noImportantStyles": "off"
 			}
 		}
 	},
@@ -27,7 +30,7 @@
 		"lineWidth": 100
 	},
 	"files": {
-		"includes": ["apps/**", "packages/**", "plugins/**", "biome.json", "turbo.json"],
+		"includes": ["apps/**", "packages/**", "plugins/**", "biome.json", "turbo.json", "!**/*.astro"],
 		"experimentalScannerIgnores": ["**/dist/**", "**/node_modules/**"]
 	}
 }

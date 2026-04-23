@@ -70,11 +70,17 @@ svg {
 }
 
 /* jp-mode visibility */
-[data-jp-mode="en"] [data-lang="jp"] { display: none; }
-[data-jp-mode="jp"] [data-lang="en"] { display: none; }
+[data-jp-mode="en"] [data-lang="jp"] {
+	display: none;
+}
+[data-jp-mode="jp"] [data-lang="en"] {
+	display: none;
+}
 /* in "both" mode, stack en/jp vertically and dim the secondary language */
 [data-jp-mode="both"] [data-lang="en"],
-[data-jp-mode="both"] [data-lang="jp"] { display: block; }
+[data-jp-mode="both"] [data-lang="jp"] {
+	display: block;
+}
 [data-jp-mode="both"] [data-lang="jp"] {
 	color: var(--fg-tertiary);
 	font-size: 0.85em;

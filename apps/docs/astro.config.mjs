@@ -9,9 +9,6 @@ export default defineConfig({
 	base: "/usketch/",
 	integrations: [react(), mdx()],
 	markdown: {
-		rehypePlugins: [
-			rehypeSlug,
-			[rehypeAutolinkHeadings, { behavior: "wrap" }],
-		],
+		rehypePlugins: [rehypeSlug, [rehypeAutolinkHeadings, { behavior: "wrap" }]],
 	},
 });
