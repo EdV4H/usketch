@@ -37,9 +37,9 @@ const navItems = [
 
 		<div class="site-header__actions">
 			<div class="site-header__lang" role="group" aria-label="Language">
-				<button type="button" data-jp-mode-set="en">EN</button>
-				<button type="button" data-jp-mode-set="both">A/あ</button>
-				<button type="button" data-jp-mode-set="jp">JP</button>
+				<button type="button" data-jp-mode-set="en" aria-pressed="false">EN</button>
+				<button type="button" data-jp-mode-set="both" aria-pressed="false">A/あ</button>
+				<button type="button" data-jp-mode-set="jp" aria-pressed="false">JP</button>
 			</div>
 
 			<button type="button" class="site-header__search" data-open-palette aria-label="Open command palette">
@@ -218,12 +218,22 @@ const navItems = [
 		const BASE = (document.querySelector("base") as HTMLBaseElement | null)?.href
 			? new URL((document.querySelector("base") as HTMLBaseElement).href).pathname
 			: (document.documentElement.dataset.basePath ?? "/");
+
+		function syncLangPressed() {
+			const active = document.documentElement.dataset.jpMode ?? "en";
+			for (const b of langButtons) {
+				b.setAttribute("aria-pressed", b.dataset.jpModeSet === active ? "true" : "false");
+			}
+		}
+		syncLangPressed();
+
 		for (const b of langButtons) {
 			b.addEventListener("click", () => {
 				const mode = b.dataset.jpModeSet;
 				if (mode !== "en" && mode !== "jp" && mode !== "both") return;
 				document.documentElement.dataset.jpMode = mode;
 				try { localStorage.setItem("usketch-jp-mode", mode); } catch {}
+				syncLangPressed();
 
 				// If we're on a docs page, also navigate to the locale counterpart.
 				const path = location.pathname;

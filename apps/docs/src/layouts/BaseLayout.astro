@@ -17,9 +17,10 @@ interface Props {
 	title: string;
 	description?: string;
 	current?: "home" | "docs" | "plugins" | "examples" | "api" | "changelog";
+	lang?: "en" | "ja";
 }
 
-const { title, description, current } = Astro.props;
+const { title, description, current, lang = "en" } = Astro.props;
 const fullTitle = current === "home" ? title : `${title} — uSketch`;
 
 const [docs, plugins] = await Promise.all([getCollection("docs"), getCollection("plugins")]);
@@ -57,7 +58,7 @@ const paletteItems = [
 ---
 
 <!doctype html>
-<html lang="en" data-theme="dark" data-jp-mode="en" data-base-path={import.meta.env.BASE_URL}>
+<html lang={lang} data-theme="dark" data-jp-mode={lang === "ja" ? "jp" : "en"} data-base-path={import.meta.env.BASE_URL}>
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -68,14 +69,18 @@ const paletteItems = [
 		<link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
 
 		{/* FOUC guard: read saved theme / jp-mode before paint */}
-		<script is:inline>
+		<script is:inline define:vars={{ pageLang: lang }}>
 			(function () {
 				try {
 					const html = document.documentElement;
 					const theme = localStorage.getItem("usketch-theme");
 					if (theme === "light" || theme === "dark") html.dataset.theme = theme;
 					const jp = localStorage.getItem("usketch-jp-mode");
-					if (jp === "en" || jp === "jp" || jp === "both") html.dataset.jpMode = jp;
+					if (pageLang === "ja") {
+						html.dataset.jpMode = "jp";
+					} else if (jp === "en" || jp === "jp" || jp === "both") {
+						html.dataset.jpMode = jp;
+					}
 				} catch {}
 			})();
 		</script>
