@@ -41,12 +41,6 @@ importers:
       '@fontsource/ibm-plex-sans-jp':
         specifier: ^5.2
         version: 5.2.8
-      '@types/react':
-        specifier: ^19.1
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: ^19.1
-        version: 19.2.3(@types/react@19.2.14)
       astro:
         specifier: ^5.7
         version: 5.18.1(@types/node@25.6.0)(rollup@4.59.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
@@ -78,6 +72,12 @@ importers:
       '@astrojs/check':
         specifier: 0.9.8
         version: 0.9.8(prettier@3.8.3)(typescript@5.9.3)
+      '@types/react':
+        specifier: ^19.1
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.1
+        version: 19.2.3(@types/react@19.2.14)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
