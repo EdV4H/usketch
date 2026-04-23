@@ -6,25 +6,28 @@ import PrevNext from "../components/docs/PrevNext.astro";
 import TOC from "../components/docs/TOC.astro";
 import BaseLayout from "./BaseLayout.astro";
 
+type DocEntry = CollectionEntry<"docs"> | CollectionEntry<"docsJa">;
+
 interface Chapter {
 	label: string;
-	items: CollectionEntry<"docs">[];
+	items: DocEntry[];
 }
 
 interface Props {
-	entry: CollectionEntry<"docs">;
+	entry: DocEntry;
 	chapters: Chapter[];
 	headings: MarkdownHeading[];
-	prev?: CollectionEntry<"docs">;
-	next?: CollectionEntry<"docs">;
+	prev?: DocEntry;
+	next?: DocEntry;
+	locale?: "en" | "ja";
 }
 
-const { entry, chapters, headings, prev, next } = Astro.props;
+const { entry, chapters, headings, prev, next, locale = "en" } = Astro.props;
 ---
 
 <BaseLayout title={entry.data.title} description={entry.data.description} current="docs">
-	<div class="docs">
-		<Chapters chapters={chapters} currentId={entry.id} />
+	<div class="docs" data-doc-locale={locale}>
+		<Chapters chapters={chapters} currentId={entry.id} locale={locale} />
 
 		<article class="docs__article">
 			<header class="docs__header">
@@ -34,7 +37,7 @@ const { entry, chapters, headings, prev, next } = Astro.props;
 			<div class="docs__body">
 				<slot />
 			</div>
-			<PrevNext prev={prev} next={next} />
+			<PrevNext prev={prev} next={next} locale={locale} />
 		</article>
 
 		<TOC headings={headings} />

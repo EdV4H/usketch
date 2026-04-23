@@ -2,24 +2,30 @@
 import type { CollectionEntry } from "astro:content";
 import { href } from "../../lib/href";
 
+type DocEntry = CollectionEntry<"docs"> | CollectionEntry<"docsJa">;
+
 interface Props {
-	prev?: CollectionEntry<"docs">;
-	next?: CollectionEntry<"docs">;
+	prev?: DocEntry;
+	next?: DocEntry;
+	locale?: "en" | "ja";
 }
 
-const { prev, next } = Astro.props;
+const { prev, next, locale = "en" } = Astro.props;
+const prefix = locale === "ja" ? "/docs/ja/" : "/docs/";
+const prevLabel = locale === "ja" ? "← 前の章" : "← Previous";
+const nextLabel = locale === "ja" ? "次の章 →" : "Next →";
 ---
 
 <nav class="prev-next" aria-label="Article navigation">
 	{prev ? (
-		<a class="prev-next__card" href={href(`/docs/${prev.id}/`)} rel="prev">
-			<span class="prev-next__label">← Previous</span>
+		<a class="prev-next__card" href={href(`${prefix}${prev.id}/`)} rel="prev">
+			<span class="prev-next__label">{prevLabel}</span>
 			<span class="prev-next__title">{prev.data.title}</span>
 		</a>
 	) : <span />}
 	{next ? (
-		<a class="prev-next__card" href={href(`/docs/${next.id}/`)} rel="next">
-			<span class="prev-next__label prev-next__label--right">Next →</span>
+		<a class="prev-next__card" href={href(`${prefix}${next.id}/`)} rel="next">
+			<span class="prev-next__label prev-next__label--right">{nextLabel}</span>
 			<span class="prev-next__title prev-next__title--right">{next.data.title}</span>
 		</a>
 	) : <span />}

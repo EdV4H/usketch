@@ -1,15 +1,20 @@
 import { defineCollection, z } from "astro:content";
 import { file, glob } from "astro/loaders";
 
+const docsSchema = z.object({
+	title: z.string(),
+	description: z.string().optional(),
+	order: z.number().default(999),
+});
+
 const docs = defineCollection({
 	loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/docs" }),
-	schema: z.object({
-		title: z.string(),
-		description: z.string().optional(),
-		order: z.number().default(999),
-		jpTitle: z.string().optional(),
-		jpDescription: z.string().optional(),
-	}),
+	schema: docsSchema,
+});
+
+const docsJa = defineCollection({
+	loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/docs-ja" }),
+	schema: docsSchema,
 });
 
 const plugins = defineCollection({
@@ -60,4 +65,4 @@ const roadmap = defineCollection({
 	}),
 });
 
-export const collections = { docs, plugins, examples, releases, roadmap };
+export const collections = { docs, docsJa, plugins, examples, releases, roadmap };

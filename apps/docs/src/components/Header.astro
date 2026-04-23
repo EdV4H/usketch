@@ -215,12 +215,25 @@ const navItems = [
 		});
 
 		const langButtons = document.querySelectorAll<HTMLButtonElement>("[data-jp-mode-set]");
+		const BASE = (document.querySelector("base") as HTMLBaseElement | null)?.href
+			? new URL((document.querySelector("base") as HTMLBaseElement).href).pathname
+			: (document.documentElement.dataset.basePath ?? "/");
 		for (const b of langButtons) {
 			b.addEventListener("click", () => {
 				const mode = b.dataset.jpModeSet;
 				if (mode !== "en" && mode !== "jp" && mode !== "both") return;
 				document.documentElement.dataset.jpMode = mode;
 				try { localStorage.setItem("usketch-jp-mode", mode); } catch {}
+
+				// If we're on a docs page, also navigate to the locale counterpart.
+				const path = location.pathname;
+				const docsRoot = `${BASE.replace(/\/$/, "")}/docs/`;
+				const docsJaRoot = `${BASE.replace(/\/$/, "")}/docs/ja/`;
+				if (path.startsWith(docsJaRoot) && mode === "en") {
+					location.assign(path.replace(docsJaRoot, docsRoot));
+				} else if (path.startsWith(docsRoot) && !path.startsWith(docsJaRoot) && mode === "jp") {
+					location.assign(path.replace(docsRoot, docsJaRoot));
+				}
 			});
 		}
 	})();

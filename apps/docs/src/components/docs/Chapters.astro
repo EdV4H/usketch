@@ -2,17 +2,21 @@
 import type { CollectionEntry } from "astro:content";
 import { href } from "../../lib/href";
 
+type DocEntry = CollectionEntry<"docs"> | CollectionEntry<"docsJa">;
+
 interface Chapter {
 	label: string;
-	items: CollectionEntry<"docs">[];
+	items: DocEntry[];
 }
 
 interface Props {
 	chapters: Chapter[];
 	currentId: string;
+	locale?: "en" | "ja";
 }
 
-const { chapters, currentId } = Astro.props;
+const { chapters, currentId, locale = "en" } = Astro.props;
+const prefix = locale === "ja" ? "/docs/ja/" : "/docs/";
 ---
 
 <aside class="chapters" aria-label="Documentation chapters">
@@ -23,7 +27,7 @@ const { chapters, currentId } = Astro.props;
 				{chapter.items.map((item) => (
 					<li>
 						<a
-							href={href(`/docs/${item.id}/`)}
+							href={href(`${prefix}${item.id}/`)}
 							class:list={["chapters__link", { "is-active": item.id === currentId }]}
 						>
 							{item.data.title}
