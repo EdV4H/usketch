@@ -11,7 +11,6 @@ import { getCollection } from "astro:content";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import CommandPalette from "../components/palette/CommandPalette";
-import TweaksPanel from "../components/tweaks/TweaksPanel";
 import { href } from "../lib/href";
 
 interface Props {
@@ -54,17 +53,11 @@ const paletteItems = [
 		action: "toggle-theme",
 		hint: "dark ↔ light",
 	},
-	{
-		id: "action-open-tweaks",
-		title: "Open tweaks panel",
-		group: "Actions" as const,
-		action: "open-tweaks",
-	},
 ];
 ---
 
 <!doctype html>
-<html lang="en" data-theme="dark" data-density="comfortable" data-accent="violet-pink" data-jp-mode="en">
+<html lang="en" data-theme="dark">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -74,19 +67,12 @@ const paletteItems = [
 		{description && <meta property="og:description" content={description} />}
 		<link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
 
-		{/* FOUC guard: read saved tweaks before paint */}
+		{/* FOUC guard: read saved theme before paint */}
 		<script is:inline>
 			(function () {
 				try {
-					const html = document.documentElement;
 					const theme = localStorage.getItem("usketch-theme");
-					if (theme === "light" || theme === "dark") html.dataset.theme = theme;
-					const density = localStorage.getItem("usketch-density");
-					if (density) html.dataset.density = density;
-					const accent = localStorage.getItem("usketch-accent");
-					if (accent) html.dataset.accent = accent;
-					const jp = localStorage.getItem("usketch-jp-mode");
-					if (jp) html.dataset.jpMode = jp;
+					if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
 				} catch {}
 			})();
 		</script>
@@ -98,7 +84,6 @@ const paletteItems = [
 		</main>
 		<Footer />
 		<CommandPalette client:idle items={paletteItems} />
-		<TweaksPanel client:idle />
 	</body>
 </html>
 

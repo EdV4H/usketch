@@ -51,19 +51,13 @@ export default function CommandPalette({ items }: Props) {
 	}, [items]);
 
 	function runAction(action: string) {
-		switch (action) {
-			case "toggle-theme": {
-				const html = document.documentElement;
-				const next = html.dataset.theme === "light" ? "dark" : "light";
-				html.dataset.theme = next;
-				try {
-					localStorage.setItem("usketch-theme", next);
-				} catch {}
-				break;
-			}
-			case "open-tweaks":
-				window.dispatchEvent(new CustomEvent("usketch:open-tweaks"));
-				break;
+		if (action === "toggle-theme") {
+			const html = document.documentElement;
+			const next = html.dataset.theme === "light" ? "dark" : "light";
+			html.dataset.theme = next;
+			try {
+				localStorage.setItem("usketch-theme", next);
+			} catch {}
 		}
 	}
 

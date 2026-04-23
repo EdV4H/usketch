@@ -69,14 +69,6 @@ svg {
 	display: none !important;
 }
 
-/* jp-mode visibility */
-[data-jp-mode="en"] [data-lang="jp"] {
-	display: none;
-}
-[data-jp-mode="jp"] [data-lang="en"] {
-	display: none;
-}
-
 /* reduced motion */
 @media (prefers-reduced-motion: reduce) {
 	*,
