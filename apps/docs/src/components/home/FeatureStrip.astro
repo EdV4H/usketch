@@ -1,0 +1,85 @@
+---
+const features = [
+	{
+		title: "Plugin-first",
+		desc: "Everything — shapes, tools, backgrounds, AI, presence — is a plugin with a typed SDK.",
+		accent: "violet",
+	},
+	{
+		title: "Type-safe API",
+		desc: "Schemas with Zod, strict TS everywhere, no any. The same API used internally.",
+		accent: "cyan",
+	},
+	{
+		title: "Real-time collab",
+		desc: "Yjs + Cloudflare Durable Objects. Ship multiplayer on day one.",
+		accent: "pink",
+	},
+	{
+		title: "AI-native",
+		desc: "Copilot, Voice (NL2Canvas), Agent, Recognize — first-class canvas primitives for LLMs.",
+		accent: "violet",
+	},
+];
+---
+
+<section class="feature-strip">
+	<div class="feature-strip__inner">
+		{features.map((f) => (
+			<article class="feature" data-accent={f.accent}>
+				<span class="feature__icon" aria-hidden="true"></span>
+				<h3>{f.title}</h3>
+				<p>{f.desc}</p>
+			</article>
+		))}
+	</div>
+</section>
+
+<style>
+	.feature-strip {
+		padding: var(--space-12) 0;
+	}
+	.feature-strip__inner {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 0 var(--space-6);
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: var(--space-4);
+	}
+	.feature {
+		padding: var(--space-5);
+		background: var(--bg-surface);
+		backdrop-filter: blur(20px) saturate(1.4);
+		-webkit-backdrop-filter: blur(20px) saturate(1.4);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--r-lg);
+	}
+	.feature__icon {
+		display: inline-flex;
+		width: 28px;
+		height: 28px;
+		border-radius: 999px;
+		margin-bottom: var(--space-3);
+	}
+	[data-accent="violet"] .feature__icon { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+	[data-accent="cyan"] .feature__icon { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+	[data-accent="pink"] .feature__icon { background: linear-gradient(135deg, #ec4899, #be185d); }
+	.feature h3 {
+		font-size: 15px;
+		font-weight: 600;
+		margin: 0 0 var(--space-2);
+	}
+	.feature p {
+		font-size: 13px;
+		line-height: 1.55;
+		color: var(--fg-secondary);
+		margin: 0;
+	}
+	@media (max-width: 880px) {
+		.feature-strip__inner { grid-template-columns: repeat(2, 1fr); }
+	}
+	@media (max-width: 540px) {
+		.feature-strip__inner { grid-template-columns: 1fr; }
+	}
+</style>
