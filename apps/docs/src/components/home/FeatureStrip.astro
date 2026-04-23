@@ -2,22 +2,30 @@
 const features = [
 	{
 		title: "Plugin-first",
+		jpTitle: "プラグイン・ファースト",
 		desc: "Everything — shapes, tools, backgrounds, AI, presence — is a plugin with a typed SDK.",
+		jpDesc: "シェイプ・ツール・背景・AI・プレゼンス、そのすべてが型付き SDK を備えたプラグイン。",
 		accent: "violet",
 	},
 	{
 		title: "Type-safe API",
+		jpTitle: "型安全な API",
 		desc: "Schemas with Zod, strict TS everywhere, no any. The same API used internally.",
+		jpDesc: "スキーマは Zod、全面 strict TS、any 禁止。内部と同じ API を公開。",
 		accent: "cyan",
 	},
 	{
 		title: "Real-time collab",
+		jpTitle: "リアルタイム協調",
 		desc: "Yjs + Cloudflare Durable Objects. Ship multiplayer on day one.",
+		jpDesc: "Yjs + Cloudflare Durable Objects。マルチプレイヤー対応を初日から。",
 		accent: "pink",
 	},
 	{
 		title: "AI-native",
+		jpTitle: "AI ネイティブ",
 		desc: "Copilot, Voice (NL2Canvas), Agent, Recognize — first-class canvas primitives for LLMs.",
+		jpDesc: "Copilot / Voice (NL2Canvas) / Agent / Recognize — LLM 向けのキャンバスプリミティブ。",
 		accent: "violet",
 	},
 ];
@@ -28,8 +36,14 @@ const features = [
 		{features.map((f) => (
 			<article class="feature" data-accent={f.accent}>
 				<span class="feature__icon" aria-hidden="true"></span>
-				<h3>{f.title}</h3>
-				<p>{f.desc}</p>
+				<h3>
+					<span data-lang="en">{f.title}</span>
+					<span data-lang="jp">{f.jpTitle}</span>
+				</h3>
+				<p>
+					<span data-lang="en">{f.desc}</span>
+					<span data-lang="jp">{f.jpDesc}</span>
+				</p>
 			</article>
 		))}
 	</div>

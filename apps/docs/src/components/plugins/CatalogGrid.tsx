@@ -7,11 +7,14 @@ export interface Plugin {
 	category: string;
 	glyph?: string;
 	summary: string;
+	jpName?: string;
+	jpSummary?: string;
 }
 
 interface Category {
 	id: string;
 	label: string;
+	jpLabel?: string;
 }
 
 interface Props {
@@ -101,18 +104,23 @@ export default function CatalogGrid({ plugins, categories, basePath }: Props) {
 						onClick={() => toggleCategory(cat.id)}
 						aria-pressed={active.has(cat.id)}
 					>
-						{cat.label}
+						<span data-lang="en">{cat.label}</span>
+						<span data-lang="jp">{cat.jpLabel ?? cat.label}</span>
 					</button>
 				))}
 				{active.size > 0 && (
 					<button type="button" className="chip chip--clear" onClick={() => setActive(new Set())}>
-						Clear
+						<span data-lang="en">Clear</span>
+						<span data-lang="jp">解除</span>
 					</button>
 				)}
 			</div>
 
 			<p className="catalog__count">
-				{visible.length} {visible.length === 1 ? "plugin" : "plugins"}
+				<span data-lang="en">
+					{visible.length} {visible.length === 1 ? "plugin" : "plugins"}
+				</span>
+				<span data-lang="jp">プラグイン {visible.length} 件</span>
 			</p>
 
 			<div className="catalog__grid">
@@ -128,8 +136,14 @@ export default function CatalogGrid({ plugins, categories, basePath }: Props) {
 							</span>
 							<span className="plugin-card__cat">{p.category}</span>
 						</div>
-						<h3 className="plugin-card__title">{p.name}</h3>
-						<p className="plugin-card__desc">{p.summary}</p>
+						<h3 className="plugin-card__title">
+							<span data-lang="en">{p.name}</span>
+							<span data-lang="jp">{p.jpName ?? p.name}</span>
+						</h3>
+						<p className="plugin-card__desc">
+							<span data-lang="en">{p.summary}</span>
+							<span data-lang="jp">{p.jpSummary ?? p.summary}</span>
+						</p>
 						<span className="plugin-card__arrow" aria-hidden="true">
 							→
 						</span>
@@ -137,7 +151,12 @@ export default function CatalogGrid({ plugins, categories, basePath }: Props) {
 				))}
 			</div>
 
-			{visible.length === 0 && <p className="catalog__empty">No plugins match your filters.</p>}
+			{visible.length === 0 && (
+				<p className="catalog__empty">
+					<span data-lang="en">No plugins match your filters.</span>
+					<span data-lang="jp">条件に合うプラグインが見つかりません。</span>
+				</p>
+			)}
 
 			<style>{`
 				.catalog { display: grid; gap: var(--space-5); }

@@ -8,11 +8,11 @@ interface Props {
 const { current } = Astro.props;
 
 const navItems = [
-	{ id: "docs", label: "Docs", path: "/docs/getting-started/introduction/" },
-	{ id: "plugins", label: "Plugins", path: "/plugins/" },
-	{ id: "examples", label: "Examples", path: "/examples/" },
-	{ id: "api", label: "API", path: "/api/" },
-	{ id: "changelog", label: "Changelog", path: "/changelog/" },
+	{ id: "docs", label: "Docs", jpLabel: "ドキュメント", path: "/docs/getting-started/introduction/" },
+	{ id: "plugins", label: "Plugins", jpLabel: "プラグイン", path: "/plugins/" },
+	{ id: "examples", label: "Examples", jpLabel: "サンプル", path: "/examples/" },
+	{ id: "api", label: "API", jpLabel: "API", path: "/api/" },
+	{ id: "changelog", label: "Changelog", jpLabel: "更新履歴", path: "/changelog/" },
 ] as const;
 ---
 
@@ -29,18 +29,28 @@ const navItems = [
 					href={href(item.path)}
 					class:list={["site-header__nav-link", { "is-active": current === item.id }]}
 				>
-					{item.label}
+					<span data-lang="en">{item.label}</span>
+					<span data-lang="jp">{item.jpLabel}</span>
 				</a>
 			))}
 		</nav>
 
 		<div class="site-header__actions">
+			<div class="site-header__lang" role="group" aria-label="Language">
+				<button type="button" data-jp-mode-set="en">EN</button>
+				<button type="button" data-jp-mode-set="both">A/あ</button>
+				<button type="button" data-jp-mode-set="jp">JP</button>
+			</div>
+
 			<button type="button" class="site-header__search" data-open-palette aria-label="Open command palette">
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 					<circle cx="11" cy="11" r="7" />
 					<path d="M21 21l-4.3-4.3" />
 				</svg>
-				<span class="site-header__search-label">Search</span>
+				<span class="site-header__search-label">
+					<span data-lang="en">Search</span>
+					<span data-lang="jp">検索</span>
+				</span>
 				<span class="u-kbd">⌘</span><span class="u-kbd">K</span>
 			</button>
 
@@ -159,6 +169,35 @@ const navItems = [
 		color: var(--fg-primary);
 	}
 
+	.site-header__lang {
+		display: inline-flex;
+		background: var(--bg-input);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--r-md);
+		padding: 2px;
+		gap: 2px;
+	}
+	.site-header__lang button {
+		height: 24px;
+		min-width: 36px;
+		padding: 0 8px;
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		color: var(--fg-tertiary);
+		border-radius: 4px;
+		cursor: pointer;
+		transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+	}
+	.site-header__lang button:hover { color: var(--fg-primary); }
+	[data-jp-mode="en"] .site-header__lang [data-jp-mode-set="en"],
+	[data-jp-mode="both"] .site-header__lang [data-jp-mode-set="both"],
+	[data-jp-mode="jp"] .site-header__lang [data-jp-mode-set="jp"] {
+		background: var(--bg-surface-raised);
+		color: var(--fg-primary);
+		box-shadow: inset 0 0 0 1px var(--border-subtle);
+	}
+
 	@media (max-width: 900px) {
 		.site-header__nav { display: none; }
 		.site-header__inner { grid-template-columns: auto 1fr; }
@@ -174,5 +213,15 @@ const navItems = [
 			html.dataset.theme = next;
 			try { localStorage.setItem("usketch-theme", next); } catch {}
 		});
+
+		const langButtons = document.querySelectorAll<HTMLButtonElement>("[data-jp-mode-set]");
+		for (const b of langButtons) {
+			b.addEventListener("click", () => {
+				const mode = b.dataset.jpModeSet;
+				if (mode !== "en" && mode !== "jp" && mode !== "both") return;
+				document.documentElement.dataset.jpMode = mode;
+				try { localStorage.setItem("usketch-jp-mode", mode); } catch {}
+			});
+		}
 	})();
 </script>

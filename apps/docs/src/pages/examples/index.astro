@@ -18,9 +18,17 @@ const kinds: Record<string, string> = {
 <BaseLayout title="Examples" description="Real-world uSketch examples." current="examples">
 	<div class="examples">
 		<header>
-			<h1>Examples</h1>
+			<h1>
+				<span data-lang="en">Examples</span>
+				<span data-lang="jp">サンプル</span>
+			</h1>
 			<p class="examples__lead">
-				Working demos built from the public plugin set. Fork them to kickstart your own app.
+				<span data-lang="en">
+					Working demos built from the public plugin set. Fork them to kickstart your own app.
+				</span>
+				<span data-lang="jp">
+					公式プラグインで構築された動作デモ。フォークして、あなたのアプリの出発点にどうぞ。
+				</span>
 			</p>
 		</header>
 
@@ -31,15 +39,23 @@ const kinds: Record<string, string> = {
 						<span>{ex.kind}</span>
 					</div>
 					<div class="example__body">
-						<h3>{ex.title}</h3>
-						<p data-lang="jp" class="example__jp">{ex.jpTitle}</p>
+						<h3>
+							<span data-lang="en">{ex.title}</span>
+							<span data-lang="jp">{ex.jpTitle ?? ex.title}</span>
+						</h3>
 						<ul class="example__tags">
 							{ex.tags.map((tag) => <li>{tag}</li>)}
 						</ul>
 						{ex.href ? (
-							<a class="example__link" href={ex.href} target="_blank" rel="noopener">Open ↗</a>
+							<a class="example__link" href={ex.href} target="_blank" rel="noopener">
+								<span data-lang="en">Open ↗</span>
+								<span data-lang="jp">開く ↗</span>
+							</a>
 						) : (
-							<span class="example__link example__link--disabled">Coming soon</span>
+							<span class="example__link example__link--disabled">
+								<span data-lang="en">Coming soon</span>
+								<span data-lang="jp">近日公開</span>
+							</span>
 						)}
 					</div>
 				</article>

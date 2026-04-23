@@ -2,10 +2,34 @@
 import { href } from "../../lib/href";
 
 const aiPlugins = [
-	{ id: "ai-copilot", name: "AI Copilot", desc: "Ghost shapes streamed in as you sketch." },
-	{ id: "ai-voice", name: "AI Voice", desc: "NL2Canvas — speak shapes into existence." },
-	{ id: "ai-agent", name: "AI Agent", desc: "Autonomous agent that plans and edits the board." },
-	{ id: "ai-recognize", name: "AI Recognize", desc: "Hand‑drawn → clean primitives." },
+	{
+		id: "ai-copilot",
+		name: "AI Copilot",
+		jpName: "AI コパイロット",
+		desc: "Ghost shapes streamed in as you sketch.",
+		jpDesc: "スケッチ中にゴーストシェイプをストリーミング提案。",
+	},
+	{
+		id: "ai-voice",
+		name: "AI Voice",
+		jpName: "AI ボイス",
+		desc: "NL2Canvas — speak shapes into existence.",
+		jpDesc: "NL2Canvas — 話しかけてシェイプを生成。",
+	},
+	{
+		id: "ai-agent",
+		name: "AI Agent",
+		jpName: "AI エージェント",
+		desc: "Autonomous agent that plans and edits the board.",
+		jpDesc: "自律エージェントがボードの計画と編集を実行。",
+	},
+	{
+		id: "ai-recognize",
+		name: "AI Recognize",
+		jpName: "AI 認識",
+		desc: "Hand‑drawn → clean primitives.",
+		jpDesc: "手書き線を整形済みプリミティブに変換。",
+	},
 ];
 ---
 
@@ -13,20 +37,36 @@ const aiPlugins = [
 	<div class="ai-band__inner">
 		<div class="ai-band__copy">
 			<span class="ai-band__tag">AI‑Native</span>
-			<h2>The canvas knows what you mean.</h2>
+			<h2>
+				<span data-lang="en">The canvas knows what you mean.</span>
+				<span data-lang="jp">キャンバスは、あなたの意図を理解する。</span>
+			</h2>
 			<p>
-				uSketch's AI plugin set treats the canvas as a first-class surface for LLMs:
-				grounded context, streaming deltas, and reversible commands — not a chatbot glued on the side.
+				<span data-lang="en">
+					uSketch's AI plugin set treats the canvas as a first-class surface for LLMs:
+					grounded context, streaming deltas, and reversible commands — not a chatbot glued on the side.
+				</span>
+				<span data-lang="jp">
+					uSketch の AI プラグイン群は、キャンバスを LLM の一級の面として扱います。
+					文脈に根ざし、差分をストリームし、取り消し可能なコマンドで編集する — 横に貼り付けたチャットボットではありません。
+				</span>
 			</p>
 			<a class="ai-band__link" href={href("/plugins/?cat=ai")}>
-				Explore AI plugins →
+				<span data-lang="en">Explore AI plugins →</span>
+				<span data-lang="jp">AI プラグインを見る →</span>
 			</a>
 		</div>
 		<div class="ai-band__grid">
 			{aiPlugins.map((p) => (
 				<a class="ai-band__card" href={href(`/plugins/${p.id}/`)}>
-					<h4>{p.name}</h4>
-					<p>{p.desc}</p>
+					<h4>
+						<span data-lang="en">{p.name}</span>
+						<span data-lang="jp">{p.jpName}</span>
+					</h4>
+					<p>
+						<span data-lang="en">{p.desc}</span>
+						<span data-lang="jp">{p.jpDesc}</span>
+					</p>
 				</a>
 			))}
 		</div>

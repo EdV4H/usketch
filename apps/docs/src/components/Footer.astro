@@ -4,28 +4,31 @@ import { href } from "../lib/href";
 const groups = [
 	{
 		title: "Product",
+		jpTitle: "プロダクト",
 		links: [
-			{ label: "Home", path: "/" },
-			{ label: "Plugins", path: "/plugins/" },
-			{ label: "Examples", path: "/examples/" },
-			{ label: "Changelog", path: "/changelog/" },
+			{ label: "Home", jpLabel: "ホーム", path: "/" },
+			{ label: "Plugins", jpLabel: "プラグイン", path: "/plugins/" },
+			{ label: "Examples", jpLabel: "サンプル", path: "/examples/" },
+			{ label: "Changelog", jpLabel: "更新履歴", path: "/changelog/" },
 		],
 	},
 	{
 		title: "Docs",
+		jpTitle: "ドキュメント",
 		links: [
-			{ label: "Getting Started", path: "/docs/getting-started/introduction/" },
-			{ label: "Core Concepts", path: "/docs/concepts/plugin-architecture/" },
-			{ label: "Guides", path: "/docs/guides/shape-plugin/" },
-			{ label: "API Reference", path: "/api/" },
+			{ label: "Getting Started", jpLabel: "はじめる", path: "/docs/getting-started/introduction/" },
+			{ label: "Core Concepts", jpLabel: "コアコンセプト", path: "/docs/concepts/plugin-architecture/" },
+			{ label: "Guides", jpLabel: "ガイド", path: "/docs/guides/shape-plugin/" },
+			{ label: "API Reference", jpLabel: "API リファレンス", path: "/api/" },
 		],
 	},
 	{
 		title: "Community",
+		jpTitle: "コミュニティ",
 		links: [
-			{ label: "GitHub", path: "https://github.com/EdV4H/usketch" },
-			{ label: "Issues", path: "https://github.com/EdV4H/usketch/issues" },
-			{ label: "Discussions", path: "https://github.com/EdV4H/usketch/discussions" },
+			{ label: "GitHub", jpLabel: "GitHub", path: "https://github.com/EdV4H/usketch" },
+			{ label: "Issues", jpLabel: "Issue", path: "https://github.com/EdV4H/usketch/issues" },
+			{ label: "Discussions", jpLabel: "ディスカッション", path: "https://github.com/EdV4H/usketch/discussions" },
 		],
 	},
 ] as const;
@@ -43,11 +46,17 @@ const groups = [
 		<div class="site-footer__grid">
 			{groups.map((group) => (
 				<div class="site-footer__column">
-					<h4 class="site-footer__column-title">{group.title}</h4>
+					<h4 class="site-footer__column-title">
+						<span data-lang="en">{group.title}</span>
+						<span data-lang="jp">{group.jpTitle}</span>
+					</h4>
 					<ul>
 						{group.links.map((link) => (
 							<li>
-								<a href={link.path.startsWith("http") ? link.path : href(link.path)}>{link.label}</a>
+								<a href={link.path.startsWith("http") ? link.path : href(link.path)}>
+									<span data-lang="en">{link.label}</span>
+									<span data-lang="jp">{link.jpLabel}</span>
+								</a>
 							</li>
 						))}
 					</ul>

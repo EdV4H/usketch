@@ -7,14 +7,14 @@ const entries = await getCollection("plugins");
 const plugins = entries.map((e) => e.data);
 
 const CATEGORIES = [
-	{ id: "shape", label: "Shapes" },
-	{ id: "tool", label: "Tools" },
-	{ id: "bg", label: "Background" },
-	{ id: "ai", label: "AI" },
-	{ id: "presence", label: "Presence" },
-	{ id: "server", label: "Server" },
-	{ id: "effect", label: "Effects" },
-	{ id: "ui", label: "UI / Utility" },
+	{ id: "shape", label: "Shapes", jpLabel: "シェイプ" },
+	{ id: "tool", label: "Tools", jpLabel: "ツール" },
+	{ id: "bg", label: "Background", jpLabel: "背景" },
+	{ id: "ai", label: "AI", jpLabel: "AI" },
+	{ id: "presence", label: "Presence", jpLabel: "プレゼンス" },
+	{ id: "server", label: "Server", jpLabel: "サーバー" },
+	{ id: "effect", label: "Effects", jpLabel: "エフェクト" },
+	{ id: "ui", label: "UI / Utility", jpLabel: "UI / ユーティリティ" },
 ];
 
 const basePath = import.meta.env.BASE_URL;
@@ -23,9 +23,17 @@ const basePath = import.meta.env.BASE_URL;
 <BaseLayout title="Plugins" description="Browse uSketch plugins — shapes, tools, AI, presence and more." current="plugins">
 	<div class="plugins-page">
 		<header class="plugins-page__header">
-			<h1>Plugins</h1>
+			<h1>
+				<span data-lang="en">Plugins</span>
+				<span data-lang="jp">プラグイン</span>
+			</h1>
 			<p class="plugins-page__lead">
-				{plugins.length}+ plugins, one install away. Shapes, tools, AI, presence, server adapters, effects, and UI primitives.
+				<span data-lang="en">
+					{plugins.length}+ plugins, one install away. Shapes, tools, AI, presence, server adapters, effects, and UI primitives.
+				</span>
+				<span data-lang="jp">
+					{plugins.length}+ のプラグインを 1 コマンドで。シェイプ・ツール・AI・プレゼンス・サーバーアダプタ・エフェクト・UI プリミティブ。
+				</span>
 			</p>
 		</header>
 		<CatalogGrid client:load plugins={plugins} categories={CATEGORIES} basePath={basePath} />
