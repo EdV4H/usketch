@@ -31,8 +31,14 @@ const related = all
 	.slice(0, 5)
 	.map((p) => p.data);
 
-const packageId = `@edv4h/usketch-${plugin.id}`;
+const packageId = `@edv4h/usketch-plugin-${plugin.id}`;
 const installCommand = plugin.install ?? `pnpm add ${packageId}`;
+// Derive a safe JS identifier for code samples (e.g. "snap-guides" → "SnapGuides").
+const importIdentifier = `${plugin.id
+	.split(/[^a-zA-Z0-9]+/)
+	.filter(Boolean)
+	.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+	.join("")}Plugin`;
 ---
 
 <BaseLayout title={plugin.name} description={plugin.summary} current="plugins">
@@ -67,18 +73,18 @@ const installCommand = plugin.install ?? `pnpm add ${packageId}`;
 
 			<h2>Usage</h2>
 			<pre><code>{`import { createApp } from "@edv4h/usketch-core";
-import { ${plugin.name.replace(/\s+/g, "")}Plugin } from "${packageId}";
+import { ${importIdentifier} } from "${packageId}";
 
 const app = createApp({
   plugins: [
-    ${plugin.name.replace(/\s+/g, "")}Plugin,
+    ${importIdentifier},
   ],
 });`}</code></pre>
 
 			<h2>Links</h2>
 			<ul>
-				<li><a href={`https://www.npmjs.com/package/${packageId}`} target="_blank" rel="noopener">npm</a></li>
-				<li><a href={`https://github.com/EdV4H/usketch/tree/main/plugins/usketch-${plugin.id}`} target="_blank" rel="noopener">Source on GitHub</a></li>
+				<li><a href={`https://www.npmjs.com/package/${packageId}`} target="_blank" rel="noopener noreferrer">npm</a></li>
+				<li><a href={`https://github.com/EdV4H/usketch/tree/main/plugins/usketch-plugin-${plugin.id}`} target="_blank" rel="noopener noreferrer">Source on GitHub</a></li>
 			</ul>
 		</div>
 

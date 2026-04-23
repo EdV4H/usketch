@@ -35,7 +35,7 @@ const plugins = PLUGINS.map((p) => ({
 	category: p.cat,
 	glyph: p.glyph,
 	summary: p.desc,
-	install: `pnpm add @edv4h/usketch-${p.id}`,
+	install: `pnpm add @edv4h/usketch-plugin-${p.id}`,
 }));
 
 const examples = EXAMPLES.map((e) => ({
