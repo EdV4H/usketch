@@ -14,13 +14,15 @@ import {
 	renderFrame,
 	resizeFrame,
 } from "./shapes/frame.js";
+import type { FrameShapeData } from "./types.js";
 
 /**
  * LOD component: labeled empty frame — dashed border + top-left title.
  * Frames are containers, so they mostly need to show where they are.
  */
 function SimplifiedFrame({ shape }: { shape: ShapeData }) {
-	const label = (shape.name as string) || "Frame";
+	const data = shape as FrameShapeData;
+	const label = data.name || data.frameTitle || "Frame";
 	const rotation = typeof shape.rotation === "number" ? shape.rotation : 0;
 	return (
 		<div

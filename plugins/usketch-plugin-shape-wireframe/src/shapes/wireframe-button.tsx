@@ -1,9 +1,11 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeButtonShapeData } from "../types.js";
 
-export function renderButton(data: ShapeData) {
-	const label = (data.label as string) || "Button";
-	const variant = (data.variant as string) || "primary";
+export function renderButton(shape: ShapeData) {
+	const data = shape as WireframeButtonShapeData;
+	const label = data.label || "Button";
+	const variant = data.variant || "primary";
 
 	const variantStyles: Record<string, { bg: string; color: string; border: string }> = {
 		primary: { bg: WF.colors.primary, color: WF.colors.primaryText, border: WF.colors.primary },
@@ -41,7 +43,11 @@ export function renderButton(data: ShapeData) {
 	);
 }
 
-export function createDefaultButton(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultButton(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeButtonShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-button",

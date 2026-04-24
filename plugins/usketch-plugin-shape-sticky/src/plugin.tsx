@@ -15,27 +15,31 @@ import { createMachine, type MachineSchema } from "@zag-js/core";
 import { VanillaMachine } from "@zag-js/vanilla";
 import { DEFAULT_STICKY_COLOR, DEFAULT_STICKY_SIZE, STICKY_COLORS } from "./constants.js";
 import { render } from "./render.js";
+import type { StickyShapeData } from "./types.js";
+
+export type { StickyShapeData } from "./types.js";
 
 /**
  * LOD component: colored rectangle with one line of text truncated.
  * Drops the rich formatting / editing affordances.
  */
 function SimplifiedSticky({ shape }: { shape: ShapeData }) {
-	const fill = (shape.style?.fill as string) || (shape.color as string) || "#fff59d";
-	const text = String((shape.text as string) || "").split("\n")[0] ?? "";
-	const rotation = typeof shape.rotation === "number" ? shape.rotation : 0;
+	const data = shape as StickyShapeData;
+	const fill = data.style?.fill || data.color || "#fff59d";
+	const text = String(data.text ?? "").split("\n")[0] ?? "";
+	const rotation = typeof data.rotation === "number" ? data.rotation : 0;
 	return (
 		<div
 			style={{
 				position: "absolute",
-				left: shape.x,
-				top: shape.y,
-				width: shape.width,
-				height: shape.height,
+				left: data.x,
+				top: data.y,
+				width: data.width,
+				height: data.height,
 				background: fill,
 				boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
 				padding: 6,
-				fontSize: Math.max(10, shape.height * 0.18),
+				fontSize: Math.max(10, data.height * 0.18),
 				color: "#333",
 				overflow: "hidden",
 				whiteSpace: "nowrap",
@@ -112,7 +116,7 @@ function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData 
 	};
 }
 
-function createDefault(params: { id: string; x: number; y: number }): ShapeData {
+function createDefault(params: { id: string; x: number; y: number }): StickyShapeData {
 	return {
 		id: params.id,
 		type: "sticky",
@@ -303,14 +307,14 @@ const stickyTextMachine = createMachine<StickyTextMachineSchema>({
 				const shape = pluginCtx.store.getShape(id);
 				if (!shape || shape.type !== "sticky") return;
 
-				context.set("textSnapshot", (shape.text as string) ?? "");
+				context.set("textSnapshot", (shape as StickyShapeData).text ?? "");
 				context.set("heightSnapshot", shape.height);
 				const clickTimer = refs.get("clickTimer");
 				if (clickTimer != null) {
 					clearTimeout(clickTimer);
 					refs.set("clickTimer", null);
 				}
-				pluginCtx.store.updateShape(id, { isEditing: true });
+				pluginCtx.store.updateShape(id, { isEditing: true } as Partial<StickyShapeData>);
 			},
 
 			startSettleTimer({ refs, send }) {
@@ -343,8 +347,8 @@ const stickyTextMachine = createMachine<StickyTextMachineSchema>({
 					return;
 				}
 
-				pluginCtx.store.updateShape(id, { isEditing: false });
-				const currentText = (shape.text as string) ?? "";
+				pluginCtx.store.updateShape(id, { isEditing: false } as Partial<StickyShapeData>);
+				const currentText = (shape as StickyShapeData).text ?? "";
 
 				// Sticky notes are kept even when empty (unlike text shapes)
 				if (currentText !== prevText || shape.height !== prevHeight) {
@@ -352,8 +356,8 @@ const stickyTextMachine = createMachine<StickyTextMachineSchema>({
 						createUpdateShapeCommand(
 							pluginCtx.store,
 							id,
-							{ text: prevText, height: prevHeight ?? shape.height },
-							{ text: currentText, height: shape.height },
+							{ text: prevText, height: prevHeight ?? shape.height } as Partial<StickyShapeData>,
+							{ text: currentText, height: shape.height } as Partial<StickyShapeData>,
 						),
 					);
 				}
@@ -372,7 +376,10 @@ const stickyTextMachine = createMachine<StickyTextMachineSchema>({
 				// padding(12px top + 12px bottom = 24px) を加算した必要高さ
 				const contentHeight = event.scrollHeight;
 				const newHeight = Math.max(shape.height, contentHeight);
-				pluginCtx.store.updateShape(id, { text: event.text, height: newHeight });
+				pluginCtx.store.updateShape(id, {
+					text: event.text,
+					height: newHeight,
+				} as Partial<StickyShapeData>);
 			},
 
 			sendEnterEdit({ send }) {

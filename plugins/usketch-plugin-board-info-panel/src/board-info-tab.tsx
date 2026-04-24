@@ -1,7 +1,7 @@
 import { type BoardStore, DEFAULT_STYLE } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useState } from "react";
 import type { BoardInfoClient } from "./board-info-client.js";
-import type { BoardInfo, BoardListItem, BoardMember } from "./types.js";
+import type { BoardInfo, BoardListItem, BoardMember, BoardPortalShapeData } from "./types.js";
 
 interface BoardInfoTabProps {
 	boardId: string | null;
@@ -172,8 +172,9 @@ function BoardListView({
 	function getExistingPortalBoardIds(): Set<string> {
 		const ids = new Set<string>();
 		for (const [, shape] of store.getShapes()) {
-			if (shape.type === "board-portal" && shape.boardId) {
-				ids.add(shape.boardId as string);
+			const portal = shape as BoardPortalShapeData;
+			if (portal.type === "board-portal" && portal.boardId) {
+				ids.add(portal.boardId);
 			}
 		}
 		return ids;
@@ -191,7 +192,7 @@ function BoardListView({
 		const cx = worldLeft + window.innerWidth / 2 / vp.zoom - w / 2;
 		const cy = worldTop + window.innerHeight / 2 / vp.zoom - h / 2;
 
-		store.addShape({
+		const portalShape: BoardPortalShapeData = {
 			id: crypto.randomUUID(),
 			type: "board-portal",
 			x: cx,
@@ -207,7 +208,8 @@ function BoardListView({
 			isPublic: board.isPublic,
 			thumbnailUrl: board.isPublic ? client.getThumbnailUrl(board.id) : undefined,
 			style: DEFAULT_STYLE,
-		});
+		};
+		store.addShape(portalShape);
 	}
 
 	if (loading) {

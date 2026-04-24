@@ -13,7 +13,7 @@ import {
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { createChatClient } from "./chat-client.js";
-import type { ChatNewMessageEvent } from "./types.js";
+import type { ChatNewMessageEvent, ChatWidgetShapeData } from "./types.js";
 
 export interface CommunityChatOptions {
 	apiUrl: string;
@@ -58,13 +58,14 @@ function formatRelativeTime(iso: string): string {
 
 // ── ピン描画 ──
 
-function renderChatPin(data: ShapeData) {
-	const label = (data.chatLabel as string) || "Chat";
-	const lastMessage = (data.lastMessage as string) || "";
-	const lastAuthor = (data.lastAuthor as string) || "";
-	const lastMessageAt = (data.lastMessageAt as string) || "";
+function renderChatPin(shape: ShapeData) {
+	const data = shape as ChatWidgetShapeData;
+	const label = data.chatLabel || "Chat";
+	const lastMessage = data.lastMessage || "";
+	const lastAuthor = data.lastAuthor || "";
+	const lastMessageAt = data.lastMessageAt || "";
 	const unread = Number(data.unread ?? 0);
-	const hue = threadHue((data.threadId as string) || data.id);
+	const hue = threadHue(data.threadId || data.id);
 	const accentColor = `hsl(${hue}, 70%, 60%)`;
 	const softColor = `hsl(${hue}, 70%, 85%)`;
 	const relTime = lastMessageAt ? formatRelativeTime(lastMessageAt) : "";
@@ -328,7 +329,7 @@ function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData 
 	return { ...data, x, y, width, height };
 }
 
-function createDefault(params: { id: string; x: number; y: number }): ShapeData {
+function createDefault(params: { id: string; x: number; y: number }): ChatWidgetShapeData {
 	return {
 		id: params.id,
 		type: "chat-widget",
@@ -434,8 +435,9 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 					const shapes = ctx.store.getShapes();
 					for (const [id, shape] of shapes) {
 						if (shape.type !== "chat-widget") continue;
-						if ((shape.threadId as string) !== message.threadId) continue;
-						const prevUnread = Number(shape.unread ?? 0);
+						const data = shape as ChatWidgetShapeData;
+						if (data.threadId !== message.threadId) continue;
+						const prevUnread = Number(data.unread ?? 0);
 						const nextUnread = fromActiveTab ? 0 : prevUnread + 1;
 						ctx.store.updateShape(id, {
 							lastMessage: message.text,
@@ -443,7 +445,7 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 							lastAuthorId: message.authorId,
 							lastMessageAt: message.createdAt,
 							unread: nextUnread,
-						});
+						} as Partial<ChatWidgetShapeData>);
 					}
 				},
 			);
@@ -453,9 +455,10 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 				const shapes = ctx.store.getShapes();
 				for (const [id, shape] of shapes) {
 					if (shape.type !== "chat-widget") continue;
-					if ((shape.threadId as string) !== threadId) continue;
-					if (Number(shape.unread ?? 0) === 0) continue;
-					ctx.store.updateShape(id, { unread: 0 });
+					const data = shape as ChatWidgetShapeData;
+					if (data.threadId !== threadId) continue;
+					if (Number(data.unread ?? 0) === 0) continue;
+					ctx.store.updateShape(id, { unread: 0 } as Partial<ChatWidgetShapeData>);
 				}
 			};
 
@@ -467,13 +470,14 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 				if (!last) return;
 				const shape = ctx.store.getShape(shapeId);
 				if (!shape || shape.type !== "chat-widget") return;
-				if (shape.lastMessageAt === last.createdAt) return; // 変更なし
+				const data = shape as ChatWidgetShapeData;
+				if (data.lastMessageAt === last.createdAt) return; // 変更なし
 				ctx.store.updateShape(shapeId, {
 					lastMessage: last.text,
 					lastAuthor: last.authorName,
 					lastAuthorId: last.authorId,
 					lastMessageAt: last.createdAt,
-				});
+				} as Partial<ChatWidgetShapeData>);
 			};
 
 			// 初期同期: 現在ある chat-widget シェイプ全てを 1 回 fetch
@@ -481,7 +485,7 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 				const shapes = ctx.store.getShapes();
 				for (const [id, shape] of shapes) {
 					if (shape.type !== "chat-widget") continue;
-					const threadId = (shape.threadId as string) || "";
+					const threadId = (shape as ChatWidgetShapeData).threadId || "";
 					if (threadId) refreshShapeMetadata(id, threadId);
 				}
 			}, 0);
@@ -494,7 +498,7 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 				if (typeof shapeId !== "string") return;
 				const shape = ctx.store.getShape(shapeId);
 				if (!shape || shape.type !== "chat-widget") return;
-				const threadId = (shape.threadId as string) || "";
+				const threadId = (shape as ChatWidgetShapeData).threadId || "";
 				if (threadId) refreshShapeMetadata(shapeId, threadId);
 			});
 
@@ -513,7 +517,8 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 					prevSelectedChatId = null;
 					return;
 				}
-				const threadId = (shape.threadId as string) || "default";
+				const data = shape as ChatWidgetShapeData;
+				const threadId = data.threadId || "default";
 				if (shapeId !== prevSelectedChatId) {
 					prevSelectedChatId = shapeId;
 					activeThreadId = threadId;
@@ -523,7 +528,7 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 					ctx.events.emit("side-panel:register-tab", {
 						tab: {
 							id: "community-chat",
-							label: (shape.chatLabel as string) || "Chat",
+							label: data.chatLabel || "Chat",
 							icon: "\u{1F4AC}",
 							order: 3,
 							render: () => (

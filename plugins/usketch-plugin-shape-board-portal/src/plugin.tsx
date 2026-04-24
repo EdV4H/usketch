@@ -11,6 +11,9 @@ import {
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
+import type { BoardPortalShapeData } from "./types.js";
+
+export type { BoardPortalShapeData } from "./types.js";
 
 const PORTAL_WIDTH = 200;
 const PORTAL_HEIGHT = 120;
@@ -29,10 +32,11 @@ function pinHue(boardId: string): number {
 	return PIN_HUES[Math.abs(hash) % PIN_HUES.length] ?? 210;
 }
 
-function renderContent(data: ShapeData) {
-	const title = (data.boardTitle as string) || "Untitled";
+function renderContent(shape: ShapeData) {
+	const data = shape as BoardPortalShapeData;
+	const title = data.boardTitle || "Untitled";
 	const isPublic = data.isPublic !== false;
-	const hue = pinHue((data.boardId as string) || data.id);
+	const hue = pinHue(data.boardId || data.id);
 	// themeColor は HSL から生成 — tokens.css の var は SVG/color-mix で使う
 	const accentColor = `hsl(${hue}, 65%, 58%)`;
 
@@ -273,7 +277,7 @@ function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData 
 	return { ...data, x, y, width, height };
 }
 
-function createDefault(params: { id: string; x: number; y: number }): ShapeData {
+function createDefault(params: { id: string; x: number; y: number }): BoardPortalShapeData {
 	return {
 		id: params.id,
 		type: "board-portal",

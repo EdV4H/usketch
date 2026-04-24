@@ -82,7 +82,7 @@ export function createGroupCommand(
 	groupShape: ShapeData,
 	childIds: string[],
 ): Command {
-	const prevParentIds = new Map<string, unknown>();
+	const prevParentIds = new Map<string, string | undefined>();
 	return {
 		execute() {
 			store.addShape(groupShape);
@@ -137,7 +137,7 @@ export function createReparentCommand(
 	shapeIds: string[],
 	newParentId: string | undefined,
 ): Command {
-	const prevParentIds = new Map<string, unknown>();
+	const prevParentIds = new Map<string, string | undefined>();
 	return {
 		execute() {
 			for (const id of shapeIds) {
@@ -175,9 +175,14 @@ export function createDeleteWithChildrenCommand(store: BoardStore, shapeId: stri
 			// Also collect connectors attached to any of these shapes
 			const connectorIds = new Set<string>();
 			for (const [, shape] of store.getShapes()) {
+				if (shape.type !== "connector") continue;
+				const { sourceId, targetId } = shape as {
+					sourceId?: string;
+					targetId?: string;
+				};
 				if (
-					shape.type === "connector" &&
-					(allIds.includes(shape.sourceId as string) || allIds.includes(shape.targetId as string))
+					(sourceId !== undefined && allIds.includes(sourceId)) ||
+					(targetId !== undefined && allIds.includes(targetId))
 				) {
 					connectorIds.add(shape.id);
 				}
@@ -305,7 +310,7 @@ interface SiblingGroup {
 }
 
 function parentKey(shape: ShapeData): string | null {
-	return (shape.parentId as string | undefined) ?? null;
+	return shape.parentId ?? null;
 }
 
 /**

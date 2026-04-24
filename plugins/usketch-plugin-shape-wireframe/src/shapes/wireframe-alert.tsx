@@ -1,9 +1,11 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeAlertShapeData } from "../types.js";
 
-export function renderAlert(data: ShapeData) {
-	const alertMessage = (data.alertMessage as string) || "Alert message";
-	const alertType = (data.alertType as string) || "info";
+export function renderAlert(shape: ShapeData) {
+	const data = shape as WireframeAlertShapeData;
+	const alertMessage = data.alertMessage || "Alert message";
+	const alertType = data.alertType || "info";
 
 	const typeColors: Record<string, string> = {
 		info: WF.colors.primary,
@@ -37,7 +39,11 @@ export function renderAlert(data: ShapeData) {
 	);
 }
 
-export function createDefaultAlert(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultAlert(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeAlertShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-alert",

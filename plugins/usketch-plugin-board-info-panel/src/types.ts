@@ -1,3 +1,19 @@
+import type { ShapeData } from "@edv4h/usketch-shared";
+
+/**
+ * board-portal shape extension: intrinsic data for the `board-portal` shape,
+ * as observed/consumed by the board-info-panel plugin.
+ */
+export interface BoardPortalShapeData extends ShapeData {
+	boardId?: string;
+	boardTitle?: string;
+	ownerName?: string;
+	ownerImage?: string;
+	memberCount?: number;
+	isPublic?: boolean;
+	thumbnailUrl?: string;
+}
+
 export interface BoardInfo {
 	id: string;
 	title: string;

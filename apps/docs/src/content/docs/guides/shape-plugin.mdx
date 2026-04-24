@@ -25,20 +25,26 @@ Both are registered inside a single `setup()` function.
 
 ### 1. Define the Shape Functions
 
-First, implement the required `ShapeDefinition` methods:
+First, declare an extension interface for any intrinsic fields your shape needs, then implement the required `ShapeDefinition` methods:
 
 ```tsx
 import type { BoundingBox, Point, ResizeHandle, ShapeData } from "@edv4h/usketch-shared";
 import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
 
-function render(data: ShapeData) {
+/** Intrinsic data for the `rectangle` shape. Export so other plugins can read it type-safely. */
+export interface RectangleShapeData extends ShapeData {
+  cornerRadius?: number;
+}
+
+function render(shape: ShapeData) {
+  const data = shape as RectangleShapeData;
   return (
     <rect
       x={data.x}
       y={data.y}
       width={data.width}
       height={data.height}
-      rx={(data.cornerRadius as number) ?? 0}
+      rx={data.cornerRadius ?? 0}
       fill={data.style.fill}
       stroke={data.style.stroke}
       strokeWidth={data.style.strokeWidth}
@@ -60,7 +66,7 @@ function hitTest(data: ShapeData, point: Point): boolean {
   );
 }
 
-function createDefault(params: { id: string; x: number; y: number }): ShapeData {
+function createDefault(params: { id: string; x: number; y: number }): RectangleShapeData {
   return {
     id: params.id,
     type: "rectangle",
@@ -73,6 +79,8 @@ function createDefault(params: { id: string; x: number; y: number }): ShapeData 
   };
 }
 ```
+
+**Pattern.** The `ShapeRegistry` works with the base `ShapeData` type, so `render` / `resize` / `hitTest` receive `ShapeData`. Cast to your extension type inside (`const data = shape as RectangleShapeData`) to access plugin-specific fields with full type safety.
 
 ### 2. Implement Resize Logic
 
@@ -184,9 +192,41 @@ export const rectPlugin: UsketchPlugin = {
 };
 ```
 
+## Adding application data
+
+Plugin-intrinsic fields (like `cornerRadius` above) belong on the extension interface. For **application- or domain-specific data** that is not part of the shape's geometry (external references, identifiers, feature flags), use the `meta` field instead:
+
+```tsx
+interface WeboardMeta {
+  employeeId?: string;
+  companyId?: string;
+}
+
+const shape: ShapeData<WeboardMeta> = {
+  id: "note_1", type: "rect", x: 0, y: 0, width: 200, height: 150,
+  style: DEFAULT_STYLE,
+  meta: { employeeId: "emp_123", companyId: "co_456" },
+};
+shape.meta?.employeeId; // typed as string | undefined
+```
+
+Pass your concrete meta shape as `TMeta` to `ShapeData<TMeta>` at the call site — the core APIs remain `ShapeData` (the generic parameter is opt-in per consumer).
+
+For edge cases where `meta` does not fit (a gradual migration, or an exceptional top-level field), `ShapeData` also accepts any property whose name starts with `x-`:
+
+```tsx
+const shape: ShapeData = {
+  ...,
+  "x-legacyFlag": true, // escape hatch — prefer meta
+};
+```
+
+See [Shape System → Extending shapes](/docs/concepts/shape-system/#extending-shapes) for the full contract.
+
 ## Key Takeaways
 
 - Shape + tool live in the **same plugin** — they're a single concept.
 - Use **direct store mutations** for live preview, **commands** for the final action.
 - Always handle the case where the user barely drags (width/height < threshold).
 - Switch back to the select tool after drawing — this is the expected UX.
+- Declare an `extends ShapeData` interface for your plugin's intrinsic fields; put application data in `meta`.

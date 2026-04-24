@@ -14,7 +14,10 @@ import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createKeyboardShortcutsPlugin } from "@edv4h/usketch-plugin-keyboard-shortcuts";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createReactionsPlugin, reactionsPlugin } from "@edv4h/usketch-plugin-reactions";
-import { createBoardPortalPlugin } from "@edv4h/usketch-plugin-shape-board-portal";
+import {
+	type BoardPortalShapeData,
+	createBoardPortalPlugin,
+} from "@edv4h/usketch-plugin-shape-board-portal";
 import { groupPlugin } from "@edv4h/usketch-plugin-shape-group";
 import { islandPlugin } from "@edv4h/usketch-plugin-shape-island";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
@@ -92,7 +95,7 @@ export function CommunityPage() {
 								ownerName: authUserName ?? "",
 								ownerImage: authUserImage ?? "",
 								isPublic,
-							});
+							} as Partial<BoardPortalShapeData>);
 						} catch (e) {
 							console.error("Failed to create board:", e);
 							store?.deleteShape(shapeId);

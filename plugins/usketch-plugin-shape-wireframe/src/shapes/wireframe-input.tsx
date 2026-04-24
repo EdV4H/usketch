@@ -1,10 +1,12 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeInputShapeData } from "../types.js";
 
-export function renderInput(data: ShapeData) {
-	const placeholder = (data.placeholder as string) || "Enter text...";
-	const inputLabel = (data.inputLabel as string) || "";
-	const inputType = (data.inputType as string) || "text";
+export function renderInput(shape: ShapeData) {
+	const data = shape as WireframeInputShapeData;
+	const placeholder = data.placeholder || "Enter text...";
+	const inputLabel = data.inputLabel || "";
+	const inputType = data.inputType || "text";
 
 	const isPassword = inputType === "password";
 	const displayText = isPassword ? "••••••••" : placeholder;
@@ -56,7 +58,11 @@ export function renderInput(data: ShapeData) {
 	);
 }
 
-export function createDefaultInput(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultInput(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeInputShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-input",

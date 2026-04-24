@@ -1,1 +1,1 @@
-export { createBoardPortalPlugin } from "./plugin.js";
+export { type BoardPortalShapeData, createBoardPortalPlugin } from "./plugin.js";

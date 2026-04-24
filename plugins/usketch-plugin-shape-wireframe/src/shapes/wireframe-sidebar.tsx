@@ -1,9 +1,11 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeSidebarShapeData } from "../types.js";
 
-export function renderSidebar(data: ShapeData) {
-	const items = (data.items as string[]) || ["Dashboard", "Settings", "Profile"];
-	const sidebarTitle = (data.sidebarTitle as string) || "Menu";
+export function renderSidebar(shape: ShapeData) {
+	const data = shape as WireframeSidebarShapeData;
+	const items = data.items || ["Dashboard", "Settings", "Profile"];
+	const sidebarTitle = data.sidebarTitle || "Menu";
 
 	return (
 		<div
@@ -56,7 +58,11 @@ export function renderSidebar(data: ShapeData) {
 	);
 }
 
-export function createDefaultSidebar(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultSidebar(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeSidebarShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-sidebar",

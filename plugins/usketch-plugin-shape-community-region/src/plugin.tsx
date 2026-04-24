@@ -6,6 +6,9 @@ import {
 	type ShapeData,
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
+import type { CommunityRegionShapeData } from "./types.js";
+
+export type { CommunityRegionShapeData } from "./types.js";
 
 const CARD_WIDTH = 200;
 const CARD_HEIGHT = 180;
@@ -26,12 +29,13 @@ function softBorder(color: string, pct: number): string {
 	return `color-mix(in oklab, ${color} ${pct}%, transparent)`;
 }
 
-function RegionCard({ data }: { data: ShapeData }) {
-	const displayName = (data.displayName as string) || "Region";
-	const themeColor = (data.themeColor as string) || "#6366f1";
-	const icon = (data.icon as string) || "🏠";
-	const onlineCount = (data.onlineCount as number) || 0;
-	const memberCount = (data.memberCount as number) ?? onlineCount;
+function RegionCard({ data: shape }: { data: ShapeData }) {
+	const data = shape as CommunityRegionShapeData;
+	const displayName = data.displayName || "Region";
+	const themeColor = data.themeColor || "#6366f1";
+	const icon = data.icon || "🏠";
+	const onlineCount = data.onlineCount || 0;
+	const memberCount = data.memberCount ?? onlineCount;
 	const isActive = Boolean(data.active);
 
 	return (
@@ -178,7 +182,11 @@ export function createCommunityRegionPlugin(options?: CommunityRegionPluginOptio
 			ctx.shapes.register("community-region", {
 				renderTarget: "html",
 
-				createDefault: (params?: { id: string; x: number; y: number }) => ({
+				createDefault: (params?: {
+					id: string;
+					x: number;
+					y: number;
+				}): CommunityRegionShapeData => ({
 					id: params?.id ?? generateId(),
 					type: "community-region",
 					x: params?.x ?? 0,
@@ -232,10 +240,10 @@ export function createCommunityRegionPlugin(options?: CommunityRegionPluginOptio
 					}
 					prevSelection = new Set(selection);
 
-					const shape = ctx.store.getShapes().get(shapeId);
+					const shape = ctx.store.getShapes().get(shapeId) as CommunityRegionShapeData | undefined;
 					if (shape?.type === "community-region" && shape.slug) {
 						ctx.store.clearSelection();
-						onClick(shape.slug as string);
+						onClick(shape.slug);
 					}
 				});
 				cleanups.push(unsub);

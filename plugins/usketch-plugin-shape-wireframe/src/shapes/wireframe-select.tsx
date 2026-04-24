@@ -1,8 +1,10 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeSelectShapeData } from "../types.js";
 
-export function renderSelect(data: ShapeData) {
-	const placeholder = (data.placeholder as string) || "Select...";
+export function renderSelect(shape: ShapeData) {
+	const data = shape as WireframeSelectShapeData;
+	const placeholder = data.placeholder || "Select...";
 
 	return (
 		<div
@@ -39,7 +41,11 @@ export function renderSelect(data: ShapeData) {
 	);
 }
 
-export function createDefaultSelect(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultSelect(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeSelectShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-select",

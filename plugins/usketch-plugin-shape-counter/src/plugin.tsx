@@ -10,6 +10,7 @@ import {
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
+import type { CounterShapeData } from "./types.js";
 
 // ── Shape Definition ──
 
@@ -18,7 +19,8 @@ import { createAddShapeCommand } from "@edv4h/usketch-store";
  * The +/- buttons are dropped because LOD mode is not interactive anyway.
  */
 function SimplifiedCounter({ shape }: { shape: ShapeData }) {
-	const count = (shape.count as number) ?? 0;
+	const data = shape as CounterShapeData;
+	const count = data.count ?? 0;
 	const rotation = typeof shape.rotation === "number" ? shape.rotation : 0;
 	return (
 		<div
@@ -48,8 +50,9 @@ function SimplifiedCounter({ shape }: { shape: ShapeData }) {
 	);
 }
 
-function render(data: ShapeData) {
-	const count = (data.count as number) ?? 0;
+function render(shape: ShapeData) {
+	const data = shape as CounterShapeData;
+	const count = data.count ?? 0;
 
 	return (
 		<div
@@ -175,7 +178,7 @@ function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData 
 	return { ...data, x, y, width: Math.max(100, width), height: Math.max(100, height) };
 }
 
-function createDefault(params: { id: string; x: number; y: number }): ShapeData {
+function createDefault(params: { id: string; x: number; y: number }): CounterShapeData {
 	return {
 		id: params.id,
 		type: "counter",
@@ -232,10 +235,10 @@ export const counterPlugin: UsketchPlugin = {
 		// Listen for counter updates from the rendered buttons
 		const onCounterUpdate = (e: Event) => {
 			const { id, delta } = (e as CustomEvent).detail;
-			const shape = ctx.store.getShape(id);
+			const shape = ctx.store.getShape(id) as CounterShapeData | undefined;
 			if (shape) {
-				const count = ((shape.count as number) ?? 0) + delta;
-				ctx.store.updateShape(id, { count });
+				const count = (shape.count ?? 0) + delta;
+				ctx.store.updateShape(id, { count } as Partial<ShapeData>);
 			}
 		};
 		window.addEventListener("usketch:counter-update", onCounterUpdate);

@@ -1,7 +1,13 @@
-import type { PluginContext } from "@edv4h/usketch-shared";
+import type { PluginContext, ShapeData } from "@edv4h/usketch-shared";
 import { createDeleteShapeCommand, createUpdateShapeCommand } from "@edv4h/usketch-store";
 import { createMachine, type MachineSchema } from "@zag-js/core";
 import { VanillaMachine } from "@zag-js/vanilla";
+
+/** Subset of TextShapeData fields the machine needs (kept local to avoid circular import with plugin.tsx). */
+type TextShapeData = ShapeData & {
+	text: string;
+	isEditing: boolean;
+};
 
 // ── Event Types ──
 
@@ -181,7 +187,7 @@ const textEditingMachine = createMachine<TextMachineSchema>({
 				const shape = pluginCtx.store.getShape(id);
 				if (!shape || shape.type !== "text") return;
 
-				context.set("textSnapshot", (shape.text as string) ?? "");
+				context.set("textSnapshot", (shape as TextShapeData).text ?? "");
 				context.set("heightSnapshot", shape.height);
 				// Clear click state
 				context.set("clickedShapeId", null);
@@ -190,7 +196,7 @@ const textEditingMachine = createMachine<TextMachineSchema>({
 					clearTimeout(clickTimer);
 					refs.set("clickTimer", null);
 				}
-				pluginCtx.store.updateShape(id, { isEditing: true });
+				pluginCtx.store.updateShape(id, { isEditing: true } as Partial<TextShapeData>);
 			},
 
 			startSettleTimer({ refs, send }) {
@@ -224,8 +230,8 @@ const textEditingMachine = createMachine<TextMachineSchema>({
 					return;
 				}
 
-				pluginCtx.store.updateShape(id, { isEditing: false });
-				const currentText = (shape.text as string) ?? "";
+				pluginCtx.store.updateShape(id, { isEditing: false } as Partial<TextShapeData>);
+				const currentText = (shape as TextShapeData).text ?? "";
 
 				if (currentText.trim() === "") {
 					pluginCtx.commands.execute(createDeleteShapeCommand(pluginCtx.store, id));
@@ -234,8 +240,8 @@ const textEditingMachine = createMachine<TextMachineSchema>({
 						createUpdateShapeCommand(
 							pluginCtx.store,
 							id,
-							{ text: prevText, height: prevHeight ?? shape.height },
-							{ text: currentText, height: shape.height },
+							{ text: prevText, height: prevHeight ?? shape.height } as Partial<TextShapeData>,
+							{ text: currentText, height: shape.height } as Partial<TextShapeData>,
 						),
 					);
 				}
@@ -252,7 +258,10 @@ const textEditingMachine = createMachine<TextMachineSchema>({
 				const shape = pluginCtx.store.getShape(id);
 				if (!shape) return;
 				const newHeight = Math.max(28, event.scrollHeight);
-				pluginCtx.store.updateShape(id, { text: event.text, height: newHeight });
+				pluginCtx.store.updateShape(id, {
+					text: event.text,
+					height: newHeight,
+				} as Partial<TextShapeData>);
 			},
 
 			sendEnterEdit({ send }) {

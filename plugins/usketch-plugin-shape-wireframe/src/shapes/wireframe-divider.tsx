@@ -1,8 +1,10 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeDividerShapeData } from "../types.js";
 
-export function renderDivider(data: ShapeData) {
-	const dividerStyle = (data.dividerStyle as string) || "solid";
+export function renderDivider(shape: ShapeData) {
+	const data = shape as WireframeDividerShapeData;
+	const dividerStyle = data.dividerStyle || "solid";
 
 	return (
 		<div
@@ -26,7 +28,11 @@ export function renderDivider(data: ShapeData) {
 	);
 }
 
-export function createDefaultDivider(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultDivider(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeDividerShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-divider",

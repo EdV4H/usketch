@@ -1,9 +1,11 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeTabsShapeData } from "../types.js";
 
-export function renderTabs(data: ShapeData) {
-	const tabs = (data.tabs as string[]) || ["Tab 1", "Tab 2", "Tab 3"];
-	const activeIndex = (data.activeIndex as number) ?? 0;
+export function renderTabs(shape: ShapeData) {
+	const data = shape as WireframeTabsShapeData;
+	const tabs = data.tabs || ["Tab 1", "Tab 2", "Tab 3"];
+	const activeIndex = data.activeIndex ?? 0;
 
 	return (
 		<div
@@ -41,7 +43,11 @@ export function renderTabs(data: ShapeData) {
 	);
 }
 
-export function createDefaultTabs(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultTabs(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeTabsShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-tabs",

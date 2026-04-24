@@ -1,15 +1,16 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS } from "./constants.js";
+import type { StickyShapeData } from "./types.js";
 
-function getStickyBackground(data: ShapeData): string {
-	const colorKey = (data.stickyColor as string) ?? DEFAULT_STICKY_COLOR;
+function getStickyBackground(data: StickyShapeData): string {
+	const colorKey = data.stickyColor ?? DEFAULT_STICKY_COLOR;
 	if (data.style.fill !== "transparent" && data.style.fill !== STICKY_COLORS[colorKey]) {
 		return data.style.fill;
 	}
 	return STICKY_COLORS[colorKey] ?? STICKY_COLORS[DEFAULT_STICKY_COLOR];
 }
 
-const baseStickyStyle = (data: ShapeData): React.CSSProperties => ({
+const baseStickyStyle = (data: StickyShapeData): React.CSSProperties => ({
 	width: "100%",
 	background: getStickyBackground(data),
 	borderRadius: 8,
@@ -17,7 +18,7 @@ const baseStickyStyle = (data: ShapeData): React.CSSProperties => ({
 	padding: 12,
 	boxSizing: "border-box",
 	fontFamily: "system-ui, sans-serif",
-	fontSize: (data.fontSize as number) ?? 16,
+	fontSize: data.fontSize ?? 16,
 	color: "#1e1e1e",
 	lineHeight: 1.4,
 	whiteSpace: "pre-wrap",
@@ -37,7 +38,8 @@ function focusAtEnd(el: HTMLElement) {
 	}
 }
 
-export function render(data: ShapeData) {
+export function render(shape: ShapeData) {
+	const data = shape as StickyShapeData;
 	if (!data.isEditing) {
 		return (
 			<div
@@ -49,7 +51,7 @@ export function render(data: ShapeData) {
 					userSelect: "none",
 				}}
 			>
-				{(data.text as string) ?? ""}
+				{data.text ?? ""}
 			</div>
 		);
 	}
@@ -66,7 +68,7 @@ export function render(data: ShapeData) {
 				if (!el) return;
 				if (el.dataset.focused) return;
 				el.dataset.focused = "1";
-				el.textContent = (data.text as string) ?? "";
+				el.textContent = data.text ?? "";
 				requestAnimationFrame(() => focusAtEnd(el));
 			}}
 			onInput={(e: React.FormEvent<HTMLDivElement>) => {

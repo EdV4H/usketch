@@ -645,12 +645,15 @@ export const selectToolPlugin: UsketchPlugin = {
 				resized.x = fixed.x;
 				resized.y = fixed.y;
 				const updates: Partial<ShapeData> = {};
+				const resizedRecord = resized as unknown as Record<string, unknown>;
+				const startRecord = dragState.startData as unknown as Record<string, unknown>;
+				const updatesRecord = updates as Record<string, unknown>;
 				for (const key of Object.keys(resized)) {
 					if (key === "id" || key === "type" || key === "style") continue;
-					const resizedValue = resized[key];
-					const startValue = dragState.startData[key];
+					const resizedValue = resizedRecord[key];
+					const startValue = startRecord[key];
 					if (resizedValue !== startValue) {
-						updates[key] = resizedValue;
+						updatesRecord[key] = resizedValue;
 					}
 				}
 				if (Object.keys(updates).length > 0) {
@@ -955,13 +958,17 @@ export const selectToolPlugin: UsketchPlugin = {
 					// Build from/to diffs for undo
 					const from: Partial<ShapeData> = {};
 					const to: Partial<ShapeData> = {};
+					const currentRecord = currentShape as unknown as Record<string, unknown>;
+					const startRecord = dragState.startData as unknown as Record<string, unknown>;
+					const fromRecord = from as Record<string, unknown>;
+					const toRecord = to as Record<string, unknown>;
 					for (const key of Object.keys(currentShape)) {
 						if (key === "id" || key === "type" || key === "style") continue;
-						const currentValue = currentShape[key];
-						const startValue = dragState.startData[key];
+						const currentValue = currentRecord[key];
+						const startValue = startRecord[key];
 						if (currentValue !== startValue) {
-							from[key] = startValue;
-							to[key] = currentValue;
+							fromRecord[key] = startValue;
+							toRecord[key] = currentValue;
 						}
 					}
 
@@ -990,13 +997,17 @@ export const selectToolPlugin: UsketchPlugin = {
 					if (!currentShape) continue;
 					const from: Partial<ShapeData> = {};
 					const to: Partial<ShapeData> = {};
+					const currentRecord = currentShape as unknown as Record<string, unknown>;
+					const origRecord = origFullShape as unknown as Record<string, unknown>;
+					const fromRecord = from as Record<string, unknown>;
+					const toRecord = to as Record<string, unknown>;
 					for (const key of Object.keys(currentShape)) {
 						if (key === "id" || key === "type" || key === "style") continue;
-						const currentValue = currentShape[key];
-						const origValue = origFullShape[key];
+						const currentValue = currentRecord[key];
+						const origValue = origRecord[key];
 						if (currentValue !== origValue) {
-							from[key] = origValue;
-							to[key] = currentValue;
+							fromRecord[key] = origValue;
+							toRecord[key] = currentValue;
 						}
 					}
 					if (Object.keys(to).length > 0) {

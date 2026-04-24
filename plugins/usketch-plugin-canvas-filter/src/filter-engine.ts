@@ -18,8 +18,8 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
 }
 
 function matchTimeRange(shape: ShapeData, rule: TimeRangeFilter): boolean {
-	const value = (shape as Record<string, unknown>)[rule.field] as number | undefined;
-	// Legacy shapes without timestamps always pass (they have _createdAt = 0)
+	const value = shape[rule.field];
+	// Legacy shapes without timestamps always pass.
 	if (value == null) return true;
 	if (rule.from != null && value < rule.from) return false;
 	if (rule.to != null && value > rule.to) return false;

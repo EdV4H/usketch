@@ -1,4 +1,5 @@
 import type { BoundingBox, Point, ShapeData } from "@edv4h/usketch-shared";
+import type { IslandShapeData } from "./types.js";
 
 const MIN_W = 100;
 const MIN_H = 100;
@@ -24,10 +25,11 @@ function injectStyle() {
 	document.head.appendChild(style);
 }
 
-export function renderIsland(data: ShapeData) {
+export function renderIsland(shape: ShapeData) {
 	injectStyle();
 
-	const justMerged = data._islandJustMerged as boolean | undefined;
+	const data = shape as IslandShapeData;
+	const justMerged = data._islandJustMerged;
 
 	// Island body is transparent — background is rendered by the metaball layer.
 	// This div serves as the container for child shapes and hit-test target.
@@ -84,7 +86,7 @@ export function resizeIsland(data: ShapeData, handle: string, delta: Point): Sha
 	return result;
 }
 
-export function createDefaultIsland(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultIsland(params: { id: string; x: number; y: number }): IslandShapeData {
 	return {
 		id: params.id,
 		type: "island",

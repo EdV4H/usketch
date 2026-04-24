@@ -1,9 +1,11 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeProgressShapeData } from "../types.js";
 
-export function renderProgress(data: ShapeData) {
-	const progress = Math.max(0, Math.min(100, (data.progress as number) ?? 60));
-	const progressLabel = (data.progressLabel as string) || "";
+export function renderProgress(shape: ShapeData) {
+	const data = shape as WireframeProgressShapeData;
+	const progress = Math.max(0, Math.min(100, data.progress ?? 60));
+	const progressLabel = data.progressLabel || "";
 
 	return (
 		<div
@@ -54,7 +56,11 @@ export function renderProgress(data: ShapeData) {
 	);
 }
 
-export function createDefaultProgress(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultProgress(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeProgressShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-progress",

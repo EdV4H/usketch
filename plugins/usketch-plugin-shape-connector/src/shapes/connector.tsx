@@ -8,11 +8,11 @@ import {
 	getElbowPoints,
 	getPathMidpoint,
 	isNearBezier,
-	type PathType,
 } from "../path-utils.js";
+import type { ConnectorShapeData } from "../types.js";
 
-export type ArrowHead = "none" | "forward" | "backward" | "both";
 export type { PathType } from "../path-utils.js";
+export type { ArrowHead } from "../types.js";
 
 const ARROW_SIZE = 10;
 const LABEL_FONT_SIZE = 12;
@@ -22,12 +22,12 @@ const LABEL_PADDING_Y = 3;
 // ── Helpers to extract endpoints ──
 
 function sourceXY(data: ShapeData): Point {
-	const p = data.sourcePoint as Point | undefined;
+	const p = (data as ConnectorShapeData).sourcePoint;
 	return { x: p?.x ?? data.x, y: p?.y ?? data.y };
 }
 
 function targetXY(data: ShapeData): Point {
-	const p = data.targetPoint as Point | undefined;
+	const p = (data as ConnectorShapeData).targetPoint;
 	return { x: p?.x ?? data.x + data.width, y: p?.y ?? data.y + data.height };
 }
 
@@ -86,6 +86,7 @@ function renderLabel(label: string, midpoint: Point, color: string): React.React
 // ── Main render ──
 
 export function renderConnector(data: ShapeData) {
+	const connectorData = data as ConnectorShapeData;
 	const src = sourceXY(data);
 	const tgt = targetXY(data);
 	const { x: x1, y: y1 } = src;
@@ -94,13 +95,13 @@ export function renderConnector(data: ShapeData) {
 	const color = data.style.stroke;
 	const strokeWidth = data.style.strokeWidth;
 	const opacity = data.style.opacity;
-	const arrowHead = (data.arrowHead as ArrowHead) ?? "forward";
-	const pathType = (data.pathType as PathType) ?? "straight";
+	const arrowHead = connectorData.arrowHead ?? "forward";
+	const pathType = connectorData.pathType ?? "straight";
 
 	const elements: React.ReactElement[] = [];
 
 	if (pathType === "curve") {
-		const cp = (data.controlPoint as Point | undefined) ?? getDefaultControlPoint(src, tgt);
+		const cp = connectorData.controlPoint ?? getDefaultControlPoint(src, tgt);
 		elements.push(
 			<path
 				key="line"
@@ -170,9 +171,9 @@ export function renderConnector(data: ShapeData) {
 	}
 
 	// Label
-	const label = data.label as string | undefined;
+	const label = connectorData.label;
 	if (label) {
-		const cp = (data.controlPoint as Point | undefined) ?? undefined;
+		const cp = connectorData.controlPoint;
 		const midpoint = getPathMidpoint(pathType, src, tgt, cp);
 		elements.push(renderLabel(label, midpoint, color));
 	}
@@ -183,12 +184,13 @@ export function renderConnector(data: ShapeData) {
 // ── Bounds ──
 
 export function getBoundsConnector(data: ShapeData): BoundingBox {
+	const connectorData = data as ConnectorShapeData;
 	const src = sourceXY(data);
 	const tgt = targetXY(data);
-	const pathType = (data.pathType as PathType) ?? "straight";
+	const pathType = connectorData.pathType ?? "straight";
 
 	if (pathType === "curve") {
-		const cp = (data.controlPoint as Point | undefined) ?? getDefaultControlPoint(src, tgt);
+		const cp = connectorData.controlPoint ?? getDefaultControlPoint(src, tgt);
 		return bezierBounds(src, cp, tgt);
 	}
 
@@ -205,12 +207,13 @@ export function getBoundsConnector(data: ShapeData): BoundingBox {
 // ── Hit test ──
 
 export function hitTestConnector(data: ShapeData, point: Point, tolerance = 6): boolean {
+	const connectorData = data as ConnectorShapeData;
 	const src = sourceXY(data);
 	const tgt = targetXY(data);
-	const pathType = (data.pathType as PathType) ?? "straight";
+	const pathType = connectorData.pathType ?? "straight";
 
 	if (pathType === "curve") {
-		const cp = (data.controlPoint as Point | undefined) ?? getDefaultControlPoint(src, tgt);
+		const cp = connectorData.controlPoint ?? getDefaultControlPoint(src, tgt);
 		return isNearBezier(point, src, cp, tgt, tolerance);
 	}
 
@@ -225,7 +228,11 @@ export function hitTestConnector(data: ShapeData, point: Point, tolerance = 6): 
 
 // ── Default shape ──
 
-export function createDefaultConnector(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultConnector(params: {
+	id: string;
+	x: number;
+	y: number;
+}): ConnectorShapeData {
 	return {
 		id: params.id,
 		type: "connector",
@@ -238,8 +245,8 @@ export function createDefaultConnector(params: { id: string; x: number; y: numbe
 		targetId: undefined,
 		sourceAnchor: "auto",
 		targetAnchor: "auto",
-		arrowHead: "forward" as ArrowHead,
-		pathType: "straight" as PathType,
+		arrowHead: "forward",
+		pathType: "straight",
 		sourcePoint: { x: params.x, y: params.y },
 		targetPoint: { x: params.x + 100, y: params.y },
 		controlPoint: undefined,
@@ -251,12 +258,13 @@ export function createDefaultConnector(params: { id: string; x: number; y: numbe
 // ── Simplified (LOD) component ──
 
 export function SimplifiedConnector({ shape }: { shape: ShapeData }) {
+	const connectorData = shape as ConnectorShapeData;
 	const src = sourceXY(shape);
 	const tgt = targetXY(shape);
 	const bounds = getBoundsConnector(shape);
 	const rotation = safeRotation(shape.rotation);
 	const color = shape.style.stroke ?? "#1e1e1e";
-	const arrowHead = (shape.arrowHead as ArrowHead) ?? "forward";
+	const arrowHead = connectorData.arrowHead ?? "forward";
 
 	// Minimum size to avoid zero-dimension SVGs
 	const w = Math.max(bounds.width, 2);

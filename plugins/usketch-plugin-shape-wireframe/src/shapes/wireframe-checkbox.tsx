@@ -1,8 +1,10 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeCheckboxShapeData } from "../types.js";
 
-export function renderCheckbox(data: ShapeData) {
-	const checkboxLabel = (data.checkboxLabel as string) || "Checkbox";
+export function renderCheckbox(shape: ShapeData) {
+	const data = shape as WireframeCheckboxShapeData;
+	const checkboxLabel = data.checkboxLabel || "Checkbox";
 	const checked = data.checked === true;
 
 	return (
@@ -54,7 +56,11 @@ export function renderCheckbox(data: ShapeData) {
 	);
 }
 
-export function createDefaultCheckbox(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultCheckbox(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeCheckboxShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-checkbox",

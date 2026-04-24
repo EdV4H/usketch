@@ -1,9 +1,11 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeModalShapeData } from "../types.js";
 
-export function renderModal(data: ShapeData) {
-	const modalTitle = (data.modalTitle as string) || "Modal Title";
-	const modalContent = (data.modalContent as string) || "Modal content goes here.";
+export function renderModal(shape: ShapeData) {
+	const data = shape as WireframeModalShapeData;
+	const modalTitle = data.modalTitle || "Modal Title";
+	const modalContent = data.modalContent || "Modal content goes here.";
 
 	return (
 		<div
@@ -99,7 +101,11 @@ export function renderModal(data: ShapeData) {
 	);
 }
 
-export function createDefaultModal(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultModal(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeModalShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-modal",

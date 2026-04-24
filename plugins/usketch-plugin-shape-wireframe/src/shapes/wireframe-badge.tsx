@@ -1,9 +1,11 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeBadgeShapeData } from "../types.js";
 
-export function renderBadge(data: ShapeData) {
-	const badgeLabel = (data.badgeLabel as string) || "Badge";
-	const badgeVariant = (data.badgeVariant as string) || "default";
+export function renderBadge(shape: ShapeData) {
+	const data = shape as WireframeBadgeShapeData;
+	const badgeLabel = data.badgeLabel || "Badge";
+	const badgeVariant = data.badgeVariant || "default";
 
 	const variantStyles: Record<string, { bg: string; color: string }> = {
 		default: { bg: WF.colors.surface, color: WF.colors.text },
@@ -37,7 +39,11 @@ export function renderBadge(data: ShapeData) {
 	);
 }
 
-export function createDefaultBadge(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultBadge(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeBadgeShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-badge",

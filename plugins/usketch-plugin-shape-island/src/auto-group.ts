@@ -7,6 +7,7 @@ import {
 	getChildShapes,
 	intersectsAABB,
 } from "@edv4h/usketch-store";
+import type { IslandShapeData } from "./types.js";
 
 const TOUCH_PADDING = 4;
 const MERGE_ANIMATION_MS = 700;
@@ -58,7 +59,7 @@ class UnionFind {
 const mergeTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function triggerMergeAnimation(store: BoardStore, islandId: string) {
-	store.updateShape(islandId, { _islandJustMerged: true });
+	store.updateShape(islandId, { _islandJustMerged: true } as Partial<IslandShapeData>);
 
 	const existing = mergeTimers.get(islandId);
 	if (existing) clearTimeout(existing);
@@ -67,9 +68,9 @@ function triggerMergeAnimation(store: BoardStore, islandId: string) {
 		islandId,
 		setTimeout(() => {
 			mergeTimers.delete(islandId);
-			const shape = store.getShapes().get(islandId);
+			const shape = store.getShapes().get(islandId) as IslandShapeData | undefined;
 			if (shape?._islandJustMerged) {
-				store.updateShape(islandId, { _islandJustMerged: undefined });
+				store.updateShape(islandId, { _islandJustMerged: undefined } as Partial<IslandShapeData>);
 			}
 		}, MERGE_ANIMATION_MS),
 	);
@@ -93,7 +94,7 @@ export function reconcileIslandGroups(
 		const parentId = shape.parentId as string | undefined;
 		// Track which groups are island-groups
 		if (parentId) {
-			const parent = store.getShapes().get(parentId);
+			const parent = store.getShapes().get(parentId) as IslandShapeData | undefined;
 			if (parent?.type === "group" && parent._isIslandGroup) {
 				islandGroupIds.add(parentId);
 			}
@@ -226,7 +227,7 @@ export function reconcileIslandGroups(
 
 		const bounds = computeGroupBounds(children);
 		const groupId = generateId();
-		const groupShape: ShapeData = {
+		const groupShape: IslandShapeData = {
 			id: groupId,
 			type: "group",
 			x: bounds.x,
@@ -283,7 +284,7 @@ export function detachIsland(
 	const parentId = shape.parentId as string | undefined;
 	if (!parentId) return;
 
-	const parent = store.getShapes().get(parentId);
+	const parent = store.getShapes().get(parentId) as IslandShapeData | undefined;
 	if (!parent || parent.type !== "group" || !parent._isIslandGroup) return;
 
 	// Get remaining children
@@ -296,7 +297,7 @@ export function detachIsland(
 	if (siblings.length >= 2) {
 		const bounds = computeGroupBounds(siblings);
 		const newGroupId = generateId();
-		const newGroupShape: ShapeData = {
+		const newGroupShape: IslandShapeData = {
 			id: newGroupId,
 			type: "group",
 			x: bounds.x,

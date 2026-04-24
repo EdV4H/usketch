@@ -14,23 +14,32 @@ import {
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { createTextEditingService } from "./text-editing-machine.js";
 
+/** Text shape extension: intrinsic data for the `text` shape. */
+export interface TextShapeData extends ShapeData {
+	text: string;
+	fontSize: number;
+	fontFamily: string;
+	isEditing: boolean;
+}
+
 /**
  * LOD component: first line of text, truncated. Dropped editing + focus ring.
  */
 function SimplifiedText({ shape }: { shape: ShapeData }) {
-	const text = String((shape.text as string) || "").split("\n")[0] ?? "";
-	const color = (shape.style?.stroke as string) || "#222";
-	const rotation = typeof shape.rotation === "number" ? shape.rotation : 0;
+	const data = shape as TextShapeData;
+	const text = String(data.text ?? "").split("\n")[0] ?? "";
+	const color = data.style?.stroke || "#222";
+	const rotation = typeof data.rotation === "number" ? data.rotation : 0;
 	return (
 		<div
 			style={{
 				position: "absolute",
-				left: shape.x,
-				top: shape.y,
-				width: shape.width,
-				height: shape.height,
-				fontSize: (shape.fontSize as number) ?? 16,
-				fontFamily: (shape.fontFamily as string) ?? "system-ui, sans-serif",
+				left: data.x,
+				top: data.y,
+				width: data.width,
+				height: data.height,
+				fontSize: data.fontSize ?? 16,
+				fontFamily: data.fontFamily ?? "system-ui, sans-serif",
 				color,
 				overflow: "hidden",
 				whiteSpace: "nowrap",
@@ -47,14 +56,14 @@ function SimplifiedText({ shape }: { shape: ShapeData }) {
 
 // ── Shape Definition ──
 
-const textStyle = (data: ShapeData): React.CSSProperties => ({
+const textStyle = (data: TextShapeData): React.CSSProperties => ({
 	width: "100%",
 	height: "100%",
 	whiteSpace: "pre-wrap",
 	wordBreak: "break-word",
 	outline: "none",
-	fontFamily: (data.fontFamily as string) ?? "system-ui, sans-serif",
-	fontSize: (data.fontSize as number) ?? 16,
+	fontFamily: data.fontFamily ?? "system-ui, sans-serif",
+	fontSize: data.fontSize ?? 16,
 	color: data.style.stroke,
 	background: data.style.fill === "transparent" ? "transparent" : data.style.fill,
 	lineHeight: 1.4,
@@ -74,11 +83,12 @@ function focusAtEnd(el: HTMLElement) {
 	}
 }
 
-function render(data: ShapeData) {
+function render(shape: ShapeData) {
+	const data = shape as TextShapeData;
 	if (!data.isEditing) {
 		return (
 			<div style={{ ...textStyle(data), pointerEvents: "none", userSelect: "none" }}>
-				{(data.text as string) ?? ""}
+				{data.text ?? ""}
 			</div>
 		);
 	}
@@ -98,7 +108,7 @@ function render(data: ShapeData) {
 				// replace it, or the cursor position will be lost.
 				if (el.dataset.focused) return;
 				el.dataset.focused = "1";
-				el.textContent = (data.text as string) ?? "";
+				el.textContent = data.text ?? "";
 				requestAnimationFrame(() => focusAtEnd(el));
 			}}
 			onInput={(e: React.FormEvent<HTMLDivElement>) => {
@@ -191,7 +201,7 @@ function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData 
 	return { ...data, x, y, width: Math.max(40, width), height: Math.max(24, height) };
 }
 
-function createDefault(params: { id: string; x: number; y: number }): ShapeData {
+function createDefault(params: { id: string; x: number; y: number }): TextShapeData {
 	return {
 		id: params.id,
 		type: "text",

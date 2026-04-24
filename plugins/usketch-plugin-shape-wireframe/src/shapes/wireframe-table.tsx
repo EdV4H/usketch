@@ -1,9 +1,11 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeTableShapeData } from "../types.js";
 
-export function renderTable(data: ShapeData) {
-	const columns = (data.columns as string[]) || ["Name", "Value", "Status"];
-	const rows = (data.rows as number) ?? 3;
+export function renderTable(shape: ShapeData) {
+	const data = shape as WireframeTableShapeData;
+	const columns = data.columns || ["Name", "Value", "Status"];
+	const rows = data.rows ?? 3;
 
 	return (
 		<div
@@ -84,7 +86,11 @@ export function renderTable(data: ShapeData) {
 	);
 }
 
-export function createDefaultTable(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultTable(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeTableShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-table",

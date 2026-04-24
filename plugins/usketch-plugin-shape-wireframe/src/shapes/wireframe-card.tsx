@@ -1,9 +1,11 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeCardShapeData } from "../types.js";
 
-export function renderCard(data: ShapeData) {
-	const cardTitle = (data.cardTitle as string) || "Card Title";
-	const cardContent = (data.cardContent as string) || "Card content goes here.";
+export function renderCard(shape: ShapeData) {
+	const data = shape as WireframeCardShapeData;
+	const cardTitle = data.cardTitle || "Card Title";
+	const cardContent = data.cardContent || "Card content goes here.";
 
 	return (
 		<div
@@ -49,7 +51,11 @@ export function renderCard(data: ShapeData) {
 	);
 }
 
-export function createDefaultCard(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultCard(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeCardShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-card",

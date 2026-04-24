@@ -13,9 +13,11 @@ import {
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
+import type { FreedrawShapeData } from "./types.js";
 
-function render(data: ShapeData) {
-	const points = (data.points as Point[]) ?? [];
+function render(shape: ShapeData) {
+	const data = shape as FreedrawShapeData;
+	const points = data.points ?? [];
 	const pointsStr = points.map((p) => `${p.x},${p.y}`).join(" ");
 	return (
 		<polyline
@@ -30,8 +32,9 @@ function render(data: ShapeData) {
 	);
 }
 
-function getBounds(data: ShapeData): BoundingBox {
-	const points = (data.points as Point[]) ?? [];
+function getBounds(shape: ShapeData): BoundingBox {
+	const data = shape as FreedrawShapeData;
+	const points = data.points ?? [];
 	if (points.length === 0) {
 		return { x: data.x, y: data.y, width: 0, height: 0 };
 	}
@@ -58,8 +61,9 @@ function hitTest(data: ShapeData, point: Point): boolean {
 	);
 }
 
-function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData {
-	const points = (data.points as Point[]) ?? [];
+function resize(shape: ShapeData, handle: ResizeHandle, delta: Point): FreedrawShapeData {
+	const data = shape as FreedrawShapeData;
+	const points = data.points ?? [];
 	const bounds = getBounds(data);
 	if (bounds.width === 0 && bounds.height === 0) return data;
 
@@ -126,8 +130,9 @@ function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData 
 	};
 }
 
-function move(data: ShapeData, dx: number, dy: number): Partial<ShapeData> {
-	const points = (data.points as Point[]) ?? [];
+function move(shape: ShapeData, dx: number, dy: number): Partial<FreedrawShapeData> {
+	const data = shape as FreedrawShapeData;
+	const points = data.points ?? [];
 	return {
 		x: data.x + dx,
 		y: data.y + dy,
@@ -135,8 +140,9 @@ function move(data: ShapeData, dx: number, dy: number): Partial<ShapeData> {
 	};
 }
 
-function applyBounds(data: ShapeData, newBounds: BoundingBox): Partial<ShapeData> {
-	const points = (data.points as Point[]) ?? [];
+function applyBounds(shape: ShapeData, newBounds: BoundingBox): Partial<FreedrawShapeData> {
+	const data = shape as FreedrawShapeData;
+	const points = data.points ?? [];
 	const oldBounds = getBounds(data);
 	const scaleX = oldBounds.width !== 0 ? newBounds.width / oldBounds.width : 1;
 	const scaleY = oldBounds.height !== 0 ? newBounds.height / oldBounds.height : 1;
@@ -152,7 +158,7 @@ function applyBounds(data: ShapeData, newBounds: BoundingBox): Partial<ShapeData
 	};
 }
 
-function createDefault(params: { id: string; x: number; y: number }): ShapeData {
+function createDefault(params: { id: string; x: number; y: number }): FreedrawShapeData {
 	return {
 		id: params.id,
 		type: "freedraw",
@@ -223,7 +229,7 @@ export const freedrawPlugin: UsketchPlugin = {
 				width: bounds.width,
 				height: bounds.height,
 				points: [...drawState.points],
-			});
+			} as Partial<FreedrawShapeData>);
 		}
 
 		function onPointerUp(toolCtx: ToolContext) {
@@ -239,8 +245,9 @@ export const freedrawPlugin: UsketchPlugin = {
 			drawState = null;
 		}
 
-		function gpuPrimitive(data: ShapeData): GpuPrimitive | null {
-			const pts = (data.points as Point[]) ?? [];
+		function gpuPrimitive(shape: ShapeData): GpuPrimitive | null {
+			const data = shape as FreedrawShapeData;
+			const pts = data.points ?? [];
 			if (pts.length < 2) return null;
 			const verts = new Float32Array(pts.length * 2);
 			for (let i = 0; i < pts.length; i++) {
