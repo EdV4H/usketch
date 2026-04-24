@@ -1,6 +1,6 @@
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import type { WsConnectionStatus, WsProviderHandle } from "@edv4h/usketch-sync";
-import type { Awareness } from "y-protocols/awareness";
+import { Awareness } from "y-protocols/awareness";
 import { WebsocketProvider } from "y-websocket";
 import * as Y from "yjs";
 import { SyncStatusTracker } from "./sync-status-tracker.js";
@@ -43,19 +43,24 @@ export function createYwebsocketSync(
 	let lastCloseCode: number | undefined;
 	let lastCloseReason: string | undefined;
 
-	// A long-lived Awareness bound to `doc` — reused across reconnects so consumers
-	// (e.g., presence-cursor) can subscribe once.
-	let sharedAwareness: Awareness | null = null;
+	// A long-lived Awareness bound to `doc`. Created up-front so `wsProvider.awareness`
+	// is always valid (WsProviderHandle consumers, e.g. presence-cursor, destructure
+	// it at plugin-creation time). The same instance is passed into every
+	// WebsocketProvider so remote awareness updates keep flowing through reconnects.
+	const sharedAwareness: Awareness = new Awareness(doc);
 
 	// WsProviderHandle event listener sets — persist across reconnects.
 	const statusListeners = new Set<(status: WsConnectionStatus) => void>();
 	const broadcastListeners = new Set<(msg: Record<string, unknown>) => void>();
 
 	function notifyStatus(next: WsConnectionStatus): void {
+		// "connected" at the transport level only means the socket is open — the
+		// first Yjs sync has not necessarily completed. Map to "syncing" until the
+		// provider's `sync` event fires; `onSync` will flip the tracker to "synced".
 		status.update({
 			state:
 				next === "connected"
-					? "synced"
+					? "syncing"
 					: next === "connecting"
 						? "connecting"
 						: next === "disconnected"
@@ -211,6 +216,9 @@ export function createYwebsocketSync(
 					state: "error",
 					error: err instanceof Error ? err.message : String(err),
 				});
+				// Unblock `whenSynced` so plugin setup can proceed — consumers should
+				// inspect `status.getSnapshot()` to detect the persistent failure state.
+				settleFirstSync();
 				scheduleReconnect();
 				return;
 			}
@@ -221,14 +229,10 @@ export function createYwebsocketSync(
 		const provider = new WebsocketProvider(url, roomName, doc, {
 			connect: true,
 			params: connParams,
+			awareness: sharedAwareness,
 			WebSocketPolyfill: WebSocketPolyfill as typeof WebSocket | undefined,
 			resyncInterval: 0,
 		});
-
-		// Reuse a single Awareness instance across reconnects.
-		if (!sharedAwareness) {
-			sharedAwareness = provider.awareness;
-		}
 
 		const onStatus = (event: { status: "connecting" | "connected" | "disconnected" }): void => {
 			if (event.status === "connected") {
@@ -343,6 +347,7 @@ export function createYwebsocketSync(
 
 	function resume(): void {
 		if (destroyed) return;
+		resetIdleTimer();
 		if (currentState) return;
 		attempt = 0;
 		void connect();
@@ -354,17 +359,9 @@ export function createYwebsocketSync(
 		get connected() {
 			return Boolean(currentState && (currentState.provider.wsconnected ?? false));
 		},
-		// Lazily provisioned — first call to `connect()` populates `sharedAwareness`.
-		// If someone reads this before we've connected, create a detached Awareness on `doc`.
-		get awareness(): Awareness {
-			if (sharedAwareness) return sharedAwareness;
-			// Defer import of y-protocols to avoid duplicating implementations.
-			// This branch is only hit if `autoConnect: false` AND awareness is accessed
-			// before `resume()`. Consumers are expected to call `resume()` first.
-			throw new Error(
-				"[usketch-plugin-sync-ywebsocket] awareness is not available until the first connection — call resume() first or enable autoConnect.",
-			);
-		},
+		// Always bound to `doc` and reused across every WebsocketProvider — consumers
+		// (e.g. presence-cursor) can destructure at plugin-creation time without races.
+		awareness: sharedAwareness,
 		broadcast(_msg: Record<string, unknown>): void {
 			// y-websocket has no broadcast channel separate from Y.Doc updates; no-op.
 		},
@@ -410,6 +407,7 @@ export function createYwebsocketSync(
 		unsubMutation();
 		statusListeners.clear();
 		broadcastListeners.clear();
+		sharedAwareness.destroy();
 		if (ownsDoc) {
 			doc.destroy();
 		}

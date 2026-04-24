@@ -7,7 +7,10 @@ export interface YwebsocketSyncPlugin extends UsketchPlugin {
 	/**
 	 * Returns the underlying `WsProviderHandle` for consumption by other plugins
 	 * (e.g. `@edv4h/usketch-plugin-presence-cursor`).
-	 * Only valid after the plugin's `setup` has run.
+	 *
+	 * Only valid *after* the plugin's `setup()` has run. See the README for the
+	 * recommended pattern (wrap the dependent plugin so it reads the provider
+	 * from inside its own `setup()`).
 	 */
 	getWsProvider(): WsProviderHandle;
 	/** Access the full sync handle — status, Y.Doc, disconnect/resume/destroy. */
@@ -23,7 +26,6 @@ export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): Yweb
 
 		async setup(ctx) {
 			handle = createYwebsocketSync(ctx.store, options);
-			// Expose status for DebugHUD etc.
 			(globalThis as Record<string, unknown>).__usketchSyncStatus = handle.status;
 			await handle.whenSynced;
 		},
@@ -37,7 +39,7 @@ export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): Yweb
 		getWsProvider(): WsProviderHandle {
 			if (!handle) {
 				throw new Error(
-					"[usketch-plugin-sync-ywebsocket] getWsProvider() called before setup(); register the plugin first.",
+					"[usketch-plugin-sync-ywebsocket] getWsProvider() called before setup(); register the plugin with createApp() first, or call getWsProvider() from inside another plugin's setup().",
 				);
 			}
 			return handle.wsProvider;
@@ -46,7 +48,7 @@ export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): Yweb
 		getHandle(): YwebsocketSyncHandle {
 			if (!handle) {
 				throw new Error(
-					"[usketch-plugin-sync-ywebsocket] getHandle() called before setup(); register the plugin first.",
+					"[usketch-plugin-sync-ywebsocket] getHandle() called before setup(); register the plugin with createApp() first, or call getHandle() from inside another plugin's setup().",
 				);
 			}
 			return handle;

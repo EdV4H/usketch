@@ -44,9 +44,9 @@ export interface YwebsocketSyncOptions {
 	onCloseCode?: (code: number, reason: string) => "retry" | "stop" | undefined;
 
 	/**
-	 * Disconnect automatically after this many milliseconds of local inactivity.
-	 * Any call to `resume()` or any local Y.Doc update resets the timer.
-	 * Set to `0` (or omit) to disable.
+	 * Disconnect automatically after this many milliseconds of inactivity.
+	 * The timer resets on local store mutations, when the socket reports `connected`,
+	 * and when `resume()` is called. Set to `0` (or omit) to disable.
 	 */
 	idleTimeoutMs?: number;
 
@@ -75,8 +75,10 @@ export interface YwebsocketSyncHandle {
 	/** Observable sync status (loading/synced/disconnected/error). */
 	status: SyncStatusTracker;
 	/**
-	 * Resolves when the first server sync completes (or the first connection attempt fails).
-	 * Resolves, never rejects — inspect `status.getSnapshot().state === "error"` to detect failure.
+	 * Resolves when the first server sync completes, when `resolveParams` fails the
+	 * initial attempt, when `onCloseCode` returns `"stop"`, or on `destroy()`.
+	 * Resolves, never rejects — inspect `status.getSnapshot()` for the latest state
+	 * (in particular `state === "error"` / `"disconnected"`) to detect failure modes.
 	 */
 	whenSynced: Promise<void>;
 

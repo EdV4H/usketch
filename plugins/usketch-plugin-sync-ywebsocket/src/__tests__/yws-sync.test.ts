@@ -146,6 +146,39 @@ describe("createYwebsocketSync (lifecycle)", () => {
 		}
 	});
 
+	it("exposes a valid Awareness before connect — WsProviderHandle contract", () => {
+		// Consumers like presence-cursor destructure `const { awareness } = wsProvider`
+		// at plugin creation time, so awareness must be ready immediately.
+		const store = createTestStore();
+		const handle = createYwebsocketSync(store, {
+			url: "ws://example.invalid",
+			roomName: "room",
+			autoConnect: false,
+		});
+		try {
+			const { awareness } = handle.wsProvider;
+			expect(awareness).toBeDefined();
+			expect(awareness.doc).toBe(handle.doc);
+			awareness.setLocalStateField("user", { name: "alice" });
+			expect(awareness.getLocalState()).toMatchObject({ user: { name: "alice" } });
+		} finally {
+			handle.destroy();
+		}
+	});
+
+	it("whenSynced resolves on destroy (doesn't hang setup())", async () => {
+		const store = createTestStore();
+		const handle = createYwebsocketSync(store, {
+			url: "ws://example.invalid",
+			roomName: "room",
+			autoConnect: false,
+		});
+		// Kick off whenSynced, then destroy — must resolve, not hang.
+		const p = handle.whenSynced;
+		handle.destroy();
+		await expect(p).resolves.toBeUndefined();
+	});
+
 	it("destroys the Y.Doc it owns, but leaves an externally-provided Y.Doc intact", () => {
 		const store1 = createTestStore();
 		const h1 = createYwebsocketSync(store1, {

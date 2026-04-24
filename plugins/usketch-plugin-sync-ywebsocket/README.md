@@ -12,30 +12,58 @@ pnpm add @edv4h/usketch-plugin-sync-ywebsocket
 
 ## Basic usage
 
+`getWsProvider()` is only valid *after* the sync plugin's `setup()` has run. Since
+`createApp` calls `setup()` in plugin order, the recommended pattern is to defer
+the `wsProvider` lookup into a thin wrapper plugin that runs after the sync
+plugin. This keeps everything inside a single `createApp` call:
+
 ```ts
 import { createApp } from "@edv4h/usketch-core";
+import { createBoardStore } from "@edv4h/usketch-store";
+import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
-import { createYwebsocketSyncPlugin } from "@edv4h/usketch-plugin-sync-ywebsocket";
+import { createYwebsocketSyncPlugin, type YwebsocketSyncPlugin } from "@edv4h/usketch-plugin-sync-ywebsocket";
 
 const syncPlugin = createYwebsocketSyncPlugin({
   url: "wss://yws.example.com",
   roomName: "board-123",
 });
 
+// Wrap presence-cursor so the provider is read at setup time, when syncPlugin.setup
+// has already run (plugins are set up in order).
+function presenceCursorWithSync(
+  sync: YwebsocketSyncPlugin,
+  opts: { userId: string; userName: string },
+): UsketchPlugin {
+  let inner: UsketchPlugin | null = null;
+  return {
+    id: "usketch-plugin-presence-cursor",
+    name: "Presence Cursor",
+    async setup(ctx) {
+      inner = createPresenceCursorPlugin({
+        wsProvider: sync.getWsProvider(),
+        userId: opts.userId,
+        userName: opts.userName,
+      });
+      await inner.setup(ctx);
+    },
+    teardown() {
+      inner?.teardown?.();
+    },
+  };
+}
+
 const app = await createApp({
+  store: createBoardStore(),
   plugins: [
     syncPlugin,
-    // Pass the provider into presence-cursor (after setup, the handle is ready).
-    createPresenceCursorPlugin({
-      wsProvider: syncPlugin.getWsProvider(),
-      userId: "alice",
-      userName: "Alice",
-    }),
+    presenceCursorWithSync(syncPlugin, { userId: "alice", userName: "Alice" }),
   ],
 });
 ```
 
-Because `getWsProvider()` must be called after the sync plugin's `setup()` has run, a simple pattern is to split plugin registration into two awaited phases — or to rely on `createApp` awaiting plugins in order, and to pass the provider via a late-binding thunk where your framework permits.
+This pattern generalizes to any plugin that needs a `WsProviderHandle`: wrap it
+in a small factory that reads `sync.getWsProvider()` inside its own `setup()`.
 
 ## Options
 
