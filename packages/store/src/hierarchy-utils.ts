@@ -58,7 +58,9 @@ export function getTopLevelShapes(store: BoardStore): ShapeData[] {
 export function getConnectorsForShape(store: BoardStore, shapeId: string): ShapeData[] {
 	const connectors: ShapeData[] = [];
 	for (const [, shape] of store.getShapes()) {
-		if (shape.type === "connector" && (shape.sourceId === shapeId || shape.targetId === shapeId)) {
+		if (shape.type !== "connector") continue;
+		const { sourceId, targetId } = shape as { sourceId?: string; targetId?: string };
+		if (sourceId === shapeId || targetId === shapeId) {
 			connectors.push(shape);
 		}
 	}

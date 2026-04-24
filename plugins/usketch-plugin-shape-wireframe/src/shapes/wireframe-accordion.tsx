@@ -1,9 +1,11 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeAccordionShapeData } from "../types.js";
 
-export function renderAccordion(data: ShapeData) {
-	const sections = (data.sections as string[]) || ["Section 1", "Section 2", "Section 3"];
-	const expandedIndex = (data.expandedIndex as number) ?? 0;
+export function renderAccordion(shape: ShapeData) {
+	const data = shape as WireframeAccordionShapeData;
+	const sections = data.sections || ["Section 1", "Section 2", "Section 3"];
+	const expandedIndex = data.expandedIndex ?? 0;
 
 	return (
 		<div
@@ -64,7 +66,11 @@ export function renderAccordion(data: ShapeData) {
 	);
 }
 
-export function createDefaultAccordion(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultAccordion(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeAccordionShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-accordion",

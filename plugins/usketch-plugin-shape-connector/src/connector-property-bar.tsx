@@ -4,6 +4,7 @@ import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import { useCallback } from "react";
 import { type AnchorType, getAnchorPoint } from "./anchor-utils.js";
 import type { ArrowHead, PathType } from "./shapes/connector.js";
+import type { ConnectorShapeData } from "./types.js";
 
 // ── Arrow Icons ──
 
@@ -94,10 +95,11 @@ export function ConnectorPropertyBar() {
 	if (!shape || shape.type !== "connector") return null;
 
 	const connectorId = ids[0];
-	const arrowHead = (shape.arrowHead as ArrowHead) ?? "forward";
-	const pathType = (shape.pathType as PathType) ?? "straight";
-	const sourceAnchor = (shape.sourceAnchor as AnchorType) ?? "auto";
-	const targetAnchor = (shape.targetAnchor as AnchorType) ?? "auto";
+	const connectorData = shape as ConnectorShapeData;
+	const arrowHead = connectorData.arrowHead ?? "forward";
+	const pathType = connectorData.pathType ?? "straight";
+	const sourceAnchor = connectorData.sourceAnchor ?? "auto";
+	const targetAnchor = connectorData.targetAnchor ?? "auto";
 
 	return (
 		<ShapeAnchorOverlay shapeIds={[connectorId]} position="bottom" fallback="top">
@@ -165,8 +167,9 @@ function ConnectorControls({
 			if (value === current) return;
 
 			// Recalculate endpoint position with new anchor
-			const sourceId = connector.sourceId as string | undefined;
-			const targetId = connector.targetId as string | undefined;
+			const connectorData = connector as ConnectorShapeData;
+			const sourceId = connectorData.sourceId;
+			const targetId = connectorData.targetId;
 			if (!sourceId || !targetId) return;
 
 			const sourceShape = store.getShape(sourceId);
@@ -188,16 +191,16 @@ function ConnectorControls({
 			const newSourcePoint = getAnchorPoint(sourceShape, newSourceAnchor, targetCenter);
 			const newTargetPoint = getAnchorPoint(targetShape, newTargetAnchor, sourceCenter);
 
-			const from: Partial<ShapeData> = {
+			const from: Partial<ConnectorShapeData> = {
 				[key]: current,
-				sourcePoint: connector.sourcePoint,
-				targetPoint: connector.targetPoint,
+				sourcePoint: connectorData.sourcePoint,
+				targetPoint: connectorData.targetPoint,
 				x: connector.x,
 				y: connector.y,
 				width: connector.width,
 				height: connector.height,
 			};
-			const to: Partial<ShapeData> = {
+			const to: Partial<ConnectorShapeData> = {
 				[key]: value,
 				sourcePoint: newSourcePoint,
 				targetPoint: newTargetPoint,

@@ -92,7 +92,7 @@ export function ShapesPanel({
 	const updateField = (id: string, field: string, value: number) => {
 		const shape = store.getShape(id);
 		if (!shape) return;
-		const from = { [field]: shape[field] as number };
+		const from = { [field]: (shape as unknown as Record<string, unknown>)[field] as number };
 		const to = { [field]: value };
 		commands.execute({
 			execute: () => store.updateShape(id, to),
@@ -245,7 +245,13 @@ function ShapeDetail({
 							wordBreak: "break-all",
 						}}
 					>
-						{JSON.stringify(Object.fromEntries(customKeys.map((k) => [k, shape[k]])), null, 1)}
+						{JSON.stringify(
+							Object.fromEntries(
+								customKeys.map((k) => [k, (shape as unknown as Record<string, unknown>)[k]]),
+							),
+							null,
+							1,
+						)}
 					</pre>
 				</div>
 			)}

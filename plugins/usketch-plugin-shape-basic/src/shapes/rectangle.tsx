@@ -1,13 +1,15 @@
 import { DEFAULT_STYLE, type ShapeData } from "@edv4h/usketch-shared";
+import type { RectangleShapeData } from "../types.js";
 
 export function renderRectangle(data: ShapeData) {
+	const rect = data as RectangleShapeData;
 	return (
 		<rect
 			x={data.x}
 			y={data.y}
 			width={data.width}
 			height={data.height}
-			rx={(data.cornerRadius as number) ?? 0}
+			rx={rect.cornerRadius ?? 0}
 			fill={data.style.fill}
 			stroke={data.style.stroke}
 			strokeWidth={data.style.strokeWidth}
@@ -16,7 +18,11 @@ export function renderRectangle(data: ShapeData) {
 	);
 }
 
-export function createDefaultRectangle(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultRectangle(params: {
+	id: string;
+	x: number;
+	y: number;
+}): RectangleShapeData {
 	return {
 		id: params.id,
 		type: "rectangle",

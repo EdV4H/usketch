@@ -1,9 +1,11 @@
 import type { BoundingBox, Point, ShapeData } from "@edv4h/usketch-shared";
+import type { FrameShapeData } from "../types.js";
 
 const TITLE_HEIGHT = 24;
 
-export function renderFrame(data: ShapeData) {
-	const title = (data.frameTitle as string) ?? "Frame";
+export function renderFrame(shape: ShapeData) {
+	const data = shape as FrameShapeData;
+	const title = data.frameTitle ?? "Frame";
 	const bgColor = data.style.fill === "transparent" ? "#f8f8f8" : data.style.fill;
 
 	// Position/size is handled by ShapeWrapper (position: absolute; left/top/width/height).
@@ -94,7 +96,7 @@ export function resizeFrame(data: ShapeData, handle: string, delta: Point): Shap
 	return result;
 }
 
-export function createDefaultFrame(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultFrame(params: { id: string; x: number; y: number }): FrameShapeData {
 	return {
 		id: params.id,
 		type: "frame",

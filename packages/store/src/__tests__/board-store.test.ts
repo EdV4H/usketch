@@ -29,26 +29,26 @@ describe("BoardStore", () => {
 			expect(listener).toHaveBeenCalled();
 		});
 
-		it("addShape: stamps _createdAt and _updatedAt", () => {
+		it("addShape: stamps createdAt and updatedAt", () => {
 			const store = createBoardStore();
 			const before = Date.now();
 			store.addShape(makeShape({ id: "s1" }));
 			const after = Date.now();
 
 			const shape = store.getShape("s1")!;
-			const createdAt = shape._createdAt as number;
-			const updatedAt = shape._updatedAt as number;
+			const createdAt = shape.createdAt as number;
+			const updatedAt = shape.updatedAt as number;
 			expect(createdAt).toBeGreaterThanOrEqual(before);
 			expect(createdAt).toBeLessThanOrEqual(after);
 			expect(updatedAt).toBeGreaterThanOrEqual(before);
 		});
 
-		it("addShape: preserves existing _createdAt", () => {
+		it("addShape: preserves existing createdAt", () => {
 			const store = createBoardStore();
-			store.addShape(makeShape({ id: "s1", _createdAt: 12345 } as ShapeData));
+			store.addShape(makeShape({ id: "s1", createdAt: 12345 }));
 
 			const shape = store.getShape("s1")!;
-			expect(shape._createdAt).toBe(12345);
+			expect(shape.createdAt).toBe(12345);
 		});
 
 		it("updateShape: updates existing shape", () => {
@@ -70,14 +70,14 @@ describe("BoardStore", () => {
 			expect(listener).not.toHaveBeenCalled();
 		});
 
-		it("updateShape: stamps _updatedAt", () => {
+		it("updateShape: stamps updatedAt", () => {
 			const store = createBoardStore();
 			store.addShape(makeShape({ id: "s1" }));
 			const before = Date.now();
 
 			store.updateShape("s1", { x: 10 });
 
-			const updatedAt = store.getShape("s1")!._updatedAt as number;
+			const updatedAt = store.getShape("s1")!.updatedAt as number;
 			expect(updatedAt).toBeGreaterThanOrEqual(before);
 		});
 

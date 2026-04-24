@@ -1,8 +1,10 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeBreadcrumbShapeData } from "../types.js";
 
-export function renderBreadcrumb(data: ShapeData) {
-	const items = (data.items as string[]) || ["Home", "Page", "Current"];
+export function renderBreadcrumb(shape: ShapeData) {
+	const data = shape as WireframeBreadcrumbShapeData;
+	const items = data.items || ["Home", "Page", "Current"];
 
 	return (
 		<div
@@ -36,7 +38,11 @@ export function renderBreadcrumb(data: ShapeData) {
 	);
 }
 
-export function createDefaultBreadcrumb(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultBreadcrumb(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeBreadcrumbShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-breadcrumb",

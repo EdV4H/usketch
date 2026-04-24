@@ -93,11 +93,11 @@ export function createBoardStore(): BoardStore {
 			// Fast path: use the tracked max-zIndex to append a tail key in O(1)
 			// rather than rescanning all existing shapes on every insert.
 			const zIndex = needsZIndex ? zIndexBetween(maxZIndex, null) : shape.zIndex;
-			const stamped = {
+			const stamped: ShapeData = {
 				...shape,
 				zIndex,
-				_createdAt: (shape as Record<string, unknown>)._createdAt ?? now,
-				_updatedAt: now,
+				createdAt: shape.createdAt ?? now,
+				updatedAt: now,
 			};
 			state.shapes = new Map(state.shapes);
 			state.shapes.set(stamped.id, stamped);
@@ -115,7 +115,7 @@ export function createBoardStore(): BoardStore {
 			const existing = state.shapes.get(id);
 			if (!existing) return;
 			state.shapes = new Map(state.shapes);
-			const updated = { ...existing, ...updates, _updatedAt: Date.now() };
+			const updated = { ...existing, ...updates, updatedAt: Date.now() };
 			state.shapes.set(id, updated);
 			spatialIndex.update(id, shapeToBounds(updated));
 			// If zIndex was touched, the cached max may be stale. Recompute lazily

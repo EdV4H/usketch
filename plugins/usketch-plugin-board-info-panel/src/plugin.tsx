@@ -2,6 +2,7 @@ import type { SidePanelRegisterEvent } from "@edv4h/usketch-plugin-side-panel";
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardInfoClient } from "./board-info-client.js";
 import { BoardInfoTabWrapper } from "./board-info-tab-wrapper.js";
+import type { BoardPortalShapeData } from "./types.js";
 
 export interface BoardInfoPanelPluginOptions {
 	apiUrl: string;
@@ -44,11 +45,11 @@ export function createBoardInfoPanelPlugin(options: BoardInfoPanelPluginOptions)
 
 			// ポータルシェイプにサムネイル URL を設定（未設定の場合のみ）
 			function ensureThumbnailUrl(shapeId: string, boardId: string) {
-				const shape = ctx.store.getShape(shapeId);
+				const shape = ctx.store.getShape(shapeId) as BoardPortalShapeData | undefined;
 				if (shape && !shape.thumbnailUrl && shape.isPublic !== false) {
 					ctx.store.updateShape(shapeId, {
 						thumbnailUrl: `${apiUrl}/public/boards/${boardId}/thumbnail?w=240&h=160`,
-					});
+					} as Partial<BoardPortalShapeData>);
 				}
 			}
 
@@ -56,9 +57,9 @@ export function createBoardInfoPanelPlugin(options: BoardInfoPanelPluginOptions)
 				const selection = ctx.store.getSelection();
 				if (selection.size === 1) {
 					const shapeId = [...selection][0];
-					const shape = ctx.store.getShape(shapeId);
+					const shape = ctx.store.getShape(shapeId) as BoardPortalShapeData | undefined;
 					if (shape && shape.type === "board-portal" && shape.boardId) {
-						const boardId = shape.boardId as string;
+						const boardId = shape.boardId;
 						ensureThumbnailUrl(shapeId, boardId);
 						if (boardId !== currentPortalBoardId) {
 							currentPortalBoardId = boardId;

@@ -62,7 +62,7 @@ export function generateShapes(count: number, mix: ShapeMix): ShapeData[] {
 		};
 
 		if (type === "rectangle") {
-			shape.cornerRadius = 0;
+			(shape as { cornerRadius?: number }).cornerRadius = 0;
 		}
 
 		shapes.push(shape);

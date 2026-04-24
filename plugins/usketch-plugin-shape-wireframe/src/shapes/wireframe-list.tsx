@@ -1,8 +1,10 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeListShapeData } from "../types.js";
 
-export function renderList(data: ShapeData) {
-	const listItems = (data.listItems as string[]) || ["Item 1", "Item 2", "Item 3"];
+export function renderList(shape: ShapeData) {
+	const data = shape as WireframeListShapeData;
+	const listItems = data.listItems || ["Item 1", "Item 2", "Item 3"];
 
 	return (
 		<div
@@ -38,7 +40,11 @@ export function renderList(data: ShapeData) {
 	);
 }
 
-export function createDefaultList(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultList(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeListShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-list",

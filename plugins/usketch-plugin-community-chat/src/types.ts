@@ -1,3 +1,5 @@
+import type { ShapeData } from "@edv4h/usketch-shared";
+
 export interface ChatMessage {
 	id: string;
 	boardId: string;
@@ -13,4 +15,17 @@ export interface ChatNewMessageEvent {
 	message: ChatMessage;
 	/** このイベントは「現在アクティブなタブで受信/送信された」= unread に計上しない */
 	fromActiveTab: boolean;
+}
+
+/**
+ * Chat widget shape extension: intrinsic data for the `chat-widget` shape.
+ */
+export interface ChatWidgetShapeData extends ShapeData {
+	chatLabel?: string;
+	threadId?: string;
+	unread?: number;
+	lastMessage?: string;
+	lastAuthor?: string;
+	lastAuthorId?: string;
+	lastMessageAt?: string;
 }

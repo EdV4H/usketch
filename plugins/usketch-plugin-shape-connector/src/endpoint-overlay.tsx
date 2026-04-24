@@ -10,6 +10,7 @@ import {
 } from "./endpoint-drag-state.js";
 import { getDefaultControlPoint } from "./path-utils.js";
 import { findShapeAtPoint } from "./plugin.js";
+import type { ConnectorShapeData } from "./types.js";
 
 const HANDLE_RADIUS = 5;
 const STROKE_COLOR = "#2680eb";
@@ -44,12 +45,13 @@ export function EndpointOverlay({ ctx, viewport }: EndpointOverlayProps) {
 	const connector = shapes.get(connectorId);
 	if (!connector || connector.type !== "connector") return null;
 
-	const sourcePoint = connector.sourcePoint as Point | undefined;
-	const targetPoint = connector.targetPoint as Point | undefined;
+	const connectorData = connector as ConnectorShapeData;
+	const sourcePoint = connectorData.sourcePoint;
+	const targetPoint = connectorData.targetPoint;
 	if (!sourcePoint || !targetPoint) return null;
 
-	const controlPoint = connector.controlPoint as Point | undefined;
-	const pathType = (connector.pathType as string) ?? "straight";
+	const controlPoint = connectorData.controlPoint;
+	const pathType = connectorData.pathType ?? "straight";
 	const showControlHandle = pathType === "curve";
 	const cp = controlPoint ?? getDefaultControlPoint(sourcePoint, targetPoint);
 
@@ -156,8 +158,9 @@ function DragPreview({
 	connector: ShapeData;
 	viewport: Viewport;
 }) {
-	const sourcePoint = connector.sourcePoint as Point;
-	const targetPoint = connector.targetPoint as Point;
+	const connectorData = connector as ConnectorShapeData;
+	const sourcePoint = connectorData.sourcePoint as Point;
+	const targetPoint = connectorData.targetPoint as Point;
 	const dragScreen = worldToScreen(dragState.currentPoint, viewport);
 
 	if (dragState.endpoint === "source") {
@@ -262,10 +265,9 @@ function EndpointHandle({
 			});
 
 			// The shape this endpoint is currently connected to
+			const connectorData = connector as ConnectorShapeData;
 			const currentShapeId =
-				endpoint === "source"
-					? (connector.sourceId as string | undefined)
-					: (connector.targetId as string | undefined);
+				endpoint === "source" ? connectorData.sourceId : connectorData.targetId;
 
 			const onMove = (me: PointerEvent) => {
 				const wp = screenToWorld({ x: me.clientX, y: me.clientY }, viewport);
@@ -283,9 +285,7 @@ function EndpointHandle({
 				// Check if we're over the same shape (slide anchor) or a different one (reconnect)
 				const hoverShape = findShapeAtPoint(ctx, wp);
 				const otherEndShapeId =
-					endpoint === "source"
-						? (connector.targetId as string | undefined)
-						: (connector.sourceId as string | undefined);
+					endpoint === "source" ? connectorData.targetId : connectorData.sourceId;
 
 				if (hoverShape && hoverShape.id === currentShapeId) {
 					// Sliding along current shape's edge
@@ -310,11 +310,14 @@ function EndpointHandle({
 				const drag = getEndpointDrag();
 				if (drag && drag.connectorId === connectorId) {
 					if (drag.endpoint === "controlPoint") {
-						const before = {
-							controlPoint: connector.controlPoint,
-							controlPointAuto: connector.controlPointAuto,
+						const before: Partial<ConnectorShapeData> = {
+							controlPoint: connectorData.controlPoint,
+							controlPointAuto: connectorData.controlPointAuto,
 						};
-						const after = { controlPoint: drag.currentPoint, controlPointAuto: false };
+						const after: Partial<ConnectorShapeData> = {
+							controlPoint: drag.currentPoint,
+							controlPointAuto: false,
+						};
 						ctx.commands.execute(
 							createBatchUpdateShapesCommand(ctx.store, [
 								{ id: connectorId, from: before, to: after },
@@ -379,8 +382,9 @@ function commitEndpointReconnect(
 	endpoint: "source" | "target",
 	newShape: ShapeData,
 ) {
+	const connectorData = connector as ConnectorShapeData;
 	const otherShapeId =
-		endpoint === "source" ? (connector.targetId as string) : (connector.sourceId as string);
+		endpoint === "source" ? (connectorData.targetId as string) : (connectorData.sourceId as string);
 	const otherShape = ctx.store.getShape(otherShapeId);
 	if (!otherShape) return;
 
@@ -401,20 +405,20 @@ function commitEndpointReconnect(
 		targetPoint = getAnchorPoint(newShape, "auto", otherCenter);
 	}
 
-	const fromData: Partial<ShapeData> = {
+	const fromData: Partial<ConnectorShapeData> = {
 		[endpoint === "source" ? "sourceId" : "targetId"]:
-			endpoint === "source" ? connector.sourceId : connector.targetId,
-		sourcePoint: connector.sourcePoint,
-		targetPoint: connector.targetPoint,
-		sourceAnchor: connector.sourceAnchor,
-		targetAnchor: connector.targetAnchor,
+			endpoint === "source" ? connectorData.sourceId : connectorData.targetId,
+		sourcePoint: connectorData.sourcePoint,
+		targetPoint: connectorData.targetPoint,
+		sourceAnchor: connectorData.sourceAnchor,
+		targetAnchor: connectorData.targetAnchor,
 		x: connector.x,
 		y: connector.y,
 		width: connector.width,
 		height: connector.height,
 	};
 
-	const toData: Partial<ShapeData> = {
+	const toData: Partial<ConnectorShapeData> = {
 		[endpoint === "source" ? "sourceId" : "targetId"]: newShape.id,
 		sourcePoint,
 		targetPoint,
@@ -439,40 +443,41 @@ function commitAnchorSlide(
 	shape: ShapeData,
 	dragPoint: Point,
 ) {
+	const connectorData = connector as ConnectorShapeData;
 	const edgePoint = clampToShapeEdge(shape, dragPoint);
 	const anchorKey = endpoint === "source" ? "sourceAnchor" : "targetAnchor";
 	const pointKey = endpoint === "source" ? "sourcePoint" : "targetPoint";
 
 	// Recalculate the other endpoint (it depends on the new position for "auto" anchors)
 	const otherShapeId =
-		endpoint === "source" ? (connector.targetId as string) : (connector.sourceId as string);
+		endpoint === "source" ? (connectorData.targetId as string) : (connectorData.sourceId as string);
 	const otherShape = ctx.store.getShape(otherShapeId);
 	if (!otherShape) return;
 
 	const otherAnchor =
 		endpoint === "source"
-			? ((connector.targetAnchor as string) ?? "auto")
-			: ((connector.sourceAnchor as string) ?? "auto");
+			? (connectorData.targetAnchor ?? "auto")
+			: (connectorData.sourceAnchor ?? "auto");
 	const otherPoint =
 		otherAnchor === "custom"
-			? (connector[endpoint === "source" ? "targetPoint" : "sourcePoint"] as Point)
-			: getAnchorPoint(otherShape, otherAnchor as "auto", edgePoint);
+			? ((endpoint === "source" ? connectorData.targetPoint : connectorData.sourcePoint) as Point)
+			: getAnchorPoint(otherShape, otherAnchor, edgePoint);
 
 	const newSourcePoint = endpoint === "source" ? edgePoint : otherPoint;
 	const newTargetPoint = endpoint === "target" ? edgePoint : otherPoint;
 
-	const from: Partial<ShapeData> = {
-		[anchorKey]: connector[anchorKey],
-		[pointKey]: connector[pointKey],
-		sourcePoint: connector.sourcePoint,
-		targetPoint: connector.targetPoint,
+	const from: Partial<ConnectorShapeData> = {
+		[anchorKey]: connectorData[anchorKey],
+		[pointKey]: connectorData[pointKey],
+		sourcePoint: connectorData.sourcePoint,
+		targetPoint: connectorData.targetPoint,
 		x: connector.x,
 		y: connector.y,
 		width: connector.width,
 		height: connector.height,
 	};
 
-	const to: Partial<ShapeData> = {
+	const to: Partial<ConnectorShapeData> = {
 		[anchorKey]: "custom",
 		[pointKey]: edgePoint,
 		sourcePoint: newSourcePoint,

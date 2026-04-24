@@ -11,7 +11,7 @@ function makeTimePreset(label: string, description: string, offsetMs: number): F
 			rules: [
 				{
 					kind: "time-range",
-					field: "_createdAt",
+					field: "createdAt",
 					from: Date.now() - offsetMs,
 				},
 			],
@@ -84,7 +84,7 @@ function parseQuery(query: string): ShapeFilterConfig | null {
 				rules: [
 					{
 						kind: "time-range",
-						field: "_createdAt",
+						field: "createdAt",
 						from,
 						...(to != null && !Number.isNaN(to) ? { to } : {}),
 					},

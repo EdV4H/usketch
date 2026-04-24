@@ -21,6 +21,9 @@ import {
 	renderConnector,
 	SimplifiedConnector,
 } from "./shapes/connector.js";
+import type { ConnectorShapeData } from "./types.js";
+
+export type { ConnectorShapeData } from "./types.js";
 
 function ConnectorIcon() {
 	return (
@@ -82,7 +85,7 @@ export const connectorPlugin: UsketchPlugin = {
 			const sourceAnchor: AnchorType = "auto";
 			const sourcePoint = getAnchorPoint(sourceShape, sourceAnchor, event.worldPoint);
 
-			const connector: ShapeData = {
+			const connector: ConnectorShapeData = {
 				...createDefaultConnector({ id, x: sourcePoint.x, y: sourcePoint.y }),
 				sourceId: sourceShape.id,
 				targetId: undefined,
@@ -109,7 +112,7 @@ export const connectorPlugin: UsketchPlugin = {
 				targetPoint,
 			);
 
-			const updates: Partial<ShapeData> = {
+			const updates: Partial<ConnectorShapeData> = {
 				sourcePoint,
 				targetPoint: targetShape ? getAnchorPoint(targetShape, "auto", sourcePoint) : targetPoint,
 			};
@@ -142,7 +145,7 @@ export const connectorPlugin: UsketchPlugin = {
 			});
 			const targetPoint = getAnchorPoint(targetShape, "auto", sourcePoint);
 
-			const finalUpdates: Partial<ShapeData> = {
+			const finalUpdates: Partial<ConnectorShapeData> = {
 				targetId: targetShape.id,
 				targetAnchor: "auto",
 				sourcePoint,
@@ -154,7 +157,7 @@ export const connectorPlugin: UsketchPlugin = {
 			};
 
 			toolCtx.store.deleteShape(drawState.connectorId);
-			const finalShape: ShapeData = { ...connector, ...finalUpdates };
+			const finalShape: ConnectorShapeData = { ...connector, ...finalUpdates };
 			toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, finalShape));
 
 			drawState = null;
@@ -241,8 +244,9 @@ export const connectorPlugin: UsketchPlugin = {
 			connectorIndex.clear();
 			for (const [id, shape] of ctx.store.getShapes()) {
 				if (shape.type !== "connector") continue;
-				const src = shape.sourceId as string | undefined;
-				const tgt = shape.targetId as string | undefined;
+				const connectorData = shape as ConnectorShapeData;
+				const src = connectorData.sourceId;
+				const tgt = connectorData.targetId;
 				if (src) {
 					if (!connectorIndex.has(src)) connectorIndex.set(src, new Set());
 					connectorIndex.get(src)?.add(id);
@@ -299,18 +303,18 @@ export const connectorPlugin: UsketchPlugin = {
 			const dy = movedShape && prev ? movedShape.y - prev.y : 0;
 
 			for (const connId of connIds) {
-				const conn = ctx.store.getShape(connId);
+				const conn = ctx.store.getShape(connId) as ConnectorShapeData | undefined;
 				if (!conn) continue;
-				const sourceId = conn.sourceId as string | undefined;
-				const targetId = conn.targetId as string | undefined;
+				const sourceId = conn.sourceId;
+				const targetId = conn.targetId;
 				if (!sourceId || !targetId) continue;
 
 				const source = ctx.store.getShape(sourceId);
 				const target = ctx.store.getShape(targetId);
 				if (!source || !target) continue;
 
-				const sourceAnchor = (conn.sourceAnchor as AnchorType) ?? "auto";
-				const targetAnchor = (conn.targetAnchor as AnchorType) ?? "auto";
+				const sourceAnchor = conn.sourceAnchor ?? "auto";
+				const targetAnchor = conn.targetAnchor ?? "auto";
 
 				const targetCenter = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
 				const sourceCenter = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
@@ -336,7 +340,7 @@ export const connectorPlugin: UsketchPlugin = {
 					targetPoint = getAnchorPoint(target, targetAnchor, sourceCenter);
 				}
 
-				const updates: Partial<ShapeData> = {
+				const updates: Partial<ConnectorShapeData> = {
 					sourcePoint,
 					targetPoint,
 					x: Math.min(sourcePoint.x, targetPoint.x),
@@ -366,10 +370,9 @@ export const connectorPlugin: UsketchPlugin = {
 			const shapes = ctx.store.getShapes();
 			const toDelete: string[] = [];
 			for (const [id, shape] of shapes) {
-				if (
-					shape.type === "connector" &&
-					(shape.sourceId === payload.id || shape.targetId === payload.id)
-				) {
+				if (shape.type !== "connector") continue;
+				const connectorData = shape as ConnectorShapeData;
+				if (connectorData.sourceId === payload.id || connectorData.targetId === payload.id) {
 					toDelete.push(id);
 				}
 			}

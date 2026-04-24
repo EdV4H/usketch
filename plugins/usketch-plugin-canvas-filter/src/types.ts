@@ -4,7 +4,7 @@ import type { ShapeData } from "@edv4h/usketch-shared";
 
 export interface TimeRangeFilter {
 	kind: "time-range";
-	field: "_createdAt" | "_updatedAt";
+	field: "createdAt" | "updatedAt";
 	from?: number; // epoch ms, inclusive
 	to?: number; // epoch ms, inclusive
 }

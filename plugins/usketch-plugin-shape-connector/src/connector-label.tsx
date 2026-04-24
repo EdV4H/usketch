@@ -1,7 +1,8 @@
 import type { PluginContext, Point, ShapeData, Viewport } from "@edv4h/usketch-shared";
 import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
-import { getPathMidpoint, type PathType } from "./path-utils.js";
+import { getPathMidpoint } from "./path-utils.js";
+import type { ConnectorShapeData } from "./types.js";
 
 // ── Label editing state ──
 
@@ -77,26 +78,31 @@ function LabelInput({
 	ctx: PluginContext;
 	viewport: Viewport;
 }) {
+	const connectorData = connector as ConnectorShapeData;
 	const inputRef = useRef<HTMLInputElement>(null);
-	const currentLabel = (connector.label as string) ?? "";
+	const currentLabel = connectorData.label ?? "";
 
 	const midpoint = getMidpointScreen(connector, viewport);
 
 	const commit = useCallback(
 		(newLabel: string) => {
 			const trimmed = newLabel.trim();
-			const oldLabel = (connector.label as string | undefined) ?? undefined;
+			const oldLabel = connectorData.label ?? undefined;
 			const nextLabel = trimmed || undefined;
 			if (oldLabel !== nextLabel) {
 				ctx.commands.execute(
 					createBatchUpdateShapesCommand(ctx.store, [
-						{ id: connectorId, from: { label: oldLabel }, to: { label: nextLabel } },
+						{
+							id: connectorId,
+							from: { label: oldLabel } as Partial<ConnectorShapeData>,
+							to: { label: nextLabel } as Partial<ConnectorShapeData>,
+						},
 					]),
 				);
 			}
 			setEditingLabel(null);
 		},
-		[connectorId, connector.label, ctx],
+		[connectorId, connectorData.label, ctx],
 	);
 
 	const handleKeyDown = useCallback(
@@ -160,16 +166,17 @@ function LabelInput({
 }
 
 function getMidpointScreen(connector: ShapeData, viewport: Viewport): Point {
-	const sourcePoint = connector.sourcePoint as Point | undefined;
-	const targetPoint = connector.targetPoint as Point | undefined;
+	const connectorData = connector as ConnectorShapeData;
+	const sourcePoint = connectorData.sourcePoint;
+	const targetPoint = connectorData.targetPoint;
 	if (!sourcePoint || !targetPoint) {
 		return {
 			x: connector.x * viewport.zoom + viewport.x,
 			y: connector.y * viewport.zoom + viewport.y,
 		};
 	}
-	const pathType = (connector.pathType as PathType) ?? "straight";
-	const controlPoint = connector.controlPoint as Point | undefined;
+	const pathType = connectorData.pathType ?? "straight";
+	const controlPoint = connectorData.controlPoint;
 	const mid = getPathMidpoint(pathType, sourcePoint, targetPoint, controlPoint);
 	return {
 		x: mid.x * viewport.zoom + viewport.x,

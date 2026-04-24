@@ -1,5 +1,6 @@
 import type { BoardStore } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { IslandShapeData } from "./types.js";
 
 interface IslandBlob {
 	id: string;
@@ -15,21 +16,22 @@ function collectBlobs(store: BoardStore): IslandBlob[] {
 	const blobs: IslandBlob[] = [];
 	for (const [, shape] of store.getShapes()) {
 		if (shape.type !== "island") continue;
+		const data = shape as IslandShapeData;
 		let groupId: string | undefined;
-		const parentId = shape.parentId as string | undefined;
+		const parentId = data.parentId as string | undefined;
 		if (parentId) {
-			const parent = store.getShapes().get(parentId);
+			const parent = store.getShapes().get(parentId) as IslandShapeData | undefined;
 			if (parent?.type === "group" && parent._isIslandGroup) {
 				groupId = parentId;
 			}
 		}
 		blobs.push({
-			id: shape.id,
-			x: shape.x,
-			y: shape.y,
-			width: shape.width,
-			height: shape.height,
-			color: (shape.islandColor as string) ?? "#a8d5ba",
+			id: data.id,
+			x: data.x,
+			y: data.y,
+			width: data.width,
+			height: data.height,
+			color: data.islandColor ?? "#a8d5ba",
 			groupId,
 		});
 	}

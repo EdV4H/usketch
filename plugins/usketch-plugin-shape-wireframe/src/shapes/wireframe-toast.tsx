@@ -1,9 +1,11 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeToastShapeData } from "../types.js";
 
-export function renderToast(data: ShapeData) {
-	const toastMessage = (data.toastMessage as string) || "Notification";
-	const toastType = (data.toastType as string) || "success";
+export function renderToast(shape: ShapeData) {
+	const data = shape as WireframeToastShapeData;
+	const toastMessage = data.toastMessage || "Notification";
+	const toastType = data.toastType || "success";
 
 	const typeIcons: Record<string, string> = {
 		success: "\u2713",
@@ -72,7 +74,11 @@ export function renderToast(data: ShapeData) {
 	);
 }
 
-export function createDefaultToast(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultToast(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeToastShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-toast",

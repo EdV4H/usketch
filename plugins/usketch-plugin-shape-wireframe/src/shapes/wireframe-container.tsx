@@ -1,9 +1,11 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeContainerShapeData } from "../types.js";
 
-export function renderContainer(data: ShapeData) {
-	const containerTitle = (data.containerTitle as string) || "Container";
-	const borderStyle = (data.borderStyle as string) || "solid";
+export function renderContainer(shape: ShapeData) {
+	const data = shape as WireframeContainerShapeData;
+	const containerTitle = data.containerTitle || "Container";
+	const borderStyle = data.borderStyle || "solid";
 
 	return (
 		<div
@@ -39,7 +41,11 @@ export function renderContainer(data: ShapeData) {
 	);
 }
 
-export function createDefaultContainer(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultContainer(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeContainerShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-container",

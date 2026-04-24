@@ -64,10 +64,10 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 					shape.width = suggestion.width;
 					shape.height = suggestion.height;
 					if (suggestion.text !== undefined) {
-						(shape as Record<string, unknown>).text = suggestion.text;
+						(shape as { text?: string }).text = suggestion.text;
 					}
 					if (suggestion.fontSize !== undefined) {
-						(shape as Record<string, unknown>).fontSize = suggestion.fontSize;
+						(shape as { fontSize?: number }).fontSize = suggestion.fontSize;
 					}
 					if (suggestion.style) {
 						shape.style = { ...shape.style, ...suggestion.style };
@@ -137,15 +137,18 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 					const viewport = ctx.store.getViewport();
 					const availableTypes = [...ctx.shapes.getAll().keys()];
 
-					const shapeList = [...shapes.values()].slice(-10).map((s) => ({
-						id: s.id,
-						type: s.type,
-						x: Math.round(s.x),
-						y: Math.round(s.y),
-						w: Math.round(s.width),
-						h: Math.round(s.height),
-						...(s.text ? { text: s.text } : {}),
-					}));
+					const shapeList = [...shapes.values()].slice(-10).map((s) => {
+						const text = (s as { text?: string }).text;
+						return {
+							id: s.id,
+							type: s.type,
+							x: Math.round(s.x),
+							y: Math.round(s.y),
+							w: Math.round(s.width),
+							h: Math.round(s.height),
+							...(text ? { text } : {}),
+						};
+					});
 
 					const viewportCenter = {
 						x: Math.round(-viewport.x / viewport.zoom + window.innerWidth / 2 / viewport.zoom),

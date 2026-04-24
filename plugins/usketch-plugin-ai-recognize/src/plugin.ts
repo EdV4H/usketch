@@ -96,7 +96,7 @@ IMPORTANT:
 
 			function recognizeImage(ctx: PluginContext, shapes: ShapeData[]): void {
 				const shapeIds = shapes.map((s) => s.id);
-				const src = shapes[0].src as string | undefined;
+				const src = (shapes[0] as { src?: string }).src;
 				if (!src) return;
 
 				ctx.events.emit("ai:request", {

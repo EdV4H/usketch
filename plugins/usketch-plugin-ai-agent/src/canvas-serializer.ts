@@ -102,12 +102,15 @@ function serializeShape(shape: ShapeData): Record<string, unknown> {
 	};
 
 	// freedrawはpointCountのみ
-	if (shape.type === "freedraw" && Array.isArray(shape.points)) {
-		result.pointCount = (shape.points as unknown[]).length;
+	const points = (shape as { points?: unknown[] }).points;
+	if (shape.type === "freedraw" && Array.isArray(points)) {
+		result.pointCount = points.length;
 	} else {
 		// type固有フィールド
-		if (shape.text) result.text = shape.text;
-		if (shape.cornerRadius) result.cornerRadius = shape.cornerRadius;
+		const textContent = (shape as { text?: string }).text;
+		const cornerRadius = (shape as { cornerRadius?: number }).cornerRadius;
+		if (textContent) result.text = textContent;
+		if (cornerRadius) result.cornerRadius = cornerRadius;
 	}
 
 	// default styleと異なる場合のみスタイルを含める
@@ -137,7 +140,8 @@ function findNearbyLabels(
 	for (const [id, shape] of allShapes) {
 		if (id === target.id) continue;
 		if (shape.type !== "text") continue;
-		if (!shape.text) continue;
+		const textContent = (shape as { text?: string }).text;
+		if (!textContent) continue;
 
 		// テキストの中心がターゲットの内部 or 近くにあるか
 		const textCx = shape.x + shape.width / 2;
@@ -156,7 +160,7 @@ function findNearbyLabels(
 			textCy <= target.y + target.height + PROXIMITY_THRESHOLD;
 
 		if (isInside || isNearby) {
-			labels.push({ id, text: shape.text as string });
+			labels.push({ id, text: textContent });
 		}
 	}
 

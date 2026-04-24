@@ -1,8 +1,10 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeImageShapeData } from "../types.js";
 
-export function renderImage(data: ShapeData) {
-	const imageAlt = (data.imageAlt as string) || "Image";
+export function renderImage(shape: ShapeData) {
+	const data = shape as WireframeImageShapeData;
+	const imageAlt = data.imageAlt || "Image";
 
 	return (
 		<div
@@ -44,7 +46,11 @@ export function renderImage(data: ShapeData) {
 	);
 }
 
-export function createDefaultImage(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultImage(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeImageShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-image",

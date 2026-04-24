@@ -1,8 +1,10 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeAvatarShapeData } from "../types.js";
 
-export function renderAvatar(data: ShapeData) {
-	const avatarLabel = (data.avatarLabel as string) || "U";
+export function renderAvatar(shape: ShapeData) {
+	const data = shape as WireframeAvatarShapeData;
+	const avatarLabel = data.avatarLabel || "U";
 
 	return (
 		<div
@@ -28,7 +30,11 @@ export function renderAvatar(data: ShapeData) {
 	);
 }
 
-export function createDefaultAvatar(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultAvatar(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeAvatarShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-avatar",

@@ -1,9 +1,11 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { WF } from "../shared/wireframe-styles.js";
+import type { WireframeNavbarShapeData } from "../types.js";
 
-export function renderNavbar(data: ShapeData) {
-	const items = (data.items as string[]) || ["Home", "About", "Contact"];
-	const brand = (data.brand as string) || "Brand";
+export function renderNavbar(shape: ShapeData) {
+	const data = shape as WireframeNavbarShapeData;
+	const items = data.items || ["Home", "About", "Contact"];
+	const brand = data.brand || "Brand";
 
 	return (
 		<div
@@ -49,7 +51,11 @@ export function renderNavbar(data: ShapeData) {
 	);
 }
 
-export function createDefaultNavbar(params: { id: string; x: number; y: number }): ShapeData {
+export function createDefaultNavbar(params: {
+	id: string;
+	x: number;
+	y: number;
+}): WireframeNavbarShapeData {
 	return {
 		id: params.id,
 		type: "wireframe-navbar",

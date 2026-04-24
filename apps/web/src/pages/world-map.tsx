@@ -1,7 +1,10 @@
 import { AppProvider, Canvas } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
-import { createCommunityRegionPlugin } from "@edv4h/usketch-plugin-shape-community-region";
+import {
+	type CommunityRegionShapeData,
+	createCommunityRegionPlugin,
+} from "@edv4h/usketch-plugin-shape-community-region";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
@@ -149,7 +152,7 @@ export function WorldMapPage() {
 						themeColor: region.themeColor,
 						icon: region.icon,
 						onlineCount: 0,
-					});
+					} as CommunityRegionShapeData);
 				}
 
 				// 4. キャンバス初期化

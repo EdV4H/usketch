@@ -23,9 +23,9 @@ function downsamplePoints(
  */
 export function serializeFreedrawForRecognition(shapes: ShapeData[]): string {
 	const strokes = shapes
-		.filter((s) => s.type === "freedraw" && Array.isArray(s.points))
+		.filter((s) => s.type === "freedraw" && Array.isArray((s as { points?: unknown }).points))
 		.map((s) => {
-			const rawPoints = s.points as Array<{ x: number; y: number }>;
+			const rawPoints = (s as { points?: Array<{ x: number; y: number }> }).points ?? [];
 			const sampled = downsamplePoints(rawPoints, 80);
 			return {
 				id: s.id,

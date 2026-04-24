@@ -4,7 +4,7 @@ export function rectGpuPrimitive(data: ShapeData): GpuPrimitive {
 	return {
 		kind: "rect",
 		bounds: { x: data.x, y: data.y, width: data.width, height: data.height },
-		cornerRadius: (data.cornerRadius as number) ?? 0,
+		cornerRadius: (data as { cornerRadius?: number }).cornerRadius ?? 0,
 		fill: cssColorToRgbaOrDefault(data.style.fill),
 		stroke: cssColorToRgbaOrDefault(data.style.stroke),
 		strokeWidth: data.style.strokeWidth,

@@ -9,16 +9,21 @@ order: 11
 Every shape on the canvas is represented by a `ShapeData` object:
 
 ```ts
-interface ShapeData {
+interface ShapeData<TMeta = Record<string, unknown>> {
   id: string;
-  type: string;        // Must match a registered ShapeDefinition
+  type: string;            // Must match a registered ShapeDefinition
   x: number;
   y: number;
   width: number;
   height: number;
   style: ShapeStyle;
   rotation?: number;
-  [key: string]: unknown;  // Shape-specific extra properties
+  zIndex?: string;          // Fractional index for z-order
+  createdAt?: number;       // Unix millis — set by the store on addShape
+  updatedAt?: number;       // Unix millis — updated by the store on mutation
+  parentId?: string;        // For hierarchical grouping (frames, groups)
+  meta?: TMeta;             // Application/domain data (preferred)
+  [key: `x-${string}`]: unknown;  // Escape hatch: custom top-level fields
 }
 
 interface ShapeStyle {
@@ -29,7 +34,66 @@ interface ShapeStyle {
 }
 ```
 
-The `type` field links the data to its `ShapeDefinition`. Shape-specific properties (e.g., `cornerRadius` for rectangles) are stored as extra keys.
+The `type` field links the data to its `ShapeDefinition`.
+
+## Extending shapes
+
+`ShapeData` distinguishes three places where data can live:
+
+### 1. Core fields
+
+The explicit fields listed above (`id`, `type`, `x`, `y`, `width`, `height`, `style`, `rotation`, `zIndex`, `createdAt`, `updatedAt`, `parentId`, `meta`) are managed by the uSketch core. Plugins and applications must not redefine them.
+
+### 2. Plugin-specific fields — extend the interface
+
+A plugin that needs intrinsic data (data that defines what the shape *is* — e.g. the `text` of a text shape, the `points` of a freehand stroke) should declare an extension interface:
+
+```ts
+import type { ShapeData } from "@edv4h/usketch-shared";
+
+export interface TextShapeData extends ShapeData {
+  text: string;
+  fontSize: number;
+  fontFamily: string;
+  isEditing: boolean;
+}
+```
+
+Use the extension type inside your plugin (e.g. in `render` and `createDefault`) and export it so other plugins can read it back type-safely.
+
+### 3. Application/domain data — use `meta` (preferred)
+
+For data that is *not* intrinsic to the shape (external references, identifiers, feature flags), put it under `meta`. Pass your concrete meta type as `TMeta` for full type safety:
+
+```ts
+interface WeboardMeta {
+  employeeId?: string;
+  documentKey?: string;
+}
+
+const shape: ShapeData<WeboardMeta> = {
+  id: "note_1",
+  type: "rect",
+  x: 0, y: 0, width: 200, height: 150,
+  style: DEFAULT_STYLE,
+  meta: { employeeId: "emp_123", documentKey: "doc_456" },
+};
+shape.meta?.employeeId; // typed as string | undefined
+```
+
+### Escape hatch: the `x-*` prefix
+
+For the rare case where `meta` does not fit — e.g. a gradual migration that temporarily needs a top-level field — `ShapeData` accepts any property whose name starts with `x-`:
+
+```ts
+const shape: ShapeData = {
+  id: "2", type: "rect", x: 0, y: 0, width: 100, height: 100,
+  style: DEFAULT_STYLE,
+  "x-legacyFlag": true,
+};
+```
+
+The `x-` namespace is guaranteed to never clash with core or plugin-extension fields (this mirrors the convention used by HTTP headers, JSON-LD, OpenAPI, and `package.json`). Prefer `meta` whenever possible — it is typed, `x-*` is not.
 
 ## ShapeDefinition
 

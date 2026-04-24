@@ -8,9 +8,11 @@ import {
 	type UsketchPlugin,
 	withRotation,
 } from "@edv4h/usketch-shared";
+import type { ImageShapeData } from "./types.js";
 
-function render(data: ShapeData) {
-	const src = data.src as string | undefined;
+function render(shape: ShapeData) {
+	const data = shape as ImageShapeData;
+	const src = data.src || undefined;
 	return (
 		<div
 			style={{
@@ -100,7 +102,7 @@ function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData 
 	return { ...data, x, y, width: Math.max(40, width), height: Math.max(40, height) };
 }
 
-function createDefault(params: { id: string; x: number; y: number }): ShapeData {
+function createDefault(params: { id: string; x: number; y: number }): ImageShapeData {
 	return {
 		id: params.id,
 		type: "image",

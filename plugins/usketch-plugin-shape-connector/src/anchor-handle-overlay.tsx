@@ -10,6 +10,7 @@ import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { useCallback, useSyncExternalStore } from "react";
 import { type AnchorType, clampToShapeEdge, getAnchorPoint } from "./anchor-utils.js";
 import { createDefaultConnector } from "./shapes/connector.js";
+import type { ConnectorShapeData } from "./types.js";
 
 const HANDLE_RADIUS = 5;
 const STROKE_COLOR = "#2680eb";
@@ -194,7 +195,7 @@ function handleDrawMove(ctx: PluginContext, worldPoint: Point) {
 			y: Math.min(sourcePoint.y, targetPoint.y),
 			width: Math.abs(targetPoint.x - sourcePoint.x),
 			height: Math.abs(targetPoint.y - sourcePoint.y),
-		});
+		} as Partial<ConnectorShapeData>);
 
 		setAnchorDraw({
 			...drawState,
@@ -213,7 +214,7 @@ function handleDrawMove(ctx: PluginContext, worldPoint: Point) {
 			y: Math.min(sourcePoint.y, worldPoint.y),
 			width: Math.abs(worldPoint.x - sourcePoint.x),
 			height: Math.abs(worldPoint.y - sourcePoint.y),
-		});
+		} as Partial<ConnectorShapeData>);
 
 		setAnchorDraw({
 			...drawState,
@@ -246,7 +247,7 @@ function handleDrawEnd(ctx: PluginContext, worldPoint: Point) {
 		const sourcePoint = getAnchorPoint(drawState.sourceShape, drawState.sourceAnchor, targetPoint);
 
 		ctx.store.deleteShape(drawState.connectorId);
-		const finalShape: ShapeData = {
+		const finalShape: ConnectorShapeData = {
 			...connector,
 			targetId: releaseTarget.id,
 			targetAnchor,
@@ -272,7 +273,7 @@ function handleDrawEnd(ctx: PluginContext, worldPoint: Point) {
 	const sourcePoint = getAnchorPoint(drawState.sourceShape, drawState.sourceAnchor, targetPoint);
 
 	ctx.store.deleteShape(drawState.connectorId);
-	const finalShape: ShapeData = {
+	const finalShape: ConnectorShapeData = {
 		...connector,
 		targetId: targetShape.id,
 		targetAnchor,
@@ -464,7 +465,7 @@ function AnchorHandle({
 			const id = generateId();
 			const sourcePoint = getAnchorPoint(shape, anchor);
 
-			const connector: ShapeData = {
+			const connector: ConnectorShapeData = {
 				...createDefaultConnector({ id, x: sourcePoint.x, y: sourcePoint.y }),
 				sourceId: shape.id,
 				targetId: undefined,
