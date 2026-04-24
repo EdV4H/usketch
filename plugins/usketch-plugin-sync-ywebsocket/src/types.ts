@@ -1,0 +1,99 @@
+import type { WsConnectionStatus, WsProviderHandle } from "@edv4h/usketch-sync";
+import type * as Y from "yjs";
+import type { SyncStatusTracker } from "./sync-status-tracker.js";
+
+export interface ConnectionParams {
+	/** URL query params to attach on each connection attempt. */
+	params?: Record<string, string>;
+}
+
+export interface ResolveParamsContext {
+	/** Incrementing on each reconnect attempt, starts at 0 for first connect. */
+	attempt: number;
+	/** Optional close code from the previous disconnect (if any). */
+	previousCloseCode?: number;
+	/** Optional close reason from the previous disconnect (if any). */
+	previousCloseReason?: string;
+}
+
+export interface YwebsocketSyncOptions {
+	/** Base URL of the y-websocket server (e.g. "wss://yws.example.com"). */
+	url: string;
+	/** Room name — the document identifier on the server. */
+	roomName: string;
+
+	/**
+	 * The Yjs map key that stores shapes. Defaults to `"shapes"`.
+	 * Use this when connecting to a server that expects a different key (e.g. weboard uses `"map"`).
+	 */
+	shapesMapKey?: string;
+
+	/**
+	 * Resolve URL query params (and optionally the WS URL) on each connection attempt.
+	 * Called before every connect/reconnect — return freshly refreshed tokens here.
+	 * If omitted, no query params are attached.
+	 */
+	resolveParams?: (ctx: ResolveParamsContext) => Promise<ConnectionParams> | ConnectionParams;
+
+	/**
+	 * Custom close-code handler. Called whenever the underlying socket closes.
+	 * Return `"retry"` to trigger an immediate reconnect (bypassing backoff),
+	 * `"stop"` to give up and leave the provider disconnected,
+	 * or `undefined` to fall through to the default backoff retry.
+	 */
+	onCloseCode?: (code: number, reason: string) => "retry" | "stop" | undefined;
+
+	/**
+	 * Disconnect automatically after this many milliseconds of local inactivity.
+	 * Any call to `resume()` or any local Y.Doc update resets the timer.
+	 * Set to `0` (or omit) to disable.
+	 */
+	idleTimeoutMs?: number;
+
+	/**
+	 * Explicitly opt in/out of the initial `connect` call.
+	 * Defaults to `true` — the provider connects on creation.
+	 */
+	autoConnect?: boolean;
+
+	/**
+	 * Provide an existing Y.Doc to sync. If omitted, a new Y.Doc is created.
+	 * Weboard's migration path can pass in a pre-existing Y.Doc that already holds legacy state.
+	 */
+	doc?: Y.Doc;
+
+	/**
+	 * WebSocket constructor polyfill (for Node test environments).
+	 * In the browser, this is picked up from `globalThis.WebSocket` automatically.
+	 */
+	WebSocketPolyfill?: typeof WebSocket;
+}
+
+export interface YwebsocketSyncHandle {
+	/** The Y.Doc being synced. */
+	doc: Y.Doc;
+	/** Observable sync status (loading/synced/disconnected/error). */
+	status: SyncStatusTracker;
+	/**
+	 * Resolves when the first server sync completes (or the first connection attempt fails).
+	 * Resolves, never rejects — inspect `status.getSnapshot().state === "error"` to detect failure.
+	 */
+	whenSynced: Promise<void>;
+
+	/**
+	 * WsProviderHandle-compatible adapter. Plug this into `@edv4h/usketch-plugin-presence-cursor`
+	 * (and similar plugins) that accept a `WsProviderHandle`.
+	 * Broadcast / partition APIs are no-ops (y-websocket has no equivalent).
+	 */
+	wsProvider: WsProviderHandle;
+
+	/** Manually disconnect. The provider stays disconnected until `resume()` is called. */
+	disconnect(): void;
+	/** Reconnect after a manual `disconnect()` or an idle timeout. */
+	resume(): void;
+
+	/** Tear down all resources — removes listeners, destroys provider and awareness. */
+	destroy(): void;
+}
+
+export type { WsConnectionStatus };
