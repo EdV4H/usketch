@@ -336,6 +336,14 @@
 		"install": "pnpm add @edv4h/usketch-plugin-sync-localstorage-yjs"
 	},
 	{
+		"id": "sync-ywebsocket",
+		"name": "Realtime Sync (y-websocket)",
+		"category": "server",
+		"glyph": "WS",
+		"summary": "Bridge uSketch to any y‑websocket server — auth, token refresh, idle disconnect.",
+		"install": "pnpm add @edv4h/usketch-plugin-sync-ywebsocket"
+	},
+	{
 		"id": "effect-ripple",
 		"name": "Ripple",
 		"category": "effect",
