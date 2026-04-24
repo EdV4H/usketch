@@ -8,7 +8,11 @@ export interface ConnectionParams {
 }
 
 export interface ResolveParamsContext {
-	/** Incrementing on each reconnect attempt, starts at 0 for first connect. */
+	/**
+	 * Backoff attempt counter — 0 on the first connect, increments with each
+	 * failed reconnect cycle, and resets to 0 whenever an `onCloseCode` handler
+	 * returns `"retry"` (explicit retries skip the backoff ramp).
+	 */
 	attempt: number;
 	/** Optional close code from the previous disconnect (if any). */
 	previousCloseCode?: number;
@@ -29,9 +33,9 @@ export interface YwebsocketSyncOptions {
 	shapesMapKey?: string;
 
 	/**
-	 * Resolve URL query params (and optionally the WS URL) on each connection attempt.
-	 * Called before every connect/reconnect — return freshly refreshed tokens here.
-	 * If omitted, no query params are attached.
+	 * Resolve URL query params on each connection attempt.
+	 * Called before every connect/reconnect — return freshly refreshed query params
+	 * or tokens here. If omitted, no query params are attached.
 	 */
 	resolveParams?: (ctx: ResolveParamsContext) => Promise<ConnectionParams> | ConnectionParams;
 

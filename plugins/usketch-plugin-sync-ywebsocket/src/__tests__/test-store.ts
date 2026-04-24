@@ -35,6 +35,9 @@ export function createTestStore(): BoardStore {
 			notify();
 			notifyMutation("shape:removed", { id });
 		},
+		ensureZIndex() {
+			// No-op for tests — the plugin always assigns zIndex via toPlainObject.
+		},
 		getSelection: () => new Set<string>(),
 		setSelection() {},
 		addToSelection() {},

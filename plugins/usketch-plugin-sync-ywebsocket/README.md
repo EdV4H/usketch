@@ -142,7 +142,7 @@ handle.wsProvider;         // WsProviderHandle adapter (same as getWsProvider())
 | member              | supported                                 |
 | ------------------- | ----------------------------------------- |
 | `connected`         | yes                                        |
-| `awareness`         | yes (after the first `connect()`)          |
+| `awareness`         | yes (always — shared across reconnects)    |
 | `onStatusChange`    | yes                                        |
 | `onBroadcast`       | listeners accepted; never emits (no-op)    |
 | `broadcast`         | no-op — y-websocket has no side-channel    |

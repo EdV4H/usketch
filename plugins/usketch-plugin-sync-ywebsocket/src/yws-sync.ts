@@ -103,6 +103,9 @@ export function createYwebsocketSync(
 			isSyncing = false;
 		}
 
+		// Keep the status snapshot in sync with the authoritative Y.Map size so
+		// consumers (DebugHUD etc.) see up-to-date counts after local edits too.
+		status.update({ shapeCount: shapesMap.size, lastSyncedAt: Date.now() });
 		resetIdleTimer();
 	});
 
@@ -147,6 +150,7 @@ export function createYwebsocketSync(
 	// ── Initial load: existing Y.Doc → store (pre-connection, e.g. from a persisted doc) ──
 	function applyInitialLoad(): void {
 		if (shapesMap.size === 0) return;
+		const idsNeedingZIndex: string[] = [];
 		isSyncing = true;
 		try {
 			for (const [id, value] of shapesMap.entries()) {
@@ -154,10 +158,26 @@ export function createYwebsocketSync(
 				if (!store.getShape(id)) {
 					store.addShape(shape);
 				}
+				// Track legacy shapes that were persisted before z-order was introduced.
+				if (typeof shape.zIndex !== "string") {
+					idsNeedingZIndex.push(id);
+				}
 			}
 		} finally {
 			isSyncing = false;
 		}
+
+		// Backfill zIndex into Y.Map for any shape that got an auto-assigned one,
+		// so other clients observe the same stable z-order on subsequent loads.
+		if (idsNeedingZIndex.length > 0) {
+			doc.transact(() => {
+				for (const id of idsNeedingZIndex) {
+					const current = store.getShape(id);
+					if (current) shapesMap.set(id, toPlainObject(current));
+				}
+			});
+		}
+
 		status.update({ shapeCount: shapesMap.size });
 	}
 
@@ -275,7 +295,9 @@ export function createYwebsocketSync(
 			// "retry" or undefined → fall through to reconnect
 			tearDownProvider();
 			if (decision === "retry") {
-				attempt = 0; // don't apply backoff for explicit retry
+				// Explicit retry reconnects immediately, so reset the backoff counter
+				// (this also resets `ctx.attempt` — see ResolveParamsContext.attempt docstring).
+				attempt = 0;
 				void connect();
 			} else {
 				scheduleReconnect();

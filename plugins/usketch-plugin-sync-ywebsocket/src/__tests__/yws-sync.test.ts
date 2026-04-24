@@ -94,6 +94,15 @@ describe("createYwebsocketSync (store ↔ Y.Doc binding)", () => {
 		expect(store.getShape("pre")?.x).toBe(1);
 	});
 
+	it("updates status.shapeCount and lastSyncedAt after local store mutations", () => {
+		const { store, handle } = setup();
+		const before = handle.status.getSnapshot().shapeCount;
+		store.addShape(makeShape({ id: "s1" }));
+		const after = handle.status.getSnapshot();
+		expect(after.shapeCount).toBe(before + 1);
+		expect(after.lastSyncedAt).not.toBeNull();
+	});
+
 	it("supports a custom shapesMapKey (for weboard's legacy 'map' key)", () => {
 		const { store, handle } = setup({ shapesMapKey: "map" });
 		const shape = makeShape({ id: "s1" });
