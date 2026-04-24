@@ -36,7 +36,8 @@ export function createTestStore(): BoardStore {
 			notifyMutation("shape:removed", { id });
 		},
 		ensureZIndex() {
-			// No-op for tests — the plugin always assigns zIndex via toPlainObject.
+			// No-op for tests — this test store does not model production z-index
+			// normalization. In production, ordering is handled by the real store.
 		},
 		getSelection: () => new Set<string>(),
 		setSelection() {},

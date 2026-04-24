@@ -27,7 +27,12 @@ export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): Yweb
 		async setup(ctx) {
 			handle = createYwebsocketSync(ctx.store, options);
 			(globalThis as Record<string, unknown>).__usketchSyncStatus = handle.status;
-			await handle.whenSynced;
+			// When `autoConnect: false`, `connect()` is never called, so awaiting
+			// `whenSynced` here would hang the entire plugin setup chain. Skip it
+			// and let the caller drive connection via `handle.resume()`.
+			if (options.autoConnect !== false) {
+				await handle.whenSynced;
+			}
 		},
 
 		teardown() {

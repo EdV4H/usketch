@@ -42,6 +42,14 @@ export function createYwebsocketSync(
 	let currentState: ProviderState | null = null;
 	let lastCloseCode: number | undefined;
 	let lastCloseReason: string | undefined;
+	// `paused` is set by `disconnect()` and cleared by `resume()` / destroy, so an
+	// in-flight `connect()` (mid-`await resolveParams`) bails out instead of
+	// creating a socket after a user-initiated disconnect.
+	let paused = false;
+	// Generation counter to cancel stale async `connect()` runs. Each `connect()`
+	// captures its generation and re-checks after every await boundary; any
+	// disconnect/destroy increments the counter and invalidates pending runs.
+	let connectGeneration = 0;
 
 	// A long-lived Awareness bound to `doc`. Created up-front so `wsProvider.awareness`
 	// is always valid (WsProviderHandle consumers, e.g. presence-cursor, destructure
@@ -217,7 +225,8 @@ export function createYwebsocketSync(
 	}
 
 	async function connect(): Promise<void> {
-		if (destroyed || currentState) return;
+		if (destroyed || paused || currentState) return;
+		const myGeneration = ++connectGeneration;
 
 		status.update({ state: "connecting" });
 
@@ -230,8 +239,12 @@ export function createYwebsocketSync(
 					previousCloseReason: lastCloseReason,
 				};
 				const resolved = await resolveParams(ctx);
+				// After await: bail out if disconnect/destroy happened or a newer
+				// connect() superseded this run.
+				if (destroyed || paused || myGeneration !== connectGeneration) return;
 				connParams = resolved.params ?? {};
 			} catch (err) {
+				if (destroyed || paused || myGeneration !== connectGeneration) return;
 				status.update({
 					state: "error",
 					error: err instanceof Error ? err.message : String(err),
@@ -244,7 +257,7 @@ export function createYwebsocketSync(
 			}
 		}
 
-		if (destroyed) return;
+		if (destroyed || paused || myGeneration !== connectGeneration) return;
 
 		const provider = new WebsocketProvider(url, roomName, doc, {
 			connect: true,
@@ -358,6 +371,10 @@ export function createYwebsocketSync(
 	}
 
 	function disconnect(_opts?: { reason?: "manual" | "idle" }): void {
+		// Pause + bump generation so any in-flight `connect()` (e.g. mid-await
+		// on resolveParams) aborts before it can create a provider.
+		paused = true;
+		connectGeneration += 1;
 		if (reconnectTimer) {
 			clearTimeout(reconnectTimer);
 			reconnectTimer = null;
@@ -369,6 +386,12 @@ export function createYwebsocketSync(
 
 	function resume(): void {
 		if (destroyed) return;
+		// Clear pause and any pending backoff so we don't get overlapping connects.
+		paused = false;
+		if (reconnectTimer) {
+			clearTimeout(reconnectTimer);
+			reconnectTimer = null;
+		}
 		resetIdleTimer();
 		if (currentState) return;
 		attempt = 0;
@@ -394,13 +417,19 @@ export function createYwebsocketSync(
 		onStatusChange(handler: (status: WsConnectionStatus) => void): () => void {
 			statusListeners.add(handler);
 			// Fire current state immediately for parity with createWsProvider behavior.
-			handler(
-				currentState?.provider.wsconnected
+			// Use the status tracker so pre-provider connection attempts (e.g. while
+			// awaiting `resolveParams`) correctly report `"connecting"` instead of
+			// `"disconnected"`.
+			const snapshot = status.getSnapshot().state;
+			const initial: WsConnectionStatus =
+				snapshot === "synced"
 					? "connected"
-					: currentState
+					: snapshot === "connecting" || snapshot === "syncing"
 						? "connecting"
-						: "disconnected",
-			);
+						: snapshot === "error"
+							? "failed"
+							: "disconnected";
+			handler(initial);
 			return () => statusListeners.delete(handler);
 		},
 		requestPartition(_names: string[]): void {
@@ -419,6 +448,8 @@ export function createYwebsocketSync(
 	function destroy(): void {
 		if (destroyed) return;
 		destroyed = true;
+		// Invalidate any in-flight `connect()` awaiting `resolveParams`.
+		connectGeneration += 1;
 		if (reconnectTimer) {
 			clearTimeout(reconnectTimer);
 			reconnectTimer = null;

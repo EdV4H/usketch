@@ -110,7 +110,7 @@ createYwebsocketSyncPlugin({
 
 ### Idle disconnect
 
-Set `idleTimeoutMs` to disconnect after inactivity (no local Y.Doc mutations). Call `handle.resume()` to reconnect on the next user interaction.
+Set `idleTimeoutMs` to disconnect after inactivity (no local board edits / store mutations). The timer also resets whenever the socket reports `connected` or `resume()` is called. Call `handle.resume()` to reconnect on the next user interaction.
 
 ```ts
 const plugin = createYwebsocketSyncPlugin({

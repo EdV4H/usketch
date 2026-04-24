@@ -188,6 +188,57 @@ describe("createYwebsocketSync (lifecycle)", () => {
 		await expect(p).resolves.toBeUndefined();
 	});
 
+	it("disconnect() during an in-flight connect() cancels before a socket is created", async () => {
+		// Use autoConnect:true + a slow resolveParams to simulate the race window,
+		// then call disconnect() mid-await. A correct implementation must NOT
+		// construct a WebsocketProvider after the disconnect lands.
+		let resolveParamsCalls = 0;
+		let deferred!: () => void;
+		const waitForResume = new Promise<void>((resolve) => {
+			deferred = resolve;
+		});
+		const store = createTestStore();
+		const handle = createYwebsocketSync(store, {
+			url: "ws://example.invalid",
+			roomName: "room",
+			autoConnect: true,
+			resolveParams: async () => {
+				resolveParamsCalls++;
+				await waitForResume; // hang until the test releases
+				return { params: { t: "late" } };
+			},
+		});
+		// connect() starts and blocks on resolveParams. Now disconnect.
+		handle.disconnect();
+		// Allow resolveParams to resolve — but we should NOT see a provider instantiated.
+		deferred();
+		// Give the microtask queue a couple ticks to flush.
+		await new Promise((r) => setTimeout(r, 0));
+		await new Promise((r) => setTimeout(r, 0));
+		expect(resolveParamsCalls).toBe(1);
+		expect(handle.wsProvider.connected).toBe(false);
+		expect(handle.status.getSnapshot().state).toBe("disconnected");
+		handle.destroy();
+	});
+
+	it("exposes an initial onStatusChange value that reflects the tracker state", () => {
+		const store = createTestStore();
+		const handle = createYwebsocketSync(store, {
+			url: "ws://example.invalid",
+			roomName: "room",
+			autoConnect: false,
+		});
+		try {
+			const seen: string[] = [];
+			const unsub = handle.wsProvider.onStatusChange((s) => seen.push(s));
+			// autoConnect:false + not yet resumed → tracker is "loading" → "disconnected".
+			expect(seen).toEqual(["disconnected"]);
+			unsub();
+		} finally {
+			handle.destroy();
+		}
+	});
+
 	it("destroys the Y.Doc it owns, but leaves an externally-provided Y.Doc intact", () => {
 		const store1 = createTestStore();
 		const h1 = createYwebsocketSync(store1, {
