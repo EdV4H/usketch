@@ -9,7 +9,9 @@ import type {
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import {
+	bidiffShape,
 	deltaToLocal,
+	diffShape,
 	normalizeAngle,
 	safeRotation,
 	snapAngle,
@@ -644,18 +646,7 @@ export const selectToolPlugin: UsketchPlugin = {
 				const fixed = fixAnchorDrift(dragState.handle, dragState.startData, resized);
 				resized.x = fixed.x;
 				resized.y = fixed.y;
-				const updates: Partial<ShapeData> = {};
-				const resizedRecord = resized as unknown as Record<string, unknown>;
-				const startRecord = dragState.startData as unknown as Record<string, unknown>;
-				const updatesRecord = updates as Record<string, unknown>;
-				for (const key of Object.keys(resized)) {
-					if (key === "id" || key === "type" || key === "style") continue;
-					const resizedValue = resizedRecord[key];
-					const startValue = startRecord[key];
-					if (resizedValue !== startValue) {
-						updatesRecord[key] = resizedValue;
-					}
-				}
+				const updates = diffShape(dragState.startData, resized);
 				if (Object.keys(updates).length > 0) {
 					toolCtx.store.updateShape(dragState.shapeId, updates);
 				}
@@ -955,23 +946,7 @@ export const selectToolPlugin: UsketchPlugin = {
 				setOverrideCursor("");
 				const currentShape = toolCtx.store.getShape(dragState.shapeId);
 				if (currentShape) {
-					// Build from/to diffs for undo
-					const from: Partial<ShapeData> = {};
-					const to: Partial<ShapeData> = {};
-					const currentRecord = currentShape as unknown as Record<string, unknown>;
-					const startRecord = dragState.startData as unknown as Record<string, unknown>;
-					const fromRecord = from as Record<string, unknown>;
-					const toRecord = to as Record<string, unknown>;
-					for (const key of Object.keys(currentShape)) {
-						if (key === "id" || key === "type" || key === "style") continue;
-						const currentValue = currentRecord[key];
-						const startValue = startRecord[key];
-						if (currentValue !== startValue) {
-							fromRecord[key] = startValue;
-							toRecord[key] = currentValue;
-						}
-					}
-
+					const { from, to } = bidiffShape(dragState.startData, currentShape);
 					if (Object.keys(to).length > 0) {
 						// Defer reset+execute to after canvas:pointerup disables snap
 						const shapeId = dragState.shapeId;
@@ -995,21 +970,7 @@ export const selectToolPlugin: UsketchPlugin = {
 				for (const [id, origFullShape] of dragState.originalFullShapes) {
 					const currentShape = toolCtx.store.getShape(id);
 					if (!currentShape) continue;
-					const from: Partial<ShapeData> = {};
-					const to: Partial<ShapeData> = {};
-					const currentRecord = currentShape as unknown as Record<string, unknown>;
-					const origRecord = origFullShape as unknown as Record<string, unknown>;
-					const fromRecord = from as Record<string, unknown>;
-					const toRecord = to as Record<string, unknown>;
-					for (const key of Object.keys(currentShape)) {
-						if (key === "id" || key === "type" || key === "style") continue;
-						const currentValue = currentRecord[key];
-						const origValue = origRecord[key];
-						if (currentValue !== origValue) {
-							fromRecord[key] = origValue;
-							toRecord[key] = currentValue;
-						}
-					}
+					const { from, to } = bidiffShape(origFullShape, currentShape);
 					if (Object.keys(to).length > 0) {
 						batchUpdates.push({ id, from, to });
 					}
