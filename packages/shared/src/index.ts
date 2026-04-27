@@ -68,6 +68,8 @@ export {
 	unrotatePoint,
 	withRotation,
 } from "./utils/rotation.js";
+// Shape diff
+export { bidiffShape, diffShape } from "./utils/shape-diff.js";
 // Z-order
 export {
 	compareZIndex,
