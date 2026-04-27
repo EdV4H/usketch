@@ -32,7 +32,6 @@ import { renderRectangle } from "./shapes/rectangle.js";
 import { renderRoundedRect } from "./shapes/rounded-rect.js";
 import { getStarPoints, renderStar } from "./shapes/star.js";
 import { getTrianglePoints, renderTriangle } from "./shapes/triangle.js";
-import type { RectangleShapeData } from "./types.js";
 
 const SHAPE_RENDERERS: Record<
 	string,
@@ -67,7 +66,7 @@ const SHAPE_HIT_TESTS: Record<string, HitTestFn> = {
 type GpuPrimitiveFn = (data: ShapeData) => GpuPrimitive | null;
 
 const SHAPE_GPU_PRIMITIVES: Record<string, GpuPrimitiveFn> = {
-	rectangle: (data) => rectGpuPrimitive(data as RectangleShapeData),
+	rectangle: rectGpuPrimitive,
 	"rounded-rect": roundedRectGpuPrimitive,
 	ellipse: ellipseGpuPrimitive,
 	line: lineGpuPrimitive,

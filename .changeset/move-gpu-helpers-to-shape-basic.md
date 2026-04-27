@@ -9,4 +9,4 @@ These helpers were the only callers of the `cornerRadius` field and were used ex
 
 This also aligns the codebase with `shape-freedraw`, which already keeps its own `gpuPrimitive` implementation inside the plugin.
 
-If you imported these from `@edv4h/usketch-shape-utils`, switch to `@edv4h/usketch-plugin-shape-basic` (or move equivalent logic into your own plugin).
+If you imported these from `@edv4h/usketch-shape-utils`, switch the import path to `@edv4h/usketch-plugin-shape-basic` (the helpers are now re-exported from the plugin's public entry point alongside `RectangleShapeData`).
