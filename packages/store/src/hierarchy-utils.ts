@@ -54,19 +54,6 @@ export function getTopLevelShapes(store: BoardStore): ShapeData[] {
 	return result;
 }
 
-/** Get all connectors attached to a shape (as source or target) */
-export function getConnectorsForShape(store: BoardStore, shapeId: string): ShapeData[] {
-	const connectors: ShapeData[] = [];
-	for (const [, shape] of store.getShapes()) {
-		if (shape.type !== "connector") continue;
-		const { sourceId, targetId } = shape as { sourceId?: string; targetId?: string };
-		if (sourceId === shapeId || targetId === shapeId) {
-			connectors.push(shape);
-		}
-	}
-	return connectors;
-}
-
 /** Compute the bounding box that encloses all given shapes */
 export function computeGroupBounds(children: ShapeData[]): BoundingBox {
 	if (children.length === 0) return { x: 0, y: 0, width: 0, height: 0 };

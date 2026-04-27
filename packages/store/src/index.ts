@@ -29,7 +29,6 @@ export {
 	computeGroupBounds,
 	getAncestorChain,
 	getChildShapes,
-	getConnectorsForShape,
 	getParentShape,
 	getTopLevelAncestor,
 	getTopLevelShapes,
