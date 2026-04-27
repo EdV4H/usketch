@@ -1,14 +1,10 @@
 import {
 	aabbHitTest,
 	createResize,
-	ellipseGpuPrimitive,
 	ellipseHitTest,
 	getBounds,
-	lineGpuPrimitive,
 	lineHitTest,
 	pointInPolygon,
-	rectGpuPrimitive,
-	roundedRectGpuPrimitive,
 } from "@edv4h/usketch-shape-utils";
 import {
 	type CanvasPointerEvent,
@@ -21,6 +17,12 @@ import {
 	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
+import {
+	ellipseGpuPrimitive,
+	lineGpuPrimitive,
+	rectGpuPrimitive,
+	roundedRectGpuPrimitive,
+} from "./gpu.js";
 import { BASIC_SHAPE_SUBTYPES } from "./registry.js";
 import { getArrowPoints, renderArrow } from "./shapes/arrow.js";
 import { getDiamondPoints, renderDiamond } from "./shapes/diamond.js";
@@ -30,6 +32,7 @@ import { renderRectangle } from "./shapes/rectangle.js";
 import { renderRoundedRect } from "./shapes/rounded-rect.js";
 import { getStarPoints, renderStar } from "./shapes/star.js";
 import { getTrianglePoints, renderTriangle } from "./shapes/triangle.js";
+import type { RectangleShapeData } from "./types.js";
 
 const SHAPE_RENDERERS: Record<
 	string,
@@ -64,7 +67,7 @@ const SHAPE_HIT_TESTS: Record<string, HitTestFn> = {
 type GpuPrimitiveFn = (data: ShapeData) => GpuPrimitive | null;
 
 const SHAPE_GPU_PRIMITIVES: Record<string, GpuPrimitiveFn> = {
-	rectangle: rectGpuPrimitive,
+	rectangle: (data) => rectGpuPrimitive(data as RectangleShapeData),
 	"rounded-rect": roundedRectGpuPrimitive,
 	ellipse: ellipseGpuPrimitive,
 	line: lineGpuPrimitive,

@@ -1,10 +1,11 @@
 import { cssColorToRgbaOrDefault, type GpuPrimitive, type ShapeData } from "@edv4h/usketch-shared";
+import type { RectangleShapeData } from "./types.js";
 
-export function rectGpuPrimitive(data: ShapeData): GpuPrimitive {
+export function rectGpuPrimitive(data: RectangleShapeData): GpuPrimitive {
 	return {
 		kind: "rect",
 		bounds: { x: data.x, y: data.y, width: data.width, height: data.height },
-		cornerRadius: (data as { cornerRadius?: number }).cornerRadius ?? 0,
+		cornerRadius: data.cornerRadius ?? 0,
 		fill: cssColorToRgbaOrDefault(data.style.fill),
 		stroke: cssColorToRgbaOrDefault(data.style.stroke),
 		strokeWidth: data.style.strokeWidth,
