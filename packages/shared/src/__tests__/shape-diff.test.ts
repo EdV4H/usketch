@@ -33,6 +33,12 @@ describe("diffShape", () => {
 		expect(diffShape(baseShape, after)).toEqual({});
 	});
 
+	it("createdAt / updatedAt は store 管理のため diff から除外する", () => {
+		const before: ShapeData = { ...baseShape, createdAt: 1000, updatedAt: 1000 };
+		const after: ShapeData = { ...baseShape, createdAt: 1000, updatedAt: 9999 };
+		expect(diffShape(before, after)).toEqual({});
+	});
+
 	it("プラグイン拡張フィールドの差異も検出する", () => {
 		// e.g. freedraw points / text content
 		const before = { ...baseShape, points: [{ x: 0, y: 0 }] } as ShapeData;
@@ -86,6 +92,26 @@ describe("bidiffShape", () => {
 			style: { fill: "#f00", stroke: "#000", strokeWidth: 1, opacity: 1 },
 		};
 		expect(bidiffShape(baseShape, after)).toEqual({ from: {}, to: {} });
+	});
+
+	it("createdAt / updatedAt は store 管理のため diff から除外する", () => {
+		const before: ShapeData = { ...baseShape, createdAt: 1000, updatedAt: 1000 };
+		const after: ShapeData = { ...baseShape, createdAt: 1000, updatedAt: 9999 };
+		expect(bidiffShape(before, after)).toEqual({ from: {}, to: {} });
+	});
+
+	it("ジェネリック T が呼び出し側の subtype を保持する", () => {
+		// 拡張型（plugin が宣言する extension type を模擬）
+		interface TextShapeLike extends ShapeData {
+			text: string;
+		}
+		const before: TextShapeLike = { ...baseShape, text: "hello" };
+		const after: TextShapeLike = { ...baseShape, text: "world" };
+		const { from, to } = bidiffShape(before, after);
+		// `from` / `to` が Partial<TextShapeLike> として推論されるかは型レベル
+		// （コンパイル通過 = 検証済み）。ランタイムでは text の値が含まれることを確認。
+		expect(from.text).toBe("hello");
+		expect(to.text).toBe("world");
 	});
 
 	it("undo 用に before の値が from に正しく入る", () => {
