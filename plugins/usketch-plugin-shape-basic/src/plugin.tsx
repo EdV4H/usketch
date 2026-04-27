@@ -1,14 +1,10 @@
 import {
 	aabbHitTest,
 	createResize,
-	ellipseGpuPrimitive,
 	ellipseHitTest,
 	getBounds,
-	lineGpuPrimitive,
 	lineHitTest,
 	pointInPolygon,
-	rectGpuPrimitive,
-	roundedRectGpuPrimitive,
 } from "@edv4h/usketch-shape-utils";
 import {
 	type CanvasPointerEvent,
@@ -21,6 +17,12 @@ import {
 	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
+import {
+	ellipseGpuPrimitive,
+	lineGpuPrimitive,
+	rectGpuPrimitive,
+	roundedRectGpuPrimitive,
+} from "./gpu.js";
 import { BASIC_SHAPE_SUBTYPES } from "./registry.js";
 import { getArrowPoints, renderArrow } from "./shapes/arrow.js";
 import { getDiamondPoints, renderDiamond } from "./shapes/diamond.js";
