@@ -239,6 +239,9 @@ importers:
       '@edv4h/usketch-plugin-community-chat':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-community-chat
+      '@edv4h/usketch-plugin-domain-design':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-domain-design
       '@edv4h/usketch-plugin-effect-ripple':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-effect-ripple
@@ -923,6 +926,40 @@ importers:
       react:
         specifier: '>=19'
         version: 19.1.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  plugins/usketch-plugin-domain-design:
+    dependencies:
+      '@edv4h/usketch-core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@edv4h/usketch-shape-utils':
+        specifier: workspace:*
+        version: link:../../packages/usketch-shape-utils
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      '@zag-js/core':
+        specifier: ^1.37.0
+        version: 1.37.0
+      '@zag-js/vanilla':
+        specifier: ^1.37.0
+        version: 1.37.0
+      react:
+        specifier: '>=19'
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -3673,19 +3710,19 @@ packages:
     resolution: {integrity: sha512-RPmm6kgRbI8e98zSD3RVACvnuktIja5+yLgDAkTmxLr90BEwdTXRQWNLF3ETTTyH/8mKhznZuN5AveXYFEsMGQ==}
 
   '@zag-js/core@1.37.0':
-    resolution: {integrity: sha512-KtMccuGPIR8MF7XKKNBgudyt4W37jnM0PFSFZmYrlOZOqUe3kBDdVqDcRKcEPUj1+XwUGTANmFAahNqsSt8I7Q==}
+    resolution: {integrity: sha512-KtMccuGPIR8MF7XKKNBgudyt4W37jnM0PFSFZmYrlOZOqUe3kBDdVqDcRKcEPUj1+XwUGTANmFAahNqsSt8I7Q==, tarball: https://registry.npmjs.org/@zag-js/core/-/core-1.37.0.tgz}
 
   '@zag-js/dom-query@1.37.0':
-    resolution: {integrity: sha512-nL3z5UOvRMDL5iBrNMs6Rm8vm5qC6Vt0FykFAhEL++mC01W0xpO/KKJNcpdooGFYQxwHBbgI/djE+sq9yY3pNw==}
+    resolution: {integrity: sha512-nL3z5UOvRMDL5iBrNMs6Rm8vm5qC6Vt0FykFAhEL++mC01W0xpO/KKJNcpdooGFYQxwHBbgI/djE+sq9yY3pNw==, tarball: https://registry.npmjs.org/@zag-js/dom-query/-/dom-query-1.37.0.tgz}
 
   '@zag-js/store@1.37.0':
     resolution: {integrity: sha512-7/wHuiSPVlq+OK9TMpZMWB8QC1LidWV9w1eelpID9oL274441re4ydB+bcHWJFtBv6Mio5ujDmFoVhDgLDig6A==}
 
   '@zag-js/types@1.37.0':
-    resolution: {integrity: sha512-auzzQI7+MtZvU8q5C9yNkg/DQqAT3ar9drE4rQFz1OERpaXtyp/JaeT3/t7IXDrocJBy0CY7vfrJSb+CIfjPzw==}
+    resolution: {integrity: sha512-auzzQI7+MtZvU8q5C9yNkg/DQqAT3ar9drE4rQFz1OERpaXtyp/JaeT3/t7IXDrocJBy0CY7vfrJSb+CIfjPzw==, tarball: https://registry.npmjs.org/@zag-js/types/-/types-1.37.0.tgz}
 
   '@zag-js/utils@1.37.0':
-    resolution: {integrity: sha512-3YUZAT5LMiBK0FwEBLOaujbsHMC2uAQ7RyCEhiFYkRm0zvmqehPLCqccMtOnh9lBsLG3GKf+OWKxwfTtkvbh3w==}
+    resolution: {integrity: sha512-3YUZAT5LMiBK0FwEBLOaujbsHMC2uAQ7RyCEhiFYkRm0zvmqehPLCqccMtOnh9lBsLG3GKf+OWKxwfTtkvbh3w==, tarball: https://registry.npmjs.org/@zag-js/utils/-/utils-1.37.0.tgz}
 
   '@zag-js/vanilla@1.37.0':
     resolution: {integrity: sha512-2k3KME2WXRqqR8MRi09UWExcaZx8Y1050fGYxqL4KfOZaXPDNMfiQChEAMU9atdudnzx//HcxEl/orZU8G+qFg==}
@@ -4128,7 +4165,7 @@ packages:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==, tarball: https://registry.npmjs.org/csstype/-/csstype-3.2.3.tgz}
 
   debug@4.4.3:
-    resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
+    resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==, tarball: https://registry.npmjs.org/debug/-/debug-4.4.3.tgz}
     engines: {node: '>=6.0'}
     peerDependencies:
       supports-color: '*'
