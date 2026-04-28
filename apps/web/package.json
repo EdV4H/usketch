@@ -49,6 +49,7 @@
 		"@edv4h/usketch-plugin-spotlight": "workspace:*",
 		"@edv4h/usketch-plugin-voting": "workspace:*",
 		"@edv4h/usketch-plugin-whistle": "workspace:*",
+		"@edv4h/usketch-plugin-domain-design": "workspace:*",
 		"@edv4h/usketch-plugin-shape-counter": "workspace:*",
 		"@edv4h/usketch-plugin-shape-basic": "workspace:*",
 		"@edv4h/usketch-plugin-shape-connector": "workspace:*",
