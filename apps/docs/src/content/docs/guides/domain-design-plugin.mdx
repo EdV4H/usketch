@@ -1,0 +1,123 @@
+---
+title: Domain Design Plugin
+description: Use the built-in DDD plugin to draw strategic and tactical domain models on a uSketch board.
+order: 35
+---
+
+`@edv4h/usketch-plugin-domain-design` is the official plugin for drawing **DDD (Domain-Driven Design)** diagrams on a uSketch board — both **strategic** (Bounded Context, Context Map) and **tactical** (Aggregate, ClassBox, relation arrows) levels in a single plugin.
+
+This page walks through what the plugin offers, how to use it, and how it lays out domain-specific data so that the core uSketch model stays clean.
+
+## What you can draw
+
+The plugin registers **5 shape types** plus a **drawing tool** (`domain-draw`, shortcut **d**).
+
+### Strategic level
+
+| Shape type | Purpose |
+|---|---|
+| `domain-bounded-context` | A Bounded Context boundary with name, owning team, and Core/Supporting/Generic classification. |
+| `domain-context-map-connector` | A relation between two contexts: Customer/Supplier, Conformist, ACL, Shared Kernel, OHS, Partnership, Published Language, Separate Ways. |
+
+### Tactical level
+
+| Shape type | Purpose |
+|---|---|
+| `domain-aggregate` | An Aggregate Root container (rounded oval with stereotype label and root entity name). |
+| `domain-class-box` | A class box with stereotype (Entity / ValueObject / Service / Repository / DomainEvent / Factory), class name, attributes, and methods. |
+| `domain-tactical-connector` | A class relation arrow: inheritance, realization, composition, aggregation, association, dependency. |
+
+## Installing
+
+Add the plugin to your `basePlugins` array:
+
+```tsx
+import { domainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
+import { createApp } from "@edv4h/usketch-core";
+
+createApp({
+  plugins: [
+    /* ...existing plugins... */
+    domainDesignPlugin,
+  ],
+});
+```
+
+The `domain-draw` tool then appears in the toolbar. Selecting it lets you draw the currently active subtype by dragging on the canvas.
+
+## Switching subtype
+
+Tools that bundle multiple shape subtypes use a **subtype-select event**. Emit this from your toolbar / picker UI:
+
+```ts
+ctx.events.emit("domain-design:select-subtype", {
+  type: "domain-class-box", // any of DOMAIN_TYPES.*
+});
+```
+
+## Inline editing
+
+Domain shapes are editable **in place**. Double-click a shape:
+
+- `domain-bounded-context` — edit the context name on a single line.
+- `domain-aggregate` — edit the aggregate root name on a single line.
+- `domain-class-box` — edit three sections (class name / attributes / methods) and pick a stereotype from the dropdown.
+
+Pressing **Enter** or clicking outside commits the change. Pressing **Escape** cancels. Commits go through the command system, so they're undoable / redoable.
+
+## Where domain data lives
+
+Unlike most older plugins (`text`, `connector`, ...) that put intrinsic fields directly on `ShapeData`, this plugin stores all domain-specific state in **`ShapeData<TMeta>`'s `meta`** field — the contract recommended by [the shape system docs](/concepts/shape-system).
+
+```ts
+import type { ShapeData } from "@edv4h/usketch-shared";
+
+export interface ClassBoxMeta {
+  className: string;
+  stereotype: "Entity" | "ValueObject" | "Service" | "Repository" | "DomainEvent" | "Factory";
+  attributes: string[];
+  methods: string[];
+}
+
+export type ClassBoxShape = ShapeData<ClassBoxMeta>;
+```
+
+This keeps:
+
+- **Core `ShapeData`** clean — only `id`, `type`, `x/y/width/height`, `style`, `rotation`, `zIndex`, etc.
+- **Plugin types** isolated — `ClassBoxMeta` is owned by `domain-design`. Other plugins / serializers / inspectors can opt-in to read it via `shape.meta`.
+
+This plugin is the **first official plugin** to fully use the generic `meta` pattern. It's intended as a reference for new plugins.
+
+### Reading meta in your own code
+
+To read a typed view of a shape's meta safely, use the exported `readMeta` helper:
+
+```ts
+import { type ClassBoxMeta, readMeta } from "@edv4h/usketch-plugin-domain-design";
+
+const meta = readMeta<ClassBoxMeta>(shape);
+console.log(meta.className, meta.attributes);
+```
+
+The helper is just a type-safe wrapper around `shape.meta` — it handles the `undefined`/`Partial` boundary so callers don't need to write the cast themselves.
+
+## Extending the plugin
+
+Common extensions:
+
+- **Add a new stereotype** — extend the `ClassStereotype` union and update the color map in `class-box.tsx`.
+- **Add a new ContextMap relation** — extend `ContextMapRelation` and the `RELATION_LABEL` table.
+- **Auto-layout** — read all `domain-bounded-context` shapes and pack them into a grid (independent plugin).
+
+## Limitations (MVP)
+
+- Connectors do **not** snap to source/target shapes (they are free-line connectors with relation metadata). Anchor-aware connectors are tracked as a follow-up.
+- Inline editing covers shape-level fields only; in-line **label editing on connectors** is a follow-up.
+- The toolbar UI for the subtype picker is the host application's responsibility; the plugin only listens for `domain-design:select-subtype` events.
+
+## See also
+
+- [Shape system overview](/concepts/shape-system) — the contract `meta` is part of.
+- [Building a Shape Plugin](/guides/shape-plugin) — write your own domain notation.
+- [Building a Tool Plugin](/guides/tool-plugin) — write a custom drawing tool.
