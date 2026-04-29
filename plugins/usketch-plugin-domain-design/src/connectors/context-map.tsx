@@ -17,15 +17,15 @@ export function renderContextMapConnector(shape: ShapeData) {
 	const relation = meta.relation ?? "customer-supplier";
 	const label = RELATION_LABEL[relation];
 
-	// shape.width / shape.height は AABB のため非負。
-	// 始点 / 終点は meta.start / meta.end（AABB 相対座標）から読む。
-	// 後方互換: meta が無い場合は対角線の左上 → 右下を使う。
+	// `ShapeLayer` が外側 `<svg>` を `viewBox=${shape.x} ${shape.y} ${w} ${h}` の
+	// world 座標で wrap するため、renderer は `<g>` を返して world 座標で描画する。
+	// meta.start / meta.end は AABB 相対なので、shape.x / shape.y を加算する。
 	const start = meta.start ?? { x: 0, y: 0 };
 	const end = meta.end ?? { x: shape.width, y: shape.height };
-	const x1 = start.x;
-	const y1 = start.y;
-	const x2 = end.x;
-	const y2 = end.y;
+	const x1 = shape.x + start.x;
+	const y1 = shape.y + start.y;
+	const x2 = shape.x + end.x;
+	const y2 = shape.y + end.y;
 	const dashed = relation === "separate-ways" || relation === "anticorruption-layer";
 	const upstreamLabel =
 		meta.upstream === "from" ? "U → D" : meta.upstream === "to" ? "D ← U" : null;
@@ -34,13 +34,7 @@ export function renderContextMapConnector(shape: ShapeData) {
 	const midY = (y1 + y2) / 2;
 
 	return (
-		<svg
-			width="100%"
-			height="100%"
-			viewBox={`0 0 ${Math.max(shape.width, 1)} ${Math.max(shape.height, 1)}`}
-			preserveAspectRatio="none"
-			style={{ overflow: "visible", opacity: shape.style.opacity }}
-		>
+		<g opacity={shape.style.opacity}>
 			<title>
 				{label.full}
 				{upstreamLabel ? ` (${upstreamLabel})` : ""}
@@ -77,6 +71,6 @@ export function renderContextMapConnector(shape: ShapeData) {
 					{label.short}
 				</text>
 			</g>
-		</svg>
+		</g>
 	);
 }
