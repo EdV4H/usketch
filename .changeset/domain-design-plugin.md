@@ -1,6 +1,5 @@
 ---
 "@edv4h/usketch-plugin-domain-design": minor
-"@edv4h/usketch-web": patch
 ---
 
 Add `@edv4h/usketch-plugin-domain-design` — the official plugin for drawing **DDD** diagrams (both strategic and tactical) on a uSketch board.
