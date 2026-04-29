@@ -112,7 +112,7 @@ function DomainDrawPicker({
 				borderRadius: 10,
 				padding: 8,
 				display: "grid",
-				gridTemplateColumns: "repeat(5, 1fr)",
+				gridTemplateColumns: `repeat(${DOMAIN_SUBTYPES.length}, 1fr)`,
 				gap: 4,
 				boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
 				zIndex: 150,
