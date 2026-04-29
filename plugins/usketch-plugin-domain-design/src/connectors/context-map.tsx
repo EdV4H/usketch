@@ -17,10 +17,15 @@ export function renderContextMapConnector(shape: ShapeData) {
 	const relation = meta.relation ?? "customer-supplier";
 	const label = RELATION_LABEL[relation];
 
-	const x1 = 0;
-	const y1 = 0;
-	const x2 = shape.width;
-	const y2 = shape.height;
+	// shape.width / shape.height は AABB のため非負。
+	// 始点 / 終点は meta.start / meta.end（AABB 相対座標）から読む。
+	// 後方互換: meta が無い場合は対角線の左上 → 右下を使う。
+	const start = meta.start ?? { x: 0, y: 0 };
+	const end = meta.end ?? { x: shape.width, y: shape.height };
+	const x1 = start.x;
+	const y1 = start.y;
+	const x2 = end.x;
+	const y2 = end.y;
 	const dashed = relation === "separate-ways" || relation === "anticorruption-layer";
 	const upstreamLabel =
 		meta.upstream === "from" ? "U → D" : meta.upstream === "to" ? "D ← U" : null;

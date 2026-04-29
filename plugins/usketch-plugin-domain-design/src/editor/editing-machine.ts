@@ -12,6 +12,7 @@ export const EDITABLE_DOMAIN_TYPES: ReadonlySet<string> = new Set([
 
 type EditingEvent =
 	| { type: "POINTER_DOWN"; shapeId: string | null }
+	| { type: "OUTSIDE_CLICK" }
 	| { type: "CLICK_TIMEOUT" }
 	| { type: "COMMIT"; id: string; nextMeta: Record<string, unknown> }
 	| { type: "CANCEL"; id: string }
@@ -29,7 +30,7 @@ interface EditingMachineSchema extends MachineSchema {
 	};
 	state: "idle" | "clicked" | "editing";
 	event: EditingEvent;
-	guard: "hasShape" | "isSameShape" | "isEditingTarget";
+	guard: "hasShape" | "isSameShape" | "isSameAsEditing" | "isEditingTarget";
 	action:
 		| "setClicked"
 		| "startClickTimer"
@@ -94,11 +95,11 @@ const editingMachine = createMachine<EditingMachineSchema>({
 				COMMIT: { guard: "isEditingTarget", target: "idle", actions: ["commitEdit"] },
 				CANCEL: { guard: "isEditingTarget", target: "idle", actions: ["cancelEdit"] },
 				DESELECTED: { target: "idle", actions: ["cancelEdit"] },
-				POINTER_DOWN: [
-					// クリックが editing 中の shape 以外なら commit して閉じる
-					{ guard: "isSameShape", target: "editing" },
-					{ target: "idle", actions: ["exitEdit"] },
-				],
+				// editing 中のキャンバスクリックは state 維持。
+				// editor の onBlur が COMMIT を発火するのを待つため、
+				// ここで先回りして idle に遷移しない（events の発火順で COMMIT が
+				// 取りこぼされるのを避ける）。
+				POINTER_DOWN: [{ guard: "isSameAsEditing", target: "editing" }],
 			},
 		},
 	},
@@ -111,6 +112,10 @@ const editingMachine = createMachine<EditingMachineSchema>({
 			isSameShape({ context, event }) {
 				if (event.type !== "POINTER_DOWN") return false;
 				return event.shapeId != null && event.shapeId === context.get("clickedShapeId");
+			},
+			isSameAsEditing({ context, event }) {
+				if (event.type !== "POINTER_DOWN") return false;
+				return event.shapeId != null && event.shapeId === context.get("editingShapeId");
 			},
 			isEditingTarget({ context, event }) {
 				if (event.type !== "COMMIT" && event.type !== "CANCEL") return false;
@@ -180,9 +185,10 @@ const editingMachine = createMachine<EditingMachineSchema>({
 					"x-domain-editing": false,
 				} as Partial<ShapeData>);
 
-				const nextMeta = event.nextMeta;
 				const before = (prevMeta ?? {}) as Record<string, unknown>;
-				const after = nextMeta;
+				// nextMeta は partial patch なので、既存 meta にマージする。
+				// （TitleEditor は { contextName: text } のように 1 フィールドだけ送る）
+				const after = { ...before, ...event.nextMeta };
 				const changed = !shallowEqual(before, after);
 				if (changed) {
 					pluginCtx.commands.execute(

@@ -41,7 +41,17 @@ export type ContextMapRelation =
 	| "published-language"
 	| "separate-ways";
 
-export interface ContextMapConnectorMeta {
+/**
+ * connector の bbox は通常 shape と同じく非負化された AABB。
+ * 始点 / 終点座標は AABB 相対で `start` / `end` に保持し、
+ * 矢印方向や反転を表現する。
+ */
+export interface ConnectorEndpoints {
+	start: { x: number; y: number };
+	end: { x: number; y: number };
+}
+
+export interface ContextMapConnectorMeta extends Partial<ConnectorEndpoints> {
 	relation: ContextMapRelation;
 	upstream?: "from" | "to";
 	notes?: string;
@@ -83,7 +93,7 @@ export type TacticalRelation =
 	| "dependency"
 	| "realization";
 
-export interface TacticalConnectorMeta {
+export interface TacticalConnectorMeta extends Partial<ConnectorEndpoints> {
 	relation: TacticalRelation;
 	multiplicityFrom?: string;
 	multiplicityTo?: string;

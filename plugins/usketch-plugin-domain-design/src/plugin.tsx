@@ -136,13 +136,30 @@ export const domainDesignPlugin: UsketchPlugin = {
 				currentSubtype === DOMAIN_TYPES.tacticalConnector;
 
 			if (isConnector) {
-				// connector は (start) → (end) を x/y/width/height で表現する。
-				// width / height には符号付きの差分を入れる（負値も許容）。
-				const x = drawState.startX;
-				const y = drawState.startY;
-				const width = event.worldPoint.x - drawState.startX;
-				const height = event.worldPoint.y - drawState.startY;
-				toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
+				// connector は描画上 SVG だが、shape の bbox 自体は通常 shape と
+				// 同様に正規化（width/height >= 0）しておく必要がある。
+				// （shape-layer は style.width/height に shape.width/height をそのまま流すため、
+				//   負値だと CSS で 0 扱いになりレンダリングが壊れる）
+				// 実際の始点 / 終点は meta.start / meta.end に保存して方向を保持する。
+				const sx = drawState.startX;
+				const sy = drawState.startY;
+				const ex = event.worldPoint.x;
+				const ey = event.worldPoint.y;
+				const x = Math.min(sx, ex);
+				const y = Math.min(sy, ey);
+				const width = Math.abs(ex - sx);
+				const height = Math.abs(ey - sy);
+				toolCtx.store.updateShape(drawState.shapeId, {
+					x,
+					y,
+					width,
+					height,
+					meta: {
+						...((toolCtx.store.getShape(drawState.shapeId)?.meta ?? {}) as Record<string, unknown>),
+						start: { x: sx - x, y: sy - y },
+						end: { x: ex - x, y: ey - y },
+					},
+				});
 			} else {
 				const x = Math.min(drawState.startX, event.worldPoint.x);
 				const y = Math.min(drawState.startY, event.worldPoint.y);
@@ -185,7 +202,7 @@ export const domainDesignPlugin: UsketchPlugin = {
 
 		// ── インライン編集（state machine + custom events） ──
 		const editingService = createDomainEditingService(ctx);
-		const { send, matches, stop: stopMachine } = editingService;
+		const { send, stop: stopMachine } = editingService;
 		cleanups.push(stopMachine);
 
 		const onCommit = (e: Event) => {
@@ -232,16 +249,9 @@ export const domainDesignPlugin: UsketchPlugin = {
 		});
 		cleanups.push(unsubscribe);
 
-		// editor 外クリックで commit を促す（global pointerdown）
-		const onWindowPointerDown = (e: PointerEvent) => {
-			if (!matches("editing")) return;
-			const target = e.target instanceof Element ? e.target : (e.target as Node).parentElement;
-			if (target?.closest("[contenteditable=true]")) return;
-			// editor の外をクリックしたら editor の blur で COMMIT が発火する想定。
-			// ここでは何もしない（editor の onBlur に任せる）。
-		};
-		window.addEventListener("pointerdown", onWindowPointerDown, true);
-		cleanups.push(() => window.removeEventListener("pointerdown", onWindowPointerDown, true));
+		// editor 外クリック時のフォーカス移動 → editor 側の onBlur が
+		// COMMIT を発火する設計のため、ここでは追加の listener を登録しない。
+		// （以前は global pointerdown を捕捉していたが、機能していなかったため削除）
 
 		// ── teardown ──
 		(domainDesignPlugin as { teardown?: () => void }).teardown = () => {

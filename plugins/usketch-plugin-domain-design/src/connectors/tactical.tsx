@@ -21,10 +21,15 @@ export function renderTacticalConnector(shape: ShapeData) {
 	const relation: TacticalRelation = meta.relation ?? "association";
 	const styleSpec = RELATION_STYLE[relation];
 
-	const x1 = 0;
-	const y1 = 0;
-	const x2 = shape.width;
-	const y2 = shape.height;
+	// shape.width / shape.height は AABB のため非負。
+	// 始点 / 終点は meta.start / meta.end（AABB 相対座標）から読む。
+	// 後方互換: meta が無い場合は対角線の左上 → 右下を使う。
+	const start = meta.start ?? { x: 0, y: 0 };
+	const end = meta.end ?? { x: shape.width, y: shape.height };
+	const x1 = start.x;
+	const y1 = start.y;
+	const x2 = end.x;
+	const y2 = end.y;
 	const stroke = shape.style.stroke;
 	const sw = shape.style.strokeWidth;
 
