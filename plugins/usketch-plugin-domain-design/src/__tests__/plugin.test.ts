@@ -5,7 +5,9 @@ import { DOMAIN_TYPES } from "../types.js";
 
 type EventHandler = (data: unknown) => void;
 
-// node 実行環境向けに window を最小モック化（addEventListener / removeEventListener / dispatchEvent）
+// node 実行環境向けに window を最小モック化（addEventListener / removeEventListener / dispatchEvent）。
+// jsdom / happy-dom 環境では既に本物の window が存在するため、元の値を退避して
+// teardown で確実に復元する（無条件に undefined にすると後続テストを壊す）。
 function installWindowMock() {
 	const listeners = new Map<string, Set<EventListener>>();
 	const win = {
@@ -21,9 +23,16 @@ function installWindowMock() {
 			return true;
 		},
 	};
-	(globalThis as unknown as { window: typeof win }).window = win;
+	const g = globalThis as unknown as { window?: unknown };
+	const hadWindow = "window" in g;
+	const previous = g.window;
+	g.window = win;
 	return () => {
-		(globalThis as unknown as { window: typeof win | undefined }).window = undefined;
+		if (hadWindow) {
+			g.window = previous;
+		} else {
+			delete g.window;
+		}
 	};
 }
 

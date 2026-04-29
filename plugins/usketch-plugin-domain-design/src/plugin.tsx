@@ -1,8 +1,10 @@
-import { aabbHitTest, createResize, getBounds, lineHitTest } from "@edv4h/usketch-shape-utils";
+import { aabbHitTest, createResize, getBounds } from "@edv4h/usketch-shape-utils";
 import {
 	type CanvasPointerEvent,
 	generateId,
 	type PluginContext,
+	type Point,
+	type ShapeData,
 	type ShapeDefinition,
 	type ToolContext,
 	type UsketchPlugin,
@@ -29,12 +31,43 @@ const SHAPE_RENDERERS: Record<string, RendererFn> = {
 	[DOMAIN_TYPES.tacticalConnector]: renderTacticalConnector,
 };
 
+/**
+ * connector 専用の hit test。
+ * 共通の `lineHitTest` は AABB 対角線（左上 → 右下）を線分として扱うため、
+ * 左下 → 右上のような対角の connector は本来の線とは別の対角線で判定されてしまい
+ * 選択できなくなる。connector は `meta.start` / `meta.end`（AABB 相対）に
+ * 始点・終点を保持しているので、それを world 座標に変換して線分距離で判定する。
+ */
+function connectorHitTest(data: ShapeData, point: Point, tolerance = 6): boolean {
+	const meta = (data.meta ?? {}) as {
+		start?: { x: number; y: number };
+		end?: { x: number; y: number };
+	};
+	const start = meta.start ?? { x: 0, y: 0 };
+	const end = meta.end ?? { x: data.width, y: data.height };
+	const x1 = data.x + start.x;
+	const y1 = data.y + start.y;
+	const x2 = data.x + end.x;
+	const y2 = data.y + end.y;
+	const dx = x2 - x1;
+	const dy = y2 - y1;
+	const lengthSq = dx * dx + dy * dy;
+	if (lengthSq === 0) {
+		return Math.hypot(point.x - x1, point.y - y1) <= tolerance;
+	}
+	let t = ((point.x - x1) * dx + (point.y - y1) * dy) / lengthSq;
+	t = Math.max(0, Math.min(1, t));
+	const nx = x1 + t * dx;
+	const ny = y1 + t * dy;
+	return Math.hypot(point.x - nx, point.y - ny) <= tolerance;
+}
+
 const SHAPE_HIT_TESTS: Record<string, HitTestFn> = {
 	[DOMAIN_TYPES.boundedContext]: withRotation(aabbHitTest),
 	[DOMAIN_TYPES.aggregate]: withRotation(aabbHitTest),
 	[DOMAIN_TYPES.classBox]: withRotation(aabbHitTest),
-	[DOMAIN_TYPES.contextMapConnector]: withRotation(lineHitTest),
-	[DOMAIN_TYPES.tacticalConnector]: withRotation(lineHitTest),
+	[DOMAIN_TYPES.contextMapConnector]: withRotation(connectorHitTest),
+	[DOMAIN_TYPES.tacticalConnector]: withRotation(connectorHitTest),
 };
 
 function DomainDrawIcon() {
@@ -253,14 +286,29 @@ export const domainDesignPlugin: UsketchPlugin = {
 		});
 		cleanups.push(offCanvasPointer);
 
-		// 選択が外れたら editing 終了
+		// 選択が外れたら editing 終了。ただし select tool が pointerdown で
+		// 選択を更新するタイミングは editor の blur より前なので、ここで即座に
+		// DESELECTED を送ると blur 経由の COMMIT が来る前に cancelEdit が走り
+		// 編集内容が捨てられる。microtask で 1 ターン遅延させ、COMMIT が先に
+		// 処理されるようにする。
+		let pendingDeselectedShapeId: string | null = null;
 		const unsubscribe = ctx.store.subscribe(() => {
 			const editingId = editingService.editingShapeId;
 			if (!editingId) return;
 			const selection = ctx.store.getSelection();
-			if (!selection.has(editingId)) {
+			if (selection.has(editingId)) return;
+			if (pendingDeselectedShapeId === editingId) return;
+			pendingDeselectedShapeId = editingId;
+			queueMicrotask(() => {
+				const stillEditingId = editingService.editingShapeId;
+				pendingDeselectedShapeId = null;
+				// COMMIT / CANCEL ですでに idle に戻っていたら何もしない
+				if (!stillEditingId) return;
+				if (stillEditingId !== editingId) return;
+				const stillSelected = ctx.store.getSelection().has(stillEditingId);
+				if (stillSelected) return;
 				send({ type: "DESELECTED" });
-			}
+			});
 		});
 		cleanups.push(unsubscribe);
 
