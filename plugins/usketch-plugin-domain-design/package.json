@@ -1,0 +1,53 @@
+{
+	"name": "@edv4h/usketch-plugin-domain-design",
+	"version": "0.1.0",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"source": "./src/index.ts",
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@edv4h/usketch-core": "workspace:*",
+		"@edv4h/usketch-shape-utils": "workspace:*",
+		"@edv4h/usketch-shared": "workspace:*",
+		"@edv4h/usketch-store": "workspace:*",
+		"@zag-js/core": "^1.37.0",
+		"@zag-js/vanilla": "^1.37.0"
+	},
+	"peerDependencies": {
+		"react": ">=19"
+	},
+	"devDependencies": {
+		"@types/react": "19.2.14",
+		"typescript": "5.9.3",
+		"vitest": "3.2.4"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/EdV4H/usketch.git",
+		"directory": "plugins/usketch-plugin-domain-design"
+	},
+	"homepage": "https://github.com/EdV4H/usketch#readme",
+	"bugs": {
+		"url": "https://github.com/EdV4H/usketch/issues"
+	}
+}

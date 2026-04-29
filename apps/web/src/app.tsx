@@ -13,6 +13,7 @@ import { createAiVoicePlugin } from "@edv4h/usketch-plugin-ai-voice";
 import { dotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { gridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
+import { domainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
 import { exportPlugin } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
@@ -95,6 +96,7 @@ const basePlugins: UsketchPlugin[] = [
 	imageShapePlugin,
 	counterPlugin,
 	wireframePlugin,
+	domainDesignPlugin,
 	snapPlugin,
 	exportPlugin,
 	createGpuRendererPlugin(),
