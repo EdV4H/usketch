@@ -50,4 +50,4 @@ createApp({
 });
 ```
 
-詳しくは [ドメイン設計プラグインのガイド](https://usketch.dev/guides/domain-design-plugin) を参照。
+詳しくは [ドメイン設計プラグインのガイド](https://edv4h.github.io/usketch/docs/guides/domain-design-plugin/) を参照。

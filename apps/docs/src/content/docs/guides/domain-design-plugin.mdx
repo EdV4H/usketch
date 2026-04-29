@@ -67,7 +67,7 @@ Pressing **Enter** or clicking outside commits the change. Pressing **Escape** c
 
 ## Where domain data lives
 
-Unlike most older plugins (`text`, `connector`, ...) that put intrinsic fields directly on `ShapeData`, this plugin stores all domain-specific state in **`ShapeData<TMeta>`'s `meta`** field — the contract recommended by [the shape system docs](/concepts/shape-system).
+Unlike most older plugins (`text`, `connector`, ...) that put intrinsic fields directly on `ShapeData`, this plugin stores all domain-specific state in **`ShapeData<TMeta>`'s `meta`** field — the contract recommended by [the shape system docs](/docs/concepts/shape-system/).
 
 ```ts
 import type { ShapeData } from "@edv4h/usketch-shared";
@@ -118,6 +118,6 @@ Common extensions:
 
 ## See also
 
-- [Shape system overview](/concepts/shape-system) — the contract `meta` is part of.
-- [Building a Shape Plugin](/guides/shape-plugin) — write your own domain notation.
-- [Building a Tool Plugin](/guides/tool-plugin) — write a custom drawing tool.
+- [Shape system overview](/docs/concepts/shape-system/) — the contract `meta` is part of.
+- [Building a Shape Plugin](/docs/guides/shape-plugin/) — write your own domain notation.
+- [Building a Tool Plugin](/docs/guides/tool-plugin/) — write a custom drawing tool.
