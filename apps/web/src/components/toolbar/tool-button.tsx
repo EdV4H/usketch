@@ -1,4 +1,5 @@
 import { useApp } from "@edv4h/usketch-canvas-engine";
+import { DOMAIN_SUBTYPES } from "@edv4h/usketch-plugin-domain-design";
 import { BASIC_SHAPE_SUBTYPES } from "@edv4h/usketch-plugin-shape-basic";
 import {
 	DEFAULT_STICKY_COLOR,
@@ -23,10 +24,12 @@ export function ToolButton({
 	const [showPicker, setShowPicker] = useState(false);
 	const [wireframeSubtype, setWireframeSubtype] = useState(WIREFRAME_SUBTYPES[0].type);
 	const [stickyColor, setStickyColor] = useState(DEFAULT_STICKY_COLOR);
+	const [domainSubtype, setDomainSubtype] = useState(DOMAIN_SUBTYPES[0]?.type ?? "");
 	const isWireframe = id === "wireframe-draw";
 	const isBasicShape = id === "basic-shape-draw";
 	const isSticky = id === "sticky-draw";
-	const hasPicker = isWireframe || isBasicShape || isSticky;
+	const isDomainDraw = id === "domain-draw";
+	const hasPicker = isWireframe || isBasicShape || isSticky || isDomainDraw;
 
 	return (
 		<div style={{ position: "relative" }}>
@@ -77,6 +80,76 @@ export function ToolButton({
 					}}
 				/>
 			)}
+			{isDomainDraw && isActive && showPicker && (
+				<DomainDrawPicker
+					currentType={domainSubtype}
+					onSelect={(type) => {
+						setDomainSubtype(type);
+						app.events.emit("domain-design:select-subtype", { type });
+					}}
+				/>
+			)}
+		</div>
+	);
+}
+
+function DomainDrawPicker({
+	currentType,
+	onSelect,
+}: {
+	currentType: string;
+	onSelect: (type: string) => void;
+}) {
+	return (
+		<div
+			style={{
+				position: "absolute",
+				bottom: 44,
+				left: "50%",
+				transform: "translateX(-50%)",
+				background: "var(--bg-surface-raised)",
+				border: "1px solid var(--border-default)",
+				borderRadius: 10,
+				padding: 8,
+				display: "grid",
+				gridTemplateColumns: `repeat(${DOMAIN_SUBTYPES.length}, 1fr)`,
+				gap: 4,
+				boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+				zIndex: 150,
+				fontFamily: "system-ui, sans-serif",
+				whiteSpace: "nowrap",
+			}}
+		>
+			{DOMAIN_SUBTYPES.map((sub) => {
+				const Icon = sub.icon;
+				const isActive = sub.type === currentType;
+				return (
+					<button
+						key={sub.type}
+						type="button"
+						onClick={() => onSelect(sub.type)}
+						title={sub.label}
+						style={{
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+							gap: 2,
+							padding: "6px 8px",
+							border: "none",
+							borderRadius: 6,
+							background: isActive ? "#eff6ff" : "transparent",
+							color: isActive ? "#3b82f6" : "#555",
+							cursor: "pointer",
+							fontSize: 10,
+							fontWeight: isActive ? 600 : 400,
+							minWidth: 64,
+						}}
+					>
+						<Icon />
+						{sub.label}
+					</button>
+				);
+			})}
 		</div>
 	);
 }
