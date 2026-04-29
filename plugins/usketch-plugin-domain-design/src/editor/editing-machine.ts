@@ -12,7 +12,6 @@ export const EDITABLE_DOMAIN_TYPES: ReadonlySet<string> = new Set([
 
 type EditingEvent =
 	| { type: "POINTER_DOWN"; shapeId: string | null }
-	| { type: "OUTSIDE_CLICK" }
 	| { type: "CLICK_TIMEOUT" }
 	| { type: "COMMIT"; id: string; nextMeta: Record<string, unknown> }
 	| { type: "CANCEL"; id: string }
@@ -37,8 +36,7 @@ interface EditingMachineSchema extends MachineSchema {
 		| "clearClicked"
 		| "enterEdit"
 		| "commitEdit"
-		| "cancelEdit"
-		| "exitEdit";
+		| "cancelEdit";
 	effect: never;
 	tag: never;
 	props: { id: string };
@@ -224,22 +222,6 @@ const editingMachine = createMachine<EditingMachineSchema>({
 
 				context.set("editingShapeId", null);
 				context.set("metaSnapshot", null);
-			},
-
-			exitEdit({ context, refs }) {
-				// 外部クリックで editing が終わるとき。
-				// editor 側の blur で COMMIT が飛んでくる想定だが、
-				// 念のためフラグだけ落とす。
-				const id = context.get("editingShapeId");
-				if (id) {
-					const pluginCtx = refs.get("pluginCtx");
-					pluginCtx.store.updateShape(id, {
-						"x-domain-editing": false,
-					} as Partial<ShapeData>);
-				}
-				context.set("editingShapeId", null);
-				context.set("metaSnapshot", null);
-				context.set("clickedShapeId", null);
 			},
 		},
 	},

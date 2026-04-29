@@ -84,6 +84,13 @@ export const domainDesignPlugin: UsketchPlugin = {
 			const renderer = SHAPE_RENDERERS[subtype.type];
 			const hitTestFn = SHAPE_HIT_TESTS[subtype.type];
 			if (!renderer || !hitTestFn) continue;
+			// connector は始点 / 終点を meta.start / meta.end に保持しているため、
+			// 標準の AABB resize（width / height だけ更新）では line がズレる。
+			// 既存の `connector` plugin と同様、専用のリサイズロジックを書くまでは
+			// resize 不可にしておく（移動・回転・削除は通常通り可能）。
+			const isConnector =
+				subtype.type === DOMAIN_TYPES.contextMapConnector ||
+				subtype.type === DOMAIN_TYPES.tacticalConnector;
 			ctx.shapes.register(subtype.type, {
 				render: renderer,
 				getBounds,
@@ -92,6 +99,7 @@ export const domainDesignPlugin: UsketchPlugin = {
 					MIN_SIZE_BY_TYPE[subtype.type]?.width ?? 1,
 					MIN_SIZE_BY_TYPE[subtype.type]?.height ?? 1,
 				),
+				resizable: !isConnector,
 				createDefault: subtype.createDefault,
 				renderTarget: RENDER_TARGET_BY_TYPE[subtype.type],
 				minSize: MIN_SIZE_BY_TYPE[subtype.type],
@@ -225,13 +233,20 @@ export const domainDesignPlugin: UsketchPlugin = {
 		const offCanvasPointer = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
 			let hitShapeId: string | null = null;
 			const point = event.worldPoint;
-			const shapes = ctx.store.getShapes();
-			for (const [id, shape] of shapes) {
+			// getShapesSorted() は zIndex 昇順（背面 → 前面）。
+			// hit test は前面から拾いたいので末尾から走査して、最初の hit で抜ける。
+			// （Map 順序は zIndex を反映しないため、getShapes() を素直に回すと
+			//   重なり合った shape のうち背面側を選んでしまうことがある）
+			const sorted = ctx.store.getShapesSorted();
+			for (let i = sorted.length - 1; i >= 0; i--) {
+				const shape = sorted[i];
+				if (!shape) continue;
 				if (!EDITABLE_DOMAIN_TYPES.has(shape.type)) continue;
 				const def: ShapeDefinition | undefined = ctx.shapes.get(shape.type);
 				if (!def) continue;
 				if (def.hitTest(shape, point)) {
-					hitShapeId = id;
+					hitShapeId = shape.id;
+					break;
 				}
 			}
 			send({ type: "POINTER_DOWN", shapeId: hitShapeId });

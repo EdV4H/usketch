@@ -77,6 +77,7 @@ function createMockContext() {
 		},
 		store: {
 			getShapes: vi.fn(() => new Map<string, ShapeData>()),
+			getShapesSorted: vi.fn(() => [] as ShapeData[]),
 			getShape: vi.fn(() => undefined),
 			getSelection: vi.fn(() => new Set<string>()),
 			subscribe: vi.fn(() => () => {}),
