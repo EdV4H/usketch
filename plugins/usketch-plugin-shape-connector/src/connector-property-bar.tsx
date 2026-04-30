@@ -1,8 +1,8 @@
 import { ShapeAnchorOverlay, useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
+import { type AnchorType, getAnchorPoint } from "@edv4h/usketch-connector-anchor";
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import { useCallback } from "react";
-import { type AnchorType, getAnchorPoint } from "./anchor-utils.js";
 import type { ArrowHead, PathType } from "./shapes/connector.js";
 import type { ConnectorShapeData } from "./types.js";
 

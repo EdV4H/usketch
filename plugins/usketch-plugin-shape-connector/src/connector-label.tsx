@@ -1,7 +1,7 @@
+import { getPathMidpoint } from "@edv4h/usketch-connector-anchor";
 import type { PluginContext, Point, ShapeData, Viewport } from "@edv4h/usketch-shared";
 import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
-import { getPathMidpoint } from "./path-utils.js";
 import type { ConnectorShapeData } from "./types.js";
 
 // ── Label editing state ──

@@ -1,21 +1,12 @@
-import type { Point, ShapeData } from "@edv4h/usketch-shared";
-import type { AnchorType } from "./anchor-utils.js";
-import type { PathType } from "./path-utils.js";
+import type { ArrowHead, ConnectableShapeData } from "@edv4h/usketch-connector-anchor";
 
-/** Arrow head style for a connector. */
-export type ArrowHead = "none" | "forward" | "backward" | "both";
+/**
+ * Connector shape extension: intrinsic data for the `connector` shape.
+ *
+ * Re-exported alias of `ConnectableShapeData` from `@edv4h/usketch-connector-anchor`.
+ * The shared base type is defined there so other connector implementations
+ * (e.g. the DDD domain-design plugin) can share anchor / tracking logic.
+ */
+export type ConnectorShapeData = ConnectableShapeData;
 
-/** Connector shape extension: intrinsic data for the `connector` shape. */
-export interface ConnectorShapeData extends ShapeData {
-	sourceId?: string;
-	targetId?: string;
-	sourceAnchor?: AnchorType;
-	targetAnchor?: AnchorType;
-	sourcePoint?: Point;
-	targetPoint?: Point;
-	controlPoint?: Point;
-	controlPointAuto?: boolean;
-	arrowHead?: ArrowHead;
-	pathType?: PathType;
-	label?: string;
-}
+export type { ArrowHead };

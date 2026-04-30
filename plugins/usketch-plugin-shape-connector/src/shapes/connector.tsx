@@ -1,35 +1,24 @@
-import type { BoundingBox, Point, ShapeData } from "@edv4h/usketch-shared";
-import { safeRotation } from "@edv4h/usketch-shared";
 import {
-	bezierBounds,
-	distanceToLineSegment,
-	distanceToPolyline,
+	getBoundsConnector,
 	getDefaultControlPoint,
-	getElbowPoints,
 	getPathMidpoint,
-	isNearBezier,
-} from "../path-utils.js";
+	hitTestConnector,
+	type PathType,
+	sourceXY,
+	targetXY,
+} from "@edv4h/usketch-connector-anchor";
+import type { Point, ShapeData } from "@edv4h/usketch-shared";
+import { safeRotation } from "@edv4h/usketch-shared";
 import type { ConnectorShapeData } from "../types.js";
 
-export type { PathType } from "../path-utils.js";
+export type { PathType };
 export type { ArrowHead } from "../types.js";
+export { getBoundsConnector, hitTestConnector };
 
 const ARROW_SIZE = 10;
 const LABEL_FONT_SIZE = 12;
 const LABEL_PADDING_X = 6;
 const LABEL_PADDING_Y = 3;
-
-// ── Helpers to extract endpoints ──
-
-function sourceXY(data: ShapeData): Point {
-	const p = (data as ConnectorShapeData).sourcePoint;
-	return { x: p?.x ?? data.x, y: p?.y ?? data.y };
-}
-
-function targetXY(data: ShapeData): Point {
-	const p = (data as ConnectorShapeData).targetPoint;
-	return { x: p?.x ?? data.x + data.width, y: p?.y ?? data.y + data.height };
-}
 
 // ── Arrow head rendering ──
 
@@ -179,51 +168,6 @@ export function renderConnector(data: ShapeData) {
 	}
 
 	return <g>{elements}</g>;
-}
-
-// ── Bounds ──
-
-export function getBoundsConnector(data: ShapeData): BoundingBox {
-	const connectorData = data as ConnectorShapeData;
-	const src = sourceXY(data);
-	const tgt = targetXY(data);
-	const pathType = connectorData.pathType ?? "straight";
-
-	if (pathType === "curve") {
-		const cp = connectorData.controlPoint ?? getDefaultControlPoint(src, tgt);
-		return bezierBounds(src, cp, tgt);
-	}
-
-	const minX = Math.min(src.x, tgt.x);
-	const minY = Math.min(src.y, tgt.y);
-	return {
-		x: minX,
-		y: minY,
-		width: Math.abs(tgt.x - src.x),
-		height: Math.abs(tgt.y - src.y),
-	};
-}
-
-// ── Hit test ──
-
-export function hitTestConnector(data: ShapeData, point: Point, tolerance = 6): boolean {
-	const connectorData = data as ConnectorShapeData;
-	const src = sourceXY(data);
-	const tgt = targetXY(data);
-	const pathType = connectorData.pathType ?? "straight";
-
-	if (pathType === "curve") {
-		const cp = connectorData.controlPoint ?? getDefaultControlPoint(src, tgt);
-		return isNearBezier(point, src, cp, tgt, tolerance);
-	}
-
-	if (pathType === "elbow") {
-		const elbowPts = getElbowPoints(src, tgt);
-		return distanceToPolyline(point, elbowPts) <= tolerance;
-	}
-
-	// straight
-	return distanceToLineSegment(point, src, tgt) <= tolerance;
 }
 
 // ── Default shape ──

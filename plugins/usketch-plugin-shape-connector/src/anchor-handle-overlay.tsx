@@ -1,3 +1,4 @@
+import { type AnchorType, clampToShapeEdge, getAnchorPoint } from "@edv4h/usketch-connector-anchor";
 import type {
 	CanvasPointerEvent,
 	PluginContext,
@@ -8,7 +9,6 @@ import type {
 import { generateId } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { useCallback, useSyncExternalStore } from "react";
-import { type AnchorType, clampToShapeEdge, getAnchorPoint } from "./anchor-utils.js";
 import { createDefaultConnector } from "./shapes/connector.js";
 import type { ConnectorShapeData } from "./types.js";
 

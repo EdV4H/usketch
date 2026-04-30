@@ -90,6 +90,7 @@ function createMockContext() {
 			getShape: vi.fn(() => undefined),
 			getSelection: vi.fn(() => new Set<string>()),
 			subscribe: vi.fn(() => () => {}),
+			onMutation: vi.fn(() => () => {}),
 			updateShape: vi.fn(),
 			addShape: vi.fn(),
 			deleteShape: vi.fn(),
@@ -128,7 +129,7 @@ describe("domainDesignPlugin", () => {
 		expect(domainDesignPlugin.name).toBe("ドメイン設計");
 	});
 
-	it("registers all 5 domain shape types", async () => {
+	it("registers 4 domain shape types (3 containers + 1 connector)", async () => {
 		const { ctx, shapeRegistrations } = createMockContext();
 		await domainDesignPlugin.setup(ctx);
 		const types = Array.from(shapeRegistrations.keys()).sort();
@@ -137,10 +138,18 @@ describe("domainDesignPlugin", () => {
 				DOMAIN_TYPES.aggregate,
 				DOMAIN_TYPES.boundedContext,
 				DOMAIN_TYPES.classBox,
-				DOMAIN_TYPES.contextMapConnector,
-				DOMAIN_TYPES.tacticalConnector,
+				DOMAIN_TYPES.connector,
 			].sort(),
 		);
+		domainDesignPlugin.teardown?.();
+	});
+
+	it("registers a property bar layer for domain-connector", async () => {
+		const { ctx } = createMockContext();
+		const layerRegister = ctx.layers.register as ReturnType<typeof vi.fn>;
+		await domainDesignPlugin.setup(ctx);
+		const layerIds = layerRegister.mock.calls.map((call: [{ id: string }]) => call[0].id);
+		expect(layerIds).toContain("domain-connector-properties");
 		domainDesignPlugin.teardown?.();
 	});
 

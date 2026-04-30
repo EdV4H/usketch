@@ -1,14 +1,17 @@
+import {
+	clampToShapeEdge,
+	getAnchorPoint,
+	getDefaultControlPoint,
+} from "@edv4h/usketch-connector-anchor";
 import type { PluginContext, Point, ShapeData, Viewport } from "@edv4h/usketch-shared";
 import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import { useCallback, useSyncExternalStore } from "react";
-import { clampToShapeEdge, getAnchorPoint } from "./anchor-utils.js";
 import {
 	type EndpointDragState,
 	getEndpointDrag,
 	setEndpointDrag,
 	subscribeEndpointDrag,
 } from "./endpoint-drag-state.js";
-import { getDefaultControlPoint } from "./path-utils.js";
 import { findShapeAtPoint } from "./plugin.js";
 import type { ConnectorShapeData } from "./types.js";
 

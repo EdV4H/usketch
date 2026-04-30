@@ -17,7 +17,6 @@ The plugin registers **5 shape types** plus a **drawing tool** (`domain-draw`, s
 | Shape type | Purpose |
 |---|---|
 | `domain-bounded-context` | A Bounded Context boundary with name, owning team, and Core/Supporting/Generic classification. |
-| `domain-context-map-connector` | A relation between two contexts: Customer/Supplier, Conformist, ACL, Shared Kernel, OHS, Partnership, Published Language, Separate Ways. |
 
 ### Tactical level
 
@@ -25,7 +24,17 @@ The plugin registers **5 shape types** plus a **drawing tool** (`domain-draw`, s
 |---|---|
 | `domain-aggregate` | An Aggregate Root container (rounded oval with stereotype label and root entity name). |
 | `domain-class-box` | A class box with stereotype (Entity / ValueObject / Service / Repository / DomainEvent / Factory), class name, attributes, and methods. |
-| `domain-tactical-connector` | A class relation arrow: inheritance, realization, composition, aggregation, association, dependency. |
+
+### Connectors
+
+`domain-connector` is a **single shape type** that anchors to two shapes (BoundedContext / Aggregate / ClassBox) and gets its visual style from `meta.domainKind` + `meta.relation`:
+
+| `domainKind` | Relation choices | Use case |
+|---|---|---|
+| `context-map` | Customer/Supplier, Conformist, ACL, Shared Kernel, OHS, Partnership, Published Language, Separate Ways | Strategic Context Map relations |
+| `tactical` | inheritance, realization, composition, aggregation, association, dependency | Tactical class-level relations |
+
+Connectors are **anchor-aware**: they snap to source / target shapes, follow them when shapes move, and can be reconnected by dragging the endpoint handle. Cascade delete is automatic — deleting a connected shape also removes the connector.
 
 ## Installing
 
@@ -112,8 +121,8 @@ Common extensions:
 
 ## Limitations (MVP)
 
-- Connectors do **not** snap to source/target shapes (they are free-line connectors with relation metadata). Anchor-aware connectors are tracked as a follow-up.
-- Inline editing covers shape-level fields only; in-line **label editing on connectors** is a follow-up.
+- Inline editing covers shape-level fields only; relation / multiplicity / upstream are edited via the connector's property bar (which appears when a `domain-connector` is selected).
+- In-line **label editing directly on connectors** is a follow-up; for now use the property bar's label input.
 - The toolbar UI for the subtype picker is the host application's responsibility; the plugin only listens for `domain-design:select-subtype` events.
 
 ## See also
