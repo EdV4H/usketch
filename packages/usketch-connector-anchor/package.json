@@ -18,8 +18,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@edv4h/usketch-shared": "workspace:*",
-		"@edv4h/usketch-store": "workspace:*"
+		"@edv4h/usketch-shared": "workspace:*"
 	},
 	"devDependencies": {
 		"typescript": "5.9.3",

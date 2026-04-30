@@ -230,10 +230,15 @@ function DomainConnectorControls({
 				</select>
 			)}
 
-			{/* Tactical: multiplicity & label */}
+			{/* Tactical: multiplicity & label.
+			    Inputs are uncontrolled (defaultValue) so the user can type freely
+			    without per-keystroke commits, but we re-mount via `key` whenever
+			    the persisted meta changes (undo/redo, switching connectors,
+			    programmatic updates) so they reflect current store state. */}
 			{meta.domainKind === "tactical" && (
 				<>
 					<input
+						key={`mfrom:${connectorId}:${meta.multiplicityFrom ?? ""}`}
 						type="text"
 						placeholder="From"
 						defaultValue={meta.multiplicityFrom ?? ""}
@@ -242,6 +247,7 @@ function DomainConnectorControls({
 						title="Multiplicity (source)"
 					/>
 					<input
+						key={`mto:${connectorId}:${meta.multiplicityTo ?? ""}`}
 						type="text"
 						placeholder="To"
 						defaultValue={meta.multiplicityTo ?? ""}
@@ -250,6 +256,7 @@ function DomainConnectorControls({
 						title="Multiplicity (target)"
 					/>
 					<input
+						key={`label:${connectorId}:${meta.label ?? ""}`}
 						type="text"
 						placeholder="Label"
 						defaultValue={meta.label ?? ""}

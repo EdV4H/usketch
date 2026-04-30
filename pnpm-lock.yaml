@@ -595,9 +595,6 @@ importers:
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../shared
-      '@edv4h/usketch-store':
-        specifier: workspace:*
-        version: link:../store
     devDependencies:
       typescript:
         specifier: 5.9.3

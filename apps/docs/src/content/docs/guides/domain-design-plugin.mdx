@@ -10,7 +10,7 @@ This page walks through what the plugin offers, how to use it, and how it lays o
 
 ## What you can draw
 
-The plugin registers **5 shape types** plus a **drawing tool** (`domain-draw`, shortcut **d**).
+The plugin registers **4 shape types** plus a **drawing tool** (`domain-draw`, shortcut **d**).
 
 ### Strategic level
 
@@ -34,7 +34,9 @@ The plugin registers **5 shape types** plus a **drawing tool** (`domain-draw`, s
 | `context-map` | Customer/Supplier, Conformist, ACL, Shared Kernel, OHS, Partnership, Published Language, Separate Ways | Strategic Context Map relations |
 | `tactical` | inheritance, realization, composition, aggregation, association, dependency | Tactical class-level relations |
 
-Connectors are **anchor-aware**: they snap to source / target shapes, follow them when shapes move, and can be reconnected by dragging the endpoint handle. Cascade delete is automatic — deleting a connected shape also removes the connector.
+Connectors are **anchor-aware**: they snap to source / target shapes and follow them when shapes move. Cascade delete is automatic — deleting a connected shape also removes the connector.
+
+> **Note:** A connector's source / target are fixed at draw time. Endpoint-handle reconnection (dragging an endpoint to a new shape) is not yet wired up for `domain-connector` — to change endpoints, delete the connector and re-draw it. Tracking this in the follow-up list below.
 
 ## Installing
 
@@ -123,6 +125,7 @@ Common extensions:
 
 - Inline editing covers shape-level fields only; relation / multiplicity / upstream are edited via the connector's property bar (which appears when a `domain-connector` is selected).
 - In-line **label editing directly on connectors** is a follow-up; for now use the property bar's label input.
+- **Endpoint-handle reconnection** for `domain-connector` is not yet implemented; recreate the connector to change source / target.
 - The toolbar UI for the subtype picker is the host application's responsibility; the plugin only listens for `domain-design:select-subtype` events.
 
 ## See also

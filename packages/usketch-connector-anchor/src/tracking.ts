@@ -35,28 +35,93 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 
 	// Connector index: shape id → set of connector ids referencing it.
 	const connectorIndex = new Map<string, Set<string>>();
+	// Per-connector last known endpoints. Lets us diff sourceId / targetId on
+	// `shape:updated` (endpoint reconnection) and adjust the index incrementally
+	// without rebuilding from scratch every time.
+	const connectorRefs = new Map<string, { sourceId?: string; targetId?: string }>();
+
+	function addRef(shapeId: string, connectorId: string) {
+		let bucket = connectorIndex.get(shapeId);
+		if (!bucket) {
+			bucket = new Set();
+			connectorIndex.set(shapeId, bucket);
+		}
+		bucket.add(connectorId);
+	}
+
+	function removeRef(shapeId: string, connectorId: string) {
+		const bucket = connectorIndex.get(shapeId);
+		if (!bucket) return;
+		bucket.delete(connectorId);
+		if (bucket.size === 0) connectorIndex.delete(shapeId);
+	}
+
+	function syncConnectorRefs(connectorId: string, next: { sourceId?: string; targetId?: string }) {
+		const prev = connectorRefs.get(connectorId);
+		if (prev?.sourceId && prev.sourceId !== next.sourceId) {
+			removeRef(prev.sourceId, connectorId);
+		}
+		if (prev?.targetId && prev.targetId !== next.targetId) {
+			removeRef(prev.targetId, connectorId);
+		}
+		if (next.sourceId && next.sourceId !== prev?.sourceId) {
+			addRef(next.sourceId, connectorId);
+		}
+		if (next.targetId && next.targetId !== prev?.targetId) {
+			addRef(next.targetId, connectorId);
+		}
+		connectorRefs.set(connectorId, next);
+	}
+
+	function dropConnectorRefs(connectorId: string) {
+		const prev = connectorRefs.get(connectorId);
+		if (!prev) return;
+		if (prev.sourceId) removeRef(prev.sourceId, connectorId);
+		if (prev.targetId) removeRef(prev.targetId, connectorId);
+		connectorRefs.delete(connectorId);
+	}
 
 	function rebuildIndex() {
 		connectorIndex.clear();
+		connectorRefs.clear();
 		for (const [id, shape] of store.getShapes()) {
 			if (!isConnectorType(shape.type)) continue;
 			const connectorData = shape as ConnectableShapeData;
-			const src = connectorData.sourceId;
-			const tgt = connectorData.targetId;
-			if (src) {
-				if (!connectorIndex.has(src)) connectorIndex.set(src, new Set());
-				connectorIndex.get(src)?.add(id);
-			}
-			if (tgt) {
-				if (!connectorIndex.has(tgt)) connectorIndex.set(tgt, new Set());
-				connectorIndex.get(tgt)?.add(id);
-			}
+			syncConnectorRefs(id, {
+				sourceId: connectorData.sourceId,
+				targetId: connectorData.targetId,
+			});
 		}
 	}
 
 	const unsubIndex = store.onMutation((event) => {
-		if (event.type === "shape:added" || event.type === "shape:removed") {
-			rebuildIndex();
+		const payload = event.payload as { id?: string } | undefined;
+		if (event.type === "shape:added") {
+			if (!payload?.id) return;
+			const shape = store.getShape(payload.id);
+			if (!shape || !isConnectorType(shape.type)) return;
+			const connectorData = shape as ConnectableShapeData;
+			syncConnectorRefs(payload.id, {
+				sourceId: connectorData.sourceId,
+				targetId: connectorData.targetId,
+			});
+			return;
+		}
+		if (event.type === "shape:removed") {
+			if (!payload?.id) return;
+			// We may not have the shape anymore; just drop by id (no-op if absent).
+			dropConnectorRefs(payload.id);
+			return;
+		}
+		if (event.type === "shape:updated") {
+			if (!payload?.id) return;
+			const shape = store.getShape(payload.id);
+			if (!shape || !isConnectorType(shape.type)) return;
+			const connectorData = shape as ConnectableShapeData;
+			syncConnectorRefs(payload.id, {
+				sourceId: connectorData.sourceId,
+				targetId: connectorData.targetId,
+			});
 		}
 	});
 	rebuildIndex();

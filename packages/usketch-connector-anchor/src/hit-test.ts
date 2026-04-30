@@ -11,11 +11,14 @@ import type { ConnectableShapeData } from "./types.js";
 
 /**
  * Minimal context shape used by `findShapeAtPoint`. Both `ToolContext` and
- * `PluginContext` from `@edv4h/usketch-shared` satisfy this.
+ * `PluginContext` from `@edv4h/usketch-shared` satisfy this. `getShapesSorted`
+ * is preferred when available (returns shapes in zIndex order); we fall back to
+ * `getShapes()` (insertion order) for stores that don't expose the sorted view.
  */
 export interface FindShapeAtPointContext {
 	store: {
 		getShapes(): ReadonlyMap<string, ShapeData>;
+		getShapesSorted?(): readonly ShapeData[];
 	};
 	shapes: {
 		get(type: string): { hitTest: (data: ShapeData, point: Point) => boolean } | undefined;
@@ -23,10 +26,11 @@ export interface FindShapeAtPointContext {
 }
 
 /**
- * Find the topmost shape at a point. Skips any shape type listed in
- * `excludeTypes` (typically the caller's own connector type to avoid hit
- * testing connectors as drag targets), and prefers concrete shapes over
- * containers (`frame` / `group`) when both overlap.
+ * Find the topmost shape at a point. Iterates in reverse zIndex order so the
+ * visually-topmost shape wins. Skips any shape type listed in `excludeTypes`
+ * (typically the caller's own connector type to avoid hit testing connectors
+ * as drag targets), and prefers concrete shapes over containers
+ * (`frame` / `group`) when both overlap.
  */
 export function findShapeAtPoint(
 	ctx: FindShapeAtPointContext,
@@ -34,10 +38,11 @@ export function findShapeAtPoint(
 	options?: { excludeTypes?: ReadonlySet<string> },
 ): ShapeData | null {
 	const exclude = options?.excludeTypes;
-	const shapes = ctx.store.getShapes();
-	const entries = [...shapes.entries()].reverse();
+	const ordered: ShapeData[] = ctx.store.getShapesSorted
+		? [...ctx.store.getShapesSorted()].reverse()
+		: [...ctx.store.getShapes().values()].reverse();
 	let fallbackContainer: ShapeData | null = null;
-	for (const [, data] of entries) {
+	for (const data of ordered) {
 		if (exclude?.has(data.type)) continue;
 		const def = ctx.shapes.get(data.type);
 		if (!def?.hitTest(data, point)) continue;
