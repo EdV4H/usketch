@@ -42,25 +42,6 @@ const TACTICAL_STYLE: Record<TacticalRelation, TacticalStyle> = {
 	dependency: { dashed: true, headFill: "#1e1e1e", headShape: "open" },
 };
 
-// ── Path helpers ──
-
-/**
- * Build the SVG `path d=` string for `curve` connectors. Straight and elbow
- * paths use `<line>` / `<polyline>` (built inline in `renderPath`), so they
- * don't need a `pathD` here — returning `undefined` lets `renderPath` pick
- * the right element type.
- */
-function buildPathD(
-	pathType: "straight" | "elbow" | "curve",
-	source: Point,
-	target: Point,
-	controlPoint: Point | undefined,
-): string | undefined {
-	if (pathType !== "curve") return undefined;
-	const cp = controlPoint ?? getDefaultControlPoint(source, target);
-	return `M ${source.x},${source.y} Q ${cp.x},${cp.y} ${target.x},${target.y}`;
-}
-
 // ── Renderer ──
 
 export function renderDomainConnector(shape: ShapeData) {
@@ -75,15 +56,12 @@ export function renderDomainConnector(shape: ShapeData) {
 		x: shape.x + shape.width,
 		y: shape.y + shape.height,
 	};
-	const controlPoint = (shape as ShapeData & { controlPoint?: Point }).controlPoint;
 	const pathType =
 		((shape as ShapeData & { pathType?: "straight" | "elbow" | "curve" }).pathType ?? "straight") ||
 		"straight";
 	const stroke = shape.style.stroke;
 	const sw = shape.style.strokeWidth;
 	const opacity = shape.style.opacity;
-
-	const pathD = buildPathD(pathType, sourcePoint, targetPoint, controlPoint);
 
 	if (meta.domainKind === "context-map") {
 		return renderContextMapConnector({
@@ -92,7 +70,6 @@ export function renderDomainConnector(shape: ShapeData) {
 			sourcePoint,
 			targetPoint,
 			pathType,
-			pathD,
 			stroke,
 			strokeWidth: sw,
 			opacity,
@@ -104,7 +81,6 @@ export function renderDomainConnector(shape: ShapeData) {
 		sourcePoint,
 		targetPoint,
 		pathType,
-		pathD,
 		stroke,
 		strokeWidth: sw,
 		opacity,
@@ -117,7 +93,6 @@ interface RenderArgs {
 	sourcePoint: Point;
 	targetPoint: Point;
 	pathType: "straight" | "elbow" | "curve";
-	pathD: string | undefined;
 	stroke: string;
 	strokeWidth: number;
 	opacity: number;
@@ -243,10 +218,17 @@ function renderTacticalConnector(args: RenderArgs) {
 
 function renderPath(args: RenderArgs, dashed: boolean) {
 	const dashArray = dashed ? "6 4" : undefined;
-	if (args.pathType === "curve" && args.pathD) {
+	if (args.pathType === "curve") {
+		// Rebuild from current sourcePoint/targetPoint instead of trusting the
+		// caller-passed `pathD`: tactical connectors shorten targetPoint to make
+		// room for the arrow head, and we want the curve to follow that.
+		const cp =
+			(args.shape as ShapeData & { controlPoint?: Point }).controlPoint ??
+			getDefaultControlPoint(args.sourcePoint, args.targetPoint);
+		const d = `M ${args.sourcePoint.x},${args.sourcePoint.y} Q ${cp.x},${cp.y} ${args.targetPoint.x},${args.targetPoint.y}`;
 		return (
 			<path
-				d={args.pathD}
+				d={d}
 				fill="none"
 				stroke={args.stroke}
 				strokeWidth={args.strokeWidth}
