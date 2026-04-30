@@ -116,7 +116,7 @@ export function clampToShapeEdge(shape: ShapeData, point: Point): Point {
 		{ x: right, y: clamp(point.y, top, bottom) }, // right edge
 	];
 
-	let best = candidates[0];
+	let best = candidates[0]!;
 	let bestDist = Number.POSITIVE_INFINITY;
 	for (const c of candidates) {
 		const dist = Math.hypot(c.x - point.x, c.y - point.y);

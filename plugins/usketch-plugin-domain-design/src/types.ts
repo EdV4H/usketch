@@ -1,3 +1,4 @@
+import type { ConnectableShapeData } from "@edv4h/usketch-connector-anchor";
 import type { ShapeData } from "@edv4h/usketch-shared";
 
 /**
@@ -16,8 +17,7 @@ export const DOMAIN_TYPES = {
 	boundedContext: "domain-bounded-context",
 	aggregate: "domain-aggregate",
 	classBox: "domain-class-box",
-	contextMapConnector: "domain-context-map-connector",
-	tacticalConnector: "domain-tactical-connector",
+	connector: "domain-connector",
 } as const;
 
 // ── 戦略レベル ──
@@ -40,24 +40,6 @@ export type ContextMapRelation =
 	| "partnership"
 	| "published-language"
 	| "separate-ways";
-
-/**
- * connector の bbox は通常 shape と同じく非負化された AABB。
- * 始点 / 終点座標は AABB 相対で `start` / `end` に保持し、
- * 矢印方向や反転を表現する。
- */
-export interface ConnectorEndpoints {
-	start: { x: number; y: number };
-	end: { x: number; y: number };
-}
-
-export interface ContextMapConnectorMeta extends Partial<ConnectorEndpoints> {
-	relation: ContextMapRelation;
-	upstream?: "from" | "to";
-	notes?: string;
-}
-
-export type ContextMapConnectorShape = ShapeData<ContextMapConnectorMeta>;
 
 // ── 戦術レベル ──
 
@@ -93,11 +75,34 @@ export type TacticalRelation =
 	| "dependency"
 	| "realization";
 
-export interface TacticalConnectorMeta extends Partial<ConnectorEndpoints> {
-	relation: TacticalRelation;
-	multiplicityFrom?: string;
-	multiplicityTo?: string;
-	label?: string;
-}
+// ── DDD connector (anchor 接続: shape を結ぶ) ──
 
-export type TacticalConnectorShape = ShapeData<TacticalConnectorMeta>;
+/**
+ * `domain-connector` shape の meta payload。
+ * `domainKind` discriminator で context-map / tactical を分け、relation 種別と
+ * それぞれの追加メタデータを保持する。
+ */
+export type DomainConnectorMeta =
+	| {
+			domainKind: "context-map";
+			relation: ContextMapRelation;
+			upstream?: "from" | "to";
+			notes?: string;
+	  }
+	| {
+			domainKind: "tactical";
+			relation: TacticalRelation;
+			multiplicityFrom?: string;
+			multiplicityTo?: string;
+			label?: string;
+	  };
+
+/**
+ * DDD connector shape: 既存 `connector` shape と同じ anchor 構造（sourceId /
+ * targetId / sourceAnchor / sourcePoint 等）を持ちつつ、`type` と `meta` を
+ * domain-design 専用にしたもの。
+ */
+export interface DomainConnectorShape extends ConnectableShapeData {
+	type: typeof DOMAIN_TYPES.connector;
+	meta: DomainConnectorMeta;
+}

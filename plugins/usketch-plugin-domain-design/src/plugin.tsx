@@ -1,73 +1,62 @@
+import {
+	createCascadeDelete,
+	createConnectorTracker,
+	getBoundsConnector,
+	hitTestConnector,
+} from "@edv4h/usketch-connector-anchor";
 import { aabbHitTest, createResize, getBounds } from "@edv4h/usketch-shape-utils";
 import {
 	type CanvasPointerEvent,
 	generateId,
 	type PluginContext,
-	type Point,
-	type ShapeData,
 	type ShapeDefinition,
 	type ToolContext,
 	type UsketchPlugin,
 	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
-import { renderContextMapConnector } from "./connectors/context-map.js";
-import { renderTacticalConnector } from "./connectors/tactical.js";
+import { createDefaultDomainConnector } from "./connectors/connector-shape.js";
+import {
+	createDomainConnectorDrawTool,
+	type DomainConnectorDrawTool,
+} from "./connectors/draw-tool.js";
+import { renderDomainConnector } from "./connectors/render-domain-connector.js";
 import { createDomainEditingService, EDITABLE_DOMAIN_TYPES } from "./editor/editing-machine.js";
+import { DomainConnectorPropertyBar } from "./property-bar/domain-connector-bar.js";
 import { DOMAIN_SUBTYPES } from "./registry.js";
 import { renderAggregate } from "./shapes/aggregate.js";
 import { renderBoundedContext } from "./shapes/bounded-context.js";
 import { renderClassBox } from "./shapes/class-box.js";
-import { DOMAIN_TYPES } from "./types.js";
+import { type ContextMapRelation, DOMAIN_TYPES } from "./types.js";
 
 type RendererFn = ShapeDefinition["render"];
 type HitTestFn = ShapeDefinition["hitTest"];
 
+// Renderer / hitTest mappings for the **shape** subtypes (containers).
+// The connector subtype is registered separately because it shares the
+// hit-test / bounds logic from `@edv4h/usketch-connector-anchor`.
 const SHAPE_RENDERERS: Record<string, RendererFn> = {
 	[DOMAIN_TYPES.boundedContext]: renderBoundedContext,
 	[DOMAIN_TYPES.aggregate]: renderAggregate,
 	[DOMAIN_TYPES.classBox]: renderClassBox,
-	[DOMAIN_TYPES.contextMapConnector]: renderContextMapConnector,
-	[DOMAIN_TYPES.tacticalConnector]: renderTacticalConnector,
 };
-
-/**
- * connector 専用の hit test。
- * 共通の `lineHitTest` は AABB 対角線（左上 → 右下）を線分として扱うため、
- * 左下 → 右上のような対角の connector は本来の線とは別の対角線で判定されてしまい
- * 選択できなくなる。connector は `meta.start` / `meta.end`（AABB 相対）に
- * 始点・終点を保持しているので、それを world 座標に変換して線分距離で判定する。
- */
-function connectorHitTest(data: ShapeData, point: Point, tolerance = 6): boolean {
-	const meta = (data.meta ?? {}) as {
-		start?: { x: number; y: number };
-		end?: { x: number; y: number };
-	};
-	const start = meta.start ?? { x: 0, y: 0 };
-	const end = meta.end ?? { x: data.width, y: data.height };
-	const x1 = data.x + start.x;
-	const y1 = data.y + start.y;
-	const x2 = data.x + end.x;
-	const y2 = data.y + end.y;
-	const dx = x2 - x1;
-	const dy = y2 - y1;
-	const lengthSq = dx * dx + dy * dy;
-	if (lengthSq === 0) {
-		return Math.hypot(point.x - x1, point.y - y1) <= tolerance;
-	}
-	let t = ((point.x - x1) * dx + (point.y - y1) * dy) / lengthSq;
-	t = Math.max(0, Math.min(1, t));
-	const nx = x1 + t * dx;
-	const ny = y1 + t * dy;
-	return Math.hypot(point.x - nx, point.y - ny) <= tolerance;
-}
 
 const SHAPE_HIT_TESTS: Record<string, HitTestFn> = {
 	[DOMAIN_TYPES.boundedContext]: withRotation(aabbHitTest),
 	[DOMAIN_TYPES.aggregate]: withRotation(aabbHitTest),
 	[DOMAIN_TYPES.classBox]: withRotation(aabbHitTest),
-	[DOMAIN_TYPES.contextMapConnector]: withRotation(connectorHitTest),
-	[DOMAIN_TYPES.tacticalConnector]: withRotation(connectorHitTest),
+};
+
+const RENDER_TARGET_BY_TYPE: Record<string, "html" | "svg"> = {
+	[DOMAIN_TYPES.boundedContext]: "html",
+	[DOMAIN_TYPES.aggregate]: "html",
+	[DOMAIN_TYPES.classBox]: "html",
+};
+
+const MIN_SIZE_BY_TYPE: Record<string, { width: number; height: number }> = {
+	[DOMAIN_TYPES.boundedContext]: { width: 120, height: 80 },
+	[DOMAIN_TYPES.aggregate]: { width: 80, height: 60 },
+	[DOMAIN_TYPES.classBox]: { width: 100, height: 80 },
 };
 
 function DomainDrawIcon() {
@@ -89,22 +78,6 @@ function DomainDrawIcon() {
 	);
 }
 
-const RENDER_TARGET_BY_TYPE: Record<string, "html" | "svg"> = {
-	[DOMAIN_TYPES.boundedContext]: "html",
-	[DOMAIN_TYPES.aggregate]: "html",
-	[DOMAIN_TYPES.classBox]: "html",
-	[DOMAIN_TYPES.contextMapConnector]: "svg",
-	[DOMAIN_TYPES.tacticalConnector]: "svg",
-};
-
-const MIN_SIZE_BY_TYPE: Record<string, { width: number; height: number }> = {
-	[DOMAIN_TYPES.boundedContext]: { width: 120, height: 80 },
-	[DOMAIN_TYPES.aggregate]: { width: 80, height: 60 },
-	[DOMAIN_TYPES.classBox]: { width: 100, height: 80 },
-	[DOMAIN_TYPES.contextMapConnector]: { width: 1, height: 1 },
-	[DOMAIN_TYPES.tacticalConnector]: { width: 1, height: 1 },
-};
-
 export const domainDesignPlugin: UsketchPlugin = {
 	id: "usketch-plugin-domain-design",
 	name: "ドメイン設計",
@@ -112,18 +85,12 @@ export const domainDesignPlugin: UsketchPlugin = {
 	setup(ctx: PluginContext) {
 		const cleanups: Array<() => void> = [];
 
-		// ── Shape 登録 ──
+		// ── Container shape 登録 (BoundedContext / Aggregate / ClassBox) ──
 		for (const subtype of DOMAIN_SUBTYPES) {
+			if (subtype.kind !== "shape") continue;
 			const renderer = SHAPE_RENDERERS[subtype.type];
 			const hitTestFn = SHAPE_HIT_TESTS[subtype.type];
 			if (!renderer || !hitTestFn) continue;
-			// connector は始点 / 終点を meta.start / meta.end に保持しているため、
-			// 標準の AABB resize（width / height だけ更新）では line がズレる。
-			// 既存の `connector` plugin と同様、専用のリサイズロジックを書くまでは
-			// resize 不可にしておく（移動・回転・削除は通常通り可能）。
-			const isConnector =
-				subtype.type === DOMAIN_TYPES.contextMapConnector ||
-				subtype.type === DOMAIN_TYPES.tacticalConnector;
 			ctx.shapes.register(subtype.type, {
 				render: renderer,
 				getBounds,
@@ -132,12 +99,58 @@ export const domainDesignPlugin: UsketchPlugin = {
 					MIN_SIZE_BY_TYPE[subtype.type]?.width ?? 1,
 					MIN_SIZE_BY_TYPE[subtype.type]?.height ?? 1,
 				),
-				resizable: !isConnector,
 				createDefault: subtype.createDefault,
 				renderTarget: RENDER_TARGET_BY_TYPE[subtype.type],
 				minSize: MIN_SIZE_BY_TYPE[subtype.type],
 			});
 		}
+
+		// ── DDD Connector shape 登録 ──
+		// Anchor / hit-test / bounds は `@edv4h/usketch-connector-anchor` のロジックを直接利用。
+		// renderer のみ DDD 専用 (relation badge / 矢頭 / multiplicity を上書き)。
+		// `createDefault` は draw tool 以外のパス (AI copilot 等が
+		// `ctx.shapes.get(type).createDefault(...)` を呼ぶケース) でも有効な
+		// `DomainConnectorShape` を返すよう、専用ファクトリを再利用する。
+		ctx.shapes.register(DOMAIN_TYPES.connector, {
+			render: renderDomainConnector,
+			getBounds: getBoundsConnector,
+			hitTest: hitTestConnector,
+			resize: (data) => ({ ...data }),
+			resizable: false,
+			createDefault: ({ id, x, y }) =>
+				createDefaultDomainConnector({
+					id,
+					x,
+					y,
+					domainKind: "context-map",
+					relation: "customer-supplier",
+				}),
+			renderTarget: "svg",
+		});
+
+		// ── Connector tracking & cascade delete ──
+		const isDomainConnectorType = (t: string) => t === DOMAIN_TYPES.connector;
+		const stopTracker = createConnectorTracker({
+			store: ctx.store,
+			isConnectorType: isDomainConnectorType,
+		});
+		const stopCascade = createCascadeDelete({
+			store: ctx.store,
+			isConnectorType: isDomainConnectorType,
+		});
+		cleanups.push(stopTracker, stopCascade);
+
+		// ── DDD connector property bar ──
+		// shape-connector の `connector-properties` (order 82) のすぐ上に積む。
+		// 同時に表示されることはない (それぞれ自分の type のときだけ render される)
+		// が、order 値を分けておくことでレイヤーリストでの並びが安定する。
+		ctx.layers.register({
+			id: "domain-connector-properties",
+			order: 84,
+			fixed: true,
+			render: () => <DomainConnectorPropertyBar />,
+		});
+		cleanups.push(() => ctx.layers.unregister("domain-connector-properties"));
 
 		// ── Tool: subtype 切り替え ──
 		let currentSubtype = DOMAIN_SUBTYPES[0]?.type ?? DOMAIN_TYPES.boundedContext;
@@ -146,11 +159,30 @@ export const domainDesignPlugin: UsketchPlugin = {
 		});
 		cleanups.push(offSubtype);
 
+		// Connector draw tool（subtype 切替で domainKind / relation が変わる）
+		const connectorTool: DomainConnectorDrawTool = createDomainConnectorDrawTool(() => {
+			const subtype = DOMAIN_SUBTYPES.find((s) => s.type === currentSubtype);
+			if (subtype?.kind === "connector") {
+				return { domainKind: subtype.domainKind, relation: subtype.defaultRelation };
+			}
+			return { domainKind: "context-map", relation: "customer-supplier" as ContextMapRelation };
+		});
+
+		// Container shape draw 用の state（drag で rect を生成）
 		let drawState: { startX: number; startY: number; shapeId: string } | null = null;
 
-		function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+		function isConnectorSubtype() {
 			const subtype = DOMAIN_SUBTYPES.find((s) => s.type === currentSubtype);
-			if (!subtype) return;
+			return subtype?.kind === "connector";
+		}
+
+		function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+			if (isConnectorSubtype()) {
+				connectorTool.onPointerDown(toolCtx, event);
+				return;
+			}
+			const subtype = DOMAIN_SUBTYPES.find((s) => s.type === currentSubtype);
+			if (!subtype || subtype.kind !== "shape") return;
 			const id = generateId();
 			drawState = {
 				startX: event.worldPoint.x,
@@ -168,59 +200,27 @@ export const domainDesignPlugin: UsketchPlugin = {
 		}
 
 		function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
-			if (!drawState) return;
-			const subtype = DOMAIN_SUBTYPES.find((s) => s.type === currentSubtype);
-			if (!subtype) return;
-
-			const isConnector =
-				currentSubtype === DOMAIN_TYPES.contextMapConnector ||
-				currentSubtype === DOMAIN_TYPES.tacticalConnector;
-
-			if (isConnector) {
-				// connector は描画上 SVG だが、shape の bbox 自体は通常 shape と
-				// 同様に正規化（width/height >= 0）しておく必要がある。
-				// （shape-layer は style.width/height に shape.width/height をそのまま流すため、
-				//   負値だと CSS で 0 扱いになりレンダリングが壊れる）
-				// 実際の始点 / 終点は meta.start / meta.end に保存して方向を保持する。
-				const sx = drawState.startX;
-				const sy = drawState.startY;
-				const ex = event.worldPoint.x;
-				const ey = event.worldPoint.y;
-				const x = Math.min(sx, ex);
-				const y = Math.min(sy, ey);
-				const width = Math.abs(ex - sx);
-				const height = Math.abs(ey - sy);
-				toolCtx.store.updateShape(drawState.shapeId, {
-					x,
-					y,
-					width,
-					height,
-					meta: {
-						...((toolCtx.store.getShape(drawState.shapeId)?.meta ?? {}) as Record<string, unknown>),
-						start: { x: sx - x, y: sy - y },
-						end: { x: ex - x, y: ey - y },
-					},
-				});
-			} else {
-				const x = Math.min(drawState.startX, event.worldPoint.x);
-				const y = Math.min(drawState.startY, event.worldPoint.y);
-				const width = Math.abs(event.worldPoint.x - drawState.startX);
-				const height = Math.abs(event.worldPoint.y - drawState.startY);
-				toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
+			if (isConnectorSubtype()) {
+				connectorTool.onPointerMove(toolCtx, event);
+				return;
 			}
+			if (!drawState) return;
+			const x = Math.min(drawState.startX, event.worldPoint.x);
+			const y = Math.min(drawState.startY, event.worldPoint.y);
+			const width = Math.abs(event.worldPoint.x - drawState.startX);
+			const height = Math.abs(event.worldPoint.y - drawState.startY);
+			toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
 		}
 
-		function onPointerUp(toolCtx: ToolContext) {
+		function onPointerUp(toolCtx: ToolContext, event: CanvasPointerEvent) {
+			if (isConnectorSubtype()) {
+				connectorTool.onPointerUp(toolCtx, event);
+				return;
+			}
 			if (!drawState) return;
 			const shape = toolCtx.store.getShape(drawState.shapeId);
-			const isConnector =
-				shape?.type === DOMAIN_TYPES.contextMapConnector ||
-				shape?.type === DOMAIN_TYPES.tacticalConnector;
-			const minDim = isConnector ? 6 : 2;
-			const length = isConnector
-				? Math.hypot(shape?.width ?? 0, shape?.height ?? 0)
-				: Math.min(Math.abs(shape?.width ?? 0), Math.abs(shape?.height ?? 0));
-
+			const minDim = 2;
+			const length = Math.min(Math.abs(shape?.width ?? 0), Math.abs(shape?.height ?? 0));
 			if (shape && length > minDim) {
 				toolCtx.store.deleteShape(drawState.shapeId);
 				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
@@ -239,6 +239,13 @@ export const domainDesignPlugin: UsketchPlugin = {
 			onPointerDown,
 			onPointerMove,
 			onPointerUp,
+			onDeactivate(toolCtx: ToolContext) {
+				connectorTool.onDeactivate(toolCtx);
+				if (drawState) {
+					toolCtx.store.deleteShape(drawState.shapeId);
+					drawState = null;
+				}
+			},
 		});
 
 		// ── インライン編集（state machine + custom events） ──
@@ -266,10 +273,6 @@ export const domainDesignPlugin: UsketchPlugin = {
 		const offCanvasPointer = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
 			let hitShapeId: string | null = null;
 			const point = event.worldPoint;
-			// getShapesSorted() は zIndex 昇順（背面 → 前面）。
-			// hit test は前面から拾いたいので末尾から走査して、最初の hit で抜ける。
-			// （Map 順序は zIndex を反映しないため、getShapes() を素直に回すと
-			//   重なり合った shape のうち背面側を選んでしまうことがある）
 			const sorted = ctx.store.getShapesSorted();
 			for (let i = sorted.length - 1; i >= 0; i--) {
 				const shape = sorted[i];
@@ -286,11 +289,8 @@ export const domainDesignPlugin: UsketchPlugin = {
 		});
 		cleanups.push(offCanvasPointer);
 
-		// 選択が外れたら editing 終了。ただし select tool が pointerdown で
-		// 選択を更新するタイミングは editor の blur より前なので、ここで即座に
-		// DESELECTED を送ると blur 経由の COMMIT が来る前に cancelEdit が走り
-		// 編集内容が捨てられる。microtask で 1 ターン遅延させ、COMMIT が先に
-		// 処理されるようにする。
+		// 選択が外れたら editing 終了。queueMicrotask で 1 ターン遅延させ、
+		// editor の onBlur 経由の COMMIT が先に処理されるのを待つ。
 		let pendingDeselectedShapeId: string | null = null;
 		const unsubscribe = ctx.store.subscribe(() => {
 			const editingId = editingService.editingShapeId;
@@ -302,7 +302,6 @@ export const domainDesignPlugin: UsketchPlugin = {
 			queueMicrotask(() => {
 				const stillEditingId = editingService.editingShapeId;
 				pendingDeselectedShapeId = null;
-				// COMMIT / CANCEL ですでに idle に戻っていたら何もしない
 				if (!stillEditingId) return;
 				if (stillEditingId !== editingId) return;
 				const stillSelected = ctx.store.getSelection().has(stillEditingId);
@@ -311,10 +310,6 @@ export const domainDesignPlugin: UsketchPlugin = {
 			});
 		});
 		cleanups.push(unsubscribe);
-
-		// editor 外クリック時のフォーカス移動 → editor 側の onBlur が
-		// COMMIT を発火する設計のため、ここでは追加の listener を登録しない。
-		// （以前は global pointerdown を捕捉していたが、機能していなかったため削除）
 
 		// ── teardown ──
 		(domainDesignPlugin as { teardown?: () => void }).teardown = () => {

@@ -4,18 +4,41 @@ import {
 	type AggregateShape,
 	type BoundedContextShape,
 	type ClassBoxShape,
-	type ContextMapConnectorShape,
+	type ContextMapRelation,
 	DOMAIN_TYPES,
-	type TacticalConnectorShape,
+	type TacticalRelation,
 } from "./types.js";
 
-export interface DomainSubtype {
+/**
+ * `DOMAIN_SUBTYPES` の各エントリ。
+ *
+ * - `kind: "shape"` は drag で四角を描く通常 shape (BoundedContext / Aggregate / ClassBox)
+ * - `kind: "connector"` は 2 つの shape を結ぶ DDD connector（同じ `domain-connector`
+ *   shape type を使い、`domainKind` と `defaultRelation` で初期 meta を分ける）
+ *
+ * `type` フィールドは picker / event 用のサブタイプ識別子であり、
+ * connector の場合の実際の shape type は draw tool 内で `DOMAIN_TYPES.connector` に
+ * 統一されることに注意。
+ */
+export type DomainSubtype = DomainShapeSubtype | DomainConnectorSubtype;
+
+interface DomainSubtypeBase {
 	type: string;
 	label: string;
 	category: "strategic" | "tactical" | "relation";
 	icon: () => ReactElement;
-	createDefault: (params: { id: string; x: number; y: number }) => ShapeData;
 	defaultSize: { width: number; height: number };
+}
+
+export interface DomainShapeSubtype extends DomainSubtypeBase {
+	kind: "shape";
+	createDefault: (params: { id: string; x: number; y: number }) => ShapeData;
+}
+
+export interface DomainConnectorSubtype extends DomainSubtypeBase {
+	kind: "connector";
+	domainKind: "context-map" | "tactical";
+	defaultRelation: ContextMapRelation | TacticalRelation;
 }
 
 // ── アイコン ──
@@ -92,7 +115,7 @@ function TacticalRelationIcon() {
 	);
 }
 
-// ── createDefault ──
+// ── createDefault (shape only) ──
 
 function createBoundedContext(params: { id: string; x: number; y: number }): ShapeData {
 	return {
@@ -141,39 +164,19 @@ function createClassBox(params: { id: string; x: number; y: number }): ShapeData
 	} satisfies ClassBoxShape;
 }
 
-function createContextMapConnector(params: { id: string; x: number; y: number }): ShapeData {
-	return {
-		id: params.id,
-		type: DOMAIN_TYPES.contextMapConnector,
-		x: params.x,
-		y: params.y,
-		width: 160,
-		height: 0,
-		style: { ...DEFAULT_STYLE, fill: "transparent", stroke: "#1e1e1e", strokeWidth: 1.5 },
-		meta: {
-			relation: "customer-supplier",
-			upstream: "from",
-		} satisfies ContextMapConnectorShape["meta"],
-	} satisfies ContextMapConnectorShape;
-}
-
-function createTacticalConnector(params: { id: string; x: number; y: number }): ShapeData {
-	return {
-		id: params.id,
-		type: DOMAIN_TYPES.tacticalConnector,
-		x: params.x,
-		y: params.y,
-		width: 160,
-		height: 0,
-		style: { ...DEFAULT_STYLE, fill: "transparent", stroke: "#1e1e1e", strokeWidth: 1.5 },
-		meta: { relation: "association" } satisfies TacticalConnectorShape["meta"],
-	} satisfies TacticalConnectorShape;
-}
-
 // ── 一覧 ──
+
+/**
+ * Subtype identifier used by the picker for connector subtypes. Multiple picker
+ * entries map to the same underlying `domain-connector` shape type — they only
+ * differ in default `domainKind` / `relation`.
+ */
+const CONTEXT_MAP_SUBTYPE = "domain-context-map";
+const TACTICAL_SUBTYPE = "domain-tactical";
 
 export const DOMAIN_SUBTYPES: DomainSubtype[] = [
 	{
+		kind: "shape",
 		type: DOMAIN_TYPES.boundedContext,
 		label: "Bounded Context",
 		category: "strategic",
@@ -182,14 +185,17 @@ export const DOMAIN_SUBTYPES: DomainSubtype[] = [
 		defaultSize: { width: 320, height: 200 },
 	},
 	{
-		type: DOMAIN_TYPES.contextMapConnector,
+		kind: "connector",
+		type: CONTEXT_MAP_SUBTYPE,
 		label: "Context Map 関係",
 		category: "relation",
 		icon: ContextMapIcon,
-		createDefault: createContextMapConnector,
+		domainKind: "context-map",
+		defaultRelation: "customer-supplier",
 		defaultSize: { width: 160, height: 0 },
 	},
 	{
+		kind: "shape",
 		type: DOMAIN_TYPES.aggregate,
 		label: "Aggregate",
 		category: "tactical",
@@ -198,6 +204,7 @@ export const DOMAIN_SUBTYPES: DomainSubtype[] = [
 		defaultSize: { width: 200, height: 140 },
 	},
 	{
+		kind: "shape",
 		type: DOMAIN_TYPES.classBox,
 		label: "Class Box",
 		category: "tactical",
@@ -206,11 +213,13 @@ export const DOMAIN_SUBTYPES: DomainSubtype[] = [
 		defaultSize: { width: 180, height: 120 },
 	},
 	{
-		type: DOMAIN_TYPES.tacticalConnector,
+		kind: "connector",
+		type: TACTICAL_SUBTYPE,
 		label: "戦術関係",
 		category: "relation",
 		icon: TacticalRelationIcon,
-		createDefault: createTacticalConnector,
+		domainKind: "tactical",
+		defaultRelation: "association",
 		defaultSize: { width: 160, height: 0 },
 	},
 ];

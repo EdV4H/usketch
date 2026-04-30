@@ -22,7 +22,10 @@ export function distanceToLineSegment(point: Point, a: Point, b: Point): number 
 export function distanceToPolyline(point: Point, polyline: Point[]): number {
 	let minDist = Number.POSITIVE_INFINITY;
 	for (let i = 0; i < polyline.length - 1; i++) {
-		const dist = distanceToLineSegment(point, polyline[i], polyline[i + 1]);
+		const a = polyline[i];
+		const b = polyline[i + 1];
+		if (!a || !b) continue;
+		const dist = distanceToLineSegment(point, a, b);
 		if (dist < minDist) minDist = dist;
 	}
 	return minDist;

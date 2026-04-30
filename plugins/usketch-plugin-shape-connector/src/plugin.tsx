@@ -1,3 +1,10 @@
+import {
+	type AnchorType,
+	createCascadeDelete,
+	createConnectorTracker,
+	findShapeAtPoint as findShapeAtPointGeneric,
+	getAnchorPoint,
+} from "@edv4h/usketch-connector-anchor";
 import type {
 	CanvasPointerEvent,
 	PluginContext,
@@ -9,11 +16,9 @@ import type {
 import { generateId } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { AnchorHandleOverlay, setupAnchorHandles } from "./anchor-handle-overlay.js";
-import { type AnchorType, clampToShapeEdge, getAnchorPoint } from "./anchor-utils.js";
 import { ConnectorLabelEditor, handleConnectorClick, setEditingLabel } from "./connector-label.js";
 import { ConnectorPropertyBar } from "./connector-property-bar.js";
 import { EndpointOverlay } from "./endpoint-overlay.js";
-import { getDefaultControlPoint } from "./path-utils.js";
 import {
 	createDefaultConnector,
 	getBoundsConnector,
@@ -34,22 +39,15 @@ function ConnectorIcon() {
 	);
 }
 
+// Exclude all known connector types so connector tools never anchor to another
+// connector. "domain-connector" lives in the DDD plugin, but listing the string
+// here (rather than importing the constant) keeps shape-connector free of any
+// reverse dependency on domain-design.
+const EXCLUDE_CONNECTOR = new Set(["connector", "domain-connector"]);
+
 /** Find a shape at a point (excluding connectors and frames/groups — prefer their children) */
 export function findShapeAtPoint(ctx: ToolContext | PluginContext, point: Point): ShapeData | null {
-	const shapes = ctx.store.getShapes();
-	const entries = [...shapes.entries()].reverse();
-	let fallbackContainer: ShapeData | null = null;
-	for (const [, data] of entries) {
-		if (data.type === "connector") continue;
-		const def = ctx.shapes.get(data.type);
-		if (!def?.hitTest(data, point)) continue;
-		if (data.type === "frame" || data.type === "group") {
-			if (!fallbackContainer) fallbackContainer = data;
-			continue;
-		}
-		return data;
-	}
-	return fallbackContainer;
+	return findShapeAtPointGeneric(ctx, point, { excludeTypes: EXCLUDE_CONNECTOR });
 }
 
 export const connectorPlugin: UsketchPlugin = {
@@ -236,156 +234,15 @@ export const connectorPlugin: UsketchPlugin = {
 			},
 		);
 
-		// ── Position tracking: update connectors when source/target shapes move ──
+		// ── Position tracking & cascade delete (extracted into shared package) ──
 
-		const connectorIndex = new Map<string, Set<string>>();
-
-		function rebuildIndex() {
-			connectorIndex.clear();
-			for (const [id, shape] of ctx.store.getShapes()) {
-				if (shape.type !== "connector") continue;
-				const connectorData = shape as ConnectorShapeData;
-				const src = connectorData.sourceId;
-				const tgt = connectorData.targetId;
-				if (src) {
-					if (!connectorIndex.has(src)) connectorIndex.set(src, new Set());
-					connectorIndex.get(src)?.add(id);
-				}
-				if (tgt) {
-					if (!connectorIndex.has(tgt)) connectorIndex.set(tgt, new Set());
-					connectorIndex.get(tgt)?.add(id);
-				}
-			}
-		}
-
-		const unsubIndex = ctx.store.onMutation((event) => {
-			if (event.type === "shape:added" || event.type === "shape:removed") {
-				rebuildIndex();
-			}
-		});
-		rebuildIndex();
-
-		// Cache previous shape positions to compute deltas for custom anchors
-		const prevPositions = new Map<string, { x: number; y: number }>();
-		function cachePosition(id: string) {
-			const shape = ctx.store.getShape(id);
-			if (shape) prevPositions.set(id, { x: shape.x, y: shape.y });
-		}
-		// Initialize cache
-		for (const [id, shape] of ctx.store.getShapes()) {
-			if (shape.type !== "connector") {
-				prevPositions.set(id, { x: shape.x, y: shape.y });
-			}
-		}
-		const unsubCacheAdd = ctx.store.onMutation((event) => {
-			if (event.type === "shape:added") {
-				const payload = event.payload as { id: string } | undefined;
-				if (payload?.id) cachePosition(payload.id);
-			}
-		});
-
-		const unsubMove = ctx.store.onMutation((event) => {
-			if (event.type !== "shape:updated") return;
-			const payload = event.payload as { id: string } | undefined;
-			if (!payload?.id) return;
-
-			const connIds = connectorIndex.get(payload.id);
-			if (!connIds || connIds.size === 0) {
-				// Still update the cache even if no connectors reference this shape
-				cachePosition(payload.id);
-				return;
-			}
-
-			// Compute move delta from cached position
-			const movedShape = ctx.store.getShape(payload.id);
-			const prev = prevPositions.get(payload.id);
-			const dx = movedShape && prev ? movedShape.x - prev.x : 0;
-			const dy = movedShape && prev ? movedShape.y - prev.y : 0;
-
-			for (const connId of connIds) {
-				const conn = ctx.store.getShape(connId) as ConnectorShapeData | undefined;
-				if (!conn) continue;
-				const sourceId = conn.sourceId;
-				const targetId = conn.targetId;
-				if (!sourceId || !targetId) continue;
-
-				const source = ctx.store.getShape(sourceId);
-				const target = ctx.store.getShape(targetId);
-				if (!source || !target) continue;
-
-				const sourceAnchor = conn.sourceAnchor ?? "auto";
-				const targetAnchor = conn.targetAnchor ?? "auto";
-
-				const targetCenter = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
-				const sourceCenter = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
-
-				let sourcePoint: Point;
-				if (sourceAnchor === "custom" && sourceId === payload.id) {
-					// Source shape moved: shift the custom point by the delta, then clamp
-					const old = conn.sourcePoint as Point;
-					sourcePoint = clampToShapeEdge(source, { x: old.x + dx, y: old.y + dy });
-				} else if (sourceAnchor === "custom") {
-					sourcePoint = conn.sourcePoint as Point;
-				} else {
-					sourcePoint = getAnchorPoint(source, sourceAnchor, targetCenter);
-				}
-
-				let targetPoint: Point;
-				if (targetAnchor === "custom" && targetId === payload.id) {
-					const old = conn.targetPoint as Point;
-					targetPoint = clampToShapeEdge(target, { x: old.x + dx, y: old.y + dy });
-				} else if (targetAnchor === "custom") {
-					targetPoint = conn.targetPoint as Point;
-				} else {
-					targetPoint = getAnchorPoint(target, targetAnchor, sourceCenter);
-				}
-
-				const updates: Partial<ConnectorShapeData> = {
-					sourcePoint,
-					targetPoint,
-					x: Math.min(sourcePoint.x, targetPoint.x),
-					y: Math.min(sourcePoint.y, targetPoint.y),
-					width: Math.abs(targetPoint.x - sourcePoint.x),
-					height: Math.abs(targetPoint.y - sourcePoint.y),
-				};
-
-				if (conn.controlPointAuto && conn.pathType === "curve") {
-					updates.controlPoint = getDefaultControlPoint(sourcePoint, targetPoint);
-				}
-
-				ctx.store.updateShape(connId, updates);
-			}
-
-			// Update cache after processing
-			cachePosition(payload.id);
-		});
-
-		// ── Cascade delete ──
-
-		const unsubDelete = ctx.store.onMutation((event) => {
-			if (event.type !== "shape:removed") return;
-			const payload = event.payload as { id: string } | undefined;
-			if (!payload?.id) return;
-
-			const shapes = ctx.store.getShapes();
-			const toDelete: string[] = [];
-			for (const [id, shape] of shapes) {
-				if (shape.type !== "connector") continue;
-				const connectorData = shape as ConnectorShapeData;
-				if (connectorData.sourceId === payload.id || connectorData.targetId === payload.id) {
-					toDelete.push(id);
-				}
-			}
-			for (const id of toDelete) {
-				ctx.store.deleteShape(id);
-			}
-		});
+		const isConnectorType = (t: string) => t === "connector";
+		const stopTracker = createConnectorTracker({ store: ctx.store, isConnectorType });
+		const stopCascade = createCascadeDelete({ store: ctx.store, isConnectorType });
 
 		(this as UsketchPlugin).teardown = () => {
-			unsubIndex();
-			unsubCacheAdd();
-			unsubMove();
-			unsubDelete();
+			stopTracker();
+			stopCascade();
 			unsubLabelClick();
 			unsubPointerForLabel();
 			cleanupAnchorHandles();
