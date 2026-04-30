@@ -44,25 +44,21 @@ const TACTICAL_STYLE: Record<TacticalRelation, TacticalStyle> = {
 
 // ── Path helpers ──
 
-function pickPathPoints(
+/**
+ * Build the SVG `path d=` string for `curve` connectors. Straight and elbow
+ * paths use `<line>` / `<polyline>` (built inline in `renderPath`), so they
+ * don't need a `pathD` here — returning `undefined` lets `renderPath` pick
+ * the right element type.
+ */
+function buildPathD(
 	pathType: "straight" | "elbow" | "curve",
 	source: Point,
 	target: Point,
 	controlPoint: Point | undefined,
-): { polyline: Point[]; pathD?: string } {
-	switch (pathType) {
-		case "elbow":
-			return { polyline: getElbowPoints(source, target) };
-		case "curve": {
-			const cp = controlPoint ?? getDefaultControlPoint(source, target);
-			return {
-				polyline: [source, target],
-				pathD: `M ${source.x},${source.y} Q ${cp.x},${cp.y} ${target.x},${target.y}`,
-			};
-		}
-		default:
-			return { polyline: [source, target] };
-	}
+): string | undefined {
+	if (pathType !== "curve") return undefined;
+	const cp = controlPoint ?? getDefaultControlPoint(source, target);
+	return `M ${source.x},${source.y} Q ${cp.x},${cp.y} ${target.x},${target.y}`;
 }
 
 // ── Renderer ──
@@ -87,7 +83,7 @@ export function renderDomainConnector(shape: ShapeData) {
 	const sw = shape.style.strokeWidth;
 	const opacity = shape.style.opacity;
 
-	const { pathD } = pickPathPoints(pathType, sourcePoint, targetPoint, controlPoint);
+	const pathD = buildPathD(pathType, sourcePoint, targetPoint, controlPoint);
 
 	if (meta.domainKind === "context-map") {
 		return renderContextMapConnector({
