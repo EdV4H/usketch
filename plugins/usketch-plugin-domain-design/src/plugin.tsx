@@ -15,6 +15,7 @@ import {
 	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
+import { createDefaultDomainConnector } from "./connectors/connector-shape.js";
 import {
 	createDomainConnectorDrawTool,
 	type DomainConnectorDrawTool,
@@ -107,21 +108,23 @@ export const domainDesignPlugin: UsketchPlugin = {
 		// ── DDD Connector shape 登録 ──
 		// Anchor / hit-test / bounds は `@edv4h/usketch-connector-anchor` のロジックを直接利用。
 		// renderer のみ DDD 専用 (relation badge / 矢頭 / multiplicity を上書き)。
+		// `createDefault` は draw tool 以外のパス (AI copilot 等が
+		// `ctx.shapes.get(type).createDefault(...)` を呼ぶケース) でも有効な
+		// `DomainConnectorShape` を返すよう、専用ファクトリを再利用する。
 		ctx.shapes.register(DOMAIN_TYPES.connector, {
 			render: renderDomainConnector,
 			getBounds: getBoundsConnector,
 			hitTest: hitTestConnector,
 			resize: (data) => ({ ...data }),
 			resizable: false,
-			createDefault: ({ id, x, y }) => ({
-				id,
-				type: DOMAIN_TYPES.connector,
-				x,
-				y,
-				width: 0,
-				height: 0,
-				style: { fill: "transparent", stroke: "#1e1e1e", strokeWidth: 2, opacity: 1 },
-			}),
+			createDefault: ({ id, x, y }) =>
+				createDefaultDomainConnector({
+					id,
+					x,
+					y,
+					domainKind: "context-map",
+					relation: "customer-supplier",
+				}),
 			renderTarget: "svg",
 		});
 
@@ -138,8 +141,9 @@ export const domainDesignPlugin: UsketchPlugin = {
 		cleanups.push(stopTracker, stopCascade);
 
 		// ── DDD connector property bar ──
-		// shape-connector の `connector-properties` (order 82) と並ばないよう、
-		// 少し低めの order で登録。`type === domain-connector` のときのみ render される。
+		// shape-connector の `connector-properties` (order 82) のすぐ上に積む。
+		// 同時に表示されることはない (それぞれ自分の type のときだけ render される)
+		// が、order 値を分けておくことでレイヤーリストでの並びが安定する。
 		ctx.layers.register({
 			id: "domain-connector-properties",
 			order: 84,

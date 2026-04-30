@@ -10,9 +10,13 @@ position tracking / cascade delete のロジックを `usketch-plugin-shape-conn
 
 `usketch-plugin-domain-design` は新パッケージを使って独自の `domain-connector`
 shape type を実装。BoundedContext / Aggregate / ClassBox 同士を結ぶときに
-**anchor 吸着 / shape 移動追従 / endpoint ドラッグ再接続 / cascade delete** が
-標準 connector と同等に動作する。relation 種別 (context-map / tactical) と
-multiplicity / upstream / label は新規の DDD connector property bar で編集可能。
+**anchor 吸着 / shape 移動追従 / cascade delete** が標準 connector と同等に
+動作する。relation 種別 (context-map / tactical) と multiplicity / upstream /
+label は新規の DDD connector property bar で編集可能。
+
+なお endpoint ハンドルでの再接続は本リリースではまだ実装されていない（標準 connector
+の `EndpointOverlay` を `domain-connector` まで広げる作業は follow-up）。endpoint を
+変えたい場合は connector を作り直すか、source/target shape を編集する。
 
 破壊的変更:
 

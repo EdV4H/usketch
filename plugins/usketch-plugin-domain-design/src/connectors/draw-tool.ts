@@ -10,7 +10,11 @@ import {
 } from "../types.js";
 import { createDefaultDomainConnector } from "./connector-shape.js";
 
-const EXCLUDE_DDD_CONNECTOR = new Set([DOMAIN_TYPES.connector]);
+// Exclude all known connector types from source / target hit-testing so a DDD
+// relation can never anchor onto another connector. The plain "connector"
+// string covers the standard shape-connector type without taking a reverse
+// dependency on that plugin.
+const EXCLUDE_CONNECTOR_TYPES = new Set([DOMAIN_TYPES.connector, "connector"]);
 
 export interface DomainConnectorDrawTool {
 	onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent): void;
@@ -46,7 +50,7 @@ export function createDomainConnectorDrawTool(
 
 	function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
 		const sourceShape = findShapeAtPoint(toolCtx, event.worldPoint, {
-			excludeTypes: EXCLUDE_DDD_CONNECTOR,
+			excludeTypes: EXCLUDE_CONNECTOR_TYPES,
 		});
 		if (!sourceShape) return;
 
@@ -80,7 +84,7 @@ export function createDomainConnectorDrawTool(
 		if (!drawState) return;
 
 		const targetShape = findShapeAtPoint(toolCtx, event.worldPoint, {
-			excludeTypes: EXCLUDE_DDD_CONNECTOR,
+			excludeTypes: EXCLUDE_CONNECTOR_TYPES,
 		});
 		const targetPoint = event.worldPoint;
 
@@ -104,7 +108,7 @@ export function createDomainConnectorDrawTool(
 		if (!drawState) return;
 
 		const targetShape = findShapeAtPoint(toolCtx, event.worldPoint, {
-			excludeTypes: EXCLUDE_DDD_CONNECTOR,
+			excludeTypes: EXCLUDE_CONNECTOR_TYPES,
 		});
 		const connector = toolCtx.store.getShape(drawState.connectorId);
 

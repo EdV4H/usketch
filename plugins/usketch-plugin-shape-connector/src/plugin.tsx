@@ -39,7 +39,11 @@ function ConnectorIcon() {
 	);
 }
 
-const EXCLUDE_CONNECTOR = new Set(["connector"]);
+// Exclude all known connector types so connector tools never anchor to another
+// connector. "domain-connector" lives in the DDD plugin, but listing the string
+// here (rather than importing the constant) keeps shape-connector free of any
+// reverse dependency on domain-design.
+const EXCLUDE_CONNECTOR = new Set(["connector", "domain-connector"]);
 
 /** Find a shape at a point (excluding connectors and frames/groups — prefer their children) */
 export function findShapeAtPoint(ctx: ToolContext | PluginContext, point: Point): ShapeData | null {
