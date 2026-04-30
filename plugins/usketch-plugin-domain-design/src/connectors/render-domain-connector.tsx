@@ -1,4 +1,8 @@
-import { getDefaultControlPoint, getElbowPoints } from "@edv4h/usketch-connector-anchor";
+import {
+	getDefaultControlPoint,
+	getElbowPoints,
+	getPathMidpoint,
+} from "@edv4h/usketch-connector-anchor";
 import type { Point, ShapeData } from "@edv4h/usketch-shared";
 import {
 	type ContextMapRelation,
@@ -56,6 +60,7 @@ export function renderDomainConnector(shape: ShapeData) {
 		x: shape.x + shape.width,
 		y: shape.y + shape.height,
 	};
+	const controlPoint = (shape as ShapeData & { controlPoint?: Point }).controlPoint;
 	const pathType =
 		((shape as ShapeData & { pathType?: "straight" | "elbow" | "curve" }).pathType ?? "straight") ||
 		"straight";
@@ -63,28 +68,22 @@ export function renderDomainConnector(shape: ShapeData) {
 	const sw = shape.style.strokeWidth;
 	const opacity = shape.style.opacity;
 
-	if (meta.domainKind === "context-map") {
-		return renderContextMapConnector({
-			shape,
-			meta,
-			sourcePoint,
-			targetPoint,
-			pathType,
-			stroke,
-			strokeWidth: sw,
-			opacity,
-		});
-	}
-	return renderTacticalConnector({
+	const args: RenderArgs = {
 		shape,
 		meta,
 		sourcePoint,
 		targetPoint,
+		controlPoint,
 		pathType,
 		stroke,
 		strokeWidth: sw,
 		opacity,
-	});
+	};
+
+	if (meta.domainKind === "context-map") {
+		return renderContextMapConnector(args);
+	}
+	return renderTacticalConnector(args);
 }
 
 interface RenderArgs {
@@ -92,6 +91,7 @@ interface RenderArgs {
 	meta: Partial<DomainConnectorMeta>;
 	sourcePoint: Point;
 	targetPoint: Point;
+	controlPoint: Point | undefined;
 	pathType: "straight" | "elbow" | "curve";
 	stroke: string;
 	strokeWidth: number;
@@ -106,8 +106,9 @@ function renderContextMapConnector(args: RenderArgs) {
 	const upstreamLabel =
 		meta.upstream === "from" ? "U → D" : meta.upstream === "to" ? "D ← U" : null;
 
-	const midX = (args.sourcePoint.x + args.targetPoint.x) / 2;
-	const midY = (args.sourcePoint.y + args.targetPoint.y) / 2;
+	// Use the actual on-path midpoint so the badge stays on the line/curve/elbow
+	// regardless of pathType (arithmetic midpoint drifts off curves).
+	const mid = getPathMidpoint(args.pathType, args.sourcePoint, args.targetPoint, args.controlPoint);
 
 	return (
 		<g opacity={args.opacity}>
@@ -116,7 +117,7 @@ function renderContextMapConnector(args: RenderArgs) {
 				{upstreamLabel ? ` (${upstreamLabel})` : ""}
 			</title>
 			{renderPath(args, dashed)}
-			<g transform={`translate(${midX}, ${midY})`}>
+			<g transform={`translate(${mid.x}, ${mid.y})`}>
 				<rect
 					x={-22}
 					y={-9}
@@ -185,17 +186,22 @@ function renderTacticalConnector(args: RenderArgs) {
 				styleSpec.dashed,
 			)}
 			{head}
-			{labelText && (
-				<text
-					x={(x1 + x2) / 2}
-					y={(y1 + y2) / 2 - 4}
-					textAnchor="middle"
-					fontSize={11}
-					fill="#1e1e1e"
-				>
-					{labelText}
-				</text>
-			)}
+			{labelText &&
+				(() => {
+					// Use on-path midpoint so the label sits on the actual rendered
+					// path (curve/elbow/straight), not at the arithmetic midpoint.
+					const mid = getPathMidpoint(
+						args.pathType,
+						args.sourcePoint,
+						args.targetPoint,
+						args.controlPoint,
+					);
+					return (
+						<text x={mid.x} y={mid.y - 4} textAnchor="middle" fontSize={11} fill="#1e1e1e">
+							{labelText}
+						</text>
+					);
+				})()}
 			{fromLabel && (
 				<text x={x1 + cos * 12 - sin * 8} y={y1 + sin * 12 + cos * 8} fontSize={10} fill="#475569">
 					{fromLabel}
