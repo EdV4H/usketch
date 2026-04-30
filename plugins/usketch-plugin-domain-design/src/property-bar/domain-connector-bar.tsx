@@ -86,16 +86,36 @@ function DomainConnectorControls({
 		[app.commands, store, connectorId, meta],
 	);
 
+	// Toggling domainKind also has to refresh `arrowHead` to stay consistent with
+	// `createDefaultDomainConnector` (context-map: undirected line, tactical: forward arrow).
+	// Without this, switching context-map → tactical → context-map leaves a stray
+	// arrow head on what should be an undirected context-map relation.
 	const setDomainKind = useCallback(
 		(kind: "context-map" | "tactical") => {
 			if (meta.domainKind === kind) return;
-			if (kind === "context-map") {
-				updateMeta({ domainKind: "context-map", relation: "customer-supplier" });
-			} else {
-				updateMeta({ domainKind: "tactical", relation: "association" });
-			}
+			const nextMeta: DomainConnectorMeta =
+				kind === "context-map"
+					? { domainKind: "context-map", relation: "customer-supplier" }
+					: { domainKind: "tactical", relation: "association" };
+			const nextArrowHead = kind === "tactical" ? "forward" : "none";
+			const currentArrowHead = (shape as ShapeData & { arrowHead?: string }).arrowHead;
+			app.commands.execute(
+				createBatchUpdateShapesCommand(store, [
+					{
+						id: connectorId,
+						from: {
+							meta: meta as Record<string, unknown>,
+							arrowHead: currentArrowHead,
+						} as Partial<ShapeData>,
+						to: {
+							meta: nextMeta as Record<string, unknown>,
+							arrowHead: nextArrowHead,
+						} as Partial<ShapeData>,
+					},
+				]),
+			);
 		},
-		[meta.domainKind, updateMeta],
+		[app.commands, store, connectorId, meta, shape],
 	);
 
 	const setContextMapRelation = useCallback(
