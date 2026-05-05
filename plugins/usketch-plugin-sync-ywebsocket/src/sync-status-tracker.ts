@@ -65,8 +65,18 @@ export class SyncStatusTracker {
 		};
 	}
 
-	/** @internal */
-	update(partial: Partial<Omit<SyncStatusSnapshot, "unconfirmedShapeIds">>): void {
+	/**
+	 * Update the "free-form" snapshot fields (state / shapeCount / lastSyncedAt
+	 * / error). The divergence-tracking fields (`unconfirmedShapeIds` and
+	 * `firstServerSyncAt`) are intentionally excluded so callers can't bypass
+	 * the dedicated APIs and break the invariant that `firstServerSyncAt` is
+	 * stamped exactly once on the first server sync.
+	 *
+	 * @internal
+	 */
+	update(
+		partial: Partial<Omit<SyncStatusSnapshot, "unconfirmedShapeIds" | "firstServerSyncAt">>,
+	): void {
 		this.snapshot = { ...this.snapshot, ...partial };
 		this.notify();
 	}
