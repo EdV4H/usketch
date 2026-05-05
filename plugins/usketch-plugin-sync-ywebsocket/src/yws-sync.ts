@@ -98,12 +98,19 @@ export function createYwebsocketSync(
 				case "shape:updated": {
 					const shape = store.getShape(payload.id);
 					if (shape) {
+						const isNew = !shapesMap.has(payload.id);
 						shapesMap.set(payload.id, toPlainObject(shape));
+						// New shape created locally → diverges from server state
+						// until a `sync` confirmation arrives.
+						if (isNew && event.type === "shape:added") {
+							status.noteShapeAdded(payload.id, "local");
+						}
 					}
 					break;
 				}
 				case "shape:removed": {
 					shapesMap.delete(payload.id);
+					status.noteShapeRemoved(payload.id);
 					break;
 				}
 			}
@@ -120,6 +127,12 @@ export function createYwebsocketSync(
 	const shapesObserver = (events: Y.YMapEvent<Record<string, unknown>>): void => {
 		if (isSyncing || destroyed) return;
 
+		// `transaction.local === true` means this Y.Doc edit originated from
+		// our own client (already noted via `noteShapeAdded("local", ...)` in
+		// the store mutation handler). `false` means the change came from the
+		// server / another peer, so it's already confirmed.
+		const isLocalTxn = events.transaction.local;
+
 		isSyncing = true;
 		try {
 			for (const [key, change] of events.changes.keys) {
@@ -134,6 +147,10 @@ export function createYwebsocketSync(
 								store.updateShape(key, shape);
 							} else {
 								store.addShape(shape);
+								if (!isLocalTxn) {
+									// Remote add → confirmed by server.
+									status.noteShapeAdded(key, "remote");
+								}
 							}
 						}
 						break;
@@ -142,6 +159,7 @@ export function createYwebsocketSync(
 						if (store.getShape(key)) {
 							store.deleteShape(key);
 						}
+						status.noteShapeRemoved(key);
 						break;
 					}
 				}
@@ -170,6 +188,11 @@ export function createYwebsocketSync(
 				if (typeof shape.zIndex !== "string") {
 					idsNeedingZIndex.push(id);
 				}
+				// Pre-connection load (typically from IndexedDB). These haven't
+				// been confirmed by the current server session yet — they'll be
+				// promoted to "confirmed" by `setConfirmedFromServer` when the
+				// first sync event fires.
+				status.noteShapeAdded(id, "local");
 			}
 		} finally {
 			isSyncing = false;
@@ -283,6 +306,11 @@ export function createYwebsocketSync(
 
 		const onSync = (isSynced: boolean): void => {
 			if (isSynced) {
+				// At this moment `shapesMap` reflects the merged server state
+				// (server's view ∪ what we uploaded). Treat every key here as
+				// confirmed. Anything added afterward without a subsequent
+				// sync event will diverge.
+				status.setConfirmedFromServer(shapesMap.keys());
 				status.update({
 					state: "synced",
 					shapeCount: shapesMap.size,

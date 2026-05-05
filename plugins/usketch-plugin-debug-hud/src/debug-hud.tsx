@@ -7,7 +7,7 @@ import type {
 	ShapeRegistry,
 	ToolRegistry,
 } from "@edv4h/usketch-shared";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
 import { Minimap } from "./overlays/minimap.js";
@@ -88,6 +88,18 @@ export function DebugHud({
 	const { viewport, shapes: shapeMap, selection } = ctx;
 	const activeToolId = store.getActiveToolId();
 
+	// Subscribe to sync status so the Shapes panel can highlight unconfirmed
+	// shape IDs. Snapshot is undefined when no sync layer is loaded.
+	const syncSnapshot = useSyncExternalStore(
+		(cb) => syncStatus?.subscribe(cb) ?? (() => {}),
+		() => syncStatus?.getSnapshot(),
+		() => syncStatus?.getSnapshot(),
+	);
+	const unconfirmedShapeIdSet = useMemo(
+		() => new Set(syncSnapshot?.unconfirmedShapeIds ?? []),
+		[syncSnapshot?.unconfirmedShapeIds],
+	);
+
 	const hoveredShape = hoveredShapeId ? shapeMap.get(hoveredShapeId) : undefined;
 
 	// Shortcut hint — bottom-center (always visible)
@@ -141,6 +153,7 @@ export function DebugHud({
 				shapes={shapeMap}
 				selection={selection}
 				onHoverShape={setHoveredShapeId}
+				unconfirmedShapeIds={unconfirmedShapeIdSet}
 			/>
 
 			{/* Right-bottom: Event Log */}

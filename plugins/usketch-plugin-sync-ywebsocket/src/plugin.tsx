@@ -1,6 +1,7 @@
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import type { YwebsocketSyncHandle, YwebsocketSyncOptions } from "./types.js";
+import { UnconfirmedOverlay } from "./unconfirmed-overlay.js";
 import { createYwebsocketSync } from "./yws-sync.js";
 
 export interface YwebsocketSyncPlugin extends UsketchPlugin {
@@ -17,8 +18,11 @@ export interface YwebsocketSyncPlugin extends UsketchPlugin {
 	getHandle(): YwebsocketSyncHandle;
 }
 
+const UNCONFIRMED_OVERLAY_LAYER_ID = "unconfirmed-shapes-overlay";
+
 export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): YwebsocketSyncPlugin {
 	let handle: YwebsocketSyncHandle | null = null;
+	let unregisterOverlay: (() => void) | null = null;
 
 	const plugin: YwebsocketSyncPlugin = {
 		id: "usketch-plugin-sync-ywebsocket",
@@ -27,6 +31,26 @@ export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): Yweb
 		async setup(ctx) {
 			handle = createYwebsocketSync(ctx.store, options);
 			(globalThis as Record<string, unknown>).__usketchSyncStatus = handle.status;
+
+			// Diagnostic overlay: draws a red badge on shapes that exist locally
+			// but haven't been confirmed by the server. Sits between standard
+			// shapes (default order) and the debug HUD (9999).
+			const overlayHandle = handle;
+			ctx.layers.register({
+				id: UNCONFIRMED_OVERLAY_LAYER_ID,
+				order: 250,
+				fixed: true,
+				render: (renderCtx) => (
+					<UnconfirmedOverlay
+						store={ctx.store}
+						shapes={ctx.shapes}
+						viewport={renderCtx.viewport}
+						syncStatus={overlayHandle.status}
+					/>
+				),
+			});
+			unregisterOverlay = () => ctx.layers.unregister(UNCONFIRMED_OVERLAY_LAYER_ID);
+
 			// When `autoConnect: false`, `connect()` is never called, so awaiting
 			// `whenSynced` here would hang the entire plugin setup chain. Skip it
 			// and let the caller drive connection via `handle.resume()`.
@@ -36,6 +60,8 @@ export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): Yweb
 		},
 
 		teardown() {
+			unregisterOverlay?.();
+			unregisterOverlay = null;
 			handle?.destroy();
 			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 			handle = null;

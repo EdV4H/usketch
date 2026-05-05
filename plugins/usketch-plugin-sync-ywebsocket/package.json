@@ -24,7 +24,11 @@
 		"y-websocket": "^3.0.0",
 		"yjs": "^13.6.0"
 	},
+	"peerDependencies": {
+		"react": ">=19"
+	},
 	"devDependencies": {
+		"@types/react": "19.2.14",
 		"typescript": "5.9.3",
 		"vitest": "3.2.4"
 	},
