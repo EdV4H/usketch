@@ -255,22 +255,27 @@ export function GeneralPanel({
 				<div>
 					Shapes: {syncSnapshot.shapeCount} · Last: {formatTimestamp(syncSnapshot.lastSyncedAt)}
 				</div>
-				{syncSnapshot.unconfirmedShapeIds && syncSnapshot.unconfirmedShapeIds.length > 0 && (
-					<div
-						style={{
-							marginTop: 4,
-							padding: "3px 6px",
-							borderRadius: 3,
-							background: "#7f1d1d",
-							color: "#fecaca",
-							fontSize: 10,
-							fontWeight: 600,
-						}}
-						title="サーバの Y.Doc に存在しない Shape が IndexedDB に残っています"
-					>
-						⚠ サーバ未同期 Shape: {syncSnapshot.unconfirmedShapeIds.length} 件
-					</div>
-				)}
+				{/* Only show divergence once we've actually synced with the server.
+				    Before that, every IndexedDB-restored shape would look "unconfirmed"
+				    because we don't know yet what the server holds. */}
+				{syncSnapshot.state === "synced" &&
+					syncSnapshot.unconfirmedShapeIds &&
+					syncSnapshot.unconfirmedShapeIds.length > 0 && (
+						<div
+							style={{
+								marginTop: 4,
+								padding: "3px 6px",
+								borderRadius: 3,
+								background: "#7f1d1d",
+								color: "#fecaca",
+								fontSize: 10,
+								fontWeight: 600,
+							}}
+							title="サーバの Y.Doc に存在しない Shape が IndexedDB に残っています"
+						>
+							⚠ サーバ未同期 Shape: {syncSnapshot.unconfirmedShapeIds.length} 件
+						</div>
+					)}
 				{syncSnapshot.error && (
 					<div style={{ color: "#f87171", fontSize: 10 }}>{syncSnapshot.error}</div>
 				)}

@@ -77,4 +77,24 @@ describe("SyncStatusTracker — divergence tracking", () => {
 		expect(snap.lastSyncedAt).toBe(123);
 		expect(snap.unconfirmedShapeIds).toEqual(["a"]);
 	});
+
+	it("noteShapesLoaded ingests bulk IDs and notifies subscribers exactly once", () => {
+		const t = new SyncStatusTracker();
+		let calls = 0;
+		t.subscribe(() => {
+			calls++;
+		});
+		t.noteShapesLoaded(["a", "b", "c"], "local");
+		expect(t.getSnapshot().unconfirmedShapeIds).toEqual(["a", "b", "c"]);
+		expect(t.getSnapshot().shapeCount).toBe(3);
+		// Single notification for the whole batch (vs 3 if we'd looped over
+		// `noteShapeAdded`).
+		expect(calls).toBe(1);
+	});
+
+	it("noteShapesLoaded with 'remote' source pre-confirms every id", () => {
+		const t = new SyncStatusTracker();
+		t.noteShapesLoaded(["a", "b"], "remote");
+		expect(t.getSnapshot().unconfirmedShapeIds).toEqual([]);
+	});
 });

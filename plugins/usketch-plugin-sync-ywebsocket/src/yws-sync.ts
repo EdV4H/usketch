@@ -177,6 +177,7 @@ export function createYwebsocketSync(
 	function applyInitialLoad(): void {
 		if (shapesMap.size === 0) return;
 		const idsNeedingZIndex: string[] = [];
+		const loadedIds: string[] = [];
 		isSyncing = true;
 		try {
 			for (const [id, value] of shapesMap.entries()) {
@@ -188,14 +189,19 @@ export function createYwebsocketSync(
 				if (typeof shape.zIndex !== "string") {
 					idsNeedingZIndex.push(id);
 				}
-				// Pre-connection load (typically from IndexedDB). These haven't
-				// been confirmed by the current server session yet — they'll be
-				// promoted to "confirmed" by `setConfirmedFromServer` when the
-				// first sync event fires.
-				status.noteShapeAdded(id, "local");
+				loadedIds.push(id);
 			}
 		} finally {
 			isSyncing = false;
+		}
+
+		// Pre-connection load (typically from IndexedDB). These haven't been
+		// confirmed by the current server session yet — they'll be promoted to
+		// "confirmed" by `setConfirmedFromServer` when the first sync event
+		// fires. Use the bulk API so initial-load shapes don't trigger O(n²)
+		// recompute cycles.
+		if (loadedIds.length > 0) {
+			status.noteShapesLoaded(loadedIds, "local");
 		}
 
 		// Backfill zIndex into Y.Map for any shape that got an auto-assigned one,

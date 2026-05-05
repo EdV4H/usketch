@@ -1,5 +1,5 @@
 import type { BoardStore, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	ACCENT_DIM,
 	fmt,
@@ -93,6 +93,17 @@ export function ShapesPanel({
 	const [expandedId, setExpandedId] = useState<string | null>(null);
 	const [filterUnconfirmed, setFilterUnconfirmed] = useState(false);
 	const unconfirmedCount = unconfirmedShapeIds?.size ?? 0;
+
+	// If divergence resolves while the filter is on, the toggle button
+	// disappears (its render is gated on `unconfirmedCount > 0`) — leaving
+	// the user stuck with an empty list. Auto-clear the filter so the full
+	// shape list returns.
+	useEffect(() => {
+		if (unconfirmedCount === 0 && filterUnconfirmed) {
+			setFilterUnconfirmed(false);
+		}
+	}, [unconfirmedCount, filterUnconfirmed]);
+
 	const shapeEntries = Array.from(shapes.values()).filter((s) =>
 		filterUnconfirmed ? unconfirmedShapeIds?.has(s.id) : true,
 	);

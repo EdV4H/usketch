@@ -32,6 +32,11 @@ export function UnconfirmedOverlay({
 		() => syncStatus.getSnapshot(),
 	);
 
+	// Only surface divergence after we've actually heard from the server.
+	// Pre-sync (loading / connecting / disconnected) every IndexedDB-restored
+	// shape would look "unconfirmed" because we don't yet know what the server
+	// holds — flagging them then would be noise on every cold start.
+	if (snapshot.state !== "synced") return null;
 	if (snapshot.unconfirmedShapeIds.length === 0) return null;
 
 	return (

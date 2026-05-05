@@ -8,12 +8,17 @@ export interface SyncStatusSnapshot {
 	/**
 	 * Shape IDs present in the local Y.Doc that the server has NOT confirmed.
 	 *
-	 * Populated by `noteShapeAdded("local", id)` (a shape created locally that
-	 * hasn't been seen by the server yet) or by being absent from the snapshot
-	 * `setConfirmedFromServer(...)` recorded at the most recent `sync` event.
+	 * Populated by `noteShapeAdded(id, "local")` (a shape created locally that
+	 * hasn't been seen by the server yet) and by `noteShapesLoaded(...)` for
+	 * pre-connection IndexedDB restoration. Becomes accurate only **after** the
+	 * first `setConfirmedFromServer(...)` (`sync` event with `isSynced: true`):
+	 * before that, every shape from a persisted Y.Doc looks "local-only" because
+	 * we genuinely don't know what the server holds yet.
 	 *
-	 * Empty until the first server sync; clients should only show divergence UI
-	 * once `state === "synced"` has been observed at least once.
+	 * Consumers should gate divergence UI on `state === "synced"` (or check
+	 * `lastSyncedAt != null`) so the warning isn't surfaced during the
+	 * `loading` / `connecting` phase, which would generate noise on every
+	 * cold start.
 	 */
 	unconfirmedShapeIds: readonly string[];
 }
@@ -74,6 +79,22 @@ export class SyncStatusTracker {
 		this.shapeIds.add(id);
 		if (source === "remote") {
 			this.confirmedShapeIds.add(id);
+		}
+		this.recompute();
+	}
+
+	/**
+	 * Bulk variant of `noteShapeAdded` for initial load. Avoids the O(n²)
+	 * cost of calling the single-shape mutator in a loop (each call would
+	 * re-scan `shapeIds` and notify subscribers). Recompute and notify
+	 * happen once after all IDs are ingested.
+	 */
+	noteShapesLoaded(ids: Iterable<string>, source: "local" | "remote"): void {
+		for (const id of ids) {
+			this.shapeIds.add(id);
+			if (source === "remote") {
+				this.confirmedShapeIds.add(id);
+			}
 		}
 		this.recompute();
 	}
