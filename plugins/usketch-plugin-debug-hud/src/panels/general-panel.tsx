@@ -47,6 +47,7 @@ const DEFAULT_SYNC_SNAPSHOT: SyncStatusSnapshot = {
 	state: "loading",
 	shapeCount: 0,
 	lastSyncedAt: null,
+	firstServerSyncAt: null,
 	error: null,
 	unconfirmedShapeIds: [],
 };
@@ -259,11 +260,13 @@ export function GeneralPanel({
 				<div>
 					Shapes: {syncSnapshot.shapeCount} · Last: {formatTimestamp(syncSnapshot.lastSyncedAt)}
 				</div>
-				{/* Only show divergence after we've heard from the server at least
-				    once. Use `lastSyncedAt != null` (rather than the current state)
-				    so the warning persists when the connection later drops — that's
-				    when offline edits accumulate and the user needs to know. */}
-				{syncSnapshot.lastSyncedAt !== null &&
+				{/* Only show divergence after the server has confirmed us at least
+				    once. We rely on `firstServerSyncAt` (set only on `provider sync`)
+				    rather than `lastSyncedAt` (which also moves on local edits) so
+				    warnings don't leak during the initial connecting phase. Once
+				    that timestamp is set the gate stays open across reconnections,
+				    which is exactly when offline edits accumulate. */}
+				{syncSnapshot.firstServerSyncAt != null &&
 					syncSnapshot.unconfirmedShapeIds &&
 					syncSnapshot.unconfirmedShapeIds.length > 0 && (
 						<div

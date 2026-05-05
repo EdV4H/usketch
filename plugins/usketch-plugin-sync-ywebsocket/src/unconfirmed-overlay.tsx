@@ -34,14 +34,13 @@ export function UnconfirmedOverlay({
 		() => syncStatus.getSnapshot(),
 	);
 
-	// Only surface divergence after we've actually heard from the server at
-	// least once. Pre-sync (loading / connecting on a cold start) every
-	// IndexedDB-restored shape would look "unconfirmed" because we don't yet
-	// know what the server holds — flagging them then would be noise.
-	// We use `lastSyncedAt != null` rather than `state === "synced"` so a
-	// later disconnection (offline edits, network drop) still surfaces
-	// divergence: that's exactly when the user needs the warning.
-	if (snapshot.lastSyncedAt === null) return null;
+	// Only surface divergence after the server has confirmed us at least once.
+	// `firstServerSyncAt` is set exactly by `setConfirmedFromServer(...)` so
+	// it's the only field that means "we've actually heard back from the
+	// server" — `lastSyncedAt` also moves on local edits and would let warnings
+	// leak out during the initial connecting phase. Once set, the gate stays
+	// open across later disconnections so offline edits surface as divergence.
+	if (snapshot.firstServerSyncAt === null) return null;
 	if (snapshot.unconfirmedShapeIds.length === 0) return null;
 
 	return (

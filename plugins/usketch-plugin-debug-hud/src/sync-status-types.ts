@@ -13,6 +13,12 @@ export interface SyncStatusSnapshot {
 	state: SyncState;
 	shapeCount: number;
 	lastSyncedAt: number | null;
+	/**
+	 * Timestamp of the first successful server sync, or null if the client
+	 * has not yet heard back from the server. Use this (not `lastSyncedAt`,
+	 * which also moves on local edits) to gate divergence UI.
+	 */
+	firstServerSyncAt?: number | null;
 	error: string | null;
 	unconfirmedShapeIds?: readonly string[];
 }

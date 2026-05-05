@@ -97,4 +97,29 @@ describe("SyncStatusTracker — divergence tracking", () => {
 		t.noteShapesLoaded(["a", "b"], "remote");
 		expect(t.getSnapshot().unconfirmedShapeIds).toEqual([]);
 	});
+
+	it("firstServerSyncAt stays null until the first server sync", () => {
+		const t = new SyncStatusTracker();
+		t.noteShapeAdded("a", "local");
+		t.update({ state: "synced", lastSyncedAt: 100 });
+		// Local mutations bump `lastSyncedAt` but not `firstServerSyncAt`.
+		expect(t.getSnapshot().firstServerSyncAt).toBeNull();
+
+		t.setConfirmedFromServer(["a"]);
+		const after = t.getSnapshot();
+		expect(after.firstServerSyncAt).not.toBeNull();
+		expect(typeof after.firstServerSyncAt).toBe("number");
+	});
+
+	it("firstServerSyncAt is stamped only on the first sync, never reset", () => {
+		const t = new SyncStatusTracker();
+		t.setConfirmedFromServer(["a"]);
+		const first = t.getSnapshot().firstServerSyncAt;
+		expect(first).not.toBeNull();
+
+		// A subsequent sync (e.g. after a reconnection) should NOT overwrite
+		// the original timestamp — consumers rely on it being monotonic.
+		t.setConfirmedFromServer(["a", "b"]);
+		expect(t.getSnapshot().firstServerSyncAt).toBe(first);
+	});
 });

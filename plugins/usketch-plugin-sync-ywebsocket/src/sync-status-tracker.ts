@@ -3,7 +3,22 @@ export type SyncState = "loading" | "connecting" | "synced" | "syncing" | "disco
 export interface SyncStatusSnapshot {
 	state: SyncState;
 	shapeCount: number;
+	/**
+	 * Timestamp of the most recent activity that touched the snapshot — local
+	 * mutations and server syncs alike. Useful for "last activity" displays
+	 * but NOT a reliable indicator that the server has acknowledged anything.
+	 * For divergence gating use `firstServerSyncAt` instead.
+	 */
 	lastSyncedAt: number | null;
+	/**
+	 * Timestamp of the first successful `setConfirmedFromServer(...)` call
+	 * (i.e. the first `provider.on("sync", true)` event). Stays `null` until
+	 * the server has actually merged its state with us. Set once and never
+	 * cleared: a later disconnection should still allow consumers to surface
+	 * divergence (offline edits accumulate exactly when the user needs the
+	 * warning).
+	 */
+	firstServerSyncAt: number | null;
 	error: string | null;
 	/**
 	 * Shape IDs present in the local Y.Doc that the server has NOT confirmed.
@@ -15,12 +30,11 @@ export interface SyncStatusSnapshot {
 	 * before that, every shape from a persisted Y.Doc looks "local-only" because
 	 * we genuinely don't know what the server holds yet.
 	 *
-	 * Consumers should gate divergence UI on `lastSyncedAt != null` so the
-	 * warning isn't surfaced during the initial `loading` / `connecting` phase
-	 * (every cold start would otherwise look full of "unconfirmed" shapes). We
-	 * deliberately pick `lastSyncedAt` over `state === "synced"` so a later
-	 * disconnection still surfaces the warning — that's when offline edits
-	 * accumulate and the user actually needs to know.
+	 * Consumers should gate divergence UI on `firstServerSyncAt !== null` so
+	 * the warning isn't surfaced during the initial `loading` / `connecting`
+	 * phase (every cold start would otherwise look full of "unconfirmed"
+	 * shapes). Once that first server sync has happened, the gate stays open
+	 * even across later disconnections.
 	 */
 	unconfirmedShapeIds: readonly string[];
 }
@@ -30,6 +44,7 @@ export class SyncStatusTracker {
 		state: "loading",
 		shapeCount: 0,
 		lastSyncedAt: null,
+		firstServerSyncAt: null,
 		error: null,
 		unconfirmedShapeIds: [],
 	};
@@ -62,6 +77,9 @@ export class SyncStatusTracker {
 	 * Y.Map state is the merged result of (server state ∪ what we uploaded),
 	 * so every key currently in the map IS confirmed. Any local-only shape
 	 * created later will diverge until the next sync event.
+	 *
+	 * Also stamps `firstServerSyncAt` on the first call so consumers can gate
+	 * divergence UI on "have we ever heard back from the server?".
 	 */
 	setConfirmedFromServer(ids: Iterable<string>): void {
 		this.confirmedShapeIds.clear();
@@ -69,6 +87,9 @@ export class SyncStatusTracker {
 		// Ensure shapeIds is a superset (ids that exist server-side must exist
 		// locally too — they were just merged into our doc).
 		for (const id of this.confirmedShapeIds) this.shapeIds.add(id);
+		if (this.snapshot.firstServerSyncAt === null) {
+			this.snapshot = { ...this.snapshot, firstServerSyncAt: Date.now() };
+		}
 		this.recompute();
 	}
 
