@@ -139,9 +139,10 @@ export function createYwebsocketSync(
 		if (isSyncing || destroyed) return;
 
 		// `transaction.local === true` means this Y.Doc edit originated from
-		// our own client (already noted via `noteShapeAdded("local", ...)` in
-		// the store mutation handler). `false` means the change came from the
-		// server / another peer, so it's already confirmed.
+		// our own client — the store mutation handler above has already noted
+		// the addition (as "remote" if the socket was open, "local" otherwise).
+		// `false` means the change came from the server / another peer, so it
+		// must be marked as confirmed here when we forward it to the store.
 		const isLocalTxn = events.transaction.local;
 
 		isSyncing = true;
