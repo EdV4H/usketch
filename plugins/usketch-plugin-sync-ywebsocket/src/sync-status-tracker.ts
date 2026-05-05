@@ -15,10 +15,12 @@ export interface SyncStatusSnapshot {
 	 * before that, every shape from a persisted Y.Doc looks "local-only" because
 	 * we genuinely don't know what the server holds yet.
 	 *
-	 * Consumers should gate divergence UI on `state === "synced"` (or check
-	 * `lastSyncedAt != null`) so the warning isn't surfaced during the
-	 * `loading` / `connecting` phase, which would generate noise on every
-	 * cold start.
+	 * Consumers should gate divergence UI on `lastSyncedAt != null` so the
+	 * warning isn't surfaced during the initial `loading` / `connecting` phase
+	 * (every cold start would otherwise look full of "unconfirmed" shapes). We
+	 * deliberately pick `lastSyncedAt` over `state === "synced"` so a later
+	 * disconnection still surfaces the warning — that's when offline edits
+	 * accumulate and the user actually needs to know.
 	 */
 	unconfirmedShapeIds: readonly string[];
 }

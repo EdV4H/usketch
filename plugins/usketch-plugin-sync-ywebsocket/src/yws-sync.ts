@@ -61,7 +61,14 @@ export function createYwebsocketSync(
 	const statusListeners = new Set<(status: WsConnectionStatus) => void>();
 	const broadcastListeners = new Set<(msg: Record<string, unknown>) => void>();
 
+	// Latest socket-level status. Read by the local mutation handler to decide
+	// whether a freshly-added shape should be treated as already "confirmed"
+	// (the socket is open so y-websocket immediately broadcasts the update) or
+	// as "pending" (offline → diverges until a re-sync).
+	let currentWsStatus: WsConnectionStatus = "disconnected";
+
 	function notifyStatus(next: WsConnectionStatus): void {
+		currentWsStatus = next;
 		// "connected" at the transport level only means the socket is open — the
 		// first Yjs sync has not necessarily completed. Map to "syncing" until the
 		// provider's `sync` event fires; `onSync` will flip the tracker to "synced".
@@ -100,10 +107,14 @@ export function createYwebsocketSync(
 					if (shape) {
 						const isNew = !shapesMap.has(payload.id);
 						shapesMap.set(payload.id, toPlainObject(shape));
-						// New shape created locally → diverges from server state
-						// until a `sync` confirmation arrives.
 						if (isNew && event.type === "shape:added") {
-							status.noteShapeAdded(payload.id, "local");
+							// Socket open → y-websocket immediately broadcasts this
+							// shape to the server, so it's effectively confirmed. We
+							// only flag local adds as "unconfirmed" while the
+							// connection is down, so the warning shows up exactly
+							// for offline edits / orphaned IndexedDB state.
+							const isOnline = currentWsStatus === "connected";
+							status.noteShapeAdded(payload.id, isOnline ? "remote" : "local");
 						}
 					}
 					break;

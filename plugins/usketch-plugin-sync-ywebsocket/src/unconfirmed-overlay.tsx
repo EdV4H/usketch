@@ -14,9 +14,11 @@ const BADGE_RADIUS = 9;
 const BADGE_OFFSET = 4;
 
 /**
- * SVG overlay that draws a small red `⚠` badge on the top-right corner of any
- * shape whose ID is in `syncStatus.snapshot.unconfirmedShapeIds` — i.e. shapes
- * that exist in the local Y.Doc but the server hasn't acknowledged.
+ * SVG overlay that draws a small red exclamation badge on the top-right corner
+ * of any shape whose ID is in `syncStatus.snapshot.unconfirmedShapeIds` —
+ * i.e. shapes that exist in the local Y.Doc but the server hasn't acknowledged.
+ * The debug HUD uses the `⚠` glyph; here we render a circle + `!` so the badge
+ * stays legible at small zoom levels where multi-codepoint emoji distort.
  *
  * This is purely diagnostic; clicks pass through to the underlying shape.
  */
@@ -32,11 +34,14 @@ export function UnconfirmedOverlay({
 		() => syncStatus.getSnapshot(),
 	);
 
-	// Only surface divergence after we've actually heard from the server.
-	// Pre-sync (loading / connecting / disconnected) every IndexedDB-restored
-	// shape would look "unconfirmed" because we don't yet know what the server
-	// holds — flagging them then would be noise on every cold start.
-	if (snapshot.state !== "synced") return null;
+	// Only surface divergence after we've actually heard from the server at
+	// least once. Pre-sync (loading / connecting on a cold start) every
+	// IndexedDB-restored shape would look "unconfirmed" because we don't yet
+	// know what the server holds — flagging them then would be noise.
+	// We use `lastSyncedAt != null` rather than `state === "synced"` so a
+	// later disconnection (offline edits, network drop) still surfaces
+	// divergence: that's exactly when the user needs the warning.
+	if (snapshot.lastSyncedAt === null) return null;
 	if (snapshot.unconfirmedShapeIds.length === 0) return null;
 
 	return (

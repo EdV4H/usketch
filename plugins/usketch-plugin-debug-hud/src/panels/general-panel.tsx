@@ -53,15 +53,19 @@ const DEFAULT_SYNC_SNAPSHOT: SyncStatusSnapshot = {
 
 const SYNC_STATE_COLORS: Record<string, string> = {
 	loading: "#fbbf24",
+	connecting: "#fbbf24",
 	synced: "#4ade80",
 	syncing: "#60a5fa",
+	disconnected: "#9ca3af",
 	error: "#f87171",
 };
 
 const SYNC_STATE_LABELS: Record<string, string> = {
 	loading: "Loading…",
+	connecting: "Connecting…",
 	synced: "Synced",
 	syncing: "Syncing…",
+	disconnected: "Disconnected",
 	error: "Error",
 };
 
@@ -255,10 +259,11 @@ export function GeneralPanel({
 				<div>
 					Shapes: {syncSnapshot.shapeCount} · Last: {formatTimestamp(syncSnapshot.lastSyncedAt)}
 				</div>
-				{/* Only show divergence once we've actually synced with the server.
-				    Before that, every IndexedDB-restored shape would look "unconfirmed"
-				    because we don't know yet what the server holds. */}
-				{syncSnapshot.state === "synced" &&
+				{/* Only show divergence after we've heard from the server at least
+				    once. Use `lastSyncedAt != null` (rather than the current state)
+				    so the warning persists when the connection later drops — that's
+				    when offline edits accumulate and the user needs to know. */}
+				{syncSnapshot.lastSyncedAt !== null &&
 					syncSnapshot.unconfirmedShapeIds &&
 					syncSnapshot.unconfirmedShapeIds.length > 0 && (
 						<div
