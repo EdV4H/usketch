@@ -33,11 +33,31 @@ export function createDivergenceTracker(opts: DivergenceTrackerOptions): Diverge
 	const status = new SyncStatusTracker();
 
 	let currentWsStatus = "disconnected";
+	let serverSynced = false;
 
 	// 1. Connection state — drives the "is local add already confirmed?" decision
-	//    in the store mutation handler below.
+	//    in the store mutation handler below, and is mirrored onto the snapshot
+	//    `state` field so consumers (e.g. Debug HUD's Persistence indicator)
+	//    show the right thing.
 	const offStatus = onConnectionStatusChange((next) => {
 		currentWsStatus = next;
+		// Mirror transport state into the snapshot using the same mapping the
+		// full ywebsocket plugin uses: socket-level "connected" maps to
+		// "syncing" until the first remote update arrives, then "synced".
+		const mappedState =
+			next === "connected"
+				? serverSynced
+					? "synced"
+					: "syncing"
+				: next === "connecting"
+					? "connecting"
+					: next === "disconnected"
+						? "disconnected"
+						: "error";
+		status.update({
+			state: mappedState,
+			error: next === "failed" ? "connection failed" : null,
+		});
 	});
 
 	// 2. Initial load: every shape already in the Y.Map (typically restored from
@@ -82,30 +102,27 @@ export function createDivergenceTracker(opts: DivergenceTrackerOptions): Diverge
 	};
 	shapesMap.observe(observer);
 
-	// 5. First remote-origin doc update marks the server as "synced with us"
-	//    once and for all. After that, every key currently in the map is
-	//    treated as confirmed (we wouldn't have it locally otherwise — the
-	//    merged state is the union we just received).
-	let serverSynced = false;
+	// 5. First remote-origin doc update marks the server as "synced with us".
+	//    We deliberately DO NOT bulk-confirm `shapesMap.keys()` here — that
+	//    would silently mark every IndexedDB-restored shape as "the server
+	//    knows about it", which is exactly what we want to NOT assume (the
+	//    whole point of this overlay is to surface phantom/orphaned shapes).
+	//    Instead, the Y.Map observer above marks individual remote-origin
+	//    additions as confirmed via `noteShapeAdded(key, "remote")`. Anything
+	//    the server didn't push to us during this session stays unconfirmed.
 	function onDocUpdate(_update: Uint8Array, origin: unknown): void {
 		if (serverSynced) return;
 		if (origin !== "remote") return;
 		serverSynced = true;
-		const ids: string[] = [];
-		for (const id of shapesMap.keys()) ids.push(id);
-		status.setConfirmedFromServer(ids);
+		status.batch(() => {
+			status.markFirstServerSyncObserved();
+			// Bump state to "synced" if the socket was in "syncing".
+			if (currentWsStatus === "connected") {
+				status.update({ state: "synced" });
+			}
+		});
 	}
 	doc.on("update", onDocUpdate);
-
-	// 6. As shapes propagate from Y.Map → store, the existing `addShape` /
-	//    `deleteShape` calls in the consumer's IDB sync pipeline will fire
-	//    `store.onMutation` events. We don't want those to be re-noted as
-	//    "local" — but the store mutation handler above can't tell IDB-driven
-	//    mutations apart from user-driven ones. The `transaction.local` check
-	//    in the Y.Map observer means we only `noteShapeAdded("remote", ...)`
-	//    for genuinely remote ones, and the store mutation will see the same
-	//    id already in `shapeIds` so it's effectively a no-op (Set.add is
-	//    idempotent). Confirm preservation is also idempotent.
 
 	function destroy() {
 		offStatus();

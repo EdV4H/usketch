@@ -158,6 +158,28 @@ describe("SyncStatusTracker — divergence tracking", () => {
 		expect(calls).toBe(0);
 	});
 
+	it("markFirstServerSyncObserved() stamps timestamp without touching confirmed set", () => {
+		const t = new SyncStatusTracker();
+		t.noteShapeAdded("ghost", "local"); // local-only, server doesn't know
+		expect(t.getSnapshot().unconfirmedShapeIds).toEqual(["ghost"]);
+		expect(t.getSnapshot().firstServerSyncAt).toBeNull();
+
+		t.markFirstServerSyncObserved();
+		// Stamped, but ghost is still unconfirmed (we never confirmed it).
+		const snap = t.getSnapshot();
+		expect(snap.firstServerSyncAt).not.toBeNull();
+		expect(snap.unconfirmedShapeIds).toEqual(["ghost"]);
+	});
+
+	it("markFirstServerSyncObserved() is idempotent — only stamps once", () => {
+		const t = new SyncStatusTracker();
+		t.markFirstServerSyncObserved();
+		const first = t.getSnapshot().firstServerSyncAt;
+		expect(first).not.toBeNull();
+		t.markFirstServerSyncObserved();
+		expect(t.getSnapshot().firstServerSyncAt).toBe(first);
+	});
+
 	it("nested batch() defers notification to the outermost close", () => {
 		const t = new SyncStatusTracker();
 		let calls = 0;

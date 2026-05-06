@@ -87,11 +87,17 @@ export class SyncStatusTracker {
 	}
 
 	/**
-	 * Replace the "server-confirmed" set with the given IDs. Call this from the
-	 * provider's `sync` event when `isSynced === true` — at that point the
-	 * Y.Map state is the merged result of (server state ∪ what we uploaded),
-	 * so every key currently in the map IS confirmed. Any local-only shape
-	 * created later will diverge until the next sync event.
+	 * Replace the "server-confirmed" set with the given IDs. Use this only when
+	 * you have authoritative knowledge of which IDs the server has acknowledged
+	 * — typically from y-websocket's `provider.on("sync")` event, where the
+	 * Y.Map post-merge represents the union of (server view ∪ our uploads), so
+	 * every current key IS confirmed.
+	 *
+	 * Do **not** call this with `shapesMap.keys()` if your transport can't tell
+	 * you which keys originated from the server: that would silently confirm
+	 * orphaned IndexedDB shapes the server never had, defeating the divergence
+	 * detection. Use `markFirstServerSyncObserved()` + the `noteShapeAdded(...,
+	 * "remote")` per-key path instead.
 	 *
 	 * Also stamps `firstServerSyncAt` on the first call so consumers can gate
 	 * divergence UI on "have we ever heard back from the server?".
@@ -102,10 +108,28 @@ export class SyncStatusTracker {
 		// Ensure shapeIds is a superset (ids that exist server-side must exist
 		// locally too — they were just merged into our doc).
 		for (const id of this.confirmedShapeIds) this.shapeIds.add(id);
+		this.markFirstServerSyncObservedInternal();
+		this.recompute();
+	}
+
+	/**
+	 * Stamp `firstServerSyncAt` on the first call without touching the
+	 * confirmed set. For transports that can't atomically tell you which
+	 * shape IDs the server already knew at sync time (e.g. raw `WsProvider`
+	 * without an `onSync` event), this is the right hook: the per-key
+	 * `noteShapeAdded(id, "remote")` calls from the Y.Map observer fill in
+	 * the confirmed set incrementally.
+	 */
+	markFirstServerSyncObserved(): void {
+		if (this.snapshot.firstServerSyncAt !== null) return;
+		this.markFirstServerSyncObservedInternal();
+		this.notify();
+	}
+
+	private markFirstServerSyncObservedInternal(): void {
 		if (this.snapshot.firstServerSyncAt === null) {
 			this.snapshot = { ...this.snapshot, firstServerSyncAt: Date.now() };
 		}
-		this.recompute();
 	}
 
 	/**

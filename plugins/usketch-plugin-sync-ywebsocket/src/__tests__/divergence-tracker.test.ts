@@ -108,6 +108,28 @@ describe("createDivergenceTracker", () => {
 		handle.destroy();
 	});
 
+	it("connection state transitions are mirrored onto the snapshot", () => {
+		// Debug HUD's Persistence indicator subscribes to `state` — this needs
+		// to track connecting → syncing → synced → disconnected.
+		const { handle, setWsStatus, applyRemoteUpdate, makeRemoteAddUpdate } = setup();
+		expect(handle.status.getSnapshot().state).toBe("disconnected");
+
+		setWsStatus("connecting");
+		expect(handle.status.getSnapshot().state).toBe("connecting");
+
+		setWsStatus("connected");
+		// Connected but no remote update yet → "syncing".
+		expect(handle.status.getSnapshot().state).toBe("syncing");
+
+		// First remote update lands → "synced".
+		applyRemoteUpdate(makeRemoteAddUpdate("server-1"));
+		expect(handle.status.getSnapshot().state).toBe("synced");
+
+		setWsStatus("disconnected");
+		expect(handle.status.getSnapshot().state).toBe("disconnected");
+		handle.destroy();
+	});
+
 	it("destroy() unsubscribes everything — later mutations don't notify", () => {
 		const { store, handle, setWsStatus } = setup();
 		let calls = 0;
