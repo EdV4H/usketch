@@ -61,6 +61,7 @@
 		"@edv4h/usketch-plugin-shape-wireframe": "workspace:*",
 		"@edv4h/usketch-plugin-snap": "workspace:*",
 		"@edv4h/usketch-plugin-sync-localstorage-yjs": "workspace:*",
+		"@edv4h/usketch-plugin-sync-ywebsocket": "workspace:*",
 		"@edv4h/usketch-plugin-tool-pan": "workspace:*",
 		"@edv4h/usketch-plugin-tool-select": "workspace:*",
 		"@edv4h/usketch-plugin-viewport-nav": "workspace:*",

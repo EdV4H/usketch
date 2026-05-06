@@ -34,6 +34,11 @@ import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { snapPlugin } from "@edv4h/usketch-plugin-snap";
 import { createSpotlightPlugin, spotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
 import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
+import {
+	createDivergenceTracker,
+	type DivergenceTrackerHandle,
+	UnconfirmedOverlay,
+} from "@edv4h/usketch-plugin-sync-ywebsocket";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
@@ -163,6 +168,10 @@ export function App() {
 
 		const extraPlugins: UsketchPlugin[] = [];
 		let wsProvider: WsProviderHandle | null = null;
+		// Divergence tracker — surfaces shapes that exist in the local Y.Doc
+		// but the server hasn't acknowledged. Wired up only for cloud boards
+		// because local boards never round-trip with a server.
+		let divergenceHandle: DivergenceTrackerHandle | null = null;
 
 		if (isCloudBoard) {
 			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
@@ -177,6 +186,18 @@ export function App() {
 			wsProvider = createWsProvider({ url: wsUrl, doc: syncHandle.doc });
 			wsProviderRef.current = wsProvider;
 			wsProvider.onStatusChange(setWsStatus);
+
+			// Replace the IDB-only sync status (which can't see server divergence)
+			// with the divergence-aware tracker for cloud boards. The Debug HUD and
+			// the canvas overlay both read from `__usketchSyncStatus`.
+			const wsP = wsProvider;
+			divergenceHandle = createDivergenceTracker({
+				store,
+				doc: syncHandle.doc,
+				shapesMap: syncHandle.doc.getMap<Record<string, unknown>>("shapes"),
+				onConnectionStatusChange: (handler) => wsP.onStatusChange(handler),
+			});
+			(globalThis as Record<string, unknown>).__usketchSyncStatus = divergenceHandle.status;
 
 			extraPlugins.push(createLaserPlugin(wsProvider));
 			extraPlugins.push(createSpotlightPlugin(wsProvider));
@@ -261,6 +282,25 @@ export function App() {
 							render: (renderCtx) => <TransientLayer registry={a.transient} ctx={renderCtx} />,
 						});
 
+						// Surface shapes that diverge from the server's Y.Doc.
+						// Cloud boards only — local boards have no server to diverge from.
+						if (divergenceHandle) {
+							const tracker = divergenceHandle.status;
+							a.layers.register({
+								id: "unconfirmed-shapes-overlay",
+								order: 250,
+								fixed: true,
+								render: (renderCtx) => (
+									<UnconfirmedOverlay
+										store={a.store}
+										shapes={a.shapes}
+										viewport={renderCtx.viewport}
+										syncStatus={tracker}
+									/>
+								),
+							});
+						}
+
 						setApp(instance);
 					});
 			})
@@ -275,6 +315,7 @@ export function App() {
 			instance?.destroy();
 			wsProvider?.destroy();
 			wsProviderRef.current = null;
+			divergenceHandle?.destroy();
 			syncHandle.destroy();
 			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 			setApp(null);

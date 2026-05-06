@@ -122,4 +122,57 @@ describe("SyncStatusTracker — divergence tracking", () => {
 		t.setConfirmedFromServer(["a", "b"]);
 		expect(t.getSnapshot().firstServerSyncAt).toBe(first);
 	});
+
+	it("batch() coalesces multiple mutations into a single notification", () => {
+		const t = new SyncStatusTracker();
+		let calls = 0;
+		t.subscribe(() => {
+			calls++;
+		});
+
+		t.batch(() => {
+			t.noteShapeAdded("a", "local");
+			t.noteShapeAdded("b", "local");
+			t.update({ state: "synced", lastSyncedAt: 1 });
+			t.update({ shapeCount: 999 }); // shapeCount is recomputed below — last write wins via recompute
+		});
+
+		// Inside batch we made 4 mutator calls, but listeners hear about it once.
+		expect(calls).toBe(1);
+		// Final snapshot reflects all changes.
+		const snap = t.getSnapshot();
+		expect(snap.unconfirmedShapeIds).toEqual(["a", "b"]);
+		expect(snap.state).toBe("synced");
+		expect(snap.lastSyncedAt).toBe(1);
+	});
+
+	it("batch() with no mutations doesn't notify", () => {
+		const t = new SyncStatusTracker();
+		let calls = 0;
+		t.subscribe(() => {
+			calls++;
+		});
+		t.batch(() => {
+			// no-op
+		});
+		expect(calls).toBe(0);
+	});
+
+	it("nested batch() defers notification to the outermost close", () => {
+		const t = new SyncStatusTracker();
+		let calls = 0;
+		t.subscribe(() => {
+			calls++;
+		});
+		t.batch(() => {
+			t.noteShapeAdded("a", "local");
+			t.batch(() => {
+				t.noteShapeAdded("b", "local");
+			});
+			// inner batch closed but outer is still open, so still 0 notifications
+			expect(calls).toBe(0);
+		});
+		// outermost close: exactly one notification
+		expect(calls).toBe(1);
+	});
 });

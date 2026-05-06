@@ -7,7 +7,7 @@ import type {
 	ShapeRegistry,
 	ToolRegistry,
 } from "@edv4h/usketch-shared";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
 import { Minimap } from "./overlays/minimap.js";
@@ -89,12 +89,15 @@ export function DebugHud({
 	const activeToolId = store.getActiveToolId();
 
 	// Subscribe to sync status so the Shapes panel can highlight unconfirmed
-	// shape IDs. Snapshot is undefined when no sync layer is loaded.
-	const syncSnapshot = useSyncExternalStore(
-		(cb) => syncStatus?.subscribe(cb) ?? (() => {}),
-		() => syncStatus?.getSnapshot(),
-		() => syncStatus?.getSnapshot(),
+	// shape IDs. Snapshot is undefined when no sync layer is loaded. Stable
+	// callbacks avoid resubscribe churn during unrelated re-renders (HUD
+	// re-renders frequently due to FPS / pointer / event log updates).
+	const subscribeSync = useCallback(
+		(cb: () => void) => syncStatus?.subscribe(cb) ?? (() => {}),
+		[syncStatus],
 	);
+	const getSyncSnapshot = useCallback(() => syncStatus?.getSnapshot(), [syncStatus]);
+	const syncSnapshot = useSyncExternalStore(subscribeSync, getSyncSnapshot, getSyncSnapshot);
 	const unconfirmedShapeIdSet = useMemo(
 		() => new Set(syncSnapshot?.unconfirmedShapeIds ?? []),
 		[syncSnapshot?.unconfirmedShapeIds],

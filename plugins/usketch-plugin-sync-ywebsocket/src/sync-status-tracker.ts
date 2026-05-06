@@ -53,6 +53,11 @@ export class SyncStatusTracker {
 	// can only mutate via the dedicated methods below.
 	private readonly shapeIds = new Set<string>();
 	private readonly confirmedShapeIds = new Set<string>();
+	// Batch mode: while > 0, mutators skip notification and a single notify is
+	// fired when the batch closes. Used by yws-sync to combine `noteShapeAdded`
+	// + `update({ shapeCount, lastSyncedAt })` into one render per mutation.
+	private batchDepth = 0;
+	private batchDirty = false;
 
 	getSnapshot(): SyncStatusSnapshot {
 		return this.snapshot;
@@ -151,7 +156,32 @@ export class SyncStatusTracker {
 		this.notify();
 	}
 
+	/**
+	 * Combine multiple mutator calls into a single notification. Useful when
+	 * the caller wants to e.g. `noteShapeAdded(...)` and `update({ shapeCount })`
+	 * back-to-back without paying for two re-renders.
+	 *
+	 * Re-entrant: nested calls are tolerated, the listeners fire once when the
+	 * outermost batch closes.
+	 */
+	batch<T>(fn: () => T): T {
+		this.batchDepth++;
+		try {
+			return fn();
+		} finally {
+			this.batchDepth--;
+			if (this.batchDepth === 0 && this.batchDirty) {
+				this.batchDirty = false;
+				this.notify();
+			}
+		}
+	}
+
 	private notify(): void {
+		if (this.batchDepth > 0) {
+			this.batchDirty = true;
+			return;
+		}
 		for (const listener of this.listeners) listener();
 	}
 }

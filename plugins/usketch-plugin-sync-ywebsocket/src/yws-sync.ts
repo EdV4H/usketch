@@ -98,40 +98,44 @@ export function createYwebsocketSync(
 		const payload = event.payload as { id: string } | undefined;
 		if (!payload?.id) return;
 
-		isSyncing = true;
-		try {
-			switch (event.type) {
-				case "shape:added":
-				case "shape:updated": {
-					const shape = store.getShape(payload.id);
-					if (shape) {
-						const isNew = !shapesMap.has(payload.id);
-						shapesMap.set(payload.id, toPlainObject(shape));
-						if (isNew && event.type === "shape:added") {
-							// Socket open → y-websocket immediately broadcasts this
-							// shape to the server, so it's effectively confirmed. We
-							// only flag local adds as "unconfirmed" while the
-							// connection is down, so the warning shows up exactly
-							// for offline edits / orphaned IndexedDB state.
-							const isOnline = currentWsStatus === "connected";
-							status.noteShapeAdded(payload.id, isOnline ? "remote" : "local");
+		// Batch the divergence note + the shapeCount/lastSyncedAt update so
+		// subscribers see exactly one snapshot change per local mutation.
+		status.batch(() => {
+			isSyncing = true;
+			try {
+				switch (event.type) {
+					case "shape:added":
+					case "shape:updated": {
+						const shape = store.getShape(payload.id);
+						if (shape) {
+							const isNew = !shapesMap.has(payload.id);
+							shapesMap.set(payload.id, toPlainObject(shape));
+							if (isNew && event.type === "shape:added") {
+								// Socket open → y-websocket immediately broadcasts this
+								// shape to the server, so it's effectively confirmed. We
+								// only flag local adds as "unconfirmed" while the
+								// connection is down, so the warning shows up exactly
+								// for offline edits / orphaned IndexedDB state.
+								const isOnline = currentWsStatus === "connected";
+								status.noteShapeAdded(payload.id, isOnline ? "remote" : "local");
+							}
 						}
+						break;
 					}
-					break;
+					case "shape:removed": {
+						shapesMap.delete(payload.id);
+						status.noteShapeRemoved(payload.id);
+						break;
+					}
 				}
-				case "shape:removed": {
-					shapesMap.delete(payload.id);
-					status.noteShapeRemoved(payload.id);
-					break;
-				}
+			} finally {
+				isSyncing = false;
 			}
-		} finally {
-			isSyncing = false;
-		}
 
-		// Keep the status snapshot in sync with the authoritative Y.Map size so
-		// consumers (DebugHUD etc.) see up-to-date counts after local edits too.
-		status.update({ shapeCount: shapesMap.size, lastSyncedAt: Date.now() });
+			// Keep the status snapshot in sync with the authoritative Y.Map size so
+			// consumers (DebugHUD etc.) see up-to-date counts after local edits too.
+			status.update({ shapeCount: shapesMap.size, lastSyncedAt: Date.now() });
+		});
 		resetIdleTimer();
 	});
 
@@ -145,42 +149,46 @@ export function createYwebsocketSync(
 		// must be marked as confirmed here when we forward it to the store.
 		const isLocalTxn = events.transaction.local;
 
-		isSyncing = true;
-		try {
-			for (const [key, change] of events.changes.keys) {
-				switch (change.action) {
-					case "add":
-					case "update": {
-						const value = shapesMap.get(key);
-						if (value) {
-							const shape = value as unknown as ShapeData;
-							const existing = store.getShape(key);
-							if (existing) {
-								store.updateShape(key, shape);
-							} else {
-								store.addShape(shape);
-								if (!isLocalTxn) {
-									// Remote add → confirmed by server.
-									status.noteShapeAdded(key, "remote");
+		// Batch all per-key notes plus the trailing `update(...)` so we fire
+		// exactly one notification per Yjs transaction.
+		status.batch(() => {
+			isSyncing = true;
+			try {
+				for (const [key, change] of events.changes.keys) {
+					switch (change.action) {
+						case "add":
+						case "update": {
+							const value = shapesMap.get(key);
+							if (value) {
+								const shape = value as unknown as ShapeData;
+								const existing = store.getShape(key);
+								if (existing) {
+									store.updateShape(key, shape);
+								} else {
+									store.addShape(shape);
+									if (!isLocalTxn) {
+										// Remote add → confirmed by server.
+										status.noteShapeAdded(key, "remote");
+									}
 								}
 							}
+							break;
 						}
-						break;
-					}
-					case "delete": {
-						if (store.getShape(key)) {
-							store.deleteShape(key);
+						case "delete": {
+							if (store.getShape(key)) {
+								store.deleteShape(key);
+							}
+							status.noteShapeRemoved(key);
+							break;
 						}
-						status.noteShapeRemoved(key);
-						break;
 					}
 				}
+			} finally {
+				isSyncing = false;
 			}
-		} finally {
-			isSyncing = false;
-		}
 
-		status.update({ shapeCount: shapesMap.size, lastSyncedAt: Date.now() });
+			status.update({ shapeCount: shapesMap.size, lastSyncedAt: Date.now() });
+		});
 	};
 
 	shapesMap.observe(shapesObserver);
@@ -226,8 +234,9 @@ export function createYwebsocketSync(
 				}
 			});
 		}
-
-		status.update({ shapeCount: shapesMap.size });
+		// `noteShapesLoaded(...)` above already recomputed `shapeCount` and
+		// notified once for the batch, so no follow-up `update({ shapeCount })`
+		// is needed here.
 	}
 
 	applyInitialLoad();

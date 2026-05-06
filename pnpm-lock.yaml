@@ -327,6 +327,9 @@ importers:
       '@edv4h/usketch-plugin-sync-localstorage-yjs':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-sync-localstorage-yjs
+      '@edv4h/usketch-plugin-sync-ywebsocket':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-sync-ywebsocket
       '@edv4h/usketch-plugin-tool-pan':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-tool-pan

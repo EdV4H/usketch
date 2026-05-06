@@ -1,5 +1,5 @@
 import type { BoardStore, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import type { SyncStatusTracker } from "./sync-status-tracker.js";
 
 interface UnconfirmedOverlayProps {
@@ -29,11 +29,16 @@ export function UnconfirmedOverlay({
 	viewport,
 	syncStatus,
 }: UnconfirmedOverlayProps) {
-	const snapshot = useSyncExternalStore(
-		(listener) => syncStatus.subscribe(listener),
-		() => syncStatus.getSnapshot(),
-		() => syncStatus.getSnapshot(),
+	// Keep `subscribe` / `getSnapshot` identities stable across renders so that
+	// re-renders triggered by viewport changes don't churn through unsubscribe
+	// /resubscribe cycles. Dependent only on `syncStatus`, which is itself
+	// stable for the lifetime of the plugin.
+	const subscribe = useCallback(
+		(listener: () => void) => syncStatus.subscribe(listener),
+		[syncStatus],
 	);
+	const getSnapshot = useCallback(() => syncStatus.getSnapshot(), [syncStatus]);
+	const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
 	// Only surface divergence after the server has confirmed us at least once.
 	// `firstServerSyncAt` is set exactly by `setConfirmedFromServer(...)` so
