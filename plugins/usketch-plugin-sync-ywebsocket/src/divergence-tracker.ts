@@ -21,6 +21,17 @@ export interface DivergenceTrackerOptions {
 	shapesMap: Y.Map<Record<string, unknown>>;
 	/** Subscribe to socket-level connection state (`"connected"` / `"connecting"` / `"disconnected"`). */
 	onConnectionStatusChange: (handler: (status: string) => void) => () => void;
+	/**
+	 * Grace period (ms) to wait after the socket reaches `"connected"` before
+	 * concluding "first sync completed" if no remote Y.Doc update has arrived.
+	 * The y-websocket SYNC_STEP1/STEP2 round-trip is normally fast, so even an
+	 * empty server (no shapes to push) will resolve well under a second. We
+	 * pick a generous default to avoid false positives on slow networks.
+	 *
+	 * Defaults to 2000ms. Set to 0 to disable the timer-based fallback (only
+	 * the first remote update will stamp).
+	 */
+	emptyServerGraceMs?: number;
 }
 
 export interface DivergenceTrackerHandle {
@@ -29,11 +40,34 @@ export interface DivergenceTrackerHandle {
 }
 
 export function createDivergenceTracker(opts: DivergenceTrackerOptions): DivergenceTrackerHandle {
-	const { store, doc, shapesMap, onConnectionStatusChange } = opts;
+	const { store, doc, shapesMap, onConnectionStatusChange, emptyServerGraceMs = 2000 } = opts;
 	const status = new SyncStatusTracker();
 
 	let currentWsStatus = "disconnected";
 	let serverSynced = false;
+	// Timer that fires `markServerSynced()` if `connected` persists for
+	// `emptyServerGraceMs` without any remote Y.Doc update. Covers the
+	// "empty server / no history" case where a remote update never comes.
+	let emptyServerTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function clearEmptyServerTimer(): void {
+		if (emptyServerTimer !== null) {
+			clearTimeout(emptyServerTimer);
+			emptyServerTimer = null;
+		}
+	}
+
+	function markServerSynced(): void {
+		if (serverSynced) return;
+		serverSynced = true;
+		clearEmptyServerTimer();
+		status.batch(() => {
+			status.markFirstServerSyncObserved();
+			if (currentWsStatus === "connected") {
+				status.update({ state: "synced" });
+			}
+		});
+	}
 
 	// 1. Connection state — drives the "is local add already confirmed?" decision
 	//    in the store mutation handler below, and is mirrored onto the snapshot
@@ -58,6 +92,18 @@ export function createDivergenceTracker(opts: DivergenceTrackerOptions): Diverge
 			state: mappedState,
 			error: next === "failed" ? "connection failed" : null,
 		});
+
+		// Empty-server fallback: when we connect but the server has nothing to
+		// push (new room, lost history), `doc.on("update")` never fires. Start
+		// a timer so `firstServerSyncAt` is still stamped after the SYNC round-
+		// trip has had time to complete. `emptyServerGraceMs: 0` opts out.
+		if (next === "connected" && !serverSynced && emptyServerGraceMs > 0) {
+			clearEmptyServerTimer();
+			emptyServerTimer = setTimeout(markServerSynced, emptyServerGraceMs);
+		} else if (next !== "connected") {
+			// Drop the timer if we got disconnected before the grace expired.
+			clearEmptyServerTimer();
+		}
 	});
 
 	// 2. Initial load: every shape already in the Y.Map (typically restored from
@@ -110,21 +156,18 @@ export function createDivergenceTracker(opts: DivergenceTrackerOptions): Diverge
 	//    Instead, the Y.Map observer above marks individual remote-origin
 	//    additions as confirmed via `noteShapeAdded(key, "remote")`. Anything
 	//    the server didn't push to us during this session stays unconfirmed.
+	//
+	//    Note: an "empty" server sync (no shapes to push) won't trigger this
+	//    handler — the `emptyServerTimer` started above is the fallback that
+	//    catches that case.
 	function onDocUpdate(_update: Uint8Array, origin: unknown): void {
-		if (serverSynced) return;
 		if (origin !== "remote") return;
-		serverSynced = true;
-		status.batch(() => {
-			status.markFirstServerSyncObserved();
-			// Bump state to "synced" if the socket was in "syncing".
-			if (currentWsStatus === "connected") {
-				status.update({ state: "synced" });
-			}
-		});
+		markServerSynced();
 	}
 	doc.on("update", onDocUpdate);
 
 	function destroy() {
+		clearEmptyServerTimer();
 		offStatus();
 		offMutation();
 		shapesMap.unobserve(observer);

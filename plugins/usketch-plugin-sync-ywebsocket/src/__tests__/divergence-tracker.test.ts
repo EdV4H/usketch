@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 import { createDivergenceTracker } from "../divergence-tracker.js";
 import { createTestStore, makeShape } from "./test-store.js";
@@ -8,8 +8,12 @@ import { createTestStore, makeShape } from "./test-store.js";
  * Mirrors what `apps/web/src/app.tsx` does (IDB sync handle's doc/shapesMap +
  * a WsProvider-style status callback) without touching the real IDB or
  * WebSocket code.
+ *
+ * `emptyServerGraceMs` defaults to 0 here (timer disabled) so the existing
+ * tests don't need to deal with timers. Tests that exercise the empty-server
+ * fallback opt in by passing a number.
  */
-function setup() {
+function setup(emptyServerGraceMs = 0) {
 	const doc = new Y.Doc();
 	const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
 	const store = createTestStore();
@@ -20,6 +24,7 @@ function setup() {
 		store,
 		doc,
 		shapesMap,
+		emptyServerGraceMs,
 		onConnectionStatusChange: (handler) => {
 			statusListeners.add(handler);
 			handler(currentStatus);
@@ -47,6 +52,10 @@ function setup() {
 }
 
 describe("createDivergenceTracker", () => {
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
 	it("flags a locally-added shape as unconfirmed while offline", () => {
 		const { store, handle } = setup();
 		store.addShape(makeShape({ id: "offline-1" }));
@@ -127,6 +136,53 @@ describe("createDivergenceTracker", () => {
 
 		setWsStatus("disconnected");
 		expect(handle.status.getSnapshot().state).toBe("disconnected");
+		handle.destroy();
+	});
+
+	it("empty-server fallback: timer fires firstServerSyncAt after grace period elapses with no remote update", () => {
+		// Connecting to a server that has nothing to push (new room, lost
+		// history) means `doc.on("update")` never fires. The grace timer
+		// should kick in and stamp anyway.
+		vi.useFakeTimers();
+		const { handle, setWsStatus } = setup(2000);
+
+		setWsStatus("connected");
+		expect(handle.status.getSnapshot().firstServerSyncAt).toBeNull();
+		expect(handle.status.getSnapshot().state).toBe("syncing");
+
+		vi.advanceTimersByTime(1999);
+		expect(handle.status.getSnapshot().firstServerSyncAt).toBeNull();
+
+		vi.advanceTimersByTime(1);
+		expect(handle.status.getSnapshot().firstServerSyncAt).not.toBeNull();
+		expect(handle.status.getSnapshot().state).toBe("synced");
+		handle.destroy();
+	});
+
+	it("empty-server fallback: cancelled if disconnect happens before grace expires", () => {
+		vi.useFakeTimers();
+		const { handle, setWsStatus } = setup(2000);
+		setWsStatus("connected");
+		vi.advanceTimersByTime(1000);
+		setWsStatus("disconnected");
+		vi.advanceTimersByTime(2000);
+		// Timer should have been cancelled — never stamp on disconnect.
+		expect(handle.status.getSnapshot().firstServerSyncAt).toBeNull();
+		handle.destroy();
+	});
+
+	it("empty-server fallback: a real remote update before grace expires wins", () => {
+		vi.useFakeTimers();
+		const { handle, setWsStatus, applyRemoteUpdate, makeRemoteAddUpdate } = setup(2000);
+		setWsStatus("connected");
+		vi.advanceTimersByTime(500);
+		applyRemoteUpdate(makeRemoteAddUpdate("server-1"));
+		const stamped = handle.status.getSnapshot().firstServerSyncAt;
+		expect(stamped).not.toBeNull();
+		// The grace timer should be cancelled — advancing further must not
+		// re-stamp (firstServerSyncAt is monotonic).
+		vi.advanceTimersByTime(2000);
+		expect(handle.status.getSnapshot().firstServerSyncAt).toBe(stamped);
 		handle.destroy();
 	});
 
