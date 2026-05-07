@@ -194,7 +194,10 @@ function serializeForRecognition(shape: ShapeData): unknown {
 	const data = shape as FreedrawShapeData;
 	const points = data.points ?? [];
 	if (points.length < 2) return null;
-	return { kind: "stroke", points: points.map((p) => ({ x: p.x, y: p.y })) };
+	// `data.points` is already `{ x, y }[]` from FreedrawShapeData. Pass it
+	// through directly — `ai-recognize` downsamples (≤ 80 points) and the
+	// type guard validates the kept slice, so we don't need a defensive copy.
+	return { kind: "stroke", points };
 }
 
 function debugFields(shape: ShapeData): Record<string, unknown> {

@@ -218,17 +218,20 @@ function createDefault(params: { id: string; x: number; y: number }): TextShapeD
 }
 
 function serializeForAi(shape: ShapeData): Record<string, unknown> {
+	// Return raw values; the caller drops `undefined` / `""` / `null` so absent
+	// fields don't pollute the prompt. Avoid hard-coding default values here —
+	// they belong with `createDefault()`, not duplicated in serialization.
 	const data = shape as TextShapeData;
-	return { text: data.text ?? "", fontSize: data.fontSize ?? 16 };
+	return { text: data.text, fontSize: data.fontSize };
 }
 
 function debugFields(shape: ShapeData): Record<string, unknown> {
 	const data = shape as TextShapeData;
 	return {
-		text: data.text ?? "",
-		fontSize: data.fontSize ?? 16,
-		fontFamily: data.fontFamily ?? "",
-		isEditing: data.isEditing ?? false,
+		text: data.text,
+		fontSize: data.fontSize,
+		fontFamily: data.fontFamily,
+		isEditing: data.isEditing,
 	};
 }
 

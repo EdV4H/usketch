@@ -43,7 +43,7 @@ function rectangleSerializeForAi(shape: ShapeData): Record<string, unknown> {
 
 function rectangleDebugFields(shape: ShapeData): Record<string, unknown> {
 	const data = shape as RectangleShapeData;
-	return { cornerRadius: data.cornerRadius ?? 0 };
+	return { cornerRadius: data.cornerRadius };
 }
 
 const SHAPE_RENDERERS: Record<

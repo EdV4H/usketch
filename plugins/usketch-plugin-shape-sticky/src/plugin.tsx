@@ -138,17 +138,19 @@ function createDefault(params: { id: string; x: number; y: number }): StickyShap
 }
 
 function serializeForAi(shape: ShapeData): Record<string, unknown> {
+	// Return raw values — caller drops `undefined` / `""` / `null` so absent
+	// fields stay out of the prompt and presence/absence remains distinguishable.
 	const data = shape as StickyShapeData;
-	return { text: data.text ?? "", stickyColor: data.stickyColor ?? "" };
+	return { text: data.text, stickyColor: data.stickyColor };
 }
 
 function debugFields(shape: ShapeData): Record<string, unknown> {
 	const data = shape as StickyShapeData;
 	return {
-		text: data.text ?? "",
-		fontSize: data.fontSize ?? 16,
-		stickyColor: data.stickyColor ?? "",
-		isEditing: data.isEditing ?? false,
+		text: data.text,
+		fontSize: data.fontSize,
+		stickyColor: data.stickyColor,
+		isEditing: data.isEditing,
 	};
 }
 

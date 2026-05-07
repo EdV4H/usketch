@@ -117,7 +117,7 @@ function createDefault(params: { id: string; x: number; y: number }): ImageShape
 
 function serializeForAi(shape: ShapeData): Record<string, unknown> {
 	const data = shape as ImageShapeData;
-	return { src: data.src ?? "" };
+	return { src: data.src };
 }
 
 function serializeForRecognition(shape: ShapeData): unknown {
@@ -128,7 +128,7 @@ function serializeForRecognition(shape: ShapeData): unknown {
 
 function debugFields(shape: ShapeData): Record<string, unknown> {
 	const data = shape as ImageShapeData;
-	return { src: data.src ?? "" };
+	return { src: data.src };
 }
 
 export const imageShapePlugin: UsketchPlugin = {
