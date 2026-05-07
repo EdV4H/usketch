@@ -92,7 +92,12 @@ export interface ShapeDefinition {
 	 * Project this shape into a flat record for AI prompt embedding
 	 * (ai-agent / ai-copilot). Return value is merged with core fields
 	 * ({id, type, x, y, w, h}) by callers; values that are `undefined`,
-	 * `null`, or `""` are dropped (zeros are kept).
+	 * `null`, or `""` are dropped (zeros are kept), and non-finite numbers
+	 * (NaN / Infinity) are dropped.
+	 *
+	 * Reserved keys: callers ignore `id` / `type` / `x` / `y` / `w` / `h` /
+	 * `style` if a plugin returns them, so don't bother emitting them — the
+	 * caller writes core fields itself and never lets a plugin override them.
 	 *
 	 * Conventions for cross-shape interop (followed by ai-agent and ai-copilot):
 	 * - `text: string` — human-readable label/content. AI consumers may read
@@ -102,6 +107,11 @@ export interface ShapeDefinition {
 	 *   token-budget estimation.
 	 *
 	 * All other keys are shape-specific and have no cross-shape meaning.
+	 *
+	 * Plugins are responsible for keeping the returned values prompt-friendly:
+	 * don't return base64 Data URLs, large arrays, or other payloads that
+	 * could blow LLM token budgets — return summaries instead. The caller
+	 * does NOT truncate, so a misbehaving plugin can degrade every prompt.
 	 */
 	serializeForAi?: (data: ShapeData, ctx?: ShapeSerializeContext) => Record<string, unknown>;
 	/**
