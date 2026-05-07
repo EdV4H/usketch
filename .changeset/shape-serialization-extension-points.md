@@ -36,7 +36,7 @@ ShapeDefinition に shape 自身を AI / 認識 / debug 用に表現する optio
 |---|---|---|---|
 | `shape-freedraw` | ✅ pointCount | ✅ stroke | ✅ pointCount/firstPoint/lastPoint |
 | `shape-text` | ✅ text/fontSize | — (null) | ✅ text/fontSize/fontFamily/isEditing |
-| `shape-image` | ✅ src | ✅ image | ✅ src |
+| `shape-image` | ✅ srcKind/srcLength/srcOrigin (summary, base64 直送回避) | ✅ image | ✅ src |
 | `shape-basic` (rectangle) | ✅ cornerRadius | — | ✅ cornerRadius |
 | `shape-sticky` | ✅ text/stickyColor | — | ✅ text/fontSize/stickyColor/isEditing |
 | `shape-connector` | — | — | ✅ sourceId/targetId/anchors/arrowHead/pathType |

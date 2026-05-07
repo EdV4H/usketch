@@ -183,7 +183,9 @@ function findNearbyLabels(
 }
 
 /**
- * 指定シェイプの中に完全に含まれる非テキストシェイプを検出する。
+ * 指定シェイプの中に完全に含まれるラベル以外のシェイプを検出する。
+ * `text` / `sticky` は `findNearbyLabels` で処理されるためここでは除外する
+ * (両方に出ると同じシェイプが prompt に重複する)。
  */
 function findContainedShapes(
 	container: ShapeData,
@@ -195,7 +197,7 @@ function findContainedShapes(
 	for (const [id, shape] of allShapes) {
 		if (id === container.id) continue;
 		if (selectedIds.has(id)) continue; // 選択済みは除外
-		if (shape.type === "text") continue; // テキストはnearbyLabelsで処理
+		if (shape.type === "text" || shape.type === "sticky") continue; // ラベルは nearbyLabels で処理
 
 		// 完全に内包されているか
 		if (
