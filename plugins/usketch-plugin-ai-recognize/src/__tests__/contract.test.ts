@@ -41,6 +41,21 @@ describe("isRecognitionStroke", () => {
 			}),
 		).toBe(false);
 	});
+
+	it("rejects points with non-finite x/y (NaN, Infinity)", () => {
+		expect(
+			isRecognitionStroke({
+				kind: "stroke",
+				points: [{ x: Number.NaN, y: 0 }],
+			}),
+		).toBe(false);
+		expect(
+			isRecognitionStroke({
+				kind: "stroke",
+				points: [{ x: 0, y: Number.POSITIVE_INFINITY }],
+			}),
+		).toBe(false);
+	});
 });
 
 describe("isRecognitionImage", () => {

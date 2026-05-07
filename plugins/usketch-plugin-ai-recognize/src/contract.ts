@@ -18,12 +18,11 @@ export interface RecognitionImage {
 }
 
 function isPoint(p: unknown): boolean {
-	return (
-		typeof p === "object" &&
-		p !== null &&
-		typeof (p as { x?: unknown }).x === "number" &&
-		typeof (p as { y?: unknown }).y === "number"
-	);
+	if (typeof p !== "object" || p === null) return false;
+	const { x, y } = p as { x?: unknown; y?: unknown };
+	// Reject non-finite numbers — they round to NaN / Infinity and end up as
+	// `null` after JSON.stringify, silently degrading recognition payloads.
+	return typeof x === "number" && Number.isFinite(x) && typeof y === "number" && Number.isFinite(y);
 }
 
 /**
