@@ -145,10 +145,10 @@ function serializeForAi(shape: ShapeData): Record<string, unknown> {
 function debugFields(shape: ShapeData): Record<string, unknown> {
 	const data = shape as StickyShapeData;
 	return {
-		text: data.text,
-		fontSize: data.fontSize,
-		stickyColor: data.stickyColor,
-		isEditing: data.isEditing,
+		text: data.text ?? "",
+		fontSize: data.fontSize ?? 0,
+		stickyColor: data.stickyColor ?? "",
+		isEditing: data.isEditing ?? false,
 	};
 }
 

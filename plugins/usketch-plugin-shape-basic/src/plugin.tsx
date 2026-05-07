@@ -42,8 +42,11 @@ function rectangleSerializeForAi(shape: ShapeData): Record<string, unknown> {
 }
 
 function rectangleDebugFields(shape: ShapeData): Record<string, unknown> {
+	// Mirror the renderer's `?? 0` so the debug HUD shows a value for legacy
+	// shapes saved without `cornerRadius` (otherwise JSON.stringify drops the
+	// key and the field disappears from the panel).
 	const data = shape as RectangleShapeData;
-	return { cornerRadius: data.cornerRadius };
+	return { cornerRadius: data.cornerRadius ?? 0 };
 }
 
 const SHAPE_RENDERERS: Record<

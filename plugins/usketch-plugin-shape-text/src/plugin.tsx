@@ -225,10 +225,10 @@ function serializeForAi(shape: ShapeData): Record<string, unknown> {
 function debugFields(shape: ShapeData): Record<string, unknown> {
 	const data = shape as TextShapeData;
 	return {
-		text: data.text,
-		fontSize: data.fontSize,
-		fontFamily: data.fontFamily,
-		isEditing: data.isEditing,
+		text: data.text ?? "",
+		fontSize: data.fontSize ?? 0,
+		fontFamily: data.fontFamily ?? "",
+		isEditing: data.isEditing ?? false,
 	};
 }
 
