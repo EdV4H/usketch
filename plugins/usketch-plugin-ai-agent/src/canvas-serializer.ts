@@ -1,16 +1,23 @@
-import type { ShapeData, Viewport } from "@edv4h/usketch-shared";
+import type { ShapeData, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
 
 /** 近接判定の閾値（px） */
 const PROXIMITY_THRESHOLD = 20;
 
+/** Core fields written by `serializeShape` itself; plugins must not overwrite these via `serializeForAi`. */
+const RESERVED_KEYS = new Set(["id", "type", "x", "y", "w", "h", "style"]);
+
 /**
  * キャンバスの状態をAI向けのプロンプト文字列にシリアライズする。
  * ビューポート内のシェイプを優先し、推定8000トークンを超える場合はビューポート内のみに絞る。
+ *
+ * Shape プラグインの `serializeForAi` が定義されていればその戻り値を core fields
+ * (id/type/x/y/w/h) にマージする。未定義 shape は core fields のみで送られる。
  */
 export function canvasToPrompt(
 	shapes: ReadonlyMap<string, ShapeData>,
 	viewport: Viewport,
 	availableTypes: string[],
+	registry: ShapeRegistry,
 	selectedIds?: ReadonlySet<string>,
 ): string {
 	const viewportCenter = {
@@ -35,7 +42,7 @@ export function canvasToPrompt(
 	const viewportShapes: Array<Record<string, unknown>> = [];
 
 	for (const [, shape] of shapes) {
-		const serialized = serializeShape(shape);
+		const serialized = serializeShape(shape, registry, shapes);
 
 		allShapes.push(serialized);
 
@@ -69,10 +76,10 @@ export function canvasToPrompt(
 		for (const id of selectedIds) {
 			const shape = shapes.get(id);
 			if (!shape) continue;
-			const serialized = serializeShape(shape);
+			const serialized = serializeShape(shape, registry, shapes);
 
 			// 近接テキストラベルを検出（textシェイプが選択シェイプの内部or近くにある場合）
-			const nearbyLabels = findNearbyLabels(shape, shapes);
+			const nearbyLabels = findNearbyLabels(shape, shapes, registry);
 			if (nearbyLabels.length > 0) {
 				serialized.nearbyLabels = nearbyLabels;
 			}
@@ -91,7 +98,11 @@ export function canvasToPrompt(
 	return JSON.stringify(context);
 }
 
-function serializeShape(shape: ShapeData): Record<string, unknown> {
+function serializeShape(
+	shape: ShapeData,
+	registry: ShapeRegistry,
+	shapes: ReadonlyMap<string, ShapeData>,
+): Record<string, unknown> {
 	const result: Record<string, unknown> = {
 		id: shape.id,
 		type: shape.type,
@@ -101,16 +112,18 @@ function serializeShape(shape: ShapeData): Record<string, unknown> {
 		h: Math.round(shape.height),
 	};
 
-	// freedrawはpointCountのみ
-	const points = (shape as { points?: unknown[] }).points;
-	if (shape.type === "freedraw" && Array.isArray(points)) {
-		result.pointCount = points.length;
-	} else {
-		// type固有フィールド
-		const textContent = (shape as { text?: string }).text;
-		const cornerRadius = (shape as { cornerRadius?: number }).cornerRadius;
-		if (textContent) result.text = textContent;
-		if (cornerRadius) result.cornerRadius = cornerRadius;
+	const def = registry.get(shape.type);
+	const extra = def?.serializeForAi?.(shape, { shapes, registry });
+	if (extra) {
+		for (const [k, v] of Object.entries(extra)) {
+			if (RESERVED_KEYS.has(k)) continue;
+			// Drop missing / blank values but keep zero (e.g. cornerRadius: 0).
+			if (v === undefined || v === null || v === "") continue;
+			// `JSON.stringify` would coerce non-finite numbers to `null`, which
+			// would land in the prompt as a confusing literal — drop them.
+			if (typeof v === "number" && !Number.isFinite(v)) continue;
+			result[k] = v;
+		}
 	}
 
 	// default styleと異なる場合のみスタイルを含める
@@ -134,13 +147,15 @@ function serializeShape(shape: ShapeData): Record<string, unknown> {
 function findNearbyLabels(
 	target: ShapeData,
 	allShapes: ReadonlyMap<string, ShapeData>,
+	registry: ShapeRegistry,
 ): Array<{ id: string; text: string }> {
 	const labels: Array<{ id: string; text: string }> = [];
 
 	for (const [id, shape] of allShapes) {
 		if (id === target.id) continue;
-		if (shape.type !== "text") continue;
-		const textContent = (shape as { text?: string }).text;
+		if (shape.type !== "text" && shape.type !== "sticky") continue;
+		const ai = registry.get(shape.type)?.serializeForAi?.(shape, { shapes: allShapes, registry });
+		const textContent = typeof ai?.text === "string" ? (ai.text as string) : "";
 		if (!textContent) continue;
 
 		// テキストの中心がターゲットの内部 or 近くにあるか
@@ -168,7 +183,9 @@ function findNearbyLabels(
 }
 
 /**
- * 指定シェイプの中に完全に含まれる非テキストシェイプを検出する。
+ * 指定シェイプの中に完全に含まれるラベル以外のシェイプを検出する。
+ * `text` / `sticky` は `findNearbyLabels` で処理されるためここでは除外する
+ * (両方に出ると同じシェイプが prompt に重複する)。
  */
 function findContainedShapes(
 	container: ShapeData,
@@ -180,7 +197,7 @@ function findContainedShapes(
 	for (const [id, shape] of allShapes) {
 		if (id === container.id) continue;
 		if (selectedIds.has(id)) continue; // 選択済みは除外
-		if (shape.type === "text") continue; // テキストはnearbyLabelsで処理
+		if (shape.type === "text" || shape.type === "sticky") continue; // ラベルは nearbyLabels で処理
 
 		// 完全に内包されているか
 		if (

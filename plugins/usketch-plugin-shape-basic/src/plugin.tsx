@@ -32,6 +32,22 @@ import { renderRectangle } from "./shapes/rectangle.js";
 import { renderRoundedRect } from "./shapes/rounded-rect.js";
 import { getStarPoints, renderStar } from "./shapes/star.js";
 import { getTrianglePoints, renderTriangle } from "./shapes/triangle.js";
+import type { RectangleShapeData } from "./types.js";
+
+function rectangleSerializeForAi(shape: ShapeData): Record<string, unknown> {
+	const data = shape as RectangleShapeData;
+	const result: Record<string, unknown> = {};
+	if (typeof data.cornerRadius === "number") result.cornerRadius = data.cornerRadius;
+	return result;
+}
+
+function rectangleDebugFields(shape: ShapeData): Record<string, unknown> {
+	// Mirror the renderer's `?? 0` so the debug HUD shows a value for legacy
+	// shapes saved without `cornerRadius` (otherwise JSON.stringify drops the
+	// key and the field disappears from the panel).
+	const data = shape as RectangleShapeData;
+	return { cornerRadius: data.cornerRadius ?? 0 };
+}
 
 const SHAPE_RENDERERS: Record<
 	string,
@@ -103,6 +119,7 @@ export const basicShapePlugin: UsketchPlugin = {
 			if (!renderer || !hitTestFn) continue;
 
 			const gpuFn = SHAPE_GPU_PRIMITIVES[subtype.type];
+			const isRectangle = subtype.type === "rectangle";
 			ctx.shapes.register(subtype.type, {
 				render: renderer,
 				getBounds,
@@ -110,6 +127,8 @@ export const basicShapePlugin: UsketchPlugin = {
 				resize: createResize(1, 1),
 				createDefault: subtype.createDefault,
 				gpuPrimitive: gpuFn,
+				serializeForAi: isRectangle ? rectangleSerializeForAi : undefined,
+				debugFields: isRectangle ? rectangleDebugFields : undefined,
 			});
 		}
 

@@ -115,6 +115,39 @@ function createDefault(params: { id: string; x: number; y: number }): ImageShape
 	};
 }
 
+function serializeForAi(shape: ShapeData): Record<string, unknown> {
+	const data = shape as ImageShapeData;
+	if (!data.src) return {};
+	// Image `src` can be a base64 Data URL that easily blows past LLM token
+	// budgets (and may leak embedded image bytes into prompts). Return a small
+	// summary instead — the shape's `type === "image"` already tells the AI
+	// this is an image; consumers who actually need pixel data should use
+	// `serializeForRecognition`.
+	const isDataUrl = data.src.startsWith("data:");
+	return isDataUrl
+		? { srcKind: "data", srcLength: data.src.length }
+		: { srcKind: "url", srcOrigin: safeOrigin(data.src) };
+}
+
+function safeOrigin(url: string): string {
+	try {
+		return new URL(url).origin;
+	} catch {
+		return "<invalid>";
+	}
+}
+
+function serializeForRecognition(shape: ShapeData): unknown {
+	const data = shape as ImageShapeData;
+	if (!data.src) return null;
+	return { kind: "image", src: data.src };
+}
+
+function debugFields(shape: ShapeData): Record<string, unknown> {
+	const data = shape as ImageShapeData;
+	return { src: data.src ?? "" };
+}
+
 export const imageShapePlugin: UsketchPlugin = {
 	id: "usketch-plugin-shape-image",
 	name: "画像",
@@ -128,6 +161,9 @@ export const imageShapePlugin: UsketchPlugin = {
 			createDefault,
 			renderTarget: "html",
 			minSize: { width: 40, height: 40 },
+			serializeForAi,
+			serializeForRecognition,
+			debugFields,
 		});
 	},
 };

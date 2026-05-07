@@ -1,4 +1,4 @@
-import type { BoardStore, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
+import type { BoardStore, CommandRegistry, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
 import {
 	ACCENT_DIM,
@@ -18,12 +18,16 @@ interface ShapesPanelProps {
 	commands: CommandRegistry;
 	shapes: ReadonlyMap<string, ShapeData>;
 	selection: ReadonlySet<string>;
+	registry: ShapeRegistry;
 	onHoverShape: (id: string | null) => void;
 	/** Shapes that exist locally but the server hasn't acknowledged. Empty if the
 	 * sync layer doesn't track divergence. */
 	unconfirmedShapeIds?: ReadonlySet<string>;
 }
 
+// Keys rendered explicitly in the always-on portion of the panel. Anything
+// not in this set (and not an `x-*` extension key) falls into the "custom"
+// section so plugin-intrinsic and core-managed fields stay visible.
 const KNOWN_KEYS = new Set(["id", "type", "x", "y", "width", "height", "style", "rotation"]);
 
 function EditableField({
@@ -87,6 +91,7 @@ export function ShapesPanel({
 	commands,
 	shapes,
 	selection,
+	registry,
 	onHoverShape,
 	unconfirmedShapeIds,
 }: ShapesPanelProps) {
@@ -226,6 +231,7 @@ export function ShapesPanel({
 										shape={s}
 										store={store}
 										selection={selection}
+										registry={registry}
 										onUpdate={updateField}
 										onDelete={deleteShape}
 									/>
@@ -243,16 +249,26 @@ function ShapeDetail({
 	shape,
 	store,
 	selection,
+	registry,
 	onUpdate,
 	onDelete,
 }: {
 	shape: ShapeData;
 	store: BoardStore;
 	selection: ReadonlySet<string>;
+	registry: ShapeRegistry;
 	onUpdate: (id: string, field: string, value: number) => void;
 	onDelete: (id: string) => void;
 }) {
-	const customKeys = Object.keys(shape).filter((k) => !KNOWN_KEYS.has(k));
+	const def = registry.get(shape.type);
+	const customMap: Record<string, unknown> = def?.debugFields
+		? def.debugFields(shape)
+		: Object.fromEntries(
+				Object.keys(shape)
+					.filter((k) => !KNOWN_KEYS.has(k) && !k.startsWith("x-"))
+					.map((k) => [k, (shape as unknown as Record<string, unknown>)[k]]),
+			);
+	const customKeys = Object.keys(customMap);
 
 	return (
 		<div
@@ -306,13 +322,7 @@ function ShapeDetail({
 							wordBreak: "break-all",
 						}}
 					>
-						{JSON.stringify(
-							Object.fromEntries(
-								customKeys.map((k) => [k, (shape as unknown as Record<string, unknown>)[k]]),
-							),
-							null,
-							1,
-						)}
+						{JSON.stringify(customMap, null, 1)}
 					</pre>
 				</div>
 			)}

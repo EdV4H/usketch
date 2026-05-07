@@ -155,6 +155,7 @@ export function DebugHud({
 				commands={commands}
 				shapes={shapeMap}
 				selection={selection}
+				registry={shapes}
 				onHoverShape={setHoveredShapeId}
 				unconfirmedShapeIds={unconfirmedShapeIdSet}
 			/>
