@@ -58,7 +58,6 @@ describe("canvasToPrompt", () => {
 			w: 20,
 			h: 30,
 		});
-		// No extra keys merged in.
 		expect(Object.keys(out.existingShapes[0]).sort()).toEqual(["h", "id", "type", "w", "x", "y"]);
 	});
 

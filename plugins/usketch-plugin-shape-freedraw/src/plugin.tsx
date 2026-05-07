@@ -194,9 +194,7 @@ function serializeForRecognition(shape: ShapeData): unknown {
 	const data = shape as FreedrawShapeData;
 	const points = data.points ?? [];
 	if (points.length < 2) return null;
-	// `data.points` is already `{ x, y }[]` from FreedrawShapeData. Pass it
-	// through directly — `ai-recognize` downsamples (≤ 80 points) and the
-	// type guard validates the kept slice, so we don't need a defensive copy.
+	// `points` is already `{x,y}[]`; pass it through to avoid an O(n) copy.
 	return { kind: "stroke", points };
 }
 

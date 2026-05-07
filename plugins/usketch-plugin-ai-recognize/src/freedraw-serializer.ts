@@ -20,9 +20,6 @@ function downsamplePoints(
 
 /**
  * Serialize freedraw shapes for handwriting/shape recognition.
- *
- * Shape プラグインの `serializeForRecognition` 戻り値が `RecognitionStroke`
- * (`{ kind: "stroke", points: [...] }`) の場合のみ stroke として採用する。
  * Downsamples points to keep within token budget.
  */
 export function serializeFreedrawForRecognition(

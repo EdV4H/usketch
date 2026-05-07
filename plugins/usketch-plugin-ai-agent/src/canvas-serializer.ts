@@ -109,12 +109,11 @@ function serializeShape(
 		h: Math.round(shape.height),
 	};
 
-	// shape プラグイン側の serializeForAi で type 固有フィールドを取得。
-	// undefined / null / 空文字列のみ除外し、それ以外（0 含む）は採用する。
 	const def = registry.get(shape.type);
 	const extra = def?.serializeForAi?.(shape, { shapes, registry });
 	if (extra) {
 		for (const [k, v] of Object.entries(extra)) {
+			// Drop missing / blank values but keep zero (e.g. cornerRadius: 0).
 			if (v === undefined || v === null || v === "") continue;
 			result[k] = v;
 		}
@@ -137,10 +136,6 @@ function serializeShape(
 /**
  * 指定シェイプの近くにあるテキストシェイプを検出する。
  * テキストがシェイプの内部にある、または近接している場合にラベルとして扱う。
- *
- * テキスト内容は shape プラグインの `serializeForAi` 戻り値の `text` キー
- * （label 慣習）から取得する。type 名フィルタは ai-agent ドメインの判断として
- * 残している（"freedraw" が偶然 text キーを返しても label 扱いしない）。
  */
 function findNearbyLabels(
 	target: ShapeData,

@@ -84,7 +84,6 @@ describe("serializeFreedrawForRecognition", () => {
 
 		const json = JSON.parse(serializeFreedrawForRecognition([big], registry));
 		expect(json.strokes[0].pointCount).toBe(200);
-		// downsample target is 80
 		expect(json.strokes[0].points.length).toBe(80);
 	});
 });

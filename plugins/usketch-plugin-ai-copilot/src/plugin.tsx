@@ -63,8 +63,6 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 					shape = def.createDefault({ id, x: suggestion.x, y: suggestion.y });
 					shape.width = suggestion.width;
 					shape.height = suggestion.height;
-					// 書き込み側の cast (suggestion → ShapeData の deserializer) は本 PR の射程外。
-					// `applySuggestion?(partial) => Partial<ShapeData>` 等の対称 API は別 issue で。
 					if (suggestion.text !== undefined) {
 						(shape as { text?: string }).text = suggestion.text;
 					}
@@ -140,7 +138,6 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 					const availableTypes = [...ctx.shapes.getAll().keys()];
 
 					const shapeList = [...shapes.values()].slice(-10).map((s) => {
-						// shape プラグインの serializeForAi 戻り値の `text` キー (label 慣習) を取得
 						const ai = ctx.shapes.get(s.type)?.serializeForAi?.(s);
 						const text = typeof ai?.text === "string" ? (ai.text as string) : "";
 						return {
