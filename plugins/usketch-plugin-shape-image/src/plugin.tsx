@@ -115,6 +115,22 @@ function createDefault(params: { id: string; x: number; y: number }): ImageShape
 	};
 }
 
+function serializeForAi(shape: ShapeData): Record<string, unknown> {
+	const data = shape as ImageShapeData;
+	return { src: data.src ?? "" };
+}
+
+function serializeForRecognition(shape: ShapeData): unknown {
+	const data = shape as ImageShapeData;
+	if (!data.src) return null;
+	return { kind: "image", src: data.src };
+}
+
+function debugFields(shape: ShapeData): Record<string, unknown> {
+	const data = shape as ImageShapeData;
+	return { src: data.src ?? "" };
+}
+
 export const imageShapePlugin: UsketchPlugin = {
 	id: "usketch-plugin-shape-image",
 	name: "画像",
@@ -128,6 +144,9 @@ export const imageShapePlugin: UsketchPlugin = {
 			createDefault,
 			renderTarget: "html",
 			minSize: { width: 40, height: 40 },
+			serializeForAi,
+			serializeForRecognition,
+			debugFields,
 		});
 	},
 };

@@ -52,7 +52,13 @@ export function createAiAgentPlugin(options: AiAgentOptions): UsketchPlugin {
 					const shapes = ctx.store.getShapes();
 					const viewport = ctx.store.getViewport();
 					const availableTypes = [...ctx.shapes.getAll().keys()];
-					const canvasContext = canvasToPrompt(shapes, viewport, availableTypes, selectedIds);
+					const canvasContext = canvasToPrompt(
+						shapes,
+						viewport,
+						availableTypes,
+						ctx.shapes,
+						selectedIds,
+					);
 
 					const onStatus = (status: AiStatusEvent) => {
 						ctx.events.emit("ai:status", status);

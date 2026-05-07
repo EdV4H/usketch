@@ -52,6 +52,19 @@ export interface LayerManager {
 
 // ── Shape System ──
 
+/**
+ * Read-only canvas view passed to shape serialization hooks
+ * (`serializeForAi` / `serializeForRecognition`). Intentionally minimal —
+ * serializers must not mutate the store or emit events.
+ */
+export interface ShapeSerializeContext {
+	/** All shapes currently on the canvas. Useful for cross-shape lookups
+	 *  (e.g. resolving connector endpoints or nearby labels). */
+	readonly shapes: ReadonlyMap<string, ShapeData>;
+	/** Registry for delegating to other shape types' serializers. */
+	readonly registry: ShapeRegistry;
+}
+
 export interface ShapeDefinition {
 	render: (data: ShapeData) => ReactElement;
 	getBounds: (data: ShapeData) => BoundingBox;
@@ -73,6 +86,37 @@ export interface ShapeDefinition {
 	 * renderer falls back to a solid-fill rectangle using `shape.style.fill`.
 	 */
 	simplifiedComponent?: ComponentType<{ shape: ShapeData }>;
+	/**
+	 * Project this shape into a flat record for AI prompt embedding
+	 * (ai-agent / ai-copilot). Return value is merged with core fields
+	 * ({id, type, x, y, w, h}) by callers; values that are `undefined`,
+	 * `null`, or `""` are dropped (zeros are kept).
+	 *
+	 * Conventions for cross-shape interop (followed by ai-agent and ai-copilot):
+	 * - `text: string` — human-readable label/content. AI consumers may read
+	 *   this from neighbouring shapes to build context (e.g. labels inside a
+	 *   selected rectangle).
+	 * - `pointCount: number` — vertex count for point-list shapes. Useful for
+	 *   token-budget estimation.
+	 *
+	 * All other keys are shape-specific and have no cross-shape meaning.
+	 */
+	serializeForAi?: (data: ShapeData, ctx?: ShapeSerializeContext) => Record<string, unknown>;
+	/**
+	 * Project this shape into a recognition-friendly form (e.g. handwriting
+	 * stroke, image source for OCR). Used by ai-recognize. Returns `null` for
+	 * shapes that aren't recognizable. Return value type is `unknown` so shape
+	 * plugins don't import recognition-specific types — the caller (ai-recognize)
+	 * narrows via type guards.
+	 */
+	serializeForRecognition?: (data: ShapeData, ctx?: ShapeSerializeContext) => unknown;
+	/**
+	 * Project this shape into a key/value map for the debug HUD shapes panel.
+	 * Optimized for human readability — full values, descriptive keys, no
+	 * token-budget compression (unlike `serializeForAi`). If omitted, the HUD
+	 * falls back to listing top-level keys outside the core ShapeData set.
+	 */
+	debugFields?: (data: ShapeData) => Record<string, unknown>;
 }
 
 export interface ShapeRegistry {

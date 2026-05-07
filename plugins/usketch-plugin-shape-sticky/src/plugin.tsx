@@ -137,6 +137,21 @@ function createDefault(params: { id: string; x: number; y: number }): StickyShap
 	};
 }
 
+function serializeForAi(shape: ShapeData): Record<string, unknown> {
+	const data = shape as StickyShapeData;
+	return { text: data.text ?? "", stickyColor: data.stickyColor ?? "" };
+}
+
+function debugFields(shape: ShapeData): Record<string, unknown> {
+	const data = shape as StickyShapeData;
+	return {
+		text: data.text ?? "",
+		fontSize: data.fontSize ?? 16,
+		stickyColor: data.stickyColor ?? "",
+		isEditing: data.isEditing ?? false,
+	};
+}
+
 // ── Text Editing State Machine ──
 
 type StickyTextEvent =
@@ -522,6 +537,8 @@ export const stickyPlugin: UsketchPlugin = {
 			renderTarget: "html",
 			minSize: { width: 100, height: 100 },
 			simplifiedComponent: SimplifiedSticky,
+			serializeForAi,
+			debugFields,
 		});
 
 		// ── Draw tool registration ──

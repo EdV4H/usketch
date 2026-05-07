@@ -50,6 +50,18 @@ export function findShapeAtPoint(ctx: ToolContext | PluginContext, point: Point)
 	return findShapeAtPointGeneric(ctx, point, { excludeTypes: EXCLUDE_CONNECTOR });
 }
 
+function debugFields(shape: ShapeData): Record<string, unknown> {
+	const data = shape as ConnectorShapeData;
+	return {
+		sourceId: data.sourceId ?? null,
+		targetId: data.targetId ?? null,
+		sourceAnchor: data.sourceAnchor ?? null,
+		targetAnchor: data.targetAnchor ?? null,
+		arrowHead: data.arrowHead ?? null,
+		pathType: data.pathType ?? null,
+	};
+}
+
 export const connectorPlugin: UsketchPlugin = {
 	id: "usketch-plugin-shape-connector",
 	name: "コネクタ",
@@ -65,6 +77,7 @@ export const connectorPlugin: UsketchPlugin = {
 			renderTarget: "svg",
 			resizable: false,
 			simplifiedComponent: SimplifiedConnector,
+			debugFields,
 		});
 
 		// ── Drawing tool ──

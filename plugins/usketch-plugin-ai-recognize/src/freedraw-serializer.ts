@@ -1,4 +1,5 @@
-import type { ShapeData } from "@edv4h/usketch-shared";
+import type { ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
+import { isRecognitionStroke } from "./contract.js";
 
 /**
  * Downsample points array to maxPoints by evenly spacing.
@@ -19,14 +20,21 @@ function downsamplePoints(
 
 /**
  * Serialize freedraw shapes for handwriting/shape recognition.
+ *
+ * Shape プラグインの `serializeForRecognition` 戻り値が `RecognitionStroke`
+ * (`{ kind: "stroke", points: [...] }`) の場合のみ stroke として採用する。
  * Downsamples points to keep within token budget.
  */
-export function serializeFreedrawForRecognition(shapes: ShapeData[]): string {
+export function serializeFreedrawForRecognition(
+	shapes: ShapeData[],
+	registry: ShapeRegistry,
+): string {
 	const strokes = shapes
-		.filter((s) => s.type === "freedraw" && Array.isArray((s as { points?: unknown }).points))
 		.map((s) => {
-			const rawPoints = (s as { points?: Array<{ x: number; y: number }> }).points ?? [];
-			const sampled = downsamplePoints(rawPoints, 80);
+			const def = registry.get(s.type);
+			const r = def?.serializeForRecognition?.(s);
+			if (!isRecognitionStroke(r)) return null;
+			const sampled = downsamplePoints(r.points, 80);
 			return {
 				id: s.id,
 				bounds: {
@@ -35,9 +43,10 @@ export function serializeFreedrawForRecognition(shapes: ShapeData[]): string {
 					w: Math.round(s.width),
 					h: Math.round(s.height),
 				},
-				pointCount: rawPoints.length,
+				pointCount: r.points.length,
 				points: sampled.map((p) => [Math.round(p.x), Math.round(p.y)]),
 			};
-		});
+		})
+		.filter((s): s is NonNullable<typeof s> => s !== null);
 	return JSON.stringify({ strokes });
 }

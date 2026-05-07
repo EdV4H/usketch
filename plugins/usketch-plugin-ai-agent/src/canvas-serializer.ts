@@ -1,4 +1,4 @@
-import type { ShapeData, Viewport } from "@edv4h/usketch-shared";
+import type { ShapeData, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
 
 /** 近接判定の閾値（px） */
 const PROXIMITY_THRESHOLD = 20;
@@ -6,11 +6,15 @@ const PROXIMITY_THRESHOLD = 20;
 /**
  * キャンバスの状態をAI向けのプロンプト文字列にシリアライズする。
  * ビューポート内のシェイプを優先し、推定8000トークンを超える場合はビューポート内のみに絞る。
+ *
+ * Shape プラグインの `serializeForAi` が定義されていればその戻り値を core fields
+ * (id/type/x/y/w/h) にマージする。未定義 shape は core fields のみで送られる。
  */
 export function canvasToPrompt(
 	shapes: ReadonlyMap<string, ShapeData>,
 	viewport: Viewport,
 	availableTypes: string[],
+	registry: ShapeRegistry,
 	selectedIds?: ReadonlySet<string>,
 ): string {
 	const viewportCenter = {
@@ -35,7 +39,7 @@ export function canvasToPrompt(
 	const viewportShapes: Array<Record<string, unknown>> = [];
 
 	for (const [, shape] of shapes) {
-		const serialized = serializeShape(shape);
+		const serialized = serializeShape(shape, registry, shapes);
 
 		allShapes.push(serialized);
 
@@ -69,10 +73,10 @@ export function canvasToPrompt(
 		for (const id of selectedIds) {
 			const shape = shapes.get(id);
 			if (!shape) continue;
-			const serialized = serializeShape(shape);
+			const serialized = serializeShape(shape, registry, shapes);
 
 			// 近接テキストラベルを検出（textシェイプが選択シェイプの内部or近くにある場合）
-			const nearbyLabels = findNearbyLabels(shape, shapes);
+			const nearbyLabels = findNearbyLabels(shape, shapes, registry);
 			if (nearbyLabels.length > 0) {
 				serialized.nearbyLabels = nearbyLabels;
 			}
@@ -91,7 +95,11 @@ export function canvasToPrompt(
 	return JSON.stringify(context);
 }
 
-function serializeShape(shape: ShapeData): Record<string, unknown> {
+function serializeShape(
+	shape: ShapeData,
+	registry: ShapeRegistry,
+	shapes: ReadonlyMap<string, ShapeData>,
+): Record<string, unknown> {
 	const result: Record<string, unknown> = {
 		id: shape.id,
 		type: shape.type,
@@ -101,16 +109,15 @@ function serializeShape(shape: ShapeData): Record<string, unknown> {
 		h: Math.round(shape.height),
 	};
 
-	// freedrawはpointCountのみ
-	const points = (shape as { points?: unknown[] }).points;
-	if (shape.type === "freedraw" && Array.isArray(points)) {
-		result.pointCount = points.length;
-	} else {
-		// type固有フィールド
-		const textContent = (shape as { text?: string }).text;
-		const cornerRadius = (shape as { cornerRadius?: number }).cornerRadius;
-		if (textContent) result.text = textContent;
-		if (cornerRadius) result.cornerRadius = cornerRadius;
+	// shape プラグイン側の serializeForAi で type 固有フィールドを取得。
+	// undefined / null / 空文字列のみ除外し、それ以外（0 含む）は採用する。
+	const def = registry.get(shape.type);
+	const extra = def?.serializeForAi?.(shape, { shapes, registry });
+	if (extra) {
+		for (const [k, v] of Object.entries(extra)) {
+			if (v === undefined || v === null || v === "") continue;
+			result[k] = v;
+		}
 	}
 
 	// default styleと異なる場合のみスタイルを含める
@@ -130,17 +137,23 @@ function serializeShape(shape: ShapeData): Record<string, unknown> {
 /**
  * 指定シェイプの近くにあるテキストシェイプを検出する。
  * テキストがシェイプの内部にある、または近接している場合にラベルとして扱う。
+ *
+ * テキスト内容は shape プラグインの `serializeForAi` 戻り値の `text` キー
+ * （label 慣習）から取得する。type 名フィルタは ai-agent ドメインの判断として
+ * 残している（"freedraw" が偶然 text キーを返しても label 扱いしない）。
  */
 function findNearbyLabels(
 	target: ShapeData,
 	allShapes: ReadonlyMap<string, ShapeData>,
+	registry: ShapeRegistry,
 ): Array<{ id: string; text: string }> {
 	const labels: Array<{ id: string; text: string }> = [];
 
 	for (const [id, shape] of allShapes) {
 		if (id === target.id) continue;
-		if (shape.type !== "text") continue;
-		const textContent = (shape as { text?: string }).text;
+		if (shape.type !== "text" && shape.type !== "sticky") continue;
+		const ai = registry.get(shape.type)?.serializeForAi?.(shape);
+		const textContent = typeof ai?.text === "string" ? (ai.text as string) : "";
 		if (!textContent) continue;
 
 		// テキストの中心がターゲットの内部 or 近くにあるか

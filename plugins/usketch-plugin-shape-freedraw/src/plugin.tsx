@@ -185,6 +185,28 @@ function computeBounds(points: Point[]): BoundingBox {
 	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
+function serializeForAi(shape: ShapeData): Record<string, unknown> {
+	const data = shape as FreedrawShapeData;
+	return { pointCount: (data.points ?? []).length };
+}
+
+function serializeForRecognition(shape: ShapeData): unknown {
+	const data = shape as FreedrawShapeData;
+	const points = data.points ?? [];
+	if (points.length < 2) return null;
+	return { kind: "stroke", points: points.map((p) => ({ x: p.x, y: p.y })) };
+}
+
+function debugFields(shape: ShapeData): Record<string, unknown> {
+	const data = shape as FreedrawShapeData;
+	const points = data.points ?? [];
+	return {
+		pointCount: points.length,
+		firstPoint: points[0] ?? null,
+		lastPoint: points[points.length - 1] ?? null,
+	};
+}
+
 function FreedrawIcon() {
 	return (
 		<svg width="20" height="20" viewBox="0 0 20 20">
@@ -274,6 +296,9 @@ export const freedrawPlugin: UsketchPlugin = {
 			move,
 			applyBounds,
 			gpuPrimitive,
+			serializeForAi,
+			serializeForRecognition,
+			debugFields,
 		});
 
 		ctx.tools.register("freedraw-draw", {

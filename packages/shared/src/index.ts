@@ -20,6 +20,7 @@ export type {
 	RenderTarget,
 	ShapeDefinition,
 	ShapeRegistry,
+	ShapeSerializeContext,
 	ShortcutRegistry,
 	StoreEvent,
 	ToolContext,

@@ -1,5 +1,6 @@
 import type { AiSmartActionRequestEvent, AiStatusEvent } from "@edv4h/usketch-plugin-ai-agent";
 import type { PluginContext, ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
+import { isRecognitionImage } from "./contract.js";
 import { serializeFreedrawForRecognition } from "./freedraw-serializer.js";
 
 export interface RecognizeOptions {
@@ -72,7 +73,7 @@ export function createAiRecognizePlugin(options: RecognizeOptions): UsketchPlugi
 			});
 
 			function recognizeFreedraw(ctx: PluginContext, shapes: ShapeData[]): void {
-				const strokeData = serializeFreedrawForRecognition(shapes);
+				const strokeData = serializeFreedrawForRecognition(shapes, ctx.shapes);
 				const shapeIds = shapes.map((s) => s.id);
 
 				const prompt = `Recognize the following handwritten strokes. If they look like text, create text shapes with the recognized text. If they look like geometric shapes (rectangles, circles, arrows), create clean geometric shapes.
@@ -96,7 +97,11 @@ IMPORTANT:
 
 			function recognizeImage(ctx: PluginContext, shapes: ShapeData[]): void {
 				const shapeIds = shapes.map((s) => s.id);
-				const src = (shapes[0] as { src?: string }).src;
+				const first = shapes[0];
+				const def = ctx.shapes.get(first.type);
+				const recognized = def?.serializeForRecognition?.(first);
+				if (!isRecognitionImage(recognized)) return;
+				const src = recognized.src;
 				if (!src) return;
 
 				ctx.events.emit("ai:request", {
