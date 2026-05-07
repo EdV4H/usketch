@@ -143,11 +143,13 @@ function serializeForAi(shape: ShapeData): Record<string, unknown> {
 }
 
 function debugFields(shape: ShapeData): Record<string, unknown> {
+	// Mirror the renderer's `??` fallbacks so the HUD shows the value the user
+	// actually sees on the canvas, not a placeholder zero / blank.
 	const data = shape as StickyShapeData;
 	return {
 		text: data.text ?? "",
-		fontSize: data.fontSize ?? 0,
-		stickyColor: data.stickyColor ?? "",
+		fontSize: data.fontSize ?? 16,
+		stickyColor: data.stickyColor ?? DEFAULT_STICKY_COLOR,
 		isEditing: data.isEditing ?? false,
 	};
 }

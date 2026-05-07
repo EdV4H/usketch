@@ -50,12 +50,14 @@ ShapeDefinition に shape 自身を AI / 認識 / debug 用に表現する optio
   serializeForAi 経由に。書き込み側の cast (suggestion → ShapeData) は
   別軸の課題として OOS で残置。
 - `ai-recognize`: 新規 `contract.ts` に `RecognitionStroke` / `RecognitionImage`
-  型と type guard を追加。`freedraw-serializer.ts` / `plugin.ts` を registry +
-  type guard 経由に切替。
+  型と type guard を追加。シリアライザは `stroke-serializer.ts` に改名
+  (関数 `serializeStrokesForRecognition`) して registry + type guard 経由に
+  切替。
 - `debug-hud/panels/shapes-panel.tsx`: `debugFields` 実装 shape はそれを使い、
-  未実装 shape は `KNOWN_KEYS` 補集合で fallback。`KNOWN_KEYS` に PR #582 で
-  追加された `meta` / `parentId` / `zIndex` / `createdAt` / `updatedAt` を追加。
-  `x-*` 拡張も補集合から除外。
+  未実装 shape は `KNOWN_KEYS` 補集合で fallback。`KNOWN_KEYS` は常時表示用の
+  8 キー (id / type / x / y / width / height / style / rotation) のままで、
+  `meta` / `parentId` / `zIndex` / `createdAt` / `updatedAt` は fallback の
+  custom セクションに表示される。`x-*` 拡張は startsWith で補集合から除外。
 
 排除した cast: 9 箇所 (5 ファイル)。書き込み側の `ai-copilot:67,70` は
 `applySuggestion?(partial) => Partial<ShapeData>` のような対称 API として

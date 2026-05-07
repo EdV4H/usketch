@@ -223,11 +223,13 @@ function serializeForAi(shape: ShapeData): Record<string, unknown> {
 }
 
 function debugFields(shape: ShapeData): Record<string, unknown> {
+	// Mirror the renderer's `??` fallbacks so the HUD shows the value the user
+	// actually sees on the canvas, not a placeholder zero.
 	const data = shape as TextShapeData;
 	return {
 		text: data.text ?? "",
-		fontSize: data.fontSize ?? 0,
-		fontFamily: data.fontFamily ?? "",
+		fontSize: data.fontSize ?? 16,
+		fontFamily: data.fontFamily ?? "system-ui, sans-serif",
 		isEditing: data.isEditing ?? false,
 	};
 }
