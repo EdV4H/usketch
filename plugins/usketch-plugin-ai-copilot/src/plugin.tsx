@@ -138,7 +138,9 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 					const availableTypes = [...ctx.shapes.getAll().keys()];
 
 					const shapeList = [...shapes.values()].slice(-10).map((s) => {
-						const ai = ctx.shapes.get(s.type)?.serializeForAi?.(s);
+						const ai = ctx.shapes
+							.get(s.type)
+							?.serializeForAi?.(s, { shapes, registry: ctx.shapes });
 						const text = typeof ai?.text === "string" ? (ai.text as string) : "";
 						return {
 							id: s.id,

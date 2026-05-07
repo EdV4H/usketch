@@ -25,25 +25,10 @@ interface ShapesPanelProps {
 	unconfirmedShapeIds?: ReadonlySet<string>;
 }
 
-// Core ShapeData keys rendered in the always-on portion of the panel. Anything
-// outside this set (and outside the `x-*` extension namespace) is surfaced via
-// the shape plugin's `debugFields()`, with a key-listing fallback for plugins
-// that haven't implemented the hook.
-const KNOWN_KEYS = new Set([
-	"id",
-	"type",
-	"x",
-	"y",
-	"width",
-	"height",
-	"style",
-	"rotation",
-	"meta",
-	"parentId",
-	"zIndex",
-	"createdAt",
-	"updatedAt",
-]);
+// Keys rendered explicitly in the always-on portion of the panel. Anything
+// not in this set (and not an `x-*` extension key) falls into the "custom"
+// section so plugin-intrinsic and core-managed fields stay visible.
+const KNOWN_KEYS = new Set(["id", "type", "x", "y", "width", "height", "style", "rotation"]);
 
 function EditableField({
 	label,

@@ -154,7 +154,7 @@ function findNearbyLabels(
 	for (const [id, shape] of allShapes) {
 		if (id === target.id) continue;
 		if (shape.type !== "text" && shape.type !== "sticky") continue;
-		const ai = registry.get(shape.type)?.serializeForAi?.(shape);
+		const ai = registry.get(shape.type)?.serializeForAi?.(shape, { shapes: allShapes, registry });
 		const textContent = typeof ai?.text === "string" ? (ai.text as string) : "";
 		if (!textContent) continue;
 
