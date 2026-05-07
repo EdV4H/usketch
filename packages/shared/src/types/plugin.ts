@@ -61,8 +61,10 @@ export interface ShapeSerializeContext {
 	/** All shapes currently on the canvas. Useful for cross-shape lookups
 	 *  (e.g. resolving connector endpoints or nearby labels). */
 	readonly shapes: ReadonlyMap<string, ShapeData>;
-	/** Registry for delegating to other shape types' serializers. */
-	readonly registry: ShapeRegistry;
+	/** Registry view for delegating to other shape types' serializers.
+	 *  Narrowed to read-only methods so serializers can't accidentally
+	 *  `register(...)` and mutate global plugin state during serialization. */
+	readonly registry: Pick<ShapeRegistry, "get" | "getAll">;
 }
 
 export interface ShapeDefinition {
