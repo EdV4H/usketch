@@ -61,7 +61,14 @@ export function createYwebsocketSync(
 	const statusListeners = new Set<(status: WsConnectionStatus) => void>();
 	const broadcastListeners = new Set<(msg: Record<string, unknown>) => void>();
 
+	// Latest socket-level status. Read by the local mutation handler to decide
+	// whether a freshly-added shape should be treated as already "confirmed"
+	// (the socket is open so y-websocket immediately broadcasts the update) or
+	// as "pending" (offline → diverges until a re-sync).
+	let currentWsStatus: WsConnectionStatus = "disconnected";
+
 	function notifyStatus(next: WsConnectionStatus): void {
+		currentWsStatus = next;
 		// "connected" at the transport level only means the socket is open — the
 		// first Yjs sync has not necessarily completed. Map to "syncing" until the
 		// provider's `sync` event fires; `onSync` will flip the tracker to "synced".
@@ -91,66 +98,97 @@ export function createYwebsocketSync(
 		const payload = event.payload as { id: string } | undefined;
 		if (!payload?.id) return;
 
-		isSyncing = true;
-		try {
-			switch (event.type) {
-				case "shape:added":
-				case "shape:updated": {
-					const shape = store.getShape(payload.id);
-					if (shape) {
-						shapesMap.set(payload.id, toPlainObject(shape));
+		// Batch the divergence note + the shapeCount/lastSyncedAt update so
+		// subscribers see exactly one snapshot change per local mutation.
+		status.batch(() => {
+			isSyncing = true;
+			try {
+				switch (event.type) {
+					case "shape:added":
+					case "shape:updated": {
+						const shape = store.getShape(payload.id);
+						if (shape) {
+							const isNew = !shapesMap.has(payload.id);
+							shapesMap.set(payload.id, toPlainObject(shape));
+							if (isNew && event.type === "shape:added") {
+								// Socket open → y-websocket immediately broadcasts this
+								// shape to the server, so it's effectively confirmed. We
+								// only flag local adds as "unconfirmed" while the
+								// connection is down, so the warning shows up exactly
+								// for offline edits / orphaned IndexedDB state.
+								const isOnline = currentWsStatus === "connected";
+								status.noteShapeAdded(payload.id, isOnline ? "remote" : "local");
+							}
+						}
+						break;
 					}
-					break;
+					case "shape:removed": {
+						shapesMap.delete(payload.id);
+						status.noteShapeRemoved(payload.id);
+						break;
+					}
 				}
-				case "shape:removed": {
-					shapesMap.delete(payload.id);
-					break;
-				}
+			} finally {
+				isSyncing = false;
 			}
-		} finally {
-			isSyncing = false;
-		}
 
-		// Keep the status snapshot in sync with the authoritative Y.Map size so
-		// consumers (DebugHUD etc.) see up-to-date counts after local edits too.
-		status.update({ shapeCount: shapesMap.size, lastSyncedAt: Date.now() });
+			// Keep the status snapshot in sync with the authoritative Y.Map size so
+			// consumers (DebugHUD etc.) see up-to-date counts after local edits too.
+			status.update({ shapeCount: shapesMap.size, lastSyncedAt: Date.now() });
+		});
 		resetIdleTimer();
 	});
 
 	const shapesObserver = (events: Y.YMapEvent<Record<string, unknown>>): void => {
 		if (isSyncing || destroyed) return;
 
-		isSyncing = true;
-		try {
-			for (const [key, change] of events.changes.keys) {
-				switch (change.action) {
-					case "add":
-					case "update": {
-						const value = shapesMap.get(key);
-						if (value) {
-							const shape = value as unknown as ShapeData;
-							const existing = store.getShape(key);
-							if (existing) {
-								store.updateShape(key, shape);
-							} else {
-								store.addShape(shape);
+		// `transaction.local === true` means this Y.Doc edit originated from
+		// our own client — the store mutation handler above has already noted
+		// the addition (as "remote" if the socket was open, "local" otherwise).
+		// `false` means the change came from the server / another peer, so it
+		// must be marked as confirmed here when we forward it to the store.
+		const isLocalTxn = events.transaction.local;
+
+		// Batch all per-key notes plus the trailing `update(...)` so we fire
+		// exactly one notification per Yjs transaction.
+		status.batch(() => {
+			isSyncing = true;
+			try {
+				for (const [key, change] of events.changes.keys) {
+					switch (change.action) {
+						case "add":
+						case "update": {
+							const value = shapesMap.get(key);
+							if (value) {
+								const shape = value as unknown as ShapeData;
+								const existing = store.getShape(key);
+								if (existing) {
+									store.updateShape(key, shape);
+								} else {
+									store.addShape(shape);
+									if (!isLocalTxn) {
+										// Remote add → confirmed by server.
+										status.noteShapeAdded(key, "remote");
+									}
+								}
 							}
+							break;
 						}
-						break;
-					}
-					case "delete": {
-						if (store.getShape(key)) {
-							store.deleteShape(key);
+						case "delete": {
+							if (store.getShape(key)) {
+								store.deleteShape(key);
+							}
+							status.noteShapeRemoved(key);
+							break;
 						}
-						break;
 					}
 				}
+			} finally {
+				isSyncing = false;
 			}
-		} finally {
-			isSyncing = false;
-		}
 
-		status.update({ shapeCount: shapesMap.size, lastSyncedAt: Date.now() });
+			status.update({ shapeCount: shapesMap.size, lastSyncedAt: Date.now() });
+		});
 	};
 
 	shapesMap.observe(shapesObserver);
@@ -159,6 +197,7 @@ export function createYwebsocketSync(
 	function applyInitialLoad(): void {
 		if (shapesMap.size === 0) return;
 		const idsNeedingZIndex: string[] = [];
+		const loadedIds: string[] = [];
 		isSyncing = true;
 		try {
 			for (const [id, value] of shapesMap.entries()) {
@@ -170,9 +209,19 @@ export function createYwebsocketSync(
 				if (typeof shape.zIndex !== "string") {
 					idsNeedingZIndex.push(id);
 				}
+				loadedIds.push(id);
 			}
 		} finally {
 			isSyncing = false;
+		}
+
+		// Pre-connection load (typically from IndexedDB). These haven't been
+		// confirmed by the current server session yet — they'll be promoted to
+		// "confirmed" by `setConfirmedFromServer` when the first sync event
+		// fires. Use the bulk API so initial-load shapes don't trigger O(n²)
+		// recompute cycles.
+		if (loadedIds.length > 0) {
+			status.noteShapesLoaded(loadedIds, "local");
 		}
 
 		// Backfill zIndex into Y.Map for any shape that got an auto-assigned one,
@@ -185,8 +234,9 @@ export function createYwebsocketSync(
 				}
 			});
 		}
-
-		status.update({ shapeCount: shapesMap.size });
+		// `noteShapesLoaded(...)` above already recomputed `shapeCount` and
+		// notified once for the batch, so no follow-up `update({ shapeCount })`
+		// is needed here.
 	}
 
 	applyInitialLoad();
@@ -283,6 +333,11 @@ export function createYwebsocketSync(
 
 		const onSync = (isSynced: boolean): void => {
 			if (isSynced) {
+				// At this moment `shapesMap` reflects the merged server state
+				// (server's view ∪ what we uploaded). Treat every key here as
+				// confirmed. Anything added afterward without a subsequent
+				// sync event will diverge.
+				status.setConfirmedFromServer(shapesMap.keys());
 				status.update({
 					state: "synced",
 					shapeCount: shapesMap.size,

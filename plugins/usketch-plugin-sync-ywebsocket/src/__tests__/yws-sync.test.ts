@@ -133,6 +133,62 @@ describe("createYwebsocketSync (store ↔ Y.Doc binding)", () => {
 	});
 });
 
+describe("createYwebsocketSync (divergence tracking)", () => {
+	const handles: YwebsocketSyncHandle[] = [];
+
+	afterEach(() => {
+		while (handles.length) {
+			handles.pop()?.destroy();
+		}
+	});
+
+	function setup() {
+		const store = createTestStore();
+		const handle = createYwebsocketSync(store, {
+			url: "ws://example.invalid",
+			roomName: "test-room",
+			autoConnect: false,
+		});
+		handles.push(handle);
+		return { store, handle };
+	}
+
+	it("flags shapes added while offline as unconfirmed", () => {
+		const { store, handle } = setup();
+		// `autoConnect: false` → currentWsStatus is "disconnected".
+		store.addShape(makeShape({ id: "offline-1" }));
+		store.addShape(makeShape({ id: "offline-2" }));
+		expect(handle.status.getSnapshot().unconfirmedShapeIds).toEqual(["offline-1", "offline-2"]);
+	});
+
+	it("setConfirmedFromServer clears unconfirmed for shapes the server knows", () => {
+		const { store, handle } = setup();
+		store.addShape(makeShape({ id: "a" }));
+		store.addShape(makeShape({ id: "b" }));
+		// Simulate the `sync` event landing — both shapes are now in the
+		// merged server view.
+		handle.status.setConfirmedFromServer(["a", "b"]);
+		expect(handle.status.getSnapshot().unconfirmedShapeIds).toEqual([]);
+	});
+
+	it("a shape on the client but absent from the server snapshot stays unconfirmed", () => {
+		// The phantom-shape scenario: server's view does NOT contain `ghost`.
+		const { store, handle } = setup();
+		store.addShape(makeShape({ id: "ghost" }));
+		store.addShape(makeShape({ id: "real" }));
+		handle.status.setConfirmedFromServer(["real"]);
+		expect(handle.status.getSnapshot().unconfirmedShapeIds).toEqual(["ghost"]);
+	});
+
+	it("removing an unconfirmed shape drops it from the divergence list", () => {
+		const { store, handle } = setup();
+		store.addShape(makeShape({ id: "tmp" }));
+		expect(handle.status.getSnapshot().unconfirmedShapeIds).toEqual(["tmp"]);
+		store.deleteShape("tmp");
+		expect(handle.status.getSnapshot().unconfirmedShapeIds).toEqual([]);
+	});
+});
+
 describe("createYwebsocketSync (lifecycle)", () => {
 	it("exposes an inert wsProvider before connect; onStatusChange reports disconnected", () => {
 		const store = createTestStore();

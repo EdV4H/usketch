@@ -4,6 +4,10 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  react: 19.2.4
+  react-dom: 19.2.4
+
 importers:
 
   .:
@@ -51,10 +55,10 @@ importers:
         specifier: ^7.1
         version: 7.2.0
       react:
-        specifier: ^19.1
+        specifier: 19.2.4
         version: 19.2.4
       react-dom:
-        specifier: ^19.1
+        specifier: 19.2.4
         version: 19.2.4(react@19.2.4)
       rehype-autolink-headings:
         specifier: ^7.1
@@ -323,6 +327,9 @@ importers:
       '@edv4h/usketch-plugin-sync-localstorage-yjs':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-sync-localstorage-yjs
+      '@edv4h/usketch-plugin-sync-ywebsocket':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-sync-ywebsocket
       '@edv4h/usketch-plugin-tool-pan':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-tool-pan
@@ -397,7 +404,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -416,11 +423,11 @@ importers:
         specifier: workspace:*
         version: link:../shared
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
       react-dom:
-        specifier: '>=19'
-        version: 19.1.0(react@19.1.0)
+        specifier: 19.2.4
+        version: 19.2.4(react@19.2.4)
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -454,10 +461,10 @@ importers:
         specifier: workspace:*
         version: link:../shared
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
       react-dom:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4(react@19.2.4)
     devDependencies:
       '@types/react':
@@ -479,10 +486,10 @@ importers:
         specifier: workspace:*
         version: link:../shared
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
       react-dom:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4(react@19.2.4)
     devDependencies:
       '@types/react':
@@ -526,8 +533,8 @@ importers:
         specifier: 3.2.0
         version: 3.2.0
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
       xid-ts:
         specifier: 1.2.2
         version: 1.2.2
@@ -625,8 +632,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -650,7 +657,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -688,8 +695,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -710,8 +717,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -780,8 +787,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -802,7 +809,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -824,7 +831,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -849,7 +856,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -871,7 +878,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -893,8 +900,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -918,7 +925,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -937,8 +944,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -977,7 +984,7 @@ importers:
         specifier: ^1.37.0
         version: 1.37.0
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -999,8 +1006,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1021,11 +1028,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
       react-dom:
-        specifier: '>=19'
-        version: 19.1.0(react@19.1.0)
+        specifier: 19.2.4
+        version: 19.2.4(react@19.2.4)
       satori:
         specifier: 0.26.0
         version: 0.26.0
@@ -1052,8 +1059,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1077,7 +1084,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -1099,8 +1106,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1121,8 +1128,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1143,8 +1150,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1165,7 +1172,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -1193,8 +1200,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1352,8 +1359,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1374,8 +1381,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1393,7 +1400,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -1424,7 +1431,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -1449,8 +1456,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1474,7 +1481,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -1499,8 +1506,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1524,7 +1531,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -1543,8 +1550,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1565,7 +1572,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -1596,7 +1603,7 @@ importers:
         specifier: ^1.37.0
         version: 1.37.0
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -1627,8 +1634,8 @@ importers:
         specifier: ^1.37.0
         version: 1.37.0
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1649,8 +1656,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1668,8 +1675,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1690,8 +1697,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1712,8 +1719,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1734,8 +1741,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1777,6 +1784,9 @@ importers:
       '@edv4h/usketch-sync':
         specifier: workspace:*
         version: link:../../packages/sync
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
       y-protocols:
         specifier: 1.0.7
         version: 1.0.7(yjs@13.6.30)
@@ -1787,6 +1797,9 @@ importers:
         specifier: ^13.6.0
         version: 13.6.30
     devDependencies:
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -1806,8 +1819,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1831,8 +1844,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1872,8 +1885,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
-        version: 19.1.0
+        specifier: 19.2.4
+        version: 19.2.4
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1894,7 +1907,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.2.4
         version: 19.2.4
     devDependencies:
       '@types/react':
@@ -1952,8 +1965,8 @@ packages:
     peerDependencies:
       '@types/react': ^17.0.50 || ^18.0.21 || ^19.0.0
       '@types/react-dom': ^17.0.17 || ^18.0.6 || ^19.0.0
-      react: ^17.0.2 || ^18.0.0 || ^19.0.0
-      react-dom: ^17.0.2 || ^18.0.0 || ^19.0.0
+      react: 19.2.4
+      react-dom: 19.2.4
 
   '@astrojs/telemetry@3.3.0':
     resolution: {integrity: sha512-UFBgfeldP06qu6khs/yY+q1cDAaArM2/7AEIqQ9Cuvf7B1hNLq0xDrZkct+QoIGyjq56y8IaE2I3CTvG99mlhQ==}
@@ -3191,7 +3204,7 @@ packages:
     resolution: {integrity: sha512-z4eqJvfiNnFMHIIvXP3CY57y2WJs5g2v3X0zm9mEJkrkNv4rDxu+sg9Jh8EkXyeqBkB7SOcboo9dMVqhyrACIg==, tarball: https://registry.npmjs.org/@radix-ui/react-compose-refs/-/react-compose-refs-1.1.2.tgz}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3200,7 +3213,7 @@ packages:
     resolution: {integrity: sha512-jCi/QKUM2r1Ju5a3J64TH2A5SpKAgh0LpknyqdQ4m6DCV0xJ2HG1xARRwNGPQfi1SLdLWZ1OJz6F4OMBBNiGJA==, tarball: https://registry.npmjs.org/@radix-ui/react-context/-/react-context-1.1.2.tgz}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3210,8 +3223,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
+      react-dom: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3223,8 +3236,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
+      react-dom: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3235,7 +3248,7 @@ packages:
     resolution: {integrity: sha512-0rFg/Rj2Q62NCm62jZw0QX7a3sz6QCQU0LpZdNrJX8byRGaGVTqbrW9jAoIAHyMQqsNpeZ81YgSizOt5WXq0Pw==, tarball: https://registry.npmjs.org/@radix-ui/react-focus-guards/-/react-focus-guards-1.1.3.tgz}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3245,8 +3258,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
+      react-dom: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3257,7 +3270,7 @@ packages:
     resolution: {integrity: sha512-kGkGegYIdQsOb4XjsfM97rXsiHaBwco+hFI66oO4s9LU+PLAC5oJ7khdOVFxkhsmlbpUqDAvXw11CluXP+jkHg==, tarball: https://registry.npmjs.org/@radix-ui/react-id/-/react-id-1.1.1.tgz}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3267,8 +3280,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
+      react-dom: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3280,8 +3293,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
+      react-dom: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3293,8 +3306,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
+      react-dom: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3306,8 +3319,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
+      react-dom: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3318,7 +3331,7 @@ packages:
     resolution: {integrity: sha512-aeNmHnBxbi2St0au6VBVC7JXFlhLlOnvIIlePNniyUNAClzmtAUEY8/pBiK3iHjufOlwA+c20/8jngo7xcrg8A==, tarball: https://registry.npmjs.org/@radix-ui/react-slot/-/react-slot-1.2.3.tgz}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3327,7 +3340,7 @@ packages:
     resolution: {integrity: sha512-Jl+bCv8HxKnlTLVrcDE8zTMJ09R9/ukw4qBs/oZClOfoQk/cOTbDn+NceXfV7j09YPVQUryJPHurafcSg6EVKA==, tarball: https://registry.npmjs.org/@radix-ui/react-slot/-/react-slot-1.2.4.tgz}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3336,7 +3349,7 @@ packages:
     resolution: {integrity: sha512-FkBMwD+qbGQeMu1cOHnuGB6x4yzPjho8ap5WtbEJ26umhgqVXbhekKUQO+hZEL1vU92a3wHwdp0HAcqAUF5iDg==, tarball: https://registry.npmjs.org/@radix-ui/react-use-callback-ref/-/react-use-callback-ref-1.1.1.tgz}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3345,7 +3358,7 @@ packages:
     resolution: {integrity: sha512-BjasUjixPFdS+NKkypcyyN5Pmg83Olst0+c6vGov0diwTEo6mgdqVR6hxcEgFuh4QrAs7Rc+9KuGJ9TVCj0Zzg==, tarball: https://registry.npmjs.org/@radix-ui/react-use-controllable-state/-/react-use-controllable-state-1.2.2.tgz}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3354,7 +3367,7 @@ packages:
     resolution: {integrity: sha512-Qp8WbZOBe+blgpuUT+lw2xheLP8q0oatc9UpmiemEICxGvFLYmHm9QowVZGHtJlGbS6A6yJ3iViad/2cVjnOiA==, tarball: https://registry.npmjs.org/@radix-ui/react-use-effect-event/-/react-use-effect-event-0.0.2.tgz}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3363,7 +3376,7 @@ packages:
     resolution: {integrity: sha512-Il0+boE7w/XebUHyBjroE+DbByORGR9KKmITzbR7MyQ4akpORYP/ZmbhAr0DG7RmmBqoOnZdy2QlvajJ2QA59g==, tarball: https://registry.npmjs.org/@radix-ui/react-use-escape-keydown/-/react-use-escape-keydown-1.1.1.tgz}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3372,7 +3385,7 @@ packages:
     resolution: {integrity: sha512-RbJRS4UWQFkzHTTwVymMTUv8EqYhOp8dOOviLj2ugtTiXRaRQS7GLGxZTLL1jWhMeoSCf5zmcZkqTl9IiYfXcQ==, tarball: https://registry.npmjs.org/@radix-ui/react-use-layout-effect/-/react-use-layout-effect-1.1.1.tgz}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3891,8 +3904,8 @@ packages:
       next: ^14.0.0 || ^15.0.0 || ^16.0.0
       pg: ^8.0.0
       prisma: ^5.0.0 || ^6.0.0 || ^7.0.0
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
+      react: 19.2.4
+      react-dom: 19.2.4
       solid-js: ^1.0.0
       svelte: ^4.0.0 || ^5.0.0
       vitest: ^2.0.0 || ^3.0.0 || ^4.0.0
@@ -4074,8 +4087,8 @@ packages:
   cmdk@1.1.1:
     resolution: {integrity: sha512-Vsv7kFaXm+ptHDMZ7izaRsP70GgrW9NBNGswt9OZaVBLlE0SNpDq8eu/VGXyF9r7M0azK3Wy7OlYXsuyYLFzHg==, tarball: https://registry.npmjs.org/cmdk/-/cmdk-1.1.1.tgz}
     peerDependencies:
-      react: ^18 || ^19 || ^19.0.0-rc
-      react-dom: ^18 || ^19 || ^19.0.0-rc
+      react: 19.2.4
+      react-dom: 19.2.4
 
   collapse-white-space@2.1.0:
     resolution: {integrity: sha512-loKTxY1zCOuG4j9f6EPnuyyYkf58RnhhWTvRoZEokgB+WbdXehfjFviyOVYkqzEWz1Q5kRiZdBYS5SwxbQYwzw==, tarball: https://registry.npmjs.org/collapse-white-space/-/collapse-white-space-2.1.0.tgz}
@@ -5491,15 +5504,10 @@ packages:
     resolution: {integrity: sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==}
     engines: {node: '>= 0.10'}
 
-  react-dom@19.1.0:
-    resolution: {integrity: sha512-Xs1hdnE+DyKgeHJeJznQmYMIBG3TKIHJJT95Q58nHLSrElKlGQqDTR2HQ9fx5CN/Gk6Vh/kupBTDLU11/nDk/g==}
-    peerDependencies:
-      react: ^19.1.0
-
   react-dom@19.2.4:
     resolution: {integrity: sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ==, tarball: https://registry.npmjs.org/react-dom/-/react-dom-19.2.4.tgz}
     peerDependencies:
-      react: ^19.2.4
+      react: 19.2.4
 
   react-refresh@0.17.0:
     resolution: {integrity: sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ==}
@@ -5510,7 +5518,7 @@ packages:
     engines: {node: '>=10'}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -5520,7 +5528,7 @@ packages:
     engines: {node: '>=10'}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -5529,8 +5537,8 @@ packages:
     resolution: {integrity: sha512-tX1Aee+ArlKQP+NIUd7SE6Li+CiGKwQtbS+FfRxPX6Pe4vHOo6nr9d++u5cwg+Z8K/x8tP+7qLmujDtfrAoUJA==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
-      react: '>=18'
-      react-dom: '>=18'
+      react: 19.2.4
+      react-dom: 19.2.4
     peerDependenciesMeta:
       react-dom:
         optional: true
@@ -5540,17 +5548,13 @@ packages:
     engines: {node: '>=10'}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
 
-  react@19.1.0:
-    resolution: {integrity: sha512-FS+XFBNvn3GTAWq26joslQgWNoFu08F4kl0J4CgdNKADkdSGXQyTCnKteIAJy96Br6YbpEU1LSzV5dYtjMkMDg==}
-    engines: {node: '>=0.10.0'}
-
   react@19.2.4:
-    resolution: {integrity: sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ==}
+    resolution: {integrity: sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ==, tarball: https://registry.npmjs.org/react/-/react-19.2.4.tgz}
     engines: {node: '>=0.10.0'}
 
   read-yaml-file@1.1.0:
@@ -5699,9 +5703,6 @@ packages:
   sax@1.6.0:
     resolution: {integrity: sha512-6R3J5M4AcbtLUdZmRv2SygeVaM7IhrLXu9BmnOGmmACak8fiUtOsYNWUS4uK7upbmHIBbLBeFeI//477BKLBzA==}
     engines: {node: '>=11.0.0'}
-
-  scheduler@0.26.0:
-    resolution: {integrity: sha512-NlHwttCI/l5gCPR3D1nNXtWABUmBwvZpEQiD4IXSbIDq8BzLIK/7Ir5gTFSGZDUu37K5cMNp0hFtzO38sC7gWA==}
 
   scheduler@0.27.0:
     resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==, tarball: https://registry.npmjs.org/scheduler/-/scheduler-0.27.0.tgz}
@@ -6097,7 +6098,7 @@ packages:
     engines: {node: '>=10'}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -6107,7 +6108,7 @@ packages:
     engines: {node: '>=10'}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+      react: 19.2.4
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -10173,11 +10174,6 @@ snapshots:
       iconv-lite: 0.7.2
       unpipe: 1.0.0
 
-  react-dom@19.1.0(react@19.1.0):
-    dependencies:
-      react: 19.1.0
-      scheduler: 0.26.0
-
   react-dom@19.2.4(react@19.2.4):
     dependencies:
       react: 19.2.4
@@ -10219,8 +10215,6 @@ snapshots:
       tslib: 2.8.1
     optionalDependencies:
       '@types/react': 19.2.14
-
-  react@19.1.0: {}
 
   react@19.2.4: {}
 
@@ -10482,8 +10476,6 @@ snapshots:
       yoga-layout: 3.2.1
 
   sax@1.6.0: {}
-
-  scheduler@0.26.0: {}
 
   scheduler@0.27.0: {}
 

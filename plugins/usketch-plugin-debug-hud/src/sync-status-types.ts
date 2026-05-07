@@ -1,15 +1,26 @@
 /**
- * Structural types matching SyncStatusTracker from @edv4h/usketch-store.
- * Defined locally to avoid adding a dependency on the store package.
+ * Structural types matching SyncStatusTracker from @edv4h/usketch-store
+ * and @edv4h/usketch-plugin-sync-ywebsocket. Defined locally to avoid taking
+ * a runtime dependency on either package.
+ *
+ * `unconfirmedShapeIds` is contributed by the ywebsocket tracker only —
+ * IndexedDB-only trackers leave it empty.
  */
 
-export type SyncState = "loading" | "synced" | "syncing" | "error";
+export type SyncState = "loading" | "connecting" | "synced" | "syncing" | "disconnected" | "error";
 
 export interface SyncStatusSnapshot {
 	state: SyncState;
 	shapeCount: number;
 	lastSyncedAt: number | null;
+	/**
+	 * Timestamp of the first successful server sync, or null if the client
+	 * has not yet heard back from the server. Use this (not `lastSyncedAt`,
+	 * which also moves on local edits) to gate divergence UI.
+	 */
+	firstServerSyncAt?: number | null;
 	error: string | null;
+	unconfirmedShapeIds?: readonly string[];
 }
 
 export interface SyncStatusTrackerLike {

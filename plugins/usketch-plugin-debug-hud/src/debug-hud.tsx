@@ -7,7 +7,7 @@ import type {
 	ShapeRegistry,
 	ToolRegistry,
 } from "@edv4h/usketch-shared";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
 import { Minimap } from "./overlays/minimap.js";
@@ -88,6 +88,21 @@ export function DebugHud({
 	const { viewport, shapes: shapeMap, selection } = ctx;
 	const activeToolId = store.getActiveToolId();
 
+	// Subscribe to sync status so the Shapes panel can highlight unconfirmed
+	// shape IDs. Snapshot is undefined when no sync layer is loaded. Stable
+	// callbacks avoid resubscribe churn during unrelated re-renders (HUD
+	// re-renders frequently due to FPS / pointer / event log updates).
+	const subscribeSync = useCallback(
+		(cb: () => void) => syncStatus?.subscribe(cb) ?? (() => {}),
+		[syncStatus],
+	);
+	const getSyncSnapshot = useCallback(() => syncStatus?.getSnapshot(), [syncStatus]);
+	const syncSnapshot = useSyncExternalStore(subscribeSync, getSyncSnapshot, getSyncSnapshot);
+	const unconfirmedShapeIdSet = useMemo(
+		() => new Set(syncSnapshot?.unconfirmedShapeIds ?? []),
+		[syncSnapshot?.unconfirmedShapeIds],
+	);
+
 	const hoveredShape = hoveredShapeId ? shapeMap.get(hoveredShapeId) : undefined;
 
 	// Shortcut hint — bottom-center (always visible)
@@ -141,6 +156,7 @@ export function DebugHud({
 				shapes={shapeMap}
 				selection={selection}
 				onHoverShape={setHoveredShapeId}
+				unconfirmedShapeIds={unconfirmedShapeIdSet}
 			/>
 
 			{/* Right-bottom: Event Log */}
