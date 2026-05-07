@@ -3,6 +3,9 @@ import type { ShapeData, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
 /** 近接判定の閾値（px） */
 const PROXIMITY_THRESHOLD = 20;
 
+/** Core fields written by `serializeShape` itself; plugins must not overwrite these via `serializeForAi`. */
+const RESERVED_KEYS = new Set(["id", "type", "x", "y", "w", "h", "style"]);
+
 /**
  * キャンバスの状態をAI向けのプロンプト文字列にシリアライズする。
  * ビューポート内のシェイプを優先し、推定8000トークンを超える場合はビューポート内のみに絞る。
@@ -113,8 +116,12 @@ function serializeShape(
 	const extra = def?.serializeForAi?.(shape, { shapes, registry });
 	if (extra) {
 		for (const [k, v] of Object.entries(extra)) {
+			if (RESERVED_KEYS.has(k)) continue;
 			// Drop missing / blank values but keep zero (e.g. cornerRadius: 0).
 			if (v === undefined || v === null || v === "") continue;
+			// `JSON.stringify` would coerce non-finite numbers to `null`, which
+			// would land in the prompt as a confusing literal — drop them.
+			if (typeof v === "number" && !Number.isFinite(v)) continue;
 			result[k] = v;
 		}
 	}

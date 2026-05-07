@@ -5,7 +5,7 @@ import {
 	type ShapeRegistry,
 } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
-import { serializeFreedrawForRecognition } from "../freedraw-serializer.js";
+import { serializeStrokesForRecognition } from "../stroke-serializer.js";
 
 function makeShape(overrides: Partial<ShapeData> & { id: string; type: string }): ShapeData {
 	return {
@@ -30,7 +30,7 @@ function makeRegistry(defs: Record<string, Partial<ShapeDefinition>>): ShapeRegi
 	};
 }
 
-describe("serializeFreedrawForRecognition", () => {
+describe("serializeStrokesForRecognition", () => {
 	it("emits stroke entries only for shapes whose serializeForRecognition returns a stroke", () => {
 		const stroke = makeShape({ id: "f1", type: "freedraw", x: 10, y: 20, width: 50, height: 30 });
 		const text = makeShape({ id: "t1", type: "text" });
@@ -47,7 +47,7 @@ describe("serializeFreedrawForRecognition", () => {
 			text: { serializeForRecognition: () => null },
 		});
 
-		const json = JSON.parse(serializeFreedrawForRecognition([stroke, text], registry));
+		const json = JSON.parse(serializeStrokesForRecognition([stroke, text], registry));
 		expect(json.strokes).toHaveLength(1);
 		expect(json.strokes[0]).toMatchObject({
 			id: "f1",
@@ -61,7 +61,7 @@ describe("serializeFreedrawForRecognition", () => {
 		const stray = makeShape({ id: "s1", type: "rect" });
 		const registry = makeRegistry({ rect: {} });
 
-		const json = JSON.parse(serializeFreedrawForRecognition([stray], registry));
+		const json = JSON.parse(serializeStrokesForRecognition([stray], registry));
 		expect(json.strokes).toHaveLength(0);
 	});
 
@@ -71,7 +71,7 @@ describe("serializeFreedrawForRecognition", () => {
 			image: { serializeForRecognition: () => ({ kind: "image", src: "x" }) },
 		});
 
-		const json = JSON.parse(serializeFreedrawForRecognition([img], registry));
+		const json = JSON.parse(serializeStrokesForRecognition([img], registry));
 		expect(json.strokes).toHaveLength(0);
 	});
 
@@ -82,7 +82,7 @@ describe("serializeFreedrawForRecognition", () => {
 			freedraw: { serializeForRecognition: () => ({ kind: "stroke", points }) },
 		});
 
-		const json = JSON.parse(serializeFreedrawForRecognition([big], registry));
+		const json = JSON.parse(serializeStrokesForRecognition([big], registry));
 		expect(json.strokes[0].pointCount).toBe(200);
 		expect(json.strokes[0].points.length).toBe(80);
 	});

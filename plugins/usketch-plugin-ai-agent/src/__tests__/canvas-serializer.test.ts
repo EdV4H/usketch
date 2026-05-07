@@ -98,6 +98,55 @@ describe("canvasToPrompt", () => {
 		expect(serialized).not.toHaveProperty("emptyText");
 	});
 
+	it("drops non-finite numbers (NaN / Infinity) so they don't leak as `null` in the prompt", () => {
+		const shape = makeShape({ id: "r1", type: "rect" });
+		const shapes = new Map([[shape.id, shape]]);
+		const registry = makeRegistry({
+			rect: {
+				serializeForAi: () => ({
+					nanField: Number.NaN,
+					infField: Number.POSITIVE_INFINITY,
+					negInfField: Number.NEGATIVE_INFINITY,
+					realNumber: 42,
+				}),
+			},
+		});
+		const out = JSON.parse(canvasToPrompt(shapes, VIEWPORT, ["rect"], registry));
+		const serialized = out.existingShapes[0];
+		expect(serialized.realNumber).toBe(42);
+		expect(serialized).not.toHaveProperty("nanField");
+		expect(serialized).not.toHaveProperty("infField");
+		expect(serialized).not.toHaveProperty("negInfField");
+	});
+
+	it("ignores reserved core keys returned by serializeForAi (id / type / x / y / w / h / style)", () => {
+		const shape = makeShape({ id: "real", type: "rect", x: 5, y: 10, width: 20, height: 30 });
+		const shapes = new Map([[shape.id, shape]]);
+		const registry = makeRegistry({
+			rect: {
+				serializeForAi: () => ({
+					id: "HIJACKED",
+					type: "evil",
+					x: 999,
+					y: 999,
+					w: 999,
+					h: 999,
+					style: { fill: "#000" },
+					cornerRadius: 4,
+				}),
+			},
+		});
+		const out = JSON.parse(canvasToPrompt(shapes, VIEWPORT, ["rect"], registry));
+		const serialized = out.existingShapes[0];
+		// Core fields keep the trusted values from the shape itself.
+		expect(serialized).toMatchObject({ id: "real", type: "rect", x: 5, y: 10, w: 20, h: 30 });
+		// But genuine extras still come through.
+		expect(serialized.cornerRadius).toBe(4);
+		// Style override that *would* match a shape would be applied via the
+		// dedicated style block, not through `serializeForAi.style`.
+		expect(serialized.style).toBeUndefined();
+	});
+
 	it("uses `serializeForAi.text` (label convention) for nearby-label lookup", () => {
 		const target = makeShape({ id: "rect", type: "rect", x: 0, y: 0, width: 100, height: 100 });
 		// Text shape inside rect's bounds — should be picked up as a nearby label.

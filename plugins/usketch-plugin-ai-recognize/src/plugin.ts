@@ -1,7 +1,7 @@
 import type { AiSmartActionRequestEvent, AiStatusEvent } from "@edv4h/usketch-plugin-ai-agent";
 import type { PluginContext, ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
 import { isRecognitionImage } from "./contract.js";
-import { serializeFreedrawForRecognition } from "./freedraw-serializer.js";
+import { serializeStrokesForRecognition } from "./stroke-serializer.js";
 
 export interface RecognizeOptions {
 	boardId: string;
@@ -73,7 +73,7 @@ export function createAiRecognizePlugin(options: RecognizeOptions): UsketchPlugi
 			});
 
 			function recognizeFreedraw(ctx: PluginContext, shapes: ShapeData[]): void {
-				const strokeData = serializeFreedrawForRecognition(shapes, ctx.shapes);
+				const strokeData = serializeStrokesForRecognition(shapes, ctx.shapes);
 				const shapeIds = shapes.map((s) => s.id);
 
 				const prompt = `Recognize the following handwritten strokes. If they look like text, create text shapes with the recognized text. If they look like geometric shapes (rectangles, circles, arrows), create clean geometric shapes.

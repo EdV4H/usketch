@@ -19,10 +19,10 @@ function downsamplePoints(
 }
 
 /**
- * Serialize freedraw shapes for handwriting/shape recognition.
- * Downsamples points to keep within token budget.
+ * Serialize shapes whose plugin produces stroke payloads for
+ * handwriting/shape recognition. Downsamples points to keep within token budget.
  */
-export function serializeFreedrawForRecognition(
+export function serializeStrokesForRecognition(
 	shapes: ShapeData[],
 	registry: ShapeRegistry,
 ): string {
