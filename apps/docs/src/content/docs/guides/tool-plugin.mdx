@@ -119,6 +119,59 @@ setup(ctx: PluginContext) {
 }
 ```
 
+## Reusable Session Helpers
+
+For tools that move, rotate, resize, or rectangle-select shapes, the common state-machine logic lives in `@edv4h/usketch-tool-helpers`. The built-in select tool is implemented entirely on top of these helpers — picking them up in your own tool gives you the same drag/snap/undo behavior for free.
+
+Each helper returns a **session** object you create on `pointerdown`, drive on `pointermove`, and finalize on `pointerup`:
+
+```tsx
+import {
+  startDragSession,
+  startResizeSession,
+  startRotateSession,
+  startMarqueeSession,
+  trackHover,
+} from "@edv4h/usketch-tool-helpers";
+
+let session: ReturnType<typeof startDragSession> | null = null;
+
+ctx.tools.register("stamp-and-drag", {
+  icon: StampIcon,
+  cursor: "crosshair",
+  onPointerDown(toolCtx, event) {
+    // Place a fixed-size rect under the cursor, then let the user drag it
+    // anywhere before releasing — useful for "stamp this object" tools.
+    const id = createPresetRect(toolCtx, event.worldPoint);
+    session = startDragSession({
+      ctx: toolCtx,
+      startPoint: event.worldPoint,
+      shapeIds: [id],
+      includeDescendants: false,
+    });
+  },
+  onPointerMove(toolCtx, event) {
+    session?.update(event);
+  },
+  onPointerUp(toolCtx) {
+    const result = session?.commit();
+    if (result) {
+      // Schedule the command via microtask so any pointer-up cleanup
+      // (snap teardown etc.) lands first.
+      queueMicrotask(() => toolCtx.commands.execute(result.command));
+    }
+    session = null;
+  },
+});
+```
+
+> If you want "press and drag to size" instead — like the built-in rectangle tool — drive the shape's `width`/`height` directly inside `onPointerMove` (no drag session needed). `startDragSession` always translates by a delta; it doesn't resize.
+
+
+The helpers handle the parts that are easy to get subtly wrong — descendant collection on container drags, rotated-shape delta math on resize, anchor-flip detection, snap-aware undo commands — so your tool only writes the high-level decisions.
+
+For static "click to place" tools, you don't need a session at all; the eraser example above is the minimal form. Reach for sessions when the tool's behavior depends on how the pointer moves between down and up.
+
 ## Tips
 
 - Use `onActivate` / `onDeactivate` for setup and cleanup (e.g., changing cursor state, resetting internal state).
