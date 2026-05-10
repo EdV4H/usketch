@@ -12,7 +12,7 @@ rotate / marquee / hover の state machine を、再利用可能な session API 
 
 新公開 API:
 
-- `startDragSession` — 移動 (子孫の自動追従、snap callback、move-end command 付き)
+- `startDragSession` — 移動 (子孫の自動追従、snap callback、`commit()` で `createMoveShapesCommand` を返却)
 - `startResizeSession` — single + multi の discriminated union。8 方向ハンドル、
   flip 検出、`def.applyBounds()` フック対応
 - `startRotateSession` — atan2 ベースの角度計算、shift で 15° snap、子要素の剛体回転

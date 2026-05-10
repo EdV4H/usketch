@@ -136,12 +136,13 @@ import {
 
 let session: ReturnType<typeof startDragSession> | null = null;
 
-ctx.tools.register("rectangle-draw", {
-  icon: RectangleIcon,
+ctx.tools.register("stamp-and-drag", {
+  icon: StampIcon,
   cursor: "crosshair",
   onPointerDown(toolCtx, event) {
-    // ポインター位置に 0×0 の矩形を置き、ドラッグでサイズを決める
-    const id = createBlankRect(toolCtx, event.worldPoint);
+    // ポインター位置に固定サイズの矩形を置き、リリースまでドラッグで配置を
+    // 微調整できるようにする。「スタンプして置き場所を決める」用途向け。
+    const id = createPresetRect(toolCtx, event.worldPoint);
     session = startDragSession({
       ctx: toolCtx,
       startPoint: event.worldPoint,
@@ -163,6 +164,9 @@ ctx.tools.register("rectangle-draw", {
   },
 });
 ```
+
+> 「押してドラッグでサイズを決める」（組み込みの矩形ツールのような挙動）が欲しい場合は、`onPointerMove` 内で shape の `width` / `height` を直接更新してください。drag session は使いません — `startDragSession` は常に delta による平行移動のみで、サイズは変えません。
+
 
 ヘルパーは、コンテナドラッグ時の子孫 shape 収集、回転中の shape のローカル空間 delta 計算、アンカー反転検出、snap を考慮した undo コマンド生成といった微妙にハマりやすい部分を引き受けてくれます。ツール本体は「何をしたいか」だけ書けば十分です。
 

@@ -136,12 +136,13 @@ import {
 
 let session: ReturnType<typeof startDragSession> | null = null;
 
-ctx.tools.register("rectangle-draw", {
-  icon: RectangleIcon,
+ctx.tools.register("stamp-and-drag", {
+  icon: StampIcon,
   cursor: "crosshair",
   onPointerDown(toolCtx, event) {
-    // Place a 0×0 rect at the pointer, then drag it to size.
-    const id = createBlankRect(toolCtx, event.worldPoint);
+    // Place a fixed-size rect under the cursor, then let the user drag it
+    // anywhere before releasing — useful for "stamp this object" tools.
+    const id = createPresetRect(toolCtx, event.worldPoint);
     session = startDragSession({
       ctx: toolCtx,
       startPoint: event.worldPoint,
@@ -163,6 +164,9 @@ ctx.tools.register("rectangle-draw", {
   },
 });
 ```
+
+> If you want "press and drag to size" instead — like the built-in rectangle tool — drive the shape's `width`/`height` directly inside `onPointerMove` (no drag session needed). `startDragSession` always translates by a delta; it doesn't resize.
+
 
 The helpers handle the parts that are easy to get subtly wrong — descendant collection on container drags, rotated-shape delta math on resize, anchor-flip detection, snap-aware undo commands — so your tool only writes the high-level decisions.
 
