@@ -1,6 +1,6 @@
 {
-	"name": "@edv4h/usketch-plugin-tool-select",
-	"version": "1.0.0",
+	"name": "@edv4h/usketch-tool-helpers",
+	"version": "0.1.0",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -18,16 +18,10 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@edv4h/usketch-core": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
-		"@edv4h/usketch-store": "workspace:*",
-		"@edv4h/usketch-tool-helpers": "workspace:*"
-	},
-	"peerDependencies": {
-		"react": ">=19"
+		"@edv4h/usketch-store": "workspace:*"
 	},
 	"devDependencies": {
-		"@types/react": "19.2.14",
 		"typescript": "5.9.3",
 		"vitest": "3.2.4"
 	},
@@ -42,7 +36,7 @@
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/EdV4H/usketch.git",
-		"directory": "plugins/usketch-plugin-tool-select"
+		"directory": "packages/usketch-tool-helpers"
 	},
 	"homepage": "https://github.com/EdV4H/usketch#readme",
 	"bugs": {

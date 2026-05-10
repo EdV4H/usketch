@@ -119,6 +119,55 @@ setup(ctx: PluginContext) {
 }
 ```
 
+## 再利用可能な Session ヘルパー
+
+shape を移動・回転・リサイズしたり、矩形選択を行うツールでは、共通の state machine ロジックが `@edv4h/usketch-tool-helpers` にまとまっています。組み込みの select ツールはこれらのヘルパーだけで実装されており、自作ツールでも同じドラッグ／スナップ／undo の挙動を流用できます。
+
+各ヘルパーは **session** オブジェクトを返します。`pointerdown` で生成し、`pointermove` で進め、`pointerup` で確定する流れです:
+
+```tsx
+import {
+  startDragSession,
+  startResizeSession,
+  startRotateSession,
+  startMarqueeSession,
+  trackHover,
+} from "@edv4h/usketch-tool-helpers";
+
+let session: ReturnType<typeof startDragSession> | null = null;
+
+ctx.tools.register("rectangle-draw", {
+  icon: RectangleIcon,
+  cursor: "crosshair",
+  onPointerDown(toolCtx, event) {
+    // ポインター位置に 0×0 の矩形を置き、ドラッグでサイズを決める
+    const id = createBlankRect(toolCtx, event.worldPoint);
+    session = startDragSession({
+      ctx: toolCtx,
+      startPoint: event.worldPoint,
+      shapeIds: [id],
+      includeDescendants: false,
+    });
+  },
+  onPointerMove(toolCtx, event) {
+    session?.update(event);
+  },
+  onPointerUp(toolCtx) {
+    const result = session?.commit();
+    if (result) {
+      // pointer-up の cleanup（snap 解除など）が先に走るよう、
+      // microtask 越しに command.execute を呼ぶ
+      queueMicrotask(() => toolCtx.commands.execute(result.command));
+    }
+    session = null;
+  },
+});
+```
+
+ヘルパーは、コンテナドラッグ時の子孫 shape 収集、回転中の shape のローカル空間 delta 計算、アンカー反転検出、snap を考慮した undo コマンド生成といった微妙にハマりやすい部分を引き受けてくれます。ツール本体は「何をしたいか」だけ書けば十分です。
+
+「クリックで置く」だけのツールに session は不要で、上のイレーザーの例が最小形になります。down と up の間の動きで挙動が変わるツールで session を使ってください。
+
 ## ヒント
 
 - セットアップと後片付け（カーソル変更、内部状態のリセットなど）には `onActivate` / `onDeactivate` を使う。
