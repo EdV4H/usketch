@@ -54,6 +54,19 @@ interface DragSnapshot {
 }
 
 /**
+ * The drag session is a specialization of {@link ToolSession} that also
+ * exposes the full set of shape IDs it has captured for the move (roots
+ * plus any descendants resolved via `collectSelectionWithDescendants`).
+ * Tools need this for things like drop-target hit testing — without it,
+ * dragging a container would falsely identify its own descendant
+ * frames/groups as drop targets.
+ */
+export interface DragSession extends ToolSession<DragUpdate, SessionCommit> {
+	/** Read-only view of every shape ID this session is moving. */
+	readonly movingShapeIds: ReadonlySet<string>;
+}
+
+/**
  * Drag/move session — extracted from `plugin-tool-select`'s `mode: "move"`
  * branch. Mirrors that flow exactly: take a snapshot of every shape that
  * will move (including descendants of containers), then on each pointermove
@@ -66,7 +79,7 @@ interface DragSnapshot {
  * `queueMicrotask(() => ctx.commands.execute(result.command))` so any
  * pointer-up cleanup (e.g. snap teardown) lands first.
  */
-export function startDragSession(opts: DragSessionOptions): ToolSession<DragUpdate, SessionCommit> {
+export function startDragSession(opts: DragSessionOptions): DragSession {
 	const { ctx, startPoint, shapeIds, includeDescendants = true, onSnap } = opts;
 
 	const startShapeSnapshots: Map<string, DragSnapshot> = new Map();
@@ -79,6 +92,8 @@ export function startDragSession(opts: DragSessionOptions): ToolSession<DragUpda
 	for (const [id, snap] of collected) {
 		startShapeSnapshots.set(id, { shape: snap, isRoot: rootIds.has(id) });
 	}
+
+	const movingShapeIds: ReadonlySet<string> = new Set(startShapeSnapshots.keys());
 
 	let lastUpdate: DragUpdate = {
 		delta: { x: 0, y: 0 },
@@ -103,6 +118,7 @@ export function startDragSession(opts: DragSessionOptions): ToolSession<DragUpda
 	}
 
 	return {
+		movingShapeIds,
 		update(event: CanvasPointerEvent): DragUpdate {
 			if (cancelled) return lastUpdate;
 			const rawDelta = {

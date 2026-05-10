@@ -280,10 +280,14 @@ export const selectToolPlugin: UsketchPlugin = {
 					startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
 					shapeIds: currentSelection,
 				});
+				// Drop-target hit test must exclude every shape the session
+				// touches — including descendants of dragged containers — or
+				// the container's own children would falsely register as drop
+				// targets.
 				dragState = {
 					kind: "move",
 					session,
-					movingIds: new Set(currentSelection),
+					movingIds: session.movingShapeIds,
 				};
 			} else {
 				// Click on empty — start marquee selection

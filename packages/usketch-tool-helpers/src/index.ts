@@ -1,5 +1,6 @@
 // Session-style helpers (drag/resize/rotate/marquee).
 export {
+	type DragSession,
 	type DragSessionOptions,
 	type DragUpdate,
 	startDragSession,

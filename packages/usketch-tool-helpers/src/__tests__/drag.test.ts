@@ -66,7 +66,7 @@ describe("startDragSession", () => {
 		expect(result).not.toBeNull();
 		// Helpers revert to "before" so the caller's execute() replays the move.
 		expect(ctx.store.getShape("a")?.x).toBe(0);
-		ctx.commands.execute(result!.command);
+		ctx.commands.execute(result?.command);
 		expect(ctx.store.getShape("a")?.x).toBe(25);
 		ctx.commands.undo();
 		expect(ctx.store.getShape("a")?.x).toBe(0);
@@ -84,6 +84,22 @@ describe("startDragSession", () => {
 		// Sub-pixel jitter that the move tracker classifies as "no real move".
 		session.update(makePointerEvent({ x: 0.1, y: 0.1 }));
 		expect(session.commit()).toBeNull();
+	});
+
+	it("exposes movingShapeIds including descendants so callers can exclude them from drop-target tests", () => {
+		// Regression for the "container drop-target on its own child" bug:
+		// dragging a group should expose the group + all descendants so the
+		// caller (tool-select's drop-target hit test) can skip them entirely.
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "g", type: "group", x: 0, y: 0 }));
+		ctx.store.addShape(makeShape({ id: "child", x: 10, y: 10, parentId: "g" }));
+		ctx.store.addShape(makeShape({ id: "innerFrame", type: "frame", x: 20, y: 20, parentId: "g" }));
+		const session = startDragSession({
+			ctx,
+			startPoint: { x: 0, y: 0 },
+			shapeIds: ["g"],
+		});
+		expect([...session.movingShapeIds].sort()).toEqual(["child", "g", "innerFrame"]);
 	});
 
 	it("calls the onSnap hook so callers can adjust the delta before it lands", () => {
