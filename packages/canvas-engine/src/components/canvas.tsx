@@ -168,7 +168,12 @@ export function Canvas() {
 			app.events.emit("layers:changed", {});
 		};
 		sync();
-		return app.selectionForeground.subscribe(sync);
+		const unsubscribe = app.selectionForeground.subscribe(sync);
+		return () => {
+			unsubscribe();
+			app.layers.unregister("__selection-foreground");
+			app.events.emit("layers:changed", {});
+		};
 	}, [app.selectionForeground, app.layers, app.events]);
 
 	// ── Tool activate / deactivate lifecycle ──
