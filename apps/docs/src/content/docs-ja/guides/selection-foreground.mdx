@@ -90,50 +90,49 @@ export const myFancyHandlesPlugin: UsketchPlugin = {
 
 ## 最小サンプル
 
-選択中のシェイプを橙色の点線ボックスで囲む（回転対応）例:
+選択中のシェイプを橙色の点線ボックスで囲む（回転対応）例を `createApp` のオプションとして渡します。オプションが受け取るのは `render`（必須）と任意の `priority` / `order` / `fixed` です。エントリの `id` は内部で `__app:selectionForeground` に固定されるため、ここでは指定しません。
 
 ```tsx
-import type { SelectionForeground } from "@edv4h/usketch-shared";
+const app = await createApp({
+  store,
+  plugins,
+  selectionForeground: {
+    render: ({ viewport, shapes, selection }) => {
+      if (selection.size !== 1) return null;
+      const id = [...selection][0]!;
+      const shape = shapes.get(id);
+      if (!shape) return null;
 
-const orangeBox: SelectionForeground = {
-  id: "orange-selection",
-  priority: 100,
-  fixed: true,
-  render: ({ viewport, shapes, selection }) => {
-    if (selection.size !== 1) return null;
-    const id = [...selection][0]!;
-    const shape = shapes.get(id);
-    if (!shape) return null;
+      const x = shape.x * viewport.zoom + viewport.x;
+      const y = shape.y * viewport.zoom + viewport.y;
+      const w = shape.width * viewport.zoom;
+      const h = shape.height * viewport.zoom;
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      const rotation = shape.rotation ?? 0;
 
-    const x = shape.x * viewport.zoom + viewport.x;
-    const y = shape.y * viewport.zoom + viewport.y;
-    const w = shape.width * viewport.zoom;
-    const h = shape.height * viewport.zoom;
-    const cx = x + w / 2;
-    const cy = y + h / 2;
-    const rotation = shape.rotation ?? 0;
-
-    return (
-      <svg style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }}>
-        <g transform={rotation ? `rotate(${rotation}, ${cx}, ${cy})` : undefined}>
-          <rect
-            x={x}
-            y={y}
-            width={w}
-            height={h}
-            fill="none"
-            stroke="#ff8800"
-            strokeWidth={2}
-            strokeDasharray="6 3"
-          />
-        </g>
-      </svg>
-    );
+      return (
+        <svg style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }}>
+          <g transform={rotation ? `rotate(${rotation}, ${cx}, ${cy})` : undefined}>
+            <rect
+              x={x}
+              y={y}
+              width={w}
+              height={h}
+              fill="none"
+              stroke="#ff8800"
+              strokeWidth={2}
+              strokeDasharray="6 3"
+            />
+          </g>
+        </svg>
+      );
+    },
   },
-};
-
-const app = await createApp({ store, plugins, selectionForeground: orangeBox });
+});
 ```
+
+自前の `id` や `priority` を持つ完全な `SelectionForeground` が必要な場合（例: `ctx.ui.registerSelectionForeground(...)` で登録するプラグインを配布したい場合）は、本ガイド前半の plugin サンプルを参照してください。
 
 ## デフォルト挙動とフォールバック
 

@@ -90,50 +90,49 @@ Set `fixed: true` (the default) and your component will be rendered outside the 
 
 ## Minimal example
 
-A dashed orange box that follows the rotation of a single selected shape:
+A dashed orange box that follows the rotation of a single selected shape, passed as a `createApp` option. The option accepts `render` (required) plus optional `priority` / `order` / `fixed` — the entry id is always set internally to `__app:selectionForeground`, so don't supply one here.
 
 ```tsx
-import type { SelectionForeground } from "@edv4h/usketch-shared";
+const app = await createApp({
+  store,
+  plugins,
+  selectionForeground: {
+    render: ({ viewport, shapes, selection }) => {
+      if (selection.size !== 1) return null;
+      const id = [...selection][0]!;
+      const shape = shapes.get(id);
+      if (!shape) return null;
 
-const orangeBox: SelectionForeground = {
-  id: "orange-selection",
-  priority: 100,
-  fixed: true,
-  render: ({ viewport, shapes, selection }) => {
-    if (selection.size !== 1) return null;
-    const id = [...selection][0]!;
-    const shape = shapes.get(id);
-    if (!shape) return null;
+      const x = shape.x * viewport.zoom + viewport.x;
+      const y = shape.y * viewport.zoom + viewport.y;
+      const w = shape.width * viewport.zoom;
+      const h = shape.height * viewport.zoom;
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      const rotation = shape.rotation ?? 0;
 
-    const x = shape.x * viewport.zoom + viewport.x;
-    const y = shape.y * viewport.zoom + viewport.y;
-    const w = shape.width * viewport.zoom;
-    const h = shape.height * viewport.zoom;
-    const cx = x + w / 2;
-    const cy = y + h / 2;
-    const rotation = shape.rotation ?? 0;
-
-    return (
-      <svg style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }}>
-        <g transform={rotation ? `rotate(${rotation}, ${cx}, ${cy})` : undefined}>
-          <rect
-            x={x}
-            y={y}
-            width={w}
-            height={h}
-            fill="none"
-            stroke="#ff8800"
-            strokeWidth={2}
-            strokeDasharray="6 3"
-          />
-        </g>
-      </svg>
-    );
+      return (
+        <svg style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }}>
+          <g transform={rotation ? `rotate(${rotation}, ${cx}, ${cy})` : undefined}>
+            <rect
+              x={x}
+              y={y}
+              width={w}
+              height={h}
+              fill="none"
+              stroke="#ff8800"
+              strokeWidth={2}
+              strokeDasharray="6 3"
+            />
+          </g>
+        </svg>
+      );
+    },
   },
-};
-
-const app = await createApp({ store, plugins, selectionForeground: orangeBox });
+});
 ```
+
+If you need a full `SelectionForeground` (with your own `id` and `priority`) — for example when distributing a plugin that registers via `ctx.ui.registerSelectionForeground(...)` — use the plugin-shaped example earlier in this guide instead.
 
 ## Default behavior and fallback
 

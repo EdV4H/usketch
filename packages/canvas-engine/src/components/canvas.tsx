@@ -1,6 +1,6 @@
 import type { CanvasPointerEvent, RenderMode } from "@edv4h/usketch-shared";
 import { compareZIndex, DEFAULT_THEME } from "@edv4h/usketch-shared";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
 import { useFilterPredicate } from "../hooks/use-filter-predicate.js";
@@ -152,7 +152,9 @@ export function Canvas() {
 	// ── Selection foreground: mount the active registry entry as an internal layer ──
 	// The id `__selection-foreground` is reserved; do not register a regular
 	// layer with the same id from outside.
-	useEffect(() => {
+	// Uses useLayoutEffect so the layer is registered before the first paint —
+	// otherwise the selection UI would be missing for one frame on initial mount.
+	useLayoutEffect(() => {
 		let mounted = false;
 		const sync = () => {
 			const active = app.selectionForeground.getActive();
