@@ -154,6 +154,11 @@ export function Canvas() {
 	// layer with the same id from outside.
 	// Uses useLayoutEffect so the layer is registered before the first paint —
 	// otherwise the selection UI would be missing for one frame on initial mount.
+	// Drives the Canvas re-render directly via `setLayerVersion` (not via
+	// `layers:changed`) because the event listener is installed in a passive
+	// `useEffect` that runs after this layout effect — the very first
+	// emission from `sync()` would otherwise be missed. The event is still
+	// emitted for external listeners that rely on it.
 	useLayoutEffect(() => {
 		let mounted = false;
 		const sync = () => {
@@ -166,10 +171,12 @@ export function Canvas() {
 					render: active.render,
 				});
 				mounted = true;
+				setLayerVersion((v) => v + 1);
 				app.events.emit("layers:changed", {});
 			} else if (mounted) {
 				app.layers.unregister("__selection-foreground");
 				mounted = false;
+				setLayerVersion((v) => v + 1);
 				app.events.emit("layers:changed", {});
 			}
 		};
@@ -179,6 +186,7 @@ export function Canvas() {
 			unsubscribe();
 			if (mounted) {
 				app.layers.unregister("__selection-foreground");
+				setLayerVersion((v) => v + 1);
 				app.events.emit("layers:changed", {});
 			}
 		};
