@@ -153,6 +153,7 @@ export function Canvas() {
 	// The id `__selection-foreground` is reserved; do not register a regular
 	// layer with the same id from outside.
 	useEffect(() => {
+		let mounted = false;
 		const sync = () => {
 			const active = app.selectionForeground.getActive();
 			if (active) {
@@ -162,17 +163,22 @@ export function Canvas() {
 					fixed: active.fixed ?? true,
 					render: active.render,
 				});
-			} else {
+				mounted = true;
+				app.events.emit("layers:changed", {});
+			} else if (mounted) {
 				app.layers.unregister("__selection-foreground");
+				mounted = false;
+				app.events.emit("layers:changed", {});
 			}
-			app.events.emit("layers:changed", {});
 		};
 		sync();
 		const unsubscribe = app.selectionForeground.subscribe(sync);
 		return () => {
 			unsubscribe();
-			app.layers.unregister("__selection-foreground");
-			app.events.emit("layers:changed", {});
+			if (mounted) {
+				app.layers.unregister("__selection-foreground");
+				app.events.emit("layers:changed", {});
+			}
 		};
 	}, [app.selectionForeground, app.layers, app.events]);
 
