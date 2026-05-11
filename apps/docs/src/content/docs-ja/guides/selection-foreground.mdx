@@ -1,0 +1,142 @@
+---
+title: Selection Foreground (selection UI の差し替え)
+description: ハンドル、バウンディングボックス、マーキーを独自の React コンポーネントで置き換える方法。
+order: 22
+---
+
+既定の selection UI（バウンディングボックス、8 方向リサイズハンドル、回転ハンドル、マーキー矩形、ホバーハイライト、ドロップターゲット表示）は `usketch-plugin-tool-select` が描画しています。多くのアプリではこれで十分ですが、視覚や挙動を大きく変えたい場合（クロップ用ハンドル、テキスト編集用ハンドル、独自スタイル、特定ブラウザ向け回避など）、uSketch は selection UI 全体を React コンポーネント 1 つで差し替えるための API を提供します。
+
+## いつ使うか
+
+以下のような要件があるときに使ってください:
+
+- 既定とは本質的に異なるハンドル（画像用クロップ、テキスト編集、ロール別の表示など）を描画したい。
+- アプリ固有のラッパー UI（埋め込み iframe オーバレイ、ブラウザ別の workaround）が必要。
+- React canvas 以外のスタイル（HTML オーバレイ、選択近傍のアンカーボタンなど）を出したい。
+
+シェイプの **リサイズ挙動** だけを変えたい場合（アスペクト比固定など）は、シェイプの `resize` 関数を変更してください。色や線幅などの小さな見た目調整は可能なら CSS で行います。本 API は selection UI を **丸ごと** 置換するためのもので、部分置換用の slot ではありません。
+
+## 2 つの登録経路
+
+機能的には等価です。配布形態に合わせて選んでください。
+
+### アプリオプションとして
+
+キャンバスの埋め込みオーナーが固定の selection UI を出したい場合:
+
+```ts
+import { createApp } from "@edv4h/usketch-core";
+
+const app = await createApp({
+  store,
+  plugins,
+  selectionForeground: {
+    render: (ctx) => <MySelectionForeground ctx={ctx} />,
+  },
+});
+```
+
+内部的には `__app:selectionForeground` という id で **priority 100** にて、全プラグイン setup の **後** に登録されます。任意のプラグイン default に勝ちます。
+
+### プラグインとして
+
+他アプリにオプトインで配布したい場合:
+
+```ts
+import type { UsketchPlugin } from "@edv4h/usketch-shared";
+
+export const myFancyHandlesPlugin: UsketchPlugin = {
+  id: "fancy-handles",
+  name: "Fancy Handles",
+  setup(ctx) {
+    const off = ctx.ui.registerSelectionForeground({
+      id: "fancy-handles",
+      priority: 50,
+      order: 80,
+      fixed: true,
+      render: (renderCtx) => <FancyHandles ctx={renderCtx} />,
+    });
+    (this as UsketchPlugin).teardown = () => off();
+  },
+};
+```
+
+## 優先度の規約
+
+`priority` 数値が大きい方が勝ち、同値なら **最後に登録された方** が勝ちます。
+
+| 提供元                                              | priority |
+| --------------------------------------------------- | -------- |
+| プラグイン default（`usketch-plugin-tool-select`） | **0**    |
+| 第三者プラグインのカスタム UI                       | **50**   |
+| `createApp({ selectionForeground })` のホスト指定   | **100**  |
+
+これらは推奨値であって強制ではありません。アプリオプションはプラグイン setup の **後** に登録されるため、プラグインが誤って priority 100 で登録しても、同値の場合は last-wins でアプリ側が勝ちます。
+
+## render 契約
+
+`render` 関数には通常の layer と同じ `LayerRenderContext` が渡されます:
+
+| フィールド      | 内容                                                                |
+| --------------- | ------------------------------------------------------------------- |
+| `viewport`      | 現在の `{ x, y, zoom }`。world→screen 座標変換に使用。              |
+| `shapes`        | 全シェイプ `ReadonlyMap<string, ShapeData>`。                       |
+| `shapesSorted`  | zIndex 昇順（背面→前面）にソート済みのシェイプ。                    |
+| `selection`     | 現在の選択中シェイプ ID `ReadonlySet<string>`。                     |
+| `theme`         | 有効なテーマトークン。                                              |
+| `renderMode`    | LOD モード（`"interactive"` / `"simplified"`）。                    |
+
+`fixed: true`（デフォルト）にすると、コンポーネントは viewport transform の外側で描画されます — screen-space SVG / HTML オーバレイを書きやすくなります。world 座標で描きたい場合は `fixed: false` を指定してください。
+
+## 最小サンプル
+
+選択中のシェイプを橙色の点線ボックスで囲む（回転対応）例:
+
+```tsx
+import type { SelectionForeground } from "@edv4h/usketch-shared";
+
+const orangeBox: SelectionForeground = {
+  id: "orange-selection",
+  priority: 100,
+  fixed: true,
+  render: ({ viewport, shapes, selection }) => {
+    if (selection.size !== 1) return null;
+    const id = [...selection][0]!;
+    const shape = shapes.get(id);
+    if (!shape) return null;
+
+    const x = shape.x * viewport.zoom + viewport.x;
+    const y = shape.y * viewport.zoom + viewport.y;
+    const w = shape.width * viewport.zoom;
+    const h = shape.height * viewport.zoom;
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    const rotation = shape.rotation ?? 0;
+
+    return (
+      <svg style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }}>
+        <g transform={rotation ? `rotate(${rotation}, ${cx}, ${cy})` : undefined}>
+          <rect
+            x={x}
+            y={y}
+            width={w}
+            height={h}
+            fill="none"
+            stroke="#ff8800"
+            strokeWidth={2}
+            strokeDasharray="6 3"
+          />
+        </g>
+      </svg>
+    );
+  },
+};
+
+const app = await createApp({ store, plugins, selectionForeground: orangeBox });
+```
+
+## デフォルト挙動とフォールバック
+
+`usketch-plugin-tool-select` は priority 0 で default エントリ（`id: "tool-select-default"`、`order: 80`、`fixed: true`）を自己登録します。tool-select を読み込まず **かつ** アプリオプションも指定しない場合、selection UI は何も描画されません（レジストリの active が null）。キャンバス自体は動作しますが、視覚的なオーバレイのみが消えます。
+
+予約済 layer id `__selection-foreground` は active エントリのマウントに内部で使われます。外部から `ctx.layers` でこの id を登録しないでください。

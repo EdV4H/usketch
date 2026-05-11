@@ -1,0 +1,142 @@
+---
+title: Selection Foreground (replacing the selection UI)
+description: Swap out the default handles, bounding box, and marquee with a custom React component.
+order: 22
+---
+
+The default selection UI — bounding box, eight resize handles, rotation handle, marquee rectangle, hover highlight, drop-target indicator — is rendered by `usketch-plugin-tool-select`. For most apps that is what you want. When you need a substantially different visual or behavior (e.g. integrating a host app's own selection UI with extra handles, custom adornments, or branded styling), uSketch lets you replace the entire foreground with a single React component.
+
+## When to use this API
+
+Reach for the selection foreground API when you want to:
+
+- Render fundamentally different handles (crop handles for images, text-editing handles, role-specific adornments).
+- Wrap selection in app-specific chrome (e.g. embedded iframe overlays, browser-specific workarounds).
+- Provide a non-React-canvas-style UI (HTML overlay, anchored buttons next to the selection).
+
+If you only want to change a shape's *resize behavior* (e.g. constrain aspect ratio), modify the shape's `resize` function instead. If you only need a small visual tweak (color, stroke), restyle via CSS where possible. The selection foreground API replaces the **entire** overlay; it is not a slot for partial overrides.
+
+## Two ways to register
+
+There are two equivalent paths to register an entry — pick whichever fits your distribution model.
+
+### As an app option
+
+For apps that own the canvas embedding and want a fixed selection UI:
+
+```ts
+import { createApp } from "@edv4h/usketch-core";
+
+const app = await createApp({
+  store,
+  plugins,
+  selectionForeground: {
+    render: (ctx) => <MySelectionForeground ctx={ctx} />,
+  },
+});
+```
+
+Internally registered with id `__app:selectionForeground` at **priority 100**, after all plugins have run. This wins over any plugin default.
+
+### As a plugin
+
+For shareable plugins that other apps can opt into:
+
+```ts
+import type { UsketchPlugin } from "@edv4h/usketch-shared";
+
+export const myFancyHandlesPlugin: UsketchPlugin = {
+  id: "fancy-handles",
+  name: "Fancy Handles",
+  setup(ctx) {
+    const off = ctx.ui.registerSelectionForeground({
+      id: "fancy-handles",
+      priority: 50,
+      order: 80,
+      fixed: true,
+      render: (renderCtx) => <FancyHandles ctx={renderCtx} />,
+    });
+    (this as UsketchPlugin).teardown = () => off();
+  },
+};
+```
+
+## Priority conventions
+
+Higher `priority` wins. On a tie, the most recently registered entry wins.
+
+| Source                                          | Priority |
+| ----------------------------------------------- | -------- |
+| Plugin default (`usketch-plugin-tool-select`)   | **0**    |
+| Third-party plugin custom UI                    | **50**   |
+| `createApp({ selectionForeground })` host option | **100**  |
+
+These are conventions, not enforced ranges. App options are registered *after* plugin `setup`, so an app option at priority 100 also wins on ties with a plugin that registered at priority 100.
+
+## The render contract
+
+Your `render` function receives the same `LayerRenderContext` that regular layers receive:
+
+| Field           | What it gives you                                                          |
+| --------------- | -------------------------------------------------------------------------- |
+| `viewport`      | Current `{ x, y, zoom }` — used to convert world to screen coordinates.    |
+| `shapes`        | All shapes on the canvas as `ReadonlyMap<string, ShapeData>`.              |
+| `shapesSorted`  | The same shapes sorted by zIndex (back-to-front).                          |
+| `selection`     | The currently selected shape IDs as `ReadonlySet<string>`.                 |
+| `theme`         | Active theme tokens.                                                       |
+| `renderMode`    | LOD mode (`"interactive"` / `"simplified"`).                               |
+
+Set `fixed: true` (the default) and your component will be rendered outside the viewport transform — useful for screen-space SVG/HTML overlays. Set `fixed: false` if your component lives in world coordinates.
+
+## Minimal example
+
+A dashed orange box that follows the rotation of a single selected shape:
+
+```tsx
+import type { SelectionForeground } from "@edv4h/usketch-shared";
+
+const orangeBox: SelectionForeground = {
+  id: "orange-selection",
+  priority: 100,
+  fixed: true,
+  render: ({ viewport, shapes, selection }) => {
+    if (selection.size !== 1) return null;
+    const id = [...selection][0]!;
+    const shape = shapes.get(id);
+    if (!shape) return null;
+
+    const x = shape.x * viewport.zoom + viewport.x;
+    const y = shape.y * viewport.zoom + viewport.y;
+    const w = shape.width * viewport.zoom;
+    const h = shape.height * viewport.zoom;
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    const rotation = shape.rotation ?? 0;
+
+    return (
+      <svg style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }}>
+        <g transform={rotation ? `rotate(${rotation}, ${cx}, ${cy})` : undefined}>
+          <rect
+            x={x}
+            y={y}
+            width={w}
+            height={h}
+            fill="none"
+            stroke="#ff8800"
+            strokeWidth={2}
+            strokeDasharray="6 3"
+          />
+        </g>
+      </svg>
+    );
+  },
+};
+
+const app = await createApp({ store, plugins, selectionForeground: orangeBox });
+```
+
+## Default behavior and fallback
+
+`usketch-plugin-tool-select` self-registers a default entry at priority 0 (`id: "tool-select-default"`, `order: 80`, `fixed: true`). If you do not load tool-select **and** do not provide an app option, nothing is rendered for the selection UI — the registry simply has no active entry. The canvas itself continues to work; only the visual overlay disappears.
+
+The reserved layer id `__selection-foreground` is used internally to mount the active entry. Do not register a regular `ctx.layers` layer with that id from outside.

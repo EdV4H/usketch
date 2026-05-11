@@ -149,6 +149,28 @@ export function Canvas() {
 		return app.events.on("layers:changed", () => setLayerVersion((v) => v + 1));
 	}, [app.events]);
 
+	// ── Selection foreground: mount the active registry entry as an internal layer ──
+	// The id `__selection-foreground` is reserved; do not register a regular
+	// layer with the same id from outside.
+	useEffect(() => {
+		const sync = () => {
+			const active = app.selectionForeground.getActive();
+			if (active) {
+				app.layers.register({
+					id: "__selection-foreground",
+					order: active.order ?? 80,
+					fixed: active.fixed ?? true,
+					render: active.render,
+				});
+			} else {
+				app.layers.unregister("__selection-foreground");
+			}
+			app.events.emit("layers:changed", {});
+		};
+		sync();
+		return app.selectionForeground.subscribe(sync);
+	}, [app.selectionForeground, app.layers, app.events]);
+
 	// ── Tool activate / deactivate lifecycle ──
 	const prevToolIdRef = useRef<string | null>(null);
 	const activeToolRef = useRef(activeTool);

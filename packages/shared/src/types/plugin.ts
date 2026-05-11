@@ -50,6 +50,46 @@ export interface LayerManager {
 	getLayers(): readonly Layer[];
 }
 
+// ── Selection Foreground (UI extension point) ──
+
+/**
+ * A replaceable rendering of the selection UI (handles, bounding box, marquee,
+ * rotation handle, etc.). Apps and plugins can register one or more entries;
+ * the registry picks a single winner using `priority` (higher wins) with
+ * last-registered winning on ties.
+ *
+ * Priority conventions (recommended, not enforced):
+ * - `0`   — plugin default (e.g. `usketch-plugin-tool-select`).
+ * - `50`  — third-party plugin custom UI.
+ * - `100` — `createApp({ selectionForeground })` host option.
+ *
+ * The `render` function has the same shape as a regular `Layer.render` so
+ * the active entry can be mounted as an internal canvas layer.
+ */
+export interface SelectionForeground {
+	id: string;
+	priority: number;
+	/** z-order hint when mounted as a layer. Defaults to 80. */
+	order?: number;
+	/** Whether the mounted layer should skip viewport transform. Defaults to true. */
+	fixed?: boolean;
+	render: (ctx: LayerRenderContext) => ReactElement | null;
+}
+
+export interface SelectionForegroundRegistry {
+	/** Register an entry. Re-registering the same `id` replaces and bumps to last (wins on ties). */
+	register(entry: SelectionForeground): () => void;
+	unregister(id: string): void;
+	/** The currently winning entry, or `null` when nothing is registered. */
+	getActive(): SelectionForeground | null;
+	/** Notified whenever the active entry changes. */
+	subscribe(listener: () => void): () => void;
+}
+
+export interface UiRegistry {
+	registerSelectionForeground(entry: SelectionForeground): () => void;
+}
+
 // ── Shape System ──
 
 /**
@@ -326,6 +366,7 @@ export interface PluginContext {
 	events: EventBus;
 	transient: TransientRegistry;
 	lod: LodController;
+	ui: UiRegistry;
 }
 
 export interface UsketchPlugin {
