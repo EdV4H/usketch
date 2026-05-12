@@ -18,6 +18,8 @@ export type {
 	LayerRenderContext,
 	PluginContext,
 	RenderTarget,
+	SelectionForeground,
+	SelectionForegroundRegistry,
 	ShapeDefinition,
 	ShapeRegistry,
 	ShapeSerializeContext,
@@ -29,6 +31,7 @@ export type {
 	TransientObject,
 	TransientRegistry,
 	TransientRenderer,
+	UiRegistry,
 	UsketchPlugin,
 } from "./types/plugin.js";
 // Shape

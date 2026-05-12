@@ -445,10 +445,12 @@ export const selectToolPlugin: UsketchPlugin = {
 			onDeactivate,
 		});
 
-		// ── Selection overlay layer ──
-
-		ctx.layers.register({
-			id: "selection-overlay",
+		// ── Selection foreground (default) ──
+		// Registered at priority 0 so any app option or third-party plugin
+		// (recommended: 50) replaces it. See guides/selection-foreground.
+		const unregisterSelectionForeground = ctx.ui.registerSelectionForeground({
+			id: "tool-select-default",
+			priority: 0,
 			order: 80,
 			fixed: true,
 			render: (renderCtx) => (
@@ -474,7 +476,7 @@ export const selectToolPlugin: UsketchPlugin = {
 			clearHoveredShapeListeners();
 			clearDropTargetListeners();
 			styleEl.remove();
-			ctx.layers.unregister("selection-overlay");
+			unregisterSelectionForeground();
 		};
 	},
 };

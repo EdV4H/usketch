@@ -1,6 +1,6 @@
 import type { CanvasPointerEvent, RenderMode } from "@edv4h/usketch-shared";
 import { compareZIndex, DEFAULT_THEME } from "@edv4h/usketch-shared";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
 import { useFilterPredicate } from "../hooks/use-filter-predicate.js";
@@ -145,9 +145,47 @@ export function Canvas() {
 	// ── Re-render when layers change dynamically ──
 	// Plugins that register/unregister layers at runtime must emit
 	// "layers:changed" via ctx.events after mutation.
-	useEffect(() => {
+	// Installed via useLayoutEffect so that emissions made from the
+	// selection-foreground layout effect below (which also runs synchronously
+	// before paint on initial mount) are not missed.
+	useLayoutEffect(() => {
 		return app.events.on("layers:changed", () => setLayerVersion((v) => v + 1));
 	}, [app.events]);
+
+	// ── Selection foreground: mount the active registry entry as an internal layer ──
+	// The id `__selection-foreground` is reserved; do not register a regular
+	// layer with the same id from outside.
+	// Uses useLayoutEffect so the layer is registered before the first paint —
+	// otherwise the selection UI would be missing for one frame on initial mount.
+	useLayoutEffect(() => {
+		let mounted = false;
+		const sync = () => {
+			const active = app.selectionForeground.getActive();
+			if (active) {
+				app.layers.register({
+					id: "__selection-foreground",
+					order: active.order ?? 80,
+					fixed: active.fixed ?? true,
+					render: active.render,
+				});
+				mounted = true;
+				app.events.emit("layers:changed", {});
+			} else if (mounted) {
+				app.layers.unregister("__selection-foreground");
+				mounted = false;
+				app.events.emit("layers:changed", {});
+			}
+		};
+		sync();
+		const unsubscribe = app.selectionForeground.subscribe(sync);
+		return () => {
+			unsubscribe();
+			if (mounted) {
+				app.layers.unregister("__selection-foreground");
+				app.events.emit("layers:changed", {});
+			}
+		};
+	}, [app.selectionForeground, app.layers, app.events]);
 
 	// ── Tool activate / deactivate lifecycle ──
 	const prevToolIdRef = useRef<string | null>(null);
