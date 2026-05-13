@@ -56,17 +56,43 @@ export async function resizeImage(
 	});
 }
 
+let webpEncodeSupportCache: boolean | null = null;
+/**
+ * Detect whether `HTMLCanvasElement.toDataURL("image/webp")` actually emits
+ * WebP in this browser. Safari < 16 silently returns PNG for unsupported
+ * MIMEs, which would defeat the "preserve format" intent of `resizeImage`.
+ * The result is cached for the lifetime of the module.
+ */
+function canEncodeWebp(): boolean {
+	if (webpEncodeSupportCache !== null) return webpEncodeSupportCache;
+	if (typeof document === "undefined") {
+		webpEncodeSupportCache = false;
+		return false;
+	}
+	try {
+		const probe = document.createElement("canvas");
+		probe.width = 1;
+		probe.height = 1;
+		webpEncodeSupportCache = probe.toDataURL("image/webp").startsWith("data:image/webp");
+	} catch {
+		webpEncodeSupportCache = false;
+	}
+	return webpEncodeSupportCache;
+}
+
 /**
  * Return a MIME the canvas can encode that preserves the source format.
- * Falls back to `image/jpeg` for formats `HTMLCanvasElement.toDataURL` cannot
- * emit (HEIC, AVIF in older browsers, SVG, …).
+ * - `image/png` stays PNG (alpha + lossless).
+ * - `image/webp` stays WebP **only if the current browser can actually encode
+ *   WebP**; otherwise falls back to JPEG (avoiding the PNG silent fallback
+ *   that defeats the size-saving intent).
+ * - Everything else (jpeg, heic, svg, avif, …) is re-encoded as JPEG.
  */
 function pickOutputMime(dataUrl: string): "image/png" | "image/jpeg" | "image/webp" {
 	const match = /^data:(image\/[^;]+);/.exec(dataUrl);
 	const sourceMime = match?.[1]?.toLowerCase();
 	if (sourceMime === "image/png") return "image/png";
-	if (sourceMime === "image/webp") return "image/webp";
-	// Treat everything else (including jpeg / heic / svg / avif) as jpeg.
+	if (sourceMime === "image/webp" && canEncodeWebp()) return "image/webp";
 	return "image/jpeg";
 }
 

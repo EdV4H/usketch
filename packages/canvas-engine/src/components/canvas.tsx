@@ -200,11 +200,17 @@ export function Canvas() {
 	// before yielding — `await`ing inside this handler would let the browser
 	// commit the default paste action first. The registry dispatch is
 	// fire-and-forget; async handlers settle on their own.
+	//
+	// `stopImmediatePropagation` prevents duplicate dispatch when multiple
+	// <Canvas /> instances are mounted (each registering its own
+	// document-level listener) — the first canvas that claims a paste wins,
+	// matching what users see for keyboard / pointer focus.
 	useEffect(() => {
 		const onPaste = (e: ClipboardEvent) => {
 			const content = extractPasteContent(e);
 			if (!content) return;
 			e.preventDefault();
+			e.stopImmediatePropagation();
 			void app.externalContent.dispatch(content);
 		};
 		document.addEventListener("paste", onPaste);
