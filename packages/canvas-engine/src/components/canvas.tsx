@@ -3,7 +3,7 @@ import { compareZIndex, DEFAULT_THEME } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
-import { dispatchDropToRegistry, dispatchPasteToRegistry } from "../external-content-dispatch.js";
+import { dispatchDropToRegistry, extractPasteContent } from "../external-content-dispatch.js";
 import { useFilterPredicate } from "../hooks/use-filter-predicate.js";
 import { useInteractingListeners } from "../hooks/use-interacting.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
@@ -195,15 +195,17 @@ export function Canvas() {
 
 	// ── External-content: document-scope paste listener ──
 	// `paste` events fire on `document` (the canvas div is not focusable by
-	// default), so the listener is registered there. The dispatch helper
-	// short-circuits when the paste target is an INPUT / TEXTAREA / contentEditable,
-	// preserving browser-native paste in form fields.
+	// default), so the listener is registered there. The skip-target check and
+	// payload construction run synchronously so we can call `preventDefault()`
+	// before yielding — `await`ing inside this handler would let the browser
+	// commit the default paste action first. The registry dispatch is
+	// fire-and-forget; async handlers settle on their own.
 	useEffect(() => {
 		const onPaste = (e: ClipboardEvent) => {
-			void (async () => {
-				const dispatched = await dispatchPasteToRegistry(e, app.externalContent);
-				if (dispatched) e.preventDefault();
-			})();
+			const content = extractPasteContent(e);
+			if (!content) return;
+			e.preventDefault();
+			void app.externalContent.dispatch(content);
 		};
 		document.addEventListener("paste", onPaste);
 		return () => document.removeEventListener("paste", onPaste);

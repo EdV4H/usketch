@@ -7,7 +7,11 @@ import { generateId } from "@edv4h/usketch-shared";
 import { fileToBase64, getImageDimensions, resizeImage, validateImage } from "./image-utils.js";
 
 export interface ImageFileHandlerOptions {
-	/** Max accepted size per file. Default 4 (MB). Larger files are rejected silently. */
+	/**
+	 * Max accepted size per file. Default 4 (MB). Larger files are rejected and
+	 * the handler emits an `ai:status` error event so the host UI can surface
+	 * the failure.
+	 */
 	maxSizeMB?: number;
 	/** Resize threshold in pixels for the longest dimension. Default 2048. */
 	maxDimension?: number;
@@ -47,7 +51,7 @@ export function createImageFileHandler(
 		match: (content) =>
 			content.files.length > 0 && content.files.every((f) => f.type.startsWith("image/")),
 		handle: async (content, ctx) => {
-			const base = viewportCenterToWorld();
+			const base = viewportCenterToWorld(ctx);
 			let offsetX = 0;
 			for (const file of content.files) {
 				await placeImageShape(file, ctx, {
@@ -62,14 +66,20 @@ export function createImageFileHandler(
 	};
 }
 
-function viewportCenterToWorld(): { x: number; y: number } {
-	// Best-effort: the registry doesn't ship a viewport reader, so use window
-	// dimensions to approximate. Callers (createApp) wire `store.getViewport()`
-	// through `ctx`, but for placement we want world coordinates so just use
-	// the page-center heuristic. The image handler is intentionally tolerant —
-	// users can drag the result anywhere afterwards.
-	if (typeof window === "undefined") return { x: 0, y: 0 };
-	return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+/**
+ * Convert the visible screen center to world coordinates using the current
+ * viewport. The world-space center is `viewport-screen-center / zoom - viewport-origin`,
+ * accounting for pan and zoom so dropped/pasted images land where the user
+ * is actually looking — not at an arbitrary screen-space point.
+ */
+function viewportCenterToWorld(ctx: ExternalContentHandlerCtx): { x: number; y: number } {
+	const vp = ctx.store.getViewport();
+	const screenW = typeof window !== "undefined" ? window.innerWidth : 0;
+	const screenH = typeof window !== "undefined" ? window.innerHeight : 0;
+	return {
+		x: (screenW / 2 - vp.x) / vp.zoom,
+		y: (screenH / 2 - vp.y) / vp.zoom,
+	};
 }
 
 interface PlaceOptions {

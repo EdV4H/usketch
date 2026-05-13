@@ -9,6 +9,7 @@ export { getTransformStyle, screenToWorld, worldToScreen } from "./coordinate-tr
 export {
 	dispatchDropToRegistry,
 	dispatchPasteToRegistry,
+	extractPasteContent,
 	looksLikeUrl,
 	parseUriList,
 } from "./external-content-dispatch.js";

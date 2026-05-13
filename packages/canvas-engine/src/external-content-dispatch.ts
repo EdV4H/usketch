@@ -1,4 +1,4 @@
-import type { ExternalContentRegistry } from "@edv4h/usketch-shared";
+import type { ExternalContent, ExternalContentRegistry } from "@edv4h/usketch-shared";
 
 /**
  * Parse a RFC 2483 `text/uri-list` payload into URLs.
@@ -98,27 +98,27 @@ export async function dispatchDropToRegistry(
 }
 
 /**
- * Inspect a `ClipboardEvent` and dispatch to the external-content registry.
+ * Synchronously inspect a `ClipboardEvent` and return an `ExternalContent`
+ * payload ready to be dispatched, or `null` when the paste should be left
+ * to the browser.
  *
- * Skip rules: when the paste target is an `<input>`, `<textarea>`, or
- * `contentEditable` element, this returns `false` without touching the
- * registry and without calling `preventDefault` — the browser handles those.
+ * This is split out from `dispatchPasteToRegistry` so the caller can call
+ * `event.preventDefault()` synchronously — by the time an `async` function
+ * suspends at `await`, browsers may have already performed the default paste
+ * (inserting text into the focused element, navigating, etc.).
  *
- * Returns whether `preventDefault` should be called by the caller (i.e.
- * a dispatch was attempted). The actual `preventDefault` call is left to
- * the caller so it can keep React event semantics consistent.
+ * Skip rules: returns `null` when the paste target is an `<input>`,
+ * `<textarea>`, or `contentEditable` element so browser-native paste in form
+ * fields keeps working.
  */
-export async function dispatchPasteToRegistry(
-	event: ClipboardEvent,
-	registry: ExternalContentRegistry,
-): Promise<boolean> {
+export function extractPasteContent(event: ClipboardEvent): ExternalContent | null {
 	const target = event.target as HTMLElement | null;
-	if (!target) return false;
-	if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return false;
-	if (target.isContentEditable) return false;
+	if (!target) return null;
+	if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return null;
+	if (target.isContentEditable) return null;
 
 	const cd = event.clipboardData;
-	if (!cd) return false;
+	if (!cd) return null;
 
 	// 1. files (modern browsers)
 	let files: File[] | null = cd.files.length > 0 ? Array.from(cd.files) : null;
@@ -136,36 +136,43 @@ export async function dispatchPasteToRegistry(
 	}
 
 	if (files) {
-		await registry.dispatch({
-			kind: "file",
-			via: "paste",
-			files,
-		});
-		return true;
+		return { kind: "file", via: "paste", files };
 	}
 
 	const text = cd.getData("text/plain");
 	const html = cd.getData("text/html");
 
 	if (text && looksLikeUrl(text)) {
-		await registry.dispatch({
-			kind: "url",
-			via: "paste",
-			url: text,
-			source: "text",
-		});
-		return true;
+		return { kind: "url", via: "paste", url: text, source: "text" };
 	}
 
 	if (text || html) {
-		await registry.dispatch({
+		return {
 			kind: "text",
 			via: "paste",
 			text: text ?? "",
 			html: html || null,
-		});
-		return true;
+		};
 	}
 
-	return false;
+	return null;
+}
+
+/**
+ * Inspect a `ClipboardEvent` and dispatch to the external-content registry.
+ *
+ * Prefer {@link extractPasteContent} + a synchronous `event.preventDefault()`
+ * in the caller. This async helper is kept for callers that don't need to
+ * preempt default paste behavior.
+ *
+ * Returns whether a dispatch was attempted.
+ */
+export async function dispatchPasteToRegistry(
+	event: ClipboardEvent,
+	registry: ExternalContentRegistry,
+): Promise<boolean> {
+	const content = extractPasteContent(event);
+	if (!content) return false;
+	await registry.dispatch(content);
+	return true;
 }

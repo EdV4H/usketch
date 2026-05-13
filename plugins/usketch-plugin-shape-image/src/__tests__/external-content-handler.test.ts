@@ -42,6 +42,7 @@ function makeCtx(): {
 		addShape: addShape as (shape: ShapeData) => void,
 		deleteShape: vi.fn(),
 		setSelection,
+		getViewport: () => ({ x: 0, y: 0, zoom: 1 }),
 	} as unknown as BoardStore;
 	const commands = { execute } as unknown as CommandRegistry;
 	const registry = {} as ExternalContentRegistry;
