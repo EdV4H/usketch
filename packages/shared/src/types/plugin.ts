@@ -90,6 +90,121 @@ export interface UiRegistry {
 	registerSelectionForeground(entry: SelectionForeground): () => void;
 }
 
+// ── External Content (drop / paste / URL handlers) ──
+
+/**
+ * The kind of payload an external-content handler operates on.
+ * - `"file"` — file drop or image paste from the clipboard.
+ * - `"url"`  — URL drop (text/uri-list) or pasted URL string.
+ * - `"text"` — plain text drop or paste that is not a URL.
+ *
+ * Embeds (YouTube, Figma, Loom, …) are intentionally not their own kind —
+ * register a `"url"` handler whose `match` checks the host name.
+ */
+export type ExternalContentKind = "file" | "url" | "text";
+
+/** How the content arrived. Same `kind` may behave differently per source. */
+export type ExternalContentVia = "drop" | "paste";
+
+export interface ExternalContentBase {
+	via: ExternalContentVia;
+}
+
+export interface ExternalContentFile extends ExternalContentBase {
+	kind: "file";
+	files: readonly File[];
+}
+
+export interface ExternalContentUrl extends ExternalContentBase {
+	kind: "url";
+	url: string;
+	/** Where the URL string came from. `"uri-list"` is RFC 2483 `text/uri-list`. */
+	source: "uri-list" | "text";
+}
+
+export interface ExternalContentText extends ExternalContentBase {
+	kind: "text";
+	text: string;
+	/** Companion `text/html` payload when paste carried one (e.g. SVG markup). */
+	html: string | null;
+}
+
+export type ExternalContent = ExternalContentFile | ExternalContentUrl | ExternalContentText;
+
+/** Narrow {@link ExternalContent} to the variant matching the given kind. */
+export type ExternalContentOf<K extends ExternalContentKind> = Extract<
+	ExternalContent,
+	{ kind: K }
+>;
+
+/**
+ * Context passed to a handler's `match` and `handle`. Mirrors {@link ToolContext}
+ * plus a self-reference so handlers can re-dispatch (e.g. an embed URL handler
+ * that delegates to a generic URL handler on miss).
+ */
+export interface ExternalContentHandlerCtx {
+	store: BoardStore;
+	shapes: ShapeRegistry;
+	commands: CommandRegistry;
+	events: EventBus;
+	externalContent: ExternalContentRegistry;
+}
+
+/**
+ * A registered handler for one kind of external content.
+ *
+ * Resolution at dispatch time:
+ * 1. Filter by `kind`.
+ * 2. Call each handler's `match`. Errors are caught, logged, and treated as
+ *    `false` so a single misbehaving handler can't block the rest.
+ * 3. Among matching handlers, the highest `order` wins. On ties the
+ *    most-recently-registered handler wins (last-wins) — mirroring
+ *    {@link SelectionForegroundRegistry}.
+ * 4. Exactly one handler's `handle` is invoked. If it throws or rejects,
+ *    the error is logged and the dispatch ends — no other handler is tried.
+ *
+ * Priority conventions (recommended, not enforced):
+ * - `0`   — plugin default (e.g. `usketch-plugin-shape-image` image-file handler).
+ * - `50`  — third-party plugin.
+ * - `100` — app-level override.
+ */
+export interface ExternalContentHandler<K extends ExternalContentKind = ExternalContentKind> {
+	/** Required. Used for `unregister` and for last-wins re-register semantics. */
+	id: string;
+	kind: K;
+	/**
+	 * Side-effect-free predicate. Heavy work (fetch, decode) belongs in
+	 * `handle`. If `match` throws, it is logged and treated as `false`.
+	 */
+	match: (content: ExternalContentOf<K>, ctx: ExternalContentHandlerCtx) => boolean;
+	/**
+	 * Invoked at most once per dispatch — the single winning handler. May be
+	 * `async`; the registry awaits the returned promise. Errors are logged
+	 * and end the dispatch (the next-best handler is NOT tried).
+	 */
+	handle: (content: ExternalContentOf<K>, ctx: ExternalContentHandlerCtx) => void | Promise<void>;
+	/** Default `0`. Larger values win; on ties, the last-registered wins. */
+	order?: number;
+}
+
+export interface ExternalContentRegistry {
+	/**
+	 * Register a handler. Re-registering the same `id` replaces the previous
+	 * entry and bumps it to the end of insertion order (so it wins on ties).
+	 * Returns an `unsubscribe` function.
+	 */
+	register<K extends ExternalContentKind>(handler: ExternalContentHandler<K>): () => void;
+	unregister(id: string): void;
+	/**
+	 * Dispatch a piece of external content. Resolves to `true` if a handler's
+	 * `handle` was invoked (even if it threw — the throw is logged), or
+	 * `false` if no handler matched.
+	 */
+	dispatch<K extends ExternalContentKind>(content: ExternalContentOf<K>): Promise<boolean>;
+	/** All currently-registered handlers (insertion order). For debugging / inspectors. */
+	getHandlers(): readonly ExternalContentHandler[];
+}
+
 // ── Shape System ──
 
 /**
@@ -367,6 +482,7 @@ export interface PluginContext {
 	transient: TransientRegistry;
 	lod: LodController;
 	ui: UiRegistry;
+	externalContent: ExternalContentRegistry;
 }
 
 export interface UsketchPlugin {

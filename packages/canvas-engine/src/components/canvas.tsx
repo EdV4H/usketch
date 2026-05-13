@@ -3,6 +3,7 @@ import { compareZIndex, DEFAULT_THEME } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
+import { dispatchDropToRegistry, dispatchPasteToRegistry } from "../external-content-dispatch.js";
 import { useFilterPredicate } from "../hooks/use-filter-predicate.js";
 import { useInteractingListeners } from "../hooks/use-interacting.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
@@ -133,13 +134,18 @@ export function Canvas() {
 				x: rect ? e.clientX - rect.left : e.clientX,
 				y: rect ? e.clientY - rect.top : e.clientY,
 			};
+			// ── Legacy event (kept for backward compatibility) ──
+			// Plugins that listen to `canvas:drop` directly continue to work.
+			// New plugins should register via `ctx.externalContent` instead.
 			app.events.emit("canvas:drop", {
 				files: e.dataTransfer.files,
 				worldPoint: screenToWorld(screenPoint, viewport),
 				screenPoint,
 			});
+			// ── External-content registry dispatch ──
+			void dispatchDropToRegistry(e.dataTransfer, app.externalContent);
 		},
-		[viewport, app.events],
+		[viewport, app.events, app.externalContent],
 	);
 
 	// ── Re-render when layers change dynamically ──
@@ -186,6 +192,22 @@ export function Canvas() {
 			}
 		};
 	}, [app.selectionForeground, app.layers, app.events]);
+
+	// ── External-content: document-scope paste listener ──
+	// `paste` events fire on `document` (the canvas div is not focusable by
+	// default), so the listener is registered there. The dispatch helper
+	// short-circuits when the paste target is an INPUT / TEXTAREA / contentEditable,
+	// preserving browser-native paste in form fields.
+	useEffect(() => {
+		const onPaste = (e: ClipboardEvent) => {
+			void (async () => {
+				const dispatched = await dispatchPasteToRegistry(e, app.externalContent);
+				if (dispatched) e.preventDefault();
+			})();
+		};
+		document.addEventListener("paste", onPaste);
+		return () => document.removeEventListener("paste", onPaste);
+	}, [app.externalContent]);
 
 	// ── Tool activate / deactivate lifecycle ──
 	const prevToolIdRef = useRef<string | null>(null);

@@ -1,0 +1,179 @@
+---
+title: External Content (drop / paste ハンドラ)
+description: ドロップされたファイル、ペーストされた URL、クリップボードのテキストへの canvas の反応をプラグイン化する。優先度システムによりホストアプリがプラグインの既定挙動を上書き可能。
+order: 24
+---
+
+ユーザが canvas にファイルをドロップしたり、URL をペーストしたり、SVG スニペットをペーストしたりしたとき、アプリ側ではドメイン固有の変換を行いたいことが多い: YouTube URL を embed shape にする、画像ファイルを image shape にする、SVG ペーストをベクター asset にする、など。**External Content** API はそれぞれの種別の入力に対してプラグインやアプリがハンドラを登録できる仕組みで、解決ルールは [Selection Foreground API](./selection-foreground) と同じく priority + last-wins。
+
+## いつ使うか
+
+`ctx.externalContent.register(...)` は以下の用途に向いている:
+
+- 特定の URL を独自の shape 型に変換する（例: YouTube → embed shape、内部 `app://board/{id}` → portal shape）。
+- 既定の「画像ファイル → image shape」の挙動を、もっと豊かなフロー（自動アップロード、AI タグ付け、サーバ側処理など）で置き換える。
+- ペーストされた SVG / HTML clipboard payload に反応する。
+
+以下のためには **使わない**:
+
+- canvas 内部の shape の copy/paste — 専用の clipboard プラグインを使う。
+- プログラマティックに shape を作る — `store.addShape()` を直接呼ぶ。
+
+## 3 つの kind
+
+| `kind`   | 発火タイミング                                          | payload (抜粋)                                                                     |
+| -------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `"file"` | ファイル drop、clipboard からの画像 paste               | `files: readonly File[]`、`via: "drop" \| "paste"`                                 |
+| `"url"`  | URL drop (`text/uri-list`) または URL paste             | `url: string`、`source: "uri-list" \| "text"`、`via: "drop" \| "paste"`            |
+| `"text"` | URL **ではない** plain text drop / paste                | `text: string`、`html: string \| null`、`via: "drop" \| "paste"`                   |
+
+Embed (YouTube / Figma / Loom 等) は意図的に独立した kind にしていない — `"url"` ハンドラの `match` でホスト名を見ればよい。
+
+payload には **world 座標の drop/paste 位置を含めていない**。位置の決定はハンドラ側の責務。例えば組み込みの画像ハンドラは新規 shape を viewport 中央に配置する。将来 canvas-engine が直近の pointer 位置を提供する read API を追加するかもしれないが、現状は含まない。
+
+## ハンドラの登録
+
+プラグインの `setup` 内から:
+
+```tsx
+import type { UsketchPlugin } from "@edv4h/usketch-shared";
+
+export const youtubeEmbedPlugin: UsketchPlugin = {
+  id: "youtube-embed",
+  name: "YouTube embed",
+  setup(ctx) {
+    const off = ctx.externalContent.register({
+      id: "youtube-embed:url",
+      kind: "url",
+      order: 50,
+      match: (content) => {
+        try {
+          const u = new URL(content.url);
+          return u.hostname === "youtube.com" || u.hostname === "www.youtube.com";
+        } catch {
+          return false;
+        }
+      },
+      handle: async (content, hctx) => {
+        const shape = makeYoutubeShape(content.url);
+        hctx.commands.execute({
+          execute: () => hctx.store.addShape(shape),
+          undo: () => hctx.store.deleteShape(shape.id),
+        });
+      },
+    });
+    (this as UsketchPlugin).teardown = () => off();
+  },
+};
+```
+
+`createApp` 後に `AppInstance.externalContent` から直接登録することもできる:
+
+```ts
+const app = await createApp({ store, plugins });
+app.externalContent.register({
+  id: "app:warp-zone",
+  kind: "url",
+  order: 100,
+  match: ({ url }) => url.startsWith("https://example.com/board/"),
+  handle: async ({ url }, ctx) => {
+    // ...
+  },
+});
+```
+
+## 優先度の規約
+
+`order` が大きいほうが勝つ。同値なら **最後に登録された方** が勝つ。
+
+| 提供元                                              | `order` |
+| --------------------------------------------------- | ------- |
+| プラグイン default (`usketch-plugin-shape-image`)   | **0**   |
+| 第三者プラグイン                                    | **50**  |
+| アプリレベルのオーバーライド                        | **100** |
+
+これは推奨値であって強制範囲ではない — 任意の数値を渡してよい。アプリレベルのハンドラはプラグイン setup の **後** に登録されるため、同 `order` のプラグインに対して tie-break で勝つ。
+
+## match / handle 契約
+
+- `match` は **副作用なし** にする。registry は match する全ハンドラの `match` を呼んで勝者を選ぶので、ここで実作業をしてもムダ。`match` が throw した場合、ログが残り「match しなかった」扱いになる。
+- `handle` は 1 dispatch につき **最大 1 回** だけ実行される — `order` が最も高い match ハンドラのみが勝者として呼ばれる。
+- `handle` は `async` でよい。registry は返された Promise を await する。
+- `handle` が throw / reject した場合、ログが残って dispatch は終了する。次点のハンドラは **試されない** — tldraw の `registerExternalContentHandler` と同じ「単一勝者」意味論。
+
+## 既定挙動
+
+`usketch-plugin-shape-image` は `kind: "file"` ハンドラを `order: 0` で自己登録する。match 条件は「**すべて** のファイルが画像であること」で、image shape に変換する。独自の画像フローで置き換えたい場合は `order >= 1` で `kind: "file"` ハンドラを登録する。
+
+`usketch-plugin-shape-image` を読み込まない（あるいは独自ハンドラが `match` で false を返す）場合、ファイル drop は何にも match せず何も起きない — canvas 自体は動作する。後方互換のため、レガシーな `canvas:drop` event は引き続き emit される。
+
+## サンプル
+
+### Warp-zone URL ハンドラ
+
+```ts
+ctx.externalContent.register({
+  id: "warp-zone:url",
+  kind: "url",
+  order: 50,
+  match: ({ url }) => url.startsWith("https://example.com/board/"),
+  handle: async ({ url }, hctx) => {
+    const id = generateId();
+    const shape = { id, type: "warp-zone", x: 0, y: 0, width: 200, height: 120, /* ... */, targetUrl: url };
+    hctx.commands.execute({
+      execute: () => hctx.store.addShape(shape),
+      undo: () => hctx.store.deleteShape(id),
+    });
+  },
+});
+```
+
+### SVG text paste → vector shape
+
+```ts
+ctx.externalContent.register({
+  id: "svg-import:text",
+  kind: "text",
+  order: 50,
+  match: ({ html, text }) => {
+    const src = html ?? text;
+    return src.trim().startsWith("<svg");
+  },
+  handle: async ({ html, text }, hctx) => {
+    const svg = html ?? text;
+    const shape = parseSvgToShape(svg); // 独自インポータ
+    hctx.commands.execute({
+      execute: () => hctx.store.addShape(shape),
+      undo: () => hctx.store.deleteShape(shape.id),
+    });
+  },
+});
+```
+
+### 既定の画像ファイルハンドラを上書き
+
+```ts
+ctx.externalContent.register({
+  id: "my-app:image-upload",
+  kind: "file",
+  order: 50, // shape-image plugin の order 0 に勝つ
+  match: ({ files }) => files.every((f) => f.type.startsWith("image/")),
+  handle: async ({ files }, hctx) => {
+    for (const file of files) {
+      const url = await uploadToCDN(file); // 独自アップロード
+      const shape = makeImageShape(url);
+      hctx.store.addShape(shape);
+    }
+  },
+});
+```
+
+## レガシー `canvas:drop` event との関係
+
+`canvas:drop` event は後方互換のため引き続き emit される — listen している既存プラグインは動作し続ける。新規コードでは external-content registry を推奨する。理由:
+
+- drop と paste を 1 つの API で正規化できる、
+- プラグイン間の競合を priority で解決できる、
+- `text/uri-list` / `text/plain` の URL / 任意 text に対応している (`FileList` だけではない)。
+
+将来のメジャーリリースでレガシー event を deprecate する可能性がある。
