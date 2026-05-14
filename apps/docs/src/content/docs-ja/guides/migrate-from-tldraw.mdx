@@ -498,9 +498,9 @@ uSketch の対応はフラットな `ShapeData`:
 
 | tldraw `type` + `props` | uSketch `type` | フィールド対応 | 備考 |
 | ----------------------- | -------------- | -------------- | ---- |
-| `geo` + `props.geo = "rectangle"` | `rectangle` | `props.w/h → width/height`、色解決 | `usketch-plugin-shape-basic` の rectangle plugin を使う |
+| `geo` + `props.geo = "rectangle"` | `rectangle` | `props.w/h → width/height`、色解決 | `@edv4h/usketch-plugin-shape-basic` の rectangle plugin を使う |
 | `geo` + `props.geo = "ellipse"` | `ellipse` | 同上 | 同 plugin |
-| `arrow` | `connector` | `props.start.boundShapeId → sourceId`（無ければ `sourcePoint`）、`props.end.boundShapeId → targetId`（無ければ `targetPoint`） | uSketch に `arrow` shape は無く、近いのは `usketch-plugin-shape-connector`。`ConnectorShapeData` は `sourceAnchor` / `targetAnchor` / `arrowHead` / `pathType` のデフォルトも必要 — `createDefaultConnector` で土台を作って endpoint を上書きするのが楽 |
+| `arrow` | `connector` | `props.start.boundShapeId → sourceId`（無ければ `sourcePoint`）、`props.end.boundShapeId → targetId`（無ければ `targetPoint`） | uSketch に `arrow` shape は無く、近いのは `@edv4h/usketch-plugin-shape-connector`。`ConnectorShapeData` は `sourceAnchor` / `targetAnchor` / `arrowHead` / `pathType` のデフォルトも必要 — `createDefaultConnector` で土台を作って endpoint を上書きするのが楽 |
 | `text` | `text` | `props.text → text`、size enum (`s/m/l/xl`) → px (`12/16/24/36`)、font enum → CSS family | width / height は tldraw record から |
 | `image` | `image` | `props.assetId → src`（asset map 経由）、`props.w/h → width/height` | tldraw は画像バイトを別 `TLAsset` レコードに保存する。先 pass で集めて URL に解決してから shape を移行 |
 
@@ -648,7 +648,7 @@ export function migrateTldrawSnapshot(snapshot: TLRecord[], yDoc: Y.Doc): number
 }
 ```
 
-実行手順: tldraw snapshot を読み込み（通常 tldraw の `getSnapshot(store)` か、export した `.tldr` JSON）、新しい `Y.Doc` を作って `migrateTldrawSnapshot` を呼び、`usketch-plugin-sync-localstorage-yjs` の `createYjsSync` で uSketch にアタッチする。sync plugin が `Y.Map` を観察して shape を `BoardStore` に流し込む。
+実行手順: tldraw snapshot を読み込み（通常 tldraw の `getSnapshot(store)` か、export した `.tldr` JSON）、新しい `Y.Doc` を作って `migrateTldrawSnapshot` を呼び、`@edv4h/usketch-plugin-sync-localstorage-yjs` の `createYjsSync` で uSketch にアタッチする。sync plugin が `Y.Map` を観察して shape を `BoardStore` に流し込む。
 
 > **画像 asset について。** tldraw snapshot で画像バイトが `TLAsset.src` に base64 で残っている場合、移行後の `image` shape は `data.src` にバイトをインライン保持する。動作はするが document が肥大化するので、先に asset を CDN へアップロードして解決済み URL を asset map に書く方が良い。
 
@@ -717,7 +717,7 @@ const app = await createApp({
 });
 ```
 
-プラグインも `ctx.ui.registerSelectionForeground({ id, priority, render })` で opt-in できる。registry は priority 最大のエントリを選び、同値は last-registered が勝つ。`usketch-plugin-tool-select` が priority 0 でデフォルトを自己登録する。詳しくは [Selection Foreground](./selection-foreground) を参照。
+プラグインも `ctx.ui.registerSelectionForeground({ id, priority, render })` で opt-in できる。registry は priority 最大のエントリを選び、同値は last-registered が勝つ。`@edv4h/usketch-plugin-tool-select` が priority 0 でデフォルトを自己登録する。詳しくは [Selection Foreground](./selection-foreground) を参照。
 
 ## よくある落とし穴
 

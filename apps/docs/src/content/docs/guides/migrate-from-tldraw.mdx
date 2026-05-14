@@ -498,9 +498,9 @@ Three key differences:
 
 | tldraw `type` + `props` | uSketch `type` | Field mapping | Notes |
 | ----------------------- | -------------- | ------------- | ----- |
-| `geo` + `props.geo = "rectangle"` | `rectangle` | `props.w/h → width/height`; resolve color | Use the rectangle plugin from `usketch-plugin-shape-basic`. |
+| `geo` + `props.geo = "rectangle"` | `rectangle` | `props.w/h → width/height`; resolve color | Use the rectangle plugin from `@edv4h/usketch-plugin-shape-basic`. |
 | `geo` + `props.geo = "ellipse"` | `ellipse` | same | Same plugin. |
-| `arrow` | `connector` | `props.start.boundShapeId → sourceId` (else `sourcePoint`); `props.end.boundShapeId → targetId` (else `targetPoint`) | uSketch has no `arrow` shape. The closest match is `usketch-plugin-shape-connector`, whose `ConnectorShapeData` requires `sourceAnchor` / `targetAnchor` / `arrowHead` / `pathType` defaults — use `createDefaultConnector` from that plugin and override the endpoint fields. |
+| `arrow` | `connector` | `props.start.boundShapeId → sourceId` (else `sourcePoint`); `props.end.boundShapeId → targetId` (else `targetPoint`) | uSketch has no `arrow` shape. The closest match is `@edv4h/usketch-plugin-shape-connector`, whose `ConnectorShapeData` requires `sourceAnchor` / `targetAnchor` / `arrowHead` / `pathType` defaults — use `createDefaultConnector` from that plugin and override the endpoint fields. |
 | `text` | `text` | `props.text → text`; size enum (`s/m/l/xl`) → px (`12/16/24/36`); font enum → CSS family | Width / height from the tldraw record itself. |
 | `image` | `image` | `props.assetId → src` (via asset map); `props.w/h → width/height` | tldraw stores image bytes in a separate `TLAsset` record — collect those in a first pass and resolve URLs before migrating shapes. |
 
@@ -648,7 +648,7 @@ export function migrateTldrawSnapshot(snapshot: TLRecord[], yDoc: Y.Doc): number
 }
 ```
 
-To run the migration, load the tldraw snapshot (typically via `getSnapshot(store)` in tldraw or by reading the `.tldr` JSON file you exported), construct a fresh `Y.Doc`, call `migrateTldrawSnapshot`, then attach the doc to uSketch through `createYjsSync` from `usketch-plugin-sync-localstorage-yjs`. The sync plugin observes the `Y.Map` and feeds shapes into `BoardStore` as they arrive.
+To run the migration, load the tldraw snapshot (typically via `getSnapshot(store)` in tldraw or by reading the `.tldr` JSON file you exported), construct a fresh `Y.Doc`, call `migrateTldrawSnapshot`, then attach the doc to uSketch through `createYjsSync` from `@edv4h/usketch-plugin-sync-localstorage-yjs`. The sync plugin observes the `Y.Map` and feeds shapes into `BoardStore` as they arrive.
 
 > **Image assets.** If your tldraw snapshot still stores image bytes as base64 in `TLAsset.src`, the `image` shapes after migration will carry those bytes inline in `data.src`. That works but bloats the document; consider uploading the assets to a CDN first and writing the resolved URLs into the asset map.
 
@@ -717,7 +717,7 @@ const app = await createApp({
 });
 ```
 
-Plugins can also opt in via `ctx.ui.registerSelectionForeground({ id, priority, render })`. The registry picks the highest-priority entry, with last-registered winning ties; `usketch-plugin-tool-select` self-registers a default at priority 0. See [Selection Foreground](./selection-foreground) for the full API.
+Plugins can also opt in via `ctx.ui.registerSelectionForeground({ id, priority, render })`. The registry picks the highest-priority entry, with last-registered winning ties; `@edv4h/usketch-plugin-tool-select` self-registers a default at priority 0. See [Selection Foreground](./selection-foreground) for the full API.
 
 ## Common pitfalls
 
