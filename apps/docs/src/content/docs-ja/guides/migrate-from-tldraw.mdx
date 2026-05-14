@@ -374,7 +374,7 @@ function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
 }
 ```
 
-複雑な遷移がある場合、あるいはビルトイン select tool と drag / resize / rotate 挙動を共有したい場合は [`@edv4h/usketch-tool-helpers`](../../reference/tool-helpers) を使う。`startDragSession` / `startResizeSession` / `startRotateSession` / `startMarqueeSession` は tldraw `StateNode` ライブラリの提供する大部分をカバーする。詳しくは [Tool プラグイン作成ガイド](./tool-plugin) の「Reusable Session Helpers」を参照。
+複雑な遷移がある場合、あるいはビルトイン select tool と drag / resize / rotate 挙動を共有したい場合は `@edv4h/usketch-tool-helpers` を使う。`startDragSession` / `startResizeSession` / `startRotateSession` / `startMarqueeSession` は tldraw `StateNode` ライブラリの提供する大部分をカバーする。詳しくは Tool プラグイン作成ガイドの [Reusable Session Helpers](./tool-plugin#reusable-session-helpers) を参照。
 
 ### 手順 3. Inputs API
 
@@ -500,7 +500,7 @@ uSketch の対応はフラットな `ShapeData`:
 | ----------------------- | -------------- | -------------- | ---- |
 | `geo` + `props.geo = "rectangle"` | `rectangle` | `props.w/h → width/height`、色解決 | `usketch-plugin-shape-basic` の rectangle plugin を使う |
 | `geo` + `props.geo = "ellipse"` | `ellipse` | 同上 | 同 plugin |
-| `arrow` | `connector` | `props.start/end → from/to` anchor refs | anchor 解決できない場合は絶対座標にフォールバック。uSketch に `arrow` shape は無く、近いのは `usketch-plugin-shape-connector` |
+| `arrow` | `connector` | `props.start.boundShapeId → sourceId`（無ければ `sourcePoint`）、`props.end.boundShapeId → targetId`（無ければ `targetPoint`） | uSketch に `arrow` shape は無く、近いのは `usketch-plugin-shape-connector`。`ConnectorShapeData` は `sourceAnchor` / `targetAnchor` / `arrowHead` / `pathType` のデフォルトも必要 — `createDefaultConnector` で土台を作って endpoint を上書きするのが楽 |
 | `text` | `text` | `props.text → text`、size enum (`s/m/l/xl`) → px (`12/16/24/36`)、font enum → CSS family | width / height は tldraw record から |
 | `image` | `image` | `props.assetId → src`（asset map 経由）、`props.w/h → width/height` | tldraw は画像バイトを別 `TLAsset` レコードに保存する。先 pass で集めて URL に解決してから shape を移行 |
 
@@ -570,30 +570,41 @@ function migrateRecord(rec: TLRecord, assetMap: Map<string, string>): ShapeData 
       } as ShapeData;
     }
     case "text":
+      // TextShapeData は text / fontSize / fontFamily / isEditing が必須。
+      // text plugin は背景透過で描画するので base.style を text plugin の
+      // 既定（fill: "transparent", strokeWidth: 0）で上書きする。
       return {
         ...base,
         type: "text",
         width: (p.w as number) ?? 200,
         height: 40,
+        style: { ...base.style, fill: "transparent", strokeWidth: 0 },
         text: (p.text as string) ?? "",
         fontSize: FONT_SIZE_PX[(p.size as string) ?? "m"] ?? 16,
+        fontFamily: "system-ui, sans-serif",
+        isEditing: false,
       } as ShapeData;
     case "arrow": {
       const start = p.start as { x?: number; y?: number; boundShapeId?: string } | undefined;
       const end = p.end as { x?: number; y?: number; boundShapeId?: string } | undefined;
-      // arrow が他 shape にバインドされていれば anchor ref を優先、
-      // そうでなければ絶対座標にフォールバック。
+      const sourceId = start?.boundShapeId?.replace(/^shape:/, "");
+      const targetId = end?.boundShapeId?.replace(/^shape:/, "");
+      // ConnectorShapeData は下記すべて必須 — sourcePoint / targetPoint は
+      // sourceId / targetId が無いときの fallback。anchor / arrowHead /
+      // pathType は connector plugin の既定値を踏襲する。
       return {
         ...base,
         type: "connector",
         width: 0,
         height: 0,
-        from: start?.boundShapeId
-          ? { shapeId: start.boundShapeId.replace(/^shape:/, "") }
-          : { x: start?.x ?? 0, y: start?.y ?? 0 },
-        to: end?.boundShapeId
-          ? { shapeId: end.boundShapeId.replace(/^shape:/, "") }
-          : { x: end?.x ?? 0, y: end?.y ?? 0 },
+        sourceId,
+        targetId,
+        sourceAnchor: "auto",
+        targetAnchor: "auto",
+        arrowHead: "forward",
+        pathType: "straight",
+        sourcePoint: { x: start?.x ?? base.x, y: start?.y ?? base.y },
+        targetPoint: { x: end?.x ?? base.x + 100, y: end?.y ?? base.y },
       } as ShapeData;
     }
     case "image": {

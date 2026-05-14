@@ -374,7 +374,7 @@ function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
 }
 ```
 
-If your tool has many transitions or you want to share drag / resize / rotate behaviour with the built-in select tool, reach for [`@edv4h/usketch-tool-helpers`](../../reference/tool-helpers). Its `startDragSession` / `startResizeSession` / `startRotateSession` / `startMarqueeSession` helpers cover most of what tldraw's `StateNode` library provides out of the box; see the **Reusable Session Helpers** section of [Building a Tool Plugin](./tool-plugin) for the patterns.
+If your tool has many transitions or you want to share drag / resize / rotate behaviour with the built-in select tool, reach for `@edv4h/usketch-tool-helpers`. Its `startDragSession` / `startResizeSession` / `startRotateSession` / `startMarqueeSession` helpers cover most of what tldraw's `StateNode` library provides out of the box; see the [Reusable Session Helpers](./tool-plugin#reusable-session-helpers) section of *Building a Tool Plugin* for the patterns.
 
 ### Step 3. Inputs API
 
@@ -500,7 +500,7 @@ Three key differences:
 | ----------------------- | -------------- | ------------- | ----- |
 | `geo` + `props.geo = "rectangle"` | `rectangle` | `props.w/h → width/height`; resolve color | Use the rectangle plugin from `usketch-plugin-shape-basic`. |
 | `geo` + `props.geo = "ellipse"` | `ellipse` | same | Same plugin. |
-| `arrow` | `connector` | `props.start/end → from/to` anchor refs | If anchors don't resolve, fall back to absolute points. uSketch has no `arrow` shape — the closest match is `usketch-plugin-shape-connector`. |
+| `arrow` | `connector` | `props.start.boundShapeId → sourceId` (else `sourcePoint`); `props.end.boundShapeId → targetId` (else `targetPoint`) | uSketch has no `arrow` shape. The closest match is `usketch-plugin-shape-connector`, whose `ConnectorShapeData` requires `sourceAnchor` / `targetAnchor` / `arrowHead` / `pathType` defaults — use `createDefaultConnector` from that plugin and override the endpoint fields. |
 | `text` | `text` | `props.text → text`; size enum (`s/m/l/xl`) → px (`12/16/24/36`); font enum → CSS family | Width / height from the tldraw record itself. |
 | `image` | `image` | `props.assetId → src` (via asset map); `props.w/h → width/height` | tldraw stores image bytes in a separate `TLAsset` record — collect those in a first pass and resolve URLs before migrating shapes. |
 
@@ -570,30 +570,41 @@ function migrateRecord(rec: TLRecord, assetMap: Map<string, string>): ShapeData 
       } as ShapeData;
     }
     case "text":
+      // TextShapeData requires text / fontSize / fontFamily / isEditing,
+      // and the text plugin draws over a transparent background — so
+      // override base.style to match what createDefault would produce.
       return {
         ...base,
         type: "text",
         width: (p.w as number) ?? 200,
         height: 40,
+        style: { ...base.style, fill: "transparent", strokeWidth: 0 },
         text: (p.text as string) ?? "",
         fontSize: FONT_SIZE_PX[(p.size as string) ?? "m"] ?? 16,
+        fontFamily: "system-ui, sans-serif",
+        isEditing: false,
       } as ShapeData;
     case "arrow": {
       const start = p.start as { x?: number; y?: number; boundShapeId?: string } | undefined;
       const end = p.end as { x?: number; y?: number; boundShapeId?: string } | undefined;
-      // If the arrow is bound to other shapes, prefer anchor references;
-      // otherwise fall back to absolute points.
+      const sourceId = start?.boundShapeId?.replace(/^shape:/, "");
+      const targetId = end?.boundShapeId?.replace(/^shape:/, "");
+      // ConnectorShapeData requires every field below — sourcePoint / targetPoint
+      // act as the fallback when sourceId / targetId aren't bound. Anchor /
+      // arrowHead / pathType inherit the connector plugin's defaults.
       return {
         ...base,
         type: "connector",
         width: 0,
         height: 0,
-        from: start?.boundShapeId
-          ? { shapeId: start.boundShapeId.replace(/^shape:/, "") }
-          : { x: start?.x ?? 0, y: start?.y ?? 0 },
-        to: end?.boundShapeId
-          ? { shapeId: end.boundShapeId.replace(/^shape:/, "") }
-          : { x: end?.x ?? 0, y: end?.y ?? 0 },
+        sourceId,
+        targetId,
+        sourceAnchor: "auto",
+        targetAnchor: "auto",
+        arrowHead: "forward",
+        pathType: "straight",
+        sourcePoint: { x: start?.x ?? base.x, y: start?.y ?? base.y },
+        targetPoint: { x: end?.x ?? base.x + 100, y: end?.y ?? base.y },
       } as ShapeData;
     }
     case "image": {
