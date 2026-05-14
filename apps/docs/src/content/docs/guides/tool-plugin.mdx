@@ -178,3 +178,14 @@ For static "click to place" tools, you don't need a session at all; the eraser e
 - Keep tool state in **closures** within `setup()`, not on the plugin object. This avoids shared mutable state issues.
 - Emit events via `ctx.events.emit()` if other plugins need to react to your tool's actions.
 - Set `order` thoughtfully — tools appear left-to-right in the toolbar sorted by `order`.
+
+## Coming from tldraw?
+
+`class MyTool extends StateNode` becomes a `ToolDefinition` object registered via `ctx.tools.register()`. The conversion:
+
+- `onEnter` / `onExit` on the root state → `onActivate` / `onDeactivate`
+- Child `StateNode`s with `transition("…")` → a `phase` closure variable inside `setup()`
+- `editor.inputs.currentPagePoint` → `event.worldPoint`
+- `editor.createShape(...)` → `ctx.commands.execute(createAddShapeCommand(store, shape))`
+
+Keep all internal state in `setup()` closures — never on the plugin object — so each plugin instance has its own state. See [Migrating from tldraw](./migrate-from-tldraw) for the full mapping including `StateNode` child hierarchies and `track()` reactivity.
