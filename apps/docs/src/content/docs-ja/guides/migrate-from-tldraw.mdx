@@ -1,0 +1,830 @@
+---
+title: tldraw からの移行
+description: tldraw v2 アプリを uSketch へ移行する手順。API 対応表、shape / tool / Yjs データ移行のコード例、よくある落とし穴。
+order: 30
+---
+
+すでに tldraw v2 でアプリを作っており、uSketch に移行したい — tldraw v2 のライセンス層が用途に合わなくなった、あるいはより小さく MIT ライセンスの canvas ランタイムが欲しい — このガイドはその近道。両ライブラリは多くの概念（shape utility / tool / 不変な record store / Yjs アダプター）を共有しているが、API の梱包が違う。移植を始める前に一度読んでおけば、各差分を試行錯誤で再発見せずに済む。
+
+## このガイドの目的
+
+tldraw v2 は 2024 年に非自由ライセンス層を導入し、寛容なライセンスの canvas ランタイムへの移行経路を求める声が多かった。uSketch v2 は MIT ライセンスで、明示的なプラグイン API を備え、見覚えのあるプリミティブ（`ShapeData` は `TLBaseShape` のフラットな従兄弟、Yjs sync も同様の「`Y.Map` of shapes」レイアウト）を再利用している。
+
+このガイドは以下のいずれかを書いたことがある人を対象とする:
+
+- カスタム shape のための `class MyShapeUtil extends ShapeUtil<TMyShape>`
+- カスタム tool のための `class MyTool extends StateNode`
+- `editor.createShape(...)` / `editor.updateShapes(...)` を呼ぶコード
+
+入門チュートリアルではない — uSketch を初めて書く人は [Shape プラグイン作成ガイド](./shape-plugin) と [Tool プラグイン作成ガイド](./tool-plugin) から始めてほしい。両ライブラリで共有されない機能（tldraw の共同編集 presence / AI agent / 独自 `.tldr` フォーマット import 等）もスコープ外。
+
+## 概念の対応
+
+3 つのメンタルモデルシフトを抑えれば 80% の移行作業がカバーできる。これらを腑に落としてから API レベルの翻訳に進むと、機械的に処理できる。
+
+### `Editor` 一極集中 → `useApp()` + 5 個の registrar
+
+tldraw はすべてを `Editor` インスタンスに集約する: `editor.createShape`、`editor.select`、`editor.zoomToFit`、`editor.sideEffects.registerBeforeCreateHandler` はすべて同じオブジェクトにぶら下がる。uSketch はこれらを複数の協調する registry に分け、`useApp()` 経由で取得する:
+
+| 関心 | uSketch 入口 |
+| ---- | ------------ |
+| Shape / viewport / 選択の読み書き | `app.store` (`BoardStore`) |
+| Undo / redo、バッチ操作 | `app.commands` |
+| Shape 定義の register / lookup | `app.shapes` |
+| Tool の register / activate | `app.tools` |
+| Event の emit / 購読 | `app.events` |
+| Drop / paste / URL ハンドラ | `app.externalContent` |
+| Selection UI の差し替え | `app.ui` |
+
+プラグインの `setup(ctx)` 内では同じ registry が `ctx.store`、`ctx.commands` 等として渡される。
+
+### `track()` → `useStoreSubscribe(store, selector)`
+
+tldraw は signia signals を使う: `track(Component)` HOC がコンポーネント内のすべての reactive read を購読し、自動再レンダーする。uSketch は内部で Zustand を使い、React コンポーネントは `useStoreSubscribe(store, selector)` を **明示的に** 呼んで購読する。selector は primitive または安定した参照を返す必要がある。コンポーネントごとに少しだけ boilerplate が増える代わりに、購読が明示的でデバッグしやすくなる。
+
+### クラス → オブジェクト
+
+`ShapeUtil` と `StateNode` は extend する抽象クラスだが、uSketch の `ShapeDefinition` / `ToolDefinition` はメソッドを property に持つただのオブジェクト。継承はなく、合成はヘルパ関数（`@edv4h/usketch-shape-utils`、`@edv4h/usketch-tool-helpers`）で行う。tool 内の「子 state」は `setup()` 内のクロージャ変数になる。
+
+### ネストした `props` がフラットな `ShapeData` に展開
+
+tldraw では shape の固有データが `shape.props.w` / `shape.props.text` 等にある。uSketch では `width`、`height`、`x`、`y`、`rotation`、`zIndex`、`style`、`parentId`、`meta`、`createdAt`、`updatedAt` は `ShapeData` の **コアフィールド** として予約済み。プラグイン固有のフィールド（付箋の `text`、画像 shape の `src`）は同じトップレベルに置かれる — `data.props` の入れ物はない。ジオメトリ的な意味を持たないアプリケーションデータは `meta` に入れる。
+
+## API 対応表
+
+| tldraw 概念 | uSketch 対応 |
+| ----------- | ------------ |
+| `ShapeUtil.component(shape)` | `ShapeDefinition.render(data)` |
+| `ShapeUtil.getGeometry(shape)` | `ShapeDefinition.getBounds(data)` + `hitTest(data, point)` |
+| `ShapeUtil.onResize(info)` | `ShapeDefinition.resize(data, handle, delta)` |
+| `ShapeUtil.getDefaultProps()` | `ShapeDefinition.createDefault({ id, x, y })` |
+| `TLBaseShape<T, Props>` | `ShapeData & { type: T; ...intrinsicFields }`（フラット） |
+| `Editor.createShapes([...])` | `store.addShape(shape)` を `commands.execute({ execute, undo })` でラップ |
+| `track(Component)` | コンポーネント内で `useStoreSubscribe(store, selector)` |
+| `class extends StateNode` | `ToolDefinition` オブジェクト + `setup()` 内クロージャ state |
+| `editor.registerExternalContentHandler(kind, fn)` | `ctx.externalContent.register({ id, kind, match, handle })` |
+| `useEditor()` | `useApp()` |
+| `WeakMapCache` / `createComputedCache` | 通常 `Map<id, T>` を `store.onMutation` で無効化、または `useMemo` |
+
+以降の各章でそれぞれの行をコード付きで解説する。
+
+## Shape の移行
+
+### 手順 1. ShapeUtil クラス → ShapeDefinition オブジェクト
+
+tldraw の shape util は次のような形:
+
+```tsx
+// ─── tldraw v2 (移行前) ──────────────────────────────────────────────
+import { BaseBoxShapeUtil, HTMLContainer, type TLBaseShape } from "tldraw";
+
+type CardShape = TLBaseShape<"card", { w: number; h: number; title: string }>;
+
+class CardShapeUtil extends BaseBoxShapeUtil<CardShape> {
+  static override type = "card" as const;
+
+  override getDefaultProps(): CardShape["props"] {
+    return { w: 240, h: 120, title: "New card" };
+  }
+
+  override component(shape: CardShape) {
+    return (
+      <HTMLContainer
+        style={{ width: shape.props.w, height: shape.props.h, padding: 8 }}
+      >
+        <strong>{shape.props.title}</strong>
+      </HTMLContainer>
+    );
+  }
+  // getGeometry / onResize は BaseBoxShapeUtil 提供
+}
+```
+
+uSketch では `ctx.shapes.register()` に渡す plain function 群になる:
+
+```tsx
+// ─── uSketch v2 (移行後) ──────────────────────────────────────────────
+import type {
+  BoundingBox,
+  Point,
+  ResizeHandle,
+  ShapeData,
+  PluginContext,
+  UsketchPlugin,
+} from "@edv4h/usketch-shared";
+import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
+
+export interface CardShapeData extends ShapeData {
+  title: string;
+}
+
+function render(shape: ShapeData) {
+  const data = shape as CardShapeData;
+  return (
+    <foreignObject x={data.x} y={data.y} width={data.width} height={data.height}>
+      <div
+        xmlns="http://www.w3.org/1999/xhtml"
+        style={{ width: "100%", height: "100%", padding: 8, boxSizing: "border-box" }}
+      >
+        <strong>{data.title}</strong>
+      </div>
+    </foreignObject>
+  );
+}
+
+function getBounds(data: ShapeData): BoundingBox {
+  return { x: data.x, y: data.y, width: data.width, height: data.height };
+}
+
+function hitTest(data: ShapeData, point: Point): boolean {
+  return (
+    point.x >= data.x &&
+    point.x <= data.x + data.width &&
+    point.y >= data.y &&
+    point.y <= data.y + data.height
+  );
+}
+
+function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData {
+  // rectangle plugin と同じ 8 方向 switch — Shape プラグイン作成ガイドの
+  // 「リサイズロジックを実装する」を参照。
+  return data;
+}
+
+function createDefault(params: { id: string; x: number; y: number }): CardShapeData {
+  return {
+    id: params.id,
+    type: "card",
+    x: params.x,
+    y: params.y,
+    width: 240,
+    height: 120,
+    style: { ...DEFAULT_STYLE },
+    title: "New card",
+  };
+}
+
+export const cardPlugin: UsketchPlugin = {
+  id: "card-shape",
+  name: "Card",
+  setup(ctx: PluginContext) {
+    ctx.shapes.register("card", { render, getBounds, hitTest, resize, createDefault });
+  },
+};
+```
+
+2 つのパターンを抑えておく:
+
+- **ラッパークラスがない。** `ShapeDefinition` はオブジェクトリテラル、`this` も無い。state（キャッシュ・タイマー）は `setup()` クロージャに置く。
+- **`ShapeData` を extension interface にキャストする** （`render` / `hitTest` / `resize` の中で）。プラグイン固有フィールドを型安全に扱える。[Shape プラグイン作成ガイド](./shape-plugin) の `as RectangleShapeData` パターンと同じ。
+
+### 手順 2. TLBaseShape の props → フラットな ShapeData
+
+tldraw は固有データを `props` に包む:
+
+```ts
+type CardShape = TLBaseShape<"card", { w: number; h: number; title: string }>;
+// アクセス: shape.props.w、shape.props.title
+```
+
+uSketch は **コアフィールド**（`width`、`height`、`x`、`y`、`rotation`、…）を再利用し、プラグイン固有フィールドは同じ階層に置く:
+
+```ts
+interface CardShapeData extends ShapeData {
+  title: string;
+}
+// アクセス: data.width、data.title
+```
+
+予約されているコアフィールド一覧（再定義してはいけない）:
+
+| フィールド | 型 | 備考 |
+| ---------- | -- | ---- |
+| `id` | `string` | board 内で一意 |
+| `type` | `string` | `ShapeRegistry` のキー |
+| `x`、`y` | `number` | world 座標の左上 |
+| `width`、`height` | `number` | 常に存在（`props.w` ではない） |
+| `rotation` | `number?` | ラジアン、`undefined` ≡ 0 |
+| `zIndex` | `string?` | Fractional Index、tldraw `index` と同じエンコード |
+| `style` | `ShapeStyle` | `{ fill, stroke, strokeWidth, opacity }` |
+| `parentId` | `string?` | group / frame 内 shape 用 |
+| `meta` | `TMeta` | アプリケーションデータ（後述） |
+| `createdAt`、`updatedAt` | `number?` | ミリ秒タイムスタンプ |
+
+ジオメトリでない値（`employeeId`、外部の `versionId` 等）は `meta` に入れる。レガシー移行用の `x-*` エスケープハッチもあるが、新規コードでは `meta` を使う。詳しくは [Shape System → Extending shapes](/docs/concepts/shape-system/#extending-shapes) を参照。
+
+### 手順 3. createShapes → store.addShape + commands
+
+tldraw は `editor.run` でミューテーションをバッチする:
+
+```ts
+editor.run(() => {
+  editor.createShapes([{ id, type: "card", x: 100, y: 100, props: { /*…*/ } }]);
+});
+```
+
+uSketch は store ミューテーションと undo 管理を分離している。store は即座に更新し、commands が undo を提供する:
+
+```ts
+import { createAddShapeCommand } from "@edv4h/usketch-store";
+
+ctx.commands.execute(createAddShapeCommand(ctx.store, shape));
+```
+
+`createAddShapeCommand` は `{ execute: () => store.addShape(shape), undo: () => store.deleteShape(shape.id) }` を返す。`@edv4h/usketch-store` のヘルパ一覧は `editor.X` 相当をカバーする:
+
+| 操作 | ヘルパ |
+| ---- | ------ |
+| shape 作成 | `createAddShapeCommand(store, shape)` |
+| shape 削除 | `createDeleteShapeCommand(store, id)` |
+| shape 更新（from / to スナップショット付き） | `createUpdateShapeCommand(store, id, from, to)` |
+| 複数 shape 移動 | `createMoveShapesCommand(store, beforeMap, afterMap)` |
+| バッチ更新 | `createBatchUpdateShapesCommand(store, updates)` |
+| Group / ungroup | `createGroupCommand`、`createUngroupCommand` |
+| z-order 操作 | `createBringToFrontCommand`、`createSendToBackCommand`、… |
+
+現状 `commands.batch(fn)` のような wrapper はない — 複数操作を 1 つの undo ステップにまとめるには、すべてのミューテーションを `execute` で実行し、逆操作を `undo` で行う合成 `Command` を 1 つ作る。
+
+## Tool の移行
+
+### 手順 1. StateNode → ToolDefinition
+
+tldraw の tool はクラスの階層:
+
+```tsx
+// ─── tldraw v2 (移行前) ──────────────────────────────────────────────
+import { StateNode, type TLPointerEventInfo } from "tldraw";
+
+class CardTool extends StateNode {
+  static override id = "card";
+  static override initial = "idle";
+  static override children = () => [Idle, Drawing];
+}
+
+class Idle extends StateNode {
+  static override id = "idle";
+  override onPointerDown = () => this.parent.transition("drawing");
+}
+
+class Drawing extends StateNode {
+  static override id = "drawing";
+  override onEnter = () => {
+    const { currentPagePoint } = this.editor.inputs;
+    this.editor.createShape({
+      type: "card",
+      x: currentPagePoint.x,
+      y: currentPagePoint.y,
+    });
+  };
+  override onPointerUp = () => this.parent.transition("idle");
+}
+```
+
+uSketch では tool は単一のオブジェクトリテラル。子 state は closure 変数 — 典型的には `phase` discriminator + phase 局所データ — に潰す:
+
+```tsx
+// ─── uSketch v2 (移行後) ──────────────────────────────────────────────
+import { createAddShapeCommand } from "@edv4h/usketch-store";
+import {
+  generateId,
+  type CanvasPointerEvent,
+  type PluginContext,
+  type ToolContext,
+  type UsketchPlugin,
+} from "@edv4h/usketch-shared";
+
+function CardIcon() {
+  return <svg width="20" height="20" viewBox="0 0 20 20" /* … */ />;
+}
+
+export const cardToolPlugin: UsketchPlugin = {
+  id: "card-tool",
+  name: "Card tool",
+  setup(ctx: PluginContext) {
+    // tldraw の子 state 階層の置き換え。
+    // setup() クロージャ内に持つ（プラグインオブジェクトには置かない）ことで
+    // 各 plugin インスタンスが固有の state を持つ。
+    type Phase = "idle" | "drawing";
+    let phase: Phase = "idle";
+    let drawingId: string | null = null;
+
+    function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+      const id = generateId();
+      drawingId = id;
+      phase = "drawing";
+      const shape = toolCtx.shapes
+        .get("card")!
+        .createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
+      // ライブプレビュー用の一時 shape ミューテーション。
+      toolCtx.store.addShape(shape);
+    }
+
+    function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+      if (phase !== "drawing" || !drawingId) return;
+      const start = toolCtx.store.getShape(drawingId);
+      if (!start) return;
+      toolCtx.store.updateShape(drawingId, {
+        width: Math.max(1, event.worldPoint.x - start.x),
+        height: Math.max(1, event.worldPoint.y - start.y),
+      });
+    }
+
+    function onPointerUp(toolCtx: ToolContext) {
+      if (phase !== "drawing" || !drawingId) return;
+      const shape = toolCtx.store.getShape(drawingId);
+      if (shape) {
+        // 一時 shape を undo 可能な command に差し替える。
+        toolCtx.store.deleteShape(drawingId);
+        toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+      }
+      drawingId = null;
+      phase = "idle";
+      toolCtx.store.setActiveToolId("select");
+    }
+
+    ctx.tools.register("card-draw", {
+      icon: CardIcon,
+      cursor: "crosshair",
+      shortcut: "c",
+      order: 12,
+      onPointerDown,
+      onPointerMove,
+      onPointerUp,
+    });
+  },
+};
+```
+
+### 手順 2. 子 state → phase 変数
+
+tldraw の `StateNode` 子 state は `editor` を継承し、`transition("name")` で兄弟へ遷移する。uSketch では同じ形を discriminated union で実現する:
+
+```ts
+type Phase =
+  | { kind: "idle" }
+  | { kind: "drawing"; shapeId: string; startPoint: Point }
+  | { kind: "rotating"; shapeId: string; pivot: Point };
+
+let phase: Phase = { kind: "idle" };
+
+function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+  // phase 局所データを伴って "drawing" phase へ遷移
+  phase = { kind: "drawing", shapeId: generateId(), startPoint: event.worldPoint };
+  // …
+}
+```
+
+複雑な遷移がある場合、あるいはビルトイン select tool と drag / resize / rotate 挙動を共有したい場合は `@edv4h/usketch-tool-helpers` を使う。`startDragSession` / `startResizeSession` / `startRotateSession` / `startMarqueeSession` は tldraw `StateNode` ライブラリの提供する大部分をカバーする。詳しくは Tool プラグイン作成ガイドの [Reusable Session Helpers](./tool-plugin#reusable-session-helpers) を参照。
+
+### 手順 3. Inputs API
+
+tldraw は入力状態を `editor.inputs.*` から読むが、uSketch は各 event に渡す:
+
+| tldraw | uSketch |
+| ------ | ------- |
+| `editor.inputs.currentPagePoint` | `event.worldPoint`（各 handler に渡される） |
+| `editor.inputs.currentScreenPoint` | `event.screenPoint` |
+| `editor.inputs.shiftKey` | `event.shiftKey` |
+| `editor.inputs.ctrlKey` / `altKey` / `metaKey` | `event.ctrlKey` / `event.altKey` / `event.metaKey` |
+| `editor.inputs.isDragging` | `phase` 変数から導出 |
+| `editor.getSelectedShapeIds()` | `app.store.getSelection()`（`ReadonlySet<string>` を返す） |
+
+`CanvasPointerEvent` はただのオブジェクトで、グローバルもなく、event 間で editor を問い合わせる必要もない。
+
+## リアクティビティと selector
+
+### track() → useStoreSubscribe
+
+tldraw:
+
+```tsx
+import { useEditor, track } from "tldraw";
+
+const SelectionCount = track(function SelectionCount() {
+  const editor = useEditor();
+  const count = editor.getSelectedShapeIds().length;
+  return <div>{count} selected</div>;
+});
+```
+
+uSketch では明示的に購読する。selector は store を受け取って値を返す関数で、selector の戻り値が `Object.is` で変化したときコンポーネントが再レンダーする:
+
+```tsx
+import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
+import type { BoardStore } from "@edv4h/usketch-shared";
+
+const selectSelectionCount = (s: BoardStore) => s.getSelection().size;
+
+function SelectionCount() {
+  const app = useApp();
+  // primitive を返すと equality check が軽く・安定する。
+  const count = useStoreSubscribe(app.store, selectSelectionCount);
+  return <div>{count} selected</div>;
+}
+```
+
+> **Selector の衛生。** selector は安定した参照を返さないと購読比較が thrash する。`Array.from(s.getSelection())` は毎回新規 array を allocate して store tick ごとに再レンダーを引き起こす — 元の `ReadonlySet`（identity 安定）、そこから導出した primitive、あるいは memoize した結果を返す。
+
+### useEditor → useApp
+
+tldraw の `useEditor()` は uSketch の `useApp()` になり、同じアクセスを提供する。パターンの違いは、1 オブジェクトのメソッドではなく異なる registry を呼ぶ点:
+
+```tsx
+function CreateCard() {
+  const app = useApp();
+  const handleClick = () => {
+    const shape = app.shapes.get("card")!.createDefault({ id: generateId(), x: 0, y: 0 });
+    app.commands.execute(createAddShapeCommand(app.store, shape));
+  };
+  return <button onClick={handleClick}>Add card</button>;
+}
+```
+
+React 外の consumer（event source、デバッグパネル）は `store.subscribe(listener)` で「何か変わった」を、`store.onMutation((event) => …)` で型付きミューテーション event を受け取れる。
+
+### createComputedCache → useMemo または onMutation
+
+tldraw の `createComputedCache` は record 群から導出した値を identity と同期させる。自然な置換は 2 通り:
+
+- **React コンポーネント内**: `useMemo(() => derive(shape), [shape])`。Zustand は更新時に新しい shape 参照を返し、React が memo を無効化する。
+- **React 外**: 通常の `Map<id, Cached>` を `store.onMutation` で無効化する。mutation event には影響を受けた shape ID が含まれる。エントリを clear して lazy に再計算する。
+
+`WeakMapCache` には直接対応する uSketch 機構はない — plain `ShapeData` オブジェクトは更新時に identity が変わるため（更新で新オブジェクトが返る）。キャッシュは `shape.id` をキーにする。
+
+## Yjs データ移行
+
+両ライブラリとも shape を Yjs `Y.Map` に持つが、record 形状が違う。tldraw は shape ごとに `TLRecord` を持つ:
+
+```json
+{
+  "id": "shape:abc",
+  "type": "geo",
+  "typeName": "shape",
+  "x": 100,
+  "y": 200,
+  "rotation": 0,
+  "index": "a1",
+  "parentId": "page:page",
+  "isLocked": false,
+  "opacity": 1,
+  "props": { "geo": "rectangle", "w": 200, "h": 100, "color": "blue", "fill": "solid" },
+  "meta": {}
+}
+```
+
+uSketch の対応はフラットな `ShapeData`:
+
+```json
+{
+  "id": "abc",
+  "type": "rectangle",
+  "x": 100,
+  "y": 200,
+  "width": 200,
+  "height": 100,
+  "rotation": 0,
+  "zIndex": "a1",
+  "style": { "fill": "#3b82f6", "stroke": "#0f172a", "strokeWidth": 2, "opacity": 1 }
+}
+```
+
+3 つの主要差分:
+
+- `props.w` / `props.h` → トップレベル `width` / `height`
+- `index`（Fractional Index）→ `zIndex` にリネーム — エンコードは同一なので文字列をそのまま 1:1 で再利用できる
+- tldraw の色 enum（`"blue"`、`"red"`、…）→ hex トークンに解決
+
+### shape 別フィールド対応
+
+| tldraw `type` + `props` | uSketch `type` | フィールド対応 | 備考 |
+| ----------------------- | -------------- | -------------- | ---- |
+| `geo` + `props.geo = "rectangle"` | `rectangle` | `props.w/h → width/height`、色解決 | `@edv4h/usketch-plugin-shape-basic` の rectangle plugin を使う |
+| `geo` + `props.geo = "ellipse"` | `ellipse` | 同上 | 同 plugin |
+| `arrow` | `connector` | `props.start.boundShapeId → sourceId`（無ければ `sourcePoint`）、`props.end.boundShapeId → targetId`（無ければ `targetPoint`） | uSketch に `arrow` shape は無く、近いのは `@edv4h/usketch-plugin-shape-connector`。`ConnectorShapeData` は `sourceAnchor` / `targetAnchor` / `arrowHead` / `pathType` のデフォルトも必要 — `createDefaultConnector` で土台を作って endpoint を上書きするのが楽 |
+| `text` | `text` | `props.text → text`、size enum (`s/m/l/xl`) → px (`12/16/24/36`)、font enum → CSS family | width / height は tldraw record から |
+| `image` | `image` | `props.assetId → src`（asset map 経由）、`props.w/h → width/height` | tldraw は画像バイトを別 `TLAsset` レコードに保存する。先 pass で集めて URL に解決してから shape を移行 |
+
+### 移行スクリプト
+
+下記は説明用 — tldraw は minor バージョン間で snapshot 形状が変わるため、自分の snapshot に合わせて検証してから使う。出発点として扱い、色 / font enum を実際の tldraw 設定に合わせる。
+
+```ts
+import * as Y from "yjs";
+import { type ShapeData, DEFAULT_STYLE } from "@edv4h/usketch-shared";
+
+type TLRecord = {
+  id: string;
+  typeName: string;
+  type?: string;
+  x?: number;
+  y?: number;
+  rotation?: number;
+  index?: string;
+  parentId?: string;
+  opacity?: number;
+  props?: Record<string, unknown>;
+  meta?: Record<string, unknown>;
+};
+
+const COLOR_HEX: Record<string, string> = {
+  blue: "#3b82f6",
+  red: "#ef4444",
+  green: "#22c55e",
+  yellow: "#eab308",
+  black: "#0f172a",
+  grey: "#64748b",
+  "light-blue": "#93c5fd",
+};
+
+const FONT_SIZE_PX: Record<string, number> = { s: 12, m: 16, l: 24, xl: 36 };
+
+function resolveColor(name: unknown): string {
+  return (typeof name === "string" && COLOR_HEX[name]) || "#0f172a";
+}
+
+function migrateRecord(rec: TLRecord, assetMap: Map<string, string>): ShapeData | null {
+  if (rec.typeName !== "shape") return null;
+
+  const base = {
+    id: rec.id.replace(/^shape:/, ""),
+    x: rec.x ?? 0,
+    y: rec.y ?? 0,
+    rotation: rec.rotation ?? 0,
+    zIndex: rec.index, // 1:1 再利用 — 同じ Fractional Index エンコード
+    parentId: rec.parentId === "page:page" ? undefined : rec.parentId,
+    style: { ...DEFAULT_STYLE, opacity: rec.opacity ?? 1 },
+  };
+  const p = (rec.props ?? {}) as Record<string, unknown>;
+
+  switch (rec.type) {
+    case "geo": {
+      const geo = (p.geo as string | undefined) ?? "rectangle";
+      const type = geo === "ellipse" ? "ellipse" : "rectangle";
+      const color = resolveColor(p.color);
+      return {
+        ...base,
+        type,
+        width: (p.w as number) ?? 100,
+        height: (p.h as number) ?? 100,
+        style: { ...base.style, fill: color, stroke: "#0f172a", strokeWidth: 2 },
+      } as ShapeData;
+    }
+    case "text":
+      // TextShapeData は text / fontSize / fontFamily / isEditing が必須。
+      // text plugin は背景透過で描画するので base.style を text plugin の
+      // 既定（fill: "transparent", strokeWidth: 0）で上書きする。
+      return {
+        ...base,
+        type: "text",
+        width: (p.w as number) ?? 200,
+        height: 40,
+        style: { ...base.style, fill: "transparent", strokeWidth: 0 },
+        text: (p.text as string) ?? "",
+        fontSize: FONT_SIZE_PX[(p.size as string) ?? "m"] ?? 16,
+        fontFamily: "system-ui, sans-serif",
+        isEditing: false,
+      } as ShapeData;
+    case "arrow": {
+      const start = p.start as { x?: number; y?: number; boundShapeId?: string } | undefined;
+      const end = p.end as { x?: number; y?: number; boundShapeId?: string } | undefined;
+      const sourceId = start?.boundShapeId?.replace(/^shape:/, "");
+      const targetId = end?.boundShapeId?.replace(/^shape:/, "");
+      // ConnectorShapeData は下記すべて必須 — sourcePoint / targetPoint は
+      // sourceId / targetId が無いときの fallback。anchor / arrowHead /
+      // pathType は connector plugin の既定値を踏襲する。
+      return {
+        ...base,
+        type: "connector",
+        width: 0,
+        height: 0,
+        sourceId,
+        targetId,
+        sourceAnchor: "auto",
+        targetAnchor: "auto",
+        arrowHead: "forward",
+        pathType: "straight",
+        sourcePoint: { x: start?.x ?? base.x, y: start?.y ?? base.y },
+        targetPoint: { x: end?.x ?? base.x + 100, y: end?.y ?? base.y },
+      } as ShapeData;
+    }
+    case "image": {
+      const url = assetMap.get((p.assetId as string) ?? "");
+      if (!url) return null;
+      return {
+        ...base,
+        type: "image",
+        width: (p.w as number) ?? 200,
+        height: (p.h as number) ?? 150,
+        src: url,
+      } as ShapeData;
+    }
+    default:
+      console.warn(`Skipping unsupported tldraw shape type: ${rec.type}`);
+      return null;
+  }
+}
+
+export function migrateTldrawSnapshot(snapshot: TLRecord[], yDoc: Y.Doc): number {
+  const shapesMap = yDoc.getMap<Record<string, unknown>>("shapes");
+  // 1st pass: 画像 asset URL を id で集める。
+  const assetMap = new Map<string, string>();
+  for (const rec of snapshot) {
+    if (rec.typeName === "asset" && (rec as TLRecord & { type?: string }).type === "image") {
+      const src = (rec.props as Record<string, unknown> | undefined)?.src;
+      if (typeof src === "string") assetMap.set(rec.id, src);
+    }
+  }
+  // 2nd pass: 1 トランザクション内で shape を Y.Map に移行。
+  let written = 0;
+  yDoc.transact(() => {
+    for (const rec of snapshot) {
+      const shape = migrateRecord(rec, assetMap);
+      if (!shape) continue;
+      shapesMap.set(shape.id, JSON.parse(JSON.stringify(shape)));
+      written++;
+    }
+  });
+  return written;
+}
+```
+
+実行手順: tldraw snapshot を読み込み（通常 tldraw の `getSnapshot(store)` か、export した `.tldr` JSON）、新しい `Y.Doc` を作って `migrateTldrawSnapshot` を呼び、`@edv4h/usketch-plugin-sync-localstorage-yjs` の `createYjsSync` で uSketch にアタッチする。sync plugin が `Y.Map` を観察して shape を `BoardStore` に流し込む。
+
+> **画像 asset について。** tldraw snapshot で画像バイトが `TLAsset.src` に base64 で残っている場合、移行後の `image` shape は `data.src` にバイトをインライン保持する。動作はするが document が肥大化するので、先に asset を CDN へアップロードして解決済み URL を asset map に書く方が良い。
+
+## External Content
+
+tldraw は drop / paste を `editor.registerExternalContentHandler(kind, fn)` で扱い、7 kind（`text | files | url | svg-text | tldraw | excalidraw | embeds`）を持つ。uSketch は 3 kind（`file | url | text`）に正規化し、predicate で match する:
+
+| tldraw kind | uSketch handler |
+| ----------- | --------------- |
+| `text` | `kind: "text"` |
+| `files` | `kind: "file"` |
+| `url` | `kind: "url"` |
+| `svg-text` | `kind: "text"` + `match: ({ html, text }) => (html ?? text).trim().startsWith("<svg")` |
+| `embeds`（YouTube 等） | `kind: "url"` + host 名による `match` |
+| `tldraw` / `excalidraw` document import | native handler 無し — `kind: "text"` 経由で dispatch し、JSON 形状を検出してコンバーターを走らせる |
+
+例: YouTube embed handler。
+
+```tsx
+import type { UsketchPlugin } from "@edv4h/usketch-shared";
+
+export const youtubeEmbedPlugin: UsketchPlugin = {
+  id: "youtube-embed",
+  name: "YouTube embed",
+  setup(ctx) {
+    const off = ctx.externalContent.register({
+      id: "youtube-embed:url",
+      kind: "url",
+      order: 50,
+      match: (content) => {
+        try {
+          const u = new URL(content.url);
+          return u.hostname === "youtube.com" || u.hostname === "www.youtube.com";
+        } catch {
+          return false;
+        }
+      },
+      handle: async (content, hctx) => {
+        const shape = makeYoutubeShape(content.url);
+        hctx.commands.execute({
+          execute: () => hctx.store.addShape(shape),
+          undo: () => hctx.store.deleteShape(shape.id),
+        });
+      },
+    });
+    (this as UsketchPlugin).teardown = () => off();
+  },
+};
+```
+
+解決は single-winner ルール（`order` 最大が勝ち、同値は last-registered が勝つ）。詳しくは [External Content](./external-content) を参照。
+
+## Selection UI の差し替え
+
+tldraw では selection UI が `SelectTool`（バウンディングボックスとハンドルを描く `StateNode`）と shape ごとの `Indicator` コンポーネントに分かれている。差し替えるには tool を subclass し、新しい indicator を登録し、`SelectTool` 内部 state との結合をある程度受け入れる必要がある。
+
+uSketch は shape 描画と selection chrome を完全に分離している。selection foreground 全体 — バウンディングボックス、8 個のリサイズハンドル、回転ハンドル、マーキー矩形 — は 1 つの React コンポーネントとして登録する:
+
+```ts
+const app = await createApp({
+  store,
+  plugins,
+  selectionForeground: {
+    render: (ctx) => <MySelectionForeground ctx={ctx} />,
+  },
+});
+```
+
+プラグインも `ctx.ui.registerSelectionForeground({ id, priority, render })` で opt-in できる。registry は priority 最大のエントリを選び、同値は last-registered が勝つ。`@edv4h/usketch-plugin-tool-select` が priority 0 でデフォルトを自己登録する。詳しくは [Selection Foreground](./selection-foreground) を参照。
+
+## よくある落とし穴
+
+tldraw からの移植で遭遇しやすい問題。移植開始前にざっと目を通しておくと、後のデバッグ時間を節約できる。
+
+### 1. 自動リアクティビティが無い
+
+`track()` は無い。`useStoreSubscribe` の外で `app.store` を読むコンポーネントは初回のみレンダーされて以後更新されない。reactive read はすべて selector でラップし、**primitive または安定した参照を返す**。コンポーネントが derived 値に依存している場合、selector 内で計算すれば React は derived 値が変わったときだけ再レンダーする。
+
+### 2. Editor が registrar に分散している
+
+`editor.X()` を適切な registry method に置換する:
+
+| tldraw | uSketch |
+| ------ | ------- |
+| `editor.createShape(...)` | `app.commands.execute(createAddShapeCommand(app.store, shape))` |
+| `editor.deleteShapes(ids)` | `app.commands.execute(createDeleteShapeCommand(app.store, id))` |
+| `editor.select(...ids)` | `app.store.setSelection(ids)` |
+| `editor.getCurrentPageShapes()` | `Array.from(app.store.getShapes().values())` |
+
+ロジック移植の前に search-and-replace のパスとして処理しておく。
+
+### 3. `editor.run(fn)` バッチラッパーが無い
+
+tldraw の `editor.run(fn)` は複数 mutation を 1 つの undo エントリにまとめる。uSketch には直接対応する API がまだない — すべての mutation を `execute` で実行し、逆操作を `undo` で行う合成 `Command` を 1 つ作って `commands.execute` に渡す。
+
+native の `commands.batch(fn)` API はロードマップにある。実装されても workaround は引き続き有効。
+
+### 4. `sideEffects.registerBeforeCreateHandler` が無い
+
+tldraw は `editor.sideEffects.registerBeforeCreateHandler` / `BeforeChange` 等で record を commit 前に変更・veto できる。uSketch には現状 pre-mutation hook がない。最も近い workaround:
+
+- **post-mutation 反応**: `store.onMutation((event) => …)` が各 mutation 後に型付き payload で発火する。cleanup、sync、audit ログに向く。
+- **pre-mutation 検証**: `addShape` / `updateShape` 呼び出しを、`execute` 前に検証する自作 `Command` でラップする。検証責任を呼び出し側に押し付ける設計 — プラグインが裏でこっそりミューテーションを変えることはできない。
+
+pre-mutation hook API は設計中。必要なら対応する issue を追跡してほしい。
+
+### 5. WeakMapCache / createComputedCache
+
+uSketch 内に signia は無い。2 つの置換パターン:
+
+- React 内: `useMemo` を shape そのものでキー化（Zustand は更新ごとに新しい shape 参照を返す）。
+- React 外: 通常 `Map<id, Cached>` を `store.onMutation` で無効化。signia の再現を試みないこと — primitive を返す selector は再実行が軽く、引き起こされる再レンダーも通常問題にならない。
+
+### 6. Props フラット化での衝突
+
+`ShapeData` の予約コアフィールド: `id`、`type`、`x`、`y`、`width`、`height`、`rotation`、`zIndex`、`style`、`meta`、`parentId`、`createdAt`、`updatedAt`。tldraw shape が `props.x` / `props.y` / `props.w` / `props.h` を持っていたらコアフィールドに潰れる。アプリケーションドメイン値 — `employeeId`、内部 `versionId`、`featureFlag` 等 — は `meta` に入れる。`x-*` エスケープハッチは一回限りの移行用。
+
+### 7. TLAsset（画像・動画）
+
+tldraw は asset registry を `assetId` 経由で間接参照するが、uSketch は URL を shape に直接持つ（`data.src`）。移行時に asset-id → URL リゾルバが必要（migration script に含めた）。動画 asset 用のビルトイン shape は無い — 独自 shape plugin を書くか該当 record をスキップする。
+
+### 8. `zoomToFit` API シグネチャ
+
+tldraw では `editor.zoomToFit()` は引数なし。uSketch では:
+
+```ts
+app.store.fitToBounds(bounds, { width, height }, padding?);
+```
+
+呼び出し側が bounds と viewport ピクセルサイズを渡す。bounds は shape をイテレートして計算する:
+
+```ts
+import type { BoundingBox, ShapeData } from "@edv4h/usketch-shared";
+
+function unionBounds(shapes: Iterable<ShapeData>): BoundingBox | null {
+  let result: BoundingBox | null = null;
+  for (const s of shapes) {
+    const b = { x: s.x, y: s.y, width: s.width, height: s.height };
+    if (!result) {
+      result = b;
+    } else {
+      const right = Math.max(result.x + result.width, b.x + b.width);
+      const bottom = Math.max(result.y + result.height, b.y + b.height);
+      result = {
+        x: Math.min(result.x, b.x),
+        y: Math.min(result.y, b.y),
+        width: right - Math.min(result.x, b.x),
+        height: bottom - Math.min(result.y, b.y),
+      };
+    }
+  }
+  return result;
+}
+```
+
+### 9. shape 削除時の関連オブジェクトクリーンアップ
+
+tldraw は `editor.sideEffects.registerAfterDeleteHandler('shape', fn)` で connector cleanup 等を行う。uSketch プラグインは `store.onMutation` で `shape:removed` event を listen し、フォローアップ command を自分で発行する:
+
+```ts
+ctx.store.onMutation((event) => {
+  if (event.type === "shape:removed") {
+    const id = event.payload?.id;
+    // `id` を参照する connector を探して削除する。
+  }
+});
+```
+
+group 化された shape の親 / 子 / connector cleanup はすでに `@edv4h/usketch-store` の `createDeleteWithChildrenCommand` が処理している — まずそれを使う。
+
+## 次に読むもの
+
+- [Shape プラグイン作成ガイド](./shape-plugin) — `ShapeDefinition` と描画 tool パターンの正典リファレンス
+- [Tool プラグイン作成ガイド](./tool-plugin) — phase 変数、ライフサイクル、`@edv4h/usketch-tool-helpers` セッション
+- [Selection Foreground](./selection-foreground) — selection chrome を独自 React コンポーネントで差し替え
+- [External Content](./external-content) — drop / paste / URL ハンドラを priority 解決で登録
+- [Third-Party Plugin Authoring](./third-party-plugin) — uSketch plugin を独立 npm パッケージとして配布
+
+このガイドでカバーしていない tldraw 概念があれば issue / pull request を歓迎する — 読者からの移行ノートがこのドキュメントを精度高く保つ最良の手段。

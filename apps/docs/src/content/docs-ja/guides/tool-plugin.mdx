@@ -178,3 +178,14 @@ ctx.tools.register("stamp-and-drag", {
 - ツールの状態はプラグインオブジェクトではなく、`setup()` 内の**クロージャ**に保持する。これにより共有可変状態の問題を避けられる。
 - 他プラグインが反応する必要があるなら `ctx.events.emit()` でイベントを発行する。
 - `order` は慎重に設定する — ツールバーでは `order` の昇順で左から右に並ぶ。
+
+## tldraw からの移行
+
+`class MyTool extends StateNode` は `ctx.tools.register()` に渡す `ToolDefinition` オブジェクトに置き換わります:
+
+- ルート state の `onEnter` / `onExit` → `onActivate` / `onDeactivate`
+- 子 `StateNode` + `transition("…")` → `setup()` 内クロージャの `phase` 変数
+- `editor.inputs.currentPagePoint` → `event.worldPoint`
+- `editor.createShape(...)` → `ctx.commands.execute(createAddShapeCommand(store, shape))`
+
+内部状態はプラグインオブジェクトではなく `setup()` のクロージャに保持してください。`StateNode` の子階層・`track()` リアクティビティを含むフル比較は [tldraw からの移行](./migrate-from-tldraw) を参照。

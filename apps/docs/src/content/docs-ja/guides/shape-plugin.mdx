@@ -190,3 +190,15 @@ export const rectPlugin: UsketchPlugin = {
 - ライブプレビューには**ストアを直接変更**、確定アクションには**コマンド**を使う。
 - ユーザーが少しだけドラッグしたケース（width/height が閾値未満）を必ず扱う。
 - 描画後は選択ツールに戻す — これが期待される UX。
+
+## tldraw からの移行
+
+`class MyShapeUtil extends ShapeUtil<TMyShape>` を書いていた人向け。uSketch では `ctx.shapes.register()` に渡すただのオブジェクトで同じことを表現します:
+
+- `component(shape)` → `render(data)`
+- `getGeometry(shape)` → `getBounds(data)` + `hitTest(data, point)`
+- `onResize(info)` → `resize(data, handle, delta)`
+- `getDefaultProps()` + `TLBaseShape` の入れ物 → `createDefault(params)`（戻り値は `extends ShapeData` の独自型）
+- `shape.props.foo` → `data.foo`（フラット — `width` / `height` / `x` / `y` はコアフィールド）
+
+API 対応表・Yjs データ移行・落とし穴の詳細は [tldraw からの移行](./migrate-from-tldraw) を参照。

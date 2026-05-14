@@ -230,3 +230,15 @@ See [Shape System → Extending shapes](/docs/concepts/shape-system/#extending-s
 - Always handle the case where the user barely drags (width/height < threshold).
 - Switch back to the select tool after drawing — this is the expected UX.
 - Declare an `extends ShapeData` interface for your plugin's intrinsic fields; put application data in `meta`.
+
+## Coming from tldraw?
+
+If you previously wrote `class MyShapeUtil extends ShapeUtil<TMyShape>`, the uSketch equivalent is the plain object passed to `ctx.shapes.register()`:
+
+- `component(shape)` → `render(data)`
+- `getGeometry(shape)` → `getBounds(data)` + `hitTest(data, point)`
+- `onResize(info)` → `resize(data, handle, delta)`
+- `getDefaultProps()` + the `TLBaseShape` envelope → `createDefault(params)` returning your `extends ShapeData` type
+- `shape.props.foo` → `data.foo` (flat — `width` / `height` / `x` / `y` are core fields)
+
+For the full API table, Yjs data migration, and common pitfalls, see [Migrating from tldraw](./migrate-from-tldraw).

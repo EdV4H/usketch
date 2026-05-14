@@ -1,0 +1,831 @@
+---
+title: Migrating from tldraw
+description: Port a tldraw v2 app to uSketch — API correspondence table, code examples for shape/tool/Yjs migration, and common pitfalls.
+order: 30
+---
+
+If you have built a tldraw v2 app and want to move to uSketch — perhaps because tldraw's v2 license tier no longer fits your use case, or because you want a smaller, MIT-licensed canvas runtime — this guide is the shortest path. The two libraries share many concepts (shape utilities, tools, an immutable record store, a Yjs adapter) but they package them differently. Read this guide once before you start porting; it will save you re-discovering each delta through trial and error.
+
+## Why this guide
+
+tldraw v2 introduced a non-free license layer in 2024, and a number of teams have asked for a clear migration path to a permissively licensed canvas runtime. uSketch v2 is MIT-licensed, ships an explicit plugin API, and reuses several primitives that will look familiar (`ShapeData` is a flatter cousin of `TLBaseShape`, `Yjs` syncing works through a similar `Y.Map`-of-shapes layout, and so on).
+
+This guide assumes you have written at least one of:
+
+- `class MyShapeUtil extends ShapeUtil<TMyShape>` to add a custom shape,
+- `class MyTool extends StateNode` for a custom tool,
+- code that calls `editor.createShape(...)` / `editor.updateShapes(...)`.
+
+It is **not** a tutorial — start with [Building a Shape Plugin](./shape-plugin) and [Building a Tool Plugin](./tool-plugin) if you have never written uSketch code before. It is also **not** a comparison of features the two libraries don't share: tldraw's collaborative presence avatars, AI agents, and document import for the proprietary `.tldr` format are out of scope.
+
+## Conceptual mapping
+
+Three mental-model shifts cover 80% of the migration work. Internalize these first and the API-level translations below will feel mechanical.
+
+### The single `Editor` becomes `useApp()` plus five registrars
+
+tldraw centralizes everything on the `Editor` instance: `editor.createShape`, `editor.select`, `editor.zoomToFit`, `editor.sideEffects.registerBeforeCreateHandler` all hang off the same object. uSketch splits these responsibilities into a few cooperating registries that you reach through `useApp()`:
+
+| Concern | uSketch entry point |
+| ------- | ------------------- |
+| Read / mutate shapes, viewport, selection | `app.store` (`BoardStore`) |
+| Undo / redo, batched operations | `app.commands` |
+| Register / look up shape definitions | `app.shapes` |
+| Register / activate tools | `app.tools` |
+| Emit / listen to events | `app.events` |
+| Drop / paste / URL handlers | `app.externalContent` |
+| Selection-UI override | `app.ui` |
+
+Inside a plugin's `setup(ctx)`, those same registries are reachable as `ctx.store`, `ctx.commands`, etc.
+
+### `track()` becomes `useStoreSubscribe(store, selector)`
+
+tldraw uses signia signals: a `track(Component)` HOC subscribes to every reactive read the component made, and re-renders automatically. uSketch uses Zustand under the hood; React components subscribe **explicitly** by calling `useStoreSubscribe(store, selector)` and the selector should return either a primitive or a stable reference. The trade-off is a tiny bit more boilerplate per component in exchange for explicit, debuggable subscriptions.
+
+### Classes become objects
+
+`ShapeUtil` and `StateNode` are abstract classes you extend; uSketch `ShapeDefinition` and `ToolDefinition` are plain objects with method-shaped properties. There is no inheritance — composition is done with helper functions (`@edv4h/usketch-shape-utils`, `@edv4h/usketch-tool-helpers`), and "child states" inside a tool become closure variables inside `setup()`.
+
+### Nested `props` flatten into `ShapeData`
+
+In tldraw a shape's intrinsic data lives at `shape.props.w`, `shape.props.text`, etc. In uSketch, `width`, `height`, `x`, `y`, `rotation`, `zIndex`, `style`, `parentId`, `meta`, `createdAt`, `updatedAt` are reserved **core fields** on `ShapeData`. Plugin-specific fields (a sticky note's `text`, an image shape's `src`) sit at the same top level — no `data.props` wrapper. Application data that has no geometry meaning goes into `meta`.
+
+## API correspondence
+
+| tldraw concept | uSketch equivalent |
+| -------------- | ------------------ |
+| `ShapeUtil.component(shape)` | `ShapeDefinition.render(data)` |
+| `ShapeUtil.getGeometry(shape)` | `ShapeDefinition.getBounds(data)` + `hitTest(data, point)` |
+| `ShapeUtil.onResize(info)` | `ShapeDefinition.resize(data, handle, delta)` |
+| `ShapeUtil.getDefaultProps()` | `ShapeDefinition.createDefault({ id, x, y })` |
+| `TLBaseShape<T, Props>` | `ShapeData & { type: T; ...intrinsicFields }` (flat) |
+| `Editor.createShapes([...])` | `store.addShape(shape)` wrapped in `commands.execute({ execute, undo })` |
+| `track(Component)` | `useStoreSubscribe(store, selector)` inside the component |
+| `class extends StateNode` | `ToolDefinition` object + closure state inside `setup()` |
+| `editor.registerExternalContentHandler(kind, fn)` | `ctx.externalContent.register({ id, kind, match, handle })` |
+| `useEditor()` | `useApp()` |
+| `WeakMapCache` / `createComputedCache` | Plain `Map<id, T>` invalidated via `store.onMutation`, or `useMemo` |
+
+The remainder of this guide expands each row with code.
+
+## Shape migration
+
+### Step 1. ShapeUtil class → ShapeDefinition object
+
+A tldraw shape util looks like this:
+
+```tsx
+// ─── tldraw v2 (before) ───────────────────────────────────────────────
+import { BaseBoxShapeUtil, HTMLContainer, type TLBaseShape } from "tldraw";
+
+type CardShape = TLBaseShape<"card", { w: number; h: number; title: string }>;
+
+class CardShapeUtil extends BaseBoxShapeUtil<CardShape> {
+  static override type = "card" as const;
+
+  override getDefaultProps(): CardShape["props"] {
+    return { w: 240, h: 120, title: "New card" };
+  }
+
+  override component(shape: CardShape) {
+    return (
+      <HTMLContainer
+        style={{ width: shape.props.w, height: shape.props.h, padding: 8 }}
+      >
+        <strong>{shape.props.title}</strong>
+      </HTMLContainer>
+    );
+  }
+  // getGeometry / onResize provided by BaseBoxShapeUtil
+}
+```
+
+The uSketch equivalent is a set of plain functions registered through `ctx.shapes.register()`:
+
+```tsx
+// ─── uSketch v2 (after) ───────────────────────────────────────────────
+import type {
+  BoundingBox,
+  Point,
+  ResizeHandle,
+  ShapeData,
+  PluginContext,
+  UsketchPlugin,
+} from "@edv4h/usketch-shared";
+import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
+
+export interface CardShapeData extends ShapeData {
+  title: string;
+}
+
+function render(shape: ShapeData) {
+  const data = shape as CardShapeData;
+  return (
+    <foreignObject x={data.x} y={data.y} width={data.width} height={data.height}>
+      <div
+        xmlns="http://www.w3.org/1999/xhtml"
+        style={{ width: "100%", height: "100%", padding: 8, boxSizing: "border-box" }}
+      >
+        <strong>{data.title}</strong>
+      </div>
+    </foreignObject>
+  );
+}
+
+function getBounds(data: ShapeData): BoundingBox {
+  return { x: data.x, y: data.y, width: data.width, height: data.height };
+}
+
+function hitTest(data: ShapeData, point: Point): boolean {
+  return (
+    point.x >= data.x &&
+    point.x <= data.x + data.width &&
+    point.y >= data.y &&
+    point.y <= data.y + data.height
+  );
+}
+
+function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData {
+  // Same eight-direction switch as the rectangle plugin —
+  // see Building a Shape Plugin → "Implement Resize Logic".
+  return data;
+}
+
+function createDefault(params: { id: string; x: number; y: number }): CardShapeData {
+  return {
+    id: params.id,
+    type: "card",
+    x: params.x,
+    y: params.y,
+    width: 240,
+    height: 120,
+    style: { ...DEFAULT_STYLE },
+    title: "New card",
+  };
+}
+
+export const cardPlugin: UsketchPlugin = {
+  id: "card-shape",
+  name: "Card",
+  setup(ctx: PluginContext) {
+    ctx.shapes.register("card", { render, getBounds, hitTest, resize, createDefault });
+  },
+};
+```
+
+Two patterns to internalize:
+
+- **No wrapper class.** `ShapeDefinition` is the object literal; there is no `this`. State (caches, timers) belongs in the `setup()` closure.
+- **Cast `ShapeData` to your extension interface** inside `render` / `hitTest` / `resize` so plugin-specific fields are type-safe. This mirrors the `as RectangleShapeData` pattern in [Building a Shape Plugin](./shape-plugin).
+
+### Step 2. TLBaseShape props → flat ShapeData
+
+tldraw envelopes intrinsic data in `props`:
+
+```ts
+type CardShape = TLBaseShape<"card", { w: number; h: number; title: string }>;
+// Access: shape.props.w, shape.props.title
+```
+
+uSketch reuses **core fields** (`width`, `height`, `x`, `y`, `rotation`, …) and puts plugin-specific fields at the same level:
+
+```ts
+interface CardShapeData extends ShapeData {
+  title: string;
+}
+// Access: data.width, data.title
+```
+
+The reserved core fields you must not redefine:
+
+| Field | Type | Notes |
+| ----- | ---- | ----- |
+| `id` | `string` | Unique within the board. |
+| `type` | `string` | Matches the `ShapeRegistry` key. |
+| `x`, `y` | `number` | Top-left in world coordinates. |
+| `width`, `height` | `number` | Always present (no `props.w`). |
+| `rotation` | `number?` | Radians; `undefined` ≡ 0. |
+| `zIndex` | `string?` | Fractional index; same encoding as tldraw's `index`. |
+| `style` | `ShapeStyle` | `{ fill, stroke, strokeWidth, opacity }`. |
+| `parentId` | `string?` | For grouped / framed shapes. |
+| `meta` | `TMeta` | Application data — see below. |
+| `createdAt`, `updatedAt` | `number?` | Optional millisecond timestamps. |
+
+Anything that isn't geometry (an `employeeId`, an external `versionId`) belongs in `meta`. There is also an `x-*` escape hatch for legacy migrations, but new code should use `meta`. See [Shape System → Extending shapes](/docs/concepts/shape-system/#extending-shapes).
+
+### Step 3. createShapes → store.addShape + commands
+
+tldraw batches mutations in `editor.run`:
+
+```ts
+editor.run(() => {
+  editor.createShapes([{ id, type: "card", x: 100, y: 100, props: { /*…*/ } }]);
+});
+```
+
+uSketch separates the store mutation from undo bookkeeping. The store mutates immediately; commands give you undo:
+
+```ts
+import { createAddShapeCommand } from "@edv4h/usketch-store";
+
+ctx.commands.execute(createAddShapeCommand(ctx.store, shape));
+```
+
+`createAddShapeCommand` wraps `{ execute: () => store.addShape(shape), undo: () => store.deleteShape(shape.id) }`. The full set of helpers in `@edv4h/usketch-store` covers the operations you would do with `editor.X`:
+
+| Operation | Helper |
+| --------- | ------ |
+| Create a shape | `createAddShapeCommand(store, shape)` |
+| Delete a shape | `createDeleteShapeCommand(store, id)` |
+| Update a shape (with from / to snapshots) | `createUpdateShapeCommand(store, id, from, to)` |
+| Move many shapes | `createMoveShapesCommand(store, beforeMap, afterMap)` |
+| Batch updates | `createBatchUpdateShapesCommand(store, updates)` |
+| Group / ungroup | `createGroupCommand`, `createUngroupCommand` |
+| Z-order operations | `createBringToFrontCommand`, `createSendToBackCommand`, … |
+
+There is no `commands.batch(fn)` wrapper today — to batch multiple operations into a single undo step, build one composite `Command` object whose `execute` runs all mutations and whose `undo` reverses them.
+
+## Tool migration
+
+### Step 1. StateNode → ToolDefinition
+
+tldraw tools are class hierarchies:
+
+```tsx
+// ─── tldraw v2 (before) ───────────────────────────────────────────────
+import { StateNode, type TLPointerEventInfo } from "tldraw";
+
+class CardTool extends StateNode {
+  static override id = "card";
+  static override initial = "idle";
+  static override children = () => [Idle, Drawing];
+}
+
+class Idle extends StateNode {
+  static override id = "idle";
+  override onPointerDown = () => this.parent.transition("drawing");
+}
+
+class Drawing extends StateNode {
+  static override id = "drawing";
+  override onEnter = () => {
+    const { currentPagePoint } = this.editor.inputs;
+    this.editor.createShape({
+      type: "card",
+      x: currentPagePoint.x,
+      y: currentPagePoint.y,
+    });
+  };
+  override onPointerUp = () => this.parent.transition("idle");
+}
+```
+
+In uSketch the tool is a single object literal. Sub-states collapse into a closure variable — typically a `phase` discriminator plus any phase-local data:
+
+```tsx
+// ─── uSketch v2 (after) ───────────────────────────────────────────────
+import { createAddShapeCommand } from "@edv4h/usketch-store";
+import {
+  generateId,
+  type CanvasPointerEvent,
+  type PluginContext,
+  type ToolContext,
+  type UsketchPlugin,
+} from "@edv4h/usketch-shared";
+
+function CardIcon() {
+  return <svg width="20" height="20" viewBox="0 0 20 20" /* … */ />;
+}
+
+export const cardToolPlugin: UsketchPlugin = {
+  id: "card-tool",
+  name: "Card tool",
+  setup(ctx: PluginContext) {
+    // Replaces tldraw's child-state hierarchy.
+    // These live inside the setup() closure — not on the plugin object —
+    // so each plugin instance has its own state.
+    type Phase = "idle" | "drawing";
+    let phase: Phase = "idle";
+    let drawingId: string | null = null;
+
+    function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+      const id = generateId();
+      drawingId = id;
+      phase = "drawing";
+      const shape = toolCtx.shapes
+        .get("card")!
+        .createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
+      // Temporary store mutation for live preview.
+      toolCtx.store.addShape(shape);
+    }
+
+    function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+      if (phase !== "drawing" || !drawingId) return;
+      const start = toolCtx.store.getShape(drawingId);
+      if (!start) return;
+      toolCtx.store.updateShape(drawingId, {
+        width: Math.max(1, event.worldPoint.x - start.x),
+        height: Math.max(1, event.worldPoint.y - start.y),
+      });
+    }
+
+    function onPointerUp(toolCtx: ToolContext) {
+      if (phase !== "drawing" || !drawingId) return;
+      const shape = toolCtx.store.getShape(drawingId);
+      if (shape) {
+        // Swap the temp shape for an undoable command.
+        toolCtx.store.deleteShape(drawingId);
+        toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+      }
+      drawingId = null;
+      phase = "idle";
+      toolCtx.store.setActiveToolId("select");
+    }
+
+    ctx.tools.register("card-draw", {
+      icon: CardIcon,
+      cursor: "crosshair",
+      shortcut: "c",
+      order: 12,
+      onPointerDown,
+      onPointerMove,
+      onPointerUp,
+    });
+  },
+};
+```
+
+### Step 2. Child states → phase variables
+
+tldraw `StateNode` child states inherit `editor` and can `transition("name")` to siblings. In uSketch, the same shape is achieved with a discriminated union:
+
+```ts
+type Phase =
+  | { kind: "idle" }
+  | { kind: "drawing"; shapeId: string; startPoint: Point }
+  | { kind: "rotating"; shapeId: string; pivot: Point };
+
+let phase: Phase = { kind: "idle" };
+
+function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+  // Transition into the "drawing" phase carrying phase-local data
+  phase = { kind: "drawing", shapeId: generateId(), startPoint: event.worldPoint };
+  // …
+}
+```
+
+If your tool has many transitions or you want to share drag / resize / rotate behaviour with the built-in select tool, reach for `@edv4h/usketch-tool-helpers`. Its `startDragSession` / `startResizeSession` / `startRotateSession` / `startMarqueeSession` helpers cover most of what tldraw's `StateNode` library provides out of the box; see the [Reusable Session Helpers](./tool-plugin#reusable-session-helpers) section of *Building a Tool Plugin* for the patterns.
+
+### Step 3. Inputs API
+
+tldraw reads input state from `editor.inputs.*`; uSketch passes it on each event:
+
+| tldraw | uSketch |
+| ------ | ------- |
+| `editor.inputs.currentPagePoint` | `event.worldPoint` (passed to every handler) |
+| `editor.inputs.currentScreenPoint` | `event.screenPoint` |
+| `editor.inputs.shiftKey` | `event.shiftKey` |
+| `editor.inputs.ctrlKey` / `altKey` / `metaKey` | `event.ctrlKey` / `event.altKey` / `event.metaKey` |
+| `editor.inputs.isDragging` | Derived from your `phase` variable |
+| `editor.getSelectedShapeIds()` | `app.store.getSelection()` (returns `ReadonlySet<string>`) |
+
+`CanvasPointerEvent` is a plain object — no globals, no need to query the editor between events.
+
+## Reactivity and selectors
+
+### track() → useStoreSubscribe
+
+In tldraw:
+
+```tsx
+import { useEditor, track } from "tldraw";
+
+const SelectionCount = track(function SelectionCount() {
+  const editor = useEditor();
+  const count = editor.getSelectedShapeIds().length;
+  return <div>{count} selected</div>;
+});
+```
+
+In uSketch you subscribe explicitly. The selector is a function that takes the store and returns a value; the component re-renders whenever the selector's return changes by `Object.is`:
+
+```tsx
+import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
+import type { BoardStore } from "@edv4h/usketch-shared";
+
+const selectSelectionCount = (s: BoardStore) => s.getSelection().size;
+
+function SelectionCount() {
+  const app = useApp();
+  // Returning a primitive keeps the equality check cheap and stable.
+  const count = useStoreSubscribe(app.store, selectSelectionCount);
+  return <div>{count} selected</div>;
+}
+```
+
+> **Selector hygiene.** Selectors must return stable references so subscription comparisons don't thrash. Returning `Array.from(s.getSelection())` allocates a fresh array on every read and will trigger a re-render every store tick — return the underlying `ReadonlySet` (stable identity), a primitive derived from it, or memoize the result.
+
+### useEditor → useApp
+
+`useEditor()` in tldraw becomes `useApp()` in uSketch and gives you the same access. The pattern shift is that you call into different registries instead of methods on one object:
+
+```tsx
+function CreateCard() {
+  const app = useApp();
+  const handleClick = () => {
+    const shape = app.shapes.get("card")!.createDefault({ id: generateId(), x: 0, y: 0 });
+    app.commands.execute(createAddShapeCommand(app.store, shape));
+  };
+  return <button onClick={handleClick}>Add card</button>;
+}
+```
+
+For non-React consumers (event sources, debug panels) the lower-level subscription is `store.subscribe(listener)` for general "something changed" notifications and `store.onMutation((event) => …)` for typed mutation events.
+
+### createComputedCache → useMemo or onMutation
+
+tldraw's `createComputedCache` keeps a value derived from one or more records in sync with their identity. The two natural replacements are:
+
+- **Inside a React component**: `useMemo(() => derive(shape), [shape])`. Zustand re-runs your selector with the new shape reference, React invalidates the memo.
+- **Outside React**: a plain `Map<id, Cached>` invalidated via `store.onMutation`. The mutation event includes the affected shape ID; clear the cache entry, recompute lazily.
+
+`WeakMapCache` has no direct uSketch counterpart because plain `ShapeData` objects don't carry stable identity across updates (updating returns a new object). Key your cache by `shape.id`.
+
+## Yjs data migration
+
+Both libraries persist shapes in a Yjs `Y.Map`, but the record shape differs. tldraw stores a `TLRecord` per shape:
+
+```json
+{
+  "id": "shape:abc",
+  "type": "geo",
+  "typeName": "shape",
+  "x": 100,
+  "y": 200,
+  "rotation": 0,
+  "index": "a1",
+  "parentId": "page:page",
+  "isLocked": false,
+  "opacity": 1,
+  "props": { "geo": "rectangle", "w": 200, "h": 100, "color": "blue", "fill": "solid" },
+  "meta": {}
+}
+```
+
+The uSketch equivalent is a flatter `ShapeData`:
+
+```json
+{
+  "id": "abc",
+  "type": "rectangle",
+  "x": 100,
+  "y": 200,
+  "width": 200,
+  "height": 100,
+  "rotation": 0,
+  "zIndex": "a1",
+  "style": { "fill": "#3b82f6", "stroke": "#0f172a", "strokeWidth": 2, "opacity": 1 }
+}
+```
+
+Three key differences:
+
+- `props.w` / `props.h` collapse to top-level `width` / `height`.
+- `index` (fractional index) renames to `zIndex` — the encoding is identical so the string can be reused 1:1.
+- tldraw color enums (`"blue"`, `"red"`, …) resolve to hex tokens.
+
+### Per-shape field mapping
+
+| tldraw `type` + `props` | uSketch `type` | Field mapping | Notes |
+| ----------------------- | -------------- | ------------- | ----- |
+| `geo` + `props.geo = "rectangle"` | `rectangle` | `props.w/h → width/height`; resolve color | Use the rectangle plugin from `@edv4h/usketch-plugin-shape-basic`. |
+| `geo` + `props.geo = "ellipse"` | `ellipse` | same | Same plugin. |
+| `arrow` | `connector` | `props.start.boundShapeId → sourceId` (else `sourcePoint`); `props.end.boundShapeId → targetId` (else `targetPoint`) | uSketch has no `arrow` shape. The closest match is `@edv4h/usketch-plugin-shape-connector`, whose `ConnectorShapeData` requires `sourceAnchor` / `targetAnchor` / `arrowHead` / `pathType` defaults — use `createDefaultConnector` from that plugin and override the endpoint fields. |
+| `text` | `text` | `props.text → text`; size enum (`s/m/l/xl`) → px (`12/16/24/36`); font enum → CSS family | Width / height from the tldraw record itself. |
+| `image` | `image` | `props.assetId → src` (via asset map); `props.w/h → width/height` | tldraw stores image bytes in a separate `TLAsset` record — collect those in a first pass and resolve URLs before migrating shapes. |
+
+### A migration script
+
+The function below is illustrative — verify it against your own snapshot shape (tldraw evolves between minor versions). Treat it as a starting point and adapt color/font enums to match your tldraw configuration.
+
+```ts
+import * as Y from "yjs";
+import { type ShapeData, DEFAULT_STYLE } from "@edv4h/usketch-shared";
+
+type TLRecord = {
+  id: string;
+  typeName: string;
+  type?: string;
+  x?: number;
+  y?: number;
+  rotation?: number;
+  index?: string;
+  parentId?: string;
+  opacity?: number;
+  props?: Record<string, unknown>;
+  meta?: Record<string, unknown>;
+};
+
+const COLOR_HEX: Record<string, string> = {
+  blue: "#3b82f6",
+  red: "#ef4444",
+  green: "#22c55e",
+  yellow: "#eab308",
+  black: "#0f172a",
+  grey: "#64748b",
+  "light-blue": "#93c5fd",
+};
+
+const FONT_SIZE_PX: Record<string, number> = { s: 12, m: 16, l: 24, xl: 36 };
+
+function resolveColor(name: unknown): string {
+  return (typeof name === "string" && COLOR_HEX[name]) || "#0f172a";
+}
+
+function migrateRecord(rec: TLRecord, assetMap: Map<string, string>): ShapeData | null {
+  if (rec.typeName !== "shape") return null;
+
+  const base = {
+    id: rec.id.replace(/^shape:/, ""),
+    x: rec.x ?? 0,
+    y: rec.y ?? 0,
+    rotation: rec.rotation ?? 0,
+    zIndex: rec.index, // 1:1 reuse — same fractional-index encoding
+    parentId: rec.parentId === "page:page" ? undefined : rec.parentId,
+    style: { ...DEFAULT_STYLE, opacity: rec.opacity ?? 1 },
+  };
+  const p = (rec.props ?? {}) as Record<string, unknown>;
+
+  switch (rec.type) {
+    case "geo": {
+      const geo = (p.geo as string | undefined) ?? "rectangle";
+      const type = geo === "ellipse" ? "ellipse" : "rectangle";
+      const color = resolveColor(p.color);
+      return {
+        ...base,
+        type,
+        width: (p.w as number) ?? 100,
+        height: (p.h as number) ?? 100,
+        style: { ...base.style, fill: color, stroke: "#0f172a", strokeWidth: 2 },
+      } as ShapeData;
+    }
+    case "text":
+      // TextShapeData requires text / fontSize / fontFamily / isEditing,
+      // and the text plugin draws over a transparent background — so
+      // override base.style to match what createDefault would produce.
+      return {
+        ...base,
+        type: "text",
+        width: (p.w as number) ?? 200,
+        height: 40,
+        style: { ...base.style, fill: "transparent", strokeWidth: 0 },
+        text: (p.text as string) ?? "",
+        fontSize: FONT_SIZE_PX[(p.size as string) ?? "m"] ?? 16,
+        fontFamily: "system-ui, sans-serif",
+        isEditing: false,
+      } as ShapeData;
+    case "arrow": {
+      const start = p.start as { x?: number; y?: number; boundShapeId?: string } | undefined;
+      const end = p.end as { x?: number; y?: number; boundShapeId?: string } | undefined;
+      const sourceId = start?.boundShapeId?.replace(/^shape:/, "");
+      const targetId = end?.boundShapeId?.replace(/^shape:/, "");
+      // ConnectorShapeData requires every field below — sourcePoint / targetPoint
+      // act as the fallback when sourceId / targetId aren't bound. Anchor /
+      // arrowHead / pathType inherit the connector plugin's defaults.
+      return {
+        ...base,
+        type: "connector",
+        width: 0,
+        height: 0,
+        sourceId,
+        targetId,
+        sourceAnchor: "auto",
+        targetAnchor: "auto",
+        arrowHead: "forward",
+        pathType: "straight",
+        sourcePoint: { x: start?.x ?? base.x, y: start?.y ?? base.y },
+        targetPoint: { x: end?.x ?? base.x + 100, y: end?.y ?? base.y },
+      } as ShapeData;
+    }
+    case "image": {
+      const url = assetMap.get((p.assetId as string) ?? "");
+      if (!url) return null;
+      return {
+        ...base,
+        type: "image",
+        width: (p.w as number) ?? 200,
+        height: (p.h as number) ?? 150,
+        src: url,
+      } as ShapeData;
+    }
+    default:
+      console.warn(`Skipping unsupported tldraw shape type: ${rec.type}`);
+      return null;
+  }
+}
+
+export function migrateTldrawSnapshot(snapshot: TLRecord[], yDoc: Y.Doc): number {
+  const shapesMap = yDoc.getMap<Record<string, unknown>>("shapes");
+  // First pass: collect image asset URLs by id.
+  const assetMap = new Map<string, string>();
+  for (const rec of snapshot) {
+    if (rec.typeName === "asset" && (rec as TLRecord & { type?: string }).type === "image") {
+      const src = (rec.props as Record<string, unknown> | undefined)?.src;
+      if (typeof src === "string") assetMap.set(rec.id, src);
+    }
+  }
+  // Second pass: migrate shapes into the Y.Map in a single transaction.
+  let written = 0;
+  yDoc.transact(() => {
+    for (const rec of snapshot) {
+      const shape = migrateRecord(rec, assetMap);
+      if (!shape) continue;
+      shapesMap.set(shape.id, JSON.parse(JSON.stringify(shape)));
+      written++;
+    }
+  });
+  return written;
+}
+```
+
+To run the migration, load the tldraw snapshot (typically via `getSnapshot(store)` in tldraw or by reading the `.tldr` JSON file you exported), construct a fresh `Y.Doc`, call `migrateTldrawSnapshot`, then attach the doc to uSketch through `createYjsSync` from `@edv4h/usketch-plugin-sync-localstorage-yjs`. The sync plugin observes the `Y.Map` and feeds shapes into `BoardStore` as they arrive.
+
+> **Image assets.** If your tldraw snapshot still stores image bytes as base64 in `TLAsset.src`, the `image` shapes after migration will carry those bytes inline in `data.src`. That works but bloats the document; consider uploading the assets to a CDN first and writing the resolved URLs into the asset map.
+
+## External content
+
+tldraw routes drop / paste through `editor.registerExternalContentHandler(kind, fn)` with seven kinds: `text | files | url | svg-text | tldraw | excalidraw | embeds`. uSketch normalises these to three kinds (`file | url | text`) and matches via predicate:
+
+| tldraw kind | uSketch handler |
+| ----------- | --------------- |
+| `text` | `kind: "text"` |
+| `files` | `kind: "file"` |
+| `url` | `kind: "url"` |
+| `svg-text` | `kind: "text"` with `match: ({ html, text }) => (html ?? text).trim().startsWith("<svg")` |
+| `embeds` (YouTube etc.) | `kind: "url"` with a host-name `match` |
+| `tldraw` / `excalidraw` document import | No native handler — dispatch through `kind: "text"`, detect the JSON shape, run a converter |
+
+Example: a YouTube embed handler.
+
+```tsx
+import type { UsketchPlugin } from "@edv4h/usketch-shared";
+
+export const youtubeEmbedPlugin: UsketchPlugin = {
+  id: "youtube-embed",
+  name: "YouTube embed",
+  setup(ctx) {
+    const off = ctx.externalContent.register({
+      id: "youtube-embed:url",
+      kind: "url",
+      order: 50,
+      match: (content) => {
+        try {
+          const u = new URL(content.url);
+          return u.hostname === "youtube.com" || u.hostname === "www.youtube.com";
+        } catch {
+          return false;
+        }
+      },
+      handle: async (content, hctx) => {
+        const shape = makeYoutubeShape(content.url);
+        hctx.commands.execute({
+          execute: () => hctx.store.addShape(shape),
+          undo: () => hctx.store.deleteShape(shape.id),
+        });
+      },
+    });
+    (this as UsketchPlugin).teardown = () => off();
+  },
+};
+```
+
+Resolution follows a single-winner rule (highest `order` wins, last-registered breaks ties). See [External Content](./external-content) for the full contract.
+
+## Selection UI replacement
+
+In tldraw the selection UI is split between `SelectTool` (a `StateNode` that renders the bounding box and handles) and per-shape `Indicator` components. Replacing it usually means subclassing the tool, registering new indicator components, and accepting some coupling to internal `SelectTool` states.
+
+uSketch keeps shape rendering completely separate from selection chrome. The whole selection foreground — bounding box, eight resize handles, rotation handle, marquee rectangle — is registered as a single React component:
+
+```ts
+const app = await createApp({
+  store,
+  plugins,
+  selectionForeground: {
+    render: (ctx) => <MySelectionForeground ctx={ctx} />,
+  },
+});
+```
+
+Plugins can also opt in via `ctx.ui.registerSelectionForeground({ id, priority, render })`. The registry picks the highest-priority entry, with last-registered winning ties; `@edv4h/usketch-plugin-tool-select` self-registers a default at priority 0. See [Selection Foreground](./selection-foreground) for the full API.
+
+## Common pitfalls
+
+These are the issues teams hit most often when porting from tldraw. Skim them before you start — they will save hours of debugging later.
+
+### 1. No automatic reactivity
+
+`track()` is gone. Components that read `app.store` outside of `useStoreSubscribe` will render once and never update. Wrap every reactive read in a selector and **return primitives or stable references**. If your component depends on a derived value, compute it inside the selector so React only re-renders when the derived value changes.
+
+### 2. The Editor is dispersed across registrars
+
+Replace `editor.X()` with the right registry method:
+
+| tldraw | uSketch |
+| ------ | ------- |
+| `editor.createShape(...)` | `app.commands.execute(createAddShapeCommand(app.store, shape))` |
+| `editor.deleteShapes(ids)` | `app.commands.execute(createDeleteShapeCommand(app.store, id))` |
+| `editor.select(...ids)` | `app.store.setSelection(ids)` |
+| `editor.getCurrentPageShapes()` | `Array.from(app.store.getShapes().values())` |
+
+Treat it as a search-and-replace pass before you start porting logic.
+
+### 3. No `editor.run(fn)` batch wrapper
+
+tldraw's `editor.run(fn)` rolls multiple mutations into one undo entry. uSketch has no direct equivalent yet — build a single composite `Command` whose `execute` runs every mutation and whose `undo` reverses them, then pass it to `commands.execute` once.
+
+A native `commands.batch(fn)` API is on the roadmap; the workaround stays sound after it lands.
+
+### 4. No `sideEffects.registerBeforeCreateHandler`
+
+tldraw lets you mutate or veto records before they are committed via `editor.sideEffects.registerBeforeCreateHandler` / `BeforeChange` / etc. uSketch has no built-in pre-mutation hook today. The closest workarounds:
+
+- **After-mutation reactions**: `store.onMutation((event) => …)` fires after each mutation with a typed payload. Good for cleanup, sync, audit logging.
+- **Pre-mutation validation**: wrap your `addShape` / `updateShape` calls in a custom `Command` whose `execute` runs validation before calling the store. This pushes the responsibility onto every call site, which is by design — there's no way to silently mutate behind a plugin's back.
+
+A pre-mutation hook API is being designed; track the corresponding issue on the repo if you need this.
+
+### 5. WeakMapCache / createComputedCache
+
+There's no signia inside uSketch. Two replacement patterns:
+
+- Inside React: `useMemo` keyed on the shape itself (Zustand returns a new shape reference on every update).
+- Outside React: a plain `Map<id, Cached>` invalidated via `store.onMutation`. Don't try to recreate signia — selectors that return primitives re-run cheaply and the re-render they trigger is usually fine.
+
+### 6. Props flattening collisions
+
+Reserved core fields on `ShapeData`: `id`, `type`, `x`, `y`, `width`, `height`, `rotation`, `zIndex`, `style`, `meta`, `parentId`, `createdAt`, `updatedAt`. If your tldraw shape had `props.x`, `props.y`, `props.w`, `props.h` they collapse onto the core fields. Anything application-domain — `employeeId`, internal `versionId`, a `featureFlag` — goes into `meta`. The legacy `x-*` escape hatch is for one-off migrations only.
+
+### 7. TLAsset (images / videos)
+
+tldraw indirects through an asset registry keyed by `assetId`; uSketch stores the URL directly on the shape (`data.src`). During migration you need an asset-id → URL resolver step (already shown in the migration script). For video assets there is no built-in uSketch shape today — write your own shape plugin or skip those records.
+
+### 8. `zoomToFit` API shape
+
+In tldraw, `editor.zoomToFit()` takes no arguments. In uSketch:
+
+```ts
+app.store.fitToBounds(bounds, { width, height }, padding?);
+```
+
+The caller passes the bounds and the viewport pixel size. Compute the bounds by iterating shapes:
+
+```ts
+import type { BoundingBox, ShapeData } from "@edv4h/usketch-shared";
+
+function unionBounds(shapes: Iterable<ShapeData>): BoundingBox | null {
+  let result: BoundingBox | null = null;
+  for (const s of shapes) {
+    const b = { x: s.x, y: s.y, width: s.width, height: s.height };
+    if (!result) {
+      result = b;
+    } else {
+      const right = Math.max(result.x + result.width, b.x + b.width);
+      const bottom = Math.max(result.y + result.height, b.y + b.height);
+      result = {
+        x: Math.min(result.x, b.x),
+        y: Math.min(result.y, b.y),
+        width: right - Math.min(result.x, b.x),
+        height: bottom - Math.min(result.y, b.y),
+      };
+    }
+  }
+  return result;
+}
+```
+
+### 9. Cleanup of related shapes on delete
+
+tldraw's connector cleanup runs through `editor.sideEffects.registerAfterDeleteHandler('shape', fn)`. uSketch plugins listen on `store.onMutation` for `shape:removed` events and issue follow-up commands themselves:
+
+```ts
+ctx.store.onMutation((event) => {
+  if (event.type === "shape:removed") {
+    const id = event.payload?.id;
+    // Find connectors that reference `id` and delete them.
+  }
+});
+```
+
+`createDeleteWithChildrenCommand` from `@edv4h/usketch-store` already handles parent / child / connector cleanup for grouped shapes — reach for it first.
+
+## Where to go next
+
+- [Building a Shape Plugin](./shape-plugin) — the canonical reference for `ShapeDefinition` and the drawing-tool pattern.
+- [Building a Tool Plugin](./tool-plugin) — phase variables, lifecycle, and the `@edv4h/usketch-tool-helpers` sessions.
+- [Selection Foreground](./selection-foreground) — replace the default selection chrome with your own React component.
+- [External Content](./external-content) — register drop / paste / URL handlers with priority resolution.
+- [Third-Party Plugin Authoring](./third-party-plugin) — ship a uSketch plugin as a standalone npm package.
+- [Domain Design Plugin](./domain-design-plugin) — a built-in plugin that demonstrates the patterns end-to-end.
+
+Found a tldraw concept this guide didn't cover? Open an issue or send a pull request — migration notes contributed by readers are the best way to keep this document accurate.
