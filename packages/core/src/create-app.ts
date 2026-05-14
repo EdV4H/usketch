@@ -2,6 +2,7 @@ import type {
 	BoardStore,
 	CommandRegistry,
 	EventBus,
+	ExternalContentRegistry,
 	LayerManager,
 	LodPolicy,
 	PluginContext,
@@ -17,6 +18,7 @@ import type {
 } from "@edv4h/usketch-shared";
 import { createCommandRegistry } from "./command-registry.js";
 import { createEventBus } from "./event-bus.js";
+import { createExternalContentRegistry } from "./external-content-registry.js";
 import { createLayerManager } from "./layer-manager.js";
 import {
 	createCompositeLodPolicy,
@@ -48,6 +50,8 @@ export interface AppInstance {
 	ui: UiRegistry;
 	/** Exposed so canvas-engine can subscribe to the active entry. */
 	selectionForeground: SelectionForegroundRegistry;
+	/** Exposed so canvas-engine can dispatch drop/paste content. */
+	externalContent: ExternalContentRegistry;
 	plugins: readonly UsketchPlugin[];
 	destroy(): void;
 }
@@ -88,6 +92,13 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	const ui: UiRegistry = {
 		registerSelectionForeground: (entry) => selectionForeground.register(entry),
 	};
+	const externalContent = createExternalContentRegistry(() => ({
+		store,
+		shapes,
+		commands,
+		events,
+		externalContent,
+	}));
 	const pluginRegistry = createPluginRegistry();
 
 	const lodPolicy =
@@ -112,6 +123,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		transient,
 		lod,
 		ui,
+		externalContent,
 	};
 
 	// Bridge store mutations to EventBus
@@ -159,6 +171,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		lod,
 		ui,
 		selectionForeground,
+		externalContent,
 		plugins: pluginRegistry.getAll(),
 		destroy() {
 			for (const plugin of plugins) {

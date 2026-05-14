@@ -1,0 +1,179 @@
+---
+title: External Content (drop / paste handlers)
+description: Plug into how the canvas reacts to dropped files, pasted URLs, and clipboard text — with a priority system that lets host apps override plugin defaults.
+order: 24
+---
+
+When users drop a file onto the canvas, paste a URL, or paste an SVG snippet, your app usually wants to do something domain-specific: turn a YouTube URL into an embed shape, turn an image file into an image shape, turn an SVG paste into a vector asset, and so on. The **external content** API lets plugins and apps register handlers for each kind of incoming content, with the same priority + last-wins resolution used by the [selection foreground API](./selection-foreground).
+
+## When to use this API
+
+Reach for `ctx.externalContent.register(...)` when you want to:
+
+- Convert specific URLs into custom shape types (e.g. YouTube → embed shape, internal `app://board/{id}` → portal shape).
+- Replace the default "image file → image shape" behavior with a richer flow (auto-upload, AI tagging, server-side processing).
+- React to pasted SVG / HTML clipboard payloads.
+
+This API is **not** for:
+
+- Generic copy/paste of canvas shapes — use the clipboard plugin instead.
+- Programmatic shape creation — call `store.addShape()` directly.
+
+## The three kinds
+
+| `kind`   | When fired                                            | Payload (excerpt)                                                                  |
+| -------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `"file"` | File drop, image paste from clipboard                 | `files: readonly File[]`, `via: "drop" \| "paste"`                                 |
+| `"url"`  | URL drop (`text/uri-list`) or URL paste               | `url: string`, `source: "uri-list" \| "text"`, `via: "drop" \| "paste"`            |
+| `"text"` | Plain text drop / paste that is **not** a URL         | `text: string`, `html: string \| null`, `via: "drop" \| "paste"`                   |
+
+Embeds (YouTube, Figma, Loom, …) are intentionally not their own kind — register a `"url"` handler whose `match` checks the host name.
+
+The payload deliberately **does not include a world-space drop/paste position**. Position decisions belong to the handler — for example, the built-in image handler centers new shapes on the viewport. A future canvas-engine read API may expose the last pointer position for handlers that want it.
+
+## Registering a handler
+
+From a plugin's `setup`:
+
+```tsx
+import type { UsketchPlugin } from "@edv4h/usketch-shared";
+
+export const youtubeEmbedPlugin: UsketchPlugin = {
+  id: "youtube-embed",
+  name: "YouTube embed",
+  setup(ctx) {
+    const off = ctx.externalContent.register({
+      id: "youtube-embed:url",
+      kind: "url",
+      order: 50,
+      match: (content) => {
+        try {
+          const u = new URL(content.url);
+          return u.hostname === "youtube.com" || u.hostname === "www.youtube.com";
+        } catch {
+          return false;
+        }
+      },
+      handle: async (content, hctx) => {
+        const shape = makeYoutubeShape(content.url);
+        hctx.commands.execute({
+          execute: () => hctx.store.addShape(shape),
+          undo: () => hctx.store.deleteShape(shape.id),
+        });
+      },
+    });
+    (this as UsketchPlugin).teardown = () => off();
+  },
+};
+```
+
+You can also register from `AppInstance.externalContent` directly after `createApp`:
+
+```ts
+const app = await createApp({ store, plugins });
+app.externalContent.register({
+  id: "app:warp-zone",
+  kind: "url",
+  order: 100,
+  match: ({ url }) => url.startsWith("https://example.com/board/"),
+  handle: async ({ url }, ctx) => {
+    // ...
+  },
+});
+```
+
+## Priority conventions
+
+Higher `order` wins. On a tie, the most recently registered handler wins.
+
+| Source                                          | `order` |
+| ----------------------------------------------- | ------- |
+| Plugin default (`usketch-plugin-shape-image`)   | **0**   |
+| Third-party plugin                              | **50**  |
+| App-level override                              | **100** |
+
+These are conventions, not enforced ranges — pass any number you like. Because app-level handlers are registered after plugin setup, they win on ties against a plugin that registered at the same `order`.
+
+## The match / handle contract
+
+- `match` must be **side-effect free**. The registry calls every matching handler's `match` to pick a winner, so doing real work there is wasted. If `match` throws, the error is logged and the handler is treated as a non-match.
+- `handle` runs **at most once** per dispatch — the single highest-`order` matching handler wins, and no other handler is invoked.
+- `handle` can be `async`. The registry awaits the returned promise.
+- If `handle` throws or rejects, the error is logged and the dispatch ends. The next-best handler is **not** tried — this mirrors tldraw's `registerExternalContentHandler` single-winner semantics.
+
+## Default behavior
+
+`usketch-plugin-shape-image` self-registers a `kind: "file"` handler at `order: 0` that matches when *every* file is an image, and converts them into image shapes. To replace it with your own image flow, register a `kind: "file"` handler with `order >= 1`.
+
+If you don't load `usketch-plugin-shape-image` (or your override returns `false` from `match`), file drops fall through and nothing happens — the canvas keeps working, and the legacy `canvas:drop` event is still emitted for backward compatibility.
+
+## Examples
+
+### Warp-zone URL handler
+
+```ts
+ctx.externalContent.register({
+  id: "warp-zone:url",
+  kind: "url",
+  order: 50,
+  match: ({ url }) => url.startsWith("https://example.com/board/"),
+  handle: async ({ url }, hctx) => {
+    const id = generateId();
+    const shape = { id, type: "warp-zone", x: 0, y: 0, width: 200, height: 120, /* ... */, targetUrl: url };
+    hctx.commands.execute({
+      execute: () => hctx.store.addShape(shape),
+      undo: () => hctx.store.deleteShape(id),
+    });
+  },
+});
+```
+
+### SVG text paste → vector shape
+
+```ts
+ctx.externalContent.register({
+  id: "svg-import:text",
+  kind: "text",
+  order: 50,
+  match: ({ html, text }) => {
+    const src = html ?? text;
+    return src.trim().startsWith("<svg");
+  },
+  handle: async ({ html, text }, hctx) => {
+    const svg = html ?? text;
+    const shape = parseSvgToShape(svg); // your own importer
+    hctx.commands.execute({
+      execute: () => hctx.store.addShape(shape),
+      undo: () => hctx.store.deleteShape(shape.id),
+    });
+  },
+});
+```
+
+### Overriding the default image file handler
+
+```ts
+ctx.externalContent.register({
+  id: "my-app:image-upload",
+  kind: "file",
+  order: 50, // wins over shape-image plugin's order 0
+  match: ({ files }) => files.every((f) => f.type.startsWith("image/")),
+  handle: async ({ files }, hctx) => {
+    for (const file of files) {
+      const url = await uploadToCDN(file); // your own upload
+      const shape = makeImageShape(url);
+      hctx.store.addShape(shape);
+    }
+  },
+});
+```
+
+## Relation to the legacy `canvas:drop` event
+
+`canvas:drop` continues to be emitted for backward compatibility — existing plugins that listen to it keep working. New code should prefer the external-content registry because it:
+
+- normalizes drop and paste through a single API,
+- supports priority-based conflict resolution between plugins, and
+- handles `text/uri-list`, `text/plain` URL, and arbitrary text — not just `FileList`.
+
+A future major release may deprecate the legacy event.

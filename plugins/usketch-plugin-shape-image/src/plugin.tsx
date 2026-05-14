@@ -8,6 +8,7 @@ import {
 	type UsketchPlugin,
 	withRotation,
 } from "@edv4h/usketch-shared";
+import { createImageFileHandler } from "./external-content-handler.js";
 import type { ImageShapeData } from "./types.js";
 
 function render(shape: ShapeData) {
@@ -165,5 +166,14 @@ export const imageShapePlugin: UsketchPlugin = {
 			serializeForRecognition,
 			debugFields,
 		});
+
+		// Self-register the default "image file → image shape" external-content
+		// handler at order 0. Apps and third-party plugins can override by
+		// registering a higher-`order` `kind: "file"` handler.
+		const unregisterHandler = ctx.externalContent.register(createImageFileHandler());
+
+		(this as UsketchPlugin).teardown = () => {
+			unregisterHandler();
+		};
 	},
 };

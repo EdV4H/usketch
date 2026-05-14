@@ -12,11 +12,8 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 		name: "AI Image",
 
 		setup(ctx: PluginContext) {
-			/** 画像をimageシェイプとしてキャンバスに配置 */
-			async function placeImageShape(
-				file: File,
-				dropWorldPoint?: { x: number; y: number },
-			): Promise<void> {
+			/** 画像をimageシェイプとしてキャンバスに配置 (image:upload event 経由のみ) */
+			async function placeImageShape(file: File): Promise<void> {
 				const validation = validateImage(file, maxSizeMB);
 				if (!validation.valid) {
 					ctx.events.emit("ai:status", {
@@ -30,17 +27,10 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 					let dataUrl = await fileToBase64(file);
 					dataUrl = await resizeImage(dataUrl, maxDimension);
 
-					// 配置位置: ドロップ位置があればそこ、なければビューポート中央
-					let centerX: number;
-					let centerY: number;
-					if (dropWorldPoint) {
-						centerX = dropWorldPoint.x;
-						centerY = dropWorldPoint.y;
-					} else {
-						const viewport = ctx.store.getViewport();
-						centerX = -viewport.x / viewport.zoom + window.innerWidth / 2 / viewport.zoom;
-						centerY = -viewport.y / viewport.zoom + window.innerHeight / 2 / viewport.zoom;
-					}
+					// 配置位置: 現在のビューポート中央
+					const viewport = ctx.store.getViewport();
+					const centerX = -viewport.x / viewport.zoom + window.innerWidth / 2 / viewport.zoom;
+					const centerY = -viewport.y / viewport.zoom + window.innerHeight / 2 / viewport.zoom;
 
 					// 画像サイズを取得してアスペクト比を維持
 					const { width, height } = await getImageDimensions(dataUrl);
@@ -79,33 +69,6 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 				}
 			}
 
-			/** Handle paste events with image data */
-			function handlePaste(event: ClipboardEvent): void {
-				// テキスト入力中はスキップ
-				const tag = (event.target as HTMLElement)?.tagName;
-				if (
-					tag === "INPUT" ||
-					tag === "TEXTAREA" ||
-					(event.target as HTMLElement)?.isContentEditable
-				) {
-					return;
-				}
-
-				const items = event.clipboardData?.items;
-				if (!items) return;
-
-				for (const item of items) {
-					if (item.type.startsWith("image/")) {
-						const file = item.getAsFile();
-						if (file) {
-							event.preventDefault();
-							placeImageShape(file);
-							return;
-						}
-					}
-				}
-			}
-
 			/** Handle image:upload event — open file picker */
 			function handleUpload(): void {
 				const input = document.createElement("input");
@@ -129,27 +92,13 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 				input.click();
 			}
 
-			/** Handle file drop on canvas */
-			const unsubDrop = ctx.events.on("canvas:drop", async (data) => {
-				const imageFiles = Array.from(data.files).filter((f) => f.type.startsWith("image/"));
-				if (imageFiles.length === 0) return;
-
-				const maxRenderedWidth = 400;
-				const gap = 20;
-				let offsetX = 0;
-				for (const file of imageFiles) {
-					await placeImageShape(file, { x: data.worldPoint.x + offsetX, y: data.worldPoint.y });
-					offsetX += maxRenderedWidth + gap;
-				}
-			});
-
-			window.addEventListener("paste", handlePaste);
+			// Drop and paste are handled by `usketch-plugin-shape-image` via the
+			// external-content registry (`ctx.externalContent`). This plugin only
+			// owns the explicit `image:upload` event (file picker entry point).
 			const unsubUpload = ctx.events.on("image:upload", handleUpload);
 
 			cleanup = () => {
-				window.removeEventListener("paste", handlePaste);
 				unsubUpload();
-				unsubDrop();
 			};
 		},
 

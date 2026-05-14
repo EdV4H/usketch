@@ -3,6 +3,7 @@ import { compareZIndex, DEFAULT_THEME } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
 import { screenToWorld } from "../coordinate-transformer.js";
+import { dispatchDropToRegistry, extractPasteContent } from "../external-content-dispatch.js";
 import { useFilterPredicate } from "../hooks/use-filter-predicate.js";
 import { useInteractingListeners } from "../hooks/use-interacting.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
@@ -133,13 +134,18 @@ export function Canvas() {
 				x: rect ? e.clientX - rect.left : e.clientX,
 				y: rect ? e.clientY - rect.top : e.clientY,
 			};
+			// ── Legacy event (kept for backward compatibility) ──
+			// Plugins that listen to `canvas:drop` directly continue to work.
+			// New plugins should register via `ctx.externalContent` instead.
 			app.events.emit("canvas:drop", {
 				files: e.dataTransfer.files,
 				worldPoint: screenToWorld(screenPoint, viewport),
 				screenPoint,
 			});
+			// ── External-content registry dispatch ──
+			void dispatchDropToRegistry(e.dataTransfer, app.externalContent);
 		},
-		[viewport, app.events],
+		[viewport, app.events, app.externalContent],
 	);
 
 	// ── Re-render when layers change dynamically ──
@@ -186,6 +192,30 @@ export function Canvas() {
 			}
 		};
 	}, [app.selectionForeground, app.layers, app.events]);
+
+	// ── External-content: document-scope paste listener ──
+	// `paste` events fire on `document` (the canvas div is not focusable by
+	// default), so the listener is registered there. The skip-target check and
+	// payload construction run synchronously so we can call `preventDefault()`
+	// before yielding — `await`ing inside this handler would let the browser
+	// commit the default paste action first. The registry dispatch is
+	// fire-and-forget; async handlers settle on their own.
+	//
+	// `stopImmediatePropagation` prevents duplicate dispatch when multiple
+	// <Canvas /> instances are mounted (each registering its own
+	// document-level listener) — the first canvas that claims a paste wins,
+	// matching what users see for keyboard / pointer focus.
+	useEffect(() => {
+		const onPaste = (e: ClipboardEvent) => {
+			const content = extractPasteContent(e);
+			if (!content) return;
+			e.preventDefault();
+			e.stopImmediatePropagation();
+			void app.externalContent.dispatch(content);
+		};
+		document.addEventListener("paste", onPaste);
+		return () => document.removeEventListener("paste", onPaste);
+	}, [app.externalContent]);
 
 	// ── Tool activate / deactivate lifecycle ──
 	const prevToolIdRef = useRef<string | null>(null);
