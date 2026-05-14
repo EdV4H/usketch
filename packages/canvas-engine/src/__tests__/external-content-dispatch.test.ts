@@ -202,7 +202,7 @@ describe("dispatchPasteToRegistry", () => {
 			},
 		} as unknown as DataTransfer;
 		return {
-			target: opts.target ?? document?.body ?? null,
+			target: opts.target ?? globalThis.document?.body ?? null,
 			clipboardData: cd,
 			preventDefault: vi.fn(),
 		} as unknown as ClipboardEvent;
