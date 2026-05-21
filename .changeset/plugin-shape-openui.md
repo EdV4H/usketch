@@ -1,6 +1,6 @@
 ---
-"@edv4h/usketch-plugin-shape-openui": minor
-"@edv4h/usketch-plugin-tool-openui": minor
+"@edv4h/usketch-plugin-shape-openui": patch
+"@edv4h/usketch-plugin-tool-openui": patch
 ---
 
 ✨ OpenUI Generative UI ウィジェットプラグインを追加 (experimental, requires @openuidev/* 0.2.x):

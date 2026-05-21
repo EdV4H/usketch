@@ -7,11 +7,12 @@ function sseStream(chunks: string[]): ReadableStream<Uint8Array> {
 	let i = 0;
 	return new ReadableStream({
 		pull(controller) {
-			if (i >= chunks.length) {
+			const chunk = chunks[i];
+			if (chunk === undefined) {
 				controller.close();
 				return;
 			}
-			controller.enqueue(encoder.encode(chunks[i]!));
+			controller.enqueue(encoder.encode(chunk));
 			i++;
 		},
 	});
@@ -53,7 +54,9 @@ describe("createOpenAICompatibleProvider", () => {
 		expect(chunks.join("")).toBe("ok");
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
-		const [url, init] = fetchMock.mock.calls[0]!;
+		const firstCall = fetchMock.mock.calls[0];
+		if (!firstCall) throw new Error("fetch was not called");
+		const [url, init] = firstCall;
 		expect(url).toBe("https://example.test/v1/chat/completions");
 		expect((init as RequestInit).method).toBe("POST");
 		const headers = (init as RequestInit).headers as Record<string, string>;
@@ -78,7 +81,9 @@ describe("createOpenAICompatibleProvider", () => {
 		for await (const _ of iter) {
 			// no-op
 		}
-		const body = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
+		const visionCall = fetchMock.mock.calls[0];
+		if (!visionCall) throw new Error("fetch was not called");
+		const body = JSON.parse((visionCall[1] as RequestInit).body as string);
 		expect(body.messages[0].content).toEqual([
 			{ type: "text", text: "make real" },
 			{ type: "image_url", image_url: { url: "data:image/png;base64,AAA" } },

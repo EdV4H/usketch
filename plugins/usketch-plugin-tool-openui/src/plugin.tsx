@@ -40,19 +40,17 @@ function viewportCenterToWorld(viewport: { x: number; y: number; zoom: number })
 }
 
 function unionBounds(shapes: ShapeData[]): BoundingBox | null {
-	if (shapes.length === 0) return null;
-	const first = shapes[0]!;
-	let minX = first.x;
-	let minY = first.y;
-	let maxX = first.x + first.width;
-	let maxY = first.y + first.height;
-	for (let i = 1; i < shapes.length; i++) {
-		const s = shapes[i]!;
+	let minX = Number.POSITIVE_INFINITY;
+	let minY = Number.POSITIVE_INFINITY;
+	let maxX = Number.NEGATIVE_INFINITY;
+	let maxY = Number.NEGATIVE_INFINITY;
+	for (const s of shapes) {
 		if (s.x < minX) minX = s.x;
 		if (s.y < minY) minY = s.y;
 		if (s.x + s.width > maxX) maxX = s.x + s.width;
 		if (s.y + s.height > maxY) maxY = s.y + s.height;
 	}
+	if (minX === Number.POSITIVE_INFINITY) return null;
 	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
@@ -137,7 +135,12 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 
 					emitStatus({ status: "done", shapeCount: 1, message: "Created!" });
 				} catch (err) {
-					if (controller.signal.aborted) return;
+					if (controller.signal.aborted) {
+						// User-initiated cancel or timeout — release the busy state
+						// so the side panel doesn't stay disabled forever.
+						emitStatus({ status: "done", message: "Cancelled" });
+						return;
+					}
 					emitStatus({
 						status: "error",
 						message: err instanceof Error ? err.message : "Generation failed",
@@ -239,6 +242,10 @@ function OpenUISidePanel({ events, provider, model, onCancel }: SidePanelProps) 
 	const [prompt, setPrompt] = useState("");
 	const [status, setStatus] = useState<AiStatusPayload | null>(null);
 	const isComposingRef = useRef(false);
+	// Track the pending auto-clear timeout so we can cancel it on unmount or
+	// when a new terminal status arrives. Otherwise React fires `setStatus(null)`
+	// after the panel has been torn down and we leak setTimeout handles.
+	const clearTimeoutRef = useRef<number | null>(null);
 	const selectedModel = model ?? provider.defaultModel;
 
 	useEffect(() => {
@@ -247,10 +254,22 @@ function OpenUISidePanel({ events, provider, model, onCancel }: SidePanelProps) 
 			if (payload.source !== "openui") return;
 			setStatus(payload);
 			if (payload.status === "done" || payload.status === "error") {
-				window.setTimeout(() => setStatus(null), 3000);
+				if (clearTimeoutRef.current !== null) {
+					window.clearTimeout(clearTimeoutRef.current);
+				}
+				clearTimeoutRef.current = window.setTimeout(() => {
+					setStatus(null);
+					clearTimeoutRef.current = null;
+				}, 3000);
 			}
 		});
-		return off;
+		return () => {
+			off();
+			if (clearTimeoutRef.current !== null) {
+				window.clearTimeout(clearTimeoutRef.current);
+				clearTimeoutRef.current = null;
+			}
+		};
 	}, [events]);
 
 	const isBusy = status?.status === "thinking" || status?.status === "placing";

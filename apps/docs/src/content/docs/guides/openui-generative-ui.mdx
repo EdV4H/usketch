@@ -21,13 +21,15 @@ Both plugins ship with the monorepo and are wired into `apps/web` by default. Fo
 pnpm add @edv4h/usketch-plugin-shape-openui @edv4h/usketch-plugin-tool-openui
 ```
 
-The default provider talks to a self-hosted [wandb/openui](https://github.com/wandb/openui) server at `http://localhost:7878`. Start one with Docker:
+The default provider in `apps/web` talks to an OpenAI-compatible Chat Completions endpoint at `http://localhost:7878/v1`. Any compatible server works — Ollama, LiteLLM, vLLM, a local LLM proxy, or even the [wandb/openui](https://github.com/wandb/openui) sandbox if you want a quick container:
 
 ```bash
+# Optional: a generic OpenAI-compatible Docker (wandb/openui is one option;
+# substitute your own model server)
 docker run -p 7878:7878 -e OPENAI_API_KEY=sk-... ghcr.io/wandb/openui:latest
 ```
 
-Or point directly at OpenAI:
+Or skip the local server entirely and point directly at OpenAI:
 
 ```env
 VITE_OPENUI_PROVIDER=openai
@@ -81,7 +83,7 @@ Select any shapes (a freehand sketch, a stack of stickies, a wireframe drawn wit
 2. Sends the image plus a "build a real UI matching this sketch" prompt to the provider.
 3. Places the result to the right of the source bounds.
 
-`@edv4h/usketch-plugin-export` is required for this feature. If the export plugin is not loaded, the button silently disables itself.
+`@edv4h/usketch-plugin-export` is a hard runtime dependency of the tool plugin (the package is listed under `dependencies` and `exportCanvas` is imported directly), so make sure your host installs it. The plugin does *not* gracefully fall back if you skip it — the Make Real button will throw when clicked, and the error surfaces via the standard `ai:status` channel as a side-panel error banner.
 
 ## Customizing the library
 

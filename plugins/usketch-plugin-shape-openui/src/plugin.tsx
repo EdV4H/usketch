@@ -63,7 +63,6 @@ function render(shape: ShapeData) {
 				library={library}
 				isStreaming={false}
 				onError={(err) => {
-					// biome-ignore lint/suspicious/noConsole: surface render errors to host
 					console.warn("[usketch-plugin-shape-openui] Renderer error:", err);
 				}}
 			/>
