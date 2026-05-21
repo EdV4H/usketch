@@ -137,7 +137,7 @@ Anthropic is not directly supported in v1 — browser CORS plus key-in-client tr
 
 | Symptom | Likely cause |
 | --- | --- |
-| Shape mounts as "OpenUI library not configured" fallback | `createOpenUIToolPlugin` was not registered, or it ran before the shape plugin loaded. Add `openUIShapePlugin` before the tool plugin. |
+| Shape mounts as "OpenUI library not configured" fallback | `createOpenUIToolPlugin` (or another caller of `setOpenUILibrary`) is not registered in `createApp({ plugins })`. Plugin ordering doesn't matter — `createApp` finishes every plugin's `setup()` before the canvas paints — but if no caller wires up a library, the shape renders the fallback. |
 | `OpenUI provider 401:` | Missing or invalid API key. Set `VITE_OPENAI_API_KEY` or pass `apiKey` to the provider factory. |
 | `Empty response from model` | The LLM returned only fences / prose. The plugin strips common artifacts; if it still triggers, refine the prompt or pick a stronger model. |
 | The shape renders empty even after `done` | The LLM emitted a component name the library doesn't define. Open the browser console — `Renderer error:` logs the rejected statement. |

@@ -31,6 +31,14 @@ export interface OpenUIToolOptions {
 	systemPrompt?: string;
 	/** Hard timeout for in-flight generation, in milliseconds. Defaults to 60_000. */
 	timeoutMs?: number;
+	/**
+	 * Whether to request streaming responses. Defaults to `true`. Set to
+	 * `false` for OpenAI-compatible endpoints that don't implement SSE
+	 * (some local LLM proxies). When streaming yields zero deltas, the
+	 * plugin retries once with `stream: false` automatically regardless of
+	 * this setting.
+	 */
+	stream?: boolean;
 }
 
 /** Payload of the internal `openui:generate-request` event. */

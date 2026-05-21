@@ -28,10 +28,14 @@ export type ProviderId = "openai" | "openai-compatible";
  */
 export interface OpenUIProvider {
 	id: ProviderId;
-	/** Display label (used in the side-panel model selector). */
+	/** Human-readable label (e.g. shown next to "Generated via …" in the side panel). */
 	label: string;
 	defaultModel: string;
-	/** Optional list of additional model names to expose in the UI selector. */
+	/**
+	 * Optional list of additional model names. Reserved for a future side-panel
+	 * model selector — not consumed by the current UI, but providers should
+	 * still populate it accurately so hosts can build their own selector.
+	 */
 	availableModels?: string[];
 	supportsVision: boolean;
 	/**

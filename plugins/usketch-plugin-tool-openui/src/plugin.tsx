@@ -63,6 +63,7 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 		enableMakeReal = provider.supportsVision,
 		systemPrompt,
 		timeoutMs = 60_000,
+		stream: defaultStream = true,
 	} = opts;
 
 	let cleanup: (() => void) | undefined;
@@ -95,27 +96,43 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 				};
 
 				safeEmit({ status: "thinking", message: "Generating UI…" });
-				let buffer = "";
-				let lastReport = 0;
-				try {
+				const resolvedSystemPrompt = systemPrompt ?? buildSystemPrompt(library);
+
+				const collect = async (stream: boolean): Promise<string> => {
+					let buf = "";
+					let lastReport = 0;
 					for await (const chunk of provider.generate(req.prompt, {
-						stream: true,
+						stream,
 						model,
 						vision: req.vision,
 						signal: controller.signal,
-						systemPrompt: systemPrompt ?? buildSystemPrompt(library),
+						systemPrompt: resolvedSystemPrompt,
 					})) {
-						buffer += chunk;
+						buf += chunk;
 						const now = Date.now();
 						if (now - lastReport > 200) {
 							lastReport = now;
 							safeEmit({
 								status: "thinking",
-								message: `Streaming… (${buffer.length} chars)`,
+								message: stream
+									? `Streaming… (${buf.length} chars)`
+									: `Receiving… (${buf.length} chars)`,
 							});
 						}
 					}
+					return buf;
+				};
 
+				let buffer = "";
+				try {
+					buffer = await collect(defaultStream);
+					// Some OpenAI-compatible endpoints accept `stream: true` but
+					// reply with a plain JSON body — the streaming parser yields no
+					// deltas and we end up here with an empty buffer. Retry once
+					// in non-streaming mode before giving up.
+					if (defaultStream && sanitizeLangSource(buffer).length === 0) {
+						buffer = await collect(false);
+					}
 					const cleaned = sanitizeLangSource(buffer);
 					if (!cleaned) throw new Error("Empty response from model");
 

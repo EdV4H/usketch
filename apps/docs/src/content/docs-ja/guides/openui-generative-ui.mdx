@@ -137,7 +137,7 @@ Anthropic 直接接続は v1 ではサポートしません — browser CORS + �
 
 | 症状 | 原因 |
 | --- | --- |
-| Shape が "OpenUI library not configured" の fallback で表示される | `createOpenUIToolPlugin` が登録されていない、または shape plugin より前に走った。`openUIShapePlugin` を先に追加する |
+| Shape が "OpenUI library not configured" の fallback で表示される | `createOpenUIToolPlugin` (または `setOpenUILibrary` を呼ぶ host コード) が `createApp({ plugins })` に登録されていない。plugin の順序は関係ない (`createApp` は全 plugin の `setup()` を終えてから canvas を描画する) が、library を渡す caller が居ないと shape は fallback を表示する |
 | `OpenUI provider 401:` | API key が未設定または不正。`VITE_OPENAI_API_KEY` を設定するか、provider factory に `apiKey` を渡す |
 | `Empty response from model` | LLM が fence や prose だけ返した。プラグインは典型的な artifact を除去するが、それでも発生する場合は prompt を refine するか強い model を選ぶ |
 | `done` 後も shape が空に見える | LLM が library にない component を出力した。browser console を確認 — `Renderer error:` で拒否された statement が出る |
