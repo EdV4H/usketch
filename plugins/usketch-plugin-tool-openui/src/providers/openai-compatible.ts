@@ -22,6 +22,14 @@ export interface OpenAICompatibleProviderOptions {
 	extraHeaders?: Record<string, string>;
 	supportsVision?: boolean;
 	label?: string;
+	/**
+	 * `RequestCredentials` for the fetch call. Set to `"include"` for
+	 * cookie-authenticated proxies (e.g. uSketch's own `/api/ai/openui`
+	 * route). Defaults to `undefined`, which means fetch's default
+	 * (`"same-origin"`) applies — that's what you want for direct OpenAI
+	 * calls because the request goes cross-origin anyway with no cookies.
+	 */
+	credentials?: RequestCredentials;
 }
 
 /**
@@ -47,6 +55,7 @@ export function createOpenAICompatibleProvider(
 		extraHeaders,
 		supportsVision = true,
 		label = "OpenAI-compatible",
+		credentials,
 	} = options;
 	// Resolve a stable URL once at factory time. URL handles trailing slashes,
 	// allows future query-param overrides, and rejects malformed inputs early.
@@ -83,6 +92,7 @@ export function createOpenAICompatibleProvider(
 			const response = await fetch(resolvedEndpoint, {
 				method: "POST",
 				headers,
+				credentials,
 				signal: opts.signal,
 				body: JSON.stringify({
 					model: opts.model ?? defaultModel,

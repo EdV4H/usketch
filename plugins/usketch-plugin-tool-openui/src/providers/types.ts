@@ -20,7 +20,7 @@ export interface GenerateOptions {
 	systemPrompt?: string;
 }
 
-export type ProviderId = "openai" | "openai-compatible";
+export type ProviderId = "openai" | "openai-compatible" | "server-proxy";
 
 /**
  * Provider abstraction. All implementations expose a single async-iterable

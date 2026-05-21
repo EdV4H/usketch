@@ -21,25 +21,18 @@ UX は tldraw の "Make Real" と同じ流儀ですが、生 Tailwind HTML で�
 pnpm add @edv4h/usketch-plugin-shape-openui @edv4h/usketch-plugin-tool-openui
 ```
 
-`apps/web` のデフォルト provider は `http://localhost:7878/v1` の OpenAI 互換 Chat Completions endpoint を叩きます。任意の互換サーバが使えます — Ollama、LiteLLM、vLLM、自前の LLM proxy、あるいは手早くコンテナを立てたいなら [wandb/openui](https://github.com/wandb/openui) sandbox も選択肢:
+`apps/web` の OpenUI 呼び出しは `/api/ai/openui` のサーバ側プロキシ (`@edv4h/usketch-plugin-server-ai` 提供) を経由します。OpenAI API key は Workers Secret にのみ保管され、ブラウザ bundle には絶対に含まれません。
 
-```bash
-# 任意: 汎用 OpenAI 互換 Docker (wandb/openui はあくまで一例。
-# 独自 model server に置き換えてください)
-docker run -p 7878:7878 -e OPENAI_API_KEY=sk-... ghcr.io/wandb/openui:latest
-```
+build 時に設定できる env var は任意で 1 つ:
 
-ローカルサーバを使わず OpenAI を直接叩く場合:
+- `VITE_OPENUI_MODEL` — model 名のデフォルト。未指定で `gpt-4o`
 
-```env
-VITE_OPENUI_PROVIDER=openai
-VITE_OPENAI_API_KEY=sk-...
-```
+> **本番安全策:** Cloudflare Pages の build env vars に `VITE_OPENAI_API_KEY` / `VITE_OPENUI_BASE_URL` / `VITE_OPENUI_PROVIDER` を**設定しないでください**。現在のコードはこれらを参照しませんが、Vite の `import.meta.env` の性質上、過去設定が残っていると将来再導入された際に漏洩する経路になり得ます。API key はサーバ側の `OPENAI_API_KEY` Workers Secret にのみ置きます。
 
-その他の env vars (`apps/web` が読む):
+### デプロイ手順
 
-- `VITE_OPENUI_BASE_URL` — OpenAI 互換 endpoint を上書き (Azure, Ollama, LiteLLM, …)
-- `VITE_OPENUI_MODEL` — model 名を指定。default `gpt-4o`
+1. **Server** (Cloudflare Workers): `OPENAI_API_KEY` を secret として設定 (`wrangler secret put OPENAI_API_KEY` — `/api/ai/complete` で既に必要)。OpenUI route は同じ secret を再利用します。
+2. **Web** (Cloudflare Pages): `VITE_API_URL` を worker URL に設定。任意で `VITE_OPENUI_MODEL`。切替時は **サーバを先にデプロイ** してください。route 未着の古い worker に新 web が当たると 404 になります。
 
 ## createApp への組み込み
 
@@ -48,8 +41,8 @@ import { createApp } from "@edv4h/usketch-core";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { openUIShapePlugin } from "@edv4h/usketch-plugin-shape-openui";
 import {
-	createOpenAIProvider,
 	createOpenUIToolPlugin,
+	createServerProxyProvider,
 } from "@edv4h/usketch-plugin-tool-openui";
 
 const app = await createApp({
@@ -59,7 +52,11 @@ const app = await createApp({
 		createSidePanelPlugin(),
 		openUIShapePlugin,
 		createOpenUIToolPlugin({
-			provider: createOpenAIProvider({ apiKey: process.env.OPENAI_API_KEY! }),
+			provider: createServerProxyProvider({
+				apiUrl: import.meta.env.VITE_API_URL,
+				boardId,
+				// extraHeaders: { "X-User-Id": "dev-user" }, // dev のみ bypass
+			}),
 		}),
 	],
 });
@@ -111,34 +108,47 @@ system prompt は毎リクエスト時に `library.prompt(...)` から再生成�
 
 ```ts
 import {
+	createServerProxyProvider,
 	createOpenAIProvider,
 	createOpenAICompatibleProvider,
 } from "@edv4h/usketch-plugin-tool-openui";
 
-// OpenAI を直接叩く:
-createOpenAIProvider({ apiKey: "sk-..." });
+// 本番安全: 自前サーバプロキシ経由 (推奨)
+createServerProxyProvider({
+	apiUrl: "https://api.usketch.app",
+	boardId: "board-abc",
+});
 
-// OpenAI 互換 endpoint (Ollama / vLLM / LiteLLM / Azure / OpenUI server / …):
+// サードパーティ host で独自バックエンドを持つ場合は OpenAI 直接接続もできるが、
+// ブラウザ bundle に本物の API key を焼き込んではいけない:
+createOpenAIProvider({ apiKey: process.env.OPENAI_API_KEY! });
+
+// OpenAI 互換 endpoint (Ollama / vLLM / LiteLLM / Azure / …):
 createOpenAICompatibleProvider({
 	baseURL: "http://localhost:11434/v1", // Ollama
 	defaultModel: "llama3.2:vision",
 });
 ```
 
-Anthropic 直接接続は v1 ではサポートしません — browser CORS + クライアント側 API key 露出のトレードオフから、server-side proxy 経由が望ましいためです。必要であれば follow-up issue を立ててください。
+`createOpenAIProvider` / `createOpenAICompatibleProvider` は third-party host 向けに引き続き export していますが、本リポジトリの `apps/web` ではどちらも `createServerProxyProvider` に置き換え済みです。
+
+Anthropic 直接接続は v1 ではサポートしません — server-side proxy で SSE を正規化する形が想定されています。必要であれば follow-up issue を立ててください。
 
 ## セキュリティモデル
 
 - `@openuidev/react-lang` の `<Renderer>` は parse した statement を library の Zod schema に対して validate します。library にない component / prop は render 前に拒否されるため、`dangerouslySetInnerHTML` も script 実行経路も存在しません。
-- API key は host option (`createOpenAIProvider({ apiKey })`) 経由で渡します。プラグインが直接 env vars を読むことはありません。
-- Make Real の vision request は canvas snapshot を base64 data URL として送信します。機密性の高い board では、識別情報を strip してから転送する server-side proxy をデプロイすることを推奨します。
+- デフォルトの `createServerProxyProvider` は OpenAI API key をブラウザ bundle に一切含めません。認証はセッション cookie (`credentials: "include"`) に依存します。dev モードの `X-User-Id` ヘッダは bypass であり本番では使えません。
+- サーバ route は `boardId` 指定時に board アクセス制御を行います (メンバーシップまたは `isPublic`)。
+- Make Real の vision request は canvas snapshot を最大 10 MB の base64 data URL として送信し、サーバ route が転送前にサイズを検証します。機密性の高い board では、転送前に識別情報を strip する middleware の追加を検討してください。
 
 ## トラブルシューティング
 
 | 症状 | 原因 |
 | --- | --- |
 | Shape が "OpenUI library not configured" の fallback で表示される | `createOpenUIToolPlugin` (または `setOpenUILibrary` を呼ぶ host コード) が `createApp({ plugins })` に登録されていない。plugin の順序は関係ない (`createApp` は全 plugin の `setup()` を終えてから canvas を描画する) が、library を渡す caller が居ないと shape は fallback を表示する |
-| `OpenUI provider 401:` | API key が未設定または不正。`VITE_OPENAI_API_KEY` を設定するか、provider factory に `apiKey` を渡す |
+| `OpenUI provider 401:` | セッション cookie が無効・期限切れ。サインインし直す。dev では `extraHeaders` で `X-User-Id` を渡す |
+| `OpenUI provider 404:` | 指定した `boardId` のメンバーではなく、board が非公開。`boardId` を外すか board を共有する |
+| `OpenUI provider 502:` | サーバプロキシが OpenAI に到達できない。worker のログと `OPENAI_API_KEY` Workers Secret 設定を確認 |
 | `Empty response from model` | LLM が fence や prose だけ返した。プラグインは典型的な artifact を除去するが、それでも発生する場合は prompt を refine するか強い model を選ぶ |
 | `done` 後も shape が空に見える | LLM が library にない component を出力した。browser console を確認 — `Renderer error:` で拒否された statement が出る |
 
