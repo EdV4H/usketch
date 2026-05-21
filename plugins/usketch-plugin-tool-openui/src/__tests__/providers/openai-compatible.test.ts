@@ -133,6 +133,35 @@ describe("createOpenAICompatibleProvider", () => {
 		expect(all).toEqual(["tail"]);
 	});
 
+	it("tolerates baseURL with a trailing slash without producing a double-slash URL", async () => {
+		fetchMock.mockResolvedValueOnce(new Response(sseStream(["data: [DONE]\n\n"]), { status: 200 }));
+		const provider = createOpenAICompatibleProvider({
+			baseURL: "https://api.example.test/v1/",
+			apiKey: "sk-x",
+		});
+		for await (const _ of provider.generate("hi", {})) {
+			// no-op
+		}
+		const url = fetchMock.mock.calls[0]?.[0];
+		expect(url).toBe("https://api.example.test/v1/chat/completions");
+	});
+
+	it("honors a full `endpoint` override (e.g. Azure-style URL with query params)", async () => {
+		fetchMock.mockResolvedValueOnce(new Response(sseStream(["data: [DONE]\n\n"]), { status: 200 }));
+		const provider = createOpenAICompatibleProvider({
+			endpoint:
+				"https://acme.openai.azure.com/openai/deployments/gpt4/chat/completions?api-version=2024-02-01",
+			apiKey: "sk-x",
+		});
+		for await (const _ of provider.generate("hi", {})) {
+			// no-op
+		}
+		const url = fetchMock.mock.calls[0]?.[0];
+		expect(url).toBe(
+			"https://acme.openai.azure.com/openai/deployments/gpt4/chat/completions?api-version=2024-02-01",
+		);
+	});
+
 	it("returns a single chunk when stream=false", async () => {
 		fetchMock.mockResolvedValueOnce(
 			new Response(JSON.stringify({ choices: [{ message: { content: "final answer" } }] }), {

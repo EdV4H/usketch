@@ -1,8 +1,20 @@
 import type { GenerateOptions, OpenUIProvider } from "./types.js";
 
 export interface OpenAICompatibleProviderOptions {
-	/** Default `"https://api.openai.com/v1"`. Override for Ollama, LiteLLM, Azure, etc. */
+	/**
+	 * Base URL, with or without a trailing slash. Defaults to
+	 * `https://api.openai.com/v1`. By default the request is sent to
+	 * `<baseURL>/chat/completions` using `Authorization: Bearer <apiKey>`.
+	 * Override `endpoint` if your server uses a different path or query string,
+	 * and pass `extraHeaders` to swap the auth header.
+	 */
 	baseURL?: string;
+	/**
+	 * Full chat-completions URL (overrides `baseURL`-based construction).
+	 * Use this for endpoints that require query parameters such as Azure
+	 * OpenAI (`https://<resource>.openai.azure.com/openai/deployments/<dep>/chat/completions?api-version=2024-...`).
+	 */
+	endpoint?: string;
 	/** Sent as `Authorization: Bearer <apiKey>`. Optional for self-hosted endpoints. */
 	apiKey?: string;
 	defaultModel?: string;
@@ -14,14 +26,21 @@ export interface OpenAICompatibleProviderOptions {
 
 /**
  * Generic provider for any OpenAI-compatible Chat Completions endpoint
- * (api.openai.com, Azure OpenAI, Ollama, vLLM, LiteLLM, a self-hosted
- * OpenUI server, …). Streams SSE deltas as `AsyncIterable<string>`.
+ * (api.openai.com, Ollama, vLLM, LiteLLM, a self-hosted OpenUI server,
+ * …). Streams SSE deltas as `AsyncIterable<string>`.
+ *
+ * **Not fully covered**: Azure OpenAI needs a different URL shape
+ * (`/openai/deployments/<name>/chat/completions?api-version=...`) plus an
+ * `api-key` header instead of `Authorization: Bearer`. Pass the full URL via
+ * `endpoint` and the auth header via `extraHeaders` if you need that
+ * variant — a dedicated factory may land later.
  */
 export function createOpenAICompatibleProvider(
 	options: OpenAICompatibleProviderOptions = {},
 ): OpenUIProvider {
 	const {
 		baseURL = "https://api.openai.com/v1",
+		endpoint,
 		apiKey,
 		defaultModel = "gpt-4o",
 		availableModels,
@@ -29,6 +48,10 @@ export function createOpenAICompatibleProvider(
 		supportsVision = true,
 		label = "OpenAI-compatible",
 	} = options;
+	// Resolve a stable URL once at factory time. URL handles trailing slashes,
+	// allows future query-param overrides, and rejects malformed inputs early.
+	const resolvedEndpoint =
+		endpoint ?? new URL("chat/completions", ensureTrailingSlash(baseURL)).toString();
 
 	return {
 		id: "openai-compatible",
@@ -57,7 +80,7 @@ export function createOpenAICompatibleProvider(
 				{ role: "user", content: userContent },
 			];
 
-			const response = await fetch(`${baseURL}/chat/completions`, {
+			const response = await fetch(resolvedEndpoint, {
 				method: "POST",
 				headers,
 				signal: opts.signal,
@@ -143,4 +166,10 @@ async function* parseOpenAIStream(response: Response): AsyncIterable<string> {
 	} finally {
 		reader.releaseLock();
 	}
+}
+
+/** Append a trailing slash if missing; `new URL("chat/completions", base)`
+ *  drops the last path segment of `base` when it doesn't end with `/`. */
+function ensureTrailingSlash(url: string): string {
+	return url.endsWith("/") ? url : `${url}/`;
 }
