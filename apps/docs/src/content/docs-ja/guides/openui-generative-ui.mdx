@@ -15,7 +15,7 @@ UX は tldraw の "Make Real" と同じ流儀ですが、生 Tailwind HTML で�
 
 ## セットアップ
 
-両プラグインはこのモノレポに同梱されており、`apps/web` ではデフォルトで wire 済みです。独自 host で使う場合:
+両プラグインはこのモノレポに同梱されており、`apps/web` ではクラウドボード (`/boards/...`) でのみ wire 済みです (ローカルボードでは読み込まれません)。独自 host で使う場合:
 
 ```bash
 pnpm add @edv4h/usketch-plugin-shape-openui @edv4h/usketch-plugin-tool-openui
@@ -71,7 +71,7 @@ const app = await createApp({
 
 1. ✨ OpenUI tool をクリック (またはショートカット `U`)。OpenUI タブの side panel が開きます。
 2. プロンプトを入力。例: *"a pricing card with three tiers and CTA buttons"*
-3. **Generate** ボタン (または `⌘+Enter`) を押すと、LLM 出力を stream で受け取り、library schema で validate しながら新規 `openui` shape を viewport 中央に配置します。
+3. **Generate** ボタン (または `⌘+Enter`) を押すと、LLM 出力を stream で buffer に貯め、完了時点で新規 `openui` shape を viewport 中央に配置します。library の Zod schema による validate は `<Renderer>` 側の render 時に行われます — library にない component は描画から落とされ (console に `Renderer error:` が出る) ますが、shape 自体は作成されます。
 
 ステータス行に streaming 進捗が出ます。**Cancel** ボタンで in-flight request を中断できます。
 

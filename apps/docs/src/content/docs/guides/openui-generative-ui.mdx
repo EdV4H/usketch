@@ -15,7 +15,7 @@ The flow is tldraw's "Make Real" pattern but with OpenUI Lang instead of raw Tai
 
 ## Setup
 
-Both plugins ship with the monorepo and are wired into `apps/web` by default. For a standalone host:
+Both plugins ship with the monorepo and are wired into `apps/web` for cloud boards (`/boards/...`); local boards don't load them. For a standalone host:
 
 ```bash
 pnpm add @edv4h/usketch-plugin-shape-openui @edv4h/usketch-plugin-tool-openui
@@ -71,7 +71,7 @@ const app = await createApp({
 
 1. Click the ✨ OpenUI tool (or press `U`) — the side panel opens to the OpenUI tab.
 2. Type a description, e.g. *"a pricing card with three tiers and CTA buttons"*.
-3. Hit **Generate** (or `⌘+Enter`). The plugin streams LLM output, validates each statement against the library schema, and places a new `openui` shape at the viewport center.
+3. Hit **Generate** (or `⌘+Enter`). The plugin streams LLM output into a buffer, then places a new `openui` shape at the viewport center once the response completes. Zod-schema validation against the library happens at render time inside `<Renderer>` — invalid components are dropped from the rendered output (and surfaced as `Renderer error:` in the console), but the shape itself is still created.
 
 The status row reports streaming progress; the **Cancel** button aborts in-flight requests cleanly.
 
