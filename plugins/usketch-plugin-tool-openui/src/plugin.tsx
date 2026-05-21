@@ -86,7 +86,15 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 				activeController = controller;
 				const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
-				emitStatus({ status: "thinking", message: "Generating UI…" });
+				// Gate every emit on this generation still being the active one.
+				// Without this, a slow-to-unwind cancelled generation could overwrite
+				// the "thinking" status of a freshly-started one.
+				const safeEmit = (payload: AiStatusPayload): void => {
+					if (activeController !== controller) return;
+					emitStatus(payload);
+				};
+
+				safeEmit({ status: "thinking", message: "Generating UI…" });
 				let buffer = "";
 				let lastReport = 0;
 				try {
@@ -101,7 +109,7 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 						const now = Date.now();
 						if (now - lastReport > 200) {
 							lastReport = now;
-							emitStatus({
+							safeEmit({
 								status: "thinking",
 								message: `Streaming… (${buffer.length} chars)`,
 							});
@@ -111,7 +119,7 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 					const cleaned = sanitizeLangSource(buffer);
 					if (!cleaned) throw new Error("Empty response from model");
 
-					emitStatus({ status: "placing", message: "Creating shape…", shapeCount: 1 });
+					safeEmit({ status: "placing", message: "Creating shape…", shapeCount: 1 });
 
 					const viewport = ctx.store.getViewport();
 					const base = placementBase ?? viewportCenterToWorld(viewport);
@@ -133,15 +141,15 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 					ctx.commands.execute(createAddShapeCommand(ctx.store, shape));
 					ctx.store.setSelection([id]);
 
-					emitStatus({ status: "done", shapeCount: 1, message: "Created!" });
+					safeEmit({ status: "done", shapeCount: 1, message: "Created!" });
 				} catch (err) {
 					if (controller.signal.aborted) {
 						// User-initiated cancel or timeout — release the busy state
 						// so the side panel doesn't stay disabled forever.
-						emitStatus({ status: "done", message: "Cancelled" });
+						safeEmit({ status: "done", message: "Cancelled" });
 						return;
 					}
-					emitStatus({
+					safeEmit({
 						status: "error",
 						message: err instanceof Error ? err.message : "Generation failed",
 					});
@@ -252,11 +260,15 @@ function OpenUISidePanel({ events, provider, model, onCancel }: SidePanelProps) 
 		const off = events.on(AI_STATUS_EVENT, (data: unknown) => {
 			const payload = data as AiStatusPayload;
 			if (payload.source !== "openui") return;
+			// Cancel any pending auto-clear on EVERY status update — otherwise a
+			// "done" status quickly followed by a new "thinking" would let the
+			// old 3s timer fire and clear the busy state mid-generation.
+			if (clearTimeoutRef.current !== null) {
+				window.clearTimeout(clearTimeoutRef.current);
+				clearTimeoutRef.current = null;
+			}
 			setStatus(payload);
 			if (payload.status === "done" || payload.status === "error") {
-				if (clearTimeoutRef.current !== null) {
-					window.clearTimeout(clearTimeoutRef.current);
-				}
 				clearTimeoutRef.current = window.setTimeout(() => {
 					setStatus(null);
 					clearTimeoutRef.current = null;

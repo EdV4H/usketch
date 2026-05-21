@@ -1,5 +1,5 @@
 import { createLibrary, defineComponent, useRenderNode } from "@openuidev/react-lang";
-import type { CSSProperties, ReactNode } from "react";
+import { type CSSProperties, Fragment, type ReactNode } from "react";
 import { z } from "zod/v4";
 
 /**
@@ -18,9 +18,12 @@ function renderArray(
 	render: ReturnType<typeof useRenderNode>,
 ): ReactNode {
 	if (!values) return null;
+	// Use Fragment, not <div>, so flex-child semantics (e.g. Spacer's flex: 1)
+	// apply to the actual rendered component instead of being trapped by a
+	// wrapper element.
 	return values.map((v, i) => (
 		// biome-ignore lint/suspicious/noArrayIndexKey: OpenUI Lang nodes are positional and stable
-		<div key={i}>{render(v)}</div>
+		<Fragment key={i}>{render(v)}</Fragment>
 	));
 }
 

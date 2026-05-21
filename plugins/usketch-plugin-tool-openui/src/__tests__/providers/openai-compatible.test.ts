@@ -119,6 +119,20 @@ describe("createOpenAICompatibleProvider", () => {
 		}).rejects.toThrow(/429/);
 	});
 
+	it("flushes the final SSE line when the stream ends without a trailing newline", async () => {
+		// Some servers omit the closing `\n\n` after the last `data:` event.
+		fetchMock.mockResolvedValueOnce(
+			new Response(
+				sseStream([`data: ${JSON.stringify({ choices: [{ delta: { content: "tail" } }] })}`]),
+				{ status: 200 },
+			),
+		);
+		const provider = createOpenAICompatibleProvider({ apiKey: "sk-x" });
+		const all: string[] = [];
+		for await (const c of provider.generate("hi", {})) all.push(c);
+		expect(all).toEqual(["tail"]);
+	});
+
 	it("returns a single chunk when stream=false", async () => {
 		fetchMock.mockResolvedValueOnce(
 			new Response(JSON.stringify({ choices: [{ message: { content: "final answer" } }] }), {

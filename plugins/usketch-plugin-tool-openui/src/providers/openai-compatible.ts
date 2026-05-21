@@ -91,7 +91,9 @@ export function createOpenAICompatibleProvider(
 /**
  * Parse an OpenAI-style SSE stream into a flat sequence of content deltas.
  * Handles partial lines across chunk boundaries and stops cleanly on
- * `data: [DONE]`.
+ * `data: [DONE]`. After the read loop ends, flushes any residual `data:` line
+ * that wasn't followed by a trailing newline — some servers terminate the
+ * stream without a final `\n\n`.
  */
 async function* parseOpenAIStream(response: Response): AsyncIterable<string> {
 	const body = response.body;
@@ -99,6 +101,23 @@ async function* parseOpenAIStream(response: Response): AsyncIterable<string> {
 	const reader = body.getReader();
 	const decoder = new TextDecoder();
 	let buffer = "";
+
+	/** Try to interpret one trimmed line as an OpenAI SSE delta. */
+	function extractDelta(line: string): { content?: string; done: boolean } {
+		if (!line.startsWith("data:")) return { done: false };
+		const data = line.slice(5).trimStart();
+		if (data === "[DONE]") return { done: true };
+		if (!data) return { done: false };
+		try {
+			const parsed = JSON.parse(data) as {
+				choices?: { delta?: { content?: string } }[];
+			};
+			return { content: parsed.choices?.[0]?.delta?.content, done: false };
+		} catch {
+			return { done: false };
+		}
+	}
+
 	try {
 		while (true) {
 			const { done, value } = await reader.read();
@@ -109,19 +128,17 @@ async function* parseOpenAIStream(response: Response): AsyncIterable<string> {
 				const line = buffer.slice(0, nl).trimEnd();
 				buffer = buffer.slice(nl + 1);
 				nl = buffer.indexOf("\n");
-				if (!line.startsWith("data:")) continue;
-				const data = line.slice(5).trimStart();
-				if (data === "[DONE]") return;
-				if (!data) continue;
-				let parsed: { choices?: { delta?: { content?: string } }[] };
-				try {
-					parsed = JSON.parse(data);
-				} catch {
-					continue;
-				}
-				const content = parsed.choices?.[0]?.delta?.content;
+				const { content, done: terminated } = extractDelta(line);
+				if (terminated) return;
 				if (typeof content === "string" && content.length > 0) yield content;
 			}
+		}
+		// Flush the final un-newline-terminated line, if any.
+		const tail = buffer.trim();
+		if (tail.length > 0) {
+			const { content, done: terminated } = extractDelta(tail);
+			if (terminated) return;
+			if (typeof content === "string" && content.length > 0) yield content;
 		}
 	} finally {
 		reader.releaseLock();
