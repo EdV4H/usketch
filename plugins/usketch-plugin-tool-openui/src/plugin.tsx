@@ -350,7 +350,7 @@ function OpenUISidePanel({ events, provider, model, onCancel }: SidePanelProps) 
 						fontWeight: 500,
 					}}
 				>
-					{isBusy ? "Generating…" : "Generate (⌘+Enter)"}
+					{isBusy ? "Generating…" : "Generate (Ctrl/⌘+Enter)"}
 				</button>
 				{isBusy ? (
 					<button

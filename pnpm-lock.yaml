@@ -1622,7 +1622,7 @@ importers:
         specifier: 19.2.4
         version: 19.2.4
       zod:
-        specifier: '>=3.25.0'
+        specifier: ^4.0.0 || >=3.25.0 <4.0.0
         version: 3.25.76
     devDependencies:
       '@types/react':
@@ -1884,7 +1884,7 @@ importers:
         specifier: 19.2.4
         version: 19.2.4
       zod:
-        specifier: '>=3.25.0'
+        specifier: ^4.0.0 || >=3.25.0 <4.0.0
         version: 3.25.76
     devDependencies:
       '@types/react':

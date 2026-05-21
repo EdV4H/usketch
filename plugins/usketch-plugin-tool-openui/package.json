@@ -29,7 +29,7 @@
 	"peerDependencies": {
 		"@modelcontextprotocol/sdk": ">=1.0.0",
 		"react": ">=19",
-		"zod": ">=3.25.0"
+		"zod": "^4.0.0 || >=3.25.0 <4.0.0"
 	},
 	"peerDependenciesMeta": {
 		"@modelcontextprotocol/sdk": {

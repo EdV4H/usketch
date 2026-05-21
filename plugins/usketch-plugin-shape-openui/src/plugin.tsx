@@ -56,6 +56,13 @@ function render(shape: ShapeData) {
 				padding: 8,
 				boxSizing: "border-box",
 				fontFamily: "system-ui, -apple-system, sans-serif",
+				// The widget is a static preview — disable pointer events and text
+				// selection so canvas drag/select/resize behave normally. (A future
+				// "focus mode" interaction is tracked as a follow-up; until then,
+				// clicking through to the underlying button/input is intentionally
+				// blocked to match shape-text / shape-image conventions.)
+				pointerEvents: "none",
+				userSelect: "none",
 			}}
 		>
 			<Renderer
