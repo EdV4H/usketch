@@ -27,6 +27,7 @@ import { framePlugin } from "@edv4h/usketch-plugin-shape-frame";
 import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { groupPlugin } from "@edv4h/usketch-plugin-shape-group";
 import { imageShapePlugin } from "@edv4h/usketch-plugin-shape-image";
+import { openUIShapePlugin } from "@edv4h/usketch-plugin-shape-openui";
 import { stickyPlugin } from "@edv4h/usketch-plugin-shape-sticky";
 import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
 import { wireframePlugin } from "@edv4h/usketch-plugin-shape-wireframe";
@@ -39,6 +40,11 @@ import {
 	type DivergenceTrackerHandle,
 	UnconfirmedOverlay,
 } from "@edv4h/usketch-plugin-sync-ywebsocket";
+import {
+	createOpenAICompatibleProvider,
+	createOpenAIProvider,
+	createOpenUIToolPlugin,
+} from "@edv4h/usketch-plugin-tool-openui";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
@@ -237,6 +243,29 @@ export function App() {
 			extraPlugins.push(createAiVoicePlugin({ boardId }));
 			extraPlugins.push(createAiImagePlugin({ boardId }));
 			extraPlugins.push(createAiRecognizePlugin({ boardId }));
+
+			// OpenUI Generative UI (experimental). Defaults to a self-hosted OpenUI
+			// server at http://localhost:7878; set VITE_OPENUI_PROVIDER=openai +
+			// VITE_OPENAI_API_KEY to use OpenAI directly.
+			const openuiProviderName = import.meta.env.VITE_OPENUI_PROVIDER ?? "openui-server";
+			const openaiKey = import.meta.env.VITE_OPENAI_API_KEY;
+			const openuiBaseURL = import.meta.env.VITE_OPENUI_BASE_URL;
+			const openuiModel = import.meta.env.VITE_OPENUI_MODEL;
+			const openuiProvider =
+				openuiProviderName === "openai" && openaiKey
+					? createOpenAIProvider({
+							apiKey: openaiKey,
+							defaultModel: openuiModel,
+						})
+					: createOpenAICompatibleProvider({
+							baseURL: openuiBaseURL ?? "http://localhost:7878/v1",
+							apiKey: openaiKey,
+							defaultModel: openuiModel,
+							label: "OpenUI server",
+						});
+			extraPlugins.push(openUIShapePlugin);
+			extraPlugins.push(createOpenUIToolPlugin({ provider: openuiProvider }));
+
 			extraPlugins.push(createWhistlePlugin(wsProvider));
 			extraPlugins.push(createActivityFeedPlugin({ wsProvider, boardId, apiUrl }));
 		} else {

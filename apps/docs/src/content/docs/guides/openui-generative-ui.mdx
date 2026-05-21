@@ -1,0 +1,147 @@
+---
+title: "OpenUI: Generative UI widgets (experimental)"
+description: Render LLM-generated UI widgets as first-class shapes on the canvas via OpenUI Lang and the Renderer from @openuidev/react-lang.
+order: 26
+---
+
+> **Experimental.** This guide describes a freshly landed plugin pair that depends on `@openuidev/*` packages still on a 0.x release cadence. APIs may shift; pin versions and re-evaluate when `@openuidev` ships 1.0.
+
+uSketch can host AI-generated UI widgets — a pricing card, a contact form, a stat dashboard — as first-class shapes on the canvas. Two plugins from this repo cover the round-trip:
+
+- **`@edv4h/usketch-plugin-shape-openui`** — defines the `openui` shape and renders [OpenUI Lang](https://www.openui.com/docs/openui-lang) snippets via `<Renderer>` from `@openuidev/react-lang`.
+- **`@edv4h/usketch-plugin-tool-openui`** — registers a toolbar tool, a side-panel prompt UI, a "Make Real" button on selection, and the LLM provider plumbing (OpenAI / OpenAI-compatible).
+
+The flow is tldraw's "Make Real" pattern but with OpenUI Lang instead of raw Tailwind HTML: outputs are validated against a Zod-schema-defined component library before they hit the DOM, so a malicious LLM cannot inject arbitrary script tags.
+
+## Setup
+
+Both plugins ship with the monorepo and are wired into `apps/web` by default. For a standalone host:
+
+```bash
+pnpm add @edv4h/usketch-plugin-shape-openui @edv4h/usketch-plugin-tool-openui
+```
+
+The default provider talks to a self-hosted [wandb/openui](https://github.com/wandb/openui) server at `http://localhost:7878`. Start one with Docker:
+
+```bash
+docker run -p 7878:7878 -e OPENAI_API_KEY=sk-... ghcr.io/wandb/openui:latest
+```
+
+Or point directly at OpenAI:
+
+```env
+VITE_OPENUI_PROVIDER=openai
+VITE_OPENAI_API_KEY=sk-...
+```
+
+Other useful env vars (`apps/web` reads these):
+
+- `VITE_OPENUI_BASE_URL` — override the OpenAI-compatible endpoint (Azure, Ollama, LiteLLM, …).
+- `VITE_OPENUI_MODEL` — pick a model name. Defaults to `gpt-4o`.
+
+## Wiring it into createApp
+
+```ts
+import { createApp } from "@edv4h/usketch-core";
+import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
+import { openUIShapePlugin } from "@edv4h/usketch-plugin-shape-openui";
+import {
+	createOpenAIProvider,
+	createOpenUIToolPlugin,
+} from "@edv4h/usketch-plugin-tool-openui";
+
+const app = await createApp({
+	store,
+	plugins: [
+		// Side panel must come BEFORE the tool plugin so its tab registration is received.
+		createSidePanelPlugin(),
+		openUIShapePlugin,
+		createOpenUIToolPlugin({
+			provider: createOpenAIProvider({ apiKey: process.env.OPENAI_API_KEY! }),
+		}),
+	],
+});
+```
+
+## Usage
+
+### Toolbar tool
+
+1. Click the ✨ OpenUI tool (or press `U`) — the side panel opens to the OpenUI tab.
+2. Type a description, e.g. *"a pricing card with three tiers and CTA buttons"*.
+3. Hit **Generate** (or `⌘+Enter`). The plugin streams LLM output, validates each statement against the library schema, and places a new `openui` shape at the viewport center.
+
+The status row reports streaming progress; the **Cancel** button aborts in-flight requests cleanly.
+
+### Make Real
+
+Select any shapes (a freehand sketch, a stack of stickies, a wireframe drawn with rectangles), then click **✨ Make Real** in the floating button above the selection. The plugin:
+
+1. Snapshots the selection as a PNG via `exportCanvas` from `@edv4h/usketch-plugin-export`.
+2. Sends the image plus a "build a real UI matching this sketch" prompt to the provider.
+3. Places the result to the right of the source bounds.
+
+`@edv4h/usketch-plugin-export` is required for this feature. If the export plugin is not loaded, the button silently disables itself.
+
+## Customizing the library
+
+The library defines what components the LLM is allowed to emit. The default library ships 12 generic primitives (Stack, Heading, Text, Card, Button, Input, Badge, Avatar, Image, List, Row, Spacer). Pass a custom one if you need branded components:
+
+```ts
+import { createLibrary, defineComponent } from "@openuidev/react-lang";
+import { z } from "zod/v4";
+
+const BrandHero = defineComponent({
+	name: "BrandHero",
+	description: "Hero banner with the Acme brand colors.",
+	props: z.object({ title: z.string(), subtitle: z.string().default("") }),
+	component: ({ props }) => <header className="acme-hero">…</header>,
+});
+
+const library = createLibrary({ components: [BrandHero /* + your other components */] });
+
+createOpenUIToolPlugin({ provider, library, libraryId: "acme-1" });
+```
+
+The system prompt is regenerated from the library on every request via `library.prompt(...)`, so the LLM is always told the exact set of components and their Zod-typed props.
+
+## Provider abstraction
+
+```ts
+import {
+	createOpenAIProvider,
+	createOpenAICompatibleProvider,
+} from "@edv4h/usketch-plugin-tool-openui";
+
+// Direct OpenAI:
+createOpenAIProvider({ apiKey: "sk-..." });
+
+// Anything OpenAI-compatible (Ollama, vLLM, LiteLLM, Azure OpenAI, OpenUI server, …):
+createOpenAICompatibleProvider({
+	baseURL: "http://localhost:11434/v1",  // Ollama
+	defaultModel: "llama3.2:vision",
+});
+```
+
+Anthropic is not directly supported in v1 — browser CORS plus key-in-client trade-offs make it best served via a server-side proxy. Track the follow-up issue if you need it.
+
+## Security model
+
+- The `<Renderer>` from `@openuidev/react-lang` validates every parsed statement against the library's Zod schemas. Components or props the library doesn't declare are rejected before they render — there is no `dangerouslySetInnerHTML` and no script execution surface.
+- API keys are passed via host options (`createOpenAIProvider({ apiKey })`). The plugin never reads env vars directly.
+- Vision requests for Make Real send the canvas snapshot as a base64 data URL; for sensitive boards, deploy a server-side proxy that strips identifiers before forwarding.
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+| --- | --- |
+| Shape mounts as "OpenUI library not configured" fallback | `createOpenUIToolPlugin` was not registered, or it ran before the shape plugin loaded. Add `openUIShapePlugin` before the tool plugin. |
+| `OpenUI provider 401:` | Missing or invalid API key. Set `VITE_OPENAI_API_KEY` or pass `apiKey` to the provider factory. |
+| `Empty response from model` | The LLM returned only fences / prose. The plugin strips common artifacts; if it still triggers, refine the prompt or pick a stronger model. |
+| The shape renders empty even after `done` | The LLM emitted a component name the library doesn't define. Open the browser console — `Renderer error:` logs the rejected statement. |
+
+## Limitations
+
+- **Static widgets only.** `Action()` (OpenUI Lang's event hook) is not wired through — buttons render but don't fire real events. Follow-up tracks deeper integration.
+- **No streaming progressive render in the canvas.** The plugin buffers the entire response before placing the shape; partial UI is reported only in the side panel status. tldraw "Make Real" makes the same trade-off.
+- **One library per app instance.** The shape plugin holds a single active `Library` reference. Hosts that want multiple libraries should file an issue describing the use case.
