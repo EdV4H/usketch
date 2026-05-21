@@ -1,0 +1,149 @@
+---
+title: "OpenUI: Generative UI ウィジェット (実験的)"
+description: LLM 生成した UI ウィジェットを OpenUI Lang と @openuidev/react-lang の Renderer 経由で canvas 上の first-class shape として描画する。
+order: 26
+---
+
+> **実験的機能。** 依存先の `@openuidev/*` パッケージはまだ 0.x の頻繁リリース中で、API が変わる可能性があります。バージョンを pin し、`@openuidev` が 1.0 に到達したタイミングで再評価してください。
+
+uSketch では AI 生成の UI ウィジェット (料金プラン表 / 問い合わせフォーム / 統計ダッシュボード等) を canvas 上の first-class shape として配置できます。本リポジトリの 2 つのプラグインが往復をカバーします:
+
+- **`@edv4h/usketch-plugin-shape-openui`** — `openui` shape の定義。`@openuidev/react-lang` の `<Renderer>` で [OpenUI Lang](https://www.openui.com/docs/openui-lang) を描画。
+- **`@edv4h/usketch-plugin-tool-openui`** — toolbar tool / side-panel prompt UI / 選択上の「Make Real」ボタン / LLM provider (OpenAI 直接 / OpenAI 互換 endpoint) を提供。
+
+UX は tldraw の "Make Real" と同じ流儀ですが、生 Tailwind HTML ではなく OpenUI Lang を出力するため、Zod schema 駆動の component library に対して validate されてから DOM に流れます — 悪意ある LLM が任意 script を注入する経路はありません。
+
+## セットアップ
+
+両プラグインはこのモノレポに同梱されており、`apps/web` ではクラウドボード (`/boards/...`) でのみ wire 済みです (ローカルボードでは読み込まれません)。独自 host で使う場合:
+
+```bash
+pnpm add @edv4h/usketch-plugin-shape-openui @edv4h/usketch-plugin-tool-openui
+```
+
+`apps/web` のデフォルト provider は `http://localhost:7878/v1` の OpenAI 互換 Chat Completions endpoint を叩きます。任意の互換サーバが使えます — Ollama、LiteLLM、vLLM、自前の LLM proxy、あるいは手早くコンテナを立てたいなら [wandb/openui](https://github.com/wandb/openui) sandbox も選択肢:
+
+```bash
+# 任意: 汎用 OpenAI 互換 Docker (wandb/openui はあくまで一例。
+# 独自 model server に置き換えてください)
+docker run -p 7878:7878 -e OPENAI_API_KEY=sk-... ghcr.io/wandb/openui:latest
+```
+
+ローカルサーバを使わず OpenAI を直接叩く場合:
+
+```env
+VITE_OPENUI_PROVIDER=openai
+VITE_OPENAI_API_KEY=sk-...
+```
+
+その他の env vars (`apps/web` が読む):
+
+- `VITE_OPENUI_BASE_URL` — OpenAI 互換 endpoint を上書き (Azure, Ollama, LiteLLM, …)
+- `VITE_OPENUI_MODEL` — model 名を指定。default `gpt-4o`
+
+## createApp への組み込み
+
+```ts
+import { createApp } from "@edv4h/usketch-core";
+import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
+import { openUIShapePlugin } from "@edv4h/usketch-plugin-shape-openui";
+import {
+	createOpenAIProvider,
+	createOpenUIToolPlugin,
+} from "@edv4h/usketch-plugin-tool-openui";
+
+const app = await createApp({
+	store,
+	plugins: [
+		// tool plugin の前に side panel を入れる (タブ登録 event を受けるため)。
+		createSidePanelPlugin(),
+		openUIShapePlugin,
+		createOpenUIToolPlugin({
+			provider: createOpenAIProvider({ apiKey: process.env.OPENAI_API_KEY! }),
+		}),
+	],
+});
+```
+
+## 使い方
+
+### Toolbar ツール
+
+1. ✨ OpenUI tool をクリック (またはショートカット `U`)。OpenUI タブの side panel が開きます。
+2. プロンプトを入力。例: *"a pricing card with three tiers and CTA buttons"*
+3. **Generate** ボタン (または `⌘+Enter`) を押すと、LLM 出力を stream で buffer に貯め、完了時点で新規 `openui` shape を viewport 中央に配置します。library の Zod schema による validate は `<Renderer>` 側の render 時に行われます — library にない component は描画から落とされ (console に `Renderer error:` が出る) ますが、shape 自体は作成されます。
+
+ステータス行に streaming 進捗が出ます。**Cancel** ボタンで in-flight request を中断できます。
+
+### Make Real
+
+任意の shape (フリーハンドスケッチ / 付箋の山 / 矩形でラフ書きしたワイヤフレーム等) を選択し、選択上に浮かぶ **✨ Make Real** ボタンをクリック。プラグインは:
+
+1. `@edv4h/usketch-plugin-export` の `exportCanvas` で選択範囲を PNG にスナップショット
+2. 画像 + 「このスケッチに対応する real UI を作って」プロンプトを provider に送信
+3. 結果を元 shape の右側に配置
+
+`@edv4h/usketch-plugin-export` は tool plugin の hard な runtime 依存です (package の `dependencies` に列挙され、`exportCanvas` が直接 import される)。host 側でインストールを忘れないでください。プラグインは export がない場合に gracefully fall back しません — Make Real ボタン押下時に throw し、エラーは標準の `ai:status` event 経由で side panel にエラーバナーとして表示されます。
+
+## Library のカスタマイズ
+
+Library は LLM が出せる component セットを定義します。デフォルト library には 12 個の汎用 primitive (Stack / Heading / Text / Card / Button / Input / Badge / Avatar / Image / List / Row / Spacer) が同梱されています。ブランド component を入れたい場合は独自 library を渡します:
+
+```ts
+import { createLibrary, defineComponent } from "@openuidev/react-lang";
+import { z } from "zod/v4";
+
+const BrandHero = defineComponent({
+	name: "BrandHero",
+	description: "Acme 風のヒーローバナー。",
+	props: z.object({ title: z.string(), subtitle: z.string().default("") }),
+	component: ({ props }) => <header className="acme-hero">…</header>,
+});
+
+const library = createLibrary({ components: [BrandHero /* + その他 */] });
+
+createOpenUIToolPlugin({ provider, library, libraryId: "acme-1" });
+```
+
+system prompt は毎リクエスト時に `library.prompt(...)` から再生成されます。LLM は常に library の component と Zod 型 props を正確に知った状態で応答します。
+
+## Provider の切り替え
+
+```ts
+import {
+	createOpenAIProvider,
+	createOpenAICompatibleProvider,
+} from "@edv4h/usketch-plugin-tool-openui";
+
+// OpenAI を直接叩く:
+createOpenAIProvider({ apiKey: "sk-..." });
+
+// OpenAI 互換 endpoint (Ollama / vLLM / LiteLLM / Azure / OpenUI server / …):
+createOpenAICompatibleProvider({
+	baseURL: "http://localhost:11434/v1", // Ollama
+	defaultModel: "llama3.2:vision",
+});
+```
+
+Anthropic 直接接続は v1 ではサポートしません — browser CORS + クライアント側 API key 露出のトレードオフから、server-side proxy 経由が望ましいためです。必要であれば follow-up issue を立ててください。
+
+## セキュリティモデル
+
+- `@openuidev/react-lang` の `<Renderer>` は parse した statement を library の Zod schema に対して validate します。library にない component / prop は render 前に拒否されるため、`dangerouslySetInnerHTML` も script 実行経路も存在しません。
+- API key は host option (`createOpenAIProvider({ apiKey })`) 経由で渡します。プラグインが直接 env vars を読むことはありません。
+- Make Real の vision request は canvas snapshot を base64 data URL として送信します。機密性の高い board では、識別情報を strip してから転送する server-side proxy をデプロイすることを推奨します。
+
+## トラブルシューティング
+
+| 症状 | 原因 |
+| --- | --- |
+| Shape が "OpenUI library not configured" の fallback で表示される | `createOpenUIToolPlugin` (または `setOpenUILibrary` を呼ぶ host コード) が `createApp({ plugins })` に登録されていない。plugin の順序は関係ない (`createApp` は全 plugin の `setup()` を終えてから canvas を描画する) が、library を渡す caller が居ないと shape は fallback を表示する |
+| `OpenUI provider 401:` | API key が未設定または不正。`VITE_OPENAI_API_KEY` を設定するか、provider factory に `apiKey` を渡す |
+| `Empty response from model` | LLM が fence や prose だけ返した。プラグインは典型的な artifact を除去するが、それでも発生する場合は prompt を refine するか強い model を選ぶ |
+| `done` 後も shape が空に見える | LLM が library にない component を出力した。browser console を確認 — `Renderer error:` で拒否された statement が出る |
+
+## 制約
+
+- **静的ウィジェットのみ。** OpenUI Lang の `Action()` (event hook) は未配線。button は render されるが実 event は発火しない。Follow-up で改善予定。
+- **canvas 上での progressive streaming は未対応。** 完全な応答を buffer してから shape を配置する。partial UI は side panel ステータスでのみ表示。tldraw "Make Real" と同じトレードオフ。
+- **app instance ごとに 1 library。** shape plugin は単一の active `Library` reference を保持。複数 library が必要な場合は issue を立ててください。

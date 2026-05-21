@@ -6,3 +6,12 @@ packages:
 
 onlyBuiltDependencies:
   - "@j178/prek"
+
+# @openuidev/* (thesysdev) is on a rapid 0.x cadence (new minors every few days).
+# The global ~/.npmrc default `min-release-age` blocks installation of those
+# fresh versions. Bypass the gate for this scope so the OpenUI shape plugin
+# can pin to a verified release. Re-evaluate when @openuidev hits 1.0.
+minimumReleaseAgeExclude:
+  - "@openuidev/react-lang"
+  - "@openuidev/react-headless"
+  - "@openuidev/lang-core"

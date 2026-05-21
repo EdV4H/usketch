@@ -37,6 +37,8 @@
 		"@edv4h/usketch-plugin-canvas-filter": "workspace:*",
 		"@edv4h/usketch-plugin-shape-island": "workspace:*",
 		"@edv4h/usketch-plugin-shape-image": "workspace:*",
+		"@edv4h/usketch-plugin-shape-openui": "workspace:*",
+		"@edv4h/usketch-plugin-tool-openui": "workspace:*",
 		"@edv4h/usketch-plugin-export": "workspace:*",
 		"@edv4h/usketch-plugin-follow-me": "workspace:*",
 		"@edv4h/usketch-plugin-keyboard-shortcuts": "workspace:*",
