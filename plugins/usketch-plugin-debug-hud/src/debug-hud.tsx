@@ -18,6 +18,7 @@ import { ShapesPanel } from "./panels/shapes-panel.js";
 import type { PointerTracker } from "./pointer-tracker.js";
 import { FONT_FAMILY, TEXT_MUTED } from "./styles.js";
 import type { SyncStatusTrackerLike } from "./sync-status-types.js";
+import type { VisibilityStore } from "./visibility-store.js";
 
 interface DebugHudProps {
 	store: BoardStore;
@@ -31,6 +32,7 @@ interface DebugHudProps {
 	syncStatus?: SyncStatusTrackerLike;
 	events: EventBus;
 	ctx: LayerRenderContext;
+	visibility: VisibilityStore;
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -51,15 +53,14 @@ export function DebugHud({
 	syncStatus,
 	events,
 	ctx,
+	visibility,
 }: DebugHudProps) {
-	const STORAGE_KEY = "usketch-debug-hud-visible";
-	const [visible, setVisible] = useState(() => {
-		try {
-			return localStorage.getItem(STORAGE_KEY) === "1";
-		} catch {
-			return false;
-		}
-	});
+	const subscribeVisibility = useCallback(
+		(cb: () => void) => visibility.subscribe(cb),
+		[visibility],
+	);
+	const getVisibility = useCallback(() => visibility.get(), [visibility]);
+	const visible = useSyncExternalStore(subscribeVisibility, getVisibility, getVisibility);
 	const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
 
 	// Keyboard shortcut (backtick)
@@ -69,21 +70,13 @@ export function DebugHud({
 			if (e.key === "`" || e.code === "Backquote") {
 				if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
 					e.preventDefault();
-					setVisible((v) => {
-						const next = !v;
-						try {
-							localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
-						} catch {
-							// ignore
-						}
-						return next;
-					});
+					visibility.set(!visibility.get());
 				}
 			}
 		};
 		window.addEventListener("keydown", handler);
 		return () => window.removeEventListener("keydown", handler);
-	}, []);
+	}, [visibility]);
 
 	const { viewport, shapes: shapeMap, selection } = ctx;
 	const activeToolId = store.getActiveToolId();
