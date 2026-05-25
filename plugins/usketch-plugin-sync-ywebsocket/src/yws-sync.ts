@@ -37,17 +37,18 @@ export function createYwebsocketSync(
 	const shapesMap = doc.getMap<Record<string, unknown>>(shapesMapKey);
 	const status = new SyncStatusTracker();
 
-	// IDs that this sync instance has written into `shapesMap` (whether from a
-	// local mutation we accepted, or from a remote update we observed). Used to
-	// gate `shape:removed` deletions when a `shouldSync` filter is in play:
-	// removals are forwarded to the Y.Map only for shapes we had previously
-	// chosen (or been told) to sync. Without the filter, every id is treated as
-	// synced so behavior is identical to the pre-`shouldSync` plugin.
-	const syncedIds = new Set<string>();
-	// Seed from any keys that were already in the Y.Doc when we attached (e.g.
-	// a doc loaded from IndexedDB before this sync handle was constructed).
-	for (const id of shapesMap.keys()) {
-		syncedIds.add(id);
+	// IDs this sync instance has written into `shapesMap`. Only allocated when a
+	// `shouldSync` filter is provided — without it every id is implicitly synced
+	// and the set would just shadow `shapesMap.keys()` for no gain. When set,
+	// removals propagate to the Y.Map only for ids in here, so a host bridging
+	// in foreign shapes doesn't scribble unrelated deletes into the shared doc.
+	const syncedIds: Set<string> | null = shouldSync ? new Set<string>() : null;
+	if (syncedIds) {
+		// Seed from any keys already in the Y.Doc (e.g. a doc loaded from IndexedDB
+		// before this sync handle attached).
+		for (const id of shapesMap.keys()) {
+			syncedIds.add(id);
+		}
 	}
 
 	let destroyed = false;
@@ -128,7 +129,7 @@ export function createYwebsocketSync(
 							// flipped from true to false for the same id), drop
 							// the stale entry so the shared document doesn't keep
 							// a copy the local store no longer endorses.
-							if (syncedIds.has(payload.id)) {
+							if (syncedIds?.has(payload.id)) {
 								shapesMap.delete(payload.id);
 								syncedIds.delete(payload.id);
 								status.noteShapeRemoved(payload.id);
@@ -137,13 +138,14 @@ export function createYwebsocketSync(
 						}
 						const isNew = !shapesMap.has(payload.id);
 						shapesMap.set(payload.id, toPlainObject(shape));
-						syncedIds.add(payload.id);
-						if (isNew && event.type === "shape:added") {
-							// Socket open → y-websocket immediately broadcasts this
-							// shape to the server, so it's effectively confirmed. We
-							// only flag local adds as "unconfirmed" while the
-							// connection is down, so the warning shows up exactly
-							// for offline edits / orphaned IndexedDB state.
+						syncedIds?.add(payload.id);
+						if (isNew) {
+							// "New entry in the Y.Map" — covers both genuine
+							// `shape:added` events and the false→true filter flip
+							// case where a `shape:updated` is the first write the
+							// host has authorized. Without this, the divergence
+							// tracker wouldn't know about ids whose first sync
+							// arrived via an update event.
 							const isOnline = currentWsStatus === "connected";
 							status.noteShapeAdded(payload.id, isOnline ? "remote" : "local");
 						}
@@ -154,9 +156,9 @@ export function createYwebsocketSync(
 						// had previously accepted into the Y.Map — otherwise a host
 						// bridging in foreign shapes (and removing them locally)
 						// would scribble unrelated deletes into the shared doc.
-						if (shouldSync && !syncedIds.has(payload.id)) break;
+						if (syncedIds && !syncedIds.has(payload.id)) break;
 						shapesMap.delete(payload.id);
-						syncedIds.delete(payload.id);
+						syncedIds?.delete(payload.id);
 						status.noteShapeRemoved(payload.id);
 						break;
 					}
@@ -205,10 +207,11 @@ export function createYwebsocketSync(
 									}
 								}
 								// Track every id that flows through this Y.Map as
-								// "ours to sync". Remote-origin keys must be eligible
-								// for `shapesMap.delete` on subsequent local removal
-								// even when a `shouldSync` filter is in play.
-								syncedIds.add(key);
+								// "ours to sync" so remote-origin keys stay eligible
+								// for `shapesMap.delete` on a later local removal
+								// when a `shouldSync` filter is in play. Skipped
+								// when no filter is set — the gate is disabled.
+								syncedIds?.add(key);
 							}
 							break;
 						}
@@ -216,7 +219,7 @@ export function createYwebsocketSync(
 							if (store.getShape(key)) {
 								store.deleteShape(key);
 							}
-							syncedIds.delete(key);
+							syncedIds?.delete(key);
 							status.noteShapeRemoved(key);
 							break;
 						}

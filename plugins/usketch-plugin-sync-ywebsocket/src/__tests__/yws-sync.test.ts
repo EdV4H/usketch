@@ -255,6 +255,31 @@ describe("createYwebsocketSync (shouldSync filter)", () => {
 		expect(shapesMap.has("foreign-from-remote")).toBe(false);
 	});
 
+	it("notes the new entry when shouldSync flips false → true on a subsequent update", () => {
+		let allow = false;
+		const { store, handle } = setup(() => allow);
+
+		// Initially blocked: store gets it, Y.Map doesn't, and the status tracker
+		// must not know about an id we never wrote.
+		store.addShape(makeShape({ id: "s1" }));
+		expect(handle.status.getSnapshot().shapeCount).toBe(0);
+		expect(handle.status.getSnapshot().unconfirmedShapeIds).not.toContain("s1");
+
+		// Filter flips on; the next update is the first time we forward this id
+		// to the Y.Map. The status tracker must register the new entry now —
+		// otherwise the divergence UI would silently miss it.
+		allow = true;
+		store.updateShape("s1", { x: 50 });
+
+		const shapesMap = handle.doc.getMap<Record<string, unknown>>("shapes");
+		expect(shapesMap.has("s1")).toBe(true);
+		// `autoConnect: false` → currentWsStatus stays "disconnected", so the new
+		// entry is flagged as a local (unconfirmed) add. The exact category
+		// matters less than the fact that the tracker knows about it.
+		expect(handle.status.getSnapshot().shapeCount).toBe(1);
+		expect(handle.status.getSnapshot().unconfirmedShapeIds).toContain("s1");
+	});
+
 	it("defaults to syncing everything when shouldSync is omitted", () => {
 		// Re-uses the no-filter path of the main test setup, included here as an
 		// explicit regression assertion that the new gate doesn't kick in when
