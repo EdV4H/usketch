@@ -30,7 +30,16 @@
 		"lineWidth": 100
 	},
 	"files": {
-		"includes": ["apps/**", "packages/**", "plugins/**", "biome.json", "turbo.json", "!**/*.astro"],
+		"includes": [
+			"apps/**",
+			"packages/**",
+			"plugins/**",
+			"examples/01-minimal/**",
+			"examples/02-multiple-shapes-tools/**",
+			"biome.json",
+			"turbo.json",
+			"!**/*.astro"
+		],
 		"experimentalScannerIgnores": ["**/dist/**", "**/node_modules/**"]
 	}
 }
