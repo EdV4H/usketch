@@ -1,0 +1,34 @@
+{
+	"name": "@edv4h/usketch-example-02-multiple-shapes-tools",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"typecheck": "tsc --noEmit",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@edv4h/usketch-canvas-engine": "workspace:*",
+		"@edv4h/usketch-core": "workspace:*",
+		"@edv4h/usketch-dom-renderer": "workspace:*",
+		"@edv4h/usketch-plugin-bg-grid": "workspace:*",
+		"@edv4h/usketch-plugin-shape-basic": "workspace:*",
+		"@edv4h/usketch-plugin-shape-sticky": "workspace:*",
+		"@edv4h/usketch-plugin-tool-pan": "workspace:*",
+		"@edv4h/usketch-plugin-tool-select": "workspace:*",
+		"@edv4h/usketch-plugin-viewport-nav": "workspace:*",
+		"@edv4h/usketch-shared": "workspace:*",
+		"@edv4h/usketch-store": "workspace:*",
+		"react": "19.2.4",
+		"react-dom": "19.2.4"
+	},
+	"devDependencies": {
+		"@types/react": "19.2.14",
+		"@types/react-dom": "19.2.3",
+		"@vitejs/plugin-react": "4.7.0",
+		"typescript": "5.9.3",
+		"vite": "7.3.1"
+	}
+}

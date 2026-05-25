@@ -17,6 +17,17 @@ pnpm dev
 
 開発サーバー: http://localhost:4578
 
+## Examples
+
+uSketch をライブラリとして使うときの最小構成サンプル。`apps/web` のフル構成より、まずこちらを読むと core API の輪郭が掴めます。
+
+| Example | 内容 |
+|---------|------|
+| [`examples/01-minimal`](./examples/01-minimal) | `createApp` + select / pan + 1 つの図形だけの hello world |
+| [`examples/02-multiple-shapes-tools`](./examples/02-multiple-shapes-tools) | 複数 shape (rect / ellipse / sticky)・grid 背景・viewport-nav UI・ツール切替を一通り |
+
+各ディレクトリで `pnpm dev` を叩くとブラウザでそのまま開けます。プラグインを書く側の雛形は [`examples/usketch-plugin-acme-shape-basic`](./examples/usketch-plugin-acme-shape-basic) を参照。
+
 ## スクリプト
 
 | コマンド | 説明 |
