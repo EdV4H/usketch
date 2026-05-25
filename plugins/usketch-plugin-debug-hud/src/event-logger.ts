@@ -42,6 +42,11 @@ export class EventLogger {
 	}
 
 	subscribe(listener: () => void): () => void {
+		// If entries accumulated while no one was listening, surface them to the
+		// new subscriber on the next frame instead of waiting for another push.
+		if (this.dirty && this.listeners.size === 0) {
+			this.scheduleFlush();
+		}
 		this.listeners.add(listener);
 		return () => {
 			this.listeners.delete(listener);

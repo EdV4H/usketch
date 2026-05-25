@@ -392,10 +392,10 @@ export interface EventBus {
 	emit<T = unknown>(event: string, data: T): void;
 	/**
 	 * Suspend event delivery. `emit()` becomes a no-op until `resume()` is called.
-	 * `on()`/`off()` continue to work; handlers registered while paused will receive
-	 * events emitted after resume. Pause and resume MUST be called in pairs from the
-	 * same logical scope — leaving the bus paused will silently drop every subsequent
-	 * event in the app.
+	 * Subscription via `on()` (and unsubscription via the function it returns) keeps
+	 * working; handlers registered while paused will receive events emitted after
+	 * resume. Pause and resume MUST be called in pairs from the same logical scope —
+	 * leaving the bus paused will silently drop every subsequent event in the app.
 	 */
 	pause(): void;
 	/** Re-enable event delivery suspended by `pause()`. */

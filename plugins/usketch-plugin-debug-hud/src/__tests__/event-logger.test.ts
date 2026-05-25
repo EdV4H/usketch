@@ -130,6 +130,24 @@ describe("EventLogger", () => {
 		expect(logger.getSnapshot()).toEqual([]);
 	});
 
+	it("flushes accumulated entries when the first subscriber arrives", () => {
+		const logger = new EventLogger();
+
+		logger.push({ event: "shape:created", timestamp: 1 });
+		logger.push({ event: "shape:updated", timestamp: 2 });
+		expect(raf.scheduled()).toBe(0);
+		expect(logger.getSnapshot()).toEqual([]);
+
+		const listener = vi.fn();
+		logger.subscribe(listener);
+
+		expect(raf.scheduled()).toBe(1);
+		raf.flush();
+
+		expect(listener).toHaveBeenCalledTimes(1);
+		expect(logger.getSnapshot()).toHaveLength(2);
+	});
+
 	it("clears synchronously when no one is listening", () => {
 		const logger = new EventLogger();
 		logger.push({ event: "a", timestamp: 1 });
