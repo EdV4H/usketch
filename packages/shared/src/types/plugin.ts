@@ -390,6 +390,17 @@ export interface EventBus {
 	on<T = unknown>(event: string, handler: (data: T) => void): () => void;
 	emit<K extends keyof CoreEventMap>(event: K, data: CoreEventMap[K]): void;
 	emit<T = unknown>(event: string, data: T): void;
+	/**
+	 * Suspend event delivery. `emit()` becomes a no-op until `resume()` is called.
+	 * `on()`/`off()` continue to work; handlers registered while paused will receive
+	 * events emitted after resume. Pause and resume MUST be called in pairs from the
+	 * same logical scope — leaving the bus paused will silently drop every subsequent
+	 * event in the app.
+	 */
+	pause(): void;
+	/** Re-enable event delivery suspended by `pause()`. */
+	resume(): void;
+	isPaused(): boolean;
 }
 
 // ── Transient System ──
