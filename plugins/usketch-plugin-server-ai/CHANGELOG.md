@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-server-ai
 
+## 1.1.0
+
+### Minor Changes
+
+- 6a06178: OpenUI: make production-deployable via a server-side proxy.
+  - `@edv4h/usketch-plugin-tool-openui` adds `createServerProxyProvider`, which routes LLM calls through your own `/api/ai/openui` endpoint with cookie-based auth (`credentials: "include"`). The existing OpenAI-compatible provider also gains an opt-in `credentials` option.
+  - `@edv4h/usketch-plugin-server-ai` adds `registerOpenUIRoute` (mounted at `POST /api/ai/openui`), an OpenAI-compatible Chat Completions proxy that reuses the worker's `OPENAI_API_KEY` secret, enforces board access control when `?boardId=...` is supplied, and streams SSE pass-through.
+
+  `apps/web` now uses `createServerProxyProvider` exclusively, so the OpenAI API key no longer ships in the browser bundle.
+
 ## 1.0.0
 
 ### Major Changes
@@ -9,7 +19,6 @@
   uSketch v2 の最初の安定版リリース。MVP 完了基準をすべて満たした状態で公開する。
 
   ## Highlights
-
   - **Realtime collaboration** — Cloudflare Durable Objects + Yjs + WebSocket awareness
   - **Offline-first** — y-indexeddb によるローカル永続化、再接続時の自動同期
   - **Pluggable architecture** — 60+ の plugin（shape / tool / sync / AI / presence / export 等）

@@ -1,5 +1,89 @@
 # @edv4h/usketch-plugin-shape-frame
 
+## 2.0.0
+
+### Major Changes
+
+- 2f4f755: `ShapeData` contract redesign — layered 3-tier extension model. Closes #575.
+
+  ## Breaking changes
+
+  **1. `ShapeData` is now generic and strictly typed.**
+
+  ```ts
+  // Before
+  interface ShapeData {
+    /* core fields */
+    [key: string]: unknown; // any field accepted
+  }
+
+  // After
+  interface ShapeData<TMeta = Record<string, unknown>> {
+    id: string;
+    type: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    style: ShapeStyle;
+    rotation?: number;
+    zIndex?: string;
+    createdAt?: number;
+    updatedAt?: number;
+    parentId?: string; // NEW — was implicit in plugins
+    meta?: TMeta; // NEW — typed domain data
+    [key: `x-${string}`]: unknown; // NEW — only `x-*` prefixed keys accepted
+  }
+  ```
+
+  **2. `_createdAt` / `_updatedAt` renamed** to `createdAt` / `updatedAt` (no leading underscore). The fields are now explicit core fields instead of magic strings stamped by the store.
+
+  **3. `canvas-filter`**: `TimeRangeFilter.field` type is now `"createdAt" | "updatedAt"` (was `"_createdAt" | "_updatedAt"`).
+
+  ## Migration guide
+
+  Shape data can live in three places, in this priority:
+  1. **Core fields** — listed explicitly in `ShapeData`. Do not redefine.
+  2. **Plugin-intrinsic fields** — declare an extension interface and use it inside your plugin:
+     ```ts
+     interface TextShapeData extends ShapeData {
+       text: string;
+       fontSize: number;
+     }
+     function render(shape: ShapeData) {
+       const data = shape as TextShapeData;
+       // ...
+     }
+     ```
+  3. **Application/domain data — use `meta` (preferred)**:
+     ```ts
+     interface WeboardMeta { employeeId?: string }
+     const shape: ShapeData<WeboardMeta> = { ..., meta: { employeeId: "emp_1" } };
+     ```
+  4. **Escape hatch — `x-*` prefix** for top-level fields `meta` cannot cover:
+     ```ts
+     const shape: ShapeData = { ..., "x-legacyFlag": true };
+     ```
+
+  Previously any field name was allowed via `[key: string]: unknown`. That is no longer the case: fields outside the `x-*` namespace must be defined by a plugin extension interface or core.
+
+  If you persisted shapes with top-level domain fields like `{ employeeId: "emp_1" }`, either move them to `meta.employeeId`, or rename to `x-employeeId`. If you stamped shapes with `_createdAt` / `_updatedAt`, rename to `createdAt` / `updatedAt` in stored data.
+
+  See the [shape-system](https://usketch.dev/docs/concepts/shape-system/) and [shape-plugin guide](https://usketch.dev/docs/guides/shape-plugin/) for the full contract.
+
+### Patch Changes
+
+- Updated dependencies [5766fa8]
+- Updated dependencies [899b4b2]
+- Updated dependencies [f8fee37]
+- Updated dependencies [3238756]
+- Updated dependencies [2f4f755]
+- Updated dependencies [9b64581]
+- Updated dependencies [dcc2c10]
+  - @edv4h/usketch-shared@2.0.0
+  - @edv4h/usketch-core@1.1.0
+  - @edv4h/usketch-store@2.0.0
+
 ## 1.0.0
 
 ### Major Changes
@@ -9,7 +93,6 @@
   uSketch v2 の最初の安定版リリース。MVP 完了基準をすべて満たした状態で公開する。
 
   ## Highlights
-
   - **Realtime collaboration** — Cloudflare Durable Objects + Yjs + WebSocket awareness
   - **Offline-first** — y-indexeddb によるローカル永続化、再接続時の自動同期
   - **Pluggable architecture** — 60+ の plugin（shape / tool / sync / AI / presence / export 等）

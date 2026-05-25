@@ -1,5 +1,17 @@
 # @edv4h/usketch-plugin-reactions
 
+## 1.0.1
+
+### Patch Changes
+
+- Updated dependencies [5766fa8]
+- Updated dependencies [899b4b2]
+- Updated dependencies [3238756]
+- Updated dependencies [2f4f755]
+- Updated dependencies [9b64581]
+- Updated dependencies [dcc2c10]
+  - @edv4h/usketch-shared@2.0.0
+
 ## 1.0.0
 
 ### Major Changes
@@ -9,7 +21,6 @@
   uSketch v2 の最初の安定版リリース。MVP 完了基準をすべて満たした状態で公開する。
 
   ## Highlights
-
   - **Realtime collaboration** — Cloudflare Durable Objects + Yjs + WebSocket awareness
   - **Offline-first** — y-indexeddb によるローカル永続化、再接続時の自動同期
   - **Pluggable architecture** — 60+ の plugin（shape / tool / sync / AI / presence / export 等）
