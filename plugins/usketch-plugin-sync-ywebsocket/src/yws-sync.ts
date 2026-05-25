@@ -37,17 +37,32 @@ export function createYwebsocketSync(
 	const shapesMap = doc.getMap<Record<string, unknown>>(shapesMapKey);
 	const status = new SyncStatusTracker();
 
-	// IDs this sync instance has written into `shapesMap`. Only allocated when a
-	// `shouldSync` filter is provided — without it every id is implicitly synced
-	// and the set would just shadow `shapesMap.keys()` for no gain. When set,
-	// removals propagate to the Y.Map only for ids in here, so a host bridging
-	// in foreign shapes doesn't scribble unrelated deletes into the shared doc.
-	const syncedIds: Set<string> | null = shouldSync ? new Set<string>() : null;
-	if (syncedIds) {
+	// Two distinct sets, both only allocated when a `shouldSync` filter is in play.
+	//
+	// `observedIds` tracks every id present in the Y.Map (regardless of who put
+	// it there — local mutation we accepted, remote update, or a key inherited
+	// from a pre-loaded Y.Doc). It gates `shape:removed`: removals propagate
+	// only for ids the shared doc actually has, so a host bridging in foreign
+	// shapes (and removing them locally) doesn't scribble unrelated deletes
+	// into the shared doc.
+	//
+	// `locallyAuthoredIds` is the strict subset that this sync instance wrote
+	// itself via the local mutation path while `shouldSync` returned true. It
+	// gates the "filter flipped true → false" eviction: we drop a stale Y.Map
+	// entry only when this instance authored it. Without this split, a remote-
+	// origin shape that fails a newly-tightened `shouldSync` would be deleted
+	// from the shared doc by us — turning a foreign-but-mirrored update into
+	// a destructive write.
+	//
+	// When no filter is set, both sets are `null` and the gates are disabled.
+	const observedIds: Set<string> | null = shouldSync ? new Set<string>() : null;
+	const locallyAuthoredIds: Set<string> | null = shouldSync ? new Set<string>() : null;
+	if (observedIds) {
 		// Seed from any keys already in the Y.Doc (e.g. a doc loaded from IndexedDB
-		// before this sync handle attached).
+		// before this sync handle attached). We don't mark these as locally authored
+		// — we have no way to know who wrote them.
 		for (const id of shapesMap.keys()) {
-			syncedIds.add(id);
+			observedIds.add(id);
 		}
 	}
 
@@ -124,21 +139,26 @@ export function createYwebsocketSync(
 						const shape = store.getShape(payload.id);
 						if (!shape) break;
 						if (shouldSync && !shouldSync(shape)) {
-							// The host has opted this shape out of sync. If we had
-							// previously written it to the Y.Map (e.g. the filter
-							// flipped from true to false for the same id), drop
-							// the stale entry so the shared document doesn't keep
-							// a copy the local store no longer endorses.
-							if (syncedIds?.has(payload.id)) {
+							// The host has opted this shape out of sync. We only
+							// evict the Y.Map entry when this sync instance had
+							// authored it locally (filter previously returned
+							// true and we wrote it). For a remote-origin shape
+							// that fails a newly-tightened filter, we must NOT
+							// delete from the shared doc — that would turn a
+							// foreign-but-mirrored update into a destructive
+							// write that hits every other client.
+							if (locallyAuthoredIds?.has(payload.id)) {
 								shapesMap.delete(payload.id);
-								syncedIds.delete(payload.id);
+								locallyAuthoredIds.delete(payload.id);
+								observedIds?.delete(payload.id);
 								status.noteShapeRemoved(payload.id);
 							}
 							break;
 						}
 						const isNew = !shapesMap.has(payload.id);
 						shapesMap.set(payload.id, toPlainObject(shape));
-						syncedIds?.add(payload.id);
+						observedIds?.add(payload.id);
+						locallyAuthoredIds?.add(payload.id);
 						if (isNew) {
 							// "New entry in the Y.Map" — covers both genuine
 							// `shape:added` events and the false→true filter flip
@@ -152,13 +172,15 @@ export function createYwebsocketSync(
 						break;
 					}
 					case "shape:removed": {
-						// With a filter in play, only forward removals for shapes we
-						// had previously accepted into the Y.Map — otherwise a host
-						// bridging in foreign shapes (and removing them locally)
-						// would scribble unrelated deletes into the shared doc.
-						if (syncedIds && !syncedIds.has(payload.id)) break;
+						// With a filter in play, only forward removals for shapes
+						// actually present in the Y.Map. Without this guard, a host
+						// bridging in foreign shapes (and removing them locally
+						// before they ever reached the shared doc) would scribble
+						// unrelated deletes into the shared doc.
+						if (observedIds && !observedIds.has(payload.id)) break;
 						shapesMap.delete(payload.id);
-						syncedIds?.delete(payload.id);
+						observedIds?.delete(payload.id);
+						locallyAuthoredIds?.delete(payload.id);
 						status.noteShapeRemoved(payload.id);
 						break;
 					}
@@ -206,12 +228,13 @@ export function createYwebsocketSync(
 										status.noteShapeAdded(key, "remote");
 									}
 								}
-								// Track every id that flows through this Y.Map as
-								// "ours to sync" so remote-origin keys stay eligible
-								// for `shapesMap.delete` on a later local removal
-								// when a `shouldSync` filter is in play. Skipped
-								// when no filter is set — the gate is disabled.
-								syncedIds?.add(key);
+								// Note: only `observedIds` is updated here, not
+								// `locallyAuthoredIds`. Remote-origin keys must
+								// remain eligible for `shapesMap.delete` on a
+								// later local removal, but they were NOT authored
+								// locally — so a later `shouldSync` flip to false
+								// must not let us evict them from the shared doc.
+								observedIds?.add(key);
 							}
 							break;
 						}
@@ -219,7 +242,8 @@ export function createYwebsocketSync(
 							if (store.getShape(key)) {
 								store.deleteShape(key);
 							}
-							syncedIds?.delete(key);
+							observedIds?.delete(key);
+							locallyAuthoredIds?.delete(key);
 							status.noteShapeRemoved(key);
 							break;
 						}

@@ -228,6 +228,33 @@ describe("createYwebsocketSync (shouldSync filter)", () => {
 		expect(shapesMap.has("s1")).toBe(false);
 	});
 
+	it("does not evict remote-origin shapes from the Y.Map when shouldSync rejects them locally", () => {
+		// Regression: when one Set tracked both "locally authored" and "observed
+		// from remote" ids, a shouldSync=false on a remote-origin shape's local
+		// update would delete the remote-origin entry from the shared doc —
+		// turning a foreign-mirrored update into a destructive write that hit
+		// every other client. Locally-authored vs observed are now separate.
+		const { store, handle } = setup((shape) => shape.id.startsWith("native-"));
+		const shapesMap = handle.doc.getMap<Record<string, unknown>>("shapes");
+
+		handle.doc.transact(() => {
+			shapesMap.set("foreign-from-remote", {
+				id: "foreign-from-remote",
+				type: "rect",
+				x: 1,
+				y: 2,
+				width: 10,
+				height: 10,
+				style: { fill: "#fff", stroke: "#000", strokeWidth: 1, opacity: 1 },
+			});
+		});
+		// Bridge layer updates the locally mirrored shape — must not propagate.
+		store.updateShape("foreign-from-remote", { x: 999 });
+		// The shared doc still holds the remote-origin entry untouched.
+		expect(shapesMap.has("foreign-from-remote")).toBe(true);
+		expect((shapesMap.get("foreign-from-remote") as { x: number }).x).toBe(1);
+	});
+
 	it("propagates removals for shapes that originated from a remote Y.Map update", () => {
 		const { store, handle } = setup((shape) => shape.id.startsWith("native-"));
 		const shapesMap = handle.doc.getMap<Record<string, unknown>>("shapes");
