@@ -1,3 +1,4 @@
+import type { ShapeData } from "@edv4h/usketch-shared";
 import type { Mock } from "vitest";
 import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
@@ -130,6 +131,145 @@ describe("createYwebsocketSync (store ↔ Y.Doc binding)", () => {
 		// Y.Map should still reflect x=200 — no write-back races
 		expect((shapesMap.get("s1") as { x: number }).x).toBe(200);
 		expect(before).toBe(0);
+	});
+});
+
+describe("createYwebsocketSync (shouldSync filter)", () => {
+	const handles: YwebsocketSyncHandle[] = [];
+
+	afterEach(() => {
+		while (handles.length) {
+			handles.pop()?.destroy();
+		}
+	});
+
+	function setup(shouldSync: (shape: ShapeData) => boolean, opts: { doc?: Y.Doc } = {}) {
+		const store = createTestStore();
+		const handle = createYwebsocketSync(store, {
+			url: "ws://example.invalid",
+			roomName: "test-room",
+			autoConnect: false,
+			shouldSync,
+			doc: opts.doc,
+		});
+		handles.push(handle);
+		return { store, handle };
+	}
+
+	it("skips local additions whose shouldSync returns false", () => {
+		const { store, handle } = setup((shape) => shape.id.startsWith("native-"));
+
+		store.addShape(makeShape({ id: "native-1" }));
+		store.addShape(makeShape({ id: "foreign-1" }));
+
+		const shapesMap = handle.doc.getMap<Record<string, unknown>>("shapes");
+		expect(shapesMap.has("native-1")).toBe(true);
+		expect(shapesMap.has("foreign-1")).toBe(false);
+		// Local store still contains both — only the Y.Map mirror is filtered.
+		expect(store.getShape("native-1")).toBeDefined();
+		expect(store.getShape("foreign-1")).toBeDefined();
+	});
+
+	it("does not delete from Y.Map when removing a shape that was never synced", () => {
+		const { store, handle } = setup((shape) => shape.id.startsWith("native-"));
+		const shapesMap = handle.doc.getMap<Record<string, unknown>>("shapes");
+
+		// Pre-seed Y.Map with a value that mimics another writer's content. The
+		// filter excludes "foreign-*", so removing it locally must NOT propagate
+		// a `shapesMap.delete("foreign-1")` that would clobber the other writer.
+		handle.doc.transact(() => {
+			shapesMap.set("foreign-1", { id: "foreign-1", x: 99 });
+		});
+		// The transact above flowed through the observer and stored the shape
+		// in the local store + marked it as synced. Reset state to model a
+		// scenario where the host bridge inserts the foreign shape directly
+		// without going through Y.Map first.
+		shapesMap.delete("foreign-1");
+		store.deleteShape("foreign-1");
+
+		store.addShape(makeShape({ id: "foreign-1" }));
+		expect(shapesMap.has("foreign-1")).toBe(false);
+
+		store.deleteShape("foreign-1");
+		// Foreign shape was never synced → no propagation. Re-add the foreign
+		// entry directly to assert it survives the deletion.
+		handle.doc.transact(() => {
+			shapesMap.set("foreign-1", { id: "foreign-1", x: 99 });
+		});
+		// Now make sure a subsequent local delete-without-sync doesn't drop it.
+		store.addShape(makeShape({ id: "foreign-2" }));
+		store.deleteShape("foreign-2");
+		expect(shapesMap.has("foreign-1")).toBe(true);
+	});
+
+	it("deletes from Y.Map when removing a shape the host had opted into syncing", () => {
+		const { store, handle } = setup(() => true);
+		const shapesMap = handle.doc.getMap<Record<string, unknown>>("shapes");
+
+		store.addShape(makeShape({ id: "s1" }));
+		expect(shapesMap.has("s1")).toBe(true);
+
+		store.deleteShape("s1");
+		expect(shapesMap.has("s1")).toBe(false);
+	});
+
+	it("removes a previously-synced entry when shouldSync flips to false for the same id", () => {
+		let allow = true;
+		const { store, handle } = setup(() => allow);
+		const shapesMap = handle.doc.getMap<Record<string, unknown>>("shapes");
+
+		store.addShape(makeShape({ id: "s1", x: 0 }));
+		expect(shapesMap.has("s1")).toBe(true);
+
+		allow = false;
+		store.updateShape("s1", { x: 10 });
+		// The host has retroactively opted "s1" out — the stale Y.Map entry
+		// must be cleared so the shared document stops mirroring it.
+		expect(shapesMap.has("s1")).toBe(false);
+	});
+
+	it("propagates removals for shapes that originated from a remote Y.Map update", () => {
+		const { store, handle } = setup((shape) => shape.id.startsWith("native-"));
+		const shapesMap = handle.doc.getMap<Record<string, unknown>>("shapes");
+
+		// Simulate a remote write of a "foreign-" shape. shouldSync would normally
+		// reject it on the local path, but the Y.Map observer is read-only and
+		// must mirror it into the local store regardless.
+		handle.doc.transact(() => {
+			shapesMap.set("foreign-from-remote", {
+				id: "foreign-from-remote",
+				type: "rect",
+				x: 1,
+				y: 2,
+				width: 10,
+				height: 10,
+				style: { fill: "#fff", stroke: "#000", strokeWidth: 1, opacity: 1 },
+			});
+		});
+		expect(store.getShape("foreign-from-remote")).toBeDefined();
+
+		// Local deletion of that remote shape must propagate — the host expects
+		// its remove handler to reach the shared doc when the shape was sourced
+		// from the shared doc to begin with.
+		store.deleteShape("foreign-from-remote");
+		expect(shapesMap.has("foreign-from-remote")).toBe(false);
+	});
+
+	it("defaults to syncing everything when shouldSync is omitted", () => {
+		// Re-uses the no-filter path of the main test setup, included here as an
+		// explicit regression assertion that the new gate doesn't kick in when
+		// the option is left unset.
+		const store = createTestStore();
+		const handle = createYwebsocketSync(store, {
+			url: "ws://example.invalid",
+			roomName: "test-room",
+			autoConnect: false,
+		});
+		handles.push(handle);
+
+		store.addShape(makeShape({ id: "anything" }));
+		const shapesMap = handle.doc.getMap<Record<string, unknown>>("shapes");
+		expect(shapesMap.has("anything")).toBe(true);
 	});
 });
 

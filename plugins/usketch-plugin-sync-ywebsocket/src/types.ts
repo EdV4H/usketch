@@ -1,3 +1,4 @@
+import type { ShapeData } from "@edv4h/usketch-shared";
 import type { WsConnectionStatus, WsProviderHandle } from "@edv4h/usketch-sync";
 import type * as Y from "yjs";
 import type { SyncStatusTracker } from "./sync-status-tracker.js";
@@ -71,6 +72,22 @@ export interface YwebsocketSyncOptions {
 	 * In the browser, this is picked up from `globalThis.WebSocket` automatically.
 	 */
 	WebSocketPolyfill?: typeof WebSocket;
+
+	/**
+	 * Per-shape filter applied before writing local store mutations to the Y.Map.
+	 * Return `false` to skip syncing that shape — the local store keeps it, but
+	 * the shape is not persisted to the shared document and is not broadcast.
+	 *
+	 * `shape:removed` events are also filtered: removals are forwarded to the
+	 * Y.Map only for shapes that this sync instance had previously synced.
+	 *
+	 * Use case: bridging external state (e.g. a tldraw → uSketch migration) into
+	 * the uSketch store, where some shapes are mirrored read-only and must not
+	 * be written back to the shared document.
+	 *
+	 * Defaults to `() => true` (current behavior).
+	 */
+	shouldSync?: (shape: ShapeData) => boolean;
 }
 
 export interface YwebsocketSyncHandle {
