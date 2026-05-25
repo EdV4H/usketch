@@ -18,7 +18,8 @@ pnpm dev
 ```
 
 http://localhost:4579 を開くと紫の矩形が表示されます。クリックで選択、ドラッグで移動。
-スペースキー押下中はパンに切り替わります。
+
+`panToolPlugin` も登録していますが、この example はツール切替の UI を出していないので、初期状態の select tool で操作することになります。ツール切替の例は [`../02-multiple-shapes-tools`](../02-multiple-shapes-tools) で。
 
 ## 中身
 
@@ -29,7 +30,7 @@ http://localhost:4579 を開くと紫の矩形が表示されます。クリッ�
 3. プラグインを 4 つ渡す
    - `basicShapePlugin` — rectangle / ellipse / triangle などの基本図形
    - `selectToolPlugin` — 選択・ドラッグ・リサイズ
-   - `panToolPlugin` — スペース or 中ボタンでパン
+   - `panToolPlugin` — `store.setActiveToolId("pan")` でアクティブにしたときに drag でパン
    - `createDomRendererPlugin()` — 図形を DOM に描画
 4. `store.addShape(...)` で図形を 1 つ追加
 5. `store.setActiveToolId("select")` で選択ツールを有効化
