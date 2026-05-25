@@ -2,6 +2,7 @@ export { OPENUI_DEFAULT_LIBRARY_ID, openuiDefaultLibrary } from "./default-libra
 export { createOpenUIToolPlugin } from "./plugin.js";
 export { createOpenAIProvider } from "./providers/openai.js";
 export { createOpenAICompatibleProvider } from "./providers/openai-compatible.js";
+export { createServerProxyProvider } from "./providers/server-proxy.js";
 export type {
 	GenerateOptions,
 	OpenUIProvider,

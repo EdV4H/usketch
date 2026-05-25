@@ -173,4 +173,27 @@ describe("createOpenAICompatibleProvider", () => {
 		for await (const c of provider.generate("hi", { stream: false })) chunks.push(c);
 		expect(chunks).toEqual(["final answer"]);
 	});
+
+	it("forwards `credentials` to fetch when specified", async () => {
+		fetchMock.mockResolvedValueOnce(new Response(sseStream(["data: [DONE]\n\n"]), { status: 200 }));
+		const provider = createOpenAICompatibleProvider({
+			apiKey: "sk-x",
+			credentials: "include",
+		});
+		for await (const _ of provider.generate("hi", {})) {
+			// no-op
+		}
+		const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+		expect(init?.credentials).toBe("include");
+	});
+
+	it("omits `credentials` from fetch init when unspecified (preserves default behavior)", async () => {
+		fetchMock.mockResolvedValueOnce(new Response(sseStream(["data: [DONE]\n\n"]), { status: 200 }));
+		const provider = createOpenAICompatibleProvider({ apiKey: "sk-x" });
+		for await (const _ of provider.generate("hi", {})) {
+			// no-op
+		}
+		const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+		expect(init?.credentials).toBeUndefined();
+	});
 });

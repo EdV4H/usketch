@@ -41,9 +41,8 @@ import {
 	UnconfirmedOverlay,
 } from "@edv4h/usketch-plugin-sync-ywebsocket";
 import {
-	createOpenAICompatibleProvider,
-	createOpenAIProvider,
 	createOpenUIToolPlugin,
+	createServerProxyProvider,
 } from "@edv4h/usketch-plugin-tool-openui";
 import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
@@ -244,25 +243,16 @@ export function App() {
 			extraPlugins.push(createAiImagePlugin({ boardId }));
 			extraPlugins.push(createAiRecognizePlugin({ boardId }));
 
-			// OpenUI Generative UI (experimental). Defaults to a self-hosted OpenUI
-			// server at http://localhost:7878; set VITE_OPENUI_PROVIDER=openai +
-			// VITE_OPENAI_API_KEY to use OpenAI directly.
-			const openuiProviderName = import.meta.env.VITE_OPENUI_PROVIDER ?? "openui-server";
-			const openaiKey = import.meta.env.VITE_OPENAI_API_KEY;
-			const openuiBaseURL = import.meta.env.VITE_OPENUI_BASE_URL;
+			// OpenUI Generative UI. Routes LLM calls through the server's
+			// `/api/ai/openui` proxy so the OpenAI API key never reaches the
+			// browser bundle.
 			const openuiModel = import.meta.env.VITE_OPENUI_MODEL;
-			const openuiProvider =
-				openuiProviderName === "openai" && openaiKey
-					? createOpenAIProvider({
-							apiKey: openaiKey,
-							defaultModel: openuiModel,
-						})
-					: createOpenAICompatibleProvider({
-							baseURL: openuiBaseURL ?? "http://localhost:7878/v1",
-							apiKey: openaiKey,
-							defaultModel: openuiModel,
-							label: "OpenUI server",
-						});
+			const openuiProvider = createServerProxyProvider({
+				apiUrl,
+				extraHeaders: aiHeaders,
+				boardId,
+				defaultModel: openuiModel,
+			});
 			extraPlugins.push(openUIShapePlugin);
 			extraPlugins.push(createOpenUIToolPlugin({ provider: openuiProvider }));
 
