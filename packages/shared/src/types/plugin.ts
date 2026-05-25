@@ -391,14 +391,17 @@ export interface EventBus {
 	emit<K extends keyof CoreEventMap>(event: K, data: CoreEventMap[K]): void;
 	emit<T = unknown>(event: string, data: T): void;
 	/**
-	 * Suspend event delivery. `emit()` becomes a no-op until `resume()` is called.
-	 * Subscription via `on()` (and unsubscription via the function it returns) keeps
-	 * working; handlers registered while paused will receive events emitted after
-	 * resume. Pause and resume MUST be called in pairs from the same logical scope —
-	 * leaving the bus paused will silently drop every subsequent event in the app.
+	 * Suspend event delivery. `emit()` becomes a no-op until every outstanding
+	 * `pause()` has been matched by a `resume()` — calls are ref-counted, so
+	 * independent callers can nest safely (the bus stays paused as long as any
+	 * caller still holds a pause). Subscription via `on()` (and unsubscription
+	 * via the function it returns) keeps working; handlers registered while
+	 * paused will receive events emitted after the final `resume()`. Each
+	 * `pause()` MUST be paired with exactly one `resume()` — leaking a `pause()`
+	 * will silently drop every subsequent event in the app.
 	 */
 	pause(): void;
-	/** Re-enable event delivery suspended by `pause()`. */
+	/** Decrement the pause counter; resumes delivery once it reaches zero. */
 	resume(): void;
 	isPaused(): boolean;
 }
