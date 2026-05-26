@@ -244,7 +244,10 @@ export function createBoardStore(): BoardStore {
 		getDefaultToolId: () => state.defaultToolId,
 
 		setDefaultToolId(id: string) {
+			if (state.defaultToolId === id) return;
 			state.defaultToolId = id;
+			notify();
+			notifyMutation("default-tool:changed", { id });
 		},
 
 		resetToDefaultTool() {

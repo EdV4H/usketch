@@ -256,13 +256,24 @@ describe("BoardStore", () => {
 			expect(store.getDefaultToolId()).toBe("select");
 		});
 
-		it("setDefaultToolId: updates the default without changing active tool", () => {
+		it("setDefaultToolId: updates the default and notifies", () => {
 			const store = createBoardStore();
 			const listener = vi.fn();
+			const events: StoreEvent[] = [];
 			store.subscribe(listener);
+			store.onMutation((e) => events.push(e));
 			store.setDefaultToolId("pan");
 			expect(store.getDefaultToolId()).toBe("pan");
 			expect(store.getActiveToolId()).toBe("select");
+			expect(listener).toHaveBeenCalled();
+			expect(events).toEqual([{ type: "default-tool:changed", payload: { id: "pan" } }]);
+		});
+
+		it("setDefaultToolId: no-op for same id", () => {
+			const store = createBoardStore();
+			const listener = vi.fn();
+			store.subscribe(listener);
+			store.setDefaultToolId("select"); // already default
 			expect(listener).not.toHaveBeenCalled();
 		});
 
