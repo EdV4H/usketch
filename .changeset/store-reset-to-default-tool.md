@@ -1,6 +1,6 @@
 ---
-"@edv4h/usketch-shared": minor
-"@edv4h/usketch-store": minor
+"@edv4h/usketch-shared": major
+"@edv4h/usketch-store": major
 "@edv4h/usketch-plugin-shape-wireframe": patch
 "@edv4h/usketch-plugin-shape-island": patch
 "@edv4h/usketch-plugin-keyboard-shortcuts": patch
@@ -18,6 +18,8 @@
 "@edv4h/usketch-plugin-community-chat": patch
 ---
 
-Add `BoardStore.resetToDefaultTool()` to replace hardcoded `setActiveToolId("select")` calls across plugins. Plugins that want to return to the default tool after use now call `store.resetToDefaultTool()` instead, and consumers can change the default with `store.setDefaultToolId(id)` (or read it via `store.getDefaultToolId()`). The initial default remains `"select"`.
+**BREAKING (TypeScript)**: `BoardStore` interface gains three required members — `getDefaultToolId()`, `setDefaultToolId(id)`, `resetToDefaultTool()`. Code that implements or mocks `BoardStore` (or `BoardState`) must add these members.
+
+Plugins that want to return to the default tool after use now call `store.resetToDefaultTool()` instead of the previous hardcoded `setActiveToolId("select")` pattern. Consumers can change the default with `store.setDefaultToolId(id)` (or read it via `store.getDefaultToolId()`). The initial default remains `"select"`, and a new `default-tool:changed` mutation event is emitted when it changes.
 
 Fixes #469.
