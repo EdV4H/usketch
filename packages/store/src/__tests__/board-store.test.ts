@@ -250,6 +250,56 @@ describe("BoardStore", () => {
 			store.setActiveToolId("select"); // default
 			expect(listener).not.toHaveBeenCalled();
 		});
+
+		it("defaultToolId: starts at 'select'", () => {
+			const store = createBoardStore();
+			expect(store.getDefaultToolId()).toBe("select");
+		});
+
+		it("setDefaultToolId: updates the default without changing active tool", () => {
+			const store = createBoardStore();
+			const listener = vi.fn();
+			store.subscribe(listener);
+			store.setDefaultToolId("pan");
+			expect(store.getDefaultToolId()).toBe("pan");
+			expect(store.getActiveToolId()).toBe("select");
+			expect(listener).not.toHaveBeenCalled();
+		});
+
+		it("resetToDefaultTool: returns to default and notifies", () => {
+			const store = createBoardStore();
+			store.setActiveToolId("pan");
+			const listener = vi.fn();
+			store.subscribe(listener);
+			store.resetToDefaultTool();
+			expect(store.getActiveToolId()).toBe("select");
+			expect(listener).toHaveBeenCalled();
+		});
+
+		it("resetToDefaultTool: respects custom default", () => {
+			const store = createBoardStore();
+			store.setDefaultToolId("pan");
+			store.setActiveToolId("draw");
+			store.resetToDefaultTool();
+			expect(store.getActiveToolId()).toBe("pan");
+		});
+
+		it("resetToDefaultTool: no-op when already on default", () => {
+			const store = createBoardStore();
+			const listener = vi.fn();
+			store.subscribe(listener);
+			store.resetToDefaultTool();
+			expect(listener).not.toHaveBeenCalled();
+		});
+
+		it("resetToDefaultTool: emits tool:changed mutation event", () => {
+			const store = createBoardStore();
+			store.setActiveToolId("pan");
+			const events: StoreEvent[] = [];
+			store.onMutation((e) => events.push(e));
+			store.resetToDefaultTool();
+			expect(events).toEqual([{ type: "tool:changed", payload: { id: "select" } }]);
+		});
 	});
 
 	describe("Mutation Events", () => {
