@@ -212,7 +212,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 					if (isActive) {
 						dismissSpotlight();
 						isActive = false;
-						ctx.store.setActiveToolId("select");
+						ctx.store.resetToDefaultTool();
 					} else {
 						updateSpotlight(event.worldPoint);
 						isActive = true;

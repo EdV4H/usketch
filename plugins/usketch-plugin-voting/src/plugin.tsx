@@ -234,7 +234,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				order: 75,
 				onPointerDown: (_toolCtx, event) => {
 					createPoll("Vote", ["Yes", "No"], event.worldPoint);
-					ctx.store.setActiveToolId("select");
+					ctx.store.resetToDefaultTool();
 				},
 			});
 

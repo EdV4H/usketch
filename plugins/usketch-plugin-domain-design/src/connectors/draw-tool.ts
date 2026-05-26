@@ -139,7 +139,7 @@ export function createDomainConnectorDrawTool(
 		toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, finalShape));
 
 		drawState = null;
-		toolCtx.store.setActiveToolId("select");
+		toolCtx.store.resetToDefaultTool();
 	}
 
 	function onDeactivate(toolCtx: ToolContext) {

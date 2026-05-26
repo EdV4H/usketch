@@ -70,7 +70,7 @@ export function createKeyboardShortcutsPlugin(
 					}
 					// 4. Switch to select tool
 					if (store.getActiveToolId() !== "select") {
-						store.setActiveToolId("select");
+						store.resetToDefaultTool();
 					}
 				}),
 			);

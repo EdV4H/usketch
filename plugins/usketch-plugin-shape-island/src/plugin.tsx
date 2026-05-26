@@ -84,7 +84,7 @@ export function createIslandPlugin(): UsketchPlugin {
 					toolCtx.store.deleteShape(drawState.shapeId);
 				}
 				drawState = null;
-				toolCtx.store.setActiveToolId("select");
+				toolCtx.store.resetToDefaultTool();
 			}
 
 			ctx.tools.register("island-draw", {

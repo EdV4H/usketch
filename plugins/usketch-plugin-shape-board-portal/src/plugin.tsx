@@ -398,7 +398,7 @@ export function createBoardPortalPlugin(options?: BoardPortalPluginOptions): Usk
 						toolCtx.store.deleteShape(drawState.shapeId);
 					}
 					drawState = null;
-					toolCtx.store.setActiveToolId("select");
+					toolCtx.store.resetToDefaultTool();
 				},
 			});
 		},

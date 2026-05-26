@@ -173,7 +173,7 @@ export function createConnectorPlugin(): UsketchPlugin {
 				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, finalShape));
 
 				drawState = null;
-				toolCtx.store.setActiveToolId("select");
+				toolCtx.store.resetToDefaultTool();
 			}
 
 			ctx.tools.register("connector-draw", {

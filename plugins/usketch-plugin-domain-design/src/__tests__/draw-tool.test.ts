@@ -29,6 +29,7 @@ function createCtx() {
 				shapes.delete(id);
 			}),
 			setActiveToolId: vi.fn(),
+			resetToDefaultTool: vi.fn(),
 		},
 		commands: {
 			execute: vi.fn(),
