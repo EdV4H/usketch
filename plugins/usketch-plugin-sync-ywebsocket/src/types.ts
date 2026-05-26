@@ -1,3 +1,4 @@
+import type { ShapeData } from "@edv4h/usketch-shared";
 import type { WsConnectionStatus, WsProviderHandle } from "@edv4h/usketch-sync";
 import type * as Y from "yjs";
 import type { SyncStatusTracker } from "./sync-status-tracker.js";
@@ -71,6 +72,33 @@ export interface YwebsocketSyncOptions {
 	 * In the browser, this is picked up from `globalThis.WebSocket` automatically.
 	 */
 	WebSocketPolyfill?: typeof WebSocket;
+
+	/**
+	 * Per-shape filter applied before writing local store mutations to the Y.Map.
+	 * Return `false` to opt the shape out of writes: the local store keeps it,
+	 * but this client neither persists it to the shared document nor broadcasts
+	 * updates for it.
+	 *
+	 * The filter only governs *what this client writes*. It never blocks remote
+	 * updates flowing back into the local store — the Y.Map observer is read-
+	 * only and mirrors everything in the shared doc regardless of the filter.
+	 *
+	 * Local removals are propagated only for ids actually present in the Y.Map
+	 * (locally-authored or observed from the shared doc). Removing a shape that
+	 * was never in the Y.Map is a no-op for the shared doc.
+	 *
+	 * If `shouldSync` flips from `true` → `false` for an id this client had
+	 * previously authored, the stale Y.Map entry is dropped on the next
+	 * mutation. Remote-origin entries are never evicted this way — they belong
+	 * to whoever wrote them.
+	 *
+	 * Use case: bridging external state (e.g. a tldraw → uSketch migration) into
+	 * the uSketch store, where some shapes are mirrored read-only and must not
+	 * be written back to the shared document.
+	 *
+	 * Defaults to `() => true` (current behavior).
+	 */
+	shouldSync?: (shape: ShapeData) => boolean;
 }
 
 export interface YwebsocketSyncHandle {

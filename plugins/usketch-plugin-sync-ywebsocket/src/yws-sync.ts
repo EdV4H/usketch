@@ -29,12 +29,42 @@ export function createYwebsocketSync(
 		autoConnect = true,
 		doc: providedDoc,
 		WebSocketPolyfill,
+		shouldSync,
 	} = options;
 
 	const doc = providedDoc ?? new Y.Doc();
 	const ownsDoc = providedDoc === undefined;
 	const shapesMap = doc.getMap<Record<string, unknown>>(shapesMapKey);
 	const status = new SyncStatusTracker();
+
+	// Two distinct sets, both only allocated when a `shouldSync` filter is in play.
+	//
+	// `observedIds` tracks every id present in the Y.Map (regardless of who put
+	// it there — local mutation we accepted, remote update, or a key inherited
+	// from a pre-loaded Y.Doc). It gates `shape:removed`: removals propagate
+	// only for ids the shared doc actually has, so a host bridging in foreign
+	// shapes (and removing them locally) doesn't scribble unrelated deletes
+	// into the shared doc.
+	//
+	// `locallyAuthoredIds` is the strict subset that this sync instance wrote
+	// itself via the local mutation path while `shouldSync` returned true. It
+	// gates the "filter flipped true → false" eviction: we drop a stale Y.Map
+	// entry only when this instance authored it. Without this split, a remote-
+	// origin shape that fails a newly-tightened `shouldSync` would be deleted
+	// from the shared doc by us — turning a foreign-but-mirrored update into
+	// a destructive write.
+	//
+	// When no filter is set, both sets are `null` and the gates are disabled.
+	const observedIds: Set<string> | null = shouldSync ? new Set<string>() : null;
+	const locallyAuthoredIds: Set<string> | null = shouldSync ? new Set<string>() : null;
+	if (observedIds) {
+		// Seed from any keys already in the Y.Doc (e.g. a doc loaded from IndexedDB
+		// before this sync handle attached). We don't mark these as locally authored
+		// — we have no way to know who wrote them.
+		for (const id of shapesMap.keys()) {
+			observedIds.add(id);
+		}
+	}
 
 	let destroyed = false;
 	let isSyncing = false;
@@ -107,23 +137,50 @@ export function createYwebsocketSync(
 					case "shape:added":
 					case "shape:updated": {
 						const shape = store.getShape(payload.id);
-						if (shape) {
-							const isNew = !shapesMap.has(payload.id);
-							shapesMap.set(payload.id, toPlainObject(shape));
-							if (isNew && event.type === "shape:added") {
-								// Socket open → y-websocket immediately broadcasts this
-								// shape to the server, so it's effectively confirmed. We
-								// only flag local adds as "unconfirmed" while the
-								// connection is down, so the warning shows up exactly
-								// for offline edits / orphaned IndexedDB state.
-								const isOnline = currentWsStatus === "connected";
-								status.noteShapeAdded(payload.id, isOnline ? "remote" : "local");
+						if (!shape) break;
+						if (shouldSync && !shouldSync(shape)) {
+							// The host has opted this shape out of sync. We only
+							// evict the Y.Map entry when this sync instance had
+							// authored it locally (filter previously returned
+							// true and we wrote it). For a remote-origin shape
+							// that fails a newly-tightened filter, we must NOT
+							// delete from the shared doc — that would turn a
+							// foreign-but-mirrored update into a destructive
+							// write that hits every other client.
+							if (locallyAuthoredIds?.has(payload.id)) {
+								shapesMap.delete(payload.id);
+								locallyAuthoredIds.delete(payload.id);
+								observedIds?.delete(payload.id);
+								status.noteShapeRemoved(payload.id);
 							}
+							break;
+						}
+						const isNew = !shapesMap.has(payload.id);
+						shapesMap.set(payload.id, toPlainObject(shape));
+						observedIds?.add(payload.id);
+						locallyAuthoredIds?.add(payload.id);
+						if (isNew) {
+							// "New entry in the Y.Map" — covers both genuine
+							// `shape:added` events and the false→true filter flip
+							// case where a `shape:updated` is the first write the
+							// host has authorized. Without this, the divergence
+							// tracker wouldn't know about ids whose first sync
+							// arrived via an update event.
+							const isOnline = currentWsStatus === "connected";
+							status.noteShapeAdded(payload.id, isOnline ? "remote" : "local");
 						}
 						break;
 					}
 					case "shape:removed": {
+						// With a filter in play, only forward removals for shapes
+						// actually present in the Y.Map. Without this guard, a host
+						// bridging in foreign shapes (and removing them locally
+						// before they ever reached the shared doc) would scribble
+						// unrelated deletes into the shared doc.
+						if (observedIds && !observedIds.has(payload.id)) break;
 						shapesMap.delete(payload.id);
+						observedIds?.delete(payload.id);
+						locallyAuthoredIds?.delete(payload.id);
 						status.noteShapeRemoved(payload.id);
 						break;
 					}
@@ -171,6 +228,13 @@ export function createYwebsocketSync(
 										status.noteShapeAdded(key, "remote");
 									}
 								}
+								// Note: only `observedIds` is updated here, not
+								// `locallyAuthoredIds`. Remote-origin keys must
+								// remain eligible for `shapesMap.delete` on a
+								// later local removal, but they were NOT authored
+								// locally — so a later `shouldSync` flip to false
+								// must not let us evict them from the shared doc.
+								observedIds?.add(key);
 							}
 							break;
 						}
@@ -178,6 +242,8 @@ export function createYwebsocketSync(
 							if (store.getShape(key)) {
 								store.deleteShape(key);
 							}
+							observedIds?.delete(key);
+							locallyAuthoredIds?.delete(key);
 							status.noteShapeRemoved(key);
 							break;
 						}
