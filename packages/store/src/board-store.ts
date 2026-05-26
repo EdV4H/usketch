@@ -80,6 +80,13 @@ export function createBoardStore(): BoardStore {
 		}
 	}
 
+	function setActiveToolId(id: string) {
+		if (state.activeToolId === id) return;
+		state.activeToolId = id;
+		notify();
+		notifyMutation("tool:changed", { id });
+	}
+
 	return {
 		getShapes: () => state.shapes,
 
@@ -234,12 +241,7 @@ export function createBoardStore(): BoardStore {
 
 		getActiveToolId: () => state.activeToolId,
 
-		setActiveToolId(id: string) {
-			if (state.activeToolId === id) return;
-			state.activeToolId = id;
-			notify();
-			notifyMutation("tool:changed", { id });
-		},
+		setActiveToolId,
 
 		getDefaultToolId: () => state.defaultToolId,
 
@@ -251,11 +253,7 @@ export function createBoardStore(): BoardStore {
 		},
 
 		resetToDefaultTool() {
-			const id = state.defaultToolId;
-			if (state.activeToolId === id) return;
-			state.activeToolId = id;
-			notify();
-			notifyMutation("tool:changed", { id });
+			setActiveToolId(state.defaultToolId);
 		},
 
 		getViewport: () => state.viewport,
