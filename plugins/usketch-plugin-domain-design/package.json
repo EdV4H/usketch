@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-domain-design",
-	"version": "0.2.0",
+	"version": "1.0.0",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

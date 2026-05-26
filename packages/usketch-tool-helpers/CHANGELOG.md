@@ -1,5 +1,13 @@
 # @edv4h/usketch-tool-helpers
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [ee6fc3e]
+  - @edv4h/usketch-shared@3.0.0
+  - @edv4h/usketch-store@2.0.1
+
 ## 0.2.0
 
 ### Minor Changes
