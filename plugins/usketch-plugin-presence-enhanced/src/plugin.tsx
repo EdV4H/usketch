@@ -111,8 +111,6 @@ export function createPresenceEnhancedPlugin(options: PresenceEnhancedOptions): 
 	const { wsProvider, boardId, apiUrl } = options;
 	const { awareness } = wsProvider;
 
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-presence-enhanced",
 		name: "拡張プレゼンス",
@@ -195,7 +193,7 @@ export function createPresenceEnhancedPlugin(options: PresenceEnhancedOptions): 
 			}
 			awareness.on("change", onAwarenessChange);
 
-			cleanup = () => {
+			return () => {
 				if (pollTimer) clearInterval(pollTimer);
 				awareness.off("change", onAwarenessChange);
 				for (const id of activeGhosts) {
@@ -204,10 +202,6 @@ export function createPresenceEnhancedPlugin(options: PresenceEnhancedOptions): 
 				activeGhosts.clear();
 				ctx.layers.unregister("presence-enhanced");
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

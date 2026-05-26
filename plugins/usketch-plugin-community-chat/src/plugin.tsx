@@ -380,8 +380,6 @@ function ChatIcon() {
 // ── プラグイン ──
 
 export function createCommunityChatPlugin(options: CommunityChatOptions): UsketchPlugin {
-	let cleanup: (() => void) | undefined;
-
 	const client = createChatClient({
 		apiUrl: options.apiUrl,
 		extraHeaders: options.extraHeaders,
@@ -567,16 +565,12 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 				},
 			});
 
-			cleanup = () => {
+			return () => {
 				unsubMutation();
 				unsubNewMessage();
 				unsubShapeAdd();
 				ctx.events.emit("side-panel:unregister-tab", { tabId: "community-chat" });
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

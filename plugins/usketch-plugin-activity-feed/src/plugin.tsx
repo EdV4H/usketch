@@ -132,8 +132,6 @@ export interface ActivityFeedOptions {
 export function createActivityFeedPlugin(options: ActivityFeedOptions): UsketchPlugin {
 	const { boardId, apiUrl } = options;
 
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-activity-feed",
 		name: "アクティビティフィード",
@@ -150,13 +148,9 @@ export function createActivityFeedPlugin(options: ActivityFeedOptions): UsketchP
 				},
 			});
 
-			cleanup = () => {
+			return () => {
 				ctx.events.emit("side-panel:unregister-tab", { tabId: "activity" });
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

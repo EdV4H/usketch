@@ -5,9 +5,9 @@ import {
 	type CommunityRegionShapeData,
 	createCommunityRegionPlugin,
 } from "@edv4h/usketch-plugin-shape-community-region";
-import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
-import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
-import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
+import { createPanToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
+import { createSelectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
+import { createViewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
@@ -157,9 +157,9 @@ export function WorldMapPage() {
 
 				// 4. キャンバス初期化
 				const plugins = [
-					selectToolPlugin,
-					panToolPlugin,
-					viewportNavPlugin,
+					createSelectToolPlugin(),
+					createPanToolPlugin(),
+					createViewportNavPlugin(),
 					createCommunityRegionPlugin({
 						onRegionClick: (regionSlug: string) => {
 							navigate(`/community/${regionSlug}`);

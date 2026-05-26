@@ -46,15 +46,11 @@ function createStubStore(): BoardStore {
 }
 
 function registeringPlugin(handler: ExternalContentHandler): UsketchPlugin {
-	let off: (() => void) | undefined;
 	return {
 		id: "test-external-content-plugin",
 		name: "test external content",
 		setup(ctx: PluginContext) {
-			off = ctx.externalContent.register(handler);
-		},
-		teardown() {
-			off?.();
+			return ctx.externalContent.register(handler);
 		},
 	};
 }

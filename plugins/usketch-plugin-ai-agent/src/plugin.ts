@@ -31,7 +31,6 @@ const ACTION_PROMPTS: Record<
 export function createAiAgentPlugin(options: AiAgentOptions): UsketchPlugin {
 	const { apiUrl, extraHeaders } = options;
 	let busy = false;
-	let cleanup: (() => void) | undefined;
 
 	return {
 		id: "usketch-plugin-ai-agent",
@@ -102,14 +101,10 @@ export function createAiAgentPlugin(options: AiAgentOptions): UsketchPlugin {
 				},
 			);
 
-			cleanup = () => {
+			return () => {
 				unsubRequest();
 				unsubSmartAction();
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

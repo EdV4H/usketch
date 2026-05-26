@@ -62,207 +62,209 @@ function debugFields(shape: ShapeData): Record<string, unknown> {
 	};
 }
 
-export const connectorPlugin: UsketchPlugin = {
-	id: "usketch-plugin-shape-connector",
-	name: "コネクタ",
+export function createConnectorPlugin(): UsketchPlugin {
+	return {
+		id: "usketch-plugin-shape-connector",
+		name: "コネクタ",
 
-	setup(ctx: PluginContext) {
-		// Register connector shape
-		ctx.shapes.register("connector", {
-			render: renderConnector,
-			getBounds: getBoundsConnector,
-			hitTest: hitTestConnector,
-			resize: (data) => ({ ...data }),
-			createDefault: createDefaultConnector,
-			renderTarget: "svg",
-			resizable: false,
-			simplifiedComponent: SimplifiedConnector,
-			debugFields,
-		});
+		setup(ctx: PluginContext) {
+			// Register connector shape
+			ctx.shapes.register("connector", {
+				render: renderConnector,
+				getBounds: getBoundsConnector,
+				hitTest: hitTestConnector,
+				resize: (data) => ({ ...data }),
+				createDefault: createDefaultConnector,
+				renderTarget: "svg",
+				resizable: false,
+				simplifiedComponent: SimplifiedConnector,
+				debugFields,
+			});
 
-		// ── Drawing tool ──
+			// ── Drawing tool ──
 
-		let drawState: {
-			connectorId: string;
-			sourceShape: ShapeData;
-			sourceAnchor: AnchorType;
-		} | null = null;
+			let drawState: {
+				connectorId: string;
+				sourceShape: ShapeData;
+				sourceAnchor: AnchorType;
+			} | null = null;
 
-		function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
-			const sourceShape = findShapeAtPoint(toolCtx, event.worldPoint);
-			if (!sourceShape) return;
+			function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				const sourceShape = findShapeAtPoint(toolCtx, event.worldPoint);
+				if (!sourceShape) return;
 
-			const id = generateId();
-			const sourceAnchor: AnchorType = "auto";
-			const sourcePoint = getAnchorPoint(sourceShape, sourceAnchor, event.worldPoint);
+				const id = generateId();
+				const sourceAnchor: AnchorType = "auto";
+				const sourcePoint = getAnchorPoint(sourceShape, sourceAnchor, event.worldPoint);
 
-			const connector: ConnectorShapeData = {
-				...createDefaultConnector({ id, x: sourcePoint.x, y: sourcePoint.y }),
-				sourceId: sourceShape.id,
-				targetId: undefined,
-				sourceAnchor,
-				targetAnchor: "auto",
-				sourcePoint,
-				targetPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
-				style: { ...toolCtx.store.getStyleSettings(), fill: "transparent" },
-			};
+				const connector: ConnectorShapeData = {
+					...createDefaultConnector({ id, x: sourcePoint.x, y: sourcePoint.y }),
+					sourceId: sourceShape.id,
+					targetId: undefined,
+					sourceAnchor,
+					targetAnchor: "auto",
+					sourcePoint,
+					targetPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
+					style: { ...toolCtx.store.getStyleSettings(), fill: "transparent" },
+				};
 
-			toolCtx.store.addShape(connector);
-			drawState = { connectorId: id, sourceShape, sourceAnchor };
-		}
-
-		function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
-			if (!drawState) return;
-
-			const targetShape = findShapeAtPoint(toolCtx, event.worldPoint);
-			const targetPoint = event.worldPoint;
-
-			const sourcePoint = getAnchorPoint(
-				drawState.sourceShape,
-				drawState.sourceAnchor,
-				targetPoint,
-			);
-
-			const updates: Partial<ConnectorShapeData> = {
-				sourcePoint,
-				targetPoint: targetShape ? getAnchorPoint(targetShape, "auto", sourcePoint) : targetPoint,
-			};
-
-			const sp = updates.sourcePoint as Point;
-			const tp = updates.targetPoint as Point;
-			updates.x = Math.min(sp.x, tp.x);
-			updates.y = Math.min(sp.y, tp.y);
-			updates.width = Math.abs(tp.x - sp.x);
-			updates.height = Math.abs(tp.y - sp.y);
-
-			toolCtx.store.updateShape(drawState.connectorId, updates);
-		}
-
-		function onPointerUp(toolCtx: ToolContext, event: CanvasPointerEvent) {
-			if (!drawState) return;
-
-			const targetShape = findShapeAtPoint(toolCtx, event.worldPoint);
-			const connector = toolCtx.store.getShape(drawState.connectorId);
-
-			if (!connector || !targetShape || targetShape.id === drawState.sourceShape.id) {
-				toolCtx.store.deleteShape(drawState.connectorId);
-				drawState = null;
-				return;
+				toolCtx.store.addShape(connector);
+				drawState = { connectorId: id, sourceShape, sourceAnchor };
 			}
 
-			const sourcePoint = getAnchorPoint(drawState.sourceShape, drawState.sourceAnchor, {
-				x: targetShape.x + targetShape.width / 2,
-				y: targetShape.y + targetShape.height / 2,
-			});
-			const targetPoint = getAnchorPoint(targetShape, "auto", sourcePoint);
+			function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				if (!drawState) return;
 
-			const finalUpdates: Partial<ConnectorShapeData> = {
-				targetId: targetShape.id,
-				targetAnchor: "auto",
-				sourcePoint,
-				targetPoint,
-				x: Math.min(sourcePoint.x, targetPoint.x),
-				y: Math.min(sourcePoint.y, targetPoint.y),
-				width: Math.abs(targetPoint.x - sourcePoint.x),
-				height: Math.abs(targetPoint.y - sourcePoint.y),
-			};
+				const targetShape = findShapeAtPoint(toolCtx, event.worldPoint);
+				const targetPoint = event.worldPoint;
 
-			toolCtx.store.deleteShape(drawState.connectorId);
-			const finalShape: ConnectorShapeData = { ...connector, ...finalUpdates };
-			toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, finalShape));
+				const sourcePoint = getAnchorPoint(
+					drawState.sourceShape,
+					drawState.sourceAnchor,
+					targetPoint,
+				);
 
-			drawState = null;
-			toolCtx.store.setActiveToolId("select");
-		}
+				const updates: Partial<ConnectorShapeData> = {
+					sourcePoint,
+					targetPoint: targetShape ? getAnchorPoint(targetShape, "auto", sourcePoint) : targetPoint,
+				};
 
-		ctx.tools.register("connector-draw", {
-			icon: ConnectorIcon,
-			cursor: "crosshair",
-			shortcut: "l",
-			order: 12,
-			onPointerDown,
-			onPointerMove,
-			onPointerUp,
-			onDeactivate() {
-				if (drawState) {
-					ctx.store.deleteShape(drawState.connectorId);
+				const sp = updates.sourcePoint as Point;
+				const tp = updates.targetPoint as Point;
+				updates.x = Math.min(sp.x, tp.x);
+				updates.y = Math.min(sp.y, tp.y);
+				updates.width = Math.abs(tp.x - sp.x);
+				updates.height = Math.abs(tp.y - sp.y);
+
+				toolCtx.store.updateShape(drawState.connectorId, updates);
+			}
+
+			function onPointerUp(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				if (!drawState) return;
+
+				const targetShape = findShapeAtPoint(toolCtx, event.worldPoint);
+				const connector = toolCtx.store.getShape(drawState.connectorId);
+
+				if (!connector || !targetShape || targetShape.id === drawState.sourceShape.id) {
+					toolCtx.store.deleteShape(drawState.connectorId);
 					drawState = null;
+					return;
 				}
-			},
-		});
 
-		// ── Connector property bar (Phase 4) ──
+				const sourcePoint = getAnchorPoint(drawState.sourceShape, drawState.sourceAnchor, {
+					x: targetShape.x + targetShape.width / 2,
+					y: targetShape.y + targetShape.height / 2,
+				});
+				const targetPoint = getAnchorPoint(targetShape, "auto", sourcePoint);
 
-		ctx.layers.register({
-			id: "connector-properties",
-			order: 82,
-			fixed: true,
-			render: () => <ConnectorPropertyBar />,
-		});
+				const finalUpdates: Partial<ConnectorShapeData> = {
+					targetId: targetShape.id,
+					targetAnchor: "auto",
+					sourcePoint,
+					targetPoint,
+					x: Math.min(sourcePoint.x, targetPoint.x),
+					y: Math.min(sourcePoint.y, targetPoint.y),
+					width: Math.abs(targetPoint.x - sourcePoint.x),
+					height: Math.abs(targetPoint.y - sourcePoint.y),
+				};
 
-		// ── Endpoint overlay (Phase 5) ──
+				toolCtx.store.deleteShape(drawState.connectorId);
+				const finalShape: ConnectorShapeData = { ...connector, ...finalUpdates };
+				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, finalShape));
 
-		ctx.layers.register({
-			id: "connector-endpoints",
-			order: 81,
-			fixed: true,
-			render: (renderCtx) => <EndpointOverlay ctx={ctx} viewport={renderCtx.viewport} />,
-		});
+				drawState = null;
+				toolCtx.store.setActiveToolId("select");
+			}
 
-		// ── Label editor overlay (Phase 6) ──
+			ctx.tools.register("connector-draw", {
+				icon: ConnectorIcon,
+				cursor: "crosshair",
+				shortcut: "l",
+				order: 12,
+				onPointerDown,
+				onPointerMove,
+				onPointerUp,
+				onDeactivate() {
+					if (drawState) {
+						ctx.store.deleteShape(drawState.connectorId);
+						drawState = null;
+					}
+				},
+			});
 
-		ctx.layers.register({
-			id: "connector-label-editor",
-			order: 83,
-			fixed: true,
-			render: (renderCtx) => <ConnectorLabelEditor ctx={ctx} viewport={renderCtx.viewport} />,
-		});
+			// ── Connector property bar (Phase 4) ──
 
-		// ── Anchor handle overlay (hover to show anchor points) ──
+			ctx.layers.register({
+				id: "connector-properties",
+				order: 82,
+				fixed: true,
+				render: () => <ConnectorPropertyBar />,
+			});
 
-		ctx.layers.register({
-			id: "connector-anchor-handles",
-			order: 79,
-			fixed: true,
-			render: (renderCtx) => <AnchorHandleOverlay ctx={ctx} viewport={renderCtx.viewport} />,
-		});
+			// ── Endpoint overlay (Phase 5) ──
 
-		const cleanupAnchorHandles = setupAnchorHandles(ctx);
+			ctx.layers.register({
+				id: "connector-endpoints",
+				order: 81,
+				fixed: true,
+				render: (renderCtx) => <EndpointOverlay ctx={ctx} viewport={renderCtx.viewport} />,
+			});
 
-		// Double-click detection for label editing
-		const unsubLabelClick = ctx.store.onMutation((event) => {
-			if (event.type !== "selection:changed") return;
-			// Clear label editing when selection changes
-			setEditingLabel(null);
-		});
+			// ── Label editor overlay (Phase 6) ──
 
-		// Listen for pointer events on connectors for double-click
-		const unsubPointerForLabel = ctx.events.on<{ shapeId: string }>(
-			"shape:clicked",
-			({ shapeId }) => {
-				const shape = ctx.store.getShape(shapeId);
-				if (shape?.type === "connector") {
-					handleConnectorClick(shapeId);
-				}
-			},
-		);
+			ctx.layers.register({
+				id: "connector-label-editor",
+				order: 83,
+				fixed: true,
+				render: (renderCtx) => <ConnectorLabelEditor ctx={ctx} viewport={renderCtx.viewport} />,
+			});
 
-		// ── Position tracking & cascade delete (extracted into shared package) ──
+			// ── Anchor handle overlay (hover to show anchor points) ──
 
-		const isConnectorType = (t: string) => t === "connector";
-		const stopTracker = createConnectorTracker({ store: ctx.store, isConnectorType });
-		const stopCascade = createCascadeDelete({ store: ctx.store, isConnectorType });
+			ctx.layers.register({
+				id: "connector-anchor-handles",
+				order: 79,
+				fixed: true,
+				render: (renderCtx) => <AnchorHandleOverlay ctx={ctx} viewport={renderCtx.viewport} />,
+			});
 
-		(this as UsketchPlugin).teardown = () => {
-			stopTracker();
-			stopCascade();
-			unsubLabelClick();
-			unsubPointerForLabel();
-			cleanupAnchorHandles();
-			ctx.layers.unregister("connector-properties");
-			ctx.layers.unregister("connector-endpoints");
-			ctx.layers.unregister("connector-label-editor");
-			ctx.layers.unregister("connector-anchor-handles");
-		};
-	},
-};
+			const cleanupAnchorHandles = setupAnchorHandles(ctx);
+
+			// Double-click detection for label editing
+			const unsubLabelClick = ctx.store.onMutation((event) => {
+				if (event.type !== "selection:changed") return;
+				// Clear label editing when selection changes
+				setEditingLabel(null);
+			});
+
+			// Listen for pointer events on connectors for double-click
+			const unsubPointerForLabel = ctx.events.on<{ shapeId: string }>(
+				"shape:clicked",
+				({ shapeId }) => {
+					const shape = ctx.store.getShape(shapeId);
+					if (shape?.type === "connector") {
+						handleConnectorClick(shapeId);
+					}
+				},
+			);
+
+			// ── Position tracking & cascade delete (extracted into shared package) ──
+
+			const isConnectorType = (t: string) => t === "connector";
+			const stopTracker = createConnectorTracker({ store: ctx.store, isConnectorType });
+			const stopCascade = createCascadeDelete({ store: ctx.store, isConnectorType });
+
+			return () => {
+				stopTracker();
+				stopCascade();
+				unsubLabelClick();
+				unsubPointerForLabel();
+				cleanupAnchorHandles();
+				ctx.layers.unregister("connector-properties");
+				ctx.layers.unregister("connector-endpoints");
+				ctx.layers.unregister("connector-label-editor");
+				ctx.layers.unregister("connector-anchor-handles");
+			};
+		},
+	};
+}

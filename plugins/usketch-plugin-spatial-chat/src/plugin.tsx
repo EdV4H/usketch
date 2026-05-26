@@ -219,8 +219,6 @@ function ChatIcon() {
 }
 
 function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-spatial-chat",
 		name: "空間チャット",
@@ -355,22 +353,16 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				wasActive = isActive;
 			});
 
-			cleanup = () => {
+			return () => {
 				unsubBroadcast?.();
 				unsubToolChange();
 				unsubEmptyClick();
 				hideInput();
 			};
 		},
-
-		teardown() {
-			cleanup?.();
-		},
 	};
 }
 
-export function createSpatialChatPlugin(wsProvider: WsProviderHandle): UsketchPlugin {
+export function createSpatialChatPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 	return createPlugin(wsProvider);
 }
-
-export const spatialChatPlugin: UsketchPlugin = createPlugin();

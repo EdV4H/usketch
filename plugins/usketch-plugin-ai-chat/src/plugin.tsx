@@ -30,7 +30,6 @@ export interface AiChatOptions {
 }
 
 export function createAiChatPlugin(options: AiChatOptions): UsketchPlugin {
-	let cleanup: (() => void) | undefined;
 	const paletteEnabled = options.enableCommandPalette !== false;
 
 	return {
@@ -73,14 +72,10 @@ export function createAiChatPlugin(options: AiChatOptions): UsketchPlugin {
 				},
 			});
 
-			cleanup = () => {
+			return () => {
 				paletteCleanup?.();
 				ctx.events.emit("side-panel:unregister-tab", { tabId: "ai-chat" });
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

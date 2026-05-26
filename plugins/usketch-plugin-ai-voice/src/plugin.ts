@@ -4,8 +4,6 @@ import type { VoiceOptions, VoiceStatusEvent } from "./types.js";
 import { createVoiceIndicator } from "./voice-indicator.js";
 
 export function createAiVoicePlugin(options: VoiceOptions): UsketchPlugin {
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-ai-voice",
 		name: "AI Voice",
@@ -17,7 +15,6 @@ export function createAiVoicePlugin(options: VoiceOptions): UsketchPlugin {
 
 			if (!SpeechRecognitionCtor) {
 				// Browser doesn't support Speech API - plugin is a no-op
-				cleanup = () => {};
 				return;
 			}
 
@@ -91,15 +88,11 @@ export function createAiVoicePlugin(options: VoiceOptions): UsketchPlugin {
 				startListening();
 			});
 
-			cleanup = () => {
+			return () => {
 				stopListening();
 				unsubToggle();
 				indicator.destroy();
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

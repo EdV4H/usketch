@@ -451,170 +451,172 @@ function StickyIcon() {
 
 // ── Plugin ──
 
-export const stickyPlugin: UsketchPlugin = {
-	id: "usketch-plugin-shape-sticky",
-	name: "付箋",
+export function createStickyPlugin(): UsketchPlugin {
+	return {
+		id: "usketch-plugin-shape-sticky",
+		name: "付箋",
 
-	setup(ctx: PluginContext) {
-		// ── State Machine ──
-		const service = createStickyTextService(ctx);
-		const { send, matches, stop: stopMachine } = service;
+		setup(ctx: PluginContext) {
+			// ── State Machine ──
+			const service = createStickyTextService(ctx);
+			const { send, matches, stop: stopMachine } = service;
 
-		// ── CustomEvent listeners (shared with text plugin via same event names) ──
-		const onTextInput = (e: Event) => {
-			const { id, text, scrollHeight } = (e as CustomEvent).detail;
-			// Only handle events for sticky shapes
-			const shape = ctx.store.getShape(id);
-			if (!shape || shape.type !== "sticky") return;
-			send({ type: "TEXT_INPUT", id, text, scrollHeight });
-		};
+			// ── CustomEvent listeners (shared with text plugin via same event names) ──
+			const onTextInput = (e: Event) => {
+				const { id, text, scrollHeight } = (e as CustomEvent).detail;
+				// Only handle events for sticky shapes
+				const shape = ctx.store.getShape(id);
+				if (!shape || shape.type !== "sticky") return;
+				send({ type: "TEXT_INPUT", id, text, scrollHeight });
+			};
 
-		const onTextBlur = (e: Event) => {
-			const { id } = (e as CustomEvent).detail;
-			const shape = ctx.store.getShape(id);
-			if (!shape || shape.type !== "sticky") return;
-			requestAnimationFrame(() => {
-				send({ type: "TEXT_BLUR", id });
-			});
-		};
+			const onTextBlur = (e: Event) => {
+				const { id } = (e as CustomEvent).detail;
+				const shape = ctx.store.getShape(id);
+				if (!shape || shape.type !== "sticky") return;
+				requestAnimationFrame(() => {
+					send({ type: "TEXT_BLUR", id });
+				});
+			};
 
-		const onTextEscape = (e: Event) => {
-			const { id } = (e as CustomEvent).detail;
-			const shape = ctx.store.getShape(id);
-			if (!shape || shape.type !== "sticky") return;
-			send({ type: "TEXT_ESCAPE", id });
-		};
+			const onTextEscape = (e: Event) => {
+				const { id } = (e as CustomEvent).detail;
+				const shape = ctx.store.getShape(id);
+				if (!shape || shape.type !== "sticky") return;
+				send({ type: "TEXT_ESCAPE", id });
+			};
 
-		window.addEventListener("usketch:text-input", onTextInput);
-		window.addEventListener("usketch:text-blur", onTextBlur);
-		window.addEventListener("usketch:text-escape", onTextEscape);
+			window.addEventListener("usketch:text-input", onTextInput);
+			window.addEventListener("usketch:text-blur", onTextBlur);
+			window.addEventListener("usketch:text-escape", onTextEscape);
 
-		// ── Global pointerdown to exit edit mode on outside click ──
-		const onWindowPointerDown = (e: PointerEvent) => {
-			if (!matches("editing")) return;
-			const target = e.target instanceof Element ? e.target : (e.target as Node).parentElement;
-			if (target?.closest("[contenteditable]")) return;
-			send({ type: "OUTSIDE_CLICK" });
-		};
-		window.addEventListener("pointerdown", onWindowPointerDown, true);
+			// ── Global pointerdown to exit edit mode on outside click ──
+			const onWindowPointerDown = (e: PointerEvent) => {
+				if (!matches("editing")) return;
+				const target = e.target instanceof Element ? e.target : (e.target as Node).parentElement;
+				if (target?.closest("[contenteditable]")) return;
+				send({ type: "OUTSIDE_CLICK" });
+			};
+			window.addEventListener("pointerdown", onWindowPointerDown, true);
 
-		// ── Double-click detection via EventBus ──
-		const offPointerDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
-			const shapes = ctx.store.getShapes();
-			let hitShapeId: string | null = null;
-			for (const [id, shape] of shapes) {
-				if (shape.type === "sticky" && hitTest(shape, event.worldPoint)) {
-					hitShapeId = id;
+			// ── Double-click detection via EventBus ──
+			const offPointerDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
+				const shapes = ctx.store.getShapes();
+				let hitShapeId: string | null = null;
+				for (const [id, shape] of shapes) {
+					if (shape.type === "sticky" && hitTest(shape, event.worldPoint)) {
+						hitShapeId = id;
+					}
 				}
-			}
-			if (hitShapeId) {
-				send({ type: "POINTER_DOWN", shapeId: hitShapeId });
-			}
-		});
+				if (hitShapeId) {
+					send({ type: "POINTER_DOWN", shapeId: hitShapeId });
+				}
+			});
 
-		// ── Selection change monitoring ──
-		const unsubscribe = ctx.store.subscribe(() => {
-			const editingShapeId = service.context.editingShapeId;
-			if (!editingShapeId) return;
-			const selection = ctx.store.getSelection();
-			if (!selection.has(editingShapeId)) {
-				send({ type: "DESELECTED" });
-			}
-		});
+			// ── Selection change monitoring ──
+			const unsubscribe = ctx.store.subscribe(() => {
+				const editingShapeId = service.context.editingShapeId;
+				if (!editingShapeId) return;
+				const selection = ctx.store.getSelection();
+				if (!selection.has(editingShapeId)) {
+					send({ type: "DESELECTED" });
+				}
+			});
 
-		// ── Sticky color state ──
-		let currentColor = DEFAULT_STICKY_COLOR;
+			// ── Sticky color state ──
+			let currentColor = DEFAULT_STICKY_COLOR;
 
-		ctx.events.on<{ color: string }>("sticky:select-color", (data) => {
-			currentColor = data.color;
-		});
+			ctx.events.on<{ color: string }>("sticky:select-color", (data) => {
+				currentColor = data.color;
+			});
 
-		// ── Shape registration ──
-		ctx.shapes.register("sticky", {
-			render,
-			getBounds,
-			hitTest: withRotation(hitTest),
-			resize,
-			createDefault,
-			renderTarget: "html",
-			minSize: { width: 100, height: 100 },
-			simplifiedComponent: SimplifiedSticky,
-			serializeForAi,
-			debugFields,
-		});
+			// ── Shape registration ──
+			ctx.shapes.register("sticky", {
+				render,
+				getBounds,
+				hitTest: withRotation(hitTest),
+				resize,
+				createDefault,
+				renderTarget: "html",
+				minSize: { width: 100, height: 100 },
+				simplifiedComponent: SimplifiedSticky,
+				serializeForAi,
+				debugFields,
+			});
 
-		// ── Draw tool registration ──
-		let drawState: { startX: number; startY: number; shapeId: string } | null = null;
+			// ── Draw tool registration ──
+			let drawState: { startX: number; startY: number; shapeId: string } | null = null;
 
-		ctx.tools.register("sticky-draw", {
-			icon: StickyIcon,
-			cursor: "crosshair",
-			shortcut: "s",
-			order: 26,
+			ctx.tools.register("sticky-draw", {
+				icon: StickyIcon,
+				cursor: "crosshair",
+				shortcut: "s",
+				order: 26,
 
-			onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
-				const id = generateId();
-				const shape = createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
-				shape.stickyColor = currentColor;
-				shape.style = {
-					...shape.style,
-					fill: STICKY_COLORS[currentColor] ?? STICKY_COLORS[DEFAULT_STICKY_COLOR],
-				};
-				drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
-				shape.width = 0;
-				shape.height = 0;
-				toolCtx.store.addShape(shape);
-			},
-
-			onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
-				if (!drawState) return;
-				const x = Math.min(drawState.startX, event.worldPoint.x);
-				const y = Math.min(drawState.startY, event.worldPoint.y);
-				const width = Math.abs(event.worldPoint.x - drawState.startX);
-				const height = Math.abs(event.worldPoint.y - drawState.startY);
-				toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
-			},
-
-			onPointerUp(toolCtx: ToolContext) {
-				if (!drawState) return;
-				const shape = toolCtx.store.getShape(drawState.shapeId);
-				toolCtx.store.deleteShape(drawState.shapeId);
-
-				if (shape && shape.width > 2 && shape.height > 2) {
-					// Dragged: use custom size
-					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
-					toolCtx.store.setSelection([shape.id]);
-				} else {
-					// Clicked: use default size, center on click point
-					const defaultShape = createDefault({
-						id: drawState.shapeId,
-						x: drawState.startX - DEFAULT_STICKY_SIZE.width / 2,
-						y: drawState.startY - DEFAULT_STICKY_SIZE.height / 2,
-					});
-					defaultShape.stickyColor = currentColor;
-					defaultShape.style = {
-						...defaultShape.style,
+				onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+					const id = generateId();
+					const shape = createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
+					shape.stickyColor = currentColor;
+					shape.style = {
+						...shape.style,
 						fill: STICKY_COLORS[currentColor] ?? STICKY_COLORS[DEFAULT_STICKY_COLOR],
 					};
-					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, defaultShape));
-					toolCtx.store.setSelection([defaultShape.id]);
-					send({ type: "CREATE_SHAPE", shapeId: defaultShape.id });
-				}
+					drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
+					shape.width = 0;
+					shape.height = 0;
+					toolCtx.store.addShape(shape);
+				},
 
-				drawState = null;
-				toolCtx.store.setActiveToolId("select");
-			},
-		});
+				onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+					if (!drawState) return;
+					const x = Math.min(drawState.startX, event.worldPoint.x);
+					const y = Math.min(drawState.startY, event.worldPoint.y);
+					const width = Math.abs(event.worldPoint.x - drawState.startX);
+					const height = Math.abs(event.worldPoint.y - drawState.startY);
+					toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
+				},
 
-		// ── Teardown ──
-		(this as UsketchPlugin).teardown = () => {
-			stopMachine();
-			window.removeEventListener("usketch:text-input", onTextInput);
-			window.removeEventListener("usketch:text-blur", onTextBlur);
-			window.removeEventListener("usketch:text-escape", onTextEscape);
-			window.removeEventListener("pointerdown", onWindowPointerDown, true);
-			offPointerDown();
-			unsubscribe();
-		};
-	},
-};
+				onPointerUp(toolCtx: ToolContext) {
+					if (!drawState) return;
+					const shape = toolCtx.store.getShape(drawState.shapeId);
+					toolCtx.store.deleteShape(drawState.shapeId);
+
+					if (shape && shape.width > 2 && shape.height > 2) {
+						// Dragged: use custom size
+						toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+						toolCtx.store.setSelection([shape.id]);
+					} else {
+						// Clicked: use default size, center on click point
+						const defaultShape = createDefault({
+							id: drawState.shapeId,
+							x: drawState.startX - DEFAULT_STICKY_SIZE.width / 2,
+							y: drawState.startY - DEFAULT_STICKY_SIZE.height / 2,
+						});
+						defaultShape.stickyColor = currentColor;
+						defaultShape.style = {
+							...defaultShape.style,
+							fill: STICKY_COLORS[currentColor] ?? STICKY_COLORS[DEFAULT_STICKY_COLOR],
+						};
+						toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, defaultShape));
+						toolCtx.store.setSelection([defaultShape.id]);
+						send({ type: "CREATE_SHAPE", shapeId: defaultShape.id });
+					}
+
+					drawState = null;
+					toolCtx.store.setActiveToolId("select");
+				},
+			});
+
+			// ── Teardown ──
+			return () => {
+				stopMachine();
+				window.removeEventListener("usketch:text-input", onTextInput);
+				window.removeEventListener("usketch:text-blur", onTextBlur);
+				window.removeEventListener("usketch:text-escape", onTextEscape);
+				window.removeEventListener("pointerdown", onWindowPointerDown, true);
+				offPointerDown();
+				unsubscribe();
+			};
+		},
+	};
+}

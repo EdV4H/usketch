@@ -215,84 +215,90 @@ function CounterIcon() {
 
 // ── Plugin ──
 
-export const counterPlugin: UsketchPlugin = {
-	id: "usketch-plugin-shape-counter",
-	name: "カウンター",
+export function createCounterPlugin(): UsketchPlugin {
+	return {
+		id: "usketch-plugin-shape-counter",
+		name: "カウンター",
 
-	setup(ctx: PluginContext) {
-		// Register shape with HTML render target
-		ctx.shapes.register("counter", {
-			render,
-			getBounds,
-			hitTest,
-			resize,
-			createDefault,
-			renderTarget: "html",
-			minSize: { width: 100, height: 100 },
-			simplifiedComponent: SimplifiedCounter,
-		});
+		setup(ctx: PluginContext) {
+			// Register shape with HTML render target
+			ctx.shapes.register("counter", {
+				render,
+				getBounds,
+				hitTest,
+				resize,
+				createDefault,
+				renderTarget: "html",
+				minSize: { width: 100, height: 100 },
+				simplifiedComponent: SimplifiedCounter,
+			});
 
-		// Listen for counter updates from the rendered buttons
-		const onCounterUpdate = (e: Event) => {
-			const { id, delta } = (e as CustomEvent).detail;
-			const shape = ctx.store.getShape(id) as CounterShapeData | undefined;
-			if (shape) {
-				const count = (shape.count ?? 0) + delta;
-				ctx.store.updateShape(id, { count } as Partial<ShapeData>);
+			// Listen for counter updates from the rendered buttons
+			const onCounterUpdate = (e: Event) => {
+				const { id, delta } = (e as CustomEvent).detail;
+				const shape = ctx.store.getShape(id) as CounterShapeData | undefined;
+				if (shape) {
+					const count = (shape.count ?? 0) + delta;
+					ctx.store.updateShape(id, { count } as Partial<ShapeData>);
+				}
+			};
+			window.addEventListener("usketch:counter-update", onCounterUpdate);
+
+			// Draw tool
+			let drawState: { startX: number; startY: number; shapeId: string } | null = null;
+
+			function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				const id = generateId();
+				drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
+				const shape = createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
+				shape.width = 0;
+				shape.height = 0;
+				toolCtx.store.addShape(shape);
 			}
-		};
-		window.addEventListener("usketch:counter-update", onCounterUpdate);
 
-		// Draw tool
-		let drawState: { startX: number; startY: number; shapeId: string } | null = null;
-
-		function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
-			const id = generateId();
-			drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
-			const shape = createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
-			shape.width = 0;
-			shape.height = 0;
-			toolCtx.store.addShape(shape);
-		}
-
-		function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
-			if (!drawState) return;
-			const x = Math.min(drawState.startX, event.worldPoint.x);
-			const y = Math.min(drawState.startY, event.worldPoint.y);
-			const width = Math.abs(event.worldPoint.x - drawState.startX);
-			const height = Math.abs(event.worldPoint.y - drawState.startY);
-			toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
-		}
-
-		function onPointerUp(toolCtx: ToolContext) {
-			if (!drawState) return;
-			const shape = toolCtx.store.getShape(drawState.shapeId);
-			if (shape && shape.width < 10 && shape.height < 10) {
-				// Too small — replace with default size
-				toolCtx.store.deleteShape(drawState.shapeId);
-				const defaultShape = createDefault({
-					id: drawState.shapeId,
-					x: drawState.startX - 70,
-					y: drawState.startY - 60,
-				});
-				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, defaultShape));
-			} else if (shape) {
-				// Finalize via command for undo support
-				toolCtx.store.deleteShape(drawState.shapeId);
-				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+			function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				if (!drawState) return;
+				const x = Math.min(drawState.startX, event.worldPoint.x);
+				const y = Math.min(drawState.startY, event.worldPoint.y);
+				const width = Math.abs(event.worldPoint.x - drawState.startX);
+				const height = Math.abs(event.worldPoint.y - drawState.startY);
+				toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
 			}
-			drawState = null;
-			toolCtx.store.setActiveToolId("select");
-		}
 
-		ctx.tools.register("counter-draw", {
-			icon: CounterIcon,
-			cursor: "crosshair",
-			shortcut: "c",
-			order: 40,
-			onPointerDown,
-			onPointerMove,
-			onPointerUp,
-		});
-	},
-};
+			function onPointerUp(toolCtx: ToolContext) {
+				if (!drawState) return;
+				const shape = toolCtx.store.getShape(drawState.shapeId);
+				if (shape && shape.width < 10 && shape.height < 10) {
+					// Too small — replace with default size
+					toolCtx.store.deleteShape(drawState.shapeId);
+					const defaultShape = createDefault({
+						id: drawState.shapeId,
+						x: drawState.startX - 70,
+						y: drawState.startY - 60,
+					});
+					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, defaultShape));
+				} else if (shape) {
+					// Finalize via command for undo support
+					toolCtx.store.deleteShape(drawState.shapeId);
+					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+				}
+				drawState = null;
+				toolCtx.store.setActiveToolId("select");
+			}
+
+			ctx.tools.register("counter-draw", {
+				icon: CounterIcon,
+				cursor: "crosshair",
+				shortcut: "c",
+				order: 40,
+				onPointerDown,
+				onPointerMove,
+				onPointerUp,
+			});
+
+			return () => {
+				window.removeEventListener("usketch:counter-update", onCounterUpdate);
+			};
+		},
+	};
+}

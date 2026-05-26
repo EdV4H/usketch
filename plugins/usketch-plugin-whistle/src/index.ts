@@ -1,1 +1,1 @@
-export { createWhistlePlugin, whistlePlugin } from "./plugin.js";
+export { createWhistlePlugin } from "./plugin.js";

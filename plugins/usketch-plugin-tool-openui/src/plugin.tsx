@@ -66,8 +66,6 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 		stream: defaultStream = true,
 	} = opts;
 
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-tool-openui",
 		name: "OpenUI Tool",
@@ -229,7 +227,7 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 				void runGenerate(data as OpenUIGenerateRequest);
 			});
 
-			cleanup = () => {
+			return () => {
 				offGenerate();
 				ctx.events.emit("side-panel:unregister-tab", { tabId: SIDE_PANEL_TAB_ID });
 				if (enableMakeReal && provider.supportsVision) {
@@ -238,10 +236,6 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 				setOpenUILibrary(null);
 				activeController?.abort();
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

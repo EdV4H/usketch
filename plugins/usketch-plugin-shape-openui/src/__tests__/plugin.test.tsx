@@ -1,6 +1,6 @@
 import type { ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
 import { describe, expect, it, vi } from "vitest";
-import { openUIShapePlugin } from "../plugin.js";
+import { createOpenUIShapePlugin } from "../plugin.js";
 import type { OpenUIShapeData } from "../types.js";
 
 interface CapturedDefinition {
@@ -24,15 +24,15 @@ function setupPlugin(): CapturedDefinition {
 			captured = def;
 		}),
 	} as unknown as ShapeRegistry;
-	openUIShapePlugin.setup({ shapes } as never);
+	createOpenUIShapePlugin().setup({ shapes } as never);
 	if (!captured) throw new Error("ShapeDefinition was not registered");
 	return captured;
 }
 
-describe("openUIShapePlugin", () => {
+describe("createOpenUIShapePlugin", () => {
 	it("registers the `openui` shape", () => {
 		const shapes = { register: vi.fn() } as unknown as ShapeRegistry;
-		openUIShapePlugin.setup({ shapes } as never);
+		createOpenUIShapePlugin().setup({ shapes } as never);
 		expect(shapes.register).toHaveBeenCalledWith("openui", expect.any(Object));
 	});
 

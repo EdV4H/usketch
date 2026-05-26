@@ -2,7 +2,7 @@ import { AppProvider, Canvas } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp, createShapeCountLodPolicy } from "@edv4h/usketch-core";
 import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
 import { createGpuRendererPlugin } from "@edv4h/usketch-gpu-renderer";
-import { basicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
+import { createBasicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
 import type { BoardStore, ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { useEffect, useRef, useState } from "react";
@@ -35,7 +35,7 @@ export function BenchmarkCanvas({ mode, onReady, onDestroy }: BenchmarkCanvasPro
 		const store = createBoardStore();
 
 		const plugins: UsketchPlugin[] = [
-			basicShapePlugin,
+			createBasicShapePlugin(),
 			createGpuRendererPlugin(),
 			createDomRendererPlugin(),
 		];

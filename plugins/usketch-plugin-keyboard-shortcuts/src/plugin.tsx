@@ -17,14 +17,14 @@ export interface KeyboardShortcutsPluginOptions {
 export function createKeyboardShortcutsPlugin(
 	options?: KeyboardShortcutsPluginOptions,
 ): UsketchPlugin {
-	let cleanups: (() => void)[] = [];
-	let palette: CommandPaletteController | null = null;
-
 	return {
 		id: "usketch-plugin-keyboard-shortcuts",
 		name: "Keyboard Shortcuts",
 
 		setup(ctx: PluginContext) {
+			const cleanups: (() => void)[] = [];
+			let palette: CommandPaletteController | null = null;
+
 			const { store, shortcuts, events, commands } = ctx;
 
 			// ── Side panel state tracking ──
@@ -203,12 +203,13 @@ export function createKeyboardShortcutsPlugin(
 				window.addEventListener("keydown", handleSlashKey);
 				cleanups.push(() => window.removeEventListener("keydown", handleSlashKey));
 			}
-		},
 
-		teardown() {
-			for (const fn of cleanups) fn();
-			cleanups = [];
-			palette?.dispose();
+			return () => {
+				for (const fn of cleanups) fn();
+				cleanups.length = 0;
+				palette?.dispose();
+				palette = null;
+			};
 		},
 	};
 }

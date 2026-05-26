@@ -149,31 +149,33 @@ function debugFields(shape: ShapeData): Record<string, unknown> {
 	return { src: data.src ?? "" };
 }
 
-export const imageShapePlugin: UsketchPlugin = {
-	id: "usketch-plugin-shape-image",
-	name: "画像",
+export function createImageShapePlugin(): UsketchPlugin {
+	return {
+		id: "usketch-plugin-shape-image",
+		name: "画像",
 
-	setup(ctx: PluginContext) {
-		ctx.shapes.register("image", {
-			render,
-			getBounds,
-			hitTest: withRotation(hitTest),
-			resize,
-			createDefault,
-			renderTarget: "html",
-			minSize: { width: 40, height: 40 },
-			serializeForAi,
-			serializeForRecognition,
-			debugFields,
-		});
+		setup(ctx: PluginContext) {
+			ctx.shapes.register("image", {
+				render,
+				getBounds,
+				hitTest: withRotation(hitTest),
+				resize,
+				createDefault,
+				renderTarget: "html",
+				minSize: { width: 40, height: 40 },
+				serializeForAi,
+				serializeForRecognition,
+				debugFields,
+			});
 
-		// Self-register the default "image file → image shape" external-content
-		// handler at order 0. Apps and third-party plugins can override by
-		// registering a higher-`order` `kind: "file"` handler.
-		const unregisterHandler = ctx.externalContent.register(createImageFileHandler());
+			// Self-register the default "image file → image shape" external-content
+			// handler at order 0. Apps and third-party plugins can override by
+			// registering a higher-`order` `kind: "file"` handler.
+			const unregisterHandler = ctx.externalContent.register(createImageFileHandler());
 
-		(this as UsketchPlugin).teardown = () => {
-			unregisterHandler();
-		};
-	},
-};
+			return () => {
+				unregisterHandler();
+			};
+		},
+	};
+}

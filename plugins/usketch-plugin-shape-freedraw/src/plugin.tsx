@@ -222,100 +222,102 @@ function FreedrawIcon() {
 	);
 }
 
-export const freedrawPlugin: UsketchPlugin = {
-	id: "usketch-plugin-shape-freedraw",
-	name: "フリーハンド",
+export function createFreedrawPlugin(): UsketchPlugin {
+	return {
+		id: "usketch-plugin-shape-freedraw",
+		name: "フリーハンド",
 
-	setup(ctx: PluginContext) {
-		// ── Local draw state (scoped to this setup closure) ──
-		let drawState: { shapeId: string; points: Point[] } | null = null;
+		setup(ctx: PluginContext) {
+			// ── Local draw state (scoped to this setup closure) ──
+			let drawState: { shapeId: string; points: Point[] } | null = null;
 
-		function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
-			const id = generateId();
-			const startPoint: Point = { x: event.worldPoint.x, y: event.worldPoint.y };
-			drawState = { shapeId: id, points: [startPoint] };
-			const shape = createDefault({ id, x: startPoint.x, y: startPoint.y });
-			shape.points = [startPoint];
-			shape.style = { ...toolCtx.store.getStyleSettings() };
-			toolCtx.store.addShape(shape);
-		}
-
-		function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
-			if (!drawState) return;
-			const newPoint: Point = { x: event.worldPoint.x, y: event.worldPoint.y };
-			drawState.points.push(newPoint);
-
-			const bounds = computeBounds(drawState.points);
-			toolCtx.store.updateShape(drawState.shapeId, {
-				x: bounds.x,
-				y: bounds.y,
-				width: bounds.width,
-				height: bounds.height,
-				points: [...drawState.points],
-			} as Partial<FreedrawShapeData>);
-		}
-
-		function onPointerUp(toolCtx: ToolContext) {
-			if (!drawState) return;
-			const shape = toolCtx.store.getShape(drawState.shapeId);
-			if (shape && drawState.points.length > 1) {
-				// Replace with undoable command
-				toolCtx.store.deleteShape(drawState.shapeId);
-				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
-			} else {
-				toolCtx.store.deleteShape(drawState.shapeId);
+			function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				const id = generateId();
+				const startPoint: Point = { x: event.worldPoint.x, y: event.worldPoint.y };
+				drawState = { shapeId: id, points: [startPoint] };
+				const shape = createDefault({ id, x: startPoint.x, y: startPoint.y });
+				shape.points = [startPoint];
+				shape.style = { ...toolCtx.store.getStyleSettings() };
+				toolCtx.store.addShape(shape);
 			}
-			drawState = null;
-		}
 
-		function gpuPrimitive(shape: ShapeData): GpuPrimitive | null {
-			const data = shape as FreedrawShapeData;
-			const pts = data.points ?? [];
-			if (pts.length < 2) return null;
-			const verts = new Float32Array(pts.length * 2);
-			for (let i = 0; i < pts.length; i++) {
-				verts[i * 2] = pts[i].x;
-				verts[i * 2 + 1] = pts[i].y;
+			function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				if (!drawState) return;
+				const newPoint: Point = { x: event.worldPoint.x, y: event.worldPoint.y };
+				drawState.points.push(newPoint);
+
+				const bounds = computeBounds(drawState.points);
+				toolCtx.store.updateShape(drawState.shapeId, {
+					x: bounds.x,
+					y: bounds.y,
+					width: bounds.width,
+					height: bounds.height,
+					points: [...drawState.points],
+				} as Partial<FreedrawShapeData>);
 			}
-			return {
-				kind: "polyline",
-				bounds: getBounds(data),
-				vertices: verts,
-				fill: [0, 0, 0, 0],
-				stroke: cssColorToRgbaOrDefault(data.style.stroke),
-				strokeWidth: data.style.strokeWidth,
-				opacity: data.style.opacity,
-			};
-		}
 
-		ctx.shapes.register("freedraw", {
-			render,
-			getBounds,
-			hitTest,
-			resize,
-			createDefault,
-			move,
-			applyBounds,
-			gpuPrimitive,
-			serializeForAi,
-			serializeForRecognition,
-			debugFields,
-		});
+			function onPointerUp(toolCtx: ToolContext) {
+				if (!drawState) return;
+				const shape = toolCtx.store.getShape(drawState.shapeId);
+				if (shape && drawState.points.length > 1) {
+					// Replace with undoable command
+					toolCtx.store.deleteShape(drawState.shapeId);
+					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+				} else {
+					toolCtx.store.deleteShape(drawState.shapeId);
+				}
+				drawState = null;
+			}
 
-		ctx.tools.register("freedraw-draw", {
-			icon: FreedrawIcon,
-			cursor: "crosshair",
-			shortcut: "p",
-			order: 30,
-			onActivate(toolCtx) {
-				toolCtx.events.emit("snap:configure", { enabled: false });
-			},
-			onDeactivate(toolCtx) {
-				toolCtx.events.emit("snap:configure", { enabled: true });
-			},
-			onPointerDown,
-			onPointerMove,
-			onPointerUp,
-		});
-	},
-};
+			function gpuPrimitive(shape: ShapeData): GpuPrimitive | null {
+				const data = shape as FreedrawShapeData;
+				const pts = data.points ?? [];
+				if (pts.length < 2) return null;
+				const verts = new Float32Array(pts.length * 2);
+				for (let i = 0; i < pts.length; i++) {
+					verts[i * 2] = pts[i].x;
+					verts[i * 2 + 1] = pts[i].y;
+				}
+				return {
+					kind: "polyline",
+					bounds: getBounds(data),
+					vertices: verts,
+					fill: [0, 0, 0, 0],
+					stroke: cssColorToRgbaOrDefault(data.style.stroke),
+					strokeWidth: data.style.strokeWidth,
+					opacity: data.style.opacity,
+				};
+			}
+
+			ctx.shapes.register("freedraw", {
+				render,
+				getBounds,
+				hitTest,
+				resize,
+				createDefault,
+				move,
+				applyBounds,
+				gpuPrimitive,
+				serializeForAi,
+				serializeForRecognition,
+				debugFields,
+			});
+
+			ctx.tools.register("freedraw-draw", {
+				icon: FreedrawIcon,
+				cursor: "crosshair",
+				shortcut: "p",
+				order: 30,
+				onActivate(toolCtx) {
+					toolCtx.events.emit("snap:configure", { enabled: false });
+				},
+				onDeactivate(toolCtx) {
+					toolCtx.events.emit("snap:configure", { enabled: true });
+				},
+				onPointerDown,
+				onPointerMove,
+				onPointerUp,
+			});
+		},
+	};
+}

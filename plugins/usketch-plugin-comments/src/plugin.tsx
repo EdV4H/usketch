@@ -30,7 +30,6 @@ export interface CommentsPluginOptions {
 
 export function createCommentsPlugin(options: CommentsPluginOptions): UsketchPlugin {
 	const { boardId, apiUrl, extraHeaders } = options;
-	let cleanup: (() => void) | undefined;
 
 	return {
 		id: "usketch-plugin-comments",
@@ -85,15 +84,11 @@ export function createCommentsPlugin(options: CommentsPluginOptions): UsketchPlu
 				},
 			);
 
-			cleanup = () => {
+			return () => {
 				unsubStartThread();
 				ctx.events.emit("side-panel:unregister-tab", { tabId: "comments" });
 				ctx.layers.unregister("comment-badges");
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

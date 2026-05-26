@@ -148,8 +148,6 @@ function SpotlightIcon() {
 }
 
 function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-spotlight",
 		name: "スポットライト",
@@ -236,22 +234,16 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				wasToolActive = isToolActive;
 			});
 
-			cleanup = () => {
+			return () => {
 				unsubBroadcast?.();
 				unsubToolChange();
 				ctx.layers.unregister("spotlight");
 				spotlightState.active = false;
 			};
 		},
-
-		teardown() {
-			cleanup?.();
-		},
 	};
 }
 
-export function createSpotlightPlugin(wsProvider: WsProviderHandle): UsketchPlugin {
+export function createSpotlightPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 	return createPlugin(wsProvider);
 }
-
-export const spotlightPlugin: UsketchPlugin = createPlugin();

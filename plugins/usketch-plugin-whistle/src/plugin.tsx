@@ -250,49 +250,49 @@ function WhistleIndicatorLayer({
 // ── Plugin factory ──
 
 function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
-	const cleanups: (() => void)[] = [];
-	let indicators: WhistleIndicatorData[] = [];
-	const indicatorListeners = new Set<() => void>();
-	const indicatorTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-	function indicatorSubscribe(cb: () => void): () => void {
-		indicatorListeners.add(cb);
-		return () => indicatorListeners.delete(cb);
-	}
-
-	function indicatorGetSnapshot(): WhistleIndicatorData[] {
-		return indicators;
-	}
-
-	function addIndicator(data: WhistleIndicatorData) {
-		indicators = [...indicators, data];
-		for (const cb of indicatorListeners) cb();
-
-		const timer = setTimeout(() => {
-			removeIndicator(data.id);
-		}, INDICATOR_TTL);
-
-		indicatorTimers.set(data.id, timer);
-	}
-
-	function removeIndicator(id: string) {
-		const prevLen = indicators.length;
-		indicators = indicators.filter((i) => i.id !== id);
-		const timer = indicatorTimers.get(id);
-		if (timer !== undefined) {
-			clearTimeout(timer);
-			indicatorTimers.delete(id);
-		}
-		if (indicators.length < prevLen) {
-			for (const cb of indicatorListeners) cb();
-		}
-	}
-
 	return {
 		id: "usketch-plugin-whistle",
 		name: "ホイッスル",
 
 		setup(ctx: PluginContext) {
+			const cleanups: (() => void)[] = [];
+			let indicators: WhistleIndicatorData[] = [];
+			const indicatorListeners = new Set<() => void>();
+			const indicatorTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+			function indicatorSubscribe(cb: () => void): () => void {
+				indicatorListeners.add(cb);
+				return () => indicatorListeners.delete(cb);
+			}
+
+			function indicatorGetSnapshot(): WhistleIndicatorData[] {
+				return indicators;
+			}
+
+			function addIndicator(data: WhistleIndicatorData) {
+				indicators = [...indicators, data];
+				for (const cb of indicatorListeners) cb();
+
+				const timer = setTimeout(() => {
+					removeIndicator(data.id);
+				}, INDICATOR_TTL);
+
+				indicatorTimers.set(data.id, timer);
+			}
+
+			function removeIndicator(id: string) {
+				const prevLen = indicators.length;
+				indicators = indicators.filter((i) => i.id !== id);
+				const timer = indicatorTimers.get(id);
+				if (timer !== undefined) {
+					clearTimeout(timer);
+					indicatorTimers.delete(id);
+				}
+				if (indicators.length < prevLen) {
+					for (const cb of indicatorListeners) cb();
+				}
+			}
+
 			injectStyle();
 
 			ctx.transient.registerType("whistle", {
@@ -414,21 +414,19 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				),
 			});
 			cleanups.push(() => ctx.layers.unregister("whistle-indicator"));
-		},
 
-		teardown() {
-			for (const fn of cleanups) fn();
-			cleanups.length = 0;
-			for (const timer of indicatorTimers.values()) clearTimeout(timer);
-			indicatorTimers.clear();
-			indicators = [];
-			indicatorListeners.clear();
+			return () => {
+				for (const fn of cleanups) fn();
+				cleanups.length = 0;
+				for (const timer of indicatorTimers.values()) clearTimeout(timer);
+				indicatorTimers.clear();
+				indicators = [];
+				indicatorListeners.clear();
+			};
 		},
 	};
 }
 
-export function createWhistlePlugin(wsProvider: WsProviderHandle): UsketchPlugin {
+export function createWhistlePlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 	return createPlugin(wsProvider);
 }
-
-export const whistlePlugin: UsketchPlugin = createPlugin();

@@ -1,1 +1,1 @@
-export { panToolPlugin } from "./plugin.js";
+export { createPanToolPlugin } from "./plugin.js";

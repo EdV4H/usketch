@@ -1,1 +1,1 @@
-export { createVotingPlugin, votingPlugin } from "./plugin.js";
+export { createVotingPlugin } from "./plugin.js";

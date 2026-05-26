@@ -170,21 +170,23 @@ function debugFields(shape: ShapeData): Record<string, unknown> {
 	};
 }
 
-export const openUIShapePlugin: UsketchPlugin = {
-	id: "usketch-plugin-shape-openui",
-	name: "OpenUI",
+export function createOpenUIShapePlugin(): UsketchPlugin {
+	return {
+		id: "usketch-plugin-shape-openui",
+		name: "OpenUI",
 
-	setup(ctx: PluginContext) {
-		ctx.shapes.register("openui", {
-			render,
-			getBounds,
-			hitTest: withRotation(hitTest),
-			resize,
-			createDefault,
-			renderTarget: "html",
-			minSize: { width: 160, height: 100 },
-			serializeForAi,
-			debugFields,
-		});
-	},
-};
+		setup(ctx: PluginContext) {
+			ctx.shapes.register("openui", {
+				render,
+				getBounds,
+				hitTest: withRotation(hitTest),
+				resize,
+				createDefault,
+				renderTarget: "html",
+				minSize: { width: 160, height: 100 },
+				serializeForAi,
+				debugFields,
+			});
+		},
+	};
+}

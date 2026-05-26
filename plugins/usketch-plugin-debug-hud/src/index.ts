@@ -1,1 +1,1 @@
-export { debugHudPlugin } from "./plugin.js";
+export { createDebugHudPlugin } from "./plugin.js";

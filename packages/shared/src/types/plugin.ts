@@ -499,9 +499,28 @@ export interface PluginContext {
 	externalContent: ExternalContentRegistry;
 }
 
+/**
+ * Cleanup function returned from {@link UsketchPlugin.setup}.
+ *
+ * Called by `createApp().destroy()` (and as part of setup-rollback when a later
+ * plugin throws). May be sync or async — `destroy()` itself stays sync and any
+ * async teardown is fire-and-forget with errors logged.
+ */
+export type PluginTeardown = () => void | Promise<void>;
+
 export interface UsketchPlugin {
 	readonly id: string;
 	readonly name: string;
-	setup(ctx: PluginContext): void | Promise<void>;
-	teardown?(): void;
+	/**
+	 * Initialize the plugin. Return a teardown function to release resources
+	 * when the app is destroyed; return `void` (or omit a return) if the plugin
+	 * has nothing to clean up.
+	 *
+	 * The previous `plugin.teardown` property has been removed: stashing the
+	 * cleanup on `this` is unsafe under React StrictMode (a second `setup` call
+	 * silently overwrites the first plugin instance's teardown closure). Always
+	 * return the cleanup from setup instead — each `createApp` call owns its
+	 * own closure.
+	 */
+	setup(ctx: PluginContext): PluginTeardown | void | Promise<PluginTeardown | void>;
 }

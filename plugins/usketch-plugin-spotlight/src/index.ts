@@ -1,1 +1,1 @@
-export { createSpotlightPlugin, spotlightPlugin } from "./plugin.js";
+export { createSpotlightPlugin } from "./plugin.js";

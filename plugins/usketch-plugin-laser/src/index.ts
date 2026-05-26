@@ -1,1 +1,1 @@
-export { createLaserPlugin, laserPlugin } from "./plugin.js";
+export { createLaserPlugin } from "./plugin.js";

@@ -1,4 +1,4 @@
-export { domainDesignPlugin } from "./plugin.js";
+export { createDomainDesignPlugin } from "./plugin.js";
 export { DOMAIN_SUBTYPES, type DomainSubtype } from "./registry.js";
 export {
 	type AggregateMeta,

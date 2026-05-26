@@ -2,8 +2,6 @@ import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { DomShapeLayer } from "./dom-shape-layer.js";
 
 export function createDomRendererPlugin(): UsketchPlugin {
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-dom-renderer",
 		name: "DOM Renderer",
@@ -63,15 +61,11 @@ export function createDomRendererPlugin(): UsketchPlugin {
 				),
 			});
 
-			cleanup = () => {
+			return () => {
 				unsubClaim();
 				unsubDropTarget();
 				ctx.layers.unregister("dom-shapes");
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

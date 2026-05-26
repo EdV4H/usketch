@@ -1,1 +1,1 @@
-export { connectorPlugin } from "./plugin.js";
+export { createConnectorPlugin } from "./plugin.js";

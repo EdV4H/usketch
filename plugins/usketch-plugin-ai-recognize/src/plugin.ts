@@ -8,8 +8,6 @@ export interface RecognizeOptions {
 }
 
 export function createAiRecognizePlugin(options: RecognizeOptions): UsketchPlugin {
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-ai-recognize",
 		name: "AI Recognize",
@@ -133,14 +131,10 @@ IMPORTANT:
 				});
 			}
 
-			cleanup = () => {
+			return () => {
 				unsubRecognize();
 				cleanupListeners();
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

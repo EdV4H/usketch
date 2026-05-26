@@ -60,32 +60,30 @@ function DotsBackground({ viewport }: { viewport: LayerRenderContext["viewport"]
 
 // ── Plugin ──
 
-export const dotsBgPlugin: UsketchPlugin = {
-	id: "usketch-plugin-bg-dots",
-	name: "Dots Background",
+export function createDotsBgPlugin(): UsketchPlugin {
+	return {
+		id: "usketch-plugin-bg-dots",
+		name: "Dots Background",
 
-	setup(ctx: PluginContext) {
-		// Reset to default hidden state
-		visible = false;
+		setup(ctx: PluginContext) {
+			// Reset to default hidden state
+			visible = false;
 
-		ctx.layers.register({
-			id: "bg-dots",
-			order: 10,
-			fixed: true,
-			render: (renderCtx) => <DotsBackground viewport={renderCtx.viewport} />,
-		});
+			ctx.layers.register({
+				id: "bg-dots",
+				order: 10,
+				fixed: true,
+				render: (renderCtx) => <DotsBackground viewport={renderCtx.viewport} />,
+			});
 
-		const off = ctx.events.on<{ type: string }>("bg:set", ({ type }) => {
-			setVisible(type === "dots");
-		});
+			const off = ctx.events.on<{ type: string }>("bg:set", ({ type }) => {
+				setVisible(type === "dots");
+			});
 
-		(this as unknown as { _cleanup: () => void })._cleanup = () => {
-			off();
-			ctx.layers.unregister("bg-dots");
-		};
-	},
-
-	teardown() {
-		(this as unknown as { _cleanup?: () => void })._cleanup?.();
-	},
-};
+			return () => {
+				off();
+				ctx.layers.unregister("bg-dots");
+			};
+		},
+	};
+}

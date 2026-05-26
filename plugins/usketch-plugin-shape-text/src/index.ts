@@ -1,1 +1,1 @@
-export { textPlugin } from "./plugin.js";
+export { createTextPlugin } from "./plugin.js";

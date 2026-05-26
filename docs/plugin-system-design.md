@@ -80,6 +80,8 @@ interface LayerManager {
 /**
  * 全プラグイン共通の基本型
  */
+type PluginTeardown = () => void | Promise<void>
+
 interface UsketchPlugin {
   /** プラグインの一意識別子（例: "usketch-plugin-shape-rect"） */
   id: string
@@ -93,11 +95,14 @@ interface UsketchPlugin {
   /** プラグインの設定スキーマ（Zod） */
   configSchema?: z.ZodType
 
-  /** プラグイン初期化 */
-  setup(ctx: PluginContext): void | Promise<void>
-
-  /** プラグイン破棄 */
-  teardown?(): void
+  /**
+   * プラグイン初期化
+   *
+   * 戻り値で teardown 関数を返すことで、createApp().destroy() 時に
+   * per-instance のクリーンアップを行える。`this` への代入は React StrictMode
+   * 下で 2 回目の setup が 1 回目の closure を上書きしてしまうため禁止。
+   */
+  setup(ctx: PluginContext): PluginTeardown | void | Promise<PluginTeardown | void>
 }
 
 /**
@@ -139,45 +144,58 @@ interface ToolPlugin extends UsketchPlugin {
 
 **例: 選択ツールプラグイン**
 
+プラグインは **必ずファクトリ関数で公開する**（`createXxxPlugin()`）。同一 plugin instance が複数の `createApp` に渡されると React StrictMode の二重マウントで teardown closure が破壊されるため、毎回 fresh な instance を返す形に統一する。
+
 ```typescript
 // plugins/usketch-plugin-tool-select/src/index.ts
 import { selectToolMachine } from './machine'
 import { SelectIcon } from './icon'
 
-export const selectToolPlugin: ToolPlugin = {
-  id: 'usketch-plugin-tool-select',
-  name: '選択',
-  type: 'tool',
-  machine: selectToolMachine,
-  icon: SelectIcon,
-  shortcut: 'v',
-  order: 0,
+export function createSelectToolPlugin(): ToolPlugin {
+  return {
+    id: 'usketch-plugin-tool-select',
+    name: '選択',
+    type: 'tool',
+    machine: selectToolMachine,
+    icon: SelectIcon,
+    shortcut: 'v',
+    order: 0,
 
-  setup(ctx) {
-    // 選択UIレイヤーを登録
-    ctx.layers.register({
-      id: 'select-handles',
-      order: 70,
-      render: (renderCtx) => <SelectionHandles {...renderCtx} />,
-      interactable: true,
-    })
+    setup(ctx) {
+      // 選択UIレイヤーを登録
+      ctx.layers.register({
+        id: 'select-handles',
+        order: 70,
+        render: (renderCtx) => <SelectionHandles {...renderCtx} />,
+        interactable: true,
+      })
 
-    // ドラッグ選択レイヤーを登録
-    ctx.layers.register({
-      id: 'drag-selection',
-      order: 75,
-      render: (renderCtx) => <DragSelectionBox {...renderCtx} />,
-    })
+      // ドラッグ選択レイヤーを登録
+      ctx.layers.register({
+        id: 'drag-selection',
+        order: 75,
+        render: (renderCtx) => <DragSelectionBox {...renderCtx} />,
+      })
 
-    // コマンド登録
-    ctx.commands.register('select-all', selectAllCommand)
-    ctx.commands.register('delete-selected', deleteSelectedCommand)
+      // コマンド登録
+      ctx.commands.register('select-all', selectAllCommand)
+      ctx.commands.register('delete-selected', deleteSelectedCommand)
 
-    // ショートカット登録
-    ctx.shortcuts.register('Ctrl+A', 'select-all')
-    ctx.shortcuts.register('Delete', 'delete-selected')
-    ctx.shortcuts.register('Backspace', 'delete-selected')
-  },
+      // ショートカット登録
+      const offSelectAll = ctx.shortcuts.register('Ctrl+A', 'select-all')
+      const offDelete = ctx.shortcuts.register('Delete', 'delete-selected')
+      const offBackspace = ctx.shortcuts.register('Backspace', 'delete-selected')
+
+      // teardown を return する（this.teardown への代入は禁止）
+      return () => {
+        offSelectAll()
+        offDelete()
+        offBackspace()
+        ctx.layers.unregister('select-handles')
+        ctx.layers.unregister('drag-selection')
+      }
+    },
+  }
 }
 ```
 
@@ -393,36 +411,48 @@ export const snapPlugin: FeaturePlugin = {
 // apps/web/src/main.tsx
 import { createApp } from '@usketch/core'
 
-// コアプラグイン（MVPに必須）
-import { selectToolPlugin } from 'usketch-plugin-tool-select'
-import { panToolPlugin } from 'usketch-plugin-tool-pan'
-import { rectPlugin } from 'usketch-plugin-shape-rect'
-import { ellipsePlugin } from 'usketch-plugin-shape-ellipse'
-import { freedrawPlugin } from 'usketch-plugin-shape-freedraw'
-import { textPlugin } from 'usketch-plugin-shape-text'
-import { gridBgPlugin } from 'usketch-plugin-bg-grid'
-import { snapPlugin } from 'usketch-plugin-snap'
-import { exportPlugin } from 'usketch-plugin-export'
+// コアプラグイン（MVPに必須）— 全て factory 関数として import
+import { createSelectToolPlugin } from 'usketch-plugin-tool-select'
+import { createPanToolPlugin } from 'usketch-plugin-tool-pan'
+import { createBasicShapePlugin } from 'usketch-plugin-shape-basic'
+import { createTextPlugin } from 'usketch-plugin-shape-text'
+import { createGridBgPlugin } from 'usketch-plugin-bg-grid'
+import { createSnapPlugin } from 'usketch-plugin-snap'
+import { createExportPlugin } from 'usketch-plugin-export'
 
-const app = createApp({
-  plugins: [
-    // ツール
-    selectToolPlugin,
-    panToolPlugin,
-    // シェイプ（ツール付き）
-    rectPlugin,
-    ellipsePlugin,
-    freedrawPlugin,
-    textPlugin,
-    // 背景
-    gridBgPlugin,
-    // 機能
-    snapPlugin,
-    exportPlugin,
-  ],
-})
+// 重要: plugin 配列は useEffect 等の per-mount スコープで毎回組み立てる
+// （モジュールトップで const にすると StrictMode 二重マウントで instance が共有され危険）
+useEffect(() => {
+  let app: AppInstance | null = null
+  let cancelled = false
 
-app.mount(document.getElementById('root')!)
+  createApp({
+    plugins: [
+      // ツール
+      createSelectToolPlugin(),
+      createPanToolPlugin(),
+      // シェイプ
+      createBasicShapePlugin(),
+      createTextPlugin(),
+      // 背景
+      createGridBgPlugin(),
+      // 機能
+      createSnapPlugin(),
+      createExportPlugin(),
+    ],
+  }).then((instance) => {
+    if (cancelled) {
+      instance.destroy()
+      return
+    }
+    app = instance
+  })
+
+  return () => {
+    cancelled = true
+    app?.destroy()
+  }
+}, [])
 ```
 
 ### 4.2 ライフサイクル
@@ -437,7 +467,8 @@ createApp({ plugins })
   │     ├─ ツール登録
   │     ├─ シェイプ登録
   │     ├─ コマンド登録
-  │     └─ イベント購読
+  │     ├─ イベント購読
+  │     └─ setup の戻り値 (teardown 関数) を per-instance に蓄積
   │
   ├─ 3. React ツリーのマウント
   │     ├─ Canvas コンポーネント
@@ -445,9 +476,12 @@ createApp({ plugins })
   │     ├─ Toolbar（登録されたツールを表示）
   │     └─ PropertyPanel（選択シェイプに応じたパネル表示）
   │
-  └─ [アンマウント時]
-      └─ 各プラグインの teardown() を呼び出し
+  └─ [destroy() 時 / アンマウント時]
+      ├─ destroyed フラグで idempotent 化 (2 回目以降の destroy() は no-op)
+      └─ 蓄積された teardown を LIFO 順 (逆順) で実行
 ```
+
+> setup が throw した場合、それまでに収集した teardown を LIFO 順でロールバック実行する（partial set-up を leak させない）。
 
 ### 4.3 動的ロード（将来対応）
 

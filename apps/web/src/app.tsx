@@ -10,30 +10,30 @@ import { createAiCopilotPlugin } from "@edv4h/usketch-plugin-ai-copilot";
 import { createAiImagePlugin } from "@edv4h/usketch-plugin-ai-image";
 import { createAiRecognizePlugin } from "@edv4h/usketch-plugin-ai-recognize";
 import { createAiVoicePlugin } from "@edv4h/usketch-plugin-ai-voice";
-import { dotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
-import { gridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
+import { createDotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
+import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
-import { domainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
-import { exportPlugin } from "@edv4h/usketch-plugin-export";
+import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
+import { createExportPlugin } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
-import { createLaserPlugin, laserPlugin } from "@edv4h/usketch-plugin-laser";
+import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
 import { createPresentationPlugin } from "@edv4h/usketch-plugin-presentation";
-import { basicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
-import { connectorPlugin } from "@edv4h/usketch-plugin-shape-connector";
-import { counterPlugin } from "@edv4h/usketch-plugin-shape-counter";
-import { framePlugin } from "@edv4h/usketch-plugin-shape-frame";
-import { freedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
-import { groupPlugin } from "@edv4h/usketch-plugin-shape-group";
-import { imageShapePlugin } from "@edv4h/usketch-plugin-shape-image";
-import { openUIShapePlugin } from "@edv4h/usketch-plugin-shape-openui";
-import { stickyPlugin } from "@edv4h/usketch-plugin-shape-sticky";
-import { textPlugin } from "@edv4h/usketch-plugin-shape-text";
-import { wireframePlugin } from "@edv4h/usketch-plugin-shape-wireframe";
+import { createBasicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
+import { createConnectorPlugin } from "@edv4h/usketch-plugin-shape-connector";
+import { createCounterPlugin } from "@edv4h/usketch-plugin-shape-counter";
+import { createFramePlugin } from "@edv4h/usketch-plugin-shape-frame";
+import { createFreedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
+import { createGroupPlugin } from "@edv4h/usketch-plugin-shape-group";
+import { createImageShapePlugin } from "@edv4h/usketch-plugin-shape-image";
+import { createOpenUIShapePlugin } from "@edv4h/usketch-plugin-shape-openui";
+import { createStickyPlugin } from "@edv4h/usketch-plugin-shape-sticky";
+import { createTextPlugin } from "@edv4h/usketch-plugin-shape-text";
+import { createWireframePlugin } from "@edv4h/usketch-plugin-shape-wireframe";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
-import { snapPlugin } from "@edv4h/usketch-plugin-snap";
-import { createSpotlightPlugin, spotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
+import { createSnapPlugin } from "@edv4h/usketch-plugin-snap";
+import { createSpotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
 import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import {
 	createDivergenceTracker,
@@ -44,10 +44,10 @@ import {
 	createOpenUIToolPlugin,
 	createServerProxyProvider,
 } from "@edv4h/usketch-plugin-tool-openui";
-import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
-import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
-import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
-import { createWhistlePlugin, whistlePlugin } from "@edv4h/usketch-plugin-whistle";
+import { createPanToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
+import { createSelectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
+import { createViewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
+import { createWhistlePlugin } from "@edv4h/usketch-plugin-whistle";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import {
@@ -90,34 +90,36 @@ function readPresentationMode(search: string): PresentationMode {
 	return params.get("mode") === "present" ? "present" : "edit";
 }
 
-const basePlugins: UsketchPlugin[] = [
-	gridBgPlugin,
-	dotsBgPlugin,
-	selectToolPlugin,
-	panToolPlugin,
-	viewportNavPlugin,
-	basicShapePlugin,
-	groupPlugin,
-	framePlugin,
-	connectorPlugin,
-	freedrawPlugin,
-	textPlugin,
-	stickyPlugin,
-	imageShapePlugin,
-	counterPlugin,
-	wireframePlugin,
-	domainDesignPlugin,
-	snapPlugin,
-	exportPlugin,
-	createGpuRendererPlugin(),
-	createDomRendererPlugin(),
-];
+function createBasePlugins(): UsketchPlugin[] {
+	return [
+		createGridBgPlugin(),
+		createDotsBgPlugin(),
+		createSelectToolPlugin(),
+		createPanToolPlugin(),
+		createViewportNavPlugin(),
+		createBasicShapePlugin(),
+		createGroupPlugin(),
+		createFramePlugin(),
+		createConnectorPlugin(),
+		createFreedrawPlugin(),
+		createTextPlugin(),
+		createStickyPlugin(),
+		createImageShapePlugin(),
+		createCounterPlugin(),
+		createWireframePlugin(),
+		createDomainDesignPlugin(),
+		createSnapPlugin(),
+		createExportPlugin(),
+		createGpuRendererPlugin(),
+		createDomRendererPlugin(),
+	];
+}
 
 async function loadPlugins(extra: UsketchPlugin[]): Promise<UsketchPlugin[]> {
-	const plugins = [...basePlugins, ...extra];
+	const plugins = [...createBasePlugins(), ...extra];
 	if (import.meta.env.DEV) {
-		const { debugHudPlugin } = await import("@edv4h/usketch-plugin-debug-hud");
-		return [...plugins, debugHudPlugin];
+		const { createDebugHudPlugin } = await import("@edv4h/usketch-plugin-debug-hud");
+		return [...plugins, createDebugHudPlugin()];
 	}
 	return plugins;
 }
@@ -253,15 +255,15 @@ export function App() {
 				boardId,
 				defaultModel: openuiModel,
 			});
-			extraPlugins.push(openUIShapePlugin);
+			extraPlugins.push(createOpenUIShapePlugin());
 			extraPlugins.push(createOpenUIToolPlugin({ provider: openuiProvider }));
 
 			extraPlugins.push(createWhistlePlugin(wsProvider));
 			extraPlugins.push(createActivityFeedPlugin({ wsProvider, boardId, apiUrl }));
 		} else {
-			extraPlugins.push(laserPlugin);
-			extraPlugins.push(spotlightPlugin);
-			extraPlugins.push(whistlePlugin);
+			extraPlugins.push(createLaserPlugin());
+			extraPlugins.push(createSpotlightPlugin());
+			extraPlugins.push(createWhistlePlugin());
 		}
 
 		// プレゼンテーション: ローカル/Cloud 共通で常にロードし、`?present=1` が付いた時だけ UI を出す。

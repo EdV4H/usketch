@@ -114,8 +114,6 @@ function VotingIcon() {
 }
 
 function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-voting",
 		name: "空間投票",
@@ -240,7 +238,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				},
 			});
 
-			cleanup = () => {
+			return () => {
 				unsubBroadcast?.();
 				unsubCreate();
 				unsubCast();
@@ -250,15 +248,9 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				polls.clear();
 			};
 		},
-
-		teardown() {
-			cleanup?.();
-		},
 	};
 }
 
-export function createVotingPlugin(wsProvider: WsProviderHandle): UsketchPlugin {
+export function createVotingPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 	return createPlugin(wsProvider);
 }
-
-export const votingPlugin: UsketchPlugin = createPlugin();

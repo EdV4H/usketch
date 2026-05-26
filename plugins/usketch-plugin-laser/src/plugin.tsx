@@ -246,8 +246,6 @@ function LaserIcon() {
 }
 
 function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-laser",
 		name: "レーザーポインタ",
@@ -352,23 +350,16 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				},
 			});
 
-			cleanup = () => {
+			return () => {
 				unsubBroadcast?.();
 				ctx.layers.unregister("laser");
 				strokeStore.strokes.clear();
 			};
 		},
-
-		teardown() {
-			cleanup?.();
-		},
 	};
 }
 
 /** WsProvider付きファクトリ（リアルタイム同期対応） */
-export function createLaserPlugin(wsProvider: WsProviderHandle): UsketchPlugin {
+export function createLaserPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 	return createPlugin(wsProvider);
 }
-
-/** ローカル専用 */
-export const laserPlugin: UsketchPlugin = createPlugin();
