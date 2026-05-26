@@ -1,5 +1,55 @@
 # @edv4h/usketch-plugin-sync-ywebsocket
 
+## 2.0.0
+
+### Major Changes
+
+- ee6fc3e: **BREAKING**: Plugin lifecycle reworked for React StrictMode safety. Fixes #609.
+
+  `UsketchPlugin.setup(ctx)` now returns the teardown function directly; the `teardown` property on `UsketchPlugin` has been removed. All plugins that previously exported a module-level singleton object (e.g. `selectToolPlugin`, `panToolPlugin`, `gridBgPlugin`) are now factory functions (`createSelectToolPlugin()`, `createPanToolPlugin()`, `createGridBgPlugin()`). Each `createApp` call now owns its own plugin instance and teardown closure, so a second mount cannot overwrite the first's cleanup state.
+
+  `createApp` collects per-instance teardowns and runs them in LIFO order on `destroy()`. `destroy()` is idempotent — repeated calls are no-ops. If a later plugin's `setup` throws, the teardowns collected so far roll back in LIFO order.
+
+  **Migration**:
+  1. Replace singleton imports with factory calls at the call site:
+
+     ```diff
+     - import { selectToolPlugin, panToolPlugin, gridBgPlugin } from "@edv4h/usketch-plugin-...";
+     + import { createSelectToolPlugin, createPanToolPlugin, createGridBgPlugin } from "@edv4h/usketch-plugin-...";
+
+       const app = await createApp({
+         store,
+     -   plugins: [selectToolPlugin, panToolPlugin, gridBgPlugin],
+     +   plugins: [createSelectToolPlugin(), createPanToolPlugin(), createGridBgPlugin()],
+       });
+     ```
+
+  2. When authoring a custom plugin, return the cleanup from `setup` instead of assigning it to `this.teardown`:
+     ```diff
+       setup(ctx) {
+         const off = ctx.events.on("…", handler);
+     -   (this as UsketchPlugin).teardown = () => off();
+     +   return () => off();
+       },
+     - teardown() { … },
+     ```
+  3. Build plugin arrays inside `useEffect` (or any per-mount scope), not at module level — even with factory functions, sharing a single instance across mounts undoes StrictMode safety.
+
+  Plugins that already shipped as `createXxxPlugin()` (e.g. `createDomRendererPlugin`, `createPresenceCursorPlugin`) keep their factory names; only the `teardown` property has moved to the `setup` return value.
+
+### Minor Changes
+
+- dcbba4d: Add `shouldSync` callback to `YwebsocketSyncOptions`.
+
+  `shouldSync(shape)` is consulted before each local `shape:added` / `shape:updated` is written to the Y.Map: returning `false` keeps the shape in the local store but blocks it from being persisted to or broadcast through the shared document. Local `shape:removed` events are gated on the same Y.Map — removals propagate only for ids actually present in the shared doc (locally-authored or observed from a remote update), so a host bridging in foreign shapes (e.g. tldraw → uSketch migration) doesn't scribble unrelated deletes into the shared doc. If `shouldSync` flips from `true` to `false` for an id this client had previously authored, the stale Y.Map entry is dropped on the next mutation; remote-origin entries are left alone (they belong to whoever wrote them). Defaults to `() => true`, fully backwards compatible.
+
+  Use case: bridging external state (e.g. a tldraw → uSketch migration) into the uSketch store, where some shapes are mirrored read-only and must not be written back to the shared document. Closes #606.
+
+### Patch Changes
+
+- Updated dependencies [ee6fc3e]
+  - @edv4h/usketch-shared@3.0.0
+
 ## 1.1.0
 
 ### Minor Changes
