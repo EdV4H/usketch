@@ -172,7 +172,7 @@ export function createBasicShapePlugin(): UsketchPlugin {
 					toolCtx.store.deleteShape(drawState.shapeId);
 				}
 				drawState = null;
-				toolCtx.store.setActiveToolId("select");
+				toolCtx.store.resetToDefaultTool();
 			}
 
 			ctx.tools.register("basic-shape-draw", {

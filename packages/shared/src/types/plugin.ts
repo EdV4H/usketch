@@ -457,6 +457,9 @@ export interface BoardStore {
 
 	getActiveToolId(): string;
 	setActiveToolId(id: string): void;
+	getDefaultToolId(): string;
+	setDefaultToolId(id: string): void;
+	resetToDefaultTool(): void;
 
 	getViewport(): Viewport;
 	setViewport(viewport: Viewport): void;

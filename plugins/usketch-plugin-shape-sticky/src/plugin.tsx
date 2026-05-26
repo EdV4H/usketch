@@ -603,7 +603,7 @@ export function createStickyPlugin(): UsketchPlugin {
 					}
 
 					drawState = null;
-					toolCtx.store.setActiveToolId("select");
+					toolCtx.store.resetToDefaultTool();
 				},
 			});
 

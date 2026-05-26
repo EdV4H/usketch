@@ -144,7 +144,7 @@ export function createWireframePlugin(): UsketchPlugin {
 
 				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 				toolCtx.store.setSelection([id]);
-				toolCtx.store.setActiveToolId("select");
+				toolCtx.store.resetToDefaultTool();
 			}
 
 			ctx.tools.register("wireframe-draw", {

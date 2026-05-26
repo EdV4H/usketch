@@ -561,7 +561,7 @@ export function createCommunityChatPlugin(options: CommunityChatOptions): Usketc
 						y: event.worldPoint.y - PIN_H / 2,
 					});
 					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
-					toolCtx.store.setActiveToolId("select");
+					toolCtx.store.resetToDefaultTool();
 				},
 			});
 

@@ -95,6 +95,7 @@ function createMockContext() {
 			addShape: vi.fn(),
 			deleteShape: vi.fn(),
 			setActiveToolId: vi.fn(),
+			resetToDefaultTool: vi.fn(),
 		},
 		commands: {
 			execute: vi.fn(),

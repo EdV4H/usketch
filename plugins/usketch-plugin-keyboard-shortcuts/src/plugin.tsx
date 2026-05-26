@@ -68,10 +68,8 @@ export function createKeyboardShortcutsPlugin(
 						store.clearSelection();
 						return;
 					}
-					// 4. Switch to select tool
-					if (store.getActiveToolId() !== "select") {
-						store.setActiveToolId("select");
-					}
+					// 4. Switch back to the default tool (no-op if already on it).
+					store.resetToDefaultTool();
 				}),
 			);
 

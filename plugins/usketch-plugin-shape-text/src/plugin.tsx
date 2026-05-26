@@ -349,7 +349,7 @@ export function createTextPlugin(): UsketchPlugin {
 					const shape = { ...defaults, y: defaults.y - defaults.height / 2 };
 					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 					toolCtx.store.setSelection([id]);
-					toolCtx.store.setActiveToolId("select");
+					toolCtx.store.resetToDefaultTool();
 					send({ type: "CREATE_SHAPE", shapeId: id });
 				},
 				onPointerMove() {},

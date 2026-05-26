@@ -337,7 +337,7 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 			});
 
 			const unsubEmptyClick = ctx.events.on("chat:empty-click", () => {
-				ctx.store.setActiveToolId("select");
+				ctx.store.resetToDefaultTool();
 			});
 
 			let wasActive = ctx.store.getActiveToolId() === TOOL_ID;

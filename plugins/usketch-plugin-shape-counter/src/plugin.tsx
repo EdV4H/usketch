@@ -283,7 +283,7 @@ export function createCounterPlugin(): UsketchPlugin {
 					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 				}
 				drawState = null;
-				toolCtx.store.setActiveToolId("select");
+				toolCtx.store.resetToDefaultTool();
 			}
 
 			ctx.tools.register("counter-draw", {

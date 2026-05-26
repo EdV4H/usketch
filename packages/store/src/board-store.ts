@@ -20,15 +20,19 @@ export interface BoardState {
 	shapes: Map<string, ShapeData>;
 	selection: Set<string>;
 	activeToolId: string;
+	defaultToolId: string;
 	viewport: Viewport;
 	styleSettings: ShapeStyle;
 }
+
+const INITIAL_DEFAULT_TOOL_ID = "select";
 
 export function createBoardStore(): BoardStore {
 	const state: BoardState = {
 		shapes: new Map(),
 		selection: new Set(),
-		activeToolId: "select",
+		activeToolId: INITIAL_DEFAULT_TOOL_ID,
+		defaultToolId: INITIAL_DEFAULT_TOOL_ID,
 		viewport: { x: 0, y: 0, zoom: 1 },
 		styleSettings: { ...DEFAULT_STYLE },
 	};
@@ -74,6 +78,13 @@ export function createBoardStore(): BoardStore {
 		for (const listener of mutationListeners) {
 			listener(event);
 		}
+	}
+
+	function setActiveToolId(id: string) {
+		if (state.activeToolId === id) return;
+		state.activeToolId = id;
+		notify();
+		notifyMutation("tool:changed", { id });
 	}
 
 	return {
@@ -230,11 +241,19 @@ export function createBoardStore(): BoardStore {
 
 		getActiveToolId: () => state.activeToolId,
 
-		setActiveToolId(id: string) {
-			if (state.activeToolId === id) return;
-			state.activeToolId = id;
+		setActiveToolId,
+
+		getDefaultToolId: () => state.defaultToolId,
+
+		setDefaultToolId(id: string) {
+			if (state.defaultToolId === id) return;
+			state.defaultToolId = id;
 			notify();
-			notifyMutation("tool:changed", { id });
+			notifyMutation("default-tool:changed", { id });
+		},
+
+		resetToDefaultTool() {
+			setActiveToolId(state.defaultToolId);
 		},
 
 		getViewport: () => state.viewport,
