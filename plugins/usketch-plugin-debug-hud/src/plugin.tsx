@@ -19,75 +19,72 @@ function formatEventLabel(event: string, data: unknown): string {
 	return event;
 }
 
-export const debugHudPlugin: UsketchPlugin = {
-	id: "debug-hud",
-	name: "Debug HUD",
+export function createDebugHudPlugin(): UsketchPlugin {
+	return {
+		id: "debug-hud",
+		name: "Debug HUD",
 
-	setup(ctx) {
-		const fpsCounter = new FpsCounter();
-		const eventLogger = new EventLogger();
-		const pointerTracker = new PointerTracker();
-		const visibility = createVisibilityStore(VISIBILITY_STORAGE_KEY);
+		setup(ctx) {
+			const fpsCounter = new FpsCounter();
+			const eventLogger = new EventLogger();
+			const pointerTracker = new PointerTracker();
+			const visibility = createVisibilityStore(VISIBILITY_STORAGE_KEY);
 
-		// Start FPS counter
-		fpsCounter.start();
+			// Start FPS counter
+			fpsCounter.start();
 
-		// Monkey-patch emit to capture events. Push is skipped while the HUD is hidden
-		// so the drag path stays free of EventLogger work when no UI is observing it.
-		const originalEmit = ctx.events.emit.bind(ctx.events);
-		(ctx.events as { emit: EventBus["emit"] }).emit = <T = unknown>(event: string, data: T) => {
-			if (visibility.get() && !EXCLUDED_EVENTS.has(event)) {
-				const label = formatEventLabel(event, data);
-				eventLogger.push({ event: label, timestamp: Date.now() });
-			}
-			originalEmit(event, data);
-		};
+			// Monkey-patch emit to capture events. Push is skipped while the HUD is hidden
+			// so the drag path stays free of EventLogger work when no UI is observing it.
+			const originalEmit = ctx.events.emit.bind(ctx.events);
+			(ctx.events as { emit: EventBus["emit"] }).emit = <T = unknown>(event: string, data: T) => {
+				if (visibility.get() && !EXCLUDED_EVENTS.has(event)) {
+					const label = formatEventLabel(event, data);
+					eventLogger.push({ event: label, timestamp: Date.now() });
+				}
+				originalEmit(event, data);
+			};
 
-		// Track pointer coordinates
-		const unsubPointer = ctx.events.on<CanvasPointerEvent>("canvas:pointermove", (data) => {
-			pointerTracker.update(data.worldPoint, data.screenPoint);
-		});
+			// Track pointer coordinates
+			const unsubPointer = ctx.events.on<CanvasPointerEvent>("canvas:pointermove", (data) => {
+				pointerTracker.update(data.worldPoint, data.screenPoint);
+			});
 
-		// Pick up sync status tracker from window (set by app.tsx)
-		const syncStatus = (globalThis as Record<string, unknown>).__usketchSyncStatus as
-			| import("./sync-status-types.js").SyncStatusTrackerLike
-			| undefined;
+			// Pick up sync status tracker from window (set by app.tsx)
+			const syncStatus = (globalThis as Record<string, unknown>).__usketchSyncStatus as
+				| import("./sync-status-types.js").SyncStatusTrackerLike
+				| undefined;
 
-		// Register the fixed layer — always renders, visibility toggled inside component
-		ctx.layers.register({
-			id: "debug-hud",
-			order: 9999,
-			fixed: true,
-			render: (renderCtx) => (
-				<DebugHud
-					store={ctx.store}
-					fpsCounter={fpsCounter}
-					eventLogger={eventLogger}
-					pointerTracker={pointerTracker}
-					commands={ctx.commands}
-					tools={ctx.tools}
-					layers={ctx.layers}
-					shapes={ctx.shapes}
-					syncStatus={syncStatus}
-					events={ctx.events}
-					ctx={renderCtx}
-					visibility={visibility}
-				/>
-			),
-		});
+			// Register the fixed layer — always renders, visibility toggled inside component
+			ctx.layers.register({
+				id: "debug-hud",
+				order: 9999,
+				fixed: true,
+				render: (renderCtx) => (
+					<DebugHud
+						store={ctx.store}
+						fpsCounter={fpsCounter}
+						eventLogger={eventLogger}
+						pointerTracker={pointerTracker}
+						commands={ctx.commands}
+						tools={ctx.tools}
+						layers={ctx.layers}
+						shapes={ctx.shapes}
+						syncStatus={syncStatus}
+						events={ctx.events}
+						ctx={renderCtx}
+						visibility={visibility}
+					/>
+				),
+			});
 
-		// Store teardown in closure — no module-level state
-		this.teardown = () => {
-			fpsCounter.stop();
-			pointerTracker.dispose();
-			eventLogger.dispose();
-			(ctx.events as { emit: EventBus["emit"] }).emit = originalEmit;
-			unsubPointer();
-			ctx.layers.unregister("debug-hud");
-		};
-	},
-
-	teardown() {
-		// overwritten by setup()
-	},
-};
+			return () => {
+				fpsCounter.stop();
+				pointerTracker.dispose();
+				eventLogger.dispose();
+				(ctx.events as { emit: EventBus["emit"] }).emit = originalEmit;
+				unsubPointer();
+				ctx.layers.unregister("debug-hud");
+			};
+		},
+	};
+}

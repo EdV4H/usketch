@@ -1,1 +1,1 @@
-export { selectToolPlugin } from "./plugin.js";
+export { createSelectToolPlugin } from "./plugin.js";

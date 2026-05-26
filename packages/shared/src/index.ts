@@ -28,6 +28,7 @@ export type {
 	LayerManager,
 	LayerRenderContext,
 	PluginContext,
+	PluginTeardown,
 	RenderTarget,
 	SelectionForeground,
 	SelectionForegroundRegistry,

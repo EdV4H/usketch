@@ -91,213 +91,215 @@ function SnapGuideOverlay({ viewport }: SnapGuideOverlayProps) {
 
 // ── Plugin ──
 
-export const snapPlugin: UsketchPlugin = {
-	id: "usketch-plugin-snap",
-	name: "スナップ",
+export function createSnapPlugin(): UsketchPlugin {
+	return {
+		id: "usketch-plugin-snap",
+		name: "スナップ",
 
-	setup(ctx: PluginContext) {
-		const settings: SnapSettings = {
-			enabled: true,
-			threshold: DEFAULT_SNAP_THRESHOLD,
-			edgeSnap: true,
-			centerSnap: true,
-			viewportOnly: true,
-			guideStyle: { ...DEFAULT_GUIDE_STYLE },
-		};
+		setup(ctx: PluginContext) {
+			const settings: SnapSettings = {
+				enabled: true,
+				threshold: DEFAULT_SNAP_THRESHOLD,
+				edgeSnap: true,
+				centerSnap: true,
+				viewportOnly: true,
+				guideStyle: { ...DEFAULT_GUIDE_STYLE },
+			};
 
-		// Sync initial guide style to shared state
-		setState({ guideStyle: settings.guideStyle });
+			// Sync initial guide style to shared state
+			setState({ guideStyle: settings.guideStyle });
 
-		let pointerDown = false;
-		let altKeyHeld = false;
+			let pointerDown = false;
+			let altKeyHeld = false;
 
-		// Frame-level caches for multi-shape snap consistency
-		let frameSnapResult: SnapResult | null = null;
-		let frameCandidateBoxes: Map<string, BoundingBox> | null = null;
-		let frameId = 0;
+			// Frame-level caches for multi-shape snap consistency
+			let frameSnapResult: SnapResult | null = null;
+			let frameCandidateBoxes: Map<string, BoundingBox> | null = null;
+			let frameId = 0;
 
-		// ── Pointer tracking ──
+			// ── Pointer tracking ──
 
-		const offPointerDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", () => {
-			pointerDown = true;
-			frameSnapResult = null;
-			frameCandidateBoxes = null;
-			setState({ lines: [] });
-		});
-
-		const offPointerUp = ctx.events.on<CanvasPointerEvent>("canvas:pointerup", () => {
-			pointerDown = false;
-			frameSnapResult = null;
-			frameCandidateBoxes = null;
-			setState({ lines: [] });
-		});
-
-		// ── Alt key tracking ──
-
-		function onKeyDown(e: KeyboardEvent) {
-			if (e.key === "Alt") altKeyHeld = true;
-		}
-		function onKeyUp(e: KeyboardEvent) {
-			if (e.key === "Alt") altKeyHeld = false;
-		}
-		function onBlur() {
-			altKeyHeld = false;
-		}
-		window.addEventListener("keydown", onKeyDown);
-		window.addEventListener("keyup", onKeyUp);
-		window.addEventListener("blur", onBlur);
-
-		// ── Settings API via EventBus ──
-
-		const offConfigure = ctx.events.on<Partial<SnapSettings>>("snap:configure", (patch) => {
-			if (patch.guideStyle) {
-				settings.guideStyle = { ...settings.guideStyle, ...patch.guideStyle };
-				setState({ guideStyle: settings.guideStyle });
-			}
-			const { guideStyle: _gs, ...rest } = patch;
-			Object.assign(settings, rest);
-		});
-
-		const offGetSettings = ctx.events.on<(s: SnapSettings) => void>("snap:get-settings", (cb) => {
-			cb({ ...settings, guideStyle: { ...settings.guideStyle } });
-		});
-
-		// ── Monkey-patch store.updateShape ──
-
-		const originalUpdateShape = ctx.store.updateShape.bind(ctx.store);
-
-		function patchedUpdateShape(id: string, updates: Partial<ShapeData>) {
-			// Only snap during pointer-down, when enabled, and Alt not held
-			const shouldSnap =
-				pointerDown && settings.enabled && !altKeyHeld && hasPositionUpdate(updates);
-
-			if (!shouldSnap) {
-				originalUpdateShape(id, updates);
-				if (pointerDown && altKeyHeld) {
-					setState({ lines: [] });
-				}
-				return;
-			}
-
-			const shape = ctx.store.getShape(id);
-			if (!shape) {
-				originalUpdateShape(id, updates);
-				return;
-			}
-
-			// Skip snap for connectors — they have their own anchor/snap logic
-			if (shape.type === "connector") {
-				originalUpdateShape(id, updates);
+			const offPointerDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", () => {
+				pointerDown = true;
+				frameSnapResult = null;
+				frameCandidateBoxes = null;
 				setState({ lines: [] });
-				return;
-			}
+			});
 
-			// Skip snap for child shapes whose parent is being dragged (in selection).
-			// Children follow their parent's snap offset; snapping them individually
-			// causes jitter because each child gets its own snap delta.
-			const parentId = shape.parentId as string | undefined;
-			if (parentId) {
-				const sel = ctx.store.getSelection();
-				if (sel.has(parentId)) {
+			const offPointerUp = ctx.events.on<CanvasPointerEvent>("canvas:pointerup", () => {
+				pointerDown = false;
+				frameSnapResult = null;
+				frameCandidateBoxes = null;
+				setState({ lines: [] });
+			});
+
+			// ── Alt key tracking ──
+
+			function onKeyDown(e: KeyboardEvent) {
+				if (e.key === "Alt") altKeyHeld = true;
+			}
+			function onKeyUp(e: KeyboardEvent) {
+				if (e.key === "Alt") altKeyHeld = false;
+			}
+			function onBlur() {
+				altKeyHeld = false;
+			}
+			window.addEventListener("keydown", onKeyDown);
+			window.addEventListener("keyup", onKeyUp);
+			window.addEventListener("blur", onBlur);
+
+			// ── Settings API via EventBus ──
+
+			const offConfigure = ctx.events.on<Partial<SnapSettings>>("snap:configure", (patch) => {
+				if (patch.guideStyle) {
+					settings.guideStyle = { ...settings.guideStyle, ...patch.guideStyle };
+					setState({ guideStyle: settings.guideStyle });
+				}
+				const { guideStyle: _gs, ...rest } = patch;
+				Object.assign(settings, rest);
+			});
+
+			const offGetSettings = ctx.events.on<(s: SnapSettings) => void>("snap:get-settings", (cb) => {
+				cb({ ...settings, guideStyle: { ...settings.guideStyle } });
+			});
+
+			// ── Monkey-patch store.updateShape ──
+
+			const originalUpdateShape = ctx.store.updateShape.bind(ctx.store);
+
+			function patchedUpdateShape(id: string, updates: Partial<ShapeData>) {
+				// Only snap during pointer-down, when enabled, and Alt not held
+				const shouldSnap =
+					pointerDown && settings.enabled && !altKeyHeld && hasPositionUpdate(updates);
+
+				if (!shouldSnap) {
+					originalUpdateShape(id, updates);
+					if (pointerDown && altKeyHeld) {
+						setState({ lines: [] });
+					}
+					return;
+				}
+
+				const shape = ctx.store.getShape(id);
+				if (!shape) {
 					originalUpdateShape(id, updates);
 					return;
 				}
-			}
 
-			const isResize = isResizeUpdate(updates);
-
-			// Get current frame ID to cache snap results across multi-shape updates
-			const currentFrame = frameId;
-
-			// Build movingBox early so it can be used in both cached and fresh paths
-			const selection = ctx.store.getSelection();
-			const movingIds = selection.size > 0 && selection.has(id) ? selection : new Set([id]);
-
-			const movingBox = isResize
-				? getResizedBoundingBox(shape, updates)
-				: getMovingBoundingBox(
-						ctx.store,
-						movingIds,
-						"x" in updates && typeof updates.x === "number" ? updates.x - shape.x : 0,
-						"y" in updates && typeof updates.y === "number" ? updates.y - shape.y : 0,
-					);
-
-			if (frameSnapResult && currentFrame === frameId) {
-				const snapped = isResize
-					? applySnapToResize(updates, frameSnapResult, shape, movingBox)
-					: applySnapToUpdates(updates, frameSnapResult);
-				originalUpdateShape(id, snapped);
-				return;
-			}
-
-			const candidateBoxes =
-				frameCandidateBoxes ??
-				getCandidateBoxes(
-					ctx.store,
-					ctx,
-					movingIds,
-					settings.viewportOnly ? ctx.store.getViewport() : null,
-				);
-			frameCandidateBoxes = candidateBoxes;
-
-			const movingOverrides = isResize
-				? { edgeSnap: settings.edgeSnap, centerSnap: false as const }
-				: undefined;
-			const edgeFilter = isResize ? getResizeEdgeFilter(shape, movingBox) : undefined;
-			const result = calculateSnap(
-				movingBox,
-				movingIds,
-				candidateBoxes,
-				settings,
-				movingOverrides,
-				edgeFilter,
-			);
-			frameSnapResult = result;
-
-			queueMicrotask(() => {
-				if (frameId === currentFrame) {
-					frameId++;
-					frameSnapResult = null;
-					frameCandidateBoxes = null;
+				// Skip snap for connectors — they have their own anchor/snap logic
+				if (shape.type === "connector") {
+					originalUpdateShape(id, updates);
+					setState({ lines: [] });
+					return;
 				}
+
+				// Skip snap for child shapes whose parent is being dragged (in selection).
+				// Children follow their parent's snap offset; snapping them individually
+				// causes jitter because each child gets its own snap delta.
+				const parentId = shape.parentId as string | undefined;
+				if (parentId) {
+					const sel = ctx.store.getSelection();
+					if (sel.has(parentId)) {
+						originalUpdateShape(id, updates);
+						return;
+					}
+				}
+
+				const isResize = isResizeUpdate(updates);
+
+				// Get current frame ID to cache snap results across multi-shape updates
+				const currentFrame = frameId;
+
+				// Build movingBox early so it can be used in both cached and fresh paths
+				const selection = ctx.store.getSelection();
+				const movingIds = selection.size > 0 && selection.has(id) ? selection : new Set([id]);
+
+				const movingBox = isResize
+					? getResizedBoundingBox(shape, updates)
+					: getMovingBoundingBox(
+							ctx.store,
+							movingIds,
+							"x" in updates && typeof updates.x === "number" ? updates.x - shape.x : 0,
+							"y" in updates && typeof updates.y === "number" ? updates.y - shape.y : 0,
+						);
+
+				if (frameSnapResult && currentFrame === frameId) {
+					const snapped = isResize
+						? applySnapToResize(updates, frameSnapResult, shape, movingBox)
+						: applySnapToUpdates(updates, frameSnapResult);
+					originalUpdateShape(id, snapped);
+					return;
+				}
+
+				const candidateBoxes =
+					frameCandidateBoxes ??
+					getCandidateBoxes(
+						ctx.store,
+						ctx,
+						movingIds,
+						settings.viewportOnly ? ctx.store.getViewport() : null,
+					);
+				frameCandidateBoxes = candidateBoxes;
+
+				const movingOverrides = isResize
+					? { edgeSnap: settings.edgeSnap, centerSnap: false as const }
+					: undefined;
+				const edgeFilter = isResize ? getResizeEdgeFilter(shape, movingBox) : undefined;
+				const result = calculateSnap(
+					movingBox,
+					movingIds,
+					candidateBoxes,
+					settings,
+					movingOverrides,
+					edgeFilter,
+				);
+				frameSnapResult = result;
+
+				queueMicrotask(() => {
+					if (frameId === currentFrame) {
+						frameId++;
+						frameSnapResult = null;
+						frameCandidateBoxes = null;
+					}
+				});
+
+				const snapped = isResize
+					? applySnapToResize(updates, result, shape, movingBox)
+					: applySnapToUpdates(updates, result);
+				originalUpdateShape(id, snapped);
+
+				setState({ lines: result.lines });
+			}
+
+			ctx.store.updateShape = patchedUpdateShape;
+
+			// ── Register overlay guide layer (above shapes) ──
+
+			ctx.layers.register({
+				id: "snap-guides",
+				order: 90,
+				fixed: true,
+				render: (renderCtx) => <SnapGuideOverlay viewport={renderCtx.viewport} />,
 			});
 
-			const snapped = isResize
-				? applySnapToResize(updates, result, shape, movingBox)
-				: applySnapToUpdates(updates, result);
-			originalUpdateShape(id, snapped);
+			// ── Teardown ──
 
-			setState({ lines: result.lines });
-		}
-
-		ctx.store.updateShape = patchedUpdateShape;
-
-		// ── Register overlay guide layer (above shapes) ──
-
-		ctx.layers.register({
-			id: "snap-guides",
-			order: 90,
-			fixed: true,
-			render: (renderCtx) => <SnapGuideOverlay viewport={renderCtx.viewport} />,
-		});
-
-		// ── Teardown ──
-
-		(this as UsketchPlugin).teardown = () => {
-			offPointerDown();
-			offPointerUp();
-			offConfigure();
-			offGetSettings();
-			window.removeEventListener("keydown", onKeyDown);
-			window.removeEventListener("keyup", onKeyUp);
-			window.removeEventListener("blur", onBlur);
-			ctx.store.updateShape = originalUpdateShape;
-			ctx.layers.unregister("snap-guides");
-			setState({ lines: [], guideStyle: { ...DEFAULT_GUIDE_STYLE } });
-			stateListeners.clear();
-		};
-	},
-};
+			return () => {
+				offPointerDown();
+				offPointerUp();
+				offConfigure();
+				offGetSettings();
+				window.removeEventListener("keydown", onKeyDown);
+				window.removeEventListener("keyup", onKeyUp);
+				window.removeEventListener("blur", onBlur);
+				ctx.store.updateShape = originalUpdateShape;
+				ctx.layers.unregister("snap-guides");
+				setState({ lines: [], guideStyle: { ...DEFAULT_GUIDE_STYLE } });
+				stateListeners.clear();
+			};
+		},
+	};
+}
 
 // ── Helpers ──
 

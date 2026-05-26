@@ -13,8 +13,6 @@ import type { SidePanelRegisterEvent, SidePanelUnregisterEvent } from "./types.j
  * 明示することを推奨。
  */
 export function createSidePanelPlugin(): UsketchPlugin {
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-side-panel",
 		name: "Side Panel",
@@ -44,15 +42,11 @@ export function createSidePanelPlugin(): UsketchPlugin {
 				render: () => <SidePanelUI events={ctx.events} tabStore={tabStore} />,
 			});
 
-			cleanup = () => {
+			return () => {
 				unsubRegister();
 				unsubUnregister();
 				ctx.layers.unregister("side-panel");
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

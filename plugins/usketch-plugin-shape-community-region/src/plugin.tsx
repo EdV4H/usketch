@@ -172,13 +172,13 @@ function RegionCard({ data: shape }: { data: ShapeData }) {
 }
 
 export function createCommunityRegionPlugin(options?: CommunityRegionPluginOptions): UsketchPlugin {
-	const cleanups: (() => void)[] = [];
-
 	return {
 		id: "usketch-plugin-shape-community-region",
 		name: "Community Region",
 
 		setup(ctx: PluginContext) {
+			const cleanups: (() => void)[] = [];
+
 			ctx.shapes.register("community-region", {
 				renderTarget: "html",
 
@@ -248,11 +248,11 @@ export function createCommunityRegionPlugin(options?: CommunityRegionPluginOptio
 				});
 				cleanups.push(unsub);
 			}
-		},
 
-		teardown() {
-			for (const fn of cleanups) fn();
-			cleanups.length = 0;
+			return () => {
+				for (const fn of cleanups) fn();
+				cleanups.length = 0;
+			};
 		},
 	};
 }

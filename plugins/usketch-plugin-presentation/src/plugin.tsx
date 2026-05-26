@@ -59,14 +59,13 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 	const subscribeMode = opts.subscribeMode ?? defaultSubscribeMode;
 	const navigateToBoard = opts.navigateToBoard ?? defaultNavigateToBoard;
 	const getViewportSize = opts.getViewportSize ?? defaultGetViewportSize;
-	let nav: SlideNavigator | null = null;
-	const unregisters: Array<() => void> = [];
 
 	return {
 		id: "presentation",
 		name: "Presentation",
 		setup(ctx: PluginContext) {
-			nav = new SlideNavigator(ctx.store, getViewportSize);
+			let nav: SlideNavigator | null = new SlideNavigator(ctx.store, getViewportSize);
+			const unregisters: Array<() => void> = [];
 			const navRef = nav;
 
 			// 発表モード中のみ動くショートカット群（mode を実行時に毎回評価する）
@@ -167,12 +166,13 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 				},
 			});
 			unregisters.push(() => ctx.layers.unregister(layerId));
-		},
-		teardown() {
-			for (const u of unregisters) u();
-			unregisters.length = 0;
-			nav?.destroy();
-			nav = null;
+
+			return () => {
+				for (const u of unregisters) u();
+				unregisters.length = 0;
+				nav?.destroy();
+				nav = null;
+			};
 		},
 	};
 }

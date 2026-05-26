@@ -64,32 +64,30 @@ function GridBackground({ viewport }: { viewport: LayerRenderContext["viewport"]
 
 // ── Plugin ──
 
-export const gridBgPlugin: UsketchPlugin = {
-	id: "usketch-plugin-bg-grid",
-	name: "Grid Background",
+export function createGridBgPlugin(): UsketchPlugin {
+	return {
+		id: "usketch-plugin-bg-grid",
+		name: "Grid Background",
 
-	setup(ctx: PluginContext) {
-		// Reset to default visible state
-		visible = true;
+		setup(ctx: PluginContext) {
+			// Reset to default visible state
+			visible = true;
 
-		ctx.layers.register({
-			id: "bg-grid",
-			order: 10,
-			fixed: true,
-			render: (renderCtx) => <GridBackground viewport={renderCtx.viewport} />,
-		});
+			ctx.layers.register({
+				id: "bg-grid",
+				order: 10,
+				fixed: true,
+				render: (renderCtx) => <GridBackground viewport={renderCtx.viewport} />,
+			});
 
-		const off = ctx.events.on<{ type: string }>("bg:set", ({ type }) => {
-			setVisible(type === "grid");
-		});
+			const off = ctx.events.on<{ type: string }>("bg:set", ({ type }) => {
+				setVisible(type === "grid");
+			});
 
-		(this as unknown as { _cleanup: () => void })._cleanup = () => {
-			off();
-			ctx.layers.unregister("bg-grid");
-		};
-	},
-
-	teardown() {
-		(this as unknown as { _cleanup?: () => void })._cleanup?.();
-	},
-};
+			return () => {
+				off();
+				ctx.layers.unregister("bg-grid");
+			};
+		},
+	};
+}

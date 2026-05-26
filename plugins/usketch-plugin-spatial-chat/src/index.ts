@@ -1,1 +1,1 @@
-export { createSpatialChatPlugin, spatialChatPlugin } from "./plugin.js";
+export { createSpatialChatPlugin } from "./plugin.js";

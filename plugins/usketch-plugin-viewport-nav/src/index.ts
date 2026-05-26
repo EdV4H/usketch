@@ -1,1 +1,1 @@
-export { viewportNavPlugin } from "./plugin.js";
+export { createViewportNavPlugin } from "./plugin.js";

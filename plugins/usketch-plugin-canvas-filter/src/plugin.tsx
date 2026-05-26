@@ -203,36 +203,36 @@ export function createFilterPlugin(_options?: FilterPluginOptions): UsketchPlugi
 					},
 				});
 			}
-		},
 
-		teardown() {
-			for (const cleanup of cleanups) cleanup();
-			cleanups.length = 0;
+			return () => {
+				for (const cleanup of cleanups) cleanup();
+				cleanups.length = 0;
 
-			if (ctx) {
-				ctx.layers.unregister("filter-palette");
-				ctx.layers.unregister("filter-indicator");
-				ctx.layers.unregister("time-travel-banner");
-				ctx.events.emit("side-panel:unregister-tab", { tabId: "time-travel" });
+				if (ctx) {
+					ctx.layers.unregister("filter-palette");
+					ctx.layers.unregister("filter-indicator");
+					ctx.layers.unregister("time-travel-banner");
+					ctx.events.emit("side-panel:unregister-tab", { tabId: "time-travel" });
 
-				if (currentConfig) {
-					ctx.events.emit<FilterChangedEvent>("filter:changed", {
-						predicate: null,
-						config: null,
-					});
+					if (currentConfig) {
+						ctx.events.emit<FilterChangedEvent>("filter:changed", {
+							predicate: null,
+							config: null,
+						});
+					}
+
+					if (timeTravelShapes) {
+						ctx.events.emit("time-travel:exit", {});
+					}
 				}
 
-				if (timeTravelShapes) {
-					ctx.events.emit("time-travel:exit", {});
-				}
-			}
-
-			currentConfig = null;
-			paletteOpen = false;
-			timeTravelTs = null;
-			timeTravelShapes = null;
-			listeners.clear();
-			ctx = null;
+				currentConfig = null;
+				paletteOpen = false;
+				timeTravelTs = null;
+				timeTravelShapes = null;
+				listeners.clear();
+				ctx = null;
+			};
 		},
 	};
 }

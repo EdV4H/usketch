@@ -30,7 +30,6 @@ Rules:
 export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 	const { apiUrl, boardId, extraHeaders, debounceMs = 2000, maxSuggestions = 3 } = options;
 
-	let cleanup: (() => void) | undefined;
 	let enabled = options.enabled ?? false;
 
 	return {
@@ -298,7 +297,7 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 				}
 			});
 
-			cleanup = () => {
+			return () => {
 				if (debounceTimer) clearTimeout(debounceTimer);
 				abortActiveRequest();
 				dismissAll();
@@ -310,10 +309,6 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 				const styleEl = document.getElementById(STYLE_ID);
 				if (styleEl) styleEl.remove();
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

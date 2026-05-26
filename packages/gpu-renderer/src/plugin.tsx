@@ -7,7 +7,6 @@ export interface GpuRendererPluginOptions {
 
 export function createGpuRendererPlugin(options?: GpuRendererPluginOptions): UsketchPlugin {
 	const mode = options?.mode ?? "auto";
-	let cleanup: (() => void) | undefined;
 
 	return {
 		id: "usketch-gpu-renderer",
@@ -31,13 +30,9 @@ export function createGpuRendererPlugin(options?: GpuRendererPluginOptions): Usk
 				),
 			});
 
-			cleanup = () => {
+			return () => {
 				ctx.layers.unregister("gpu-shapes");
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

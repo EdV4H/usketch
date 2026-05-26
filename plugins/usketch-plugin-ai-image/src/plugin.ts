@@ -5,7 +5,6 @@ import type { ImageOptions } from "./types.js";
 
 export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 	const { maxSizeMB = 4, maxDimension = 2048 } = options;
-	let cleanup: (() => void) | undefined;
 
 	return {
 		id: "usketch-plugin-ai-image",
@@ -97,13 +96,9 @@ export function createAiImagePlugin(options: ImageOptions): UsketchPlugin {
 			// owns the explicit `image:upload` event (file picker entry point).
 			const unsubUpload = ctx.events.on("image:upload", handleUpload);
 
-			cleanup = () => {
+			return () => {
 				unsubUpload();
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

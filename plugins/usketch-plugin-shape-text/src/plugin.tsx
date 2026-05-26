@@ -256,114 +256,116 @@ function TextIcon() {
 
 // ── Plugin ──
 
-export const textPlugin: UsketchPlugin = {
-	id: "usketch-plugin-shape-text",
-	name: "テキスト",
+export function createTextPlugin(): UsketchPlugin {
+	return {
+		id: "usketch-plugin-shape-text",
+		name: "テキスト",
 
-	setup(ctx: PluginContext) {
-		// ── State Machine ──
-		const service = createTextEditingService(ctx);
-		const { send, matches, stop: stopMachine } = service;
+		setup(ctx: PluginContext) {
+			// ── State Machine ──
+			const service = createTextEditingService(ctx);
+			const { send, matches, stop: stopMachine } = service;
 
-		// ── CustomEvent listeners ──
-		const onTextInput = (e: Event) => {
-			const { id, text, scrollHeight } = (e as CustomEvent).detail;
-			send({ type: "TEXT_INPUT", id, text, scrollHeight });
-		};
+			// ── CustomEvent listeners ──
+			const onTextInput = (e: Event) => {
+				const { id, text, scrollHeight } = (e as CustomEvent).detail;
+				send({ type: "TEXT_INPUT", id, text, scrollHeight });
+			};
 
-		const onTextBlur = (e: Event) => {
-			const { id } = (e as CustomEvent).detail;
-			requestAnimationFrame(() => {
-				send({ type: "TEXT_BLUR", id });
-			});
-		};
+			const onTextBlur = (e: Event) => {
+				const { id } = (e as CustomEvent).detail;
+				requestAnimationFrame(() => {
+					send({ type: "TEXT_BLUR", id });
+				});
+			};
 
-		const onTextEscape = (e: Event) => {
-			const { id } = (e as CustomEvent).detail;
-			send({ type: "TEXT_ESCAPE", id });
-		};
+			const onTextEscape = (e: Event) => {
+				const { id } = (e as CustomEvent).detail;
+				send({ type: "TEXT_ESCAPE", id });
+			};
 
-		window.addEventListener("usketch:text-input", onTextInput);
-		window.addEventListener("usketch:text-blur", onTextBlur);
-		window.addEventListener("usketch:text-escape", onTextEscape);
+			window.addEventListener("usketch:text-input", onTextInput);
+			window.addEventListener("usketch:text-blur", onTextBlur);
+			window.addEventListener("usketch:text-escape", onTextEscape);
 
-		// ── Global pointerdown to exit edit mode on outside click ──
-		const onWindowPointerDown = (e: PointerEvent) => {
-			if (!matches("editing")) return;
-			// If the click target is inside the editing contentEditable, ignore
-			// e.target can be a Text node, so walk up to nearest Element
-			const target = e.target instanceof Element ? e.target : (e.target as Node).parentElement;
-			if (target?.closest("[contenteditable=true]")) return;
-			send({ type: "OUTSIDE_CLICK" });
-		};
-		window.addEventListener("pointerdown", onWindowPointerDown, true);
+			// ── Global pointerdown to exit edit mode on outside click ──
+			const onWindowPointerDown = (e: PointerEvent) => {
+				if (!matches("editing")) return;
+				// If the click target is inside the editing contentEditable, ignore
+				// e.target can be a Text node, so walk up to nearest Element
+				const target = e.target instanceof Element ? e.target : (e.target as Node).parentElement;
+				if (target?.closest("[contenteditable=true]")) return;
+				send({ type: "OUTSIDE_CLICK" });
+			};
+			window.addEventListener("pointerdown", onWindowPointerDown, true);
 
-		// ── Double-click detection via EventBus ──
-		const offPointerDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
-			// Find text shape under pointer
-			const shapes = ctx.store.getShapes();
-			let hitShapeId: string | null = null;
-			for (const [id, shape] of shapes) {
-				if (shape.type === "text" && hitTest(shape, event.worldPoint)) {
-					hitShapeId = id;
+			// ── Double-click detection via EventBus ──
+			const offPointerDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
+				// Find text shape under pointer
+				const shapes = ctx.store.getShapes();
+				let hitShapeId: string | null = null;
+				for (const [id, shape] of shapes) {
+					if (shape.type === "text" && hitTest(shape, event.worldPoint)) {
+						hitShapeId = id;
+					}
 				}
-			}
-			send({ type: "POINTER_DOWN", shapeId: hitShapeId });
-		});
+				send({ type: "POINTER_DOWN", shapeId: hitShapeId });
+			});
 
-		// ── Selection change monitoring ──
-		const unsubscribe = ctx.store.subscribe(() => {
-			const editingShapeId = service.context.editingShapeId;
-			if (!editingShapeId) return;
-			const selection = ctx.store.getSelection();
-			if (!selection.has(editingShapeId)) {
-				send({ type: "DESELECTED" });
-			}
-		});
+			// ── Selection change monitoring ──
+			const unsubscribe = ctx.store.subscribe(() => {
+				const editingShapeId = service.context.editingShapeId;
+				if (!editingShapeId) return;
+				const selection = ctx.store.getSelection();
+				if (!selection.has(editingShapeId)) {
+					send({ type: "DESELECTED" });
+				}
+			});
 
-		// ── Shape registration ──
-		ctx.shapes.register("text", {
-			render,
-			getBounds,
-			hitTest: withRotation(hitTest),
-			resize,
-			createDefault,
-			renderTarget: "html",
-			minSize: { width: 40, height: 24 },
-			simplifiedComponent: SimplifiedText,
-			serializeForAi,
-			debugFields,
-		});
+			// ── Shape registration ──
+			ctx.shapes.register("text", {
+				render,
+				getBounds,
+				hitTest: withRotation(hitTest),
+				resize,
+				createDefault,
+				renderTarget: "html",
+				minSize: { width: 40, height: 24 },
+				simplifiedComponent: SimplifiedText,
+				serializeForAi,
+				debugFields,
+			});
 
-		// ── Draw tool registration ──
-		ctx.tools.register("text-draw", {
-			icon: TextIcon,
-			cursor: "text",
-			shortcut: "t",
-			order: 25,
-			onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
-				const id = generateId();
-				const defaults = createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
-				// Anchor: left-center (shift Y up by half height)
-				const shape = { ...defaults, y: defaults.y - defaults.height / 2 };
-				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
-				toolCtx.store.setSelection([id]);
-				toolCtx.store.setActiveToolId("select");
-				send({ type: "CREATE_SHAPE", shapeId: id });
-			},
-			onPointerMove() {},
-			onPointerUp() {},
-		});
+			// ── Draw tool registration ──
+			ctx.tools.register("text-draw", {
+				icon: TextIcon,
+				cursor: "text",
+				shortcut: "t",
+				order: 25,
+				onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+					const id = generateId();
+					const defaults = createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
+					// Anchor: left-center (shift Y up by half height)
+					const shape = { ...defaults, y: defaults.y - defaults.height / 2 };
+					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+					toolCtx.store.setSelection([id]);
+					toolCtx.store.setActiveToolId("select");
+					send({ type: "CREATE_SHAPE", shapeId: id });
+				},
+				onPointerMove() {},
+				onPointerUp() {},
+			});
 
-		// ── Teardown ──
-		(this as UsketchPlugin).teardown = () => {
-			stopMachine();
-			window.removeEventListener("usketch:text-input", onTextInput);
-			window.removeEventListener("usketch:text-blur", onTextBlur);
-			window.removeEventListener("usketch:text-escape", onTextEscape);
-			window.removeEventListener("pointerdown", onWindowPointerDown, true);
-			offPointerDown();
-			unsubscribe();
-		};
-	},
-};
+			// ── Teardown ──
+			return () => {
+				stopMachine();
+				window.removeEventListener("usketch:text-input", onTextInput);
+				window.removeEventListener("usketch:text-blur", onTextBlur);
+				window.removeEventListener("usketch:text-escape", onTextEscape);
+				window.removeEventListener("pointerdown", onWindowPointerDown, true);
+				offPointerDown();
+				unsubscribe();
+			};
+		},
+	};
+}

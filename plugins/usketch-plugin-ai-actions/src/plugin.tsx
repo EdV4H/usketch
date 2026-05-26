@@ -17,10 +17,10 @@ export function createAiActionsPlugin(options: AiActionsOptions): UsketchPlugin 
 				fixed: true,
 				render: () => <ActionBar store={ctx.store} events={ctx.events} boardId={options.boardId} />,
 			});
-		},
 
-		teardown() {
-			// Layer is automatically cleaned up when the app is destroyed
+			return () => {
+				ctx.layers.unregister("ai-action-bar");
+			};
 		},
 	};
 }

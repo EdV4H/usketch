@@ -1,1 +1,1 @@
-export { groupPlugin } from "./plugin.js";
+export { createGroupPlugin } from "./plugin.js";

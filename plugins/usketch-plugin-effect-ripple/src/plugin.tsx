@@ -72,8 +72,6 @@ function injectStyle() {
 }
 
 function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-effect-ripple",
 		name: "リップルエフェクト",
@@ -146,21 +144,14 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				onPointerDown,
 			});
 
-			cleanup = () => {
+			return () => {
 				unsubBroadcast?.();
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }
 
 /** WsProvider付きファクトリ（リアルタイム同期対応） */
-export function createRippleEffectPlugin(wsProvider: WsProviderHandle): UsketchPlugin {
+export function createRippleEffectPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 	return createPlugin(wsProvider);
 }
-
-/** ローカル専用（後方互換） */
-export const rippleEffectPlugin: UsketchPlugin = createPlugin();

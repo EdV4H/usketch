@@ -3,32 +3,32 @@ import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
 import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
 import { createAvatarPlugin } from "@edv4h/usketch-plugin-avatar";
-import { dotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
-import { gridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
+import { createDotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
+import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createBoardInfoPanelPlugin } from "@edv4h/usketch-plugin-board-info-panel";
 import { createFilterPlugin } from "@edv4h/usketch-plugin-canvas-filter";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createCommunityChatPlugin } from "@edv4h/usketch-plugin-community-chat";
-import { createRippleEffectPlugin, rippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
+import { createRippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createKeyboardShortcutsPlugin } from "@edv4h/usketch-plugin-keyboard-shortcuts";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
-import { createReactionsPlugin, reactionsPlugin } from "@edv4h/usketch-plugin-reactions";
+import { createReactionsPlugin } from "@edv4h/usketch-plugin-reactions";
 import {
 	type BoardPortalShapeData,
 	createBoardPortalPlugin,
 } from "@edv4h/usketch-plugin-shape-board-portal";
-import { groupPlugin } from "@edv4h/usketch-plugin-shape-group";
-import { islandPlugin } from "@edv4h/usketch-plugin-shape-island";
+import { createGroupPlugin } from "@edv4h/usketch-plugin-shape-group";
+import { createIslandPlugin } from "@edv4h/usketch-plugin-shape-island";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
-import { createSpatialChatPlugin, spatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
-import { createSpotlightPlugin, spotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
+import { createSpatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
+import { createSpotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
 import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
-import { panToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
-import { selectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
-import { viewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
-import { createVotingPlugin, votingPlugin } from "@edv4h/usketch-plugin-voting";
-import { createWhistlePlugin, whistlePlugin } from "@edv4h/usketch-plugin-whistle";
+import { createPanToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
+import { createSelectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
+import { createViewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
+import { createVotingPlugin } from "@edv4h/usketch-plugin-voting";
+import { createWhistlePlugin } from "@edv4h/usketch-plugin-whistle";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { createWsProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
@@ -188,25 +188,25 @@ export function CommunityPage() {
 						}),
 					);
 				} else {
-					extraPlugins.push(rippleEffectPlugin);
-					extraPlugins.push(reactionsPlugin);
-					extraPlugins.push(spatialChatPlugin);
-					extraPlugins.push(votingPlugin);
-					extraPlugins.push(spotlightPlugin);
+					extraPlugins.push(createRippleEffectPlugin());
+					extraPlugins.push(createReactionsPlugin());
+					extraPlugins.push(createSpatialChatPlugin());
+					extraPlugins.push(createVotingPlugin());
+					extraPlugins.push(createSpotlightPlugin());
 					extraPlugins.push(createKeyboardShortcutsPlugin());
-					extraPlugins.push(whistlePlugin);
+					extraPlugins.push(createWhistlePlugin());
 					extraPlugins.push(createFilterPlugin());
 				}
 
 				const basePlugins: UsketchPlugin[] = [
-					gridBgPlugin,
-					dotsBgPlugin,
-					selectToolPlugin,
-					panToolPlugin,
-					viewportNavPlugin,
+					createGridBgPlugin(),
+					createDotsBgPlugin(),
+					createSelectToolPlugin(),
+					createPanToolPlugin(),
+					createViewportNavPlugin(),
 					portalPlugin,
-					groupPlugin,
-					islandPlugin,
+					createGroupPlugin(),
+					createIslandPlugin(),
 					createDomRendererPlugin(),
 				];
 

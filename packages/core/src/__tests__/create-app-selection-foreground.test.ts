@@ -46,15 +46,11 @@ function createStubStore(): BoardStore {
 }
 
 function defaultPlugin(entry: SelectionForeground): UsketchPlugin {
-	let off: (() => void) | undefined;
 	return {
 		id: "test-default-plugin",
 		name: "test default",
 		setup(ctx: PluginContext) {
-			off = ctx.ui.registerSelectionForeground(entry);
-		},
-		teardown() {
-			off?.();
+			return ctx.ui.registerSelectionForeground(entry);
 		},
 	};
 }

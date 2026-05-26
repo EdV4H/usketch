@@ -101,57 +101,63 @@ function WireframeIcon() {
 	);
 }
 
-export const wireframePlugin: UsketchPlugin = {
-	id: "usketch-plugin-shape-wireframe",
-	name: "ワイヤーフレーム",
+export function createWireframePlugin(): UsketchPlugin {
+	return {
+		id: "usketch-plugin-shape-wireframe",
+		name: "ワイヤーフレーム",
 
-	setup(ctx: PluginContext) {
-		// ── Register all wireframe shapes ──
-		for (const subtype of WIREFRAME_SUBTYPES) {
-			const renderer = SHAPE_RENDERERS[subtype.type];
-			const minSize = MIN_SIZES[subtype.type];
-			if (!renderer || !minSize) continue;
+		setup(ctx: PluginContext) {
+			// ── Register all wireframe shapes ──
+			for (const subtype of WIREFRAME_SUBTYPES) {
+				const renderer = SHAPE_RENDERERS[subtype.type];
+				const minSize = MIN_SIZES[subtype.type];
+				if (!renderer || !minSize) continue;
 
-			ctx.shapes.register(subtype.type, {
-				render: renderer,
-				getBounds,
-				hitTest: withRotation(hitTest),
-				resize: createResize(minSize.width, minSize.height),
-				createDefault: subtype.createDefault,
-				renderTarget: "html",
-				minSize,
-			});
-		}
+				ctx.shapes.register(subtype.type, {
+					render: renderer,
+					getBounds,
+					hitTest: withRotation(hitTest),
+					resize: createResize(minSize.width, minSize.height),
+					createDefault: subtype.createDefault,
+					renderTarget: "html",
+					minSize,
+				});
+			}
 
-		// ── Tool state ──
-		let currentSubtype = WIREFRAME_SUBTYPES[0].type;
+			// ── Tool state ──
+			let currentSubtype = WIREFRAME_SUBTYPES[0].type;
 
-		ctx.events.on<{ type: string }>("wireframe:select-subtype", (data) => {
-			currentSubtype = data.type;
-		});
-
-		function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
-			const subtype = WIREFRAME_SUBTYPES.find((s) => s.type === currentSubtype);
-			if (!subtype) return;
-
-			const id = generateId();
-			const shape = subtype.createDefault({
-				id,
-				x: event.worldPoint.x - subtype.defaultSize.width / 2,
-				y: event.worldPoint.y - subtype.defaultSize.height / 2,
+			const offSubtype = ctx.events.on<{ type: string }>("wireframe:select-subtype", (data) => {
+				currentSubtype = data.type;
 			});
 
-			toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
-			toolCtx.store.setSelection([id]);
-			toolCtx.store.setActiveToolId("select");
-		}
+			function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				const subtype = WIREFRAME_SUBTYPES.find((s) => s.type === currentSubtype);
+				if (!subtype) return;
 
-		ctx.tools.register("wireframe-draw", {
-			icon: WireframeIcon,
-			cursor: "crosshair",
-			shortcut: "w",
-			order: 100,
-			onPointerDown,
-		});
-	},
-};
+				const id = generateId();
+				const shape = subtype.createDefault({
+					id,
+					x: event.worldPoint.x - subtype.defaultSize.width / 2,
+					y: event.worldPoint.y - subtype.defaultSize.height / 2,
+				});
+
+				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+				toolCtx.store.setSelection([id]);
+				toolCtx.store.setActiveToolId("select");
+			}
+
+			ctx.tools.register("wireframe-draw", {
+				icon: WireframeIcon,
+				cursor: "crosshair",
+				shortcut: "w",
+				order: 100,
+				onPointerDown,
+			});
+
+			return () => {
+				offSubtype();
+			};
+		},
+	};
+}

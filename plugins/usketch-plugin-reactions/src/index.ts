@@ -1,1 +1,1 @@
-export { createReactionsPlugin, reactionsPlugin } from "./plugin.js";
+export { createReactionsPlugin } from "./plugin.js";

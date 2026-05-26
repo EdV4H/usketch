@@ -34,8 +34,6 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 	const { wsProvider } = options;
 	const { awareness } = wsProvider;
 
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-follow-me",
 		name: "Follow Me",
@@ -132,7 +130,7 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				}
 			});
 
-			cleanup = () => {
+			return () => {
 				awareness.off("change", onAwarenessChange);
 				unsubFollow();
 				unsubFollowEvent();
@@ -140,10 +138,6 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				ctx.layers.unregister("follow-banner");
 				followingClientId = null;
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

@@ -6,6 +6,7 @@ import type {
 	LayerManager,
 	LodPolicy,
 	PluginContext,
+	PluginTeardown,
 	RenderMode,
 	SelectionForeground,
 	SelectionForegroundRegistry,
@@ -131,13 +132,28 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		events.emit(event.type, event.payload);
 	});
 
-	// Register and setup plugins
+	// Register and setup plugins.
+	// Each plugin's setup may return a per-instance teardown closure; we collect
+	// them here and run them in LIFO order on destroy. If a later setup throws,
+	// we run the teardowns we already collected (also LIFO) so partially-set-up
+	// plugins don't leak state.
+	const teardowns: PluginTeardown[] = [];
 	try {
 		for (const plugin of plugins) {
 			pluginRegistry.register(plugin);
-			await plugin.setup(ctx);
+			const teardown = await plugin.setup(ctx);
+			if (typeof teardown === "function") {
+				teardowns.push(teardown);
+			}
 		}
 	} catch (error) {
+		for (const teardown of [...teardowns].reverse()) {
+			try {
+				await teardown();
+			} catch (teardownError) {
+				console.error("[usketch] plugin teardown failed during setup rollback", teardownError);
+			}
+		}
 		unsubMutation();
 		throw error;
 	}
@@ -159,6 +175,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		});
 	}
 
+	let destroyed = false;
 	return {
 		store,
 		layers,
@@ -174,8 +191,19 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		externalContent,
 		plugins: pluginRegistry.getAll(),
 		destroy() {
-			for (const plugin of plugins) {
-				plugin.teardown?.();
+			if (destroyed) return;
+			destroyed = true;
+			for (const teardown of [...teardowns].reverse()) {
+				try {
+					const result = teardown();
+					if (result && typeof (result as Promise<unknown>).catch === "function") {
+						(result as Promise<unknown>).catch((error) => {
+							console.error("[usketch] async plugin teardown rejected", error);
+						});
+					}
+				} catch (error) {
+					console.error("[usketch] plugin teardown threw", error);
+				}
 			}
 			lod.destroy();
 			unsubMutation();

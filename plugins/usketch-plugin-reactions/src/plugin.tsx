@@ -63,14 +63,13 @@ function injectStyle() {
 }
 
 function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
-	let cleanup: (() => void) | undefined;
-	let selectedEmoji = "👍";
-
 	return {
 		id: "usketch-plugin-reactions",
 		name: "リアクション",
 
 		setup(ctx: PluginContext) {
+			let selectedEmoji = "👍";
+
 			injectStyle();
 
 			ctx.transient.registerType("reaction", {
@@ -154,22 +153,15 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				unsubShortcuts.push(unsub);
 			}
 
-			cleanup = () => {
+			return () => {
 				unsubBroadcast?.();
 				for (const unsub of unsubShortcuts) unsub();
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }
 
 /** WsProvider付きファクトリ（リアルタイム同期対応） */
-export function createReactionsPlugin(wsProvider: WsProviderHandle): UsketchPlugin {
+export function createReactionsPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 	return createPlugin(wsProvider);
 }
-
-/** ローカル専用 */
-export const reactionsPlugin: UsketchPlugin = createPlugin();

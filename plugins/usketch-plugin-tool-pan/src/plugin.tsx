@@ -25,48 +25,50 @@ function PanIcon() {
 
 // ── Plugin ──
 
-export const panToolPlugin: UsketchPlugin = {
-	id: "usketch-plugin-tool-pan",
-	name: "パン",
+export function createPanToolPlugin(): UsketchPlugin {
+	return {
+		id: "usketch-plugin-tool-pan",
+		name: "パン",
 
-	setup(ctx: PluginContext) {
-		// ── Local pan state (scoped to this setup closure) ──
-		let panState: { lastPoint: Point } | null = null;
+		setup(ctx: PluginContext) {
+			// ── Local pan state (scoped to this setup closure) ──
+			let panState: { lastPoint: Point } | null = null;
 
-		function onPointerDown(_toolCtx: ToolContext, event: CanvasPointerEvent) {
-			panState = {
-				lastPoint: { x: event.screenPoint.x, y: event.screenPoint.y },
-			};
-		}
+			function onPointerDown(_toolCtx: ToolContext, event: CanvasPointerEvent) {
+				panState = {
+					lastPoint: { x: event.screenPoint.x, y: event.screenPoint.y },
+				};
+			}
 
-		function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
-			if (!panState) return;
+			function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				if (!panState) return;
 
-			const dx = event.screenPoint.x - panState.lastPoint.x;
-			const dy = event.screenPoint.y - panState.lastPoint.y;
+				const dx = event.screenPoint.x - panState.lastPoint.x;
+				const dy = event.screenPoint.y - panState.lastPoint.y;
 
-			toolCtx.store.panBy(dx, dy);
+				toolCtx.store.panBy(dx, dy);
 
-			panState.lastPoint = { x: event.screenPoint.x, y: event.screenPoint.y };
-		}
+				panState.lastPoint = { x: event.screenPoint.x, y: event.screenPoint.y };
+			}
 
-		function onPointerUp(_toolCtx: ToolContext, _event: CanvasPointerEvent) {
-			panState = null;
-		}
+			function onPointerUp(_toolCtx: ToolContext, _event: CanvasPointerEvent) {
+				panState = null;
+			}
 
-		function onDeactivate(_toolCtx: ToolContext) {
-			panState = null;
-		}
+			function onDeactivate(_toolCtx: ToolContext) {
+				panState = null;
+			}
 
-		ctx.tools.register("pan", {
-			icon: PanIcon,
-			cursor: "grab",
-			shortcut: "h",
-			order: 1,
-			onPointerDown,
-			onPointerMove,
-			onPointerUp,
-			onDeactivate,
-		});
-	},
-};
+			ctx.tools.register("pan", {
+				icon: PanIcon,
+				cursor: "grab",
+				shortcut: "h",
+				order: 1,
+				onPointerDown,
+				onPointerMove,
+				onPointerUp,
+				onDeactivate,
+			});
+		},
+	};
+}

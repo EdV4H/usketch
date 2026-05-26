@@ -51,8 +51,6 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 	const { wsProvider, userId, userName, userImage } = options;
 	const { awareness } = wsProvider;
 
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-avatar",
 		name: "アバター",
@@ -291,7 +289,7 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 			// 遅延チェックでavatar情報の更新を拾う
 			const delayedCheck = setTimeout(() => onAwarenessChange(), 2000);
 
-			cleanup = () => {
+			return () => {
 				clearTimeout(delayedCheck);
 				awareness.off("change", onAwarenessChange);
 				unsubStore();
@@ -299,10 +297,6 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				hideRadialMenu();
 				ctx.layers.unregister("avatar-self");
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

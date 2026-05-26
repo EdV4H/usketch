@@ -1,6 +1,6 @@
 import type { PluginContext, ShapeData, ShapeDefinition } from "@edv4h/usketch-shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { domainDesignPlugin } from "../plugin.js";
+import { createDomainDesignPlugin } from "../plugin.js";
 import { DOMAIN_TYPES } from "../types.js";
 
 type EventHandler = (data: unknown) => void;
@@ -115,7 +115,7 @@ function createMockContext() {
 	return { ctx, shapeRegistrations, toolRegistrations, eventHandlers };
 }
 
-describe("domainDesignPlugin", () => {
+describe("createDomainDesignPlugin", () => {
 	let restoreWindow: () => void;
 	beforeEach(() => {
 		restoreWindow = installWindowMock();
@@ -125,13 +125,15 @@ describe("domainDesignPlugin", () => {
 	});
 
 	it("has stable id and Japanese display name", () => {
-		expect(domainDesignPlugin.id).toBe("usketch-plugin-domain-design");
-		expect(domainDesignPlugin.name).toBe("ドメイン設計");
+		const plugin = createDomainDesignPlugin();
+		expect(plugin.id).toBe("usketch-plugin-domain-design");
+		expect(plugin.name).toBe("ドメイン設計");
 	});
 
 	it("registers 4 domain shape types (3 containers + 1 connector)", async () => {
 		const { ctx, shapeRegistrations } = createMockContext();
-		await domainDesignPlugin.setup(ctx);
+		const plugin = createDomainDesignPlugin();
+		const teardown = await plugin.setup(ctx);
 		const types = Array.from(shapeRegistrations.keys()).sort();
 		expect(types).toEqual(
 			[
@@ -141,32 +143,35 @@ describe("domainDesignPlugin", () => {
 				DOMAIN_TYPES.connector,
 			].sort(),
 		);
-		domainDesignPlugin.teardown?.();
+		teardown?.();
 	});
 
 	it("registers a property bar layer for domain-connector", async () => {
 		const { ctx } = createMockContext();
 		const layerRegister = ctx.layers.register as ReturnType<typeof vi.fn>;
-		await domainDesignPlugin.setup(ctx);
+		const plugin = createDomainDesignPlugin();
+		const teardown = await plugin.setup(ctx);
 		const layerIds = layerRegister.mock.calls.map((call: [{ id: string }]) => call[0].id);
 		expect(layerIds).toContain("domain-connector-properties");
-		domainDesignPlugin.teardown?.();
+		teardown?.();
 	});
 
 	it("registers the domain-draw tool with shortcut 'd'", async () => {
 		const { ctx, toolRegistrations } = createMockContext();
-		await domainDesignPlugin.setup(ctx);
+		const plugin = createDomainDesignPlugin();
+		const teardown = await plugin.setup(ctx);
 		const tool = toolRegistrations.get("domain-draw") as { shortcut?: string } | undefined;
 		expect(tool).toBeDefined();
 		expect(tool?.shortcut).toBe("d");
-		domainDesignPlugin.teardown?.();
+		teardown?.();
 	});
 
 	it("teardown unregisters listeners (does not throw on second call)", async () => {
 		const { ctx } = createMockContext();
-		await domainDesignPlugin.setup(ctx);
-		expect(() => domainDesignPlugin.teardown?.()).not.toThrow();
+		const plugin = createDomainDesignPlugin();
+		const teardown = await plugin.setup(ctx);
+		expect(() => teardown?.()).not.toThrow();
 		// 2 度目の teardown も安全であること
-		expect(() => domainDesignPlugin.teardown?.()).not.toThrow();
+		expect(() => teardown?.()).not.toThrow();
 	});
 });

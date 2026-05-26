@@ -12,7 +12,6 @@ export interface BoardInfoPanelPluginOptions {
 
 export function createBoardInfoPanelPlugin(options: BoardInfoPanelPluginOptions): UsketchPlugin {
 	const { apiUrl, extraHeaders, onOpenBoard } = options;
-	let cleanup: (() => void) | undefined;
 
 	return {
 		id: "usketch-plugin-board-info-panel",
@@ -79,14 +78,10 @@ export function createBoardInfoPanelPlugin(options: BoardInfoPanelPluginOptions)
 				checkSelection();
 			});
 
-			cleanup = () => {
+			return () => {
 				unsubMutation();
 				ctx.events.emit("side-panel:unregister-tab", { tabId: "board-info" });
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }

@@ -22,7 +22,6 @@ const UNCONFIRMED_OVERLAY_LAYER_ID = "unconfirmed-shapes-overlay";
 
 export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): YwebsocketSyncPlugin {
 	let handle: YwebsocketSyncHandle | null = null;
-	let unregisterOverlay: (() => void) | null = null;
 
 	const plugin: YwebsocketSyncPlugin = {
 		id: "usketch-plugin-sync-ywebsocket",
@@ -49,7 +48,6 @@ export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): Yweb
 					/>
 				),
 			});
-			unregisterOverlay = () => ctx.layers.unregister(UNCONFIRMED_OVERLAY_LAYER_ID);
 
 			// When `autoConnect: false`, `connect()` is never called, so awaiting
 			// `whenSynced` here would hang the entire plugin setup chain. Skip it
@@ -57,14 +55,13 @@ export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): Yweb
 			if (options.autoConnect !== false) {
 				await handle.whenSynced;
 			}
-		},
 
-		teardown() {
-			unregisterOverlay?.();
-			unregisterOverlay = null;
-			handle?.destroy();
-			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
-			handle = null;
+			return () => {
+				ctx.layers.unregister(UNCONFIRMED_OVERLAY_LAYER_ID);
+				handle?.destroy();
+				delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
+				handle = null;
+			};
 		},
 
 		getWsProvider(): WsProviderHandle {

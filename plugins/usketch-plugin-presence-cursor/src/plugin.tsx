@@ -82,8 +82,6 @@ export function createPresenceCursorPlugin(options: PresenceCursorOptions): Uske
 	const color = getUserColor(userId);
 	const { awareness } = wsProvider;
 
-	let cleanup: (() => void) | undefined;
-
 	return {
 		id: "usketch-plugin-presence-cursor",
 		name: "プレゼンスカーソル",
@@ -154,15 +152,11 @@ export function createPresenceCursorPlugin(options: PresenceCursorOptions): Uske
 
 			window.addEventListener("mouseleave", handleMouseLeave);
 
-			cleanup = () => {
+			return () => {
 				awareness.off("change", onAwarenessChange);
 				unsubPointerMove();
 				window.removeEventListener("mouseleave", handleMouseLeave);
 			};
-		},
-
-		teardown() {
-			cleanup?.();
 		},
 	};
 }
