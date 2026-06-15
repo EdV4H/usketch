@@ -21,6 +21,7 @@ import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-curso
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
 import { createPresentationPlugin } from "@edv4h/usketch-plugin-presentation";
 import { createBasicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
+import { createCardPlugin } from "@edv4h/usketch-plugin-shape-card";
 import { createConnectorPlugin } from "@edv4h/usketch-plugin-shape-connector";
 import { createCounterPlugin } from "@edv4h/usketch-plugin-shape-counter";
 import { createFramePlugin } from "@edv4h/usketch-plugin-shape-frame";
@@ -104,6 +105,7 @@ function createBasePlugins(): UsketchPlugin[] {
 		createFreedrawPlugin(),
 		createTextPlugin(),
 		createStickyPlugin(),
+		createCardPlugin(),
 		createImageShapePlugin(),
 		createCounterPlugin(),
 		createWireframePlugin(),
