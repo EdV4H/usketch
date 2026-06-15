@@ -129,7 +129,10 @@ export function createBoardStore(): BoardStore {
 			const existing = state.shapes.get(id);
 			if (!existing) return;
 			state.shapes = new Map(state.shapes);
-			const updated = { ...existing, ...updates, updatedAt: Date.now() };
+			// Pin `id` to the Map key after spreading `updates`: a stray `id` in
+			// `updates` would otherwise desync `updated.id` (and the `shape:updated`
+			// payload's `after.id`) from the key we store under.
+			const updated = { ...existing, ...updates, id, updatedAt: Date.now() };
 			state.shapes.set(id, updated);
 			spatialIndex.update(id, shapeToBounds(updated));
 			// If zIndex was touched, the cached max may be stale. Recompute lazily

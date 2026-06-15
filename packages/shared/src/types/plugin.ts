@@ -474,7 +474,8 @@ export interface BoardStore {
 	getShapesSorted(): readonly ShapeData[];
 	getShape(id: string): ShapeData | undefined;
 	addShape(shape: ShapeData): void;
-	updateShape(id: string, updates: Partial<ShapeData>): void;
+	/** `id` is fixed by the first argument and cannot be changed via `updates`. */
+	updateShape(id: string, updates: Partial<Omit<ShapeData, "id">>): void;
 	deleteShape(id: string): void;
 	/** Assign zIndex to any shapes that don't have one (used after bulk load). */
 	ensureZIndex(): void;

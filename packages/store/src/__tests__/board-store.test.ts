@@ -334,18 +334,15 @@ describe("BoardStore", () => {
 
 			expect(events).toHaveLength(1);
 			const e = events[0];
-			expect(e.type).toBe("shape:updated");
-			const payload = e.payload as {
-				id: string;
-				ids: string[];
-				before: { x: number };
-				after: { x: number };
-			};
-			expect(payload.id).toBe("s1");
-			expect(payload.ids).toEqual(["s1"]);
+			// Runtime-guard on `type` so the discriminated union narrows `payload`
+			// to the typed `ShapeChange & { ids }` shape — no structural cast, so
+			// the test follows the type definition at compile time.
+			if (e.type !== "shape:updated") throw new Error(`expected shape:updated, got ${e.type}`);
+			expect(e.payload.id).toBe("s1");
+			expect(e.payload.ids).toEqual(["s1"]);
 			// 追従系が自前で前回位置を持たなくても差分が取れる
-			expect(payload.before.x).toBe(0);
-			expect(payload.after.x).toBe(10);
+			expect(e.payload.before.x).toBe(0);
+			expect(e.payload.after.x).toBe(10);
 		});
 
 		it("emits shape:removed and selection:changed on deleteShape of selected", () => {
