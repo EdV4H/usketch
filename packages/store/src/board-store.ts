@@ -73,8 +73,10 @@ export function createBoardStore(): BoardStore {
 		}
 	}
 
-	function notifyMutation(type: string, payload?: unknown) {
-		const event: StoreEvent = payload !== undefined ? { type, payload } : { type };
+	// 完全な StoreEvent を受け取る。呼び出し側のオブジェクトリテラルが union に対して
+	// 型検査されるため、type と payload の不整合（未知 type・誤った payload 形）は
+	// コンパイル時に弾かれる。
+	function notifyMutation(event: StoreEvent) {
 		for (const listener of mutationListeners) {
 			listener(event);
 		}
@@ -84,7 +86,7 @@ export function createBoardStore(): BoardStore {
 		if (state.activeToolId === id) return;
 		state.activeToolId = id;
 		notify();
-		notifyMutation("tool:changed", { id });
+		notifyMutation({ type: "tool:changed", payload: { id } });
 	}
 
 	return {
@@ -119,14 +121,17 @@ export function createBoardStore(): BoardStore {
 			}
 			invalidateSort();
 			notify();
-			notifyMutation("shape:added", { id: stamped.id });
+			notifyMutation({ type: "shape:added", payload: { id: stamped.id, ids: [stamped.id] } });
 		},
 
-		updateShape(id: string, updates: Partial<ShapeData>) {
+		updateShape(id: string, updates: Partial<Omit<ShapeData, "id">>) {
 			const existing = state.shapes.get(id);
 			if (!existing) return;
 			state.shapes = new Map(state.shapes);
-			const updated = { ...existing, ...updates, updatedAt: Date.now() };
+			// Pin `id` to the Map key after spreading `updates`: a stray `id` in
+			// `updates` would otherwise desync `updated.id` (and the `shape:updated`
+			// payload's `after.id`) from the key we store under.
+			const updated = { ...existing, ...updates, id, updatedAt: Date.now() };
 			state.shapes.set(id, updated);
 			spatialIndex.update(id, shapeToBounds(updated));
 			// If zIndex was touched, the cached max may be stale. Recompute lazily
@@ -143,7 +148,11 @@ export function createBoardStore(): BoardStore {
 			}
 			invalidateSort();
 			notify();
-			notifyMutation("shape:updated", { id });
+			// before/after を載せて、追従系が自前で前回位置を持たなくても差分を取れるように。
+			notifyMutation({
+				type: "shape:updated",
+				payload: { id, ids: [id], before: existing, after: updated },
+			});
 		},
 
 		deleteShape(id: string) {
@@ -169,10 +178,10 @@ export function createBoardStore(): BoardStore {
 				notify();
 			}
 			if (existed) {
-				notifyMutation("shape:removed", { id });
+				notifyMutation({ type: "shape:removed", payload: { id, ids: [id] } });
 			}
 			if (wasSelected) {
-				notifyMutation("selection:changed");
+				notifyMutation({ type: "selection:changed" });
 			}
 		},
 
@@ -207,7 +216,7 @@ export function createBoardStore(): BoardStore {
 			maxZIndex = tailKey;
 			invalidateSort();
 			notify();
-			notifyMutation("shapes:z-index-initialized", { count });
+			notifyMutation({ type: "shapes:z-index-initialized", payload: { count } });
 		},
 
 		getSelection: () => state.selection,
@@ -215,28 +224,28 @@ export function createBoardStore(): BoardStore {
 		setSelection(ids: string[]) {
 			state.selection = new Set(ids);
 			notify();
-			notifyMutation("selection:changed", { ids });
+			notifyMutation({ type: "selection:changed", payload: { ids } });
 		},
 
 		addToSelection(id: string) {
 			state.selection = new Set(state.selection);
 			state.selection.add(id);
 			notify();
-			notifyMutation("selection:changed");
+			notifyMutation({ type: "selection:changed" });
 		},
 
 		removeFromSelection(id: string) {
 			state.selection = new Set(state.selection);
 			state.selection.delete(id);
 			notify();
-			notifyMutation("selection:changed");
+			notifyMutation({ type: "selection:changed" });
 		},
 
 		clearSelection() {
 			if (state.selection.size === 0) return;
 			state.selection = new Set();
 			notify();
-			notifyMutation("selection:changed");
+			notifyMutation({ type: "selection:changed" });
 		},
 
 		getActiveToolId: () => state.activeToolId,
@@ -249,7 +258,7 @@ export function createBoardStore(): BoardStore {
 			if (state.defaultToolId === id) return;
 			state.defaultToolId = id;
 			notify();
-			notifyMutation("default-tool:changed", { id });
+			notifyMutation({ type: "default-tool:changed", payload: { id } });
 		},
 
 		resetToDefaultTool() {
@@ -261,7 +270,7 @@ export function createBoardStore(): BoardStore {
 		setViewport(viewport: Viewport) {
 			state.viewport = viewport;
 			notify();
-			notifyMutation("viewport:changed");
+			notifyMutation({ type: "viewport:changed" });
 		},
 
 		panBy(dx: number, dy: number) {
@@ -271,7 +280,7 @@ export function createBoardStore(): BoardStore {
 				y: state.viewport.y + dy,
 			};
 			notify();
-			notifyMutation("viewport:changed");
+			notifyMutation({ type: "viewport:changed" });
 		},
 
 		zoomTo(zoom: number, center: Point) {
@@ -284,7 +293,7 @@ export function createBoardStore(): BoardStore {
 				zoom: clampedZoom,
 			};
 			notify();
-			notifyMutation("viewport:changed");
+			notifyMutation({ type: "viewport:changed" });
 		},
 
 		fitToBounds(
@@ -306,7 +315,7 @@ export function createBoardStore(): BoardStore {
 				zoom,
 			};
 			notify();
-			notifyMutation("viewport:changed");
+			notifyMutation({ type: "viewport:changed" });
 		},
 
 		getStyleSettings: () => state.styleSettings,
@@ -314,7 +323,7 @@ export function createBoardStore(): BoardStore {
 		setStyleSettings(style: Partial<ShapeStyle>) {
 			state.styleSettings = { ...state.styleSettings, ...style };
 			notify();
-			notifyMutation("style:changed");
+			notifyMutation({ type: "style:changed" });
 		},
 
 		getVisibleShapeIds(viewportBounds: BoundingBox): string[] {

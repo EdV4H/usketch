@@ -433,10 +433,40 @@ export interface TransientRegistry {
 
 // ── Store ──
 
-export interface StoreEvent {
-	type: string;
-	payload?: unknown;
+/**
+ * 単一シェイプ変更の前後スナップショット。`shape:updated` で配信され、
+ * 追従系（親の移動に子を追従させる等）が自前で前回位置を保持しなくても
+ * `after - before` の差分を直接得られるようにする。
+ */
+export interface ShapeChange {
+	id: string;
+	before: ShapeData;
+	after: ShapeData;
 }
+
+/**
+ * `store.onMutation` で配信されるイベント。`store` が発行する**閉じた**判別ユニオンで、
+ * `event.type` で絞り込むと `payload` が正しく型付けされる（オープンな文字列フォールバックは
+ * 持たない — それを混ぜると `"shape:updated"` も `string` に代入可能なため narrowing が
+ * 効かなくなる）。
+ *
+ * シェイプ系の `payload` は `ids: string[]` に正規化（単一変更でも長さ1）。後方互換のため
+ * `id` も併載。`shape:updated` は `before` / `after` を持ち、追従系が自前で前回位置を保持
+ * しなくても差分を取れる。
+ */
+export type StoreEvent =
+	| { type: "shape:added"; payload: { id: string; ids: string[] } }
+	| { type: "shape:removed"; payload: { id: string; ids: string[] } }
+	| { type: "shape:updated"; payload: ShapeChange & { ids: string[] } }
+	| { type: "selection:changed"; payload?: { ids: string[] } }
+	| { type: "tool:changed"; payload: { id: string } }
+	| { type: "default-tool:changed"; payload: { id: string } }
+	| { type: "shapes:z-index-initialized"; payload: { count: number } }
+	| { type: "viewport:changed"; payload?: undefined }
+	| { type: "style:changed"; payload?: undefined };
+
+/** {@link StoreEvent} の `type` リテラル。store の `notifyMutation` で使用。 */
+export type StoreEventType = StoreEvent["type"];
 
 export interface BoardStore {
 	getShapes(): ReadonlyMap<string, ShapeData>;
@@ -444,7 +474,8 @@ export interface BoardStore {
 	getShapesSorted(): readonly ShapeData[];
 	getShape(id: string): ShapeData | undefined;
 	addShape(shape: ShapeData): void;
-	updateShape(id: string, updates: Partial<ShapeData>): void;
+	/** `id` is fixed by the first argument and cannot be changed via `updates`. */
+	updateShape(id: string, updates: Partial<Omit<ShapeData, "id">>): void;
 	deleteShape(id: string): void;
 	/** Assign zIndex to any shapes that don't have one (used after bulk load). */
 	ensureZIndex(): void;
