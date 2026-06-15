@@ -3,10 +3,23 @@ import { getChildShapes } from "@edv4h/usketch-store";
 
 const CONTAINER_TYPES: ReadonlySet<string> = new Set(["group", "frame", "island"]);
 
+/** Default predicate: only containers (group/frame/island) follow with their children. */
+const isContainer = (shape: ShapeData): boolean => CONTAINER_TYPES.has(shape.type);
+
+export interface CollectDescendantsOptions {
+	/**
+	 * Decide whether a shape's children should be collected (and thus follow on
+	 * move). Defaults to the container check (group/frame/island). Pass a custom
+	 * predicate to also follow children of ordinary (non-container) parents —
+	 * e.g. "a sticker attached via parentId to any shape should move with it".
+	 */
+	followChildrenOf?: (shape: ShapeData) => boolean;
+}
+
 /**
- * Collect the user-selected shapes plus all descendants of any container
- * (group/frame/island) in the selection. Used by drag and rotate helpers so a
- * container moves/rotates with its children atomically.
+ * Collect the user-selected shapes plus all descendants of any shape whose
+ * children should follow (containers by default). Used by drag and rotate
+ * helpers so a parent moves/rotates with its children atomically.
  *
  * Returns a Map of `shapeId -> snapshot at session start`. Snapshots are
  * shallow clones so callers can compare against later store state without
@@ -15,7 +28,9 @@ const CONTAINER_TYPES: ReadonlySet<string> = new Set(["group", "frame", "island"
 export function collectSelectionWithDescendants(
 	ctx: ToolContext,
 	rootIds: Iterable<string>,
+	options: CollectDescendantsOptions = {},
 ): Map<string, ShapeData> {
+	const follows = options.followChildrenOf ?? isContainer;
 	const result = new Map<string, ShapeData>();
 	const queue: string[] = [];
 
@@ -23,7 +38,7 @@ export function collectSelectionWithDescendants(
 		const shape = ctx.store.getShape(id);
 		if (!shape || result.has(id)) continue;
 		result.set(id, { ...shape });
-		if (CONTAINER_TYPES.has(shape.type)) queue.push(id);
+		if (follows(shape)) queue.push(id);
 	}
 
 	while (queue.length > 0) {
@@ -32,7 +47,7 @@ export function collectSelectionWithDescendants(
 		for (const child of getChildShapes(ctx.store, parentId)) {
 			if (result.has(child.id)) continue;
 			result.set(child.id, { ...child });
-			if (CONTAINER_TYPES.has(child.type)) queue.push(child.id);
+			if (follows(child)) queue.push(child.id);
 		}
 	}
 

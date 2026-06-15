@@ -28,6 +28,14 @@ export interface DragSessionOptions {
 	 */
 	includeDescendants?: boolean;
 	/**
+	 * Predicate deciding whether a shape's children should follow it on move.
+	 * Defaults to the container check (group/frame/island). Pass a custom
+	 * predicate to also drag children of ordinary (non-container) parents —
+	 * e.g. a sticker/reaction attached via `parentId` to an arbitrary shape.
+	 * Only consulted when `includeDescendants` is `true` (the default).
+	 */
+	followChildrenOf?: (shape: ShapeData) => boolean;
+	/**
 	 * Optional hook the caller can use to nudge the drag offset (e.g. for snap
 	 * plugins). Receives the raw delta and returns a (possibly adjusted) delta.
 	 * The session does NOT inspect the store to derive snap — calling code is
@@ -80,14 +88,14 @@ export interface DragSession extends ToolSession<DragUpdate, SessionCommit> {
  * pointer-up cleanup (e.g. snap teardown) lands first.
  */
 export function startDragSession(opts: DragSessionOptions): DragSession {
-	const { ctx, startPoint, shapeIds, includeDescendants = true, onSnap } = opts;
+	const { ctx, startPoint, shapeIds, includeDescendants = true, followChildrenOf, onSnap } = opts;
 
 	const startShapeSnapshots: Map<string, DragSnapshot> = new Map();
 	const rootIds = new Set<string>();
 	for (const id of shapeIds) rootIds.add(id);
 
 	const collected = includeDescendants
-		? collectSelectionWithDescendants(ctx, rootIds)
+		? collectSelectionWithDescendants(ctx, rootIds, { followChildrenOf })
 		: collectShapesOnly(ctx, rootIds);
 	for (const [id, snap] of collected) {
 		startShapeSnapshots.set(id, { shape: snap, isRoot: rootIds.has(id) });
