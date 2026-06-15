@@ -10,7 +10,7 @@ export { unoCardType } from "./card-types/uno.js";
 export { drawTop, shuffle } from "./deck.js";
 export type { CreateCardPluginOptions } from "./plugin.js";
 export { createCardPlugin } from "./plugin.js";
-export { BUILTIN_CARD_TYPES, createCardTypeRegistry } from "./registry.js";
+export { createCardTypeRegistry, EXAMPLE_CARD_TYPES } from "./registry.js";
 export type {
 	CardFace,
 	CardMeta,

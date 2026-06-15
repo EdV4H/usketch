@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BUILTIN_CARD_TYPES, createCardTypeRegistry } from "../registry.js";
+import { createCardTypeRegistry, EXAMPLE_CARD_TYPES } from "../registry.js";
 import type { CardTypeDefinition } from "../types.js";
 
 const dummy: CardTypeDefinition = {
@@ -14,23 +14,28 @@ const dummy: CardTypeDefinition = {
 };
 
 describe("createCardTypeRegistry", () => {
-	it("includes all built-in card types by default", () => {
-		const reg = createCardTypeRegistry();
-		for (const def of BUILTIN_CARD_TYPES) {
+	it("is empty by default (built-ins are NOT auto-registered)", () => {
+		expect(createCardTypeRegistry().size).toBe(0);
+	});
+
+	it("registers only the card types passed in", () => {
+		const reg = createCardTypeRegistry([dummy]);
+		expect(reg.get("dummy")).toBe(dummy);
+		expect(reg.size).toBe(1);
+	});
+
+	it("can opt into the example card types explicitly", () => {
+		const reg = createCardTypeRegistry(EXAMPLE_CARD_TYPES);
+		expect(reg.size).toBe(EXAMPLE_CARD_TYPES.length);
+		for (const def of EXAMPLE_CARD_TYPES) {
 			expect(reg.get(def.id)).toBe(def);
 		}
 	});
 
-	it("merges extra card types", () => {
-		const reg = createCardTypeRegistry([dummy]);
-		expect(reg.get("dummy")).toBe(dummy);
-		expect(reg.size).toBe(BUILTIN_CARD_TYPES.length + 1);
-	});
-
-	it("lets extra card types override built-ins with the same id", () => {
+	it("later entries override earlier ones with the same id", () => {
 		const override: CardTypeDefinition = { ...dummy, id: "media", label: "Custom" };
-		const reg = createCardTypeRegistry([override]);
+		const reg = createCardTypeRegistry([...EXAMPLE_CARD_TYPES, override]);
 		expect(reg.get("media")).toBe(override);
-		expect(reg.size).toBe(BUILTIN_CARD_TYPES.length);
+		expect(reg.size).toBe(EXAMPLE_CARD_TYPES.length);
 	});
 });

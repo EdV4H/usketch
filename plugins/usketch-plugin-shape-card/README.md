@@ -6,18 +6,26 @@
 
 ## 使い方
 
+このプラグインは**コア機構のみ**を提供し、card-type は**既定では空**です。
+トランプ等は同梱の**サンプル（`EXAMPLE_CARD_TYPES`）**で、明示的に渡したときだけ有効になります。
+（card-type が1つも無いと描画ツールは表示されません。）
+
 ```ts
-import { createCardPlugin } from "@edv4h/usketch-plugin-shape-card";
+import { createCardPlugin, EXAMPLE_CARD_TYPES } from "@edv4h/usketch-plugin-shape-card";
 
 createApp({
   plugins: [
-    // ...
-    createCardPlugin(),
+    // サンプル（media / playing-card / uno / custom）を使う:
+    createCardPlugin({ cardTypes: EXAMPLE_CARD_TYPES }),
+    // 自前の card-type だけにするなら:
+    // createCardPlugin({ cardTypes: [myCardType] }),
+    // 空でも生成可能（描画ツールは出ない）:
+    // createCardPlugin(),
   ],
 });
 ```
 
-ツール:
+ツール（card-type が1つ以上ある場合のみ表示）:
 - `card-draw`（ショートカット `k`）— カードを描画。ドラッグでサイズ（アスペクト比固定）、クリックで既定サイズ。
 - `card-deck-draw` — 山札を配置。
 
@@ -52,12 +60,12 @@ const tarotCardType: CardTypeDefinition<TarotFields> = {
 createCardPlugin({ cardTypes: [tarotCardType] });
 ```
 
-組込 card-type: `media` / `playing-card` / `uno` / `custom`（`BUILTIN_CARD_TYPES`）。
+サンプル card-type: `media` / `playing-card` / `uno` / `custom`（`EXAMPLE_CARD_TYPES`）。既定では未登録なので、使うときに明示的に渡す。
 
 ## テクスチャ + テキスト配置（`custom` card-type / `CardFace`）
 
 コードを書かずに、表/裏それぞれの**テクスチャ（背景画像・色・グラデーション）**と、
-**テキストの配置を細かく**指定できます。組込の `custom` card-type が `meta.fields` に
+**テキストの配置を細かく**指定できます。サンプルの `custom` card-type が `meta.fields` に
 `{ front: CardFace; back: CardFace }` を持ち、データ差し替えだけで見た目を完全制御できます。
 
 ```ts

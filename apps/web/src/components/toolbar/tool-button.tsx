@@ -1,7 +1,7 @@
 import { useApp } from "@edv4h/usketch-canvas-engine";
 import { DOMAIN_SUBTYPES } from "@edv4h/usketch-plugin-domain-design";
 import { BASIC_SHAPE_SUBTYPES } from "@edv4h/usketch-plugin-shape-basic";
-import { BUILTIN_CARD_TYPES } from "@edv4h/usketch-plugin-shape-card";
+import { EXAMPLE_CARD_TYPES } from "@edv4h/usketch-plugin-shape-card";
 import {
 	DEFAULT_STICKY_COLOR,
 	STICKY_COLOR_KEYS,
@@ -26,7 +26,7 @@ export function ToolButton({
 	const [wireframeSubtype, setWireframeSubtype] = useState(WIREFRAME_SUBTYPES[0].type);
 	const [stickyColor, setStickyColor] = useState(DEFAULT_STICKY_COLOR);
 	const [domainSubtype, setDomainSubtype] = useState(DOMAIN_SUBTYPES[0]?.type ?? "");
-	const [cardType, setCardType] = useState(BUILTIN_CARD_TYPES[0]?.id ?? "");
+	const [cardType, setCardType] = useState(EXAMPLE_CARD_TYPES[0]?.id ?? "");
 	const isWireframe = id === "wireframe-draw";
 	const isBasicShape = id === "basic-shape-draw";
 	const isSticky = id === "sticky-draw";
@@ -124,7 +124,7 @@ function CardTypePicker({
 				borderRadius: 10,
 				padding: 8,
 				display: "grid",
-				gridTemplateColumns: `repeat(${BUILTIN_CARD_TYPES.length}, 1fr)`,
+				gridTemplateColumns: `repeat(${EXAMPLE_CARD_TYPES.length}, 1fr)`,
 				gap: 4,
 				boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
 				zIndex: 150,
@@ -132,7 +132,7 @@ function CardTypePicker({
 				whiteSpace: "nowrap",
 			}}
 		>
-			{BUILTIN_CARD_TYPES.map((def) => {
+			{EXAMPLE_CARD_TYPES.map((def) => {
 				const Icon = def.icon;
 				const isActive = def.id === currentType;
 				return (

@@ -20,7 +20,7 @@ import {
 	PlacementEffect,
 	resolvePlacementAnimation,
 } from "./placement.js";
-import { BUILTIN_CARD_TYPES, createCardTypeRegistry } from "./registry.js";
+import { createCardTypeRegistry } from "./registry.js";
 import { createCardRenderer } from "./render-card.js";
 import { createDeckRenderer } from "./render-deck.js";
 import {
@@ -37,7 +37,10 @@ const DOUBLE_CLICK_MS = 400;
 const GENERIC_ACCENT = "rgba(79, 140, 255, 0.9)";
 
 export interface CreateCardPluginOptions {
-	/** 組込に加えて使用する独自 card-type。 */
+	/**
+	 * 使用する card-type。**既定は空**で、空でもプラグインは生成できる（描画ツールは出ない）。
+	 * トランプ等のサンプルを使うには `EXAMPLE_CARD_TYPES` を渡す。
+	 */
 	cardTypes?: CardTypeDefinition[];
 	/** 既定の配置アニメ（card-type 個別指定が優先される）。 */
 	placementAnimation?: PlacementAnimation;
@@ -99,9 +102,15 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 	const enableDeck = opts.enableDeck ?? true;
 	const renderCard = createCardRenderer(registry);
 	const renderDeck = createDeckRenderer(registry);
+	const hasCardTypes = registry.size > 0;
 
-	// 既定の card-type（先頭の組込 or 追加分の先頭）
-	const firstType = (opts.cardTypes?.[0] ?? BUILTIN_CARD_TYPES[0]).id;
+	// 既定の card-type（先頭。空なら ""）
+	const firstType = opts.cardTypes?.[0]?.id ?? "";
+
+	/** 現在の card-type を解決。無ければ登録順の先頭にフォールバック（空なら undefined）。 */
+	function resolveDef(id: string): CardTypeDefinition | undefined {
+		return registry.get(id) ?? registry.values().next().value;
+	}
 
 	function getCardAspect(data: ShapeData): number {
 		const meta = data.type === DECK_TYPE ? readDeckMeta(data) : readCardMeta(data);
@@ -274,19 +283,19 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				hitTest: withRotation(rectHitTest),
 				resize,
 				createDefault: ({ id, x, y }) => {
-					const def = registry.get(currentCardType) ?? BUILTIN_CARD_TYPES[0];
+					const def = resolveDef(currentCardType);
 					return {
 						id,
 						type: CARD_TYPE,
 						x,
 						y,
-						width: def.defaultSize.width,
-						height: def.defaultSize.height,
+						width: def?.defaultSize.width ?? 200,
+						height: def?.defaultSize.height ?? 280,
 						style: { ...DEFAULT_STYLE },
 						meta: {
-							cardType: def.id,
+							cardType: def?.id ?? "",
 							isFlipped: false,
-							fields: def.createDefaultFields(),
+							fields: def?.createDefaultFields() ?? {},
 						} as ShapeData["meta"],
 					};
 				},
@@ -310,80 +319,82 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				},
 			});
 
-			// ── 描画ツール: card-draw ──
+			// ── 描画ツール: card-draw（card-type が1つ以上ある時だけ登録） ──
 			let drawState: { startX: number; startY: number; shapeId: string } | null = null;
 
-			ctx.tools.register("card-draw", {
-				icon: CardIcon,
-				cursor: "crosshair",
-				shortcut: "k",
-				order: 27,
-				onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
-					const def = registry.get(currentCardType) ?? BUILTIN_CARD_TYPES[0];
-					const id = generateId();
-					drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
-					toolCtx.store.addShape({
-						id,
-						type: CARD_TYPE,
-						x: event.worldPoint.x,
-						y: event.worldPoint.y,
-						width: 0,
-						height: 0,
-						style: { ...DEFAULT_STYLE },
-						meta: {
-							cardType: def.id,
-							isFlipped: false,
-							fields: def.createDefaultFields(),
-						} as ShapeData["meta"],
-					});
-				},
-				onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
-					if (!drawState) return;
-					const aspect = (registry.get(currentCardType) ?? BUILTIN_CARD_TYPES[0]).aspectRatio;
-					const dx = event.worldPoint.x - drawState.startX;
-					const dy = event.worldPoint.y - drawState.startY;
-					const width = Math.abs(dx);
-					const height = width / aspect;
-					const x = dx >= 0 ? drawState.startX : drawState.startX - width;
-					const y = dy >= 0 ? drawState.startY : drawState.startY - height;
-					toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
-				},
-				onPointerUp(toolCtx: ToolContext) {
-					if (!drawState) return;
-					const def = registry.get(currentCardType) ?? BUILTIN_CARD_TYPES[0];
-					const draft = toolCtx.store.getShape(drawState.shapeId);
-					toolCtx.store.deleteShape(drawState.shapeId);
-
-					if (draft && draft.width > 2 && draft.height > 2) {
-						toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, draft));
-						toolCtx.store.setSelection([draft.id]);
-						emitPlacement(draft);
-					} else {
-						// クリック: 既定サイズで配置（クリック点を中心に）
-						const placed: ShapeData = {
-							id: drawState.shapeId,
+			if (hasCardTypes)
+				ctx.tools.register("card-draw", {
+					icon: CardIcon,
+					cursor: "crosshair",
+					shortcut: "k",
+					order: 27,
+					onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+						const def = resolveDef(currentCardType);
+						if (!def) return;
+						const id = generateId();
+						drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
+						toolCtx.store.addShape({
+							id,
 							type: CARD_TYPE,
-							x: drawState.startX - def.defaultSize.width / 2,
-							y: drawState.startY - def.defaultSize.height / 2,
-							width: def.defaultSize.width,
-							height: def.defaultSize.height,
+							x: event.worldPoint.x,
+							y: event.worldPoint.y,
+							width: 0,
+							height: 0,
 							style: { ...DEFAULT_STYLE },
 							meta: {
 								cardType: def.id,
 								isFlipped: false,
 								fields: def.createDefaultFields(),
 							} as ShapeData["meta"],
-						};
-						toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, placed));
-						toolCtx.store.setSelection([placed.id]);
-						emitPlacement(placed);
-					}
-					drawState = null;
-					toolCtx.store.resetToDefaultTool();
-				},
-			});
+						});
+					},
+					onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+						if (!drawState) return;
+						const aspect = resolveDef(currentCardType)?.aspectRatio ?? 1;
+						const dx = event.worldPoint.x - drawState.startX;
+						const dy = event.worldPoint.y - drawState.startY;
+						const width = Math.abs(dx);
+						const height = width / aspect;
+						const x = dx >= 0 ? drawState.startX : drawState.startX - width;
+						const y = dy >= 0 ? drawState.startY : drawState.startY - height;
+						toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
+					},
+					onPointerUp(toolCtx: ToolContext) {
+						if (!drawState) return;
+						const def = resolveDef(currentCardType);
+						const draft = toolCtx.store.getShape(drawState.shapeId);
+						toolCtx.store.deleteShape(drawState.shapeId);
 
-			// ── shape 登録 + ツール: deck ──
+						if (draft && draft.width > 2 && draft.height > 2) {
+							toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, draft));
+							toolCtx.store.setSelection([draft.id]);
+							emitPlacement(draft);
+						} else if (def) {
+							// クリック: 既定サイズで配置（クリック点を中心に）
+							const placed: ShapeData = {
+								id: drawState.shapeId,
+								type: CARD_TYPE,
+								x: drawState.startX - def.defaultSize.width / 2,
+								y: drawState.startY - def.defaultSize.height / 2,
+								width: def.defaultSize.width,
+								height: def.defaultSize.height,
+								style: { ...DEFAULT_STYLE },
+								meta: {
+									cardType: def.id,
+									isFlipped: false,
+									fields: def.createDefaultFields(),
+								} as ShapeData["meta"],
+							};
+							toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, placed));
+							toolCtx.store.setSelection([placed.id]);
+							emitPlacement(placed);
+						}
+						drawState = null;
+						toolCtx.store.resetToDefaultTool();
+					},
+				});
+
+			// ── shape 登録 + ツール: deck（card-type がある時だけツールを出す） ──
 			if (enableDeck) {
 				ctx.shapes.register(DECK_TYPE, {
 					render: renderDeck,
@@ -391,18 +402,18 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					hitTest: withRotation(rectHitTest),
 					resize,
 					createDefault: ({ id, x, y }) => {
-						const def = registry.get(currentCardType) ?? BUILTIN_CARD_TYPES[0];
+						const def = resolveDef(currentCardType);
 						return {
 							id,
 							type: DECK_TYPE,
 							x,
 							y,
-							width: def.defaultSize.width,
-							height: def.defaultSize.height,
+							width: def?.defaultSize.width ?? 200,
+							height: def?.defaultSize.height ?? 280,
 							style: { ...DEFAULT_STYLE },
 							meta: {
-								cardType: def.id,
-								cards: def.buildDeck?.() ?? [],
+								cardType: def?.id ?? "",
+								cards: def?.buildDeck?.() ?? [],
 								faceDown: true,
 							} as ShapeData["meta"],
 						};
@@ -419,33 +430,35 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					},
 				});
 
-				ctx.tools.register("card-deck-draw", {
-					icon: DeckIcon,
-					cursor: "crosshair",
-					order: 28,
-					onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
-						const def = registry.get(currentCardType) ?? BUILTIN_CARD_TYPES[0];
-						const id = generateId();
-						const deck: ShapeData = {
-							id,
-							type: DECK_TYPE,
-							x: event.worldPoint.x - def.defaultSize.width / 2,
-							y: event.worldPoint.y - def.defaultSize.height / 2,
-							width: def.defaultSize.width,
-							height: def.defaultSize.height,
-							style: { ...DEFAULT_STYLE },
-							meta: {
-								cardType: def.id,
-								cards: def.buildDeck?.() ?? [],
-								faceDown: true,
-							} as ShapeData["meta"],
-						};
-						toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, deck));
-						toolCtx.store.setSelection([id]);
-						emitPlacement(deck);
-						toolCtx.store.resetToDefaultTool();
-					},
-				});
+				if (hasCardTypes)
+					ctx.tools.register("card-deck-draw", {
+						icon: DeckIcon,
+						cursor: "crosshair",
+						order: 28,
+						onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+							const def = resolveDef(currentCardType);
+							if (!def) return;
+							const id = generateId();
+							const deck: ShapeData = {
+								id,
+								type: DECK_TYPE,
+								x: event.worldPoint.x - def.defaultSize.width / 2,
+								y: event.worldPoint.y - def.defaultSize.height / 2,
+								width: def.defaultSize.width,
+								height: def.defaultSize.height,
+								style: { ...DEFAULT_STYLE },
+								meta: {
+									cardType: def.id,
+									cards: def.buildDeck?.() ?? [],
+									faceDown: true,
+								} as ShapeData["meta"],
+							};
+							toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, deck));
+							toolCtx.store.setSelection([id]);
+							emitPlacement(deck);
+							toolCtx.store.resetToDefaultTool();
+						},
+					});
 			}
 
 			// ── teardown ──

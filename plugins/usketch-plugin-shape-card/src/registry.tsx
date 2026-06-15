@@ -4,8 +4,12 @@ import { playingCardType } from "./card-types/playing-card.js";
 import { unoCardType } from "./card-types/uno.js";
 import type { CardTypeDefinition } from "./types.js";
 
-/** 組込 card-type。拡張の手本でもある。 */
-export const BUILTIN_CARD_TYPES: CardTypeDefinition[] = [
+/**
+ * 同梱のサンプル card-type。**既定では登録されない**（`createCardPlugin()` は空で動く）。
+ * 使いたい場合は明示的に渡す: `createCardPlugin({ cardTypes: EXAMPLE_CARD_TYPES })`。
+ * 独自 card-type を作る際の手本でもある。
+ */
+export const EXAMPLE_CARD_TYPES: CardTypeDefinition[] = [
 	mediaCardType,
 	playingCardType,
 	unoCardType,
@@ -13,17 +17,15 @@ export const BUILTIN_CARD_TYPES: CardTypeDefinition[] = [
 ];
 
 /**
- * 組込 + 追加 card-type をマージした `Map<id, def>` を返す。
- * id が衝突した場合は追加（extra）側で上書きする。
+ * 渡された card-type 群から `Map<id, def>` を作る。組込は自動では含めない
+ * （サンプルが必要なら呼び出し側で `EXAMPLE_CARD_TYPES` を渡す）。
+ * id が衝突した場合は後勝ち。
  */
 export function createCardTypeRegistry(
-	extra: CardTypeDefinition[] = [],
+	cardTypes: CardTypeDefinition[] = [],
 ): Map<string, CardTypeDefinition> {
 	const map = new Map<string, CardTypeDefinition>();
-	for (const def of BUILTIN_CARD_TYPES) {
-		map.set(def.id, def);
-	}
-	for (const def of extra) {
+	for (const def of cardTypes) {
 		map.set(def.id, def);
 	}
 	return map;
