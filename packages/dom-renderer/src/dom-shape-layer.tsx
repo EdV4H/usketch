@@ -1,5 +1,6 @@
 import type { LayerRenderContext, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
 import { safeRotation } from "@edv4h/usketch-shared";
+import { memo } from "react";
 import { LodFallback } from "./lod-fallback.js";
 
 /**
@@ -59,7 +60,15 @@ function stableParentSort(
 const DROP_TARGET_Z_BOOST = 100_000;
 const CONTAINER_SHAPE_TYPES = new Set(["frame", "island", "group"]);
 
-function ShapeWrapper({
+/**
+ * 1 シェイプ分のラッパ。`React.memo` で囲み、props が参照的に等しいフレームでは
+ * `def.render` の再実行と再 reconcile をスキップする。
+ *
+ * ストアは未変更シェイプのオブジェクト参照を保持する（`updateShape` は対象 1 件だけ
+ * 新オブジェクトに差し替える）ため、ドラッグ中の 1 件以外は `shape` 参照が変わらず、
+ * デフォルトの shallow 比較でそのまま再描画を回避できる（プラグイン側の memo 実装は不要）。
+ */
+const ShapeWrapper = memo(function ShapeWrapper({
 	shape,
 	index,
 	selected,
@@ -114,7 +123,7 @@ function ShapeWrapper({
 			)}
 		</div>
 	);
-}
+});
 
 export function DomShapeLayer({
 	ctx,
