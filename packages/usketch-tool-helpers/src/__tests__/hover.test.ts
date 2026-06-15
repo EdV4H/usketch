@@ -72,6 +72,26 @@ describe("findShapeAtPoint", () => {
 			"target",
 		);
 	});
+
+	it("applies excludeIds/filter to the resolved group ancestor, not just the hit child", () => {
+		// A group child hit resolves to its top-level group ancestor. Excluding or
+		// filtering out that ancestor must continue the walk to the shape below,
+		// not return the gated ancestor. Regression for the ancestor-gating fix.
+		const ctx = createTestToolContext();
+		// Bottom shape, then the group, then its child (top of z-order).
+		ctx.store.addShape(makeShape({ id: "below", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.addShape(makeShape({ id: "g", type: "group", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.addShape(
+			makeShape({ id: "child", x: 0, y: 0, width: 100, height: 100, parentId: "g" }),
+		);
+
+		// Default: hitting the child resolves to the group ancestor.
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 })).toBe("g");
+		// Excluding the resolved ancestor falls through to the shape below.
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 }, { excludeIds: ["g"] })).toBe("below");
+		// Filtering the resolved ancestor does the same.
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 }, { filter: (s) => s.id !== "g" })).toBe("below");
+	});
 });
 
 describe("trackHover", () => {
