@@ -1,3 +1,4 @@
+import type { ShapeDefinition } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { findShapeAtPoint, trackHover } from "../hover.js";
 import { createTestToolContext, makePointerEvent, makeShape } from "./test-helpers.js";
@@ -27,6 +28,69 @@ describe("findShapeAtPoint", () => {
 			makeShape({ id: "rect", type: "rect", x: 50, y: 50, width: 50, height: 50 }),
 		);
 		expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBe("rect");
+	});
+
+	it("skips excluded ids and returns the shape below (drag-and-drop)", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "target", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.addShape(makeShape({ id: "dragged", x: 0, y: 0, width: 100, height: 100 }));
+		// Without exclusion the top-most (dragged) wins.
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 })).toBe("dragged");
+		// Excluding the dragged id returns the shape beneath it (array or Set).
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 }, { excludeIds: ["dragged"] })).toBe("target");
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 }, { excludeIds: new Set(["dragged"]) })).toBe(
+			"target",
+		);
+	});
+
+	it("skips shapes rejected by the filter predicate", () => {
+		const ctx = createTestToolContext();
+		// Register a hit-testable "sticker" def so the shape actually passes
+		// hitTest — otherwise it would be skipped for a missing def and the test
+		// wouldn't exercise the filter at all.
+		ctx.shapes.register("sticker", {
+			type: "sticker",
+			minSize: { width: 1, height: 1 },
+			hitTest: (data, point) =>
+				point.x >= data.x &&
+				point.x <= data.x + data.width &&
+				point.y >= data.y &&
+				point.y <= data.y + data.height,
+			getBounds: (data) => ({ x: data.x, y: data.y, width: data.width, height: data.height }),
+			render: () => null,
+		} as unknown as ShapeDefinition);
+		ctx.store.addShape(
+			makeShape({ id: "target", type: "rect", x: 0, y: 0, width: 100, height: 100 }),
+		);
+		ctx.store.addShape(
+			makeShape({ id: "sticker", type: "sticker", x: 0, y: 0, width: 100, height: 100 }),
+		);
+		// Without the filter the top-most (sticker) wins — proves it is hit-tested.
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 })).toBe("sticker");
+		// Skip our own "sticker" type so the drop resolves to the rect underneath.
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 }, { filter: (s) => s.type !== "sticker" })).toBe(
+			"target",
+		);
+	});
+
+	it("applies excludeIds/filter to the resolved group ancestor, not just the hit child", () => {
+		// A group child hit resolves to its top-level group ancestor. Excluding or
+		// filtering out that ancestor must continue the walk to the shape below,
+		// not return the gated ancestor. Regression for the ancestor-gating fix.
+		const ctx = createTestToolContext();
+		// Bottom shape, then the group, then its child (top of z-order).
+		ctx.store.addShape(makeShape({ id: "below", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.addShape(makeShape({ id: "g", type: "group", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.addShape(
+			makeShape({ id: "child", x: 0, y: 0, width: 100, height: 100, parentId: "g" }),
+		);
+
+		// Default: hitting the child resolves to the group ancestor.
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 })).toBe("g");
+		// Excluding the resolved ancestor falls through to the shape below.
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 }, { excludeIds: ["g"] })).toBe("below");
+		// Filtering the resolved ancestor does the same.
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 }, { filter: (s) => s.id !== "g" })).toBe("below");
 	});
 });
 
