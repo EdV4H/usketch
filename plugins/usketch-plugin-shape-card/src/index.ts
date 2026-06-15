@@ -1,3 +1,6 @@
+export { anchorTranslate, faceTextureStyle, renderFace } from "./card-face.js";
+export type { CustomCardFields } from "./card-types/custom.js";
+export { customCardType } from "./card-types/custom.js";
 export type { MediaCardFields } from "./card-types/media.js";
 export { mediaCardType } from "./card-types/media.js";
 export type { PlayingCardFields, Suit } from "./card-types/playing-card.js";
@@ -9,8 +12,11 @@ export type { CreateCardPluginOptions } from "./plugin.js";
 export { createCardPlugin } from "./plugin.js";
 export { BUILTIN_CARD_TYPES, createCardTypeRegistry } from "./registry.js";
 export type {
+	CardFace,
 	CardMeta,
 	CardShape,
+	CardText,
+	CardTexture,
 	CardTypeDefinition,
 	DeckMeta,
 	DeckShape,

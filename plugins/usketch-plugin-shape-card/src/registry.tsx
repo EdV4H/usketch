@@ -1,3 +1,4 @@
+import { customCardType } from "./card-types/custom.js";
 import { mediaCardType } from "./card-types/media.js";
 import { playingCardType } from "./card-types/playing-card.js";
 import { unoCardType } from "./card-types/uno.js";
@@ -8,6 +9,7 @@ export const BUILTIN_CARD_TYPES: CardTypeDefinition[] = [
 	mediaCardType,
 	playingCardType,
 	unoCardType,
+	customCardType,
 ];
 
 /**

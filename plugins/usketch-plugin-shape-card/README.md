@@ -52,7 +52,35 @@ const tarotCardType: CardTypeDefinition<TarotFields> = {
 createCardPlugin({ cardTypes: [tarotCardType] });
 ```
 
-組込 card-type: `media` / `playing-card` / `uno`（`BUILTIN_CARD_TYPES`）。
+組込 card-type: `media` / `playing-card` / `uno` / `custom`（`BUILTIN_CARD_TYPES`）。
+
+## テクスチャ + テキスト配置（`custom` card-type / `CardFace`）
+
+コードを書かずに、表/裏それぞれの**テクスチャ（背景画像・色・グラデーション）**と、
+**テキストの配置を細かく**指定できます。組込の `custom` card-type が `meta.fields` に
+`{ front: CardFace; back: CardFace }` を持ち、データ差し替えだけで見た目を完全制御できます。
+
+```ts
+import type { CardFace } from "@edv4h/usketch-plugin-shape-card";
+
+const front: CardFace = {
+  texture: { image: "https://.../bg.png", fit: "cover" }, // cover|contain|fill|tile / color も可
+  texts: [
+    {
+      text: "見出し",
+      x: 0.5, y: 0.2,          // 既定は割合(ratio, 0..1)。unit:"px" で px 指定も可
+      align: "center", vAlign: "middle", // アンカー（x,y が指す基準点）
+      rotation: -6,            // 回転（度）
+      fontSize: 24, fontWeight: 700, color: "#fff",
+      letterSpacing: 2, lineHeight: 1.4, maxWidth: 200, // maxWidth で折り返し
+    },
+  ],
+};
+```
+
+- 位置は `unit: "ratio"`（既定・リサイズ追従）か `"px"`。
+- `align` / `vAlign` で x,y がテキストのどこを指すか（左上・中央・右下など）を決定。
+- `renderFace(face)` をエクスポートしているので、独自 card-type の `renderFront`/`renderBack` でも再利用できます。
 
 ## オプション
 

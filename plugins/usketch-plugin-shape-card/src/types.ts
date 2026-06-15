@@ -12,6 +12,54 @@ export type PlacementAnimation =
 export type PlacementPreset = "deal" | "drop" | "bounce" | "none";
 
 /**
+ * 面（表 / 裏）のテクスチャ（背景）。画像 URL と収め方、背景色（CSS グラデーション可）を指定できる。
+ * `image` が無ければ `color` のみが背景になる。
+ */
+export type CardTexture = {
+	/** 背景画像 URL（data URL も可）。 */
+	image?: string;
+	/** 画像の収め方。`tile` は繰り返し。既定 `cover`。 */
+	fit?: "cover" | "contain" | "fill" | "tile";
+	/** 背景色 / グラデーション（画像が無い部分・透過部分に出る）。 */
+	color?: string;
+};
+
+/**
+ * 面上に配置する1つのテキスト要素。位置は割合（0..1, カードに対する相対）または px で指定でき、
+ * アンカー（基準点）・回転・フォントなどを細かく指定できる。
+ */
+export type CardText = {
+	text: string;
+	/** 基準位置 x。`unit` が ratio なら 0..1、px なら px。 */
+	x: number;
+	/** 基準位置 y。 */
+	y: number;
+	/** 位置の単位。既定 `ratio`（リサイズ追従）。 */
+	unit?: "ratio" | "px";
+	/** x,y がテキストのどこを指すか（水平）。既定 `center`。 */
+	align?: "left" | "center" | "right";
+	/** x,y がテキストのどこを指すか（垂直）。既定 `middle`。 */
+	vAlign?: "top" | "middle" | "bottom";
+	/** 回転（度）。アンカー位置を中心に回す。 */
+	rotation?: number;
+	fontSize?: number;
+	fontFamily?: string;
+	fontWeight?: number | string;
+	italic?: boolean;
+	color?: string;
+	letterSpacing?: number;
+	lineHeight?: number;
+	/** 折り返し幅（px）。指定すると複数行に折り返す。未指定は折り返さない（pre）。 */
+	maxWidth?: number;
+};
+
+/** 1つの面（表 or 裏）の定義: テクスチャ + テキスト配置。 */
+export type CardFace = {
+	texture?: CardTexture;
+	texts?: CardText[];
+};
+
+/**
  * card-type の拡張ポイント。トランプ / UNO / メディアカード等を表現するための定義。
  * `TFields` はその card-type 固有のデータ形（render 側で narrow する）。
  *
