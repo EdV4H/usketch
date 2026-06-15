@@ -1,5 +1,26 @@
 # @edv4h/usketch-tool-helpers
 
+## 0.3.0
+
+### Minor Changes
+
+- ae536ff: `findShapeAtPoint` / `trackHover` の `TrackHoverOptions` に `excludeIds` と `filter` を追加（#613）。
+  - `excludeIds?: ReadonlySet<string> | readonly string[]` — ヒットテストの走査でスキップするシェイプ id。
+  - `filter?: (shape: ShapeData) => boolean` — `false` を返したシェイプをスキップする述語。
+
+  ドラッグ&ドロップで「掴んでいるシェイプの下にあるシェイプへドロップ」する用途で、掴んでいる id（や自分の種別）を除外して「直下の次のシェイプ」を取得できる。既存の精度（precedence）ルールはそのまま。
+
+- 0874a59: `startDragSession` / `collectSelectionWithDescendants` に `followChildrenOf` オプションを追加（#612）。
+
+  これまで移動時に子を追従させるのはコンテナ（group/frame/island）のみだったが、`followChildrenOf?: (shape: ShapeData) => boolean`（既定はコンテナ判定）で、任意の非コンテナ親（例: 任意のシェイプに `parentId` で取り付けたステッカー/リアクション）の子も追従対象にできる。`includeDescendants` が `true`（既定）のときに参照される。
+
+### Patch Changes
+
+- Updated dependencies [fa92cf8]
+- Updated dependencies [ad8e01d]
+  - @edv4h/usketch-shared@4.0.0
+  - @edv4h/usketch-store@3.0.0
+
 ## 0.2.1
 
 ### Patch Changes

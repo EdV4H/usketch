@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-ai-agent
 
+## 3.0.1
+
+### Patch Changes
+
+- Updated dependencies [fa92cf8]
+- Updated dependencies [ad8e01d]
+  - @edv4h/usketch-shared@4.0.0
+
 ## 3.0.0
 
 ### Major Changes

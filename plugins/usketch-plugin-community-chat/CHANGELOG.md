@@ -1,5 +1,20 @@
 # @edv4h/usketch-plugin-community-chat
 
+## 3.0.1
+
+### Patch Changes
+
+- fa92cf8: **BREAKING (TypeScript)**: `BoardStore` interface gains three required members — `getDefaultToolId()`, `setDefaultToolId(id)`, `resetToDefaultTool()`. Code that implements or mocks `BoardStore` (or `BoardState`) must add these members.
+
+  Plugins that want to return to the default tool after use now call `store.resetToDefaultTool()` instead of the previous hardcoded `setActiveToolId("select")` pattern. Consumers can change the default with `store.setDefaultToolId(id)` (or read it via `store.getDefaultToolId()`). The initial default remains `"select"`, and a new `default-tool:changed` mutation event is emitted when it changes.
+
+  Fixes #469.
+
+- Updated dependencies [fa92cf8]
+- Updated dependencies [ad8e01d]
+  - @edv4h/usketch-shared@4.0.0
+  - @edv4h/usketch-store@3.0.0
+
 ## 3.0.0
 
 ### Major Changes
