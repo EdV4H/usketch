@@ -1,3 +1,4 @@
+import type { ShapeDefinition } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { findShapeAtPoint, trackHover } from "../hover.js";
 import { createTestToolContext, makePointerEvent, makeShape } from "./test-helpers.js";
@@ -44,12 +45,28 @@ describe("findShapeAtPoint", () => {
 
 	it("skips shapes rejected by the filter predicate", () => {
 		const ctx = createTestToolContext();
+		// Register a hit-testable "sticker" def so the shape actually passes
+		// hitTest — otherwise it would be skipped for a missing def and the test
+		// wouldn't exercise the filter at all.
+		ctx.shapes.register("sticker", {
+			type: "sticker",
+			minSize: { width: 1, height: 1 },
+			hitTest: (data, point) =>
+				point.x >= data.x &&
+				point.x <= data.x + data.width &&
+				point.y >= data.y &&
+				point.y <= data.y + data.height,
+			getBounds: (data) => ({ x: data.x, y: data.y, width: data.width, height: data.height }),
+			render: () => null,
+		} as unknown as ShapeDefinition);
 		ctx.store.addShape(
 			makeShape({ id: "target", type: "rect", x: 0, y: 0, width: 100, height: 100 }),
 		);
 		ctx.store.addShape(
 			makeShape({ id: "sticker", type: "sticker", x: 0, y: 0, width: 100, height: 100 }),
 		);
+		// Without the filter the top-most (sticker) wins — proves it is hit-tested.
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 })).toBe("sticker");
 		// Skip our own "sticker" type so the drop resolves to the rect underneath.
 		expect(findShapeAtPoint(ctx, { x: 50, y: 50 }, { filter: (s) => s.type !== "sticker" })).toBe(
 			"target",

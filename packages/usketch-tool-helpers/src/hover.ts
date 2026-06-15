@@ -171,8 +171,14 @@ export function findShapeAtPoint(
 			if (parent?.type === "frame" || parent?.type === "island") {
 				return id;
 			}
+			// The resolved ancestor — not the hit child — is what we return, so it
+			// must also pass the exclude/filter gates. Otherwise excluding a group
+			// id wouldn't skip it when one of its children is hit. If the ancestor
+			// is gated out, keep walking to the next shape below.
 			const ancestor = getTopLevelAncestor(ctx.store, id);
-			if (ancestor) return ancestor.id;
+			if (ancestor && !excludeSet?.has(ancestor.id) && (!filter || filter(ancestor))) {
+				return ancestor.id;
+			}
 			continue;
 		}
 
