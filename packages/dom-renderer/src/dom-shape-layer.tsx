@@ -237,13 +237,18 @@ export function DomShapeLayer({
 						</div>
 					);
 				}
+				// `overDropTarget` only affects `boosted` when the shape is selected,
+				// so gate it on selection here. This keeps the prop stably `false` for
+				// non-selected shapes, preserving the memo skip when the drop target
+				// toggles — only the selected shape(s) re-render.
+				const selected = ctx.selection.has(shape.id);
 				return (
 					<ShapeWrapper
 						key={shape.id}
 						shape={shape}
 						index={index}
-						selected={ctx.selection.has(shape.id)}
-						overDropTarget={!!dropTargetId}
+						selected={selected}
+						overDropTarget={selected && !!dropTargetId}
 						def={def}
 					/>
 				);
