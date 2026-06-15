@@ -116,12 +116,21 @@ export interface TrackHoverOptions {
 	 * "drop onto the shape underneath the dragged one" — pass the dragged
 	 * shape's id so the walk returns the next shape below it instead of the
 	 * dragged shape itself.
+	 *
+	 * Scope: in `trackHover`, this only affects the shape-body hover pass
+	 * (`findShapeAtPoint`). The earlier rotation/resize-handle passes (steps
+	 * 1–3) ignore it, so an excluded shape can still report a `handleHit` /
+	 * `rotationHit` cursor when the pointer is over one of its handles.
+	 * `findShapeAtPoint` itself applies it unconditionally.
 	 */
 	excludeIds?: ReadonlySet<string> | readonly string[];
 	/**
 	 * Predicate to skip shapes during the walk (return `false` to skip).
 	 * Applied in addition to `excludeIds`. The first non-skipped shape that
 	 * passes hit-test (per the normal precedence rules) wins.
+	 *
+	 * Scope: same as `excludeIds` — only the shape-body hover pass honors it;
+	 * `trackHover`'s handle passes do not.
 	 */
 	filter?: (shape: ShapeData) => boolean;
 }
