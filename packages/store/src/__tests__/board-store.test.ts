@@ -321,18 +321,28 @@ describe("BoardStore", () => {
 
 			store.addShape(makeShape({ id: "s1" }));
 
-			expect(events).toEqual([{ type: "shape:added", payload: { id: "s1" } }]);
+			expect(events).toEqual([{ type: "shape:added", payload: { id: "s1", ids: ["s1"] } }]);
 		});
 
-		it("emits shape:updated on updateShape", () => {
+		it("emits shape:updated with before/after on updateShape", () => {
 			const store = createBoardStore();
-			store.addShape(makeShape({ id: "s1" }));
+			store.addShape(makeShape({ id: "s1", x: 0 }));
 			const events: StoreEvent[] = [];
 			store.onMutation((e) => events.push(e));
 
 			store.updateShape("s1", { x: 10 });
 
-			expect(events).toEqual([{ type: "shape:updated", payload: { id: "s1" } }]);
+			expect(events).toHaveLength(1);
+			const e = events[0];
+			// Runtime-guard on `type` so the discriminated union narrows `payload`
+			// to the typed `ShapeChange & { ids }` shape — no structural cast, so
+			// the test follows the type definition at compile time.
+			if (e.type !== "shape:updated") throw new Error(`expected shape:updated, got ${e.type}`);
+			expect(e.payload.id).toBe("s1");
+			expect(e.payload.ids).toEqual(["s1"]);
+			// 追従系が自前で前回位置を持たなくても差分が取れる
+			expect(e.payload.before.x).toBe(0);
+			expect(e.payload.after.x).toBe(10);
 		});
 
 		it("emits shape:removed and selection:changed on deleteShape of selected", () => {
@@ -345,6 +355,11 @@ describe("BoardStore", () => {
 			store.deleteShape("s1");
 
 			expect(events.map((e) => e.type)).toEqual(["shape:removed", "selection:changed"]);
+			// Verify the removed payload explicitly so a dropped `ids` is caught.
+			const removed = events[0];
+			if (removed.type !== "shape:removed") throw new Error("expected shape:removed first");
+			expect(removed.payload.id).toBe("s1");
+			expect(removed.payload.ids).toEqual(["s1"]);
 		});
 	});
 
