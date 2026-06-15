@@ -37,9 +37,9 @@ const SLAM_PARAMS: Record<
 > = {
 	// design 比 dur 2.3 : 3.3 : 4.6 ≈ 0.5 : 0.72 : 1.0 を一発再生用に圧縮。
 	// lift / liftScale は design の --lift(52/94/142) の比を踏襲。
-	light: { durationMs: 380, lift: 8, liftScale: 1.07, ring: 0.95, spray: 0.55, particle: 5 },
-	medium: { durationMs: 560, lift: 16, liftScale: 1.13, ring: 1.25, spray: 0.85, particle: 6 },
-	heavy: { durationMs: 780, lift: 26, liftScale: 1.2, ring: 1.6, spray: 1.2, particle: 7 },
+	light: { durationMs: 380, lift: 8, liftScale: 1.07, ring: 0.9, spray: 0.5, particle: 3 },
+	medium: { durationMs: 560, lift: 16, liftScale: 1.13, ring: 1.15, spray: 0.7, particle: 4 },
+	heavy: { durationMs: 780, lift: 26, liftScale: 1.2, ring: 1.45, spray: 0.95, particle: 5 },
 };
 
 /** transient.emit に載せる解決済みアニメ情報。 */
@@ -131,12 +131,12 @@ export function injectPlacementStyles() {
 		/* 衝撃エフェクトは着地（≈40-46%, 実カードの着地と同期）に合わせて発火 */
 		@keyframes usketch-slam-ring {
 			0%, 36% { opacity: 0; transform: scale(0.4); }
-			44%     { opacity: 0.85; transform: scale(0.55); }
-			100%    { opacity: 0; transform: scale(1.6); }
+			44%     { opacity: 0.4; transform: scale(0.55); }
+			100%    { opacity: 0; transform: scale(1.45); }
 		}
 		@keyframes usketch-slam-splash {
 			0%, 38% { opacity: 0; transform: translate(0, 0) scale(0.4); }
-			46%     { opacity: 0.9; transform: translate(calc(var(--tx) * 0.45), calc(var(--ty) * 0.45)) scale(1); }
+			46%     { opacity: 0.45; transform: translate(calc(var(--tx) * 0.45), calc(var(--ty) * 0.45)) scale(1); }
 			100%    { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.7); }
 		}
 	${slamCardKeyframes()}`;
@@ -191,7 +191,7 @@ function SlamBurst({ obj }: { obj: TransientObject }) {
 			{/* 衝撃リング */}
 			<div
 				style={circle(ringSize, {
-					border: "2px solid rgba(16,18,40,0.32)",
+					border: "1.5px solid rgba(16,18,40,0.18)",
 					animation: `usketch-slam-ring ${durationMs}ms ease-out forwards`,
 				})}
 			/>
@@ -203,7 +203,7 @@ function SlamBurst({ obj }: { obj: TransientObject }) {
 				const size = i % 2 === 0 ? p.particle + 1 : p.particle - 1;
 				const style: Record<string, string | number> = {
 					...circle(size, {
-						background: "#16182a",
+						background: "rgba(16,18,40,0.5)",
 						animation: `usketch-slam-splash ${durationMs}ms ease-out forwards`,
 					}),
 					"--tx": `${tx}px`,
