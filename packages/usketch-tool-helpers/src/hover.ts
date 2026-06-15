@@ -3,6 +3,7 @@ import type {
 	CanvasPointerEvent,
 	Point,
 	ResizeHandle,
+	ShapeData,
 	ShapeRegistry,
 	ToolContext,
 	Viewport,
@@ -110,6 +111,28 @@ export interface TrackHoverOptions {
 	 * Other shapes are ignored even if they pass hit-test.
 	 */
 	editingGroupId?: string | null;
+	/**
+	 * Shape ids to skip during the hit-test walk. Useful for drag-and-drop
+	 * "drop onto the shape underneath the dragged one" — pass the dragged
+	 * shape's id so the walk returns the next shape below it instead of the
+	 * dragged shape itself.
+	 *
+	 * Scope: in `trackHover`, this only affects the shape-body hover pass
+	 * (`findShapeAtPoint`). The earlier rotation/resize-handle passes (steps
+	 * 1–3) ignore it, so an excluded shape can still report a `handleHit` /
+	 * `rotationHit` cursor when the pointer is over one of its handles.
+	 * `findShapeAtPoint` itself applies it unconditionally.
+	 */
+	excludeIds?: ReadonlySet<string> | readonly string[];
+	/**
+	 * Predicate to skip shapes during the walk (return `false` to skip).
+	 * Applied in addition to `excludeIds`. The first non-skipped shape that
+	 * passes hit-test (per the normal precedence rules) wins.
+	 *
+	 * Scope: same as `excludeIds` — only the shape-body hover pass honors it;
+	 * `trackHover`'s handle passes do not.
+	 */
+	filter?: (shape: ShapeData) => boolean;
 }
 
 /**
@@ -128,12 +151,22 @@ export function findShapeAtPoint(
 	options: TrackHoverOptions = {},
 ): string | null {
 	const editingGroupId = options.editingGroupId ?? null;
+	const excludeSet =
+		options.excludeIds instanceof Set
+			? options.excludeIds
+			: options.excludeIds
+				? new Set(options.excludeIds)
+				: null;
+	const filter = options.filter;
 	const shapes = ctx.store.getShapes();
 	const CONTAINER_TYPES = new Set(["island", "frame"]);
 	const entries = [...shapes.entries()].reverse();
 
 	let containerHit: string | null = null;
 	for (const [id, data] of entries) {
+		// Skip excluded / filtered-out shapes before hit-testing.
+		if (excludeSet?.has(id)) continue;
+		if (filter && !filter(data)) continue;
 		const def = ctx.shapes.get(data.type);
 		if (!def?.hitTest(data, point)) continue;
 
@@ -147,8 +180,14 @@ export function findShapeAtPoint(
 			if (parent?.type === "frame" || parent?.type === "island") {
 				return id;
 			}
+			// The resolved ancestor — not the hit child — is what we return, so it
+			// must also pass the exclude/filter gates. Otherwise excluding a group
+			// id wouldn't skip it when one of its children is hit. If the ancestor
+			// is gated out, keep walking to the next shape below.
 			const ancestor = getTopLevelAncestor(ctx.store, id);
-			if (ancestor) return ancestor.id;
+			if (ancestor && !excludeSet?.has(ancestor.id) && (!filter || filter(ancestor))) {
+				return ancestor.id;
+			}
 			continue;
 		}
 
