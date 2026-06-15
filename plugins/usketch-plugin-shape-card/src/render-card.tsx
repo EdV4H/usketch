@@ -38,7 +38,7 @@ function UnknownCard({ cardType }: { cardType?: string }) {
 		>
 			unknown card-type:
 			<br />
-			{cardType ?? "(none)"}
+			{cardType || "(none)"}
 		</div>
 	);
 }

@@ -11,7 +11,7 @@ import {
 	withRotation,
 	zIndexAfterAll,
 } from "@edv4h/usketch-shared";
-import { createAddShapeCommand } from "@edv4h/usketch-store";
+import { createAddShapeCommand, createUpdateShapeCommand } from "@edv4h/usketch-store";
 import { drawTop, shuffle } from "./deck.js";
 import {
 	CARD_TYPE,
@@ -195,7 +195,10 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				for (let i = sorted.length - 1; i >= 0; i--) {
 					const shape = sorted[i];
 					if (!isCardLike(shape.type)) continue;
-					if (rectHitTest(shape, point)) return shape;
+					// shape 登録側の hitTest（withRotation 込み）を使い、選択ツールと判定を一致させる
+					const def = ctx.shapes.get(shape.type);
+					const hit = def?.hitTest ? def.hitTest(shape, point) : rectHitTest(shape, point);
+					if (hit) return shape;
 				}
 				return null;
 			}
@@ -267,9 +270,21 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					const deck = ctx.store.getShape(id);
 					if (!deck || deck.type !== DECK_TYPE) continue;
 					const m = readDeckMeta(deck);
-					ctx.store.updateShape(id, {
-						meta: { ...m, cards: shuffle(m.cards ?? []) } as ShapeData["meta"],
-					});
+					const before: DeckMeta = {
+						cardType: m.cardType ?? "",
+						cards: m.cards ?? [],
+						faceDown: m.faceDown ?? true,
+					};
+					const after: DeckMeta = { ...before, cards: shuffle(before.cards) };
+					// Command 経由で更新し Undo/Redo 可能にする
+					ctx.commands.execute(
+						createUpdateShapeCommand(
+							ctx.store,
+							id,
+							{ meta: before } as Partial<ShapeData>,
+							{ meta: after } as Partial<ShapeData>,
+						),
+					);
 				}
 			}
 			const offShuffleShortcut = enableDeck

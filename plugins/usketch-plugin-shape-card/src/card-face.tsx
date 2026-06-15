@@ -7,7 +7,8 @@ export function faceTextureStyle(texture?: CardTexture): CSSProperties {
 	const style: CSSProperties = {};
 	if (texture.color) style.background = texture.color;
 	if (texture.image) {
-		style.backgroundImage = `url("${texture.image}")`;
+		// URL に " や \ が含まれても壊れない / 注入されないよう JSON.stringify でエスケープ
+		style.backgroundImage = `url(${JSON.stringify(texture.image)})`;
 		if (texture.fit === "tile") {
 			style.backgroundRepeat = "repeat";
 		} else {
