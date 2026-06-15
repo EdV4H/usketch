@@ -32,6 +32,7 @@ export type {
 	RenderTarget,
 	SelectionForeground,
 	SelectionForegroundRegistry,
+	ShapeChange,
 	ShapeDefinition,
 	ShapeRegistry,
 	ShapeSerializeContext,

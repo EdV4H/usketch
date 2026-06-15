@@ -457,10 +457,7 @@ export interface ShapeChange {
 export type StoreEvent =
 	| { type: "shape:added"; payload: { id: string; ids: string[] } }
 	| { type: "shape:removed"; payload: { id: string; ids: string[] } }
-	| {
-			type: "shape:updated";
-			payload: { id: string; ids: string[]; before: ShapeData; after: ShapeData };
-	  }
+	| { type: "shape:updated"; payload: ShapeChange & { ids: string[] } }
 	| { type: "selection:changed"; payload?: { ids: string[] } }
 	| { type: "tool:changed"; payload: { id: string } }
 	| { type: "default-tool:changed"; payload: { id: string } }
