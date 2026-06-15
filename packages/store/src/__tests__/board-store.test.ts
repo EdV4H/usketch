@@ -355,6 +355,11 @@ describe("BoardStore", () => {
 			store.deleteShape("s1");
 
 			expect(events.map((e) => e.type)).toEqual(["shape:removed", "selection:changed"]);
+			// Verify the removed payload explicitly so a dropped `ids` is caught.
+			const removed = events[0];
+			if (removed.type !== "shape:removed") throw new Error("expected shape:removed first");
+			expect(removed.payload.id).toBe("s1");
+			expect(removed.payload.ids).toEqual(["s1"]);
 		});
 	});
 
