@@ -1,6 +1,7 @@
 import { useApp } from "@edv4h/usketch-canvas-engine";
 import { DOMAIN_SUBTYPES } from "@edv4h/usketch-plugin-domain-design";
 import { BASIC_SHAPE_SUBTYPES } from "@edv4h/usketch-plugin-shape-basic";
+import { BUILTIN_CARD_TYPES } from "@edv4h/usketch-plugin-shape-card";
 import {
 	DEFAULT_STICKY_COLOR,
 	STICKY_COLOR_KEYS,
@@ -25,11 +26,13 @@ export function ToolButton({
 	const [wireframeSubtype, setWireframeSubtype] = useState(WIREFRAME_SUBTYPES[0].type);
 	const [stickyColor, setStickyColor] = useState(DEFAULT_STICKY_COLOR);
 	const [domainSubtype, setDomainSubtype] = useState(DOMAIN_SUBTYPES[0]?.type ?? "");
+	const [cardType, setCardType] = useState(BUILTIN_CARD_TYPES[0]?.id ?? "");
 	const isWireframe = id === "wireframe-draw";
 	const isBasicShape = id === "basic-shape-draw";
 	const isSticky = id === "sticky-draw";
 	const isDomainDraw = id === "domain-draw";
-	const hasPicker = isWireframe || isBasicShape || isSticky || isDomainDraw;
+	const isCard = id === "card-draw" || id === "card-deck-draw";
+	const hasPicker = isWireframe || isBasicShape || isSticky || isDomainDraw || isCard;
 
 	return (
 		<div style={{ position: "relative" }}>
@@ -89,6 +92,76 @@ export function ToolButton({
 					}}
 				/>
 			)}
+			{isCard && isActive && showPicker && (
+				<CardTypePicker
+					currentType={cardType}
+					onSelect={(type) => {
+						setCardType(type);
+						app.events.emit("card:select-type", { id: type });
+					}}
+				/>
+			)}
+		</div>
+	);
+}
+
+function CardTypePicker({
+	currentType,
+	onSelect,
+}: {
+	currentType: string;
+	onSelect: (type: string) => void;
+}) {
+	return (
+		<div
+			style={{
+				position: "absolute",
+				bottom: 44,
+				left: "50%",
+				transform: "translateX(-50%)",
+				background: "var(--bg-surface-raised)",
+				border: "1px solid var(--border-default)",
+				borderRadius: 10,
+				padding: 8,
+				display: "grid",
+				gridTemplateColumns: `repeat(${BUILTIN_CARD_TYPES.length}, 1fr)`,
+				gap: 4,
+				boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+				zIndex: 150,
+				fontFamily: "system-ui, sans-serif",
+				whiteSpace: "nowrap",
+			}}
+		>
+			{BUILTIN_CARD_TYPES.map((def) => {
+				const Icon = def.icon;
+				const isActive = def.id === currentType;
+				return (
+					<button
+						key={def.id}
+						type="button"
+						onClick={() => onSelect(def.id)}
+						title={def.label}
+						style={{
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+							gap: 2,
+							padding: "6px 8px",
+							border: "none",
+							borderRadius: 6,
+							background: isActive ? "#eff6ff" : "transparent",
+							color: isActive ? "#3b82f6" : "#555",
+							cursor: "pointer",
+							fontSize: 10,
+							fontWeight: isActive ? 600 : 400,
+							minWidth: 56,
+						}}
+					>
+						<Icon />
+						{def.label}
+					</button>
+				);
+			})}
 		</div>
 	);
 }
