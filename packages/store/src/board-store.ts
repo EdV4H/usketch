@@ -5,6 +5,7 @@ import type {
 	ShapeData,
 	ShapeStyle,
 	StoreEvent,
+	StoreEventType,
 	Viewport,
 } from "@edv4h/usketch-shared";
 import {
@@ -73,8 +74,10 @@ export function createBoardStore(): BoardStore {
 		}
 	}
 
-	function notifyMutation(type: string, payload?: unknown) {
-		const event: StoreEvent = payload !== undefined ? { type, payload } : { type };
+	function notifyMutation(type: StoreEventType, payload?: unknown) {
+		// payload の型は type ごとに決まる。呼び出し側が正しい payload を渡す前提で、
+		// 構築時のみ StoreEvent にキャストする（型付けの利益は購読側の narrowing で得る）。
+		const event = (payload !== undefined ? { type, payload } : { type }) as StoreEvent;
 		for (const listener of mutationListeners) {
 			listener(event);
 		}

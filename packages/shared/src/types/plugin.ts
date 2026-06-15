@@ -445,11 +445,14 @@ export interface ShapeChange {
 }
 
 /**
- * `store.onMutation` で配信されるイベント。シェイプ系は型付きの判別ユニオンで、
- * `event.type` で絞り込むと `payload` が型付けされる。
+ * `store.onMutation` で配信されるイベント。`store` が発行する**閉じた**判別ユニオンで、
+ * `event.type` で絞り込むと `payload` が正しく型付けされる（オープンな文字列フォールバックは
+ * 持たない — それを混ぜると `"shape:updated"` も `string` に代入可能なため narrowing が
+ * 効かなくなる）。
  *
- * - `ids` に正規化（単一変更でも長さ1の配列）。後方互換のため `id` も併載。
- * - それ以外のミューテーション（selection/viewport/style 等）は汎用フォールバック。
+ * シェイプ系の `payload` は `ids: string[]` に正規化（単一変更でも長さ1）。後方互換のため
+ * `id` も併載。`shape:updated` は `before` / `after` を持ち、追従系が自前で前回位置を保持
+ * しなくても差分を取れる。
  */
 export type StoreEvent =
 	| { type: "shape:added"; payload: { id: string; ids: string[] } }
@@ -458,7 +461,15 @@ export type StoreEvent =
 			type: "shape:updated";
 			payload: { id: string; ids: string[]; before: ShapeData; after: ShapeData };
 	  }
-	| { type: string; payload?: unknown };
+	| { type: "selection:changed"; payload?: { ids: string[] } }
+	| { type: "tool:changed"; payload: { id: string } }
+	| { type: "default-tool:changed"; payload: { id: string } }
+	| { type: "shapes:z-index-initialized"; payload: { count: number } }
+	| { type: "viewport:changed"; payload?: undefined }
+	| { type: "style:changed"; payload?: undefined };
+
+/** {@link StoreEvent} の `type` リテラル。store の `notifyMutation` で使用。 */
+export type StoreEventType = StoreEvent["type"];
 
 export interface BoardStore {
 	getShapes(): ReadonlyMap<string, ShapeData>;

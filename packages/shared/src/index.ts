@@ -37,6 +37,7 @@ export type {
 	ShapeSerializeContext,
 	ShortcutRegistry,
 	StoreEvent,
+	StoreEventType,
 	ToolContext,
 	ToolDefinition,
 	ToolRegistry,
