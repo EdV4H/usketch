@@ -8,6 +8,13 @@ export { playingCardType } from "./card-types/playing-card.js";
 export type { UnoCardFields, UnoColor } from "./card-types/uno.js";
 export { unoCardType } from "./card-types/uno.js";
 export { drawTop, shuffle } from "./deck.js";
+export {
+	CARD_TYPE,
+	createBareCardShape,
+	createCardShape,
+	createDeckShape,
+	DECK_TYPE,
+} from "./factory.js";
 export type { CreateCardPluginOptions } from "./plugin.js";
 export { createCardPlugin } from "./plugin.js";
 export { createCardTypeRegistry, EXAMPLE_CARD_TYPES } from "./registry.js";

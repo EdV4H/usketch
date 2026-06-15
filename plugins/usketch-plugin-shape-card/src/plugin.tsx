@@ -13,6 +13,13 @@ import {
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { drawTop, shuffle } from "./deck.js";
+import {
+	CARD_TYPE,
+	createBareCardShape,
+	createCardShape,
+	createDeckShape,
+	DECK_TYPE,
+} from "./factory.js";
 import { getBounds, makeAspectResize, rectHitTest } from "./geometry.js";
 import {
 	injectPlacementStyles,
@@ -31,8 +38,6 @@ import {
 	readDeckMeta,
 } from "./types.js";
 
-const CARD_TYPE = "card";
-const DECK_TYPE = "card-deck";
 const DOUBLE_CLICK_MS = 400;
 const GENERIC_ACCENT = "rgba(79, 140, 255, 0.9)";
 
@@ -213,17 +218,12 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				if (!fields) return;
 
 				const allZ = ctx.store.getShapesSorted().map((s) => s.zIndex);
-				const newCard: ShapeData = {
-					id: generateId(),
-					type: CARD_TYPE,
+				const newCard = createCardShape(def, {
 					x: deck.x + deck.width + 16,
 					y: deck.y,
-					width: def.defaultSize.width,
-					height: def.defaultSize.height,
-					style: { ...DEFAULT_STYLE },
+					fields,
 					zIndex: zIndexAfterAll(allZ),
-					meta: { cardType, isFlipped: false, fields } as ShapeData["meta"],
-				};
+				});
 
 				const deckBefore: DeckMeta = { cardType, cards, faceDown: meta.faceDown ?? true };
 				const deckAfter: DeckMeta = { cardType, cards: rest, faceDown: meta.faceDown ?? true };
@@ -284,20 +284,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				resize,
 				createDefault: ({ id, x, y }) => {
 					const def = resolveDef(currentCardType);
-					return {
-						id,
-						type: CARD_TYPE,
-						x,
-						y,
-						width: def?.defaultSize.width ?? 200,
-						height: def?.defaultSize.height ?? 280,
-						style: { ...DEFAULT_STYLE },
-						meta: {
-							cardType: def?.id ?? "",
-							isFlipped: false,
-							fields: def?.createDefaultFields() ?? {},
-						} as ShapeData["meta"],
-					};
+					return def ? createCardShape(def, { id, x, y }) : createBareCardShape({ id, x, y });
 				},
 				renderTarget: "html",
 				minSize: { width: 60, height: 60 },
@@ -331,22 +318,18 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
 						const def = resolveDef(currentCardType);
 						if (!def) return;
-						const id = generateId();
-						drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
-						toolCtx.store.addShape({
-							id,
-							type: CARD_TYPE,
+						const draft = createCardShape(def, {
 							x: event.worldPoint.x,
 							y: event.worldPoint.y,
 							width: 0,
 							height: 0,
-							style: { ...DEFAULT_STYLE },
-							meta: {
-								cardType: def.id,
-								isFlipped: false,
-								fields: def.createDefaultFields(),
-							} as ShapeData["meta"],
 						});
+						drawState = {
+							startX: event.worldPoint.x,
+							startY: event.worldPoint.y,
+							shapeId: draft.id,
+						};
+						toolCtx.store.addShape(draft);
 					},
 					onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
 						if (!drawState) return;
@@ -371,20 +354,11 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 							emitPlacement(draft);
 						} else if (def) {
 							// クリック: 既定サイズで配置（クリック点を中心に）
-							const placed: ShapeData = {
+							const placed = createCardShape(def, {
 								id: drawState.shapeId,
-								type: CARD_TYPE,
 								x: drawState.startX - def.defaultSize.width / 2,
 								y: drawState.startY - def.defaultSize.height / 2,
-								width: def.defaultSize.width,
-								height: def.defaultSize.height,
-								style: { ...DEFAULT_STYLE },
-								meta: {
-									cardType: def.id,
-									isFlipped: false,
-									fields: def.createDefaultFields(),
-								} as ShapeData["meta"],
-							};
+							});
 							toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, placed));
 							toolCtx.store.setSelection([placed.id]);
 							emitPlacement(placed);
@@ -403,20 +377,18 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					resize,
 					createDefault: ({ id, x, y }) => {
 						const def = resolveDef(currentCardType);
-						return {
-							id,
-							type: DECK_TYPE,
-							x,
-							y,
-							width: def?.defaultSize.width ?? 200,
-							height: def?.defaultSize.height ?? 280,
-							style: { ...DEFAULT_STYLE },
-							meta: {
-								cardType: def?.id ?? "",
-								cards: def?.buildDeck?.() ?? [],
-								faceDown: true,
-							} as ShapeData["meta"],
-						};
+						return def
+							? createDeckShape(def, { id, x, y })
+							: {
+									id,
+									type: DECK_TYPE,
+									x,
+									y,
+									width: 200,
+									height: 280,
+									style: { ...DEFAULT_STYLE },
+									meta: { cardType: "", cards: [], faceDown: true },
+								};
 					},
 					renderTarget: "html",
 					minSize: { width: 60, height: 60 },
@@ -438,23 +410,12 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 						onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
 							const def = resolveDef(currentCardType);
 							if (!def) return;
-							const id = generateId();
-							const deck: ShapeData = {
-								id,
-								type: DECK_TYPE,
+							const deck = createDeckShape(def, {
 								x: event.worldPoint.x - def.defaultSize.width / 2,
 								y: event.worldPoint.y - def.defaultSize.height / 2,
-								width: def.defaultSize.width,
-								height: def.defaultSize.height,
-								style: { ...DEFAULT_STYLE },
-								meta: {
-									cardType: def.id,
-									cards: def.buildDeck?.() ?? [],
-									faceDown: true,
-								} as ShapeData["meta"],
-							};
+							});
 							toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, deck));
-							toolCtx.store.setSelection([id]);
+							toolCtx.store.setSelection([deck.id]);
 							emitPlacement(deck);
 							toolCtx.store.resetToDefaultTool();
 						},

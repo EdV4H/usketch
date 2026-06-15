@@ -90,6 +90,29 @@ const front: CardFace = {
 - `align` / `vAlign` で x,y がテキストのどこを指すか（左上・中央・右下など）を決定。
 - `renderFace(face)` をエクスポートしているので、独自 card-type の `renderFront`/`renderBack` でも再利用できます。
 
+## カード / デッキの生成（ファクトリ）
+
+生成は「データ作り」なので、`store.addShape` に渡せる shape データを返す**純ファクトリ**を提供します
+（ツールも内部でこれを使っています）。Undo したい場合は `createAddShapeCommand` に渡します。
+
+```ts
+import { createCardShape, createDeckShape } from "@edv4h/usketch-plugin-shape-card";
+
+// 1枚配置
+store.addShape(createCardShape(myCardType, { x, y }));
+
+// 既定デッキ（card-type の buildDeck() を使用）
+store.addShape(createDeckShape(myCardType, { x, y }));
+
+// 可変デッキ（TCG の構築済みデッキなど）: cards を明示的に渡す
+store.addShape(
+  createDeckShape(myTcgType, { x, y, cards: playerDeckList /* 先頭が山の一番上 */ }),
+);
+```
+
+`cards` は任意の配列なので、固定構成だけでなく**プレイヤーが組んだ山（TCG）**も表現できます。
+ドロー（ダブルクリック）/シャッフル（Shift+S）はこの配列に対して動きます。
+
 ## オプション
 
 ```ts
