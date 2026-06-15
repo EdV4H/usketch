@@ -1,5 +1,4 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
-import { type SlamPlay, slamWrapper } from "./placement.js";
 import { type CardTypeDefinition, readDeckMeta } from "./types.js";
 
 /** 山札の厚みを表現する後背レイヤーの最大枚数。 */
@@ -10,10 +9,7 @@ const LAYER_OFFSET = 3;
  * card-deck shape の render を生成する。card-type を引いて山札の見た目（積み重ね +
  * 一番上のカード + 残枚数バッジ）を描画する。
  */
-export function createDeckRenderer(
-	registry: Map<string, CardTypeDefinition>,
-	getSlam?: (shapeId: string) => SlamPlay | undefined,
-) {
+export function createDeckRenderer(registry: Map<string, CardTypeDefinition>) {
 	return function renderDeck(shape: ShapeData) {
 		const meta = readDeckMeta(shape);
 		const def = meta.cardType ? registry.get(meta.cardType) : undefined;
@@ -29,11 +25,8 @@ export function createDeckRenderer(
 			return meta.faceDown ? def.renderBack(top) : def.renderFront(top);
 		})();
 
-		const sw = slamWrapper(getSlam?.(shape.id));
-
 		return (
 			<div
-				key={sw.key}
 				style={{
 					position: "relative",
 					width: "100%",
@@ -41,7 +34,6 @@ export function createDeckRenderer(
 					opacity,
 					pointerEvents: "none",
 					userSelect: "none",
-					...sw.style,
 				}}
 			>
 				{/* 厚み表現: 後ろにずらした空レイヤー */}

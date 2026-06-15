@@ -111,7 +111,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 	let slamNonce = 0;
 	const getSlam = (id: string) => slamming.get(id);
 	const renderCard = createCardRenderer(registry, getSlam);
-	const renderDeck = createDeckRenderer(registry, getSlam);
+	const renderDeck = createDeckRenderer(registry);
 	const hasCardTypes = registry.size > 0;
 
 	// 既定の card-type（先頭。空なら ""）
@@ -149,7 +149,9 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 			});
 
 			function emitPlacement(shape: ShapeData) {
-				const meta = shape.type === DECK_TYPE ? readDeckMeta(shape) : readCardMeta(shape);
+				// デッキ（山札）は配置アニメ不要。
+				if (shape.type === DECK_TYPE) return;
+				const meta = readCardMeta(shape);
 				const def = meta.cardType ? registry.get(meta.cardType) : undefined;
 				const resolved = resolvePlacementAnimation(
 					def?.placementAnimation,
