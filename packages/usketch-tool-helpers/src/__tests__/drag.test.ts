@@ -52,6 +52,35 @@ describe("startDragSession", () => {
 		expect(ctx.store.getShape("child")?.x).toBe(40);
 	});
 
+	it("does NOT follow children of a non-container parent by default", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "card", type: "card", x: 0, y: 0 }));
+		ctx.store.addShape(makeShape({ id: "sticker", x: 10, y: 10, parentId: "card" }));
+
+		const session = startDragSession({ ctx, startPoint: { x: 0, y: 0 }, shapeIds: ["card"] });
+		session.update(makePointerEvent({ x: 30, y: 0 }));
+		expect(ctx.store.getShape("card")?.x).toBe(30);
+		// Default: ordinary parent's child stays put.
+		expect(ctx.store.getShape("sticker")?.x).toBe(10);
+	});
+
+	it("follows children of a non-container parent when followChildrenOf opts in", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "card", type: "card", x: 0, y: 0 }));
+		ctx.store.addShape(makeShape({ id: "sticker", x: 10, y: 10, parentId: "card" }));
+
+		const session = startDragSession({
+			ctx,
+			startPoint: { x: 0, y: 0 },
+			shapeIds: ["card"],
+			followChildrenOf: () => true,
+		});
+		session.update(makePointerEvent({ x: 30, y: 0 }));
+		expect(ctx.store.getShape("card")?.x).toBe(30);
+		// Opted in: the attached sticker follows by the parent's delta.
+		expect(ctx.store.getShape("sticker")?.x).toBe(40);
+	});
+
 	it("commit() returns a Command that the caller can execute (round-trip undo)", () => {
 		const ctx = createTestToolContext();
 		ctx.store.addShape(makeShape({ id: "a", x: 0, y: 0 }));
