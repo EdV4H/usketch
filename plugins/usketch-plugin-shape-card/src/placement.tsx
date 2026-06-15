@@ -28,6 +28,8 @@ const SLAM_PARAMS: Record<
 	SlamWeight,
 	{
 		durationMs: number;
+		lift: number; // 着地前に一瞬持ち上がる量(px)
+		liftScale: number; // 持ち上がり時のスケール（手前=大きく）
 		ring: number; // カード最大辺に対するリング径の係数
 		shadow: number; // 接地シャドウ径の係数
 		shadowOpacity: number;
@@ -35,9 +37,12 @@ const SLAM_PARAMS: Record<
 		particle: number; // 粒の基準サイズ(px)
 	}
 > = {
-	// design 比 dur 2.3 : 3.3 : 4.6 ≈ 0.5 : 0.72 : 1.0 を一発再生用に圧縮
+	// design 比 dur 2.3 : 3.3 : 4.6 ≈ 0.5 : 0.72 : 1.0 を一発再生用に圧縮。
+	// lift / liftScale は design の --lift(52/94/142) の比を踏襲。
 	light: {
 		durationMs: 380,
+		lift: 8,
+		liftScale: 1.07,
 		ring: 0.95,
 		shadow: 1.0,
 		shadowOpacity: 0.28,
@@ -45,14 +50,25 @@ const SLAM_PARAMS: Record<
 		particle: 5,
 	},
 	medium: {
-		durationMs: 540,
+		durationMs: 560,
+		lift: 16,
+		liftScale: 1.13,
 		ring: 1.25,
 		shadow: 1.25,
 		shadowOpacity: 0.5,
 		spray: 0.85,
 		particle: 6,
 	},
-	heavy: { durationMs: 760, ring: 1.6, shadow: 1.6, shadowOpacity: 0.62, spray: 1.2, particle: 7 },
+	heavy: {
+		durationMs: 780,
+		lift: 26,
+		liftScale: 1.2,
+		ring: 1.6,
+		shadow: 1.6,
+		shadowOpacity: 0.62,
+		spray: 1.2,
+		particle: 7,
+	},
 };
 
 /** transient.emit に載せる解決済みアニメ情報。 */
@@ -112,21 +128,32 @@ export function injectPlacementStyles() {
 			75%  { transform: scale(0.96); opacity: 0.3; }
 			100% { transform: scale(1); opacity: 0; }
 		}
+		/* カード本体: 一瞬持ち上がってから加速して着地（ズドン）→ フェードして実カードを見せる */
+		@keyframes usketch-slam-card {
+			0%   { opacity: 0; transform: translateY(var(--ly)) scale(var(--ls)); }
+			10%  { opacity: 0.92; }
+			30%  { transform: translateY(var(--ly)) scale(var(--ls)); animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.25); }
+			40%  { transform: translateY(0) scale(1); opacity: 0.92; }
+			72%  { opacity: 0.4; }
+			100% { opacity: 0; transform: translateY(0) scale(1); }
+		}
+		/* 以下の衝撃エフェクトは着地（≈40%）に合わせて発火 */
 		@keyframes usketch-slam-ring {
-			0%   { opacity: 0; transform: scale(0.45); }
-			14%  { opacity: 0.85; transform: scale(0.6); }
-			100% { opacity: 0; transform: scale(1.6); }
+			0%, 36% { opacity: 0; transform: scale(0.4); }
+			44%     { opacity: 0.85; transform: scale(0.55); }
+			100%    { opacity: 0; transform: scale(1.6); }
 		}
 		@keyframes usketch-slam-shadow {
-			0%   { opacity: 0.16; transform: scale(1.5); }
-			20%  { opacity: 0.5; transform: scale(0.86); }
-			55%  { opacity: 0.34; transform: scale(1); }
+			0%   { opacity: 0.3; transform: scale(1.55); }
+			30%  { opacity: 0.35; transform: scale(1.6); }
+			40%  { opacity: 1; transform: scale(0.86); }
+			70%  { opacity: 0.7; transform: scale(1); }
 			100% { opacity: 0; transform: scale(1.4); }
 		}
 		@keyframes usketch-slam-splash {
-			0%   { opacity: 0; transform: translate(0, 0) scale(0.4); }
-			20%  { opacity: 0.9; transform: translate(calc(var(--tx) * 0.45), calc(var(--ty) * 0.45)) scale(1); }
-			100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.7); }
+			0%, 38% { opacity: 0; transform: translate(0, 0) scale(0.4); }
+			46%     { opacity: 0.9; transform: translate(calc(var(--tx) * 0.45), calc(var(--ty) * 0.45)) scale(1); }
+			100%    { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.7); }
 		}
 	`;
 	document.head.appendChild(style);
@@ -158,16 +185,38 @@ function SlamBurst({ obj }: { obj: TransientObject }) {
 		...style,
 	});
 
+	// カード本体: 一瞬持ち上がって（手前=大きく）から加速して着地するシルエット。
+	// 実カードの上に重なり、着地後にフェードして実カードを見せる。
+	const cardStyle: Record<string, string | number> = {
+		position: "absolute",
+		left: -width / 2,
+		top: -height / 2,
+		width,
+		height,
+		borderRadius: 12,
+		boxSizing: "border-box",
+		background: "linear-gradient(160deg, rgba(255,255,255,0.5), rgba(238,240,245,0.4))",
+		border: "1px solid rgba(16,18,40,0.16)",
+		boxShadow: "0 14px 34px rgba(16,18,40,0.3)",
+		pointerEvents: "none",
+		animation: `usketch-slam-card ${durationMs}ms ease-out forwards`,
+		"--ly": `${-p.lift}px`,
+		"--ls": p.liftScale,
+	};
+
 	return (
 		<div style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}>
-			{/* 接地シャドウ（接触でキュッと締まる） */}
+			{/* 接地シャドウ（持ち上がり時は大きく淡く→着地でキュッと締まる） */}
 			<div
 				style={circle(shadowSize, {
 					background: `radial-gradient(circle, rgba(16,18,40,${p.shadowOpacity}), rgba(16,18,40,0) 66%)`,
 					filter: "blur(7px)",
+					opacity: 0,
 					animation: `usketch-slam-shadow ${durationMs}ms ease-in-out forwards`,
 				})}
 			/>
+			{/* カード本体（持ち上がり→ズドン） */}
+			<div style={cardStyle as CSSProperties} />
 			{/* 衝撃リング */}
 			<div
 				style={circle(ringSize, {

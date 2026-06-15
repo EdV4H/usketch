@@ -126,7 +126,8 @@ createCardPlugin({
 配置アニメは次のいずれか：
 - プリセット `{ preset: "deal" | "drop" | "bounce" | "none" }`
 - **Slam（ドン！）** `{ preset: "slam-light" | "slam-medium" | "slam-heavy" }` — 重みのある着地。
-  衝撃リング + 接地シャドウ + 全周への放射状飛沫が弾け、**重いほど大きく・ゆっくり**（light < medium < heavy）。
+  **一瞬持ち上がってから加速して着地（ズドン）**し、衝撃リング + 接地シャドウ + 全周への放射状飛沫が弾ける。
+  **重いほど大きく・ゆっくり**（light < medium < heavy）。
   組込例では playing-card = `slam-medium`、uno = `slam-heavy`。
 - 独自 `{ keyframes: string; durationMs: number; easing?: string }`
 
