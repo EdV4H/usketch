@@ -18,8 +18,10 @@ export interface CollectDescendantsOptions {
 
 /**
  * Collect the user-selected shapes plus all descendants of any shape whose
- * children should follow (containers by default). Used by drag and rotate
- * helpers so a parent moves/rotates with its children atomically.
+ * children should follow (containers by default). Used by the drag/move
+ * helper (`startDragSession`) so a parent moves with its children atomically.
+ * Rotation uses {@link collectChildrenOnly} instead, since it tracks the root
+ * rotation separately from its children.
  *
  * Returns a Map of `shapeId -> snapshot at session start`. Snapshots are
  * shallow clones so callers can compare against later store state without

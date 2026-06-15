@@ -22,9 +22,15 @@ export interface DragSessionOptions {
 	/** Top-level shape IDs the user is dragging (typically the current selection). */
 	shapeIds: Iterable<string>;
 	/**
-	 * Whether to also drag descendants of any container (group/frame/island)
-	 * in `shapeIds`. Default `true` — matches `tool-select`'s behavior. Set to
-	 * `false` for tools that want to move only the top-level shapes.
+	 * Whether to also drag descendants of shapes in `shapeIds`. Default `true`
+	 * — matches `tool-select`'s behavior. Set to `false` for tools that want to
+	 * move only the top-level shapes.
+	 *
+	 * Which descendants follow is decided by `followChildrenOf`: by default
+	 * only containers (group/frame/island) propagate to their children, but a
+	 * custom predicate widens this to any parent the caller chooses. In other
+	 * words, "descendants" here means "children of every shape `followChildrenOf`
+	 * returns `true` for", not strictly container children.
 	 */
 	includeDescendants?: boolean;
 	/**
