@@ -433,10 +433,32 @@ export interface TransientRegistry {
 
 // ── Store ──
 
-export interface StoreEvent {
-	type: string;
-	payload?: unknown;
+/**
+ * 単一シェイプ変更の前後スナップショット。`shape:updated` で配信され、
+ * 追従系（親の移動に子を追従させる等）が自前で前回位置を保持しなくても
+ * `after - before` の差分を直接得られるようにする。
+ */
+export interface ShapeChange {
+	id: string;
+	before: ShapeData;
+	after: ShapeData;
 }
+
+/**
+ * `store.onMutation` で配信されるイベント。シェイプ系は型付きの判別ユニオンで、
+ * `event.type` で絞り込むと `payload` が型付けされる。
+ *
+ * - `ids` に正規化（単一変更でも長さ1の配列）。後方互換のため `id` も併載。
+ * - それ以外のミューテーション（selection/viewport/style 等）は汎用フォールバック。
+ */
+export type StoreEvent =
+	| { type: "shape:added"; payload: { id: string; ids: string[] } }
+	| { type: "shape:removed"; payload: { id: string; ids: string[] } }
+	| {
+			type: "shape:updated";
+			payload: { id: string; ids: string[]; before: ShapeData; after: ShapeData };
+	  }
+	| { type: string; payload?: unknown };
 
 export interface BoardStore {
 	getShapes(): ReadonlyMap<string, ShapeData>;

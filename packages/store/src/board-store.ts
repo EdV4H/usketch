@@ -119,7 +119,7 @@ export function createBoardStore(): BoardStore {
 			}
 			invalidateSort();
 			notify();
-			notifyMutation("shape:added", { id: stamped.id });
+			notifyMutation("shape:added", { id: stamped.id, ids: [stamped.id] });
 		},
 
 		updateShape(id: string, updates: Partial<ShapeData>) {
@@ -143,7 +143,8 @@ export function createBoardStore(): BoardStore {
 			}
 			invalidateSort();
 			notify();
-			notifyMutation("shape:updated", { id });
+			// before/after を載せて、追従系が自前で前回位置を持たなくても差分を取れるように。
+			notifyMutation("shape:updated", { id, ids: [id], before: existing, after: updated });
 		},
 
 		deleteShape(id: string) {
@@ -169,7 +170,7 @@ export function createBoardStore(): BoardStore {
 				notify();
 			}
 			if (existed) {
-				notifyMutation("shape:removed", { id });
+				notifyMutation("shape:removed", { id, ids: [id] });
 			}
 			if (wasSelected) {
 				notifyMutation("selection:changed");

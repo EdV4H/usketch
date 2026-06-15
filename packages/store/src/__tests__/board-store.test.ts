@@ -321,18 +321,31 @@ describe("BoardStore", () => {
 
 			store.addShape(makeShape({ id: "s1" }));
 
-			expect(events).toEqual([{ type: "shape:added", payload: { id: "s1" } }]);
+			expect(events).toEqual([{ type: "shape:added", payload: { id: "s1", ids: ["s1"] } }]);
 		});
 
-		it("emits shape:updated on updateShape", () => {
+		it("emits shape:updated with before/after on updateShape", () => {
 			const store = createBoardStore();
-			store.addShape(makeShape({ id: "s1" }));
+			store.addShape(makeShape({ id: "s1", x: 0 }));
 			const events: StoreEvent[] = [];
 			store.onMutation((e) => events.push(e));
 
 			store.updateShape("s1", { x: 10 });
 
-			expect(events).toEqual([{ type: "shape:updated", payload: { id: "s1" } }]);
+			expect(events).toHaveLength(1);
+			const e = events[0];
+			expect(e.type).toBe("shape:updated");
+			const payload = e.payload as {
+				id: string;
+				ids: string[];
+				before: { x: number };
+				after: { x: number };
+			};
+			expect(payload.id).toBe("s1");
+			expect(payload.ids).toEqual(["s1"]);
+			// 追従系が自前で前回位置を持たなくても差分が取れる
+			expect(payload.before.x).toBe(0);
+			expect(payload.after.x).toBe(10);
 		});
 
 		it("emits shape:removed and selection:changed on deleteShape of selected", () => {
