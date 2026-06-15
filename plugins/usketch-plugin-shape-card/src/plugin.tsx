@@ -26,6 +26,7 @@ import {
 	PLACEMENT_TRANSIENT_TYPE,
 	PlacementEffect,
 	resolvePlacementAnimation,
+	type SlamPlay,
 } from "./placement.js";
 import { createCardTypeRegistry } from "./registry.js";
 import { createCardRenderer } from "./render-card.js";
@@ -105,8 +106,12 @@ function DeckIcon() {
 export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlugin {
 	const registry = createCardTypeRegistry(opts.cardTypes);
 	const enableDeck = opts.enableDeck ?? true;
-	const renderCard = createCardRenderer(registry);
-	const renderDeck = createDeckRenderer(registry);
+	// slam 中の実カード（card/deck）を持ち上げ→着地アニメさせるための再生状態。
+	const slamming = new Map<string, SlamPlay>();
+	let slamNonce = 0;
+	const getSlam = (id: string) => slamming.get(id);
+	const renderCard = createCardRenderer(registry, getSlam);
+	const renderDeck = createDeckRenderer(registry, getSlam);
 	const hasCardTypes = registry.size > 0;
 
 	// 既定の card-type（先頭。空なら ""）
@@ -176,6 +181,20 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					ttl: resolved.durationMs,
 					createdAt: Date.now(),
 				});
+
+				// slam は実カード自身を持ち上げ→着地アニメさせる。
+				// render が getSlam を参照するので、状態をセットしてから再レンダを促す。
+				if (resolved.kind === "slam") {
+					slamNonce += 1;
+					slamming.set(shape.id, {
+						weight: resolved.weight,
+						durationMs: resolved.durationMs,
+						nonce: slamNonce,
+					});
+					// 移動後（既にレンダ済み）でも再生されるよう、無害な更新で再レンダを発火。
+					ctx.store.updateShape(shape.id, {});
+					setTimeout(() => slamming.delete(shape.id), resolved.durationMs + 200);
+				}
 			}
 
 			function isCardLike(type: string): boolean {

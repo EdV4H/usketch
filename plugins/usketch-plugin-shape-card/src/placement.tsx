@@ -76,6 +76,35 @@ export type ResolvedPlacement =
 	| { kind: "css"; name: string; durationMs: number; easing: string }
 	| { kind: "slam"; weight: SlamWeight; durationMs: number };
 
+/** slam 中の実カードに適用する再生情報（render 側が参照）。 */
+export interface SlamPlay {
+	weight: SlamWeight;
+	durationMs: number;
+	/** 同じカードを再度 slam したときにアニメを確実に再生させるための識別子。 */
+	nonce: number;
+}
+
+/**
+ * 実カード（card / deck）の root に被せる slam ラッパの props。
+ * 「一瞬持ち上がってから加速して着地」する transform アニメを**実カード自身**に当てるので、
+ * シルエットの二重描画（持ち上がり前のカードと被る問題）が起きない。
+ */
+export function slamWrapper(slam: SlamPlay | undefined): {
+	key: string;
+	style: CSSProperties;
+} {
+	if (!slam) return { key: "rest", style: { width: "100%", height: "100%" } };
+	return {
+		key: `slam-${slam.nonce}`,
+		style: {
+			width: "100%",
+			height: "100%",
+			transformOrigin: "center center",
+			animation: `usketch-card-slam-${slam.weight} ${slam.durationMs}ms cubic-bezier(0.2,0.7,0.3,1) both`,
+		},
+	};
+}
+
 function isSlam(preset: PlacementPreset): preset is `slam-${SlamWeight}` {
 	return preset === "slam-light" || preset === "slam-medium" || preset === "slam-heavy";
 }
@@ -128,16 +157,7 @@ export function injectPlacementStyles() {
 			75%  { transform: scale(0.96); opacity: 0.3; }
 			100% { transform: scale(1); opacity: 0; }
 		}
-		/* カード本体: 一瞬持ち上がってから加速して着地（ズドン）→ フェードして実カードを見せる */
-		@keyframes usketch-slam-card {
-			0%   { opacity: 0; transform: translateY(var(--ly)) scale(var(--ls)); }
-			10%  { opacity: 0.92; }
-			30%  { transform: translateY(var(--ly)) scale(var(--ls)); animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.25); }
-			40%  { transform: translateY(0) scale(1); opacity: 0.92; }
-			72%  { opacity: 0.4; }
-			100% { opacity: 0; transform: translateY(0) scale(1); }
-		}
-		/* 以下の衝撃エフェクトは着地（≈40%）に合わせて発火 */
+		/* 衝撃エフェクトは着地（≈40-46%, 実カードの着地と同期）に合わせて発火 */
 		@keyframes usketch-slam-ring {
 			0%, 36% { opacity: 0; transform: scale(0.4); }
 			44%     { opacity: 0.85; transform: scale(0.55); }
@@ -155,8 +175,23 @@ export function injectPlacementStyles() {
 			46%     { opacity: 0.9; transform: translate(calc(var(--tx) * 0.45), calc(var(--ty) * 0.45)) scale(1); }
 			100%    { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.7); }
 		}
-	`;
+	${slamCardKeyframes()}`;
 	document.head.appendChild(style);
+}
+
+/** 実カードに当てる「持ち上がり→加速着地（ズドン）」keyframes（重さ別、弾性なし）。 */
+function slamCardKeyframes(): string {
+	return (Object.keys(SLAM_PARAMS) as SlamWeight[])
+		.map((w) => {
+			const { lift, liftScale } = SLAM_PARAMS[w];
+			return `@keyframes usketch-card-slam-${w}{
+			0%{transform:translateY(${-lift}px) scale(${liftScale});}
+			28%{transform:translateY(${-lift}px) scale(${liftScale});animation-timing-function:cubic-bezier(0.6,0,0.95,0.2);}
+			44%{transform:translateY(0) scale(1);}
+			100%{transform:translateY(0) scale(1);}
+		}`;
+		})
+		.join("\n");
 }
 
 /** 8 方向の放射状飛沫。 */
@@ -185,25 +220,7 @@ function SlamBurst({ obj }: { obj: TransientObject }) {
 		...style,
 	});
 
-	// カード本体: 一瞬持ち上がって（手前=大きく）から加速して着地するシルエット。
-	// 実カードの上に重なり、着地後にフェードして実カードを見せる。
-	const cardStyle: Record<string, string | number> = {
-		position: "absolute",
-		left: -width / 2,
-		top: -height / 2,
-		width,
-		height,
-		borderRadius: 12,
-		boxSizing: "border-box",
-		background: "linear-gradient(160deg, rgba(255,255,255,0.5), rgba(238,240,245,0.4))",
-		border: "1px solid rgba(16,18,40,0.16)",
-		boxShadow: "0 14px 34px rgba(16,18,40,0.3)",
-		pointerEvents: "none",
-		animation: `usketch-slam-card ${durationMs}ms ease-out forwards`,
-		"--ly": `${-p.lift}px`,
-		"--ls": p.liftScale,
-	};
-
+	// 実カード自身が持ち上がり→着地する（render 側の slamWrapper）。ここは着地の衝撃のみ。
 	return (
 		<div style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}>
 			{/* 接地シャドウ（持ち上がり時は大きく淡く→着地でキュッと締まる） */}
@@ -215,8 +232,6 @@ function SlamBurst({ obj }: { obj: TransientObject }) {
 					animation: `usketch-slam-shadow ${durationMs}ms ease-in-out forwards`,
 				})}
 			/>
-			{/* カード本体（持ち上がり→ズドン） */}
-			<div style={cardStyle as CSSProperties} />
 			{/* 衝撃リング */}
 			<div
 				style={circle(ringSize, {

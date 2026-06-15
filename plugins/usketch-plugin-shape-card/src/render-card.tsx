@@ -1,5 +1,6 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import type { CSSProperties } from "react";
+import { type SlamPlay, slamWrapper } from "./placement.js";
 import { type CardTypeDefinition, readCardMeta } from "./types.js";
 
 const FLIP_MS = 400;
@@ -47,7 +48,10 @@ function UnknownCard({ cardType }: { cardType?: string }) {
  * card shape の render を生成する。card-type レジストリを引いて front/back を描画し、
  * `isFlipped` に応じて Y 軸 3D フリップする。
  */
-export function createCardRenderer(registry: Map<string, CardTypeDefinition>) {
+export function createCardRenderer(
+	registry: Map<string, CardTypeDefinition>,
+	getSlam?: (shapeId: string) => SlamPlay | undefined,
+) {
 	return function renderCard(shape: ShapeData) {
 		const meta = readCardMeta(shape);
 		const def = meta.cardType ? registry.get(meta.cardType) : undefined;
@@ -63,6 +67,8 @@ export function createCardRenderer(registry: Map<string, CardTypeDefinition>) {
 
 		const fields = meta.fields ?? def.createDefaultFields();
 		const flipped = meta.isFlipped ?? false;
+		// slam 中は実カード自身を持ち上げ→着地アニメさせる（二重描画なし）。
+		const sw = slamWrapper(getSlam?.(shape.id));
 
 		return (
 			<div
@@ -75,18 +81,22 @@ export function createCardRenderer(registry: Map<string, CardTypeDefinition>) {
 					userSelect: "none",
 				}}
 			>
-				<div
-					style={{
-						position: "relative",
-						width: "100%",
-						height: "100%",
-						transformStyle: "preserve-3d",
-						transition: `transform ${FLIP_MS}ms`,
-						transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
-					}}
-				>
-					<div style={faceStyle}>{def.renderFront(fields)}</div>
-					<div style={{ ...faceStyle, transform: "rotateY(180deg)" }}>{def.renderBack(fields)}</div>
+				<div key={sw.key} style={sw.style}>
+					<div
+						style={{
+							position: "relative",
+							width: "100%",
+							height: "100%",
+							transformStyle: "preserve-3d",
+							transition: `transform ${FLIP_MS}ms`,
+							transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+						}}
+					>
+						<div style={faceStyle}>{def.renderFront(fields)}</div>
+						<div style={{ ...faceStyle, transform: "rotateY(180deg)" }}>
+							{def.renderBack(fields)}
+						</div>
+					</div>
 				</div>
 			</div>
 		);
