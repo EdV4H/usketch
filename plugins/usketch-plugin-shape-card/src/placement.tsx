@@ -1,11 +1,14 @@
 import type { TransientObject } from "@edv4h/usketch-shared";
+import type { CSSProperties } from "react";
 import type { PlacementAnimation, PlacementPreset } from "./types.js";
 
 export const PLACEMENT_TRANSIENT_TYPE = "card-placement";
 
-/** プリセットごとの keyframes 名と既定再生時間。 */
+export type SlamWeight = "light" | "medium" | "heavy";
+
+/** keyframe ベースのプリセット（名前 + 既定再生時間）。 */
 const PRESET_KEYFRAMES: Record<
-	Exclude<PlacementPreset, "none">,
+	"deal" | "drop" | "bounce",
 	{ name: string; durationMs: number; easing: string }
 > = {
 	deal: { name: "usketch-card-deal", durationMs: 350, easing: "cubic-bezier(0.2, 0.9, 0.3, 1)" },
@@ -17,11 +20,48 @@ const PRESET_KEYFRAMES: Record<
 	},
 };
 
+/**
+ * Slam（ドン！）の重み別パラメータ。`Card Animations.dc.html` の light/medium/heavy
+ * の比率を踏襲（重いほど大きく・濃く・遅い）。サイズはカード寸法に対する係数で表す。
+ */
+const SLAM_PARAMS: Record<
+	SlamWeight,
+	{
+		durationMs: number;
+		ring: number; // カード最大辺に対するリング径の係数
+		shadow: number; // 接地シャドウ径の係数
+		shadowOpacity: number;
+		spray: number; // 飛沫の到達距離（カード最大辺に対する係数）
+		particle: number; // 粒の基準サイズ(px)
+	}
+> = {
+	// design 比 dur 2.3 : 3.3 : 4.6 ≈ 0.5 : 0.72 : 1.0 を一発再生用に圧縮
+	light: {
+		durationMs: 380,
+		ring: 0.95,
+		shadow: 1.0,
+		shadowOpacity: 0.28,
+		spray: 0.55,
+		particle: 5,
+	},
+	medium: {
+		durationMs: 540,
+		ring: 1.25,
+		shadow: 1.25,
+		shadowOpacity: 0.5,
+		spray: 0.85,
+		particle: 6,
+	},
+	heavy: { durationMs: 760, ring: 1.6, shadow: 1.6, shadowOpacity: 0.62, spray: 1.2, particle: 7 },
+};
+
 /** transient.emit に載せる解決済みアニメ情報。 */
-export interface ResolvedPlacement {
-	name: string;
-	durationMs: number;
-	easing: string;
+export type ResolvedPlacement =
+	| { kind: "css"; name: string; durationMs: number; easing: string }
+	| { kind: "slam"; weight: SlamWeight; durationMs: number };
+
+function isSlam(preset: PlacementPreset): preset is `slam-${SlamWeight}` {
+	return preset === "slam-light" || preset === "slam-medium" || preset === "slam-heavy";
 }
 
 /**
@@ -34,10 +74,19 @@ export function resolvePlacementAnimation(
 ): ResolvedPlacement | null {
 	const anim = cardTypeAnim ?? pluginDefault ?? { preset: "drop" };
 	if ("keyframes" in anim) {
-		return { name: anim.keyframes, durationMs: anim.durationMs, easing: anim.easing ?? "ease-out" };
+		return {
+			kind: "css",
+			name: anim.keyframes,
+			durationMs: anim.durationMs,
+			easing: anim.easing ?? "ease-out",
+		};
 	}
 	if (anim.preset === "none") return null;
-	return PRESET_KEYFRAMES[anim.preset];
+	if (isSlam(anim.preset)) {
+		const weight = anim.preset.slice(5) as SlamWeight;
+		return { kind: "slam", weight, durationMs: SLAM_PARAMS[weight].durationMs };
+	}
+	return { kind: "css", ...PRESET_KEYFRAMES[anim.preset] };
 }
 
 let styleInjected = false;
@@ -63,15 +112,97 @@ export function injectPlacementStyles() {
 			75%  { transform: scale(0.96); opacity: 0.3; }
 			100% { transform: scale(1); opacity: 0; }
 		}
+		@keyframes usketch-slam-ring {
+			0%   { opacity: 0; transform: scale(0.45); }
+			14%  { opacity: 0.85; transform: scale(0.6); }
+			100% { opacity: 0; transform: scale(1.6); }
+		}
+		@keyframes usketch-slam-shadow {
+			0%   { opacity: 0.16; transform: scale(1.5); }
+			20%  { opacity: 0.5; transform: scale(0.86); }
+			55%  { opacity: 0.34; transform: scale(1); }
+			100% { opacity: 0; transform: scale(1.4); }
+		}
+		@keyframes usketch-slam-splash {
+			0%   { opacity: 0; transform: translate(0, 0) scale(0.4); }
+			20%  { opacity: 0.9; transform: translate(calc(var(--tx) * 0.45), calc(var(--ty) * 0.45)) scale(1); }
+			100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.7); }
+		}
 	`;
 	document.head.appendChild(style);
 }
 
+/** 8 方向の放射状飛沫。 */
+const SPRAY_DIRS = [0, 45, 90, 135, 180, 225, 270, 315];
+
+/** 「ドン！」着地の衝撃エフェクト: 接地シャドウ + 衝撃リング + 放射状飛沫。 */
+function SlamBurst({ obj }: { obj: TransientObject }) {
+	const width = (obj.data.width as number) ?? 120;
+	const height = (obj.data.height as number) ?? 168;
+	const weight = (obj.data.slam as SlamWeight) ?? "medium";
+	const durationMs = (obj.data.durationMs as number) ?? SLAM_PARAMS[weight].durationMs;
+	const p = SLAM_PARAMS[weight];
+	const cardMax = Math.max(width, height);
+	const ringSize = cardMax * p.ring;
+	const shadowSize = cardMax * p.shadow;
+	const dist = cardMax * p.spray;
+
+	const circle = (size: number, style: CSSProperties) => ({
+		position: "absolute" as const,
+		left: -size / 2,
+		top: -size / 2,
+		width: size,
+		height: size,
+		borderRadius: "50%",
+		pointerEvents: "none" as const,
+		...style,
+	});
+
+	return (
+		<div style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}>
+			{/* 接地シャドウ（接触でキュッと締まる） */}
+			<div
+				style={circle(shadowSize, {
+					background: `radial-gradient(circle, rgba(16,18,40,${p.shadowOpacity}), rgba(16,18,40,0) 66%)`,
+					filter: "blur(7px)",
+					animation: `usketch-slam-shadow ${durationMs}ms ease-in-out forwards`,
+				})}
+			/>
+			{/* 衝撃リング */}
+			<div
+				style={circle(ringSize, {
+					border: "2px solid rgba(16,18,40,0.32)",
+					animation: `usketch-slam-ring ${durationMs}ms ease-out forwards`,
+				})}
+			/>
+			{/* 放射状の飛沫 */}
+			{SPRAY_DIRS.map((deg, i) => {
+				const a = (deg * Math.PI) / 180;
+				const tx = Math.cos(a) * dist;
+				const ty = Math.sin(a) * dist;
+				const size = i % 2 === 0 ? p.particle + 1 : p.particle - 1;
+				const style: Record<string, string | number> = {
+					...circle(size, {
+						background: "#16182a",
+						animation: `usketch-slam-splash ${durationMs}ms ease-out forwards`,
+					}),
+					"--tx": `${tx}px`,
+					"--ty": `${ty}px`,
+				};
+				return <div key={`spray-${deg}`} style={style as CSSProperties} />;
+			})}
+		</div>
+	);
+}
+
 /**
- * 配置アニメの transient 描画。カードのシルエット（角丸の発光枠）を着地位置に重ね、
- * 指定 keyframes で再生して fade out する。永続データ / Undo には触れない。
+ * 配置アニメの transient 描画。`slam` 系は衝撃エフェクト、それ以外はカードのシルエット
+ * （角丸の発光枠）を着地位置に重ね、指定 keyframes で再生して fade out する。
+ * いずれも永続データ / Undo には触れない。
  */
 export function PlacementEffect({ obj }: { obj: TransientObject }) {
+	if (obj.data.slam) return <SlamBurst obj={obj} />;
+
 	const width = (obj.data.width as number) ?? 120;
 	const height = (obj.data.height as number) ?? 168;
 	const name = (obj.data.name as string) ?? "usketch-card-drop";

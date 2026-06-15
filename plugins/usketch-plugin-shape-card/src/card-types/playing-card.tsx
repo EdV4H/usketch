@@ -239,7 +239,7 @@ export const playingCardType: CardTypeDefinition<PlayingCardFields> = {
 	createDefaultFields: () => ({ suit: "♠", rank: "A" }),
 	renderFront,
 	renderBack,
-	placementAnimation: { preset: "deal" },
+	placementAnimation: { preset: "slam-medium" },
 	buildDeck: () => {
 		const deck: PlayingCardFields[] = [];
 		for (const suit of SUITS) {

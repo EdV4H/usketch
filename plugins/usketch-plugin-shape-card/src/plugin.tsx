@@ -151,19 +151,28 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					opts.placementAnimation,
 				);
 				if (!resolved) return;
+				const data: Record<string, unknown> =
+					resolved.kind === "slam"
+						? {
+								width: shape.width,
+								height: shape.height,
+								slam: resolved.weight,
+								durationMs: resolved.durationMs,
+							}
+						: {
+								width: shape.width,
+								height: shape.height,
+								name: resolved.name,
+								durationMs: resolved.durationMs,
+								easing: resolved.easing,
+								accent: GENERIC_ACCENT,
+							};
 				ctx.transient.emit({
 					id: generateId(),
 					type: PLACEMENT_TRANSIENT_TYPE,
 					sourceUserId: "local",
 					position: { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 },
-					data: {
-						width: shape.width,
-						height: shape.height,
-						name: resolved.name,
-						durationMs: resolved.durationMs,
-						easing: resolved.easing,
-						accent: GENERIC_ACCENT,
-					},
+					data,
 					ttl: resolved.durationMs,
 					createdAt: Date.now(),
 				});

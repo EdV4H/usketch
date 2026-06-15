@@ -123,8 +123,15 @@ createCardPlugin({
 });
 ```
 
-配置アニメは `{ preset: "deal" | "drop" | "bounce" | "none" }` か、独自の
-`{ keyframes: string; durationMs: number; easing?: string }` を指定できる。
+配置アニメは次のいずれか：
+- プリセット `{ preset: "deal" | "drop" | "bounce" | "none" }`
+- **Slam（ドン！）** `{ preset: "slam-light" | "slam-medium" | "slam-heavy" }` — 重みのある着地。
+  衝撃リング + 接地シャドウ + 全周への放射状飛沫が弾け、**重いほど大きく・ゆっくり**（light < medium < heavy）。
+  組込例では playing-card = `slam-medium`、uno = `slam-heavy`。
+- 独自 `{ keyframes: string; durationMs: number; easing?: string }`
+
+> Slam の見た目・重み3段階は Claude Design の「Card Animations」ショーケース（Slam Place）を移植したもの。
+> ドロップ/移動（`shapes:move-end`）/ドロー時に、配置点を中心とした一発の衝撃エフェクトとして再生される。
 
 ## アーキテクチャ
 

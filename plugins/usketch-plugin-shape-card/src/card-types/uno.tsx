@@ -141,7 +141,7 @@ export const unoCardType: CardTypeDefinition<UnoCardFields> = {
 	createDefaultFields: () => ({ color: "red", value: "0" }),
 	renderFront,
 	renderBack,
-	placementAnimation: { preset: "deal" },
+	placementAnimation: { preset: "slam-heavy" },
 	buildDeck: () => {
 		const deck: UnoCardFields[] = [];
 		for (const color of NUMBER_COLORS) {

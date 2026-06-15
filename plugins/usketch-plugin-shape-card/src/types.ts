@@ -9,7 +9,16 @@ export type PlacementAnimation =
 	| { preset: PlacementPreset }
 	| { keyframes: string; durationMs: number; easing?: string };
 
-export type PlacementPreset = "deal" | "drop" | "bounce" | "none";
+export type PlacementPreset =
+	| "deal"
+	| "drop"
+	| "bounce"
+	| "none"
+	// 「ドン！」と重みのある着地（衝撃リング + 接地シャドウ + 放射状の飛沫）。
+	// 重いほど大きく・ゆっくり（light < medium < heavy）。
+	| "slam-light"
+	| "slam-medium"
+	| "slam-heavy";
 
 /**
  * 面（表 / 裏）のテクスチャ（背景）。画像 URL と収め方、背景色（CSS グラデーション可）を指定できる。
