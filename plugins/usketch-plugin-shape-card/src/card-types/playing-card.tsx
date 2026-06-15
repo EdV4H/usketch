@@ -36,12 +36,91 @@ function PlayingCardIcon() {
 	);
 }
 
+// ピップ配置（数字カード）。x は列(0=左,0.5=中,1=右)、y は上からの割合。
+// これらは本物のトランプの並びに準拠し、数に応じて記号の数が変わる。
+const PIP_LAYOUTS: Record<string, { x: number; y: number }[]> = {
+	"2": [
+		{ x: 0.5, y: 0.12 },
+		{ x: 0.5, y: 0.88 },
+	],
+	"3": [
+		{ x: 0.5, y: 0.12 },
+		{ x: 0.5, y: 0.5 },
+		{ x: 0.5, y: 0.88 },
+	],
+	"4": [
+		{ x: 0, y: 0.12 },
+		{ x: 1, y: 0.12 },
+		{ x: 0, y: 0.88 },
+		{ x: 1, y: 0.88 },
+	],
+	"5": [
+		{ x: 0, y: 0.12 },
+		{ x: 1, y: 0.12 },
+		{ x: 0.5, y: 0.5 },
+		{ x: 0, y: 0.88 },
+		{ x: 1, y: 0.88 },
+	],
+	"6": [
+		{ x: 0, y: 0.12 },
+		{ x: 1, y: 0.12 },
+		{ x: 0, y: 0.5 },
+		{ x: 1, y: 0.5 },
+		{ x: 0, y: 0.88 },
+		{ x: 1, y: 0.88 },
+	],
+	"7": [
+		{ x: 0, y: 0.12 },
+		{ x: 1, y: 0.12 },
+		{ x: 0.5, y: 0.31 },
+		{ x: 0, y: 0.5 },
+		{ x: 1, y: 0.5 },
+		{ x: 0, y: 0.88 },
+		{ x: 1, y: 0.88 },
+	],
+	"8": [
+		{ x: 0, y: 0.12 },
+		{ x: 1, y: 0.12 },
+		{ x: 0.5, y: 0.31 },
+		{ x: 0, y: 0.5 },
+		{ x: 1, y: 0.5 },
+		{ x: 0.5, y: 0.69 },
+		{ x: 0, y: 0.88 },
+		{ x: 1, y: 0.88 },
+	],
+	"9": [
+		{ x: 0, y: 0.12 },
+		{ x: 1, y: 0.12 },
+		{ x: 0, y: 0.37 },
+		{ x: 1, y: 0.37 },
+		{ x: 0.5, y: 0.5 },
+		{ x: 0, y: 0.63 },
+		{ x: 1, y: 0.63 },
+		{ x: 0, y: 0.88 },
+		{ x: 1, y: 0.88 },
+	],
+	"10": [
+		{ x: 0, y: 0.12 },
+		{ x: 1, y: 0.12 },
+		{ x: 0.5, y: 0.25 },
+		{ x: 0, y: 0.37 },
+		{ x: 1, y: 0.37 },
+		{ x: 0, y: 0.63 },
+		{ x: 1, y: 0.63 },
+		{ x: 0.5, y: 0.75 },
+		{ x: 0, y: 0.88 },
+		{ x: 1, y: 0.88 },
+	],
+};
+
 function Corner({ fields, flip }: { fields: PlayingCardFields; flip?: boolean }) {
 	return (
 		<div
 			style={{
 				position: "absolute",
-				...(flip ? { right: 6, bottom: 4, transform: "rotate(180deg)" } : { left: 6, top: 4 }),
+				...(flip
+					? { right: "6%", bottom: "5%", transform: "rotate(180deg)" }
+					: { left: "6%", top: "5%" }),
 				display: "flex",
 				flexDirection: "column",
 				alignItems: "center",
@@ -49,14 +128,63 @@ function Corner({ fields, flip }: { fields: PlayingCardFields; flip?: boolean })
 				fontWeight: 700,
 			}}
 		>
-			<span style={{ fontSize: 14 }}>{fields.rank}</span>
-			<span style={{ fontSize: 12 }}>{fields.suit}</span>
+			<span style={{ fontSize: "11cqh" }}>{fields.rank}</span>
+			<span style={{ fontSize: "9cqh" }}>{fields.suit}</span>
+		</div>
+	);
+}
+
+/** 数字カードのピップ群を、配置レイアウトに従って描画する。下半分の記号は 180° 回転。 */
+function Pips({ fields }: { fields: PlayingCardFields }) {
+	const layout = PIP_LAYOUTS[fields.rank];
+	if (!layout) return null;
+	return (
+		<div style={{ position: "absolute", inset: "14% 26%" }}>
+			{layout.map((p, i) => (
+				<span
+					key={`pip-${i}-${p.x}-${p.y}`}
+					style={{
+						position: "absolute",
+						left: `${p.x * 100}%`,
+						top: `${p.y * 100}%`,
+						transform: `translate(-50%, -50%)${p.y > 0.5 ? " rotate(180deg)" : ""}`,
+						fontSize: "16cqh",
+						lineHeight: 1,
+					}}
+				>
+					{fields.suit}
+				</span>
+			))}
+		</div>
+	);
+}
+
+/** A は中央に大きな1つ、J/Q/K は文字＋スートで表現する。 */
+function CenterFigure({ fields }: { fields: PlayingCardFields }) {
+	const isAce = fields.rank === "A";
+	return (
+		<div
+			style={{
+				position: "absolute",
+				inset: 0,
+				display: "flex",
+				flexDirection: "column",
+				alignItems: "center",
+				justifyContent: "center",
+				lineHeight: 1,
+			}}
+		>
+			<span style={{ fontSize: isAce ? "44cqh" : "34cqh", fontWeight: 700 }}>
+				{isAce ? fields.suit : fields.rank}
+			</span>
+			{!isAce && <span style={{ fontSize: "22cqh" }}>{fields.suit}</span>}
 		</div>
 	);
 }
 
 function renderFront(fields: PlayingCardFields) {
 	const color = isRed(fields.suit) ? "#d4233b" : "#1e1e1e";
+	const hasPips = fields.rank in PIP_LAYOUTS;
 	return (
 		<div
 			style={{
@@ -67,21 +195,11 @@ function renderFront(fields: PlayingCardFields) {
 				color,
 				fontFamily: "Georgia, 'Times New Roman', serif",
 				boxSizing: "border-box",
+				containerType: "size",
 			}}
 		>
 			<Corner fields={fields} />
-			<div
-				style={{
-					position: "absolute",
-					inset: 0,
-					display: "flex",
-					alignItems: "center",
-					justifyContent: "center",
-					fontSize: 48,
-				}}
-			>
-				{fields.suit}
-			</div>
+			{hasPips ? <Pips fields={fields} /> : <CenterFigure fields={fields} />}
 			<Corner fields={fields} flip />
 		</div>
 	);
