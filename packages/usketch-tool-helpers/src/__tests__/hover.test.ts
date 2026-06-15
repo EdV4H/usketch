@@ -28,6 +28,33 @@ describe("findShapeAtPoint", () => {
 		);
 		expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBe("rect");
 	});
+
+	it("skips excluded ids and returns the shape below (drag-and-drop)", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "target", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.addShape(makeShape({ id: "dragged", x: 0, y: 0, width: 100, height: 100 }));
+		// Without exclusion the top-most (dragged) wins.
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 })).toBe("dragged");
+		// Excluding the dragged id returns the shape beneath it (array or Set).
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 }, { excludeIds: ["dragged"] })).toBe("target");
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 }, { excludeIds: new Set(["dragged"]) })).toBe(
+			"target",
+		);
+	});
+
+	it("skips shapes rejected by the filter predicate", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(
+			makeShape({ id: "target", type: "rect", x: 0, y: 0, width: 100, height: 100 }),
+		);
+		ctx.store.addShape(
+			makeShape({ id: "sticker", type: "sticker", x: 0, y: 0, width: 100, height: 100 }),
+		);
+		// Skip our own "sticker" type so the drop resolves to the rect underneath.
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 }, { filter: (s) => s.type !== "sticker" })).toBe(
+			"target",
+		);
+	});
 });
 
 describe("trackHover", () => {

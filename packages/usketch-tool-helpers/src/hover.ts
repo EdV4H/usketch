@@ -3,6 +3,7 @@ import type {
 	CanvasPointerEvent,
 	Point,
 	ResizeHandle,
+	ShapeData,
 	ShapeRegistry,
 	ToolContext,
 	Viewport,
@@ -110,6 +111,19 @@ export interface TrackHoverOptions {
 	 * Other shapes are ignored even if they pass hit-test.
 	 */
 	editingGroupId?: string | null;
+	/**
+	 * Shape ids to skip during the hit-test walk. Useful for drag-and-drop
+	 * "drop onto the shape underneath the dragged one" — pass the dragged
+	 * shape's id so the walk returns the next shape below it instead of the
+	 * dragged shape itself.
+	 */
+	excludeIds?: ReadonlySet<string> | readonly string[];
+	/**
+	 * Predicate to skip shapes during the walk (return `false` to skip).
+	 * Applied in addition to `excludeIds`. The first non-skipped shape that
+	 * passes hit-test (per the normal precedence rules) wins.
+	 */
+	filter?: (shape: ShapeData) => boolean;
 }
 
 /**
@@ -128,12 +142,22 @@ export function findShapeAtPoint(
 	options: TrackHoverOptions = {},
 ): string | null {
 	const editingGroupId = options.editingGroupId ?? null;
+	const excludeSet =
+		options.excludeIds instanceof Set
+			? options.excludeIds
+			: options.excludeIds
+				? new Set(options.excludeIds)
+				: null;
+	const filter = options.filter;
 	const shapes = ctx.store.getShapes();
 	const CONTAINER_TYPES = new Set(["island", "frame"]);
 	const entries = [...shapes.entries()].reverse();
 
 	let containerHit: string | null = null;
 	for (const [id, data] of entries) {
+		// Skip excluded / filtered-out shapes before hit-testing.
+		if (excludeSet?.has(id)) continue;
+		if (filter && !filter(data)) continue;
 		const def = ctx.shapes.get(data.type);
 		if (!def?.hitTest(data, point)) continue;
 
