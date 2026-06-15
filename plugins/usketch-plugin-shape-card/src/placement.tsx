@@ -31,44 +31,15 @@ const SLAM_PARAMS: Record<
 		lift: number; // 着地前に一瞬持ち上がる量(px)
 		liftScale: number; // 持ち上がり時のスケール（手前=大きく）
 		ring: number; // カード最大辺に対するリング径の係数
-		shadow: number; // 接地シャドウ径の係数
-		shadowOpacity: number;
 		spray: number; // 飛沫の到達距離（カード最大辺に対する係数）
 		particle: number; // 粒の基準サイズ(px)
 	}
 > = {
 	// design 比 dur 2.3 : 3.3 : 4.6 ≈ 0.5 : 0.72 : 1.0 を一発再生用に圧縮。
 	// lift / liftScale は design の --lift(52/94/142) の比を踏襲。
-	light: {
-		durationMs: 380,
-		lift: 8,
-		liftScale: 1.07,
-		ring: 0.95,
-		shadow: 1.0,
-		shadowOpacity: 0.28,
-		spray: 0.55,
-		particle: 5,
-	},
-	medium: {
-		durationMs: 560,
-		lift: 16,
-		liftScale: 1.13,
-		ring: 1.25,
-		shadow: 1.25,
-		shadowOpacity: 0.5,
-		spray: 0.85,
-		particle: 6,
-	},
-	heavy: {
-		durationMs: 780,
-		lift: 26,
-		liftScale: 1.2,
-		ring: 1.6,
-		shadow: 1.6,
-		shadowOpacity: 0.62,
-		spray: 1.2,
-		particle: 7,
-	},
+	light: { durationMs: 380, lift: 8, liftScale: 1.07, ring: 0.95, spray: 0.55, particle: 5 },
+	medium: { durationMs: 560, lift: 16, liftScale: 1.13, ring: 1.25, spray: 0.85, particle: 6 },
+	heavy: { durationMs: 780, lift: 26, liftScale: 1.2, ring: 1.6, spray: 1.2, particle: 7 },
 };
 
 /** transient.emit に載せる解決済みアニメ情報。 */
@@ -163,13 +134,6 @@ export function injectPlacementStyles() {
 			44%     { opacity: 0.85; transform: scale(0.55); }
 			100%    { opacity: 0; transform: scale(1.6); }
 		}
-		@keyframes usketch-slam-shadow {
-			0%   { opacity: 0.3; transform: scale(1.55); }
-			30%  { opacity: 0.35; transform: scale(1.6); }
-			40%  { opacity: 1; transform: scale(0.86); }
-			70%  { opacity: 0.7; transform: scale(1); }
-			100% { opacity: 0; transform: scale(1.4); }
-		}
 		@keyframes usketch-slam-splash {
 			0%, 38% { opacity: 0; transform: translate(0, 0) scale(0.4); }
 			46%     { opacity: 0.9; transform: translate(calc(var(--tx) * 0.45), calc(var(--ty) * 0.45)) scale(1); }
@@ -197,7 +161,7 @@ function slamCardKeyframes(): string {
 /** 8 方向の放射状飛沫。 */
 const SPRAY_DIRS = [0, 45, 90, 135, 180, 225, 270, 315];
 
-/** 「ドン！」着地の衝撃エフェクト: 接地シャドウ + 衝撃リング + 放射状飛沫。 */
+/** 「ドン！」着地の衝撃エフェクト: 衝撃リング + 放射状飛沫（カードの外側に広がる）。 */
 function SlamBurst({ obj }: { obj: TransientObject }) {
 	const width = (obj.data.width as number) ?? 120;
 	const height = (obj.data.height as number) ?? 168;
@@ -206,7 +170,6 @@ function SlamBurst({ obj }: { obj: TransientObject }) {
 	const p = SLAM_PARAMS[weight];
 	const cardMax = Math.max(width, height);
 	const ringSize = cardMax * p.ring;
-	const shadowSize = cardMax * p.shadow;
 	const dist = cardMax * p.spray;
 
 	const circle = (size: number, style: CSSProperties) => ({
@@ -221,17 +184,10 @@ function SlamBurst({ obj }: { obj: TransientObject }) {
 	});
 
 	// 実カード自身が持ち上がり→着地する（render 側の slamWrapper）。ここは着地の衝撃のみ。
+	// transient レイヤーはカードより手前なので、カードに被る接地シャドウは出さず、
+	// カードの外側に広がるリングと飛沫だけで衝撃を表現する。
 	return (
 		<div style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}>
-			{/* 接地シャドウ（持ち上がり時は大きく淡く→着地でキュッと締まる） */}
-			<div
-				style={circle(shadowSize, {
-					background: `radial-gradient(circle, rgba(16,18,40,${p.shadowOpacity}), rgba(16,18,40,0) 66%)`,
-					filter: "blur(7px)",
-					opacity: 0,
-					animation: `usketch-slam-shadow ${durationMs}ms ease-in-out forwards`,
-				})}
-			/>
 			{/* 衝撃リング */}
 			<div
 				style={circle(ringSize, {
