@@ -1,5 +1,14 @@
 # @edv4h/usketch-ui
 
+## 1.0.3
+
+### Patch Changes
+
+- Updated dependencies [fa92cf8]
+- Updated dependencies [ad8e01d]
+  - @edv4h/usketch-shared@4.0.0
+  - @edv4h/usketch-core@2.0.1
+
 ## 1.0.2
 
 ### Patch Changes

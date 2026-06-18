@@ -1,5 +1,17 @@
 # @edv4h/usketch-dom-renderer
 
+## 2.0.1
+
+### Patch Changes
+
+- 604f5c3: `dom-shape-layer` の各シェイプラッパを `React.memo` で囲み、ドラッグ中の未変更シェイプの再描画を回避（#614）。
+
+  ストアは未変更シェイプのオブジェクト参照を保持する（`updateShape` は対象 1 件だけ新オブジェクトに差し替える）ため、デフォルトの shallow 比較でドラッグ中の 1 件以外は `def.render` の再実行・再 reconcile をスキップできる。重い描画ツリー（多数パスの SVG 等）を持つシェイプが大量にあっても、無関係なシェイプのドラッグで FPS が落ちなくなる。プラグイン側で個別に memo 実装する必要がなくなる。
+
+- Updated dependencies [fa92cf8]
+- Updated dependencies [ad8e01d]
+  - @edv4h/usketch-shared@4.0.0
+
 ## 2.0.0
 
 ### Major Changes
