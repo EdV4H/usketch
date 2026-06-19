@@ -54,6 +54,11 @@ export function findHandleAtScreenPoint(
 	if (!shape) return null;
 
 	const def = shapes.get(shape.type);
+	// Respect `resizable: false` — same guard as findRotationHandleAtScreenPoint.
+	// Without this, the resize cursor and a resize session would still start even
+	// though selection-overlay hides the handles, leaving operation alive while
+	// the affordance is gone.
+	if (def?.resizable === false) return null;
 	const bounds = def
 		? def.getBounds(shape)
 		: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
