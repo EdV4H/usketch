@@ -84,6 +84,12 @@ export interface CardTypeDefinition<TFields = Record<string, unknown>> {
 	aspectRatio: number;
 	/** 新規カードの既定サイズ。 */
 	defaultSize: { width: number; height: number };
+	/**
+	 * この card-type のカード / デッキをリサイズ可能にするか。既定 `true`。
+	 * `false` にすると、その card-type のカード・デッキはハンドル非表示・リサイズ操作無効
+	 * （サイズ固定）になる。`createCardPlugin({ resizable })` のプラグイン全体既定より優先される。
+	 */
+	resizable?: boolean;
 	/** この card-type 固有の配置アニメ。省略時はプラグイン既定を使用。 */
 	placementAnimation?: PlacementAnimation;
 	// 関数は method 構文（bivariant）にして、具象 TFields の定義を

@@ -52,6 +52,12 @@ export interface CreateCardPluginOptions {
 	placementAnimation?: PlacementAnimation;
 	/** デッキ機構を有効にするか。既定 true。 */
 	enableDeck?: boolean;
+	/**
+	 * カード / デッキをリサイズ可能にするか（プラグイン全体の既定）。既定 `true`。
+	 * `CardTypeDefinition.resizable` が指定されていれば card-type 単位でそちらが優先される。
+	 * `false` にすると、対象カード・デッキはハンドル非表示・リサイズ操作無効（サイズ固定）になる。
+	 */
+	resizable?: boolean;
 }
 
 // ── icons ──
@@ -128,6 +134,17 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 		return def?.aspectRatio ?? data.width / data.height;
 	}
 	const resize = makeAspectResize(getCardAspect);
+
+	// resizable は card-type 単位 (CardTypeDefinition.resizable) を最優先、無ければ
+	// プラグイン全体既定 (opts.resizable)、それも無ければ true。card / card-deck は
+	// 単一 shape type なので、shape の cardType を見て per-instance で解決する。
+	function resolveResizable(data: ShapeData): boolean {
+		const meta = data.type === DECK_TYPE ? readDeckMeta(data) : readCardMeta(data);
+		const def = meta.cardType ? registry.get(meta.cardType) : undefined;
+		if (typeof def?.resizable === "boolean") return def.resizable;
+		if (typeof opts.resizable === "boolean") return opts.resizable;
+		return true;
+	}
 
 	return {
 		id: "usketch-plugin-shape-card",
@@ -327,6 +344,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				getBounds,
 				hitTest: withRotation(rectHitTest),
 				resize,
+				resizable: resolveResizable,
 				createDefault: ({ id, x, y }) => {
 					const def = resolveDef(currentCardType);
 					return def ? createCardShape(def, { id, x, y }) : createBareCardShape({ id, x, y });
@@ -420,6 +438,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					getBounds,
 					hitTest: withRotation(rectHitTest),
 					resize,
+					resizable: resolveResizable,
 					createDefault: ({ id, x, y }) => {
 						const def = resolveDef(currentCardType);
 						return def
