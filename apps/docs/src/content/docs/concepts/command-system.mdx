@@ -76,3 +76,65 @@ A common pattern for drawing tools:
 3. **onPointerUp** — Delete the temporary shape, then execute an `AddShapeCommand` with the final data.
 
 This gives users a live preview while ensuring the final result is undoable.
+
+## Undo/Redo in Collaborative (Yjs) Apps
+
+> **⚠️ `CommandRegistry` is local / single-user only.**
+> It is an **in-memory stack scoped to one client**. It only tracks commands you explicitly `execute()` — it does **not** observe `store.onMutation`, and it has no notion of remote peers. For a single-user app this is exactly what you want, and the built-in tools (`tool-select`'s move/resize/delete) undo correctly out of the box.
+>
+> For a **collaborative app backed by Yjs, do not use `commands.undo()`** as your primary undo. It is not collaboration-safe.
+
+When multiple clients edit a shared Yjs document, `CommandRegistry` breaks down in three ways:
+
+1. **It restores local snapshots.** A command's `undo()` reverts to the state captured at `execute()` time. Replaying that over a Yjs document can clobber concurrent edits from other peers — it is not conflict-free.
+2. **Remote changes never enter the history.** Updates arriving through the Yjs sync mirror don't go through `ctx.commands`, so they aren't on the local stack at all. Undo would skip right past them.
+3. **The built-in `Ctrl+Z` / `Ctrl+Shift+Z` shortcuts call `commands.undo()/redo()`.** `createApp` wires these automatically, so in a Yjs app the keyboard undo silently behaves as local-only — easy to miss until two users step on each other.
+
+### Recommended: `Y.UndoManager`
+
+Yjs ships a CRDT-aware undo/redo built for exactly this: [`Y.UndoManager`](https://docs.yjs.dev/api/undo-manager). It tracks changes on the shared Y types and, via `trackedOrigins`, scopes undo to **this client's own writes** so undoing never reverts a peer's concurrent edit.
+
+Minimal recipe — track the shared shapes type, and tag your local writes with a transaction origin so only those are undoable:
+
+```ts
+import * as Y from "yjs";
+
+// The shared Y type your sync plugin writes shapes into
+// (e.g. the Y.Map / Y.Doc behind @edv4h/usketch-plugin-sync-localstorage-yjs
+//  or @edv4h/usketch-plugin-sync-ywebsocket).
+const yShapes = ydoc.getMap("shapes");
+
+// A stable origin object identifying *local* edits.
+const LOCAL_ORIGIN = { local: true };
+
+const undoManager = new Y.UndoManager(yShapes, {
+  // Only undo edits that originated locally — never a remote peer's.
+  trackedOrigins: new Set([LOCAL_ORIGIN]),
+});
+
+// Apply local edits inside a transaction tagged with LOCAL_ORIGIN so the
+// UndoManager picks them up (remote edits arrive with a different origin
+// and are correctly ignored).
+ydoc.transact(() => {
+  // ...write/update/delete shapes on yShapes...
+}, LOCAL_ORIGIN);
+
+// Wire your own keyboard handlers to these instead of commands.undo():
+undoManager.undo();
+undoManager.redo();
+```
+
+### Disabling the built-in shortcuts
+
+If you drive undo through `Y.UndoManager`, you'll want `Ctrl+Z` / `Ctrl+Shift+Z` to call *your* handlers rather than `commands.undo()`. Re-register those shortcuts after `createApp` (last registration wins) and point them at the `UndoManager`:
+
+```ts
+const app = createApp({ /* ... */ });
+app.shortcuts.register("Ctrl+Z", () => undoManager.undo());
+app.shortcuts.register("Ctrl+Shift+Z", () => undoManager.redo());
+```
+
+| App type | Use for undo/redo |
+|----------|-------------------|
+| Single-user / local | `CommandRegistry` (`ctx.commands`) — built-in, works out of the box. |
+| Collaborative (Yjs) | `Y.UndoManager` with `trackedOrigins` scoped to local writes. |
