@@ -75,6 +75,8 @@ export type {
 	MinimapViewportRect,
 } from "./utils/minimap.js";
 export { computeMinimap, minimapToSvg } from "./utils/minimap.js";
+// Resizable resolution
+export { isShapeResizable } from "./utils/resizable.js";
 // Rotation
 export {
 	deltaToLocal,

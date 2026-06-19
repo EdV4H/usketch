@@ -230,8 +230,14 @@ export interface ShapeDefinition {
 	createDefault: (params: { id: string; x: number; y: number }) => ShapeData;
 	renderTarget?: RenderTarget;
 	minSize?: { width: number; height: number };
-	/** Whether the shape can be resized by the user. Default: true. */
-	resizable?: boolean;
+	/**
+	 * Whether the shape can be resized by the user. Default: `true`.
+	 *
+	 * Accepts a predicate `(data) => boolean` so a single shape type can vary
+	 * resizability per instance (e.g. a `card` type whose `meta.cardType`
+	 * decides it). Use {@link isShapeResizable} to evaluate it.
+	 */
+	resizable?: boolean | ((data: ShapeData) => boolean);
 	/** Shape-specific move logic (e.g. updating absolute point arrays). Default: update x/y only. */
 	move?: (data: ShapeData, dx: number, dy: number) => Partial<ShapeData>;
 	/** Fit shape data to new bounding box (for multi-resize). Default: apply newBounds as-is. */

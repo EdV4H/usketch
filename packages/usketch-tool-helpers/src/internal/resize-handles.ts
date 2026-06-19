@@ -8,6 +8,7 @@ import type {
 } from "@edv4h/usketch-shared";
 import {
 	getSelectionBounds,
+	isShapeResizable,
 	normalizeAngle,
 	safeRotation,
 	unrotatePoint,
@@ -58,7 +59,7 @@ export function findHandleAtScreenPoint(
 	// Without this, the resize cursor and a resize session would still start even
 	// though selection-overlay hides the handles, leaving operation alive while
 	// the affordance is gone.
-	if (def?.resizable === false) return null;
+	if (!isShapeResizable(def, shape)) return null;
 	const bounds = def
 		? def.getBounds(shape)
 		: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
@@ -111,7 +112,7 @@ export function findRotationHandleAtScreenPoint(
 	if (!shape) return null;
 
 	const def = shapes.get(shape.type);
-	if (def?.resizable === false) return null;
+	if (!isShapeResizable(def, shape)) return null;
 
 	const bounds = def
 		? def.getBounds(shape)

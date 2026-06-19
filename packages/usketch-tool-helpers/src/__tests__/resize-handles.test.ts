@@ -53,4 +53,37 @@ describe("findHandleAtScreenPoint", () => {
 		const hit = findHandleAtScreenPoint({ x: 100, y: 100 }, ctx.shapes, ctx.store, VIEWPORT);
 		expect(hit).toEqual({ shapeId: "a", handle: "se" });
 	});
+
+	it("honors the predicate form of resizable per shape instance", () => {
+		const ctx = createTestToolContext();
+		// resizable depends on the shape: those tagged meta.locked are not resizable.
+		const def = rectLikeDef("dynamic");
+		(def as { resizable: (s: ShapeData) => boolean }).resizable = (s) =>
+			(s.meta as { locked?: boolean } | undefined)?.locked !== true;
+		ctx.shapes.register("dynamic", def);
+
+		ctx.store.addShape(
+			makeShape({ id: "free", type: "dynamic", x: 0, y: 0, width: 100, height: 100 }),
+		);
+		ctx.store.setSelection(["free"]);
+		expect(findHandleAtScreenPoint({ x: 100, y: 100 }, ctx.shapes, ctx.store, VIEWPORT)).toEqual({
+			shapeId: "free",
+			handle: "se",
+		});
+
+		ctx.store.deleteShape("free");
+		ctx.store.addShape(
+			makeShape({
+				id: "locked",
+				type: "dynamic",
+				x: 0,
+				y: 0,
+				width: 100,
+				height: 100,
+				meta: { locked: true },
+			}),
+		);
+		ctx.store.setSelection(["locked"]);
+		expect(findHandleAtScreenPoint({ x: 100, y: 100 }, ctx.shapes, ctx.store, VIEWPORT)).toBeNull();
+	});
 });

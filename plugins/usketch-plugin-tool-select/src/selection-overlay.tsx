@@ -1,5 +1,5 @@
 import type { BoardStore, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
-import { safeRotation } from "@edv4h/usketch-shared";
+import { isShapeResizable, safeRotation } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { getMovingSelection, subscribeMovingSelection } from "./drag-state.js";
 import { getDropTargetId, subscribeDropTarget } from "./drop-target-state.js";
@@ -176,8 +176,8 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 		const screenCx = sx + sw / 2;
 		const screenCy = sy + sh / 2;
 
-		// Hide resize handles when shape definition declares resizable: false
-		const hideHandles = def?.resizable === false;
+		// Hide resize handles when the shape is not resizable (boolean or predicate)
+		const hideHandles = !isShapeResizable(def, shape);
 		const positions = getHandlePositions(bounds, viewport);
 		const half = HANDLE_SIZE / 2;
 
