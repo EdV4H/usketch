@@ -31,6 +31,7 @@ import {
 import { createCardTypeRegistry } from "./registry.js";
 import { createCardRenderer } from "./render-card.js";
 import { createDeckRenderer } from "./render-deck.js";
+import { createCardSimplified, createDeckSimplified } from "./render-simplified.js";
 import {
 	type CardTypeDefinition,
 	type DeckMeta,
@@ -118,6 +119,8 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 	const getSlam = (id: string) => slamming.get(id);
 	const renderCard = createCardRenderer(registry, getSlam);
 	const renderDeck = createDeckRenderer(registry);
+	const cardSimplified = createCardSimplified(registry);
+	const deckSimplified = createDeckSimplified(registry);
 	const hasCardTypes = registry.size > 0;
 
 	// 既定の card-type（先頭。空なら ""）
@@ -345,6 +348,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				hitTest: withRotation(rectHitTest),
 				resize,
 				resizable: resolveResizable,
+				simplifiedComponent: cardSimplified,
 				createDefault: ({ id, x, y }) => {
 					const def = resolveDef(currentCardType);
 					return def ? createCardShape(def, { id, x, y }) : createBareCardShape({ id, x, y });
@@ -439,6 +443,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					hitTest: withRotation(rectHitTest),
 					resize,
 					resizable: resolveResizable,
+					simplifiedComponent: deckSimplified,
 					createDefault: ({ id, x, y }) => {
 						const def = resolveDef(currentCardType);
 						return def

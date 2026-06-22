@@ -124,6 +124,51 @@ function renderBack(fields: MediaCardFields) {
 	);
 }
 
+/** 低ズーム表示: アクセント帯 + タイトルだけの軽量表示。 */
+function renderSimplified(fields: MediaCardFields) {
+	const accent = fields.accentColor ?? DEFAULT_ACCENT;
+	return (
+		<div
+			style={{
+				width: "100%",
+				height: "100%",
+				display: "flex",
+				flexDirection: "column",
+				fontFamily: "system-ui, sans-serif",
+				background: "#fff",
+				containerType: "size",
+			}}
+		>
+			<div style={{ flex: "0 0 45%", background: accent }} />
+			<div
+				style={{
+					flex: "1 1 auto",
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					padding: "0 8%",
+					color: "#1e1e1e",
+					fontWeight: 700,
+					fontSize: "14cqh",
+					textAlign: "center",
+					overflow: "hidden",
+				}}
+			>
+				<span
+					style={{
+						display: "-webkit-box",
+						WebkitBoxOrient: "vertical",
+						WebkitLineClamp: 2,
+						overflow: "hidden",
+					}}
+				>
+					{fields.title}
+				</span>
+			</div>
+		</div>
+	);
+}
+
 export const mediaCardType: CardTypeDefinition<MediaCardFields> = {
 	id: "media",
 	label: "メディアカード",
@@ -138,5 +183,6 @@ export const mediaCardType: CardTypeDefinition<MediaCardFields> = {
 	}),
 	renderFront,
 	renderBack,
+	renderSimplified,
 	placementAnimation: { preset: "drop" },
 };
