@@ -102,6 +102,12 @@ export interface CardTypeDefinition<TFields = Record<string, unknown>> {
 	renderFront(fields: TFields): ReactElement;
 	/** 裏面の描画（共通カードバックでも可）。 */
 	renderBack(fields: TFields): ReactElement;
+	/**
+	 * 低ズーム (LOD) 時の簡易表示。`renderFront` と同様、plugin がカード枠（world 座標）に
+	 * 配置するので、ここでは枠内に収まる中身だけを返せばよい。省略時は通常のフォールバック
+	 * （`shape.style.fill` のグレー矩形）になる。引きでも card-type が判別できる軽量表示を想定。
+	 */
+	renderSimplified?(fields: TFields): ReactElement;
 	/** デッキ（山札）の初期内容を生成する。例: トランプ52枚 / UNO108枚。 */
 	buildDeck?(): TFields[];
 }

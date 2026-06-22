@@ -230,6 +230,33 @@ function renderBack(_fields: PlayingCardFields) {
 	);
 }
 
+/** 低ズーム表示: 大きな rank + suit を中央に置き、引きでも識別できるようにする。 */
+function renderSimplified(fields: PlayingCardFields) {
+	const color = isRed(fields.suit) ? "#d4233b" : "#1e1e1e";
+	return (
+		<div
+			style={{
+				width: "100%",
+				height: "100%",
+				background: "#fff",
+				color,
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+				gap: "4%",
+				fontFamily: "Georgia, 'Times New Roman', serif",
+				fontWeight: 700,
+				fontSize: "42cqh",
+				containerType: "size",
+				lineHeight: 1,
+			}}
+		>
+			<span>{fields.rank}</span>
+			<span>{fields.suit}</span>
+		</div>
+	);
+}
+
 export const playingCardType: CardTypeDefinition<PlayingCardFields> = {
 	id: "playing-card",
 	label: "トランプ",
@@ -239,6 +266,7 @@ export const playingCardType: CardTypeDefinition<PlayingCardFields> = {
 	createDefaultFields: () => ({ suit: "♠", rank: "A" }),
 	renderFront,
 	renderBack,
+	renderSimplified,
 	placementAnimation: { preset: "slam-medium" },
 	buildDeck: () => {
 		const deck: PlayingCardFields[] = [];

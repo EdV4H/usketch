@@ -132,6 +132,44 @@ function renderBack(_fields: UnoCardFields) {
 	);
 }
 
+/** 低ズーム表示: 色ベタ地に中央の白丸＋値だけ。引きでも色と値が分かる。 */
+function renderSimplified(fields: UnoCardFields) {
+	const bg = COLOR_HEX[fields.color];
+	const label = valueLabel(fields.value);
+	return (
+		<div
+			style={{
+				width: "100%",
+				height: "100%",
+				background: bg,
+				display: "flex",
+				alignItems: "center",
+				justifyContent: "center",
+				fontFamily: "system-ui, sans-serif",
+				containerType: "size",
+			}}
+		>
+			<div
+				style={{
+					width: "70%",
+					height: "60%",
+					background: "#fff",
+					borderRadius: "50%",
+					transform: "rotate(-20deg)",
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					color: bg,
+					fontWeight: 800,
+					fontSize: "40cqh",
+				}}
+			>
+				{label}
+			</div>
+		</div>
+	);
+}
+
 export const unoCardType: CardTypeDefinition<UnoCardFields> = {
 	id: "uno",
 	label: "UNO",
@@ -141,6 +179,7 @@ export const unoCardType: CardTypeDefinition<UnoCardFields> = {
 	createDefaultFields: () => ({ color: "red", value: "0" }),
 	renderFront,
 	renderBack,
+	renderSimplified,
 	placementAnimation: { preset: "slam-heavy" },
 	buildDeck: () => {
 		const deck: UnoCardFields[] = [];
