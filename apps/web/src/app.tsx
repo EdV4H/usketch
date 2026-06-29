@@ -47,6 +47,7 @@ import {
 } from "@edv4h/usketch-plugin-tool-openui";
 import { createPanToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { createSelectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
+import { createVimToolPlugin } from "@edv4h/usketch-plugin-tool-vim";
 import { createViewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
 import { createWhistlePlugin } from "@edv4h/usketch-plugin-whistle";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
@@ -91,12 +92,21 @@ function readPresentationMode(search: string): PresentationMode {
 	return params.get("mode") === "present" ? "present" : "edit";
 }
 
+/**
+ * Vim-first UI かどうか。`?ui=vim` のとき、ツールバー等の chrome を全て隠して
+ * Vim 操作（ステータスライン等はプラグインが自前描画）を前提にする。
+ */
+function readVimFirst(search: string): boolean {
+	return new URLSearchParams(search).get("ui") === "vim";
+}
+
 function createBasePlugins(): UsketchPlugin[] {
 	return [
 		createGridBgPlugin(),
 		createDotsBgPlugin(),
 		createSelectToolPlugin(),
 		createPanToolPlugin(),
+		createVimToolPlugin(),
 		createViewportNavPlugin(),
 		createBasicShapePlugin(),
 		createGroupPlugin(),
@@ -132,6 +142,7 @@ export function App() {
 	const navigate = useNavigate();
 	const isCloudBoard = location.pathname.startsWith("/boards/");
 	const presentationMode = readPresentationMode(location.search);
+	const vimFirst = readVimFirst(location.search);
 	const { user: authUser } = useAuth();
 
 	// 最新の presentation mode を useEffect 外部から参照するための ref。
@@ -421,8 +432,16 @@ export function App() {
 		});
 	}, [authUserId, authUserName]);
 
-	// キーボードショートカット
+	// キーボードショートカット。Vim-first でも有効のまま（vim プラグインが capture
+	// フェーズでキーを先取りするため衝突せず、Vim 非アクティブ時は通常通り動く）。
 	useKeyboardShortcuts(app, presentationMode === "present");
+
+	// Vim-first: vim を既定ツール兼アクティブツールにする
+	useEffect(() => {
+		if (!app || !vimFirst) return;
+		app.store.setDefaultToolId("vim");
+		app.store.setActiveToolId("vim");
+	}, [app, vimFirst]);
 
 	// Info タブを SidePanel に登録（Cloud ボードのみ）
 	useEffect(() => {
@@ -486,8 +505,9 @@ export function App() {
 
 	if (!app) return null;
 
-	// 発表モード中だけ通常のツールバーを隠す（presentation overlay のみ表示）
-	const hideToolbar = presentationMode === "present";
+	// 発表モード中、または Vim-first UI では通常の chrome を隠す
+	// （Vim-first ではステータスライン等を vim プラグインが自前描画する）
+	const hideToolbar = presentationMode === "present" || vimFirst;
 	// プレゼン編集モード中はスライド編集に関係ない UI を隠す
 	const isPresentEdit = presentationMode === "edit";
 	// 発表中は Canvas を readonly (シェイプ選択/ドラッグ/描画を全てオフ)
