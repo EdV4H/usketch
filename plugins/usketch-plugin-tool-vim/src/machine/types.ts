@@ -41,8 +41,6 @@ export interface VimContext {
 	cursor: Point;
 	/** 数値プレフィックス（`5j` の 5）。未入力なら null。 */
 	count: number | null;
-	/** operator-pending 中の演算子。 */
-	pendingOperator: VimOperator | null;
 	/** insert モードの入力バッファ。 */
 	inputBuffer: string;
 	/** command モードの入力バッファ（先頭の `:` は含めない）。 */

@@ -325,7 +325,6 @@ export const vimMachine = setup({
 	context: ({ input }) => ({
 		cursor: input.initialCursor,
 		count: null,
-		pendingOperator: null,
 		inputBuffer: "",
 		commandBuffer: "",
 		candidates: [],
@@ -343,13 +342,12 @@ export const vimMachine = setup({
 	}),
 	initial: "normal",
 	on: {
-		CUSTOM_BINDING: { actions: "runCustomBinding" },
+		CUSTOM_BINDING: { actions: ["runCustomBinding", "resetCount"] },
 		RESET: {
 			target: ".normal",
 			actions: assign(({ event }) => ({
 				cursor: (event as Ev<"RESET">).cursor,
 				count: null,
-				pendingOperator: null,
 				inputBuffer: "",
 				commandBuffer: "",
 				candidates: [],
@@ -360,14 +358,16 @@ export const vimMachine = setup({
 	states: {
 		normal: {
 			on: {
+				// count（数値プレフィックス）は DIGIT で積み、MOTION が消費する。
+				// それ以外のアクションは count を次操作へ持ち越さないよう必ず resetCount する。
 				DIGIT: { actions: "incCount" },
 				MOTION: { actions: "normalMotion" },
-				MODE_INSERT: { target: "insert" },
+				MODE_INSERT: { target: "insert", actions: "resetCount" },
 				MODE_VISUAL: [
-					{ guard: "isMultiVisual", target: "visual.multi" },
-					{ target: "visual.single" },
+					{ guard: "isMultiVisual", target: "visual.multi", actions: "resetCount" },
+					{ target: "visual.single", actions: "resetCount" },
 				],
-				MODE_COMMAND: { target: "command" },
+				MODE_COMMAND: { target: "command", actions: "resetCount" },
 				OPERATOR: [
 					{
 						guard: ({ event }) => (event as Ev<"OPERATOR">).op === "delete",
@@ -376,16 +376,16 @@ export const vimMachine = setup({
 					{ actions: ["yankTargets", "resetCount"] },
 				],
 				PASTE: { actions: ["paste", "resetCount"] },
-				UNDO: { actions: "undo" },
-				REDO: { actions: "redo" },
-				ZOOM: { actions: "zoom" },
-				CENTER: { actions: "center" },
-				CURSOR_CENTER: { actions: "cursorCenter" },
-				JUMP: { actions: "jump" },
-				SET_MARK: { actions: "setMark" },
-				JUMP_MARK: { actions: "jumpMark" },
-				HOP_START: { target: "hop" },
-				TOGGLE_WHICH_KEY: { actions: "toggleWhichKey" },
+				UNDO: { actions: ["undo", "resetCount"] },
+				REDO: { actions: ["redo", "resetCount"] },
+				ZOOM: { actions: ["zoom", "resetCount"] },
+				CENTER: { actions: ["center", "resetCount"] },
+				CURSOR_CENTER: { actions: ["cursorCenter", "resetCount"] },
+				JUMP: { actions: ["jump", "resetCount"] },
+				SET_MARK: { actions: ["setMark", "resetCount"] },
+				JUMP_MARK: { actions: ["jumpMark", "resetCount"] },
+				HOP_START: { target: "hop", actions: "resetCount" },
+				TOGGLE_WHICH_KEY: { actions: ["toggleWhichKey", "resetCount"] },
 				ESCAPE: { actions: ["clearSelection", "resetCount", "closeHelp"] },
 			},
 		},
@@ -404,8 +404,8 @@ export const vimMachine = setup({
 			exit: "clearSelection",
 			on: {
 				DIGIT: { actions: "incCount" },
-				ESCAPE: { target: "normal" },
-				MODE_COMMAND: { target: "command" },
+				ESCAPE: { target: "normal", actions: "resetCount" },
+				MODE_COMMAND: { target: "command", actions: "resetCount" },
 				OPERATOR: [
 					{
 						guard: ({ event }) => (event as Ev<"OPERATOR">).op === "delete",
@@ -421,7 +421,7 @@ export const vimMachine = setup({
 				single: {
 					on: {
 						MOTION: { actions: "visualSingleMotion" },
-						MODE_VISUAL: { guard: "isMultiVisual", target: "multi" },
+						MODE_VISUAL: { guard: "isMultiVisual", target: "multi", actions: "resetCount" },
 					},
 				},
 				multi: {

@@ -1,12 +1,9 @@
 import type { Point } from "@edv4h/usketch-shared";
+import { HOP_TRIGGER } from "./constants.js";
 import { shapeCenter } from "./cursor.js";
 import type { HopTarget, VimDeps } from "./machine/types.js";
 
-/**
- * hop を開始するトリガーキー。ラベル文字セットからは除外され（`f` 始まりのラベルを作らない）、
- * `f`+ラベル が必ず別キーになるようにしている。
- */
-export const HOP_TRIGGER = "f";
+export { HOP_TRIGGER };
 
 /**
  * `count` 件のラベルを生成する。すべて同じ長さ（固定長なのでプレフィックス曖昧さ無し）で、

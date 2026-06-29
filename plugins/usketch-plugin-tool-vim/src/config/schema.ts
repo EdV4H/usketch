@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HOP_TRIGGER } from "../constants.js";
 
 /**
  * Vim プラグインの設定スキーマ（Zod）。
@@ -54,8 +55,17 @@ export const VimConfigSchema = z.object({
 	showStatusLine: z.boolean().default(true),
 	/** Vim を抜けたとき（:q）に戻るツール ID。 */
 	exitToolId: z.string().default("select"),
-	/** hop（ラベルジャンプ）で使う文字。先頭から順に近い shape へ割り当てる。 */
-	hopKeys: z.string().min(2).default("fjdkslaghrueiwoncm"),
+	/**
+	 * hop（ラベルジャンプ）で使う文字。先頭から順に近い shape へ割り当てる。
+	 * トリガー文字（`f`）はラベルから除外されるため、除外後に異なる文字が2つ以上必要。
+	 */
+	hopKeys: z
+		.string()
+		.refine(
+			(s) => new Set(s.split("").filter((c) => c !== HOP_TRIGGER)).size >= 2,
+			`hopKeys には "${HOP_TRIGGER}" 以外の異なる文字が2つ以上必要です`,
+		)
+		.default("fjdkslaghrueiwoncm"),
 	/** insert: 文字列 → shape の明示マッピング。未定義の型はレジストリから自動補完。 */
 	shapeMap: z.record(z.string(), ShapeSpecSchema).default({}),
 	/** キーバインドのリマップ（既定キーマップへの部分上書き）。 */

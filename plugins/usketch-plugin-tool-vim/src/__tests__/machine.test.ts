@@ -242,6 +242,29 @@ describe("vimMachine", () => {
 		expect(a.getSnapshot().context.count).toBeNull();
 	});
 
+	it("モード遷移・undo 等の非モーション操作で count が残らない", () => {
+		const a = start(deps);
+		// モード遷移
+		a.send({ type: "DIGIT", n: 5 });
+		a.send({ type: "MODE_INSERT" });
+		a.send({ type: "ESCAPE" });
+		expect(a.getSnapshot().context.count).toBeNull();
+		// undo
+		a.send({ type: "DIGIT", n: 3 });
+		a.send({ type: "UNDO" });
+		expect(a.getSnapshot().context.count).toBeNull();
+	});
+
+	it("visual を ESCAPE で抜けても count が normal に持ち越されない", () => {
+		addRect(deps, 0, 0);
+		const a = start(deps);
+		a.send({ type: "MODE_VISUAL", multi: false });
+		a.send({ type: "DIGIT", n: 7 });
+		a.send({ type: "ESCAPE" });
+		expect(a.getSnapshot().value).toBe("normal");
+		expect(a.getSnapshot().context.count).toBeNull();
+	});
+
 	it("独自 ex コマンドが api 経由で実行される（組み込みより優先）", () => {
 		const seen: string[] = [];
 		const extensions: VimExtensions = {

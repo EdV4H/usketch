@@ -26,4 +26,13 @@ describe("parseVimConfig", () => {
 	it("不正な値は例外", () => {
 		expect(() => parseVimConfig({ cursorStep: -1 })).toThrow();
 	});
+
+	it("hopKeys はトリガー除外後に2文字以上必要（不足は例外）", () => {
+		// "ff" → トリガー f 除外で空になり不正
+		expect(() => parseVimConfig({ hopKeys: "ff" })).toThrow();
+		// "fa" → 除外後 "a" の1文字で不正
+		expect(() => parseVimConfig({ hopKeys: "fa" })).toThrow();
+		// "fab" → 除外後 "a","b" でOK
+		expect(() => parseVimConfig({ hopKeys: "fab" })).not.toThrow();
+	});
 });
