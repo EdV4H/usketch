@@ -92,14 +92,6 @@ function readPresentationMode(search: string): PresentationMode {
 	return params.get("mode") === "present" ? "present" : "edit";
 }
 
-/**
- * Vim-first UI かどうか。`?ui=vim` のとき、ツールバー等の chrome を全て隠して
- * Vim 操作（ステータスライン等はプラグインが自前描画）を前提にする。
- */
-function readVimFirst(search: string): boolean {
-	return new URLSearchParams(search).get("ui") === "vim";
-}
-
 function createBasePlugins(): UsketchPlugin[] {
 	return [
 		createGridBgPlugin(),
@@ -142,7 +134,9 @@ export function App() {
 	const navigate = useNavigate();
 	const isCloudBoard = location.pathname.startsWith("/boards/");
 	const presentationMode = readPresentationMode(location.search);
-	const vimFirst = readVimFirst(location.search);
+	// 通常のホワイトボード編集（presentation 以外）は Vim 操作を既定とし、
+	// ツールバー等の chrome を表示しない（UI はプラグインのレイヤーが担う）。
+	const vimFirst = presentationMode === "off";
 	const { user: authUser } = useAuth();
 
 	// 最新の presentation mode を useEffect 外部から参照するための ref。
@@ -436,11 +430,13 @@ export function App() {
 	// フェーズでキーを先取りするため衝突せず、Vim 非アクティブ時は通常通り動く）。
 	useKeyboardShortcuts(app, presentationMode === "present");
 
-	// Vim-first: vim を既定ツール兼アクティブツールにする
+	// Vim-first では vim を、それ以外（presentation）では select を既定/アクティブにする。
+	// presentation への切替時に vim が残り続けないよう両方向で設定する。
 	useEffect(() => {
-		if (!app || !vimFirst) return;
-		app.store.setDefaultToolId("vim");
-		app.store.setActiveToolId("vim");
+		if (!app) return;
+		const tool = vimFirst ? "vim" : "select";
+		app.store.setDefaultToolId(tool);
+		app.store.setActiveToolId(tool);
 	}, [app, vimFirst]);
 
 	// Info タブを SidePanel に登録（Cloud ボードのみ）

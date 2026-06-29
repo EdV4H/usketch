@@ -88,6 +88,8 @@ export function VimHelpOverlay({ store }: { store: VimUiStore }) {
 					width: "min(880px, 92vw)",
 					maxHeight: "82vh",
 					overflow: "auto",
+					// 外側の pointerEvents:none を継承するとスクロールできないため上書き。
+					pointerEvents: "auto",
 					background: "#181825",
 					color: "#cdd6f4",
 					border: "1px solid #313244",

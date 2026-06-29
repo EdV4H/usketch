@@ -124,6 +124,13 @@ export function createVimToolPlugin(
 			// ── キーボード割込み（capture フェーズで先取り） ──
 			const onKeyDown = (e: KeyboardEvent) => {
 				if (ctx.store.getActiveToolId() !== TOOL_ID) return;
+				// フォーカス中の入力要素（テキスト編集 contentEditable / フォーム）では
+				// キーを奪わず素通しする（native のテキスト入力を妨げない）。
+				const target = e.target as HTMLElement | null;
+				const tag = target?.tagName;
+				if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) {
+					return;
+				}
 				const mode = uiStore.getSnapshot().mode;
 				const { event, pending: nextPending } = translateKey(
 					e,
