@@ -26,6 +26,13 @@ export function translateKey(
 		return { event: { type: "CUSTOM_BINDING", mode, key }, pending: "" };
 	}
 
+	// ── config keymap リマップ（全モード共通）。不明トークンは通常解釈へフォールスルー ──
+	const remap = config.keymap[mode]?.[key];
+	if (remap) {
+		const remapped = tokenToEvent(remap);
+		if (remapped) return { event: remapped, pending: "" };
+	}
+
 	// ── insert モード ──
 	if (mode === "insert") {
 		if (key === "Escape") return { event: { type: "ESCAPE" }, pending: "" };
@@ -79,12 +86,6 @@ export function translateKey(
 		if (/^[a-z]$/.test(key)) return { event: { type: "SET_MARK", key }, pending: "" };
 	} else if (pending === "`" || pending === "'") {
 		if (/^[a-z]$/.test(key)) return { event: { type: "JUMP_MARK", key }, pending: "" };
-	}
-
-	// ── config によるリマップ（mode 単位） ──
-	const remap = config.keymap[mode]?.[key];
-	if (remap) {
-		return { event: tokenToEvent(remap), pending: "" };
 	}
 
 	// ── 既定キーマップ（normal / visual 共通の motion 等） ──

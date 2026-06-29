@@ -118,6 +118,21 @@ describe("translateKey - config remap", () => {
 		const remapped = parseVimConfig({ keymap: { normal: { s: "mode:insert" } } });
 		expect(translateKey(key("s"), "normal", remapped, "").event).toEqual({ type: "MODE_INSERT" });
 	});
+
+	it("insert/command/hop でも keymap リマップが効く", () => {
+		const cfg = parseVimConfig({
+			keymap: {
+				insert: { F1: "escape" },
+				command: { F1: "escape" },
+				hop: { F1: "escape" },
+			},
+		});
+		expect(translateKey(key("F1"), "insert", cfg, "").event).toEqual({ type: "ESCAPE" });
+		expect(translateKey(key("F1"), "command", cfg, "").event).toEqual({ type: "ESCAPE" });
+		expect(translateKey(key("F1"), "hop", cfg, "").event).toEqual({ type: "ESCAPE" });
+		// リマップが無いキーは通常の text 入力として扱われる（insert）
+		expect(translateKey(key("a"), "insert", cfg, "").event).toEqual({ type: "TEXT", char: "a" });
+	});
 });
 
 describe("translateKey - custom bindings", () => {
