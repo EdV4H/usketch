@@ -145,7 +145,10 @@ export function createVimToolPlugin(
 				e.stopImmediatePropagation();
 				if (event) actor.send(event);
 			};
-			window.addEventListener("keydown", onKeyDown, true);
+			// SSR/テスト等 window 不在の環境ではリスナを張らない（viewport-utils と整合）。
+			if (typeof window !== "undefined") {
+				window.addEventListener("keydown", onKeyDown, true);
+			}
 
 			// ── ツール登録 ──
 			ctx.tools.register(TOOL_ID, {
@@ -205,7 +208,9 @@ export function createVimToolPlugin(
 
 			// ── teardown ──
 			return () => {
-				window.removeEventListener("keydown", onKeyDown, true);
+				if (typeof window !== "undefined") {
+					window.removeEventListener("keydown", onKeyDown, true);
+				}
 				unsubMutation();
 				actor.stop();
 				ctx.layers.unregister("vim-overlay");

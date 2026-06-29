@@ -1,6 +1,6 @@
 import type { VimConfig } from "./config/schema.js";
+import { HOP_TRIGGER } from "./constants.js";
 import type { VimExtensions } from "./extensions.js";
-import { HOP_TRIGGER } from "./hop.js";
 import type { Direction, VimEvent, VimMode } from "./machine/types.js";
 
 /**
@@ -59,21 +59,17 @@ export function translateKey(
 	}
 
 	// ── normal / visual に共通する多キープレフィックスの解決 ──
+	// プレフィックスが確定すればそのイベントを返す。未確定キー（不一致）の場合は
+	// 早期 return せずプレフィックスを破棄して下の通常解釈へフォールスルーする
+	// （例: "g" の直後に Esc → ESCAPE が落ち、visual を抜けられる）。
 	if (pending === "g") {
 		if (key === "g") return { event: { type: "JUMP", to: "first" }, pending: "" };
-		return { event: null, pending: "" };
-	}
-	if (pending === "z") {
+	} else if (pending === "z") {
 		if (key === "z") return { event: { type: "CENTER" }, pending: "" };
-		return { event: null, pending: "" };
-	}
-	if (pending === "m") {
+	} else if (pending === "m") {
 		if (/^[a-z]$/.test(key)) return { event: { type: "SET_MARK", key }, pending: "" };
-		return { event: null, pending: "" };
-	}
-	if (pending === "`" || pending === "'") {
+	} else if (pending === "`" || pending === "'") {
 		if (/^[a-z]$/.test(key)) return { event: { type: "JUMP_MARK", key }, pending: "" };
-		return { event: null, pending: "" };
 	}
 
 	// ── config によるリマップ（mode 単位） ──

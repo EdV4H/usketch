@@ -63,6 +63,19 @@ describe("translateKey - normal", () => {
 			key: "a",
 		});
 	});
+
+	it("プレフィックス未確定キーは破棄して通常解釈へフォールスルー（Esc が必ず通る）", () => {
+		// pending "g" の後に Esc → ESCAPE が落ちる（無視されない）
+		expect(translateKey(key("Escape"), "normal", config, "g").event).toEqual({ type: "ESCAPE" });
+		// pending "z" の後に j → 通常の MOTION として解釈
+		expect(translateKey(key("j"), "normal", config, "z").event).toEqual({
+			type: "MOTION",
+			dir: "down",
+			shift: false,
+		});
+		// pending "g" の後に i → MODE_INSERT
+		expect(translateKey(key("i"), "normal", config, "g").event).toEqual({ type: "MODE_INSERT" });
+	});
 });
 
 describe("translateKey - insert", () => {
