@@ -345,6 +345,9 @@ importers:
       '@edv4h/usketch-plugin-tool-select':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-tool-select
+      '@edv4h/usketch-plugin-tool-vim':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-tool-vim
       '@edv4h/usketch-plugin-viewport-nav':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-viewport-nav
@@ -1967,6 +1970,40 @@ importers:
       react:
         specifier: 19.2.4
         version: 19.2.4
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  plugins/usketch-plugin-tool-vim:
+    dependencies:
+      '@edv4h/usketch-core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      '@edv4h/usketch-tool-helpers':
+        specifier: workspace:*
+        version: link:../../packages/usketch-tool-helpers
+      react:
+        specifier: 19.2.4
+        version: 19.2.4
+      xstate:
+        specifier: ^5.18.0
+        version: 5.32.1
+      zod:
+        specifier: ^4.0.0
+        version: 4.3.6
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -6564,6 +6601,9 @@ packages:
   xid-ts@1.2.2:
     resolution: {integrity: sha512-pVhEAc09t9cJqB02+NY4bk9bOxs3Kw68OZzYRVpqEQyeyINXhya+4dUK8YCN4aXAtv01YERBOPStfWAHuRsI2g==}
     engines: {node: '>=18.0.0'}
+
+  xstate@5.32.1:
+    resolution: {integrity: sha512-IGX9q5vEOplWjVq79edfgjJfVV/lXCup9p/fQGgUabAveZrlRwWJ/mC2iZEE7wswXbWITBCoS7gmoFfcuWAwsQ==}
 
   xxhash-wasm@1.1.0:
     resolution: {integrity: sha512-147y/6YNh+tlp6nd/2pWq38i9h6mz/EuQ6njIrmW8D1BS5nCqs0P6DG+m6zTGnNz5I+uhZ0SHxBs9BsPrwcKDA==}
@@ -11301,6 +11341,8 @@ snapshots:
       powershell-utils: 0.1.0
 
   xid-ts@1.2.2: {}
+
+  xstate@5.32.1: {}
 
   xxhash-wasm@1.1.0: {}
 
