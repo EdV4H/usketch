@@ -58,6 +58,15 @@ export function translateKey(
 		return { event: null, pending: "" };
 	}
 
+	// ── normal / visual: 修飾キー付きは Vim キーとして解釈しない ──
+	// （Ctrl+F=検索 / Ctrl+T=新規タブ 等のブラウザ既定を尊重。redo の Ctrl/Meta+r のみ許可）
+	if (e.ctrlKey || e.metaKey || e.altKey) {
+		if ((e.ctrlKey || e.metaKey) && key === "r") {
+			return { event: { type: "REDO" }, pending: "" };
+		}
+		return { event: null, pending: "" };
+	}
+
 	// ── normal / visual に共通する多キープレフィックスの解決 ──
 	// プレフィックスが確定すればそのイベントを返す。未確定キー（不一致）の場合は
 	// 早期 return せずプレフィックスを破棄して下の通常解釈へフォールスルーする

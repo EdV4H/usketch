@@ -26,7 +26,7 @@ export interface VimApi {
 	getSelection(): ReadonlySet<string>;
 	/** 論理カーソルを移動する。 */
 	setCursor(p: Point): void;
-	/** モードを切り替える（normal/insert/visual/command）。 */
+	/** モードを切り替える（normal/insert/visual/command/hop）。 */
 	setMode(mode: VimMode): void;
 	/** ステータスラインにメッセージを表示する。 */
 	message(msg: string): void;

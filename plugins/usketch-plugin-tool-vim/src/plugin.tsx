@@ -139,10 +139,14 @@ export function createVimToolPlugin(
 					pending,
 					extensions.bindings,
 				);
+				// vim が実際に消費したキー（イベント生成 or プレフィックス継続）だけを
+				// 奪う。消費しないキー（修飾付きのブラウザ既定ショートカット等）は素通し。
+				const consumed = event !== null || nextPending !== "";
 				pending = nextPending;
-				// vim がアクティブな間は既存のアプリ側ショートカットに渡さない。
-				e.preventDefault();
-				e.stopImmediatePropagation();
+				if (consumed) {
+					e.preventDefault();
+					e.stopImmediatePropagation();
+				}
 				if (event) actor.send(event);
 			};
 			// SSR/テスト等 window 不在の環境ではリスナを張らない（viewport-utils と整合）。

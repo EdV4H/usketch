@@ -47,6 +47,15 @@ describe("translateKey - normal", () => {
 		expect(translateKey(key("u"), "normal", config, "").event).toEqual({ type: "UNDO" });
 	});
 
+	it("修飾キー付き（redo 以外）は Vim キーとして解釈しない（ブラウザ既定を尊重）", () => {
+		// Ctrl+F は hop ではなく素通し（event null）
+		expect(translateKey(key("f", { ctrlKey: true }), "normal", config, "").event).toBeNull();
+		// Meta+L（アドレスバー）も素通し
+		expect(translateKey(key("l", { metaKey: true }), "normal", config, "").event).toBeNull();
+		// Ctrl+P も素通し
+		expect(translateKey(key("p", { ctrlKey: true }), "visual", config, "").event).toBeNull();
+	});
+
 	it("gg は2キーで JUMP first（pending 経由）", () => {
 		const first = translateKey(key("g"), "normal", config, "");
 		expect(first.event).toBeNull();
