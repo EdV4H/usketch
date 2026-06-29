@@ -181,13 +181,10 @@ export const vimMachine = setup({
 			const nearest = findNearestShape(context.deps, context.cursor);
 			return { register: snapshotShapes(context.deps, resolveTargets(context, nearest)) };
 		}),
-		paste: enqueueActions(({ context, enqueue }) => {
+		paste: ({ context }) => {
 			const ids = pasteShapes(context);
-			if (ids.length > 0) {
-				context.deps.store.setSelection(ids);
-				enqueue.assign({ count: null });
-			}
-		}),
+			if (ids.length > 0) context.deps.store.setSelection(ids);
+		},
 
 		// insert
 		appendInput: assign(({ context, event }) => {
@@ -374,11 +371,11 @@ export const vimMachine = setup({
 				OPERATOR: [
 					{
 						guard: ({ event }) => (event as Ev<"OPERATOR">).op === "delete",
-						actions: "deleteTargets",
+						actions: ["deleteTargets", "resetCount"],
 					},
-					{ actions: "yankTargets" },
+					{ actions: ["yankTargets", "resetCount"] },
 				],
-				PASTE: { actions: "paste" },
+				PASTE: { actions: ["paste", "resetCount"] },
 				UNDO: { actions: "undo" },
 				REDO: { actions: "redo" },
 				ZOOM: { actions: "zoom" },
@@ -413,11 +410,11 @@ export const vimMachine = setup({
 					{
 						guard: ({ event }) => (event as Ev<"OPERATOR">).op === "delete",
 						target: "normal",
-						actions: "deleteTargets",
+						actions: ["deleteTargets", "resetCount"],
 					},
-					{ target: "normal", actions: "yankTargets" },
+					{ target: "normal", actions: ["yankTargets", "resetCount"] },
 				],
-				PASTE: { actions: "paste" },
+				PASTE: { actions: ["paste", "resetCount"] },
 			},
 			initial: "single",
 			states: {

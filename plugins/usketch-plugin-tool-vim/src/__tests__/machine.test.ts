@@ -218,6 +218,30 @@ describe("vimMachine", () => {
 		expect(a.getSnapshot().context.cursor).toEqual({ x: target.cx, y: target.cy });
 	});
 
+	it("delete / yank / paste は count を消費する（次の motion へ持ち越さない）", () => {
+		addRect(deps, 0, 0);
+		const a = start(deps);
+		a.send({ type: "DIGIT", n: 5 });
+		a.send({ type: "OPERATOR", op: "delete" });
+		expect(a.getSnapshot().context.count).toBeNull();
+
+		addRect(deps, 0, 0);
+		a.send({ type: "DIGIT", n: 3 });
+		a.send({ type: "OPERATOR", op: "yank" });
+		expect(a.getSnapshot().context.count).toBeNull();
+
+		a.send({ type: "DIGIT", n: 2 });
+		a.send({ type: "PASTE" });
+		expect(a.getSnapshot().context.count).toBeNull();
+	});
+
+	it("空レジスタの paste でも count はリセットされる", () => {
+		const a = start(makeDeps());
+		a.send({ type: "DIGIT", n: 4 });
+		a.send({ type: "PASTE" });
+		expect(a.getSnapshot().context.count).toBeNull();
+	});
+
 	it("独自 ex コマンドが api 経由で実行される（組み込みより優先）", () => {
 		const seen: string[] = [];
 		const extensions: VimExtensions = {

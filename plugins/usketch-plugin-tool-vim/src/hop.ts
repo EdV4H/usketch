@@ -9,17 +9,32 @@ import type { HopTarget, VimDeps } from "./machine/types.js";
 export const HOP_TRIGGER = "f";
 
 /**
- * ラベルを生成する。shape 数がアルファベット長以内なら1文字、超えたら2文字
- * （1文字と2文字を混在させるとプレフィックスが曖昧になるため切替える）。
+ * `count` 件のラベルを生成する。すべて同じ長さ（固定長なのでプレフィックス曖昧さ無し）で、
+ * `alphabet^len >= count` を満たす最小の len を選ぶ（1文字で足りれば1文字、足りなければ2文字…）。
+ * 件数が多くても必ず `count` 件返す（undefined にならない）。
  */
 export function generateHopLabels(count: number, alphabet: string): string[] {
+	if (count <= 0) return [];
 	const a = [...new Set(alphabet.split(""))];
-	if (count <= a.length) return a.slice(0, count);
+	// アルファベットが1文字以下だと長さを増やしても件数を満たせないため best-effort で返す。
+	if (a.length < 2) return a.slice(0, count);
+
+	let len = 1;
+	let cap = a.length;
+	while (cap < count) {
+		len++;
+		cap *= a.length;
+	}
+
 	const labels: string[] = [];
-	for (const c1 of a) {
-		for (const c2 of a) {
-			labels.push(c1 + c2);
-			if (labels.length >= count) return labels;
+	const idx = new Array(len).fill(0);
+	for (let n = 0; n < count; n++) {
+		labels.push(idx.map((i) => a[i]).join(""));
+		// 混合基数カウンタをインクリメント（最下位桁から繰り上げ）。
+		for (let p = len - 1; p >= 0; p--) {
+			idx[p]++;
+			if (idx[p] < a.length) break;
+			idx[p] = 0;
 		}
 	}
 	return labels;
