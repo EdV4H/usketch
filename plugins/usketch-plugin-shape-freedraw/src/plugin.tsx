@@ -1,216 +1,19 @@
-import {
-	type BoundingBox,
-	type CanvasPointerEvent,
-	cssColorToRgbaOrDefault,
-	DEFAULT_STYLE,
-	type GpuPrimitive,
-	generateId,
-	type PluginContext,
-	type Point,
-	type ResizeHandle,
-	type ShapeData,
-	type ToolContext,
-	type UsketchPlugin,
-} from "@edv4h/usketch-shared";
-import { createAddShapeCommand } from "@edv4h/usketch-store";
-import type { FreedrawShapeData } from "./types.js";
+import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import { type FreedrawConfigInput, parseFreedrawConfig } from "./config.js";
+import { createDrawController } from "./draw-tool.js";
+import { PEN_META } from "./pen-meta.js";
+import { createFreedrawSettingsStore } from "./settings-store.js";
+import { freedrawShapeDefinition } from "./shape.js";
+import type { PenKind } from "./types.js";
+import { createPointerStore, FreedrawCursor } from "./ui/cursor-overlay.js";
+import { type BoolStore, FreedrawPalette } from "./ui/palette.js";
 
-function render(shape: ShapeData) {
-	const data = shape as FreedrawShapeData;
-	const points = data.points ?? [];
-	const pointsStr = points.map((p) => `${p.x},${p.y}`).join(" ");
-	return (
-		<polyline
-			points={pointsStr}
-			fill="none"
-			stroke={data.style.stroke}
-			strokeWidth={data.style.strokeWidth}
-			opacity={data.style.opacity}
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		/>
-	);
-}
-
-function getBounds(shape: ShapeData): BoundingBox {
-	const data = shape as FreedrawShapeData;
-	const points = data.points ?? [];
-	if (points.length === 0) {
-		return { x: data.x, y: data.y, width: 0, height: 0 };
-	}
-	let minX = Number.POSITIVE_INFINITY;
-	let minY = Number.POSITIVE_INFINITY;
-	let maxX = Number.NEGATIVE_INFINITY;
-	let maxY = Number.NEGATIVE_INFINITY;
-	for (const p of points) {
-		if (p.x < minX) minX = p.x;
-		if (p.y < minY) minY = p.y;
-		if (p.x > maxX) maxX = p.x;
-		if (p.y > maxY) maxY = p.y;
-	}
-	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
-
-function hitTest(data: ShapeData, point: Point): boolean {
-	const bounds = getBounds(data);
-	return (
-		point.x >= bounds.x &&
-		point.x <= bounds.x + bounds.width &&
-		point.y >= bounds.y &&
-		point.y <= bounds.y + bounds.height
-	);
-}
-
-function resize(shape: ShapeData, handle: ResizeHandle, delta: Point): FreedrawShapeData {
-	const data = shape as FreedrawShapeData;
-	const points = data.points ?? [];
-	const bounds = getBounds(data);
-	if (bounds.width === 0 && bounds.height === 0) return data;
-
-	let newX = bounds.x;
-	let newY = bounds.y;
-	let newWidth = bounds.width;
-	let newHeight = bounds.height;
-
-	switch (handle) {
-		case "se":
-			newWidth += delta.x;
-			newHeight += delta.y;
-			break;
-		case "nw":
-			newX += delta.x;
-			newY += delta.y;
-			newWidth -= delta.x;
-			newHeight -= delta.y;
-			break;
-		case "ne":
-			newY += delta.y;
-			newWidth += delta.x;
-			newHeight -= delta.y;
-			break;
-		case "sw":
-			newX += delta.x;
-			newWidth -= delta.x;
-			newHeight += delta.y;
-			break;
-		case "e":
-			newWidth += delta.x;
-			break;
-		case "w":
-			newX += delta.x;
-			newWidth -= delta.x;
-			break;
-		case "n":
-			newY += delta.y;
-			newHeight -= delta.y;
-			break;
-		case "s":
-			newHeight += delta.y;
-			break;
-	}
-
-	newWidth = Math.max(1, newWidth);
-	newHeight = Math.max(1, newHeight);
-
-	const scaleX = bounds.width !== 0 ? newWidth / bounds.width : 1;
-	const scaleY = bounds.height !== 0 ? newHeight / bounds.height : 1;
-
-	const newPoints = points.map((p) => ({
-		x: newX + (p.x - bounds.x) * scaleX,
-		y: newY + (p.y - bounds.y) * scaleY,
-	}));
-
-	return {
-		...data,
-		x: newX,
-		y: newY,
-		width: newWidth,
-		height: newHeight,
-		points: newPoints,
-	};
-}
-
-function move(shape: ShapeData, dx: number, dy: number): Partial<FreedrawShapeData> {
-	const data = shape as FreedrawShapeData;
-	const points = data.points ?? [];
-	return {
-		x: data.x + dx,
-		y: data.y + dy,
-		points: points.map((p) => ({ x: p.x + dx, y: p.y + dy })),
-	};
-}
-
-function applyBounds(shape: ShapeData, newBounds: BoundingBox): Partial<FreedrawShapeData> {
-	const data = shape as FreedrawShapeData;
-	const points = data.points ?? [];
-	const oldBounds = getBounds(data);
-	const scaleX = oldBounds.width !== 0 ? newBounds.width / oldBounds.width : 1;
-	const scaleY = oldBounds.height !== 0 ? newBounds.height / oldBounds.height : 1;
-	return {
-		x: newBounds.x,
-		y: newBounds.y,
-		width: newBounds.width,
-		height: newBounds.height,
-		points: points.map((p) => ({
-			x: newBounds.x + (p.x - oldBounds.x) * scaleX,
-			y: newBounds.y + (p.y - oldBounds.y) * scaleY,
-		})),
-	};
-}
-
-function createDefault(params: { id: string; x: number; y: number }): FreedrawShapeData {
-	return {
-		id: params.id,
-		type: "freedraw",
-		x: params.x,
-		y: params.y,
-		width: 0,
-		height: 0,
-		style: { ...DEFAULT_STYLE },
-		points: [],
-	};
-}
-
-function computeBounds(points: Point[]): BoundingBox {
-	let minX = Number.POSITIVE_INFINITY;
-	let minY = Number.POSITIVE_INFINITY;
-	let maxX = Number.NEGATIVE_INFINITY;
-	let maxY = Number.NEGATIVE_INFINITY;
-	for (const p of points) {
-		if (p.x < minX) minX = p.x;
-		if (p.y < minY) minY = p.y;
-		if (p.x > maxX) maxX = p.x;
-		if (p.y > maxY) maxY = p.y;
-	}
-	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
-
-function serializeForAi(shape: ShapeData): Record<string, unknown> {
-	const data = shape as FreedrawShapeData;
-	return { pointCount: (data.points ?? []).length };
-}
-
-function serializeForRecognition(shape: ShapeData): unknown {
-	const data = shape as FreedrawShapeData;
-	const points = data.points ?? [];
-	if (points.length < 2) return null;
-	// `points` is already `{x,y}[]`; pass it through to avoid an O(n) copy.
-	return { kind: "stroke", points };
-}
-
-function debugFields(shape: ShapeData): Record<string, unknown> {
-	const data = shape as FreedrawShapeData;
-	const points = data.points ?? [];
-	return {
-		pointCount: points.length,
-		firstPoint: points[0] ?? null,
-		lastPoint: points[points.length - 1] ?? null,
-	};
-}
+const TOOL_ID = "freedraw-draw";
 
 function FreedrawIcon() {
 	return (
-		<svg width="20" height="20" viewBox="0 0 20 20">
+		<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+			<title>Freedraw</title>
 			<path
 				d="M4 16 C6 10, 10 4, 16 6"
 				fill="none"
@@ -222,102 +25,122 @@ function FreedrawIcon() {
 	);
 }
 
-export function createFreedrawPlugin(): UsketchPlugin {
+function createBoolStore(initial: boolean) {
+	let value = initial;
+	const listeners = new Set<() => void>();
+	const store: BoolStore & { set(v: boolean): void } = {
+		getSnapshot: () => value,
+		subscribe(l) {
+			listeners.add(l);
+			return () => listeners.delete(l);
+		},
+		set(v) {
+			value = v;
+			for (const l of listeners) l();
+		},
+	};
+	return store;
+}
+
+export function createFreedrawPlugin(configInput?: FreedrawConfigInput): UsketchPlugin {
+	const config = parseFreedrawConfig(configInput);
+
 	return {
 		id: "usketch-plugin-shape-freedraw",
 		name: "フリーハンド",
 
 		setup(ctx: PluginContext) {
-			// ── Local draw state (scoped to this setup closure) ──
-			let drawState: { shapeId: string; points: Point[] } | null = null;
+			const settings = createFreedrawSettingsStore(config);
+			const pointer = createPointerStore();
+			const active = createBoolStore(ctx.store.getActiveToolId() === TOOL_ID);
+			const draw = createDrawController(settings, pointer);
 
-			function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
-				const id = generateId();
-				const startPoint: Point = { x: event.worldPoint.x, y: event.worldPoint.y };
-				drawState = { shapeId: id, points: [startPoint] };
-				const shape = createDefault({ id, x: startPoint.x, y: startPoint.y });
-				shape.points = [startPoint];
-				shape.style = { ...toolCtx.store.getStyleSettings() };
-				toolCtx.store.addShape(shape);
-			}
+			ctx.shapes.register("freedraw", freedrawShapeDefinition);
 
-			function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
-				if (!drawState) return;
-				const newPoint: Point = { x: event.worldPoint.x, y: event.worldPoint.y };
-				drawState.points.push(newPoint);
-
-				const bounds = computeBounds(drawState.points);
-				toolCtx.store.updateShape(drawState.shapeId, {
-					x: bounds.x,
-					y: bounds.y,
-					width: bounds.width,
-					height: bounds.height,
-					points: [...drawState.points],
-				} as Partial<FreedrawShapeData>);
-			}
-
-			function onPointerUp(toolCtx: ToolContext) {
-				if (!drawState) return;
-				const shape = toolCtx.store.getShape(drawState.shapeId);
-				if (shape && drawState.points.length > 1) {
-					// Replace with undoable command
-					toolCtx.store.deleteShape(drawState.shapeId);
-					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
-				} else {
-					toolCtx.store.deleteShape(drawState.shapeId);
-				}
-				drawState = null;
-			}
-
-			function gpuPrimitive(shape: ShapeData): GpuPrimitive | null {
-				const data = shape as FreedrawShapeData;
-				const pts = data.points ?? [];
-				if (pts.length < 2) return null;
-				const verts = new Float32Array(pts.length * 2);
-				for (let i = 0; i < pts.length; i++) {
-					verts[i * 2] = pts[i].x;
-					verts[i * 2 + 1] = pts[i].y;
-				}
-				return {
-					kind: "polyline",
-					bounds: getBounds(data),
-					vertices: verts,
-					fill: [0, 0, 0, 0],
-					stroke: cssColorToRgbaOrDefault(data.style.stroke),
-					strokeWidth: data.style.strokeWidth,
-					opacity: data.style.opacity,
-				};
-			}
-
-			ctx.shapes.register("freedraw", {
-				render,
-				getBounds,
-				hitTest,
-				resize,
-				createDefault,
-				move,
-				applyBounds,
-				gpuPrimitive,
-				serializeForAi,
-				serializeForRecognition,
-				debugFields,
-			});
-
-			ctx.tools.register("freedraw-draw", {
+			ctx.tools.register(TOOL_ID, {
 				icon: FreedrawIcon,
-				cursor: "crosshair",
+				cursor: config.cursorPreview ? "none" : "crosshair",
 				shortcut: "p",
 				order: 30,
 				onActivate(toolCtx) {
+					active.set(true);
 					toolCtx.events.emit("snap:configure", { enabled: false });
 				},
 				onDeactivate(toolCtx) {
+					active.set(false);
+					draw.reset();
 					toolCtx.events.emit("snap:configure", { enabled: true });
 				},
-				onPointerDown,
-				onPointerMove,
-				onPointerUp,
+				onPointerDown: draw.onPointerDown,
+				onPointerMove: draw.onPointerMove,
+				onPointerUp: draw.onPointerUp,
 			});
+
+			// ── 自前 UI レイヤー（Vim-first でツールバーが無くても動く） ──
+			ctx.layers.register({
+				id: "freedraw-cursor",
+				order: 92,
+				fixed: true,
+				interactable: false,
+				render: (rc) => (
+					<FreedrawCursor settings={settings} pointer={pointer} viewport={rc.viewport} />
+				),
+			});
+			ctx.layers.register({
+				id: "freedraw-palette",
+				order: 126,
+				fixed: true,
+				interactable: true,
+				render: () => <FreedrawPalette settings={settings} active={active} />,
+			});
+
+			// ── vim 連携 / 外部からの設定変更イベント ──
+			const offPen = ctx.events.on<{ pen: PenKind }>("freedraw:set-pen", ({ pen }) => {
+				if (PEN_META[pen]) settings.update({ pen, mode: "pen" });
+			});
+			const offColor = ctx.events.on<{ color: string }>("freedraw:set-color", ({ color }) => {
+				const cur = settings.getSnapshot();
+				const custom = cur.customColors.includes(color)
+					? cur.customColors
+					: [...cur.customColors, color];
+				settings.update({ color, customColors: custom, mode: "pen" });
+			});
+			const offSize = ctx.events.on<{ size: number }>("freedraw:set-size", ({ size }) => {
+				const cur = settings.getSnapshot();
+				if (cur.mode === "eraser") settings.update({ eraserSize: size });
+				else settings.update({ sizes: { ...cur.sizes, [cur.pen]: size } });
+			});
+			const offEraser = ctx.events.on("freedraw:toggle-eraser", () => {
+				const cur = settings.getSnapshot();
+				settings.update({ mode: cur.mode === "eraser" ? "pen" : "eraser" });
+			});
+
+			// Escape: 消しゴム中ならペンへ、そうでなければ既定ツール（Vim-first では vim）へ戻る。
+			const onKeyDown = (e: KeyboardEvent) => {
+				if (ctx.store.getActiveToolId() !== TOOL_ID || e.key !== "Escape") return;
+				if (settings.getSnapshot().mode === "eraser") {
+					settings.update({ mode: "pen" });
+				} else {
+					ctx.store.resetToDefaultTool();
+				}
+				e.preventDefault();
+				e.stopImmediatePropagation();
+			};
+			if (typeof window !== "undefined") {
+				window.addEventListener("keydown", onKeyDown, true);
+			}
+
+			return () => {
+				offPen();
+				offColor();
+				offSize();
+				offEraser();
+				if (typeof window !== "undefined") {
+					window.removeEventListener("keydown", onKeyDown, true);
+				}
+				ctx.layers.unregister("freedraw-cursor");
+				ctx.layers.unregister("freedraw-palette");
+			};
 		},
 	};
 }

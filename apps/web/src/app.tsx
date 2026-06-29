@@ -98,7 +98,41 @@ function createBasePlugins(): UsketchPlugin[] {
 		createDotsBgPlugin(),
 		createSelectToolPlugin(),
 		createPanToolPlugin(),
-		createVimToolPlugin(),
+		createVimToolPlugin(undefined, {
+			// Vim ↔ freedraw 連携。`:` コマンドでペン/色/太さ/消しゴムを操作し描画ツールへ。
+			commands: {
+				draw: (_args, api) => {
+					api.store.setActiveToolId("freedraw-draw");
+					return "draw";
+				},
+				pen: (args, api) => {
+					const p = args[0];
+					if (!["ballpoint", "felt", "brush", "highlighter"].includes(p)) {
+						return "E: :pen ballpoint|felt|brush|highlighter";
+					}
+					api.events.emit("freedraw:set-pen", { pen: p });
+					api.store.setActiveToolId("freedraw-draw");
+					return `pen ${p}`;
+				},
+				color: (args, api) => {
+					if (!args[0]) return "E: :color #RRGGBB";
+					api.events.emit("freedraw:set-color", { color: args[0] });
+					api.store.setActiveToolId("freedraw-draw");
+					return `color ${args[0]}`;
+				},
+				pensize: (args, api) => {
+					const n = Number(args[0]);
+					if (!Number.isFinite(n)) return "E: :pensize <n>";
+					api.events.emit("freedraw:set-size", { size: n });
+					return `size ${n}`;
+				},
+				eraser: (_args, api) => {
+					api.events.emit("freedraw:toggle-eraser", {});
+					api.store.setActiveToolId("freedraw-draw");
+					return "eraser";
+				},
+			},
+		}),
 		createViewportNavPlugin(),
 		createBasicShapePlugin(),
 		createGroupPlugin(),
