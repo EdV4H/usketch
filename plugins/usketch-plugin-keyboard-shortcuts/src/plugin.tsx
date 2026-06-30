@@ -89,12 +89,12 @@ export function createKeyboardShortcutsPlugin(
 			);
 			cleanups.push(
 				shortcuts.register("Ctrl+V", () => {
-					void pasteShapes(store, commands);
+					void pasteShapes(store, commands, events);
 				}),
 			);
 			cleanups.push(
 				shortcuts.register("Ctrl+D", () => {
-					duplicateShapes(store, commands);
+					duplicateShapes(store, commands, events);
 				}),
 			);
 
