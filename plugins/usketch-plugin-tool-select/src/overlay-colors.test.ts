@@ -1,43 +1,50 @@
-import { afterEach, describe, expect, it } from "vitest";
-import {
-	getOverlayColors,
-	resetOverlayColors,
-	setOverlayColors,
-	subscribeOverlayColors,
-} from "./overlay-colors.js";
+import { describe, expect, it } from "vitest";
+import { createOverlayColorStore } from "./overlay-colors.js";
 
-afterEach(() => resetOverlayColors());
-
-describe("overlay-colors store", () => {
+describe("createOverlayColorStore", () => {
 	it("既定色（#2680eb / #ffffff）", () => {
-		expect(getOverlayColors()).toEqual({ strokeColor: "#2680eb", handleFillColor: "#ffffff" });
-	});
-
-	it("部分更新でき、未指定キーは保持。CSS 変数も格納できる", () => {
-		setOverlayColors({ strokeColor: "var(--colors-primary)" });
-		expect(getOverlayColors().strokeColor).toBe("var(--colors-primary)");
-		expect(getOverlayColors().handleFillColor).toBe("#ffffff");
-		setOverlayColors({ handleFillColor: "#222" });
-		expect(getOverlayColors()).toEqual({
-			strokeColor: "var(--colors-primary)",
-			handleFillColor: "#222",
+		expect(createOverlayColorStore().getSnapshot()).toEqual({
+			strokeColor: "#2680eb",
+			handleFillColor: "#ffffff",
 		});
 	});
 
-	it("undefined / 空 patch は無視", () => {
-		setOverlayColors({ strokeColor: "#abc" });
-		setOverlayColors(undefined);
-		setOverlayColors({ strokeColor: undefined });
-		expect(getOverlayColors().strokeColor).toBe("#abc");
+	it("初期値を適用。CSS 変数も格納できる", () => {
+		const s = createOverlayColorStore({ strokeColor: "var(--colors-primary)" });
+		expect(s.getSnapshot().strokeColor).toBe("var(--colors-primary)");
+		expect(s.getSnapshot().handleFillColor).toBe("#ffffff");
 	});
 
-	it("subscribe が変更で通知され、reset で既定に戻る", () => {
+	it("部分更新でき、未指定/undefined は保持", () => {
+		const s = createOverlayColorStore();
+		s.set({ strokeColor: "#abc" });
+		s.set(undefined);
+		s.set({ strokeColor: undefined });
+		expect(s.getSnapshot().strokeColor).toBe("#abc");
+		s.set({ handleFillColor: "#222" });
+		expect(s.getSnapshot()).toEqual({ strokeColor: "#abc", handleFillColor: "#222" });
+	});
+
+	it("subscribe が変更で通知される", () => {
+		const s = createOverlayColorStore();
 		let n = 0;
-		const off = subscribeOverlayColors(() => n++);
-		setOverlayColors({ strokeColor: "#111" });
+		const off = s.subscribe(() => n++);
+		s.set({ strokeColor: "#111" });
 		expect(n).toBe(1);
-		resetOverlayColors();
-		expect(getOverlayColors().strokeColor).toBe("#2680eb");
 		off();
+		s.set({ strokeColor: "#222" });
+		expect(n).toBe(1);
+	});
+
+	it("#640: インスタンスは独立。あるストアの破棄が別ストアの色に影響しない", () => {
+		// App#1, App#2 を同色で生成 → App#1 を「teardown」しても App#2 は保持。
+		const app1 = createOverlayColorStore({ strokeColor: "var(--colors-primary)" });
+		const app2 = createOverlayColorStore({ strokeColor: "var(--colors-primary)" });
+		// 旧実装ではモジュール共有 + teardown reset で app2 が既定に戻っていた。
+		// per-instance なので app1 を捨てても app2 は不変。
+		expect(app2.getSnapshot().strokeColor).toBe("var(--colors-primary)");
+		// app1 をいじっても app2 に影響しない
+		app1.set({ strokeColor: "#000000" });
+		expect(app2.getSnapshot().strokeColor).toBe("var(--colors-primary)");
 	});
 });
