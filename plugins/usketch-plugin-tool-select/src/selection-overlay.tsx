@@ -11,6 +11,7 @@ import {
 	getMarqueeRect,
 	subscribeMarquee,
 } from "./marquee-state.js";
+import { useOverlayColors } from "./overlay-colors.js";
 import {
 	getHandlePositions,
 	getMultiSelectionBounds,
@@ -24,8 +25,6 @@ interface SelectionOverlayProps {
 	viewport: Viewport;
 }
 
-const STROKE_COLOR = "#2680eb";
-
 function ShapeBoundingBox({
 	store,
 	shapes,
@@ -37,6 +36,7 @@ function ShapeBoundingBox({
 	viewport: Viewport;
 	shapeId: string;
 }) {
+	const { strokeColor } = useOverlayColors();
 	const bounds = getShapeBounds(store, shapes, shapeId);
 	if (!bounds) return null;
 	const shape = store.getShape(shapeId);
@@ -55,14 +55,15 @@ function ShapeBoundingBox({
 				width={bw}
 				height={bh}
 				fill="none"
-				stroke={STROKE_COLOR}
 				strokeWidth={1}
+				style={{ stroke: strokeColor }}
 			/>
 		</g>
 	);
 }
 
 export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayProps) {
+	const { strokeColor, handleFillColor } = useOverlayColors();
 	const selection = useSyncExternalStore(
 		(cb) => store.subscribe(cb),
 		() => store.getSelection(),
@@ -118,8 +119,8 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 				width={dropBounds.width * viewport.zoom}
 				height={dropBounds.height * viewport.zoom}
 				fill="none"
-				stroke={STROKE_COLOR}
 				strokeWidth={2}
+				style={{ stroke: strokeColor }}
 			/>
 		</svg>
 	) : null;
@@ -147,7 +148,7 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 							width={hw}
 							height={hh}
 							fill="none"
-							stroke={STROKE_COLOR}
+							style={{ stroke: strokeColor }}
 							strokeWidth={2}
 							opacity={0.8}
 						/>
@@ -201,7 +202,7 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 						width={sw}
 						height={sh}
 						fill="none"
-						stroke={STROKE_COLOR}
+						style={{ stroke: strokeColor }}
 						strokeWidth={1}
 					/>
 					{!hideHandles &&
@@ -212,9 +213,8 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 								y={pos.y - half}
 								width={HANDLE_SIZE}
 								height={HANDLE_SIZE}
-								fill="#ffffff"
-								stroke={STROKE_COLOR}
 								strokeWidth={1}
+								style={{ fill: handleFillColor, stroke: strokeColor }}
 							/>
 						))}
 				</g>
@@ -261,7 +261,7 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 						width={multiBounds.width * viewport.zoom}
 						height={multiBounds.height * viewport.zoom}
 						fill="none"
-						stroke={STROKE_COLOR}
+						style={{ stroke: strokeColor }}
 						strokeWidth={1}
 						strokeDasharray="4 2"
 					/>
@@ -272,9 +272,8 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 							y={pos.y - HANDLE_SIZE / 2}
 							width={HANDLE_SIZE}
 							height={HANDLE_SIZE}
-							fill="#ffffff"
-							stroke={STROKE_COLOR}
 							strokeWidth={1}
+							style={{ fill: handleFillColor, stroke: strokeColor }}
 						/>
 					))}
 				</>
@@ -298,7 +297,7 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 					width={marqueeRect.width * viewport.zoom}
 					height={marqueeRect.height * viewport.zoom}
 					fill={marqueeMode === "contain" ? "rgba(38, 128, 235, 0.08)" : "rgba(38, 128, 235, 0.1)"}
-					stroke={STROKE_COLOR}
+					style={{ stroke: strokeColor }}
 					strokeWidth={1}
 					strokeDasharray={marqueeMode === "contain" ? undefined : "4 2"}
 				/>

@@ -40,6 +40,13 @@ export interface GuideStyle {
 	diamondSize: number;
 }
 
+/**
+ * Alt(Option) キー押下中の挙動。
+ * - `"suppress"`（既定・従来）: 押下中は無条件にスナップ抑止。
+ * - `"invert"`: 押下中は `enabled` を一時反転（無効時に一時有効、有効時に一時無効）。
+ */
+export type AltBehavior = "suppress" | "invert";
+
 export interface SnapSettings {
 	enabled: boolean;
 	threshold: number;
@@ -47,4 +54,6 @@ export interface SnapSettings {
 	centerSnap: boolean;
 	viewportOnly: boolean;
 	guideStyle: GuideStyle;
+	/** Alt(Option) キーの挙動（既定 `"suppress"`）。 */
+	altBehavior: AltBehavior;
 }

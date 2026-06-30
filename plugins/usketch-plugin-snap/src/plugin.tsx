@@ -8,9 +8,17 @@ import type {
 	Viewport,
 } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
+import { effectiveSnapEnabled } from "./alt-behavior.js";
 import { DEFAULT_GUIDE_STYLE, DEFAULT_SNAP_THRESHOLD } from "./constants.js";
 import { calculateSnap, type SnapEdgeFilter } from "./engine/snap-engine.js";
-import type { GuideStyle, SnapEdge, SnapLine, SnapResult, SnapSettings } from "./engine/types.js";
+import type {
+	AltBehavior,
+	GuideStyle,
+	SnapEdge,
+	SnapLine,
+	SnapResult,
+	SnapSettings,
+} from "./engine/types.js";
 import { GuideLayer } from "./guide-layer.js";
 
 // ── Shared mutable state for the plugin ──
@@ -91,19 +99,27 @@ function SnapGuideOverlay({ viewport }: SnapGuideOverlayProps) {
 
 // ── Plugin ──
 
-export function createSnapPlugin(): UsketchPlugin {
+export interface SnapPluginOptions {
+	/** 初期のスナップ有効状態（既定 true）。 */
+	enabled?: boolean;
+	/** Alt(Option) キーの挙動（既定 "suppress"）。"invert" で無効時も Alt で一時スナップ。 */
+	altBehavior?: AltBehavior;
+}
+
+export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin {
 	return {
 		id: "usketch-plugin-snap",
 		name: "スナップ",
 
 		setup(ctx: PluginContext) {
 			const settings: SnapSettings = {
-				enabled: true,
+				enabled: options.enabled ?? true,
 				threshold: DEFAULT_SNAP_THRESHOLD,
 				edgeSnap: true,
 				centerSnap: true,
 				viewportOnly: true,
 				guideStyle: { ...DEFAULT_GUIDE_STYLE },
+				altBehavior: options.altBehavior ?? "suppress",
 			};
 
 			// Sync initial guide style to shared state
@@ -168,13 +184,17 @@ export function createSnapPlugin(): UsketchPlugin {
 			const originalUpdateShape = ctx.store.updateShape.bind(ctx.store);
 
 			function patchedUpdateShape(id: string, updates: Partial<ShapeData>) {
-				// Only snap during pointer-down, when enabled, and Alt not held
-				const shouldSnap =
-					pointerDown && settings.enabled && !altKeyHeld && hasPositionUpdate(updates);
+				const effectiveEnabled = effectiveSnapEnabled(
+					settings.enabled,
+					altKeyHeld,
+					settings.altBehavior,
+				);
+				const shouldSnap = pointerDown && effectiveEnabled && hasPositionUpdate(updates);
 
 				if (!shouldSnap) {
 					originalUpdateShape(id, updates);
-					if (pointerDown && altKeyHeld) {
+					// スナップしないドラッグ中はガイドを消す。
+					if (pointerDown) {
 						setState({ lines: [] });
 					}
 					return;

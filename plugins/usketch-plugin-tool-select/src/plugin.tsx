@@ -30,6 +30,7 @@ import {
 import { clearHoveredShapeListeners, setHoveredShapeId } from "./hover-state.js";
 import type { MarqueeRect } from "./marquee-state.js";
 import { clearMarqueeListeners, setMarquee, setMarqueeMode } from "./marquee-state.js";
+import { type OverlayColors, resetOverlayColors, setOverlayColors } from "./overlay-colors.js";
 import { SelectionOverlay } from "./selection-overlay.js";
 
 // Hit-test helpers used to live here; they were extracted to
@@ -101,12 +102,20 @@ type DragState =
 
 // ── Plugin ──
 
-export function createSelectToolPlugin(): UsketchPlugin {
+export interface SelectToolPluginOptions {
+	/** 選択オーバーレイ（選択枠/ハンドル）の色。CSS 変数（例 `var(--colors-primary)`）も可。 */
+	overlay?: Partial<OverlayColors>;
+}
+
+export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): UsketchPlugin {
 	return {
 		id: "usketch-plugin-tool-select",
 		name: "選択",
 
 		setup(ctx: PluginContext) {
+			// 選択オーバーレイの色を初期化（指定が無ければ既定の青のまま）。
+			setOverlayColors(options.overlay);
+
 			// Wrap setDropTargetId to also emit on EventBus for DomShapeLayer
 			function updateDropTarget(id: string | null) {
 				setDropTargetId(id);
@@ -463,8 +472,16 @@ export function createSelectToolPlugin(): UsketchPlugin {
 			ctx.shortcuts.register("Delete", () => deleteSelectedShapes(ctx));
 			ctx.shortcuts.register("Backspace", () => deleteSelectedShapes(ctx));
 
+			// 実行時に色を変更（snap:configure と対になる select:configure）。
+			// `{ overlay: { strokeColor, handleFillColor } }` も平坦な形も受け付ける。
+			const offConfigure = ctx.events.on<
+				{ overlay?: Partial<OverlayColors> } & Partial<OverlayColors>
+			>("select:configure", (patch) => setOverlayColors(patch.overlay ?? patch));
+
 			// ── Teardown ──
 			return () => {
+				offConfigure();
+				resetOverlayColors();
 				setOverrideCursor("");
 				setMovingSelection(false);
 				setMarquee(null);
