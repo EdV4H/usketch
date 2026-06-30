@@ -1,5 +1,3 @@
-import { useSyncExternalStore } from "react";
-
 export interface OverlayColors {
 	/** 選択枠・ハンドルの線色。CSS 変数（例 `var(--colors-primary)`）も可。 */
 	strokeColor: string;
@@ -9,35 +7,38 @@ export interface OverlayColors {
 
 const DEFAULTS: OverlayColors = { strokeColor: "#2680eb", handleFillColor: "#ffffff" };
 
-// このプラグインの drag-state / marquee-state と同様、モジュールレベルの共有状態。
-let colors: OverlayColors = { ...DEFAULTS };
-const listeners = new Set<() => void>();
-
-export function getOverlayColors(): OverlayColors {
-	return colors;
+/**
+ * オーバーレイ色のストア。**setup（インスタンス）スコープ**で生成する。
+ * モジュール共有にすると、複数 App 同時生成（StrictMode / 非同期 createApp）で
+ * あるインスタンスの teardown が生存中の別インスタンスの色を壊す（#640）。
+ * snap プラグインの `settings` クロージャと同様に per-setup で保持する。
+ */
+export interface OverlayColorStore {
+	getSnapshot(): OverlayColors;
+	subscribe(listener: () => void): () => void;
+	/** 部分更新。未指定/undefined のキーは保持。 */
+	set(patch: Partial<OverlayColors> | undefined): void;
 }
 
-export function setOverlayColors(patch: Partial<OverlayColors> | undefined): void {
-	if (!patch) return;
-	const next = { ...colors };
-	if (patch.strokeColor != null) next.strokeColor = patch.strokeColor;
-	if (patch.handleFillColor != null) next.handleFillColor = patch.handleFillColor;
-	colors = next;
-	for (const l of listeners) l();
-}
+export function createOverlayColorStore(initial?: Partial<OverlayColors>): OverlayColorStore {
+	let colors: OverlayColors = { ...DEFAULTS };
+	const listeners = new Set<() => void>();
 
-/** 既定色へ戻す（プラグイン teardown 用、StrictMode 再マウント時の漏れ防止）。 */
-export function resetOverlayColors(): void {
-	colors = { ...DEFAULTS };
-	for (const l of listeners) l();
-}
-
-export function subscribeOverlayColors(listener: () => void): () => void {
-	listeners.add(listener);
-	return () => listeners.delete(listener);
-}
-
-/** React コンポーネントから現在の色を購読する。 */
-export function useOverlayColors(): OverlayColors {
-	return useSyncExternalStore(subscribeOverlayColors, getOverlayColors, getOverlayColors);
+	const store: OverlayColorStore = {
+		getSnapshot: () => colors,
+		subscribe(listener) {
+			listeners.add(listener);
+			return () => listeners.delete(listener);
+		},
+		set(patch) {
+			if (!patch) return;
+			const next = { ...colors };
+			if (patch.strokeColor != null) next.strokeColor = patch.strokeColor;
+			if (patch.handleFillColor != null) next.handleFillColor = patch.handleFillColor;
+			colors = next;
+			for (const l of listeners) l();
+		},
+	};
+	store.set(initial);
+	return store;
 }

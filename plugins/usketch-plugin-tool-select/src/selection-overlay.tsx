@@ -11,7 +11,7 @@ import {
 	getMarqueeRect,
 	subscribeMarquee,
 } from "./marquee-state.js";
-import { useOverlayColors } from "./overlay-colors.js";
+import type { OverlayColorStore } from "./overlay-colors.js";
 import {
 	getHandlePositions,
 	getMultiSelectionBounds,
@@ -23,6 +23,7 @@ interface SelectionOverlayProps {
 	store: BoardStore;
 	shapes: ShapeRegistry;
 	viewport: Viewport;
+	colors: OverlayColorStore;
 }
 
 function ShapeBoundingBox({
@@ -30,13 +31,14 @@ function ShapeBoundingBox({
 	shapes,
 	viewport,
 	shapeId,
+	strokeColor,
 }: {
 	store: BoardStore;
 	shapes: ShapeRegistry;
 	viewport: Viewport;
 	shapeId: string;
+	strokeColor: string;
 }) {
-	const { strokeColor } = useOverlayColors();
 	const bounds = getShapeBounds(store, shapes, shapeId);
 	if (!bounds) return null;
 	const shape = store.getShape(shapeId);
@@ -62,8 +64,12 @@ function ShapeBoundingBox({
 	);
 }
 
-export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayProps) {
-	const { strokeColor, handleFillColor } = useOverlayColors();
+export function SelectionOverlay({ store, shapes, viewport, colors }: SelectionOverlayProps) {
+	const { strokeColor, handleFillColor } = useSyncExternalStore(
+		colors.subscribe,
+		colors.getSnapshot,
+		colors.getSnapshot,
+	);
 	const selection = useSyncExternalStore(
 		(cb) => store.subscribe(cb),
 		() => store.getSelection(),
@@ -250,6 +256,7 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 						shapes={shapes}
 						viewport={viewport}
 						shapeId={id}
+						strokeColor={strokeColor}
 					/>
 				))}
 			{/* Combined bounding box for confirmed selection */}
@@ -287,6 +294,7 @@ export function SelectionOverlay({ store, shapes, viewport }: SelectionOverlayPr
 						shapes={shapes}
 						viewport={viewport}
 						shapeId={id}
+						strokeColor={strokeColor}
 					/>
 				))}
 			{/* Marquee rectangle (world-space → screen-space) */}

@@ -30,7 +30,7 @@ import {
 import { clearHoveredShapeListeners, setHoveredShapeId } from "./hover-state.js";
 import type { MarqueeRect } from "./marquee-state.js";
 import { clearMarqueeListeners, setMarquee, setMarqueeMode } from "./marquee-state.js";
-import { type OverlayColors, resetOverlayColors, setOverlayColors } from "./overlay-colors.js";
+import { createOverlayColorStore, type OverlayColors } from "./overlay-colors.js";
 import { SelectionOverlay } from "./selection-overlay.js";
 
 // Hit-test helpers used to live here; they were extracted to
@@ -113,8 +113,9 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 		name: "選択",
 
 		setup(ctx: PluginContext) {
-			// 選択オーバーレイの色を初期化（指定が無ければ既定の青のまま）。
-			setOverlayColors(options.overlay);
+			// 選択オーバーレイ色は setup(インスタンス)スコープで保持する（#640）。
+			// モジュール共有だと複数 App 同時生成時に teardown が他インスタンスの色を壊す。
+			const overlayColors = createOverlayColorStore(options.overlay);
 
 			// Wrap setDropTargetId to also emit on EventBus for DomShapeLayer
 			function updateDropTarget(id: string | null) {
@@ -464,7 +465,12 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				order: 80,
 				fixed: true,
 				render: (renderCtx) => (
-					<SelectionOverlay store={ctx.store} shapes={ctx.shapes} viewport={renderCtx.viewport} />
+					<SelectionOverlay
+						store={ctx.store}
+						shapes={ctx.shapes}
+						viewport={renderCtx.viewport}
+						colors={overlayColors}
+					/>
 				),
 			});
 
@@ -476,12 +482,12 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			// `{ overlay: { strokeColor, handleFillColor } }` も平坦な形も受け付ける。
 			const offConfigure = ctx.events.on<
 				{ overlay?: Partial<OverlayColors> } & Partial<OverlayColors>
-			>("select:configure", (patch) => setOverlayColors(patch.overlay ?? patch));
+			>("select:configure", (patch) => overlayColors.set(patch.overlay ?? patch));
 
 			// ── Teardown ──
 			return () => {
 				offConfigure();
-				resetOverlayColors();
+				// overlayColors はインスタンス所有なので reset 不要（GC で破棄）。#640
 				setOverrideCursor("");
 				setMovingSelection(false);
 				setMarquee(null);
