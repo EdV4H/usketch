@@ -20,7 +20,9 @@
 	"dependencies": {
 		"@edv4h/usketch-core": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
-		"@edv4h/usketch-store": "workspace:*"
+		"@edv4h/usketch-store": "workspace:*",
+		"perfect-freehand": "^1.2.2",
+		"zod": "^4.0.0"
 	},
 	"peerDependencies": {
 		"react": ">=19"
