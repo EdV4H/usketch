@@ -26,16 +26,14 @@ test.describe("Board", () => {
 		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 	});
 
-	test("toolbar and export button visible on board page", async ({ page }) => {
+	test("vim-first: status line visible and toolbar hidden on board page", async ({ page }) => {
 		await page.goto("/dashboard");
 		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
-		// 新レイアウト: Toolbar は画面下中央の data-testid="toolbar" で特定
-		await expect(page.locator('[data-testid="toolbar"]')).toBeVisible();
-		// Undo ボタン（aria-label）
-		await expect(page.locator('button[aria-label="元に戻す"]')).toBeVisible();
-		// エクスポートボタン（aria-label）
-		await expect(page.locator('button[aria-label="エクスポート"]')).toBeVisible();
+		// Vim-first デモ: 既定で vim ツールがアクティブ、従来のツールバーは非表示。
+		await expect(page.locator('[data-testid="vim-status-line"]')).toBeVisible();
+		await expect(page.locator('[data-testid="vim-status-line"]')).toContainText("NORMAL");
+		await expect(page.locator('[data-testid="toolbar"]')).toHaveCount(0);
 	});
 
 	test("command palette opens with Cmd+K and closes with Esc", async ({ page }) => {
@@ -43,10 +41,10 @@ test.describe("Board", () => {
 		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
 
-		// Toolbar のレンダリング完了を待つ
-		await expect(page.locator('[data-testid="toolbar"]')).toBeVisible();
+		// ボードの準備完了を待つ（vim-first ではツールバーが無いのでキャンバスで判定）
+		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 
-		// Cmd+K / Ctrl+K 両方を試す（macOS は Meta、他は Control）
+		// Cmd+K / Ctrl+K（vim は修飾キー併用を素通しするのでパレットが開く）
 		await page.keyboard.press("ControlOrMeta+k");
 
 		const palette = page.locator('[role="dialog"][aria-label="コマンドパレット"]');
@@ -65,7 +63,7 @@ test.describe("Board", () => {
 		await page.goto("/dashboard");
 		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
-		await expect(page.locator('[data-testid="toolbar"]')).toBeVisible();
+		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 
 		await page.keyboard.press("ControlOrMeta+k");
 

@@ -22,6 +22,7 @@ export function VimStatusLine({ store }: { store: VimUiStore }) {
 
 	return (
 		<div
+			data-testid="vim-status-line"
 			style={{
 				position: "absolute",
 				left: 0,
