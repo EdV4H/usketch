@@ -562,5 +562,6 @@ export interface UsketchPlugin {
 	 * return the cleanup from setup instead — each `createApp` call owns its
 	 * own closure.
 	 */
+	// biome-ignore lint/suspicious/noConfusingVoidType: setup はティアダウン関数 or 何も返さない(void)を許容する意図的な union
 	setup(ctx: PluginContext): PluginTeardown | void | Promise<PluginTeardown | void>;
 }

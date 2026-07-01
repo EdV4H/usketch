@@ -39,7 +39,12 @@ function makeCtx(shapes: ShapeData[]) {
 	} as unknown as PluginContext;
 	const emitFind = (req: Omit<FreePositionRequest, "onResult">): BoundingBox => {
 		let result: BoundingBox | null = null;
-		ctx.events.emit("free-position:find", { ...req, onResult: (b) => (result = b) });
+		ctx.events.emit("free-position:find", {
+			...req,
+			onResult: (b) => {
+				result = b;
+			},
+		});
 		if (!result) throw new Error("no result");
 		return result;
 	};
