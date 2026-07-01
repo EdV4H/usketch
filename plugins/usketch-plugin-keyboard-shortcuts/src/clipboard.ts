@@ -4,7 +4,9 @@ import {
 	type CommandRegistry,
 	type EventBus,
 	generateId,
+	getRotatedAABB,
 	type ShapeData,
+	safeRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 
@@ -58,16 +60,24 @@ function cloneWithNewIds(shapes: ShapeData[]): { newShapes: ShapeData[]; newIds:
 	return { newShapes, newIds };
 }
 
+/** shape の回転を考慮した AABB（free-position プラグインの occupied 収集と揃える）。 */
+function shapeAABB(s: ShapeData): BoundingBox {
+	const box = { x: s.x, y: s.y, width: s.width, height: s.height };
+	const rotation = safeRotation(s.rotation);
+	return rotation ? getRotatedAABB(box, rotation) : box;
+}
+
 function groupBounds(shapes: ShapeData[]): BoundingBox {
 	let minX = Number.POSITIVE_INFINITY;
 	let minY = Number.POSITIVE_INFINITY;
 	let maxX = Number.NEGATIVE_INFINITY;
 	let maxY = Number.NEGATIVE_INFINITY;
 	for (const s of shapes) {
-		if (s.x < minX) minX = s.x;
-		if (s.y < minY) minY = s.y;
-		if (s.x + s.width > maxX) maxX = s.x + s.width;
-		if (s.y + s.height > maxY) maxY = s.y + s.height;
+		const b = shapeAABB(s);
+		if (b.x < minX) minX = b.x;
+		if (b.y < minY) minY = b.y;
+		if (b.x + b.width > maxX) maxX = b.x + b.width;
+		if (b.y + b.height > maxY) maxY = b.y + b.height;
 	}
 	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }

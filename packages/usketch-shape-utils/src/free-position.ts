@@ -19,7 +19,11 @@ export interface FindFreePositionOptions {
 
 const EPS = 0.01;
 
-/** 2つの AABB が重なるか（境界接触は非重なり扱い）。collision-utils.intersectsAABB と同等。 */
+/**
+ * 2つの AABB が重なるか。`collision-utils.intersectsAABB` と異なり EPS のマージンを挟むため、
+ * 境界がちょうど接するだけ（重なり幅 ≤ EPS）のケースは「重ならない」と判定する。
+ * これにより ring 探索で接触位置を空きとして採用でき、無限に外へ逃げるのを防ぐ。
+ */
 function intersects(a: BoundingBox, b: BoundingBox): boolean {
 	return (
 		a.x < b.x + b.width - EPS &&
