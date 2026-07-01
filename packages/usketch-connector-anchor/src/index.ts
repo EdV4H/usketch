@@ -17,6 +17,7 @@ export {
 	sourceXY,
 	targetXY,
 } from "./hit-test.js";
+export { moveConnector } from "./move.js";
 export {
 	bezierBounds,
 	distanceToLineSegment,

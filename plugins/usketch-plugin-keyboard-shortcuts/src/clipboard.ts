@@ -35,8 +35,26 @@ function collectShapes(store: BoardStore): ShapeData[] {
 	return shapes;
 }
 
+/**
+ * shape を (dx, dy) 平行移動する。`ShapeDefinition.move`（コネクタの endpoints など
+ * 絶対座標フィールドも動かす）があればそれを使い、無ければ x/y のみ更新する。
+ */
+function translateShape(
+	shape: ShapeData,
+	dx: number,
+	dy: number,
+	registry?: ShapeRegistry,
+): ShapeData {
+	const move = registry?.get(shape.type)?.move;
+	if (move) return { ...shape, ...move(shape, dx, dy) };
+	return { ...shape, x: shape.x + dx, y: shape.y + dy };
+}
+
 /** 新規 shape 群（新 id・親子の付け替え・初期 +20 オフセット）を生成。 */
-function cloneWithNewIds(shapes: ShapeData[]): { newShapes: ShapeData[]; newIds: string[] } {
+function cloneWithNewIds(
+	shapes: ShapeData[],
+	registry?: ShapeRegistry,
+): { newShapes: ShapeData[]; newIds: string[] } {
 	const idMap = new Map<string, string>();
 	const newIds: string[] = [];
 	for (const shape of shapes) {
@@ -51,10 +69,8 @@ function cloneWithNewIds(shapes: ShapeData[]): { newShapes: ShapeData[]; newIds:
 				? idMap.get(shape.parentId as string)
 				: undefined;
 		return {
-			...shape,
+			...translateShape(shape, PASTE_OFFSET, PASTE_OFFSET, registry),
 			id: newId,
-			x: shape.x + PASTE_OFFSET,
-			y: shape.y + PASTE_OFFSET,
 			...(parentId !== undefined ? { parentId } : {}),
 		} as ShapeData;
 	});
@@ -115,7 +131,7 @@ function placeAndCommit(
 				if (free.x === desired.x && free.y === desired.y) return;
 				const dx = free.x - desired.x;
 				const dy = free.y - desired.y;
-				placed = newShapes.map((s) => ({ ...s, x: s.x + dx, y: s.y + dy }));
+				placed = newShapes.map((s) => translateShape(s, dx, dy, shapeRegistry));
 			},
 		});
 	}
@@ -162,7 +178,7 @@ export async function pasteShapes(
 	if (!shapes) shapes = inMemoryClipboard;
 	if (!shapes || shapes.length === 0) return;
 
-	const { newShapes, newIds } = cloneWithNewIds(shapes);
+	const { newShapes, newIds } = cloneWithNewIds(shapes, shapeRegistry);
 	placeAndCommit(store, commands, events, newShapes, newIds, shapeRegistry);
 }
 
@@ -177,6 +193,6 @@ export function duplicateShapes(
 	const shapes = collectShapes(store);
 	if (shapes.length === 0) return;
 
-	const { newShapes, newIds } = cloneWithNewIds(shapes);
+	const { newShapes, newIds } = cloneWithNewIds(shapes, shapeRegistry);
 	placeAndCommit(store, commands, events, newShapes, newIds, shapeRegistry);
 }

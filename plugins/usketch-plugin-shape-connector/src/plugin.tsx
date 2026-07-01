@@ -4,6 +4,7 @@ import {
 	createConnectorTracker,
 	findShapeAtPoint as findShapeAtPointGeneric,
 	getAnchorPoint,
+	moveConnector,
 } from "@edv4h/usketch-connector-anchor";
 import type {
 	CanvasPointerEvent,
@@ -74,6 +75,7 @@ export function createConnectorPlugin(): UsketchPlugin {
 				getBounds: getBoundsConnector,
 				hitTest: hitTestConnector,
 				resize: (data) => ({ ...data }),
+				move: moveConnector,
 				createDefault: createDefaultConnector,
 				renderTarget: "svg",
 				resizable: false,
