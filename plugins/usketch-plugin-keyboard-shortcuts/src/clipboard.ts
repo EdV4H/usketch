@@ -6,6 +6,7 @@ import {
 	generateId,
 	getRotatedAABB,
 	type ShapeData,
+	type ShapeRegistry,
 	safeRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
@@ -60,20 +61,29 @@ function cloneWithNewIds(shapes: ShapeData[]): { newShapes: ShapeData[]; newIds:
 	return { newShapes, newIds };
 }
 
-/** shape の回転を考慮した AABB（free-position プラグインの occupied 収集と揃える）。 */
-function shapeAABB(s: ShapeData): BoundingBox {
-	const box = { x: s.x, y: s.y, width: s.width, height: s.height };
+/**
+ * shape の footprint を回転考慮 AABB で返す。free-position プラグインの occupied 収集と
+ * 完全に揃えるため、registry があれば `ShapeDefinition.getBounds`（connector の矢印/ラベル等で
+ * 素の x/y/w/h より大きくなり得る）を用い、無ければ x/y/w/h にフォールバックする。
+ */
+function shapeAABB(s: ShapeData, registry?: ShapeRegistry): BoundingBox {
+	const bounds = registry?.get(s.type)?.getBounds(s) ?? {
+		x: s.x,
+		y: s.y,
+		width: s.width,
+		height: s.height,
+	};
 	const rotation = safeRotation(s.rotation);
-	return rotation ? getRotatedAABB(box, rotation) : box;
+	return rotation ? getRotatedAABB(bounds, rotation) : bounds;
 }
 
-function groupBounds(shapes: ShapeData[]): BoundingBox {
+function groupBounds(shapes: ShapeData[], registry?: ShapeRegistry): BoundingBox {
 	let minX = Number.POSITIVE_INFINITY;
 	let minY = Number.POSITIVE_INFINITY;
 	let maxX = Number.NEGATIVE_INFINITY;
 	let maxY = Number.NEGATIVE_INFINITY;
 	for (const s of shapes) {
-		const b = shapeAABB(s);
+		const b = shapeAABB(s, registry);
 		if (b.x < minX) minX = b.x;
 		if (b.y < minY) minY = b.y;
 		if (b.x + b.width > maxX) maxX = b.x + b.width;
@@ -93,10 +103,11 @@ function placeAndCommit(
 	events: EventBus | undefined,
 	newShapes: ShapeData[],
 	newIds: string[],
+	shapeRegistry?: ShapeRegistry,
 ): void {
 	let placed = newShapes;
 	if (events && newShapes.length > 0) {
-		const desired = groupBounds(newShapes);
+		const desired = groupBounds(newShapes, shapeRegistry);
 		// 同期コールバックで結果を受け、グループ全体を delta だけずらす。
 		events.emit("free-position:find", {
 			desired,
@@ -132,6 +143,7 @@ export async function pasteShapes(
 	store: BoardStore,
 	commands: CommandRegistry,
 	events?: EventBus,
+	shapeRegistry?: ShapeRegistry,
 ): Promise<void> {
 	if (isInputFocused()) return;
 
@@ -151,13 +163,14 @@ export async function pasteShapes(
 	if (!shapes || shapes.length === 0) return;
 
 	const { newShapes, newIds } = cloneWithNewIds(shapes);
-	placeAndCommit(store, commands, events, newShapes, newIds);
+	placeAndCommit(store, commands, events, newShapes, newIds, shapeRegistry);
 }
 
 export function duplicateShapes(
 	store: BoardStore,
 	commands: CommandRegistry,
 	events?: EventBus,
+	shapeRegistry?: ShapeRegistry,
 ): void {
 	if (isInputFocused()) return;
 
@@ -165,5 +178,5 @@ export function duplicateShapes(
 	if (shapes.length === 0) return;
 
 	const { newShapes, newIds } = cloneWithNewIds(shapes);
-	placeAndCommit(store, commands, events, newShapes, newIds);
+	placeAndCommit(store, commands, events, newShapes, newIds, shapeRegistry);
 }

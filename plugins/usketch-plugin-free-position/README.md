@@ -18,6 +18,8 @@ const plugins = [
 同期コールバック方式）:
 
 ```ts
+import type { BoundingBox } from "@edv4h/usketch-shared";
+
 let result: BoundingBox | undefined;
 ctx.events.emit("free-position:find", {
   desired: { x, y, width, height },   // 置きたい位置・サイズ
