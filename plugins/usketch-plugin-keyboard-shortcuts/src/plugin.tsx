@@ -25,7 +25,7 @@ export function createKeyboardShortcutsPlugin(
 			const cleanups: (() => void)[] = [];
 			let palette: CommandPaletteController | null = null;
 
-			const { store, shortcuts, events, commands } = ctx;
+			const { store, shortcuts, events, commands, shapes } = ctx;
 
 			// ── Side panel state tracking ──
 			let sidePanelOpen = false;
@@ -89,12 +89,12 @@ export function createKeyboardShortcutsPlugin(
 			);
 			cleanups.push(
 				shortcuts.register("Ctrl+V", () => {
-					void pasteShapes(store, commands);
+					void pasteShapes(store, commands, events, shapes);
 				}),
 			);
 			cleanups.push(
 				shortcuts.register("Ctrl+D", () => {
-					duplicateShapes(store, commands);
+					duplicateShapes(store, commands, events, shapes);
 				}),
 			);
 

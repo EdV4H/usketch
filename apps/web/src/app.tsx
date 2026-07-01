@@ -16,6 +16,7 @@ import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
 import { createExportPlugin } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
+import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
@@ -147,6 +148,7 @@ function createBasePlugins(): UsketchPlugin[] {
 		createWireframePlugin(),
 		createDomainDesignPlugin(),
 		createSnapPlugin(),
+		createFreePositionPlugin(),
 		createExportPlugin(),
 		createGpuRendererPlugin(),
 		createDomRendererPlugin(),

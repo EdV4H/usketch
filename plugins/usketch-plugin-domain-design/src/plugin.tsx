@@ -3,6 +3,7 @@ import {
 	createConnectorTracker,
 	getBoundsConnector,
 	hitTestConnector,
+	moveConnector,
 } from "@edv4h/usketch-connector-anchor";
 import { aabbHitTest, createResize, getBounds } from "@edv4h/usketch-shape-utils";
 import {
@@ -117,6 +118,7 @@ export function createDomainDesignPlugin(): UsketchPlugin {
 				getBounds: getBoundsConnector,
 				hitTest: hitTestConnector,
 				resize: (data) => ({ ...data }),
+				move: moveConnector,
 				resizable: false,
 				createDefault: ({ id, x, y }) =>
 					createDefaultDomainConnector({
