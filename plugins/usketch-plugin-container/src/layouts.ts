@@ -27,20 +27,23 @@ export function stackLayout(options: StackLayoutOptions = {}): ContainerLayout {
 	return ({ container, children }) => {
 		const patches: Array<{ id: string; patch: Partial<ShapeData> }> = [];
 		if (direction === "vertical") {
+			// Clamp so a container narrower than 2×padding never yields a negative width.
+			const width = Math.max(0, container.width - padding * 2);
 			let y = container.y + padding;
 			for (const child of children) {
 				patches.push({
 					id: child.id,
-					patch: { x: container.x + padding, y, width: container.width - padding * 2 },
+					patch: { x: container.x + padding, y, width },
 				});
 				y += child.height + gap;
 			}
 		} else {
+			const height = Math.max(0, container.height - padding * 2);
 			let x = container.x + padding;
 			for (const child of children) {
 				patches.push({
 					id: child.id,
-					patch: { x, y: container.y + padding, height: container.height - padding * 2 },
+					patch: { x, y: container.y + padding, height },
 				});
 				x += child.width + gap;
 			}
@@ -65,14 +68,16 @@ export interface GridLayoutOptions {
  */
 export function gridLayout(options: GridLayoutOptions = {}): ContainerLayout {
 	const { columns = 2, padding = 8, gap = 8 } = options;
+	// Guard against columns <= 0 (division by zero / Infinity) and negative cells.
+	const cols = Math.max(1, Math.floor(columns));
 	return ({ container, children }) => {
 		const patches: Array<{ id: string; patch: Partial<ShapeData> }> = [];
 		const innerWidth = container.width - padding * 2;
-		const cellWidth = (innerWidth - gap * (columns - 1)) / columns;
+		const cellWidth = Math.max(0, (innerWidth - gap * (cols - 1)) / cols);
 		let rowY = container.y + padding;
 		let rowHeight = 0;
 		children.forEach((child, i) => {
-			const col = i % columns;
+			const col = i % cols;
 			if (col === 0 && i > 0) {
 				rowY += rowHeight + gap;
 				rowHeight = 0;

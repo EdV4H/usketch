@@ -79,6 +79,29 @@ describe("layouts", () => {
 		]);
 	});
 
+	it("stackLayout clamps width/height to >= 0 for tiny containers", () => {
+		const container = shape({ id: "c", x: 0, y: 0, width: 10, height: 10 });
+		const [v] = stackLayout({ padding: 16 })({ container, children: [shape({ id: "a" })] });
+		expect(v.patch.width).toBe(0); // 10 - 32 clamped to 0, not negative
+		const [h] = stackLayout({ padding: 16, direction: "horizontal" })({
+			container,
+			children: [shape({ id: "a" })],
+		});
+		expect(h.patch.height).toBe(0);
+	});
+
+	it("gridLayout guards columns <= 0 (no division by zero / negative widths)", () => {
+		const container = shape({ id: "c", x: 0, y: 0, width: 100, height: 100 });
+		const patches = gridLayout({ columns: 0, padding: 10, gap: 10 })({
+			container,
+			children: [shape({ id: "a" }), shape({ id: "b" })],
+		});
+		for (const p of patches) {
+			expect(Number.isFinite(p.patch.width)).toBe(true);
+			expect(p.patch.width as number).toBeGreaterThanOrEqual(0);
+		}
+	});
+
 	it("gridLayout wraps children into columns", () => {
 		const container = shape({ id: "c", x: 0, y: 0, width: 220, height: 400 });
 		const children = [
@@ -136,6 +159,10 @@ describe("setupArrange", () => {
 		shapes.set("b", shape({ id: "b", type: "rect", parentId: "frame", height: 20 }));
 
 		const stop = setupArrange(ctx);
+		// Simulate a drag that touches the container: pointer down, the container
+		// moves (recorded as dirty), then pointer up flushes the re-layout.
+		ctx.events.emit("canvas:pointerdown", {});
+		ctx.store.updateShape("frame", { x: 0 });
 		ctx.events.emit("canvas:pointerup", {});
 		vi.runAllTimers();
 

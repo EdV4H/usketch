@@ -20,6 +20,14 @@ export function setupArrange(ctx: PluginContext): () => void {
 	// Guard so the layout's own `updateShape` calls don't re-trigger arrange.
 	let applying = false;
 	let pointerDown = false;
+	// Containers touched during the current pointer drag, re-laid out on pointer
+	// up. Scoped to what actually changed so pointer-up work is O(touched), not
+	// O(all shapes on the board).
+	const dirty = new Set<string>();
+
+	function hasLayout(type: string): boolean {
+		return getContainerLayout(ctx.shapes.get(type)) !== undefined;
+	}
 
 	function layoutContainer(containerId: string): void {
 		const container = ctx.store.getShape(containerId);
@@ -40,18 +48,32 @@ export function setupArrange(ctx: PluginContext): () => void {
 		}
 	}
 
-	function layoutAllContainers(): void {
-		for (const [id, shape] of ctx.store.getShapes()) {
-			if (getContainerLayout(ctx.shapes.get(shape.type))) layoutContainer(id);
+	// Record the layout-container(s) a change to `shapeId` could affect: the
+	// shape itself (container moved/resized) and its parent (child added/moved).
+	function markDirty(shapeId: string): void {
+		const shape = ctx.store.getShape(shapeId);
+		if (!shape) return;
+		if (hasLayout(shape.type)) dirty.add(shapeId);
+		if (typeof shape.parentId === "string") {
+			const parent = ctx.store.getShape(shape.parentId);
+			if (parent && hasLayout(parent.type)) dirty.add(shape.parentId);
 		}
 	}
 
 	const offMutation = ctx.store.onMutation((event) => {
-		if (applying || pointerDown) return; // ignore self-induced + mid-drag churn
+		if (applying) return; // ignore self-induced updates
 		const payload = event.payload as { id?: string } | undefined;
 		const id = payload?.id;
 		if (!id) return;
 
+		if (pointerDown) {
+			// Mid-drag: don't fight native follow — just remember what to re-arrange
+			// on pointer up.
+			if (event.type === "shape:updated" || event.type === "shape:added") markDirty(id);
+			return;
+		}
+
+		// Not dragging: apply immediately (programmatic / MCP / undo / deferred attach).
 		if (event.type === "shape:added") {
 			const parentId = ctx.store.getShape(id)?.parentId;
 			if (typeof parentId === "string") layoutContainer(parentId);
@@ -72,9 +94,14 @@ export function setupArrange(ctx: PluginContext): () => void {
 	});
 	const offUp = ctx.events.on<CanvasPointerEvent>("canvas:pointerup", () => {
 		pointerDown = false;
-		// Re-layout after a drag/resize commits. Deferred so it runs after the
-		// containment attacher's own deferred reparent (also on pointer up).
-		setTimeout(() => layoutAllContainers(), 0);
+		// Re-layout the containers touched during the drag. Deferred so it runs
+		// after the containment attacher's own deferred reparent (also on pointer
+		// up); the attach's later `shape:updated` re-layouts the new parent too.
+		setTimeout(() => {
+			const ids = [...dirty];
+			dirty.clear();
+			for (const containerId of ids) layoutContainer(containerId);
+		}, 0);
 	});
 
 	return () => {
