@@ -43,6 +43,8 @@ export function createIslandPlugin(): UsketchPlugin {
 				createDefault: createDefaultIsland,
 				renderTarget: "html",
 				minSize: { width: 100, height: 100 },
+				// Islands are containers whose children stay individually selectable.
+				container: { selectableChildren: true },
 			});
 
 			// ── Metaball background layer (renders below shapes) ──

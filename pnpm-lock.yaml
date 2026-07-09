@@ -243,6 +243,9 @@ importers:
       '@edv4h/usketch-plugin-community-chat':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-community-chat
+      '@edv4h/usketch-plugin-container':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-container
       '@edv4h/usketch-plugin-domain-design':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-domain-design
@@ -962,6 +965,22 @@ importers:
       '@types/react':
         specifier: 19.2.14
         version: 19.2.14
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  plugins/usketch-plugin-container:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
+    devDependencies:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
