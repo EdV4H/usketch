@@ -1691,8 +1691,8 @@ importers:
         specifier: '>=1.0.0'
         version: 1.27.1(zod@4.3.6)
       '@openuidev/react-lang':
-        specifier: 0.2.5
-        version: 0.2.5(@modelcontextprotocol/sdk@1.27.1(zod@4.3.6))(react@19.2.4)(zod@4.3.6)
+        specifier: 0.2.8
+        version: 0.2.8(@modelcontextprotocol/sdk@1.27.1(zod@4.3.6))(react@19.2.4)(zod@4.3.6)
       react:
         specifier: 19.2.4
         version: 19.2.4
@@ -1953,8 +1953,8 @@ importers:
         specifier: '>=1.0.0'
         version: 1.27.1(zod@4.3.6)
       '@openuidev/react-lang':
-        specifier: 0.2.5
-        version: 0.2.5(@modelcontextprotocol/sdk@1.27.1(zod@4.3.6))(react@19.2.4)(zod@4.3.6)
+        specifier: 0.2.8
+        version: 0.2.8(@modelcontextprotocol/sdk@1.27.1(zod@4.3.6))(react@19.2.4)(zod@4.3.6)
       react:
         specifier: 19.2.4
         version: 19.2.4
@@ -3495,8 +3495,8 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@openuidev/lang-core@0.2.5':
-    resolution: {integrity: sha512-cL01txOXWeDdOJY83F8R0QR7F1FPEsuUFft/8uRYiaN8LozKySNonc1g5nhreYKjcQ2YvvyvwHZn/AQZCaFtDQ==}
+  '@openuidev/lang-core@0.2.7':
+    resolution: {integrity: sha512-hCAQ9YCK3D6E0mGcggEgOOyxifen785h0Rd1vqfwlDUChLdzXT4EvK/IQl9SwgNneokHZoPQOt/7RZkIzVTHFg==}
     peerDependencies:
       '@modelcontextprotocol/sdk': '>=1.0.0'
       zod: ^3.25.0 || ^4.0.0
@@ -3504,8 +3504,8 @@ packages:
       '@modelcontextprotocol/sdk':
         optional: true
 
-  '@openuidev/react-lang@0.2.5':
-    resolution: {integrity: sha512-OImhBXUQoIOlHEGc308e0BaJGVHrEA6qWv76xqc71sSQUoaWjn0zhCaGA8qcXGhqYVak4bzIbLikgO+L0Kf3tQ==}
+  '@openuidev/react-lang@0.2.8':
+    resolution: {integrity: sha512-SsbZes76oIviuZH3RW/VL+pZZjx6cOGjhkaeiSwuEnV24jWBgT9qswL4bDaQXpFG2e6sZKWjH/f0fRyqWQzhDA==}
     peerDependencies:
       '@modelcontextprotocol/sdk': '>=1.0.0'
       react: 19.2.4
@@ -7918,15 +7918,15 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
 
-  '@openuidev/lang-core@0.2.5(@modelcontextprotocol/sdk@1.27.1(zod@4.3.6))(zod@4.3.6)':
+  '@openuidev/lang-core@0.2.7(@modelcontextprotocol/sdk@1.27.1(zod@4.3.6))(zod@4.3.6)':
     dependencies:
       zod: 4.3.6
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.27.1(zod@4.3.6)
 
-  '@openuidev/react-lang@0.2.5(@modelcontextprotocol/sdk@1.27.1(zod@4.3.6))(react@19.2.4)(zod@4.3.6)':
+  '@openuidev/react-lang@0.2.8(@modelcontextprotocol/sdk@1.27.1(zod@4.3.6))(react@19.2.4)(zod@4.3.6)':
     dependencies:
-      '@openuidev/lang-core': 0.2.5(@modelcontextprotocol/sdk@1.27.1(zod@4.3.6))(zod@4.3.6)
+      '@openuidev/lang-core': 0.2.7(@modelcontextprotocol/sdk@1.27.1(zod@4.3.6))(zod@4.3.6)
       react: 19.2.4
       zod: 4.3.6
     optionalDependencies:

@@ -20,7 +20,7 @@
 	},
 	"dependencies": {
 		"@edv4h/usketch-shared": "workspace:*",
-		"@openuidev/react-lang": "0.2.5"
+		"@openuidev/react-lang": "0.2.8"
 	},
 	"peerDependencies": {
 		"@modelcontextprotocol/sdk": ">=1.0.0",
