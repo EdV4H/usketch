@@ -110,7 +110,8 @@ export function createCollisionWatcher(options: CollisionWatcherOptions): () => 
 		if (watchTypes && !watchTypes.includes(shape.type)) return;
 
 		if (mode === "contain") {
-			// Check if this shape is now contained by a frame
+			// Check if this shape is now contained by a container (per the
+			// `isContainer` predicate — `type === "frame"` by default).
 			const containers = findContainers(store, payload.id, isContainer);
 			const smallestContainer = containers.reduce<ShapeData | null>((best, c) => {
 				if (!best) return c;

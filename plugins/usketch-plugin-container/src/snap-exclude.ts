@@ -21,7 +21,12 @@ interface SnapConfigurePatch {
  */
 export function setupSnapExclude(ctx: PluginContext): () => void {
 	const excludeTargets = (shape: ShapeData): boolean => {
+		// Fast paths before allocating the cycle-guard Set — this predicate runs
+		// for every candidate shape on every snap frame.
+		if (typeof shape.parentId !== "string") return false;
 		const selection = ctx.store.getSelection();
+		if (selection.size === 0) return false;
+
 		const visited = new Set<string>();
 		let current: ShapeData | undefined = shape;
 		while (current && typeof current.parentId === "string" && !visited.has(current.parentId)) {

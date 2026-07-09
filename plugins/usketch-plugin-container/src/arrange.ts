@@ -1,4 +1,4 @@
-import type { CanvasPointerEvent, PluginContext } from "@edv4h/usketch-shared";
+import type { CanvasPointerEvent, PluginContext, ShapeData } from "@edv4h/usketch-shared";
 import { getContainerLayout, isShapeContainer } from "@edv4h/usketch-shared";
 import { getChildShapes } from "@edv4h/usketch-store";
 
@@ -28,8 +28,11 @@ export function setupArrange(ctx: PluginContext): () => void {
 	// O(all shapes on the board).
 	const dirty = new Set<string>();
 
-	function hasLayout(type: string): boolean {
-		return getContainerLayout(ctx.shapes.get(type)) !== undefined;
+	// A shape is a layout container only if this *instance* is an enabled
+	// container (honoring per-instance `container.enabled`) and defines a layout.
+	function isLayoutContainer(shape: ShapeData): boolean {
+		const def = ctx.shapes.get(shape.type);
+		return isShapeContainer(def, shape) && getContainerLayout(def) !== undefined;
 	}
 
 	function layoutContainer(containerId: string): void {
@@ -56,10 +59,10 @@ export function setupArrange(ctx: PluginContext): () => void {
 	function markDirty(shapeId: string): void {
 		const shape = ctx.store.getShape(shapeId);
 		if (!shape) return;
-		if (hasLayout(shape.type)) dirty.add(shapeId);
+		if (isLayoutContainer(shape)) dirty.add(shapeId);
 		if (typeof shape.parentId === "string") {
 			const parent = ctx.store.getShape(shape.parentId);
-			if (parent && hasLayout(parent.type)) dirty.add(shape.parentId);
+			if (parent && isLayoutContainer(parent)) dirty.add(shape.parentId);
 		}
 	}
 
