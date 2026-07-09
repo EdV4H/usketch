@@ -7,20 +7,34 @@ interface SnapConfigurePatch {
 }
 
 /**
- * Configure `plugin-snap` to exclude a container's children from snapping while
- * the container is being dragged. Such children follow the parent's motion, so
- * snapping them individually (or letting the parent snap to them) causes
- * jitter. Non-selected children and free (child-dragged-alone) cases are
- * untouched, so a child dragged on its own still snaps normally.
+ * Configure `plugin-snap` to exclude the descendants of a dragged container
+ * from snapping. Such descendants follow the container's motion, so snapping
+ * them individually (or letting the container snap to them) causes jitter.
+ *
+ * Walks the full `parentId` chain (cycle-guarded), not just the immediate
+ * parent, so deeply-nested descendants (e.g. a shape inside a group inside a
+ * dragged frame) are excluded too. Non-selected ancestors and free
+ * (child-dragged-alone) cases are untouched, so a child dragged on its own
+ * still snaps normally.
  *
  * Returns a teardown that clears the exclusion.
  */
 export function setupSnapExclude(ctx: PluginContext): () => void {
 	const excludeTargets = (shape: ShapeData): boolean => {
-		const parentId = shape.parentId;
-		if (typeof parentId !== "string" || !ctx.store.getSelection().has(parentId)) return false;
-		const parent = ctx.store.getShape(parentId);
-		return !!parent && isShapeContainer(ctx.shapes.get(parent.type), parent);
+		const selection = ctx.store.getSelection();
+		const visited = new Set<string>();
+		let current: ShapeData | undefined = shape;
+		while (current && typeof current.parentId === "string" && !visited.has(current.parentId)) {
+			visited.add(current.parentId);
+			const parent = ctx.store.getShape(current.parentId);
+			if (!parent) break;
+			// Excluded if any selected ancestor is a container being dragged.
+			if (selection.has(parent.id) && isShapeContainer(ctx.shapes.get(parent.type), parent)) {
+				return true;
+			}
+			current = parent;
+		}
+		return false;
 	};
 
 	ctx.events.emit<SnapConfigurePatch>("snap:configure", { excludeTargets });

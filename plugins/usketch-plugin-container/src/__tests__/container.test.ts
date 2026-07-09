@@ -141,6 +141,10 @@ describe("setupSnapExclude", () => {
 		// Non-child never excluded.
 		expect(exclude(shapes.get("loose") as ShapeData)).toBe(false);
 
+		// Deeply-nested descendant excluded when an ancestor container is selected.
+		shapes.set("grandchild", shape({ id: "grandchild", type: "rect", parentId: "child" }));
+		expect(exclude(shapes.get("grandchild") as ShapeData)).toBe(true);
+
 		stop();
 		// Teardown clears the predicate.
 		const last = emitted[emitted.length - 1];
