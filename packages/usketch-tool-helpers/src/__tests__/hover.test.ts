@@ -73,6 +73,79 @@ describe("findShapeAtPoint", () => {
 		);
 	});
 
+	it("resolves a frame child to the child itself (selectableChildren)", () => {
+		// frame/island are containers with selectableChildren → clicking a child
+		// selects the child directly, not the container.
+		const ctx = createTestToolContext();
+		ctx.store.addShape(
+			makeShape({ id: "frame", type: "frame", x: 0, y: 0, width: 200, height: 200 }),
+		);
+		ctx.store.addShape(
+			makeShape({ id: "child", x: 10, y: 10, width: 50, height: 50, parentId: "frame" }),
+		);
+		expect(findShapeAtPoint(ctx, { x: 20, y: 20 })).toBe("child");
+	});
+
+	it("resolves a group child to the group ancestor (no selectableChildren)", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "g", type: "group", x: 0, y: 0, width: 200, height: 200 }));
+		ctx.store.addShape(
+			makeShape({ id: "child", x: 10, y: 10, width: 50, height: 50, parentId: "g" }),
+		);
+		expect(findShapeAtPoint(ctx, { x: 20, y: 20 })).toBe("g");
+	});
+
+	it("honors a per-instance selectableChildren predicate on a custom type", () => {
+		// A single "wireframe" type whose meta.component === "card" is a container
+		// with selectable children; other components are plain shapes.
+		const ctx = createTestToolContext();
+		ctx.shapes.register("wireframe", {
+			type: "wireframe",
+			minSize: { width: 1, height: 1 },
+			hitTest: (data: ShapeDefinition & ShapeData, point: { x: number; y: number }) =>
+				point.x >= (data as ShapeData).x &&
+				point.x <= (data as ShapeData).x + (data as ShapeData).width &&
+				point.y >= (data as ShapeData).y &&
+				point.y <= (data as ShapeData).y + (data as ShapeData).height,
+			getBounds: (data: ShapeData) => ({
+				x: data.x,
+				y: data.y,
+				width: data.width,
+				height: data.height,
+			}),
+			render: () => null,
+			container: {
+				enabled: (s: ShapeData) => s.meta?.component === "card",
+				selectableChildren: (s: ShapeData) => s.meta?.component === "card",
+			},
+		} as unknown as ShapeDefinition);
+
+		ctx.store.addShape(
+			makeShape({
+				id: "card",
+				type: "wireframe",
+				x: 0,
+				y: 0,
+				width: 200,
+				height: 200,
+				meta: { component: "card" },
+			}),
+		);
+		ctx.store.addShape(
+			makeShape({
+				id: "btn",
+				type: "wireframe",
+				x: 10,
+				y: 10,
+				width: 50,
+				height: 50,
+				parentId: "card",
+				meta: { component: "button" },
+			}),
+		);
+		expect(findShapeAtPoint(ctx, { x: 20, y: 20 })).toBe("btn");
+	});
+
 	it("applies excludeIds/filter to the resolved group ancestor, not just the hit child", () => {
 		// A group child hit resolves to its top-level group ancestor. Excluding or
 		// filtering out that ancestor must continue the walk to the shape below,

@@ -1,4 +1,5 @@
 import type { BoundingBox, CanvasPointerEvent, Point, ToolContext } from "@edv4h/usketch-shared";
+import { hasSelectableChildren } from "@edv4h/usketch-shared";
 import { getTopLevelAncestor } from "@edv4h/usketch-store";
 import type { ToolSession } from "./types.js";
 
@@ -119,7 +120,7 @@ export function findShapesInRect(
 
 		if (typeof data.parentId === "string") {
 			const parent = ctx.store.getShape(data.parentId);
-			if (parent?.type === "frame") {
+			if (parent && hasSelectableChildren(ctx.shapes.get(parent.type), parent)) {
 				ids.add(id);
 			} else {
 				const ancestor = getTopLevelAncestor(ctx.store, id);

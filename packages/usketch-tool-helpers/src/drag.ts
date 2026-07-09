@@ -27,16 +27,18 @@ export interface DragSessionOptions {
 	 * move only the top-level shapes.
 	 *
 	 * Which descendants follow is decided by `followChildrenOf`: by default
-	 * only containers (group/frame/island) propagate to their children, but a
-	 * custom predicate widens this to any parent the caller chooses. In other
+	 * only containers (shapes whose definition marks them as such) propagate to
+	 * their children, but a custom predicate widens this to any parent the
+	 * caller chooses. In other
 	 * words, "descendants" here means "children of every shape `followChildrenOf`
 	 * returns `true` for", not strictly container children.
 	 */
 	includeDescendants?: boolean;
 	/**
 	 * Predicate deciding whether a shape's children should follow it on move.
-	 * Defaults to the container check (group/frame/island). Pass a custom
-	 * predicate to also drag children of ordinary (non-container) parents —
+	 * Defaults to the container check (shapes whose definition marks them as a
+	 * container). Pass a custom predicate to also drag children of ordinary
+	 * (non-container) parents —
 	 * e.g. a sticker/reaction attached via `parentId` to an arbitrary shape.
 	 * Only consulted when `includeDescendants` is `true` (the default).
 	 */
