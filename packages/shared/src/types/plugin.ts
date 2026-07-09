@@ -239,9 +239,16 @@ export interface ShapeDefinition {
 	 */
 	resizable?: boolean | ((data: ShapeData) => boolean);
 	/**
-	 * Container behavior. When present, children (shapes referencing this shape
-	 * via `parentId`) follow the parent on move, are arranged by `layout`, and
-	 * are excluded from snapping while the parent is being dragged.
+	 * Container behavior for shapes with children (shapes referencing this shape
+	 * via `parentId`).
+	 *
+	 * Which behaviors are active depends on what's registered:
+	 * - **Selection resolution + move-follow** are native — `tool-helpers` /
+	 *   `tool-select` read these flags directly, no extra plugin needed.
+	 * - **`autoAttach` and `layout`** are driven by `@edv4h/usketch-plugin-container`;
+	 *   without it, declaring them has no effect.
+	 * - **Snap exclusion** of following children additionally requires
+	 *   `@edv4h/usketch-plugin-snap` (the container plugin configures it).
 	 *
 	 * Colocated with the definition like {@link resizable} / {@link move}, and
 	 * each sub-field accepts the same `boolean | (data) => boolean` predicate

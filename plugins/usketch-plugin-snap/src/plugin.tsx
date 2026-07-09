@@ -216,9 +216,11 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				// Skip snap for shapes a consumer excluded from snapping entirely
 				// (e.g. a container's child following its dragged parent). Excluded
 				// shapes are neither snapped when moved nor used as snap targets.
+				// Leave the guide lines untouched: these child updates are interleaved
+				// with the dragged parent's snapped update, and clearing lines here
+				// would wipe the parent's snap feedback mid-drag.
 				if (settings.excludeTargets?.(shape)) {
 					originalUpdateShape(id, updates);
-					setState({ lines: [] });
 					return;
 				}
 

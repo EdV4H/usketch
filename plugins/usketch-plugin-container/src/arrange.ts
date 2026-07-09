@@ -98,6 +98,9 @@ export function setupArrange(ctx: PluginContext): () => void {
 		// after the containment attacher's own deferred reparent (also on pointer
 		// up); the attach's later `shape:updated` re-layouts the new parent too.
 		setTimeout(() => {
+			// If another drag started before this fired, defer again: laying out
+			// mid-drag would fight native descendant-follow. Keep `dirty` intact.
+			if (pointerDown) return;
 			const ids = [...dirty];
 			dirty.clear();
 			for (const containerId of ids) layoutContainer(containerId);
