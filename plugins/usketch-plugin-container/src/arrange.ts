@@ -20,6 +20,9 @@ export function setupArrange(ctx: PluginContext): () => void {
 	// Guard so the layout's own `updateShape` calls don't re-trigger arrange.
 	let applying = false;
 	let pointerDown = false;
+	// Handle for the deferred pointer-up flush, so it can be cancelled when a new
+	// drag starts or the plugin is torn down.
+	let flushTimer: ReturnType<typeof setTimeout> | null = null;
 	// Containers touched during the current pointer drag, re-laid out on pointer
 	// up. Scoped to what actually changed so pointer-up work is O(touched), not
 	// O(all shapes on the board).
@@ -91,13 +94,19 @@ export function setupArrange(ctx: PluginContext): () => void {
 
 	const offDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", () => {
 		pointerDown = true;
+		// Cancel a previous drag's pending flush so it can't run mid-drag.
+		if (flushTimer !== null) {
+			clearTimeout(flushTimer);
+			flushTimer = null;
+		}
 	});
 	const offUp = ctx.events.on<CanvasPointerEvent>("canvas:pointerup", () => {
 		pointerDown = false;
 		// Re-layout the containers touched during the drag. Deferred so it runs
 		// after the containment attacher's own deferred reparent (also on pointer
 		// up); the attach's later `shape:updated` re-layouts the new parent too.
-		setTimeout(() => {
+		flushTimer = setTimeout(() => {
+			flushTimer = null;
 			// If another drag started before this fired, defer again: laying out
 			// mid-drag would fight native descendant-follow. Keep `dirty` intact.
 			if (pointerDown) return;
@@ -111,5 +120,6 @@ export function setupArrange(ctx: PluginContext): () => void {
 		offMutation();
 		offDown();
 		offUp();
+		if (flushTimer !== null) clearTimeout(flushTimer);
 	};
 }

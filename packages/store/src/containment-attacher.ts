@@ -64,13 +64,18 @@ export function createContainmentAttacher(opts: ContainmentAttacherOptions): () 
 		}
 	}
 
+	// Pending deferred reparents, so teardown can cancel any that haven't fired.
+	const pending = new Set<ReturnType<typeof setTimeout>>();
+
 	// On move-end (emitted by the select tool after a move command commits).
 	// Deferred so reparent runs after the current render/microtask cycle.
 	const offMoveEnd = events.on<{ shapeIds: string[] }>("shapes:move-end", (data) => {
 		if (!data?.shapeIds) return;
-		setTimeout(() => {
+		const timer = setTimeout(() => {
+			pending.delete(timer);
 			for (const shapeId of data.shapeIds) autoReparent(shapeId);
 		}, 0);
+		pending.add(timer);
 	});
 
 	// On shape:added (e.g. drawing a shape inside a container).
@@ -83,5 +88,7 @@ export function createContainmentAttacher(opts: ContainmentAttacherOptions): () 
 	return () => {
 		offMoveEnd();
 		offAdded();
+		for (const timer of pending) clearTimeout(timer);
+		pending.clear();
 	};
 }
