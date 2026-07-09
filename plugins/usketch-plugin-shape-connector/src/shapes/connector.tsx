@@ -11,8 +11,8 @@ import type { Point, ShapeData } from "@edv4h/usketch-shared";
 import { safeRotation } from "@edv4h/usketch-shared";
 import type { ConnectorShapeData } from "../types.js";
 
-export type { PathType };
 export type { ArrowHead } from "../types.js";
+export type { PathType };
 export { getBoundsConnector, hitTestConnector };
 
 const ARROW_SIZE = 10;
