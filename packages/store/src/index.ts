@@ -26,6 +26,10 @@ export {
 	createUpdateShapeCommand,
 } from "./commands.js";
 export {
+	type ContainmentAttacherOptions,
+	createContainmentAttacher,
+} from "./containment-attacher.js";
+export {
 	computeGroupBounds,
 	getAncestorChain,
 	getChildShapes,
