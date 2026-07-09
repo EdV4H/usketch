@@ -30,6 +30,9 @@ export function createGroupPlugin(): UsketchPlugin {
 				createDefault: createDefaultGroup,
 				minSize: { width: 1, height: 1 },
 				resizable: false,
+				// A group is a container, but clicking a child selects the whole
+				// group (selectableChildren omitted → group selection behavior).
+				container: {},
 			});
 
 			function groupSelected() {

@@ -146,17 +146,19 @@ function rectDefinition(): ShapeDefinition {
 
 function frameDefinition(): ShapeDefinition {
 	const def = rectDefinition();
-	return { ...def, type: "frame" } as ShapeDefinition;
+	// Matches the real frame plugin: container with individually-selectable children.
+	return { ...def, type: "frame", container: { selectableChildren: true } } as ShapeDefinition;
 }
 
 function groupDefinition(): ShapeDefinition {
 	const def = rectDefinition();
-	return { ...def, type: "group" } as ShapeDefinition;
+	// Container, but children select the whole group (selectableChildren omitted).
+	return { ...def, type: "group", container: {} } as ShapeDefinition;
 }
 
 function islandDefinition(): ShapeDefinition {
 	const def = rectDefinition();
-	return { ...def, type: "island" } as ShapeDefinition;
+	return { ...def, type: "island", container: { selectableChildren: true } } as ShapeDefinition;
 }
 
 export function createTestCommands(): CommandRegistry & { history: unknown[] } {

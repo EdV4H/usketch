@@ -86,11 +86,18 @@ export interface CollisionWatcherOptions {
 	watchTypes?: string[];
 	/** Collision detection mode */
 	mode: "intersect" | "contain";
+	/**
+	 * Predicate identifying container shapes for `mode: "contain"`. Defaults to
+	 * the legacy `type === "frame"` check; pass a registry-aware predicate to
+	 * treat any shape whose definition marks it as a container.
+	 */
+	isContainer?: (shape: ShapeData) => boolean;
 }
 
 /** Watch for shape changes and emit collision events */
 export function createCollisionWatcher(options: CollisionWatcherOptions): () => void {
 	const { store, events, watchTypes, mode } = options;
+	const isContainer = options.isContainer ?? ((s: ShapeData) => s.type === "frame");
 	const containmentMap = new Map<string, string>(); // childId -> containerId
 
 	const unsubscribe = store.onMutation((event) => {
@@ -103,8 +110,9 @@ export function createCollisionWatcher(options: CollisionWatcherOptions): () => 
 		if (watchTypes && !watchTypes.includes(shape.type)) return;
 
 		if (mode === "contain") {
-			// Check if this shape is now contained by a frame
-			const containers = findContainers(store, payload.id, (s) => s.type === "frame");
+			// Check if this shape is now contained by a container (per the
+			// `isContainer` predicate — `type === "frame"` by default).
+			const containers = findContainers(store, payload.id, isContainer);
 			const smallestContainer = containers.reduce<ShapeData | null>((best, c) => {
 				if (!best) return c;
 				return c.width * c.height < best.width * best.height ? c : best;

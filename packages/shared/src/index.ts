@@ -56,6 +56,13 @@ export type { Theme } from "./types/theme.js";
 export { DEFAULT_THEME } from "./types/theme.js";
 // Color
 export { cssColorToRgba, cssColorToRgbaOrDefault } from "./utils/color.js";
+// Container
+export {
+	getContainerLayout,
+	hasSelectableChildren,
+	isContainerAutoAttach,
+	isShapeContainer,
+} from "./utils/container.js";
 export {
 	boundsToScreenRect,
 	getSelectionBounds,

@@ -213,6 +213,17 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 					return;
 				}
 
+				// Skip snap for shapes a consumer excluded from snapping entirely
+				// (e.g. a container's child following its dragged parent). Excluded
+				// shapes are neither snapped when moved nor used as snap targets.
+				// Leave the guide lines untouched: these child updates are interleaved
+				// with the dragged parent's snapped update, and clearing lines here
+				// would wipe the parent's snap feedback mid-drag.
+				if (settings.excludeTargets?.(shape)) {
+					originalUpdateShape(id, updates);
+					return;
+				}
+
 				// Skip snap for child shapes whose parent is being dragged (in selection).
 				// Children follow their parent's snap offset; snapping them individually
 				// causes jitter because each child gets its own snap delta.
@@ -258,6 +269,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 						ctx,
 						movingIds,
 						settings.viewportOnly ? ctx.store.getViewport() : null,
+						settings.excludeTargets,
 					);
 				frameCandidateBoxes = candidateBoxes;
 
@@ -481,6 +493,7 @@ function getCandidateBoxes(
 	ctx: PluginContext,
 	movingIds: ReadonlySet<string>,
 	viewport: Viewport | null,
+	excludeTargets?: (shape: ShapeData) => boolean,
 ): Map<string, BoundingBox> {
 	const visibleRect = viewport ? getVisibleWorldRect(viewport) : null;
 
@@ -504,6 +517,8 @@ function getCandidateBoxes(
 		if (movingIds.has(id)) continue;
 		// Connectors are never snap targets
 		if (shape.type === "connector") continue;
+		// Consumer-excluded shapes are never snap targets
+		if (excludeTargets?.(shape)) continue;
 		// Exclude children of moving shapes so a frame doesn't snap to its own children
 		const parentId = shape.parentId as string | undefined;
 		if (parentId && movingIds.has(parentId)) continue;

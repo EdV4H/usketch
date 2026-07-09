@@ -8,7 +8,7 @@ import type {
 	ToolContext,
 	Viewport,
 } from "@edv4h/usketch-shared";
-import { safeRotation } from "@edv4h/usketch-shared";
+import { hasSelectableChildren, safeRotation } from "@edv4h/usketch-shared";
 import { getTopLevelAncestor } from "@edv4h/usketch-store";
 import {
 	findHandleAtScreenPoint,
@@ -159,7 +159,6 @@ export function findShapeAtPoint(
 				: null;
 	const filter = options.filter;
 	const shapes = ctx.store.getShapes();
-	const CONTAINER_TYPES = new Set(["island", "frame"]);
 	const entries = [...shapes.entries()].reverse();
 
 	let containerHit: string | null = null;
@@ -177,7 +176,7 @@ export function findShapeAtPoint(
 
 		if (typeof data.parentId === "string") {
 			const parent = ctx.store.getShape(data.parentId);
-			if (parent?.type === "frame" || parent?.type === "island") {
+			if (parent && hasSelectableChildren(ctx.shapes.get(parent.type), parent)) {
 				return id;
 			}
 			// The resolved ancestor — not the hit child — is what we return, so it
@@ -191,7 +190,7 @@ export function findShapeAtPoint(
 			continue;
 		}
 
-		if (CONTAINER_TYPES.has(data.type)) {
+		if (hasSelectableChildren(def, data)) {
 			if (!containerHit) containerHit = id;
 			continue;
 		}

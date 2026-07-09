@@ -1,17 +1,15 @@
 import type { ShapeData, ToolContext } from "@edv4h/usketch-shared";
+import { isShapeContainer } from "@edv4h/usketch-shared";
 import { getChildShapes } from "@edv4h/usketch-store";
-
-const CONTAINER_TYPES: ReadonlySet<string> = new Set(["group", "frame", "island"]);
-
-/** Default predicate: only containers (group/frame/island) follow with their children. */
-const isContainer = (shape: ShapeData): boolean => CONTAINER_TYPES.has(shape.type);
 
 export interface CollectDescendantsOptions {
 	/**
 	 * Decide whether a shape's children should be collected (and thus follow on
-	 * move). Defaults to the container check (group/frame/island). Pass a custom
-	 * predicate to also follow children of ordinary (non-container) parents —
-	 * e.g. "a sticker attached via parentId to any shape should move with it".
+	 * move). Defaults to the container check (any shape whose registered
+	 * definition marks it as a container — see {@link isShapeContainer}). Pass a
+	 * custom predicate to also follow children of ordinary (non-container)
+	 * parents — e.g. "a sticker attached via parentId to any shape should move
+	 * with it".
 	 */
 	followChildrenOf?: (shape: ShapeData) => boolean;
 }
@@ -32,7 +30,9 @@ export function collectSelectionWithDescendants(
 	rootIds: Iterable<string>,
 	options: CollectDescendantsOptions = {},
 ): Map<string, ShapeData> {
-	const follows = options.followChildrenOf ?? isContainer;
+	const follows =
+		options.followChildrenOf ??
+		((shape: ShapeData) => isShapeContainer(ctx.shapes.get(shape.type), shape));
 	const result = new Map<string, ShapeData>();
 	const queue: string[] = [];
 
@@ -66,7 +66,7 @@ export function collectSelectionWithDescendants(
 export function collectChildrenOnly(ctx: ToolContext, rootId: string): Map<string, ShapeData> {
 	const result = new Map<string, ShapeData>();
 	const root = ctx.store.getShape(rootId);
-	if (!root || !CONTAINER_TYPES.has(root.type)) return result;
+	if (!root || !isShapeContainer(ctx.shapes.get(root.type), root)) return result;
 
 	const queue: string[] = [rootId];
 	while (queue.length > 0) {
@@ -75,7 +75,7 @@ export function collectChildrenOnly(ctx: ToolContext, rootId: string): Map<strin
 		for (const child of getChildShapes(ctx.store, parentId)) {
 			if (result.has(child.id)) continue;
 			result.set(child.id, { ...child });
-			if (CONTAINER_TYPES.has(child.type)) queue.push(child.id);
+			if (isShapeContainer(ctx.shapes.get(child.type), child)) queue.push(child.id);
 		}
 	}
 	return result;
