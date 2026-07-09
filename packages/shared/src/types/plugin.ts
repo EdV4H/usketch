@@ -238,6 +238,52 @@ export interface ShapeDefinition {
 	 * decides it). Use {@link isShapeResizable} to evaluate it.
 	 */
 	resizable?: boolean | ((data: ShapeData) => boolean);
+	/**
+	 * Container behavior. When present, children (shapes referencing this shape
+	 * via `parentId`) follow the parent on move, are arranged by `layout`, and
+	 * are excluded from snapping while the parent is being dragged.
+	 *
+	 * Colocated with the definition like {@link resizable} / {@link move}, and
+	 * each sub-field accepts the same `boolean | (data) => boolean` predicate
+	 * form so a single shape type can vary per instance (e.g. a `wireframe`
+	 * type whose `meta.component === "card"` is a container). Evaluate via
+	 * {@link isShapeContainer} / {@link hasSelectableChildren} /
+	 * {@link getContainerLayout}. Omit for non-container shapes.
+	 */
+	container?: {
+		/**
+		 * Whether this instance acts as a container. Default: `true` (specifying
+		 * `container` at all opts in). Use a predicate for per-instance control.
+		 */
+		enabled?: boolean | ((data: ShapeData) => boolean);
+		/**
+		 * Whether children can be selected / resized individually. Default:
+		 * `false` (group behavior — clicking a child selects the whole container).
+		 * `true` gives frame/island behavior (clicking a child, or marquee over
+		 * it, selects the child itself). Only consulted when the shape is an
+		 * enabled container.
+		 */
+		selectableChildren?: boolean | ((data: ShapeData) => boolean);
+		/**
+		 * Whether a shape dropped/dragged fully inside this container is
+		 * automatically attached as its child (`parentId` set), and detached when
+		 * moved out. Default: `false` — containers like `group` (explicit) and
+		 * `island` (proximity-based) manage membership themselves, so only
+		 * containers that opt in (e.g. `frame`, or a custom card) auto-attach on
+		 * overlap. Evaluate via {@link isContainerAutoAttach}.
+		 */
+		autoAttach?: boolean | ((data: ShapeData) => boolean);
+		/**
+		 * Arrange the container's children (shapes referencing it via `parentId`).
+		 * Invoked by the container plugin on attach/detach, container move/resize,
+		 * and child add. Returns the patches to apply to each child. Omit for
+		 * free positioning (no auto-layout).
+		 */
+		layout?: (ctx: {
+			container: ShapeData;
+			children: ShapeData[];
+		}) => Array<{ id: string; patch: Partial<ShapeData> }>;
+	};
 	/** Shape-specific move logic (e.g. updating absolute point arrays). Default: update x/y only. */
 	move?: (data: ShapeData, dx: number, dy: number) => Partial<ShapeData>;
 	/** Fit shape data to new bounding box (for multi-resize). Default: apply newBounds as-is. */
