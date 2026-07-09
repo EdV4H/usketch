@@ -1,3 +1,5 @@
+import type { ShapeData } from "@edv4h/usketch-shared";
+
 export type SnapEdge = "min" | "center" | "max";
 
 export interface SnapPoint {
@@ -56,4 +58,11 @@ export interface SnapSettings {
 	guideStyle: GuideStyle;
 	/** Alt(Option) キーの挙動（既定 `"suppress"`）。 */
 	altBehavior: AltBehavior;
+	/**
+	 * スナップ計算から完全に除外する述語。`true` を返すシェイプは
+	 * (a) 吸着先候補にならず、(b) それ自身が動いても吸着されない。
+	 * 例: container プラグインが「移動中の親コンテナに追従中の子」を除外する。
+	 * `snap:configure` 経由で設定し、`undefined` を渡せば解除。
+	 */
+	excludeTargets?: (shape: ShapeData) => boolean;
 }
