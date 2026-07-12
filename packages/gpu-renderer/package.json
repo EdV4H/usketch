@@ -25,7 +25,7 @@
 		"react-dom": ">=19"
 	},
 	"devDependencies": {
-		"@types/react": "19.2.14",
+		"@types/react": "19.2.17",
 		"@types/react-dom": "19.2.3",
 		"@webgpu/types": "0.1.69",
 		"typescript": "5.9.3",
