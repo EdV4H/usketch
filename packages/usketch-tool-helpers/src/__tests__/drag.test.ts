@@ -1,6 +1,28 @@
+import type { ShapeDefinition, ToolContext } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { startDragSession } from "../drag.js";
-import { createTestToolContext, makePointerEvent, makeShape } from "./test-helpers.js";
+import {
+	createTestCommands,
+	createTestEventBus,
+	createTestShapeRegistry,
+	createTestStore,
+	createTestToolContext,
+	makePointerEvent,
+	makeShape,
+} from "./test-helpers.js";
+
+/** Tool context whose registry adds a `sticker` type declaring `attachable.follow`. */
+function createAttachableToolContext(): ToolContext {
+	const overrides = new Map<string, ShapeDefinition>([
+		["sticker", { type: "sticker", attachable: { follow: true } } as unknown as ShapeDefinition],
+	]);
+	return {
+		store: createTestStore(),
+		shapes: createTestShapeRegistry(overrides),
+		commands: createTestCommands(),
+		events: createTestEventBus(),
+	};
+}
 
 describe("startDragSession", () => {
 	it("translates a single shape by the pointer delta", () => {
@@ -129,6 +151,39 @@ describe("startDragSession", () => {
 			shapeIds: ["g"],
 		});
 		expect([...session.movingShapeIds].sort()).toEqual(["child", "g", "innerFrame"]);
+	});
+
+	it("follows an attachable.follow child of a non-container parent (child-side opt-in)", () => {
+		const ctx = createAttachableToolContext();
+		// `card` is not registered → non-container parent.
+		ctx.store.addShape(makeShape({ id: "card", type: "card", x: 0, y: 0 }));
+		ctx.store.addShape(
+			makeShape({ id: "sticker", type: "sticker", x: 10, y: 10, parentId: "card" }),
+		);
+
+		const session = startDragSession({ ctx, startPoint: { x: 0, y: 0 }, shapeIds: ["card"] });
+		session.update(makePointerEvent({ x: 30, y: 0 }));
+		expect(ctx.store.getShape("card")?.x).toBe(30);
+		// No plugin, no followChildrenOf: the child follows purely from its own flag.
+		expect(ctx.store.getShape("sticker")?.x).toBe(40);
+		expect([...session.movingShapeIds].sort()).toEqual(["card", "sticker"]);
+	});
+
+	it("does NOT follow a non-attachable sibling under the same non-container parent", () => {
+		const ctx = createAttachableToolContext();
+		ctx.store.addShape(makeShape({ id: "card", type: "card", x: 0, y: 0 }));
+		ctx.store.addShape(
+			makeShape({ id: "sticker", type: "sticker", x: 10, y: 10, parentId: "card" }),
+		);
+		// A plain rect child (no attachable) attached to the same non-container parent.
+		ctx.store.addShape(makeShape({ id: "plain", type: "rect", x: 20, y: 20, parentId: "card" }));
+
+		const session = startDragSession({ ctx, startPoint: { x: 0, y: 0 }, shapeIds: ["card"] });
+		session.update(makePointerEvent({ x: 30, y: 0 }));
+		expect(ctx.store.getShape("sticker")?.x).toBe(40);
+		// The non-attachable sibling stays put.
+		expect(ctx.store.getShape("plain")?.x).toBe(20);
+		expect([...session.movingShapeIds].sort()).toEqual(["card", "sticker"]);
 	});
 
 	it("calls the onSnap hook so callers can adjust the delta before it lands", () => {
