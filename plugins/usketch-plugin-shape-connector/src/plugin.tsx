@@ -36,10 +36,10 @@ export type { ConnectorShapeData } from "./types.js";
  * to hardcode the internal strings. Prefer {@link ConnectorPluginOptions} to
  * opt out at construction time.
  *
- * Note: the parameter Toolbar (`ConnectorPropertyBar`) is intentionally **not**
- * part of this plugin — the shape definition should not dictate a specific
- * settings UI. Hosts that want it register the exported `ConnectorPropertyBar`
- * component as their own layer (see the component's docs / apps/web).
+ * Note: the parameter Toolbar is intentionally **not** part of this package —
+ * the shape definition should not dictate a specific settings UI. The host owns
+ * that UI entirely (apps/web ships its own connector property bar). This package
+ * only exports the connector data types the host needs to build one.
  */
 export const CONNECTOR_LAYER_IDS = {
 	endpoints: "connector-endpoints",
@@ -53,8 +53,8 @@ export const CONNECTOR_LAYER_IDS = {
  * layer. The shape, drawing tool, position tracking, and cascade-delete (the
  * core behavior) are always active.
  *
- * The parameter Toolbar is not listed here because it is no longer owned by this
- * plugin at all — render `ConnectorPropertyBar` from the host instead.
+ * The parameter Toolbar is not listed here because it is not owned by this
+ * package at all — the host renders its own (see apps/web).
  */
 export interface ConnectorPluginOptions {
 	/** Endpoint drag handles (used to re-anchor a connector's ends). Default `true`. */
@@ -236,8 +236,8 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 
 			// UI layers are opt-out (see ConnectorPluginOptions) so a host with its
 			// own toolbar/UI can suppress them without depending on internal layer ids.
-			// The parameter Toolbar is deliberately absent — hosts render
-			// `ConnectorPropertyBar` themselves (see apps/web).
+			// The parameter Toolbar is deliberately absent — the host owns that UI
+			// entirely (see apps/web).
 
 			// ── Endpoint overlay (Phase 5) ──
 

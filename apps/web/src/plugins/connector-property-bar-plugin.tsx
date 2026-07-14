@@ -1,14 +1,15 @@
-import { ConnectorPropertyBar } from "@edv4h/usketch-plugin-shape-connector";
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import { ConnectorPropertyBar } from "./connector-property-bar.js";
 
 /**
  * App-owned layer for the connector parameter Toolbar.
  *
- * `@edv4h/usketch-plugin-shape-connector` intentionally no longer registers this
- * UI (the shape definition shouldn't dictate a settings Toolbar — see #665); it
- * only exports the `ConnectorPropertyBar` component. This app opts into the
- * default bar by registering it as its own layer, keeping the previous UX. A
- * host with a custom connector UI would simply omit this plugin.
+ * `@edv4h/usketch-plugin-shape-connector` intentionally does not ship this UI
+ * (the shape definition shouldn't dictate a settings Toolbar — see #665). The
+ * `ConnectorPropertyBar` component lives here in the app, built from the
+ * connector data types the package exports. This app opts into the default bar
+ * by registering it as its own layer, keeping the previous UX. A host with a
+ * custom connector UI would simply omit this plugin.
  */
 export function createConnectorPropertyBarPlugin(): UsketchPlugin {
 	return {

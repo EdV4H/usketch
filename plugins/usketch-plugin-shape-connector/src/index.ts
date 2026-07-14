@@ -1,9 +1,10 @@
-// The parameter Toolbar is not registered by the plugin — export the component
-// so a host can render it as its own layer (see apps/web). Self-contained: reads
-// selection/store via `useApp()`, takes no props.
-export { ConnectorPropertyBar } from "./connector-property-bar.js";
 export {
 	CONNECTOR_LAYER_IDS,
 	type ConnectorPluginOptions,
 	createConnectorPlugin,
 } from "./plugin.js";
+// Connector data-model types — the shape's public contract. The parameter
+// Toolbar UI is intentionally not part of this package (see #665); a host that
+// builds its own connector settings UI imports these to read/write the shape.
+export type { ArrowHead, PathType } from "./shapes/connector.js";
+export type { ConnectorShapeData } from "./types.js";
