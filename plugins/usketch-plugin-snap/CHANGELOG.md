@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-snap
 
+## 2.2.2
+
+### Patch Changes
+
+- Updated dependencies [a7b3e78]
+  - @edv4h/usketch-shared@4.4.0
+  - @edv4h/usketch-core@2.0.5
+
 ## 2.2.1
 
 ### Patch Changes
