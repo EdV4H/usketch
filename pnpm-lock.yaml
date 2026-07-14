@@ -120,8 +120,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   apps/server:
     dependencies:
@@ -154,7 +154,7 @@ importers:
         version: 0.7.6(hono@4.12.30)(zod@4.3.6)
       better-auth:
         specifier: 1.5.5
-        version: 1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3))
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13)
@@ -178,8 +178,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
       wrangler:
         specifier: 4.107.1
         version: 4.107.1(@cloudflare/workers-types@4.20260317.1)
@@ -377,7 +377,7 @@ importers:
         version: link:../../packages/sync
       better-auth:
         specifier: 1.5.5
-        version: 1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3))
       react:
         specifier: 19.2.7
         version: 19.2.7
@@ -410,8 +410,8 @@ importers:
         specifier: 7.3.6
         version: 7.3.6(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
       wrangler:
         specifier: 4.107.1
         version: 4.107.1(@cloudflare/workers-types@4.20260317.1)
@@ -460,8 +460,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/core:
     dependencies:
@@ -473,8 +473,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/dom-renderer:
     dependencies:
@@ -498,8 +498,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/gpu-renderer:
     dependencies:
@@ -526,8 +526,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/server-core:
     dependencies:
@@ -545,8 +545,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/shared:
     dependencies:
@@ -567,8 +567,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/store:
     dependencies:
@@ -583,8 +583,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/sync:
     dependencies:
@@ -599,8 +599,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/ui:
     dependencies:
@@ -615,8 +615,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/usketch-connector-anchor:
     dependencies:
@@ -628,8 +628,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/usketch-shape-utils:
     dependencies:
@@ -641,8 +641,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/usketch-tool-helpers:
     dependencies:
@@ -657,8 +657,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-activity-feed:
     dependencies:
@@ -679,8 +679,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-ai-actions:
     dependencies:
@@ -704,8 +704,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-ai-agent:
     dependencies:
@@ -717,8 +717,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-ai-chat:
     dependencies:
@@ -742,8 +742,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-ai-copilot:
     dependencies:
@@ -764,8 +764,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-ai-image:
     dependencies:
@@ -780,8 +780,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-ai-recognize:
     dependencies:
@@ -796,8 +796,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-ai-voice:
     dependencies:
@@ -812,8 +812,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-avatar:
     dependencies:
@@ -834,8 +834,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-bg-dots:
     dependencies:
@@ -856,8 +856,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-bg-grid:
     dependencies:
@@ -878,8 +878,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-board-info-panel:
     dependencies:
@@ -903,8 +903,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-canvas-filter:
     dependencies:
@@ -925,8 +925,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-comments:
     dependencies:
@@ -947,8 +947,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-community-chat:
     dependencies:
@@ -972,8 +972,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-container:
     dependencies:
@@ -988,8 +988,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-debug-hud:
     dependencies:
@@ -1007,8 +1007,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-domain-design:
     dependencies:
@@ -1047,8 +1047,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-effect-ripple:
     dependencies:
@@ -1069,8 +1069,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-export:
     dependencies:
@@ -1100,8 +1100,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-follow-me:
     dependencies:
@@ -1122,8 +1122,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-free-position:
     dependencies:
@@ -1138,8 +1138,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-keyboard-shortcuts:
     dependencies:
@@ -1163,8 +1163,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-laser:
     dependencies:
@@ -1185,8 +1185,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-presence-cursor:
     dependencies:
@@ -1207,8 +1207,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-presence-enhanced:
     dependencies:
@@ -1229,8 +1229,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-presentation:
     dependencies:
@@ -1257,8 +1257,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-reactions:
     dependencies:
@@ -1279,8 +1279,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-server-ai:
     dependencies:
@@ -1307,8 +1307,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-server-auth:
     dependencies:
@@ -1326,8 +1326,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-server-boards:
     dependencies:
@@ -1354,8 +1354,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-server-chat:
     dependencies:
@@ -1382,8 +1382,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-server-comments:
     dependencies:
@@ -1410,8 +1410,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-basic:
     dependencies:
@@ -1438,8 +1438,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-board-portal:
     dependencies:
@@ -1460,8 +1460,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-card:
     dependencies:
@@ -1485,8 +1485,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-community-region:
     dependencies:
@@ -1504,8 +1504,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-connector:
     dependencies:
@@ -1535,8 +1535,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-counter:
     dependencies:
@@ -1560,8 +1560,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-frame:
     dependencies:
@@ -1585,8 +1585,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-freedraw:
     dependencies:
@@ -1616,8 +1616,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-group:
     dependencies:
@@ -1641,8 +1641,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-image:
     dependencies:
@@ -1660,8 +1660,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-island:
     dependencies:
@@ -1682,8 +1682,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-openui:
     dependencies:
@@ -1710,8 +1710,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-sticky:
     dependencies:
@@ -1741,8 +1741,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-text:
     dependencies:
@@ -1772,8 +1772,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-shape-wireframe:
     dependencies:
@@ -1794,8 +1794,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-side-panel:
     dependencies:
@@ -1813,8 +1813,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-snap:
     dependencies:
@@ -1835,8 +1835,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-spatial-chat:
     dependencies:
@@ -1857,8 +1857,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-spotlight:
     dependencies:
@@ -1879,8 +1879,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-sync-localstorage-yjs:
     dependencies:
@@ -1901,8 +1901,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-sync-ywebsocket:
     dependencies:
@@ -1932,8 +1932,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-tool-openui:
     dependencies:
@@ -1972,8 +1972,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-tool-pan:
     dependencies:
@@ -1997,8 +1997,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-tool-select:
     dependencies:
@@ -2025,8 +2025,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-tool-vim:
     dependencies:
@@ -2059,8 +2059,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-viewport-nav:
     dependencies:
@@ -2078,8 +2078,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-voting:
     dependencies:
@@ -2100,8 +2100,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
   plugins/usketch-plugin-whistle:
     dependencies:
@@ -2122,8 +2122,8 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: 3.2.7
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
 packages:
 
@@ -4050,11 +4050,11 @@ packages:
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
 
-  '@vitest/expect@3.2.4':
-    resolution: {integrity: sha512-Io0yyORnB6sikFlt8QW5K7slY4OjqNX9jmJQ02QDda8lyM6B5oNgVWoSoKPac8/kgnCUzuHQKrSLtu/uOqqrig==}
+  '@vitest/expect@3.2.7':
+    resolution: {integrity: sha512-E8eBXaKibuvH2pSZErOjdVb5vF4PbKYcrnluBTYxEk1l/VhhwZg1kZQsdtjq+CsF5CFydf2Rdkz7jDHKSisi3w==}
 
-  '@vitest/mocker@3.2.4':
-    resolution: {integrity: sha512-46ryTE9RZO/rfDd7pEqFl7etuyzekzEhUbTW3BvmeO/BcCMEgq59BKhek3dXDWgAj4oMK6OZi+vRr1wPW6qjEQ==}
+  '@vitest/mocker@3.2.7':
+    resolution: {integrity: sha512-Trr0hYO9CM3Wj6ksWHRhK9IZpIY6wTMO5u/MqXurMxT57sWBaOPEtP3Oq60ihZuh5JsiagKfz95OcxdEP6dBrA==}
     peerDependencies:
       msw: ^2.4.9
       vite: ^5.0.0 || ^6.0.0 || ^7.0.0-0
@@ -4064,20 +4064,20 @@ packages:
       vite:
         optional: true
 
-  '@vitest/pretty-format@3.2.4':
-    resolution: {integrity: sha512-IVNZik8IVRJRTr9fxlitMKeJeXFFFN0JaB9PHPGQ8NKQbGpfjlTx9zO4RefN8gp7eqjNy8nyK3NZmBzOPeIxtA==}
+  '@vitest/pretty-format@3.2.7':
+    resolution: {integrity: sha512-KUHlwqVu0sRlhCdyPdQ/wBoTfRahjUky1MubOmYw9fWfIZy1gNoHpuaaQBPAaMaVYdQYHJLurzj8ECCj5OwTqA==}
 
-  '@vitest/runner@3.2.4':
-    resolution: {integrity: sha512-oukfKT9Mk41LreEW09vt45f8wx7DordoWUZMYdY/cyAk7w5TWkTRCNZYF7sX7n2wB7jyGAl74OxgwhPgKaqDMQ==}
+  '@vitest/runner@3.2.7':
+    resolution: {integrity: sha512-sB9y4ovltoQP+WaUPwmSxO9WIg9Ig694Di5PalVPsYHklAdE027mehpWF2SQSVq+k6sFgaivbTjTJwZLSHbedA==}
 
-  '@vitest/snapshot@3.2.4':
-    resolution: {integrity: sha512-dEYtS7qQP2CjU27QBC5oUOxLE/v5eLkGqPE0ZKEIDGMs4vKWe7IjgLOeauHsR0D5YuuycGRO5oSRXnwnmA78fQ==}
+  '@vitest/snapshot@3.2.7':
+    resolution: {integrity: sha512-7C+MwShwtBSI5Buwoyg3s/iY1eHL9PKAf+O1wVh/TdnjXUtkoL/9YQtre90i4MtNXM6edP1wJ2zOBpfCyhIS7g==}
 
-  '@vitest/spy@3.2.4':
-    resolution: {integrity: sha512-vAfasCOe6AIK70iP5UD11Ac4siNUNJ9i/9PZ3NKx07sG6sUxeag1LWdNrMWeKKYBLlzuK+Gn65Yd5nyL6ds+nw==}
+  '@vitest/spy@3.2.7':
+    resolution: {integrity: sha512-Q2eQGI6d2L/hBtZ0qNuKcAGid68XK6cv1xsoaIma6PaJhHPoqcEJhYpXZ/5myCMqkNgtP6UKuBhbc0nHKnrkuQ==}
 
-  '@vitest/utils@3.2.4':
-    resolution: {integrity: sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA==}
+  '@vitest/utils@3.2.7':
+    resolution: {integrity: sha512-x6BDOd7dyo3PFLY3I9/HJ25X/6OurhGXk2/B9gOZNPF7XDVjeBK4k01lQE5uvDpbuheErh91qYuE1E2OEjK3Rw==}
 
   '@volar/kit@2.4.28':
     resolution: {integrity: sha512-cKX4vK9dtZvDRaAzeoUdaAJEew6IdxHNCRrdp5Kvcl6zZOqb6jTOfk3kXkIkG3T7oTFXguEMt5+9ptyqYR84Pg==}
@@ -6498,46 +6498,6 @@ packages:
       yaml:
         optional: true
 
-  vite@7.3.1:
-    resolution: {integrity: sha512-w+N7Hifpc3gRjZ63vYBXA56dvvRlNWRczTdmCBBa+CotUzAPf5b7YMdMR/8CQoeYE5LX3W4wj6RYTgonm1b9DA==}
-    engines: {node: ^20.19.0 || >=22.12.0}
-    hasBin: true
-    peerDependencies:
-      '@types/node': ^20.19.0 || >=22.12.0
-      jiti: '>=1.21.0'
-      less: ^4.0.0
-      lightningcss: ^1.21.0
-      sass: ^1.70.0
-      sass-embedded: ^1.70.0
-      stylus: '>=0.54.8'
-      sugarss: ^5.0.0
-      terser: ^5.16.0
-      tsx: ^4.8.1
-      yaml: ^2.4.2
-    peerDependenciesMeta:
-      '@types/node':
-        optional: true
-      jiti:
-        optional: true
-      less:
-        optional: true
-      lightningcss:
-        optional: true
-      sass:
-        optional: true
-      sass-embedded:
-        optional: true
-      stylus:
-        optional: true
-      sugarss:
-        optional: true
-      terser:
-        optional: true
-      tsx:
-        optional: true
-      yaml:
-        optional: true
-
   vite@7.3.6:
     resolution: {integrity: sha512-4XP60spRGjSZFf1qYH+dJIkK2znL3zQfl9KkOV9MkkRR/3Dls0dxaBsQPTloEc5BLXWPL9vsOxopxyKoMmDueg==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -6586,16 +6546,16 @@ packages:
       vite:
         optional: true
 
-  vitest@3.2.4:
-    resolution: {integrity: sha512-LUCP5ev3GURDysTWiP47wRRUpLKMOfPh+yKTx3kVIEiu5KOMeqzpnYNsKyOoVrULivR8tLcks4+lga33Whn90A==}
+  vitest@3.2.7:
+    resolution: {integrity: sha512-KrxIJ62Fd89gfysR4WotlgZABiz2dqFPgqGzX7s+CwsqLFomRH7777ZcrOD6+WVAh7khPQP41A+BKbpcJFrdEg==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
     hasBin: true
     peerDependencies:
       '@edge-runtime/vm': '*'
       '@types/debug': ^4.1.12
       '@types/node': ^18.0.0 || ^20.0.0 || >=22.0.0
-      '@vitest/browser': 3.2.4
-      '@vitest/ui': 3.2.4
+      '@vitest/browser': 3.2.7
+      '@vitest/ui': 3.2.7
       happy-dom: '*'
       jsdom: '*'
     peerDependenciesMeta:
@@ -8518,45 +8478,45 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vitest/expect@3.2.4':
+  '@vitest/expect@3.2.7':
     dependencies:
       '@types/chai': 5.2.3
-      '@vitest/spy': 3.2.4
-      '@vitest/utils': 3.2.4
+      '@vitest/spy': 3.2.7
+      '@vitest/utils': 3.2.7
       chai: 5.3.3
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.2.4(vite@7.3.1(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3))':
+  '@vitest/mocker@3.2.7(vite@7.3.6(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
-      '@vitest/spy': 3.2.4
+      '@vitest/spy': 3.2.7
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.1(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 7.3.6(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
-  '@vitest/pretty-format@3.2.4':
+  '@vitest/pretty-format@3.2.7':
     dependencies:
       tinyrainbow: 2.0.0
 
-  '@vitest/runner@3.2.4':
+  '@vitest/runner@3.2.7':
     dependencies:
-      '@vitest/utils': 3.2.4
+      '@vitest/utils': 3.2.7
       pathe: 2.0.3
       strip-literal: 3.1.0
 
-  '@vitest/snapshot@3.2.4':
+  '@vitest/snapshot@3.2.7':
     dependencies:
-      '@vitest/pretty-format': 3.2.4
+      '@vitest/pretty-format': 3.2.7
       magic-string: 0.30.21
       pathe: 2.0.3
 
-  '@vitest/spy@3.2.4':
+  '@vitest/spy@3.2.7':
     dependencies:
       tinyspy: 4.0.4
 
-  '@vitest/utils@3.2.4':
+  '@vitest/utils@3.2.7':
     dependencies:
-      '@vitest/pretty-format': 3.2.4
+      '@vitest/pretty-format': 3.2.7
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
@@ -8823,7 +8783,7 @@ snapshots:
 
   baseline-browser-mapping@2.10.7: {}
 
-  better-auth@1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)):
+  better-auth@1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)):
     dependencies:
       '@better-auth/core': 1.5.5(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@cloudflare/workers-types@4.20260317.1)(better-call@1.3.2(zod@4.3.6))(jose@6.2.2)(kysely@0.28.13)(nanostores@1.2.0)
       '@better-auth/drizzle-adapter': 1.5.5(@better-auth/core@1.5.5(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(@cloudflare/workers-types@4.20260317.1)(better-call@1.3.2(zod@4.3.6))(jose@6.2.2)(kysely@0.28.13)(nanostores@1.2.0))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))
@@ -8848,7 +8808,7 @@ snapshots:
       mongodb: 7.1.0
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
-      vitest: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+      vitest: 3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
 
@@ -11343,20 +11303,6 @@ snapshots:
       tsx: 4.21.0
       yaml: 2.8.3
 
-  vite@7.3.1(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3):
-    dependencies:
-      esbuild: 0.27.7
-      fdir: 6.5.0(picomatch@4.0.5)
-      picomatch: 4.0.5
-      postcss: 8.5.16
-      rollup: 4.62.2
-      tinyglobby: 0.2.17
-    optionalDependencies:
-      '@types/node': 25.6.0
-      fsevents: 2.3.3
-      tsx: 4.21.0
-      yaml: 2.8.3
-
   vite@7.3.6(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3):
     dependencies:
       esbuild: 0.28.1
@@ -11375,16 +11321,16 @@ snapshots:
     optionalDependencies:
       vite: 6.4.3(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
-  vitest@3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3):
+  vitest@3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3):
     dependencies:
       '@types/chai': 5.2.3
-      '@vitest/expect': 3.2.4
-      '@vitest/mocker': 3.2.4(vite@7.3.1(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3))
-      '@vitest/pretty-format': 3.2.4
-      '@vitest/runner': 3.2.4
-      '@vitest/snapshot': 3.2.4
-      '@vitest/spy': 3.2.4
-      '@vitest/utils': 3.2.4
+      '@vitest/expect': 3.2.7
+      '@vitest/mocker': 3.2.7(vite@7.3.6(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3))
+      '@vitest/pretty-format': 3.2.7
+      '@vitest/runner': 3.2.7
+      '@vitest/snapshot': 3.2.7
+      '@vitest/spy': 3.2.7
+      '@vitest/utils': 3.2.7
       chai: 5.3.3
       debug: 4.4.3
       expect-type: 1.3.0
@@ -11397,7 +11343,7 @@ snapshots:
       tinyglobby: 0.2.17
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
-      vite: 7.3.1(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 7.3.6(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
       vite-node: 3.2.4(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
       why-is-node-running: 2.3.0
     optionalDependencies:
