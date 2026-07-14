@@ -105,7 +105,7 @@ importers:
         version: 8.21.0
       yjs:
         specifier: ^13.6.0
-        version: 13.6.30
+        version: 13.6.31
       zod:
         specifier: ^3.24.0
         version: 3.25.76
@@ -163,7 +163,7 @@ importers:
         version: 4.12.30
       yjs:
         specifier: ^13.6.0
-        version: 13.6.30
+        version: 13.6.31
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -590,10 +590,10 @@ importers:
     dependencies:
       y-protocols:
         specifier: 1.0.7
-        version: 1.0.7(yjs@13.6.30)
+        version: 1.0.7(yjs@13.6.31)
       yjs:
         specifier: ^13.6.0
-        version: 13.6.30
+        version: 13.6.31
     devDependencies:
       typescript:
         specifier: 5.9.3
@@ -1889,10 +1889,10 @@ importers:
         version: link:../../packages/shared
       y-indexeddb:
         specifier: ^9.0.0
-        version: 9.0.12(yjs@13.6.30)
+        version: 9.0.12(yjs@13.6.31)
       yjs:
         specifier: ^13.6.0
-        version: 13.6.30
+        version: 13.6.31
     devDependencies:
       fake-indexeddb:
         specifier: ^6.0.0
@@ -1917,13 +1917,13 @@ importers:
         version: 19.2.7
       y-protocols:
         specifier: 1.0.7
-        version: 1.0.7(yjs@13.6.30)
+        version: 1.0.7(yjs@13.6.31)
       y-websocket:
         specifier: ^3.0.0
-        version: 3.0.0(yjs@13.6.30)
+        version: 3.0.0(yjs@13.6.31)
       yjs:
         specifier: ^13.6.0
-        version: 13.6.30
+        version: 13.6.31
     devDependencies:
       '@types/react':
         specifier: 19.2.17
@@ -6789,8 +6789,8 @@ packages:
     resolution: {integrity: sha512-7dSzzRQ++CKnNI/krKnYRV7JKKPUXMEh61soaHKg9mrWEhzFWhFnxPxGl+69cD1Ou63C13NUPCnmIcrvqCuM6w==}
     engines: {node: '>=12'}
 
-  yjs@13.6.30:
-    resolution: {integrity: sha512-vv/9h42eCMC81ZHDFswuu/MKzkl/vyq1BhaNGfHyOonwlG4CJbQF4oiBBJPvfdeCt/PlVDWh7Nov9D34YY09uQ==}
+  yjs@13.6.31:
+    resolution: {integrity: sha512-Eq+5BRfbeGyqGVrTJL3bEcr8gKkxPuyuoHmAwpk52fDb8kOVMrfVSTRPd6yiGgX5Fskb96qCRjzjbRjrL4YEnw==}
     engines: {node: '>=16.0.0', npm: '>=8.0.0'}
 
   yocto-queue@1.2.2:
@@ -11536,21 +11536,21 @@ snapshots:
 
   xxhash-wasm@1.1.0: {}
 
-  y-indexeddb@9.0.12(yjs@13.6.30):
+  y-indexeddb@9.0.12(yjs@13.6.31):
     dependencies:
       lib0: 0.2.117
-      yjs: 13.6.30
+      yjs: 13.6.31
 
-  y-protocols@1.0.7(yjs@13.6.30):
+  y-protocols@1.0.7(yjs@13.6.31):
     dependencies:
       lib0: 0.2.117
-      yjs: 13.6.30
+      yjs: 13.6.31
 
-  y-websocket@3.0.0(yjs@13.6.30):
+  y-websocket@3.0.0(yjs@13.6.31):
     dependencies:
       lib0: 0.2.117
-      y-protocols: 1.0.7(yjs@13.6.30)
-      yjs: 13.6.30
+      y-protocols: 1.0.7(yjs@13.6.31)
+      yjs: 13.6.31
 
   y18n@5.0.8: {}
 
@@ -11585,7 +11585,7 @@ snapshots:
       y18n: 5.0.8
       yargs-parser: 21.1.1
 
-  yjs@13.6.30:
+  yjs@13.6.31:
     dependencies:
       lib0: 0.2.117
 
