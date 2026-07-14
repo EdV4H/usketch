@@ -2047,7 +2047,7 @@ importers:
         version: 19.2.7
       xstate:
         specifier: ^5.18.0
-        version: 5.32.1
+        version: 5.32.4
       zod:
         specifier: ^4.0.0
         version: 4.3.6
@@ -6741,8 +6741,8 @@ packages:
     resolution: {integrity: sha512-pVhEAc09t9cJqB02+NY4bk9bOxs3Kw68OZzYRVpqEQyeyINXhya+4dUK8YCN4aXAtv01YERBOPStfWAHuRsI2g==}
     engines: {node: '>=18.0.0'}
 
-  xstate@5.32.1:
-    resolution: {integrity: sha512-IGX9q5vEOplWjVq79edfgjJfVV/lXCup9p/fQGgUabAveZrlRwWJ/mC2iZEE7wswXbWITBCoS7gmoFfcuWAwsQ==}
+  xstate@5.32.4:
+    resolution: {integrity: sha512-E5WtDB8DBs2ZWliz2Ry9XfbSZTbBRcK/cwefBot04qQ/L5SLP16xpnTDU4/ZFXuXFhNxi7JP2RhuoGwBnM+S4A==}
 
   xxhash-wasm@1.1.0:
     resolution: {integrity: sha512-147y/6YNh+tlp6nd/2pWq38i9h6mz/EuQ6njIrmW8D1BS5nCqs0P6DG+m6zTGnNz5I+uhZ0SHxBs9BsPrwcKDA==}
@@ -11532,7 +11532,7 @@ snapshots:
 
   xid-ts@1.2.2: {}
 
-  xstate@5.32.1: {}
+  xstate@5.32.4: {}
 
   xxhash-wasm@1.1.0: {}
 
