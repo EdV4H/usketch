@@ -187,6 +187,18 @@ describe("BoardStore", () => {
 			store.setHoveredShapeId("s1");
 			expect(listener).not.toHaveBeenCalled();
 		});
+
+		it("setHoveredShapeId: is a UI signal only — never emits a mutation event", () => {
+			// Locks in the intent: hover must not trigger mutation-driven side
+			// effects (persistence / history / external sync) that listen on
+			// onMutation. Only the lightweight subscribe() channel is notified.
+			const store = createBoardStore();
+			const mutationListener = vi.fn();
+			store.onMutation(mutationListener);
+			store.setHoveredShapeId("s1");
+			store.setHoveredShapeId(null);
+			expect(mutationListener).not.toHaveBeenCalled();
+		});
 	});
 
 	describe("Viewport", () => {
