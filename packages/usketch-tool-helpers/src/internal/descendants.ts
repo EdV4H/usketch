@@ -1,5 +1,5 @@
 import type { ShapeData, ToolContext } from "@edv4h/usketch-shared";
-import { isShapeContainer } from "@edv4h/usketch-shared";
+import { isAttachableFollow, isShapeContainer } from "@edv4h/usketch-shared";
 import { getChildShapes } from "@edv4h/usketch-store";
 
 export interface CollectDescendantsOptions {
@@ -8,10 +8,28 @@ export interface CollectDescendantsOptions {
 	 * move). Defaults to the container check (any shape whose registered
 	 * definition marks it as a container — see {@link isShapeContainer}). Pass a
 	 * custom predicate to also follow children of ordinary (non-container)
-	 * parents — e.g. "a sticker attached via parentId to any shape should move
-	 * with it".
+	 * parents.
+	 *
+	 * Note: independently of this predicate, any child whose own definition
+	 * declares `attachable.follow` (see {@link isAttachableFollow}) always follows
+	 * its parent — that is the child-side opt-in for "a sticker attached via
+	 * parentId to any shape should move with it", and needs no parent cooperation.
 	 */
 	followChildrenOf?: (shape: ShapeData) => boolean;
+}
+
+/**
+ * Cheap check over registered shape *definitions* (bounded by the number of
+ * shape types, not the number of shapes on the board): does any type opt in as
+ * an attachable-follow child? A `follow` that is a predicate is treated as a
+ * possible `true`; only an explicit `follow: false` is ruled out. Lets callers
+ * skip a whole-store scan on boards that don't use `attachable`.
+ */
+function registryDeclaresAttachableFollow(ctx: ToolContext): boolean {
+	for (const def of ctx.shapes.getAll().values()) {
+		if (def.attachable && def.attachable.follow !== false) return true;
+	}
+	return false;
 }
 
 /**
@@ -30,26 +48,51 @@ export function collectSelectionWithDescendants(
 	rootIds: Iterable<string>,
 	options: CollectDescendantsOptions = {},
 ): Map<string, ShapeData> {
-	const follows =
+	const parentFollows =
 		options.followChildrenOf ??
 		((shape: ShapeData) => isShapeContainer(ctx.shapes.get(shape.type), shape));
+	const childFollows = (shape: ShapeData) => isAttachableFollow(ctx.shapes.get(shape.type), shape);
+
+	// Parents of `attachable.follow` children — so a non-container parent's
+	// children are inspected only when at least one of them opts in. Guarded by a
+	// cheap registry check (O(registered types), not O(shapes)): if no registered
+	// definition declares `attachable.follow`, the whole-store scan is skipped and
+	// starting a drag costs exactly what it did before this feature.
+	const attachFollowParents = new Set<string>();
+	if (registryDeclaresAttachableFollow(ctx)) {
+		for (const shape of ctx.store.getShapes().values()) {
+			if (shape.parentId && childFollows(shape)) attachFollowParents.add(shape.parentId);
+		}
+	}
+
 	const result = new Map<string, ShapeData>();
 	const queue: string[] = [];
+
+	const enqueueIfDescends = (shape: ShapeData) => {
+		// Descend into a shape's children when it is a followed parent (container or
+		// custom predicate) or holds at least one attachable-follow child.
+		if (parentFollows(shape) || attachFollowParents.has(shape.id)) queue.push(shape.id);
+	};
 
 	for (const id of rootIds) {
 		const shape = ctx.store.getShape(id);
 		if (!shape || result.has(id)) continue;
 		result.set(id, { ...shape });
-		if (follows(shape)) queue.push(id);
+		enqueueIfDescends(shape);
 	}
 
 	while (queue.length > 0) {
 		const parentId = queue.pop();
 		if (!parentId) break;
+		const parent = ctx.store.getShape(parentId);
+		const parentIsFollowed = parent ? parentFollows(parent) : false;
 		for (const child of getChildShapes(ctx.store, parentId)) {
 			if (result.has(child.id)) continue;
+			// Include a child when its parent propagates to all children (container),
+			// or the child itself opts in via `attachable.follow`.
+			if (!parentIsFollowed && !childFollows(child)) continue;
 			result.set(child.id, { ...child });
-			if (follows(child)) queue.push(child.id);
+			enqueueIfDescends(child);
 		}
 	}
 

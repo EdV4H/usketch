@@ -291,6 +291,48 @@ export interface ShapeDefinition {
 			children: ShapeData[];
 		}) => Array<{ id: string; patch: Partial<ShapeData> }>;
 	};
+	/**
+	 * Child-side "attachable" behavior — the counterpart to {@link ShapeDefinition.container}.
+	 * Whereas `container` opts a **parent** in to accepting/holding children, `attachable`
+	 * opts this shape in as a **child** that sticks to and follows *any* shape it is dropped
+	 * on, regardless of whether that target declared `container`. Use it for stamps, badges,
+	 * reaction pins, or handwritten annotation widgets.
+	 *
+	 * Which behaviors are active mirrors the `container` split (see that field):
+	 * - **`follow`** is native — `tool-helpers`/`tool-select` read it directly so this child
+	 *   follows a dragged parent even when the parent is not a container. No extra plugin.
+	 * - **`toAny` / `hitTest`** (auto-attach on drop) are driven by `createAttachablePlugin()`
+	 *   from `@edv4h/usketch-plugin-container`; without it, declaring them has no effect (the
+	 *   shape still renders and can be attached programmatically via `parentId`).
+	 *
+	 * Each sub-field accepts the same `boolean | (data) => boolean` predicate form as
+	 * `container`. Evaluate via {@link isAttachable} / {@link isAttachableFollow} /
+	 * {@link getAttachableHitTest} / {@link attachableAcceptsTarget}. Omit for shapes that
+	 * never auto-attach. A shape may declare both `container` and `attachable`.
+	 */
+	attachable?: {
+		/**
+		 * Whether this shape attaches (sets its `parentId`) to a shape it is dropped on /
+		 * overlaps. Default: `true` (specifying `attachable` opts in). Pass a predicate
+		 * `(target) => boolean` to restrict eligible targets — e.g. exclude connectors or
+		 * only stick to certain types. Evaluated per candidate target via
+		 * {@link attachableAcceptsTarget}.
+		 */
+		toAny?: boolean | ((target: ShapeData) => boolean);
+		/**
+		 * Whether this child follows its parent's move even when the parent is not a
+		 * container. Default: `true` (attaching without following is rarely useful). Use a
+		 * predicate for per-instance control. Consumed natively by move-follow.
+		 */
+		follow?: boolean | ((data: ShapeData) => boolean);
+		/**
+		 * How the attach target is detected on drop. `"center"` (default) attaches when the
+		 * child's center point lands inside a target's bounds ("drop it on and it sticks");
+		 * `"contain"` requires the child to be fully contained by the target (like
+		 * `container.autoAttach`).
+		 */
+		hitTest?: "center" | "contain";
+	};
 	/** Shape-specific move logic (e.g. updating absolute point arrays). Default: update x/y only. */
 	move?: (data: ShapeData, dx: number, dy: number) => Partial<ShapeData>;
 	/** Fit shape data to new bounding box (for multi-resize). Default: apply newBounds as-is. */

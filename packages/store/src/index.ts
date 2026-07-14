@@ -1,3 +1,8 @@
+export {
+	type AttachableAttacherOptions,
+	type AttachableResolution,
+	createAttachableAttacher,
+} from "./attachable-attacher.js";
 export type { BoardState } from "./board-store.js";
 export { createBoardStore } from "./board-store.js";
 export {

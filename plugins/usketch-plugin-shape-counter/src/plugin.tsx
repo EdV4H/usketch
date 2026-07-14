@@ -231,6 +231,15 @@ export function createCounterPlugin(): UsketchPlugin {
 				renderTarget: "html",
 				minSize: { width: 100, height: 100 },
 				simplifiedComponent: SimplifiedCounter,
+				// A counter doubles as an attachable badge: dropped onto any ordinary
+				// shape it sticks (center hit) and follows that shape when moved, while
+				// still resizing/rotating via the normal select tool. Requires
+				// `createAttachablePlugin()` for the attach-on-drop step (follow is native).
+				attachable: {
+					toAny: (target) => target.type !== "connector" && target.type !== "counter",
+					follow: true,
+					hitTest: "center",
+				},
 			});
 
 			// Listen for counter updates from the rendered buttons

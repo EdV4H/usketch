@@ -54,6 +54,13 @@ export { DEFAULT_STYLE } from "./types/shape.js";
 // Theme
 export type { Theme } from "./types/theme.js";
 export { DEFAULT_THEME } from "./types/theme.js";
+// Attachable (child-side)
+export {
+	attachableAcceptsTarget,
+	getAttachableHitTest,
+	isAttachable,
+	isAttachableFollow,
+} from "./utils/attachable.js";
 // Color
 export { cssColorToRgba, cssColorToRgbaOrDefault } from "./utils/color.js";
 // Container
