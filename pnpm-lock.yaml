@@ -150,8 +150,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       '@hono/zod-validator':
-        specifier: 0.7.6
-        version: 0.7.6(hono@4.12.30)(zod@4.3.6)
+        specifier: 0.8.0
+        version: 0.8.0(hono@4.12.30)(zod@4.3.6)
       better-auth:
         specifier: 1.5.5
         version: 1.5.5(@cloudflare/workers-types@4.20260702.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260702.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@3.2.7(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3))
@@ -1288,8 +1288,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/server-core
       '@hono/zod-validator':
-        specifier: 0.7.6
-        version: 0.7.6(hono@4.12.30)(zod@4.3.6)
+        specifier: 0.8.0
+        version: 0.8.0(hono@4.12.30)(zod@4.3.6)
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@cloudflare/workers-types@4.20260702.1)(kysely@0.28.13)
@@ -1335,8 +1335,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/server-core
       '@hono/zod-validator':
-        specifier: 0.7.6
-        version: 0.7.6(hono@4.12.30)(zod@4.3.6)
+        specifier: 0.8.0
+        version: 0.8.0(hono@4.12.30)(zod@4.3.6)
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@cloudflare/workers-types@4.20260702.1)(kysely@0.28.13)
@@ -1363,8 +1363,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/server-core
       '@hono/zod-validator':
-        specifier: 0.7.6
-        version: 0.7.6(hono@4.12.30)(zod@4.3.6)
+        specifier: 0.8.0
+        version: 0.8.0(hono@4.12.30)(zod@4.3.6)
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@cloudflare/workers-types@4.20260702.1)(kysely@0.28.13)
@@ -1391,8 +1391,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/server-core
       '@hono/zod-validator':
-        specifier: 0.7.6
-        version: 0.7.6(hono@4.12.30)(zod@4.3.6)
+        specifier: 0.8.0
+        version: 0.8.0(hono@4.12.30)(zod@4.3.6)
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@cloudflare/workers-types@4.20260702.1)(kysely@0.28.13)
@@ -3168,10 +3168,10 @@ packages:
     peerDependencies:
       hono: ^4
 
-  '@hono/zod-validator@0.7.6':
-    resolution: {integrity: sha512-Io1B6d011Gj1KknV4rXYz4le5+5EubcWEU/speUjuw9XMMIaP3n78yXLhjd2A3PXaXaUwEAluOiAyLqhBEJgsw==}
+  '@hono/zod-validator@0.8.0':
+    resolution: {integrity: sha512-5uS4S1/LKtZQYvD4BtpPUFkOv8d1wNxHHrChm26buMiEYc1FrHWvDUaKVBwkiVtvSExHSpLGDvcnpI2Copyj9w==}
     peerDependencies:
-      hono: '>=3.9.0'
+      hono: '>=4.10.0'
       zod: ^3.25.0 || ^4.0.0
 
   '@img/colour@1.1.0':
@@ -7711,7 +7711,7 @@ snapshots:
     dependencies:
       hono: 4.12.30
 
-  '@hono/zod-validator@0.7.6(hono@4.12.30)(zod@4.3.6)':
+  '@hono/zod-validator@0.8.0(hono@4.12.30)(zod@4.3.6)':
     dependencies:
       hono: 4.12.30
       zod: 4.3.6
