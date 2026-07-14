@@ -18,7 +18,6 @@ import { generateId } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { AnchorHandleOverlay, setupAnchorHandles } from "./anchor-handle-overlay.js";
 import { ConnectorLabelEditor, handleConnectorClick, setEditingLabel } from "./connector-label.js";
-import { ConnectorPropertyBar } from "./connector-property-bar.js";
 import { EndpointOverlay } from "./endpoint-overlay.js";
 import {
 	createDefaultConnector,
@@ -36,9 +35,13 @@ export type { ConnectorShapeData } from "./types.js";
  * disables a layer imperatively (`instance.layers.unregister(...)`) doesn't have
  * to hardcode the internal strings. Prefer {@link ConnectorPluginOptions} to
  * opt out at construction time.
+ *
+ * Note: the parameter Toolbar (`ConnectorPropertyBar`) is intentionally **not**
+ * part of this plugin — the shape definition should not dictate a specific
+ * settings UI. Hosts that want it register the exported `ConnectorPropertyBar`
+ * component as their own layer (see the component's docs / apps/web).
  */
 export const CONNECTOR_LAYER_IDS = {
-	propertyBar: "connector-properties",
 	endpoints: "connector-endpoints",
 	labelEditor: "connector-label-editor",
 	anchorHandles: "connector-anchor-handles",
@@ -46,16 +49,14 @@ export const CONNECTOR_LAYER_IDS = {
 
 /**
  * Opt out of the connector plugin's built-in UI layers when the host provides
- * its own (e.g. a custom ActionRing / property panel). Each flag defaults to
- * `true`; set `false` to skip registering that layer. The shape, drawing tool,
- * position tracking, and cascade-delete (the core behavior) are always active.
+ * its own. Each flag defaults to `true`; set `false` to skip registering that
+ * layer. The shape, drawing tool, position tracking, and cascade-delete (the
+ * core behavior) are always active.
+ *
+ * The parameter Toolbar is not listed here because it is no longer owned by this
+ * plugin at all — render `ConnectorPropertyBar` from the host instead.
  */
 export interface ConnectorPluginOptions {
-	/**
-	 * The built-in parameter Toolbar (line style / arrowheads). Set `false` when
-	 * the host renders its own connector settings UI to avoid a duplicate/conflicting bar.
-	 */
-	propertyBar?: boolean;
 	/** Endpoint drag handles (used to re-anchor a connector's ends). Default `true`. */
 	endpoints?: boolean;
 	/** Inline label editor. Default `true`. */
@@ -101,12 +102,7 @@ function debugFields(shape: ShapeData): Record<string, unknown> {
 }
 
 export function createConnectorPlugin(options: ConnectorPluginOptions = {}): UsketchPlugin {
-	const {
-		propertyBar = true,
-		endpoints = true,
-		labelEditor = true,
-		anchorHandles = true,
-	} = options;
+	const { endpoints = true, labelEditor = true, anchorHandles = true } = options;
 
 	return {
 		id: "usketch-plugin-shape-connector",
@@ -238,18 +234,10 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 				},
 			});
 
-			// ── Connector property bar (Phase 4) ──
 			// UI layers are opt-out (see ConnectorPluginOptions) so a host with its
 			// own toolbar/UI can suppress them without depending on internal layer ids.
-
-			if (propertyBar) {
-				ctx.layers.register({
-					id: CONNECTOR_LAYER_IDS.propertyBar,
-					order: 82,
-					fixed: true,
-					render: () => <ConnectorPropertyBar />,
-				});
-			}
+			// The parameter Toolbar is deliberately absent — hosts render
+			// `ConnectorPropertyBar` themselves (see apps/web).
 
 			// ── Endpoint overlay (Phase 5) ──
 
@@ -317,7 +305,6 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 				unsubLabelClick();
 				unsubPointerForLabel();
 				cleanupAnchorHandles?.();
-				if (propertyBar) ctx.layers.unregister(CONNECTOR_LAYER_IDS.propertyBar);
 				if (endpoints) ctx.layers.unregister(CONNECTOR_LAYER_IDS.endpoints);
 				if (labelEditor) ctx.layers.unregister(CONNECTOR_LAYER_IDS.labelEditor);
 				if (anchorHandles) ctx.layers.unregister(CONNECTOR_LAYER_IDS.anchorHandles);
