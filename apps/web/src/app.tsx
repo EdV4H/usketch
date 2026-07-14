@@ -13,7 +13,7 @@ import { createAiVoicePlugin } from "@edv4h/usketch-plugin-ai-voice";
 import { createDotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
-import { createContainerPlugin } from "@edv4h/usketch-plugin-container";
+import { createAttachablePlugin, createContainerPlugin } from "@edv4h/usketch-plugin-container";
 import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
 import { createExportPlugin } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
@@ -151,6 +151,7 @@ function createBasePlugins(): UsketchPlugin[] {
 		createSnapPlugin(),
 		createFreePositionPlugin(),
 		createContainerPlugin(),
+		createAttachablePlugin(),
 		createExportPlugin(),
 		createGpuRendererPlugin(),
 		createDomRendererPlugin(),
