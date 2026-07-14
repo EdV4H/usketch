@@ -16,7 +16,11 @@ import type {
 } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
-import { AnchorHandleOverlay, setupAnchorHandles } from "./anchor-handle-overlay.js";
+import {
+	type AnchorHandleMode,
+	AnchorHandleOverlay,
+	setupAnchorHandles,
+} from "./anchor-handle-overlay.js";
 import { ConnectorLabelEditor, handleConnectorClick, setEditingLabel } from "./connector-label.js";
 import { EndpointOverlay } from "./endpoint-overlay.js";
 import {
@@ -28,6 +32,7 @@ import {
 } from "./shapes/connector.js";
 import type { ConnectorShapeData } from "./types.js";
 
+export type { AnchorHandleMode } from "./anchor-handle-overlay.js";
 export type { ConnectorShapeData } from "./types.js";
 
 /**
@@ -62,11 +67,13 @@ export interface ConnectorPluginOptions {
 	/** Inline label editor. Default `true`. */
 	labelEditor?: boolean;
 	/**
-	 * Hover anchor handles + the anchor-drag drawing interaction. Default `true`.
-	 * The `connector-draw` tool still works when this is `false`; only the
-	 * hover-to-anchor affordance is removed.
+	 * Hover anchor handles + the anchor-drag drawing interaction.
+	 * - `true` (default) / an {@link AnchorHandleMode} string — enable the handles;
+	 *   a string picks *when* selected-shape anchors show (default mode `"single"`).
+	 * - `false` — disable entirely (no layer). The `connector-draw` tool still
+	 *   works; only the hover-to-anchor affordance is removed.
 	 */
-	anchorHandles?: boolean;
+	anchorHandles?: boolean | AnchorHandleMode;
 }
 
 function ConnectorIcon() {
@@ -103,6 +110,10 @@ function debugFields(shape: ShapeData): Record<string, unknown> {
 
 export function createConnectorPlugin(options: ConnectorPluginOptions = {}): UsketchPlugin {
 	const { endpoints = true, labelEditor = true, anchorHandles = true } = options;
+	const anchorHandlesEnabled = anchorHandles !== false;
+	// `true` maps to the default mode; a string is used verbatim.
+	const anchorHandlesMode: AnchorHandleMode =
+		typeof anchorHandles === "string" ? anchorHandles : "single";
 
 	return {
 		id: "usketch-plugin-shape-connector",
@@ -263,17 +274,19 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 
 			// ── Anchor handle overlay (hover to show anchor points) ──
 
-			if (anchorHandles) {
+			if (anchorHandlesEnabled) {
 				ctx.layers.register({
 					id: CONNECTOR_LAYER_IDS.anchorHandles,
 					order: 79,
 					fixed: true,
-					render: (renderCtx) => <AnchorHandleOverlay ctx={ctx} viewport={renderCtx.viewport} />,
+					render: (renderCtx) => (
+						<AnchorHandleOverlay ctx={ctx} viewport={renderCtx.viewport} mode={anchorHandlesMode} />
+					),
 				});
 			}
 
 			// Anchor-drag drawing/hover behavior is tied to the anchor-handles UI.
-			const cleanupAnchorHandles = anchorHandles ? setupAnchorHandles(ctx) : undefined;
+			const cleanupAnchorHandles = anchorHandlesEnabled ? setupAnchorHandles(ctx) : undefined;
 
 			// Double-click detection for label editing
 			const unsubLabelClick = ctx.store.onMutation((event) => {
@@ -307,7 +320,7 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 				cleanupAnchorHandles?.();
 				if (endpoints) ctx.layers.unregister(CONNECTOR_LAYER_IDS.endpoints);
 				if (labelEditor) ctx.layers.unregister(CONNECTOR_LAYER_IDS.labelEditor);
-				if (anchorHandles) ctx.layers.unregister(CONNECTOR_LAYER_IDS.anchorHandles);
+				if (anchorHandlesEnabled) ctx.layers.unregister(CONNECTOR_LAYER_IDS.anchorHandles);
 			};
 		},
 	};

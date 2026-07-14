@@ -307,12 +307,22 @@ function findNonConnectorShape(ctx: PluginContext, point: Point): ShapeData | nu
 
 // ── Overlay Component ──
 
+/**
+ * When to surface selected-shape anchor handles. See
+ * `ConnectorPluginOptions.anchorHandles`. Defined here (rather than in
+ * `plugin.tsx`) so the overlay owns the enum it consumes and `plugin.tsx` can
+ * import it without a back-reference cycle.
+ */
+export type AnchorHandleMode = "hover" | "single" | "selection";
+
 interface AnchorHandleOverlayProps {
 	ctx: PluginContext;
 	viewport: Viewport;
+	/** Which shapes get anchor handles from the selection. Default `"single"`. */
+	mode?: AnchorHandleMode;
 }
 
-export function AnchorHandleOverlay({ ctx, viewport }: AnchorHandleOverlayProps) {
+export function AnchorHandleOverlay({ ctx, viewport, mode = "single" }: AnchorHandleOverlayProps) {
 	const hoverId = useSyncExternalStore(subscribeAnchorHover, getAnchorHover);
 	const drawing = useSyncExternalStore(subscribeAnchorDraw, getAnchorDraw);
 	const isDragging = useSyncExternalStore(subscribePointerDown, getPointerDown);
@@ -378,13 +388,23 @@ export function AnchorHandleOverlay({ ctx, viewport }: AnchorHandleOverlayProps)
 	// Hide anchor handles while dragging shapes
 	if (isDragging) return null;
 
-	// Not drawing: show anchor handles on selected + hovered shapes
+	// Not drawing: show anchor handles on the selected + hovered shape, per `mode`.
+	// - "selection": every selected shape
+	// - "single": only when exactly one shape is selected (default — a connector
+	//   starts from one source, so a multi-select showing every shape's anchors
+	//   is noise; #675)
+	// - "hover": nothing from the selection
+	// Hovering an individual shape still reveals its anchors in every mode
+	// (handled below).
 	const targets: { shape: ShapeData; isSelected: boolean }[] = [];
 
-	for (const id of selection) {
-		const s = shapes.get(id);
-		if (s && s.type !== "connector") {
-			targets.push({ shape: s, isSelected: true });
+	const showSelectionAnchors = mode === "selection" || (mode === "single" && selection.size === 1);
+	if (showSelectionAnchors) {
+		for (const id of selection) {
+			const s = shapes.get(id);
+			if (s && s.type !== "connector") {
+				targets.push({ shape: s, isSelected: true });
+			}
 		}
 	}
 

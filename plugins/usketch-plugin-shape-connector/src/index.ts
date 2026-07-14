@@ -1,4 +1,5 @@
 export {
+	type AnchorHandleMode,
 	CONNECTOR_LAYER_IDS,
 	type ConnectorPluginOptions,
 	createConnectorPlugin,
