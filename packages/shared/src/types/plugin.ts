@@ -301,8 +301,8 @@ export interface ShapeDefinition {
 	 * Which behaviors are active mirrors the `container` split (see that field):
 	 * - **`follow`** is native — `tool-helpers`/`tool-select` read it directly so this child
 	 *   follows a dragged parent even when the parent is not a container. No extra plugin.
-	 * - **`toAny` / `hitTest`** (auto-attach on drop) are driven by
-	 *   `@edv4h/usketch-plugin-attachable`; without it, declaring them has no effect (the
+	 * - **`toAny` / `hitTest`** (auto-attach on drop) are driven by `createAttachablePlugin()`
+	 *   from `@edv4h/usketch-plugin-container`; without it, declaring them has no effect (the
 	 *   shape still renders and can be attached programmatically via `parentId`).
 	 *
 	 * Each sub-field accepts the same `boolean | (data) => boolean` predicate form as

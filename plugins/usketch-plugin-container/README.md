@@ -51,6 +51,44 @@ ctx.shapes.register("wireframe", {
 
 Children are ordinary shapes referencing the container via native `parentId`.
 
+## Attachable child shapes (`createAttachablePlugin`)
+
+The **child-side counterpart**. Whereas `container` opts a *parent* in to holding
+children, `attachable` opts a shape in as a *child* that sticks to and follows
+**any** shape it is dropped on — even a non-container (sticky note, card). Use it
+for stamps, badges, reaction pins, or handwritten annotation widgets. Because the
+child rides on the ordinary select tool (no pointer hijacking) it keeps selection
+/ resize / rotate.
+
+It is a **separate plugin** from `createContainerPlugin` (register either or
+both), colocated here because it drives the same `parentId` containment
+subsystem:
+
+```ts
+import { createAttachablePlugin } from "@edv4h/usketch-plugin-container";
+
+const plugins = [
+  // ...
+  createAttachablePlugin(),
+];
+
+ctx.shapes.register("badge", {
+  // ...render/hitTest/resize/createDefault...
+  attachable: {
+    toAny: (target) => target.type !== "connector", // eligible targets
+    follow: true,                                    // follow the parent's move
+    hitTest: "center",                               // "drop it on and it sticks"
+  },
+});
+```
+
+- **Auto-attach** (this plugin): on drop, `parentId` is set to the front-most
+  accepted shape under the badge (per `hitTest` / `toAny`), cleared when dropped
+  over nothing.
+- **Move-follow** is **native** (`tool-helpers`/`tool-select` read
+  `attachable.follow`) — it works even without this plugin. See
+  `ShapeDefinition.attachable` in `@edv4h/usketch-shared` for the full API.
+
 ## Notes / limitations
 
 - **z-order / nesting**: children are positioned but not z-ordered by this

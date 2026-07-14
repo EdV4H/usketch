@@ -1,4 +1,5 @@
 export { setupArrange } from "./arrange.js";
+export { createAttachablePlugin } from "./attachable-plugin.js";
 export {
 	type ContainerLayout,
 	type GridLayoutOptions,

@@ -3,21 +3,24 @@ import { attachableAcceptsTarget, getAttachableHitTest, isAttachable } from "@ed
 import { createAttachableAttacher } from "@edv4h/usketch-store";
 
 /**
- * Runtime for **attachable child shapes** — shapes whose `ShapeDefinition`
- * declares an `attachable` object. It supplies the reactive attach-on-drop that
- * a shape definition can't express on its own:
+ * Runtime for **attachable child shapes** — the child-side counterpart to
+ * {@link createContainerPlugin}. A shape whose `ShapeDefinition` declares an
+ * `attachable` object sticks to and follows **any** shape it is dropped on, even
+ * a non-container (sticky note, card, …). Use it for stamps, badges, reaction
+ * pins, or handwritten annotation widgets.
  *
  * - **Auto-attach** — when an attachable shape finishes a move, it sets its
  *   `parentId` to the front-most shape it lands on (by `attachable.hitTest`,
  *   restricted by `attachable.toAny`), and clears it when dropped over nothing.
- *   Unlike `container.autoAttach`, the *child* decides — so any shape, even a
- *   non-container, can become the parent.
+ *   Unlike `container.autoAttach`, the *child* decides — so any shape can become
+ *   the parent.
  *
  * Move-follow ("drag the parent, the attached child follows") is handled
  * **natively** by `tool-helpers`/`tool-select` from the same `attachable.follow`
- * flag — this plugin only adds the reactive attach step. Register it to make the
- * child stick on drop; without it, `attachable` shapes still follow and can be
- * attached programmatically via `parentId`.
+ * flag — this plugin only adds the reactive attach step. It is a separate plugin
+ * from {@link createContainerPlugin} (register either or both); the shared store
+ * util it wires, `createAttachableAttacher`, is distinct from the container
+ * attacher.
  */
 export function createAttachablePlugin(): UsketchPlugin {
 	return {

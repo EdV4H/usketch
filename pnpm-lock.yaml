@@ -812,22 +812,6 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
 
-  plugins/usketch-plugin-attachable:
-    dependencies:
-      '@edv4h/usketch-shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@edv4h/usketch-store':
-        specifier: workspace:*
-        version: link:../../packages/store
-    devDependencies:
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: 3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3)
-
   plugins/usketch-plugin-avatar:
     dependencies:
       '@edv4h/usketch-shared':
