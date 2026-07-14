@@ -378,13 +378,20 @@ export function AnchorHandleOverlay({ ctx, viewport }: AnchorHandleOverlayProps)
 	// Hide anchor handles while dragging shapes
 	if (isDragging) return null;
 
-	// Not drawing: show anchor handles on selected + hovered shapes
+	// Not drawing: show anchor handles on the selected + hovered shape.
+	// Only surface the "start a connector here" affordance for a *single*
+	// selected shape — showing every selected shape's anchors on a multi-select
+	// is visually noisy and rarely useful (a connector starts from one source).
+	// Hovering an individual shape still reveals its anchors regardless of
+	// selection size (handled below).
 	const targets: { shape: ShapeData; isSelected: boolean }[] = [];
 
-	for (const id of selection) {
-		const s = shapes.get(id);
-		if (s && s.type !== "connector") {
-			targets.push({ shape: s, isSelected: true });
+	if (selection.size === 1) {
+		for (const id of selection) {
+			const s = shapes.get(id);
+			if (s && s.type !== "connector") {
+				targets.push({ shape: s, isSelected: true });
+			}
 		}
 	}
 
