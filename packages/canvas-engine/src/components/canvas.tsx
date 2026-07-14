@@ -43,6 +43,7 @@ export function Canvas() {
 	const viewport = useStoreSubscribe(app.store, (s) => s.getViewport());
 	const shapes = useStoreSubscribe(app.store, (s) => s.getShapes());
 	const selection = useStoreSubscribe(app.store, (s) => s.getSelection());
+	const hoveredShapeId = useStoreSubscribe(app.store, (s) => s.getHoveredShapeId());
 	const activeToolId = useStoreSubscribe(app.store, (s) => s.getActiveToolId());
 
 	const activeTool = app.tools.get(activeToolId);
@@ -310,6 +311,7 @@ export function Canvas() {
 		shapes: filteredShapes,
 		shapesSorted,
 		selection,
+		hoveredShapeId,
 		theme: DEFAULT_THEME,
 		renderMode,
 	};
