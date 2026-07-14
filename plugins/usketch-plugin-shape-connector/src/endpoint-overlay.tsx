@@ -282,6 +282,15 @@ function EndpointHandle({
 						currentPoint: wp,
 						targetShapeId: null,
 					});
+					// Live-update the curve so the bend (and the handle, which reads the
+					// shape's controlPoint) follows the pointer during the drag instead of
+					// only snapping into place on release. The single undoable command is
+					// still committed once in onUp (before = original captured at
+					// pointerdown, after = final position).
+					ctx.store.updateShape(connectorId, {
+						controlPoint: wp,
+						controlPointAuto: false,
+					} as Partial<ConnectorShapeData>);
 					return;
 				}
 

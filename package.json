@@ -22,7 +22,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.5.3",
 		"@changesets/cli": "2.31.0",
-		"@j178/prek": "0.4.8",
+		"@j178/prek": "0.4.9",
 		"turbo": "2.8.20",
 		"typescript": "5.9.3"
 	},
