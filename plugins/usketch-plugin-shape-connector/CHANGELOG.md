@@ -1,5 +1,36 @@
 # @edv4h/usketch-plugin-shape-connector
 
+## 3.1.0
+
+### Minor Changes
+
+- 2799931: 複数 shape 選択時に `AnchorHandleOverlay` が選択中の全 shape にアンカーハンドルを一斉表示して煩雑だった問題を修正し、表示タイミングをオプション化した（#675）。
+  - `createConnectorPlugin()` の `anchorHandles` オプションを `boolean | AnchorHandleMode` に拡張:
+    - `"single"`（**既定**）— 単一選択時のみ選択由来のアンカーを表示（コネクタは通常 1 つの source から引くため）。
+    - `"selection"` — 全選択 shape に表示（従来挙動）。
+    - `"hover"` — ホバー中の shape のみ。
+    - `true` = `"single"` / `false` = レイヤー無効（従来どおり）。
+  - 個別 shape のホバー時アンカー表示はどのモードでも従来どおり機能する。
+  - `AnchorHandleMode` 型を公開。
+
+- 993f63c: コネクタの内蔵 UI をホストの裁量に分離した（#665）。
+  - **パラメータ Toolbar（`ConnectorPropertyBar`）をパッケージから完全に撤去。** shape 定義が特定の設定 UI を規定すべきでないため、`createConnectorPlugin()` は property Toolbar を `layers.register` せず、コンポーネント自体もこのパッケージに含めない（UI はホスト管轄）。代わりにコネクタのデータ型 `ConnectorShapeData` / `ArrowHead` / `PathType` を公開し、ホストが自前 UI を組めるようにした。
+  - 残りの UI レイヤーは `createConnectorPlugin(options?)` の per-layer フラグ `ConnectorPluginOptions` で出し分け可能に（`endpoints` / `labelEditor` / `anchorHandles`、いずれも既定 `true`）。`anchorHandles: false` でも `connector-draw` ツールでの作成は可能。
+  - 安定 API として登録レイヤーの id 定数 `CONNECTOR_LAYER_IDS`（endpoints / labelEditor / anchorHandles）を公開。
+  - shape 定義・作成ツール・位置追従・カスケード削除（コア挙動）は常に有効。
+
+  **破壊的変更の注意点**: これまで `createConnectorPlugin()` だけで表示されていた property Toolbar は表示されなくなり、`ConnectorPropertyBar` コンポーネントの export も無くなる。従来の見た目が必要なホストは、公開されたデータ型を使って自前の property bar を実装する（apps/web は `src/plugins/connector-property-bar.tsx` に実装を持ち、`createConnectorPropertyBarPlugin()` で layer 登録する形で対応済み）。
+
+### Patch Changes
+
+- f880eea: コネクタの曲線(curve)の制御点をドラッグ調整する際、曲がり具合がドラッグ中は変化せず離した瞬間に反映されて分かりにくかった問題を修正。制御点ハンドルの `onMove` で `controlPoint` を store にライブ更新するようにし、曲線とハンドルがポインタに追従するようにした。undo 用の履歴は従来どおり `onUp` で1コマンドだけコミット(before=ドラッグ開始時の元値 / after=最終位置)。
+- Updated dependencies [05b6e0b]
+  - @edv4h/usketch-shared@4.3.0
+  - @edv4h/usketch-store@3.2.0
+  - @edv4h/usketch-canvas-engine@1.1.5
+  - @edv4h/usketch-core@2.0.4
+  - @edv4h/usketch-connector-anchor@0.3.1
+
 ## 3.0.3
 
 ### Patch Changes

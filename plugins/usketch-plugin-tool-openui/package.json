@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-tool-openui",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"description": "Experimental OpenUI tool plugin: prompt → OpenUI Lang → openui shape. Provides a toolbar tool, a side-panel prompt UI, a Make Real button on selection, and OpenAI / OpenAI-compatible providers.",
 	"type": "module",
 	"main": "./dist/index.js",
