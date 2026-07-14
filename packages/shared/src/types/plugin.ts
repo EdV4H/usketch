@@ -13,10 +13,11 @@ export interface LayerRenderContext {
 	shapesSorted: readonly ShapeData[];
 	selection: ReadonlySet<string>;
 	/**
-	 * Id of the shape currently hovered (cursor over it in the select tool), or
-	 * `null`. Lets a custom {@link SelectionForeground} adapt the hover indicator
-	 * per shape type — the hover counterpart to {@link selection}. Sourced from
-	 * {@link BoardStore.getHoveredShapeId}; `null` when no tool sets it.
+	 * Id of the shape currently hovered (cursor over it), or `null`. Lets a
+	 * custom {@link SelectionForeground} adapt the hover indicator per shape type
+	 * — the hover counterpart to {@link selection}. Sourced from
+	 * {@link BoardStore.getHoveredShapeId}: set by the active tool (the select
+	 * tool tracks it on pointer move); `null` when no tool sets it.
 	 */
 	hoveredShapeId: string | null;
 	theme: Theme;

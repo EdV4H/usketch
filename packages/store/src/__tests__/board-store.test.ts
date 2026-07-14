@@ -154,6 +154,41 @@ describe("BoardStore", () => {
 		});
 	});
 
+	describe("Hover", () => {
+		it("getHoveredShapeId: defaults to null", () => {
+			const store = createBoardStore();
+			expect(store.getHoveredShapeId()).toBeNull();
+		});
+
+		it("setHoveredShapeId: sets the hovered id and notifies subscribers", () => {
+			const store = createBoardStore();
+			const listener = vi.fn();
+			store.subscribe(listener);
+			store.setHoveredShapeId("s1");
+			expect(store.getHoveredShapeId()).toBe("s1");
+			expect(listener).toHaveBeenCalledTimes(1);
+		});
+
+		it("setHoveredShapeId: clearing with null notifies", () => {
+			const store = createBoardStore();
+			store.setHoveredShapeId("s1");
+			const listener = vi.fn();
+			store.subscribe(listener);
+			store.setHoveredShapeId(null);
+			expect(store.getHoveredShapeId()).toBeNull();
+			expect(listener).toHaveBeenCalledTimes(1);
+		});
+
+		it("setHoveredShapeId: no-op (no notify) when the id is unchanged", () => {
+			const store = createBoardStore();
+			store.setHoveredShapeId("s1");
+			const listener = vi.fn();
+			store.subscribe(listener);
+			store.setHoveredShapeId("s1");
+			expect(listener).not.toHaveBeenCalled();
+		});
+	});
+
 	describe("Viewport", () => {
 		it("panBy: shifts viewport position", () => {
 			const store = createBoardStore();

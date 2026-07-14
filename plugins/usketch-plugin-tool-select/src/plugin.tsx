@@ -325,7 +325,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 						editingGroupId: getEditingGroupId(),
 					});
 					setOverrideCursor(result.cursor);
-					ctx.store.setHoveredShapeId(
+					toolCtx.store.setHoveredShapeId(
 						result.handleHit || result.rotationHit ? null : result.hoveredShapeId,
 					);
 					return;
@@ -435,14 +435,14 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				dragState = null;
 			}
 
-			function onDeactivate(_toolCtx: ToolContext) {
+			function onDeactivate(toolCtx: ToolContext) {
 				dragState = null;
 				enableTextSelection();
 				setMovingSelection(false);
 				setMarquee(null);
 				setOverrideCursor("");
 				setEditingGroupId(null);
-				ctx.store.setHoveredShapeId(null);
+				toolCtx.store.setHoveredShapeId(null);
 				updateDropTarget(null);
 			}
 
