@@ -189,6 +189,9 @@ importers:
       '@edv4h/usketch-canvas-engine':
         specifier: workspace:*
         version: link:../../packages/canvas-engine
+      '@edv4h/usketch-connector-anchor':
+        specifier: workspace:*
+        version: link:../../packages/usketch-connector-anchor
       '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core

@@ -13,6 +13,7 @@
 	},
 	"dependencies": {
 		"@edv4h/usketch-canvas-engine": "workspace:*",
+		"@edv4h/usketch-connector-anchor": "workspace:*",
 		"@edv4h/usketch-core": "workspace:*",
 		"@edv4h/usketch-dom-renderer": "workspace:*",
 		"@edv4h/usketch-gpu-renderer": "workspace:*",

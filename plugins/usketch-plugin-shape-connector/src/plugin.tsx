@@ -18,7 +18,6 @@ import { generateId } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { AnchorHandleOverlay, setupAnchorHandles } from "./anchor-handle-overlay.js";
 import { ConnectorLabelEditor, handleConnectorClick, setEditingLabel } from "./connector-label.js";
-import { ConnectorPropertyBar } from "./connector-property-bar.js";
 import { EndpointOverlay } from "./endpoint-overlay.js";
 import {
 	createDefaultConnector,
@@ -30,6 +29,45 @@ import {
 import type { ConnectorShapeData } from "./types.js";
 
 export type { ConnectorShapeData } from "./types.js";
+
+/**
+ * Stable ids of the UI layers this plugin registers. Exported so a host that
+ * disables a layer imperatively (`instance.layers.unregister(...)`) doesn't have
+ * to hardcode the internal strings. Prefer {@link ConnectorPluginOptions} to
+ * opt out at construction time.
+ *
+ * Note: the parameter Toolbar is intentionally **not** part of this package —
+ * the shape definition should not dictate a specific settings UI. The host owns
+ * that UI entirely (apps/web ships its own connector property bar). This package
+ * only exports the connector data types the host needs to build one.
+ */
+export const CONNECTOR_LAYER_IDS = {
+	endpoints: "connector-endpoints",
+	labelEditor: "connector-label-editor",
+	anchorHandles: "connector-anchor-handles",
+} as const;
+
+/**
+ * Opt out of the connector plugin's built-in UI layers when the host provides
+ * its own. Each flag defaults to `true`; set `false` to skip registering that
+ * layer. The shape, drawing tool, position tracking, and cascade-delete (the
+ * core behavior) are always active.
+ *
+ * The parameter Toolbar is not listed here because it is not owned by this
+ * package at all — the host renders its own (see apps/web).
+ */
+export interface ConnectorPluginOptions {
+	/** Endpoint drag handles (used to re-anchor a connector's ends). Default `true`. */
+	endpoints?: boolean;
+	/** Inline label editor. Default `true`. */
+	labelEditor?: boolean;
+	/**
+	 * Hover anchor handles + the anchor-drag drawing interaction. Default `true`.
+	 * The `connector-draw` tool still works when this is `false`; only the
+	 * hover-to-anchor affordance is removed.
+	 */
+	anchorHandles?: boolean;
+}
 
 function ConnectorIcon() {
 	return (
@@ -63,7 +101,9 @@ function debugFields(shape: ShapeData): Record<string, unknown> {
 	};
 }
 
-export function createConnectorPlugin(): UsketchPlugin {
+export function createConnectorPlugin(options: ConnectorPluginOptions = {}): UsketchPlugin {
+	const { endpoints = true, labelEditor = true, anchorHandles = true } = options;
+
 	return {
 		id: "usketch-plugin-shape-connector",
 		name: "コネクタ",
@@ -194,43 +234,46 @@ export function createConnectorPlugin(): UsketchPlugin {
 				},
 			});
 
-			// ── Connector property bar (Phase 4) ──
-
-			ctx.layers.register({
-				id: "connector-properties",
-				order: 82,
-				fixed: true,
-				render: () => <ConnectorPropertyBar />,
-			});
+			// UI layers are opt-out (see ConnectorPluginOptions) so a host with its
+			// own toolbar/UI can suppress them without depending on internal layer ids.
+			// The parameter Toolbar is deliberately absent — the host owns that UI
+			// entirely (see apps/web).
 
 			// ── Endpoint overlay (Phase 5) ──
 
-			ctx.layers.register({
-				id: "connector-endpoints",
-				order: 81,
-				fixed: true,
-				render: (renderCtx) => <EndpointOverlay ctx={ctx} viewport={renderCtx.viewport} />,
-			});
+			if (endpoints) {
+				ctx.layers.register({
+					id: CONNECTOR_LAYER_IDS.endpoints,
+					order: 81,
+					fixed: true,
+					render: (renderCtx) => <EndpointOverlay ctx={ctx} viewport={renderCtx.viewport} />,
+				});
+			}
 
 			// ── Label editor overlay (Phase 6) ──
 
-			ctx.layers.register({
-				id: "connector-label-editor",
-				order: 83,
-				fixed: true,
-				render: (renderCtx) => <ConnectorLabelEditor ctx={ctx} viewport={renderCtx.viewport} />,
-			});
+			if (labelEditor) {
+				ctx.layers.register({
+					id: CONNECTOR_LAYER_IDS.labelEditor,
+					order: 83,
+					fixed: true,
+					render: (renderCtx) => <ConnectorLabelEditor ctx={ctx} viewport={renderCtx.viewport} />,
+				});
+			}
 
 			// ── Anchor handle overlay (hover to show anchor points) ──
 
-			ctx.layers.register({
-				id: "connector-anchor-handles",
-				order: 79,
-				fixed: true,
-				render: (renderCtx) => <AnchorHandleOverlay ctx={ctx} viewport={renderCtx.viewport} />,
-			});
+			if (anchorHandles) {
+				ctx.layers.register({
+					id: CONNECTOR_LAYER_IDS.anchorHandles,
+					order: 79,
+					fixed: true,
+					render: (renderCtx) => <AnchorHandleOverlay ctx={ctx} viewport={renderCtx.viewport} />,
+				});
+			}
 
-			const cleanupAnchorHandles = setupAnchorHandles(ctx);
+			// Anchor-drag drawing/hover behavior is tied to the anchor-handles UI.
+			const cleanupAnchorHandles = anchorHandles ? setupAnchorHandles(ctx) : undefined;
 
 			// Double-click detection for label editing
 			const unsubLabelClick = ctx.store.onMutation((event) => {
@@ -261,11 +304,10 @@ export function createConnectorPlugin(): UsketchPlugin {
 				stopCascade();
 				unsubLabelClick();
 				unsubPointerForLabel();
-				cleanupAnchorHandles();
-				ctx.layers.unregister("connector-properties");
-				ctx.layers.unregister("connector-endpoints");
-				ctx.layers.unregister("connector-label-editor");
-				ctx.layers.unregister("connector-anchor-handles");
+				cleanupAnchorHandles?.();
+				if (endpoints) ctx.layers.unregister(CONNECTOR_LAYER_IDS.endpoints);
+				if (labelEditor) ctx.layers.unregister(CONNECTOR_LAYER_IDS.labelEditor);
+				if (anchorHandles) ctx.layers.unregister(CONNECTOR_LAYER_IDS.anchorHandles);
 			};
 		},
 	};

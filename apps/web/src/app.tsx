@@ -79,6 +79,7 @@ import { localBoards } from "./lib/local-boards.js";
 import { computePresentStage, type StageRect } from "./lib/present-stage.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
+import { createConnectorPropertyBarPlugin } from "./plugins/connector-property-bar-plugin.js";
 
 type PresentationMode = "off" | "edit" | "present";
 
@@ -140,6 +141,7 @@ function createBasePlugins(): UsketchPlugin[] {
 		createGroupPlugin(),
 		createFramePlugin(),
 		createConnectorPlugin(),
+		createConnectorPropertyBarPlugin(),
 		createFreedrawPlugin(),
 		createTextPlugin(),
 		createStickyPlugin(),
