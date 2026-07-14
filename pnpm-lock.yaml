@@ -551,8 +551,8 @@ importers:
   packages/shared:
     dependencies:
       fractional-indexing:
-        specifier: 3.2.0
-        version: 3.2.0
+        specifier: 3.4.0
+        version: 3.4.0
       react:
         specifier: 19.2.7
         version: 19.2.7
@@ -4952,8 +4952,8 @@ packages:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
     engines: {node: '>= 0.6'}
 
-  fractional-indexing@3.2.0:
-    resolution: {integrity: sha512-PcOxmqwYCW7O2ovKRU8OoQQj2yqTfEB/yeTYk4gPid6dN5ODRfU1hXd9tTVZzax/0NkO7AxpHykvZnT1aYp/BQ==}
+  fractional-indexing@3.4.0:
+    resolution: {integrity: sha512-8J3glhz2rrpKG6KmI7wmJo3zH1VjeOpN+vTJSw1fOyO+Viqq3zX6/5NGh6oaZB2qIAYdOYuu5Dz9xp4faOO0Pg==}
     engines: {node: ^14.13.1 || >=16.0.0}
 
   fresh@2.0.0:
@@ -9459,7 +9459,7 @@ snapshots:
 
   forwarded@0.2.0: {}
 
-  fractional-indexing@3.2.0: {}
+  fractional-indexing@3.4.0: {}
 
   fresh@2.0.0: {}
 
