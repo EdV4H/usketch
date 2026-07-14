@@ -151,7 +151,7 @@ importers:
         version: link:../../packages/sync
       '@hono/zod-validator':
         specifier: 0.7.6
-        version: 0.7.6(hono@4.12.9)(zod@4.3.6)
+        version: 0.7.6(hono@4.12.30)(zod@4.3.6)
       better-auth:
         specifier: 1.5.5
         version: 1.5.5(@cloudflare/workers-types@4.20260317.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13))(mongodb@7.1.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@3.2.4(@types/debug@4.1.13)(@types/node@25.6.0)(tsx@4.21.0)(yaml@2.8.3))
@@ -159,8 +159,8 @@ importers:
         specifier: 0.45.2
         version: 0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13)
       hono:
-        specifier: 4.12.9
-        version: 4.12.9
+        specifier: 4.12.30
+        version: 4.12.30
       yjs:
         specifier: ^13.6.0
         version: 13.6.30
@@ -532,8 +532,8 @@ importers:
   packages/server-core:
     dependencies:
       hono:
-        specifier: 4.12.9
-        version: 4.12.9
+        specifier: 4.12.30
+        version: 4.12.30
     devDependencies:
       '@cloudflare/workers-types':
         specifier: 4.20260317.1
@@ -1289,13 +1289,13 @@ importers:
         version: link:../../packages/server-core
       '@hono/zod-validator':
         specifier: 0.7.6
-        version: 0.7.6(hono@4.12.9)(zod@4.3.6)
+        version: 0.7.6(hono@4.12.30)(zod@4.3.6)
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13)
       hono:
-        specifier: 4.12.9
-        version: 4.12.9
+        specifier: 4.12.30
+        version: 4.12.30
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -1316,8 +1316,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/server-core
       hono:
-        specifier: 4.12.9
-        version: 4.12.9
+        specifier: 4.12.30
+        version: 4.12.30
     devDependencies:
       '@cloudflare/workers-types':
         specifier: 4.20260317.1
@@ -1336,13 +1336,13 @@ importers:
         version: link:../../packages/server-core
       '@hono/zod-validator':
         specifier: 0.7.6
-        version: 0.7.6(hono@4.12.9)(zod@4.3.6)
+        version: 0.7.6(hono@4.12.30)(zod@4.3.6)
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13)
       hono:
-        specifier: 4.12.9
-        version: 4.12.9
+        specifier: 4.12.30
+        version: 4.12.30
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -1364,13 +1364,13 @@ importers:
         version: link:../../packages/server-core
       '@hono/zod-validator':
         specifier: 0.7.6
-        version: 0.7.6(hono@4.12.9)(zod@4.3.6)
+        version: 0.7.6(hono@4.12.30)(zod@4.3.6)
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13)
       hono:
-        specifier: 4.12.9
-        version: 4.12.9
+        specifier: 4.12.30
+        version: 4.12.30
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -1392,13 +1392,13 @@ importers:
         version: link:../../packages/server-core
       '@hono/zod-validator':
         specifier: 0.7.6
-        version: 0.7.6(hono@4.12.9)(zod@4.3.6)
+        version: 0.7.6(hono@4.12.30)(zod@4.3.6)
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@cloudflare/workers-types@4.20260317.1)(kysely@0.28.13)
       hono:
-        specifier: 4.12.9
-        version: 4.12.9
+        specifier: 4.12.30
+        version: 4.12.30
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -5378,6 +5378,10 @@ packages:
     resolution: {integrity: sha512-Ox1pJVrDCyGHMG9CFg1tmrRUMRPRsAWYc/PinY0XzJU4K7y7vjNoLKIQ7BR5UJMCxNN8EM1MNDmHWA/B3aZUuw==}
     engines: {node: '>=6'}
 
+  hono@4.12.30:
+    resolution: {integrity: sha512-emn+JoJjrN9YTpRDS5it/UI2SO9BAE37T6I3d963RxcZ81G9A4pr2SZTEiiaiKbzx+NKRg5BZ89fCL7gCJCUog==}
+    engines: {node: '>=16.9.0'}
+
   hono@4.12.9:
     resolution: {integrity: sha512-wy3T8Zm2bsEvxKZM5w21VdHDDcwVS1yUFFY6i8UobSsKfFceT7TOwhbhfKsDyx7tYQlmRM5FLpIuYvNFyjctiA==}
     engines: {node: '>=16.9.0'}
@@ -8104,9 +8108,9 @@ snapshots:
     dependencies:
       hono: 4.12.9
 
-  '@hono/zod-validator@0.7.6(hono@4.12.9)(zod@4.3.6)':
+  '@hono/zod-validator@0.7.6(hono@4.12.30)(zod@4.3.6)':
     dependencies:
-      hono: 4.12.9
+      hono: 4.12.30
       zod: 4.3.6
 
   '@img/colour@1.1.0': {}
@@ -10174,6 +10178,8 @@ snapshots:
       space-separated-tokens: 2.0.2
 
   hex-rgb@4.3.0: {}
+
+  hono@4.12.30: {}
 
   hono@4.12.9: {}
 
