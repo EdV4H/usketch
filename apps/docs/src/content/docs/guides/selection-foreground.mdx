@@ -83,6 +83,7 @@ Your `render` function receives the same `LayerRenderContext` that regular layer
 | `shapes`        | All shapes on the canvas as `ReadonlyMap<string, ShapeData>`.              |
 | `shapesSorted`  | The same shapes sorted by zIndex (back-to-front).                          |
 | `selection`     | The currently selected shape IDs as `ReadonlySet<string>`.                 |
+| `hoveredShapeId` | The shape currently under the cursor as `string \| null` (set by the active tool — the select tool updates it by default). Use it to adapt the hover indicator per shape type — the hover counterpart to `selection`. |
 | `theme`         | Active theme tokens.                                                       |
 | `renderMode`    | LOD mode (`"interactive"` / `"simplified"`).                               |
 

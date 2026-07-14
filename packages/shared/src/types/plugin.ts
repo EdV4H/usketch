@@ -12,6 +12,14 @@ export interface LayerRenderContext {
 	/** Shapes sorted by zIndex ascending (back to front). Reflects any active filter. */
 	shapesSorted: readonly ShapeData[];
 	selection: ReadonlySet<string>;
+	/**
+	 * Id of the shape currently hovered (cursor over it), or `null`. Lets a
+	 * custom {@link SelectionForeground} adapt the hover indicator per shape type
+	 * — the hover counterpart to {@link selection}. Sourced from
+	 * {@link BoardStore.getHoveredShapeId}: set by the active tool (the select
+	 * tool tracks it on pointer move); `null` when no tool sets it.
+	 */
+	hoveredShapeId: string | null;
 	theme: Theme;
 	/** Current LOD render mode. Layers should adapt their output accordingly. */
 	renderMode: RenderMode;
@@ -586,6 +594,17 @@ export interface BoardStore {
 	addToSelection(id: string): void;
 	removeFromSelection(id: string): void;
 	clearSelection(): void;
+
+	/**
+	 * Id of the shape currently hovered (cursor over it), or `null`. A UI signal
+	 * owned by the store (like {@link getSelection}) so overlays and custom
+	 * selection foregrounds can react to hover via {@link subscribe} +
+	 * {@link LayerRenderContext.hoveredShapeId}. Set by the active tool (the
+	 * select tool tracks it on pointer move); tools that don't track hover leave
+	 * it `null`.
+	 */
+	getHoveredShapeId(): string | null;
+	setHoveredShapeId(id: string | null): void;
 
 	getActiveToolId(): string;
 	setActiveToolId(id: string): void;

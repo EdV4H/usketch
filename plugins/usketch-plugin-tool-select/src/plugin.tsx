@@ -27,7 +27,6 @@ import {
 	getEditingGroupId,
 	setEditingGroupId,
 } from "./group-edit-state.js";
-import { clearHoveredShapeListeners, setHoveredShapeId } from "./hover-state.js";
 import type { MarqueeRect } from "./marquee-state.js";
 import { clearMarqueeListeners, setMarquee, setMarqueeMode } from "./marquee-state.js";
 import { createOverlayColorStore, type OverlayColors } from "./overlay-colors.js";
@@ -326,7 +325,9 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 						editingGroupId: getEditingGroupId(),
 					});
 					setOverrideCursor(result.cursor);
-					setHoveredShapeId(result.handleHit || result.rotationHit ? null : result.hoveredShapeId);
+					toolCtx.store.setHoveredShapeId(
+						result.handleHit || result.rotationHit ? null : result.hoveredShapeId,
+					);
 					return;
 				}
 
@@ -434,14 +435,14 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				dragState = null;
 			}
 
-			function onDeactivate(_toolCtx: ToolContext) {
+			function onDeactivate(toolCtx: ToolContext) {
 				dragState = null;
 				enableTextSelection();
 				setMovingSelection(false);
 				setMarquee(null);
 				setOverrideCursor("");
 				setEditingGroupId(null);
-				setHoveredShapeId(null);
+				toolCtx.store.setHoveredShapeId(null);
 				updateDropTarget(null);
 			}
 
@@ -492,12 +493,11 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				setMovingSelection(false);
 				setMarquee(null);
 				setEditingGroupId(null);
-				setHoveredShapeId(null);
+				ctx.store.setHoveredShapeId(null);
 				updateDropTarget(null);
 				clearMarqueeListeners();
 				clearMovingSelectionListeners();
 				clearEditingGroupListeners();
-				clearHoveredShapeListeners();
 				clearDropTargetListeners();
 				styleEl.remove();
 				unregisterSelectionForeground();

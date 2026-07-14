@@ -19,6 +19,7 @@ import { createSpatialIndex } from "./spatial-index.js";
 export interface BoardState {
 	shapes: Map<string, ShapeData>;
 	selection: Set<string>;
+	hoveredShapeId: string | null;
 	activeToolId: string;
 	defaultToolId: string;
 	viewport: Viewport;
@@ -31,6 +32,7 @@ export function createBoardStore(): BoardStore {
 	const state: BoardState = {
 		shapes: new Map(),
 		selection: new Set(),
+		hoveredShapeId: null,
 		activeToolId: INITIAL_DEFAULT_TOOL_ID,
 		defaultToolId: INITIAL_DEFAULT_TOOL_ID,
 		viewport: { x: 0, y: 0, zoom: 1 },
@@ -246,6 +248,17 @@ export function createBoardStore(): BoardStore {
 			state.selection = new Set();
 			notify();
 			notifyMutation({ type: "selection:changed" });
+		},
+
+		getHoveredShapeId: () => state.hoveredShapeId,
+
+		setHoveredShapeId(id: string | null) {
+			if (state.hoveredShapeId === id) return;
+			state.hoveredShapeId = id;
+			// Reuse the main subscribe channel: selector-based subscribers
+			// (`useSyncExternalStore`) only re-render when their selected value
+			// changes, so shape/selection consumers are unaffected by hover churn.
+			notify();
 		},
 
 		getActiveToolId: () => state.activeToolId,

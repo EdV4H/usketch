@@ -3,7 +3,6 @@ import { isShapeResizable, safeRotation } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { getMovingSelection, subscribeMovingSelection } from "./drag-state.js";
 import { getDropTargetId, subscribeDropTarget } from "./drop-target-state.js";
-import { getHoveredShapeId, subscribeHoveredShape } from "./hover-state.js";
 import type { MarqueeMode } from "./marquee-state.js";
 import {
 	getMarqueeHitIds,
@@ -97,9 +96,9 @@ export function SelectionOverlay({ store, shapes, viewport, colors }: SelectionO
 	);
 
 	const hoveredId = useSyncExternalStore(
-		subscribeHoveredShape,
-		getHoveredShapeId,
-		getHoveredShapeId,
+		(cb) => store.subscribe(cb),
+		() => store.getHoveredShapeId(),
+		() => store.getHoveredShapeId(),
 	);
 	const dropTargetId = useSyncExternalStore(subscribeDropTarget, getDropTargetId, getDropTargetId);
 
