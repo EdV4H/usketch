@@ -29,7 +29,7 @@
 		"@types/react-dom": "19.2.3",
 		"@webgpu/types": "0.1.71",
 		"typescript": "5.9.3",
-		"vitest": "3.2.4"
+		"vitest": "3.2.7"
 	},
 	"publishConfig": {
 		"access": "public"
