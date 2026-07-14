@@ -46,16 +46,14 @@ const pointInBounds = (p: { x: number; y: number }, s: ShapeData) =>
 export function createAttachableAttacher(opts: AttachableAttacherOptions): () => void {
 	const { store, commands, events, resolve } = opts;
 
-	function autoReparent(shapeId: string) {
+	function autoReparent(shapeId: string, sorted: readonly ShapeData[]) {
 		const shape = store.getShape(shapeId);
 		if (!shape) return;
 		const resolution = resolve(shape);
 		if (!resolution) return;
 
 		// Front-most accepted target under the child wins (mirrors picking the
-		// topmost shape on a drop). `getShapesSorted` is back→front, so iterate
-		// in reverse.
-		const sorted = store.getShapesSorted();
+		// topmost shape on a drop). `sorted` is back→front, so iterate in reverse.
 		const shapeBounds = boundsOf(shape);
 		const center = centerOf(shape);
 		let target: ShapeData | undefined;
@@ -92,7 +90,11 @@ export function createAttachableAttacher(opts: AttachableAttacherOptions): () =>
 		if (!data?.shapeIds) return;
 		const timer = setTimeout(() => {
 			pending.delete(timer);
-			for (const shapeId of data.shapeIds) autoReparent(shapeId);
+			// Sort once for the whole batch: reparenting sets only `parentId`, which
+			// doesn't affect z-order or geometry, so the array stays valid across all
+			// shapeIds — avoids re-sorting the board per moved shape.
+			const sorted = store.getShapesSorted();
+			for (const shapeId of data.shapeIds) autoReparent(shapeId, sorted);
 		}, 0);
 		pending.add(timer);
 	});

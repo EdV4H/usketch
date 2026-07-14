@@ -19,6 +19,20 @@ export interface CollectDescendantsOptions {
 }
 
 /**
+ * Cheap check over registered shape *definitions* (bounded by the number of
+ * shape types, not the number of shapes on the board): does any type opt in as
+ * an attachable-follow child? A `follow` that is a predicate is treated as a
+ * possible `true`; only an explicit `follow: false` is ruled out. Lets callers
+ * skip a whole-store scan on boards that don't use `attachable`.
+ */
+function registryDeclaresAttachableFollow(ctx: ToolContext): boolean {
+	for (const def of ctx.shapes.getAll().values()) {
+		if (def.attachable && def.attachable.follow !== false) return true;
+	}
+	return false;
+}
+
+/**
  * Collect the user-selected shapes plus all descendants of any shape whose
  * children should follow (containers by default). Used by the drag/move
  * helper (`startDragSession`) so a parent moves with its children atomically.
@@ -39,12 +53,16 @@ export function collectSelectionWithDescendants(
 		((shape: ShapeData) => isShapeContainer(ctx.shapes.get(shape.type), shape));
 	const childFollows = (shape: ShapeData) => isAttachableFollow(ctx.shapes.get(shape.type), shape);
 
-	// One-time scan for parents of `attachable.follow` children, so a non-container
-	// parent's children are only inspected when at least one of them opts in. Keeps
-	// the common case (no attachable shapes) at the original cost.
+	// Parents of `attachable.follow` children — so a non-container parent's
+	// children are inspected only when at least one of them opts in. Guarded by a
+	// cheap registry check (O(registered types), not O(shapes)): if no registered
+	// definition declares `attachable.follow`, the whole-store scan is skipped and
+	// starting a drag costs exactly what it did before this feature.
 	const attachFollowParents = new Set<string>();
-	for (const shape of ctx.store.getShapes().values()) {
-		if (shape.parentId && childFollows(shape)) attachFollowParents.add(shape.parentId);
+	if (registryDeclaresAttachableFollow(ctx)) {
+		for (const shape of ctx.store.getShapes().values()) {
+			if (shape.parentId && childFollows(shape)) attachFollowParents.add(shape.parentId);
+		}
 	}
 
 	const result = new Map<string, ShapeData>();
