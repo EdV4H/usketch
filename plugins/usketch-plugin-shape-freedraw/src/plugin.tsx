@@ -6,7 +6,7 @@ import { createFreedrawSettingsStore } from "./settings-store.js";
 import { freedrawShapeDefinition } from "./shape.js";
 import type { PenKind } from "./types.js";
 import { createPointerStore, FreedrawCursor } from "./ui/cursor-overlay.js";
-import { type BoolStore, FreedrawPalette } from "./ui/palette.js";
+import type { BoolStore } from "./ui/palette.js";
 
 const TOOL_ID = "freedraw-draw";
 
@@ -86,13 +86,8 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 					<FreedrawCursor settings={settings} pointer={pointer} viewport={rc.viewport} />
 				),
 			});
-			ctx.layers.register({
-				id: "freedraw-palette",
-				order: 126,
-				fixed: true,
-				interactable: true,
-				render: () => <FreedrawPalette settings={settings} active={active} />,
-			});
+			// freedraw の設定 palette は Control HUD の Action(freedraw:*)に統合したため撤去。
+			// カーソル(描画フィードバック)は維持。
 
 			// ── vim 連携 / 外部からの設定変更イベント ──
 			const offPen = ctx.events.on<{ pen: PenKind }>("freedraw:set-pen", ({ pen }) => {
@@ -115,6 +110,50 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 				settings.update({ mode: cur.mode === "eraser" ? "pen" : "eraser" });
 			});
 
+			// ── 操作を Action として公開（Control HUD が自動でUI化。#HUD） ──
+			const offActions = [
+				ctx.actions.register({
+					id: "freedraw:pen",
+					label: "Pen",
+					group: "Freedraw",
+					params: [
+						{
+							name: "pen",
+							type: "enum",
+							default: "ballpoint",
+							options: [
+								{ value: "ballpoint", label: "Ballpoint" },
+								{ value: "felt", label: "Felt" },
+								{ value: "brush", label: "Brush" },
+								{ value: "highlighter", label: "Highlighter" },
+							],
+						},
+					],
+					run: ({ pen }) => ctx.events.emit("freedraw:set-pen", { pen }),
+				}),
+				ctx.actions.register({
+					id: "freedraw:color",
+					label: "Color",
+					group: "Freedraw",
+					params: [{ name: "color", type: "color", default: "#1e1e1e" }],
+					run: ({ color }) => ctx.events.emit("freedraw:set-color", { color }),
+				}),
+				ctx.actions.register({
+					id: "freedraw:size",
+					label: "Size",
+					group: "Freedraw",
+					params: [{ name: "size", type: "number", min: 1, max: 64, step: 1, default: 4 }],
+					run: ({ size }) => ctx.events.emit("freedraw:set-size", { size: Number(size) }),
+				}),
+				ctx.actions.register({
+					id: "freedraw:eraser",
+					label: "Eraser",
+					group: "Freedraw",
+					isActive: () => settings.getSnapshot().mode === "eraser",
+					run: () => ctx.events.emit("freedraw:toggle-eraser", {}),
+				}),
+			];
+
 			// Escape: 消しゴム中ならペンへ、そうでなければ既定ツール（Vim-first では vim）へ戻る。
 			const onKeyDown = (e: KeyboardEvent) => {
 				if (ctx.store.getActiveToolId() !== TOOL_ID || e.key !== "Escape") return;
@@ -135,11 +174,11 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 				offColor();
 				offSize();
 				offEraser();
+				for (const off of offActions) off();
 				if (typeof window !== "undefined") {
 					window.removeEventListener("keydown", onKeyDown, true);
 				}
 				ctx.layers.unregister("freedraw-cursor");
-				ctx.layers.unregister("freedraw-palette");
 			};
 		},
 	};

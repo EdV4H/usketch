@@ -13,7 +13,12 @@ import {
 import { createAddShapeCommand, createUpdateShapeCommand } from "@edv4h/usketch-store";
 import { createMachine, type MachineSchema } from "@zag-js/core";
 import { VanillaMachine } from "@zag-js/vanilla";
-import { DEFAULT_STICKY_COLOR, DEFAULT_STICKY_SIZE, STICKY_COLORS } from "./constants.js";
+import {
+	DEFAULT_STICKY_COLOR,
+	DEFAULT_STICKY_SIZE,
+	STICKY_COLOR_KEYS,
+	STICKY_COLORS,
+} from "./constants.js";
 import { render } from "./render.js";
 import type { StickyShapeData } from "./types.js";
 
@@ -530,6 +535,22 @@ export function createStickyPlugin(): UsketchPlugin {
 				currentColor = data.color;
 			});
 
+			// ── 操作を Action として公開（Control HUD が自動でUI化） ──
+			const offColorAction = ctx.actions.register({
+				id: "sticky:select-color",
+				label: "Sticky color",
+				group: "Sticky",
+				params: [
+					{
+						name: "color",
+						type: "enum",
+						default: DEFAULT_STICKY_COLOR,
+						options: STICKY_COLOR_KEYS.map((k) => ({ value: String(k), label: String(k) })),
+					},
+				],
+				run: ({ color }) => ctx.events.emit("sticky:select-color", { color }),
+			});
+
 			// ── Shape registration ──
 			ctx.shapes.register("sticky", {
 				render,
@@ -615,6 +636,7 @@ export function createStickyPlugin(): UsketchPlugin {
 				window.removeEventListener("usketch:text-escape", onTextEscape);
 				window.removeEventListener("pointerdown", onWindowPointerDown, true);
 				offPointerDown();
+				offColorAction();
 				unsubscribe();
 			};
 		},

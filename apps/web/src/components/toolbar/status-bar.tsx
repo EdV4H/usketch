@@ -11,24 +11,42 @@ type WsProvider = {
 	};
 };
 
-export function StatusBar({ wsProvider }: { wsProvider: WsProvider }) {
+/**
+ * プレゼンス状態(active/away/busy) + Follow メニュー。
+ * `inline` のとき fixed ラッパーを外し、ドロップダウンを下向きに開いて
+ * TopBar など上部バーへ埋め込めるようにする。
+ */
+export function StatusBar({
+	wsProvider,
+	inline = false,
+}: {
+	wsProvider: WsProvider;
+	inline?: boolean;
+}) {
 	const app = useApp();
 	const [showStatus, setShowStatus] = useState(false);
 	const [currentStatus, setCurrentStatus] = useState("active");
 	const [followingName, setFollowingName] = useState<string | null>(null);
 	const [showFollowMenu, setShowFollowMenu] = useState(false);
 
+	// inline（上部バー）では下方向、従来（左下固定）では上方向に開く。
+	const menuOpenStyle = inline ? { top: 42 } : { bottom: 42 };
+
 	return (
 		<div
-			style={{
-				position: "fixed",
-				bottom: 12,
-				left: 12,
-				zIndex: 100,
-				display: "flex",
-				gap: 6,
-				alignItems: "center",
-			}}
+			style={
+				inline
+					? { display: "flex", gap: 6, alignItems: "center" }
+					: {
+							position: "fixed",
+							bottom: 12,
+							left: 12,
+							zIndex: 100,
+							display: "flex",
+							gap: 6,
+							alignItems: "center",
+						}
+			}
 		>
 			<button
 				type="button"
@@ -51,7 +69,7 @@ export function StatusBar({ wsProvider }: { wsProvider: WsProvider }) {
 				<div
 					style={{
 						...dropdownStyle,
-						bottom: 42,
+						...menuOpenStyle,
 						left: 0,
 						minWidth: 120,
 					}}
@@ -124,7 +142,7 @@ export function StatusBar({ wsProvider }: { wsProvider: WsProvider }) {
 							<div
 								style={{
 									...dropdownStyle,
-									bottom: 42,
+									...menuOpenStyle,
 									left: 0,
 									minWidth: 160,
 								}}

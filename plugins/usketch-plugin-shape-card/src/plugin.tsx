@@ -12,7 +12,6 @@ import {
 	zIndexAfterAll,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand, createUpdateShapeCommand } from "@edv4h/usketch-store";
-import { CardActionMenu } from "./card-action-menu.js";
 import { drawTop, shuffle } from "./deck.js";
 import {
 	CARD_TYPE,
@@ -411,6 +410,77 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				playCardFromHand(id),
 			);
 
+			// ── 操作を Action として公開（Control HUD が自動でUI化） ──
+			const selectedOfType = (type: string): string | undefined => {
+				for (const id of ctx.store.getSelection()) {
+					if (ctx.store.getShape(id)?.type === type) return id;
+				}
+				return undefined;
+			};
+			const offActions: Array<() => void> = [];
+			if (hasCardTypes) {
+				offActions.push(
+					ctx.actions.register({
+						id: "card:select-type",
+						label: "Card type",
+						group: "Card",
+						params: [
+							{
+								name: "id",
+								type: "enum",
+								default: firstType,
+								options: [...registry.values()].map((d) => ({ value: d.id, label: d.label })),
+							},
+						],
+						run: ({ id }) => ctx.events.emit("card:select-type", { id }),
+					}),
+					ctx.actions.register({
+						id: "card:flip",
+						label: "Flip selected card",
+						group: "Card",
+						isEnabled: () => selectedOfType(CARD_TYPE) !== undefined,
+						run: () => {
+							const id = selectedOfType(CARD_TYPE);
+							if (id) ctx.events.emit("card:flip", { id });
+						},
+					}),
+					ctx.actions.register({
+						id: "card:to-hand",
+						label: "Selected card → hand",
+						group: "Card",
+						isEnabled: () => selectedOfType(CARD_TYPE) !== undefined,
+						run: () => {
+							const id = selectedOfType(CARD_TYPE);
+							if (id) ctx.events.emit("card:to-hand", { id });
+						},
+					}),
+				);
+				if (enableDeck) {
+					offActions.push(
+						ctx.actions.register({
+							id: "card-deck:draw",
+							label: "Draw from selected deck",
+							group: "Card",
+							isEnabled: () => selectedOfType(DECK_TYPE) !== undefined,
+							run: () => {
+								const id = selectedOfType(DECK_TYPE);
+								if (id) ctx.events.emit("card-deck:draw", { id });
+							},
+						}),
+						ctx.actions.register({
+							id: "card-deck:shuffle",
+							label: "Shuffle selected deck",
+							group: "Card",
+							isEnabled: () => selectedOfType(DECK_TYPE) !== undefined,
+							run: () => {
+								const id = selectedOfType(DECK_TYPE);
+								if (id) ctx.events.emit("card-deck:shuffle", { id });
+							},
+						}),
+					);
+				}
+			}
+
 			// ── 旧来のダブルクリック操作（既定 OFF。操作メニューへ移行済み。#671） ──
 			const offPointerDown = opts.legacyDoubleClickActions
 				? ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
@@ -609,13 +679,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					});
 			}
 
-			// ── 操作メニュー層（選択時に近傍へ追従表示） ──
-			ctx.layers.register({
-				id: "card-menu",
-				order: 82,
-				fixed: true,
-				render: () => <CardActionMenu enableDeck={enableDeck} />,
-			});
+			// カード操作の追従メニューは Control HUD の Action(card:*)に統合したため撤去。
 
 			// ── 手札トレイ層（画面下部固定 HUD。自分の手札のみ中身表示） ──
 			ctx.layers.register({
@@ -643,7 +707,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				offDraw();
 				offToHand();
 				offPlayFromHand();
-				ctx.layers.unregister("card-menu");
+				for (const off of offActions) off();
 				ctx.layers.unregister("card-hand");
 				awareness?.setLocalStateField("cardHand", null);
 			};

@@ -1,3 +1,4 @@
+export { createActionRegistry } from "./action-registry.js";
 export { createCommandRegistry } from "./command-registry.js";
 export type { AppInstance, CreateAppOptions } from "./create-app.js";
 export { createApp } from "./create-app.js";

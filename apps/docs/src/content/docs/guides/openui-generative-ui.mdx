@@ -9,7 +9,7 @@ order: 26
 uSketch can host AI-generated UI widgets — a pricing card, a contact form, a stat dashboard — as first-class shapes on the canvas. Two plugins from this repo cover the round-trip:
 
 - **`@edv4h/usketch-plugin-shape-openui`** — defines the `openui` shape and renders [OpenUI Lang](https://www.openui.com/docs/openui-lang) snippets via `<Renderer>` from `@openuidev/react-lang`.
-- **`@edv4h/usketch-plugin-tool-openui`** — registers a toolbar tool, a side-panel prompt UI, a "Make Real" button on selection, and the LLM provider plumbing (OpenAI / OpenAI-compatible).
+- **`@edv4h/usketch-plugin-tool-openui`** — registers a toolbar tool, a side-panel prompt UI, a "Make Real" action (in the Control HUD's AI group) that runs on the current selection, and the LLM provider plumbing (OpenAI / OpenAI-compatible).
 
 The flow is tldraw's "Make Real" pattern but with OpenUI Lang instead of raw Tailwind HTML: outputs are validated against a Zod-schema-defined component library before they hit the DOM, so a malicious LLM cannot inject arbitrary script tags.
 
@@ -74,7 +74,7 @@ The status row reports streaming progress; the **Cancel** button aborts in-fligh
 
 ### Make Real
 
-Select any shapes (a freehand sketch, a stack of stickies, a wireframe drawn with rectangles), then click **✨ Make Real** in the floating button above the selection. The plugin:
+Select any shapes (a freehand sketch, a stack of stickies, a wireframe drawn with rectangles), then run **✨ Make Real** from the **AI** group in the Control HUD (open it with the backtick `` ` `` key — the old floating selection button is now consolidated into this action). The plugin:
 
 1. Snapshots the selection as a PNG via `exportCanvas` from `@edv4h/usketch-plugin-export`.
 2. Sends the image plus a "build a real UI matching this sketch" prompt to the provider.

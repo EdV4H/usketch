@@ -162,6 +162,24 @@ export function createDomainDesignPlugin(): UsketchPlugin {
 			});
 			cleanups.push(offSubtype);
 
+			// Control HUD 用 Action（Demo の subtype picker 相当）
+			cleanups.push(
+				ctx.actions.register({
+					id: "domain-design:subtype",
+					label: "Domain subtype",
+					group: "Domain",
+					params: [
+						{
+							name: "type",
+							type: "enum",
+							default: DOMAIN_SUBTYPES[0]?.type,
+							options: DOMAIN_SUBTYPES.map((s) => ({ value: s.type, label: s.label })),
+						},
+					],
+					run: ({ type }) => ctx.events.emit("domain-design:select-subtype", { type }),
+				}),
+			);
+
 			// Connector draw tool（subtype 切替で domainKind / relation が変わる）
 			const connectorTool: DomainConnectorDrawTool = createDomainConnectorDrawTool(() => {
 				const subtype = DOMAIN_SUBTYPES.find((s) => s.type === currentSubtype);

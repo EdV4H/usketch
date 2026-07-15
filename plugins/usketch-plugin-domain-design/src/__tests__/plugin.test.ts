@@ -102,6 +102,14 @@ function createMockContext() {
 		},
 		layers: { register: vi.fn(), unregister: vi.fn(), getLayers: () => [] },
 		shortcuts: { register: vi.fn(() => () => {}), handleKeyDown: vi.fn() },
+		actions: {
+			register: vi.fn(() => () => {}),
+			unregister: vi.fn(),
+			get: vi.fn(),
+			getAll: () => new Map(),
+			getOrdered: () => [],
+			subscribe: vi.fn(() => () => {}),
+		},
 		transient: {
 			registerType: vi.fn(),
 			getRenderer: vi.fn(),

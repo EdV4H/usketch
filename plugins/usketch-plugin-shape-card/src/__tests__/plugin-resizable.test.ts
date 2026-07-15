@@ -36,6 +36,14 @@ function registeredDefs(opts: CreateCardPluginOptions): Map<string, ShapeDefinit
 		},
 		tools: { register: noop },
 		layers: { register: noop, unregister: noop },
+		actions: {
+			register: () => noop,
+			unregister: noop,
+			get: () => undefined,
+			getAll: () => new Map(),
+			getOrdered: () => [],
+			subscribe: () => noop,
+		},
 		shortcuts: { register: off },
 		store: {
 			getShape: () => undefined,

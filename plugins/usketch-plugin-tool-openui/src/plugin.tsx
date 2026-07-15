@@ -1,4 +1,3 @@
-import { ShapeAnchorOverlay, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
 import { exportCanvas } from "@edv4h/usketch-plugin-export";
 import { sanitizeLangSource, setOpenUILibrary } from "@edv4h/usketch-plugin-shape-openui";
 import {
@@ -17,7 +16,6 @@ import type { OpenUIGenerateRequest, OpenUIToolOptions } from "./types.js";
 
 const TOOL_ID = "openui";
 const SIDE_PANEL_TAB_ID = "openui";
-const MAKE_REAL_LAYER_ID = "openui-make-real";
 const GENERATE_EVENT = "openui:generate-request";
 const AI_STATUS_EVENT = "ai:status";
 
@@ -204,22 +202,62 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 				},
 			});
 
+			// 選択から「Make Real」対象の shape 群を取り出す。空 / openui 自身を
+			// 含む場合は対象外（自己参照生成を避ける）。
+			const selectionForMakeReal = (): ShapeData[] => {
+				const shapes = [...ctx.store.getSelection()]
+					.map((id) => ctx.store.getShape(id))
+					.filter((s): s is ShapeData => Boolean(s));
+				if (shapes.length === 0) return [];
+				if (shapes.some((s) => s.type === "openui")) return [];
+				return shapes;
+			};
+
+			async function runMakeReal(): Promise<void> {
+				const shapes = selectionForMakeReal();
+				if (shapes.length === 0) return;
+				try {
+					const selectionMap = new Map<string, ShapeData>();
+					for (const s of shapes) selectionMap.set(s.id, s);
+					const blob = await exportCanvas(selectionMap, ctx.shapes, {
+						format: "png",
+						pixelRatio: 2,
+						background: "#ffffff",
+					});
+					const imageDataUrl: string = await new Promise((resolve, reject) => {
+						const reader = new FileReader();
+						reader.onload = () => resolve(reader.result as string);
+						reader.onerror = () => reject(new Error("Failed to read screenshot"));
+						reader.readAsDataURL(blob);
+					});
+					// 生成 shape は元選択の右隣に配置する。
+					const bounds = unionBounds(shapes);
+					placementBase = bounds
+						? { x: bounds.x + bounds.width + 280, y: bounds.y + bounds.height / 2 }
+						: null;
+					ctx.events.emit(GENERATE_EVENT, {
+						prompt: "Build a real, polished UI that faithfully matches this sketch.",
+						vision: { imageDataUrl },
+					});
+				} catch (err) {
+					emitStatus({
+						status: "error",
+						message: err instanceof Error ? err.message : "Make Real failed",
+					});
+				}
+			}
+
+			// 追従ボタンではなく Control HUD の Action として提供する。
+			let offMakeRealAction: (() => void) | undefined;
 			if (enableMakeReal && provider.supportsVision) {
-				ctx.layers.register({
-					id: MAKE_REAL_LAYER_ID,
-					order: 86,
-					fixed: true,
-					render: () => (
-						<MakeRealButton
-							ctx={ctx}
-							onTrigger={(bounds) => {
-								// Place the new shape to the right of the source selection.
-								placementBase = bounds
-									? { x: bounds.x + bounds.width + 280, y: bounds.y + bounds.height / 2 }
-									: null;
-							}}
-						/>
-					),
+				offMakeRealAction = ctx.actions.register({
+					id: "openui:make-real",
+					label: "✨ Make Real",
+					group: "AI",
+					isEnabled: () => selectionForMakeReal().length > 0,
+					run: () => {
+						void runMakeReal();
+					},
 				});
 			}
 
@@ -229,10 +267,8 @@ export function createOpenUIToolPlugin(opts: OpenUIToolOptions): UsketchPlugin {
 
 			return () => {
 				offGenerate();
+				offMakeRealAction?.();
 				ctx.events.emit("side-panel:unregister-tab", { tabId: SIDE_PANEL_TAB_ID });
-				if (enableMakeReal && provider.supportsVision) {
-					ctx.layers.unregister(MAKE_REAL_LAYER_ID);
-				}
 				setOpenUILibrary(null);
 				activeController?.abort();
 			};
@@ -404,101 +440,5 @@ function OpenUISidePanel({ events, provider, model, onCancel }: SidePanelProps) 
 				</div>
 			) : null}
 		</div>
-	);
-}
-
-// ─── Make Real button ────────────────────────────────────────────────────
-
-interface MakeRealProps {
-	ctx: PluginContext;
-	onTrigger: (bounds: BoundingBox | null) => void;
-}
-
-function MakeRealButton({ ctx, onTrigger }: MakeRealProps) {
-	const selection = useStoreSubscribe(ctx.store, (s) => s.getSelection());
-	const [busy, setBusy] = useState(false);
-
-	if (selection.size === 0) return null;
-
-	const ids = [...selection];
-	const shapes = ids.map((id) => ctx.store.getShape(id)).filter((s): s is ShapeData => Boolean(s));
-	if (shapes.length === 0) return null;
-	if (shapes.some((s) => s.type === "openui")) return null;
-
-	const handleClick = async (): Promise<void> => {
-		setBusy(true);
-		try {
-			const selectionMap = new Map<string, ShapeData>();
-			for (const s of shapes) selectionMap.set(s.id, s);
-			const blob = await exportCanvas(selectionMap, ctx.shapes, {
-				format: "png",
-				pixelRatio: 2,
-				background: "#ffffff",
-			});
-			const imageDataUrl: string = await new Promise((resolve, reject) => {
-				const reader = new FileReader();
-				reader.onload = () => resolve(reader.result as string);
-				reader.onerror = () => reject(new Error("Failed to read screenshot"));
-				reader.readAsDataURL(blob);
-			});
-			onTrigger(unionBounds(shapes));
-			ctx.events.emit(GENERATE_EVENT, {
-				prompt: "Build a real, polished UI that faithfully matches this sketch.",
-				vision: { imageDataUrl },
-			});
-		} catch (err) {
-			ctx.events.emit(AI_STATUS_EVENT, {
-				status: "error",
-				message: err instanceof Error ? err.message : "Make Real failed",
-				source: "openui",
-			});
-		} finally {
-			setBusy(false);
-		}
-	};
-
-	return (
-		<ShapeAnchorOverlay
-			shapeIds={ids}
-			position="top"
-			fallback="bottom"
-			style={{ pointerEvents: "auto" }}
-		>
-			<div
-				style={{
-					display: "inline-flex",
-					alignItems: "center",
-					gap: 6,
-					background: "#ffffff",
-					border: "1px solid #e5e7eb",
-					borderRadius: 8,
-					padding: "4px 8px",
-					boxShadow: "0 2px 8px rgba(15, 23, 42, 0.08)",
-					fontSize: 13,
-					fontFamily: "system-ui, -apple-system, sans-serif",
-				}}
-				onPointerDown={(e) => e.stopPropagation()}
-			>
-				<button
-					type="button"
-					onClick={handleClick}
-					disabled={busy}
-					style={{
-						display: "inline-flex",
-						alignItems: "center",
-						gap: 4,
-						padding: "4px 8px",
-						border: "none",
-						background: "transparent",
-						cursor: busy ? "wait" : "pointer",
-						fontSize: 13,
-						fontWeight: 500,
-						color: "#0f172a",
-					}}
-				>
-					{busy ? "…" : "✨ Make Real"}
-				</button>
-			</div>
-		</ShapeAnchorOverlay>
 	);
 }

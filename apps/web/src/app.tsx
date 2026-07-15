@@ -62,24 +62,16 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router";
-import {
-	BoardIdentity,
-	CommunityLink,
-	CopilotPill,
-	TopRightCluster,
-	ZoomControls,
-} from "./components/board-frame/index.js";
+import { CopilotPill, TopBar } from "./components/board-frame/index.js";
 import { CommandPalette, useCommandPaletteShortcut } from "./components/command-palette.js";
 import { InfoTab } from "./components/side-panel/info-tab.js";
 import { SidePanelToggles } from "./components/side-panel/side-panel-toggles.js";
-import { Toolbar } from "./components/toolbar/index.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
 import { computePresentStage, type StageRect } from "./lib/present-stage.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
-import { createConnectorPropertyBarPlugin } from "./plugins/connector-property-bar-plugin.js";
 
 type PresentationMode = "off" | "edit" | "present";
 
@@ -147,7 +139,6 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		createGroupPlugin(),
 		createFramePlugin(),
 		createConnectorPlugin(),
-		createConnectorPropertyBarPlugin(),
 		createFreedrawPlugin(),
 		createTextPlugin(),
 		createStickyPlugin(),
@@ -176,12 +167,43 @@ async function loadPlugins(
 	cardHand: CardHandWiring,
 ): Promise<UsketchPlugin[]> {
 	const plugins = [...createBasePlugins(cardHand), ...extra];
-	if (import.meta.env.DEV) {
-		const { createDebugHudPlugin } = await import("@edv4h/usketch-plugin-debug-hud");
-		return [...plugins, createDebugHudPlugin()];
-	}
-	return plugins;
+	// Control HUD (universal plugin-operation panel). Promoted from DEV-only to a
+	// first-class, always-available panel — hidden by default, toggled with `` ` ``.
+	// Kept as a dynamic import so it stays code-split.
+	const { createDebugHudPlugin } = await import("@edv4h/usketch-plugin-debug-hud");
+	return [...plugins, createDebugHudPlugin()];
 }
+
+/**
+ * Board メタ情報（タイトル / Cloud か Local か / id）を Control HUD に供給する
+ * 小さなリアクティブストア。HUD は `globalThis.__usketchBoardMeta` を購読して
+ * General パネルに表示する（`__usketchSyncStatus` と同じ受け渡し方式）。
+ * モジュールスコープで生成しておくことで、プラグイン setup 時点で必ず存在する。
+ */
+type BoardMetaValue = { id?: string; name: string | null; isCloud: boolean };
+const boardMetaStore = (() => {
+	let snapshot: BoardMetaValue = { name: null, isCloud: false };
+	const listeners = new Set<() => void>();
+	return {
+		getSnapshot: () => snapshot,
+		set(next: BoardMetaValue) {
+			if (
+				snapshot.id === next.id &&
+				snapshot.name === next.name &&
+				snapshot.isCloud === next.isCloud
+			) {
+				return;
+			}
+			snapshot = next;
+			for (const l of listeners) l();
+		},
+		subscribe(listener: () => void) {
+			listeners.add(listener);
+			return () => listeners.delete(listener);
+		},
+	};
+})();
+(globalThis as Record<string, unknown>).__usketchBoardMeta = boardMetaStore;
 
 export function App() {
 	const { boardId } = useParams<{ boardId: string }>();
@@ -189,9 +211,6 @@ export function App() {
 	const navigate = useNavigate();
 	const isCloudBoard = location.pathname.startsWith("/boards/");
 	const presentationMode = readPresentationMode(location.search);
-	// 通常のホワイトボード編集（presentation 以外）は Vim 操作を既定とし、
-	// ツールバー等の chrome を表示しない（UI はプラグインのレイヤーが担う）。
-	const vimFirst = presentationMode === "off";
 	const { user: authUser } = useAuth();
 
 	// 最新の presentation mode を useEffect 外部から参照するための ref。
@@ -417,7 +436,7 @@ export function App() {
 		// presentation plugin が modeRef 経由で最新値を読む（undo 履歴・WebSocket を残すため）。
 	}, [boardId, isCloudBoard, navigate]);
 
-	// Cloud ボードのタイトル取得（BoardIdentity 表示用）
+	// Cloud ボードのタイトル取得（Control HUD の Board メタ表示用）
 	useEffect(() => {
 		if (!boardId) {
 			setBoardName(null);
@@ -449,6 +468,11 @@ export function App() {
 			cancelled = true;
 		};
 	}, [boardId, isCloudBoard]);
+
+	// Board メタ情報を Control HUD 用ストアへ反映（表示は HUD の General パネル）。
+	useEffect(() => {
+		boardMetaStore.set({ id: boardId, name: boardName, isCloud: isCloudBoard });
+	}, [boardId, boardName, isCloudBoard]);
 
 	// ページ離脱時にビューポート位置を保存（ゴーストアバター用）
 	useEffect(() => {
@@ -495,14 +519,16 @@ export function App() {
 	// フェーズでキーを先取りするため衝突せず、Vim 非アクティブ時は通常通り動く）。
 	useKeyboardShortcuts(app, presentationMode === "present");
 
-	// Vim-first では vim を、それ以外（presentation）では select を既定/アクティブにする。
-	// presentation への切替時に vim が残り続けないよう両方向で設定する。
+	// Vim モードは既定 OFF（store の既定ツールは "select"）。Control HUD の
+	// "Vim mode" アクションで実行時に切り替える。プレゼン発表へ切替時のみ、vim が
+	// 残り続けないよう select に戻す。
 	useEffect(() => {
 		if (!app) return;
-		const tool = vimFirst ? "vim" : "select";
-		app.store.setDefaultToolId(tool);
-		app.store.setActiveToolId(tool);
-	}, [app, vimFirst]);
+		if (presentationMode === "present") {
+			app.store.setDefaultToolId("select");
+			app.store.setActiveToolId("select");
+		}
+	}, [app, presentationMode]);
 
 	// Info タブを SidePanel に登録（Cloud ボードのみ）
 	useEffect(() => {
@@ -567,8 +593,9 @@ export function App() {
 	if (!app) return null;
 
 	// 発表モード中、または Vim-first UI では通常の chrome を隠す
-	// （Vim-first ではステータスライン等を vim プラグインが自前描画する）
-	const hideToolbar = presentationMode === "present" || vimFirst;
+	// ツールバーは通常表示。Vim モードは既定 OFF で、Control HUD の "Vim mode"
+	// アクションから切り替える（プレゼン発表中のみ chrome を隠す）。
+	const hideToolbar = presentationMode === "present";
 	// プレゼン編集モード中はスライド編集に関係ない UI を隠す
 	const isPresentEdit = presentationMode === "edit";
 	// 発表中は Canvas を readonly (シェイプ選択/ドラッグ/描画を全てオフ)
@@ -586,7 +613,7 @@ export function App() {
 				}}
 			>
 				{/*
-					エディタ全体 (Canvas + Toolbar + BoardIdentity 等) をひとつの div で包む。
+					エディタ全体 (Canvas + TopBar 等) をひとつの div で包む。
 					プレゼン編集モード中は stage 矩形に縮め、外側を発表 UI が取り囲む形にする。
 					transform を当てると内側の position: fixed 要素の containing block が
 					この div になるため、Toolbar 等を書き換えずに相対化できる (CSS spec)。
@@ -616,28 +643,13 @@ export function App() {
 					<Canvas />
 					{!hideToolbar && (
 						<>
-							<BoardIdentity
-								boardName={boardName ?? undefined}
-								isCloudBoard={isCloudBoard}
-								connectionStatus={wsStatus ?? undefined}
-							/>
-							{!isPresentEdit && (
-								<TopRightCluster
-									boardId={boardId}
-									isCloudBoard={isCloudBoard}
-									wsProvider={wsProviderRef.current}
-									connectionStatus={wsStatus ?? undefined}
-								/>
-							)}
-							<Toolbar
+							<TopBar
 								boardId={boardId}
 								isCloudBoard={isCloudBoard}
 								wsProvider={wsProviderRef.current}
 								onOpenCommandPalette={openPalette}
 								compact={isPresentEdit}
 							/>
-							{!isPresentEdit && <ZoomControls />}
-							{!isPresentEdit && <CommunityLink />}
 							{isCloudBoard && !isPresentEdit && <SidePanelToggles app={app} />}
 							{isCloudBoard && !isPresentEdit && <CopilotPill onOpenCommandPalette={openPalette} />}
 						</>

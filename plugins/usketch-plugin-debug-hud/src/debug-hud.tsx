@@ -1,4 +1,5 @@
 import type {
+	ActionRegistry,
 	BoardStore,
 	CommandRegistry,
 	EventBus,
@@ -7,11 +8,17 @@ import type {
 	ShapeRegistry,
 	ToolRegistry,
 } from "@edv4h/usketch-shared";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import type { BoardMetaTrackerLike } from "./board-meta-types.js";
 import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
 import { Minimap } from "./overlays/minimap.js";
 import { ShapeBoundsOverlay } from "./overlays/shape-bounds-overlay.js";
+import {
+	CONTROLS_DOCK_COLLAPSED,
+	CONTROLS_DOCK_WIDTH,
+	ControlsPanel,
+} from "./panels/controls-panel.js";
 import { EventsPanel } from "./panels/events-panel.js";
 import { GeneralPanel } from "./panels/general-panel.js";
 import { ShapesPanel } from "./panels/shapes-panel.js";
@@ -29,7 +36,9 @@ interface DebugHudProps {
 	tools: ToolRegistry;
 	layers: LayerManager;
 	shapes: ShapeRegistry;
+	actions: ActionRegistry;
 	syncStatus?: SyncStatusTrackerLike;
+	boardMeta?: BoardMetaTrackerLike;
 	events: EventBus;
 	ctx: LayerRenderContext;
 	visibility: VisibilityStore;
@@ -50,7 +59,9 @@ export function DebugHud({
 	tools,
 	layers,
 	shapes,
+	actions,
 	syncStatus,
+	boardMeta,
 	events,
 	ctx,
 	visibility,
@@ -62,6 +73,9 @@ export function DebugHud({
 	const getVisibility = useCallback(() => visibility.get(), [visibility]);
 	const visible = useSyncExternalStore(subscribeVisibility, getVisibility, getVisibility);
 	const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
+	const [controlsCollapsed, setControlsCollapsed] = useState(false);
+	// Left offset for the Shapes panel / Minimap so they clear the Controls dock.
+	const leftOffset = 8 + (controlsCollapsed ? CONTROLS_DOCK_COLLAPSED : CONTROLS_DOCK_WIDTH) + 8;
 
 	// Keyboard shortcut (backtick)
 	useEffect(() => {
@@ -98,6 +112,25 @@ export function DebugHud({
 
 	const hoveredShape = hoveredShapeId ? shapeMap.get(hoveredShapeId) : undefined;
 
+	// Canvas は自身のコンテナに native な wheel リスナ(passive:false)を張り、
+	// HUD パネル上のスクロールまで拾って zoom/pan してしまう。React の onWheel
+	// stopPropagation は Canvas コンテナより後(React root)で発火するため間に合わ
+	// ない。パネル群を包む本要素に native wheel リスナを張り、パネル由来の wheel
+	// が Canvas コンテナへバブリングする前に止める（パネル自身のスクロールは通す
+	// ので stopPropagation のみ、preventDefault はしない）。空き領域の wheel は
+	// pointerEvents:none によりこの要素を経由せず Canvas に直接届くため無影響。
+	const wheelGuardRef = useRef<HTMLDivElement>(null);
+	// visible はラッパーのマウント/アンマウントを切り替えるため、ref 再取得の
+	// トリガーとして依存に含める（body 内で直接参照しないので biome へ明示）。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: re-attach on visibility toggle
+	useEffect(() => {
+		const el = wheelGuardRef.current;
+		if (!el) return;
+		const stop = (e: WheelEvent) => e.stopPropagation();
+		el.addEventListener("wheel", stop, { passive: false });
+		return () => el.removeEventListener("wheel", stop);
+	}, [visible]);
+
 	// Shortcut hint — bottom-center (always visible)
 	const hint = (
 		<div
@@ -121,7 +154,7 @@ export function DebugHud({
 	}
 
 	return (
-		<>
+		<div ref={wheelGuardRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
 			{hint}
 
 			{/* Bounding box overlay (behind panels, no pointer events) */}
@@ -137,27 +170,45 @@ export function DebugHud({
 				layers={layers}
 				shapes={shapes}
 				syncStatus={syncStatus}
+				boardMeta={boardMeta}
 				events={events}
 				viewport={viewport}
 				activeToolId={activeToolId}
 			/>
 
-			{/* Left-center: Shapes Inspector */}
-			<ShapesPanel
+			{/* Left dock: universal control panel (tools + actions + shapes + event console + style) */}
+			<ControlsPanel
 				store={store}
-				commands={commands}
-				shapes={shapeMap}
-				selection={selection}
-				registry={shapes}
-				onHoverShape={setHoveredShapeId}
-				unconfirmedShapeIds={unconfirmedShapeIdSet}
+				tools={tools}
+				actions={actions}
+				events={events}
+				activeToolId={activeToolId}
+				collapsed={controlsCollapsed}
+				onToggleCollapsed={() => setControlsCollapsed((c) => !c)}
+				shapesSection={
+					<ShapesPanel
+						store={store}
+						commands={commands}
+						shapes={shapeMap}
+						selection={selection}
+						registry={shapes}
+						onHoverShape={setHoveredShapeId}
+						unconfirmedShapeIds={unconfirmedShapeIdSet}
+						docked
+					/>
+				}
 			/>
 
 			{/* Right-bottom: Event Log */}
 			<EventsPanel eventLogger={eventLogger} />
 
-			{/* Bottom-left: Minimap */}
-			<Minimap shapes={shapeMap} viewport={viewport} selection={selection} />
-		</>
+			{/* Bottom-left (right of the dock): Minimap */}
+			<Minimap
+				shapes={shapeMap}
+				viewport={viewport}
+				selection={selection}
+				offsetLeft={leftOffset}
+			/>
+		</div>
 	);
 }

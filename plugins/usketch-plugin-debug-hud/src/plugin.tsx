@@ -54,6 +54,11 @@ export function createDebugHudPlugin(): UsketchPlugin {
 				| import("./sync-status-types.js").SyncStatusTrackerLike
 				| undefined;
 
+			// Board メタ情報トラッカーも同じく window 経由で受け取る（app.tsx が設定）。
+			const boardMeta = (globalThis as Record<string, unknown>).__usketchBoardMeta as
+				| import("./board-meta-types.js").BoardMetaTrackerLike
+				| undefined;
+
 			// Register the fixed layer — always renders, visibility toggled inside component
 			ctx.layers.register({
 				id: "debug-hud",
@@ -69,7 +74,9 @@ export function createDebugHudPlugin(): UsketchPlugin {
 						tools={ctx.tools}
 						layers={ctx.layers}
 						shapes={ctx.shapes}
+						actions={ctx.actions}
 						syncStatus={syncStatus}
+						boardMeta={boardMeta}
 						events={ctx.events}
 						ctx={renderCtx}
 						visibility={visibility}

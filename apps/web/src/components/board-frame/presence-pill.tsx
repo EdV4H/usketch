@@ -1,4 +1,3 @@
-import type { WsConnectionStatus } from "@edv4h/usketch-sync";
 import { useEffect, useState } from "react";
 
 type WsProvider = {
@@ -36,11 +35,13 @@ function initial(name: string): string {
 
 interface Props {
 	wsProvider: WsProvider | null;
-	connectionStatus?: WsConnectionStatus;
 }
 
-/** 右上の presence + 同期状態 pill（モック StatusBar の再現）。 */
-export function PresencePill({ wsProvider, connectionStatus }: Props) {
+/**
+ * 右上の presence pill（他ユーザーのアバター）。
+ * 接続/同期ステータスは Control HUD(General パネル)に集約したためここでは表示しない。
+ */
+export function PresencePill({ wsProvider }: Props) {
 	const [members, setMembers] = useState<Member[]>([]);
 
 	useEffect(() => {
@@ -68,9 +69,11 @@ export function PresencePill({ wsProvider, connectionStatus }: Props) {
 		};
 	}, [wsProvider]);
 
-	const connected = connectionStatus === "connected";
 	const visible = members.slice(0, 3);
 	const overflow = members.length - visible.length;
+
+	// 他ユーザーがいなければ何も表示しない（接続ステータスは HUD 側に集約済み）。
+	if (members.length === 0) return null;
 
 	return (
 		<div
@@ -85,65 +88,46 @@ export function PresencePill({ wsProvider, connectionStatus }: Props) {
 				fontFamily: "var(--font-sans, system-ui)",
 			}}
 		>
-			<div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-				<div
-					style={{
-						width: 7,
-						height: 7,
-						borderRadius: 99,
-						background: connected ? "var(--success)" : "var(--warning)",
-						boxShadow: connected ? "0 0 6px var(--success)" : "none",
-					}}
-				/>
-				<span style={{ color: "var(--fg-secondary)" }}>
-					{connected ? "同期中" : connectionStatus === "connecting" ? "接続中…" : "再接続中…"}
-				</span>
-			</div>
-			{members.length > 0 && (
-				<>
-					<div style={{ width: 1, height: 10, background: "var(--border-default)" }} />
-					<div style={{ display: "flex" }}>
-						{visible.map((m, i) => (
+			<div style={{ display: "flex" }}>
+				{visible.map((m, i) => (
+					<div
+						key={m.clientId}
+						title={m.name}
+						style={{
+							width: 20,
+							height: 20,
+							borderRadius: 99,
+							background: m.color,
+							color: "white",
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							fontSize: 9.5,
+							fontWeight: 600,
+							border: "2px solid var(--bg-surface-solid)",
+							marginLeft: i ? -6 : 0,
+							position: "relative",
+						}}
+					>
+						{initial(m.name)}
+						{m.status === "busy" && (
 							<div
-								key={m.clientId}
-								title={m.name}
 								style={{
-									width: 20,
-									height: 20,
+									position: "absolute",
+									right: -1,
+									bottom: -1,
+									width: 7,
+									height: 7,
 									borderRadius: 99,
-									background: m.color,
-									color: "white",
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "center",
-									fontSize: 9.5,
-									fontWeight: 600,
-									border: "2px solid var(--bg-surface-solid)",
-									marginLeft: i ? -6 : 0,
-									position: "relative",
+									background: "var(--danger)",
+									border: "1.5px solid var(--bg-surface-solid)",
 								}}
-							>
-								{initial(m.name)}
-								{m.status === "busy" && (
-									<div
-										style={{
-											position: "absolute",
-											right: -1,
-											bottom: -1,
-											width: 7,
-											height: 7,
-											borderRadius: 99,
-											background: "var(--danger)",
-											border: "1.5px solid var(--bg-surface-solid)",
-										}}
-									/>
-								)}
-							</div>
-						))}
+							/>
+						)}
 					</div>
-					{overflow > 0 && <span style={{ color: "var(--fg-tertiary)" }}>+ {overflow}</span>}
-				</>
-			)}
+				))}
+			</div>
+			{overflow > 0 && <span style={{ color: "var(--fg-tertiary)" }}>+ {overflow}</span>}
 		</div>
 	);
 }

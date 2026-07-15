@@ -140,6 +140,22 @@ export function createBasicShapePlugin(): UsketchPlugin {
 				currentSubtype = data.type;
 			});
 
+			// Control HUD 用 Action（Demo の subtype picker 相当）
+			const offSubtypeAction = ctx.actions.register({
+				id: "basic-shape:subtype",
+				label: "Shape subtype",
+				group: "Basic shape",
+				params: [
+					{
+						name: "type",
+						type: "enum",
+						default: BASIC_SHAPE_SUBTYPES[0].type,
+						options: BASIC_SHAPE_SUBTYPES.map((s) => ({ value: s.type, label: s.label })),
+					},
+				],
+				run: ({ type }) => ctx.events.emit("basic-shape:select-subtype", { type }),
+			});
+
 			function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
 				const subtype = BASIC_SHAPE_SUBTYPES.find((s) => s.type === currentSubtype);
 				if (!subtype) return;
@@ -187,6 +203,7 @@ export function createBasicShapePlugin(): UsketchPlugin {
 
 			return () => {
 				offSubtype();
+				offSubtypeAction();
 			};
 		},
 	};
