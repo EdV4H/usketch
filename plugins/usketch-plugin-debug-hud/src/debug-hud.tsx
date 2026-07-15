@@ -1,4 +1,5 @@
 import type {
+	ActionRegistry,
 	BoardStore,
 	CommandRegistry,
 	EventBus,
@@ -12,6 +13,7 @@ import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
 import { Minimap } from "./overlays/minimap.js";
 import { ShapeBoundsOverlay } from "./overlays/shape-bounds-overlay.js";
+import { ControlsPanel } from "./panels/controls-panel.js";
 import { EventsPanel } from "./panels/events-panel.js";
 import { GeneralPanel } from "./panels/general-panel.js";
 import { ShapesPanel } from "./panels/shapes-panel.js";
@@ -29,6 +31,7 @@ interface DebugHudProps {
 	tools: ToolRegistry;
 	layers: LayerManager;
 	shapes: ShapeRegistry;
+	actions: ActionRegistry;
 	syncStatus?: SyncStatusTrackerLike;
 	events: EventBus;
 	ctx: LayerRenderContext;
@@ -50,6 +53,7 @@ export function DebugHud({
 	tools,
 	layers,
 	shapes,
+	actions,
 	syncStatus,
 	events,
 	ctx,
@@ -151,6 +155,15 @@ export function DebugHud({
 				registry={shapes}
 				onHoverShape={setHoveredShapeId}
 				unconfirmedShapeIds={unconfirmedShapeIdSet}
+			/>
+
+			{/* Left: universal control panel (tools + actions + event console + style) */}
+			<ControlsPanel
+				store={store}
+				tools={tools}
+				actions={actions}
+				events={events}
+				activeToolId={activeToolId}
 			/>
 
 			{/* Right-bottom: Event Log */}

@@ -1,4 +1,5 @@
 import type {
+	ActionRegistry,
 	BoardStore,
 	CommandRegistry,
 	EventBus,
@@ -17,6 +18,7 @@ import type {
 	UiRegistry,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
+import { createActionRegistry } from "./action-registry.js";
 import { createCommandRegistry } from "./command-registry.js";
 import { createEventBus } from "./event-bus.js";
 import { createExternalContentRegistry } from "./external-content-registry.js";
@@ -53,6 +55,8 @@ export interface AppInstance {
 	selectionForeground: SelectionForegroundRegistry;
 	/** Exposed so canvas-engine can dispatch drop/paste content. */
 	externalContent: ExternalContentRegistry;
+	/** Enumerable declarative plugin operations (control HUD / command palette). */
+	actions: ActionRegistry;
 	plugins: readonly UsketchPlugin[];
 	destroy(): void;
 }
@@ -89,6 +93,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	const shortcuts = createShortcutRegistry();
 	const events = createEventBus();
 	const transient = createTransientRegistry();
+	const actions = createActionRegistry();
 	const selectionForeground = createSelectionForegroundRegistry();
 	const ui: UiRegistry = {
 		registerSelectionForeground: (entry) => selectionForeground.register(entry),
@@ -125,6 +130,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		lod,
 		ui,
 		externalContent,
+		actions,
 	};
 
 	// Bridge store mutations to EventBus
@@ -189,6 +195,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		ui,
 		selectionForeground,
 		externalContent,
+		actions,
 		plugins: pluginRegistry.getAll(),
 		destroy() {
 			if (destroyed) return;

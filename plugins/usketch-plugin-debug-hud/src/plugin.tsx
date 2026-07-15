@@ -69,6 +69,7 @@ export function createDebugHudPlugin(): UsketchPlugin {
 						tools={ctx.tools}
 						layers={ctx.layers}
 						shapes={ctx.shapes}
+						actions={ctx.actions}
 						syncStatus={syncStatus}
 						events={ctx.events}
 						ctx={renderCtx}

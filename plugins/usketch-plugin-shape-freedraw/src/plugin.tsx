@@ -115,6 +115,50 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 				settings.update({ mode: cur.mode === "eraser" ? "pen" : "eraser" });
 			});
 
+			// ── 操作を Action として公開（Control HUD が自動でUI化。#HUD） ──
+			const offActions = [
+				ctx.actions.register({
+					id: "freedraw:pen",
+					label: "Pen",
+					group: "Freedraw",
+					params: [
+						{
+							name: "pen",
+							type: "enum",
+							default: "ballpoint",
+							options: [
+								{ value: "ballpoint", label: "Ballpoint" },
+								{ value: "felt", label: "Felt" },
+								{ value: "brush", label: "Brush" },
+								{ value: "highlighter", label: "Highlighter" },
+							],
+						},
+					],
+					run: ({ pen }) => ctx.events.emit("freedraw:set-pen", { pen }),
+				}),
+				ctx.actions.register({
+					id: "freedraw:color",
+					label: "Color",
+					group: "Freedraw",
+					params: [{ name: "color", type: "color", default: "#1e1e1e" }],
+					run: ({ color }) => ctx.events.emit("freedraw:set-color", { color }),
+				}),
+				ctx.actions.register({
+					id: "freedraw:size",
+					label: "Size",
+					group: "Freedraw",
+					params: [{ name: "size", type: "number", min: 1, max: 64, step: 1, default: 4 }],
+					run: ({ size }) => ctx.events.emit("freedraw:set-size", { size: Number(size) }),
+				}),
+				ctx.actions.register({
+					id: "freedraw:eraser",
+					label: "Eraser",
+					group: "Freedraw",
+					isActive: () => settings.getSnapshot().mode === "eraser",
+					run: () => ctx.events.emit("freedraw:toggle-eraser", {}),
+				}),
+			];
+
 			// Escape: 消しゴム中ならペンへ、そうでなければ既定ツール（Vim-first では vim）へ戻る。
 			const onKeyDown = (e: KeyboardEvent) => {
 				if (ctx.store.getActiveToolId() !== TOOL_ID || e.key !== "Escape") return;
@@ -135,6 +179,7 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 				offColor();
 				offSize();
 				offEraser();
+				for (const off of offActions) off();
 				if (typeof window !== "undefined") {
 					window.removeEventListener("keydown", onKeyDown, true);
 				}

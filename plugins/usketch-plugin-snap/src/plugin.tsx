@@ -179,6 +179,15 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				cb({ ...settings, guideStyle: { ...settings.guideStyle } });
 			});
 
+			// ── 操作を Action として公開（Control HUD が自動でUI化） ──
+			const offSnapAction = ctx.actions.register({
+				id: "snap:toggle",
+				label: "Snap",
+				group: "Snap",
+				isActive: () => settings.enabled,
+				run: () => ctx.events.emit("snap:configure", { enabled: !settings.enabled }),
+			});
+
 			// ── Monkey-patch store.updateShape ──
 
 			const originalUpdateShape = ctx.store.updateShape.bind(ctx.store);
@@ -321,6 +330,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				offPointerUp();
 				offConfigure();
 				offGetSettings();
+				offSnapAction();
 				window.removeEventListener("keydown", onKeyDown);
 				window.removeEventListener("keyup", onKeyUp);
 				window.removeEventListener("blur", onBlur);

@@ -473,6 +473,69 @@ export interface ShortcutRegistry {
 	handleKeyDown(event: KeyboardEvent): boolean;
 }
 
+// ── Action System ──
+
+/**
+ * A single input to a {@link PluginAction}. A generic UI (e.g. the control HUD)
+ * renders an appropriate control per `type` and passes the collected value to
+ * `run` under `name`.
+ */
+export interface ActionParam {
+	name: string;
+	label?: string;
+	type: "string" | "number" | "boolean" | "color" | "enum";
+	/** For `type: "enum"` — the selectable options. */
+	options?: { value: string; label: string }[];
+	/** Initial value shown by the control. */
+	default?: string | number | boolean;
+	/** For `type: "number"`. */
+	min?: number;
+	max?: number;
+	step?: number;
+}
+
+/**
+ * A declarative, invokable plugin operation. Plugins register these via
+ * {@link ActionRegistry} so a generic control surface (the Debug/Control HUD,
+ * and optionally a command palette) can list and invoke them without any
+ * plugin-specific UI. `run` typically closes over the plugin's `setup` context.
+ */
+export interface PluginAction {
+	/** Unique id (namespaced, e.g. `freedraw:set-color`). */
+	id: string;
+	/** Human-readable label for the control. */
+	label: string;
+	/** Optional grouping key for the UI (e.g. "Freedraw", "Card"). */
+	group?: string;
+	/** Optional icon component. */
+	icon?: () => ReactElement;
+	/** Sort order within a group. Lower first. */
+	order?: number;
+	/** Inputs the action takes; omit for a parameterless button. */
+	params?: ActionParam[];
+	/** Perform the operation. `args` holds collected {@link ActionParam} values by `name`. */
+	run(args: Record<string, unknown>): void | Promise<void>;
+	/** Toggle-like state for the UI to reflect (e.g. eraser on). */
+	isActive?(): boolean;
+	/** Whether the action can currently run (e.g. requires a selection). Default: enabled. */
+	isEnabled?(): boolean;
+}
+
+/**
+ * Registry of {@link PluginAction}s. Mirrors {@link ToolRegistry}'s enumerable
+ * `getAll()`/`getOrdered()` shape so a generic UI can list actions, plus
+ * `subscribe` so the UI re-renders when plugins register/unregister at runtime.
+ */
+export interface ActionRegistry {
+	register(action: PluginAction): () => void;
+	unregister(id: string): void;
+	get(id: string): PluginAction | undefined;
+	getAll(): ReadonlyMap<string, PluginAction>;
+	/** Actions sorted by `group` then `order` then registration order. */
+	getOrdered(): readonly { id: string; action: PluginAction }[];
+	subscribe(listener: () => void): () => void;
+}
+
 // ── Event Bus ──
 
 /**
@@ -651,6 +714,8 @@ export interface PluginContext {
 	lod: LodController;
 	ui: UiRegistry;
 	externalContent: ExternalContentRegistry;
+	/** Declarative, enumerable plugin operations surfaced by the control HUD. */
+	actions: ActionRegistry;
 }
 
 /**

@@ -176,11 +176,11 @@ async function loadPlugins(
 	cardHand: CardHandWiring,
 ): Promise<UsketchPlugin[]> {
 	const plugins = [...createBasePlugins(cardHand), ...extra];
-	if (import.meta.env.DEV) {
-		const { createDebugHudPlugin } = await import("@edv4h/usketch-plugin-debug-hud");
-		return [...plugins, createDebugHudPlugin()];
-	}
-	return plugins;
+	// Control HUD (universal plugin-operation panel). Promoted from DEV-only to a
+	// first-class, always-available panel — hidden by default, toggled with `` ` ``.
+	// Kept as a dynamic import so it stays code-split.
+	const { createDebugHudPlugin } = await import("@edv4h/usketch-plugin-debug-hud");
+	return [...plugins, createDebugHudPlugin()];
 }
 
 export function App() {

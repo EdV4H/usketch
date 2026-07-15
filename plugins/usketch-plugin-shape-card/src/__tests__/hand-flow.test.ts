@@ -1,3 +1,4 @@
+import { createActionRegistry } from "@edv4h/usketch-core";
 import type { PluginContext, ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it, vi } from "vitest";
 import { CARD_TYPE } from "../factory.js";
@@ -25,8 +26,10 @@ function harness() {
 	const handlers = new Map<string, (p: unknown) => void>();
 	const setLocalStateField = vi.fn();
 	const noop = () => {};
+	const actions = createActionRegistry();
 
 	const ctx = {
+		actions,
 		events: {
 			on: (type: string, cb: (p: unknown) => void) => {
 				handlers.set(type, cb);
@@ -73,7 +76,11 @@ function harness() {
 		const last = calls[calls.length - 1];
 		return (last?.[1] as { count?: number } | null)?.count;
 	};
-	return { shapes, emit, lastCount };
+	const select = (id: string) => {
+		selection.clear();
+		selection.add(id);
+	};
+	return { shapes, emit, lastCount, actions, select };
 }
 
 function cardShape(id: string): ShapeData {
@@ -118,6 +125,24 @@ describe("card hand flow (events)", () => {
 		const { shapes, emit } = harness();
 		shapes.set("c1", cardShape("c1"));
 		emit("card:flip", "c1");
+		expect((shapes.get("c1")?.meta as { isFlipped?: boolean })?.isFlipped).toBe(true);
+	});
+
+	it("registers control-HUD actions; card:flip is selection-contextual", () => {
+		const { shapes, actions, select } = harness();
+		shapes.set("c1", cardShape("c1"));
+		// The plugin exposes its operations to the control HUD via the action registry.
+		const ids = actions.getOrdered().map((e) => e.id);
+		expect(ids).toContain("card:select-type");
+		expect(ids).toContain("card:flip");
+
+		const flip = actions.get("card:flip");
+		// Disabled with no selected card...
+		expect(flip?.isEnabled?.()).toBe(false);
+		// ...enabled and effective once a card is selected.
+		select("c1");
+		expect(flip?.isEnabled?.()).toBe(true);
+		flip?.run({});
 		expect((shapes.get("c1")?.meta as { isFlipped?: boolean })?.isFlipped).toBe(true);
 	});
 });

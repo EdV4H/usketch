@@ -84,8 +84,29 @@ export function createGridBgPlugin(): UsketchPlugin {
 				setVisible(type === "grid");
 			});
 
+			// ── 背景切替を Action として公開（grid/dots プラグイン共通の bg:set を emit） ──
+			const offAction = ctx.actions.register({
+				id: "bg:set",
+				label: "Background",
+				group: "Background",
+				params: [
+					{
+						name: "type",
+						type: "enum",
+						default: "grid",
+						options: [
+							{ value: "grid", label: "Grid" },
+							{ value: "dots", label: "Dots" },
+							{ value: "none", label: "None" },
+						],
+					},
+				],
+				run: ({ type }) => ctx.events.emit("bg:set", { type }),
+			});
+
 			return () => {
 				off();
+				offAction();
 				ctx.layers.unregister("bg-grid");
 			};
 		},

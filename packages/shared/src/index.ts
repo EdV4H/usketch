@@ -4,6 +4,8 @@ export type { BoundingBox, Point, Viewport } from "./types/geometry.js";
 export type { LodController, LodPolicy, LodPolicyContext, RenderMode } from "./types/lod.js";
 // Plugin system
 export type {
+	ActionParam,
+	ActionRegistry,
 	BoardStore,
 	CanvasPointerEvent,
 	CanvasWheelEvent,
@@ -27,6 +29,7 @@ export type {
 	Layer,
 	LayerManager,
 	LayerRenderContext,
+	PluginAction,
 	PluginContext,
 	PluginTeardown,
 	RenderTarget,
