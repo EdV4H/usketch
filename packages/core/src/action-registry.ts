@@ -31,7 +31,9 @@ export function createActionRegistry(): ActionRegistry {
 		},
 		unregister,
 		get: (id) => actions.get(id),
-		getAll: () => actions,
+		// 内部 Map をそのまま返すと、ReadonlyMap 型でも実行時に型アサーションで
+		// 直接 mutate され register/unregister（と notify）を迂回されうる。防御的にコピーを返す。
+		getAll: () => new Map(actions),
 		getOrdered() {
 			// Sort by group (undefined last), then action.order, then registration order.
 			const indexed = order.map((id, i) => ({ id, i }));

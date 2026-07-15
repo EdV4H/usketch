@@ -113,7 +113,7 @@ export function ControlsPanel({
 			{groups.map(([group, items]) => (
 				<Section key={group} title={group}>
 					{items.map(({ id, action }) => (
-						<ActionRow key={id} action={action} />
+						<ActionRow key={id} action={action} onAfterRun={bump} />
 					))}
 				</Section>
 			))}
@@ -189,17 +189,25 @@ function IconSlot({ render }: { render: () => React.ReactElement }) {
 }
 
 /** One action: a button (no params) or inline param controls + Run. */
-function ActionRow({ action }: { action: PluginAction }) {
+function ActionRow({ action, onAfterRun }: { action: PluginAction; onAfterRun: () => void }) {
 	const [args, setArgs] = useState<Record<string, unknown>>(() => defaultArgs(action.params));
 	const enabled = action.isEnabled ? action.isEnabled() : true;
 	const active = action.isActive?.() ?? false;
+
+	// アクション実行後に必ず親を再レンダーさせ、isActive/isEnabled を再評価する。
+	// これがないと、store を変えずプラグインローカル状態だけ更新する toggle 系で
+	// インジケータが次の無関係な再レンダーまで stale になる。
+	const run = (a: Record<string, unknown>) => {
+		action.run(a);
+		onAfterRun();
+	};
 
 	if (!action.params || action.params.length === 0) {
 		return (
 			<button
 				type="button"
 				disabled={!enabled}
-				onClick={() => action.run({})}
+				onClick={() => run({})}
 				style={{
 					...(active ? MINI_BUTTON_ACCENT : MINI_BUTTON),
 					display: "block",
@@ -230,7 +238,7 @@ function ActionRow({ action }: { action: PluginAction }) {
 				<button
 					type="button"
 					disabled={!enabled}
-					onClick={() => action.run(args)}
+					onClick={() => run(args)}
 					style={{ ...MINI_BUTTON_ACCENT, opacity: enabled ? 1 : 0.4 }}
 				>
 					Run
@@ -372,7 +380,10 @@ function EventConsole({ events }: { events: EventBus }) {
 /** Edit the default draw style (applies to new shapes via setStyleSettings). */
 function StyleControls({ store }: { store: BoardStore }) {
 	const s = store.getStyleSettings();
-	const set = (patch: Partial<ShapeStyle>) => store.setStyleSettings({ ...s, ...patch });
+	// setStyleSettings はストア側で既存設定にマージする（{ ...styleSettings, ...patch }）。
+	// ここで render 時点の `s` と再マージすると stale な値を書き戻し、並行変更
+	// （fill 変更直後の stroke 変更など）を打ち消しかねないので patch だけ渡す。
+	const set = (patch: Partial<ShapeStyle>) => store.setStyleSettings(patch);
 
 	const clearCanvas = () => {
 		const ids = [...store.getShapes().keys()];
