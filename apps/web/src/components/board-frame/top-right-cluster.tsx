@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ShareDialog } from "../share-dialog.js";
-import { ExportMenu } from "../toolbar/export-menu.js";
-import { I, IconBtn } from "../ui/index.js";
+import { I } from "../ui/index.js";
 import { PresencePill } from "./presence-pill.js";
 
 type WsProvider = {
@@ -18,8 +17,9 @@ interface Props {
 }
 
 /**
- * 画面右上: Presence pill + Share CTA + エクスポート/通知/オーバーフロー。
- * Cloud ボード時のみ Presence pill と Share ボタンが出る。
+ * 画面右上: Presence pill + Share CTA（いずれも Cloud ボード時のみ）。
+ * エクスポートは Control HUD の "Export" Action に一本化。通知/その他の
+ * 未実装ボタンは撤去した。
  */
 export function TopRightCluster({ boardId, isCloudBoard, wsProvider }: Props) {
 	const [showShare, setShowShare] = useState(false);
@@ -62,23 +62,6 @@ export function TopRightCluster({ boardId, isCloudBoard, wsProvider }: Props) {
 						共有
 					</button>
 				)}
-				<div
-					className="u-surface"
-					style={{
-						display: "inline-flex",
-						padding: 3,
-						borderRadius: 10,
-						gap: 1,
-					}}
-				>
-					<ExportMenu isCloudBoard={isCloudBoard} boardId={boardId} />
-					{isCloudBoard && (
-						<>
-							<IconBtn icon={I.bell} label="通知" onClick={() => {}} />
-							<IconBtn icon={I.more} label="その他" onClick={() => {}} />
-						</>
-					)}
-				</div>
 			</div>
 			{showShare && boardId && (
 				<ShareDialog boardId={boardId} onClose={() => setShowShare(false)} />
