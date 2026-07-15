@@ -26,7 +26,7 @@ test.describe("Board", () => {
 		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 	});
 
-	test("default board: select tool (vim off) and consolidated top bar visible", async ({ page }) => {
+	test("board: vim off by default, top bar visible", async ({ page }) => {
 		await page.goto("/dashboard");
 		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
