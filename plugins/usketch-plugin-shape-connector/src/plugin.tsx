@@ -325,16 +325,22 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 					createBatchUpdateShapesCommand(ctx.store, [{ id, from, to: { [key]: value } }]),
 				);
 			};
-			// アンカー変更は端点座標を再計算する（両端が shape に接続している場合のみ）。
+			// アンカー変更。両端が shape に接続している場合のみ端点座標を再計算する。
+			// 片方でも未接続なら anchor フィールドだけ更新する（HUD の action は
+			// connector 選択中は常に有効なので、no-op にせず値は必ず反映させる）。
 			const setConnectorAnchor = (endpoint: "source" | "target", value: AnchorType) => {
 				const id = selectedConnectorId();
 				if (!id) return;
 				const c = ctx.store.getShape(id) as ConnectorShapeData | undefined;
-				if (!c || !c.sourceId || !c.targetId) return;
-				const sourceShape = ctx.store.getShape(c.sourceId);
-				const targetShape = ctx.store.getShape(c.targetId);
-				if (!sourceShape || !targetShape) return;
+				if (!c) return;
 				const key = endpoint === "source" ? "sourceAnchor" : "targetAnchor";
+				const sourceShape = c.sourceId ? ctx.store.getShape(c.sourceId) : undefined;
+				const targetShape = c.targetId ? ctx.store.getShape(c.targetId) : undefined;
+				if (!sourceShape || !targetShape) {
+					// 端点が両方 shape に接続していない → 座標再計算はせずフィールドのみ更新。
+					updateConnectorProp(key, value);
+					return;
+				}
 				const newSourceAnchor = endpoint === "source" ? value : (c.sourceAnchor ?? "auto");
 				const newTargetAnchor = endpoint === "target" ? value : (c.targetAnchor ?? "auto");
 				const targetCenter = {
