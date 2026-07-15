@@ -8,7 +8,7 @@ import type {
 	ShapeRegistry,
 	ToolRegistry,
 } from "@edv4h/usketch-shared";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { BoardMetaTrackerLike } from "./board-meta-types.js";
 import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
@@ -112,6 +112,25 @@ export function DebugHud({
 
 	const hoveredShape = hoveredShapeId ? shapeMap.get(hoveredShapeId) : undefined;
 
+	// Canvas は自身のコンテナに native な wheel リスナ(passive:false)を張り、
+	// HUD パネル上のスクロールまで拾って zoom/pan してしまう。React の onWheel
+	// stopPropagation は Canvas コンテナより後(React root)で発火するため間に合わ
+	// ない。パネル群を包む本要素に native wheel リスナを張り、パネル由来の wheel
+	// が Canvas コンテナへバブリングする前に止める（パネル自身のスクロールは通す
+	// ので stopPropagation のみ、preventDefault はしない）。空き領域の wheel は
+	// pointerEvents:none によりこの要素を経由せず Canvas に直接届くため無影響。
+	const wheelGuardRef = useRef<HTMLDivElement>(null);
+	// visible はラッパーのマウント/アンマウントを切り替えるため、ref 再取得の
+	// トリガーとして依存に含める（body 内で直接参照しないので biome へ明示）。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: re-attach on visibility toggle
+	useEffect(() => {
+		const el = wheelGuardRef.current;
+		if (!el) return;
+		const stop = (e: WheelEvent) => e.stopPropagation();
+		el.addEventListener("wheel", stop, { passive: false });
+		return () => el.removeEventListener("wheel", stop);
+	}, [visible]);
+
 	// Shortcut hint — bottom-center (always visible)
 	const hint = (
 		<div
@@ -135,7 +154,7 @@ export function DebugHud({
 	}
 
 	return (
-		<>
+		<div ref={wheelGuardRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
 			{hint}
 
 			{/* Bounding box overlay (behind panels, no pointer events) */}
@@ -190,6 +209,6 @@ export function DebugHud({
 				selection={selection}
 				offsetLeft={leftOffset}
 			/>
-		</>
+		</div>
 	);
 }
