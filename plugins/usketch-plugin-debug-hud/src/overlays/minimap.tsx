@@ -1,5 +1,6 @@
 import type { ShapeData, Viewport } from "@edv4h/usketch-shared";
 import { computeMinimap, type MinimapResult } from "@edv4h/usketch-shared";
+import { STOP_CANVAS_PROPAGATION } from "../stop-propagation.js";
 import { ACCENT_DIM, PANEL_BG, PANEL_BLUR, PANEL_BORDER_RADIUS } from "../styles.js";
 
 interface MinimapProps {
@@ -33,6 +34,7 @@ export function Minimap({ shapes, viewport, selection, offsetLeft = 8 }: Minimap
 
 	return (
 		<div
+			{...STOP_CANVAS_PROPAGATION}
 			style={{
 				position: "absolute",
 				bottom: 8,

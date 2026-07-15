@@ -12,6 +12,7 @@ import type { BoardMetaSnapshot, BoardMetaTrackerLike } from "../board-meta-type
 import { FpsGraph } from "../components/fps-graph.js";
 import type { FpsCounter } from "../fps-counter.js";
 import type { PointerTracker } from "../pointer-tracker.js";
+import { STOP_CANVAS_PROPAGATION } from "../stop-propagation.js";
 import {
 	fmt,
 	fpsColor,
@@ -153,6 +154,7 @@ export function GeneralPanel({
 
 	return (
 		<div
+			{...STOP_CANVAS_PROPAGATION}
 			style={{
 				...PANEL_BASE,
 				position: "absolute",

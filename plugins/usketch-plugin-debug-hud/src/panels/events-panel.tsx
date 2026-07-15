@@ -1,5 +1,6 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
 import type { EventLogEntry, EventLogger } from "../event-logger.js";
+import { STOP_CANVAS_PROPAGATION } from "../stop-propagation.js";
 import { LABEL_STYLE, MINI_BUTTON, PANEL_BASE, SCROLLABLE_STYLE, TEXT_MUTED } from "../styles.js";
 
 interface EventsPanelProps {
@@ -46,6 +47,7 @@ export function EventsPanel({ eventLogger }: EventsPanelProps) {
 
 	return (
 		<div
+			{...STOP_CANVAS_PROPAGATION}
 			style={{
 				...PANEL_BASE,
 				position: "absolute",

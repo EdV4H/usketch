@@ -9,6 +9,7 @@ import type {
 } from "@edv4h/usketch-shared";
 import type React from "react";
 import { useEffect, useReducer, useState } from "react";
+import { STOP_CANVAS_PROPAGATION } from "../stop-propagation.js";
 import {
 	ACCENT,
 	INLINE_INPUT,
@@ -61,7 +62,11 @@ export function ControlsPanel({
 		return (
 			<button
 				type="button"
-				onClick={onToggleCollapsed}
+				{...STOP_CANVAS_PROPAGATION}
+				onClick={(e) => {
+					e.stopPropagation();
+					onToggleCollapsed();
+				}}
 				style={collapsedStripStyle}
 				title="Open controls"
 			>
@@ -75,7 +80,7 @@ export function ControlsPanel({
 	const groups = groupActions(actionList);
 
 	return (
-		<div style={dockStyle}>
+		<div {...STOP_CANVAS_PROPAGATION} style={dockStyle}>
 			<div style={headerStyle}>
 				<span style={{ color: ACCENT, fontWeight: 700 }}>Controls</span>
 				<button type="button" onClick={onToggleCollapsed} style={MINI_BUTTON} title="Collapse">
