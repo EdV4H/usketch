@@ -614,17 +614,12 @@ export function App() {
 					<Canvas />
 					{!hideToolbar && (
 						<>
-							<BoardIdentity
-								boardName={boardName ?? undefined}
-								isCloudBoard={isCloudBoard}
-								connectionStatus={wsStatus ?? undefined}
-							/>
+							<BoardIdentity boardName={boardName ?? undefined} />
 							{!isPresentEdit && (
 								<TopRightCluster
 									boardId={boardId}
 									isCloudBoard={isCloudBoard}
 									wsProvider={wsProviderRef.current}
-									connectionStatus={wsStatus ?? undefined}
 								/>
 							)}
 							<Toolbar

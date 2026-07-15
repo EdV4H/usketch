@@ -1,16 +1,15 @@
-import type { WsConnectionStatus } from "@edv4h/usketch-sync";
 import { useNavigate } from "react-router";
 
 interface BoardIdentityProps {
 	boardName?: string;
-	isCloudBoard: boolean;
-	connectionStatus?: WsConnectionStatus;
 }
 
-/** 画面左上: ロゴ (ダッシュボードへ戻る) + ボード名 + 保存ステータス。 */
-export function BoardIdentity({ boardName, isCloudBoard, connectionStatus }: BoardIdentityProps) {
+/**
+ * 画面左上: ロゴ (ダッシュボードへ戻る) + ボード名。
+ * 接続/保存ステータスは Control HUD(General パネル)に集約したためここでは表示しない。
+ */
+export function BoardIdentity({ boardName }: BoardIdentityProps) {
 	const navigate = useNavigate();
-	const status = renderStatus(isCloudBoard, connectionStatus);
 
 	return (
 		<div
@@ -74,47 +73,8 @@ export function BoardIdentity({ boardName, isCloudBoard, connectionStatus }: Boa
 					<div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--fg-primary)" }}>
 						{boardName}
 					</div>
-					{status && (
-						<div
-							style={{
-								fontSize: 10.5,
-								color: "var(--fg-tertiary)",
-								display: "flex",
-								alignItems: "center",
-								gap: 5,
-							}}
-						>
-							<div
-								style={{
-									width: 6,
-									height: 6,
-									borderRadius: 99,
-									background: status.color,
-								}}
-							/>
-							{status.text}
-						</div>
-					)}
 				</div>
 			)}
 		</div>
 	);
-}
-
-function renderStatus(
-	isCloudBoard: boolean,
-	connectionStatus?: WsConnectionStatus,
-): { color: string; text: string } | null {
-	if (!isCloudBoard) return { color: "var(--fg-tertiary)", text: "ローカル保存" };
-	switch (connectionStatus) {
-		case "connected":
-			return { color: "var(--success)", text: "自動保存済み" };
-		case "connecting":
-			return { color: "var(--warning)", text: "接続中…" };
-		case "failed":
-		case "disconnected":
-			return { color: "var(--danger)", text: "オフライン" };
-		default:
-			return null;
-	}
 }

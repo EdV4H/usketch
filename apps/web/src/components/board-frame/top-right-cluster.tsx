@@ -1,4 +1,3 @@
-import type { WsConnectionStatus } from "@edv4h/usketch-sync";
 import { useState } from "react";
 import { ShareDialog } from "../share-dialog.js";
 import { ExportMenu } from "../toolbar/export-menu.js";
@@ -16,14 +15,13 @@ interface Props {
 	boardId?: string;
 	isCloudBoard: boolean;
 	wsProvider?: WsProvider | null;
-	connectionStatus?: WsConnectionStatus;
 }
 
 /**
  * 画面右上: Presence pill + Share CTA + エクスポート/通知/オーバーフロー。
  * Cloud ボード時のみ Presence pill と Share ボタンが出る。
  */
-export function TopRightCluster({ boardId, isCloudBoard, wsProvider, connectionStatus }: Props) {
+export function TopRightCluster({ boardId, isCloudBoard, wsProvider }: Props) {
 	const [showShare, setShowShare] = useState(false);
 
 	return (
@@ -39,9 +37,7 @@ export function TopRightCluster({ boardId, isCloudBoard, wsProvider, connectionS
 					alignItems: "center",
 				}}
 			>
-				{isCloudBoard && wsProvider && (
-					<PresencePill wsProvider={wsProvider} connectionStatus={connectionStatus} />
-				)}
+				{isCloudBoard && wsProvider && <PresencePill wsProvider={wsProvider} />}
 				{isCloudBoard && boardId && (
 					<button
 						type="button"
