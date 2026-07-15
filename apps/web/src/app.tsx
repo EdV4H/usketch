@@ -201,6 +201,12 @@ export function App() {
 	const modeRef = useRef<PresentationMode>(presentationMode);
 	modeRef.current = presentationMode;
 
+	// 最新のユーザー id を board-init effect の依存に入れずに参照するための ref
+	// （modeRef と同じ理由: 依存に入れると auth 解決のたびに board が作り直される）。
+	// 手札(hand)のローカル保持キー / awareness 枚数共有の userId に使う。
+	const userIdRef = useRef<string | undefined>(authUser?.id);
+	userIdRef.current = authUser?.id;
+
 	// react-router の navigate() は pushState ベースで popstate を発火しない。
 	// presentation plugin は popstate で modeRef を再読込する設計なので、
 	// ?present= の変化を検出したら明示的に popstate を dispatch する。
@@ -351,7 +357,7 @@ export function App() {
 				if (cancelled) return;
 
 				return loadPlugins(extraPlugins, {
-					userId: authUser?.id ?? getDevUser()?.id ?? "local",
+					userId: userIdRef.current ?? getDevUser()?.id ?? "local",
 					boardId,
 					wsProvider,
 				})
