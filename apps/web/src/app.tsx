@@ -62,17 +62,10 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router";
-import {
-	BoardIdentity,
-	CommunityLink,
-	CopilotPill,
-	TopRightCluster,
-	ZoomControls,
-} from "./components/board-frame/index.js";
+import { CopilotPill, TopBar } from "./components/board-frame/index.js";
 import { CommandPalette, useCommandPaletteShortcut } from "./components/command-palette.js";
 import { InfoTab } from "./components/side-panel/info-tab.js";
 import { SidePanelToggles } from "./components/side-panel/side-panel-toggles.js";
-import { Toolbar } from "./components/toolbar/index.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
@@ -443,7 +436,7 @@ export function App() {
 		// presentation plugin が modeRef 経由で最新値を読む（undo 履歴・WebSocket を残すため）。
 	}, [boardId, isCloudBoard, navigate]);
 
-	// Cloud ボードのタイトル取得（BoardIdentity 表示用）
+	// Cloud ボードのタイトル取得（Control HUD の Board メタ表示用）
 	useEffect(() => {
 		if (!boardId) {
 			setBoardName(null);
@@ -620,7 +613,7 @@ export function App() {
 				}}
 			>
 				{/*
-					エディタ全体 (Canvas + Toolbar + BoardIdentity 等) をひとつの div で包む。
+					エディタ全体 (Canvas + TopBar 等) をひとつの div で包む。
 					プレゼン編集モード中は stage 矩形に縮め、外側を発表 UI が取り囲む形にする。
 					transform を当てると内側の position: fixed 要素の containing block が
 					この div になるため、Toolbar 等を書き換えずに相対化できる (CSS spec)。
@@ -650,23 +643,13 @@ export function App() {
 					<Canvas />
 					{!hideToolbar && (
 						<>
-							<BoardIdentity />
-							{!isPresentEdit && (
-								<TopRightCluster
-									boardId={boardId}
-									isCloudBoard={isCloudBoard}
-									wsProvider={wsProviderRef.current}
-								/>
-							)}
-							<Toolbar
+							<TopBar
 								boardId={boardId}
 								isCloudBoard={isCloudBoard}
 								wsProvider={wsProviderRef.current}
 								onOpenCommandPalette={openPalette}
 								compact={isPresentEdit}
 							/>
-							{!isPresentEdit && <ZoomControls />}
-							{!isPresentEdit && <CommunityLink />}
 							{isCloudBoard && !isPresentEdit && <SidePanelToggles app={app} />}
 							{isCloudBoard && !isPresentEdit && <CopilotPill onOpenCommandPalette={openPalette} />}
 						</>

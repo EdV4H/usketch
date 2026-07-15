@@ -1,8 +1,11 @@
 import { useApp, useStoreSubscribe } from "@edv4h/usketch-canvas-engine";
 import { I, IconBtn } from "../ui/index.js";
 
-/** 画面右下: ズームイン / アウト / パーセンテージ / リセット。 */
-export function ZoomControls() {
+/**
+ * ズームイン / アウト / パーセンテージ / リセット。
+ * `inline` のとき fixed ラッパーを外し、親レイアウト（TopBar 等）に埋め込む。
+ */
+export function ZoomControls({ inline = false }: { inline?: boolean } = {}) {
 	const app = useApp();
 	const viewport = useStoreSubscribe(app.store, (s) => s.getViewport());
 
@@ -18,18 +21,22 @@ export function ZoomControls() {
 
 	return (
 		<div
-			className="u-surface"
-			style={{
-				position: "fixed",
-				bottom: 12,
-				right: 12,
-				zIndex: 20,
-				padding: 3,
-				borderRadius: 10,
-				display: "flex",
-				alignItems: "center",
-				gap: 1,
-			}}
+			className={inline ? undefined : "u-surface"}
+			style={
+				inline
+					? { display: "flex", alignItems: "center", gap: 1 }
+					: {
+							position: "fixed",
+							bottom: 12,
+							right: 12,
+							zIndex: 20,
+							padding: 3,
+							borderRadius: 10,
+							display: "flex",
+							alignItems: "center",
+							gap: 1,
+						}
+			}
 		>
 			<IconBtn icon={I.zoomOut} label="ズームアウト" onClick={() => zoomAt(0.8)} size={30} />
 			<button
