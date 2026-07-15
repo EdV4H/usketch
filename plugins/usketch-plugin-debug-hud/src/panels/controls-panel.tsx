@@ -399,6 +399,15 @@ function StyleControls({ store }: { store: BoardStore }) {
 
 	const clearCanvas = () => {
 		const ids = [...store.getShapes().keys()];
+		if (ids.length === 0) return;
+		// HUD が本番でも出るようになったため、誤爆防止に確認を挟む。
+		// deleteShape 直呼びは undo 履歴を通らない破壊的操作である点も明示する。
+		if (
+			typeof window !== "undefined" &&
+			!window.confirm(`Delete all ${ids.length} shape(s)? This cannot be undone.`)
+		) {
+			return;
+		}
 		for (const id of ids) store.deleteShape(id);
 	};
 
