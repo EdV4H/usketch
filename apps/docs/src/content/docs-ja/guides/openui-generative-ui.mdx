@@ -9,7 +9,7 @@ order: 26
 uSketch では AI 生成の UI ウィジェット (料金プラン表 / 問い合わせフォーム / 統計ダッシュボード等) を canvas 上の first-class shape として配置できます。本リポジトリの 2 つのプラグインが往復をカバーします:
 
 - **`@edv4h/usketch-plugin-shape-openui`** — `openui` shape の定義。`@openuidev/react-lang` の `<Renderer>` で [OpenUI Lang](https://www.openui.com/docs/openui-lang) を描画。
-- **`@edv4h/usketch-plugin-tool-openui`** — toolbar tool / side-panel prompt UI / 選択上の「Make Real」ボタン / LLM provider (OpenAI 直接 / OpenAI 互換 endpoint) を提供。
+- **`@edv4h/usketch-plugin-tool-openui`** — toolbar tool / side-panel prompt UI / 選択に対して実行する「Make Real」Action (Control HUD の AI グループ) / LLM provider (OpenAI 直接 / OpenAI 互換 endpoint) を提供。
 
 UX は tldraw の "Make Real" と同じ流儀ですが、生 Tailwind HTML ではなく OpenUI Lang を出力するため、Zod schema 駆動の component library に対して validate されてから DOM に流れます — 悪意ある LLM が任意 script を注入する経路はありません。
 
@@ -74,7 +74,7 @@ const app = await createApp({
 
 ### Make Real
 
-任意の shape (フリーハンドスケッチ / 付箋の山 / 矩形でラフ書きしたワイヤフレーム等) を選択し、選択上に浮かぶ **✨ Make Real** ボタンをクリック。プラグインは:
+任意の shape (フリーハンドスケッチ / 付箋の山 / 矩形でラフ書きしたワイヤフレーム等) を選択し、Control HUD (バッククォート `` ` `` で開く) の **AI** グループにある **✨ Make Real** を実行 (追従ボタンは廃止し Action に統合)。プラグインは:
 
 1. `@edv4h/usketch-plugin-export` の `exportCanvas` で選択範囲を PNG にスナップショット
 2. 画像 + 「このスケッチに対応する real UI を作って」プロンプトを provider に送信
