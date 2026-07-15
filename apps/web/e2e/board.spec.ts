@@ -26,14 +26,15 @@ test.describe("Board", () => {
 		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 	});
 
-	test("vim-first: status line visible and toolbar hidden on board page", async ({ page }) => {
+	test("default board: select tool (vim off) and consolidated top bar visible", async ({ page }) => {
 		await page.goto("/dashboard");
 		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
-		// Vim-first デモ: 既定で vim ツールがアクティブ、従来のツールバーは非表示。
-		await expect(page.locator('[data-testid="vim-status-line"]')).toBeVisible();
-		await expect(page.locator('[data-testid="vim-status-line"]')).toContainText("NORMAL");
-		await expect(page.locator('[data-testid="toolbar"]')).toHaveCount(0);
+		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
+		// vim は既定 OFF（Control HUD から切替）なので status line は出ない。
+		await expect(page.locator('[data-testid="vim-status-line"]')).not.toBeVisible();
+		// 四隅に散っていた chrome は上部中央の単一バー(TopBar)に集約済み。
+		await expect(page.locator('[data-testid="top-bar"]')).toBeVisible();
 	});
 
 	test("command palette opens with Cmd+K and closes with Esc", async ({ page }) => {
@@ -41,7 +42,7 @@ test.describe("Board", () => {
 		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
 
-		// ボードの準備完了を待つ（vim-first ではツールバーが無いのでキャンバスで判定）
+		// ボードの準備完了をキャンバスで判定。
 		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 
 		// Cmd+K / Ctrl+K（vim は修飾キー併用を素通しするのでパレットが開く）
