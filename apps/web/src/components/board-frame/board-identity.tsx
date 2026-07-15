@@ -1,14 +1,11 @@
 import { useNavigate } from "react-router";
 
-interface BoardIdentityProps {
-	boardName?: string;
-}
-
 /**
- * 画面左上: ロゴ (ダッシュボードへ戻る) + ボード名。
- * 接続/保存ステータスは Control HUD(General パネル)に集約したためここでは表示しない。
+ * 画面左上: ダッシュボードへ戻るロゴボタンのみ。
+ * ボード名・接続/保存ステータスは Control HUD(General パネル)に集約したため
+ * ここでは表示しない（`` ` `` で開く HUD で確認できる）。
  */
-export function BoardIdentity({ boardName }: BoardIdentityProps) {
+export function BoardIdentity() {
 	const navigate = useNavigate();
 
 	return (
@@ -59,22 +56,6 @@ export function BoardIdentity({ boardName }: BoardIdentityProps) {
 					u
 				</div>
 			</button>
-			{boardName && (
-				<div
-					className="u-surface"
-					style={{
-						padding: "6px 12px",
-						borderRadius: 10,
-						display: "flex",
-						flexDirection: "column",
-						lineHeight: 1.15,
-					}}
-				>
-					<div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--fg-primary)" }}>
-						{boardName}
-					</div>
-				</div>
-			)}
 		</div>
 	);
 }

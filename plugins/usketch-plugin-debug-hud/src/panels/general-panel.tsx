@@ -8,6 +8,7 @@ import type {
 	Viewport,
 } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import type { BoardMetaSnapshot, BoardMetaTrackerLike } from "../board-meta-types.js";
 import { FpsGraph } from "../components/fps-graph.js";
 import type { FpsCounter } from "../fps-counter.js";
 import type { PointerTracker } from "../pointer-tracker.js";
@@ -38,10 +39,13 @@ interface GeneralPanelProps {
 	layers: LayerManager;
 	shapes: ShapeRegistry;
 	syncStatus?: SyncStatusTrackerLike;
+	boardMeta?: BoardMetaTrackerLike;
 	events: EventBus;
 	viewport: Viewport;
 	activeToolId: string;
 }
+
+const DEFAULT_BOARD_META: BoardMetaSnapshot = { name: null, isCloud: false };
 
 const DEFAULT_SYNC_SNAPSHOT: SyncStatusSnapshot = {
 	state: "loading",
@@ -85,6 +89,7 @@ export function GeneralPanel({
 	layers,
 	shapes,
 	syncStatus,
+	boardMeta,
 	events,
 	viewport,
 	activeToolId,
@@ -105,6 +110,11 @@ export function GeneralPanel({
 			[syncStatus],
 		),
 		() => syncStatus?.getSnapshot() ?? DEFAULT_SYNC_SNAPSHOT,
+	);
+
+	const board = useSyncExternalStore(
+		useCallback((cb: () => void) => (boardMeta ? boardMeta.subscribe(cb) : () => {}), [boardMeta]),
+		() => boardMeta?.getSnapshot() ?? DEFAULT_BOARD_META,
 	);
 
 	const canUndo = commands.canUndo();
@@ -151,6 +161,18 @@ export function GeneralPanel({
 				width: 220,
 			}}
 		>
+			{/* Board メタ情報（旧 BoardIdentity をここに集約） */}
+			<div style={SECTION_STYLE}>
+				<div style={LABEL_STYLE}>Board</div>
+				<div style={{ fontWeight: 600, color: "#e5e7eb", wordBreak: "break-word" }}>
+					{board.name ?? "(untitled)"}
+				</div>
+				<div style={{ color: "#888" }}>
+					{board.isCloud ? "☁ Cloud" : "🖥 Local"}
+					{board.id ? ` · ${board.id}` : ""}
+				</div>
+			</div>
+
 			{/* FPS */}
 			<div style={SECTION_STYLE}>
 				<span style={{ color: fpsColor(fps), fontWeight: "bold" }}>{fps} FPS</span>

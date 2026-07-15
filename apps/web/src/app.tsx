@@ -181,6 +181,37 @@ async function loadPlugins(
 	return [...plugins, createDebugHudPlugin()];
 }
 
+/**
+ * Board メタ情報（タイトル / Cloud か Local か / id）を Control HUD に供給する
+ * 小さなリアクティブストア。HUD は `globalThis.__usketchBoardMeta` を購読して
+ * General パネルに表示する（`__usketchSyncStatus` と同じ受け渡し方式）。
+ * モジュールスコープで生成しておくことで、プラグイン setup 時点で必ず存在する。
+ */
+type BoardMetaValue = { id?: string; name: string | null; isCloud: boolean };
+const boardMetaStore = (() => {
+	let snapshot: BoardMetaValue = { name: null, isCloud: false };
+	const listeners = new Set<() => void>();
+	return {
+		getSnapshot: () => snapshot,
+		set(next: BoardMetaValue) {
+			if (
+				snapshot.id === next.id &&
+				snapshot.name === next.name &&
+				snapshot.isCloud === next.isCloud
+			) {
+				return;
+			}
+			snapshot = next;
+			for (const l of listeners) l();
+		},
+		subscribe(listener: () => void) {
+			listeners.add(listener);
+			return () => listeners.delete(listener);
+		},
+	};
+})();
+(globalThis as Record<string, unknown>).__usketchBoardMeta = boardMetaStore;
+
 export function App() {
 	const { boardId } = useParams<{ boardId: string }>();
 	const location = useLocation();
@@ -445,6 +476,11 @@ export function App() {
 		};
 	}, [boardId, isCloudBoard]);
 
+	// Board メタ情報を Control HUD 用ストアへ反映（表示は HUD の General パネル）。
+	useEffect(() => {
+		boardMetaStore.set({ id: boardId, name: boardName, isCloud: isCloudBoard });
+	}, [boardId, boardName, isCloudBoard]);
+
 	// ページ離脱時にビューポート位置を保存（ゴーストアバター用）
 	useEffect(() => {
 		if (!isCloudBoard || !boardId) return;
@@ -614,7 +650,7 @@ export function App() {
 					<Canvas />
 					{!hideToolbar && (
 						<>
-							<BoardIdentity boardName={boardName ?? undefined} />
+							<BoardIdentity />
 							{!isPresentEdit && (
 								<TopRightCluster
 									boardId={boardId}
