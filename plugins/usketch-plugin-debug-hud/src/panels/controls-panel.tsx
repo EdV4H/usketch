@@ -197,9 +197,21 @@ function ActionRow({ action, onAfterRun }: { action: PluginAction; onAfterRun: (
 	// アクション実行後に必ず親を再レンダーさせ、isActive/isEnabled を再評価する。
 	// これがないと、store を変えずプラグインローカル状態だけ更新する toggle 系で
 	// インジケータが次の無関係な再レンダーまで stale になる。
+	// run は void | Promise<void>。同期例外・非同期 reject を握りつぶさずログし、
+	// finally で onAfterRun を必ず呼んで UI 反映を保証する。
 	const run = (a: Record<string, unknown>) => {
-		action.run(a);
-		onAfterRun();
+		try {
+			const result = action.run(a);
+			if (result && typeof (result as Promise<unknown>).then === "function") {
+				(result as Promise<unknown>).catch((err) =>
+					console.error(`Action "${action.id}" failed:`, err),
+				);
+			}
+		} catch (err) {
+			console.error(`Action "${action.id}" failed:`, err);
+		} finally {
+			onAfterRun();
+		}
 	};
 
 	if (!action.params || action.params.length === 0) {
@@ -387,6 +399,15 @@ function StyleControls({ store }: { store: BoardStore }) {
 
 	const clearCanvas = () => {
 		const ids = [...store.getShapes().keys()];
+		if (ids.length === 0) return;
+		// HUD が本番でも出るようになったため、誤爆防止に確認を挟む。
+		// deleteShape 直呼びは undo 履歴を通らない破壊的操作である点も明示する。
+		if (
+			typeof window !== "undefined" &&
+			!window.confirm(`Delete all ${ids.length} shape(s)? This cannot be undone.`)
+		) {
+			return;
+		}
 		for (const id of ids) store.deleteShape(id);
 	};
 
