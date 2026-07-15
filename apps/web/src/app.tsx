@@ -95,7 +95,13 @@ function readPresentationMode(search: string): PresentationMode {
 	return params.get("mode") === "present" ? "present" : "edit";
 }
 
-function createBasePlugins(): UsketchPlugin[] {
+interface CardHandWiring {
+	userId: string;
+	boardId?: string;
+	wsProvider?: WsProviderHandle | null;
+}
+
+function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 	return [
 		createGridBgPlugin(),
 		createDotsBgPlugin(),
@@ -145,7 +151,12 @@ function createBasePlugins(): UsketchPlugin[] {
 		createFreedrawPlugin(),
 		createTextPlugin(),
 		createStickyPlugin(),
-		createCardPlugin({ cardTypes: EXAMPLE_CARD_TYPES }),
+		createCardPlugin({
+			cardTypes: EXAMPLE_CARD_TYPES,
+			userId: cardHand.userId,
+			boardId: cardHand.boardId,
+			wsProvider: cardHand.wsProvider ?? undefined,
+		}),
 		createImageShapePlugin(),
 		createCounterPlugin(),
 		createWireframePlugin(),
@@ -160,8 +171,11 @@ function createBasePlugins(): UsketchPlugin[] {
 	];
 }
 
-async function loadPlugins(extra: UsketchPlugin[]): Promise<UsketchPlugin[]> {
-	const plugins = [...createBasePlugins(), ...extra];
+async function loadPlugins(
+	extra: UsketchPlugin[],
+	cardHand: CardHandWiring,
+): Promise<UsketchPlugin[]> {
+	const plugins = [...createBasePlugins(cardHand), ...extra];
 	if (import.meta.env.DEV) {
 		const { createDebugHudPlugin } = await import("@edv4h/usketch-plugin-debug-hud");
 		return [...plugins, createDebugHudPlugin()];
@@ -186,6 +200,12 @@ export function App() {
 	// popstate で ref を読み直す設計。
 	const modeRef = useRef<PresentationMode>(presentationMode);
 	modeRef.current = presentationMode;
+
+	// 最新のユーザー id を board-init effect の依存に入れずに参照するための ref
+	// （modeRef と同じ理由: 依存に入れると auth 解決のたびに board が作り直される）。
+	// 手札(hand)のローカル保持キー / awareness 枚数共有の userId に使う。
+	const userIdRef = useRef<string | undefined>(authUser?.id);
+	userIdRef.current = authUser?.id;
 
 	// react-router の navigate() は pushState ベースで popstate を発火しない。
 	// presentation plugin は popstate で modeRef を再読込する設計なので、
@@ -336,7 +356,11 @@ export function App() {
 			.then(() => {
 				if (cancelled) return;
 
-				return loadPlugins(extraPlugins)
+				return loadPlugins(extraPlugins, {
+					userId: userIdRef.current ?? getDevUser()?.id ?? "local",
+					boardId,
+					wsProvider,
+				})
 					.then((plugins) => createApp({ store, plugins }))
 					.then((created) => {
 						if (cancelled) {

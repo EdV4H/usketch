@@ -12,6 +12,7 @@ import {
 	zIndexAfterAll,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand, createUpdateShapeCommand } from "@edv4h/usketch-store";
+import { CardActionMenu } from "./card-action-menu.js";
 import { drawTop, shuffle } from "./deck.js";
 import {
 	CARD_TYPE,
@@ -21,6 +22,8 @@ import {
 	DECK_TYPE,
 } from "./factory.js";
 import { getBounds, makeAspectResize, rectHitTest } from "./geometry.js";
+import { type CardHandAwareness, createHandStore, type HandCardEntry } from "./hand-store.js";
+import { HandTray } from "./hand-tray.js";
 import {
 	injectPlacementStyles,
 	PLACEMENT_TRANSIENT_TYPE,
@@ -59,6 +62,21 @@ export interface CreateCardPluginOptions {
 	 * `false` にすると、対象カード・デッキはハンドル非表示・リサイズ操作無効（サイズ固定）になる。
 	 */
 	resizable?: boolean;
+	/** 手札(hand)のローカル保持キーに使うユーザー id。既定 `"local"`。 */
+	userId?: string;
+	/** 手札の localStorage キーを board 単位に分けるための board id（任意）。 */
+	boardId?: string;
+	/**
+	 * 手札**枚数**の共有用 awareness を持つ wsProvider（任意）。渡すと他者に「N枚保持中」を
+	 * 見せられる。無ければ手札はローカルのみで動作（枚数共有なし）。手札の中身は共有しない。
+	 */
+	wsProvider?: { awareness: CardHandAwareness };
+	/**
+	 * 旧来のダブルクリック操作（カード=めくり / デッキ=1枚ドロー）を有効にするか。既定 `false`。
+	 * これらは操作メニューに移行済み。グローバルな pointerdown 監視で select 等と競合しうるため
+	 * 既定で無効。後方互換で戻したい場合のみ `true`。
+	 */
+	legacyDoubleClickActions?: boolean;
 }
 
 // ── icons ──
@@ -296,19 +314,119 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				emitPlacement(newCard);
 			}
 
-			const offPointerDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
-				const hit = topHitAt(event.worldPoint);
-				const now = Date.now();
-				if (hit && now - lastClickTime < DOUBLE_CLICK_MS && lastClickId === hit.id) {
-					if (hit.type === CARD_TYPE) flipCard(hit);
-					else if (enableDeck && hit.type === DECK_TYPE) drawFromDeck(hit);
-					lastClickTime = 0;
-					lastClickId = null;
-					return;
-				}
-				lastClickTime = now;
-				lastClickId = hit?.id ?? null;
+			// ── 手札(hand): 内容はローカル限定、枚数だけ awareness 共有（#671 / 真 private は #686） ──
+			const localUserId = opts.userId ?? "local";
+			const handStore = createHandStore(localUserId, opts.boardId);
+			const awareness = opts.wsProvider?.awareness;
+
+			function broadcastHandCount() {
+				awareness?.setLocalStateField("cardHand", {
+					userId: localUserId,
+					count: handStore.count(),
+				});
+			}
+			broadcastHandCount();
+
+			function viewportCenterWorld(): Point {
+				const vp = ctx.store.getViewport();
+				const w = typeof window !== "undefined" ? window.innerWidth : 1200;
+				const h = typeof window !== "undefined" ? window.innerHeight : 800;
+				return { x: (w / 2 - vp.x) / vp.zoom, y: (h / 2 - vp.y) / vp.zoom };
+			}
+
+			// カードを手札に入れる: shape を共有ストアから削除し内容をローカル手札へ（undo 可能）。
+			function moveCardToHand(id: string) {
+				const shape = ctx.store.getShape(id);
+				if (!shape || shape.type !== CARD_TYPE) return;
+				const m = readCardMeta(shape);
+				if (!m.cardType) return; // bare card は手札化しない
+				const snapshot = { ...shape };
+				const entry: HandCardEntry = {
+					id: shape.id,
+					cardType: m.cardType,
+					fields: (m.fields ?? {}) as Record<string, unknown>,
+					width: shape.width,
+					height: shape.height,
+				};
+				ctx.commands.execute({
+					execute() {
+						ctx.store.deleteShape(id);
+						handStore.addToHand(entry);
+						broadcastHandCount();
+					},
+					undo() {
+						ctx.store.addShape(snapshot);
+						handStore.removeFromHand(id);
+						broadcastHandCount();
+					},
+				});
+			}
+
+			// 手札のカードを場に出す: ローカル手札から取り出し shape を再追加（undo 可能）。
+			function playCardFromHand(id: string) {
+				const entry = handStore.getHand().find((e) => e.id === id);
+				if (!entry) return;
+				const def = registry.get(entry.cardType);
+				if (!def) return;
+				const center = viewportCenterWorld();
+				const allZ = ctx.store.getShapesSorted().map((s) => s.zIndex);
+				const card = createCardShape(def, {
+					id: entry.id,
+					x: center.x - entry.width / 2,
+					y: center.y - entry.height / 2,
+					width: entry.width,
+					height: entry.height,
+					fields: entry.fields,
+					zIndex: zIndexAfterAll(allZ),
+				});
+				ctx.commands.execute({
+					execute() {
+						handStore.removeFromHand(id);
+						ctx.store.addShape(card);
+						broadcastHandCount();
+					},
+					undo() {
+						ctx.store.deleteShape(card.id);
+						handStore.addToHand(entry);
+						broadcastHandCount();
+					},
+				});
+				ctx.store.setSelection([card.id]);
+				emitPlacement(card);
+			}
+
+			// ── 操作メニュー / トレイからのイベント ──
+			const offFlip = ctx.events.on<{ id: string }>("card:flip", ({ id }) => {
+				const shape = ctx.store.getShape(id);
+				if (shape?.type === CARD_TYPE) flipCard(shape);
 			});
+			const offDraw = ctx.events.on<{ id: string }>("card-deck:draw", ({ id }) => {
+				const deck = ctx.store.getShape(id);
+				if (enableDeck && deck?.type === DECK_TYPE) drawFromDeck(deck);
+			});
+			const offToHand = ctx.events.on<{ id: string }>("card:to-hand", ({ id }) =>
+				moveCardToHand(id),
+			);
+			const offPlayFromHand = ctx.events.on<{ id: string }>("card:play-from-hand", ({ id }) =>
+				playCardFromHand(id),
+			);
+
+			// ── 旧来のダブルクリック操作（既定 OFF。操作メニューへ移行済み。#671） ──
+			const offPointerDown = opts.legacyDoubleClickActions
+				? ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
+						const hit = topHitAt(event.worldPoint);
+						const now = Date.now();
+						if (hit && now - lastClickTime < DOUBLE_CLICK_MS && lastClickId === hit.id) {
+							if (hit.type === CARD_TYPE) flipCard(hit);
+							else if (enableDeck && hit.type === DECK_TYPE) drawFromDeck(hit);
+							lastClickTime = 0;
+							lastClickId = null;
+							return;
+						}
+						lastClickTime = now;
+						lastClickId = hit?.id ?? null;
+					})
+				: undefined;
 
 			// ── シャッフル（選択中のデッキを Shift+S） ──
 			const offShuffleEvent = ctx.events.on<{ id?: string }>("card-deck:shuffle", (data) => {
@@ -491,13 +609,43 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					});
 			}
 
+			// ── 操作メニュー層（選択時に近傍へ追従表示） ──
+			ctx.layers.register({
+				id: "card-menu",
+				order: 82,
+				fixed: true,
+				render: () => <CardActionMenu enableDeck={enableDeck} />,
+			});
+
+			// ── 手札トレイ層（画面下部固定 HUD。自分の手札のみ中身表示） ──
+			ctx.layers.register({
+				id: "card-hand",
+				order: 90,
+				fixed: true,
+				render: () => (
+					<HandTray
+						handStore={handStore}
+						registry={registry}
+						localUserId={localUserId}
+						awareness={awareness}
+					/>
+				),
+			});
+
 			// ── teardown ──
 			return () => {
 				offSelectType();
 				offMoveEnd();
-				offPointerDown();
+				offPointerDown?.();
 				offShuffleEvent();
 				offShuffleShortcut?.();
+				offFlip();
+				offDraw();
+				offToHand();
+				offPlayFromHand();
+				ctx.layers.unregister("card-menu");
+				ctx.layers.unregister("card-hand");
+				awareness?.setLocalStateField("cardHand", null);
 			};
 		},
 	};
