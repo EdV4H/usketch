@@ -23,6 +23,10 @@ interface ShapesPanelProps {
 	/** Shapes that exist locally but the server hasn't acknowledged. Empty if the
 	 * sync layer doesn't track divergence. */
 	unconfirmedShapeIds?: ReadonlySet<string>;
+	/** Left offset so the panel clears the Controls dock. Default 8. */
+	offsetLeft?: number;
+	/** Render inline (inside the Controls dock section) instead of a floating panel. */
+	docked?: boolean;
 }
 
 // Keys rendered explicitly in the always-on portion of the panel. Anything
@@ -94,6 +98,8 @@ export function ShapesPanel({
 	registry,
 	onHoverShape,
 	unconfirmedShapeIds,
+	offsetLeft = 8,
+	docked = false,
 }: ShapesPanelProps) {
 	const [expandedId, setExpandedId] = useState<string | null>(null);
 	const [filterUnconfirmed, setFilterUnconfirmed] = useState(false);
@@ -133,19 +139,8 @@ export function ShapesPanel({
 		});
 	};
 
-	return (
-		<div
-			style={{
-				...PANEL_BASE,
-				position: "absolute",
-				top: 8,
-				left: 8,
-				width: 240,
-				height: 300,
-				display: "flex",
-				flexDirection: "column",
-			}}
-		>
+	const content = (
+		<>
 			<div
 				style={{
 					...LABEL_STYLE,
@@ -172,7 +167,7 @@ export function ShapesPanel({
 					</button>
 				)}
 			</div>
-			<div style={{ ...SCROLLABLE_STYLE, flexGrow: 1, maxHeight: "none" }}>
+			<div style={{ ...SCROLLABLE_STYLE, flexGrow: 1, maxHeight: docked ? 220 : "none" }}>
 				{shapeEntries.length === 0 ? (
 					<div style={{ color: TEXT_MUTED }}>No shapes</div>
 				) : (
@@ -241,6 +236,26 @@ export function ShapesPanel({
 					})
 				)}
 			</div>
+		</>
+	);
+
+	if (docked) {
+		return <div style={{ display: "flex", flexDirection: "column" }}>{content}</div>;
+	}
+	return (
+		<div
+			style={{
+				...PANEL_BASE,
+				position: "absolute",
+				top: 8,
+				left: offsetLeft,
+				width: 240,
+				height: 300,
+				display: "flex",
+				flexDirection: "column",
+			}}
+		>
+			{content}
 		</div>
 	);
 }

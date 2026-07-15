@@ -189,9 +189,6 @@ export function App() {
 	const navigate = useNavigate();
 	const isCloudBoard = location.pathname.startsWith("/boards/");
 	const presentationMode = readPresentationMode(location.search);
-	// 通常のホワイトボード編集（presentation 以外）は Vim 操作を既定とし、
-	// ツールバー等の chrome を表示しない（UI はプラグインのレイヤーが担う）。
-	const vimFirst = presentationMode === "off";
 	const { user: authUser } = useAuth();
 
 	// 最新の presentation mode を useEffect 外部から参照するための ref。
@@ -495,14 +492,16 @@ export function App() {
 	// フェーズでキーを先取りするため衝突せず、Vim 非アクティブ時は通常通り動く）。
 	useKeyboardShortcuts(app, presentationMode === "present");
 
-	// Vim-first では vim を、それ以外（presentation）では select を既定/アクティブにする。
-	// presentation への切替時に vim が残り続けないよう両方向で設定する。
+	// Vim モードは既定 OFF（store の既定ツールは "select"）。Control HUD の
+	// "Vim mode" アクションで実行時に切り替える。プレゼン発表へ切替時のみ、vim が
+	// 残り続けないよう select に戻す。
 	useEffect(() => {
 		if (!app) return;
-		const tool = vimFirst ? "vim" : "select";
-		app.store.setDefaultToolId(tool);
-		app.store.setActiveToolId(tool);
-	}, [app, vimFirst]);
+		if (presentationMode === "present") {
+			app.store.setDefaultToolId("select");
+			app.store.setActiveToolId("select");
+		}
+	}, [app, presentationMode]);
 
 	// Info タブを SidePanel に登録（Cloud ボードのみ）
 	useEffect(() => {
@@ -567,8 +566,9 @@ export function App() {
 	if (!app) return null;
 
 	// 発表モード中、または Vim-first UI では通常の chrome を隠す
-	// （Vim-first ではステータスライン等を vim プラグインが自前描画する）
-	const hideToolbar = presentationMode === "present" || vimFirst;
+	// ツールバーは通常表示。Vim モードは既定 OFF で、Control HUD の "Vim mode"
+	// アクションから切り替える（プレゼン発表中のみ chrome を隠す）。
+	const hideToolbar = presentationMode === "present";
 	// プレゼン編集モード中はスライド編集に関係ない UI を隠す
 	const isPresentEdit = presentationMode === "edit";
 	// 発表中は Canvas を readonly (シェイプ選択/ドラッグ/描画を全てオフ)

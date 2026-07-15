@@ -6,12 +6,14 @@ interface MinimapProps {
 	shapes: ReadonlyMap<string, ShapeData>;
 	viewport: Viewport;
 	selection: ReadonlySet<string>;
+	/** Left offset so the minimap clears the Controls dock. Default 8. */
+	offsetLeft?: number;
 }
 
 const MAP_W = 140;
 const MAP_H = 90;
 
-export function Minimap({ shapes, viewport, selection }: MinimapProps) {
+export function Minimap({ shapes, viewport, selection, offsetLeft = 8 }: MinimapProps) {
 	const shapeArr = Array.from(shapes.values());
 
 	// viewport.x/y is a screen-space translate offset, not a world origin.
@@ -34,7 +36,7 @@ export function Minimap({ shapes, viewport, selection }: MinimapProps) {
 			style={{
 				position: "absolute",
 				bottom: 8,
-				left: 8,
+				left: offsetLeft,
 				width: MAP_W,
 				height: MAP_H,
 				background: PANEL_BG,

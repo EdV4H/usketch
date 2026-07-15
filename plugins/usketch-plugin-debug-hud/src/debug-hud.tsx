@@ -13,7 +13,11 @@ import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
 import { Minimap } from "./overlays/minimap.js";
 import { ShapeBoundsOverlay } from "./overlays/shape-bounds-overlay.js";
-import { ControlsPanel } from "./panels/controls-panel.js";
+import {
+	CONTROLS_DOCK_COLLAPSED,
+	CONTROLS_DOCK_WIDTH,
+	ControlsPanel,
+} from "./panels/controls-panel.js";
 import { EventsPanel } from "./panels/events-panel.js";
 import { GeneralPanel } from "./panels/general-panel.js";
 import { ShapesPanel } from "./panels/shapes-panel.js";
@@ -66,6 +70,9 @@ export function DebugHud({
 	const getVisibility = useCallback(() => visibility.get(), [visibility]);
 	const visible = useSyncExternalStore(subscribeVisibility, getVisibility, getVisibility);
 	const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
+	const [controlsCollapsed, setControlsCollapsed] = useState(false);
+	// Left offset for the Shapes panel / Minimap so they clear the Controls dock.
+	const leftOffset = 8 + (controlsCollapsed ? CONTROLS_DOCK_COLLAPSED : CONTROLS_DOCK_WIDTH) + 8;
 
 	// Keyboard shortcut (backtick)
 	useEffect(() => {
@@ -146,31 +153,39 @@ export function DebugHud({
 				activeToolId={activeToolId}
 			/>
 
-			{/* Left-center: Shapes Inspector */}
-			<ShapesPanel
-				store={store}
-				commands={commands}
-				shapes={shapeMap}
-				selection={selection}
-				registry={shapes}
-				onHoverShape={setHoveredShapeId}
-				unconfirmedShapeIds={unconfirmedShapeIdSet}
-			/>
-
-			{/* Left: universal control panel (tools + actions + event console + style) */}
+			{/* Left dock: universal control panel (tools + actions + shapes + event console + style) */}
 			<ControlsPanel
 				store={store}
 				tools={tools}
 				actions={actions}
 				events={events}
 				activeToolId={activeToolId}
+				collapsed={controlsCollapsed}
+				onToggleCollapsed={() => setControlsCollapsed((c) => !c)}
+				shapesSection={
+					<ShapesPanel
+						store={store}
+						commands={commands}
+						shapes={shapeMap}
+						selection={selection}
+						registry={shapes}
+						onHoverShape={setHoveredShapeId}
+						unconfirmedShapeIds={unconfirmedShapeIdSet}
+						docked
+					/>
+				}
 			/>
 
 			{/* Right-bottom: Event Log */}
 			<EventsPanel eventLogger={eventLogger} />
 
-			{/* Bottom-left: Minimap */}
-			<Minimap shapes={shapeMap} viewport={viewport} selection={selection} />
+			{/* Bottom-left (right of the dock): Minimap */}
+			<Minimap
+				shapes={shapeMap}
+				viewport={viewport}
+				selection={selection}
+				offsetLeft={leftOffset}
+			/>
 		</>
 	);
 }

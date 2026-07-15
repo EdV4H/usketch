@@ -172,6 +172,20 @@ export function createVimToolPlugin(
 				},
 			});
 
+			// ── Vim モードのトグルを Action として公開（Control HUD が自動でUI化） ──
+			// vim を既定 + アクティブツールにする ⇔ select に戻す。既定は OFF（select）。
+			const offVimAction = ctx.actions.register({
+				id: "vim:toggle",
+				label: "Vim mode",
+				group: "Mode",
+				isActive: () => ctx.store.getDefaultToolId() === TOOL_ID,
+				run: () => {
+					const next = ctx.store.getDefaultToolId() === TOOL_ID ? "select" : TOOL_ID;
+					ctx.store.setDefaultToolId(next);
+					ctx.store.setActiveToolId(next);
+				},
+			});
+
 			// 他経路（:q, :tool 等）でツールが変わったときも active を同期。
 			const unsubMutation = ctx.store.onMutation((evt) => {
 				if (evt.type === "tool:changed") {
@@ -216,6 +230,7 @@ export function createVimToolPlugin(
 					window.removeEventListener("keydown", onKeyDown, true);
 				}
 				unsubMutation();
+				offVimAction();
 				actor.stop();
 				ctx.layers.unregister("vim-overlay");
 				ctx.layers.unregister("vim-status-line");

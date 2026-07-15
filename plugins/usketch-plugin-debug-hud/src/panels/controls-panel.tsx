@@ -21,36 +21,69 @@ import {
 	TEXT_MUTED,
 } from "../styles.js";
 
+/** Expanded / collapsed dock widths (kept in sync with DebugHud's sibling offset). */
+export const CONTROLS_DOCK_WIDTH = 248;
+export const CONTROLS_DOCK_COLLAPSED = 30;
+
 interface ControlsPanelProps {
 	store: BoardStore;
 	tools: ToolRegistry;
 	actions: ActionRegistry;
 	events: EventBus;
 	activeToolId: string;
+	collapsed: boolean;
+	onToggleCollapsed: () => void;
+	/** The shapes inspector, rendered as a section inside the dock. */
+	shapesSection?: React.ReactNode;
 }
 
 /**
- * Universal control panel (#671-adjacent). Drives plugin operations without any
- * demo-app UI: a tool palette (from `tools.getOrdered()`), the declarative
- * action registry (`actions.getOrdered()`), a raw event-emit console fallback,
- * and default-style controls.
+ * Universal control dock. Drives plugin operations without any demo-app UI: a
+ * tool palette (`tools.getOrdered()`), the declarative action registry, a raw
+ * event-emit fallback, and default-style controls. Full-height, collapsible,
+ * with collapsible sections.
  */
-export function ControlsPanel({ store, tools, actions, events, activeToolId }: ControlsPanelProps) {
+export function ControlsPanel({
+	store,
+	tools,
+	actions,
+	events,
+	activeToolId,
+	collapsed,
+	onToggleCollapsed,
+	shapesSection,
+}: ControlsPanelProps) {
 	// Re-render when actions register/unregister at runtime.
 	const [, bump] = useReducer((n: number) => n + 1, 0);
 	useEffect(() => actions.subscribe(bump), [actions]);
+
+	if (collapsed) {
+		return (
+			<button
+				type="button"
+				onClick={onToggleCollapsed}
+				style={collapsedStripStyle}
+				title="Open controls"
+			>
+				<span style={{ writingMode: "vertical-rl", letterSpacing: 1 }}>Controls ›</span>
+			</button>
+		);
+	}
 
 	const toolList = tools.getOrdered();
 	const actionList = actions.getOrdered();
 	const groups = groupActions(actionList);
 
 	return (
-		<div style={panelStyle}>
-			<div style={titleStyle}>Controls</div>
+		<div style={dockStyle}>
+			<div style={headerStyle}>
+				<span style={{ color: ACCENT, fontWeight: 700 }}>Controls</span>
+				<button type="button" onClick={onToggleCollapsed} style={MINI_BUTTON} title="Collapse">
+					‹
+				</button>
+			</div>
 
-			{/* Tools */}
-			<div style={SECTION_STYLE}>
-				<div style={LABEL_STYLE}>Tools</div>
+			<Section title="Tools">
 				<div style={toolGridStyle}>
 					{toolList.map(({ id, definition }) => (
 						<button
@@ -72,16 +105,14 @@ export function ControlsPanel({ store, tools, actions, events, activeToolId }: C
 						</button>
 					))}
 				</div>
-			</div>
+			</Section>
 
-			{/* Actions (from the registry) */}
 			{groups.map(([group, items]) => (
-				<div key={group} style={SECTION_STYLE}>
-					<div style={LABEL_STYLE}>{group}</div>
+				<Section key={group} title={group}>
 					{items.map(({ id, action }) => (
 						<ActionRow key={id} action={action} />
 					))}
-				</div>
+				</Section>
 			))}
 			{actionList.length === 0 && (
 				<div style={{ color: TEXT_MUTED, fontSize: 10, marginBottom: 6 }}>
@@ -89,11 +120,46 @@ export function ControlsPanel({ store, tools, actions, events, activeToolId }: C
 				</div>
 			)}
 
-			{/* Raw event console (fallback for anything not registered as an action) */}
-			<EventConsole events={events} />
+			{shapesSection && (
+				<Section title="Shapes" defaultOpen={false}>
+					{shapesSection}
+				</Section>
+			)}
 
-			{/* Default style + clear */}
-			<StyleControls store={store} />
+			<Section title="Emit event" defaultOpen={false}>
+				<EventConsole events={events} />
+			</Section>
+
+			<Section title="Style" defaultOpen={false}>
+				<StyleControls store={store} />
+			</Section>
+		</div>
+	);
+}
+
+/** Collapsible section with a clickable header. */
+function Section({
+	title,
+	defaultOpen = true,
+	children,
+}: {
+	title: string;
+	defaultOpen?: boolean;
+	children: React.ReactNode;
+}) {
+	const [open, setOpen] = useState(defaultOpen);
+	return (
+		<div style={SECTION_STYLE}>
+			<button
+				type="button"
+				onClick={() => setOpen((o) => !o)}
+				style={sectionHeaderStyle}
+				title={open ? "Collapse" : "Expand"}
+			>
+				<span style={{ marginRight: 4 }}>{open ? "▾" : "▸"}</span>
+				{title}
+			</button>
+			{open && <div style={{ marginTop: 4 }}>{children}</div>}
 		</div>
 	);
 }
@@ -270,8 +336,7 @@ function EventConsole({ events }: { events: EventBus }) {
 	};
 
 	return (
-		<div style={SECTION_STYLE}>
-			<div style={LABEL_STYLE}>Emit event</div>
+		<div>
 			<input
 				type="text"
 				value={name}
@@ -312,8 +377,7 @@ function StyleControls({ store }: { store: BoardStore }) {
 	};
 
 	return (
-		<div style={SECTION_STYLE}>
-			<div style={LABEL_STYLE}>Default style</div>
+		<div>
 			<div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
 				<label style={swatchLabel}>
 					fill
@@ -347,21 +411,56 @@ function toHex(color: unknown): string {
 	return typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color) ? color : "#000000";
 }
 
-const panelStyle: React.CSSProperties = {
+const dockStyle: React.CSSProperties = {
 	...PANEL_BASE,
+	// width must include padding so DebugHud's sibling offset (based on the
+	// nominal width) actually clears the dock — otherwise content-box padding
+	// makes the dock ~20px wider than expected and the minimap overlaps it.
+	boxSizing: "border-box",
 	position: "absolute",
 	left: 8,
-	top: 316,
-	width: 240,
-	maxHeight: "calc(100vh - 430px)",
+	top: 8,
+	bottom: 8,
+	width: CONTROLS_DOCK_WIDTH,
 	overflowY: "auto",
 };
 
-const titleStyle: React.CSSProperties = {
+const collapsedStripStyle: React.CSSProperties = {
+	...PANEL_BASE,
+	boxSizing: "border-box",
+	position: "absolute",
+	left: 8,
+	top: 8,
+	bottom: 8,
+	width: CONTROLS_DOCK_COLLAPSED,
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "center",
+	cursor: "pointer",
+	border: "none",
 	color: ACCENT,
 	fontSize: 11,
 	fontWeight: 700,
-	marginBottom: 6,
+};
+
+const headerStyle: React.CSSProperties = {
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "space-between",
+	marginBottom: 8,
+	fontSize: 11,
+};
+
+const sectionHeaderStyle: React.CSSProperties = {
+	...LABEL_STYLE,
+	display: "block",
+	width: "100%",
+	textAlign: "left",
+	background: "transparent",
+	border: "none",
+	cursor: "pointer",
+	padding: 0,
+	fontFamily: "inherit",
 };
 
 const toolGridStyle: React.CSSProperties = {
