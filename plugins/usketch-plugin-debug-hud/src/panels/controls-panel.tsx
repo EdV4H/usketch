@@ -13,11 +13,9 @@ import { STOP_CANVAS_PROPAGATION } from "../stop-propagation.js";
 import {
 	ACCENT,
 	INLINE_INPUT,
-	LABEL_STYLE,
 	MINI_BUTTON,
 	MINI_BUTTON_ACCENT,
 	PANEL_BASE,
-	SECTION_STYLE,
 	TEXT_LABEL,
 	TEXT_MUTED,
 } from "../styles.js";
@@ -154,17 +152,17 @@ function Section({
 }) {
 	const [open, setOpen] = useState(defaultOpen);
 	return (
-		<div style={SECTION_STYLE}>
+		<div style={sectionStyle}>
 			<button
 				type="button"
 				onClick={() => setOpen((o) => !o)}
 				style={sectionHeaderStyle}
 				title={open ? "Collapse" : "Expand"}
 			>
-				<span style={{ marginRight: 4 }}>{open ? "▾" : "▸"}</span>
+				<span style={{ color: ACCENT, marginRight: 6, fontSize: 8 }}>{open ? "▼" : "▶"}</span>
 				{title}
 			</button>
-			{open && <div style={{ marginTop: 4 }}>{children}</div>}
+			{open && <div style={sectionBodyStyle}>{children}</div>}
 		</div>
 	);
 }
@@ -452,20 +450,42 @@ const headerStyle: React.CSSProperties = {
 	display: "flex",
 	alignItems: "center",
 	justifyContent: "space-between",
-	marginBottom: 8,
+	marginBottom: 2,
 	fontSize: 11,
 };
 
+// セクションごとに区切り線 + 上マージンを付けて境界を明確にする。
+const sectionStyle: React.CSSProperties = {
+	marginTop: 10,
+	paddingTop: 10,
+	borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+};
+
+// ヘッダーは大文字 + トラッキング + やや明るい色でスキャンしやすくする。
 const sectionHeaderStyle: React.CSSProperties = {
-	...LABEL_STYLE,
-	display: "block",
+	display: "flex",
+	alignItems: "center",
 	width: "100%",
 	textAlign: "left",
 	background: "transparent",
 	border: "none",
 	cursor: "pointer",
 	padding: 0,
+	margin: 0,
 	fontFamily: "inherit",
+	color: "#c9c9d4",
+	fontSize: 10.5,
+	fontWeight: 600,
+	letterSpacing: 0.6,
+	textTransform: "uppercase",
+};
+
+// 本文はインデント + 左のレールで「ヘッダー配下」であることを視覚化する。
+const sectionBodyStyle: React.CSSProperties = {
+	marginTop: 8,
+	marginLeft: 3,
+	paddingLeft: 9,
+	borderLeft: "1px solid rgba(255, 255, 255, 0.08)",
 };
 
 const toolGridStyle: React.CSSProperties = {
