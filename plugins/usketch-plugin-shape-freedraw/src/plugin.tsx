@@ -6,7 +6,7 @@ import { createFreedrawSettingsStore } from "./settings-store.js";
 import { freedrawShapeDefinition } from "./shape.js";
 import type { PenKind } from "./types.js";
 import { createPointerStore, FreedrawCursor } from "./ui/cursor-overlay.js";
-import { type BoolStore, FreedrawPalette } from "./ui/palette.js";
+import type { BoolStore } from "./ui/palette.js";
 
 const TOOL_ID = "freedraw-draw";
 
@@ -86,13 +86,8 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 					<FreedrawCursor settings={settings} pointer={pointer} viewport={rc.viewport} />
 				),
 			});
-			ctx.layers.register({
-				id: "freedraw-palette",
-				order: 126,
-				fixed: true,
-				interactable: true,
-				render: () => <FreedrawPalette settings={settings} active={active} />,
-			});
+			// freedraw の設定 palette は Control HUD の Action(freedraw:*)に統合したため撤去。
+			// カーソル(描画フィードバック)は維持。
 
 			// ── vim 連携 / 外部からの設定変更イベント ──
 			const offPen = ctx.events.on<{ pen: PenKind }>("freedraw:set-pen", ({ pen }) => {
@@ -184,7 +179,6 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 					window.removeEventListener("keydown", onKeyDown, true);
 				}
 				ctx.layers.unregister("freedraw-cursor");
-				ctx.layers.unregister("freedraw-palette");
 			};
 		},
 	};

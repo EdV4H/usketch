@@ -131,6 +131,22 @@ export function createWireframePlugin(): UsketchPlugin {
 				currentSubtype = data.type;
 			});
 
+			// Control HUD 用 Action（Demo の subtype picker 相当）
+			const offSubtypeAction = ctx.actions.register({
+				id: "wireframe:subtype",
+				label: "Wireframe subtype",
+				group: "Wireframe",
+				params: [
+					{
+						name: "type",
+						type: "enum",
+						default: WIREFRAME_SUBTYPES[0].type,
+						options: WIREFRAME_SUBTYPES.map((s) => ({ value: s.type, label: s.label })),
+					},
+				],
+				run: ({ type }) => ctx.events.emit("wireframe:select-subtype", { type }),
+			});
+
 			function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
 				const subtype = WIREFRAME_SUBTYPES.find((s) => s.type === currentSubtype);
 				if (!subtype) return;
@@ -157,6 +173,7 @@ export function createWireframePlugin(): UsketchPlugin {
 
 			return () => {
 				offSubtype();
+				offSubtypeAction();
 			};
 		},
 	};

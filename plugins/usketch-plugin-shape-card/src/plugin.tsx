@@ -12,7 +12,6 @@ import {
 	zIndexAfterAll,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand, createUpdateShapeCommand } from "@edv4h/usketch-store";
-import { CardActionMenu } from "./card-action-menu.js";
 import { drawTop, shuffle } from "./deck.js";
 import {
 	CARD_TYPE,
@@ -680,13 +679,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					});
 			}
 
-			// ── 操作メニュー層（選択時に近傍へ追従表示） ──
-			ctx.layers.register({
-				id: "card-menu",
-				order: 82,
-				fixed: true,
-				render: () => <CardActionMenu enableDeck={enableDeck} />,
-			});
+			// カード操作の追従メニューは Control HUD の Action(card:*)に統合したため撤去。
 
 			// ── 手札トレイ層（画面下部固定 HUD。自分の手札のみ中身表示） ──
 			ctx.layers.register({
@@ -715,7 +708,6 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				offToHand();
 				offPlayFromHand();
 				for (const off of offActions) off();
-				ctx.layers.unregister("card-menu");
 				ctx.layers.unregister("card-hand");
 				awareness?.setLocalStateField("cardHand", null);
 			};

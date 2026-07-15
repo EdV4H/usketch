@@ -15,7 +15,7 @@ import type {
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
-import { createAddShapeCommand } from "@edv4h/usketch-store";
+import { createAddShapeCommand, createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import {
 	type AnchorHandleMode,
 	AnchorHandleOverlay,
@@ -24,9 +24,11 @@ import {
 import { ConnectorLabelEditor, handleConnectorClick, setEditingLabel } from "./connector-label.js";
 import { EndpointOverlay } from "./endpoint-overlay.js";
 import {
+	type ArrowHead,
 	createDefaultConnector,
 	getBoundsConnector,
 	hitTestConnector,
+	type PathType,
 	renderConnector,
 	SimplifiedConnector,
 } from "./shapes/connector.js";
@@ -306,6 +308,131 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 				},
 			);
 
+			// ── 選択コネクタのプロパティ操作を Action として公開（ConnectorPropertyBar 置換） ──
+			const selectedConnectorId = (): string | undefined => {
+				const sel = [...ctx.store.getSelection()];
+				if (sel.length !== 1) return undefined;
+				return ctx.store.getShape(sel[0])?.type === "connector" ? sel[0] : undefined;
+			};
+			const hasConnector = () => selectedConnectorId() !== undefined;
+			const updateConnectorProp = (key: string, value: unknown) => {
+				const id = selectedConnectorId();
+				if (!id) return;
+				const cur = ctx.store.getShape(id) as ConnectorShapeData | undefined;
+				if (!cur) return;
+				const from = { [key]: (cur as unknown as Record<string, unknown>)[key] };
+				ctx.commands.execute(
+					createBatchUpdateShapesCommand(ctx.store, [{ id, from, to: { [key]: value } }]),
+				);
+			};
+			// アンカー変更は端点座標を再計算する（両端が shape に接続している場合のみ）。
+			const setConnectorAnchor = (endpoint: "source" | "target", value: AnchorType) => {
+				const id = selectedConnectorId();
+				if (!id) return;
+				const c = ctx.store.getShape(id) as ConnectorShapeData | undefined;
+				if (!c || !c.sourceId || !c.targetId) return;
+				const sourceShape = ctx.store.getShape(c.sourceId);
+				const targetShape = ctx.store.getShape(c.targetId);
+				if (!sourceShape || !targetShape) return;
+				const key = endpoint === "source" ? "sourceAnchor" : "targetAnchor";
+				const newSourceAnchor = endpoint === "source" ? value : (c.sourceAnchor ?? "auto");
+				const newTargetAnchor = endpoint === "target" ? value : (c.targetAnchor ?? "auto");
+				const targetCenter = {
+					x: targetShape.x + targetShape.width / 2,
+					y: targetShape.y + targetShape.height / 2,
+				};
+				const sourceCenter = {
+					x: sourceShape.x + sourceShape.width / 2,
+					y: sourceShape.y + sourceShape.height / 2,
+				};
+				const nsp = getAnchorPoint(sourceShape, newSourceAnchor, targetCenter);
+				const ntp = getAnchorPoint(targetShape, newTargetAnchor, sourceCenter);
+				const from: Partial<ConnectorShapeData> = {
+					[key]: (c as unknown as Record<string, unknown>)[key] as AnchorType,
+					sourcePoint: c.sourcePoint,
+					targetPoint: c.targetPoint,
+					x: c.x,
+					y: c.y,
+					width: c.width,
+					height: c.height,
+				};
+				const to: Partial<ConnectorShapeData> = {
+					[key]: value,
+					sourcePoint: nsp,
+					targetPoint: ntp,
+					x: Math.min(nsp.x, ntp.x),
+					y: Math.min(nsp.y, ntp.y),
+					width: Math.abs(ntp.x - nsp.x),
+					height: Math.abs(ntp.y - nsp.y),
+				};
+				ctx.commands.execute(createBatchUpdateShapesCommand(ctx.store, [{ id, from, to }]));
+			};
+			const anchorOptions = [
+				{ value: "auto", label: "自動" },
+				{ value: "top", label: "上" },
+				{ value: "right", label: "右" },
+				{ value: "bottom", label: "下" },
+				{ value: "left", label: "左" },
+				{ value: "custom", label: "手動" },
+			];
+			const offConnectorActions = [
+				ctx.actions.register({
+					id: "connector:arrow-head",
+					label: "Arrow head",
+					group: "Connector",
+					isEnabled: hasConnector,
+					params: [
+						{
+							name: "value",
+							type: "enum",
+							default: "forward",
+							options: [
+								{ value: "none", label: "None" },
+								{ value: "forward", label: "Forward" },
+								{ value: "backward", label: "Backward" },
+								{ value: "both", label: "Both" },
+							],
+						},
+					],
+					run: ({ value }) => updateConnectorProp("arrowHead", value as ArrowHead),
+				}),
+				ctx.actions.register({
+					id: "connector:path-type",
+					label: "Path type",
+					group: "Connector",
+					isEnabled: hasConnector,
+					params: [
+						{
+							name: "value",
+							type: "enum",
+							default: "straight",
+							options: [
+								{ value: "straight", label: "Straight" },
+								{ value: "elbow", label: "Elbow" },
+								{ value: "curve", label: "Curve" },
+							],
+						},
+					],
+					run: ({ value }) => updateConnectorProp("pathType", value as PathType),
+				}),
+				ctx.actions.register({
+					id: "connector:source-anchor",
+					label: "Source anchor",
+					group: "Connector",
+					isEnabled: hasConnector,
+					params: [{ name: "value", type: "enum", default: "auto", options: anchorOptions }],
+					run: ({ value }) => setConnectorAnchor("source", value as AnchorType),
+				}),
+				ctx.actions.register({
+					id: "connector:target-anchor",
+					label: "Target anchor",
+					group: "Connector",
+					isEnabled: hasConnector,
+					params: [{ name: "value", type: "enum", default: "auto", options: anchorOptions }],
+					run: ({ value }) => setConnectorAnchor("target", value as AnchorType),
+				}),
+			];
+
 			// ── Position tracking & cascade delete (extracted into shared package) ──
 
 			const isConnectorType = (t: string) => t === "connector";
@@ -315,6 +442,7 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 			return () => {
 				stopTracker();
 				stopCascade();
+				for (const off of offConnectorActions) off();
 				unsubLabelClick();
 				unsubPointerForLabel();
 				cleanupAnchorHandles?.();
