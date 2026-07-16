@@ -13,6 +13,7 @@ import {
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { MARKDOWN_DEFAULT_SIZE, MARKDOWN_MIN_SIZE, MARKDOWN_SHORTCUT } from "./constants.js";
+import { createMarkdownTextHandler } from "./external-content-handler.js";
 import { createMarkdownEditingService } from "./markdown-editing-machine.js";
 import {
 	MD_BLUR_EVENT,
@@ -191,6 +192,9 @@ export function createMarkdownPlugin(): UsketchPlugin {
 				send({ type: "POINTER_DOWN", shapeId: hitShapeId });
 			});
 
+			// ── Paste / drop of plain text → markdown shape ──
+			const offExternal = ctx.externalContent.register(createMarkdownTextHandler());
+
 			// ── Exit edit when the editing shape gets deselected ──
 			const unsubscribe = ctx.store.subscribe(() => {
 				const editingShapeId = service.context.editingShapeId;
@@ -242,6 +246,7 @@ export function createMarkdownPlugin(): UsketchPlugin {
 				window.removeEventListener(MD_MEASURE_EVENT, onMeasure);
 				window.removeEventListener("pointerdown", onWindowPointerDown, true);
 				offPointerDown();
+				offExternal();
 				unsubscribe();
 			};
 		},

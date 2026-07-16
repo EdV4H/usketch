@@ -1,7 +1,14 @@
-import type { Command, PluginContext, ShapeData } from "@edv4h/usketch-shared";
+import type {
+	Command,
+	ExternalContentHandlerCtx,
+	ExternalContentText,
+	PluginContext,
+	ShapeData,
+} from "@edv4h/usketch-shared";
 import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { afterEach, describe, expect, it } from "vitest";
+import { createMarkdownTextHandler } from "../external-content-handler.js";
 import { createMarkdownEditingService } from "../markdown-editing-machine.js";
 import { MARKDOWN_TYPE, type MarkdownShapeData, readMarkdownMeta } from "../types.js";
 
@@ -121,5 +128,55 @@ describe("markdown editing machine", () => {
 		await tick();
 
 		expect(store.getShape("m3")).toBeUndefined();
+	});
+});
+
+// ── Paste / drop text → markdown shape ──
+
+function textContent(text: string): ExternalContentText {
+	return { kind: "text", via: "paste", text, html: null };
+}
+
+describe("markdown text external-content handler", () => {
+	const handler = createMarkdownTextHandler();
+	const ctx = {} as ExternalContentHandlerCtx;
+
+	it("matches non-empty text", () => {
+		expect(handler.match(textContent("# hello"), ctx)).toBe(true);
+	});
+
+	it("ignores empty/whitespace-only text", () => {
+		expect(handler.match(textContent("   "), ctx)).toBe(false);
+	});
+
+	it("does not hijack the internal shape-clipboard JSON", () => {
+		const internal = JSON.stringify({ format: "usketch/shapes", shapes: [] });
+		expect(handler.match(textContent(internal), ctx)).toBe(false);
+		// ...but unrelated JSON is still treated as markdown text.
+		expect(handler.match(textContent('{"foo":1}'), ctx)).toBe(true);
+	});
+
+	it("creates a selected markdown shape carrying the pasted text (undoable)", () => {
+		const store = createBoardStore();
+		const history: Command[] = [];
+		const hctx = {
+			store,
+			commands: {
+				execute: (c: Command) => {
+					c.execute();
+					history.push(c);
+				},
+			},
+		} as unknown as ExternalContentHandlerCtx;
+
+		handler.handle(textContent("# Pasted\n\n- a\n- b"), hctx);
+
+		const shapes = [...store.getShapes().values()];
+		expect(shapes).toHaveLength(1);
+		const shape = shapes[0] as ShapeData;
+		expect(shape.type).toBe(MARKDOWN_TYPE);
+		expect(readMarkdownMeta(shape).source).toBe("# Pasted\n\n- a\n- b");
+		expect(store.getSelection().has(shape.id)).toBe(true);
+		expect(history).toHaveLength(1);
 	});
 });

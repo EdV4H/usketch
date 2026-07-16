@@ -10,6 +10,7 @@ Markdown を整形表示する uSketch の shape プラグイン。付箋 / テ�
 - **シンタックスハイライト**: `rehype-highlight`（github 風テーマを内蔵注入、ライト/ダーク追従）。
 - **Mermaid**: ` ```mermaid ` ブロックを図として描画。`mermaid` は**動的 import で code-split**（図を含むボードを開いたときだけロード）。`securityLevel: "strict"` で描画し、不正構文は生コード＋エラー文言にフォールバック。
 - **編集**: ダブルクリックで raw Markdown を `textarea` で直接編集。blur / Esc / 外側クリック / 選択解除で確定。undo 対応。空にすると shape は削除。
+- **ペースト / ドロップ**: キャンバスにテキストをペースト（Cmd/Ctrl+V）またはドロップすると markdown shape を自動生成（external-content handler、`order:0` なので host が上書き可）。内部シェイプコピー（`usketch/shapes` JSON）は横取りしない。編集中の textarea へのペーストはブラウザ標準動作。
 - **高さ自動フィット**: 表示は描画内容に追従（Mermaid の非同期描画にも `ResizeObserver` で追従）。
 - ツール `markdown-draw`（ショートカット `m`）、LOD 簡易表示、AI serialize、Debug HUD の debug fields 対応。
 

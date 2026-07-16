@@ -9,4 +9,5 @@
 - **シンタックスハイライト**（rehype-highlight、github 風テーマを内蔵注入、ライト/ダーク追従）。
 - **Mermaid 図**対応（```mermaid```）。mermaid は動的 import で code-split し、`securityLevel: "strict"` で描画。不正構文は生コード＋エラーにフォールバック。
 - 編集は raw Markdown を textarea で直接編集（ダブルクリックで編集、blur/Esc/外側クリック/選択解除で確定、undo 対応、空なら削除）。表示は内容に応じて高さ自動フィット。
+- **テキストのペースト/ドロップ**で markdown shape を自動生成（external-content handler、`order:0`）。内部シェイプコピー(`usketch/shapes` JSON)は横取りしない。編集中の textarea へのペーストはネイティブ動作。
 - ツール `markdown-draw`（ショートカット `m`）、LOD 簡易表示、AI serialize、debug fields 対応。
