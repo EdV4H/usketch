@@ -18,6 +18,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@dagrejs/dagre": "^1.1.4",
 		"@edv4h/usketch-shared": "workspace:*",
 		"remark-gfm": "^4.0.0",
 		"remark-parse": "^11.0.0",

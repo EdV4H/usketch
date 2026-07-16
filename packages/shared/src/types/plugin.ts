@@ -725,6 +725,14 @@ export interface MarkdownNode {
  */
 export interface MarkdownShapeSpec {
 	type: string;
+	/**
+	 * Absolute id/position — set by self-laying-out converters (e.g. a mermaid
+	 * flowchart emitting interconnected nodes). When omitted the orchestrator
+	 * assigns an id and stacks the shape in the current vertical slot.
+	 */
+	id?: string;
+	x?: number;
+	y?: number;
 	width?: number;
 	height?: number;
 	style?: Partial<ShapeStyle>;
@@ -736,6 +744,12 @@ export interface MarkdownConverterContext {
 	/** The full original Markdown source (slice with `node.position` offsets). */
 	source: string;
 	shapes: ShapeRegistry;
+	/**
+	 * Top-left of the current layout slot. Self-laying-out converters position
+	 * their shapes (and any connector endpoints) absolutely from here; simple
+	 * single-shape converters can ignore it and let the orchestrator place them.
+	 */
+	origin: { x: number; y: number };
 }
 
 export interface MarkdownConverter {

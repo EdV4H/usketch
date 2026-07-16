@@ -1,4 +1,8 @@
-import { mdastText, nodeSource } from "@edv4h/usketch-plugin-markdown-to-shape";
+import {
+	createMermaidFlowchartConverter,
+	mdastText,
+	nodeSource,
+} from "@edv4h/usketch-plugin-markdown-to-shape";
 import type {
 	MarkdownConverter,
 	MarkdownNode,
@@ -72,9 +76,13 @@ export function createMarkdownAdaptersPlugin(): UsketchPlugin {
 		id: "usketch-app-markdown-adapters",
 		name: "Markdown Converters (app)",
 		setup(ctx: PluginContext) {
-			const offs = [headingToText, paragraphToText, listToText, blockquoteToText].map((c) =>
-				ctx.markdownConverters.register(c),
-			);
+			const offs = [
+				headingToText,
+				paragraphToText,
+				listToText,
+				blockquoteToText,
+				createMermaidFlowchartConverter(),
+			].map((c) => ctx.markdownConverters.register(c));
 			return () => {
 				for (const off of offs) off();
 			};
