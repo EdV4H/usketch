@@ -1,9 +1,11 @@
 import dagre from "@dagrejs/dagre";
+import { getAnchorPoint } from "@edv4h/usketch-connector-anchor";
 import {
 	generateId,
 	type MarkdownConverter,
 	type MarkdownNode,
 	type MarkdownShapeSpec,
+	type ShapeData,
 } from "@edv4h/usketch-shared";
 import { nodeSource } from "./mdast.js";
 
@@ -156,6 +158,10 @@ interface LaidOutNode {
 	height: number;
 }
 
+/** Minimal ShapeData view of a laid-out box (getAnchorPoint reads only bounds). */
+const boxShape = (b: LaidOutNode): ShapeData =>
+	({ x: b.x, y: b.y, width: b.width, height: b.height }) as ShapeData;
+
 /** Run dagre to position the flowchart's nodes (centers), offset by origin. */
 function layout(chart: Flowchart, origin: { x: number; y: number }): Map<string, LaidOutNode> {
 	const g = new dagre.graphlib.Graph();
@@ -245,8 +251,13 @@ export function createMermaidFlowchartConverter(): MarkdownConverter {
 				const sourceId = shapeIdByNode.get(edge.source);
 				const targetId = shapeIdByNode.get(edge.target);
 				if (!from || !to || !sourceId || !targetId) continue;
-				const sp = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
-				const tp = { x: to.x + to.width / 2, y: to.y + to.height / 2 };
+				// Clamp endpoints to each node's edge (toward the other node's center),
+				// matching the interactive draw tool. Without this the arrow is stored
+				// center-to-center and only snaps to the edges once a node is moved.
+				const fromCenter = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
+				const toCenter = { x: to.x + to.width / 2, y: to.y + to.height / 2 };
+				const sp = getAnchorPoint(boxShape(from), "auto", toCenter);
+				const tp = getAnchorPoint(boxShape(to), "auto", fromCenter);
 				specs.push({
 					type: "connector",
 					id: generateId(),

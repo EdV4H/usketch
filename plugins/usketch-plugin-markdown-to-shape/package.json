@@ -19,6 +19,7 @@
 	},
 	"dependencies": {
 		"@dagrejs/dagre": "^1.1.4",
+		"@edv4h/usketch-connector-anchor": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
 		"remark-gfm": "^4.0.0",
 		"remark-parse": "^11.0.0",

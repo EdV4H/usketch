@@ -89,6 +89,27 @@ describe("createMermaidFlowchartConverter", () => {
 		expect(specs.filter((s) => s.type === "rectangle")).toHaveLength(1);
 	});
 
+	it("clamps connector endpoints to node edges (not centers) on creation", () => {
+		const specs = converter.convert(codeNode("graph TD\nA[Start] --> B[End]"), ctx);
+		const byId = new Map(specs.map((s) => [s.id as string, s]));
+		const conn = specs.find((s) => s.type === "connector");
+		expect(conn).toBeDefined();
+		const source = byId.get(conn?.sourceId as string);
+		const target = byId.get(conn?.targetId as string);
+		const sp = conn?.sourcePoint as { x: number; y: number };
+		const tp = conn?.targetPoint as { x: number; y: number };
+		const onEdge = (p: { x: number; y: number }, s: (typeof specs)[number]) => {
+			const nearX = Math.abs(p.x - s.x!) < 0.5 || Math.abs(p.x - (s.x! + s.width!)) < 0.5;
+			const nearY = Math.abs(p.y - s.y!) < 0.5 || Math.abs(p.y - (s.y! + s.height!)) < 0.5;
+			return nearX || nearY;
+		};
+		// Endpoints lie on the node bounding boxes' edges, not their centers.
+		expect(onEdge(sp, source!)).toBe(true);
+		expect(onEdge(tp, target!)).toBe(true);
+		const srcCenterY = source!.y! + source!.height! / 2;
+		expect(Math.abs(sp.y - srcCenterY) > 0.5).toBe(true); // TD: leaves A's bottom edge, not center
+	});
+
 	it("falls back to a markdown shape for non-flowchart mermaid", () => {
 		const specs = converter.convert(
 			{
