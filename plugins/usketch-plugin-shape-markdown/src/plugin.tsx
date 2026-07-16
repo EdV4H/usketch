@@ -13,7 +13,10 @@ import {
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { MARKDOWN_DEFAULT_SIZE, MARKDOWN_MIN_SIZE, MARKDOWN_SHORTCUT } from "./constants.js";
-import { createMarkdownTextHandler } from "./external-content-handler.js";
+import {
+	createMarkdownTableHandler,
+	createMarkdownTextHandler,
+} from "./external-content-handler.js";
 import { createMarkdownEditingService } from "./markdown-editing-machine.js";
 import {
 	MD_BLUR_EVENT,
@@ -181,7 +184,10 @@ export function createMarkdownPlugin(): UsketchPlugin {
 			};
 			window.addEventListener("pointerdown", onWindowPointerDown, true);
 
-			// ── Paste / drop of plain text → markdown shape ──
+			// ── Paste / drop → markdown shape ──
+			// Table handler (order 10) wins for tabular content; plain text falls
+			// through to the catch-all (order 0).
+			const offTableHandler = ctx.externalContent.register(createMarkdownTableHandler());
 			const offExternal = ctx.externalContent.register(createMarkdownTextHandler());
 
 			// The currently-selected single markdown shape, or null. Used by the
@@ -259,6 +265,7 @@ export function createMarkdownPlugin(): UsketchPlugin {
 				window.removeEventListener(MD_MEASURE_EVENT, onMeasure);
 				window.removeEventListener("pointerdown", onWindowPointerDown, true);
 				offEditAction();
+				offTableHandler();
 				offExternal();
 				unsubscribe();
 			};

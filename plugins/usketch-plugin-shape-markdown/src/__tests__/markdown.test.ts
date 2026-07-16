@@ -8,8 +8,12 @@ import type {
 import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { afterEach, describe, expect, it } from "vitest";
-import { createMarkdownTextHandler } from "../external-content-handler.js";
+import {
+	createMarkdownTableHandler,
+	createMarkdownTextHandler,
+} from "../external-content-handler.js";
 import { createMarkdownEditingService } from "../markdown-editing-machine.js";
+import { parseDelimited, toMarkdownTable } from "../table-paste.js";
 import { MARKDOWN_TYPE, type MarkdownShapeData, readMarkdownMeta } from "../types.js";
 
 // ── readMarkdownMeta (pure) ──
@@ -192,5 +196,70 @@ describe("markdown text external-content handler", () => {
 		expect(readMarkdownMeta(shape).source).toBe("# Pasted\n\n- a\n- b");
 		expect(store.getSelection().has(shape.id)).toBe(true);
 		expect(history).toHaveLength(1);
+	});
+});
+
+// ── Tabular paste → markdown table ──
+
+describe("table-paste parsing", () => {
+	it("parses TSV into a grid", () => {
+		expect(parseDelimited("a\tb\n1\t2")).toEqual([
+			["a", "b"],
+			["1", "2"],
+		]);
+	});
+
+	it("parses consistent CSV into a grid", () => {
+		expect(parseDelimited("x,y,z\n1,2,3")).toEqual([
+			["x", "y", "z"],
+			["1", "2", "3"],
+		]);
+	});
+
+	it("rejects non-tabular text (prose / single column / ragged)", () => {
+		expect(parseDelimited("just a sentence, with a comma")).toBeNull(); // 1 line
+		expect(parseDelimited("hello\nworld")).toBeNull(); // no delimiter
+		expect(parseDelimited("a\tb\n1")).toBeNull(); // ragged column count
+	});
+
+	it("renders a GFM table (escaping pipes)", () => {
+		expect(
+			toMarkdownTable([
+				["h1", "h2"],
+				["a|b", "c"],
+			]),
+		).toBe("| h1 | h2 |\n| --- | --- |\n| a\\|b | c |");
+	});
+});
+
+describe("markdown table external-content handler", () => {
+	const table = createMarkdownTableHandler();
+	const ctx = {} as ExternalContentHandlerCtx;
+
+	it("matches TSV text and HTML tables, ignores prose", () => {
+		expect(table.match(textContent("a\tb\n1\t2"), ctx)).toBe(true);
+		expect(
+			table.match(
+				{ kind: "text", via: "paste", text: "", html: "<table><tr><td>x</td></tr></table>" },
+				ctx,
+			),
+		).toBe(true);
+		expect(table.match(textContent("just some prose here"), ctx)).toBe(false);
+	});
+
+	it("has higher order than the plain-text catch-all", () => {
+		expect((table.order ?? 0) > (createMarkdownTextHandler().order ?? 0)).toBe(true);
+	});
+
+	it("creates a markdown shape whose source is a GFM table", () => {
+		const store = createBoardStore();
+		const hctx = {
+			store,
+			commands: { execute: (c: Command) => c.execute() },
+		} as unknown as ExternalContentHandlerCtx;
+
+		table.handle(textContent("name\tqty\napple\t3"), hctx);
+		const shape = [...store.getShapes().values()][0] as ShapeData;
+		expect(readMarkdownMeta(shape).source).toBe("| name | qty |\n| --- | --- |\n| apple | 3 |");
 	});
 });
