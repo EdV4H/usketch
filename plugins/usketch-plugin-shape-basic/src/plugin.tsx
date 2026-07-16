@@ -1,5 +1,6 @@
 import {
 	aabbHitTest,
+	createEditableTextController,
 	createResize,
 	ellipseHitTest,
 	getBounds,
@@ -23,6 +24,7 @@ import {
 	rectGpuPrimitive,
 	roundedRectGpuPrimitive,
 } from "./gpu.js";
+import { LABELABLE_TYPES, withLabel } from "./label.js";
 import { BASIC_SHAPE_SUBTYPES } from "./registry.js";
 import { getArrowPoints, renderArrow } from "./shapes/arrow.js";
 import { getDiamondPoints, renderDiamond } from "./shapes/diamond.js";
@@ -119,8 +121,10 @@ export function createBasicShapePlugin(): UsketchPlugin {
 
 				const gpuFn = SHAPE_GPU_PRIMITIVES[subtype.type];
 				const isRectangle = subtype.type === "rectangle";
+				// 2D shapes get an editable centered label; 1D (arrow/line) render as-is.
+				const render = LABELABLE_TYPES.has(subtype.type) ? withLabel(renderer) : renderer;
 				ctx.shapes.register(subtype.type, {
-					render: renderer,
+					render,
 					getBounds,
 					hitTest: hitTestFn,
 					resize: createResize(1, 1),
@@ -130,6 +134,14 @@ export function createBasicShapePlugin(): UsketchPlugin {
 					debugFields: isRectangle ? rectangleDebugFields : undefined,
 				});
 			}
+
+			// Editable centered label: double-click a 2D shape to type. Height is
+			// NOT grown (the shape keeps its drawn size; text wraps/centers inside).
+			const editor = createEditableTextController(ctx, {
+				isEditableType: (type) => LABELABLE_TYPES.has(type),
+				hitTest: (shape, point) => SHAPE_HIT_TESTS[shape.type]?.(shape, point) ?? false,
+				growHeight: false,
+			});
 
 			// Tool state
 			let currentSubtype = BASIC_SHAPE_SUBTYPES[0].type;
@@ -202,6 +214,7 @@ export function createBasicShapePlugin(): UsketchPlugin {
 			});
 
 			return () => {
+				editor.teardown();
 				offSubtype();
 				offSubtypeAction();
 			};

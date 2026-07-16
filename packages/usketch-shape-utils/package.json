@@ -18,9 +18,15 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@edv4h/usketch-shared": "workspace:*"
+		"@edv4h/usketch-shared": "workspace:*",
+		"@zag-js/core": "^1.37.0",
+		"@zag-js/vanilla": "^1.37.0"
+	},
+	"peerDependencies": {
+		"react": ">=19"
 	},
 	"devDependencies": {
+		"@types/react": "19.2.17",
 		"typescript": "7.0.2",
 		"vitest": "4.1.10"
 	},

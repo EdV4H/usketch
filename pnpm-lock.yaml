@@ -642,7 +642,19 @@ importers:
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../shared
+      '@zag-js/core':
+        specifier: ^1.37.0
+        version: 1.42.0
+      '@zag-js/vanilla':
+        specifier: ^1.37.0
+        version: 1.42.0
+      react:
+        specifier: 19.2.7
+        version: 19.2.7
     devDependencies:
+      '@types/react':
+        specifier: 19.2.17
+        version: 19.2.17
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -1789,21 +1801,15 @@ importers:
 
   plugins/usketch-plugin-shape-sticky:
     dependencies:
-      '@edv4h/usketch-core':
+      '@edv4h/usketch-shape-utils':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/usketch-shape-utils
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@edv4h/usketch-store':
         specifier: workspace:*
         version: link:../../packages/store
-      '@zag-js/core':
-        specifier: ^1.37.0
-        version: 1.42.0
-      '@zag-js/vanilla':
-        specifier: ^1.37.0
-        version: 1.42.0
       react:
         specifier: 19.2.7
         version: 19.2.7
@@ -1820,21 +1826,15 @@ importers:
 
   plugins/usketch-plugin-shape-text:
     dependencies:
-      '@edv4h/usketch-core':
+      '@edv4h/usketch-shape-utils':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/usketch-shape-utils
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@edv4h/usketch-store':
         specifier: workspace:*
         version: link:../../packages/store
-      '@zag-js/core':
-        specifier: ^1.37.0
-        version: 1.42.0
-      '@zag-js/vanilla':
-        specifier: ^1.37.0
-        version: 1.42.0
       react:
         specifier: 19.2.7
         version: 19.2.7

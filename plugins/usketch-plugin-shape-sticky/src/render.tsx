@@ -1,3 +1,4 @@
+import { editableTextProps } from "@edv4h/usketch-shape-utils";
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS } from "./constants.js";
 import type { StickyShapeData } from "./types.js";
@@ -26,18 +27,6 @@ const baseStickyStyle = (data: StickyShapeData): React.CSSProperties => ({
 	outline: "none",
 });
 
-function focusAtEnd(el: HTMLElement) {
-	el.focus();
-	const sel = window.getSelection();
-	if (sel) {
-		const range = document.createRange();
-		range.selectNodeContents(el);
-		range.collapse(false);
-		sel.removeAllRanges();
-		sel.addRange(range);
-	}
-}
-
 export function render(shape: ShapeData) {
 	const data = shape as StickyShapeData;
 	if (!data.isEditing) {
@@ -59,46 +48,7 @@ export function render(shape: ShapeData) {
 	return (
 		// biome-ignore lint/a11y/useSemanticElements: contentEditable div is standard for rich text editing
 		<div
-			contentEditable="plaintext-only"
-			suppressContentEditableWarning
-			role="textbox"
-			aria-multiline="true"
-			tabIndex={0}
-			ref={(el: HTMLDivElement | null) => {
-				if (!el) return;
-				if (el.dataset.focused) return;
-				el.dataset.focused = "1";
-				el.textContent = data.text ?? "";
-				requestAnimationFrame(() => focusAtEnd(el));
-			}}
-			onInput={(e: React.FormEvent<HTMLDivElement>) => {
-				if ((e.nativeEvent as InputEvent).isComposing) return;
-				const el = e.currentTarget;
-				window.dispatchEvent(
-					new CustomEvent("usketch:text-input", {
-						detail: { id: data.id, text: el.innerText, scrollHeight: el.scrollHeight },
-					}),
-				);
-			}}
-			onCompositionEnd={(e: React.CompositionEvent<HTMLDivElement>) => {
-				const el = e.currentTarget;
-				window.dispatchEvent(
-					new CustomEvent("usketch:text-input", {
-						detail: { id: data.id, text: el.innerText, scrollHeight: el.scrollHeight },
-					}),
-				);
-			}}
-			onKeyDown={(e: React.KeyboardEvent) => {
-				e.stopPropagation();
-				if (e.key === "Escape" && !e.nativeEvent.isComposing) {
-					window.dispatchEvent(new CustomEvent("usketch:text-escape", { detail: { id: data.id } }));
-				}
-			}}
-			onBlur={(e: React.FocusEvent<HTMLDivElement>) => {
-				delete e.currentTarget.dataset.focused;
-				window.dispatchEvent(new CustomEvent("usketch:text-blur", { detail: { id: data.id } }));
-			}}
-			onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
+			{...editableTextProps(data.id, data.text ?? "")}
 			style={{
 				...baseStickyStyle(data),
 				height: "100%",
