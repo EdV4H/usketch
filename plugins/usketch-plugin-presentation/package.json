@@ -30,7 +30,7 @@
 		"@types/react-dom": "19.2.3",
 		"react-dom": "19.2.7",
 		"typescript": "7.0.2",
-		"vitest": "3.2.7"
+		"vitest": "4.1.10"
 	},
 	"publishConfig": {
 		"access": "public"
