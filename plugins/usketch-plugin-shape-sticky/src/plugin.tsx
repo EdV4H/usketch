@@ -1,3 +1,4 @@
+import { createEditableTextController } from "@edv4h/usketch-shape-utils";
 import {
 	type BoundingBox,
 	type CanvasPointerEvent,
@@ -10,9 +11,7 @@ import {
 	type UsketchPlugin,
 	withRotation,
 } from "@edv4h/usketch-shared";
-import { createAddShapeCommand, createUpdateShapeCommand } from "@edv4h/usketch-store";
-import { createMachine, type MachineSchema } from "@zag-js/core";
-import { VanillaMachine } from "@zag-js/vanilla";
+import { createAddShapeCommand } from "@edv4h/usketch-store";
 import {
 	DEFAULT_STICKY_COLOR,
 	DEFAULT_STICKY_SIZE,
@@ -159,284 +158,6 @@ function debugFields(shape: ShapeData): Record<string, unknown> {
 	};
 }
 
-// ── Text Editing State Machine ──
-
-type StickyTextEvent =
-	| { type: "POINTER_DOWN"; shapeId: string | null }
-	| { type: "CREATE_SHAPE"; shapeId: string }
-	| { type: "ENTER_EDIT" }
-	| { type: "CLICK_TIMEOUT" }
-	| { type: "SETTLE_TIMEOUT" }
-	| { type: "TEXT_INPUT"; id: string; text: string; scrollHeight: number }
-	| { type: "TEXT_BLUR"; id: string }
-	| { type: "TEXT_ESCAPE"; id: string }
-	| { type: "OUTSIDE_CLICK" }
-	| { type: "DESELECTED" };
-
-interface StickyTextMachineSchema extends MachineSchema {
-	context: {
-		editingShapeId: string | null;
-		textSnapshot: string | null;
-		heightSnapshot: number | null;
-	};
-	refs: {
-		clickTimer: ReturnType<typeof setTimeout> | null;
-		settleTimer: ReturnType<typeof setTimeout> | null;
-		pluginCtx: PluginContext;
-	};
-	state: "idle" | "clicked" | "creating" | "editing" | "editing.settling" | "editing.active";
-	event: StickyTextEvent;
-	guard: "hasShape" | "isSameShape" | "isEditingTarget";
-	action:
-		| "setClicked"
-		| "startClickTimer"
-		| "clearClicked"
-		| "setEditing"
-		| "enterEdit"
-		| "exitEdit"
-		| "updateText"
-		| "sendEnterEdit"
-		| "startSettleTimer";
-	effect: never;
-	tag: never;
-	props: { id: string };
-	computed: Record<string, never>;
-}
-
-const stickyTextMachine = createMachine<StickyTextMachineSchema>({
-	initialState: () => "idle",
-
-	context({ bindable }) {
-		return {
-			editingShapeId: bindable<string | null>(() => ({ defaultValue: null })),
-			textSnapshot: bindable<string | null>(() => ({ defaultValue: null })),
-			heightSnapshot: bindable<number | null>(() => ({ defaultValue: null })),
-		};
-	},
-
-	refs() {
-		return {
-			clickTimer: null as ReturnType<typeof setTimeout> | null,
-			settleTimer: null as ReturnType<typeof setTimeout> | null,
-			pluginCtx: null as unknown as PluginContext,
-		};
-	},
-
-	states: {
-		idle: {
-			on: {
-				POINTER_DOWN: [
-					{ guard: "hasShape", target: "clicked", actions: ["setClicked", "startClickTimer"] },
-				],
-				CREATE_SHAPE: { target: "creating", actions: ["setEditing"] },
-			},
-		},
-
-		clicked: {
-			on: {
-				POINTER_DOWN: [
-					{ guard: "isSameShape", target: "editing", actions: ["setEditing", "enterEdit"] },
-					{
-						guard: "hasShape",
-						target: "clicked",
-						actions: ["setClicked", "startClickTimer"],
-						reenter: true,
-					},
-					{ target: "idle", actions: ["clearClicked"] },
-				],
-				CLICK_TIMEOUT: { target: "idle", actions: ["clearClicked"] },
-			},
-		},
-
-		creating: {
-			entry: ["sendEnterEdit"],
-			on: {
-				ENTER_EDIT: { target: "editing", actions: ["enterEdit"] },
-			},
-		},
-
-		editing: {
-			initial: "settling",
-			states: {
-				settling: {
-					entry: ["startSettleTimer"],
-					on: {
-						TEXT_INPUT: { guard: "isEditingTarget", actions: ["updateText"] },
-						TEXT_ESCAPE: { guard: "isEditingTarget", target: "idle", actions: ["exitEdit"] },
-						DESELECTED: { target: "idle", actions: ["exitEdit"] },
-						SETTLE_TIMEOUT: { target: "active" },
-					},
-				},
-				active: {
-					on: {
-						TEXT_INPUT: { guard: "isEditingTarget", actions: ["updateText"] },
-						TEXT_BLUR: { guard: "isEditingTarget", target: "idle", actions: ["exitEdit"] },
-						OUTSIDE_CLICK: { target: "idle", actions: ["exitEdit"] },
-						TEXT_ESCAPE: { guard: "isEditingTarget", target: "idle", actions: ["exitEdit"] },
-						DESELECTED: { target: "idle", actions: ["exitEdit"] },
-					},
-				},
-			},
-		},
-	},
-
-	implementations: {
-		guards: {
-			hasShape({ event }) {
-				return event.shapeId != null;
-			},
-			isSameShape({ context, event }) {
-				return event.shapeId != null && event.shapeId === context.get("editingShapeId");
-			},
-			isEditingTarget({ context, event }) {
-				return event.id === context.get("editingShapeId");
-			},
-		},
-
-		actions: {
-			setClicked({ context, event, refs }) {
-				const prev = refs.get("clickTimer");
-				if (prev != null) clearTimeout(prev);
-				context.set("editingShapeId", event.shapeId);
-			},
-
-			startClickTimer({ refs, send }) {
-				const prev = refs.get("clickTimer");
-				if (prev != null) clearTimeout(prev);
-				const timer = setTimeout(() => {
-					send({ type: "CLICK_TIMEOUT" });
-				}, 300);
-				refs.set("clickTimer", timer);
-			},
-
-			clearClicked({ context, refs }) {
-				context.set("editingShapeId", null);
-				const timer = refs.get("clickTimer");
-				if (timer != null) {
-					clearTimeout(timer);
-					refs.set("clickTimer", null);
-				}
-			},
-
-			setEditing({ context, event }) {
-				context.set("editingShapeId", event.shapeId);
-			},
-
-			enterEdit({ context, refs }) {
-				const id = context.get("editingShapeId");
-				if (!id) return;
-				const pluginCtx = refs.get("pluginCtx");
-				const shape = pluginCtx.store.getShape(id);
-				if (!shape || shape.type !== "sticky") return;
-
-				context.set("textSnapshot", (shape as StickyShapeData).text ?? "");
-				context.set("heightSnapshot", shape.height);
-				const clickTimer = refs.get("clickTimer");
-				if (clickTimer != null) {
-					clearTimeout(clickTimer);
-					refs.set("clickTimer", null);
-				}
-				pluginCtx.store.updateShape(id, { isEditing: true } as Partial<StickyShapeData>);
-			},
-
-			startSettleTimer({ refs, send }) {
-				const prev = refs.get("settleTimer");
-				if (prev != null) clearTimeout(prev);
-				const timer = setTimeout(() => {
-					send({ type: "SETTLE_TIMEOUT" });
-				}, 200);
-				refs.set("settleTimer", timer);
-			},
-
-			exitEdit({ context, refs }) {
-				const id = context.get("editingShapeId");
-				if (!id) return;
-				const prevText = context.get("textSnapshot");
-				const prevHeight = context.get("heightSnapshot");
-				const pluginCtx = refs.get("pluginCtx");
-
-				const settleTimer = refs.get("settleTimer");
-				if (settleTimer != null) {
-					clearTimeout(settleTimer);
-					refs.set("settleTimer", null);
-				}
-
-				const shape = pluginCtx.store.getShape(id);
-				if (!shape) {
-					context.set("editingShapeId", null);
-					context.set("textSnapshot", null);
-					context.set("heightSnapshot", null);
-					return;
-				}
-
-				pluginCtx.store.updateShape(id, { isEditing: false } as Partial<StickyShapeData>);
-				const currentText = (shape as StickyShapeData).text ?? "";
-
-				// Sticky notes are kept even when empty (unlike text shapes)
-				if (currentText !== prevText || shape.height !== prevHeight) {
-					pluginCtx.commands.execute(
-						createUpdateShapeCommand(
-							pluginCtx.store,
-							id,
-							{ text: prevText, height: prevHeight ?? shape.height } as Partial<StickyShapeData>,
-							{ text: currentText, height: shape.height } as Partial<StickyShapeData>,
-						),
-					);
-				}
-
-				context.set("editingShapeId", null);
-				context.set("textSnapshot", null);
-				context.set("heightSnapshot", null);
-			},
-
-			updateText({ context, refs, event }) {
-				const id = context.get("editingShapeId");
-				if (!id) return;
-				const pluginCtx = refs.get("pluginCtx");
-				const shape = pluginCtx.store.getShape(id);
-				if (!shape) return;
-				// padding(12px top + 12px bottom = 24px) を加算した必要高さ
-				const contentHeight = event.scrollHeight;
-				const newHeight = Math.max(shape.height, contentHeight);
-				pluginCtx.store.updateShape(id, {
-					text: event.text,
-					height: newHeight,
-				} as Partial<StickyShapeData>);
-			},
-
-			sendEnterEdit({ send }) {
-				send({ type: "ENTER_EDIT" });
-			},
-		},
-	},
-});
-
-function createStickyTextService(pluginCtx: PluginContext) {
-	const machine = new VanillaMachine(stickyTextMachine);
-	machine.refs.set("pluginCtx", pluginCtx);
-	machine.start();
-
-	return {
-		send: machine.send,
-		get context() {
-			return {
-				editingShapeId: machine.context.get("editingShapeId"),
-			};
-		},
-		matches: (...values: string[]) => {
-			const state = machine.state.get();
-			return values.some((v) => state === v || state.startsWith(`${v}.`));
-		},
-		stop() {
-			const clickTimer = machine.refs.get("clickTimer");
-			if (clickTimer != null) clearTimeout(clickTimer);
-			const settleTimer = machine.refs.get("settleTimer");
-			if (settleTimer != null) clearTimeout(settleTimer);
-			machine.stop();
-		},
-	};
-}
-
 // ── Icon ──
 
 function StickyIcon() {
@@ -462,70 +183,13 @@ export function createStickyPlugin(): UsketchPlugin {
 		name: "付箋",
 
 		setup(ctx: PluginContext) {
-			// ── State Machine ──
-			const service = createStickyTextService(ctx);
-			const { send, matches, stop: stopMachine } = service;
-
-			// ── CustomEvent listeners (shared with text plugin via same event names) ──
-			const onTextInput = (e: Event) => {
-				const { id, text, scrollHeight } = (e as CustomEvent).detail;
-				// Only handle events for sticky shapes
-				const shape = ctx.store.getShape(id);
-				if (!shape || shape.type !== "sticky") return;
-				send({ type: "TEXT_INPUT", id, text, scrollHeight });
-			};
-
-			const onTextBlur = (e: Event) => {
-				const { id } = (e as CustomEvent).detail;
-				const shape = ctx.store.getShape(id);
-				if (!shape || shape.type !== "sticky") return;
-				requestAnimationFrame(() => {
-					send({ type: "TEXT_BLUR", id });
-				});
-			};
-
-			const onTextEscape = (e: Event) => {
-				const { id } = (e as CustomEvent).detail;
-				const shape = ctx.store.getShape(id);
-				if (!shape || shape.type !== "sticky") return;
-				send({ type: "TEXT_ESCAPE", id });
-			};
-
-			window.addEventListener("usketch:text-input", onTextInput);
-			window.addEventListener("usketch:text-blur", onTextBlur);
-			window.addEventListener("usketch:text-escape", onTextEscape);
-
-			// ── Global pointerdown to exit edit mode on outside click ──
-			const onWindowPointerDown = (e: PointerEvent) => {
-				if (!matches("editing")) return;
-				const target = e.target instanceof Element ? e.target : (e.target as Node).parentElement;
-				if (target?.closest("[contenteditable]")) return;
-				send({ type: "OUTSIDE_CLICK" });
-			};
-			window.addEventListener("pointerdown", onWindowPointerDown, true);
-
-			// ── Double-click detection via EventBus ──
-			const offPointerDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
-				const shapes = ctx.store.getShapes();
-				let hitShapeId: string | null = null;
-				for (const [id, shape] of shapes) {
-					if (shape.type === "sticky" && hitTest(shape, event.worldPoint)) {
-						hitShapeId = id;
-					}
-				}
-				if (hitShapeId) {
-					send({ type: "POINTER_DOWN", shapeId: hitShapeId });
-				}
-			});
-
-			// ── Selection change monitoring ──
-			const unsubscribe = ctx.store.subscribe(() => {
-				const editingShapeId = service.context.editingShapeId;
-				if (!editingShapeId) return;
-				const selection = ctx.store.getSelection();
-				if (!selection.has(editingShapeId)) {
-					send({ type: "DESELECTED" });
-				}
+			// Shared editable-text controller (machine + DOM/canvas wiring).
+			const editor = createEditableTextController(ctx, {
+				isEditableType: (type) => type === "sticky",
+				hitTest,
+				growHeight: true,
+				growOnly: true,
+				minHeight: 100,
 			});
 
 			// ── Sticky color state ──
@@ -620,7 +284,7 @@ export function createStickyPlugin(): UsketchPlugin {
 						};
 						toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, defaultShape));
 						toolCtx.store.setSelection([defaultShape.id]);
-						send({ type: "CREATE_SHAPE", shapeId: defaultShape.id });
+						editor.beginEdit(defaultShape.id);
 					}
 
 					drawState = null;
@@ -630,14 +294,8 @@ export function createStickyPlugin(): UsketchPlugin {
 
 			// ── Teardown ──
 			return () => {
-				stopMachine();
-				window.removeEventListener("usketch:text-input", onTextInput);
-				window.removeEventListener("usketch:text-blur", onTextBlur);
-				window.removeEventListener("usketch:text-escape", onTextEscape);
-				window.removeEventListener("pointerdown", onWindowPointerDown, true);
-				offPointerDown();
+				editor.teardown();
 				offColorAction();
-				unsubscribe();
 			};
 		},
 	};

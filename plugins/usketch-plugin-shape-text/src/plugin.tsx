@@ -1,3 +1,4 @@
+import { createEditableTextController, editableTextProps } from "@edv4h/usketch-shape-utils";
 import {
 	type BoundingBox,
 	type CanvasPointerEvent,
@@ -12,7 +13,6 @@ import {
 	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
-import { createTextEditingService } from "./text-editing-machine.js";
 
 /** Text shape extension: intrinsic data for the `text` shape. */
 export interface TextShapeData extends ShapeData {
@@ -71,18 +71,6 @@ const textStyle = (data: TextShapeData): React.CSSProperties => ({
 	boxSizing: "border-box",
 });
 
-function focusAtEnd(el: HTMLElement) {
-	el.focus();
-	const sel = window.getSelection();
-	if (sel) {
-		const range = document.createRange();
-		range.selectNodeContents(el);
-		range.collapse(false);
-		sel.removeAllRanges();
-		sel.addRange(range);
-	}
-}
-
 function render(shape: ShapeData) {
 	const data = shape as TextShapeData;
 	if (!data.isEditing) {
@@ -96,52 +84,7 @@ function render(shape: ShapeData) {
 	return (
 		// biome-ignore lint/a11y/useSemanticElements: contentEditable div is standard for rich text editing
 		<div
-			contentEditable="plaintext-only"
-			suppressContentEditableWarning
-			role="textbox"
-			aria-multiline="true"
-			tabIndex={0}
-			ref={(el: HTMLDivElement | null) => {
-				if (!el) return;
-				// Only set text + focus once when first entering edit mode.
-				// After that, the DOM owns the text content — React must NOT
-				// replace it, or the cursor position will be lost.
-				if (el.dataset.focused) return;
-				el.dataset.focused = "1";
-				el.textContent = data.text ?? "";
-				requestAnimationFrame(() => focusAtEnd(el));
-			}}
-			onInput={(e: React.FormEvent<HTMLDivElement>) => {
-				// Skip store update during IME composition
-				if ((e.nativeEvent as InputEvent).isComposing) return;
-				const el = e.currentTarget;
-				window.dispatchEvent(
-					new CustomEvent("usketch:text-input", {
-						detail: { id: data.id, text: el.innerText, scrollHeight: el.scrollHeight },
-					}),
-				);
-			}}
-			onCompositionEnd={(e: React.CompositionEvent<HTMLDivElement>) => {
-				const el = e.currentTarget;
-				window.dispatchEvent(
-					new CustomEvent("usketch:text-input", {
-						detail: { id: data.id, text: el.innerText, scrollHeight: el.scrollHeight },
-					}),
-				);
-			}}
-			onKeyDown={(e: React.KeyboardEvent) => {
-				e.stopPropagation();
-				// Ignore Escape during IME composition (let IME handle it)
-				if (e.key === "Escape" && !e.nativeEvent.isComposing) {
-					window.dispatchEvent(new CustomEvent("usketch:text-escape", { detail: { id: data.id } }));
-				}
-			}}
-			onBlur={(e: React.FocusEvent<HTMLDivElement>) => {
-				// Clear focused flag so next edit session re-initializes textContent + focus
-				delete e.currentTarget.dataset.focused;
-				window.dispatchEvent(new CustomEvent("usketch:text-blur", { detail: { id: data.id } }));
-			}}
-			onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
+			{...editableTextProps(data.id, data.text ?? "")}
 			style={{ ...textStyle(data), cursor: "text", pointerEvents: "auto", userSelect: "auto" }}
 		/>
 	);
@@ -262,64 +205,13 @@ export function createTextPlugin(): UsketchPlugin {
 		name: "テキスト",
 
 		setup(ctx: PluginContext) {
-			// ── State Machine ──
-			const service = createTextEditingService(ctx);
-			const { send, matches, stop: stopMachine } = service;
-
-			// ── CustomEvent listeners ──
-			const onTextInput = (e: Event) => {
-				const { id, text, scrollHeight } = (e as CustomEvent).detail;
-				send({ type: "TEXT_INPUT", id, text, scrollHeight });
-			};
-
-			const onTextBlur = (e: Event) => {
-				const { id } = (e as CustomEvent).detail;
-				requestAnimationFrame(() => {
-					send({ type: "TEXT_BLUR", id });
-				});
-			};
-
-			const onTextEscape = (e: Event) => {
-				const { id } = (e as CustomEvent).detail;
-				send({ type: "TEXT_ESCAPE", id });
-			};
-
-			window.addEventListener("usketch:text-input", onTextInput);
-			window.addEventListener("usketch:text-blur", onTextBlur);
-			window.addEventListener("usketch:text-escape", onTextEscape);
-
-			// ── Global pointerdown to exit edit mode on outside click ──
-			const onWindowPointerDown = (e: PointerEvent) => {
-				if (!matches("editing")) return;
-				// If the click target is inside the editing contentEditable, ignore
-				// e.target can be a Text node, so walk up to nearest Element
-				const target = e.target instanceof Element ? e.target : (e.target as Node).parentElement;
-				if (target?.closest("[contenteditable=true]")) return;
-				send({ type: "OUTSIDE_CLICK" });
-			};
-			window.addEventListener("pointerdown", onWindowPointerDown, true);
-
-			// ── Double-click detection via EventBus ──
-			const offPointerDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
-				// Find text shape under pointer
-				const shapes = ctx.store.getShapes();
-				let hitShapeId: string | null = null;
-				for (const [id, shape] of shapes) {
-					if (shape.type === "text" && hitTest(shape, event.worldPoint)) {
-						hitShapeId = id;
-					}
-				}
-				send({ type: "POINTER_DOWN", shapeId: hitShapeId });
-			});
-
-			// ── Selection change monitoring ──
-			const unsubscribe = ctx.store.subscribe(() => {
-				const editingShapeId = service.context.editingShapeId;
-				if (!editingShapeId) return;
-				const selection = ctx.store.getSelection();
-				if (!selection.has(editingShapeId)) {
-					send({ type: "DESELECTED" });
-				}
+			// Shared editable-text controller (machine + DOM/canvas wiring).
+			const editor = createEditableTextController(ctx, {
+				isEditableType: (type) => type === "text",
+				hitTest,
+				growHeight: true,
+				minHeight: 28,
+				deleteWhenEmpty: true,
 			});
 
 			// ── Shape registration ──
@@ -350,7 +242,7 @@ export function createTextPlugin(): UsketchPlugin {
 					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 					toolCtx.store.setSelection([id]);
 					toolCtx.store.resetToDefaultTool();
-					send({ type: "CREATE_SHAPE", shapeId: id });
+					editor.beginEdit(id);
 				},
 				onPointerMove() {},
 				onPointerUp() {},
@@ -358,13 +250,7 @@ export function createTextPlugin(): UsketchPlugin {
 
 			// ── Teardown ──
 			return () => {
-				stopMachine();
-				window.removeEventListener("usketch:text-input", onTextInput);
-				window.removeEventListener("usketch:text-blur", onTextBlur);
-				window.removeEventListener("usketch:text-escape", onTextEscape);
-				window.removeEventListener("pointerdown", onWindowPointerDown, true);
-				offPointerDown();
-				unsubscribe();
+				editor.teardown();
 			};
 		},
 	};

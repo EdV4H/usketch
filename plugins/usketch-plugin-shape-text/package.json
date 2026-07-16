@@ -18,11 +18,9 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@edv4h/usketch-core": "workspace:*",
+		"@edv4h/usketch-shape-utils": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
-		"@edv4h/usketch-store": "workspace:*",
-		"@zag-js/core": "^1.37.0",
-		"@zag-js/vanilla": "^1.37.0"
+		"@edv4h/usketch-store": "workspace:*"
 	},
 	"peerDependencies": {
 		"react": ">=19"
