@@ -19,6 +19,7 @@ import { createExportPlugin } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
+import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
 import { createPresentationPlugin } from "@edv4h/usketch-plugin-presentation";
@@ -73,6 +74,7 @@ import { localBoards } from "./lib/local-boards.js";
 import { computePresentStage, type StageRect } from "./lib/present-stage.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
+import { createMarkdownAdaptersPlugin } from "./plugins/markdown-adapters.js";
 
 type PresentationMode = "off" | "edit" | "present";
 
@@ -143,6 +145,8 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		createFreedrawPlugin(),
 		createTextPlugin(),
 		createMarkdownPlugin(),
+		createMarkdownToShapePlugin(),
+		createMarkdownAdaptersPlugin(),
 		createStickyPlugin(),
 		createCardPlugin({
 			cardTypes: EXAMPLE_CARD_TYPES,

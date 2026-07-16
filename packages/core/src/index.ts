@@ -5,6 +5,7 @@ export { createApp } from "./create-app.js";
 export { createEventBus } from "./event-bus.js";
 export { createExternalContentRegistry } from "./external-content-registry.js";
 export { createLayerManager } from "./layer-manager.js";
+export { createMarkdownConverterRegistry } from "./markdown-converter-registry.js";
 export type { CreateLodControllerOptions, LodControllerInternal } from "./lod/index.js";
 export {
 	createCompositeLodPolicy,
