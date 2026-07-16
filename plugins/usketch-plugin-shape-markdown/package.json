@@ -1,0 +1,55 @@
+{
+	"name": "@edv4h/usketch-plugin-shape-markdown",
+	"version": "0.0.0",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"source": "./src/index.ts",
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@edv4h/usketch-shared": "workspace:*",
+		"@edv4h/usketch-store": "workspace:*",
+		"@zag-js/core": "^1.37.0",
+		"@zag-js/vanilla": "^1.37.0",
+		"mermaid": "^11.4.0",
+		"react-markdown": "^9.0.1",
+		"rehype-highlight": "^7.0.1",
+		"remark-gfm": "^4.0.0"
+	},
+	"peerDependencies": {
+		"react": ">=19"
+	},
+	"devDependencies": {
+		"@types/react": "19.2.17",
+		"typescript": "7.0.2",
+		"vitest": "4.1.10"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/EdV4H/usketch.git",
+		"directory": "plugins/usketch-plugin-shape-markdown"
+	},
+	"homepage": "https://github.com/EdV4H/usketch#readme",
+	"bugs": {
+		"url": "https://github.com/EdV4H/usketch/issues"
+	}
+}
