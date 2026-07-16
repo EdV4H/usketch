@@ -167,7 +167,10 @@ function MarkdownView({ shape }: { shape: ShapeData }) {
 			) : (
 				<Markdown
 					remarkPlugins={[remarkGfm]}
-					rehypePlugins={[rehypeHighlight]}
+					// ignoreMissing: unsupported languages (incl. our ```mermaid``` blocks,
+					// which highlight.js doesn't know) fall back to plain code instead of
+					// throwing and breaking the whole render.
+					rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
 					components={mdComponents}
 				>
 					{source}
