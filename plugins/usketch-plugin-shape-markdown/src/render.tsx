@@ -133,19 +133,31 @@ function MarkdownView({ shape }: { shape: ShapeData }) {
 		<div
 			className="usketch-md"
 			ref={ref}
-			// While selected, keep pointerdown from reaching the canvas select tool
-			// so a drag does native text selection (and link clicks work) instead of
-			// moving/marquee-ing the shape. Unselected shapes stay pass-through.
-			onPointerDown={selected ? (e) => e.stopPropagation() : undefined}
+			// When selected: Alt+drag selects text (stop propagation so the canvas
+			// doesn't move the shape); a plain drag moves the shape (bubbles to the
+			// select tool). Links are clickable either way. Unselected shapes stay
+			// pass-through so the canvas handles select/move.
+			onPointerDown={
+				selected
+					? (e) => {
+							if (e.altKey) {
+								e.currentTarget.style.userSelect = "text";
+								e.stopPropagation();
+							} else {
+								e.currentTarget.style.userSelect = "none";
+							}
+						}
+					: undefined
+			}
 			style={{
 				width: "100%",
 				boxSizing: "border-box",
 				padding: 8,
 				overflow: "hidden",
-				// Selected → interactive content (links clickable, text selectable).
+				// Selected → interactive content (links clickable, Alt+drag text select).
 				// Unselected → transparent to pointers so the canvas handles select/move.
 				pointerEvents: selected ? "auto" : "none",
-				userSelect: selected ? "text" : "none",
+				userSelect: "none",
 				color: shape.style.stroke,
 				background: shape.style.fill === "transparent" ? "transparent" : shape.style.fill,
 			}}
