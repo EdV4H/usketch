@@ -211,6 +211,7 @@ export function createTextPlugin(): UsketchPlugin {
 				hitTest,
 				growHeight: true,
 				minHeight: 28,
+				deleteWhenEmpty: true,
 			});
 
 			// ── Shape registration ──

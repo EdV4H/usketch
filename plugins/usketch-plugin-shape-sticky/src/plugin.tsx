@@ -188,6 +188,7 @@ export function createStickyPlugin(): UsketchPlugin {
 				isEditableType: (type) => type === "sticky",
 				hitTest,
 				growHeight: true,
+				growOnly: true,
 				minHeight: 100,
 			});
 

@@ -31,7 +31,9 @@ interface EditableRefs {
 	ctx: PluginContext;
 	isEditableType: (type: string) => boolean;
 	growHeight: boolean;
+	growOnly: boolean;
 	minHeight: number;
+	deleteWhenEmpty: boolean;
 }
 
 interface EditableSchema extends MachineSchema {
@@ -78,7 +80,9 @@ const machine = createMachine<EditableSchema>({
 			ctx: null as unknown as PluginContext,
 			isEditableType: () => false,
 			growHeight: true,
+			growOnly: false,
 			minHeight: 24,
+			deleteWhenEmpty: false,
 		};
 	},
 	states: {
@@ -213,13 +217,16 @@ const machine = createMachine<EditableSchema>({
 				if (!shape) return reset();
 				ctx.store.updateShape(id, { isEditing: false } as Partial<ShapeData>);
 				const currentText = (shape as TextLike).text ?? "";
-				if (currentText.trim() === "") {
+				// Only shapes that are *nothing but* their text (e.g. the `text`
+				// shape) are removed when emptied. Sticky notes and geo shapes are
+				// containers with a label, so an empty label must leave the shape.
+				if (refs.get("deleteWhenEmpty") && currentText.trim() === "") {
 					const snapshot = { ...shape, isEditing: false } as ShapeData;
 					ctx.commands.execute({
 						execute: () => ctx.store.deleteShape(id),
 						undo: () => ctx.store.addShape(snapshot),
 					});
-				} else if (currentText !== prevText) {
+				} else if (currentText !== prevText || shape.height !== prevHeight) {
 					const from = { text: prevText, height: prevHeight ?? shape.height } as Partial<ShapeData>;
 					const to = { text: currentText, height: shape.height } as Partial<ShapeData>;
 					ctx.commands.execute({
@@ -236,10 +243,10 @@ const machine = createMachine<EditableSchema>({
 				if (!shape) return;
 				const patch: Partial<ShapeData> = { text: event.text } as Partial<ShapeData>;
 				if (refs.get("growHeight")) {
-					(patch as { height?: number }).height = Math.max(
-						refs.get("minHeight"),
-						event.scrollHeight,
-					);
+					// grow-only shapes (sticky) never shrink below their current
+					// (possibly manually-resized) height; others fit down to minHeight.
+					const floor = refs.get("growOnly") ? shape.height : refs.get("minHeight");
+					(patch as { height?: number }).height = Math.max(floor, event.scrollHeight);
 				}
 				ctx.store.updateShape(event.id, patch);
 			},
@@ -259,8 +266,20 @@ export interface EditableTextOptions {
 	hitTest: (shape: ShapeData, point: { x: number; y: number }) => boolean;
 	/** Grow the shape's height to fit text on input. Default true. */
 	growHeight?: boolean;
+	/**
+	 * When growing, never shrink below the shape's current height (grow-only).
+	 * Use for sticky notes that may have been manually resized. Default false
+	 * (fit down to `minHeight`, e.g. the text shape).
+	 */
+	growOnly?: boolean;
 	/** Minimum height when growing. Default 24. */
 	minHeight?: number;
+	/**
+	 * Delete the shape when its text is emptied on exit. Use for shapes that are
+	 * nothing but their text (the `text` shape). Sticky/geo keep their shape and
+	 * just clear the label. Default false.
+	 */
+	deleteWhenEmpty?: boolean;
 }
 
 export interface EditableTextController {
@@ -279,7 +298,9 @@ export function createEditableTextController(
 	service.refs.set("ctx", ctx);
 	service.refs.set("isEditableType", options.isEditableType);
 	service.refs.set("growHeight", options.growHeight ?? true);
+	service.refs.set("growOnly", options.growOnly ?? false);
 	service.refs.set("minHeight", options.minHeight ?? 24);
+	service.refs.set("deleteWhenEmpty", options.deleteWhenEmpty ?? false);
 	service.start();
 
 	const matches = (...values: string[]) => {

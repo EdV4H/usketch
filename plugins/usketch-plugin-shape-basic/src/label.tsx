@@ -54,7 +54,12 @@ function GeoLabel({ data }: { data: GeoShape }) {
 			height={Math.max(0, data.height)}
 			style={{ overflow: "hidden" }}
 		>
-			<div style={{ ...centerContainer, pointerEvents: editing ? "auto" : "none" }}>
+			<div
+				// XHTML namespace on the foreignObject root for correct cross-browser SVG rendering
+				// (React's HTMLDivElement type omits `xmlns`, so it's applied as a raw attribute).
+				{...({ xmlns: "http://www.w3.org/1999/xhtml" } as Record<string, string>)}
+				style={{ ...centerContainer, pointerEvents: editing ? "auto" : "none" }}
+			>
 				{editing ? (
 					// biome-ignore lint/a11y/useSemanticElements: contentEditable div is standard for text editing
 					<div
