@@ -26,7 +26,7 @@
 		"vitest": "3.2.7"
 	},
 	"dependencies": {
-		"fractional-indexing": "3.4.0",
+		"fractional-indexing": "4.0.0",
 		"xid-ts": "1.3.0"
 	},
 	"publishConfig": {
