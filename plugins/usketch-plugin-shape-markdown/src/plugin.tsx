@@ -23,6 +23,7 @@ import {
 	renderMarkdown,
 	SimplifiedMarkdown,
 } from "./render.js";
+import { markdownSelection } from "./selection-store.js";
 import { MARKDOWN_TYPE, type MarkdownShapeData, readMarkdownMeta } from "./types.js";
 
 // ── Shape definition helpers ──
@@ -180,26 +181,38 @@ export function createMarkdownPlugin(): UsketchPlugin {
 			};
 			window.addEventListener("pointerdown", onWindowPointerDown, true);
 
-			// ── Double-click detection via canvas pointerdown ──
-			const offPointerDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
-				const shapes = ctx.store.getShapes();
-				let hitShapeId: string | null = null;
-				for (const [id, shape] of shapes) {
-					if (shape.type === MARKDOWN_TYPE && hitTest(shape, event.worldPoint)) {
-						hitShapeId = id;
-					}
-				}
-				send({ type: "POINTER_DOWN", shapeId: hitShapeId });
-			});
-
 			// ── Paste / drop of plain text → markdown shape ──
 			const offExternal = ctx.externalContent.register(createMarkdownTextHandler());
 
-			// ── Exit edit when the editing shape gets deselected ──
+			// The currently-selected single markdown shape, or null. Used by the
+			// "Edit source" action's isEnabled/run.
+			const selectedMarkdownId = (): string | null => {
+				const sel = ctx.store.getSelection();
+				if (sel.size !== 1) return null;
+				const id = [...sel][0] as string;
+				return ctx.store.getShape(id)?.type === MARKDOWN_TYPE ? id : null;
+			};
+
+			// ── Explicit edit trigger: Control HUD "Edit source" action ──
+			// (Editing is intentionally NOT bound to double-click, so rendered
+			// content interactions stay free.)
+			const offEditAction = ctx.actions.register({
+				id: "markdown:edit",
+				label: "✎ Edit source",
+				group: "Markdown",
+				isEnabled: () => selectedMarkdownId() !== null,
+				run: () => {
+					const id = selectedMarkdownId();
+					if (id) send({ type: "BEGIN_EDIT", shapeId: id });
+				},
+			});
+
+			// ── Track selection (drives content interactivity) + exit edit on deselect ──
+			markdownSelection.set(ctx.store.getSelection());
 			const unsubscribe = ctx.store.subscribe(() => {
+				markdownSelection.set(ctx.store.getSelection());
 				const editingShapeId = service.context.editingShapeId;
-				if (!editingShapeId) return;
-				if (!ctx.store.getSelection().has(editingShapeId)) {
+				if (editingShapeId && !ctx.store.getSelection().has(editingShapeId)) {
 					send({ type: "DESELECTED" });
 				}
 			});
@@ -245,7 +258,7 @@ export function createMarkdownPlugin(): UsketchPlugin {
 				window.removeEventListener(MD_ESCAPE_EVENT, onEscape);
 				window.removeEventListener(MD_MEASURE_EVENT, onMeasure);
 				window.removeEventListener("pointerdown", onWindowPointerDown, true);
-				offPointerDown();
+				offEditAction();
 				offExternal();
 				unsubscribe();
 			};

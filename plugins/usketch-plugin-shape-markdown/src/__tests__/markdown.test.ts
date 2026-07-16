@@ -114,6 +114,20 @@ describe("markdown editing machine", () => {
 		expect(history.length).toBe(1);
 	});
 
+	it("BEGIN_EDIT enters edit mode for an existing shape (explicit edit trigger)", async () => {
+		const { ctx, store } = makeCtx();
+		addMarkdown(store, "me", "# existing");
+		store.setSelection(["me"]);
+		service = createMarkdownEditingService(ctx);
+
+		service.send({ type: "BEGIN_EDIT", shapeId: "me" });
+		await tick();
+
+		const shape = store.getShape("me") as ShapeData;
+		expect(readMarkdownMeta(shape).isEditing).toBe(true);
+		expect(readMarkdownMeta(shape).source).toBe("# existing");
+	});
+
 	it("EDIT_ESCAPE with empty source deletes the shape", async () => {
 		const { ctx, store } = makeCtx();
 		addMarkdown(store, "m3");

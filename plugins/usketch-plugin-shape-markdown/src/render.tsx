@@ -1,8 +1,9 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Markdown, { type Components } from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
+import { markdownSelection } from "./selection-store.js";
 import { readMarkdownMeta } from "./types.js";
 
 // ── Custom events (plugin.tsx listens on window) ──
@@ -87,11 +88,25 @@ const mdComponents: Components = {
 		// rehype-highlight has already injected token <span>s into children.
 		return <code className={className}>{children}</code>;
 	},
+	// Links open in a new tab; never let a markdown link navigate the whole app.
+	a({ href, children }) {
+		return (
+			<a href={href} target="_blank" rel="noopener noreferrer">
+				{children}
+			</a>
+		);
+	},
 };
 
 function MarkdownView({ shape }: { shape: ShapeData }) {
 	const { source } = readMarkdownMeta(shape);
 	const ref = useRef<HTMLDivElement>(null);
+	// Content is interactive (links, text selection) only while the shape is
+	// selected; unselected shapes stay non-interactive so a click/drag on the
+	// canvas selects & moves the shape.
+	const selected = useSyncExternalStore(markdownSelection.subscribe, () =>
+		markdownSelection.has(shape.id),
+	);
 
 	useEffect(() => {
 		ensureStyles();
@@ -123,8 +138,10 @@ function MarkdownView({ shape }: { shape: ShapeData }) {
 				boxSizing: "border-box",
 				padding: 8,
 				overflow: "hidden",
-				pointerEvents: "none",
-				userSelect: "none",
+				// Selected → interactive content (links clickable, text selectable).
+				// Unselected → transparent to pointers so the canvas handles select/move.
+				pointerEvents: selected ? "auto" : "none",
+				userSelect: selected ? "text" : "none",
 				color: shape.style.stroke,
 				background: shape.style.fill === "transparent" ? "transparent" : shape.style.fill,
 			}}

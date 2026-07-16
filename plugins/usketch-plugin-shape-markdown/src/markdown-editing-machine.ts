@@ -5,12 +5,14 @@ import { VanillaMachine } from "@zag-js/vanilla";
 import { MARKDOWN_TYPE, type MarkdownMeta, readMarkdownMeta } from "./types.js";
 
 // ── Event Types ──
+// Editing is entered only by explicit intent: CREATE_SHAPE (tool placement) or
+// BEGIN_EDIT (Control HUD "Edit source" action). There is no double-click path
+// so rendered content clicks are free for the shape's own interactions.
 
 type MarkdownEvent =
-	| { type: "POINTER_DOWN"; shapeId: string | null }
 	| { type: "CREATE_SHAPE"; shapeId: string }
+	| { type: "BEGIN_EDIT"; shapeId: string }
 	| { type: "ENTER_EDIT" }
-	| { type: "CLICK_TIMEOUT" }
 	| { type: "SETTLE_TIMEOUT" }
 	| { type: "EDIT_INPUT"; id: string; source: string; scrollHeight: number }
 	| { type: "EDIT_BLUR"; id: string }
@@ -25,20 +27,15 @@ interface MarkdownMachineSchema extends MachineSchema {
 		editingShapeId: string | null;
 		sourceSnapshot: string | null;
 		heightSnapshot: number | null;
-		clickedShapeId: string | null;
 	};
 	refs: {
-		clickTimer: ReturnType<typeof setTimeout> | null;
 		settleTimer: ReturnType<typeof setTimeout> | null;
 		pluginCtx: PluginContext;
 	};
-	state: "idle" | "clicked" | "creating" | "editing" | "editing.settling" | "editing.active";
+	state: "idle" | "creating" | "editing" | "editing.settling" | "editing.active";
 	event: MarkdownEvent;
-	guard: "hasShape" | "isSameShape" | "isEditingTarget";
+	guard: "isEditingTarget";
 	action:
-		| "setClicked"
-		| "startClickTimer"
-		| "clearClicked"
 		| "setEditing"
 		| "enterEdit"
 		| "exitEdit"
@@ -66,13 +63,11 @@ const markdownEditingMachine = createMachine<MarkdownMachineSchema>({
 			editingShapeId: bindable<string | null>(() => ({ defaultValue: null })),
 			sourceSnapshot: bindable<string | null>(() => ({ defaultValue: null })),
 			heightSnapshot: bindable<number | null>(() => ({ defaultValue: null })),
-			clickedShapeId: bindable<string | null>(() => ({ defaultValue: null })),
 		};
 	},
 
 	refs() {
 		return {
-			clickTimer: null as ReturnType<typeof setTimeout> | null,
 			settleTimer: null as ReturnType<typeof setTimeout> | null,
 			pluginCtx: null as unknown as PluginContext,
 		};
@@ -81,26 +76,8 @@ const markdownEditingMachine = createMachine<MarkdownMachineSchema>({
 	states: {
 		idle: {
 			on: {
-				POINTER_DOWN: [
-					{ guard: "hasShape", target: "clicked", actions: ["setClicked", "startClickTimer"] },
-				],
 				CREATE_SHAPE: { target: "creating", actions: ["setEditing"] },
-			},
-		},
-
-		clicked: {
-			on: {
-				POINTER_DOWN: [
-					{ guard: "isSameShape", target: "editing", actions: ["setEditing", "enterEdit"] },
-					{
-						guard: "hasShape",
-						target: "clicked",
-						actions: ["setClicked", "startClickTimer"],
-						reenter: true,
-					},
-					{ target: "idle", actions: ["clearClicked"] },
-				],
-				CLICK_TIMEOUT: { target: "idle", actions: ["clearClicked"] },
+				BEGIN_EDIT: { target: "creating", actions: ["setEditing"] },
 			},
 		},
 
@@ -139,42 +116,12 @@ const markdownEditingMachine = createMachine<MarkdownMachineSchema>({
 
 	implementations: {
 		guards: {
-			hasShape({ event }) {
-				return event.shapeId != null;
-			},
-			isSameShape({ context, event }) {
-				return event.shapeId != null && event.shapeId === context.get("clickedShapeId");
-			},
 			isEditingTarget({ context, event }) {
 				return event.id === context.get("editingShapeId");
 			},
 		},
 
 		actions: {
-			setClicked({ context, event, refs }) {
-				const prev = refs.get("clickTimer");
-				if (prev != null) clearTimeout(prev);
-				context.set("clickedShapeId", event.shapeId);
-			},
-
-			startClickTimer({ refs, send }) {
-				const prev = refs.get("clickTimer");
-				if (prev != null) clearTimeout(prev);
-				const timer = setTimeout(() => {
-					send({ type: "CLICK_TIMEOUT" });
-				}, 300);
-				refs.set("clickTimer", timer);
-			},
-
-			clearClicked({ context, refs }) {
-				context.set("clickedShapeId", null);
-				const timer = refs.get("clickTimer");
-				if (timer != null) {
-					clearTimeout(timer);
-					refs.set("clickTimer", null);
-				}
-			},
-
 			setEditing({ context, event }) {
 				context.set("editingShapeId", event.shapeId);
 			},
@@ -188,12 +135,6 @@ const markdownEditingMachine = createMachine<MarkdownMachineSchema>({
 
 				context.set("sourceSnapshot", readMarkdownMeta(shape).source);
 				context.set("heightSnapshot", shape.height);
-				context.set("clickedShapeId", null);
-				const clickTimer = refs.get("clickTimer");
-				if (clickTimer != null) {
-					clearTimeout(clickTimer);
-					refs.set("clickTimer", null);
-				}
 				pluginCtx.store.updateShape(id, metaPatch(shape, { isEditing: true }));
 			},
 
@@ -227,7 +168,7 @@ const markdownEditingMachine = createMachine<MarkdownMachineSchema>({
 					return;
 				}
 
-				// Leave edit mode first so the from/to snapshots below capture the
+				// Leave edit mode first so the from/to snapshots capture the
 				// non-editing meta (isEditing:false) on both sides of the undo step.
 				pluginCtx.store.updateShape(id, metaPatch(shape, { isEditing: false }));
 				const currentShape = pluginCtx.store.getShape(id) ?? shape;
@@ -293,7 +234,6 @@ export function createMarkdownEditingService(pluginCtx: PluginContext) {
 				editingShapeId: machine.context.get("editingShapeId"),
 				sourceSnapshot: machine.context.get("sourceSnapshot"),
 				heightSnapshot: machine.context.get("heightSnapshot"),
-				clickedShapeId: machine.context.get("clickedShapeId"),
 			};
 		},
 		matches: (...values: string[]) => {
@@ -301,8 +241,6 @@ export function createMarkdownEditingService(pluginCtx: PluginContext) {
 			return values.some((v) => state === v || state.startsWith(`${v}.`));
 		},
 		stop() {
-			const clickTimer = machine.refs.get("clickTimer");
-			if (clickTimer != null) clearTimeout(clickTimer);
 			const settleTimer = machine.refs.get("settleTimer");
 			if (settleTimer != null) clearTimeout(settleTimer);
 			machine.stop();
