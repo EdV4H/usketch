@@ -44,6 +44,7 @@
 		"@edv4h/usketch-plugin-export": "workspace:*",
 		"@edv4h/usketch-plugin-follow-me": "workspace:*",
 		"@edv4h/usketch-plugin-keyboard-shortcuts": "workspace:*",
+		"@edv4h/usketch-plugin-markdown-to-shape": "workspace:*",
 		"@edv4h/usketch-plugin-laser": "workspace:*",
 		"@edv4h/usketch-plugin-presence-cursor": "workspace:*",
 		"@edv4h/usketch-plugin-presence-enhanced": "workspace:*",

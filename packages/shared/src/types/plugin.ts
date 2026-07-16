@@ -700,6 +700,79 @@ export interface BoardStore {
 	onMutation(listener: (event: StoreEvent) => void): () => void;
 }
 
+// ── Markdown → Shape conversion ──
+
+/**
+ * A parsed Markdown (mdast) node handed to converters. Loosely typed so
+ * `@edv4h/usketch-shared` needn't depend on mdast; converters narrow by `type`.
+ */
+export interface MarkdownNode {
+	type: string;
+	/** Source offsets (mdast `position`) — use with the source to slice raw text. */
+	position?: {
+		start: { offset?: number };
+		end: { offset?: number };
+	};
+	children?: MarkdownNode[];
+	[key: string]: unknown;
+}
+
+/**
+ * A shape to create from a Markdown node, minus engine-managed fields
+ * (`id`/`x`/`y`/`zIndex` are assigned by the orchestrator during layout).
+ * Carries the target `type` plus that shape's intrinsic fields (e.g. `text`,
+ * `fontSize`, or `meta`).
+ */
+export interface MarkdownShapeSpec {
+	type: string;
+	/**
+	 * Absolute id/position — set by self-laying-out converters (e.g. a mermaid
+	 * flowchart emitting interconnected nodes). When omitted the orchestrator
+	 * assigns an id and stacks the shape in the current vertical slot.
+	 */
+	id?: string;
+	x?: number;
+	y?: number;
+	width?: number;
+	height?: number;
+	style?: Partial<ShapeStyle>;
+	meta?: Record<string, unknown>;
+	[key: string]: unknown;
+}
+
+export interface MarkdownConverterContext {
+	/** The full original Markdown source (slice with `node.position` offsets). */
+	source: string;
+	shapes: ShapeRegistry;
+	/**
+	 * Top-left of the current layout slot. Self-laying-out converters position
+	 * their shapes (and any connector endpoints) absolutely from here; simple
+	 * single-shape converters can ignore it and let the orchestrator place them.
+	 */
+	origin: { x: number; y: number };
+}
+
+export interface MarkdownConverter {
+	id: string;
+	/** mdast node types this handles (e.g. `["heading","paragraph"]`). */
+	nodeTypes?: string[];
+	/** Extra predicate, ANDed with `nodeTypes` when both are given. */
+	match?: (node: MarkdownNode) => boolean;
+	/** Higher wins; ties resolve to the most-recently-registered. Default 0. */
+	order?: number;
+	convert(node: MarkdownNode, ctx: MarkdownConverterContext): MarkdownShapeSpec[];
+}
+
+export interface MarkdownConverterRegistry {
+	/** Register a converter (re-registering an `id` replaces + bumps it). Returns an unsubscribe. */
+	register(converter: MarkdownConverter): () => void;
+	unregister(id: string): void;
+	/** Best converter for a node (type/match filter → highest order → last), or undefined. */
+	resolve(node: MarkdownNode): MarkdownConverter | undefined;
+	/** All registered converters (insertion order). */
+	getAll(): readonly MarkdownConverter[];
+}
+
 // ── Plugin ──
 
 export interface PluginContext {
@@ -716,6 +789,12 @@ export interface PluginContext {
 	externalContent: ExternalContentRegistry;
 	/** Declarative, enumerable plugin operations surfaced by the control HUD. */
 	actions: ActionRegistry;
+	/**
+	 * Converters that turn parsed Markdown (mdast) nodes into shapes. Lets a
+	 * "markdown → shapes" plugin decompose a document without depending on any
+	 * concrete shape plugin — targets register themselves here (IoC).
+	 */
+	markdownConverters: MarkdownConverterRegistry;
 }
 
 /**
