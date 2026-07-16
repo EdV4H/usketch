@@ -9,6 +9,13 @@ import { nodeSource } from "./mdast.js";
 
 // ── Flowchart parsing ──
 
+/** Node geometry parsed from the mermaid wrapper syntax. */
+export type NodeShape = "rect" | "round" | "circle" | "diamond";
+
+export interface FlowNode {
+	label: string;
+	shape: NodeShape;
+}
 export interface FlowchartEdge {
 	source: string;
 	target: string;
@@ -16,7 +23,7 @@ export interface FlowchartEdge {
 }
 export interface Flowchart {
 	direction: "TB" | "BT" | "LR" | "RL";
-	nodes: Map<string, string>; // id → label
+	nodes: Map<string, FlowNode>; // id → { label, shape }
 	edges: FlowchartEdge[];
 }
 
@@ -27,12 +34,19 @@ const ARROW = /\s*(?:-{2,}>|-{3,}|-\.->|-\.-|={2,}>)\s*(?:\|([^|]*)\|\s*)?/g;
 const NODE_TOKEN =
 	/^([A-Za-z0-9_-]+)(?:\(\(([^)]*)\)\)|\[([^\]]*)\]|\(([^)]*)\)|\{([^}]*)\}|>([^\]]*)\])?/;
 
-function parseNodeToken(tok: string): { id: string; label: string } | null {
+function parseNodeToken(tok: string): { id: string; label: string; shape: NodeShape } | null {
 	const m = NODE_TOKEN.exec(tok.trim());
 	if (!m) return null;
-	const raw = m[2] ?? m[3] ?? m[4] ?? m[5] ?? m[6];
+	// Wrapper syntax → node shape: ((circle)) [rect] (round) {diamond} >flag].
+	let shape: NodeShape = "rect";
+	let raw: string | undefined;
+	if (m[2] != null) [shape, raw] = ["circle", m[2]];
+	else if (m[4] != null) [shape, raw] = ["round", m[4]];
+	else if (m[5] != null) [shape, raw] = ["diamond", m[5]];
+	else if (m[3] != null) [shape, raw] = ["rect", m[3]];
+	else if (m[6] != null) [shape, raw] = ["rect", m[6]]; // asymmetric >..] → approx rectangle
 	const label = raw != null && raw.trim() !== "" ? raw.trim().replace(/^["']|["']$/g, "") : m[1];
-	return { id: m[1], label };
+	return { id: m[1], label, shape };
 }
 
 /**
@@ -52,12 +66,19 @@ export function parseFlowchart(code: string): Flowchart | null {
 	const dir = header[1].toUpperCase();
 	const direction = dir === "TD" ? "TB" : (dir as Flowchart["direction"]);
 
-	const nodes = new Map<string, string>();
+	const nodes = new Map<string, FlowNode>();
 	const edges: FlowchartEdge[] = [];
-	const addNode = (n: { id: string; label: string }) => {
-		// Keep an explicit label over an id-only placeholder.
+	const addNode = (n: { id: string; label: string; shape: NodeShape }) => {
 		const prev = nodes.get(n.id);
-		if (prev === undefined || prev === n.id) nodes.set(n.id, n.label);
+		if (prev === undefined) {
+			nodes.set(n.id, { label: n.label, shape: n.shape });
+			return;
+		}
+		// A later reference must not clobber an explicit label/shape with an
+		// id-only placeholder (`B{Decision}` then `B --> C` keeps the diamond).
+		const label = prev.label === n.id ? n.label : prev.label;
+		const shape = prev.shape === "rect" && n.shape !== "rect" ? n.shape : prev.shape;
+		nodes.set(n.id, { label, shape });
 	};
 
 	// Statements after the header (also split on `;`).
@@ -109,6 +130,25 @@ export function parseFlowchart(code: string): Flowchart | null {
 const NODE_HEIGHT = 44;
 const nodeWidth = (label: string) => Math.max(80, label.length * 8 + 24);
 
+/** mermaid node shape → geo shape type (all label-able geo shapes). */
+const GEO_TYPE: Record<NodeShape, string> = {
+	rect: "rectangle",
+	round: "rounded-rect",
+	circle: "ellipse",
+	diamond: "diamond",
+};
+
+/**
+ * Size multipliers per shape: a diamond/ellipse only fits its centered label in
+ * its inscribed rect (~half the area), so grow the bounding box accordingly.
+ */
+const SHAPE_SIZE: Record<NodeShape, { w: number; h: number }> = {
+	rect: { w: 1, h: 1 },
+	round: { w: 1, h: 1 },
+	circle: { w: 1.3, h: 1.8 },
+	diamond: { w: 1.5, h: 1.8 },
+};
+
 interface LaidOutNode {
 	x: number;
 	y: number;
@@ -121,8 +161,12 @@ function layout(chart: Flowchart, origin: { x: number; y: number }): Map<string,
 	const g = new dagre.graphlib.Graph();
 	g.setGraph({ rankdir: chart.direction, nodesep: 40, ranksep: 60, marginx: 8, marginy: 8 });
 	g.setDefaultEdgeLabel(() => ({}));
-	for (const [id, label] of chart.nodes) {
-		g.setNode(id, { width: nodeWidth(label), height: NODE_HEIGHT });
+	for (const [id, node] of chart.nodes) {
+		const mult = SHAPE_SIZE[node.shape];
+		g.setNode(id, {
+			width: Math.round(nodeWidth(node.label) * mult.w),
+			height: Math.round(NODE_HEIGHT * mult.h),
+		});
 	}
 	for (const e of chart.edges) g.setEdge(e.source, e.target);
 	dagre.layout(g);
@@ -142,9 +186,12 @@ function layout(chart: Flowchart, origin: { x: number; y: number }): Map<string,
 }
 
 /**
- * Converter: a ```mermaid``` flowchart → `rectangle` + `text` nodes joined by
- * `connector`s (id-anchored, so they follow the nodes). Non-flowchart mermaid or
- * a parse failure falls back to a single `markdown` shape (renders the diagram).
+ * Converter: a ```mermaid``` flowchart → geo nodes joined by `connector`s
+ * (id-anchored, so they follow the nodes). Node wrapper syntax maps to geo
+ * shapes — `[..]` rectangle, `(..)` rounded-rect, `((..))` ellipse, `{..}`
+ * diamond (decision) — each carrying its label as a centered geo label.
+ * Non-flowchart mermaid or a parse failure falls back to a single `markdown`
+ * shape (renders the diagram).
  */
 export function createMermaidFlowchartConverter(): MarkdownConverter {
 	return {
@@ -166,44 +213,37 @@ export function createMermaidFlowchartConverter(): MarkdownConverter {
 			}
 
 			const placed = layout(chart, ctx.origin);
-			const rectIdByNode = new Map<string, string>();
+			const shapeIdByNode = new Map<string, string>();
 			const specs: MarkdownShapeSpec[] = [];
 
-			for (const [id, label] of chart.nodes) {
+			for (const [id, node] of chart.nodes) {
 				const box = placed.get(id);
 				if (!box) continue;
-				const rectId = generateId();
-				rectIdByNode.set(id, rectId);
+				const shapeId = generateId();
+				shapeIdByNode.set(id, shapeId);
+				const type = GEO_TYPE[node.shape];
+				// The label rides on the geo shape itself (centered GeoLabel), so a
+				// decision `{...}` becomes a diamond with its text centered inside.
 				specs.push({
-					type: "rectangle",
-					id: rectId,
+					type,
+					id: shapeId,
 					x: box.x,
 					y: box.y,
 					width: box.width,
 					height: box.height,
 					style: { fill: "#ffffff", stroke: "#1e1e1e", strokeWidth: 2 },
-					cornerRadius: 4,
-				});
-				specs.push({
-					type: "text",
-					id: generateId(),
-					x: box.x,
-					y: box.y,
-					width: box.width,
-					height: box.height,
-					text: label,
+					text: node.label,
 					fontSize: 14,
-					fontFamily: "system-ui, sans-serif",
 					isEditing: false,
-					style: { fill: "transparent", strokeWidth: 0, stroke: "#1e1e1e" },
+					...(type === "rectangle" ? { cornerRadius: 4 } : {}),
 				});
 			}
 
 			for (const edge of chart.edges) {
 				const from = placed.get(edge.source);
 				const to = placed.get(edge.target);
-				const sourceId = rectIdByNode.get(edge.source);
-				const targetId = rectIdByNode.get(edge.target);
+				const sourceId = shapeIdByNode.get(edge.source);
+				const targetId = shapeIdByNode.get(edge.target);
 				if (!from || !to || !sourceId || !targetId) continue;
 				const sp = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
 				const tp = { x: to.x + to.width / 2, y: to.y + to.height / 2 };

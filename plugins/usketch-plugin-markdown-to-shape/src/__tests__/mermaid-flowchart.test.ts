@@ -7,13 +7,24 @@ describe("parseFlowchart", () => {
 		const chart = parseFlowchart("graph TD\nA[Start] --> B{Decision}\nB --> C");
 		expect(chart).not.toBeNull();
 		expect(chart?.direction).toBe("TB");
-		expect(chart?.nodes.get("A")).toBe("Start");
-		expect(chart?.nodes.get("B")).toBe("Decision");
-		expect(chart?.nodes.get("C")).toBe("C"); // id-only → label defaults to id
+		expect(chart?.nodes.get("A")).toEqual({ label: "Start", shape: "rect" });
+		// `{...}` → decision diamond; the later `B --> C` reference keeps it.
+		expect(chart?.nodes.get("B")).toEqual({ label: "Decision", shape: "diamond" });
+		expect(chart?.nodes.get("C")).toEqual({ label: "C", shape: "rect" }); // id-only
 		expect(chart?.edges).toEqual([
 			{ source: "A", target: "B", label: undefined },
 			{ source: "B", target: "C", label: undefined },
 		]);
+	});
+
+	it("maps wrapper syntax to node shapes", () => {
+		const chart = parseFlowchart(
+			"flowchart TD\nA(round) --> B((circle)) --> C{diamond} --> D[rect]",
+		);
+		expect(chart?.nodes.get("A")?.shape).toBe("round");
+		expect(chart?.nodes.get("B")?.shape).toBe("circle");
+		expect(chart?.nodes.get("C")?.shape).toBe("diamond");
+		expect(chart?.nodes.get("D")?.shape).toBe("rect");
 	});
 
 	it("handles chains and edge labels", () => {
@@ -49,23 +60,33 @@ describe("createMermaidFlowchartConverter", () => {
 		expect(converter.match?.(codeNode("const x = 1", "ts"))).toBe(false);
 	});
 
-	it("emits rectangle + text per node and connectors wired by node id", () => {
+	it("emits one geo node (with its label) per node and connectors wired by node id", () => {
 		const specs = converter.convert(codeNode("graph TD\nA[Start] --> B[End]"), ctx);
 		const rects = specs.filter((s) => s.type === "rectangle");
 		const texts = specs.filter((s) => s.type === "text");
 		const connectors = specs.filter((s) => s.type === "connector");
 		expect(rects).toHaveLength(2);
-		expect(texts).toHaveLength(2);
+		expect(texts).toHaveLength(0); // label rides on the geo shape, no separate text shape
 		expect(connectors).toHaveLength(1);
+		// The node carries its label natively (centered geo label).
+		expect(rects.map((r) => r.text).sort()).toEqual(["End", "Start"]);
 
-		// The connector references the rectangles' ids (so it follows the nodes).
-		const rectIds = new Set(rects.map((r) => r.id));
-		expect(rectIds.has(connectors[0].sourceId as string)).toBe(true);
-		expect(rectIds.has(connectors[0].targetId as string)).toBe(true);
+		// The connector references the node shapes' ids (so it follows the nodes).
+		const nodeIds = new Set(rects.map((r) => r.id));
+		expect(nodeIds.has(connectors[0].sourceId as string)).toBe(true);
+		expect(nodeIds.has(connectors[0].targetId as string)).toBe(true);
 
 		// Everything is positioned (dagre layout), all shapes carry an id.
 		expect(specs.every((s) => typeof s.id === "string")).toBe(true);
 		expect(specs.every((s) => typeof s.x === "number" && typeof s.y === "number")).toBe(true);
+	});
+
+	it("converts a decision node into a diamond", () => {
+		const specs = converter.convert(codeNode("graph TD\nA[Start] --> B{OK?}"), ctx);
+		const diamond = specs.find((s) => s.type === "diamond");
+		expect(diamond).toBeDefined();
+		expect(diamond?.text).toBe("OK?");
+		expect(specs.filter((s) => s.type === "rectangle")).toHaveLength(1);
 	});
 
 	it("falls back to a markdown shape for non-flowchart mermaid", () => {
