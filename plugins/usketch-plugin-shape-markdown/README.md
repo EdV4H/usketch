@@ -10,7 +10,7 @@ Markdown を整形表示する uSketch の shape プラグイン。付箋 / テ�
 - **シンタックスハイライト**: `rehype-highlight`（github 風テーマを内蔵注入、ライト/ダーク追従）。
 - **Mermaid**: ` ```mermaid ` ブロックを図として描画。`mermaid` は**動的 import で code-split**（図を含むボードを開いたときだけロード）。`securityLevel: "strict"` で描画し、不正構文は生コード＋エラー文言にフォールバック。
 - **編集（明示操作）**: shape を選択し、Control HUD の `Markdown ▸ ✎ Edit source`（バッククォート `` ` `` で HUD を開く）で raw Markdown 編集モードに入る。blur / Esc / 外側クリック / 選択解除で確定。undo 対応。空にすると shape は削除。ダブルクリックには**バインドしない**（コンテンツ操作を邪魔しないため）。
-- **コンテンツ操作（選択中のみ）**: リンククリックは常に可。**テキスト選択は Alt+ドラッグ**（プレーンなドラッグは shape の移動、Alt を押しながらドラッグでテキスト選択）。未選択時は非操作で、クリック/ドラッグは shape の選択/移動になる。
+- **コンテンツ操作（選択中のみ）**: shape 選択中はリンククリック可＋**テキスト選択は Alt+ドラッグ**（プレーンなドラッグは shape の移動、Alt を押しながらドラッグでテキスト選択）。**未選択時はコンテンツ非操作**（リンクも押せない）で、クリック/ドラッグは shape の選択/移動になる。
 - **ペースト / ドロップ**: キャンバスにペースト（Cmd/Ctrl+V）またはドロップで markdown shape を自動生成（external-content handler）。
   - **表データ**（Excel / Google スプレッドシートの HTML table、TSV/CSV）→ **GFM 表**に変換（`order:10`）。
   - それ以外のテキスト → そのまま Markdown（catch-all `order:0`、host が上書き可）。
@@ -36,4 +36,4 @@ const app = await createApp({
 });
 ```
 
-ツールバー / ショートカット `m` で配置 → ダブルクリックで Markdown を編集 → フォーカスを外すと整形表示に切り替わる。
+ツールバー / ショートカット `m` で配置（配置直後は編集モード）→ 確定後に再編集するときは shape を選択し、Control HUD（`` ` `` で開く）の `Markdown ▸ ✎ Edit source` を実行 → フォーカスを外す / Esc で整形表示に切り替わる。

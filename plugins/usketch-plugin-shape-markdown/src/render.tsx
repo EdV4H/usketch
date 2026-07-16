@@ -54,10 +54,14 @@ function MermaidBlock({ code }: { code: string }) {
 				});
 				const id = `usketch-mermaid-${Math.random().toString(36).slice(2)}`;
 				const { svg } = await mermaid.render(id, code);
-				if (!cancelled && ref.current) {
-					ref.current.innerHTML = svg;
-					setError(null);
-				}
+				if (cancelled || !ref.current) return;
+				// Parse the SVG string and adopt the <svg> node rather than assigning
+				// `innerHTML` — avoids a string-HTML sink (CSP / Trusted Types friendly).
+				const parsed = new DOMParser().parseFromString(svg, "image/svg+xml");
+				const svgEl = parsed.querySelector("svg");
+				if (!svgEl) throw new Error("Mermaid produced no <svg>");
+				ref.current.replaceChildren(document.importNode(svgEl, true));
+				setError(null);
 			} catch (e) {
 				if (!cancelled) setError(e instanceof Error ? e.message : "Mermaid render error");
 			}
@@ -133,10 +137,11 @@ function MarkdownView({ shape }: { shape: ShapeData }) {
 		<div
 			className="usketch-md"
 			ref={ref}
-			// When selected: Alt+drag selects text (stop propagation so the canvas
-			// doesn't move the shape); a plain drag moves the shape (bubbles to the
-			// select tool). Links are clickable either way. Unselected shapes stay
-			// pass-through so the canvas handles select/move.
+			// When selected: links are clickable and Alt+drag selects text (stop
+			// propagation so the canvas doesn't move the shape); a plain drag moves
+			// the shape (bubbles to the select tool). When unselected the content is
+			// pass-through (pointerEvents:none) so the canvas handles select/move —
+			// i.e. links are only clickable while the shape is selected.
 			onPointerDown={
 				selected
 					? (e) => {
