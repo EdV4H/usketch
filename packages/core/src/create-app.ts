@@ -115,7 +115,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	const lodPolicy =
 		options.lod?.policy ??
 		createCompositeLodPolicy([
-			createZoomLodPolicy({ enterAt: 0.5, exitAt: 0.7 }),
+			createZoomLodPolicy({ enterAt: 0.25, exitAt: 0.4 }),
 			createShapeCountLodPolicy({ enterAt: 1000, exitAt: 800 }),
 		]);
 	const lod = createLodController({
