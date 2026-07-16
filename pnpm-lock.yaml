@@ -1693,9 +1693,6 @@ importers:
 
   plugins/usketch-plugin-shape-markdown:
     dependencies:
-      '@edv4h/usketch-core':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared

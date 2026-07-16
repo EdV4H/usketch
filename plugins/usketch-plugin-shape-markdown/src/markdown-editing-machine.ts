@@ -25,7 +25,7 @@ type MarkdownEvent =
 interface MarkdownMachineSchema extends MachineSchema {
 	context: {
 		editingShapeId: string | null;
-		sourceSnapshot: string | null;
+		metaSnapshot: Record<string, unknown> | null;
 		heightSnapshot: number | null;
 	};
 	refs: {
@@ -48,9 +48,18 @@ interface MarkdownMachineSchema extends MachineSchema {
 	computed: Record<string, never>;
 }
 
-/** Merge a partial meta patch onto the shape's current markdown meta. */
-function metaPatch(shape: ShapeData, patch: Partial<MarkdownMeta>): { meta: MarkdownMeta } {
-	return { meta: { ...readMarkdownMeta(shape), ...patch } };
+/**
+ * Merge a partial patch onto the shape's current meta. Spreads the **raw**
+ * existing meta (not the normalized {source,isEditing}) so any extra keys —
+ * present now or added later by other tooling — are preserved through edits.
+ * `store.updateShape` replaces `meta` wholesale, so we must carry it forward.
+ */
+function metaPatch(
+	shape: ShapeData,
+	patch: Partial<MarkdownMeta>,
+): { meta: Record<string, unknown> } {
+	const existing = (shape.meta ?? {}) as Record<string, unknown>;
+	return { meta: { ...existing, ...patch } };
 }
 
 // ── Machine Definition ──
@@ -61,7 +70,7 @@ const markdownEditingMachine = createMachine<MarkdownMachineSchema>({
 	context({ bindable }) {
 		return {
 			editingShapeId: bindable<string | null>(() => ({ defaultValue: null })),
-			sourceSnapshot: bindable<string | null>(() => ({ defaultValue: null })),
+			metaSnapshot: bindable<Record<string, unknown> | null>(() => ({ defaultValue: null })),
 			heightSnapshot: bindable<number | null>(() => ({ defaultValue: null })),
 		};
 	},
@@ -133,7 +142,7 @@ const markdownEditingMachine = createMachine<MarkdownMachineSchema>({
 				const shape = pluginCtx.store.getShape(id);
 				if (!shape || shape.type !== MARKDOWN_TYPE) return;
 
-				context.set("sourceSnapshot", readMarkdownMeta(shape).source);
+				context.set("metaSnapshot", { ...((shape.meta ?? {}) as Record<string, unknown>) });
 				context.set("heightSnapshot", shape.height);
 				pluginCtx.store.updateShape(id, metaPatch(shape, { isEditing: true }));
 			},
@@ -150,7 +159,8 @@ const markdownEditingMachine = createMachine<MarkdownMachineSchema>({
 			exitEdit({ context, refs }) {
 				const id = context.get("editingShapeId");
 				if (!id) return;
-				const prevSource = context.get("sourceSnapshot");
+				const prevMeta = context.get("metaSnapshot") ?? {};
+				const prevSource = readMarkdownMeta({ meta: prevMeta } as unknown as ShapeData).source;
 				const prevHeight = context.get("heightSnapshot");
 				const pluginCtx = refs.get("pluginCtx");
 
@@ -163,7 +173,7 @@ const markdownEditingMachine = createMachine<MarkdownMachineSchema>({
 				const shape = pluginCtx.store.getShape(id);
 				if (!shape) {
 					context.set("editingShapeId", null);
-					context.set("sourceSnapshot", null);
+					context.set("metaSnapshot", null);
 					context.set("heightSnapshot", null);
 					return;
 				}
@@ -177,16 +187,20 @@ const markdownEditingMachine = createMachine<MarkdownMachineSchema>({
 				if (currentSource.trim() === "") {
 					pluginCtx.commands.execute(createDeleteShapeCommand(pluginCtx.store, id));
 				} else if (currentSource !== prevSource) {
+					// Preserve any extra meta keys on both sides of the undo step.
 					pluginCtx.commands.execute(
 						createUpdateShapeCommand(
 							pluginCtx.store,
 							id,
 							{
-								meta: { source: prevSource ?? "", isEditing: false },
+								meta: { ...prevMeta, isEditing: false },
 								height: prevHeight ?? currentShape.height,
 							},
 							{
-								meta: { source: currentSource, isEditing: false },
+								meta: {
+									...((currentShape.meta ?? {}) as Record<string, unknown>),
+									isEditing: false,
+								},
 								height: currentShape.height,
 							},
 						),
@@ -194,7 +208,7 @@ const markdownEditingMachine = createMachine<MarkdownMachineSchema>({
 				}
 
 				context.set("editingShapeId", null);
-				context.set("sourceSnapshot", null);
+				context.set("metaSnapshot", null);
 				context.set("heightSnapshot", null);
 			},
 
@@ -232,7 +246,7 @@ export function createMarkdownEditingService(pluginCtx: PluginContext) {
 		get context() {
 			return {
 				editingShapeId: machine.context.get("editingShapeId"),
-				sourceSnapshot: machine.context.get("sourceSnapshot"),
+				metaSnapshot: machine.context.get("metaSnapshot"),
 				heightSnapshot: machine.context.get("heightSnapshot"),
 			};
 		},

@@ -154,6 +154,10 @@ function MarkdownView({ shape }: { shape: ShapeData }) {
 						}
 					: undefined
 			}
+			// Reset the imperative userSelect after an Alt+drag so it doesn't linger
+			// into the next (plain) drag before a re-render clears it.
+			onPointerUp={selected ? (e) => (e.currentTarget.style.userSelect = "none") : undefined}
+			onPointerCancel={selected ? (e) => (e.currentTarget.style.userSelect = "none") : undefined}
 			style={{
 				width: "100%",
 				boxSizing: "border-box",

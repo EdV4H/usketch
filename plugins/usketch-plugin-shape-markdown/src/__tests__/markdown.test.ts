@@ -132,6 +132,35 @@ describe("markdown editing machine", () => {
 		expect(readMarkdownMeta(shape).source).toBe("# existing");
 	});
 
+	it("preserves extra meta keys through an edit (no silent data loss)", async () => {
+		const { ctx, store } = makeCtx();
+		const shape: MarkdownShapeData = {
+			id: "mx",
+			type: MARKDOWN_TYPE,
+			x: 0,
+			y: 0,
+			width: 320,
+			height: 120,
+			style: { ...DEFAULT_STYLE },
+			meta: { source: "a", isEditing: false, custom: "keep-me" },
+		};
+		store.addShape(shape);
+		store.setSelection(["mx"]);
+		service = createMarkdownEditingService(ctx);
+
+		service.send({ type: "BEGIN_EDIT", shapeId: "mx" });
+		await tick();
+		service.send({ type: "EDIT_INPUT", id: "mx", source: "b", scrollHeight: 80 });
+		await tick();
+		service.send({ type: "EDIT_ESCAPE", id: "mx" });
+		await tick();
+
+		const meta = (store.getShape("mx") as ShapeData).meta as Record<string, unknown>;
+		expect(meta.custom).toBe("keep-me");
+		expect(meta.source).toBe("b");
+		expect(meta.isEditing).toBe(false);
+	});
+
 	it("EDIT_ESCAPE with empty source deletes the shape", async () => {
 		const { ctx, store } = makeCtx();
 		addMarkdown(store, "m3");
