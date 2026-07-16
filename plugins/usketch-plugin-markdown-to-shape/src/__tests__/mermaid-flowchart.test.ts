@@ -25,6 +25,10 @@ describe("parseFlowchart", () => {
 		// An id-only reference before the explicit declaration is replaced wholesale.
 		const chart2 = parseFlowchart("graph TD\nX --> Y\nX{Q?} --> Z");
 		expect(chart2?.nodes.get("X")).toEqual({ label: "Q?", shape: "diamond" });
+		// An explicit node whose label equals its id (`A[A]`) is NOT a placeholder,
+		// so a later re-declaration must not overwrite it (explicitness ≠ label==id).
+		const chart3 = parseFlowchart("graph TD\nA[A] --> B\nA{Decision} --> C");
+		expect(chart3?.nodes.get("A")).toEqual({ label: "A", shape: "rect" });
 	});
 
 	it("maps wrapper syntax to node shapes", () => {

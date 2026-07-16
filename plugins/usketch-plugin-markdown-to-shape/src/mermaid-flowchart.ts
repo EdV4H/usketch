@@ -1,6 +1,7 @@
 import dagre from "@dagrejs/dagre";
 import { getAnchorPoint } from "@edv4h/usketch-connector-anchor";
 import {
+	DEFAULT_STYLE,
 	generateId,
 	type MarkdownConverter,
 	type MarkdownNode,
@@ -36,7 +37,16 @@ const ARROW = /\s*(?:-{2,}>|-{3,}|-\.->|-\.-|={2,}>)\s*(?:\|([^|]*)\|\s*)?/g;
 const NODE_TOKEN =
 	/^([A-Za-z0-9_-]+)(?:\(\(([^)]*)\)\)|\[([^\]]*)\]|\(([^)]*)\)|\{([^}]*)\}|>([^\]]*)\])?/;
 
-function parseNodeToken(tok: string): { id: string; label: string; shape: NodeShape } | null {
+interface ParsedNode {
+	id: string;
+	label: string;
+	shape: NodeShape;
+	/** True when the token carried a wrapper (`[..]`/`(..)`/`{..}`/…) — i.e. an
+	 * explicit declaration, as opposed to a bare id reference in an edge. */
+	explicit: boolean;
+}
+
+function parseNodeToken(tok: string): ParsedNode | null {
 	const m = NODE_TOKEN.exec(tok.trim());
 	if (!m) return null;
 	// Wrapper syntax → node shape: ((circle)) [rect] (round) {diamond} >flag].
@@ -47,8 +57,9 @@ function parseNodeToken(tok: string): { id: string; label: string; shape: NodeSh
 	else if (m[5] != null) [shape, raw] = ["diamond", m[5]];
 	else if (m[3] != null) [shape, raw] = ["rect", m[3]];
 	else if (m[6] != null) [shape, raw] = ["rect", m[6]]; // asymmetric >..] → approx rectangle
+	const explicit = raw != null; // a wrapper was present (even if its label is empty)
 	const label = raw != null && raw.trim() !== "" ? raw.trim().replace(/^["']|["']$/g, "") : m[1];
-	return { id: m[1], label, shape };
+	return { id: m[1], label, shape, explicit };
 }
 
 /**
@@ -69,17 +80,17 @@ export function parseFlowchart(code: string): Flowchart | null {
 	const direction = dir === "TD" ? "TB" : (dir as Flowchart["direction"]);
 
 	const nodes = new Map<string, FlowNode>();
+	const explicitIds = new Set<string>(); // ids declared with a wrapper
 	const edges: FlowchartEdge[] = [];
-	const addNode = (n: { id: string; label: string; shape: NodeShape }) => {
-		const prev = nodes.get(n.id);
-		// A node is a placeholder until it's declared with an explicit wrapper; an
-		// id-only reference carries `label === id` (and a default `rect`). Replace a
-		// placeholder wholesale, but once a node is explicit keep BOTH its label and
-		// shape stable — so `B{Decision}` then `B --> C` stays a labelled diamond,
-		// and a later re-declaration doesn't half-update (label vs shape) out of sync.
-		if (prev === undefined || prev.label === n.id) {
-			nodes.set(n.id, { label: n.label, shape: n.shape });
-		}
+	const addNode = (n: ParsedNode) => {
+		// A bare id reference is a placeholder that an explicit declaration replaces
+		// wholesale. Once a node is explicit, keep BOTH its label and shape stable
+		// (first explicit wins) so a later re-declaration can't half-update them.
+		// Explicitness is tracked from the wrapper, not inferred from the label —
+		// otherwise an explicit `A[A]` (label == id) would look like a placeholder.
+		if (nodes.has(n.id) && explicitIds.has(n.id)) return;
+		nodes.set(n.id, { label: n.label, shape: n.shape });
+		if (n.explicit) explicitIds.add(n.id);
 	};
 
 	// Statements after the header (also split on `;`).
@@ -157,9 +168,17 @@ interface LaidOutNode {
 	height: number;
 }
 
-/** Minimal ShapeData view of a laid-out box (getAnchorPoint reads only bounds). */
-const boxShape = (b: LaidOutNode): ShapeData =>
-	({ x: b.x, y: b.y, width: b.width, height: b.height }) as ShapeData;
+/** A valid (axis-aligned, unrotated) ShapeData for a laid-out box, so anchor
+ * geometry stays correct even if getAnchorPoint later reads more than bounds. */
+const boxShape = (b: LaidOutNode): ShapeData => ({
+	id: "",
+	type: "rectangle",
+	x: b.x,
+	y: b.y,
+	width: b.width,
+	height: b.height,
+	style: DEFAULT_STYLE,
+});
 
 /** Run dagre to position the flowchart's nodes (centers), offset by origin. */
 function layout(chart: Flowchart, origin: { x: number; y: number }): Map<string, LaidOutNode> {
