@@ -22,7 +22,7 @@
 		"@edv4h/usketch-shared": "workspace:*"
 	},
 	"devDependencies": {
-		"typescript": "5.9.3",
+		"typescript": "7.0.2",
 		"vitest": "3.2.7"
 	},
 	"publishConfig": {

@@ -39,7 +39,7 @@
 		"url": "https://github.com/EdV4H/usketch/issues"
 	},
 	"devDependencies": {
-		"typescript": "5.9.3",
+		"typescript": "7.0.2",
 		"vitest": "3.2.7"
 	}
 }
