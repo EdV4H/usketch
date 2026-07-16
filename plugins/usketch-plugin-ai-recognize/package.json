@@ -22,7 +22,7 @@
 		"@edv4h/usketch-plugin-ai-agent": "workspace:*"
 	},
 	"devDependencies": {
-		"typescript": "5.9.3",
+		"typescript": "7.0.2",
 		"vitest": "3.2.7"
 	},
 	"publishConfig": {
