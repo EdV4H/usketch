@@ -133,6 +133,10 @@ function MarkdownView({ shape }: { shape: ShapeData }) {
 		<div
 			className="usketch-md"
 			ref={ref}
+			// While selected, keep pointerdown from reaching the canvas select tool
+			// so a drag does native text selection (and link clicks work) instead of
+			// moving/marquee-ing the shape. Unselected shapes stay pass-through.
+			onPointerDown={selected ? (e) => e.stopPropagation() : undefined}
 			style={{
 				width: "100%",
 				boxSizing: "border-box",
@@ -147,7 +151,7 @@ function MarkdownView({ shape }: { shape: ShapeData }) {
 			}}
 		>
 			{source.trim() === "" ? (
-				<span className="usketch-md-empty">（空の Markdown — ダブルクリックで編集）</span>
+				<span className="usketch-md-empty">（空の Markdown — HUD の Edit source で編集）</span>
 			) : (
 				<Markdown
 					remarkPlugins={[remarkGfm]}
