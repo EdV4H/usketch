@@ -1211,6 +1211,9 @@ importers:
       '@dagrejs/dagre':
         specifier: ^1.1.4
         version: 1.1.8
+      '@edv4h/usketch-connector-anchor':
+        specifier: workspace:*
+        version: link:../../packages/usketch-connector-anchor
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared

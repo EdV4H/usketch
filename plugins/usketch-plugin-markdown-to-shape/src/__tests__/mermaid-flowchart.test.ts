@@ -7,13 +7,38 @@ describe("parseFlowchart", () => {
 		const chart = parseFlowchart("graph TD\nA[Start] --> B{Decision}\nB --> C");
 		expect(chart).not.toBeNull();
 		expect(chart?.direction).toBe("TB");
-		expect(chart?.nodes.get("A")).toBe("Start");
-		expect(chart?.nodes.get("B")).toBe("Decision");
-		expect(chart?.nodes.get("C")).toBe("C"); // id-only → label defaults to id
+		expect(chart?.nodes.get("A")).toEqual({ label: "Start", shape: "rect" });
+		// `{...}` → decision diamond; the later `B --> C` reference keeps it.
+		expect(chart?.nodes.get("B")).toEqual({ label: "Decision", shape: "diamond" });
+		expect(chart?.nodes.get("C")).toEqual({ label: "C", shape: "rect" }); // id-only
 		expect(chart?.edges).toEqual([
 			{ source: "A", target: "B", label: undefined },
 			{ source: "B", target: "C", label: undefined },
 		]);
+	});
+
+	it("keeps label and shape in sync once a node is explicit", () => {
+		// Re-declaring with a different wrapper must not half-update (first wins for
+		// both label and shape) — label stayed "Start" so shape must stay "rect".
+		const chart = parseFlowchart("graph TD\nA[Start] --> B\nA{Decision} --> C");
+		expect(chart?.nodes.get("A")).toEqual({ label: "Start", shape: "rect" });
+		// An id-only reference before the explicit declaration is replaced wholesale.
+		const chart2 = parseFlowchart("graph TD\nX --> Y\nX{Q?} --> Z");
+		expect(chart2?.nodes.get("X")).toEqual({ label: "Q?", shape: "diamond" });
+		// An explicit node whose label equals its id (`A[A]`) is NOT a placeholder,
+		// so a later re-declaration must not overwrite it (explicitness ≠ label==id).
+		const chart3 = parseFlowchart("graph TD\nA[A] --> B\nA{Decision} --> C");
+		expect(chart3?.nodes.get("A")).toEqual({ label: "A", shape: "rect" });
+	});
+
+	it("maps wrapper syntax to node shapes", () => {
+		const chart = parseFlowchart(
+			"flowchart TD\nA(round) --> B((circle)) --> C{diamond} --> D[rect]",
+		);
+		expect(chart?.nodes.get("A")?.shape).toBe("round");
+		expect(chart?.nodes.get("B")?.shape).toBe("circle");
+		expect(chart?.nodes.get("C")?.shape).toBe("diamond");
+		expect(chart?.nodes.get("D")?.shape).toBe("rect");
 	});
 
 	it("handles chains and edge labels", () => {
@@ -49,23 +74,54 @@ describe("createMermaidFlowchartConverter", () => {
 		expect(converter.match?.(codeNode("const x = 1", "ts"))).toBe(false);
 	});
 
-	it("emits rectangle + text per node and connectors wired by node id", () => {
+	it("emits one geo node (with its label) per node and connectors wired by node id", () => {
 		const specs = converter.convert(codeNode("graph TD\nA[Start] --> B[End]"), ctx);
 		const rects = specs.filter((s) => s.type === "rectangle");
 		const texts = specs.filter((s) => s.type === "text");
 		const connectors = specs.filter((s) => s.type === "connector");
 		expect(rects).toHaveLength(2);
-		expect(texts).toHaveLength(2);
+		expect(texts).toHaveLength(0); // label rides on the geo shape, no separate text shape
 		expect(connectors).toHaveLength(1);
+		// The node carries its label natively (centered geo label).
+		expect(rects.map((r) => r.text).sort()).toEqual(["End", "Start"]);
 
-		// The connector references the rectangles' ids (so it follows the nodes).
-		const rectIds = new Set(rects.map((r) => r.id));
-		expect(rectIds.has(connectors[0].sourceId as string)).toBe(true);
-		expect(rectIds.has(connectors[0].targetId as string)).toBe(true);
+		// The connector references the node shapes' ids (so it follows the nodes).
+		const nodeIds = new Set(rects.map((r) => r.id));
+		expect(nodeIds.has(connectors[0].sourceId as string)).toBe(true);
+		expect(nodeIds.has(connectors[0].targetId as string)).toBe(true);
 
 		// Everything is positioned (dagre layout), all shapes carry an id.
 		expect(specs.every((s) => typeof s.id === "string")).toBe(true);
 		expect(specs.every((s) => typeof s.x === "number" && typeof s.y === "number")).toBe(true);
+	});
+
+	it("converts a decision node into a diamond", () => {
+		const specs = converter.convert(codeNode("graph TD\nA[Start] --> B{OK?}"), ctx);
+		const diamond = specs.find((s) => s.type === "diamond");
+		expect(diamond).toBeDefined();
+		expect(diamond?.text).toBe("OK?");
+		expect(specs.filter((s) => s.type === "rectangle")).toHaveLength(1);
+	});
+
+	it("clamps connector endpoints to node edges (not centers) on creation", () => {
+		const specs = converter.convert(codeNode("graph TD\nA[Start] --> B[End]"), ctx);
+		const byId = new Map(specs.map((s) => [s.id as string, s]));
+		const conn = specs.find((s) => s.type === "connector");
+		expect(conn).toBeDefined();
+		const source = byId.get(conn?.sourceId as string);
+		const target = byId.get(conn?.targetId as string);
+		const sp = conn?.sourcePoint as { x: number; y: number };
+		const tp = conn?.targetPoint as { x: number; y: number };
+		const onEdge = (p: { x: number; y: number }, s: (typeof specs)[number]) => {
+			const nearX = Math.abs(p.x - s.x!) < 0.5 || Math.abs(p.x - (s.x! + s.width!)) < 0.5;
+			const nearY = Math.abs(p.y - s.y!) < 0.5 || Math.abs(p.y - (s.y! + s.height!)) < 0.5;
+			return nearX || nearY;
+		};
+		// Endpoints lie on the node bounding boxes' edges, not their centers.
+		expect(onEdge(sp, source!)).toBe(true);
+		expect(onEdge(tp, target!)).toBe(true);
+		const srcCenterY = source!.y! + source!.height! / 2;
+		expect(Math.abs(sp.y - srcCenterY) > 0.5).toBe(true); // TD: leaves A's bottom edge, not center
 	});
 
 	it("falls back to a markdown shape for non-flowchart mermaid", () => {
