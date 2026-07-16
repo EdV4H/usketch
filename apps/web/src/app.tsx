@@ -30,6 +30,7 @@ import { createFramePlugin } from "@edv4h/usketch-plugin-shape-frame";
 import { createFreedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { createGroupPlugin } from "@edv4h/usketch-plugin-shape-group";
 import { createImageShapePlugin } from "@edv4h/usketch-plugin-shape-image";
+import { createMarkdownPlugin } from "@edv4h/usketch-plugin-shape-markdown";
 import { createOpenUIShapePlugin } from "@edv4h/usketch-plugin-shape-openui";
 import { createStickyPlugin } from "@edv4h/usketch-plugin-shape-sticky";
 import { createTextPlugin } from "@edv4h/usketch-plugin-shape-text";
@@ -141,6 +142,7 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		createConnectorPlugin(),
 		createFreedrawPlugin(),
 		createTextPlugin(),
+		createMarkdownPlugin(),
 		createStickyPlugin(),
 		createCardPlugin({
 			cardTypes: EXAMPLE_CARD_TYPES,
