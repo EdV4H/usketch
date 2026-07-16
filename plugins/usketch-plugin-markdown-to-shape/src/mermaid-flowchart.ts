@@ -72,15 +72,14 @@ export function parseFlowchart(code: string): Flowchart | null {
 	const edges: FlowchartEdge[] = [];
 	const addNode = (n: { id: string; label: string; shape: NodeShape }) => {
 		const prev = nodes.get(n.id);
-		if (prev === undefined) {
+		// A node is a placeholder until it's declared with an explicit wrapper; an
+		// id-only reference carries `label === id` (and a default `rect`). Replace a
+		// placeholder wholesale, but once a node is explicit keep BOTH its label and
+		// shape stable — so `B{Decision}` then `B --> C` stays a labelled diamond,
+		// and a later re-declaration doesn't half-update (label vs shape) out of sync.
+		if (prev === undefined || prev.label === n.id) {
 			nodes.set(n.id, { label: n.label, shape: n.shape });
-			return;
 		}
-		// A later reference must not clobber an explicit label/shape with an
-		// id-only placeholder (`B{Decision}` then `B --> C` keeps the diamond).
-		const label = prev.label === n.id ? n.label : prev.label;
-		const shape = prev.shape === "rect" && n.shape !== "rect" ? n.shape : prev.shape;
-		nodes.set(n.id, { label, shape });
 	};
 
 	// Statements after the header (also split on `;`).

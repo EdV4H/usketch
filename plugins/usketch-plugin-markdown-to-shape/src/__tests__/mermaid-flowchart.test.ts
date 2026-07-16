@@ -17,6 +17,16 @@ describe("parseFlowchart", () => {
 		]);
 	});
 
+	it("keeps label and shape in sync once a node is explicit", () => {
+		// Re-declaring with a different wrapper must not half-update (first wins for
+		// both label and shape) — label stayed "Start" so shape must stay "rect".
+		const chart = parseFlowchart("graph TD\nA[Start] --> B\nA{Decision} --> C");
+		expect(chart?.nodes.get("A")).toEqual({ label: "Start", shape: "rect" });
+		// An id-only reference before the explicit declaration is replaced wholesale.
+		const chart2 = parseFlowchart("graph TD\nX --> Y\nX{Q?} --> Z");
+		expect(chart2?.nodes.get("X")).toEqual({ label: "Q?", shape: "diamond" });
+	});
+
 	it("maps wrapper syntax to node shapes", () => {
 		const chart = parseFlowchart(
 			"flowchart TD\nA(round) --> B((circle)) --> C{diamond} --> D[rect]",
