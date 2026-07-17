@@ -1,6 +1,6 @@
 {
-	"name": "@edv4h/usketch-plugin-shape-image",
-	"version": "3.0.5",
+	"name": "@edv4h/usketch-plugin-asset-store",
+	"version": "0.0.0",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -18,14 +18,10 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@edv4h/usketch-plugin-asset-store": "workspace:*",
-		"@edv4h/usketch-shared": "workspace:*"
-	},
-	"peerDependencies": {
-		"react": ">=19"
+		"@edv4h/usketch-shared": "workspace:*",
+		"yjs": "^13.6.0"
 	},
 	"devDependencies": {
-		"@types/react": "19.2.17",
 		"typescript": "7.0.2",
 		"vitest": "4.1.10"
 	},
@@ -40,7 +36,7 @@
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/EdV4H/usketch.git",
-		"directory": "plugins/usketch-plugin-shape-image"
+		"directory": "plugins/usketch-plugin-asset-store"
 	},
 	"homepage": "https://github.com/EdV4H/usketch#readme",
 	"bugs": {

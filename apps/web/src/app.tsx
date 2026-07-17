@@ -10,6 +10,7 @@ import { createAiCopilotPlugin } from "@edv4h/usketch-plugin-ai-copilot";
 import { createAiImagePlugin } from "@edv4h/usketch-plugin-ai-image";
 import { createAiRecognizePlugin } from "@edv4h/usketch-plugin-ai-recognize";
 import { createAiVoicePlugin } from "@edv4h/usketch-plugin-ai-voice";
+import { createAssetStorePlugin } from "@edv4h/usketch-plugin-asset-store";
 import { createDotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
@@ -387,6 +388,10 @@ export function App() {
 				userId: userIdRef.current ?? getDevUser()?.id ?? "local",
 			}),
 		);
+
+		// Asset store: content-addressed な asset を doc の `assets` マップで共有。
+		// 画像等の重い blob を一度だけ保持し shape は assetId 参照（複製で再利用）。
+		extraPlugins.push(createAssetStorePlugin({ doc: syncHandle.doc }));
 
 		// プレゼンテーション: ローカル/Cloud 共通で常にロードし、`?present=1` が付いた時だけ UI を出す。
 		// ルート切替せず URL クエリで切替える設計なので、アプリ再生成は起きない。
