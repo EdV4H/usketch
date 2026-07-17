@@ -3,7 +3,9 @@ import type { ServiceRegistry } from "@edv4h/usketch-shared";
 /**
  * Generic string-keyed service slot (see {@link ServiceRegistry}). The kernel
  * owns no services itself — it just holds the map so a providing plugin and its
- * consumers can rendezvous by key, independent of plugin load order.
+ * consumers can rendezvous by key without importing each other. It's a
+ * synchronous map, not a lifecycle: a consumer that `get`s during its `setup()`
+ * must run after the provider (or handle a missing service).
  */
 export function createServiceRegistry(): ServiceRegistry {
 	const services = new Map<string, unknown>();

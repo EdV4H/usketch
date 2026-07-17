@@ -776,10 +776,13 @@ export interface MarkdownConverterRegistry {
 /**
  * Generic, string-keyed slot for plugin-provided services — the extension point
  * for capabilities the engine kernel doesn't itself use but that one plugin
- * exposes for others to consume (IoC rendezvous, decoupled from plugin load
- * order). A providing plugin owns the service's lifetime; consumers `get` it by
- * key. Prefer a typed accessor exported alongside the key (e.g.
- * `getMarkdownConverters(ctx)`) over calling `get` with an inline type.
+ * exposes for others to consume. It's an IoC rendezvous by key: a consumer need
+ * not import the provider's package. It is a synchronous map, not a lifecycle —
+ * a consumer that reads a service during its own `setup()` must be registered
+ * *after* the providing plugin (or tolerate the service being absent). A
+ * providing plugin owns the service's lifetime. Prefer a typed accessor exported
+ * alongside the key (e.g. `getMarkdownConverters(ctx)`) over `get` with an
+ * inline type.
  */
 export interface ServiceRegistry {
 	/** Provide a service under `key`; re-providing replaces. Returns an unprovide fn. */
