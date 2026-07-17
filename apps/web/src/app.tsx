@@ -45,6 +45,7 @@ import {
 	type DivergenceTrackerHandle,
 	UnconfirmedOverlay,
 } from "@edv4h/usketch-plugin-sync-ywebsocket";
+import { createTimterPlugin } from "@edv4h/usketch-plugin-timter";
 import {
 	createOpenUIToolPlugin,
 	createServerProxyProvider,
@@ -57,6 +58,7 @@ import { createWhistlePlugin } from "@edv4h/usketch-plugin-whistle";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import {
+	createServerClock,
 	createWsProvider,
 	type WsConnectionStatus,
 	type WsProviderHandle,
@@ -266,6 +268,13 @@ export function App() {
 
 		(globalThis as Record<string, unknown>).__usketchSyncStatus = syncHandle.status;
 
+		// Shared server clock so collaborative timers agree on "now" regardless of
+		// device clock skew. Cloud boards measure the offset against the server;
+		// local boards use the local clock (offset 0).
+		const serverClock = createServerClock({
+			baseUrl: isCloudBoard ? (import.meta.env.VITE_API_URL ?? "http://localhost:8787") : null,
+		});
+
 		const extraPlugins: UsketchPlugin[] = [];
 		let wsProvider: WsProviderHandle | null = null;
 		// Divergence tracker — surfaces shapes that exist in the local Y.Doc
@@ -359,6 +368,16 @@ export function App() {
 			extraPlugins.push(createWhistlePlugin());
 		}
 
+		// 共有タイマー（Timter）: ローカル/Cloud 共通。状態は共有 Y.Doc の `timters` マップ、
+		// 時刻は serverClock 基準で全ユーザー一致。
+		extraPlugins.push(
+			createTimterPlugin({
+				doc: syncHandle.doc,
+				serverClock,
+				userId: userIdRef.current ?? getDevUser()?.id ?? "local",
+			}),
+		);
+
 		// プレゼンテーション: ローカル/Cloud 共通で常にロードし、`?present=1` が付いた時だけ UI を出す。
 		// ルート切替せず URL クエリで切替える設計なので、アプリ再生成は起きない。
 		extraPlugins.push(
@@ -431,6 +450,7 @@ export function App() {
 		return () => {
 			cancelled = true;
 			instance?.destroy();
+			serverClock.destroy();
 			wsProvider?.destroy();
 			wsProviderRef.current = null;
 			divergenceHandle?.destroy();

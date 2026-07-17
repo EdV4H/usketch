@@ -351,6 +351,9 @@ importers:
       '@edv4h/usketch-plugin-sync-ywebsocket':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-sync-ywebsocket
+      '@edv4h/usketch-plugin-timter':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-timter
       '@edv4h/usketch-plugin-tool-openui':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-tool-openui
@@ -1998,6 +2001,31 @@ importers:
       y-websocket:
         specifier: ^3.0.0
         version: 3.0.0(yjs@13.6.31)
+      yjs:
+        specifier: ^13.6.0
+        version: 13.6.31
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.17
+        version: 19.2.17
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@types/node@25.9.5)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  plugins/usketch-plugin-timter:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      react:
+        specifier: 19.2.7
+        version: 19.2.7
       yjs:
         specifier: ^13.6.0
         version: 13.6.31
@@ -6599,10 +6627,6 @@ packages:
   object-inspect@1.13.4:
     resolution: {integrity: sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew==}
     engines: {node: '>= 0.4'}
-
-  obug@2.1.3:
-    resolution: {integrity: sha512-9miFgM2OFba7hB+pRgvtV84pYTBaoTHohvmIgiRt6dRIzbwEOIaNaP+dIlGs2fNFoB0SeISs0Jz5WFVRid6Xyg==}
-    engines: {node: '>=12.20.0'}
 
   obug@2.1.4:
     resolution: {integrity: sha512-4a+OsYv9UktOJKE+l1A4OufDgdRF9PifWj+tJnHURo/P+WOxpG4GzUFL9qCalmWauao6ogiG+QvnCovwPoyAWA==}
@@ -12119,8 +12143,6 @@ snapshots:
 
   object-inspect@1.13.4: {}
 
-  obug@2.1.3: {}
-
   obug@2.1.4: {}
 
   ofetch@1.5.1:
@@ -13181,7 +13203,7 @@ snapshots:
       es-module-lexer: 2.3.1
       expect-type: 1.3.0
       magic-string: 0.30.21
-      obug: 2.1.3
+      obug: 2.1.4
       pathe: 2.0.3
       picomatch: 4.0.5
       std-env: 4.2.0

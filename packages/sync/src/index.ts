@@ -8,6 +8,12 @@ export {
 	MSG_YJS_UPDATE,
 } from "./protocol.js";
 export {
+	createServerClock,
+	pickBestOffset,
+	type ServerClock,
+	type ServerClockOptions,
+} from "./server-clock.js";
+export {
 	createWsProvider,
 	type PartitionMeta,
 	type WsConnectionStatus,
