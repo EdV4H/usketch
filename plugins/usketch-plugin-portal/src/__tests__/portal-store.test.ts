@@ -86,7 +86,7 @@ describe("createPortalStore", () => {
 });
 
 describe("defaultPortalBox", () => {
-	it("fits bounds into the max box preserving aspect, never upscaling", () => {
+	it("fits bounds into the max box preserving aspect (fit downscales only)", () => {
 		const wide = defaultPortalBox({ width: 800, height: 400 }, 0, 1000);
 		// 800×400 scaled to fit 260×200 → k=0.325 → 260×130 + header
 		expect(wide.w).toBe(260);

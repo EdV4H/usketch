@@ -13,6 +13,24 @@ const stopCanvas = {
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
+/**
+ * Track a pointer drag on `window` until it ends. Cleans up on pointerup AND on
+ * pointercancel / window blur, so an interrupted gesture (OS gesture, lost
+ * capture, focus loss) never leaves listeners stuck updating the panel.
+ */
+function trackPointer(onMove: (ev: PointerEvent) => void): void {
+	const end = () => {
+		window.removeEventListener("pointermove", onMove);
+		window.removeEventListener("pointerup", end);
+		window.removeEventListener("pointercancel", end);
+		window.removeEventListener("blur", end);
+	};
+	window.addEventListener("pointermove", onMove);
+	window.addEventListener("pointerup", end);
+	window.addEventListener("pointercancel", end);
+	window.addEventListener("blur", end);
+}
+
 function ShapeContent({
 	def,
 	shape,
@@ -83,17 +101,11 @@ function PortalPanel({
 		const sy = e.clientY;
 		const ox = entry.x;
 		const oy = entry.y;
-		const move = (ev: PointerEvent) => {
+		trackPointer((ev) => {
 			const x = clamp(ox + ev.clientX - sx, 0, window.innerWidth - entry.w);
 			const y = clamp(oy + ev.clientY - sy, 0, window.innerHeight - entry.h);
 			onUpdate(entry.id, { x, y });
-		};
-		const up = () => {
-			window.removeEventListener("pointermove", move);
-			window.removeEventListener("pointerup", up);
-		};
-		window.addEventListener("pointermove", move);
-		window.addEventListener("pointerup", up);
+		});
 	};
 
 	const startResize = (e: React.PointerEvent) => {
@@ -103,17 +115,11 @@ function PortalPanel({
 		const sy = e.clientY;
 		const ow = entry.w;
 		const oh = entry.h;
-		const move = (ev: PointerEvent) => {
+		trackPointer((ev) => {
 			const w = clamp(ow + ev.clientX - sx, 140, window.innerWidth - entry.x);
 			const h = clamp(oh + ev.clientY - sy, 100, window.innerHeight - entry.y);
 			onUpdate(entry.id, { w, h });
-		};
-		const up = () => {
-			window.removeEventListener("pointermove", move);
-			window.removeEventListener("pointerup", up);
-		};
-		window.addEventListener("pointermove", move);
-		window.addEventListener("pointerup", up);
+		});
 	};
 
 	return (

@@ -74,8 +74,10 @@ const MIN_H = 100;
 
 /**
  * Default panel box for a freshly pinned shape: fit its bounds into MAX_W×MAX_H
- * preserving aspect (never upscaling), add header height, and cascade from the
- * top-right corner by `index` so multiple pins don't stack exactly.
+ * preserving aspect — the fit itself only downscales (`k ≤ 1`) — then apply a
+ * MIN_W/MIN_H floor (which may enlarge the panel for very small shapes; the
+ * renderer scales content to fill). Header height is added and the box cascades
+ * from the top-right corner by `index` so multiple pins don't stack exactly.
  */
 export function defaultPortalBox(
 	bounds: { width: number; height: number },
@@ -180,20 +182,22 @@ export function createPortalStore(options: CreatePortalStoreOptions): PortalStor
 		},
 
 		setShared(id, shared) {
+			// In both directions we mutate the *other* backend first (silently), then
+			// touch the Y.Map last so its observer fires exactly one refresh over an
+			// already-consistent state — no double-notify, no transient frame where
+			// the portal is missing or duplicated.
 			if (shared) {
 				const p = findPrivate(id);
 				if (!p) return;
 				priv = priv.filter((e) => e.id !== id);
 				persistPrivate();
-				sharedMap.set(id, p); // observe → refresh (also covers the private removal)
-				refresh();
+				sharedMap.set(id, p); // observer → single refresh
 			} else {
 				const s = sharedMap.get(id);
 				if (!s) return;
-				sharedMap.delete(id);
 				priv = [...priv, s];
 				persistPrivate();
-				refresh();
+				sharedMap.delete(id); // observer → single refresh
 			}
 		},
 
