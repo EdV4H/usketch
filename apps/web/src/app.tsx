@@ -20,6 +20,7 @@ import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
+import { createPortalPlugin } from "@edv4h/usketch-plugin-portal";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
 import { createPresentationPlugin } from "@edv4h/usketch-plugin-presentation";
@@ -373,6 +374,16 @@ export function App() {
 		extraPlugins.push(
 			createTimterPlugin({
 				serverClock,
+				userId: userIdRef.current ?? getDevUser()?.id ?? "local",
+			}),
+		);
+
+		// Portal: 任意のシェイプを画面固定でピン。既定は個人（localStorage）、共有トグルで
+		// doc の `portals` マップに載せて全員へ。ローカル/Cloud 共通。
+		extraPlugins.push(
+			createPortalPlugin({
+				doc: syncHandle.doc,
+				boardId,
 				userId: userIdRef.current ?? getDevUser()?.id ?? "local",
 			}),
 		);
