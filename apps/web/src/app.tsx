@@ -368,11 +368,10 @@ export function App() {
 			extraPlugins.push(createWhistlePlugin());
 		}
 
-		// 共有タイマー（Timter）: ローカル/Cloud 共通。状態は共有 Y.Doc の `timters` マップ、
-		// 時刻は serverClock 基準で全ユーザー一致。
+		// 共有タイマー（Timter）: ローカル/Cloud 共通。タイマーは `timer` シェイプとして
+		// 通常のシェイプ同期に乗り、時刻は serverClock 基準で全ユーザー一致。
 		extraPlugins.push(
 			createTimterPlugin({
-				doc: syncHandle.doc,
 				serverClock,
 				userId: userIdRef.current ?? getDevUser()?.id ?? "local",
 			}),

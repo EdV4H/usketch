@@ -22,16 +22,6 @@ export interface TimerCore {
 	durationMs: number;
 }
 
-/** A timer in the shared `timters` map: core timing + identity/attribution. */
-export interface TimerEntry extends TimerCore {
-	id: string;
-	label?: string;
-	createdBy: string;
-	updatedBy: string;
-	/** Server-epoch ms of the last mutation. */
-	updatedAt: number;
-}
-
 interface TimerKind {
 	displayMs(c: TimerCore, serverNow: number): number;
 	isDone(c: TimerCore, serverNow: number): boolean;

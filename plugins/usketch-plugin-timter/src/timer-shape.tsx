@@ -37,11 +37,11 @@ export interface TimerShapeData extends ShapeData {
 	durationMs: number;
 }
 
-type ShapeAction =
+export type ShapeAction =
 	| { id: string; action: "toggle" | "reset" | "switch-type" }
 	| { id: string; action: "adjust"; value: number };
 
-const coreOf = (s: TimerShapeData): TimerCore => ({
+export const coreOf = (s: TimerShapeData): TimerCore => ({
 	type: s.timerType,
 	running: s.running,
 	anchorAt: s.anchorAt,
@@ -60,6 +60,9 @@ const corePatch = (c: TimerCore): Partial<TimerShapeData> => ({
 function emit(detail: ShapeAction) {
 	window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail }));
 }
+
+/** Dispatch a timer-shape action (toggle/reset/…) — used by the Controls actions too. */
+export const dispatchTimerShapeAction = emit;
 
 // ── View ──
 
@@ -306,6 +309,22 @@ function createDefault(params: { id: string; x: number; y: number }): TimerShape
 		accumMs: DEFAULT_MINUTES * 60_000,
 		durationMs: DEFAULT_MINUTES * 60_000,
 	};
+}
+
+/** Build a started timer shape of a given type/duration (used by Controls "add"). */
+export function makeTimerShape(params: {
+	id: string;
+	x: number;
+	y: number;
+	timerType: TimerType;
+	durationMs?: number;
+	serverNow: number;
+}): TimerShapeData {
+	const base = createDefault({ id: params.id, x: params.x, y: params.y });
+	const dur =
+		params.timerType === "countdown" ? (params.durationMs ?? DEFAULT_MINUTES * 60_000) : 0;
+	const core = start(initialCore(params.timerType, dur), params.serverNow);
+	return { ...base, ...corePatch(core) };
 }
 
 function TimerToolIcon() {

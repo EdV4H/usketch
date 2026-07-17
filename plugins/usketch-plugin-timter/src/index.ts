@@ -8,7 +8,6 @@ export {
 	reset,
 	start,
 	type TimerCore,
-	type TimerEntry,
 	type TimerType,
 } from "./timer-model.js";
 export { TIMER_SHAPE_TYPE, type TimerShapeData } from "./timer-shape.js";
