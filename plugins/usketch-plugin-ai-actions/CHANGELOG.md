@@ -1,5 +1,20 @@
 # @edv4h/usketch-plugin-ai-actions
 
+## 2.1.0
+
+### Minor Changes
+
+- e9b9ea8: 選択追従のフローティング ActionBar（✨ Tidy / 🏷 Label / ✍ Recognize / 💬 Comment / ⌨ Ask AI）を撤去し、すべて Control HUD の Action に統合。Tidy/Label/Recognize/Ask AI は **AI** グループ、Comment は **Collab** グループ。`isEnabled` は選択状態（Recognize は freedraw/image のみ）に連動。実処理は従来どおり別プラグイン（ai-agent / ai-recognize / comments）が担当し、trigger のみを HUD に寄せた。ホストアプリに追従 UI を足さなくても操作できる。
+
+### Patch Changes
+
+- Updated dependencies [8c1df08]
+- Updated dependencies [1b75eb1]
+- Updated dependencies [c7ff8d9]
+  - @edv4h/usketch-shared@4.5.0
+  - @edv4h/usketch-canvas-engine@1.2.1
+  - @edv4h/usketch-plugin-ai-agent@3.0.6
+
 ## 2.0.5
 
 ### Patch Changes

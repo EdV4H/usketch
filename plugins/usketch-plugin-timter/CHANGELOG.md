@@ -1,6 +1,6 @@
-# @edv4h/usketch-sync
+# @edv4h/usketch-plugin-timter
 
-## 1.1.0
+## 0.1.0
 
 ### Minor Changes
 
@@ -8,21 +8,12 @@
 
   時刻同期のため `@edv4h/usketch-sync` に `createServerClock`（Cristian's algorithm でサーバ時計オフセットを推定、最小 RTT サンプル採用）を追加。タイマーは終了/開始時刻を**サーバ時計基準**で保存するため、端末の時計ずれに影響されず全員の表示が一致する。solo/オフラインは offset=0 のローカル時計に自動フォールバック。固有 UI は持たず、全操作を `ctx.actions.register` で公開して Debug HUD の Controls（group "Timter"）に統合（追加/全削除＋各タイマーの開始・一時停止/リセット/削除、実行中は1秒ごとにラベル更新）。
 
-## 1.0.0
+### Patch Changes
 
-### Major Changes
-
-- 🎉 Initial stable release — v1.0.0
-
-  uSketch v2 の最初の安定版リリース。MVP 完了基準をすべて満たした状態で公開する。
-
-  ## Highlights
-  - **Realtime collaboration** — Cloudflare Durable Objects + Yjs + WebSocket awareness
-  - **Offline-first** — y-indexeddb によるローカル永続化、再接続時の自動同期
-  - **Pluggable architecture** — 60+ の plugin（shape / tool / sync / AI / presence / export 等）
-  - **Presentation mode** — Frame ベースのスライド、edit/present の 2 モード
-  - **Export** — PNG / SVG / JSON（Satori + Canvas）
-  - **Link sharing & access control** — 公開/限定公開 + role 管理（owner/editor/viewer）
-  - **AI-native** — Copilot（ghost shape 提案）/ Chat / Voice / Image 認識
-
-  詳細なリリースノートはルートの `CHANGELOG.md` を参照。
+- Updated dependencies [8c1df08]
+- Updated dependencies [1b75eb1]
+- Updated dependencies [c7ff8d9]
+- Updated dependencies [4148a9c]
+  - @edv4h/usketch-shared@4.5.0
+  - @edv4h/usketch-sync@1.1.0
+  - @edv4h/usketch-store@3.3.1
