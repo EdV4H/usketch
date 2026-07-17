@@ -52,6 +52,7 @@
 		"@edv4h/usketch-plugin-reactions": "workspace:*",
 		"@edv4h/usketch-plugin-spatial-chat": "workspace:*",
 		"@edv4h/usketch-plugin-spotlight": "workspace:*",
+		"@edv4h/usketch-plugin-timter": "workspace:*",
 		"@edv4h/usketch-plugin-voting": "workspace:*",
 		"@edv4h/usketch-plugin-whistle": "workspace:*",
 		"@edv4h/usketch-plugin-domain-design": "workspace:*",

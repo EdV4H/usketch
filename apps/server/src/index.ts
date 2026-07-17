@@ -51,6 +51,11 @@ const app = await createServerApp({
 	},
 });
 
+// Public server-time endpoint: lets clients estimate their clock offset from the
+// server (Cristian's algorithm) so shared timers agree on "now". Intentionally
+// outside `/api/*` so it needs no auth; CORS is applied by the app's global cors.
+app.get("/time", (c) => c.json({ t: Date.now() }));
+
 export default app;
 
 export { BoardRoom } from "./board-room.js";
