@@ -1,5 +1,47 @@
 # @edv4h/usketch-plugin-shape-card
 
+## 1.4.0
+
+### Minor Changes
+
+- 5f0b567: カード操作メニュー + 手札(hand)機能を追加（#671）。
+  - **カード操作メニュー**: カード / 山札を選択すると近傍にフローティングメニュー（`ShapeAnchorOverlay`）が出る。カードは「めくる」「手札に入れる」、山札は「1枚ドロー」「シャッフル」。
+  - **旧ダブルクリック操作は既定で撤去**: グローバルな `canvas:pointerdown` 監視の flip / デッキドローは select 等と競合しやすいため既定で無効化。`legacyDoubleClickActions: true` で後方互換復活。
+  - **手札(hand)**: 「手札に入れる」で画面下部の固定トレイに移動、「場に出す」で盤面へ戻す。手札の**中身はクライアントローカル(localStorage)限定**でネットワークに出さず、他者には**枚数のみ** awareness で共有（「他 N枚」）。
+    - `createCardPlugin` に `userId` / `boardId` / `wsProvider`(枚数共有用) / `legacyDoubleClickActions` オプションを追加。
+    - これはクライアントローカルの暫定 privacy 実装。中身が漏れない・クロス端末・権威のある真の伏せ手札はサーバー権威方式（#686 で追跡）。
+
+- a65da25: shape/tool 系の操作を Action レジストリに完全移行し、追従設定 UI を撤去（Control HUD に一本化）。ホストアプリに専用 UI を足さなくても操作できる。
+  - **新規 Action**（`ctx.actions.register`、Control HUD が自動 UI 化）:
+    - tool-select: 選択オブジェクトの `fill`/`stroke`/`strokeWidth`/`opacity`、`Bring to front`/`Send to back`/`Delete`（group "Selection"）。→ 追従 StylePanel を置換。
+    - connector: 選択コネクタの `arrowHead`/`pathType`/`sourceAnchor`/`targetAnchor`（端点再計算込み）。→ 追従 ConnectorPropertyBar を置換。
+    - wireframe / domain-design / basic-shape: サブタイプ選択。
+    - export: PNG / SVG / JSON。
+  - **撤去した追従設定 UI**（機能は Action として存続）:
+    - freedraw の設定 palette レイヤー（`freedraw-cursor` は維持）。
+    - card の操作メニュー（`card-menu` レイヤー / CardActionMenu）。手札トレイは維持。
+  - 直接操作ハンドル（resize/rotate・connector 端点/アンカー/ラベル編集）は対象外で維持。
+
+  apps/web 側では Toolbar のツール列/undo-redo/背景/StylePanel と ConnectorPropertyBar プラグインを撤去（Cloud/AI・theme・command palette・zoom は据え置き）。
+
+- 8c1df08: Debug HUD をプラグイン操作の**汎用コントロール面**に昇格。ホストアプリに専用 UI を足さなくても、プラグイン操作を HUD だけで駆動できる。
+  - **Action レジストリ新設**（`@edv4h/usketch-shared` / `@edv4h/usketch-core`）: `PluginContext.actions` / `AppInstance.actions` を追加。プラグインが `ctx.actions.register({ id, label, group?, icon?, params?, run, isActive?, isEnabled? })` で操作を宣言でき、`tools`/`shapes` と同じく `getAll()`/`getOrdered()` で列挙可能・`subscribe` で変更通知。`ActionParam` は `string|number|boolean|color|enum`。
+  - **Debug HUD**（`@edv4h/usketch-plugin-debug-hud`）: 新「Controls」パネルを追加。Tool palette（`tools.getOrdered()` → `setActiveToolId`）、Actions（レジストリからボタン/パラメータフォームを自動生成）、任意イベント emit コンソール（未移行操作のフォールバック）、既定スタイル編集 / Clear canvas。DEV 限定を解除し本番でも `` ` `` でトグル可能に。
+  - **主要プラグインを Action 登録に移行**: freedraw（ペン種/色/太さ/消しゴム）・snap（On/Off）・bg-grid（背景 grid/dots/none）・card（card-type 選択、選択カードの flip/手札、選択デッキの draw/shuffle）・sticky（色）。挙動は既存イベントを emit するだけで不変。
+
+  残り（wireframe/domain/basic-shape のサブタイプ、connector のプロパティ）は同一パターンで追随予定。既存 Demo UI は撤去せず共存。
+
+### Patch Changes
+
+- Updated dependencies [8c1df08]
+- Updated dependencies [51216e7]
+- Updated dependencies [1b75eb1]
+- Updated dependencies [c7ff8d9]
+  - @edv4h/usketch-shared@4.5.0
+  - @edv4h/usketch-core@2.1.0
+  - @edv4h/usketch-canvas-engine@1.2.1
+  - @edv4h/usketch-store@3.3.1
+
 ## 1.3.3
 
 ### Patch Changes

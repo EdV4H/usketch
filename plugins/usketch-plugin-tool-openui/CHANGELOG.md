@@ -1,5 +1,23 @@
 # @edv4h/usketch-plugin-tool-openui
 
+## 1.1.0
+
+### Minor Changes
+
+- c295652: Make Real の選択追従フローティングボタン（`openui-make-real` fixed レイヤー）を撤去し、Control HUD の **AI** グループの Action `openui:make-real` に統合。`isEnabled` は「非 openui の shape を選択中」で、実行時に選択範囲を PNG スナップショットして vision リクエストを送る挙動は不変。ホストアプリに追従 UI を足さなくても Control HUD だけで実行できる。
+
+### Patch Changes
+
+- Updated dependencies [a65da25]
+- Updated dependencies [8c1df08]
+- Updated dependencies [1b75eb1]
+- Updated dependencies [c7ff8d9]
+  - @edv4h/usketch-plugin-export@2.1.0
+  - @edv4h/usketch-shared@4.5.0
+  - @edv4h/usketch-canvas-engine@1.2.1
+  - @edv4h/usketch-store@3.3.1
+  - @edv4h/usketch-plugin-shape-openui@1.0.6
+
 ## 1.0.5
 
 ### Patch Changes
