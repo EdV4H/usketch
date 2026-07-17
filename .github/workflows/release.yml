@@ -49,6 +49,13 @@ jobs:
 
       - name: Create Release PR or Publish to npm
         id: changesets
+        # `changeset publish` pushes each package's git tag with a separate
+        # `git push origin <tag>` call. On a large batch (80+ packages) these
+        # rapid consecutive pushes intermittently trip GitHub's
+        # "remote: fatal error in commit_refs", which fails the step with some
+        # tags/releases left uncreated even though npm publish fully succeeded.
+        # Tolerate the failure here and reconcile below in a single batched push.
+        continue-on-error: true
         uses: changesets/action@v1
         with:
           version: pnpm run version
@@ -59,3 +66,62 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Reconcile any tags that changeset publish created locally but failed to
+      # push. A single batched `git push --tags` (retried) replaces the ~80
+      # individual pushes and reliably lands the stragglers.
+      - name: Reconcile git tags
+        if: always()
+        run: |
+          n=0
+          until git push origin --tags; do
+            n=$((n + 1))
+            if [ "$n" -ge 5 ]; then
+              echo "::error::failed to push tags after $n attempts"
+              exit 1
+            fi
+            echo "tag push failed (attempt $n); retrying in $((n * 10))s..."
+            sleep $((n * 10))
+          done
+
+      # changesets/action creates one GitHub Release per published package, but
+      # aborts partway when the publish step errors on the tag push above. Ensure
+      # a release exists for every tag on the release commit.
+      - name: Reconcile GitHub Releases
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git fetch --tags --force
+          for tag in $(git tag --points-at HEAD); do
+            if gh release view "$tag" >/dev/null 2>&1; then
+              continue
+            fi
+            echo "creating missing GitHub Release: $tag"
+            notes=""
+            pkg_dir=$(git ls-files '*/package.json' | while read -r f; do
+              name=$(node -p "require('./$f').name" 2>/dev/null || true)
+              if [ "$name@$(node -p "require('./$f').version" 2>/dev/null)" = "$tag" ]; then
+                dirname "$f"
+                break
+              fi
+            done)
+            if [ -n "$pkg_dir" ] && [ -f "$pkg_dir/CHANGELOG.md" ]; then
+              ver="${tag##*@}"
+              notes=$(awk -v v="## $ver" 'index($0,v)==1{f=1;next} /^## /{if(f)exit} f{print}' "$pkg_dir/CHANGELOG.md")
+            fi
+            [ -z "$notes" ] && notes="Automated release for $tag"
+            gh release create "$tag" --title "$tag" --notes "$notes" --verify-tag
+          done
+
+      # Only the tag push is tolerated above. If the changesets step failed for
+      # any other reason (e.g. npm publish actually failed), fail the job.
+      - name: Verify publish succeeded
+        if: ${{ always() && steps.changesets.outcome == 'failure' }}
+        run: |
+          if [ "${{ steps.changesets.outputs.published }}" = "true" ]; then
+            echo "npm publish succeeded; the changesets step failure was the transient tag push, now reconciled."
+          else
+            echo "::error::changesets step failed and no packages were published."
+            exit 1
+          fi
