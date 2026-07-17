@@ -40,6 +40,7 @@ export type {
 	RenderTarget,
 	SelectionForeground,
 	SelectionForegroundRegistry,
+	ServiceRegistry,
 	ShapeChange,
 	ShapeDefinition,
 	ShapeRegistry,

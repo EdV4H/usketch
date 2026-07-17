@@ -2,7 +2,19 @@ import type {
 	MarkdownConverter,
 	MarkdownConverterRegistry,
 	MarkdownNode,
+	PluginContext,
 } from "@edv4h/usketch-shared";
+
+/**
+ * Service key under which this plugin provides its {@link MarkdownConverterRegistry}
+ * on `ctx.services`. Consumers should prefer {@link getMarkdownConverters}.
+ */
+export const MARKDOWN_CONVERTERS_SERVICE = "markdown-converters";
+
+/** Typed accessor for the Markdown-converter registry provided by this plugin. */
+export function getMarkdownConverters(ctx: PluginContext): MarkdownConverterRegistry | undefined {
+	return ctx.services.get<MarkdownConverterRegistry>(MARKDOWN_CONVERTERS_SERVICE);
+}
 
 /**
  * Registry of Markdown-node → shape converters. Resolution for a node:

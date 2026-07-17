@@ -1,3 +1,8 @@
+export {
+	createMarkdownConverterRegistry,
+	getMarkdownConverters,
+	MARKDOWN_CONVERTERS_SERVICE,
+} from "./converter-registry.js";
 export { mdastText, nodeSource, parseMarkdown, topLevelBlocks } from "./mdast.js";
 export {
 	createMermaidFlowchartConverter,

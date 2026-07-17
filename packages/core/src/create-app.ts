@@ -6,12 +6,12 @@ import type {
 	ExternalContentRegistry,
 	LayerManager,
 	LodPolicy,
-	MarkdownConverterRegistry,
 	PluginContext,
 	PluginTeardown,
 	RenderMode,
 	SelectionForeground,
 	SelectionForegroundRegistry,
+	ServiceRegistry,
 	ShapeRegistry,
 	ShortcutRegistry,
 	ToolRegistry,
@@ -31,9 +31,9 @@ import {
 	createZoomLodPolicy,
 	type LodControllerInternal,
 } from "./lod/index.js";
-import { createMarkdownConverterRegistry } from "./markdown-converter-registry.js";
 import { createPluginRegistry } from "./plugin-registry.js";
 import { createSelectionForegroundRegistry } from "./selection-foreground-registry.js";
+import { createServiceRegistry } from "./service-registry.js";
 import { createShapeRegistry } from "./shape-registry.js";
 import { createShortcutRegistry } from "./shortcut-registry.js";
 import { createToolRegistry } from "./tool-registry.js";
@@ -59,8 +59,8 @@ export interface AppInstance {
 	externalContent: ExternalContentRegistry;
 	/** Enumerable declarative plugin operations (control HUD / command palette). */
 	actions: ActionRegistry;
-	/** Markdown-node → shape converters (registered by shape targets / adapters). */
-	markdownConverters: MarkdownConverterRegistry;
+	/** String-keyed slot for plugin-provided services (IoC). */
+	services: ServiceRegistry;
 	plugins: readonly UsketchPlugin[];
 	destroy(): void;
 }
@@ -98,7 +98,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	const events = createEventBus();
 	const transient = createTransientRegistry();
 	const actions = createActionRegistry();
-	const markdownConverters = createMarkdownConverterRegistry();
+	const services = createServiceRegistry();
 	const selectionForeground = createSelectionForegroundRegistry();
 	const ui: UiRegistry = {
 		registerSelectionForeground: (entry) => selectionForeground.register(entry),
@@ -136,7 +136,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		ui,
 		externalContent,
 		actions,
-		markdownConverters,
+		services,
 	};
 
 	// Bridge store mutations to EventBus
@@ -202,7 +202,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		selectionForeground,
 		externalContent,
 		actions,
-		markdownConverters,
+		services,
 		plugins: pluginRegistry.getAll(),
 		destroy() {
 			if (destroyed) return;
