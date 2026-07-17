@@ -1,12 +1,14 @@
 export { createTimterPlugin, type TimterPluginOptions } from "./plugin.js";
 export {
-	createTimer,
 	displayMs,
 	formatDuration,
+	initialCore,
 	isDone,
 	pause,
 	reset,
 	start,
+	type TimerCore,
 	type TimerEntry,
 	type TimerType,
 } from "./timer-model.js";
+export { TIMER_SHAPE_TYPE, type TimerShapeData } from "./timer-shape.js";

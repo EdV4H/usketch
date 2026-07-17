@@ -1,17 +1,18 @@
 /**
- * Timer domain model — pure, framework-free, and time-source agnostic (every
+ * Timer domain model — pure, framework-free, time-source agnostic (every
  * function takes an explicit `serverNow` so the same logic runs against the
- * shared server clock). New timer types are added by extending {@link TimerType}
- * and adding one entry to {@link TIMER_KINDS}; the transitions below stay
- * type-agnostic.
+ * shared server clock). The core timing state ({@link TimerCore}) is deliberately
+ * envelope-free so it can be embedded both in the collaborative `timters` map
+ * (as {@link TimerEntry}) and in a canvas timer shape. New timer types are added
+ * by extending {@link TimerType} + one {@link TIMER_KINDS} entry; the transitions
+ * stay type-agnostic.
  */
 
 export type TimerType = "countdown" | "stopwatch";
 
-export interface TimerEntry {
-	id: string;
+/** The minimal timing state shared by every timer representation. */
+export interface TimerCore {
 	type: TimerType;
-	label?: string;
 	running: boolean;
 	/** Server-epoch ms: countdown → endsAt while running; stopwatch → startedAt while running. Null when paused. */
 	anchorAt: number | null;
@@ -19,6 +20,12 @@ export interface TimerEntry {
 	accumMs: number;
 	/** Configured length (countdown); 0 for stopwatch. */
 	durationMs: number;
+}
+
+/** A timer in the shared `timters` map: core timing + identity/attribution. */
+export interface TimerEntry extends TimerCore {
+	id: string;
+	label?: string;
 	createdBy: string;
 	updatedBy: string;
 	/** Server-epoch ms of the last mutation. */
@@ -26,99 +33,58 @@ export interface TimerEntry {
 }
 
 interface TimerKind {
-	/** ms to display (countdown: remaining clamped ≥0; stopwatch: elapsed). */
-	displayMs(entry: TimerEntry, serverNow: number): number;
-	/** Whether the timer has completed (countdown hit 0). */
-	isDone(entry: TimerEntry, serverNow: number): boolean;
-	/** anchorAt/accumMs when (re)starting. */
-	onStart(entry: TimerEntry, serverNow: number): Pick<TimerEntry, "anchorAt" | "accumMs">;
-	/** anchorAt/accumMs when pausing. */
-	onPause(entry: TimerEntry, serverNow: number): Pick<TimerEntry, "anchorAt" | "accumMs">;
-	/** Fresh (stopped) anchorAt/accumMs/durationMs for a given configured duration. */
-	initial(durationMs: number): Pick<TimerEntry, "anchorAt" | "accumMs" | "durationMs">;
+	displayMs(c: TimerCore, serverNow: number): number;
+	isDone(c: TimerCore, serverNow: number): boolean;
+	onStart(c: TimerCore, serverNow: number): Pick<TimerCore, "anchorAt" | "accumMs">;
+	onPause(c: TimerCore, serverNow: number): Pick<TimerCore, "anchorAt" | "accumMs">;
+	initial(durationMs: number): Pick<TimerCore, "anchorAt" | "accumMs" | "durationMs">;
 }
 
 export const TIMER_KINDS: Record<TimerType, TimerKind> = {
 	countdown: {
-		displayMs: (e, now) => (e.running ? Math.max(0, (e.anchorAt ?? now) - now) : e.accumMs),
-		isDone: (e, now) => (e.running ? (e.anchorAt ?? now) - now <= 0 : e.accumMs <= 0),
-		onStart: (e, now) => ({ anchorAt: now + e.accumMs, accumMs: e.accumMs }),
-		onPause: (e, now) => ({ anchorAt: null, accumMs: Math.max(0, (e.anchorAt ?? now) - now) }),
+		displayMs: (c, now) => (c.running ? Math.max(0, (c.anchorAt ?? now) - now) : c.accumMs),
+		isDone: (c, now) => (c.running ? (c.anchorAt ?? now) - now <= 0 : c.accumMs <= 0),
+		onStart: (c, now) => ({ anchorAt: now + c.accumMs, accumMs: c.accumMs }),
+		onPause: (c, now) => ({ anchorAt: null, accumMs: Math.max(0, (c.anchorAt ?? now) - now) }),
 		initial: (d) => ({ anchorAt: null, accumMs: d, durationMs: d }),
 	},
 	stopwatch: {
-		displayMs: (e, now) => (e.running ? now - (e.anchorAt ?? now) + e.accumMs : e.accumMs),
+		displayMs: (c, now) => (c.running ? now - (c.anchorAt ?? now) + c.accumMs : c.accumMs),
 		isDone: () => false,
-		onStart: (e, now) => ({ anchorAt: now, accumMs: e.accumMs }),
-		onPause: (e, now) => ({ anchorAt: null, accumMs: now - (e.anchorAt ?? now) + e.accumMs }),
+		onStart: (c, now) => ({ anchorAt: now, accumMs: c.accumMs }),
+		onPause: (c, now) => ({ anchorAt: null, accumMs: now - (c.anchorAt ?? now) + c.accumMs }),
 		initial: () => ({ anchorAt: null, accumMs: 0, durationMs: 0 }),
 	},
 };
 
-export function displayMs(entry: TimerEntry, serverNow: number): number {
-	return TIMER_KINDS[entry.type].displayMs(entry, serverNow);
+/** Fresh, stopped core for a type + configured duration. */
+export function initialCore(type: TimerType, durationMs: number): TimerCore {
+	return { type, running: false, ...TIMER_KINDS[type].initial(durationMs) };
 }
 
-export function isDone(entry: TimerEntry, serverNow: number): boolean {
-	return TIMER_KINDS[entry.type].isDone(entry, serverNow);
+export function displayMs(c: TimerCore, serverNow: number): number {
+	return TIMER_KINDS[c.type].displayMs(c, serverNow);
 }
 
-export interface CreateTimerInput {
-	id: string;
-	type: TimerType;
-	durationMs?: number;
-	label?: string;
-	userId: string;
-	serverNow: number;
+export function isDone(c: TimerCore, serverNow: number): boolean {
+	return TIMER_KINDS[c.type].isDone(c, serverNow);
 }
 
-export function createTimer(input: CreateTimerInput): TimerEntry {
-	const { id, type, durationMs = 0, label, userId, serverNow } = input;
-	return {
-		id,
-		type,
-		label,
-		running: false,
-		...TIMER_KINDS[type].initial(durationMs),
-		createdBy: userId,
-		updatedBy: userId,
-		updatedAt: serverNow,
-	};
-}
-
-/** Start or resume. No-op (returns the same entry) if already running. */
-export function start(entry: TimerEntry, serverNow: number, userId: string): TimerEntry {
-	if (entry.running) return entry;
-	return {
-		...entry,
-		...TIMER_KINDS[entry.type].onStart(entry, serverNow),
-		running: true,
-		updatedBy: userId,
-		updatedAt: serverNow,
-	};
+/** Start or resume. Returns the same core (no-op) if already running. */
+export function start(c: TimerCore, serverNow: number): TimerCore {
+	if (c.running) return c;
+	return { ...c, ...TIMER_KINDS[c.type].onStart(c, serverNow), running: true };
 }
 
 /** Pause, snapshotting remaining/elapsed. No-op if already paused. */
-export function pause(entry: TimerEntry, serverNow: number, userId: string): TimerEntry {
-	if (!entry.running) return entry;
-	return {
-		...entry,
-		...TIMER_KINDS[entry.type].onPause(entry, serverNow),
-		running: false,
-		updatedBy: userId,
-		updatedAt: serverNow,
-	};
+export function pause(c: TimerCore, serverNow: number): TimerCore {
+	if (!c.running) return c;
+	return { ...c, ...TIMER_KINDS[c.type].onPause(c, serverNow), running: false };
 }
 
-/** Return to the stopped, initial state for the timer's configured duration. */
-export function reset(entry: TimerEntry, serverNow: number, userId: string): TimerEntry {
-	return {
-		...entry,
-		...TIMER_KINDS[entry.type].initial(entry.durationMs),
-		running: false,
-		updatedBy: userId,
-		updatedAt: serverNow,
-	};
+/** Return to the stopped, initial state for the configured duration. */
+export function reset(c: TimerCore): TimerCore {
+	return initialCore(c.type, c.durationMs);
 }
 
 /** Format ms as `M:SS` (or `H:MM:SS` past an hour). Negative clamps to 0. */
