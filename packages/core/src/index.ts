@@ -13,9 +13,9 @@ export {
 	createShapeCountLodPolicy,
 	createZoomLodPolicy,
 } from "./lod/index.js";
-export { createMarkdownConverterRegistry } from "./markdown-converter-registry.js";
 export { createPluginRegistry } from "./plugin-registry.js";
 export { createSelectionForegroundRegistry } from "./selection-foreground-registry.js";
+export { createServiceRegistry } from "./service-registry.js";
 export { createShapeRegistry } from "./shape-registry.js";
 export { createShortcutRegistry } from "./shortcut-registry.js";
 export { createToolRegistry } from "./tool-registry.js";

@@ -1,4 +1,8 @@
 import type { Command, PluginContext, ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
+import {
+	createMarkdownConverterRegistry,
+	MARKDOWN_CONVERTERS_SERVICE,
+} from "./converter-registry.js";
 import { convertMarkdownToShapes } from "./orchestrator.js";
 
 const MARKDOWN_TYPE = "markdown";
@@ -10,11 +14,13 @@ function readSource(shape: ShapeData): string {
 }
 
 /**
- * Decomposes a selected `markdown` shape into native shapes using the
- * `ctx.markdownConverters` registry. Ships only the orchestration + a Control
- * HUD action; concrete converters (heading→text, …) are registered elsewhere,
- * so this plugin depends on no shape plugin. Unregistered block types fall back
- * to a `markdown` shape carrying their raw source.
+ * Decomposes a selected `markdown` shape into native shapes. This plugin owns
+ * the {@link MarkdownConverterRegistry} and provides it on `ctx.services` under
+ * {@link MARKDOWN_CONVERTERS_SERVICE}; concrete converters (heading→text, …) are
+ * registered by consumers (e.g. the host app's adapters) so this plugin depends
+ * on no shape plugin. Ships only the orchestration + a Control HUD action.
+ * Unregistered block types fall back to a `markdown` shape carrying their raw
+ * source.
  */
 export function createMarkdownToShapePlugin(): UsketchPlugin {
 	return {
@@ -22,6 +28,10 @@ export function createMarkdownToShapePlugin(): UsketchPlugin {
 		name: "Markdown to Shape",
 
 		setup(ctx: PluginContext) {
+			// Own the registry and expose it for consumers to register converters into.
+			const registry = createMarkdownConverterRegistry();
+			const offService = ctx.services.provide(MARKDOWN_CONVERTERS_SERVICE, registry);
+
 			const selectedMarkdownId = (): string | null => {
 				const sel = ctx.store.getSelection();
 				if (sel.size !== 1) return null;
@@ -45,7 +55,7 @@ export function createMarkdownToShapePlugin(): UsketchPlugin {
 					const shapes = convertMarkdownToShapes({
 						source,
 						origin: { x: original.x, y: original.y, width: original.width },
-						registry: ctx.markdownConverters,
+						registry,
 						shapes: ctx.shapes,
 					});
 					if (shapes.length === 0) return;
@@ -67,7 +77,10 @@ export function createMarkdownToShapePlugin(): UsketchPlugin {
 				},
 			});
 
-			return () => off();
+			return () => {
+				off();
+				offService();
+			};
 		},
 	};
 }

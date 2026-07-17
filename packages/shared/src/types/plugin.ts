@@ -773,6 +773,26 @@ export interface MarkdownConverterRegistry {
 	getAll(): readonly MarkdownConverter[];
 }
 
+/**
+ * Generic, string-keyed slot for plugin-provided services — the extension point
+ * for capabilities the engine kernel doesn't itself use but that one plugin
+ * exposes for others to consume. It's an IoC rendezvous by key: a consumer need
+ * not import the provider's package. It is a synchronous map, not a lifecycle —
+ * a consumer that reads a service during its own `setup()` must be registered
+ * *after* the providing plugin (or tolerate the service being absent). A
+ * providing plugin owns the service's lifetime. Prefer a typed accessor exported
+ * alongside the key (e.g. `getMarkdownConverters(ctx)`) over `get` with an
+ * inline type.
+ */
+export interface ServiceRegistry {
+	/** Provide a service under `key`; re-providing replaces. Returns an unprovide fn. */
+	provide<T>(key: string, service: T): () => void;
+	/** The service provided under `key`, or undefined if none is registered. */
+	get<T>(key: string): T | undefined;
+	/** Whether a service is currently provided under `key`. */
+	has(key: string): boolean;
+}
+
 // ── Plugin ──
 
 export interface PluginContext {
@@ -790,11 +810,12 @@ export interface PluginContext {
 	/** Declarative, enumerable plugin operations surfaced by the control HUD. */
 	actions: ActionRegistry;
 	/**
-	 * Converters that turn parsed Markdown (mdast) nodes into shapes. Lets a
-	 * "markdown → shapes" plugin decompose a document without depending on any
-	 * concrete shape plugin — targets register themselves here (IoC).
+	 * String-keyed registry for plugin-provided services (IoC). Feature-specific
+	 * registries — e.g. the Markdown-converter registry — live here rather than
+	 * as dedicated kernel fields, so the core contract stays free of single-
+	 * feature concerns. See {@link ServiceRegistry}.
 	 */
-	markdownConverters: MarkdownConverterRegistry;
+	services: ServiceRegistry;
 }
 
 /**

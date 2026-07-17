@@ -1,5 +1,6 @@
 import {
 	createMermaidFlowchartConverter,
+	getMarkdownConverters,
 	mdastText,
 	nodeSource,
 } from "@edv4h/usketch-plugin-markdown-to-shape";
@@ -11,11 +12,14 @@ import type {
 } from "@edv4h/usketch-shared";
 
 /**
- * App-level adapters that register `markdown → shape` converters via
- * `ctx.markdownConverters`. Kept in the host app so the markdown-to-shape plugin
- * stays free of any concrete shape dependency (IoC). Targets the built-in
- * `text` shape; block types with no converter (table / code / mermaid) fall
- * back to a `markdown` shape in the orchestrator.
+ * App-level adapters that register `markdown → shape` converters into the
+ * registry the markdown-to-shape plugin provides on `ctx.services`. Kept in the
+ * host app so that plugin stays free of any concrete shape dependency (IoC).
+ * Targets the built-in `text` shape; block types with no converter (table /
+ * code / mermaid) fall back to a `markdown` shape in the orchestrator.
+ *
+ * Requires the markdown-to-shape plugin to be registered *before* this adapter
+ * (so the service is provided first) — see the plugin order in `app.tsx`.
  */
 
 const FONT = "system-ui, sans-serif";
@@ -76,13 +80,20 @@ export function createMarkdownAdaptersPlugin(): UsketchPlugin {
 		id: "usketch-app-markdown-adapters",
 		name: "Markdown Converters (app)",
 		setup(ctx: PluginContext) {
+			const registry = getMarkdownConverters(ctx);
+			if (!registry) {
+				console.warn(
+					"[markdown-adapters] markdown-converters service not found — is the markdown-to-shape plugin registered before this adapter?",
+				);
+				return;
+			}
 			const offs = [
 				headingToText,
 				paragraphToText,
 				listToText,
 				blockquoteToText,
 				createMermaidFlowchartConverter(),
-			].map((c) => ctx.markdownConverters.register(c));
+			].map((c) => registry.register(c));
 			return () => {
 				for (const off of offs) off();
 			};
