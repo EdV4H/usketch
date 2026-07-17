@@ -116,8 +116,11 @@ function PortalPanel({
 		const ow = entry.w;
 		const oh = entry.h;
 		trackPointer((ev) => {
-			const w = clamp(ow + ev.clientX - sx, 140, window.innerWidth - entry.x);
-			const h = clamp(oh + ev.clientY - sy, 100, window.innerHeight - entry.y);
+			// Guard max ≥ min: near the right/bottom edge the available space can be
+			// smaller than the min, in which case clamp(min, max<min) would return min
+			// and push the panel off-screen.
+			const w = clamp(ow + ev.clientX - sx, 140, Math.max(140, window.innerWidth - entry.x));
+			const h = clamp(oh + ev.clientY - sy, 100, Math.max(100, window.innerHeight - entry.y));
 			onUpdate(entry.id, { w, h });
 		});
 	};
@@ -173,6 +176,7 @@ function PortalPanel({
 				<button
 					type="button"
 					title={shared ? "全員に共有中（クリックで個人に戻す）" : "個人（クリックで全員に共有）"}
+					onPointerDown={(e) => e.stopPropagation()}
 					onClick={() => onToggleShared(entry.id, !shared)}
 					style={headerBtn}
 				>
@@ -181,6 +185,7 @@ function PortalPanel({
 				<button
 					type="button"
 					title="閉じる"
+					onPointerDown={(e) => e.stopPropagation()}
 					onClick={() => onRemove(entry.id)}
 					style={{ ...headerBtn, color: "#9ca3af" }}
 				>
