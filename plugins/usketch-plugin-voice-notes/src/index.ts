@@ -11,4 +11,9 @@ export {
 	type Transcriber,
 	type TranscriberHandlers,
 } from "./transcriber.js";
+export {
+	registerVoiceFrame,
+	VOICE_FRAME_TYPE,
+	type VoiceFrameShapeData,
+} from "./voice-frame.js";
 export { createWhisperTranscriber, type WhisperTranscriberOptions } from "./whisper-transcriber.js";

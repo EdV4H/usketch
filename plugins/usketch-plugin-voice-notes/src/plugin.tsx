@@ -1,4 +1,3 @@
-import { getAnchorPoint } from "@edv4h/usketch-connector-anchor";
 import {
 	generateId,
 	type PluginContext,
@@ -6,9 +5,11 @@ import {
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { useEffect, useSyncExternalStore } from "react";
-import { type FrameBox, layoutDiagram } from "./layout.js";
+import { buildSummaryChildren } from "./diagram.js";
+import type { FrameBox } from "./layout.js";
 import { summarizeToDiagram, type VoiceSummary } from "./summarizer.js";
 import { createWebSpeechTranscriber, type Transcriber } from "./transcriber.js";
+import { registerVoiceFrame } from "./voice-frame.js";
 
 export interface VoiceNotesPluginOptions {
 	/** API origin for the AI proxy (e.g. http://localhost:8787). */
@@ -28,9 +29,6 @@ interface UiState {
 	interim: string;
 	error?: string;
 }
-
-const boxShape = (b: { x: number; y: number; w: number; h: number }): ShapeData =>
-	({ x: b.x, y: b.y, width: b.w, height: b.h, id: "", type: "rectangle", style: {} }) as ShapeData;
 
 export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): UsketchPlugin {
 	return {
@@ -186,6 +184,15 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 			});
 			ctx.events.emit("layers:changed", {});
 
+			// ── Interactive "recording frame" shape (record/stop on the shape itself) ──
+			const disposeVoiceFrame = registerVoiceFrame(ctx, {
+				apiUrl: options.apiUrl,
+				boardId: options.boardId,
+				extraHeaders: options.extraHeaders,
+				lang: options.lang,
+				createTranscriber: options.createTranscriber,
+			});
+
 			return () => {
 				transcriber.stop();
 				if (errorTimer) clearTimeout(errorTimer);
@@ -193,6 +200,7 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 				ctx.layers.unregister("voice-notes-indicator");
 				ctx.events.emit("layers:changed", {});
 				listeners.clear();
+				disposeVoiceFrame();
 			};
 		},
 	};
@@ -231,68 +239,11 @@ function createNotesFrame(
 		frameTitle: summary?.title ?? "音声メモ",
 	} as ShapeData;
 
-	const shapes: ShapeData[] = [frame];
-
 	const frameBox: FrameBox = { x: frame.x, y: frame.y, width: FRAME_W, height: FRAME_H };
-
-	if (summary && summary.points.length > 0) {
-		const { boxes, edges } = layoutDiagram(summary.points, summary.links, frameBox);
-		const ids = boxes.map(() => generateId());
-		boxes.forEach((b, i) => {
-			shapes.push({
-				id: ids[i],
-				type: "rounded-rect",
-				parentId: frameId,
-				x: b.x,
-				y: b.y,
-				width: b.w,
-				height: b.h,
-				style: { fill: "#ffffff", stroke: "#1e1e1e", strokeWidth: 2, opacity: 1 },
-				text: b.detail ? `${b.label}\n${b.detail}` : b.label,
-				fontSize: 13,
-				isEditing: false,
-			} as ShapeData);
-		});
-		for (const e of edges) {
-			const a = boxes[e.from];
-			const b = boxes[e.to];
-			const aC = { x: a.x + a.w / 2, y: a.y + a.h / 2 };
-			const bC = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
-			const sp = getAnchorPoint(boxShape(a), "auto", bC);
-			const tp = getAnchorPoint(boxShape(b), "auto", aC);
-			shapes.push({
-				id: generateId(),
-				type: "connector",
-				parentId: frameId,
-				x: Math.min(sp.x, tp.x),
-				y: Math.min(sp.y, tp.y),
-				width: Math.abs(tp.x - sp.x),
-				height: Math.abs(tp.y - sp.y),
-				style: { fill: "transparent", stroke: "#1e1e1e", strokeWidth: 2, opacity: 1 },
-				sourceId: ids[e.from],
-				targetId: ids[e.to],
-				sourceAnchor: "auto",
-				targetAnchor: "auto",
-				sourcePoint: sp,
-				targetPoint: tp,
-				arrowHead: "forward",
-				pathType: "straight",
-			} as ShapeData);
-		}
-	} else {
-		// Fallback: no diagram — drop the transcript as a markdown note inside the frame.
-		shapes.push({
-			id: generateId(),
-			type: "markdown",
-			parentId: frameId,
-			x: frame.x + 20,
-			y: frame.y + 48,
-			width: FRAME_W - 40,
-			height: FRAME_H - 68,
-			style: { fill: "transparent", strokeWidth: 0, stroke: "#1e1e1e", opacity: 1 },
-			meta: { source: `### 音声メモ\n\n${transcript}`, isEditing: false },
-		} as ShapeData);
-	}
+	const shapes: ShapeData[] = [
+		frame,
+		...buildSummaryChildren(frameId, frameBox, summary, transcript),
+	];
 
 	// One undoable step for the whole notes frame.
 	ctx.commands.execute({
