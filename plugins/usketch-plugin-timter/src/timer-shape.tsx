@@ -70,9 +70,9 @@ export const dispatchTimerShapeAction = emit;
 // ── Render customization (host escape hatch) ──
 
 /**
- * Live, one-minute-step actions handed to a timer-shape renderer. Each dispatches
- * the same event the built-in buttons use, so a custom renderer stays in sync with
- * the Controls dock and never touches the store directly.
+ * Live actions handed to a timer-shape renderer. Each dispatches the same event
+ * the built-in buttons use, so a custom renderer stays in sync with the Controls
+ * dock and never touches the store directly.
  */
 export interface TimerShapeActions {
 	/** Start if paused, pause if running. */
@@ -459,6 +459,9 @@ export function registerTimerShape(
 				// Cycle through every registered kind (built-ins + host-registered).
 				const types = timerTypes();
 				const idx = types.indexOf(core.type);
+				// Unknown/removed kind: don't silently switch to the first kind — leave
+				// the shape untouched (the model treats unregistered types as an error).
+				if (idx < 0) return;
 				const nextType = types[(idx + 1) % types.length] ?? core.type;
 				// Carry a sensible duration forward; non-duration kinds (e.g. stopwatch)
 				// ignore it via their own `initial`.
