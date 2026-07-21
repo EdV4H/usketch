@@ -1,6 +1,6 @@
-# @edv4h/usketch-plugin-server-ai
+# @edv4h/usketch-plugin-voice-notes
 
-## 1.2.0
+## 0.1.0
 
 ### Minor Changes
 
@@ -13,37 +13,3 @@
   - **録音ピン（`voice-pin` ツール／シェイプ）**: pin ツールでキャンバスをクリックすると位置にピンを刺して**即録音開始**。ピンは録音が終わるまで残り、ピンをクリックで停止。停止後にピンの位置へ**まとめのShape（要約図）と文字起こし要約の Markdown** を設置してピンは消える（wevox の pins プラグインの click-to-place 作法を参考）。
   - 全エントリポイント（HUD / フレーム / ピン）は**単一の録音コントローラ（Recorder）**を共有し、マイクは同時に1つだけ。
   - **見た目のカスタマイズ**: `createVoiceNotesPlugin({ appearance })` で pin（サイズ/録音・処理中・エラー色）、frame（塗り/枠/ヘッダ色/既定タイトル）、要約ノード（塗り/枠/フォント）、コネクタ、Markdown の見た目を差し替え可能。未指定は既定値（`resolveAppearance` で1階層マージ）。`VoiceNotesAppearance` を export。
-
-## 1.1.0
-
-### Minor Changes
-
-- 6a06178: OpenUI: make production-deployable via a server-side proxy.
-  - `@edv4h/usketch-plugin-tool-openui` adds `createServerProxyProvider`, which routes LLM calls through your own `/api/ai/openui` endpoint with cookie-based auth (`credentials: "include"`). The existing OpenAI-compatible provider also gains an opt-in `credentials` option.
-  - `@edv4h/usketch-plugin-server-ai` adds `registerOpenUIRoute` (mounted at `POST /api/ai/openui`), an OpenAI-compatible Chat Completions proxy that reuses the worker's `OPENAI_API_KEY` secret, enforces board access control when `?boardId=...` is supplied, and streams SSE pass-through.
-
-  `apps/web` now uses `createServerProxyProvider` exclusively, so the OpenAI API key no longer ships in the browser bundle.
-
-## 1.0.0
-
-### Major Changes
-
-- 🎉 Initial stable release — v1.0.0
-
-  uSketch v2 の最初の安定版リリース。MVP 完了基準をすべて満たした状態で公開する。
-
-  ## Highlights
-  - **Realtime collaboration** — Cloudflare Durable Objects + Yjs + WebSocket awareness
-  - **Offline-first** — y-indexeddb によるローカル永続化、再接続時の自動同期
-  - **Pluggable architecture** — 60+ の plugin（shape / tool / sync / AI / presence / export 等）
-  - **Presentation mode** — Frame ベースのスライド、edit/present の 2 モード
-  - **Export** — PNG / SVG / JSON（Satori + Canvas）
-  - **Link sharing & access control** — 公開/限定公開 + role 管理（owner/editor/viewer）
-  - **AI-native** — Copilot（ghost shape 提案）/ Chat / Voice / Image 認識
-
-  詳細なリリースノートはルートの `CHANGELOG.md` を参照。
-
-### Patch Changes
-
-- Updated dependencies
-  - @edv4h/usketch-server-core@1.0.0
