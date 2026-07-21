@@ -16,24 +16,21 @@ function viewportCenter(ctx: ExternalContentHandlerCtx): { x: number; y: number 
 }
 
 /**
- * `kind:"url"` handler: paste/drop a URL from a KNOWN provider (YouTube, Figma,
- * …) → create an embed shape at the viewport center. Registered at `order: 0`
- * (lowest) so a more specific URL handler could win. Arbitrary links are NOT
- * auto-embedded — most sites refuse framing (`X-Frame-Options`) and would show
- * blank; use the embed tool + URL field for a best-effort generic iframe.
+ * `kind:"url"` handler: paste/drop any http(s) URL → create an embed shape at
+ * the viewport center. Registered at `order: 0` (lowest) so a more specific URL
+ * handler could win. Known providers (YouTube/Figma/Maps/…) get a proper embed
+ * URL; other links use a best-effort generic iframe (note: sites that send
+ * `X-Frame-Options`/`frame-ancestors` — and Google Maps *share* short links —
+ * will render blank; paste the full address-bar Maps URL for a live map).
  */
 export function createEmbedUrlHandler(
 	getDefs: () => EmbedDefinition[],
 ): ExternalContentHandler<"url"> {
-	const isKnownProvider = (url: string) => {
-		const r = resolveEmbed(url, getDefs());
-		return r !== null && r.def.id !== "generic";
-	};
 	return {
 		id: "usketch-plugin-shape-embed:url",
 		kind: "url",
 		order: 0,
-		match: (content) => isKnownProvider(content.url),
+		match: (content) => resolveEmbed(content.url, getDefs()) !== null,
 		handle: (content, ctx) => {
 			const resolved = resolveEmbed(content.url, getDefs());
 			if (!resolved) return;
