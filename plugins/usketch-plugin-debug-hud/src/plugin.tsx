@@ -59,6 +59,11 @@ export function createDebugHudPlugin(): UsketchPlugin {
 				| import("./board-meta-types.js").BoardMetaTrackerLike
 				| undefined;
 
+			// オンラインメンバー（presence）トラッカーも window 経由（app.tsx が設定）。
+			const presence = (globalThis as Record<string, unknown>).__usketchPresence as
+				| import("./presence-types.js").PresenceTrackerLike
+				| undefined;
+
 			// Register the fixed layer — always renders, visibility toggled inside component
 			ctx.layers.register({
 				id: "debug-hud",
@@ -77,6 +82,7 @@ export function createDebugHudPlugin(): UsketchPlugin {
 						actions={ctx.actions}
 						syncStatus={syncStatus}
 						boardMeta={boardMeta}
+						presence={presence}
 						events={ctx.events}
 						ctx={renderCtx}
 						visibility={visibility}

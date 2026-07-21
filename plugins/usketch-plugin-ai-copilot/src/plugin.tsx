@@ -297,6 +297,17 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 				}
 			});
 
+			// Control HUD toggle (旧 TopBar の CopilotToggle をここへ集約)。
+			// 状態の単一ソースは `copilot:toggle` イベント: run で発火 → 上記リスナが
+			// `enabled` を更新し、copilot-pill 等の購読側も同期する。
+			const offCopilotAction = ctx.actions.register({
+				id: "ai-copilot:toggle",
+				label: "🪄 Copilot",
+				group: "Copilot",
+				isActive: () => enabled,
+				run: () => ctx.events.emit("copilot:toggle", { enabled: !enabled }),
+			});
+
 			return () => {
 				if (debounceTimer) clearTimeout(debounceTimer);
 				abortActiveRequest();
@@ -305,6 +316,7 @@ export function createAiCopilotPlugin(options: CopilotOptions): UsketchPlugin {
 				unsubUpdated();
 				unsubStatus();
 				unsubToggle();
+				offCopilotAction();
 				window.removeEventListener("keydown", onKeyDown);
 				const styleEl = document.getElementById(STYLE_ID);
 				if (styleEl) styleEl.remove();

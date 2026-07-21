@@ -1,167 +1,61 @@
 import type { AppInstance } from "@edv4h/usketch-core";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router";
-import { setTheme } from "../lib/theme.js";
-import { I, type IconComponent, Kbd } from "./ui/index.js";
-
-interface CommandItem {
-	id: string;
-	group: string;
-	label: string;
-	icon: IconComponent;
-	shortcut?: string;
-	hint?: string;
-	run: () => void;
-}
+import type { PluginAction } from "@edv4h/usketch-shared";
+import {
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useMemo,
+	useReducer,
+	useRef,
+	useState,
+} from "react";
+import { I, Kbd } from "./ui/index.js";
 
 interface CommandPaletteProps {
 	open: boolean;
 	onClose: () => void;
 	app: AppInstance;
-	boardId?: string;
-	isCloudBoard: boolean;
 }
 
-export function CommandPalette({ open, onClose, app, boardId, isCloudBoard }: CommandPaletteProps) {
+/** Default arg map for a param action so it can be fired from the palette. */
+function defaultArgs(action: PluginAction): Record<string, unknown> {
+	const args: Record<string, unknown> = {};
+	for (const p of action.params ?? []) {
+		if (p.default !== undefined) args[p.name] = p.default;
+	}
+	return args;
+}
+
+/**
+ * コマンドパレット（⌘K）。共有アクションレジストリ（{@link AppInstance.actions}）を
+ * 単一ソースとして、登録済みの全アクション（プラグイン + アプリ横断操作）をあいまい
+ * 検索して発火する。Control HUD の Controls ドックと同じレジストリを参照する。
+ */
+export function CommandPalette({ open, onClose, app }: CommandPaletteProps) {
 	const [query, setQuery] = useState("");
 	const [activeIndex, setActiveIndex] = useState(0);
-	const navigate = useNavigate();
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	const commands = useMemo<CommandItem[]>(() => {
-		const list: CommandItem[] = [];
+	// レジストリの register/unregister に追従して再描画。
+	const [, bump] = useReducer((n: number) => n + 1, 0);
+	useEffect(() => app.actions.subscribe(bump), [app.actions]);
 
-		if (isCloudBoard) {
-			list.push(
-				{
-					id: "ai.summarize",
-					group: "AI",
-					label: "このボードを要約",
-					icon: I.sparkles,
-					hint: "AI",
-					run: () => app.events.emit("ai:request", { prompt: "このボードの内容を要約して" }),
-				},
-				{
-					id: "ai.align",
-					group: "AI",
-					label: "フローチャートを整列する",
-					icon: I.wand,
-					hint: "AI",
-					run: () => app.events.emit("ai:request", { prompt: "フローチャートを整列して" }),
-				},
-				{
-					id: "ai.translate",
-					group: "AI",
-					label: "選択を英語に翻訳",
-					icon: I.translate,
-					hint: "AI",
-					run: () => app.events.emit("ai:request", { prompt: "選択を英語に翻訳して" }),
-				},
-				{
-					id: "ai.image",
-					group: "AI",
-					label: "画像を生成…",
-					icon: I.image,
-					hint: "AI",
-					run: () => app.events.emit("ai:image:open", {}),
-				},
-			);
-		}
-
-		list.push(
-			{
-				id: "action.frame",
-				group: "アクション",
-				label: "フレームを追加",
-				icon: I.frame,
-				shortcut: "F",
-				run: () => app.store.setActiveToolId("frame"),
-			},
-			{
-				id: "action.undo",
-				group: "アクション",
-				label: "元に戻す",
-				icon: I.undo,
-				shortcut: "⌘Z",
-				run: () => app.commands.undo(),
-			},
-			{
-				id: "action.redo",
-				group: "アクション",
-				label: "やり直す",
-				icon: I.redo,
-				shortcut: "⌘⇧Z",
-				run: () => app.commands.redo(),
-			},
-		);
-
-		if (isCloudBoard && boardId) {
-			list.push({
-				id: "action.present",
-				group: "アクション",
-				label: "プレゼンテーションを開始",
-				icon: I.present,
-				shortcut: "⌘⇧P",
-				run: () => navigate(`/boards/${boardId}?present=1`),
-			});
-		}
-
-		list.push(
-			{
-				id: "theme.light",
-				group: "テーマ",
-				label: "テーマ切替: ライト",
-				icon: I.sun,
-				run: () => setTheme("light"),
-			},
-			{
-				id: "theme.dark",
-				group: "テーマ",
-				label: "テーマ切替: ダーク",
-				icon: I.moon,
-				run: () => setTheme("dark"),
-			},
-			{
-				id: "theme.system",
-				group: "テーマ",
-				label: "テーマ切替: システム",
-				icon: I.monitor,
-				run: () => setTheme("system"),
-			},
-		);
-
-		list.push(
-			{
-				id: "nav.dashboard",
-				group: "移動",
-				label: "ダッシュボードへ戻る",
-				icon: I.home,
-				run: () => navigate("/dashboard"),
-			},
-			{
-				id: "nav.community",
-				group: "移動",
-				label: "コミュニティマップ",
-				icon: I.community,
-				run: () => navigate("/community"),
-			},
-		);
-
-		return list;
-	}, [app, boardId, isCloudBoard, navigate]);
+	const entries = app.actions.getOrdered();
 
 	const filtered = useMemo(() => {
-		if (!query) return commands;
-		const q = query.toLowerCase();
-		return commands.filter((c) => c.label.toLowerCase().includes(q));
-	}, [commands, query]);
+		const q = query.trim().toLowerCase();
+		const list = entries.map((e) => e.action);
+		if (!q) return list;
+		return list.filter((a) => `${a.label} ${a.group ?? ""} ${a.id}`.toLowerCase().includes(q));
+	}, [entries, query]);
 
 	const grouped = useMemo(() => {
-		const map = new Map<string, CommandItem[]>();
-		for (const c of filtered) {
-			const g = map.get(c.group) ?? [];
-			g.push(c);
-			map.set(c.group, g);
+		const map = new Map<string, PluginAction[]>();
+		for (const a of filtered) {
+			const g = a.group ?? "Actions";
+			const arr = map.get(g) ?? [];
+			arr.push(a);
+			map.set(g, arr);
 		}
 		return Array.from(map.entries());
 	}, [filtered]);
@@ -170,21 +64,17 @@ export function CommandPalette({ open, onClose, app, boardId, isCloudBoard }: Co
 		if (open) {
 			setQuery("");
 			setActiveIndex(0);
-			// 次のフレームで focus（animation 開始前に focus が外れるのを防ぐ）
 			requestAnimationFrame(() => inputRef.current?.focus());
 		}
 	}, [open]);
 
-	useEffect(() => {
-		setActiveIndex(0);
-	}, []);
-
 	const runAt = useCallback(
 		(idx: number) => {
-			const item = filtered[idx];
-			if (!item) return;
+			const action = filtered[idx];
+			if (!action) return;
+			if (action.isEnabled && !action.isEnabled()) return;
 			onClose();
-			item.run();
+			void action.run(defaultArgs(action));
 		},
 		[filtered, onClose],
 	);
@@ -225,13 +115,16 @@ export function CommandPalette({ open, onClose, app, boardId, isCloudBoard }: Co
 			>
 				{group}
 			</div>
-			{items.map((c) => {
+			{items.map((a) => {
 				const idx = globalIndex++;
 				const active = idx === activeIndex;
+				const enabled = a.isEnabled ? a.isEnabled() : true;
+				const on = a.isActive?.() ?? false;
 				return (
 					<button
-						key={c.id}
+						key={a.id}
 						type="button"
+						disabled={!enabled}
 						onClick={() => runAt(idx)}
 						onMouseEnter={() => setActiveIndex(idx)}
 						style={{
@@ -240,7 +133,8 @@ export function CommandPalette({ open, onClose, app, boardId, isCloudBoard }: Co
 							gap: 10,
 							padding: "8px 16px",
 							background: active ? "var(--bg-hover)" : "transparent",
-							cursor: "pointer",
+							cursor: enabled ? "pointer" : "default",
+							opacity: enabled ? 1 : 0.4,
 							width: "100%",
 							border: "none",
 							color: "var(--fg-primary)",
@@ -258,27 +152,23 @@ export function CommandPalette({ open, onClose, app, boardId, isCloudBoard }: Co
 								display: "flex",
 								alignItems: "center",
 								justifyContent: "center",
-								color: c.group === "AI" ? "var(--brand-violet)" : "var(--fg-secondary)",
+								color: group === "AI" ? "var(--brand-violet)" : "var(--fg-secondary)",
+								flexShrink: 0,
 							}}
 						>
-							<c.icon size={14} />
+							{a.icon ? a.icon() : <I.sparkles size={14} />}
 						</div>
-						<div style={{ flex: 1, fontSize: 13 }}>{c.label}</div>
-						{c.hint && (
+						<div style={{ flex: 1, fontSize: 13 }}>{a.label}</div>
+						{on && (
 							<span
 								style={{
-									fontSize: 10,
-									color: "var(--brand-violet)",
-									background: "var(--bg-active)",
-									padding: "2px 6px",
-									borderRadius: 4,
-									fontWeight: 600,
+									width: 7,
+									height: 7,
+									borderRadius: "50%",
+									background: "var(--brand-violet)",
 								}}
-							>
-								{c.hint}
-							</span>
+							/>
 						)}
-						{c.shortcut && <Kbd>{c.shortcut}</Kbd>}
 					</button>
 				);
 			})}
@@ -351,7 +241,7 @@ export function CommandPalette({ open, onClose, app, boardId, isCloudBoard }: Co
 							setQuery(e.target.value);
 							setActiveIndex(0);
 						}}
-						placeholder="何をしますか？"
+						placeholder="何をしますか？（アクションを検索）"
 						style={{
 							flex: 1,
 							background: "transparent",

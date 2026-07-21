@@ -62,16 +62,67 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				followingClientId = clientId;
 				followingName = name;
 				updateBanner();
+				rebuildFollowActions();
 			}
 
 			function stopFollow() {
 				followingClientId = null;
 				followingName = "";
 				updateBanner();
+				rebuildFollowActions();
 			}
+
+			// ── Follow controls (Control HUD "Follow" group) ──
+			// Rebuilt on awareness change + follow-state change, mirroring the
+			// per-item action pattern used by other plugins (e.g. timter): one
+			// "follow" action per online member, plus an "Unfollow" toggle.
+			let followActionOffs: (() => void)[] = [];
+			const clearFollowActions = () => {
+				for (const off of followActionOffs) off();
+				followActionOffs = [];
+			};
+
+			function rebuildFollowActions() {
+				clearFollowActions();
+				followActionOffs.push(
+					ctx.actions.register({
+						id: "follow:unfollow",
+						label: followingName ? `⏹ Unfollow ${followingName}` : "⏹ Unfollow",
+						group: "Follow",
+						order: 0,
+						isEnabled: () => followingClientId !== null,
+						run: () => stopFollow(),
+					}),
+				);
+
+				const states = awareness.getStates();
+				let order = 1;
+				for (const [clientId, state] of states) {
+					if (clientId === awareness.doc.clientID) continue;
+					const user = state.user as { name?: string } | undefined;
+					const name = user?.name ?? "Unknown";
+					const presenting = state.presenting === true;
+					followActionOffs.push(
+						ctx.actions.register({
+							id: `follow:member:${clientId}`,
+							label: `${presenting ? "📺 " : "👤 "}${name}`,
+							group: "Follow",
+							order: order++,
+							isActive: () => followingClientId === clientId,
+							run: () => startFollow(clientId, name),
+						}),
+					);
+				}
+			}
+
+			// Follow コントロール初期登録（let 初期化後に実行）
+			rebuildFollowActions();
 
 			function onAwarenessChange() {
 				const states = awareness.getStates();
+
+				// メンバーの増減を Follow コントロールへ反映。
+				rebuildFollowActions();
 
 				// フォロー中のユーザーが切断されたらフォロー解除
 				if (followingClientId !== null && !states.has(followingClientId)) {
@@ -135,6 +186,7 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				unsubFollow();
 				unsubFollowEvent();
 				unsubUnfollowEvent();
+				clearFollowActions();
 				ctx.layers.unregister("follow-banner");
 				followingClientId = null;
 			};

@@ -1,29 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ShareDialog } from "../share-dialog.js";
-import { CopilotToggle } from "../toolbar/copilot-toggle.js";
-import { StatusBar } from "../toolbar/status-bar.js";
 import { Divider, I, IconBtn, ThemeToggle } from "../ui/index.js";
 import { CommunityLink } from "./community-link.js";
-import { PresencePill } from "./presence-pill.js";
-import { ZoomControls } from "./zoom-controls.js";
-
-// PresencePill / StatusBar が必要とする awareness API を合わせた構造型。
-type WsProvider = {
-	awareness: {
-		setLocalStateField: (field: string, value: unknown) => void;
-		getLocalState: () => Record<string, unknown> | null;
-		getStates: () => Map<number, Record<string, unknown>>;
-		doc: { clientID: number };
-		on?: (event: "change", cb: () => void) => void;
-		off?: (event: "change", cb: () => void) => void;
-	};
-};
 
 interface Props {
 	boardId?: string;
 	isCloudBoard: boolean;
-	wsProvider?: WsProvider | null;
 	onOpenCommandPalette: () => void;
 	/** プレゼン編集モード中は Cloud 限定の操作群を隠す。 */
 	compact?: boolean;
@@ -33,17 +16,11 @@ interface Props {
  * 画面中央上部に固定された単一のコントロールバー。
  *
  * かつて四隅に散っていた chrome（ロゴ / テーマ / コマンドパレット / Cloud 限定の
- * プレゼン・Copilot・presence・共有 / ステータス・Follow / ズーム /
- * コミュニティ）を 1 本のバーに集約したもの。shape/tool 系の操作は Control HUD
- * (`` ` `` で開く) に一本化済み。
+ * プレゼン・Copilot・共有 / ズーム / コミュニティ）を 1 本のバーに集約したもの。
+ * shape/tool 系の操作、プレゼンス状態・Follow・オンラインメンバー表示は
+ * Control HUD (`` ` `` で開く) に一本化済み。
  */
-export function TopBar({
-	boardId,
-	isCloudBoard,
-	wsProvider,
-	onOpenCommandPalette,
-	compact,
-}: Props) {
+export function TopBar({ boardId, isCloudBoard, onOpenCommandPalette, compact }: Props) {
 	const navigate = useNavigate();
 	const [showShare, setShowShare] = useState(false);
 	const showCloud = isCloudBoard && !compact;
@@ -106,17 +83,12 @@ export function TopBar({
 
 				<ThemeToggle />
 
-				{showCloud && (
-					<>
-						<CopilotToggle />
-						{boardId && (
-							<IconBtn
-								icon={I.present}
-								label="プレゼンテーション"
-								onClick={() => navigate(`/boards/${boardId}?present=1`)}
-							/>
-						)}
-					</>
+				{showCloud && boardId && (
+					<IconBtn
+						icon={I.present}
+						label="プレゼンテーション"
+						onClick={() => navigate(`/boards/${boardId}?present=1`)}
+					/>
 				)}
 
 				<Divider vertical />
@@ -128,42 +100,13 @@ export function TopBar({
 					onClick={onOpenCommandPalette}
 				/>
 
-				{showCloud && wsProvider && (
-					<>
-						<Divider vertical />
-						<StatusBar wsProvider={wsProvider} inline />
-						<PresencePill wsProvider={wsProvider} />
-					</>
-				)}
-
 				{showCloud && boardId && (
-					<button
-						type="button"
-						onClick={() => setShowShare(true)}
-						style={{
-							padding: "6px 12px",
-							display: "inline-flex",
-							alignItems: "center",
-							gap: 6,
-							background: "var(--brand-gradient)",
-							border: "none",
-							color: "white",
-							fontSize: 12.5,
-							fontWeight: 600,
-							borderRadius: 8,
-							cursor: "pointer",
-							fontFamily: "inherit",
-						}}
-					>
-						<I.share size={12} />
-						共有
-					</button>
+					<IconBtn icon={I.share} label="共有" onClick={() => setShowShare(true)} />
 				)}
 
 				<Divider vertical />
 
-				<ZoomControls inline />
-				<CommunityLink inline />
+				<CommunityLink />
 			</div>
 
 			{showShare && boardId && (

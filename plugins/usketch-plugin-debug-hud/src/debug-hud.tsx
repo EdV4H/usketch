@@ -21,8 +21,10 @@ import {
 } from "./panels/controls-panel.js";
 import { EventsPanel } from "./panels/events-panel.js";
 import { GeneralPanel } from "./panels/general-panel.js";
+import { MembersPanel } from "./panels/members-panel.js";
 import { ShapesPanel } from "./panels/shapes-panel.js";
 import type { PointerTracker } from "./pointer-tracker.js";
+import type { PresenceTrackerLike } from "./presence-types.js";
 import { FONT_FAMILY, TEXT_MUTED } from "./styles.js";
 import type { SyncStatusTrackerLike } from "./sync-status-types.js";
 import type { VisibilityStore } from "./visibility-store.js";
@@ -39,6 +41,7 @@ interface DebugHudProps {
 	actions: ActionRegistry;
 	syncStatus?: SyncStatusTrackerLike;
 	boardMeta?: BoardMetaTrackerLike;
+	presence?: PresenceTrackerLike;
 	events: EventBus;
 	ctx: LayerRenderContext;
 	visibility: VisibilityStore;
@@ -62,6 +65,7 @@ export function DebugHud({
 	actions,
 	syncStatus,
 	boardMeta,
+	presence,
 	events,
 	ctx,
 	visibility,
@@ -176,6 +180,9 @@ export function DebugHud({
 				activeToolId={activeToolId}
 			/>
 
+			{/* Right-top (left of General): online members (旧 PresencePill) */}
+			<MembersPanel presence={presence} />
+
 			{/* Left dock: universal control panel (tools + actions + shapes + event console + style) */}
 			<ControlsPanel
 				store={store}
@@ -202,8 +209,9 @@ export function DebugHud({
 			{/* Right-bottom: Event Log */}
 			<EventsPanel eventLogger={eventLogger} />
 
-			{/* Bottom-left (right of the dock): Minimap */}
+			{/* Bottom-left (right of the dock): Minimap + zoom controls */}
 			<Minimap
+				store={store}
 				shapes={shapeMap}
 				viewport={viewport}
 				selection={selection}

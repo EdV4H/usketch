@@ -56,6 +56,9 @@ export function ControlsPanel({
 	const [, bump] = useReducer((n: number) => n + 1, 0);
 	useEffect(() => actions.subscribe(bump), [actions]);
 
+	// Filter over the action registry (label / group / id).
+	const [actionQuery, setActionQuery] = useState("");
+
 	if (collapsed) {
 		return (
 			<button
@@ -75,7 +78,13 @@ export function ControlsPanel({
 
 	const toolList = tools.getOrdered();
 	const actionList = actions.getOrdered();
-	const groups = groupActions(actionList);
+	const q = actionQuery.trim().toLowerCase();
+	const filteredActions = q
+		? actionList.filter(({ action }) =>
+				`${action.label} ${action.group ?? ""} ${action.id}`.toLowerCase().includes(q),
+			)
+		: actionList;
+	const groups = groupActions(filteredActions);
 
 	return (
 		<div {...STOP_CANVAS_PROPAGATION} style={dockStyle}>
@@ -85,6 +94,13 @@ export function ControlsPanel({
 					‹
 				</button>
 			</div>
+
+			<input
+				value={actionQuery}
+				onChange={(e) => setActionQuery(e.target.value)}
+				placeholder="アクションを検索…"
+				style={{ ...INLINE_INPUT, width: "100%", marginBottom: 6 }}
+			/>
 
 			<Section title="Tools">
 				<div style={toolGridStyle}>
@@ -117,9 +133,16 @@ export function ControlsPanel({
 					))}
 				</Section>
 			))}
-			{actionList.length === 0 && (
+			{filteredActions.length === 0 && (
 				<div style={{ color: TEXT_MUTED, fontSize: 10, marginBottom: 6 }}>
-					No registered actions. Plugins expose operations via <code>ctx.actions.register</code>.
+					{actionList.length === 0 ? (
+						<>
+							No registered actions. Plugins expose operations via <code>ctx.actions.register</code>
+							.
+						</>
+					) : (
+						"一致するアクションがありません"
+					)}
 				</div>
 			)}
 
