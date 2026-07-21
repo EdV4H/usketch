@@ -414,9 +414,8 @@ export function App() {
 		// 全ユーザーで同期（server clock 基準）。URL 貼り付け/ドロップでも生成。
 		extraPlugins.push(
 			createEmbedShapePlugin({
-				apiUrl: isCloudBoard
-					? (import.meta.env.VITE_API_URL ?? "http://localhost:8787")
-					: undefined,
+				// Reuse the board-level clock (shared with Timter) instead of a 2nd poller.
+				serverClock,
 				boardId,
 				userId: userIdRef.current ?? getDevUser()?.id ?? "local",
 			}),

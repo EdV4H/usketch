@@ -11,7 +11,7 @@ import {
 	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
-import { createServerClock } from "@edv4h/usketch-sync";
+import { createServerClock, type ServerClock } from "@edv4h/usketch-sync";
 import { DEFAULT_EMBED_DEFS, type EmbedDefinition, resolveEmbed } from "./embed-defs.js";
 import { EMBED_ACTION_EVENT, type EmbedAction } from "./embed-events.js";
 import {
@@ -128,7 +128,11 @@ function EmbedIcon() {
 export interface EmbedPluginOptions {
 	/** Extra provider definitions (added before defaults so they can override). */
 	embeds?: EmbedDefinition[];
-	/** API origin for the shared server clock (playback sync). Omit → local clock. */
+	/** Existing server clock to reuse (e.g. the board-level one shared with Timter),
+	 * so we don't spin up a second `/time` poller. Takes precedence over `apiUrl`. */
+	serverClock?: ServerClock;
+	/** API origin for a server clock created by this plugin when `serverClock` is
+	 * not provided (playback sync). Omit → local clock. */
 	apiUrl?: string;
 	boardId?: string;
 	userId?: string;
@@ -144,7 +148,12 @@ export function createEmbedShapePlugin(options: EmbedPluginOptions = {}): Usketc
 
 		setup(ctx: PluginContext) {
 			const defs = [...(options.embeds ?? []), ...DEFAULT_EMBED_DEFS];
-			const serverClock = createServerClock({ baseUrl: options.apiUrl ?? null });
+			// Reuse a provided clock (shared with other features); only create — and
+			// therefore only destroy — our own when none was supplied.
+			const ownClock = options.serverClock
+				? null
+				: createServerClock({ baseUrl: options.apiUrl ?? null });
+			const serverClock = options.serverClock ?? ownClock!;
 			const userId = options.userId ?? "local";
 			const rt: EmbedRuntime = {
 				store: ctx.store,
@@ -292,7 +301,7 @@ export function createEmbedShapePlugin(options: EmbedPluginOptions = {}): Usketc
 				offPointer();
 				unsubStore();
 				offUrl();
-				serverClock.destroy();
+				ownClock?.destroy();
 			};
 		},
 	};

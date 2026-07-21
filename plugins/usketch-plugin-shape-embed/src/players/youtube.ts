@@ -1,8 +1,9 @@
 /**
  * Minimal YouTube IFrame player controller over `postMessage` (no YT SDK). The
- * embed URL must carry `enablejsapi=1`. We poll `getCurrentTime`/state via the
- * documented postMessage protocol and expose play/pause/seek plus a
- * user-action callback for the watch-party sync layer.
+ * embed URL must carry `enablejsapi=1`. We (re)send the `listening` handshake so
+ * the player pushes `infoDelivery` events (playerState + currentTime) back to
+ * us, and expose play/pause/seek plus a user-action callback for the watch-party
+ * sync layer. Messages are pinned to the iframe's origin in both directions.
  */
 
 export interface EmbedPlayer {
@@ -29,17 +30,36 @@ export function createYouTubePlayer(iframe: HTMLIFrameElement): EmbedPlayer {
 	let suppressUntil = 0;
 	const now = () => Date.now();
 
+	// Pin postMessage to the iframe's origin (e.g. https://www.youtube-nocookie.com)
+	// rather than "*", so control messages can't leak to — and spoofed messages
+	// can't arrive from — a frame navigated to a different origin.
+	let targetOrigin = "*";
+	try {
+		if (iframe.src) targetOrigin = new URL(iframe.src).origin;
+	} catch {
+		// keep "*"
+	}
+
 	const post = (func: string, args: unknown[] = []) => {
-		iframe.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*");
+		iframe.contentWindow?.postMessage(
+			JSON.stringify({ event: "command", func, args }),
+			targetOrigin,
+		);
 	};
 
 	// Ask the player to start emitting events to us.
 	const startListening = () => {
-		iframe.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: iframe.id }), "*");
+		iframe.contentWindow?.postMessage(
+			JSON.stringify({ event: "listening", id: iframe.id }),
+			targetOrigin,
+		);
 	};
 
 	const onMessage = (e: MessageEvent) => {
 		if (!iframe.contentWindow || e.source !== iframe.contentWindow) return;
+		// Also validate the origin (when known) so a cross-origin frame reusing the
+		// same window can't spoof YouTube protocol messages.
+		if (targetOrigin !== "*" && e.origin !== targetOrigin) return;
 		let data: unknown;
 		try {
 			data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
