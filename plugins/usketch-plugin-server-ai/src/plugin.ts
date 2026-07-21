@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { registerOpenUIRoute } from "./openui-route.js";
+import { registerTranscribeRoute } from "./transcribe-route.js";
 
 /** AI プラグインが必要とするスキーマテーブル */
 export interface AiPluginSchema {
@@ -721,6 +722,7 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 			});
 
 			registerOpenUIRoute(aiApp, { schema: { boards, boardMembers } });
+			registerTranscribeRoute(aiApp, { schema: { boards, boardMembers } });
 
 			ctx.routes.register({ path: "/api/ai", app: aiApp });
 		},

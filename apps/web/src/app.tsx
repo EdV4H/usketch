@@ -56,6 +56,10 @@ import { createPanToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { createSelectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
 import { createVimToolPlugin } from "@edv4h/usketch-plugin-tool-vim";
 import { createViewportNavPlugin } from "@edv4h/usketch-plugin-viewport-nav";
+import {
+	createVoiceNotesPlugin,
+	createWhisperTranscriber,
+} from "@edv4h/usketch-plugin-voice-notes";
 import { createWhistlePlugin } from "@edv4h/usketch-plugin-whistle";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
@@ -348,6 +352,18 @@ export function App() {
 			extraPlugins.push(createAiVoicePlugin({ boardId }));
 			extraPlugins.push(createAiImagePlugin({ boardId }));
 			extraPlugins.push(createAiRecognizePlugin({ boardId }));
+			// Voice Notes: 録音→AI要約→まとめ Frame（生transcript は frame.meta）。
+			// 文字起こしはサーバ Whisper 経由（ブラウザ Web Speech は network 制約で
+			// 使えない環境が多いため）。Google 非経由でマイク点滅も無し。
+			extraPlugins.push(
+				createVoiceNotesPlugin({
+					apiUrl,
+					boardId,
+					extraHeaders: aiHeaders,
+					createTranscriber: () =>
+						createWhisperTranscriber({ apiUrl, boardId, extraHeaders: aiHeaders, lang: "ja" }),
+				}),
+			);
 
 			// OpenUI Generative UI. Routes LLM calls through the server's
 			// `/api/ai/openui` proxy so the OpenAI API key never reaches the
