@@ -10,7 +10,7 @@ import {
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { ServerClock } from "@edv4h/usketch-sync";
-import { useEffect, useReducer } from "react";
+import { type ReactElement, useEffect, useReducer } from "react";
 import {
 	displayMs,
 	formatDuration,
@@ -18,9 +18,11 @@ import {
 	isDone,
 	pause,
 	reset,
+	resolveTimerKind,
 	start,
 	type TimerCore,
 	type TimerType,
+	timerTypes,
 } from "./timer-model.js";
 
 export const TIMER_SHAPE_TYPE = "timer";
@@ -39,6 +41,7 @@ export interface TimerShapeData extends ShapeData {
 
 export type ShapeAction =
 	| { id: string; action: "toggle" | "reset" | "switch-type" }
+	/** `value` is a delta in **milliseconds** applied to the configured duration. */
 	| { id: string; action: "adjust"; value: number };
 
 export const coreOf = (s: TimerShapeData): TimerCore => ({
@@ -64,7 +67,42 @@ function emit(detail: ShapeAction) {
 /** Dispatch a timer-shape action (toggle/reset/…) — used by the Controls actions too. */
 export const dispatchTimerShapeAction = emit;
 
-// ── View ──
+// ── Render customization (host escape hatch) ──
+
+/**
+ * Live actions handed to a timer-shape renderer. Each dispatches the same event
+ * the built-in buttons use, so a custom renderer stays in sync with the Controls
+ * dock and never touches the store directly.
+ */
+export interface TimerShapeActions {
+	/** Start if paused, pause if running. */
+	toggle(): void;
+	/** Return to the configured, stopped state. */
+	reset(): void;
+	/** Advance to the next registered timer kind (only while paused). */
+	switchType(): void;
+	/** Change the configured duration by `deltaMs` (duration-based kinds, while paused). */
+	adjust(deltaMs: number): void;
+}
+
+/**
+ * Everything a timer-shape renderer needs. `core` / `serverNow` are recomputed on
+ * every self-tick while running, so a renderer can read `displayMs(core, serverNow)`
+ * / `isDone(core, serverNow)` straight from the model without its own clock.
+ */
+export interface TimerRenderContext {
+	shape: TimerShapeData;
+	core: TimerCore;
+	serverNow: number;
+	actions: TimerShapeActions;
+}
+
+/**
+ * Replaces the built-in timer-shape visual. Supplied via
+ * `TimterPluginOptions.renderShape`; when omitted the plugin uses
+ * {@link defaultRenderTimerShape}. Wrap the default to extend rather than replace.
+ */
+export type TimerShapeRenderer = (ctx: TimerRenderContext) => ReactElement;
 
 const btn: React.CSSProperties = {
 	border: "1px solid #d1d5db",
@@ -77,28 +115,19 @@ const btn: React.CSSProperties = {
 	padding: "4px 8px",
 };
 
-function TimerShapeView({
+const stopEvent = (e: React.SyntheticEvent) => e.stopPropagation();
+
+/** The built-in timer-shape renderer. Exported so hosts can wrap/extend it. */
+export function defaultRenderTimerShape({
 	shape,
-	serverClock,
-}: {
-	shape: TimerShapeData;
-	serverClock: ServerClock;
-}) {
-	const [, force] = useReducer((n: number) => n + 1, 0);
+	core,
+	serverNow,
+	actions,
+}: TimerRenderContext): ReactElement {
 	const running = shape.running;
-
-	// Self-tick while running so the display counts without writing to the store.
-	useEffect(() => {
-		if (!running) return;
-		const id = setInterval(force, 250);
-		return () => clearInterval(id);
-	}, [running]);
-
-	const core = coreOf(shape);
-	const serverNow = serverClock.now();
-	const done = shape.timerType === "countdown" && isDone(core, serverNow);
-	const icon = shape.timerType === "countdown" ? "⏳" : "⏱";
-	const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+	const done = isDone(core, serverNow);
+	const icon = resolveTimerKind(shape.timerType).icon ?? "⏱";
+	const durationBased = core.durationMs > 0;
 
 	return (
 		<div
@@ -125,10 +154,10 @@ function TimerShapeView({
 						type="button"
 						title="種別を切替"
 						style={btn}
-						onPointerDown={stop}
+						onPointerDown={stopEvent}
 						onClick={(e) => {
-							stop(e);
-							emit({ id: shape.id, action: "switch-type" });
+							stopEvent(e);
+							actions.switchType();
 						}}
 					>
 						{icon}
@@ -147,16 +176,16 @@ function TimerShapeView({
 				</span>
 			</div>
 
-			{!running && shape.timerType === "countdown" && (
+			{!running && durationBased && (
 				<div style={{ display: "flex", alignItems: "center", gap: 6 }}>
 					<button
 						type="button"
 						title="−1分"
 						style={btn}
-						onPointerDown={stop}
+						onPointerDown={stopEvent}
 						onClick={(e) => {
-							stop(e);
-							emit({ id: shape.id, action: "adjust", value: -1 });
+							stopEvent(e);
+							actions.adjust(-60_000);
 						}}
 					>
 						−
@@ -165,10 +194,10 @@ function TimerShapeView({
 						type="button"
 						title="+1分"
 						style={btn}
-						onPointerDown={stop}
+						onPointerDown={stopEvent}
 						onClick={(e) => {
-							stop(e);
-							emit({ id: shape.id, action: "adjust", value: 1 });
+							stopEvent(e);
+							actions.adjust(60_000);
 						}}
 					>
 						＋
@@ -181,10 +210,10 @@ function TimerShapeView({
 					type="button"
 					title={running ? "一時停止" : "開始"}
 					style={btn}
-					onPointerDown={stop}
+					onPointerDown={stopEvent}
 					onClick={(e) => {
-						stop(e);
-						emit({ id: shape.id, action: "toggle" });
+						stopEvent(e);
+						actions.toggle();
 					}}
 				>
 					{running ? "⏸" : "▶"}
@@ -193,10 +222,10 @@ function TimerShapeView({
 					type="button"
 					title="リセット"
 					style={btn}
-					onPointerDown={stop}
+					onPointerDown={stopEvent}
 					onClick={(e) => {
-						stop(e);
-						emit({ id: shape.id, action: "reset" });
+						stopEvent(e);
+						actions.reset();
 					}}
 				>
 					↺
@@ -204,6 +233,46 @@ function TimerShapeView({
 			</div>
 		</div>
 	);
+}
+
+// ── View ──
+
+/**
+ * Host wrapper around a timer-shape renderer. Owns the self-tick (so the display
+ * counts down without writing to the store), recomputes `core`/`serverNow` each
+ * render, and builds the {@link TimerShapeActions} that emit the shared action
+ * event. Delegates the actual visual to `render` (a host `renderShape` or the
+ * built-in {@link defaultRenderTimerShape}).
+ */
+function TimerShapeView({
+	shape,
+	serverClock,
+	render,
+}: {
+	shape: TimerShapeData;
+	serverClock: ServerClock;
+	render: TimerShapeRenderer;
+}) {
+	const [, force] = useReducer((n: number) => n + 1, 0);
+	const running = shape.running;
+
+	// Self-tick while running so the display counts without writing to the store.
+	useEffect(() => {
+		if (!running) return;
+		const id = setInterval(force, 250);
+		return () => clearInterval(id);
+	}, [running]);
+
+	const core = coreOf(shape);
+	const serverNow = serverClock.now();
+	const actions: TimerShapeActions = {
+		toggle: () => emit({ id: shape.id, action: "toggle" }),
+		reset: () => emit({ id: shape.id, action: "reset" }),
+		switchType: () => emit({ id: shape.id, action: "switch-type" }),
+		adjust: (deltaMs) => emit({ id: shape.id, action: "adjust", value: deltaMs }),
+	};
+
+	return render({ shape, core, serverNow, actions });
 }
 
 function SimplifiedTimer({ shape }: { shape: ShapeData }) {
@@ -233,7 +302,7 @@ function SimplifiedTimer({ shape }: { shape: ShapeData }) {
 				transformOrigin: "center center",
 			}}
 		>
-			{s.timerType === "countdown" ? "⏳" : "⏱"} {formatDuration(s.accumMs)}
+			{resolveTimerKind(s.timerType).icon ?? "⏱"} {formatDuration(s.accumMs)}
 		</div>
 	);
 }
@@ -321,8 +390,9 @@ export function makeTimerShape(params: {
 	serverNow: number;
 }): TimerShapeData {
 	const base = createDefault({ id: params.id, x: params.x, y: params.y });
-	const dur =
-		params.timerType === "countdown" ? (params.durationMs ?? DEFAULT_MINUTES * 60_000) : 0;
+	// The kind's `initial` decides how (or whether) the duration is used —
+	// non-duration kinds like stopwatch ignore it.
+	const dur = params.durationMs ?? DEFAULT_MINUTES * 60_000;
 	const core = start(initialCore(params.timerType, dur), params.serverNow);
 	return { ...base, ...corePatch(core) };
 }
@@ -340,17 +410,25 @@ function TimerToolIcon() {
 /**
  * Register the timer shape, its draw tool, and the button-action listener.
  * `serverClock` is closed over by the renderer so every client computes the
- * remaining/elapsed time against the shared server clock.
+ * remaining/elapsed time against the shared server clock. `renderShape`
+ * overrides the built-in visual (defaults to {@link defaultRenderTimerShape}).
  */
 export function registerTimerShape(
 	ctx: PluginContext,
 	serverClock: ServerClock,
 	_userId: string,
+	renderShape: TimerShapeRenderer = defaultRenderTimerShape,
 ): () => void {
 	const now = () => serverClock.now();
 
 	ctx.shapes.register(TIMER_SHAPE_TYPE, {
-		render: (shape) => <TimerShapeView shape={shape as TimerShapeData} serverClock={serverClock} />,
+		render: (shape) => (
+			<TimerShapeView
+				shape={shape as TimerShapeData}
+				serverClock={serverClock}
+				render={renderShape}
+			/>
+		),
 		getBounds,
 		hitTest,
 		resize,
@@ -378,14 +456,22 @@ export function registerTimerShape(
 				break;
 			case "switch-type": {
 				if (core.running) return;
-				const nextType: TimerType = core.type === "countdown" ? "stopwatch" : "countdown";
-				const dur = nextType === "countdown" ? core.durationMs || DEFAULT_MINUTES * 60_000 : 0;
-				next = initialCore(nextType, dur);
+				// Cycle through every registered kind (built-ins + host-registered).
+				const types = timerTypes();
+				const idx = types.indexOf(core.type);
+				// Unknown/removed kind: don't silently switch to the first kind — leave
+				// the shape untouched (the model treats unregistered types as an error).
+				if (idx < 0) return;
+				const nextType = types[(idx + 1) % types.length] ?? core.type;
+				// Carry a sensible duration forward; non-duration kinds (e.g. stopwatch)
+				// ignore it via their own `initial`.
+				next = initialCore(nextType, core.durationMs || DEFAULT_MINUTES * 60_000);
 				break;
 			}
 			case "adjust": {
-				if (core.running || core.type !== "countdown") return;
-				next = initialCore("countdown", Math.max(60_000, core.durationMs + detail.value * 60_000));
+				// `value` is a millisecond delta; only duration-based kinds respond.
+				if (core.running || core.durationMs <= 0) return;
+				next = initialCore(core.type, Math.max(60_000, core.durationMs + detail.value));
 				break;
 			}
 			default:

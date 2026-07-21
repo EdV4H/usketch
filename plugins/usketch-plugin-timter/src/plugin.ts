@@ -6,7 +6,13 @@ import {
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { ServerClock } from "@edv4h/usketch-sync";
-import { displayMs, formatDuration, isDone, type TimerType } from "./timer-model.js";
+import {
+	displayMs,
+	formatDuration,
+	isDone,
+	resolveTimerKind,
+	type TimerType,
+} from "./timer-model.js";
 import {
 	coreOf,
 	dispatchTimerShapeAction,
@@ -14,6 +20,7 @@ import {
 	registerTimerShape,
 	TIMER_SHAPE_TYPE,
 	type TimerShapeData,
+	type TimerShapeRenderer,
 } from "./timer-shape.js";
 
 export interface TimterPluginOptions {
@@ -21,6 +28,14 @@ export interface TimterPluginOptions {
 	serverClock: ServerClock;
 	/** Attribution for created-by (reserved). Defaults to "local". */
 	userId?: string;
+	/**
+	 * Replace the built-in timer-shape visual with a host renderer (theme /
+	 * hand-drawn look / design tokens). Receives the shape, its live
+	 * {@link TimerCore}, a fresh `serverNow`, and toggle/reset/switchType/adjust
+	 * actions. Omit to use the built-in renderer (`defaultRenderTimerShape`),
+	 * which you can also import and wrap.
+	 */
+	renderShape?: TimerShapeRenderer;
 }
 
 /**
@@ -40,7 +55,12 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 			const now = () => options.serverClock.now();
 
 			// ── Timer shape (placeable, movable) — the source of truth ──
-			const disposeShape = registerTimerShape(ctx, options.serverClock, options.userId ?? "local");
+			const disposeShape = registerTimerShape(
+				ctx,
+				options.serverClock,
+				options.userId ?? "local",
+				options.renderShape,
+			);
 
 			const listTimers = (): TimerShapeData[] =>
 				[...ctx.store.getShapes().values()]
@@ -109,8 +129,8 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 
 				timers.forEach((s, idx) => {
 					const n = idx + 1;
-					const icon = s.timerType === "countdown" ? "⏳" : "⏱";
-					const done = s.timerType === "countdown" && isDone(coreOf(s), serverNow);
+					const icon = resolveTimerKind(s.timerType).icon ?? "⏱";
+					const done = isDone(coreOf(s), serverNow);
 					const time = formatDuration(displayMs(coreOf(s), serverNow));
 					perTimerOffs.push(
 						ctx.actions.register({
