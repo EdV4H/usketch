@@ -11,3 +11,4 @@ export {
 	type Transcriber,
 	type TranscriberHandlers,
 } from "./transcriber.js";
+export { createWhisperTranscriber, type WhisperTranscriberOptions } from "./whisper-transcriber.js";

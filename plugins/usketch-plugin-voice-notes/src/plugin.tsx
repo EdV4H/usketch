@@ -22,7 +22,7 @@ export interface VoiceNotesPluginOptions {
 	createTranscriber?: () => Transcriber;
 }
 
-type Phase = "idle" | "recording" | "summarizing" | "error";
+type Phase = "idle" | "recording" | "transcribing" | "summarizing" | "error";
 interface UiState {
 	phase: Phase;
 	interim: string;
@@ -58,14 +58,19 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 			};
 
 			let segments: string[] = [];
+			// True from start() until a run resolves; guards summarize-on-end so it
+			// survives the phase changing to "transcribing" while audio uploads.
+			let active = false;
 
 			const start = () => {
-				if (ui.phase === "recording" || ui.phase === "summarizing") return;
+				if (ui.phase === "recording" || ui.phase === "transcribing" || ui.phase === "summarizing")
+					return;
 				if (errorTimer) {
 					clearTimeout(errorTimer);
 					errorTimer = null;
 				}
 				segments = [];
+				active = true;
 				setUi({ phase: "recording", interim: "", error: undefined });
 				transcriber.start({
 					onInterim: (t) => setUi({ interim: t }),
@@ -74,6 +79,7 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 						setUi({ interim: "" });
 					},
 					onError: (msg) => {
+						active = false; // don't summarize a broken run
 						ctx.events.emit("voice:status", { status: "error", message: msg });
 						// Surface the reason instead of silently vanishing; the mic-blinking
 						// culprits (network to Google / mic permission) land here.
@@ -83,16 +89,22 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 						}, 6000);
 					},
 					onEnd: () => {
-						// onEnd fires on user stop AND on unexpected end; only summarize
-						// from the user-stop path (phase still "recording"). An error has
-						// already moved us to "error", so we won't summarize a broken run.
-						if (ui.phase === "recording") void finish();
+						// Fires on user stop AND unexpected end. `active` is cleared by
+						// errors, so a broken run won't be summarized.
+						if (active) {
+							active = false;
+							void finish();
+						}
 					},
 				});
 			};
 
 			const stop = () => {
-				if (ui.phase === "recording") transcriber.stop();
+				if (ui.phase !== "recording") return;
+				transcriber.stop();
+				// Whisper uploads after stop (no live text); show a transcribing state.
+				// The `active` flag—not the phase—keeps the summarize-on-end path alive.
+				setUi({ phase: "transcribing", interim: "" });
 			};
 
 			const finish = async () => {
@@ -122,7 +134,8 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 					label: "🎙 音声メモ（録音/停止）",
 					group: "Voice Notes",
 					order: 0,
-					isEnabled: () => transcriber.available && ui.phase !== "summarizing",
+					isEnabled: () =>
+						transcriber.available && ui.phase !== "summarizing" && ui.phase !== "transcribing",
 					isActive: () => ui.phase === "recording",
 					run: () => (ui.phase === "recording" ? stop() : start()),
 				},
@@ -328,7 +341,13 @@ function VoiceIndicator({
 		: recording
 			? { bg: "#fef2f2", border: "#fca5a5", dot: "#ef4444" }
 			: { bg: "#eff6ff", border: "#93c5fd", dot: "#3b82f6" };
-	const label = error ? "音声認識エラー" : recording ? "録音中" : "要約中…";
+	const label = error
+		? "音声認識エラー"
+		: recording
+			? "録音中"
+			: ui.phase === "transcribing"
+				? "文字起こし中…"
+				: "要約中…";
 	const detail = error ? errorHint(ui.error) : ui.interim;
 	return (
 		<div
