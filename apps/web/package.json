@@ -28,7 +28,6 @@
 		"@edv4h/usketch-plugin-ai-copilot": "workspace:*",
 		"@edv4h/usketch-plugin-ai-image": "workspace:*",
 		"@edv4h/usketch-plugin-ai-recognize": "workspace:*",
-		"@edv4h/usketch-plugin-ai-voice": "workspace:*",
 		"@edv4h/usketch-plugin-avatar": "workspace:*",
 		"@edv4h/usketch-plugin-bg-dots": "workspace:*",
 		"@edv4h/usketch-plugin-bg-grid": "workspace:*",

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router";
 import { ShareDialog } from "../share-dialog.js";
 import { CopilotToggle } from "../toolbar/copilot-toggle.js";
 import { StatusBar } from "../toolbar/status-bar.js";
-import { VoiceButton } from "../toolbar/voice-button.js";
 import { Divider, I, IconBtn, ThemeToggle } from "../ui/index.js";
 import { CommunityLink } from "./community-link.js";
 import { PresencePill } from "./presence-pill.js";
@@ -34,7 +33,7 @@ interface Props {
  * 画面中央上部に固定された単一のコントロールバー。
  *
  * かつて四隅に散っていた chrome（ロゴ / テーマ / コマンドパレット / Cloud 限定の
- * プレゼン・Copilot・Voice・presence・共有 / ステータス・Follow / ズーム /
+ * プレゼン・Copilot・presence・共有 / ステータス・Follow / ズーム /
  * コミュニティ）を 1 本のバーに集約したもの。shape/tool 系の操作は Control HUD
  * (`` ` `` で開く) に一本化済み。
  */
@@ -110,7 +109,6 @@ export function TopBar({
 				{showCloud && (
 					<>
 						<CopilotToggle />
-						<VoiceButton />
 						{boardId && (
 							<IconBtn
 								icon={I.present}

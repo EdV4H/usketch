@@ -9,7 +9,6 @@ import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
 import { createAiCopilotPlugin } from "@edv4h/usketch-plugin-ai-copilot";
 import { createAiImagePlugin } from "@edv4h/usketch-plugin-ai-image";
 import { createAiRecognizePlugin } from "@edv4h/usketch-plugin-ai-recognize";
-import { createAiVoicePlugin } from "@edv4h/usketch-plugin-ai-voice";
 import { createAssetStorePlugin } from "@edv4h/usketch-plugin-asset-store";
 import { createDotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
@@ -350,7 +349,6 @@ export function App() {
 			extraPlugins.push(createAiChatPlugin({ boardId, enableCommandPalette: false }));
 			extraPlugins.push(createAiActionsPlugin({ boardId }));
 			extraPlugins.push(createAiCopilotPlugin({ apiUrl, boardId, extraHeaders: aiHeaders }));
-			extraPlugins.push(createAiVoicePlugin({ boardId }));
 			extraPlugins.push(createAiImagePlugin({ boardId }));
 			extraPlugins.push(createAiRecognizePlugin({ boardId }));
 			// Voice Notes: 録音→AI要約→まとめ Frame（生transcript は frame.meta）。
