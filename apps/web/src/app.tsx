@@ -29,6 +29,7 @@ import { createBasicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
 import { createCardPlugin, EXAMPLE_CARD_TYPES } from "@edv4h/usketch-plugin-shape-card";
 import { createConnectorPlugin } from "@edv4h/usketch-plugin-shape-connector";
 import { createCounterPlugin } from "@edv4h/usketch-plugin-shape-counter";
+import { createEmbedShapePlugin } from "@edv4h/usketch-plugin-shape-embed";
 import { createFramePlugin } from "@edv4h/usketch-plugin-shape-frame";
 import { createFreedrawPlugin } from "@edv4h/usketch-plugin-shape-freedraw";
 import { createGroupPlugin } from "@edv4h/usketch-plugin-shape-group";
@@ -408,6 +409,17 @@ export function App() {
 		// Asset store: content-addressed な asset を doc の `assets` マップで共有。
 		// 画像等の重い blob を一度だけ保持し shape は assetId 参照（複製で再利用）。
 		extraPlugins.push(createAssetStorePlugin({ doc: syncHandle.doc }));
+
+		// Embed: 外部Web を iframe 埋め込み（`embed` シェイプ）。YouTube は再生位置を
+		// 全ユーザーで同期（server clock 基準）。URL 貼り付け/ドロップでも生成。
+		extraPlugins.push(
+			createEmbedShapePlugin({
+				// Reuse the board-level clock (shared with Timter) instead of a 2nd poller.
+				serverClock,
+				boardId,
+				userId: userIdRef.current ?? getDevUser()?.id ?? "local",
+			}),
+		);
 
 		// プレゼンテーション: ローカル/Cloud 共通で常にロードし、`?present=1` が付いた時だけ UI を出す。
 		// ルート切替せず URL クエリで切替える設計なので、アプリ再生成は起きない。

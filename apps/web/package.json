@@ -63,6 +63,7 @@
 		"@edv4h/usketch-plugin-shape-basic": "workspace:*",
 		"@edv4h/usketch-plugin-shape-card": "workspace:*",
 		"@edv4h/usketch-plugin-shape-connector": "workspace:*",
+		"@edv4h/usketch-plugin-shape-embed": "workspace:*",
 		"@edv4h/usketch-plugin-shape-frame": "workspace:*",
 		"@edv4h/usketch-plugin-shape-group": "workspace:*",
 		"@edv4h/usketch-plugin-shape-freedraw": "workspace:*",

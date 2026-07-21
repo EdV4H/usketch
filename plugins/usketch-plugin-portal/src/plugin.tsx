@@ -1,6 +1,6 @@
 import type { BoundingBox, PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import type * as Y from "yjs";
-import { PortalLayer } from "./portal-layer.js";
+import { type PortalChrome, PortalLayer } from "./portal-layer.js";
 import { createPortalStore, defaultPortalBox } from "./portal-store.js";
 
 export interface PortalPluginOptions {
@@ -10,6 +10,10 @@ export interface PortalPluginOptions {
 	boardId?: string;
 	/** For the per-user localStorage key. Defaults to "local". */
 	userId?: string;
+	/** Swap the panel chrome (header/frame). Drag/resize/content are retained as
+	 * long as the custom Chrome wires `dragHandleProps`/`resizeHandleProps` and
+	 * renders its `children`. */
+	components?: { Chrome?: PortalChrome };
 }
 
 const LAYER_ID = "portal";
@@ -37,7 +41,14 @@ export function createPortalPlugin(options: PortalPluginOptions): UsketchPlugin 
 				id: LAYER_ID,
 				order: 150,
 				fixed: true,
-				render: () => <PortalLayer portalStore={store} store={ctx.store} shapes={ctx.shapes} />,
+				render: () => (
+					<PortalLayer
+						portalStore={store}
+						store={ctx.store}
+						shapes={ctx.shapes}
+						Chrome={options.components?.Chrome}
+					/>
+				),
 			});
 			ctx.events.emit("layers:changed", {});
 

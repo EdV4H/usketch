@@ -75,6 +75,120 @@ function ShapeContent({
 	);
 }
 
+export interface PortalChromeProps {
+	entry: PortalEntry;
+	shared: boolean;
+	title: string;
+	toggleShared: () => void;
+	remove: () => void;
+	/** Spread onto the drag handle (header). */
+	dragHandleProps: { onPointerDown: (e: React.PointerEvent) => void };
+	/** Spread onto the resize grip. */
+	resizeHandleProps: { onPointerDown: (e: React.PointerEvent) => void };
+	/** Plugin-owned body (the re-rendered shape). Must be rendered. */
+	children: React.ReactNode;
+}
+export type PortalChrome = (props: PortalChromeProps) => React.ReactElement;
+
+const headerBtn: React.CSSProperties = {
+	border: "none",
+	background: "transparent",
+	cursor: "pointer",
+	fontSize: 13,
+	lineHeight: 1,
+	padding: 2,
+};
+
+/** Default portal panel chrome (overridable via the plugin's `components.Chrome`). */
+export function DefaultPortalChrome(p: PortalChromeProps) {
+	return (
+		<div
+			{...stopCanvas}
+			style={{
+				position: "fixed",
+				left: p.entry.x,
+				top: p.entry.y,
+				width: p.entry.w,
+				height: p.entry.h,
+				display: "flex",
+				flexDirection: "column",
+				background: "#fff",
+				border: "1px solid #d1d5db",
+				borderRadius: 8,
+				boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
+				overflow: "hidden",
+				pointerEvents: "auto",
+				fontFamily: "system-ui, sans-serif",
+			}}
+		>
+			<div
+				onPointerDown={p.dragHandleProps.onPointerDown}
+				style={{
+					height: PORTAL_HEADER_H,
+					flex: "0 0 auto",
+					display: "flex",
+					alignItems: "center",
+					gap: 4,
+					padding: "0 6px",
+					background: "#f3f4f6",
+					borderBottom: "1px solid #e5e7eb",
+					cursor: "move",
+					userSelect: "none",
+				}}
+			>
+				<span
+					style={{
+						flex: 1,
+						fontSize: 11,
+						fontWeight: 600,
+						color: "#374151",
+						whiteSpace: "nowrap",
+						overflow: "hidden",
+						textOverflow: "ellipsis",
+					}}
+				>
+					{p.title}
+				</span>
+				<button
+					type="button"
+					title={p.shared ? "全員に共有中（クリックで個人に戻す）" : "個人（クリックで全員に共有）"}
+					onPointerDown={(e) => e.stopPropagation()}
+					onClick={p.toggleShared}
+					style={headerBtn}
+				>
+					{p.shared ? "👥" : "🔒"}
+				</button>
+				<button
+					type="button"
+					title="閉じる"
+					onPointerDown={(e) => e.stopPropagation()}
+					onClick={p.remove}
+					style={{ ...headerBtn, color: "#9ca3af" }}
+				>
+					✕
+				</button>
+			</div>
+			<div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+				{p.children}
+				{/* biome-ignore lint/a11y/noStaticElementInteractions: resize grip */}
+				<div
+					onPointerDown={p.resizeHandleProps.onPointerDown}
+					style={{
+						position: "absolute",
+						right: 0,
+						bottom: 0,
+						width: 14,
+						height: 14,
+						cursor: "nwse-resize",
+						background:
+							"linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0.25) 60%, transparent 60%)",
+					}}
+				/>
+			</div>
+		</div>
+	);
+}
+
 function PortalPanel({
 	entry,
 	shared,
@@ -83,6 +197,7 @@ function PortalPanel({
 	onUpdate,
 	onRemove,
 	onToggleShared,
+	Chrome,
 }: {
 	entry: PortalEntry;
 	shared: boolean;
@@ -91,6 +206,7 @@ function PortalPanel({
 	onUpdate: (id: string, patch: Partial<Pick<PortalEntry, "x" | "y" | "w" | "h">>) => void;
 	onRemove: (id: string) => void;
 	onToggleShared: (id: string, shared: boolean) => void;
+	Chrome: PortalChrome;
 }) {
 	const bodyH = Math.max(0, entry.h - PORTAL_HEADER_H);
 
@@ -116,9 +232,6 @@ function PortalPanel({
 		const ow = entry.w;
 		const oh = entry.h;
 		trackPointer((ev) => {
-			// Guard max ≥ min: near the right/bottom edge the available space can be
-			// smaller than the min, in which case clamp(min, max<min) would return min
-			// and push the panel off-screen.
 			const w = clamp(ow + ev.clientX - sx, 140, Math.max(140, window.innerWidth - entry.x));
 			const h = clamp(oh + ev.clientY - sy, 100, Math.max(100, window.innerHeight - entry.y));
 			onUpdate(entry.id, { w, h });
@@ -126,111 +239,30 @@ function PortalPanel({
 	};
 
 	return (
-		<div
-			{...stopCanvas}
-			style={{
-				position: "fixed",
-				left: entry.x,
-				top: entry.y,
-				width: entry.w,
-				height: entry.h,
-				display: "flex",
-				flexDirection: "column",
-				background: "#fff",
-				border: "1px solid #d1d5db",
-				borderRadius: 8,
-				boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
-				overflow: "hidden",
-				pointerEvents: "auto",
-				fontFamily: "system-ui, sans-serif",
-			}}
+		<Chrome
+			entry={entry}
+			shared={shared}
+			title={(shape as { label?: string }).label || shape.type}
+			toggleShared={() => onToggleShared(entry.id, !shared)}
+			remove={() => onRemove(entry.id)}
+			dragHandleProps={{ onPointerDown: startDrag }}
+			resizeHandleProps={{ onPointerDown: startResize }}
 		>
-			<div
-				onPointerDown={startDrag}
-				style={{
-					height: PORTAL_HEADER_H,
-					flex: "0 0 auto",
-					display: "flex",
-					alignItems: "center",
-					gap: 4,
-					padding: "0 6px",
-					background: "#f3f4f6",
-					borderBottom: "1px solid #e5e7eb",
-					cursor: "move",
-					userSelect: "none",
-				}}
-			>
-				<span
-					style={{
-						flex: 1,
-						fontSize: 11,
-						fontWeight: 600,
-						color: "#374151",
-						whiteSpace: "nowrap",
-						overflow: "hidden",
-						textOverflow: "ellipsis",
-					}}
-				>
-					{(shape as { label?: string }).label || shape.type}
-				</span>
-				<button
-					type="button"
-					title={shared ? "全員に共有中（クリックで個人に戻す）" : "個人（クリックで全員に共有）"}
-					onPointerDown={(e) => e.stopPropagation()}
-					onClick={() => onToggleShared(entry.id, !shared)}
-					style={headerBtn}
-				>
-					{shared ? "👥" : "🔒"}
-				</button>
-				<button
-					type="button"
-					title="閉じる"
-					onPointerDown={(e) => e.stopPropagation()}
-					onClick={() => onRemove(entry.id)}
-					style={{ ...headerBtn, color: "#9ca3af" }}
-				>
-					✕
-				</button>
-			</div>
-
-			<div style={{ flex: 1, minHeight: 0, position: "relative" }}>
-				<ShapeContent def={def} shape={shape} bodyW={entry.w} bodyH={bodyH} />
-				{/* biome-ignore lint/a11y/noStaticElementInteractions: resize grip */}
-				<div
-					onPointerDown={startResize}
-					style={{
-						position: "absolute",
-						right: 0,
-						bottom: 0,
-						width: 14,
-						height: 14,
-						cursor: "nwse-resize",
-						background:
-							"linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0.25) 60%, transparent 60%)",
-					}}
-				/>
-			</div>
-		</div>
+			<ShapeContent def={def} shape={shape} bodyW={entry.w} bodyH={bodyH} />
+		</Chrome>
 	);
 }
-
-const headerBtn: React.CSSProperties = {
-	border: "none",
-	background: "transparent",
-	cursor: "pointer",
-	fontSize: 13,
-	lineHeight: 1,
-	padding: 2,
-};
 
 export function PortalLayer({
 	portalStore,
 	store,
 	shapes,
+	Chrome = DefaultPortalChrome,
 }: {
 	portalStore: PortalStore;
 	store: BoardStore;
 	shapes: ShapeRegistry;
+	Chrome?: PortalChrome;
 }) {
 	const items = useSyncExternalStore(portalStore.subscribe, portalStore.getAll);
 	// Re-render on any store mutation so pinned shapes reflect edits.
@@ -259,6 +291,7 @@ export function PortalLayer({
 						onUpdate={portalStore.update}
 						onRemove={portalStore.remove}
 						onToggleShared={portalStore.setShared}
+						Chrome={Chrome}
 					/>
 				);
 			})}
