@@ -22,10 +22,11 @@ export interface VoiceNotesPluginOptions {
 	createTranscriber?: () => Transcriber;
 }
 
-type Phase = "idle" | "recording" | "summarizing";
+type Phase = "idle" | "recording" | "summarizing" | "error";
 interface UiState {
 	phase: Phase;
 	interim: string;
+	error?: string;
 }
 
 const boxShape = (b: { x: number; y: number; w: number; h: number }): ShapeData =>
@@ -43,27 +44,48 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 
 			let ui: UiState = { phase: "idle", interim: "" };
 			const listeners = new Set<() => void>();
+			let errorTimer: ReturnType<typeof setTimeout> | null = null;
+			// Re-registering the actions is how the Control HUD is nudged to re-evaluate
+			// isActive/isEnabled after an ASYNC phase change (it only re-renders on the
+			// actions registry's notify) — otherwise the toggle button stays lit after
+			// recording ends on its own. Assigned once `mountActions` exists below.
+			let refreshActions = () => {};
 			const setUi = (next: Partial<UiState>) => {
+				const prevPhase = ui.phase;
 				ui = { ...ui, ...next };
 				for (const cb of listeners) cb();
+				if (next.phase !== undefined && next.phase !== prevPhase) refreshActions();
 			};
 
 			let segments: string[] = [];
 
 			const start = () => {
-				if (ui.phase !== "idle") return;
+				if (ui.phase === "recording" || ui.phase === "summarizing") return;
+				if (errorTimer) {
+					clearTimeout(errorTimer);
+					errorTimer = null;
+				}
 				segments = [];
-				setUi({ phase: "recording", interim: "" });
+				setUi({ phase: "recording", interim: "", error: undefined });
 				transcriber.start({
 					onInterim: (t) => setUi({ interim: t }),
 					onFinal: (t) => {
 						if (t) segments.push(t);
 						setUi({ interim: "" });
 					},
-					onError: (msg) => ctx.events.emit("voice:status", { status: "error", message: msg }),
+					onError: (msg) => {
+						ctx.events.emit("voice:status", { status: "error", message: msg });
+						// Surface the reason instead of silently vanishing; the mic-blinking
+						// culprits (network to Google / mic permission) land here.
+						setUi({ phase: "error", interim: "", error: msg });
+						errorTimer = setTimeout(() => {
+							if (ui.phase === "error") setUi({ phase: "idle", error: undefined });
+						}, 6000);
+					},
 					onEnd: () => {
-						// onEnd fires both on user stop and on unexpected end; only the
-						// user-stop path (phase still "recording") should summarize.
+						// onEnd fires on user stop AND on unexpected end; only summarize
+						// from the user-stop path (phase still "recording"). An error has
+						// already moved us to "error", so we won't summarize a broken run.
 						if (ui.phase === "recording") void finish();
 					},
 				});
@@ -94,8 +116,8 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 			};
 
 			// ── Actions (Control HUD → "Voice Notes") ──
-			const offActions = [
-				ctx.actions.register({
+			const actionDefs = [
+				{
 					id: "voice-notes:toggle",
 					label: "🎙 音声メモ（録音/停止）",
 					group: "Voice Notes",
@@ -103,8 +125,8 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 					isEnabled: () => transcriber.available && ui.phase !== "summarizing",
 					isActive: () => ui.phase === "recording",
 					run: () => (ui.phase === "recording" ? stop() : start()),
-				}),
-				ctx.actions.register({
+				},
+				{
 					id: "voice-notes:resummarize",
 					label: "↻ 選択メモを再要約",
 					group: "Voice Notes",
@@ -126,8 +148,16 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 						createNotesFrame(ctx, sel.transcript, summary, { near: sel.frame });
 						setUi({ phase: "idle", interim: "" });
 					},
-				}),
+				},
 			];
+			// Re-registering (same ids) replaces + notifies the HUD → it re-reads
+			// isActive/isEnabled. Used by setUi on async phase changes.
+			const mountActions = () => actionDefs.map((a) => ctx.actions.register(a));
+			let offActions = mountActions();
+			refreshActions = () => {
+				for (const off of offActions) off();
+				offActions = mountActions();
+			};
 
 			// ── Indicator (fixed screen overlay) ──
 			ctx.layers.register({
@@ -145,6 +175,7 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 
 			return () => {
 				transcriber.stop();
+				if (errorTimer) clearTimeout(errorTimer);
 				for (const off of offActions) off();
 				ctx.layers.unregister("voice-notes-indicator");
 				ctx.events.emit("layers:changed", {});
@@ -291,6 +322,14 @@ function VoiceIndicator({
 	useEffect(() => injectStyle(), []);
 	if (ui.phase === "idle") return null;
 	const recording = ui.phase === "recording";
+	const error = ui.phase === "error";
+	const palette = error
+		? { bg: "#fff7ed", border: "#fdba74", dot: "#f97316" }
+		: recording
+			? { bg: "#fef2f2", border: "#fca5a5", dot: "#ef4444" }
+			: { bg: "#eff6ff", border: "#93c5fd", dot: "#3b82f6" };
+	const label = error ? "音声認識エラー" : recording ? "録音中" : "要約中…";
+	const detail = error ? errorHint(ui.error) : ui.interim;
 	return (
 		<div
 			style={{
@@ -304,8 +343,8 @@ function VoiceIndicator({
 				maxWidth: "60vw",
 				padding: "8px 14px",
 				borderRadius: 20,
-				background: recording ? "#fef2f2" : "#eff6ff",
-				border: `1px solid ${recording ? "#fca5a5" : "#93c5fd"}`,
+				background: palette.bg,
+				border: `1px solid ${palette.border}`,
 				boxShadow: "0 2px 10px rgba(0,0,0,0.12)",
 				fontFamily: "system-ui, sans-serif",
 				fontSize: 13,
@@ -318,12 +357,12 @@ function VoiceIndicator({
 					width: 10,
 					height: 10,
 					borderRadius: "50%",
-					background: recording ? "#ef4444" : "#3b82f6",
+					background: palette.dot,
 					animation: recording ? "usketch-voice-pulse 1.2s ease-in-out infinite" : undefined,
 				}}
 			/>
-			<span style={{ fontWeight: 600 }}>{recording ? "録音中" : "要約中…"}</span>
-			{ui.interim && (
+			<span style={{ fontWeight: 600 }}>{label}</span>
+			{detail && (
 				<span
 					style={{
 						color: "#6b7280",
@@ -332,11 +371,26 @@ function VoiceIndicator({
 						textOverflow: "ellipsis",
 					}}
 				>
-					{ui.interim}
+					{detail}
 				</span>
 			)}
 		</div>
 	);
+}
+
+/** Human-friendly hint for a Web Speech API error code. */
+function errorHint(err?: string): string {
+	switch (err) {
+		case "network":
+			return "network — ネットワーク/拡張機能が音声認識をブロックしている可能性";
+		case "not-allowed":
+		case "service-not-allowed":
+			return `${err} — マイクの権限を許可してください`;
+		case "audio-capture":
+			return "audio-capture — マイクが見つかりません";
+		default:
+			return err ?? "";
+	}
 }
 
 let styleInjected = false;
