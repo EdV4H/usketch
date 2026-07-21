@@ -1,3 +1,9 @@
+export {
+	DEFAULT_APPEARANCE,
+	type ResolvedAppearance,
+	resolveAppearance,
+	type VoiceNotesAppearance,
+} from "./appearance.js";
 export { type DiagramLayout, type FrameBox, type LaidOutBox, layoutDiagram } from "./layout.js";
 export { createVoiceNotesPlugin, type VoiceNotesPluginOptions } from "./plugin.js";
 export { createRecorder, type Recorder } from "./recorder.js";

@@ -8,6 +8,7 @@ import {
 	type ShapeData,
 	type ToolContext,
 } from "@edv4h/usketch-shared";
+import { DEFAULT_APPEARANCE, type ResolvedAppearance } from "./appearance.js";
 import { buildSummaryChildren } from "./diagram.js";
 import type { Recorder } from "./recorder.js";
 import { summarizeToDiagram } from "./summarizer.js";
@@ -52,9 +53,11 @@ function stop(e: React.SyntheticEvent) {
 function VoiceFrameView({
 	data,
 	isLocalRecorder,
+	look,
 }: {
 	data: VoiceFrameShapeData;
 	isLocalRecorder: boolean;
+	look: ResolvedAppearance;
 }) {
 	const status = data.status ?? "empty";
 	const busy = status === "transcribing" || status === "summarizing";
@@ -128,8 +131,8 @@ function VoiceFrameView({
 					alignItems: "center",
 					gap: 6,
 					padding: "0 8px",
-					background: "#eef2ff",
-					borderBottom: "1px solid #e0e7ff",
+					background: look.frame.headerBg,
+					borderBottom: "1px solid rgba(0,0,0,0.08)",
 				}}
 			>
 				<span style={{ fontSize: 13 }}>🎙</span>
@@ -138,7 +141,7 @@ function VoiceFrameView({
 						flex: 1,
 						fontSize: 12,
 						fontWeight: 700,
-						color: "#3730a3",
+						color: look.frame.headerColor,
 						whiteSpace: "nowrap",
 						overflow: "hidden",
 						textOverflow: "ellipsis",
@@ -233,18 +236,23 @@ function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData 
 	}
 	return { ...data, x, y, width: Math.max(240, width), height: Math.max(160, height) };
 }
-function createDefault(params: { id: string; x: number; y: number }): VoiceFrameShapeData {
-	return {
+function makeCreateDefault(look: ResolvedAppearance) {
+	return (params: { id: string; x: number; y: number }): VoiceFrameShapeData => ({
 		id: params.id,
 		type: VOICE_FRAME_TYPE,
 		x: params.x,
 		y: params.y,
 		width: 520,
 		height: 380,
-		style: { fill: "#fbfbfe", stroke: "#6366f1", strokeWidth: 2, opacity: 1 },
-		frameTitle: "録音フレーム",
+		style: {
+			fill: look.frame.fill,
+			stroke: look.frame.stroke,
+			strokeWidth: look.frame.strokeWidth,
+			opacity: 1,
+		},
+		frameTitle: look.frame.defaultTitle,
 		status: "empty",
-	};
+	});
 }
 
 function VoiceFrameIcon() {
@@ -270,6 +278,7 @@ export interface VoiceFrameOptions {
 	apiUrl: string;
 	boardId?: string;
 	extraHeaders?: Record<string, string>;
+	look?: ResolvedAppearance;
 }
 
 /** Child shape ids currently parented to a frame. */
@@ -292,6 +301,8 @@ export function registerVoiceFrame(
 	recorder: Recorder,
 	options: VoiceFrameOptions,
 ): () => void {
+	const look = options.look ?? DEFAULT_APPEARANCE;
+	const createDefault = makeCreateDefault(look);
 	const setStatus = (id: string, status: VoiceFrameStatus) =>
 		ctx.store.updateShape(id, { status } as Partial<ShapeData>);
 
@@ -306,8 +317,8 @@ export function registerVoiceFrame(
 		const oldChildren = childIdsOf(ctx, frameId)
 			.map((id) => ctx.store.getShape(id))
 			.filter(Boolean) as ShapeData[];
-		const children = buildSummaryChildren(frameId, box, summary, transcript);
-		const title = summary?.title ?? frame.frameTitle ?? "録音フレーム";
+		const children = buildSummaryChildren(frameId, box, summary, transcript, look);
+		const title = summary?.title ?? frame.frameTitle ?? look.frame.defaultTitle;
 		const prevFrame = { ...frame };
 		ctx.commands.execute({
 			execute: () => {
@@ -376,6 +387,7 @@ export function registerVoiceFrame(
 			<VoiceFrameView
 				data={shape as VoiceFrameShapeData}
 				isLocalRecorder={recorder.busyId === shape.id}
+				look={look}
 			/>
 		),
 		getBounds,

@@ -5,6 +5,11 @@ import {
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { useEffect, useSyncExternalStore } from "react";
+import {
+	type ResolvedAppearance,
+	resolveAppearance,
+	type VoiceNotesAppearance,
+} from "./appearance.js";
 import { buildSummaryChildren } from "./diagram.js";
 import type { FrameBox } from "./layout.js";
 import { createRecorder } from "./recorder.js";
@@ -23,6 +28,8 @@ export interface VoiceNotesPluginOptions {
 	lang?: string;
 	/** Swap the transcriber (e.g. a future server Whisper impl). Default = Web Speech. */
 	createTranscriber?: () => Transcriber;
+	/** Customize the look of pins / frames / summary shapes. Unset fields use defaults. */
+	appearance?: VoiceNotesAppearance;
 }
 
 type Phase = "idle" | "recording" | "transcribing" | "summarizing" | "error";
@@ -44,6 +51,7 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 				() => options.createTranscriber?.() ?? createWebSpeechTranscriber({ lang: options.lang }),
 			);
 			const HUD_ID = "voice-notes:hud";
+			const look = resolveAppearance(options.appearance);
 
 			let ui: UiState = { phase: "idle", interim: "" };
 			const listeners = new Set<() => void>();
@@ -104,7 +112,7 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 				} catch {
 					summary = null;
 				}
-				createNotesFrame(ctx, transcript, summary);
+				createNotesFrame(ctx, transcript, summary, look);
 				setUi({ phase: "idle", interim: "" });
 			};
 
@@ -139,7 +147,7 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 						} catch {
 							summary = null;
 						}
-						createNotesFrame(ctx, sel.transcript, summary, { near: sel.frame });
+						createNotesFrame(ctx, sel.transcript, summary, look, { near: sel.frame });
 						setUi({ phase: "idle", interim: "" });
 					},
 				},
@@ -173,6 +181,7 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 				apiUrl: options.apiUrl,
 				boardId: options.boardId,
 				extraHeaders: options.extraHeaders,
+				look,
 			};
 			const disposeVoiceFrame = registerVoiceFrame(ctx, recorder, shapeOpts);
 			const disposeVoicePin = registerVoicePin(ctx, recorder, shapeOpts);
@@ -200,6 +209,7 @@ function createNotesFrame(
 	ctx: PluginContext,
 	transcript: string,
 	summary: VoiceSummary | null,
+	look: ResolvedAppearance,
 	opts: { near?: ShapeData } = {},
 ): void {
 	const vp = ctx.store.getViewport();
@@ -218,7 +228,12 @@ function createNotesFrame(
 		y: Math.round(base.y),
 		width: FRAME_W,
 		height: FRAME_H,
-		style: { fill: "#f8f8f8", stroke: "#1e1e1e", strokeWidth: 2, opacity: 1 },
+		style: {
+			fill: look.frame.fill,
+			stroke: look.frame.stroke,
+			strokeWidth: look.frame.strokeWidth,
+			opacity: 1,
+		},
 		// The raw transcript is the source of truth; the visible children are the summary.
 		meta: { kind: "voice-notes", transcript, summarizedAt: Date.now() },
 		frameTitle: summary?.title ?? "音声メモ",
@@ -227,7 +242,7 @@ function createNotesFrame(
 	const frameBox: FrameBox = { x: frame.x, y: frame.y, width: FRAME_W, height: FRAME_H };
 	const shapes: ShapeData[] = [
 		frame,
-		...buildSummaryChildren(frameId, frameBox, summary, transcript),
+		...buildSummaryChildren(frameId, frameBox, summary, transcript, look),
 	];
 
 	// One undoable step for the whole notes frame.

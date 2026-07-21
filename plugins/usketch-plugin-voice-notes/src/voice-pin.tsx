@@ -7,6 +7,7 @@ import {
 	type ShapeData,
 	type ToolContext,
 } from "@edv4h/usketch-shared";
+import { DEFAULT_APPEARANCE, type ResolvedAppearance } from "./appearance.js";
 import { buildSummaryChildren, markdownShape, summaryMarkdownSource } from "./diagram.js";
 import type { Recorder } from "./recorder.js";
 import { summarizeToDiagram, type VoiceSummary } from "./summarizer.js";
@@ -14,8 +15,8 @@ import { summarizeToDiagram, type VoiceSummary } from "./summarizer.js";
 export const VOICE_PIN_TYPE = "voice-pin";
 export const VOICE_PIN_TOOL_ID = "voice-pin";
 const ACTION_EVENT = "usketch:voice-pin-action";
-const PIN_W = 40;
-const PIN_H = 52;
+/** Pin bounds aspect: height is 1.3× the configured width (marker + tip). */
+const PIN_ASPECT = 1.3;
 
 type VoicePinStatus = "recording" | "transcribing" | "summarizing" | "error";
 
@@ -32,13 +33,20 @@ const tipOf = (s: ShapeData) => ({ x: s.x + s.width / 2, y: s.y + s.height });
 function VoicePinView({
 	data,
 	isLocalRecorder,
+	look,
 }: {
 	data: VoicePinShapeData;
 	isLocalRecorder: boolean;
+	look: ResolvedAppearance;
 }) {
 	const status = data.status ?? "recording";
 	const recording = status === "recording";
-	const color = status === "error" ? "#f97316" : recording ? "#ef4444" : "#2563eb";
+	const color =
+		status === "error"
+			? look.pin.errorColor
+			: recording
+				? look.pin.recordingColor
+				: look.pin.busyColor;
 	const glyph = status === "error" ? "⚠" : recording ? "🎙" : "⏳";
 	const canStop = recording && isLocalRecorder;
 	const title =
@@ -131,6 +139,7 @@ export interface VoicePinOptions {
 	apiUrl: string;
 	boardId?: string;
 	extraHeaders?: Record<string, string>;
+	look?: ResolvedAppearance;
 }
 
 /**
@@ -147,6 +156,9 @@ export function registerVoicePin(
 	options: VoicePinOptions,
 ): () => void {
 	injectStyle();
+	const look = options.look ?? DEFAULT_APPEARANCE;
+	const PIN_W = look.pin.size;
+	const PIN_H = Math.round(look.pin.size * PIN_ASPECT);
 
 	const setStatus = (id: string, status: VoicePinStatus) =>
 		ctx.store.updateShape(id, { status } as Partial<ShapeData>);
@@ -163,10 +175,11 @@ export function registerVoicePin(
 			width: 520,
 			height: 380,
 		};
-		const diagram = buildSummaryChildren(null, diagramBox, summary, transcript);
+		const diagram = buildSummaryChildren(null, diagramBox, summary, transcript, look);
 		const md = markdownShape(
 			{ x: diagramBox.x + diagramBox.width + 20, y: diagramBox.y, w: 320, h: 380 },
 			summaryMarkdownSource(summary, transcript),
+			look,
 		);
 		const outputs = [...diagram, md];
 		ctx.commands.execute({
@@ -217,6 +230,7 @@ export function registerVoicePin(
 			<VoicePinView
 				data={shape as VoicePinShapeData}
 				isLocalRecorder={recorder.busyId === shape.id}
+				look={look}
 			/>
 		),
 		getBounds,

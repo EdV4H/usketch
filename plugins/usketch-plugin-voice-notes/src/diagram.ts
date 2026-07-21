@@ -1,5 +1,6 @@
 import { getAnchorPoint } from "@edv4h/usketch-connector-anchor";
 import { generateId, type ShapeData } from "@edv4h/usketch-shared";
+import { DEFAULT_APPEARANCE, type ResolvedAppearance } from "./appearance.js";
 import { type FrameBox, layoutDiagram } from "./layout.js";
 import type { VoiceSummary } from "./summarizer.js";
 
@@ -22,9 +23,22 @@ export function buildSummaryChildren(
 	frameBox: FrameBox,
 	summary: VoiceSummary | null,
 	transcript: string,
+	look: ResolvedAppearance = DEFAULT_APPEARANCE,
 ): ShapeData[] {
 	// Only set parentId when nesting in a frame; the pin places free-floating shapes.
 	const parent = parentId ? { parentId } : {};
+	const nodeStyle = {
+		fill: look.node.fill,
+		stroke: look.node.stroke,
+		strokeWidth: look.node.strokeWidth,
+		opacity: 1,
+	};
+	const edgeStyle = {
+		fill: "transparent",
+		stroke: look.connector.stroke,
+		strokeWidth: look.connector.strokeWidth,
+		opacity: 1,
+	};
 	if (summary && summary.points.length > 0) {
 		const shapes: ShapeData[] = [];
 		const { boxes, edges } = layoutDiagram(summary.points, summary.links, frameBox);
@@ -39,9 +53,9 @@ export function buildSummaryChildren(
 					y: b.y,
 					width: b.w,
 					height: b.h,
-					style: { fill: "#ffffff", stroke: "#1e1e1e", strokeWidth: 2, opacity: 1 },
+					style: nodeStyle,
 					text: b.detail ? `${b.label}\n${b.detail}` : b.label,
-					fontSize: 13,
+					fontSize: look.node.fontSize,
 					isEditing: false,
 				}),
 			);
@@ -62,7 +76,7 @@ export function buildSummaryChildren(
 					y: Math.min(sp.y, tp.y),
 					width: Math.abs(tp.x - sp.x),
 					height: Math.abs(tp.y - sp.y),
-					style: { fill: "transparent", stroke: "#1e1e1e", strokeWidth: 2, opacity: 1 },
+					style: edgeStyle,
 					sourceId: ids[e.from],
 					targetId: ids[e.to],
 					sourceAnchor: "auto",
@@ -108,6 +122,7 @@ export function summaryMarkdownSource(summary: VoiceSummary | null, transcript: 
 export function markdownShape(
 	box: { x: number; y: number; w: number; h: number },
 	source: string,
+	look: ResolvedAppearance = DEFAULT_APPEARANCE,
 ): ShapeData {
 	return asShape({
 		id: generateId(),
@@ -116,7 +131,7 @@ export function markdownShape(
 		y: box.y,
 		width: box.w,
 		height: box.h,
-		style: { fill: "#ffffff", stroke: "#e0e0e0", strokeWidth: 1, opacity: 1 },
+		style: { fill: look.markdown.fill, stroke: look.markdown.stroke, strokeWidth: 1, opacity: 1 },
 		meta: { source, isEditing: false },
 	});
 }
