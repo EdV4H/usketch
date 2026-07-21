@@ -244,7 +244,7 @@ function EmbedView({ data }: { data: EmbedShapeData }) {
 					title={resolved.def.title}
 					sandbox={resolved.def.sandbox}
 					allow={resolved.def.allow}
-					referrerPolicy="no-referrer"
+					referrerPolicy="strict-origin-when-cross-origin"
 					style={{
 						width: "100%",
 						height: "100%",

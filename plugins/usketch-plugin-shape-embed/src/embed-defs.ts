@@ -38,10 +38,15 @@ export const YOUTUBE_DEF: EmbedDefinition = {
 	title: "YouTube",
 	hostnames: ["youtube.com", "youtu.be", "youtube-nocookie.com"],
 	aspect: 16 / 9,
-	// enablejsapi=1 is required for the postMessage player control (watch-party sync).
+	// enablejsapi=1 is required for the postMessage player control (watch-party sync);
+	// origin= is required by the JS API for security and to satisfy YouTube's
+	// referrer/identity check (avoids `embedder.identity.missing.referrer`).
 	toEmbedUrl: (u) => {
 		const id = youtubeId(u);
-		return id ? `https://www.youtube-nocookie.com/embed/${id}?enablejsapi=1&rel=0` : undefined;
+		if (!id) return undefined;
+		const origin = typeof window !== "undefined" ? window.location.origin : "";
+		const originParam = origin ? `&origin=${encodeURIComponent(origin)}` : "";
+		return `https://www.youtube-nocookie.com/embed/${id}?enablejsapi=1&rel=0${originParam}`;
 	},
 	sandbox: "allow-scripts allow-same-origin allow-popups allow-presentation",
 	allow: "autoplay; encrypted-media; picture-in-picture; fullscreen",
