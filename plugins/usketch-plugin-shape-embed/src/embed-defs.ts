@@ -95,7 +95,9 @@ export const GOOGLE_MAPS_DEF: EmbedDefinition = {
 	// real query from the `/place/<name>/`, `@lat,lng`, or `q`/`query` param.
 	toEmbedUrl: (u) => {
 		if (!u.pathname.startsWith("/maps")) return undefined;
-		const at = /@(-?\d+\.?\d*),(-?\d+\.?\d*)/.exec(u.pathname);
+		// `@lat,lng,<zoom>z` — capture the zoom so the embed isn't stuck at a wide
+		// default view. `z` param is unset for a bare `q` (Maps auto-fits the place).
+		const at = /@(-?\d+\.?\d*),(-?\d+\.?\d*)(?:,(\d+\.?\d*)z)?/.exec(u.pathname);
 		const place = /\/place\/([^/@]+)/.exec(u.pathname);
 		const q = u.searchParams.get("q") ?? u.searchParams.get("query");
 		const query =
@@ -103,7 +105,8 @@ export const GOOGLE_MAPS_DEF: EmbedDefinition = {
 			(place ? decodeURIComponent(place[1]).replace(/\+/g, " ") : at ? `${at[1]},${at[2]}` : null);
 		if (!query) return undefined;
 		const ll = at ? `&ll=${at[1]},${at[2]}` : "";
-		return `https://maps.google.com/maps?output=embed&q=${encodeURIComponent(query)}${ll}`;
+		const zoom = at?.[3] ? `&z=${Math.round(Number(at[3]))}` : "";
+		return `https://maps.google.com/maps?output=embed&q=${encodeURIComponent(query)}${ll}${zoom}`;
 	},
 	sandbox: "allow-scripts allow-same-origin allow-popups",
 	allow: "fullscreen",
