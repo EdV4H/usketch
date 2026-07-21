@@ -105,9 +105,10 @@ export function getTimerKind(type: TimerType): TimerKind {
 }
 
 /**
- * A safe, inert kind used for unregistered types: shows the stored `accumMs`
- * frozen, never "done", and treats start/pause as no-ops. Keeps a malformed or
- * unknown `timerType` from throwing mid-render.
+ * A safe, inert kind used for unregistered types: the displayed time stays frozen
+ * at the stored `accumMs` and it is never "done" (start/pause still flip the
+ * `running` flag but leave `anchorAt`/`accumMs` untouched, so the reading doesn't
+ * move). Keeps a malformed or unknown `timerType` from throwing mid-render.
  */
 const FALLBACK_KIND: TimerKind = {
 	icon: "⏱",
