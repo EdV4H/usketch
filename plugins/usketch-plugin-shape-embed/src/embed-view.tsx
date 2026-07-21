@@ -43,6 +43,14 @@ export function EmbedView({ data, rt }: { data: EmbedShapeData; rt: EmbedRuntime
 	const playbackRef = useRef(data.playback);
 	playbackRef.current = data.playback;
 	const [urlDraft, setUrlDraft] = useState("");
+	// Remember the last non-empty URL so that clicking 🔗 (which clears data.url to
+	// reopen the editor) pre-fills the input with the existing URL instead of a
+	// blank field — otherwise an existing embed's URL would have to be retyped.
+	const lastUrlRef = useRef(data.url);
+	useEffect(() => {
+		if (data.url) lastUrlRef.current = data.url;
+		else if (lastUrlRef.current) setUrlDraft(lastUrlRef.current);
+	}, [data.url]);
 
 	const syncable = resolved?.def.syncable === true;
 
