@@ -20,10 +20,14 @@ export interface EmbedPlayer {
 // YT.PlayerState
 const PLAYING = 1;
 const PAUSED = 2;
+// A currentTime report this far off the projected position = a seek (not normal
+// playback progression / a paused hold).
+const SEEK_JUMP_S = 1.0;
 
 export function createYouTubePlayer(iframe: HTMLIFrameElement): EmbedPlayer {
 	let playing = false;
 	let time = 0;
+	let timeAt = 0; // wall-clock ms when `time` was last observed (0 = never)
 	let reported = false;
 	let userCb: (() => void) | null = null;
 	// Suppress the user-action callback for state changes we caused ourselves.
@@ -68,14 +72,29 @@ export function createYouTubePlayer(iframe: HTMLIFrameElement): EmbedPlayer {
 		}
 		const msg = data as { event?: string; info?: unknown };
 		const info = (msg.info ?? {}) as { playerState?: number; currentTime?: number };
-		if (typeof info.currentTime === "number") time = info.currentTime;
+		const t = now();
+		if (typeof info.currentTime === "number") {
+			// Seek detection: a currentTime that jumped away from where normal
+			// playback (or a paused hold) would have taken us = a user seek. This
+			// catches seeks that don't flip playerState (e.g. scrubbing while playing).
+			// Skipped for our own programmatic seeks (suppress window) and the 1st report.
+			if (timeAt !== 0 && t > suppressUntil) {
+				const projected = playing ? time + (t - timeAt) / 1000 : time;
+				if (Math.abs(info.currentTime - projected) > SEEK_JUMP_S) userCb?.();
+			}
+			time = info.currentTime;
+			timeAt = t;
+		}
 		if (typeof info.playerState === "number") {
-			const wasPlaying = playing;
-			playing = info.playerState === PLAYING;
 			reported = true;
-			// A state flip we didn't initiate = a user action → notify sync layer.
+			// Only stable PLAYING/PAUSED update `playing` and emit — transient states
+			// (BUFFERING/CUED/ENDED) would flip `playing` and look like a spurious
+			// user play/pause when it settles back.
 			if (info.playerState === PLAYING || info.playerState === PAUSED) {
-				if (wasPlaying !== playing && now() > suppressUntil) userCb?.();
+				const next = info.playerState === PLAYING;
+				const wasPlaying = playing;
+				playing = next;
+				if (wasPlaying !== next && t > suppressUntil) userCb?.();
 			}
 		}
 	};
