@@ -11,17 +11,15 @@ export {
 	YOUTUBE_DEF,
 } from "./embed-defs.js";
 export {
+	DefaultEmbedChrome,
+	type EmbedChrome,
+	type EmbedChromeProps,
+} from "./embed-view.js";
+export {
 	DRIFT_THRESHOLD_S,
 	needsCorrection,
 	playbackFrom,
 	projectTime,
 } from "./playback.js";
-export {
-	createEmbedShapePlugin,
-	DefaultEmbedChrome,
-	EMBED_TYPE,
-	type EmbedChrome,
-	type EmbedChromeProps,
-	type EmbedPluginOptions,
-} from "./plugin.js";
+export { createEmbedShapePlugin, EMBED_TYPE, type EmbedPluginOptions } from "./plugin.js";
 export type { EmbedShapeData, EmbedSyncMode, PlaybackState } from "./types.js";
