@@ -9,8 +9,8 @@ import {
 	type ToolContext,
 } from "@edv4h/usketch-shared";
 import { buildSummaryChildren } from "./diagram.js";
+import type { Recorder } from "./recorder.js";
 import { summarizeToDiagram } from "./summarizer.js";
-import { createWebSpeechTranscriber, type Transcriber } from "./transcriber.js";
 
 export const VOICE_FRAME_TYPE = "voice-frame";
 const ACTION_EVENT = "usketch:voice-frame-action";
@@ -26,11 +26,6 @@ export interface VoiceFrameShapeData extends ShapeData {
 }
 
 type Action = "record" | "stop" | "resummarize";
-
-// The local user who owns the active MediaRecorder. Only they can stop/finish a
-// recording; other clients just see the synced `status`. Module-level so the
-// pure render fn can read it (paired with the synced status that drives re-render).
-let localRecordingId: string | null = null;
 
 function emit(id: string, action: Action) {
 	window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { id, action } }));
@@ -54,9 +49,14 @@ function stop(e: React.SyntheticEvent) {
 	e.stopPropagation();
 }
 
-function VoiceFrameView({ data }: { data: VoiceFrameShapeData }) {
+function VoiceFrameView({
+	data,
+	isLocalRecorder,
+}: {
+	data: VoiceFrameShapeData;
+	isLocalRecorder: boolean;
+}) {
 	const status = data.status ?? "empty";
-	const isLocalRecorder = localRecordingId === data.id;
 	const busy = status === "transcribing" || status === "summarizing";
 
 	let body: React.ReactNode = null;
@@ -91,7 +91,6 @@ function VoiceFrameView({ data }: { data: VoiceFrameShapeData }) {
 			</button>
 		);
 	} else if (status !== "done") {
-		// empty
 		body = (
 			<button
 				type="button"
@@ -173,14 +172,7 @@ function VoiceFrameView({ data }: { data: VoiceFrameShapeData }) {
 			{/* Body: controls when not done. When done, the summary children (separate
 			    shapes parented to this frame) render inside these bounds. */}
 			{body && (
-				<div
-					style={{
-						flex: 1,
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
-					}}
-				>
+				<div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
 					{body}
 				</div>
 			)}
@@ -278,8 +270,6 @@ export interface VoiceFrameOptions {
 	apiUrl: string;
 	boardId?: string;
 	extraHeaders?: Record<string, string>;
-	lang?: string;
-	createTranscriber?: () => Transcriber;
 }
 
 /** Child shape ids currently parented to a frame. */
@@ -293,17 +283,15 @@ function childIdsOf(ctx: PluginContext, frameId: string): string[] {
 
 /**
  * Register the interactive "recording frame" shape: place it, hit ▶ to record,
- * ⏹ to stop — then it transcribes (Whisper), summarizes, and fills ITSELF with
- * the summary diagram (children parented to the frame). The raw transcript is
- * stored on the frame's `meta`. One mic at a time (guarded per client).
+ * ⏹ to stop — then it transcribes, summarizes, and fills ITSELF with the summary
+ * diagram (children parented to the frame). Raw transcript lives on the frame's
+ * `meta`. Recording goes through the shared {@link Recorder} (one mic globally).
  */
-export function registerVoiceFrame(ctx: PluginContext, options: VoiceFrameOptions): () => void {
-	const transcriber =
-		options.createTranscriber?.() ?? createWebSpeechTranscriber({ lang: options.lang });
-
-	let segments: string[] = [];
-	let active = false;
-
+export function registerVoiceFrame(
+	ctx: PluginContext,
+	recorder: Recorder,
+	options: VoiceFrameOptions,
+): () => void {
 	const setStatus = (id: string, status: VoiceFrameStatus) =>
 		ctx.store.updateShape(id, { status } as Partial<ShapeData>);
 
@@ -353,49 +341,27 @@ export function registerVoiceFrame(ctx: PluginContext, options: VoiceFrameOption
 		applySummary(frameId, summary, transcript);
 	};
 
-	const finish = async (frameId: string) => {
-		const transcript = segments.join("\n").trim();
-		localRecordingId = null;
-		if (!transcript) {
-			setStatus(frameId, "empty");
-			return;
-		}
-		setStatus(frameId, "transcribing");
-		await runSummarize(frameId, transcript);
-	};
-
 	const onAction = (e: Event) => {
 		const { id, action } = (e as CustomEvent<{ id: string; action: Action }>).detail;
 		const shape = ctx.store.getShape(id) as VoiceFrameShapeData | undefined;
 		if (!shape || shape.type !== VOICE_FRAME_TYPE) return;
 
 		if (action === "record") {
-			if (localRecordingId) return; // one mic at a time
-			segments = [];
-			active = true;
-			localRecordingId = id;
-			setStatus(id, "recording");
-			transcriber.start({
-				onInterim: () => {},
-				onFinal: (t) => {
-					if (t) segments.push(t);
-				},
-				onError: (msg) => {
-					active = false;
-					localRecordingId = null;
-					ctx.events.emit("voice:status", { status: "error", message: msg });
-					setStatus(id, "error");
-				},
-				onEnd: () => {
-					if (active) {
-						active = false;
-						void finish(id);
+			const ok = recorder.start(id, {
+				onError: () => setStatus(id, "error"),
+				onDone: (transcript) => {
+					if (!transcript) {
+						setStatus(id, "empty");
+						return;
 					}
+					setStatus(id, "transcribing");
+					void runSummarize(id, transcript);
 				},
 			});
+			if (ok) setStatus(id, "recording");
 		} else if (action === "stop") {
-			if (localRecordingId === id) {
-				transcriber.stop();
+			if (recorder.busyId === id) {
+				recorder.stop(id);
 				setStatus(id, "transcribing");
 			}
 		} else if (action === "resummarize") {
@@ -406,7 +372,12 @@ export function registerVoiceFrame(ctx: PluginContext, options: VoiceFrameOption
 	window.addEventListener(ACTION_EVENT, onAction);
 
 	ctx.shapes.register(VOICE_FRAME_TYPE, {
-		render: (shape) => <VoiceFrameView data={shape as VoiceFrameShapeData} />,
+		render: (shape) => (
+			<VoiceFrameView
+				data={shape as VoiceFrameShapeData}
+				isLocalRecorder={recorder.busyId === shape.id}
+			/>
+		),
 		getBounds,
 		hitTest,
 		resize,
@@ -467,9 +438,5 @@ export function registerVoiceFrame(ctx: PluginContext, options: VoiceFrameOption
 
 	return () => {
 		window.removeEventListener(ACTION_EVENT, onAction);
-		if (localRecordingId) {
-			transcriber.stop();
-			localRecordingId = null;
-		}
 	};
 }

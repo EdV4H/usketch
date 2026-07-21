@@ -6,6 +6,10 @@ import type { VoiceSummary } from "./summarizer.js";
 const boxShape = (b: { x: number; y: number; w: number; h: number }): ShapeData =>
 	({ x: b.x, y: b.y, width: b.w, height: b.h, id: "", type: "rectangle", style: {} }) as ShapeData;
 
+// Shapes carry plugin-specific fields (text/sourceId/meta/…) beyond the base
+// ShapeData surface; route literals through Record to skip excess-property checks.
+const asShape = (o: Record<string, unknown>): ShapeData => o as unknown as ShapeData;
+
 /**
  * Build the child shapes that visualize a summary inside a frame: labeled
  * rounded-rect nodes for each point + id-anchored connectors for links, all
@@ -14,29 +18,33 @@ const boxShape = (b: { x: number; y: number; w: number; h: number }): ShapeData 
  * frame and the interactive voice-frame shape.
  */
 export function buildSummaryChildren(
-	frameId: string,
+	parentId: string | null,
 	frameBox: FrameBox,
 	summary: VoiceSummary | null,
 	transcript: string,
 ): ShapeData[] {
+	// Only set parentId when nesting in a frame; the pin places free-floating shapes.
+	const parent = parentId ? { parentId } : {};
 	if (summary && summary.points.length > 0) {
 		const shapes: ShapeData[] = [];
 		const { boxes, edges } = layoutDiagram(summary.points, summary.links, frameBox);
 		const ids = boxes.map(() => generateId());
 		boxes.forEach((b, i) => {
-			shapes.push({
-				id: ids[i],
-				type: "rounded-rect",
-				parentId: frameId,
-				x: b.x,
-				y: b.y,
-				width: b.w,
-				height: b.h,
-				style: { fill: "#ffffff", stroke: "#1e1e1e", strokeWidth: 2, opacity: 1 },
-				text: b.detail ? `${b.label}\n${b.detail}` : b.label,
-				fontSize: 13,
-				isEditing: false,
-			} as ShapeData);
+			shapes.push(
+				asShape({
+					id: ids[i],
+					type: "rounded-rect",
+					...parent,
+					x: b.x,
+					y: b.y,
+					width: b.w,
+					height: b.h,
+					style: { fill: "#ffffff", stroke: "#1e1e1e", strokeWidth: 2, opacity: 1 },
+					text: b.detail ? `${b.label}\n${b.detail}` : b.label,
+					fontSize: 13,
+					isEditing: false,
+				}),
+			);
 		});
 		for (const e of edges) {
 			const a = boxes[e.from];
@@ -45,40 +53,70 @@ export function buildSummaryChildren(
 			const bC = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
 			const sp = getAnchorPoint(boxShape(a), "auto", bC);
 			const tp = getAnchorPoint(boxShape(b), "auto", aC);
-			shapes.push({
-				id: generateId(),
-				type: "connector",
-				parentId: frameId,
-				x: Math.min(sp.x, tp.x),
-				y: Math.min(sp.y, tp.y),
-				width: Math.abs(tp.x - sp.x),
-				height: Math.abs(tp.y - sp.y),
-				style: { fill: "transparent", stroke: "#1e1e1e", strokeWidth: 2, opacity: 1 },
-				sourceId: ids[e.from],
-				targetId: ids[e.to],
-				sourceAnchor: "auto",
-				targetAnchor: "auto",
-				sourcePoint: sp,
-				targetPoint: tp,
-				arrowHead: "forward",
-				pathType: "straight",
-			} as ShapeData);
+			shapes.push(
+				asShape({
+					id: generateId(),
+					type: "connector",
+					...parent,
+					x: Math.min(sp.x, tp.x),
+					y: Math.min(sp.y, tp.y),
+					width: Math.abs(tp.x - sp.x),
+					height: Math.abs(tp.y - sp.y),
+					style: { fill: "transparent", stroke: "#1e1e1e", strokeWidth: 2, opacity: 1 },
+					sourceId: ids[e.from],
+					targetId: ids[e.to],
+					sourceAnchor: "auto",
+					targetAnchor: "auto",
+					sourcePoint: sp,
+					targetPoint: tp,
+					arrowHead: "forward",
+					pathType: "straight",
+				}),
+			);
 		}
 		return shapes;
 	}
 
-	// Fallback: no diagram — drop the transcript as a markdown note inside the frame.
+	// Fallback: no diagram — drop the transcript as a markdown note.
 	return [
-		{
+		asShape({
 			id: generateId(),
 			type: "markdown",
-			parentId: frameId,
+			...parent,
 			x: frameBox.x + 20,
 			y: frameBox.y + 48,
 			width: frameBox.width - 40,
 			height: frameBox.height - 68,
 			style: { fill: "transparent", strokeWidth: 0, stroke: "#1e1e1e", opacity: 1 },
 			meta: { source: `### 音声メモ\n\n${transcript}`, isEditing: false },
-		} as ShapeData,
+		}),
 	];
+}
+
+/** Markdown source summarizing a transcript (title + bullet points), or the raw transcript. */
+export function summaryMarkdownSource(summary: VoiceSummary | null, transcript: string): string {
+	if (summary && summary.points.length > 0) {
+		const lines = [`# ${summary.title}`, ""];
+		for (const p of summary.points)
+			lines.push(`- **${p.label}**${p.detail ? `: ${p.detail}` : ""}`);
+		return lines.join("\n");
+	}
+	return `### 音声メモ\n\n${transcript}`;
+}
+
+/** A standalone markdown shape at a location (for the pin's transcript summary). */
+export function markdownShape(
+	box: { x: number; y: number; w: number; h: number },
+	source: string,
+): ShapeData {
+	return asShape({
+		id: generateId(),
+		type: "markdown",
+		x: box.x,
+		y: box.y,
+		width: box.w,
+		height: box.h,
+		style: { fill: "#ffffff", stroke: "#e0e0e0", strokeWidth: 1, opacity: 1 },
+		meta: { source, isEditing: false },
+	});
 }

@@ -7,9 +7,11 @@ import {
 import { useEffect, useSyncExternalStore } from "react";
 import { buildSummaryChildren } from "./diagram.js";
 import type { FrameBox } from "./layout.js";
+import { createRecorder } from "./recorder.js";
 import { summarizeToDiagram, type VoiceSummary } from "./summarizer.js";
 import { createWebSpeechTranscriber, type Transcriber } from "./transcriber.js";
 import { registerVoiceFrame } from "./voice-frame.js";
+import { registerVoicePin } from "./voice-pin.js";
 
 export interface VoiceNotesPluginOptions {
 	/** API origin for the AI proxy (e.g. http://localhost:8787). */
@@ -36,9 +38,12 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 		name: "Voice Notes",
 
 		setup(ctx: PluginContext) {
-			const transcriber = (
-				options.createTranscriber ?? (() => createWebSpeechTranscriber({ lang: options.lang }))
-			)();
+			// One shared microphone owner for all entry points (HUD toggle, voice-frame,
+			// voice-pin) so only one recording runs at a time.
+			const recorder = createRecorder(
+				() => options.createTranscriber?.() ?? createWebSpeechTranscriber({ lang: options.lang }),
+			);
+			const HUD_ID = "voice-notes:hud";
 
 			let ui: UiState = { phase: "idle", interim: "" };
 			const listeners = new Set<() => void>();
@@ -55,29 +60,15 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 				if (next.phase !== undefined && next.phase !== prevPhase) refreshActions();
 			};
 
-			let segments: string[] = [];
-			// True from start() until a run resolves; guards summarize-on-end so it
-			// survives the phase changing to "transcribing" while audio uploads.
-			let active = false;
-
 			const start = () => {
-				if (ui.phase === "recording" || ui.phase === "transcribing" || ui.phase === "summarizing")
-					return;
+				if (ui.phase !== "idle" && ui.phase !== "error") return;
 				if (errorTimer) {
 					clearTimeout(errorTimer);
 					errorTimer = null;
 				}
-				segments = [];
-				active = true;
-				setUi({ phase: "recording", interim: "", error: undefined });
-				transcriber.start({
+				const ok = recorder.start(HUD_ID, {
 					onInterim: (t) => setUi({ interim: t }),
-					onFinal: (t) => {
-						if (t) segments.push(t);
-						setUi({ interim: "" });
-					},
 					onError: (msg) => {
-						active = false; // don't summarize a broken run
 						ctx.events.emit("voice:status", { status: "error", message: msg });
 						// Surface the reason instead of silently vanishing; the mic-blinking
 						// culprits (network to Google / mic permission) land here.
@@ -86,27 +77,19 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 							if (ui.phase === "error") setUi({ phase: "idle", error: undefined });
 						}, 6000);
 					},
-					onEnd: () => {
-						// Fires on user stop AND unexpected end. `active` is cleared by
-						// errors, so a broken run won't be summarized.
-						if (active) {
-							active = false;
-							void finish();
-						}
-					},
+					onDone: (transcript) => void finish(transcript),
 				});
+				if (ok) setUi({ phase: "recording", interim: "", error: undefined });
 			};
 
 			const stop = () => {
 				if (ui.phase !== "recording") return;
-				transcriber.stop();
+				recorder.stop(HUD_ID);
 				// Whisper uploads after stop (no live text); show a transcribing state.
-				// The `active` flag—not the phase—keeps the summarize-on-end path alive.
 				setUi({ phase: "transcribing", interim: "" });
 			};
 
-			const finish = async () => {
-				const transcript = segments.join("\n").trim();
+			const finish = async (transcript: string) => {
 				if (!transcript) {
 					setUi({ phase: "idle", interim: "" });
 					return;
@@ -133,7 +116,7 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 					group: "Voice Notes",
 					order: 0,
 					isEnabled: () =>
-						transcriber.available && ui.phase !== "summarizing" && ui.phase !== "transcribing",
+						recorder.available && ui.phase !== "summarizing" && ui.phase !== "transcribing",
 					isActive: () => ui.phase === "recording",
 					run: () => (ui.phase === "recording" ? stop() : start()),
 				},
@@ -184,23 +167,25 @@ export function createVoiceNotesPlugin(options: VoiceNotesPluginOptions): Usketc
 			});
 			ctx.events.emit("layers:changed", {});
 
-			// ── Interactive "recording frame" shape (record/stop on the shape itself) ──
-			const disposeVoiceFrame = registerVoiceFrame(ctx, {
+			// ── Interactive "recording frame" shape + "recording pin" tool ──
+			// Both share the single Recorder above (one mic across all entry points).
+			const shapeOpts = {
 				apiUrl: options.apiUrl,
 				boardId: options.boardId,
 				extraHeaders: options.extraHeaders,
-				lang: options.lang,
-				createTranscriber: options.createTranscriber,
-			});
+			};
+			const disposeVoiceFrame = registerVoiceFrame(ctx, recorder, shapeOpts);
+			const disposeVoicePin = registerVoicePin(ctx, recorder, shapeOpts);
 
 			return () => {
-				transcriber.stop();
+				recorder.teardown();
 				if (errorTimer) clearTimeout(errorTimer);
 				for (const off of offActions) off();
 				ctx.layers.unregister("voice-notes-indicator");
 				ctx.events.emit("layers:changed", {});
 				listeners.clear();
 				disposeVoiceFrame();
+				disposeVoicePin();
 			};
 		},
 	};
