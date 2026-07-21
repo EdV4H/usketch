@@ -1,3 +1,4 @@
+import { type AssetStore, getAssetStore } from "@edv4h/usketch-plugin-asset-store";
 import {
 	type BoundingBox,
 	DEFAULT_STYLE,
@@ -8,12 +9,25 @@ import {
 	type UsketchPlugin,
 	withRotation,
 } from "@edv4h/usketch-shared";
+import { useCallback, useSyncExternalStore } from "react";
 import { createImageFileHandler } from "./external-content-handler.js";
 import type { ImageShapeData } from "./types.js";
 
-function render(shape: ShapeData) {
-	const data = shape as ImageShapeData;
-	const src = data.src || undefined;
+// Lazily resolves the shared asset store at render/serialize time (these run
+// without a PluginContext). Set in setup, so it's order-independent.
+let getAssets: (() => AssetStore | undefined) | null = null;
+
+/** The usable src for an image shape: resolve its assetId, else the inline src. */
+function resolveSrc(data: ImageShapeData): string | undefined {
+	if (data.assetId) return getAssets?.()?.resolve(data.assetId);
+	return data.src || undefined;
+}
+
+/** Image body — subscribes to the asset store so a late-arriving (remote) asset re-renders. */
+function ImageView({ data }: { data: ImageShapeData }) {
+	const assets = getAssets?.();
+	const subscribe = useCallback((cb: () => void) => assets?.subscribe(cb) ?? (() => {}), [assets]);
+	const src = useSyncExternalStore(subscribe, () => resolveSrc(data));
 	return (
 		<div
 			style={{
@@ -47,6 +61,10 @@ function render(shape: ShapeData) {
 			)}
 		</div>
 	);
+}
+
+function render(shape: ShapeData) {
+	return <ImageView data={shape as ImageShapeData} />;
 }
 
 function getBounds(data: ShapeData): BoundingBox {
@@ -117,17 +135,17 @@ function createDefault(params: { id: string; x: number; y: number }): ImageShape
 }
 
 function serializeForAi(shape: ShapeData): Record<string, unknown> {
-	const data = shape as ImageShapeData;
-	if (!data.src) return {};
+	const src = resolveSrc(shape as ImageShapeData);
+	if (!src) return {};
 	// Image `src` can be a base64 Data URL that easily blows past LLM token
 	// budgets (and may leak embedded image bytes into prompts). Return a small
 	// summary instead — the shape's `type === "image"` already tells the AI
 	// this is an image; consumers who actually need pixel data should use
 	// `serializeForRecognition`.
-	const isDataUrl = data.src.startsWith("data:");
+	const isDataUrl = src.startsWith("data:");
 	return isDataUrl
-		? { srcKind: "data", srcLength: data.src.length }
-		: { srcKind: "url", srcOrigin: safeOrigin(data.src) };
+		? { srcKind: "data", srcLength: src.length }
+		: { srcKind: "url", srcOrigin: safeOrigin(src) };
 }
 
 function safeOrigin(url: string): string {
@@ -139,14 +157,14 @@ function safeOrigin(url: string): string {
 }
 
 function serializeForRecognition(shape: ShapeData): unknown {
-	const data = shape as ImageShapeData;
-	if (!data.src) return null;
-	return { kind: "image", src: data.src };
+	const src = resolveSrc(shape as ImageShapeData);
+	if (!src) return null;
+	return { kind: "image", src };
 }
 
 function debugFields(shape: ShapeData): Record<string, unknown> {
 	const data = shape as ImageShapeData;
-	return { src: data.src ?? "" };
+	return { assetId: data.assetId ?? "", src: resolveSrc(data) ?? "" };
 }
 
 export function createImageShapePlugin(): UsketchPlugin {
@@ -168,13 +186,20 @@ export function createImageShapePlugin(): UsketchPlugin {
 				debugFields,
 			});
 
+			// Resolve the asset store lazily at render/serialize time (order-independent).
+			getAssets = () => getAssetStore(ctx);
+
 			// Self-register the default "image file → image shape" external-content
 			// handler at order 0. Apps and third-party plugins can override by
-			// registering a higher-`order` `kind: "file"` handler.
-			const unregisterHandler = ctx.externalContent.register(createImageFileHandler());
+			// registering a higher-`order` `kind: "file"` handler. The handler stores
+			// imported images in the asset store (content-addressed) when available.
+			const unregisterHandler = ctx.externalContent.register(
+				createImageFileHandler({}, () => getAssetStore(ctx)),
+			);
 
 			return () => {
 				unregisterHandler();
+				getAssets = null;
 			};
 		},
 	};

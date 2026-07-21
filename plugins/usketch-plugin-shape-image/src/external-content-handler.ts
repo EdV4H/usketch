@@ -1,3 +1,4 @@
+import type { AssetStore } from "@edv4h/usketch-plugin-asset-store";
 import type {
 	ExternalContentHandler,
 	ExternalContentHandlerCtx,
@@ -5,6 +6,9 @@ import type {
 } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
 import { fileToBase64, getImageDimensions, resizeImage, validateImage } from "./image-utils.js";
+
+/** Resolve the shared asset store lazily (undefined if the plugin isn't wired). */
+export type GetAssetStore = () => AssetStore | undefined;
 
 export interface ImageFileHandlerOptions {
 	/**
@@ -35,6 +39,7 @@ export interface ImageFileHandlerOptions {
  */
 export function createImageFileHandler(
 	options: ImageFileHandlerOptions = {},
+	getAssets?: GetAssetStore,
 ): ExternalContentHandler<"file"> {
 	const {
 		maxSizeMB = 4,
@@ -59,6 +64,7 @@ export function createImageFileHandler(
 					maxSizeMB,
 					maxDimension,
 					maxRenderedSize,
+					assets: getAssets?.(),
 				});
 				offsetX += maxRenderedSize + gap;
 			}
@@ -87,6 +93,7 @@ interface PlaceOptions {
 	maxSizeMB: number;
 	maxDimension: number;
 	maxRenderedSize: number;
+	assets?: AssetStore;
 }
 
 async function placeImageShape(
@@ -132,6 +139,23 @@ async function placeImageShape(
 	const w = Math.round(dimensions.width * scale);
 	const h = Math.round(dimensions.height * scale);
 
+	// Prefer the content-addressed asset store: the shape holds only an assetId,
+	// so duplicating it reuses the same asset (no base64 duplication, synced once).
+	// Falls back to an inline data URL when no asset store is wired.
+	let assetId: string | undefined;
+	if (opts.assets) {
+		try {
+			assetId = await opts.assets.upload("image", dataUrl, {
+				w: dimensions.width,
+				h: dimensions.height,
+				mimeType: file.type,
+				size: file.size,
+			});
+		} catch {
+			assetId = undefined; // fall back to inline src below
+		}
+	}
+
 	const id = generateId();
 	const shape = {
 		id,
@@ -146,7 +170,8 @@ async function placeImageShape(
 			strokeWidth: 1,
 			opacity: 1,
 		},
-		src: dataUrl,
+		src: assetId ? "" : dataUrl,
+		...(assetId ? { assetId } : {}),
 	};
 
 	ctx.commands.execute({
