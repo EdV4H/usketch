@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
 	displayMs,
 	formatDuration,
+	getTimerKind,
 	initialCore,
 	isDone,
 	pause,
+	registerTimerKind,
 	reset,
 	start,
+	TIMER_KINDS,
+	timerTypes,
 } from "../timer-model.js";
 
 const T0 = 1_000_000; // arbitrary server epoch base
@@ -83,5 +87,30 @@ describe("formatDuration", () => {
 		expect(formatDuration(65_000)).toBe("1:05");
 		expect(formatDuration(3_661_000)).toBe("1:01:01");
 		expect(formatDuration(-5000)).toBe("0:00");
+	});
+});
+
+describe("registerTimerKind (host extension)", () => {
+	it("registers a custom kind that flows through the model transitions", () => {
+		// A 25-minute pomodoro that behaves like a countdown but always starts at 25m.
+		registerTimerKind("pomodoro", {
+			...TIMER_KINDS.countdown,
+			icon: "🍅",
+			initial: () => ({ anchorAt: null, accumMs: 25 * 60_000, durationMs: 25 * 60_000 }),
+		});
+
+		const e = initialCore("pomodoro", 5 * 60_000); // requested 5m is ignored by the kind
+		expect(e.type).toBe("pomodoro");
+		expect(displayMs(e, T0)).toBe(25 * 60_000);
+
+		const running = start(e, T0);
+		expect(displayMs(running, T0 + 60_000)).toBe(24 * 60_000);
+		expect(isDone(running, T0 + 26 * 60_000)).toBe(true);
+	});
+
+	it("exposes the kind via getTimerKind / timerTypes and throws for unknown types", () => {
+		expect(getTimerKind("pomodoro").icon).toBe("🍅");
+		expect(timerTypes()).toEqual(expect.arrayContaining(["countdown", "stopwatch", "pomodoro"]));
+		expect(() => getTimerKind("nope")).toThrow(/unknown timer type/);
 	});
 });
