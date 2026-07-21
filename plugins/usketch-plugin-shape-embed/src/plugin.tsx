@@ -27,7 +27,8 @@ import type { EmbedShapeData } from "./types.js";
 export const EMBED_TYPE = "embed";
 const ACTION_EVENT = "usketch:embed-action";
 
-/** Runtime deps resolved lazily at render time (render fns have no PluginContext). */
+/** Per-plugin-instance runtime, passed into the shape view as a prop (no globals,
+ * so multiple boards / StrictMode remounts don't clobber each other). */
 interface EmbedRuntime {
 	store: PluginContext["store"];
 	serverClock: ServerClock;
@@ -35,7 +36,6 @@ interface EmbedRuntime {
 	defs: EmbedDefinition[];
 	Chrome: EmbedChrome;
 }
-let runtime: EmbedRuntime | null = null;
 
 type Action =
 	| { id: string; action: "set-url"; url: string }
@@ -61,8 +61,8 @@ const btn: React.CSSProperties = {
 };
 const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
-function EmbedView({ data }: { data: EmbedShapeData }) {
-	const resolved = data.url ? resolveEmbed(data.url, runtime?.defs) : null;
+function EmbedView({ data, rt }: { data: EmbedShapeData; rt: EmbedRuntime }) {
+	const resolved = data.url ? resolveEmbed(data.url, rt.defs) : null;
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const playerRef = useRef<EmbedPlayer | null>(null);
 	const playbackRef = useRef(data.playback);
@@ -74,18 +74,22 @@ function EmbedView({ data }: { data: EmbedShapeData }) {
 	// Create the synced player when a syncable iframe mounts.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: recreate only on shape/embed change
 	useEffect(() => {
-		if (!syncable || !iframeRef.current || !runtime) return;
-		const rt = runtime;
+		if (!syncable || !iframeRef.current) return;
 		const player = createYouTubePlayer(iframeRef.current);
 		playerRef.current = player;
 		player.onUserAction(() => {
 			const cur = rt.store.getShape(data.id) as EmbedShapeData | undefined;
 			if (!cur || !canControl(cur, rt.userId)) return;
 			const st = player.getState();
-			if (st)
-				rt.store.updateShape(data.id, {
-					playback: playbackFrom(st, rt.serverClock.now(), rt.userId),
-				} as Partial<ShapeData>);
+			if (!st) return;
+			// Ignore state changes that merely converge to the already-synced state —
+			// that's our own applied correction echoing back, not a genuine user
+			// action — otherwise followers would re-broadcast and oscillate.
+			const pb = playbackRef.current;
+			if (pb && !needsCorrection(pb, rt.serverClock.now(), st)) return;
+			rt.store.updateShape(data.id, {
+				playback: playbackFrom(st, rt.serverClock.now(), rt.userId),
+			} as Partial<ShapeData>);
 		});
 		return () => {
 			player.destroy();
@@ -95,8 +99,7 @@ function EmbedView({ data }: { data: EmbedShapeData }) {
 
 	// Drift-correct the local player toward the synced playback state.
 	useEffect(() => {
-		if (!syncable || !runtime) return;
-		const rt = runtime;
+		if (!syncable) return;
 		const iv = setInterval(() => {
 			const player = playerRef.current;
 			const pb = playbackRef.current;
@@ -109,12 +112,12 @@ function EmbedView({ data }: { data: EmbedShapeData }) {
 			else if (!pb.playing && st.playing) player.pause();
 		}, 1000);
 		return () => clearInterval(iv);
-	}, [syncable]);
+	}, [syncable, rt]);
 
 	const active = data.isActive === true;
 	const isPresenter = data.syncMode === "presenter";
-	const iAmPresenter = data.presenterId === runtime?.userId;
-	const Chrome = runtime?.Chrome ?? DefaultEmbedChrome;
+	const iAmPresenter = data.presenterId === rt.userId;
+	const Chrome = rt.Chrome;
 
 	// Plugin-owned body (iframe keeps the sync player ref; a custom Chrome must
 	// render {children} for playback sync to work).
@@ -443,7 +446,7 @@ export function createEmbedShapePlugin(options: EmbedPluginOptions = {}): Usketc
 			const defs = [...(options.embeds ?? []), ...DEFAULT_EMBED_DEFS];
 			const serverClock = createServerClock({ baseUrl: options.apiUrl ?? null });
 			const userId = options.userId ?? "local";
-			runtime = {
+			const rt: EmbedRuntime = {
 				store: ctx.store,
 				serverClock,
 				userId,
@@ -466,18 +469,31 @@ export function createEmbedShapePlugin(options: EmbedPluginOptions = {}): Usketc
 						break;
 					}
 					case "activate":
+						// Select as well: the deselect watcher below turns off any active
+						// embed that isn't selected, so activating without selecting would
+						// be reverted instantly (e.g. clicking ▶ on an unselected embed).
 						ctx.store.updateShape(detail.id, { isActive: true } as Partial<ShapeData>);
+						ctx.store.setSelection([detail.id]);
 						break;
 					case "deactivate":
 						ctx.store.updateShape(detail.id, { isActive: false } as Partial<ShapeData>);
 						break;
 					case "toggle-presenter": {
-						// Claim presenter (lock to me) ⇄ release back to free-for-all.
-						const isMine = shape.syncMode === "presenter" && shape.presenterId === userId;
-						ctx.store.updateShape(detail.id, {
-							syncMode: isMine ? "free" : "presenter",
-							presenterId: isMine ? undefined : userId,
-						} as Partial<ShapeData>);
+						const isPresenterMode = shape.syncMode === "presenter";
+						const isMine = isPresenterMode && shape.presenterId === userId;
+						// I hold it → release to free-for-all. Nobody holds it → I claim it.
+						// Someone ELSE holds it → do nothing (can't steal presentership).
+						if (isMine) {
+							ctx.store.updateShape(detail.id, {
+								syncMode: "free",
+								presenterId: undefined,
+							} as Partial<ShapeData>);
+						} else if (!isPresenterMode) {
+							ctx.store.updateShape(detail.id, {
+								syncMode: "presenter",
+								presenterId: userId,
+							} as Partial<ShapeData>);
+						}
 						break;
 					}
 				}
@@ -503,7 +519,10 @@ export function createEmbedShapePlugin(options: EmbedPluginOptions = {}): Usketc
 			});
 
 			// Deactivate on deselect (so a moved-away embed stops capturing pointer).
-			const unsubStore = ctx.store.subscribe(() => {
+			// Gated on selection changes only — running on every mutation would scan
+			// all shapes on each playback-sync tick, and would also fight `activate`.
+			const unsubStore = ctx.store.onMutation((event) => {
+				if (event.type !== "selection:changed") return;
 				const sel = ctx.store.getSelection();
 				for (const [id, s] of ctx.store.getShapes()) {
 					if (s.type === EMBED_TYPE && (s as EmbedShapeData).isActive && !sel.has(id)) {
@@ -513,7 +532,7 @@ export function createEmbedShapePlugin(options: EmbedPluginOptions = {}): Usketc
 			});
 
 			ctx.shapes.register(EMBED_TYPE, {
-				render: (shape) => <EmbedView data={shape as EmbedShapeData} />,
+				render: (shape) => <EmbedView data={shape as EmbedShapeData} rt={rt} />,
 				getBounds,
 				hitTest: withRotation(hitTest),
 				resize,
@@ -574,7 +593,6 @@ export function createEmbedShapePlugin(options: EmbedPluginOptions = {}): Usketc
 				unsubStore();
 				offUrl();
 				serverClock.destroy();
-				runtime = null;
 			};
 		},
 	};

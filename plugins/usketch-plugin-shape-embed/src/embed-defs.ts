@@ -84,10 +84,20 @@ export const GOOGLE_MAPS_DEF: EmbedDefinition = {
 	title: "Google Maps",
 	hostnames: ["google.com", "maps.google.com"],
 	aspect: 4 / 3,
-	toEmbedUrl: (u) =>
-		u.pathname.startsWith("/maps")
-			? `https://maps.google.com/maps?output=embed&q=${encodeURIComponent(u.href)}`
-			: undefined,
+	// The Maps embed `q` expects an address/coords, NOT a full maps URL. Extract a
+	// real query from the `/place/<name>/`, `@lat,lng`, or `q`/`query` param.
+	toEmbedUrl: (u) => {
+		if (!u.pathname.startsWith("/maps")) return undefined;
+		const at = /@(-?\d+\.?\d*),(-?\d+\.?\d*)/.exec(u.pathname);
+		const place = /\/place\/([^/@]+)/.exec(u.pathname);
+		const q = u.searchParams.get("q") ?? u.searchParams.get("query");
+		const query =
+			q ??
+			(place ? decodeURIComponent(place[1]).replace(/\+/g, " ") : at ? `${at[1]},${at[2]}` : null);
+		if (!query) return undefined;
+		const ll = at ? `&ll=${at[1]},${at[2]}` : "";
+		return `https://maps.google.com/maps?output=embed&q=${encodeURIComponent(query)}${ll}`;
+	},
 	sandbox: "allow-scripts allow-same-origin allow-popups",
 	allow: "fullscreen",
 };
