@@ -69,10 +69,11 @@ import {
 	type WsConnectionStatus,
 	type WsProviderHandle,
 } from "@edv4h/usketch-sync";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { CopilotPill, TopBar } from "./components/board-frame/index.js";
+import { ShareDialog } from "./components/share-dialog.js";
 import { InfoTab } from "./components/side-panel/info-tab.js";
 import { SidePanelToggles } from "./components/side-panel/side-panel-toggles.js";
 import { getDevUser } from "./lib/dev-auth.js";
@@ -666,9 +667,13 @@ export function App() {
 	// フェーズでキーを先取りするため衝突せず、Vim 非アクティブ時は通常通り動く）。
 	useKeyboardShortcuts(app, presentationMode === "present");
 
-	// アプリ横断の操作を共有アクションレジストリへ登録。コマンドパレットと
-	// Control HUD の Controls が同一ソースを参照する（単一ソース化）。
-	useAppActions(app, boardId, isCloudBoard);
+	// 共有ダイアログは App が所有し、Control HUD の「共有」アクションから開く。
+	const [showShare, setShowShare] = useState(false);
+	const openShare = useCallback(() => setShowShare(true), []);
+
+	// アプリ横断の操作を共有アクションレジストリへ登録。Control HUD の Controls／
+	// 検索が単一ソースとして参照する。
+	useAppActions(app, boardId, isCloudBoard, openShare);
 
 	// Vim モードは既定 OFF（store の既定ツールは "select"）。Control HUD の
 	// "Vim mode" アクションで実行時に切り替える。プレゼン発表へ切替時のみ、vim が
@@ -797,6 +802,9 @@ export function App() {
 					)}
 				</div>
 				{/* 閉じタグ: エディタ全体ラッパーの終わり */}
+				{showShare && boardId && (
+					<ShareDialog boardId={boardId} onClose={() => setShowShare(false)} />
+				)}
 				{isCloudBoard && wsStatus === "failed" && (
 					<div
 						className="u-surface"

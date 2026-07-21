@@ -15,6 +15,7 @@ export function useAppActions(
 	app: AppInstance | null,
 	boardId: string | undefined,
 	isCloudBoard: boolean,
+	openShare: () => void,
 ): void {
 	const navigate = useNavigate();
 
@@ -85,6 +86,13 @@ export function useAppActions(
 				icon: () => <I.present size={14} />,
 				run: () => navigate(`/boards/${boardId}?present=1`),
 			});
+			reg({
+				id: "board:share",
+				group: "アクション",
+				label: "共有…",
+				icon: () => <I.share size={14} />,
+				run: openShare,
+			});
 		}
 
 		reg({
@@ -127,5 +135,5 @@ export function useAppActions(
 		return () => {
 			for (const off of offs) off();
 		};
-	}, [app, boardId, isCloudBoard, navigate]);
+	}, [app, boardId, isCloudBoard, navigate, openShare]);
 }
