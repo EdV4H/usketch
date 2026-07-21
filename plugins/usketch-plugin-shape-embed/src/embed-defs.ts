@@ -10,6 +10,9 @@ export interface EmbedDefinition {
 	title: string;
 	/** Hostnames (without www.) this definition matches. */
 	hostnames: string[];
+	/** Optional predicate for flexible host matching (e.g. ccTLDs). Takes
+	 * precedence over `hostnames` when present. Host is already `www.`-stripped. */
+	matchHost?: (host: string) => boolean;
 	/** Convert a shareable URL to an embeddable one, or undefined if not embeddable. */
 	toEmbedUrl(url: URL): string | undefined;
 	/** Preferred width/height ratio for a freshly created embed. */
@@ -83,6 +86,10 @@ export const GOOGLE_MAPS_DEF: EmbedDefinition = {
 	id: "google-maps",
 	title: "Google Maps",
 	hostnames: ["google.com", "maps.google.com"],
+	// Match google across ccTLDs (google.co.jp, google.de, maps.google.*, …). The
+	// raw google URL can't be framed (X-Frame-Options); only the `output=embed`
+	// form below can, so recognizing these hosts is what makes Maps embeddable.
+	matchHost: (host) => /^(maps\.)?google\.[a-z.]+$/.test(host),
 	aspect: 4 / 3,
 	// The Maps embed `q` expects an address/coords, NOT a full maps URL. Extract a
 	// real query from the `/place/<name>/`, `@lat,lng`, or `q`/`query` param.
@@ -156,7 +163,10 @@ export function resolveEmbed(
 	if (u.protocol !== "http:" && u.protocol !== "https:") return null;
 	const host = stripWww(u.hostname);
 	for (const def of defs) {
-		if (def.hostnames.some((h) => host === h || host.endsWith(`.${h}`))) {
+		const hostMatches = def.matchHost
+			? def.matchHost(host)
+			: def.hostnames.some((h) => host === h || host.endsWith(`.${h}`));
+		if (hostMatches) {
 			const embedUrl = def.toEmbedUrl(u);
 			if (embedUrl) return { def, embedUrl };
 		}
