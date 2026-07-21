@@ -7,7 +7,6 @@ import { CommunityLink } from "./community-link.js";
 interface Props {
 	boardId?: string;
 	isCloudBoard: boolean;
-	onOpenCommandPalette: () => void;
 	/** プレゼン編集モード中は Cloud 限定の操作群を隠す。 */
 	compact?: boolean;
 }
@@ -15,12 +14,11 @@ interface Props {
 /**
  * 画面中央上部に固定された単一のコントロールバー。
  *
- * かつて四隅に散っていた chrome（ロゴ / テーマ / コマンドパレット / Cloud 限定の
- * プレゼン・Copilot・共有 / ズーム / コミュニティ）を 1 本のバーに集約したもの。
- * shape/tool 系の操作、プレゼンス状態・Follow・オンラインメンバー表示は
- * Control HUD (`` ` `` で開く) に一本化済み。
+ * ロゴ / テーマ / プレゼン / 共有 / コミュニティ の最小構成。shape/tool 系の操作、
+ * プレゼンス状態・Follow・オンラインメンバー表示・Copilot・ズーム、および
+ * アクション検索は Control HUD (`` ` `` で開く) に一本化済み。
  */
-export function TopBar({ boardId, isCloudBoard, onOpenCommandPalette, compact }: Props) {
+export function TopBar({ boardId, isCloudBoard, compact }: Props) {
 	const navigate = useNavigate();
 	const [showShare, setShowShare] = useState(false);
 	const showCloud = isCloudBoard && !compact;
@@ -90,15 +88,6 @@ export function TopBar({ boardId, isCloudBoard, onOpenCommandPalette, compact }:
 						onClick={() => navigate(`/boards/${boardId}?present=1`)}
 					/>
 				)}
-
-				<Divider vertical />
-
-				<IconBtn
-					icon={I.search}
-					label="コマンドパレット"
-					shortcut="⌘K"
-					onClick={onOpenCommandPalette}
-				/>
 
 				{showCloud && boardId && (
 					<IconBtn icon={I.share} label="共有" onClick={() => setShowShare(true)} />

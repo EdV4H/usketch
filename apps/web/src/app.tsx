@@ -69,11 +69,10 @@ import {
 	type WsConnectionStatus,
 	type WsProviderHandle,
 } from "@edv4h/usketch-sync";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { CopilotPill, TopBar } from "./components/board-frame/index.js";
-import { CommandPalette, useCommandPaletteShortcut } from "./components/command-palette.js";
 import { InfoTab } from "./components/side-panel/info-tab.js";
 import { SidePanelToggles } from "./components/side-panel/side-panel-toggles.js";
 import { getDevUser } from "./lib/dev-auth.js";
@@ -423,7 +422,8 @@ export function App() {
 
 			// AI プラグイン
 			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
-			// Cmd+K の UI は apps/web 側の CommandPalette が担当するため無効化
+			// ai-chat 内蔵の Cmd+K パレットは無効化（アクション操作は Control HUD の
+			// Controls／検索に一本化済み）。
 			extraPlugins.push(createAiChatPlugin({ boardId, enableCommandPalette: false }));
 			extraPlugins.push(createAiActionsPlugin({ boardId }));
 			extraPlugins.push(createAiCopilotPlugin({ apiUrl, boardId, extraHeaders: aiHeaders }));
@@ -714,10 +714,6 @@ export function App() {
 		};
 	}, [app, boardId, isCloudBoard]);
 
-	const [paletteOpen, setPaletteOpen] = useState(false);
-	const openPalette = useCallback(() => setPaletteOpen(true), []);
-	useCommandPaletteShortcut(openPalette);
-
 	const [stageRect, setStageRect] = useState<StageRect | null>(stageRectRef.current);
 	stageRectRef.current = stageRect;
 	useEffect(() => {
@@ -794,19 +790,13 @@ export function App() {
 					<Canvas />
 					{!hideToolbar && (
 						<>
-							<TopBar
-								boardId={boardId}
-								isCloudBoard={isCloudBoard}
-								onOpenCommandPalette={openPalette}
-								compact={isPresentEdit}
-							/>
+							<TopBar boardId={boardId} isCloudBoard={isCloudBoard} compact={isPresentEdit} />
 							{isCloudBoard && !isPresentEdit && <SidePanelToggles app={app} />}
-							{isCloudBoard && !isPresentEdit && <CopilotPill onOpenCommandPalette={openPalette} />}
+							{isCloudBoard && !isPresentEdit && <CopilotPill />}
 						</>
 					)}
 				</div>
 				{/* 閉じタグ: エディタ全体ラッパーの終わり */}
-				<CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} app={app} />
 				{isCloudBoard && wsStatus === "failed" && (
 					<div
 						className="u-surface"
