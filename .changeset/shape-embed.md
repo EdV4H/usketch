@@ -8,3 +8,5 @@
 - **select-vs-interact**: 通常は選択/移動/リサイズ可（iframe は `pointerEvents:none`）、ダブルクリック or ▶ で操作モード、✕/選択解除で戻る。
 - **URL 貼り付け/ドロップ**で埋め込みを生成（`kind:"url"` 外部コンテンツハンドラ、order 0）。
 - **YouTube 再生同期（watch party）**: 再生/一時停止/シークを全ユーザーで同期。位置は共有 doc の `playback` に保持し、`@edv4h/usketch-sync` の server clock 基準でドリフト補正して追従（YouTube IFrame API を postMessage で制御、SDK 不要）。制御は既定「全員操作可（LWW）」、ヘッダの 🔒 でプレゼンターロック（1人主導）に切替可能。
+
+コンポーネント差し替え: `createEmbedShapePlugin({ components: { Chrome } })` でシェイプの chrome（ヘッダ/枠）を独自コンポーネントに置換可能（`EmbedChromeProps` を受け取り、機能コアの iframe/player は `children` を描画すれば保持）。`DefaultEmbedChrome`/`EmbedChrome` を export。

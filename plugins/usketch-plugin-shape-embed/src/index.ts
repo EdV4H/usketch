@@ -16,5 +16,12 @@ export {
 	playbackFrom,
 	projectTime,
 } from "./playback.js";
-export { createEmbedShapePlugin, EMBED_TYPE, type EmbedPluginOptions } from "./plugin.js";
+export {
+	createEmbedShapePlugin,
+	DefaultEmbedChrome,
+	EMBED_TYPE,
+	type EmbedChrome,
+	type EmbedChromeProps,
+	type EmbedPluginOptions,
+} from "./plugin.js";
 export type { EmbedShapeData, EmbedSyncMode, PlaybackState } from "./types.js";
