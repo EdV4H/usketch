@@ -86,10 +86,11 @@ export const GOOGLE_MAPS_DEF: EmbedDefinition = {
 	id: "google-maps",
 	title: "Google Maps",
 	hostnames: ["google.com", "maps.google.com"],
-	// Match google across ccTLDs (google.co.jp, google.de, maps.google.*, …). The
-	// raw google URL can't be framed (X-Frame-Options); only the `output=embed`
-	// form below can, so recognizing these hosts is what makes Maps embeddable.
-	matchHost: (host) => /^(maps\.)?google\.[a-z.]+$/.test(host),
+	// Match google across ccTLDs (google.com, google.de, google.co.jp,
+	// google.com.au, maps.google.*, …) but ONLY where `google` is the registrable
+	// domain — anchoring the TLD/ccTLD shape rejects spoofs like `google.evil.com`
+	// or `maps.google.evil.com` that a naive `google\.[a-z.]+` would allow.
+	matchHost: (host) => /^(?:maps\.)?google\.(?:com|[a-z]{2}|(?:co|com)\.[a-z]{2})$/.test(host),
 	aspect: 4 / 3,
 	// The Maps embed `q` expects an address/coords, NOT a full maps URL. Extract a
 	// real query from the `/place/<name>/`, `@lat,lng`, or `q`/`query` param.
