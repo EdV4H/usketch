@@ -6,7 +6,13 @@ import {
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { ServerClock } from "@edv4h/usketch-sync";
-import { displayMs, formatDuration, getTimerKind, isDone, type TimerType } from "./timer-model.js";
+import {
+	displayMs,
+	formatDuration,
+	isDone,
+	resolveTimerKind,
+	type TimerType,
+} from "./timer-model.js";
 import {
 	coreOf,
 	dispatchTimerShapeAction,
@@ -123,7 +129,7 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 
 				timers.forEach((s, idx) => {
 					const n = idx + 1;
-					const icon = getTimerKind(s.timerType).icon ?? "⏱";
+					const icon = resolveTimerKind(s.timerType).icon ?? "⏱";
 					const done = isDone(coreOf(s), serverNow);
 					const time = formatDuration(displayMs(coreOf(s), serverNow));
 					perTimerOffs.push(

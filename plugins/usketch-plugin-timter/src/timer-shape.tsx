@@ -14,11 +14,11 @@ import { type ReactElement, useEffect, useReducer } from "react";
 import {
 	displayMs,
 	formatDuration,
-	getTimerKind,
 	initialCore,
 	isDone,
 	pause,
 	reset,
+	resolveTimerKind,
 	start,
 	type TimerCore,
 	type TimerType,
@@ -126,7 +126,7 @@ export function defaultRenderTimerShape({
 }: TimerRenderContext): ReactElement {
 	const running = shape.running;
 	const done = isDone(core, serverNow);
-	const icon = getTimerKind(shape.timerType).icon ?? "⏱";
+	const icon = resolveTimerKind(shape.timerType).icon ?? "⏱";
 	const durationBased = core.durationMs > 0;
 
 	return (
@@ -302,7 +302,7 @@ function SimplifiedTimer({ shape }: { shape: ShapeData }) {
 				transformOrigin: "center center",
 			}}
 		>
-			{getTimerKind(s.timerType).icon ?? "⏱"} {formatDuration(s.accumMs)}
+			{resolveTimerKind(s.timerType).icon ?? "⏱"} {formatDuration(s.accumMs)}
 		</div>
 	);
 }

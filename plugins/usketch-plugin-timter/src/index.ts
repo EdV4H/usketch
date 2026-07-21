@@ -8,6 +8,7 @@ export {
 	pause,
 	registerTimerKind,
 	reset,
+	resolveTimerKind,
 	start,
 	TIMER_KINDS,
 	type TimerCore,

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
 	displayMs,
 	formatDuration,
@@ -8,6 +8,7 @@ import {
 	pause,
 	registerTimerKind,
 	reset,
+	resolveTimerKind,
 	start,
 	TIMER_KINDS,
 	timerTypes,
@@ -91,14 +92,21 @@ describe("formatDuration", () => {
 });
 
 describe("registerTimerKind (host extension)", () => {
-	it("registers a custom kind that flows through the model transitions", () => {
+	// Register in setup and restore in teardown so tests are order-independent and
+	// the global registry doesn't leak "pomodoro" into other test files.
+	beforeAll(() => {
 		// A 25-minute pomodoro that behaves like a countdown but always starts at 25m.
 		registerTimerKind("pomodoro", {
 			...TIMER_KINDS.countdown,
 			icon: "🍅",
 			initial: () => ({ anchorAt: null, accumMs: 25 * 60_000, durationMs: 25 * 60_000 }),
 		});
+	});
+	afterAll(() => {
+		delete TIMER_KINDS.pomodoro;
+	});
 
+	it("registers a custom kind that flows through the model transitions", () => {
 		const e = initialCore("pomodoro", 5 * 60_000); // requested 5m is ignored by the kind
 		expect(e.type).toBe("pomodoro");
 		expect(displayMs(e, T0)).toBe(25 * 60_000);
@@ -112,5 +120,18 @@ describe("registerTimerKind (host extension)", () => {
 		expect(getTimerKind("pomodoro").icon).toBe("🍅");
 		expect(timerTypes()).toEqual(expect.arrayContaining(["countdown", "stopwatch", "pomodoro"]));
 		expect(() => getTimerKind("nope")).toThrow(/unknown timer type/);
+	});
+});
+
+describe("resolveTimerKind (render-safe fallback)", () => {
+	it("returns the registered kind, and an inert fallback for unknown types", () => {
+		expect(resolveTimerKind("countdown")).toBe(TIMER_KINDS.countdown);
+
+		// Unknown type must never throw during render — it degrades to a frozen,
+		// never-done display of the stored accumMs.
+		const stale = { type: "ghost", running: true, anchorAt: T0, accumMs: 42_000, durationMs: 0 };
+		expect(() => resolveTimerKind("ghost")).not.toThrow();
+		expect(displayMs(stale, T0 + 10_000)).toBe(42_000);
+		expect(isDone(stale, T0 + 10_000)).toBe(false);
 	});
 });

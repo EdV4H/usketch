@@ -89,12 +89,43 @@ export function registerTimerKind(type: string, kind: TimerKind): void {
 	TIMER_KINDS[type] = kind;
 }
 
-/** The registered kind for `type`. Throws if the kind was never registered. */
+/**
+ * The registered kind for `type`. **Throws** if the kind was never registered —
+ * the strict getter, for callers that control the type and want to fail loudly
+ * on a typo. Rendering / display of *synced* shape data (whose `timerType` is
+ * untrusted — stale documents, remote updates for a kind this client never
+ * registered) must use {@link resolveTimerKind} instead so a bad value can't
+ * crash the render tree.
+ */
 export function getTimerKind(type: TimerType): TimerKind {
 	const kind = TIMER_KINDS[type];
 	if (!kind)
 		throw new Error(`[timter] unknown timer type "${type}" (register it with registerTimerKind)`);
 	return kind;
+}
+
+/**
+ * A safe, inert kind used for unregistered types: shows the stored `accumMs`
+ * frozen, never "done", and treats start/pause as no-ops. Keeps a malformed or
+ * unknown `timerType` from throwing mid-render.
+ */
+const FALLBACK_KIND: TimerKind = {
+	icon: "⏱",
+	displayMs: (c) => c.accumMs,
+	isDone: () => false,
+	onStart: (c) => ({ anchorAt: c.anchorAt, accumMs: c.accumMs }),
+	onPause: (c) => ({ anchorAt: c.anchorAt, accumMs: c.accumMs }),
+	initial: (d) => ({ anchorAt: null, accumMs: d, durationMs: d }),
+};
+
+/**
+ * Like {@link getTimerKind} but **never throws** — returns {@link FALLBACK_KIND}
+ * for an unregistered type. Use everywhere a timer's kind is resolved from
+ * synced/untrusted shape data (render, LOD, Controls rebuild, transitions) so an
+ * unknown kind degrades to an inert display instead of crashing the canvas.
+ */
+export function resolveTimerKind(type: TimerType): TimerKind {
+	return TIMER_KINDS[type] ?? FALLBACK_KIND;
 }
 
 /** All registered timer-type ids, in registration order. */
@@ -104,27 +135,27 @@ export function timerTypes(): TimerType[] {
 
 /** Fresh, stopped core for a type + configured duration. */
 export function initialCore(type: TimerType, durationMs: number): TimerCore {
-	return { type, running: false, ...getTimerKind(type).initial(durationMs) };
+	return { type, running: false, ...resolveTimerKind(type).initial(durationMs) };
 }
 
 export function displayMs(c: TimerCore, serverNow: number): number {
-	return getTimerKind(c.type).displayMs(c, serverNow);
+	return resolveTimerKind(c.type).displayMs(c, serverNow);
 }
 
 export function isDone(c: TimerCore, serverNow: number): boolean {
-	return getTimerKind(c.type).isDone(c, serverNow);
+	return resolveTimerKind(c.type).isDone(c, serverNow);
 }
 
 /** Start or resume. Returns the same core (no-op) if already running. */
 export function start(c: TimerCore, serverNow: number): TimerCore {
 	if (c.running) return c;
-	return { ...c, ...getTimerKind(c.type).onStart(c, serverNow), running: true };
+	return { ...c, ...resolveTimerKind(c.type).onStart(c, serverNow), running: true };
 }
 
 /** Pause, snapshotting remaining/elapsed. No-op if already paused. */
 export function pause(c: TimerCore, serverNow: number): TimerCore {
 	if (!c.running) return c;
-	return { ...c, ...getTimerKind(c.type).onPause(c, serverNow), running: false };
+	return { ...c, ...resolveTimerKind(c.type).onPause(c, serverNow), running: false };
 }
 
 /** Return to the stopped, initial state for the configured duration. */
