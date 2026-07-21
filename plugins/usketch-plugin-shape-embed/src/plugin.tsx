@@ -211,10 +211,14 @@ export function createEmbedShapePlugin(options: EmbedPluginOptions = {}): Usketc
 
 			// Double-click a non-active embed → activate (interact). Uses canvas:pointerdown.
 			let lastDown = { id: "", t: 0 };
+			const rotatedHit = withRotation(hitTest);
 			const offPointer = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
+				// Topmost embed under the pointer: iterate back→front (zIndex asc) and keep
+				// the last hit, and use the rotation-aware hit-test so rotated/overlapping
+				// embeds resolve correctly.
 				let hit: EmbedShapeData | null = null;
-				for (const [, s] of ctx.store.getShapes()) {
-					if (s.type === EMBED_TYPE && hitTest(s, event.worldPoint)) hit = s as EmbedShapeData;
+				for (const s of ctx.store.getShapesSorted()) {
+					if (s.type === EMBED_TYPE && rotatedHit(s, event.worldPoint)) hit = s as EmbedShapeData;
 				}
 				if (!hit) {
 					lastDown = { id: "", t: 0 };

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { EmbedDefinition, ResolvedEmbed } from "./embed-defs.js";
 import { resolveEmbed } from "./embed-defs.js";
 import { emitEmbedAction } from "./embed-events.js";
-import { needsCorrection, playbackFrom, projectTime } from "./playback.js";
+import { DRIFT_THRESHOLD_S, needsCorrection, playbackFrom, projectTime } from "./playback.js";
 import { createYouTubePlayer, type EmbedPlayer } from "./players/youtube.js";
 import type { EmbedShapeData } from "./types.js";
 
@@ -82,7 +82,7 @@ export function EmbedView({ data, rt }: { data: EmbedShapeData; rt: EmbedRuntime
 			const st = player.getState();
 			if (!st || !needsCorrection(pb, rt.serverClock.now(), st)) return;
 			const target = projectTime(pb, rt.serverClock.now());
-			if (Math.abs(target - st.time) > 0.7) player.seek(target);
+			if (Math.abs(target - st.time) > DRIFT_THRESHOLD_S) player.seek(target);
 			if (pb.playing && !st.playing) player.play();
 			else if (!pb.playing && st.playing) player.pause();
 		}, 1000);
