@@ -82,7 +82,7 @@
 		"@edv4h/usketch-store": "workspace:*",
 		"@edv4h/usketch-sync": "workspace:*",
 		"better-auth": "1.6.23",
-		"react": "19.2.7",
+		"react": "19.2.8",
 		"react-dom": "19.2.8",
 		"react-router": "8.2.0"
 	},
