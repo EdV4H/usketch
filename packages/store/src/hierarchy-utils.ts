@@ -86,6 +86,9 @@ export function computeGroupBounds(children: ShapeData[]): BoundingBox {
  */
 export function isEffectivelyHidden(store: BoardStore, shape: ShapeData): boolean {
 	if (isShapeHidden(shape)) return true;
+	// Short-circuit top-level shapes (the common case) before the ancestor walk,
+	// which allocates — this runs per candidate in hot pointer/marquee paths.
+	if (typeof shape.parentId !== "string") return false;
 	return getAncestorChain(store, shape.id).some(isShapeHidden);
 }
 
@@ -95,6 +98,7 @@ export function isEffectivelyHidden(store: BoardStore, shape: ShapeData): boolea
  */
 export function isEffectivelyLocked(store: BoardStore, shape: ShapeData): boolean {
 	if (isShapeLocked(shape)) return true;
+	if (typeof shape.parentId !== "string") return false;
 	return getAncestorChain(store, shape.id).some(isShapeLocked);
 }
 
