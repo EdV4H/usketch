@@ -310,16 +310,20 @@ export function Canvas() {
 	const timeTravelShapes = useTimeTravelShapes(app.events);
 
 	const filteredShapes = useMemo(() => {
-		// Time-travel mode: override with snapshot shapes
-		if (timeTravelShapes) return timeTravelShapes;
+		// Source is the time-travel snapshot when active, otherwise the live shapes.
+		const source = timeTravelShapes ?? shapes;
+		// The plugin feature filter is a live-only concept; don't apply it to a
+		// historical snapshot.
+		const applyFeatureFilter = !timeTravelShapes && filterPredicate;
 		// Drop effectively-hidden shapes (self or any ancestor `hidden`) from every
-		// render path (dom/engine/gpu all read this via renderCtx.shapesSorted), on
-		// top of any plugin feature filter. Hidden shapes remain in the store, so a
-		// layers panel reading ctx.store can still list/toggle them.
+		// render path (dom/engine/gpu all read this via renderCtx.shapesSorted).
+		// Applied to both live and time-travel shapes since `hidden` is a core render
+		// primitive. Hidden shapes remain in the store, so a layers panel reading
+		// ctx.store can still list/toggle them.
 		const filtered = new Map<string, ShapeData>();
-		for (const [id, shape] of shapes) {
-			if (filterPredicate && !filterPredicate(shape)) continue;
-			if (isEffectivelyHiddenInMap(shapes, shape)) continue;
+		for (const [id, shape] of source) {
+			if (applyFeatureFilter && !applyFeatureFilter(shape)) continue;
+			if (isEffectivelyHiddenInMap(source, shape)) continue;
 			filtered.set(id, shape);
 		}
 		return filtered;

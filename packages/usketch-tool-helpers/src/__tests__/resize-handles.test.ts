@@ -45,6 +45,18 @@ describe("findHandleAtScreenPoint", () => {
 		expect(hit).toBeNull();
 	});
 
+	it("returns null for a locked or hidden shape (excluded from transforms)", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "lk", x: 0, y: 0, width: 100, height: 100, locked: true }));
+		ctx.store.setSelection(["lk"]);
+		expect(findHandleAtScreenPoint({ x: 100, y: 100 }, ctx.shapes, ctx.store, VIEWPORT)).toBeNull();
+
+		ctx.store.deleteShape("lk");
+		ctx.store.addShape(makeShape({ id: "hd", x: 0, y: 0, width: 100, height: 100, hidden: true }));
+		ctx.store.setSelection(["hd"]);
+		expect(findHandleAtScreenPoint({ x: 100, y: 100 }, ctx.shapes, ctx.store, VIEWPORT)).toBeNull();
+	});
+
 	it("still returns a handle when resizable is omitted (defaults to resizable)", () => {
 		const ctx = createTestToolContext();
 		ctx.shapes.register("plain", rectLikeDef("plain"));

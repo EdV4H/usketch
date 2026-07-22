@@ -1,5 +1,9 @@
 import type { CanvasPointerEvent, Point, ShapeData, ToolContext } from "@edv4h/usketch-shared";
-import { createMoveShapesCommand, isEffectivelyLocked } from "@edv4h/usketch-store";
+import {
+	createMoveShapesCommand,
+	isEffectivelyHidden,
+	isEffectivelyLocked,
+} from "@edv4h/usketch-store";
 import { collectSelectionWithDescendants } from "./internal/descendants.js";
 import type { SessionCommit, ShapeUpdateMap, ToolSession } from "./types.js";
 
@@ -100,11 +104,13 @@ export function startDragSession(opts: DragSessionOptions): DragSession {
 
 	const startShapeSnapshots: Map<string, DragSnapshot> = new Map();
 	const rootIds = new Set<string>();
-	// Defensive: a locked shape (or one under a locked ancestor) must not move even
-	// if it slipped into the selection (e.g. locked after being selected).
+	// Defensive: a locked or hidden shape (or one under such an ancestor) must not
+	// move even if it slipped into the selection (e.g. hidden/locked after being
+	// selected, or selected via a layers panel). Both are excluded from transforms.
 	for (const id of shapeIds) {
 		const shape = ctx.store.getShape(id);
-		if (shape && isEffectivelyLocked(ctx.store, shape)) continue;
+		if (shape && (isEffectivelyLocked(ctx.store, shape) || isEffectivelyHidden(ctx.store, shape)))
+			continue;
 		rootIds.add(id);
 	}
 
