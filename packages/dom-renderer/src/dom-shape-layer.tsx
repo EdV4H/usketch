@@ -1,5 +1,5 @@
 import type { LayerRenderContext, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
-import { safeRotation } from "@edv4h/usketch-shared";
+import { isShapeOutsideViewport, safeRotation } from "@edv4h/usketch-shared";
 import { memo } from "react";
 import { LodFallback } from "./lod-fallback.js";
 
@@ -130,6 +130,8 @@ export function DomShapeLayer({
 	shapeRegistry,
 	claimedIds,
 	dropTargetId,
+	viewportLod = true,
+	viewportLodRatio = 1.2,
 }: {
 	ctx: LayerRenderContext;
 	shapeRegistry: ShapeRegistry;
@@ -137,16 +139,22 @@ export function DomShapeLayer({
 	claimedIds?: ReadonlySet<string>;
 	/** Frame/group ID that the dragged shapes are hovering over. */
 	dropTargetId?: string | null;
+	/** Render shapes outside the (scaled) viewport in simplified LOD form. */
+	viewportLod?: boolean;
+	/** Full-detail region as a multiple of the viewport (1.2 = 120%). See isShapeOutsideViewport. */
+	viewportLodRatio?: number;
 }) {
 	// `gpu-only` mode: hide the DOM layer entirely (reserved for future use).
 	if (ctx.renderMode === "gpu-only") return null;
 
-	// In `interactive` mode the GPU layer does not render, so any lingering
-	// claimedIds from a previous `lod` pass must be ignored — otherwise a
-	// stale closure in the plugin layer can keep hiding shapes until the next
-	// store mutation. DOM owns the full shape set in interactive mode.
-	const isLod = ctx.renderMode === "lod";
-	const effectiveClaimedIds = isLod ? claimedIds : undefined;
+	// Global LOD (zoom/count/fps): every shape renders simplified.
+	const globalLod = ctx.renderMode === "lod";
+	// The GPU layer only renders when not interactive; in `interactive` mode any
+	// lingering claimedIds from a previous `lod` pass must be ignored — otherwise a
+	// stale closure in the plugin layer can keep hiding shapes until the next store
+	// mutation. DOM owns the full shape set in interactive mode.
+	const gpuActive = ctx.renderMode !== "interactive";
+	const effectiveClaimedIds = gpuActive ? claimedIds : undefined;
 
 	// Use pre-sorted shapes (by zIndex ascending) from the layer render context,
 	// then reorder so that each child appears immediately after its parent container.
@@ -167,6 +175,11 @@ export function DomShapeLayer({
 					return null;
 				}
 				const def = shapeRegistry.get(shape.type);
+				// LOD when the global mode says so, OR (per-shape) when the shape sits
+				// outside the scaled viewport — off-screen shapes render simplified.
+				const isLod =
+					globalLod ||
+					(viewportLod && isShapeOutsideViewport(shape, ctx.viewportBounds, viewportLodRatio));
 				// LOD mode: render the shape's simplifiedComponent (or LodFallback)
 				// instead of its full component. The simplifiedComponent is
 				// responsible for its own positioning (it receives the full
@@ -174,13 +187,11 @@ export function DomShapeLayer({
 				// needed — a wrapper without position:absolute would break
 				// zIndex stacking anyway.
 				//
-				// Additionally, skip shapes that the GPU renderer is capable of
-				// drawing (even if it has not yet claimed them on this frame).
-				// Without this, GPU-eligible shapes would briefly get a DOM
-				// LodFallback rendered on top until the next GPU claim arrives,
-				// producing a visible "double render" flash.
+				// Skip shapes the GPU is drawing this frame (only when GPU is active);
+				// otherwise render the simplified DOM form. Deferring to GPU in
+				// `interactive` mode would blank the shape since GPU isn't rendering.
 				if (isLod) {
-					if (def?.gpuPrimitive) return null;
+					if (def?.gpuPrimitive && gpuActive) return null;
 					const Simplified = def?.simplifiedComponent ?? LodFallback;
 					return <Simplified key={shape.id} shape={shape} />;
 				}

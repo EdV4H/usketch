@@ -1,7 +1,21 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { DomShapeLayer } from "./dom-shape-layer.js";
 
-export function createDomRendererPlugin(): UsketchPlugin {
+export interface DomRendererOptions {
+	/**
+	 * Render shapes outside the camera viewport in simplified LOD form (perf).
+	 * `true` (default) uses a 120% region; pass `{ ratio }` to tune the
+	 * full-detail region (1.0 = exactly the viewport, 1.2 = 20% buffer beyond it,
+	 * 0.5 = only the central half). `false` disables it (all shapes full-detail).
+	 */
+	viewportLod?: boolean | { ratio?: number };
+}
+
+export function createDomRendererPlugin(options: DomRendererOptions = {}): UsketchPlugin {
+	const viewportLodEnabled = options.viewportLod !== false;
+	const viewportLodRatio =
+		typeof options.viewportLod === "object" ? (options.viewportLod.ratio ?? 1.2) : 1.2;
+
 	return {
 		id: "usketch-dom-renderer",
 		name: "DOM Renderer",
@@ -57,6 +71,8 @@ export function createDomRendererPlugin(): UsketchPlugin {
 						shapeRegistry={ctx.shapes}
 						claimedIds={claimedIds.size > 0 ? claimedIds : undefined}
 						dropTargetId={dropTargetId}
+						viewportLod={viewportLodEnabled}
+						viewportLodRatio={viewportLodRatio}
 					/>
 				),
 			});

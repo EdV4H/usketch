@@ -1,2 +1,2 @@
 export { DomShapeLayer } from "./dom-shape-layer.js";
-export { createDomRendererPlugin } from "./plugin.js";
+export { createDomRendererPlugin, type DomRendererOptions } from "./plugin.js";

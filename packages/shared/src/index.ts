@@ -113,6 +113,12 @@ export {
 } from "./utils/rotation.js";
 // Shape diff
 export { bidiffShape, diffShape } from "./utils/shape-diff.js";
+export {
+	getShapeAABB,
+	isShapeOutsideViewport,
+	rectsIntersect,
+	scaleRectAboutCenter,
+} from "./utils/viewport-lod.js";
 export { isShapeHidden, isShapeLocked } from "./utils/visibility.js";
 // Z-order
 export {

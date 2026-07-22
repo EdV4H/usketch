@@ -23,6 +23,13 @@ export interface LayerRenderContext {
 	theme: Theme;
 	/** Current LOD render mode. Layers should adapt their output accordingly. */
 	renderMode: RenderMode;
+	/**
+	 * The visible region in WORLD coordinates (derived from {@link viewport} and
+	 * the canvas pixel size). Lets layers make per-shape viewport decisions
+	 * (e.g. off-screen LOD, culling, minimap). `width`/`height` are `0` until the
+	 * canvas has been measured — treat non-positive size as "unknown / no filter".
+	 */
+	viewportBounds: BoundingBox;
 }
 
 export type RenderTarget = "svg" | "html";
