@@ -14,6 +14,7 @@ import {
 	unrotatePoint,
 	worldToScreen,
 } from "@edv4h/usketch-shared";
+import { isEffectivelyHidden, isEffectivelyLocked } from "@edv4h/usketch-store";
 
 const HANDLE_SIZE = 8;
 const HIT_AREA = 20;
@@ -58,8 +59,14 @@ export function findHandleAtScreenPoint(
 	// Respect `resizable: false` — same guard as findRotationHandleAtScreenPoint.
 	// Without this, the resize cursor and a resize session would still start even
 	// though selection-overlay hides the handles, leaving operation alive while
-	// the affordance is gone.
-	if (!isShapeResizable(def, shape)) return null;
+	// the affordance is gone. Locked/hidden shapes likewise expose no handles
+	// (both are excluded from transforms).
+	if (
+		!isShapeResizable(def, shape) ||
+		isEffectivelyLocked(store, shape) ||
+		isEffectivelyHidden(store, shape)
+	)
+		return null;
 	const bounds = def
 		? def.getBounds(shape)
 		: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
@@ -112,7 +119,12 @@ export function findRotationHandleAtScreenPoint(
 	if (!shape) return null;
 
 	const def = shapes.get(shape.type);
-	if (!isShapeResizable(def, shape)) return null;
+	if (
+		!isShapeResizable(def, shape) ||
+		isEffectivelyLocked(store, shape) ||
+		isEffectivelyHidden(store, shape)
+	)
+		return null;
 
 	const bounds = def
 		? def.getBounds(shape)

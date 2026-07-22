@@ -5,7 +5,11 @@ import type {
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { safeRotation } from "@edv4h/usketch-shared";
-import { createDeleteWithChildrenCommand } from "@edv4h/usketch-store";
+import {
+	createDeleteWithChildrenCommand,
+	isEffectivelyHidden,
+	isEffectivelyLocked,
+} from "@edv4h/usketch-store";
 import {
 	findHandleAtScreenPoint,
 	findMultiHandleAtScreenPoint,
@@ -59,9 +63,16 @@ function deleteSelectedShapes(ctx: PluginContext) {
 	if (selection.size === 0) return;
 	if (ctx.store.getActiveToolId() !== "select") return;
 	for (const id of selection) {
+		const shape = ctx.store.getShape(id);
+		// Locked or hidden shapes (or those under such an ancestor) resist deletion —
+		// both are excluded from canvas interaction.
+		if (shape && (isEffectivelyLocked(ctx.store, shape) || isEffectivelyHidden(ctx.store, shape)))
+			continue;
 		ctx.commands.execute(createDeleteWithChildrenCommand(ctx.store, id));
 	}
-	ctx.store.clearSelection();
+	// No explicit clearSelection: `store.deleteShape` already drops deleted ids from
+	// the selection, so skipped (locked/hidden) shapes stay selected while a
+	// full-delete still ends with an empty selection.
 }
 
 // ── Drag state types ──

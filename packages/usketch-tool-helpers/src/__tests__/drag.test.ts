@@ -41,6 +41,23 @@ describe("startDragSession", () => {
 		expect(moved?.y).toBe(27);
 	});
 
+	it("does not move locked or hidden shapes even if passed in shapeIds", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "free", x: 0, y: 0 }));
+		ctx.store.addShape(makeShape({ id: "lk", x: 100, y: 0, locked: true }));
+		ctx.store.addShape(makeShape({ id: "hd", x: 200, y: 0, hidden: true }));
+
+		const session = startDragSession({
+			ctx,
+			startPoint: { x: 0, y: 0 },
+			shapeIds: ["free", "lk", "hd"],
+		});
+		session.update(makePointerEvent({ x: 50, y: 0 }));
+		expect(ctx.store.getShape("free")?.x).toBe(50); // moved
+		expect(ctx.store.getShape("lk")?.x).toBe(100); // locked → unchanged
+		expect(ctx.store.getShape("hd")?.x).toBe(200); // hidden → unchanged
+	});
+
 	it("translates multiple selected shapes by the same delta", () => {
 		const ctx = createTestToolContext();
 		ctx.store.addShape(makeShape({ id: "a", x: 0, y: 0 }));

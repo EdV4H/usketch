@@ -4,7 +4,7 @@ import type { ShapeData, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
 const PROXIMITY_THRESHOLD = 20;
 
 /** Core fields written by `serializeShape` itself; plugins must not overwrite these via `serializeForAi`. */
-const RESERVED_KEYS = new Set(["id", "type", "x", "y", "w", "h", "style"]);
+const RESERVED_KEYS = new Set(["id", "type", "x", "y", "w", "h", "style", "hidden", "locked"]);
 
 /**
  * キャンバスの状態をAI向けのプロンプト文字列にシリアライズする。
@@ -111,6 +111,9 @@ function serializeShape(
 		w: Math.round(shape.width),
 		h: Math.round(shape.height),
 	};
+	// Only emit when set, to keep prompts small.
+	if (shape.hidden) result.hidden = true;
+	if (shape.locked) result.locked = true;
 
 	const def = registry.get(shape.type);
 	const extra = def?.serializeForAi?.(shape, { shapes, registry });

@@ -70,6 +70,18 @@ export interface ShapeData<TMeta = Record<string, unknown>> {
 	/** Parent shape id for hierarchical grouping (frames, islands, groups). */
 	parentId?: string;
 	/**
+	 * When true, the shape is not rendered and is excluded from hit-testing,
+	 * selection, and transforms. Honored engine-wide. Cascades to descendants
+	 * (a shape is effectively hidden if it or any ancestor is hidden).
+	 */
+	hidden?: boolean;
+	/**
+	 * When true, the shape still renders but cannot be selected, moved, resized,
+	 * rotated, or deleted via canvas interaction. Honored engine-wide. Cascades to
+	 * descendants. Toggle by id (a locked shape can't be selected on-canvas).
+	 */
+	locked?: boolean;
+	/**
 	 * Application/domain-specific metadata — the **preferred** place for data
 	 * that is not intrinsic to the shape's geometry (e.g. external references,
 	 * identifiers, feature flags). Typed via the `TMeta` type parameter.
