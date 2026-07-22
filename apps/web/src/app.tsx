@@ -9,7 +9,6 @@ import { createAiChatPlugin } from "@edv4h/usketch-plugin-ai-chat";
 import { createAiCopilotPlugin } from "@edv4h/usketch-plugin-ai-copilot";
 import { createAiImagePlugin } from "@edv4h/usketch-plugin-ai-image";
 import { createAiRecognizePlugin } from "@edv4h/usketch-plugin-ai-recognize";
-import { createAiVoicePlugin } from "@edv4h/usketch-plugin-ai-voice";
 import { createAssetStorePlugin } from "@edv4h/usketch-plugin-asset-store";
 import { createDotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
@@ -74,13 +73,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { CopilotPill, TopBar } from "./components/board-frame/index.js";
-import { CommandPalette, useCommandPaletteShortcut } from "./components/command-palette.js";
+import { ShareDialog } from "./components/share-dialog.js";
 import { InfoTab } from "./components/side-panel/info-tab.js";
 import { SidePanelToggles } from "./components/side-panel/side-panel-toggles.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
 import { computePresentStage, type StageRect } from "./lib/present-stage.js";
+import { useAppActions } from "./lib/use-app-actions.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 import { createMarkdownAdaptersPlugin } from "./plugins/markdown-adapters.js";
@@ -220,6 +220,74 @@ const boardMetaStore = (() => {
 })();
 (globalThis as Record<string, unknown>).__usketchBoardMeta = boardMetaStore;
 
+/**
+ * オンラインメンバー（presence）を Control HUD の Members パネルに供給する
+ * リアクティブストア。HUD は `globalThis.__usketchPresence` を購読する
+ * （`__usketchBoardMeta` と同じ受け渡し方式）。awareness の変更に応じて
+ * ボード初期化 effect から `set()` される。
+ */
+type PresenceMemberValue = { clientId: number; name: string; color: string; status?: string };
+const PRESENCE_PALETTE = [
+	"var(--u-1)",
+	"var(--u-2)",
+	"var(--u-3)",
+	"var(--u-4)",
+	"var(--u-5)",
+	"var(--u-6)",
+];
+const presenceColor = (clientId: number): string =>
+	PRESENCE_PALETTE[clientId % PRESENCE_PALETTE.length] ?? "var(--u-1)";
+const presenceStore = (() => {
+	let snapshot: { members: PresenceMemberValue[] } = { members: [] };
+	const listeners = new Set<() => void>();
+	const sameMembers = (a: PresenceMemberValue[], b: PresenceMemberValue[]) =>
+		a.length === b.length &&
+		a.every((m, i) => {
+			const n = b[i];
+			return (
+				n != null &&
+				m.clientId === n.clientId &&
+				m.name === n.name &&
+				m.color === n.color &&
+				m.status === n.status
+			);
+		});
+	return {
+		getSnapshot: () => snapshot,
+		set(members: PresenceMemberValue[]) {
+			// 参照安定性を保つ（useSyncExternalStore が無限再描画しないよう、
+			// 内容が変わらなければ同じ snapshot を返す）。
+			if (sameMembers(snapshot.members, members)) return;
+			snapshot = { members };
+			for (const l of listeners) l();
+		},
+		subscribe(listener: () => void) {
+			listeners.add(listener);
+			return () => listeners.delete(listener);
+		},
+	};
+})();
+(globalThis as Record<string, unknown>).__usketchPresence = presenceStore;
+
+/** awareness から自分以外のオンラインメンバーを読み出す。 */
+function readPresenceMembers(awareness: {
+	getStates: () => Map<number, Record<string, unknown>>;
+	doc: { clientID: number };
+}): PresenceMemberValue[] {
+	const members: PresenceMemberValue[] = [];
+	for (const [clientId, state] of awareness.getStates()) {
+		if (clientId === awareness.doc.clientID) continue;
+		const user = state.user as { name?: string; color?: string; status?: string } | undefined;
+		members.push({
+			clientId,
+			name: user?.name ?? "Guest",
+			color: user?.color ?? presenceColor(clientId),
+			status: user?.status ?? (state.presenting === true ? "presenting" : "active"),
+		});
+	}
+	return members;
+}
+
 export function App() {
 	const { boardId } = useParams<{ boardId: string }>();
 	const location = useLocation();
@@ -284,6 +352,7 @@ export function App() {
 
 		const extraPlugins: UsketchPlugin[] = [];
 		let wsProvider: WsProviderHandle | null = null;
+		let offPresence: (() => void) | null = null;
 		// Divergence tracker — surfaces shapes that exist in the local Y.Doc
 		// but the server hasn't acknowledged. Wired up only for cloud boards
 		// because local boards never round-trip with a server.
@@ -314,6 +383,14 @@ export function App() {
 				onConnectionStatusChange: (handler) => wsP.onStatusChange(handler),
 			});
 			(globalThis as Record<string, unknown>).__usketchSyncStatus = divergenceHandle.status;
+
+			// オンラインメンバーを Control HUD (Members パネル) へ供給。
+			// TopBar の PresencePill を置き換え。
+			const awarenessForPresence = wsProvider.awareness;
+			const updatePresence = () => presenceStore.set(readPresenceMembers(awarenessForPresence));
+			awarenessForPresence.on("change", updatePresence);
+			updatePresence();
+			offPresence = () => awarenessForPresence.off("change", updatePresence);
 
 			extraPlugins.push(createLaserPlugin(wsProvider));
 			extraPlugins.push(createSpotlightPlugin(wsProvider));
@@ -346,11 +423,11 @@ export function App() {
 
 			// AI プラグイン
 			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
-			// Cmd+K の UI は apps/web 側の CommandPalette が担当するため無効化
+			// ai-chat 内蔵の Cmd+K パレットは無効化（アクション操作は Control HUD の
+			// Controls／検索に一本化済み）。
 			extraPlugins.push(createAiChatPlugin({ boardId, enableCommandPalette: false }));
 			extraPlugins.push(createAiActionsPlugin({ boardId }));
 			extraPlugins.push(createAiCopilotPlugin({ apiUrl, boardId, extraHeaders: aiHeaders }));
-			extraPlugins.push(createAiVoicePlugin({ boardId }));
 			extraPlugins.push(createAiImagePlugin({ boardId }));
 			extraPlugins.push(createAiRecognizePlugin({ boardId }));
 			// Voice Notes: 録音→AI要約→まとめ Frame（生transcript は frame.meta）。
@@ -494,6 +571,8 @@ export function App() {
 			cancelled = true;
 			instance?.destroy();
 			serverClock.destroy();
+			offPresence?.();
+			presenceStore.set([]);
 			wsProvider?.destroy();
 			wsProviderRef.current = null;
 			divergenceHandle?.destroy();
@@ -588,6 +667,14 @@ export function App() {
 	// フェーズでキーを先取りするため衝突せず、Vim 非アクティブ時は通常通り動く）。
 	useKeyboardShortcuts(app, presentationMode === "present");
 
+	// 共有ダイアログは App が所有し、Control HUD の「共有」アクションから開く。
+	const [showShare, setShowShare] = useState(false);
+	const openShare = useCallback(() => setShowShare(true), []);
+
+	// アプリ横断の操作を共有アクションレジストリへ登録。Control HUD の Controls／
+	// 検索が単一ソースとして参照する。
+	useAppActions(app, boardId, isCloudBoard, openShare);
+
 	// Vim モードは既定 OFF（store の既定ツールは "select"）。Control HUD の
 	// "Vim mode" アクションで実行時に切り替える。プレゼン発表へ切替時のみ、vim が
 	// 残り続けないよう select に戻す。
@@ -631,10 +718,6 @@ export function App() {
 			app.events.emit("side-panel:unregister-tab", { tabId: "info" });
 		};
 	}, [app, boardId, isCloudBoard]);
-
-	const [paletteOpen, setPaletteOpen] = useState(false);
-	const openPalette = useCallback(() => setPaletteOpen(true), []);
-	useCommandPaletteShortcut(openPalette);
 
 	const [stageRect, setStageRect] = useState<StageRect | null>(stageRectRef.current);
 	stageRectRef.current = stageRect;
@@ -712,26 +795,16 @@ export function App() {
 					<Canvas />
 					{!hideToolbar && (
 						<>
-							<TopBar
-								boardId={boardId}
-								isCloudBoard={isCloudBoard}
-								wsProvider={wsProviderRef.current}
-								onOpenCommandPalette={openPalette}
-								compact={isPresentEdit}
-							/>
+							<TopBar boardId={boardId} isCloudBoard={isCloudBoard} compact={isPresentEdit} />
 							{isCloudBoard && !isPresentEdit && <SidePanelToggles app={app} />}
-							{isCloudBoard && !isPresentEdit && <CopilotPill onOpenCommandPalette={openPalette} />}
+							{isCloudBoard && !isPresentEdit && <CopilotPill />}
 						</>
 					)}
 				</div>
 				{/* 閉じタグ: エディタ全体ラッパーの終わり */}
-				<CommandPalette
-					open={paletteOpen}
-					onClose={() => setPaletteOpen(false)}
-					app={app}
-					boardId={boardId}
-					isCloudBoard={isCloudBoard}
-				/>
+				{showShare && boardId && (
+					<ShareDialog boardId={boardId} onClose={() => setShowShare(false)} />
+				)}
 				{isCloudBoard && wsStatus === "failed" && (
 					<div
 						className="u-surface"

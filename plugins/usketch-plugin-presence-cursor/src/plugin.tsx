@@ -93,6 +93,33 @@ export function createPresenceCursorPlugin(options: PresenceCursorOptions): Uske
 
 			awareness.setLocalStateField("user", { name: userName, color });
 
+			// ── Presence status (Control HUD "Presence" group) ──
+			// Own status (active/away/busy) is part of this client's `user`
+			// awareness field, which this plugin already owns. Moved here from the
+			// TopBar so the top chrome stays minimal; `isActive` reflects the live
+			// awareness value so the current status is highlighted.
+			const PRESENCE_STATUSES = [
+				{ id: "active", label: "🟢 Active" },
+				{ id: "away", label: "💤 Away" },
+				{ id: "busy", label: "🔴 Busy" },
+			] as const;
+			const currentStatus = (): string =>
+				(awareness.getLocalState()?.user as { status?: string } | undefined)?.status ?? "active";
+			const setStatus = (status: string) => {
+				const existing = (awareness.getLocalState()?.user as Record<string, unknown>) ?? {};
+				awareness.setLocalStateField("user", { ...existing, status });
+			};
+			const presenceStatusOffs = PRESENCE_STATUSES.map((s, i) =>
+				ctx.actions.register({
+					id: `presence:status:${s.id}`,
+					label: s.label,
+					group: "Presence",
+					order: i,
+					isActive: () => currentStatus() === s.id,
+					run: () => setStatus(s.id),
+				}),
+			);
+
 			const activeCursors = new Set<number>();
 
 			function onAwarenessChange() {
@@ -155,6 +182,7 @@ export function createPresenceCursorPlugin(options: PresenceCursorOptions): Uske
 			return () => {
 				awareness.off("change", onAwarenessChange);
 				unsubPointerMove();
+				for (const off of presenceStatusOffs) off();
 				window.removeEventListener("mouseleave", handleMouseLeave);
 			};
 		},

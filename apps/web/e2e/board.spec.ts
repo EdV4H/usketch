@@ -37,7 +37,7 @@ test.describe("Board", () => {
 		await expect(page.locator('[data-testid="top-bar"]')).toBeVisible();
 	});
 
-	test("command palette opens with Cmd+K and closes with Esc", async ({ page }) => {
+	test("Control HUD opens with backtick and shows the action search", async ({ page }) => {
 		await page.goto("/dashboard");
 		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
@@ -45,37 +45,36 @@ test.describe("Board", () => {
 		// ボードの準備完了をキャンバスで判定。
 		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 
-		// Cmd+K / Ctrl+K（vim は修飾キー併用を素通しするのでパレットが開く）
-		await page.keyboard.press("ControlOrMeta+k");
+		// Control HUD は既定で閉じている。バッククォートで開く
+		// （コマンドパレットは廃止し、アクション検索は Control HUD に一本化）。
+		await page.keyboard.press("`");
 
-		const palette = page.locator('[role="dialog"][aria-label="コマンドパレット"]');
-		await expect(palette).toBeVisible();
+		const search = page.getByPlaceholder("アクションを検索…");
+		await expect(search).toBeVisible();
+		// アプリ横断アクション（テーマ）が Controls に列挙されている
+		await expect(page.getByText("テーマ切替: ライト", { exact: true })).toBeVisible();
 
-		// グループが出ている (複数の候補テキストが紛れ込むので最初の 1 件で特定)
-		await expect(palette.getByText("アクション", { exact: true })).toBeVisible();
-		await expect(palette.getByText("テーマ", { exact: true })).toBeVisible();
-
-		// Esc で閉じる
-		await page.keyboard.press("Escape");
-		await expect(palette).not.toBeVisible();
+		// バッククォートで閉じる
+		await page.keyboard.press("`");
+		await expect(search).not.toBeVisible();
 	});
 
-	test("command palette executes a theme command", async ({ page }) => {
+	test("Control HUD action search executes a theme action", async ({ page }) => {
 		await page.goto("/dashboard");
 		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
 		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 
-		await page.keyboard.press("ControlOrMeta+k");
+		await page.keyboard.press("`");
 
-		const palette = page.locator('[role="dialog"][aria-label="コマンドパレット"]');
-		await expect(palette).toBeVisible();
+		const search = page.getByPlaceholder("アクションを検索…");
+		await expect(search).toBeVisible();
 
-		// 「テーマ切替: ライト」コマンドをクリックして実行
-		await palette.locator("text=テーマ切替: ライト").click();
+		// 検索で絞り込み → アクションを発火
+		await search.fill("テーマ切替: ライト");
+		await page.getByRole("button", { name: "テーマ切替: ライト" }).click();
 
-		// パレットが閉じ、data-theme が light に
-		await expect(palette).not.toBeVisible();
+		// data-theme が light に
 		await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 	});
 });

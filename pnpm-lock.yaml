@@ -222,9 +222,6 @@ importers:
       '@edv4h/usketch-plugin-ai-recognize':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-ai-recognize
-      '@edv4h/usketch-plugin-ai-voice':
-        specifier: workspace:*
-        version: link:../../plugins/usketch-plugin-ai-voice
       '@edv4h/usketch-plugin-asset-store':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-asset-store

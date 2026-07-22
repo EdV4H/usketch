@@ -2,15 +2,11 @@ import { useApp } from "@edv4h/usketch-canvas-engine";
 import { useEffect, useState } from "react";
 import { I } from "../ui/index.js";
 
-interface Props {
-	onOpenCommandPalette: () => void;
-}
-
 /**
  * 画面下中央の Toolbar 上に浮かぶ AI Copilot 通知 pill。
  * Copilot が ON で、最新の提案テキストがあるときだけ表示。
  */
-export function CopilotPill({ onOpenCommandPalette }: Props) {
+export function CopilotPill() {
 	const app = useApp();
 	const [enabled, setEnabled] = useState(false);
 	const [message, setMessage] = useState<string | null>(null);
@@ -93,27 +89,6 @@ export function CopilotPill({ onOpenCommandPalette }: Props) {
 						却下
 					</button>
 				</div>
-				<button
-					type="button"
-					onClick={onOpenCommandPalette}
-					style={{
-						marginLeft: 2,
-						display: "flex",
-						alignItems: "center",
-						gap: 5,
-						padding: "4px 8px",
-						background: "var(--bg-input)",
-						border: "1px solid var(--border-subtle)",
-						borderRadius: 6,
-						color: "var(--fg-secondary)",
-						fontSize: 11,
-						cursor: "pointer",
-						fontFamily: "inherit",
-					}}
-				>
-					<I.search size={10} />
-					<span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 10 }}>⌘K</span>
-				</button>
 			</div>
 		</div>
 	);
