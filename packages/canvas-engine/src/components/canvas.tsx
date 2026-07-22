@@ -12,22 +12,29 @@ import { useTimeTravelShapes } from "../hooks/use-time-travel.js";
 /**
  * Effectively hidden = the shape's own `hidden` flag OR any ancestor's (hiding a
  * group/frame hides its subtree). Resolved locally against the shape map being
- * rendered, cycle-guarded. Mirrors `isEffectivelyHidden` in @edv4h/usketch-store
- * (kept dependency-free here since canvas-engine doesn't depend on the store).
+ * rendered. Mirrors `isEffectivelyHidden` in @edv4h/usketch-store (kept
+ * dependency-free here since canvas-engine doesn't depend on the store).
+ *
+ * Memoized via the caller-provided `cache` (one per filtering pass) so siblings
+ * reuse a parent's result — O(n) instead of O(n*depth) over a render pass. The
+ * cache is pre-seeded to `false` before recursing, which also guards `parentId`
+ * cycles.
  */
 function isEffectivelyHiddenInMap(
 	shapes: ReadonlyMap<string, ShapeData>,
 	shape: ShapeData,
+	cache: Map<string, boolean>,
 ): boolean {
-	let cur: ShapeData | undefined = shape;
-	const seen = new Set<string>();
-	while (cur) {
-		if (cur.hidden === true) return true;
-		if (typeof cur.parentId !== "string" || seen.has(cur.parentId)) break;
-		seen.add(cur.parentId);
-		cur = shapes.get(cur.parentId);
+	const cached = cache.get(shape.id);
+	if (cached !== undefined) return cached;
+	cache.set(shape.id, false); // cycle guard
+	let result = shape.hidden === true;
+	if (!result && typeof shape.parentId === "string") {
+		const parent = shapes.get(shape.parentId);
+		if (parent) result = isEffectivelyHiddenInMap(shapes, parent, cache);
 	}
-	return false;
+	cache.set(shape.id, result);
+	return result;
 }
 
 function toCanvasEvent(
@@ -321,9 +328,10 @@ export function Canvas() {
 		// primitive. Hidden shapes remain in the store, so a layers panel reading
 		// ctx.store can still list/toggle them.
 		const filtered = new Map<string, ShapeData>();
+		const hiddenCache = new Map<string, boolean>(); // memoize across this pass
 		for (const [id, shape] of source) {
 			if (applyFeatureFilter && !applyFeatureFilter(shape)) continue;
-			if (isEffectivelyHiddenInMap(source, shape)) continue;
+			if (isEffectivelyHiddenInMap(source, shape, hiddenCache)) continue;
 			filtered.set(id, shape);
 		}
 		return filtered;
