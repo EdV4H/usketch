@@ -98,6 +98,18 @@ describe("hidden / locked base logic", () => {
 			expect(store.getShape("s2")!.locked).toBe(true); // was already locked
 		});
 
+		it("clearing writes undefined (not false) to keep state lean", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "s1", hidden: true }));
+
+			const cmd = createSetHiddenCommand(store, ["s1"], false);
+			cmd.execute();
+			expect(store.getShape("s1")!.hidden).toBeUndefined();
+
+			cmd.undo();
+			expect(store.getShape("s1")!.hidden).toBe(true);
+		});
+
 		it("ignores unknown ids without throwing", () => {
 			const store = createBoardStore();
 			store.addShape(makeShape({ id: "s1" }));

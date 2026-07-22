@@ -87,7 +87,14 @@ function createSetBooleanFieldCommand(
 	for (const id of shapeIds) {
 		const shape = store.getShape(id);
 		if (!shape) continue;
-		updates.push({ id, from: { [field]: shape[field] }, to: { [field]: value } });
+		// Clearing writes `undefined` (not `false`) so the flag is absent rather than
+		// an explicit false — keeps persisted/Yjs state lean and matches the
+		// `undefined`-means-unset convention used throughout (`isShapeHidden` etc.).
+		updates.push({
+			id,
+			from: { [field]: shape[field] },
+			to: { [field]: value ? true : undefined },
+		});
 	}
 	return createBatchUpdateShapesCommand(store, updates);
 }
