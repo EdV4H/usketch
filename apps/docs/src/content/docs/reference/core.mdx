@@ -23,13 +23,21 @@ const app = await createApp({
 interface CreateAppOptions {
   store: BoardStore;
   plugins: UsketchPlugin[];
+  lod?: {
+    policy?: LodPolicy;
+    initialMode?: RenderMode;
+  };
+  selectionForeground?: Pick<SelectionForeground, "render"> &
+    Partial<Pick<SelectionForeground, "priority" | "order" | "fixed">>;
 }
 ```
 
 | Field | Description |
 |-------|-------------|
-| `store` | A `BoardStore` instance (typically created via `@edv4h/usketch-store`). |
-| `plugins` | Array of plugins to initialize. Order matters — plugins are set up sequentially. |
+| `store` | Required. A `BoardStore` instance (typically created via `@edv4h/usketch-store`). |
+| `plugins` | Required. Array of plugins to initialize. Order matters — plugins are set up sequentially. |
+| `lod?` | Optional. LOD (level-of-detail) configuration. If omitted, a zoom + shape-count composite policy starting in `interactive` mode is used. |
+| `selectionForeground?` | Optional. Replace the default selection UI (handles, bounding box, marquee) with a host-provided implementation. Registered internally at priority 100, so it wins over plugin defaults. |
 
 ### AppInstance
 
@@ -45,6 +53,12 @@ interface AppInstance {
   shortcuts: ShortcutRegistry;
   events: EventBus;
   transient: TransientRegistry;
+  lod: LodController;
+  ui: UiRegistry;
+  selectionForeground: SelectionForegroundRegistry;
+  externalContent: ExternalContentRegistry;
+  actions: ActionRegistry;
+  services: ServiceRegistry;
   plugins: readonly UsketchPlugin[];
   destroy(): void;
 }
@@ -60,7 +74,7 @@ Call `destroy()` to tear down the app:
 app.destroy();
 ```
 
-This calls `teardown()` on every plugin (in registration order) and cleans up internal subscriptions.
+This runs the teardown closures **returned** by each plugin's `setup()`, in **LIFO (reverse registration) order**, then destroys the LOD controller and cleans up internal subscriptions — it does *not* call `plugin.teardown()` in registration order. Teardowns may be sync or async; `destroy()` itself stays synchronous and any async teardown is fire-and-forget (errors are logged).
 
 ## Initialization Flow
 
@@ -93,10 +107,11 @@ createApp({ store, plugins })
 
 If any plugin's `setup()` throws, `createApp` will:
 
-1. Clean up the store mutation subscription.
-2. Re-throw the error.
+1. Run the teardowns already collected (those returned by earlier successfully-set-up plugins) in **reverse (LIFO) order**, rolling back so partially-initialized state doesn't leak.
+2. Clean up the store mutation subscription.
+3. Re-throw the error.
 
-Plugins that were already set up will **not** have `teardown()` called in this case. Design your plugins to be safe even if partially initialized.
+So teardowns of already-set-up plugins **are** called. It's still good practice to design your plugins to be safe even if partially initialized.
 
 ## Usage with React
 

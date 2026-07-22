@@ -694,7 +694,7 @@ export const youtubeEmbedPlugin: UsketchPlugin = {
         });
       },
     });
-    (this as UsketchPlugin).teardown = () => off();
+    return () => off();
   },
 };
 ```

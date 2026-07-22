@@ -34,8 +34,11 @@ interface Layer {
 interface LayerRenderContext {
   viewport: Viewport;                       // 現在のパンとズーム
   shapes: ReadonlyMap<string, ShapeData>;   // ボード上のすべてのシェイプ
+  shapesSorted: readonly ShapeData[];       // zIndex 昇順（奥→手前）でソート済み
   selection: ReadonlySet<string>;           // 現在選択中のシェイプ ID
+  hoveredShapeId: string | null;            // ホバー中のシェイプ ID（無ければ null）
   theme: Theme;                             // 有効なテーマ
+  renderMode: RenderMode;                   // 現在の LOD 描画モード
 }
 ```
 

@@ -1,21 +1,5 @@
 [
 	{
-		"id": "shape-rect",
-		"name": "Rectangle",
-		"category": "shape",
-		"glyph": "rect",
-		"summary": "SVG rectangle with rounded corners and stroke styles.",
-		"install": "pnpm add @edv4h/usketch-plugin-shape-rect"
-	},
-	{
-		"id": "shape-ellipse",
-		"name": "Ellipse",
-		"category": "shape",
-		"glyph": "circ",
-		"summary": "Ellipse / circle primitive with perfect-circle snap.",
-		"install": "pnpm add @edv4h/usketch-plugin-shape-ellipse"
-	},
-	{
 		"id": "shape-text",
 		"name": "Text",
 		"category": "shape",
@@ -38,14 +22,6 @@
 		"glyph": "draw",
 		"summary": "Pressure-sensitive ink path with perfect-freehand.",
 		"install": "pnpm add @edv4h/usketch-plugin-shape-freedraw"
-	},
-	{
-		"id": "shape-brush",
-		"name": "Brush",
-		"category": "shape",
-		"glyph": "brush",
-		"summary": "Textured brush strokes for expressive sketching.",
-		"install": "pnpm add @edv4h/usketch-plugin-shape-brush"
 	},
 	{
 		"id": "shape-image",
@@ -454,5 +430,105 @@
 		"glyph": "⌘",
 		"summary": "FPS, draw calls, event bus tracer.",
 		"install": "pnpm add @edv4h/usketch-plugin-debug-hud"
+	},
+	{
+		"id": "asset-store",
+		"name": "Asset Store",
+		"category": "ui",
+		"summary": "Content-addressed asset store (Yjs map) for heavy blobs like images; shapes reference assets by id, deduped and synced once.",
+		"install": "pnpm add @edv4h/usketch-plugin-asset-store"
+	},
+	{
+		"id": "container",
+		"name": "Container",
+		"category": "ui",
+		"summary": "Runtime for container shapes — shapes that accept and hold child shapes (attach / layout).",
+		"install": "pnpm add @edv4h/usketch-plugin-container"
+	},
+	{
+		"id": "domain-design",
+		"name": "Domain Design",
+		"category": "shape",
+		"summary": "Shapes and tooling for drawing DDD (domain-driven design) strategic & tactical modeling diagrams.",
+		"install": "pnpm add @edv4h/usketch-plugin-domain-design"
+	},
+	{
+		"id": "free-position",
+		"name": "Free Position",
+		"category": "ui",
+		"summary": "Finds the nearest non-overlapping position for placing a shape (issue #581).",
+		"install": "pnpm add @edv4h/usketch-plugin-free-position"
+	},
+	{
+		"id": "markdown-to-shape",
+		"name": "Markdown to Shape",
+		"category": "tool",
+		"summary": "Decomposes Markdown into multiple native shapes via a pluggable conversion registry (IoC).",
+		"install": "pnpm add @edv4h/usketch-plugin-markdown-to-shape"
+	},
+	{
+		"id": "portal",
+		"name": "Portal",
+		"category": "ui",
+		"glyph": "prt",
+		"summary": "Pin any shape as a screen-fixed widget; personal (localStorage) by default with a shared toggle.",
+		"install": "pnpm add @edv4h/usketch-plugin-portal"
+	},
+	{
+		"id": "shape-card",
+		"name": "Card",
+		"category": "shape",
+		"summary": "Card shape with a card-type extension point (playing cards, UNO, media cards, etc.).",
+		"install": "pnpm add @edv4h/usketch-plugin-shape-card"
+	},
+	{
+		"id": "shape-embed",
+		"name": "Embed",
+		"category": "shape",
+		"summary": "Embed external content (YouTube, etc.) as iframe shapes; tldraw-style provider allow-list.",
+		"install": "pnpm add @edv4h/usketch-plugin-shape-embed"
+	},
+	{
+		"id": "shape-markdown",
+		"name": "Markdown",
+		"category": "shape",
+		"summary": "Markdown shape rendered as HTML (GFM, syntax highlighting, Mermaid diagrams).",
+		"install": "pnpm add @edv4h/usketch-plugin-shape-markdown"
+	},
+	{
+		"id": "shape-openui",
+		"name": "OpenUI Shape",
+		"category": "shape",
+		"summary": "Experimental OpenUI shape: render Generative UI (OpenUI Lang) as a uSketch shape.",
+		"install": "pnpm add @edv4h/usketch-plugin-shape-openui"
+	},
+	{
+		"id": "timter",
+		"name": "Timter",
+		"category": "ui",
+		"summary": "Shared timers as canvas shapes (countdown / stopwatch), synced against a shared server clock.",
+		"install": "pnpm add @edv4h/usketch-plugin-timter"
+	},
+	{
+		"id": "tool-openui",
+		"name": "OpenUI Tool",
+		"category": "tool",
+		"summary": "Experimental OpenUI tool: prompt → OpenUI Lang → openui shape; toolbar tool, side-panel prompt, Make Real button.",
+		"install": "pnpm add @edv4h/usketch-plugin-tool-openui"
+	},
+	{
+		"id": "tool-vim",
+		"name": "Vim",
+		"category": "tool",
+		"summary": "Adds Vim-like keyboard operation via an XState 5 state machine.",
+		"install": "pnpm add @edv4h/usketch-plugin-tool-vim"
+	},
+	{
+		"id": "voice-notes",
+		"name": "Voice Notes",
+		"category": "ai",
+		"glyph": "VX",
+		"summary": "Voice memo: record → AI summarize → summary Frame on the canvas.",
+		"install": "pnpm add @edv4h/usketch-plugin-voice-notes"
 	}
 ]

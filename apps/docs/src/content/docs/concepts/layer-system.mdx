@@ -34,8 +34,11 @@ interface Layer {
 interface LayerRenderContext {
   viewport: Viewport;                       // Current pan & zoom
   shapes: ReadonlyMap<string, ShapeData>;   // All shapes on the board
+  shapesSorted: readonly ShapeData[];       // Shapes sorted by zIndex (back to front)
   selection: ReadonlySet<string>;           // Currently selected shape IDs
+  hoveredShapeId: string | null;            // Id of the hovered shape, or null
   theme: Theme;                             // Active theme
+  renderMode: RenderMode;                   // Current LOD render mode
 }
 ```
 
