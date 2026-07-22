@@ -1,4 +1,4 @@
-import type { CanvasPointerEvent, RenderMode } from "@edv4h/usketch-shared";
+import type { CanvasPointerEvent, RenderMode, ShapeData } from "@edv4h/usketch-shared";
 import { compareZIndex, DEFAULT_THEME } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
@@ -8,6 +8,27 @@ import { useFilterPredicate } from "../hooks/use-filter-predicate.js";
 import { useInteractingListeners } from "../hooks/use-interacting.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
 import { useTimeTravelShapes } from "../hooks/use-time-travel.js";
+
+/**
+ * Effectively hidden = the shape's own `hidden` flag OR any ancestor's (hiding a
+ * group/frame hides its subtree). Resolved locally against the shape map being
+ * rendered, cycle-guarded. Mirrors `isEffectivelyHidden` in @edv4h/usketch-store
+ * (kept dependency-free here since canvas-engine doesn't depend on the store).
+ */
+function isEffectivelyHiddenInMap(
+	shapes: ReadonlyMap<string, ShapeData>,
+	shape: ShapeData,
+): boolean {
+	let cur: ShapeData | undefined = shape;
+	const seen = new Set<string>();
+	while (cur) {
+		if (cur.hidden === true) return true;
+		if (typeof cur.parentId !== "string" || seen.has(cur.parentId)) break;
+		seen.add(cur.parentId);
+		cur = shapes.get(cur.parentId);
+	}
+	return false;
+}
 
 function toCanvasEvent(
 	containerRef: React.RefObject<HTMLDivElement | null>,
@@ -291,12 +312,15 @@ export function Canvas() {
 	const filteredShapes = useMemo(() => {
 		// Time-travel mode: override with snapshot shapes
 		if (timeTravelShapes) return timeTravelShapes;
-		if (!filterPredicate) return shapes;
-		const filtered = new Map<string, import("@edv4h/usketch-shared").ShapeData>();
+		// Drop effectively-hidden shapes (self or any ancestor `hidden`) from every
+		// render path (dom/engine/gpu all read this via renderCtx.shapesSorted), on
+		// top of any plugin feature filter. Hidden shapes remain in the store, so a
+		// layers panel reading ctx.store can still list/toggle them.
+		const filtered = new Map<string, ShapeData>();
 		for (const [id, shape] of shapes) {
-			if (filterPredicate(shape)) {
-				filtered.set(id, shape);
-			}
+			if (filterPredicate && !filterPredicate(shape)) continue;
+			if (isEffectivelyHiddenInMap(shapes, shape)) continue;
+			filtered.set(id, shape);
 		}
 		return filtered;
 	}, [shapes, filterPredicate, timeTravelShapes]);

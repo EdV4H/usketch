@@ -1,4 +1,10 @@
-import type { BoardStore, BoundingBox, ShapeData } from "@edv4h/usketch-shared";
+import {
+	type BoardStore,
+	type BoundingBox,
+	isShapeHidden,
+	isShapeLocked,
+	type ShapeData,
+} from "@edv4h/usketch-shared";
 
 /** Get all direct children of a parent shape */
 export function getChildShapes(store: BoardStore, parentId: string): ShapeData[] {
@@ -71,6 +77,25 @@ export function computeGroupBounds(children: ShapeData[]): BoundingBox {
 	}
 
 	return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+/**
+ * Whether a shape is effectively hidden: its own `hidden` flag OR any ancestor's.
+ * Cascade mirrors Figma — hiding a group/frame hides its subtree. Cycle-safe via
+ * {@link getAncestorChain}.
+ */
+export function isEffectivelyHidden(store: BoardStore, shape: ShapeData): boolean {
+	if (isShapeHidden(shape)) return true;
+	return getAncestorChain(store, shape.id).some(isShapeHidden);
+}
+
+/**
+ * Whether a shape is effectively locked: its own `locked` flag OR any ancestor's.
+ * Cascade mirrors Figma — locking a group/frame locks its subtree.
+ */
+export function isEffectivelyLocked(store: BoardStore, shape: ShapeData): boolean {
+	if (isShapeLocked(shape)) return true;
+	return getAncestorChain(store, shape.id).some(isShapeLocked);
 }
 
 /** Check if reparenting would create a cycle */

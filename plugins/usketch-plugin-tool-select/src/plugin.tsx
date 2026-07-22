@@ -5,7 +5,7 @@ import type {
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { safeRotation } from "@edv4h/usketch-shared";
-import { createDeleteWithChildrenCommand } from "@edv4h/usketch-store";
+import { createDeleteWithChildrenCommand, isEffectivelyLocked } from "@edv4h/usketch-store";
 import {
 	findHandleAtScreenPoint,
 	findMultiHandleAtScreenPoint,
@@ -59,6 +59,9 @@ function deleteSelectedShapes(ctx: PluginContext) {
 	if (selection.size === 0) return;
 	if (ctx.store.getActiveToolId() !== "select") return;
 	for (const id of selection) {
+		const shape = ctx.store.getShape(id);
+		// Locked shapes (or those under a locked ancestor) resist deletion.
+		if (shape && isEffectivelyLocked(ctx.store, shape)) continue;
 		ctx.commands.execute(createDeleteWithChildrenCommand(ctx.store, id));
 	}
 	ctx.store.clearSelection();

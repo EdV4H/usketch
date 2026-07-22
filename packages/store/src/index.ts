@@ -27,6 +27,8 @@ export {
 	createSendBackwardCommand,
 	createSendSelectionToBackCommand,
 	createSendToBackCommand,
+	createSetHiddenCommand,
+	createSetLockedCommand,
 	createUngroupCommand,
 	createUpdateShapeCommand,
 } from "./commands.js";
@@ -41,6 +43,8 @@ export {
 	getParentShape,
 	getTopLevelAncestor,
 	getTopLevelShapes,
+	isEffectivelyHidden,
+	isEffectivelyLocked,
 	wouldCreateCycle,
 } from "./hierarchy-utils.js";
 export type { SpatialIndex } from "./spatial-index.js";

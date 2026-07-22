@@ -1,6 +1,10 @@
 import type { BoundingBox, CanvasPointerEvent, Point, ToolContext } from "@edv4h/usketch-shared";
 import { hasSelectableChildren } from "@edv4h/usketch-shared";
-import { getTopLevelAncestor } from "@edv4h/usketch-store";
+import {
+	getTopLevelAncestor,
+	isEffectivelyHidden,
+	isEffectivelyLocked,
+} from "@edv4h/usketch-store";
 import type { ToolSession } from "./types.js";
 
 export type MarqueeMode = "intersect" | "contain";
@@ -107,6 +111,9 @@ export function findShapesInRect(
 	const ids = new Set<string>();
 
 	for (const [id, data] of shapes) {
+		// Hidden or locked shapes (or those under a hidden/locked ancestor) never
+		// enter a marquee selection.
+		if (isEffectivelyHidden(ctx.store, data) || isEffectivelyLocked(ctx.store, data)) continue;
 		const def = ctx.shapes.get(data.type);
 		const bounds = def
 			? def.getBounds(data)

@@ -38,12 +38,27 @@ export function findShapeAtPoint(
 	options?: { excludeTypes?: ReadonlySet<string> },
 ): ShapeData | null {
 	const exclude = options?.excludeTypes;
+	const shapeMap = ctx.store.getShapes();
 	const ordered: ShapeData[] = ctx.store.getShapesSorted
 		? [...ctx.store.getShapesSorted()].reverse()
-		: [...ctx.store.getShapes().values()].reverse();
+		: [...shapeMap.values()].reverse();
+	// A hidden/locked shape (or one under a hidden/locked ancestor) is not a valid
+	// anchor target — mirrors the engine-wide interaction rule.
+	const isBlocked = (data: ShapeData): boolean => {
+		let cur: ShapeData | undefined = data;
+		const seen = new Set<string>();
+		while (cur) {
+			if (cur.hidden === true || cur.locked === true) return true;
+			if (typeof cur.parentId !== "string" || seen.has(cur.parentId)) break;
+			seen.add(cur.parentId);
+			cur = shapeMap.get(cur.parentId);
+		}
+		return false;
+	};
 	let fallbackContainer: ShapeData | null = null;
 	for (const data of ordered) {
 		if (exclude?.has(data.type)) continue;
+		if (isBlocked(data)) continue;
 		const def = ctx.shapes.get(data.type);
 		if (!def?.hitTest(data, point)) continue;
 		if (data.type === "frame" || data.type === "group") {

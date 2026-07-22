@@ -30,6 +30,20 @@ describe("startMarqueeSession", () => {
 		expect([...u.hitIds]).toEqual(["small"]);
 	});
 
+	it("excludes hidden and locked shapes from the selection", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "normal", x: 0, y: 0, width: 50, height: 50 }));
+		ctx.store.addShape(
+			makeShape({ id: "hidden", x: 0, y: 0, width: 50, height: 50, hidden: true }),
+		);
+		ctx.store.addShape(
+			makeShape({ id: "locked", x: 0, y: 0, width: 50, height: 50, locked: true }),
+		);
+		const session = startMarqueeSession({ ctx, startWorldPoint: { x: -10, y: -10 } });
+		const u = session.update(makePointerEvent({ x: 100, y: 100 }));
+		expect([...u.hitIds]).toEqual(["normal"]);
+	});
+
 	it("commit() returns null for tiny accidental drags below minDragDistance", () => {
 		const ctx = createTestToolContext();
 		ctx.store.addShape(makeShape({ id: "a", x: 0, y: 0, width: 100, height: 100 }));

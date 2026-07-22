@@ -76,6 +76,44 @@ export function createBatchUpdateShapesCommand(
 	};
 }
 
+/** Build an undoable batch command that flips one boolean field on the given shapes. */
+function createSetBooleanFieldCommand(
+	store: BoardStore,
+	shapeIds: readonly string[],
+	field: "hidden" | "locked",
+	value: boolean,
+): Command {
+	const updates: Array<{ id: string; from: Partial<ShapeData>; to: Partial<ShapeData> }> = [];
+	for (const id of shapeIds) {
+		const shape = store.getShape(id);
+		if (!shape) continue;
+		updates.push({ id, from: { [field]: shape[field] }, to: { [field]: value } });
+	}
+	return createBatchUpdateShapesCommand(store, updates);
+}
+
+/**
+ * Set (or clear) the `hidden` flag on one or more shapes. Operates by id — a
+ * hidden shape can't be selected on-canvas, so callers (layers panel, shortcuts)
+ * toggle it directly. Undoable and Yjs-synced via {@link store.updateShape}.
+ */
+export function createSetHiddenCommand(
+	store: BoardStore,
+	shapeIds: readonly string[],
+	value: boolean,
+): Command {
+	return createSetBooleanFieldCommand(store, shapeIds, "hidden", value);
+}
+
+/** Set (or clear) the `locked` flag on one or more shapes. See {@link createSetHiddenCommand}. */
+export function createSetLockedCommand(
+	store: BoardStore,
+	shapeIds: readonly string[],
+	value: boolean,
+): Command {
+	return createSetBooleanFieldCommand(store, shapeIds, "locked", value);
+}
+
 /** Create a group from selected shapes */
 export function createGroupCommand(
 	store: BoardStore,

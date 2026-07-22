@@ -18,6 +18,40 @@ describe("findShapeAtPoint", () => {
 		expect(findShapeAtPoint(ctx, { x: 50, y: 50 })).toBe("top");
 	});
 
+	it("skips a hidden top shape and returns the one beneath it", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "bottom", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.addShape(makeShape({ id: "top", x: 0, y: 0, width: 100, height: 100, hidden: true }));
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 })).toBe("bottom");
+	});
+
+	it("skips a locked shape (not interactive)", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(
+			makeShape({ id: "only", x: 0, y: 0, width: 100, height: 100, locked: true }),
+		);
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 })).toBeNull();
+	});
+
+	it("skips a child under a hidden ancestor (cascade)", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(
+			makeShape({ id: "frame", type: "frame", x: 0, y: 0, width: 200, height: 200, hidden: true }),
+		);
+		ctx.store.addShape(
+			makeShape({
+				id: "child",
+				type: "rect",
+				parentId: "frame",
+				x: 50,
+				y: 50,
+				width: 50,
+				height: 50,
+			}),
+		);
+		expect(findShapeAtPoint(ctx, { x: 60, y: 60 })).toBeNull();
+	});
+
 	it("prefers non-container shapes over a container at the same point", () => {
 		const ctx = createTestToolContext();
 		ctx.store.addShape(

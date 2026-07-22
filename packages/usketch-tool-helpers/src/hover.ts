@@ -9,7 +9,11 @@ import type {
 	Viewport,
 } from "@edv4h/usketch-shared";
 import { hasSelectableChildren, safeRotation } from "@edv4h/usketch-shared";
-import { getTopLevelAncestor } from "@edv4h/usketch-store";
+import {
+	getTopLevelAncestor,
+	isEffectivelyHidden,
+	isEffectivelyLocked,
+} from "@edv4h/usketch-store";
 import {
 	findHandleAtScreenPoint,
 	findMultiHandleAtScreenPoint,
@@ -166,6 +170,9 @@ export function findShapeAtPoint(
 		// Skip excluded / filtered-out shapes before hit-testing.
 		if (excludeSet?.has(id)) continue;
 		if (filter && !filter(data)) continue;
+		// Hidden or locked shapes (or those under a hidden/locked ancestor) are not
+		// interactive — never resolve as the shape under the cursor.
+		if (isEffectivelyHidden(ctx.store, data) || isEffectivelyLocked(ctx.store, data)) continue;
 		const def = ctx.shapes.get(data.type);
 		if (!def?.hitTest(data, point)) continue;
 

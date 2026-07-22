@@ -4,6 +4,8 @@ import {
 	createBringSelectionToFrontCommand,
 	createSendBackwardCommand,
 	createSendSelectionToBackCommand,
+	isEffectivelyHidden,
+	isEffectivelyLocked,
 } from "@edv4h/usketch-store";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { copyShapes, duplicateShapes, pasteShapes } from "./clipboard.js";
@@ -76,7 +78,13 @@ export function createKeyboardShortcutsPlugin(
 			// ── Select all ──
 			cleanups.push(
 				shortcuts.register("Ctrl+A", () => {
-					const ids = [...store.getShapes().keys()];
+					// Skip hidden/locked shapes (and those under a hidden/locked ancestor) —
+					// they aren't selectable via canvas interaction, so select-all matches.
+					const ids: string[] = [];
+					for (const [id, shape] of store.getShapes()) {
+						if (isEffectivelyHidden(store, shape) || isEffectivelyLocked(store, shape)) continue;
+						ids.push(id);
+					}
 					store.setSelection(ids);
 				}),
 			);
