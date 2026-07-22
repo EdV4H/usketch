@@ -70,7 +70,9 @@ function deleteSelectedShapes(ctx: PluginContext) {
 			continue;
 		ctx.commands.execute(createDeleteWithChildrenCommand(ctx.store, id));
 	}
-	ctx.store.clearSelection();
+	// No explicit clearSelection: `store.deleteShape` already drops deleted ids from
+	// the selection, so skipped (locked/hidden) shapes stay selected while a
+	// full-delete still ends with an empty selection.
 }
 
 // ── Drag state types ──
