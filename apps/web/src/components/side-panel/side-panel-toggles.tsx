@@ -70,6 +70,12 @@ export function SidePanelToggles({ app }: Props) {
 				tooltipPlacement="left"
 				onClick={() => openTab("activity")}
 			/>
+			<IconBtn
+				icon={I.settings}
+				label="表示"
+				tooltipPlacement="left"
+				onClick={() => openTab("render-settings")}
+			/>
 		</div>
 	);
 }

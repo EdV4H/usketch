@@ -10,4 +10,5 @@
 - `@edv4h/usketch-shared` に純ヘルパー `getShapeAABB` / `rectsIntersect` / `scaleRectAboutCenter` / `isShapeOutsideViewport` を追加。
 - `dom-renderer` の per-shape LOD 判定を「グローバル LOD（zoom/count/fps）**OR** 画角外」に拡張。画角外は既存の `simplifiedComponent ?? LodFallback` で簡略描画。
 - `createDomRendererPlugin({ viewportLod })` で設定可能（既定 ON）。`viewportLod.ratio` = 本描画とする画角の割合（**既定 1.2**＝120% でポップイン緩衝、1.0=画角ちょうど、0.5=中央50%のみ本描画）。`false` で無効化。
+- **実行中に調整可能**: `SET_VIEWPORT_LOD_EVENT`（`renderer:set-viewport-lod`, `{ enabled?, ratio? }`）を emit すると即座に反映（`layers:changed` で再描画）。web アプリはサイドパネルの「表示」タブにスライダー＋ON/OFF を追加し、値を localStorage に永続化。
 - LOD は描画のみ。シェイプ data は不変で、画角外でも全件が snapshot/同期に残る。

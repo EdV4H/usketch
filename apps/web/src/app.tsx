@@ -75,11 +75,13 @@ import { useLocation, useNavigate, useParams } from "react-router";
 import { CopilotPill, TopBar } from "./components/board-frame/index.js";
 import { ShareDialog } from "./components/share-dialog.js";
 import { InfoTab } from "./components/side-panel/info-tab.js";
+import { RenderSettingsTab } from "./components/side-panel/render-settings-tab.js";
 import { SidePanelToggles } from "./components/side-panel/side-panel-toggles.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
 import { computePresentStage, type StageRect } from "./lib/present-stage.js";
+import { loadViewportLod } from "./lib/render-settings.js";
 import { useAppActions } from "./lib/use-app-actions.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
@@ -173,7 +175,14 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		createAttachablePlugin(),
 		createExportPlugin(),
 		createGpuRendererPlugin(),
-		createDomRendererPlugin(),
+		createDomRendererPlugin({
+			// Initial value from persisted user setting; live changes come via the
+			// render-settings side-panel tab (SET_VIEWPORT_LOD_EVENT).
+			viewportLod: (() => {
+				const s = loadViewportLod();
+				return s.enabled ? { ratio: s.ratio } : false;
+			})(),
+		}),
 	];
 }
 
@@ -718,6 +727,23 @@ export function App() {
 			app.events.emit("side-panel:unregister-tab", { tabId: "info" });
 		};
 	}, [app, boardId, isCloudBoard]);
+
+	// 表示/パフォーマンス設定タブ（ローカル/Cloud 共通）
+	useEffect(() => {
+		if (!app) return;
+		app.events.emit("side-panel:register-tab", {
+			tab: {
+				id: "render-settings",
+				label: "表示",
+				icon: "⚙️",
+				order: 50,
+				render: () => <RenderSettingsTab app={app} />,
+			},
+		});
+		return () => {
+			app.events.emit("side-panel:unregister-tab", { tabId: "render-settings" });
+		};
+	}, [app]);
 
 	const [stageRect, setStageRect] = useState<StageRect | null>(stageRectRef.current);
 	stageRectRef.current = stageRect;

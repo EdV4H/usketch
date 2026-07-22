@@ -1,2 +1,7 @@
 export { DomShapeLayer } from "./dom-shape-layer.js";
-export { createDomRendererPlugin, type DomRendererOptions } from "./plugin.js";
+export {
+	createDomRendererPlugin,
+	type DomRendererOptions,
+	SET_VIEWPORT_LOD_EVENT,
+	type SetViewportLodEvent,
+} from "./plugin.js";
