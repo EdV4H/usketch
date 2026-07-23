@@ -18,12 +18,23 @@ export interface SetViewportLodEvent {
 }
 export const SET_VIEWPORT_LOD_EVENT = "renderer:set-viewport-lod";
 
+const DEFAULT_VIEWPORT_LOD_RATIO = 1.2;
+
+/** Clamp a user-provided ratio to a finite positive number (else the default). */
+function sanitizeRatio(ratio: number | undefined): number {
+	if (typeof ratio !== "number" || !Number.isFinite(ratio) || ratio <= 0) {
+		return DEFAULT_VIEWPORT_LOD_RATIO;
+	}
+	return ratio;
+}
+
 export function createDomRendererPlugin(options: DomRendererOptions = {}): UsketchPlugin {
 	// `let` so a runtime control (SET_VIEWPORT_LOD_EVENT) can update them; the
 	// render closure below reads the latest values.
 	let viewportLodEnabled = options.viewportLod !== false;
-	let viewportLodRatio =
-		typeof options.viewportLod === "object" ? (options.viewportLod.ratio ?? 1.2) : 1.2;
+	let viewportLodRatio = sanitizeRatio(
+		typeof options.viewportLod === "object" ? options.viewportLod.ratio : undefined,
+	);
 
 	return {
 		id: "usketch-dom-renderer",
@@ -35,10 +46,10 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 			// Track drop target frame (set by select tool during drag)
 			let dropTargetId: string | null = null;
 
-			// Runtime viewport-LOD adjustment from a UI control (side-panel settings).
+			// Runtime viewport-LOD adjustment from a UI control (Control HUD).
 			const unsubViewportLod = ctx.events.on<SetViewportLodEvent>(SET_VIEWPORT_LOD_EVENT, (d) => {
 				if (typeof d.enabled === "boolean") viewportLodEnabled = d.enabled;
-				if (typeof d.ratio === "number") viewportLodRatio = d.ratio;
+				if (typeof d.ratio === "number") viewportLodRatio = sanitizeRatio(d.ratio);
 				ctx.events.emit("layers:changed", {});
 			});
 

@@ -149,11 +149,14 @@ export function DomShapeLayer({
 
 	// Global LOD (zoom/count/fps): every shape renders simplified.
 	const globalLod = ctx.renderMode === "lod";
-	// The GPU layer only renders when not interactive; in `interactive` mode any
-	// lingering claimedIds from a previous `lod` pass must be ignored — otherwise a
-	// stale closure in the plugin layer can keep hiding shapes until the next store
-	// mutation. DOM owns the full shape set in interactive mode.
-	const gpuActive = ctx.renderMode !== "interactive";
+	// GPU is "active" only when it is both enabled (non-interactive mode) AND has
+	// actually claimed shapes (`claimedIds` is set — the plugin passes `undefined`
+	// when the GPU claimed nothing). This keeps DOM as the fallback in DOM-only
+	// setups (or before the first GPU claim): otherwise GPU-capable shapes like
+	// `freedraw` would be skipped here yet never drawn by GPU, i.e. vanish. In
+	// `interactive` mode any lingering claimedIds from a previous pass are ignored
+	// so DOM owns the full shape set.
+	const gpuActive = ctx.renderMode !== "interactive" && claimedIds !== undefined;
 	const effectiveClaimedIds = gpuActive ? claimedIds : undefined;
 
 	// Use pre-sorted shapes (by zIndex ascending) from the layer render context,
