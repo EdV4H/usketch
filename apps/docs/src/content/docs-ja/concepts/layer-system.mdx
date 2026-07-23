@@ -39,6 +39,7 @@ interface LayerRenderContext {
   hoveredShapeId: string | null;            // ホバー中のシェイプ ID（無ければ null）
   theme: Theme;                             // 有効なテーマ
   renderMode: RenderMode;                   // 現在の LOD 描画モード
+  viewportBounds: BoundingBox;              // world 座標の可視領域（per-shape の画角 LOD/カリング用）
 }
 ```
 
