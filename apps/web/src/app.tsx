@@ -80,10 +80,12 @@ import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
 import { computePresentStage, type StageRect } from "./lib/present-stage.js";
+import { loadViewportLod } from "./lib/render-settings.js";
 import { useAppActions } from "./lib/use-app-actions.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 import { createMarkdownAdaptersPlugin } from "./plugins/markdown-adapters.js";
+import { createViewportLodControlPlugin } from "./plugins/viewport-lod-control.js";
 
 type PresentationMode = "off" | "edit" | "present";
 
@@ -173,7 +175,16 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		createAttachablePlugin(),
 		createExportPlugin(),
 		createGpuRendererPlugin(),
-		createDomRendererPlugin(),
+		createDomRendererPlugin({
+			// Initial value from persisted user setting; live changes come from the
+			// Control HUD action (SET_VIEWPORT_LOD_EVENT).
+			viewportLod: (() => {
+				const s = loadViewportLod();
+				return s.enabled ? { ratio: s.ratio } : false;
+			})(),
+		}),
+		// Registers the viewport-LOD toggle + % control into the Control HUD.
+		createViewportLodControlPlugin(),
 	];
 }
 

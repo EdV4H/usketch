@@ -77,9 +77,23 @@ export function Canvas() {
 	const activeTool = app.tools.get(activeToolId);
 	const [, setLayerVersion] = useState(0);
 	const [renderMode, setRenderMode] = useState<RenderMode>(() => app.lod.getMode());
+	// Canvas pixel size, tracked so layers can derive the visible world rect
+	// (`viewportBounds`) for per-shape viewport decisions (off-screen LOD, etc.).
+	const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
 	// Subscribe to LOD mode changes
 	useEffect(() => app.lod.onModeChange(setRenderMode), [app.lod]);
+
+	// Measure the container and keep `canvasSize` current (initial + on resize).
+	useLayoutEffect(() => {
+		const el = containerRef.current;
+		if (!el) return;
+		const measure = () => setCanvasSize({ width: el.clientWidth, height: el.clientHeight });
+		measure();
+		const ro = new ResizeObserver(measure);
+		ro.observe(el);
+		return () => ro.disconnect();
+	}, []);
 
 	// rAF loop: measure smoothed FPS and tick the LOD controller every frame.
 	// FPS is the closest available proxy for CPU/GPU load in the browser.
@@ -342,6 +356,19 @@ export function Canvas() {
 		[filteredShapes],
 	);
 
+	// Visible region in world coords (screenToWorld of the top-left + size/zoom).
+	// width/height are 0 until the container is measured — consumers treat that as
+	// "unknown" and skip viewport-based decisions.
+	const viewportBounds = useMemo(
+		() => ({
+			x: -viewport.x / viewport.zoom,
+			y: -viewport.y / viewport.zoom,
+			width: canvasSize.width / viewport.zoom,
+			height: canvasSize.height / viewport.zoom,
+		}),
+		[viewport, canvasSize],
+	);
+
 	const renderCtx = {
 		viewport,
 		shapes: filteredShapes,
@@ -350,6 +377,7 @@ export function Canvas() {
 		hoveredShapeId,
 		theme: DEFAULT_THEME,
 		renderMode,
+		viewportBounds,
 	};
 
 	const layers = app.layers.getLayers();
