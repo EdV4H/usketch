@@ -56,7 +56,7 @@ export const myFancyHandlesPlugin: UsketchPlugin = {
       fixed: true,
       render: (renderCtx) => <FancyHandles ctx={renderCtx} />,
     });
-    (this as UsketchPlugin).teardown = () => off();
+    return () => off();
   },
 };
 ```

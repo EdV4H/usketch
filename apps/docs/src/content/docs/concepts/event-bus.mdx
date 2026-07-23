@@ -12,13 +12,21 @@ The `EventBus` enables plugins to communicate without direct dependencies. One p
 
 ```ts
 interface EventBus {
+  // Known CoreEventMap events get typed emit/on overloads
+  on<K extends keyof CoreEventMap>(event: K, handler: (data: CoreEventMap[K]) => void): () => void;
   on<T = unknown>(event: string, handler: (data: T) => void): () => void;
+  emit<K extends keyof CoreEventMap>(event: K, data: CoreEventMap[K]): void;
   emit<T = unknown>(event: string, data: T): void;
+  pause(): void;    // Suspend event delivery (ref-counted; nests safely)
+  resume(): void;   // Release one pause; delivery resumes when the count hits zero
+  isPaused(): boolean;
 }
 ```
 
-- `on()` returns an unsubscribe function. Call it in `teardown()` to clean up.
+- `on()` returns an unsubscribe function. Return it from `setup` to clean up.
 - `emit()` synchronously calls all registered handlers for the event.
+- Known events declared in `CoreEventMap` (e.g. `canvas:pointerdown`) get type-safe `emit`/`on` overloads. Unknown string events fall back to the `T = unknown` signature.
+- `pause()` / `resume()` are ref-counted and let you suspend delivery. Each `pause()` MUST be paired with exactly one `resume()` (leaking a `pause()` silently drops every subsequent event). Use `isPaused()` to check the current state.
 
 ## Store Mutation Bridge
 
@@ -36,23 +44,34 @@ This means plugins can listen for store changes without directly subscribing to 
 ## Usage Example: Snap Plugin
 
 ```ts
-// Keep unsubscribe references in a closure, not on the plugin object
-let unsub: (() => void) | null = null;
-
 const snapPlugin: UsketchPlugin = {
   id: "usketch-plugin-snap",
   name: "Snap",
 
   setup(ctx: PluginContext) {
-    unsub = ctx.events.on("tool:drag", (event) => {
+    // Return the unsubscribe from on() directly as setup's teardown
+    return ctx.events.on("tool:drag", (event) => {
       const snapped = calculateSnap(event.point, event.shapes);
       updateSnapGuides(snapped);
     });
   },
+};
+```
 
-  teardown() {
-    unsub?.();
-    unsub = null;
+To unsubscribe from multiple events, return a closure that calls each unsubscribe:
+
+```ts
+const multiPlugin: UsketchPlugin = {
+  id: "usketch-plugin-multi",
+  name: "Multi",
+
+  setup(ctx: PluginContext) {
+    const offDrag = ctx.events.on("tool:drag", handleDrag);
+    const offDrop = ctx.events.on("canvas:drop", handleDrop);
+    return () => {
+      offDrag();
+      offDrop();
+    };
   },
 };
 ```

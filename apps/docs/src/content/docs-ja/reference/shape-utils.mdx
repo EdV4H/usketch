@@ -4,7 +4,7 @@ description: uSketch シェイププラグインを書くための共通ヘル�
 order: 32
 ---
 
-`@edv4h/usketch-shape-utils` は uSketch の shape プラグインを書くときに使う共通関数を提供する。React に依存しない純粋な関数群で、サードパーティが独自プラグイン（例: `@acme/usketch-plugin-shape-basic`）を作るときに、bounds 計算・ヒットテスト・リサイズ・GPU primitive のような定型処理を再利用できる。
+`@edv4h/usketch-shape-utils` は uSketch の shape プラグインを書くときに使う共通関数を提供する。React に依存しない純粋な関数群で、サードパーティが独自プラグイン（例: `@acme/usketch-plugin-shape-basic`）を作るときに、bounds 計算・ヒットテスト・リサイズ・テキスト編集・空き位置探索のような定型処理を再利用できる。
 
 ## Install
 
@@ -65,25 +65,42 @@ import { createResize } from "@edv4h/usketch-shape-utils";
 const resize = createResize(10, 10); // 最小 10x10 px
 ```
 
-## GPU Primitive
+## Editable Text
 
-WebGPU レンダラが有効な場合に使われる低レベル primitive を返すヘルパ。`ShapeDefinition.gpuPrimitive` に渡せば GPU 描画パスに乗る。
+`contentEditable` ベースのインプレース文字編集を shape プラグインに組み込むためのヘルパ。
 
 ```ts
-function rectGpuPrimitive(data: ShapeData): GpuPrimitive;
-function roundedRectGpuPrimitive(data: ShapeData): GpuPrimitive;
-function ellipseGpuPrimitive(data: ShapeData): GpuPrimitive;
-function lineGpuPrimitive(data: ShapeData): GpuPrimitive;
+function createEditableTextController(
+  ctx: PluginContext,
+  options: EditableTextOptions,
+): EditableTextController;
+
+function editableTextProps(id: string, text: string): { /* contentEditable div 用の props */ };
+
+// controller が listen するカスタムイベント名
+const TEXT_INPUT_EVENT: string;   // "usketch:text-input"
+const TEXT_BLUR_EVENT: string;    // "usketch:text-blur"
+const TEXT_ESCAPE_EVENT: string;  // "usketch:text-escape"
 ```
 
-| 関数 | 返す kind | 備考 |
-|------|----------|------|
-| `rectGpuPrimitive` | `rect` | `data.cornerRadius` を反映 |
-| `roundedRectGpuPrimitive` | `rect` | `cornerRadius = min(w, h) / 4` を自動計算 |
-| `ellipseGpuPrimitive` | `ellipse` | |
-| `lineGpuPrimitive` | `polyline` | 2 頂点の polyline |
+`createEditableTextController` は共有のテキスト編集ステートマシンと DOM/canvas リスナを配線し、`beginEdit` / `isEditing` / `teardown` を持つコントローラを返す。`editableTextProps` はエディタ用 `div`（HTML shape はプレーン div、SVG shape は `<foreignObject>` 内 div）へ spread する props を返し、IME 合成・Escape・blur・初回フォーカスを扱う。型 `EditableTextOptions` / `EditableTextController` も公開されている。
 
-GPU primitive を返さないときは `undefined` のままにするか、条件次第で `null` を返す（型は `GpuPrimitive | null`）。
+## Free Position
+
+新しい shape を既存 shape と重ならない空き位置に配置するためのヘルパ。
+
+```ts
+function findFreePosition(opts: FindFreePositionOptions): BoundingBox;
+function overlapsAny(box: BoundingBox, occupied: BoundingBox[]): boolean;
+
+type FreePositionStrategy = "ring" | "push";
+```
+
+`findFreePosition` は希望位置（`desired`）と避ける矩形（`occupied`）から、`"ring"`（既定）または `"push"` 戦略で空き矩形を探索して返す。`overlapsAny` は矩形がいずれかの `occupied` と重なるかを判定する。型 `FindFreePositionOptions` / `FreePositionStrategy` も公開されている。
+
+## GPU Primitive について
+
+`rectGpuPrimitive` などの GPU primitive ヘルパはこのパッケージには**含まれていない**。これらは `@edv4h/usketch-plugin-shape-basic`（`plugins/usketch-plugin-shape-basic`）に属する。GPU 描画対応の詳細はそちらを参照。なお `ShapeDefinition.gpuPrimitive` フックそのものは各 shape 定義側で自由に実装できる。
 
 ## 関連
 

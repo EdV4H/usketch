@@ -159,12 +159,17 @@ scope 付きパッケージを初めて publish する場合は `--access public
 
 ## Step 5: Host アプリに組み込む
 
+`createApp` は非同期（`Promise<AppInstance>` を返す）で、`store` は必須。await できる async コンテキスト内で呼び出す。
+
 ```ts
 import { createApp } from "@edv4h/usketch-core";
+import { createBoardStore } from "@edv4h/usketch-store";
 import { basicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
 import { acmeShapeBasicPlugin } from "@acme/usketch-plugin-shape-basic";
 
-const app = createApp({
+const store = createBoardStore();
+const app = await createApp({
+  store,
   plugins: [basicShapePlugin, acmeShapeBasicPlugin],
 });
 ```

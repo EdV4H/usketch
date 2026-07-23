@@ -4,7 +4,7 @@ description: Common helpers for writing uSketch shape plugins.
 order: 32
 ---
 
-`@edv4h/usketch-shape-utils` は uSketch の shape プラグインを書くときに使う共通関数を提供する。React に依存しない純粋な関数群で、サードパーティが独自プラグイン（例: `@acme/usketch-plugin-shape-basic`）を作るときに、bounds 計算・ヒットテスト・リサイズ・GPU primitive のような定型処理を再利用できる。
+`@edv4h/usketch-shape-utils` provides common functions for writing uSketch shape plugins. It is a set of React-independent pure functions, so that third parties building their own plugins (e.g. `@acme/usketch-plugin-shape-basic`) can reuse boilerplate such as bounds calculation, hit testing, resizing, editable text, and free-position search.
 
 ## Install
 
@@ -18,7 +18,7 @@ pnpm add @edv4h/usketch-shape-utils @edv4h/usketch-shared
 function getBounds(data: ShapeData): BoundingBox;
 ```
 
-shape の AABB を `{ x, y, width, height }` で返す。ほとんどの shape はこれをそのまま `ShapeDefinition.getBounds` に使える。
+Returns the shape's AABB as `{ x, y, width, height }`. Most shapes can pass this straight to `ShapeDefinition.getBounds`.
 
 ## Hit Test
 
@@ -29,14 +29,14 @@ function lineHitTest(data: ShapeData, point: Point, tolerance?: number): boolean
 function pointInPolygon(point: Point, polygon: Point[]): boolean;
 ```
 
-| 関数 | 用途 |
+| Function | Purpose |
 |------|------|
-| `aabbHitTest` | 矩形 AABB |
-| `ellipseHitTest` | 楕円 |
-| `lineHitTest` | 線分（`tolerance` px 以内なら true、デフォルト 4） |
-| `pointInPolygon` | 任意多角形（三角形・六角形・星形など） |
+| `aabbHitTest` | Rectangular AABB |
+| `ellipseHitTest` | Ellipse |
+| `lineHitTest` | Line segment (true within `tolerance` px, default 4) |
+| `pointInPolygon` | Arbitrary polygon (triangle, hexagon, star, etc.) |
 
-回転対応は `@edv4h/usketch-shared` の `withRotation(hitTest)` でラップする:
+For rotation support, wrap the hit test with `withRotation(hitTest)` from `@edv4h/usketch-shared`:
 
 ```tsx
 import { withRotation } from "@edv4h/usketch-shared";
@@ -57,36 +57,53 @@ function createResize(minW: number, minH: number): (
 ) => ShapeData;
 ```
 
-8 方向（`se` / `nw` / `ne` / `sw` / `e` / `w` / `n` / `s`）のリサイズハンドルに対応した resize 関数を生成する。最小幅・最小高を指定。
+Generates a resize function that handles all 8 resize handles (`se` / `nw` / `ne` / `sw` / `e` / `w` / `n` / `s`). Specify the minimum width and height.
 
 ```ts
 import { createResize } from "@edv4h/usketch-shape-utils";
 
-const resize = createResize(10, 10); // 最小 10x10 px
+const resize = createResize(10, 10); // minimum 10x10 px
 ```
 
-## GPU Primitive
+## Editable Text
 
-WebGPU レンダラが有効な場合に使われる低レベル primitive を返すヘルパ。`ShapeDefinition.gpuPrimitive` に渡せば GPU 描画パスに乗る。
+Helpers for wiring `contentEditable`-based in-place text editing into a shape plugin.
 
 ```ts
-function rectGpuPrimitive(data: ShapeData): GpuPrimitive;
-function roundedRectGpuPrimitive(data: ShapeData): GpuPrimitive;
-function ellipseGpuPrimitive(data: ShapeData): GpuPrimitive;
-function lineGpuPrimitive(data: ShapeData): GpuPrimitive;
+function createEditableTextController(
+  ctx: PluginContext,
+  options: EditableTextOptions,
+): EditableTextController;
+
+function editableTextProps(id: string, text: string): { /* props for a contentEditable div */ };
+
+// Custom event names the controller listens for
+const TEXT_INPUT_EVENT: string;   // "usketch:text-input"
+const TEXT_BLUR_EVENT: string;    // "usketch:text-blur"
+const TEXT_ESCAPE_EVENT: string;  // "usketch:text-escape"
 ```
 
-| 関数 | 返す kind | 備考 |
-|------|----------|------|
-| `rectGpuPrimitive` | `rect` | `data.cornerRadius` を反映 |
-| `roundedRectGpuPrimitive` | `rect` | `cornerRadius = min(w, h) / 4` を自動計算 |
-| `ellipseGpuPrimitive` | `ellipse` | |
-| `lineGpuPrimitive` | `polyline` | 2 頂点の polyline |
+`createEditableTextController` wires up the shared editable-text state machine plus DOM/canvas listeners, returning a controller with `beginEdit` / `isEditing` / `teardown`. `editableTextProps` returns props to spread onto the editor `div` (a plain div for HTML shapes, or a div inside `<foreignObject>` for SVG shapes) and handles IME composition, Escape, blur, and one-time focus. The `EditableTextOptions` / `EditableTextController` types are also exported.
 
-GPU primitive を返さないときは `undefined` のままにするか、条件次第で `null` を返す（型は `GpuPrimitive | null`）。
+## Free Position
 
-## 関連
+Helpers for placing a new shape at a free spot that doesn't overlap existing shapes.
 
-- [Building a Shape Plugin](../../guides/shape-plugin) — shape プラグインの基本
-- [Third-Party Plugin Authoring](../../guides/third-party-plugin) — 外部パッケージとして shape-utils を使う完全ガイド
-- [Shared Types](../shared) — `ShapeData` / `ResizeHandle` / `Point` 等の型定義
+```ts
+function findFreePosition(opts: FindFreePositionOptions): BoundingBox;
+function overlapsAny(box: BoundingBox, occupied: BoundingBox[]): boolean;
+
+type FreePositionStrategy = "ring" | "push";
+```
+
+`findFreePosition` searches for a free rectangle from the desired position (`desired`) and the rectangles to avoid (`occupied`) using the `"ring"` (default) or `"push"` strategy. `overlapsAny` reports whether a box overlaps any of the `occupied` rectangles. The `FindFreePositionOptions` / `FreePositionStrategy` types are also exported.
+
+## A note on GPU Primitives
+
+The GPU primitive helpers (`rectGpuPrimitive` and friends) are **not** part of this package. They live in `@edv4h/usketch-plugin-shape-basic` (`plugins/usketch-plugin-shape-basic`) — see that package for GPU rendering support. The `ShapeDefinition.gpuPrimitive` hook itself can be implemented freely by each shape definition.
+
+## Related
+
+- [Building a Shape Plugin](../../guides/shape-plugin) — the basics of shape plugins
+- [Third-Party Plugin Authoring](../../guides/third-party-plugin) — full guide to using shape-utils as an external package
+- [Shared Types](../shared) — type definitions for `ShapeData` / `ResizeHandle` / `Point`, etc.

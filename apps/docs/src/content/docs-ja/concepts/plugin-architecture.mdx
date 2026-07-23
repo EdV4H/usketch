@@ -11,11 +11,12 @@ uSketch v2 では、**すべての機能はプラグイン**です。コアフ�
 ## プラグインインターフェース
 
 ```ts
+type PluginTeardown = () => void | Promise<void>;
+
 interface UsketchPlugin {
   readonly id: string;
   readonly name: string;
-  setup(ctx: PluginContext): void | Promise<void>;
-  teardown?(): void;
+  setup(ctx: PluginContext): PluginTeardown | void | Promise<PluginTeardown | void>;
 }
 ```
 
@@ -23,8 +24,9 @@ interface UsketchPlugin {
 |-------|-------------|
 | `id` | 一意な識別子。例: `"usketch-plugin-shape-rect"` |
 | `name` | 表示用の人間可読な名前 |
-| `setup(ctx)` | アプリ初期化時に一度だけ呼ばれる。登録処理はここで行う。 |
-| `teardown()` | オプション。アプリ破棄時に呼ばれる。購読解除などのクリーンアップを行う。 |
+| `setup(ctx)` | アプリ初期化時に一度だけ呼ばれる。登録処理はここで行う。クリーンアップが必要なら teardown 関数を返す。何も返さなければ（`void`）クリーンアップなし。 |
+
+かつて存在した `plugin.teardown` プロパティは削除されました。クリーンアップは `setup` が返す関数で表現します。`this` にクリーンアップを退避する方式は React StrictMode 下で安全ではない（2 回目の `setup` 呼び出しが 1 回目のインスタンスの teardown クロージャを上書きしてしまう）ため、必ず `setup` から返すようにします。`createApp` 呼び出しごとに独自のクロージャを持ちます。
 
 ## PluginContext
 
@@ -40,6 +42,11 @@ interface PluginContext {
   shortcuts: ShortcutRegistry; // キーボードショートカット登録
   events: EventBus;           // プラグイン間通信
   transient: TransientRegistry; // 一時オブジェクト（カーソル・エフェクト）
+  lod: LodController;         // Level-of-Detail（描画モード）制御
+  ui: UiRegistry;             // 選択フォアグラウンドなど UI 拡張の登録
+  externalContent: ExternalContentRegistry; // ドロップ/ペーストされた外部コンテンツの処理
+  actions: ActionRegistry;    // 宣言的なプラグイン操作。Control HUD を駆動する
+  services: ServiceRegistry;  // プラグイン提供サービスの文字列キーレジストリ（IoC）
 }
 ```
 
@@ -61,7 +68,7 @@ createApp({ store, plugins })
   ├─ 3. React ツリーをマウント
   │
   └─ [破棄時]
-      └─ 各プラグインの teardown() を呼ぶ
+      └─ setup が返した teardown を LIFO（登録の逆順）で呼ぶ
 ```
 
 プラグインは `plugins` 配列に現れる順に**逐次**初期化されます。つまり、あるプラグインは先に登録された別のプラグインに依存できます。

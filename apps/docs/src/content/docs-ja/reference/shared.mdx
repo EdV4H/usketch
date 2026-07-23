@@ -63,11 +63,15 @@ const DEFAULT_STYLE: ShapeStyle = {
 ## プラグイン
 
 ```ts
+/** setup が返すクリーンアップ関数。sync / async どちらも可。 */
+type PluginTeardown = () => void | Promise<void>;
+
 interface UsketchPlugin {
   readonly id: string;
   readonly name: string;
-  setup(ctx: PluginContext): void | Promise<void>;
-  teardown?(): void;
+  // クリーンアップが必要なら setup からティアダウン関数を返す。不要なら void。
+  // 旧 `teardown` プロパティは廃止（StrictMode で二重 setup 時に上書きされ危険なため）。
+  setup(ctx: PluginContext): PluginTeardown | void | Promise<PluginTeardown | void>;
 }
 
 interface PluginContext {
@@ -79,6 +83,11 @@ interface PluginContext {
   shortcuts: ShortcutRegistry;
   events: EventBus;
   transient: TransientRegistry;
+  lod: LodController;
+  ui: UiRegistry;
+  externalContent: ExternalContentRegistry;
+  actions: ActionRegistry;
+  services: ServiceRegistry;
 }
 ```
 
@@ -93,8 +102,34 @@ interface ShapeDefinition {
   createDefault: (params: { id: string; x: number; y: number }) => ShapeData;
   renderTarget?: "svg" | "html";
   minSize?: { width: number; height: number };
+  // ユーザーによるリサイズ可否。既定 true。インスタンスごとに変える述語も可。
+  resizable?: boolean | ((data: ShapeData) => boolean);
+  // 子（parentId で参照する shape）を持つコンテナ挙動。省略時は非コンテナ。
+  container?: {
+    enabled?: boolean | ((data: ShapeData) => boolean);
+    selectableChildren?: boolean | ((data: ShapeData) => boolean);
+    autoAttach?: boolean | ((data: ShapeData) => boolean);
+    layout?: (ctx: { container: ShapeData; children: ShapeData[] }) =>
+      Array<{ id: string; patch: Partial<ShapeData> }>;
+  };
+  // 子側の「くっつく」挙動（container の対。任意の shape に付着し追従する）。
+  attachable?: {
+    toAny?: boolean | ((target: ShapeData) => boolean);
+    follow?: boolean | ((data: ShapeData) => boolean);
+    hitTest?: "center" | "contain";
+  };
   move?: (data: ShapeData, dx: number, dy: number) => Partial<ShapeData>;
   applyBounds?: (data: ShapeData, newBounds: BoundingBox) => Partial<ShapeData>;
+  // GPU 描画用 primitive を返す。DOM 描画にフォールバックするなら null。
+  gpuPrimitive?: (data: ShapeData) => GpuPrimitive | null;
+  // LOD（ズームアウト）モードで使う軽量コンポーネント。省略時は塗り矩形にフォールバック。
+  simplifiedComponent?: ComponentType<{ shape: ShapeData }>;
+  // AI プロンプト埋め込み用にフラットな record へ射影する。
+  serializeForAi?: (data: ShapeData, ctx?: ShapeSerializeContext) => Record<string, unknown>;
+  // 認識（OCR / 手書き）用の形へ射影する。非対象は null。
+  serializeForRecognition?: (data: ShapeData, ctx?: ShapeSerializeContext) => unknown;
+  // Debug HUD の shapes パネル用の key/value マップ。
+  debugFields?: (data: ShapeData) => Record<string, unknown>;
 }
 
 interface ShapeRegistry {
@@ -168,8 +203,14 @@ interface Layer {
 interface LayerRenderContext {
   viewport: Viewport;
   shapes: ReadonlyMap<string, ShapeData>;
+  // zIndex 昇順（奥→手前）にソート済みの shape 配列。アクティブなフィルタも反映。
+  shapesSorted: readonly ShapeData[];
   selection: ReadonlySet<string>;
+  // 現在ホバー中の shape の id（なければ null）。selection のホバー版。
+  hoveredShapeId: string | null;
   theme: Theme;
+  // 現在の LOD レンダーモード。レイヤーは出力をこれに合わせる。
+  renderMode: RenderMode;
 }
 
 interface LayerManager {
@@ -209,10 +250,19 @@ interface ShortcutRegistry {
 
 ## イベントバス
 
+既知のコアイベント（`CoreEventMap`）に対しては型付きの `on` / `emit` オーバーロードが用意されており、プラグイン独自のイベントは `string` フォールバックで自由に emit/on できる。
+
 ```ts
 interface EventBus {
+  // CoreEventMap の既知イベントは型付きオーバーロードで扱われる
+  on<K extends keyof CoreEventMap>(event: K, handler: (data: CoreEventMap[K]) => void): () => void;
   on<T = unknown>(event: string, handler: (data: T) => void): () => void;
+  emit<K extends keyof CoreEventMap>(event: K, data: CoreEventMap[K]): void;
   emit<T = unknown>(event: string, data: T): void;
+  // イベント配信を一時停止。ref-count 方式なので pause/resume は対で呼ぶこと。
+  pause(): void;
+  resume(): void;
+  isPaused(): boolean;
 }
 ```
 
@@ -249,10 +299,15 @@ interface TransientRegistry {
 interface BoardStore {
   // シェイプ CRUD
   getShapes(): ReadonlyMap<string, ShapeData>;
+  // zIndex 昇順（奥→手前）でソート済みの shape。内部でキャッシュされる。
+  getShapesSorted(): readonly ShapeData[];
   getShape(id: string): ShapeData | undefined;
   addShape(shape: ShapeData): void;
-  updateShape(id: string, updates: Partial<ShapeData>): void;
+  // id は第1引数で固定。updates で id は変更できない。
+  updateShape(id: string, updates: Partial<Omit<ShapeData, "id">>): void;
   deleteShape(id: string): void;
+  // zIndex 未設定の shape に割り当てる（一括ロード後などに使用）。
+  ensureZIndex(): void;
 
   // 選択状態
   getSelection(): ReadonlySet<string>;
@@ -261,27 +316,51 @@ interface BoardStore {
   removeFromSelection(id: string): void;
   clearSelection(): void;
 
-  // アクティブツール
+  // ホバー状態（UI シグナル。アクティブツールが設定）
+  getHoveredShapeId(): string | null;
+  setHoveredShapeId(id: string | null): void;
+
+  // アクティブツール / デフォルトツール
   getActiveToolId(): string;
   setActiveToolId(id: string): void;
+  getDefaultToolId(): string;
+  setDefaultToolId(id: string): void;
+  resetToDefaultTool(): void;
 
   // ビューポート
   getViewport(): Viewport;
   setViewport(viewport: Viewport): void;
   panBy(dx: number, dy: number): void;
   zoomTo(zoom: number, center: Point): void;
+  // bounds が viewportSize に収まるようビューポートを中央寄せ（padding は各辺の余白）。
+  fitToBounds(
+    bounds: BoundingBox,
+    viewportSize: { width: number; height: number },
+    padding?: number,
+  ): void;
 
   // スタイル
   getStyleSettings(): ShapeStyle;
   setStyleSettings(style: Partial<ShapeStyle>): void;
+
+  // 可視判定（bounds が指定のワールド空間ビューポートと交差する shape ID）
+  getVisibleShapeIds(viewportBounds: BoundingBox): string[];
 
   // 購読
   subscribe(listener: () => void): () => void;
   onMutation(listener: (event: StoreEvent) => void): () => void;
 }
 
-interface StoreEvent {
-  type: string;
-  payload?: unknown;
-}
+// StoreEvent は「閉じた」判別ユニオン。`type` で絞り込むと `payload` が正しく型付けされる。
+// シェイプ系 payload は `ids: string[]` に正規化（単一変更でも長さ1）。後方互換で `id` も併載。
+type StoreEvent =
+  | { type: "shape:added"; payload: { id: string; ids: string[] } }
+  | { type: "shape:removed"; payload: { id: string; ids: string[] } }
+  | { type: "shape:updated"; payload: ShapeChange & { ids: string[] } }
+  | { type: "selection:changed"; payload?: { ids: string[] } }
+  | { type: "tool:changed"; payload: { id: string } }
+  | { type: "default-tool:changed"; payload: { id: string } }
+  | { type: "shapes:z-index-initialized"; payload: { count: number } }
+  | { type: "viewport:changed"; payload?: undefined }
+  | { type: "style:changed"; payload?: undefined };
 ```
