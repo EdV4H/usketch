@@ -39,6 +39,7 @@ interface LayerRenderContext {
   hoveredShapeId: string | null;            // Id of the hovered shape, or null
   theme: Theme;                             // Active theme
   renderMode: RenderMode;                   // Current LOD render mode
+  viewportBounds: BoundingBox;              // Visible region in world coords (per-shape viewport LOD/culling)
 }
 ```
 

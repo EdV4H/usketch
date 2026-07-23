@@ -216,6 +216,10 @@ interface LayerRenderContext {
   theme: Theme;
   // Current LOD render mode. Layers should adapt their output accordingly.
   renderMode: RenderMode;
+  // Visible region in world coords (from viewport + canvas size). Enables
+  // per-shape viewport decisions (off-screen LOD, culling). width/height are 0
+  // until the canvas is measured.
+  viewportBounds: BoundingBox;
 }
 
 interface LayerManager {

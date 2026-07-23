@@ -211,6 +211,9 @@ interface LayerRenderContext {
   theme: Theme;
   // 現在の LOD レンダーモード。レイヤーは出力をこれに合わせる。
   renderMode: RenderMode;
+  // world 座標の可視領域（viewport＋canvas サイズから算出）。per-shape の画角判定
+  // （画角外 LOD・カリング）に使える。canvas 計測前は width/height が 0。
+  viewportBounds: BoundingBox;
 }
 
 interface LayerManager {
