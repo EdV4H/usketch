@@ -11,11 +11,12 @@ In uSketch v2, **every feature is a plugin**. The core framework provides regist
 ## The Plugin Interface
 
 ```ts
+type PluginTeardown = () => void | Promise<void>;
+
 interface UsketchPlugin {
   readonly id: string;
   readonly name: string;
-  setup(ctx: PluginContext): void | Promise<void>;
-  teardown?(): void;
+  setup(ctx: PluginContext): PluginTeardown | void | Promise<PluginTeardown | void>;
 }
 ```
 
@@ -23,8 +24,9 @@ interface UsketchPlugin {
 |-------|-------------|
 | `id` | Unique identifier, e.g. `"usketch-plugin-shape-rect"` |
 | `name` | Human-readable display name |
-| `setup(ctx)` | Called once during app initialization. Register everything here. |
-| `teardown()` | Optional. Called when the app is destroyed. Clean up subscriptions. |
+| `setup(ctx)` | Called once during app initialization. Register everything here. Return a teardown function if there is anything to clean up; return `void` (or omit a return) if not. |
+
+The former `plugin.teardown` property has been removed. Cleanup is expressed as the function returned from `setup`. Stashing the cleanup on `this` is unsafe under React StrictMode (a second `setup` call silently overwrites the first instance's teardown closure), so always return it from `setup` — each `createApp` call owns its own closure.
 
 ## PluginContext
 
@@ -40,6 +42,11 @@ interface PluginContext {
   shortcuts: ShortcutRegistry; // Keyboard shortcut registration
   events: EventBus;           // Inter-plugin communication
   transient: TransientRegistry; // Ephemeral objects (cursors, effects)
+  lod: LodController;         // Level-of-detail (render mode) control
+  ui: UiRegistry;             // UI extension registration (e.g. selection foreground)
+  externalContent: ExternalContentRegistry; // Handling dropped/pasted external content
+  actions: ActionRegistry;    // Declarative plugin operations; powers the Control HUD
+  services: ServiceRegistry;  // String-keyed registry for plugin-provided services (IoC)
 }
 ```
 
@@ -61,7 +68,7 @@ createApp({ store, plugins })
   ├─ 3. Mount the React tree
   │
   └─ [On destroy]
-      └─ Call teardown() for each plugin
+      └─ Call the teardown returned by setup in LIFO order (reverse of registration)
 ```
 
 Plugins are initialized **sequentially** in the order they appear in the `plugins` array. This means a plugin can depend on registrations made by an earlier plugin.

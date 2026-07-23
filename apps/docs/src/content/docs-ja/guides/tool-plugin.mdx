@@ -85,7 +85,7 @@ export const eraserPlugin: UsketchPlugin = {
   → store.setActiveToolId("select")
 ```
 
-> **注意**：`onActivate` と `onDeactivate` は将来の用途のため `ToolDefinition` に定義されていますが、現時点ではランタイムから呼び出されません。今後のライフサイクルサポート準備用として使ってください。
+> **注意**：`onActivate` はツールが有効になったときに呼ばれ、`onDeactivate` は他のツールへ切り替わるとき（および `Canvas` のアンマウント時）に呼ばれます。カーソル状態や内部状態のセットアップ／後片付けに利用してください。
 
 ## カスタムレイヤーの追加
 

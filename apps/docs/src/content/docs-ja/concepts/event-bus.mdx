@@ -12,13 +12,21 @@ order: 15
 
 ```ts
 interface EventBus {
+  // 既知の CoreEventMap イベントは型付きオーバーロードで emit/on できる
+  on<K extends keyof CoreEventMap>(event: K, handler: (data: CoreEventMap[K]) => void): () => void;
   on<T = unknown>(event: string, handler: (data: T) => void): () => void;
+  emit<K extends keyof CoreEventMap>(event: K, data: CoreEventMap[K]): void;
   emit<T = unknown>(event: string, data: T): void;
+  pause(): void;    // イベント配信を一時停止（参照カウント式。ネスト可）
+  resume(): void;   // pause を 1 つ解除。カウントが 0 になると配信再開
+  isPaused(): boolean;
 }
 ```
 
-- `on()` は購読解除用の関数を返します。`teardown()` で呼び出して後片付けしてください。
+- `on()` は購読解除用の関数を返します。`setup` からその関数を返して後片付けしてください。
 - `emit()` は同期的にそのイベントの全ハンドラを呼び出します。
+- `CoreEventMap` に定義された既知イベント（`canvas:pointerdown` など）は型安全な `emit`/`on` のオーバーロードが効きます。未知の文字列イベントは `T = unknown` フォールバックで扱えます。
+- `pause()` / `resume()` は参照カウント式で、配信を一時停止できます。各 `pause()` は必ず対応する `resume()` と対で呼び出してください（`pause()` をリークすると以降のイベントが全て破棄されます）。`isPaused()` で現在の状態を確認できます。
 
 ## ストア変更のブリッジ
 
@@ -36,23 +44,34 @@ store.onMutation((event) => {
 ## 使用例：スナッププラグイン
 
 ```ts
-// 購読解除用の参照はクロージャに保持する（プラグインオブジェクト上に置かない）
-let unsub: (() => void) | null = null;
-
 const snapPlugin: UsketchPlugin = {
   id: "usketch-plugin-snap",
   name: "Snap",
 
   setup(ctx: PluginContext) {
-    unsub = ctx.events.on("tool:drag", (event) => {
+    // on() が返す購読解除関数を、そのまま setup の teardown として返す
+    return ctx.events.on("tool:drag", (event) => {
       const snapped = calculateSnap(event.point, event.shapes);
       updateSnapGuides(snapped);
     });
   },
+};
+```
 
-  teardown() {
-    unsub?.();
-    unsub = null;
+複数の購読を解除する場合は、クロージャでまとめた関数を返します：
+
+```ts
+const multiPlugin: UsketchPlugin = {
+  id: "usketch-plugin-multi",
+  name: "Multi",
+
+  setup(ctx: PluginContext) {
+    const offDrag = ctx.events.on("tool:drag", handleDrag);
+    const offDrop = ctx.events.on("canvas:drop", handleDrop);
+    return () => {
+      offDrag();
+      offDrop();
+    };
   },
 };
 ```

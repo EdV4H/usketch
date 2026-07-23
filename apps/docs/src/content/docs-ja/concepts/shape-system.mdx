@@ -58,6 +58,11 @@ interface ShapeDefinition {
 | `createDefault` | 指定位置に妥当なデフォルト値で新しいシェイプを作る。 |
 | `move` | オプション。独自の移動ロジック（例：絶対点配列を持つシェイプ）。 |
 | `applyBounds` | オプション。複数選択リサイズ時、新しいバウンディングボックスに合わせてデータを調整。 |
+| `resizable` | オプション。ユーザーがリサイズできるか（既定 `true`）。インスタンスごとに変えられるよう述語 `(data) => boolean` も受け付ける。 |
+| `container` | オプション。子（`parentId` で参照するシェイプ）を持つコンテナの挙動（選択解決・移動追従・auto-attach・レイアウト）。 |
+| `attachable` | オプション。子側の「貼り付き」挙動。コンテナ宣言の有無に関わらず、ドロップ先のシェイプに追従・attach させる（スタンプやバッジ等）。 |
+
+`ShapeDefinition` にはこのほか `gpuPrimitive`・`simplifiedComponent`・`serializeForAi` などの拡張フィールドもあります。全フィールドは reference/shared を参照してください。
 
 ## ShapeRegistry
 

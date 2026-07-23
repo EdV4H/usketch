@@ -63,11 +63,16 @@ const DEFAULT_STYLE: ShapeStyle = {
 ## Plugin
 
 ```ts
+/** Cleanup function returned from setup. May be sync or async. */
+type PluginTeardown = () => void | Promise<void>;
+
 interface UsketchPlugin {
   readonly id: string;
   readonly name: string;
-  setup(ctx: PluginContext): void | Promise<void>;
-  teardown?(): void;
+  // Return a teardown function from setup if the plugin needs cleanup; return
+  // void otherwise. The old `teardown` property was removed — stashing cleanup
+  // on `this` is unsafe under React StrictMode (a second setup call overwrites it).
+  setup(ctx: PluginContext): PluginTeardown | void | Promise<PluginTeardown | void>;
 }
 
 interface PluginContext {
@@ -79,6 +84,11 @@ interface PluginContext {
   shortcuts: ShortcutRegistry;
   events: EventBus;
   transient: TransientRegistry;
+  lod: LodController;
+  ui: UiRegistry;
+  externalContent: ExternalContentRegistry;
+  actions: ActionRegistry;
+  services: ServiceRegistry;
 }
 ```
 
@@ -93,8 +103,38 @@ interface ShapeDefinition {
   createDefault: (params: { id: string; x: number; y: number }) => ShapeData;
   renderTarget?: "svg" | "html";
   minSize?: { width: number; height: number };
+  // Whether the user can resize the shape. Default true. A predicate allows
+  // per-instance control.
+  resizable?: boolean | ((data: ShapeData) => boolean);
+  // Container behavior for shapes with children (shapes referencing this via
+  // parentId). Omit for non-container shapes.
+  container?: {
+    enabled?: boolean | ((data: ShapeData) => boolean);
+    selectableChildren?: boolean | ((data: ShapeData) => boolean);
+    autoAttach?: boolean | ((data: ShapeData) => boolean);
+    layout?: (ctx: { container: ShapeData; children: ShapeData[] }) =>
+      Array<{ id: string; patch: Partial<ShapeData> }>;
+  };
+  // Child-side "attachable" behavior — the counterpart to `container`. Sticks
+  // to and follows any shape it is dropped on.
+  attachable?: {
+    toAny?: boolean | ((target: ShapeData) => boolean);
+    follow?: boolean | ((data: ShapeData) => boolean);
+    hitTest?: "center" | "contain";
+  };
   move?: (data: ShapeData, dx: number, dy: number) => Partial<ShapeData>;
   applyBounds?: (data: ShapeData, newBounds: BoundingBox) => Partial<ShapeData>;
+  // Return GPU-renderable primitive data, or null to fall back to DOM rendering.
+  gpuPrimitive?: (data: ShapeData) => GpuPrimitive | null;
+  // Lightweight component used in LOD (zoomed-out) mode. Falls back to a
+  // solid-fill rectangle when omitted.
+  simplifiedComponent?: ComponentType<{ shape: ShapeData }>;
+  // Project this shape into a flat record for AI prompt embedding.
+  serializeForAi?: (data: ShapeData, ctx?: ShapeSerializeContext) => Record<string, unknown>;
+  // Project into a recognition-friendly form (OCR / handwriting). null if N/A.
+  serializeForRecognition?: (data: ShapeData, ctx?: ShapeSerializeContext) => unknown;
+  // Project into a key/value map for the debug HUD shapes panel.
+  debugFields?: (data: ShapeData) => Record<string, unknown>;
 }
 
 interface ShapeRegistry {
@@ -168,8 +208,14 @@ interface Layer {
 interface LayerRenderContext {
   viewport: Viewport;
   shapes: ReadonlyMap<string, ShapeData>;
+  // Shapes sorted by zIndex ascending (back to front). Reflects any active filter.
+  shapesSorted: readonly ShapeData[];
   selection: ReadonlySet<string>;
+  // Id of the shape currently hovered, or null. The hover counterpart to selection.
+  hoveredShapeId: string | null;
   theme: Theme;
+  // Current LOD render mode. Layers should adapt their output accordingly.
+  renderMode: RenderMode;
 }
 
 interface LayerManager {
@@ -209,10 +255,19 @@ interface ShortcutRegistry {
 
 ## Event Bus
 
+Known core events (`CoreEventMap`) get typed `on` / `emit` overloads; plugins can still freely emit/on their own events via the `string` fallback.
+
 ```ts
 interface EventBus {
+  // Known CoreEventMap events are handled by typed overloads
+  on<K extends keyof CoreEventMap>(event: K, handler: (data: CoreEventMap[K]) => void): () => void;
   on<T = unknown>(event: string, handler: (data: T) => void): () => void;
+  emit<K extends keyof CoreEventMap>(event: K, data: CoreEventMap[K]): void;
   emit<T = unknown>(event: string, data: T): void;
+  // Suspend event delivery. Ref-counted — each pause() must be paired with one resume().
+  pause(): void;
+  resume(): void;
+  isPaused(): boolean;
 }
 ```
 
@@ -249,10 +304,15 @@ interface TransientRegistry {
 interface BoardStore {
   // Shape CRUD
   getShapes(): ReadonlyMap<string, ShapeData>;
+  // Shapes sorted by zIndex (ascending = back to front). Cached internally.
+  getShapesSorted(): readonly ShapeData[];
   getShape(id: string): ShapeData | undefined;
   addShape(shape: ShapeData): void;
-  updateShape(id: string, updates: Partial<ShapeData>): void;
+  // id is fixed by the first argument and cannot be changed via updates.
+  updateShape(id: string, updates: Partial<Omit<ShapeData, "id">>): void;
   deleteShape(id: string): void;
+  // Assign zIndex to any shapes that don't have one (used after bulk load).
+  ensureZIndex(): void;
 
   // Selection
   getSelection(): ReadonlySet<string>;
@@ -261,27 +321,52 @@ interface BoardStore {
   removeFromSelection(id: string): void;
   clearSelection(): void;
 
-  // Active tool
+  // Hover (a UI signal set by the active tool)
+  getHoveredShapeId(): string | null;
+  setHoveredShapeId(id: string | null): void;
+
+  // Active tool / default tool
   getActiveToolId(): string;
   setActiveToolId(id: string): void;
+  getDefaultToolId(): string;
+  setDefaultToolId(id: string): void;
+  resetToDefaultTool(): void;
 
   // Viewport
   getViewport(): Viewport;
   setViewport(viewport: Viewport): void;
   panBy(dx: number, dy: number): void;
   zoomTo(zoom: number, center: Point): void;
+  // Center the viewport so bounds fits within viewportSize, leaving padding px per side.
+  fitToBounds(
+    bounds: BoundingBox,
+    viewportSize: { width: number; height: number },
+    padding?: number,
+  ): void;
 
   // Style
   getStyleSettings(): ShapeStyle;
   setStyleSettings(style: Partial<ShapeStyle>): void;
+
+  // Visibility (IDs whose bounds intersect the given world-space viewport)
+  getVisibleShapeIds(viewportBounds: BoundingBox): string[];
 
   // Subscriptions
   subscribe(listener: () => void): () => void;
   onMutation(listener: (event: StoreEvent) => void): () => void;
 }
 
-interface StoreEvent {
-  type: string;
-  payload?: unknown;
-}
+// StoreEvent is a closed discriminated union — narrowing on `type` types `payload`
+// correctly. Shape-related payloads are normalized to `ids: string[]` (length 1 even
+// for single changes); a legacy `id` is also carried for backward compatibility.
+type StoreEvent =
+  | { type: "shape:added"; payload: { id: string; ids: string[] } }
+  | { type: "shape:removed"; payload: { id: string; ids: string[] } }
+  | { type: "shape:updated"; payload: ShapeChange & { ids: string[] } }
+  | { type: "selection:changed"; payload?: { ids: string[] } }
+  | { type: "tool:changed"; payload: { id: string } }
+  | { type: "default-tool:changed"; payload: { id: string } }
+  | { type: "shapes:z-index-initialized"; payload: { count: number } }
+  | { type: "viewport:changed"; payload?: undefined }
+  | { type: "style:changed"; payload?: undefined };
 ```

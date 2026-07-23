@@ -96,7 +96,7 @@ const toolId = ctx.store.getActiveToolId();
 ctx.store.setActiveToolId("select");
 ```
 
-`onActivate` と `onDeactivate` は将来のライフサイクルサポートのため `ToolDefinition` に定義されていますが、現時点のランタイムでは呼ばれません。現在呼び出されるのはポインタイベントハンドラ（`onPointerDown` / `onPointerMove` / `onPointerUp`）のみです。
+`onActivate` はツールが有効になったときに呼ばれ、`onDeactivate` は他のツールへ切り替わるとき（および `Canvas` のアンマウント時）に呼ばれます。カーソル状態や内部状態のセットアップ／後片付けをここで行えます。
 
 ## 例
 

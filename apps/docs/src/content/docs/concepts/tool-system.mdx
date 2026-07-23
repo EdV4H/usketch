@@ -96,7 +96,7 @@ const toolId = ctx.store.getActiveToolId();
 ctx.store.setActiveToolId("select");
 ```
 
-`onActivate` and `onDeactivate` are defined in `ToolDefinition` for future lifecycle support but are not currently called by the runtime. Only pointer event handlers (`onPointerDown`, `onPointerMove`, `onPointerUp`) are invoked today.
+`onActivate` fires when a tool becomes active, and `onDeactivate` fires when switching away from it (and when the `Canvas` unmounts). Use them for setup and cleanup such as cursor state or internal state.
 
 ## Example
 

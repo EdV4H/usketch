@@ -85,7 +85,7 @@ User switches to another tool
   → store.setActiveToolId("select")
 ```
 
-> **Note:** `onActivate` and `onDeactivate` are defined in `ToolDefinition` for future use but are not currently called by the runtime. Use them to prepare for upcoming lifecycle support.
+> **Note:** `onActivate` is called when the tool becomes active, and `onDeactivate` is called when switching away from it (and when the `Canvas` unmounts). Use them for setup and cleanup such as cursor state or internal state.
 
 ## Adding Custom Layers
 

@@ -122,6 +122,11 @@ interface ShapeDefinition {
 | `createDefault` | Creates a new shape with sensible defaults at a given position. |
 | `move` | Optional. Custom move logic (e.g., for shapes with absolute point arrays). |
 | `applyBounds` | Optional. Fit shape data to a new bounding box during multi-select resize. |
+| `resizable` | Optional. Whether the user can resize the shape (default `true`). Also accepts a predicate `(data) => boolean` for per-instance control. |
+| `container` | Optional. Container behavior for shapes with children (shapes referencing it via `parentId`) — selection resolution, move-follow, auto-attach, and layout. |
+| `attachable` | Optional. Child-side "sticks to and follows" behavior — attaches to and follows any shape it is dropped on, regardless of whether that target declared `container` (stamps, badges, pins). |
+
+`ShapeDefinition` also carries other extension fields such as `gpuPrimitive`, `simplifiedComponent`, and `serializeForAi`. See reference/shared for the full list.
 
 ## ShapeRegistry
 
