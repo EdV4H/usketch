@@ -81,7 +81,7 @@
 		"@edv4h/usketch-shared": "workspace:*",
 		"@edv4h/usketch-store": "workspace:*",
 		"@edv4h/usketch-sync": "workspace:*",
-		"better-auth": "1.6.24",
+		"better-auth": "1.6.25",
 		"react": "19.2.8",
 		"react-dom": "19.2.8",
 		"react-router": "8.3.0"
@@ -95,6 +95,6 @@
 		"typescript": "7.0.2",
 		"vite": "8.1.5",
 		"vitest": "4.1.10",
-		"wrangler": "4.113.0"
+		"wrangler": "4.114.0"
 	}
 }
