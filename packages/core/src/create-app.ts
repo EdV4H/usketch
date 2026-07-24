@@ -4,9 +4,11 @@ import type {
 	CommandRegistry,
 	EventBus,
 	ExternalContentRegistry,
+	HudRegistry,
 	LayerManager,
 	LodPolicy,
 	PluginContext,
+	PluginInfoRegistry,
 	PluginTeardown,
 	RenderMode,
 	SelectionForeground,
@@ -23,6 +25,7 @@ import { createActionRegistry } from "./action-registry.js";
 import { createCommandRegistry } from "./command-registry.js";
 import { createEventBus } from "./event-bus.js";
 import { createExternalContentRegistry } from "./external-content-registry.js";
+import { createHudRegistry } from "./hud-registry.js";
 import { createLayerManager } from "./layer-manager.js";
 import {
 	createCompositeLodPolicy,
@@ -59,6 +62,8 @@ export interface AppInstance {
 	externalContent: ExternalContentRegistry;
 	/** Enumerable declarative plugin operations (control HUD / command palette). */
 	actions: ActionRegistry;
+	/** Declarative HUD contributions (live settings + custom panels) by plugin. */
+	hud: HudRegistry;
 	/** String-keyed slot for plugin-provided services (IoC). */
 	services: ServiceRegistry;
 	plugins: readonly UsketchPlugin[];
@@ -98,6 +103,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	const events = createEventBus();
 	const transient = createTransientRegistry();
 	const actions = createActionRegistry();
+	const hud = createHudRegistry();
 	const services = createServiceRegistry();
 	const selectionForeground = createSelectionForegroundRegistry();
 	const ui: UiRegistry = {
@@ -123,6 +129,11 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		initialMode: options.lod?.initialMode ?? "interactive",
 	});
 
+	// Read-only view of active plugins (id + name) for UIs that group by plugin.
+	const pluginInfo: PluginInfoRegistry = {
+		getAll: () => pluginRegistry.getAll().map((p) => ({ id: p.id, name: p.name })),
+	};
+
 	const ctx: PluginContext = {
 		store,
 		layers,
@@ -136,6 +147,8 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		ui,
 		externalContent,
 		actions,
+		hud,
+		plugins: pluginInfo,
 		services,
 	};
 
@@ -153,7 +166,28 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	try {
 		for (const plugin of plugins) {
 			pluginRegistry.register(plugin);
-			const teardown = await plugin.setup(ctx);
+			// Per-plugin scoped context: `actions`/`hud` registrations (including any
+			// made later from callbacks) are auto-attributed to this plugin's id.
+			// Explicit public-surface wrappers (not `{ ...registry }`) so the internal
+			// attribution helpers (registerFor/registerSettingsFor/registerPanelFor)
+			// are NOT reachable from a plugin's context, even via `as any`.
+			const scopedActions: ActionRegistry = {
+				register: (action) => actions.registerFor(plugin.id, action),
+				unregister: actions.unregister,
+				get: actions.get,
+				getAll: actions.getAll,
+				getOrdered: actions.getOrdered,
+				subscribe: actions.subscribe,
+			};
+			const scopedHud: HudRegistry = {
+				registerSettings: (descriptor) => hud.registerSettingsFor(plugin.id, descriptor),
+				registerPanel: (panel) => hud.registerPanelFor(plugin.id, panel),
+				getSettings: hud.getSettings,
+				getPanels: hud.getPanels,
+				subscribe: hud.subscribe,
+			};
+			const scopedCtx: PluginContext = { ...ctx, actions: scopedActions, hud: scopedHud };
+			const teardown = await plugin.setup(scopedCtx);
 			if (typeof teardown === "function") {
 				teardowns.push(teardown);
 			}
@@ -202,6 +236,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		selectionForeground,
 		externalContent,
 		actions,
+		hud,
 		services,
 		plugins: pluginRegistry.getAll(),
 		destroy() {

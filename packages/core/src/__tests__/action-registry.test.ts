@@ -44,6 +44,31 @@ describe("createActionRegistry", () => {
 		expect(r.getOrdered().map((e) => e.id)).toEqual(["bg", "card-1", "card-2", "z-no-group"]);
 	});
 
+	it("getOrdered exposes the owning pluginId (registerFor); plain register → undefined", () => {
+		const r = createActionRegistry();
+		r.registerFor("plugin-a", action("a"));
+		r.register(action("b")); // no plugin scope
+		const byId = Object.fromEntries(r.getOrdered().map((e) => [e.id, e.pluginId]));
+		expect(byId.a).toBe("plugin-a");
+		expect(byId.b).toBeUndefined();
+	});
+
+	it("unregister clears the pluginId mapping", () => {
+		const r = createActionRegistry();
+		const off = r.registerFor("plugin-a", action("a"));
+		off();
+		r.register(action("a")); // re-register without scope
+		expect(r.getOrdered().find((e) => e.id === "a")?.pluginId).toBeUndefined();
+	});
+
+	it("a stale unregister does not remove a re-registration under the same id", () => {
+		const r = createActionRegistry();
+		const off1 = r.register(action("a", { label: "first" }));
+		r.register(action("a", { label: "second" })); // replace same id
+		off1(); // stale unsubscribe
+		expect(r.get("a")?.label).toBe("second");
+	});
+
 	it("subscribe fires on register and returns an unsubscribe", () => {
 		const r = createActionRegistry();
 		const listener = vi.fn();

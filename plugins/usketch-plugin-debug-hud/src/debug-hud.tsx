@@ -3,8 +3,10 @@ import type {
 	BoardStore,
 	CommandRegistry,
 	EventBus,
+	HudRegistry,
 	LayerManager,
 	LayerRenderContext,
+	PluginInfoRegistry,
 	ShapeRegistry,
 	ToolRegistry,
 } from "@edv4h/usketch-shared";
@@ -39,6 +41,8 @@ interface DebugHudProps {
 	layers: LayerManager;
 	shapes: ShapeRegistry;
 	actions: ActionRegistry;
+	hud: HudRegistry;
+	pluginInfo: PluginInfoRegistry;
 	syncStatus?: SyncStatusTrackerLike;
 	boardMeta?: BoardMetaTrackerLike;
 	presence?: PresenceTrackerLike;
@@ -63,6 +67,8 @@ export function DebugHud({
 	layers,
 	shapes,
 	actions,
+	hud,
+	pluginInfo,
 	syncStatus,
 	boardMeta,
 	presence,
@@ -188,6 +194,8 @@ export function DebugHud({
 				store={store}
 				tools={tools}
 				actions={actions}
+				hud={hud}
+				plugins={pluginInfo}
 				events={events}
 				activeToolId={activeToolId}
 				collapsed={controlsCollapsed}
