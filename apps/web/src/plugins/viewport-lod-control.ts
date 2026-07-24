@@ -48,17 +48,23 @@ export function createViewportLodControlPlugin(): UsketchPlugin {
 						step: 5,
 					},
 				],
-				get: (name) => (name === "enabled" ? settings.enabled : Math.round(settings.ratio * 100)),
+				get: (name) => {
+					if (name === "enabled") return settings.enabled;
+					if (name === "pct") return Math.round(settings.ratio * 100);
+					return undefined; // unknown field — fail safe rather than aliasing to ratio
+				},
 				set: (name, value) => {
 					if (name === "enabled") {
 						settings.enabled = Boolean(value);
-					} else {
+					} else if (name === "pct") {
 						const ratio = Number(value) / 100;
 						if (!Number.isFinite(ratio)) return;
 						settings.ratio = Math.min(
 							VIEWPORT_LOD_RATIO_MAX,
 							Math.max(VIEWPORT_LOD_RATIO_MIN, ratio),
 						);
+					} else {
+						return; // unknown field — ignore
 					}
 					apply();
 				},
