@@ -46,18 +46,27 @@ export function ParamInputWidget({
 					onChange={(e) => onChange(e.target.value)}
 				/>
 			);
-		case "number":
+		case "number": {
+			// Render "" for a non-finite current value, and only emit finite numbers,
+			// so clearing the field or typing a partial value ("-") doesn't produce
+			// NaN (React warns on a NaN `value`, and it makes the field hard to edit).
+			const num = Number(value);
 			return (
 				<input
 					type="number"
-					value={Number(value ?? 0)}
+					value={Number.isFinite(num) ? num : ""}
 					min={param.min}
 					max={param.max}
 					step={param.step}
-					onChange={(e) => onChange(Number(e.target.value))}
+					onChange={(e) => {
+						if (e.target.value === "") return;
+						const next = Number(e.target.value);
+						if (Number.isFinite(next)) onChange(next);
+					}}
 					style={INLINE_INPUT}
 				/>
 			);
+		}
 		default:
 			return (
 				<input
