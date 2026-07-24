@@ -11,7 +11,6 @@ import type {
 	ToolRegistry,
 } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import type { BoardMetaTrackerLike } from "./board-meta-types.js";
 import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
 import { Minimap } from "./overlays/minimap.js";
@@ -44,7 +43,6 @@ interface DebugHudProps {
 	hud: HudRegistry;
 	pluginInfo: PluginInfoRegistry;
 	syncStatus?: SyncStatusTrackerLike;
-	boardMeta?: BoardMetaTrackerLike;
 	presence?: PresenceTrackerLike;
 	events: EventBus;
 	ctx: LayerRenderContext;
@@ -70,7 +68,6 @@ export function DebugHud({
 	hud,
 	pluginInfo,
 	syncStatus,
-	boardMeta,
 	presence,
 	events,
 	ctx,
@@ -180,7 +177,6 @@ export function DebugHud({
 				layers={layers}
 				shapes={shapes}
 				syncStatus={syncStatus}
-				boardMeta={boardMeta}
 				viewport={viewport}
 				activeToolId={activeToolId}
 			/>
