@@ -71,16 +71,22 @@ export function createHudRegistry(): InternalHudRegistry {
 		registerSettings: (descriptor) => registerSettingsFor(undefined, descriptor),
 		registerPanel: (panel) => registerPanelFor(undefined, panel),
 		getSettings() {
+			// Sort by `order`, then registration order (explicit tie-break, not relying
+			// on Array.sort stability) — mirrors ActionRegistry.getOrdered.
 			return settingsOrder
-				.map((id) => settings.get(id))
-				.filter((e): e is SettingsEntry => e !== undefined)
-				.sort((a, b) => (a.descriptor.order ?? 0) - (b.descriptor.order ?? 0));
+				.map((id, i) => ({ entry: settings.get(id), i }))
+				.filter((x): x is { entry: SettingsEntry; i: number } => x.entry !== undefined)
+				.sort(
+					(a, b) => (a.entry.descriptor.order ?? 0) - (b.entry.descriptor.order ?? 0) || a.i - b.i,
+				)
+				.map((x) => x.entry);
 		},
 		getPanels() {
 			return panelsOrder
-				.map((id) => panels.get(id))
-				.filter((e): e is PanelEntry => e !== undefined)
-				.sort((a, b) => (a.panel.order ?? 0) - (b.panel.order ?? 0));
+				.map((id, i) => ({ entry: panels.get(id), i }))
+				.filter((x): x is { entry: PanelEntry; i: number } => x.entry !== undefined)
+				.sort((a, b) => (a.entry.panel.order ?? 0) - (b.entry.panel.order ?? 0) || a.i - b.i)
+				.map((x) => x.entry);
 		},
 		subscribe(listener: () => void) {
 			listeners.add(listener);
