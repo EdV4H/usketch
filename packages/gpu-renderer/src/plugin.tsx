@@ -1,5 +1,6 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { GpuShapeLayer } from "./gpu-shape-layer.js";
+import { GpuStatsPanel } from "./gpu-stats-panel.js";
 
 export interface GpuRendererPluginOptions {
 	mode?: "auto" | "force";
@@ -30,8 +31,17 @@ export function createGpuRendererPlugin(options?: GpuRendererPluginOptions): Usk
 				),
 			});
 
+			// Contribute the GPU stats readout to the Control HUD (owned here rather
+			// than hardcoded in the HUD's General panel).
+			const offHud = ctx.hud.registerPanel({
+				id: "gpu-renderer:stats",
+				title: "GPU",
+				render: () => <GpuStatsPanel events={ctx.events} />,
+			});
+
 			return () => {
 				ctx.layers.unregister("gpu-shapes");
+				offHud();
 			};
 		},
 	};
