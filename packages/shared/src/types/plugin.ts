@@ -538,9 +538,68 @@ export interface ActionRegistry {
 	unregister(id: string): void;
 	get(id: string): PluginAction | undefined;
 	getAll(): ReadonlyMap<string, PluginAction>;
-	/** Actions sorted by `group` then `order` then registration order. */
-	getOrdered(): readonly { id: string; action: PluginAction }[];
+	/**
+	 * Actions sorted by `group` then `order` then registration order. `pluginId`
+	 * is the id of the plugin that registered the action (stamped automatically
+	 * by the app when the plugin's scoped context registers it), or `undefined`
+	 * if registered outside a plugin scope. Lets a control surface group actions
+	 * by owning plugin rather than the free-text `group`.
+	 */
+	getOrdered(): readonly { id: string; pluginId: string | undefined; action: PluginAction }[];
 	subscribe(listener: () => void): () => void;
+}
+
+// ── HUD contribution registry (declarative plugin controls surfaced by the Debug/Control HUD) ──
+
+/**
+ * A live, two-way settings group a plugin contributes to the control HUD. Unlike
+ * {@link PluginAction} params (which collect input then `run`), these `fields`
+ * are bound to live state via `get`/`set` and re-render on `subscribe`, so a
+ * control (e.g. a slider) reflects the current value and applies edits immediately.
+ */
+export interface HudSettingsDescriptor {
+	/** Unique id (namespaced, e.g. `viewport-lod:settings`). */
+	id: string;
+	/** Optional heading for this settings group. */
+	label?: string;
+	/** Sort order within the owning plugin's section. Lower first. */
+	order?: number;
+	/** The editable fields. Reuses {@link ActionParam}'s type/options/min/max/step. */
+	fields: ActionParam[];
+	/** Current live value of `field.name`. */
+	get(name: string): unknown;
+	/** Apply a new value for `field.name`. */
+	set(name: string, value: unknown): void;
+	/** Subscribe to external changes so the control re-reads `get`. Returns an unsubscribe fn. */
+	subscribe(listener: () => void): () => void;
+}
+
+/** An arbitrary React panel a plugin contributes to the HUD (telemetry / bespoke UI). */
+export interface HudPanel {
+	id: string;
+	title?: string;
+	/** Sort order within the owning plugin's section. Lower first. */
+	order?: number;
+	render(): ReactElement | null;
+}
+
+/**
+ * Registry a plugin uses to contribute declarative HUD content beyond
+ * {@link PluginAction}s: live {@link HudSettingsDescriptor}s and custom
+ * {@link HudPanel}s. Entries are auto-attributed to the registering plugin
+ * (`pluginId`) so the HUD can render them under that plugin's section.
+ */
+export interface HudRegistry {
+	registerSettings(descriptor: HudSettingsDescriptor): () => void;
+	registerPanel(panel: HudPanel): () => void;
+	getSettings(): readonly { pluginId: string | undefined; descriptor: HudSettingsDescriptor }[];
+	getPanels(): readonly { pluginId: string | undefined; panel: HudPanel }[];
+	subscribe(listener: () => void): () => void;
+}
+
+/** Read-only view of the active plugins (id + name), for UIs that group by plugin. */
+export interface PluginInfoRegistry {
+	getAll(): readonly { id: string; name: string }[];
 }
 
 // ── Event Bus ──
@@ -816,6 +875,13 @@ export interface PluginContext {
 	externalContent: ExternalContentRegistry;
 	/** Declarative, enumerable plugin operations surfaced by the control HUD. */
 	actions: ActionRegistry;
+	/**
+	 * Contribute live settings + custom panels to the Debug/Control HUD. Entries
+	 * are auto-attributed to this plugin. See {@link HudRegistry}.
+	 */
+	hud: HudRegistry;
+	/** Read-only list of active plugins (id + name); e.g. to group HUD controls by plugin. */
+	plugins: PluginInfoRegistry;
 	/**
 	 * String-keyed registry for plugin-provided services (IoC). Feature-specific
 	 * registries — e.g. the Markdown-converter registry — live here rather than

@@ -80,6 +80,8 @@ export function createDebugHudPlugin(): UsketchPlugin {
 						layers={ctx.layers}
 						shapes={ctx.shapes}
 						actions={ctx.actions}
+						hud={ctx.hud}
+						pluginInfo={ctx.plugins}
 						syncStatus={syncStatus}
 						boardMeta={boardMeta}
 						presence={presence}

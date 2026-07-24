@@ -4,6 +4,7 @@ export type { AppInstance, CreateAppOptions } from "./create-app.js";
 export { createApp } from "./create-app.js";
 export { createEventBus } from "./event-bus.js";
 export { createExternalContentRegistry } from "./external-content-registry.js";
+export { createHudRegistry } from "./hud-registry.js";
 export { createLayerManager } from "./layer-manager.js";
 export type { CreateLodControllerOptions, LodControllerInternal } from "./lod/index.js";
 export {
