@@ -34,10 +34,12 @@ function SettingsField({
 	field: ActionParam;
 }) {
 	const value = descriptor.get(field.name);
-	// A plain div (not <label>): ParamInputWidget owns the control internally, so
-	// there's no input element here to associate a <label> with.
+	// A wrapping <label> implicitly associates with the input rendered inside
+	// ParamInputWidget (real a11y + larger hit target). biome can't see through
+	// the child component to the control, hence the ignore.
 	return (
-		<div
+		// biome-ignore lint/a11y/noLabelWithoutControl: the control is rendered inside ParamInputWidget
+		<label
 			style={{
 				display: "flex",
 				alignItems: "center",
@@ -54,6 +56,6 @@ function SettingsField({
 				value={value}
 				onChange={(v) => descriptor.set(field.name, v)}
 			/>
-		</div>
+		</label>
 	);
 }

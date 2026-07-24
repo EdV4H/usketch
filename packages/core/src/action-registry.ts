@@ -38,7 +38,11 @@ export function createActionRegistry(): InternalActionRegistry {
 		actions.set(action.id, action);
 		pluginOf.set(action.id, pluginId);
 		notify();
-		return () => unregister(action.id);
+		// Guard: only remove if THIS registration is still current, so a stale
+		// unsubscribe can't clobber a re-registration under the same id.
+		return () => {
+			if (actions.get(action.id) === action) unregister(action.id);
+		};
 	}
 
 	return {

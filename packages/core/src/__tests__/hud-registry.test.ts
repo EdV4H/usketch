@@ -51,6 +51,15 @@ describe("createHudRegistry", () => {
 		expect(listener).toHaveBeenCalledTimes(1);
 	});
 
+	it("a stale unregister does not remove a re-registration under the same id", () => {
+		const r = createHudRegistry();
+		const off1 = r.registerSettings(descriptor("s1", { label: "first" }));
+		r.registerSettings(descriptor("s1", { label: "second" }));
+		off1(); // stale: s1 was already replaced
+		expect(r.getSettings()).toHaveLength(1);
+		expect(r.getSettings()[0].descriptor.label).toBe("second");
+	});
+
 	it("re-registering the same id replaces without duplicating order", () => {
 		const r = createHudRegistry();
 		r.registerSettings(descriptor("s1", { label: "one" }));

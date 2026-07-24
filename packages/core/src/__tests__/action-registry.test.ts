@@ -61,6 +61,14 @@ describe("createActionRegistry", () => {
 		expect(r.getOrdered().find((e) => e.id === "a")?.pluginId).toBeUndefined();
 	});
 
+	it("a stale unregister does not remove a re-registration under the same id", () => {
+		const r = createActionRegistry();
+		const off1 = r.register(action("a", { label: "first" }));
+		r.register(action("a", { label: "second" })); // replace same id
+		off1(); // stale unsubscribe
+		expect(r.get("a")?.label).toBe("second");
+	});
+
 	it("subscribe fires on register and returns an unsubscribe", () => {
 		const r = createActionRegistry();
 		const listener = vi.fn();

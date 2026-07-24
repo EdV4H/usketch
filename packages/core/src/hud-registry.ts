@@ -42,7 +42,10 @@ export function createHudRegistry(): InternalHudRegistry {
 		settings.set(descriptor.id, { pluginId, descriptor });
 		notify();
 		return () => {
-			if (!settings.delete(descriptor.id)) return;
+			// Guard: only remove if THIS descriptor is still the current one, so a
+			// stale unsubscribe can't clobber a re-registration under the same id.
+			if (settings.get(descriptor.id)?.descriptor !== descriptor) return;
+			settings.delete(descriptor.id);
 			const i = settingsOrder.indexOf(descriptor.id);
 			if (i >= 0) settingsOrder.splice(i, 1);
 			notify();
@@ -54,7 +57,8 @@ export function createHudRegistry(): InternalHudRegistry {
 		panels.set(panel.id, { pluginId, panel });
 		notify();
 		return () => {
-			if (!panels.delete(panel.id)) return;
+			if (panels.get(panel.id)?.panel !== panel) return;
+			panels.delete(panel.id);
 			const i = panelsOrder.indexOf(panel.id);
 			if (i >= 0) panelsOrder.splice(i, 1);
 			notify();
