@@ -54,11 +54,6 @@ export function createDebugHudPlugin(): UsketchPlugin {
 				| import("./sync-status-types.js").SyncStatusTrackerLike
 				| undefined;
 
-			// Board メタ情報トラッカーも同じく window 経由で受け取る（app.tsx が設定）。
-			const boardMeta = (globalThis as Record<string, unknown>).__usketchBoardMeta as
-				| import("./board-meta-types.js").BoardMetaTrackerLike
-				| undefined;
-
 			// オンラインメンバー（presence）トラッカーも window 経由（app.tsx が設定）。
 			const presence = (globalThis as Record<string, unknown>).__usketchPresence as
 				| import("./presence-types.js").PresenceTrackerLike
@@ -83,7 +78,6 @@ export function createDebugHudPlugin(): UsketchPlugin {
 						hud={ctx.hud}
 						pluginInfo={ctx.plugins}
 						syncStatus={syncStatus}
-						boardMeta={boardMeta}
 						presence={presence}
 						events={ctx.events}
 						ctx={renderCtx}

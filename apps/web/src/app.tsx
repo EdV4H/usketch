@@ -76,6 +76,7 @@ import { CopilotPill, TopBar } from "./components/board-frame/index.js";
 import { ShareDialog } from "./components/share-dialog.js";
 import { InfoTab } from "./components/side-panel/info-tab.js";
 import { SidePanelToggles } from "./components/side-panel/side-panel-toggles.js";
+import { boardMetaStore } from "./lib/board-meta-store.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
@@ -84,6 +85,7 @@ import { loadViewportLod } from "./lib/render-settings.js";
 import { useAppActions } from "./lib/use-app-actions.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
+import { createBoardMetaPanelPlugin } from "./plugins/board-meta-panel.js";
 import { createMarkdownAdaptersPlugin } from "./plugins/markdown-adapters.js";
 import { createViewportLodControlPlugin } from "./plugins/viewport-lod-control.js";
 
@@ -185,6 +187,9 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		}),
 		// Registers the viewport-LOD toggle + % control into the Control HUD.
 		createViewportLodControlPlugin(),
+		// Contributes the Board meta panel to the Control HUD (replaces the hardcoded
+		// General-panel Board section + __usketchBoardMeta global).
+		createBoardMetaPanelPlugin(),
 	];
 }
 
@@ -199,37 +204,6 @@ async function loadPlugins(
 	const { createDebugHudPlugin } = await import("@edv4h/usketch-plugin-debug-hud");
 	return [...plugins, createDebugHudPlugin()];
 }
-
-/**
- * Board メタ情報（タイトル / Cloud か Local か / id）を Control HUD に供給する
- * 小さなリアクティブストア。HUD は `globalThis.__usketchBoardMeta` を購読して
- * General パネルに表示する（`__usketchSyncStatus` と同じ受け渡し方式）。
- * モジュールスコープで生成しておくことで、プラグイン setup 時点で必ず存在する。
- */
-type BoardMetaValue = { id?: string; name: string | null; isCloud: boolean };
-const boardMetaStore = (() => {
-	let snapshot: BoardMetaValue = { name: null, isCloud: false };
-	const listeners = new Set<() => void>();
-	return {
-		getSnapshot: () => snapshot,
-		set(next: BoardMetaValue) {
-			if (
-				snapshot.id === next.id &&
-				snapshot.name === next.name &&
-				snapshot.isCloud === next.isCloud
-			) {
-				return;
-			}
-			snapshot = next;
-			for (const l of listeners) l();
-		},
-		subscribe(listener: () => void) {
-			listeners.add(listener);
-			return () => listeners.delete(listener);
-		},
-	};
-})();
-(globalThis as Record<string, unknown>).__usketchBoardMeta = boardMetaStore;
 
 /**
  * オンラインメンバー（presence）を Control HUD の Members パネルに供給する
