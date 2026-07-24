@@ -181,7 +181,6 @@ export function DebugHud({
 				shapes={shapes}
 				syncStatus={syncStatus}
 				boardMeta={boardMeta}
-				events={events}
 				viewport={viewport}
 				activeToolId={activeToolId}
 			/>
