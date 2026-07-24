@@ -22,10 +22,8 @@ import {
 } from "./panels/controls-panel.js";
 import { EventsPanel } from "./panels/events-panel.js";
 import { GeneralPanel } from "./panels/general-panel.js";
-import { MembersPanel } from "./panels/members-panel.js";
 import { ShapesPanel } from "./panels/shapes-panel.js";
 import type { PointerTracker } from "./pointer-tracker.js";
-import type { PresenceTrackerLike } from "./presence-types.js";
 import { FONT_FAMILY, TEXT_MUTED } from "./styles.js";
 import type { SyncStatusTrackerLike } from "./sync-status-types.js";
 import type { VisibilityStore } from "./visibility-store.js";
@@ -43,7 +41,6 @@ interface DebugHudProps {
 	hud: HudRegistry;
 	pluginInfo: PluginInfoRegistry;
 	syncStatus?: SyncStatusTrackerLike;
-	presence?: PresenceTrackerLike;
 	events: EventBus;
 	ctx: LayerRenderContext;
 	visibility: VisibilityStore;
@@ -68,7 +65,6 @@ export function DebugHud({
 	hud,
 	pluginInfo,
 	syncStatus,
-	presence,
 	events,
 	ctx,
 	visibility,
@@ -180,9 +176,6 @@ export function DebugHud({
 				viewport={viewport}
 				activeToolId={activeToolId}
 			/>
-
-			{/* Right-top (left of General): online members (旧 PresencePill) */}
-			<MembersPanel presence={presence} />
 
 			{/* Left dock: universal control panel (tools + actions + shapes + event console + style) */}
 			<ControlsPanel
