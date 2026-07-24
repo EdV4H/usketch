@@ -80,6 +80,7 @@ import { boardMetaStore } from "./lib/board-meta-store.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
+import { presenceStore, readPresenceMembers } from "./lib/presence-store.js";
 import { computePresentStage, type StageRect } from "./lib/present-stage.js";
 import { loadViewportLod } from "./lib/render-settings.js";
 import { useAppActions } from "./lib/use-app-actions.js";
@@ -87,6 +88,7 @@ import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 import { createBoardMetaPanelPlugin } from "./plugins/board-meta-panel.js";
 import { createMarkdownAdaptersPlugin } from "./plugins/markdown-adapters.js";
+import { createPresencePanelPlugin } from "./plugins/presence-panel.js";
 import { createViewportLodControlPlugin } from "./plugins/viewport-lod-control.js";
 
 type PresentationMode = "off" | "edit" | "present";
@@ -190,6 +192,9 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		// Contributes the Board meta panel to the Control HUD (replaces the hardcoded
 		// General-panel Board section + __usketchBoardMeta global).
 		createBoardMetaPanelPlugin(),
+		// Contributes the online-members (presence) panel (replaces the HUD Members
+		// panel + __usketchPresence global). Fed by the awareness effect below.
+		createPresencePanelPlugin(),
 	];
 }
 
@@ -203,74 +208,6 @@ async function loadPlugins(
 	// Kept as a dynamic import so it stays code-split.
 	const { createDebugHudPlugin } = await import("@edv4h/usketch-plugin-debug-hud");
 	return [...plugins, createDebugHudPlugin()];
-}
-
-/**
- * オンラインメンバー（presence）を Control HUD の Members パネルに供給する
- * リアクティブストア。HUD は `globalThis.__usketchPresence` を購読する
- * （`__usketchSyncStatus` と同じ window 経由の受け渡し方式）。awareness の変更に
- * 応じてボード初期化 effect から `set()` される。
- */
-type PresenceMemberValue = { clientId: number; name: string; color: string; status?: string };
-const PRESENCE_PALETTE = [
-	"var(--u-1)",
-	"var(--u-2)",
-	"var(--u-3)",
-	"var(--u-4)",
-	"var(--u-5)",
-	"var(--u-6)",
-];
-const presenceColor = (clientId: number): string =>
-	PRESENCE_PALETTE[clientId % PRESENCE_PALETTE.length] ?? "var(--u-1)";
-const presenceStore = (() => {
-	let snapshot: { members: PresenceMemberValue[] } = { members: [] };
-	const listeners = new Set<() => void>();
-	const sameMembers = (a: PresenceMemberValue[], b: PresenceMemberValue[]) =>
-		a.length === b.length &&
-		a.every((m, i) => {
-			const n = b[i];
-			return (
-				n != null &&
-				m.clientId === n.clientId &&
-				m.name === n.name &&
-				m.color === n.color &&
-				m.status === n.status
-			);
-		});
-	return {
-		getSnapshot: () => snapshot,
-		set(members: PresenceMemberValue[]) {
-			// 参照安定性を保つ（useSyncExternalStore が無限再描画しないよう、
-			// 内容が変わらなければ同じ snapshot を返す）。
-			if (sameMembers(snapshot.members, members)) return;
-			snapshot = { members };
-			for (const l of listeners) l();
-		},
-		subscribe(listener: () => void) {
-			listeners.add(listener);
-			return () => listeners.delete(listener);
-		},
-	};
-})();
-(globalThis as Record<string, unknown>).__usketchPresence = presenceStore;
-
-/** awareness から自分以外のオンラインメンバーを読み出す。 */
-function readPresenceMembers(awareness: {
-	getStates: () => Map<number, Record<string, unknown>>;
-	doc: { clientID: number };
-}): PresenceMemberValue[] {
-	const members: PresenceMemberValue[] = [];
-	for (const [clientId, state] of awareness.getStates()) {
-		if (clientId === awareness.doc.clientID) continue;
-		const user = state.user as { name?: string; color?: string; status?: string } | undefined;
-		members.push({
-			clientId,
-			name: user?.name ?? "Guest",
-			color: user?.color ?? presenceColor(clientId),
-			status: user?.status ?? (state.presenting === true ? "presenting" : "active"),
-		});
-	}
-	return members;
 }
 
 export function App() {
