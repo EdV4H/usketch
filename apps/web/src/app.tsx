@@ -208,8 +208,8 @@ async function loadPlugins(
 /**
  * オンラインメンバー（presence）を Control HUD の Members パネルに供給する
  * リアクティブストア。HUD は `globalThis.__usketchPresence` を購読する
- * （`__usketchBoardMeta` と同じ受け渡し方式）。awareness の変更に応じて
- * ボード初期化 effect から `set()` される。
+ * （`__usketchSyncStatus` と同じ window 経由の受け渡し方式）。awareness の変更に
+ * 応じてボード初期化 effect から `set()` される。
  */
 type PresenceMemberValue = { clientId: number; name: string; color: string; status?: string };
 const PRESENCE_PALETTE = [
