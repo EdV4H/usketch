@@ -168,18 +168,25 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 			pluginRegistry.register(plugin);
 			// Per-plugin scoped context: `actions`/`hud` registrations (including any
 			// made later from callbacks) are auto-attributed to this plugin's id.
-			const scopedCtx: PluginContext = {
-				...ctx,
-				actions: {
-					...actions,
-					register: (action) => actions.registerFor(plugin.id, action),
-				},
-				hud: {
-					...hud,
-					registerSettings: (descriptor) => hud.registerSettingsFor(plugin.id, descriptor),
-					registerPanel: (panel) => hud.registerPanelFor(plugin.id, panel),
-				},
+			// Explicit public-surface wrappers (not `{ ...registry }`) so the internal
+			// attribution helpers (registerFor/registerSettingsFor/registerPanelFor)
+			// are NOT reachable from a plugin's context, even via `as any`.
+			const scopedActions: ActionRegistry = {
+				register: (action) => actions.registerFor(plugin.id, action),
+				unregister: actions.unregister,
+				get: actions.get,
+				getAll: actions.getAll,
+				getOrdered: actions.getOrdered,
+				subscribe: actions.subscribe,
 			};
+			const scopedHud: HudRegistry = {
+				registerSettings: (descriptor) => hud.registerSettingsFor(plugin.id, descriptor),
+				registerPanel: (panel) => hud.registerPanelFor(plugin.id, panel),
+				getSettings: hud.getSettings,
+				getPanels: hud.getPanels,
+				subscribe: hud.subscribe,
+			};
+			const scopedCtx: PluginContext = { ...ctx, actions: scopedActions, hud: scopedHud };
 			const teardown = await plugin.setup(scopedCtx);
 			if (typeof teardown === "function") {
 				teardowns.push(teardown);
