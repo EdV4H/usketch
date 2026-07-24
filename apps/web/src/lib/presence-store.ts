@@ -49,7 +49,9 @@ export const presenceStore: PresenceStore = (() => {
 			// Keep referential stability so useSyncExternalStore doesn't loop when
 			// the member set is unchanged.
 			if (sameMembers(snapshot.members, members)) return;
-			snapshot = { members };
+			// Copy so the stored snapshot is immutable from the outside (a later
+			// mutation of the caller's array can't silently change our state).
+			snapshot = { members: [...members] };
 			for (const l of listeners) l();
 		},
 		subscribe(listener: () => void) {
