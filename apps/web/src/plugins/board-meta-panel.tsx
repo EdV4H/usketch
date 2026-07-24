@@ -15,7 +15,9 @@ export function createBoardMetaPanelPlugin(): UsketchPlugin {
 
 		setup(ctx: PluginContext) {
 			return ctx.hud.registerPanel({
-				id: "board-meta",
+				// Namespaced by plugin id: HudRegistry keys panels by id, so a bare
+				// generic id could be overwritten by another plugin's panel.
+				id: "usketch-web-board-meta:panel",
 				title: "Board",
 				order: 0,
 				render: () => <BoardMetaPanel />,
@@ -25,7 +27,13 @@ export function createBoardMetaPanelPlugin(): UsketchPlugin {
 }
 
 function BoardMetaPanel() {
-	const meta = useSyncExternalStore(boardMetaStore.subscribe, boardMetaStore.getSnapshot);
+	// getServerSnapshot (3rd arg) = getSnapshot: the store is deterministic, so
+	// SSR/hydration reads the same value (avoids the hydration-mismatch warning).
+	const meta = useSyncExternalStore(
+		boardMetaStore.subscribe,
+		boardMetaStore.getSnapshot,
+		boardMetaStore.getSnapshot,
+	);
 	return (
 		<div style={{ fontSize: 10 }}>
 			<div style={{ fontWeight: 600, color: "#e5e7eb", wordBreak: "break-word" }}>
