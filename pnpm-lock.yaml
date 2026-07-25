@@ -1861,8 +1861,8 @@ importers:
         specifier: '>=1.0.0'
         version: 1.29.0(zod@4.4.3)
       '@openuidev/react-lang':
-        specifier: 0.2.8
-        version: 0.2.8(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(react@19.2.8)(zod@4.4.3)
+        specifier: 0.2.9
+        version: 0.2.9(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(react@19.2.8)(zod@4.4.3)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -2136,8 +2136,8 @@ importers:
         specifier: '>=1.0.0'
         version: 1.29.0(zod@4.4.3)
       '@openuidev/react-lang':
-        specifier: 0.2.8
-        version: 0.2.8(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(react@19.2.8)(zod@4.4.3)
+        specifier: 0.2.9
+        version: 0.2.9(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(react@19.2.8)(zod@4.4.3)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -4051,8 +4051,8 @@ packages:
     resolution: {integrity: sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg==}
     engines: {node: '>=14'}
 
-  '@openuidev/lang-core@0.2.7':
-    resolution: {integrity: sha512-hCAQ9YCK3D6E0mGcggEgOOyxifen785h0Rd1vqfwlDUChLdzXT4EvK/IQl9SwgNneokHZoPQOt/7RZkIzVTHFg==}
+  '@openuidev/lang-core@0.2.10':
+    resolution: {integrity: sha512-GeLoP4S+1e7IHAz2a4Fl9+Q+boiyTXpXtdUPI+PN3ml+834q35TCQasm/+s6NW+79FRmyiR8F5xJtoLsH0kGjQ==}
     peerDependencies:
       '@modelcontextprotocol/sdk': '>=1.0.0'
       zod: ^3.25.0 || ^4.0.0
@@ -4060,8 +4060,8 @@ packages:
       '@modelcontextprotocol/sdk':
         optional: true
 
-  '@openuidev/react-lang@0.2.8':
-    resolution: {integrity: sha512-SsbZes76oIviuZH3RW/VL+pZZjx6cOGjhkaeiSwuEnV24jWBgT9qswL4bDaQXpFG2e6sZKWjH/f0fRyqWQzhDA==}
+  '@openuidev/react-lang@0.2.9':
+    resolution: {integrity: sha512-pQd4goMYHBfq2Df1kq3MOh0QbZiBIhBkD3K/0UfTY86a/N7EC/ydo1xW1IjjOSU0qHycF5z5Yw/UGs2BDllGjA==}
     peerDependencies:
       '@modelcontextprotocol/sdk': '>=1.0.0'
       react: 19.2.8
@@ -9411,15 +9411,15 @@ snapshots:
 
   '@opentelemetry/semantic-conventions@1.43.0': {}
 
-  '@openuidev/lang-core@0.2.7(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)':
+  '@openuidev/lang-core@0.2.10(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)':
     dependencies:
       zod: 4.4.3
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.29.0(zod@4.4.3)
 
-  '@openuidev/react-lang@0.2.8(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(react@19.2.8)(zod@4.4.3)':
+  '@openuidev/react-lang@0.2.9(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(react@19.2.8)(zod@4.4.3)':
     dependencies:
-      '@openuidev/lang-core': 0.2.7(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)
+      '@openuidev/lang-core': 0.2.10(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)
       react: 19.2.8
       zod: 4.4.3
     optionalDependencies:
