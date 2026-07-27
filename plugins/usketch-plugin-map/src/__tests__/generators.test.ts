@@ -95,6 +95,15 @@ describe("generators", () => {
 		expect(total - water).toBeGreaterThan(0);
 	});
 
+	it("island: border stays water even at seaLevel 0", () => {
+		const box = { minC: 0, minR: 0, maxC: 15, maxR: 11 };
+		const cells = island.generate({ box, seed: 4, params: { scale: 0.1, seaLevel: 0, size: 3 } });
+		for (let c = box.minC; c <= box.maxC; c++) {
+			expect(cells[`${c},${box.minR}`]).toBe("water");
+			expect(cells[`${c},${box.maxR}`]).toBe("water");
+		}
+	});
+
 	it("islands falloff makes the box border water", () => {
 		const cells = islands.generate({
 			box: BOX,

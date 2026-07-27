@@ -108,6 +108,7 @@ function fillField(ctx: GenContext, mode: FillMode): Cells {
 	for (let r = box.minR; r <= box.maxR; r++) {
 		for (let c = box.minC; c <= box.maxC; c++) {
 			let e = normalize(raw[i++]); // normalised to [0,1]
+			let forceWater = false;
 			if (mode !== "plain") {
 				const nx = (c - cx) / hw;
 				const ny = (r - cy) / hh;
@@ -115,14 +116,17 @@ function fillField(ctx: GenContext, mode: FillMode): Cells {
 				if (mode === "sink") {
 					// Subtractive edge falloff → archipelago of islands.
 					e -= falloff * Math.min(1, d) ** 2;
+				} else if (d >= 1) {
+					// island: at/beyond the box edge is always sea, independent of
+					// seaLevel (guarantees the island is fully surrounded by water).
+					forceWater = true;
 				} else {
-					// Multiplicative radial mask → a single landmass guaranteed to be
-					// surrounded by sea (mask is 0 at/after the box edge). Higher `size`
+					// Multiplicative radial mask → a single landmass. Higher `size`
 					// keeps land closer to the edge (a bigger island).
 					e *= Math.max(0, 1 - d ** size);
 				}
 			}
-			cells[cellKey(c, r)] = elevationToTerrain(e, seaLevel);
+			cells[cellKey(c, r)] = forceWater ? "water" : elevationToTerrain(e, seaLevel);
 		}
 	}
 	return cells;
