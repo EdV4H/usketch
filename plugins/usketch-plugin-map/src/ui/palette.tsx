@@ -116,6 +116,11 @@ export function MapPalette({
 						<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginBottom: 6 }}>
 							地形
 						</div>
+						{tool.mode === "eraser" && (
+							<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginBottom: 6 }}>
+								アイコンはクリックで削除
+							</div>
+						)}
 						<div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
 							{TERRAINS.map((t) => (
 								<button

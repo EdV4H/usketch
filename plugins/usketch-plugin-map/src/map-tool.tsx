@@ -9,7 +9,7 @@ import type {
 	ToolContext,
 	ToolDefinition,
 } from "@edv4h/usketch-shared";
-import { createAddShapeCommand } from "@edv4h/usketch-store";
+import { createAddShapeCommand, createDeleteWithChildrenCommand } from "@edv4h/usketch-store";
 import {
 	type CellBox,
 	type Cells,
@@ -21,7 +21,7 @@ import {
 import { genStateStore } from "./gen-state.js";
 import { generateIntoBox, resolveTilemap } from "./generate.js";
 import { ICONS_BY_KEY } from "./icons.js";
-import { makeMapIcon } from "./map-icon-shape.js";
+import { MAP_ICON_TYPE, makeMapIcon } from "./map-icon-shape.js";
 import { DEFAULT_TILE, type TileMapShapeData } from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
 
@@ -145,6 +145,16 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		ctx.commands.execute(command);
 	}
 
+	/** Topmost map-icon whose bounds contain the point (frontmost wins), or null. */
+	function findMapIconAt(ctx: ToolContext, x: number, y: number): string | null {
+		let found: string | null = null;
+		for (const s of ctx.store.getShapesSorted()) {
+			if (s.type !== MAP_ICON_TYPE) continue;
+			if (x >= s.x && x <= s.x + s.width && y >= s.y && y <= s.y + s.height) found = s.id;
+		}
+		return found;
+	}
+
 	function placeIcon(ctx: ToolContext, event: CanvasPointerEvent): void {
 		const { iconKey } = toolStateStore.get();
 		const def = ICONS_BY_KEY.get(iconKey);
@@ -171,6 +181,14 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 					pendingRect: { x: event.worldPoint.x, y: event.worldPoint.y, w: 0, h: 0 },
 				});
 				return;
+			}
+			// Eraser: clicking a placed icon removes it (icons aren't terrain cells).
+			if (mode === "eraser") {
+				const iconId = findMapIconAt(ctx, event.worldPoint.x, event.worldPoint.y);
+				if (iconId) {
+					ctx.commands.execute(createDeleteWithChildrenCommand(ctx.store, iconId));
+					return;
+				}
 			}
 			const target = resolveTilemap(ctx.store, tile);
 			stroke = {
