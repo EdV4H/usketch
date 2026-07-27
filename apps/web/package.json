@@ -37,6 +37,7 @@
 		"@edv4h/usketch-plugin-shape-community-region": "workspace:*",
 		"@edv4h/usketch-plugin-canvas-filter": "workspace:*",
 		"@edv4h/usketch-plugin-shape-island": "workspace:*",
+		"@edv4h/usketch-plugin-map": "workspace:*",
 		"@edv4h/usketch-plugin-shape-image": "workspace:*",
 		"@edv4h/usketch-plugin-shape-openui": "workspace:*",
 		"@edv4h/usketch-plugin-tool-openui": "workspace:*",
