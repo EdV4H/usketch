@@ -18,10 +18,10 @@
 	},
 	"dependencies": {
 		"@edv4h/usketch-server-core": "workspace:*",
-		"hono": "4.12.31"
+		"hono": "4.12.32"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "5.20260724.1",
+		"@cloudflare/workers-types": "5.20260726.1",
 		"typescript": "7.0.2",
 		"vitest": "4.1.10"
 	},
