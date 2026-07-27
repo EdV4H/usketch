@@ -4,6 +4,7 @@
 import type { BoardStore } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
 import { type Cells, exposedEdges, parseCellKey } from "./autotile.js";
+import { genStateStore } from "./gen-state.js";
 import { terrainCssVars } from "./palette.js";
 import { renderConfigStore } from "./render-config.js";
 import { renderSvgNodes } from "./svg-nodes.js";
@@ -117,9 +118,11 @@ export function MapTerrainLayer({ store }: { store: BoardStore }) {
 		};
 		const u1 = store.subscribe(rerender);
 		const u2 = renderConfigStore.subscribe(rerender);
+		const u3 = genStateStore.subscribe(rerender);
 		return () => {
 			u1();
 			u2();
+			u3();
 			cancelAnimationFrame(rafRef.current);
 		};
 	}, [store]);
@@ -127,6 +130,7 @@ export function MapTerrainLayer({ store }: { store: BoardStore }) {
 	const vp = store.getViewport();
 	const cfg = renderConfigStore.get();
 	const visible = visibleWorldRect(store);
+	const pending = genStateStore.get().pendingRect;
 
 	const tilemaps: TileMapShapeData[] = [];
 	for (const [, shape] of store.getShapes()) {
@@ -159,6 +163,19 @@ export function MapTerrainLayer({ store }: { store: BoardStore }) {
 					{tilemaps.map((tm) => (
 						<g key={tm.id}>{renderCells(tm.cells, tm.tile, visible).nodes}</g>
 					))}
+					{pending && (pending.w > 0 || pending.h > 0) && (
+						<rect
+							x={pending.x}
+							y={pending.y}
+							width={pending.w}
+							height={pending.h}
+							fill="rgba(74,127,184,.14)"
+							stroke="#4A7FB8"
+							strokeWidth={2}
+							strokeDasharray="8 6"
+							vectorEffect="non-scaling-stroke"
+						/>
+					)}
 				</g>
 			</svg>
 		</div>
