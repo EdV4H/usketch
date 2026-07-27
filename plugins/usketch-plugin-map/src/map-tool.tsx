@@ -9,7 +9,12 @@ import type {
 	ToolContext,
 	ToolDefinition,
 } from "@edv4h/usketch-shared";
-import { createAddShapeCommand, createDeleteWithChildrenCommand } from "@edv4h/usketch-store";
+import {
+	createAddShapeCommand,
+	createDeleteWithChildrenCommand,
+	isEffectivelyHidden,
+	isEffectivelyLocked,
+} from "@edv4h/usketch-store";
 import {
 	type CellBox,
 	type Cells,
@@ -145,12 +150,20 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		ctx.commands.execute(command);
 	}
 
-	/** Topmost map-icon whose bounds contain the point (frontmost wins), or null. */
+	/**
+	 * Topmost interactable map-icon under the point (frontmost wins), or null.
+	 * Uses the shape's registered (rotation-aware) hitTest and skips shapes that
+	 * are effectively locked/hidden, matching normal canvas interaction rules.
+	 */
 	function findMapIconAt(ctx: ToolContext, x: number, y: number): string | null {
+		const def = ctx.shapes.get(MAP_ICON_TYPE);
+		if (!def) return null;
+		const point = { x, y };
 		let found: string | null = null;
 		for (const s of ctx.store.getShapesSorted()) {
 			if (s.type !== MAP_ICON_TYPE) continue;
-			if (x >= s.x && x <= s.x + s.width && y >= s.y && y <= s.y + s.height) found = s.id;
+			if (isEffectivelyLocked(ctx.store, s) || isEffectivelyHidden(ctx.store, s)) continue;
+			if (def.hitTest(s, point)) found = s.id;
 		}
 		return found;
 	}
