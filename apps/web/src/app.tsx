@@ -83,12 +83,14 @@ import { localBoards } from "./lib/local-boards.js";
 import { presenceStore, readPresenceMembers } from "./lib/presence-store.js";
 import { computePresentStage, type StageRect } from "./lib/present-stage.js";
 import { loadViewportLod } from "./lib/render-settings.js";
+import { syncStatusStore } from "./lib/sync-status-store.js";
 import { useAppActions } from "./lib/use-app-actions.js";
 import { useAuth } from "./lib/use-auth.js";
 import { useKeyboardShortcuts } from "./lib/use-keyboard-shortcuts.js";
 import { createBoardMetaPanelPlugin } from "./plugins/board-meta-panel.js";
 import { createMarkdownAdaptersPlugin } from "./plugins/markdown-adapters.js";
 import { createPresencePanelPlugin } from "./plugins/presence-panel.js";
+import { createSyncStatusPanelPlugin } from "./plugins/sync-status-panel.js";
 import { createViewportLodControlPlugin } from "./plugins/viewport-lod-control.js";
 
 type PresentationMode = "off" | "edit" | "present";
@@ -195,6 +197,9 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		// Contributes the online-members (presence) panel (replaces the HUD Members
 		// panel + __usketchPresence global). Fed by the awareness effect below.
 		createPresencePanelPlugin(),
+		// Contributes the sync/persistence status panel (replaces the HUD General
+		// Persistence section + __usketchSyncStatus global). Fed by syncStatusStore.
+		createSyncStatusPanelPlugin(),
 	];
 }
 
@@ -263,7 +268,10 @@ export function App() {
 		const store = createBoardStore();
 		const syncHandle = createYjsSync(store, `usketch-board-${boardId}`);
 
-		(globalThis as Record<string, unknown>).__usketchSyncStatus = syncHandle.status;
+		// Feed the sync-status panel (HUD) via a stable app store instead of a
+		// global. Base IDB tracker now; swapped to the divergence tracker below
+		// for cloud boards.
+		syncStatusStore.setTracker(syncHandle.status);
 
 		// Shared server clock so collaborative timers agree on "now" regardless of
 		// device clock skew. Cloud boards measure the offset against the server;
@@ -295,8 +303,8 @@ export function App() {
 			wsProvider.onStatusChange(setWsStatus);
 
 			// Replace the IDB-only sync status (which can't see server divergence)
-			// with the divergence-aware tracker for cloud boards. The Debug HUD and
-			// the canvas overlay both read from `__usketchSyncStatus`.
+			// with the divergence-aware tracker for cloud boards. The sync-status
+			// panel reads it via `syncStatusStore`; the canvas overlay via a prop.
 			const wsP = wsProvider;
 			divergenceHandle = createDivergenceTracker({
 				store,
@@ -304,7 +312,7 @@ export function App() {
 				shapesMap: syncHandle.doc.getMap<Record<string, unknown>>("shapes"),
 				onConnectionStatusChange: (handler) => wsP.onStatusChange(handler),
 			});
-			(globalThis as Record<string, unknown>).__usketchSyncStatus = divergenceHandle.status;
+			syncStatusStore.setTracker(divergenceHandle.status);
 
 			// オンラインメンバーを Control HUD (Members パネル) へ供給。
 			// TopBar の PresencePill を置き換え。
@@ -499,7 +507,7 @@ export function App() {
 			wsProviderRef.current = null;
 			divergenceHandle?.destroy();
 			syncHandle.destroy();
-			delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
+			syncStatusStore.setTracker(null);
 			setApp(null);
 		};
 		// NOTE: presentationMode は依存に入れない。?present の切替では app を再作成せず、

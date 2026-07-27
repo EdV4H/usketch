@@ -49,11 +49,6 @@ export function createDebugHudPlugin(): UsketchPlugin {
 				pointerTracker.update(data.worldPoint, data.screenPoint);
 			});
 
-			// Pick up sync status tracker from window (set by app.tsx)
-			const syncStatus = (globalThis as Record<string, unknown>).__usketchSyncStatus as
-				| import("./sync-status-types.js").SyncStatusTrackerLike
-				| undefined;
-
 			// Register the fixed layer — always renders, visibility toggled inside component
 			ctx.layers.register({
 				id: "debug-hud",
@@ -72,7 +67,6 @@ export function createDebugHudPlugin(): UsketchPlugin {
 						actions={ctx.actions}
 						hud={ctx.hud}
 						pluginInfo={ctx.plugins}
-						syncStatus={syncStatus}
 						events={ctx.events}
 						ctx={renderCtx}
 						visibility={visibility}

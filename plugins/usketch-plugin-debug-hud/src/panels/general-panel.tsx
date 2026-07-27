@@ -21,7 +21,6 @@ import {
 	PANEL_BASE,
 	SECTION_STYLE,
 } from "../styles.js";
-import type { SyncStatusSnapshot, SyncStatusTrackerLike } from "../sync-status-types.js";
 
 interface GeneralPanelProps {
 	store: BoardStore;
@@ -31,42 +30,8 @@ interface GeneralPanelProps {
 	tools: ToolRegistry;
 	layers: LayerManager;
 	shapes: ShapeRegistry;
-	syncStatus?: SyncStatusTrackerLike;
 	viewport: Viewport;
 	activeToolId: string;
-}
-
-const DEFAULT_SYNC_SNAPSHOT: SyncStatusSnapshot = {
-	state: "loading",
-	shapeCount: 0,
-	lastSyncedAt: null,
-	firstServerSyncAt: null,
-	error: null,
-	unconfirmedShapeIds: [],
-};
-
-const SYNC_STATE_COLORS: Record<string, string> = {
-	loading: "#fbbf24",
-	connecting: "#fbbf24",
-	synced: "#4ade80",
-	syncing: "#60a5fa",
-	disconnected: "#9ca3af",
-	error: "#f87171",
-};
-
-const SYNC_STATE_LABELS: Record<string, string> = {
-	loading: "Loading…",
-	connecting: "Connecting…",
-	synced: "Synced",
-	syncing: "Syncing…",
-	disconnected: "Disconnected",
-	error: "Error",
-};
-
-function formatTimestamp(ts: number | null): string {
-	if (ts === null) return "—";
-	const d = new Date(ts);
-	return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}:${d.getSeconds().toString().padStart(2, "0")}`;
 }
 
 export function GeneralPanel({
@@ -77,7 +42,6 @@ export function GeneralPanel({
 	tools,
 	layers,
 	shapes,
-	syncStatus,
 	viewport,
 	activeToolId,
 }: GeneralPanelProps) {
@@ -89,14 +53,6 @@ export function GeneralPanel({
 	const pointer = useSyncExternalStore(
 		useCallback((cb: () => void) => pointerTracker.subscribe(cb), [pointerTracker]),
 		() => pointerTracker.getSnapshot(),
-	);
-
-	const syncSnapshot = useSyncExternalStore(
-		useCallback(
-			(cb: () => void) => (syncStatus ? syncStatus.subscribe(cb) : () => {}),
-			[syncStatus],
-		),
-		() => syncStatus?.getSnapshot() ?? DEFAULT_SYNC_SNAPSHOT,
 	);
 
 	const canUndo = commands.canUndo();
@@ -225,55 +181,6 @@ export function GeneralPanel({
 						Redo ⟶
 					</button>
 				</div>
-			</div>
-
-			{/* Sync Status */}
-			<div style={SECTION_STYLE}>
-				<div style={LABEL_STYLE}>Persistence (Yjs + IndexedDB)</div>
-				<div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-					<span
-						style={{
-							display: "inline-block",
-							width: 7,
-							height: 7,
-							borderRadius: "50%",
-							background: SYNC_STATE_COLORS[syncSnapshot.state] ?? "#888",
-						}}
-					/>
-					<span style={{ color: SYNC_STATE_COLORS[syncSnapshot.state] ?? "#888" }}>
-						{SYNC_STATE_LABELS[syncSnapshot.state] ?? syncSnapshot.state}
-					</span>
-				</div>
-				<div>
-					Shapes: {syncSnapshot.shapeCount} · Last: {formatTimestamp(syncSnapshot.lastSyncedAt)}
-				</div>
-				{/* Only show divergence after the server has confirmed us at least
-				    once. We rely on `firstServerSyncAt` (set only on `provider sync`)
-				    rather than `lastSyncedAt` (which also moves on local edits) so
-				    warnings don't leak during the initial connecting phase. Once
-				    that timestamp is set the gate stays open across reconnections,
-				    which is exactly when offline edits accumulate. */}
-				{syncSnapshot.firstServerSyncAt != null &&
-					syncSnapshot.unconfirmedShapeIds &&
-					syncSnapshot.unconfirmedShapeIds.length > 0 && (
-						<div
-							style={{
-								marginTop: 4,
-								padding: "3px 6px",
-								borderRadius: 3,
-								background: "#7f1d1d",
-								color: "#fecaca",
-								fontSize: 10,
-								fontWeight: 600,
-							}}
-							title="サーバの Y.Doc に存在しない Shape が IndexedDB に残っています"
-						>
-							⚠ サーバ未同期 Shape: {syncSnapshot.unconfirmedShapeIds.length} 件
-						</div>
-					)}
-				{syncSnapshot.error && (
-					<div style={{ color: "#f87171", fontSize: 10 }}>{syncSnapshot.error}</div>
-				)}
 			</div>
 
 			{/* System Info */}

@@ -10,7 +10,7 @@ import type {
 	ShapeRegistry,
 	ToolRegistry,
 } from "@edv4h/usketch-shared";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
 import { Minimap } from "./overlays/minimap.js";
@@ -25,7 +25,6 @@ import { GeneralPanel } from "./panels/general-panel.js";
 import { ShapesPanel } from "./panels/shapes-panel.js";
 import type { PointerTracker } from "./pointer-tracker.js";
 import { FONT_FAMILY, TEXT_MUTED } from "./styles.js";
-import type { SyncStatusTrackerLike } from "./sync-status-types.js";
 import type { VisibilityStore } from "./visibility-store.js";
 
 interface DebugHudProps {
@@ -40,7 +39,6 @@ interface DebugHudProps {
 	actions: ActionRegistry;
 	hud: HudRegistry;
 	pluginInfo: PluginInfoRegistry;
-	syncStatus?: SyncStatusTrackerLike;
 	events: EventBus;
 	ctx: LayerRenderContext;
 	visibility: VisibilityStore;
@@ -64,7 +62,6 @@ export function DebugHud({
 	actions,
 	hud,
 	pluginInfo,
-	syncStatus,
 	events,
 	ctx,
 	visibility,
@@ -97,21 +94,6 @@ export function DebugHud({
 
 	const { viewport, shapes: shapeMap, selection } = ctx;
 	const activeToolId = store.getActiveToolId();
-
-	// Subscribe to sync status so the Shapes panel can highlight unconfirmed
-	// shape IDs. Snapshot is undefined when no sync layer is loaded. Stable
-	// callbacks avoid resubscribe churn during unrelated re-renders (HUD
-	// re-renders frequently due to FPS / pointer / event log updates).
-	const subscribeSync = useCallback(
-		(cb: () => void) => syncStatus?.subscribe(cb) ?? (() => {}),
-		[syncStatus],
-	);
-	const getSyncSnapshot = useCallback(() => syncStatus?.getSnapshot(), [syncStatus]);
-	const syncSnapshot = useSyncExternalStore(subscribeSync, getSyncSnapshot, getSyncSnapshot);
-	const unconfirmedShapeIdSet = useMemo(
-		() => new Set(syncSnapshot?.unconfirmedShapeIds ?? []),
-		[syncSnapshot?.unconfirmedShapeIds],
-	);
 
 	const hoveredShape = hoveredShapeId ? shapeMap.get(hoveredShapeId) : undefined;
 
@@ -172,7 +154,6 @@ export function DebugHud({
 				tools={tools}
 				layers={layers}
 				shapes={shapes}
-				syncStatus={syncStatus}
 				viewport={viewport}
 				activeToolId={activeToolId}
 			/>
@@ -196,7 +177,6 @@ export function DebugHud({
 						selection={selection}
 						registry={shapes}
 						onHoverShape={setHoveredShapeId}
-						unconfirmedShapeIds={unconfirmedShapeIdSet}
 						docked
 					/>
 				}
