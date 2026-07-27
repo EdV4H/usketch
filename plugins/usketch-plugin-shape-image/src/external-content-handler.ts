@@ -6,6 +6,15 @@ import type {
 } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
 import { fileToBase64, getImageDimensions, resizeImage, validateImage } from "./image-utils.js";
+import {
+	isHttpUrl,
+	isSvgFile,
+	isSvgUrl,
+	readFileAsText,
+	sanitizeSvg,
+	svgIntrinsicSize,
+	svgToDataUri,
+} from "./svg-utils.js";
 
 /** Resolve the shared asset store lazily (undefined if the plugin isn't wired). */
 export type GetAssetStore = () => AssetStore | undefined;
@@ -109,26 +118,50 @@ async function placeImageShape(
 	}
 
 	let dataUrl: string;
-	try {
-		dataUrl = await fileToBase64(file);
-		dataUrl = await resizeImage(dataUrl, opts.maxDimension);
-	} catch (err) {
-		ctx.events.emit("ai:status", {
-			status: "error",
-			message: err instanceof Error ? err.message : "Failed to process image",
-		});
-		return;
-	}
-
 	let dimensions: { width: number; height: number };
-	try {
-		dimensions = await getImageDimensions(dataUrl);
-	} catch (err) {
-		ctx.events.emit("ai:status", {
-			status: "error",
-			message: err instanceof Error ? err.message : "Failed to read image",
-		});
-		return;
+	let mimeType = file.type;
+
+	if (isSvgFile(file)) {
+		// Keep SVG as vector: sanitize the markup and embed it as an SVG data URI
+		// (no rasterization / JPEG re-encode). Size comes from width/height/viewBox.
+		try {
+			const raw = await readFileAsText(file);
+			const clean = sanitizeSvg(raw);
+			if (!clean) {
+				ctx.events.emit("ai:status", { status: "error", message: "Invalid or unsafe SVG" });
+				return;
+			}
+			dataUrl = svgToDataUri(clean);
+			dimensions = svgIntrinsicSize(clean, opts.maxRenderedSize);
+			mimeType = "image/svg+xml";
+		} catch (err) {
+			ctx.events.emit("ai:status", {
+				status: "error",
+				message: err instanceof Error ? err.message : "Failed to read SVG",
+			});
+			return;
+		}
+	} else {
+		try {
+			dataUrl = await fileToBase64(file);
+			dataUrl = await resizeImage(dataUrl, opts.maxDimension);
+		} catch (err) {
+			ctx.events.emit("ai:status", {
+				status: "error",
+				message: err instanceof Error ? err.message : "Failed to process image",
+			});
+			return;
+		}
+
+		try {
+			dimensions = await getImageDimensions(dataUrl);
+		} catch (err) {
+			ctx.events.emit("ai:status", {
+				status: "error",
+				message: err instanceof Error ? err.message : "Failed to read image",
+			});
+			return;
+		}
 	}
 
 	const scale = Math.min(
@@ -148,7 +181,7 @@ async function placeImageShape(
 			assetId = await opts.assets.upload("image", dataUrl, {
 				w: dimensions.width,
 				h: dimensions.height,
-				mimeType: file.type,
+				mimeType,
 				size: file.size,
 			});
 		} catch {
@@ -179,6 +212,53 @@ async function placeImageShape(
 		undo: () => ctx.store.deleteShape(id),
 	});
 	ctx.store.setSelection([id]);
+}
+
+export interface ImageUrlHandlerOptions {
+	/** Larger than the embed generic handler (order 0) so `.svg` URLs win. Default 5. */
+	order?: number;
+	/** Default rendered size (world units) for a URL image (no intrinsic size fetch). Default 200. */
+	size?: number;
+}
+
+/**
+ * `kind:"url"` handler: a dropped/pasted `.svg` URL becomes an image shape that
+ * renders it via `<img src>` (script-safe by the `<img>` non-scripting context;
+ * a remote SVG can't be sanitized locally). Registered above the embed generic
+ * URL handler (order 0) so `.svg` links become images, not a generic iframe.
+ * Only `.svg` URLs match — other links fall through to embed as before.
+ */
+export function createImageUrlHandler(
+	options: ImageUrlHandlerOptions = {},
+): ExternalContentHandler<"url"> {
+	const { order = 5, size = 200 } = options;
+	return {
+		id: "usketch-plugin-shape-image:image-url",
+		kind: "url",
+		order,
+		// Only absolute http(s) `.svg` links — drop payloads can carry arbitrary
+		// schemes (file:/data:/relative), which must not become an `<img src>`.
+		match: (content) => isHttpUrl(content.url) && isSvgUrl(content.url),
+		handle: (content, ctx) => {
+			const base = viewportCenterToWorld(ctx);
+			const id = generateId();
+			const shape = {
+				id,
+				type: "image",
+				x: Math.round(base.x - size / 2),
+				y: Math.round(base.y - size / 2),
+				width: size,
+				height: size,
+				style: { fill: "#f5f5f5", stroke: "#e0e0e0", strokeWidth: 1, opacity: 1 },
+				src: content.url,
+			};
+			ctx.commands.execute({
+				execute: () => ctx.store.addShape(shape),
+				undo: () => ctx.store.deleteShape(id),
+			});
+			ctx.store.setSelection([id]);
+		},
+	};
 }
 
 // Re-export narrowed File content type for test convenience.
