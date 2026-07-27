@@ -67,17 +67,21 @@ interface CellRange {
 	r1: number;
 }
 
-/** Visible cell index range (inclusive), or null when the viewport is unknown. */
-function visibleCellRange(
+/**
+ * Visible cell index range (inclusive), or null when the viewport is unknown.
+ * `right`/`bottom` are exclusive edges, so the end index uses `ceil - 1` — a cell
+ * only counts if it actually overlaps the rect (no extra row/col on a boundary).
+ */
+export function visibleCellRange(
 	visible: DOMRectReadOnly | null | undefined,
 	tile: number,
 ): CellRange | null {
 	if (!visible) return null;
 	return {
 		c0: Math.floor(visible.left / tile),
-		c1: Math.floor(visible.right / tile),
+		c1: Math.ceil(visible.right / tile) - 1,
 		r0: Math.floor(visible.top / tile),
-		r1: Math.floor(visible.bottom / tile),
+		r1: Math.ceil(visible.bottom / tile) - 1,
 	};
 }
 
