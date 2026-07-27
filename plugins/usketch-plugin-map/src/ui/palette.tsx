@@ -1,8 +1,11 @@
 // Map palette — a fixed on-canvas panel shown while the `map` tool is active.
 // Lets the user pick the paint mode, terrain, icon, and visual Tweaks. All state
 // lives in the module stores (tool-state / render-config); this is just the UI.
-import type { BoardStore } from "@edv4h/usketch-shared";
+import type { BoardStore, CommandRegistry } from "@edv4h/usketch-shared";
 import { useEffect, useState } from "react";
+import { genStateStore, useGenState } from "../gen-state.js";
+import { generateIntoBox, viewportCellBox } from "../generate.js";
+import { defaultParams, GENERATORS, GENERATORS_BY_ID } from "../generators/index.js";
 import { ICON_CATEGORIES, ICONS, type IconCategory } from "../icons.js";
 import { WOBBLE_FILTER_ID } from "../map-layer.js";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
@@ -17,6 +20,7 @@ const MODES: { id: MapMode; label: string }[] = [
 	{ id: "eraser", label: "消しゴム" },
 	{ id: "fill", label: "塗りつぶし" },
 	{ id: "stamp", label: "アイコン" },
+	{ id: "generate", label: "生成" },
 ];
 
 function useActiveTool(store: BoardStore): string {
@@ -43,13 +47,29 @@ function chipStyle(active: boolean): React.CSSProperties {
 	};
 }
 
-export function MapPalette({ store }: { store: BoardStore }) {
+export function MapPalette({
+	store,
+	commands,
+	tile,
+}: {
+	store: BoardStore;
+	commands: CommandRegistry;
+	tile: number;
+}) {
 	const activeTool = useActiveTool(store);
 	const tool = useMapToolState();
 	const cfg = useRenderConfig();
+	const gen = useGenState();
 	const [cat, setCat] = useState<IconCategory>("landmark");
 
 	if (activeTool !== MAP_TOOL_ID) return null;
+
+	const generator = GENERATORS_BY_ID.get(gen.algorithmId) ?? GENERATORS[0];
+	const runGenerate = (box: import("../autotile.js").CellBox) =>
+		generateIntoBox(
+			{ store, commands, tile },
+			{ generatorId: gen.algorithmId, seed: gen.seed, params: gen.params, box },
+		);
 
 	const cssVars = terrainCssVars(cfg.colorMode, cfg.strokeScale);
 	const wobble = cfg.lineStyle === "wobble" ? `url(#${WOBBLE_FILTER_ID})` : undefined;
@@ -91,7 +111,7 @@ export function MapPalette({ store }: { store: BoardStore }) {
 				</div>
 
 				{/* Terrain palette (brush/eraser/fill) */}
-				{tool.mode !== "stamp" && (
+				{(tool.mode === "brush" || tool.mode === "eraser" || tool.mode === "fill") && (
 					<div style={{ marginBottom: 12 }}>
 						<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginBottom: 6 }}>
 							地形
@@ -158,6 +178,113 @@ export function MapPalette({ store }: { store: BoardStore }) {
 									</svg>
 								</button>
 							))}
+						</div>
+					</div>
+				)}
+
+				{/* Generation */}
+				{tool.mode === "generate" && (
+					<div style={{ marginBottom: 12 }}>
+						<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginBottom: 6 }}>
+							アルゴリズム
+						</div>
+						<select
+							value={gen.algorithmId}
+							onChange={(e) => {
+								const g = GENERATORS_BY_ID.get(e.target.value);
+								if (g) genStateStore.set({ algorithmId: g.id, params: defaultParams(g) });
+							}}
+							style={{
+								width: "100%",
+								border: `2px solid ${STROKE}`,
+								borderRadius: 8,
+								padding: "5px 8px",
+								font: "600 12px system-ui",
+								background: CARD,
+								marginBottom: 10,
+							}}
+						>
+							{GENERATORS.map((g) => (
+								<option key={g.id} value={g.id}>
+									{g.label}
+								</option>
+							))}
+						</select>
+
+						<div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+							<span style={{ font: "600 11px system-ui" }}>seed</span>
+							<input
+								type="number"
+								value={gen.seed}
+								onChange={(e) => genStateStore.set({ seed: Number(e.target.value) >>> 0 })}
+								style={{
+									flex: 1,
+									minWidth: 0,
+									border: `2px solid ${STROKE}`,
+									borderRadius: 8,
+									padding: "4px 6px",
+									font: "600 12px system-ui",
+								}}
+							/>
+							<button
+								type="button"
+								title="新しいシード"
+								onClick={() =>
+									genStateStore.set({ seed: Math.floor(Math.random() * 0xffffffff) >>> 0 })
+								}
+								style={chipStyle(false)}
+							>
+								🎲
+							</button>
+						</div>
+
+						{generator.params.map((p) => (
+							<label
+								key={p.name}
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: 6,
+									font: "600 11px system-ui",
+									marginBottom: 6,
+								}}
+							>
+								<span style={{ width: 96 }}>{p.label}</span>
+								<input
+									type="range"
+									min={p.min}
+									max={p.max}
+									step={p.step}
+									value={gen.params[p.name] ?? p.default}
+									onChange={(e) =>
+										genStateStore.set({
+											params: { ...gen.params, [p.name]: Number(e.target.value) },
+										})
+									}
+									style={{ flex: 1, minWidth: 0 }}
+								/>
+							</label>
+						))}
+
+						<div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+							<button
+								type="button"
+								onClick={() => runGenerate(viewportCellBox(store, tile))}
+								style={chipStyle(true)}
+							>
+								ビュー全体に生成
+							</button>
+							<button
+								type="button"
+								disabled={!gen.lastBox}
+								onClick={() => gen.lastBox && runGenerate(gen.lastBox)}
+								style={{ ...chipStyle(false), opacity: gen.lastBox ? 1 : 0.5 }}
+							>
+								再生成
+							</button>
+						</div>
+						<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginTop: 8 }}>
+							キャンバスをドラッグで範囲生成
 						</div>
 					</div>
 				)}

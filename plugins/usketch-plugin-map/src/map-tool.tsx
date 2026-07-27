@@ -18,9 +18,11 @@ import {
 	floodFill,
 	worldToCell,
 } from "./autotile.js";
+import { genStateStore } from "./gen-state.js";
+import { generateIntoBox, resolveTilemap } from "./generate.js";
 import { ICONS_BY_KEY } from "./icons.js";
 import { makeMapIcon } from "./map-icon-shape.js";
-import { DEFAULT_TILE, isTileMap, makeTileMap, type TileMapShapeData } from "./tilemap-shape.js";
+import { DEFAULT_TILE, type TileMapShapeData } from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
 
 function MapToolIcon() {
@@ -53,16 +55,8 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 	}
 	let stroke: Stroke | null = null;
 	let lastKey = "";
-
-	/** The single shared tilemap, creating it (live) if none exists yet. */
-	function resolveTilemap(ctx: ToolContext): { id: string; created: boolean } {
-		for (const [, s] of ctx.store.getShapes()) {
-			if (isTileMap(s)) return { id: s.id, created: false };
-		}
-		const tm = makeTileMap(tile);
-		ctx.store.addShape(tm);
-		return { id: tm.id, created: true };
-	}
+	// Range-select drag for the "generate" submode (world start point).
+	let genDrag: { x0: number; y0: number } | null = null;
 
 	function currentCells(ctx: ToolContext, id: string): Cells {
 		const s = ctx.store.getShape(id) as TileMapShapeData | undefined;
@@ -171,7 +165,14 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 				placeIcon(ctx, event);
 				return;
 			}
-			const target = resolveTilemap(ctx);
+			if (mode === "generate") {
+				genDrag = { x0: event.worldPoint.x, y0: event.worldPoint.y };
+				genStateStore.set({
+					pendingRect: { x: event.worldPoint.x, y: event.worldPoint.y, w: 0, h: 0 },
+				});
+				return;
+			}
+			const target = resolveTilemap(ctx.store, tile);
 			stroke = {
 				tilemapId: target.id,
 				created: target.created,
@@ -182,15 +183,48 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			else paintAt(ctx, event);
 		},
 		onPointerMove(ctx, event) {
+			if (genDrag) {
+				const x = Math.min(genDrag.x0, event.worldPoint.x);
+				const y = Math.min(genDrag.y0, event.worldPoint.y);
+				const w = Math.abs(event.worldPoint.x - genDrag.x0);
+				const h = Math.abs(event.worldPoint.y - genDrag.y0);
+				genStateStore.set({ pendingRect: { x, y, w, h } });
+				return;
+			}
 			if (!stroke) return;
 			const { mode } = toolStateStore.get();
 			if (mode === "brush" || mode === "eraser") paintAt(ctx, event);
 		},
 		onPointerUp(ctx) {
+			if (genDrag) {
+				const rect = genStateStore.get().pendingRect;
+				genDrag = null;
+				genStateStore.set({ pendingRect: null });
+				if (rect && rect.w >= tile / 2 && rect.h >= tile / 2) {
+					// Cells the preview rectangle actually covers (right/bottom edges
+					// exclusive so a boundary-aligned drag doesn't grab an extra cell).
+					const box: CellBox = {
+						minC: Math.floor(rect.x / tile),
+						minR: Math.floor(rect.y / tile),
+						maxC: Math.ceil((rect.x + rect.w) / tile) - 1,
+						maxR: Math.ceil((rect.y + rect.h) / tile) - 1,
+					};
+					const gs = genStateStore.get();
+					generateIntoBox(
+						{ store: ctx.store, commands: ctx.commands, tile },
+						{ generatorId: gs.algorithmId, seed: gs.seed, params: gs.params, box },
+					);
+				}
+				return;
+			}
 			commit(ctx);
 			// Keep the map tool active for continuous painting/stamping.
 		},
 		onDeactivate(ctx) {
+			if (genDrag) {
+				genDrag = null;
+				genStateStore.set({ pendingRect: null });
+			}
 			// Tool switched / left mid-stroke with no pointerUp: don't leave a
 			// half-painted, non-undoable state. Roll the live edits back to where
 			// the stroke started (delete a tilemap created this stroke; restore the

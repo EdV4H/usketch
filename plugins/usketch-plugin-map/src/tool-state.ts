@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 import { createReactiveStore } from "./reactive-store.js";
 import type { TerrainKey } from "./terrain.js";
 
-export type MapMode = "brush" | "eraser" | "fill" | "stamp";
+export type MapMode = "brush" | "eraser" | "fill" | "stamp" | "generate";
 
 export interface MapToolState {
 	mode: MapMode;

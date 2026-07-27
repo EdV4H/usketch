@@ -55,7 +55,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				id: PALETTE_LAYER_ID,
 				order: 196,
 				fixed: true,
-				render: () => <MapPalette store={ctx.store} />,
+				render: () => <MapPalette store={ctx.store} commands={ctx.commands} tile={tile} />,
 			});
 
 			// ── Tweaks as declarative HUD settings (mirror the palette) ──
