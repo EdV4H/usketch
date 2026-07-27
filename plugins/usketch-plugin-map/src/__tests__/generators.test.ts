@@ -50,6 +50,19 @@ describe("generators", () => {
 		expect(a).not.toEqual(b);
 	});
 
+	it("default params yield a real land/water mix, not all ocean", () => {
+		const big = { minC: 0, minR: 0, maxC: 39, maxR: 29 }; // 40×30
+		for (const g of [noise, islands]) {
+			const cells = g.generate({ box: big, seed: 5, params: defaultParams(g) });
+			const water = countWater(cells);
+			const total = Object.keys(cells).length;
+			expect(water).toBeGreaterThan(0); // some sea
+			expect(water).toBeLessThan(total); // but not everything
+			const land = total - water;
+			expect(land).toBeGreaterThan(total * 0.1); // at least ~10% land
+		}
+	});
+
 	it("raising seaLevel monotonically increases water", () => {
 		const low = noise.generate({ box: BOX, seed: 7, params: { scale: 0.1, seaLevel: 0.3 } });
 		const high = noise.generate({ box: BOX, seed: 7, params: { scale: 0.1, seaLevel: 0.7 } });

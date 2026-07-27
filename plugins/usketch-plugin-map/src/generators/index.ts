@@ -61,20 +61,47 @@ const P = (
 	step,
 });
 
-/** Shared elevation→terrain fill, optionally sinking box edges into the sea. */
+/**
+ * Shared elevation→terrain fill, optionally sinking box edges into the sea.
+ *
+ * The raw fBm value clusters around 0.5, which makes a fixed sea-level threshold
+ * far too sensitive (a small default drowns everything). So we **contrast-stretch
+ * the field to its own min/max within the box first**, giving `seaLevel` a stable,
+ * intuitive meaning ("the lower fraction of the elevation range is water").
+ */
 function fillField(ctx: GenContext, applyFalloff: boolean): Cells {
 	const { box, seed, params } = ctx;
 	const scale = params.scale ?? 0.08;
 	const seaLevel = params.seaLevel ?? 0.4;
 	const falloff = params.falloff ?? 0;
+	const cols = box.maxC - box.minC + 1;
+	const rows = box.maxR - box.minR + 1;
+
+	// Pass 1: raw elevation + range for normalisation.
+	const raw = new Array<number>(cols * rows);
+	let min = Infinity;
+	let max = -Infinity;
+	let i = 0;
+	for (let r = box.minR; r <= box.maxR; r++) {
+		for (let c = box.minC; c <= box.maxC; c++) {
+			const e = fbm(seed, c, r, scale);
+			raw[i++] = e;
+			if (e < min) min = e;
+			if (e > max) max = e;
+		}
+	}
+	const span = max - min || 1;
+
+	// Pass 2: normalise → (optional) island falloff → terrain band.
 	const cx = (box.minC + box.maxC) / 2;
 	const cy = (box.minR + box.maxR) / 2;
 	const hw = Math.max(1, (box.maxC - box.minC) / 2);
 	const hh = Math.max(1, (box.maxR - box.minR) / 2);
 	const cells: Cells = {};
+	i = 0;
 	for (let r = box.minR; r <= box.maxR; r++) {
 		for (let c = box.minC; c <= box.maxC; c++) {
-			let e = fbm(seed, c, r, scale);
+			let e = (raw[i++] - min) / span; // normalised to [0,1]
 			if (applyFalloff && falloff > 0) {
 				const nx = (c - cx) / hw;
 				const ny = (r - cy) / hh;
@@ -92,7 +119,7 @@ const noiseGenerator: MapGenerator = {
 	label: "ノイズ地形（大陸）",
 	params: [
 		P("scale", "地形の細かさ", 0.08, 0.02, 0.3, 0.01),
-		P("seaLevel", "海面", 0.38, 0, 0.9, 0.02),
+		P("seaLevel", "海面", 0.3, 0, 0.9, 0.02),
 	],
 	generate: (ctx) => fillField(ctx, false),
 };
@@ -102,8 +129,8 @@ const islandsGenerator: MapGenerator = {
 	label: "群島（島々）",
 	params: [
 		P("scale", "地形の細かさ", 0.1, 0.02, 0.3, 0.01),
-		P("seaLevel", "海面", 0.5, 0, 0.9, 0.02),
-		P("falloff", "島らしさ（縁を海に）", 0.6, 0, 1, 0.05),
+		P("seaLevel", "海面", 0.4, 0, 0.9, 0.02),
+		P("falloff", "島らしさ（縁を海に）", 0.5, 0, 1, 0.05),
 	],
 	generate: (ctx) => fillField(ctx, true),
 };
