@@ -3,25 +3,27 @@ import type { Cells } from "../autotile.js";
 import { blockFactor, downsampleCells, tileDetail } from "../lod.js";
 
 describe("tileDetail", () => {
-	it("picks tier by on-screen tile size", () => {
-		expect(tileDetail(40)).toBe("full"); // 40px/tile → full
-		expect(tileDetail(14)).toBe("full");
-		expect(tileDetail(10)).toBe("mid");
-		expect(tileDetail(6)).toBe("mid");
-		expect(tileDetail(3)).toBe("low");
+	it("is full only when tiles are big enough on screen", () => {
+		expect(tileDetail(40)).toBe("full");
+		expect(tileDetail(24)).toBe("full");
+		expect(tileDetail(20)).toBe("coarse");
+		expect(tileDetail(6)).toBe("coarse");
 	});
-	it("global lod mode caps detail at mid", () => {
-		expect(tileDetail(40, "lod")).toBe("mid");
-		expect(tileDetail(3, "lod")).toBe("low");
+	it("global lod mode forces coarse", () => {
+		expect(tileDetail(40, "lod")).toBe("coarse");
 	});
 });
 
 describe("blockFactor", () => {
-	it("is 1 when tiles are large, grows as they shrink", () => {
-		expect(blockFactor(12)).toBe(1);
-		expect(blockFactor(4)).toBe(3); // round(12/4)
-		expect(blockFactor(1)).toBe(12);
+	it("merges more as tiles shrink, keeping ~constant on-screen block size", () => {
+		expect(blockFactor(24)).toBe(1); // ceil(24/24)
+		expect(blockFactor(12)).toBe(2); // ceil(24/12)
+		expect(blockFactor(8)).toBe(3);
+		expect(blockFactor(6)).toBe(4);
 		expect(blockFactor(0)).toBe(1); // guard
+	});
+	it("is always ≥2 below the full threshold (coarse never renders per-cell)", () => {
+		for (let px = 1; px < 24; px++) expect(blockFactor(px)).toBeGreaterThanOrEqual(2);
 	});
 });
 
