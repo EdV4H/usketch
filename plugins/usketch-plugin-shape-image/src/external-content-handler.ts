@@ -7,6 +7,7 @@ import type {
 import { generateId } from "@edv4h/usketch-shared";
 import { fileToBase64, getImageDimensions, resizeImage, validateImage } from "./image-utils.js";
 import {
+	isHttpUrl,
 	isSvgFile,
 	isSvgUrl,
 	readFileAsText,
@@ -235,7 +236,9 @@ export function createImageUrlHandler(
 		id: "usketch-plugin-shape-image:image-url",
 		kind: "url",
 		order,
-		match: (content) => isSvgUrl(content.url),
+		// Only absolute http(s) `.svg` links — drop payloads can carry arbitrary
+		// schemes (file:/data:/relative), which must not become an `<img src>`.
+		match: (content) => isHttpUrl(content.url) && isSvgUrl(content.url),
 		handle: (content, ctx) => {
 			const base = viewportCenterToWorld(ctx);
 			const id = generateId();

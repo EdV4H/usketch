@@ -15,6 +15,21 @@ export function isSvgFile(file: { type: string; name: string }): boolean {
 	return file.type === "image/svg+xml" || /\.svg$/i.test(file.name);
 }
 
+/**
+ * Whether a URL is an absolute `http:`/`https:` URL. Drop/paste payloads
+ * (`text/uri-list`) can carry arbitrary schemes (`file:`, `data:`, relative
+ * paths), so the SVG URL handler must gate on this before using the value as
+ * an `<img src>`.
+ */
+export function isHttpUrl(url: string): boolean {
+	try {
+		const u = new URL(url);
+		return u.protocol === "http:" || u.protocol === "https:";
+	} catch {
+		return false;
+	}
+}
+
 /** Whether a URL points at an `.svg` (ignoring query/hash). */
 export function isSvgUrl(url: string): boolean {
 	try {

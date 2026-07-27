@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { isSvgFile, isSvgUrl, sanitizeSvg, svgIntrinsicSize, svgToDataUri } from "../svg-utils.js";
+import {
+	isHttpUrl,
+	isSvgFile,
+	isSvgUrl,
+	sanitizeSvg,
+	svgIntrinsicSize,
+	svgToDataUri,
+} from "../svg-utils.js";
 
 describe("isSvgFile", () => {
 	it("matches by MIME type", () => {
@@ -21,6 +28,20 @@ describe("isSvgUrl", () => {
 	it("rejects non-svg urls", () => {
 		expect(isSvgUrl("https://example.com/a.png")).toBe(false);
 		expect(isSvgUrl("https://example.com/page")).toBe(false);
+	});
+});
+
+describe("isHttpUrl", () => {
+	it("accepts absolute http(s) urls", () => {
+		expect(isHttpUrl("http://example.com/a.svg")).toBe(true);
+		expect(isHttpUrl("https://example.com/a.svg")).toBe(true);
+	});
+	it("rejects non-http schemes and relative/invalid urls", () => {
+		expect(isHttpUrl("file:///etc/a.svg")).toBe(false);
+		expect(isHttpUrl("data:image/svg+xml,<svg/>")).toBe(false);
+		expect(isHttpUrl("javascript:alert(1)")).toBe(false);
+		expect(isHttpUrl("/relative/a.svg")).toBe(false);
+		expect(isHttpUrl("not a url")).toBe(false);
 	});
 });
 
