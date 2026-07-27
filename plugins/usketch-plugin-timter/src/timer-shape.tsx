@@ -29,6 +29,24 @@ export const TIMER_SHAPE_TYPE = "timer";
 const DEFAULT_MINUTES = 5;
 const ACTION_EVENT = "usketch:timter-shape-action";
 
+/** Default shape sizing / duration floor — overridable via {@link TimterPluginOptions}. */
+export const DEFAULT_TIMER_MIN_SIZE = { width: 120, height: 90 };
+export const DEFAULT_TIMER_SIZE = { width: 160, height: 120 };
+export const DEFAULT_MIN_DURATION_MS = 60_000;
+
+/** Host-tunable sizing / duration config threaded into the timer shape. */
+export interface TimerShapeConfig {
+	minSize: { width: number; height: number };
+	defaultSize: { width: number; height: number };
+	minDurationMs: number;
+}
+
+const DEFAULT_TIMER_CONFIG: TimerShapeConfig = {
+	minSize: DEFAULT_TIMER_MIN_SIZE,
+	defaultSize: DEFAULT_TIMER_SIZE,
+	minDurationMs: DEFAULT_MIN_DURATION_MS,
+};
+
 /** A timer as a placeable canvas shape. Timing state mirrors {@link TimerCore}. */
 export interface TimerShapeData extends ShapeData {
 	type: typeof TIMER_SHAPE_TYPE;
@@ -42,7 +60,10 @@ export interface TimerShapeData extends ShapeData {
 export type ShapeAction =
 	| { id: string; action: "toggle" | "reset" | "switch-type" }
 	/** `value` is a delta in **milliseconds** applied to the configured duration. */
-	| { id: string; action: "adjust"; value: number };
+	| { id: string; action: "adjust"; value: number }
+	/** `value` is an **absolute** target duration in milliseconds (clamped to the
+	 * configured `minDurationMs`). Lets a host UI set e.g. 0:30 directly. */
+	| { id: string; action: "set-duration"; value: number };
 
 export const coreOf = (s: TimerShapeData): TimerCore => ({
 	type: s.timerType,
@@ -83,6 +104,9 @@ export interface TimerShapeActions {
 	switchType(): void;
 	/** Change the configured duration by `deltaMs` (duration-based kinds, while paused). */
 	adjust(deltaMs: number): void;
+	/** Set the configured duration to an absolute `ms` (clamped to `minDurationMs`,
+	 * while paused). Use for a host "分:秒" input. */
+	setDuration(ms: number): void;
 }
 
 /**
@@ -270,6 +294,7 @@ function TimerShapeView({
 		reset: () => emit({ id: shape.id, action: "reset" }),
 		switchType: () => emit({ id: shape.id, action: "switch-type" }),
 		adjust: (deltaMs) => emit({ id: shape.id, action: "adjust", value: deltaMs }),
+		setDuration: (ms) => emit({ id: shape.id, action: "set-duration", value: ms }),
 	};
 
 	return render({ shape, core, serverNow, actions });
@@ -322,7 +347,12 @@ function hitTest(data: ShapeData, point: Point): boolean {
 	);
 }
 
-function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData {
+function resize(
+	data: ShapeData,
+	handle: ResizeHandle,
+	delta: Point,
+	minSize: { width: number; height: number } = DEFAULT_TIMER_MIN_SIZE,
+): ShapeData {
 	let { x, y, width, height } = data;
 	switch (handle) {
 		case "se":
@@ -360,17 +390,26 @@ function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData 
 			height += delta.y;
 			break;
 	}
-	return { ...data, x, y, width: Math.max(120, width), height: Math.max(90, height) };
+	return {
+		...data,
+		x,
+		y,
+		width: Math.max(minSize.width, width),
+		height: Math.max(minSize.height, height),
+	};
 }
 
-function createDefault(params: { id: string; x: number; y: number }): TimerShapeData {
+function createDefault(
+	params: { id: string; x: number; y: number },
+	size: { width: number; height: number } = DEFAULT_TIMER_SIZE,
+): TimerShapeData {
 	return {
 		id: params.id,
 		type: TIMER_SHAPE_TYPE,
 		x: params.x,
 		y: params.y,
-		width: 160,
-		height: 120,
+		width: size.width,
+		height: size.height,
 		style: { fill: "#ffffff", stroke: "#1e1e1e", strokeWidth: 2, opacity: 1 },
 		timerType: "countdown",
 		running: false,
@@ -388,8 +427,10 @@ export function makeTimerShape(params: {
 	timerType: TimerType;
 	durationMs?: number;
 	serverNow: number;
+	/** Initial shape size. Defaults to {@link DEFAULT_TIMER_SIZE}. */
+	size?: { width: number; height: number };
 }): TimerShapeData {
-	const base = createDefault({ id: params.id, x: params.x, y: params.y });
+	const base = createDefault({ id: params.id, x: params.x, y: params.y }, params.size);
 	// The kind's `initial` decides how (or whether) the duration is used —
 	// non-duration kinds like stopwatch ignore it.
 	const dur = params.durationMs ?? DEFAULT_MINUTES * 60_000;
@@ -418,8 +459,10 @@ export function registerTimerShape(
 	serverClock: ServerClock,
 	_userId: string,
 	renderShape: TimerShapeRenderer = defaultRenderTimerShape,
+	config: TimerShapeConfig = DEFAULT_TIMER_CONFIG,
 ): () => void {
 	const now = () => serverClock.now();
+	const { minSize, defaultSize, minDurationMs } = config;
 
 	ctx.shapes.register(TIMER_SHAPE_TYPE, {
 		render: (shape) => (
@@ -431,10 +474,10 @@ export function registerTimerShape(
 		),
 		getBounds,
 		hitTest,
-		resize,
-		createDefault,
+		resize: (data, handle, delta) => resize(data, handle, delta, minSize),
+		createDefault: (params) => createDefault(params, defaultSize),
 		renderTarget: "html",
-		minSize: { width: 120, height: 90 },
+		minSize,
 		simplifiedComponent: SimplifiedTimer,
 	});
 
@@ -471,7 +514,13 @@ export function registerTimerShape(
 			case "adjust": {
 				// `value` is a millisecond delta; only duration-based kinds respond.
 				if (core.running || core.durationMs <= 0) return;
-				next = initialCore(core.type, Math.max(60_000, core.durationMs + detail.value));
+				next = initialCore(core.type, Math.max(minDurationMs, core.durationMs + detail.value));
+				break;
+			}
+			case "set-duration": {
+				// `value` is an absolute target duration; only duration-based kinds respond.
+				if (core.running || core.durationMs <= 0) return;
+				next = initialCore(core.type, Math.max(minDurationMs, detail.value));
 				break;
 			}
 			default:
@@ -491,7 +540,10 @@ export function registerTimerShape(
 		onPointerDown(_toolCtx: ToolContext, event: CanvasPointerEvent) {
 			const id = generateId();
 			drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
-			const shape = createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
+			const shape = createDefault(
+				{ id, x: event.worldPoint.x, y: event.worldPoint.y },
+				defaultSize,
+			);
 			shape.width = 0;
 			shape.height = 0;
 			_toolCtx.store.addShape(shape);
@@ -512,11 +564,14 @@ export function registerTimerShape(
 				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 				toolCtx.store.setSelection([shape.id]);
 			} else {
-				const def = createDefault({
-					id: drawState.shapeId,
-					x: drawState.startX - 80,
-					y: drawState.startY - 60,
-				});
+				const def = createDefault(
+					{
+						id: drawState.shapeId,
+						x: drawState.startX - defaultSize.width / 2,
+						y: drawState.startY - defaultSize.height / 2,
+					},
+					defaultSize,
+				);
 				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, def));
 				toolCtx.store.setSelection([def.id]);
 			}
