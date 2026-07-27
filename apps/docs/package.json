@@ -27,7 +27,7 @@
 		"tslib": "^2.8.1"
 	},
 	"devDependencies": {
-		"@astrojs/check": "0.9.9",
+		"@astrojs/check": "0.9.10",
 		"@types/react": "^19.1",
 		"@types/react-dom": "^19.1",
 		"typescript": "7.0.2"
