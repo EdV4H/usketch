@@ -3,13 +3,13 @@
 // paints it; input is handled by the map tool, not this layer (pointer-events:none).
 import type { BoardStore, RenderMode } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
-import { type Cells, exposedEdges, parseCellKey } from "./autotile.js";
+import { type Cells, cellKey, exposedEdges, parseCellKey } from "./autotile.js";
 import { genStateStore } from "./gen-state.js";
 import { blockFactor, downsampleCells, type TileDetail, tileDetail } from "./lod.js";
 import { terrainCssVars } from "./palette.js";
 import { renderConfigStore } from "./render-config.js";
 import { renderSvgNodes } from "./svg-nodes.js";
-import { TERRAINS, type TerrainKey, terrainDarkVar, terrainPatternId } from "./terrain.js";
+import { TERRAINS, terrainDarkVar, terrainPatternId } from "./terrain.js";
 import { isTileMap, type TileMapShapeData } from "./tilemap-shape.js";
 
 export const WOBBLE_FILTER_ID = "uskmap-wobble";
@@ -60,8 +60,89 @@ function culled(x: number, y: number, size: number, visible?: DOMRectReadOnly | 
 	);
 }
 
-/** Low tier: flat-colour, cells downsampled into merged blocks (fewest nodes). */
-function renderLowCells(
+interface CellRange {
+	c0: number;
+	c1: number;
+	r0: number;
+	r1: number;
+}
+
+/**
+ * Visible cell index range (inclusive), or null when the viewport is unknown.
+ * `right`/`bottom` are exclusive edges, so the end index uses `ceil - 1` — a cell
+ * only counts if it actually overlaps the rect (no extra row/col on a boundary).
+ */
+export function visibleCellRange(
+	visible: DOMRectReadOnly | null | undefined,
+	tile: number,
+): CellRange | null {
+	if (!visible) return null;
+	return {
+		c0: Math.floor(visible.left / tile),
+		c1: Math.ceil(visible.right / tile) - 1,
+		r0: Math.floor(visible.top / tile),
+		r1: Math.ceil(visible.bottom / tile) - 1,
+	};
+}
+
+/**
+ * Full tier: per-cell pattern + autotile strips. Walks only the visible cell
+ * RANGE (O(visible), not O(totalCells)) — full only runs zoomed in, so the range
+ * is small even for a huge map.
+ */
+function renderFullCells(
+	cells: Cells,
+	tile: number,
+	visible?: DOMRectReadOnly | null,
+): React.ReactElement[] {
+	const nodes: React.ReactElement[] = [];
+	const t = EDGE_RATIO * tile;
+	const emit = (c: number, r: number) => {
+		const terrain = cells[cellKey(c, r)];
+		if (!terrain) return;
+		const x = c * tile;
+		const y = r * tile;
+		const k = cellKey(c, r);
+		nodes.push(
+			<rect
+				key={`${k}:base`}
+				x={x}
+				y={y}
+				width={tile}
+				height={tile}
+				fill={`url(#${terrainPatternId(terrain)})`}
+				stroke={CELL_LINE}
+				strokeWidth={1}
+			/>,
+		);
+		const edge = exposedEdges(cells, c, r);
+		const dark = terrainDarkVar(terrain);
+		const strip = (sx: number, sy: number, sw: number, sh: number, sk: string) => (
+			<rect key={sk} x={sx} y={sy} width={sw} height={sh} fill={dark} opacity={EDGE_OPACITY} />
+		);
+		if (edge.n) nodes.push(strip(x, y, tile, t, `${k}:n`));
+		if (edge.s) nodes.push(strip(x, y + tile - t, tile, t, `${k}:s`));
+		if (edge.w) nodes.push(strip(x, y, t, tile, `${k}:w`));
+		if (edge.e) nodes.push(strip(x + tile - t, y, t, tile, `${k}:e`));
+	};
+	const range = visibleCellRange(visible, tile);
+	if (range) {
+		for (let r = range.r0; r <= range.r1; r++)
+			for (let c = range.c0; c <= range.c1; c++) emit(c, r);
+	} else {
+		for (const key of Object.keys(cells)) {
+			const [c, r] = parseCellKey(key);
+			emit(c, r);
+		}
+	}
+	return nodes;
+}
+
+/**
+ * Coarse tier: flat colour, cells downsampled into merged blocks. Node count is
+ * bounded by the on-screen block size regardless of map size / zoom.
+ */
+function renderCoarseCells(
 	cells: Cells,
 	tile: number,
 	screenTilePx: number,
@@ -80,47 +161,6 @@ function renderLowCells(
 	return nodes;
 }
 
-/** Full/mid tiers: per-cell pattern fill; full adds autotile edge strips + separators. */
-function renderPatternCells(
-	cells: Cells,
-	tile: number,
-	full: boolean,
-	visible?: DOMRectReadOnly | null,
-): React.ReactElement[] {
-	const nodes: React.ReactElement[] = [];
-	for (const [key, terrain] of Object.entries(cells)) {
-		const [c, r] = parseCellKey(key);
-		const x = c * tile;
-		const y = r * tile;
-		if (culled(x, y, tile, visible)) continue;
-		const pat = `url(#${terrainPatternId(terrain as TerrainKey)})`;
-		nodes.push(
-			<rect
-				key={`${key}:base`}
-				x={x}
-				y={y}
-				width={tile}
-				height={tile}
-				fill={pat}
-				stroke={full ? CELL_LINE : undefined}
-				strokeWidth={full ? 1 : undefined}
-			/>,
-		);
-		if (!full) continue;
-		const edge = exposedEdges(cells, c, r);
-		const t = EDGE_RATIO * tile;
-		const dark = terrainDarkVar(terrain as TerrainKey);
-		const strip = (sx: number, sy: number, sw: number, sh: number, k: string) => (
-			<rect key={k} x={sx} y={sy} width={sw} height={sh} fill={dark} opacity={EDGE_OPACITY} />
-		);
-		if (edge.n) nodes.push(strip(x, y, tile, t, `${key}:n`));
-		if (edge.s) nodes.push(strip(x, y + tile - t, tile, t, `${key}:s`));
-		if (edge.w) nodes.push(strip(x, y, t, tile, `${key}:w`));
-		if (edge.e) nodes.push(strip(x + tile - t, y, t, tile, `${key}:e`));
-	}
-	return nodes;
-}
-
 function renderCells(
 	cells: Cells,
 	tile: number,
@@ -128,8 +168,8 @@ function renderCells(
 	screenTilePx: number,
 	visible?: DOMRectReadOnly | null,
 ): React.ReactElement[] {
-	if (detail === "low") return renderLowCells(cells, tile, screenTilePx, visible);
-	return renderPatternCells(cells, tile, detail === "full", visible);
+	if (detail === "full") return renderFullCells(cells, tile, visible);
+	return renderCoarseCells(cells, tile, screenTilePx, visible);
 }
 
 /** Visible world rect from the current viewport (best-effort, window-sized). */
