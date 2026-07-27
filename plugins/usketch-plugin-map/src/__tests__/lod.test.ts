@@ -44,4 +44,10 @@ describe("downsampleCells", () => {
 		const out = downsampleCells(cells, 2); // cells 4,5 → block 2
 		expect(out["2,2"]).toBe("forest");
 	});
+	it("caches the block map per cells object + factor (same reference)", () => {
+		const cells: Cells = { "0,0": "grass", "1,0": "water" };
+		expect(downsampleCells(cells, 2)).toBe(downsampleCells(cells, 2)); // cache hit
+		const other: Cells = { "0,0": "grass", "1,0": "water" };
+		expect(downsampleCells(other, 2)).not.toBe(downsampleCells(cells, 2)); // different object
+	});
 });

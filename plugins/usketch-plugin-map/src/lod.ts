@@ -4,6 +4,7 @@
 //   full → pattern + autotile strips + wobble
 //   mid  → pattern fill only (no strips/separators/wobble)
 //   low  → flat colour, cells downsampled into merged blocks (fewer DOM nodes)
+import type { RenderMode } from "@edv4h/usketch-shared";
 import { type Cells, cellKey, parseCellKey } from "./autotile.js";
 import type { TerrainKey } from "./terrain.js";
 
@@ -21,7 +22,7 @@ export const LOW_BLOCK_PX = 12;
  * A global `renderMode` of "lod" caps detail at "mid" so the map simplifies in
  * step with the rest of the canvas.
  */
-export function tileDetail(screenTilePx: number, renderMode?: string): TileDetail {
+export function tileDetail(screenTilePx: number, renderMode?: RenderMode): TileDetail {
 	if (renderMode === "lod") return screenTilePx >= MID_MIN_PX ? "mid" : "low";
 	if (screenTilePx >= FULL_MIN_PX) return "full";
 	if (screenTilePx >= MID_MIN_PX) return "mid";
@@ -34,6 +35,12 @@ export function blockFactor(screenTilePx: number): number {
 	return Math.max(1, Math.round(LOW_BLOCK_PX / screenTilePx));
 }
 
+// Cache the (expensive) block map per cells object + factor. Keyed by the `cells`
+// object identity, so pan/zoom (which reuse the same `cells`) hit the cache and a
+// tilemap edit (new `cells` object) is a natural miss; the WeakMap lets the old
+// entry be GC'd. Avoids an O(totalCells) recompute every frame when zoomed out.
+const downsampleCache = new WeakMap<Cells, Map<number, Record<string, TerrainKey>>>();
+
 /**
  * Downsample cells into `factor`×`factor` blocks, each labelled with its majority
  * terrain. Keys are BLOCK coordinates (`blockCol,blockRow`). A block spans world
@@ -41,6 +48,14 @@ export function blockFactor(screenTilePx: number): number {
  */
 export function downsampleCells(cells: Cells, factor: number): Record<string, TerrainKey> {
 	if (factor <= 1) return { ...cells };
+	let byFactor = downsampleCache.get(cells);
+	if (!byFactor) {
+		byFactor = new Map();
+		downsampleCache.set(cells, byFactor);
+	}
+	const cached = byFactor.get(factor);
+	if (cached) return cached;
+
 	const votes = new Map<string, Map<TerrainKey, number>>();
 	for (const [key, terrain] of Object.entries(cells)) {
 		const [c, r] = parseCellKey(key);
@@ -64,5 +79,6 @@ export function downsampleCells(cells: Cells, factor: number): Record<string, Te
 		}
 		if (best) out[bk] = best;
 	}
+	byFactor.set(factor, out);
 	return out;
 }
