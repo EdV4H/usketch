@@ -10,7 +10,7 @@ import {
 	withRotation,
 } from "@edv4h/usketch-shared";
 import { useCallback, useSyncExternalStore } from "react";
-import { createImageFileHandler } from "./external-content-handler.js";
+import { createImageFileHandler, createImageUrlHandler } from "./external-content-handler.js";
 import type { ImageShapeData } from "./types.js";
 
 // Lazily resolves the shared asset store at render/serialize time (these run
@@ -196,9 +196,12 @@ export function createImageShapePlugin(): UsketchPlugin {
 			const unregisterHandler = ctx.externalContent.register(
 				createImageFileHandler({}, () => getAssetStore(ctx)),
 			);
+			// `.svg` URL drop/paste → image shape (above embed's generic URL handler).
+			const unregisterUrlHandler = ctx.externalContent.register(createImageUrlHandler());
 
 			return () => {
 				unregisterHandler();
+				unregisterUrlHandler();
 				getAssets = null;
 			};
 		},
