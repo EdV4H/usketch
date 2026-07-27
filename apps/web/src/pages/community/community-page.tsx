@@ -12,6 +12,7 @@ import { createCommunityChatPlugin } from "@edv4h/usketch-plugin-community-chat"
 import { createRippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createKeyboardShortcutsPlugin } from "@edv4h/usketch-plugin-keyboard-shortcuts";
+import { createMapPlugin } from "@edv4h/usketch-plugin-map";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createReactionsPlugin } from "@edv4h/usketch-plugin-reactions";
 import {
@@ -207,6 +208,7 @@ export function CommunityPage() {
 					portalPlugin,
 					createGroupPlugin(),
 					createIslandPlugin(),
+					createMapPlugin(),
 					createDomRendererPlugin(),
 				];
 
