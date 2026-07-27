@@ -15,6 +15,9 @@ import {
 } from "./timer-model.js";
 import {
 	coreOf,
+	DEFAULT_MIN_DURATION_MS,
+	DEFAULT_TIMER_MIN_SIZE,
+	DEFAULT_TIMER_SIZE,
 	dispatchTimerShapeAction,
 	makeTimerShape,
 	registerTimerShape,
@@ -36,6 +39,20 @@ export interface TimterPluginOptions {
 	 * which you can also import and wrap.
 	 */
 	renderShape?: TimerShapeRenderer;
+	/**
+	 * Minimum size the timer shape can be resized to. Defaults to `120×90`.
+	 * Raise it when a custom {@link renderShape} needs more room (e.g. a row of
+	 * controls that would otherwise wrap).
+	 */
+	minSize?: { width: number; height: number };
+	/** Size of a newly created timer shape (`createDefault` / timer-draw). Defaults to `160×120`. */
+	defaultSize?: { width: number; height: number };
+	/**
+	 * Lower bound (ms) for a countdown's configured duration, enforced by the
+	 * `adjust` / `set-duration` actions. Defaults to `60_000` (1 min). Set e.g.
+	 * `1_000` to allow sub-minute durations (0:01–).
+	 */
+	minDurationMs?: number;
 }
 
 /**
@@ -53,6 +70,9 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 
 		setup(ctx: PluginContext) {
 			const now = () => options.serverClock.now();
+			const minSize = options.minSize ?? DEFAULT_TIMER_MIN_SIZE;
+			const defaultSize = options.defaultSize ?? DEFAULT_TIMER_SIZE;
+			const minDurationMs = options.minDurationMs ?? DEFAULT_MIN_DURATION_MS;
 
 			// ── Timer shape (placeable, movable) — the source of truth ──
 			const disposeShape = registerTimerShape(
@@ -60,6 +80,7 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 				options.serverClock,
 				options.userId ?? "local",
 				options.renderShape,
+				{ minSize, defaultSize, minDurationMs },
 			);
 
 			const listTimers = (): TimerShapeData[] =>
@@ -74,11 +95,12 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 				const cy = (window.innerHeight / 2 - vp.y) / vp.zoom;
 				const shape = makeTimerShape({
 					id: generateId(),
-					x: cx - 80,
-					y: cy - 60,
+					x: cx - defaultSize.width / 2,
+					y: cy - defaultSize.height / 2,
 					timerType,
 					durationMs,
 					serverNow: now(),
+					size: defaultSize,
 				});
 				ctx.commands.execute(createAddShapeCommand(ctx.store, shape as ShapeData));
 				ctx.store.setSelection([shape.id]);
