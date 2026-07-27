@@ -1,10 +1,11 @@
 // MapLayer — renders the RPG terrain behind all shapes. Reads the tilemap
 // DATA from the shape store (single source of truth, synced + undoable) and
 // paints it; input is handled by the map tool, not this layer (pointer-events:none).
-import type { BoardStore } from "@edv4h/usketch-shared";
+import type { BoardStore, RenderMode } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
 import { type Cells, exposedEdges, parseCellKey } from "./autotile.js";
 import { genStateStore } from "./gen-state.js";
+import { blockFactor, downsampleCells, type TileDetail, tileDetail } from "./lod.js";
 import { terrainCssVars } from "./palette.js";
 import { renderConfigStore } from "./render-config.js";
 import { renderSvgNodes } from "./svg-nodes.js";
@@ -52,22 +53,46 @@ function MapDefs() {
 	);
 }
 
-interface CellRects {
-	nodes: React.ReactElement[];
+function culled(x: number, y: number, size: number, visible?: DOMRectReadOnly | null): boolean {
+	return (
+		!!visible &&
+		(x > visible.right || y > visible.bottom || x + size < visible.left || y + size < visible.top)
+	);
 }
 
-function renderCells(cells: Cells, tile: number, visible?: DOMRectReadOnly | null): CellRects {
+/** Low tier: flat-colour, cells downsampled into merged blocks (fewest nodes). */
+function renderLowCells(
+	cells: Cells,
+	tile: number,
+	screenTilePx: number,
+	visible?: DOMRectReadOnly | null,
+): React.ReactElement[] {
+	const factor = blockFactor(screenTilePx);
+	const bt = factor * tile;
+	const nodes: React.ReactElement[] = [];
+	for (const [bk, terrain] of Object.entries(downsampleCells(cells, factor))) {
+		const [bc, br] = parseCellKey(bk);
+		const x = bc * bt;
+		const y = br * bt;
+		if (culled(x, y, bt, visible)) continue;
+		nodes.push(<rect key={bk} x={x} y={y} width={bt} height={bt} fill={`var(--t-${terrain})`} />);
+	}
+	return nodes;
+}
+
+/** Full/mid tiers: per-cell pattern fill; full adds autotile edge strips + separators. */
+function renderPatternCells(
+	cells: Cells,
+	tile: number,
+	full: boolean,
+	visible?: DOMRectReadOnly | null,
+): React.ReactElement[] {
 	const nodes: React.ReactElement[] = [];
 	for (const [key, terrain] of Object.entries(cells)) {
 		const [c, r] = parseCellKey(key);
 		const x = c * tile;
 		const y = r * tile;
-		if (
-			visible &&
-			(x > visible.right || y > visible.bottom || x + tile < visible.left || y + tile < visible.top)
-		) {
-			continue; // simple viewport cull
-		}
+		if (culled(x, y, tile, visible)) continue;
 		const pat = `url(#${terrainPatternId(terrain as TerrainKey)})`;
 		nodes.push(
 			<rect
@@ -77,10 +102,11 @@ function renderCells(cells: Cells, tile: number, visible?: DOMRectReadOnly | nul
 				width={tile}
 				height={tile}
 				fill={pat}
-				stroke={CELL_LINE}
-				strokeWidth={1}
+				stroke={full ? CELL_LINE : undefined}
+				strokeWidth={full ? 1 : undefined}
 			/>,
 		);
+		if (!full) continue;
 		const edge = exposedEdges(cells, c, r);
 		const t = EDGE_RATIO * tile;
 		const dark = terrainDarkVar(terrain as TerrainKey);
@@ -92,7 +118,18 @@ function renderCells(cells: Cells, tile: number, visible?: DOMRectReadOnly | nul
 		if (edge.w) nodes.push(strip(x, y, t, tile, `${key}:w`));
 		if (edge.e) nodes.push(strip(x + tile - t, y, t, tile, `${key}:e`));
 	}
-	return { nodes };
+	return nodes;
+}
+
+function renderCells(
+	cells: Cells,
+	tile: number,
+	detail: TileDetail,
+	screenTilePx: number,
+	visible?: DOMRectReadOnly | null,
+): React.ReactElement[] {
+	if (detail === "low") return renderLowCells(cells, tile, screenTilePx, visible);
+	return renderPatternCells(cells, tile, detail === "full", visible);
 }
 
 /** Visible world rect from the current viewport (best-effort, window-sized). */
@@ -107,7 +144,13 @@ function visibleWorldRect(store: BoardStore): DOMRectReadOnly | null {
 	return new DOMRectReadOnly(left, top, right - left, bottom - top);
 }
 
-export function MapTerrainLayer({ store }: { store: BoardStore }) {
+export function MapTerrainLayer({
+	store,
+	renderMode,
+}: {
+	store: BoardStore;
+	renderMode?: RenderMode;
+}) {
 	const [, force] = useState(0);
 	const rafRef = useRef(0);
 
@@ -156,13 +199,18 @@ export function MapTerrainLayer({ store }: { store: BoardStore }) {
 				style={{ display: "block", overflow: "visible", ...cssVars } as React.CSSProperties}
 			>
 				<MapDefs />
-				<g
-					transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}
-					filter={cfg.lineStyle === "wobble" ? `url(#${WOBBLE_FILTER_ID})` : undefined}
-				>
-					{tilemaps.map((tm) => (
-						<g key={tm.id}>{renderCells(tm.cells, tm.tile, visible).nodes}</g>
-					))}
+				<g transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}>
+					{tilemaps.map((tm) => {
+						const screenTilePx = tm.tile * vp.zoom;
+						const detail = tileDetail(screenTilePx, renderMode);
+						// Wobble only pays off (and is only visible) at full detail.
+						const useWobble = cfg.lineStyle === "wobble" && detail === "full";
+						return (
+							<g key={tm.id} filter={useWobble ? `url(#${WOBBLE_FILTER_ID})` : undefined}>
+								{renderCells(tm.cells, tm.tile, detail, screenTilePx, visible)}
+							</g>
+						);
+					})}
 					{pending && (pending.w > 0 || pending.h > 0) && (
 						<rect
 							x={pending.x}

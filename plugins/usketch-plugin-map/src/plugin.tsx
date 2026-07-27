@@ -44,7 +44,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				id: TERRAIN_LAYER_ID,
 				order: 40,
 				fixed: true,
-				render: () => <MapTerrainLayer store={ctx.store} />,
+				render: (lctx) => <MapTerrainLayer store={ctx.store} renderMode={lctx.renderMode} />,
 			});
 
 			// ── Tool ──
