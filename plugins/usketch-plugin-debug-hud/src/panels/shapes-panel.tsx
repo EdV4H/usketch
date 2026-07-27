@@ -1,5 +1,5 @@
 import type { BoardStore, CommandRegistry, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
 	ACCENT_DIM,
 	fmt,
@@ -20,9 +20,6 @@ interface ShapesPanelProps {
 	selection: ReadonlySet<string>;
 	registry: ShapeRegistry;
 	onHoverShape: (id: string | null) => void;
-	/** Shapes that exist locally but the server hasn't acknowledged. Empty if the
-	 * sync layer doesn't track divergence. */
-	unconfirmedShapeIds?: ReadonlySet<string>;
 	/** Left offset so the panel clears the Controls dock. Default 8. */
 	offsetLeft?: number;
 	/** Render inline (inside the Controls dock section) instead of a floating panel. */
@@ -97,27 +94,12 @@ export function ShapesPanel({
 	selection,
 	registry,
 	onHoverShape,
-	unconfirmedShapeIds,
 	offsetLeft = 8,
 	docked = false,
 }: ShapesPanelProps) {
 	const [expandedId, setExpandedId] = useState<string | null>(null);
-	const [filterUnconfirmed, setFilterUnconfirmed] = useState(false);
-	const unconfirmedCount = unconfirmedShapeIds?.size ?? 0;
 
-	// If divergence resolves while the filter is on, the toggle button
-	// disappears (its render is gated on `unconfirmedCount > 0`) — leaving
-	// the user stuck with an empty list. Auto-clear the filter so the full
-	// shape list returns.
-	useEffect(() => {
-		if (unconfirmedCount === 0 && filterUnconfirmed) {
-			setFilterUnconfirmed(false);
-		}
-	}, [unconfirmedCount, filterUnconfirmed]);
-
-	const shapeEntries = Array.from(shapes.values()).filter((s) =>
-		filterUnconfirmed ? unconfirmedShapeIds?.has(s.id) : true,
-	);
+	const shapeEntries = Array.from(shapes.values());
 
 	const updateField = (id: string, field: string, value: number) => {
 		const shape = store.getShape(id);
@@ -151,21 +133,6 @@ export function ShapesPanel({
 				}}
 			>
 				<span>Shapes ({shapes.size})</span>
-				{unconfirmedCount > 0 && (
-					<button
-						type="button"
-						onClick={() => setFilterUnconfirmed((v) => !v)}
-						style={{
-							...MINI_BUTTON,
-							background: filterUnconfirmed ? "#7f1d1d" : "transparent",
-							color: filterUnconfirmed ? "#fecaca" : "#f87171",
-							border: "1px solid #7f1d1d",
-						}}
-						title="サーバ未同期 Shape のみを表示"
-					>
-						⚠ {unconfirmedCount}
-					</button>
-				)}
 			</div>
 			<div style={{ ...SCROLLABLE_STYLE, flexGrow: 1, maxHeight: docked ? 220 : "none" }}>
 				{shapeEntries.length === 0 ? (
@@ -174,7 +141,6 @@ export function ShapesPanel({
 					shapeEntries.map((s) => {
 						const isSelected = selection.has(s.id);
 						const isExpanded = expandedId === s.id;
-						const isUnconfirmed = unconfirmedShapeIds?.has(s.id) ?? false;
 						return (
 							// biome-ignore lint/a11y/noStaticElementInteractions: debug tool
 							<div
@@ -199,22 +165,6 @@ export function ShapesPanel({
 									<span>
 										{isExpanded ? "▾" : "▸"} {shortId(s.id)}{" "}
 										<span style={{ color: TEXT_MUTED }}>{s.type}</span>
-										{isUnconfirmed && (
-											<span
-												style={{
-													marginLeft: 4,
-													padding: "0 4px",
-													borderRadius: 2,
-													background: "#7f1d1d",
-													color: "#fecaca",
-													fontSize: 9,
-													fontWeight: 600,
-												}}
-												title="サーバの Y.Doc に存在しません"
-											>
-												⚠ 未同期
-											</span>
-										)}
 									</span>
 									<span style={{ color: TEXT_MUTED, fontSize: 9 }}>
 										({fmt(s.x)}, {fmt(s.y)})

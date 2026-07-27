@@ -29,7 +29,6 @@ export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): Yweb
 
 		async setup(ctx) {
 			handle = createYwebsocketSync(ctx.store, options);
-			(globalThis as Record<string, unknown>).__usketchSyncStatus = handle.status;
 
 			// Diagnostic overlay: draws a red badge on shapes that exist locally
 			// but haven't been confirmed by the server. Sits between standard
@@ -59,7 +58,6 @@ export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): Yweb
 			return () => {
 				ctx.layers.unregister(UNCONFIRMED_OVERLAY_LAYER_ID);
 				handle?.destroy();
-				delete (globalThis as Record<string, unknown>).__usketchSyncStatus;
 				handle = null;
 			};
 		},
