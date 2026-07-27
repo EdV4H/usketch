@@ -6,6 +6,7 @@ import { fbm } from "../generators/noise.js";
 const BOX: CellBox = { minC: 0, minR: 0, maxC: 9, maxR: 7 }; // 10×8 = 80 cells
 const noise = GENERATORS_BY_ID.get("noise")!;
 const islands = GENERATORS_BY_ID.get("islands")!;
+const island = GENERATORS_BY_ID.get("island")!;
 
 function countWater(cells: Record<string, string>): number {
 	return Object.values(cells).filter((t) => t === "water").length;
@@ -74,6 +75,24 @@ describe("generators", () => {
 		const low = noise.generate({ box: BOX, seed: 7, params: { scale: 0.1, seaLevel: 0.3 } });
 		const high = noise.generate({ box: BOX, seed: 7, params: { scale: 0.1, seaLevel: 0.7 } });
 		expect(countWater(high)).toBeGreaterThan(countWater(low));
+	});
+
+	it("island: the entire box border is water, with land inside", () => {
+		const box = { minC: 0, minR: 0, maxC: 23, maxR: 17 }; // 24×18
+		const cells = island.generate({ box, seed: 9, params: defaultParams(island) });
+		// Every border cell must be water (a single island surrounded by sea).
+		for (let c = box.minC; c <= box.maxC; c++) {
+			expect(cells[`${c},${box.minR}`]).toBe("water");
+			expect(cells[`${c},${box.maxR}`]).toBe("water");
+		}
+		for (let r = box.minR; r <= box.maxR; r++) {
+			expect(cells[`${box.minC},${r}`]).toBe("water");
+			expect(cells[`${box.maxC},${r}`]).toBe("water");
+		}
+		// ...but there is land somewhere in the middle.
+		const total = Object.keys(cells).length;
+		const water = countWater(cells);
+		expect(total - water).toBeGreaterThan(0);
 	});
 
 	it("islands falloff makes the box border water", () => {

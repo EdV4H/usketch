@@ -69,11 +69,14 @@ const P = (
  * the field to its own min/max within the box first**, giving `seaLevel` a stable,
  * intuitive meaning ("the lower fraction of the elevation range is water").
  */
-function fillField(ctx: GenContext, applyFalloff: boolean): Cells {
+type FillMode = "plain" | "sink" | "island";
+
+function fillField(ctx: GenContext, mode: FillMode): Cells {
 	const { box, seed, params } = ctx;
 	const scale = params.scale ?? 0.08;
 	const seaLevel = params.seaLevel ?? 0.4;
 	const falloff = params.falloff ?? 0;
+	const size = params.size ?? 3;
 	const cols = box.maxC - box.minC + 1;
 	const rows = box.maxR - box.minR + 1;
 
@@ -105,11 +108,19 @@ function fillField(ctx: GenContext, applyFalloff: boolean): Cells {
 	for (let r = box.minR; r <= box.maxR; r++) {
 		for (let c = box.minC; c <= box.maxC; c++) {
 			let e = normalize(raw[i++]); // normalised to [0,1]
-			if (applyFalloff && falloff > 0) {
+			if (mode !== "plain") {
 				const nx = (c - cx) / hw;
 				const ny = (r - cy) / hh;
-				const d = Math.min(1, Math.hypot(nx, ny));
-				e -= falloff * d * d; // sink toward the edges → island surrounded by water
+				const d = Math.hypot(nx, ny); // 0 at centre, 1 at mid-edge, ~1.41 at a corner
+				if (mode === "sink") {
+					// Subtractive edge falloff → archipelago of islands.
+					e -= falloff * Math.min(1, d) ** 2;
+				} else {
+					// Multiplicative radial mask → a single landmass guaranteed to be
+					// surrounded by sea (mask is 0 at/after the box edge). Higher `size`
+					// keeps land closer to the edge (a bigger island).
+					e *= Math.max(0, 1 - d ** size);
+				}
 			}
 			cells[cellKey(c, r)] = elevationToTerrain(e, seaLevel);
 		}
@@ -124,7 +135,18 @@ const noiseGenerator: MapGenerator = {
 		P("scale", "地形の細かさ", 0.08, 0.02, 0.3, 0.01),
 		P("seaLevel", "海面", 0.3, 0, 0.9, 0.02),
 	],
-	generate: (ctx) => fillField(ctx, false),
+	generate: (ctx) => fillField(ctx, "plain"),
+};
+
+const islandGenerator: MapGenerator = {
+	id: "island",
+	label: "島（海に囲まれた1つの島）",
+	params: [
+		P("scale", "地形の細かさ", 0.09, 0.02, 0.3, 0.01),
+		P("seaLevel", "海面", 0.3, 0, 0.9, 0.02),
+		P("size", "島の大きさ", 3, 1.5, 6, 0.5),
+	],
+	generate: (ctx) => fillField(ctx, "island"),
 };
 
 const islandsGenerator: MapGenerator = {
@@ -135,10 +157,14 @@ const islandsGenerator: MapGenerator = {
 		P("seaLevel", "海面", 0.4, 0, 0.9, 0.02),
 		P("falloff", "島らしさ（縁を海に）", 0.5, 0, 1, 0.05),
 	],
-	generate: (ctx) => fillField(ctx, true),
+	generate: (ctx) => fillField(ctx, "sink"),
 };
 
-export const GENERATORS: readonly MapGenerator[] = [noiseGenerator, islandsGenerator];
+export const GENERATORS: readonly MapGenerator[] = [
+	noiseGenerator,
+	islandGenerator,
+	islandsGenerator,
+];
 
 export const GENERATORS_BY_ID: ReadonlyMap<string, MapGenerator> = new Map(
 	GENERATORS.map((g) => [g.id, g]),
