@@ -201,11 +201,13 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 				genDrag = null;
 				genStateStore.set({ pendingRect: null });
 				if (rect && rect.w >= tile / 2 && rect.h >= tile / 2) {
+					// Cells the preview rectangle actually covers (right/bottom edges
+					// exclusive so a boundary-aligned drag doesn't grab an extra cell).
 					const box: CellBox = {
 						minC: Math.floor(rect.x / tile),
 						minR: Math.floor(rect.y / tile),
-						maxC: Math.floor((rect.x + rect.w) / tile),
-						maxR: Math.floor((rect.y + rect.h) / tile),
+						maxC: Math.ceil((rect.x + rect.w) / tile) - 1,
+						maxR: Math.ceil((rect.y + rect.h) / tile) - 1,
 					};
 					const gs = genStateStore.get();
 					generateIntoBox(

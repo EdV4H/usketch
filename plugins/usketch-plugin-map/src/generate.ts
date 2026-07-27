@@ -2,6 +2,7 @@
 // undoable command. Shared by the map tool (drag-range) and the palette
 // (view / regenerate).
 import type { BoardStore, Command, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
+import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { type CellBox, type Cells, cellKey, cellsBounds } from "./autotile.js";
 import { genStateStore } from "./gen-state.js";
 import { GENERATORS_BY_ID } from "./generators/index.js";
@@ -27,18 +28,19 @@ export function resolveTilemap(store: BoardStore, tile: number): { id: string; c
 }
 
 /** Clamp a box to a maximum dimension, centered, so generation stays bounded. */
-function clampBox(box: CellBox): CellBox {
+export function clampBox(box: CellBox): CellBox {
 	const w = box.maxC - box.minC + 1;
 	const h = box.maxR - box.minR + 1;
 	if (w <= MAX_BOX_DIM && h <= MAX_BOX_DIM) return box;
 	const cc = Math.round((box.minC + box.maxC) / 2);
 	const cr = Math.round((box.minR + box.maxR) / 2);
 	const half = Math.floor(MAX_BOX_DIM / 2);
+	// Exactly MAX_BOX_DIM cells wide/tall when clamping (inclusive bounds).
 	return {
 		minC: w > MAX_BOX_DIM ? cc - half : box.minC,
-		maxC: w > MAX_BOX_DIM ? cc + half : box.maxC,
+		maxC: w > MAX_BOX_DIM ? cc - half + MAX_BOX_DIM - 1 : box.maxC,
 		minR: h > MAX_BOX_DIM ? cr - half : box.minR,
-		maxR: h > MAX_BOX_DIM ? cr + half : box.maxR,
+		maxR: h > MAX_BOX_DIM ? cr - half + MAX_BOX_DIM - 1 : box.maxR,
 	};
 }
 
@@ -91,19 +93,19 @@ export function generateIntoBox(deps: GenerateDeps, req: GenerateRequest): void 
 
 	const prevBounds = cellsBounds(prev, tile);
 	const nextBounds = cellsBounds(next, tile);
-	const command: Command = created
-		? {
-				// Newly created this action: undo removes the whole tilemap.
-				execute: () =>
-					deps.store.updateShape(id, { cells: next, ...nextBounds } as Partial<ShapeData>),
-				undo: () => deps.store.deleteShape(id),
-			}
-		: {
-				execute: () =>
-					deps.store.updateShape(id, { cells: next, ...nextBounds } as Partial<ShapeData>),
-				undo: () =>
-					deps.store.updateShape(id, { cells: prev, ...prevBounds } as Partial<ShapeData>),
-			};
-	deps.commands.execute(command);
+	if (created) {
+		// Newly created this action: commit as an add so undo deletes it and redo
+		// re-adds it (updateShape on a deleted id would no-op, breaking redo).
+		const finalShape = { ...shape, cells: next, ...nextBounds } as ShapeData;
+		deps.store.deleteShape(id);
+		deps.commands.execute(createAddShapeCommand(deps.store, finalShape));
+	} else {
+		const command: Command = {
+			execute: () =>
+				deps.store.updateShape(id, { cells: next, ...nextBounds } as Partial<ShapeData>),
+			undo: () => deps.store.updateShape(id, { cells: prev, ...prevBounds } as Partial<ShapeData>),
+		};
+		deps.commands.execute(command);
+	}
 	genStateStore.set({ lastBox: box });
 }
