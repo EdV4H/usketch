@@ -190,10 +190,24 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			commit(ctx);
 			// Keep the map tool active for continuous painting/stamping.
 		},
-		onDeactivate() {
-			// Abort an in-flight stroke without committing a partial undo entry.
-			stroke = null;
-			lastKey = "";
+		onDeactivate(ctx) {
+			// Tool switched / left mid-stroke with no pointerUp: don't leave a
+			// half-painted, non-undoable state. Roll the live edits back to where
+			// the stroke started (delete a tilemap created this stroke; restore the
+			// previous cells of an edited one), then clear.
+			if (stroke) {
+				const { tilemapId, created, prevCells } = stroke;
+				if (created) {
+					ctx.store.deleteShape(tilemapId);
+				} else {
+					ctx.store.updateShape(tilemapId, {
+						cells: prevCells,
+						...cellsBounds(prevCells, tile),
+					} as Partial<ShapeData>);
+				}
+				stroke = null;
+				lastKey = "";
+			}
 		},
 	};
 }

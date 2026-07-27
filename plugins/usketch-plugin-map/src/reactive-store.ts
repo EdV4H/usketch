@@ -14,15 +14,19 @@ export function createReactiveStore<T extends object>(initial: T): ReactiveStore
 	return {
 		get: () => state,
 		set(patch) {
+			// Skip `undefined` keys so a partial update (e.g. only `lineStyle`) never
+			// clobbers an unrelated field with `undefined`.
+			const next = { ...state };
 			let changed = false;
 			for (const k of Object.keys(patch) as (keyof T)[]) {
-				if (patch[k] !== undefined && patch[k] !== state[k]) {
+				const v = patch[k];
+				if (v !== undefined && v !== state[k]) {
+					next[k] = v as T[keyof T];
 					changed = true;
-					break;
 				}
 			}
 			if (!changed) return;
-			state = { ...state, ...patch };
+			state = next;
 			for (const l of listeners) l();
 		},
 		subscribe(listener) {

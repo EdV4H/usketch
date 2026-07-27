@@ -16,7 +16,8 @@ RPG マップ・タイルペイントプラグイン。community ページ（ワ
 
 - **地形の描画は MapLayer**（`ctx.layers`, 低 `order` で全 shape の背面）。
 - **地形データは data-only の `tilemap` shape** に保持 → shape ストア経由で Yjs 同期・Undo が無料。
-  `tilemap` は `render:()=>null` / `hitTest:()=>false` / `locked` で選択対象にならない substrate。
+  `tilemap` は描画を持たず（`render` は空の `<g/>` を返す）/ `hitTest:()=>false` / `locked` で
+  選択対象にならない substrate。
 - **アイコンは通常の `map-icon` shape**（選択・移動・リサイズ可、前面）。
 - SVG 素材は `dangerouslySetInnerHTML` を使わず、パース済みノード木（`svg-nodes.tsx`）を
   `React.createElement` で描画（XSS 安全・リポジトリ方針に準拠）。
