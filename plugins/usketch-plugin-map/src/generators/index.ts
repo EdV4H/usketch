@@ -90,9 +90,12 @@ function fillField(ctx: GenContext, applyFalloff: boolean): Cells {
 			if (e > max) max = e;
 		}
 	}
-	const span = max - min || 1;
+	const span = max - min;
 
-	// Pass 2: normalise → (optional) island falloff → terrain band.
+	// Pass 2: normalise → (optional) island falloff → terrain band. A degenerate
+	// flat field (span 0, e.g. a 1×1 box) maps to a neutral 0.5 so `seaLevel`
+	// still has an effect instead of forcing everything to water.
+	const normalize = (e: number) => (span > 0 ? (e - min) / span : 0.5);
 	const cx = (box.minC + box.maxC) / 2;
 	const cy = (box.minR + box.maxR) / 2;
 	const hw = Math.max(1, (box.maxC - box.minC) / 2);
@@ -101,7 +104,7 @@ function fillField(ctx: GenContext, applyFalloff: boolean): Cells {
 	i = 0;
 	for (let r = box.minR; r <= box.maxR; r++) {
 		for (let c = box.minC; c <= box.maxC; c++) {
-			let e = (raw[i++] - min) / span; // normalised to [0,1]
+			let e = normalize(raw[i++]); // normalised to [0,1]
 			if (applyFalloff && falloff > 0) {
 				const nx = (c - cx) / hw;
 				const ny = (r - cy) / hh;

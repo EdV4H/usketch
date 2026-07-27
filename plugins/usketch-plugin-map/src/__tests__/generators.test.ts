@@ -63,6 +63,13 @@ describe("generators", () => {
 		}
 	});
 
+	it("a 1×1 (flat) box is not forced to water by normalisation", () => {
+		const one = { minC: 0, minR: 0, maxC: 0, maxR: 0 };
+		const cells = noise.generate({ box: one, seed: 5, params: defaultParams(noise) });
+		expect(Object.keys(cells)).toHaveLength(1);
+		expect(cells["0,0"]).not.toBe("water"); // neutral 0.5 > default seaLevel
+	});
+
 	it("raising seaLevel monotonically increases water", () => {
 		const low = noise.generate({ box: BOX, seed: 7, params: { scale: 0.1, seaLevel: 0.3 } });
 		const high = noise.generate({ box: BOX, seed: 7, params: { scale: 0.1, seaLevel: 0.7 } });
