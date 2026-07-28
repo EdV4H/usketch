@@ -13,13 +13,14 @@ import { TERRAINS, type TerrainKey, terrainDarkVar, terrainPatternId } from "./t
 import { isTileMap, type TileMapShapeData } from "./tilemap-shape.js";
 
 export const WOBBLE_FILTER_ID = "uskmap-wobble";
+const GRID_PATTERN_ID = "uskmap-grid";
 
 const EDGE_RATIO = 0.22; // dark "one shade darker" ring thickness, fraction of a tile
 const EDGE_OPACITY = 0.42;
 const CELL_LINE = "rgba(20,20,20,.06)";
 
-/** Shared SVG defs: 12 terrain patterns + the hand-drawn wobble filter. */
-function MapDefs() {
+/** Shared SVG defs: 12 terrain patterns + a per-tile grid + the wobble filter. */
+function MapDefs({ tile }: { tile: number }) {
 	return (
 		<defs>
 			{TERRAINS.map((t) => (
@@ -33,6 +34,11 @@ function MapDefs() {
 					{renderSvgNodes(t.nodes, `pat-${t.key}`)}
 				</pattern>
 			))}
+			{/* Tile grid, matching the per-cell CELL_LINE on painted tiles, so the
+			    empty-terrain background shows the same grid instead of a blank fill. */}
+			<pattern id={GRID_PATTERN_ID} width={tile} height={tile} patternUnits="userSpaceOnUse">
+				<rect width={tile} height={tile} fill="none" stroke={CELL_LINE} strokeWidth={1} />
+			</pattern>
 			<filter id={WOBBLE_FILTER_ID}>
 				<feTurbulence
 					type="fractalNoise"
@@ -233,6 +239,8 @@ export function MapTerrainLayer({
 	// unpainted / off-map space reads as (e.g.) sea, with painted tiles on top.
 	const empty = cfg.emptyTerrain;
 	const bgCoarse = tileDetail(defaultTile * vp.zoom, renderMode) === "coarse";
+	// Match painted tiles: wobble the empty background + grid too at full detail.
+	const bgWobble = cfg.lineStyle === "wobble" && !bgCoarse;
 
 	return (
 		<div
@@ -250,16 +258,28 @@ export function MapTerrainLayer({
 				height="100%"
 				style={{ display: "block", overflow: "visible", ...cssVars } as React.CSSProperties}
 			>
-				<MapDefs />
+				<MapDefs tile={defaultTile} />
 				<g transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}>
 					{empty && visible && (
-						<rect
-							x={visible.left}
-							y={visible.top}
-							width={visible.width}
-							height={visible.height}
-							fill={bgCoarse ? `var(--t-${empty})` : `url(#${terrainPatternId(empty)})`}
-						/>
+						<g filter={bgWobble ? `url(#${WOBBLE_FILTER_ID})` : undefined}>
+							<rect
+								x={visible.left}
+								y={visible.top}
+								width={visible.width}
+								height={visible.height}
+								fill={bgCoarse ? `var(--t-${empty})` : `url(#${terrainPatternId(empty)})`}
+							/>
+							{!bgCoarse && (
+								// Same tile grid as painted cells, so unset tiles aren't blank.
+								<rect
+									x={visible.left}
+									y={visible.top}
+									width={visible.width}
+									height={visible.height}
+									fill={`url(#${GRID_PATTERN_ID})`}
+								/>
+							)}
+						</g>
 					)}
 					{tilemaps.map((tm) => {
 						const screenTilePx = tm.tile * vp.zoom;
