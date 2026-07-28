@@ -39,7 +39,6 @@ const MODES: { id: MapMode; label: string }[] = [
 	{ id: "fill", label: "塗りつぶし" },
 	{ id: "stamp", label: "アイコン" },
 	{ id: "generate", label: "生成" },
-	{ id: "range-erase", label: "範囲消去" },
 	{ id: "team", label: "チーム" },
 ];
 
@@ -314,13 +313,6 @@ export function MapPalette({
 						<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginTop: 8 }}>
 							キャンバスをドラッグで範囲生成
 						</div>
-					</div>
-				)}
-
-				{/* Range erase */}
-				{tool.mode === "range-erase" && (
-					<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginBottom: 12 }}>
-						キャンバスをドラッグした範囲の地形とチームエリアをまとめて消去します
 					</div>
 				)}
 
