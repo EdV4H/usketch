@@ -21,6 +21,7 @@ import {
 	cellKey,
 	cellsBounds,
 	floodFill,
+	parseCellKey,
 	worldToCell,
 } from "./autotile.js";
 import { genStateStore } from "./gen-state.js";
@@ -36,7 +37,7 @@ import {
 	resolveTeamMap,
 } from "./team/team-ops.js";
 import { teamStateStore } from "./team/team-state.js";
-import { DEFAULT_TILE, type TileMapShapeData } from "./tilemap-shape.js";
+import { DEFAULT_TILE, isTileMap, type TileMapShapeData } from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
 
 function MapToolIcon() {
@@ -199,6 +200,39 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		return found;
 	}
 
+	/** Clear all terrain cells inside a box (range-erase), as one undoable command. */
+	function eraseTerrainBox(ctx: ToolContext, box: CellBox): void {
+		let tilemap: TileMapShapeData | undefined;
+		for (const [, s] of ctx.store.getShapes()) {
+			if (isTileMap(s)) {
+				tilemap = s;
+				break;
+			}
+		}
+		if (!tilemap) return;
+		const id = tilemap.id;
+		const cells = tilemap.cells;
+		// Cells are sparse, so scan the existing keys (bounded by painted cells)
+		// rather than every cell in the box (which can be huge for a big drag).
+		const toDelete: string[] = [];
+		for (const key of Object.keys(cells)) {
+			const [c, r] = parseCellKey(key);
+			if (c >= box.minC && c <= box.maxC && r >= box.minR && r <= box.maxR) toDelete.push(key);
+		}
+		if (toDelete.length === 0) return; // no-op → don't clone or commit
+		const prev = { ...cells };
+		const next = { ...cells };
+		for (const k of toDelete) delete next[k];
+		const prevBounds = cellsBounds(prev, tile);
+		const nextBounds = cellsBounds(next, tile);
+		const command: Command = {
+			execute: () =>
+				ctx.store.updateShape(id, { cells: next, ...nextBounds } as Partial<ShapeData>),
+			undo: () => ctx.store.updateShape(id, { cells: prev, ...prevBounds } as Partial<ShapeData>),
+		};
+		ctx.commands.execute(command);
+	}
+
 	function placeIcon(ctx: ToolContext, event: CanvasPointerEvent): void {
 		const { iconKey } = toolStateStore.get();
 		const def = ICONS_BY_KEY.get(iconKey);
@@ -219,7 +253,7 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 				placeIcon(ctx, event);
 				return;
 			}
-			if (mode === "generate") {
+			if (mode === "generate" || mode === "range-erase") {
 				genDrag = { x0: event.worldPoint.x, y0: event.worldPoint.y };
 				genStateStore.set({
 					pendingRect: { x: event.worldPoint.x, y: event.worldPoint.y, w: 0, h: 0 },
@@ -297,11 +331,15 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 						maxC: Math.ceil((rect.x + rect.w) / tile) - 1,
 						maxR: Math.ceil((rect.y + rect.h) / tile) - 1,
 					};
-					const gs = genStateStore.get();
-					generateIntoBox(
-						{ store: ctx.store, commands: ctx.commands, tile },
-						{ generatorId: gs.algorithmId, seed: gs.seed, params: gs.params, box },
-					);
+					if (toolStateStore.get().mode === "range-erase") {
+						eraseTerrainBox(ctx, box);
+					} else {
+						const gs = genStateStore.get();
+						generateIntoBox(
+							{ store: ctx.store, commands: ctx.commands, tile },
+							{ generatorId: gs.algorithmId, seed: gs.seed, params: gs.params, box },
+						);
+					}
 				}
 				return;
 			}
