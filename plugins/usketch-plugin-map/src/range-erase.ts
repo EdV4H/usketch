@@ -8,8 +8,8 @@ import type {
 	ShapeData,
 } from "@edv4h/usketch-shared";
 import { type CellBox, cellsBounds, parseCellKey } from "./autotile.js";
-import { isTeamMap, ownerBounds } from "./team/team-map-shape.js";
-import { isTileMap } from "./tilemap-shape.js";
+import { isTeamMap, ownerBounds, type TeamMapShapeData } from "./team/team-map-shape.js";
+import { isTileMap, type TileMapShapeData } from "./tilemap-shape.js";
 
 export interface RangeEraseDeps {
 	store: BoardStore;
@@ -52,18 +52,26 @@ function boxClearOp<M extends Record<string, string>>(
 /** Clear terrain + team ownership inside `box` as one undoable command (no-op if empty). */
 export function eraseRangeBox(deps: RangeEraseDeps, box: CellBox): void {
 	const { store, commands, tile } = deps;
-	const ops: ClearOp[] = [];
+	// tilemap / team-map are single shared substrates (like resolveTilemap /
+	// resolveTeamMap), so target the first of each.
+	let tilemap: TileMapShapeData | undefined;
+	let teammap: TeamMapShapeData | undefined;
 	for (const [, s] of store.getShapes()) {
-		// Use each shape's own tile size (boards may differ from the tool default).
-		if (isTileMap(s)) {
-			const t = s.tile ?? tile;
-			const op = boxClearOp(s.id, s.cells, "cells", box, (m) => cellsBounds(m, t));
-			if (op) ops.push(op);
-		} else if (isTeamMap(s)) {
-			const t = s.tile ?? tile;
-			const op = boxClearOp(s.id, s.owner, "owner", box, (m) => ownerBounds(m, t));
-			if (op) ops.push(op);
-		}
+		if (!tilemap && isTileMap(s)) tilemap = s;
+		else if (!teammap && isTeamMap(s)) teammap = s;
+		if (tilemap && teammap) break;
+	}
+	const ops: ClearOp[] = [];
+	// Use each shape's own tile size (boards may differ from the tool default).
+	if (tilemap) {
+		const t = tilemap.tile ?? tile;
+		const op = boxClearOp(tilemap.id, tilemap.cells, "cells", box, (m) => cellsBounds(m, t));
+		if (op) ops.push(op);
+	}
+	if (teammap) {
+		const t = teammap.tile ?? tile;
+		const op = boxClearOp(teammap.id, teammap.owner, "owner", box, (m) => ownerBounds(m, t));
+		if (op) ops.push(op);
 	}
 	if (ops.length === 0) return;
 	const command: Command = {
