@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Cells } from "../autotile.js";
 import type { OwnerMap, TeamInfo } from "../team/team-map-shape.js";
-import { landRegionFrom, teamIdAtWorld, teamRegionAnchors } from "../team/team-ops.js";
+import { landRegionFrom, ownersEqual, teamIdAtWorld, teamRegionAnchors } from "../team/team-ops.js";
 
 describe("teamIdAtWorld", () => {
 	const owner: OwnerMap = { "0,0": "red", "1,0": "blue" };
@@ -29,6 +29,15 @@ describe("landRegionFrom", () => {
 		// an L shape of land
 		const cells: Cells = { "0,0": "grass", "0,1": "sand", "1,1": "mtn" };
 		expect(new Set(landRegionFrom(cells, 0, 0))).toEqual(new Set(["0,0", "0,1", "1,1"]));
+	});
+});
+
+describe("ownersEqual", () => {
+	it("detects no-op strokes (used to skip empty undo entries)", () => {
+		expect(ownersEqual({ "0,0": "red" }, { "0,0": "red" })).toBe(true);
+		expect(ownersEqual({ "0,0": "red" }, { "0,0": "blue" })).toBe(false);
+		expect(ownersEqual({ "0,0": "red" }, {})).toBe(false);
+		expect(ownersEqual({ "0,0": "red" }, { "0,0": "red", "1,0": "red" })).toBe(false);
 	});
 });
 

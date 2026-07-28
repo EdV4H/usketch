@@ -45,7 +45,10 @@ export function landRegionFrom(terrainCells: Cells, startCol: number, startRow: 
 	const out: string[] = [];
 	const seen = new Set<string>();
 	const stack: [number, number][] = [[startCol, startRow]];
-	while (stack.length && out.length < MAX_ISLAND_CELLS) {
+	while (stack.length) {
+		// Cap hit → the region is too large to own atomically; abort rather than
+		// assign only a truncated part of the landmass.
+		if (out.length >= MAX_ISLAND_CELLS) return [];
 		const next = stack.pop();
 		if (!next) break;
 		const [c, r] = next;
@@ -57,6 +60,14 @@ export function landRegionFrom(terrainCells: Cells, startCol: number, startRow: 
 		stack.push([c + 1, r], [c - 1, r], [c, r + 1], [c, r - 1]);
 	}
 	return out;
+}
+
+/** Shallow equality of two ownership maps (same keys + team ids). */
+export function ownersEqual(a: OwnerMap, b: OwnerMap): boolean {
+	const ak = Object.keys(a);
+	if (ak.length !== Object.keys(b).length) return false;
+	for (const k of ak) if (a[k] !== b[k]) return false;
+	return true;
 }
 
 export interface TeamRegionAnchor {
@@ -159,6 +170,7 @@ export function applyOwner(store: BoardStore, id: string, owner: OwnerMap, tile:
 export function commitOwner(deps: TeamDeps, id: string, prevOwner: OwnerMap): void {
 	const shape = deps.store.getShape(id) as TeamMapShapeData | undefined;
 	const nextOwner = { ...(shape?.owner ?? {}) };
+	if (ownersEqual(prevOwner, nextOwner)) return; // no change → no undo entry
 	const prev = prevOwner;
 	const prevB = ownerBounds(prev, deps.tile);
 	const nextB = ownerBounds(nextOwner, deps.tile);
