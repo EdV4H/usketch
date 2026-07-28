@@ -7,6 +7,8 @@ import { useEffect, useRef, useState } from "react";
 import { type Cells, exposedEdges, parseCellKey } from "../autotile.js";
 import { blockFactor, downsampleCells, type TileDetail, tileDetail } from "../lod.js";
 import { visibleCellRange, visibleWorldRect } from "../map-layer.js";
+import { MAP_TOOL_ID } from "../map-tool-id.js";
+import { useMapToolState } from "../tool-state.js";
 import type { OwnerMap, TeamInfo } from "./team-map-shape.js";
 import { getTeamMap, teamRegionAnchors } from "./team-ops.js";
 
@@ -109,6 +111,7 @@ export function TeamAreaLayer({
 	store: BoardStore;
 	renderMode?: RenderMode;
 }) {
+	const tool = useMapToolState();
 	const [, force] = useState(0);
 	const rafRef = useRef(0);
 
@@ -124,8 +127,11 @@ export function TeamAreaLayer({
 		};
 	}, [store]);
 
+	// Territory paint is only shown while actually in team mode (map tool + team
+	// submode) — mirrors the EnterBanner indicator gating.
+	const inTeamMode = store.getActiveToolId() === MAP_TOOL_ID && tool.mode === "team";
 	const team = getTeamMap(store);
-	if (!team || Object.keys(team.owner).length === 0) return null;
+	if (!inTeamMode || !team || Object.keys(team.owner).length === 0) return null;
 
 	const vp = store.getViewport();
 	const visible = visibleWorldRect(store);
