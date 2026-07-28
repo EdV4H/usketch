@@ -9,7 +9,7 @@ import { blockFactor, downsampleCells, type TileDetail, tileDetail } from "./lod
 import { terrainCssVars } from "./palette.js";
 import { renderConfigStore } from "./render-config.js";
 import { renderSvgNodes } from "./svg-nodes.js";
-import { TERRAINS, terrainDarkVar, terrainPatternId } from "./terrain.js";
+import { TERRAINS, type TerrainKey, terrainDarkVar, terrainPatternId } from "./terrain.js";
 import { isTileMap, type TileMapShapeData } from "./tilemap-shape.js";
 
 export const WOBBLE_FILTER_ID = "uskmap-wobble";
@@ -93,7 +93,8 @@ export function visibleCellRange(
 function renderFullCells(
 	cells: Cells,
 	tile: number,
-	visible?: DOMRectReadOnly | null,
+	visible: DOMRectReadOnly | null | undefined,
+	empty: TerrainKey | null,
 ): React.ReactElement[] {
 	const nodes: React.ReactElement[] = [];
 	const t = EDGE_RATIO * tile;
@@ -115,7 +116,9 @@ function renderFullCells(
 				strokeWidth={1}
 			/>,
 		);
-		const edge = exposedEdges(cells, c, r);
+		// Unset neighbours count as `empty` so painted tiles matching the empty
+		// terrain (e.g. water on a water background) don't draw a spurious coast.
+		const edge = exposedEdges(cells, c, r, empty);
 		const dark = terrainDarkVar(terrain);
 		const strip = (sx: number, sy: number, sw: number, sh: number, sk: string) => (
 			<rect key={sk} x={sx} y={sy} width={sw} height={sh} fill={dark} opacity={EDGE_OPACITY} />
@@ -166,9 +169,10 @@ function renderCells(
 	tile: number,
 	detail: TileDetail,
 	screenTilePx: number,
-	visible?: DOMRectReadOnly | null,
+	visible: DOMRectReadOnly | null | undefined,
+	empty: TerrainKey | null,
 ): React.ReactElement[] {
-	if (detail === "full") return renderFullCells(cells, tile, visible);
+	if (detail === "full") return renderFullCells(cells, tile, visible, empty);
 	return renderCoarseCells(cells, tile, screenTilePx, visible);
 }
 
@@ -187,9 +191,12 @@ export function visibleWorldRect(store: BoardStore): DOMRectReadOnly | null {
 export function MapTerrainLayer({
 	store,
 	renderMode,
+	tile: defaultTile,
 }: {
 	store: BoardStore;
 	renderMode?: RenderMode;
+	/** Reference tile size for the empty-terrain background LOD. */
+	tile: number;
 }) {
 	const [, force] = useState(0);
 	const rafRef = useRef(0);
@@ -222,6 +229,11 @@ export function MapTerrainLayer({
 
 	const cssVars = terrainCssVars(cfg.colorMode, cfg.strokeScale);
 
+	// Empty-terrain background: fill the visible area with the fallback terrain so
+	// unpainted / off-map space reads as (e.g.) sea, with painted tiles on top.
+	const empty = cfg.emptyTerrain;
+	const bgCoarse = tileDetail(defaultTile * vp.zoom, renderMode) === "coarse";
+
 	return (
 		<div
 			style={{
@@ -240,6 +252,15 @@ export function MapTerrainLayer({
 			>
 				<MapDefs />
 				<g transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}>
+					{empty && visible && (
+						<rect
+							x={visible.left}
+							y={visible.top}
+							width={visible.width}
+							height={visible.height}
+							fill={bgCoarse ? `var(--t-${empty})` : `url(#${terrainPatternId(empty)})`}
+						/>
+					)}
 					{tilemaps.map((tm) => {
 						const screenTilePx = tm.tile * vp.zoom;
 						const detail = tileDetail(screenTilePx, renderMode);
@@ -247,7 +268,7 @@ export function MapTerrainLayer({
 						const useWobble = cfg.lineStyle === "wobble" && detail === "full";
 						return (
 							<g key={tm.id} filter={useWobble ? `url(#${WOBBLE_FILTER_ID})` : undefined}>
-								{renderCells(tm.cells, tm.tile, detail, screenTilePx, visible)}
+								{renderCells(tm.cells, tm.tile, detail, screenTilePx, visible, empty)}
 							</g>
 						);
 					})}

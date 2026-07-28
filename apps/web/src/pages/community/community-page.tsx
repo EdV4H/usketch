@@ -208,7 +208,9 @@ export function CommunityPage() {
 					portalPlugin,
 					createGroupPlugin(),
 					createIslandPlugin(),
-					createMapPlugin(),
+					// Demo default: unset tiles read as sea, so the world map is an
+					// infinite ocean with painted land (off-map counts as water).
+					createMapPlugin({ emptyTerrain: "water" }),
 					createDomRendererPlugin(),
 				];
 

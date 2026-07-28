@@ -6,6 +6,7 @@ import {
 	exposedEdges,
 	floodFill,
 	parseCellKey,
+	terrainAtCell,
 	worldToCell,
 } from "../autotile.js";
 
@@ -40,6 +41,21 @@ describe("cellsBounds", () => {
 	});
 });
 
+describe("terrainAtCell", () => {
+	const cells: Cells = { "0,0": "grass" };
+	it("returns the painted terrain when set", () => {
+		expect(terrainAtCell(cells, 0, 0)).toBe("grass");
+		expect(terrainAtCell(cells, 0, 0, "water")).toBe("grass");
+	});
+	it("falls back to the empty terrain for unset cells (off-map = sea)", () => {
+		expect(terrainAtCell(cells, 9, 9, "water")).toBe("water");
+	});
+	it("returns undefined when unset and no fallback given", () => {
+		expect(terrainAtCell(cells, 9, 9)).toBeUndefined();
+		expect(terrainAtCell(cells, 9, 9, null)).toBeUndefined();
+	});
+});
+
 describe("exposedEdges", () => {
 	it("all sides exposed for an isolated cell", () => {
 		expect(exposedEdges({ "0,0": "grass" }, 0, 0)).toEqual({ n: true, e: true, s: true, w: true });
@@ -51,6 +67,19 @@ describe("exposedEdges", () => {
 	it("different terrain neighbour is exposed", () => {
 		const cells: Cells = { "0,0": "grass", "1,0": "water" };
 		expect(exposedEdges(cells, 0, 0).e).toBe(true);
+	});
+	it("treats unset neighbours as the empty fallback (no coast against matching empty)", () => {
+		// water tile with all-empty neighbours; empty="water" → no exposed edges.
+		expect(exposedEdges({ "0,0": "water" }, 0, 0, "water")).toEqual({
+			n: false,
+			e: false,
+			s: false,
+			w: false,
+		});
+		// grass tile against empty="water" → still exposed (coastline).
+		expect(exposedEdges({ "0,0": "grass" }, 0, 0, "water").e).toBe(true);
+		// no fallback → unset neighbours are always exposed (prior behaviour).
+		expect(exposedEdges({ "0,0": "water" }, 0, 0).e).toBe(true);
 	});
 });
 
