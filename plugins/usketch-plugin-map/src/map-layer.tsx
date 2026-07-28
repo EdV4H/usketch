@@ -187,9 +187,12 @@ export function visibleWorldRect(store: BoardStore): DOMRectReadOnly | null {
 export function MapTerrainLayer({
 	store,
 	renderMode,
+	tile: defaultTile,
 }: {
 	store: BoardStore;
 	renderMode?: RenderMode;
+	/** Reference tile size for the empty-terrain background LOD. */
+	tile: number;
 }) {
 	const [, force] = useState(0);
 	const rafRef = useRef(0);
@@ -222,6 +225,11 @@ export function MapTerrainLayer({
 
 	const cssVars = terrainCssVars(cfg.colorMode, cfg.strokeScale);
 
+	// Empty-terrain background: fill the visible area with the fallback terrain so
+	// unpainted / off-map space reads as (e.g.) sea, with painted tiles on top.
+	const empty = cfg.emptyTerrain;
+	const bgCoarse = tileDetail(defaultTile * vp.zoom, renderMode) === "coarse";
+
 	return (
 		<div
 			style={{
@@ -240,6 +248,15 @@ export function MapTerrainLayer({
 			>
 				<MapDefs />
 				<g transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}>
+					{empty && visible && (
+						<rect
+							x={visible.left}
+							y={visible.top}
+							width={visible.width}
+							height={visible.height}
+							fill={bgCoarse ? `var(--t-${empty})` : `url(#${terrainPatternId(empty)})`}
+						/>
+					)}
 					{tilemaps.map((tm) => {
 						const screenTilePx = tm.tile * vp.zoom;
 						const detail = tileDetail(screenTilePx, renderMode);

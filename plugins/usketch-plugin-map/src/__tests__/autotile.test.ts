@@ -6,6 +6,7 @@ import {
 	exposedEdges,
 	floodFill,
 	parseCellKey,
+	terrainAtCell,
 	worldToCell,
 } from "../autotile.js";
 
@@ -37,6 +38,21 @@ describe("cellsBounds", () => {
 	it("handles negative cells", () => {
 		const cells: Cells = { "-1,-1": "grass", "0,0": "grass" };
 		expect(cellsBounds(cells, 40)).toEqual({ x: -40, y: -40, width: 80, height: 80 });
+	});
+});
+
+describe("terrainAtCell", () => {
+	const cells: Cells = { "0,0": "grass" };
+	it("returns the painted terrain when set", () => {
+		expect(terrainAtCell(cells, 0, 0)).toBe("grass");
+		expect(terrainAtCell(cells, 0, 0, "water")).toBe("grass");
+	});
+	it("falls back to the empty terrain for unset cells (off-map = sea)", () => {
+		expect(terrainAtCell(cells, 9, 9, "water")).toBe("water");
+	});
+	it("returns undefined when unset and no fallback given", () => {
+		expect(terrainAtCell(cells, 9, 9)).toBeUndefined();
+		expect(terrainAtCell(cells, 9, 9, null)).toBeUndefined();
 	});
 });
 

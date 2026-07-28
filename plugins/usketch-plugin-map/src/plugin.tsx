@@ -12,6 +12,7 @@ import { type LineStyle, renderConfigStore } from "./render-config.js";
 import { EnterBanner } from "./team/enter-banner.js";
 import { TeamAreaLayer } from "./team/team-layer.js";
 import { createTeamMapShapeDefinition, TEAM_MAP_TYPE } from "./team/team-map-shape.js";
+import { TERRAINS, type TerrainKey } from "./terrain.js";
 import { createTileMapShapeDefinition, DEFAULT_TILE, TILEMAP_TYPE } from "./tilemap-shape.js";
 import { MapPalette } from "./ui/palette.js";
 import { RangeErasePalette } from "./ui/range-erase-palette.js";
@@ -21,6 +22,12 @@ export interface MapPluginOptions {
 	tile?: number;
 	defaultColorMode?: ColorMode;
 	defaultLineStyle?: LineStyle;
+	/**
+	 * Terrain used for unset cells (e.g. `"water"` → unpainted/off-map space is
+	 * sea). Default undefined = truly empty. Adjustable at runtime via the Control
+	 * HUD "空きマス" setting.
+	 */
+	emptyTerrain?: TerrainKey;
 }
 
 const TERRAIN_LAYER_ID = "usketch-map:terrain";
@@ -31,10 +38,11 @@ const ERASE_PALETTE_LAYER_ID = "usketch-map:erase-palette";
 
 export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 	const tile = options.tile ?? DEFAULT_TILE;
-	if (options.defaultColorMode || options.defaultLineStyle) {
+	if (options.defaultColorMode || options.defaultLineStyle || options.emptyTerrain) {
 		renderConfigStore.set({
 			colorMode: options.defaultColorMode,
 			lineStyle: options.defaultLineStyle,
+			emptyTerrain: options.emptyTerrain,
 		});
 	}
 
@@ -53,7 +61,9 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				id: TERRAIN_LAYER_ID,
 				order: 40,
 				fixed: true,
-				render: (lctx) => <MapTerrainLayer store={ctx.store} renderMode={lctx.renderMode} />,
+				render: (lctx) => (
+					<MapTerrainLayer store={ctx.store} renderMode={lctx.renderMode} tile={tile} />
+				),
 			});
 
 			// ── Team areas (above terrain, below shapes) + enter banner overlay ──
@@ -112,13 +122,28 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 						],
 					},
 					{ name: "strokeScale", label: "線の太さ", type: "number", min: 0.5, max: 2, step: 0.1 },
+					{
+						name: "emptyTerrain",
+						label: "空きマス",
+						type: "enum",
+						options: [
+							{ value: "none", label: "なし" },
+							...TERRAINS.map((t) => ({ value: t.key, label: t.name })),
+						],
+					},
 				],
-				get: (name) =>
-					renderConfigStore.get()[name as keyof ReturnType<typeof renderConfigStore.get>],
+				get: (name) => {
+					if (name === "emptyTerrain") return renderConfigStore.get().emptyTerrain ?? "none";
+					return renderConfigStore.get()[name as keyof ReturnType<typeof renderConfigStore.get>];
+				},
 				set: (name, value) => {
 					if (name === "strokeScale") renderConfigStore.set({ strokeScale: Number(value) });
 					else if (name === "colorMode") renderConfigStore.set({ colorMode: value as ColorMode });
 					else if (name === "lineStyle") renderConfigStore.set({ lineStyle: value as LineStyle });
+					else if (name === "emptyTerrain")
+						renderConfigStore.set({
+							emptyTerrain: value === "none" ? null : (value as TerrainKey),
+						});
 				},
 				subscribe: renderConfigStore.subscribe,
 			});
