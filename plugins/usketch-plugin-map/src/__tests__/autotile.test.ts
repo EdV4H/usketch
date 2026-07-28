@@ -68,6 +68,19 @@ describe("exposedEdges", () => {
 		const cells: Cells = { "0,0": "grass", "1,0": "water" };
 		expect(exposedEdges(cells, 0, 0).e).toBe(true);
 	});
+	it("treats unset neighbours as the empty fallback (no coast against matching empty)", () => {
+		// water tile with all-empty neighbours; empty="water" → no exposed edges.
+		expect(exposedEdges({ "0,0": "water" }, 0, 0, "water")).toEqual({
+			n: false,
+			e: false,
+			s: false,
+			w: false,
+		});
+		// grass tile against empty="water" → still exposed (coastline).
+		expect(exposedEdges({ "0,0": "grass" }, 0, 0, "water").e).toBe(true);
+		// no fallback → unset neighbours are always exposed (prior behaviour).
+		expect(exposedEdges({ "0,0": "water" }, 0, 0).e).toBe(true);
+	});
 });
 
 describe("floodFill", () => {

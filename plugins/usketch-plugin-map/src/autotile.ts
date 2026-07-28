@@ -63,12 +63,19 @@ export interface ExposedEdges {
 }
 
 /**
- * Which sides of cell (c,r) border a different terrain (or empty). These get the
- * "one shade darker" strip in the design — the region's outer ring.
+ * Which sides of cell (c,r) border a different terrain. Unset neighbours count as
+ * `empty` (the fallback terrain), so e.g. a water tile next to unpainted space
+ * with `empty="water"` is NOT an exposed edge — no spurious coastline against the
+ * empty-terrain background. `empty` omitted → unset neighbours are always different.
  */
-export function exposedEdges(cells: Cells, col: number, row: number): ExposedEdges {
+export function exposedEdges(
+	cells: Cells,
+	col: number,
+	row: number,
+	empty?: TerrainKey | null,
+): ExposedEdges {
 	const self = cells[cellKey(col, row)];
-	const diff = (c: number, r: number) => cells[cellKey(c, r)] !== self;
+	const diff = (c: number, r: number) => terrainAtCell(cells, c, r, empty) !== self;
 	return {
 		n: diff(col, row - 1),
 		e: diff(col + 1, row),
