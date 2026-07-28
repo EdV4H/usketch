@@ -3,7 +3,6 @@
 // commit the whole stroke as ONE undoable command on pointer-up. Stamping adds
 // a map-icon via createAddShapeCommand. The palette switches the active submode.
 import type {
-	BoundingBox,
 	CanvasPointerEvent,
 	Command,
 	ShapeData,
@@ -22,19 +21,13 @@ import {
 	cellKey,
 	cellsBounds,
 	floodFill,
-	parseCellKey,
 	worldToCell,
 } from "./autotile.js";
 import { genStateStore } from "./gen-state.js";
 import { generateIntoBox, resolveTilemap } from "./generate.js";
 import { ICONS_BY_KEY } from "./icons.js";
 import { MAP_ICON_TYPE, makeMapIcon } from "./map-icon-shape.js";
-import {
-	isTeamMap,
-	type OwnerMap,
-	ownerBounds,
-	type TeamMapShapeData,
-} from "./team/team-map-shape.js";
+import type { OwnerMap } from "./team/team-map-shape.js";
 import {
 	applyOwner,
 	assignIsland,
@@ -43,7 +36,7 @@ import {
 	resolveTeamMap,
 } from "./team/team-ops.js";
 import { teamStateStore } from "./team/team-state.js";
-import { DEFAULT_TILE, isTileMap, type TileMapShapeData } from "./tilemap-shape.js";
+import { DEFAULT_TILE, type TileMapShapeData } from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
 
 function MapToolIcon() {
@@ -206,70 +199,6 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		return found;
 	}
 
-	// One shape's box-clear: sparse-scan existing keys, remove those in `box`.
-	// Returns the store patch pair (or null when nothing changes). `field` is the
-	// intrinsic sparse map ("cells" for tilemap, "owner" for team-map).
-	interface ClearOp {
-		id: string;
-		prev: Partial<ShapeData>;
-		next: Partial<ShapeData>;
-	}
-	function boxClearOp<M extends Record<string, string>>(
-		shapeId: string,
-		map: M,
-		field: "cells" | "owner",
-		box: CellBox,
-		bounds: (m: M) => BoundingBox,
-	): ClearOp | null {
-		const toDelete: string[] = [];
-		for (const key of Object.keys(map)) {
-			const [c, r] = parseCellKey(key);
-			if (c >= box.minC && c <= box.maxC && r >= box.minR && r <= box.maxR) toDelete.push(key);
-		}
-		if (toDelete.length === 0) return null; // no-op → don't clone
-		const prevMap = { ...map };
-		const nextMap = { ...map };
-		for (const k of toDelete) delete nextMap[k];
-		return {
-			id: shapeId,
-			prev: { [field]: prevMap, ...bounds(prevMap) } as Partial<ShapeData>,
-			next: { [field]: nextMap, ...bounds(nextMap) } as Partial<ShapeData>,
-		};
-	}
-
-	/** Clear terrain AND team ownership inside a box, as ONE undoable command. */
-	function eraseRangeBox(ctx: ToolContext, box: CellBox): void {
-		let tilemap: TileMapShapeData | undefined;
-		let teammap: TeamMapShapeData | undefined;
-		for (const [, s] of ctx.store.getShapes()) {
-			if (isTileMap(s)) tilemap = s;
-			else if (isTeamMap(s)) teammap = s;
-		}
-		const ops: ClearOp[] = [];
-		if (tilemap) {
-			// Use each shape's own tile size for bounds (boards may differ from the
-			// tool default).
-			const t = tilemap.tile ?? tile;
-			const op = boxClearOp(tilemap.id, tilemap.cells, "cells", box, (m) => cellsBounds(m, t));
-			if (op) ops.push(op);
-		}
-		if (teammap) {
-			const t = teammap.tile ?? tile;
-			const op = boxClearOp(teammap.id, teammap.owner, "owner", box, (m) => ownerBounds(m, t));
-			if (op) ops.push(op);
-		}
-		if (ops.length === 0) return;
-		const command: Command = {
-			execute: () => {
-				for (const o of ops) ctx.store.updateShape(o.id, o.next);
-			},
-			undo: () => {
-				for (const o of ops) ctx.store.updateShape(o.id, o.prev);
-			},
-		};
-		ctx.commands.execute(command);
-	}
-
 	function placeIcon(ctx: ToolContext, event: CanvasPointerEvent): void {
 		const { iconKey } = toolStateStore.get();
 		const def = ICONS_BY_KEY.get(iconKey);
@@ -290,7 +219,7 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 				placeIcon(ctx, event);
 				return;
 			}
-			if (mode === "generate" || mode === "range-erase") {
+			if (mode === "generate") {
 				genDrag = { x0: event.worldPoint.x, y0: event.worldPoint.y };
 				genStateStore.set({
 					pendingRect: { x: event.worldPoint.x, y: event.worldPoint.y, w: 0, h: 0 },
@@ -368,15 +297,11 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 						maxC: Math.ceil((rect.x + rect.w) / tile) - 1,
 						maxR: Math.ceil((rect.y + rect.h) / tile) - 1,
 					};
-					if (toolStateStore.get().mode === "range-erase") {
-						eraseRangeBox(ctx, box);
-					} else {
-						const gs = genStateStore.get();
-						generateIntoBox(
-							{ store: ctx.store, commands: ctx.commands, tile },
-							{ generatorId: gs.algorithmId, seed: gs.seed, params: gs.params, box },
-						);
-					}
+					const gs = genStateStore.get();
+					generateIntoBox(
+						{ store: ctx.store, commands: ctx.commands, tile },
+						{ generatorId: gs.algorithmId, seed: gs.seed, params: gs.params, box },
+					);
 				}
 				return;
 			}

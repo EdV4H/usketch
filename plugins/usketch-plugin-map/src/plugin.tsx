@@ -7,6 +7,7 @@ import { MapTerrainLayer } from "./map-layer.js";
 import { createMapToolDefinition } from "./map-tool.js";
 import { MAP_TOOL_ID } from "./map-tool-id.js";
 import type { ColorMode } from "./palette.js";
+import { createRangeEraseToolDefinition, RANGE_ERASE_TOOL_ID } from "./range-erase-tool.js";
 import { type LineStyle, renderConfigStore } from "./render-config.js";
 import { EnterBanner } from "./team/enter-banner.js";
 import { TeamAreaLayer } from "./team/team-layer.js";
@@ -67,8 +68,9 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				render: () => <EnterBanner store={ctx.store} tile={tile} />,
 			});
 
-			// ── Tool ──
+			// ── Tools ──
 			ctx.tools.register(MAP_TOOL_ID, createMapToolDefinition(tile));
+			ctx.tools.register(RANGE_ERASE_TOOL_ID, createRangeEraseToolDefinition(tile));
 
 			// ── Palette (shown while the map tool is active) ──
 			ctx.layers.register({
