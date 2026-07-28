@@ -27,6 +27,15 @@ import { genStateStore } from "./gen-state.js";
 import { generateIntoBox, resolveTilemap } from "./generate.js";
 import { ICONS_BY_KEY } from "./icons.js";
 import { MAP_ICON_TYPE, makeMapIcon } from "./map-icon-shape.js";
+import type { OwnerMap } from "./team/team-map-shape.js";
+import {
+	applyOwner,
+	assignIsland,
+	commitOwner,
+	currentOwner,
+	resolveTeamMap,
+} from "./team/team-ops.js";
+import { teamStateStore } from "./team/team-state.js";
 import { DEFAULT_TILE, type TileMapShapeData } from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
 
@@ -62,6 +71,28 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 	let lastKey = "";
 	// Range-select drag for the "generate" submode (world start point).
 	let genDrag: { x0: number; y0: number } | null = null;
+	// Team-ownership paint stroke (team submode = assign/erase).
+	let teamStroke: { teamMapId: string; prevOwner: OwnerMap } | null = null;
+	let lastTeamKey = "";
+
+	function paintOwnerAt(ctx: ToolContext, event: CanvasPointerEvent): void {
+		if (!teamStroke) return;
+		const { activeTeamId, mode } = teamStateStore.get();
+		if (mode === "assign" && !activeTeamId) return;
+		const [c, r] = worldToCell(event.worldPoint.x, event.worldPoint.y, tile);
+		const key = cellKey(c, r);
+		if (key === lastTeamKey) return;
+		lastTeamKey = key;
+		const owner = currentOwner(ctx.store, teamStroke.teamMapId);
+		if (mode === "erase") {
+			if (!(key in owner)) return;
+			delete owner[key];
+		} else {
+			if (owner[key] === activeTeamId) return;
+			owner[key] = activeTeamId as string;
+		}
+		applyOwner(ctx.store, teamStroke.teamMapId, owner, tile);
+	}
 
 	function currentCells(ctx: ToolContext, id: string): Cells {
 		const s = ctx.store.getShape(id) as TileMapShapeData | undefined;
@@ -195,6 +226,21 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 				});
 				return;
 			}
+			if (mode === "team") {
+				const ts = teamStateStore.get();
+				const deps = { store: ctx.store, commands: ctx.commands, tile };
+				if (ts.mode === "island") {
+					if (ts.activeTeamId)
+						assignIsland(deps, event.worldPoint.x, event.worldPoint.y, ts.activeTeamId);
+					return;
+				}
+				if (ts.mode === "assign" && !ts.activeTeamId) return; // pick a team first
+				const { id } = resolveTeamMap(ctx.store, tile);
+				teamStroke = { teamMapId: id, prevOwner: currentOwner(ctx.store, id) };
+				lastTeamKey = "";
+				paintOwnerAt(ctx, event);
+				return;
+			}
 			// Eraser: clicking a placed icon removes it (icons aren't terrain cells).
 			if (mode === "eraser") {
 				const iconId = findMapIconAt(ctx, event.worldPoint.x, event.worldPoint.y);
@@ -214,6 +260,10 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			else paintAt(ctx, event);
 		},
 		onPointerMove(ctx, event) {
+			if (teamStroke) {
+				paintOwnerAt(ctx, event);
+				return;
+			}
 			if (genDrag) {
 				const x = Math.min(genDrag.x0, event.worldPoint.x);
 				const y = Math.min(genDrag.y0, event.worldPoint.y);
@@ -227,6 +277,13 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			if (mode === "brush" || mode === "eraser") paintAt(ctx, event);
 		},
 		onPointerUp(ctx) {
+			if (teamStroke) {
+				const { teamMapId, prevOwner } = teamStroke;
+				teamStroke = null;
+				lastTeamKey = "";
+				commitOwner({ store: ctx.store, commands: ctx.commands, tile }, teamMapId, prevOwner);
+				return;
+			}
 			if (genDrag) {
 				const rect = genStateStore.get().pendingRect;
 				genDrag = null;
@@ -255,6 +312,12 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			if (genDrag) {
 				genDrag = null;
 				genStateStore.set({ pendingRect: null });
+			}
+			if (teamStroke) {
+				// Roll the live ownership edits back to the stroke start, then clear.
+				applyOwner(ctx.store, teamStroke.teamMapId, teamStroke.prevOwner, tile);
+				teamStroke = null;
+				lastTeamKey = "";
 			}
 			// Tool switched / left mid-stroke with no pointerUp: don't leave a
 			// half-painted, non-undoable state. Roll the live edits back to where

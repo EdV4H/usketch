@@ -173,7 +173,7 @@ function renderCells(
 }
 
 /** Visible world rect from the current viewport (best-effort, window-sized). */
-function visibleWorldRect(store: BoardStore): DOMRectReadOnly | null {
+export function visibleWorldRect(store: BoardStore): DOMRectReadOnly | null {
 	if (typeof window === "undefined") return null;
 	const vp = store.getViewport();
 	const pad = 64;
