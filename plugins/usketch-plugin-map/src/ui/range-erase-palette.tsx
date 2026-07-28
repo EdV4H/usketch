@@ -2,6 +2,7 @@
 // range clears (terrain / team ownership — multi-select).
 import type { BoardStore } from "@edv4h/usketch-shared";
 import { useEffect, useState } from "react";
+import { MAP_TOOL_ID } from "../map-tool-id.js";
 import { rangeEraseStore, useRangeEraseTargets } from "../range-erase-state.js";
 import { RANGE_ERASE_TOOL_ID } from "../range-erase-tool.js";
 
@@ -70,6 +71,21 @@ export function RangeErasePalette({ store }: { store: BoardStore }) {
 						チーム
 					</button>
 				</div>
+				<button
+					type="button"
+					onClick={() => store.setActiveToolId(MAP_TOOL_ID)}
+					style={{
+						marginTop: 12,
+						border: `2px solid ${STROKE}`,
+						borderRadius: 10,
+						background: CARD,
+						padding: "5px 12px",
+						font: "700 12px system-ui, sans-serif",
+						cursor: "pointer",
+					}}
+				>
+					← マップツールへ
+				</button>
 			</div>
 		</div>
 	);

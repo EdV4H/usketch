@@ -10,6 +10,7 @@ import { ICON_CATEGORIES, ICONS, type IconCategory } from "../icons.js";
 import { WOBBLE_FILTER_ID } from "../map-layer.js";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
 import { terrainCssVars } from "../palette.js";
+import { RANGE_ERASE_TOOL_ID } from "../range-erase-tool.js";
 import { renderConfigStore, useRenderConfig } from "../render-config.js";
 import { renderSvgNodes } from "../svg-nodes.js";
 import { createTeam, getTeamMap } from "../team/team-ops.js";
@@ -130,6 +131,14 @@ export function MapPalette({
 							{m.label}
 						</button>
 					))}
+					{/* Range-erase is a separate tool; switch to it from here too. */}
+					<button
+						type="button"
+						onClick={() => store.setActiveToolId(RANGE_ERASE_TOOL_ID)}
+						style={chipStyle(false)}
+					>
+						範囲消去
+					</button>
 				</div>
 
 				{/* Terrain palette (brush/eraser/fill) */}
