@@ -74,15 +74,7 @@ export function RangeErasePalette({ store }: { store: BoardStore }) {
 				<button
 					type="button"
 					onClick={() => store.setActiveToolId(MAP_TOOL_ID)}
-					style={{
-						marginTop: 12,
-						border: `2px solid ${STROKE}`,
-						borderRadius: 10,
-						background: CARD,
-						padding: "5px 12px",
-						font: "700 12px system-ui, sans-serif",
-						cursor: "pointer",
-					}}
+					style={{ ...toggle(false), marginTop: 12 }}
 				>
 					← マップツールへ
 				</button>
