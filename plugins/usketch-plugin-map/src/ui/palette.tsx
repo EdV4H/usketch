@@ -320,7 +320,7 @@ export function MapPalette({
 				{/* Range erase */}
 				{tool.mode === "range-erase" && (
 					<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginBottom: 12 }}>
-						キャンバスをドラッグした範囲の地形をまとめて消去します
+						キャンバスをドラッグした範囲の地形とチームエリアをまとめて消去します
 					</div>
 				)}
 
