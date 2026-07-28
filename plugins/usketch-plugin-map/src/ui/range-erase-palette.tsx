@@ -37,14 +37,12 @@ export function RangeErasePalette({ store }: { store: BoardStore }) {
 		<div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
 			{/* Stop panel-originated events from bubbling to the canvas container,
 			    which would otherwise fire the active tool (erasing tiles under the
-			    panel). Only pointerdown/click/wheel/contextmenu are stopped — move/up
-			    are let through so a drag STARTED on the canvas and released over the
-			    panel still finishes on the canvas. Mirrors debug-hud's STOP_CANVAS_PROPAGATION. */}
+			    panel). Only pointerdown + wheel are stopped — move/up are let through
+			    so a drag STARTED on the canvas and released over the panel still
+			    finishes on the canvas. Same intent as debug-hud's STOP_CANVAS_PROPAGATION. */}
 			<div
 				onPointerDown={(e) => e.stopPropagation()}
-				onClick={(e) => e.stopPropagation()}
 				onWheel={(e) => e.stopPropagation()}
-				onContextMenu={(e) => e.stopPropagation()}
 				style={{
 					position: "absolute",
 					left: 14,
