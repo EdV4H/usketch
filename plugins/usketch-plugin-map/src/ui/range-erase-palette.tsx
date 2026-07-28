@@ -55,6 +55,7 @@ export function RangeErasePalette({ store }: { store: BoardStore }) {
 				<div style={{ display: "flex", gap: 8 }}>
 					<button
 						type="button"
+						aria-pressed={targets.terrain}
 						onClick={() => rangeEraseStore.set({ terrain: !targets.terrain })}
 						style={toggle(targets.terrain)}
 					>
@@ -62,6 +63,7 @@ export function RangeErasePalette({ store }: { store: BoardStore }) {
 					</button>
 					<button
 						type="button"
+						aria-pressed={targets.team}
 						onClick={() => rangeEraseStore.set({ team: !targets.team })}
 						style={toggle(targets.team)}
 					>
