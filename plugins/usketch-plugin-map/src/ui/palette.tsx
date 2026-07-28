@@ -99,12 +99,17 @@ export function MapPalette({
 
 	return (
 		<div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-			{/* Stop pointer events from bubbling to the canvas container, which would
-			    otherwise fire the active tool (painting terrain / adding icons). */}
+			{/* Stop panel-originated events from bubbling to the canvas container,
+			    which would otherwise fire the active tool (painting terrain / adding
+			    icons) or zoom while scrolling the panel. Only pointerdown/click/wheel/
+			    contextmenu are stopped — move/up are let through so a drag STARTED on
+			    the canvas and released over the panel still finishes on the canvas
+			    (no pointer capture is taken). Mirrors debug-hud's STOP_CANVAS_PROPAGATION. */}
 			<div
 				onPointerDown={(e) => e.stopPropagation()}
-				onPointerMove={(e) => e.stopPropagation()}
-				onPointerUp={(e) => e.stopPropagation()}
+				onClick={(e) => e.stopPropagation()}
+				onWheel={(e) => e.stopPropagation()}
+				onContextMenu={(e) => e.stopPropagation()}
 				style={{
 					position: "absolute",
 					left: 14,
