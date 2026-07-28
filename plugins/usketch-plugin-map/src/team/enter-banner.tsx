@@ -4,6 +4,8 @@
 // a persistent current-area chip. No sync — presentation only.
 import type { BoardStore } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
+import { MAP_TOOL_ID } from "../map-tool-id.js";
+import { useMapToolState } from "../tool-state.js";
 import type { TeamInfo } from "./team-map-shape.js";
 import { getTeamMap, teamIdAtWorld } from "./team-ops.js";
 
@@ -20,12 +22,27 @@ function viewportCenterWorld(store: BoardStore): { x: number; y: number } | null
 }
 
 export function EnterBanner({ store, tile }: { store: BoardStore; tile: number }) {
+	const tool = useMapToolState();
+	const [activeTool, setActiveTool] = useState(store.getActiveToolId());
 	const [current, setCurrent] = useState<TeamInfo | null>(null);
 	const [banner, setBanner] = useState<TeamInfo | null>(null);
 	const [bannerKey, setBannerKey] = useState(0);
 	const prevRef = useRef<string | null>(null);
 	const rafRef = useRef(0);
 	const timerRef = useRef(0);
+
+	// Only show the team indicator while actually in team mode (map tool + team submode).
+	useEffect(() => store.subscribe(() => setActiveTool(store.getActiveToolId())), [store]);
+	const inTeamMode = activeTool === MAP_TOOL_ID && tool.mode === "team";
+
+	// Leaving team mode clears any in-flight entry banner + timeout so a stale
+	// banner can't reappear when returning to team mode before it fades.
+	useEffect(() => {
+		if (!inTeamMode) {
+			clearTimeout(timerRef.current);
+			setBanner(null);
+		}
+	}, [inTeamMode]);
 
 	useEffect(() => {
 		const update = () => {
@@ -58,7 +75,7 @@ export function EnterBanner({ store, tile }: { store: BoardStore; tile: number }
 		};
 	}, [store, tile]);
 
-	if (!current && !banner) return null;
+	if (!inTeamMode || (!current && !banner)) return null;
 
 	return (
 		<div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
