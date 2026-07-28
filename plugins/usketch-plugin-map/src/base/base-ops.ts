@@ -1,22 +1,22 @@
-// Team-area operations: pure helpers (ownership lookup, island flood, label
-// anchors) + store-mutating commands (create team, assign/erase ownership,
-// assign an island). Ownership lives in the synced `team-map` shape.
+// Base-area operations: pure helpers (ownership lookup, island flood, label
+// anchors) + store-mutating commands (create base, assign/erase ownership,
+// assign an island). Ownership lives in the synced `base-map` shape.
 import type { BoardStore, Command, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
 import { type Cells, cellKey, parseCellKey, worldToCell } from "../autotile.js";
 import { isTileMap, type TileMapShapeData } from "../tilemap-shape.js";
 import {
-	isTeamMap,
-	makeTeamMap,
+	type BaseInfo,
+	type BaseMapShapeData,
+	isBaseMap,
+	makeBaseMap,
 	type OwnerMap,
 	ownerBounds,
-	type TeamInfo,
-	type TeamMapShapeData,
-} from "./team-map-shape.js";
+} from "./base-map-shape.js";
 
 const MAX_ISLAND_CELLS = 100_000; // safety bound for the flood
 
-export interface TeamDeps {
+export interface BaseDeps {
 	store: BoardStore;
 	commands: CommandRegistry;
 	tile: number;
@@ -24,8 +24,8 @@ export interface TeamDeps {
 
 // ── Pure ─────────────────────────────────────────────────────────────────────
 
-/** Team id owning the cell at a world point, or null. */
-export function teamIdAtWorld(owner: OwnerMap, x: number, y: number, tile: number): string | null {
+/** Base id owning the cell at a world point, or null. */
+export function baseIdAtWorld(owner: OwnerMap, x: number, y: number, tile: number): string | null {
 	const [c, r] = worldToCell(x, y, tile);
 	return owner[cellKey(c, r)] ?? null;
 }
@@ -62,7 +62,7 @@ export function landRegionFrom(terrainCells: Cells, startCol: number, startRow: 
 	return out;
 }
 
-/** Shallow equality of two ownership maps (same keys + team ids). */
+/** Shallow equality of two ownership maps (same keys + base ids). */
 export function ownersEqual(a: OwnerMap, b: OwnerMap): boolean {
 	const ak = Object.keys(a);
 	if (ak.length !== Object.keys(b).length) return false;
@@ -70,30 +70,30 @@ export function ownersEqual(a: OwnerMap, b: OwnerMap): boolean {
 	return true;
 }
 
-export interface TeamRegionAnchor {
-	teamId: string;
+export interface BaseRegionAnchor {
+	baseId: string;
 	name: string;
 	color: string;
-	/** Label anchor in world coords (centre of the team's owned-cell bbox). */
+	/** Label anchor in world coords (centre of the base's owned-cell bbox). */
 	x: number;
 	y: number;
 	count: number;
 }
 
-/** One label anchor per team that owns at least one cell. */
-export function teamRegionAnchors(
+/** One label anchor per base that owns at least one cell. */
+export function baseRegionAnchors(
 	owner: OwnerMap,
-	teams: Record<string, TeamInfo>,
+	bases: Record<string, BaseInfo>,
 	tile: number,
-): TeamRegionAnchor[] {
+): BaseRegionAnchor[] {
 	const acc = new Map<
 		string,
 		{ minC: number; minR: number; maxC: number; maxR: number; n: number }
 	>();
-	for (const [key, teamId] of Object.entries(owner)) {
+	for (const [key, baseId] of Object.entries(owner)) {
 		const [c, r] = parseCellKey(key);
-		const a = acc.get(teamId);
-		if (!a) acc.set(teamId, { minC: c, minR: r, maxC: c, maxR: r, n: 1 });
+		const a = acc.get(baseId);
+		if (!a) acc.set(baseId, { minC: c, minR: r, maxC: c, maxR: r, n: 1 });
 		else {
 			a.minC = Math.min(a.minC, c);
 			a.minR = Math.min(a.minR, r);
@@ -102,12 +102,12 @@ export function teamRegionAnchors(
 			a.n++;
 		}
 	}
-	const out: TeamRegionAnchor[] = [];
-	for (const [teamId, a] of acc) {
-		const info = teams[teamId];
+	const out: BaseRegionAnchor[] = [];
+	for (const [baseId, a] of acc) {
+		const info = bases[baseId];
 		if (!info) continue;
 		out.push({
-			teamId,
+			baseId,
 			name: info.name,
 			color: info.color,
 			x: ((a.minC + a.maxC + 1) / 2) * tile,
@@ -120,18 +120,18 @@ export function teamRegionAnchors(
 
 // ── Store ops ────────────────────────────────────────────────────────────────
 
-/** The single shared team-map, creating it (live) if none exists yet. */
-export function resolveTeamMap(store: BoardStore, tile: number): { id: string; created: boolean } {
+/** The single shared base-map, creating it (live) if none exists yet. */
+export function resolveBaseMap(store: BoardStore, tile: number): { id: string; created: boolean } {
 	for (const [, s] of store.getShapes()) {
-		if (isTeamMap(s)) return { id: s.id, created: false };
+		if (isBaseMap(s)) return { id: s.id, created: false };
 	}
-	const tm = makeTeamMap(tile);
+	const tm = makeBaseMap(tile);
 	store.addShape(tm);
 	return { id: tm.id, created: true };
 }
 
-export function getTeamMap(store: BoardStore): TeamMapShapeData | undefined {
-	for (const [, s] of store.getShapes()) if (isTeamMap(s)) return s;
+export function getBaseMap(store: BoardStore): BaseMapShapeData | undefined {
+	for (const [, s] of store.getShapes()) if (isBaseMap(s)) return s;
 	return undefined;
 }
 
@@ -140,24 +140,24 @@ function findTilemap(store: BoardStore): TileMapShapeData | undefined {
 	return undefined;
 }
 
-/** Create a new team (name + color); returns its id. Undoable. */
-export function createTeam(deps: TeamDeps, name: string, color: string): string {
-	const { id } = resolveTeamMap(deps.store, deps.tile);
-	const shape = deps.store.getShape(id) as TeamMapShapeData | undefined;
-	const teamId = generateId();
-	const prevTeams = { ...(shape?.teams ?? {}) };
-	const nextTeams = { ...prevTeams, [teamId]: { name, color } };
+/** Create a new base (name + color); returns its id. Undoable. */
+export function createBase(deps: BaseDeps, name: string, color: string): string {
+	const { id } = resolveBaseMap(deps.store, deps.tile);
+	const shape = deps.store.getShape(id) as BaseMapShapeData | undefined;
+	const baseId = generateId();
+	const prevBases = { ...(shape?.bases ?? {}) };
+	const nextBases = { ...prevBases, [baseId]: { name, color } };
 	const command: Command = {
-		execute: () => deps.store.updateShape(id, { teams: nextTeams } as Partial<ShapeData>),
-		undo: () => deps.store.updateShape(id, { teams: prevTeams } as Partial<ShapeData>),
+		execute: () => deps.store.updateShape(id, { bases: nextBases } as Partial<ShapeData>),
+		undo: () => deps.store.updateShape(id, { bases: prevBases } as Partial<ShapeData>),
 	};
 	deps.commands.execute(command);
-	return teamId;
+	return baseId;
 }
 
-/** Live owner snapshot (copy) of the team-map. */
+/** Live owner snapshot (copy) of the base-map. */
 export function currentOwner(store: BoardStore, id: string): OwnerMap {
-	const s = store.getShape(id) as TeamMapShapeData | undefined;
+	const s = store.getShape(id) as BaseMapShapeData | undefined;
 	return s ? { ...s.owner } : {};
 }
 
@@ -167,8 +167,8 @@ export function applyOwner(store: BoardStore, id: string, owner: OwnerMap, tile:
 }
 
 /** Commit an owner change as one undoable command (undo restores `prevOwner`). */
-export function commitOwner(deps: TeamDeps, id: string, prevOwner: OwnerMap): void {
-	const shape = deps.store.getShape(id) as TeamMapShapeData | undefined;
+export function commitOwner(deps: BaseDeps, id: string, prevOwner: OwnerMap): void {
+	const shape = deps.store.getShape(id) as BaseMapShapeData | undefined;
 	const nextOwner = { ...(shape?.owner ?? {}) };
 	if (ownersEqual(prevOwner, nextOwner)) return; // no change → no undo entry
 	const prev = prevOwner;
@@ -182,19 +182,19 @@ export function commitOwner(deps: TeamDeps, id: string, prevOwner: OwnerMap): vo
 }
 
 /**
- * Assign the connected land region (island) under a world point to a team, as
+ * Assign the connected land region (island) under a world point to a base, as
  * one undoable command. No-op if there's no tilemap or the point isn't land.
  */
-export function assignIsland(deps: TeamDeps, x: number, y: number, teamId: string): void {
+export function assignIsland(deps: BaseDeps, x: number, y: number, baseId: string): void {
 	const tilemap = findTilemap(deps.store);
 	if (!tilemap) return;
 	const [c, r] = worldToCell(x, y, tilemap.tile ?? deps.tile);
 	const keys = landRegionFrom(tilemap.cells, c, r);
 	if (keys.length === 0) return;
-	const { id } = resolveTeamMap(deps.store, deps.tile);
+	const { id } = resolveBaseMap(deps.store, deps.tile);
 	const prev = currentOwner(deps.store, id);
 	const next: OwnerMap = { ...prev };
-	for (const k of keys) next[k] = teamId;
+	for (const k of keys) next[k] = baseId;
 	const prevB = ownerBounds(prev, deps.tile);
 	const nextB = ownerBounds(next, deps.tile);
 	const command: Command = {

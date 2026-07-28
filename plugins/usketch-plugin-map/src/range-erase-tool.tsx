@@ -1,4 +1,4 @@
-// The `range-erase` tool: drag a rectangle to clear the terrain + team ownership
+// The `range-erase` tool: drag a rectangle to clear the terrain + base ownership
 // inside it. A standalone tool (its own radial-menu entry + shortcut), separate
 // from the map paint tool. Reuses the shared drag-rect preview (gen-state's
 // pendingRect, drawn by the MapLayer).

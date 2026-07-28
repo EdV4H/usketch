@@ -1,5 +1,5 @@
 // Small palette shown while the range-erase tool is active: pick what a dragged
-// range clears (terrain / team ownership — multi-select).
+// range clears (terrain / base ownership — multi-select).
 import type { BoardStore } from "@edv4h/usketch-shared";
 import { useEffect, useState } from "react";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
@@ -71,11 +71,11 @@ export function RangeErasePalette({ store }: { store: BoardStore }) {
 					</button>
 					<button
 						type="button"
-						aria-pressed={targets.team}
-						onClick={() => rangeEraseStore.set({ team: !targets.team })}
-						style={toggle(targets.team)}
+						aria-pressed={targets.base}
+						onClick={() => rangeEraseStore.set({ base: !targets.base })}
+						style={toggle(targets.base)}
 					>
-						チーム
+						拠点
 					</button>
 				</div>
 				<button
