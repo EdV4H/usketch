@@ -8,6 +8,7 @@ import type {
 	ShapeData,
 } from "@edv4h/usketch-shared";
 import { type CellBox, cellsBounds, parseCellKey } from "./autotile.js";
+import type { RangeEraseTargets } from "./range-erase-state.js";
 import { isTeamMap, ownerBounds, type TeamMapShapeData } from "./team/team-map-shape.js";
 import { isTileMap, type TileMapShapeData } from "./tilemap-shape.js";
 
@@ -49,9 +50,17 @@ function boxClearOp<M extends Record<string, string>>(
 	};
 }
 
-/** Clear terrain + team ownership inside `box` as one undoable command (no-op if empty). */
-export function eraseRangeBox(deps: RangeEraseDeps, box: CellBox): void {
+/**
+ * Clear the selected targets (terrain and/or team ownership) inside `box` as one
+ * undoable command (no-op if nothing is selected or nothing changes).
+ */
+export function eraseRangeBox(
+	deps: RangeEraseDeps,
+	box: CellBox,
+	targets: RangeEraseTargets,
+): void {
 	const { store, commands, tile } = deps;
+	if (!targets.terrain && !targets.team) return;
 	// tilemap / team-map are single shared substrates (like resolveTilemap /
 	// resolveTeamMap), so target the first of each.
 	let tilemap: TileMapShapeData | undefined;
@@ -63,12 +72,12 @@ export function eraseRangeBox(deps: RangeEraseDeps, box: CellBox): void {
 	}
 	const ops: ClearOp[] = [];
 	// Use each shape's own tile size (boards may differ from the tool default).
-	if (tilemap) {
+	if (targets.terrain && tilemap) {
 		const t = tilemap.tile ?? tile;
 		const op = boxClearOp(tilemap.id, tilemap.cells, "cells", box, (m) => cellsBounds(m, t));
 		if (op) ops.push(op);
 	}
-	if (teammap) {
+	if (targets.team && teammap) {
 		const t = teammap.tile ?? tile;
 		const op = boxClearOp(teammap.id, teammap.owner, "owner", box, (m) => ownerBounds(m, t));
 		if (op) ops.push(op);
