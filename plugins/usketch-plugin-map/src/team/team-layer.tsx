@@ -128,10 +128,12 @@ export function TeamAreaLayer({
 	}, [store]);
 
 	// Territory paint is only shown while actually in team mode (map tool + team
-	// submode) — mirrors the EnterBanner indicator gating.
+	// submode) — mirrors the EnterBanner indicator gating. Check the mode first so
+	// we skip the shape scan in getTeamMap on every non-team-mode re-render.
 	const inTeamMode = store.getActiveToolId() === MAP_TOOL_ID && tool.mode === "team";
+	if (!inTeamMode) return null;
 	const team = getTeamMap(store);
-	if (!inTeamMode || !team || Object.keys(team.owner).length === 0) return null;
+	if (!team || Object.keys(team.owner).length === 0) return null;
 
 	const vp = store.getViewport();
 	const visible = visibleWorldRect(store);
