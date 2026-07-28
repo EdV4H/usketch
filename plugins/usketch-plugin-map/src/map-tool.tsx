@@ -21,6 +21,7 @@ import {
 	cellKey,
 	cellsBounds,
 	floodFill,
+	parseCellKey,
 	worldToCell,
 } from "./autotile.js";
 import { genStateStore } from "./gen-state.js";
@@ -210,19 +211,18 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		}
 		if (!tilemap) return;
 		const id = tilemap.id;
-		const prev = { ...tilemap.cells };
-		const next = { ...prev };
-		let changed = false;
-		for (let r = box.minR; r <= box.maxR; r++) {
-			for (let c = box.minC; c <= box.maxC; c++) {
-				const k = cellKey(c, r);
-				if (k in next) {
-					delete next[k];
-					changed = true;
-				}
-			}
+		const cells = tilemap.cells;
+		// Cells are sparse, so scan the existing keys (bounded by painted cells)
+		// rather than every cell in the box (which can be huge for a big drag).
+		const toDelete: string[] = [];
+		for (const key of Object.keys(cells)) {
+			const [c, r] = parseCellKey(key);
+			if (c >= box.minC && c <= box.maxC && r >= box.minR && r <= box.maxR) toDelete.push(key);
 		}
-		if (!changed) return;
+		if (toDelete.length === 0) return; // no-op → don't clone or commit
+		const prev = { ...cells };
+		const next = { ...cells };
+		for (const k of toDelete) delete next[k];
 		const prevBounds = cellsBounds(prev, tile);
 		const nextBounds = cellsBounds(next, tile);
 		const command: Command = {
