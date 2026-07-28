@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-shape-openui",
-	"version": "1.0.6",
+	"version": "1.0.7",
 	"description": "Experimental OpenUI shape plugin: render Generative UI (OpenUI Lang) as a uSketch shape via @openuidev/react-lang's Renderer.",
 	"type": "module",
 	"main": "./dist/index.js",

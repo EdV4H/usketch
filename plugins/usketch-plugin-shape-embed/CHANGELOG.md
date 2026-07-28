@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-shape-embed
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [a2cf227]
+- Updated dependencies [759e7be]
+- Updated dependencies [4764580]
+  - @edv4h/usketch-shared@4.6.0
+  - @edv4h/usketch-store@3.4.0
+
 ## 0.1.0
 
 ### Minor Changes
