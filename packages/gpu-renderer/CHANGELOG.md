@@ -1,5 +1,20 @@
 # @edv4h/usketch-gpu-renderer
 
+## 2.1.0
+
+### Minor Changes
+
+- 31fc57b: HUD テレメトリ移設（第1弾）: GPU 統計を gpu-renderer 所有の HUD パネルへ移設。
+  - gpu-renderer が `ctx.hud.registerPanel` で「GPU」パネル（Active/Inactive＋counts）を登録するようになり、Debug/Control HUD 側の GPU 専用セクション（`"gpu-renderer:stats"` イベントへのハードコード結合）を除去。
+  - GPU 統計は Controls ドックの gpu-renderer プラグインセクションに表示される（GeneralPanel からは削除）。GPU 描画ロジックは無変更。
+
+### Patch Changes
+
+- Updated dependencies [a2cf227]
+- Updated dependencies [759e7be]
+- Updated dependencies [4764580]
+  - @edv4h/usketch-shared@4.6.0
+
 ## 2.0.6
 
 ### Patch Changes

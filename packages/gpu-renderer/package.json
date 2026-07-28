@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-gpu-renderer",
-	"version": "2.0.6",
+	"version": "2.1.0",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

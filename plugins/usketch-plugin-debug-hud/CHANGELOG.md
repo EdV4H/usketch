@@ -1,5 +1,47 @@
 # @edv4h/usketch-plugin-debug-hud
 
+## 3.3.0
+
+### Minor Changes
+
+- a2cf227: Debug/Control HUD をプラグイン自動判定＋宣言的コントロール基盤にリファクタ（基盤のみ。GPU/Sync/Members/Board-meta のハードコード除去は後続）。
+  - **プラグイン属性付け（自動判定）**: `createApp` が各プラグインに scoped context を渡し、`ctx.actions` / 新設 `ctx.hud` への登録に **所有プラグイン id を透過的に付与**（プラグイン側の変更不要）。`ActionRegistry.getOrdered()` が `pluginId` を返すように拡張。
+  - **`ctx.hud`（新設 `HudRegistry`）**: プラグインが宣言的に HUD へ貢献する口。
+    - `registerSettings(descriptor)` — **ライブ双方向 settings**（`fields`＋`get/set/subscribe`）。スライダー等が現在値を追従し即反映。
+    - `registerPanel(panel)` — 任意 React のカスタムパネル（テレメトリ/独自 UI 用）。
+  - **`ctx.plugins`（`PluginInfoRegistry`）**: アクティブなプラグインの `{id,name}` 読み取りビュー。
+  - **HUD 描画**: Controls を**プラグインごとのセクション**に再編。各プラグイン配下に settings（ライブ）＋actions＋カスタムパネルを集約し、`action.group` はサブ見出しへ（複数プラグインが同一 group を共有していた重複帰属を解消）。
+  - 既存の `ctx.actions.register` は無変更＝全既存プラグイン互換（プラグイン単位で自動整列される）。
+  - app の viewport-LOD コントロールを `ctx.hud.registerSettings` へ移行（ライブスライダー化）。
+
+### Patch Changes
+
+- 95bc622: HUD テレメトリ移設（第2弾）: Board メタ（タイトル / Cloud・Local / id）を app 所有の HUD パネルへ移設し、`globalThis.__usketchBoardMeta` を排除。
+  - web アプリに `createBoardMetaPanelPlugin`（`ctx.hud.registerPanel`）を追加。`boardMetaStore` を `apps/web/src/lib/board-meta-store.ts` へ切り出し（グローバル廃止、app が `set` で供給）。
+  - Debug/Control HUD の General パネルから Board セクション・`boardMeta` prop plumbing・`board-meta-types.ts`・`__usketchBoardMeta` 読み取りを削除。
+  - Board 情報は Controls ドックの Board プラグインセクションに表示される。
+
+- 31fc57b: HUD テレメトリ移設（第1弾）: GPU 統計を gpu-renderer 所有の HUD パネルへ移設。
+  - gpu-renderer が `ctx.hud.registerPanel` で「GPU」パネル（Active/Inactive＋counts）を登録するようになり、Debug/Control HUD 側の GPU 専用セクション（`"gpu-renderer:stats"` イベントへのハードコード結合）を除去。
+  - GPU 統計は Controls ドックの gpu-renderer プラグインセクションに表示される（GeneralPanel からは削除）。GPU 描画ロジックは無変更。
+
+- fc5b102: HUD テレメトリ移設（第3弾）: オンラインメンバー（presence）を app 所有の HUD パネルへ移設し、`globalThis.__usketchPresence` を排除。
+  - web アプリに `createPresencePanelPlugin`（`ctx.hud.registerPanel`）を追加。`presenceStore` と `readPresenceMembers` を `apps/web/src/lib/presence-store.ts` へ切り出し（グローバル廃止、app が awareness から `set` で供給）。
+  - Debug/Control HUD から Members パネル（`members-panel.tsx`）・`presence` prop plumbing・`presence-types.ts`・`__usketchPresence` 読み取りを削除。
+  - メンバー一覧は Controls ドックの Members プラグインセクションに表示（自分のみの時は「（自分のみ）」）。
+
+- 0829b2d: HUD テレメトリ移設（第4弾・最終）: Sync/Persistence 状態を app 所有の HUD パネルへ移設し、最後のグローバル `globalThis.__usketchSyncStatus` を完全排除。
+  - web アプリに `createSyncStatusPanelPlugin`（`ctx.hud.registerPanel`）を追加。`apps/web/src/lib/sync-status-store.ts` にトラッカー swap 対応の `syncStatusStore` を新設（base IDB→cloud divergence の切替を吸収）。app.tsx はグローバル代入を `syncStatusStore.setTracker(...)` に置換。
+  - Debug/Control HUD から sync 依存を完全撤去: General の Persistence 節、`syncStatus` prop 配線、ShapesPanel の未同期強調（⚠バッジ/フィルタ）、`sync-status-types.ts` を削除。分岐（未同期 shape）は既存の canvas `UnconfirmedOverlay`＋Sync パネルの「⚠ サーバ未同期 N件」で引き続き可視。
+  - sync プラグイン（localstorage-yjs / ywebsocket）の未読 `__usketchSyncStatus` set/delete（web アプリでは dead code）も削除。
+
+  これで `__usketch{SyncStatus,BoardMeta,Presence}` の3グローバルが全廃され、HUD テレメトリ移設シリーズが完了。
+
+- Updated dependencies [a2cf227]
+- Updated dependencies [759e7be]
+- Updated dependencies [4764580]
+  - @edv4h/usketch-shared@4.6.0
+
 ## 3.2.0
 
 ### Minor Changes

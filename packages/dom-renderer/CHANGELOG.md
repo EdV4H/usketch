@@ -1,5 +1,24 @@
 # @edv4h/usketch-dom-renderer
 
+## 2.1.0
+
+### Minor Changes
+
+- 4764580: **画角外シェイプの LOD 表示（per-shape viewport LOD）** を追加。カメラ画角の外にあるシェイプを簡略（LOD）描画してパフォーマンスを改善する。
+  - `LayerRenderContext` に `viewportBounds`（world 座標の可視領域）を追加。`canvas-engine` が `ResizeObserver` で計測した canvas サイズと viewport から算出し全レイヤーへ供給（GPU/minimap/カリングでも再利用可）。
+  - `@edv4h/usketch-shared` に純ヘルパー `getShapeAABB` / `rectsIntersect` / `scaleRectAboutCenter` / `isShapeOutsideViewport` を追加。
+  - `dom-renderer` の per-shape LOD 判定を「グローバル LOD（zoom/count/fps）**OR** 画角外」に拡張。画角外は既存の `simplifiedComponent ?? LodFallback` で簡略描画。
+  - `createDomRendererPlugin({ viewportLod })` で設定可能（既定 ON）。`viewportLod.ratio` = 本描画とする画角の割合（**既定 1.2**＝120% でポップイン緩衝、1.0=画角ちょうど、0.5=中央50%のみ本描画）。`false` で無効化。
+  - **実行中に調整可能**: `SET_VIEWPORT_LOD_EVENT`（`renderer:set-viewport-lod`, `{ enabled?, ratio? }`）を emit すると即座に反映（`layers:changed` で再描画）。web アプリは Control HUD（バッククォートで開くパネル）の「表示」グループに ON/OFF トグルと本描画範囲(%)の入力を追加し、値を localStorage に永続化。
+  - LOD は描画のみ。シェイプ data は不変で、画角外でも全件が snapshot/同期に残る。
+
+### Patch Changes
+
+- Updated dependencies [a2cf227]
+- Updated dependencies [759e7be]
+- Updated dependencies [4764580]
+  - @edv4h/usketch-shared@4.6.0
+
 ## 2.0.6
 
 ### Patch Changes
