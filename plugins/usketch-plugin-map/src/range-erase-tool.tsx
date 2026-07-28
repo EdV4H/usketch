@@ -6,6 +6,7 @@ import type { CanvasPointerEvent, ToolContext, ToolDefinition } from "@edv4h/usk
 import type { CellBox } from "./autotile.js";
 import { genStateStore } from "./gen-state.js";
 import { eraseRangeBox } from "./range-erase.js";
+import { rangeEraseStore } from "./range-erase-state.js";
 import { DEFAULT_TILE } from "./tilemap-shape.js";
 
 export const RANGE_ERASE_TOOL_ID = "range-erase";
@@ -65,7 +66,11 @@ export function createRangeEraseToolDefinition(tile: number = DEFAULT_TILE): Too
 					maxC: Math.ceil((rect.x + rect.w) / tile) - 1,
 					maxR: Math.ceil((rect.y + rect.h) / tile) - 1,
 				};
-				eraseRangeBox({ store: ctx.store, commands: ctx.commands, tile }, box);
+				eraseRangeBox(
+					{ store: ctx.store, commands: ctx.commands, tile },
+					box,
+					rangeEraseStore.get(),
+				);
 			}
 		},
 		onDeactivate() {

@@ -38,12 +38,15 @@ const teammap = {
 	owner: { "0,0": "red", "5,5": "red" },
 } as unknown as ShapeData;
 
+const ALL = { terrain: true, team: true };
+
 describe("eraseRangeBox", () => {
 	it("clears terrain + team ownership inside the box, and undo restores both", () => {
 		const h = makeHarness([structuredClone(tilemap), structuredClone(teammap)]);
 		eraseRangeBox(
 			{ store: h.store, commands: h.commands, tile: 40 },
 			{ minC: 0, minR: 0, maxC: 2, maxR: 2 }, // covers cell 0,0 but not 5,5
+			ALL,
 		);
 		expect((h.shapes.get("tm") as { cells: Record<string, string> }).cells).toEqual({
 			"5,5": "grass",
@@ -68,6 +71,34 @@ describe("eraseRangeBox", () => {
 		eraseRangeBox(
 			{ store: h.store, commands: h.commands, tile: 40 },
 			{ minC: 100, minR: 100, maxC: 110, maxR: 110 },
+			ALL,
+		);
+		expect(h.getLast()).toBeNull();
+	});
+
+	it("honours the target selection (team-only leaves terrain intact)", () => {
+		const h = makeHarness([structuredClone(tilemap), structuredClone(teammap)]);
+		eraseRangeBox(
+			{ store: h.store, commands: h.commands, tile: 40 },
+			{ minC: 0, minR: 0, maxC: 2, maxR: 2 },
+			{ terrain: false, team: true },
+		);
+		// terrain untouched, team cleared in box
+		expect((h.shapes.get("tm") as { cells: Record<string, string> }).cells).toEqual({
+			"0,0": "grass",
+			"5,5": "grass",
+		});
+		expect((h.shapes.get("tt") as { owner: Record<string, string> }).owner).toEqual({
+			"5,5": "red",
+		});
+	});
+
+	it("no-ops when no target is selected", () => {
+		const h = makeHarness([structuredClone(tilemap), structuredClone(teammap)]);
+		eraseRangeBox(
+			{ store: h.store, commands: h.commands, tile: 40 },
+			{ minC: 0, minR: 0, maxC: 9, maxR: 9 },
+			{ terrain: false, team: false },
 		);
 		expect(h.getLast()).toBeNull();
 	});
@@ -83,6 +114,7 @@ describe("eraseRangeBox", () => {
 		eraseRangeBox(
 			{ store: h.store, commands: h.commands, tile: 40 },
 			{ minC: 0, minR: 0, maxC: 0, maxR: 0 },
+			ALL,
 		);
 		// The second tilemap is untouched.
 		expect((h.shapes.get("tm2") as { cells: Record<string, string> }).cells).toEqual({

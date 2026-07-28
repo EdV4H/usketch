@@ -14,6 +14,7 @@ import { TeamAreaLayer } from "./team/team-layer.js";
 import { createTeamMapShapeDefinition, TEAM_MAP_TYPE } from "./team/team-map-shape.js";
 import { createTileMapShapeDefinition, DEFAULT_TILE, TILEMAP_TYPE } from "./tilemap-shape.js";
 import { MapPalette } from "./ui/palette.js";
+import { RangeErasePalette } from "./ui/range-erase-palette.js";
 
 export interface MapPluginOptions {
 	/** Tile size in world units. Default 40 (matches the design grid). */
@@ -26,6 +27,7 @@ const TERRAIN_LAYER_ID = "usketch-map:terrain";
 const TEAM_LAYER_ID = "usketch-map:team";
 const ENTER_BANNER_ID = "usketch-map:enter-banner";
 const PALETTE_LAYER_ID = "usketch-map:palette";
+const ERASE_PALETTE_LAYER_ID = "usketch-map:erase-palette";
 
 export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 	const tile = options.tile ?? DEFAULT_TILE;
@@ -79,6 +81,12 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				fixed: true,
 				render: () => <MapPalette store={ctx.store} commands={ctx.commands} tile={tile} />,
 			});
+			ctx.layers.register({
+				id: ERASE_PALETTE_LAYER_ID,
+				order: 196,
+				fixed: true,
+				render: () => <RangeErasePalette store={ctx.store} />,
+			});
 
 			// ── Tweaks as declarative HUD settings (mirror the palette) ──
 			const unregisterHud = ctx.hud.registerSettings({
@@ -120,6 +128,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				ctx.layers.unregister(TEAM_LAYER_ID);
 				ctx.layers.unregister(ENTER_BANNER_ID);
 				ctx.layers.unregister(PALETTE_LAYER_ID);
+				ctx.layers.unregister(ERASE_PALETTE_LAYER_ID);
 				unregisterHud();
 			};
 		},
