@@ -35,7 +35,12 @@ export function RangeErasePalette({ store }: { store: BoardStore }) {
 
 	return (
 		<div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+			{/* Stop pointer events from bubbling to the canvas container, which would
+			    otherwise fire the active tool (erasing tiles under the panel). */}
 			<div
+				onPointerDown={(e) => e.stopPropagation()}
+				onPointerMove={(e) => e.stopPropagation()}
+				onPointerUp={(e) => e.stopPropagation()}
 				style={{
 					position: "absolute",
 					left: 14,
