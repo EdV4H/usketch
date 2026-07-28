@@ -35,6 +35,15 @@ export function EnterBanner({ store, tile }: { store: BoardStore; tile: number }
 	useEffect(() => store.subscribe(() => setActiveTool(store.getActiveToolId())), [store]);
 	const inTeamMode = activeTool === MAP_TOOL_ID && tool.mode === "team";
 
+	// Leaving team mode clears any in-flight entry banner + timeout so a stale
+	// banner can't reappear when returning to team mode before it fades.
+	useEffect(() => {
+		if (!inTeamMode) {
+			clearTimeout(timerRef.current);
+			setBanner(null);
+		}
+	}, [inTeamMode]);
+
 	useEffect(() => {
 		const update = () => {
 			cancelAnimationFrame(rafRef.current);
