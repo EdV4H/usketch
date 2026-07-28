@@ -14,5 +14,11 @@ export {
 	type MapRenderConfig,
 	renderConfigStore,
 } from "./render-config.js";
+export {
+	type OwnerMap,
+	TEAM_MAP_TYPE,
+	type TeamInfo,
+	type TeamMapShapeData,
+} from "./team/team-map-shape.js";
 export { TERRAINS, type TerrainDef, type TerrainKey } from "./terrain.js";
 export { DEFAULT_TILE, TILEMAP_TYPE, type TileMapShapeData } from "./tilemap-shape.js";

@@ -8,6 +8,9 @@ import { createMapToolDefinition } from "./map-tool.js";
 import { MAP_TOOL_ID } from "./map-tool-id.js";
 import type { ColorMode } from "./palette.js";
 import { type LineStyle, renderConfigStore } from "./render-config.js";
+import { EnterBanner } from "./team/enter-banner.js";
+import { TeamAreaLayer } from "./team/team-layer.js";
+import { createTeamMapShapeDefinition, TEAM_MAP_TYPE } from "./team/team-map-shape.js";
 import { createTileMapShapeDefinition, DEFAULT_TILE, TILEMAP_TYPE } from "./tilemap-shape.js";
 import { MapPalette } from "./ui/palette.js";
 
@@ -19,6 +22,8 @@ export interface MapPluginOptions {
 }
 
 const TERRAIN_LAYER_ID = "usketch-map:terrain";
+const TEAM_LAYER_ID = "usketch-map:team";
+const ENTER_BANNER_ID = "usketch-map:enter-banner";
 const PALETTE_LAYER_ID = "usketch-map:palette";
 
 export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
@@ -35,16 +40,31 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 		name: "RPG マップ",
 
 		setup(ctx: PluginContext) {
-			// ── Shapes (tilemap = data-only substrate, map-icon = foreground) ──
+			// ── Shapes (tilemap + team-map = data-only substrates, map-icon = foreground) ──
 			ctx.shapes.register(TILEMAP_TYPE, createTileMapShapeDefinition(tile));
+			ctx.shapes.register(TEAM_MAP_TYPE, createTeamMapShapeDefinition(tile));
 			ctx.shapes.register(MAP_ICON_TYPE, mapIconShapeDefinition);
 
-			// ── Terrain MapLayer (renders behind all shapes) ──
+			// ── Terrain MapLayer (behind all shapes) ──
 			ctx.layers.register({
 				id: TERRAIN_LAYER_ID,
 				order: 40,
 				fixed: true,
 				render: (lctx) => <MapTerrainLayer store={ctx.store} renderMode={lctx.renderMode} />,
+			});
+
+			// ── Team areas (above terrain, below shapes) + enter banner overlay ──
+			ctx.layers.register({
+				id: TEAM_LAYER_ID,
+				order: 42,
+				fixed: true,
+				render: (lctx) => <TeamAreaLayer store={ctx.store} renderMode={lctx.renderMode} />,
+			});
+			ctx.layers.register({
+				id: ENTER_BANNER_ID,
+				order: 197,
+				fixed: true,
+				render: () => <EnterBanner store={ctx.store} tile={tile} />,
 			});
 
 			// ── Tool ──
@@ -95,6 +115,8 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 
 			return () => {
 				ctx.layers.unregister(TERRAIN_LAYER_ID);
+				ctx.layers.unregister(TEAM_LAYER_ID);
+				ctx.layers.unregister(ENTER_BANNER_ID);
 				ctx.layers.unregister(PALETTE_LAYER_ID);
 				unregisterHud();
 			};

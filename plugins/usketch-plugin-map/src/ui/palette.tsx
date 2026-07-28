@@ -12,8 +12,26 @@ import { MAP_TOOL_ID } from "../map-tool-id.js";
 import { terrainCssVars } from "../palette.js";
 import { renderConfigStore, useRenderConfig } from "../render-config.js";
 import { renderSvgNodes } from "../svg-nodes.js";
+import { createTeam, getTeamMap } from "../team/team-ops.js";
+import { type TeamMode, teamStateStore, useTeamState } from "../team/team-state.js";
 import { TERRAINS, terrainPatternId } from "../terrain.js";
 import { type MapMode, toolStateStore, useMapToolState } from "../tool-state.js";
+
+const TEAM_COLORS = [
+	"#EF5350",
+	"#4A7FB8",
+	"#6C5CD6",
+	"#2AA1A8",
+	"#F6C124",
+	"#25A05B",
+	"#F48CB4",
+	"#F0913E",
+];
+const TEAM_MODES: { id: TeamMode; label: string }[] = [
+	{ id: "assign", label: "割り当て" },
+	{ id: "erase", label: "消す" },
+	{ id: "island", label: "島に割当" },
+];
 
 const MODES: { id: MapMode; label: string }[] = [
 	{ id: "brush", label: "ブラシ" },
@@ -21,6 +39,7 @@ const MODES: { id: MapMode; label: string }[] = [
 	{ id: "fill", label: "塗りつぶし" },
 	{ id: "stamp", label: "アイコン" },
 	{ id: "generate", label: "生成" },
+	{ id: "team", label: "チーム" },
 ];
 
 function useActiveTool(store: BoardStore): string {
@@ -60,7 +79,10 @@ export function MapPalette({
 	const tool = useMapToolState();
 	const cfg = useRenderConfig();
 	const gen = useGenState();
+	const teamState = useTeamState();
 	const [cat, setCat] = useState<IconCategory>("landmark");
+	const [teamName, setTeamName] = useState("");
+	const [teamColor, setTeamColor] = useState(TEAM_COLORS[0]);
 
 	if (activeTool !== MAP_TOOL_ID) return null;
 
@@ -293,6 +315,118 @@ export function MapPalette({
 						</div>
 					</div>
 				)}
+
+				{/* Teams */}
+				{tool.mode === "team" &&
+					(() => {
+						const teamMap = getTeamMap(store);
+						const teams = teamMap ? Object.entries(teamMap.teams) : [];
+						const doCreate = () => {
+							const name = teamName.trim() || `チーム${teams.length + 1}`;
+							const id = createTeam({ store, commands, tile }, name, teamColor);
+							teamStateStore.set({ activeTeamId: id });
+							setTeamName("");
+						};
+						return (
+							<div style={{ marginBottom: 12 }}>
+								<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginBottom: 6 }}>
+									チーム
+								</div>
+								{/* Team list */}
+								<div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+									{teams.length === 0 && (
+										<span style={{ font: "600 11px system-ui", color: "#a6a6a4" }}>
+											まだチームがありません
+										</span>
+									)}
+									{teams.map(([id, info]) => (
+										<button
+											type="button"
+											key={id}
+											onClick={() => teamStateStore.set({ activeTeamId: id })}
+											style={{
+												display: "flex",
+												alignItems: "center",
+												gap: 5,
+												border: `2px solid ${teamState.activeTeamId === id ? STROKE : "#d3d5db"}`,
+												borderRadius: 20,
+												background: CARD,
+												padding: "4px 9px",
+												font: "700 12px system-ui",
+												cursor: "pointer",
+											}}
+										>
+											<span
+												style={{
+													width: 11,
+													height: 11,
+													borderRadius: "50%",
+													background: info.color,
+													flex: "none",
+												}}
+											/>
+											{info.name}
+										</button>
+									))}
+								</div>
+								{/* Create team */}
+								<div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+									<input
+										value={teamName}
+										placeholder="新しいチーム名"
+										onChange={(e) => setTeamName(e.target.value)}
+										onKeyDown={(e) => e.key === "Enter" && doCreate()}
+										style={{
+											flex: 1,
+											minWidth: 0,
+											border: `2px solid ${STROKE}`,
+											borderRadius: 8,
+											padding: "4px 6px",
+											font: "600 12px system-ui",
+										}}
+									/>
+									<button type="button" onClick={doCreate} style={chipStyle(true)}>
+										作成
+									</button>
+								</div>
+								<div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+									{TEAM_COLORS.map((col) => (
+										<button
+											type="button"
+											key={col}
+											onClick={() => setTeamColor(col)}
+											aria-label={col}
+											style={{
+												width: 20,
+												height: 20,
+												borderRadius: "50%",
+												background: col,
+												border: `2px solid ${teamColor === col ? STROKE : "#fff"}`,
+												cursor: "pointer",
+												padding: 0,
+											}}
+										/>
+									))}
+								</div>
+								{/* Mode */}
+								<div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+									{TEAM_MODES.map((m) => (
+										<button
+											type="button"
+											key={m.id}
+											onClick={() => teamStateStore.set({ mode: m.id })}
+											style={chipStyle(teamState.mode === m.id)}
+										>
+											{m.label}
+										</button>
+									))}
+								</div>
+								<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginTop: 8 }}>
+									チームを選び、地図をドラッグでエリアを塗る（島に割当はクリック）
+								</div>
+							</div>
+						);
+					})()}
 
 				{/* Tweaks */}
 				<div style={{ borderTop: `2px dashed ${STROKE}`, paddingTop: 10 }}>
