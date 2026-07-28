@@ -2,6 +2,9 @@
 // data-only `tilemap` shape, the foreground `map-icon` shape, the `map` tool
 // (brush/eraser/fill/stamp), the on-canvas palette, and the Tweaks HUD settings.
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import { BaseAreaLayer } from "./base/base-layer.js";
+import { BASE_MAP_TYPE, createBaseMapShapeDefinition } from "./base/base-map-shape.js";
+import { EnterBanner } from "./base/enter-banner.js";
 import { MAP_ICON_TYPE, mapIconShapeDefinition } from "./map-icon-shape.js";
 import { MapTerrainLayer } from "./map-layer.js";
 import { createMapToolDefinition } from "./map-tool.js";
@@ -9,9 +12,6 @@ import { MAP_TOOL_ID } from "./map-tool-id.js";
 import type { ColorMode } from "./palette.js";
 import { createRangeEraseToolDefinition, RANGE_ERASE_TOOL_ID } from "./range-erase-tool.js";
 import { type LineStyle, renderConfigStore } from "./render-config.js";
-import { EnterBanner } from "./team/enter-banner.js";
-import { TeamAreaLayer } from "./team/team-layer.js";
-import { createTeamMapShapeDefinition, TEAM_MAP_TYPE } from "./team/team-map-shape.js";
 import { TERRAINS, type TerrainKey } from "./terrain.js";
 import { createTileMapShapeDefinition, DEFAULT_TILE, TILEMAP_TYPE } from "./tilemap-shape.js";
 import { MapPalette } from "./ui/palette.js";
@@ -31,7 +31,7 @@ export interface MapPluginOptions {
 }
 
 const TERRAIN_LAYER_ID = "usketch-map:terrain";
-const TEAM_LAYER_ID = "usketch-map:team";
+const BASE_LAYER_ID = "usketch-map:base";
 const ENTER_BANNER_ID = "usketch-map:enter-banner";
 const PALETTE_LAYER_ID = "usketch-map:palette";
 const ERASE_PALETTE_LAYER_ID = "usketch-map:erase-palette";
@@ -51,9 +51,9 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 		name: "RPG マップ",
 
 		setup(ctx: PluginContext) {
-			// ── Shapes (tilemap + team-map = data-only substrates, map-icon = foreground) ──
+			// ── Shapes (tilemap + base-map = data-only substrates, map-icon = foreground) ──
 			ctx.shapes.register(TILEMAP_TYPE, createTileMapShapeDefinition(tile));
-			ctx.shapes.register(TEAM_MAP_TYPE, createTeamMapShapeDefinition(tile));
+			ctx.shapes.register(BASE_MAP_TYPE, createBaseMapShapeDefinition(tile));
 			ctx.shapes.register(MAP_ICON_TYPE, mapIconShapeDefinition);
 
 			// ── Terrain MapLayer (behind all shapes) ──
@@ -66,12 +66,12 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				),
 			});
 
-			// ── Team areas (above terrain, below shapes) + enter banner overlay ──
+			// ── Base areas (above terrain, below shapes) + enter banner overlay ──
 			ctx.layers.register({
-				id: TEAM_LAYER_ID,
+				id: BASE_LAYER_ID,
 				order: 42,
 				fixed: true,
-				render: (lctx) => <TeamAreaLayer store={ctx.store} renderMode={lctx.renderMode} />,
+				render: (lctx) => <BaseAreaLayer store={ctx.store} renderMode={lctx.renderMode} />,
 			});
 			ctx.layers.register({
 				id: ENTER_BANNER_ID,
@@ -150,7 +150,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 
 			return () => {
 				ctx.layers.unregister(TERRAIN_LAYER_ID);
-				ctx.layers.unregister(TEAM_LAYER_ID);
+				ctx.layers.unregister(BASE_LAYER_ID);
 				ctx.layers.unregister(ENTER_BANNER_ID);
 				ctx.layers.unregister(PALETTE_LAYER_ID);
 				ctx.layers.unregister(ERASE_PALETTE_LAYER_ID);

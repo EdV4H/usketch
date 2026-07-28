@@ -23,19 +23,19 @@ import {
 	floodFill,
 	worldToCell,
 } from "./autotile.js";
-import { genStateStore } from "./gen-state.js";
-import { generateIntoBox, resolveTilemap } from "./generate.js";
-import { ICONS_BY_KEY } from "./icons.js";
-import { MAP_ICON_TYPE, makeMapIcon } from "./map-icon-shape.js";
-import type { OwnerMap } from "./team/team-map-shape.js";
+import type { OwnerMap } from "./base/base-map-shape.js";
 import {
 	applyOwner,
 	assignIsland,
 	commitOwner,
 	currentOwner,
-	resolveTeamMap,
-} from "./team/team-ops.js";
-import { teamStateStore } from "./team/team-state.js";
+	resolveBaseMap,
+} from "./base/base-ops.js";
+import { baseStateStore } from "./base/base-state.js";
+import { genStateStore } from "./gen-state.js";
+import { generateIntoBox, resolveTilemap } from "./generate.js";
+import { ICONS_BY_KEY } from "./icons.js";
+import { MAP_ICON_TYPE, makeMapIcon } from "./map-icon-shape.js";
 import { DEFAULT_TILE, type TileMapShapeData } from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
 
@@ -71,27 +71,27 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 	let lastKey = "";
 	// Range-select drag for the "generate" submode (world start point).
 	let genDrag: { x0: number; y0: number } | null = null;
-	// Team-ownership paint stroke (team submode = assign/erase).
-	let teamStroke: { teamMapId: string; prevOwner: OwnerMap } | null = null;
-	let lastTeamKey = "";
+	// Base-ownership paint stroke (base submode = assign/erase).
+	let baseStroke: { baseMapId: string; prevOwner: OwnerMap } | null = null;
+	let lastBaseKey = "";
 
 	function paintOwnerAt(ctx: ToolContext, event: CanvasPointerEvent): void {
-		if (!teamStroke) return;
-		const { activeTeamId, mode } = teamStateStore.get();
-		if (mode === "assign" && !activeTeamId) return;
+		if (!baseStroke) return;
+		const { activeBaseId, mode } = baseStateStore.get();
+		if (mode === "assign" && !activeBaseId) return;
 		const [c, r] = worldToCell(event.worldPoint.x, event.worldPoint.y, tile);
 		const key = cellKey(c, r);
-		if (key === lastTeamKey) return;
-		lastTeamKey = key;
-		const owner = currentOwner(ctx.store, teamStroke.teamMapId);
+		if (key === lastBaseKey) return;
+		lastBaseKey = key;
+		const owner = currentOwner(ctx.store, baseStroke.baseMapId);
 		if (mode === "erase") {
 			if (!(key in owner)) return;
 			delete owner[key];
 		} else {
-			if (owner[key] === activeTeamId) return;
-			owner[key] = activeTeamId as string;
+			if (owner[key] === activeBaseId) return;
+			owner[key] = activeBaseId as string;
 		}
-		applyOwner(ctx.store, teamStroke.teamMapId, owner, tile);
+		applyOwner(ctx.store, baseStroke.baseMapId, owner, tile);
 	}
 
 	function currentCells(ctx: ToolContext, id: string): Cells {
@@ -226,18 +226,18 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 				});
 				return;
 			}
-			if (mode === "team") {
-				const ts = teamStateStore.get();
+			if (mode === "base") {
+				const ts = baseStateStore.get();
 				const deps = { store: ctx.store, commands: ctx.commands, tile };
 				if (ts.mode === "island") {
-					if (ts.activeTeamId)
-						assignIsland(deps, event.worldPoint.x, event.worldPoint.y, ts.activeTeamId);
+					if (ts.activeBaseId)
+						assignIsland(deps, event.worldPoint.x, event.worldPoint.y, ts.activeBaseId);
 					return;
 				}
-				if (ts.mode === "assign" && !ts.activeTeamId) return; // pick a team first
-				const { id } = resolveTeamMap(ctx.store, tile);
-				teamStroke = { teamMapId: id, prevOwner: currentOwner(ctx.store, id) };
-				lastTeamKey = "";
+				if (ts.mode === "assign" && !ts.activeBaseId) return; // pick a base first
+				const { id } = resolveBaseMap(ctx.store, tile);
+				baseStroke = { baseMapId: id, prevOwner: currentOwner(ctx.store, id) };
+				lastBaseKey = "";
 				paintOwnerAt(ctx, event);
 				return;
 			}
@@ -260,7 +260,7 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			else paintAt(ctx, event);
 		},
 		onPointerMove(ctx, event) {
-			if (teamStroke) {
+			if (baseStroke) {
 				paintOwnerAt(ctx, event);
 				return;
 			}
@@ -277,11 +277,11 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			if (mode === "brush" || mode === "eraser") paintAt(ctx, event);
 		},
 		onPointerUp(ctx) {
-			if (teamStroke) {
-				const { teamMapId, prevOwner } = teamStroke;
-				teamStroke = null;
-				lastTeamKey = "";
-				commitOwner({ store: ctx.store, commands: ctx.commands, tile }, teamMapId, prevOwner);
+			if (baseStroke) {
+				const { baseMapId, prevOwner } = baseStroke;
+				baseStroke = null;
+				lastBaseKey = "";
+				commitOwner({ store: ctx.store, commands: ctx.commands, tile }, baseMapId, prevOwner);
 				return;
 			}
 			if (genDrag) {
@@ -313,11 +313,11 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 				genDrag = null;
 				genStateStore.set({ pendingRect: null });
 			}
-			if (teamStroke) {
+			if (baseStroke) {
 				// Roll the live ownership edits back to the stroke start, then clear.
-				applyOwner(ctx.store, teamStroke.teamMapId, teamStroke.prevOwner, tile);
-				teamStroke = null;
-				lastTeamKey = "";
+				applyOwner(ctx.store, baseStroke.baseMapId, baseStroke.prevOwner, tile);
+				baseStroke = null;
+				lastBaseKey = "";
 			}
 			// Tool switched / left mid-stroke with no pointerUp: don't leave a
 			// half-painted, non-undoable state. Roll the live edits back to where

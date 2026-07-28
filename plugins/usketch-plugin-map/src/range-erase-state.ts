@@ -6,13 +6,13 @@ import { createReactiveStore } from "./reactive-store.js";
 export interface RangeEraseTargets {
 	/** Clear terrain tiles (tilemap.cells) in the box. */
 	terrain: boolean;
-	/** Clear team ownership (team-map.owner) in the box. */
-	team: boolean;
+	/** Clear base ownership (base-map.owner) in the box. */
+	base: boolean;
 }
 
 export const rangeEraseStore = createReactiveStore<RangeEraseTargets>({
 	terrain: true,
-	team: true,
+	base: true,
 });
 
 export function useRangeEraseTargets(): RangeEraseTargets {

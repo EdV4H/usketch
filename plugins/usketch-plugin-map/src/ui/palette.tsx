@@ -3,6 +3,8 @@
 // lives in the module stores (tool-state / render-config); this is just the UI.
 import type { BoardStore, CommandRegistry } from "@edv4h/usketch-shared";
 import { useEffect, useState } from "react";
+import { createBase, getBaseMap } from "../base/base-ops.js";
+import { type BaseMode, baseStateStore, useBaseState } from "../base/base-state.js";
 import { genStateStore, useGenState } from "../gen-state.js";
 import { generateIntoBox, viewportCellBox } from "../generate.js";
 import { defaultParams, GENERATORS, GENERATORS_BY_ID } from "../generators/index.js";
@@ -13,12 +15,10 @@ import { terrainCssVars } from "../palette.js";
 import { RANGE_ERASE_TOOL_ID } from "../range-erase-tool.js";
 import { renderConfigStore, useRenderConfig } from "../render-config.js";
 import { renderSvgNodes } from "../svg-nodes.js";
-import { createTeam, getTeamMap } from "../team/team-ops.js";
-import { type TeamMode, teamStateStore, useTeamState } from "../team/team-state.js";
 import { TERRAINS, terrainPatternId } from "../terrain.js";
 import { type MapMode, toolStateStore, useMapToolState } from "../tool-state.js";
 
-const TEAM_COLORS = [
+const BASE_COLORS = [
 	"#EF5350",
 	"#4A7FB8",
 	"#6C5CD6",
@@ -28,7 +28,7 @@ const TEAM_COLORS = [
 	"#F48CB4",
 	"#F0913E",
 ];
-const TEAM_MODES: { id: TeamMode; label: string }[] = [
+const BASE_MODES: { id: BaseMode; label: string }[] = [
 	{ id: "assign", label: "割り当て" },
 	{ id: "erase", label: "消す" },
 	{ id: "island", label: "島に割当" },
@@ -40,7 +40,7 @@ const MODES: { id: MapMode; label: string }[] = [
 	{ id: "fill", label: "塗りつぶし" },
 	{ id: "stamp", label: "アイコン" },
 	{ id: "generate", label: "生成" },
-	{ id: "team", label: "チーム" },
+	{ id: "base", label: "拠点" },
 ];
 
 function useActiveTool(store: BoardStore): string {
@@ -80,10 +80,10 @@ export function MapPalette({
 	const tool = useMapToolState();
 	const cfg = useRenderConfig();
 	const gen = useGenState();
-	const teamState = useTeamState();
+	const baseState = useBaseState();
 	const [cat, setCat] = useState<IconCategory>("landmark");
-	const [teamName, setTeamName] = useState("");
-	const [teamColor, setTeamColor] = useState(TEAM_COLORS[0]);
+	const [baseName, setBaseName] = useState("");
+	const [baseColor, setBaseColor] = useState(BASE_COLORS[0]);
 
 	if (activeTool !== MAP_TOOL_ID) return null;
 
@@ -333,39 +333,39 @@ export function MapPalette({
 					</div>
 				)}
 
-				{/* Teams */}
-				{tool.mode === "team" &&
+				{/* Bases */}
+				{tool.mode === "base" &&
 					(() => {
-						const teamMap = getTeamMap(store);
-						const teams = teamMap ? Object.entries(teamMap.teams) : [];
+						const baseMap = getBaseMap(store);
+						const bases = baseMap ? Object.entries(baseMap.bases) : [];
 						const doCreate = () => {
-							const name = teamName.trim() || `チーム${teams.length + 1}`;
-							const id = createTeam({ store, commands, tile }, name, teamColor);
-							teamStateStore.set({ activeTeamId: id });
-							setTeamName("");
+							const name = baseName.trim() || `拠点${bases.length + 1}`;
+							const id = createBase({ store, commands, tile }, name, baseColor);
+							baseStateStore.set({ activeBaseId: id });
+							setBaseName("");
 						};
 						return (
 							<div style={{ marginBottom: 12 }}>
 								<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginBottom: 6 }}>
-									チーム
+									拠点
 								</div>
-								{/* Team list */}
+								{/* Base list */}
 								<div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-									{teams.length === 0 && (
+									{bases.length === 0 && (
 										<span style={{ font: "600 11px system-ui", color: "#a6a6a4" }}>
-											まだチームがありません
+											まだ拠点がありません
 										</span>
 									)}
-									{teams.map(([id, info]) => (
+									{bases.map(([id, info]) => (
 										<button
 											type="button"
 											key={id}
-											onClick={() => teamStateStore.set({ activeTeamId: id })}
+											onClick={() => baseStateStore.set({ activeBaseId: id })}
 											style={{
 												display: "flex",
 												alignItems: "center",
 												gap: 5,
-												border: `2px solid ${teamState.activeTeamId === id ? STROKE : "#d3d5db"}`,
+												border: `2px solid ${baseState.activeBaseId === id ? STROKE : "#d3d5db"}`,
 												borderRadius: 20,
 												background: CARD,
 												padding: "4px 9px",
@@ -386,12 +386,12 @@ export function MapPalette({
 										</button>
 									))}
 								</div>
-								{/* Create team */}
+								{/* Create base */}
 								<div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
 									<input
-										value={teamName}
-										placeholder="新しいチーム名"
-										onChange={(e) => setTeamName(e.target.value)}
+										value={baseName}
+										placeholder="新しい拠点名"
+										onChange={(e) => setBaseName(e.target.value)}
 										onKeyDown={(e) => e.key === "Enter" && doCreate()}
 										style={{
 											flex: 1,
@@ -407,18 +407,18 @@ export function MapPalette({
 									</button>
 								</div>
 								<div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
-									{TEAM_COLORS.map((col) => (
+									{BASE_COLORS.map((col) => (
 										<button
 											type="button"
 											key={col}
-											onClick={() => setTeamColor(col)}
+											onClick={() => setBaseColor(col)}
 											aria-label={col}
 											style={{
 												width: 20,
 												height: 20,
 												borderRadius: "50%",
 												background: col,
-												border: `2px solid ${teamColor === col ? STROKE : "#fff"}`,
+												border: `2px solid ${baseColor === col ? STROKE : "#fff"}`,
 												cursor: "pointer",
 												padding: 0,
 											}}
@@ -427,19 +427,19 @@ export function MapPalette({
 								</div>
 								{/* Mode */}
 								<div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-									{TEAM_MODES.map((m) => (
+									{BASE_MODES.map((m) => (
 										<button
 											type="button"
 											key={m.id}
-											onClick={() => teamStateStore.set({ mode: m.id })}
-											style={chipStyle(teamState.mode === m.id)}
+											onClick={() => baseStateStore.set({ mode: m.id })}
+											style={chipStyle(baseState.mode === m.id)}
 										>
 											{m.label}
 										</button>
 									))}
 								</div>
 								<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginTop: 8 }}>
-									チームを選び、地図をドラッグでエリアを塗る（島に割当はクリック）
+									拠点を選び、地図をドラッグでエリアを塗る（島に割当はクリック）
 								</div>
 							</div>
 						);

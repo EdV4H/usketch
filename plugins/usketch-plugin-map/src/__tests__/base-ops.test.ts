@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { Cells } from "../autotile.js";
-import type { OwnerMap, TeamInfo } from "../team/team-map-shape.js";
-import { landRegionFrom, ownersEqual, teamIdAtWorld, teamRegionAnchors } from "../team/team-ops.js";
+import type { BaseInfo, OwnerMap } from "../base/base-map-shape.js";
+import { baseIdAtWorld, baseRegionAnchors, landRegionFrom, ownersEqual } from "../base/base-ops.js";
 
-describe("teamIdAtWorld", () => {
+describe("baseIdAtWorld", () => {
 	const owner: OwnerMap = { "0,0": "red", "1,0": "blue" };
-	it("maps a world point to the owning team", () => {
-		expect(teamIdAtWorld(owner, 10, 10, 40)).toBe("red"); // cell 0,0
-		expect(teamIdAtWorld(owner, 50, 10, 40)).toBe("blue"); // cell 1,0
+	it("maps a world point to the owning base", () => {
+		expect(baseIdAtWorld(owner, 10, 10, 40)).toBe("red"); // cell 0,0
+		expect(baseIdAtWorld(owner, 50, 10, 40)).toBe("blue"); // cell 1,0
 	});
 	it("returns null for unowned cells", () => {
-		expect(teamIdAtWorld(owner, 200, 200, 40)).toBeNull();
+		expect(baseIdAtWorld(owner, 200, 200, 40)).toBeNull();
 	});
 });
 
@@ -41,23 +41,23 @@ describe("ownersEqual", () => {
 	});
 });
 
-describe("teamRegionAnchors", () => {
-	const teams: Record<string, TeamInfo> = {
+describe("baseRegionAnchors", () => {
+	const bases: Record<string, BaseInfo> = {
 		red: { name: "Red", color: "#EF5350" },
 		blue: { name: "Blue", color: "#4A7FB8" },
 	};
-	it("gives one centred anchor per team that owns cells", () => {
+	it("gives one centred anchor per base that owns cells", () => {
 		const owner: OwnerMap = { "0,0": "red", "2,0": "red", "10,10": "blue" };
-		const anchors = teamRegionAnchors(owner, teams, 40);
-		const red = anchors.find((a) => a.teamId === "red");
+		const anchors = baseRegionAnchors(owner, bases, 40);
+		const red = anchors.find((a) => a.baseId === "red");
 		expect(red?.count).toBe(2);
 		// bbox cols 0..2 → centre = (0+2+1)/2 * 40 = 60
 		expect(red?.x).toBe(60);
 		expect(red?.name).toBe("Red");
-		expect(anchors.find((a) => a.teamId === "blue")?.count).toBe(1);
+		expect(anchors.find((a) => a.baseId === "blue")?.count).toBe(1);
 	});
-	it("skips teams with no owned cells and unknown team ids", () => {
-		const owner: OwnerMap = { "0,0": "ghost" }; // team not in registry
-		expect(teamRegionAnchors(owner, teams, 40)).toEqual([]);
+	it("skips bases with no owned cells and unknown base ids", () => {
+		const owner: OwnerMap = { "0,0": "ghost" }; // base not in registry
+		expect(baseRegionAnchors(owner, bases, 40)).toEqual([]);
 	});
 });

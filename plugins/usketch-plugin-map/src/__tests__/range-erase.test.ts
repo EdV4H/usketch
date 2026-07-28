@@ -30,19 +30,19 @@ const tilemap = {
 	tile: 40,
 	cells: { "0,0": "grass", "5,5": "grass" },
 } as unknown as ShapeData;
-const teammap = {
+const basemap = {
 	id: "tt",
-	type: "team-map",
+	type: "base-map",
 	tile: 40,
-	teams: {},
+	bases: {},
 	owner: { "0,0": "red", "5,5": "red" },
 } as unknown as ShapeData;
 
-const ALL = { terrain: true, team: true };
+const ALL = { terrain: true, base: true };
 
 describe("eraseRangeBox", () => {
-	it("clears terrain + team ownership inside the box, and undo restores both", () => {
-		const h = makeHarness([structuredClone(tilemap), structuredClone(teammap)]);
+	it("clears terrain + base ownership inside the box, and undo restores both", () => {
+		const h = makeHarness([structuredClone(tilemap), structuredClone(basemap)]);
 		eraseRangeBox(
 			{ store: h.store, commands: h.commands, tile: 40 },
 			{ minC: 0, minR: 0, maxC: 2, maxR: 2 }, // covers cell 0,0 but not 5,5
@@ -76,14 +76,14 @@ describe("eraseRangeBox", () => {
 		expect(h.getLast()).toBeNull();
 	});
 
-	it("honours the target selection (team-only leaves terrain intact)", () => {
-		const h = makeHarness([structuredClone(tilemap), structuredClone(teammap)]);
+	it("honours the target selection (base-only leaves terrain intact)", () => {
+		const h = makeHarness([structuredClone(tilemap), structuredClone(basemap)]);
 		eraseRangeBox(
 			{ store: h.store, commands: h.commands, tile: 40 },
 			{ minC: 0, minR: 0, maxC: 2, maxR: 2 },
-			{ terrain: false, team: true },
+			{ terrain: false, base: true },
 		);
-		// terrain untouched, team cleared in box
+		// terrain untouched, base cleared in box
 		expect((h.shapes.get("tm") as { cells: Record<string, string> }).cells).toEqual({
 			"0,0": "grass",
 			"5,5": "grass",
@@ -94,16 +94,16 @@ describe("eraseRangeBox", () => {
 	});
 
 	it("no-ops when no target is selected", () => {
-		const h = makeHarness([structuredClone(tilemap), structuredClone(teammap)]);
+		const h = makeHarness([structuredClone(tilemap), structuredClone(basemap)]);
 		eraseRangeBox(
 			{ store: h.store, commands: h.commands, tile: 40 },
 			{ minC: 0, minR: 0, maxC: 9, maxR: 9 },
-			{ terrain: false, team: false },
+			{ terrain: false, base: false },
 		);
 		expect(h.getLast()).toBeNull();
 	});
 
-	it("only targets the first tilemap / team-map (single shared substrate)", () => {
+	it("only targets the first tilemap / base-map (single shared substrate)", () => {
 		const other = {
 			id: "tm2",
 			type: "tilemap",

@@ -1,13 +1,13 @@
-// EnterBanner — RPG-style "you entered <Team>'s area" feedback. Local-only: each
-// client watches the team that owns the tile under its own VIEWPORT CENTRE (a
+// EnterBanner — RPG-style "you entered <Base>'s area" feedback. Local-only: each
+// client watches the base that owns the tile under its own VIEWPORT CENTRE (a
 // single, swappable definition of "where I am") and shows a banner on entry plus
 // a persistent current-area chip. No sync — presentation only.
 import type { BoardStore } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
 import { useMapToolState } from "../tool-state.js";
-import type { TeamInfo } from "./team-map-shape.js";
-import { getTeamMap, teamIdAtWorld } from "./team-ops.js";
+import type { BaseInfo } from "./base-map-shape.js";
+import { baseIdAtWorld, getBaseMap } from "./base-ops.js";
 
 const BANNER_MS = 2600;
 
@@ -24,39 +24,39 @@ function viewportCenterWorld(store: BoardStore): { x: number; y: number } | null
 export function EnterBanner({ store, tile }: { store: BoardStore; tile: number }) {
 	const tool = useMapToolState();
 	const [activeTool, setActiveTool] = useState(store.getActiveToolId());
-	const [current, setCurrent] = useState<TeamInfo | null>(null);
-	const [banner, setBanner] = useState<TeamInfo | null>(null);
+	const [current, setCurrent] = useState<BaseInfo | null>(null);
+	const [banner, setBanner] = useState<BaseInfo | null>(null);
 	const [bannerKey, setBannerKey] = useState(0);
 	const prevRef = useRef<string | null>(null);
 	const rafRef = useRef(0);
 	const timerRef = useRef(0);
 
-	// Only show the team indicator while actually in team mode (map tool + team submode).
+	// Only show the base indicator while actually in base mode (map tool + base submode).
 	useEffect(() => store.subscribe(() => setActiveTool(store.getActiveToolId())), [store]);
-	const inTeamMode = activeTool === MAP_TOOL_ID && tool.mode === "team";
+	const inBaseMode = activeTool === MAP_TOOL_ID && tool.mode === "base";
 
-	// Leaving team mode clears any in-flight entry banner + timeout so a stale
-	// banner can't reappear when returning to team mode before it fades.
+	// Leaving base mode clears any in-flight entry banner + timeout so a stale
+	// banner can't reappear when returning to base mode before it fades.
 	useEffect(() => {
-		if (!inTeamMode) {
+		if (!inBaseMode) {
 			clearTimeout(timerRef.current);
 			setBanner(null);
 		}
-	}, [inTeamMode]);
+	}, [inBaseMode]);
 
 	useEffect(() => {
 		const update = () => {
 			cancelAnimationFrame(rafRef.current);
 			rafRef.current = requestAnimationFrame(() => {
-				const team = getTeamMap(store);
+				const base = getBaseMap(store);
 				let id: string | null = null;
 				const center = viewportCenterWorld(store);
-				if (team && center && Object.keys(team.owner).length > 0) {
-					id = teamIdAtWorld(team.owner, center.x, center.y, tile);
+				if (base && center && Object.keys(base.owner).length > 0) {
+					id = baseIdAtWorld(base.owner, center.x, center.y, tile);
 				}
 				if (id === prevRef.current) return;
 				prevRef.current = id;
-				const info = id && team ? (team.teams[id] ?? null) : null;
+				const info = id && base ? (base.bases[id] ?? null) : null;
 				setCurrent(info);
 				if (info) {
 					setBanner(info);
@@ -75,7 +75,7 @@ export function EnterBanner({ store, tile }: { store: BoardStore; tile: number }
 		};
 	}, [store, tile]);
 
-	if (!inTeamMode || (!current && !banner)) return null;
+	if (!inBaseMode || (!current && !banner)) return null;
 
 	return (
 		<div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>

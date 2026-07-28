@@ -1,6 +1,6 @@
-// TeamAreaLayer — renders each team's owned tiles as a translucent coloured
+// BaseAreaLayer — renders each base's owned tiles as a translucent coloured
 // territory (fill + border + name label) above the terrain and below shapes.
-// Reads ownership DATA from the synced `team-map` shape; LOD + culling mirror
+// Reads ownership DATA from the synced `base-map` shape; LOD + culling mirror
 // the terrain MapLayer.
 import type { BoardStore, RenderMode } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
@@ -9,17 +9,17 @@ import { blockFactor, downsampleCells, type TileDetail, tileDetail } from "../lo
 import { visibleCellRange, visibleWorldRect } from "../map-layer.js";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
 import { useMapToolState } from "../tool-state.js";
-import type { OwnerMap, TeamInfo } from "./team-map-shape.js";
-import { getTeamMap, teamRegionAnchors } from "./team-ops.js";
+import type { BaseInfo, OwnerMap } from "./base-map-shape.js";
+import { baseRegionAnchors, getBaseMap } from "./base-ops.js";
 
 const FILL_OPACITY = 0.24;
 const BORDER_RATIO = 0.16; // border strip thickness, fraction of a tile
 const BORDER_OPACITY = 0.85;
 
-/** Full tier: per-cell translucent fill + team-coloured border on region edges. */
+/** Full tier: per-cell translucent fill + base-coloured border on region edges. */
 function renderFull(
 	owner: OwnerMap,
-	teams: Record<string, TeamInfo>,
+	bases: Record<string, BaseInfo>,
 	tile: number,
 	visible: DOMRectReadOnly | null,
 ): React.ReactElement[] {
@@ -28,9 +28,9 @@ function renderFull(
 	const bt = BORDER_RATIO * tile;
 	const range = visibleCellRange(visible, tile);
 	const emit = (c: number, r: number) => {
-		const teamId = owner[`${c},${r}`];
-		if (!teamId) return;
-		const color = teams[teamId]?.color;
+		const baseId = owner[`${c},${r}`];
+		if (!baseId) return;
+		const color = bases[baseId]?.color;
 		if (!color) return;
 		const x = c * tile;
 		const y = r * tile;
@@ -74,10 +74,10 @@ function renderFull(
 	return nodes;
 }
 
-/** Coarse tier: flat translucent blocks (downsampled by owning team). */
+/** Coarse tier: flat translucent blocks (downsampled by owning base). */
 function renderCoarse(
 	owner: OwnerMap,
-	teams: Record<string, TeamInfo>,
+	bases: Record<string, BaseInfo>,
 	tile: number,
 	screenTilePx: number,
 	visible: DOMRectReadOnly | null,
@@ -85,8 +85,8 @@ function renderCoarse(
 	const factor = blockFactor(screenTilePx);
 	const bt = factor * tile;
 	const nodes: React.ReactElement[] = [];
-	for (const [bk, teamId] of Object.entries(downsampleCells(owner as unknown as Cells, factor))) {
-		const color = teams[teamId]?.color;
+	for (const [bk, baseId] of Object.entries(downsampleCells(owner as unknown as Cells, factor))) {
+		const color = bases[baseId]?.color;
 		if (!color) continue;
 		const [bc, br] = parseCellKey(bk);
 		const x = bc * bt;
@@ -104,7 +104,7 @@ function renderCoarse(
 	return nodes;
 }
 
-export function TeamAreaLayer({
+export function BaseAreaLayer({
 	store,
 	renderMode,
 }: {
@@ -127,26 +127,26 @@ export function TeamAreaLayer({
 		};
 	}, [store]);
 
-	// Territory paint is only shown while actually in team mode (map tool + team
+	// Territory paint is only shown while actually in base mode (map tool + base
 	// submode) — mirrors the EnterBanner indicator gating. Check the mode first so
-	// we skip the shape scan in getTeamMap on every non-team-mode re-render.
-	const inTeamMode = store.getActiveToolId() === MAP_TOOL_ID && tool.mode === "team";
-	if (!inTeamMode) return null;
-	const team = getTeamMap(store);
-	if (!team || Object.keys(team.owner).length === 0) return null;
+	// we skip the shape scan in getBaseMap on every non-base-mode re-render.
+	const inBaseMode = store.getActiveToolId() === MAP_TOOL_ID && tool.mode === "base";
+	if (!inBaseMode) return null;
+	const base = getBaseMap(store);
+	if (!base || Object.keys(base.owner).length === 0) return null;
 
 	const vp = store.getViewport();
 	const visible = visibleWorldRect(store);
-	const tile = team.tile;
+	const tile = base.tile;
 	const screenTilePx = tile * vp.zoom;
 	const detail: TileDetail = tileDetail(screenTilePx, renderMode);
 	const cells =
 		detail === "full"
-			? renderFull(team.owner, team.teams, tile, visible)
-			: renderCoarse(team.owner, team.teams, tile, screenTilePx, visible);
+			? renderFull(base.owner, base.bases, tile, visible)
+			: renderCoarse(base.owner, base.bases, tile, screenTilePx, visible);
 
 	// Labels: HTML chips at screen coords (crisp, constant size). Hidden when coarse.
-	const anchors = detail === "full" ? teamRegionAnchors(team.owner, team.teams, tile) : [];
+	const anchors = detail === "full" ? baseRegionAnchors(base.owner, base.bases, tile) : [];
 
 	return (
 		<div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
@@ -155,7 +155,7 @@ export function TeamAreaLayer({
 			</svg>
 			{anchors.map((a) => (
 				<div
-					key={a.teamId}
+					key={a.baseId}
 					style={{
 						position: "absolute",
 						left: a.x * vp.zoom + vp.x,
