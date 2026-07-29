@@ -1,12 +1,17 @@
-import type { ShortcutRegistry } from "@edv4h/usketch-shared";
+import type { ShortcutEntry, ShortcutMeta, ShortcutRegistry } from "@edv4h/usketch-shared";
 
 function normalizeCombo(combo: string): string {
-	return combo
-		.toLowerCase()
-		.split("+")
-		.map((k) => k.trim())
-		.sort()
-		.join("+");
+	return (
+		combo
+			.toLowerCase()
+			.split("+")
+			.map((k) => k.trim())
+			// `mod` is the platform accelerator. eventToCombo maps Cmd/Ctrl → "ctrl",
+			// so aliasing mod → ctrl makes "Mod+Z" match Cmd+Z (mac) and Ctrl+Z (win).
+			.map((k) => (k === "mod" ? "ctrl" : k))
+			.sort()
+			.join("+")
+	);
 }
 
 function eventToCombo(event: KeyboardEvent): string {
@@ -23,27 +28,40 @@ function eventToCombo(event: KeyboardEvent): string {
 	return parts.sort().join("+");
 }
 
+interface Registration {
+	callback: () => void;
+	/** Original (un-normalized) combo, kept for {@link ShortcutRegistry.list}. */
+	combo: string;
+	meta?: ShortcutMeta;
+}
+
 export function createShortcutRegistry(): ShortcutRegistry {
-	const shortcuts = new Map<string, () => void>();
+	const shortcuts = new Map<string, Registration>();
 
 	return {
-		register(combo: string, callback: () => void): () => void {
+		register(combo: string, callback: () => void, meta?: ShortcutMeta): () => void {
 			const normalized = normalizeCombo(combo);
-			shortcuts.set(normalized, callback);
+			shortcuts.set(normalized, { callback, combo, meta });
 			return () => {
 				shortcuts.delete(normalized);
 			};
 		},
 
 		handleKeyDown(event: KeyboardEvent): boolean {
-			const combo = eventToCombo(event);
-			const callback = shortcuts.get(combo);
-			if (callback) {
+			const registration = shortcuts.get(eventToCombo(event));
+			if (registration) {
 				event.preventDefault();
-				callback();
+				registration.callback();
 				return true;
 			}
 			return false;
+		},
+
+		list(): ShortcutEntry[] {
+			return [...shortcuts.values()].map(({ combo, meta }) => ({
+				combo,
+				...(meta ? { meta } : {}),
+			}));
 		},
 	};
 }
