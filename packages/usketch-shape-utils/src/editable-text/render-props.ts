@@ -43,8 +43,16 @@ export function editableTextProps(id: string, text: string) {
 		"aria-multiline": true,
 		tabIndex: 0,
 		ref: (el: HTMLElement | null) => {
-			if (!el || el.dataset.focused) return;
-			el.dataset.focused = "1";
+			if (!el) return;
+			// Seed the existing text into the contentEditable. React re-runs this
+			// callback ref on every commit (the closure identity changes each
+			// render), so guard the re-seed by focus: while the user is actively
+			// editing this node (`document.activeElement === el`) we must NOT
+			// clobber their caret/content. On a fresh edit the node isn't focused
+			// yet, so we seed — including when the same DOM node is reused for a
+			// later edit session (previously a leaked `data-focused` flag caused
+			// the re-opened editor to render empty).
+			if (document.activeElement === el) return;
 			el.textContent = text;
 			requestAnimationFrame(() => focusAtEnd(el));
 		},
@@ -59,8 +67,7 @@ export function editableTextProps(id: string, text: string) {
 				window.dispatchEvent(new CustomEvent(TEXT_ESCAPE_EVENT, { detail: { id } }));
 			}
 		},
-		onBlur: (e: ReactFocusEvent<HTMLElement>) => {
-			delete e.currentTarget.dataset.focused;
+		onBlur: (_e: ReactFocusEvent<HTMLElement>) => {
 			window.dispatchEvent(new CustomEvent(TEXT_BLUR_EVENT, { detail: { id } }));
 		},
 		onPointerDown: (e: ReactPointerEvent) => e.stopPropagation(),
