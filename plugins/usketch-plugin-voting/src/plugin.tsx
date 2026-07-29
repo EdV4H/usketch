@@ -238,10 +238,40 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				},
 			});
 
+			// Control HUD から質問＋選択肢を指定して投票を作成（ビュー中心に配置）。
+			const centerWorld = () => {
+				const vp = ctx.store.getViewport();
+				if (typeof window === "undefined") return { x: 0, y: 0 };
+				return {
+					x: (window.innerWidth / 2 - vp.x) / vp.zoom,
+					y: (window.innerHeight / 2 - vp.y) / vp.zoom,
+				};
+			};
+			const unsubAction = ctx.actions.register({
+				id: "voting:create",
+				group: "投票",
+				label: "投票を作成",
+				params: [
+					{ name: "question", label: "質問", type: "string" },
+					{ name: "option1", label: "選択肢1", type: "string", default: "Yes" },
+					{ name: "option2", label: "選択肢2", type: "string", default: "No" },
+					{ name: "option3", label: "選択肢3", type: "string" },
+					{ name: "option4", label: "選択肢4", type: "string" },
+				],
+				run: (args) => {
+					const question = String(args.question ?? "").trim() || "Vote";
+					const options = ["option1", "option2", "option3", "option4"]
+						.map((k) => String(args[k] ?? "").trim())
+						.filter((s) => s.length > 0);
+					createPoll(question, options.length >= 2 ? options : ["Yes", "No"], centerWorld());
+				},
+			});
+
 			return () => {
 				unsubBroadcast?.();
 				unsubCreate();
 				unsubCast();
+				unsubAction();
 				for (const poll of polls.values()) {
 					ctx.transient.dismiss(`vote-${poll.id}`);
 				}

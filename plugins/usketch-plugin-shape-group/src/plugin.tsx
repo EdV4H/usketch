@@ -89,6 +89,28 @@ export function createGroupPlugin(): UsketchPlugin {
 			// Ctrl+Shift+G (Cmd+Shift+G on Mac) to ungroup
 			ctx.shortcuts.register("Ctrl+Shift+g", ungroupSelected);
 
+			// Control HUD からもグループ操作できるよう action 化（選択状態で活性）。
+			const selectionHasGroup = () => {
+				for (const id of ctx.store.getSelection()) {
+					if (ctx.store.getShape(id)?.type === "group") return true;
+				}
+				return false;
+			};
+			const unsubGroupAction = ctx.actions.register({
+				id: "group:group",
+				group: "グループ",
+				label: "グループ化",
+				isEnabled: () => ctx.store.getSelection().size >= 2,
+				run: groupSelected,
+			});
+			const unsubUngroupAction = ctx.actions.register({
+				id: "group:ungroup",
+				group: "グループ",
+				label: "グループ解除",
+				isEnabled: selectionHasGroup,
+				run: ungroupSelected,
+			});
+
 			// Override delete for groups to cascade
 			ctx.events.on<{ shapeId: string }>("group:delete-request", (data) => {
 				const shape = ctx.store.getShape(data.shapeId);
@@ -135,6 +157,8 @@ export function createGroupPlugin(): UsketchPlugin {
 
 			return () => {
 				unsubscribe();
+				unsubGroupAction();
+				unsubUngroupAction();
 			};
 		},
 	};

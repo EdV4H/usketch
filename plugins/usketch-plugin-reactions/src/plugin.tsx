@@ -153,9 +153,24 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 				unsubShortcuts.push(unsub);
 			}
 
+			// 絵文字選択を Control HUD の action として露出（数字キーの代替）。
+			const unsubActions = QUICK_EMOJIS.map((emoji, i) =>
+				ctx.actions.register({
+					id: `reaction:emoji:${i}`,
+					group: "リアクション",
+					label: `絵文字 ${emoji}`,
+					order: i,
+					isActive: () => selectedEmoji === emoji,
+					run: () => {
+						selectedEmoji = emoji;
+					},
+				}),
+			);
+
 			return () => {
 				unsubBroadcast?.();
 				for (const unsub of unsubShortcuts) unsub();
+				for (const unsub of unsubActions) unsub();
 			};
 		},
 	};

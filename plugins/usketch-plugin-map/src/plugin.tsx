@@ -5,6 +5,7 @@ import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { BaseAreaLayer } from "./base/base-layer.js";
 import { BASE_MAP_TYPE, createBaseMapShapeDefinition } from "./base/base-map-shape.js";
 import { EnterBanner } from "./base/enter-banner.js";
+import { registerMapHud } from "./hud/register-map-hud.js";
 import { MAP_ICON_TYPE, mapIconShapeDefinition } from "./map-icon-shape.js";
 import { MapTerrainLayer } from "./map-layer.js";
 import { createMapToolDefinition } from "./map-tool.js";
@@ -14,8 +15,6 @@ import { createRangeEraseToolDefinition, RANGE_ERASE_TOOL_ID } from "./range-era
 import { type LineStyle, renderConfigStore } from "./render-config.js";
 import { TERRAINS, type TerrainKey } from "./terrain.js";
 import { createTileMapShapeDefinition, DEFAULT_TILE, TILEMAP_TYPE } from "./tilemap-shape.js";
-import { MapPalette } from "./ui/palette.js";
-import { RangeErasePalette } from "./ui/range-erase-palette.js";
 
 export interface MapPluginOptions {
 	/** Tile size in world units. Default 40 (matches the design grid). */
@@ -33,8 +32,6 @@ export interface MapPluginOptions {
 const TERRAIN_LAYER_ID = "usketch-map:terrain";
 const BASE_LAYER_ID = "usketch-map:base";
 const ENTER_BANNER_ID = "usketch-map:enter-banner";
-const PALETTE_LAYER_ID = "usketch-map:palette";
-const ERASE_PALETTE_LAYER_ID = "usketch-map:erase-palette";
 
 export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 	const tile = options.tile ?? DEFAULT_TILE;
@@ -84,21 +81,11 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			ctx.tools.register(MAP_TOOL_ID, createMapToolDefinition(tile));
 			ctx.tools.register(RANGE_ERASE_TOOL_ID, createRangeEraseToolDefinition(tile));
 
-			// ── Palette (shown while the map tool is active) ──
-			ctx.layers.register({
-				id: PALETTE_LAYER_ID,
-				order: 196,
-				fixed: true,
-				render: () => <MapPalette store={ctx.store} commands={ctx.commands} tile={tile} />,
-			});
-			ctx.layers.register({
-				id: ERASE_PALETTE_LAYER_ID,
-				order: 196,
-				fixed: true,
-				render: () => <RangeErasePalette store={ctx.store} />,
-			});
+			// ── Controls: all map operations live on the Control HUD (no bespoke
+			//    on-canvas palette). Toggle the HUD with the backtick key. ──
+			const unregisterMapHud = registerMapHud(ctx, tile);
 
-			// ── Tweaks as declarative HUD settings (mirror the palette) ──
+			// ── Tweaks as declarative HUD settings ──
 			const unregisterHud = ctx.hud.registerSettings({
 				id: "usketch-map:tweaks",
 				label: "RPG マップ",
@@ -152,8 +139,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				ctx.layers.unregister(TERRAIN_LAYER_ID);
 				ctx.layers.unregister(BASE_LAYER_ID);
 				ctx.layers.unregister(ENTER_BANNER_ID);
-				ctx.layers.unregister(PALETTE_LAYER_ID);
-				ctx.layers.unregister(ERASE_PALETTE_LAYER_ID);
+				unregisterMapHud();
 				unregisterHud();
 			};
 		},

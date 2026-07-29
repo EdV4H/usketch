@@ -1,12 +1,10 @@
-import { useApp } from "@edv4h/usketch-canvas-engine";
 import { useNavigate } from "react-router";
-import { I, IconBtn, ThemeToggle } from "../../components/ui/index.js";
+import { I } from "../../components/ui/index.js";
 import { useAuth } from "../../lib/use-auth.js";
 
 export function CommunityHeader({ regionName }: { regionName: string }) {
 	const navigate = useNavigate();
 	const { user: sessionUser, logout } = useAuth();
-	const app = useApp();
 
 	return (
 		<>
@@ -91,50 +89,7 @@ export function CommunityHeader({ regionName }: { regionName: string }) {
 					</a>
 				)}
 			</div>
-			{/* 右上: テーマ切替 + サイドパネル開閉 */}
-			<div
-				style={{
-					position: "fixed",
-					top: 12,
-					right: 12,
-					zIndex: 100,
-					display: "flex",
-					gap: 8,
-					alignItems: "center",
-				}}
-			>
-				<ThemeToggle />
-				{sessionUser && (
-					<div
-						className="u-surface"
-						style={{
-							padding: 3,
-							display: "flex",
-							gap: 1,
-							borderRadius: 10,
-						}}
-					>
-						<IconBtn
-							icon={I.folder}
-							label="ボード情報"
-							tooltipPlacement="bottom"
-							onClick={() => app.events.emit("side-panel:toggle", { tabId: "board-info" })}
-						/>
-						<IconBtn
-							icon={I.comment}
-							label="コメント"
-							tooltipPlacement="bottom"
-							onClick={() => app.events.emit("side-panel:toggle", { tabId: "comments" })}
-						/>
-						<IconBtn
-							icon={I.chat}
-							label="チャット"
-							tooltipPlacement="bottom"
-							onClick={() => app.events.emit("side-panel:toggle", { tabId: "community-chat" })}
-						/>
-					</div>
-				)}
-			</div>
+			{/* テーマ切替・サイドパネル開閉は Control HUD（バックティックで開く）へ移設。 */}
 		</>
 	);
 }
