@@ -1,9 +1,11 @@
 // Base-area operations: pure helpers (ownership lookup, island flood, label
 // anchors) + store-mutating commands (create base, assign/erase ownership,
 // assign an island). Ownership lives in the synced `base-map` shape.
-import type { BoardStore, Command, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
+import type { BoardStore, Command, CommandRegistry, Point, ShapeData } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
-import { type Cells, cellKey, parseCellKey, worldToCell } from "../autotile.js";
+import { type Cells, cellKey, parseCellKey, terrainAtCell, worldToCell } from "../autotile.js";
+import { MAP_ICON_TYPE, type MapIconShapeData } from "../map-icon-shape.js";
+import type { TerrainKey } from "../terrain.js";
 import { isTileMap, type TileMapShapeData } from "../tilemap-shape.js";
 import {
 	type BaseInfo,
@@ -200,6 +202,83 @@ export function assignIsland(deps: BaseDeps, x: number, y: number, baseId: strin
 	const command: Command = {
 		execute: () => deps.store.updateShape(id, { owner: next, ...nextB } as Partial<ShapeData>),
 		undo: () => deps.store.updateShape(id, { owner: prev, ...prevB } as Partial<ShapeData>),
+	};
+	deps.commands.execute(command);
+}
+
+/**
+ * Cell keys within `radiusTiles` (Euclidean, tile units) of a world `center`,
+ * skipping cells whose (effective) terrain is `undefined` or in `exclude`. Used
+ * to stamp a base territory around a map-icon (land only; e.g. sea excluded).
+ */
+export function radiusCells(
+	center: Point,
+	radiusTiles: number,
+	cells: Cells,
+	tile: number,
+	empty: TerrainKey | null,
+	exclude: ReadonlySet<string>,
+): string[] {
+	if (radiusTiles <= 0) return [];
+	const [cc, cr] = worldToCell(center.x, center.y, tile);
+	const rWorld = radiusTiles * tile;
+	const rSq = rWorld * rWorld;
+	const span = Math.ceil(radiusTiles);
+	const out: string[] = [];
+	for (let r = cr - span; r <= cr + span; r++) {
+		for (let c = cc - span; c <= cc + span; c++) {
+			const dx = (c + 0.5) * tile - center.x;
+			const dy = (r + 0.5) * tile - center.y;
+			if (dx * dx + dy * dy > rSq) continue;
+			const terrain = terrainAtCell(cells, c, r, empty);
+			if (terrain === undefined || exclude.has(terrain)) continue;
+			out.push(cellKey(c, r));
+		}
+	}
+	return out;
+}
+
+/**
+ * Stamp the tiles within `radiusTiles` of a map-icon as owned by `baseId` (one
+ * undoable command that also records `baseId`/`baseRadius` on the icon). No-op
+ * if the icon is missing or no land falls inside the radius.
+ */
+export function assignRadiusFromIcon(
+	deps: BaseDeps,
+	iconId: string,
+	baseId: string,
+	radiusTiles: number,
+	empty: TerrainKey | null,
+	exclude: ReadonlySet<string>,
+): void {
+	const icon = deps.store.getShape(iconId) as MapIconShapeData | undefined;
+	if (!icon || icon.type !== MAP_ICON_TYPE) return;
+	const tilemap = findTilemap(deps.store);
+	const cells = tilemap?.cells ?? {};
+	const tile = tilemap?.tile ?? deps.tile;
+	const center: Point = { x: icon.x + icon.width / 2, y: icon.y + icon.height / 2 };
+	const keys = radiusCells(center, radiusTiles, cells, tile, empty, exclude);
+	if (keys.length === 0) return;
+
+	const { id } = resolveBaseMap(deps.store, deps.tile);
+	const prevOwner = currentOwner(deps.store, id);
+	const nextOwner: OwnerMap = { ...prevOwner };
+	for (const k of keys) nextOwner[k] = baseId;
+	if (ownersEqual(prevOwner, nextOwner)) return; // already owned → nothing to do
+
+	const prevB = ownerBounds(prevOwner, deps.tile);
+	const nextB = ownerBounds(nextOwner, deps.tile);
+	const prevMeta = icon.meta;
+	const nextMeta = { ...icon.meta, baseId, baseRadius: radiusTiles };
+	const command: Command = {
+		execute: () => {
+			deps.store.updateShape(id, { owner: nextOwner, ...nextB } as Partial<ShapeData>);
+			deps.store.updateShape(iconId, { meta: nextMeta } as Partial<ShapeData>);
+		},
+		undo: () => {
+			deps.store.updateShape(id, { owner: prevOwner, ...prevB } as Partial<ShapeData>);
+			deps.store.updateShape(iconId, { meta: prevMeta } as Partial<ShapeData>);
+		},
 	};
 	deps.commands.execute(command);
 }

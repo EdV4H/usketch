@@ -6,6 +6,7 @@ import type { BoardStore, RenderMode } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
 import { type Cells, exposedEdges, parseCellKey } from "../autotile.js";
 import { blockFactor, downsampleCells, type TileDetail, tileDetail } from "../lod.js";
+import { MAP_ICON_TYPE, type MapIconShapeData } from "../map-icon-shape.js";
 import { visibleCellRange, visibleWorldRect } from "../map-layer.js";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
 import { useMapToolState } from "../tool-state.js";
@@ -148,10 +149,39 @@ export function BaseAreaLayer({
 	// Labels: HTML chips at screen coords (crisp, constant size). Hidden when coarse.
 	const anchors = detail === "full" ? baseRegionAnchors(base.owner, base.bases, tile) : [];
 
+	// Radius rings for beacon icons (icons stamped via "アイコン中心"). Full detail only.
+	const rings: React.ReactElement[] = [];
+	if (detail === "full") {
+		for (const [, s] of store.getShapes()) {
+			if (s.type !== MAP_ICON_TYPE) continue;
+			const meta = (s as MapIconShapeData).meta;
+			if (!meta?.baseId || !meta.baseRadius) continue;
+			const color = base.bases[meta.baseId]?.color;
+			if (!color) continue;
+			rings.push(
+				<circle
+					key={`ring-${s.id}`}
+					cx={s.x + s.width / 2}
+					cy={s.y + s.height / 2}
+					r={meta.baseRadius * tile}
+					fill="none"
+					stroke={color}
+					strokeWidth={2}
+					strokeDasharray="8 6"
+					opacity={0.7}
+					vectorEffect="non-scaling-stroke"
+				/>,
+			);
+		}
+	}
+
 	return (
 		<div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
 			<svg width="100%" height="100%" style={{ display: "block", overflow: "visible" }}>
-				<g transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}>{cells}</g>
+				<g transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}>
+					{cells}
+					{rings}
+				</g>
 			</svg>
 			{anchors.map((a) => (
 				<div
