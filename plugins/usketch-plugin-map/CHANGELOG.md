@@ -1,5 +1,23 @@
 # @edv4h/usketch-plugin-map
 
+## 0.3.0
+
+### Minor Changes
+
+- 58198c5: マップパレットに「領域塗り」モードを追加。クリックした地点と同じ地形で繋がっている連結領域を、選択した地形で一括塗りする。パレットで「除外」地形（複数選択可）を指定でき、除外した地形のセルは塗り替えられず保護される（除外地形をクリックしても無効）。1 操作 = 1 undo。
+- ce0864b: 「チーム」機能を「拠点」に全面改名。UI 表記だけでなく内部識別子も刷新した（shape 型 `team-map`→`base-map`、`TeamMapShapeData`→`BaseMapShapeData`、`TeamInfo`→`BaseInfo`、`teamStateStore`→`baseStateStore`、マップツールの `team` サブモード→`base` など）。
+
+  破壊的変更: 旧 `team-map` 型で保存済みの拠点データは読み込まれなくなる（shape 型が変わるため）。`@edv4h/usketch-plugin-map` から re-export していた `TeamInfo` / `TeamMapShapeData` などの型名も変更。
+
+### Patch Changes
+
+- f8a3669: マップパレット／範囲消去パレットのクリックがキャンバスに貫通し、パネル操作時に意図しない地形・アイコンが追加されてしまう不具合を修正。パネルの pointer イベントの伝播を止め、アクティブツールが発火しないようにした（他プラグインの UI オーバーレイと同じ規約）。
+- 24c6159: 範囲消去ツールを map ツールの左パレット（モード行）からも起動できるように。「範囲消去」チップを押すと範囲消去ツールに切り替わる。範囲消去パレットには「← マップツールへ」ボタンを追加し、キーボード無しで相互に行き来できる。
+- 7d84d7b: チームの陣地色塗り（TeamAreaLayer）をチームモード時だけ表示するように変更。入場バナー（EnterBanner）と同じく `map ツール + team サブモード` のときのみ描画し、他モードでは地図がすっきり見えるようにした。
+- Updated dependencies [359d732]
+  - @edv4h/usketch-shared@4.7.0
+  - @edv4h/usketch-store@3.4.1
+
 ## 0.2.0
 
 ### Minor Changes
