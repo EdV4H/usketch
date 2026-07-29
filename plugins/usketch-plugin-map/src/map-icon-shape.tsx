@@ -20,7 +20,14 @@ export const DEFAULT_ICON_SIZE = 48;
 
 export interface MapIconShapeData extends ShapeData {
 	type: "map-icon";
-	meta: { iconKey: string; category: IconCategory };
+	meta: {
+		iconKey: string;
+		category: IconCategory;
+		/** Set when this icon has been used as a base "beacon" (see assignRadiusFromIcon). */
+		baseId?: string;
+		/** Base radius in tiles that was stamped from this icon. */
+		baseRadius?: number;
+	};
 }
 
 export function makeMapIcon(

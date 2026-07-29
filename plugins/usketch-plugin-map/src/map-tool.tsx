@@ -28,6 +28,7 @@ import type { OwnerMap } from "./base/base-map-shape.js";
 import {
 	applyOwner,
 	assignIsland,
+	assignRadiusFromIcon,
 	commitOwner,
 	currentOwner,
 	resolveBaseMap,
@@ -37,6 +38,7 @@ import { genStateStore } from "./gen-state.js";
 import { generateIntoBox, resolveTilemap } from "./generate.js";
 import { ICONS_BY_KEY } from "./icons.js";
 import { MAP_ICON_TYPE, makeMapIcon } from "./map-icon-shape.js";
+import { renderConfigStore } from "./render-config.js";
 import { DEFAULT_TILE, type TileMapShapeData } from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
 
@@ -265,6 +267,21 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 				if (ts.mode === "island") {
 					if (ts.activeBaseId)
 						assignIsland(deps, event.worldPoint.x, event.worldPoint.y, ts.activeBaseId);
+					return;
+				}
+				if (ts.mode === "beacon") {
+					// Stamp the radius around the clicked map-icon onto the active base.
+					if (!ts.activeBaseId) return;
+					const iconId = findMapIconAt(ctx, event.worldPoint.x, event.worldPoint.y);
+					if (!iconId) return;
+					assignRadiusFromIcon(
+						deps,
+						iconId,
+						ts.activeBaseId,
+						ts.radius,
+						renderConfigStore.get().emptyTerrain,
+						new Set(ts.excludeTerrains),
+					);
 					return;
 				}
 				if (ts.mode === "assign" && !ts.activeBaseId) return; // pick a base first

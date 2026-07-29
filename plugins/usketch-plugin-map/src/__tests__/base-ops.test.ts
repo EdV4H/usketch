@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Cells } from "../autotile.js";
 import type { BaseInfo, OwnerMap } from "../base/base-map-shape.js";
-import { baseIdAtWorld, baseRegionAnchors, landRegionFrom, ownersEqual } from "../base/base-ops.js";
+import {
+	baseIdAtWorld,
+	baseRegionAnchors,
+	landRegionFrom,
+	ownersEqual,
+	radiusCells,
+} from "../base/base-ops.js";
 
 describe("baseIdAtWorld", () => {
 	const owner: OwnerMap = { "0,0": "red", "1,0": "blue" };
@@ -59,5 +65,51 @@ describe("baseRegionAnchors", () => {
 	it("skips bases with no owned cells and unknown base ids", () => {
 		const owner: OwnerMap = { "0,0": "ghost" }; // base not in registry
 		expect(baseRegionAnchors(owner, bases, 40)).toEqual([]);
+	});
+});
+
+describe("radiusCells", () => {
+	// tile=40; center (20,20) is the centre of cell 0,0. Radius 1 tile = 40 world,
+	// so the 4 orthogonal neighbours sit exactly on the boundary (included).
+	it("returns in-radius land cells (plus shape at r=1)", () => {
+		const cells: Cells = {
+			"0,0": "grass",
+			"1,0": "grass",
+			"-1,0": "grass",
+			"0,1": "grass",
+			"0,-1": "grass",
+			"1,1": "grass", // corner: distance ~56.6 > 40 → excluded
+		};
+		const keys = radiusCells({ x: 20, y: 20 }, 1, cells, 40, null, new Set());
+		expect(new Set(keys)).toEqual(new Set(["0,0", "1,0", "-1,0", "0,1", "0,-1"]));
+	});
+
+	it("skips excluded terrain (e.g. water)", () => {
+		const cells: Cells = {
+			"0,0": "grass",
+			"1,0": "water",
+			"-1,0": "grass",
+			"0,1": "grass",
+			"0,-1": "grass",
+		};
+		const keys = radiusCells({ x: 20, y: 20 }, 1, cells, 40, null, new Set(["water"]));
+		expect(keys).not.toContain("1,0");
+		expect(new Set(keys)).toEqual(new Set(["0,0", "-1,0", "0,1", "0,-1"]));
+	});
+
+	it("uses the empty-terrain fallback for unset cells", () => {
+		const cells: Cells = { "0,0": "grass" };
+		// truly empty → only the painted cell qualifies
+		expect(radiusCells({ x: 20, y: 20 }, 1, cells, 40, null, new Set())).toEqual(["0,0"]);
+		// empty="grass" → all in-radius cells count as grass
+		const all = radiusCells({ x: 20, y: 20 }, 1, cells, 40, "grass", new Set());
+		expect(new Set(all)).toEqual(new Set(["0,0", "1,0", "-1,0", "0,1", "0,-1"]));
+		// empty="water" excluded → unset (=water) skipped, painted grass kept
+		const exW = radiusCells({ x: 20, y: 20 }, 1, cells, 40, "water", new Set(["water"]));
+		expect(exW).toEqual(["0,0"]);
+	});
+
+	it("returns [] for a non-positive radius", () => {
+		expect(radiusCells({ x: 20, y: 20 }, 0, { "0,0": "grass" }, 40, null, new Set())).toEqual([]);
 	});
 });
