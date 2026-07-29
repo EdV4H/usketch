@@ -475,9 +475,34 @@ export interface CommandRegistry {
 
 // ── Shortcut System ──
 
+/**
+ * Optional metadata attached to a shortcut registration. Hosts can use it to
+ * render a cheat-sheet / settings UI from {@link ShortcutRegistry.list}.
+ */
+export interface ShortcutMeta {
+	/** Human-readable label (e.g. "Undo"). */
+	label?: string;
+	/** Grouping key (e.g. "history", "edit"). */
+	category?: string;
+}
+
+/** A single registered shortcut, as returned by {@link ShortcutRegistry.list}. */
+export interface ShortcutEntry {
+	/** The combo as originally registered (not normalized), for display. */
+	combo: string;
+	meta?: ShortcutMeta;
+}
+
 export interface ShortcutRegistry {
-	register(combo: string, callback: () => void): () => void;
+	/**
+	 * Register a shortcut. `combo` is `"+"`-joined, order-independent, and
+	 * case-insensitive; the `Mod` token is the platform accelerator (Cmd on
+	 * macOS, Ctrl elsewhere). Returns an unregister function.
+	 */
+	register(combo: string, callback: () => void, meta?: ShortcutMeta): () => void;
 	handleKeyDown(event: KeyboardEvent): boolean;
+	/** All currently-registered shortcuts (for cheat-sheet / settings UIs). */
+	list(): ShortcutEntry[];
 }
 
 // ── Action System ──

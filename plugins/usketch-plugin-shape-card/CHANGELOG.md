@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-shape-card
 
+## 1.4.2
+
+### Patch Changes
+
+- Updated dependencies [359d732]
+  - @edv4h/usketch-shared@4.7.0
+  - @edv4h/usketch-core@2.3.0
+  - @edv4h/usketch-canvas-engine@1.3.1
+  - @edv4h/usketch-store@3.4.1
+
 ## 1.4.1
 
 ### Patch Changes

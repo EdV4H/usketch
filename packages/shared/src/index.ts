@@ -49,6 +49,8 @@ export type {
 	ShapeDefinition,
 	ShapeRegistry,
 	ShapeSerializeContext,
+	ShortcutEntry,
+	ShortcutMeta,
 	ShortcutRegistry,
 	StoreEvent,
 	StoreEventType,
