@@ -157,7 +157,7 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		if (!stroke) return;
 		const [c, r] = worldToCell(event.worldPoint.x, event.worldPoint.y, tile);
 		const { terrain, excludeTerrains } = toolStateStore.get();
-		const exclude = new Set<string>(excludeTerrains);
+		const exclude = new Set(excludeTerrains);
 		const cells = currentCells(ctx, stroke.tilemapId);
 		const b = cellsBounds(cells, tile);
 		const box: CellBox | undefined =

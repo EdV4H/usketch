@@ -112,11 +112,11 @@ describe("regionFillCells", () => {
 		const cells: Cells = { "0,0": "water", "1,0": "water" };
 		expect(regionFillCells(cells, 0, 0, new Set(["water"]))).toEqual([]);
 	});
-	it("keeps protected cells out of the returned region", () => {
-		// Region is uniform grass; excluding grass protects the whole thing.
+	it("protects a terrain by refusing to fill when it is the start terrain", () => {
 		const cells: Cells = { "0,0": "grass", "1,0": "grass" };
+		// Excluding grass makes clicking this all-grass region a no-op.
 		expect(regionFillCells(cells, 0, 0, new Set(["grass"]))).toEqual([]);
-		// Excluding an unrelated terrain leaves the grass region intact.
+		// Excluding an unrelated terrain leaves the grass region fillable.
 		expect(new Set(regionFillCells(cells, 0, 0, new Set(["water"])))).toEqual(
 			new Set(["0,0", "1,0"]),
 		);

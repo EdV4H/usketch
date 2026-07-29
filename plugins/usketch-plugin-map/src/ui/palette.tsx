@@ -170,6 +170,8 @@ export function MapPalette({
 									type="button"
 									key={t.key}
 									title={`${t.name} / ${t.en}`}
+									aria-label={t.name}
+									aria-pressed={tool.terrain === t.key}
 									onClick={() => toolStateStore.set({ terrain: t.key })}
 									style={{
 										border: `2px solid ${tool.terrain === t.key ? "#EF5350" : STROKE}`,
@@ -211,6 +213,7 @@ export function MapPalette({
 											type="button"
 											key={t.key}
 											title={`${t.name} / ${t.en}`}
+											aria-label={`${t.name}を除外`}
 											aria-pressed={excluded.has(t.key)}
 											onClick={() => toggleExclude(t.key)}
 											style={{
