@@ -1,11 +1,13 @@
 // Derived base territory. A base's area is NOT stored — it is computed from its
-// beacon (a map-icon) + the terrain paint:
-//   • the core disk (radius tiles around the beacon) is ALWAYS owned, and
-//   • painted, non-excluded cells 4-connected to that core are owned too
-//     (disconnected paint is NOT owned; excluded terrain, e.g. water, is a wall).
-// Multi-source BFS → the nearest beacon claims contested painted cells. Memoised
-// by the tilemap `cells` object identity + a beacon signature, so it only
-// recomputes when paint or a beacon (position/radius/set) actually changes.
+// beacon (a map-icon) + the terrain paint. A base owns the painted, non-excluded
+// land that is 4-connected to its beacon AND within `radius` tiles of it:
+//   • the beacon's own cell is the seed (always owned),
+//   • growth spreads through painted, non-excluded cells (excluded terrain, e.g.
+//     water, is a wall; unpainted space is not walkable), and
+//   • the radius caps how far it spreads — so a base never claims a whole
+//     connected landmass, only its neighbourhood.
+// Memoised by the tilemap `cells` object identity + a beacon signature, so it
+// only recomputes when paint or a beacon (position/radius/set) actually changes.
 import type { BoardStore } from "@edv4h/usketch-shared";
 import { type Cells, cellKey, worldToCell } from "../autotile.js";
 import { MAP_ICON_TYPE, type MapIconShapeData } from "../map-icon-shape.js";
@@ -70,48 +72,42 @@ function build(
 	exclude: ReadonlySet<string>,
 ): Territory {
 	const territory: Territory = {};
-	const queue: [number, number][] = [];
 
-	// Seed core disks — always owned, paint-independent. Sorted so overlapping
-	// cores resolve deterministically (first baseId wins).
+	// Each base owns the painted, non-excluded land that is 4-connected to its
+	// beacon AND within `radius` tiles of it. The beacon's own cell is the seed
+	// (so there's always an anchor); growth is capped by the radius, so a base
+	// never claims a whole connected landmass — only its neighbourhood. Beacons
+	// are processed in a stable order so overlaps resolve deterministically.
 	const sorted = [...beacons].sort((a, b) => (a.baseId < b.baseId ? -1 : 1));
 	for (const bec of sorted) {
-		const [cc, cr] = worldToCell(bec.cx, bec.cy, tile);
 		const rSq = (bec.radius * tile) ** 2;
-		const span = Math.ceil(bec.radius);
-		for (let r = cr - span; r <= cr + span; r++) {
-			for (let c = cc - span; c <= cc + span; c++) {
-				const dx = (c + 0.5) * tile - bec.cx;
-				const dy = (r + 0.5) * tile - bec.cy;
-				if (dx * dx + dy * dy > rSq) continue;
-				const k = cellKey(c, r);
+		const withinRadius = (c: number, r: number) => {
+			const dx = (c + 0.5) * tile - bec.cx;
+			const dy = (r + 0.5) * tile - bec.cy;
+			return dx * dx + dy * dy <= rSq;
+		};
+		const [sc, sr] = worldToCell(bec.cx, bec.cy, tile);
+		const seed = cellKey(sc, sr);
+		const queue: [number, number][] = [];
+		if (!(seed in territory)) territory[seed] = bec.baseId;
+		queue.push([sc, sr]);
+		for (let head = 0; head < queue.length; head++) {
+			const [c, r] = queue[head];
+			for (const [nc, nr] of [
+				[c + 1, r],
+				[c - 1, r],
+				[c, r + 1],
+				[c, r - 1],
+			] as [number, number][]) {
+				const k = cellKey(nc, nr);
 				if (k in territory) continue;
+				if (!withinRadius(nc, nr)) continue; // radius cap
+				// Only EXPLICITLY painted, non-excluded cells are walkable land.
+				const t = cells[k];
+				if (t === undefined || exclude.has(t)) continue;
 				territory[k] = bec.baseId;
-				queue.push([c, r]);
+				queue.push([nc, nr]);
 			}
-		}
-	}
-
-	// BFS growth through painted, non-excluded cells (nearest beacon wins).
-	for (let head = 0; head < queue.length; head++) {
-		const [c, r] = queue[head];
-		const baseId = territory[cellKey(c, r)];
-		const neighbours: [number, number][] = [
-			[c + 1, r],
-			[c - 1, r],
-			[c, r + 1],
-			[c, r - 1],
-		];
-		for (const [nc, nr] of neighbours) {
-			const k = cellKey(nc, nr);
-			if (k in territory) continue;
-			// Growth only crosses EXPLICITLY painted, non-excluded cells. Unpainted
-			// space (even when it renders as the `emptyTerrain`, e.g. sea) is NOT
-			// walkable — otherwise the flood would never terminate.
-			const t = cells[k];
-			if (t === undefined || exclude.has(t)) continue;
-			territory[k] = baseId;
-			queue.push([nc, nr]);
 		}
 	}
 	return territory;
