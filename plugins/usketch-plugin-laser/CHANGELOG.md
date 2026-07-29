@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-laser
 
+## 2.0.9
+
+### Patch Changes
+
+- Updated dependencies [6c6702b]
+  - @edv4h/usketch-shared@4.8.0
+
 ## 2.0.8
 
 ### Patch Changes
