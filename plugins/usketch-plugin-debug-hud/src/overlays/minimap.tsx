@@ -1,5 +1,5 @@
 import type { BoardStore, ShapeData, Viewport } from "@edv4h/usketch-shared";
-import { computeMinimap, type MinimapResult } from "@edv4h/usketch-shared";
+import { computeMinimap, type MinimapResult, zoomBy } from "@edv4h/usketch-shared";
 import { STOP_CANVAS_PROPAGATION } from "../stop-propagation.js";
 import {
 	ACCENT_DIM,
@@ -41,12 +41,9 @@ export function Minimap({ store, shapes, viewport, selection, offsetLeft = 8 }: 
 	});
 
 	// Zoom about the screen center, matching the old TopBar zoom controls.
-	const zoomAt = (factor: number) =>
-		store.zoomTo(viewport.zoom * factor, {
-			x: window.innerWidth / 2,
-			y: window.innerHeight / 2,
-		});
-	const resetZoom = () => store.setViewport({ x: 0, y: 0, zoom: 1 });
+	// Discrete button → smooth by default (shared helper animates).
+	const zoomAt = (factor: number) => zoomBy(store, factor);
+	const resetZoom = () => store.animateViewportTo({ x: 0, y: 0, zoom: 1 });
 
 	return (
 		<div

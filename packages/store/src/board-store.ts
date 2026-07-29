@@ -6,10 +6,13 @@ import type {
 	ShapeStyle,
 	StoreEvent,
 	Viewport,
+	ViewportAnimationConfig,
+	ViewportAnimationOptions,
 } from "@edv4h/usketch-shared";
 import {
 	compareZIndex,
 	DEFAULT_STYLE,
+	easeInOutCubic,
 	getRotatedAABB,
 	safeRotation,
 	zIndexBetween,
@@ -28,7 +31,12 @@ export interface BoardState {
 
 const INITIAL_DEFAULT_TOOL_ID = "select";
 
-export function createBoardStore(): BoardStore {
+export interface BoardStoreOptions {
+	/** Override the default smooth-viewport-animation behaviour (default: on). */
+	viewportAnimation?: Partial<ViewportAnimationConfig>;
+}
+
+export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 	const state: BoardState = {
 		shapes: new Map(),
 		selection: new Set(),
@@ -82,6 +90,76 @@ export function createBoardStore(): BoardStore {
 		for (const listener of mutationListeners) {
 			listener(event);
 		}
+	}
+
+	// ── Viewport ─────────────────────────────────────────────────────────────
+	let viewportAnimation: ViewportAnimationConfig = {
+		enabled: options.viewportAnimation?.enabled ?? true,
+		durationMs: options.viewportAnimation?.durationMs ?? 350,
+		easing: options.viewportAnimation?.easing ?? easeInOutCubic,
+	};
+	let viewportRafId: number | null = null;
+
+	function cancelViewportAnimation() {
+		if (viewportRafId !== null && typeof cancelAnimationFrame !== "undefined") {
+			cancelAnimationFrame(viewportRafId);
+		}
+		viewportRafId = null;
+	}
+
+	/** Assign the viewport and fan out the usual change notifications. */
+	function commitViewport(viewport: Viewport) {
+		state.viewport = viewport;
+		notify();
+		notifyMutation({ type: "viewport:changed" });
+	}
+
+	function prefersReducedMotion(): boolean {
+		return (
+			typeof window !== "undefined" &&
+			typeof window.matchMedia === "function" &&
+			window.matchMedia("(prefers-reduced-motion: reduce)").matches
+		);
+	}
+
+	/** rAF tween to `target`, with instant fallback when animation can't/shouldn't run. */
+	function animateViewportTo(target: Viewport, opts?: ViewportAnimationOptions) {
+		cancelViewportAnimation();
+		const duration = opts?.durationMs ?? viewportAnimation.durationMs;
+		const animate = opts?.animate ?? viewportAnimation.enabled;
+		const from = state.viewport;
+		const near =
+			Math.abs(from.x - target.x) < 0.01 &&
+			Math.abs(from.y - target.y) < 0.01 &&
+			Math.abs(from.zoom - target.zoom) < 1e-4;
+		if (
+			!animate ||
+			near ||
+			duration <= 0 ||
+			typeof requestAnimationFrame === "undefined" ||
+			typeof performance === "undefined" ||
+			prefersReducedMotion()
+		) {
+			commitViewport(target);
+			return;
+		}
+		const easing = opts?.easing ?? viewportAnimation.easing;
+		const start = performance.now();
+		const step = (now: number) => {
+			const t = Math.min(1, (now - start) / duration);
+			const k = easing(t);
+			commitViewport({
+				x: from.x + (target.x - from.x) * k,
+				y: from.y + (target.y - from.y) * k,
+				zoom: from.zoom + (target.zoom - from.zoom) * k,
+			});
+			if (t < 1) {
+				viewportRafId = requestAnimationFrame(step);
+			} else {
+				viewportRafId = null;
+			}
+		};
+		viewportRafId = requestAnimationFrame(step);
 	}
 
 	function setActiveToolId(id: string) {
@@ -280,39 +358,48 @@ export function createBoardStore(): BoardStore {
 
 		getViewport: () => state.viewport,
 
+		// Instant setters cancel any in-flight animation so interaction wins.
 		setViewport(viewport: Viewport) {
-			state.viewport = viewport;
-			notify();
-			notifyMutation({ type: "viewport:changed" });
+			cancelViewportAnimation();
+			commitViewport(viewport);
 		},
 
 		panBy(dx: number, dy: number) {
-			state.viewport = {
+			cancelViewportAnimation();
+			commitViewport({
 				...state.viewport,
 				x: state.viewport.x + dx,
 				y: state.viewport.y + dy,
-			};
-			notify();
-			notifyMutation({ type: "viewport:changed" });
+			});
 		},
 
 		zoomTo(zoom: number, center: Point) {
+			cancelViewportAnimation();
 			const clampedZoom = Math.min(Math.max(zoom, 0.1), 10);
 			const oldZoom = state.viewport.zoom;
 			const scale = clampedZoom / oldZoom;
-			state.viewport = {
+			commitViewport({
 				x: center.x - (center.x - state.viewport.x) * scale,
 				y: center.y - (center.y - state.viewport.y) * scale,
 				zoom: clampedZoom,
+			});
+		},
+
+		animateViewportTo,
+		getViewportAnimation: () => ({ ...viewportAnimation }),
+		setViewportAnimation(config: Partial<ViewportAnimationConfig>) {
+			viewportAnimation = {
+				enabled: config.enabled ?? viewportAnimation.enabled,
+				durationMs: config.durationMs ?? viewportAnimation.durationMs,
+				easing: config.easing ?? viewportAnimation.easing,
 			};
-			notify();
-			notifyMutation({ type: "viewport:changed" });
 		},
 
 		fitToBounds(
 			bounds: BoundingBox,
 			viewportSize: { width: number; height: number },
 			padding = 40,
+			opts?: ViewportAnimationOptions,
 		) {
 			if (bounds.width <= 0 || bounds.height <= 0) return;
 			if (viewportSize.width <= 0 || viewportSize.height <= 0) return;
@@ -322,13 +409,15 @@ export function createBoardStore(): BoardStore {
 			const zoom = Math.min(Math.max(rawZoom, 0.1), 10);
 			const cx = bounds.x + bounds.width / 2;
 			const cy = bounds.y + bounds.height / 2;
-			state.viewport = {
-				x: viewportSize.width / 2 - cx * zoom,
-				y: viewportSize.height / 2 - cy * zoom,
-				zoom,
-			};
-			notify();
-			notifyMutation({ type: "viewport:changed" });
+			// Programmatic fit → animate by default (see animateViewportTo fallbacks).
+			animateViewportTo(
+				{
+					x: viewportSize.width / 2 - cx * zoom,
+					y: viewportSize.height / 2 - cy * zoom,
+					zoom,
+				},
+				opts,
+			);
 		},
 
 		getStyleSettings: () => state.styleSettings,
