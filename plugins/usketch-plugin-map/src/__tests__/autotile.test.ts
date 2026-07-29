@@ -6,6 +6,7 @@ import {
 	exposedEdges,
 	floodFill,
 	parseCellKey,
+	regionFillCells,
 	terrainAtCell,
 	worldToCell,
 } from "../autotile.js";
@@ -98,5 +99,26 @@ describe("floodFill", () => {
 		expect(floodFill(cells, 0, 0)).toEqual([]); // unbounded empty → nothing
 		const keys = floodFill(cells, 0, 0, { minC: 0, minR: 0, maxC: 1, maxR: 1 });
 		expect(new Set(keys)).toEqual(new Set(["0,0", "1,0", "0,1", "1,1"]));
+	});
+});
+
+describe("regionFillCells", () => {
+	it("matches floodFill when nothing is excluded", () => {
+		const cells: Cells = { "0,0": "grass", "1,0": "grass", "2,0": "water" };
+		const keys = regionFillCells(cells, 0, 0, new Set());
+		expect(new Set(keys)).toEqual(new Set(["0,0", "1,0"]));
+	});
+	it("is a no-op when the clicked terrain is protected", () => {
+		const cells: Cells = { "0,0": "water", "1,0": "water" };
+		expect(regionFillCells(cells, 0, 0, new Set(["water"]))).toEqual([]);
+	});
+	it("keeps protected cells out of the returned region", () => {
+		// Region is uniform grass; excluding grass protects the whole thing.
+		const cells: Cells = { "0,0": "grass", "1,0": "grass" };
+		expect(regionFillCells(cells, 0, 0, new Set(["grass"]))).toEqual([]);
+		// Excluding an unrelated terrain leaves the grass region intact.
+		expect(new Set(regionFillCells(cells, 0, 0, new Set(["water"])))).toEqual(
+			new Set(["0,0", "1,0"]),
+		);
 	});
 });
