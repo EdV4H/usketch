@@ -1,4 +1,5 @@
 import type { BoardStore, LayerManager } from "@edv4h/usketch-shared";
+import { centerOnWorld } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
@@ -29,12 +30,7 @@ function getOnlineUsers(wsProvider: WsProviderHandle): OnlineUser[] {
 }
 
 function jumpToUser(store: BoardStore, vc: { x: number; y: number }): void {
-	const vp = store.getViewport();
-	store.setViewport({
-		...vp,
-		x: window.innerWidth / 2 - vc.x * vp.zoom,
-		y: window.innerHeight / 2 - vc.y * vp.zoom,
-	});
+	centerOnWorld(store, vc);
 }
 
 function CommandPaletteUI({

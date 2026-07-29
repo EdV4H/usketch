@@ -1,4 +1,5 @@
 import {
+	centerOnWorld,
 	generateId,
 	type PluginContext,
 	type TransientObject,
@@ -206,12 +207,8 @@ function WhistleIndicatorLayer({
 
 	const handleJump = useCallback(
 		(worldX: number, worldY: number) => {
-			const vp = store.getViewport();
-			store.setViewport({
-				...vp,
-				x: window.innerWidth / 2 - worldX * vp.zoom,
-				y: window.innerHeight / 2 - worldY * vp.zoom,
-			});
+			// Jump to an off-screen whistler → smooth by default.
+			centerOnWorld(store, { x: worldX, y: worldY });
 		},
 		[store],
 	);

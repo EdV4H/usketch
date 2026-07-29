@@ -78,7 +78,8 @@ export function GeneralPanel({
 		const y = Number.parseFloat(vpDraft.y);
 		const zoom = Number.parseFloat(vpDraft.zoom);
 		if (!Number.isNaN(x) && !Number.isNaN(y) && !Number.isNaN(zoom) && zoom > 0) {
-			store.setViewport({ x, y, zoom });
+			// Applying a typed viewport is a logic-driven jump → smooth by default.
+			store.animateViewportTo({ x, y, zoom });
 		}
 		setEditingViewport(false);
 	};

@@ -62,6 +62,8 @@ export type {
 	TransientRenderer,
 	UiRegistry,
 	UsketchPlugin,
+	ViewportAnimationConfig,
+	ViewportAnimationOptions,
 } from "./types/plugin.js";
 // Shape
 export type { ResizeHandle, ShapeData, ShapeStyle } from "./types/shape.js";
@@ -119,6 +121,16 @@ export {
 } from "./utils/rotation.js";
 // Shape diff
 export { bidiffShape, diffShape } from "./utils/shape-diff.js";
+export {
+	centerOnWorld,
+	easeInOutCubic,
+	fitContent,
+	getScreenSize,
+	screenCenterWorld,
+	type ViewportMoveOptions,
+	zoomBy,
+	zoomToLevel,
+} from "./utils/viewport.js";
 export {
 	getShapeAABB,
 	isShapeOutsideViewport,
