@@ -9,6 +9,7 @@ import { createBoardInfoPanelPlugin } from "@edv4h/usketch-plugin-board-info-pan
 import { createFilterPlugin } from "@edv4h/usketch-plugin-canvas-filter";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createCommunityChatPlugin } from "@edv4h/usketch-plugin-community-chat";
+import { createDebugHudPlugin } from "@edv4h/usketch-plugin-debug-hud";
 import { createRippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createKeyboardShortcutsPlugin } from "@edv4h/usketch-plugin-keyboard-shortcuts";
@@ -39,6 +40,7 @@ import { api } from "../../lib/api.js";
 import { getDevUser } from "../../lib/dev-auth.js";
 import { getErrorMessage } from "../../lib/errors.js";
 import { useAuth } from "../../lib/use-auth.js";
+import { useCommunityActions } from "../../lib/use-community-actions.js";
 import { useKeyboardShortcuts } from "../../lib/use-keyboard-shortcuts.js";
 import { CommunityHeader } from "./community-header.js";
 
@@ -212,6 +214,9 @@ export function CommunityPage() {
 					// infinite ocean with painted land (off-map counts as water).
 					createMapPlugin({ emptyTerrain: "water" }),
 					createDomRendererPlugin(),
+					// Control HUD: hosts plugin operations/settings + the useCommunityActions
+					// actions (toggle with the backtick key). Replaces bespoke on-canvas UI.
+					createDebugHudPlugin(),
 				];
 
 				await syncHandle?.whenSynced;
@@ -268,6 +273,8 @@ export function CommunityPage() {
 
 	// キーボードショートカット
 	useKeyboardShortcuts(app);
+	// 横断アクションを Control HUD に登録（旧ヘッダー右ボタン群の代替）
+	useCommunityActions(app, !!authUserId);
 
 	if (error) {
 		return (

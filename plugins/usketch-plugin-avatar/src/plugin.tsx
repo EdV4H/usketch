@@ -1,8 +1,6 @@
 import type { PluginContext, TransientObject, UsketchPlugin } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { AvatarCircle } from "./avatar-circle.js";
-import type { RadialMenuItem } from "./radial-menu.js";
-import { RadialMenuRenderer } from "./radial-menu-renderer.js";
 
 const AVATAR_BASE_SIZE = 40;
 /** アバターの最小ピクセルサイズ */
@@ -114,59 +112,8 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				});
 			}
 
-			const RADIAL_MENU_ID = "avatar-radial-menu";
-			let radialMenuVisible = false;
-
-			function getToolMenuItems(): RadialMenuItem[] {
-				const tools = ctx.tools.getOrdered();
-				return tools.map(({ id, definition }) => ({
-					id,
-					label: `${id}${definition.shortcut ? ` (${definition.shortcut})` : ""}`,
-					icon: definition.icon,
-				}));
-			}
-
-			// キャンバスクリックでメニューを閉じる
-			const unsubCanvasDown = ctx.events.on("canvas:pointerdown", () => {
-				if (radialMenuVisible) hideRadialMenu();
-			});
-
-			function showRadialMenu() {
-				radialMenuVisible = true;
-				const vp = ctx.store.getViewport();
-				const worldCenterX = (window.innerWidth / 2 - vp.x) / vp.zoom;
-				const worldCenterY = (window.innerHeight / 2 - vp.y) / vp.zoom;
-				ctx.transient.dismiss(RADIAL_MENU_ID);
-				ctx.transient.emit({
-					id: RADIAL_MENU_ID,
-					type: "radial-menu",
-					sourceUserId: "local",
-					position: { x: worldCenterX, y: worldCenterY },
-					data: {
-						items: getToolMenuItems(),
-						interactive: true,
-					},
-					createdAt: Date.now(),
-				});
-			}
-
-			function hideRadialMenu() {
-				radialMenuVisible = false;
-				ctx.transient.dismiss(RADIAL_MENU_ID);
-			}
-
-			ctx.transient.registerType("radial-menu", {
-				render: (obj) => (
-					<RadialMenuRenderer
-						obj={obj}
-						onSelect={(toolId) => {
-							ctx.store.setActiveToolId(toolId);
-							hideRadialMenu();
-						}}
-					/>
-				),
-			});
-
+			// ツール切替は Control HUD のツール一覧に一本化したため、アバターの
+			// ラジアルメニューは撤去（クリックはキャンバスへ伝播させないだけ）。
 			let currentZoom = ctx.store.getViewport().zoom;
 
 			function registerSelfLayer() {
@@ -187,12 +134,8 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 								cursor: "pointer",
 							}}
 							onPointerDown={(e) => {
+								// Keep clicks on your own avatar from reaching the canvas tools.
 								e.stopPropagation();
-								if (radialMenuVisible) {
-									hideRadialMenu();
-								} else {
-									showRadialMenu();
-								}
 							}}
 						>
 							<AvatarCircle
@@ -293,8 +236,6 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				clearTimeout(delayedCheck);
 				awareness.off("change", onAwarenessChange);
 				unsubStore();
-				unsubCanvasDown();
-				hideRadialMenu();
 				ctx.layers.unregister("avatar-self");
 			};
 		},

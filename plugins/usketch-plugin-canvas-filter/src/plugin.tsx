@@ -1,7 +1,6 @@
 import type { PluginContext, ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { compileFilter } from "./filter-engine.js";
-import { FilterIndicator } from "./filter-indicator.js";
 import { FilterPalette } from "./filter-palette.js";
 import { TimeTravelBanner, TimeTravelPanel } from "./time-travel.js";
 import type { FilterChangedEvent, ShapeFilterConfig } from "./types.js";
@@ -94,6 +93,14 @@ export function createFilterPlugin(_options?: FilterPluginOptions): UsketchPlugi
 		notify();
 	}
 
+	/** Clear the active filter (mirrors applyConfig's empty-rules branch). */
+	function clearFilter() {
+		if (!ctx) return;
+		currentConfig = null;
+		ctx.events.emit<FilterChangedEvent>("filter:changed", { predicate: null, config: null });
+		notify();
+	}
+
 	// ── Time Travel ──
 
 	function enterTimeTravel(shapes: Map<string, ShapeData>) {
@@ -120,12 +127,6 @@ export function createFilterPlugin(_options?: FilterPluginOptions): UsketchPlugi
 		return <FilterPalette onApply={applyConfig} onClose={closePalette} />;
 	}
 
-	function FilterIndicatorGate() {
-		const config = useSyncExternalStore(subscribe, () => currentConfig);
-		const ruleCount = config?.rules.length ?? 0;
-		return <FilterIndicator ruleCount={ruleCount} onClick={togglePalette} />;
-	}
-
 	function TimeTravelBannerGate() {
 		const ts = useSyncExternalStore(subscribe, () => timeTravelTs);
 		if (ts == null) return null;
@@ -149,14 +150,6 @@ export function createFilterPlugin(_options?: FilterPluginOptions): UsketchPlugi
 				render: () => <FilterPaletteGate />,
 			});
 
-			// Register indicator layer (fixed)
-			ctx.layers.register({
-				id: "filter-indicator",
-				order: 200,
-				fixed: true,
-				render: () => <FilterIndicatorGate />,
-			});
-
 			// Register time travel banner layer (fixed)
 			ctx.layers.register({
 				id: "time-travel-banner",
@@ -170,6 +163,31 @@ export function createFilterPlugin(_options?: FilterPluginOptions): UsketchPlugi
 				togglePalette();
 			});
 			cleanups.push(unregShortcut);
+
+			// Control HUD actions (replaces the always-on indicator button).
+			cleanups.push(
+				ctx.actions.register({
+					id: "filter:open",
+					group: "フィルタ",
+					label: "フィルタ設定を開く",
+					isActive: () => paletteOpen,
+					run: togglePalette,
+				}),
+				ctx.actions.register({
+					id: "filter:clear",
+					group: "フィルタ",
+					label: "フィルタ解除",
+					isEnabled: () => currentConfig !== null,
+					run: clearFilter,
+				}),
+				ctx.actions.register({
+					id: "filter:time-travel-exit",
+					group: "フィルタ",
+					label: "タイムトラベル終了",
+					isEnabled: () => timeTravelTs !== null,
+					run: exitTimeTravel,
+				}),
+			);
 
 			// Listen for time-travel requests from filter palette or external
 			const unsubTtEnter = ctx.events.on<{ shapes: Map<string, ShapeData>; timestamp: number }>(
@@ -210,7 +228,6 @@ export function createFilterPlugin(_options?: FilterPluginOptions): UsketchPlugi
 
 				if (ctx) {
 					ctx.layers.unregister("filter-palette");
-					ctx.layers.unregister("filter-indicator");
 					ctx.layers.unregister("time-travel-banner");
 					ctx.events.emit("side-panel:unregister-tab", { tabId: "time-travel" });
 
