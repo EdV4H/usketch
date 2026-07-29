@@ -53,60 +53,68 @@ const B1: Record<string, BaseInfo> = {
 	b1: { name: "B1", color: "#f00", radius: 1, beaconIconId: "i1" },
 };
 
+// B2 with radius 2 for growth tests (radius 1 only reaches the 4 orthogonals).
+const B2: Record<string, BaseInfo> = {
+	b1: { name: "B1", color: "#f00", radius: 2, beaconIconId: "i1" },
+};
+
 describe("computeTerritory", () => {
-	it("owns the core disk regardless of paint (no tilemap)", () => {
+	it("seeds the beacon cell (no paint → only that cell)", () => {
 		const store = makeStore([baseMap(B1), icon("i1", 20, 20, "b1")]);
 		const t = computeTerritory(store, TILE, new Set());
-		// centre cell 0,0 + the 4 orthogonal boundary cells (radius 1 tile).
-		expect(new Set(Object.keys(t))).toEqual(new Set(["0,0", "1,0", "-1,0", "0,1", "0,-1"]));
-		expect(t["0,0"]).toBe("b1");
+		expect(t).toEqual({ "0,0": "b1" });
 	});
 
-	it("stays bounded to the core when neighbours are unpainted (no runaway)", () => {
-		// A tilemap exists but the only paint (5,5) is disconnected. Unpainted space
-		// must NOT be walkable — otherwise the flood never terminates.
-		const store = makeStore([baseMap(B1), icon("i1", 20, 20, "b1"), tilemap({ "5,5": "grass" })]);
+	it("grows through painted land connected to the beacon", () => {
+		const store = makeStore([baseMap(B2), icon("i1", 20, 20, "b1"), tilemap({ "1,0": "grass" })]);
 		const t = computeTerritory(store, TILE, new Set());
-		expect(new Set(Object.keys(t))).toEqual(new Set(["0,0", "1,0", "-1,0", "0,1", "0,-1"]));
+		expect(t["1,0"]).toBe("b1"); // painted, within radius, adjacent to the seed
 	});
 
-	it("grows through painted cells connected to the core", () => {
-		const store = makeStore([baseMap(B1), icon("i1", 20, 20, "b1"), tilemap({ "2,0": "grass" })]);
-		const t = computeTerritory(store, TILE, new Set());
-		expect(t["2,0"]).toBe("b1"); // adjacent to core cell 1,0
-	});
-
-	it("excluded terrain is a wall (blocks growth beyond it)", () => {
+	it("does NOT claim connected land beyond the radius (the island fix)", () => {
+		// A painted line runs outward. radius 1 → only the in-radius cell is claimed,
+		// even though 2,0 / 3,0 are painted and connected.
 		const store = makeStore([
 			baseMap(B1),
 			icon("i1", 20, 20, "b1"),
-			tilemap({ "2,0": "water", "3,0": "grass" }),
+			tilemap({ "1,0": "grass", "2,0": "grass", "3,0": "grass" }),
+		]);
+		const t = computeTerritory(store, TILE, new Set());
+		expect(t["1,0"]).toBe("b1"); // dist 40 ≤ radius(1)*40 → in
+		expect(t["2,0"]).toBeUndefined(); // dist 80 > 40 → beyond radius
+		expect(t["3,0"]).toBeUndefined();
+	});
+
+	it("excluded terrain is a wall (not claimed, blocks connectivity)", () => {
+		const store = makeStore([
+			baseMap(B2),
+			icon("i1", 20, 20, "b1"),
+			tilemap({ "1,0": "water", "2,0": "grass" }),
 		]);
 		const t = computeTerritory(store, TILE, new Set(["water"]));
-		expect(t["2,0"]).toBeUndefined(); // water wall, not entered
-		expect(t["3,0"]).toBeUndefined(); // only reachable through the wall
+		expect(t["1,0"]).toBeUndefined(); // water wall
+		expect(t["2,0"]).toBeUndefined(); // only reachable through the wall
 	});
 
 	it("disconnected painted cells are NOT territory", () => {
-		const store = makeStore([baseMap(B1), icon("i1", 20, 20, "b1"), tilemap({ "9,9": "grass" })]);
+		const store = makeStore([baseMap(B2), icon("i1", 20, 20, "b1"), tilemap({ "9,9": "grass" })]);
 		expect(computeTerritory(store, TILE, new Set())["9,9"]).toBeUndefined();
 	});
 
-	it("a contested painted cell goes to the nearest beacon", () => {
+	it("overlapping beacons resolve deterministically (lower baseId wins)", () => {
 		const bases: Record<string, BaseInfo> = {
-			b1: { name: "B1", color: "#f00", radius: 1, beaconIconId: "i1" },
-			b2: { name: "B2", color: "#00f", radius: 1, beaconIconId: "i2" },
+			b1: { name: "B1", color: "#f00", radius: 2, beaconIconId: "i1" },
+			b2: { name: "B2", color: "#00f", radius: 2, beaconIconId: "i2" },
 		};
 		const store = makeStore([
 			baseMap(bases),
 			icon("i1", 20, 20, "b1"), // cell 0,0
-			icon("i2", 180, 20, "b2"), // cell 4,0
-			tilemap({ "2,0": "grass" }), // between the two cores (3,0)=b2 core, (1,0)=b1 core
+			icon("i2", 100, 20, "b2"), // cell 2,0
+			tilemap({ "1,0": "grass" }), // in both radii; adjacent to b1's seed
 		]);
 		const t = computeTerritory(store, TILE, new Set());
-		expect(t["1,0"]).toBe("b1");
-		expect(t["3,0"]).toBe("b2");
-		expect(t["2,0"]).toBe("b1"); // tie → deterministic (lower baseId seeds first)
+		expect(t["1,0"]).toBe("b1"); // b1 processed first
+		expect(t["2,0"]).toBe("b2"); // b2's own seed
 	});
 
 	it("is empty when no base has a beacon", () => {
@@ -115,7 +123,7 @@ describe("computeTerritory", () => {
 	});
 
 	it("memoises by cells + beacon signature", () => {
-		const store = makeStore([baseMap(B1), icon("i1", 20, 20, "b1"), tilemap({ "2,0": "grass" })]);
+		const store = makeStore([baseMap(B2), icon("i1", 20, 20, "b1"), tilemap({ "1,0": "grass" })]);
 		const a = computeTerritory(store, TILE, new Set());
 		const b = computeTerritory(store, TILE, new Set());
 		expect(b).toBe(a); // same reference (cache hit)
