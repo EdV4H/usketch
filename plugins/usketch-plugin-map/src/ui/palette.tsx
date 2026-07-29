@@ -15,7 +15,7 @@ import { terrainCssVars } from "../palette.js";
 import { RANGE_ERASE_TOOL_ID } from "../range-erase-tool.js";
 import { renderConfigStore, useRenderConfig } from "../render-config.js";
 import { renderSvgNodes } from "../svg-nodes.js";
-import { TERRAINS, terrainPatternId } from "../terrain.js";
+import { TERRAINS, type TerrainKey, terrainPatternId } from "../terrain.js";
 import { type MapMode, toolStateStore, useMapToolState } from "../tool-state.js";
 
 const BASE_COLORS = [
@@ -38,6 +38,7 @@ const MODES: { id: MapMode; label: string }[] = [
 	{ id: "brush", label: "ブラシ" },
 	{ id: "eraser", label: "消しゴム" },
 	{ id: "fill", label: "塗りつぶし" },
+	{ id: "region", label: "領域塗り" },
 	{ id: "stamp", label: "アイコン" },
 	{ id: "generate", label: "生成" },
 	{ id: "base", label: "拠点" },
@@ -149,8 +150,11 @@ export function MapPalette({
 					</button>
 				</div>
 
-				{/* Terrain palette (brush/eraser/fill) */}
-				{(tool.mode === "brush" || tool.mode === "eraser" || tool.mode === "fill") && (
+				{/* Terrain palette (brush/eraser/fill/region) */}
+				{(tool.mode === "brush" ||
+					tool.mode === "eraser" ||
+					tool.mode === "fill" ||
+					tool.mode === "region") && (
 					<div style={{ marginBottom: 12 }}>
 						<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginBottom: 6 }}>
 							地形
@@ -166,6 +170,8 @@ export function MapPalette({
 									type="button"
 									key={t.key}
 									title={`${t.name} / ${t.en}`}
+									aria-label={t.name}
+									aria-pressed={tool.terrain === t.key}
 									onClick={() => toolStateStore.set({ terrain: t.key })}
 									style={{
 										border: `2px solid ${tool.terrain === t.key ? "#EF5350" : STROKE}`,
@@ -185,6 +191,76 @@ export function MapPalette({
 						</div>
 					</div>
 				)}
+
+				{/* Region fill: pick terrains to protect (never overwritten). */}
+				{tool.mode === "region" &&
+					(() => {
+						const excluded = new Set(tool.excludeTerrains);
+						const toggleExclude = (key: TerrainKey) => {
+							const next = excluded.has(key)
+								? tool.excludeTerrains.filter((k) => k !== key)
+								: [...tool.excludeTerrains, key];
+							toolStateStore.set({ excludeTerrains: next });
+						};
+						return (
+							<div style={{ marginBottom: 12 }}>
+								<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginBottom: 6 }}>
+									除外（塗り替えない地形）
+								</div>
+								<div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
+									{TERRAINS.map((t) => (
+										<button
+											type="button"
+											key={t.key}
+											title={`${t.name} / ${t.en}`}
+											aria-label={`${t.name}を除外`}
+											aria-pressed={excluded.has(t.key)}
+											onClick={() => toggleExclude(t.key)}
+											style={{
+												position: "relative",
+												border: `2px solid ${excluded.has(t.key) ? "#EF5350" : STROKE}`,
+												borderRadius: 8,
+												padding: 0,
+												overflow: "hidden",
+												cursor: "pointer",
+												aspectRatio: "1",
+												background: CARD,
+												opacity: excluded.has(t.key) ? 1 : 0.55,
+											}}
+										>
+											<svg
+												width="100%"
+												height="100%"
+												viewBox="0 0 40 40"
+												style={{ display: "block" }}
+											>
+												<rect width="40" height="40" fill={`url(#${terrainPatternId(t.key)})`} />
+											</svg>
+											{excluded.has(t.key) && (
+												<span
+													style={{
+														position: "absolute",
+														inset: 0,
+														display: "flex",
+														alignItems: "center",
+														justifyContent: "center",
+														font: "800 16px system-ui",
+														color: "#EF5350",
+														background: "rgba(255,255,255,.35)",
+													}}
+												>
+													🚫
+												</span>
+											)}
+										</button>
+									))}
+								</div>
+								<div style={{ font: "600 11px system-ui", color: "#8a8a88", marginTop: 8 }}>
+									クリックした地点と同じ地形の連結領域を塗ります（除外地形は保護）
+								</div>
+							</div>
+						);
+					})()}
 
 				{/* Icon palette (stamp) */}
 				{tool.mode === "stamp" && (

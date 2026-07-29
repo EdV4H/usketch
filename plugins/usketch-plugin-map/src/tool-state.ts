@@ -4,19 +4,26 @@ import { useSyncExternalStore } from "react";
 import { createReactiveStore } from "./reactive-store.js";
 import type { TerrainKey } from "./terrain.js";
 
-export type MapMode = "brush" | "eraser" | "fill" | "stamp" | "generate" | "base";
+export type MapMode = "brush" | "eraser" | "fill" | "region" | "stamp" | "generate" | "base";
 
 export interface MapToolState {
 	mode: MapMode;
 	terrain: TerrainKey;
 	/** Icon key (from ICONS) used by the "stamp" mode. */
 	iconKey: string;
+	/**
+	 * Terrains protected from the "region" fill: cells of these terrains are never
+	 * overwritten, and clicking one is a no-op. Lets the user fill a connected
+	 * same-terrain area while keeping specific tiles (e.g. water) safe.
+	 */
+	excludeTerrains: TerrainKey[];
 }
 
 export const toolStateStore = createReactiveStore<MapToolState>({
 	mode: "brush",
 	terrain: "grass",
 	iconKey: "town",
+	excludeTerrains: [],
 });
 
 /** Subscribe a component to the current map-tool state. */
