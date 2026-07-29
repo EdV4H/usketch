@@ -1,15 +1,15 @@
 // Registers the map plugin's operations onto the Control HUD (actions + settings)
 // instead of a bespoke on-canvas palette. The map tool's canvas interactions are
 // unchanged; only the control surface moves into the HUD (toggle with `).
-import type { ActionParam, PluginContext } from "@edv4h/usketch-shared";
+import type { ActionParam, PluginContext, ShapeData } from "@edv4h/usketch-shared";
 import type { CellBox } from "../autotile.js";
-import { createBase, getBaseMap } from "../base/base-ops.js";
-import { type BaseMode, baseStateStore } from "../base/base-state.js";
+import { type BaseMapShapeData, DEFAULT_BASE_RADIUS } from "../base/base-map-shape.js";
+import { createBase, getBaseMap, resolveBaseMap } from "../base/base-ops.js";
+import { baseStateStore } from "../base/base-state.js";
 import { genStateStore } from "../gen-state.js";
 import { generateIntoBox, viewportCellBox } from "../generate.js";
 import { defaultParams, GENERATORS, GENERATORS_BY_ID } from "../generators/index.js";
 import { ICON_CATEGORIES, ICONS } from "../icons.js";
-import { rangeEraseStore } from "../range-erase-state.js";
 import { TERRAINS, type TerrainKey } from "../terrain.js";
 import { type MapMode, toolStateStore } from "../tool-state.js";
 
@@ -21,12 +21,6 @@ const MODE_OPTIONS: { value: MapMode; label: string }[] = [
 	{ value: "stamp", label: "アイコン" },
 	{ value: "generate", label: "生成" },
 	{ value: "base", label: "拠点" },
-];
-const BASE_MODE_OPTIONS: { value: BaseMode; label: string }[] = [
-	{ value: "assign", label: "割り当て" },
-	{ value: "erase", label: "消す" },
-	{ value: "island", label: "島に割当" },
-	{ value: "beacon", label: "アイコン中心" },
 ];
 const TERRAIN_OPTIONS = TERRAINS.map((t) => ({ value: t.key, label: t.name }));
 const GEN_OPTIONS = GENERATORS.map((g) => ({ value: g.id, label: g.label }));
@@ -189,32 +183,43 @@ export function registerMapHud(ctx: PluginContext, tile: number): () => void {
 			},
 		}),
 	);
+	// Beacon: territory radius of the ACTIVE base (edited live → territory follows).
+	const subBaseAndStore = (cb: () => void) => {
+		const u1 = baseStateStore.subscribe(cb);
+		const u2 = ctx.store.subscribe(cb);
+		return () => {
+			u1();
+			u2();
+		};
+	};
 	offs.push(
 		ctx.hud.registerSettings({
-			id: "usketch-map:base-mode",
-			label: "拠点: モード",
-			fields: [{ name: "mode", label: "操作", type: "enum", options: BASE_MODE_OPTIONS }],
-			get: () => baseStateStore.get().mode,
-			set: (_name, value) => baseStateStore.set({ mode: value as BaseMode }),
-			subscribe: baseStateStore.subscribe,
+			id: "usketch-map:base-radius",
+			label: "拠点: 半径（マス）",
+			fields: [{ name: "radius", label: "半径", type: "number", min: 1, max: 64, step: 1 }],
+			get: () => {
+				const active = baseStateStore.get().activeBaseId;
+				const bases = getBaseMap(ctx.store)?.bases;
+				return (active && bases?.[active]?.radius) || DEFAULT_BASE_RADIUS;
+			},
+			set: (_name, value) => {
+				const active = baseStateStore.get().activeBaseId;
+				if (!active) return;
+				const { id } = resolveBaseMap(ctx.store, tile);
+				const shape = ctx.store.getShape(id) as BaseMapShapeData | undefined;
+				const base = shape?.bases[active];
+				if (!shape || !base) return;
+				const radius = Math.max(1, Math.round(Number(value)));
+				const nextBases = { ...shape.bases, [active]: { ...base, radius } };
+				ctx.store.updateShape(id, { bases: nextBases } as Partial<ShapeData>);
+			},
+			subscribe: subBaseAndStore,
 		}),
 	);
-
-	// Beacon ("アイコン中心") settings: radius + per-terrain exclude toggles.
 	offs.push(
 		ctx.hud.registerSettings({
-			id: "usketch-map:base-beacon",
-			label: "拠点化（アイコン中心）",
-			fields: [{ name: "radius", label: "半径（マス）", type: "number", min: 1, max: 64, step: 1 }],
-			get: () => baseStateStore.get().radius,
-			set: (_name, value) => baseStateStore.set({ radius: Math.max(1, Math.round(Number(value))) }),
-			subscribe: baseStateStore.subscribe,
-		}),
-	);
-	offs.push(
-		ctx.hud.registerSettings({
-			id: "usketch-map:base-beacon-exclude",
-			label: "拠点化: 除外地形",
+			id: "usketch-map:base-exclude",
+			label: "拠点: 除外地形（壁）",
 			fields: TERRAINS.map((t) => ({ name: t.key, label: t.name, type: "boolean" as const })),
 			get: (name) => baseStateStore.get().excludeTerrains.includes(name as TerrainKey),
 			set: (name, value) => {
@@ -263,22 +268,6 @@ export function registerMapHud(ctx: PluginContext, tile: number): () => void {
 		offBaseSub();
 		baseOff?.();
 	});
-
-	// ── Range-erase targets (the tool itself is auto-listed by the HUD) ──
-	offs.push(
-		ctx.hud.registerSettings({
-			id: "usketch-map:range-erase",
-			label: "範囲消去: 対象",
-			fields: [
-				{ name: "terrain", label: "地形", type: "boolean" },
-				{ name: "base", label: "拠点", type: "boolean" },
-			],
-			get: (name) => rangeEraseStore.get()[name as "terrain" | "base"],
-			set: (name, value) =>
-				rangeEraseStore.set({ [name]: Boolean(value) } as Record<string, never>),
-			subscribe: rangeEraseStore.subscribe,
-		}),
-	);
 
 	return () => {
 		for (const off of offs) off();
