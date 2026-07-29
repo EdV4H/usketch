@@ -9,7 +9,6 @@ import { blockFactor, downsampleCells, type TileDetail, tileDetail } from "../lo
 import { MAP_ICON_TYPE, type MapIconShapeData } from "../map-icon-shape.js";
 import { visibleCellRange, visibleWorldRect } from "../map-layer.js";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
-import { useRenderConfig } from "../render-config.js";
 import { useMapToolState } from "../tool-state.js";
 import type { BaseInfo } from "./base-map-shape.js";
 import { baseRegionAnchors, getBaseMap } from "./base-ops.js";
@@ -117,7 +116,6 @@ export function BaseAreaLayer({
 }) {
 	const tool = useMapToolState();
 	const baseState = useBaseState();
-	const cfg = useRenderConfig();
 	const [, force] = useState(0);
 	const rafRef = useRef(0);
 
@@ -143,12 +141,7 @@ export function BaseAreaLayer({
 	const tile = base.tile;
 
 	// Territory is DERIVED from beacons + terrain paint (memoised in territory.ts).
-	const territory: Territory = computeTerritory(
-		store,
-		tile,
-		cfg.emptyTerrain,
-		new Set(baseState.excludeTerrains),
-	);
+	const territory: Territory = computeTerritory(store, tile, new Set(baseState.excludeTerrains));
 	if (Object.keys(territory).length === 0) return null;
 
 	const vp = store.getViewport();
