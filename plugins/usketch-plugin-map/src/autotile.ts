@@ -125,3 +125,24 @@ export function floodFill(
 	}
 	return out;
 }
+
+/**
+ * Region fill: the `floodFill` region from the start cell, but empty when the
+ * start terrain is protected (present in `exclude`) — clicking a protected
+ * terrain is a no-op. Because `floodFill` only spreads across the start cell's
+ * own terrain, a non-excluded start can never reach a protected cell, so the
+ * whole returned region is safe to repaint. Backs the map tool's "region" fill
+ * mode (fill a connected same-terrain area while keeping excluded terrains,
+ * e.g. water, untouched).
+ */
+export function regionFillCells(
+	cells: Cells,
+	startCol: number,
+	startRow: number,
+	exclude: ReadonlySet<string>,
+	box?: CellBox,
+): string[] {
+	const start = cells[cellKey(startCol, startRow)];
+	if (start !== undefined && exclude.has(start)) return [];
+	return floodFill(cells, startCol, startRow, box);
+}

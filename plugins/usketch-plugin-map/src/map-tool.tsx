@@ -21,6 +21,7 @@ import {
 	cellKey,
 	cellsBounds,
 	floodFill,
+	regionFillCells,
 	worldToCell,
 } from "./autotile.js";
 import type { OwnerMap } from "./base/base-map-shape.js";
@@ -146,6 +147,38 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		applyCells(ctx, stroke.tilemapId, cells);
 	}
 
+	/**
+	 * Region fill: like `doFill` (flood the connected same-terrain area from the
+	 * click into the selected terrain) but honours the `excludeTerrains` set —
+	 * cells of a protected terrain are never overwritten, and clicking a protected
+	 * terrain does nothing.
+	 */
+	function doRegionFill(ctx: ToolContext, event: CanvasPointerEvent): void {
+		if (!stroke) return;
+		const [c, r] = worldToCell(event.worldPoint.x, event.worldPoint.y, tile);
+		const { terrain, excludeTerrains } = toolStateStore.get();
+		const exclude = new Set(excludeTerrains);
+		const cells = currentCells(ctx, stroke.tilemapId);
+		const b = cellsBounds(cells, tile);
+		const box: CellBox | undefined =
+			Object.keys(cells).length === 0
+				? undefined
+				: {
+						minC: Math.floor(b.x / tile),
+						minR: Math.floor(b.y / tile),
+						maxC: Math.floor(b.x / tile) + b.width / tile - 1,
+						maxR: Math.floor(b.y / tile) + b.height / tile - 1,
+					};
+		let changed = false;
+		for (const k of regionFillCells(cells, c, r, exclude, box)) {
+			if (cells[k] === terrain) continue;
+			cells[k] = terrain;
+			changed = true;
+		}
+		if (!changed) return;
+		applyCells(ctx, stroke.tilemapId, cells);
+	}
+
 	function commit(ctx: ToolContext): void {
 		if (!stroke) return;
 		const { tilemapId, created, prevCells } = stroke;
@@ -257,6 +290,7 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			};
 			lastKey = "";
 			if (mode === "fill") doFill(ctx, event);
+			else if (mode === "region") doRegionFill(ctx, event);
 			else paintAt(ctx, event);
 		},
 		onPointerMove(ctx, event) {
