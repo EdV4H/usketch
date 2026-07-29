@@ -168,3 +168,46 @@ export function setBeacon(deps: BaseDeps, iconId: string, baseId: string): void 
 	};
 	deps.commands.execute(command);
 }
+
+/**
+ * Remove a base from the registry (its derived territory disappears). Also clears
+ * `meta.baseId` on the base's beacon icon, if any — the icon itself is kept.
+ * Undoable. No-op if the base doesn't exist.
+ */
+export function deleteBase(deps: BaseDeps, baseId: string): void {
+	const { id } = resolveBaseMap(deps.store, deps.tile);
+	const shape = deps.store.getShape(id) as BaseMapShapeData | undefined;
+	const base = shape?.bases[baseId];
+	if (!shape || !base) return;
+
+	const prevBases = shape.bases;
+	const nextBases: Record<string, BaseInfo> = {};
+	for (const [bid, info] of Object.entries(prevBases)) {
+		if (bid !== baseId) nextBases[bid] = info;
+	}
+
+	const edits: { id: string; prev: MapIconShapeData["meta"]; next: MapIconShapeData["meta"] }[] =
+		[];
+	if (base.beaconIconId) {
+		const icon = deps.store.getShape(base.beaconIconId) as MapIconShapeData | undefined;
+		if (icon && icon.type === MAP_ICON_TYPE) {
+			edits.push({
+				id: base.beaconIconId,
+				prev: icon.meta,
+				next: { ...icon.meta, baseId: undefined },
+			});
+		}
+	}
+
+	const command: Command = {
+		execute: () => {
+			deps.store.updateShape(id, { bases: nextBases } as Partial<ShapeData>);
+			for (const e of edits) deps.store.updateShape(e.id, { meta: e.next } as Partial<ShapeData>);
+		},
+		undo: () => {
+			deps.store.updateShape(id, { bases: prevBases } as Partial<ShapeData>);
+			for (const e of edits) deps.store.updateShape(e.id, { meta: e.prev } as Partial<ShapeData>);
+		},
+	};
+	deps.commands.execute(command);
+}
