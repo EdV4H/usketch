@@ -24,7 +24,7 @@ import {
 	regionFillCells,
 	worldToCell,
 } from "./autotile.js";
-import { setBeacon } from "./base/base-ops.js";
+import { createBase, getBaseMap, setBeacon } from "./base/base-ops.js";
 import { baseStateStore } from "./base/base-state.js";
 import { genStateStore } from "./gen-state.js";
 import { generateIntoBox, resolveTilemap } from "./generate.js";
@@ -32,6 +32,18 @@ import { ICONS_BY_KEY } from "./icons.js";
 import { MAP_ICON_TYPE, makeMapIcon } from "./map-icon-shape.js";
 import { DEFAULT_TILE, type TileMapShapeData } from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
+
+// Default colours cycled through when a base is auto-created on first beacon.
+const BASE_PALETTE = [
+	"#EF5350",
+	"#4A7FB8",
+	"#6C5CD6",
+	"#2AA1A8",
+	"#F6C124",
+	"#25A05B",
+	"#F48CB4",
+	"#F0913E",
+];
 
 function MapToolIcon() {
 	return (
@@ -233,11 +245,17 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			if (mode === "base") {
 				// Base mode: click a map-icon to make it the active base's beacon.
 				// The territory is derived from beacon + terrain (see territory.ts).
-				const ts = baseStateStore.get();
-				if (!ts.activeBaseId) return; // pick a base first
 				const iconId = findMapIconAt(ctx, event.worldPoint.x, event.worldPoint.y);
-				if (!iconId) return;
-				setBeacon({ store: ctx.store, commands: ctx.commands, tile }, iconId, ts.activeBaseId);
+				if (!iconId) return; // only meaningful when clicking on an icon
+				const deps = { store: ctx.store, commands: ctx.commands, tile };
+				let baseId = baseStateStore.get().activeBaseId;
+				// Auto-create a base on first use so a single click "just works".
+				if (!baseId || !getBaseMap(ctx.store)?.bases[baseId]) {
+					const n = Object.keys(getBaseMap(ctx.store)?.bases ?? {}).length;
+					baseId = createBase(deps, `拠点${n + 1}`, BASE_PALETTE[n % BASE_PALETTE.length]);
+					baseStateStore.set({ activeBaseId: baseId });
+				}
+				setBeacon(deps, iconId, baseId);
 				return;
 			}
 			// Eraser: clicking a placed icon removes it (icons aren't terrain cells).
