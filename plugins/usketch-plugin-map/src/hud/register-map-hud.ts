@@ -4,7 +4,7 @@
 import type { ActionParam, PluginContext, ShapeData } from "@edv4h/usketch-shared";
 import type { CellBox } from "../autotile.js";
 import { type BaseMapShapeData, DEFAULT_BASE_RADIUS } from "../base/base-map-shape.js";
-import { createBase, getBaseMap, resolveBaseMap } from "../base/base-ops.js";
+import { createBase, deleteBase, getBaseMap, resolveBaseMap } from "../base/base-ops.js";
 import { baseStateStore } from "../base/base-state.js";
 import { genStateStore } from "../gen-state.js";
 import { generateIntoBox, viewportCellBox } from "../generate.js";
@@ -180,6 +180,24 @@ export function registerMapHud(ctx: PluginContext, tile: number): () => void {
 				const name = String(args.name ?? "").trim() || `拠点${count + 1}`;
 				const id = createBase(deps, name, String(args.color ?? "#EF5350"));
 				baseStateStore.set({ activeBaseId: id });
+			},
+		}),
+	);
+	offs.push(
+		ctx.actions.register({
+			id: "map:base-delete",
+			group: "拠点",
+			label: "アクティブ拠点を削除",
+			isEnabled: () => {
+				const active = baseStateStore.get().activeBaseId;
+				return !!active && !!getBaseMap(ctx.store)?.bases[active];
+			},
+			run: () => {
+				const active = baseStateStore.get().activeBaseId;
+				if (!active) return;
+				deleteBase(deps, active);
+				const remaining = Object.keys(getBaseMap(ctx.store)?.bases ?? {});
+				baseStateStore.set({ activeBaseId: remaining[0] ?? null });
 			},
 		}),
 	);
