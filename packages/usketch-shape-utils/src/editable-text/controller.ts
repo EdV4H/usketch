@@ -158,7 +158,10 @@ const machine = createMachine<EditableSchema>({
 				if (prev != null) clearTimeout(prev);
 				refs.set(
 					"clickTimer",
-					setTimeout(() => send({ type: "CLICK_TIMEOUT" }), 300),
+					// Match the select tool's double-click window (400ms). 300ms was
+					// shorter than a typical OS double-click, so a slightly slow
+					// double-click timed out and required a third click to edit.
+					setTimeout(() => send({ type: "CLICK_TIMEOUT" }), 400),
 				);
 			},
 			clearClicked({ context, refs }) {
