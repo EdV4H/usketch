@@ -23,10 +23,9 @@ export interface MapIconShapeData extends ShapeData {
 	meta: {
 		iconKey: string;
 		category: IconCategory;
-		/** Set when this icon has been used as a base "beacon" (see assignRadiusFromIcon). */
+		/** Set when this icon is a base "beacon" (see setBeacon). The base's radius
+		 *  lives on the base registry, not here. */
 		baseId?: string;
-		/** Base radius in tiles that was stamped from this icon. */
-		baseRadius?: number;
 	};
 }
 

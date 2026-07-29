@@ -24,21 +24,12 @@ import {
 	regionFillCells,
 	worldToCell,
 } from "./autotile.js";
-import type { OwnerMap } from "./base/base-map-shape.js";
-import {
-	applyOwner,
-	assignIsland,
-	assignRadiusFromIcon,
-	commitOwner,
-	currentOwner,
-	resolveBaseMap,
-} from "./base/base-ops.js";
+import { setBeacon } from "./base/base-ops.js";
 import { baseStateStore } from "./base/base-state.js";
 import { genStateStore } from "./gen-state.js";
 import { generateIntoBox, resolveTilemap } from "./generate.js";
 import { ICONS_BY_KEY } from "./icons.js";
 import { MAP_ICON_TYPE, makeMapIcon } from "./map-icon-shape.js";
-import { renderConfigStore } from "./render-config.js";
 import { DEFAULT_TILE, type TileMapShapeData } from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
 
@@ -74,28 +65,6 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 	let lastKey = "";
 	// Range-select drag for the "generate" submode (world start point).
 	let genDrag: { x0: number; y0: number } | null = null;
-	// Base-ownership paint stroke (base submode = assign/erase).
-	let baseStroke: { baseMapId: string; prevOwner: OwnerMap } | null = null;
-	let lastBaseKey = "";
-
-	function paintOwnerAt(ctx: ToolContext, event: CanvasPointerEvent): void {
-		if (!baseStroke) return;
-		const { activeBaseId, mode } = baseStateStore.get();
-		if (mode === "assign" && !activeBaseId) return;
-		const [c, r] = worldToCell(event.worldPoint.x, event.worldPoint.y, tile);
-		const key = cellKey(c, r);
-		if (key === lastBaseKey) return;
-		lastBaseKey = key;
-		const owner = currentOwner(ctx.store, baseStroke.baseMapId);
-		if (mode === "erase") {
-			if (!(key in owner)) return;
-			delete owner[key];
-		} else {
-			if (owner[key] === activeBaseId) return;
-			owner[key] = activeBaseId as string;
-		}
-		applyOwner(ctx.store, baseStroke.baseMapId, owner, tile);
-	}
 
 	function currentCells(ctx: ToolContext, id: string): Cells {
 		const s = ctx.store.getShape(id) as TileMapShapeData | undefined;
@@ -262,33 +231,13 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 				return;
 			}
 			if (mode === "base") {
+				// Base mode: click a map-icon to make it the active base's beacon.
+				// The territory is derived from beacon + terrain (see territory.ts).
 				const ts = baseStateStore.get();
-				const deps = { store: ctx.store, commands: ctx.commands, tile };
-				if (ts.mode === "island") {
-					if (ts.activeBaseId)
-						assignIsland(deps, event.worldPoint.x, event.worldPoint.y, ts.activeBaseId);
-					return;
-				}
-				if (ts.mode === "beacon") {
-					// Stamp the radius around the clicked map-icon onto the active base.
-					if (!ts.activeBaseId) return;
-					const iconId = findMapIconAt(ctx, event.worldPoint.x, event.worldPoint.y);
-					if (!iconId) return;
-					assignRadiusFromIcon(
-						deps,
-						iconId,
-						ts.activeBaseId,
-						ts.radius,
-						renderConfigStore.get().emptyTerrain,
-						new Set(ts.excludeTerrains),
-					);
-					return;
-				}
-				if (ts.mode === "assign" && !ts.activeBaseId) return; // pick a base first
-				const { id } = resolveBaseMap(ctx.store, tile);
-				baseStroke = { baseMapId: id, prevOwner: currentOwner(ctx.store, id) };
-				lastBaseKey = "";
-				paintOwnerAt(ctx, event);
+				if (!ts.activeBaseId) return; // pick a base first
+				const iconId = findMapIconAt(ctx, event.worldPoint.x, event.worldPoint.y);
+				if (!iconId) return;
+				setBeacon({ store: ctx.store, commands: ctx.commands, tile }, iconId, ts.activeBaseId);
 				return;
 			}
 			// Eraser: clicking a placed icon removes it (icons aren't terrain cells).
@@ -311,10 +260,6 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			else paintAt(ctx, event);
 		},
 		onPointerMove(ctx, event) {
-			if (baseStroke) {
-				paintOwnerAt(ctx, event);
-				return;
-			}
 			if (genDrag) {
 				const x = Math.min(genDrag.x0, event.worldPoint.x);
 				const y = Math.min(genDrag.y0, event.worldPoint.y);
@@ -328,13 +273,6 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			if (mode === "brush" || mode === "eraser") paintAt(ctx, event);
 		},
 		onPointerUp(ctx) {
-			if (baseStroke) {
-				const { baseMapId, prevOwner } = baseStroke;
-				baseStroke = null;
-				lastBaseKey = "";
-				commitOwner({ store: ctx.store, commands: ctx.commands, tile }, baseMapId, prevOwner);
-				return;
-			}
 			if (genDrag) {
 				const rect = genStateStore.get().pendingRect;
 				genDrag = null;
@@ -363,12 +301,6 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			if (genDrag) {
 				genDrag = null;
 				genStateStore.set({ pendingRect: null });
-			}
-			if (baseStroke) {
-				// Roll the live ownership edits back to the stroke start, then clear.
-				applyOwner(ctx.store, baseStroke.baseMapId, baseStroke.prevOwner, tile);
-				baseStroke = null;
-				lastBaseKey = "";
 			}
 			// Tool switched / left mid-stroke with no pointerUp: don't leave a
 			// half-painted, non-undoable state. Roll the live edits back to where

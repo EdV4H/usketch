@@ -5,9 +5,12 @@
 import type { BoardStore } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
+import { renderConfigStore } from "../render-config.js";
 import { useMapToolState } from "../tool-state.js";
 import type { BaseInfo } from "./base-map-shape.js";
 import { baseIdAtWorld, getBaseMap } from "./base-ops.js";
+import { baseStateStore } from "./base-state.js";
+import { computeTerritory } from "./territory.js";
 
 const BANNER_MS = 2600;
 
@@ -51,8 +54,14 @@ export function EnterBanner({ store, tile }: { store: BoardStore; tile: number }
 				const base = getBaseMap(store);
 				let id: string | null = null;
 				const center = viewportCenterWorld(store);
-				if (base && center && Object.keys(base.owner).length > 0) {
-					id = baseIdAtWorld(base.owner, center.x, center.y, tile);
+				if (base && center) {
+					const territory = computeTerritory(
+						store,
+						tile,
+						renderConfigStore.get().emptyTerrain,
+						new Set(baseStateStore.get().excludeTerrains),
+					);
+					id = baseIdAtWorld(territory, center.x, center.y, tile);
 				}
 				if (id === prevRef.current) return;
 				prevRef.current = id;

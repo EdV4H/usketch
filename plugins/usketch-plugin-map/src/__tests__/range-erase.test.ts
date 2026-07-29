@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { eraseRangeBox } from "../range-erase.js";
 
 // Minimal in-memory store + command capture (eraseRangeBox only uses getShapes /
-// updateShape / commands.execute).
+// updateShape / commands.execute). Range-erase clears terrain only — base
+// territory is derived, not stored.
 function makeHarness(initial: ShapeData[]) {
 	const shapes = new Map<string, ShapeData>(initial.map((s) => [s.id, s]));
 	let last: Command | null = null;
@@ -30,39 +31,23 @@ const tilemap = {
 	tile: 40,
 	cells: { "0,0": "grass", "5,5": "grass" },
 } as unknown as ShapeData;
-const basemap = {
-	id: "tt",
-	type: "base-map",
-	tile: 40,
-	bases: {},
-	owner: { "0,0": "red", "5,5": "red" },
-} as unknown as ShapeData;
-
-const ALL = { terrain: true, base: true };
 
 describe("eraseRangeBox", () => {
-	it("clears terrain + base ownership inside the box, and undo restores both", () => {
-		const h = makeHarness([structuredClone(tilemap), structuredClone(basemap)]);
+	it("clears terrain inside the box, and undo restores it", () => {
+		const h = makeHarness([structuredClone(tilemap)]);
 		eraseRangeBox(
 			{ store: h.store, commands: h.commands, tile: 40 },
 			{ minC: 0, minR: 0, maxC: 2, maxR: 2 }, // covers cell 0,0 but not 5,5
-			ALL,
+			{ terrain: true },
 		);
 		expect((h.shapes.get("tm") as { cells: Record<string, string> }).cells).toEqual({
 			"5,5": "grass",
-		});
-		expect((h.shapes.get("tt") as { owner: Record<string, string> }).owner).toEqual({
-			"5,5": "red",
 		});
 
 		h.getLast()?.undo();
 		expect((h.shapes.get("tm") as { cells: Record<string, string> }).cells).toEqual({
 			"0,0": "grass",
 			"5,5": "grass",
-		});
-		expect((h.shapes.get("tt") as { owner: Record<string, string> }).owner).toEqual({
-			"0,0": "red",
-			"5,5": "red",
 		});
 	});
 
@@ -71,39 +56,22 @@ describe("eraseRangeBox", () => {
 		eraseRangeBox(
 			{ store: h.store, commands: h.commands, tile: 40 },
 			{ minC: 100, minR: 100, maxC: 110, maxR: 110 },
-			ALL,
+			{ terrain: true },
 		);
 		expect(h.getLast()).toBeNull();
 	});
 
-	it("honours the target selection (base-only leaves terrain intact)", () => {
-		const h = makeHarness([structuredClone(tilemap), structuredClone(basemap)]);
-		eraseRangeBox(
-			{ store: h.store, commands: h.commands, tile: 40 },
-			{ minC: 0, minR: 0, maxC: 2, maxR: 2 },
-			{ terrain: false, base: true },
-		);
-		// terrain untouched, base cleared in box
-		expect((h.shapes.get("tm") as { cells: Record<string, string> }).cells).toEqual({
-			"0,0": "grass",
-			"5,5": "grass",
-		});
-		expect((h.shapes.get("tt") as { owner: Record<string, string> }).owner).toEqual({
-			"5,5": "red",
-		});
-	});
-
-	it("no-ops when no target is selected", () => {
-		const h = makeHarness([structuredClone(tilemap), structuredClone(basemap)]);
+	it("no-ops when the terrain target is off", () => {
+		const h = makeHarness([structuredClone(tilemap)]);
 		eraseRangeBox(
 			{ store: h.store, commands: h.commands, tile: 40 },
 			{ minC: 0, minR: 0, maxC: 9, maxR: 9 },
-			{ terrain: false, base: false },
+			{ terrain: false },
 		);
 		expect(h.getLast()).toBeNull();
 	});
 
-	it("only targets the first tilemap / base-map (single shared substrate)", () => {
+	it("only targets the first tilemap (single shared substrate)", () => {
 		const other = {
 			id: "tm2",
 			type: "tilemap",
@@ -114,7 +82,7 @@ describe("eraseRangeBox", () => {
 		eraseRangeBox(
 			{ store: h.store, commands: h.commands, tile: 40 },
 			{ minC: 0, minR: 0, maxC: 0, maxR: 0 },
-			ALL,
+			{ terrain: true },
 		);
 		// The second tilemap is untouched.
 		expect((h.shapes.get("tm2") as { cells: Record<string, string> }).cells).toEqual({
