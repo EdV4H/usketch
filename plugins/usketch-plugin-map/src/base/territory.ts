@@ -7,9 +7,8 @@
 // by the tilemap `cells` object identity + a beacon signature, so it only
 // recomputes when paint or a beacon (position/radius/set) actually changes.
 import type { BoardStore } from "@edv4h/usketch-shared";
-import { type Cells, cellKey, terrainAtCell, worldToCell } from "../autotile.js";
+import { type Cells, cellKey, worldToCell } from "../autotile.js";
 import { MAP_ICON_TYPE, type MapIconShapeData } from "../map-icon-shape.js";
-import type { TerrainKey } from "../terrain.js";
 import { isTileMap, type TileMapShapeData } from "../tilemap-shape.js";
 import { type BaseInfo, type BaseMapShapeData, isBaseMap } from "./base-map-shape.js";
 
@@ -56,23 +55,18 @@ function collectBeacons(store: BoardStore, bases: Record<string, BaseInfo>): Bea
 	return out;
 }
 
-function signature(
-	beacons: Beacon[],
-	empty: TerrainKey | null,
-	exclude: ReadonlySet<string>,
-): string {
+function signature(beacons: Beacon[], exclude: ReadonlySet<string>): string {
 	const b = beacons
 		.map((x) => `${x.baseId}:${Math.round(x.cx)}:${Math.round(x.cy)}:${x.radius}`)
 		.sort()
 		.join("|");
-	return `${b}#${empty ?? ""}#${[...exclude].sort().join(",")}`;
+	return `${b}#${[...exclude].sort().join(",")}`;
 }
 
 function build(
 	beacons: Beacon[],
 	cells: Cells,
 	tile: number,
-	empty: TerrainKey | null,
 	exclude: ReadonlySet<string>,
 ): Territory {
 	const territory: Territory = {};
@@ -111,7 +105,10 @@ function build(
 		for (const [nc, nr] of neighbours) {
 			const k = cellKey(nc, nr);
 			if (k in territory) continue;
-			const t = terrainAtCell(cells, nc, nr, empty);
+			// Growth only crosses EXPLICITLY painted, non-excluded cells. Unpainted
+			// space (even when it renders as the `emptyTerrain`, e.g. sea) is NOT
+			// walkable — otherwise the flood would never terminate.
+			const t = cells[k];
 			if (t === undefined || exclude.has(t)) continue;
 			territory[k] = baseId;
 			queue.push([nc, nr]);
@@ -127,7 +124,6 @@ function build(
 export function computeTerritory(
 	store: BoardStore,
 	tile: number,
-	empty: TerrainKey | null,
 	exclude: ReadonlySet<string>,
 ): Territory {
 	const base = findBaseMap(store);
@@ -137,7 +133,7 @@ export function computeTerritory(
 	const tilemap = findTilemap(store);
 	const cells = tilemap?.cells ?? EMPTY_CELLS;
 	const t = tilemap?.tile ?? tile;
-	const sig = signature(beacons, empty, exclude);
+	const sig = signature(beacons, exclude);
 
 	let bySig = cache.get(cells);
 	if (!bySig) {
@@ -146,7 +142,7 @@ export function computeTerritory(
 	}
 	const cached = bySig.get(sig);
 	if (cached) return cached;
-	const result = build(beacons, cells, t, empty, exclude);
+	const result = build(beacons, cells, t, exclude);
 	bySig.set(sig, result);
 	return result;
 }
