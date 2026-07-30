@@ -20,9 +20,21 @@ const LABEL_FONT_SIZE = 12;
 const LABEL_PADDING_X = 6;
 const LABEL_PADDING_Y = 3;
 
+// 矢じりの大きさは線の太さに追従させる。既定 strokeWidth=2 で従来の
+// ARROW_SIZE(=10) を維持し、太い線ほど頭も大きくなる。
+export function arrowSizeFor(strokeWidth: number): number {
+	const w = Number.isFinite(strokeWidth) && strokeWidth > 0 ? strokeWidth : 2;
+	return Math.max(ARROW_SIZE, w * 5);
+}
+
 // ── Arrow head rendering ──
 
-function renderArrowHead(tip: Point, from: Point, color: string): React.ReactElement {
+function renderArrowHead(
+	tip: Point,
+	from: Point,
+	color: string,
+	size: number = ARROW_SIZE,
+): React.ReactElement {
 	const dx = tip.x - from.x;
 	const dy = tip.y - from.y;
 	const len = Math.hypot(dx, dy);
@@ -33,10 +45,10 @@ function renderArrowHead(tip: Point, from: Point, color: string): React.ReactEle
 	const px = -uy;
 	const py = ux;
 
-	const p1x = tip.x - ux * ARROW_SIZE + px * ARROW_SIZE * 0.4;
-	const p1y = tip.y - uy * ARROW_SIZE + py * ARROW_SIZE * 0.4;
-	const p2x = tip.x - ux * ARROW_SIZE - px * ARROW_SIZE * 0.4;
-	const p2y = tip.y - uy * ARROW_SIZE - py * ARROW_SIZE * 0.4;
+	const p1x = tip.x - ux * size + px * size * 0.4;
+	const p1y = tip.y - uy * size + py * size * 0.4;
+	const p2x = tip.x - ux * size - px * size * 0.4;
+	const p2y = tip.y - uy * size - py * size * 0.4;
 
 	return <polygon points={`${tip.x},${tip.y} ${p1x},${p1y} ${p2x},${p2y}`} fill={color} />;
 }
@@ -86,6 +98,7 @@ export function renderConnector(data: ShapeData) {
 	const opacity = data.style.opacity;
 	const arrowHead = connectorData.arrowHead ?? "forward";
 	const pathType = connectorData.pathType ?? "straight";
+	const arrowSize = arrowSizeFor(strokeWidth);
 
 	const elements: React.ReactElement[] = [];
 
@@ -104,11 +117,15 @@ export function renderConnector(data: ShapeData) {
 		// Arrow heads use tangent direction at endpoints
 		if (arrowHead === "forward" || arrowHead === "both") {
 			// Tangent at t=1: direction from cp to p2
-			elements.push(<g key="arrow-fwd">{renderArrowHead({ x: x2, y: y2 }, cp, color)}</g>);
+			elements.push(
+				<g key="arrow-fwd">{renderArrowHead({ x: x2, y: y2 }, cp, color, arrowSize)}</g>,
+			);
 		}
 		if (arrowHead === "backward" || arrowHead === "both") {
 			// Tangent at t=0: direction from cp to p0
-			elements.push(<g key="arrow-bwd">{renderArrowHead({ x: x1, y: y1 }, cp, color)}</g>);
+			elements.push(
+				<g key="arrow-bwd">{renderArrowHead({ x: x1, y: y1 }, cp, color, arrowSize)}</g>,
+			);
 		}
 	} else if (pathType === "elbow") {
 		const midX = (x1 + x2) / 2;
@@ -125,12 +142,16 @@ export function renderConnector(data: ShapeData) {
 		);
 		if (arrowHead === "forward" || arrowHead === "both") {
 			elements.push(
-				<g key="arrow-fwd">{renderArrowHead({ x: x2, y: y2 }, { x: midX, y: y2 }, color)}</g>,
+				<g key="arrow-fwd">
+					{renderArrowHead({ x: x2, y: y2 }, { x: midX, y: y2 }, color, arrowSize)}
+				</g>,
 			);
 		}
 		if (arrowHead === "backward" || arrowHead === "both") {
 			elements.push(
-				<g key="arrow-bwd">{renderArrowHead({ x: x1, y: y1 }, { x: midX, y: y1 }, color)}</g>,
+				<g key="arrow-bwd">
+					{renderArrowHead({ x: x1, y: y1 }, { x: midX, y: y1 }, color, arrowSize)}
+				</g>,
 			);
 		}
 	} else {
@@ -149,12 +170,16 @@ export function renderConnector(data: ShapeData) {
 		);
 		if (arrowHead === "forward" || arrowHead === "both") {
 			elements.push(
-				<g key="arrow-fwd">{renderArrowHead({ x: x2, y: y2 }, { x: x1, y: y1 }, color)}</g>,
+				<g key="arrow-fwd">
+					{renderArrowHead({ x: x2, y: y2 }, { x: x1, y: y1 }, color, arrowSize)}
+				</g>,
 			);
 		}
 		if (arrowHead === "backward" || arrowHead === "both") {
 			elements.push(
-				<g key="arrow-bwd">{renderArrowHead({ x: x1, y: y1 }, { x: x2, y: y2 }, color)}</g>,
+				<g key="arrow-bwd">
+					{renderArrowHead({ x: x1, y: y1 }, { x: x2, y: y2 }, color, arrowSize)}
+				</g>,
 			);
 		}
 	}
