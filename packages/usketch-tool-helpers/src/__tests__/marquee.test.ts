@@ -1,3 +1,4 @@
+import type { ShapeDefinition } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { boxContains, boxesIntersect, startMarqueeSession } from "../marquee.js";
 import { createTestToolContext, makePointerEvent, makeShape } from "./test-helpers.js";
@@ -42,6 +43,40 @@ describe("startMarqueeSession", () => {
 		const session = startMarqueeSession({ ctx, startWorldPoint: { x: -10, y: -10 } });
 		const u = session.update(makePointerEvent({ x: 100, y: 100 }));
 		expect([...u.hitIds]).toEqual(["normal"]);
+	});
+
+	it("selects an attachable child individually, not its parent", () => {
+		const ctx = createTestToolContext();
+		ctx.shapes.register("sticker", {
+			type: "sticker",
+			minSize: { width: 1, height: 1 },
+			hitTest: (data, point) =>
+				point.x >= data.x &&
+				point.x <= data.x + data.width &&
+				point.y >= data.y &&
+				point.y <= data.y + data.height,
+			getBounds: (data) => ({ x: data.x, y: data.y, width: data.width, height: data.height }),
+			render: () => null,
+			attachable: { follow: true },
+		} as unknown as ShapeDefinition);
+		ctx.store.addShape(
+			makeShape({ id: "note", type: "rect", x: 0, y: 0, width: 100, height: 100 }),
+		);
+		ctx.store.addShape(
+			makeShape({
+				id: "sticker",
+				type: "sticker",
+				x: 10,
+				y: 10,
+				width: 30,
+				height: 30,
+				parentId: "note",
+			}),
+		);
+		const session = startMarqueeSession({ ctx, startWorldPoint: { x: 5, y: 5 } });
+		const u = session.update(makePointerEvent({ x: 60, y: 60 }));
+		// The sticker resolves to itself (attachable), not to its "note" parent.
+		expect(u.hitIds.has("sticker")).toBe(true);
 	});
 
 	it("commit() returns null for tiny accidental drags below minDragDistance", () => {

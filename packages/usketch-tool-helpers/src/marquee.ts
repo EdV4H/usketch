@@ -1,5 +1,5 @@
 import type { BoundingBox, CanvasPointerEvent, Point, ToolContext } from "@edv4h/usketch-shared";
-import { hasSelectableChildren } from "@edv4h/usketch-shared";
+import { hasSelectableChildren, isAttachable } from "@edv4h/usketch-shared";
 import {
 	getTopLevelAncestor,
 	isEffectivelyHidden,
@@ -128,6 +128,10 @@ export function findShapesInRect(
 		if (typeof data.parentId === "string") {
 			const parent = ctx.store.getShape(data.parentId);
 			if (parent && hasSelectableChildren(ctx.shapes.get(parent.type), parent)) {
+				ids.add(id);
+			} else if (isAttachable(def, data)) {
+				// Attachable children (stickers/kimochi) stay independently
+				// selectable rather than resolving to the parent (see hover.ts).
 				ids.add(id);
 			} else {
 				const ancestor = getTopLevelAncestor(ctx.store, id);
