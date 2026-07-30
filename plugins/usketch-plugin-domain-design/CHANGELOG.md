@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-domain-design
 
+## 1.1.4
+
+### Patch Changes
+
+- Updated dependencies [15f1fe7]
+  - @edv4h/usketch-shape-utils@2.2.4
+
 ## 1.1.3
 
 ### Patch Changes
