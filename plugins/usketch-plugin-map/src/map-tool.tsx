@@ -72,6 +72,7 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		tilemapId: string;
 		created: boolean;
 		prevCells: Cells;
+		prevHandPaint: Record<string, true>;
 	}
 	let stroke: Stroke | null = null;
 	let lastKey = "";
@@ -81,6 +82,11 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 	function currentCells(ctx: ToolContext, id: string): Cells {
 		const s = ctx.store.getShape(id) as TileMapShapeData | undefined;
 		return s ? { ...s.cells } : {};
+	}
+
+	function currentHandPaint(ctx: ToolContext, id: string): Record<string, true> {
+		const s = ctx.store.getShape(id) as TileMapShapeData | undefined;
+		return s?.handPaint ? { ...s.handPaint } : {};
 	}
 
 	function applyCells(ctx: ToolContext, id: string, cells: Cells): void {
@@ -164,19 +170,22 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 
 	function commit(ctx: ToolContext): void {
 		if (!stroke) return;
-		const { tilemapId, created, prevCells } = stroke;
+		const { tilemapId, created, prevCells, prevHandPaint } = stroke;
 		stroke = null;
 		lastKey = "";
 		const shape = ctx.store.getShape(tilemapId) as TileMapShapeData | undefined;
 		const nextCells = shape ? shape.cells : {};
 
 		if (created) {
-			// Newly created this stroke: commit as an add (undo deletes it).
+			// Newly created this stroke: commit as an add (undo deletes it). Every
+			// cell was just hand-painted, so mark them all as hand-paint.
 			if (!shape || Object.keys(nextCells).length === 0) {
 				if (shape) ctx.store.deleteShape(tilemapId);
 				return;
 			}
-			const finalShape = { ...shape } as ShapeData;
+			const handPaint: Record<string, true> = {};
+			for (const k of Object.keys(nextCells)) handPaint[k] = true;
+			const finalShape = { ...shape, handPaint } as ShapeData;
 			ctx.store.deleteShape(tilemapId);
 			ctx.commands.execute(createAddShapeCommand(ctx.store, finalShape));
 			return;
@@ -186,13 +195,29 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		if (cellsEqual(prevCells, nextCells)) return;
 		const prev = prevCells;
 		const next = { ...nextCells };
+		// Hand-paint set = previous ∪ cells set this stroke − cells erased this stroke.
+		// (Only cells the user actually touched change; generated cells are untouched.)
+		const nextHandPaint = { ...prevHandPaint };
+		for (const k of new Set([...Object.keys(prev), ...Object.keys(next)])) {
+			if (prev[k] === next[k]) continue; // unchanged this stroke
+			if (k in next) nextHandPaint[k] = true;
+			else delete nextHandPaint[k];
+		}
 		const prevBounds = cellsBounds(prev, tile);
 		const nextBounds = cellsBounds(next, tile);
 		const command: Command = {
 			execute: () =>
-				ctx.store.updateShape(tilemapId, { cells: next, ...nextBounds } as Partial<ShapeData>),
+				ctx.store.updateShape(tilemapId, {
+					cells: next,
+					handPaint: nextHandPaint,
+					...nextBounds,
+				} as Partial<ShapeData>),
 			undo: () =>
-				ctx.store.updateShape(tilemapId, { cells: prev, ...prevBounds } as Partial<ShapeData>),
+				ctx.store.updateShape(tilemapId, {
+					cells: prev,
+					handPaint: prevHandPaint,
+					...prevBounds,
+				} as Partial<ShapeData>),
 		};
 		ctx.commands.execute(command);
 	}
@@ -271,6 +296,7 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 				tilemapId: target.id,
 				created: target.created,
 				prevCells: currentCells(ctx, target.id),
+				prevHandPaint: currentHandPaint(ctx, target.id),
 			};
 			lastKey = "";
 			if (mode === "fill") doFill(ctx, event);

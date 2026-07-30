@@ -32,7 +32,7 @@ function baseMap(bases: Record<string, BaseInfo>): ShapeData {
 		bases,
 	} as unknown as ShapeData;
 }
-function tilemap(cells: Cells): ShapeData {
+function tilemap(cells: Cells, handPaint: Record<string, true> = {}): ShapeData {
 	return {
 		id: "tm",
 		type: TILEMAP_TYPE,
@@ -42,7 +42,15 @@ function tilemap(cells: Cells): ShapeData {
 		height: 0,
 		tile: TILE,
 		cells,
+		handPaint,
 	} as unknown as ShapeData;
+}
+
+/** Mark every key of `cells` as hand-painted (test convenience). */
+function allHand(cells: Cells): Record<string, true> {
+	const hp: Record<string, true> = {};
+	for (const k of Object.keys(cells)) hp[k] = true;
+	return hp;
 }
 function makeStore(shapes: ShapeData[]): BoardStore {
 	const map = new Map(shapes.map((s) => [s.id, s]));
@@ -53,68 +61,73 @@ const B1: Record<string, BaseInfo> = {
 	b1: { name: "B1", color: "#f00", radius: 1, beaconIconId: "i1" },
 };
 
-// B2 with radius 2 for growth tests (radius 1 only reaches the 4 orthogonals).
-const B2: Record<string, BaseInfo> = {
-	b1: { name: "B1", color: "#f00", radius: 2, beaconIconId: "i1" },
-};
-
 describe("computeTerritory", () => {
-	it("seeds the beacon cell (no paint → only that cell)", () => {
+	it("owns the core disk regardless of paint (no tilemap)", () => {
 		const store = makeStore([baseMap(B1), icon("i1", 20, 20, "b1")]);
 		const t = computeTerritory(store, TILE, new Set());
-		expect(t).toEqual({ "0,0": "b1" });
+		// radius 1 → centre + 4 orthogonal boundary cells, always owned.
+		expect(new Set(Object.keys(t))).toEqual(new Set(["0,0", "1,0", "-1,0", "0,1", "0,-1"]));
 	});
 
-	it("grows through painted land connected to the beacon", () => {
-		const store = makeStore([baseMap(B2), icon("i1", 20, 20, "b1"), tilemap({ "1,0": "grass" })]);
-		const t = computeTerritory(store, TILE, new Set());
-		expect(t["1,0"]).toBe("b1"); // painted, within radius, adjacent to the seed
-	});
-
-	it("does NOT claim connected land beyond the radius (the island fix)", () => {
-		// A painted line runs outward. radius 1 → only the in-radius cell is claimed,
-		// even though 2,0 / 3,0 are painted and connected.
+	it("expands through HAND-PAINTED land beyond the radius", () => {
+		// 1,0 is core (radius 1). 2,0 / 3,0 are hand-painted and connect out — they
+		// join the base even though they are past the radius.
+		const cells: Cells = { "2,0": "grass", "3,0": "grass" };
 		const store = makeStore([
 			baseMap(B1),
 			icon("i1", 20, 20, "b1"),
-			tilemap({ "1,0": "grass", "2,0": "grass", "3,0": "grass" }),
+			tilemap(cells, allHand(cells)),
 		]);
 		const t = computeTerritory(store, TILE, new Set());
-		expect(t["1,0"]).toBe("b1"); // dist 40 ≤ radius(1)*40 → in
-		expect(t["2,0"]).toBeUndefined(); // dist 80 > 40 → beyond radius
-		expect(t["3,0"]).toBeUndefined();
+		expect(t["2,0"]).toBe("b1");
+		expect(t["3,0"]).toBe("b1");
 	});
 
-	it("excluded terrain is a wall (not claimed, blocks connectivity)", () => {
+	it("does NOT expand through GENERATED land (the island fix)", () => {
+		// Same painted cells, but NOT hand-painted (handPaint empty = generated).
+		// Territory stays the core disk; the continent is not auto-claimed.
+		const cells: Cells = { "2,0": "grass", "3,0": "grass", "4,0": "grass" };
+		const store = makeStore([baseMap(B1), icon("i1", 20, 20, "b1"), tilemap(cells, {})]);
+		const t = computeTerritory(store, TILE, new Set());
+		expect(t["2,0"]).toBeUndefined();
+		expect(t["3,0"]).toBeUndefined();
+		expect(new Set(Object.keys(t))).toEqual(new Set(["0,0", "1,0", "-1,0", "0,1", "0,-1"]));
+	});
+
+	it("hand-painted excluded terrain is a wall", () => {
+		const cells: Cells = { "2,0": "water", "3,0": "grass" };
 		const store = makeStore([
-			baseMap(B2),
+			baseMap(B1),
 			icon("i1", 20, 20, "b1"),
-			tilemap({ "1,0": "water", "2,0": "grass" }),
+			tilemap(cells, allHand(cells)),
 		]);
 		const t = computeTerritory(store, TILE, new Set(["water"]));
-		expect(t["1,0"]).toBeUndefined(); // water wall
-		expect(t["2,0"]).toBeUndefined(); // only reachable through the wall
+		expect(t["2,0"]).toBeUndefined(); // hand-painted water = wall
+		expect(t["3,0"]).toBeUndefined(); // only reachable through the wall
 	});
 
-	it("disconnected painted cells are NOT territory", () => {
-		const store = makeStore([baseMap(B2), icon("i1", 20, 20, "b1"), tilemap({ "9,9": "grass" })]);
+	it("disconnected hand-painted land is NOT territory", () => {
+		const cells: Cells = { "9,9": "grass" };
+		const store = makeStore([
+			baseMap(B1),
+			icon("i1", 20, 20, "b1"),
+			tilemap(cells, allHand(cells)),
+		]);
 		expect(computeTerritory(store, TILE, new Set())["9,9"]).toBeUndefined();
 	});
 
-	it("overlapping beacons resolve deterministically (lower baseId wins)", () => {
+	it("overlapping cores resolve deterministically (lower baseId wins)", () => {
 		const bases: Record<string, BaseInfo> = {
-			b1: { name: "B1", color: "#f00", radius: 2, beaconIconId: "i1" },
-			b2: { name: "B2", color: "#00f", radius: 2, beaconIconId: "i2" },
+			b1: { name: "B1", color: "#f00", radius: 1, beaconIconId: "i1" },
+			b2: { name: "B2", color: "#00f", radius: 1, beaconIconId: "i2" },
 		};
 		const store = makeStore([
 			baseMap(bases),
-			icon("i1", 20, 20, "b1"), // cell 0,0
-			icon("i2", 100, 20, "b2"), // cell 2,0
-			tilemap({ "1,0": "grass" }), // in both radii; adjacent to b1's seed
+			icon("i1", 20, 20, "b1"), // cell 0,0 → core incl. 1,0
+			icon("i2", 60, 20, "b2"), // cell 1,0 → core incl. 1,0 too
 		]);
 		const t = computeTerritory(store, TILE, new Set());
-		expect(t["1,0"]).toBe("b1"); // b1 processed first
-		expect(t["2,0"]).toBe("b2"); // b2's own seed
+		expect(t["1,0"]).toBe("b1"); // contested core cell → first sorted base
 	});
 
 	it("is empty when no base has a beacon", () => {
@@ -123,7 +136,12 @@ describe("computeTerritory", () => {
 	});
 
 	it("memoises by cells + beacon signature", () => {
-		const store = makeStore([baseMap(B2), icon("i1", 20, 20, "b1"), tilemap({ "1,0": "grass" })]);
+		const cells: Cells = { "2,0": "grass" };
+		const store = makeStore([
+			baseMap(B1),
+			icon("i1", 20, 20, "b1"),
+			tilemap(cells, allHand(cells)),
+		]);
 		const a = computeTerritory(store, TILE, new Set());
 		const b = computeTerritory(store, TILE, new Set());
 		expect(b).toBe(a); // same reference (cache hit)

@@ -85,9 +85,17 @@ export function generateIntoBox(deps: GenerateDeps, req: GenerateRequest): void 
 
 	const prev: Cells = { ...shape.cells };
 	const next: Cells = { ...shape.cells };
+	// Generated cells are NOT hand-paint: clear the box from the hand-paint set so
+	// base territory won't expand through auto-generated terrain.
+	const prevHandPaint: Record<string, true> = { ...(shape.handPaint ?? {}) };
+	const nextHandPaint: Record<string, true> = { ...prevHandPaint };
 	// Clear the target box, then lay down the generated field.
 	for (let r = box.minR; r <= box.maxR; r++) {
-		for (let c = box.minC; c <= box.maxC; c++) delete next[cellKey(c, r)];
+		for (let c = box.minC; c <= box.maxC; c++) {
+			const k = cellKey(c, r);
+			delete next[k];
+			delete nextHandPaint[k];
+		}
 	}
 	Object.assign(next, gen.generate({ box, seed: req.seed, params: req.params }));
 
@@ -96,14 +104,28 @@ export function generateIntoBox(deps: GenerateDeps, req: GenerateRequest): void 
 	if (created) {
 		// Newly created this action: commit as an add so undo deletes it and redo
 		// re-adds it (updateShape on a deleted id would no-op, breaking redo).
-		const finalShape = { ...shape, cells: next, ...nextBounds } as ShapeData;
+		const finalShape = {
+			...shape,
+			cells: next,
+			handPaint: nextHandPaint,
+			...nextBounds,
+		} as ShapeData;
 		deps.store.deleteShape(id);
 		deps.commands.execute(createAddShapeCommand(deps.store, finalShape));
 	} else {
 		const command: Command = {
 			execute: () =>
-				deps.store.updateShape(id, { cells: next, ...nextBounds } as Partial<ShapeData>),
-			undo: () => deps.store.updateShape(id, { cells: prev, ...prevBounds } as Partial<ShapeData>),
+				deps.store.updateShape(id, {
+					cells: next,
+					handPaint: nextHandPaint,
+					...nextBounds,
+				} as Partial<ShapeData>),
+			undo: () =>
+				deps.store.updateShape(id, {
+					cells: prev,
+					handPaint: prevHandPaint,
+					...prevBounds,
+				} as Partial<ShapeData>),
 		};
 		deps.commands.execute(command);
 	}
