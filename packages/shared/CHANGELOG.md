@@ -1,5 +1,24 @@
 # @edv4h/usketch-shared
 
+## 4.8.0
+
+### Minor Changes
+
+- 6c6702b: ロジック起点のビューポート移動（ズーム変更・特定位置へのジャンプ・zoom-to-fit）をスムーズにアニメーションさせ、デフォルト ON にした。連続的なインタラクション（ホイールズーム・ドラッグパン・ミニマップドラッグ）は従来どおり即時。
+  - store: `animateViewportTo(target, opts?)` を追加（rAF による eased 補間、`prefers-reduced-motion`・rAF 不在・無効時は即時フォールバック、割り込みは即時系メソッドが cancel）。`fitToBounds` は既定でアニメ化。`createBoardStore({ viewportAnimation })` と `setViewportAnimation` / `getViewportAnimation` で enabled/duration/easing を調整可能（既定: 有効・350ms・ease-in-out-cubic）。
+  - shared: 各プラグインが個別実装していたジャンプ計算を共通 helper `centerOnWorld` / `zoomBy` / `zoomToLevel` / `fitContent` / `screenCenterWorld` / `getScreenSize` に集約（すべて既定でアニメ）。
+  - keyboard-shortcuts / tool-vim / whistle / follow-me / debug-hud を共通 helper に移行。follow-me は追従の応答性のため短めのアニメ（180ms）。
+
+## 4.7.0
+
+### Minor Changes
+
+- 359d732: ショートカット基盤を拡張（後方互換）。
+  - combo に `Mod` トークンを追加。プラットフォームのアクセラレータ（macOS=Cmd / その他=Ctrl）に正規化されるため、`Mod+Z` の 1 定義で Cmd+Z・Ctrl+Z 両対応になる。
+  - `ShortcutRegistry.register(combo, callback, meta?)` にメタデータ（`label` / `category`）を追加。
+  - `ShortcutRegistry.list()` を追加。登録済みショートカット（combo + meta）を返し、ホスト側でチートシートや設定 UI を組めるようにする。
+  - コアの Undo/Redo を `Mod+Z` / `Mod+Shift+Z` へ移行（メタ付き）。
+
 ## 4.6.0
 
 ### Minor Changes

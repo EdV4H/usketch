@@ -1,28 +1,12 @@
+// Vim viewport helpers now delegate to the shared, animated viewport utilities
+// so jumps are smooth by default. Kept as thin wrappers to avoid churn at call
+// sites within the vim plugin.
 import type { BoardStore, Point } from "@edv4h/usketch-shared";
+import { centerOnWorld, getScreenSize, screenCenterWorld } from "@edv4h/usketch-shared";
 
-/** ビューポート（キャンバス）のサイズ。テスト等で window が無い場合は既定値。 */
-export function getScreenSize(): { width: number; height: number } {
-	if (typeof window === "undefined") return { width: 1280, height: 720 };
-	return { width: window.innerWidth, height: window.innerHeight };
-}
+export { getScreenSize, screenCenterWorld };
 
-/** 画面中央に対応する world 座標。 */
-export function screenCenterWorld(store: BoardStore): Point {
-	const { width, height } = getScreenSize();
-	const vp = store.getViewport();
-	return {
-		x: (width / 2 - vp.x) / vp.zoom,
-		y: (height / 2 - vp.y) / vp.zoom,
-	};
-}
-
-/** world 座標 `target` が画面中央に来るようビューポートを移動する。 */
+/** world 座標 `target` が画面中央に来るようビューポートを移動する（スムーズ）。 */
 export function centerViewportOn(store: BoardStore, target: Point): void {
-	const { width, height } = getScreenSize();
-	const vp = store.getViewport();
-	store.setViewport({
-		x: width / 2 - target.x * vp.zoom,
-		y: height / 2 - target.y * vp.zoom,
-		zoom: vp.zoom,
-	});
+	centerOnWorld(store, target);
 }

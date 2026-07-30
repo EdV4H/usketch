@@ -204,9 +204,15 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		throw error;
 	}
 
-	// Register core shortcuts
-	shortcuts.register("Ctrl+Z", () => commands.undo());
-	shortcuts.register("Ctrl+Shift+Z", () => commands.redo());
+	// Register core shortcuts (Mod = Cmd on macOS, Ctrl elsewhere)
+	shortcuts.register("Mod+Z", () => commands.undo(), {
+		label: "Undo",
+		category: "history",
+	});
+	shortcuts.register("Mod+Shift+Z", () => commands.redo(), {
+		label: "Redo",
+		category: "history",
+	});
 
 	// App-level selection foreground option is registered AFTER plugin setup
 	// so it wins on ties against a plugin that registered priority 100.

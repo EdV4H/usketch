@@ -14,6 +14,13 @@ export interface TileMapShapeData extends ShapeData {
 	type: "tilemap";
 	tile: number;
 	cells: Cells;
+	/**
+	 * Cells the user HAND-painted (brush / fill / region), as opposed to cells
+	 * laid down by the generator. Base territory only expands through hand-painted
+	 * land (so a generated continent isn't auto-claimed). Sparse; keys mirror a
+	 * subset of `cells`.
+	 */
+	handPaint?: Record<string, true>;
 }
 
 export function isTileMap(shape: ShapeData): shape is TileMapShapeData {
@@ -33,6 +40,7 @@ export function makeTileMap(tile: number): TileMapShapeData {
 		style: { fill: "transparent", stroke: "transparent", strokeWidth: 0, opacity: 1 },
 		tile,
 		cells: {},
+		handPaint: {},
 		locked: true,
 	};
 }

@@ -1,4 +1,5 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import { centerOnWorld } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 
 function FollowBanner({ name }: { name: string }) {
@@ -138,15 +139,9 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 					const vc = targetState.viewportCenter as { x: number; y: number } | undefined;
 					if (!vc || typeof vc.x !== "number" || typeof vc.y !== "number") return;
 
-					const viewport = ctx.store.getViewport();
-					const screenCenterX = window.innerWidth / 2;
-					const screenCenterY = window.innerHeight / 2;
-					const newX = screenCenterX - vc.x * viewport.zoom;
-					const newY = screenCenterY - vc.y * viewport.zoom;
-
-					if (viewport.x !== newX || viewport.y !== newY) {
-						ctx.store.setViewport({ ...viewport, x: newX, y: newY });
-					}
+					// Continuous follow → short tween so tracking stays responsive
+					// (each retarget cancels the previous animation).
+					centerOnWorld(ctx.store, vc, { durationMs: 180 });
 				}
 			}
 

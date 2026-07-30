@@ -1,5 +1,32 @@
 # @edv4h/usketch-plugin-tool-select
 
+## 3.2.4
+
+### Patch Changes
+
+- Updated dependencies [1a489de]
+  - @edv4h/usketch-tool-helpers@0.6.3
+
+## 3.2.3
+
+### Patch Changes
+
+- Updated dependencies [6c6702b]
+  - @edv4h/usketch-shared@4.8.0
+  - @edv4h/usketch-store@3.5.0
+  - @edv4h/usketch-core@2.3.1
+  - @edv4h/usketch-tool-helpers@0.6.2
+
+## 3.2.2
+
+### Patch Changes
+
+- Updated dependencies [359d732]
+  - @edv4h/usketch-shared@4.7.0
+  - @edv4h/usketch-core@2.3.0
+  - @edv4h/usketch-store@3.4.1
+  - @edv4h/usketch-tool-helpers@0.6.1
+
 ## 3.2.1
 
 ### Patch Changes

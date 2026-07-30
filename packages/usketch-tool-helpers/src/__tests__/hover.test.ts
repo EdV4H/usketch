@@ -129,6 +129,41 @@ describe("findShapeAtPoint", () => {
 		expect(findShapeAtPoint(ctx, { x: 20, y: 20 })).toBe("g");
 	});
 
+	it("keeps an attachable child selectable under a non-container parent", () => {
+		// Stickers/kimochi attach by overlap (attachable) but must stay
+		// independently selectable so they can be peeled off — unlike group
+		// members, they do NOT resolve to the parent.
+		const ctx = createTestToolContext();
+		ctx.shapes.register("sticker", {
+			type: "sticker",
+			minSize: { width: 1, height: 1 },
+			hitTest: (data, point) =>
+				point.x >= data.x &&
+				point.x <= data.x + data.width &&
+				point.y >= data.y &&
+				point.y <= data.y + data.height,
+			getBounds: (data) => ({ x: data.x, y: data.y, width: data.width, height: data.height }),
+			render: () => null,
+			attachable: { follow: true },
+		} as unknown as ShapeDefinition);
+		// Parent is a plain rect (a non-container the sticker was stuck onto).
+		ctx.store.addShape(
+			makeShape({ id: "note", type: "rect", x: 0, y: 0, width: 200, height: 200 }),
+		);
+		ctx.store.addShape(
+			makeShape({
+				id: "sticker",
+				type: "sticker",
+				x: 10,
+				y: 10,
+				width: 50,
+				height: 50,
+				parentId: "note",
+			}),
+		);
+		expect(findShapeAtPoint(ctx, { x: 20, y: 20 })).toBe("sticker");
+	});
+
 	it("honors a per-instance selectableChildren predicate on a custom type", () => {
 		// A single "wireframe" type whose meta.component === "card" is a container
 		// with selectable children; other components are plain shapes.

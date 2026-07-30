@@ -1,20 +1,21 @@
-// Active base-tool interaction state, shared between the palette and the tool.
+// Active base-tool interaction state, shared between the HUD and the tool.
 // Module-scoped, app-local (not synced). Base data itself lives in the synced
-// `base-map` shape; this is only which base/mode the local user is editing with.
+// `base-map` shape; this is only which base the local user edits with, plus the
+// terrains excluded from territory growth (a wall for the connectivity flood).
 import { useSyncExternalStore } from "react";
 import { createReactiveStore } from "../reactive-store.js";
-
-export type BaseMode = "assign" | "erase" | "island";
+import type { TerrainKey } from "../terrain.js";
 
 export interface BaseToolState {
 	/** Currently selected base id, or null when none is chosen yet. */
 	activeBaseId: string | null;
-	mode: BaseMode;
+	/** Terrains that block territory growth (e.g. water). Global for all bases. */
+	excludeTerrains: TerrainKey[];
 }
 
 export const baseStateStore = createReactiveStore<BaseToolState>({
 	activeBaseId: null,
-	mode: "assign",
+	excludeTerrains: [],
 });
 
 export function useBaseState(): BaseToolState {

@@ -2,8 +2,8 @@ export {
 	BASE_MAP_TYPE,
 	type BaseInfo,
 	type BaseMapShapeData,
-	type OwnerMap,
 } from "./base/base-map-shape.js";
+export { computeTerritory, type Territory } from "./base/territory.js";
 export {
 	GENERATORS,
 	type GenContext,

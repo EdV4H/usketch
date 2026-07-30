@@ -475,9 +475,34 @@ export interface CommandRegistry {
 
 // ── Shortcut System ──
 
+/**
+ * Optional metadata attached to a shortcut registration. Hosts can use it to
+ * render a cheat-sheet / settings UI from {@link ShortcutRegistry.list}.
+ */
+export interface ShortcutMeta {
+	/** Human-readable label (e.g. "Undo"). */
+	label?: string;
+	/** Grouping key (e.g. "history", "edit"). */
+	category?: string;
+}
+
+/** A single registered shortcut, as returned by {@link ShortcutRegistry.list}. */
+export interface ShortcutEntry {
+	/** The combo as originally registered (not normalized), for display. */
+	combo: string;
+	meta?: ShortcutMeta;
+}
+
 export interface ShortcutRegistry {
-	register(combo: string, callback: () => void): () => void;
+	/**
+	 * Register a shortcut. `combo` is `"+"`-joined, order-independent, and
+	 * case-insensitive; the `Mod` token is the platform accelerator (Cmd on
+	 * macOS, Ctrl elsewhere). Returns an unregister function.
+	 */
+	register(combo: string, callback: () => void, meta?: ShortcutMeta): () => void;
 	handleKeyDown(event: KeyboardEvent): boolean;
+	/** All currently-registered shortcuts (for cheat-sheet / settings UIs). */
+	list(): ShortcutEntry[];
 }
 
 // ── Action System ──
@@ -706,6 +731,28 @@ export type StoreEvent =
 /** {@link StoreEvent} の `type` リテラル。store の `notifyMutation` で使用。 */
 export type StoreEventType = StoreEvent["type"];
 
+/**
+ * Default behaviour for programmatic (logic-driven) viewport moves — smooth
+ * animation, on by default. Continuous interactions (wheel-zoom, drag-pan,
+ * minimap-drag) bypass this and stay instant.
+ */
+export interface ViewportAnimationConfig {
+	/** Animate programmatic viewport moves. Default `true`. */
+	enabled: boolean;
+	/** Tween duration in ms. Default `350`. */
+	durationMs: number;
+	/** Easing over normalized time `t∈[0,1]`. Default ease-in-out-cubic. */
+	easing: (t: number) => number;
+}
+
+/** Per-call overrides for {@link BoardStore.animateViewportTo}. */
+export interface ViewportAnimationOptions {
+	durationMs?: number;
+	easing?: (t: number) => number;
+	/** Force instant (`false`) or animated (`true`); omit to use the config default. */
+	animate?: boolean;
+}
+
 export interface BoardStore {
 	getShapes(): ReadonlyMap<string, ShapeData>;
 	/** Return shapes sorted by zIndex (ascending = back to front). Cached internally. */
@@ -742,18 +789,33 @@ export interface BoardStore {
 	resetToDefaultTool(): void;
 
 	getViewport(): Viewport;
+	/** Set the viewport instantly. Cancels any in-flight viewport animation. */
 	setViewport(viewport: Viewport): void;
 	panBy(dx: number, dy: number): void;
 	zoomTo(zoom: number, center: Point): void;
 	/**
+	 * Smoothly tween the viewport to `target` (the default for logic-driven
+	 * jumps/zoom). Falls back to an instant set when animation is disabled,
+	 * `prefers-reduced-motion` is set, no rAF is available (tests/SSR), or
+	 * `opts.animate === false`. A new call or any instant move cancels the
+	 * previous animation.
+	 */
+	animateViewportTo(target: Viewport, opts?: ViewportAnimationOptions): void;
+	/** Current viewport-animation config (defaults: enabled, 350ms, ease-in-out-cubic). */
+	getViewportAnimation(): ViewportAnimationConfig;
+	/** Update the viewport-animation config (partial merge). */
+	setViewportAnimation(config: Partial<ViewportAnimationConfig>): void;
+	/**
 	 * Center the viewport so that `bounds` fits within a rectangle of
 	 * `viewportSize` (in CSS pixels), leaving `padding` pixels on each side.
-	 * `bounds` is in world coordinates.
+	 * `bounds` is in world coordinates. Animates by default (see
+	 * {@link animateViewportTo}); pass `{ animate: false }` for an instant fit.
 	 */
 	fitToBounds(
 		bounds: BoundingBox,
 		viewportSize: { width: number; height: number },
 		padding?: number,
+		opts?: ViewportAnimationOptions,
 	): void;
 
 	getStyleSettings(): ShapeStyle;

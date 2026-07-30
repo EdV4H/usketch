@@ -1,5 +1,6 @@
 import {
 	createMermaidFlowchartConverter,
+	createMermaidSequenceConverter,
 	getMarkdownConverters,
 	mdastText,
 	nodeSource,
@@ -93,6 +94,7 @@ export function createMarkdownAdaptersPlugin(): UsketchPlugin {
 				listToText,
 				blockquoteToText,
 				createMermaidFlowchartConverter(),
+				createMermaidSequenceConverter(),
 			].map((c) => registry.register(c));
 			return () => {
 				for (const off of offs) off();

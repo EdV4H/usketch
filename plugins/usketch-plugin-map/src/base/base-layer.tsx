@@ -6,11 +6,14 @@ import type { BoardStore, RenderMode } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
 import { type Cells, exposedEdges, parseCellKey } from "../autotile.js";
 import { blockFactor, downsampleCells, type TileDetail, tileDetail } from "../lod.js";
+import { MAP_ICON_TYPE, type MapIconShapeData } from "../map-icon-shape.js";
 import { visibleCellRange, visibleWorldRect } from "../map-layer.js";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
 import { useMapToolState } from "../tool-state.js";
-import type { BaseInfo, OwnerMap } from "./base-map-shape.js";
+import type { BaseInfo } from "./base-map-shape.js";
 import { baseRegionAnchors, getBaseMap } from "./base-ops.js";
+import { useBaseState } from "./base-state.js";
+import { computeTerritory, type Territory } from "./territory.js";
 
 const FILL_OPACITY = 0.24;
 const BORDER_RATIO = 0.16; // border strip thickness, fraction of a tile
@@ -18,7 +21,7 @@ const BORDER_OPACITY = 0.85;
 
 /** Full tier: per-cell translucent fill + base-coloured border on region edges. */
 function renderFull(
-	owner: OwnerMap,
+	owner: Territory,
 	bases: Record<string, BaseInfo>,
 	tile: number,
 	visible: DOMRectReadOnly | null,
@@ -76,7 +79,7 @@ function renderFull(
 
 /** Coarse tier: flat translucent blocks (downsampled by owning base). */
 function renderCoarse(
-	owner: OwnerMap,
+	owner: Territory,
 	bases: Record<string, BaseInfo>,
 	tile: number,
 	screenTilePx: number,
@@ -112,6 +115,7 @@ export function BaseAreaLayer({
 	renderMode?: RenderMode;
 }) {
 	const tool = useMapToolState();
+	const baseState = useBaseState();
 	const [, force] = useState(0);
 	const rafRef = useRef(0);
 
@@ -133,25 +137,59 @@ export function BaseAreaLayer({
 	const inBaseMode = store.getActiveToolId() === MAP_TOOL_ID && tool.mode === "base";
 	if (!inBaseMode) return null;
 	const base = getBaseMap(store);
-	if (!base || Object.keys(base.owner).length === 0) return null;
+	if (!base) return null;
+	const tile = base.tile;
+
+	// Territory is DERIVED from beacons + terrain paint (memoised in territory.ts).
+	const territory: Territory = computeTerritory(store, tile, new Set(baseState.excludeTerrains));
+	if (Object.keys(territory).length === 0) return null;
 
 	const vp = store.getViewport();
 	const visible = visibleWorldRect(store);
-	const tile = base.tile;
 	const screenTilePx = tile * vp.zoom;
 	const detail: TileDetail = tileDetail(screenTilePx, renderMode);
 	const cells =
 		detail === "full"
-			? renderFull(base.owner, base.bases, tile, visible)
-			: renderCoarse(base.owner, base.bases, tile, screenTilePx, visible);
+			? renderFull(territory, base.bases, tile, visible)
+			: renderCoarse(territory, base.bases, tile, screenTilePx, visible);
 
 	// Labels: HTML chips at screen coords (crisp, constant size). Hidden when coarse.
-	const anchors = detail === "full" ? baseRegionAnchors(base.owner, base.bases, tile) : [];
+	const anchors = detail === "full" ? baseRegionAnchors(territory, base.bases, tile) : [];
+
+	// Radius rings for beacon icons. Full detail only; radius comes from the base.
+	const rings: React.ReactElement[] = [];
+	if (detail === "full") {
+		for (const [, s] of store.getShapes()) {
+			if (s.type !== MAP_ICON_TYPE) continue;
+			const meta = (s as MapIconShapeData).meta;
+			if (!meta?.baseId) continue;
+			const info = base.bases[meta.baseId];
+			if (!info) continue;
+			const color = info.color;
+			rings.push(
+				<circle
+					key={`ring-${s.id}`}
+					cx={s.x + s.width / 2}
+					cy={s.y + s.height / 2}
+					r={info.radius * tile}
+					fill="none"
+					stroke={color}
+					strokeWidth={2}
+					strokeDasharray="8 6"
+					opacity={0.7}
+					vectorEffect="non-scaling-stroke"
+				/>,
+			);
+		}
+	}
 
 	return (
 		<div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
 			<svg width="100%" height="100%" style={{ display: "block", overflow: "visible" }}>
-				<g transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}>{cells}</g>
+				<g transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}>
+					{cells}
+					{rings}
+				</g>
 			</svg>
 			{anchors.map((a) => (
 				<div

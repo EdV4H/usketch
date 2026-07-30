@@ -8,7 +8,7 @@ import type {
 	ToolContext,
 	Viewport,
 } from "@edv4h/usketch-shared";
-import { hasSelectableChildren, safeRotation } from "@edv4h/usketch-shared";
+import { hasSelectableChildren, isAttachable, safeRotation } from "@edv4h/usketch-shared";
 import {
 	getTopLevelAncestor,
 	isEffectivelyHidden,
@@ -184,6 +184,13 @@ export function findShapeAtPoint(
 		if (typeof data.parentId === "string") {
 			const parent = ctx.store.getShape(data.parentId);
 			if (parent && hasSelectableChildren(ctx.shapes.get(parent.type), parent)) {
+				return id;
+			}
+			// Attachable children (e.g. stickers, kimochi) stick to a shape by
+			// overlap but stay independently selectable — you must be able to grab
+			// and peel them off. They are not "grouped" into the parent, so resolve
+			// to the hit child itself rather than the top-level ancestor.
+			if (isAttachable(def, data)) {
 				return id;
 			}
 			// The resolved ancestor — not the hit child — is what we return, so it

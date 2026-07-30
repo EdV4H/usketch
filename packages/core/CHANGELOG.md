@@ -1,5 +1,27 @@
 # @edv4h/usketch-core
 
+## 2.3.1
+
+### Patch Changes
+
+- Updated dependencies [6c6702b]
+  - @edv4h/usketch-shared@4.8.0
+
+## 2.3.0
+
+### Minor Changes
+
+- 359d732: ショートカット基盤を拡張（後方互換）。
+  - combo に `Mod` トークンを追加。プラットフォームのアクセラレータ（macOS=Cmd / その他=Ctrl）に正規化されるため、`Mod+Z` の 1 定義で Cmd+Z・Ctrl+Z 両対応になる。
+  - `ShortcutRegistry.register(combo, callback, meta?)` にメタデータ（`label` / `category`）を追加。
+  - `ShortcutRegistry.list()` を追加。登録済みショートカット（combo + meta）を返し、ホスト側でチートシートや設定 UI を組めるようにする。
+  - コアの Undo/Redo を `Mod+Z` / `Mod+Shift+Z` へ移行（メタ付き）。
+
+### Patch Changes
+
+- Updated dependencies [359d732]
+  - @edv4h/usketch-shared@4.7.0
+
 ## 2.2.0
 
 ### Minor Changes
