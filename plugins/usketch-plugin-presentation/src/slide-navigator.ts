@@ -1,8 +1,24 @@
 import type { BoardStore, BoundingBox, ShapeData } from "@edv4h/usketch-shared";
 
+/** ある shape をスライドとして扱うかどうかを判定する述語。 */
+export type IsSlide = (shape: ShapeData) => boolean;
+
+/** 既定のスライド判定: Frame シェイプをスライドとして扱う。 */
+const defaultIsSlide: IsSlide = (s) => s.type === "frame";
+
+export interface SlideNavigatorOptions {
+	/**
+	 * どの shape を「スライド」として扱うかの述語。
+	 * 省略時は Frame シェイプ（`type === "frame"`）。ホスト側で
+	 * 「スライド指定した Frame だけ」や専用の画角 shape を対象にしたいときに差し替える。
+	 */
+	isSlide?: IsSlide;
+}
+
 /**
- * Frame シェイプを表示順（zIndex 昇順）で並べたものを「スライド」と解釈する。
- * 新しいドメイン概念を Frame に持ち込まないのがポイント。
+ * スライド（既定では Frame シェイプ）を表示順（zIndex 昇順）で並べたものを
+ * 「スライド」と解釈する。新しいドメイン概念を持ち込まないのがポイント。
+ * `options.isSlide` でスライドとして扱う shape を差し替えられる。
  */
 export class SlideNavigator {
 	private currentIndex = 0;
@@ -17,11 +33,15 @@ export class SlideNavigator {
 	private getViewportSize: () => { width: number; height: number };
 	/** 現在 Frame として扱っている shape id。`shape:removed` で id が消えたかどうかの判定に使う。 */
 	private frameIds: Set<string>;
+	/** スライド判定述語（省略時は Frame）。 */
+	private readonly isSlide: IsSlide;
 
 	constructor(
 		private readonly store: BoardStore,
 		getViewportSize: () => { width: number; height: number },
+		options: SlideNavigatorOptions = {},
 	) {
+		this.isSlide = options.isSlide ?? defaultIsSlide;
 		this.getViewportSize = getViewportSize;
 		const initialSlides = this.getSlides();
 		this.frameIds = new Set(initialSlides.map((s) => s.id));
@@ -55,9 +75,12 @@ export class SlideNavigator {
 
 	/**
 	 * mutation がスライド一覧に影響するか判定する。
-	 * - shape:added / shape:updated → 対象 shape が frame のときだけ影響（非フレームのドラッグ等は無視）
-	 * - shape:removed → 削除された id が現在の frame セットにあったときだけ影響
+	 * - shape:added / shape:updated → 対象 shape がスライドのときだけ影響（非スライドのドラッグ等は無視）
+	 * - shape:removed → 削除された id が現在のスライドセットにあったときだけ影響
 	 * - shapes:z-index-initialized → 常に影響
+	 *
+	 * NOTE: `shape:updated` は「スライド化フラグの付け外し」でも発火するため、
+	 * 現在スライドセットに含まれる id なら（今は非スライドでも）影響ありとして通す。
 	 */
 	private isSlideRelatedMutation(type: string, payload: unknown): boolean {
 		if (type === "shapes:z-index-initialized") return true;
@@ -71,12 +94,14 @@ export class SlideNavigator {
 			// id が取れない想定外形式は安全側で通す
 			return true;
 		}
+		// 既にスライドだった shape の更新（＝スライド解除も含む）は影響あり。
+		if (this.frameIds.has(id)) return true;
 		const shape = this.store.getShape(id);
-		return shape?.type === "frame";
+		return shape ? this.isSlide(shape) : false;
 	}
 
 	getSlides(): ShapeData[] {
-		return this.store.getShapesSorted().filter((s) => s.type === "frame");
+		return this.store.getShapesSorted().filter((s) => this.isSlide(s));
 	}
 
 	getCurrentIndex(): number {
