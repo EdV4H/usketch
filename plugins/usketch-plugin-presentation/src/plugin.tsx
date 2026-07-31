@@ -7,6 +7,7 @@ import type {
 import { useEffect, useState } from "react";
 import { PresentEditOverlay } from "./present-edit-overlay.js";
 import { PresentModeOverlay } from "./present-mode-overlay.js";
+import type { IsSlide } from "./slide-navigator.js";
 import { SlideNavigator } from "./slide-navigator.js";
 
 /** "off" = プレゼン UI 非表示（通常のホワイトボード扱い） */
@@ -33,6 +34,17 @@ export interface PresentationPluginOptions {
 	 * stage のサイズを返したい。省略時は window.innerWidth/Height を使う。
 	 */
 	getViewportSize?: () => { width: number; height: number };
+	/**
+	 * どの shape を「スライド」として扱うかの述語。省略時は Frame シェイプ。
+	 * ホスト側で「スライド指定した Frame だけ」や専用の画角 shape を対象にしたいときに渡す。
+	 */
+	isSlide?: IsSlide;
+	/**
+	 * edit モードのオーバーレイ（スライド一覧パネル）を plugin 側で描画するか。
+	 * 省略時は true。ホスト側で独自のスライド一覧 UI を持つ場合は false にして、
+	 * present モードのオーバーレイとショートカットだけ流用できる。
+	 */
+	renderEditUI?: boolean;
 }
 
 function defaultGetViewportSize(): { width: number; height: number } {
@@ -59,12 +71,16 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 	const subscribeMode = opts.subscribeMode ?? defaultSubscribeMode;
 	const navigateToBoard = opts.navigateToBoard ?? defaultNavigateToBoard;
 	const getViewportSize = opts.getViewportSize ?? defaultGetViewportSize;
+	const isSlide = opts.isSlide;
+	const renderEditUI = opts.renderEditUI ?? true;
 
 	return {
 		id: "presentation",
 		name: "Presentation",
 		setup(ctx: PluginContext) {
-			let nav: SlideNavigator | null = new SlideNavigator(ctx.store, getViewportSize);
+			let nav: SlideNavigator | null = new SlideNavigator(ctx.store, getViewportSize, {
+				isSlide,
+			});
 			const unregisters: Array<() => void> = [];
 			const navRef = nav;
 
@@ -161,6 +177,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 							getMode={getMode}
 							subscribeMode={subscribeMode}
 							navigateToBoard={navigateToBoard}
+							renderEditUI={renderEditUI}
 						/>
 					);
 				},
@@ -189,6 +206,7 @@ interface PresentationLayerProps {
 	getMode: () => PresentationMode;
 	subscribeMode: (listener: () => void) => () => void;
 	navigateToBoard: () => void;
+	renderEditUI: boolean;
 }
 
 function PresentationLayer({
@@ -199,12 +217,15 @@ function PresentationLayer({
 	getMode,
 	subscribeMode,
 	navigateToBoard,
+	renderEditUI,
 }: PresentationLayerProps) {
 	const [mode, setMode] = usePresentationMode(getMode, subscribeMode);
 	void setMode;
 	if (mode === "off") return null;
 	if (mode === "present") return <PresentModeOverlay nav={nav} />;
 	void renderCtx;
+	// edit モードのパネルはホスト側が持つ場合 renderEditUI=false で抑止する。
+	if (!renderEditUI) return null;
 	return (
 		<PresentEditOverlay
 			nav={nav}
