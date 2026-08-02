@@ -7,9 +7,11 @@ import {
 	type ResizeHandle,
 	type ShapeData,
 	type ShapeDefinition,
+	safeRotation,
 	withRotation,
 } from "@edv4h/usketch-shared";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import type React from "react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
 	containSize,
@@ -175,22 +177,31 @@ function PdfPageView({ data, deps }: { data: PdfPageShapeData; deps: PdfPageShap
 	);
 }
 
+/**
+ * Style for the LOD stand-in. The renderer swaps out the positioned, rotated
+ * wrapper in LOD mode, so the placeholder has to reproduce both itself —
+ * matching `LodFallback` — or a rotated page would snap upright whenever it is
+ * zoomed out or panned off-screen.
+ */
+export function simplifiedPageStyle(shape: ShapeData): React.CSSProperties {
+	const rotation = safeRotation(shape.rotation);
+	return {
+		position: "absolute",
+		left: shape.x,
+		top: shape.y,
+		width: shape.width,
+		height: shape.height,
+		background: shape.style.fill,
+		border: `${shape.style.strokeWidth}px solid ${shape.style.stroke}`,
+		pointerEvents: "none",
+		transform: rotation ? `rotate(${rotation}deg)` : undefined,
+		transformOrigin: "center center",
+	};
+}
+
 /** Cheap stand-in used when zoomed out or off-screen. Positions itself. */
 function SimplifiedPdfPage({ shape }: { shape: ShapeData }) {
-	return (
-		<div
-			style={{
-				position: "absolute",
-				left: shape.x,
-				top: shape.y,
-				width: shape.width,
-				height: shape.height,
-				background: shape.style.fill,
-				border: `${shape.style.strokeWidth}px solid ${shape.style.stroke}`,
-				pointerEvents: "none",
-			}}
-		/>
-	);
+	return <div style={simplifiedPageStyle(shape)} />;
 }
 
 function getBounds(data: ShapeData): BoundingBox {

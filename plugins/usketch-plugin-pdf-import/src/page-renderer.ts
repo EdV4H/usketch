@@ -98,6 +98,12 @@ export function getAnyCachedPage(
 
 function putCachedPage(key: string, canvas: HTMLCanvasElement): void {
 	const pixels = canvas.width * canvas.height;
+	// Two shapes showing the same page at the same size both miss the cache and
+	// render before either finishes, so the same key really does get written
+	// twice. Drop the outgoing entry from the tally first — otherwise the budget
+	// creeps up and the LRU starts evicting pages that are still on screen.
+	const replaced = cache.get(key);
+	if (replaced) cachedPixels -= replaced.pixels;
 	cache.set(key, { canvas, pixels });
 	cachedPixels += pixels;
 	for (const [oldest, entry] of cache) {
@@ -199,4 +205,9 @@ export function isCancellation(err: unknown): boolean {
 export function resetPageCache(): void {
 	cache.clear();
 	cachedPixels = 0;
+}
+
+/** Test seam: total pixels currently charged against the cache budget. */
+export function cachedPixelCount(): number {
+	return cachedPixels;
 }
