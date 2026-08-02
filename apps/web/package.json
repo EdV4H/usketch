@@ -39,6 +39,7 @@
 		"@edv4h/usketch-plugin-shape-island": "workspace:*",
 		"@edv4h/usketch-plugin-map": "workspace:*",
 		"@edv4h/usketch-plugin-shape-image": "workspace:*",
+		"@edv4h/usketch-plugin-pdf-import": "workspace:*",
 		"@edv4h/usketch-plugin-shape-openui": "workspace:*",
 		"@edv4h/usketch-plugin-tool-openui": "workspace:*",
 		"@edv4h/usketch-plugin-export": "workspace:*",
