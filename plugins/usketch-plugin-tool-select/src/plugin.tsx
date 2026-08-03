@@ -173,7 +173,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 					viewport,
 				);
 				if (rotationHit) {
-					const shape = toolCtx.store.getShape(rotationHit);
+					const shape = toolCtx.store.getShape(rotationHit.shapeId);
 					if (shape) {
 						const cx = shape.x + shape.width / 2;
 						const cy = shape.y + shape.height / 2;
@@ -184,7 +184,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 							kind: "rotate",
 							session: startRotateSession({
 								ctx: toolCtx,
-								shapeId: rotationHit,
+								shapeId: rotationHit.shapeId,
 								center: { x: cx, y: cy },
 								startAngle,
 								startRotation: safeRotation(shape.rotation),

@@ -110,7 +110,7 @@ export function findRotationHandleAtScreenPoint(
 	shapes: ShapeRegistry,
 	store: BoardStore,
 	viewport: Viewport,
-): string | null {
+): { shapeId: string; corner: ResizeHandle } | null {
 	const selection = store.getSelection();
 	if (selection.size !== 1) return null;
 
@@ -157,11 +157,45 @@ export function findRotationHandleAtScreenPoint(
 		const dist = Math.hypot(dx, dy);
 		// Outside resize hit area but within rotation area
 		if (dist > halfHit && dist <= outerDist) {
-			return shapeId;
+			return { shapeId, corner: handle };
 		}
 	}
 
 	return null;
+}
+
+/**
+ * 角ごとの回転カーソル（SVG data URI）を返す。
+ *
+ * CSS には回転カーソルの標準値が無いため、Figma/tldraw と同様に回転アイコンの
+ * SVG を data URI 化し、`cursor: url(...) hotX hotY, fallback` として差し込む。
+ * アイコンは「角の基準角（ne=45°, se=135°, sw=225°, nw=315°）＋ シェイプの現在
+ * 回転角」だけ回転させ、掴んでいる角に沿った向きになる。ホットスポットはアイコン
+ * 中心（16,16）。ブラウザのカーソル上限に収まる 32×32。
+ */
+const ROTATION_CORNER_ANGLE: Partial<Record<ResizeHandle, number>> = {
+	ne: 45,
+	se: 135,
+	sw: 225,
+	nw: 315,
+};
+
+export function getRotationCursor(corner: ResizeHandle, rotationDeg = 0): string {
+	const base = ROTATION_CORNER_ANGLE[corner] ?? 0;
+	const angle = normalizeAngle(base + rotationDeg);
+	const svg =
+		`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>` +
+		`<g transform='rotate(${angle.toFixed(1)} 16 16)' fill='none' stroke-linejoin='round'>` +
+		// White halo for contrast on any background
+		`<path d='M8 16 A8 8 0 0 0 24 16' stroke='#fff' stroke-width='5' stroke-linecap='round'/>` +
+		`<path d='M8 16 l-3.5 -4.5 7 0 z' fill='#fff' stroke='#fff' stroke-width='3'/>` +
+		`<path d='M24 16 l3.5 4.5 -7 0 z' fill='#fff' stroke='#fff' stroke-width='3'/>` +
+		// Dark glyph on top
+		`<path d='M8 16 A8 8 0 0 0 24 16' stroke='#1e1e1e' stroke-width='2.2' stroke-linecap='round'/>` +
+		`<path d='M8 16 l-3.5 -4.5 7 0 z' fill='#1e1e1e'/>` +
+		`<path d='M24 16 l3.5 4.5 -7 0 z' fill='#1e1e1e'/>` +
+		`</g></svg>`;
+	return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 16 16, grab`;
 }
 
 /** 回転済みシェイプのリサイズカーソルを返す */

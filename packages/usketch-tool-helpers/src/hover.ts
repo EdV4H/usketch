@@ -21,6 +21,7 @@ import {
 	getCursorForHandle,
 	getMultiSelectionBounds,
 	getRotatedCursorForHandle,
+	getRotationCursor,
 } from "./internal/resize-handles.js";
 
 export interface HoverResult {
@@ -66,10 +67,13 @@ export function trackHover(
 		viewport,
 	);
 	if (rotationHit) {
+		// Orient the rotation cursor to the grabbed corner and the shape's current
+		// rotation, instead of a uniform "grab", so each corner reads differently.
+		const rotation = safeRotation(ctx.store.getShape(rotationHit.shapeId)?.rotation);
 		return {
-			cursor: "grab",
+			cursor: getRotationCursor(rotationHit.corner, rotation),
 			hoveredShapeId: null,
-			rotationHit: { shapeId: rotationHit },
+			rotationHit: { shapeId: rotationHit.shapeId },
 		};
 	}
 

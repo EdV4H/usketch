@@ -28,6 +28,7 @@ export {
 	getHandlePositions,
 	getMultiSelectionBounds,
 	getRotatedCursorForHandle,
+	getRotationCursor,
 	getShapeBounds,
 	HANDLE_SIZE,
 	handleAxes,

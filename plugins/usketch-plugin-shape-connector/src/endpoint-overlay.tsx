@@ -4,6 +4,7 @@ import {
 	getDefaultControlPoint,
 } from "@edv4h/usketch-connector-anchor";
 import type { PluginContext, Point, ShapeData, Viewport } from "@edv4h/usketch-shared";
+import { rotatePoint, safeRotation, unrotatePoint } from "@edv4h/usketch-shared";
 import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import { useCallback, useSyncExternalStore } from "react";
 import {
@@ -58,9 +59,15 @@ export function EndpointOverlay({ ctx, viewport }: EndpointOverlayProps) {
 	const showControlHandle = pathType === "curve";
 	const cp = controlPoint ?? getDefaultControlPoint(sourcePoint, targetPoint);
 
-	const srcScreen = worldToScreen(sourcePoint, viewport);
-	const tgtScreen = worldToScreen(targetPoint, viewport);
-	const cpScreen = showControlHandle ? worldToScreen(cp, viewport) : null;
+	// The connector body is rendered rotated (CSS `rotate(rotation)` around the
+	// shape's bbox center — see connector.tsx / dom-shape-layer). Endpoint /
+	// control points are stored un-rotated, so rotate them into the displayed
+	// position before projecting to screen, or the handles detach from the line.
+	const frame = connectorRotationFrame(connector);
+	const toScreen = (p: Point) => worldToScreen(applyRotation(p, frame), viewport);
+	const srcScreen = toScreen(sourcePoint);
+	const tgtScreen = toScreen(targetPoint);
+	const cpScreen = showControlHandle ? toScreen(cp) : null;
 
 	return (
 		<svg
@@ -164,10 +171,13 @@ function DragPreview({
 	const connectorData = connector as ConnectorShapeData;
 	const sourcePoint = connectorData.sourcePoint as Point;
 	const targetPoint = connectorData.targetPoint as Point;
-	const dragScreen = worldToScreen(dragState.currentPoint, viewport);
+	// `currentPoint` is stored un-rotated (see EndpointHandle onMove); rotate all
+	// points into the connector's displayed frame so the preview tracks the line.
+	const frame = connectorRotationFrame(connector);
+	const dragScreen = worldToScreen(applyRotation(dragState.currentPoint, frame), viewport);
 
 	if (dragState.endpoint === "source") {
-		const tgtScreen = worldToScreen(targetPoint, viewport);
+		const tgtScreen = worldToScreen(applyRotation(targetPoint, frame), viewport);
 		return (
 			<line
 				x1={dragScreen.x}
@@ -181,7 +191,7 @@ function DragPreview({
 		);
 	}
 	if (dragState.endpoint === "target") {
-		const srcScreen = worldToScreen(sourcePoint, viewport);
+		const srcScreen = worldToScreen(applyRotation(sourcePoint, frame), viewport);
 		return (
 			<line
 				x1={srcScreen.x}
@@ -272,8 +282,15 @@ function EndpointHandle({
 			const currentShapeId =
 				endpoint === "source" ? connectorData.sourceId : connectorData.targetId;
 
+			// Endpoints are stored in the connector's un-rotated frame. Map the
+			// pointer back through the inverse rotation so a rotated connector's
+			// handle tracks the cursor and commits a consistent local-space point.
+			const frame = connectorRotationFrame(connector);
 			const onMove = (me: PointerEvent) => {
-				const wp = screenToWorld({ x: me.clientX, y: me.clientY }, viewport);
+				const wp = applyInverseRotation(
+					screenToWorld({ x: me.clientX, y: me.clientY }, viewport),
+					frame,
+				);
 
 				if (endpoint === "controlPoint") {
 					setEndpointDrag({
@@ -501,6 +518,31 @@ function commitAnchorSlide(
 	};
 
 	ctx.commands.execute(createBatchUpdateShapesCommand(ctx.store, [{ id: connectorId, from, to }]));
+}
+
+/** Rotation frame of a connector: its bbox center + angle (radians). `null` when unrotated. */
+interface RotationFrame {
+	center: Point;
+	angleRad: number;
+}
+
+function connectorRotationFrame(connector: ShapeData): RotationFrame | null {
+	const rotation = safeRotation(connector.rotation);
+	if (!rotation) return null;
+	return {
+		center: { x: connector.x + connector.width / 2, y: connector.y + connector.height / 2 },
+		angleRad: (rotation * Math.PI) / 180,
+	};
+}
+
+/** Rotate a stored (local) point into the connector's displayed frame. */
+function applyRotation(point: Point, frame: RotationFrame | null): Point {
+	return frame ? rotatePoint(point, frame.center, frame.angleRad) : point;
+}
+
+/** Inverse of {@link applyRotation}: map a displayed-frame point back to local space. */
+function applyInverseRotation(point: Point, frame: RotationFrame | null): Point {
+	return frame ? unrotatePoint(point, frame.center, frame.angleRad) : point;
 }
 
 function worldToScreen(point: Point, viewport: Viewport): Point {
