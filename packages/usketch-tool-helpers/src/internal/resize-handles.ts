@@ -7,6 +7,7 @@ import type {
 	Viewport,
 } from "@edv4h/usketch-shared";
 import {
+	getRotatedAABB,
 	getSelectionBounds,
 	isShapeResizable,
 	normalizeAngle,
@@ -470,12 +471,28 @@ export function getShapeBounds(
 		: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
 }
 
+/**
+ * Shape bounds as its axis-aligned bounding box in world space, expanded to
+ * cover the shape's rotation. Unlike {@link getShapeBounds} (which returns the
+ * shape's local bounds for callers that apply their own rotation transform),
+ * this is what the multi-selection box needs so a rotated shape's corners stay
+ * inside the (axis-aligned) group box.
+ */
+function getShapeAABB(store: BoardStore, shapes: ShapeRegistry, id: string): BoundingBox | null {
+	const shape = store.getShape(id);
+	if (!shape) return null;
+	const bounds = getShapeBounds(store, shapes, id);
+	if (!bounds) return null;
+	const rotation = safeRotation(shape.rotation);
+	return rotation ? getRotatedAABB(bounds, rotation) : bounds;
+}
+
 export function getMultiSelectionBounds(
 	store: BoardStore,
 	shapes: ShapeRegistry,
 	selection: ReadonlySet<string>,
 ): BoundingBox | null {
-	return getSelectionBounds(selection, (id) => getShapeBounds(store, shapes, id));
+	return getSelectionBounds(selection, (id) => getShapeAABB(store, shapes, id));
 }
 
 export function findMultiHandleAtScreenPoint(
