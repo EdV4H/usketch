@@ -1,30 +1,54 @@
 import type { Point, ShapeData } from "@edv4h/usketch-shared";
+import { rotatePoint, safeRotation, unrotatePoint } from "@edv4h/usketch-shared";
 
 export type AnchorType = "auto" | "top" | "right" | "bottom" | "left" | "custom";
 
-/** Compute the anchor point on a shape's edge */
+/** Rotation of `shape` in radians (0 when unrotated). */
+function shapeAngleRad(shape: ShapeData): number {
+	return (safeRotation(shape.rotation) * Math.PI) / 180;
+}
+
+/**
+ * Compute the anchor point on a shape's edge, in world space.
+ *
+ * Anchors are derived in the shape's local (un-rotated) frame — the axis-aligned
+ * edge midpoints — then rotated around the shape center by `shape.rotation` so the
+ * handles / connection points follow a rotated shape's visible edges. Callers that
+ * pass a world-space `otherCenter` (for "auto") get it un-rotated into the local
+ * frame first, so the edge intersection is computed correctly.
+ */
 export function getAnchorPoint(shape: ShapeData, anchor: AnchorType, otherCenter?: Point): Point {
 	const cx = shape.x + shape.width / 2;
 	const cy = shape.y + shape.height / 2;
+	const center: Point = { x: cx, y: cy };
+	const angleRad = shapeAngleRad(shape);
 
+	let local: Point;
 	switch (anchor) {
 		case "top":
-			return { x: cx, y: shape.y };
+			local = { x: cx, y: shape.y };
+			break;
 		case "right":
-			return { x: shape.x + shape.width, y: cy };
+			local = { x: shape.x + shape.width, y: cy };
+			break;
 		case "bottom":
-			return { x: cx, y: shape.y + shape.height };
+			local = { x: cx, y: shape.y + shape.height };
+			break;
 		case "left":
-			return { x: shape.x, y: cy };
+			local = { x: shape.x, y: cy };
+			break;
 		case "custom":
-			// Custom anchor: caller manages the point directly.
+			// Custom anchor: caller manages the (already world-space) point directly.
 			// Return center as fallback (should not normally be called).
-			return { x: cx, y: cy };
+			return center;
 		case "auto": {
-			if (!otherCenter) return { x: cx, y: cy };
-			return computeAutoAnchor(shape, otherCenter);
+			if (!otherCenter) return center;
+			const localTarget = angleRad ? unrotatePoint(otherCenter, center, angleRad) : otherCenter;
+			local = computeAutoAnchor(shape, localTarget);
+			break;
 		}
 	}
+	return angleRad ? rotatePoint(local, center, angleRad) : local;
 }
 
 /** Compute the intersection of a line from shape center to a target point with the shape's bounding box */
@@ -101,8 +125,13 @@ export function findClosestAnchor(shape: ShapeData, point: Point): AnchorType {
 	return closest;
 }
 
-/** Clamp a point to the nearest position on a shape's bounding box edge. */
+/** Clamp a point to the nearest position on a shape's (possibly rotated) edge. */
 export function clampToShapeEdge(shape: ShapeData, point: Point): Point {
+	const center: Point = { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
+	const angleRad = shapeAngleRad(shape);
+	// Work in the shape's local (un-rotated) frame, then rotate the result back.
+	const local = angleRad ? unrotatePoint(point, center, angleRad) : point;
+
 	const left = shape.x;
 	const right = shape.x + shape.width;
 	const top = shape.y;
@@ -110,22 +139,22 @@ export function clampToShapeEdge(shape: ShapeData, point: Point): Point {
 
 	// Project the point onto each of the 4 edges and pick the closest
 	const candidates: Point[] = [
-		{ x: clamp(point.x, left, right), y: top }, // top edge
-		{ x: clamp(point.x, left, right), y: bottom }, // bottom edge
-		{ x: left, y: clamp(point.y, top, bottom) }, // left edge
-		{ x: right, y: clamp(point.y, top, bottom) }, // right edge
+		{ x: clamp(local.x, left, right), y: top }, // top edge
+		{ x: clamp(local.x, left, right), y: bottom }, // bottom edge
+		{ x: left, y: clamp(local.y, top, bottom) }, // left edge
+		{ x: right, y: clamp(local.y, top, bottom) }, // right edge
 	];
 
 	let best = candidates[0]!;
 	let bestDist = Number.POSITIVE_INFINITY;
 	for (const c of candidates) {
-		const dist = Math.hypot(c.x - point.x, c.y - point.y);
+		const dist = Math.hypot(c.x - local.x, c.y - local.y);
 		if (dist < bestDist) {
 			bestDist = dist;
 			best = c;
 		}
 	}
-	return best;
+	return angleRad ? rotatePoint(best, center, angleRad) : best;
 }
 
 function clamp(value: number, min: number, max: number): number {
