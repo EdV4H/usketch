@@ -16,6 +16,7 @@ v1の技術的知見を活かしつつ、MVPファーストで再構築する。
 - `docs/architecture-v2.md` — v2のアーキテクチャ設計
 - `docs/prd-ai-native.md` — AIネイティブ機能のPRD
 - `docs/prd-not-whiteboard.md` — Not Whiteboard（コミュニケーション空間）のPRD
+- `docs/plugin-system-design.md` — プラグインシステム設計。**プラグインの UI は必ず HUD に登録する**（独自ツールバー・パネルの実装は禁止）
 
 ## ファイル命名規則
 
