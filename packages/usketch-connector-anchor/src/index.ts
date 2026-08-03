@@ -18,6 +18,7 @@ export {
 	targetXY,
 } from "./hit-test.js";
 export { moveConnector } from "./move.js";
+export { rotateConnector } from "./rotate.js";
 export {
 	bezierBounds,
 	distanceToLineSegment,

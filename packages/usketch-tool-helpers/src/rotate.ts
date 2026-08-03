@@ -97,6 +97,16 @@ export function startRotateSession(
 			const cos = Math.cos(deltaRad);
 			const sin = Math.sin(deltaRad);
 			for (const [childId, snap] of childSnapshots) {
+				// Point-defined shapes (e.g. connectors) rotate their absolute points
+				// via `def.rotate` and keep rotation=0 — baking a `rotation` here would
+				// double-transform them against their own geometry.
+				const def = ctx.shapes.get(snap.type);
+				if (def?.rotate) {
+					const patch = def.rotate(snap, deltaRad, center);
+					ctx.store.updateShape(childId, patch);
+					updates.set(childId, patch);
+					continue;
+				}
 				const childCx = snap.x + snap.width / 2;
 				const childCy = snap.y + snap.height / 2;
 				const rx = childCx - center.x;
