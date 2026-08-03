@@ -169,7 +169,7 @@ export function findRotationHandleAtScreenPoint(
  *
  * CSS には回転カーソルの標準値が無いため、Figma/tldraw と同様に回転アイコンの
  * SVG を data URI 化し、`cursor: url(...) hotX hotY, fallback` として差し込む。
- * グリフは 280° 円弧＋両端の接線方向ダブル矢じり（左右対称）で、円中心が
+ * グリフは 150° の緩やかな円弧＋両端の接線方向ダブル矢じり（左右対称）で、円中心が
  * ホットスポット（16,16）＝ポインタ位置。「角の外向き方向（ne=45°, se=135°,
  * sw=225°, nw=315°、北基準の時計回り）＋ シェイプの現在回転角」だけ回して、
  * 開口部を掴んでいる角の内側へ向ける。32×32（ブラウザのカーソル上限内）。
@@ -185,13 +185,14 @@ const ROTATION_CORNER_ANGLE: Partial<Record<ResizeHandle, number>> = {
 // 円弧本体（凸側）を合わせるには 180° 足す＝開口部は角の内側を向く。
 const GLYPH_CONVEX_OFFSET = 180;
 
-// 280° の円弧（上部 80° が開口）と、その両端に置く接線方向の矢じり。矢じりは
-// 上向き基準（tip が上）の三角形を端点へ平行移動＋回転して接線に沿わせる。
-const ROTATE_ARC = "M21.46 9.49 A8.5 8.5 0 1 1 10.54 9.49";
+// 150° の緩やかな円弧（下側が弧、上部 210° が開口）と、その両端に置く接線方向の矢じり。
+// 端点 (16±R·sin75°, 16+R·cos75°)=(26.14/5.86, 18.72)、R=10.5。矢じりは上向き基準
+// （tip が上）の三角形を端点へ平行移動＋回転（15°/345°）して接線に沿わせる。
+const ROTATE_ARC = "M26.14 18.72 A10.5 10.5 0 0 1 5.86 18.72";
 const ROTATE_HEAD = "M0 -5 L3.6 1.2 L-3.6 1.2 Z";
 const ROTATE_HEADS =
-	`<path d='${ROTATE_HEAD}' transform='translate(21.46 9.49) rotate(310)'/>` +
-	`<path d='${ROTATE_HEAD}' transform='translate(10.54 9.49) rotate(50)'/>`;
+	`<path d='${ROTATE_HEAD}' transform='translate(26.14 18.72) rotate(15)'/>` +
+	`<path d='${ROTATE_HEAD}' transform='translate(5.86 18.72) rotate(345)'/>`;
 
 export function getRotationCursor(corner: ResizeHandle, rotationDeg = 0): string {
 	const base = ROTATION_CORNER_ANGLE[corner] ?? 0;
