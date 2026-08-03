@@ -169,10 +169,10 @@ export function findRotationHandleAtScreenPoint(
  *
  * CSS には回転カーソルの標準値が無いため、Figma/tldraw と同様に回転アイコンの
  * SVG を data URI 化し、`cursor: url(...) hotX hotY, fallback` として差し込む。
- * アイコンは「角の外向き方向（ne=45°, se=135°, sw=225°, nw=315°、北基準の時計回り）
- * ＋ シェイプの現在回転角」だけ回転させ、掴んでいる角に沿った向き（弧の凸側が角の
- * 外を向く）になる。ホットスポットはアイコン中心（16,16）。ブラウザのカーソル上限に
- * 収まる 32×32。
+ * グリフは 280° 円弧＋両端の接線方向ダブル矢じり（左右対称）で、円中心が
+ * ホットスポット（16,16）＝ポインタ位置。「角の外向き方向（ne=45°, se=135°,
+ * sw=225°, nw=315°、北基準の時計回り）＋ シェイプの現在回転角」だけ回して、
+ * 開口部を掴んでいる角の内側へ向ける。32×32（ブラウザのカーソル上限内）。
  */
 const ROTATION_CORNER_ANGLE: Partial<Record<ResizeHandle, number>> = {
 	ne: 45,
@@ -181,24 +181,30 @@ const ROTATION_CORNER_ANGLE: Partial<Record<ResizeHandle, number>> = {
 	nw: 315,
 };
 
-// 基準グリフ（angle=0）は弧の凸側がローカル南（下）を向くため、外向き方向へ凸側を
-// 合わせるには 180° 足す。角テーブルは「外向き方向」の意味のまま保つ。
+// 基準グリフ（angle=0）は開口部（矢じり）が上、円弧本体が下を向く。角の外向き方向へ
+// 円弧本体（凸側）を合わせるには 180° 足す＝開口部は角の内側を向く。
 const GLYPH_CONVEX_OFFSET = 180;
+
+// 280° の円弧（上部 80° が開口）と、その両端に置く接線方向の矢じり。矢じりは
+// 上向き基準（tip が上）の三角形を端点へ平行移動＋回転して接線に沿わせる。
+const ROTATE_ARC = "M21.46 9.49 A8.5 8.5 0 1 1 10.54 9.49";
+const ROTATE_HEAD = "M0 -5 L3.6 1.2 L-3.6 1.2 Z";
+const ROTATE_HEADS =
+	`<path d='${ROTATE_HEAD}' transform='translate(21.46 9.49) rotate(310)'/>` +
+	`<path d='${ROTATE_HEAD}' transform='translate(10.54 9.49) rotate(50)'/>`;
 
 export function getRotationCursor(corner: ResizeHandle, rotationDeg = 0): string {
 	const base = ROTATION_CORNER_ANGLE[corner] ?? 0;
 	const angle = normalizeAngle(base + GLYPH_CONVEX_OFFSET + rotationDeg);
 	const svg =
 		`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>` +
-		`<g transform='rotate(${angle.toFixed(1)} 16 16)' fill='none' stroke-linejoin='round'>` +
+		`<g transform='rotate(${angle.toFixed(1)} 16 16)' stroke-linejoin='round'>` +
 		// White halo for contrast on any background
-		`<path d='M8 16 A8 8 0 0 0 24 16' stroke='#fff' stroke-width='5' stroke-linecap='round'/>` +
-		`<path d='M8 16 l-3.5 -4.5 7 0 z' fill='#fff' stroke='#fff' stroke-width='3'/>` +
-		`<path d='M24 16 l3.5 4.5 -7 0 z' fill='#fff' stroke='#fff' stroke-width='3'/>` +
+		`<path d='${ROTATE_ARC}' fill='none' stroke='#fff' stroke-width='5' stroke-linecap='round'/>` +
+		`<g fill='#fff' stroke='#fff' stroke-width='2.5'>${ROTATE_HEADS}</g>` +
 		// Dark glyph on top
-		`<path d='M8 16 A8 8 0 0 0 24 16' stroke='#1e1e1e' stroke-width='2.2' stroke-linecap='round'/>` +
-		`<path d='M8 16 l-3.5 -4.5 7 0 z' fill='#1e1e1e'/>` +
-		`<path d='M24 16 l3.5 4.5 -7 0 z' fill='#1e1e1e'/>` +
+		`<path d='${ROTATE_ARC}' fill='none' stroke='#1e1e1e' stroke-width='2.4' stroke-linecap='round'/>` +
+		`<g fill='#1e1e1e'>${ROTATE_HEADS}</g>` +
 		`</g></svg>`;
 	return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 16 16, grab`;
 }
