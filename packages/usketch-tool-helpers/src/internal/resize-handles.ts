@@ -500,6 +500,29 @@ export function findMultiHandleAtScreenPoint(
 	return null;
 }
 
+/**
+ * Rotation zone just outside a corner of an axis-aligned multi-selection bbox.
+ * The multi-selection box is never itself rotated, so (unlike the single-shape
+ * variant) no un-rotation is needed. Returns which corner, or `null`.
+ */
+export function findMultiRotationHandleAtScreenPoint(
+	screenPoint: Point,
+	groupBounds: BoundingBox,
+	viewport: Viewport,
+): ResizeHandle | null {
+	const positions = getHandlePositions(groupBounds, viewport);
+	const cornerHandles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
+	const halfHit = HIT_AREA / 2;
+	const outerDist = halfHit + ROTATION_OUTER_MARGIN;
+	for (const handle of cornerHandles) {
+		const pos = positions.get(handle);
+		if (!pos) continue;
+		const dist = Math.hypot(screenPoint.x - pos.x, screenPoint.y - pos.y);
+		if (dist > halfHit && dist <= outerDist) return handle;
+	}
+	return null;
+}
+
 const MIN_GROUP_SIZE = 10;
 
 export interface MultiResizeShapeEntry {

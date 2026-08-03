@@ -13,6 +13,7 @@ import {
 import {
 	findHandleAtScreenPoint,
 	findMultiHandleAtScreenPoint,
+	findMultiRotationHandleAtScreenPoint,
 	findRotationHandleAtScreenPoint,
 	findShapeAtPoint,
 	getCursorForHandle,
@@ -20,6 +21,7 @@ import {
 	getRotatedCursorForHandle,
 	startDragSession,
 	startMarqueeSession,
+	startMultiRotateSession,
 	startResizeSession,
 	startRotateSession,
 	trackHover,
@@ -188,6 +190,32 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 								center: { x: cx, y: cy },
 								startAngle,
 								startRotation: safeRotation(shape.rotation),
+							}),
+						};
+						return;
+					}
+				}
+
+				// 0b. Multi-selection rotation (outside a corner of the group bbox)
+				const preSelection = toolCtx.store.getSelection();
+				if (preSelection.size > 1) {
+					const groupBounds = getMultiSelectionBounds(toolCtx.store, toolCtx.shapes, preSelection);
+					if (
+						groupBounds &&
+						findMultiRotationHandleAtScreenPoint(event.screenPoint, groupBounds, viewport)
+					) {
+						const cx = groupBounds.x + groupBounds.width / 2;
+						const cy = groupBounds.y + groupBounds.height / 2;
+						const startAngle =
+							Math.atan2(event.worldPoint.y - cy, event.worldPoint.x - cx) * (180 / Math.PI);
+						setOverrideCursor("grabbing");
+						dragState = {
+							kind: "rotate",
+							session: startMultiRotateSession({
+								ctx: toolCtx,
+								ids: preSelection,
+								center: { x: cx, y: cy },
+								startAngle,
 							}),
 						};
 						return;

@@ -17,6 +17,7 @@ import {
 import {
 	findHandleAtScreenPoint,
 	findMultiHandleAtScreenPoint,
+	findMultiRotationHandleAtScreenPoint,
 	findRotationHandleAtScreenPoint,
 	getCursorForHandle,
 	getMultiSelectionBounds,
@@ -91,11 +92,20 @@ export function trackHover(
 		};
 	}
 
-	// 3. Multi-selection handle
+	// 3. Multi-selection handle (rotation zone outside corners → resize handle)
 	const selection = ctx.store.getSelection();
 	if (selection.size > 1) {
 		const groupBounds = getMultiSelectionBounds(ctx.store, ctx.shapes, selection);
 		if (groupBounds) {
+			const rotCorner = findMultiRotationHandleAtScreenPoint(
+				event.screenPoint,
+				groupBounds,
+				viewport,
+			);
+			if (rotCorner) {
+				// Multi-selection bbox is axis-aligned, so no shape-rotation term.
+				return { cursor: getRotationCursor(rotCorner, 0), hoveredShapeId: null };
+			}
 			const multiHandle = findMultiHandleAtScreenPoint(event.screenPoint, groupBounds, viewport);
 			if (multiHandle) {
 				return {
