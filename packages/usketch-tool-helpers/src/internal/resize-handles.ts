@@ -169,9 +169,10 @@ export function findRotationHandleAtScreenPoint(
  *
  * CSS には回転カーソルの標準値が無いため、Figma/tldraw と同様に回転アイコンの
  * SVG を data URI 化し、`cursor: url(...) hotX hotY, fallback` として差し込む。
- * アイコンは「角の基準角（ne=45°, se=135°, sw=225°, nw=315°）＋ シェイプの現在
- * 回転角」だけ回転させ、掴んでいる角に沿った向きになる。ホットスポットはアイコン
- * 中心（16,16）。ブラウザのカーソル上限に収まる 32×32。
+ * アイコンは「角の外向き方向（ne=45°, se=135°, sw=225°, nw=315°、北基準の時計回り）
+ * ＋ シェイプの現在回転角」だけ回転させ、掴んでいる角に沿った向き（弧の凸側が角の
+ * 外を向く）になる。ホットスポットはアイコン中心（16,16）。ブラウザのカーソル上限に
+ * 収まる 32×32。
  */
 const ROTATION_CORNER_ANGLE: Partial<Record<ResizeHandle, number>> = {
 	ne: 45,
@@ -180,9 +181,13 @@ const ROTATION_CORNER_ANGLE: Partial<Record<ResizeHandle, number>> = {
 	nw: 315,
 };
 
+// 基準グリフ（angle=0）は弧の凸側がローカル南（下）を向くため、外向き方向へ凸側を
+// 合わせるには 180° 足す。角テーブルは「外向き方向」の意味のまま保つ。
+const GLYPH_CONVEX_OFFSET = 180;
+
 export function getRotationCursor(corner: ResizeHandle, rotationDeg = 0): string {
 	const base = ROTATION_CORNER_ANGLE[corner] ?? 0;
-	const angle = normalizeAngle(base + rotationDeg);
+	const angle = normalizeAngle(base + GLYPH_CONVEX_OFFSET + rotationDeg);
 	const svg =
 		`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>` +
 		`<g transform='rotate(${angle.toFixed(1)} 16 16)' fill='none' stroke-linejoin='round'>` +

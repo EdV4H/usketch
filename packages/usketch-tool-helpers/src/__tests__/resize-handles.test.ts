@@ -107,22 +107,22 @@ describe("getRotationCursor", () => {
 		expect(cursor).toMatch(/16 16, grab$/);
 	});
 
-	it("orients each corner to its diagonal base angle", () => {
-		// Base angles: ne=45, se=135, sw=225, nw=315.
-		expect(decodeURIComponent(getRotationCursor("ne"))).toContain("rotate(45.0 16 16)");
-		expect(decodeURIComponent(getRotationCursor("se"))).toContain("rotate(135.0 16 16)");
-		expect(decodeURIComponent(getRotationCursor("sw"))).toContain("rotate(225.0 16 16)");
-		expect(decodeURIComponent(getRotationCursor("nw"))).toContain("rotate(315.0 16 16)");
+	it("aims the convex side outward along each corner's diagonal", () => {
+		// Outward angle + 180° convex offset: ne 45→225, se 135→315, sw 225→45, nw 315→135.
+		expect(decodeURIComponent(getRotationCursor("ne"))).toContain("rotate(225.0 16 16)");
+		expect(decodeURIComponent(getRotationCursor("se"))).toContain("rotate(315.0 16 16)");
+		expect(decodeURIComponent(getRotationCursor("sw"))).toContain("rotate(45.0 16 16)");
+		expect(decodeURIComponent(getRotationCursor("nw"))).toContain("rotate(135.0 16 16)");
 	});
 
 	it("adds the shape rotation and normalizes into 0–360", () => {
-		// nw base 315 + 90 = 405 → 45
-		expect(decodeURIComponent(getRotationCursor("nw", 90))).toContain("rotate(45.0 16 16)");
-		// ne base 45 - 90 = -45 → 315
-		expect(decodeURIComponent(getRotationCursor("ne", -90))).toContain("rotate(315.0 16 16)");
+		// nw 315 + 180 + 90 = 585 → 225
+		expect(decodeURIComponent(getRotationCursor("nw", 90))).toContain("rotate(225.0 16 16)");
+		// ne 45 + 180 - 90 = 135
+		expect(decodeURIComponent(getRotationCursor("ne", -90))).toContain("rotate(135.0 16 16)");
 	});
 
-	it("falls back to angle 0 for non-corner handles", () => {
-		expect(decodeURIComponent(getRotationCursor("n"))).toContain("rotate(0.0 16 16)");
+	it("falls back to the convex offset for non-corner handles", () => {
+		expect(decodeURIComponent(getRotationCursor("n"))).toContain("rotate(180.0 16 16)");
 	});
 });
