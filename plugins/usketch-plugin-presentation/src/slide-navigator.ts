@@ -108,6 +108,18 @@ export class SlideNavigator {
 		return this.currentIndex;
 	}
 
+	/** 現在スライドの world 矩形 (回転無視の AABB)。スライドが無ければ null。 */
+	getCurrentBounds(): BoundingBox | null {
+		const slides = this.getSlides();
+		const s = slides[this.currentIndex];
+		return s ? { x: s.x, y: s.y, width: s.width, height: s.height } : null;
+	}
+
+	/** 内部の store。ホスト側 overlay が viewport 購読/取得に使う。 */
+	getStore(): BoardStore {
+		return this.store;
+	}
+
 	gotoIndex(index: number): void {
 		const slides = this.getSlides();
 		if (slides.length === 0) return;
