@@ -7,6 +7,7 @@ import type {
 } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
+import { FrameTitleEditor, setEditingFrameTitle } from "./frame-title-editor.js";
 import {
 	createDefaultFrame,
 	getBoundsFrame,
@@ -152,7 +153,21 @@ export function createFramePlugin(): UsketchPlugin {
 			// here. Frame moves also drag children along via the select tool's
 			// container-aware descendant snapshotting.
 
-			return () => {};
+			// ── Title inline editing overlay ──
+			//
+			// The title bar (renderFrame) starts editing on double-click via
+			// `setEditingFrameTitle`; this overlay renders the input + commits.
+			// Editing closes on the input's blur/Enter/Escape.
+			ctx.layers.register({
+				id: "usketch-plugin-shape-frame:title-editor",
+				order: 84,
+				fixed: true,
+				render: (renderCtx) => <FrameTitleEditor ctx={ctx} viewport={renderCtx.viewport} />,
+			});
+
+			return () => {
+				setEditingFrameTitle(null);
+			};
 		},
 	};
 }

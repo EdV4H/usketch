@@ -1,7 +1,9 @@
 import type { BoundingBox, Point, ShapeData } from "@edv4h/usketch-shared";
+import { TITLE_HEIGHT } from "../constants.js";
+import { setEditingFrameTitle } from "../frame-title-editor.js";
 import type { FrameShapeData } from "../types.js";
 
-const TITLE_HEIGHT = 24;
+export { TITLE_HEIGHT };
 
 export function renderFrame(shape: ShapeData) {
 	const data = shape as FrameShapeData;
@@ -12,8 +14,16 @@ export function renderFrame(shape: ShapeData) {
 	// Render content at (0,0) within the wrapper — no position styling needed.
 	return (
 		<>
-			{/* Title bar — positioned above the frame via negative margin */}
+			{/* Title bar — positioned above the frame via negative margin.
+			    Interactive so a double-click starts inline rename (single clicks
+			    still bubble to the canvas for selection/drag). */}
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: canvas title, double-click to rename */}
 			<div
+				title="ダブルクリックで名前を変更"
+				onDoubleClick={(e) => {
+					e.stopPropagation();
+					setEditingFrameTitle(data.id);
+				}}
 				style={{
 					marginTop: -TITLE_HEIGHT,
 					height: TITLE_HEIGHT,
@@ -26,7 +36,10 @@ export function renderFrame(shape: ShapeData) {
 					userSelect: "none",
 					whiteSpace: "nowrap",
 					overflow: "hidden",
-					pointerEvents: "none",
+					width: "fit-content",
+					maxWidth: "100%",
+					pointerEvents: "auto",
+					cursor: "text",
 				}}
 			>
 				{title}
