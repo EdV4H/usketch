@@ -75,9 +75,28 @@ describe("SlideNavigator isSlide predicate", () => {
 		nav.gotoIndex(1);
 
 		expect(nav.getCurrentIndex()).toBe(1);
+		// 既定の余白 40 で fitToBounds に渡す。
 		expect(fit).toHaveBeenCalledWith(
 			{ x: 500, y: 300, width: 200, height: 150 },
 			{ width: 800, height: 600 },
+			40,
+		);
+		nav.destroy();
+	});
+
+	it("fitPadding を渡すと fitToBounds の余白として使う (発表の画角いっぱい=0)", () => {
+		const store = createBoardStore();
+		store.addShape(shape({ id: "f1", type: "frame", x: 0, y: 0, width: 100, height: 100 }));
+		store.addShape(shape({ id: "f2", type: "frame", x: 500, y: 300, width: 200, height: 150 }));
+		const fit = vi.spyOn(store, "fitToBounds");
+
+		const nav = new SlideNavigator(store, viewport, { fitPadding: 0 });
+		nav.gotoIndex(1);
+
+		expect(fit).toHaveBeenCalledWith(
+			{ x: 500, y: 300, width: 200, height: 150 },
+			{ width: 800, height: 600 },
+			0,
 		);
 		nav.destroy();
 	});

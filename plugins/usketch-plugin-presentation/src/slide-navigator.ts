@@ -13,6 +13,12 @@ export interface SlideNavigatorOptions {
 	 * 「スライド指定した Frame だけ」や専用の画角 shape を対象にしたいときに差し替える。
 	 */
 	isSlide?: IsSlide;
+	/**
+	 * gotoIndex の fitToBounds に渡す余白（px）。省略時は 40。
+	 * 発表用途でスライドを画角いっぱい（上下または左右が端に接する）に収めたい
+	 * ときは 0 を渡す。余白 0 で生じるレターボックスはホスト側のマスク等で扱う。
+	 */
+	fitPadding?: number;
 }
 
 /**
@@ -35,6 +41,8 @@ export class SlideNavigator {
 	private frameIds: Set<string>;
 	/** スライド判定述語（省略時は Frame）。 */
 	private readonly isSlide: IsSlide;
+	/** fitToBounds の余白（px）。省略時 40。発表で画角いっぱいにしたいときは 0。 */
+	private readonly fitPadding: number;
 
 	constructor(
 		private readonly store: BoardStore,
@@ -42,6 +50,7 @@ export class SlideNavigator {
 		options: SlideNavigatorOptions = {},
 	) {
 		this.isSlide = options.isSlide ?? defaultIsSlide;
+		this.fitPadding = options.fitPadding ?? 40;
 		this.getViewportSize = getViewportSize;
 		const initialSlides = this.getSlides();
 		this.frameIds = new Set(initialSlides.map((s) => s.id));
@@ -137,7 +146,7 @@ export class SlideNavigator {
 				width: target.width,
 				height: target.height,
 			};
-			this.store.fitToBounds(bounds, this.getViewportSize());
+			this.store.fitToBounds(bounds, this.getViewportSize(), this.fitPadding);
 		}
 		for (const l of this.changeListeners) l(clamped);
 	}
