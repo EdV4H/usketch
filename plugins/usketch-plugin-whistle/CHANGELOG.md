@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-whistle
 
+## 2.0.10
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+
 ## 2.0.9
 
 ### Patch Changes

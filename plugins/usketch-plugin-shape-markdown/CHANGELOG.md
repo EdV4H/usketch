@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-shape-markdown
 
+## 0.1.4
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-store@3.5.1
+
 ## 0.1.3
 
 ### Patch Changes

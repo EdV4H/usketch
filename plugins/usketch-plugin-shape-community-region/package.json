@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-shape-community-region",
-	"version": "3.0.9",
+	"version": "3.0.10",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

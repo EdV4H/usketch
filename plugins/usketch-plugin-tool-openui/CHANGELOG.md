@@ -1,5 +1,16 @@
 # @edv4h/usketch-plugin-tool-openui
 
+## 1.1.4
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-canvas-engine@1.3.3
+  - @edv4h/usketch-store@3.5.1
+  - @edv4h/usketch-plugin-export@2.1.4
+  - @edv4h/usketch-plugin-shape-openui@1.0.10
+
 ## 1.1.3
 
 ### Patch Changes
