@@ -249,6 +249,9 @@ importers:
       '@edv4h/usketch-plugin-container':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-container
+      '@edv4h/usketch-plugin-deep-link':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-deep-link
       '@edv4h/usketch-plugin-domain-design':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-domain-design
@@ -1052,6 +1055,25 @@ importers:
       '@types/react':
         specifier: 19.2.18
         version: 19.2.18
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@types/node@25.9.5)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  plugins/usketch-plugin-deep-link:
+    dependencies:
+      '@edv4h/usketch-core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-store':
+        specifier: workspace:*
+        version: link:../../packages/store
+    devDependencies:
       typescript:
         specifier: 7.0.2
         version: 7.0.2

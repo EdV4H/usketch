@@ -14,6 +14,7 @@ import { createDotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createAttachablePlugin, createContainerPlugin } from "@edv4h/usketch-plugin-container";
+import { createDeepLinkPlugin } from "@edv4h/usketch-plugin-deep-link";
 import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
 import { createExportPlugin } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
@@ -446,6 +447,10 @@ export function App() {
 			}),
 		);
 
+		// Deep link: URL ⇄ 選択/視点の同期（Figma の ?node-id 相当）。最後に登録し、
+		// setup が whenSynced 後に走ることで、サーバ視点復元より後に URL アンカーを適用する。
+		extraPlugins.push(createDeepLinkPlugin());
+
 		syncHandle.whenSynced
 			.then(() => {
 				if (cancelled) return;
@@ -733,7 +738,7 @@ export function App() {
 				</div>
 				{/* 閉じタグ: エディタ全体ラッパーの終わり */}
 				{showShare && boardId && (
-					<ShareDialog boardId={boardId} onClose={() => setShowShare(false)} />
+					<ShareDialog boardId={boardId} onClose={() => setShowShare(false)} store={app?.store} />
 				)}
 				{isCloudBoard && wsStatus === "failed" && (
 					<div
