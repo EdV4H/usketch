@@ -350,6 +350,16 @@ export interface ShapeDefinition {
 	};
 	/** Shape-specific move logic (e.g. updating absolute point arrays). Default: update x/y only. */
 	move?: (data: ShapeData, dx: number, dy: number) => Partial<ShapeData>;
+	/**
+	 * Shape-specific rigid-rotation logic (rotating absolute point arrays around
+	 * `center` by `angleRad`), used when the shape is rotated as a container
+	 * child. Shapes whose geometry is defined by absolute points (e.g. a
+	 * connector's source/target/control points) implement this to rotate those
+	 * points instead of receiving a baked `rotation` value — which would
+	 * double-transform them. Default (unset): bake `rotation` + rotate the bbox
+	 * center, the correct behavior for box-defined shapes.
+	 */
+	rotate?: (data: ShapeData, angleRad: number, center: Point) => Partial<ShapeData>;
 	/** Fit shape data to new bounding box (for multi-resize). Default: apply newBounds as-is. */
 	applyBounds?: (data: ShapeData, newBounds: BoundingBox) => Partial<ShapeData>;
 	/** Return GPU-renderable primitive data, or null to fall back to DOM rendering. */

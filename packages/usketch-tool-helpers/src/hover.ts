@@ -17,10 +17,12 @@ import {
 import {
 	findHandleAtScreenPoint,
 	findMultiHandleAtScreenPoint,
+	findMultiRotationHandleAtScreenPoint,
 	findRotationHandleAtScreenPoint,
 	getCursorForHandle,
 	getMultiSelectionBounds,
 	getRotatedCursorForHandle,
+	getRotationCursor,
 } from "./internal/resize-handles.js";
 
 export interface HoverResult {
@@ -66,10 +68,13 @@ export function trackHover(
 		viewport,
 	);
 	if (rotationHit) {
+		// Orient the rotation cursor to the grabbed corner and the shape's current
+		// rotation, instead of a uniform "grab", so each corner reads differently.
+		const rotation = safeRotation(ctx.store.getShape(rotationHit.shapeId)?.rotation);
 		return {
-			cursor: "grab",
+			cursor: getRotationCursor(rotationHit.corner, rotation),
 			hoveredShapeId: null,
-			rotationHit: { shapeId: rotationHit },
+			rotationHit: { shapeId: rotationHit.shapeId },
 		};
 	}
 
@@ -87,11 +92,20 @@ export function trackHover(
 		};
 	}
 
-	// 3. Multi-selection handle
+	// 3. Multi-selection handle (rotation zone outside corners → resize handle)
 	const selection = ctx.store.getSelection();
 	if (selection.size > 1) {
 		const groupBounds = getMultiSelectionBounds(ctx.store, ctx.shapes, selection);
 		if (groupBounds) {
+			const rotCorner = findMultiRotationHandleAtScreenPoint(
+				event.screenPoint,
+				groupBounds,
+				viewport,
+			);
+			if (rotCorner) {
+				// Multi-selection bbox is axis-aligned, so no shape-rotation term.
+				return { cursor: getRotationCursor(rotCorner, 0), hoveredShapeId: null };
+			}
 			const multiHandle = findMultiHandleAtScreenPoint(event.screenPoint, groupBounds, viewport);
 			if (multiHandle) {
 				return {

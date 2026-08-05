@@ -1,6 +1,6 @@
 import type { ShapeData, ShapeDefinition, Viewport } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
-import { findHandleAtScreenPoint } from "../internal/resize-handles.js";
+import { findHandleAtScreenPoint, getRotationCursor } from "../internal/resize-handles.js";
 import { createTestToolContext, makeShape } from "./test-helpers.js";
 
 const VIEWPORT: Viewport = { x: 0, y: 0, zoom: 1 };
@@ -97,5 +97,32 @@ describe("findHandleAtScreenPoint", () => {
 		);
 		ctx.store.setSelection(["locked"]);
 		expect(findHandleAtScreenPoint({ x: 100, y: 100 }, ctx.shapes, ctx.store, VIEWPORT)).toBeNull();
+	});
+});
+
+describe("getRotationCursor", () => {
+	it("returns an SVG data-URI cursor with a grab fallback", () => {
+		const cursor = getRotationCursor("ne");
+		expect(cursor).toMatch(/^url\("data:image\/svg\+xml,/);
+		expect(cursor).toMatch(/16 16, grab$/);
+	});
+
+	it("aims the convex side outward along each corner's diagonal", () => {
+		// Outward angle + 180° convex offset: ne 45→225, se 135→315, sw 225→45, nw 315→135.
+		expect(decodeURIComponent(getRotationCursor("ne"))).toContain("rotate(225.0 16 16)");
+		expect(decodeURIComponent(getRotationCursor("se"))).toContain("rotate(315.0 16 16)");
+		expect(decodeURIComponent(getRotationCursor("sw"))).toContain("rotate(45.0 16 16)");
+		expect(decodeURIComponent(getRotationCursor("nw"))).toContain("rotate(135.0 16 16)");
+	});
+
+	it("adds the shape rotation and normalizes into 0–360", () => {
+		// nw 315 + 180 + 90 = 585 → 225
+		expect(decodeURIComponent(getRotationCursor("nw", 90))).toContain("rotate(225.0 16 16)");
+		// ne 45 + 180 - 90 = 135
+		expect(decodeURIComponent(getRotationCursor("ne", -90))).toContain("rotate(135.0 16 16)");
+	});
+
+	it("falls back to the convex offset for non-corner handles", () => {
+		expect(decodeURIComponent(getRotationCursor("n"))).toContain("rotate(180.0 16 16)");
 	});
 });

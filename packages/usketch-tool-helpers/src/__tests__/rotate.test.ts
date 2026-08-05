@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { startRotateSession } from "../rotate.js";
+import { startMultiRotateSession, startRotateSession } from "../rotate.js";
 import { createTestToolContext, makePointerEvent, makeShape } from "./test-helpers.js";
 
 describe("startRotateSession", () => {
@@ -84,5 +84,81 @@ describe("startRotateSession", () => {
 		expect(ctx.store.getShape("a")?.rotation).toBeCloseTo(90, 5);
 		ctx.commands.undo();
 		expect(ctx.store.getShape("a")?.rotation).toBe(0);
+	});
+});
+
+describe("startMultiRotateSession", () => {
+	it("各選択シェイプを共通の中心まわりに剛体回転する", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "r1", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.addShape(makeShape({ id: "r2", x: 200, y: 200, width: 100, height: 100 }));
+		ctx.store.setSelection(["r1", "r2"]);
+
+		const session = startMultiRotateSession({
+			ctx,
+			ids: ["r1", "r2"],
+			center: { x: 150, y: 150 },
+			startAngle: 0, // pointerdown to the right of center
+			snapStep: 0,
+		});
+		// Pointer directly below center → +90° (clockwise) delta.
+		session.update(makePointerEvent({ x: 150, y: 300 }));
+
+		const r1 = ctx.store.getShape("r1");
+		const r2 = ctx.store.getShape("r2");
+		// r1 center (50,50) orbits to (250,50); r2 center (250,250) orbits to (50,250).
+		expect(r1?.x).toBeCloseTo(200);
+		expect(r1?.y).toBeCloseTo(0);
+		expect(r1?.rotation).toBeCloseTo(90);
+		expect(r2?.x).toBeCloseTo(0);
+		expect(r2?.y).toBeCloseTo(200);
+		expect(r2?.rotation).toBeCloseTo(90);
+	});
+
+	it("commit は revert してから execute/undo で往復できる", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "a", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.addShape(makeShape({ id: "b", x: 200, y: 0, width: 100, height: 100 }));
+		ctx.store.setSelection(["a", "b"]);
+
+		const session = startMultiRotateSession({
+			ctx,
+			ids: ["a", "b"],
+			center: { x: 150, y: 50 },
+			startAngle: 0,
+			snapStep: 0,
+		});
+		session.update(makePointerEvent({ x: 150, y: 300 }));
+
+		const result = session.commit();
+		expect(result).not.toBeNull();
+		// commit() reverts to originals; changes only reapply on execute().
+		expect(ctx.store.getShape("a")?.rotation ?? 0).toBeCloseTo(0);
+		result?.command.execute();
+		expect(ctx.store.getShape("a")?.rotation).toBeCloseTo(90);
+		result?.command.undo();
+		expect(ctx.store.getShape("a")?.rotation ?? 0).toBeCloseTo(0);
+		expect(ctx.store.getShape("a")?.x).toBeCloseTo(0);
+	});
+
+	it("cancel で元の transform に戻す", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "a", x: 10, y: 20, width: 40, height: 40, rotation: 5 }));
+		ctx.store.setSelection(["a"]);
+
+		const session = startMultiRotateSession({
+			ctx,
+			ids: ["a"],
+			center: { x: 100, y: 100 },
+			startAngle: 0,
+			snapStep: 0,
+		});
+		session.update(makePointerEvent({ x: 100, y: 300 }));
+		session.cancel();
+
+		const a = ctx.store.getShape("a");
+		expect(a?.x).toBeCloseTo(10);
+		expect(a?.y).toBeCloseTo(20);
+		expect(a?.rotation).toBeCloseTo(5);
 	});
 });

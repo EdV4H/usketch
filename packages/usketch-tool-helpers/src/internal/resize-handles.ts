@@ -7,6 +7,7 @@ import type {
 	Viewport,
 } from "@edv4h/usketch-shared";
 import {
+	getRotatedAABB,
 	getSelectionBounds,
 	isShapeResizable,
 	normalizeAngle,
@@ -110,7 +111,7 @@ export function findRotationHandleAtScreenPoint(
 	shapes: ShapeRegistry,
 	store: BoardStore,
 	viewport: Viewport,
-): string | null {
+): { shapeId: string; corner: ResizeHandle } | null {
 	const selection = store.getSelection();
 	if (selection.size !== 1) return null;
 
@@ -157,11 +158,57 @@ export function findRotationHandleAtScreenPoint(
 		const dist = Math.hypot(dx, dy);
 		// Outside resize hit area but within rotation area
 		if (dist > halfHit && dist <= outerDist) {
-			return shapeId;
+			return { shapeId, corner: handle };
 		}
 	}
 
 	return null;
+}
+
+/**
+ * 角ごとの回転カーソル（SVG data URI）を返す。
+ *
+ * CSS には回転カーソルの標準値が無いため、Figma/tldraw と同様に回転アイコンの
+ * SVG を data URI 化し、`cursor: url(...) hotX hotY, fallback` として差し込む。
+ * グリフは 150° の緩やかな円弧＋両端の接線方向ダブル矢じり（左右対称）で、円中心が
+ * ホットスポット（16,16）＝ポインタ位置。「角の外向き方向（ne=45°, se=135°,
+ * sw=225°, nw=315°、北基準の時計回り）＋ シェイプの現在回転角」だけ回して、
+ * 開口部を掴んでいる角の内側へ向ける。32×32（ブラウザのカーソル上限内）。
+ */
+const ROTATION_CORNER_ANGLE: Partial<Record<ResizeHandle, number>> = {
+	ne: 45,
+	se: 135,
+	sw: 225,
+	nw: 315,
+};
+
+// 基準グリフ（angle=0）は開口部（矢じり）が上、円弧本体が下を向く。角の外向き方向へ
+// 円弧本体（凸側）を合わせるには 180° 足す＝開口部は角の内側を向く。
+const GLYPH_CONVEX_OFFSET = 180;
+
+// 150° の緩やかな円弧（下側が弧、上部 210° が開口）と、その両端に置く接線方向の矢じり。
+// 端点 (16±R·sin75°, 16+R·cos75°)=(26.14/5.86, 18.72)、R=10.5。矢じりは上向き基準
+// （tip が上）の三角形を端点へ平行移動＋回転（15°/345°）して接線に沿わせる。
+const ROTATE_ARC = "M26.14 18.72 A10.5 10.5 0 0 1 5.86 18.72";
+const ROTATE_HEAD = "M0 -5 L3.6 1.2 L-3.6 1.2 Z";
+const ROTATE_HEADS =
+	`<path d='${ROTATE_HEAD}' transform='translate(26.14 18.72) rotate(15)'/>` +
+	`<path d='${ROTATE_HEAD}' transform='translate(5.86 18.72) rotate(345)'/>`;
+
+export function getRotationCursor(corner: ResizeHandle, rotationDeg = 0): string {
+	const base = ROTATION_CORNER_ANGLE[corner] ?? 0;
+	const angle = normalizeAngle(base + GLYPH_CONVEX_OFFSET + rotationDeg);
+	const svg =
+		`<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>` +
+		`<g transform='rotate(${angle.toFixed(1)} 16 16)' stroke-linejoin='round'>` +
+		// White halo for contrast on any background
+		`<path d='${ROTATE_ARC}' fill='none' stroke='#fff' stroke-width='5' stroke-linecap='round'/>` +
+		`<g fill='#fff' stroke='#fff' stroke-width='2.5'>${ROTATE_HEADS}</g>` +
+		// Dark glyph on top
+		`<path d='${ROTATE_ARC}' fill='none' stroke='#1e1e1e' stroke-width='2.4' stroke-linecap='round'/>` +
+		`<g fill='#1e1e1e'>${ROTATE_HEADS}</g>` +
+		`</g></svg>`;
+	return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 16 16, grab`;
 }
 
 /** 回転済みシェイプのリサイズカーソルを返す */
@@ -424,12 +471,28 @@ export function getShapeBounds(
 		: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
 }
 
+/**
+ * Shape bounds as its axis-aligned bounding box in world space, expanded to
+ * cover the shape's rotation. Unlike {@link getShapeBounds} (which returns the
+ * shape's local bounds for callers that apply their own rotation transform),
+ * this is what the multi-selection box needs so a rotated shape's corners stay
+ * inside the (axis-aligned) group box.
+ */
+function getShapeAABB(store: BoardStore, shapes: ShapeRegistry, id: string): BoundingBox | null {
+	const shape = store.getShape(id);
+	if (!shape) return null;
+	const bounds = getShapeBounds(store, shapes, id);
+	if (!bounds) return null;
+	const rotation = safeRotation(shape.rotation);
+	return rotation ? getRotatedAABB(bounds, rotation) : bounds;
+}
+
 export function getMultiSelectionBounds(
 	store: BoardStore,
 	shapes: ShapeRegistry,
 	selection: ReadonlySet<string>,
 ): BoundingBox | null {
-	return getSelectionBounds(selection, (id) => getShapeBounds(store, shapes, id));
+	return getSelectionBounds(selection, (id) => getShapeAABB(store, shapes, id));
 }
 
 export function findMultiHandleAtScreenPoint(
@@ -450,6 +513,29 @@ export function findMultiHandleAtScreenPoint(
 		) {
 			return handle;
 		}
+	}
+	return null;
+}
+
+/**
+ * Rotation zone just outside a corner of an axis-aligned multi-selection bbox.
+ * The multi-selection box is never itself rotated, so (unlike the single-shape
+ * variant) no un-rotation is needed. Returns which corner, or `null`.
+ */
+export function findMultiRotationHandleAtScreenPoint(
+	screenPoint: Point,
+	groupBounds: BoundingBox,
+	viewport: Viewport,
+): ResizeHandle | null {
+	const positions = getHandlePositions(groupBounds, viewport);
+	const cornerHandles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
+	const halfHit = HIT_AREA / 2;
+	const outerDist = halfHit + ROTATION_OUTER_MARGIN;
+	for (const handle of cornerHandles) {
+		const pos = positions.get(handle);
+		if (!pos) continue;
+		const dist = Math.hypot(screenPoint.x - pos.x, screenPoint.y - pos.y);
+		if (dist > halfHit && dist <= outerDist) return handle;
 	}
 	return null;
 }

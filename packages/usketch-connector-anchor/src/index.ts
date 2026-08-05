@@ -29,6 +29,7 @@ export {
 	type PathType,
 	sampleQuadraticBezier,
 } from "./path-utils.js";
+export { rotateConnector } from "./rotate.js";
 export {
 	type ConnectorTrackerOptions,
 	type ConnectorTrackingStore,

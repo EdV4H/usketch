@@ -21,6 +21,7 @@ export {
 	computeRelativeProps,
 	findHandleAtScreenPoint,
 	findMultiHandleAtScreenPoint,
+	findMultiRotationHandleAtScreenPoint,
 	findRotationHandleAtScreenPoint,
 	fixAnchorDrift,
 	getAnchorEdges,
@@ -28,6 +29,7 @@ export {
 	getHandlePositions,
 	getMultiSelectionBounds,
 	getRotatedCursorForHandle,
+	getRotationCursor,
 	getShapeBounds,
 	HANDLE_SIZE,
 	handleAxes,
@@ -50,8 +52,10 @@ export {
 	startResizeSession,
 } from "./resize.js";
 export {
+	type MultiRotateSessionOptions,
 	type RotateSessionOptions,
 	type RotateUpdate,
+	startMultiRotateSession,
 	startRotateSession,
 } from "./rotate.js";
 export type {
