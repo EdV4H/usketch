@@ -1,6 +1,5 @@
 ---
 "@edv4h/usketch-plugin-deep-link": minor
-"@edv4h/usketch-web": patch
 ---
 
 URLで選択shape・表示位置を共有できるディープリンク機能を追加（Figmaの `?node-id` 相当）
