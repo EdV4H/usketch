@@ -1889,8 +1889,8 @@ importers:
         specifier: '>=1.0.0'
         version: 1.30.0(zod@4.4.3)
       '@openuidev/react-lang':
-        specifier: 0.2.9
-        version: 0.2.9(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react@19.2.8)(zod@4.4.3)
+        specifier: 0.2.10
+        version: 0.2.10(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react@19.2.8)(zod@4.4.3)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -2164,8 +2164,8 @@ importers:
         specifier: '>=1.0.0'
         version: 1.30.0(zod@4.4.3)
       '@openuidev/react-lang':
-        specifier: 0.2.9
-        version: 0.2.9(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react@19.2.8)(zod@4.4.3)
+        specifier: 0.2.10
+        version: 0.2.10(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react@19.2.8)(zod@4.4.3)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -4171,8 +4171,11 @@ packages:
       '@modelcontextprotocol/sdk':
         optional: true
 
-  '@openuidev/react-lang@0.2.9':
-    resolution: {integrity: sha512-pQd4goMYHBfq2Df1kq3MOh0QbZiBIhBkD3K/0UfTY86a/N7EC/ydo1xW1IjjOSU0qHycF5z5Yw/UGs2BDllGjA==}
+  '@openuidev/observability@0.0.2':
+    resolution: {integrity: sha512-uNtO4VGGwcL8Lg1L+9a8JCpee0dOm0djIjItxtGpUPkZNUwzpMQX6mQ4YCtA9Hho4VuqZgHBo1ON8FjsLbNMHg==}
+
+  '@openuidev/react-lang@0.2.10':
+    resolution: {integrity: sha512-CLd5rhJwy9hlMQoeySAwnHu8qb3lolSvW+LdZTGu7pVm7ipnXAwaT34qsDFrsUSBEsu73UGNedlId7mRVUV/uw==}
     peerDependencies:
       '@modelcontextprotocol/sdk': '>=1.0.0'
       react: 19.2.8
@@ -9860,9 +9863,12 @@ snapshots:
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.30.0(zod@4.4.3)
 
-  '@openuidev/react-lang@0.2.9(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react@19.2.8)(zod@4.4.3)':
+  '@openuidev/observability@0.0.2': {}
+
+  '@openuidev/react-lang@0.2.10(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react@19.2.8)(zod@4.4.3)':
     dependencies:
       '@openuidev/lang-core': 0.2.10(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(zod@4.4.3)
+      '@openuidev/observability': 0.0.2
       react: 19.2.8
       zod: 4.4.3
     optionalDependencies:
