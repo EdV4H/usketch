@@ -1,3 +1,5 @@
+import { encodeDeepLink } from "@edv4h/usketch-plugin-deep-link";
+import type { BoardStore } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api.js";
 import { getErrorMessage } from "../lib/errors.js";
@@ -9,12 +11,21 @@ interface Member {
 	image: string | null;
 }
 
-export function ShareDialog({ boardId, onClose }: { boardId: string; onClose: () => void }) {
+export function ShareDialog({
+	boardId,
+	onClose,
+	store,
+}: {
+	boardId: string;
+	onClose: () => void;
+	store?: BoardStore;
+}) {
 	const [members, setMembers] = useState<Member[]>([]);
 	const [isPublic, setIsPublic] = useState(false);
 	const [email, setEmail] = useState("");
 	const [error, setError] = useState("");
 	const [copied, setCopied] = useState(false);
+	const [copiedView, setCopiedView] = useState(false);
 
 	const loadData = useCallback(async () => {
 		try {
@@ -68,6 +79,26 @@ export function ShareDialog({ boardId, onClose }: { boardId: string; onClose: ()
 			await navigator.clipboard.writeText(window.location.href);
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
+		} catch {
+			setError("Failed to copy link");
+		}
+	};
+
+	// Snapshot the current selection AND camera (pan/zoom) into the link, so the
+	// recipient lands on exactly this view. Selection alone is already live in the
+	// address bar; this adds the precise viewport.
+	const handleCopyViewLink = async () => {
+		if (!store) return;
+		try {
+			const selection = [...store.getSelection()].filter((id) => store.getShape(id));
+			const search = encodeDeepLink(window.location.search, {
+				shapeIds: selection,
+				camera: store.getViewport(),
+			});
+			const url = `${window.location.origin}${window.location.pathname}${search}${window.location.hash}`;
+			await navigator.clipboard.writeText(url);
+			setCopiedView(true);
+			setTimeout(() => setCopiedView(false), 2000);
 		} catch {
 			setError("Failed to copy link");
 		}
@@ -178,6 +209,27 @@ export function ShareDialog({ boardId, onClose }: { boardId: string; onClose: ()
 				>
 					{copied ? "Copied!" : "Copy link"}
 				</button>
+
+				{/* Deep link that also pins the exact pan/zoom (and any selection). */}
+				{store && (
+					<button
+						type="button"
+						onClick={handleCopyViewLink}
+						title="現在の表示位置（座標・ズーム）と選択を含むリンクをコピー"
+						style={{
+							width: "100%",
+							padding: "10px 0",
+							border: "1px solid #ddd",
+							borderRadius: 6,
+							background: "#fafafa",
+							cursor: "pointer",
+							fontSize: 13,
+							marginTop: 8,
+						}}
+					>
+						{copiedView ? "Copied!" : "この表示へのリンクをコピー"}
+					</button>
+				)}
 
 				{/* Add member */}
 				<div style={{ marginTop: 16 }}>

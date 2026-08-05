@@ -24,6 +24,7 @@
 		"@edv4h/usketch-plugin-comments": "workspace:*",
 		"@edv4h/usketch-plugin-community-chat": "workspace:*",
 		"@edv4h/usketch-plugin-container": "workspace:*",
+		"@edv4h/usketch-plugin-deep-link": "workspace:*",
 		"@edv4h/usketch-plugin-side-panel": "workspace:*",
 		"@edv4h/usketch-plugin-ai-copilot": "workspace:*",
 		"@edv4h/usketch-plugin-ai-image": "workspace:*",
