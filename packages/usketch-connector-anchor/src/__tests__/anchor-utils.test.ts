@@ -6,7 +6,16 @@ const style = { fill: "#fff", stroke: "#000", strokeWidth: 1, opacity: 1 };
 
 // 100×100 square at origin, center (50, 50).
 function square(rotation = 0): ShapeData {
-	return { id: "s", type: "rect", x: 0, y: 0, width: 100, height: 100, rotation, style } as ShapeData;
+	return {
+		id: "s",
+		type: "rect",
+		x: 0,
+		y: 0,
+		width: 100,
+		height: 100,
+		rotation,
+		style,
+	} as ShapeData;
 }
 
 function near(a: Point, b: Point, eps = 1e-6) {

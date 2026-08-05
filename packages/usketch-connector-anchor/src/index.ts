@@ -18,7 +18,6 @@ export {
 	targetXY,
 } from "./hit-test.js";
 export { moveConnector } from "./move.js";
-export { rotateConnector } from "./rotate.js";
 export {
 	bezierBounds,
 	distanceToLineSegment,
@@ -30,6 +29,7 @@ export {
 	type PathType,
 	sampleQuadraticBezier,
 } from "./path-utils.js";
+export { rotateConnector } from "./rotate.js";
 export {
 	type ConnectorTrackerOptions,
 	type ConnectorTrackingStore,
