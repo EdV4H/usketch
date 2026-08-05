@@ -6,6 +6,11 @@ export interface FrameOptions {
 	maxZoom?: number;
 	/** Screen-space padding (px) kept around the framed bounds. */
 	padding?: number;
+	/**
+	 * Animate the move. Defaults to `false`: a deep link should land already
+	 * framed (like Figma), and the instant path is reliable even when the
+	 * animation's rAF loop isn't ticking yet during initial load.
+	 */
 	animate?: boolean;
 }
 
@@ -41,7 +46,7 @@ function unionBounds(store: BoardStore, shapeIds: string[]): BoundingBox | null 
  * doesn't zoom to an absurd level. No-op when none of the shapes exist.
  */
 export function frameShapes(store: BoardStore, shapeIds: string[], opts: FrameOptions = {}): void {
-	const { maxZoom = 2, padding = 80, animate = true } = opts;
+	const { maxZoom = 2, padding = 80, animate = false } = opts;
 
 	const bounds = unionBounds(store, shapeIds);
 	if (!bounds) return;

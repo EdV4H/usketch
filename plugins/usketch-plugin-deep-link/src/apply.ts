@@ -51,7 +51,9 @@ export function applyDeepLink(store: BoardStore, search: string, onDone?: () => 
 			// An explicit camera wins over shape-derived framing.
 			if (!camera) frameShapes(store, ids);
 		}
-		if (camera) store.animateViewportTo(camera);
+		// Instant, not animated: the deep link should land already at its target,
+		// and the animated path can no-op when its rAF loop isn't ticking on load.
+		if (camera) store.animateViewportTo(camera, { animate: false });
 		finish();
 	};
 
