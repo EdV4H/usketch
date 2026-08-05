@@ -52,6 +52,12 @@ export interface PresentationPluginOptions {
 	onExit?: () => void;
 	/** present 時に画角 (現スライド) 以外の Canvas を暗幕で隠すか (overlay トグルの初期値)。 */
 	mask?: boolean;
+	/**
+	 * スライドに寄せるときの fitToBounds 余白 (px)。省略時 40。
+	 * 発表でスライドを画角いっぱい (上下または左右が端に接する) にしたいときは 0。
+	 * 余白 0 のレターボックスは mask で暗転できる。
+	 */
+	fitPadding?: number;
 }
 
 function defaultGetViewportSize(): { width: number; height: number } {
@@ -82,6 +88,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 	const renderEditUI = opts.renderEditUI ?? true;
 	const onExit = opts.onExit;
 	const mask = opts.mask;
+	const fitPadding = opts.fitPadding;
 
 	return {
 		id: "presentation",
@@ -89,6 +96,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 		setup(ctx: PluginContext) {
 			let nav: SlideNavigator | null = new SlideNavigator(ctx.store, getViewportSize, {
 				isSlide,
+				fitPadding,
 			});
 			const unregisters: Array<() => void> = [];
 			const navRef = nav;
