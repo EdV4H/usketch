@@ -1,5 +1,5 @@
 import type { BoardStore, BoundingBox } from "@edv4h/usketch-shared";
-import { getRotatedAABB, getScreenSize } from "@edv4h/usketch-shared";
+import { getRotatedAABB, getScreenSize, safeRotation } from "@edv4h/usketch-shared";
 
 export interface FrameOptions {
 	/** Never zoom in past this level (keeps a tiny single shape from filling the screen). */
@@ -28,7 +28,9 @@ function unionBounds(store: BoardStore, shapeIds: string[]): BoundingBox | null 
 		found = true;
 		const aabb = getRotatedAABB(
 			{ x: s.x, y: s.y, width: s.width, height: s.height },
-			s.rotation ?? 0,
+			// safeRotation sanitizes NaN/Infinity → 0, matching other bounds codepaths
+			// so a corrupt rotation can't propagate NaN bounds and break framing.
+			safeRotation(s.rotation),
 		);
 		minX = Math.min(minX, aabb.x);
 		minY = Math.min(minY, aabb.y);
