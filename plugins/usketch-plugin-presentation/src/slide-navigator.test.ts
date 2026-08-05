@@ -81,4 +81,31 @@ describe("SlideNavigator isSlide predicate", () => {
 		);
 		nav.destroy();
 	});
+
+	it("getCurrentBounds は現在スライドの矩形を返す (無ければ null)", () => {
+		const store = createBoardStore();
+		const nav0 = new SlideNavigator(store, viewport);
+		expect(nav0.getCurrentBounds()).toBeNull();
+		nav0.destroy();
+
+		store.addShape(shape({ id: "f1", type: "frame", x: 0, y: 0, width: 100, height: 100 }));
+		store.addShape(shape({ id: "f2", type: "frame", x: 500, y: 300, width: 200, height: 150 }));
+		const nav = new SlideNavigator(store, viewport);
+		expect(nav.getCurrentBounds()).toEqual({ x: 0, y: 0, width: 100, height: 100 });
+		nav.gotoIndex(1);
+		expect(nav.getCurrentBounds()).toEqual({
+			x: 500,
+			y: 300,
+			width: 200,
+			height: 150,
+		});
+		nav.destroy();
+	});
+
+	it("getStore は内部 store を返す", () => {
+		const store = createBoardStore();
+		const nav = new SlideNavigator(store, viewport);
+		expect(nav.getStore()).toBe(store);
+		nav.destroy();
+	});
 });
