@@ -64,6 +64,13 @@ describe("encodeDeepLink", () => {
 		expect(out).toContain("shape=a");
 	});
 
+	it("does not un-escape encoded commas in unrelated params (only the shape list)", () => {
+		const out = encodeDeepLink("?t=a%2Cb", { shapeIds: ["x", "y"] });
+		// The `shape` list stays readable, but `t`'s encoded comma is untouched.
+		expect(out).toContain("t=a%2Cb");
+		expect(out).toContain("shape=x,y");
+	});
+
 	it("only touches provided fields", () => {
 		// camera not provided → existing camera params stay
 		expect(encodeDeepLink("?x=1&y=2&zoom=3", { shapeIds: ["a"] })).toBe("?x=1&y=2&zoom=3&shape=a");

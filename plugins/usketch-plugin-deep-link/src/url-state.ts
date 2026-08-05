@@ -77,8 +77,12 @@ export function encodeDeepLink(search: string, state: Partial<DeepLinkState>): s
 		}
 	}
 
-	// URLSearchParams percent-encodes the comma separator; restore it so the
-	// `shape` list stays human-readable (comma is a valid query sub-delim).
-	const qs = params.toString().replace(/%2C/g, ",");
+	// URLSearchParams percent-encodes the comma separator; restore it *only*
+	// within the `shape` param so the id list stays human-readable (comma is a
+	// valid query sub-delim). Other params keep their exact encoding, per the
+	// "unrelated params are preserved" contract.
+	const qs = params
+		.toString()
+		.replace(/(^|&)(shape=)([^&]*)/, (_m, pre, key, val) => pre + key + val.replace(/%2C/g, ","));
 	return qs ? `?${qs}` : "";
 }

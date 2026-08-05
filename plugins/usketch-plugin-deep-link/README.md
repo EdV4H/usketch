@@ -22,7 +22,8 @@
 ```ts
 import { createDeepLinkPlugin } from "@edv4h/usketch-plugin-deep-link";
 
-createApp({ store, plugins: [createDeepLinkPlugin()] });
+// createApp は非同期。
+const app = await createApp({ store, plugins: [createDeepLinkPlugin()] });
 ```
 
 「この表示へのリンク」を作る側（共有ダイアログ等）は `encodeDeepLink` を利用する:

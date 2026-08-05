@@ -95,7 +95,7 @@ export function ShareDialog({
 				shapeIds: selection,
 				camera: store.getViewport(),
 			});
-			const url = `${window.location.origin}${window.location.pathname}${search}`;
+			const url = `${window.location.origin}${window.location.pathname}${search}${window.location.hash}`;
 			await navigator.clipboard.writeText(url);
 			setCopiedView(true);
 			setTimeout(() => setCopiedView(false), 2000);
