@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-whistle",
-	"version": "2.0.10",
+	"version": "2.0.11",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-tool-select
 
+## 3.2.6
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+  - @edv4h/usketch-core@2.4.0
+  - @edv4h/usketch-store@3.5.2
+  - @edv4h/usketch-tool-helpers@0.7.1
+
 ## 3.2.5
 
 ### Patch Changes
