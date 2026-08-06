@@ -42,6 +42,7 @@ function harness() {
 		shapes: { register: noop, get: () => undefined },
 		tools: { register: noop },
 		layers: { register: noop, unregister: noop },
+		hud: { registerPanel: () => noop, registerSettings: () => noop },
 		shortcuts: { register: () => noop },
 		store: {
 			getShape: (id: string) => shapes.get(id),

@@ -36,6 +36,7 @@ function registeredDefs(opts: CreateCardPluginOptions): Map<string, ShapeDefinit
 		},
 		tools: { register: noop },
 		layers: { register: noop, unregister: noop },
+		hud: { registerPanel: () => noop, registerSettings: () => noop },
 		actions: {
 			register: () => noop,
 			unregister: noop,
