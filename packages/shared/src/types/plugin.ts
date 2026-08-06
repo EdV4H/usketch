@@ -53,10 +53,32 @@ export interface GpuPrimitive {
 
 export interface Layer {
 	id: string;
+	/**
+	 * Stacking order (ascending = rendered on top). Plugins can't see which
+	 * values other plugins already use, so collisions are common; treat this as
+	 * a *preferred* value and set {@link Layer.avoidCollision} to have the manager
+	 * resolve a unique effective order.
+	 */
 	order: number;
 	render: (ctx: LayerRenderContext) => ReactElement | null;
 	interactable?: boolean;
 	fixed?: boolean;
+	/**
+	 * When true, `order` is treated as a preference: if another layer already
+	 * occupies the same effective order, this one is bumped up until it finds a
+	 * free slot (like a dev-server picking the next open port). This gives a
+	 * deterministic "sit just above whatever is already at my level" stacking
+	 * without hardcoding magic gaps. Defaults to false (legacy behavior: exact
+	 * `order`, ties broken by registration order).
+	 */
+	avoidCollision?: boolean;
+	/**
+	 * Bump amount per collision when {@link Layer.avoidCollision} is set. Defaults
+	 * to a tiny step so the layer stays within its band (below the next declared
+	 * integer order). Set to `1` for integer, port-style bumps. Ignored when
+	 * `avoidCollision` is falsy.
+	 */
+	collisionStep?: number;
 }
 
 export interface LayerManager {
