@@ -119,9 +119,21 @@ jobs:
       - name: Verify publish succeeded
         if: ${{ always() && steps.changesets.outcome == 'failure' }}
         run: |
+          # Primary signal: the action's own `published` output.
           if [ "${{ steps.changesets.outputs.published }}" = "true" ]; then
-            echo "npm publish succeeded; the changesets step failure was the transient tag push, now reconciled."
-          else
-            echo "::error::changesets step failed and no packages were published."
-            exit 1
+            echo "npm publish succeeded (published=true); the step failure was the transient tag push, now reconciled."
+            exit 0
           fi
+          # The `commit_refs` tag-push failure can abort the changesets action
+          # *before* it sets `published`, even though `changeset publish` already
+          # finished publishing to npm. `changeset publish` creates each package's
+          # local git tag only after that package publishes, so package tags on
+          # the release commit are concrete evidence that npm publish succeeded.
+          published_tags=$(git tag --points-at HEAD | grep '@' || true)
+          if [ -n "$published_tags" ]; then
+            echo "published output was unset, but package tags exist on the release commit — npm publish succeeded:"
+            echo "$published_tags"
+            exit 0
+          fi
+          echo "::error::changesets step failed and no packages were published."
+          exit 1
