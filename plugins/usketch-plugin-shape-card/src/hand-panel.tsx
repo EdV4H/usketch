@@ -1,27 +1,31 @@
-import { useApp } from "@edv4h/usketch-canvas-engine";
 import type React from "react";
 import { useSyncExternalStore } from "react";
 import type { CardHandAwareness, HandStore } from "./hand-store.js";
 import type { CardTypeDefinition } from "./types.js";
 
 /**
- * Bottom-fixed hand tray (#671). Shows **this client's** hand — contents live
- * only in `handStore` (localStorage), never on the network. Others' hands show
- * as a count only (read from awareness `cardHand.count`). Each card has a
- * "場に出す" (play) button; playing emits `card:play-from-hand`.
+ * Hand panel for the Control HUD (#671). Registered via `ctx.hud.registerPanel`
+ * — the hand is no longer a bespoke bottom-fixed tray, so it lives inside the
+ * HUD like every other plugin surface.
+ *
+ * Shows **this client's** hand — contents live only in `handStore`
+ * (localStorage), never on the network. Others' hands show as a count only
+ * (read from awareness `cardHand.count`). Each card has a "場に出す" (play)
+ * button that calls `onPlay(id)` (the plugin emits `card:play-from-hand`).
  */
-export function HandTray({
+export function HandPanel({
 	handStore,
 	registry,
 	localUserId,
 	awareness,
+	onPlay,
 }: {
 	handStore: HandStore;
 	registry: Map<string, CardTypeDefinition>;
 	localUserId: string;
 	awareness?: CardHandAwareness;
+	onPlay: (id: string) => void;
 }) {
-	const app = useApp();
 	const hand = useSyncExternalStore(handStore.subscribe, handStore.getHand, handStore.getHand);
 
 	// Sum of other clients' hand counts (contents never shared — count only).
@@ -35,39 +39,45 @@ export function HandTray({
 		() => sumOthers(awareness, localUserId),
 	);
 
+	// Hidden entirely when there is nothing to show (matches the old tray), so
+	// the HUD doesn't carry an empty "Hand" section on non-card boards.
 	if (hand.length === 0 && othersCount === 0) return null;
 
 	return (
 		<div style={wrapStyle}>
-			<div style={trayStyle} onPointerDown={(e) => e.stopPropagation()}>
-				{hand.map((entry) => {
-					const def = registry.get(entry.cardType);
-					const aspect = def?.aspectRatio ?? 0.7;
-					const h = 96;
-					const w = Math.round(h * aspect);
-					return (
-						<div key={entry.id} style={cardWrapStyle}>
-							<div style={{ width: w, height: h, ...faceBoxStyle }}>
-								{def ? def.renderFront(entry.fields) : <UnknownFace />}
+			{hand.length > 0 ? (
+				<div style={cardsStyle}>
+					{hand.map((entry) => {
+						const def = registry.get(entry.cardType);
+						const aspect = def?.aspectRatio ?? 0.7;
+						const h = 64;
+						const w = Math.round(h * aspect);
+						return (
+							<div key={entry.id} style={cardWrapStyle}>
+								<div style={{ width: w, height: h, ...faceBoxStyle }}>
+									{def ? def.renderFront(entry.fields) : <UnknownFace />}
+								</div>
+								<button
+									type="button"
+									onClick={() => onPlay(entry.id)}
+									style={playBtnStyle}
+									title="場に出す"
+								>
+									場に出す
+								</button>
 							</div>
-							<button
-								type="button"
-								onClick={() => app.events.emit("card:play-from-hand", { id: entry.id })}
-								style={playBtnStyle}
-								title="場に出す"
-							>
-								場に出す
-							</button>
-						</div>
-					);
-				})}
-				{othersCount > 0 && <div style={othersStyle}>🂠 他 {othersCount}枚</div>}
-			</div>
+						);
+					})}
+				</div>
+			) : (
+				<div style={emptyStyle}>手札なし</div>
+			)}
+			{othersCount > 0 && <div style={othersStyle}>🂠 他 {othersCount}枚</div>}
 		</div>
 	);
 }
 
-function sumOthers(awareness: CardHandAwareness | undefined, localUserId: string): number {
+export function sumOthers(awareness: CardHandAwareness | undefined, localUserId: string): number {
 	if (!awareness) return 0;
 	let total = 0;
 	const selfClient = awareness.doc.clientID;
@@ -86,57 +96,53 @@ function UnknownFace() {
 }
 
 const wrapStyle: React.CSSProperties = {
-	position: "absolute",
-	left: 0,
-	right: 0,
-	bottom: 12,
 	display: "flex",
-	justifyContent: "center",
-	pointerEvents: "none",
+	flexDirection: "column",
+	gap: 6,
+	fontFamily: "system-ui, sans-serif",
 };
 
-const trayStyle: React.CSSProperties = {
+const cardsStyle: React.CSSProperties = {
 	display: "flex",
+	flexWrap: "wrap",
 	alignItems: "flex-end",
-	gap: 8,
-	padding: "8px 12px",
-	background: "rgba(255,255,255,0.95)",
-	borderRadius: 12,
-	boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
-	fontFamily: "system-ui, sans-serif",
-	maxWidth: "90%",
-	overflowX: "auto",
-	pointerEvents: "auto",
+	gap: 6,
+	maxHeight: 220,
+	overflowY: "auto",
 };
 
 const cardWrapStyle: React.CSSProperties = {
 	display: "flex",
 	flexDirection: "column",
 	alignItems: "center",
-	gap: 4,
+	gap: 3,
 };
 
 const faceBoxStyle: React.CSSProperties = {
-	borderRadius: 6,
+	borderRadius: 5,
 	overflow: "hidden",
-	boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+	boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
 	background: "#fff",
 };
 
 const playBtnStyle: React.CSSProperties = {
-	height: 22,
-	padding: "0 8px",
+	height: 20,
+	padding: "0 6px",
 	border: "1px solid #2680eb",
 	borderRadius: 5,
 	background: "#e8f0fe",
 	color: "#2680eb",
-	fontSize: 11,
+	fontSize: 10,
 	cursor: "pointer",
 };
 
+const emptyStyle: React.CSSProperties = {
+	color: "#888",
+	fontSize: 12,
+	padding: "2px 0",
+};
+
 const othersStyle: React.CSSProperties = {
-	alignSelf: "center",
-	padding: "0 8px",
 	color: "#666",
 	fontSize: 12,
 	whiteSpace: "nowrap",

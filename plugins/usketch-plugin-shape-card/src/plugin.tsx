@@ -21,8 +21,8 @@ import {
 	DECK_TYPE,
 } from "./factory.js";
 import { getBounds, gridPositions, makeAspectResize, rectHitTest } from "./geometry.js";
+import { HandPanel } from "./hand-panel.js";
 import { type CardHandAwareness, createHandStore, type HandCardEntry } from "./hand-store.js";
-import { HandTray } from "./hand-tray.js";
 import {
 	injectPlacementStyles,
 	PLACEMENT_TRANSIENT_TYPE,
@@ -870,17 +870,19 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 
 			// カード操作の追従メニューは Control HUD の Action(card:*)に統合したため撤去。
 
-			// ── 手札トレイ層（画面下部固定 HUD。自分の手札のみ中身表示） ──
-			ctx.layers.register({
-				id: "card-hand",
-				order: 90,
-				fixed: true,
+			// ── 手札は Control HUD の「Hand」パネルとして登録（独自トレイUIは廃止） ──
+			// 自分の手札のみ中身を表示。他者は枚数のみ（awareness）。
+			const offHandPanel = ctx.hud.registerPanel({
+				id: "usketch-plugin-shape-card:hand",
+				title: "Hand",
+				order: 0,
 				render: () => (
-					<HandTray
+					<HandPanel
 						handStore={handStore}
 						registry={registry}
 						localUserId={localUserId}
 						awareness={awareness}
+						onPlay={(id) => ctx.events.emit("card:play-from-hand", { id })}
 					/>
 				),
 			});
@@ -900,7 +902,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				offToHand();
 				offPlayFromHand();
 				for (const off of offActions) off();
-				ctx.layers.unregister("card-hand");
+				offHandPanel();
 				awareness?.setLocalStateField("cardHand", null);
 			};
 		},
