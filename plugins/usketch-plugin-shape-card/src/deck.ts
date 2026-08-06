@@ -18,3 +18,12 @@ export function drawTop<T>(cards: readonly T[]): { card: T | null; rest: T[] } {
 	const [card, ...rest] = cards;
 	return { card, rest };
 }
+
+/**
+ * 上から `n` 枚引く。`n` は `[0, length]` にクランプするので、残り枚数より多く要求しても
+ * 引けるだけ引く。`drawn` は先頭 `n` 枚（index 0 が一番上）、`rest` は残り。元配列は破壊しない。
+ */
+export function drawN<T>(cards: readonly T[], n: number): { drawn: T[]; rest: T[] } {
+	const count = Math.max(0, Math.min(Math.floor(n), cards.length));
+	return { drawn: cards.slice(0, count), rest: cards.slice(count) };
+}

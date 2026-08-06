@@ -12,7 +12,7 @@ import {
 	zIndexAfterAll,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand, createUpdateShapeCommand } from "@edv4h/usketch-store";
-import { drawTop, shuffle } from "./deck.js";
+import { drawN, drawTop, shuffle } from "./deck.js";
 import {
 	CARD_TYPE,
 	createBareCardShape,
@@ -20,7 +20,7 @@ import {
 	createDeckShape,
 	DECK_TYPE,
 } from "./factory.js";
-import { getBounds, makeAspectResize, rectHitTest } from "./geometry.js";
+import { getBounds, gridPositions, makeAspectResize, rectHitTest } from "./geometry.js";
 import { type CardHandAwareness, createHandStore, type HandCardEntry } from "./hand-store.js";
 import { HandTray } from "./hand-tray.js";
 import {
@@ -313,6 +313,109 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				emitPlacement(newCard);
 			}
 
+			// N 個の zIndex を「全 shape の上」に積んで返す。各値は直前を含めて計算するので
+			// 互いに重ならず、この順で上へ重なる（配置は非重複だが決定的な前後関係を保つ）。
+			function zStackAboveAll(count: number): string[] {
+				let allZ = ctx.store.getShapesSorted().map((s) => s.zIndex);
+				const out: string[] = [];
+				for (let i = 0; i < count; i++) {
+					const z = zIndexAfterAll(allZ);
+					out.push(z);
+					allZ = [...allZ, z];
+				}
+				return out;
+			}
+
+			// デッキから複数の card fields を取り出し、指定レイアウトで場に展開する共通処理。
+			// `layout(n)` は n 枚ぶんのワールド座標を返す。単一 Command で Undo/Redo 可能。
+			function spreadCards(
+				deck: ShapeData,
+				drawn: Record<string, unknown>[],
+				restCards: Record<string, unknown>[],
+				layout: (n: number) => Point[],
+			) {
+				const meta = readDeckMeta(deck);
+				const cardType = meta.cardType;
+				const def = cardType ? registry.get(cardType) : undefined;
+				if (!def || !cardType || drawn.length === 0) return;
+
+				const positions = layout(drawn.length);
+				const zStack = zStackAboveAll(drawn.length);
+				const newCards = drawn.map((fields, i) =>
+					createCardShape(def, {
+						x: positions[i]?.x ?? deck.x,
+						y: positions[i]?.y ?? deck.y,
+						fields,
+						zIndex: zStack[i],
+					}),
+				);
+
+				const deckBefore: DeckMeta = {
+					cardType,
+					cards: [...drawn, ...restCards],
+					faceDown: meta.faceDown ?? true,
+				};
+				const deckAfter: DeckMeta = { cardType, cards: restCards, faceDown: meta.faceDown ?? true };
+
+				ctx.commands.execute({
+					execute() {
+						ctx.store.updateShape(deck.id, { meta: deckAfter as ShapeData["meta"] });
+						for (const c of newCards) ctx.store.addShape(c);
+					},
+					undo() {
+						for (const c of newCards) ctx.store.deleteShape(c.id);
+						ctx.store.updateShape(deck.id, { meta: deckBefore as ShapeData["meta"] });
+					},
+				});
+				ctx.store.setSelection(newCards.map((c) => c.id));
+				for (const c of newCards) emitPlacement(c);
+			}
+
+			const SPREAD_GAP = 16;
+
+			// 場に N 枚引く: デッキの右隣に1列で並べる。
+			function drawManyFromDeck(deck: ShapeData, count: number) {
+				const meta = readDeckMeta(deck);
+				const def = meta.cardType ? registry.get(meta.cardType) : undefined;
+				if (!def) return;
+				const { drawn, rest } = drawN(meta.cards ?? [], count);
+				const stepX = def.defaultSize.width + SPREAD_GAP;
+				spreadCards(deck, drawn, rest, (n) =>
+					gridPositions(n, {
+						cols: n, // 1 行
+						stepX,
+						stepY: 0,
+						originX: deck.x + deck.width + SPREAD_GAP,
+						originY: deck.y,
+					}),
+				);
+			}
+
+			// デッキをバラす: 全カードを回転なし・等間隔の折り返しグリッドで場に展開し、山札を空にする。
+			function scatterDeck(deck: ShapeData) {
+				const meta = readDeckMeta(deck);
+				const def = meta.cardType ? registry.get(meta.cardType) : undefined;
+				if (!def) return;
+				const cards = meta.cards ?? [];
+				if (cards.length === 0) return;
+				const stepX = def.defaultSize.width + SPREAD_GAP;
+				const stepY = def.defaultSize.height + SPREAD_GAP;
+				// 画面幅（ワールド換算）に収まる列数で折り返す。
+				const vw = typeof window !== "undefined" ? window.innerWidth : 1200;
+				const zoom = ctx.store.getViewport().zoom || 1;
+				const availableWorld = (vw * 0.9) / zoom;
+				const cols = Math.max(1, Math.min(cards.length, Math.floor(availableWorld / stepX)));
+				spreadCards(deck, cards, [], (n) =>
+					gridPositions(n, {
+						cols,
+						stepX,
+						stepY,
+						originX: deck.x + deck.width + SPREAD_GAP,
+						originY: deck.y,
+					}),
+				);
+			}
+
 			// ── 手札(hand): 内容はローカル限定、枚数だけ awareness 共有（#671 / 真 private は #686） ──
 			const localUserId = opts.userId ?? "local";
 			const handStore = createHandStore(localUserId, opts.boardId);
@@ -394,6 +497,41 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				emitPlacement(card);
 			}
 
+			// 手札に N 枚引く: デッキから取り出し、場に出さず直接ローカル手札へ入れる（Undo 可能）。
+			function drawToHandFromDeck(deck: ShapeData, count: number) {
+				const meta = readDeckMeta(deck);
+				const cardType = meta.cardType;
+				const def = cardType ? registry.get(cardType) : undefined;
+				if (!def || !cardType) return;
+				const cards = meta.cards ?? [];
+				const { drawn, rest } = drawN(cards, count);
+				if (drawn.length === 0) return;
+
+				const entries: HandCardEntry[] = drawn.map((fields) => ({
+					id: generateId(),
+					cardType,
+					fields: fields as Record<string, unknown>,
+					width: def.defaultSize.width,
+					height: def.defaultSize.height,
+				}));
+
+				const deckBefore: DeckMeta = { cardType, cards, faceDown: meta.faceDown ?? true };
+				const deckAfter: DeckMeta = { cardType, cards: rest, faceDown: meta.faceDown ?? true };
+
+				ctx.commands.execute({
+					execute() {
+						ctx.store.updateShape(deck.id, { meta: deckAfter as ShapeData["meta"] });
+						for (const e of entries) handStore.addToHand(e);
+						broadcastHandCount();
+					},
+					undo() {
+						for (const e of entries) handStore.removeFromHand(e.id);
+						ctx.store.updateShape(deck.id, { meta: deckBefore as ShapeData["meta"] });
+						broadcastHandCount();
+					},
+				});
+			}
+
 			// ── 操作メニュー / トレイからのイベント ──
 			const offFlip = ctx.events.on<{ id: string }>("card:flip", ({ id }) => {
 				const shape = ctx.store.getShape(id);
@@ -402,6 +540,24 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 			const offDraw = ctx.events.on<{ id: string }>("card-deck:draw", ({ id }) => {
 				const deck = ctx.store.getShape(id);
 				if (enableDeck && deck?.type === DECK_TYPE) drawFromDeck(deck);
+			});
+			const offDrawMany = ctx.events.on<{ id: string; count: number }>(
+				"card-deck:draw-many",
+				({ id, count }) => {
+					const deck = ctx.store.getShape(id);
+					if (enableDeck && deck?.type === DECK_TYPE) drawManyFromDeck(deck, count);
+				},
+			);
+			const offDrawToHand = ctx.events.on<{ id: string; count: number }>(
+				"card-deck:draw-to-hand",
+				({ id, count }) => {
+					const deck = ctx.store.getShape(id);
+					if (enableDeck && deck?.type === DECK_TYPE) drawToHandFromDeck(deck, count);
+				},
+			);
+			const offScatter = ctx.events.on<{ id: string }>("card-deck:scatter", ({ id }) => {
+				const deck = ctx.store.getShape(id);
+				if (enableDeck && deck?.type === DECK_TYPE) scatterDeck(deck);
 			});
 			const offToHand = ctx.events.on<{ id: string }>("card:to-hand", ({ id }) =>
 				moveCardToHand(id),
@@ -475,6 +631,39 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 							run: () => {
 								const id = selectedOfType(DECK_TYPE);
 								if (id) ctx.events.emit("card-deck:shuffle", { id });
+							},
+						}),
+						ctx.actions.register({
+							id: "card-deck:draw-many",
+							label: "Draw cards to board",
+							group: "Card",
+							params: [{ name: "count", type: "number", default: 5, min: 1, max: 52, step: 1 }],
+							isEnabled: () => selectedOfType(DECK_TYPE) !== undefined,
+							run: ({ count }) => {
+								const id = selectedOfType(DECK_TYPE);
+								if (id) ctx.events.emit("card-deck:draw-many", { id, count: Number(count) || 5 });
+							},
+						}),
+						ctx.actions.register({
+							id: "card-deck:draw-to-hand",
+							label: "Draw to hand",
+							group: "Card",
+							params: [{ name: "count", type: "number", default: 1, min: 1, max: 52, step: 1 }],
+							isEnabled: () => selectedOfType(DECK_TYPE) !== undefined,
+							run: ({ count }) => {
+								const id = selectedOfType(DECK_TYPE);
+								if (id)
+									ctx.events.emit("card-deck:draw-to-hand", { id, count: Number(count) || 1 });
+							},
+						}),
+						ctx.actions.register({
+							id: "card-deck:scatter",
+							label: "Spread deck",
+							group: "Card",
+							isEnabled: () => selectedOfType(DECK_TYPE) !== undefined,
+							run: () => {
+								const id = selectedOfType(DECK_TYPE);
+								if (id) ctx.events.emit("card-deck:scatter", { id });
 							},
 						}),
 					);
@@ -705,6 +894,9 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				offShuffleShortcut?.();
 				offFlip();
 				offDraw();
+				offDrawMany();
+				offDrawToHand();
+				offScatter();
 				offToHand();
 				offPlayFromHand();
 				for (const off of offActions) off();

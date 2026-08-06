@@ -7,7 +7,7 @@ export type { PlayingCardFields, Suit } from "./card-types/playing-card.js";
 export { playingCardType } from "./card-types/playing-card.js";
 export type { UnoCardFields, UnoColor } from "./card-types/uno.js";
 export { unoCardType } from "./card-types/uno.js";
-export { drawTop, shuffle } from "./deck.js";
+export { drawN, drawTop, shuffle } from "./deck.js";
 export {
 	CARD_TYPE,
 	createBareCardShape,
