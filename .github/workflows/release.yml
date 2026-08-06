@@ -146,7 +146,7 @@ jobs:
             old_ver=$(git show "HEAD^1:$f" 2>/dev/null | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "")
             [ "$new_ver" = "$old_ver" ] && continue   # version unchanged → not a publish target
             bumped=$((bumped + 1))
-            if ! git tag --points-at HEAD | grep -qx "$name@$new_ver"; then
+            if ! git tag --points-at HEAD | grep -Fqx "$name@$new_ver"; then
               missing="$missing $name@$new_ver"
             fi
           done
