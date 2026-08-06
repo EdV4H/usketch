@@ -124,16 +124,40 @@ jobs:
             echo "npm publish succeeded (published=true); the step failure was the transient tag push, now reconciled."
             exit 0
           fi
+
           # The `commit_refs` tag-push failure can abort the changesets action
           # *before* it sets `published`, even though `changeset publish` already
           # finished publishing to npm. `changeset publish` creates each package's
-          # local git tag only after that package publishes, so package tags on
-          # the release commit are concrete evidence that npm publish succeeded.
-          published_tags=$(git tag --points-at HEAD | grep '@' || true)
-          if [ -n "$published_tags" ]; then
-            echo "published output was unset, but package tags exist on the release commit — npm publish succeeded:"
-            echo "$published_tags"
-            exit 0
+          # local git tag only after that package publishes, so a per-package tag
+          # on the release commit is concrete evidence that package published.
+          #
+          # Don't accept "any tag" — a publish that fails partway would leave some
+          # tags and mask an incomplete release. Instead require a tag for *every*
+          # package whose version was bumped in this release commit.
+          mapfile -t changed < <(git diff --name-only "HEAD^1" HEAD -- '**/package.json' 'package.json' || true)
+          bumped=0
+          missing=""
+          for f in "${changed[@]}"; do
+            [ -f "$f" ] || continue
+            [ "$(node -p "require('./$f').private === true" 2>/dev/null || echo false)" = "true" ] && continue
+            new_ver=$(node -p "require('./$f').version" 2>/dev/null || echo "")
+            name=$(node -p "require('./$f').name" 2>/dev/null || echo "")
+            [ -z "$name" ] || [ -z "$new_ver" ] && continue
+            old_ver=$(git show "HEAD^1:$f" 2>/dev/null | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "")
+            [ "$new_ver" = "$old_ver" ] && continue   # version unchanged → not a publish target
+            bumped=$((bumped + 1))
+            if ! git tag --points-at HEAD | grep -qx "$name@$new_ver"; then
+              missing="$missing $name@$new_ver"
+            fi
+          done
+
+          if [ -n "$missing" ]; then
+            echo "::error::publish incomplete — no release tag for:$missing"
+            exit 1
           fi
-          echo "::error::changesets step failed and no packages were published."
-          exit 1
+          if [ "$bumped" -eq 0 ]; then
+            echo "::error::changesets step failed and no packages were published."
+            exit 1
+          fi
+          echo "published output was unset, but all $bumped bumped package(s) have tags on the release commit — npm publish succeeded."
+          exit 0
