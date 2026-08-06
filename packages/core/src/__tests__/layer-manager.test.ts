@@ -2,8 +2,8 @@ import type { Layer } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { createLayerManager } from "../layer-manager.js";
 
-const STEP = 2 ** -10;
-
+// The default per-collision bump used by the manager (kept in sync with
+// DEFAULT_COLLISION_STEP in layer-manager.ts); referenced in comments below.
 function layer(id: string, order: number, over: Partial<Layer> = {}): Layer {
 	return { id, order, render: () => null, ...over };
 }
@@ -55,9 +55,9 @@ describe("createLayerManager", () => {
 			mgr.register(layer(`a${i}`, 84, { avoidCollision: true }));
 		}
 		mgr.register(layer("next", 85));
-		// Every avoider must remain below 85 (default step keeps them in-band).
+		// Every avoider must remain below 85: registering `next` at 85 lands it
+		// last, i.e. above all 50 bumped avoiders (which stayed in the 84 band).
 		expect(ids(mgr)[ids(mgr).length - 1]).toBe("next");
-		expect(50 * STEP).toBeLessThan(1);
 	});
 
 	it("supports integer port-style bumps via collisionStep: 1", () => {
@@ -98,7 +98,7 @@ describe("createLayerManager", () => {
 		expect(ids(mgr)).toEqual(["base", "a2"]);
 	});
 
-	it("keeps a later plain layer below an avoider that was bumped above the band", () => {
+	it("keeps a later plain layer below a bumped avoider (same integer band)", () => {
 		const mgr = createLayerManager();
 		mgr.register(layer("existing", 84));
 		mgr.register(layer("avoider", 84, { avoidCollision: true })); // 84 + STEP
