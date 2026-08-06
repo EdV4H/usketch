@@ -69,6 +69,16 @@ describe("createLayerManager", () => {
 		expect(ids(mgr)).toEqual(["p84", "p85", "port"]);
 	});
 
+	it("falls back to the default step for a non-positive/non-finite collisionStep (no infinite loop)", () => {
+		const mgr = createLayerManager();
+		mgr.register(layer("base", 84));
+		// collisionStep: 0 would make a naive bump loop spin forever on a collision.
+		mgr.register(layer("zero", 84, { avoidCollision: true, collisionStep: 0 }));
+		mgr.register(layer("nan", 84, { avoidCollision: true, collisionStep: Number.NaN }));
+		// Both resolve via the default step and land above base, deterministically.
+		expect(ids(mgr)).toEqual(["base", "zero", "nan"]);
+	});
+
 	it("re-registering the same id re-resolves without self-collision", () => {
 		const mgr = createLayerManager();
 		mgr.register(layer("other", 84));

@@ -54,7 +54,8 @@ export interface GpuPrimitive {
 export interface Layer {
 	id: string;
 	/**
-	 * Stacking order (ascending = rendered on top). Plugins can't see which
+	 * Stacking order. Layers are drawn in ascending `order`, so a higher `order`
+	 * is painted later and therefore appears on top. Plugins can't see which
 	 * values other plugins already use, so collisions are common; treat this as
 	 * a *preferred* value and set {@link Layer.avoidCollision} to have the manager
 	 * resolve a unique effective order.
@@ -74,9 +75,10 @@ export interface Layer {
 	avoidCollision?: boolean;
 	/**
 	 * Bump amount per collision when {@link Layer.avoidCollision} is set. Defaults
-	 * to a tiny step so the layer stays within its band (below the next declared
-	 * integer order). Set to `1` for integer, port-style bumps. Ignored when
-	 * `avoidCollision` is falsy.
+	 * to a tiny step (1/1024) that keeps the layer below the next integer order
+	 * for any realistic number of collisions (< 1024 at the same base). Set to
+	 * `1` for integer, port-style bumps. Non-positive or non-finite values fall
+	 * back to the default. Ignored when `avoidCollision` is falsy.
 	 */
 	collisionStep?: number;
 }

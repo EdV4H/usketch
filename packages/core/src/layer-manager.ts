@@ -3,7 +3,8 @@ import type { Layer, LayerManager } from "@edv4h/usketch-shared";
 /**
  * Default per-collision bump for `avoidCollision` layers. `2 ** -10` (=1/1024)
  * is exactly representable in binary floating point, so integer-base + k*step
- * sums stay exact and keep the layer within its band (below the next integer).
+ * sums stay exact. It also keeps the layer below the next integer order for up
+ * to 1023 collisions at the same base — far more than any realistic layer set.
  */
 const DEFAULT_COLLISION_STEP = 2 ** -10;
 
@@ -27,7 +28,10 @@ export function createLayerManager(): LayerManager {
 			if (id !== layer.id) used.add(eff);
 		}
 
-		const step = layer.collisionStep ?? DEFAULT_COLLISION_STEP;
+		// Guard the caller's step: 0 / negative / non-finite would make the bump
+		// loop below never terminate. Fall back to the default in those cases.
+		const requested = layer.collisionStep ?? DEFAULT_COLLISION_STEP;
+		const step = Number.isFinite(requested) && requested > 0 ? requested : DEFAULT_COLLISION_STEP;
 		let eff = layer.order;
 		while (used.has(eff)) eff += step;
 		return eff;
