@@ -240,18 +240,8 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				return type === CARD_TYPE || (enableDeck && type === DECK_TYPE);
 			}
 
-			// 新規配置時のアニメは描画ツール / デッキ操作の確定点で明示的に emit する
-			// （shape:added を購読すると、保存済みボードのロード時に全カードが一斉に
-			// アニメしてしまうため、対話的な配置だけに絞る）。
-
-			// 移動後: shapes:move-end
-			const offMoveEnd = ctx.events.on<{ shapeIds: string[] }>("shapes:move-end", (data) => {
-				if (!data?.shapeIds) return;
-				for (const id of data.shapeIds) {
-					const shape = ctx.store.getShape(id);
-					if (shape && isCardLike(shape.type)) emitPlacement(shape);
-				}
-			});
+			// 出現演出（placement アニメ）は「手札から場に出したとき」だけに限定する。
+			// デッキドロー / バラし / 手動ドロー / 移動では再生しない（playCardFromHand のみ emit）。
 
 			// ── flip / deck-draw インタラクション（ダブルクリック検出） ──
 			let lastClickTime = 0;
@@ -310,7 +300,6 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				};
 				ctx.commands.execute(command);
 				ctx.store.setSelection([newCard.id]);
-				emitPlacement(newCard);
 			}
 
 			// N 個の zIndex を「全 shape の上」に積んで返す。各値は直前を含めて計算するので
@@ -368,7 +357,6 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					},
 				});
 				ctx.store.setSelection(newCards.map((c) => c.id));
-				for (const c of newCards) emitPlacement(c);
 			}
 
 			const SPREAD_GAP = 16;
@@ -795,7 +783,6 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 						if (draft && draft.width > 2 && draft.height > 2) {
 							toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, draft));
 							toolCtx.store.setSelection([draft.id]);
-							emitPlacement(draft);
 						} else if (def) {
 							// クリック: 既定サイズで配置（クリック点を中心に）
 							const placed = createCardShape(def, {
@@ -805,7 +792,6 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 							});
 							toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, placed));
 							toolCtx.store.setSelection([placed.id]);
-							emitPlacement(placed);
 						}
 						drawState = null;
 						toolCtx.store.resetToDefaultTool();
@@ -862,7 +848,6 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 							});
 							toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, deck));
 							toolCtx.store.setSelection([deck.id]);
-							emitPlacement(deck);
 							toolCtx.store.resetToDefaultTool();
 						},
 					});
@@ -888,7 +873,6 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 			// ── teardown ──
 			return () => {
 				offSelectType();
-				offMoveEnd();
 				offPointerDown?.();
 				offShuffleEvent();
 				offShuffleShortcut?.();
