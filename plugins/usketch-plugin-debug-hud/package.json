@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-debug-hud",
-	"version": "3.3.3",
+	"version": "3.3.4",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-portal
 
+## 0.2.5
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+
 ## 0.2.4
 
 ### Patch Changes
