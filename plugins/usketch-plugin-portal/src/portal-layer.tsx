@@ -159,10 +159,21 @@ export function DefaultPortalChrome(p: PortalChromeProps) {
 				</span>
 				<button
 					type="button"
-					title={p.shared ? "全員に共有中（クリックで個人に戻す）" : "個人（クリックで全員に共有）"}
+					title={
+						p.held && p.shared
+							? "共有スタッシュ: ⤴ でキャンバスに戻してから解除してください"
+							: p.shared
+								? "全員に共有中（クリックで個人に戻す）"
+								: "個人（クリックで全員に共有）"
+					}
+					disabled={p.held && p.shared}
 					onPointerDown={(e) => e.stopPropagation()}
 					onClick={p.toggleShared}
-					style={headerBtn}
+					style={{
+						...headerBtn,
+						cursor: p.held && p.shared ? "default" : "pointer",
+						opacity: p.held && p.shared ? 0.5 : 1,
+					}}
 				>
 					{p.shared ? "👥" : "🔒"}
 				</button>
@@ -273,7 +284,11 @@ function PortalPanel({
 			shared={shared}
 			held={held}
 			title={(shape as { label?: string }).label || shape.type}
-			toggleShared={() => onToggleShared(entry.id, !shared)}
+			// Un-sharing a *held* portal would strand the shape: it stays off the
+			// (shared) board while its only snapshot returns to local storage, so
+			// other clients can no longer restore it. Lock the toggle in that case —
+			// un-share by ⤴ restoring first. (No-op here keeps custom chromes safe.)
+			toggleShared={held && shared ? () => {} : () => onToggleShared(entry.id, !shared)}
 			// For held portals `remove` must never discard the shape (the portal holds
 			// the only copy) — route it to restore. Safe even for custom chromes that
 			// wire a destructive close; a no-op when no restore handler is available.
