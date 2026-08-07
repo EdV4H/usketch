@@ -22,7 +22,12 @@ import {
 } from "./factory.js";
 import { getBounds, gridPositions, makeAspectResize, rectHitTest } from "./geometry.js";
 import { HandPanel } from "./hand-panel.js";
-import { type CardHandAwareness, createHandStore, type HandCardEntry } from "./hand-store.js";
+import {
+	type CardHandAwareness,
+	createHandStore,
+	type HandCardEntry,
+	type HandStore,
+} from "./hand-store.js";
 import {
 	injectPlacementStyles,
 	PLACEMENT_TRANSIENT_TYPE,
@@ -76,6 +81,31 @@ export interface CreateCardPluginOptions {
 	 * 既定で無効。後方互換で戻したい場合のみ `true`。
 	 */
 	legacyDoubleClickActions?: boolean;
+	/**
+	 * 手札(hand)の headless 運用オプション。手札の**状態**（localStorage 永続・awareness
+	 * 枚数共有・`card:*` アクション/イベント）はプラグインが持ちつつ、**UI を host が自作**
+	 * できるようにする。既定は現行どおり Control HUD の Hand パネルを出す（後方互換）。
+	 */
+	hand?: {
+		/**
+		 * 内蔵手札 UI の表示モード。`"hud"`（既定）は Control HUD の Hand パネルを登録。
+		 * `"none"` は内蔵 UI を一切登録しない（host が独自 UI を描く headless 運用）。
+		 * 状態・アクション・awareness 共有は `"none"` でも維持される。
+		 */
+		ui?: "hud" | "none";
+		/**
+		 * host 側で生成した {@link HandStore} を注入する。渡すとプラグインはこの**同一
+		 * インスタンス**を使うので、host UI が `subscribe` すれば同一タブ内の変更も受け取れる
+		 * （localStorage の storage イベントは同一タブで発火しない問題を回避）。省略時は
+		 * `userId`/`boardId` からプラグインが生成する。
+		 */
+		store?: HandStore;
+		/**
+		 * プラグインが実際に使う {@link HandStore}（注入 or 生成のいずれでも）を host へ渡す
+		 * コールバック。host UI の配線に使う。
+		 */
+		onStore?: (store: HandStore) => void;
+	};
 }
 
 // ── icons ──
@@ -406,7 +436,10 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 
 			// ── 手札(hand): 内容はローカル限定、枚数だけ awareness 共有（#671 / 真 private は #686） ──
 			const localUserId = opts.userId ?? "local";
-			const handStore = createHandStore(localUserId, opts.boardId);
+			// host が注入した store があればそれを使い（同一インスタンス共有 → 同一タブでも
+			// subscribe が発火）、無ければ userId/boardId から生成する。実インスタンスを onStore で host へ渡す。
+			const handStore = opts.hand?.store ?? createHandStore(localUserId, opts.boardId);
+			opts.hand?.onStore?.(handStore);
 			const awareness = opts.wsProvider?.awareness;
 
 			function broadcastHandCount() {
@@ -857,20 +890,24 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 
 			// ── 手札は Control HUD の「Hand」パネルとして登録（独自トレイUIは廃止） ──
 			// 自分の手札のみ中身を表示。他者は枚数のみ（awareness）。
-			const offHandPanel = ctx.hud.registerPanel({
-				id: "usketch-plugin-shape-card:hand",
-				title: "Hand",
-				order: 0,
-				render: () => (
-					<HandPanel
-						handStore={handStore}
-						registry={registry}
-						localUserId={localUserId}
-						awareness={awareness}
-						onPlay={(id) => ctx.events.emit("card:play-from-hand", { id })}
-					/>
-				),
-			});
+			// `hand.ui === "none"` の headless 運用では内蔵 UI を登録せず、host が自作する。
+			const offHandPanel =
+				opts.hand?.ui === "none"
+					? undefined
+					: ctx.hud.registerPanel({
+							id: "usketch-plugin-shape-card:hand",
+							title: "Hand",
+							order: 0,
+							render: () => (
+								<HandPanel
+									handStore={handStore}
+									registry={registry}
+									localUserId={localUserId}
+									awareness={awareness}
+									onPlay={(id) => ctx.events.emit("card:play-from-hand", { id })}
+								/>
+							),
+						});
 
 			// ── teardown ──
 			return () => {
@@ -886,7 +923,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				offToHand();
 				offPlayFromHand();
 				for (const off of offActions) off();
-				offHandPanel();
+				offHandPanel?.();
 				awareness?.setLocalStateField("cardHand", null);
 			};
 		},
