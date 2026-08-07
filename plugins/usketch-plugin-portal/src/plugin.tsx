@@ -58,18 +58,18 @@ export function createPortalPlugin(options: PortalPluginOptions): UsketchPlugin 
 			// instead of discarding it.
 			const restoreToCanvas = (entry: PortalEntry, shared: boolean) => {
 				const snapshot = entry.shape;
-				if (!snapshot || ctx.store.getShape(snapshot.id)) {
-					store.remove(entry.id);
-					return;
-				}
+				// Re-add the held shape unless there's no snapshot, or a shape with the
+				// same id is already on the canvas (conflict) — in which case we only
+				// detach the portal. Either way go through a Command so it's undoable.
+				const readd = !!snapshot && !ctx.store.getShape(snapshot.id);
 				ctx.commands.execute({
 					execute() {
-						ctx.store.addShape(snapshot);
+						if (readd && snapshot) ctx.store.addShape(snapshot);
 						store.remove(entry.id);
 					},
 					undo() {
 						store.insert(entry, shared);
-						ctx.store.deleteShape(snapshot.id);
+						if (readd && snapshot) ctx.store.deleteShape(snapshot.id);
 					},
 				});
 			};

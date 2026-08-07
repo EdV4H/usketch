@@ -170,9 +170,14 @@ export function DefaultPortalChrome(p: PortalChromeProps) {
 					<button
 						type="button"
 						title="キャンバスに戻す"
+						disabled={!p.restore}
 						onPointerDown={(e) => e.stopPropagation()}
 						onClick={p.restore}
-						style={{ ...headerBtn, color: "#2563eb" }}
+						style={{
+							...headerBtn,
+							color: p.restore ? "#2563eb" : "#9ca3af",
+							cursor: p.restore ? "pointer" : "default",
+						}}
 					>
 						⤴
 					</button>
