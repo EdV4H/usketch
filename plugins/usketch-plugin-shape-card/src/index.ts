@@ -15,6 +15,12 @@ export {
 	createDeckShape,
 	DECK_TYPE,
 } from "./factory.js";
+export {
+	type CardHandAwareness,
+	createHandStore,
+	type HandCardEntry,
+	type HandStore,
+} from "./hand-store.js";
 export type { CreateCardPluginOptions } from "./plugin.js";
 export { createCardPlugin } from "./plugin.js";
 export { createCardTypeRegistry, EXAMPLE_CARD_TYPES } from "./registry.js";
