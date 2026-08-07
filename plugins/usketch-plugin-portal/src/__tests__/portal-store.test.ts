@@ -45,6 +45,11 @@ describe("createPortalStore", () => {
 		expect(all[0].entry.shape).toEqual(shape); // held snapshot carried
 		expect(raw.get("usketch:portals:b1:u1")).toContain("portal-fixed");
 
+		// Re-inserting the same id upserts (no duplicate) — safe for undo/redo replay.
+		s.insert({ ...entry, x: 999 }, false);
+		expect(s.getAll()).toHaveLength(1);
+		expect(s.getAll()[0].entry.x).toBe(999);
+
 		// Re-inserting the same entry after remove restores an identical portal.
 		s.remove("portal-fixed");
 		expect(s.getAll()).toHaveLength(0);

@@ -158,9 +158,10 @@ export function createPortalStore(options: CreatePortalStoreOptions): PortalStor
 
 	function insertEntry(entry: PortalEntry, shared: boolean) {
 		if (shared) {
-			sharedMap.set(entry.id, entry); // observe → refresh
+			sharedMap.set(entry.id, entry); // observe → refresh (Map.set already upserts)
 		} else {
-			priv = [...priv, entry];
+			// Upsert by id so re-inserting the same entry (undo/redo) can't duplicate it.
+			priv = [...priv.filter((e) => e.id !== entry.id), entry];
 			persistPrivate();
 			refresh();
 		}

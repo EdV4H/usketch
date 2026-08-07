@@ -78,8 +78,11 @@ function ShapeContent({
 export interface PortalChromeProps {
 	entry: PortalEntry;
 	shared: boolean;
-	/** true when the portal **holds** the shape (removed from canvas); see {@link restore}. */
-	held: boolean;
+	/**
+	 * true when the portal **holds** the shape (removed from canvas); see {@link restore}.
+	 * Optional for backward compatibility with existing custom chromes (defaults to false).
+	 */
+	held?: boolean;
 	title: string;
 	toggleShared: () => void;
 	remove: () => void;
