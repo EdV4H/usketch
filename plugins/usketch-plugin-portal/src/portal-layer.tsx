@@ -78,9 +78,17 @@ function ShapeContent({
 export interface PortalChromeProps {
 	entry: PortalEntry;
 	shared: boolean;
+	/** true when the portal **holds** the shape (removed from canvas); see {@link restore}. */
+	held: boolean;
 	title: string;
 	toggleShared: () => void;
 	remove: () => void;
+	/**
+	 * Restore a held portal's shape to the canvas (present only when `held`).
+	 * Held portals should offer this instead of a destructive close, since the
+	 * portal holds the only copy of the shape.
+	 */
+	restore?: () => void;
 	/** Spread onto the drag handle (header). */
 	dragHandleProps: { onPointerDown: (e: React.PointerEvent) => void };
 	/** Spread onto the resize grip. */
@@ -158,15 +166,27 @@ export function DefaultPortalChrome(p: PortalChromeProps) {
 				>
 					{p.shared ? "👥" : "🔒"}
 				</button>
-				<button
-					type="button"
-					title="閉じる"
-					onPointerDown={(e) => e.stopPropagation()}
-					onClick={p.remove}
-					style={{ ...headerBtn, color: "#9ca3af" }}
-				>
-					✕
-				</button>
+				{p.held ? (
+					<button
+						type="button"
+						title="キャンバスに戻す"
+						onPointerDown={(e) => e.stopPropagation()}
+						onClick={p.restore}
+						style={{ ...headerBtn, color: "#2563eb" }}
+					>
+						⤴
+					</button>
+				) : (
+					<button
+						type="button"
+						title="閉じる"
+						onPointerDown={(e) => e.stopPropagation()}
+						onClick={p.remove}
+						style={{ ...headerBtn, color: "#9ca3af" }}
+					>
+						✕
+					</button>
+				)}
 			</div>
 			<div style={{ flex: 1, minHeight: 0, position: "relative" }}>
 				{p.children}
@@ -192,20 +212,24 @@ export function DefaultPortalChrome(p: PortalChromeProps) {
 function PortalPanel({
 	entry,
 	shared,
+	held,
 	shape,
 	def,
 	onUpdate,
 	onRemove,
 	onToggleShared,
+	onRestore,
 	Chrome,
 }: {
 	entry: PortalEntry;
 	shared: boolean;
+	held: boolean;
 	shape: ShapeData;
 	def: ReturnType<ShapeRegistry["get"]>;
 	onUpdate: (id: string, patch: Partial<Pick<PortalEntry, "x" | "y" | "w" | "h">>) => void;
 	onRemove: (id: string) => void;
 	onToggleShared: (id: string, shared: boolean) => void;
+	onRestore?: (entry: PortalEntry, shared: boolean) => void;
 	Chrome: PortalChrome;
 }) {
 	const bodyH = Math.max(0, entry.h - PORTAL_HEADER_H);
@@ -242,9 +266,11 @@ function PortalPanel({
 		<Chrome
 			entry={entry}
 			shared={shared}
+			held={held}
 			title={(shape as { label?: string }).label || shape.type}
 			toggleShared={() => onToggleShared(entry.id, !shared)}
 			remove={() => onRemove(entry.id)}
+			restore={held && onRestore ? () => onRestore(entry, shared) : undefined}
 			dragHandleProps={{ onPointerDown: startDrag }}
 			resizeHandleProps={{ onPointerDown: startResize }}
 		>
@@ -258,39 +284,47 @@ export function PortalLayer({
 	store,
 	shapes,
 	Chrome = DefaultPortalChrome,
+	onRestore,
 }: {
 	portalStore: PortalStore;
 	store: BoardStore;
 	shapes: ShapeRegistry;
 	Chrome?: PortalChrome;
+	/** Restore a held portal's shape to the canvas (undoable; provided by the plugin). */
+	onRestore?: (entry: PortalEntry, shared: boolean) => void;
 }) {
 	const items = useSyncExternalStore(portalStore.subscribe, portalStore.getAll);
 	// Re-render on any store mutation so pinned shapes reflect edits.
 	const [, tick] = useReducer((n: number) => n + 1, 0);
 	useEffect(() => store.subscribe(tick), [store]);
 
-	// Drop portals whose target shape no longer exists.
+	// Drop **pin** portals whose target shape no longer exists. Held portals own
+	// their shape snapshot (it isn't on the board), so they must never be dropped
+	// here — that would lose the only copy.
 	useEffect(() => {
 		for (const { entry } of items) {
-			if (!store.getShape(entry.shapeId)) portalStore.remove(entry.id);
+			if (!entry.shape && !store.getShape(entry.shapeId)) portalStore.remove(entry.id);
 		}
 	}, [items, store, portalStore]);
 
 	return (
 		<>
 			{items.map(({ entry, shared }) => {
-				const shape = store.getShape(entry.shapeId);
+				const held = !!entry.shape;
+				const shape = entry.shape ?? store.getShape(entry.shapeId);
 				if (!shape) return null;
 				return (
 					<PortalPanel
 						key={entry.id}
 						entry={entry}
 						shared={shared}
+						held={held}
 						shape={shape}
 						def={shapes.get(shape.type)}
 						onUpdate={portalStore.update}
 						onRemove={portalStore.remove}
 						onToggleShared={portalStore.setShared}
+						onRestore={onRestore}
 						Chrome={Chrome}
 					/>
 				);

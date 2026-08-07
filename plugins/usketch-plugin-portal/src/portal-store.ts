@@ -1,4 +1,4 @@
-import { generateId } from "@edv4h/usketch-shared";
+import { generateId, type ShapeData } from "@edv4h/usketch-shared";
 import type * as Y from "yjs";
 
 /** A pinned widget: which shape, and where/how big on screen (screen px). */
@@ -9,6 +9,13 @@ export interface PortalEntry {
 	y: number;
 	w: number;
 	h: number;
+	/**
+	 * When present, the portal **holds** the shape: it was removed from the
+	 * canvas and this snapshot is the only copy (rendered from here, not from the
+	 * board store). Restoring the portal re-adds this shape to the board. When
+	 * absent, the portal merely **pins** (mirrors) an on-canvas shape by `shapeId`.
+	 */
+	shape?: ShapeData;
 }
 
 /** A portal plus whether it lives in the shared (everyone) or private (me) backend. */
@@ -29,6 +36,11 @@ export interface PortalStore {
 	getAll(): PortalItem[];
 	/** Pin a shape (private by default). Returns the created entry. */
 	add(shapeId: string, box: PortalBox, shared?: boolean): PortalEntry;
+	/**
+	 * Insert a pre-built entry (private by default). Used for held portals whose
+	 * `id` must stay stable across undo/redo, and by {@link PortalStore.add}.
+	 */
+	insert(entry: PortalEntry, shared?: boolean): void;
 	/** Move/resize a portal (screen px). */
 	update(id: string, patch: Partial<PortalBox>): void;
 	remove(id: string): void;
@@ -144,18 +156,24 @@ export function createPortalStore(options: CreatePortalStoreOptions): PortalStor
 
 	const findPrivate = (id: string) => priv.find((e) => e.id === id);
 
+	function insertEntry(entry: PortalEntry, shared: boolean) {
+		if (shared) {
+			sharedMap.set(entry.id, entry); // observe → refresh
+		} else {
+			priv = [...priv, entry];
+			persistPrivate();
+			refresh();
+		}
+	}
+
 	return {
 		getAll: () => snapshot,
 
+		insert: (entry, shared = false) => insertEntry(entry, shared),
+
 		add(shapeId, box, shared = false) {
 			const entry: PortalEntry = { id: generateId(), shapeId, ...box };
-			if (shared) {
-				sharedMap.set(entry.id, entry); // observe → refresh
-			} else {
-				priv = [...priv, entry];
-				persistPrivate();
-				refresh();
-			}
+			insertEntry(entry, shared);
 			return entry;
 		},
 
