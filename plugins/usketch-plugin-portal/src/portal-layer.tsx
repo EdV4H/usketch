@@ -274,7 +274,10 @@ function PortalPanel({
 			held={held}
 			title={(shape as { label?: string }).label || shape.type}
 			toggleShared={() => onToggleShared(entry.id, !shared)}
-			remove={() => onRemove(entry.id)}
+			// For held portals `remove` must never discard the shape (the portal holds
+			// the only copy) — route it to restore. Safe even for custom chromes that
+			// wire a destructive close; a no-op when no restore handler is available.
+			remove={held ? () => onRestore?.(entry, shared) : () => onRemove(entry.id)}
 			restore={held && onRestore ? () => onRestore(entry, shared) : undefined}
 			dragHandleProps={{ onPointerDown: startDrag }}
 			resizeHandleProps={{ onPointerDown: startResize }}
