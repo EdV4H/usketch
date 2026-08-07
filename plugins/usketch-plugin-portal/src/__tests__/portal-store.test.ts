@@ -31,6 +31,32 @@ describe("createPortalStore", () => {
 		expect(s.getAll()).toHaveLength(0);
 	});
 
+	it("insert() adds a pre-built entry (stable id) — used for held portals", () => {
+		const { store: storage, raw } = memStorage();
+		const s = createPortalStore({ doc: new Y.Doc(), userId: "u1", boardId: "b1", storage });
+
+		const shape = { id: "sh1", type: "rect", x: 5, y: 5, width: 40, height: 30 } as never;
+		const entry = { id: "portal-fixed", shapeId: "sh1", shape, ...box };
+		s.insert(entry, false);
+
+		const all = s.getAll();
+		expect(all).toHaveLength(1);
+		expect(all[0].entry.id).toBe("portal-fixed"); // id preserved (undo/redo stability)
+		expect(all[0].entry.shape).toEqual(shape); // held snapshot carried
+		expect(raw.get("usketch:portals:b1:u1")).toContain("portal-fixed");
+
+		// Re-inserting the same id upserts (no duplicate) — safe for undo/redo replay.
+		s.insert({ ...entry, x: 999 }, false);
+		expect(s.getAll()).toHaveLength(1);
+		expect(s.getAll()[0].entry.x).toBe(999);
+
+		// Re-inserting the same entry after remove restores an identical portal.
+		s.remove("portal-fixed");
+		expect(s.getAll()).toHaveLength(0);
+		s.insert(entry, false);
+		expect(s.getAll()[0].entry.id).toBe("portal-fixed");
+	});
+
 	it("reloads private portals from storage", () => {
 		const { store: storage } = memStorage();
 		const doc = new Y.Doc();
