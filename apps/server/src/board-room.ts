@@ -42,17 +42,26 @@ export class BoardRoom extends DurableObject<Env> {
 	// Server-authoritative live sessions (voting / tutorial / card game). State is
 	// persisted to DO storage and the reconnect grace uses the DO alarm.
 	private sessionsLoaded = false;
+	/**
+	 * Pending DO storage writes (snapshot persistence + alarm) from session
+	 * mutations. `SessionManager` calls persist/setAlarm synchronously; we queue
+	 * the promises and {@link flushSessionWrites} awaits them at the end of each
+	 * event so a returning handler or a DO eviction can't drop a write — which
+	 * would break reconnect-grace and host migration.
+	 */
+	private sessionWrites: Promise<unknown>[] = [];
 	private readonly sessions = new SessionManager({
 		send: (userId, msg) => this.sessionSend(userId, msg),
 		broadcast: (msg) => this.broadcastAll(this.sessionFrame(msg)),
 		now: () => Date.now(),
 		genId: () => crypto.randomUUID(),
 		persist: (snap) => {
-			void this.ctx.storage.put("sessions", snap);
+			this.sessionWrites.push(this.ctx.storage.put("sessions", snap));
 		},
 		setAlarm: (at) => {
-			if (at == null) void this.ctx.storage.deleteAlarm();
-			else void this.ctx.storage.setAlarm(at);
+			this.sessionWrites.push(
+				at == null ? this.ctx.storage.deleteAlarm() : this.ctx.storage.setAlarm(at),
+			);
 		},
 		graceMs: SESSION_GRACE_MS,
 		// Registered server-side session types. Add a type's `ServerSessionType`
@@ -90,10 +99,19 @@ export class BoardRoom extends DurableObject<Env> {
 		this.sessions.restore(snap);
 	}
 
+	/** Await + clear pending session storage writes so they can't be dropped. */
+	private async flushSessionWrites(): Promise<void> {
+		if (this.sessionWrites.length === 0) return;
+		const writes = this.sessionWrites;
+		this.sessionWrites = [];
+		await Promise.all(writes);
+	}
+
 	/** DO alarm: drive session reconnect-grace expiry. */
 	async alarm(): Promise<void> {
 		await this.loadSessions();
 		this.sessions.onAlarm();
+		await this.flushSessionWrites();
 	}
 
 	async fetch(request: Request): Promise<Response> {
@@ -204,6 +222,7 @@ export class BoardRoom extends DurableObject<Env> {
 				} catch {
 					// 不正なメッセージは無視
 				}
+				await this.flushSessionWrites();
 				break;
 			}
 			case MSG_SYNC_STEP1: {
@@ -274,6 +293,7 @@ export class BoardRoom extends DurableObject<Env> {
 				// このユーザーの最後の接続 → セッションの離脱猶予を開始（DO alarm）。
 				await this.loadSessions();
 				this.sessions.onDisconnect(userId);
+				await this.flushSessionWrites();
 			}
 		}
 		try {
