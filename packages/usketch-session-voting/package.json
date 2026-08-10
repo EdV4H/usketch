@@ -1,0 +1,52 @@
+{
+	"name": "@edv4h/usketch-session-voting",
+	"version": "0.1.0",
+	"type": "module",
+	"exports": {
+		"./server": {
+			"source": "./src/server.ts",
+			"types": "./dist/server.d.ts",
+			"import": "./dist/server.js"
+		},
+		"./client": {
+			"source": "./src/client.tsx",
+			"types": "./dist/client.d.ts",
+			"import": "./dist/client.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@edv4h/usketch-plugin-session": "workspace:*",
+		"@edv4h/usketch-session-protocol": "workspace:*"
+	},
+	"peerDependencies": {
+		"react": ">=19"
+	},
+	"devDependencies": {
+		"@types/react": "19.2.18",
+		"typescript": "7.0.2",
+		"vitest": "4.1.10"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/EdV4H/usketch.git",
+		"directory": "packages/usketch-session-voting"
+	},
+	"homepage": "https://github.com/EdV4H/usketch#readme",
+	"bugs": {
+		"url": "https://github.com/EdV4H/usketch/issues"
+	}
+}

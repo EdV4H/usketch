@@ -143,6 +143,12 @@ importers:
       '@edv4h/usketch-server-core':
         specifier: workspace:*
         version: link:../../packages/server-core
+      '@edv4h/usketch-session-protocol':
+        specifier: workspace:*
+        version: link:../../packages/usketch-session-protocol
+      '@edv4h/usketch-session-voting':
+        specifier: workspace:*
+        version: link:../../packages/usketch-session-voting
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -294,6 +300,9 @@ importers:
       '@edv4h/usketch-plugin-reactions':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-reactions
+      '@edv4h/usketch-plugin-session':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-session
       '@edv4h/usketch-plugin-shape-basic':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-shape-basic
@@ -390,6 +399,9 @@ importers:
       '@edv4h/usketch-plugin-whistle':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-whistle
+      '@edv4h/usketch-session-voting':
+        specifier: workspace:*
+        version: link:../../packages/usketch-session-voting
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -648,6 +660,37 @@ importers:
         specifier: workspace:*
         version: link:../shared
     devDependencies:
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@types/node@25.9.5)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.2.1(@types/node@25.9.5)(esbuild@0.28.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/usketch-session-protocol:
+    devDependencies:
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@types/node@25.9.5)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.2.1(@types/node@25.9.5)(esbuild@0.28.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/usketch-session-voting:
+    dependencies:
+      '@edv4h/usketch-plugin-session':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-session
+      '@edv4h/usketch-session-protocol':
+        specifier: workspace:*
+        version: link:../usketch-session-protocol
+      react:
+        specifier: 19.2.8
+        version: 19.2.8
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.18
+        version: 19.2.18
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -1549,6 +1592,31 @@ importers:
       '@cloudflare/workers-types':
         specifier: 5.20260810.1
         version: 5.20260810.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@types/node@25.9.5)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.2.1(@types/node@25.9.5)(esbuild@0.28.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  plugins/usketch-plugin-session:
+    dependencies:
+      '@edv4h/usketch-session-protocol':
+        specifier: workspace:*
+        version: link:../../packages/usketch-session-protocol
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@edv4h/usketch-sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      react:
+        specifier: 19.2.8
+        version: 19.2.8
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.18
+        version: 19.2.18
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -7497,10 +7565,6 @@ packages:
     resolution: {integrity: sha512-uo33abH+Ays0xYaDysoBt494Hb3hsEczMpcC0MwFl773pazORx4fmvKhclhR1wonUbB6vvpRsvVMwnhfqeMc+A==}
     engines: {node: ^16.14.0 || >= 17.3.0}
 
-  tinyexec@1.2.4:
-    resolution: {integrity: sha512-SHf/r48b7vOrjve9PxJo3MN5v5yuyjHvdUcrQffT3WXMUfnGmHDVbC4k3sHJaJTgZCwpUplIaAo5ANtMyp3YHg==}
-    engines: {node: '>=18'}
-
   tinyexec@1.3.0:
     resolution: {integrity: sha512-QKAl9m8gWWGHV8jZcPeym6j+XULi6tOf1mT83WYJ4Lk2ytW/uwAWkrP0uFsdoYMdueVJ0qs26wZ+23xeB4ibNQ==}
     engines: {node: '>=18'}
@@ -13368,8 +13432,6 @@ snapshots:
 
   tinyclip@0.1.15: {}
 
-  tinyexec@1.2.4: {}
-
   tinyexec@1.3.0: {}
 
   tinyglobby@0.2.17:
@@ -13652,7 +13714,7 @@ snapshots:
       picomatch: 4.0.5
       std-env: 4.2.0
       tinybench: 2.9.0
-      tinyexec: 1.2.4
+      tinyexec: 1.3.0
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
       vite: 8.2.1(@types/node@25.9.5)(esbuild@0.28.1)(tsx@4.21.0)(yaml@2.8.3)

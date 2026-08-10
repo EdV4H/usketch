@@ -16,3 +16,9 @@ export const MSG_AWARENESS = 3;
 export const MSG_BROADCAST = 4;
 export const MSG_PARTITION_REQUEST = 5;
 export const MSG_PARTITION_META = 6;
+/**
+ * SESSION: server-authoritative live sessions (voting / tutorial / card game).
+ * Bidirectional JSON payload; unlike BROADCAST this is **processed by the
+ * server** (SessionManager), not blind-relayed. See `@edv4h/usketch-session-protocol`.
+ */
+export const MSG_SESSION = 7;
