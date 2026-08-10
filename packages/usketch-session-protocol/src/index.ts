@@ -91,7 +91,10 @@ export type ClientToServer =
 	| { t: "join"; sessionId: string }
 	| { t: "action"; sessionId: string; action: SessionAction }
 	| { t: "leave"; sessionId: string }
+	/** Host-only: stop the activity but keep it visible (e.g. freeze the tally). */
 	| { t: "close"; sessionId: string }
+	/** Host-only: end the session entirely and remove it for everyone. */
+	| { t: "end"; sessionId: string }
 	/** Sent on (re)connect to catch up on all current sessions. */
 	| { t: "sync" };
 

@@ -128,6 +128,19 @@ describe("SessionManager — voting", () => {
 		expect(h.errorsFor("u2").length).toBe(1);
 	});
 
+	it("end is host-only and removes the session for everyone", () => {
+		const id = createVote(h, "host");
+		h.mgr.handle("intruder", { t: "end", sessionId: id });
+		expect(h.errorsFor("intruder").length).toBe(1);
+		expect(h.broadcasts.some((b) => b.t === "ended")).toBe(false);
+
+		h.mgr.handle("host", { t: "end", sessionId: id });
+		expect(h.broadcasts.some((b) => b.t === "ended" && b.sessionId === id)).toBe(true);
+		// A late joiner no longer sees it.
+		h.mgr.handle("late", { t: "sync" });
+		expect(h.sent.find((s) => s.userId === "late" && s.msg.t === "state")).toBeUndefined();
+	});
+
 	it("close is host-only", () => {
 		const id = createVote(h, "host");
 		h.mgr.handle("intruder", { t: "close", sessionId: id });

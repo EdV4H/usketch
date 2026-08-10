@@ -281,6 +281,14 @@ function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 	};
 }
 
+/**
+ * @deprecated Superseded by `@edv4h/usketch-plugin-session` (`createSessionPlugin`),
+ * which runs voting through the **server-authoritative** session framework —
+ * mid-join, reconnect, per-user dedup, secret ballots and host-only close are all
+ * enforced server-side. This blind-relay `broadcast` implementation keeps no
+ * persistent state, so it cannot dedup votes or catch up late joiners. Kept only
+ * for backwards compatibility; not registered in the web app.
+ */
 export function createVotingPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
 	return createPlugin(wsProvider);
 }

@@ -164,6 +164,9 @@ export class SessionManager {
 			case "close":
 				this.onClose(userId, msg.sessionId);
 				break;
+			case "end":
+				this.onEnd(userId, msg.sessionId);
+				break;
 		}
 	}
 
@@ -248,6 +251,19 @@ export class SessionManager {
 		TYPES[s.type].close?.({ public: s.public, secret: s.secret });
 		this.commit();
 		this.broadcastState(s);
+	}
+
+	/** Host-only: end the session and remove it for everyone. */
+	private onEnd(userId: string, sessionId: string): void {
+		const s = this.sessions.get(sessionId);
+		if (!s) return;
+		if (s.hostUserId !== userId) {
+			this.deps.send(userId, { t: "error", message: "host only", sessionId });
+			return;
+		}
+		this.sessions.delete(sessionId);
+		this.commit();
+		this.deps.broadcast({ t: "ended", sessionId });
 	}
 
 	// ── presence / reconnect ──

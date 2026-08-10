@@ -25,6 +25,7 @@ import { createPortalPlugin } from "@edv4h/usketch-plugin-portal";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
 import { createPresentationPlugin } from "@edv4h/usketch-plugin-presentation";
+import { createSessionPlugin } from "@edv4h/usketch-plugin-session";
 import { createBasicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
 import { createCardPlugin, EXAMPLE_CARD_TYPES } from "@edv4h/usketch-plugin-shape-card";
 import { createConnectorPlugin } from "@edv4h/usketch-plugin-shape-connector";
@@ -389,6 +390,23 @@ export function App() {
 
 			extraPlugins.push(createWhistlePlugin(wsProvider));
 			extraPlugins.push(createActivityFeedPlugin({ wsProvider, boardId, apiUrl }));
+
+			// Live interactive sessions (voting first) — server-authoritative via the
+			// MSG_SESSION channel. userId MUST match the WS connection identity so the
+			// panel can tell whether this client is the host. The WS uses the dev user
+			// in DEV (via `?devUserId=`) and the cookie-auth user in prod, so mirror
+			// that precedence here — preferring authUser first would break host
+			// detection (no "締める"/"終了") whenever the two identities differ.
+			extraPlugins.push(
+				createSessionPlugin({
+					wsProvider,
+					boardId,
+					userId:
+						(import.meta.env.DEV ? getDevUser()?.id : undefined) ??
+						userIdRef.current ??
+						"anonymous",
+				}),
+			);
 		} else {
 			extraPlugins.push(createLaserPlugin());
 			extraPlugins.push(createSpotlightPlugin());
