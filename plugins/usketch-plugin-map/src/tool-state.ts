@@ -4,7 +4,22 @@ import { useSyncExternalStore } from "react";
 import { createReactiveStore } from "./reactive-store.js";
 import type { TerrainKey } from "./terrain.js";
 
-export type MapMode = "brush" | "eraser" | "fill" | "region" | "stamp" | "generate" | "base";
+/**
+ * All map-tool modes, in canonical order. Exported so a host UI (ActionRing /
+ * radial picker / custom toolbar) can enumerate the modes at runtime instead of
+ * hardcoding the union. `MapMode` is derived from this array — single source.
+ */
+export const MAP_MODES = [
+	"brush",
+	"eraser",
+	"fill",
+	"region",
+	"stamp",
+	"generate",
+	"base",
+] as const;
+
+export type MapMode = (typeof MAP_MODES)[number];
 
 export interface MapToolState {
 	mode: MapMode;
