@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import type { ClientToServer, ServerToClient } from "@edv4h/usketch-session-protocol";
+import { votingServerType } from "@edv4h/usketch-session-voting/server";
 import {
 	MSG_AWARENESS,
 	MSG_BROADCAST,
@@ -54,6 +55,10 @@ export class BoardRoom extends DurableObject<Env> {
 			else void this.ctx.storage.setAlarm(at);
 		},
 		graceMs: SESSION_GRACE_MS,
+		// Registered server-side session types. Add a type's `ServerSessionType`
+		// here (server bundle) to make it playable — the client half is registered
+		// separately in the web app.
+		types: [votingServerType],
 	});
 
 	private sessionFrame(msg: ServerToClient): Uint8Array {

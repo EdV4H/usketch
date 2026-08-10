@@ -2,6 +2,7 @@ import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { createSessionClient } from "./session-client.js";
 import { SessionPanel } from "./session-panel.js";
+import type { ClientSessionType } from "./session-type.js";
 
 export interface SessionPluginOptions {
 	/** Server-authoritative session transport. Sessions are disabled without it. */
@@ -10,6 +11,12 @@ export interface SessionPluginOptions {
 	userId: string;
 	/** For future per-board scoping / telemetry. */
 	boardId?: string;
+	/**
+	 * Registered session types (voting, tutorial, cards…). Each renders its own
+	 * card + create form. The matching server-side `ServerSessionType` must also
+	 * be registered into the Durable Object's SessionManager (server bundle).
+	 */
+	types: readonly ClientSessionType[];
 }
 
 /**
@@ -22,7 +29,7 @@ export interface SessionPluginOptions {
  * registers nothing (per {@link https://github.com/EdV4H/usketch} plan: no-op).
  */
 export function createSessionPlugin(options: SessionPluginOptions): UsketchPlugin {
-	const { wsProvider, userId } = options;
+	const { wsProvider, userId, types } = options;
 
 	return {
 		id: "usketch-plugin-session",
@@ -44,7 +51,7 @@ export function createSessionPlugin(options: SessionPluginOptions): UsketchPlugi
 				id: "session:panel",
 				title: "セッション",
 				order: 40,
-				render: () => <SessionPanel client={client} userId={userId} />,
+				render: () => <SessionPanel client={client} userId={userId} types={types} />,
 			});
 
 			return () => {

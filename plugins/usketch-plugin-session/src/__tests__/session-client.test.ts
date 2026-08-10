@@ -136,7 +136,7 @@ describe("createSessionClient", () => {
 			secret: true,
 			multi: false,
 		});
-		client.vote("s1", 1);
+		client.act("s1", { kind: "cast", optionIndex: 1 });
 		client.close("s1");
 		client.end("s1");
 		expect(ws.sent).toEqual([

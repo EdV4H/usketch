@@ -1,21 +1,19 @@
 import type {
 	ClientToServer,
 	Participant,
-	PublicState,
+	ServerSessionType,
 	ServerToClient,
-	SessionAction,
 	SessionConfig,
 	SessionType,
 	SessionView,
 } from "@edv4h/usketch-session-protocol";
-import { type ServerSessionType, votingType } from "./session-types/voting.js";
 
 /** Server-authoritative session record (secret state is never sent as-is). */
 interface ServerSession {
 	id: string;
 	type: SessionType;
 	hostUserId: string;
-	public: PublicState;
+	public: unknown;
 	secret: unknown;
 	participants: Map<string, Participant>;
 	createdAt: number;
@@ -44,9 +42,12 @@ export interface SessionManagerDeps {
 	setAlarm(at: number | null): void;
 	/** Reconnect grace window in ms. */
 	graceMs: number;
+	/**
+	 * Registered server-side session types (voting, tutorial, cards…). Each owns
+	 * its type's rules; the manager routes a session to its type by `type.type`.
+	 */
+	types: readonly ServerSessionType[];
 }
-
-const TYPES: Record<SessionType, ServerSessionType> = { voting: votingType };
 
 /**
  * Authoritative manager for all live sessions in one board (Durable Object).
@@ -62,8 +63,12 @@ export class SessionManager {
 	private sessions = new Map<string, ServerSession>();
 	/** userId → grace deadline (epoch ms) while disconnected. */
 	private grace = new Map<string, number>();
+	/** type id → its server-side definition. */
+	private readonly types: Map<SessionType, ServerSessionType>;
 
-	constructor(private readonly deps: SessionManagerDeps) {}
+	constructor(private readonly deps: SessionManagerDeps) {
+		this.types = new Map(deps.types.map((t) => [t.type, t]));
+	}
 
 	restore(snap: SessionSnapshot | undefined): void {
 		if (!snap) return;
@@ -109,9 +114,8 @@ export class SessionManager {
 	}
 
 	private sendPrivate(userId: string, s: ServerSession): void {
-		const priv = TYPES[s.type].privateFor({ public: s.public, secret: s.secret }, userId);
-		if (priv != null)
-			this.deps.send(userId, { t: "private", sessionId: s.id, data: priv as never });
+		const priv = this.types.get(s.type)?.privateFor({ public: s.public, secret: s.secret }, userId);
+		if (priv != null) this.deps.send(userId, { t: "private", sessionId: s.id, data: priv });
 	}
 
 	private ensureParticipant(s: ServerSession, userId: string): void {
@@ -172,11 +176,12 @@ export class SessionManager {
 
 	private onCreate(userId: string, config: SessionConfig): void {
 		const type = config.type;
-		if (!TYPES[type]) {
+		const def = this.types.get(type);
+		if (!def) {
 			this.deps.send(userId, { t: "error", message: "unknown session type" });
 			return;
 		}
-		const { public: pub, secret } = TYPES[type].init(config);
+		const { public: pub, secret } = def.init(config);
 		const s: ServerSession = {
 			id: this.deps.genId(),
 			type,
@@ -208,14 +213,17 @@ export class SessionManager {
 		this.sendPrivate(userId, s);
 	}
 
-	private onAction(userId: string, sessionId: string, action: SessionAction): void {
+	private onAction(userId: string, sessionId: string, action: unknown): void {
 		const s = this.sessions.get(sessionId);
 		if (!s) {
 			this.deps.send(userId, { t: "error", message: "no such session", sessionId });
 			return;
 		}
 		this.ensureParticipant(s, userId); // acting joins you
-		const err = TYPES[s.type].reduce({ public: s.public, secret: s.secret }, action, userId);
+		const def = this.types.get(s.type);
+		const err = def
+			? def.reduce({ public: s.public, secret: s.secret }, action, userId)
+			: "unknown session type";
 		if (err) {
 			this.deps.send(userId, { t: "error", message: err, sessionId });
 			return;
@@ -248,7 +256,7 @@ export class SessionManager {
 			this.deps.send(userId, { t: "error", message: "host only", sessionId });
 			return;
 		}
-		TYPES[s.type].close?.({ public: s.public, secret: s.secret });
+		this.types.get(s.type)?.close?.({ public: s.public, secret: s.secret });
 		this.commit();
 		this.broadcastState(s);
 	}

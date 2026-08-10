@@ -1,18 +1,26 @@
 /**
- * Shared client↔server contract for live interactive sessions (voting first,
- * tutorial / card-game later). Types only — no runtime. Imported by both
- * `apps/server` (authoritative SessionManager) and the client session plugin.
+ * Shared client↔server contract for live interactive **sessions** — a generic
+ * framework, not one concrete activity. `usketch-plugin-session` provides the
+ * transport, presence, reconnect and host lifecycle; individual **session types**
+ * (voting, tutorial, card-game) are built on top as separate packages that
+ * register a {@link ServerSessionType} on the server and a client renderer on the
+ * client. This module is the type-only wire contract shared by both tiers.
  *
  * Transport: a dedicated `MSG_SESSION` WebSocket frame carrying a JSON
  * {@link ClientToServer} / {@link ServerToClient} message. The **server is
- * authoritative**: it owns each session's state, enforces rules (dedup, host-only
- * ops, turn order), keeps secret state (who-voted-what, face-down cards) server-
- * side, broadcasts only the public view to everyone, and sends private state to
- * the owning user's sockets alone.
+ * authoritative**: it owns each session's state, enforces the type's rules (dedup,
+ * host-only ops, turn order), keeps secret state (who-voted-what, face-down cards)
+ * server-side, broadcasts only the public view to everyone, and sends private
+ * state to the owning user's sockets alone.
+ *
+ * The envelope is intentionally **type-agnostic**: `public` / private `data` /
+ * `action` / create `config` (beyond the `type` discriminator) are opaque
+ * (`unknown`). Each session type owns and validates its own payload shapes, so
+ * new types are added without touching this contract.
  */
 
-/** Registered session kinds. Extend as new types land. */
-export type SessionType = "voting";
+/** A session type id (e.g. `"voting"`). Open — any registered type's id. */
+export type SessionType = string;
 
 /** A logical participant (keyed by userId; one user may hold several tabs). */
 export interface Participant {
@@ -23,73 +31,37 @@ export interface Participant {
 	connected: boolean;
 }
 
-// ── Public state (broadcast to everyone) ──
-
-export interface VotingPublicState {
-	type: "voting";
-	question: string;
-	options: string[];
-	/** Vote count per option (index-aligned with `options`). */
-	tally: number[];
-	/** Number of distinct users who have voted. */
-	totalVoters: number;
-	/** Secret ballot: the server never reveals who voted for what (only tallies). */
-	secret: boolean;
-	/** Whether a voter may pick multiple options. */
-	multi: boolean;
-	status: "open" | "closed";
-}
-
-export type PublicState = VotingPublicState;
-
-/** A session as seen by clients (fully public — safe to show anyone). */
-export interface SessionView {
+/**
+ * A session as seen by clients (fully public — safe to show anyone).
+ * `TPublic` is the session type's public-state shape; opaque at the framework
+ * level, narrowed by that type's client renderer.
+ */
+export interface SessionView<TPublic = unknown> {
 	id: string;
 	type: SessionType;
 	hostUserId: string;
 	status: "active" | "ended";
-	public: PublicState;
+	public: TPublic;
 	participants: Participant[];
 	createdAt: number;
 }
 
-// ── Create config ──
-
-export interface VotingConfig {
-	type: "voting";
-	question: string;
-	options: string[];
-	secret?: boolean;
-	multi?: boolean;
+/**
+ * Create payload: the `type` discriminator plus that type's own config fields.
+ * The framework only reads `type`; the rest is passed through to the type's
+ * `init`.
+ */
+export interface SessionConfig {
+	type: SessionType;
+	[key: string]: unknown;
 }
 
-export type SessionConfig = VotingConfig;
-
-// ── Actions (client → server, type-specific) ──
-
-export interface VoteCastAction {
-	kind: "cast";
-	optionIndex: number;
-}
-
-export type SessionAction = VoteCastAction;
-
-// ── Private state (server → the owning client only) ──
-
-export interface VotingPrivateState {
-	type: "voting";
-	/** Option indexes this user has voted for. */
-	myVotes: number[];
-}
-
-export type PrivateState = VotingPrivateState;
-
-// ── Wire messages ──
+// ── Wire messages (type-agnostic envelope) ──
 
 export type ClientToServer =
 	| { t: "create"; config: SessionConfig }
 	| { t: "join"; sessionId: string }
-	| { t: "action"; sessionId: string; action: SessionAction }
+	| { t: "action"; sessionId: string; action: unknown }
 	| { t: "leave"; sessionId: string }
 	/** Host-only: stop the activity but keep it visible (e.g. freeze the tally). */
 	| { t: "close"; sessionId: string }
@@ -100,6 +72,43 @@ export type ClientToServer =
 
 export type ServerToClient =
 	| { t: "state"; session: SessionView }
-	| { t: "private"; sessionId: string; data: PrivateState }
+	| { t: "private"; sessionId: string; data: unknown }
 	| { t: "ended"; sessionId: string }
 	| { t: "error"; message: string; sessionId?: string };
+
+// ── Server-side session-type contract ──
+
+/**
+ * Server-side contract a session type implements. The server owns all logic;
+ * clients only render. `public` is broadcast to everyone; `secret` stays
+ * server-side and feeds per-user {@link ServerSessionType.privateFor}. Keep
+ * `public`/`secret` JSON-serializable so the Durable Object can persist them.
+ *
+ * A type registers itself by its {@link ServerSessionType.type} id; the
+ * authoritative `SessionManager` routes each session to its type by that id.
+ * `TPublic`/`TSecret`/`TConfig`/`TAction` are the type's own shapes.
+ */
+export interface ServerSessionType<
+	TPublic = unknown,
+	TSecret = unknown,
+	TConfig extends SessionConfig = SessionConfig,
+	TAction = unknown,
+> {
+	/** This type's id, matched against {@link SessionConfig.type} / {@link SessionView.type}. */
+	readonly type: SessionType;
+	/** Build the initial public + secret state from the create config. */
+	init(config: TConfig): { public: TPublic; secret: TSecret };
+	/**
+	 * Apply an actor's action in place (mutate `state.public` / `state.secret`).
+	 * Return an error string to reject (nothing is broadcast on error).
+	 */
+	reduce(
+		state: { public: TPublic; secret: TSecret },
+		action: TAction,
+		actorUserId: string,
+	): string | undefined;
+	/** The private view for one user (secret ballot receipt / own hand), or null. */
+	privateFor(state: { public: TPublic; secret: TSecret }, userId: string): unknown | null;
+	/** Host-only "close/freeze" (e.g. stop accepting votes). Optional. */
+	close?(state: { public: TPublic; secret: TSecret }): void;
+}

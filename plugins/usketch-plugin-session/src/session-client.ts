@@ -1,8 +1,6 @@
 import type {
 	ClientToServer,
-	PrivateState,
 	ServerToClient,
-	SessionAction,
 	SessionConfig,
 	SessionView,
 } from "@edv4h/usketch-session-protocol";
@@ -12,13 +10,14 @@ import type { WsProviderHandle } from "@edv4h/usketch-sync";
  * Snapshot of all live sessions this client currently knows about. Rebuilt on
  * every server message so `useSyncExternalStore` gets a stable, referentially-new
  * value per change. The **server is authoritative** — this is a read-through
- * mirror, never a source of truth.
+ * mirror, never a source of truth. Payloads are type-agnostic: `public` and
+ * private data are `unknown` and narrowed by each session type's renderer.
  */
 export interface SessionClientState {
 	/** Active sessions, oldest first. */
 	sessions: SessionView[];
-	/** This client's own private state per sessionId (e.g. which options I voted for). */
-	privates: Record<string, PrivateState>;
+	/** This client's own private state per sessionId (opaque; type-specific shape). */
+	privates: Record<string, unknown>;
 	/** Last server-reported error (cleared on the next successful `state`). */
 	error: string | null;
 }
@@ -31,11 +30,8 @@ export interface SessionClient {
 
 	create(config: SessionConfig): void;
 	join(sessionId: string): void;
-	/** Send a type-specific action (voting: cast). */
-	act(sessionId: string, action: SessionAction): void;
-	/** Convenience for the voting cast action. */
-	vote(sessionId: string, optionIndex: number): void;
-	/** Host-only: stop the activity but keep it visible (freeze the tally). */
+	/** Send a type-specific action (opaque; the session type validates it server-side). */
+	act(sessionId: string, action: unknown): void;
 	close(sessionId: string): void;
 	/** Host-only: end the session and remove it for everyone. */
 	end(sessionId: string): void;
@@ -51,10 +47,11 @@ export interface SessionClient {
  * `wsProvider.sendSession` / `onSession`, keeps a local map of the public
  * {@link SessionView}s plus this client's private state, and re-syncs whenever
  * the socket (re)connects so a mid-join or a reconnect catches up automatically.
+ * Type-agnostic: it never inspects `public`/private payloads.
  */
 export function createSessionClient(wsProvider: WsProviderHandle): SessionClient {
 	const sessions = new Map<string, SessionView>();
-	const privates = new Map<string, PrivateState>();
+	const privates = new Map<string, unknown>();
 	let error: string | null = null;
 
 	const listeners = new Set<() => void>();
@@ -121,8 +118,6 @@ export function createSessionClient(wsProvider: WsProviderHandle): SessionClient
 		create: (config) => send({ t: "create", config }),
 		join: (sessionId) => send({ t: "join", sessionId }),
 		act: (sessionId, action) => send({ t: "action", sessionId, action }),
-		vote: (sessionId, optionIndex) =>
-			send({ t: "action", sessionId, action: { kind: "cast", optionIndex } }),
 		close: (sessionId) => send({ t: "close", sessionId }),
 		end: (sessionId) => send({ t: "end", sessionId }),
 		leave: (sessionId) => send({ t: "leave", sessionId }),

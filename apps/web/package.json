@@ -59,6 +59,7 @@
 		"@edv4h/usketch-plugin-voice-notes": "workspace:*",
 		"@edv4h/usketch-plugin-voting": "workspace:*",
 		"@edv4h/usketch-plugin-session": "workspace:*",
+		"@edv4h/usketch-session-voting": "workspace:*",
 		"@edv4h/usketch-plugin-whistle": "workspace:*",
 		"@edv4h/usketch-plugin-domain-design": "workspace:*",
 		"@edv4h/usketch-plugin-shape-counter": "workspace:*",

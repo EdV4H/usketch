@@ -63,6 +63,7 @@ import {
 	createWhisperTranscriber,
 } from "@edv4h/usketch-plugin-voice-notes";
 import { createWhistlePlugin } from "@edv4h/usketch-plugin-whistle";
+import { votingClientType } from "@edv4h/usketch-session-voting/client";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import {
@@ -405,6 +406,7 @@ export function App() {
 						(import.meta.env.DEV ? getDevUser()?.id : undefined) ??
 						userIdRef.current ??
 						"anonymous",
+					types: [votingClientType],
 				}),
 			);
 		} else {

@@ -1,4 +1,5 @@
 import type { ServerToClient, SessionView } from "@edv4h/usketch-session-protocol";
+import { votingServerType } from "@edv4h/usketch-session-voting/server";
 import { beforeEach, describe, expect, it } from "vitest";
 import { SessionManager, type SessionSnapshot } from "../session-manager.js";
 
@@ -29,6 +30,7 @@ function harness(graceMs = 1000) {
 			alarm = at;
 		},
 		graceMs,
+		types: [votingServerType],
 	});
 
 	const lastBroadcastState = (): SessionView => {
