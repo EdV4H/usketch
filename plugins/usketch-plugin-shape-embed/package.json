@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-shape-embed",
-	"version": "0.1.5",
+	"version": "0.1.6",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
