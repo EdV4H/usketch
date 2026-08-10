@@ -1,8 +1,10 @@
 import { DurableObject } from "cloudflare:workers";
+import type { ClientToServer, ServerToClient } from "@edv4h/usketch-session-protocol";
 import {
 	MSG_AWARENESS,
 	MSG_BROADCAST,
 	MSG_PARTITION_REQUEST,
+	MSG_SESSION,
 	MSG_SYNC_STEP1,
 	MSG_SYNC_STEP2,
 	MSG_YJS_UPDATE,
@@ -12,10 +14,14 @@ import { drizzle } from "drizzle-orm/d1";
 import { boardMembers } from "./db/schema.js";
 import { handleAiPlaceShapes, handleAiUpdateShapes } from "./rooms/ai-handler.js";
 import { createPartitionManager } from "./rooms/partition-manager.js";
+import { SessionManager, type SessionSnapshot } from "./rooms/session-manager.js";
 import { createSnapshotManager } from "./rooms/snapshot-manager.js";
 import { handleThumbnail } from "./rooms/thumbnail-handler.js";
 import { createYjsSync } from "./rooms/yjs-sync.js";
 import type { Env } from "./types.js";
+
+/** Reconnect grace window for live sessions (ms). */
+const SESSION_GRACE_MS = 45_000;
 
 /**
  * BoardRoom Durable Object
@@ -31,6 +37,59 @@ export class BoardRoom extends DurableObject<Env> {
 		getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
 		getWebSockets: () => this.ctx.getWebSockets(),
 	});
+
+	// Server-authoritative live sessions (voting / tutorial / card game). State is
+	// persisted to DO storage and the reconnect grace uses the DO alarm.
+	private sessionsLoaded = false;
+	private readonly sessions = new SessionManager({
+		send: (userId, msg) => this.sessionSend(userId, msg),
+		broadcast: (msg) => this.broadcastAll(this.sessionFrame(msg)),
+		now: () => Date.now(),
+		genId: () => crypto.randomUUID(),
+		persist: (snap) => {
+			void this.ctx.storage.put("sessions", snap);
+		},
+		setAlarm: (at) => {
+			if (at == null) void this.ctx.storage.deleteAlarm();
+			else void this.ctx.storage.setAlarm(at);
+		},
+		graceMs: SESSION_GRACE_MS,
+	});
+
+	private sessionFrame(msg: ServerToClient): Uint8Array {
+		const encoded = new TextEncoder().encode(JSON.stringify(msg));
+		const buf = new Uint8Array(encoded.length + 1);
+		buf[0] = MSG_SESSION;
+		buf.set(encoded, 1);
+		return buf;
+	}
+
+	/** Send a session message to every socket belonging to one user (targeted). */
+	private sessionSend(userId: string, msg: ServerToClient): void {
+		const frame = this.sessionFrame(msg);
+		for (const ws of this.ctx.getWebSockets()) {
+			if (this.ctx.getTags(ws)[0] === userId) {
+				try {
+					ws.send(frame);
+				} catch {
+					// 閉じたソケットは無視
+				}
+			}
+		}
+	}
+
+	private async loadSessions(): Promise<void> {
+		if (this.sessionsLoaded) return;
+		this.sessionsLoaded = true;
+		const snap = (await this.ctx.storage.get("sessions")) as SessionSnapshot | undefined;
+		this.sessions.restore(snap);
+	}
+
+	/** DO alarm: drive session reconnect-grace expiry. */
+	async alarm(): Promise<void> {
+		await this.loadSessions();
+		this.sessions.onAlarm();
+	}
 
 	async fetch(request: Request): Promise<Response> {
 		await this.yjsSync.loadUpdates();
@@ -130,6 +189,18 @@ export class BoardRoom extends DurableObject<Env> {
 				this.broadcast(ws, data);
 				break;
 			}
+			case MSG_SESSION: {
+				await this.loadSessions();
+				const userId = this.ctx.getTags(ws)[0] ?? "anonymous";
+				if (userId === "anonymous") break; // 未認証はセッション不可
+				try {
+					const msg = JSON.parse(new TextDecoder().decode(payload)) as ClientToServer;
+					this.sessions.handle(userId, msg);
+				} catch {
+					// 不正なメッセージは無視
+				}
+				break;
+			}
 			case MSG_SYNC_STEP1: {
 				for (const update of this.yjsSync.getUpdates()) {
 					const msg = new Uint8Array(update.length + 1);
@@ -195,6 +266,9 @@ export class BoardRoom extends DurableObject<Env> {
 				} catch {
 					// DB更新失敗はWebSocket切断をブロックしない
 				}
+				// このユーザーの最後の接続 → セッションの離脱猶予を開始（DO alarm）。
+				await this.loadSessions();
+				this.sessions.onDisconnect(userId);
 			}
 		}
 		try {
