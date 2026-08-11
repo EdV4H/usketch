@@ -1,6 +1,8 @@
+import type { ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { ICON_CATEGORIES, ICONS, ICONS_BY_KEY } from "../icons.js";
 import { TERRAIN_KEYS, TERRAINS, terrainPatternId } from "../terrain.js";
+import { makeTileMap, seededTilemap } from "../tilemap-shape.js";
 
 describe("terrain definitions", () => {
 	it("has 12 terrains with unique keys and non-empty patterns", () => {
@@ -31,5 +33,33 @@ describe("icon definitions", () => {
 			expect(i.nodes.length).toBeGreaterThan(0);
 			expect(ICONS_BY_KEY.get(i.key)).toBe(i);
 		}
+	});
+});
+
+describe("seededTilemap", () => {
+	const withSeed = (id: string, baseSeed?: number): ShapeData => ({
+		...makeTileMap(40),
+		id,
+		...(baseSeed != null ? { baseSeed } : {}),
+	});
+
+	it("returns null when no tilemap carries a seed", () => {
+		expect(seededTilemap([withSeed("b"), withSeed("a")])).toBeNull();
+		expect(seededTilemap([])).toBeNull();
+	});
+
+	it("picks the lowest-id seeded tilemap regardless of iteration order", () => {
+		const a = withSeed("aaa", 111);
+		const b = withSeed("bbb", 222);
+		// Same set, opposite orders → same deterministic winner (lowest id).
+		expect(seededTilemap([b, a])?.id).toBe("aaa");
+		expect(seededTilemap([a, b])?.id).toBe("aaa");
+	});
+
+	it("ignores non-tilemap shapes and unseeded tilemaps", () => {
+		const other = { ...makeTileMap(40), id: "zzz", type: "rect" } as unknown as ShapeData;
+		const unseeded = withSeed("aaa");
+		const seeded = withSeed("mmm", 42);
+		expect(seededTilemap([other, unseeded, seeded])?.baseSeed).toBe(42);
 	});
 });

@@ -34,6 +34,20 @@ export function isTileMap(shape: ShapeData): shape is TileMapShapeData {
 	return shape.type === TILEMAP_TYPE;
 }
 
+/**
+ * The tilemap that owns the infinite-terrain seed, chosen **deterministically**
+ * (lowest `id`) so every synced client resolves the same seed even if several
+ * seeded tilemaps coexist — `getShapes()` insertion order is not guaranteed
+ * identical across peers, so we must not rely on "first found". Returns `null`
+ * when no tilemap carries a seed.
+ */
+export function seededTilemap(shapes: Iterable<ShapeData>): TileMapShapeData | null {
+	let best: TileMapShapeData | null = null;
+	for (const s of shapes)
+		if (isTileMap(s) && s.baseSeed != null && (best === null || s.id < best.id)) best = s;
+	return best;
+}
+
 /** Create a new empty tilemap (locked substrate). */
 export function makeTileMap(tile: number): TileMapShapeData {
 	const bounds = { x: 0, y: 0, width: 0, height: 0 };

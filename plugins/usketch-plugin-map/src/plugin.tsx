@@ -20,6 +20,7 @@ import {
 	createTileMapShapeDefinition,
 	DEFAULT_TILE,
 	isTileMap,
+	seededTilemap,
 	TILEMAP_TYPE,
 	type TileMapShapeData,
 } from "./tilemap-shape.js";
@@ -93,13 +94,11 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			//    on-canvas palette). Toggle the HUD with the backtick key. ──
 			const unregisterMapHud = registerMapHud(ctx, tile);
 
-			// The infinite-terrain seed is read from the first tilemap shape carrying one
-			// (board data — persisted + synced), not from app-local render config.
-			const currentBaseSeed = (): number | null => {
-				for (const [, s] of ctx.store.getShapes())
-					if (isTileMap(s) && s.baseSeed != null) return s.baseSeed;
-				return null;
-			};
+			// The infinite-terrain seed is read from the seeded tilemap shape (board
+			// data — persisted + synced), not from app-local render config. Chosen
+			// deterministically so the HUD agrees with the renderer and across clients.
+			const currentBaseSeed = (): number | null =>
+				seededTilemap(ctx.store.getShapes().values())?.baseSeed ?? null;
 
 			// ── Tweaks as declarative HUD settings ──
 			const unregisterHud = ctx.hud.registerSettings({
@@ -158,10 +157,13 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 					else if (name === "infinite") {
 						const on = value === true || value === "true";
 						if (on) {
-							// Stamp the seed onto a tilemap (creating one if the board is blank),
-							// so it persists + syncs. Reuse the existing seed if already enabled.
+							// Stamp the seed onto a tilemap so it persists + syncs. If one is
+							// already seeded, re-stamp that same (deterministic) shape; else reuse
+							// the shared tilemap, creating one when the board is blank.
 							const seed = currentBaseSeed() ?? genStateStore.get().seed;
-							const { id } = resolveTilemap(ctx.store, tile);
+							const id =
+								seededTilemap(ctx.store.getShapes().values())?.id ??
+								resolveTilemap(ctx.store, tile).id;
 							ctx.store.updateShape(id, { baseSeed: seed } as Partial<TileMapShapeData>);
 						} else {
 							for (const [id, s] of ctx.store.getShapes())
