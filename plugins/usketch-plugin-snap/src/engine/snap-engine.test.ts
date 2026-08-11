@@ -8,6 +8,7 @@ const defaults: SnapSettings = {
 	threshold: 8,
 	edgeSnap: true,
 	centerSnap: true,
+	distributeSnap: false,
 	viewportOnly: false,
 	guideStyle: {
 		color: "#3b82f6",

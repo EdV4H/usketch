@@ -1,5 +1,6 @@
 import type { BoundingBox } from "@edv4h/usketch-shared";
 import { DEFAULT_SNAP_THRESHOLD } from "../constants.js";
+import { findDistributeSnap } from "./distribute.js";
 import { extractSnapPoints } from "./snap-points.js";
 import type {
 	SnapEdge,
@@ -8,6 +9,7 @@ import type {
 	SnapPoint,
 	SnapResult,
 	SnapSettings,
+	SpacingGuide,
 } from "./types.js";
 
 export interface SnapEdgeFilter {
@@ -26,7 +28,7 @@ export function calculateSnap(
 	edgeFilter?: SnapEdgeFilter,
 ): SnapResult {
 	if (!settings.enabled) {
-		return { dx: 0, dy: 0, xEdge: null, yEdge: null, lines: [] };
+		return { dx: 0, dy: 0, xEdge: null, yEdge: null, lines: [], gaps: [] };
 	}
 
 	const threshold = settings.threshold ?? DEFAULT_SNAP_THRESHOLD;
@@ -55,14 +57,28 @@ export function calculateSnap(
 		candidateY.push(...pts.yPoints);
 	}
 
-	// Find best snap for each axis independently
+	// Alignment (edge/center) snaps per axis
 	const xSnap = findBestSnap(moving.xPoints, candidateX, threshold);
 	const ySnap = findBestSnap(moving.yPoints, candidateY, threshold);
 
-	// Build guide lines with indicators
+	// Equal-spacing (distribution) snaps — moves only (skipped during resize).
+	const distEnabled = settings.distributeSnap && !edgeFilter;
+	const distX = distEnabled
+		? findDistributeSnap(movingBox, candidateBoxes, movingShapeIds, threshold, "x")
+		: null;
+	const distY = distEnabled
+		? findDistributeSnap(movingBox, candidateBoxes, movingShapeIds, threshold, "y")
+		: null;
+
+	// Per axis, prefer whichever snap (alignment vs distribution) is nearer.
+	const xUseDist = distX !== null && (xSnap === null || Math.abs(distX.delta) < Math.abs(xSnap.dx));
+	const yUseDist = distY !== null && (ySnap === null || Math.abs(distY.delta) < Math.abs(ySnap.dx));
+
+	// Build guide lines / gap guides with indicators
 	const lines: SnapLine[] = [];
-	const snapDx = xSnap?.dx ?? 0;
-	const snapDy = ySnap?.dx ?? 0;
+	const gaps: SpacingGuide[] = [];
+	const snapDx = xUseDist && distX ? distX.delta : (xSnap?.dx ?? 0);
+	const snapDy = yUseDist && distY ? distY.delta : (ySnap?.dx ?? 0);
 
 	// Snapped moving box position
 	const snappedMoving = {
@@ -72,7 +88,9 @@ export function calculateSnap(
 		height: movingBox.height,
 	};
 
-	if (xSnap) {
+	if (xUseDist && distX) {
+		gaps.push(distX.guide);
+	} else if (xSnap) {
 		const position = xSnap.candidate.value;
 		const yExtent = computeExtent(
 			snappedMoving.y,
@@ -105,7 +123,9 @@ export function calculateSnap(
 		});
 	}
 
-	if (ySnap) {
+	if (yUseDist && distY) {
+		gaps.push(distY.guide);
+	} else if (ySnap) {
 		const position = ySnap.candidate.value;
 		const xExtent = computeExtent(
 			snappedMoving.x,
@@ -139,9 +159,10 @@ export function calculateSnap(
 	return {
 		dx: snapDx,
 		dy: snapDy,
-		xEdge: xSnap?.moving.edge ?? null,
-		yEdge: ySnap?.moving.edge ?? null,
+		xEdge: xUseDist ? null : (xSnap?.moving.edge ?? null),
+		yEdge: yUseDist ? null : (ySnap?.moving.edge ?? null),
 		lines,
+		gaps,
 	};
 }
 
