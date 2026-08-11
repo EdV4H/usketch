@@ -169,8 +169,11 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 									ctx.store.updateShape(id, { baseSeed: undefined } as Partial<TileMapShapeData>);
 						}
 					} else if (name === "seed") {
+						// Coerce to a finite integer (matches step:1); ignore junk so a bad
+						// value can't turn baseSeed into NaN → NaN elevations everywhere.
+						const seed = Math.trunc(Number(value));
+						if (!Number.isFinite(seed)) return;
 						// Remember on the gen store, and re-seed any tilemap that already has a base.
-						const seed = Number(value);
 						genStateStore.set({ seed });
 						for (const [id, s] of ctx.store.getShapes())
 							if (isTileMap(s) && s.baseSeed != null)

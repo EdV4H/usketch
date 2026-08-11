@@ -349,8 +349,13 @@ export function MapTerrainLayer({
 	let baseNodes: React.ReactElement[] = [];
 	let baseWobble = false;
 	if (baseActive && visible && baseSeed != null) {
-		const merged: Cells = {};
-		for (const tm of tilemaps) Object.assign(merged, tm.cells);
+		// Overrides for the sampler. The common case is a single shared tilemap —
+		// reuse its `cells` directly (read-only here) to avoid copying every RAF
+		// frame; only allocate + merge when several tilemaps coexist.
+		const merged: Cells =
+			tilemaps.length === 1
+				? tilemaps[0].cells
+				: Object.assign({}, ...tilemaps.map((tm) => tm.cells));
 		const detail = tileDetail(defaultTile * vp.zoom, renderMode);
 		baseWobble = cfg.lineStyle === "wobble" && detail === "full";
 		baseNodes =
