@@ -352,11 +352,16 @@ export function MapTerrainLayer({
 	if (baseActive && visible && baseSeed != null) {
 		// Overrides for the sampler. The common case is a single shared tilemap —
 		// reuse its `cells` directly (read-only here) to avoid copying every RAF
-		// frame; only allocate + merge when several tilemaps coexist.
+		// frame; only allocate + merge when several tilemaps coexist. Merge in
+		// id order so overlapping cells resolve deterministically (highest id
+		// wins) — insertion order isn't consistent across synced clients.
 		const merged: Cells =
 			tilemaps.length === 1
 				? tilemaps[0].cells
-				: Object.assign({}, ...tilemaps.map((tm) => tm.cells));
+				: Object.assign(
+						{},
+						...[...tilemaps].sort((a, b) => (a.id < b.id ? -1 : 1)).map((tm) => tm.cells),
+					);
 		const detail = tileDetail(defaultTile * vp.zoom, renderMode);
 		baseWobble = cfg.lineStyle === "wobble" && detail === "full";
 		baseNodes =

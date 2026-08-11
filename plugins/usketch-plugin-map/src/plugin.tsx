@@ -182,12 +182,20 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 								ctx.store.updateShape(id, { baseSeed: seed } as Partial<TileMapShapeData>);
 					}
 				},
-				// Re-read on both look-and-feel changes (renderConfig) AND board changes (the
+				// Re-read on look-and-feel changes (renderConfig) AND shape mutations (the
 				// tilemap shape now carries infinite/seed), so the toggle reflects the shape
-				// even when it is edited elsewhere or by another client.
+				// even when edited elsewhere or by another client. Filter to shape events —
+				// not viewport/selection — so panning/zooming doesn't re-evaluate the HUD.
 				subscribe: (listener) => {
 					const unsubConfig = renderConfigStore.subscribe(listener);
-					const unsubStore = ctx.store.subscribe(listener);
+					const unsubStore = ctx.store.onMutation((e) => {
+						if (
+							e.type === "shape:added" ||
+							e.type === "shape:removed" ||
+							e.type === "shape:updated"
+						)
+							listener();
+					});
 					return () => {
 						unsubConfig();
 						unsubStore();
