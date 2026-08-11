@@ -200,4 +200,28 @@ describe("calculateSnap", () => {
 		expect(result.dy).toBe(0);
 		expect(result.lines).toHaveLength(0);
 	});
+
+	it("spans EVERY shape sharing the snapped value, not just the nearest one", () => {
+		// A, B, C all have their left edge at x=100 but at different Y bands.
+		const candidates = makeCandidates({
+			a: { x: 100, y: 0, width: 50, height: 50 },
+			b: { x: 100, y: 200, width: 50, height: 50 },
+			c: { x: 100, y: 400, width: 50, height: 50 },
+		});
+		// Drag a box whose left edge is 2px short of x=100.
+		const moving: BoundingBox = { x: 98, y: 600, width: 50, height: 50 };
+		const result = calculateSnap(moving, new Set(), candidates, {
+			...defaults,
+			centerSnap: false,
+		});
+		expect(result.dx).toBe(2); // left edge snaps to x=100
+
+		const xLine = result.lines.find((l) => l.axis === "x");
+		expect(xLine).toBeTruthy();
+		// One continuous line spanning moving(600..650) + A(0) + B + C(..450).
+		expect(xLine?.from).toBe(0);
+		expect(xLine?.to).toBe(650);
+		// Two dots each for the moving box AND all three aligned shapes.
+		expect(xLine?.indicators).toHaveLength(8);
+	});
 });

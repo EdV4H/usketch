@@ -17,6 +17,10 @@ gap snapping に倣い、2つの挙動を追加:
 場合は**より近い方**を採用。ガイドは両端キャップ付きの実線セグメントで、点線の整列線と区別できる。
 リサイズ中は無効。
 
+あわせて**整列ガイドの不具合も修正**: これまでは吸着値に一致する候補を1つしか反映せず、同じ値に
+複数シェイプが揃っていても線・指標が1シェイプ分しか出なかった。修正後は**同一値の全シェイプを
+1本の連続線＋各シェイプの指標**で反映する（tldraw 同様）。
+
 - 既定 **ON**。`snap:configure({ distributeSnap: false })` または `createSnapPlugin({ distributeSnap: false })` で無効化可能。
 - 公開型: `SpacingGuide` / `GapSegment` / `SnapResult.gaps` / `SnapSettings.distributeSnap`。
 - 純ロジックは `engine/distribute.ts`（単体テスト付き）。
