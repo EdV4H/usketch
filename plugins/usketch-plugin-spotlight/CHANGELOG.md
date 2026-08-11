@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-spotlight
 
+## 2.0.12
+
+### Patch Changes
+
+- Updated dependencies [6a1e9b9]
+  - @edv4h/usketch-sync@1.2.0
+
 ## 2.0.11
 
 ### Patch Changes
