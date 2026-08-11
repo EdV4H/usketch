@@ -21,6 +21,13 @@ export interface TileMapShapeData extends ShapeData {
 	 * subset of `cells`.
 	 */
 	handPaint?: Record<string, true>;
+	/**
+	 * Seed for the infinite procedurally-generated base terrain. When set, every
+	 * unpainted cell is filled by `baseTerrainAt(baseSeed, col, row)`. Stored on the
+	 * shape (not app-local render config) so the generated world **persists across
+	 * reloads and syncs to everyone** on the board. `undefined` = no base.
+	 */
+	baseSeed?: number;
 }
 
 export function isTileMap(shape: ShapeData): shape is TileMapShapeData {

@@ -6,6 +6,7 @@ import { BaseAreaLayer } from "./base/base-layer.js";
 import { BASE_MAP_TYPE, createBaseMapShapeDefinition } from "./base/base-map-shape.js";
 import { EnterBanner } from "./base/enter-banner.js";
 import { genStateStore } from "./gen-state.js";
+import { resolveTilemap } from "./generate.js";
 import { registerMapHud } from "./hud/register-map-hud.js";
 import { MAP_ICON_TYPE, mapIconShapeDefinition } from "./map-icon-shape.js";
 import { MapTerrainLayer } from "./map-layer.js";
@@ -15,7 +16,13 @@ import type { ColorMode } from "./palette.js";
 import { createRangeEraseToolDefinition, RANGE_ERASE_TOOL_ID } from "./range-erase-tool.js";
 import { type LineStyle, renderConfigStore } from "./render-config.js";
 import { TERRAINS, type TerrainKey } from "./terrain.js";
-import { createTileMapShapeDefinition, DEFAULT_TILE, TILEMAP_TYPE } from "./tilemap-shape.js";
+import {
+	createTileMapShapeDefinition,
+	DEFAULT_TILE,
+	isTileMap,
+	TILEMAP_TYPE,
+	type TileMapShapeData,
+} from "./tilemap-shape.js";
 
 export interface MapPluginOptions {
 	/** Tile size in world units. Default 40 (matches the design grid). */
@@ -86,6 +93,14 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			//    on-canvas palette). Toggle the HUD with the backtick key. ──
 			const unregisterMapHud = registerMapHud(ctx, tile);
 
+			// The infinite-terrain seed is read from the first tilemap shape carrying one
+			// (board data — persisted + synced), not from app-local render config.
+			const currentBaseSeed = (): number | null => {
+				for (const [, s] of ctx.store.getShapes())
+					if (isTileMap(s) && s.baseSeed != null) return s.baseSeed;
+				return null;
+			};
+
 			// ── Tweaks as declarative HUD settings ──
 			const unregisterHud = ctx.hud.registerSettings({
 				id: "usketch-map:tweaks",
@@ -126,8 +141,10 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				],
 				get: (name) => {
 					if (name === "emptyTerrain") return renderConfigStore.get().emptyTerrain ?? "none";
-					if (name === "infinite") return renderConfigStore.get().baseSeed != null;
-					if (name === "seed") return renderConfigStore.get().baseSeed ?? genStateStore.get().seed;
+					// infinite/seed live on the tilemap SHAPE (persisted + synced), not on the
+					// app-local render config — so the generated world survives reload.
+					if (name === "infinite") return currentBaseSeed() != null;
+					if (name === "seed") return currentBaseSeed() ?? genStateStore.get().seed;
 					return renderConfigStore.get()[name as keyof ReturnType<typeof renderConfigStore.get>];
 				},
 				set: (name, value) => {
@@ -140,12 +157,37 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 						});
 					else if (name === "infinite") {
 						const on = value === true || value === "true";
-						renderConfigStore.set({
-							baseSeed: on ? (renderConfigStore.get().baseSeed ?? genStateStore.get().seed) : null,
-						});
-					} else if (name === "seed") renderConfigStore.set({ baseSeed: Number(value) });
+						if (on) {
+							// Stamp the seed onto a tilemap (creating one if the board is blank),
+							// so it persists + syncs. Reuse the existing seed if already enabled.
+							const seed = currentBaseSeed() ?? genStateStore.get().seed;
+							const { id } = resolveTilemap(ctx.store, tile);
+							ctx.store.updateShape(id, { baseSeed: seed } as Partial<TileMapShapeData>);
+						} else {
+							for (const [id, s] of ctx.store.getShapes())
+								if (isTileMap(s) && s.baseSeed != null)
+									ctx.store.updateShape(id, { baseSeed: undefined } as Partial<TileMapShapeData>);
+						}
+					} else if (name === "seed") {
+						// Remember on the gen store, and re-seed any tilemap that already has a base.
+						const seed = Number(value);
+						genStateStore.set({ seed });
+						for (const [id, s] of ctx.store.getShapes())
+							if (isTileMap(s) && s.baseSeed != null)
+								ctx.store.updateShape(id, { baseSeed: seed } as Partial<TileMapShapeData>);
+					}
 				},
-				subscribe: renderConfigStore.subscribe,
+				// Re-read on both look-and-feel changes (renderConfig) AND board changes (the
+				// tilemap shape now carries infinite/seed), so the toggle reflects the shape
+				// even when it is edited elsewhere or by another client.
+				subscribe: (listener) => {
+					const unsubConfig = renderConfigStore.subscribe(listener);
+					const unsubStore = ctx.store.subscribe(listener);
+					return () => {
+						unsubConfig();
+						unsubStore();
+					};
+				},
 			});
 
 			return () => {

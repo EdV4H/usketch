@@ -341,8 +341,10 @@ export function MapTerrainLayer({
 
 	// Infinite base terrain: one pass fills the whole viewport from the base field
 	// (+ painted overrides + autotile), replacing the flat empty background and the
-	// per-tilemap render. Works even with no tilemap shape (a blank infinite world).
-	const baseSeed = cfg.baseSeed;
+	// per-tilemap render. The seed lives on the tilemap SHAPE (persisted + synced),
+	// so the generated world survives reloads and is shared with everyone on the
+	// board. First tilemap carrying a seed wins.
+	const baseSeed = tilemaps.find((tm) => tm.baseSeed != null)?.baseSeed ?? null;
 	const baseActive = baseSeed != null && !!visible;
 	let baseNodes: React.ReactElement[] = [];
 	let baseWobble = false;

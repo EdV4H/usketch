@@ -14,8 +14,11 @@ map: 無限・手続き生成のベース地形（チャンク読み込み Phase
   LRU キャッシュ＋`makeTerrainSampler`（override ?? base）。
 - `map-layer.tsx`: 無限ベース描画パス（可視セル範囲のみ描画＝O(visible)、full/coarse 両対応、
   オートタイルは総関数 sampler 経由でチャンク境界の破綻なし）。空ボードでも描画。
-- `render-config.ts`: `baseSeed: number | null`（`renderConfigStore` から公開・#927 の API で駆動可）。
-- HUD「RPG マップ」に **「無限地形」トグル＋「シード」** を追加。
+- `tilemap-shape.ts`: `baseSeed?: number` を `tilemap` shape に追加。seed は**アプリローカルな
+  render config ではなく shape（同期・永続対象）に持つ**ので、生成した世界は**リロードしても
+  消えず、ボード上の全員に同期**される。
+- HUD「RPG マップ」の **「無限地形」トグル＋「シード」** は tilemap shape の `baseSeed` を
+  読み書きする（無ければ空 tilemap を生成して stamp）。
 - 決定論・分布・sampler の単体テスト。
 
 後続（Phase 2/3）で、編集差分のチャンク shape 化（独立同期）／サーバー空間ストリーミングを予定。
