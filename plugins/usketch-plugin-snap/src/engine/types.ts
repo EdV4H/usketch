@@ -78,8 +78,12 @@ export interface SnapSettings {
 	threshold: number;
 	edgeSnap: boolean;
 	centerSnap: boolean;
-	/** Equal-spacing / distribution snapping (gap duplication + center-in-gap). */
-	distributeSnap: boolean;
+	/**
+	 * Equal-spacing / distribution snapping (gap duplication + center-in-gap).
+	 * Optional for backward compatibility — `undefined` is treated as **on**
+	 * (only an explicit `false` disables it), matching the plugin default.
+	 */
+	distributeSnap?: boolean;
 	viewportOnly: boolean;
 	guideStyle: GuideStyle;
 	/** Alt(Option) キーの挙動（既定 `"suppress"`）。 */

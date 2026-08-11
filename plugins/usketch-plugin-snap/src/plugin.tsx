@@ -86,6 +86,10 @@ function toScreenGaps(
 ): SpacingGuide[] {
 	return gaps.map((g) => ({
 		...g,
+		// Convert `length` too so the returned guide is entirely in screen units
+		// (no world/screen mixing). The world-space length stays available on
+		// `state.gaps` for anything semantic (e.g. a future gap label).
+		length: g.length * vp.zoom,
 		segments: g.segments.map((s) => {
 			if (g.axis === "x") {
 				return {

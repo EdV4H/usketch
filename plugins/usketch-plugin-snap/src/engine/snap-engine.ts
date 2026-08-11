@@ -62,7 +62,8 @@ export function calculateSnap(
 	const ySnap = findBestSnap(moving.yPoints, candidateY, threshold);
 
 	// Equal-spacing (distribution) snaps — moves only (skipped during resize).
-	const distEnabled = settings.distributeSnap && !edgeFilter;
+	// `undefined` counts as on (only an explicit `false` disables it).
+	const distEnabled = settings.distributeSnap !== false && !edgeFilter;
 	const distX = distEnabled
 		? findDistributeSnap(movingBox, candidateBoxes, movingShapeIds, threshold, "x")
 		: null;
