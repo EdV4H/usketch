@@ -89,6 +89,19 @@ describe("distribution snap — gap duplication", () => {
 		expect(r.gaps[0].segments.length).toBe(2);
 	});
 
+	it("does not duplicate a gap ACROSS an intervening shape (uses the nearest neighbor)", () => {
+		// A[0..10], B[30..40] define a gap of 20. C[45..55] sits to B's right.
+		// Dropping M near x=60 must snap by C's gap (5), not B's gap (20) reaching across C.
+		const withIntervening = candidates({
+			a: box(0, 0, 10, 10),
+			b: box(30, 0, 10, 10),
+			c: box(45, 0, 10, 10),
+		});
+		const r = calculateSnap(box(58, 0, 10, 10), NO_MOVING, withIntervening, settings());
+		expect(r.dx).toBe(2); // snaps to 60
+		expect(r.gaps[0].length).toBe(5); // gap to the NEAREST neighbor C, not 20 across C
+	});
+
 	it("does not offer a target that would overlap an existing shape", () => {
 		// A[0..10], B[30..40], gap 20. Right of A at gap 20 would land on B[30..40];
 		// that target must be skipped, so a box dragged there does not snap onto B.
@@ -157,9 +170,11 @@ describe("distribution vs alignment", () => {
 		const row = candidates({
 			a: box(0, 0, 10, 10),
 			b: box(30, 0, 10, 10),
-			// D's right edge at 57: edge-align to it is 2px away; distribute target 60 is 1px.
-			// D sits left of the distribute target so it does not overlap it.
-			d: box(47, 0, 10, 10),
+			// D is far away on Y so it is NOT in M's row (no distribution gap), but its
+			// left edge at 57 is still an edge-align candidate 2px from M.min=59.
+			// Distribute target (right of B, gap 20) is 60 — 1px away — and its gap
+			// region is clear, so distribution wins over the 2px alignment.
+			d: box(57, 500, 10, 10),
 		});
 		const r = calculateSnap(box(59, 0, 10, 10), NO_MOVING, row, settings({ edgeSnap: true }));
 		expect(r.dx).toBe(1); // distribute → 60 (nearer than the 2px edge-align)

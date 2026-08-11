@@ -138,9 +138,10 @@ function findBestSnap(
 	return best;
 }
 
-/** Candidate points within this (world units) of the winning value are treated
- *  as being "on the same snap line", so the guide spans every aligned shape. */
-const ALIGN_EPS = 0.5;
+/** Candidates whose value equals the winning value (modulo float error) are on
+ *  the same snap line. A tiny epsilon — NOT a visible distance — so only shapes
+ *  that truly share the snapped value are aggregated. */
+const ALIGN_EPS = 1e-6;
 
 /**
  * Build one alignment guide line for a winning snap. Instead of reflecting only

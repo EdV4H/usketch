@@ -135,16 +135,21 @@ export function findDistributeSnap(
 	for (const g of gaps) {
 		if (!refLengths.some((L) => Math.abs(L - g.length) <= EQUAL_TOL)) refLengths.push(g.length);
 	}
-	const overlapsRow = (lo: number, hi: number): boolean =>
-		row.some((b) => Math.min(hi, a.max(b)) - Math.max(lo, a.min(b)) > EPS);
+	// True iff another row shape sits anywhere in the open span (lo, hi). `s`'s own
+	// touching edge (overlap 0) is not counted. Used to require the *whole* region
+	// from a shape's outer edge through the moving box (the new gap + the box) to be
+	// clear — otherwise an intervening shape would make the real nearest gap ≠ L and
+	// the guide would visually cross it.
+	const spanIsClear = (lo: number, hi: number): boolean =>
+		!row.some((b) => Math.min(hi, a.max(b)) - Math.max(lo, a.min(b)) > EPS);
 
-	for (const s of row) {
-		for (const L of refLengths) {
-			const matches = existingSegsOfLength(L);
-			// right of s: gap(s, moving) = L
+	for (const L of refLengths) {
+		const matches = existingSegsOfLength(L); // depends only on L — hoist out of the shape loop
+		for (const s of row) {
+			// right of s: gap(s, moving) = L. The gap [s.max, moving.min] AND the box must be empty.
 			{
 				const targetMin = a.max(s) + L;
-				if (!overlapsRow(targetMin, targetMin + mSize)) {
+				if (spanIsClear(a.max(s), targetMin + mSize)) {
 					consider(targetMin - mMin, {
 						axis,
 						length: L,
@@ -152,10 +157,10 @@ export function findDistributeSnap(
 					});
 				}
 			}
-			// left of s: gap(moving, s) = L
+			// left of s: gap(moving, s) = L. The box AND the gap [moving.max, s.min] must be empty.
 			{
 				const targetMax = a.min(s) - L;
-				if (!overlapsRow(targetMax - mSize, targetMax)) {
+				if (spanIsClear(targetMax - mSize, a.min(s))) {
 					consider(targetMax - mMax, {
 						axis,
 						length: L,
