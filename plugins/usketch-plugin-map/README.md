@@ -42,3 +42,37 @@ const plugins = [
 | `tile` | `40` | タイル辺（world 単位） |
 | `defaultColorMode` | `"color"` | 初期配色（`color` / `mono`） |
 | `defaultLineStyle` | `"wobble"` | 初期線種（`wobble` / `clean`） |
+
+## ツール状態の公開 API（#927 / v0.6.0）
+
+Control HUD（`debug-hud`）以外の**ホスト独自 UI**（ActionRing / ラジアルメニュー / 独自ツールバー）
+からツールの mode / terrain / icon を切り替えられるよう、内部の app-local reactive store を公開している。
+`renderConfigStore` と同じ **public reactive store（`get()` / `set(patch)` / `subscribe()`）** パターン。
+いずれも同期対象外（presentation/interaction state）。
+
+| export | 内容 |
+|---|---|
+| `toolStateStore` / `MapToolState` / `useMapToolState()` | `mode` / `terrain` / `iconKey` / `excludeTerrains` |
+| `MAP_MODES` | モードの順序付き配列（`brush\|eraser\|fill\|region\|stamp\|generate\|base`）。`MapMode` はここから派生（実行時に列挙可能） |
+| `rangeEraseStore` / `RangeEraseTargets` / `useRangeEraseTargets()` | 範囲消しの対象 |
+| `genStateStore` / `GenState` / `WorldRect` / `useGenState()` | 生成 UI（アルゴリズム / seed / params / ドラッグ矩形） |
+| `baseStateStore` / `BaseToolState` / `useBaseState()` | 拠点ツールの選択状態 |
+| `ReactiveStore` | 各 store の共通インターフェース |
+| `TERRAINS` / `ICONS` | 既存 export（terrain / icon の定義一覧） |
+
+```tsx
+import { toolStateStore, MAP_MODES, TERRAINS, useMapToolState } from "@edv4h/usketch-plugin-map";
+
+// 独自 ActionRing から直接セット
+toolStateStore.set({ mode: "brush", terrain: "grass" });
+
+// React で購読
+function ModePicker() {
+  const { mode } = useMapToolState();
+  return MAP_MODES.map((m) => (
+    <button key={m} aria-pressed={m === mode} onClick={() => toolStateStore.set({ mode: m })}>
+      {m}
+    </button>
+  ));
+}
+```

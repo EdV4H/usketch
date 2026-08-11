@@ -412,8 +412,9 @@
 		"name": "Voting",
 		"category": "ui",
 		"glyph": "✓",
-		"summary": "Dot voting on shapes for workshops.",
-		"install": "pnpm add @edv4h/usketch-plugin-voting"
+		"summary": "Dot voting on shapes for workshops. Deprecated — superseded by the server-authoritative session framework (@edv4h/usketch-plugin-session).",
+		"install": "pnpm add @edv4h/usketch-plugin-voting",
+		"tags": ["deprecated"]
 	},
 	{
 		"id": "board-info-panel",
@@ -530,5 +531,22 @@
 		"glyph": "VX",
 		"summary": "Voice memo: record → AI summarize → summary Frame on the canvas.",
 		"install": "pnpm add @edv4h/usketch-plugin-voice-notes"
+	},
+	{
+		"id": "session",
+		"name": "Session",
+		"category": "presence",
+		"glyph": "🗳",
+		"summary": "Server-authoritative live sessions (voting first): mid-join, reconnect grace, host handoff and secret ballots. A framework — build your own session types (tutorial, card game) on top.",
+		"tags": ["multiplayer", "server-authoritative"],
+		"install": "pnpm add @edv4h/usketch-plugin-session"
+	},
+	{
+		"id": "map",
+		"name": "Map",
+		"category": "tool",
+		"glyph": "🗺",
+		"summary": "RPG / world-map builder: paint terrain, stamp icons, autotile, region fill and generators. Exposes public tool-state stores so hosts can drive it from custom UIs.",
+		"install": "pnpm add @edv4h/usketch-plugin-map"
 	}
 ]
