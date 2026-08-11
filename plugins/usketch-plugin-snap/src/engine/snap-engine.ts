@@ -1,5 +1,6 @@
 import type { BoundingBox } from "@edv4h/usketch-shared";
 import { DEFAULT_SNAP_THRESHOLD } from "../constants.js";
+import { findDistributeSnap } from "./distribute.js";
 import { extractSnapPoints } from "./snap-points.js";
 import type {
 	SnapEdge,
@@ -8,6 +9,7 @@ import type {
 	SnapPoint,
 	SnapResult,
 	SnapSettings,
+	SpacingGuide,
 } from "./types.js";
 
 export interface SnapEdgeFilter {
@@ -26,7 +28,7 @@ export function calculateSnap(
 	edgeFilter?: SnapEdgeFilter,
 ): SnapResult {
 	if (!settings.enabled) {
-		return { dx: 0, dy: 0, xEdge: null, yEdge: null, lines: [] };
+		return { dx: 0, dy: 0, xEdge: null, yEdge: null, lines: [], gaps: [] };
 	}
 
 	const threshold = settings.threshold ?? DEFAULT_SNAP_THRESHOLD;
@@ -55,14 +57,32 @@ export function calculateSnap(
 		candidateY.push(...pts.yPoints);
 	}
 
-	// Find best snap for each axis independently
+	// Alignment (edge/center) snaps per axis
 	const xSnap = findBestSnap(moving.xPoints, candidateX, threshold);
 	const ySnap = findBestSnap(moving.yPoints, candidateY, threshold);
 
-	// Build guide lines with indicators
+	// Equal-spacing (distribution) snaps — a move-only concept, so it is disabled
+	// during a real resize: only when the caller actually restricts snap edges
+	// (`xEdges`/`yEdges`), not merely because an (empty) filter object was passed.
+	// `distributeSnap` undefined counts as on (only an explicit `false` disables it).
+	const isResize = edgeFilter?.xEdges !== undefined || edgeFilter?.yEdges !== undefined;
+	const distEnabled = settings.distributeSnap !== false && !isResize;
+	const distX = distEnabled
+		? findDistributeSnap(movingBox, candidateBoxes, movingShapeIds, threshold, "x")
+		: null;
+	const distY = distEnabled
+		? findDistributeSnap(movingBox, candidateBoxes, movingShapeIds, threshold, "y")
+		: null;
+
+	// Per axis, prefer whichever snap (alignment vs distribution) is nearer.
+	const xUseDist = distX !== null && (xSnap === null || Math.abs(distX.delta) < Math.abs(xSnap.dx));
+	const yUseDist = distY !== null && (ySnap === null || Math.abs(distY.delta) < Math.abs(ySnap.dx));
+
+	// Build guide lines / gap guides with indicators
 	const lines: SnapLine[] = [];
-	const snapDx = xSnap?.dx ?? 0;
-	const snapDy = ySnap?.dx ?? 0;
+	const gaps: SpacingGuide[] = [];
+	const snapDx = xUseDist && distX ? distX.delta : (xSnap?.dx ?? 0);
+	const snapDy = yUseDist && distY ? distY.delta : (ySnap?.dx ?? 0);
 
 	// Snapped moving box position
 	const snappedMoving = {
@@ -72,76 +92,25 @@ export function calculateSnap(
 		height: movingBox.height,
 	};
 
-	if (xSnap) {
-		const position = xSnap.candidate.value;
-		const yExtent = computeExtent(
-			snappedMoving.y,
-			snappedMoving.y + snappedMoving.height,
-			candidateBoxes,
-			movingShapeIds,
-			xSnap.candidate.sourceShapeId,
-			"y",
-		);
-		// Indicators on the vertical guide line (x fixed, y varies)
-		// Edge snap: show dots at both ends of the edge
-		// Center snap: show diamond at center point
-		const indicators: SnapIndicator[] = [
-			...edgeIndicators(position, snappedMoving, "x", xSnap.moving.edge),
-			...edgeIndicatorsFromBox(
-				position,
-				candidateBoxes.get(xSnap.candidate.sourceShapeId),
-				"x",
-				xSnap.candidate.edge,
-			),
-		];
-		lines.push({
-			axis: "x",
-			position,
-			from: yExtent.min,
-			to: yExtent.max,
-			movingEdge: xSnap.moving.edge,
-			candidateEdge: xSnap.candidate.edge,
-			indicators,
-		});
+	if (xUseDist && distX) {
+		gaps.push(distX.guide);
+	} else if (xSnap) {
+		lines.push(buildAlignmentLine("x", xSnap, candidateX, candidateBoxes, snappedMoving));
 	}
 
-	if (ySnap) {
-		const position = ySnap.candidate.value;
-		const xExtent = computeExtent(
-			snappedMoving.x,
-			snappedMoving.x + snappedMoving.width,
-			candidateBoxes,
-			movingShapeIds,
-			ySnap.candidate.sourceShapeId,
-			"x",
-		);
-		// Indicators on the horizontal guide line (y fixed, x varies)
-		const indicators: SnapIndicator[] = [
-			...edgeIndicators(position, snappedMoving, "y", ySnap.moving.edge),
-			...edgeIndicatorsFromBox(
-				position,
-				candidateBoxes.get(ySnap.candidate.sourceShapeId),
-				"y",
-				ySnap.candidate.edge,
-			),
-		];
-		lines.push({
-			axis: "y",
-			position,
-			from: xExtent.min,
-			to: xExtent.max,
-			movingEdge: ySnap.moving.edge,
-			candidateEdge: ySnap.candidate.edge,
-			indicators,
-		});
+	if (yUseDist && distY) {
+		gaps.push(distY.guide);
+	} else if (ySnap) {
+		lines.push(buildAlignmentLine("y", ySnap, candidateY, candidateBoxes, snappedMoving));
 	}
 
 	return {
 		dx: snapDx,
 		dy: snapDy,
-		xEdge: xSnap?.moving.edge ?? null,
-		yEdge: ySnap?.moving.edge ?? null,
+		xEdge: xUseDist ? null : (xSnap?.moving.edge ?? null),
+		yEdge: yUseDist ? null : (ySnap?.moving.edge ?? null),
 		lines,
+		gaps,
 	};
 }
 
@@ -172,26 +141,56 @@ function findBestSnap(
 	return best;
 }
 
-function computeExtent(
-	movingMin: number,
-	movingMax: number,
-	candidateBoxes: ReadonlyMap<string, BoundingBox>,
-	_movingShapeIds: ReadonlySet<string>,
-	sourceShapeId: string,
-	axis: "x" | "y",
-): { min: number; max: number } {
-	let min = movingMin;
-	let max = movingMax;
+/** Candidates whose value equals the winning value (modulo float error) are on
+ *  the same snap line. A tiny epsilon — NOT a visible distance — so only shapes
+ *  that truly share the snapped value are aggregated. */
+const ALIGN_EPS = 1e-6;
 
-	const sourceBox = candidateBoxes.get(sourceShapeId);
-	if (sourceBox) {
-		const sMin = axis === "x" ? sourceBox.x : sourceBox.y;
-		const sMax = axis === "x" ? sourceBox.x + sourceBox.width : sourceBox.y + sourceBox.height;
-		min = Math.min(min, sMin);
-		max = Math.max(max, sMax);
+/**
+ * Build one alignment guide line for a winning snap. Instead of reflecting only
+ * the single nearest candidate, this gathers EVERY candidate shape whose snap
+ * point lies on the same line (value within {@link ALIGN_EPS}), extends the line
+ * to span them all, and draws indicators on each. So three shapes sharing an edge
+ * show one continuous line touching all three — not just the first/nearest one.
+ */
+function buildAlignmentLine(
+	axis: "x" | "y",
+	snap: SnapMatch,
+	candidatePoints: SnapPoint[],
+	candidateBoxes: ReadonlyMap<string, BoundingBox>,
+	snappedMoving: BoundingBox,
+): SnapLine {
+	const position = snap.candidate.value;
+	// Cross-axis extent: a vertical line (axis="x") spans y; a horizontal one spans x.
+	let from = axis === "x" ? snappedMoving.y : snappedMoving.x;
+	let to =
+		axis === "x" ? snappedMoving.y + snappedMoving.height : snappedMoving.x + snappedMoving.width;
+	const indicators: SnapIndicator[] = [
+		...edgeIndicators(position, snappedMoving, axis, snap.moving.edge),
+	];
+
+	const seen = new Set<string>();
+	for (const cp of candidatePoints) {
+		if (Math.abs(cp.value - position) > ALIGN_EPS) continue;
+		const box = candidateBoxes.get(cp.sourceShapeId);
+		if (!box) continue;
+		from = Math.min(from, axis === "x" ? box.y : box.x);
+		to = Math.max(to, axis === "x" ? box.y + box.height : box.x + box.width);
+		const key = `${cp.sourceShapeId}:${cp.edge}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		indicators.push(...edgeIndicators(position, box, axis, cp.edge));
 	}
 
-	return { min, max };
+	return {
+		axis,
+		position,
+		from,
+		to,
+		movingEdge: snap.moving.edge,
+		candidateEdge: snap.candidate.edge,
+		indicators,
+	};
 }
 
 /**
@@ -228,14 +227,4 @@ function edgeIndicators(
 		{ x: box.x, y: snapPosition, edge },
 		{ x: box.x + box.width, y: snapPosition, edge },
 	];
-}
-
-function edgeIndicatorsFromBox(
-	snapPosition: number,
-	box: BoundingBox | undefined,
-	snapAxis: "x" | "y",
-	edge: SnapPoint["edge"],
-): SnapIndicator[] {
-	if (!box) return [];
-	return edgeIndicators(snapPosition, box, snapAxis, edge);
 }
