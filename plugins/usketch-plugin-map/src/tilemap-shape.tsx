@@ -43,16 +43,31 @@ export function isTileMap(shape: ShapeData): shape is TileMapShapeData {
  */
 export function seededTilemap(shapes: Iterable<ShapeData>): TileMapShapeData | null {
 	let best: TileMapShapeData | null = null;
-	// Require a FINITE seed: synced shape data could carry NaN/Infinity, which
-	// would make the HUD show garbage and `fbm(NaN, …)` behave as seed 0.
+	// Require an INTEGER seed (step:1): synced shape data could carry NaN/Infinity
+	// (→ HUD garbage, `fbm(NaN, …)` behaves as seed 0) or a fraction like 1.9,
+	// which the HUD shows verbatim but `hash2` truncates to 1 via ToInt32 — the
+	// two would disagree. Integer-only keeps the display and the effective seed in
+	// sync.
 	for (const s of shapes)
 		if (
 			isTileMap(s) &&
 			s.baseSeed != null &&
-			Number.isFinite(s.baseSeed) &&
+			Number.isInteger(s.baseSeed) &&
 			(best === null || s.id < best.id)
 		)
 			best = s;
+	return best;
+}
+
+/**
+ * The lowest-`id` tilemap on the board (of any kind), or `null` if there are
+ * none. Used to pick a **deterministic** stamp target when enabling the infinite
+ * base — `resolveTilemap`'s "first in insertion order" isn't stable across synced
+ * clients, so two peers could otherwise seed different tilemaps.
+ */
+export function lowestTilemap(shapes: Iterable<ShapeData>): TileMapShapeData | null {
+	let best: TileMapShapeData | null = null;
+	for (const s of shapes) if (isTileMap(s) && (best === null || s.id < best.id)) best = s;
 	return best;
 }
 

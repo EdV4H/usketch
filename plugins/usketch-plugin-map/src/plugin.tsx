@@ -20,6 +20,7 @@ import {
 	createTileMapShapeDefinition,
 	DEFAULT_TILE,
 	isTileMap,
+	lowestTilemap,
 	seededTilemap,
 	TILEMAP_TYPE,
 	type TileMapShapeData,
@@ -157,12 +158,15 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 					else if (name === "infinite") {
 						const on = value === true || value === "true";
 						if (on) {
-							// Stamp the seed onto a tilemap so it persists + syncs. If one is
-							// already seeded, re-stamp that same (deterministic) shape; else reuse
-							// the shared tilemap, creating one when the board is blank.
+							// Stamp the seed onto a tilemap so it persists + syncs. Target the
+							// same shape every client would: an already-seeded tilemap if present,
+							// else the lowest-id existing tilemap; only create one when the board
+							// is blank. (resolveTilemap's insertion-order pick isn't stable across
+							// synced peers, so it's the last resort.)
 							const seed = currentBaseSeed() ?? genStateStore.get().seed;
 							const id =
 								seededTilemap(ctx.store.getShapes().values())?.id ??
+								lowestTilemap(ctx.store.getShapes().values())?.id ??
 								resolveTilemap(ctx.store, tile).id;
 							ctx.store.updateShape(id, { baseSeed: seed } as Partial<TileMapShapeData>);
 						} else {
