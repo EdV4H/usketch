@@ -32,6 +32,18 @@ describe("baseTerrainAt", () => {
 		expect(seen.size).toBeGreaterThanOrEqual(3);
 	});
 
+	it("produces low bands (water/sand), not just high ground", () => {
+		// Guards the zero-centred `fbm` assumption behind G_MIN/G_MAX: if the noise
+		// domain ever shifted to ~[0,1], every cell would clamp high (all snow/mtn)
+		// and water/sand would vanish. Sample broadly and require both to appear.
+		const seen = new Set<string>();
+		for (let r = -80; r <= 80; r++) {
+			for (let c = -80; c <= 80; c++) seen.add(baseTerrainAt(7, c, r));
+		}
+		expect(seen.has("water")).toBe(true);
+		expect(seen.has("sand")).toBe(true);
+	});
+
 	it("different seeds generally differ", () => {
 		let diff = 0;
 		for (let c = 0; c < 50; c++) {

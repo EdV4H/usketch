@@ -24,9 +24,15 @@ export function hashSeed(seed: number | string): number {
 	return h >>> 0;
 }
 
-/** Stable per-lattice-point value in [0,1) from (seed, x, y) — no allocation. */
+/**
+ * Stable per-lattice-point value from (seed, x, y) — no allocation.
+ * NOTE: the final `h ^ (h >>> 16)` is a JS bitwise op, so it yields a *signed*
+ * int32; divided by 2^32 the result is **centred on 0 in ~[-0.5, 0.5)**, not
+ * [0, 1). Callers (value noise / fBm) rely on this zero-centring.
+ */
 export function hash2(seed: number, x: number, y: number): number {
 	let h = (seed ^ Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263)) >>> 0;
 	h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
+	// Signed int32 (top bit → negative) / 2^32 ⇒ ~[-0.5, 0.5).
 	return (h ^ (h >>> 16)) / 4294967296;
 }

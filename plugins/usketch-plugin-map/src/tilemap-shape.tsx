@@ -43,8 +43,16 @@ export function isTileMap(shape: ShapeData): shape is TileMapShapeData {
  */
 export function seededTilemap(shapes: Iterable<ShapeData>): TileMapShapeData | null {
 	let best: TileMapShapeData | null = null;
+	// Require a FINITE seed: synced shape data could carry NaN/Infinity, which
+	// would make the HUD show garbage and `fbm(NaN, …)` behave as seed 0.
 	for (const s of shapes)
-		if (isTileMap(s) && s.baseSeed != null && (best === null || s.id < best.id)) best = s;
+		if (
+			isTileMap(s) &&
+			s.baseSeed != null &&
+			Number.isFinite(s.baseSeed) &&
+			(best === null || s.id < best.id)
+		)
+			best = s;
 	return best;
 }
 
