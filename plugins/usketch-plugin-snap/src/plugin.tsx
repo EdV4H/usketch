@@ -346,7 +346,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 					: applySnapToUpdates(updates, result);
 				originalUpdateShape(id, snapped);
 
-				setState({ lines: result.lines, gaps: result.gaps });
+				setState({ lines: result.lines, gaps: result.gaps ?? [] });
 			}
 
 			ctx.store.updateShape = patchedUpdateShape;

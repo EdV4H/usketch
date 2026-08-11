@@ -147,10 +147,12 @@ export function findDistributeSnap(
 		const matches = existingSegsOfLength(L); // depends only on L — hoist out of the shape loop
 		for (const s of row) {
 			// right of s: gap(s, moving) = L. The gap [s.max, moving.min] AND the box must be empty.
+			// Cheap `delta` range check first, so `spanIsClear` (O(row)) is skipped for far targets.
 			{
 				const targetMin = a.max(s) + L;
-				if (spanIsClear(a.max(s), targetMin + mSize)) {
-					consider(targetMin - mMin, {
+				const delta = targetMin - mMin;
+				if (Math.abs(delta) <= threshold + EPS && spanIsClear(a.max(s), targetMin + mSize)) {
+					consider(delta, {
 						axis,
 						length: L,
 						segments: [...matches, seg(a.max(s), targetMin, s, movingBox)],
@@ -160,8 +162,9 @@ export function findDistributeSnap(
 			// left of s: gap(moving, s) = L. The box AND the gap [moving.max, s.min] must be empty.
 			{
 				const targetMax = a.min(s) - L;
-				if (spanIsClear(targetMax - mSize, a.min(s))) {
-					consider(targetMax - mMax, {
+				const delta = targetMax - mMax;
+				if (Math.abs(delta) <= threshold + EPS && spanIsClear(targetMax - mSize, a.min(s))) {
+					consider(delta, {
 						axis,
 						length: L,
 						segments: [seg(targetMax, a.min(s), movingBox, s), ...matches],

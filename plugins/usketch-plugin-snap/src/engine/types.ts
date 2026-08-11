@@ -54,8 +54,12 @@ export interface SnapResult {
 	/** Which edge of the moving box matched on the Y axis (null if no y snap) */
 	yEdge: SnapEdge | null;
 	lines: SnapLine[];
-	/** Equal-spacing (distribution) guides for this snap (may be empty). */
-	gaps: SpacingGuide[];
+	/**
+	 * Equal-spacing (distribution) guides for this snap. Optional for backward
+	 * compatibility — `calculateSnap` always sets it (possibly empty), but
+	 * `undefined` is treated as an empty list by consumers.
+	 */
+	gaps?: SpacingGuide[];
 }
 
 export interface GuideStyle {
