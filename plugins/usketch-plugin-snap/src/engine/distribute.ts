@@ -126,27 +126,43 @@ export function findDistributeSnap(
 		});
 	}
 
-	// (2) Gap duplication — extend a gap of length L to the outside of the row.
+	// (2) Gap duplication — replicate an existing gap length L on the OUTER side of
+	// ANY row shape, not just the endpoints of the gap it came from. This covers
+	// placing the moving box further left/right past other shapes so a whole run
+	// stays equally spaced (e.g. A—B—[C]… → drop the next one at the same gap).
+	// Skip targets that would overlap an existing row shape (nonsensical).
+	const refLengths: number[] = [];
 	for (const g of gaps) {
-		const L = g.length;
-		const matches = existingSegsOfLength(L);
-		// place moving to the RIGHT of the gap's hi box: gap(hi, moving) = L
-		{
-			const targetMin = a.max(g.hi) + L;
-			consider(targetMin - mMin, {
-				axis,
-				length: L,
-				segments: [...matches, seg(a.max(g.hi), targetMin, g.hi, movingBox)],
-			});
-		}
-		// place moving to the LEFT of the gap's lo box: gap(moving, lo) = L
-		{
-			const targetMax = a.min(g.lo) - L;
-			consider(targetMax - mMax, {
-				axis,
-				length: L,
-				segments: [seg(targetMax, a.min(g.lo), movingBox, g.lo), ...matches],
-			});
+		if (!refLengths.some((L) => Math.abs(L - g.length) <= EQUAL_TOL)) refLengths.push(g.length);
+	}
+	const overlapsRow = (lo: number, hi: number): boolean =>
+		row.some((b) => Math.min(hi, a.max(b)) - Math.max(lo, a.min(b)) > EPS);
+
+	for (const s of row) {
+		for (const L of refLengths) {
+			const matches = existingSegsOfLength(L);
+			// right of s: gap(s, moving) = L
+			{
+				const targetMin = a.max(s) + L;
+				if (!overlapsRow(targetMin, targetMin + mSize)) {
+					consider(targetMin - mMin, {
+						axis,
+						length: L,
+						segments: [...matches, seg(a.max(s), targetMin, s, movingBox)],
+					});
+				}
+			}
+			// left of s: gap(moving, s) = L
+			{
+				const targetMax = a.min(s) - L;
+				if (!overlapsRow(targetMax - mSize, targetMax)) {
+					consider(targetMax - mMax, {
+						axis,
+						length: L,
+						segments: [seg(targetMax, a.min(s), movingBox, s), ...matches],
+					});
+				}
+			}
 		}
 	}
 

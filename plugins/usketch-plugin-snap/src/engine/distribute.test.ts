@@ -73,6 +73,29 @@ describe("distribution snap — gap duplication", () => {
 		expect(r.gaps[0].length).toBe(20);
 		expect(r.gaps[0].segments.length).toBe(3); // A–B, B–C, new C–M
 	});
+
+	it("replicates a pair's gap on the OUTER side of a further shape (not the pair's endpoints)", () => {
+		// A[0..10], B[30..40] define gap 20. C[100..110] sits further right (B–C gap 60).
+		// Drop M to the RIGHT of C at the *A–B* gap of 20 → target C.max(110)+20 = 130.
+		const withFar = candidates({
+			a: box(0, 0, 10, 10),
+			b: box(30, 0, 10, 10),
+			c: box(100, 0, 10, 10),
+		});
+		const r = calculateSnap(box(128, 0, 10, 10), NO_MOVING, withFar, settings());
+		expect(r.dx).toBe(2); // 130 - 128
+		expect(r.gaps[0].length).toBe(20);
+		// highlights the reference A–B gap + the new C–M gap (B–C is 60, not matched)
+		expect(r.gaps[0].segments.length).toBe(2);
+	});
+
+	it("does not offer a target that would overlap an existing shape", () => {
+		// A[0..10], B[30..40], gap 20. Right of A at gap 20 would land on B[30..40];
+		// that target must be skipped, so a box dragged there does not snap onto B.
+		const r = calculateSnap(box(31, 0, 10, 10), NO_MOVING, row, settings());
+		expect(r.gaps).toHaveLength(0);
+		expect(r.dx).toBe(0);
+	});
 });
 
 describe("distribution snap — center in gap", () => {
@@ -134,10 +157,12 @@ describe("distribution vs alignment", () => {
 		const row = candidates({
 			a: box(0, 0, 10, 10),
 			b: box(30, 0, 10, 10),
-			d: box(64, 0, 10, 10), // edge-align to 64 is 3px away; distribute 60 is 1px
+			// D's right edge at 57: edge-align to it is 2px away; distribute target 60 is 1px.
+			// D sits left of the distribute target so it does not overlap it.
+			d: box(47, 0, 10, 10),
 		});
 		const r = calculateSnap(box(59, 0, 10, 10), NO_MOVING, row, settings({ edgeSnap: true }));
-		expect(r.dx).toBe(1); // distribute → 60
+		expect(r.dx).toBe(1); // distribute → 60 (nearer than the 2px edge-align)
 		expect(r.gaps).toHaveLength(1);
 	});
 });
