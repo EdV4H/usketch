@@ -19,6 +19,13 @@ export interface MapRenderConfig {
 	 * land on top. `null` = truly empty (transparent, prior behavior).
 	 */
 	emptyTerrain: TerrainKey | null;
+	/**
+	 * Infinite procedurally-generated base terrain. When a seed is set, every
+	 * unpainted cell is filled by a deterministic `baseTerrainAt(seed, col, row)`
+	 * (seamless, effectively infinite), with painted cells as sparse overrides on
+	 * top. `null` = no base (falls back to {@link MapRenderConfig.emptyTerrain}).
+	 */
+	baseSeed: number | null;
 }
 
 export const renderConfigStore = createReactiveStore<MapRenderConfig>({
@@ -26,6 +33,7 @@ export const renderConfigStore = createReactiveStore<MapRenderConfig>({
 	lineStyle: "wobble",
 	strokeScale: 1,
 	emptyTerrain: null,
+	baseSeed: null,
 });
 
 /** Subscribe a component to the current Tweaks config. */

@@ -5,6 +5,7 @@ import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { BaseAreaLayer } from "./base/base-layer.js";
 import { BASE_MAP_TYPE, createBaseMapShapeDefinition } from "./base/base-map-shape.js";
 import { EnterBanner } from "./base/enter-banner.js";
+import { genStateStore } from "./gen-state.js";
 import { registerMapHud } from "./hud/register-map-hud.js";
 import { MAP_ICON_TYPE, mapIconShapeDefinition } from "./map-icon-shape.js";
 import { MapTerrainLayer } from "./map-layer.js";
@@ -118,9 +119,15 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 							...TERRAINS.map((t) => ({ value: t.key, label: t.name })),
 						],
 					},
+					// Infinite procedurally-generated base terrain: fills all unpainted
+					// space deterministically so the world can be panned forever.
+					{ name: "infinite", label: "無限地形", type: "boolean" },
+					{ name: "seed", label: "シード", type: "number", min: 0, max: 999999, step: 1 },
 				],
 				get: (name) => {
 					if (name === "emptyTerrain") return renderConfigStore.get().emptyTerrain ?? "none";
+					if (name === "infinite") return renderConfigStore.get().baseSeed != null;
+					if (name === "seed") return renderConfigStore.get().baseSeed ?? genStateStore.get().seed;
 					return renderConfigStore.get()[name as keyof ReturnType<typeof renderConfigStore.get>];
 				},
 				set: (name, value) => {
@@ -131,6 +138,12 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 						renderConfigStore.set({
 							emptyTerrain: value === "none" ? null : (value as TerrainKey),
 						});
+					else if (name === "infinite") {
+						const on = value === true || value === "true";
+						renderConfigStore.set({
+							baseSeed: on ? (renderConfigStore.get().baseSeed ?? genStateStore.get().seed) : null,
+						});
+					} else if (name === "seed") renderConfigStore.set({ baseSeed: Number(value) });
 				},
 				subscribe: renderConfigStore.subscribe,
 			});
