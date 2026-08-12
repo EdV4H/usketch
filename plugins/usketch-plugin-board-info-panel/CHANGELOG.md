@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-board-info-panel
 
+## 3.0.12
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-canvas-engine@1.3.5
+  - @edv4h/usketch-plugin-side-panel@2.0.12
+
 ## 3.0.11
 
 ### Patch Changes

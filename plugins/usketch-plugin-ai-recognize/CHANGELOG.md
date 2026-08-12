@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-ai-recognize
 
+## 3.0.12
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-plugin-ai-agent@3.0.12
+
 ## 3.0.11
 
 ### Patch Changes

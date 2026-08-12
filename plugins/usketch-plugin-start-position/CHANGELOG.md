@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-start-position
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+
 ## 0.1.0
 
 ### Minor Changes

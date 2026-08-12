@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-avatar
 
+## 2.1.4
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+
 ## 2.1.3
 
 ### Patch Changes
