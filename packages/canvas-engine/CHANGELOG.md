@@ -1,5 +1,13 @@
 # @edv4h/usketch-canvas-engine
 
+## 1.3.5
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-core@2.4.1
+
 ## 1.3.4
 
 ### Patch Changes
