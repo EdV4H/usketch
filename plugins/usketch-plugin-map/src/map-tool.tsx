@@ -32,6 +32,7 @@ import { genStateStore } from "./gen-state.js";
 import { generateIntoBox, resolveTilemap } from "./generate.js";
 import { ICONS_BY_KEY } from "./icons.js";
 import { MAP_ICON_TYPE, makeMapIcon } from "./map-icon-shape.js";
+import type { TerrainKey } from "./terrain.js";
 import { DEFAULT_TILE, seededTilemap, type TileMapShapeData } from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
 
@@ -151,11 +152,11 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 	}
 
 	/** Write `terrain` into every region key that differs; returns whether anything changed. */
-	function paintRegion(cells: Cells, keys: string[], terrain: string): boolean {
+	function paintRegion(cells: Cells, keys: string[], terrain: TerrainKey): boolean {
 		let changed = false;
 		for (const k of keys) {
 			if (cells[k] === terrain) continue;
-			cells[k] = terrain as Cells[string];
+			cells[k] = terrain;
 			changed = true;
 		}
 		return changed;

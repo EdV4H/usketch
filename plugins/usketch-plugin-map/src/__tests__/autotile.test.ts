@@ -12,7 +12,6 @@ import {
 	terrainAtCell,
 	worldToCell,
 } from "../autotile.js";
-import type { TerrainKey } from "../terrain.js";
 
 describe("cell keys", () => {
 	it("round-trips key <-> coords (incl. negatives)", () => {
@@ -156,9 +155,17 @@ describe("samplerFloodFill", () => {
 	});
 
 	it("returns an empty region for an undefined start (no base, no override)", () => {
-		const none: CellSampler = () => undefined as unknown as TerrainKey | undefined;
+		const none: CellSampler = () => undefined;
 		const res = samplerFloodFill(none, 0, 0, 8192);
 		expect(res.cells).toEqual([]);
+		expect(res.truncated).toBe(false);
+	});
+
+	it("does not flag an enclosed region whose size is exactly maxCells", () => {
+		// The 3x3 pocket has exactly 9 cells; with maxCells=9 it closes without a
+		// matching cell left over, so it must NOT be reported truncated.
+		const res = samplerFloodFill(enclosedSampler, 0, 0, 9);
+		expect(res.cells.length).toBe(9);
 		expect(res.truncated).toBe(false);
 	});
 

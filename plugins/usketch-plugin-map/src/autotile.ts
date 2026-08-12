@@ -186,8 +186,11 @@ export function samplerFloodFill(
 	while (head < queue.length) {
 		const [c, r] = queue[head++];
 		if (sample(c, r) !== target) continue;
-		out.push(cellKey(c, r));
+		// A matching cell we have no room for ⇒ the region extends past the cap, so
+		// it is not (provably) enclosed. A region of *exactly* maxCells cells closes
+		// with no matching cell left to dequeue, and is correctly reported enclosed.
 		if (out.length >= maxCells) return { cells: out, truncated: true };
+		out.push(cellKey(c, r));
 		for (const [nc, nr] of [
 			[c + 1, r],
 			[c - 1, r],
