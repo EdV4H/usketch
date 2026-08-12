@@ -23,7 +23,7 @@ export type StartPosition =
 	| { kind: "shape"; shapeId: string; padding?: number };
 
 export interface StartPositionShapeData extends ShapeData {
-	type: "start-position";
+	type: typeof START_POSITION_TYPE;
 	/** The start definition; `undefined` = not configured yet. */
 	start?: StartPosition;
 	/**
