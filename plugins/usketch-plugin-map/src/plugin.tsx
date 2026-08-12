@@ -56,10 +56,6 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 		name: "RPG マップ",
 
 		setup(ctx: PluginContext) {
-			// ── Host-facing API (ctx.services seam) — lets a host or another plugin
-			//    drive map operations without the Control HUD. See map-service.ts. ──
-			const unprovideService = mapService.provide(ctx.services, createMapApi(ctx.store));
-
 			// ── Shapes (tilemap + base-map = data-only substrates, map-icon = foreground) ──
 			ctx.shapes.register(TILEMAP_TYPE, createTileMapShapeDefinition(tile));
 			ctx.shapes.register(BASE_MAP_TYPE, createBaseMapShapeDefinition(tile));
@@ -198,6 +194,13 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 					};
 				},
 			});
+
+			// ── Host-facing API (ctx.services seam) — lets a host or another plugin
+			//    drive map operations without the Control HUD. See map-service.ts.
+			//    Provided LAST, after every throw-prone registration above, so a setup
+			//    failure can't leak the service (createApp only rolls back a returned
+			//    teardown). ──
+			const unprovideService = mapService.provide(ctx.services, createMapApi(ctx.store));
 
 			return () => {
 				unprovideService();

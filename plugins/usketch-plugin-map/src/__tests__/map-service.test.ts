@@ -21,7 +21,11 @@ function fakeServices(): ServiceRegistry {
 	return {
 		provide: <T>(key: string, service: T) => {
 			map.set(key, service);
-			return () => map.delete(key);
+			// Match core's createServiceRegistry: a stale unprovide must not delete a
+			// newer provide (instance check).
+			return () => {
+				if (map.get(key) === service) map.delete(key);
+			};
 		},
 		get: <T>(key: string) => map.get(key) as T | undefined,
 		has: (key: string) => map.has(key),
