@@ -5,10 +5,14 @@ import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { BaseAreaLayer } from "./base/base-layer.js";
 import { BASE_MAP_TYPE, createBaseMapShapeDefinition } from "./base/base-map-shape.js";
 import { EnterBanner } from "./base/enter-banner.js";
-import { DEFAULT_BASE_GEN } from "./base-terrain.js";
 import { genStateStore } from "./gen-state.js";
-import { resolveTilemap } from "./generate.js";
 import { registerMapHud } from "./hud/register-map-hud.js";
+import {
+	disableInfiniteTerrain,
+	enableInfiniteTerrain,
+	getInfiniteSeed,
+	isInfiniteTerrainEnabled,
+} from "./infinite-terrain.js";
 import { MAP_ICON_TYPE, mapIconShapeDefinition } from "./map-icon-shape.js";
 import { MapTerrainLayer } from "./map-layer.js";
 import { createMapToolDefinition } from "./map-tool.js";
@@ -17,15 +21,7 @@ import type { ColorMode } from "./palette.js";
 import { createRangeEraseToolDefinition, RANGE_ERASE_TOOL_ID } from "./range-erase-tool.js";
 import { type LineStyle, renderConfigStore } from "./render-config.js";
 import { TERRAINS, type TerrainKey } from "./terrain.js";
-import {
-	createTileMapShapeDefinition,
-	DEFAULT_TILE,
-	isTileMap,
-	lowestTilemap,
-	seededTilemap,
-	TILEMAP_TYPE,
-	type TileMapShapeData,
-} from "./tilemap-shape.js";
+import { createTileMapShapeDefinition, DEFAULT_TILE, TILEMAP_TYPE } from "./tilemap-shape.js";
 
 export interface MapPluginOptions {
 	/** Tile size in world units. Default 40 (matches the design grid). */
@@ -96,12 +92,6 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			//    on-canvas palette). Toggle the HUD with the backtick key. ──
 			const unregisterMapHud = registerMapHud(ctx, tile);
 
-			// The infinite-terrain seed is read from the seeded tilemap shape (board
-			// data — persisted + synced), not from app-local render config. Chosen
-			// deterministically so the HUD agrees with the renderer and across clients.
-			const currentBaseSeed = (): number | null =>
-				seededTilemap(ctx.store.getShapes().values())?.baseSeed ?? null;
-
 			// ── Tweaks as declarative HUD settings ──
 			const unregisterHud = ctx.hud.registerSettings({
 				id: "usketch-map:tweaks",
@@ -144,8 +134,8 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 					if (name === "emptyTerrain") return renderConfigStore.get().emptyTerrain ?? "none";
 					// infinite/seed live on the tilemap SHAPE (persisted + synced), not on the
 					// app-local render config — so the generated world survives reload.
-					if (name === "infinite") return currentBaseSeed() != null;
-					if (name === "seed") return currentBaseSeed() ?? genStateStore.get().seed;
+					if (name === "infinite") return getInfiniteSeed(ctx.store) != null;
+					if (name === "seed") return getInfiniteSeed(ctx.store) ?? genStateStore.get().seed;
 					return renderConfigStore.get()[name as keyof ReturnType<typeof renderConfigStore.get>];
 				},
 				set: (name, value) => {
@@ -157,40 +147,25 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 							emptyTerrain: value === "none" ? null : (value as TerrainKey),
 						});
 					else if (name === "infinite") {
-						const on = value === true || value === "true";
-						if (on) {
-							// Stamp the seed onto a tilemap so it persists + syncs. Target the
-							// same shape every client would: an already-seeded tilemap if present,
-							// else the lowest-id existing tilemap; only create one when the board
-							// is blank. (resolveTilemap's insertion-order pick isn't stable across
-							// synced peers, so it's the last resort.)
-							const seed = currentBaseSeed() ?? genStateStore.get().seed;
-							const target =
-								seededTilemap(ctx.store.getShapes().values()) ??
-								lowestTilemap(ctx.store.getShapes().values());
-							const id = target?.id ?? resolveTilemap(ctx.store, tile).id;
-							// Freeze the generation contract on the shape. Reuse the target's own
-							// recorded gen if it has one (so an off→on toggle keeps the same world
-							// even after the default advances); else stamp the current default.
-							ctx.store.updateShape(id, {
-								baseSeed: seed,
-								baseGen: target?.baseGen ?? DEFAULT_BASE_GEN,
-							} as Partial<TileMapShapeData>);
+						// Drive the public API (single source of truth for the enable logic —
+						// deterministic tilemap target, frozen baseGen, integer seed). Default
+						// to the gen UI's seed when turning on a board that has none yet.
+						if (value === true || value === "true") {
+							enableInfiniteTerrain(ctx.store, {
+								seed: getInfiniteSeed(ctx.store) ?? genStateStore.get().seed,
+								tile,
+							});
 						} else {
-							for (const [id, s] of ctx.store.getShapes())
-								if (isTileMap(s) && s.baseSeed != null)
-									ctx.store.updateShape(id, { baseSeed: undefined } as Partial<TileMapShapeData>);
+							disableInfiniteTerrain(ctx.store);
 						}
 					} else if (name === "seed") {
-						// Coerce to a finite integer (matches step:1); ignore junk so a bad
-						// value can't turn baseSeed into NaN → NaN elevations everywhere.
+						// Coerce to a finite integer (matches step:1); ignore junk.
 						const seed = Math.trunc(Number(value));
 						if (!Number.isFinite(seed)) return;
-						// Remember on the gen store, and re-seed any tilemap that already has a base.
+						// Remember on the gen store, and re-seed only when already enabled (the
+						// seed field shouldn't turn the infinite terrain on by itself).
 						genStateStore.set({ seed });
-						for (const [id, s] of ctx.store.getShapes())
-							if (isTileMap(s) && s.baseSeed != null)
-								ctx.store.updateShape(id, { baseSeed: seed } as Partial<TileMapShapeData>);
+						if (isInfiniteTerrainEnabled(ctx.store)) enableInfiniteTerrain(ctx.store, { seed });
 					}
 				},
 				// Re-read on look-and-feel changes (renderConfig) AND shape mutations (the
