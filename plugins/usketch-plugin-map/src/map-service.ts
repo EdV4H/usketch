@@ -27,7 +27,10 @@ export interface MapApi {
 	isInfiniteTerrainEnabled(): boolean;
 	/** A number enables/re-seeds, `null` disables. */
 	setInfiniteSeed(seed: number | null): void;
-	// ── App-local reactive stores backing the map tool + Tweaks (get/set/subscribe) ──
+	// ── Reactive stores backing the map tool + Tweaks (get/set/subscribe). NOTE:
+	//    these are MODULE-SCOPED singletons, not bound to this store like the ops
+	//    above — so multiple AppInstances in the same JS runtime SHARE them. They are
+	//    app-local per-user presentation state (never synced across clients). ──
 	toolState: ReactiveStore<MapToolState>;
 	renderConfig: ReactiveStore<MapRenderConfig>;
 }
