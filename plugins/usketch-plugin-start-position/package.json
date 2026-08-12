@@ -18,8 +18,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@edv4h/usketch-shared": "workspace:*",
-		"react": "19.2.8"
+		"@edv4h/usketch-shared": "workspace:*"
 	},
 	"peerDependencies": {
 		"react": ">=19"

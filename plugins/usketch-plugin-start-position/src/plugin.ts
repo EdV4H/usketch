@@ -172,8 +172,10 @@ export function createStartPositionPlugin(): UsketchPlugin {
 
 			// ── Auto-apply on load (per-user, once, cooperating with deep-link) ──
 			const guard = watchViewportClaims(ctx.events, SOURCE, START_POSITION_PRIORITY);
+			let disposed = false;
 			let settled = false;
 			let waitTimer: ReturnType<typeof setTimeout> | null = null;
+			let applyTimer: ReturnType<typeof setTimeout> | null = null;
 			let offWait: (() => void) | null = null;
 
 			const finishWait = (): void => {
@@ -196,9 +198,12 @@ export function createStartPositionPlugin(): UsketchPlugin {
 				if (s.autoApply === false || !s.start) return;
 				const start = s.start;
 				// Defer a task so competing claims (deep-link emits on a microtask, which
-				// runs before this timeout) are recorded before we decide to yield.
-				setTimeout(() => {
-					if (guard.shouldYield()) return;
+				// runs before this timeout) are recorded before we decide to yield. Tracked
+				// so teardown (StrictMode remount, board switch) can cancel it — otherwise
+				// it could move the camera after disposal.
+				applyTimer = setTimeout(() => {
+					applyTimer = null;
+					if (disposed || guard.shouldYield()) return;
 					if (applyStartPosition(ctx.store, start, { animate: false })) {
 						claimViewport(ctx.events, SOURCE, START_POSITION_PRIORITY);
 					}
@@ -214,6 +219,11 @@ export function createStartPositionPlugin(): UsketchPlugin {
 			}
 
 			return () => {
+				disposed = true;
+				if (applyTimer) {
+					clearTimeout(applyTimer);
+					applyTimer = null;
+				}
 				finishWait();
 				guard.dispose();
 				unregisterSettings();
