@@ -95,6 +95,30 @@ describe("resolveBaseGen", () => {
 		const custom: BaseGenParams = { version: 1, scale: 0.02, seaLevel: 0.6, gMin: -0.3, gMax: 0.3 };
 		expect(resolveBaseGen(custom)).toBe(custom);
 	});
+
+	it("falls back to v1 for corrupted / unsupported synced gen", () => {
+		const base: BaseGenParams = {
+			version: 1,
+			scale: 0.05,
+			seaLevel: 0.42,
+			gMin: -0.25,
+			gMax: 0.25,
+		};
+		const bad: Partial<BaseGenParams>[] = [
+			{ version: 2 }, // unsupported version
+			{ version: Number.NaN },
+			{ scale: Number.NaN },
+			{ scale: 0 }, // non-positive frequency
+			{ seaLevel: 1.5 }, // out of [0,1]
+			{ seaLevel: Number.POSITIVE_INFINITY },
+			{ gMin: 0.3, gMax: 0.3 }, // gMin >= gMax ⇒ divide-by-zero normalisation
+			{ gMin: 0.4, gMax: 0.1 },
+			{ gMax: Number.NaN },
+		];
+		for (const patch of bad) {
+			expect(resolveBaseGen({ ...base, ...patch } as BaseGenParams)).toBe(DEFAULT_BASE_GEN);
+		}
+	});
 });
 
 describe("makeTerrainSampler", () => {

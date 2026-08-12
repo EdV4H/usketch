@@ -49,13 +49,31 @@ const V1_GEN: BaseGenParams = {
  */
 export const DEFAULT_BASE_GEN: BaseGenParams = V1_GEN;
 
+/** Generation versions this build knows how to render. */
+const SUPPORTED_VERSIONS = new Set([1]);
+
 /**
  * Resolve a shape's (possibly `undefined`) `baseGen` to concrete params. A missing
- * value means the shape predates versioning ⇒ it is v1 by definition, so it must
- * fall back to the FROZEN v1 params, never to the (advanceable) default.
+ * value means the shape predates versioning ⇒ it is v1 by definition. `baseGen` is
+ * untrusted synced/persisted data, so it is also **validated**: corrupted params
+ * (NaN/Infinity, `gMin >= gMax`, `seaLevel`/`scale` out of range) or an
+ * unsupported `version` fall back to the FROZEN v1 params rather than producing a
+ * NaN-normalised, all-"snow" base across the whole infinite plane.
  */
 export function resolveBaseGen(gen: BaseGenParams | undefined): BaseGenParams {
-	return gen ?? V1_GEN;
+	if (!gen) return V1_GEN;
+	const { version, scale, seaLevel, gMin, gMax } = gen;
+	const valid =
+		SUPPORTED_VERSIONS.has(version) &&
+		Number.isFinite(scale) &&
+		scale > 0 &&
+		Number.isFinite(seaLevel) &&
+		seaLevel >= 0 &&
+		seaLevel <= 1 &&
+		Number.isFinite(gMin) &&
+		Number.isFinite(gMax) &&
+		gMin < gMax;
+	return valid ? gen : V1_GEN;
 }
 
 const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
