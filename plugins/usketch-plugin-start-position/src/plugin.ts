@@ -190,24 +190,38 @@ export function createStartPositionPlugin(): UsketchPlugin {
 				}
 			};
 
-			const attemptAutoApply = (): void => {
-				if (settled) return;
-				const s = currentShape();
-				if (!s) return; // shape not synced in yet — keep waiting
-				finishWait();
-				if (s.autoApply === false || !s.start) return;
-				const start = s.start;
-				// Defer a task so competing claims (deep-link emits on a microtask, which
-				// runs before this timeout) are recorded before we decide to yield. Tracked
-				// so teardown (StrictMode remount, board switch) can cancel it — otherwise
-				// it could move the camera after disposal.
+			// Move the camera to `start`, deferred a task so competing claims (deep-link
+			// emits on a microtask, which runs before this timeout) are recorded before
+			// we decide to yield. Tracked so teardown (StrictMode remount, board switch)
+			// can cancel it — otherwise it could move the camera after disposal.
+			// `fallbackFitAll` frames all content when a shape target can't be resolved.
+			const applyOnLoad = (start: StartPosition, fallbackFitAll: boolean): void => {
 				applyTimer = setTimeout(() => {
 					applyTimer = null;
 					if (disposed || guard.shouldYield()) return;
 					if (applyStartPosition(ctx.store, start, { animate: false })) {
 						claimViewport(ctx.events, SOURCE, START_POSITION_PRIORITY);
+					} else if (fallbackFitAll) {
+						// Shape target never resolved (deleted / never synced) → frame all.
+						fitContent(ctx.store, { animate: false });
 					}
 				}, 0);
+			};
+
+			const attemptAutoApply = (): void => {
+				if (settled) return;
+				const s = currentShape();
+				if (!s) return; // start-position shape not synced in yet — keep waiting
+				if (s.autoApply === false || !s.start) {
+					finishWait();
+					return;
+				}
+				const start = s.start;
+				// A shape target may still be streaming in via CRDT; keep waiting for it
+				// (up to the timeout) rather than settling and framing all content early.
+				if (start.kind === "shape" && !ctx.store.getShape(start.shapeId)) return;
+				finishWait();
+				applyOnLoad(start, false);
 			};
 
 			attemptAutoApply();
@@ -215,7 +229,15 @@ export function createStartPositionPlugin(): UsketchPlugin {
 				offWait = ctx.store.onMutation((e: StoreEvent) => {
 					if (e.type === "shape:added") attemptAutoApply();
 				});
-				waitTimer = setTimeout(finishWait, SYNC_TIMEOUT_MS);
+				// Timed out waiting for the (start-position or referenced) shape to sync.
+				// Apply whatever is defined now, falling back to fit-all if a shape target
+				// is still missing — matching the documented "frame all if gone" behavior.
+				waitTimer = setTimeout(() => {
+					if (settled) return;
+					const s = currentShape();
+					finishWait();
+					if (s && s.autoApply !== false && s.start) applyOnLoad(s.start, true);
+				}, SYNC_TIMEOUT_MS);
 			}
 
 			return () => {
