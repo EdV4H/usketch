@@ -55,6 +55,7 @@
 		"@edv4h/usketch-plugin-asset-store": "workspace:*",
 		"@edv4h/usketch-plugin-portal": "workspace:*",
 		"@edv4h/usketch-plugin-spotlight": "workspace:*",
+		"@edv4h/usketch-plugin-start-position": "workspace:*",
 		"@edv4h/usketch-plugin-timter": "workspace:*",
 		"@edv4h/usketch-plugin-voice-notes": "workspace:*",
 		"@edv4h/usketch-plugin-voting": "workspace:*",

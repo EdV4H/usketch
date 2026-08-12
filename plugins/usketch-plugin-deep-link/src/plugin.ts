@@ -1,6 +1,6 @@
 import type { PluginContext, StoreEvent, UsketchPlugin } from "@edv4h/usketch-shared";
 import { applyDeepLink } from "./apply.js";
-import { encodeDeepLink } from "./url-state.js";
+import { decodeDeepLink, encodeDeepLink } from "./url-state.js";
 
 /** Coalesce rapid selection changes (e.g. marquee) into a single URL write. */
 const WRITE_DEBOUNCE_MS = 150;
@@ -41,6 +41,17 @@ export function createDeepLinkPlugin(): UsketchPlugin {
 				if (writeTimer) clearTimeout(writeTimer);
 				writeTimer = setTimeout(writeUrl, WRITE_DEBOUNCE_MS);
 			};
+
+			// Announce a load-time camera claim so cooperating camera plugins (e.g.
+			// start-position) defer to an explicit deep link. Loosely coupled: we emit
+			// a plain `viewport:claimed` event — no dependency on any other plugin. On a
+			// microtask so every plugin's listener is subscribed first, regardless of
+			// registration order. Only claim when the URL actually pins a camera.
+			if (decodeDeepLink(window.location.search).camera) {
+				queueMicrotask(() =>
+					ctx.events.emit("viewport:claimed", { source: "deep-link", priority: 100 }),
+				);
+			}
 
 			// Restore selection/viewport from the URL (waits for CRDT sync if needed).
 			const disposeApply = applyDeepLink(store, window.location.search, () => {

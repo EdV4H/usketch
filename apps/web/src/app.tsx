@@ -43,6 +43,7 @@ import { createWireframePlugin } from "@edv4h/usketch-plugin-shape-wireframe";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { createSnapPlugin } from "@edv4h/usketch-plugin-snap";
 import { createSpotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
+import { createStartPositionPlugin } from "@edv4h/usketch-plugin-start-position";
 import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import {
 	createDivergenceTracker,
@@ -466,6 +467,10 @@ export function App() {
 				},
 			}),
 		);
+
+		// スタート位置: ボードの初期視点（座標/画角/Shape）へ起動時に移動。deep-link より
+		// 前に登録して viewport:claimed を購読させ、URL ディープリンクがあればそちらに譲る。
+		extraPlugins.push(createStartPositionPlugin());
 
 		// Deep link: URL ⇄ 選択/視点の同期（Figma の ?node-id 相当）。最後に登録し、
 		// setup が whenSynced 後に走ることで、サーバ視点復元より後に URL アンカーを適用する。
