@@ -7,6 +7,10 @@ export { type BaseToolState, baseStateStore, useBaseState } from "./base/base-st
 export { computeTerritory, type Territory } from "./base/territory.js";
 export { type BaseGenParams, baseTerrainAt, DEFAULT_BASE_GEN } from "./base-terrain.js";
 export { type GenState, genStateStore, useGenState, type WorldRect } from "./gen-state.js";
+// NOTE: `resolveTilemap` returns the FIRST tilemap in iteration order (or creates
+// one) — NOT deterministic across synced peers when several tilemaps exist. For
+// deterministic selection use `seededTilemap` / `lowestTilemap`, or the
+// `enableInfiniteTerrain` API which already picks deterministically.
 export { resolveTilemap } from "./generate.js";
 export {
 	GENERATORS,
