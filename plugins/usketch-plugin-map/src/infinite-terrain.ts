@@ -42,7 +42,8 @@ export function isInfiniteTerrainEnabled(store: BoardStore): boolean {
  * toggle runs. Stamps `baseSeed` + a frozen `baseGen` onto the deterministically
  * chosen tilemap: an already-seeded one, else the lowest-id tilemap, else a freshly
  * created one on a blank board. Persists + syncs (it's shape data). Returns the
- * integer seed applied. Throws `RangeError` on a non-finite seed.
+ * integer seed applied. Throws `RangeError` on a non-finite seed or a non-finite /
+ * non-positive `tile`.
  */
 export function enableInfiniteTerrain(
 	store: BoardStore,

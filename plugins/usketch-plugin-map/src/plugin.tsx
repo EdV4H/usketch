@@ -151,11 +151,15 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 						// deterministic tilemap target, frozen baseGen, integer seed). Default
 						// to the gen UI's seed when turning on a board that has none yet.
 						if (value === true || value === "true") {
-							// Guard the seed so a corrupt genStateStore value can't throw
-							// (enableInfiniteTerrain rejects non-finite seeds) out of the HUD.
-							const seed =
+							// Prefer the current/gen seed, but fall back to the API default when
+							// it's junk (enableInfiniteTerrain rejects non-finite seeds) so toggling
+							// ON always works, even on a corrupt store or bad init order.
+							const genSeed =
 								getInfiniteSeed(ctx.store) ?? Math.trunc(Number(genStateStore.get().seed));
-							if (Number.isFinite(seed)) enableInfiniteTerrain(ctx.store, { seed, tile });
+							enableInfiniteTerrain(ctx.store, {
+								seed: Number.isFinite(genSeed) ? genSeed : undefined,
+								tile,
+							});
 						} else {
 							disableInfiniteTerrain(ctx.store);
 						}
