@@ -4,7 +4,13 @@
 import type { BoardStore, RenderMode } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
 import { type Cells, cellKey, exposedEdges, parseCellKey } from "./autotile.js";
-import { baseTerrainAt, makeTerrainSampler, type TerrainSampler } from "./base-terrain.js";
+import {
+	type BaseGenParams,
+	baseTerrainAt,
+	makeTerrainSampler,
+	resolveBaseGen,
+	type TerrainSampler,
+} from "./base-terrain.js";
 import { genStateStore } from "./gen-state.js";
 import { blockFactor, downsampleCells, type TileDetail, tileDetail } from "./lod.js";
 import { terrainCssVars } from "./palette.js";
@@ -241,6 +247,7 @@ function renderInfiniteCoarse(
 	tile: number,
 	screenTilePx: number,
 	visible: DOMRectReadOnly | null | undefined,
+	gen: BaseGenParams,
 ): React.ReactElement[] {
 	if (!visible) return [];
 	const factor = blockFactor(screenTilePx);
@@ -253,7 +260,7 @@ function renderInfiniteCoarse(
 	const br1 = Math.ceil(visible.bottom / bt) - 1;
 	for (let br = br0; br <= br1; br++) {
 		for (let bc = bc0; bc <= bc1; bc++) {
-			const terrain = baseTerrainAt(seed, bc * factor + half, br * factor + half);
+			const terrain = baseTerrainAt(seed, bc * factor + half, br * factor + half, gen);
 			nodes.push(
 				<rect
 					key={`b:${bc},${br}`}
@@ -345,7 +352,10 @@ export function MapTerrainLayer({
 	// so the generated world survives reloads and is shared with everyone on the
 	// board. Chosen deterministically (by id) so every synced client renders the
 	// same world even if several seeded tilemaps coexist.
-	const baseSeed = seededTilemap(tilemaps)?.baseSeed ?? null;
+	const seededTm = seededTilemap(tilemaps);
+	const baseSeed = seededTm?.baseSeed ?? null;
+	// Generation params are frozen on the shape; missing ⇒ v1 (resolveBaseGen).
+	const baseGen = resolveBaseGen(seededTm?.baseGen);
 	const baseActive = baseSeed != null && !!visible;
 	let baseNodes: React.ReactElement[] = [];
 	let baseWobble = false;
@@ -366,8 +376,19 @@ export function MapTerrainLayer({
 		baseWobble = cfg.lineStyle === "wobble" && detail === "full";
 		baseNodes =
 			detail === "full"
-				? renderInfiniteFull(makeTerrainSampler(merged, baseSeed, empty), defaultTile, visible)
-				: renderInfiniteCoarse(merged, baseSeed, defaultTile, defaultTile * vp.zoom, visible);
+				? renderInfiniteFull(
+						makeTerrainSampler(merged, baseSeed, empty, baseGen),
+						defaultTile,
+						visible,
+					)
+				: renderInfiniteCoarse(
+						merged,
+						baseSeed,
+						defaultTile,
+						defaultTile * vp.zoom,
+						visible,
+						baseGen,
+					);
 	}
 
 	return (

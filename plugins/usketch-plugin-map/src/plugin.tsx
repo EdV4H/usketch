@@ -5,6 +5,7 @@ import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { BaseAreaLayer } from "./base/base-layer.js";
 import { BASE_MAP_TYPE, createBaseMapShapeDefinition } from "./base/base-map-shape.js";
 import { EnterBanner } from "./base/enter-banner.js";
+import { DEFAULT_BASE_GEN } from "./base-terrain.js";
 import { genStateStore } from "./gen-state.js";
 import { resolveTilemap } from "./generate.js";
 import { registerMapHud } from "./hud/register-map-hud.js";
@@ -164,11 +165,17 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 							// is blank. (resolveTilemap's insertion-order pick isn't stable across
 							// synced peers, so it's the last resort.)
 							const seed = currentBaseSeed() ?? genStateStore.get().seed;
-							const id =
-								seededTilemap(ctx.store.getShapes().values())?.id ??
-								lowestTilemap(ctx.store.getShapes().values())?.id ??
-								resolveTilemap(ctx.store, tile).id;
-							ctx.store.updateShape(id, { baseSeed: seed } as Partial<TileMapShapeData>);
+							const target =
+								seededTilemap(ctx.store.getShapes().values()) ??
+								lowestTilemap(ctx.store.getShapes().values());
+							const id = target?.id ?? resolveTilemap(ctx.store, tile).id;
+							// Freeze the generation contract on the shape. Reuse the target's own
+							// recorded gen if it has one (so an off→on toggle keeps the same world
+							// even after the default advances); else stamp the current default.
+							ctx.store.updateShape(id, {
+								baseSeed: seed,
+								baseGen: target?.baseGen ?? DEFAULT_BASE_GEN,
+							} as Partial<TileMapShapeData>);
 						} else {
 							for (const [id, s] of ctx.store.getShapes())
 								if (isTileMap(s) && s.baseSeed != null)

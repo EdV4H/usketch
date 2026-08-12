@@ -5,6 +5,7 @@
 import type { BoundingBox, ShapeData, ShapeDefinition } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
 import { type Cells, cellKey, cellsBounds, parseCellKey } from "./autotile.js";
+import type { BaseGenParams } from "./base-terrain.js";
 import type { TerrainKey } from "./terrain.js";
 
 export const TILEMAP_TYPE = "tilemap";
@@ -28,6 +29,13 @@ export interface TileMapShapeData extends ShapeData {
 	 * reloads and syncs to everyone** on the board. `undefined` = no base.
 	 */
 	baseSeed?: number;
+	/**
+	 * Generation version + parameters the base terrain was created with, recorded
+	 * so the board's world is **frozen**: tuning the defaults or changing the
+	 * algorithm later won't retroactively alter existing boards. `undefined` on an
+	 * older seeded shape means v1 (see `resolveBaseGen`). Paired with `baseSeed`.
+	 */
+	baseGen?: BaseGenParams;
 }
 
 export function isTileMap(shape: ShapeData): shape is TileMapShapeData {

@@ -17,8 +17,12 @@ map: 無限・手続き生成のベース地形（チャンク読み込み Phase
 - `tilemap-shape.ts`: `baseSeed?: number` を `tilemap` shape に追加。seed は**アプリローカルな
   render config ではなく shape（同期・永続対象）に持つ**ので、生成した世界は**リロードしても
   消えず、ボード上の全員に同期**される。
-- HUD「RPG マップ」の **「無限地形」トグル＋「シード」** は tilemap shape の `baseSeed` を
-  読み書きする（無ければ空 tilemap を生成して stamp）。
-- 決定論・分布・sampler の単体テスト。
+- `tilemap-shape.ts`: `baseGen?: BaseGenParams`（`version`＋`scale`/`seaLevel`/`gMin`/`gMax`）を
+  shape に記録し、**生成契約を凍結**。既定値をチューニングしたりアルゴリズムを差し替えても、
+  既存ボードは自分が生成された時のパラメータで描かれ続ける（未設定＝v1 として `resolveBaseGen`
+  でフォールバック）。`baseTerrainAt`/`makeTerrainSampler` はこの params 駆動に変更。
+- HUD「RPG マップ」の **「無限地形」トグル＋「シード」** は tilemap shape の `baseSeed`＋`baseGen`
+  を読み書きする（無ければ空 tilemap を生成して stamp）。
+- 決定論・分布・sampler・パラメータ凍結（`baseGen`）の単体テスト。
 
 後続（Phase 2/3）で、編集差分のチャンク shape 化（独立同期）／サーバー空間ストリーミングを予定。
