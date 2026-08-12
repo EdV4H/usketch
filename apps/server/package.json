@@ -25,17 +25,17 @@
 		"@edv4h/usketch-shared": "workspace:*",
 		"@edv4h/usketch-sync": "workspace:*",
 		"@hono/zod-validator": "0.9.0",
-		"better-auth": "1.6.26",
+		"better-auth": "1.6.27",
 		"drizzle-orm": "0.45.2",
 		"hono": "4.13.1",
 		"yjs": "^13.6.0",
 		"zod": "4.4.3"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "5.20260810.1",
+		"@cloudflare/workers-types": "5.20260811.1",
 		"drizzle-kit": "0.31.10",
 		"typescript": "7.0.2",
 		"vitest": "4.1.10",
-		"wrangler": "4.120.0"
+		"wrangler": "4.121.0"
 	}
 }

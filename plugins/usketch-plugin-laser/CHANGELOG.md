@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-laser
 
+## 2.0.12
+
+### Patch Changes
+
+- Updated dependencies [6a1e9b9]
+  - @edv4h/usketch-sync@1.2.0
+
 ## 2.0.11
 
 ### Patch Changes
