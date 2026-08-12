@@ -25,6 +25,7 @@ import { createIslandPlugin } from "@edv4h/usketch-plugin-shape-island";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { createSpatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
 import { createSpotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
+import { createStartPositionPlugin } from "@edv4h/usketch-plugin-start-position";
 import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { createPanToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { createSelectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
@@ -213,6 +214,8 @@ export function CommunityPage() {
 					// Demo default: unset tiles read as sea, so the world map is an
 					// infinite ocean with painted land (off-map counts as water).
 					createMapPlugin({ emptyTerrain: "water" }),
+					// マップの初期視点（スタート位置）を HUD で設定・起動時移動。
+					createStartPositionPlugin(),
 					createDomRendererPlugin(),
 					// Control HUD: hosts plugin operations/settings + the useCommunityActions
 					// actions (toggle with the backtick key). Replaces bespoke on-canvas UI.
