@@ -88,6 +88,31 @@ interface LayerManager {
 
 境界は「ワールドを描いているか / コントロールを置いているか」。ページの上に浮かぶコントロールは HUD、キャンバスの一部として描かれるものはレイヤー。
 
+### 操作ロジックは HUD ハンドラに埋めない（ホストから駆動可能にする）
+
+UI は HUD に集約するが、**HUD の `set` / action の `run` クロージャに操作ロジックを書いてはいけない**。ロジックは「`BoardStore` を受け取る純関数」または「module-scope の reactive store」として実装し、**最初から公開 export** する。HUD ハンドラはそれを呼ぶだけの薄い層にする。
+
+理由: HUD は UI の1消費者にすぎない。ホストは独自 UI（ActionRing / ラジアル / 独自ツールバー）やプログラムから操作したいことがあり、ロジックがクロージャに閉じていると再実装を強いられる（#927 tool-state, #946 無限地形はこの後追い対応だった）。
+
+**レジストリは既にホストから到達可能**: `createApp()` が返す `AppInstance` は `app.actions` / `app.hud` / `app.services` をそのまま公開する（全プラグイン横断の singleton、`packages/core/src/create-app.ts`）。`app.actions.get(id).run(args)` や `app.hud.getSettings()` の descriptor `.set(name,value)` でどのプラグインの操作も駆動できる。ただしこれらは stringly-typed で discoverable でない。
+
+**型付きのホスト向け API は `defineService` シームで公開する**（推奨・標準）:
+
+1. 操作を素の関数として実装（例: `enableInfiniteTerrain(store, opts)`）。
+2. それらを API オブジェクトに束ね、`ctx.services` に provide する。
+   ```ts
+   // xxx-service.ts
+   import { defineService, type ServiceRegistry, type BoardStore } from "@edv4h/usketch-shared";
+   export interface XxxApi { doThing(): void; /* ... */ }
+   export const xxxService = defineService<XxxApi>("usketch-plugin-xxx"); // key はプラグイン id
+   export function createXxxApi(store: BoardStore): XxxApi { return { doThing: () => op(store) }; }
+   export function getXxxApi(services: ServiceRegistry): XxxApi | undefined { return xxxService.get(services); }
+   // plugin setup: const off = xxxService.provide(ctx.services, createXxxApi(ctx.store)); // teardown で off()
+   ```
+3. ホストは `getXxxApi(app.services)?.doThing()` で駆動。プラグイン不在なら `undefined`（optional に扱える）。
+
+`ctx.services` と `app.services` は同一 registry なので、`getXxxApi(services)` は plugin↔plugin でも host↔plugin でも同じアクセサで使える。**参照実装は `usketch-plugin-map` の `map-service.ts`（`mapService` / `getMapApi`）**。
+
 #### なぜ
 
 1. **`order` が手管理のグローバル名前空間になる。** プラグイン同士が番号を取り合い、実際に衝突している（`shape-connector` の labelEditor と `domain-design` のプロパティバーは 82〜84 を手作業で調整している）。HUD に集約すれば、レイヤーの order はコアが持つ1つで済む。

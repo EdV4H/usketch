@@ -34,6 +34,10 @@ export {
 	setInfiniteSeed,
 } from "./infinite-terrain.js";
 export { MAP_ICON_TYPE, type MapIconShapeData } from "./map-icon-shape.js";
+// ── Host-facing service (recommended seam; #927/#946 pattern generalized) ──
+// `getMapApi(app.services)?.enableInfiniteTerrain({ seed })` from a host, without
+// the Control HUD and without importing individual helpers (undefined if absent).
+export { createMapApi, getMapApi, type MapApi, mapService } from "./map-service.js";
 export { MAP_TOOL_ID } from "./map-tool-id.js";
 export type { ColorMode } from "./palette.js";
 export { createMapPlugin, type MapPluginOptions } from "./plugin.js";

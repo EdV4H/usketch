@@ -15,6 +15,7 @@ import {
 } from "./infinite-terrain.js";
 import { MAP_ICON_TYPE, mapIconShapeDefinition } from "./map-icon-shape.js";
 import { MapTerrainLayer } from "./map-layer.js";
+import { createMapApi, mapService } from "./map-service.js";
 import { createMapToolDefinition } from "./map-tool.js";
 import { MAP_TOOL_ID } from "./map-tool-id.js";
 import type { ColorMode } from "./palette.js";
@@ -194,7 +195,15 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				},
 			});
 
+			// ── Host-facing API (ctx.services seam) — lets a host or another plugin
+			//    drive map operations without the Control HUD. See map-service.ts.
+			//    Provided LAST, after every throw-prone registration above, so a setup
+			//    failure can't leak the service (createApp only rolls back a returned
+			//    teardown). ──
+			const unprovideService = mapService.provide(ctx.services, createMapApi(ctx.store));
+
 			return () => {
+				unprovideService();
 				ctx.layers.unregister(TERRAIN_LAYER_ID);
 				ctx.layers.unregister(BASE_LAYER_ID);
 				ctx.layers.unregister(ENTER_BANNER_ID);
