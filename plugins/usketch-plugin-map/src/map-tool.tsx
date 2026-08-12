@@ -33,7 +33,7 @@ import { generateIntoBox, resolveTilemap } from "./generate.js";
 import { ICONS_BY_KEY } from "./icons.js";
 import { MAP_ICON_TYPE, makeMapIcon } from "./map-icon-shape.js";
 import type { TerrainKey } from "./terrain.js";
-import { DEFAULT_TILE, seededTilemap, type TileMapShapeData } from "./tilemap-shape.js";
+import { DEFAULT_TILE, isTileMap, seededTilemap, type TileMapShapeData } from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
 
 // Hard cap on a single sampler-based fill over the infinite base terrain. A truly
@@ -130,6 +130,21 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 	}
 
 	/**
+	 * Painted overrides as the RENDERER sees them: every tilemap's cells merged in
+	 * id order (highest id wins), matching `map-layer`. The fill sampler must read
+	 * this — not just the stroke tilemap — so the flooded region agrees with the
+	 * terrain the user actually clicked when several tilemaps coexist.
+	 */
+	function mergedOverrides(ctx: ToolContext): Cells {
+		const tms = [...ctx.store.getShapes().values()].filter(isTileMap);
+		if (tms.length <= 1) return tms[0] ? { ...tms[0].cells } : {};
+		return Object.assign(
+			{},
+			...[...tms].sort((a, b) => (a.id < b.id ? -1 : 1)).map((tm) => tm.cells),
+		);
+	}
+
+	/**
 	 * Region isn't enclosed (open terrain, e.g. infinite ocean) — don't paint an
 	 * arbitrary capped blob. Emit an event so a HUD can surface a message (no toast
 	 * yet), and no-op the fill. Intentionally no console output: an aborted open
@@ -170,9 +185,10 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 
 		const base = baseConfig(ctx);
 		if (base) {
-			// Infinite base: flood over the SAMPLED terrain (override ?? base) so the
-			// click's visible terrain is honoured, capped + aborted when not enclosed.
-			const sample = makeTerrainSampler(cells, base.seed, null, base.gen);
+			// Infinite base: flood over the SAMPLED terrain (merged overrides ?? base)
+			// so the click's visible terrain is honoured, capped + aborted when not
+			// enclosed. Read the merged view (all tilemaps) but write to the stroke one.
+			const sample = makeTerrainSampler(mergedOverrides(ctx), base.seed, null, base.gen);
 			const res = samplerFloodFill(sample, c, r, MAX_FILL_CELLS);
 			if (res.truncated) {
 				abortFill(ctx, res.cells.length);
@@ -206,7 +222,7 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 
 		const base = baseConfig(ctx);
 		if (base) {
-			const sample = makeTerrainSampler(cells, base.seed, null, base.gen);
+			const sample = makeTerrainSampler(mergedOverrides(ctx), base.seed, null, base.gen);
 			const start = sample(c, r);
 			// Clicking a protected (or empty) terrain is a no-op; since the flood only
 			// spreads across `start`, it can never reach a protected cell.

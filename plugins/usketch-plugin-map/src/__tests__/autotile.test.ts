@@ -161,6 +161,14 @@ describe("samplerFloodFill", () => {
 		expect(res.truncated).toBe(false);
 	});
 
+	it("returns a deterministic empty result for a non-positive cap", () => {
+		for (const cap of [0, -1]) {
+			const res = samplerFloodFill(() => "grass", 0, 0, cap);
+			expect(res.cells).toEqual([]);
+			expect(res.truncated).toBe(false);
+		}
+	});
+
 	it("does not flag an enclosed region whose size is exactly maxCells", () => {
 		// The 3x3 pocket has exactly 9 cells; with maxCells=9 it closes without a
 		// matching cell left over, so it must NOT be reported truncated.

@@ -178,6 +178,9 @@ export function samplerFloodFill(
 ): SamplerFloodResult {
 	const target = sample(startCol, startRow);
 	if (target === undefined) return { cells: [], truncated: false };
+	// Non-positive cap: nothing can be filled. Return a deterministic empty result
+	// rather than reporting a bogus truncation.
+	if (maxCells <= 0) return { cells: [], truncated: false };
 
 	const out: string[] = [];
 	const seen = new Set<string>([cellKey(startCol, startRow)]);
