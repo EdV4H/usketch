@@ -193,16 +193,16 @@ export function createStartPositionPlugin(): UsketchPlugin {
 			// Move the camera to `start`, deferred a task so competing claims (deep-link
 			// emits on a microtask, which runs before this timeout) are recorded before
 			// we decide to yield. Tracked so teardown (StrictMode remount, board switch)
-			// can cancel it — otherwise it could move the camera after disposal.
-			// `fallbackFitAll` frames all content when a shape target can't be resolved.
-			const applyOnLoad = (start: StartPosition, fallbackFitAll: boolean): void => {
+			// can cancel it — otherwise it could move the camera after disposal. When the
+			// move can't resolve — `applyStartPosition` returns false only for a shape
+			// target that's gone — frame all content instead (documented fallback).
+			const applyOnLoad = (start: StartPosition): void => {
 				applyTimer = setTimeout(() => {
 					applyTimer = null;
 					if (disposed || guard.shouldYield()) return;
 					if (applyStartPosition(ctx.store, start, { animate: false })) {
 						claimViewport(ctx.events, SOURCE, START_POSITION_PRIORITY);
-					} else if (fallbackFitAll) {
-						// Shape target never resolved (deleted / never synced) → frame all.
+					} else {
 						fitContent(ctx.store, { animate: false });
 					}
 				}, 0);
@@ -212,22 +212,26 @@ export function createStartPositionPlugin(): UsketchPlugin {
 				if (settled) return;
 				const s = currentShape();
 				if (!s) return; // start-position shape not synced in yet — keep waiting
-				if (s.autoApply === false || !s.start) {
-					finishWait();
+				if (s.autoApply === false) {
+					finishWait(); // auto-move explicitly disabled
 					return;
 				}
+				// Shape present but `start` not set yet — it may still arrive via sync/edit,
+				// so keep waiting (up to the timeout) rather than settling.
+				if (!s.start) return;
 				const start = s.start;
-				// A shape target may still be streaming in via CRDT; keep waiting for it
-				// (up to the timeout) rather than settling and framing all content early.
+				// A shape target may still be streaming in via CRDT; keep waiting for it.
 				if (start.kind === "shape" && !ctx.store.getShape(start.shapeId)) return;
 				finishWait();
-				applyOnLoad(start, false);
+				applyOnLoad(start);
 			};
 
 			attemptAutoApply();
 			if (!settled) {
 				offWait = ctx.store.onMutation((e: StoreEvent) => {
-					if (e.type === "shape:added") attemptAutoApply();
+					// Retry on add AND update: the shape (or its `start`/`autoApply` fields,
+					// or the referenced target) can arrive/change during the sync window.
+					if (e.type === "shape:added" || e.type === "shape:updated") attemptAutoApply();
 				});
 				// Timed out waiting for the (start-position or referenced) shape to sync.
 				// Apply whatever is defined now, falling back to fit-all if a shape target
@@ -236,7 +240,7 @@ export function createStartPositionPlugin(): UsketchPlugin {
 					if (settled) return;
 					const s = currentShape();
 					finishWait();
-					if (s && s.autoApply !== false && s.start) applyOnLoad(s.start, true);
+					if (s && s.autoApply !== false && s.start) applyOnLoad(s.start);
 				}, SYNC_TIMEOUT_MS);
 			}
 
