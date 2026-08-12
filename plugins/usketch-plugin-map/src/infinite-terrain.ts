@@ -53,12 +53,20 @@ export function enableInfiniteTerrain(
 	if (!Number.isFinite(seed)) {
 		throw new RangeError(`enableInfiniteTerrain: seed must be a finite number, got ${String(raw)}`);
 	}
+	// Validate the tile size — it feeds cell math (move/viewport divide by tile), so
+	// a non-finite/non-positive value would later cause NaN/÷0 cells.
+	const tile = opts.tile ?? DEFAULT_TILE;
+	if (!Number.isFinite(tile) || tile <= 0) {
+		throw new RangeError(
+			`enableInfiniteTerrain: tile must be a finite positive number, got ${String(opts.tile)}`,
+		);
+	}
 	// Deterministic target so every synced client agrees (see seededTilemap). Reuse
 	// the target's own recorded gen if present so re-enabling keeps the same world
 	// even after the default gen advances.
 	const target =
 		seededTilemap(store.getShapes().values()) ?? lowestTilemap(store.getShapes().values());
-	const id = target?.id ?? resolveTilemap(store, opts.tile ?? DEFAULT_TILE).id;
+	const id = target?.id ?? resolveTilemap(store, tile).id;
 	store.updateShape(id, {
 		baseSeed: seed,
 		baseGen: target?.baseGen ?? DEFAULT_BASE_GEN,

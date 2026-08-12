@@ -78,6 +78,12 @@ describe("infinite-terrain public API", () => {
 		expect(() => enableInfiniteTerrain(fakeStore(), { seed: Number.NaN })).toThrow(RangeError);
 	});
 
+	it("throws on a non-finite or non-positive tile size", () => {
+		for (const tile of [0, -40, Number.NaN, Number.POSITIVE_INFINITY]) {
+			expect(() => enableInfiniteTerrain(fakeStore(), { seed: 1, tile })).toThrow(RangeError);
+		}
+	});
+
 	it("disableInfiniteTerrain clears baseSeed on every seeded tilemap", () => {
 		const store = fakeStore([tilemap("a", 1), tilemap("b", 2)]);
 		disableInfiniteTerrain(store);
