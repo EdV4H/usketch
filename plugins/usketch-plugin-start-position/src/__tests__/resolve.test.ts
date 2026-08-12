@@ -60,6 +60,41 @@ describe("applyStartPosition", () => {
 		expect(rec.fitToBounds).toHaveLength(0);
 		expect(rec.animateViewportTo).toHaveLength(0);
 	});
+
+	it("shape: returns false for an unframeable (zero-size) shape", () => {
+		const zero = {
+			id: "z",
+			type: "rect",
+			x: 5,
+			y: 5,
+			width: 0,
+			height: 0,
+			rotation: 0,
+		} as unknown as ShapeData;
+		const { store, rec } = fakeStore({ shapes: { z: zero } });
+		expect(applyStartPosition(store, { kind: "shape", shapeId: "z" })).toBe(false);
+		expect(rec.fitToBounds).toHaveLength(0);
+	});
+
+	it("clamps an out-of-range viewport zoom into [0.1, 10]", () => {
+		const { store, rec } = fakeStore();
+		expect(applyStartPosition(store, { kind: "viewport", x: 0, y: 0, zoom: 500 })).toBe(true);
+		expect(rec.animateViewportTo[0].vp.zoom).toBe(10);
+	});
+
+	it("rejects malformed coordinates from corrupt synced data (no camera move)", () => {
+		const { store, rec } = fakeStore();
+		// biome-ignore lint/suspicious/noExplicitAny: intentionally malformed data
+		const bad: any[] = [
+			{ kind: "coordinate", x: Number.NaN, y: 0 },
+			{ kind: "coordinate", x: 0, y: Number.POSITIVE_INFINITY },
+			{ kind: "viewport", x: 0, y: 0, zoom: Number.NaN },
+			{ kind: "viewport", x: 0, y: 0, zoom: 0 },
+			{ kind: "viewport", x: Number.NaN, y: 0, zoom: 1 },
+		];
+		for (const b of bad) expect(applyStartPosition(store, b)).toBe(false);
+		expect(rec.animateViewportTo).toHaveLength(0);
+	});
 });
 
 describe("captureViewport", () => {

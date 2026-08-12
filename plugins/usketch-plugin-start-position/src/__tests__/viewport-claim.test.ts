@@ -71,6 +71,17 @@ describe("watchViewportClaims", () => {
 		expect(seen).toEqual({ source: "deep-link", priority: 100 });
 	});
 
+	it("ignores a non-finite priority claim (does not poison the guard)", () => {
+		const bus = fakeBus();
+		const guard = watchViewportClaims(bus, "start-position", 10);
+		// A NaN priority must be ignored — otherwise Math.max poisons maxOther and
+		// shouldYield() would never yield again, even for later valid claims.
+		claimViewport(bus, "bad", Number.NaN);
+		expect(guard.shouldYield()).toBe(false);
+		claimViewport(bus, "deep-link", 100);
+		expect(guard.shouldYield()).toBe(true);
+	});
+
 	it("stops tracking after dispose", () => {
 		const bus = fakeBus();
 		const guard = watchViewportClaims(bus, "start-position", 10);

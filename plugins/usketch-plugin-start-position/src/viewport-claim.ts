@@ -45,7 +45,9 @@ export function watchViewportClaims(
 ): ClaimGuard {
 	let maxOther = Number.NEGATIVE_INFINITY;
 	const off = events.on<ViewportClaim>(VIEWPORT_CLAIMED, (c) => {
-		if (c && c.source !== mySource && typeof c.priority === "number") {
+		// Require a FINITE priority: a NaN would poison `maxOther` via Math.max and,
+		// since every NaN comparison is false, make `shouldYield()` never yield again.
+		if (c && c.source !== mySource && Number.isFinite(c.priority)) {
 			maxOther = Math.max(maxOther, c.priority);
 		}
 	});
