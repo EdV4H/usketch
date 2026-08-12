@@ -5,7 +5,13 @@ export {
 } from "./base/base-map-shape.js";
 export { type BaseToolState, baseStateStore, useBaseState } from "./base/base-state.js";
 export { computeTerritory, type Territory } from "./base/territory.js";
+export { type BaseGenParams, baseTerrainAt, DEFAULT_BASE_GEN } from "./base-terrain.js";
 export { type GenState, genStateStore, useGenState, type WorldRect } from "./gen-state.js";
+// NOTE: `resolveTilemap` returns the FIRST tilemap in iteration order (or creates
+// one) — NOT deterministic across synced peers when several tilemaps exist. For
+// deterministic selection use `seededTilemap` / `lowestTilemap`, or the
+// `enableInfiniteTerrain` API which already picks deterministically.
+export { resolveTilemap } from "./generate.js";
 export {
 	GENERATORS,
 	type GenContext,
@@ -13,6 +19,20 @@ export {
 	type MapGenerator,
 } from "./generators/index.js";
 export { ICONS, type IconCategory, type IconDef } from "./icons.js";
+// ── Infinite base terrain public API (#946 / #937 follow-up) ──
+// Enable/disable/seed the infinite base terrain from a host's own UI without the
+// Control HUD. Same logic the HUD toggle runs; the seed lives on the tilemap
+// shape (synced/persisted), so these take a BoardStore. Use the functions for
+// imperative control, or `useInfiniteTerrain(store)` for a reactive React binding.
+export {
+	DEFAULT_INFINITE_SEED,
+	disableInfiniteTerrain,
+	type EnableInfiniteTerrainOptions,
+	enableInfiniteTerrain,
+	getInfiniteSeed,
+	isInfiniteTerrainEnabled,
+	setInfiniteSeed,
+} from "./infinite-terrain.js";
 export { MAP_ICON_TYPE, type MapIconShapeData } from "./map-icon-shape.js";
 export { MAP_TOOL_ID } from "./map-tool-id.js";
 export type { ColorMode } from "./palette.js";
@@ -34,7 +54,15 @@ export {
 	renderConfigStore,
 } from "./render-config.js";
 export { TERRAINS, type TerrainDef, type TerrainKey } from "./terrain.js";
-export { DEFAULT_TILE, TILEMAP_TYPE, type TileMapShapeData } from "./tilemap-shape.js";
+export {
+	DEFAULT_TILE,
+	isTileMap,
+	lowestTilemap,
+	makeTileMap,
+	seededTilemap,
+	TILEMAP_TYPE,
+	type TileMapShapeData,
+} from "./tilemap-shape.js";
 export {
 	MAP_MODES,
 	type MapMode,
@@ -42,3 +70,7 @@ export {
 	toolStateStore,
 	useMapToolState,
 } from "./tool-state.js";
+export {
+	type InfiniteTerrainControls,
+	useInfiniteTerrain,
+} from "./use-infinite-terrain.js";
