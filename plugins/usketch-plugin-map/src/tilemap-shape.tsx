@@ -5,6 +5,7 @@
 import type { BoundingBox, ShapeData, ShapeDefinition } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
 import { type Cells, cellKey, cellsBounds, parseCellKey } from "./autotile.js";
+import type { BaseGenParams } from "./base-terrain.js";
 import type { TerrainKey } from "./terrain.js";
 
 export const TILEMAP_TYPE = "tilemap";
@@ -21,10 +22,61 @@ export interface TileMapShapeData extends ShapeData {
 	 * subset of `cells`.
 	 */
 	handPaint?: Record<string, true>;
+	/**
+	 * Seed for the infinite procedurally-generated base terrain. When set, every
+	 * unpainted cell is filled by `baseTerrainAt(baseSeed, col, row)`. Stored on the
+	 * shape (not app-local render config) so the generated world **persists across
+	 * reloads and syncs to everyone** on the board. `undefined` = no base.
+	 */
+	baseSeed?: number;
+	/**
+	 * Generation version + parameters the base terrain was created with, recorded
+	 * so the board's world is **frozen**: tuning the defaults or changing the
+	 * algorithm later won't retroactively alter existing boards. `undefined` on an
+	 * older seeded shape means v1 (see `resolveBaseGen`). Paired with `baseSeed`.
+	 */
+	baseGen?: BaseGenParams;
 }
 
 export function isTileMap(shape: ShapeData): shape is TileMapShapeData {
 	return shape.type === TILEMAP_TYPE;
+}
+
+/**
+ * The tilemap that owns the infinite-terrain seed, chosen **deterministically**
+ * (lowest `id`) so every synced client resolves the same seed even if several
+ * seeded tilemaps coexist — `getShapes()` insertion order is not guaranteed
+ * identical across peers, so we must not rely on "first found". Returns `null`
+ * when no tilemap carries a seed.
+ */
+export function seededTilemap(shapes: Iterable<ShapeData>): TileMapShapeData | null {
+	let best: TileMapShapeData | null = null;
+	// Require an INTEGER seed (step:1): synced shape data could carry NaN/Infinity
+	// (→ HUD garbage, `fbm(NaN, …)` behaves as seed 0) or a fraction like 1.9,
+	// which the HUD shows verbatim but `hash2` truncates to 1 via ToInt32 — the
+	// two would disagree. Integer-only keeps the display and the effective seed in
+	// sync.
+	for (const s of shapes)
+		if (
+			isTileMap(s) &&
+			s.baseSeed != null &&
+			Number.isInteger(s.baseSeed) &&
+			(best === null || s.id < best.id)
+		)
+			best = s;
+	return best;
+}
+
+/**
+ * The lowest-`id` tilemap on the board (of any kind), or `null` if there are
+ * none. Used to pick a **deterministic** stamp target when enabling the infinite
+ * base — `resolveTilemap`'s "first in insertion order" isn't stable across synced
+ * clients, so two peers could otherwise seed different tilemaps.
+ */
+export function lowestTilemap(shapes: Iterable<ShapeData>): TileMapShapeData | null {
+	let best: TileMapShapeData | null = null;
+	for (const s of shapes) if (isTileMap(s) && (best === null || s.id < best.id)) best = s;
+	return best;
 }
 
 /** Create a new empty tilemap (locked substrate). */

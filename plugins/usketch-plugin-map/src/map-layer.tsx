@@ -4,13 +4,20 @@
 import type { BoardStore, RenderMode } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
 import { type Cells, cellKey, exposedEdges, parseCellKey } from "./autotile.js";
+import {
+	type BaseGenParams,
+	baseTerrainAt,
+	makeTerrainSampler,
+	resolveBaseGen,
+	type TerrainSampler,
+} from "./base-terrain.js";
 import { genStateStore } from "./gen-state.js";
 import { blockFactor, downsampleCells, type TileDetail, tileDetail } from "./lod.js";
 import { terrainCssVars } from "./palette.js";
 import { renderConfigStore } from "./render-config.js";
 import { renderSvgNodes } from "./svg-nodes.js";
 import { TERRAINS, type TerrainKey, terrainDarkVar, terrainPatternId } from "./terrain.js";
-import { isTileMap, type TileMapShapeData } from "./tilemap-shape.js";
+import { isTileMap, seededTilemap, type TileMapShapeData } from "./tilemap-shape.js";
 
 export const WOBBLE_FILTER_ID = "uskmap-wobble";
 const GRID_PATTERN_ID = "uskmap-grid";
@@ -182,6 +189,103 @@ function renderCells(
 	return renderCoarseCells(cells, tile, screenTilePx, visible);
 }
 
+/**
+ * Infinite base terrain, full tier. Walks the visible cell RANGE and fills EVERY
+ * cell from `sample` (painted override, else generated base — always defined), so
+ * unpainted space shows generated terrain. Autotile edges compare `sample`d
+ * neighbours, which are total, so band borders read correctly with no gaps.
+ */
+function renderInfiniteFull(
+	sample: TerrainSampler,
+	tile: number,
+	visible: DOMRectReadOnly | null | undefined,
+): React.ReactElement[] {
+	const range = visibleCellRange(visible, tile);
+	if (!range) return [];
+	const nodes: React.ReactElement[] = [];
+	const t = EDGE_RATIO * tile;
+	for (let r = range.r0; r <= range.r1; r++) {
+		for (let c = range.c0; c <= range.c1; c++) {
+			const terrain = sample(c, r);
+			if (!terrain) continue;
+			const x = c * tile;
+			const y = r * tile;
+			const k = cellKey(c, r);
+			nodes.push(
+				<rect
+					key={`${k}:base`}
+					x={x}
+					y={y}
+					width={tile}
+					height={tile}
+					fill={`url(#${terrainPatternId(terrain)})`}
+					stroke={CELL_LINE}
+					strokeWidth={1}
+				/>,
+			);
+			const dark = terrainDarkVar(terrain);
+			const strip = (sx: number, sy: number, sw: number, sh: number, sk: string) => (
+				<rect key={sk} x={sx} y={sy} width={sw} height={sh} fill={dark} opacity={EDGE_OPACITY} />
+			);
+			if (sample(c, r - 1) !== terrain) nodes.push(strip(x, y, tile, t, `${k}:n`));
+			if (sample(c, r + 1) !== terrain) nodes.push(strip(x, y + tile - t, tile, t, `${k}:s`));
+			if (sample(c - 1, r) !== terrain) nodes.push(strip(x, y, t, tile, `${k}:w`));
+			if (sample(c + 1, r) !== terrain) nodes.push(strip(x + tile - t, y, t, tile, `${k}:e`));
+		}
+	}
+	return nodes;
+}
+
+/**
+ * Infinite base terrain, coarse tier. Flat-colour blocks over the visible block
+ * range sampled from the base field (bounded by on-screen blocks, not map size),
+ * with painted overrides downsampled on top.
+ */
+function renderInfiniteCoarse(
+	overrides: Cells,
+	seed: number,
+	tile: number,
+	screenTilePx: number,
+	visible: DOMRectReadOnly | null | undefined,
+	gen: BaseGenParams,
+): React.ReactElement[] {
+	if (!visible) return [];
+	const factor = blockFactor(screenTilePx);
+	const bt = factor * tile;
+	const half = factor >> 1;
+	const nodes: React.ReactElement[] = [];
+	const bc0 = Math.floor(visible.left / bt);
+	const bc1 = Math.ceil(visible.right / bt) - 1;
+	const br0 = Math.floor(visible.top / bt);
+	const br1 = Math.ceil(visible.bottom / bt) - 1;
+	for (let br = br0; br <= br1; br++) {
+		for (let bc = bc0; bc <= bc1; bc++) {
+			const terrain = baseTerrainAt(seed, bc * factor + half, br * factor + half, gen);
+			nodes.push(
+				<rect
+					key={`b:${bc},${br}`}
+					x={bc * bt}
+					y={br * bt}
+					width={bt}
+					height={bt}
+					fill={`var(--t-${terrain})`}
+				/>,
+			);
+		}
+	}
+	// Painted overrides on top (only the edited area; bounded).
+	for (const [bk, terrain] of Object.entries(downsampleCells(overrides, factor))) {
+		const [bc, br] = parseCellKey(bk);
+		const x = bc * bt;
+		const y = br * bt;
+		if (culled(x, y, bt, visible)) continue;
+		nodes.push(
+			<rect key={`o:${bk}`} x={x} y={y} width={bt} height={bt} fill={`var(--t-${terrain})`} />,
+		);
+	}
+	return nodes;
+}
+
 /** Visible world rect from the current viewport (best-effort, window-sized). */
 export function visibleWorldRect(store: BoardStore): DOMRectReadOnly | null {
 	if (typeof window === "undefined") return null;
@@ -242,6 +346,51 @@ export function MapTerrainLayer({
 	// Match painted tiles: wobble the empty background + grid too at full detail.
 	const bgWobble = cfg.lineStyle === "wobble" && !bgCoarse;
 
+	// Infinite base terrain: one pass fills the whole viewport from the base field
+	// (+ painted overrides + autotile), replacing the flat empty background and the
+	// per-tilemap render. The seed lives on the tilemap SHAPE (persisted + synced),
+	// so the generated world survives reloads and is shared with everyone on the
+	// board. Chosen deterministically (by id) so every synced client renders the
+	// same world even if several seeded tilemaps coexist.
+	const seededTm = seededTilemap(tilemaps);
+	const baseSeed = seededTm?.baseSeed ?? null;
+	// Generation params are frozen on the shape; missing ⇒ v1 (resolveBaseGen).
+	const baseGen = resolveBaseGen(seededTm?.baseGen);
+	const baseActive = baseSeed != null && !!visible;
+	let baseNodes: React.ReactElement[] = [];
+	let baseWobble = false;
+	if (baseActive && visible && baseSeed != null) {
+		// Overrides for the sampler. The common case is a single shared tilemap —
+		// reuse its `cells` directly (read-only here) to avoid copying every RAF
+		// frame; only allocate + merge when several tilemaps coexist. Merge in
+		// id order so overlapping cells resolve deterministically (highest id
+		// wins) — insertion order isn't consistent across synced clients.
+		const merged: Cells =
+			tilemaps.length === 1
+				? tilemaps[0].cells
+				: Object.assign(
+						{},
+						...[...tilemaps].sort((a, b) => (a.id < b.id ? -1 : 1)).map((tm) => tm.cells),
+					);
+		const detail = tileDetail(defaultTile * vp.zoom, renderMode);
+		baseWobble = cfg.lineStyle === "wobble" && detail === "full";
+		baseNodes =
+			detail === "full"
+				? renderInfiniteFull(
+						makeTerrainSampler(merged, baseSeed, empty, baseGen),
+						defaultTile,
+						visible,
+					)
+				: renderInfiniteCoarse(
+						merged,
+						baseSeed,
+						defaultTile,
+						defaultTile * vp.zoom,
+						visible,
+						baseGen,
+					);
+	}
+
 	return (
 		<div
 			style={{
@@ -260,38 +409,44 @@ export function MapTerrainLayer({
 			>
 				<MapDefs tile={defaultTile} />
 				<g transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}>
-					{empty && visible && (
-						<g filter={bgWobble ? `url(#${WOBBLE_FILTER_ID})` : undefined}>
-							<rect
-								x={visible.left}
-								y={visible.top}
-								width={visible.width}
-								height={visible.height}
-								fill={bgCoarse ? `var(--t-${empty})` : `url(#${terrainPatternId(empty)})`}
-							/>
-							{!bgCoarse && (
-								// Same tile grid as painted cells, so unset tiles aren't blank.
-								<rect
-									x={visible.left}
-									y={visible.top}
-									width={visible.width}
-									height={visible.height}
-									fill={`url(#${GRID_PATTERN_ID})`}
-								/>
+					{baseActive ? (
+						<g filter={baseWobble ? `url(#${WOBBLE_FILTER_ID})` : undefined}>{baseNodes}</g>
+					) : (
+						<>
+							{empty && visible && (
+								<g filter={bgWobble ? `url(#${WOBBLE_FILTER_ID})` : undefined}>
+									<rect
+										x={visible.left}
+										y={visible.top}
+										width={visible.width}
+										height={visible.height}
+										fill={bgCoarse ? `var(--t-${empty})` : `url(#${terrainPatternId(empty)})`}
+									/>
+									{!bgCoarse && (
+										// Same tile grid as painted cells, so unset tiles aren't blank.
+										<rect
+											x={visible.left}
+											y={visible.top}
+											width={visible.width}
+											height={visible.height}
+											fill={`url(#${GRID_PATTERN_ID})`}
+										/>
+									)}
+								</g>
 							)}
-						</g>
+							{tilemaps.map((tm) => {
+								const screenTilePx = tm.tile * vp.zoom;
+								const detail = tileDetail(screenTilePx, renderMode);
+								// Wobble only pays off (and is only visible) at full detail.
+								const useWobble = cfg.lineStyle === "wobble" && detail === "full";
+								return (
+									<g key={tm.id} filter={useWobble ? `url(#${WOBBLE_FILTER_ID})` : undefined}>
+										{renderCells(tm.cells, tm.tile, detail, screenTilePx, visible, empty)}
+									</g>
+								);
+							})}
+						</>
 					)}
-					{tilemaps.map((tm) => {
-						const screenTilePx = tm.tile * vp.zoom;
-						const detail = tileDetail(screenTilePx, renderMode);
-						// Wobble only pays off (and is only visible) at full detail.
-						const useWobble = cfg.lineStyle === "wobble" && detail === "full";
-						return (
-							<g key={tm.id} filter={useWobble ? `url(#${WOBBLE_FILTER_ID})` : undefined}>
-								{renderCells(tm.cells, tm.tile, detail, screenTilePx, visible, empty)}
-							</g>
-						);
-					})}
 					{pending && (pending.w > 0 || pending.h > 0) && (
 						<rect
 							x={pending.x}
