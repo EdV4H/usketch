@@ -22,16 +22,24 @@ import {
 	cellsBounds,
 	floodFill,
 	regionFillCells,
+	samplerFloodFill,
 	worldToCell,
 } from "./autotile.js";
 import { createBase, getBaseMap, setBeacon } from "./base/base-ops.js";
 import { baseStateStore } from "./base/base-state.js";
+import { makeTerrainSampler, resolveBaseGen } from "./base-terrain.js";
 import { genStateStore } from "./gen-state.js";
 import { generateIntoBox, resolveTilemap } from "./generate.js";
 import { ICONS_BY_KEY } from "./icons.js";
 import { MAP_ICON_TYPE, makeMapIcon } from "./map-icon-shape.js";
-import { DEFAULT_TILE, type TileMapShapeData } from "./tilemap-shape.js";
+import type { TerrainKey } from "./terrain.js";
+import { DEFAULT_TILE, isTileMap, seededTilemap, type TileMapShapeData } from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
+
+// Hard cap on a single sampler-based fill over the infinite base terrain. A truly
+// enclosed region terminates well below this; hitting it means the region is open
+// (e.g. an infinite ocean), so the fill is aborted rather than painting a blob.
+const MAX_FILL_CELLS = 8192;
 
 // Default colours cycled through when a base is auto-created on first beacon.
 const BASE_PALETTE = [
@@ -113,24 +121,87 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		applyCells(ctx, stroke.tilemapId, cells);
 	}
 
+	/** The board's infinite-base config (seed + frozen gen), or null when off. */
+	function baseConfig(
+		ctx: ToolContext,
+	): { seed: number; gen: ReturnType<typeof resolveBaseGen> } | null {
+		const tm = seededTilemap(ctx.store.getShapes().values());
+		return tm?.baseSeed != null ? { seed: tm.baseSeed, gen: resolveBaseGen(tm.baseGen) } : null;
+	}
+
+	/**
+	 * Painted overrides as the RENDERER sees them: every tilemap's cells merged in
+	 * id order (highest id wins), matching `map-layer`. The fill sampler must read
+	 * this — not just the stroke tilemap — so the flooded region agrees with the
+	 * terrain the user actually clicked when several tilemaps coexist.
+	 */
+	function mergedOverrides(ctx: ToolContext): Cells {
+		const tms = [...ctx.store.getShapes().values()].filter(isTileMap);
+		if (tms.length <= 1) return tms[0] ? { ...tms[0].cells } : {};
+		return Object.assign(
+			{},
+			...[...tms].sort((a, b) => (a.id < b.id ? -1 : 1)).map((tm) => tm.cells),
+		);
+	}
+
+	/**
+	 * Region isn't enclosed (open terrain, e.g. infinite ocean) — don't paint an
+	 * arbitrary capped blob. Emit an event so a HUD can surface a message (no toast
+	 * yet), and no-op the fill. Intentionally no console output: an aborted open
+	 * fill is an expected user outcome, not a warning.
+	 */
+	function abortFill(ctx: ToolContext, scanned: number): void {
+		ctx.events.emit("map:fill-aborted", { reason: "not-enclosed", scanned });
+	}
+
+	/** Painted-cell bounds as a flood box, or undefined for an empty tilemap. */
+	function paintedBox(cells: Cells): CellBox | undefined {
+		if (Object.keys(cells).length === 0) return undefined;
+		const b = cellsBounds(cells, tile);
+		return {
+			minC: Math.floor(b.x / tile),
+			minR: Math.floor(b.y / tile),
+			maxC: Math.floor(b.x / tile) + b.width / tile - 1,
+			maxR: Math.floor(b.y / tile) + b.height / tile - 1,
+		};
+	}
+
+	/** Write `terrain` into every region key that differs; returns whether anything changed. */
+	function paintRegion(cells: Cells, keys: string[], terrain: TerrainKey): boolean {
+		let changed = false;
+		for (const k of keys) {
+			if (cells[k] === terrain) continue;
+			cells[k] = terrain;
+			changed = true;
+		}
+		return changed;
+	}
+
 	function doFill(ctx: ToolContext, event: CanvasPointerEvent): void {
 		if (!stroke) return;
 		const [c, r] = worldToCell(event.worldPoint.x, event.worldPoint.y, tile);
 		const { terrain } = toolStateStore.get();
 		const cells = currentCells(ctx, stroke.tilemapId);
-		// Empty-cell fills are bounded to the current painted region so the flood
-		// is finite; painted-cell fills are naturally bounded by the region.
-		const b = cellsBounds(cells, tile);
-		const box: CellBox | undefined =
-			Object.keys(cells).length === 0
-				? undefined
-				: {
-						minC: Math.floor(b.x / tile),
-						minR: Math.floor(b.y / tile),
-						maxC: Math.floor(b.x / tile) + b.width / tile - 1,
-						maxR: Math.floor(b.y / tile) + b.height / tile - 1,
-					};
-		const keys = floodFill(cells, c, r, box);
+
+		const base = baseConfig(ctx);
+		if (base) {
+			// Infinite base: flood over the SAMPLED terrain (merged overrides ?? base)
+			// so the click's visible terrain is honoured, capped + aborted when not
+			// enclosed. Read the merged view (all tilemaps) but write to the stroke one.
+			const sample = makeTerrainSampler(mergedOverrides(ctx), base.seed, null, base.gen);
+			const res = samplerFloodFill(sample, c, r, MAX_FILL_CELLS);
+			if (res.truncated) {
+				abortFill(ctx, res.cells.length);
+				return;
+			}
+			if (!paintRegion(cells, res.cells, terrain)) return;
+			applyCells(ctx, stroke.tilemapId, cells);
+			return;
+		}
+
+		// Finite board: empty-cell fills are bounded to the current painted region
+		// so the flood is finite; painted-cell fills are naturally bounded.
+		const keys = floodFill(cells, c, r, paintedBox(cells));
 		if (keys.length === 0) return;
 		for (const k of keys) cells[k] = terrain;
 		applyCells(ctx, stroke.tilemapId, cells);
@@ -148,23 +219,26 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		const { terrain, excludeTerrains } = toolStateStore.get();
 		const exclude = new Set(excludeTerrains);
 		const cells = currentCells(ctx, stroke.tilemapId);
-		const b = cellsBounds(cells, tile);
-		const box: CellBox | undefined =
-			Object.keys(cells).length === 0
-				? undefined
-				: {
-						minC: Math.floor(b.x / tile),
-						minR: Math.floor(b.y / tile),
-						maxC: Math.floor(b.x / tile) + b.width / tile - 1,
-						maxR: Math.floor(b.y / tile) + b.height / tile - 1,
-					};
-		let changed = false;
-		for (const k of regionFillCells(cells, c, r, exclude, box)) {
-			if (cells[k] === terrain) continue;
-			cells[k] = terrain;
-			changed = true;
+
+		const base = baseConfig(ctx);
+		if (base) {
+			const sample = makeTerrainSampler(mergedOverrides(ctx), base.seed, null, base.gen);
+			const start = sample(c, r);
+			// Clicking a protected (or empty) terrain is a no-op; since the flood only
+			// spreads across `start`, it can never reach a protected cell.
+			if (start === undefined || exclude.has(start)) return;
+			const res = samplerFloodFill(sample, c, r, MAX_FILL_CELLS);
+			if (res.truncated) {
+				abortFill(ctx, res.cells.length);
+				return;
+			}
+			if (!paintRegion(cells, res.cells, terrain)) return;
+			applyCells(ctx, stroke.tilemapId, cells);
+			return;
 		}
-		if (!changed) return;
+
+		if (!paintRegion(cells, regionFillCells(cells, c, r, exclude, paintedBox(cells)), terrain))
+			return;
 		applyCells(ctx, stroke.tilemapId, cells);
 	}
 
