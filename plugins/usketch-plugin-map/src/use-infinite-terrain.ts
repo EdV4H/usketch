@@ -11,6 +11,7 @@ import {
 	getInfiniteSeed,
 	setInfiniteSeed,
 } from "./infinite-terrain.js";
+import { isTileMap } from "./tilemap-shape.js";
 
 export interface InfiniteTerrainControls {
 	/** Current effective seed, or `null` when disabled. Reactive. */
@@ -32,7 +33,18 @@ export function useInfiniteTerrain(store: BoardStore): InfiniteTerrainControls {
 	const seed = useSyncExternalStore(
 		(onChange) =>
 			store.onMutation((e: StoreEvent) => {
-				if (e.type === "shape:added" || e.type === "shape:removed" || e.type === "shape:updated") {
+				// Only recompute the seed for tilemap-affecting mutations — most edits
+				// touch unrelated shapes and can't change baseSeed. (useSyncExternalStore
+				// still bails the actual re-render when the seed value is unchanged.)
+				if (e.type === "shape:added" || e.type === "shape:updated") {
+					const touchesTilemap = e.payload.ids.some((id) => {
+						const s = store.getShape(id);
+						return s != null && isTileMap(s);
+					});
+					if (touchesTilemap) onChange();
+				} else if (e.type === "shape:removed") {
+					// The removed shapes are already gone (can't inspect); a removed tilemap
+					// can change the effective seed, so recompute conservatively on removal.
 					onChange();
 				}
 			}),
