@@ -131,12 +131,12 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 
 	/**
 	 * Region isn't enclosed (open terrain, e.g. infinite ocean) — don't paint an
-	 * arbitrary capped blob. Signal it so a HUD can surface a message later (there
-	 * is no toast yet), and no-op the fill.
+	 * arbitrary capped blob. Emit an event so a HUD can surface a message (no toast
+	 * yet), and no-op the fill. Intentionally no console output: an aborted open
+	 * fill is an expected user outcome, not a warning.
 	 */
 	function abortFill(ctx: ToolContext, scanned: number): void {
 		ctx.events.emit("map:fill-aborted", { reason: "not-enclosed", scanned });
-		console.warn(`[map] region fill aborted: region not enclosed (scanned ${scanned}+ cells)`);
 	}
 
 	/** Painted-cell bounds as a flood box, or undefined for an empty tilemap. */
