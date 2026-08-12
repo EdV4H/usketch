@@ -33,18 +33,25 @@ export function useInfiniteTerrain(store: BoardStore): InfiniteTerrainControls {
 	const seed = useSyncExternalStore(
 		(onChange) =>
 			store.onMutation((e: StoreEvent) => {
-				// Only recompute the seed for tilemap-affecting mutations — most edits
-				// touch unrelated shapes and can't change baseSeed. (useSyncExternalStore
-				// still bails the actual re-render when the seed value is unchanged.)
-				if (e.type === "shape:added" || e.type === "shape:updated") {
-					const touchesTilemap = e.payload.ids.some((id) => {
+				// Only recompute the seed when something could actually change it — not on
+				// every edit (tile painting fires shape:updated on the tilemap constantly,
+				// changing cells/bounds but not baseSeed).
+				if (e.type === "shape:updated") {
+					const { before, after } = e.payload;
+					if (isTileMap(after)) {
+						const prev = isTileMap(before) ? before.baseSeed : undefined;
+						if (prev !== after.baseSeed) onChange(); // baseSeed actually changed
+					}
+				} else if (e.type === "shape:added") {
+					// A new tilemap affects the effective seed only if it already carries one.
+					const seededAdded = e.payload.ids.some((id) => {
 						const s = store.getShape(id);
-						return s != null && isTileMap(s);
+						return s != null && isTileMap(s) && s.baseSeed != null;
 					});
-					if (touchesTilemap) onChange();
+					if (seededAdded) onChange();
 				} else if (e.type === "shape:removed") {
-					// The removed shapes are already gone (can't inspect); a removed tilemap
-					// can change the effective seed, so recompute conservatively on removal.
+					// The removed shapes are already gone (can't inspect); a removed seeded
+					// tilemap can change the effective seed, so recompute conservatively.
 					onChange();
 				}
 			}),
