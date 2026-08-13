@@ -6,7 +6,6 @@ import type { BoardStore, RenderMode } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
 import { type Cells, exposedEdges, parseCellKey } from "../autotile.js";
 import { blockFactor, downsampleCells, type TileDetail, tileDetail } from "../lod.js";
-import { MAP_ICON_TYPE, type MapIconShapeData } from "../map-icon-shape.js";
 import { visibleCellRange, visibleWorldRect } from "../map-layer.js";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
 import { useMapToolState } from "../tool-state.js";
@@ -156,24 +155,21 @@ export function BaseAreaLayer({
 	// Labels: HTML chips at screen coords (crisp, constant size). Hidden when coarse.
 	const anchors = detail === "full" ? baseRegionAnchors(territory, base.bases, tile) : [];
 
-	// Radius rings for beacon icons. Full detail only; radius comes from the base.
+	// Radius rings around each base's beacon CELL. Full detail only; radius + colour
+	// come from the base registry (no icon shapes involved anymore).
 	const rings: React.ReactElement[] = [];
 	if (detail === "full") {
-		for (const [, s] of store.getShapes()) {
-			if (s.type !== MAP_ICON_TYPE) continue;
-			const meta = (s as MapIconShapeData).meta;
-			if (!meta?.baseId) continue;
-			const info = base.bases[meta.baseId];
-			if (!info) continue;
-			const color = info.color;
+		for (const [baseId, info] of Object.entries(base.bases)) {
+			if (!info.beaconCell) continue;
+			const [col, row] = parseCellKey(info.beaconCell);
 			rings.push(
 				<circle
-					key={`ring-${s.id}`}
-					cx={s.x + s.width / 2}
-					cy={s.y + s.height / 2}
+					key={`ring-${baseId}`}
+					cx={(col + 0.5) * tile}
+					cy={(row + 0.5) * tile}
 					r={info.radius * tile}
 					fill="none"
-					stroke={color}
+					stroke={info.color}
 					strokeWidth={2}
 					strokeDasharray="8 6"
 					opacity={0.7}

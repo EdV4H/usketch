@@ -4,7 +4,7 @@
 // locked and non-hit-testable so it never behaves as a selectable object.
 import type { BoundingBox, ShapeData, ShapeDefinition } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
-import { type Cells, cellKey, cellsBounds, parseCellKey } from "./autotile.js";
+import { type Cells, cellKey, type IconCells, keysBounds, parseCellKey } from "./autotile.js";
 import type { BaseGenParams } from "./base-terrain.js";
 import type { TerrainKey } from "./terrain.js";
 
@@ -36,10 +36,32 @@ export interface TileMapShapeData extends ShapeData {
 	 * older seeded shape means v1 (see `resolveBaseGen`). Paired with `baseSeed`.
 	 */
 	baseGen?: BaseGenParams;
+	/**
+	 * World-layer icons as GRID DATA: `cellKey("c,r") → iconKey` (one icon per
+	 * cell). Like `cells`, this lives on the substrate shape — so placed icons
+	 * are part of the protected world layer: the generic Select tool can't grab
+	 * them (they aren't shapes), while the Map tool (stamp / eraser) edits them
+	 * directly. Persists + syncs + undoes through the shape store. Sparse.
+	 */
+	icons?: IconCells;
 }
 
 export function isTileMap(shape: ShapeData): shape is TileMapShapeData {
 	return shape.type === TILEMAP_TYPE;
+}
+
+/**
+ * Bounds patch keeping x/y/width/height in sync with BOTH painted cells and placed
+ * icons — an icon-only cell outside the painted area still counts, so the box
+ * encloses everything the tilemap owns.
+ */
+export function tilemapBounds(
+	cells: Cells,
+	icons: IconCells | undefined,
+	tile: number,
+): BoundingBox {
+	const keys = icons ? [...Object.keys(cells), ...Object.keys(icons)] : Object.keys(cells);
+	return keysBounds(keys, tile);
 }
 
 /**
@@ -92,14 +114,10 @@ export function makeTileMap(tile: number): TileMapShapeData {
 		style: { fill: "transparent", stroke: "transparent", strokeWidth: 0, opacity: 1 },
 		tile,
 		cells: {},
+		icons: {},
 		handPaint: {},
 		locked: true,
 	};
-}
-
-/** Bounds patch to keep x/y/width/height in sync with the painted cells. */
-export function boundsPatch(cells: Cells, tile: number): BoundingBox {
-	return cellsBounds(cells, tile);
 }
 
 export function createTileMapShapeDefinition(tile: number = DEFAULT_TILE): ShapeDefinition {
@@ -109,7 +127,7 @@ export function createTileMapShapeDefinition(tile: number = DEFAULT_TILE): Shape
 		renderTarget: "svg",
 		getBounds: (data): BoundingBox => {
 			const d = data as TileMapShapeData;
-			return cellsBounds(d.cells ?? {}, d.tile ?? tile);
+			return tilemapBounds(d.cells ?? {}, d.icons, d.tile ?? tile);
 		},
 		// Never selectable via pointer — it is a substrate, not an object.
 		hitTest: () => false,
@@ -132,7 +150,17 @@ export function createTileMapShapeDefinition(tile: number = DEFAULT_TILE): Shape
 				const [c, r] = parseCellKey(key);
 				next[cellKey(c + dc, r + dr)] = terrain;
 			}
-			return { cells: next, ...cellsBounds(next, t) } as Partial<ShapeData>;
+			// Shift placed icons by the same whole-tile delta so they stay aligned.
+			const nextIcons: IconCells = {};
+			for (const [key, iconKey] of Object.entries(d.icons ?? {})) {
+				const [c, r] = parseCellKey(key);
+				nextIcons[cellKey(c + dc, r + dr)] = iconKey;
+			}
+			return {
+				cells: next,
+				icons: nextIcons,
+				...tilemapBounds(next, nextIcons, t),
+			} as Partial<ShapeData>;
 		},
 		serializeForAi: (data): Record<string, unknown> => {
 			const d = data as TileMapShapeData;
@@ -140,12 +168,17 @@ export function createTileMapShapeDefinition(tile: number = DEFAULT_TILE): Shape
 			return {
 				kind: "tilemap",
 				tileCount: Object.keys(d.cells ?? {}).length,
+				iconCount: Object.keys(d.icons ?? {}).length,
 				terrains: [...used],
 			};
 		},
 		debugFields: (data): Record<string, unknown> => {
 			const d = data as TileMapShapeData;
-			return { tile: d.tile, cellCount: Object.keys(d.cells ?? {}).length };
+			return {
+				tile: d.tile,
+				cellCount: Object.keys(d.cells ?? {}).length,
+				iconCount: Object.keys(d.icons ?? {}).length,
+			};
 		},
 	};
 }

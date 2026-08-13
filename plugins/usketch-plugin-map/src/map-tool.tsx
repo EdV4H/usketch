@@ -1,7 +1,9 @@
-// The `map` tool: brush / eraser / fill terrain cells, and stamp icons.
-// Terrain edits mutate the (single) tilemap shape live during a stroke, then
-// commit the whole stroke as ONE undoable command on pointer-up. Stamping adds
-// a map-icon via createAddShapeCommand. The palette switches the active submode.
+// The `map` tool: brush / eraser / fill terrain cells, stamp world-layer icons,
+// and set base beacons. Everything writes GRID DATA on the (single) tilemap shape:
+// terrain in `cells`, icons in `icons`. Edits mutate the shape live during a
+// stroke, then commit the whole stroke as ONE undoable command on pointer-up.
+// Icons are NOT free shapes — Select can't grab them; the Map tool owns them.
+// The palette switches the active submode.
 import type {
 	CanvasPointerEvent,
 	Command,
@@ -9,18 +11,14 @@ import type {
 	ToolContext,
 	ToolDefinition,
 } from "@edv4h/usketch-shared";
-import {
-	createAddShapeCommand,
-	createDeleteWithChildrenCommand,
-	isEffectivelyHidden,
-	isEffectivelyLocked,
-} from "@edv4h/usketch-store";
+import { createAddShapeCommand } from "@edv4h/usketch-store";
 import {
 	type CellBox,
 	type Cells,
 	cellKey,
 	cellsBounds,
 	floodFill,
+	type IconCells,
 	regionFillCells,
 	samplerFloodFill,
 	worldToCell,
@@ -31,9 +29,14 @@ import { makeTerrainSampler, resolveBaseGen } from "./base-terrain.js";
 import { genStateStore } from "./gen-state.js";
 import { generateIntoBox, resolveTilemap } from "./generate.js";
 import { ICONS_BY_KEY } from "./icons.js";
-import { MAP_ICON_TYPE, makeMapIcon } from "./map-icon-shape.js";
 import type { TerrainKey } from "./terrain.js";
-import { DEFAULT_TILE, isTileMap, seededTilemap, type TileMapShapeData } from "./tilemap-shape.js";
+import {
+	DEFAULT_TILE,
+	isTileMap,
+	seededTilemap,
+	type TileMapShapeData,
+	tilemapBounds,
+} from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
 
 // Hard cap on a single sampler-based fill over the infinite base terrain. A truly
@@ -75,12 +78,20 @@ function cellsEqual(a: Cells, b: Cells): boolean {
 	return true;
 }
 
+function iconsEqual(a: IconCells, b: IconCells): boolean {
+	const ak = Object.keys(a);
+	if (ak.length !== Object.keys(b).length) return false;
+	for (const k of ak) if (a[k] !== b[k]) return false;
+	return true;
+}
+
 export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefinition {
 	interface Stroke {
 		tilemapId: string;
 		created: boolean;
 		prevCells: Cells;
 		prevHandPaint: Record<string, true>;
+		prevIcons: IconCells;
 	}
 	let stroke: Stroke | null = null;
 	let lastKey = "";
@@ -97,10 +108,29 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		return s?.handPaint ? { ...s.handPaint } : {};
 	}
 
+	function currentIcons(ctx: ToolContext, id: string): IconCells {
+		const s = ctx.store.getShape(id) as TileMapShapeData | undefined;
+		return s?.icons ? { ...s.icons } : {};
+	}
+
+	// Write terrain cells; bounds enclose the shape's existing icons too so an
+	// icon-only cell outside the paint doesn't get clipped. (`cells`/`icons` are
+	// intrinsic tilemap fields outside base ShapeData — cast at the store boundary.)
 	function applyCells(ctx: ToolContext, id: string, cells: Cells): void {
-		// `cells` is an intrinsic field of TileMapShapeData, outside the base
-		// ShapeData type — cast at the store boundary (as freedraw does for points).
-		ctx.store.updateShape(id, { cells, ...cellsBounds(cells, tile) } as Partial<ShapeData>);
+		const icons = (ctx.store.getShape(id) as TileMapShapeData | undefined)?.icons;
+		ctx.store.updateShape(id, {
+			cells,
+			...tilemapBounds(cells, icons, tile),
+		} as Partial<ShapeData>);
+	}
+
+	// Write both grids at once (used by the eraser, which may remove either).
+	function applyGrid(ctx: ToolContext, id: string, cells: Cells, icons: IconCells): void {
+		ctx.store.updateShape(id, {
+			cells,
+			icons,
+			...tilemapBounds(cells, icons, tile),
+		} as Partial<ShapeData>);
 	}
 
 	function paintAt(ctx: ToolContext, event: CanvasPointerEvent): void {
@@ -112,6 +142,13 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		const { mode, terrain } = toolStateStore.get();
 		const cells = currentCells(ctx, stroke.tilemapId);
 		if (mode === "eraser") {
+			// Erase the icon first (it sits on top); only if there's none, the terrain.
+			const icons = currentIcons(ctx, stroke.tilemapId);
+			if (key in icons) {
+				delete icons[key];
+				applyGrid(ctx, stroke.tilemapId, cells, icons);
+				return;
+			}
 			if (!(key in cells)) return;
 			delete cells[key];
 		} else {
@@ -244,16 +281,17 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 
 	function commit(ctx: ToolContext): void {
 		if (!stroke) return;
-		const { tilemapId, created, prevCells, prevHandPaint } = stroke;
+		const { tilemapId, created, prevCells, prevHandPaint, prevIcons } = stroke;
 		stroke = null;
 		lastKey = "";
 		const shape = ctx.store.getShape(tilemapId) as TileMapShapeData | undefined;
 		const nextCells = shape ? shape.cells : {};
+		const nextIcons: IconCells = shape?.icons ? { ...shape.icons } : {};
 
 		if (created) {
 			// Newly created this stroke: commit as an add (undo deletes it). Every
 			// cell was just hand-painted, so mark them all as hand-paint.
-			if (!shape || Object.keys(nextCells).length === 0) {
+			if (!shape || (Object.keys(nextCells).length === 0 && Object.keys(nextIcons).length === 0)) {
 				if (shape) ctx.store.deleteShape(tilemapId);
 				return;
 			}
@@ -265,8 +303,8 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			return;
 		}
 
-		// Edited an existing tilemap: commit the cells diff (undo restores prev).
-		if (cellsEqual(prevCells, nextCells)) return;
+		// Edited an existing tilemap: commit the cells + icons diff (undo restores prev).
+		if (cellsEqual(prevCells, nextCells) && iconsEqual(prevIcons, nextIcons)) return;
 		const prev = prevCells;
 		const next = { ...nextCells };
 		// Hand-paint set = previous ∪ cells set this stroke − cells erased this stroke.
@@ -277,18 +315,20 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			if (k in next) nextHandPaint[k] = true;
 			else delete nextHandPaint[k];
 		}
-		const prevBounds = cellsBounds(prev, tile);
-		const nextBounds = cellsBounds(next, tile);
+		const prevBounds = tilemapBounds(prev, prevIcons, tile);
+		const nextBounds = tilemapBounds(next, nextIcons, tile);
 		const command: Command = {
 			execute: () =>
 				ctx.store.updateShape(tilemapId, {
 					cells: next,
+					icons: nextIcons,
 					handPaint: nextHandPaint,
 					...nextBounds,
 				} as Partial<ShapeData>),
 			undo: () =>
 				ctx.store.updateShape(tilemapId, {
 					cells: prev,
+					icons: prevIcons,
 					handPaint: prevHandPaint,
 					...prevBounds,
 				} as Partial<ShapeData>),
@@ -297,30 +337,40 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 	}
 
 	/**
-	 * Topmost interactable map-icon under the point (frontmost wins), or null.
-	 * Uses the shape's registered (rotation-aware) hitTest and skips shapes that
-	 * are effectively locked/hidden, matching normal canvas interaction rules.
+	 * Stamp the active icon into the clicked cell as ONE undoable command. Icons are
+	 * grid data on the tilemap (`icons[cellKey] = iconKey`), one per cell (re-stamp
+	 * overwrites). No free shape is created — Select can't grab it; only the Map tool.
 	 */
-	function findMapIconAt(ctx: ToolContext, x: number, y: number): string | null {
-		const def = ctx.shapes.get(MAP_ICON_TYPE);
-		if (!def) return null;
-		const point = { x, y };
-		let found: string | null = null;
-		for (const s of ctx.store.getShapesSorted()) {
-			if (s.type !== MAP_ICON_TYPE) continue;
-			if (isEffectivelyLocked(ctx.store, s) || isEffectivelyHidden(ctx.store, s)) continue;
-			if (def.hitTest(s, point)) found = s.id;
-		}
-		return found;
-	}
-
-	function placeIcon(ctx: ToolContext, event: CanvasPointerEvent): void {
+	function stampIcon(ctx: ToolContext, event: CanvasPointerEvent): void {
 		const { iconKey } = toolStateStore.get();
-		const def = ICONS_BY_KEY.get(iconKey);
-		if (!def) return;
-		const shape = makeMapIcon(iconKey, def.category, event.worldPoint.x, event.worldPoint.y);
-		ctx.commands.execute(createAddShapeCommand(ctx.store, shape));
-		ctx.store.setSelection([shape.id]);
+		if (!ICONS_BY_KEY.has(iconKey)) return;
+		const target = resolveTilemap(ctx.store, tile);
+		const id = target.id;
+		const shape = ctx.store.getShape(id) as TileMapShapeData | undefined;
+		if (!shape) return;
+		const [c, r] = worldToCell(event.worldPoint.x, event.worldPoint.y, tile);
+		const key = cellKey(c, r);
+		const prevIcons: IconCells = shape.icons ? { ...shape.icons } : {};
+		if (prevIcons[key] === iconKey && !target.created) return; // no-op re-stamp
+		const nextIcons: IconCells = { ...prevIcons, [key]: iconKey };
+		const cells = shape.cells;
+		const prevBounds = tilemapBounds(cells, prevIcons, tile);
+		const nextBounds = tilemapBounds(cells, nextIcons, tile);
+		if (target.created) {
+			// Freshly created (blank) tilemap: commit as an add so undo deletes it and
+			// redo re-adds it (updateShape on a deleted id would no-op).
+			const finalShape = { ...shape, icons: nextIcons, ...nextBounds } as ShapeData;
+			ctx.store.deleteShape(id);
+			ctx.commands.execute(createAddShapeCommand(ctx.store, finalShape));
+			return;
+		}
+		const command: Command = {
+			execute: () =>
+				ctx.store.updateShape(id, { icons: nextIcons, ...nextBounds } as Partial<ShapeData>),
+			undo: () =>
+				ctx.store.updateShape(id, { icons: prevIcons, ...prevBounds } as Partial<ShapeData>),
+		};
+		ctx.commands.execute(command);
 	}
 
 	return {
@@ -331,7 +381,7 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		onPointerDown(ctx, event) {
 			const { mode } = toolStateStore.get();
 			if (mode === "stamp") {
-				placeIcon(ctx, event);
+				stampIcon(ctx, event);
 				return;
 			}
 			if (mode === "generate") {
@@ -342,10 +392,8 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 				return;
 			}
 			if (mode === "base") {
-				// Base mode: click a map-icon to make it the active base's beacon.
-				// The territory is derived from beacon + terrain (see territory.ts).
-				const iconId = findMapIconAt(ctx, event.worldPoint.x, event.worldPoint.y);
-				if (!iconId) return; // only meaningful when clicking on an icon
+				// Base mode: click a CELL to make it the active base's beacon. The
+				// territory is derived from the beacon cell + terrain (see territory.ts).
 				const deps = { store: ctx.store, commands: ctx.commands, tile };
 				let baseId = baseStateStore.get().activeBaseId;
 				// Auto-create a base on first use so a single click "just works".
@@ -354,23 +402,18 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 					baseId = createBase(deps, `拠点${n + 1}`, BASE_PALETTE[n % BASE_PALETTE.length]);
 					baseStateStore.set({ activeBaseId: baseId });
 				}
-				setBeacon(deps, iconId, baseId);
+				const [c, r] = worldToCell(event.worldPoint.x, event.worldPoint.y, tile);
+				setBeacon(deps, cellKey(c, r), baseId);
 				return;
 			}
-			// Eraser: clicking a placed icon removes it (icons aren't terrain cells).
-			if (mode === "eraser") {
-				const iconId = findMapIconAt(ctx, event.worldPoint.x, event.worldPoint.y);
-				if (iconId) {
-					ctx.commands.execute(createDeleteWithChildrenCommand(ctx.store, iconId));
-					return;
-				}
-			}
+			// brush / eraser / fill / region all edit the tilemap grid via a stroke.
 			const target = resolveTilemap(ctx.store, tile);
 			stroke = {
 				tilemapId: target.id,
 				created: target.created,
 				prevCells: currentCells(ctx, target.id),
 				prevHandPaint: currentHandPaint(ctx, target.id),
+				prevIcons: currentIcons(ctx, target.id),
 			};
 			lastKey = "";
 			if (mode === "fill") doFill(ctx, event);
@@ -425,13 +468,14 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 			// the stroke started (delete a tilemap created this stroke; restore the
 			// previous cells of an edited one), then clear.
 			if (stroke) {
-				const { tilemapId, created, prevCells } = stroke;
+				const { tilemapId, created, prevCells, prevIcons } = stroke;
 				if (created) {
 					ctx.store.deleteShape(tilemapId);
 				} else {
 					ctx.store.updateShape(tilemapId, {
 						cells: prevCells,
-						...cellsBounds(prevCells, tile),
+						icons: prevIcons,
+						...tilemapBounds(prevCells, prevIcons, tile),
 					} as Partial<ShapeData>);
 				}
 				stroke = null;

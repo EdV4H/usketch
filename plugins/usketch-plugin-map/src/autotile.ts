@@ -3,6 +3,8 @@ import type { BoundingBox } from "@edv4h/usketch-shared";
 import type { TerrainKey } from "./terrain.js";
 
 export type Cells = Record<string, TerrainKey>;
+/** Sparse grid of world-layer icons: cellKey → iconKey (one icon per cell). */
+export type IconCells = Record<string, string>;
 
 /** Sparse-map key for a cell. */
 export function cellKey(col: number, row: number): string {
@@ -33,13 +35,13 @@ export function terrainAtCell(
 	return cells[cellKey(col, row)] ?? empty ?? undefined;
 }
 
-/** Bounding box (world units) enclosing all painted cells. Empty → zero box. */
-export function cellsBounds(cells: Cells, tile: number): BoundingBox {
+/** Bounding box (world units) enclosing all given cell keys. Empty → zero box. */
+export function keysBounds(keys: Iterable<string>, tile: number): BoundingBox {
 	let minC = Infinity;
 	let minR = Infinity;
 	let maxC = -Infinity;
 	let maxR = -Infinity;
-	for (const key of Object.keys(cells)) {
+	for (const key of keys) {
 		const [c, r] = parseCellKey(key);
 		if (c < minC) minC = c;
 		if (r < minR) minR = r;
@@ -53,6 +55,11 @@ export function cellsBounds(cells: Cells, tile: number): BoundingBox {
 		width: (maxC - minC + 1) * tile,
 		height: (maxR - minR + 1) * tile,
 	};
+}
+
+/** Bounding box (world units) enclosing all painted cells. Empty → zero box. */
+export function cellsBounds(cells: Cells, tile: number): BoundingBox {
+	return keysBounds(Object.keys(cells), tile);
 }
 
 export interface ExposedEdges {

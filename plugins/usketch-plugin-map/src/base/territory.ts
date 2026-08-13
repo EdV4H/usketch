@@ -1,6 +1,6 @@
 // Derived base territory. A base's area is NOT stored — it is computed from its
-// beacon (a map-icon) + the terrain paint:
-//   • the CORE disk (radius tiles around the beacon) is ALWAYS owned, and
+// beacon (a grid cell) + the terrain paint:
+//   • the CORE disk (radius tiles around the beacon cell) is ALWAYS owned, and
 //   • it then expands through HAND-PAINTED, non-excluded cells 4-connected to the
 //     core (no radius cap). GENERATED terrain is not walkable — so a generated
 //     continent is never auto-claimed; the user grows a base by hand-painting
@@ -8,8 +8,7 @@
 // Memoised by the tilemap `cells` object identity + a beacon signature, so it
 // only recomputes when paint or a beacon (position/radius/set) actually changes.
 import type { BoardStore } from "@edv4h/usketch-shared";
-import { type Cells, cellKey, worldToCell } from "../autotile.js";
-import { MAP_ICON_TYPE, type MapIconShapeData } from "../map-icon-shape.js";
+import { type Cells, cellKey, parseCellKey, worldToCell } from "../autotile.js";
 import { isTileMap, type TileMapShapeData } from "../tilemap-shape.js";
 import { type BaseInfo, type BaseMapShapeData, isBaseMap } from "./base-map-shape.js";
 
@@ -37,20 +36,17 @@ function findTilemap(store: BoardStore): TileMapShapeData | undefined {
 	return undefined;
 }
 
-function collectBeacons(store: BoardStore, bases: Record<string, BaseInfo>): Beacon[] {
-	const icons = new Map<string, MapIconShapeData>();
-	for (const [, s] of store.getShapes()) {
-		if (s.type === MAP_ICON_TYPE) icons.set(s.id, s as MapIconShapeData);
-	}
+function collectBeacons(bases: Record<string, BaseInfo>, tile: number): Beacon[] {
 	const out: Beacon[] = [];
 	for (const [baseId, info] of Object.entries(bases)) {
-		if (!info.beaconIconId) continue;
-		const icon = icons.get(info.beaconIconId);
-		if (!icon) continue;
+		if (!info.beaconCell) continue;
+		const [col, row] = parseCellKey(info.beaconCell);
+		// Seed the core disk from the cell CENTRE (world coords), so the existing
+		// distance-based rasterization in build() is unchanged.
 		out.push({
 			baseId,
-			cx: icon.x + icon.width / 2,
-			cy: icon.y + icon.height / 2,
+			cx: (col + 0.5) * tile,
+			cy: (row + 0.5) * tile,
 			radius: info.radius,
 		});
 	}
@@ -129,12 +125,12 @@ export function computeTerritory(
 ): Territory {
 	const base = findBaseMap(store);
 	if (!base || Object.keys(base.bases).length === 0) return {};
-	const beacons = collectBeacons(store, base.bases);
-	if (beacons.length === 0) return {};
 	const tilemap = findTilemap(store);
 	const cells = tilemap?.cells ?? EMPTY_CELLS;
 	const handPaint = tilemap?.handPaint ?? EMPTY_HAND_PAINT;
 	const t = tilemap?.tile ?? tile;
+	const beacons = collectBeacons(base.bases, t);
+	if (beacons.length === 0) return {};
 	const sig = signature(beacons, exclude);
 
 	// Keyed by the `cells` object: it gets a fresh identity on every paint/generate

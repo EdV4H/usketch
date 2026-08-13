@@ -18,6 +18,7 @@ export {
 	type GenParam,
 	type MapGenerator,
 } from "./generators/index.js";
+export { renderIconAt } from "./icon-render.js";
 export { ICONS, type IconCategory, type IconDef } from "./icons.js";
 // ── Infinite base terrain public API (#946 / #937 follow-up) ──
 // Enable/disable/seed the infinite base terrain from a host's own UI without the
@@ -33,7 +34,6 @@ export {
 	isInfiniteTerrainEnabled,
 	setInfiniteSeed,
 } from "./infinite-terrain.js";
-export { MAP_ICON_TYPE, type MapIconShapeData } from "./map-icon-shape.js";
 // ── Host-facing service (recommended seam; #927/#946 pattern generalized) ──
 // `getMapApi(app.services)?.enableInfiniteTerrain({ seed })` from a host, without
 // the Control HUD and without importing individual helpers (undefined if absent).

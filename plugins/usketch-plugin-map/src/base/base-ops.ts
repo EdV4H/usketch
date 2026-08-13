@@ -4,7 +4,6 @@
 import type { BoardStore, Command, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
 import { cellKey, parseCellKey, worldToCell } from "../autotile.js";
-import { MAP_ICON_TYPE, type MapIconShapeData } from "../map-icon-shape.js";
 import {
 	type BaseInfo,
 	type BaseMapShapeData,
@@ -117,62 +116,36 @@ export function createBase(deps: BaseDeps, name: string, color: string): string 
 }
 
 /**
- * Make `iconId` the (single) beacon of `baseId`. Enforces 1:1 — the base's prior
- * beacon icon and any other base that referenced `iconId` are detached. Records
- * `meta.baseId` on the involved icons for the radius ring. Undoable. No-op if the
- * base or icon is missing, or the icon is already this base's beacon.
+ * Make `cell` (a `cellKey("c,r")`) the (single) beacon of `baseId`. Enforces 1:1 —
+ * any other base that used the same cell is detached. Undoable. No-op if the base
+ * is missing or is already beaconed at `cell`.
  */
-export function setBeacon(deps: BaseDeps, iconId: string, baseId: string): void {
+export function setBeacon(deps: BaseDeps, cell: string, baseId: string): void {
 	const { id } = resolveBaseMap(deps.store, deps.tile);
 	const shape = deps.store.getShape(id) as BaseMapShapeData | undefined;
 	const base = shape?.bases[baseId];
 	if (!shape || !base) return;
-	const icon = deps.store.getShape(iconId) as MapIconShapeData | undefined;
-	if (!icon || icon.type !== MAP_ICON_TYPE) return;
-	if (base.beaconIconId === iconId) return; // no change
+	if (base.beaconCell === cell) return; // no change
 
 	const prevBases = shape.bases;
-	const prevBeaconId = base.beaconIconId;
-	// New registry: set this base's beacon, and clear `iconId` from any other base.
+	// Set this base's beacon cell; clear the same cell from any other base.
 	const nextBases: Record<string, BaseInfo> = {};
 	for (const [bid, info] of Object.entries(prevBases)) {
-		if (bid === baseId) nextBases[bid] = { ...info, beaconIconId: iconId };
-		else if (info.beaconIconId === iconId) nextBases[bid] = { ...info, beaconIconId: undefined };
+		if (bid === baseId) nextBases[bid] = { ...info, beaconCell: cell };
+		else if (info.beaconCell === cell) nextBases[bid] = { ...info, beaconCell: undefined };
 		else nextBases[bid] = info;
 	}
 
-	// Icon meta edits: link the new beacon; unlink the base's previous beacon.
-	const edits: { id: string; prev: MapIconShapeData["meta"]; next: MapIconShapeData["meta"] }[] = [
-		{ id: iconId, prev: icon.meta, next: { ...icon.meta, baseId } },
-	];
-	if (prevBeaconId && prevBeaconId !== iconId) {
-		const prevIcon = deps.store.getShape(prevBeaconId) as MapIconShapeData | undefined;
-		if (prevIcon) {
-			edits.push({
-				id: prevBeaconId,
-				prev: prevIcon.meta,
-				next: { ...prevIcon.meta, baseId: undefined },
-			});
-		}
-	}
-
 	const command: Command = {
-		execute: () => {
-			deps.store.updateShape(id, { bases: nextBases } as Partial<ShapeData>);
-			for (const e of edits) deps.store.updateShape(e.id, { meta: e.next } as Partial<ShapeData>);
-		},
-		undo: () => {
-			deps.store.updateShape(id, { bases: prevBases } as Partial<ShapeData>);
-			for (const e of edits) deps.store.updateShape(e.id, { meta: e.prev } as Partial<ShapeData>);
-		},
+		execute: () => deps.store.updateShape(id, { bases: nextBases } as Partial<ShapeData>),
+		undo: () => deps.store.updateShape(id, { bases: prevBases } as Partial<ShapeData>),
 	};
 	deps.commands.execute(command);
 }
 
 /**
- * Remove a base from the registry (its derived territory disappears). Also clears
- * `meta.baseId` on the base's beacon icon, if any — the icon itself is kept.
- * Undoable. No-op if the base doesn't exist.
+ * Remove a base from the registry (its derived territory disappears). Undoable.
+ * No-op if the base doesn't exist.
  */
 export function deleteBase(deps: BaseDeps, baseId: string): void {
 	const { id } = resolveBaseMap(deps.store, deps.tile);
@@ -186,28 +159,9 @@ export function deleteBase(deps: BaseDeps, baseId: string): void {
 		if (bid !== baseId) nextBases[bid] = info;
 	}
 
-	const edits: { id: string; prev: MapIconShapeData["meta"]; next: MapIconShapeData["meta"] }[] =
-		[];
-	if (base.beaconIconId) {
-		const icon = deps.store.getShape(base.beaconIconId) as MapIconShapeData | undefined;
-		if (icon && icon.type === MAP_ICON_TYPE) {
-			edits.push({
-				id: base.beaconIconId,
-				prev: icon.meta,
-				next: { ...icon.meta, baseId: undefined },
-			});
-		}
-	}
-
 	const command: Command = {
-		execute: () => {
-			deps.store.updateShape(id, { bases: nextBases } as Partial<ShapeData>);
-			for (const e of edits) deps.store.updateShape(e.id, { meta: e.next } as Partial<ShapeData>);
-		},
-		undo: () => {
-			deps.store.updateShape(id, { bases: prevBases } as Partial<ShapeData>);
-			for (const e of edits) deps.store.updateShape(e.id, { meta: e.prev } as Partial<ShapeData>);
-		},
+		execute: () => deps.store.updateShape(id, { bases: nextBases } as Partial<ShapeData>),
+		undo: () => deps.store.updateShape(id, { bases: prevBases } as Partial<ShapeData>),
 	};
 	deps.commands.execute(command);
 }
