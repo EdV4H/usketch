@@ -137,28 +137,30 @@ export function createTileMapShapeDefinition(tile: number = DEFAULT_TILE): Shape
 			...makeTileMap(tile),
 			id: params.id,
 		}),
-		// Locked, so user-move is not expected; support it anyway by shifting cells
-		// on whole-tile deltas (keeps the grid aligned).
+		// Locked, so user-move is not expected; support it anyway by shifting every
+		// grid (cells / icons / handPaint) by the same whole-tile delta so they stay
+		// aligned — handPaint keys mirror `cells` and territory expansion keys off it,
+		// so it must move too.
 		move: (data, dx, dy): Partial<ShapeData> => {
 			const d = data as TileMapShapeData;
 			const t = d.tile ?? tile;
 			const dc = Math.round(dx / t);
 			const dr = Math.round(dy / t);
 			if (dc === 0 && dr === 0) return {};
+			const shift = (key: string): string => {
+				const [c, r] = parseCellKey(key);
+				return cellKey(c + dc, r + dr);
+			};
 			const next: Cells = {};
-			for (const [key, terrain] of Object.entries(d.cells)) {
-				const [c, r] = parseCellKey(key);
-				next[cellKey(c + dc, r + dr)] = terrain;
-			}
-			// Shift placed icons by the same whole-tile delta so they stay aligned.
+			for (const [key, terrain] of Object.entries(d.cells)) next[shift(key)] = terrain;
 			const nextIcons: IconCells = {};
-			for (const [key, iconKey] of Object.entries(d.icons ?? {})) {
-				const [c, r] = parseCellKey(key);
-				nextIcons[cellKey(c + dc, r + dr)] = iconKey;
-			}
+			for (const [key, iconKey] of Object.entries(d.icons ?? {})) nextIcons[shift(key)] = iconKey;
+			const nextHandPaint: Record<string, true> = {};
+			for (const key of Object.keys(d.handPaint ?? {})) nextHandPaint[shift(key)] = true;
 			return {
 				cells: next,
 				icons: nextIcons,
+				handPaint: nextHandPaint,
 				...tilemapBounds(next, nextIcons, t),
 			} as Partial<ShapeData>;
 		},
