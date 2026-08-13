@@ -26,7 +26,25 @@ export interface MapIconShapeData extends ShapeData {
 		/** Set when this icon is a base "beacon" (see setBeacon). The base's radius
 		 *  lives on the base registry, not here. */
 		baseId?: string;
+		/**
+		 * Structural / "world layer" icon (#955): the generic Select tool can't touch
+		 * it (not selectable / movable / deletable), but the Map tool can still
+		 * place / erase / beacon it. Set together with `locked:true` — the Select
+		 * skip reuses the existing `locked` gate, while the Map tool ignores the lock
+		 * for structural icons. Use {@link setIconStructural} (or the map service) so
+		 * the flag and `locked` stay in sync; a stray `structural` without `locked`
+		 * just behaves as a normal selectable icon.
+		 */
+		structural?: boolean;
 	};
+}
+
+/**
+ * Whether `shape` is a structural ("world layer") map-icon — Select-protected but
+ * Map-editable (#955). False for non-map-icons.
+ */
+export function isStructuralIcon(shape: ShapeData): boolean {
+	return shape.type === MAP_ICON_TYPE && (shape as MapIconShapeData).meta?.structural === true;
 }
 
 export function makeMapIcon(

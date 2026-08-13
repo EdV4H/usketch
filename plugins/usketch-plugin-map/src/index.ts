@@ -33,7 +33,7 @@ export {
 	isInfiniteTerrainEnabled,
 	setInfiniteSeed,
 } from "./infinite-terrain.js";
-export { MAP_ICON_TYPE, type MapIconShapeData } from "./map-icon-shape.js";
+export { isStructuralIcon, MAP_ICON_TYPE, type MapIconShapeData } from "./map-icon-shape.js";
 // ── Host-facing service (recommended seam; #927/#946 pattern generalized) ──
 // `getMapApi(app.services)?.enableInfiniteTerrain({ seed })` from a host, without
 // the Control HUD and without importing individual helpers (undefined if absent).
@@ -57,6 +57,15 @@ export {
 	type MapRenderConfig,
 	renderConfigStore,
 } from "./render-config.js";
+// ── Structural ("world layer") map-icons (#955) ──
+// Mark an icon Select-protected but Map-editable. `setIconStructural` also sets
+// `locked:true` (that's what keeps the generic Select tool off it); the Map tool
+// ignores the lock for structural icons. Also reachable via the map service.
+export {
+	isIconStructural,
+	isMapIconEditable,
+	setIconStructural,
+} from "./structural-icon.js";
 export { TERRAINS, type TerrainDef, type TerrainKey } from "./terrain.js";
 export {
 	DEFAULT_TILE,

@@ -14,6 +14,7 @@ import {
 } from "./infinite-terrain.js";
 import type { ReactiveStore } from "./reactive-store.js";
 import { type MapRenderConfig, renderConfigStore } from "./render-config.js";
+import { isIconStructural, setIconStructural } from "./structural-icon.js";
 import { type MapToolState, toolStateStore } from "./tool-state.js";
 
 /** The map plugin's host-facing operations + live stores. */
@@ -27,6 +28,14 @@ export interface MapApi {
 	isInfiniteTerrainEnabled(): boolean;
 	/** A number enables/re-seeds, `null` disables. */
 	setInfiniteSeed(seed: number | null): void;
+	// ── Structural ("world layer") map-icons (#955): Select-protected, Map-editable ──
+	/** Whether the map-icon `id` is structural (Select can't touch it, Map can edit it). */
+	isIconStructural(id: string): boolean;
+	/**
+	 * Mark a map-icon structural (`true`, also sets `locked:true`) or normal (`false`,
+	 * clears the lock). No-op on a missing / non-map-icon shape.
+	 */
+	setIconStructural(id: string, structural: boolean): void;
 	// ── Reactive stores backing the map tool + Tweaks (get/set/subscribe). NOTE:
 	//    these are MODULE-SCOPED singletons, not bound to this store like the ops
 	//    above — so multiple AppInstances in the same JS runtime SHARE them. They are
@@ -46,6 +55,8 @@ export function createMapApi(store: BoardStore): MapApi {
 		getInfiniteSeed: () => getInfiniteSeed(store),
 		isInfiniteTerrainEnabled: () => isInfiniteTerrainEnabled(store),
 		setInfiniteSeed: (seed) => setInfiniteSeed(store, seed),
+		isIconStructural: (id) => isIconStructural(store, id),
+		setIconStructural: (id, structural) => setIconStructural(store, id, structural),
 		toolState: toolStateStore,
 		renderConfig: renderConfigStore,
 	};

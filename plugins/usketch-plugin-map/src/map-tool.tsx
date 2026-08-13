@@ -9,12 +9,7 @@ import type {
 	ToolContext,
 	ToolDefinition,
 } from "@edv4h/usketch-shared";
-import {
-	createAddShapeCommand,
-	createDeleteWithChildrenCommand,
-	isEffectivelyHidden,
-	isEffectivelyLocked,
-} from "@edv4h/usketch-store";
+import { createAddShapeCommand, createDeleteWithChildrenCommand } from "@edv4h/usketch-store";
 import {
 	type CellBox,
 	type Cells,
@@ -32,6 +27,7 @@ import { genStateStore } from "./gen-state.js";
 import { generateIntoBox, resolveTilemap } from "./generate.js";
 import { ICONS_BY_KEY } from "./icons.js";
 import { MAP_ICON_TYPE, makeMapIcon } from "./map-icon-shape.js";
+import { isMapIconEditable } from "./structural-icon.js";
 import type { TerrainKey } from "./terrain.js";
 import { DEFAULT_TILE, isTileMap, seededTilemap, type TileMapShapeData } from "./tilemap-shape.js";
 import { toolStateStore } from "./tool-state.js";
@@ -299,7 +295,8 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 	/**
 	 * Topmost interactable map-icon under the point (frontmost wins), or null.
 	 * Uses the shape's registered (rotation-aware) hitTest and skips shapes that
-	 * are effectively locked/hidden, matching normal canvas interaction rules.
+	 * aren't Map-editable — effectively hidden, or effectively locked *and not*
+	 * structural (structural "world layer" icons stay Map-editable; see #955).
 	 */
 	function findMapIconAt(ctx: ToolContext, x: number, y: number): string | null {
 		const def = ctx.shapes.get(MAP_ICON_TYPE);
@@ -308,7 +305,9 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		let found: string | null = null;
 		for (const s of ctx.store.getShapesSorted()) {
 			if (s.type !== MAP_ICON_TYPE) continue;
-			if (isEffectivelyLocked(ctx.store, s) || isEffectivelyHidden(ctx.store, s)) continue;
+			// Structural icons stay Map-editable even though they're `locked:true`
+			// (which keeps the generic Select tool off them); see isMapIconEditable.
+			if (!isMapIconEditable(ctx.store, s)) continue;
 			if (def.hitTest(s, point)) found = s.id;
 		}
 		return found;
