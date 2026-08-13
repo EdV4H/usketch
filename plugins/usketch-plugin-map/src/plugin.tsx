@@ -1,6 +1,7 @@
 // createMapPlugin — registers the RPG map feature: the terrain MapLayer, the
-// data-only `tilemap` shape, the foreground `map-icon` shape, the `map` tool
-// (brush/eraser/fill/stamp), the on-canvas palette, and the Tweaks HUD settings.
+// data-only `tilemap` shape (which also holds world-layer icons as grid data),
+// the icon grid layer, the `map` tool (brush/eraser/fill/stamp/base), and the
+// Tweaks HUD settings.
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { BaseAreaLayer } from "./base/base-layer.js";
 import { BASE_MAP_TYPE, createBaseMapShapeDefinition } from "./base/base-map-shape.js";
@@ -13,7 +14,7 @@ import {
 	getInfiniteSeed,
 	isInfiniteTerrainEnabled,
 } from "./infinite-terrain.js";
-import { MAP_ICON_TYPE, mapIconShapeDefinition } from "./map-icon-shape.js";
+import { MapIconGridLayer } from "./map-icon-layer.js";
 import { MapTerrainLayer } from "./map-layer.js";
 import { createMapApi, mapService } from "./map-service.js";
 import { createMapToolDefinition } from "./map-tool.js";
@@ -39,6 +40,7 @@ export interface MapPluginOptions {
 
 const TERRAIN_LAYER_ID = "usketch-map:terrain";
 const BASE_LAYER_ID = "usketch-map:base";
+const ICON_LAYER_ID = "usketch-map:icons";
 const ENTER_BANNER_ID = "usketch-map:enter-banner";
 
 export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
@@ -56,10 +58,11 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 		name: "RPG マップ",
 
 		setup(ctx: PluginContext) {
-			// ── Shapes (tilemap + base-map = data-only substrates, map-icon = foreground) ──
+			// ── Shapes (tilemap + base-map = data-only substrates). World-layer icons
+			//    are NOT shapes: they live as grid cells on the tilemap and render via
+			//    the MapIconGridLayer below (so Select can't grab them). ──
 			ctx.shapes.register(TILEMAP_TYPE, createTileMapShapeDefinition(tile));
 			ctx.shapes.register(BASE_MAP_TYPE, createBaseMapShapeDefinition(tile));
-			ctx.shapes.register(MAP_ICON_TYPE, mapIconShapeDefinition);
 
 			// ── Terrain MapLayer (behind all shapes) ──
 			ctx.layers.register({
@@ -77,6 +80,17 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				order: 42,
 				fixed: true,
 				render: (lctx) => <BaseAreaLayer store={ctx.store} renderMode={lctx.renderMode} />,
+			});
+			// ── World-layer icons (grid data on the tilemap). Order 44: above terrain
+			//    (40) and base areas (42), below host resource shapes (DOM shapes=50) —
+			//    the "world layer sits under interactive resources" split (#955). ──
+			ctx.layers.register({
+				id: ICON_LAYER_ID,
+				order: 44,
+				fixed: true,
+				render: (lctx) => (
+					<MapIconGridLayer store={ctx.store} renderMode={lctx.renderMode} tile={tile} />
+				),
 			});
 			ctx.layers.register({
 				id: ENTER_BANNER_ID,
@@ -206,6 +220,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				unprovideService();
 				ctx.layers.unregister(TERRAIN_LAYER_ID);
 				ctx.layers.unregister(BASE_LAYER_ID);
+				ctx.layers.unregister(ICON_LAYER_ID);
 				ctx.layers.unregister(ENTER_BANNER_ID);
 				unregisterMapHud();
 				unregisterHud();
