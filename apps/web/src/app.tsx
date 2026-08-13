@@ -79,7 +79,6 @@ import { useLocation, useNavigate, useParams } from "react-router";
 import { CopilotPill } from "./components/board-frame/index.js";
 import { ShareDialog } from "./components/share-dialog.js";
 import { InfoTab } from "./components/side-panel/info-tab.js";
-import { SidePanelToggles } from "./components/side-panel/side-panel-toggles.js";
 import { boardMetaStore } from "./lib/board-meta-store.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
@@ -757,12 +756,7 @@ export function App() {
 					    Control HUD の action(nav:dashboard / theme:* / edit:present /
 					    nav:community)に一本化済み。HUD は `` ` `` で開く（bottom-center に
 					    常時ヒントあり）。 */}
-					{!hideToolbar && (
-						<>
-							{isCloudBoard && !isPresentEdit && <SidePanelToggles app={app} />}
-							{isCloudBoard && !isPresentEdit && <CopilotPill />}
-						</>
-					)}
+					{!hideToolbar && isCloudBoard && !isPresentEdit && <CopilotPill />}
 				</div>
 				{/* 閉じタグ: エディタ全体ラッパーの終わり */}
 				{showShare && boardId && (
