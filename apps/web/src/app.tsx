@@ -76,7 +76,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { CopilotPill, TopBar } from "./components/board-frame/index.js";
+import { CopilotPill } from "./components/board-frame/index.js";
 import { ShareDialog } from "./components/share-dialog.js";
 import { InfoTab } from "./components/side-panel/info-tab.js";
 import { SidePanelToggles } from "./components/side-panel/side-panel-toggles.js";
@@ -725,10 +725,10 @@ export function App() {
 				}}
 			>
 				{/*
-					エディタ全体 (Canvas + TopBar 等) をひとつの div で包む。
+					エディタ全体 (Canvas + 各種オーバーレイ) をひとつの div で包む。
 					プレゼン編集モード中は stage 矩形に縮め、外側を発表 UI が取り囲む形にする。
 					transform を当てると内側の position: fixed 要素の containing block が
-					この div になるため、Toolbar 等を書き換えずに相対化できる (CSS spec)。
+					この div になるため、HUD 等を書き換えずに相対化できる (CSS spec)。
 				*/}
 				<div
 					style={
@@ -753,9 +753,12 @@ export function App() {
 					}
 				>
 					<Canvas />
+					{/* TopBar は撤去: ロゴ(→dashboard)/テーマ/プレゼン/コミュニティは全て
+					    Control HUD の action(nav:dashboard / theme:* / edit:present /
+					    nav:community)に一本化済み。HUD は `` ` `` で開く（bottom-center に
+					    常時ヒントあり）。 */}
 					{!hideToolbar && (
 						<>
-							<TopBar boardId={boardId} isCloudBoard={isCloudBoard} compact={isPresentEdit} />
 							{isCloudBoard && !isPresentEdit && <SidePanelToggles app={app} />}
 							{isCloudBoard && !isPresentEdit && <CopilotPill />}
 						</>
