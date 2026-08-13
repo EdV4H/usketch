@@ -26,15 +26,16 @@ test.describe("Board", () => {
 		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 	});
 
-	test("board: vim off by default, top bar visible", async ({ page }) => {
+	test("board: vim off by default; HUD discoverability hint visible", async ({ page }) => {
 		await page.goto("/dashboard");
 		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
 		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
 		// vim は既定 OFF（Control HUD から切替）なので status line は出ない。
 		await expect(page.locator('[data-testid="vim-status-line"]')).not.toBeVisible();
-		// 四隅に散っていた chrome は上部中央の単一バー(TopBar)に集約済み。
-		await expect(page.locator('[data-testid="top-bar"]')).toBeVisible();
+		// TopBar は撤去済み。常時 chrome の代わりに、bottom-center の HUD 導線ヒント
+		// （`` ` `` で開く）が常に見えていることを確認する。
+		await expect(page.getByText("Debug HUD", { exact: false })).toBeVisible();
 	});
 
 	test("Control HUD opens with backtick and shows the action search", async ({ page }) => {
