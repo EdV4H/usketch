@@ -25,7 +25,7 @@
 		"@edv4h/usketch-shared": "workspace:*",
 		"@edv4h/usketch-sync": "workspace:*",
 		"@hono/zod-validator": "0.9.0",
-		"better-auth": "1.6.27",
+		"better-auth": "1.6.28",
 		"drizzle-orm": "0.45.2",
 		"hono": "4.13.2",
 		"yjs": "^13.6.0",
