@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-session
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies [06f3ef8]
+  - @edv4h/usketch-sync@1.3.0
+
 ## 0.2.1
 
 ### Patch Changes
