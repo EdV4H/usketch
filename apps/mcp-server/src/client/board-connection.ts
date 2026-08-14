@@ -17,7 +17,7 @@ import WebSocket from "ws";
 import * as Y from "yjs";
 import type { McpConfig } from "../config.js";
 
-/** Identity the AI participant presents on the board (a normal presence `user`). */
+/** Identity the AI participant presents as on the board (a normal presence `user`). */
 const AI_NAME = "AI 🤖";
 const AI_COLOR = "#7c3aed";
 /** How long an AI edit stays highlighted before the outline clears. */
@@ -70,7 +70,9 @@ export class BoardConnection {
 	 * Show the AI editing/selecting `shapeIds` as a live presence participant on the
 	 * canvas (feature #960): sets the AI `user` (once), an optional `cursor`, and the
 	 * `activity` field the web overlay renders, then auto-clears the outline after a
-	 * short hold so it reads as "AI just did this". No-op when disconnected.
+	 * short hold so it reads as "AI just did this". No-op while disconnected — there's
+	 * no socket to broadcast on, and we don't want to leave a pending timer or stale
+	 * local state that would flush on reconnect.
 	 */
 	showAiActivity(opts: {
 		shapeIds?: string[];
@@ -78,6 +80,7 @@ export class BoardConnection {
 		action?: "select" | "edit";
 		holdMs?: number;
 	}): void {
+		if (!this.connected) return;
 		if (!this.aiUserSet) {
 			this.awareness.setLocalStateField("user", { name: AI_NAME, color: AI_COLOR });
 			this.aiUserSet = true;

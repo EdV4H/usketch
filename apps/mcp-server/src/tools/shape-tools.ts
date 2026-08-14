@@ -55,18 +55,22 @@ const shapeUpdateSchema = z
 	})
 	.passthrough();
 
-/** Centre of the combined bounds of some boxes, for placing the AI presence cursor. */
+/** Centre of the union bounding box of some boxes, for placing the AI presence cursor. */
 function centroidOf(
 	boxes: Array<{ x: number; y: number; width: number; height: number }>,
 ): { x: number; y: number } | undefined {
 	if (boxes.length === 0) return undefined;
-	let sx = 0;
-	let sy = 0;
+	let minX = Number.POSITIVE_INFINITY;
+	let minY = Number.POSITIVE_INFINITY;
+	let maxX = Number.NEGATIVE_INFINITY;
+	let maxY = Number.NEGATIVE_INFINITY;
 	for (const b of boxes) {
-		sx += b.x + b.width / 2;
-		sy += b.y + b.height / 2;
+		minX = Math.min(minX, b.x);
+		minY = Math.min(minY, b.y);
+		maxX = Math.max(maxX, b.x + b.width);
+		maxY = Math.max(maxY, b.y + b.height);
 	}
-	return { x: sx / boxes.length, y: sy / boxes.length };
+	return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
 }
 
 export function registerShapeTools(server: McpServer, connections: ConnectionManager): void {
