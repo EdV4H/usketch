@@ -2,6 +2,7 @@ import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { ActivityOverlay } from "./activity-overlay.js";
 import { createAiActivityStore } from "./ai-activity-store.js";
+import { type PresenceActivityStyle, resolveActivityStyle } from "./style.js";
 
 const LAYER_ID = "usketch-presence-activity";
 /** How long the in-app AI highlight lingers after `ai:response` before clearing. */
@@ -17,6 +18,12 @@ interface AiStatusEvent {
 
 export interface PresenceActivityOptions {
 	wsProvider: WsProviderHandle;
+	/**
+	 * Appearance overrides for the overlay (outline / marquee / badge / local-AI
+	 * identity), or a full `renderParticipant` override. Merges over the defaults —
+	 * omit for the stock look. See {@link PresenceActivityStyle}.
+	 */
+	style?: PresenceActivityStyle;
 }
 
 /**
@@ -30,9 +37,14 @@ export interface PresenceActivityOptions {
  * It also drives the LOCAL in-app AI: the ⌘K agent writes shapes server-side with
  * no awareness presence, so its `ai:response` is mirrored into `aiActivityStore`
  * and drawn as a synthetic "AI" participant on this tab.
+ *
+ * The host can restyle the indicators via `options.style` (outline / marquee /
+ * badge / local-AI identity), or take over rendering entirely with
+ * `style.renderParticipant`. See {@link PresenceActivityStyle}.
  */
 export function createPresenceActivityPlugin(options: PresenceActivityOptions): UsketchPlugin {
 	const { wsProvider } = options;
+	const style = resolveActivityStyle(options.style);
 	return {
 		id: "usketch-plugin-presence-activity",
 		name: "参加者アクティビティ",
@@ -53,6 +65,7 @@ export function createPresenceActivityPlugin(options: PresenceActivityOptions): 
 						shapes={ctx.shapes}
 						viewport={renderCtx.viewport}
 						awareness={wsProvider.awareness}
+						style={style}
 						aiActivityStore={aiActivityStore}
 					/>
 				),

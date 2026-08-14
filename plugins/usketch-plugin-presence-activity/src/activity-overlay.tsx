@@ -4,12 +4,9 @@ import { useEffect, useReducer, useSyncExternalStore } from "react";
 import type { PresenceActivity, PresenceUser } from "./activity.js";
 import type { AiActivityStore } from "./ai-activity-store.js";
 import { fallbackColor, unionBounds, worldRectToScreen } from "./geometry.js";
+import type { PresenceParticipant, ResolvedActivityStyle } from "./style.js";
 
 type Awareness = WsProviderHandle["awareness"];
-
-/** Identity of the local in-app AI participant (matches the MCP AI presence). */
-const AI_LABEL = "AI 🤖";
-const AI_COLOR = "#7c3aed";
 
 /** Resolve shape ids to their world bounds (registered def, else raw x/y/w/h). */
 function resolveBoxes(
@@ -34,17 +31,6 @@ function resolveBoxes(
 	return boxes;
 }
 
-interface Participant {
-	clientId: number;
-	name: string;
-	color: string;
-	action: "select" | "edit";
-	/** Per-shape world bounds this participant is selecting/editing. */
-	boxes: BoundingBox[];
-	/** Optional in-progress marquee rect (world coords). */
-	marquee?: BoundingBox;
-}
-
 /**
  * Resolve every remote participant's `activity` awareness field into drawable
  * world-space boxes. Self is skipped. Participants with no resolvable activity
@@ -54,8 +40,8 @@ export function collectParticipants(
 	awareness: Awareness,
 	store: BoardStore,
 	shapes: ShapeRegistry,
-): Participant[] {
-	const out: Participant[] = [];
+): PresenceParticipant[] {
+	const out: PresenceParticipant[] = [];
 	for (const [clientId, state] of awareness.getStates()) {
 		if (clientId === awareness.doc.clientID) continue;
 		const activity = state.activity as PresenceActivity | undefined;
@@ -89,12 +75,14 @@ export function ActivityOverlay({
 	viewport,
 	awareness,
 	aiActivityStore,
+	style,
 }: {
 	store: BoardStore;
 	shapes: ShapeRegistry;
 	viewport: Viewport;
 	awareness: Awareness;
 	aiActivityStore: AiActivityStore;
+	style: ResolvedActivityStyle;
 }) {
 	const [, bump] = useReducer((n: number) => n + 1, 0);
 	useEffect(() => {
@@ -111,8 +99,8 @@ export function ActivityOverlay({
 		if (boxes.length > 0) {
 			participants.push({
 				clientId: -1,
-				name: AI_LABEL,
-				color: AI_COLOR,
+				name: style.aiParticipant.label,
+				color: style.aiParticipant.color,
 				action: "edit",
 				boxes,
 			});
@@ -131,21 +119,35 @@ export function ActivityOverlay({
 			}}
 		>
 			<title>参加者の選択・編集</title>
-			{participants.map((p) => (
-				<ParticipantActivity key={p.clientId} p={p} viewport={viewport} />
-			))}
+			{participants.map((p) => {
+				const custom = style.renderParticipant?.(p, viewport);
+				return custom !== undefined ? (
+					<g key={p.clientId}>{custom}</g>
+				) : (
+					<ParticipantActivity key={p.clientId} p={p} viewport={viewport} style={style} />
+				);
+			})}
 		</svg>
 	);
 }
 
-const PAD = 3; // outline inflation in screen px, so it hugs outside the shape
-
-function ParticipantActivity({ p, viewport }: { p: Participant; viewport: Viewport }) {
+function ParticipantActivity({
+	p,
+	viewport,
+	style,
+}: {
+	p: PresenceParticipant;
+	viewport: Viewport;
+	style: ResolvedActivityStyle;
+}) {
 	const editing = p.action === "edit";
+	const { outline, marquee: mq, badge } = style;
+	const pad = outline.padding;
 	const rects = p.boxes.map((b) => worldRectToScreen(b, viewport));
 	const union = unionBounds(p.boxes);
 	const badgeAt = union ? worldRectToScreen(union, viewport) : null;
 	const marquee = p.marquee ? worldRectToScreen(p.marquee, viewport) : null;
+	const label = editing ? `${p.name}${badge.editingSuffix}` : p.name;
 
 	return (
 		<g>
@@ -154,17 +156,17 @@ function ParticipantActivity({ p, viewport }: { p: Participant; viewport: Viewpo
 				<rect
 					// biome-ignore lint/suspicious/noArrayIndexKey: rects are positional, order-stable per render
 					key={i}
-					x={r.x - PAD}
-					y={r.y - PAD}
-					width={r.width + PAD * 2}
-					height={r.height + PAD * 2}
+					x={r.x - pad}
+					y={r.y - pad}
+					width={r.width + pad * 2}
+					height={r.height + pad * 2}
 					fill="none"
 					stroke={p.color}
-					strokeWidth={2}
-					rx={4}
-					opacity={0.9}
+					strokeWidth={outline.strokeWidth}
+					rx={outline.radius}
+					opacity={outline.opacity}
 				>
-					{editing && (
+					{editing && outline.pulse && (
 						<animate
 							attributeName="opacity"
 							values="0.35;0.95;0.35"
@@ -183,26 +185,26 @@ function ParticipantActivity({ p, viewport }: { p: Participant; viewport: Viewpo
 					width={marquee.width}
 					height={marquee.height}
 					fill={p.color}
-					fillOpacity={0.08}
+					fillOpacity={mq.fillOpacity}
 					stroke={p.color}
-					strokeWidth={1.5}
-					strokeDasharray="6 4"
+					strokeWidth={mq.strokeWidth}
+					strokeDasharray={mq.dash}
 				/>
 			)}
 
 			{/* Name badge above the group. */}
-			{badgeAt && p.name && (
-				<g transform={`translate(${badgeAt.x - PAD}, ${badgeAt.y - PAD - 18})`}>
-					<rect width={p.name.length * 7.5 + 16} height={16} rx={4} fill={p.color} />
+			{badge.enabled && badgeAt && p.name && (
+				<g transform={`translate(${badgeAt.x - pad}, ${badgeAt.y - pad - 18})`}>
+					<rect width={label.length * 7.5 + 16} height={16} rx={4} fill={p.color} />
 					<text
 						x={7}
 						y={12}
-						fontSize={11}
-						fontWeight={600}
+						fontSize={badge.fontSize}
+						fontWeight={badge.fontWeight}
 						fill="#fff"
 						style={{ userSelect: "none" }}
 					>
-						{editing ? `${p.name} ✏️` : p.name}
+						{label}
 					</text>
 				</g>
 			)}
