@@ -22,6 +22,7 @@ import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
 import { createPortalPlugin } from "@edv4h/usketch-plugin-portal";
+import { createPresenceActivityPlugin } from "@edv4h/usketch-plugin-presence-activity";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
 import { createPresentationPlugin } from "@edv4h/usketch-plugin-presentation";
@@ -335,6 +336,8 @@ export function App() {
 					userName: "Anonymous",
 				}),
 			);
+			// Draws every other participant's live selection/edit/marquee (#960).
+			extraPlugins.push(createPresenceActivityPlugin({ wsProvider }));
 			extraPlugins.push(
 				createPresenceEnhancedPlugin({
 					wsProvider,

@@ -179,9 +179,29 @@ export function createPresenceCursorPlugin(options: PresenceCursorOptions): Uske
 
 			window.addEventListener("mouseleave", handleMouseLeave);
 
+			// ── Publish local selection as presence "activity" (feature #960) ──
+			// A general multiplayer channel: the `activity` awareness field lets every
+			// participant broadcast what they're selecting/editing so others can see it
+			// (rendered by usketch-plugin-presence-activity). Cleared (null) when the
+			// selection is empty. Sorted key so we only re-publish on real changes.
+			let lastSelectionKey = "";
+			const publishSelection = () => {
+				const ids = [...ctx.store.getSelection()].sort();
+				const key = ids.join(",");
+				if (key === lastSelectionKey) return;
+				lastSelectionKey = key;
+				awareness.setLocalStateField(
+					"activity",
+					ids.length > 0 ? { shapeIds: ids, action: "select" } : null,
+				);
+			};
+			const unsubStore = ctx.store.subscribe(publishSelection);
+			publishSelection();
+
 			return () => {
 				awareness.off("change", onAwarenessChange);
 				unsubPointerMove();
+				unsubStore();
 				for (const off of presenceStatusOffs) off();
 				window.removeEventListener("mouseleave", handleMouseLeave);
 			};
