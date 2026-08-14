@@ -1,5 +1,16 @@
 # @edv4h/usketch-sync
 
+## 1.3.0
+
+### Minor Changes
+
+- 06f3ef8: feat(sync): re-export the Yjs awareness primitives (`Awareness`, `encodeAwarenessUpdate`, `applyAwarenessUpdate`, `removeAwarenessStates`)
+
+  So consumers can publish/apply presence without taking a direct `y-protocols`
+  dependency — this package already depends on it and owns the `MSG_AWARENESS`
+  message framing. Used by the MCP server to make the AI appear as a presence
+  participant (#960).
+
 ## 1.2.0
 
 ### Minor Changes
