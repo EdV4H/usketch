@@ -1,10 +1,38 @@
 import type { BoardStore, BoundingBox, ShapeRegistry, Viewport } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useSyncExternalStore } from "react";
 import type { PresenceActivity, PresenceUser } from "./activity.js";
+import type { AiActivityStore } from "./ai-activity-store.js";
 import { fallbackColor, unionBounds, worldRectToScreen } from "./geometry.js";
 
 type Awareness = WsProviderHandle["awareness"];
+
+/** Identity of the local in-app AI participant (matches the MCP AI presence). */
+const AI_LABEL = "AI 🤖";
+const AI_COLOR = "#7c3aed";
+
+/** Resolve shape ids to their world bounds (registered def, else raw x/y/w/h). */
+function resolveBoxes(
+	store: BoardStore,
+	shapes: ShapeRegistry,
+	ids: readonly string[],
+): BoundingBox[] {
+	const boxes: BoundingBox[] = [];
+	for (const id of ids) {
+		const shape = store.getShape(id);
+		if (!shape) continue;
+		const def = shapes.get(shape.type);
+		boxes.push(
+			def?.getBounds(shape) ?? {
+				x: shape.x,
+				y: shape.y,
+				width: shape.width,
+				height: shape.height,
+			},
+		);
+	}
+	return boxes;
+}
 
 interface Participant {
 	clientId: number;
@@ -34,20 +62,7 @@ export function collectParticipants(
 		if (!activity) continue;
 		const user = state.user as PresenceUser | undefined;
 
-		const boxes: BoundingBox[] = [];
-		for (const id of activity.shapeIds ?? []) {
-			const shape = store.getShape(id);
-			if (!shape) continue;
-			const def = shapes.get(shape.type);
-			boxes.push(
-				def?.getBounds(shape) ?? {
-					x: shape.x,
-					y: shape.y,
-					width: shape.width,
-					height: shape.height,
-				},
-			);
-		}
+		const boxes = resolveBoxes(store, shapes, activity.shapeIds ?? []);
 		if (boxes.length === 0 && !activity.marquee) continue;
 
 		out.push({
@@ -73,11 +88,13 @@ export function ActivityOverlay({
 	shapes,
 	viewport,
 	awareness,
+	aiActivityStore,
 }: {
 	store: BoardStore;
 	shapes: ShapeRegistry;
 	viewport: Viewport;
 	awareness: Awareness;
+	aiActivityStore: AiActivityStore;
 }) {
 	const [, bump] = useReducer((n: number) => n + 1, 0);
 	useEffect(() => {
@@ -85,7 +102,22 @@ export function ActivityOverlay({
 		return () => awareness.off("change", bump);
 	}, [awareness]);
 
+	// Local in-app AI activity (this tab only) — the agent has no awareness presence.
+	const aiActivity = useSyncExternalStore(aiActivityStore.subscribe, aiActivityStore.get);
+
 	const participants = collectParticipants(awareness, store, shapes);
+	if (aiActivity && aiActivity.shapeIds.length > 0) {
+		const boxes = resolveBoxes(store, shapes, aiActivity.shapeIds);
+		if (boxes.length > 0) {
+			participants.push({
+				clientId: -1,
+				name: AI_LABEL,
+				color: AI_COLOR,
+				action: "edit",
+				boxes,
+			});
+		}
+	}
 	if (participants.length === 0) return null;
 
 	return (
