@@ -2,7 +2,7 @@ import type { BoardStore, BoundingBox, ShapeRegistry, Viewport } from "@edv4h/us
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { useEffect, useReducer, useSyncExternalStore } from "react";
 import type { PresenceActivity, PresenceUser } from "./activity.js";
-import { aiActivityStore } from "./ai-activity-store.js";
+import type { AiActivityStore } from "./ai-activity-store.js";
 import { fallbackColor, unionBounds, worldRectToScreen } from "./geometry.js";
 
 type Awareness = WsProviderHandle["awareness"];
@@ -88,11 +88,13 @@ export function ActivityOverlay({
 	shapes,
 	viewport,
 	awareness,
+	aiActivityStore,
 }: {
 	store: BoardStore;
 	shapes: ShapeRegistry;
 	viewport: Viewport;
 	awareness: Awareness;
+	aiActivityStore: AiActivityStore;
 }) {
 	const [, bump] = useReducer((n: number) => n + 1, 0);
 	useEffect(() => {

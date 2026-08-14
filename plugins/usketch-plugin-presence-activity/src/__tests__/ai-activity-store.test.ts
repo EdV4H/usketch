@@ -1,34 +1,43 @@
 import { describe, expect, it } from "vitest";
-import { aiActivityStore } from "../ai-activity-store.js";
+import { createAiActivityStore } from "../ai-activity-store.js";
 
-describe("aiActivityStore", () => {
+describe("createAiActivityStore", () => {
 	it("starts empty", () => {
-		aiActivityStore.set(null);
-		expect(aiActivityStore.get()).toBeNull();
+		expect(createAiActivityStore().get()).toBeNull();
 	});
 
 	it("set/get round-trips and notifies subscribers", () => {
+		const store = createAiActivityStore();
 		let calls = 0;
-		const off = aiActivityStore.subscribe(() => {
+		const off = store.subscribe(() => {
 			calls++;
 		});
-		aiActivityStore.set({ shapeIds: ["a", "b"] });
-		expect(aiActivityStore.get()).toEqual({ shapeIds: ["a", "b"] });
+		store.set({ shapeIds: ["a", "b"] });
+		expect(store.get()).toEqual({ shapeIds: ["a", "b"] });
 		expect(calls).toBe(1);
-		aiActivityStore.set(null);
-		expect(aiActivityStore.get()).toBeNull();
+		store.set(null);
+		expect(store.get()).toBeNull();
 		expect(calls).toBe(2);
 		off();
 	});
 
 	it("stops notifying after unsubscribe", () => {
+		const store = createAiActivityStore();
 		let calls = 0;
-		const off = aiActivityStore.subscribe(() => {
+		const off = store.subscribe(() => {
 			calls++;
 		});
 		off();
-		aiActivityStore.set({ shapeIds: ["x"] });
+		store.set({ shapeIds: ["x"] });
 		expect(calls).toBe(0);
-		aiActivityStore.set(null);
+	});
+
+	it("instances are independent (no shared/leaked state)", () => {
+		const a = createAiActivityStore();
+		const b = createAiActivityStore();
+		a.set({ shapeIds: ["a"] });
+		expect(b.get()).toBeNull(); // b unaffected
+		b.set(null); // clearing b doesn't touch a
+		expect(a.get()).toEqual({ shapeIds: ["a"] });
 	});
 });
