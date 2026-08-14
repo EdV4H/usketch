@@ -19,6 +19,12 @@ describe("resolveActivityStyle", () => {
 		expect(r.badge).toEqual(DEFAULT_ACTIVITY_STYLE.badge);
 	});
 
+	it("keeps the default when an override field is explicitly undefined (no NaN)", () => {
+		const r = resolveActivityStyle({ outline: { padding: undefined, strokeWidth: 4 } });
+		expect(r.outline.padding).toBe(DEFAULT_ACTIVITY_STYLE.outline.padding); // not undefined/NaN
+		expect(r.outline.strokeWidth).toBe(4);
+	});
+
 	it("overrides the local-AI identity", () => {
 		const r = resolveActivityStyle({ aiParticipant: { label: "Copilot", color: "#0ea5e9" } });
 		expect(r.aiParticipant).toEqual({ label: "Copilot", color: "#0ea5e9" });

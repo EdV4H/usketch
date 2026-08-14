@@ -120,12 +120,12 @@ export function ActivityOverlay({
 		>
 			<title>参加者の選択・編集</title>
 			{participants.map((p) => {
-				const custom = style.renderParticipant?.(p, viewport);
-				return custom !== undefined ? (
-					<g key={p.clientId}>{custom}</g>
-				) : (
-					<ParticipantActivity key={p.clientId} p={p} viewport={viewport} style={style} />
-				);
+				if (style.renderParticipant) {
+					// Contract: ReactElement → render it; null → draw nothing for this participant.
+					const custom = style.renderParticipant(p, viewport);
+					return custom === null ? null : <g key={p.clientId}>{custom}</g>;
+				}
+				return <ParticipantActivity key={p.clientId} p={p} viewport={viewport} style={style} />;
 			})}
 		</svg>
 	);

@@ -78,13 +78,29 @@ export const DEFAULT_ACTIVITY_STYLE: ResolvedActivityStyle = {
 	aiParticipant: { label: "AI 🤖", color: "#7c3aed" },
 };
 
-/** Shallow-merge a host style over the defaults (per group). */
+/**
+ * Copy `override` over `base`, keeping the base value wherever the override is
+ * `undefined` (plain spread would let an explicit `undefined` clobber a default and
+ * later turn arithmetic like `x - padding` into `NaN`).
+ */
+function mergeDefined<T extends object>(base: T, override?: Partial<T>): T {
+	const out = { ...base };
+	if (override) {
+		for (const key of Object.keys(override) as (keyof T)[]) {
+			const value = override[key];
+			if (value !== undefined) out[key] = value as T[keyof T];
+		}
+	}
+	return out;
+}
+
+/** Shallow-merge a host style over the defaults (per group; ignores explicit undefined). */
 export function resolveActivityStyle(style?: PresenceActivityStyle): ResolvedActivityStyle {
 	return {
-		outline: { ...DEFAULT_ACTIVITY_STYLE.outline, ...style?.outline },
-		marquee: { ...DEFAULT_ACTIVITY_STYLE.marquee, ...style?.marquee },
-		badge: { ...DEFAULT_ACTIVITY_STYLE.badge, ...style?.badge },
-		aiParticipant: { ...DEFAULT_ACTIVITY_STYLE.aiParticipant, ...style?.aiParticipant },
+		outline: mergeDefined(DEFAULT_ACTIVITY_STYLE.outline, style?.outline),
+		marquee: mergeDefined(DEFAULT_ACTIVITY_STYLE.marquee, style?.marquee),
+		badge: mergeDefined(DEFAULT_ACTIVITY_STYLE.badge, style?.badge),
+		aiParticipant: mergeDefined(DEFAULT_ACTIVITY_STYLE.aiParticipant, style?.aiParticipant),
 		renderParticipant: style?.renderParticipant,
 	};
 }
