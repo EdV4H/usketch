@@ -1,3 +1,12 @@
+// Re-export the Yjs awareness primitives so consumers (e.g. the MCP client) can
+// publish presence without taking a direct `y-protocols` dependency — this
+// package already depends on it and frames the awareness message protocol.
+export {
+	Awareness,
+	applyAwarenessUpdate,
+	encodeAwarenessUpdate,
+	removeAwarenessStates,
+} from "y-protocols/awareness";
 export {
 	MSG_AWARENESS,
 	MSG_BROADCAST,
