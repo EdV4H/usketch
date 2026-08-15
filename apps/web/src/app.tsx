@@ -21,6 +21,7 @@ import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
+import { createPdfImportPlugin } from "@edv4h/usketch-plugin-pdf-import";
 import { createPortalPlugin } from "@edv4h/usketch-plugin-portal";
 import { createPresenceActivityPlugin } from "@edv4h/usketch-plugin-presence-activity";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
@@ -176,6 +177,9 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 			wsProvider: cardHand.wsProvider ?? undefined,
 		}),
 		createImageShapePlugin(),
+		// PDF のペースト／ドロップを pdf-page シェイプの集合に展開する。アセット
+		// ストア（extraPlugins 側で登録）を使うが lazy 解決なので登録順は問わない。
+		createPdfImportPlugin(),
 		createCounterPlugin(),
 		createWireframePlugin(),
 		createDomainDesignPlugin(),
