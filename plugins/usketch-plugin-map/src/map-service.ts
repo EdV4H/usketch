@@ -62,21 +62,31 @@ export const mapService = defineService<MapApi>("usketch-plugin-map");
 
 /** Build the API bound to a specific board store (called in the plugin's setup). */
 export function createMapApi(store: BoardStore, defaultTile = DEFAULT_TILE): MapApi {
-	// The base-map carries its own tile; fall back to the plugin's configured tile.
-	const tileOf = () => getBaseMap(store)?.tile ?? defaultTile;
-	const territoryOf = (): Territory =>
-		computeTerritory(store, tileOf(), new Set(baseStateStore.get().excludeTerrains));
+	// Resolve the base-map, its tile, and the derived territory ONCE per call — the
+	// base-map carries its own tile (fall back to the configured one). computeTerritory
+	// is memoised, but getBaseMap is a shape scan, so share it across the readout.
+	const snapshot = () => {
+		const baseMap = getBaseMap(store);
+		const tile = baseMap?.tile ?? defaultTile;
+		const territory = computeTerritory(store, tile, new Set(baseStateStore.get().excludeTerrains));
+		return { baseMap, tile, territory };
+	};
 	return {
 		enableInfiniteTerrain: (opts) => enableInfiniteTerrain(store, opts),
 		disableInfiniteTerrain: () => disableInfiniteTerrain(store),
 		getInfiniteSeed: () => getInfiniteSeed(store),
 		isInfiniteTerrainEnabled: () => isInfiniteTerrainEnabled(store),
 		setInfiniteSeed: (seed) => setInfiniteSeed(store, seed),
-		getTerritory: territoryOf,
-		getBaseAt: (x, y) => baseIdAtWorld(territoryOf(), x, y, tileOf()),
+		getTerritory: () => snapshot().territory,
+		getBaseAt: (x, y) => {
+			const { territory, tile } = snapshot();
+			return baseIdAtWorld(territory, x, y, tile);
+		},
 		getBases: () => getBaseMap(store)?.bases ?? {},
-		getBaseRegions: () =>
-			baseRegionAnchors(territoryOf(), getBaseMap(store)?.bases ?? {}, tileOf()),
+		getBaseRegions: () => {
+			const { baseMap, tile, territory } = snapshot();
+			return baseRegionAnchors(territory, baseMap?.bases ?? {}, tile);
+		},
 		onTerritoryChange: (listener) => {
 			// Territory derives from the base-map + tilemap shapes and the exclude set.
 			const offShapes = store.onMutation((e) => {
