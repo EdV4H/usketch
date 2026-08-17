@@ -6,6 +6,7 @@ import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { BaseAreaLayer } from "./base/base-layer.js";
 import { BASE_MAP_TYPE, createBaseMapShapeDefinition } from "./base/base-map-shape.js";
 import { EnterBanner } from "./base/enter-banner.js";
+import { resolveTerritoryStyle, type TerritoryStyle } from "./base/territory-style.js";
 import { genStateStore } from "./gen-state.js";
 import { registerMapHud } from "./hud/register-map-hud.js";
 import {
@@ -36,6 +37,12 @@ export interface MapPluginOptions {
 	 * HUD "空きマス" setting.
 	 */
 	emptyTerrain?: TerrainKey;
+	/**
+	 * Appearance of the base "territory" (領域) overlay — fill / border / ring /
+	 * label, plus whether to show it only while editing bases (`"base-mode"`,
+	 * default) or always. Merges over the defaults; omit for the stock look.
+	 */
+	territory?: TerritoryStyle;
 }
 
 const TERRAIN_LAYER_ID = "usketch-map:terrain";
@@ -45,6 +52,7 @@ const ENTER_BANNER_ID = "usketch-map:enter-banner";
 
 export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 	const tile = options.tile ?? DEFAULT_TILE;
+	const territoryStyle = resolveTerritoryStyle(options.territory);
 	if (options.defaultColorMode || options.defaultLineStyle || options.emptyTerrain) {
 		renderConfigStore.set({
 			colorMode: options.defaultColorMode,
@@ -79,7 +87,9 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				id: BASE_LAYER_ID,
 				order: 42,
 				fixed: true,
-				render: (lctx) => <BaseAreaLayer store={ctx.store} renderMode={lctx.renderMode} />,
+				render: (lctx) => (
+					<BaseAreaLayer store={ctx.store} renderMode={lctx.renderMode} style={territoryStyle} />
+				),
 			});
 			// ── World-layer icons (grid data on the tilemap). Order 44: above terrain
 			//    (40) and base areas (42), below host resource shapes (DOM shapes=50) —
@@ -214,7 +224,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			//    Provided LAST, after every throw-prone registration above, so a setup
 			//    failure can't leak the service (createApp only rolls back a returned
 			//    teardown). ──
-			const unprovideService = mapService.provide(ctx.services, createMapApi(ctx.store));
+			const unprovideService = mapService.provide(ctx.services, createMapApi(ctx.store, tile));
 
 			return () => {
 				unprovideService();
