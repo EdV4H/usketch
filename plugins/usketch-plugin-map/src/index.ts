@@ -3,8 +3,21 @@ export {
 	type BaseInfo,
 	type BaseMapShapeData,
 } from "./base/base-map-shape.js";
+export {
+	type BaseRegionAnchor,
+	baseIdAtWorld,
+	baseRegionAnchors,
+	getBaseMap,
+} from "./base/base-ops.js";
 export { type BaseToolState, baseStateStore, useBaseState } from "./base/base-state.js";
 export { computeTerritory, type Territory } from "./base/territory.js";
+// ── Territory (領域) overlay appearance — pass via `createMapPlugin({ territory })`.
+export {
+	DEFAULT_TERRITORY_STYLE,
+	type ResolvedTerritoryStyle,
+	resolveTerritoryStyle,
+	type TerritoryStyle,
+} from "./base/territory-style.js";
 export { type BaseGenParams, baseTerrainAt, DEFAULT_BASE_GEN } from "./base-terrain.js";
 export { type GenState, genStateStore, useGenState, type WorldRect } from "./gen-state.js";
 // NOTE: `resolveTilemap` returns the FIRST tilemap in iteration order (or creates

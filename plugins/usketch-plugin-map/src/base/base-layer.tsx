@@ -13,10 +13,7 @@ import type { BaseInfo } from "./base-map-shape.js";
 import { baseRegionAnchors, getBaseMap } from "./base-ops.js";
 import { useBaseState } from "./base-state.js";
 import { computeTerritory, type Territory } from "./territory.js";
-
-const FILL_OPACITY = 0.24;
-const BORDER_RATIO = 0.16; // border strip thickness, fraction of a tile
-const BORDER_OPACITY = 0.85;
+import type { ResolvedTerritoryStyle } from "./territory-style.js";
 
 /** Full tier: per-cell translucent fill + base-coloured border on region edges. */
 function renderFull(
@@ -24,10 +21,11 @@ function renderFull(
 	bases: Record<string, BaseInfo>,
 	tile: number,
 	visible: DOMRectReadOnly | null,
+	style: ResolvedTerritoryStyle,
 ): React.ReactElement[] {
 	const nodes: React.ReactElement[] = [];
 	const asCells = owner as unknown as Cells; // exposedEdges only compares values
-	const bt = BORDER_RATIO * tile;
+	const bt = style.border.ratio * tile;
 	const range = visibleCellRange(visible, tile);
 	const emit = (c: number, r: number) => {
 		const baseId = owner[`${c},${r}`];
@@ -44,7 +42,7 @@ function renderFull(
 				width={tile}
 				height={tile}
 				fill={color}
-				fillOpacity={FILL_OPACITY}
+				fillOpacity={style.fillOpacity}
 			/>,
 		);
 		const edge = exposedEdges(asCells, c, r);
@@ -56,7 +54,7 @@ function renderFull(
 				width={sw}
 				height={sh}
 				fill={color}
-				fillOpacity={BORDER_OPACITY}
+				fillOpacity={style.border.opacity}
 			/>
 		);
 		if (edge.n) nodes.push(strip(x, y, tile, bt, `${c},${r}:n`));
@@ -83,6 +81,7 @@ function renderCoarse(
 	tile: number,
 	screenTilePx: number,
 	visible: DOMRectReadOnly | null,
+	fillOpacity: number,
 ): React.ReactElement[] {
 	const factor = blockFactor(screenTilePx);
 	const bt = factor * tile;
@@ -100,7 +99,7 @@ function renderCoarse(
 			continue;
 		}
 		nodes.push(
-			<rect key={bk} x={x} y={y} width={bt} height={bt} fill={color} fillOpacity={FILL_OPACITY} />,
+			<rect key={bk} x={x} y={y} width={bt} height={bt} fill={color} fillOpacity={fillOpacity} />,
 		);
 	}
 	return nodes;
@@ -109,9 +108,11 @@ function renderCoarse(
 export function BaseAreaLayer({
 	store,
 	renderMode,
+	style,
 }: {
 	store: BoardStore;
 	renderMode?: RenderMode;
+	style: ResolvedTerritoryStyle;
 }) {
 	const tool = useMapToolState();
 	const baseState = useBaseState();
@@ -130,11 +131,12 @@ export function BaseAreaLayer({
 		};
 	}, [store]);
 
-	// Territory paint is only shown while actually in base mode (map tool + base
-	// submode) — mirrors the EnterBanner indicator gating. Check the mode first so
-	// we skip the shape scan in getBaseMap on every non-base-mode re-render.
+	// By default territory paint is only shown while editing bases (map tool + base
+	// submode) — mirrors the EnterBanner indicator gating. Hosts can opt into
+	// `show: "always"` to surface areas to end users. Check mode first so base-mode
+	// gating skips the shape scan in getBaseMap on every non-base-mode re-render.
 	const inBaseMode = store.getActiveToolId() === MAP_TOOL_ID && tool.mode === "base";
-	if (!inBaseMode) return null;
+	if (style.show === "base-mode" && !inBaseMode) return null;
 	const base = getBaseMap(store);
 	if (!base) return null;
 	const tile = base.tile;
@@ -149,16 +151,18 @@ export function BaseAreaLayer({
 	const detail: TileDetail = tileDetail(screenTilePx, renderMode);
 	const cells =
 		detail === "full"
-			? renderFull(territory, base.bases, tile, visible)
-			: renderCoarse(territory, base.bases, tile, screenTilePx, visible);
+			? renderFull(territory, base.bases, tile, visible, style)
+			: renderCoarse(territory, base.bases, tile, screenTilePx, visible, style.fillOpacity);
 
-	// Labels: HTML chips at screen coords (crisp, constant size). Hidden when coarse.
-	const anchors = detail === "full" ? baseRegionAnchors(territory, base.bases, tile) : [];
+	// Labels: HTML chips at screen coords (crisp, constant size). Hidden when coarse
+	// or disabled via style.
+	const anchors =
+		detail === "full" && style.label.enabled ? baseRegionAnchors(territory, base.bases, tile) : [];
 
 	// Radius rings around each base's beacon CELL. Full detail only; radius + colour
 	// come from the base registry (no icon shapes involved anymore).
 	const rings: React.ReactElement[] = [];
-	if (detail === "full") {
+	if (detail === "full" && style.ring.enabled) {
 		for (const [baseId, info] of Object.entries(base.bases)) {
 			if (!info.beaconCell) continue;
 			const [col, row] = parseCellKey(info.beaconCell);
@@ -170,14 +174,16 @@ export function BaseAreaLayer({
 					r={info.radius * tile}
 					fill="none"
 					stroke={info.color}
-					strokeWidth={2}
-					strokeDasharray="8 6"
-					opacity={0.7}
+					strokeWidth={style.ring.strokeWidth}
+					strokeDasharray={style.ring.dash}
+					opacity={style.ring.opacity}
 					vectorEffect="non-scaling-stroke"
 				/>,
 			);
 		}
 	}
+
+	const labelRender = style.label.render;
 
 	return (
 		<div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
@@ -187,39 +193,62 @@ export function BaseAreaLayer({
 					{rings}
 				</g>
 			</svg>
-			{anchors.map((a) => (
-				<div
-					key={a.baseId}
-					style={{
-						position: "absolute",
-						left: a.x * vp.zoom + vp.x,
-						top: a.y * vp.zoom + vp.y,
-						transform: "translate(-50%,-50%)",
-						display: "flex",
-						alignItems: "center",
-						gap: 5,
-						padding: "3px 9px",
-						background: "rgba(255,255,255,.9)",
-						border: `2px solid ${a.color}`,
-						borderRadius: 20,
-						font: "700 12px system-ui, sans-serif",
-						color: "#1c1c1c",
-						whiteSpace: "nowrap",
-						boxShadow: "0 2px 8px rgba(0,0,0,.14)",
-					}}
-				>
-					<span
+			{anchors.map((a) => {
+				const left = a.x * vp.zoom + vp.x;
+				const top = a.y * vp.zoom + vp.y;
+				if (labelRender) {
+					// Host owns the chip; the layer only positions it at the region centre.
+					const custom = labelRender(a);
+					if (custom == null) return null;
+					return (
+						<div
+							key={a.baseId}
+							style={{
+								position: "absolute",
+								left,
+								top,
+								transform: "translate(-50%,-50%)",
+								pointerEvents: "none",
+							}}
+						>
+							{custom}
+						</div>
+					);
+				}
+				return (
+					<div
+						key={a.baseId}
 						style={{
-							width: 10,
-							height: 10,
-							borderRadius: "50%",
-							background: a.color,
-							flex: "none",
+							position: "absolute",
+							left,
+							top,
+							transform: "translate(-50%,-50%)",
+							display: "flex",
+							alignItems: "center",
+							gap: 5,
+							padding: "3px 9px",
+							background: "rgba(255,255,255,.9)",
+							border: `2px solid ${a.color}`,
+							borderRadius: 20,
+							font: "700 12px system-ui, sans-serif",
+							color: "#1c1c1c",
+							whiteSpace: "nowrap",
+							boxShadow: "0 2px 8px rgba(0,0,0,.14)",
 						}}
-					/>
-					{a.name}
-				</div>
-			))}
+					>
+						<span
+							style={{
+								width: 10,
+								height: 10,
+								borderRadius: "50%",
+								background: a.color,
+								flex: "none",
+							}}
+						/>
+						{a.name}
+					</div>
+				);
+			})}
 		</div>
 	);
 }
