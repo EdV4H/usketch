@@ -182,12 +182,29 @@ describe("computeTerritory — exclude applies to effective terrain (#982)", () 
 		}
 	});
 
-	it("changing baseSeed invalidates the memo (same cells object)", () => {
-		// Not a fixed expectation on contents — just that the seed keys the cache so a
-		// re-seed recomputes rather than returning a stale territory.
-		const store = makeStore([baseMap(B1), seededTilemapShape(1)]);
-		const a = computeTerritory(store, TILE, new Set(["water"]));
-		const again = computeTerritory(store, TILE, new Set(["water"]));
-		expect(again).toBe(a); // same seed → cache hit
+	it("keys the cache by baseSeed (same cells object, different seed → recompute)", () => {
+		// Share ONE cells object between two seeds so both hit the same WeakMap
+		// bucket: a cache that ignored baseSeed would return seed 1's territory for
+		// seed 999. Radius 6 so generated water actually lands inside some cores.
+		const cells: Cells = {};
+		const bases: Record<string, BaseInfo> = {
+			b1: { name: "B1", color: "#f00", radius: 6, beaconCell: "0,0" },
+		};
+		const storeA = makeStore([baseMap(bases), seededTilemapShape(1, cells)]);
+		const storeB = makeStore([baseMap(bases), seededTilemapShape(999, cells)]);
+		const tA = computeTerritory(storeA, TILE, new Set(["water"]));
+		const tB = computeTerritory(storeB, TILE, new Set(["water"]));
+		expect(tB).not.toBe(tA); // seed is part of the cache key → not a stale hit
+		// Each result excludes ITS OWN seed's generated water.
+		for (const key of Object.keys(tA)) {
+			const [c, r] = parseCellKey(key);
+			expect(baseTerrainAt(1, c, r, DEFAULT_BASE_GEN)).not.toBe("water");
+		}
+		for (const key of Object.keys(tB)) {
+			const [c, r] = parseCellKey(key);
+			expect(baseTerrainAt(999, c, r, DEFAULT_BASE_GEN)).not.toBe("water");
+		}
+		// Same seed twice → cache hit (unchanged fast path).
+		expect(computeTerritory(storeA, TILE, new Set(["water"]))).toBe(tA);
 	});
 });

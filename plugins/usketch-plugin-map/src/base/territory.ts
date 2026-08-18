@@ -141,7 +141,13 @@ export function computeTerritory(
 ): Territory {
 	const base = findBaseMap(store);
 	if (!base || Object.keys(base.bases).length === 0) return {};
-	const tilemap = findTilemap(store);
+	// Source paint AND seed from the SAME tilemap so the effective-terrain sampler
+	// stays self-consistent (and matches the renderer). Prefer the deterministic
+	// seeded tilemap; fall back to the first tilemap when none carries a seed —
+	// otherwise `cells`/`handPaint` could come from one tilemap while `baseSeed`
+	// comes from a different one (insertion-order dependent).
+	const seededTm = seededTilemap(store.getShapes().values());
+	const tilemap = seededTm ?? findTilemap(store);
 	const cells = tilemap?.cells ?? EMPTY_CELLS;
 	const handPaint = tilemap?.handPaint ?? EMPTY_HAND_PAINT;
 	const t = tilemap?.tile ?? tile;
@@ -150,9 +156,7 @@ export function computeTerritory(
 
 	// Effective-terrain sampler so exclude also stops GENERATED terrain (infinite
 	// base / `baseSeed`), not just hand-painted cells — otherwise a beacon's core
-	// disk swallows the generated sea (#982). Seed/gen come from the deterministic
-	// seeded tilemap, matching the renderer.
-	const seededTm = seededTilemap(store.getShapes().values());
+	// disk swallows the generated sea (#982).
 	const baseSeed = seededTm?.baseSeed ?? null;
 	const sampler = makeTerrainSampler(cells, baseSeed, null, resolveBaseGen(seededTm?.baseGen));
 	const sig = signature(beacons, exclude, baseSeed);
