@@ -10,8 +10,8 @@ import type { BaseInfo } from "./base-map-shape.js";
  * entries; the tiers are intentionally coarse (tent → town → castle).
  */
 export const BASE_ICON_TIERS: readonly { maxRadius: number; icon: string }[] = [
-	{ maxRadius: 4, icon: "tent" }, // 開拓地 / 野営
-	{ maxRadius: 9, icon: "town" }, // 町
+	{ maxRadius: 8, icon: "tent" }, // 開拓地 / 野営
+	{ maxRadius: 16, icon: "town" }, // 町
 	{ maxRadius: Number.POSITIVE_INFINITY, icon: "castle" }, // 都市 / 城
 ];
 
