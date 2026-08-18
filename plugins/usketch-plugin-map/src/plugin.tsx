@@ -38,9 +38,10 @@ export interface MapPluginOptions {
 	 */
 	emptyTerrain?: TerrainKey;
 	/**
-	 * Appearance of the base "territory" (領域) overlay — fill / border / ring /
-	 * label, plus whether to show it only while editing bases (`"base-mode"`,
-	 * default) or always. Merges over the defaults; omit for the stock look.
+	 * The base "territory" (領域) overlay is HEADLESS: pass `region.render` /
+	 * `label.render` / `enterBanner.render` to draw the area / label / enter-banner
+	 * (the plugin owns geometry + tracking, the host owns the look), plus `show`
+	 * (`"base-mode"` default, or `"always"`). Omit a hook → that part isn't drawn.
 	 */
 	territory?: TerritoryStyle;
 }
@@ -103,12 +104,18 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 					<BaseIconLayer store={ctx.store} renderMode={lctx.renderMode} tile={tile} />
 				),
 			});
-			ctx.layers.register({
-				id: ENTER_BANNER_ID,
-				order: 197,
-				fixed: true,
-				render: () => <EnterBanner store={ctx.store} tile={tile} />,
-			});
+			// Enter banner (entry toast + current-area indicator) is HEADLESS: only
+			// registered when the host supplies `territory.enterBanner.render`. The
+			// layer tracks the current base; the host draws the look.
+			const enterBannerRender = territoryStyle.enterBanner.render;
+			if (enterBannerRender) {
+				ctx.layers.register({
+					id: ENTER_BANNER_ID,
+					order: 197,
+					fixed: true,
+					render: () => <EnterBanner store={ctx.store} tile={tile} render={enterBannerRender} />,
+				});
+			}
 
 			// ── Tools ──
 			ctx.tools.register(MAP_TOOL_ID, createMapToolDefinition(tile));
@@ -232,7 +239,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				ctx.layers.unregister(TERRAIN_LAYER_ID);
 				ctx.layers.unregister(BASE_LAYER_ID);
 				ctx.layers.unregister(BASE_ICON_LAYER_ID);
-				ctx.layers.unregister(ENTER_BANNER_ID);
+				if (enterBannerRender) ctx.layers.unregister(ENTER_BANNER_ID);
 				unregisterMapHud();
 				unregisterHud();
 			};
