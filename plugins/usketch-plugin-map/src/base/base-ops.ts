@@ -150,6 +150,7 @@ export function setBaseRadius(deps: BaseDeps, baseId: string, radius: number): v
 	const shape = deps.store.getShape(id) as BaseMapShapeData | undefined;
 	const base = shape?.bases[baseId];
 	if (!shape || !base) return;
+	if (!Number.isFinite(radius)) return; // guard "" / undefined from a number input
 	const r = Math.max(1, Math.round(radius));
 	if (base.radius === r) return;
 	const prevBases = shape.bases;

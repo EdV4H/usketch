@@ -44,7 +44,7 @@ export function registerMapHud(ctx: PluginContext, tile: number): () => void {
 	const offs: Array<() => void> = [];
 	const deps = { store: ctx.store, commands: ctx.commands, tile };
 
-	// ── Mode / terrain / icon (bound to toolStateStore) ──
+	// ── Mode / terrain (bound to toolStateStore) ──
 	offs.push(
 		ctx.hud.registerSettings({
 			id: "usketch-map:tool",

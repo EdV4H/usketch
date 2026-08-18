@@ -1,7 +1,14 @@
 import type { BoardStore, Command, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import type { BaseInfo } from "../base/base-map-shape.js";
-import { baseIdAtWorld, baseRegionAnchors, deleteBase, setBeacon } from "../base/base-ops.js";
+import {
+	baseIdAtWorld,
+	baseRegionAnchors,
+	deleteBase,
+	setBaseIcon,
+	setBaseRadius,
+	setBeacon,
+} from "../base/base-ops.js";
 import type { Territory } from "../base/territory.js";
 
 describe("baseIdAtWorld", () => {
@@ -36,7 +43,10 @@ describe("baseRegionAnchors", () => {
 	});
 });
 
-type Bases = Record<string, { name: string; color: string; radius: number; beaconCell?: string }>;
+type Bases = Record<
+	string,
+	{ name: string; color: string; radius: number; beaconCell?: string; icon?: string }
+>;
 
 function harness(bases: Bases) {
 	const shapes = new Map<string, ShapeData>();
@@ -112,5 +122,58 @@ describe("deleteBase", () => {
 		deleteBase({ store: h.store, commands: h.commands, tile: 40 }, "ghost");
 		expect(h.getLast()).toBeNull();
 		expect(Object.keys(basesOf(h)).sort()).toEqual(["b1", "b2"]);
+	});
+});
+
+describe("setBaseRadius", () => {
+	const deps = (h: ReturnType<typeof harness>) => ({
+		store: h.store,
+		commands: h.commands,
+		tile: 40,
+	});
+	it("rounds, clamps to >= 1, and undo restores", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5 } });
+		setBaseRadius(deps(h), "b1", 8.6);
+		expect(basesOf(h).b1.radius).toBe(9); // rounded
+		h.getLast()?.undo();
+		expect(basesOf(h).b1.radius).toBe(5);
+		setBaseRadius(deps(h), "b1", -3);
+		expect(basesOf(h).b1.radius).toBe(1); // clamped to >= 1
+	});
+	it("ignores non-finite input (no NaN corruption)", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5 } });
+		setBaseRadius(deps(h), "b1", Number.NaN);
+		expect(h.getLast()).toBeNull();
+		expect(basesOf(h).b1.radius).toBe(5);
+	});
+	it("is a no-op when the (rounded) radius is unchanged", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5 } });
+		setBaseRadius(deps(h), "b1", 5.2); // rounds to 5 = current
+		expect(h.getLast()).toBeNull();
+	});
+});
+
+describe("setBaseIcon", () => {
+	const deps = (h: ReturnType<typeof harness>) => ({
+		store: h.store,
+		commands: h.commands,
+		tile: 40,
+	});
+	it("sets an override; undo restores (clears back to the derived tier)", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5 } });
+		setBaseIcon(deps(h), "b1", "port");
+		expect(basesOf(h).b1.icon).toBe("port");
+		h.getLast()?.undo();
+		expect(basesOf(h).b1.icon).toBeUndefined();
+	});
+	it("null clears an existing override", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5, icon: "port" } });
+		setBaseIcon(deps(h), "b1", null);
+		expect(basesOf(h).b1.icon).toBeUndefined();
+	});
+	it("is a no-op when the override is unchanged", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5, icon: "port" } });
+		setBaseIcon(deps(h), "b1", "port");
+		expect(h.getLast()).toBeNull();
 	});
 });

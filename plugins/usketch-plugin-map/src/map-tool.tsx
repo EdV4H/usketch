@@ -1,7 +1,9 @@
 // The `map` tool: brush / eraser / fill terrain cells, and place base beacons.
 // Terrain edits write GRID DATA on the (single) tilemap shape's `cells`, mutating
 // the shape live during a stroke, then committing the whole stroke as ONE undoable
-// command on pointer-up. Base mode drops a base at the clicked cell (its landmark
+// command on pointer-up. The eraser also clears any LEGACY grid icon on a cell
+// before its terrain (see paintAt) — stamping is gone, but old boards may still
+// carry `icons` data. Base mode drops a base at the clicked cell (its landmark
 // icon is derived from the base — see base-icon-layer.tsx). The palette switches
 // the active submode.
 import type {
