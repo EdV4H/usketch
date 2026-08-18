@@ -7,6 +7,8 @@ import type {
 	ToolContext,
 } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
+import { getBaseMap } from "../base/base-ops.js";
+import { baseStateStore } from "../base/base-state.js";
 import { renderIconAt } from "../icon-render.js";
 import { createMapToolDefinition } from "../map-tool.js";
 import { isTileMap, makeTileMap, type TileMapShapeData, tilemapBounds } from "../tilemap-shape.js";
@@ -122,5 +124,28 @@ describe("renderIconAt", () => {
 	});
 	it("returns an element for a known icon key", () => {
 		expect(renderIconAt("town", 1, 2, TILE)).not.toBeNull();
+	});
+});
+
+describe("map tool — base mode (beacon only on icon cells)", () => {
+	it("ignores a click on empty terrain (no icon) — nothing created", () => {
+		baseStateStore.set({ activeBaseId: null, excludeTerrains: [] });
+		const { ctx } = makeCtx([tilemapWith({ "0,0": "town" })]);
+		toolStateStore.set({ mode: "base" });
+		const tool = createMapToolDefinition(TILE);
+		tool.onPointerDown?.(ctx, at(90, 90)); // cell 2,2 — no icon
+		expect(getBaseMap(ctx.store)).toBeUndefined(); // no base / beacon created
+	});
+
+	it("sets the beacon at a clicked ICON cell (auto-creating a base)", () => {
+		baseStateStore.set({ activeBaseId: null, excludeTerrains: [] });
+		const { ctx } = makeCtx([tilemapWith({ "0,0": "town" })]);
+		toolStateStore.set({ mode: "base" });
+		const tool = createMapToolDefinition(TILE);
+		tool.onPointerDown?.(ctx, at(20, 20)); // cell 0,0 — has icon
+		const bm = getBaseMap(ctx.store);
+		expect(bm).toBeDefined();
+		const beaconCells = Object.values(bm?.bases ?? {}).map((b) => b.beaconCell);
+		expect(beaconCells).toContain("0,0");
 	});
 });
