@@ -1,36 +1,29 @@
 import type { ReactNode } from "react";
-import type { BaseRegionAnchor } from "./base-ops.js";
+import type { BaseRegionAnchor, TerritoryRegion } from "./base-ops.js";
 
 /**
- * Host-facing appearance options for the base "territory" (領域) overlay drawn by
- * BaseAreaLayer. Everything is optional and merges over the defaults, so passing
- * `{}` keeps the stock look. Pass via `createMapPlugin({ territory })`.
+ * Host-facing appearance for the base "territory" (領域) overlay drawn by
+ * BaseAreaLayer. The plugin is HEADLESS: it computes the territory + region
+ * geometry and owns positioning / viewport-follow / z-order / `show`-gating /
+ * redraw, but draws NOTHING by itself. The host supplies the look via `region`
+ * (area) and `label` render hooks. Pass via `createMapPlugin({ territory })`.
+ * Omit a hook to draw nothing for that part.
  */
 export interface TerritoryStyle {
-	/** Per-cell translucent fill opacity (default 0.24). */
-	fillOpacity?: number;
-	/** Base-coloured strip drawn on the exposed edges of each region. */
-	border?: {
-		/** Strip thickness as a fraction of a tile (default 0.16). */
-		ratio?: number;
-		opacity?: number;
+	/**
+	 * Draw a whole region's AREA (fill / border / ring — however the host likes).
+	 * Return SVG in WORLD coordinates (the layer applies the viewport transform).
+	 * Return `null` to draw nothing for that region. Omit → no area is drawn.
+	 */
+	region?: {
+		render?: (region: TerritoryRegion) => ReactNode;
 	};
-	/** Dashed radius ring around each base's beacon cell. */
-	ring?: {
-		enabled?: boolean;
-		strokeWidth?: number;
-		/** SVG `stroke-dasharray` (default `"8 6"`). */
-		dash?: string;
-		opacity?: number;
-	};
-	/** Name-chip label at each region's centre. */
+	/**
+	 * Draw a region's label. The layer positions the returned node at the region
+	 * centre (screen space); the host owns its look. Return `null` for no label on
+	 * that region. Omit → no labels are drawn.
+	 */
 	label?: {
-		enabled?: boolean;
-		/**
-		 * Custom label content for a region. The layer positions the returned node
-		 * at the region centre (screen space); you own its look. Return `null` to
-		 * draw no label for that region. Omit for the stock pill.
-		 */
 		render?: (anchor: BaseRegionAnchor) => ReactNode;
 	};
 	/**
@@ -42,45 +35,22 @@ export interface TerritoryStyle {
 }
 
 export interface ResolvedTerritoryStyle {
-	fillOpacity: number;
-	border: { ratio: number; opacity: number };
-	ring: { enabled: boolean; strokeWidth: number; dash: string; opacity: number };
-	label: { enabled: boolean; render?: (anchor: BaseRegionAnchor) => ReactNode };
+	region: { render?: (region: TerritoryRegion) => ReactNode };
+	label: { render?: (anchor: BaseRegionAnchor) => ReactNode };
 	show: "base-mode" | "always";
 }
 
-/** The stock territory look (matches what shipped before the style option). */
+/** Defaults: headless (no render hooks) + base-mode gating. */
 export const DEFAULT_TERRITORY_STYLE: ResolvedTerritoryStyle = {
-	fillOpacity: 0.24,
-	border: { ratio: 0.16, opacity: 0.85 },
-	ring: { enabled: true, strokeWidth: 2, dash: "8 6", opacity: 0.7 },
-	label: { enabled: true },
+	region: {},
+	label: {},
 	show: "base-mode",
 };
 
-/** Keep the default whenever an override value is `undefined` (avoids NaN downstream). */
-function pick<T>(base: T, override: T | undefined): T {
-	return override === undefined ? base : override;
-}
-
 export function resolveTerritoryStyle(style?: TerritoryStyle): ResolvedTerritoryStyle {
-	const d = DEFAULT_TERRITORY_STYLE;
 	return {
-		fillOpacity: pick(d.fillOpacity, style?.fillOpacity),
-		border: {
-			ratio: pick(d.border.ratio, style?.border?.ratio),
-			opacity: pick(d.border.opacity, style?.border?.opacity),
-		},
-		ring: {
-			enabled: pick(d.ring.enabled, style?.ring?.enabled),
-			strokeWidth: pick(d.ring.strokeWidth, style?.ring?.strokeWidth),
-			dash: pick(d.ring.dash, style?.ring?.dash),
-			opacity: pick(d.ring.opacity, style?.ring?.opacity),
-		},
-		label: {
-			enabled: pick(d.label.enabled, style?.label?.enabled),
-			render: style?.label?.render,
-		},
-		show: pick(d.show, style?.show),
+		region: { render: style?.region?.render },
+		label: { render: style?.label?.render },
+		show: style?.show ?? DEFAULT_TERRITORY_STYLE.show,
 	};
 }

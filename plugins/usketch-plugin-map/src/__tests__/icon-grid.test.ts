@@ -56,35 +56,6 @@ const theTilemap = (shapes: Map<string, ShapeData>): TileMapShapeData | undefine
 const tilemapWith = (icons: Record<string, string>, cells: Record<string, string> = {}) =>
 	({ ...makeTileMap(TILE), id: "tm", cells, icons }) as unknown as ShapeData;
 
-describe("map tool — icon grid (stamp)", () => {
-	it("stamps the active icon into the clicked cell, creating a tilemap on a blank board", () => {
-		const { shapes, ctx } = makeCtx();
-		toolStateStore.set({ mode: "stamp", iconKey: "town" });
-		const tool = createMapToolDefinition(TILE);
-		tool.onPointerDown?.(ctx, at(20, 20)); // cell 0,0
-		const tm = theTilemap(shapes);
-		expect(tm?.icons?.["0,0"]).toBe("town");
-	});
-
-	it("is one-icon-per-cell — re-stamping overwrites", () => {
-		const { shapes, ctx } = makeCtx([tilemapWith({ "0,0": "town" })]);
-		toolStateStore.set({ mode: "stamp", iconKey: "castle" });
-		const tool = createMapToolDefinition(TILE);
-		tool.onPointerDown?.(ctx, at(20, 20));
-		expect(theTilemap(shapes)?.icons?.["0,0"]).toBe("castle");
-	});
-
-	it("commits one undoable command — undo removes the stamped icon", () => {
-		const { shapes, ctx, getLast } = makeCtx([tilemapWith({})]);
-		toolStateStore.set({ mode: "stamp", iconKey: "town" });
-		const tool = createMapToolDefinition(TILE);
-		tool.onPointerDown?.(ctx, at(20, 20));
-		expect(theTilemap(shapes)?.icons?.["0,0"]).toBe("town");
-		getLast()?.undo();
-		expect(theTilemap(shapes)?.icons?.["0,0"]).toBeUndefined();
-	});
-});
-
 describe("map tool — icon grid (eraser)", () => {
 	it("erases the icon first (priority), leaving terrain", () => {
 		const { shapes, ctx } = makeCtx([tilemapWith({ "0,0": "town" }, { "0,0": "grass" })]);
@@ -127,25 +98,25 @@ describe("renderIconAt", () => {
 	});
 });
 
-describe("map tool — base mode (beacon only on icon cells)", () => {
-	it("ignores a click on empty terrain (no icon) — nothing created", () => {
+describe("map tool — base mode (drop a base anywhere but excluded terrain)", () => {
+	it("creates a base + beacon on any clicked cell (no pre-placed icon needed)", () => {
 		baseStateStore.set({ activeBaseId: null, excludeTerrains: [] });
-		const { ctx } = makeCtx([tilemapWith({ "0,0": "town" })]);
+		const { ctx } = makeCtx([tilemapWith({})]); // no icons on the board at all
 		toolStateStore.set({ mode: "base" });
 		const tool = createMapToolDefinition(TILE);
-		tool.onPointerDown?.(ctx, at(90, 90)); // cell 2,2 — no icon
-		expect(getBaseMap(ctx.store)).toBeUndefined(); // no base / beacon created
-	});
-
-	it("sets the beacon at a clicked ICON cell (auto-creating a base)", () => {
-		baseStateStore.set({ activeBaseId: null, excludeTerrains: [] });
-		const { ctx } = makeCtx([tilemapWith({ "0,0": "town" })]);
-		toolStateStore.set({ mode: "base" });
-		const tool = createMapToolDefinition(TILE);
-		tool.onPointerDown?.(ctx, at(20, 20)); // cell 0,0 — has icon
+		tool.onPointerDown?.(ctx, at(90, 90)); // cell 2,2 — bare terrain
 		const bm = getBaseMap(ctx.store);
 		expect(bm).toBeDefined();
 		const beaconCells = Object.values(bm?.bases ?? {}).map((b) => b.beaconCell);
-		expect(beaconCells).toContain("0,0");
+		expect(beaconCells).toContain("2,2");
+	});
+
+	it("does not drop a base on excluded terrain (painted water)", () => {
+		baseStateStore.set({ activeBaseId: null, excludeTerrains: ["water"] });
+		const { ctx } = makeCtx([tilemapWith({}, { "0,0": "water" })]);
+		toolStateStore.set({ mode: "base" });
+		const tool = createMapToolDefinition(TILE);
+		tool.onPointerDown?.(ctx, at(20, 20)); // cell 0,0 — water, excluded
+		expect(getBaseMap(ctx.store)).toBeUndefined(); // no base created on sea
 	});
 });

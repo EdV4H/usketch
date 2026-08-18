@@ -1,9 +1,11 @@
-// The `map` tool: brush / eraser / fill terrain cells, stamp world-layer icons,
-// and set base beacons. Everything writes GRID DATA on the (single) tilemap shape:
-// terrain in `cells`, icons in `icons`. Edits mutate the shape live during a
-// stroke, then commit the whole stroke as ONE undoable command on pointer-up.
-// Icons are NOT free shapes — Select can't grab them; the Map tool owns them.
-// The palette switches the active submode.
+// The `map` tool: brush / eraser / fill terrain cells, and place base beacons.
+// Terrain edits write GRID DATA on the (single) tilemap shape's `cells`, mutating
+// the shape live during a stroke, then committing the whole stroke as ONE undoable
+// command on pointer-up. The eraser also clears any LEGACY grid icon on a cell
+// before its terrain (see paintAt) — stamping is gone, but old boards may still
+// carry `icons` data. Base mode drops a base at the clicked cell (its landmark
+// icon is derived from the base — see base-icon-layer.tsx). The palette switches
+// the active submode.
 import type {
 	CanvasPointerEvent,
 	Command,
@@ -28,7 +30,6 @@ import { baseStateStore } from "./base/base-state.js";
 import { makeTerrainSampler, resolveBaseGen } from "./base-terrain.js";
 import { genStateStore } from "./gen-state.js";
 import { generateIntoBox, resolveTilemap } from "./generate.js";
-import { ICONS_BY_KEY } from "./icons.js";
 import type { TerrainKey } from "./terrain.js";
 import {
 	DEFAULT_TILE,
@@ -336,41 +337,20 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		ctx.commands.execute(command);
 	}
 
-	/**
-	 * Stamp the active icon into the clicked cell as ONE undoable command. Icons are
-	 * grid data on the tilemap (`icons[cellKey] = iconKey`), one per cell (re-stamp
-	 * overwrites). No free shape is created — Select can't grab it; only the Map tool.
-	 */
-	function stampIcon(ctx: ToolContext, event: CanvasPointerEvent): void {
-		const { iconKey } = toolStateStore.get();
-		if (!ICONS_BY_KEY.has(iconKey)) return;
-		const target = resolveTilemap(ctx.store, tile);
-		const id = target.id;
-		const shape = ctx.store.getShape(id) as TileMapShapeData | undefined;
-		if (!shape) return;
-		const [c, r] = worldToCell(event.worldPoint.x, event.worldPoint.y, tile);
-		const key = cellKey(c, r);
-		const prevIcons: IconCells = shape.icons ? { ...shape.icons } : {};
-		if (prevIcons[key] === iconKey && !target.created) return; // no-op re-stamp
-		const nextIcons: IconCells = { ...prevIcons, [key]: iconKey };
-		const cells = shape.cells;
-		const prevBounds = tilemapBounds(cells, prevIcons, tile);
-		const nextBounds = tilemapBounds(cells, nextIcons, tile);
-		if (target.created) {
-			// Freshly created (blank) tilemap: commit as an add so undo deletes it and
-			// redo re-adds it (updateShape on a deleted id would no-op).
-			const finalShape = { ...shape, icons: nextIcons, ...nextBounds } as ShapeData;
-			ctx.store.deleteShape(id);
-			ctx.commands.execute(createAddShapeCommand(ctx.store, finalShape));
-			return;
-		}
-		const command: Command = {
-			execute: () =>
-				ctx.store.updateShape(id, { icons: nextIcons, ...nextBounds } as Partial<ShapeData>),
-			undo: () =>
-				ctx.store.updateShape(id, { icons: prevIcons, ...prevBounds } as Partial<ShapeData>),
-		};
-		ctx.commands.execute(command);
+	/** True when the cell's EFFECTIVE terrain (painted ?? generated) is in the
+	 *  base-tool exclude set — a base must not anchor there (e.g. on sea). */
+	function isExcludedCell(ctx: ToolContext, c: number, r: number): boolean {
+		const exclude = new Set(baseStateStore.get().excludeTerrains);
+		if (exclude.size === 0) return false;
+		const tm = seededTilemap(ctx.store.getShapes().values());
+		const sampler = makeTerrainSampler(
+			mergedOverrides(ctx),
+			tm?.baseSeed ?? null,
+			null,
+			resolveBaseGen(tm?.baseGen),
+		);
+		const terr = sampler(c, r);
+		return terr !== undefined && exclude.has(terr);
 	}
 
 	return {
@@ -380,10 +360,6 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 		order: 45,
 		onPointerDown(ctx, event) {
 			const { mode } = toolStateStore.get();
-			if (mode === "stamp") {
-				stampIcon(ctx, event);
-				return;
-			}
 			if (mode === "generate") {
 				genDrag = { x0: event.worldPoint.x, y0: event.worldPoint.y };
 				genStateStore.set({
@@ -392,16 +368,14 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 				return;
 			}
 			if (mode === "base") {
-				// Base mode: click a landmark ICON to make its cell the active base's
-				// beacon. A base must anchor to an icon — clicking empty terrain does
-				// nothing (no beacon on bare ground / sea). Territory is derived from
-				// the beacon cell + terrain (see territory.ts).
+				// Base mode: click a CELL to drop the active base there (its beacon).
+				// The base IS the landmark — its icon is derived from the base (radius
+				// tier / override) and drawn by the BaseIconLayer, so no pre-placed icon
+				// is needed. Territory is derived from the beacon cell + terrain
+				// (territory.ts). Only excluded terrain (e.g. sea) is off-limits.
 				const [c, r] = worldToCell(event.worldPoint.x, event.worldPoint.y, tile);
+				if (isExcludedCell(ctx, c, r)) return; // no base on sea / excluded terrain
 				const key = cellKey(c, r);
-				const hasIcon = [...ctx.store.getShapes().values()].some(
-					(s) => isTileMap(s) && (s as TileMapShapeData).icons?.[key] != null,
-				);
-				if (!hasIcon) return; // only meaningful on an icon cell
 				const deps = { store: ctx.store, commands: ctx.commands, tile };
 				let baseId = baseStateStore.get().activeBaseId;
 				// Auto-create a base on first use so a single click "just works".

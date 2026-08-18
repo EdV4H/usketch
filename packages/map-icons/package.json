@@ -1,6 +1,6 @@
 {
-	"name": "@edv4h/usketch-plugin-map",
-	"version": "0.11.1",
+	"name": "@edv4h/usketch-map-icons",
+	"version": "0.0.0",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -17,16 +17,7 @@
 		"test": "vitest run --passWithNoTests",
 		"clean": "rm -rf dist"
 	},
-	"dependencies": {
-		"@edv4h/usketch-map-icons": "workspace:*",
-		"@edv4h/usketch-shared": "workspace:*",
-		"@edv4h/usketch-store": "workspace:*"
-	},
-	"peerDependencies": {
-		"react": ">=19"
-	},
 	"devDependencies": {
-		"@types/react": "19.2.18",
 		"typescript": "7.0.2",
 		"vitest": "4.1.10"
 	},
@@ -41,7 +32,7 @@
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/EdV4H/usketch.git",
-		"directory": "plugins/usketch-plugin-map"
+		"directory": "packages/map-icons"
 	},
 	"homepage": "https://github.com/EdV4H/usketch#readme",
 	"bugs": {

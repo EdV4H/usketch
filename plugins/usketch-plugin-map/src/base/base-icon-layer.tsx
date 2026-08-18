@@ -1,22 +1,24 @@
-// MapIconGridLayer — renders world-layer icons stored as GRID DATA on the tilemap
-// shape (cellKey → iconKey), mirroring how MapTerrainLayer renders terrain cells.
-// Icons are no longer free shapes: they live on the substrate, so the generic
-// Select tool can't grab them (nothing to hit-test) while the Map tool edits them
-// as grid cells. Input is handled by the map tool; this layer is pointer-events:none.
+// BaseIconLayer — draws each base's landmark icon at its beacon cell. The icon is
+// DERIVED from the base (its radius tier, or an explicit override — see
+// base-icon.ts); nothing is stored per-cell, mirroring how territory.ts derives
+// ownership. This is how a base becomes its own landmark: placing a base shows an
+// icon, no separate stamp step. Always visible (unlike the territory overlay,
+// which is gated to base-mode). Icons are not free shapes — Select can't grab them.
 import type { BoardStore, RenderMode } from "@edv4h/usketch-shared";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { parseCellKey } from "./autotile.js";
-import { renderIconAt } from "./icon-render.js";
-import { visibleCellRange, visibleWorldRect } from "./map-layer.js";
-import { terrainCssVars } from "./palette.js";
-import { renderConfigStore } from "./render-config.js";
-import { isTileMap, type TileMapShapeData } from "./tilemap-shape.js";
+import { parseCellKey } from "../autotile.js";
+import { renderIconAt } from "../icon-render.js";
+import { visibleCellRange, visibleWorldRect } from "../map-layer.js";
+import { terrainCssVars } from "../palette.js";
+import { renderConfigStore } from "../render-config.js";
+import { effectiveBaseIcon } from "./base-icon.js";
+import { getBaseMap } from "./base-ops.js";
 
 /** Distinct id so it doesn't collide with the terrain layer's wobble filter. */
-export const ICON_WOBBLE_FILTER_ID = "uskmap-icon-wobble";
+export const BASE_ICON_WOBBLE_FILTER_ID = "uskmap-base-icon-wobble";
 
-export function MapIconGridLayer({
+export function BaseIconLayer({
 	store,
 	renderMode: _renderMode,
 	tile: defaultTile,
@@ -42,35 +44,33 @@ export function MapIconGridLayer({
 		};
 	}, [store]);
 
+	const base = getBaseMap(store);
+	if (!base) return null;
+	const tile = base.tile ?? defaultTile;
 	const cfg = renderConfigStore.get();
 	const vp = store.getViewport();
 	const cssVars = terrainCssVars(cfg.colorMode, cfg.strokeScale);
 	const visible = visibleWorldRect(store);
+	const range = visibleCellRange(visible, tile);
 
 	const nodes: ReactElement[] = [];
-	for (const [, shape] of store.getShapes()) {
-		if (!isTileMap(shape)) continue;
-		const tm = shape as TileMapShapeData;
-		const icons = tm.icons;
-		if (!icons) continue;
-		const tile = tm.tile ?? defaultTile;
-		const range = visibleCellRange(visible, tile);
-		for (const [key, iconKey] of Object.entries(icons)) {
-			const [c, r] = parseCellKey(key);
-			// Cull to the visible cell range when known (icons are sparse, so this
-			// keeps a huge panned world cheap).
-			if (range && (c < range.c0 || c > range.c1 || r < range.r0 || r > range.r1)) continue;
-			const node = renderIconAt(iconKey, c, r, tile, `${tm.id}-`);
-			if (node) nodes.push(node);
-		}
+	for (const [baseId, info] of Object.entries(base.bases)) {
+		if (!info.beaconCell) continue;
+		const [c, r] = parseCellKey(info.beaconCell);
+		// Cull to the visible cell range when known (bases are sparse, so this keeps
+		// a huge panned world cheap).
+		if (range && (c < range.c0 || c > range.c1 || r < range.r0 || r > range.r1)) continue;
+		const node = renderIconAt(effectiveBaseIcon(info), c, r, tile, `base-${baseId}-`);
+		if (node) nodes.push(node);
 	}
+	if (nodes.length === 0) return null;
 
 	return (
 		<div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
 			<svg width="100%" height="100%" style={{ display: "block", overflow: "visible" }}>
 				<defs>
 					{/* Own wobble filter (distinct id) so it doesn't clash with terrain's. */}
-					<filter id={ICON_WOBBLE_FILTER_ID}>
+					<filter id={BASE_ICON_WOBBLE_FILTER_ID}>
 						<feTurbulence
 							type="fractalNoise"
 							baseFrequency="0.014"
@@ -90,7 +90,7 @@ export function MapIconGridLayer({
 				<g
 					style={cssVars as React.CSSProperties}
 					transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}
-					filter={cfg.lineStyle === "wobble" ? `url(#${ICON_WOBBLE_FILTER_ID})` : undefined}
+					filter={cfg.lineStyle === "wobble" ? `url(#${BASE_ICON_WOBBLE_FILTER_ID})` : undefined}
 				>
 					{nodes}
 				</g>
