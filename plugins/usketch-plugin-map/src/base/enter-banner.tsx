@@ -5,7 +5,7 @@
 // the host's `enterBanner.render` — the host owns the look. No sync — presentation
 // only. Not registered at all unless a render hook is provided (see plugin.tsx).
 import type { BoardStore } from "@edv4h/usketch-shared";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
 import { useMapToolState } from "../tool-state.js";
 import type { BaseInfo } from "./base-map-shape.js";
@@ -33,7 +33,7 @@ export function EnterBanner({
 }: {
 	store: BoardStore;
 	tile: number;
-	render: (state: EnterBannerState) => React.ReactNode;
+	render: (state: EnterBannerState) => ReactNode;
 }) {
 	const tool = useMapToolState();
 	const [activeTool, setActiveTool] = useState(store.getActiveToolId());
