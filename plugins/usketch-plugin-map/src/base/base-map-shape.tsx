@@ -17,6 +17,10 @@ export interface BaseInfo {
 	/** The single beacon: the grid cell (`cellKey("c,r")`) whose centre seeds this
 	 *  base's core disk. Undefined until the user places a beacon in base mode. */
 	beaconCell?: string;
+	/** Optional landmark-icon override (an ICONS key). When unset, the base shows
+	 *  the icon DERIVED from its `radius` tier (see base-icon.ts) — so a base is
+	 *  always its own landmark, no separate stamped icon needed. */
+	icon?: string;
 }
 
 export const DEFAULT_BASE_RADIUS = 5;

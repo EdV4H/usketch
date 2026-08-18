@@ -1,10 +1,16 @@
 // Registers the map plugin's operations onto the Control HUD (actions + settings)
 // instead of a bespoke on-canvas palette. The map tool's canvas interactions are
 // unchanged; only the control surface moves into the HUD (toggle with `).
-import type { ActionParam, PluginContext, ShapeData } from "@edv4h/usketch-shared";
+import type { ActionParam, PluginContext } from "@edv4h/usketch-shared";
 import type { CellBox } from "../autotile.js";
-import { type BaseMapShapeData, DEFAULT_BASE_RADIUS } from "../base/base-map-shape.js";
-import { createBase, deleteBase, getBaseMap, resolveBaseMap } from "../base/base-ops.js";
+import { DEFAULT_BASE_RADIUS } from "../base/base-map-shape.js";
+import {
+	createBase,
+	deleteBase,
+	getBaseMap,
+	setBaseIcon,
+	setBaseRadius,
+} from "../base/base-ops.js";
 import { baseStateStore } from "../base/base-state.js";
 import { genStateStore } from "../gen-state.js";
 import { generateIntoBox, viewportCellBox } from "../generate.js";
@@ -18,7 +24,6 @@ const MODE_OPTIONS: { value: MapMode; label: string }[] = [
 	{ value: "eraser", label: "消しゴム" },
 	{ value: "fill", label: "塗りつぶし" },
 	{ value: "region", label: "領域塗り" },
-	{ value: "stamp", label: "アイコン" },
 	{ value: "generate", label: "生成" },
 	{ value: "base", label: "拠点" },
 ];
@@ -47,9 +52,8 @@ export function registerMapHud(ctx: PluginContext, tile: number): () => void {
 			fields: [
 				{ name: "mode", label: "モード", type: "enum", options: MODE_OPTIONS },
 				{ name: "terrain", label: "地形", type: "enum", options: TERRAIN_OPTIONS },
-				{ name: "iconKey", label: "アイコン", type: "enum", options: ICON_OPTIONS },
 			],
-			get: (name) => toolStateStore.get()[name as "mode" | "terrain" | "iconKey"],
+			get: (name) => toolStateStore.get()[name as "mode" | "terrain"],
 			set: (name, value) => toolStateStore.set({ [name]: value } as Record<string, never>),
 			subscribe: toolStateStore.subscribe,
 		}),
@@ -212,24 +216,30 @@ export function registerMapHud(ctx: PluginContext, tile: number): () => void {
 	};
 	offs.push(
 		ctx.hud.registerSettings({
-			id: "usketch-map:base-radius",
-			label: "拠点: 半径（マス）",
-			fields: [{ name: "radius", label: "半径", type: "number", min: 1, max: 64, step: 1 }],
-			get: () => {
+			id: "usketch-map:base-look",
+			label: "拠点: 半径とアイコン",
+			// Radius sizes the territory disk AND (unless overridden) picks the landmark
+			// icon tier. Icon "" = 半径連動（自動）; any other value overrides the tier.
+			fields: [
+				{ name: "radius", label: "半径（マス）", type: "number", min: 1, max: 64, step: 1 },
+				{
+					name: "icon",
+					label: "アイコン",
+					type: "enum",
+					options: [{ value: "", label: "半径連動（自動）" }, ...ICON_OPTIONS],
+				},
+			],
+			get: (name) => {
 				const active = baseStateStore.get().activeBaseId;
-				const bases = getBaseMap(ctx.store)?.bases;
-				return (active && bases?.[active]?.radius) || DEFAULT_BASE_RADIUS;
+				const base = active ? getBaseMap(ctx.store)?.bases[active] : undefined;
+				if (name === "icon") return base?.icon ?? "";
+				return base?.radius || DEFAULT_BASE_RADIUS;
 			},
-			set: (_name, value) => {
+			set: (name, value) => {
 				const active = baseStateStore.get().activeBaseId;
 				if (!active) return;
-				const { id } = resolveBaseMap(ctx.store, tile);
-				const shape = ctx.store.getShape(id) as BaseMapShapeData | undefined;
-				const base = shape?.bases[active];
-				if (!shape || !base) return;
-				const radius = Math.max(1, Math.round(Number(value)));
-				const nextBases = { ...shape.bases, [active]: { ...base, radius } };
-				ctx.store.updateShape(id, { bases: nextBases } as Partial<ShapeData>);
+				if (name === "icon") setBaseIcon(deps, active, value ? String(value) : null);
+				else setBaseRadius(deps, active, Number(value));
 			},
 			subscribe: subBaseAndStore,
 		}),

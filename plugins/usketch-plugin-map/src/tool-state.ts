@@ -9,23 +9,13 @@ import type { TerrainKey } from "./terrain.js";
  * radial picker / custom toolbar) can enumerate the modes at runtime instead of
  * hardcoding the union. `MapMode` is derived from this array — single source.
  */
-export const MAP_MODES = [
-	"brush",
-	"eraser",
-	"fill",
-	"region",
-	"stamp",
-	"generate",
-	"base",
-] as const;
+export const MAP_MODES = ["brush", "eraser", "fill", "region", "generate", "base"] as const;
 
 export type MapMode = (typeof MAP_MODES)[number];
 
 export interface MapToolState {
 	mode: MapMode;
 	terrain: TerrainKey;
-	/** Icon key (from ICONS) used by the "stamp" mode. */
-	iconKey: string;
 	/**
 	 * Terrains protected from the "region" fill: cells of these terrains are never
 	 * overwritten, and clicking one is a no-op. Lets the user fill a connected
@@ -37,7 +27,6 @@ export interface MapToolState {
 export const toolStateStore = createReactiveStore<MapToolState>({
 	mode: "brush",
 	terrain: "grass",
-	iconKey: "town",
 	excludeTerrains: [],
 });
 

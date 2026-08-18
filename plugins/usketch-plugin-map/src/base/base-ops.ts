@@ -143,6 +143,45 @@ export function setBeacon(deps: BaseDeps, cell: string, baseId: string): void {
 	deps.commands.execute(command);
 }
 
+/** Set the active base's territory radius (in tiles). Clamped to >= 1. Undoable.
+ *  No-op if the base is missing or the radius is unchanged. */
+export function setBaseRadius(deps: BaseDeps, baseId: string, radius: number): void {
+	const { id } = resolveBaseMap(deps.store, deps.tile);
+	const shape = deps.store.getShape(id) as BaseMapShapeData | undefined;
+	const base = shape?.bases[baseId];
+	if (!shape || !base) return;
+	const r = Math.max(1, Math.round(radius));
+	if (base.radius === r) return;
+	const prevBases = shape.bases;
+	const nextBases: Record<string, BaseInfo> = { ...prevBases, [baseId]: { ...base, radius: r } };
+	const command: Command = {
+		execute: () => deps.store.updateShape(id, { bases: nextBases } as Partial<ShapeData>),
+		undo: () => deps.store.updateShape(id, { bases: prevBases } as Partial<ShapeData>),
+	};
+	deps.commands.execute(command);
+}
+
+/** Override the base's landmark icon (an ICONS key), or `null` to fall back to the
+ *  radius-derived tier. Undoable. No-op if the base is missing or unchanged. */
+export function setBaseIcon(deps: BaseDeps, baseId: string, icon: string | null): void {
+	const { id } = resolveBaseMap(deps.store, deps.tile);
+	const shape = deps.store.getShape(id) as BaseMapShapeData | undefined;
+	const base = shape?.bases[baseId];
+	if (!shape || !base) return;
+	const next = icon ?? undefined;
+	if (base.icon === next) return;
+	const nextInfo: BaseInfo = { ...base };
+	if (next === undefined) delete nextInfo.icon;
+	else nextInfo.icon = next;
+	const prevBases = shape.bases;
+	const nextBases: Record<string, BaseInfo> = { ...prevBases, [baseId]: nextInfo };
+	const command: Command = {
+		execute: () => deps.store.updateShape(id, { bases: nextBases } as Partial<ShapeData>),
+		undo: () => deps.store.updateShape(id, { bases: prevBases } as Partial<ShapeData>),
+	};
+	deps.commands.execute(command);
+}
+
 /**
  * Remove a base from the registry (its derived territory disappears). Undoable.
  * No-op if the base doesn't exist.
