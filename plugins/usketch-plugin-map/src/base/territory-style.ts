@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { BaseRegionAnchor } from "./base-ops.js";
+import type { BaseRegionAnchor, TerritoryRegion } from "./base-ops.js";
 
 /**
  * Host-facing appearance options for the base "territory" (領域) overlay drawn by
@@ -23,6 +23,18 @@ export interface TerritoryStyle {
 		dash?: string;
 		opacity?: number;
 	};
+	/**
+	 * Full custom drawing of a whole region's AREA (fill / border / ring). When
+	 * `render` is set, the layer draws it INSTEAD of the stock fill+border+ring for
+	 * each region — at full detail; coarse-zoom LOD still uses the stock blocks.
+	 * Return SVG in WORLD coordinates (the layer applies the viewport transform, so
+	 * you get viewport-follow, z-order and `show`-gating for free). Return `null`
+	 * to draw nothing for that region. The stock `fillOpacity`/`border`/`ring`
+	 * params are ignored while `render` is active.
+	 */
+	region?: {
+		render?: (region: TerritoryRegion) => ReactNode;
+	};
 	/** Name-chip label at each region's centre. */
 	label?: {
 		enabled?: boolean;
@@ -45,6 +57,7 @@ export interface ResolvedTerritoryStyle {
 	fillOpacity: number;
 	border: { ratio: number; opacity: number };
 	ring: { enabled: boolean; strokeWidth: number; dash: string; opacity: number };
+	region: { render?: (region: TerritoryRegion) => ReactNode };
 	label: { enabled: boolean; render?: (anchor: BaseRegionAnchor) => ReactNode };
 	show: "base-mode" | "always";
 }
@@ -54,6 +67,7 @@ export const DEFAULT_TERRITORY_STYLE: ResolvedTerritoryStyle = {
 	fillOpacity: 0.24,
 	border: { ratio: 0.16, opacity: 0.85 },
 	ring: { enabled: true, strokeWidth: 2, dash: "8 6", opacity: 0.7 },
+	region: {},
 	label: { enabled: true },
 	show: "base-mode",
 };
@@ -77,6 +91,7 @@ export function resolveTerritoryStyle(style?: TerritoryStyle): ResolvedTerritory
 			dash: pick(d.ring.dash, style?.ring?.dash),
 			opacity: pick(d.ring.opacity, style?.ring?.opacity),
 		},
+		region: { render: style?.region?.render },
 		label: {
 			enabled: pick(d.label.enabled, style?.label?.enabled),
 			render: style?.label?.render,

@@ -7,7 +7,9 @@ export {
 	type BaseRegionAnchor,
 	baseIdAtWorld,
 	baseRegionAnchors,
+	baseRegions,
 	getBaseMap,
+	type TerritoryRegion,
 } from "./base/base-ops.js";
 export { type BaseToolState, baseStateStore, useBaseState } from "./base/base-state.js";
 export { computeTerritory, type Territory } from "./base/territory.js";

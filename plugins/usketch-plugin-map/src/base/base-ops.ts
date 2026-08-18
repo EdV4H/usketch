@@ -3,7 +3,7 @@
 // is DERIVED (see territory.ts) — nothing here writes per-cell ownership.
 import type { BoardStore, Command, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
-import { cellKey, parseCellKey, worldToCell } from "../autotile.js";
+import { type Cells, cellKey, exposedEdges, parseCellKey, worldToCell } from "../autotile.js";
 import {
 	type BaseInfo,
 	type BaseMapShapeData,
@@ -75,6 +75,95 @@ export function baseRegionAnchors(
 			x: ((a.minC + a.maxC + 1) / 2) * tile,
 			y: ((a.minR + a.maxR + 1) / 2) * tile,
 			count: a.n,
+		});
+	}
+	return out;
+}
+
+/** A whole base region + the geometry a host needs to draw it (for the
+ *  `territory.region.render` hook). Superset of BaseRegionAnchor. */
+export interface TerritoryRegion {
+	baseId: string;
+	name: string;
+	color: string;
+	/** Owned cell keys (`"c,r"`). */
+	cells: string[];
+	tile: number;
+	/** World bbox enclosing the owned cells. */
+	bounds: { x: number; y: number; width: number; height: number };
+	/** Region centre in world coords (same point as BaseRegionAnchor). */
+	anchor: { x: number; y: number };
+	count: number;
+	/** Beacon cell + radius, for drawing the radius ring (beacon may be unset). */
+	beaconCell?: string;
+	radius: number;
+	/** SVG path (world coords) tracing the region's EXPOSED border edges — a
+	 *  neighbour not owned by the same base. Handy for a custom border stroke;
+	 *  empty when the region has no cells. */
+	outline: string;
+}
+
+/**
+ * Group the derived territory into one region per base, carrying the full geometry
+ * (cells, bbox, centre, beacon ring, exposed-edge path) a host needs to draw it.
+ * Like baseRegionAnchors, but the whole region — powers `territory.region.render`.
+ */
+export function baseRegions(
+	territory: Territory,
+	bases: Record<string, BaseInfo>,
+	tile: number,
+): TerritoryRegion[] {
+	const acc = new Map<
+		string,
+		{ cells: string[]; minC: number; minR: number; maxC: number; maxR: number }
+	>();
+	for (const [key, baseId] of Object.entries(territory)) {
+		const [c, r] = parseCellKey(key);
+		const a = acc.get(baseId);
+		if (!a) acc.set(baseId, { cells: [key], minC: c, minR: r, maxC: c, maxR: r });
+		else {
+			a.cells.push(key);
+			a.minC = Math.min(a.minC, c);
+			a.minR = Math.min(a.minR, r);
+			a.maxC = Math.max(a.maxC, c);
+			a.maxR = Math.max(a.maxR, r);
+		}
+	}
+	const asCells = territory as unknown as Cells; // exposedEdges only compares values
+	const out: TerritoryRegion[] = [];
+	for (const [baseId, a] of acc) {
+		const info = bases[baseId];
+		if (!info) continue;
+		// Exposed-edge path: a segment per owned-cell side whose neighbour isn't this
+		// same base (so region-vs-region and region-vs-empty both count as a border).
+		let outline = "";
+		for (const key of a.cells) {
+			const [c, r] = parseCellKey(key);
+			const x = c * tile;
+			const y = r * tile;
+			const e = exposedEdges(asCells, c, r);
+			if (e.n) outline += `M${x} ${y}L${x + tile} ${y}`;
+			if (e.s) outline += `M${x} ${y + tile}L${x + tile} ${y + tile}`;
+			if (e.w) outline += `M${x} ${y}L${x} ${y + tile}`;
+			if (e.e) outline += `M${x + tile} ${y}L${x + tile} ${y + tile}`;
+		}
+		out.push({
+			baseId,
+			name: info.name,
+			color: info.color,
+			cells: a.cells,
+			tile,
+			bounds: {
+				x: a.minC * tile,
+				y: a.minR * tile,
+				width: (a.maxC - a.minC + 1) * tile,
+				height: (a.maxR - a.minR + 1) * tile,
+			},
+			anchor: { x: ((a.minC + a.maxC + 1) / 2) * tile, y: ((a.minR + a.maxR + 1) / 2) * tile },
+			count: a.cells.length,
+			beaconCell: info.beaconCell,
+			radius: info.radius,
+			outline,
 		});
 	}
 	return out;

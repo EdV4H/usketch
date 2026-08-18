@@ -4,6 +4,7 @@ import type { BaseInfo } from "../base/base-map-shape.js";
 import {
 	baseIdAtWorld,
 	baseRegionAnchors,
+	baseRegions,
 	deleteBase,
 	setBaseIcon,
 	setBaseRadius,
@@ -40,6 +41,31 @@ describe("baseRegionAnchors", () => {
 	it("skips bases with no owned cells and unknown base ids", () => {
 		const territory: Territory = { "0,0": "ghost" }; // base not in registry
 		expect(baseRegionAnchors(territory, bases, 40)).toEqual([]);
+	});
+});
+
+describe("baseRegions", () => {
+	const bases: Record<string, BaseInfo> = {
+		red: { name: "Red", color: "#EF5350", radius: 5, beaconCell: "0,0" },
+		blue: { name: "Blue", color: "#4A7FB8", radius: 3 },
+	};
+	it("groups territory into one region per base with full geometry", () => {
+		const territory: Territory = { "0,0": "red", "1,0": "red", "5,5": "blue" };
+		const regions = baseRegions(territory, bases, 40);
+		const red = regions.find((r) => r.baseId === "red");
+		expect(red?.count).toBe(2);
+		expect(red?.cells.slice().sort()).toEqual(["0,0", "1,0"]);
+		expect(red?.bounds).toEqual({ x: 0, y: 0, width: 80, height: 40 });
+		expect(red?.anchor).toEqual({ x: 40, y: 20 }); // bbox centre: cells 0..1 → x=40
+		expect(red?.beaconCell).toBe("0,0");
+		expect(red?.radius).toBe(5);
+		expect(red?.outline.length).toBeGreaterThan(0); // has exposed border edges
+		const blue = regions.find((r) => r.baseId === "blue");
+		expect(blue?.count).toBe(1);
+		expect(blue?.beaconCell).toBeUndefined();
+	});
+	it("skips base ids not in the registry", () => {
+		expect(baseRegions({ "0,0": "ghost" }, bases, 40)).toEqual([]);
 	});
 });
 

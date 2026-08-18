@@ -10,7 +10,7 @@ import { visibleCellRange, visibleWorldRect } from "../map-layer.js";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
 import { useMapToolState } from "../tool-state.js";
 import type { BaseInfo } from "./base-map-shape.js";
-import { baseRegionAnchors, getBaseMap } from "./base-ops.js";
+import { baseRegionAnchors, baseRegions, getBaseMap } from "./base-ops.js";
 import { useBaseState } from "./base-state.js";
 import { computeTerritory, type Territory } from "./territory.js";
 import type { ResolvedTerritoryStyle } from "./territory-style.js";
@@ -149,49 +149,59 @@ export function BaseAreaLayer({
 	const visible = visibleWorldRect(store);
 	const screenTilePx = tile * vp.zoom;
 	const detail: TileDetail = tileDetail(screenTilePx, renderMode);
-	const cells =
-		detail === "full"
-			? renderFull(territory, base.bases, tile, visible, style)
-			: renderCoarse(territory, base.bases, tile, screenTilePx, visible, style.fillOpacity);
 
-	// Labels: HTML chips at screen coords (crisp, constant size). Hidden when coarse
-	// or disabled via style.
-	const anchors =
-		detail === "full" && style.label.enabled ? baseRegionAnchors(territory, base.bases, tile) : [];
-
-	// Radius rings around each base's beacon CELL. Full detail only; radius + colour
-	// come from the base registry (no icon shapes involved anymore).
-	const rings: React.ReactElement[] = [];
-	if (detail === "full" && style.ring.enabled) {
-		for (const [baseId, info] of Object.entries(base.bases)) {
-			if (!info.beaconCell) continue;
-			const [col, row] = parseCellKey(info.beaconCell);
-			rings.push(
-				<circle
-					key={`ring-${baseId}`}
-					cx={(col + 0.5) * tile}
-					cy={(row + 0.5) * tile}
-					r={info.radius * tile}
-					fill="none"
-					stroke={info.color}
-					strokeWidth={style.ring.strokeWidth}
-					strokeDasharray={style.ring.dash}
-					opacity={style.ring.opacity}
-					vectorEffect="non-scaling-stroke"
-				/>,
+	// World-space area drawing. When a host supplies `region.render`, it OWNS the
+	// area look (fill/border/ring) at full detail: draw its SVG per region instead
+	// of the stock cells + rings. Coarse LOD always uses the cheap stock blocks.
+	const worldNodes: React.ReactElement[] = [];
+	const customRegion = detail === "full" ? style.region.render : undefined;
+	if (customRegion) {
+		for (const region of baseRegions(territory, base.bases, tile)) {
+			const node = customRegion(region);
+			if (node != null) worldNodes.push(<g key={`region-${region.baseId}`}>{node}</g>);
+		}
+	} else {
+		if (detail === "full")
+			worldNodes.push(...renderFull(territory, base.bases, tile, visible, style));
+		else
+			worldNodes.push(
+				...renderCoarse(territory, base.bases, tile, screenTilePx, visible, style.fillOpacity),
 			);
+		// Radius rings around each base's beacon CELL. Full detail only; radius +
+		// colour come from the base registry (no icon shapes involved anymore).
+		if (detail === "full" && style.ring.enabled) {
+			for (const [baseId, info] of Object.entries(base.bases)) {
+				if (!info.beaconCell) continue;
+				const [col, row] = parseCellKey(info.beaconCell);
+				worldNodes.push(
+					<circle
+						key={`ring-${baseId}`}
+						cx={(col + 0.5) * tile}
+						cy={(row + 0.5) * tile}
+						r={info.radius * tile}
+						fill="none"
+						stroke={info.color}
+						strokeWidth={style.ring.strokeWidth}
+						strokeDasharray={style.ring.dash}
+						opacity={style.ring.opacity}
+						vectorEffect="non-scaling-stroke"
+					/>,
+				);
+			}
 		}
 	}
+
+	// Labels: HTML chips at screen coords (crisp, constant size). Hidden when coarse
+	// or disabled via style. Independent of the area drawing above.
+	const anchors =
+		detail === "full" && style.label.enabled ? baseRegionAnchors(territory, base.bases, tile) : [];
 
 	const labelRender = style.label.render;
 
 	return (
 		<div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
 			<svg width="100%" height="100%" style={{ display: "block", overflow: "visible" }}>
-				<g transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}>
-					{cells}
-					{rings}
-				</g>
+				<g transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}>{worldNodes}</g>
 			</svg>
 			{anchors.map((a) => {
 				const left = a.x * vp.zoom + vp.x;
