@@ -44,6 +44,7 @@ import { useAuth } from "../../lib/use-auth.js";
 import { useCommunityActions } from "../../lib/use-community-actions.js";
 import { useKeyboardShortcuts } from "../../lib/use-keyboard-shortcuts.js";
 import { CommunityHeader } from "./community-header.js";
+import { stockTerritoryStyle } from "./map-territory-style.js";
 
 export function CommunityPage() {
 	const { slug } = useParams<{ slug: string }>();
@@ -212,8 +213,10 @@ export function CommunityPage() {
 					createGroupPlugin(),
 					createIslandPlugin(),
 					// Demo default: unset tiles read as sea, so the world map is an
-					// infinite ocean with painted land (off-map counts as water).
-					createMapPlugin({ emptyTerrain: "water" }),
+					// infinite ocean with painted land (off-map counts as water). The map
+					// plugin is headless for territory — the demo app owns the look via
+					// `stockTerritoryStyle` (the reference fill/border/ring + label).
+					createMapPlugin({ emptyTerrain: "water", territory: stockTerritoryStyle }),
 					// マップの初期視点（スタート位置）を HUD で設定・起動時移動。
 					createStartPositionPlugin(),
 					createDomRendererPlugin(),
