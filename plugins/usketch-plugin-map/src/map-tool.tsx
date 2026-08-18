@@ -392,8 +392,16 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 				return;
 			}
 			if (mode === "base") {
-				// Base mode: click a CELL to make it the active base's beacon. The
-				// territory is derived from the beacon cell + terrain (see territory.ts).
+				// Base mode: click a landmark ICON to make its cell the active base's
+				// beacon. A base must anchor to an icon — clicking empty terrain does
+				// nothing (no beacon on bare ground / sea). Territory is derived from
+				// the beacon cell + terrain (see territory.ts).
+				const [c, r] = worldToCell(event.worldPoint.x, event.worldPoint.y, tile);
+				const key = cellKey(c, r);
+				const hasIcon = [...ctx.store.getShapes().values()].some(
+					(s) => isTileMap(s) && (s as TileMapShapeData).icons?.[key] != null,
+				);
+				if (!hasIcon) return; // only meaningful on an icon cell
 				const deps = { store: ctx.store, commands: ctx.commands, tile };
 				let baseId = baseStateStore.get().activeBaseId;
 				// Auto-create a base on first use so a single click "just works".
@@ -402,8 +410,7 @@ export function createMapToolDefinition(tile: number = DEFAULT_TILE): ToolDefini
 					baseId = createBase(deps, `拠点${n + 1}`, BASE_PALETTE[n % BASE_PALETTE.length]);
 					baseStateStore.set({ activeBaseId: baseId });
 				}
-				const [c, r] = worldToCell(event.worldPoint.x, event.worldPoint.y, tile);
-				setBeacon(deps, cellKey(c, r), baseId);
+				setBeacon(deps, key, baseId);
 				return;
 			}
 			// brush / eraser / fill / region all edit the tilemap grid via a stroke.
