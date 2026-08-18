@@ -3,8 +3,8 @@
 // icons stored as tilemap cell data (cellKey → iconKey) — icons are no longer
 // free shapes. The CSS custom properties (terrainCssVars) and the wobble filter
 // are applied ONCE by the layer wrapper, not per icon, so this stays cheap.
+import { ICONS_BY_KEY } from "@edv4h/usketch-map-icons";
 import type { ReactElement } from "react";
-import { ICONS_BY_KEY } from "./icons.js";
 import { renderSvgNodes } from "./svg-nodes.js";
 
 function parseViewBox(vb: string): [number, number, number, number] {

@@ -1,3 +1,4 @@
+export { ICONS, type IconCategory, type IconDef } from "@edv4h/usketch-map-icons";
 export {
 	BASE_MAP_TYPE,
 	type BaseInfo,
@@ -34,7 +35,6 @@ export {
 	type MapGenerator,
 } from "./generators/index.js";
 export { renderIconAt } from "./icon-render.js";
-export { ICONS, type IconCategory, type IconDef } from "./icons.js";
 // ── Infinite base terrain public API (#946 / #937 follow-up) ──
 // Enable/disable/seed the infinite base terrain from a host's own UI without the
 // Control HUD. Same logic the HUD toggle runs; the seed lives on the tilemap

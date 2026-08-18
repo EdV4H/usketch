@@ -1,7 +1,7 @@
 // GENERATED from design (RPGマップ素材.dc.html). 36 map icons (landmark/object/marker).
-// `nodes` is a parsed SVG element tree (see svg-nodes.tsx) rendered via
-// React.createElement — no dangerouslySetInnerHTML.
-import type { SvgNode } from "./svg-nodes.js";
+// `nodes` is a parsed SVG element tree (see svg-node.ts) rendered by the consuming
+// plugin via React.createElement — no dangerouslySetInnerHTML.
+import type { SvgNode } from "./svg-node.js";
 
 export type IconCategory = "landmark" | "object" | "marker";
 

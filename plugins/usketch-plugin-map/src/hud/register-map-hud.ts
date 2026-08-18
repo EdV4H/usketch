@@ -1,6 +1,8 @@
 // Registers the map plugin's operations onto the Control HUD (actions + settings)
 // instead of a bespoke on-canvas palette. The map tool's canvas interactions are
 // unchanged; only the control surface moves into the HUD (toggle with `).
+
+import { ICON_CATEGORIES, ICONS } from "@edv4h/usketch-map-icons";
 import type { ActionParam, PluginContext } from "@edv4h/usketch-shared";
 import type { CellBox } from "../autotile.js";
 import { DEFAULT_BASE_RADIUS } from "../base/base-map-shape.js";
@@ -15,7 +17,6 @@ import { baseStateStore } from "../base/base-state.js";
 import { genStateStore } from "../gen-state.js";
 import { generateIntoBox, viewportCellBox } from "../generate.js";
 import { defaultParams, GENERATORS, GENERATORS_BY_ID } from "../generators/index.js";
-import { ICON_CATEGORIES, ICONS } from "../icons.js";
 import { TERRAINS, type TerrainKey } from "../terrain.js";
 import { type MapMode, toolStateStore } from "../tool-state.js";
 

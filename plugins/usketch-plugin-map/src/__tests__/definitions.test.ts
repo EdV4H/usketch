@@ -1,6 +1,6 @@
+import { ICON_CATEGORIES, ICONS, ICONS_BY_KEY } from "@edv4h/usketch-map-icons";
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
-import { ICON_CATEGORIES, ICONS, ICONS_BY_KEY } from "../icons.js";
 import { TERRAIN_KEYS, TERRAINS, terrainPatternId } from "../terrain.js";
 import { lowestTilemap, makeTileMap, seededTilemap } from "../tilemap-shape.js";
 
