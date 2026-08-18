@@ -1,15 +1,29 @@
 export { ICONS, type IconCategory, type IconDef } from "@edv4h/usketch-map-icons";
+// ── Base landmark-icon derivation (radius tier + override). Exported so a host
+// can preview the auto (radius-derived) icon in its own base editor. ──
+export { BASE_ICON_TIERS, baseIconFor, effectiveBaseIcon } from "./base/base-icon.js";
 export {
 	BASE_MAP_TYPE,
 	type BaseInfo,
 	type BaseMapShapeData,
+	DEFAULT_BASE_RADIUS,
 } from "./base/base-map-shape.js";
+// ── Base registry: read helpers + host-facing MUTATION ops (#992). The ops take
+// `BaseDeps` ({ store, commands, tile }); the active base id lives in
+// `baseStateStore`. A host builds its own base editor (radius slider, icon
+// override grid using `ICONS`) and calls these — all undoable. ──
 export {
+	type BaseDeps,
 	type BaseRegionAnchor,
 	baseIdAtWorld,
 	baseRegionAnchors,
 	baseRegions,
+	createBase,
+	deleteBase,
 	getBaseMap,
+	setBaseIcon,
+	setBaseRadius,
+	setBeacon,
 	type TerritoryRegion,
 } from "./base/base-ops.js";
 export { type BaseToolState, baseStateStore, useBaseState } from "./base/base-state.js";
@@ -17,6 +31,7 @@ export { computeTerritory, type Territory } from "./base/territory.js";
 // ── Territory (領域) overlay appearance — pass via `createMapPlugin({ territory })`.
 export {
 	DEFAULT_TERRITORY_STYLE,
+	type EnterBannerState,
 	type ResolvedTerritoryStyle,
 	resolveTerritoryStyle,
 	type TerritoryStyle,

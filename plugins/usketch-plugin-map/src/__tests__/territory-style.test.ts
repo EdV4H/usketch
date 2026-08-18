@@ -7,19 +7,23 @@ describe("resolveTerritoryStyle (headless)", () => {
 		expect(resolveTerritoryStyle({})).toEqual(DEFAULT_TERRITORY_STYLE);
 		expect(DEFAULT_TERRITORY_STYLE.region.render).toBeUndefined();
 		expect(DEFAULT_TERRITORY_STYLE.label.render).toBeUndefined();
+		expect(DEFAULT_TERRITORY_STYLE.enterBanner.render).toBeUndefined();
 		expect(DEFAULT_TERRITORY_STYLE.show).toBe("base-mode");
 	});
 
-	it("carries the region + label render hooks and the show mode", () => {
+	it("carries the region + label + enterBanner render hooks and the show mode", () => {
 		const region = () => null;
 		const label = () => null;
+		const enterBanner = () => null;
 		const r = resolveTerritoryStyle({
 			region: { render: region },
 			label: { render: label },
+			enterBanner: { render: enterBanner },
 			show: "always",
 		});
 		expect(r.region.render).toBe(region);
 		expect(r.label.render).toBe(label);
+		expect(r.enterBanner.render).toBe(enterBanner);
 		expect(r.show).toBe("always");
 	});
 

@@ -1,7 +1,9 @@
 // EnterBanner — RPG-style "you entered <Base>'s area" feedback. Local-only: each
 // client watches the base that owns the tile under its own VIEWPORT CENTRE (a
-// single, swappable definition of "where I am") and shows a banner on entry plus
-// a persistent current-area chip. No sync — presentation only.
+// single, swappable definition of "where I am"). HEADLESS: the plugin owns the
+// tracking (current base + entry transitions) and hands an `EnterBannerState` to
+// the host's `enterBanner.render` — the host owns the look. No sync — presentation
+// only. Not registered at all unless a render hook is provided (see plugin.tsx).
 import type { BoardStore } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
@@ -10,6 +12,7 @@ import type { BaseInfo } from "./base-map-shape.js";
 import { baseIdAtWorld, getBaseMap } from "./base-ops.js";
 import { baseStateStore } from "./base-state.js";
 import { computeTerritory } from "./territory.js";
+import type { EnterBannerState } from "./territory-style.js";
 
 const BANNER_MS = 2600;
 
@@ -23,7 +26,15 @@ function viewportCenterWorld(store: BoardStore): { x: number; y: number } | null
 	};
 }
 
-export function EnterBanner({ store, tile }: { store: BoardStore; tile: number }) {
+export function EnterBanner({
+	store,
+	tile,
+	render,
+}: {
+	store: BoardStore;
+	tile: number;
+	render: (state: EnterBannerState) => React.ReactNode;
+}) {
 	const tool = useMapToolState();
 	const [activeTool, setActiveTool] = useState(store.getActiveToolId());
 	const [current, setCurrent] = useState<BaseInfo | null>(null);
@@ -83,78 +94,7 @@ export function EnterBanner({ store, tile }: { store: BoardStore; tile: number }
 	}, [store, tile]);
 
 	if (!inBaseMode || (!current && !banner)) return null;
-
-	return (
-		<div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-			<style>
-				{
-					"@keyframes uskmap-enter{0%{opacity:0;transform:translate(-50%,-16px)}12%{opacity:1;transform:translate(-50%,0)}88%{opacity:1}100%{opacity:0}}"
-				}
-			</style>
-
-			{/* Entry banner (transient) */}
-			{banner && (
-				<div
-					key={bannerKey}
-					style={{
-						position: "absolute",
-						left: "50%",
-						top: 26,
-						transform: "translate(-50%,0)",
-						display: "flex",
-						alignItems: "center",
-						gap: 10,
-						padding: "10px 22px",
-						background: "rgba(255,255,255,.96)",
-						border: `3px solid ${banner.color}`,
-						borderRadius: 14,
-						font: "800 18px system-ui, sans-serif",
-						color: "#1c1c1c",
-						whiteSpace: "nowrap",
-						boxShadow: "0 8px 26px rgba(0,0,0,.2)",
-						animation: `uskmap-enter ${BANNER_MS}ms ease-out forwards`,
-					}}
-				>
-					<span style={{ fontSize: 20 }}>⚔</span>
-					<span>
-						<span style={{ color: banner.color }}>{banner.name}</span> のエリアに入った
-					</span>
-				</div>
-			)}
-
-			{/* Persistent current-area chip */}
-			{current && (
-				<div
-					style={{
-						position: "absolute",
-						left: "50%",
-						bottom: 18,
-						transform: "translateX(-50%)",
-						display: "flex",
-						alignItems: "center",
-						gap: 7,
-						padding: "5px 13px",
-						background: "rgba(255,255,255,.9)",
-						border: `2px solid ${current.color}`,
-						borderRadius: 20,
-						font: "700 13px system-ui, sans-serif",
-						color: "#1c1c1c",
-						whiteSpace: "nowrap",
-						boxShadow: "0 2px 10px rgba(0,0,0,.14)",
-					}}
-				>
-					<span
-						style={{
-							width: 11,
-							height: 11,
-							borderRadius: "50%",
-							background: current.color,
-							flex: "none",
-						}}
-					/>
-					現在地: {current.name}
-				</div>
-			)}
-		</div>
-	);
+	const content = render({ current, entered: banner, enteredKey: bannerKey });
+	if (content == null) return null;
+	return <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>{content}</div>;
 }
