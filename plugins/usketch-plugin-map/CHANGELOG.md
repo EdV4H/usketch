@@ -1,5 +1,40 @@
 # @edv4h/usketch-plugin-map
 
+## 0.12.0
+
+### Minor Changes
+
+- 9fb20e7: 拠点 (base) の仕様を刷新: 拠点自身がランドマークアイコンを持つように。
+  - **拠点がアイコンを表示**: 拠点を置くと、そのマスに自動でアイコンが表示される（別途スタンプする必要なし）。アイコンは既定で**半径の大きさに連動**（半径 1–8=`tent` / 9–16=`town` / 17+=`castle`）し、拠点設定で任意アイコンに上書きも可能（`BaseInfo.icon`）。アイコンは派生値で保存しない（territory と同じく beacon から描画）。
+  - **配置の自由化**: base モードのクリックは、除外地形（水など）以外の**任意のセル**に拠点を設置できる。以前の「アイコンのあるマスのみ」制約は撤去し、代わりに除外地形ガードを追加。
+  - **スタンプモードの廃止**: 独立した `stamp` モードと世界レイヤーのアイコングリッド描画を廃止し、アイコンは拠点に一本化。36 種のアイコンは拠点のアイコン上書き候補として利用可能。
+  - `setBaseRadius` / `setBaseIcon`（Undo 対応）を追加し、HUD の「拠点: 半径とアイコン」から半径とアイコン上書きを編集可能に。
+
+  注: 既存ボードにスタンプ済みのグリッドアイコン (`TileMapShapeData.icons`) は表示されなくなります（データは保持）。
+
+- b353ab2: アイコンセットを別パッケージ `@edv4h/usketch-map-icons` に分離 + territory 描画をヘッドレス化。
+
+  **新パッケージ `@edv4h/usketch-map-icons`**: RPG マップのアイコン定義（`ICONS` / `ICONS_BY_KEY` / `IconDef` / `IconCategory` / `ICON_CATEGORIES` / `SvgNode`）をデータのみの依存ゼロパッケージとして切り出し。プラグインからも従来どおり re-export するため既存の `import { ICONS } from "@edv4h/usketch-plugin-map"` は不変。
+
+  **territory のヘッドレス化（破壊的変更）**: プラグインは領域(range)・ラベルを自前で描画しなくなり、`territory.region.render` / `territory.label.render` フックにホストの描画を委ねる。`TerritoryStyle` から stock 用パラメータ `fillOpacity` / `border` / `ring` / `label.enabled` を削除（描画は完全にホスト側の render で行う）。既存のデモアプリ（community）は reference 実装 `stockTerritoryStyle` を持ち従来の見た目を維持。render フック未指定だと領域・ラベルは描画されない。
+
+- b08b570: territory の範囲描画に完全カスタムフック `region.render` を追加 (#990)。
+
+  `label.render` と同じく、レイヤーが位置決め・ビューポート追従・重なり順・`show` 連動・再描画を担い、ホストは見た目だけを返せる。`region.render(region)` が設定されると、full detail 時はストックの塗り/枠/リングの代わりにホストの SVG を各領域に描画する（coarse LOD はストックのブロックのまま）。ワールド座標の SVG を返す（レイヤーがビューポート変換を適用）。`null` を返すとその領域は描画しない。
+
+  ホストが描画に必要なジオメトリを渡す新しい `TerritoryRegion` 型（`baseRegions()` で取得）:
+  - `baseId` / `name` / `color` / `anchor{x,y}`（bbox 中心・ワールド）/ `count`
+  - `cells`（cellKey 群）/ `tile` / `bounds`（ワールド bbox）
+  - `beaconCell` / `radius`（リング描画用）
+  - `outline`（露出エッジの SVG パス・ワールド座標。枠線描画用）
+
+  `TerritoryRegion` と `baseRegions` を公開 export に追加。
+
+### Patch Changes
+
+- Updated dependencies [b353ab2]
+  - @edv4h/usketch-map-icons@0.1.0
+
 ## 0.11.1
 
 ### Patch Changes
