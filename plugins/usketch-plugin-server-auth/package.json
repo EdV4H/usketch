@@ -23,7 +23,7 @@
 	"devDependencies": {
 		"@cloudflare/workers-types": "5.20260818.1",
 		"typescript": "7.0.2",
-		"vitest": "4.1.10"
+		"vitest": "4.1.11"
 	},
 	"publishConfig": {
 		"access": "public"
