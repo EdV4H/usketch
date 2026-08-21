@@ -1,5 +1,12 @@
 # @edv4h/usketch-shape-utils
 
+## 2.2.8
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+
 ## 2.2.7
 
 ### Patch Changes
