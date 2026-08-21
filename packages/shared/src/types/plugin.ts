@@ -475,10 +475,11 @@ export interface CanvasPointerEvent {
 	 *  non-DOM callers (tests, synthetic events) can omit it. Lets tools tell
 	 *  primary from secondary pointers. */
 	pointerId?: number;
-	/** The originating pointer's device type (`"mouse" | "pen" | "touch"`).
-	 *  Optional; lets tools distinguish touch/pen from mouse (palm rejection,
-	 *  pressure, ignoring secondary touches). */
-	pointerType?: string;
+	/** The originating pointer's device type. Optional; lets tools distinguish
+	 *  touch/pen from mouse (palm rejection, pressure, ignoring secondary touches).
+	 *  The known values are surfaced for autocomplete while still accepting the raw
+	 *  DOM `PointerEvent.pointerType` string (which may be empty or vendor-specific). */
+	pointerType?: "mouse" | "pen" | "touch" | (string & Record<never, never>);
 }
 
 export interface CanvasWheelEvent {

@@ -512,6 +512,9 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 				y: (ge.clientY ?? rect.top + rect.height / 2) - rect.top,
 			};
 			app.store.zoomTo(app.store.getViewport().zoom * factor, center);
+			// Same telemetry as the pointer path so hosts get gestures on Safari too.
+			// Safari gestures are zoom-only, so there is no pan delta to report.
+			app.events.emit("canvas:gesture", { scale: factor, panX: 0, panY: 0, center });
 		};
 
 		el.addEventListener("wheel", onWheel, { passive: false });
