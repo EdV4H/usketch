@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-shape-group
 
+## 2.1.4
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-core@2.4.2
+  - @edv4h/usketch-store@3.5.4
+
 ## 2.1.3
 
 ### Patch Changes

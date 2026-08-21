@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-activity-feed
 
+## 2.0.15
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+
 ## 2.0.14
 
 ### Patch Changes

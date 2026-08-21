@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-canvas-filter
 
+## 3.1.4
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-store@3.5.4
+
 ## 3.1.3
 
 ### Patch Changes
