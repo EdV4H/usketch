@@ -471,6 +471,14 @@ export interface CanvasPointerEvent {
 	metaKey: boolean;
 	altKey: boolean;
 	button: number;
+	/** The originating pointer's id (`PointerEvent.pointerId`). Optional so
+	 *  non-DOM callers (tests, synthetic events) can omit it. Lets tools tell
+	 *  primary from secondary pointers. */
+	pointerId?: number;
+	/** The originating pointer's device type (`"mouse" | "pen" | "touch"`).
+	 *  Optional; lets tools distinguish touch/pen from mouse (palm rejection,
+	 *  pressure, ignoring secondary touches). */
+	pointerType?: string;
 }
 
 export interface CanvasWheelEvent {

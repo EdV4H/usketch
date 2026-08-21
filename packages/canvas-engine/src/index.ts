@@ -1,4 +1,4 @@
-export { Canvas } from "./components/canvas.js";
+export { Canvas, type CanvasProps } from "./components/canvas.js";
 export type { ShapeAnchorOverlayProps } from "./components/shape-anchor-overlay.js";
 export { ShapeAnchorOverlay } from "./components/shape-anchor-overlay.js";
 /** @deprecated Use `createDomRendererPlugin` from `@edv4h/usketch-dom-renderer` instead. */
@@ -13,6 +13,13 @@ export {
 	looksLikeUrl,
 	parseUriList,
 } from "./external-content-dispatch.js";
+export {
+	type GestureStep,
+	gestureStep,
+	type PointerSample,
+	pointerDistance,
+	pointerMidpoint,
+} from "./gesture.js";
 export { useInteracting, useInteractingListeners } from "./hooks/use-interacting.js";
 export { useShapeAnchorPosition } from "./hooks/use-shape-anchor-position.js";
 export { useStoreSubscribe } from "./hooks/use-store-subscribe.js";
