@@ -26,6 +26,7 @@ import { createPresenceActivityPlugin } from "@edv4h/usketch-plugin-presence-act
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
 import { createPresentationPlugin } from "@edv4h/usketch-plugin-presentation";
+import { createScatterPlugin } from "@edv4h/usketch-plugin-scatter";
 import { createSessionPlugin } from "@edv4h/usketch-plugin-session";
 import { createBasicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
 import { createCardPlugin, EXAMPLE_CARD_TYPES } from "@edv4h/usketch-plugin-shape-card";
@@ -183,6 +184,9 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		createFreePositionPlugin(),
 		createContainerPlugin(),
 		createAttachablePlugin(),
+		// 関連Shapeを「ぶちまける」— HUD の「関連Shapeをぶちまける」アクション。connector/
+		// container/free-position の後（関連解決 + 非重なり配置の土台が揃った後）。
+		createScatterPlugin(),
 		createExportPlugin(),
 		createGpuRendererPlugin(),
 		createDomRendererPlugin({
