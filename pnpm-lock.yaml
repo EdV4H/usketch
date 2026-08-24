@@ -273,9 +273,6 @@ importers:
       '@edv4h/usketch-plugin-free-position':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-free-position
-      '@edv4h/usketch-plugin-scatter':
-        specifier: workspace:*
-        version: link:../../plugins/usketch-plugin-scatter
       '@edv4h/usketch-plugin-keyboard-shortcuts':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-keyboard-shortcuts
@@ -306,6 +303,9 @@ importers:
       '@edv4h/usketch-plugin-reactions':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-reactions
+      '@edv4h/usketch-plugin-scatter':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-scatter
       '@edv4h/usketch-plugin-session':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-session
@@ -723,10 +723,10 @@ importers:
         version: link:../shared
       '@zag-js/core':
         specifier: ^1.37.0
-        version: 1.43.1
+        version: 1.43.3
       '@zag-js/vanilla':
         specifier: ^1.37.0
-        version: 1.43.1
+        version: 1.43.3
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -1164,10 +1164,10 @@ importers:
         version: link:../../packages/store
       '@zag-js/core':
         specifier: ^1.37.0
-        version: 1.43.1
+        version: 1.43.3
       '@zag-js/vanilla':
         specifier: ^1.37.0
-        version: 1.43.1
+        version: 1.43.3
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -1999,10 +1999,10 @@ importers:
         version: link:../../packages/store
       '@zag-js/core':
         specifier: ^1.37.0
-        version: 1.43.1
+        version: 1.43.3
       '@zag-js/vanilla':
         specifier: ^1.37.0
-        version: 1.43.1
+        version: 1.43.3
       mermaid:
         specifier: ^11.4.0
         version: 11.17.0
@@ -5296,23 +5296,23 @@ packages:
   '@webgpu/types@0.1.72':
     resolution: {integrity: sha512-0cF7RFM2edNoiIS1ODJp0/Gzv4/xSXhwoR0YCza+OWpJWtn4wmo9DvK91aLlH9+uUnwIriP7ZiC3WitmyhuzBw==}
 
-  '@zag-js/core@1.43.1':
-    resolution: {integrity: sha512-P6wDhPgXxjBn+BFGjZcSDP7rNLpV8Pr8mySVj47BZv8zaCLYf4o9uqV1f5ns7m3LJ1x0e7s20sqw5rzlWPXHRw==}
+  '@zag-js/core@1.43.3':
+    resolution: {integrity: sha512-afREBcZWvPLHz/2AxJeuAP2o6+o3V7NZO/MutLhdclKaVSBlPzCr6qqP9k8hq1zOxk1jogKT5VVGielzWDY2Dw==}
 
-  '@zag-js/dom-query@1.43.1':
-    resolution: {integrity: sha512-EpxNajvnM5XfGKnKsJv0uWCA+4RbO/ve811IjZRyU56/H25JIitdmfWtqD6lhMtBkQuM6jkd5XEhkWWEJEXKeA==}
+  '@zag-js/dom-query@1.43.3':
+    resolution: {integrity: sha512-kpTTYMemMmHxhp4gyOllK7/Lf86AySTO+AlGds9iQM21eUwi1jvc9q3VTxP+qD/KwHePGftfPwkwxifC3iSGbw==}
 
-  '@zag-js/store@1.43.1':
-    resolution: {integrity: sha512-VazKYuNKXUb/bxoqAdfg1YXs8sO3UAoEMazAGJELMF2myxHdV0icE+a3LXbrhcZkwHh02SExY0kAdb2RI53WXg==}
+  '@zag-js/store@1.43.3':
+    resolution: {integrity: sha512-NL3Uxk5Rszjd+X+cPXw0N7Kn5TNMyrS6cTMazlBOcN2+J68mzXhNFvM/0H38m0X+3ybK3sE5Ta6NPlhOQADRqw==}
 
-  '@zag-js/types@1.43.1':
-    resolution: {integrity: sha512-OOn9JRYoG7HmFmgqYL8qo1C6myZb5++cF5os/Mb4bqPWDYFUM12vHYlmaTNoG3ztypA1150YvEuIOpA4jacCww==}
+  '@zag-js/types@1.43.3':
+    resolution: {integrity: sha512-QokzUgkJ7a/TRE8SAXqlm1XfiNDbyM8y+mx0PpmzHa8bvmWXLEe/Zx2TRz8aYoGim75NluYzDy3x+WWileF7uA==}
 
-  '@zag-js/utils@1.43.1':
-    resolution: {integrity: sha512-EaHwhiNPCok4VAeBd508rvq64f+FsBrhEEJdytZA0Eo8AqP5SMp85dOfBjM98PSbfncmiykBYb4zS1hyyYpkgQ==}
+  '@zag-js/utils@1.43.3':
+    resolution: {integrity: sha512-9P9fvFFxuiDcLqX0BYgGNkf0/a/id32nHvQpwgv/Xv3b9n5yeyw2U8nKefpWr+1VfFsrpf2XMXiA2CDSWZgt2g==}
 
-  '@zag-js/vanilla@1.43.1':
-    resolution: {integrity: sha512-7anZCVXTzldqjov1taAQYNfJJgFpbhk8hx+5Fiqr0l15QDSydsVo+HAKJCk3oD0CCErU5aXhROlL6gkM5QP+Zg==}
+  '@zag-js/vanilla@1.43.3':
+    resolution: {integrity: sha512-wHb5vvUFuThJfNEk1lCKxKOFfdsvvNYy5TJbnnSRdlxXUD6w2OxiPPPc7bu+PUxJDpEA7Eu3Xr1lGf5IGYRxgg==}
 
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
@@ -10676,31 +10676,31 @@ snapshots:
 
   '@webgpu/types@0.1.72': {}
 
-  '@zag-js/core@1.43.1':
+  '@zag-js/core@1.43.3':
     dependencies:
-      '@zag-js/dom-query': 1.43.1
-      '@zag-js/utils': 1.43.1
+      '@zag-js/dom-query': 1.43.3
+      '@zag-js/utils': 1.43.3
 
-  '@zag-js/dom-query@1.43.1':
+  '@zag-js/dom-query@1.43.3':
     dependencies:
-      '@zag-js/types': 1.43.1
+      '@zag-js/types': 1.43.3
 
-  '@zag-js/store@1.43.1':
+  '@zag-js/store@1.43.3':
     dependencies:
       proxy-compare: 3.0.1
 
-  '@zag-js/types@1.43.1':
+  '@zag-js/types@1.43.3':
     dependencies:
       csstype: 3.2.3
 
-  '@zag-js/utils@1.43.1': {}
+  '@zag-js/utils@1.43.3': {}
 
-  '@zag-js/vanilla@1.43.1':
+  '@zag-js/vanilla@1.43.3':
     dependencies:
-      '@zag-js/core': 1.43.1
-      '@zag-js/store': 1.43.1
-      '@zag-js/types': 1.43.1
-      '@zag-js/utils': 1.43.1
+      '@zag-js/core': 1.43.3
+      '@zag-js/store': 1.43.3
+      '@zag-js/types': 1.43.3
+      '@zag-js/utils': 1.43.3
 
   accepts@2.0.0:
     dependencies:
