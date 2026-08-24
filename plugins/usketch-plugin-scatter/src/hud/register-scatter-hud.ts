@@ -43,12 +43,15 @@ export function registerScatterHud(ctx: PluginContext): () => void {
 			group: "ぶちまける",
 			label: "関連Shapeをぶちまける",
 			isEnabled: () => ctx.store.getSelection().size === 1,
-			run: () => {
+			// Return the Promise so the HUD action runner surfaces failures (e.g. the
+			// seed deleted between selection read and run) in its logs instead of them
+			// becoming unhandled rejections.
+			run: async () => {
 				const api = getScatterApi(ctx.services);
 				const sel = ctx.store.getSelection();
 				if (!api || sel.size !== 1) return;
 				const st = scatterStateStore.get();
-				void api.scatter({
+				await api.scatter({
 					seedId: [...sel][0],
 					pattern: st.pattern,
 					relation: st.relation,
