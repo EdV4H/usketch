@@ -19,7 +19,7 @@
 	"dependencies": {
 		"@edv4h/usketch-core": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
-		"satori": "0.33.0"
+		"satori": "0.33.3"
 	},
 	"peerDependencies": {
 		"react": ">=19",
