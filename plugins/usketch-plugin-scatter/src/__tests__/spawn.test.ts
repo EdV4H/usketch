@@ -18,6 +18,8 @@ describe("cloneSeedItems", () => {
 				width: 100,
 				height: 80,
 				parentId: "g",
+				zIndex: "a0",
+				createdAt: 12345,
 				style: { fill: "#f00" } as ShapeData["style"],
 				text: "hi",
 			} as Partial<ShapeData>,
@@ -34,6 +36,9 @@ describe("cloneSeedItems", () => {
 			expect(it.spec.id).toBeUndefined();
 			expect(it.spec.x).toBeUndefined();
 			expect(it.spec.parentId).toBeUndefined();
+			// store-managed fields must NOT be cloned (fresh values from the store)
+			expect(it.spec.zIndex).toBeUndefined();
+			expect(it.spec.createdAt).toBeUndefined();
 		}
 	});
 
