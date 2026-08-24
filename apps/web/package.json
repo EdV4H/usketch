@@ -77,6 +77,7 @@
 		"@edv4h/usketch-plugin-shape-text": "workspace:*",
 		"@edv4h/usketch-plugin-shape-wireframe": "workspace:*",
 		"@edv4h/usketch-plugin-free-position": "workspace:*",
+		"@edv4h/usketch-plugin-scatter": "workspace:*",
 		"@edv4h/usketch-plugin-snap": "workspace:*",
 		"@edv4h/usketch-plugin-sync-localstorage-yjs": "workspace:*",
 		"@edv4h/usketch-plugin-sync-ywebsocket": "workspace:*",
