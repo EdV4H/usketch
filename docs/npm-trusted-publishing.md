@@ -25,6 +25,44 @@ New/unpublished packages (e.g. `@edv4h/usketch-plugin-scatter`) can be configure
 > fail for that package. Because a shared-package bump cascades a patch release to
 > all dependents, configure **every** package below to keep cascade releases green.
 
+### CLI (bulk) — recommended over the UI
+
+`npm trust` configures trusted publishers from the CLI, so you don't click through
+89 package pages. Run **`scripts/setup-npm-trusted-publishers.sh`** (it loops over
+every publishable package), or a single package:
+
+```bash
+npm install -g npm@latest                                   # need npm >= 11.15
+npm login --scope=@edv4h --registry=https://registry.npmjs.org/
+npm trust github @edv4h/<pkg> \
+  --registry https://registry.npmjs.org/ \
+  --file release.yml --repo EdV4H/usketch --allow-publish --yes
+```
+
+The first `npm trust` opens browser auth — on the npm site choose **"skip 2FA for
+the next 5 minutes"** so the rest of the bulk run proceeds without prompting.
+
+### Gotchas (learned the hard way)
+
+- **Private-registry scope → 405.** If your `~/.npmrc` scopes `@edv4h` to a private
+  registry (e.g. `npm.flatt.tech`), `npm trust` targets it and gets
+  `405 Method Not Allowed` (it doesn't support trusted publishing). Always pass
+  `--registry https://registry.npmjs.org/`.
+- **Unpublished package → 403.** Trust attaches to an existing package. A brand-new
+  package can't be trust-configured until it exists on npmjs.org — do a one-time
+  first publish, then configure trust:
+  ```bash
+  git fetch origin changeset-release/main && git checkout changeset-release/main
+  pnpm --filter @edv4h/<pkg> build && (cd <pkg-dir> && pnpm pack)
+  npm publish <pkg-dir>/*.tgz --registry https://registry.npmjs.org/ \
+    --access public --allow-file=all --otp=<6-digit-2FA>
+  git checkout main
+  ```
+  - `pnpm pack` resolves `workspace:*` to real versions in the tarball.
+  - `--allow-file=all` bypasses the local `EALLOWFILE` policy that blocks
+    publishing a local `file:` tarball (npm 11 security hardening).
+  - `--otp=<code>` supplies the required 2FA one-time code.
+
 ## Publishable packages (89)
 
 ```
