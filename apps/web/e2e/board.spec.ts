@@ -23,14 +23,14 @@ test.describe("Board", () => {
 		await page.goto("/dashboard");
 		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
-		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
+		await expect(page.getByTestId("canvas-container")).toBeVisible();
 	});
 
 	test("board: vim off by default; HUD discoverability hint visible", async ({ page }) => {
 		await page.goto("/dashboard");
 		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
-		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
+		await expect(page.getByTestId("canvas-container")).toBeVisible();
 		// vim は既定 OFF（Control HUD から切替）なので status line は出ない。
 		await expect(page.locator('[data-testid="vim-status-line"]')).not.toBeVisible();
 		// TopBar は撤去済み。常時 chrome の代わりに、bottom-center の HUD 導線ヒント
@@ -44,7 +44,7 @@ test.describe("Board", () => {
 		await page.waitForURL(/\/local\//);
 
 		// ボードの準備完了をキャンバスで判定。
-		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
+		await expect(page.getByTestId("canvas-container")).toBeVisible();
 
 		// Control HUD は既定で閉じている。バッククォートで開く
 		// （コマンドパレットは廃止し、アクション検索は Control HUD に一本化）。
@@ -64,7 +64,7 @@ test.describe("Board", () => {
 		await page.goto("/dashboard");
 		await page.getByRole("button", { name: "新規ローカルボード" }).click();
 		await page.waitForURL(/\/local\//);
-		await expect(page.locator("[style*='touch-action: none']")).toBeVisible();
+		await expect(page.getByTestId("canvas-container")).toBeVisible();
 
 		await page.keyboard.press("`");
 

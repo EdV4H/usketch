@@ -588,6 +588,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 		// biome-ignore lint/a11y/noStaticElementInteractions: Canvas is the interactive drawing surface
 		<div
 			ref={containerRef}
+			data-testid="canvas-container"
 			style={{
 				position: "relative",
 				width: "100%",
