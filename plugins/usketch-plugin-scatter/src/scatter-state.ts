@@ -9,6 +9,8 @@ export interface ScatterState {
 	spacing: number;
 	animate: boolean;
 	durationMs: number;
+	/** How many new shapes the "spawn & scatter" action creates. */
+	spawnCount: number;
 }
 
 export interface ReactiveStore<T> {
@@ -49,4 +51,5 @@ export const scatterStateStore = createReactiveStore<ScatterState>({
 	spacing: 24,
 	animate: true,
 	durationMs: 450,
+	spawnCount: 6,
 });

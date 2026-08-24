@@ -31,6 +31,7 @@ export {
 	type ScatterState,
 	scatterStateStore,
 } from "./scatter-state.js";
+export { cloneSeedItems } from "./spawn.js";
 export type {
 	NewShapeSpec,
 	PatternContext,
