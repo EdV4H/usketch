@@ -141,4 +141,17 @@ describe("scatter() — new + mixed", () => {
 			}),
 		).rejects.toThrow();
 	});
+
+	it("throws when a new spec id collides with an existing shape (never overwrites)", async () => {
+		const env = makeEnv([rect("seed", 0, 0), rect("dup", 10, 10)]);
+		await expect(
+			scatter(env.deps, {
+				seedId: "seed",
+				items: [{ kind: "new", spec: { id: "dup", type: "rect", width: 40, height: 40 } }],
+				pattern: "grid",
+				animate: false,
+			}),
+		).rejects.toThrow();
+		expect(env.shapes.get("dup")).toMatchObject({ x: 10, y: 10 }); // untouched
+	});
 });

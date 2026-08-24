@@ -79,26 +79,37 @@ function planScatter(
 		if (!movingIds.has(id)) occupied.push(occupiedAABB(deps, s));
 	}
 
-	// Pattern items (intrinsic bounds) + a map back to their source.
+	// Pattern items (INTRINSIC, origin-anchored bounds — matches PatternItem's
+	// contract; patterns place by size, not world position) + a map back to source.
 	type Source =
 		| { kind: "existing"; id: string }
-		| { kind: "new"; spec: Extract<(typeof items)[number], { kind: "new" }>["spec"] };
+		| { kind: "new"; id: string; spec: Extract<(typeof items)[number], { kind: "new" }>["spec"] };
 	const patternItems: PatternItem[] = [];
 	const sources = new Map<string, Source>();
+	const newIds = new Set<string>();
 	items.forEach((it, i) => {
 		if (it.kind === "existing") {
 			const s = store.getShape(it.id);
 			if (!s) return; // stale id — skip
-			patternItems.push({ key: it.id, bounds: boundsOf(deps, s) });
+			const b = boundsOf(deps, s);
+			patternItems.push({ key: it.id, bounds: { x: 0, y: 0, width: b.width, height: b.height } });
 			sources.set(it.id, { kind: "existing", id: it.id });
 		} else {
 			const { width, height } = it.spec;
 			if (!(width > 0) || !(height > 0)) {
 				throw new Error("[scatter] a new shape spec must carry positive width/height");
 			}
+			// Resolve + guard the id up-front so a caller-supplied `spec.id` can never
+			// overwrite an existing shape (addShape overwrites) — which undo would then
+			// wrongly delete — nor collide with another new spec in the same run.
+			const id = typeof it.spec.id === "string" ? it.spec.id : generateId();
+			if (store.getShape(id) || newIds.has(id)) {
+				throw new Error(`[scatter] new shape id collides with an existing/duplicate id: ${id}`);
+			}
+			newIds.add(id);
 			const key = `new:${i}`;
 			patternItems.push({ key, bounds: { x: 0, y: 0, width, height } });
-			sources.set(key, { kind: "new", spec: it.spec });
+			sources.set(key, { kind: "new", id, spec: it.spec });
 		}
 	});
 
@@ -139,8 +150,7 @@ function planScatter(
 			plan.movedIds.push(src.id);
 			plan.tweens.push({ id: src.id, from: { x: s.x, y: s.y }, to: { x: p.x, y: p.y } });
 		} else {
-			const { spec } = src;
-			const id = typeof spec.id === "string" ? spec.id : generateId();
+			const { spec, id } = src;
 			const base = shapes.get(spec.type)?.createDefault({ id, x: p.x, y: p.y });
 			if (!base) throw new Error(`[scatter] unknown shape type: ${spec.type}`);
 			const { id: _sid, type: _stype, width, height, style: specStyle, ...rest } = spec;
