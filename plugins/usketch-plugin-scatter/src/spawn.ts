@@ -10,13 +10,24 @@ export function cloneSeedItems(store: BoardStore, seedId: string, count: number)
 	const seed = store.getShape(seedId);
 	const n = Math.max(0, Math.floor(count));
 	if (!seed || n === 0) return [];
+	// Drop the seed's identity/position/parent AND store-managed fields (createdAt /
+	// updatedAt / zIndex) so each spawned shape gets fresh values from the store
+	// instead of sharing the seed's timestamp + z-order key.
 	const {
 		id: _id,
 		x: _x,
 		y: _y,
 		parentId: _p,
+		createdAt: _c,
+		updatedAt: _u,
+		zIndex: _z,
 		...rest
-	} = seed as ShapeData & { parentId?: string };
+	} = seed as ShapeData & {
+		parentId?: string;
+		createdAt?: unknown;
+		updatedAt?: unknown;
+		zIndex?: unknown;
+	};
 	const items: ScatterItem[] = [];
 	for (let i = 0; i < n; i++) {
 		items.push({
