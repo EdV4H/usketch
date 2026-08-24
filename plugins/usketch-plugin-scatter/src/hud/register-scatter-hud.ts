@@ -6,6 +6,7 @@ import { listScatterPatterns } from "../patterns.js";
 import { listRelationResolvers } from "../resolvers.js";
 import { getScatterApi } from "../scatter-service.js";
 import { type ScatterState, scatterStateStore } from "../scatter-state.js";
+import { cloneSeedItems } from "../spawn.js";
 
 export function registerScatterHud(ctx: PluginContext): () => void {
 	const offs: Array<() => void> = [];
@@ -30,6 +31,7 @@ export function registerScatterHud(ctx: PluginContext): () => void {
 				{ name: "spacing", label: "間隔", type: "number", min: 0, max: 400, step: 4 },
 				{ name: "animate", label: "アニメーション", type: "boolean" },
 				{ name: "durationMs", label: "時間(ms)", type: "number", min: 0, max: 3000, step: 50 },
+				{ name: "spawnCount", label: "生成数", type: "number", min: 1, max: 50, step: 1 },
 			],
 			get: (name) => scatterStateStore.get()[name as keyof ScatterState],
 			set: (name, value) => scatterStateStore.set({ [name]: value } as Partial<ScatterState>),
@@ -55,6 +57,32 @@ export function registerScatterHud(ctx: PluginContext): () => void {
 					seedId: [...sel][0],
 					pattern: st.pattern,
 					relation: st.relation,
+					spacing: st.spacing,
+					animate: st.animate,
+					durationMs: st.durationMs,
+				});
+			},
+		}),
+	);
+
+	// Spawn & scatter: fling out `spawnCount` fresh copies of the selected shape —
+	// exercises the new-shape path. Item construction is a pure helper (cloneSeedItems).
+	offs.push(
+		ctx.actions.register({
+			id: "scatter:spawn",
+			group: "ぶちまける",
+			label: "新規Shapeを生成してぶちまける",
+			isEnabled: () => ctx.store.getSelection().size === 1,
+			run: async () => {
+				const api = getScatterApi(ctx.services);
+				const sel = ctx.store.getSelection();
+				if (!api || sel.size !== 1) return;
+				const seedId = [...sel][0];
+				const st = scatterStateStore.get();
+				await api.scatter({
+					seedId,
+					items: cloneSeedItems(ctx.store, seedId, st.spawnCount),
+					pattern: st.pattern,
 					spacing: st.spacing,
 					animate: st.animate,
 					durationMs: st.durationMs,
