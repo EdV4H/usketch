@@ -2038,8 +2038,8 @@ importers:
         specifier: '>=1.0.0'
         version: 1.30.0(zod@4.4.3)
       '@openuidev/react-lang':
-        specifier: 0.2.14
-        version: 0.2.14(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
+        specifier: 0.2.15
+        version: 0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -2332,8 +2332,8 @@ importers:
         specifier: '>=1.0.0'
         version: 1.30.0(zod@4.4.3)
       '@openuidev/react-lang':
-        specifier: 0.2.14
-        version: 0.2.14(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
+        specifier: 0.2.15
+        version: 0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -4483,11 +4483,11 @@ packages:
     resolution: {integrity: sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg==}
     engines: {node: '>=14'}
 
-  '@openuidev/devtools@0.0.8':
-    resolution: {integrity: sha512-6aNyynRT3MUS65EJG98kA86WoYx2Du9PPXGR3Kd1puZgh0WYlNGLKRX1UGL1Qe/sh1lGl3dvR4/y8HOie9DTww==}
+  '@openuidev/devtools@0.1.0':
+    resolution: {integrity: sha512-MUoeSlRPF3P8A9KKOYtIthKYs0ME9kaPNc2i2/enImhTodNdO29sDpebm4Q8MpPFLCJmM6qELQwZ6YkAWKz18A==}
     peerDependencies:
       '@openuidev/observability': ^0.0.4
-      '@openuidev/react-lang': ^0.2.14
+      '@openuidev/react-lang': ^0.2.15
       react: 19.2.8
       react-dom: 19.2.8
     peerDependenciesMeta:
@@ -4506,8 +4506,8 @@ packages:
   '@openuidev/observability@0.0.4':
     resolution: {integrity: sha512-4fjIrWu3TqTlfDE/m7cG10CH1vV7wQk5GPwMOmXeF9vJtkg92dg4Bdk3AjKgud7H7Xypwwjgt52VcLGZCE2CJQ==}
 
-  '@openuidev/react-lang@0.2.14':
-    resolution: {integrity: sha512-YYpPRF7xTNffk/eU99HxElQGQmB6aOf69tMMPxxIEYodBur9EM/gVCxOc/IGG/p/E/4iEshFxc0i25z7/d0C3w==}
+  '@openuidev/react-lang@0.2.15':
+    resolution: {integrity: sha512-Cv/Si/9RVLEuA0xN+EjfzUqDpJsRTfSX1RieDw7DzJ6LxD8LWeA6Fi/F2br8d6QZKg/h51vtJoXNSt62VF1ttA==}
     peerDependencies:
       '@modelcontextprotocol/sdk': '>=1.0.0'
       react: 19.2.8
@@ -9959,14 +9959,14 @@ snapshots:
 
   '@opentelemetry/semantic-conventions@1.43.0': {}
 
-  '@openuidev/devtools@0.0.8(@openuidev/observability@0.0.4)(@openuidev/react-lang@0.2.14(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@openuidev/devtools@0.1.0(@openuidev/observability@0.0.4)(@openuidev/react-lang@0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@openuidev/observability': 0.0.4
       lucide-react: 0.575.0(react@19.2.8)
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
     optionalDependencies:
-      '@openuidev/react-lang': 0.2.14(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
+      '@openuidev/react-lang': 0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
 
   '@openuidev/lang-core@0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(zod@4.4.3)':
     dependencies:
@@ -9977,9 +9977,9 @@ snapshots:
 
   '@openuidev/observability@0.0.4': {}
 
-  '@openuidev/react-lang@0.2.14(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)':
+  '@openuidev/react-lang@0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)':
     dependencies:
-      '@openuidev/devtools': 0.0.8(@openuidev/observability@0.0.4)(@openuidev/react-lang@0.2.14(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@openuidev/devtools': 0.1.0(@openuidev/observability@0.0.4)(@openuidev/react-lang@0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@openuidev/lang-core': 0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(zod@4.4.3)
       '@openuidev/observability': 0.0.4
       react: 19.2.8
