@@ -31,6 +31,12 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 
 			const api = createDashboardApi(ctx, defaults);
 
+			// Disposed guard: the autoCreate task WRITES to the store, and a microtask
+			// can't be cancelled — without this it could run after teardown (an
+			// immediate `app.destroy()`, or setup-rollback) and mutate a destroyed
+			// app's store. Checked inside the deferred task.
+			let disposed = false;
+
 			// Defer to a microtask so shapes hydrated synchronously on load (incl. a
 			// synced config from another client) are visible first — `ensure` is a
 			// no-op when a config already exists, avoiding a duplicate singleton.
@@ -40,6 +46,7 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 			// repack).
 			if (autoCreate) {
 				queueMicrotask(() => {
+					if (disposed) return;
 					ensureDashboardConfig(ctx.store, defaults);
 					repackBoard(ctx);
 				});
@@ -53,6 +60,7 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 			const unprovideService = dashboardService.provide(ctx.services, api);
 
 			return () => {
+				disposed = true;
 				unprovideService();
 				stopHud();
 				stopRuntime();

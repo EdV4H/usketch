@@ -109,6 +109,33 @@ describe("DashboardApi enable contract", () => {
 	});
 });
 
+describe("DashboardApi input hardening", () => {
+	it("非有限値（NaN/Infinity）は無視して config を壊さない", () => {
+		const { ctx } = makeCtx();
+		const api = createDashboardApi(ctx, {
+			columns: 3,
+			cellW: 100,
+			cellH: 100,
+			gap: 8,
+			padding: 10,
+		});
+		api.enable();
+		api.setColumns(Number.NaN);
+		api.setCellSize(Number.NaN, 100);
+		api.setGap(Number.POSITIVE_INFINITY);
+		api.setPadding(Number.NaN);
+		expect(api.getGridSpec()).toEqual({
+			columns: 3,
+			cellW: 100,
+			cellH: 100,
+			gap: 8,
+			padding: 10,
+			originX: 0,
+			originY: 0,
+		});
+	});
+});
+
 describe("DashboardApi disable", () => {
 	it("disable で config を除去し、ボードは非ダッシュボードに戻る", () => {
 		const { ctx, store } = makeCtx();

@@ -77,6 +77,24 @@ export function setupDashboard(ctx: PluginContext): () => void {
 	// commits `from` = true pre-drag layout (a single clean undo).
 	const dragBefore = new Map<string, { x: number; y: number }>();
 
+	// Ids currently treated as top-level grid items. `shape:removed` carries no
+	// shape (it's gone), so this lets us tell "an item was removed → reflow to
+	// close the gap" from "a nested child was removed → leave the grid alone".
+	// Seeded from a read-only scan after hydration and kept in sync on
+	// add/remove and on non-drag updates (lock/hide/reparent flip membership).
+	const itemIds = new Set<string>();
+	let itemsSeeded = false;
+	function seedItemIds(): void {
+		itemIds.clear();
+		for (const s of dashboardItems(ctx.store)) itemIds.add(s.id);
+		itemsSeeded = true;
+	}
+	function refreshItemMembership(id: string): void {
+		const shape = ctx.store.getShape(id);
+		if (shape && isDashboardItem(ctx.store, shape)) itemIds.add(id);
+		else itemIds.delete(id);
+	}
+
 	function withApplying(fn: () => void): void {
 		applying = true;
 		try {
@@ -165,7 +183,13 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		if (applying) return; // ignore self-induced writes
 
 		if (event.type === "shape:updated") {
-			if (!pointerDown) return; // non-drag edits handled by add/remove + actions
+			// Keep item membership fresh: a non-drag update may lock/hide/reparent a
+			// shape, flipping whether it's a grid item (used by shape:removed below).
+			if (!pointerDown) {
+				const updatedId = event.payload.after?.id;
+				if (updatedId) refreshItemMembership(updatedId);
+				return; // non-drag edits otherwise handled by add/remove + actions
+			}
 			const spec = specOf(ctx.store);
 			if (!spec) return;
 			const after = event.payload.after;
@@ -195,9 +219,17 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			const id = event.payload.id;
 			if (event.type === "shape:added") {
 				const s = ctx.store.getShape(id);
-				if (!s || !isDashboardItem(ctx.store, s)) return;
+				if (!s || !isDashboardItem(ctx.store, s)) return; // nested/substrate → ignore
+				itemIds.add(id);
+				repackBoard(ctx);
+				return;
 			}
-			repackBoard(ctx);
+			// shape:removed — repack (to close the gap) only when a tracked top-level
+			// item was removed. A nested child's removal must NOT reflow the grid.
+			// Before the seed lands, fall back to repacking (a safe no-op when the
+			// grid is already packed).
+			const wasItem = itemIds.delete(id);
+			if (wasItem || !itemsSeeded) repackBoard(ctx);
 		}
 	});
 
@@ -221,6 +253,11 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			if (pointerDown) endDrag();
 		}, 0);
 	});
+
+	// Seed the item set once shapes are present. Deferred so shapes hydrated
+	// synchronously on load are visible; read-only, so it's harmless if it runs
+	// after teardown (the mutation listener is already removed by then).
+	queueMicrotask(seedItemIds);
 
 	return () => {
 		offMutation();

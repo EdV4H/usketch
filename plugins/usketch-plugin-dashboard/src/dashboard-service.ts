@@ -113,11 +113,26 @@ export function createDashboardApi(
 			return config ? gridSpecFromConfig(config) : null;
 		},
 		repack: () => repackBoard(ctx),
-		setColumns: (columns) => applyConfig(ctx, { columns: Math.max(1, Math.floor(columns)) }),
-		setCellSize: (cellW, cellH) =>
-			applyConfig(ctx, { cellW: Math.max(1, cellW), cellH: Math.max(1, cellH) }),
-		setGap: (gap) => applyConfig(ctx, { gap: Math.max(0, gap) }),
-		setPadding: (padding) => applyConfig(ctx, { padding: Math.max(0, padding) }),
+		// Ignore non-finite inputs (NaN/±Infinity) so a bad host call can't persist
+		// a broken value into the config — `Math.max(1, NaN)` is `NaN`, so the clamp
+		// alone doesn't protect the grid math / undo. The HUD already filters, but
+		// other callers reach these directly via `ctx.services`.
+		setColumns: (columns) => {
+			if (!Number.isFinite(columns)) return;
+			applyConfig(ctx, { columns: Math.max(1, Math.floor(columns)) });
+		},
+		setCellSize: (cellW, cellH) => {
+			if (!Number.isFinite(cellW) || !Number.isFinite(cellH)) return;
+			applyConfig(ctx, { cellW: Math.max(1, cellW), cellH: Math.max(1, cellH) });
+		},
+		setGap: (gap) => {
+			if (!Number.isFinite(gap)) return;
+			applyConfig(ctx, { gap: Math.max(0, gap) });
+		},
+		setPadding: (padding) => {
+			if (!Number.isFinite(padding)) return;
+			applyConfig(ctx, { padding: Math.max(0, padding) });
+		},
 		onChange: (listener) => {
 			// Fire on a config edit, and whenever the board's dashboard-status flips
 			// (enable/disable) — so HUD controls appear/disappear. A plain scan on
