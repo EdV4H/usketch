@@ -8,8 +8,12 @@ import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { getTopLevelShapes, isEffectivelyHidden, isEffectivelyLocked } from "@edv4h/usketch-store";
 import { isDashboardConfig } from "./dashboard-config-shape.js";
 
-/** True if `shape` participates in the dashboard grid flow. */
+/** True if `shape` participates in the dashboard grid flow. Grid items are always
+ *  TOP-LEVEL: a nested child (inside a group/frame) rides along natively and must
+ *  NOT be treated as an item — otherwise adding/removing a child would trip the
+ *  runtime's structural-change repack and reflow the whole top-level grid. */
 export function isDashboardItem(store: BoardStore, shape: ShapeData): boolean {
+	if (typeof shape.parentId === "string") return false; // nested → not a grid item
 	if (isDashboardConfig(shape)) return false;
 	if (shape.width <= 0 || shape.height <= 0) return false; // substrate / zero-area
 	if (isEffectivelyLocked(store, shape)) return false;
