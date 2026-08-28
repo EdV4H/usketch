@@ -1,6 +1,5 @@
 ---
 "@edv4h/usketch-plugin-dashboard": minor
-"@edv4h/usketch-web": patch
 ---
 
 feat(dashboard): Canvas 全体を sortable なグリッドにする新プラグインを追加
