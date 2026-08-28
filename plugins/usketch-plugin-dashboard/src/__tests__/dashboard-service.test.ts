@@ -2,6 +2,7 @@ import type { Command, PluginContext, ShapeData } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { describe, expect, it } from "vitest";
 import { getDashboardConfig } from "../config-ops.js";
+import { makeDashboardConfig } from "../dashboard-config-shape.js";
 import { createDashboardApi } from "../dashboard-service.js";
 
 // Minimal command registry with a real undo stack — createDashboardApi only
@@ -146,5 +147,17 @@ describe("DashboardApi disable", () => {
 		api.disable();
 		expect(api.isDashboardBoard()).toBe(false);
 		expect(getDashboardConfig(store)).toBeUndefined();
+	});
+
+	it("config が複数あっても disable で全て除去し非ダッシュボードに戻る", () => {
+		const { ctx, store } = makeCtx();
+		// 同時 enable で config が 2 つ残った状況を再現
+		store.addShape({ ...makeDashboardConfig(), id: "cfg-a" });
+		store.addShape({ ...makeDashboardConfig(), id: "cfg-b" });
+		const api = createDashboardApi(ctx);
+		expect(api.isDashboardBoard()).toBe(true);
+		api.disable();
+		expect(api.isDashboardBoard()).toBe(false);
+		expect([...store.getShapes().values()].some((s) => s.type === "dashboard-config")).toBe(false);
 	});
 });

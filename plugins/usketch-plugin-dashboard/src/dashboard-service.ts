@@ -13,6 +13,7 @@ import {
 import {
 	type DashboardConfigPatch,
 	ensureDashboardConfig,
+	getAllDashboardConfigs,
 	getDashboardConfig,
 	gridSpecFromConfig,
 } from "./config-ops.js";
@@ -105,8 +106,9 @@ export function createDashboardApi(
 			repackBoard(ctx);
 		},
 		disable: () => {
-			const config = getDashboardConfig(ctx.store);
-			if (config) ctx.store.deleteShape(config.id);
+			// Remove EVERY config, not just the chosen one: a concurrent enable can
+			// leave several, and deleting one would leave the board a dashboard.
+			for (const config of getAllDashboardConfigs(ctx.store)) ctx.store.deleteShape(config.id);
 		},
 		getGridSpec: () => {
 			const config = getDashboardConfig(ctx.store);

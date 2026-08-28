@@ -53,6 +53,17 @@ export function ensureDashboardConfig(
 	return config;
 }
 
+/** Every `dashboard-config` shape on the board. Normally 0 or 1, but a concurrent
+ *  `enable()` across clients can briefly leave more than one — {@link disable}
+ *  removes them all so the board reliably becomes a non-dashboard again. */
+export function getAllDashboardConfigs(store: BoardStore): DashboardConfigData[] {
+	const configs: DashboardConfigData[] = [];
+	for (const [, shape] of store.getShapes()) {
+		if (isDashboardConfig(shape)) configs.push(shape);
+	}
+	return configs;
+}
+
 /** Project the config singleton onto the pure {@link GridSpec} the grid math uses. */
 export function gridSpecFromConfig(config: DashboardConfigData): GridSpec {
 	return {
