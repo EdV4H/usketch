@@ -30,7 +30,6 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 			ctx.shapes.register(DASHBOARD_CONFIG_TYPE, createDashboardConfigShapeDefinition(defaults));
 
 			const api = createDashboardApi(ctx, defaults);
-			const unprovideService = dashboardService.provide(ctx.services, api);
 
 			// Defer to a microtask so shapes hydrated synchronously on load (incl. a
 			// synced config from another client) are visible first — `ensure` is a
@@ -41,11 +40,15 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 
 			const stopRuntime = setupDashboard(ctx);
 			const stopHud = registerDashboardHud(ctx, api);
+			// Provide the service LAST: `createApp` can only roll back a failed setup
+			// via the teardown we return, so if an earlier step throws the service was
+			// never registered and can't leak. (Same ordering as usketch-plugin-map.)
+			const unprovideService = dashboardService.provide(ctx.services, api);
 
 			return () => {
+				unprovideService();
 				stopHud();
 				stopRuntime();
-				unprovideService();
 			};
 		},
 	};

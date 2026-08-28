@@ -162,8 +162,16 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			const spec = specOf(ctx.store);
 			if (!spec) return;
 			const after = event.payload.after;
+			const before = event.payload.before;
 			if (!after || !isDashboardItem(ctx.store, after)) return;
-			captureBefore(event.payload.before);
+			// Only treat this as THE local drag when the shape is locally selected
+			// (the select tool selects what it grabs) AND its position actually
+			// moved. This rejects two false positives that also fire `shape:updated`
+			// while the pointer is down: remote collaborators' edits arriving via
+			// sync, and non-move updates (e.g. a style change) to a selected shape.
+			if (!ctx.store.getSelection().has(after.id)) return;
+			if (before && before.x === after.x && before.y === after.y) return;
+			captureBefore(before);
 			draggingId = after.id;
 			const count = dashboardItems(ctx.store).length;
 			pendingTargetIndex = indexFromPoint(centerOf(after), spec, count);
