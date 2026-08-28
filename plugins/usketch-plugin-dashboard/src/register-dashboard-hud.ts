@@ -3,6 +3,7 @@
 // "整列 (Arrange)" action to the shared HUD, both of which just call the service.
 import type { PluginContext } from "@edv4h/usketch-shared";
 import type { DashboardApi } from "./dashboard-service.js";
+import { isGridOverlayVisible, setGridOverlayVisible } from "./grid-overlay.js";
 
 /** Register the dashboard's HUD settings + arrange action. Returns a teardown. */
 export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () => void {
@@ -92,10 +93,21 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 		isEnabled: () => api.isDashboardBoard(),
 	});
 
+	const unregisterToggleGrid = ctx.actions.register({
+		id: "usketch-plugin-dashboard:toggle-grid",
+		label: "グリッド表示",
+		group: "ダッシュボード",
+		order: 3,
+		run: () => setGridOverlayVisible(!isGridOverlayVisible()),
+		isActive: () => isGridOverlayVisible(),
+		isEnabled: () => api.isDashboardBoard(),
+	});
+
 	return () => {
 		unregisterSettings();
 		unregisterEnable();
 		unregisterDisable();
 		unregisterArrange();
+		unregisterToggleGrid();
 	};
 }

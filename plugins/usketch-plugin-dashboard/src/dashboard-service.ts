@@ -16,6 +16,7 @@ import {
 	getAllDashboardConfigs,
 	getDashboardConfig,
 	gridSpecFromConfig,
+	setConfig,
 } from "./config-ops.js";
 import { type DashboardDefaults, isDashboardConfig } from "./dashboard-config-shape.js";
 import { repackBoard } from "./dashboard-runtime.js";
@@ -102,7 +103,27 @@ export function createDashboardApi(
 	return {
 		isDashboardBoard: () => getDashboardConfig(ctx.store) !== undefined,
 		enable: () => {
-			ensureDashboardConfig(ctx.store, defaults);
+			const alreadyDashboard = getDashboardConfig(ctx.store) !== undefined;
+			const config = ensureDashboardConfig(ctx.store, defaults);
+			// On the FIRST enable, anchor the grid at the current items' top-left so
+			// arranging keeps them where the user is looking (rather than snapping to
+			// world origin 0,0, which can be far off-screen and look like a no-op).
+			// Don't re-seed on a later enable — that would drag the grid around.
+			if (!alreadyDashboard) {
+				const items = dashboardItems(ctx.store);
+				if (items.length > 0) {
+					let minX = Number.POSITIVE_INFINITY;
+					let minY = Number.POSITIVE_INFINITY;
+					for (const s of items) {
+						if (s.x < minX) minX = s.x;
+						if (s.y < minY) minY = s.y;
+					}
+					setConfig(ctx.store, {
+						originX: minX - config.padding,
+						originY: minY - config.padding,
+					});
+				}
+			}
 			repackBoard(ctx);
 		},
 		disable: () => {

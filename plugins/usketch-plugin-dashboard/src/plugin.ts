@@ -10,6 +10,7 @@ import { DASHBOARD_CONFIG_TYPE, type DashboardDefaults } from "./dashboard-confi
 import { createDashboardConfigShapeDefinition } from "./dashboard-config-shape-def.js";
 import { repackBoard, setupDashboard } from "./dashboard-runtime.js";
 import { createDashboardApi, dashboardService } from "./dashboard-service.js";
+import { gridOverlayLayer, resetGridOverlayVisible } from "./grid-overlay.js";
 import { registerDashboardHud } from "./register-dashboard-hud.js";
 
 export interface DashboardPluginOptions extends DashboardDefaults {
@@ -28,6 +29,11 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 		name: "ダッシュボード",
 		setup(ctx: PluginContext) {
 			ctx.shapes.register(DASHBOARD_CONFIG_TYPE, createDashboardConfigShapeDefinition(defaults));
+
+			// Grid overlay: shows the target cells so it's clear where items land. It
+			// renders nothing on a non-dashboard board, so it's safe to always register.
+			resetGridOverlayVisible();
+			ctx.layers.register(gridOverlayLayer);
 
 			const api = createDashboardApi(ctx, defaults);
 
@@ -64,6 +70,7 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 				unprovideService();
 				stopHud();
 				stopRuntime();
+				ctx.layers.unregister(gridOverlayLayer.id);
 			};
 		},
 	};

@@ -29,6 +29,12 @@ export {
 	packGrid,
 	packGridWithGap,
 } from "./grid.js";
+export {
+	GRID_OVERLAY_LAYER_ID,
+	gridOverlayLayer,
+	isGridOverlayVisible,
+	setGridOverlayVisible,
+} from "./grid-overlay.js";
 export { dashboardItems, isDashboardItem } from "./items.js";
 export { readingOrder } from "./order.js";
 export { createDashboardPlugin, type DashboardPluginOptions } from "./plugin.js";

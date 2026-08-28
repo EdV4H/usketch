@@ -54,11 +54,13 @@ describe("DashboardApi enable/repack", () => {
 		api.enable();
 		expect(api.isDashboardBoard()).toBe(true);
 
-		// reading order は幾何ベース: b(20,20)→row0col0, c(900,30)→row0col1, a→row1
-		// 2 列・cell100・gap0・padding0・origin0 → 0,0 / 100,0 / 0,100
-		expect(pos(store, "b")).toEqual({ x: 0, y: 0 });
-		expect(pos(store, "c")).toEqual({ x: 100, y: 0 });
-		expect(pos(store, "a")).toEqual({ x: 0, y: 100 });
+		// 初回 enable は原点をアイテム左上（min x/y − padding）へシードする。
+		// padding0・min=(20,20) → origin(20,20)。reading order は幾何ベースで
+		// b(20,20)→row0col0, c(900,30)→row0col1, a(500,500)→row1col0。
+		// 2 列・cell100・gap0 → (20,20)/(120,20)/(20,120)
+		expect(pos(store, "b")).toEqual({ x: 20, y: 20 });
+		expect(pos(store, "c")).toEqual({ x: 120, y: 20 });
+		expect(pos(store, "a")).toEqual({ x: 20, y: 120 });
 	});
 
 	it("config シングルトンはアイテムに数えない", () => {
