@@ -18,6 +18,7 @@ import { createDeepLinkPlugin } from "@edv4h/usketch-plugin-deep-link";
 import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
 import { createExportPlugin } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
+import { createDashboardPlugin } from "@edv4h/usketch-plugin-dashboard";
 import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
@@ -184,6 +185,10 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		createFreePositionPlugin(),
 		createContainerPlugin(),
 		createAttachablePlugin(),
+		// ダッシュボード（sortable なグリッド）。container/free-position の後に置き、
+		// during-drag reflow をトップレベル移動の最後の writer にする。autoCreate:false
+		// で、メインボードを勝手にグリッド化せず、HUD の「ダッシュボード化」で opt-in。
+		createDashboardPlugin({ autoCreate: false }),
 		// 関連Shapeを「ぶちまける」— HUD の「関連Shapeをぶちまける」アクション。connector/
 		// container/free-position の後（関連解決 + 非重なり配置の土台が揃った後）。
 		createScatterPlugin(),

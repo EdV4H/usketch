@@ -1,0 +1,73 @@
+// Pure data + predicates for the `dashboard-config` singleton (no JSX, so every
+// pure module — config-ops, items, runtime, service — and the unit tests can
+// import it without pulling in React). The JSX shape-definition factory lives
+// alongside in `dashboard-config-shape-def.tsx`.
+//
+// The `dashboard-config` shape is a DATA-ONLY singleton (same substrate pattern as
+// map's `tilemap` / `base-map`): it holds the board's grid settings — columns,
+// cell size, gap, padding, and the world origin the grid is anchored to — so the
+// dashboard layout persists + syncs (Yjs) + undoes through the shape store. It
+// draws NOTHING, owns no geometry, and is locked + non-hit-testable so it can
+// never be selected or become a grid item itself.
+import type { ShapeData } from "@edv4h/usketch-shared";
+import { generateId } from "@edv4h/usketch-shared";
+
+export const DASHBOARD_CONFIG_TYPE = "dashboard-config";
+
+/** Grid settings persisted on the singleton. Geometry (`originX`/`originY`) lives
+ *  here too so the grid anchor is stable across reflows and reloads. */
+export interface DashboardConfigData extends ShapeData {
+	type: "dashboard-config";
+	columns: number;
+	cellW: number;
+	cellH: number;
+	gap: number;
+	padding: number;
+	originX: number;
+	originY: number;
+}
+
+export interface DashboardDefaults {
+	columns?: number;
+	cellW?: number;
+	cellH?: number;
+	gap?: number;
+	padding?: number;
+	originX?: number;
+	originY?: number;
+}
+
+export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
+	columns: 4,
+	cellW: 200,
+	cellH: 140,
+	gap: 16,
+	padding: 24,
+	originX: 0,
+	originY: 0,
+};
+
+export function isDashboardConfig(shape: ShapeData): shape is DashboardConfigData {
+	return shape.type === DASHBOARD_CONFIG_TYPE;
+}
+
+export function makeDashboardConfig(defaults: DashboardDefaults = {}): DashboardConfigData {
+	const d = { ...DASHBOARD_DEFAULTS, ...defaults };
+	return {
+		id: generateId(),
+		type: DASHBOARD_CONFIG_TYPE,
+		x: 0,
+		y: 0,
+		width: 0,
+		height: 0,
+		style: { fill: "transparent", stroke: "transparent", strokeWidth: 0, opacity: 1 },
+		columns: d.columns,
+		cellW: d.cellW,
+		cellH: d.cellH,
+		gap: d.gap,
+		padding: d.padding,
+		originX: d.originX,
+		originY: d.originY,
+		locked: true,
+	};
+}

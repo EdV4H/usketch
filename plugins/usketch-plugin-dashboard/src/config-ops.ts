@@ -1,0 +1,68 @@
+// Read/write helpers for the `dashboard-config` singleton. Kept separate from the
+// shape definition so the runtime, service, and HUD all go through one place to
+// locate + mutate config, and none of them re-derive the "find the singleton"
+// scan.
+import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
+import {
+	type DashboardConfigData,
+	type DashboardDefaults,
+	isDashboardConfig,
+	makeDashboardConfig,
+} from "./dashboard-config-shape.js";
+import type { GridSpec } from "./grid.js";
+
+/** Grid settings a caller may change (identity/geometry-only subset of config). */
+export type DashboardConfigPatch = Partial<
+	Pick<
+		DashboardConfigData,
+		"columns" | "cellW" | "cellH" | "gap" | "padding" | "originX" | "originY"
+	>
+>;
+
+/** The board's config singleton, or `undefined` if this board isn't a dashboard. */
+export function getDashboardConfig(store: BoardStore): DashboardConfigData | undefined {
+	for (const [, shape] of store.getShapes()) {
+		if (isDashboardConfig(shape)) return shape;
+	}
+	return undefined;
+}
+
+/**
+ * Return the board's config singleton, creating it first if absent. Creating it
+ * is what turns a plain board INTO a dashboard (requirement: the applied Canvas
+ * becomes dashboard-only). Call after the store has hydrated so a synced config
+ * isn't duplicated.
+ */
+export function ensureDashboardConfig(
+	store: BoardStore,
+	defaults: DashboardDefaults = {},
+): DashboardConfigData {
+	const existing = getDashboardConfig(store);
+	if (existing) return existing;
+	const config = makeDashboardConfig(defaults);
+	store.addShape(config);
+	return config;
+}
+
+/** Project the config singleton onto the pure {@link GridSpec} the grid math uses. */
+export function gridSpecFromConfig(config: DashboardConfigData): GridSpec {
+	return {
+		columns: config.columns,
+		cellW: config.cellW,
+		cellH: config.cellH,
+		gap: config.gap,
+		padding: config.padding,
+		originX: config.originX,
+		originY: config.originY,
+	};
+}
+
+/** Direct (non-undoable) config write. The service wraps this in a command when
+ *  the change should be undoable; programmatic callers can use it as-is. */
+export function setConfig(store: BoardStore, patch: DashboardConfigPatch): void {
+	const config = getDashboardConfig(store);
+	if (!config) return;
+	// Config carries custom fields on top of ShapeData; the store merges them
+	// verbatim (same pattern as the map plugin's shape-field writes).
+	store.updateShape(config.id, patch as Partial<ShapeData>);
+}
