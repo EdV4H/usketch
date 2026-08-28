@@ -94,6 +94,21 @@ describe("DashboardApi setColumns undo", () => {
 	});
 });
 
+describe("DashboardApi enable contract", () => {
+	it("すでに dashboard でも enable は再パックする（no-op ではない）", () => {
+		const { ctx, store } = makeCtx();
+		store.addShape(rect("a", 0, 0));
+		const api = createDashboardApi(ctx, { columns: 2, cellW: 100, cellH: 100, gap: 0, padding: 0 });
+		api.enable();
+		expect(pos(store, "a")).toEqual({ x: 0, y: 0 });
+
+		// グリッドから手で外す → 再度 enable すると詰め直される
+		store.updateShape("a", { x: 999, y: 999 });
+		api.enable();
+		expect(pos(store, "a")).toEqual({ x: 0, y: 0 });
+	});
+});
+
 describe("DashboardApi disable", () => {
 	it("disable で config を除去し、ボードは非ダッシュボードに戻る", () => {
 		const { ctx, store } = makeCtx();

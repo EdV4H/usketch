@@ -133,7 +133,14 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		const before = new Map(dragBefore);
 		dragBefore.clear();
 
-		if (!spec || dragged === null) return;
+		if (!spec) return;
+		if (dragged === null) {
+			// A drop we didn't track as a single-item reorder (a multi-select drag, or
+			// a plain click). Re-snap every item to the grid so free-moved shapes
+			// settle back onto cells (a no-op when nothing actually moved).
+			repackBoard(ctx);
+			return;
+		}
 		// Final order = siblings in reading order with the dragged item spliced in
 		// at its target slot.
 		const items = dashboardItems(ctx.store);
@@ -164,12 +171,16 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			const after = event.payload.after;
 			const before = event.payload.before;
 			if (!after || !isDashboardItem(ctx.store, after)) return;
-			// Only treat this as THE local drag when the shape is locally selected
-			// (the select tool selects what it grabs) AND its position actually
-			// moved. This rejects two false positives that also fire `shape:updated`
-			// while the pointer is down: remote collaborators' edits arriving via
-			// sync, and non-move updates (e.g. a style change) to a selected shape.
-			if (!ctx.store.getSelection().has(after.id)) return;
+			// Sortable reflow is a SINGLE-item interaction. With a multi-selection
+			// drag, every selected shape's `shape:updated` would match below and
+			// `draggingId` would flip between them each frame → jitter / bogus
+			// reorder. Restrict live reflow to a single selected shape; multi-select
+			// drags fall through and are re-snapped to the grid on drop (see endDrag).
+			const selection = ctx.store.getSelection();
+			if (selection.size !== 1 || !selection.has(after.id)) return;
+			// …and only when the position actually moved — this rejects the other
+			// false positive that fires `shape:updated` while the pointer is down:
+			// remote collaborators' edits arriving via sync, and style-only updates.
 			if (before && before.x === after.x && before.y === after.y) return;
 			captureBefore(before);
 			draggingId = after.id;

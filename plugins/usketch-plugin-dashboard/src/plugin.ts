@@ -8,7 +8,7 @@ import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { ensureDashboardConfig } from "./config-ops.js";
 import { DASHBOARD_CONFIG_TYPE, type DashboardDefaults } from "./dashboard-config-shape.js";
 import { createDashboardConfigShapeDefinition } from "./dashboard-config-shape-def.js";
-import { setupDashboard } from "./dashboard-runtime.js";
+import { repackBoard, setupDashboard } from "./dashboard-runtime.js";
 import { createDashboardApi, dashboardService } from "./dashboard-service.js";
 import { registerDashboardHud } from "./register-dashboard-hud.js";
 
@@ -34,8 +34,15 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 			// Defer to a microtask so shapes hydrated synchronously on load (incl. a
 			// synced config from another client) are visible first — `ensure` is a
 			// no-op when a config already exists, avoiding a duplicate singleton.
+			// Then pack the existing top-level shapes so the board is actually laid
+			// out on the grid (creating the config alone doesn't move anything, and
+			// the config's own `shape:added` isn't an item so it won't trigger a
+			// repack).
 			if (autoCreate) {
-				queueMicrotask(() => ensureDashboardConfig(ctx.store, defaults));
+				queueMicrotask(() => {
+					ensureDashboardConfig(ctx.store, defaults);
+					repackBoard(ctx);
+				});
 			}
 
 			const stopRuntime = setupDashboard(ctx);

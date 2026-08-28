@@ -27,8 +27,10 @@ import { readingOrder } from "./order.js";
 export interface DashboardApi {
 	/** True when this board is a dashboard (its config singleton exists). */
 	isDashboardBoard(): boolean;
-	/** Turn this board INTO a dashboard (create the config singleton) and pack the
-	 *  existing top-level shapes into the grid. No-op if already a dashboard. */
+	/** Turn this board INTO a dashboard: create the config singleton if absent
+	 *  (never duplicated), then pack the existing top-level shapes into the grid.
+	 *  Re-packs on every call — so it doubles as a re-arrange and is NOT a no-op
+	 *  when already a dashboard. Use {@link repack} if you only want the re-pack. */
 	enable(): void;
 	/** Turn the dashboard OFF (remove the config singleton). Item positions are
 	 *  left where they are — only the grid behaviour stops. */
