@@ -66,6 +66,9 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 		group: "ダッシュボード",
 		order: 0,
 		run: () => api.enable(),
+		// Only offered when the board isn't yet a dashboard (re-packing an active
+		// one is what「整列」is for).
+		isEnabled: () => !api.isDashboardBoard(),
 		isActive: () => api.isDashboardBoard(),
 	});
 
@@ -75,6 +78,9 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 		group: "ダッシュボード",
 		order: 1,
 		run: () => api.disable(),
+		// A no-op unless the board is a dashboard — disable it so the HUD doesn't
+		// present a dead control.
+		isEnabled: () => api.isDashboardBoard(),
 	});
 
 	const unregisterArrange = ctx.actions.register({
@@ -83,6 +89,7 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 		group: "ダッシュボード",
 		order: 2,
 		run: () => api.repack(),
+		isEnabled: () => api.isDashboardBoard(),
 	});
 
 	return () => {

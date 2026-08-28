@@ -19,12 +19,21 @@ export type DashboardConfigPatch = Partial<
 	>
 >;
 
-/** The board's config singleton, or `undefined` if this board isn't a dashboard. */
+/**
+ * The board's config singleton, or `undefined` if this board isn't a dashboard.
+ * If two clients happen to `enable()` at the same time, the board can briefly
+ * hold more than one config; pick the one with the smallest `id` so every client
+ * converges on the SAME config (rather than depending on Map insertion order,
+ * which can differ per client) — the grid then can't diverge across peers.
+ */
 export function getDashboardConfig(store: BoardStore): DashboardConfigData | undefined {
+	let chosen: DashboardConfigData | undefined;
 	for (const [, shape] of store.getShapes()) {
-		if (isDashboardConfig(shape)) return shape;
+		if (isDashboardConfig(shape) && (chosen === undefined || shape.id < chosen.id)) {
+			chosen = shape;
+		}
 	}
-	return undefined;
+	return chosen;
 }
 
 /**

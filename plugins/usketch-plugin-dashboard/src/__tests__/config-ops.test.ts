@@ -38,6 +38,16 @@ describe("ensureDashboardConfig", () => {
 		expect(configs).toHaveLength(1);
 	});
 
+	it("config が複数あっても id 最小を決定的に選ぶ（同期分岐の防止）", () => {
+		const store = createBoardStore();
+		// 同時 enable で 2 つ config が存在する状況を再現（id を固定）
+		store.addShape({ ...makeDashboardConfig({ columns: 9 }), id: "cfg-b" });
+		store.addShape({ ...makeDashboardConfig({ columns: 2 }), id: "cfg-a" });
+		// insertion order は b→a だが、id 最小 = "cfg-a" を選ぶ
+		expect(getDashboardConfig(store)?.id).toBe("cfg-a");
+		expect(getDashboardConfig(store)?.columns).toBe(2);
+	});
+
 	it("defaults を反映する", () => {
 		const store = createBoardStore();
 		const config = ensureDashboardConfig(store, { columns: 6, gap: 4 });
