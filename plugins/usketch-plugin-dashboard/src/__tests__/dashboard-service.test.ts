@@ -70,7 +70,7 @@ describe("DashboardApi enable/repack", () => {
 		api.enable();
 		const config = getDashboardConfig(store);
 		expect(config).toBeDefined();
-		// config は locked・面積0 なので packGrid 対象外（a だけが動く対象）
+		// config は locked・面積0 なので packSpans 対象外（a だけが動く対象）
 		expect(pos(store, "a")).toEqual({ x: 0, y: 0 });
 	});
 });

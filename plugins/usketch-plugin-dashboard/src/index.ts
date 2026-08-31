@@ -23,11 +23,15 @@ export {
 } from "./dashboard-service.js";
 export {
 	cellTopLeft,
+	cellXY,
 	type GridSpec,
-	indexFromPoint,
+	type ItemSize,
+	type PlacedBox,
 	type Placement,
-	packGrid,
-	packGridWithGap,
+	packSpans,
+	type Span,
+	spanOf,
+	targetIndexFromPoint,
 } from "./grid.js";
 export {
 	GRID_OVERLAY_LAYER_ID,

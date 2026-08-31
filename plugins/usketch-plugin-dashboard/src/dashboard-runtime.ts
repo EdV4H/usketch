@@ -8,10 +8,20 @@
 import type { BoardStore, PluginContext, ShapeData } from "@edv4h/usketch-shared";
 import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import { getDashboardConfig, gridSpecFromConfig } from "./config-ops.js";
-import type { GridSpec } from "./grid.js";
-import { indexFromPoint, packGrid, packGridWithGap } from "./grid.js";
+import type { GridSpec, ItemSize, PlacedBox } from "./grid.js";
+import { packSpans, targetIndexFromPoint } from "./grid.js";
 import { dashboardItems, isDashboardItem } from "./items.js";
 import { readingOrder } from "./order.js";
+
+/** Look up (id → width/height) for a list of ids in order, skipping any gone. */
+function sizedOrder(store: BoardStore, ids: readonly string[]): ItemSize[] {
+	const out: ItemSize[] = [];
+	for (const id of ids) {
+		const s = store.getShape(id);
+		if (s) out.push({ id, width: s.width, height: s.height });
+	}
+	return out;
+}
 
 /** rAF with a timeout fallback for SSR/tests/sandbox (no rAF available). */
 const scheduleFrame: (cb: () => void) => number =
@@ -47,7 +57,7 @@ export function repackBoard(ctx: PluginContext): void {
 	const items = dashboardItems(ctx.store);
 	if (items.length === 0) return;
 	const order = readingOrder(items, spec);
-	const placements = packGrid(order, spec);
+	const placements = packSpans(sizedOrder(ctx.store, order), spec);
 
 	const updates: Array<{ id: string; from: Partial<ShapeData>; to: Partial<ShapeData> }> = [];
 	for (const p of placements) {
@@ -70,7 +80,9 @@ export function setupDashboard(ctx: PluginContext): () => void {
 	let pointerDown = false;
 	// The shape currently under the pointer (never repositioned mid-drag).
 	let draggingId: string | null = null;
-	// Live insertion index derived from the dragged item's centre.
+	// The dragged item's latest centre, and the insertion index derived from it
+	// (computed each reflow against the other items' compact layout, reused at drop).
+	let pendingPoint: { x: number; y: number } = { x: 0, y: 0 };
 	let pendingTargetIndex = 0;
 	let frame: number | null = null;
 	// Pre-drag positions of every item, captured once per drag, so the drop
@@ -118,13 +130,35 @@ export function setupDashboard(ctx: PluginContext): () => void {
 	function reflowDuringDrag(): void {
 		frame = null;
 		if (!pointerDown || draggingId === null) return;
+		const dragged = draggingId;
 		const spec = specOf(ctx.store);
 		if (!spec) return;
 		const items = dashboardItems(ctx.store);
-		const order = readingOrder(items, spec);
-		const placements = packGridWithGap(order, draggingId, pendingTargetIndex, spec);
+		if (!items.some((i) => i.id === dragged)) return;
+
+		// Other items in reading order, and their COMPACT layout (dragged removed).
+		// The compact layout is a stable reference for the drop index — computing it
+		// from the already-gapped live layout would let the index oscillate.
+		const otherIds = readingOrder(items, spec).filter((id) => id !== dragged);
+		const otherSizes = sizedOrder(ctx.store, otherIds);
+		const compact = packSpans(otherSizes, spec);
+		const boxes: PlacedBox[] = compact.map((p, i) => ({
+			id: p.id,
+			x: p.x,
+			y: p.y,
+			width: otherSizes[i].width,
+			height: otherSizes[i].height,
+		}));
+		pendingTargetIndex = targetIndexFromPoint(pendingPoint, boxes, spec);
+
+		// Pack with the dragged item reserving its slot, then write everyone EXCEPT
+		// the dragged shape (it stays under the pointer) — opening the gap it'll fill.
+		const order = [...otherIds];
+		order.splice(pendingTargetIndex, 0, dragged);
+		const placements = packSpans(sizedOrder(ctx.store, order), spec);
 		withApplying(() => {
 			for (const p of placements) {
+				if (p.id === dragged) continue;
 				const cur = ctx.store.getShape(p.id);
 				if (!cur || (cur.x === p.x && cur.y === p.y)) continue;
 				ctx.store.updateShape(p.id, { x: p.x, y: p.y });
@@ -160,12 +194,12 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			return;
 		}
 		// Final order = siblings in reading order with the dragged item spliced in
-		// at its target slot.
+		// at its target slot, then span-packed.
 		const items = dashboardItems(ctx.store);
 		const order = readingOrder(items, spec).filter((id) => id !== dragged);
 		const clamped = Math.max(0, Math.min(Math.round(pendingTargetIndex), order.length));
 		order.splice(clamped, 0, dragged);
-		const placements = packGrid(order, spec);
+		const placements = packSpans(sizedOrder(ctx.store, order), spec);
 
 		const updates: Array<{ id: string; from: Partial<ShapeData>; to: Partial<ShapeData> }> = [];
 		for (const p of placements) {
@@ -208,8 +242,9 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			if (before && before.x === after.x && before.y === after.y) return;
 			captureBefore(before);
 			draggingId = after.id;
-			const count = dashboardItems(ctx.store).length;
-			pendingTargetIndex = indexFromPoint(centerOf(after), spec, count);
+			// Record the dragged centre; the drop index is derived from it in the
+			// reflow (against the other items' compact span layout).
+			pendingPoint = centerOf(after);
 			scheduleReflow();
 			return;
 		}

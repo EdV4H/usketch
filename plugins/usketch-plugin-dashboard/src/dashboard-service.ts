@@ -21,7 +21,7 @@ import {
 import { type DashboardDefaults, isDashboardConfig } from "./dashboard-config-shape.js";
 import { repackBoard } from "./dashboard-runtime.js";
 import type { GridSpec } from "./grid.js";
-import { packGrid } from "./grid.js";
+import { packSpans } from "./grid.js";
 import { dashboardItems } from "./items.js";
 import { readingOrder } from "./order.js";
 
@@ -73,7 +73,13 @@ function applyConfig(ctx: PluginContext, patch: DashboardConfigPatch): void {
 	const oldSpec = gridSpecFromConfig(config);
 	const newSpec = gridSpecFromConfig({ ...config, ...patch });
 	const order = readingOrder(dashboardItems(ctx.store), oldSpec);
-	const placements = packGrid(order, newSpec);
+	const sized = order
+		.map((id) => {
+			const s = ctx.store.getShape(id);
+			return s ? { id, width: s.width, height: s.height } : null;
+		})
+		.filter((v): v is { id: string; width: number; height: number } => v !== null);
+	const placements = packSpans(sized, newSpec);
 	const moves = placements
 		.map((p) => {
 			const cur = ctx.store.getShape(p.id);
