@@ -18,7 +18,7 @@
 		"@edv4h/usketch-shared": "workspace:*",
 		"@edv4h/usketch-sync": "workspace:*",
 		"@modelcontextprotocol/sdk": "^1.12.1",
-		"open": "11.0.1",
+		"open": "11.0.2",
 		"ws": "^8.18.0",
 		"yjs": "^13.6.0",
 		"zod": "^4.0.0"
