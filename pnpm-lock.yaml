@@ -96,7 +96,7 @@ importers:
         version: link:../../packages/sync
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.1
-        version: 1.30.0(zod@4.4.3)
+        version: 1.30.0(zod@4.5.4)
       open:
         specifier: 11.0.2
         version: 11.0.2
@@ -108,7 +108,7 @@ importers:
         version: 13.6.32
       zod:
         specifier: ^4.0.0
-        version: 4.4.3
+        version: 4.5.4
     devDependencies:
       '@types/node':
         specifier: 25.9.5
@@ -1930,7 +1930,7 @@ importers:
         version: 19.2.8
       zod:
         specifier: ^4.0.0
-        version: 4.4.3
+        version: 4.5.4
     devDependencies:
       '@types/react':
         specifier: 19.2.18
@@ -2061,16 +2061,16 @@ importers:
         version: link:../../packages/shared
       '@modelcontextprotocol/sdk':
         specifier: '>=1.0.0'
-        version: 1.30.0(zod@4.4.3)
+        version: 1.30.0(zod@4.5.4)
       '@openuidev/react-lang':
         specifier: 0.2.15
-        version: 0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
+        version: 0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.5.4)
       react:
         specifier: 19.2.8
         version: 19.2.8
       zod:
         specifier: ^4.0.0 || >=3.25.0 <4.0.0
-        version: 4.4.3
+        version: 4.5.4
     devDependencies:
       '@types/react':
         specifier: 19.2.18
@@ -2355,16 +2355,16 @@ importers:
         version: link:../../packages/store
       '@modelcontextprotocol/sdk':
         specifier: '>=1.0.0'
-        version: 1.30.0(zod@4.4.3)
+        version: 1.30.0(zod@4.5.4)
       '@openuidev/react-lang':
         specifier: 0.2.15
-        version: 0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
+        version: 0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.5.4)
       react:
         specifier: 19.2.8
         version: 19.2.8
       zod:
         specifier: ^4.0.0 || >=3.25.0 <4.0.0
-        version: 4.4.3
+        version: 4.5.4
     devDependencies:
       '@types/react':
         specifier: 19.2.18
@@ -2451,7 +2451,7 @@ importers:
         version: 5.32.6
       zod:
         specifier: ^4.0.0
-        version: 4.4.3
+        version: 4.5.4
     devDependencies:
       '@types/react':
         specifier: 19.2.18
@@ -9895,7 +9895,7 @@ snapshots:
     dependencies:
       '@chevrotain/types': 11.1.2
 
-  '@modelcontextprotocol/sdk@1.30.0(zod@4.4.3)':
+  '@modelcontextprotocol/sdk@1.30.0(zod@4.5.4)':
     dependencies:
       '@hono/node-server': 2.0.12(hono@4.12.32)
       ajv: 8.20.0
@@ -9912,8 +9912,8 @@ snapshots:
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
-      zod: 4.4.3
-      zod-to-json-schema: 3.25.2(zod@4.4.3)
+      zod: 4.5.4
+      zod-to-json-schema: 3.25.2(zod@4.5.4)
     transitivePeerDependencies:
       - supports-color
 
@@ -9954,33 +9954,33 @@ snapshots:
 
   '@opentelemetry/semantic-conventions@1.43.0': {}
 
-  '@openuidev/devtools@0.1.0(@openuidev/observability@0.0.4)(@openuidev/react-lang@0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@openuidev/devtools@0.1.0(@openuidev/observability@0.0.4)(@openuidev/react-lang@0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.5.4))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@openuidev/observability': 0.0.4
       lucide-react: 0.575.0(react@19.2.8)
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
     optionalDependencies:
-      '@openuidev/react-lang': 0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
+      '@openuidev/react-lang': 0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.5.4)
 
-  '@openuidev/lang-core@0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(zod@4.4.3)':
+  '@openuidev/lang-core@0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(zod@4.5.4)':
     dependencies:
       ci-info: 4.4.0
-      zod: 4.4.3
+      zod: 4.5.4
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.30.0(zod@4.4.3)
+      '@modelcontextprotocol/sdk': 1.30.0(zod@4.5.4)
 
   '@openuidev/observability@0.0.4': {}
 
-  '@openuidev/react-lang@0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)':
+  '@openuidev/react-lang@0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.5.4)':
     dependencies:
-      '@openuidev/devtools': 0.1.0(@openuidev/observability@0.0.4)(@openuidev/react-lang@0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@openuidev/lang-core': 0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(zod@4.4.3)
+      '@openuidev/devtools': 0.1.0(@openuidev/observability@0.0.4)(@openuidev/react-lang@0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.5.4))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@openuidev/lang-core': 0.2.15(@modelcontextprotocol/sdk@1.30.0(zod@4.5.4))(zod@4.5.4)
       '@openuidev/observability': 0.0.4
       react: 19.2.8
-      zod: 4.4.3
+      zod: 4.5.4
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.30.0(zod@4.4.3)
+      '@modelcontextprotocol/sdk': 1.30.0(zod@4.5.4)
       react-dom: 19.2.8(react@19.2.8)
 
   '@oslojs/encoding@1.1.0': {}
@@ -14150,9 +14150,9 @@ snapshots:
       cookie: 1.1.1
       youch-core: 0.3.3
 
-  zod-to-json-schema@3.25.2(zod@4.4.3):
+  zod-to-json-schema@3.25.2(zod@4.5.4):
     dependencies:
-      zod: 4.4.3
+      zod: 4.5.4
 
   zod@4.4.3: {}
 
