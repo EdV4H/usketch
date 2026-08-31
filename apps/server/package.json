@@ -29,7 +29,7 @@
 		"drizzle-orm": "0.45.2",
 		"hono": "4.13.5",
 		"yjs": "^13.6.0",
-		"zod": "4.4.3"
+		"zod": "4.5.4"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "5.20260831.1",
