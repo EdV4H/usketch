@@ -120,11 +120,22 @@ export function createDashboardApi(
 				if (items.length > 0) {
 					let minX = Number.POSITIVE_INFINITY;
 					let minY = Number.POSITIVE_INFINITY;
+					let minW = Number.POSITIVE_INFINITY;
+					let minH = Number.POSITIVE_INFINITY;
 					for (const s of items) {
 						if (s.x < minX) minX = s.x;
 						if (s.y < minY) minY = s.y;
+						if (s.width < minW) minW = s.width;
+						if (s.height < minH) minH = s.height;
 					}
+					// Seed the CELL to the smallest item (floored) so a mix of sizes
+					// actually spans: the smallest item is 1×1 and bigger ones take
+					// proportionally more cells. A fixed default cell that's larger than
+					// every item would make everything 1×1 ("nothing spans").
+					const CELL_FLOOR = 40;
 					setConfig(ctx.store, {
+						cellW: Math.max(CELL_FLOOR, Math.round(minW)),
+						cellH: Math.max(CELL_FLOOR, Math.round(minH)),
 						originX: minX - config.padding,
 						originY: minY - config.padding,
 					});

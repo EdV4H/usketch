@@ -24,14 +24,14 @@ function makeCtx() {
 	return { ctx, store, commands };
 }
 
-function rect(id: string, x: number, y: number): ShapeData {
+function rect(id: string, x: number, y: number, width = 100, height = 100): ShapeData {
 	return {
 		id,
 		type: "rectangle",
 		x,
 		y,
-		width: 100,
-		height: 100,
+		width,
+		height,
 		style: { fill: "#fff", stroke: "#000", strokeWidth: 1, opacity: 1 },
 	};
 }
@@ -94,6 +94,22 @@ describe("DashboardApi setColumns undo", () => {
 		expect(api.getGridSpec()?.columns).toBe(3);
 		expect(pos(store, "b")).toEqual({ x: 100, y: 0 });
 		expect(pos(store, "c")).toEqual({ x: 200, y: 0 });
+	});
+});
+
+describe("DashboardApi enable cell seeding (span)", () => {
+	it("セルを最小アイテムにシードし、大きいアイテムが複数セルをまたぐ", () => {
+		const { ctx, store } = makeCtx();
+		store.addShape(rect("small", 0, 0, 100, 100));
+		store.addShape(rect("big", 300, 0, 200, 100)); // 幅 2 セル分
+		const api = createDashboardApi(ctx, { columns: 3, gap: 0, padding: 0 });
+		api.enable();
+
+		// セルは最小アイテム（100×100）にシードされる
+		expect(api.getGridSpec()).toMatchObject({ cellW: 100, cellH: 100, originX: 0, originY: 0 });
+		// reading order [small, big]。small=1x1@col0、big=2col@col1-2
+		expect(pos(store, "small")).toEqual({ x: 0, y: 0 });
+		expect(pos(store, "big")).toEqual({ x: 100, y: 0 });
 	});
 });
 
