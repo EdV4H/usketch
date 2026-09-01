@@ -23,13 +23,13 @@ export function isDashboardItem(store: BoardStore, shape: ShapeData): boolean {
 	return true;
 }
 
-/** Whether a shape sits within the grid's column band (and at/below the origin
- *  row). Judged by the shape's CENTRE against the grid's world rectangle (not a
- *  rounded cell index) — so a wide item can be dragged in FRONT of the leftmost
- *  cell (its top-left crosses the origin while its centre is still inside column 0)
- *  without being freed, and a right-edge item isn't pushed a column too far by
- *  rounding. Centre left of the grid, past its right edge, or above the top row is
- *  OUT of range → left free. The grid grows downward without bound. */
+/** Whether a shape sits within the grid's range, judged by the shape's CENTRE
+ *  against the grid's world rectangle (not a rounded cell index). Left of the grid
+ *  is deliberately NOT out of range — it maps to the first column, so an item
+ *  dragged in FRONT of the leftmost cell becomes first instead of being freed
+ *  (dragging left past the origin is how you reorder to the front, not how you
+ *  escape the grid). Only past the RIGHT edge (beyond the columns) or ABOVE the top
+ *  row frees a shape. The grid grows downward without bound, so any row ≥ 0 is in. */
 export function isWithinGrid(shape: ShapeData, spec: GridSpec): boolean {
 	const cols = Math.max(1, Math.floor(spec.columns));
 	const left = spec.originX + spec.padding;
@@ -37,7 +37,7 @@ export function isWithinGrid(shape: ShapeData, spec: GridSpec): boolean {
 	const right = left + cols * spec.cellW + (cols - 1) * spec.gap; // last cell's right edge
 	const cx = shape.x + shape.width / 2;
 	const cy = shape.y + shape.height / 2;
-	return cx >= left && cx < right && cy >= top;
+	return cx < right && cy >= top;
 }
 
 /** True if `shape` is a MANAGED grid item on this board: base checks, plus (when

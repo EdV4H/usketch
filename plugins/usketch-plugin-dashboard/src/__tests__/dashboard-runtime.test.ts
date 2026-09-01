@@ -74,6 +74,109 @@ function drag(
 	events.emit("shapes:move-end", { shapeIds: [id] });
 }
 
+// Faithfully replay the select tool's move drop: live frames (each followed by a
+// real timer tick so the reflow rAF fires and shifts siblings), then the pointer-up
+// dance — `session.commit()` reverts the dragged shape to its pre-drag position,
+// then a microtask replays the move to the drop position and emits move-end.
+async function faithfulDrag(
+	store: ReturnType<typeof createBoardStore>,
+	events: EventBus,
+	id: string,
+	frames: { x: number; y: number }[],
+	original: { x: number; y: number },
+): Promise<void> {
+	store.setSelection([id]);
+	for (const f of frames) {
+		store.updateShape(id, f);
+		await new Promise((r) => setTimeout(r, 20)); // let the reflow timer fire
+	}
+	const dropped = frames[frames.length - 1];
+	// pointer-up: session.commit() reverts to pre-drag (synchronous, unguarded)
+	store.updateShape(id, original);
+	// then queueMicrotask { execute(moveCommand) → dropped; emit move-end }
+	await Promise.resolve();
+	store.updateShape(id, dropped);
+	events.emit("shapes:move-end", { shapeIds: [id] });
+}
+
+describe("dashboard runtime — faithful select-tool drop", () => {
+	it("single row: dragging the last item onto the leftmost makes it first", async () => {
+		const { ctx, store, events } = harness();
+		store.addShape(
+			makeDashboardConfig({
+				columns: 3,
+				cellW: 100,
+				cellH: 100,
+				gap: 0,
+				padding: 0,
+				originX: 0,
+				originY: 0,
+			}),
+		);
+		store.addShape(rect("a", 0, 0));
+		store.addShape(rect("b", 100, 0));
+		store.addShape(rect("c", 200, 0));
+		const stop = setupDashboard(ctx);
+		await Promise.resolve();
+
+		await faithfulDrag(
+			store,
+			events,
+			"c",
+			[
+				{ x: 140, y: 0 },
+				{ x: 40, y: 0 },
+				{ x: 10, y: 0 },
+			],
+			{ x: 200, y: 0 },
+		);
+
+		expect(at(store, "c")).toEqual({ x: 0, y: 0 });
+		expect(at(store, "a")).toEqual({ x: 100, y: 0 });
+		expect(at(store, "b")).toEqual({ x: 200, y: 0 });
+		stop();
+	});
+
+	it("overshooting LEFT of the origin still inserts first (not freed)", async () => {
+		const { ctx, store, events } = harness();
+		store.addShape(
+			makeDashboardConfig({
+				columns: 3,
+				cellW: 100,
+				cellH: 100,
+				gap: 0,
+				padding: 0,
+				originX: 0,
+				originY: 0,
+			}),
+		);
+		store.addShape(rect("a", 0, 0));
+		store.addShape(rect("b", 100, 0));
+		store.addShape(rect("c", 200, 0));
+		const stop = setupDashboard(ctx);
+		await Promise.resolve();
+
+		// Drop c with its CENTRE left of the origin (top-left -60 → centre -10): the
+		// old range check freed it; now it becomes the first item.
+		await faithfulDrag(
+			store,
+			events,
+			"c",
+			[
+				{ x: 120, y: 0 },
+				{ x: 0, y: 0 },
+				{ x: -60, y: 0 },
+			],
+			{ x: 200, y: 0 },
+		);
+
+		expect(at(store, "c")).toEqual({ x: 0, y: 0 });
+		expect(at(store, "a")).toEqual({ x: 100, y: 0 });
+		expect(at(store, "b")).toEqual({ x: 200, y: 0 });
+		stop();
+	});
+});
+
 describe("dashboard runtime — drag to front (swap with leftmost)", () => {
 	it("single row: dragging the last item onto the leftmost makes it first", async () => {
 		const { ctx, store, events } = harness();

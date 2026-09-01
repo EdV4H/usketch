@@ -77,10 +77,10 @@ describe("grid range (out-of-range = free)", () => {
 	it("isWithinGrid: 列バンド内は true、外(列超過/原点より左上)は false", () => {
 		expect(isWithinGrid(rect({ x: 0, y: 0 }), spec)).toBe(true); // col0,row0
 		expect(isWithinGrid(rect({ x: 300, y: 500 }), spec)).toBe(true); // col3,row5（下は無制限）
-		expect(isWithinGrid(rect({ x: 1000, y: 0 }), spec)).toBe(false); // col10 → 列超過
-		expect(isWithinGrid(rect({ x: -100, y: 0 }), spec)).toBe(false); // col<0
-		expect(isWithinGrid(rect({ x: 0, y: -100 }), spec)).toBe(false); // row<0
-		// 左端の手前へ差し込む途中: 左上は原点より左(col-1)でも中心が col0 内なら範囲内
+		expect(isWithinGrid(rect({ x: 1000, y: 0 }), spec)).toBe(false); // col10 → 列超過（右）
+		expect(isWithinGrid(rect({ x: 0, y: -100 }), spec)).toBe(false); // row<0（上）
+		// グリッドより左は範囲外にしない＝先頭列へ寄せる（左端の手前へ差し込むため）。
+		expect(isWithinGrid(rect({ x: -100, y: 0 }), spec)).toBe(true);
 		expect(isWithinGrid(rect({ x: -40, y: 0, width: 100 }), spec)).toBe(true);
 	});
 
