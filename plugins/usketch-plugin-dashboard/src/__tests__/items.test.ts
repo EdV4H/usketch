@@ -80,6 +80,8 @@ describe("grid range (out-of-range = free)", () => {
 		expect(isWithinGrid(rect({ x: 1000, y: 0 }), spec)).toBe(false); // col10 → 列超過
 		expect(isWithinGrid(rect({ x: -100, y: 0 }), spec)).toBe(false); // col<0
 		expect(isWithinGrid(rect({ x: 0, y: -100 }), spec)).toBe(false); // row<0
+		// 左端の手前へ差し込む途中: 左上は原点より左(col-1)でも中心が col0 内なら範囲内
+		expect(isWithinGrid(rect({ x: -40, y: 0, width: 100 }), spec)).toBe(true);
 	});
 
 	it("dashboardItems は範囲外を除外、allDashboardItems は含める", () => {

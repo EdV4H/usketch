@@ -10,7 +10,7 @@ import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { getTopLevelShapes, isEffectivelyHidden, isEffectivelyLocked } from "@edv4h/usketch-store";
 import { freeOutOfRangeOf, getDashboardConfig, gridSpecFromConfig } from "./config-ops.js";
 import { isDashboardConfig } from "./dashboard-config-shape.js";
-import { cellOfPoint, type GridSpec } from "./grid.js";
+import type { GridSpec } from "./grid.js";
 
 /** True if `shape` passes the base (position-agnostic) grid-item checks: top-level,
  *  not the config substrate, has area, not locked/hidden. */
@@ -24,13 +24,20 @@ export function isDashboardItem(store: BoardStore, shape: ShapeData): boolean {
 }
 
 /** Whether a shape sits within the grid's column band (and at/below the origin
- *  row). A shape whose top-left cell falls left of the first column, right of the
- *  last, or above row 0 is OUT of range → left free (not managed). The grid grows
- *  downward without bound, so any row ≥ 0 is in range. */
+ *  row). Judged by the shape's CENTRE against the grid's world rectangle (not a
+ *  rounded cell index) — so a wide item can be dragged in FRONT of the leftmost
+ *  cell (its top-left crosses the origin while its centre is still inside column 0)
+ *  without being freed, and a right-edge item isn't pushed a column too far by
+ *  rounding. Centre left of the grid, past its right edge, or above the top row is
+ *  OUT of range → left free. The grid grows downward without bound. */
 export function isWithinGrid(shape: ShapeData, spec: GridSpec): boolean {
 	const cols = Math.max(1, Math.floor(spec.columns));
-	const cell = cellOfPoint(shape.x, shape.y, spec);
-	return cell.col >= 0 && cell.col < cols && cell.row >= 0;
+	const left = spec.originX + spec.padding;
+	const top = spec.originY + spec.padding;
+	const right = left + cols * spec.cellW + (cols - 1) * spec.gap; // last cell's right edge
+	const cx = shape.x + shape.width / 2;
+	const cy = shape.y + shape.height / 2;
+	return cx >= left && cx < right && cy >= top;
 }
 
 /** True if `shape` is a MANAGED grid item on this board: base checks, plus (when
