@@ -8,7 +8,7 @@
 //     (or above the origin) frees it from the grid; dragging it back re-manages it.
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { getTopLevelShapes, isEffectivelyHidden, isEffectivelyLocked } from "@edv4h/usketch-store";
-import { getDashboardConfig, gridSpecFromConfig } from "./config-ops.js";
+import { freeOutOfRangeOf, getDashboardConfig, gridSpecFromConfig } from "./config-ops.js";
 import { isDashboardConfig } from "./dashboard-config-shape.js";
 import { cellOfPoint, type GridSpec } from "./grid.js";
 
@@ -33,19 +33,21 @@ export function isWithinGrid(shape: ShapeData, spec: GridSpec): boolean {
 	return cell.col >= 0 && cell.col < cols && cell.row >= 0;
 }
 
-/** True if `shape` is a MANAGED grid item on this board: base checks + in range. */
+/** True if `shape` is a MANAGED grid item on this board: base checks, plus (when
+ *  `freeOutOfRange` is on) within the grid range. */
 export function isGridItem(store: BoardStore, shape: ShapeData): boolean {
 	if (!isDashboardItem(store, shape)) return false;
 	const config = getDashboardConfig(store);
-	return config ? isWithinGrid(shape, gridSpecFromConfig(config)) : true;
+	if (!config || !freeOutOfRangeOf(store)) return true;
+	return isWithinGrid(shape, gridSpecFromConfig(config));
 }
 
-/** The board's current managed grid items (base checks + within the grid range),
- *  unordered — callers derive order from geometry. Used by the live drag/reflow so
- *  out-of-range shapes are left free. */
+/** The board's current managed grid items, unordered — callers derive order from
+ *  geometry. Used by the live drag/reflow. When `freeOutOfRange` is on, shapes
+ *  outside the grid's column range are excluded (left free). */
 export function dashboardItems(store: BoardStore): ShapeData[] {
 	const config = getDashboardConfig(store);
-	const spec = config ? gridSpecFromConfig(config) : null;
+	const spec = config && freeOutOfRangeOf(store) ? gridSpecFromConfig(config) : null;
 	return getTopLevelShapes(store).filter(
 		(s) => isDashboardItem(store, s) && (spec === null || isWithinGrid(s, spec)),
 	);

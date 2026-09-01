@@ -99,3 +99,26 @@ describe("grid range (out-of-range = free)", () => {
 		).toEqual(["in", "out"]);
 	});
 });
+
+describe("freeOutOfRange toggle", () => {
+	it("OFF なら範囲外も dashboardItems に含める（全部管理）", () => {
+		const store = createBoardStore();
+		store.addShape(
+			makeDashboardConfig({
+				columns: 4,
+				cellW: 100,
+				cellH: 100,
+				gap: 0,
+				padding: 0,
+				freeOutOfRange: false,
+			}),
+		);
+		store.addShape(rect({ id: "in", x: 0, y: 0 }));
+		store.addShape(rect({ id: "out", x: 1000, y: 0 })); // 列超過だが OFF なので管理
+		expect(
+			dashboardItems(store)
+				.map((s) => s.id)
+				.sort(),
+		).toEqual(["in", "out"]);
+	});
+});

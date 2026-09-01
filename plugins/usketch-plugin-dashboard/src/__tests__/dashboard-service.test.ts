@@ -209,6 +209,20 @@ describe("DashboardApi fitToGrid", () => {
 	});
 });
 
+describe("DashboardApi freeOutOfRange", () => {
+	it("既定は true、setFreeOutOfRange(false) で切り替わる", () => {
+		const { ctx, store } = makeCtx();
+		store.addShape(rect("a", 0, 0));
+		const api = createDashboardApi(ctx);
+		api.enable();
+		expect(api.getFreeOutOfRange()).toBe(true);
+		api.setFreeOutOfRange(false);
+		expect(api.getFreeOutOfRange()).toBe(false);
+		api.setFreeOutOfRange(true);
+		expect(api.getFreeOutOfRange()).toBe(true);
+	});
+});
+
 describe("DashboardApi disable", () => {
 	it("disable で config を除去し、ボードは非ダッシュボードに戻る", () => {
 		const { ctx, store } = makeCtx();

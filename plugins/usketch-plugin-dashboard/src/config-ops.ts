@@ -16,7 +16,16 @@ import type { GridSpec } from "./grid.js";
 export type DashboardConfigPatch = Partial<
 	Pick<
 		DashboardConfigData,
-		"columns" | "cellW" | "cellH" | "gap" | "padding" | "originX" | "originY" | "mode" | "fitToGrid"
+		| "columns"
+		| "cellW"
+		| "cellH"
+		| "gap"
+		| "padding"
+		| "originX"
+		| "originY"
+		| "mode"
+		| "fitToGrid"
+		| "freeOutOfRange"
 	>
 >;
 
@@ -28,6 +37,11 @@ export function modeOf(store: BoardStore): DashboardMode {
 /** Whether resizing snaps items to whole-cell sizes (defaults to `false`). */
 export function fitToGridOf(store: BoardStore): boolean {
 	return getDashboardConfig(store)?.fitToGrid ?? false;
+}
+
+/** Whether out-of-range shapes are left free (defaults to `true`). */
+export function freeOutOfRangeOf(store: BoardStore): boolean {
+	return getDashboardConfig(store)?.freeOutOfRange ?? true;
 }
 
 /**

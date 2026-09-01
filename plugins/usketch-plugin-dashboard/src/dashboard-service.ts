@@ -14,6 +14,7 @@ import {
 	type DashboardConfigPatch,
 	ensureDashboardConfig,
 	fitToGridOf,
+	freeOutOfRangeOf,
 	getAllDashboardConfigs,
 	getDashboardConfig,
 	gridSpecFromConfig,
@@ -54,6 +55,10 @@ export interface DashboardApi {
 	/** Toggle "fit to grid". Turning it ON also snaps every existing item's size to
 	 *  the grid and re-lays out — one undoable command. */
 	setFitToGrid(on: boolean): void;
+	/** Whether shapes dragged out of the grid range are left free (vs. all managed). */
+	getFreeOutOfRange(): boolean;
+	/** Toggle it. Turning it OFF gathers every shape back into the grid. */
+	setFreeOutOfRange(on: boolean): void;
 	/** Re-snap every item to its reading-order cell (one undoable command). */
 	repack(): void;
 	/** Set the column count (undoable; relayouts items). */
@@ -254,6 +259,23 @@ export function createDashboardApi(
 		},
 		getFitToGrid: () => fitToGridOf(ctx.store),
 		setFitToGrid: (on) => applyFitToGrid(ctx, on),
+		getFreeOutOfRange: () => freeOutOfRangeOf(ctx.store),
+		setFreeOutOfRange: (on) => {
+			const config = getDashboardConfig(ctx.store);
+			if (!config || config.freeOutOfRange === on) return;
+			const command: Command = {
+				execute: () =>
+					runGuarded(() =>
+						ctx.store.updateShape(config.id, { freeOutOfRange: on } as Partial<ShapeData>),
+					),
+				undo: () =>
+					runGuarded(() =>
+						ctx.store.updateShape(config.id, { freeOutOfRange: !on } as Partial<ShapeData>),
+					),
+			};
+			ctx.commands.execute(command);
+			if (!on) repackBoard(ctx, true); // range now unlimited → gather everything
+		},
 		repack: () => repackBoard(ctx, true),
 		// Ignore non-finite inputs (NaN/±Infinity) so a bad host call can't persist
 		// a broken value into the config — `Math.max(1, NaN)` is `NaN`, so the clamp

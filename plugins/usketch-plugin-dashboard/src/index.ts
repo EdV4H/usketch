@@ -2,6 +2,7 @@ export {
 	type DashboardConfigPatch,
 	ensureDashboardConfig,
 	fitToGridOf,
+	freeOutOfRangeOf,
 	getDashboardConfig,
 	gridSpecFromConfig,
 	modeOf,

@@ -35,6 +35,10 @@ export interface DashboardConfigData extends ShapeData {
 	mode: DashboardMode;
 	/** When true, resizing an item snaps its size to the nearest whole-cell span. */
 	fitToGrid: boolean;
+	/** When true, a shape dragged OUT of the grid's column range is left free
+	 *  (unmanaged). When false, every top-level shape is managed regardless of
+	 *  position. */
+	freeOutOfRange: boolean;
 }
 
 export interface DashboardDefaults {
@@ -47,6 +51,7 @@ export interface DashboardDefaults {
 	originY?: number;
 	mode?: DashboardMode;
 	fitToGrid?: boolean;
+	freeOutOfRange?: boolean;
 }
 
 export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
@@ -59,6 +64,7 @@ export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
 	originY: 0,
 	mode: "flow",
 	fitToGrid: false,
+	freeOutOfRange: true,
 };
 
 export function isDashboardConfig(shape: ShapeData): shape is DashboardConfigData {
@@ -84,6 +90,7 @@ export function makeDashboardConfig(defaults: DashboardDefaults = {}): Dashboard
 		originY: d.originY,
 		mode: d.mode,
 		fitToGrid: d.fitToGrid,
+		freeOutOfRange: d.freeOutOfRange,
 		locked: true,
 	};
 }

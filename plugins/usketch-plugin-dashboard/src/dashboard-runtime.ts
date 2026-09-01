@@ -11,7 +11,13 @@
 // dashboard-initiated position write bumps a re-entrancy guard; the mutation
 // listener ignores anything written while that guard is up.
 import type { BoardStore, Command, PluginContext, ShapeData } from "@edv4h/usketch-shared";
-import { fitToGridOf, getDashboardConfig, gridSpecFromConfig, modeOf } from "./config-ops.js";
+import {
+	fitToGridOf,
+	freeOutOfRangeOf,
+	getDashboardConfig,
+	gridSpecFromConfig,
+	modeOf,
+} from "./config-ops.js";
 import { setDragTarget } from "./drag-target-store.js";
 import type { GridSpec, ItemSize, PlacedBox, Placement } from "./grid.js";
 import {
@@ -379,7 +385,11 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		const order = readingOrder(items, spec);
 		const draggedShape = dragged !== null ? ctx.store.getShape(dragged) : undefined;
 
-		if (dragged === null || !draggedShape || !isWithinGrid(draggedShape, spec)) {
+		const draggedOutOfRange =
+			draggedShape !== undefined &&
+			freeOutOfRangeOf(ctx.store) &&
+			!isWithinGrid(draggedShape, spec);
+		if (dragged === null || !draggedShape || draggedOutOfRange) {
 			// Untracked drop (multi-select / vanished), OR the dragged item was taken
 			// OUT of the grid range → leave it free; just re-snap the remaining items
 			// (which already excludes it) to close the gap.

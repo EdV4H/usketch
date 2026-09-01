@@ -27,10 +27,12 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			{ name: "gap", label: "間隔", type: "number", min: 0, max: 100, step: 2 },
 			{ name: "padding", label: "余白", type: "number", min: 0, max: 200, step: 4 },
 			{ name: "fitToGrid", label: "セルに合わせる", type: "boolean" },
+			{ name: "freeOutOfRange", label: "範囲外は自由", type: "boolean" },
 		],
 		get(name) {
 			if (name === "mode") return api.getMode();
 			if (name === "fitToGrid") return api.getFitToGrid();
+			if (name === "freeOutOfRange") return api.getFreeOutOfRange();
 			const spec = api.getGridSpec();
 			if (!spec) return undefined;
 			switch (name) {
@@ -55,6 +57,10 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			}
 			if (name === "fitToGrid") {
 				api.setFitToGrid(value === true || value === "true");
+				return;
+			}
+			if (name === "freeOutOfRange") {
+				api.setFreeOutOfRange(value === true || value === "true");
 				return;
 			}
 			const n = Number(value);
