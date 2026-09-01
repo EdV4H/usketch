@@ -99,45 +99,66 @@ function applyConfig(ctx: PluginContext, patch: DashboardConfigPatch): void {
 	const oldSpec = gridSpecFromConfig(config);
 	const newSpec = gridSpecFromConfig({ ...config, ...patch });
 	const newMode = patch.mode ?? config.mode;
-	const order = readingOrder(dashboardItems(ctx.store), oldSpec);
-	// Re-lay out under the NEW spec+mode: flow compacts in reading order; absolute
-	// snaps each item to the cell nearest its current position (gaps preserved).
+	const newFit = patch.fitToGrid ?? config.fitToGrid;
+	const items = readingOrder(dashboardItems(ctx.store), oldSpec)
+		.map((id) => ctx.store.getShape(id))
+		.filter((s): s is ShapeData => s !== undefined);
+
+	// New sizes: when "fit to grid" is on, snap every item to the NEW cell size so a
+	// cell-size / gap / column change resizes items immediately (not just repacks).
+	const sized = items.map((s) => {
+		const size = newFit
+			? fitSize(s.width, s.height, newSpec)
+			: { width: s.width, height: s.height };
+		return {
+			id: s.id,
+			x: s.x,
+			y: s.y,
+			w: size.width,
+			h: size.height,
+			oldW: s.width,
+			oldH: s.height,
+		};
+	});
+	// Re-lay out under the NEW spec+mode with the new sizes: flow compacts in reading
+	// order; absolute snaps each to the cell nearest its current position.
 	const placements =
 		newMode === "absolute"
 			? packAbsolute(
-					order
-						.map((id) => ctx.store.getShape(id))
-						.filter((s): s is ShapeData => s !== undefined)
-						.map((s) => ({ id: s.id, x: s.x, y: s.y, width: s.width, height: s.height })),
+					sized.map((b) => ({ id: b.id, x: b.x, y: b.y, width: b.w, height: b.h })),
 					newSpec,
 				)
 			: packSpans(
-					order
-						.map((id) => ctx.store.getShape(id))
-						.filter((s): s is ShapeData => s !== undefined)
-						.map((s) => ({ id: s.id, width: s.width, height: s.height })),
+					sized.map((b) => ({ id: b.id, width: b.w, height: b.h })),
 					newSpec,
 				);
-	const moves = placements
-		.map((p) => {
-			const cur = ctx.store.getShape(p.id);
-			return cur ? { id: p.id, from: { x: cur.x, y: cur.y }, to: { x: p.x, y: p.y } } : null;
-		})
-		.filter((m): m is NonNullable<typeof m> => m !== null);
+	const posById = new Map(placements.map((p) => [p.id, p]));
 
-	// Guard both directions so the item moves aren't mistaken for a user drag by
+	// Guard both directions so the item writes aren't mistaken for a user drag by
 	// the reflow runtime (the config write itself isn't an item, so it's ignored).
 	const command: Command = {
 		execute() {
 			runGuarded(() => {
 				ctx.store.updateShape(config.id, patch as Partial<ShapeData>);
-				for (const m of moves) ctx.store.updateShape(m.id, m.to);
+				for (const b of sized) {
+					const p = posById.get(b.id);
+					ctx.store.updateShape(b.id, {
+						...(newFit ? { width: b.w, height: b.h } : {}),
+						...(p ? { x: p.x, y: p.y } : {}),
+					});
+				}
 			});
 		},
 		undo() {
 			runGuarded(() => {
 				ctx.store.updateShape(config.id, before as Partial<ShapeData>);
-				for (const m of moves) ctx.store.updateShape(m.id, m.from);
+				for (const b of sized) {
+					ctx.store.updateShape(b.id, {
+						...(newFit ? { width: b.oldW, height: b.oldH } : {}),
+						x: b.x,
+						y: b.y,
+					});
+				}
 			});
 		},
 	};

@@ -198,6 +198,18 @@ describe("DashboardApi fitToGrid", () => {
 		expect(store.getShape("b")).toMatchObject({ width: 200, height: 200 });
 	});
 
+	it("fitToGrid ON でセルサイズを変えるとアイテムも即リサイズされる", () => {
+		const { ctx, store } = makeCtx();
+		store.addShape(rect("a", 0, 0, 100, 100));
+		const api = createDashboardApi(ctx, { columns: 4, gap: 0, padding: 0 });
+		api.enable(); // セル=最小(100)
+		api.setFitToGrid(true);
+		expect(store.getShape("a")).toMatchObject({ width: 100, height: 100 });
+		// セルを 200 に → a は最寄りセル(1 セル=200)へ即リサイズ
+		api.setCellSize(200, 200);
+		expect(store.getShape("a")).toMatchObject({ width: 200, height: 200 });
+	});
+
 	it("setFitToGrid(false) はサイズを変えない", () => {
 		const { ctx, store } = makeCtx();
 		store.addShape(rect("a", 0, 0, 150, 150));
