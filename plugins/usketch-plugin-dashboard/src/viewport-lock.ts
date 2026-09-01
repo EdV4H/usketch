@@ -62,6 +62,10 @@ function contentBounds(store: BoardStore, spec: GridSpec): BoundingBox {
 
 /** Wire the viewport constraint. Returns a teardown. */
 export function setupViewportLock(ctx: PluginContext): () => void {
+	// For `both`, zoom is frozen at whatever it was when the mode was engaged (not
+	// auto-fit) — captured on the config-change re-apply.
+	let lockedZoom: number | null = null;
+
 	const constrain = (vp: Viewport): Viewport => {
 		const mode = viewportLockOf(ctx.store);
 		if (mode === "off") return vp;
@@ -70,28 +74,35 @@ export function setupViewportLock(ctx: PluginContext): () => void {
 		const size = canvasSize();
 		if (!size) return vp;
 		const spec = gridSpecFromConfig(config);
-		const width = gridWidthWorld(spec);
-		if (width <= 0) return vp;
-		const fitZoom = size.width / width; // fit grid width to the screen
-		if (!Number.isFinite(fitZoom) || fitZoom <= 0) return vp;
-		const zoom = fitZoom; // zoom always locked to fit-width
-		const alignedX = -spec.originX * zoom; // grid left edge at screen x=0
-		// Fit-width + zoom-lock, then clamp panning to the content (reusing the core
-		// bounds helper): no scrolling into the empty space above/left of the grid;
-		// stops at the right/bottom of the shapes.
-		const xWanted = mode === "vertical" ? alignedX : vp.x; // `both` leaves x free
-		return clampViewportToBounds(
-			{ x: xWanted, y: vp.y, zoom },
-			contentBounds(ctx.store, spec),
-			size,
-		);
+		const bounds = contentBounds(ctx.store, spec);
+
+		if (mode === "vertical") {
+			// Fit the grid WIDTH to the screen, pin x (grid left at screen left), and
+			// clamp vertical panning to the content — vertical scroll only.
+			const width = gridWidthWorld(spec);
+			if (width <= 0) return vp;
+			const fitZoom = size.width / width;
+			if (!Number.isFinite(fitZoom) || fitZoom <= 0) return vp;
+			const alignedX = -spec.originX * fitZoom;
+			return clampViewportToBounds({ x: alignedX, y: vp.y, zoom: fitZoom }, bounds, size);
+		}
+
+		// `both`: keep zoom FIXED (frozen, no width-fit) and pan both axes within the
+		// content bounds.
+		const zoom = lockedZoom ?? vp.zoom;
+		return clampViewportToBounds({ x: vp.x, y: vp.y, zoom }, bounds, size);
 	};
 
 	ctx.store.setViewportConstraint(constrain);
 
 	// Re-commit the current viewport so it snaps when the config (mode / columns /
-	// cell / origin) changes or the canvas resizes.
-	const reapply = () => ctx.store.setViewport(ctx.store.getViewport());
+	// cell / origin) changes or the canvas resizes. Capture the frozen zoom for
+	// `both` on the way in; release it otherwise.
+	const reapply = () => {
+		const mode = viewportLockOf(ctx.store);
+		lockedZoom = mode === "both" ? (lockedZoom ?? ctx.store.getViewport().zoom) : null;
+		ctx.store.setViewport(ctx.store.getViewport());
+	};
 	const offMutation = ctx.store.onMutation((event) => {
 		if (event.type === "shape:updated" && isDashboardConfig(event.payload.after)) reapply();
 	});

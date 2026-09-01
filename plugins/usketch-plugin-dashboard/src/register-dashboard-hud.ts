@@ -35,7 +35,7 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 				options: [
 					{ value: "off", label: "なし" },
 					{ value: "vertical", label: "縦のみ(幅フィット)" },
-					{ value: "both", label: "縦横(幅フィット)" },
+					{ value: "both", label: "縦横(ズーム固定)" },
 				],
 			},
 		],
