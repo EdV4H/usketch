@@ -13,13 +13,23 @@ import { getDashboardConfig, gridSpecFromConfig, viewportLockOf } from "./config
 import { isDashboardConfig } from "./dashboard-config-shape.js";
 import type { GridSpec } from "./grid.js";
 
-/** Measure the canvas container in CSS pixels, or null when unavailable. */
+/** Measure the canvas area in CSS pixels, or null when unavailable. Prefers the
+ *  largest `canvas-container` (a minimap tags one too); falls back to the window. */
 function canvasSize(): { width: number; height: number } | null {
-	if (typeof document === "undefined") return null;
-	const el = document.querySelector('[data-testid="canvas-container"]');
-	if (!el) return null;
-	const r = el.getBoundingClientRect();
-	return r.width > 0 && r.height > 0 ? { width: r.width, height: r.height } : null;
+	if (typeof document !== "undefined") {
+		let best: { width: number; height: number } | null = null;
+		for (const el of document.querySelectorAll('[data-testid="canvas-container"]')) {
+			const r = el.getBoundingClientRect();
+			if (r.width > 0 && r.height > 0 && (!best || r.width * r.height > best.width * best.height)) {
+				best = { width: r.width, height: r.height };
+			}
+		}
+		if (best) return best;
+	}
+	if (typeof window !== "undefined" && window.innerWidth > 0) {
+		return { width: window.innerWidth, height: window.innerHeight };
+	}
+	return null;
 }
 
 /** The grid's total width in world units (padding + columns + gaps). */
