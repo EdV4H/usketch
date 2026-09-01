@@ -14,7 +14,15 @@ import type { BoardStore, Command, PluginContext, ShapeData } from "@edv4h/usket
 import { fitToGridOf, getDashboardConfig, gridSpecFromConfig, modeOf } from "./config-ops.js";
 import { setDragTarget } from "./drag-target-store.js";
 import type { GridSpec, ItemSize, PlacedBox, Placement } from "./grid.js";
-import { fitSize, packAbsolute, packSpans, spanOf, targetIndexFromPoint } from "./grid.js";
+import {
+	cellOfPoint,
+	cellXY,
+	fitSize,
+	packAbsolute,
+	packSpans,
+	spanOf,
+	targetIndexFromPoint,
+} from "./grid.js";
 import { dashboardItems, isDashboardItem } from "./items.js";
 import { readingOrder } from "./order.js";
 
@@ -148,6 +156,8 @@ export function setupDashboard(ctx: PluginContext): () => void {
 	// The shape currently under the pointer (never repositioned mid-drag), and its
 	// latest centre (used to derive the live drop index).
 	let draggingId: string | null = null;
+	// The item being resized (fit-to-grid): snapped to a whole-cell size on settle.
+	let resizingId: string | null = null;
 	let pendingPoint: { x: number; y: number } = { x: 0, y: 0 };
 	let frame: number | null = null;
 	// Drop is committed when the drag's `shape:updated` stream goes quiet for this
@@ -160,10 +170,17 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		if (settleTimer !== null) clearTimeout(settleTimer);
 		settleTimer = globalThis.setTimeout(() => {
 			settleTimer = null;
-			// A reorder in progress commits; otherwise this was a resize settling —
-			// re-lay out so a now-bigger/smaller item's span change is reflected.
-			if (draggingId !== null) endDrag();
-			else repackBoard(ctx);
+			if (draggingId !== null) {
+				endDrag();
+			} else if (resizingId !== null) {
+				// Resize settled: snap the size to whole cells + re-lay out, then clear.
+				const id = resizingId;
+				resizingId = null;
+				setDragTarget(null);
+				commitResizeToGrid(id);
+			} else {
+				repackBoard(ctx);
+			}
 		}, SETTLE_MS);
 	}
 	function clearSettle(): void {
@@ -215,6 +232,71 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			width: span.cols * spec.cellW + (span.cols - 1) * spec.gap,
 			height: span.rows * spec.cellH + (span.rows - 1) * spec.gap,
 		});
+	}
+
+	/** During a resize, highlight the whole-cell footprint the item will snap to
+	 *  (positioned at the cell nearest its current top-left). */
+	function highlightResizeTarget(spec: GridSpec, shape: ShapeData): void {
+		const fit = fitSize(shape.width, shape.height, spec);
+		const span = spanOf(fit.width, fit.height, spec);
+		const cols = Math.max(1, Math.floor(spec.columns));
+		const cell = cellOfPoint(shape.x, shape.y, spec);
+		const col = Math.min(Math.max(0, cell.col), Math.max(0, cols - span.cols));
+		const tl = cellXY(col, Math.max(0, cell.row), spec);
+		setDragTarget({ x: tl.x, y: tl.y, width: fit.width, height: fit.height });
+	}
+
+	/** Snap a resized item to whole-cell size and re-lay out the board, as one
+	 *  undoable command. */
+	function commitResizeToGrid(id: string): void {
+		const spec = specOf(ctx.store);
+		if (!spec) return;
+		const shape = ctx.store.getShape(id);
+		if (!shape) return;
+		const fit = fitSize(shape.width, shape.height, spec);
+		const items = dashboardItems(ctx.store);
+		const shapes = readingOrder(items, spec)
+			.map((iid) => ctx.store.getShape(iid))
+			.filter((s): s is ShapeData => s !== undefined);
+		const sizeFor = (s: ShapeData) =>
+			s.id === id ? { width: fit.width, height: fit.height } : { width: s.width, height: s.height };
+		const placements =
+			modeOf(ctx.store) === "absolute"
+				? packAbsolute(
+						shapes.map((s) => ({ id: s.id, x: s.x, y: s.y, ...sizeFor(s) })),
+						spec,
+					)
+				: packSpans(
+						shapes.map((s) => ({ id: s.id, ...sizeFor(s) })),
+						spec,
+					);
+
+		const oldSize = { width: shape.width, height: shape.height };
+		const oldPos = new Map(items.map((s) => [s.id, { x: s.x, y: s.y }]));
+		const willChange =
+			fit.width !== shape.width ||
+			fit.height !== shape.height ||
+			placements.some((p) => {
+				const s = ctx.store.getShape(p.id);
+				return s !== undefined && (s.x !== p.x || s.y !== p.y);
+			});
+		if (!willChange) return;
+
+		const command: Command = {
+			execute() {
+				runGuarded(() => {
+					ctx.store.updateShape(id, fit);
+					for (const p of placements) ctx.store.updateShape(p.id, { x: p.x, y: p.y });
+				});
+			},
+			undo() {
+				runGuarded(() => {
+					ctx.store.updateShape(id, oldSize);
+					for (const [iid, pos] of oldPos) ctx.store.updateShape(iid, pos);
+				});
+			},
+		};
+		ctx.commands.execute(command);
 	}
 
 	function reflowDuringDrag(): void {
@@ -278,6 +360,7 @@ export function setupDashboard(ctx: PluginContext): () => void {
 	function endDrag(): void {
 		clearSettle();
 		setDragTarget(null); // clear the drop-target highlight
+		resizingId = null;
 		if (frame !== null) {
 			cancelFrame(frame);
 			frame = null;
@@ -342,19 +425,19 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			if (selection.size !== 1 || !selection.has(after.id)) return;
 			const sizeChanged = !before || before.width !== after.width || before.height !== after.height;
 			if (sizeChanged) {
-				// A RESIZE, not a reorder. With "fit to grid" on, snap the size to the
-				// nearest whole-cell span, then re-lay out once the resize settles.
+				// A RESIZE, not a reorder. Let it move at its ACTUAL size (no live
+				// write); with "fit to grid" on, show the cell footprint it'll snap to
+				// and apply the snap when the resize settles (like move → drop).
 				if (fitToGridOf(ctx.store)) {
-					const fit = fitSize(after.width, after.height, spec);
-					if (fit.width !== after.width || fit.height !== after.height) {
-						runGuarded(() => ctx.store.updateShape(after.id, fit));
-					}
-					armSettle();
+					resizingId = after.id;
+					highlightResizeTarget(spec, after);
 				}
+				armSettle();
 				return;
 			}
 			if (before && before.x === after.x && before.y === after.y) return;
 			if (draggingId === null && before) captureBefore(before); // first frame → snapshot
+			resizingId = null; // a move, not a resize
 			draggingId = after.id;
 			pendingPoint = centerOf(after);
 			scheduleReflow();
