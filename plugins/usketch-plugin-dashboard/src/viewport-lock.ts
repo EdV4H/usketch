@@ -10,10 +10,12 @@
 // constraint reads live config + a DOM-measured canvas size each call, so config
 // and resize changes take effect on the next commit; we re-commit explicitly so
 // they snap immediately.
-import type { PluginContext, Viewport } from "@edv4h/usketch-shared";
+import type { BoardStore, BoundingBox, PluginContext, Viewport } from "@edv4h/usketch-shared";
+import { clampViewportToBounds } from "@edv4h/usketch-store";
 import { getDashboardConfig, gridSpecFromConfig, viewportLockOf } from "./config-ops.js";
 import { isDashboardConfig } from "./dashboard-config-shape.js";
 import type { GridSpec } from "./grid.js";
+import { allDashboardItems } from "./items.js";
 
 /** Measure the canvas area in CSS pixels, or null when unavailable. Prefers the
  *  largest `canvas-container` (a minimap tags one too); falls back to the window. */
@@ -40,6 +42,24 @@ function gridWidthWorld(spec: GridSpec): number {
 	return 2 * spec.padding + cols * spec.cellW + (cols - 1) * spec.gap;
 }
 
+/** The scrollable content rectangle in world units: the grid origin (top-left) out
+ *  to the far edges of all shapes (so you can't scroll into the empty space above /
+ *  left of the grid, and stop at the right / bottom of the content). */
+function contentBounds(store: BoardStore, spec: GridSpec): BoundingBox {
+	let right = spec.originX + gridWidthWorld(spec); // at least the grid's own width
+	let bottom = spec.originY + 2 * spec.padding + spec.cellH; // at least one row tall
+	for (const s of allDashboardItems(store)) {
+		if (s.x + s.width > right) right = s.x + s.width;
+		if (s.y + s.height > bottom) bottom = s.y + s.height;
+	}
+	return {
+		x: spec.originX,
+		y: spec.originY,
+		width: right + spec.padding - spec.originX,
+		height: bottom + spec.padding - spec.originY,
+	};
+}
+
 /** Wire the viewport constraint. Returns a teardown. */
 export function setupViewportLock(ctx: PluginContext): () => void {
 	const constrain = (vp: Viewport): Viewport => {
@@ -54,12 +74,17 @@ export function setupViewportLock(ctx: PluginContext): () => void {
 		if (width <= 0) return vp;
 		const fitZoom = size.width / width; // fit grid width to the screen
 		if (!Number.isFinite(fitZoom) || fitZoom <= 0) return vp;
-		const alignedX = -spec.originX * fitZoom; // grid left edge at screen x=0
-		return {
-			x: mode === "vertical" ? alignedX : vp.x, // `both` leaves horizontal free
-			y: vp.y, // vertical scroll always free
-			zoom: fitZoom, // zoom always locked to fit-width
-		};
+		const zoom = fitZoom; // zoom always locked to fit-width
+		const alignedX = -spec.originX * zoom; // grid left edge at screen x=0
+		// Fit-width + zoom-lock, then clamp panning to the content (reusing the core
+		// bounds helper): no scrolling into the empty space above/left of the grid;
+		// stops at the right/bottom of the shapes.
+		const xWanted = mode === "vertical" ? alignedX : vp.x; // `both` leaves x free
+		return clampViewportToBounds(
+			{ x: xWanted, y: vp.y, zoom },
+			contentBounds(ctx.store, spec),
+			size,
+		);
 	};
 
 	ctx.store.setViewportConstraint(constrain);

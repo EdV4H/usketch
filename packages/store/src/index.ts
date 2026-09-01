@@ -49,3 +49,4 @@ export {
 } from "./hierarchy-utils.js";
 export type { SpatialIndex } from "./spatial-index.js";
 export { createSpatialIndex } from "./spatial-index.js";
+export { boundsConstraint, clampViewportToBounds } from "./viewport-constraints.js";
