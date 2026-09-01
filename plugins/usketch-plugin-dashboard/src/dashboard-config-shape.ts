@@ -14,6 +14,13 @@ import { generateId } from "@edv4h/usketch-shared";
 
 export const DASHBOARD_CONFIG_TYPE = "dashboard-config";
 
+/**
+ * Placement mode:
+ * - `flow` — items pack compactly in reading order (sortable; no gaps).
+ * - `absolute` — each item stays in the cell it's dropped on (gaps allowed).
+ */
+export type DashboardMode = "flow" | "absolute";
+
 /** Grid settings persisted on the singleton. Geometry (`originX`/`originY`) lives
  *  here too so the grid anchor is stable across reflows and reloads. */
 export interface DashboardConfigData extends ShapeData {
@@ -25,6 +32,7 @@ export interface DashboardConfigData extends ShapeData {
 	padding: number;
 	originX: number;
 	originY: number;
+	mode: DashboardMode;
 }
 
 export interface DashboardDefaults {
@@ -35,6 +43,7 @@ export interface DashboardDefaults {
 	padding?: number;
 	originX?: number;
 	originY?: number;
+	mode?: DashboardMode;
 }
 
 export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
@@ -45,6 +54,7 @@ export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
 	padding: 24,
 	originX: 0,
 	originY: 0,
+	mode: "flow",
 };
 
 export function isDashboardConfig(shape: ShapeData): shape is DashboardConfigData {
@@ -68,6 +78,7 @@ export function makeDashboardConfig(defaults: DashboardDefaults = {}): Dashboard
 		padding: d.padding,
 		originX: d.originX,
 		originY: d.originY,
+		mode: d.mode,
 		locked: true,
 	};
 }

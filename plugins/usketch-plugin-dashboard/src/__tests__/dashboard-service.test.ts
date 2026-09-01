@@ -155,6 +155,32 @@ describe("DashboardApi input hardening", () => {
 	});
 });
 
+describe("DashboardApi mode", () => {
+	it("既定は flow、setMode で absolute に切り替わる（getMode に反映）", () => {
+		const { ctx, store } = makeCtx();
+		store.addShape(rect("a", 0, 0));
+		const api = createDashboardApi(ctx);
+		api.enable();
+		expect(api.getMode()).toBe("flow");
+		api.setMode("absolute");
+		expect(api.getMode()).toBe("absolute");
+	});
+
+	it("absolute では離れたセルに置いても手前へ詰めない（隙間を保持）", () => {
+		const { ctx, store } = makeCtx();
+		store.addShape(rect("a", 0, 0, 100, 100));
+		store.addShape(rect("b", 0, 0, 100, 100));
+		const api = createDashboardApi(ctx, { columns: 4, cellW: 100, cellH: 100, gap: 0, padding: 0 });
+		api.enable();
+		api.setMode("absolute");
+		// b を cell(3,0) 相当へ移動してから repack → 詰めずにそのセルに留まる
+		store.updateShape("b", { x: 300, y: 0 });
+		api.repack();
+		expect(pos(store, "a")).toEqual({ x: 0, y: 0 }); // cell0
+		expect(pos(store, "b")).toEqual({ x: 300, y: 0 }); // cell3（col1,2 は空き）
+	});
+});
+
 describe("DashboardApi disable", () => {
 	it("disable で config を除去し、ボードは非ダッシュボードに戻る", () => {
 		const { ctx, store } = makeCtx();

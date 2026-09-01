@@ -5,6 +5,7 @@ import {
 	type GridSpec,
 	type ItemSize,
 	type PlacedBox,
+	packAbsolute,
 	packSpans,
 	spanOf,
 	targetIndexFromPoint,
@@ -99,6 +100,31 @@ describe("packSpans", () => {
 		expect(at("C")).toMatchObject({ x: 240, y: 20 }); // row0 col2
 		// A が (row1,col0) を占有しているので、その位置には誰も来ない
 		expect(out.every((p) => !(p.id !== "A" && p.x === 20 && p.y === 110))).toBe(true);
+	});
+});
+
+describe("packAbsolute", () => {
+	const box = (id: string, x: number, y: number, width = 100, height = 80): PlacedBox => ({
+		id,
+		x,
+		y,
+		width,
+		height,
+	});
+
+	it("各アイテムを自分の位置に最も近いセルへスナップし、隙間は保持する", () => {
+		// A は cell(0,0) 付近、B は cell(2,0) 付近（col1 は空きのまま）
+		const out = packAbsolute([box("A", 25, 22), box("B", 250, 22)], spec);
+		expect(out).toEqual([
+			{ id: "A", x: 20, y: 20 }, // cell(0,0)
+			{ id: "B", x: 240, y: 20 }, // cell(2,0) — col1 は空き（詰めない）
+		]);
+	});
+
+	it("同じセルを望むと先着優先、後発は前方の空きセルへ", () => {
+		const out = packAbsolute([box("A", 25, 22), box("C", 25, 22)], spec);
+		expect(out.find((p) => p.id === "A")).toEqual({ id: "A", x: 20, y: 20 }); // cell(0,0)
+		expect(out.find((p) => p.id === "C")).toEqual({ id: "C", x: 130, y: 20 }); // cell(1,0)
 	});
 });
 

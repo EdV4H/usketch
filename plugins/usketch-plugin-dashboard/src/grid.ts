@@ -92,6 +92,65 @@ export function spanOf(width: number, height: number, spec: GridSpec): Span {
 	};
 }
 
+/** Nearest cell (col/row) a world top-left point rounds to. */
+export function cellOfPoint(x: number, y: number, spec: GridSpec): { col: number; row: number } {
+	const stepX = spec.cellW + spec.gap;
+	const stepY = spec.cellH + spec.gap;
+	return {
+		col: stepX > 0 ? Math.round((x - spec.originX - spec.padding) / stepX) : 0,
+		row: stepY > 0 ? Math.round((y - spec.originY - spec.padding) / stepY) : 0,
+	};
+}
+
+/**
+ * ABSOLUTE placement: each item is snapped to the cell nearest its OWN position
+ * (gaps are preserved — items don't compact). Items are processed in the given
+ * order; if an item's desired footprint is already taken, it takes the next free
+ * one scanning forward (row-major), so earlier items in `items` win a contested
+ * cell. Returns each item's top-left in the SAME order as `items`.
+ */
+export function packAbsolute(items: readonly PlacedBox[], spec: GridSpec): Placement[] {
+	const cols = colsOf(spec);
+	const occupied = new Set<string>();
+	const key = (r: number, c: number) => `${r},${c}`;
+	const fits = (r: number, c: number, sr: number, sc: number): boolean => {
+		if (r < 0 || c < 0 || c + sc > cols) return false;
+		for (let dr = 0; dr < sr; dr++) {
+			for (let dc = 0; dc < sc; dc++) {
+				if (occupied.has(key(r + dr, c + dc))) return false;
+			}
+		}
+		return true;
+	};
+	const mark = (r: number, c: number, sr: number, sc: number): void => {
+		for (let dr = 0; dr < sr; dr++) {
+			for (let dc = 0; dc < sc; dc++) occupied.add(key(r + dr, c + dc));
+		}
+	};
+
+	const out: Placement[] = [];
+	for (const item of items) {
+		const span = spanOf(item.width, item.height, spec);
+		const sc = span.cols;
+		const sr = span.rows;
+		const desired = cellOfPoint(item.x, item.y, spec);
+		let r = Math.max(0, desired.row);
+		let c = clamp(desired.col, 0, cols - sc);
+		while (true) {
+			if (c + sc > cols) {
+				c = 0;
+				r++;
+				continue;
+			}
+			if (fits(r, c, sr, sc)) break;
+			c++;
+		}
+		mark(r, c, sr, sc);
+		out.push({ id: item.id, ...cellXY(c, r, spec) });
+	}
+	return out;
+}
+
 /** A placed item with its footprint, used to compute a drop index. */
 export interface PlacedBox {
 	id: string;

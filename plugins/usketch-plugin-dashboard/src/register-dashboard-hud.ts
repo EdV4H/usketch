@@ -12,6 +12,15 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 		label: "ダッシュボード",
 		order: 10,
 		fields: [
+			{
+				name: "mode",
+				label: "配置",
+				type: "enum",
+				options: [
+					{ value: "flow", label: "詰める(sortable)" },
+					{ value: "absolute", label: "そのまま(自由)" },
+				],
+			},
 			{ name: "columns", label: "列数", type: "number", min: 1, max: 12, step: 1 },
 			{ name: "cellWidth", label: "セル幅", type: "number", min: 40, max: 800, step: 10 },
 			{ name: "cellHeight", label: "セル高", type: "number", min: 40, max: 800, step: 10 },
@@ -19,6 +28,7 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			{ name: "padding", label: "余白", type: "number", min: 0, max: 200, step: 4 },
 		],
 		get(name) {
+			if (name === "mode") return api.getMode();
 			const spec = api.getGridSpec();
 			if (!spec) return undefined;
 			switch (name) {
@@ -37,6 +47,10 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			}
 		},
 		set(name, value) {
+			if (name === "mode") {
+				if (value === "flow" || value === "absolute") api.setMode(value);
+				return;
+			}
 			const n = Number(value);
 			if (!Number.isFinite(n)) return;
 			const spec = api.getGridSpec();

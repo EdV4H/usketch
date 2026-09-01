@@ -6,6 +6,7 @@ import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import {
 	type DashboardConfigData,
 	type DashboardDefaults,
+	type DashboardMode,
 	isDashboardConfig,
 	makeDashboardConfig,
 } from "./dashboard-config-shape.js";
@@ -15,9 +16,14 @@ import type { GridSpec } from "./grid.js";
 export type DashboardConfigPatch = Partial<
 	Pick<
 		DashboardConfigData,
-		"columns" | "cellW" | "cellH" | "gap" | "padding" | "originX" | "originY"
+		"columns" | "cellW" | "cellH" | "gap" | "padding" | "originX" | "originY" | "mode"
 	>
 >;
+
+/** The board's placement mode (defaults to `flow` when not a dashboard/unset). */
+export function modeOf(store: BoardStore): DashboardMode {
+	return getDashboardConfig(store)?.mode ?? "flow";
+}
 
 /**
  * The board's config singleton, or `undefined` if this board isn't a dashboard.

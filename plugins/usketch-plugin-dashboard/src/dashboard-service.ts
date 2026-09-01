@@ -16,12 +16,17 @@ import {
 	getAllDashboardConfigs,
 	getDashboardConfig,
 	gridSpecFromConfig,
+	modeOf,
 	setConfig,
 } from "./config-ops.js";
-import { type DashboardDefaults, isDashboardConfig } from "./dashboard-config-shape.js";
-import { repackBoard } from "./dashboard-runtime.js";
+import {
+	type DashboardDefaults,
+	type DashboardMode,
+	isDashboardConfig,
+} from "./dashboard-config-shape.js";
+import { repackBoard, runGuarded } from "./dashboard-runtime.js";
 import type { GridSpec } from "./grid.js";
-import { packSpans } from "./grid.js";
+import { packAbsolute, packSpans } from "./grid.js";
 import { dashboardItems } from "./items.js";
 import { readingOrder } from "./order.js";
 
@@ -39,6 +44,10 @@ export interface DashboardApi {
 	disable(): void;
 	/** The board's live grid spec, or `null` when it isn't a dashboard. */
 	getGridSpec(): GridSpec | null;
+	/** The placement mode: `flow` (compact/sortable) or `absolute` (drop-in-place). */
+	getMode(): DashboardMode;
+	/** Switch placement mode (undoable; re-lays out under the new mode). */
+	setMode(mode: DashboardMode): void;
 	/** Re-snap every item to its reading-order cell (one undoable command). */
 	repack(): void;
 	/** Set the column count (undoable; relayouts items). */
@@ -67,19 +76,31 @@ function applyConfig(ctx: PluginContext, patch: DashboardConfigPatch): void {
 
 	const before: DashboardConfigPatch = {};
 	for (const key of Object.keys(patch) as (keyof DashboardConfigPatch)[]) {
-		before[key] = config[key];
+		Object.assign(before, { [key]: config[key] });
 	}
 
 	const oldSpec = gridSpecFromConfig(config);
 	const newSpec = gridSpecFromConfig({ ...config, ...patch });
+	const newMode = patch.mode ?? config.mode;
 	const order = readingOrder(dashboardItems(ctx.store), oldSpec);
-	const sized = order
-		.map((id) => {
-			const s = ctx.store.getShape(id);
-			return s ? { id, width: s.width, height: s.height } : null;
-		})
-		.filter((v): v is { id: string; width: number; height: number } => v !== null);
-	const placements = packSpans(sized, newSpec);
+	// Re-lay out under the NEW spec+mode: flow compacts in reading order; absolute
+	// snaps each item to the cell nearest its current position (gaps preserved).
+	const placements =
+		newMode === "absolute"
+			? packAbsolute(
+					order
+						.map((id) => ctx.store.getShape(id))
+						.filter((s): s is ShapeData => s !== undefined)
+						.map((s) => ({ id: s.id, x: s.x, y: s.y, width: s.width, height: s.height })),
+					newSpec,
+				)
+			: packSpans(
+					order
+						.map((id) => ctx.store.getShape(id))
+						.filter((s): s is ShapeData => s !== undefined)
+						.map((s) => ({ id: s.id, width: s.width, height: s.height })),
+					newSpec,
+				);
 	const moves = placements
 		.map((p) => {
 			const cur = ctx.store.getShape(p.id);
@@ -87,14 +108,20 @@ function applyConfig(ctx: PluginContext, patch: DashboardConfigPatch): void {
 		})
 		.filter((m): m is NonNullable<typeof m> => m !== null);
 
+	// Guard both directions so the item moves aren't mistaken for a user drag by
+	// the reflow runtime (the config write itself isn't an item, so it's ignored).
 	const command: Command = {
 		execute() {
-			ctx.store.updateShape(config.id, patch as Partial<ShapeData>);
-			for (const m of moves) ctx.store.updateShape(m.id, m.to);
+			runGuarded(() => {
+				ctx.store.updateShape(config.id, patch as Partial<ShapeData>);
+				for (const m of moves) ctx.store.updateShape(m.id, m.to);
+			});
 		},
 		undo() {
-			ctx.store.updateShape(config.id, before as Partial<ShapeData>);
-			for (const m of moves) ctx.store.updateShape(m.id, m.from);
+			runGuarded(() => {
+				ctx.store.updateShape(config.id, before as Partial<ShapeData>);
+				for (const m of moves) ctx.store.updateShape(m.id, m.from);
+			});
 		},
 	};
 	ctx.commands.execute(command);
@@ -151,6 +178,10 @@ export function createDashboardApi(
 		getGridSpec: () => {
 			const config = getDashboardConfig(ctx.store);
 			return config ? gridSpecFromConfig(config) : null;
+		},
+		getMode: () => modeOf(ctx.store),
+		setMode: (mode) => {
+			if (mode === "flow" || mode === "absolute") applyConfig(ctx, { mode });
 		},
 		repack: () => repackBoard(ctx),
 		// Ignore non-finite inputs (NaN/±Infinity) so a bad host call can't persist

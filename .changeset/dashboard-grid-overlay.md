@@ -2,16 +2,17 @@
 "@edv4h/usketch-plugin-dashboard": minor
 ---
 
-feat(dashboard): セルまたぎ（span）配置・グリッド領域オーバーレイ・enable 時の原点シード
+feat(dashboard): span 配置 / flow・absolute 切替 / グリッド領域オーバーレイ / ドラッグ確定の改善
 
-- **アイテムサイズを span で扱う**: 各アイテムは自身の width/height に応じて整数セル分
-  （`cols × rows`）を占有し、大きいものは複数セルをまたぐ（実ダッシュボードのタイルと同じ）。
-  後続は first-fit / 非 dense でその周りに流し込む。従来は 1 アイテム＝1 セル固定でサイズが
-  自由なため、はみ出しや隙間が発生していた。`packSpans` / `spanOf` / `cellXY` /
-  `targetIndexFromPoint` を追加し、`packGrid` / `packGridWithGap` / `indexFromPoint` を置換。
-- **グリッド領域オーバーレイ**: 配置先セルを描画するレイヤーを追加。どこにアイテムが
-  スナップされるか一目で分かる。HUD「グリッド表示」でトグル、非ダッシュボードボードでは
-  自動非表示。描画のみ（同期なし）の Layer として実装。
-- **enable 時の原点シード**: グリッド原点を既存アイテムの左上（min x/y − padding）へ
-  シードするように。原点が world (0,0) 固定だったため、離れた場所で作業していると「整列」で
-  アイテムが画面外へ飛び発火していないように見えることがあった。初回 enable のみシード。
+- **アイテムをセルまたぎ（span）で配置**: 各アイテムが自身の width/height に応じて整数セル分を
+  占有（大きいものは複数セル）。`packSpans` / `spanOf` / `cellXY` / `targetIndexFromPoint` を追加。
+- **配置モードの切替（flow / absolute）**: `flow` は詰めて並べ替え（sortable）、`absolute` は
+  落としたセルにそのまま置き隙間を保持。`packAbsolute` / `cellOfPoint` を追加し、config の `mode`
+  で切替（HUD「配置」プルダウン / `DashboardApi.getMode`・`setMode`）。
+- **グリッド領域オーバーレイ**＋**ドロップ先セルのハイライト**: 配置先が空きスペースでも一目で
+  分かる。HUD「グリッド表示」でトグル、非ダッシュボードでは自動非表示。
+- **enable 時に原点＋セルを既存アイテムからシード**: 原点をアイテム左上、セルを最小アイテムに
+  合わせる（従来はセルが大きすぎて span も整列も見えないことがあった）。
+- **ドラッグ確定を event 駆動に修正**: `canvas:pointerdown/up` に依存せず `shape:updated` /
+  `shapes:move-end`＋セトル方式で駆動（シェイプ drag では pointer イベントが届かず、確定が
+  選択解除まで遅延していた問題を解消）。自分の書き込みは専用ガードで除外。

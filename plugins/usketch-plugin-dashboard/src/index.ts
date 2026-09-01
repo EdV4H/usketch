@@ -3,6 +3,7 @@ export {
 	ensureDashboardConfig,
 	getDashboardConfig,
 	gridSpecFromConfig,
+	modeOf,
 	setConfig,
 } from "./config-ops.js";
 export {
@@ -10,6 +11,7 @@ export {
 	DASHBOARD_DEFAULTS,
 	type DashboardConfigData,
 	type DashboardDefaults,
+	type DashboardMode,
 	isDashboardConfig,
 	makeDashboardConfig,
 } from "./dashboard-config-shape.js";
@@ -22,12 +24,14 @@ export {
 	getDashboardApi,
 } from "./dashboard-service.js";
 export {
+	cellOfPoint,
 	cellTopLeft,
 	cellXY,
 	type GridSpec,
 	type ItemSize,
 	type PlacedBox,
 	type Placement,
+	packAbsolute,
 	packSpans,
 	type Span,
 	spanOf,
