@@ -28,11 +28,22 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			{ name: "padding", label: "余白", type: "number", min: 0, max: 200, step: 4 },
 			{ name: "fitToGrid", label: "セルに合わせる", type: "boolean" },
 			{ name: "freeOutOfRange", label: "範囲外は自由", type: "boolean" },
+			{
+				name: "viewportLock",
+				label: "スクロール制限",
+				type: "enum",
+				options: [
+					{ value: "off", label: "なし" },
+					{ value: "vertical", label: "縦のみ(幅フィット)" },
+					{ value: "both", label: "縦横(幅フィット)" },
+				],
+			},
 		],
 		get(name) {
 			if (name === "mode") return api.getMode();
 			if (name === "fitToGrid") return api.getFitToGrid();
 			if (name === "freeOutOfRange") return api.getFreeOutOfRange();
+			if (name === "viewportLock") return api.getViewportLock();
 			const spec = api.getGridSpec();
 			if (!spec) return undefined;
 			switch (name) {
@@ -61,6 +72,10 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			}
 			if (name === "freeOutOfRange") {
 				api.setFreeOutOfRange(value === true || value === "true");
+				return;
+			}
+			if (name === "viewportLock") {
+				if (value === "off" || value === "vertical" || value === "both") api.setViewportLock(value);
 				return;
 			}
 			const n = Number(value);

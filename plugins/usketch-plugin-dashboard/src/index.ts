@@ -7,6 +7,7 @@ export {
 	gridSpecFromConfig,
 	modeOf,
 	setConfig,
+	viewportLockOf,
 } from "./config-ops.js";
 export {
 	DASHBOARD_CONFIG_TYPE,
@@ -16,6 +17,7 @@ export {
 	type DashboardMode,
 	isDashboardConfig,
 	makeDashboardConfig,
+	type ViewportLock,
 } from "./dashboard-config-shape.js";
 export { createDashboardConfigShapeDefinition } from "./dashboard-config-shape-def.js";
 export { repackBoard, setupDashboard } from "./dashboard-runtime.js";
@@ -56,3 +58,4 @@ export {
 export { readingOrder } from "./order.js";
 export { createDashboardPlugin, type DashboardPluginOptions } from "./plugin.js";
 export { registerDashboardHud } from "./register-dashboard-hud.js";
+export { setupViewportLock } from "./viewport-lock.js";

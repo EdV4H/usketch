@@ -12,6 +12,7 @@ import { repackBoard, setupDashboard } from "./dashboard-runtime.js";
 import { createDashboardApi, dashboardService } from "./dashboard-service.js";
 import { gridOverlayLayer, resetGridOverlayVisible } from "./grid-overlay.js";
 import { registerDashboardHud } from "./register-dashboard-hud.js";
+import { setupViewportLock } from "./viewport-lock.js";
 
 export interface DashboardPluginOptions extends DashboardDefaults {
 	/**
@@ -59,6 +60,7 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 			}
 
 			const stopRuntime = setupDashboard(ctx);
+			const stopViewportLock = setupViewportLock(ctx);
 			const stopHud = registerDashboardHud(ctx, api);
 			// Provide the service LAST: `createApp` can only roll back a failed setup
 			// via the teardown we return, so if an earlier step throws the service was
@@ -70,6 +72,7 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 				unprovideService();
 				stopHud();
 				stopRuntime();
+				stopViewportLock();
 				ctx.layers.unregister(gridOverlayLayer.id);
 			};
 		},

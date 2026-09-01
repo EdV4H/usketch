@@ -20,11 +20,13 @@ import {
 	gridSpecFromConfig,
 	modeOf,
 	setConfig,
+	viewportLockOf,
 } from "./config-ops.js";
 import {
 	type DashboardDefaults,
 	type DashboardMode,
 	isDashboardConfig,
+	type ViewportLock,
 } from "./dashboard-config-shape.js";
 import { repackBoard, runGuarded } from "./dashboard-runtime.js";
 import type { GridSpec } from "./grid.js";
@@ -59,6 +61,10 @@ export interface DashboardApi {
 	getFreeOutOfRange(): boolean;
 	/** Toggle it. Turning it OFF gathers every shape back into the grid. */
 	setFreeOutOfRange(on: boolean): void;
+	/** The viewport constraint mode. */
+	getViewportLock(): ViewportLock;
+	/** Set the viewport constraint (`off` / `vertical` / `both`). */
+	setViewportLock(lock: ViewportLock): void;
 	/** Re-snap every item to its reading-order cell (one undoable command). */
 	repack(): void;
 	/** Set the column count (undoable; relayouts items). */
@@ -275,6 +281,12 @@ export function createDashboardApi(
 			};
 			ctx.commands.execute(command);
 			if (!on) repackBoard(ctx, true); // range now unlimited → gather everything
+		},
+		getViewportLock: () => viewportLockOf(ctx.store),
+		setViewportLock: (lock) => {
+			if (lock === "off" || lock === "vertical" || lock === "both") {
+				setConfig(ctx.store, { viewportLock: lock });
+			}
 		},
 		repack: () => repackBoard(ctx, true),
 		// Ignore non-finite inputs (NaN/±Infinity) so a bad host call can't persist

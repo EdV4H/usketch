@@ -9,6 +9,7 @@ import {
 	type DashboardMode,
 	isDashboardConfig,
 	makeDashboardConfig,
+	type ViewportLock,
 } from "./dashboard-config-shape.js";
 import type { GridSpec } from "./grid.js";
 
@@ -26,6 +27,7 @@ export type DashboardConfigPatch = Partial<
 		| "mode"
 		| "fitToGrid"
 		| "freeOutOfRange"
+		| "viewportLock"
 	>
 >;
 
@@ -42,6 +44,11 @@ export function fitToGridOf(store: BoardStore): boolean {
 /** Whether out-of-range shapes are left free (defaults to `true`). */
 export function freeOutOfRangeOf(store: BoardStore): boolean {
 	return getDashboardConfig(store)?.freeOutOfRange ?? true;
+}
+
+/** The viewport constraint mode (defaults to `off`). */
+export function viewportLockOf(store: BoardStore): ViewportLock {
+	return getDashboardConfig(store)?.viewportLock ?? "off";
 }
 
 /**
