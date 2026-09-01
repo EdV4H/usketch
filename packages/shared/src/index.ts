@@ -67,6 +67,7 @@ export type {
 	UsketchPlugin,
 	ViewportAnimationConfig,
 	ViewportAnimationOptions,
+	ViewportConstraint,
 } from "./types/plugin.js";
 // Shape
 export type { ResizeHandle, ShapeData, ShapeStyle } from "./types/shape.js";

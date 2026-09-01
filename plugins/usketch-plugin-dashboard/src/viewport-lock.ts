@@ -4,11 +4,13 @@
 //   - `both` — fit the grid width + lock zoom, but allow panning both axes.
 //   - `off` — no constraint.
 //
-// It clamps reactively: on every `viewport:changed` it re-applies the constraint
-// (so a user pan/zoom that violates it snaps back). Its own `setViewport` is
-// guarded so it can't loop. The canvas pixel size is measured from the DOM (the
-// canvas engine tags its container `data-testid="canvas-container"`).
-import type { BoardStore, PluginContext } from "@edv4h/usketch-shared";
+// It installs a `store.setViewportConstraint`, which the store applies inside its
+// single viewport-commit path — so every pan/zoom is constrained AT COMMIT and the
+// stored viewport can never violate it (no fighting an after-the-fact clamp). The
+// constraint reads live config + a DOM-measured canvas size each call, so config
+// and resize changes take effect on the next commit; we re-commit explicitly so
+// they snap immediately.
+import type { PluginContext, Viewport } from "@edv4h/usketch-shared";
 import { getDashboardConfig, gridSpecFromConfig, viewportLockOf } from "./config-ops.js";
 import { isDashboardConfig } from "./dashboard-config-shape.js";
 import type { GridSpec } from "./grid.js";
@@ -38,76 +40,49 @@ function gridWidthWorld(spec: GridSpec): number {
 	return 2 * spec.padding + cols * spec.cellW + (cols - 1) * spec.gap;
 }
 
-/** Compute the constrained viewport for the current mode, or null when nothing to
- *  constrain (mode off / not a dashboard / canvas unmeasured / bad numbers). */
-function constrained(store: BoardStore): { x: number; y: number; zoom: number } | null {
-	const mode = viewportLockOf(store);
-	if (mode === "off") return null;
-	const config = getDashboardConfig(store);
-	if (!config) return null;
-	const size = canvasSize();
-	if (!size) return null;
-	const spec = gridSpecFromConfig(config);
-	const width = gridWidthWorld(spec);
-	if (width <= 0) return null;
-	const fitZoom = size.width / width;
-	if (!Number.isFinite(fitZoom) || fitZoom <= 0) return null;
-
-	const cur = store.getViewport();
-	// Align the grid's left edge (originX) to screen x=0 for horizontal lock.
-	const alignedX = -spec.originX * fitZoom;
-	return {
-		x: mode === "vertical" ? alignedX : cur.x, // `both` leaves horizontal free
-		y: cur.y, // vertical scroll is always free
-		zoom: fitZoom, // zoom is always locked to fit-width
-	};
-}
-
 /** Wire the viewport constraint. Returns a teardown. */
 export function setupViewportLock(ctx: PluginContext): () => void {
-	let applying = false;
-	function clampNow(): void {
-		if (applying) return;
-		const target = constrained(ctx.store);
-		if (!target) return;
-		const cur = ctx.store.getViewport();
-		if (cur.x === target.x && cur.y === target.y && cur.zoom === target.zoom) return;
-		applying = true;
-		try {
-			ctx.store.setViewport(target);
-		} finally {
-			applying = false;
-		}
-	}
+	const constrain = (vp: Viewport): Viewport => {
+		const mode = viewportLockOf(ctx.store);
+		if (mode === "off") return vp;
+		const config = getDashboardConfig(ctx.store);
+		if (!config) return vp;
+		const size = canvasSize();
+		if (!size) return vp;
+		const spec = gridSpecFromConfig(config);
+		const width = gridWidthWorld(spec);
+		if (width <= 0) return vp;
+		const fitZoom = size.width / width; // fit grid width to the screen
+		if (!Number.isFinite(fitZoom) || fitZoom <= 0) return vp;
+		const alignedX = -spec.originX * fitZoom; // grid left edge at screen x=0
+		return {
+			x: mode === "vertical" ? alignedX : vp.x, // `both` leaves horizontal free
+			y: vp.y, // vertical scroll always free
+			zoom: fitZoom, // zoom always locked to fit-width
+		};
+	};
 
+	ctx.store.setViewportConstraint(constrain);
+
+	// Re-commit the current viewport so it snaps when the config (mode / columns /
+	// cell / origin) changes or the canvas resizes.
+	const reapply = () => ctx.store.setViewport(ctx.store.getViewport());
 	const offMutation = ctx.store.onMutation((event) => {
-		if (event.type === "viewport:changed") {
-			clampNow();
-		} else if (event.type === "shape:updated" && isDashboardConfig(event.payload.after)) {
-			clampNow(); // config (mode / columns / cell / origin) changed → re-fit
-		}
+		if (event.type === "shape:updated" && isDashboardConfig(event.payload.after)) reapply();
 	});
 
-	// Re-fit when the canvas resizes.
 	let resizeObserver: ResizeObserver | null = null;
 	if (typeof document !== "undefined" && typeof ResizeObserver !== "undefined") {
 		const el = document.querySelector('[data-testid="canvas-container"]');
 		if (el) {
-			resizeObserver = new ResizeObserver(() => clampNow());
+			resizeObserver = new ResizeObserver(reapply);
 			resizeObserver.observe(el);
 		}
 	}
 
-	// Initial fit once the canvas has (likely) been measured.
-	const raf =
-		typeof globalThis.requestAnimationFrame === "function"
-			? globalThis.requestAnimationFrame(clampNow)
-			: (globalThis.setTimeout(clampNow, 0) as unknown as number);
-
 	return () => {
 		offMutation();
 		resizeObserver?.disconnect();
-		if (typeof globalThis.cancelAnimationFrame === "function") globalThis.cancelAnimationFrame(raf);
-		else globalThis.clearTimeout(raf);
+		ctx.store.setViewportConstraint(null);
 	};
 }

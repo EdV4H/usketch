@@ -8,6 +8,7 @@ import type {
 	Viewport,
 	ViewportAnimationConfig,
 	ViewportAnimationOptions,
+	ViewportConstraint,
 } from "@edv4h/usketch-shared";
 import {
 	compareZIndex,
@@ -107,9 +108,14 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		viewportRafId = null;
 	}
 
-	/** Assign the viewport and fan out the usual change notifications. */
+	// Optional constraint applied to EVERY viewport commit — the single choke point
+	// all viewport changes flow through — so the stored viewport can never violate it.
+	let viewportConstraint: ViewportConstraint | null = null;
+
+	/** Assign the viewport (passed through the active constraint) and fan out the
+	 *  usual change notifications. */
 	function commitViewport(viewport: Viewport) {
-		state.viewport = viewport;
+		state.viewport = viewportConstraint ? viewportConstraint(viewport) : viewport;
 		notify();
 		notifyMutation({ type: "viewport:changed" });
 	}
@@ -362,6 +368,17 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		setViewport(viewport: Viewport) {
 			cancelViewportAnimation();
 			commitViewport(viewport);
+		},
+
+		setViewportConstraint(constraint: ViewportConstraint | null) {
+			viewportConstraint = constraint;
+			// Re-commit the current viewport so it immediately snaps into the new
+			// constraint (or is released when clearing).
+			cancelViewportAnimation();
+			commitViewport(state.viewport);
+		},
+		getViewportConstraint() {
+			return viewportConstraint;
 		},
 
 		panBy(dx: number, dy: number) {
