@@ -359,7 +359,14 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			const cur = ctx.store.getShape(p.id);
 			if (!cur) continue;
 			const from = dragBefore.get(p.id) ?? { x: cur.x, y: cur.y };
-			if (from.x === p.x && from.y === p.y) continue;
+			// Skip only when there's genuinely nothing to do: the shape is already at
+			// the target AND its pre-drag position was too (so undo needs no entry).
+			// Comparing `from` alone would wrongly skip a shape whose pre-drag position
+			// equals the target but which was dragged AWAY (its CURRENT position is the
+			// drop point) — that's the item that must snap back.
+			const atTarget = cur.x === p.x && cur.y === p.y;
+			const fromTarget = from.x === p.x && from.y === p.y;
+			if (atTarget && fromTarget) continue;
 			moves.push({ id: p.id, from: { x: from.x, y: from.y }, to: { x: p.x, y: p.y } });
 		}
 		if (moves.length > 0) ctx.commands.execute(guardedBatchCommand(ctx.store, moves));
