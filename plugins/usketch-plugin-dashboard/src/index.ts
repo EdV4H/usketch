@@ -45,7 +45,13 @@ export {
 	isGridOverlayVisible,
 	setGridOverlayVisible,
 } from "./grid-overlay.js";
-export { dashboardItems, isDashboardItem } from "./items.js";
+export {
+	allDashboardItems,
+	dashboardItems,
+	isDashboardItem,
+	isGridItem,
+	isWithinGrid,
+} from "./items.js";
 export { readingOrder } from "./order.js";
 export { createDashboardPlugin, type DashboardPluginOptions } from "./plugin.js";
 export { registerDashboardHud } from "./register-dashboard-hud.js";

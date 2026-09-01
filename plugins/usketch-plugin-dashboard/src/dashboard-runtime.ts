@@ -23,7 +23,7 @@ import {
 	spanOf,
 	targetIndexFromPoint,
 } from "./grid.js";
-import { dashboardItems, isDashboardItem } from "./items.js";
+import { allDashboardItems, dashboardItems, isGridItem, isWithinGrid } from "./items.js";
 import { readingOrder } from "./order.js";
 
 // ── Self-write guard (module-scoped; one app instance per JS runtime) ──
@@ -124,10 +124,12 @@ function placedBoxes(store: BoardStore, ids: readonly string[], spec: GridSpec):
  * command. Used for non-drag changes (add/remove) and the "整列" action / service
  * `repack()`. No-op writes are dropped, so it's safe to call speculatively.
  */
-export function repackBoard(ctx: PluginContext): void {
+export function repackBoard(ctx: PluginContext, includeAll = false): void {
 	const spec = specOf(ctx.store);
 	if (!spec) return;
-	const items = dashboardItems(ctx.store);
+	// `includeAll` (enable / 整列) gathers every shape into the grid; the default
+	// respects the range so out-of-grid shapes stay free.
+	const items = includeAll ? allDashboardItems(ctx.store) : dashboardItems(ctx.store);
 	if (items.length === 0) return;
 	const order = readingOrder(items, spec);
 	// flow → compact in reading order; absolute → snap each to the cell nearest its
@@ -205,7 +207,7 @@ export function setupDashboard(ctx: PluginContext): () => void {
 	}
 	function refreshItemMembership(id: string): void {
 		const shape = ctx.store.getShape(id);
-		if (shape && isDashboardItem(ctx.store, shape)) itemIds.add(id);
+		if (shape && isGridItem(ctx.store, shape)) itemIds.add(id);
 		else itemIds.delete(id);
 	}
 
@@ -377,8 +379,10 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		const order = readingOrder(items, spec);
 		const draggedShape = dragged !== null ? ctx.store.getShape(dragged) : undefined;
 
-		if (dragged === null || !draggedShape) {
-			// Untracked drop (multi-select, or the dragged item vanished): re-snap all.
+		if (dragged === null || !draggedShape || !isWithinGrid(draggedShape, spec)) {
+			// Untracked drop (multi-select / vanished), OR the dragged item was taken
+			// OUT of the grid range → leave it free; just re-snap the remaining items
+			// (which already excludes it) to close the gap.
 			commitPlacements(
 				mode === "absolute"
 					? packAbsolute(boxesOf(ctx.store, order), spec)
@@ -415,7 +419,7 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			const after = event.payload.after;
 			const before = event.payload.before;
 			if (after) refreshItemMembership(after.id);
-			if (!after || !isDashboardItem(ctx.store, after)) return;
+			if (!after || !isGridItem(ctx.store, after)) return;
 			const spec = specOf(ctx.store);
 			if (!spec) return;
 			// A user drag is a SINGLE selected item whose position actually changed.
@@ -460,7 +464,7 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			const id = event.payload.id;
 			if (event.type === "shape:added") {
 				const s = ctx.store.getShape(id);
-				if (!s || !isDashboardItem(ctx.store, s)) return; // nested / substrate → ignore
+				if (!s || !isGridItem(ctx.store, s)) return; // nested / substrate → ignore
 				itemIds.add(id);
 				repackBoard(ctx);
 				return;

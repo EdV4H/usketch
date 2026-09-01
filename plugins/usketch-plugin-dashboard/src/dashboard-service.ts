@@ -28,7 +28,7 @@ import {
 import { repackBoard, runGuarded } from "./dashboard-runtime.js";
 import type { GridSpec } from "./grid.js";
 import { fitSize, packAbsolute, packSpans } from "./grid.js";
-import { dashboardItems } from "./items.js";
+import { allDashboardItems, dashboardItems } from "./items.js";
 import { readingOrder } from "./order.js";
 
 /** The dashboard's host-facing operations. */
@@ -212,7 +212,7 @@ export function createDashboardApi(
 			// world origin 0,0, which can be far off-screen and look like a no-op).
 			// Don't re-seed on a later enable — that would drag the grid around.
 			if (!alreadyDashboard) {
-				const items = dashboardItems(ctx.store);
+				const items = allDashboardItems(ctx.store);
 				if (items.length > 0) {
 					let minX = Number.POSITIVE_INFINITY;
 					let minY = Number.POSITIVE_INFINITY;
@@ -237,7 +237,7 @@ export function createDashboardApi(
 					});
 				}
 			}
-			repackBoard(ctx);
+			repackBoard(ctx, true); // gather every shape into the grid on enable
 		},
 		disable: () => {
 			// Remove EVERY config, not just the chosen one: a concurrent enable can
@@ -254,7 +254,7 @@ export function createDashboardApi(
 		},
 		getFitToGrid: () => fitToGridOf(ctx.store),
 		setFitToGrid: (on) => applyFitToGrid(ctx, on),
-		repack: () => repackBoard(ctx),
+		repack: () => repackBoard(ctx, true),
 		// Ignore non-finite inputs (NaN/±Infinity) so a bad host call can't persist
 		// a broken value into the config — `Math.max(1, NaN)` is `NaN`, so the clamp
 		// alone doesn't protect the grid math / undo. The HUD already filters, but
