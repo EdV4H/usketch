@@ -33,6 +33,8 @@ export interface DashboardConfigData extends ShapeData {
 	originX: number;
 	originY: number;
 	mode: DashboardMode;
+	/** When true, resizing an item snaps its size to the nearest whole-cell span. */
+	fitToGrid: boolean;
 }
 
 export interface DashboardDefaults {
@@ -44,6 +46,7 @@ export interface DashboardDefaults {
 	originX?: number;
 	originY?: number;
 	mode?: DashboardMode;
+	fitToGrid?: boolean;
 }
 
 export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
@@ -55,6 +58,7 @@ export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
 	originX: 0,
 	originY: 0,
 	mode: "flow",
+	fitToGrid: false,
 };
 
 export function isDashboardConfig(shape: ShapeData): shape is DashboardConfigData {
@@ -79,6 +83,7 @@ export function makeDashboardConfig(defaults: DashboardDefaults = {}): Dashboard
 		originX: d.originX,
 		originY: d.originY,
 		mode: d.mode,
+		fitToGrid: d.fitToGrid,
 		locked: true,
 	};
 }

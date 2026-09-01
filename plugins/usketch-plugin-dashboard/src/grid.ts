@@ -92,6 +92,27 @@ export function spanOf(width: number, height: number, spec: GridSpec): Span {
 	};
 }
 
+/**
+ * Snap a size to the NEAREST whole-cell footprint: width → the closest N-column
+ * span (`N*cellW + (N-1)*gap`), height → the closest M-row span. Columns are
+ * clamped to the grid width; rows have no upper bound. Used by the "fit to grid"
+ * option so resizing snaps a shape to exact cell dimensions.
+ */
+export function fitSize(
+	width: number,
+	height: number,
+	spec: GridSpec,
+): { width: number; height: number } {
+	const stepX = spec.cellW + spec.gap;
+	const stepY = spec.cellH + spec.gap;
+	const cols = clamp(stepX > 0 ? Math.round((width + spec.gap) / stepX) : 1, 1, colsOf(spec));
+	const rows = Math.max(1, stepY > 0 ? Math.round((height + spec.gap) / stepY) : 1);
+	return {
+		width: cols * spec.cellW + (cols - 1) * spec.gap,
+		height: rows * spec.cellH + (rows - 1) * spec.gap,
+	};
+}
+
 /** Nearest cell (col/row) a world top-left point rounds to. */
 export function cellOfPoint(x: number, y: number, spec: GridSpec): { col: number; row: number } {
 	const stepX = spec.cellW + spec.gap;

@@ -13,6 +13,7 @@ import {
 import {
 	type DashboardConfigPatch,
 	ensureDashboardConfig,
+	fitToGridOf,
 	getAllDashboardConfigs,
 	getDashboardConfig,
 	gridSpecFromConfig,
@@ -26,7 +27,7 @@ import {
 } from "./dashboard-config-shape.js";
 import { repackBoard, runGuarded } from "./dashboard-runtime.js";
 import type { GridSpec } from "./grid.js";
-import { packAbsolute, packSpans } from "./grid.js";
+import { fitSize, packAbsolute, packSpans } from "./grid.js";
 import { dashboardItems } from "./items.js";
 import { readingOrder } from "./order.js";
 
@@ -48,6 +49,11 @@ export interface DashboardApi {
 	getMode(): DashboardMode;
 	/** Switch placement mode (undoable; re-lays out under the new mode). */
 	setMode(mode: DashboardMode): void;
+	/** Whether resizing snaps items to whole-cell sizes. */
+	getFitToGrid(): boolean;
+	/** Toggle "fit to grid". Turning it ON also snaps every existing item's size to
+	 *  the grid and re-lays out — one undoable command. */
+	setFitToGrid(on: boolean): void;
 	/** Re-snap every item to its reading-order cell (one undoable command). */
 	repack(): void;
 	/** Set the column count (undoable; relayouts items). */
@@ -127,6 +133,69 @@ function applyConfig(ctx: PluginContext, patch: DashboardConfigPatch): void {
 	ctx.commands.execute(command);
 }
 
+/**
+ * Toggle "fit to grid" in ONE undoable command: set the flag, snap every item's
+ * SIZE to the nearest whole-cell span (only when turning on), and re-lay out the
+ * board with the new sizes.
+ */
+function applyFitToGrid(ctx: PluginContext, on: boolean): void {
+	const config = getDashboardConfig(ctx.store);
+	if (!config) return;
+	const spec = gridSpecFromConfig(config);
+	const items = dashboardItems(ctx.store);
+
+	// New sizes (fit) when turning on; unchanged when off. Keep old for undo.
+	const sized = items.map((s) => {
+		const f = on ? fitSize(s.width, s.height, spec) : { width: s.width, height: s.height };
+		return { id: s.id, x: s.x, y: s.y, w: f.width, h: f.height, oldW: s.width, oldH: s.height };
+	});
+	const byId = new Map(sized.map((b) => [b.id, b]));
+	// Re-pack positions using the NEW sizes, in the current mode.
+	const order = readingOrder(items, spec).filter((id) => byId.has(id));
+	const placements =
+		modeOf(ctx.store) === "absolute"
+			? packAbsolute(
+					order.map((id) => {
+						const b = byId.get(id) as NonNullable<ReturnType<typeof byId.get>>;
+						return { id, x: b.x, y: b.y, width: b.w, height: b.h };
+					}),
+					spec,
+				)
+			: packSpans(
+					order.map((id) => {
+						const b = byId.get(id) as NonNullable<ReturnType<typeof byId.get>>;
+						return { id, width: b.w, height: b.h };
+					}),
+					spec,
+				);
+	const posById = new Map(placements.map((p) => [p.id, p]));
+
+	const command: Command = {
+		execute() {
+			runGuarded(() => {
+				ctx.store.updateShape(config.id, { fitToGrid: on } as Partial<ShapeData>);
+				for (const b of sized) {
+					const p = posById.get(b.id);
+					ctx.store.updateShape(b.id, {
+						width: b.w,
+						height: b.h,
+						...(p ? { x: p.x, y: p.y } : {}),
+					});
+				}
+			});
+		},
+		undo() {
+			runGuarded(() => {
+				ctx.store.updateShape(config.id, { fitToGrid: config.fitToGrid } as Partial<ShapeData>);
+				for (const b of sized) {
+					ctx.store.updateShape(b.id, { width: b.oldW, height: b.oldH, x: b.x, y: b.y });
+				}
+			});
+		},
+	};
+	ctx.commands.execute(command);
+}
+
 /** Build the dashboard API bound to a plugin context (called in `setup`). The
  *  `defaults` seed a config created via {@link DashboardApi.enable}. */
 export function createDashboardApi(
@@ -183,6 +252,8 @@ export function createDashboardApi(
 		setMode: (mode) => {
 			if (mode === "flow" || mode === "absolute") applyConfig(ctx, { mode });
 		},
+		getFitToGrid: () => fitToGridOf(ctx.store),
+		setFitToGrid: (on) => applyFitToGrid(ctx, on),
 		repack: () => repackBoard(ctx),
 		// Ignore non-finite inputs (NaN/±Infinity) so a bad host call can't persist
 		// a broken value into the config — `Math.max(1, NaN)` is `NaN`, so the clamp

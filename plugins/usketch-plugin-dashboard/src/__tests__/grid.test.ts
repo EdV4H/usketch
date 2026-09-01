@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	cellTopLeft,
 	cellXY,
+	fitSize,
 	type GridSpec,
 	type ItemSize,
 	type PlacedBox,
@@ -100,6 +101,21 @@ describe("packSpans", () => {
 		expect(at("C")).toMatchObject({ x: 240, y: 20 }); // row0 col2
 		// A が (row1,col0) を占有しているので、その位置には誰も来ない
 		expect(out.every((p) => !(p.id !== "A" && p.x === 20 && p.y === 110))).toBe(true);
+	});
+});
+
+describe("fitSize", () => {
+	it("サイズを最も近い整数セル分にスナップ（cell100/80, gap10）", () => {
+		expect(fitSize(100, 80, spec)).toEqual({ width: 100, height: 80 }); // 1x1 ぴったり
+		expect(fitSize(150, 80, spec)).toEqual({ width: 100, height: 80 }); // 幅 1.45→1 セル
+		// 幅 190/110=1.72→2 セル = 100*2+10=210
+		expect(fitSize(180, 80, spec)).toEqual({ width: 210, height: 80 });
+		// 3x2: 幅 330/110=3, 高さ 180/90=2 → 320 x 170
+		expect(fitSize(320, 170, spec)).toEqual({ width: 320, height: 170 });
+	});
+
+	it("列 span は columns にクランプ", () => {
+		expect(fitSize(9999, 80, spec).width).toBe(320); // columns=3 → 3セル=320
 	});
 });
 

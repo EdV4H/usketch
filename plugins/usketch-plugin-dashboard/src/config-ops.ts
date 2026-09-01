@@ -16,13 +16,18 @@ import type { GridSpec } from "./grid.js";
 export type DashboardConfigPatch = Partial<
 	Pick<
 		DashboardConfigData,
-		"columns" | "cellW" | "cellH" | "gap" | "padding" | "originX" | "originY" | "mode"
+		"columns" | "cellW" | "cellH" | "gap" | "padding" | "originX" | "originY" | "mode" | "fitToGrid"
 	>
 >;
 
 /** The board's placement mode (defaults to `flow` when not a dashboard/unset). */
 export function modeOf(store: BoardStore): DashboardMode {
 	return getDashboardConfig(store)?.mode ?? "flow";
+}
+
+/** Whether resizing snaps items to whole-cell sizes (defaults to `false`). */
+export function fitToGridOf(store: BoardStore): boolean {
+	return getDashboardConfig(store)?.fitToGrid ?? false;
 }
 
 /**

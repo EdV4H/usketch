@@ -1,6 +1,7 @@
 export {
 	type DashboardConfigPatch,
 	ensureDashboardConfig,
+	fitToGridOf,
 	getDashboardConfig,
 	gridSpecFromConfig,
 	modeOf,
@@ -27,6 +28,7 @@ export {
 	cellOfPoint,
 	cellTopLeft,
 	cellXY,
+	fitSize,
 	type GridSpec,
 	type ItemSize,
 	type PlacedBox,

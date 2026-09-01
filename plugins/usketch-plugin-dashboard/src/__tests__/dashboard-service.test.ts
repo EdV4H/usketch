@@ -181,6 +181,34 @@ describe("DashboardApi mode", () => {
 	});
 });
 
+describe("DashboardApi fitToGrid", () => {
+	it("setFitToGrid(true) で各アイテムのサイズを最も近いセルにスナップする", () => {
+		const { ctx, store } = makeCtx();
+		store.addShape(rect("a", 0, 0, 100, 100));
+		store.addShape(rect("b", 300, 0, 150, 150)); // 半端サイズ
+		const api = createDashboardApi(ctx, { columns: 4, gap: 0, padding: 0 });
+		api.enable(); // セルは最小(100)にシード
+		expect(api.getGridSpec()?.cellW).toBe(100);
+		expect(api.getFitToGrid()).toBe(false);
+
+		api.setFitToGrid(true);
+		expect(api.getFitToGrid()).toBe(true);
+		// a=100x100 は 1x1 のまま。b=150x150 は 2x2(=200x200) にスナップ
+		expect(store.getShape("a")).toMatchObject({ width: 100, height: 100 });
+		expect(store.getShape("b")).toMatchObject({ width: 200, height: 200 });
+	});
+
+	it("setFitToGrid(false) はサイズを変えない", () => {
+		const { ctx, store } = makeCtx();
+		store.addShape(rect("a", 0, 0, 150, 150));
+		const api = createDashboardApi(ctx, { columns: 4, gap: 0, padding: 0 });
+		api.enable();
+		api.setFitToGrid(false);
+		expect(api.getFitToGrid()).toBe(false);
+		expect(store.getShape("a")).toMatchObject({ width: 150, height: 150 });
+	});
+});
+
 describe("DashboardApi disable", () => {
 	it("disable で config を除去し、ボードは非ダッシュボードに戻る", () => {
 		const { ctx, store } = makeCtx();

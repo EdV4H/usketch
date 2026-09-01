@@ -26,9 +26,11 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			{ name: "cellHeight", label: "セル高", type: "number", min: 40, max: 800, step: 10 },
 			{ name: "gap", label: "間隔", type: "number", min: 0, max: 100, step: 2 },
 			{ name: "padding", label: "余白", type: "number", min: 0, max: 200, step: 4 },
+			{ name: "fitToGrid", label: "セルに合わせる", type: "boolean" },
 		],
 		get(name) {
 			if (name === "mode") return api.getMode();
+			if (name === "fitToGrid") return api.getFitToGrid();
 			const spec = api.getGridSpec();
 			if (!spec) return undefined;
 			switch (name) {
@@ -49,6 +51,10 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 		set(name, value) {
 			if (name === "mode") {
 				if (value === "flow" || value === "absolute") api.setMode(value);
+				return;
+			}
+			if (name === "fitToGrid") {
+				api.setFitToGrid(value === true || value === "true");
 				return;
 			}
 			const n = Number(value);

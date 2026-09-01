@@ -11,10 +11,10 @@
 // dashboard-initiated position write bumps a re-entrancy guard; the mutation
 // listener ignores anything written while that guard is up.
 import type { BoardStore, Command, PluginContext, ShapeData } from "@edv4h/usketch-shared";
-import { getDashboardConfig, gridSpecFromConfig, modeOf } from "./config-ops.js";
+import { fitToGridOf, getDashboardConfig, gridSpecFromConfig, modeOf } from "./config-ops.js";
 import { setDragTarget } from "./drag-target-store.js";
 import type { GridSpec, ItemSize, PlacedBox, Placement } from "./grid.js";
-import { packAbsolute, packSpans, spanOf, targetIndexFromPoint } from "./grid.js";
+import { fitSize, packAbsolute, packSpans, spanOf, targetIndexFromPoint } from "./grid.js";
 import { dashboardItems, isDashboardItem } from "./items.js";
 import { readingOrder } from "./order.js";
 
@@ -160,7 +160,10 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		if (settleTimer !== null) clearTimeout(settleTimer);
 		settleTimer = globalThis.setTimeout(() => {
 			settleTimer = null;
+			// A reorder in progress commits; otherwise this was a resize settling —
+			// re-lay out so a now-bigger/smaller item's span change is reflected.
 			if (draggingId !== null) endDrag();
+			else repackBoard(ctx);
 		}, SETTLE_MS);
 	}
 	function clearSettle(): void {
@@ -337,6 +340,19 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			// collaborators' edits, and style-only updates.
 			const selection = ctx.store.getSelection();
 			if (selection.size !== 1 || !selection.has(after.id)) return;
+			const sizeChanged = !before || before.width !== after.width || before.height !== after.height;
+			if (sizeChanged) {
+				// A RESIZE, not a reorder. With "fit to grid" on, snap the size to the
+				// nearest whole-cell span, then re-lay out once the resize settles.
+				if (fitToGridOf(ctx.store)) {
+					const fit = fitSize(after.width, after.height, spec);
+					if (fit.width !== after.width || fit.height !== after.height) {
+						runGuarded(() => ctx.store.updateShape(after.id, fit));
+					}
+					armSettle();
+				}
+				return;
+			}
 			if (before && before.x === after.x && before.y === after.y) return;
 			if (draggingId === null && before) captureBefore(before); // first frame → snapshot
 			draggingId = after.id;
