@@ -184,9 +184,14 @@ export interface PlacedBox {
 /**
  * Insertion index for a dragged item whose centre is at `point`, given the OTHER
  * items in reading order with their (compact) placed footprints. An item counts
- * as "before" the point when it's on an earlier row band, or the same band and
- * left of the point. Since `boxesInOrder` is row-major, the first not-before item
- * ends the count — the result is a clean `[0, boxesInOrder.length]` index.
+ * as "before" the point when it's on an earlier row band, or the same band and the
+ * point is at/past the item's RIGHT edge. Using the right edge (rather than the
+ * centre) means the drop point only has to be anywhere over a cell to claim that
+ * cell — so an item dropped onto the leftmost cell reliably becomes first, instead
+ * of having to cross that item's centre (a half-cell knife-edge right at the grid's
+ * left edge, made worse because the live reflow recompacts the leftmost item to
+ * exactly where the drop lands). Since `boxesInOrder` is row-major, the first
+ * not-before item ends the count — a clean `[0, boxesInOrder.length]` index.
  */
 export function targetIndexFromPoint(
 	point: { x: number; y: number },
@@ -199,10 +204,8 @@ export function targetIndexFromPoint(
 	const pointerBand = band(point.y);
 	let index = 0;
 	for (const box of boxesInOrder) {
-		const cx = box.x + box.width / 2;
-		const cy = box.y + box.height / 2;
-		const b = band(cy);
-		const before = b < pointerBand || (b === pointerBand && cx < point.x);
+		const b = band(box.y + box.height / 2);
+		const before = b < pointerBand || (b === pointerBand && point.x >= box.x + box.width);
 		if (!before) break;
 		index++;
 	}
