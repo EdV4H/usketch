@@ -52,12 +52,12 @@ export interface DashboardConfigData extends ShapeData {
 	/** Whether the cell WIDTH is "auto" (fit to the screen width). Drives the
 	 *  scroll-limit mode: fixed numeric width → vertical-only; auto → both axes. */
 	cellWAuto: boolean;
-	/** In `absolute` mode, whether dropping an item onto an occupied cell SWAPS the
-	 *  two (the occupant moves to the dragged item's old cell). No effect in `flow`
-	 *  (which always reorders). */
+	/** In `absolute` mode, whether dropping an item onto an occupied cell makes that
+	 *  occupant AVOID it — stepping to the nearest empty cell — instead of the drop
+	 *  colliding. (Named `swap` historically.) No effect in `flow` (always reorders). */
 	swap: boolean;
-	/** Swap trigger sensitivity (0–1): the minimum overlap ratio between the dropped
-	 *  item and the item it lands on for a swap to fire. Lower = easier to swap. */
+	/** Avoid trigger sensitivity (0–1): the minimum overlap ratio between the dropped
+	 *  item and an occupant for the occupant to move aside. Lower = easier. */
 	swapThreshold: number;
 }
 

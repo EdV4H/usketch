@@ -253,8 +253,8 @@ describe("dashboard runtime — overtake right→left", () => {
 	});
 });
 
-describe("dashboard runtime — absolute swap-on-drop", () => {
-	it("swap ON: 占有セルにドロップすると相手と位置が入れ替わる", async () => {
+describe("dashboard runtime — absolute avoid-on-drop", () => {
+	it("avoid ON: 占有セルにドロップすると相手が最寄りの空きセルへ避ける", async () => {
 		const { ctx, store, events } = harness();
 		store.addShape(
 			makeDashboardConfig({
@@ -274,7 +274,7 @@ describe("dashboard runtime — absolute swap-on-drop", () => {
 		const stop = setupDashboard(ctx);
 		await Promise.resolve();
 
-		// b を a の占有セル(col0)へドロップ → a と入れ替わる
+		// b を a の占有セル(col0)へドロップ → a は最寄りの空き(col1)へ避ける
 		await faithfulDrag(
 			store,
 			events,
@@ -286,11 +286,11 @@ describe("dashboard runtime — absolute swap-on-drop", () => {
 			{ x: 200, y: 0 },
 		);
 		expect(at(store, "b")).toEqual({ x: 0, y: 0 }); // b → col0
-		expect(at(store, "a")).toEqual({ x: 200, y: 0 }); // a → b の元セル col2
+		expect(at(store, "a")).toEqual({ x: 100, y: 0 }); // a → 最寄りの空き col1（元セル col2 ではない）
 		stop();
 	});
 
-	it("閾値: 一部だけ重なるドロップは閾値次第で入れ替わる", async () => {
+	it("閾値: 一部だけ重なるドロップは閾値次第で避ける", async () => {
 		const make = (threshold: number) => {
 			const { ctx, store, events } = harness();
 			store.addShape(
@@ -313,7 +313,7 @@ describe("dashboard runtime — absolute swap-on-drop", () => {
 			return { store, events, stop };
 		};
 		// b を x=70 にドロップ → a(0..100) と 30% 重なる
-		const hi = make(0.5); // 閾値50% → 30%重なりでは入れ替わらない
+		const hi = make(0.5); // 閾値50% → 30%重なりでは避けない
 		await Promise.resolve();
 		await faithfulDrag(
 			hi.store,
@@ -328,7 +328,7 @@ describe("dashboard runtime — absolute swap-on-drop", () => {
 		expect(at(hi.store, "a")).toEqual({ x: 0, y: 0 }); // a 不動
 		hi.stop();
 
-		const lo = make(0.2); // 閾値20% → 30%重なりで入れ替わる
+		const lo = make(0.2); // 閾値20% → 30%重なりで避ける
 		await Promise.resolve();
 		await faithfulDrag(
 			lo.store,
@@ -341,11 +341,11 @@ describe("dashboard runtime — absolute swap-on-drop", () => {
 			{ x: 200, y: 0 },
 		);
 		expect(at(lo.store, "b")).toEqual({ x: 0, y: 0 }); // b → a のセル
-		expect(at(lo.store, "a")).toEqual({ x: 200, y: 0 }); // a → b の元セル
+		expect(at(lo.store, "a")).toEqual({ x: 100, y: 0 }); // a → 最寄りの空き col1
 		lo.stop();
 	});
 
-	it("swap OFF(既定): 入れ替えは起きない(空きセルへ寄る)", async () => {
+	it("avoid OFF(既定): 何も避けない(空きセルへ寄る)", async () => {
 		const { ctx, store, events } = harness();
 		store.addShape(
 			makeDashboardConfig({

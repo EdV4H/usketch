@@ -91,6 +91,43 @@ function overlapRatio(a: ShapeData, b: ShapeData): number {
 	return inter / minArea;
 }
 
+// Cell offsets ordered by distance then a right→down→left→up preference — used to
+// find the nearest empty cell an "avoided" item can step into.
+const AVOID_OFFSETS: { dc: number; dr: number }[] = (() => {
+	const N = 40;
+	const out: { dc: number; dr: number }[] = [];
+	for (let dr = -N; dr <= N; dr++) {
+		for (let dc = -N; dc <= N; dc++) {
+			if (dc !== 0 || dr !== 0) out.push({ dc, dr });
+		}
+	}
+	const rank = (o: { dc: number; dr: number }): number => {
+		const man = Math.abs(o.dc) + Math.abs(o.dr);
+		const diag = o.dc !== 0 && o.dr !== 0 ? 1 : 0;
+		let dir = 0; // right, down, left, up (orthogonal only)
+		if (!diag) dir = o.dc > 0 ? 0 : o.dr > 0 ? 1 : o.dc < 0 ? 2 : 3;
+		return man * 1000 + diag * 100 + dir * 10;
+	};
+	return out.sort((a, b) => rank(a) - rank(b));
+})();
+
+/** Nearest empty cell to `(col,row)` not in `occupied` and within the grid (col in
+ *  `[0,cols)`, row ≥ 0), searching right→down→left→up outward. Null if none nearby. */
+function nearestFreeCell(
+	col: number,
+	row: number,
+	occupied: ReadonlySet<string>,
+	cols: number,
+): { col: number; row: number } | null {
+	for (const o of AVOID_OFFSETS) {
+		const c = col + o.dc;
+		const r = row + o.dr;
+		if (c < 0 || c >= cols || r < 0) continue;
+		if (!occupied.has(`${c},${r}`)) return { col: c, row: r };
+	}
+	return null;
+}
+
 /** Resolve the board's grid spec, or null when this board isn't a dashboard. */
 function specOf(store: BoardStore): GridSpec | null {
 	const config = getDashboardConfig(store);
@@ -446,11 +483,11 @@ export function setupDashboard(ctx: PluginContext): () => void {
 
 		const otherIds = order.filter((id) => id !== dragged);
 		if (mode === "absolute" && swapOf(ctx.store)) {
-			// SWAP-on-drop: swap with the item the dropped shape OVERLAPS the most, when
-			// that overlap ratio meets the configured threshold (lower = easier). The
-			// dragged item takes the occupant's cell; the occupant moves to the dragged
-			// item's original cell. Below threshold → normal absolute snap.
-			const fromTL = dragBefore.get(dragged) ?? { x: draggedShape.x, y: draggedShape.y };
+			// AVOID-on-drop: the dropped item settles into the cell of whichever item it
+			// OVERLAPS the most (when that overlap ratio meets the threshold; lower =
+			// easier). That occupant "gets out of the way" — it steps to the nearest
+			// EMPTY cell (right→down→left→up), rather than swapping into the dragged
+			// item's old cell. Below threshold → normal absolute snap.
 			let best: ShapeData | null = null;
 			let bestRatio = 0;
 			for (const id of otherIds) {
@@ -463,12 +500,30 @@ export function setupDashboard(ctx: PluginContext): () => void {
 				}
 			}
 			if (best && bestRatio >= swapThresholdOf(ctx.store)) {
-				commitPlacements([
-					{ id: dragged, x: best.x, y: best.y },
-					{ id: best.id, x: fromTL.x, y: fromTL.y },
-				]);
+				const cols = Math.max(1, Math.floor(spec.columns));
+				const bCell = cellOfPoint(best.x, best.y, spec);
+				// Cells taken by the others (excluding the avoider) + the dragged item's
+				// new cell — so the avoider lands somewhere genuinely free.
+				const occupied = new Set<string>();
+				for (const id of otherIds) {
+					if (id === best.id) continue;
+					const s = ctx.store.getShape(id);
+					if (s) {
+						const sc = cellOfPoint(s.x, s.y, spec);
+						occupied.add(`${sc.col},${sc.row}`);
+					}
+				}
+				occupied.add(`${bCell.col},${bCell.row}`);
+				const targetTL = cellXY(bCell.col, bCell.row, spec);
+				const placements: Placement[] = [{ id: dragged, x: targetTL.x, y: targetTL.y }];
+				const free = nearestFreeCell(bCell.col, bCell.row, occupied, cols);
+				if (free) {
+					const ftl = cellXY(free.col, free.row, spec);
+					placements.push({ id: best.id, x: ftl.x, y: ftl.y });
+				}
+				commitPlacements(placements);
 			} else {
-				// No swap: keep others, snap the dragged to its nearest free cell.
+				// No overlap past the threshold: keep others, snap dragged to nearest free.
 				const boxes = [...boxesOf(ctx.store, otherIds), boxOfShape(draggedShape)];
 				commitPlacements(packAbsolute(boxes, spec));
 			}

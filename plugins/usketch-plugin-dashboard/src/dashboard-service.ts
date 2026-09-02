@@ -74,13 +74,13 @@ export interface DashboardApi {
 	getCellWidthAuto(): boolean;
 	/** Set the cell width to "auto" (fit to screen) or back to a fixed number. */
 	setCellWidthAuto(on: boolean): void;
-	/** Whether drop-onto-occupied swaps the two items (absolute mode). */
+	/** Whether drop-onto-occupied makes the occupant AVOID (step aside) in absolute mode. */
 	getSwap(): boolean;
-	/** Toggle swap-on-drop for absolute mode. */
+	/** Toggle avoid-on-drop for absolute mode. */
 	setSwap(on: boolean): void;
-	/** The swap overlap-ratio threshold (0–1); lower = easier to trigger a swap. */
+	/** The avoid overlap-ratio threshold (0–1); lower = easier to trigger. */
 	getSwapThreshold(): number;
-	/** Set the swap overlap-ratio threshold (clamped to 0–1). */
+	/** Set the avoid overlap-ratio threshold (clamped to 0–1). */
 	setSwapThreshold(ratio: number): void;
 	/** Re-snap every item to its reading-order cell (one undoable command). */
 	repack(): void;
