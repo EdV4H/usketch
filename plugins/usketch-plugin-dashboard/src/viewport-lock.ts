@@ -22,8 +22,8 @@ import {
 } from "./config-ops.js";
 import { isDashboardConfig } from "./dashboard-config-shape.js";
 import { repackBoardTransient, runGuarded } from "./dashboard-runtime.js";
-import type { GridSpec } from "./grid.js";
-import { allDashboardItems } from "./items.js";
+import { type GridSpec, spanOf } from "./grid.js";
+import { allDashboardItems, dashboardItems } from "./items.js";
 
 /** Measure the canvas area in CSS pixels, or null when unavailable. Prefers the
  *  largest `canvas-container` (a minimap tags one too); falls back to the window. */
@@ -103,22 +103,34 @@ export function setupViewportLock(ctx: PluginContext): () => void {
 
 	ctx.store.setViewportConstraint(constrain);
 
-	/** When "auto" width is on, size the cell width so the grid fills the screen,
+	/** When "auto" width is on, size the cell width so the grid fills the screen AND
+	 *  grow/shrink every item to its cell width (span preserved, height untouched),
 	 *  then repack — transiently (no undo entry, ignored by the reflow runtime).
-	 *  Independent of the scroll-limit: turning on "幅Auto" fits the width even when
-	 *  the scroll-limit is off. No-op when the width isn't auto. */
+	 *  Independent of the scroll-limit: turning on "幅Auto" fits even when the
+	 *  scroll-limit is off. No-op when the width isn't auto. */
 	function applyAutoWidth(): void {
 		if (!cellWAutoOf(ctx.store)) return;
 		const config = getDashboardConfig(ctx.store);
 		const size = canvasSize();
 		if (!config || !size) return;
-		const autoW = autoCellWidth(gridSpecFromConfig(config), size.width);
-		if (autoW === null || Math.abs(config.cellW - autoW) < 0.5) return;
+		const oldSpec = gridSpecFromConfig(config);
+		const autoW = autoCellWidth(oldSpec, size.width);
+		if (autoW === null) return;
+		const newSpec = gridSpecFromConfig({ ...config, cellW: autoW } as typeof config);
 		applyingAuto = true;
 		try {
-			runGuarded(() =>
-				ctx.store.updateShape(config.id, { cellW: autoW } as Partial<typeof config>),
-			);
+			runGuarded(() => {
+				if (Math.abs(config.cellW - autoW) >= 0.5) {
+					ctx.store.updateShape(config.id, { cellW: autoW } as Partial<typeof config>);
+				}
+				// Resize each item's WIDTH to its (preserved) column span under the new
+				// cell width; height stays (cell height isn't auto).
+				for (const s of dashboardItems(ctx.store)) {
+					const span = spanOf(s.width, s.height, oldSpec);
+					const newW = span.cols * newSpec.cellW + (span.cols - 1) * newSpec.gap;
+					if (Math.abs(s.width - newW) >= 0.5) ctx.store.updateShape(s.id, { width: newW });
+				}
+			});
 			repackBoardTransient(ctx);
 		} finally {
 			applyingAuto = false;
