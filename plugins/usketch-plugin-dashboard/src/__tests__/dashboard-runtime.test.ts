@@ -177,6 +177,82 @@ describe("dashboard runtime — faithful select-tool drop", () => {
 	});
 });
 
+describe("dashboard runtime — overtake right→left", () => {
+	function threeInARow() {
+		const { ctx, store, events } = harness();
+		store.addShape(
+			makeDashboardConfig({
+				columns: 3,
+				cellW: 100,
+				cellH: 100,
+				gap: 0,
+				padding: 0,
+				originX: 0,
+				originY: 0,
+			}),
+		);
+		store.addShape(rect("a", 0, 0));
+		store.addShape(rect("b", 100, 0));
+		store.addShape(rect("c", 200, 0));
+		const stop = setupDashboard(ctx);
+		return { ctx, store, events, stop };
+	}
+
+	it("隣の1個だけ追い越す: c(col2)→col1 で b と入れ替わる", async () => {
+		const { store, events, stop } = threeInARow();
+		await Promise.resolve();
+		// c の中心を col1 の左半（col0/col1 境界=100 を割り込む位置）へ
+		await faithfulDrag(
+			store,
+			events,
+			"c",
+			[
+				{ x: 120, y: 0 },
+				{ x: 90, y: 0 },
+			],
+			{ x: 200, y: 0 },
+		);
+		// [a, c, b]
+		expect(at(store, "a")).toEqual({ x: 0, y: 0 });
+		expect(at(store, "c")).toEqual({ x: 100, y: 0 });
+		expect(at(store, "b")).toEqual({ x: 200, y: 0 });
+		stop();
+	});
+
+	it("ドラッグ中に他アイテムがライブで動く(プレビュー)", async () => {
+		const { store, events, stop } = threeInARow();
+		await Promise.resolve();
+		store.setSelection(["c"]);
+		store.updateShape("c", { x: 10, y: 0 }); // c の中心(60)を col0 に入れる
+		await new Promise((r) => setTimeout(r, 30)); // reflow フレームを走らせる
+		// まだドロップしていないのに a,b が右へ寄る（プレビュー）
+		expect(at(store, "a")).toEqual({ x: 100, y: 0 });
+		expect(at(store, "b")).toEqual({ x: 200, y: 0 });
+		events.emit("shapes:move-end", { shapeIds: ["c"] });
+		stop();
+	});
+
+	it("隣接2個の入れ替え: b(col1)→col0 で a と入れ替わる", async () => {
+		const { store, events, stop } = threeInARow();
+		await Promise.resolve();
+		await faithfulDrag(
+			store,
+			events,
+			"b",
+			[
+				{ x: 60, y: 0 },
+				{ x: 10, y: 0 },
+			],
+			{ x: 100, y: 0 },
+		);
+		// [b, a, c]
+		expect(at(store, "b")).toEqual({ x: 0, y: 0 });
+		expect(at(store, "a")).toEqual({ x: 100, y: 0 });
+		expect(at(store, "c")).toEqual({ x: 200, y: 0 });
+		stop();
+	});
+});
+
 describe("dashboard runtime — drag to front (swap with leftmost)", () => {
 	it("single row: dragging the last item onto the leftmost makes it first", async () => {
 		const { ctx, store, events } = harness();
