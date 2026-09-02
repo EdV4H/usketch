@@ -103,11 +103,12 @@ export function setupViewportLock(ctx: PluginContext): () => void {
 
 	ctx.store.setViewportConstraint(constrain);
 
-	/** When locked with "auto" width, size the cell width so the grid fills the
-	 *  screen, then repack — transiently (no undo entry, ignored by the reflow
-	 *  runtime). No-op in any other mode. */
+	/** When "auto" width is on, size the cell width so the grid fills the screen,
+	 *  then repack — transiently (no undo entry, ignored by the reflow runtime).
+	 *  Independent of the scroll-limit: turning on "幅Auto" fits the width even when
+	 *  the scroll-limit is off. No-op when the width isn't auto. */
 	function applyAutoWidth(): void {
-		if (!viewportLockOf(ctx.store) || !cellWAutoOf(ctx.store)) return;
+		if (!cellWAutoOf(ctx.store)) return;
 		const config = getDashboardConfig(ctx.store);
 		const size = canvasSize();
 		if (!config || !size) return;
