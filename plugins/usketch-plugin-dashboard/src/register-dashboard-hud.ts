@@ -28,12 +28,14 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			{ name: "gap", label: "間隔", type: "number", min: 0, max: 100, step: 2 },
 			{ name: "padding", label: "余白", type: "number", min: 0, max: 200, step: 4 },
 			{ name: "fitToGrid", label: "セルに合わせる", type: "boolean" },
+			{ name: "swap", label: "入れ替え(そのまま時)", type: "boolean" },
 			{ name: "freeOutOfRange", label: "範囲外は自由", type: "boolean" },
 			{ name: "viewportLock", label: "スクロール制限", type: "boolean" },
 		],
 		get(name) {
 			if (name === "mode") return api.getMode();
 			if (name === "fitToGrid") return api.getFitToGrid();
+			if (name === "swap") return api.getSwap();
 			if (name === "freeOutOfRange") return api.getFreeOutOfRange();
 			if (name === "viewportLock") return api.getViewportLock();
 			if (name === "cellWAuto") return api.getCellWidthAuto();
@@ -61,6 +63,10 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			}
 			if (name === "fitToGrid") {
 				api.setFitToGrid(value === true || value === "true");
+				return;
+			}
+			if (name === "swap") {
+				api.setSwap(value === true || value === "true");
 				return;
 			}
 			if (name === "freeOutOfRange") {

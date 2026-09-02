@@ -253,6 +253,77 @@ describe("dashboard runtime — overtake right→left", () => {
 	});
 });
 
+describe("dashboard runtime — absolute swap-on-drop", () => {
+	it("swap ON: 占有セルにドロップすると相手と位置が入れ替わる", async () => {
+		const { ctx, store, events } = harness();
+		store.addShape(
+			makeDashboardConfig({
+				columns: 3,
+				cellW: 100,
+				cellH: 100,
+				gap: 0,
+				padding: 0,
+				originX: 0,
+				originY: 0,
+				mode: "absolute",
+				swap: true,
+			}),
+		);
+		store.addShape(rect("a", 0, 0)); // col0
+		store.addShape(rect("b", 200, 0)); // col2
+		const stop = setupDashboard(ctx);
+		await Promise.resolve();
+
+		// b を a の占有セル(col0)へドロップ → a と入れ替わる
+		await faithfulDrag(
+			store,
+			events,
+			"b",
+			[
+				{ x: 60, y: 0 },
+				{ x: 10, y: 0 },
+			],
+			{ x: 200, y: 0 },
+		);
+		expect(at(store, "b")).toEqual({ x: 0, y: 0 }); // b → col0
+		expect(at(store, "a")).toEqual({ x: 200, y: 0 }); // a → b の元セル col2
+		stop();
+	});
+
+	it("swap OFF(既定): 入れ替えは起きない(空きセルへ寄る)", async () => {
+		const { ctx, store, events } = harness();
+		store.addShape(
+			makeDashboardConfig({
+				columns: 3,
+				cellW: 100,
+				cellH: 100,
+				gap: 0,
+				padding: 0,
+				originX: 0,
+				originY: 0,
+				mode: "absolute",
+			}),
+		);
+		store.addShape(rect("a", 0, 0));
+		store.addShape(rect("b", 200, 0));
+		const stop = setupDashboard(ctx);
+		await Promise.resolve();
+		await faithfulDrag(
+			store,
+			events,
+			"b",
+			[
+				{ x: 60, y: 0 },
+				{ x: 10, y: 0 },
+			],
+			{ x: 200, y: 0 },
+		);
+		// a は動かない（占有を維持）
+		expect(at(store, "a")).toEqual({ x: 0, y: 0 });
+		stop();
+	});
+});
+
 describe("dashboard runtime — drag to front (swap with leftmost)", () => {
 	it("single row: dragging the last item onto the leftmost makes it first", async () => {
 		const { ctx, store, events } = harness();

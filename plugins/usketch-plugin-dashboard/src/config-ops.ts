@@ -29,6 +29,7 @@ export type DashboardConfigPatch = Partial<
 		| "freeOutOfRange"
 		| "viewportLock"
 		| "cellWAuto"
+		| "swap"
 	>
 >;
 
@@ -56,6 +57,11 @@ export function viewportLockOf(store: BoardStore): ViewportLock {
 /** Whether the cell width is "auto" (fit to screen) rather than a fixed number. */
 export function cellWAutoOf(store: BoardStore): boolean {
 	return getDashboardConfig(store)?.cellWAuto === true;
+}
+
+/** Whether drop-onto-occupied swaps the two items (absolute mode). Defaults off. */
+export function swapOf(store: BoardStore): boolean {
+	return getDashboardConfig(store)?.swap === true;
 }
 
 /**

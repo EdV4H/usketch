@@ -52,6 +52,10 @@ export interface DashboardConfigData extends ShapeData {
 	/** Whether the cell WIDTH is "auto" (fit to the screen width). Drives the
 	 *  scroll-limit mode: fixed numeric width → vertical-only; auto → both axes. */
 	cellWAuto: boolean;
+	/** In `absolute` mode, whether dropping an item onto an occupied cell SWAPS the
+	 *  two (the occupant moves to the dragged item's old cell). No effect in `flow`
+	 *  (which always reorders). */
+	swap: boolean;
 }
 
 export interface DashboardDefaults {
@@ -67,6 +71,7 @@ export interface DashboardDefaults {
 	freeOutOfRange?: boolean;
 	viewportLock?: ViewportLock;
 	cellWAuto?: boolean;
+	swap?: boolean;
 }
 
 export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
@@ -82,6 +87,7 @@ export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
 	freeOutOfRange: true,
 	viewportLock: false,
 	cellWAuto: false,
+	swap: false,
 };
 
 export function isDashboardConfig(shape: ShapeData): shape is DashboardConfigData {
@@ -110,6 +116,7 @@ export function makeDashboardConfig(defaults: DashboardDefaults = {}): Dashboard
 		freeOutOfRange: d.freeOutOfRange,
 		viewportLock: d.viewportLock,
 		cellWAuto: d.cellWAuto,
+		swap: d.swap,
 		locked: true,
 	};
 }

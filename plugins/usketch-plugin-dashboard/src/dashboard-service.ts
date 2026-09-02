@@ -21,6 +21,7 @@ import {
 	gridSpecFromConfig,
 	modeOf,
 	setConfig,
+	swapOf,
 	viewportLockOf,
 } from "./config-ops.js";
 import {
@@ -72,6 +73,10 @@ export interface DashboardApi {
 	getCellWidthAuto(): boolean;
 	/** Set the cell width to "auto" (fit to screen) or back to a fixed number. */
 	setCellWidthAuto(on: boolean): void;
+	/** Whether drop-onto-occupied swaps the two items (absolute mode). */
+	getSwap(): boolean;
+	/** Toggle swap-on-drop for absolute mode. */
+	setSwap(on: boolean): void;
 	/** Re-snap every item to its reading-order cell (one undoable command). */
 	repack(): void;
 	/** Set the column count (undoable; relayouts items). */
@@ -314,6 +319,8 @@ export function createDashboardApi(
 		setViewportLock: (lock) => setConfig(ctx.store, { viewportLock: lock === true }),
 		getCellWidthAuto: () => cellWAutoOf(ctx.store),
 		setCellWidthAuto: (on) => setConfig(ctx.store, { cellWAuto: on === true }),
+		getSwap: () => swapOf(ctx.store),
+		setSwap: (on) => setConfig(ctx.store, { swap: on === true }),
 		repack: () => repackBoard(ctx, true),
 		// Ignore non-finite inputs (NaN/±Infinity) so a bad host call can't persist
 		// a broken value into the config — `Math.max(1, NaN)` is `NaN`, so the clamp

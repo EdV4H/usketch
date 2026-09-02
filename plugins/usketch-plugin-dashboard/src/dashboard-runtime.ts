@@ -17,6 +17,7 @@ import {
 	getDashboardConfig,
 	gridSpecFromConfig,
 	modeOf,
+	swapOf,
 } from "./config-ops.js";
 import { setDragTarget } from "./drag-target-store.js";
 import type { GridSpec, ItemSize, PlacedBox, Placement } from "./grid.js";
@@ -434,7 +435,28 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		}
 
 		const otherIds = order.filter((id) => id !== dragged);
-		if (mode === "absolute") {
+		if (mode === "absolute" && swapOf(ctx.store)) {
+			// SWAP-on-drop: the dragged item takes the cell it was dropped on; if
+			// another item already sits in that cell, it moves to the dragged item's
+			// original cell (a straight positional swap). Empty target → plain snap.
+			const cols = Math.max(1, Math.floor(spec.columns));
+			// Cell from the shape's TOP-LEFT (how items snap) — the centre over-rounds.
+			const c = cellOfPoint(draggedShape.x, draggedShape.y, spec);
+			const col = Math.min(Math.max(0, c.col), cols - 1);
+			const row = Math.max(0, c.row);
+			const targetTL = cellXY(col, row, spec);
+			const fromTL = dragBefore.get(dragged) ?? { x: draggedShape.x, y: draggedShape.y };
+			const occupant = otherIds
+				.map((id) => ctx.store.getShape(id))
+				.find((s): s is ShapeData => {
+					if (!s) return false;
+					const sc = cellOfPoint(s.x, s.y, spec);
+					return sc.col === col && sc.row === row;
+				});
+			const placements: Placement[] = [{ id: dragged, x: targetTL.x, y: targetTL.y }];
+			if (occupant) placements.push({ id: occupant.id, x: fromTL.x, y: fromTL.y });
+			commitPlacements(placements);
+		} else if (mode === "absolute") {
 			// Dragged → cell nearest its dropped position; others keep their cells
 			// (processed first so they win their own cells).
 			const boxes = [...boxesOf(ctx.store, otherIds), boxOfShape(draggedShape)];
