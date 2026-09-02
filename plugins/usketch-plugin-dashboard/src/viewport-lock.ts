@@ -1,10 +1,12 @@
 // Constrain the canvas viewport when the config's scroll-limit (`viewportLock`) is
 // ON. Zoom is always locked to 100%. The CELL WIDTH decides the mode:
-//   - fixed numeric width → VERTICAL-ONLY: x pinned at the grid's left edge, only
-//     vertical panning (clamped to the content).
-//   - "auto" width → BOTH axes: the width auto-fits the screen, and both axes pan
-//     within the content bounds (so a grid/content wider or taller than the screen
-//     is reachable, but you can't scroll into the empty margins).
+//   - "auto" width → VERTICAL-ONLY: the width auto-fits the screen (so the grid
+//     exactly fills it — no horizontal room), x pinned at the grid's left edge,
+//     only vertical panning (clamped to the content).
+//   - fixed numeric width → BOTH axes: the grid keeps its fixed width, and both
+//     axes pan within the content bounds — so a grid wider or taller than the
+//     screen is reachable (horizontal scroll), but you can't scroll into the empty
+//     margins.
 //
 // It installs a `store.setViewportConstraint`, applied inside the store's single
 // viewport-commit path — so every pan/zoom is constrained AT COMMIT and the stored
@@ -89,12 +91,14 @@ export function setupViewportLock(ctx: PluginContext): () => void {
 		const spec = gridSpecFromConfig(config); // cellW already auto-fit by reapply
 		const bounds = contentBounds(ctx.store, spec);
 		if (cellWAutoOf(ctx.store)) {
-			// AUTO width: 100% zoom, pan BOTH axes within the content bounds.
-			return clampViewportToBounds({ x: vp.x, y: vp.y, zoom: 1 }, bounds, size);
+			// AUTO width: fit to screen → 100% zoom, x pinned at the grid's left edge,
+			// vertical scroll only.
+			const clamped = clampViewportToBounds({ x: -spec.originX, y: vp.y, zoom: 1 }, bounds, size);
+			return { x: -spec.originX, y: clamped.y, zoom: 1 };
 		}
-		// FIXED width: 100% zoom, x pinned at the grid's left edge → vertical only.
-		const clamped = clampViewportToBounds({ x: -spec.originX, y: vp.y, zoom: 1 }, bounds, size);
-		return { x: -spec.originX, y: clamped.y, zoom: 1 };
+		// FIXED numeric width: 100% zoom, pan BOTH axes within the content bounds
+		// (horizontal scroll when the grid is wider than the screen).
+		return clampViewportToBounds({ x: vp.x, y: vp.y, zoom: 1 }, bounds, size);
 	};
 
 	ctx.store.setViewportConstraint(constrain);

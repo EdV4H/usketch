@@ -23,7 +23,7 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			},
 			{ name: "columns", label: "列数", type: "number", min: 1, max: 12, step: 1 },
 			{ name: "cellWidth", label: "セル幅", type: "number", min: 40, max: 800, step: 10 },
-			{ name: "cellWAuto", label: "幅をAuto(画面幅に合わせる)", type: "boolean" },
+			{ name: "cellWAuto", label: "幅をAuto(画面幅・縦のみ)", type: "boolean" },
 			{ name: "cellHeight", label: "セル高", type: "number", min: 40, max: 800, step: 10 },
 			{ name: "gap", label: "間隔", type: "number", min: 0, max: 100, step: 2 },
 			{ name: "padding", label: "余白", type: "number", min: 0, max: 200, step: 4 },

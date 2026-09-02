@@ -64,8 +64,9 @@ export interface DashboardApi {
 	setFreeOutOfRange(on: boolean): void;
 	/** Whether the scroll-limit is on. */
 	getViewportLock(): ViewportLock;
-	/** Turn the scroll-limit on/off (zoom locked to 100%). With a fixed cell width
-	 *  it's vertical scroll only; with "auto" cell width it's both axes. */
+	/** Turn the scroll-limit on/off (zoom locked to 100%). With "auto" cell width the
+	 *  grid fits the screen and scrolls vertically only; with a fixed numeric width it
+	 *  scrolls both axes (horizontal when the grid is wider than the screen). */
 	setViewportLock(lock: ViewportLock): void;
 	/** Whether the cell width is "auto" (fit to screen width) vs a fixed number. */
 	getCellWidthAuto(): boolean;
