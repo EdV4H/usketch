@@ -144,23 +144,43 @@ export function setupViewportLock(ctx: PluginContext): () => void {
 		ctx.store.setViewport(ctx.store.getViewport());
 	};
 
+	// Coalesce resize-driven reapplies to one per frame (a window/observer resize
+	// fires a burst; each reapply repacks, so we don't want one per event).
+	let rafPending = false;
+	const scheduleReapply = () => {
+		if (rafPending) return;
+		rafPending = true;
+		const run = () => {
+			rafPending = false;
+			reapply();
+		};
+		if (typeof requestAnimationFrame === "function") requestAnimationFrame(run);
+		else setTimeout(run, 16);
+	};
+
 	const offMutation = ctx.store.onMutation((event) => {
 		if (applyingAuto) return; // ignore our own auto-width write
 		if (event.type === "shape:updated" && isDashboardConfig(event.payload.after)) reapply();
 	});
 
+	// Refit on canvas resize. Observe the canvas element when present, AND always
+	// listen to window resize — the container may not exist at setup, or may not
+	// track the window, so the window listener is the reliable fallback.
 	let resizeObserver: ResizeObserver | null = null;
 	if (typeof document !== "undefined" && typeof ResizeObserver !== "undefined") {
 		const el = document.querySelector('[data-testid="canvas-container"]');
 		if (el) {
-			resizeObserver = new ResizeObserver(reapply);
+			resizeObserver = new ResizeObserver(scheduleReapply);
 			resizeObserver.observe(el);
 		}
 	}
+	const onWindowResize = typeof window !== "undefined" ? scheduleReapply : null;
+	if (onWindowResize) window.addEventListener("resize", onWindowResize);
 
 	return () => {
 		offMutation();
 		resizeObserver?.disconnect();
+		if (onWindowResize) window.removeEventListener("resize", onWindowResize);
 		ctx.store.setViewportConstraint(null);
 	};
 }
