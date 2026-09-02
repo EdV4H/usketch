@@ -22,12 +22,12 @@ export const DASHBOARD_CONFIG_TYPE = "dashboard-config";
 export type DashboardMode = "flow" | "absolute";
 
 /**
- * Viewport constraint:
- * - `off` — free pan/zoom.
- * - `vertical` — fit the grid width to the screen, lock zoom, scroll vertically only.
- * - `both` — fit the grid width to the screen, lock zoom, scroll both axes.
+ * Scroll-limit toggle. When ON, the viewport is locked to 100% zoom and the cell
+ * width auto-fits so the grid exactly fills the screen width — so there's no
+ * horizontal room and you scroll vertically only, bounded to the content. When OFF,
+ * pan/zoom are free. (Was a `"off"|"vertical"|"both"` mode; now a simple on/off.)
  */
-export type ViewportLock = "off" | "vertical" | "both";
+export type ViewportLock = boolean;
 
 /** Grid settings persisted on the singleton. Geometry (`originX`/`originY`) lives
  *  here too so the grid anchor is stable across reflows and reloads. */
@@ -47,7 +47,8 @@ export interface DashboardConfigData extends ShapeData {
 	 *  (unmanaged). When false, every top-level shape is managed regardless of
 	 *  position. */
 	freeOutOfRange: boolean;
-	/** Viewport constraint mode (fit-to-grid-width + zoom lock). See {@link ViewportLock}. */
+	/** Scroll-limit toggle (100% zoom + auto cell width to fill the screen width,
+	 *  vertical scroll only). See {@link ViewportLock}. */
 	viewportLock: ViewportLock;
 }
 
@@ -76,7 +77,7 @@ export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
 	mode: "flow",
 	fitToGrid: false,
 	freeOutOfRange: true,
-	viewportLock: "off",
+	viewportLock: false,
 };
 
 export function isDashboardConfig(shape: ShapeData): shape is DashboardConfigData {

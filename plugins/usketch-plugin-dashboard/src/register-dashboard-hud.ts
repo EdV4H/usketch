@@ -22,22 +22,20 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 				],
 			},
 			{ name: "columns", label: "列数", type: "number", min: 1, max: 12, step: 1 },
-			{ name: "cellWidth", label: "セル幅", type: "number", min: 40, max: 800, step: 10 },
+			{
+				name: "cellWidth",
+				label: "セル幅(制限時auto)",
+				type: "number",
+				min: 40,
+				max: 800,
+				step: 10,
+			},
 			{ name: "cellHeight", label: "セル高", type: "number", min: 40, max: 800, step: 10 },
 			{ name: "gap", label: "間隔", type: "number", min: 0, max: 100, step: 2 },
 			{ name: "padding", label: "余白", type: "number", min: 0, max: 200, step: 4 },
 			{ name: "fitToGrid", label: "セルに合わせる", type: "boolean" },
 			{ name: "freeOutOfRange", label: "範囲外は自由", type: "boolean" },
-			{
-				name: "viewportLock",
-				label: "スクロール制限",
-				type: "enum",
-				options: [
-					{ value: "off", label: "なし" },
-					{ value: "vertical", label: "縦のみ(幅フィット)" },
-					{ value: "both", label: "縦横(ズーム固定)" },
-				],
-			},
+			{ name: "viewportLock", label: "スクロール制限", type: "boolean" },
 		],
 		get(name) {
 			if (name === "mode") return api.getMode();
@@ -75,7 +73,7 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 				return;
 			}
 			if (name === "viewportLock") {
-				if (value === "off" || value === "vertical" || value === "both") api.setViewportLock(value);
+				api.setViewportLock(value === true || value === "true");
 				return;
 			}
 			const n = Number(value);

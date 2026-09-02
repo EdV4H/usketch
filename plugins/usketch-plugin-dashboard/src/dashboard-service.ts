@@ -63,7 +63,7 @@ export interface DashboardApi {
 	setFreeOutOfRange(on: boolean): void;
 	/** The viewport constraint mode. */
 	getViewportLock(): ViewportLock;
-	/** Set the viewport constraint (`off` / `vertical` / `both`). */
+	/** Turn the scroll-limit on/off (100% zoom + auto cell width, vertical scroll). */
 	setViewportLock(lock: ViewportLock): void;
 	/** Re-snap every item to its reading-order cell (one undoable command). */
 	repack(): void;
@@ -304,11 +304,7 @@ export function createDashboardApi(
 			if (!on) repackBoard(ctx, true); // range now unlimited → gather everything
 		},
 		getViewportLock: () => viewportLockOf(ctx.store),
-		setViewportLock: (lock) => {
-			if (lock === "off" || lock === "vertical" || lock === "both") {
-				setConfig(ctx.store, { viewportLock: lock });
-			}
-		},
+		setViewportLock: (lock) => setConfig(ctx.store, { viewportLock: lock === true }),
 		repack: () => repackBoard(ctx, true),
 		// Ignore non-finite inputs (NaN/±Infinity) so a bad host call can't persist
 		// a broken value into the config — `Math.max(1, NaN)` is `NaN`, so the clamp
@@ -320,6 +316,12 @@ export function createDashboardApi(
 		},
 		setCellSize: (cellW, cellH) => {
 			if (!Number.isFinite(cellW) || !Number.isFinite(cellH)) return;
+			// While scroll-limited the width is AUTO (fit to screen) — accept only the
+			// height so a manual width edit can't fight the auto fit.
+			if (viewportLockOf(ctx.store)) {
+				applyConfig(ctx, { cellH: Math.max(1, cellH) });
+				return;
+			}
 			applyConfig(ctx, { cellW: Math.max(1, cellW), cellH: Math.max(1, cellH) });
 		},
 		setGap: (gap) => {

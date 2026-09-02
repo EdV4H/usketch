@@ -236,16 +236,16 @@ describe("DashboardApi freeOutOfRange", () => {
 });
 
 describe("DashboardApi viewportLock", () => {
-	it("既定は off、setViewportLock で vertical/both に切り替わる", () => {
+	it("既定は off(false)、setViewportLock で ON/OFF が切り替わる", () => {
 		const { ctx, store } = makeCtx();
 		store.addShape(rect("a", 0, 0));
 		const api = createDashboardApi(ctx);
 		api.enable();
-		expect(api.getViewportLock()).toBe("off");
-		api.setViewportLock("vertical");
-		expect(api.getViewportLock()).toBe("vertical");
-		api.setViewportLock("both");
-		expect(api.getViewportLock()).toBe("both");
+		expect(api.getViewportLock()).toBe(false);
+		api.setViewportLock(true);
+		expect(api.getViewportLock()).toBe(true);
+		api.setViewportLock(false);
+		expect(api.getViewportLock()).toBe(false);
 	});
 });
 

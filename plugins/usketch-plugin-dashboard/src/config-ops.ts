@@ -46,9 +46,10 @@ export function freeOutOfRangeOf(store: BoardStore): boolean {
 	return getDashboardConfig(store)?.freeOutOfRange ?? true;
 }
 
-/** The viewport constraint mode (defaults to `off`). */
+/** Whether the scroll-limit is on (defaults to off). Strict `=== true` so a config
+ *  persisted with the old `"off"|"vertical"|"both"` string coerces to OFF. */
 export function viewportLockOf(store: BoardStore): ViewportLock {
-	return getDashboardConfig(store)?.viewportLock ?? "off";
+	return getDashboardConfig(store)?.viewportLock === true;
 }
 
 /**

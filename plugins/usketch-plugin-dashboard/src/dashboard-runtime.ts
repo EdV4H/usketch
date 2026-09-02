@@ -157,6 +157,30 @@ export function repackBoard(ctx: PluginContext, includeAll = false): void {
 }
 
 /**
+ * Repack every item to its reading-order cell WITHOUT a command (guarded, no undo
+ * entry). For automatic layout the user didn't ask for — e.g. the scroll-lock's
+ * auto cell-width refit on resize — where polluting the undo stack would be wrong.
+ */
+export function repackBoardTransient(ctx: PluginContext): void {
+	const spec = specOf(ctx.store);
+	if (!spec) return;
+	const items = dashboardItems(ctx.store);
+	if (items.length === 0) return;
+	const order = readingOrder(items, spec);
+	const placements =
+		modeOf(ctx.store) === "absolute"
+			? packAbsolute(boxesOf(ctx.store, order), spec)
+			: packSpans(sizedOrder(ctx.store, order), spec);
+	runGuarded(() => {
+		for (const p of placements) {
+			const cur = ctx.store.getShape(p.id);
+			if (!cur || (cur.x === p.x && cur.y === p.y)) continue;
+			ctx.store.updateShape(p.id, { x: p.x, y: p.y });
+		}
+	});
+}
+
+/**
  * Wire the live-reflow runtime. Returns a teardown that removes every listener
  * and cancels any pending frame.
  */
