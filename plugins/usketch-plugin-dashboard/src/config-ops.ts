@@ -28,6 +28,7 @@ export type DashboardConfigPatch = Partial<
 		| "fitToGrid"
 		| "freeOutOfRange"
 		| "viewportLock"
+		| "cellWAuto"
 	>
 >;
 
@@ -50,6 +51,11 @@ export function freeOutOfRangeOf(store: BoardStore): boolean {
  *  persisted with the old `"off"|"vertical"|"both"` string coerces to OFF. */
 export function viewportLockOf(store: BoardStore): ViewportLock {
 	return getDashboardConfig(store)?.viewportLock === true;
+}
+
+/** Whether the cell width is "auto" (fit to screen) rather than a fixed number. */
+export function cellWAutoOf(store: BoardStore): boolean {
+	return getDashboardConfig(store)?.cellWAuto === true;
 }
 
 /**

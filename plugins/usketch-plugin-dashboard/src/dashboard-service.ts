@@ -11,6 +11,7 @@ import {
 	type ShapeData,
 } from "@edv4h/usketch-shared";
 import {
+	cellWAutoOf,
 	type DashboardConfigPatch,
 	ensureDashboardConfig,
 	fitToGridOf,
@@ -61,10 +62,15 @@ export interface DashboardApi {
 	getFreeOutOfRange(): boolean;
 	/** Toggle it. Turning it OFF gathers every shape back into the grid. */
 	setFreeOutOfRange(on: boolean): void;
-	/** The viewport constraint mode. */
+	/** Whether the scroll-limit is on. */
 	getViewportLock(): ViewportLock;
-	/** Turn the scroll-limit on/off (100% zoom + auto cell width, vertical scroll). */
+	/** Turn the scroll-limit on/off (zoom locked to 100%). With a fixed cell width
+	 *  it's vertical scroll only; with "auto" cell width it's both axes. */
 	setViewportLock(lock: ViewportLock): void;
+	/** Whether the cell width is "auto" (fit to screen width) vs a fixed number. */
+	getCellWidthAuto(): boolean;
+	/** Set the cell width to "auto" (fit to screen) or back to a fixed number. */
+	setCellWidthAuto(on: boolean): void;
 	/** Re-snap every item to its reading-order cell (one undoable command). */
 	repack(): void;
 	/** Set the column count (undoable; relayouts items). */
@@ -305,6 +311,8 @@ export function createDashboardApi(
 		},
 		getViewportLock: () => viewportLockOf(ctx.store),
 		setViewportLock: (lock) => setConfig(ctx.store, { viewportLock: lock === true }),
+		getCellWidthAuto: () => cellWAutoOf(ctx.store),
+		setCellWidthAuto: (on) => setConfig(ctx.store, { cellWAuto: on === true }),
 		repack: () => repackBoard(ctx, true),
 		// Ignore non-finite inputs (NaN/±Infinity) so a bad host call can't persist
 		// a broken value into the config — `Math.max(1, NaN)` is `NaN`, so the clamp
@@ -316,12 +324,6 @@ export function createDashboardApi(
 		},
 		setCellSize: (cellW, cellH) => {
 			if (!Number.isFinite(cellW) || !Number.isFinite(cellH)) return;
-			// While scroll-limited the width is AUTO (fit to screen) — accept only the
-			// height so a manual width edit can't fight the auto fit.
-			if (viewportLockOf(ctx.store)) {
-				applyConfig(ctx, { cellH: Math.max(1, cellH) });
-				return;
-			}
 			applyConfig(ctx, { cellW: Math.max(1, cellW), cellH: Math.max(1, cellH) });
 		},
 		setGap: (gap) => {

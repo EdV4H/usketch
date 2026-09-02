@@ -247,6 +247,21 @@ describe("DashboardApi viewportLock", () => {
 		api.setViewportLock(false);
 		expect(api.getViewportLock()).toBe(false);
 	});
+
+	it("セル幅auto は既定 false、setCellWidthAuto で切替。setCellSize は数値幅を保持", () => {
+		const { ctx, store } = makeCtx();
+		store.addShape(rect("a", 0, 0));
+		const api = createDashboardApi(ctx, { columns: 4, cellW: 200, gap: 0, padding: 0 });
+		api.enable();
+		expect(api.getCellWidthAuto()).toBe(false);
+		api.setCellWidthAuto(true);
+		expect(api.getCellWidthAuto()).toBe(true);
+		// 数値幅に戻す（=auto解除）。制限中でも幅は保持される。
+		api.setCellWidthAuto(false);
+		api.setCellSize(240, 140);
+		expect(api.getCellWidthAuto()).toBe(false);
+		expect(api.getGridSpec()?.cellW).toBe(240);
+	});
 });
 
 describe("DashboardApi disable", () => {

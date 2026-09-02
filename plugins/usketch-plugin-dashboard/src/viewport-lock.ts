@@ -1,16 +1,23 @@
 // Constrain the canvas viewport when the config's scroll-limit (`viewportLock`) is
-// ON: zoom is locked to 100% and the CELL WIDTH is auto-sized so the grid exactly
-// fills the screen width — so there's no horizontal room (x is pinned) and you
-// scroll vertically only, bounded to the content. When OFF, no constraint.
+// ON. Zoom is always locked to 100%. The CELL WIDTH decides the mode:
+//   - fixed numeric width → VERTICAL-ONLY: x pinned at the grid's left edge, only
+//     vertical panning (clamped to the content).
+//   - "auto" width → BOTH axes: the width auto-fits the screen, and both axes pan
+//     within the content bounds (so a grid/content wider or taller than the screen
+//     is reachable, but you can't scroll into the empty margins).
 //
 // It installs a `store.setViewportConstraint`, applied inside the store's single
 // viewport-commit path — so every pan/zoom is constrained AT COMMIT and the stored
 // viewport can never violate it. The auto cell-width is applied transiently (no undo
-// entry) whenever the lock engages, the canvas resizes, or columns/gap/padding
-// change; on unlock the pre-lock width is restored.
+// entry) whenever auto engages, the canvas resizes, or columns/gap/padding change.
 import type { BoardStore, BoundingBox, PluginContext, Viewport } from "@edv4h/usketch-shared";
 import { clampViewportToBounds } from "@edv4h/usketch-store";
-import { getDashboardConfig, gridSpecFromConfig, viewportLockOf } from "./config-ops.js";
+import {
+	cellWAutoOf,
+	getDashboardConfig,
+	gridSpecFromConfig,
+	viewportLockOf,
+} from "./config-ops.js";
 import { isDashboardConfig } from "./dashboard-config-shape.js";
 import { repackBoardTransient, runGuarded } from "./dashboard-runtime.js";
 import type { GridSpec } from "./grid.js";
@@ -69,8 +76,6 @@ function contentBounds(store: BoardStore, spec: GridSpec): BoundingBox {
 
 /** Wire the viewport constraint. Returns a teardown. */
 export function setupViewportLock(ctx: PluginContext): () => void {
-	// The user's cell width before the lock auto-took it over, restored on unlock.
-	let savedCellW: number | null = null;
 	// Raised while we write the auto cell-width, so our own config-change listener
 	// doesn't recurse.
 	let applyingAuto = false;
@@ -82,21 +87,23 @@ export function setupViewportLock(ctx: PluginContext): () => void {
 		const size = canvasSize();
 		if (!size) return vp;
 		const spec = gridSpecFromConfig(config); // cellW already auto-fit by reapply
-		// 100% zoom, grid's left edge pinned to screen left (auto width fills the
-		// screen so there's no horizontal room), vertical pan clamped to the content.
-		const clamped = clampViewportToBounds(
-			{ x: -spec.originX, y: vp.y, zoom: 1 },
-			contentBounds(ctx.store, spec),
-			size,
-		);
+		const bounds = contentBounds(ctx.store, spec);
+		if (cellWAutoOf(ctx.store)) {
+			// AUTO width: 100% zoom, pan BOTH axes within the content bounds.
+			return clampViewportToBounds({ x: vp.x, y: vp.y, zoom: 1 }, bounds, size);
+		}
+		// FIXED width: 100% zoom, x pinned at the grid's left edge → vertical only.
+		const clamped = clampViewportToBounds({ x: -spec.originX, y: vp.y, zoom: 1 }, bounds, size);
 		return { x: -spec.originX, y: clamped.y, zoom: 1 };
 	};
 
 	ctx.store.setViewportConstraint(constrain);
 
-	/** Set the cell width so the grid fills the screen, then repack — transiently
-	 *  (no undo entry, ignored by the reflow runtime). */
+	/** When locked with "auto" width, size the cell width so the grid fills the
+	 *  screen, then repack — transiently (no undo entry, ignored by the reflow
+	 *  runtime). No-op in any other mode. */
 	function applyAutoWidth(): void {
+		if (!viewportLockOf(ctx.store) || !cellWAutoOf(ctx.store)) return;
 		const config = getDashboardConfig(ctx.store);
 		const size = canvasSize();
 		if (!config || !size) return;
@@ -113,32 +120,10 @@ export function setupViewportLock(ctx: PluginContext): () => void {
 		}
 	}
 
-	/** Restore the user's pre-lock cell width and repack (transient). */
-	function restoreWidth(width: number): void {
-		const config = getDashboardConfig(ctx.store);
-		if (!config || Math.abs(config.cellW - width) < 0.5) return;
-		applyingAuto = true;
-		try {
-			runGuarded(() =>
-				ctx.store.updateShape(config.id, { cellW: width } as Partial<typeof config>),
-			);
-			repackBoardTransient(ctx);
-		} finally {
-			applyingAuto = false;
-		}
-	}
-
-	// Re-commit (and re-fit the auto width) when the lock toggles, the config
-	// (columns / gap / padding) changes, or the canvas resizes.
+	// Re-fit the auto width and re-commit whenever the lock/auto flags toggle, the
+	// config (columns / gap / padding) changes, or the canvas resizes.
 	const reapply = () => {
-		const config = getDashboardConfig(ctx.store);
-		if (viewportLockOf(ctx.store)) {
-			if (config && savedCellW === null) savedCellW = config.cellW; // entering lock
-			applyAutoWidth();
-		} else if (savedCellW !== null) {
-			restoreWidth(savedCellW); // leaving lock
-			savedCellW = null;
-		}
+		applyAutoWidth();
 		ctx.store.setViewport(ctx.store.getViewport());
 	};
 

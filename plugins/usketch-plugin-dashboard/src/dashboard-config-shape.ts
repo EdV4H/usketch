@@ -47,9 +47,11 @@ export interface DashboardConfigData extends ShapeData {
 	 *  (unmanaged). When false, every top-level shape is managed regardless of
 	 *  position. */
 	freeOutOfRange: boolean;
-	/** Scroll-limit toggle (100% zoom + auto cell width to fill the screen width,
-	 *  vertical scroll only). See {@link ViewportLock}. */
+	/** Scroll-limit toggle. See {@link ViewportLock}. */
 	viewportLock: ViewportLock;
+	/** Whether the cell WIDTH is "auto" (fit to the screen width). Drives the
+	 *  scroll-limit mode: fixed numeric width → vertical-only; auto → both axes. */
+	cellWAuto: boolean;
 }
 
 export interface DashboardDefaults {
@@ -64,6 +66,7 @@ export interface DashboardDefaults {
 	fitToGrid?: boolean;
 	freeOutOfRange?: boolean;
 	viewportLock?: ViewportLock;
+	cellWAuto?: boolean;
 }
 
 export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
@@ -78,6 +81,7 @@ export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
 	fitToGrid: false,
 	freeOutOfRange: true,
 	viewportLock: false,
+	cellWAuto: false,
 };
 
 export function isDashboardConfig(shape: ShapeData): shape is DashboardConfigData {
@@ -105,6 +109,7 @@ export function makeDashboardConfig(defaults: DashboardDefaults = {}): Dashboard
 		fitToGrid: d.fitToGrid,
 		freeOutOfRange: d.freeOutOfRange,
 		viewportLock: d.viewportLock,
+		cellWAuto: d.cellWAuto,
 		locked: true,
 	};
 }
