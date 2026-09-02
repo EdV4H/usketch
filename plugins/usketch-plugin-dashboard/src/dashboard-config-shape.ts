@@ -56,6 +56,9 @@ export interface DashboardConfigData extends ShapeData {
 	 *  two (the occupant moves to the dragged item's old cell). No effect in `flow`
 	 *  (which always reorders). */
 	swap: boolean;
+	/** Swap trigger sensitivity (0–1): the minimum overlap ratio between the dropped
+	 *  item and the item it lands on for a swap to fire. Lower = easier to swap. */
+	swapThreshold: number;
 }
 
 export interface DashboardDefaults {
@@ -72,6 +75,7 @@ export interface DashboardDefaults {
 	viewportLock?: ViewportLock;
 	cellWAuto?: boolean;
 	swap?: boolean;
+	swapThreshold?: number;
 }
 
 export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
@@ -88,6 +92,7 @@ export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
 	viewportLock: false,
 	cellWAuto: false,
 	swap: false,
+	swapThreshold: 0.25,
 };
 
 export function isDashboardConfig(shape: ShapeData): shape is DashboardConfigData {
@@ -117,6 +122,7 @@ export function makeDashboardConfig(defaults: DashboardDefaults = {}): Dashboard
 		viewportLock: d.viewportLock,
 		cellWAuto: d.cellWAuto,
 		swap: d.swap,
+		swapThreshold: d.swapThreshold,
 		locked: true,
 	};
 }

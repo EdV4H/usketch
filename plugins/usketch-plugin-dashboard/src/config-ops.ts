@@ -30,6 +30,7 @@ export type DashboardConfigPatch = Partial<
 		| "viewportLock"
 		| "cellWAuto"
 		| "swap"
+		| "swapThreshold"
 	>
 >;
 
@@ -62,6 +63,12 @@ export function cellWAutoOf(store: BoardStore): boolean {
 /** Whether drop-onto-occupied swaps the two items (absolute mode). Defaults off. */
 export function swapOf(store: BoardStore): boolean {
 	return getDashboardConfig(store)?.swap === true;
+}
+
+/** Minimum overlap ratio (0–1) for a swap to fire (absolute mode). Defaults 0.25. */
+export function swapThresholdOf(store: BoardStore): number {
+	const t = getDashboardConfig(store)?.swapThreshold;
+	return typeof t === "number" && Number.isFinite(t) ? Math.min(Math.max(t, 0), 1) : 0.25;
 }
 
 /**

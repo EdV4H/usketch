@@ -22,6 +22,7 @@ import {
 	modeOf,
 	setConfig,
 	swapOf,
+	swapThresholdOf,
 	viewportLockOf,
 } from "./config-ops.js";
 import {
@@ -77,6 +78,10 @@ export interface DashboardApi {
 	getSwap(): boolean;
 	/** Toggle swap-on-drop for absolute mode. */
 	setSwap(on: boolean): void;
+	/** The swap overlap-ratio threshold (0–1); lower = easier to trigger a swap. */
+	getSwapThreshold(): number;
+	/** Set the swap overlap-ratio threshold (clamped to 0–1). */
+	setSwapThreshold(ratio: number): void;
 	/** Re-snap every item to its reading-order cell (one undoable command). */
 	repack(): void;
 	/** Set the column count (undoable; relayouts items). */
@@ -321,6 +326,11 @@ export function createDashboardApi(
 		setCellWidthAuto: (on) => setConfig(ctx.store, { cellWAuto: on === true }),
 		getSwap: () => swapOf(ctx.store),
 		setSwap: (on) => setConfig(ctx.store, { swap: on === true }),
+		getSwapThreshold: () => swapThresholdOf(ctx.store),
+		setSwapThreshold: (ratio) => {
+			if (!Number.isFinite(ratio)) return;
+			setConfig(ctx.store, { swapThreshold: Math.min(Math.max(ratio, 0), 1) });
+		},
 		repack: () => repackBoard(ctx, true),
 		// Ignore non-finite inputs (NaN/±Infinity) so a bad host call can't persist
 		// a broken value into the config — `Math.max(1, NaN)` is `NaN`, so the clamp

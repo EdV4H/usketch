@@ -290,6 +290,61 @@ describe("dashboard runtime — absolute swap-on-drop", () => {
 		stop();
 	});
 
+	it("閾値: 一部だけ重なるドロップは閾値次第で入れ替わる", async () => {
+		const make = (threshold: number) => {
+			const { ctx, store, events } = harness();
+			store.addShape(
+				makeDashboardConfig({
+					columns: 3,
+					cellW: 100,
+					cellH: 100,
+					gap: 0,
+					padding: 0,
+					originX: 0,
+					originY: 0,
+					mode: "absolute",
+					swap: true,
+					swapThreshold: threshold,
+				}),
+			);
+			store.addShape(rect("a", 0, 0));
+			store.addShape(rect("b", 200, 0));
+			const stop = setupDashboard(ctx);
+			return { store, events, stop };
+		};
+		// b を x=70 にドロップ → a(0..100) と 30% 重なる
+		const hi = make(0.5); // 閾値50% → 30%重なりでは入れ替わらない
+		await Promise.resolve();
+		await faithfulDrag(
+			hi.store,
+			hi.events,
+			"b",
+			[
+				{ x: 120, y: 0 },
+				{ x: 70, y: 0 },
+			],
+			{ x: 200, y: 0 },
+		);
+		expect(at(hi.store, "a")).toEqual({ x: 0, y: 0 }); // a 不動
+		hi.stop();
+
+		const lo = make(0.2); // 閾値20% → 30%重なりで入れ替わる
+		await Promise.resolve();
+		await faithfulDrag(
+			lo.store,
+			lo.events,
+			"b",
+			[
+				{ x: 120, y: 0 },
+				{ x: 70, y: 0 },
+			],
+			{ x: 200, y: 0 },
+		);
+		expect(at(lo.store, "b")).toEqual({ x: 0, y: 0 }); // b → a のセル
+		expect(at(lo.store, "a")).toEqual({ x: 200, y: 0 }); // a → b の元セル
+		lo.stop();
+	});
+
 	it("swap OFF(既定): 入れ替えは起きない(空きセルへ寄る)", async () => {
 		const { ctx, store, events } = harness();
 		store.addShape(

@@ -28,7 +28,8 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			{ name: "gap", label: "間隔", type: "number", min: 0, max: 100, step: 2 },
 			{ name: "padding", label: "余白", type: "number", min: 0, max: 200, step: 4 },
 			{ name: "fitToGrid", label: "セルに合わせる", type: "boolean" },
-			{ name: "swap", label: "入れ替え(そのまま時)", type: "boolean" },
+			{ name: "swap", label: "入れ替え", type: "boolean" },
+			{ name: "swapThreshold", label: "入れ替え閾値%", type: "number", min: 0, max: 100, step: 5 },
 			{ name: "freeOutOfRange", label: "範囲外は自由", type: "boolean" },
 			{ name: "viewportLock", label: "スクロール制限", type: "boolean" },
 		],
@@ -36,6 +37,7 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			if (name === "mode") return api.getMode();
 			if (name === "fitToGrid") return api.getFitToGrid();
 			if (name === "swap") return api.getSwap();
+			if (name === "swapThreshold") return Math.round(api.getSwapThreshold() * 100);
 			if (name === "freeOutOfRange") return api.getFreeOutOfRange();
 			if (name === "viewportLock") return api.getViewportLock();
 			if (name === "cellWAuto") return api.getCellWidthAuto();
@@ -103,6 +105,9 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 					break;
 				case "padding":
 					api.setPadding(n);
+					break;
+				case "swapThreshold":
+					api.setSwapThreshold(n / 100); // percent field → 0–1 ratio
 					break;
 			}
 		},

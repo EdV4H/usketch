@@ -18,6 +18,7 @@ import {
 	gridSpecFromConfig,
 	modeOf,
 	swapOf,
+	swapThresholdOf,
 } from "./config-ops.js";
 import { setDragTarget } from "./drag-target-store.js";
 import type { GridSpec, ItemSize, PlacedBox, Placement } from "./grid.js";
@@ -79,6 +80,15 @@ const cancelFrame: (handle: number) => void =
 /** Centre of a shape's box (rotation is about the centre, so it's rotation-invariant). */
 function centerOf(shape: ShapeData): { x: number; y: number } {
 	return { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
+}
+
+/** Overlap ratio of two boxes: intersection area / the smaller box's area (0–1). */
+function overlapRatio(a: ShapeData, b: ShapeData): number {
+	const ix = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+	const iy = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+	const inter = ix * iy;
+	const minArea = Math.max(1, Math.min(a.width * a.height, b.width * b.height));
+	return inter / minArea;
 }
 
 /** Resolve the board's grid spec, or null when this board isn't a dashboard. */
@@ -436,26 +446,32 @@ export function setupDashboard(ctx: PluginContext): () => void {
 
 		const otherIds = order.filter((id) => id !== dragged);
 		if (mode === "absolute" && swapOf(ctx.store)) {
-			// SWAP-on-drop: the dragged item takes the cell it was dropped on; if
-			// another item already sits in that cell, it moves to the dragged item's
-			// original cell (a straight positional swap). Empty target → plain snap.
-			const cols = Math.max(1, Math.floor(spec.columns));
-			// Cell from the shape's TOP-LEFT (how items snap) — the centre over-rounds.
-			const c = cellOfPoint(draggedShape.x, draggedShape.y, spec);
-			const col = Math.min(Math.max(0, c.col), cols - 1);
-			const row = Math.max(0, c.row);
-			const targetTL = cellXY(col, row, spec);
+			// SWAP-on-drop: swap with the item the dropped shape OVERLAPS the most, when
+			// that overlap ratio meets the configured threshold (lower = easier). The
+			// dragged item takes the occupant's cell; the occupant moves to the dragged
+			// item's original cell. Below threshold → normal absolute snap.
 			const fromTL = dragBefore.get(dragged) ?? { x: draggedShape.x, y: draggedShape.y };
-			const occupant = otherIds
-				.map((id) => ctx.store.getShape(id))
-				.find((s): s is ShapeData => {
-					if (!s) return false;
-					const sc = cellOfPoint(s.x, s.y, spec);
-					return sc.col === col && sc.row === row;
-				});
-			const placements: Placement[] = [{ id: dragged, x: targetTL.x, y: targetTL.y }];
-			if (occupant) placements.push({ id: occupant.id, x: fromTL.x, y: fromTL.y });
-			commitPlacements(placements);
+			let best: ShapeData | null = null;
+			let bestRatio = 0;
+			for (const id of otherIds) {
+				const s = ctx.store.getShape(id);
+				if (!s) continue;
+				const ratio = overlapRatio(draggedShape, s);
+				if (ratio > bestRatio) {
+					bestRatio = ratio;
+					best = s;
+				}
+			}
+			if (best && bestRatio >= swapThresholdOf(ctx.store)) {
+				commitPlacements([
+					{ id: dragged, x: best.x, y: best.y },
+					{ id: best.id, x: fromTL.x, y: fromTL.y },
+				]);
+			} else {
+				// No swap: keep others, snap the dragged to its nearest free cell.
+				const boxes = [...boxesOf(ctx.store, otherIds), boxOfShape(draggedShape)];
+				commitPlacements(packAbsolute(boxes, spec));
+			}
 		} else if (mode === "absolute") {
 			// Dragged → cell nearest its dropped position; others keep their cells
 			// (processed first so they win their own cells).
