@@ -22,7 +22,8 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 				],
 			},
 			{ name: "columns", label: "列数", type: "number", min: 1, max: 12, step: 1 },
-			{ name: "cellWidth", label: "セル幅(数値 / auto)", type: "string" },
+			{ name: "cellWidth", label: "セル幅", type: "number", min: 40, max: 800, step: 10 },
+			{ name: "cellWAuto", label: "幅をAuto(画面幅に合わせる)", type: "boolean" },
 			{ name: "cellHeight", label: "セル高", type: "number", min: 40, max: 800, step: 10 },
 			{ name: "gap", label: "間隔", type: "number", min: 0, max: 100, step: 2 },
 			{ name: "padding", label: "余白", type: "number", min: 0, max: 200, step: 4 },
@@ -35,14 +36,14 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			if (name === "fitToGrid") return api.getFitToGrid();
 			if (name === "freeOutOfRange") return api.getFreeOutOfRange();
 			if (name === "viewportLock") return api.getViewportLock();
+			if (name === "cellWAuto") return api.getCellWidthAuto();
 			const spec = api.getGridSpec();
 			if (!spec) return undefined;
 			switch (name) {
 				case "columns":
 					return spec.columns;
 				case "cellWidth":
-					// String field: literal "auto", or the current width rounded.
-					return api.getCellWidthAuto() ? "auto" : String(Math.round(spec.cellW));
+					return spec.cellW;
 				case "cellHeight":
 					return spec.cellH;
 				case "gap":
@@ -70,18 +71,8 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 				api.setViewportLock(value === true || value === "true");
 				return;
 			}
-			if (name === "cellWidth") {
-				// "auto" (any case) → auto-fit width; otherwise a fixed numeric width.
-				if (String(value).trim().toLowerCase() === "auto") {
-					api.setCellWidthAuto(true);
-					return;
-				}
-				const w = Number(value);
-				const spec = api.getGridSpec();
-				if (Number.isFinite(w) && spec) {
-					api.setCellWidthAuto(false);
-					api.setCellSize(w, spec.cellH);
-				}
+			if (name === "cellWAuto") {
+				api.setCellWidthAuto(value === true || value === "true");
 				return;
 			}
 			const n = Number(value);
@@ -90,6 +81,13 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			switch (name) {
 				case "columns":
 					api.setColumns(n);
+					break;
+				case "cellWidth":
+					// A manual width edit turns Auto off (it's now a fixed number).
+					if (spec) {
+						api.setCellWidthAuto(false);
+						api.setCellSize(n, spec.cellH);
+					}
 					break;
 				case "cellHeight":
 					if (spec) api.setCellSize(spec.cellW, n);
