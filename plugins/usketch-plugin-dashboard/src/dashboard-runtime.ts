@@ -661,7 +661,11 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			setSlideExclude(after.id); // the dragged item tracks the pointer (no transition)
 			pendingPoint = centerOf(after);
 			scheduleReflow();
-			armSettle(); // commit shortly after the move stream goes quiet
+			// NB: no settle timer for a move — a mere pause must NOT commit (it would
+			// snap the dragged item to the grid mid-drag and prematurely fire the
+			// avoid). The drop is committed by `shapes:move-end` (or the
+			// `selection:changed` safety net), which fire only on actual release.
+			clearSettle();
 			return;
 		}
 
