@@ -31,6 +31,7 @@ export type DashboardConfigPatch = Partial<
 		| "cellWAuto"
 		| "swap"
 		| "swapThreshold"
+		| "swapDelay"
 	>
 >;
 
@@ -69,6 +70,12 @@ export function swapOf(store: BoardStore): boolean {
 export function swapThresholdOf(store: BoardStore): number {
 	const t = getDashboardConfig(store)?.swapThreshold;
 	return typeof t === "number" && Number.isFinite(t) ? Math.min(Math.max(t, 0), 1) : 0.25;
+}
+
+/** Dwell (ms) before the live avoid fires. Defaults 0 (immediate). */
+export function swapDelayOf(store: BoardStore): number {
+	const d = getDashboardConfig(store)?.swapDelay;
+	return typeof d === "number" && Number.isFinite(d) && d > 0 ? d : 0;
 }
 
 /**

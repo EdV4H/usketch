@@ -377,6 +377,38 @@ describe("dashboard runtime — absolute avoid-on-drop", () => {
 		stop();
 	});
 
+	it("避けディレイ: ホバー直後は避けず、ディレイ経過後に避ける", async () => {
+		const { ctx, store, events } = harness();
+		store.addShape(
+			makeDashboardConfig({
+				columns: 4,
+				cellW: 100,
+				cellH: 100,
+				gap: 0,
+				padding: 0,
+				originX: 0,
+				originY: 0,
+				mode: "absolute",
+				swap: true,
+				swapDelay: 150,
+			}),
+		);
+		store.addShape(rect("a", 100, 0)); // col1
+		store.addShape(rect("b", 300, 0)); // col3
+		const stop = setupDashboard(ctx);
+		await Promise.resolve();
+
+		store.setSelection(["b"]);
+		store.updateShape("b", { x: 110, y: 0 }); // a の上へホバー
+		await new Promise((r) => setTimeout(r, 40));
+		expect(at(store, "a")).toEqual({ x: 100, y: 0 }); // ディレイ中はまだ避けない
+		await new Promise((r) => setTimeout(r, 220)); // ディレイ経過 → タイマーで反映
+		expect(at(store, "a")).toEqual({ x: 0, y: 0 }); // 避けた
+		events.emit("shapes:move-end", { shapeIds: ["b"] });
+		expect(at(store, "b")).toEqual({ x: 100, y: 0 });
+		stop();
+	});
+
 	it("中心がセル領域内なら閾値未満の重なりでも避ける(snap非依存)", async () => {
 		const { ctx, store, events } = harness();
 		store.addShape(

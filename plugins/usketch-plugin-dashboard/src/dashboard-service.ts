@@ -21,6 +21,7 @@ import {
 	gridSpecFromConfig,
 	modeOf,
 	setConfig,
+	swapDelayOf,
 	swapOf,
 	swapThresholdOf,
 	viewportLockOf,
@@ -82,6 +83,10 @@ export interface DashboardApi {
 	getSwapThreshold(): number;
 	/** Set the avoid overlap-ratio threshold (clamped to 0–1). */
 	setSwapThreshold(ratio: number): void;
+	/** Dwell (ms) before the live avoid fires (0 = immediate). */
+	getSwapDelay(): number;
+	/** Set the live-avoid dwell in ms (clamped ≥ 0). */
+	setSwapDelay(ms: number): void;
 	/** Re-snap every item to its reading-order cell (one undoable command). */
 	repack(): void;
 	/** Set the column count (undoable; relayouts items). */
@@ -330,6 +335,11 @@ export function createDashboardApi(
 		setSwapThreshold: (ratio) => {
 			if (!Number.isFinite(ratio)) return;
 			setConfig(ctx.store, { swapThreshold: Math.min(Math.max(ratio, 0), 1) });
+		},
+		getSwapDelay: () => swapDelayOf(ctx.store),
+		setSwapDelay: (ms) => {
+			if (!Number.isFinite(ms)) return;
+			setConfig(ctx.store, { swapDelay: Math.max(0, ms) });
 		},
 		repack: () => repackBoard(ctx, true),
 		// Ignore non-finite inputs (NaN/±Infinity) so a bad host call can't persist

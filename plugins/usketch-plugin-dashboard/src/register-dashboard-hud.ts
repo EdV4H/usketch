@@ -30,6 +30,7 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			{ name: "fitToGrid", label: "セルに合わせる", type: "boolean" },
 			{ name: "swap", label: "避ける", type: "boolean" },
 			{ name: "swapThreshold", label: "避け閾値%", type: "number", min: 0, max: 100, step: 5 },
+			{ name: "swapDelay", label: "避けディレイ(ms)", type: "number", min: 0, max: 1000, step: 50 },
 			{ name: "freeOutOfRange", label: "範囲外は自由", type: "boolean" },
 			{ name: "viewportLock", label: "スクロール制限", type: "boolean" },
 		],
@@ -38,6 +39,7 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			if (name === "fitToGrid") return api.getFitToGrid();
 			if (name === "swap") return api.getSwap();
 			if (name === "swapThreshold") return Math.round(api.getSwapThreshold() * 100);
+			if (name === "swapDelay") return api.getSwapDelay();
 			if (name === "freeOutOfRange") return api.getFreeOutOfRange();
 			if (name === "viewportLock") return api.getViewportLock();
 			if (name === "cellWAuto") return api.getCellWidthAuto();
@@ -108,6 +110,9 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 					break;
 				case "swapThreshold":
 					api.setSwapThreshold(n / 100); // percent field → 0–1 ratio
+					break;
+				case "swapDelay":
+					api.setSwapDelay(n);
 					break;
 			}
 		},

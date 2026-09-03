@@ -17,6 +17,7 @@ import {
 	getDashboardConfig,
 	gridSpecFromConfig,
 	modeOf,
+	swapDelayOf,
 	swapOf,
 	swapThresholdOf,
 } from "./config-ops.js";
@@ -82,6 +83,12 @@ const cancelFrame: (handle: number) => void =
 	typeof globalThis.cancelAnimationFrame === "function"
 		? (handle) => globalThis.cancelAnimationFrame(handle)
 		: (handle) => globalThis.clearTimeout(handle);
+
+/** Monotonic-ish current time in ms (for the avoid dwell). */
+const nowMs = (): number =>
+	typeof performance !== "undefined" && typeof performance.now === "function"
+		? performance.now()
+		: Date.now();
 
 /** Centre of a shape's box (rotation is about the centre, so it's rotation-invariant). */
 function centerOf(shape: ShapeData): { x: number; y: number } {
@@ -272,6 +279,18 @@ export function setupDashboard(ctx: PluginContext): () => void {
 	// a shape drag. `shapes:move-end`, when it does fire, commits sooner.
 	const SETTLE_MS = 120;
 	let settleTimer: ReturnType<typeof setTimeout> | null = null;
+	// Live-avoid dwell: the occupant only steps aside after the dragged item has
+	// hovered it for `swapDelay` ms. `avoidTimer` re-checks after the dwell even if
+	// the pointer holds still (no new `shape:updated` to drive a reflow frame).
+	let avoidCandidateId: string | null = null;
+	let avoidCandidateSince = 0;
+	let avoidTimer: ReturnType<typeof setTimeout> | null = null;
+	function clearAvoidTimer(): void {
+		if (avoidTimer !== null) {
+			clearTimeout(avoidTimer);
+			avoidTimer = null;
+		}
+	}
 	function armSettle(): void {
 		if (settleTimer !== null) clearTimeout(settleTimer);
 		settleTimer = globalThis.setTimeout(() => {
@@ -520,8 +539,17 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			const dCell = cellContaining(centerOf(draggedShape).x, centerOf(draggedShape).y, spec, cols);
 			// LIVE avoid preview: restore siblings to rest, then push the one under the
 			// dragged item aside — WITHOUT moving/snapping the dragged item (it keeps
-			// tracking the pointer; it only snaps on drop).
+			// tracking the pointer; it only snaps on drop). The push waits out the
+			// configured dwell (so merely passing over an item doesn't disturb it).
 			const res = swapOf(ctx.store) ? resolveAvoid(draggedShape, dragged, otherIds, spec) : null;
+			const targetId = res?.best.id ?? null;
+			if (targetId !== avoidCandidateId) {
+				avoidCandidateId = targetId;
+				avoidCandidateSince = nowMs();
+			}
+			const delay = swapDelayOf(ctx.store);
+			const dwell = nowMs() - avoidCandidateSince;
+			const active = targetId !== null && dwell >= delay;
 			runGuarded(() => {
 				for (const id of otherIds) {
 					const rest = dragBefore.get(id);
@@ -529,11 +557,23 @@ export function setupDashboard(ctx: PluginContext): () => void {
 					const cur = ctx.store.getShape(id);
 					if (cur && (cur.x !== rest.x || cur.y !== rest.y)) ctx.store.updateShape(id, rest);
 				}
-				if (res) {
+				if (active && res) {
 					const tl = cellXY(res.avoid.col, res.avoid.row, spec);
 					ctx.store.updateShape(res.best.id, { x: tl.x, y: tl.y });
 				}
 			});
+			// Candidate pending but not yet due → re-check after the remaining dwell (the
+			// pointer may hold still, firing no further reflow).
+			clearAvoidTimer();
+			if (targetId !== null && !active) {
+				avoidTimer = globalThis.setTimeout(
+					() => {
+						avoidTimer = null;
+						scheduleReflow();
+					},
+					Math.max(0, delay - dwell) + 1,
+				);
+			}
 			// Highlight the cell the dragged item will land in on release (the occupant's
 			// cell when avoiding, else the cell it's over).
 			const land = res ? res.bCell : dCell;
@@ -588,6 +628,8 @@ export function setupDashboard(ctx: PluginContext): () => void {
 
 	function endDrag(): void {
 		clearSettle();
+		clearAvoidTimer();
+		avoidCandidateId = null;
 		setDragTarget(null); // clear the drop-target highlight
 		resizingId = null;
 		if (frame !== null) {
@@ -750,6 +792,7 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		offMutation();
 		offMoveEnd();
 		clearSettle();
+		clearAvoidTimer();
 		if (frame !== null) cancelFrame(frame);
 		teardownSlide();
 	};

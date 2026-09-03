@@ -59,6 +59,10 @@ export interface DashboardConfigData extends ShapeData {
 	/** Avoid trigger sensitivity (0–1): the minimum overlap ratio between the dropped
 	 *  item and an occupant for the occupant to move aside. Lower = easier. */
 	swapThreshold: number;
+	/** Dwell before the LIVE avoid fires (ms): how long the dragged item must hover an
+	 *  occupant before it steps aside. 0 = immediate. Only gates the drag-time preview;
+	 *  a drop always resolves immediately. */
+	swapDelay: number;
 }
 
 export interface DashboardDefaults {
@@ -76,6 +80,7 @@ export interface DashboardDefaults {
 	cellWAuto?: boolean;
 	swap?: boolean;
 	swapThreshold?: number;
+	swapDelay?: number;
 }
 
 export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
@@ -93,6 +98,7 @@ export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
 	cellWAuto: false,
 	swap: false,
 	swapThreshold: 0.25,
+	swapDelay: 0,
 };
 
 export function isDashboardConfig(shape: ShapeData): shape is DashboardConfigData {
@@ -123,6 +129,7 @@ export function makeDashboardConfig(defaults: DashboardDefaults = {}): Dashboard
 		cellWAuto: d.cellWAuto,
 		swap: d.swap,
 		swapThreshold: d.swapThreshold,
+		swapDelay: d.swapDelay,
 		locked: true,
 	};
 }
