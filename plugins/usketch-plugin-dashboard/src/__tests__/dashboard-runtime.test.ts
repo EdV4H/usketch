@@ -345,6 +345,38 @@ describe("dashboard runtime — absolute avoid-on-drop", () => {
 		lo.stop();
 	});
 
+	it("避けはドラッグ中にライブで起き、本体は離すまでスナップされない", async () => {
+		const { ctx, store, events } = harness();
+		store.addShape(
+			makeDashboardConfig({
+				columns: 4,
+				cellW: 100,
+				cellH: 100,
+				gap: 0,
+				padding: 0,
+				originX: 0,
+				originY: 0,
+				mode: "absolute",
+				swap: true,
+			}),
+		);
+		store.addShape(rect("a", 100, 0)); // col1（左 col0 は空き）
+		store.addShape(rect("b", 300, 0)); // col3
+		const stop = setupDashboard(ctx);
+		await Promise.resolve();
+
+		store.setSelection(["b"]);
+		store.updateShape("b", { x: 110, y: 0 }); // b を掴んで a の上へ
+		await new Promise((r) => setTimeout(r, 30)); // reflow フレーム
+		expect(at(store, "a")).toEqual({ x: 0, y: 0 }); // a はライブで左へ避ける
+		expect(at(store, "b")).toEqual({ x: 110, y: 0 }); // b はスナップされない（ポインタ位置）
+
+		events.emit("shapes:move-end", { shapeIds: ["b"] });
+		expect(at(store, "b")).toEqual({ x: 100, y: 0 }); // 離してから col1 へスナップ
+		expect(at(store, "a")).toEqual({ x: 0, y: 0 });
+		stop();
+	});
+
 	it("中心がセル領域内なら閾値未満の重なりでも避ける(snap非依存)", async () => {
 		const { ctx, store, events } = harness();
 		store.addShape(

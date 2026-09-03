@@ -409,6 +409,100 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		ctx.commands.execute(command);
 	}
 
+	/** An item's cell from its RESTING position (dragBefore) — the layout as if no
+	 *  drag were in progress, so avoid math is stable across frames. */
+	function restingCell(id: string, spec: GridSpec, cols: number): { col: number; row: number } {
+		const rest = dragBefore.get(id);
+		const s = ctx.store.getShape(id);
+		const x = rest?.x ?? s?.x ?? 0;
+		const y = rest?.y ?? s?.y ?? 0;
+		const w = s?.width ?? spec.cellW;
+		const h = s?.height ?? spec.cellH;
+		return cellContaining(x + w / 2, y + h / 2, spec, cols);
+	}
+
+	/** Pick the occupant that should get out of the dragged item's way and the cell it
+	 *  should move to (absolute + avoid). Computed from RESTING positions so it's the
+	 *  same during the live preview and on the final drop. Null when nothing to avoid. */
+	function resolveAvoid(
+		draggedShape: ShapeData,
+		draggedId: string,
+		otherIds: readonly string[],
+		spec: GridSpec,
+	): {
+		best: ShapeData;
+		bCell: { col: number; row: number };
+		avoid: { col: number; row: number };
+	} | null {
+		const cols = Math.max(1, Math.floor(spec.columns));
+		const center = centerOf(draggedShape);
+		const dCell = cellContaining(center.x, center.y, spec, cols);
+		let best: ShapeData | null = null;
+		for (const id of otherIds) {
+			const s = ctx.store.getShape(id);
+			if (!s) continue;
+			const sc = restingCell(id, spec, cols);
+			if (sc.col === dCell.col && sc.row === dCell.row) {
+				best = s;
+				break;
+			}
+		}
+		if (!best) {
+			let bestRatio = 0;
+			for (const id of otherIds) {
+				const s = ctx.store.getShape(id);
+				if (!s) continue;
+				const r = overlapRatio(draggedShape, s);
+				if (r > bestRatio) {
+					bestRatio = r;
+					best = s;
+				}
+			}
+			if (best && bestRatio < swapThresholdOf(ctx.store)) best = null;
+		}
+		if (!best) return null;
+		const bCell = restingCell(best.id, spec, cols); // the dragged claims the occupant's cell
+		const occupied = new Set<string>();
+		for (const id of otherIds) {
+			if (id === best.id) continue;
+			const c = restingCell(id, spec, cols);
+			occupied.add(`${c.col},${c.row}`);
+		}
+		occupied.add(`${bCell.col},${bCell.row}`);
+		const cellFree = (c: number, r: number): boolean =>
+			c >= 0 && c < cols && r >= 0 && !occupied.has(`${c},${r}`);
+		let avoid = nearestFreeCell(bCell.col, bCell.row, occupied, cols);
+		// Prefer pushing the avoider in the drag's direction (enables left/up).
+		const fromTL = dragBefore.get(draggedId);
+		if (fromTL) {
+			const origin = cellContaining(
+				fromTL.x + draggedShape.width / 2,
+				fromTL.y + draggedShape.height / 2,
+				spec,
+				cols,
+			);
+			const dCol = Math.sign(bCell.col - origin.col);
+			const dRow = Math.sign(bCell.row - origin.row);
+			const horizFirst = Math.abs(bCell.col - origin.col) >= Math.abs(bCell.row - origin.row);
+			const tries = horizFirst
+				? ([
+						[dCol, 0],
+						[0, dRow],
+					] as const)
+				: ([
+						[0, dRow],
+						[dCol, 0],
+					] as const);
+			for (const [dc, dr] of tries) {
+				if ((dc !== 0 || dr !== 0) && cellFree(bCell.col + dc, bCell.row + dr)) {
+					avoid = { col: bCell.col + dc, row: bCell.row + dr };
+					break;
+				}
+			}
+		}
+		return avoid ? { best, bCell, avoid } : null;
+	}
+
 	function reflowDuringDrag(): void {
 		frame = null;
 		const dragged = draggingId;
@@ -422,11 +516,29 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		const otherIds = readingOrder(items, spec).filter((id) => id !== dragged);
 
 		if (modeOf(ctx.store) === "absolute") {
-			// Siblings stay put; just show where the dragged item snaps (nearest free
-			// cell to where it floats). No writes.
-			const boxes = [...boxesOf(ctx.store, otherIds), boxOfShape(draggedShape)];
-			const dp = packAbsolute(boxes, spec).find((p) => p.id === dragged);
-			if (dp) publishHighlight(spec, dp, draggedShape.width, draggedShape.height);
+			const cols = Math.max(1, Math.floor(spec.columns));
+			const dCell = cellContaining(centerOf(draggedShape).x, centerOf(draggedShape).y, spec, cols);
+			// LIVE avoid preview: restore siblings to rest, then push the one under the
+			// dragged item aside — WITHOUT moving/snapping the dragged item (it keeps
+			// tracking the pointer; it only snaps on drop).
+			const res = swapOf(ctx.store) ? resolveAvoid(draggedShape, dragged, otherIds, spec) : null;
+			runGuarded(() => {
+				for (const id of otherIds) {
+					const rest = dragBefore.get(id);
+					if (!rest) continue;
+					const cur = ctx.store.getShape(id);
+					if (cur && (cur.x !== rest.x || cur.y !== rest.y)) ctx.store.updateShape(id, rest);
+				}
+				if (res) {
+					const tl = cellXY(res.avoid.col, res.avoid.row, spec);
+					ctx.store.updateShape(res.best.id, { x: tl.x, y: tl.y });
+				}
+			});
+			// Highlight the cell the dragged item will land in on release (the occupant's
+			// cell when avoiding, else the cell it's over).
+			const land = res ? res.bCell : dCell;
+			const landTL = cellXY(land.col, land.row, spec);
+			publishHighlight(spec, landTL, draggedShape.width, draggedShape.height);
 			return;
 		}
 
@@ -517,94 +629,19 @@ export function setupDashboard(ctx: PluginContext): () => void {
 
 		const otherIds = order.filter((id) => id !== dragged);
 		if (mode === "absolute" && swapOf(ctx.store)) {
-			// AVOID-on-drop: an occupant "gets out of the way" — stepping to the nearest
-			// EMPTY cell (right→down→left→up). The occupant is chosen snap-independently:
-			// PRIMARY = whoever sits in the cell the dropped item's CENTRE lands over (so
-			// "drop roughly on it" works without grid-perfect alignment); FALLBACK = the
-			// most-overlapping item when that overlap meets the threshold (for partial
-			// drops at a cell boundary). No occupant → normal absolute snap.
-			const cols0 = Math.max(1, Math.floor(spec.columns));
-			const center = centerOf(draggedShape);
-			const dCell = cellContaining(center.x, center.y, spec, cols0);
-			let best: ShapeData | null = null;
-			for (const id of otherIds) {
-				const s = ctx.store.getShape(id);
-				if (!s) continue;
-				const sc = cellContaining(centerOf(s).x, centerOf(s).y, spec, cols0);
-				if (sc.col === dCell.col && sc.row === dCell.row) {
-					best = s;
-					break;
-				}
-			}
-			if (!best) {
-				let bestRatio = 0;
-				for (const id of otherIds) {
-					const s = ctx.store.getShape(id);
-					if (!s) continue;
-					const ratio = overlapRatio(draggedShape, s);
-					if (ratio > bestRatio) {
-						bestRatio = ratio;
-						best = s;
-					}
-				}
-				if (best && bestRatio < swapThresholdOf(ctx.store)) best = null;
-			}
-			if (best) {
-				const bCell = cellContaining(centerOf(best).x, centerOf(best).y, spec, cols0);
-				// Cells taken by the others (excluding the avoider) + the dragged item's
-				// new cell — so the avoider lands somewhere genuinely free.
-				const occupied = new Set<string>();
-				for (const id of otherIds) {
-					if (id === best.id) continue;
-					const s = ctx.store.getShape(id);
-					if (s) {
-						const sc = cellContaining(centerOf(s).x, centerOf(s).y, spec, cols0);
-						occupied.add(`${sc.col},${sc.row}`);
-					}
-				}
-				occupied.add(`${bCell.col},${bCell.row}`);
-				const targetTL = cellXY(bCell.col, bCell.row, spec);
-				const placements: Placement[] = [{ id: dragged, x: targetTL.x, y: targetTL.y }];
-				// Prefer pushing the avoider in the drag's DIRECTION (away from where the
-				// dropped item came from) — so a leftward/upward drag shoves it left/up —
-				// then fall back to the nearest free cell (right→down→left→up).
-				const cellFree = (c: number, r: number): boolean =>
-					c >= 0 && c < cols0 && r >= 0 && !occupied.has(`${c},${r}`);
-				let free = nearestFreeCell(bCell.col, bCell.row, occupied, cols0);
-				const fromTL = dragBefore.get(dragged);
-				if (fromTL) {
-					const origin = cellContaining(
-						fromTL.x + draggedShape.width / 2,
-						fromTL.y + draggedShape.height / 2,
-						spec,
-						cols0,
-					);
-					const dCol = Math.sign(bCell.col - origin.col);
-					const dRow = Math.sign(bCell.row - origin.row);
-					const horizFirst = Math.abs(bCell.col - origin.col) >= Math.abs(bCell.row - origin.row);
-					const tries = horizFirst
-						? ([
-								[dCol, 0],
-								[0, dRow],
-							] as const)
-						: ([
-								[0, dRow],
-								[dCol, 0],
-							] as const);
-					for (const [dc, dr] of tries) {
-						if ((dc !== 0 || dr !== 0) && cellFree(bCell.col + dc, bCell.row + dr)) {
-							free = { col: bCell.col + dc, row: bCell.row + dr };
-							break;
-						}
-					}
-				}
-				if (free) {
-					const ftl = cellXY(free.col, free.row, spec);
-					placements.push({ id: best.id, x: ftl.x, y: ftl.y });
-				}
-				commitPlacements(placements);
+			// AVOID-on-drop: the dragged item snaps into the cell it's over; the item that
+			// sat there steps aside (pushed in the drag direction, else nearest free).
+			// Shared with the live preview via `resolveAvoid`, so the drop matches what was
+			// previewed. No occupant → normal absolute snap.
+			const res = resolveAvoid(draggedShape, dragged, otherIds, spec);
+			if (res) {
+				const dTL = cellXY(res.bCell.col, res.bCell.row, spec);
+				const aTL = cellXY(res.avoid.col, res.avoid.row, spec);
+				commitPlacements([
+					{ id: dragged, x: dTL.x, y: dTL.y },
+					{ id: res.best.id, x: aTL.x, y: aTL.y },
+				]);
 			} else {
-				// No overlap past the threshold: keep others, snap dragged to nearest free.
 				const boxes = [...boxesOf(ctx.store, otherIds), boxOfShape(draggedShape)];
 				commitPlacements(packAbsolute(boxes, spec));
 			}
