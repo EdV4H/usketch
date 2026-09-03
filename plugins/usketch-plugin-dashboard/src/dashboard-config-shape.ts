@@ -98,7 +98,7 @@ export const DASHBOARD_DEFAULTS: Required<DashboardDefaults> = {
 	cellWAuto: false,
 	swap: false,
 	swapThreshold: 0.25,
-	swapDelay: 0,
+	swapDelay: 200,
 };
 
 export function isDashboardConfig(shape: ShapeData): shape is DashboardConfigData {

@@ -358,6 +358,7 @@ describe("dashboard runtime — absolute avoid-on-drop", () => {
 				originY: 0,
 				mode: "absolute",
 				swap: true,
+				swapDelay: 0, // このテストは即時ライブ避けを検証
 			}),
 		);
 		store.addShape(rect("a", 100, 0)); // col1（左 col0 は空き）
