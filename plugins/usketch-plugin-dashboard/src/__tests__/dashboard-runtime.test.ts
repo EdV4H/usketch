@@ -104,6 +104,7 @@ describe("dashboard runtime — faithful select-tool drop", () => {
 		const { ctx, store, events } = harness();
 		store.addShape(
 			makeDashboardConfig({
+				mode: "flow",
 				columns: 3,
 				cellW: 100,
 				cellH: 100,
@@ -141,6 +142,7 @@ describe("dashboard runtime — faithful select-tool drop", () => {
 		const { ctx, store, events } = harness();
 		store.addShape(
 			makeDashboardConfig({
+				mode: "flow",
 				columns: 3,
 				cellW: 100,
 				cellH: 100,
@@ -182,6 +184,7 @@ describe("dashboard runtime — overtake right→left", () => {
 		const { ctx, store, events } = harness();
 		store.addShape(
 			makeDashboardConfig({
+				mode: "flow",
 				columns: 3,
 				cellW: 100,
 				cellH: 100,
@@ -485,6 +488,7 @@ describe("dashboard runtime — absolute avoid-on-drop", () => {
 		const { ctx, store, events } = harness();
 		store.addShape(
 			makeDashboardConfig({
+				swap: false,
 				columns: 3,
 				cellW: 100,
 				cellH: 100,
@@ -520,6 +524,7 @@ describe("dashboard runtime — drag to front (swap with leftmost)", () => {
 		const { ctx, store, events } = harness();
 		store.addShape(
 			makeDashboardConfig({
+				mode: "flow",
 				columns: 3,
 				cellW: 100,
 				cellH: 100,
@@ -552,6 +557,7 @@ describe("dashboard runtime — drag to front (swap with leftmost)", () => {
 		const { ctx, store, events } = harness();
 		store.addShape(
 			makeDashboardConfig({
+				mode: "flow",
 				columns: 2,
 				cellW: 100,
 				cellH: 100,

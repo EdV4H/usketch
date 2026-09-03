@@ -48,7 +48,15 @@ describe("DashboardApi enable/repack", () => {
 		store.addShape(rect("b", 20, 20));
 		store.addShape(rect("c", 900, 30));
 
-		const api = createDashboardApi(ctx, { columns: 2, cellW: 100, cellH: 100, gap: 0, padding: 0 });
+		const api = createDashboardApi(ctx, {
+			mode: "flow",
+			fitToGrid: false,
+			columns: 2,
+			cellW: 100,
+			cellH: 100,
+			gap: 0,
+			padding: 0,
+		});
 		expect(api.isDashboardBoard()).toBe(false);
 
 		api.enable();
@@ -117,7 +125,15 @@ describe("DashboardApi enable contract", () => {
 	it("すでに dashboard でも enable は再パックする（no-op ではない）", () => {
 		const { ctx, store } = makeCtx();
 		store.addShape(rect("a", 0, 0));
-		const api = createDashboardApi(ctx, { columns: 2, cellW: 100, cellH: 100, gap: 0, padding: 0 });
+		const api = createDashboardApi(ctx, {
+			mode: "flow",
+			fitToGrid: false,
+			columns: 2,
+			cellW: 100,
+			cellH: 100,
+			gap: 0,
+			padding: 0,
+		});
 		api.enable();
 		expect(pos(store, "a")).toEqual({ x: 0, y: 0 });
 
@@ -156,11 +172,13 @@ describe("DashboardApi input hardening", () => {
 });
 
 describe("DashboardApi mode", () => {
-	it("既定は flow、setMode で absolute に切り替わる（getMode に反映）", () => {
+	it("既定は absolute、setMode で flow に切り替わる（getMode に反映）", () => {
 		const { ctx, store } = makeCtx();
 		store.addShape(rect("a", 0, 0));
 		const api = createDashboardApi(ctx);
 		api.enable();
+		expect(api.getMode()).toBe("absolute");
+		api.setMode("flow");
 		expect(api.getMode()).toBe("flow");
 		api.setMode("absolute");
 		expect(api.getMode()).toBe("absolute");
@@ -186,7 +204,7 @@ describe("DashboardApi fitToGrid", () => {
 		const { ctx, store } = makeCtx();
 		store.addShape(rect("a", 0, 0, 100, 100));
 		store.addShape(rect("b", 300, 0, 150, 150)); // 半端サイズ
-		const api = createDashboardApi(ctx, { columns: 4, gap: 0, padding: 0 });
+		const api = createDashboardApi(ctx, { columns: 4, gap: 0, padding: 0, fitToGrid: false });
 		api.enable(); // セルは最小(100)にシード
 		expect(api.getGridSpec()?.cellW).toBe(100);
 		expect(api.getFitToGrid()).toBe(false);
@@ -222,36 +240,42 @@ describe("DashboardApi fitToGrid", () => {
 });
 
 describe("DashboardApi freeOutOfRange", () => {
-	it("既定は true、setFreeOutOfRange(false) で切り替わる", () => {
+	it("既定は false、setFreeOutOfRange で切り替わる", () => {
 		const { ctx, store } = makeCtx();
 		store.addShape(rect("a", 0, 0));
 		const api = createDashboardApi(ctx);
 		api.enable();
-		expect(api.getFreeOutOfRange()).toBe(true);
-		api.setFreeOutOfRange(false);
 		expect(api.getFreeOutOfRange()).toBe(false);
 		api.setFreeOutOfRange(true);
 		expect(api.getFreeOutOfRange()).toBe(true);
+		api.setFreeOutOfRange(false);
+		expect(api.getFreeOutOfRange()).toBe(false);
 	});
 });
 
 describe("DashboardApi viewportLock", () => {
-	it("既定は off(false)、setViewportLock で ON/OFF が切り替わる", () => {
+	it("既定は on(true)、setViewportLock で ON/OFF が切り替わる", () => {
 		const { ctx, store } = makeCtx();
 		store.addShape(rect("a", 0, 0));
 		const api = createDashboardApi(ctx);
 		api.enable();
-		expect(api.getViewportLock()).toBe(false);
-		api.setViewportLock(true);
 		expect(api.getViewportLock()).toBe(true);
 		api.setViewportLock(false);
 		expect(api.getViewportLock()).toBe(false);
+		api.setViewportLock(true);
+		expect(api.getViewportLock()).toBe(true);
 	});
 
-	it("セル幅auto は既定 false、setCellWidthAuto で切替。setCellSize は数値幅を保持", () => {
+	it("setCellWidthAuto で切替。setCellSize は数値幅を保持", () => {
 		const { ctx, store } = makeCtx();
 		store.addShape(rect("a", 0, 0));
-		const api = createDashboardApi(ctx, { columns: 4, cellW: 200, gap: 0, padding: 0 });
+		const api = createDashboardApi(ctx, {
+			columns: 4,
+			cellW: 200,
+			gap: 0,
+			padding: 0,
+			cellWAuto: false,
+		});
 		api.enable();
 		expect(api.getCellWidthAuto()).toBe(false);
 		api.setCellWidthAuto(true);

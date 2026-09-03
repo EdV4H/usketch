@@ -71,6 +71,7 @@ describe("grid range (out-of-range = free)", () => {
 		padding: 0,
 		originX: 0,
 		originY: 0,
+		freeOutOfRange: true, // このグループは範囲外除外を検証
 	});
 	const spec = gridSpecFromConfig(config);
 
