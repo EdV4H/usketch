@@ -33,6 +33,7 @@ import {
 } from "./grid.js";
 import { allDashboardItems, dashboardItems, isGridItem, isWithinGrid } from "./items.js";
 import { readingOrder } from "./order.js";
+import { setSlideActive, setSlideExclude, teardownSlide } from "./slide-animation.js";
 
 // ── Self-write guard (module-scoped; one app instance per JS runtime) ──
 let dashboardWrites = 0;
@@ -283,6 +284,10 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		for (const s of dashboardItems(ctx.store)) itemIds.add(s.id);
 		itemsSeeded = true;
 	}
+	// Slide-animate reflow only while this board is a dashboard.
+	function syncSlideActive(): void {
+		setSlideActive(getDashboardConfig(ctx.store) !== undefined);
+	}
 	function refreshItemMembership(id: string): void {
 		const shape = ctx.store.getShape(id);
 		if (shape && isGridItem(ctx.store, shape)) itemIds.add(id);
@@ -447,6 +452,7 @@ export function setupDashboard(ctx: PluginContext): () => void {
 	function endDrag(): void {
 		clearSettle();
 		setDragTarget(null); // clear the drop-target highlight
+		setSlideExclude(null); // re-include the dropped item so its final snap slides
 		resizingId = null;
 		if (frame !== null) {
 			cancelFrame(frame);
@@ -577,6 +583,7 @@ export function setupDashboard(ctx: PluginContext): () => void {
 			if (draggingId === null && before) captureBefore(before); // first frame → snapshot
 			resizingId = null; // a move, not a resize
 			draggingId = after.id;
+			setSlideExclude(after.id); // the dragged item tracks the pointer (no transition)
 			pendingPoint = centerOf(after);
 			scheduleReflow();
 			armSettle(); // commit shortly after the move stream goes quiet
@@ -596,6 +603,7 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		if (event.type === "shape:added" || event.type === "shape:removed") {
 			if (draggingId !== null) return; // mid-reorder churn settles on drop
 			const id = event.payload.id;
+			syncSlideActive(); // enable/disable adds/removes the config singleton
 			if (event.type === "shape:added") {
 				const s = ctx.store.getShape(id);
 				if (!s || !isGridItem(ctx.store, s)) return; // nested / substrate → ignore
@@ -617,12 +625,16 @@ export function setupDashboard(ctx: PluginContext): () => void {
 	});
 
 	// Seed the item set once shapes are present (read-only; harmless after teardown).
-	queueMicrotask(seedItemIds);
+	queueMicrotask(() => {
+		seedItemIds();
+		syncSlideActive();
+	});
 
 	return () => {
 		offMutation();
 		offMoveEnd();
 		clearSettle();
 		if (frame !== null) cancelFrame(frame);
+		teardownSlide();
 	};
 }
