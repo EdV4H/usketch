@@ -54,6 +54,12 @@ export function setSlideExclude(id: string | null): void {
 	render();
 }
 
+/** Re-include `id` ONLY if it's still the excluded one (so a new drag that already
+ *  excluded a different shape isn't clobbered by a stale deferred clear). */
+export function clearSlideExclude(id: string): void {
+	if (excludeId === id) setSlideExclude(null);
+}
+
 /** Remove the stylesheet and reset state (plugin teardown). */
 export function teardownSlide(): void {
 	active = false;

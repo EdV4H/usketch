@@ -33,7 +33,12 @@ import {
 } from "./grid.js";
 import { allDashboardItems, dashboardItems, isGridItem, isWithinGrid } from "./items.js";
 import { readingOrder } from "./order.js";
-import { setSlideActive, setSlideExclude, teardownSlide } from "./slide-animation.js";
+import {
+	clearSlideExclude,
+	setSlideActive,
+	setSlideExclude,
+	teardownSlide,
+} from "./slide-animation.js";
 
 // ── Self-write guard (module-scoped; one app instance per JS runtime) ──
 let dashboardWrites = 0;
@@ -452,7 +457,6 @@ export function setupDashboard(ctx: PluginContext): () => void {
 	function endDrag(): void {
 		clearSettle();
 		setDragTarget(null); // clear the drop-target highlight
-		setSlideExclude(null); // re-include the dropped item so its final snap slides
 		resizingId = null;
 		if (frame !== null) {
 			cancelFrame(frame);
@@ -461,6 +465,10 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		const spec = specOf(ctx.store);
 		const dragged = draggingId;
 		draggingId = null;
+		// Keep the dropped item excluded THROUGH its snap commit below (so it jumps to
+		// its cell without sliding — only the surrounding items animate), then re-include
+		// it next frame so later reflows animate it normally.
+		if (dragged !== null) scheduleFrame(() => clearSlideExclude(dragged));
 		if (!spec) {
 			dragBefore.clear();
 			return;
