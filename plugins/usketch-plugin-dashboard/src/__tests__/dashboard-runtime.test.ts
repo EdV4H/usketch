@@ -345,6 +345,42 @@ describe("dashboard runtime — absolute avoid-on-drop", () => {
 		lo.stop();
 	});
 
+	it("中心がセル領域内なら閾値未満の重なりでも避ける(snap非依存)", async () => {
+		const { ctx, store, events } = harness();
+		store.addShape(
+			makeDashboardConfig({
+				columns: 3,
+				cellW: 100,
+				cellH: 100,
+				gap: 0,
+				padding: 0,
+				originX: 0,
+				originY: 0,
+				mode: "absolute",
+				swap: true,
+				swapThreshold: 0.9, // 高い閾値でも…
+			}),
+		);
+		store.addShape(rect("a", 0, 0));
+		store.addShape(rect("b", 200, 0));
+		const stop = setupDashboard(ctx);
+		await Promise.resolve();
+		// b の中心(90)が col0 の領域内 → 重なり60%(<90%)でも中心セル判定で避ける
+		await faithfulDrag(
+			store,
+			events,
+			"b",
+			[
+				{ x: 90, y: 0 },
+				{ x: 40, y: 0 },
+			],
+			{ x: 200, y: 0 },
+		);
+		expect(at(store, "b")).toEqual({ x: 0, y: 0 }); // b → col0
+		expect(at(store, "a")).toEqual({ x: 100, y: 0 }); // a → 最寄りの空き col1
+		stop();
+	});
+
 	it("avoid OFF(既定): 何も避けない(空きセルへ寄る)", async () => {
 		const { ctx, store, events } = harness();
 		store.addShape(

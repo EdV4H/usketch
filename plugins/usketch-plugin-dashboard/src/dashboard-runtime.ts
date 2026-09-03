@@ -117,6 +117,26 @@ const AVOID_OFFSETS: { dc: number; dr: number }[] = (() => {
 	return out.sort((a, b) => rank(a) - rank(b));
 })();
 
+/** The grid cell whose REGION contains world point `(px,py)` (gap counts with the
+ *  preceding cell), clamped to the columns and to row ≥ 0. Unlike `cellOfPoint`
+ *  (which rounds to the nearest cell origin), this is a containment test — so an
+ *  item's CENTRE maps to the cell it visually sits over, regardless of snapping. */
+function cellContaining(
+	px: number,
+	py: number,
+	spec: GridSpec,
+	cols: number,
+): { col: number; row: number } {
+	const stepX = spec.cellW + spec.gap;
+	const stepY = spec.cellH + spec.gap;
+	const col = Math.min(
+		Math.max(0, Math.floor((px - spec.originX - spec.padding) / stepX)),
+		cols - 1,
+	);
+	const row = Math.max(0, Math.floor((py - spec.originY - spec.padding) / stepY));
+	return { col, row };
+}
+
 /** Nearest empty cell to `(col,row)` not in `occupied` and within the grid (col in
  *  `[0,cols)`, row ≥ 0), searching right→down→left→up outward. Null if none nearby. */
 function nearestFreeCell(
@@ -497,25 +517,40 @@ export function setupDashboard(ctx: PluginContext): () => void {
 
 		const otherIds = order.filter((id) => id !== dragged);
 		if (mode === "absolute" && swapOf(ctx.store)) {
-			// AVOID-on-drop: the dropped item settles into the cell of whichever item it
-			// OVERLAPS the most (when that overlap ratio meets the threshold; lower =
-			// easier). That occupant "gets out of the way" — it steps to the nearest
-			// EMPTY cell (right→down→left→up), rather than swapping into the dragged
-			// item's old cell. Below threshold → normal absolute snap.
+			// AVOID-on-drop: an occupant "gets out of the way" — stepping to the nearest
+			// EMPTY cell (right→down→left→up). The occupant is chosen snap-independently:
+			// PRIMARY = whoever sits in the cell the dropped item's CENTRE lands over (so
+			// "drop roughly on it" works without grid-perfect alignment); FALLBACK = the
+			// most-overlapping item when that overlap meets the threshold (for partial
+			// drops at a cell boundary). No occupant → normal absolute snap.
+			const cols0 = Math.max(1, Math.floor(spec.columns));
+			const center = centerOf(draggedShape);
+			const dCell = cellContaining(center.x, center.y, spec, cols0);
 			let best: ShapeData | null = null;
-			let bestRatio = 0;
 			for (const id of otherIds) {
 				const s = ctx.store.getShape(id);
 				if (!s) continue;
-				const ratio = overlapRatio(draggedShape, s);
-				if (ratio > bestRatio) {
-					bestRatio = ratio;
+				const sc = cellContaining(centerOf(s).x, centerOf(s).y, spec, cols0);
+				if (sc.col === dCell.col && sc.row === dCell.row) {
 					best = s;
+					break;
 				}
 			}
-			if (best && bestRatio >= swapThresholdOf(ctx.store)) {
-				const cols = Math.max(1, Math.floor(spec.columns));
-				const bCell = cellOfPoint(best.x, best.y, spec);
+			if (!best) {
+				let bestRatio = 0;
+				for (const id of otherIds) {
+					const s = ctx.store.getShape(id);
+					if (!s) continue;
+					const ratio = overlapRatio(draggedShape, s);
+					if (ratio > bestRatio) {
+						bestRatio = ratio;
+						best = s;
+					}
+				}
+				if (best && bestRatio < swapThresholdOf(ctx.store)) best = null;
+			}
+			if (best) {
+				const bCell = cellContaining(centerOf(best).x, centerOf(best).y, spec, cols0);
 				// Cells taken by the others (excluding the avoider) + the dragged item's
 				// new cell — so the avoider lands somewhere genuinely free.
 				const occupied = new Set<string>();
@@ -523,14 +558,14 @@ export function setupDashboard(ctx: PluginContext): () => void {
 					if (id === best.id) continue;
 					const s = ctx.store.getShape(id);
 					if (s) {
-						const sc = cellOfPoint(s.x, s.y, spec);
+						const sc = cellContaining(centerOf(s).x, centerOf(s).y, spec, cols0);
 						occupied.add(`${sc.col},${sc.row}`);
 					}
 				}
 				occupied.add(`${bCell.col},${bCell.row}`);
 				const targetTL = cellXY(bCell.col, bCell.row, spec);
 				const placements: Placement[] = [{ id: dragged, x: targetTL.x, y: targetTL.y }];
-				const free = nearestFreeCell(bCell.col, bCell.row, occupied, cols);
+				const free = nearestFreeCell(bCell.col, bCell.row, occupied, cols0);
 				if (free) {
 					const ftl = cellXY(free.col, free.row, spec);
 					placements.push({ id: best.id, x: ftl.x, y: ftl.y });
