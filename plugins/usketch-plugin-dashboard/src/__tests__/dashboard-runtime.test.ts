@@ -381,6 +381,41 @@ describe("dashboard runtime — absolute avoid-on-drop", () => {
 		stop();
 	});
 
+	it("左方向ドラッグでは相手を左へ押し出す(左の空きへ避ける)", async () => {
+		const { ctx, store, events } = harness();
+		store.addShape(
+			makeDashboardConfig({
+				columns: 4,
+				cellW: 100,
+				cellH: 100,
+				gap: 0,
+				padding: 0,
+				originX: 0,
+				originY: 0,
+				mode: "absolute",
+				swap: true,
+			}),
+		);
+		store.addShape(rect("a", 100, 0)); // col1（左の col0 は空き）
+		store.addShape(rect("b", 300, 0)); // col3
+		const stop = setupDashboard(ctx);
+		await Promise.resolve();
+		// b を左へドラッグして a(col1) の上へ → a は左(col0)へ押し出される
+		await faithfulDrag(
+			store,
+			events,
+			"b",
+			[
+				{ x: 200, y: 0 },
+				{ x: 110, y: 0 },
+			],
+			{ x: 300, y: 0 },
+		);
+		expect(at(store, "b")).toEqual({ x: 100, y: 0 }); // b → col1
+		expect(at(store, "a")).toEqual({ x: 0, y: 0 }); // a → 左の col0
+		stop();
+	});
+
 	it("avoid OFF(既定): 何も避けない(空きセルへ寄る)", async () => {
 		const { ctx, store, events } = harness();
 		store.addShape(

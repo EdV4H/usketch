@@ -565,7 +565,39 @@ export function setupDashboard(ctx: PluginContext): () => void {
 				occupied.add(`${bCell.col},${bCell.row}`);
 				const targetTL = cellXY(bCell.col, bCell.row, spec);
 				const placements: Placement[] = [{ id: dragged, x: targetTL.x, y: targetTL.y }];
-				const free = nearestFreeCell(bCell.col, bCell.row, occupied, cols0);
+				// Prefer pushing the avoider in the drag's DIRECTION (away from where the
+				// dropped item came from) — so a leftward/upward drag shoves it left/up —
+				// then fall back to the nearest free cell (right→down→left→up).
+				const cellFree = (c: number, r: number): boolean =>
+					c >= 0 && c < cols0 && r >= 0 && !occupied.has(`${c},${r}`);
+				let free = nearestFreeCell(bCell.col, bCell.row, occupied, cols0);
+				const fromTL = dragBefore.get(dragged);
+				if (fromTL) {
+					const origin = cellContaining(
+						fromTL.x + draggedShape.width / 2,
+						fromTL.y + draggedShape.height / 2,
+						spec,
+						cols0,
+					);
+					const dCol = Math.sign(bCell.col - origin.col);
+					const dRow = Math.sign(bCell.row - origin.row);
+					const horizFirst = Math.abs(bCell.col - origin.col) >= Math.abs(bCell.row - origin.row);
+					const tries = horizFirst
+						? ([
+								[dCol, 0],
+								[0, dRow],
+							] as const)
+						: ([
+								[0, dRow],
+								[dCol, 0],
+							] as const);
+					for (const [dc, dr] of tries) {
+						if ((dc !== 0 || dr !== 0) && cellFree(bCell.col + dc, bCell.row + dr)) {
+							free = { col: bCell.col + dc, row: bCell.row + dr };
+							break;
+						}
+					}
+				}
 				if (free) {
 					const ftl = cellXY(free.col, free.row, spec);
 					placements.push({ id: best.id, x: ftl.x, y: ftl.y });
