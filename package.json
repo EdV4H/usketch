@@ -21,7 +21,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.12",
-		"@changesets/cli": "2.31.1",
+		"@changesets/cli": "3.0.1",
 		"@j178/prek": "0.5.2",
 		"turbo": "2.10.12",
 		"typescript": "7.0.2"
