@@ -83,13 +83,38 @@ describe("createViewportNavPlugin — wheel zoom", () => {
 		expect(strong.zoomCalls[0].zoom).toBeCloseTo(Math.exp(0.1 * 2.5), 5);
 	});
 
-	it("zoomSensitivity は範囲外をクランプする（0.25〜3）", () => {
+	it("zoomSensitivity は既定範囲外をクランプする（0.25〜6）", () => {
 		const tooHigh = setup({ zoomSensitivity: 999 });
 		tooHigh.wheel({ deltaY: -100, ctrlKey: true });
-		expect(tooHigh.zoomCalls[0].zoom).toBeCloseTo(Math.exp(0.1 * 3), 5);
+		expect(tooHigh.zoomCalls[0].zoom).toBeCloseTo(Math.exp(0.1 * 6), 5);
 		const tooLow = setup({ zoomSensitivity: 0 });
 		tooLow.wheel({ deltaY: -100, ctrlKey: true });
 		expect(tooLow.zoomCalls[0].zoom).toBeCloseTo(Math.exp(0.1 * 0.25), 5);
+	});
+
+	it("zoomSensitivity=6 は s=3 より明確に速い（#1087）", () => {
+		const s3 = setup({ zoomSensitivity: 3 });
+		s3.wheel({ deltaY: -100, ctrlKey: true });
+		const s6 = setup({ zoomSensitivity: 6 });
+		s6.wheel({ deltaY: -100, ctrlKey: true });
+		expect(s6.zoomCalls[0].zoom).toBeGreaterThan(s3.zoomCalls[0].zoom);
+		expect(s6.zoomCalls[0].zoom).toBeCloseTo(Math.exp(0.1 * 6), 5);
+	});
+
+	it("zoomSensitivityRange でホストがクランプ上限を上書きできる", () => {
+		const wide = setup({ zoomSensitivity: 100, zoomSensitivityRange: { max: 10 } });
+		wide.wheel({ deltaY: -100, ctrlKey: true });
+		expect(wide.zoomCalls[0].zoom).toBeCloseTo(Math.exp(0.1 * 10), 5);
+		// 下限も上書きできる
+		const narrow = setup({ zoomSensitivity: 0.01, zoomSensitivityRange: { min: 0.5 } });
+		narrow.wheel({ deltaY: -100, ctrlKey: true });
+		expect(narrow.zoomCalls[0].zoom).toBeCloseTo(Math.exp(0.1 * 0.5), 5);
+	});
+
+	it("破綻した range（min > max）は既定にフォールバック", () => {
+		const bad = setup({ zoomSensitivity: 999, zoomSensitivityRange: { min: 8, max: 2 } });
+		bad.wheel({ deltaY: -100, ctrlKey: true });
+		expect(bad.zoomCalls[0].zoom).toBeCloseTo(Math.exp(0.1 * 6), 5); // 既定 max=6
 	});
 
 	it("getter 形式で毎イベント最新値を読む（ライブ反映）", () => {

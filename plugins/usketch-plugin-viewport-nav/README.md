@@ -23,10 +23,16 @@ createViewportNavPlugin({ zoomSensitivity: 2.5 });
 interface ViewportNavOptions {
   /**
    * ホイール/トラックパッドのズーム感度。`1` が既定で従来相当。
-   * 大きいほど 1 操作あたりの倍率変化が大きくなる（0.25〜3 にクランプ）。
+   * 大きいほど 1 操作あたりの倍率変化が大きくなる（既定 0.25〜6 にクランプ）。
    * 値だけでなく「ライブに読む getter」も渡せる（設定 UI からの即時反映用）。
    */
   zoomSensitivity?: number | (() => number);
+  /**
+   * zoomSensitivity のクランプ範囲。既定 { min: 0.25, max: 6 }。
+   * タッチ/トラックパッド主体のホストが可動域を広げる/狭める用途に使う。
+   * min > max などの破綻した指定は無視して既定にフォールバックする。
+   */
+  zoomSensitivityRange?: { min?: number; max?: number };
 }
 ```
 
@@ -53,3 +59,18 @@ let zoomSensitivity = 1;
 createViewportNavPlugin({ zoomSensitivity: () => zoomSensitivity });
 // 以降 zoomSensitivity を書き換えれば次のズームから反映される
 ```
+
+### クランプ可動域の上書き
+
+既定のクランプは `{ min: 0.25, max: 6 }`。タッチ/トラックパッド主体で更に速くしたい等、
+ホスト側でスライダーの可動域を決めたい場合は `zoomSensitivityRange` で上書きできる。
+
+```ts
+// 最速を s=10 まで許容する
+createViewportNavPlugin({
+  zoomSensitivity: () => hostSlider.value, // 例: 0.25〜10 のスライダー
+  zoomSensitivityRange: { max: 10 },
+});
+```
+
+範囲は setup 時に一度だけ解決される（`zoomSensitivity` の getter は wheel ごとに評価）。
