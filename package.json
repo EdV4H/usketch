@@ -4,7 +4,7 @@
 	"private": true,
 	"description": "Real-time collaborative whiteboard application",
 	"license": "MIT",
-	"packageManager": "pnpm@10.34.5",
+	"packageManager": "pnpm@11.17.0",
 	"scripts": {
 		"dev": "turbo run dev",
 		"build": "turbo run build",
@@ -25,11 +25,5 @@
 		"@j178/prek": "0.5.2",
 		"turbo": "2.10.12",
 		"typescript": "7.0.2"
-	},
-	"pnpm": {
-		"overrides": {
-			"react": "19.2.8",
-			"react-dom": "19.2.8"
-		}
 	}
 }
