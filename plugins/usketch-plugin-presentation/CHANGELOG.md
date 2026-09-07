@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-presentation
 
+## 2.3.5
+
+### Patch Changes
+
+- Updated dependencies [1854e30]
+  - @edv4h/usketch-store@3.7.0
+
 ## 2.3.4
 
 ### Patch Changes

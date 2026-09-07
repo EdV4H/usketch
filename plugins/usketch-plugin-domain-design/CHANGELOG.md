@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-domain-design
 
+## 1.1.10
+
+### Patch Changes
+
+- Updated dependencies [1854e30]
+  - @edv4h/usketch-store@3.7.0
+
 ## 1.1.9
 
 ### Patch Changes

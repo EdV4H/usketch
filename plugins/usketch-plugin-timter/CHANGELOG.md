@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-timter
 
+## 0.3.10
+
+### Patch Changes
+
+- Updated dependencies [1854e30]
+  - @edv4h/usketch-store@3.7.0
+
 ## 0.3.9
 
 ### Patch Changes
