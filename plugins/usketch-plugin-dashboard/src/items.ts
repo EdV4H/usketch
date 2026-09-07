@@ -3,15 +3,17 @@
 // children ride along natively and are never packed individually. Excluded:
 //   - the `dashboard-config` substrate singleton (config, not content),
 //   - locked or hidden shapes (the user pinned them out of the flow),
-//   - degenerate substrates with no area (other data-only shapes).
+//   - degenerate substrates with no area (other data-only shapes),
+//   - shapes OUTSIDE the grid's column band — dragging a shape past the columns
+//     (or above the origin) frees it from the grid; dragging it back re-manages it.
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { getTopLevelShapes, isEffectivelyHidden, isEffectivelyLocked } from "@edv4h/usketch-store";
+import { freeOutOfRangeOf, getDashboardConfig, gridSpecFromConfig } from "./config-ops.js";
 import { isDashboardConfig } from "./dashboard-config-shape.js";
+import type { GridSpec } from "./grid.js";
 
-/** True if `shape` participates in the dashboard grid flow. Grid items are always
- *  TOP-LEVEL: a nested child (inside a group/frame) rides along natively and must
- *  NOT be treated as an item — otherwise adding/removing a child would trip the
- *  runtime's structural-change repack and reflow the whole top-level grid. */
+/** True if `shape` passes the base (position-agnostic) grid-item checks: top-level,
+ *  not the config substrate, has area, not locked/hidden. */
 export function isDashboardItem(store: BoardStore, shape: ShapeData): boolean {
 	if (typeof shape.parentId === "string") return false; // nested → not a grid item
 	if (isDashboardConfig(shape)) return false;
@@ -21,7 +23,46 @@ export function isDashboardItem(store: BoardStore, shape: ShapeData): boolean {
 	return true;
 }
 
-/** The board's current grid items, unordered (callers derive order from geometry). */
+/** Whether a shape sits within the grid's range, judged by the shape's CENTRE
+ *  against the grid's world rectangle (not a rounded cell index). Left of the grid
+ *  is deliberately NOT out of range — it maps to the first column, so an item
+ *  dragged in FRONT of the leftmost cell becomes first instead of being freed
+ *  (dragging left past the origin is how you reorder to the front, not how you
+ *  escape the grid). Only past the RIGHT edge (beyond the columns) or ABOVE the top
+ *  row frees a shape. The grid grows downward without bound, so any row ≥ 0 is in. */
+export function isWithinGrid(shape: ShapeData, spec: GridSpec): boolean {
+	const cols = Math.max(1, Math.floor(spec.columns));
+	const left = spec.originX + spec.padding;
+	const top = spec.originY + spec.padding;
+	const right = left + cols * spec.cellW + (cols - 1) * spec.gap; // last cell's right edge
+	const cx = shape.x + shape.width / 2;
+	const cy = shape.y + shape.height / 2;
+	return cx < right && cy >= top;
+}
+
+/** True if `shape` is a MANAGED grid item on this board: base checks, plus (when
+ *  `freeOutOfRange` is on) within the grid range. */
+export function isGridItem(store: BoardStore, shape: ShapeData): boolean {
+	if (!isDashboardItem(store, shape)) return false;
+	const config = getDashboardConfig(store);
+	if (!config || !freeOutOfRangeOf(store)) return true;
+	return isWithinGrid(shape, gridSpecFromConfig(config));
+}
+
+/** The board's current managed grid items, unordered — callers derive order from
+ *  geometry. Used by the live drag/reflow. When `freeOutOfRange` is on, shapes
+ *  outside the grid's column range are excluded (left free). */
 export function dashboardItems(store: BoardStore): ShapeData[] {
+	const config = getDashboardConfig(store);
+	const spec = config && freeOutOfRangeOf(store) ? gridSpecFromConfig(config) : null;
+	return getTopLevelShapes(store).filter(
+		(s) => isDashboardItem(store, s) && (spec === null || isWithinGrid(s, spec)),
+	);
+}
+
+/** Every top-level dashboard item, IGNORING the grid range — used by `enable` and
+ *  the "整列" action, which deliberately gather all shapes into the grid (bringing
+ *  out-of-range ones back in). */
+export function allDashboardItems(store: BoardStore): ShapeData[] {
 	return getTopLevelShapes(store).filter((s) => isDashboardItem(store, s));
 }

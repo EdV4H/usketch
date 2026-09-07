@@ -796,6 +796,13 @@ export interface ViewportAnimationOptions {
 	animate?: boolean;
 }
 
+/**
+ * Maps a proposed viewport to an allowed one. Applied on every viewport commit
+ * (see {@link BoardStore.setViewportConstraint}). Must be pure and cheap — it runs
+ * per pan/zoom frame. Return the input unchanged to allow it as-is.
+ */
+export type ViewportConstraint = (viewport: Viewport) => Viewport;
+
 export interface BoardStore {
 	getShapes(): ReadonlyMap<string, ShapeData>;
 	/** Return shapes sorted by zIndex (ascending = back to front). Cached internally. */
@@ -836,6 +843,17 @@ export interface BoardStore {
 	setViewport(viewport: Viewport): void;
 	panBy(dx: number, dy: number): void;
 	zoomTo(zoom: number, center: Point): void;
+	/**
+	 * Install a viewport constraint (or `null` to clear). It is applied inside the
+	 * single viewport-commit path, so EVERY change — {@link setViewport},
+	 * {@link panBy}, {@link zoomTo}, {@link animateViewportTo} — is passed through
+	 * it and the stored viewport can never violate it (no fighting an after-the-fact
+	 * clamp). Setting one immediately re-commits the current viewport through it.
+	 * Only one constraint is active at a time; setting replaces the previous.
+	 */
+	setViewportConstraint(constraint: ViewportConstraint | null): void;
+	/** The active viewport constraint, or `null`. */
+	getViewportConstraint(): ViewportConstraint | null;
 	/**
 	 * Smoothly tween the viewport to `target` (the default for logic-driven
 	 * jumps/zoom). Falls back to an instant set when animation is disabled,

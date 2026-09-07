@@ -1,17 +1,78 @@
-// The reorder runtime: the inverse of the container plugin's `setupArrange`.
-// `setupArrange` deliberately AVOIDS laying out during a drag (it would fight the
-// select tool's native descendant-follow). The dashboard WANTS live reflow while
-// dragging — so it does the opposite, made safe by one rule: never reposition the
-// shape under the pointer. Siblings reflow around it (rAF-throttled); the dragged
-// shape stays put until drop, when the whole board is committed in a single
-// undoable command.
-import type { BoardStore, PluginContext, ShapeData } from "@edv4h/usketch-shared";
-import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
-import { getDashboardConfig, gridSpecFromConfig } from "./config-ops.js";
-import type { GridSpec } from "./grid.js";
-import { indexFromPoint, packGrid, packGridWithGap } from "./grid.js";
-import { dashboardItems, isDashboardItem } from "./items.js";
+// The reorder runtime. It reflows the grid while an item is dragged and snaps
+// everything on drop. Unlike the container plugin's `setupArrange` (which avoids
+// laying out during a drag), the dashboard WANTS live reflow — made safe by one
+// rule: never reposition the shape under the pointer while dragging.
+//
+// It is driven by the SEMANTIC events that actually fire during a shape drag —
+// `shape:updated` (the select tool writes the dragged shape's position live) and
+// `shapes:move-end` (emitted on drop) — NOT `canvas:pointerdown/up`, which don't
+// reliably reach here when the interaction is on a shape. To tell its OWN writes
+// (reflow / repack / commit / undo) apart from genuine user drags, every
+// dashboard-initiated position write bumps a re-entrancy guard; the mutation
+// listener ignores anything written while that guard is up.
+import type { BoardStore, Command, PluginContext, ShapeData } from "@edv4h/usketch-shared";
+import {
+	fitToGridOf,
+	freeOutOfRangeOf,
+	getDashboardConfig,
+	gridSpecFromConfig,
+	modeOf,
+	swapDelayOf,
+	swapOf,
+	swapThresholdOf,
+} from "./config-ops.js";
+import { setDragTarget } from "./drag-target-store.js";
+import type { GridSpec, ItemSize, PlacedBox, Placement } from "./grid.js";
+import {
+	cellOfPoint,
+	cellXY,
+	fitSize,
+	packAbsolute,
+	packSpans,
+	spanOf,
+	targetIndexFromPoint,
+} from "./grid.js";
+import { allDashboardItems, dashboardItems, isGridItem, isWithinGrid } from "./items.js";
 import { readingOrder } from "./order.js";
+import {
+	clearSlideExclude,
+	setSlideActive,
+	setSlideExclude,
+	teardownSlide,
+} from "./slide-animation.js";
+
+// ── Self-write guard (module-scoped; one app instance per JS runtime) ──
+let dashboardWrites = 0;
+/** Run `fn` with the dashboard-write guard raised so the reflow runtime ignores
+ *  the store mutations it produces. Exported so the service can guard its own
+ *  config command's execute/undo the same way. */
+export function runGuarded(fn: () => void): void {
+	dashboardWrites++;
+	try {
+		fn();
+	} finally {
+		dashboardWrites--;
+	}
+}
+
+type Move = { id: string; from: { x: number; y: number }; to: { x: number; y: number } };
+
+/** A batch move command whose execute AND undo are guarded — so neither applying
+ *  nor undoing it is mistaken for a user drag. */
+function guardedBatchCommand(store: BoardStore, moves: readonly Move[]): Command {
+	return {
+		execute() {
+			runGuarded(() => {
+				for (const m of moves) store.updateShape(m.id, m.to);
+			});
+		},
+		undo() {
+			runGuarded(() => {
+				for (const m of moves) store.updateShape(m.id, m.from);
+			});
+		},
+	};
+}
 
 /** rAF with a timeout fallback for SSR/tests/sandbox (no rAF available). */
 const scheduleFrame: (cb: () => void) => number =
@@ -23,10 +84,81 @@ const cancelFrame: (handle: number) => void =
 		? (handle) => globalThis.cancelAnimationFrame(handle)
 		: (handle) => globalThis.clearTimeout(handle);
 
-/** Centre of a shape's box. Rotation is about the centre, so the centre is the
- *  same whether or not the shape is rotated — no AABB expansion needed. */
+/** Monotonic-ish current time in ms (for the avoid dwell). */
+const nowMs = (): number =>
+	typeof performance !== "undefined" && typeof performance.now === "function"
+		? performance.now()
+		: Date.now();
+
+/** Centre of a shape's box (rotation is about the centre, so it's rotation-invariant). */
 function centerOf(shape: ShapeData): { x: number; y: number } {
 	return { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
+}
+
+/** Overlap ratio of two boxes: intersection area / the smaller box's area (0–1). */
+function overlapRatio(a: ShapeData, b: ShapeData): number {
+	const ix = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+	const iy = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+	const inter = ix * iy;
+	const minArea = Math.max(1, Math.min(a.width * a.height, b.width * b.height));
+	return inter / minArea;
+}
+
+// Cell offsets ordered by distance then a right→down→left→up preference — used to
+// find the nearest empty cell an "avoided" item can step into.
+const AVOID_OFFSETS: { dc: number; dr: number }[] = (() => {
+	const N = 40;
+	const out: { dc: number; dr: number }[] = [];
+	for (let dr = -N; dr <= N; dr++) {
+		for (let dc = -N; dc <= N; dc++) {
+			if (dc !== 0 || dr !== 0) out.push({ dc, dr });
+		}
+	}
+	const rank = (o: { dc: number; dr: number }): number => {
+		const man = Math.abs(o.dc) + Math.abs(o.dr);
+		const diag = o.dc !== 0 && o.dr !== 0 ? 1 : 0;
+		let dir = 0; // right, down, left, up (orthogonal only)
+		if (!diag) dir = o.dc > 0 ? 0 : o.dr > 0 ? 1 : o.dc < 0 ? 2 : 3;
+		return man * 1000 + diag * 100 + dir * 10;
+	};
+	return out.sort((a, b) => rank(a) - rank(b));
+})();
+
+/** The grid cell whose REGION contains world point `(px,py)` (gap counts with the
+ *  preceding cell), clamped to the columns and to row ≥ 0. Unlike `cellOfPoint`
+ *  (which rounds to the nearest cell origin), this is a containment test — so an
+ *  item's CENTRE maps to the cell it visually sits over, regardless of snapping. */
+function cellContaining(
+	px: number,
+	py: number,
+	spec: GridSpec,
+	cols: number,
+): { col: number; row: number } {
+	const stepX = spec.cellW + spec.gap;
+	const stepY = spec.cellH + spec.gap;
+	const col = Math.min(
+		Math.max(0, Math.floor((px - spec.originX - spec.padding) / stepX)),
+		cols - 1,
+	);
+	const row = Math.max(0, Math.floor((py - spec.originY - spec.padding) / stepY));
+	return { col, row };
+}
+
+/** Nearest empty cell to `(col,row)` not in `occupied` and within the grid (col in
+ *  `[0,cols)`, row ≥ 0), searching right→down→left→up outward. Null if none nearby. */
+function nearestFreeCell(
+	col: number,
+	row: number,
+	occupied: ReadonlySet<string>,
+	cols: number,
+): { col: number; row: number } | null {
+	for (const o of AVOID_OFFSETS) {
+		const c = col + o.dc;
+		const r = row + o.dr;
+		if (c < 0 || c >= cols || r < 0) continue;
+		if (!occupied.has(`${c},${r}`)) return { col: c, row: r };
+	}
+	return null;
 }
 
 /** Resolve the board's grid spec, or null when this board isn't a dashboard. */
@@ -35,29 +167,98 @@ function specOf(store: BoardStore): GridSpec | null {
 	return config ? gridSpecFromConfig(config) : null;
 }
 
+/** (id → width/height) for a list of ids in order, skipping any gone. */
+function sizedOrder(store: BoardStore, ids: readonly string[]): ItemSize[] {
+	const out: ItemSize[] = [];
+	for (const id of ids) {
+		const s = store.getShape(id);
+		if (s) out.push({ id, width: s.width, height: s.height });
+	}
+	return out;
+}
+
+/** A single shape as a placement box. */
+function boxOfShape(s: ShapeData): PlacedBox {
+	return { id: s.id, x: s.x, y: s.y, width: s.width, height: s.height };
+}
+
+/** (id → position + size) boxes for a list of ids in order (for absolute packing). */
+function boxesOf(store: BoardStore, ids: readonly string[]): PlacedBox[] {
+	const out: PlacedBox[] = [];
+	for (const id of ids) {
+		const s = store.getShape(id);
+		if (s) out.push({ id, x: s.x, y: s.y, width: s.width, height: s.height });
+	}
+	return out;
+}
+
+/** Compact placed footprints for `ids` (span-packed) — a stable reference for the
+ *  drop-index (independent of any live gap already opened). */
+function placedBoxes(store: BoardStore, ids: readonly string[], spec: GridSpec): PlacedBox[] {
+	const sizes = sizedOrder(store, ids);
+	const compact = packSpans(sizes, spec);
+	return compact.map((p, i) => ({
+		id: p.id,
+		x: p.x,
+		y: p.y,
+		width: sizes[i].width,
+		height: sizes[i].height,
+	}));
+}
+
 /**
- * Snap every item to its reading-order cell, in ONE undoable command. Used for
- * non-drag changes (programmatic add/remove) and the "整列 (Arrange)" action /
- * service `repack()`. No-op writes (already on their cell) are dropped so undo
- * history stays clean and this is safe to call speculatively.
+ * Snap every item to its reading-order cell, span-aware, in ONE guarded+undoable
+ * command. Used for non-drag changes (add/remove) and the "整列" action / service
+ * `repack()`. No-op writes are dropped, so it's safe to call speculatively.
  */
-export function repackBoard(ctx: PluginContext): void {
+export function repackBoard(ctx: PluginContext, includeAll = false): void {
+	const spec = specOf(ctx.store);
+	if (!spec) return;
+	// `includeAll` (enable / 整列) gathers every shape into the grid; the default
+	// respects the range so out-of-grid shapes stay free.
+	const items = includeAll ? allDashboardItems(ctx.store) : dashboardItems(ctx.store);
+	if (items.length === 0) return;
+	const order = readingOrder(items, spec);
+	// flow → compact in reading order; absolute → snap each to the cell nearest its
+	// current position (gaps preserved), reading order breaking cell contention.
+	const placements =
+		modeOf(ctx.store) === "absolute"
+			? packAbsolute(boxesOf(ctx.store, order), spec)
+			: packSpans(sizedOrder(ctx.store, order), spec);
+
+	const moves: Move[] = [];
+	for (const p of placements) {
+		const cur = ctx.store.getShape(p.id);
+		if (!cur) continue;
+		if (cur.x === p.x && cur.y === p.y) continue;
+		moves.push({ id: p.id, from: { x: cur.x, y: cur.y }, to: { x: p.x, y: p.y } });
+	}
+	if (moves.length === 0) return;
+	ctx.commands.execute(guardedBatchCommand(ctx.store, moves));
+}
+
+/**
+ * Repack every item to its reading-order cell WITHOUT a command (guarded, no undo
+ * entry). For automatic layout the user didn't ask for — e.g. the scroll-lock's
+ * auto cell-width refit on resize — where polluting the undo stack would be wrong.
+ */
+export function repackBoardTransient(ctx: PluginContext): void {
 	const spec = specOf(ctx.store);
 	if (!spec) return;
 	const items = dashboardItems(ctx.store);
 	if (items.length === 0) return;
 	const order = readingOrder(items, spec);
-	const placements = packGrid(order, spec);
-
-	const updates: Array<{ id: string; from: Partial<ShapeData>; to: Partial<ShapeData> }> = [];
-	for (const p of placements) {
-		const cur = ctx.store.getShape(p.id);
-		if (!cur) continue;
-		if (cur.x === p.x && cur.y === p.y) continue;
-		updates.push({ id: p.id, from: { x: cur.x, y: cur.y }, to: { x: p.x, y: p.y } });
-	}
-	if (updates.length === 0) return;
-	ctx.commands.execute(createBatchUpdateShapesCommand(ctx.store, updates));
+	const placements =
+		modeOf(ctx.store) === "absolute"
+			? packAbsolute(boxesOf(ctx.store, order), spec)
+			: packSpans(sizedOrder(ctx.store, order), spec);
+	runGuarded(() => {
+		for (const p of placements) {
+			const cur = ctx.store.getShape(p.id);
+			if (!cur || (cur.x === p.x && cur.y === p.y)) continue;
+			ctx.store.updateShape(p.id, { x: p.x, y: p.y });
+		}
+	});
 }
 
 /**
@@ -65,23 +266,61 @@ export function repackBoard(ctx: PluginContext): void {
  * and cancels any pending frame.
  */
 export function setupDashboard(ctx: PluginContext): () => void {
-	// Guard so our own layout writes don't re-enter onMutation.
-	let applying = false;
-	let pointerDown = false;
-	// The shape currently under the pointer (never repositioned mid-drag).
+	// The shape currently under the pointer (never repositioned mid-drag), and its
+	// latest centre (used to derive the live drop index).
 	let draggingId: string | null = null;
-	// Live insertion index derived from the dragged item's centre.
-	let pendingTargetIndex = 0;
+	// The item being resized (fit-to-grid): snapped to a whole-cell size on settle.
+	let resizingId: string | null = null;
+	let pendingPoint: { x: number; y: number } = { x: 0, y: 0 };
 	let frame: number | null = null;
-	// Pre-drag positions of every item, captured once per drag, so the drop
-	// commits `from` = true pre-drag layout (a single clean undo).
+	// Drop is committed when the drag's `shape:updated` stream goes quiet for this
+	// long — a signal-independent end-of-drag detector, because the explicit drop
+	// events (`shapes:move-end` / `canvas:pointerup`) don't reliably reach here for
+	// a shape drag. `shapes:move-end`, when it does fire, commits sooner.
+	const SETTLE_MS = 120;
+	let settleTimer: ReturnType<typeof setTimeout> | null = null;
+	// Live-avoid dwell: the occupant only steps aside after the dragged item has
+	// hovered it for `swapDelay` ms. `avoidTimer` re-checks after the dwell even if
+	// the pointer holds still (no new `shape:updated` to drive a reflow frame).
+	let avoidCandidateId: string | null = null;
+	let avoidCandidateSince = 0;
+	let avoidTimer: ReturnType<typeof setTimeout> | null = null;
+	function clearAvoidTimer(): void {
+		if (avoidTimer !== null) {
+			clearTimeout(avoidTimer);
+			avoidTimer = null;
+		}
+	}
+	function armSettle(): void {
+		if (settleTimer !== null) clearTimeout(settleTimer);
+		settleTimer = globalThis.setTimeout(() => {
+			settleTimer = null;
+			if (draggingId !== null) {
+				endDrag();
+			} else if (resizingId !== null) {
+				// Resize settled: snap the size to whole cells + re-lay out, then clear.
+				const id = resizingId;
+				resizingId = null;
+				setDragTarget(null);
+				commitResizeToGrid(id);
+			} else {
+				repackBoard(ctx);
+			}
+		}, SETTLE_MS);
+	}
+	function clearSettle(): void {
+		if (settleTimer !== null) {
+			clearTimeout(settleTimer);
+			settleTimer = null;
+		}
+	}
+	// Pre-drag positions captured once per drag, so the drop commits `from` = true
+	// pre-drag layout (a single clean undo).
 	const dragBefore = new Map<string, { x: number; y: number }>();
 
-	// Ids currently treated as top-level grid items. `shape:removed` carries no
-	// shape (it's gone), so this lets us tell "an item was removed → reflow to
-	// close the gap" from "a nested child was removed → leave the grid alone".
-	// Seeded from a read-only scan after hydration and kept in sync on
-	// add/remove and on non-drag updates (lock/hide/reparent flip membership).
+	// Ids currently treated as top-level grid items — lets `shape:removed` (which
+	// carries no shape) tell "an item was removed → reflow" from "a nested child
+	// was removed → leave the grid alone". Seeded after hydration; kept in sync.
 	const itemIds = new Set<string>();
 	let itemsSeeded = false;
 	function seedItemIds(): void {
@@ -89,42 +328,271 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		for (const s of dashboardItems(ctx.store)) itemIds.add(s.id);
 		itemsSeeded = true;
 	}
+	// Slide-animate reflow only while this board is a dashboard.
+	function syncSlideActive(): void {
+		setSlideActive(getDashboardConfig(ctx.store) !== undefined);
+	}
 	function refreshItemMembership(id: string): void {
 		const shape = ctx.store.getShape(id);
-		if (shape && isDashboardItem(ctx.store, shape)) itemIds.add(id);
+		if (shape && isGridItem(ctx.store, shape)) itemIds.add(id);
 		else itemIds.delete(id);
 	}
 
-	function withApplying(fn: () => void): void {
-		applying = true;
-		try {
-			fn();
-		} finally {
-			applying = false;
-		}
+	// Snapshot pre-drag positions the first time we notice a drag. Siblings are at
+	// rest here; the dragged shape's pre-drag position comes from the mutation's
+	// `before` (it has already moved by the time we observe it).
+	function captureBefore(draggedBefore: ShapeData): void {
+		dragBefore.clear();
+		for (const s of dashboardItems(ctx.store)) dragBefore.set(s.id, { x: s.x, y: s.y });
+		dragBefore.set(draggedBefore.id, { x: draggedBefore.x, y: draggedBefore.y });
 	}
 
-	// Snapshot pre-drag positions the first time we notice a drag. Siblings are
-	// still at rest here; the dragged shape's pre-drag position comes from the
-	// mutation's `before` (it has already moved by the time we observe it).
-	function captureBefore(draggedBefore: ShapeData): void {
-		if (dragBefore.size > 0) return;
-		for (const s of dashboardItems(ctx.store)) {
-			dragBefore.set(s.id, { x: s.x, y: s.y });
+	/** Highlight the cell a dragged item of `width×height` will land at `topLeft`. */
+	function publishHighlight(
+		spec: GridSpec,
+		topLeft: { x: number; y: number },
+		width: number,
+		height: number,
+	): void {
+		const span = spanOf(width, height, spec);
+		setDragTarget({
+			x: topLeft.x,
+			y: topLeft.y,
+			width: span.cols * spec.cellW + (span.cols - 1) * spec.gap,
+			height: span.rows * spec.cellH + (span.rows - 1) * spec.gap,
+		});
+	}
+
+	/** During a resize, highlight the whole-cell footprint the item will snap to
+	 *  (positioned at the cell nearest its current top-left). */
+	function highlightResizeTarget(spec: GridSpec, shape: ShapeData): void {
+		const fit = fitSize(shape.width, shape.height, spec);
+		const span = spanOf(fit.width, fit.height, spec);
+		const cols = Math.max(1, Math.floor(spec.columns));
+		const cell = cellOfPoint(shape.x, shape.y, spec);
+		const col = Math.min(Math.max(0, cell.col), Math.max(0, cols - span.cols));
+		const tl = cellXY(col, Math.max(0, cell.row), spec);
+		setDragTarget({ x: tl.x, y: tl.y, width: fit.width, height: fit.height });
+	}
+
+	/** Snap a resized item to whole-cell size and re-lay out the board, as one
+	 *  undoable command. */
+	function commitResizeToGrid(id: string): void {
+		const spec = specOf(ctx.store);
+		if (!spec) return;
+		const shape = ctx.store.getShape(id);
+		if (!shape) return;
+		const fit = fitSize(shape.width, shape.height, spec);
+		const items = dashboardItems(ctx.store);
+		const shapes = readingOrder(items, spec)
+			.map((iid) => ctx.store.getShape(iid))
+			.filter((s): s is ShapeData => s !== undefined);
+		const sizeFor = (s: ShapeData) =>
+			s.id === id ? { width: fit.width, height: fit.height } : { width: s.width, height: s.height };
+		const placements =
+			modeOf(ctx.store) === "absolute"
+				? packAbsolute(
+						shapes.map((s) => ({ id: s.id, x: s.x, y: s.y, ...sizeFor(s) })),
+						spec,
+					)
+				: packSpans(
+						shapes.map((s) => ({ id: s.id, ...sizeFor(s) })),
+						spec,
+					);
+
+		const oldSize = { width: shape.width, height: shape.height };
+		const oldPos = new Map(items.map((s) => [s.id, { x: s.x, y: s.y }]));
+		const willChange =
+			fit.width !== shape.width ||
+			fit.height !== shape.height ||
+			placements.some((p) => {
+				const s = ctx.store.getShape(p.id);
+				return s !== undefined && (s.x !== p.x || s.y !== p.y);
+			});
+		if (!willChange) return;
+
+		const command: Command = {
+			execute() {
+				runGuarded(() => {
+					ctx.store.updateShape(id, fit);
+					for (const p of placements) ctx.store.updateShape(p.id, { x: p.x, y: p.y });
+				});
+			},
+			undo() {
+				runGuarded(() => {
+					ctx.store.updateShape(id, oldSize);
+					for (const [iid, pos] of oldPos) ctx.store.updateShape(iid, pos);
+				});
+			},
+		};
+		ctx.commands.execute(command);
+	}
+
+	/** An item's cell from its RESTING position (dragBefore) — the layout as if no
+	 *  drag were in progress, so avoid math is stable across frames. */
+	function restingCell(id: string, spec: GridSpec, cols: number): { col: number; row: number } {
+		const rest = dragBefore.get(id);
+		const s = ctx.store.getShape(id);
+		const x = rest?.x ?? s?.x ?? 0;
+		const y = rest?.y ?? s?.y ?? 0;
+		const w = s?.width ?? spec.cellW;
+		const h = s?.height ?? spec.cellH;
+		return cellContaining(x + w / 2, y + h / 2, spec, cols);
+	}
+
+	/** Pick the occupant that should get out of the dragged item's way and the cell it
+	 *  should move to (absolute + avoid). Computed from RESTING positions so it's the
+	 *  same during the live preview and on the final drop. Null when nothing to avoid. */
+	function resolveAvoid(
+		draggedShape: ShapeData,
+		draggedId: string,
+		otherIds: readonly string[],
+		spec: GridSpec,
+	): {
+		best: ShapeData;
+		bCell: { col: number; row: number };
+		avoid: { col: number; row: number };
+	} | null {
+		const cols = Math.max(1, Math.floor(spec.columns));
+		const center = centerOf(draggedShape);
+		const dCell = cellContaining(center.x, center.y, spec, cols);
+		let best: ShapeData | null = null;
+		for (const id of otherIds) {
+			const s = ctx.store.getShape(id);
+			if (!s) continue;
+			const sc = restingCell(id, spec, cols);
+			if (sc.col === dCell.col && sc.row === dCell.row) {
+				best = s;
+				break;
+			}
 		}
-		dragBefore.set(draggedBefore.id, { x: draggedBefore.x, y: draggedBefore.y });
+		if (!best) {
+			let bestRatio = 0;
+			for (const id of otherIds) {
+				const s = ctx.store.getShape(id);
+				if (!s) continue;
+				const r = overlapRatio(draggedShape, s);
+				if (r > bestRatio) {
+					bestRatio = r;
+					best = s;
+				}
+			}
+			if (best && bestRatio < swapThresholdOf(ctx.store)) best = null;
+		}
+		if (!best) return null;
+		const bCell = restingCell(best.id, spec, cols); // the dragged claims the occupant's cell
+		const occupied = new Set<string>();
+		for (const id of otherIds) {
+			if (id === best.id) continue;
+			const c = restingCell(id, spec, cols);
+			occupied.add(`${c.col},${c.row}`);
+		}
+		occupied.add(`${bCell.col},${bCell.row}`);
+		const cellFree = (c: number, r: number): boolean =>
+			c >= 0 && c < cols && r >= 0 && !occupied.has(`${c},${r}`);
+		let avoid = nearestFreeCell(bCell.col, bCell.row, occupied, cols);
+		// Prefer pushing the avoider in the drag's direction (enables left/up).
+		const fromTL = dragBefore.get(draggedId);
+		if (fromTL) {
+			const origin = cellContaining(
+				fromTL.x + draggedShape.width / 2,
+				fromTL.y + draggedShape.height / 2,
+				spec,
+				cols,
+			);
+			const dCol = Math.sign(bCell.col - origin.col);
+			const dRow = Math.sign(bCell.row - origin.row);
+			const horizFirst = Math.abs(bCell.col - origin.col) >= Math.abs(bCell.row - origin.row);
+			const tries = horizFirst
+				? ([
+						[dCol, 0],
+						[0, dRow],
+					] as const)
+				: ([
+						[0, dRow],
+						[dCol, 0],
+					] as const);
+			for (const [dc, dr] of tries) {
+				if ((dc !== 0 || dr !== 0) && cellFree(bCell.col + dc, bCell.row + dr)) {
+					avoid = { col: bCell.col + dc, row: bCell.row + dr };
+					break;
+				}
+			}
+		}
+		return avoid ? { best, bCell, avoid } : null;
 	}
 
 	function reflowDuringDrag(): void {
 		frame = null;
-		if (!pointerDown || draggingId === null) return;
+		const dragged = draggingId;
+		if (dragged === null) return;
 		const spec = specOf(ctx.store);
 		if (!spec) return;
 		const items = dashboardItems(ctx.store);
-		const order = readingOrder(items, spec);
-		const placements = packGridWithGap(order, draggingId, pendingTargetIndex, spec);
-		withApplying(() => {
+		if (!items.some((i) => i.id === dragged)) return;
+		const draggedShape = ctx.store.getShape(dragged);
+		if (!draggedShape) return;
+		const otherIds = readingOrder(items, spec).filter((id) => id !== dragged);
+
+		if (modeOf(ctx.store) === "absolute") {
+			const cols = Math.max(1, Math.floor(spec.columns));
+			const dCell = cellContaining(centerOf(draggedShape).x, centerOf(draggedShape).y, spec, cols);
+			// LIVE avoid preview: restore siblings to rest, then push the one under the
+			// dragged item aside — WITHOUT moving/snapping the dragged item (it keeps
+			// tracking the pointer; it only snaps on drop). The push waits out the
+			// configured dwell (so merely passing over an item doesn't disturb it).
+			const res = swapOf(ctx.store) ? resolveAvoid(draggedShape, dragged, otherIds, spec) : null;
+			const targetId = res?.best.id ?? null;
+			if (targetId !== avoidCandidateId) {
+				avoidCandidateId = targetId;
+				avoidCandidateSince = nowMs();
+			}
+			const delay = swapDelayOf(ctx.store);
+			const dwell = nowMs() - avoidCandidateSince;
+			const active = targetId !== null && dwell >= delay;
+			runGuarded(() => {
+				for (const id of otherIds) {
+					const rest = dragBefore.get(id);
+					if (!rest) continue;
+					const cur = ctx.store.getShape(id);
+					if (cur && (cur.x !== rest.x || cur.y !== rest.y)) ctx.store.updateShape(id, rest);
+				}
+				if (active && res) {
+					const tl = cellXY(res.avoid.col, res.avoid.row, spec);
+					ctx.store.updateShape(res.best.id, { x: tl.x, y: tl.y });
+				}
+			});
+			// Candidate pending but not yet due → re-check after the remaining dwell (the
+			// pointer may hold still, firing no further reflow).
+			clearAvoidTimer();
+			if (targetId !== null && !active) {
+				avoidTimer = globalThis.setTimeout(
+					() => {
+						avoidTimer = null;
+						scheduleReflow();
+					},
+					Math.max(0, delay - dwell) + 1,
+				);
+			}
+			// Highlight the cell the dragged item will land in on release (the occupant's
+			// cell when avoiding, else the cell it's over).
+			const land = res ? res.bCell : dCell;
+			const landTL = cellXY(land.col, land.row, spec);
+			publishHighlight(spec, landTL, draggedShape.width, draggedShape.height);
+			return;
+		}
+
+		// flow: pack with the dragged item reserving its slot, then write everyone
+		// EXCEPT the dragged shape — opening the gap it'll drop into.
+		const target = targetIndexFromPoint(pendingPoint, placedBoxes(ctx.store, otherIds, spec), spec);
+		const order = [...otherIds];
+		order.splice(target, 0, dragged);
+		const placements = packSpans(sizedOrder(ctx.store, order), spec);
+		const dp = placements.find((p) => p.id === dragged);
+		if (dp) publishHighlight(spec, dp, draggedShape.width, draggedShape.height);
+		runGuarded(() => {
 			for (const p of placements) {
+				if (p.id === dragged) continue;
 				const cur = ctx.store.getShape(p.id);
 				if (!cur || (cur.x === p.x && cur.y === p.y)) continue;
 				ctx.store.updateShape(p.id, { x: p.x, y: p.y });
@@ -137,133 +605,195 @@ export function setupDashboard(ctx: PluginContext): () => void {
 		frame = scheduleFrame(reflowDuringDrag);
 	}
 
+	/** Commit placements as one guarded+undoable command. `dragBefore` gives each
+	 *  item's pre-drag position so undo restores the whole layout in one step. */
+	function commitPlacements(placements: readonly Placement[]): void {
+		const moves: Move[] = [];
+		for (const p of placements) {
+			const cur = ctx.store.getShape(p.id);
+			if (!cur) continue;
+			const from = dragBefore.get(p.id) ?? { x: cur.x, y: cur.y };
+			// Skip only when there's genuinely nothing to do: the shape is already at
+			// the target AND its pre-drag position was too (so undo needs no entry).
+			// Comparing `from` alone would wrongly skip a shape whose pre-drag position
+			// equals the target but which was dragged AWAY (its CURRENT position is the
+			// drop point) — that's the item that must snap back.
+			const atTarget = cur.x === p.x && cur.y === p.y;
+			const fromTarget = from.x === p.x && from.y === p.y;
+			if (atTarget && fromTarget) continue;
+			moves.push({ id: p.id, from: { x: from.x, y: from.y }, to: { x: p.x, y: p.y } });
+		}
+		if (moves.length > 0) ctx.commands.execute(guardedBatchCommand(ctx.store, moves));
+	}
+
 	function endDrag(): void {
+		clearSettle();
+		clearAvoidTimer();
+		avoidCandidateId = null;
+		setDragTarget(null); // clear the drop-target highlight
+		resizingId = null;
 		if (frame !== null) {
 			cancelFrame(frame);
 			frame = null;
 		}
 		const spec = specOf(ctx.store);
 		const dragged = draggingId;
-		// Reset live state before committing so our own command's mutations (seen
-		// via onMutation) are treated as non-drag.
 		draggingId = null;
-		pointerDown = false;
-		const before = new Map(dragBefore);
-		dragBefore.clear();
-
-		if (!spec) return;
-		if (dragged === null) {
-			// A drop we didn't track as a single-item reorder (a multi-select drag, or
-			// a plain click). Re-snap every item to the grid so free-moved shapes
-			// settle back onto cells (a no-op when nothing actually moved).
-			repackBoard(ctx);
+		// Keep the dropped item excluded THROUGH its snap commit below (so it jumps to
+		// its cell without sliding — only the surrounding items animate), then re-include
+		// it next frame so later reflows animate it normally.
+		if (dragged !== null) scheduleFrame(() => clearSlideExclude(dragged));
+		if (!spec) {
+			dragBefore.clear();
 			return;
 		}
-		// Final order = siblings in reading order with the dragged item spliced in
-		// at its target slot.
+		const mode = modeOf(ctx.store);
 		const items = dashboardItems(ctx.store);
-		const order = readingOrder(items, spec).filter((id) => id !== dragged);
-		const clamped = Math.max(0, Math.min(Math.round(pendingTargetIndex), order.length));
-		order.splice(clamped, 0, dragged);
-		const placements = packGrid(order, spec);
+		const order = readingOrder(items, spec);
+		const draggedShape = dragged !== null ? ctx.store.getShape(dragged) : undefined;
 
-		const updates: Array<{ id: string; from: Partial<ShapeData>; to: Partial<ShapeData> }> = [];
-		for (const p of placements) {
-			const cur = ctx.store.getShape(p.id);
-			if (!cur) continue;
-			const from = before.get(p.id) ?? { x: cur.x, y: cur.y };
-			if (from.x === p.x && from.y === p.y) continue;
-			updates.push({ id: p.id, from: { x: from.x, y: from.y }, to: { x: p.x, y: p.y } });
+		const draggedOutOfRange =
+			draggedShape !== undefined &&
+			freeOutOfRangeOf(ctx.store) &&
+			!isWithinGrid(draggedShape, spec);
+		if (dragged === null || !draggedShape || draggedOutOfRange) {
+			// Untracked drop (multi-select / vanished), OR the dragged item was taken
+			// OUT of the grid range → leave it free; just re-snap the remaining items
+			// (which already excludes it) to close the gap.
+			commitPlacements(
+				mode === "absolute"
+					? packAbsolute(boxesOf(ctx.store, order), spec)
+					: packSpans(sizedOrder(ctx.store, order), spec),
+			);
+			dragBefore.clear();
+			return;
 		}
-		if (updates.length === 0) return;
-		ctx.commands.execute(createBatchUpdateShapesCommand(ctx.store, updates));
+
+		const otherIds = order.filter((id) => id !== dragged);
+		if (mode === "absolute" && swapOf(ctx.store)) {
+			// AVOID-on-drop: the dragged item snaps into the cell it's over; the item that
+			// sat there steps aside (pushed in the drag direction, else nearest free).
+			// Shared with the live preview via `resolveAvoid`, so the drop matches what was
+			// previewed. No occupant → normal absolute snap.
+			const res = resolveAvoid(draggedShape, dragged, otherIds, spec);
+			if (res) {
+				const dTL = cellXY(res.bCell.col, res.bCell.row, spec);
+				const aTL = cellXY(res.avoid.col, res.avoid.row, spec);
+				commitPlacements([
+					{ id: dragged, x: dTL.x, y: dTL.y },
+					{ id: res.best.id, x: aTL.x, y: aTL.y },
+				]);
+			} else {
+				const boxes = [...boxesOf(ctx.store, otherIds), boxOfShape(draggedShape)];
+				commitPlacements(packAbsolute(boxes, spec));
+			}
+		} else if (mode === "absolute") {
+			// Dragged → cell nearest its dropped position; others keep their cells
+			// (processed first so they win their own cells).
+			const boxes = [...boxesOf(ctx.store, otherIds), boxOfShape(draggedShape)];
+			commitPlacements(packAbsolute(boxes, spec));
+		} else {
+			// flow: insert the dragged item at the index its FINAL (dropped) centre
+			// lands on (recomputed so revert/replay churn can't corrupt it), compact.
+			const target = targetIndexFromPoint(
+				centerOf(draggedShape),
+				placedBoxes(ctx.store, otherIds, spec),
+				spec,
+			);
+			otherIds.splice(target, 0, dragged);
+			commitPlacements(packSpans(sizedOrder(ctx.store, otherIds), spec));
+		}
+		dragBefore.clear();
 	}
 
 	const offMutation = ctx.store.onMutation((event) => {
-		if (applying) return; // ignore self-induced writes
+		if (dashboardWrites > 0) return; // ignore our own writes (reflow / commit / undo)
 
 		if (event.type === "shape:updated") {
-			// Keep item membership fresh: a non-drag update may lock/hide/reparent a
-			// shape, flipping whether it's a grid item (used by shape:removed below).
-			if (!pointerDown) {
-				const updatedId = event.payload.after?.id;
-				if (updatedId) refreshItemMembership(updatedId);
-				return; // non-drag edits otherwise handled by add/remove + actions
-			}
-			const spec = specOf(ctx.store);
-			if (!spec) return;
 			const after = event.payload.after;
 			const before = event.payload.before;
-			if (!after || !isDashboardItem(ctx.store, after)) return;
-			// Sortable reflow is a SINGLE-item interaction. With a multi-selection
-			// drag, every selected shape's `shape:updated` would match below and
-			// `draggingId` would flip between them each frame → jitter / bogus
-			// reorder. Restrict live reflow to a single selected shape; multi-select
-			// drags fall through and are re-snapped to the grid on drop (see endDrag).
+			if (after) refreshItemMembership(after.id);
+			if (!after || !isGridItem(ctx.store, after)) return;
+			const spec = specOf(ctx.store);
+			if (!spec) return;
+			// A user drag is a SINGLE selected item whose position actually changed.
+			// This rejects multi-select drags (handled as a re-snap on drop), remote
+			// collaborators' edits, and style-only updates.
 			const selection = ctx.store.getSelection();
 			if (selection.size !== 1 || !selection.has(after.id)) return;
-			// …and only when the position actually moved — this rejects the other
-			// false positive that fires `shape:updated` while the pointer is down:
-			// remote collaborators' edits arriving via sync, and style-only updates.
+			const sizeChanged = !before || before.width !== after.width || before.height !== after.height;
+			if (sizeChanged) {
+				// A RESIZE, not a reorder. Let it move at its ACTUAL size (no live
+				// write); with "fit to grid" on, show the cell footprint it'll snap to
+				// and apply the snap when the resize settles (like move → drop).
+				if (fitToGridOf(ctx.store)) {
+					resizingId = after.id;
+					highlightResizeTarget(spec, after);
+				}
+				armSettle();
+				return;
+			}
 			if (before && before.x === after.x && before.y === after.y) return;
-			captureBefore(before);
+			if (draggingId === null && before) captureBefore(before); // first frame → snapshot
+			resizingId = null; // a move, not a resize
 			draggingId = after.id;
-			const count = dashboardItems(ctx.store).length;
-			pendingTargetIndex = indexFromPoint(centerOf(after), spec, count);
+			setSlideExclude(after.id); // the dragged item tracks the pointer (no transition)
+			pendingPoint = centerOf(after);
 			scheduleReflow();
+			// NB: no settle timer for a move — a mere pause must NOT commit (it would
+			// snap the dragged item to the grid mid-drag and prematurely fire the
+			// avoid). The drop is committed by `shapes:move-end` (or the
+			// `selection:changed` safety net), which fire only on actual release.
+			clearSettle();
+			return;
+		}
+
+		if (event.type === "selection:changed") {
+			// Safety net for a drag abandoned without a move-end (e.g. Escape): if the
+			// tracked item is no longer the sole selection, finalize now.
+			if (draggingId !== null) {
+				const sel = ctx.store.getSelection();
+				if (!(sel.size === 1 && sel.has(draggingId))) endDrag();
+			}
 			return;
 		}
 
 		if (event.type === "shape:added" || event.type === "shape:removed") {
-			if (pointerDown) return; // mid-drag churn settles on drop
+			if (draggingId !== null) return; // mid-reorder churn settles on drop
 			const id = event.payload.id;
+			syncSlideActive(); // enable/disable adds/removes the config singleton
 			if (event.type === "shape:added") {
 				const s = ctx.store.getShape(id);
-				if (!s || !isDashboardItem(ctx.store, s)) return; // nested/substrate → ignore
+				if (!s || !isGridItem(ctx.store, s)) return; // nested / substrate → ignore
 				itemIds.add(id);
 				repackBoard(ctx);
 				return;
 			}
-			// shape:removed — repack (to close the gap) only when a tracked top-level
-			// item was removed. A nested child's removal must NOT reflow the grid.
-			// Before the seed lands, fall back to repacking (a safe no-op when the
-			// grid is already packed).
+			// shape:removed — reflow to close the gap only when a tracked top-level
+			// item was removed. Before the seed lands, fall back to repacking.
 			const wasItem = itemIds.delete(id);
 			if (wasItem || !itemsSeeded) repackBoard(ctx);
 		}
 	});
 
-	const offDown = ctx.events.on("canvas:pointerdown", () => {
-		pointerDown = true;
-		draggingId = null;
-		dragBefore.clear();
-	});
-	// Prefer `shapes:move-end` (fires after the select tool commits its move) so
-	// our commit lands after it; fall back to raw pointerup if a drag produced no
-	// move-end (e.g. a click that didn't move anything).
+	// Drop: the select tool emits `shapes:move-end` after committing its move, so
+	// our snap lands last. This is the authoritative end-of-drag signal.
 	const offMoveEnd = ctx.events.on<{ shapeIds: string[] }>("shapes:move-end", () => {
-		if (pointerDown) endDrag();
-	});
-	// Fallback for a pointerup that produced no `shapes:move-end` (a click, or a
-	// tool that doesn't emit it). Deferred to a macrotask so a move-end microtask
-	// from the same gesture always commits first; `endDrag` is idempotent, so a
-	// double fire is harmless.
-	const offUp = ctx.events.on("canvas:pointerup", () => {
-		globalThis.setTimeout(() => {
-			if (pointerDown) endDrag();
-		}, 0);
+		endDrag();
 	});
 
-	// Seed the item set once shapes are present. Deferred so shapes hydrated
-	// synchronously on load are visible; read-only, so it's harmless if it runs
-	// after teardown (the mutation listener is already removed by then).
-	queueMicrotask(seedItemIds);
+	// Seed the item set once shapes are present (read-only; harmless after teardown).
+	queueMicrotask(() => {
+		seedItemIds();
+		syncSlideActive();
+	});
 
 	return () => {
 		offMutation();
-		offDown();
 		offMoveEnd();
-		offUp();
+		clearSettle();
+		clearAvoidTimer();
 		if (frame !== null) cancelFrame(frame);
+		teardownSlide();
 	};
 }

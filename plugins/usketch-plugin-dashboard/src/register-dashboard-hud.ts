@@ -3,6 +3,7 @@
 // "整列 (Arrange)" action to the shared HUD, both of which just call the service.
 import type { PluginContext } from "@edv4h/usketch-shared";
 import type { DashboardApi } from "./dashboard-service.js";
+import { isGridOverlayVisible, setGridOverlayVisible } from "./grid-overlay.js";
 
 /** Register the dashboard's HUD settings + arrange action. Returns a teardown. */
 export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () => void {
@@ -11,13 +12,37 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 		label: "ダッシュボード",
 		order: 10,
 		fields: [
+			{
+				name: "mode",
+				label: "配置",
+				type: "enum",
+				options: [
+					{ value: "flow", label: "詰める(sortable)" },
+					{ value: "absolute", label: "そのまま(自由)" },
+				],
+			},
 			{ name: "columns", label: "列数", type: "number", min: 1, max: 12, step: 1 },
 			{ name: "cellWidth", label: "セル幅", type: "number", min: 40, max: 800, step: 10 },
+			{ name: "cellWAuto", label: "幅をAuto(画面幅・縦のみ)", type: "boolean" },
 			{ name: "cellHeight", label: "セル高", type: "number", min: 40, max: 800, step: 10 },
 			{ name: "gap", label: "間隔", type: "number", min: 0, max: 100, step: 2 },
 			{ name: "padding", label: "余白", type: "number", min: 0, max: 200, step: 4 },
+			{ name: "fitToGrid", label: "セルに合わせる", type: "boolean" },
+			{ name: "swap", label: "避ける", type: "boolean" },
+			{ name: "swapThreshold", label: "避け閾値%", type: "number", min: 0, max: 100, step: 5 },
+			{ name: "swapDelay", label: "避けディレイ(ms)", type: "number", min: 0, max: 1000, step: 50 },
+			{ name: "freeOutOfRange", label: "範囲外は自由", type: "boolean" },
+			{ name: "viewportLock", label: "スクロール制限", type: "boolean" },
 		],
 		get(name) {
+			if (name === "mode") return api.getMode();
+			if (name === "fitToGrid") return api.getFitToGrid();
+			if (name === "swap") return api.getSwap();
+			if (name === "swapThreshold") return Math.round(api.getSwapThreshold() * 100);
+			if (name === "swapDelay") return api.getSwapDelay();
+			if (name === "freeOutOfRange") return api.getFreeOutOfRange();
+			if (name === "viewportLock") return api.getViewportLock();
+			if (name === "cellWAuto") return api.getCellWidthAuto();
 			const spec = api.getGridSpec();
 			if (!spec) return undefined;
 			switch (name) {
@@ -36,6 +61,30 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 			}
 		},
 		set(name, value) {
+			if (name === "mode") {
+				if (value === "flow" || value === "absolute") api.setMode(value);
+				return;
+			}
+			if (name === "fitToGrid") {
+				api.setFitToGrid(value === true || value === "true");
+				return;
+			}
+			if (name === "swap") {
+				api.setSwap(value === true || value === "true");
+				return;
+			}
+			if (name === "freeOutOfRange") {
+				api.setFreeOutOfRange(value === true || value === "true");
+				return;
+			}
+			if (name === "viewportLock") {
+				api.setViewportLock(value === true || value === "true");
+				return;
+			}
+			if (name === "cellWAuto") {
+				api.setCellWidthAuto(value === true || value === "true");
+				return;
+			}
 			const n = Number(value);
 			if (!Number.isFinite(n)) return;
 			const spec = api.getGridSpec();
@@ -44,7 +93,11 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 					api.setColumns(n);
 					break;
 				case "cellWidth":
-					if (spec) api.setCellSize(n, spec.cellH);
+					// A manual width edit turns Auto off (it's now a fixed number).
+					if (spec) {
+						api.setCellWidthAuto(false);
+						api.setCellSize(n, spec.cellH);
+					}
 					break;
 				case "cellHeight":
 					if (spec) api.setCellSize(spec.cellW, n);
@@ -54,6 +107,12 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 					break;
 				case "padding":
 					api.setPadding(n);
+					break;
+				case "swapThreshold":
+					api.setSwapThreshold(n / 100); // percent field → 0–1 ratio
+					break;
+				case "swapDelay":
+					api.setSwapDelay(n);
 					break;
 			}
 		},
@@ -92,10 +151,21 @@ export function registerDashboardHud(ctx: PluginContext, api: DashboardApi): () 
 		isEnabled: () => api.isDashboardBoard(),
 	});
 
+	const unregisterToggleGrid = ctx.actions.register({
+		id: "usketch-plugin-dashboard:toggle-grid",
+		label: "グリッド表示",
+		group: "ダッシュボード",
+		order: 3,
+		run: () => setGridOverlayVisible(!isGridOverlayVisible()),
+		isActive: () => isGridOverlayVisible(),
+		isEnabled: () => api.isDashboardBoard(),
+	});
+
 	return () => {
 		unregisterSettings();
 		unregisterEnable();
 		unregisterDisable();
 		unregisterArrange();
+		unregisterToggleGrid();
 	};
 }

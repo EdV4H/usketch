@@ -10,7 +10,9 @@ import { DASHBOARD_CONFIG_TYPE, type DashboardDefaults } from "./dashboard-confi
 import { createDashboardConfigShapeDefinition } from "./dashboard-config-shape-def.js";
 import { repackBoard, setupDashboard } from "./dashboard-runtime.js";
 import { createDashboardApi, dashboardService } from "./dashboard-service.js";
+import { gridOverlayLayer, resetGridOverlayVisible } from "./grid-overlay.js";
 import { registerDashboardHud } from "./register-dashboard-hud.js";
+import { setupViewportLock } from "./viewport-lock.js";
 
 export interface DashboardPluginOptions extends DashboardDefaults {
 	/**
@@ -28,6 +30,11 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 		name: "ダッシュボード",
 		setup(ctx: PluginContext) {
 			ctx.shapes.register(DASHBOARD_CONFIG_TYPE, createDashboardConfigShapeDefinition(defaults));
+
+			// Grid overlay: shows the target cells so it's clear where items land. It
+			// renders nothing on a non-dashboard board, so it's safe to always register.
+			resetGridOverlayVisible();
+			ctx.layers.register(gridOverlayLayer);
 
 			const api = createDashboardApi(ctx, defaults);
 
@@ -53,6 +60,7 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 			}
 
 			const stopRuntime = setupDashboard(ctx);
+			const stopViewportLock = setupViewportLock(ctx);
 			const stopHud = registerDashboardHud(ctx, api);
 			// Provide the service LAST: `createApp` can only roll back a failed setup
 			// via the teardown we return, so if an earlier step throws the service was
@@ -64,6 +72,8 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 				unprovideService();
 				stopHud();
 				stopRuntime();
+				stopViewportLock();
+				ctx.layers.unregister(gridOverlayLayer.id);
 			};
 		},
 	};

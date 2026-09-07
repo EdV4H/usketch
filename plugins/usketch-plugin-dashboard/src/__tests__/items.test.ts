@@ -1,8 +1,9 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { describe, expect, it } from "vitest";
+import { gridSpecFromConfig } from "../config-ops.js";
 import { makeDashboardConfig } from "../dashboard-config-shape.js";
-import { dashboardItems, isDashboardItem } from "../items.js";
+import { allDashboardItems, dashboardItems, isDashboardItem, isWithinGrid } from "../items.js";
 
 function rect(overrides: Partial<ShapeData> = {}): ShapeData {
 	return {
@@ -58,5 +59,69 @@ describe("dashboardItems", () => {
 				.map((s) => s.id)
 				.sort(),
 		).toEqual(["a", "g"]);
+	});
+});
+
+describe("grid range (out-of-range = free)", () => {
+	const config = makeDashboardConfig({
+		columns: 4,
+		cellW: 100,
+		cellH: 100,
+		gap: 0,
+		padding: 0,
+		originX: 0,
+		originY: 0,
+		freeOutOfRange: true, // このグループは範囲外除外を検証
+	});
+	const spec = gridSpecFromConfig(config);
+
+	it("isWithinGrid: 列バンド内は true、外(列超過/原点より左上)は false", () => {
+		expect(isWithinGrid(rect({ x: 0, y: 0 }), spec)).toBe(true); // col0,row0
+		expect(isWithinGrid(rect({ x: 300, y: 500 }), spec)).toBe(true); // col3,row5（下は無制限）
+		expect(isWithinGrid(rect({ x: 1000, y: 0 }), spec)).toBe(false); // col10 → 列超過（右）
+		expect(isWithinGrid(rect({ x: 0, y: -100 }), spec)).toBe(false); // row<0（上）
+		// グリッドより左は範囲外にしない＝先頭列へ寄せる（左端の手前へ差し込むため）。
+		expect(isWithinGrid(rect({ x: -100, y: 0 }), spec)).toBe(true);
+		expect(isWithinGrid(rect({ x: -40, y: 0, width: 100 }), spec)).toBe(true);
+	});
+
+	it("dashboardItems は範囲外を除外、allDashboardItems は含める", () => {
+		const store = createBoardStore();
+		store.addShape(config); // 上の spec と同じ config を board に
+		store.addShape(rect({ id: "in", x: 0, y: 0 }));
+		store.addShape(rect({ id: "out", x: 1000, y: 0 })); // 列超過 → 範囲外
+		expect(
+			dashboardItems(store)
+				.map((s) => s.id)
+				.sort(),
+		).toEqual(["in"]);
+		expect(
+			allDashboardItems(store)
+				.map((s) => s.id)
+				.sort(),
+		).toEqual(["in", "out"]);
+	});
+});
+
+describe("freeOutOfRange toggle", () => {
+	it("OFF なら範囲外も dashboardItems に含める（全部管理）", () => {
+		const store = createBoardStore();
+		store.addShape(
+			makeDashboardConfig({
+				columns: 4,
+				cellW: 100,
+				cellH: 100,
+				gap: 0,
+				padding: 0,
+				freeOutOfRange: false,
+			}),
+		);
+		store.addShape(rect({ id: "in", x: 0, y: 0 }));
+		store.addShape(rect({ id: "out", x: 1000, y: 0 })); // 列超過だが OFF なので管理
+		expect(
+			dashboardItems(store)
+				.map((s) => s.id)
+				.sort(),
+		).toEqual(["in", "out"]);
 	});
 });

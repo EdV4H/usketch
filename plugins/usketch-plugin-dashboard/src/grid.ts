@@ -1,20 +1,21 @@
-// Pure grid geometry for the dashboard: a uniform, fixed-cell flow grid anchored
-// at a world origin. Unlike the container plugin's `gridLayout` (which shares the
-// container's inner width across columns and RESIZES children to fit), the
-// dashboard uses fixed `cellW`/`cellH` cells and only snaps each item's TOP-LEFT
-// — shapes keep their own size, so reordering never distorts them.
+// Pure grid geometry for the dashboard: a fixed-cell flow grid anchored at a world
+// origin, where each item occupies a whole-number block of cells (`cols × rows`)
+// sized from its own width/height — like a real dashboard's tiles (Grafana,
+// react-grid-layout). Items flow left→right, top→bottom and pack around each
+// other; a wider/taller item simply takes more cells. Only the top-LEFT of each
+// item is snapped (its footprint is measured in cells, but it is never resized).
 //
-// All functions here are pure and side-effect free, so they can be unit-tested
-// in isolation and reused by both the runtime and the service `repack()` path.
+// All functions here are pure and side-effect free, so they can be unit-tested in
+// isolation and reused by both the runtime and the service `repack()` path.
 
 /** Fixed-cell flow-grid geometry. `originX`/`originY` is the world anchor of the
  *  first cell's outer corner; `padding` insets the first cell from that anchor. */
 export interface GridSpec {
 	/** Number of columns before wrapping to the next row (>= 1). */
 	columns: number;
-	/** Cell width in world units. */
+	/** Base cell width in world units. */
 	cellW: number;
-	/** Cell height in world units. */
+	/** Base cell height in world units. */
 	cellH: number;
 	/** Gap between adjacent cells (both axes). */
 	gap: number;
@@ -33,7 +34,19 @@ export interface Placement {
 	y: number;
 }
 
-/** Clamp `n` to `[min, max]`. */
+/** An item to place, with the size that determines its cell footprint. */
+export interface ItemSize {
+	id: string;
+	width: number;
+	height: number;
+}
+
+/** How many cells an item occupies, per axis (>= 1). */
+export interface Span {
+	cols: number;
+	rows: number;
+}
+
 function clamp(n: number, min: number, max: number): number {
 	if (n < min) return min;
 	if (n > max) return max;
@@ -45,70 +58,214 @@ function colsOf(spec: GridSpec): number {
 	return Math.max(1, Math.floor(spec.columns));
 }
 
-/** Top-left world position of the cell at flow `index` (row-major). */
-export function cellTopLeft(index: number, spec: GridSpec): { x: number; y: number } {
-	const cols = colsOf(spec);
-	const i = Math.max(0, Math.floor(index));
-	const col = i % cols;
-	const row = Math.floor(i / cols);
+/** World top-left of the cell at grid coordinate (`col`, `row`). */
+export function cellXY(col: number, row: number, spec: GridSpec): { x: number; y: number } {
 	return {
 		x: spec.originX + spec.padding + col * (spec.cellW + spec.gap),
 		y: spec.originY + spec.padding + row * (spec.cellH + spec.gap),
 	};
 }
 
-/** Snap each item, in order, to consecutive cells. */
-export function packGrid(itemIds: readonly string[], spec: GridSpec): Placement[] {
-	return itemIds.map((id, i) => {
-		const { x, y } = cellTopLeft(i, spec);
-		return { id, x, y };
-	});
-}
-
 /**
- * Pack every item EXCEPT `draggingId`, leaving the cell at `targetIndex` empty so
- * the dragged item visually slots in there. Used for live reflow while dragging:
- * the dragged shape stays under the pointer (never repositioned here) and its
- * siblings shift to open a gap. `targetIndex` is clamped to the number of
- * non-dragging items (an end insertion opens the last slot).
+ * World top-left of the cell at flow `index` (row-major, single-cell items). Used
+ * by the grid overlay to draw the base cells; item placement uses {@link packSpans}.
  */
-export function packGridWithGap(
-	itemIds: readonly string[],
-	draggingId: string,
-	targetIndex: number,
-	spec: GridSpec,
-): Placement[] {
-	const others = itemIds.filter((id) => id !== draggingId);
-	const gapAt = clamp(Math.round(targetIndex), 0, others.length);
-	const placements: Placement[] = [];
-	let slot = 0;
-	for (const id of others) {
-		if (slot === gapAt) slot++; // skip the reserved slot
-		const { x, y } = cellTopLeft(slot, spec);
-		placements.push({ id, x, y });
-		slot++;
-	}
-	return placements;
-}
-
-/**
- * Inverse of {@link cellTopLeft}: which flow index a world point lands on. Used
- * to turn a dragged item's centre into an insertion index. Returns a value in
- * `[0, count]` (inclusive end, so the item can be appended past the last cell).
- */
-export function indexFromPoint(
-	point: { x: number; y: number },
-	spec: GridSpec,
-	count: number,
-): number {
+export function cellTopLeft(index: number, spec: GridSpec): { x: number; y: number } {
 	const cols = colsOf(spec);
+	const i = Math.max(0, Math.floor(index));
+	return cellXY(i % cols, Math.floor(i / cols), spec);
+}
+
+/**
+ * How many cells a `width × height` item spans. A size that fits within one cell
+ * spans 1; every extra `cellW + gap` (resp. `cellH + gap`) of size adds a cell.
+ * Column span is clamped to the grid width; row span has no upper bound.
+ */
+export function spanOf(width: number, height: number, spec: GridSpec): Span {
 	const stepX = spec.cellW + spec.gap;
 	const stepY = spec.cellH + spec.gap;
-	const relX = point.x - spec.originX - spec.padding;
-	const relY = point.y - spec.originY - spec.padding;
-	// `round` picks the nearest cell centre-line: dragging past a cell's midpoint
-	// flips the insertion side, which is what makes reflow feel responsive.
-	const col = clamp(Math.round(stepX > 0 ? relX / stepX : 0), 0, cols - 1);
-	const row = Math.max(0, Math.round(stepY > 0 ? relY / stepY : 0));
-	return clamp(row * cols + col, 0, Math.max(0, count));
+	const cols = stepX > 0 ? Math.ceil((width + spec.gap) / stepX) : 1;
+	const rows = stepY > 0 ? Math.ceil((height + spec.gap) / stepY) : 1;
+	return {
+		cols: clamp(cols, 1, colsOf(spec)),
+		rows: Math.max(1, rows),
+	};
+}
+
+/**
+ * Snap a size to the NEAREST whole-cell footprint: width → the closest N-column
+ * span (`N*cellW + (N-1)*gap`), height → the closest M-row span. Columns are
+ * clamped to the grid width; rows have no upper bound. Used by the "fit to grid"
+ * option so resizing snaps a shape to exact cell dimensions.
+ */
+export function fitSize(
+	width: number,
+	height: number,
+	spec: GridSpec,
+): { width: number; height: number } {
+	const stepX = spec.cellW + spec.gap;
+	const stepY = spec.cellH + spec.gap;
+	const cols = clamp(stepX > 0 ? Math.round((width + spec.gap) / stepX) : 1, 1, colsOf(spec));
+	const rows = Math.max(1, stepY > 0 ? Math.round((height + spec.gap) / stepY) : 1);
+	return {
+		width: cols * spec.cellW + (cols - 1) * spec.gap,
+		height: rows * spec.cellH + (rows - 1) * spec.gap,
+	};
+}
+
+/** Nearest cell (col/row) a world top-left point rounds to. */
+export function cellOfPoint(x: number, y: number, spec: GridSpec): { col: number; row: number } {
+	const stepX = spec.cellW + spec.gap;
+	const stepY = spec.cellH + spec.gap;
+	return {
+		col: stepX > 0 ? Math.round((x - spec.originX - spec.padding) / stepX) : 0,
+		row: stepY > 0 ? Math.round((y - spec.originY - spec.padding) / stepY) : 0,
+	};
+}
+
+/**
+ * ABSOLUTE placement: each item is snapped to the cell nearest its OWN position
+ * (gaps are preserved — items don't compact). Items are processed in the given
+ * order; if an item's desired footprint is already taken, it takes the next free
+ * one scanning forward (row-major), so earlier items in `items` win a contested
+ * cell. Returns each item's top-left in the SAME order as `items`.
+ */
+export function packAbsolute(items: readonly PlacedBox[], spec: GridSpec): Placement[] {
+	const cols = colsOf(spec);
+	const occupied = new Set<string>();
+	const key = (r: number, c: number) => `${r},${c}`;
+	const fits = (r: number, c: number, sr: number, sc: number): boolean => {
+		if (r < 0 || c < 0 || c + sc > cols) return false;
+		for (let dr = 0; dr < sr; dr++) {
+			for (let dc = 0; dc < sc; dc++) {
+				if (occupied.has(key(r + dr, c + dc))) return false;
+			}
+		}
+		return true;
+	};
+	const mark = (r: number, c: number, sr: number, sc: number): void => {
+		for (let dr = 0; dr < sr; dr++) {
+			for (let dc = 0; dc < sc; dc++) occupied.add(key(r + dr, c + dc));
+		}
+	};
+
+	const out: Placement[] = [];
+	for (const item of items) {
+		const span = spanOf(item.width, item.height, spec);
+		const sc = span.cols;
+		const sr = span.rows;
+		const desired = cellOfPoint(item.x, item.y, spec);
+		let r = Math.max(0, desired.row);
+		let c = clamp(desired.col, 0, cols - sc);
+		while (true) {
+			if (c + sc > cols) {
+				c = 0;
+				r++;
+				continue;
+			}
+			if (fits(r, c, sr, sc)) break;
+			c++;
+		}
+		mark(r, c, sr, sc);
+		out.push({ id: item.id, ...cellXY(c, r, spec) });
+	}
+	return out;
+}
+
+/** A placed item with its footprint, used to compute a drop index. */
+export interface PlacedBox {
+	id: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+/**
+ * Insertion index for a dragged item whose centre is at `point`, given the OTHER
+ * items in reading order with their (compact) placed footprints. An item counts
+ * as "before" the point when it's on an earlier row band, or the same band and the
+ * point is at/past the item's RIGHT edge. Using the right edge (rather than the
+ * centre) means the drop point only has to be anywhere over a cell to claim that
+ * cell — so an item dropped onto the leftmost cell reliably becomes first, instead
+ * of having to cross that item's centre (a half-cell knife-edge right at the grid's
+ * left edge, made worse because the live reflow recompacts the leftmost item to
+ * exactly where the drop lands). Since `boxesInOrder` is row-major, the first
+ * not-before item ends the count — a clean `[0, boxesInOrder.length]` index.
+ */
+export function targetIndexFromPoint(
+	point: { x: number; y: number },
+	boxesInOrder: readonly PlacedBox[],
+	spec: GridSpec,
+): number {
+	const rowStep = spec.cellH + spec.gap;
+	const band = (y: number): number =>
+		rowStep > 0 ? Math.round((y - spec.originY - spec.padding) / rowStep) : 0;
+	const pointerBand = band(point.y);
+	let index = 0;
+	for (const box of boxesInOrder) {
+		const b = band(box.y + box.height / 2);
+		const before = b < pointerBand || (b === pointerBand && point.x >= box.x + box.width);
+		if (!before) break;
+		index++;
+	}
+	return index;
+}
+
+/**
+ * Pack sized items into the grid in order, first-fit / non-dense: each item is
+ * placed at the first free footprint at or after the previous item's start (so
+ * order is preserved and earlier holes are not back-filled), wrapping to the next
+ * row when it doesn't fit the remaining columns. Returns each item's top-left
+ * world position in the SAME order as `items`.
+ */
+export function packSpans(items: readonly ItemSize[], spec: GridSpec): Placement[] {
+	const cols = colsOf(spec);
+	const occupied = new Set<string>();
+	const key = (r: number, c: number) => `${r},${c}`;
+	const fits = (r: number, c: number, sr: number, sc: number): boolean => {
+		if (c + sc > cols) return false;
+		for (let dr = 0; dr < sr; dr++) {
+			for (let dc = 0; dc < sc; dc++) {
+				if (occupied.has(key(r + dr, c + dc))) return false;
+			}
+		}
+		return true;
+	};
+	const mark = (r: number, c: number, sr: number, sc: number): void => {
+		for (let dr = 0; dr < sr; dr++) {
+			for (let dc = 0; dc < sc; dc++) occupied.add(key(r + dr, c + dc));
+		}
+	};
+
+	const out: Placement[] = [];
+	let curR = 0;
+	let curC = 0;
+	for (const item of items) {
+		const span = spanOf(item.width, item.height, spec);
+		const sc = span.cols;
+		const sr = span.rows;
+		let r = curR;
+		let c = curC;
+		// Forward scan from the cursor for the first fitting footprint.
+		while (true) {
+			if (c + sc > cols) {
+				c = 0;
+				r++;
+				continue;
+			}
+			if (fits(r, c, sr, sc)) break;
+			c++;
+		}
+		mark(r, c, sr, sc);
+		out.push({ id: item.id, ...cellXY(c, r, spec) });
+		// Advance the cursor past this item's leading cell.
+		curR = r;
+		curC = c + sc;
+		if (curC >= cols) {
+			curC = 0;
+			curR = r + 1;
+		}
+	}
+	return out;
 }

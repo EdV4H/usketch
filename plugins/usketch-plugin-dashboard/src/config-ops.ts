@@ -6,8 +6,10 @@ import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import {
 	type DashboardConfigData,
 	type DashboardDefaults,
+	type DashboardMode,
 	isDashboardConfig,
 	makeDashboardConfig,
+	type ViewportLock,
 } from "./dashboard-config-shape.js";
 import type { GridSpec } from "./grid.js";
 
@@ -15,9 +17,67 @@ import type { GridSpec } from "./grid.js";
 export type DashboardConfigPatch = Partial<
 	Pick<
 		DashboardConfigData,
-		"columns" | "cellW" | "cellH" | "gap" | "padding" | "originX" | "originY"
+		| "columns"
+		| "cellW"
+		| "cellH"
+		| "gap"
+		| "padding"
+		| "originX"
+		| "originY"
+		| "mode"
+		| "fitToGrid"
+		| "freeOutOfRange"
+		| "viewportLock"
+		| "cellWAuto"
+		| "swap"
+		| "swapThreshold"
+		| "swapDelay"
 	>
 >;
+
+/** The board's placement mode (defaults to `flow` when not a dashboard/unset). */
+export function modeOf(store: BoardStore): DashboardMode {
+	return getDashboardConfig(store)?.mode ?? "flow";
+}
+
+/** Whether resizing snaps items to whole-cell sizes (defaults to `false`). */
+export function fitToGridOf(store: BoardStore): boolean {
+	return getDashboardConfig(store)?.fitToGrid ?? false;
+}
+
+/** Whether out-of-range shapes are left free (defaults to `true`). */
+export function freeOutOfRangeOf(store: BoardStore): boolean {
+	return getDashboardConfig(store)?.freeOutOfRange ?? true;
+}
+
+/** Whether the scroll-limit is on (defaults to off). Strict `=== true` so a config
+ *  persisted with the old `"off"|"vertical"|"both"` string coerces to OFF. */
+export function viewportLockOf(store: BoardStore): ViewportLock {
+	return getDashboardConfig(store)?.viewportLock === true;
+}
+
+/** Whether the cell width is "auto" (fit to screen) rather than a fixed number. */
+export function cellWAutoOf(store: BoardStore): boolean {
+	return getDashboardConfig(store)?.cellWAuto === true;
+}
+
+/** Whether drop-onto-occupied swaps the two items (absolute mode). Defaults off. */
+export function swapOf(store: BoardStore): boolean {
+	return getDashboardConfig(store)?.swap === true;
+}
+
+/** Minimum overlap ratio (0–1) for a swap to fire (absolute mode). Defaults 0.25. */
+export function swapThresholdOf(store: BoardStore): number {
+	const t = getDashboardConfig(store)?.swapThreshold;
+	return typeof t === "number" && Number.isFinite(t) ? Math.min(Math.max(t, 0), 1) : 0.25;
+}
+
+/** Dwell (ms) before the live avoid fires. Defaults 200 when unset; an explicit 0
+ *  (immediate) is honored. */
+export function swapDelayOf(store: BoardStore): number {
+	const d = getDashboardConfig(store)?.swapDelay;
+	return typeof d === "number" && Number.isFinite(d) && d >= 0 ? d : 200;
+}
 
 /**
  * The board's config singleton, or `undefined` if this board isn't a dashboard.
