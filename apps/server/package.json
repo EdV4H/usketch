@@ -24,18 +24,18 @@
 		"@edv4h/usketch-session-voting": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
 		"@edv4h/usketch-sync": "workspace:*",
-		"@hono/zod-validator": "0.9.0",
+		"@hono/zod-validator": "0.9.1",
 		"better-auth": "1.6.29",
 		"drizzle-orm": "0.45.2",
-		"hono": "4.13.5",
+		"hono": "4.13.7",
 		"yjs": "^13.6.0",
-		"zod": "4.4.3"
+		"zod": "4.5.4"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "5.20260827.1",
+		"@cloudflare/workers-types": "5.20260904.1",
 		"drizzle-kit": "0.31.10",
 		"typescript": "7.0.2",
 		"vitest": "4.1.11",
-		"wrangler": "4.127.0"
+		"wrangler": "4.129.0"
 	}
 }

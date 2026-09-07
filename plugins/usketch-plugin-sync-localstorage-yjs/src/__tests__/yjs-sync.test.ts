@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as Y from "yjs";
 import type { YjsSyncHandle } from "../yjs-sync.js";
 import { createYjsSync } from "../yjs-sync.js";
 
@@ -206,5 +207,114 @@ describe("createYjsSync", () => {
 		store.deleteShape("a2");
 		expect(shapesMap.size).toBe(2);
 		expect(shapesMap.has("a2")).toBe(false);
+	});
+});
+
+describe("createYjsSync — options (docName / external doc)", () => {
+	let store: BoardStore;
+	let syncHandle: YjsSyncHandle;
+
+	beforeEach(() => {
+		store = createTestStore();
+	});
+
+	afterEach(() => {
+		syncHandle?.destroy();
+	});
+
+	it("options.docName で IndexedDB doc 名を指定できる", async () => {
+		const docName = `test-optname-${crypto.randomUUID()}`;
+		syncHandle = createYjsSync(store, { docName });
+		await syncHandle.whenSynced;
+		store.addShape(makeShape({ id: "od1", x: 11 }));
+		await new Promise((r) => setTimeout(r, 50));
+		syncHandle.destroy();
+
+		// 同じ docName で復元できる（別 store）
+		const fresh = createTestStore();
+		syncHandle = createYjsSync(fresh, { docName });
+		await syncHandle.whenSynced;
+		expect(fresh.getShape("od1")?.x).toBe(11);
+	});
+
+	it("docName 省略時は既定 doc 名で永続化される（後方互換）", async () => {
+		// 文字列引数（既存呼び出し）と options.docName 省略が同じ doc を指す
+		const legacy = createYjsSync(store, "usketch-default");
+		await legacy.whenSynced;
+		store.addShape(makeShape({ id: "def1", x: 7 }));
+		await new Promise((r) => setTimeout(r, 50));
+		legacy.destroy();
+
+		const fresh = createTestStore();
+		syncHandle = createYjsSync(fresh, {}); // docName 省略
+		await syncHandle.whenSynced;
+		expect(fresh.getShape("def1")?.x).toBe(7);
+	});
+
+	it("外部 doc を渡すとその doc を使い、新規 doc を作らない", async () => {
+		const externalDoc = new Y.Doc();
+		syncHandle = createYjsSync(store, {
+			doc: externalDoc,
+			docName: `test-ext-${crypto.randomUUID()}`,
+		});
+		await syncHandle.whenSynced;
+		expect(syncHandle.doc).toBe(externalDoc);
+
+		// store の変更が外部 doc の "shapes" map に反映される
+		store.addShape(makeShape({ id: "e1" }));
+		expect(externalDoc.getMap("shapes").has("e1")).toBe(true);
+		externalDoc.destroy();
+	});
+
+	it("外部 doc は destroy() で破棄されない（ホスト所有）", async () => {
+		const externalDoc = new Y.Doc();
+		let destroyed = false;
+		externalDoc.on("destroy", () => {
+			destroyed = true;
+		});
+		syncHandle = createYjsSync(store, {
+			doc: externalDoc,
+			docName: `test-extkeep-${crypto.randomUUID()}`,
+		});
+		await syncHandle.whenSynced;
+		syncHandle.destroy();
+		expect(destroyed).toBe(false);
+		// 破棄されていないので引き続き利用できる
+		externalDoc.getMap("shapes").set("still", { id: "still" });
+		expect(externalDoc.getMap("shapes").has("still")).toBe(true);
+		externalDoc.destroy();
+	});
+
+	it("内部生成 doc は destroy() で破棄される", async () => {
+		const h = createYjsSync(store, { docName: `test-owned-${crypto.randomUUID()}` });
+		await h.whenSynced;
+		let destroyed = false;
+		h.doc.on("destroy", () => {
+			destroyed = true;
+		});
+		h.destroy();
+		expect(destroyed).toBe(true);
+	});
+
+	it("外部 doc に既存 shape があれば whenSynced で store へ復元される", async () => {
+		const externalDoc = new Y.Doc();
+		// ネットワーク provider が既に埋めた状態を模擬
+		externalDoc.getMap<Record<string, unknown>>("shapes").set("pre1", {
+			id: "pre1",
+			type: "rect",
+			x: 5,
+			y: 6,
+			width: 10,
+			height: 10,
+			style: { fill: "#fff", stroke: "#000", strokeWidth: 1, opacity: 1 },
+			zIndex: "a0",
+		});
+		syncHandle = createYjsSync(store, {
+			doc: externalDoc,
+			docName: `test-extseed-${crypto.randomUUID()}`,
+		});
+		await syncHandle.whenSynced;
+		expect(store.getShape("pre1")?.x).toBe(5);
+		externalDoc.destroy();
 	});
 });
