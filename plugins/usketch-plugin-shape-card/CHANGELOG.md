@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-shape-card
 
+## 1.7.4
+
+### Patch Changes
+
+- Updated dependencies [1854e30]
+  - @edv4h/usketch-store@3.7.0
+
 ## 1.7.3
 
 ### Patch Changes
