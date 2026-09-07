@@ -219,6 +219,46 @@ describe("BoardStore", () => {
 			expect(store.getViewport().zoom).toBe(10);
 		});
 
+		it("zoomTo: zoomRange option widens the clamp (host opt-in)", () => {
+			const store = createBoardStore({ zoomRange: { min: 0.05, max: 40 } });
+			store.zoomTo(100, { x: 0, y: 0 });
+			expect(store.getViewport().zoom).toBe(40);
+			store.zoomTo(0.001, { x: 0, y: 0 });
+			expect(store.getViewport().zoom).toBe(0.05);
+			// within range → unchanged
+			store.zoomTo(25, { x: 0, y: 0 });
+			expect(store.getViewport().zoom).toBe(25);
+		});
+
+		it("zoomTo: partial zoomRange keeps the unspecified bound at its default", () => {
+			const store = createBoardStore({ zoomRange: { max: 40 } });
+			store.zoomTo(100, { x: 0, y: 0 });
+			expect(store.getViewport().zoom).toBe(40);
+			store.zoomTo(0.001, { x: 0, y: 0 });
+			expect(store.getViewport().zoom).toBe(0.1); // default min
+		});
+
+		it("zoomTo: invalid zoomRange falls back to the default [0.1, 10]", () => {
+			// min > max
+			const broken = createBoardStore({ zoomRange: { min: 40, max: 2 } });
+			broken.zoomTo(100, { x: 0, y: 0 });
+			expect(broken.getViewport().zoom).toBe(10);
+			// non-positive / non-finite bounds ignored
+			const bad = createBoardStore({ zoomRange: { min: 0, max: Number.POSITIVE_INFINITY } });
+			bad.zoomTo(100, { x: 0, y: 0 });
+			expect(bad.getViewport().zoom).toBe(10);
+			bad.zoomTo(0.001, { x: 0, y: 0 });
+			expect(bad.getViewport().zoom).toBe(0.1);
+		});
+
+		it("fitToBounds: respects a widened zoomRange", () => {
+			const store = createBoardStore({ zoomRange: { max: 40 } });
+			// 1x1 bounds into 1000x1000 with no padding → rawZoom 1000, was clamped to 10
+			store.setViewportAnimation({ enabled: false });
+			store.fitToBounds({ x: 0, y: 0, width: 1, height: 1 }, { width: 1000, height: 1000 }, 0);
+			expect(store.getViewport().zoom).toBe(40);
+		});
+
 		describe("fitToBounds", () => {
 			it("centers viewport on bounds and fits with padding", () => {
 				const store = createBoardStore();

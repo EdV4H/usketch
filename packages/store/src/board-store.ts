@@ -32,9 +32,42 @@ export interface BoardState {
 
 const INITIAL_DEFAULT_TOOL_ID = "select";
 
+/** Default zoom clamp range applied by `zoomTo` / `fitToBounds`. Hosts can widen
+ *  or narrow it via {@link BoardStoreOptions.zoomRange}. */
+const DEFAULT_MIN_ZOOM = 0.1;
+const DEFAULT_MAX_ZOOM = 10;
+
+interface ResolvedZoomRange {
+	min: number;
+	max: number;
+}
+
+/** Validate the option's zoom range into a usable `{min,max}` (invalid → default). */
+function resolveZoomRange(range: BoardStoreOptions["zoomRange"]): ResolvedZoomRange {
+	const min =
+		typeof range?.min === "number" && Number.isFinite(range.min) && range.min > 0
+			? range.min
+			: DEFAULT_MIN_ZOOM;
+	const max =
+		typeof range?.max === "number" && Number.isFinite(range.max) && range.max > 0
+			? range.max
+			: DEFAULT_MAX_ZOOM;
+	// A broken range (min > max) falls back to the defaults.
+	if (min > max) return { min: DEFAULT_MIN_ZOOM, max: DEFAULT_MAX_ZOOM };
+	return { min, max };
+}
+
 export interface BoardStoreOptions {
 	/** Override the default smooth-viewport-animation behaviour (default: on). */
 	viewportAnimation?: Partial<ViewportAnimationConfig>;
+	/**
+	 * Zoom-magnitude clamp range applied by `zoomTo` / `fitToBounds`.
+	 * Default `{ min: 0.1, max: 10 }`. Hosts that need to zoom past ×10 (or below
+	 * ×0.1) widen this. A non-positive / non-finite bound, or `min > max`, falls
+	 * back to the default. `setViewportConstraint` can still further restrict the
+	 * committed viewport, but cannot widen it beyond this range.
+	 */
+	zoomRange?: { min?: number; max?: number };
 }
 
 export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
@@ -47,6 +80,10 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		viewport: { x: 0, y: 0, zoom: 1 },
 		styleSettings: { ...DEFAULT_STYLE },
 	};
+
+	const zoomRange = resolveZoomRange(options.zoomRange);
+	/** Clamp a zoom magnitude into the configured range. */
+	const clampZoom = (zoom: number) => Math.min(zoomRange.max, Math.max(zoomRange.min, zoom));
 
 	const spatialIndex = createSpatialIndex();
 	const listeners = new Set<() => void>();
@@ -392,7 +429,7 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 
 		zoomTo(zoom: number, center: Point) {
 			cancelViewportAnimation();
-			const clampedZoom = Math.min(Math.max(zoom, 0.1), 10);
+			const clampedZoom = clampZoom(zoom);
 			const oldZoom = state.viewport.zoom;
 			const scale = clampedZoom / oldZoom;
 			commitViewport({
@@ -423,7 +460,7 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 			const availW = Math.max(1, viewportSize.width - padding * 2);
 			const availH = Math.max(1, viewportSize.height - padding * 2);
 			const rawZoom = Math.min(availW / bounds.width, availH / bounds.height);
-			const zoom = Math.min(Math.max(rawZoom, 0.1), 10);
+			const zoom = clampZoom(rawZoom);
 			const cx = bounds.x + bounds.width / 2;
 			const cy = bounds.y + bounds.height / 2;
 			// Programmatic fit → animate by default (see animateViewportTo fallbacks).
