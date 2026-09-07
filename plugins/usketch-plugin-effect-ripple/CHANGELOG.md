@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-effect-ripple
 
+## 2.0.16
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+
 ## 2.0.15
 
 ### Patch Changes
