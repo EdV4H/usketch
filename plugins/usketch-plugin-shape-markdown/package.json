@@ -23,7 +23,7 @@
 		"@zag-js/core": "^1.37.0",
 		"@zag-js/vanilla": "^1.37.0",
 		"mermaid": "^11.4.0",
-		"react-markdown": "^9.0.1",
+		"react-markdown": "^10.0.0",
 		"rehype-highlight": "^7.0.1",
 		"remark-gfm": "^4.0.0"
 	},
