@@ -45,6 +45,12 @@ type EdgePanAxes = "both" | "horizontal" | "vertical";
 
 プロジェクト規約どおり独自 UI は持たず、共有 HUD に設定グループ「端で画角スライド」を登録します（有効 / 端の帯(px) / 最大速度 / 対象軸）。**HUD の上書きはホスト options より優先**され、options を土台に end-user がその場で微調整できます。
 
+## Snap プラグインとの併用
+
+`@edv4h/usketch-plugin-snap` は `store.updateShape` をモンキーパッチして、ドラッグ中の位置更新をガイドへスナップします。自動パンの追従移動は「画角補正」であってユーザー操作ではないため、追従はスナップさせずカーソル下へ留めたい（スナップさせると、ワールド固定のガイドに貼り付いてスクロールしても図形が動かなくなる）。
+
+edge-pan は setup 時に掴んだ**パッチ前の生 `updateShape`** で追従を行うことでこれを回避します。そのため **edge-pan を snap より先に登録**してください（先に登録されていれば生の updateShape を掴めます）。スクロール中は追従（非スナップ）、ポインタを実際に動かせば snap は通常どおり再作動します。
+
 ## 補足
 
 - パンは `BoardStore` の viewport constraint を通るので、`setViewportConstraint`（例: dashboard のスクロール制限）が効いている盤面では、その範囲内でのみスライドします。

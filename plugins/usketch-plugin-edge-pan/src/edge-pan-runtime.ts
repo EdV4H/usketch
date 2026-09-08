@@ -43,6 +43,12 @@ interface ShapeUpdatedPayload {
  * 返り値は teardown。
  */
 export function setupEdgePan(ctx: PluginContext, resolve: () => ResolvedEdgePan): () => void {
+	// setup 時点の updateShape を掴む。snap プラグインは updateShape をモンキーパッチして
+	// pointerDown 中の位置更新をガイドへスナップするが、自動パンの追従移動は「画角補正」であって
+	// ユーザー操作ではないためスナップさせたくない。edge-pan を snap より先に登録しておけば、
+	// ここで掴めるのはパッチ前の生 updateShape なので、追従だけこれを使ってスナップを回避する。
+	const rawUpdateShape = ctx.store.updateShape.bind(ctx.store);
+
 	let lastPointer: CanvasPointerEvent | null = null;
 	let pointerDown = false;
 	let dragActive = false;
@@ -74,7 +80,8 @@ export function setupEdgePan(ctx: PluginContext, resolve: () => ResolvedEdgePan)
 					try {
 						for (const id of movingIds) {
 							const shape = ctx.store.getShape(id);
-							if (shape) ctx.store.updateShape(id, { x: shape.x + wdx, y: shape.y + wdy });
+							// snap をバイパスして生 updateShape で動かす（ガイドに貼り付いて止まるのを防ぐ）。
+							if (shape) rawUpdateShape(id, { x: shape.x + wdx, y: shape.y + wdy });
 						}
 					} finally {
 						applyingFollow = false;
