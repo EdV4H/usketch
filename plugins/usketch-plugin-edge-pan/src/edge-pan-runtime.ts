@@ -1,5 +1,4 @@
 import type { CanvasPointerEvent, PluginContext } from "@edv4h/usketch-shared";
-import { screenToWorld } from "@edv4h/usketch-shared";
 import { edgePanDelta, type ResolvedEdgePan } from "./edge-pan-config.js";
 
 /** rAF ラッパ（SSR/テストでは setTimeout フォールバック）。 */
@@ -48,22 +47,11 @@ export function setupEdgePan(ctx: PluginContext, resolve: () => ResolvedEdgePan)
 	let pointerDown = false;
 	let dragActive = false;
 	let loop: number | null = null;
-	// 自分が emit した合成 pointermove 由来のイベントを無視するためのガード。
-	let emittingSynthetic = false;
-
-	const emitFollow = () => {
-		if (!lastPointer) return;
-		const vp = ctx.store.getViewport();
-		const world = screenToWorld(lastPointer.screenPoint.x, lastPointer.screenPoint.y, vp);
-		emittingSynthetic = true;
-		try {
-			// screenPoint は据え置き、worldPoint だけ新 viewport で再計算 → ドラッグ中のツールが
-			// 掴んでいる shape をカーソル下へ追従させる（本プラグインは shape を直接動かさない）。
-			ctx.events.emit("canvas:pointermove", { ...lastPointer, worldPoint: world });
-		} finally {
-			emittingSynthetic = false;
-		}
-	};
+	// ドラッグ中に動いている shape の id（select ツールが動かした root＋子孫を蓄積）。
+	// 自動パン中はカーソルが止まっていてもツールが再計算しないので、これらを直接動かして追従させる。
+	const movingIds = new Set<string>();
+	// 自分の直接移動由来の shape:updated を弾くガード。
+	let applyingFollow = false;
 
 	const frame = () => {
 		loop = null;
@@ -72,8 +60,26 @@ export function setupEdgePan(ctx: PluginContext, resolve: () => ResolvedEdgePan)
 		if (settings.enabled) {
 			const { dx, dy } = edgePanDelta(lastPointer.screenPoint, canvasSize(), settings);
 			if (dx !== 0 || dy !== 0) {
+				const before = ctx.store.getViewport();
 				ctx.store.panBy(dx, dy);
-				emitFollow();
+				const after = ctx.store.getViewport();
+				// viewport constraint でクランプされ得るので、実際に動いた分だけ追従させる。
+				const appliedDx = after.x - before.x;
+				const appliedDy = after.y - before.y;
+				if ((appliedDx !== 0 || appliedDy !== 0) && after.zoom > 0 && movingIds.size > 0) {
+					// 画面上で掴んだ位置に留めるためのワールド移動量（画面 = worldX*zoom + vp.x が不変）。
+					const wdx = -appliedDx / after.zoom;
+					const wdy = -appliedDy / after.zoom;
+					applyingFollow = true;
+					try {
+						for (const id of movingIds) {
+							const shape = ctx.store.getShape(id);
+							if (shape) ctx.store.updateShape(id, { x: shape.x + wdx, y: shape.y + wdy });
+						}
+					} finally {
+						applyingFollow = false;
+					}
+				}
 			}
 		}
 		loop = scheduleFrame(frame);
@@ -86,6 +92,7 @@ export function setupEdgePan(ctx: PluginContext, resolve: () => ResolvedEdgePan)
 	const stop = () => {
 		dragActive = false;
 		pointerDown = false;
+		movingIds.clear();
 		if (loop !== null) {
 			cancelFrame(loop);
 			loop = null;
@@ -93,13 +100,11 @@ export function setupEdgePan(ctx: PluginContext, resolve: () => ResolvedEdgePan)
 	};
 
 	const offDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", (event) => {
-		if (emittingSynthetic) return;
 		pointerDown = true;
 		lastPointer = event;
 	});
 
 	const offMove = ctx.events.on<CanvasPointerEvent>("canvas:pointermove", (event) => {
-		if (emittingSynthetic) return;
 		lastPointer = event;
 	});
 
@@ -107,15 +112,18 @@ export function setupEdgePan(ctx: PluginContext, resolve: () => ResolvedEdgePan)
 		stop();
 	});
 
-	// shape が動いた＝ドラッグ中とみなす（select ツールのライブ移動を検知）。dashboard と同型。
+	// shape が動いた＝ドラッグ中とみなす（select ツールのライブ移動を検知）。
+	// 最初の 1 つは「選択中の shape」で開始判定し、以降は動いた id をすべて追従対象に蓄積（子孫も拾う）。
 	const offUpdated = ctx.events.on<ShapeUpdatedPayload>("shape:updated", (payload) => {
-		if (emittingSynthetic || !pointerDown || dragActive) return;
+		if (applyingFollow || !pointerDown) return;
 		const id = payload?.after?.id ?? payload?.id;
 		if (!id) return;
-		const selection = ctx.store.getSelection();
-		if (!selection.has(id)) return;
-		dragActive = true;
-		startLoop();
+		if (!dragActive) {
+			if (!ctx.store.getSelection().has(id)) return;
+			dragActive = true;
+			startLoop();
+		}
+		movingIds.add(id);
 	});
 
 	const offMoveEnd = ctx.events.on("shapes:move-end", () => stop());
