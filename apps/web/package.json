@@ -34,6 +34,7 @@
 		"@edv4h/usketch-plugin-bg-dots": "workspace:*",
 		"@edv4h/usketch-plugin-bg-grid": "workspace:*",
 		"@edv4h/usketch-plugin-board-info-panel": "workspace:*",
+		"@edv4h/usketch-plugin-edge-pan": "workspace:*",
 		"@edv4h/usketch-plugin-effect-ripple": "workspace:*",
 		"@edv4h/usketch-plugin-shape-board-portal": "workspace:*",
 		"@edv4h/usketch-plugin-shape-community-region": "workspace:*",

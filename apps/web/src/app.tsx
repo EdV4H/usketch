@@ -17,6 +17,7 @@ import { createAttachablePlugin, createContainerPlugin } from "@edv4h/usketch-pl
 import { createDashboardPlugin } from "@edv4h/usketch-plugin-dashboard";
 import { createDeepLinkPlugin } from "@edv4h/usketch-plugin-deep-link";
 import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
+import { createEdgePanPlugin } from "@edv4h/usketch-plugin-edge-pan";
 import { createExportPlugin } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
@@ -161,6 +162,7 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 			},
 		}),
 		createViewportNavPlugin(),
+		createEdgePanPlugin(),
 		createBasicShapePlugin(),
 		createGroupPlugin(),
 		createFramePlugin(),
