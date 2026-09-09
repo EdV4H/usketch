@@ -4,18 +4,18 @@ packages:
   - "plugins/*"
   - "examples/*"
 
-onlyBuiltDependencies:
-  - "@j178/prek"
-
-# pnpm 12 turns "ignored build scripts" from a warning into a hard
-# ERR_PNPM_IGNORED_BUILDS failure. These packages' postinstall scripts have
-# never been run in this repo (pnpm <=11 silently skipped them and CI is green
-# that way), so list them explicitly to preserve the existing behaviour rather
-# than newly enabling their scripts.
-ignoredBuiltDependencies:
-  - "@openuidev/lang-core"
-  - "esbuild"
-  - "workerd"
+# pnpm 11 removed `onlyBuiltDependencies` / `ignoredBuiltDependencies` and
+# replaced them with the `allowBuilds` map, and `strictDepBuilds` now defaults
+# to true, so every dependency with a build script must be listed explicitly or
+# the install fails with ERR_PNPM_IGNORED_BUILDS.
+# This is a 1:1 migration of the previous configuration -- only @j178/prek is
+# allowed to run its build (as before); the rest keep being skipped, which is
+# the behaviour CI has always been green with.
+allowBuilds:
+  "@j178/prek": true
+  "@openuidev/lang-core": false
+  esbuild: false
+  workerd: false
 
 # @openuidev/* (thesysdev) is on a rapid 0.x cadence (new minors every few days).
 # The global ~/.npmrc default `min-release-age` blocks installation of those
