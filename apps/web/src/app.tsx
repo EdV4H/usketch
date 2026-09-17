@@ -68,7 +68,7 @@ import {
 	createWhisperTranscriber,
 } from "@edv4h/usketch-plugin-voice-notes";
 import { createWhistlePlugin } from "@edv4h/usketch-plugin-whistle";
-import { createWindowSystemPlugin } from "@edv4h/usketch-plugin-window-system";
+import { createWindowSystemPlugin, getWindowSystemApi } from "@edv4h/usketch-plugin-window-system";
 import { votingClientType } from "@edv4h/usketch-session-voting/client";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
@@ -113,6 +113,16 @@ function readPresentationMode(search: string): PresentationMode {
 	const params = new URLSearchParams(search);
 	if (params.get("present") !== "1") return "off";
 	return params.get("mode") === "present" ? "present" : "edit";
+}
+
+/**
+ * `?desktop=1` があれば、このボードを「デスクトップ」として開く — window-system
+ * プラグインを既定で有効化する（コミュニティページの「デスクトップを追加」で作成した
+ * ボードに付く）。有効化で config シェイプが作られ shape として永続化されるので、
+ * 次回以降はフラグ無しでもデスクトップのまま。冪等（既存 config には作用しない）。
+ */
+function readDesktopTemplate(search: string): boolean {
+	return new URLSearchParams(search).get("desktop") === "1";
 }
 
 interface CardHandWiring {
@@ -248,6 +258,11 @@ export function App() {
 	// popstate で ref を読み直す設計。
 	const modeRef = useRef<PresentationMode>(presentationMode);
 	modeRef.current = presentationMode;
+
+	// 「デスクトップを追加」で開かれたか（?desktop=1）。app 再生成を避けるため ref で保持し、
+	// 初期化 effect の依存には入れない（present と同様、URL クエリで app を作り直さない）。
+	const desktopTemplateRef = useRef<boolean>(readDesktopTemplate(location.search));
+	desktopTemplateRef.current = readDesktopTemplate(location.search);
 
 	// 最新のユーザー id を board-init effect の依存に入れずに参照するための ref
 	// （modeRef と同じ理由: 依存に入れると auth 解決のたびに board が作り直される）。
@@ -533,6 +548,12 @@ export function App() {
 									/>
 								),
 							});
+						}
+
+						// 「デスクトップを追加」で開いたボードは window-system を既定で有効化。
+						// whenSynced 後なので既存 config は複製されない（enable は冪等）。
+						if (desktopTemplateRef.current) {
+							getWindowSystemApi(a.services)?.enable();
 						}
 
 						setApp(instance);

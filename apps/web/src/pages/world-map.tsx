@@ -12,6 +12,7 @@ import { createBoardStore } from "@edv4h/usketch-store";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { getErrorMessage } from "../lib/errors.js";
+import { localBoards } from "../lib/local-boards.js";
 import { useAuth } from "../lib/use-auth.js";
 
 interface CommunityRegionData {
@@ -270,6 +271,27 @@ function WorldMapHeader({
 			>
 				uSketch World
 			</div>
+			<button
+				type="button"
+				onClick={() => {
+					// window-system プラグインを既定で有効化したローカルボード（＝デスクトップ）を
+					// 作成して開く。?desktop=1 を app が読んで enable() する。
+					const board = localBoards.create("デスクトップ");
+					navigate(`/local/${board.id}?desktop=1`);
+				}}
+				className="u-surface"
+				style={{
+					border: "none",
+					padding: "6px 12px",
+					fontSize: 12,
+					cursor: "pointer",
+					color: "var(--brand-violet)",
+					fontFamily: "var(--font-sans)",
+					borderRadius: 10,
+				}}
+			>
+				🖥 デスクトップを追加
+			</button>
 			{user ? (
 				<>
 					<button
