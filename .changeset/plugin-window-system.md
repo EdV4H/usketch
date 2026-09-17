@@ -1,6 +1,5 @@
 ---
 "@edv4h/usketch-plugin-window-system": minor
-"@edv4h/usketch-web": patch
 ---
 
 feat(window-system): Canvas をブラウザ常駐のウィンドウシステムにするプラグインを追加
