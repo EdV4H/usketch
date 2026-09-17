@@ -4,8 +4,20 @@ packages:
   - "plugins/*"
   - "examples/*"
 
-onlyBuiltDependencies:
-  - "@j178/prek"
+# pnpm v11 replaces `onlyBuiltDependencies` with `allowBuilds`, and now fails
+# hard (ERR_PNPM_IGNORED_BUILDS) unless every package with a build script has an
+# explicit decision. These values preserve the previous behaviour: prek builds,
+# esbuild and workerd stay blocked (both ship prebuilt platform binaries).
+allowBuilds:
+  "@j178/prek": true
+  esbuild: false
+  workerd: false
+
+# pnpm v11 no longer reads the `pnpm` field in package.json, so `pnpm.overrides`
+# has to live here instead. Values are unchanged from package.json.
+overrides:
+  react: "19.2.8"
+  react-dom: "19.2.8"
 
 # @openuidev/* (thesysdev) is on a rapid 0.x cadence (new minors every few days).
 # The global ~/.npmrc default `min-release-age` blocks installation of those
