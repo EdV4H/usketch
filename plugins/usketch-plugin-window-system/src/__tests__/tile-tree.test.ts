@@ -4,6 +4,7 @@ import {
 	emptyTree,
 	hasLeaf,
 	insert,
+	insetRect,
 	isEmpty,
 	layoutTree,
 	leafIds,
@@ -78,6 +79,31 @@ describe("buildDefaultTree / layoutTree", () => {
 		expect(at(ps, "a")).toEqual({ id: "a", x: 0, y: 0, width: 500, height: 800 });
 		expect(at(ps, "b")).toEqual({ id: "b", x: 500, y: 0, width: 500, height: 400 });
 		expect(at(ps, "c")).toEqual({ id: "c", x: 500, y: 400, width: 500, height: 400 });
+	});
+});
+
+describe("insetRect (外側 padding)", () => {
+	it("四辺を padding 分だけ内側に縮める", () => {
+		expect(insetRect(SCREEN, 20)).toEqual({ x: 20, y: 20, width: 960, height: 760 });
+	});
+
+	it("padding=0 は素通し、負値は 0 にクランプ", () => {
+		expect(insetRect(SCREEN, 0)).toEqual(SCREEN);
+		expect(insetRect(SCREEN, -10)).toEqual(SCREEN);
+	});
+
+	it("過大な padding でも幅/高さは負にならない", () => {
+		const r = insetRect(SCREEN, 10000);
+		expect(r.width).toBe(0);
+		expect(r.height).toBe(0);
+	});
+
+	it("padding を効かせた矩形にレイアウトすると窓が余白の内側に収まる", () => {
+		const inner = insetRect(SCREEN, 40);
+		const ps = layoutTree(buildDefaultTree(["a", "b"], "h"), inner, 20);
+		// inner: x40..960 幅920, gap20 → 各450, a は左端 x=40
+		expect(at(ps, "a")).toEqual({ id: "a", x: 40, y: 40, width: 450, height: 720 });
+		expect(at(ps, "b")).toEqual({ id: "b", x: 510, y: 40, width: 450, height: 720 });
 	});
 });
 

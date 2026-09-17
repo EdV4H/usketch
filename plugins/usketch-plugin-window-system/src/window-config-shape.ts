@@ -29,8 +29,10 @@ export interface WindowConfigData extends ShapeData {
 	mode: WindowMode;
 	/** When true, the camera is frozen to 100%/origin so the Canvas is a fixed screen. */
 	viewportLock: boolean;
-	/** Gap (world px) between tiled windows. */
+	/** Gap (world px) between tiled windows (inner gap). */
 	gap: number;
+	/** Outer padding (world px) between the fixed screen edge and the tiling area. */
+	padding: number;
 	/** Orientation used when a new window splits near the focus. */
 	defaultSplit: SplitDir;
 	/** World origin the fixed screen is pinned to (top-left). */
@@ -48,6 +50,7 @@ export interface WindowDefaults {
 	mode?: WindowMode;
 	viewportLock?: boolean;
 	gap?: number;
+	padding?: number;
 	defaultSplit?: SplitDir;
 	originX?: number;
 	originY?: number;
@@ -57,6 +60,7 @@ export const WINDOW_DEFAULTS: Required<WindowDefaults> = {
 	mode: "tile",
 	viewportLock: true,
 	gap: 8,
+	padding: 8,
 	defaultSplit: "h",
 	originX: 0,
 	originY: 0,
@@ -79,6 +83,7 @@ export function makeWindowConfig(defaults: WindowDefaults = {}): WindowConfigDat
 		mode: d.mode,
 		viewportLock: d.viewportLock,
 		gap: d.gap,
+		padding: d.padding,
 		defaultSplit: d.defaultSplit,
 		originX: d.originX,
 		originY: d.originY,

@@ -14,6 +14,7 @@ import {
 	getTree,
 	getWindowConfig,
 	modeOf,
+	paddingOf,
 	setConfig,
 	viewportLockOf,
 } from "./config-ops.js";
@@ -34,7 +35,7 @@ import {
 	applyTileTransient,
 	applyTileWithTree,
 	runGuarded,
-	screenRect,
+	tilingRect,
 } from "./window-runtime.js";
 
 /** How much one resize step grows/shrinks the focused window's fraction. */
@@ -67,6 +68,10 @@ export interface WindowSystemApi {
 	getGap(): number;
 	/** Set the inter-window gap (clamped ≥ 0; re-tiles). */
 	setGap(gap: number): void;
+	/** Outer padding between the fixed screen and the tiling area (world px). */
+	getPadding(): number;
+	/** Set the outer padding (clamped ≥ 0; re-tiles). */
+	setPadding(padding: number): void;
 	/** Orientation new windows split with. */
 	getDefaultSplit(): SplitDir;
 	/** Set the default split orientation. */
@@ -159,6 +164,11 @@ export function createWindowApi(
 			if (!Number.isFinite(gap)) return;
 			setConfigAndTile(ctx, { gap: Math.max(0, gap) });
 		},
+		getPadding: () => paddingOf(ctx.store),
+		setPadding: (padding) => {
+			if (!Number.isFinite(padding)) return;
+			setConfigAndTile(ctx, { padding: Math.max(0, padding) });
+		},
 		getDefaultSplit: () => defaultSplitOf(ctx.store),
 		setDefaultSplit: (dir) => {
 			if (dir !== "h" && dir !== "v") return;
@@ -169,7 +179,7 @@ export function createWindowApi(
 			if (modeOf(ctx.store) !== "tile") return;
 			const focus = focusedOr();
 			if (!focus) return;
-			const rect = screenRect(ctx.store);
+			const rect = tilingRect(ctx.store);
 			if (!rect) return;
 			const placements = layoutTree(currentTree(ctx), rect, gapOf(ctx.store));
 			const next = neighbor(placements, focus, dir);
@@ -181,7 +191,7 @@ export function createWindowApi(
 			if (modeOf(ctx.store) !== "tile") return;
 			const focus = focusedOr();
 			if (!focus) return;
-			const rect = screenRect(ctx.store);
+			const rect = tilingRect(ctx.store);
 			if (!rect) return;
 			const tree = currentTree(ctx);
 			const placements = layoutTree(tree, rect, gapOf(ctx.store));

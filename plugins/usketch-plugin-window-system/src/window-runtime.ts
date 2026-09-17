@@ -13,12 +13,20 @@ import {
 	getTree,
 	getWindowConfig,
 	modeOf,
+	paddingOf,
 	serializeTree,
 	setConfig,
 	viewportLockOf,
 } from "./config-ops.js";
 import { isWindow, windowIds, windows } from "./items.js";
-import { layoutTree, type Placement, type Rect, reconcile, type TileNode } from "./tile-tree.js";
+import {
+	insetRect,
+	layoutTree,
+	type Placement,
+	type Rect,
+	reconcile,
+	type TileNode,
+} from "./tile-tree.js";
 
 // ── Self-write guard (module-scoped; one app instance per JS runtime) ──
 let windowWrites = 0;
@@ -111,6 +119,14 @@ export function screenRect(store: BoardStore): Rect | null {
 	return { x: -vp.x / zoom, y: -vp.y / zoom, width: size.width / zoom, height: size.height / zoom };
 }
 
+/** The tiling area: the fixed screen inset by the outer padding. This is the rect
+ *  the tree is laid out into (fullscreen ignores it and fills the whole screen).
+ *  Exported so the service's geometric focus/move measure the same rectangles. */
+export function tilingRect(store: BoardStore): Rect | null {
+	const rect = screenRect(store);
+	return rect ? insetRect(rect, paddingOf(store)) : null;
+}
+
 /** Resolve where every window should sit: the fullscreen window fills the screen;
  *  otherwise the reconciled tree is laid out. Also returns the (possibly updated)
  *  serialized tree so the caller can persist a reconcile. */
@@ -123,12 +139,14 @@ function resolvePlacements(
 	const treeJson = serializeTree(tree);
 	const fs = fullscreenIdOf(store);
 	if (fs && ids.includes(fs)) {
+		// Fullscreen fills the whole screen, ignoring gap + outer padding (i3-style).
 		return {
 			placements: [{ id: fs, x: rect.x, y: rect.y, width: rect.width, height: rect.height }],
 			treeJson,
 		};
 	}
-	return { placements: layoutTree(tree, rect, gapOf(store)), treeJson };
+	const inner = insetRect(rect, paddingOf(store));
+	return { placements: layoutTree(tree, inner, gapOf(store)), treeJson };
 }
 
 /** Build the writes needed to bring the board to `placements` + the reconciled
@@ -188,7 +206,7 @@ export function applyTileWithTree(ctx: PluginContext, tree: TileNode): void {
 	const placements =
 		fs && ids.includes(fs)
 			? [{ id: fs, x: rect.x, y: rect.y, width: rect.width, height: rect.height }]
-			: layoutTree(tree, rect, gapOf(ctx.store));
+			: layoutTree(tree, insetRect(rect, paddingOf(ctx.store)), gapOf(ctx.store));
 	const writes = tileWrites(ctx.store, placements, json);
 	if (writes.length === 0) return;
 	ctx.commands.execute(guardedCommand(ctx.store, writes));

@@ -23,7 +23,8 @@ export function registerWindowHud(ctx: PluginContext, api: WindowSystemApi): () 
 				],
 			},
 			{ name: "viewportLock", label: "画角固定(固定スクリーン)", type: "boolean" },
-			{ name: "gap", label: "間隔", type: "number", min: 0, max: 80, step: 2 },
+			{ name: "gap", label: "間隔(窓間)", type: "number", min: 0, max: 80, step: 2 },
+			{ name: "padding", label: "余白(外側)", type: "number", min: 0, max: 200, step: 4 },
 			{
 				name: "defaultSplit",
 				label: "分割方向",
@@ -42,6 +43,8 @@ export function registerWindowHud(ctx: PluginContext, api: WindowSystemApi): () 
 					return api.getLock();
 				case "gap":
 					return api.getGap();
+				case "padding":
+					return api.getPadding();
 				case "defaultSplit":
 					return api.getDefaultSplit();
 				default:
@@ -59,6 +62,11 @@ export function registerWindowHud(ctx: PluginContext, api: WindowSystemApi): () 
 				case "gap": {
 					const n = Number(value);
 					if (Number.isFinite(n)) api.setGap(n);
+					return;
+				}
+				case "padding": {
+					const n = Number(value);
+					if (Number.isFinite(n)) api.setPadding(n);
 					return;
 				}
 				case "defaultSplit":

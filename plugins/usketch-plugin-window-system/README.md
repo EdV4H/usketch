@@ -22,6 +22,7 @@ createApp({
       mode: "tile",          // 初期モード（既定 "tile"）
       viewportLock: true,    // 固定スクリーン（既定 true）
       gap: 8,                // ウィンドウ間の隙間 world px（既定 8）
+      padding: 8,            // 画面端との外側余白 world px（既定 8）
       defaultSplit: "h",     // 新規ウィンドウの分割方向（既定 "h" = 右へ）
     }),
   ],
@@ -89,9 +90,12 @@ api?.splitV();
 ```
 
 `WindowSystemApi`: `isWindowBoard` / `enable` / `disable` / `getMode` / `setMode` / `toggleMode` /
-`getLock` / `setLock` / `toggleLock` / `getGap` / `setGap` / `getDefaultSplit` / `setDefaultSplit` /
-`retile` / `focus(dir)` / `move(dir)` / `resize(±1)` / `splitH` / `splitV` / `toggleFullscreen` /
-`getFocused` / `onChange`。
+`getLock` / `setLock` / `toggleLock` / `getGap` / `setGap` / `getPadding` / `setPadding` /
+`getDefaultSplit` / `setDefaultSplit` / `retile` / `focus(dir)` / `move(dir)` / `resize(±1)` /
+`splitH` / `splitV` / `toggleFullscreen` / `getFocused` / `onChange`。
+
+タイルの隙間は 2 種類: **`gap`**（窓と窓の間＝inner gap）と **`padding`**（固定スクリーンの端と
+タイル領域の間＝外側余白）。全画面表示 (`toggleFullscreen`) は gap/padding を無視して画面いっぱいに広がる。
 
 ## スコープ外（v2 送り）
 

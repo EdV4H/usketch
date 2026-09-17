@@ -20,6 +20,8 @@ feat(window-system): Canvas をブラウザ常駐のウィンドウシステム�
 - ショートカット既定はクロスプラットフォームで安全な矢印ベース（フォーカス=`Alt+矢印`、
   移動=`Alt+Shift+矢印`）。共有レジストリが `event.key` で照合し macOS で Option+英字が別文字へ
   合成されるため、英字系は既定を持たず `shortcuts` オプションで任意に割当/無効化できる。
-- `createWindowSystemPlugin(options?)`（`autoEnable`/`mode`/`viewportLock`/`gap`/`defaultSplit`/
-  `shortcuts`）。既定 `autoEnable:false`（メインボードを勝手に変換しない、HUD「ウィンドウ化」で opt-in）。
+- タイルの隙間は 2 種類設定可能: `gap`(窓間=inner) と `padding`(画面端との外側余白=outer)。
+  全画面表示は両者を無視して画面いっぱい。
+- `createWindowSystemPlugin(options?)`（`autoEnable`/`mode`/`viewportLock`/`gap`/`padding`/
+  `defaultSplit`/`shortcuts`）。既定 `autoEnable:false`（メインボードを勝手に変換しない、HUD「ウィンドウ化」で opt-in）。
 - apps/web に `autoEnable:false` で登録（dashboard と同じく container/free-position の後）。

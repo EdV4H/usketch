@@ -122,6 +122,18 @@ export function layoutTree(root: TileNode, rect: Rect, gap = 0): Placement[] {
 	return out;
 }
 
+/** Shrink `rect` inward by `padding` on every side (the outer margin between the
+ *  fixed screen and the tiling area). Clamped so the result never goes negative. */
+export function insetRect(rect: Rect, padding: number): Rect {
+	const p = Math.max(0, padding);
+	return {
+		x: rect.x + p,
+		y: rect.y + p,
+		width: Math.max(0, rect.width - 2 * p),
+		height: Math.max(0, rect.height - 2 * p),
+	};
+}
+
 /** Build a flat tree that lays every window out along one `dir` split (equal
  *  fractions). One id → a bare leaf; none → an empty tree. */
 export function buildDefaultTree(ids: readonly string[], dir: SplitDir = "h"): TileNode {

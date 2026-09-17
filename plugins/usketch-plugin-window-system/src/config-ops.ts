@@ -19,6 +19,7 @@ export type WindowConfigPatch = Partial<
 		| "mode"
 		| "viewportLock"
 		| "gap"
+		| "padding"
 		| "defaultSplit"
 		| "originX"
 		| "originY"
@@ -42,6 +43,13 @@ export function viewportLockOf(store: BoardStore): boolean {
 export function gapOf(store: BoardStore): number {
 	const g = getWindowConfig(store)?.gap;
 	return typeof g === "number" && Number.isFinite(g) && g >= 0 ? g : 8;
+}
+
+/** Outer padding in world px between the fixed screen and the tiling area
+ *  (defaults to 8, clamped ≥ 0). */
+export function paddingOf(store: BoardStore): number {
+	const p = getWindowConfig(store)?.padding;
+	return typeof p === "number" && Number.isFinite(p) && p >= 0 ? p : 8;
 }
 
 /** The orientation new windows split with (defaults to "h"). */

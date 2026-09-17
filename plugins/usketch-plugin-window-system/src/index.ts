@@ -9,6 +9,7 @@ export type {
 export {
 	buildDefaultTree,
 	type FocusDir,
+	insetRect,
 	layoutTree,
 	type Placement,
 	type Rect,
