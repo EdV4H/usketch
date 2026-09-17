@@ -68,6 +68,7 @@ import {
 	createWhisperTranscriber,
 } from "@edv4h/usketch-plugin-voice-notes";
 import { createWhistlePlugin } from "@edv4h/usketch-plugin-whistle";
+import { createWindowSystemPlugin } from "@edv4h/usketch-plugin-window-system";
 import { votingClientType } from "@edv4h/usketch-session-voting/client";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
@@ -191,6 +192,9 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		// during-drag reflow をトップレベル移動の最後の writer にする。autoCreate:false
 		// で、メインボードを勝手にグリッド化せず、HUD の「ダッシュボード化」で opt-in。
 		createDashboardPlugin({ autoCreate: false }),
+		// ウィンドウシステム（画角固定 ＋ i3風タイル/自由配置）。dashboard と同じく
+		// container/free-position の後・autoEnable:false で opt-in（HUD「ウィンドウ化」）。
+		createWindowSystemPlugin({ autoEnable: false }),
 		// 関連Shapeを「ぶちまける」— HUD の「関連Shapeをぶちまける」アクション。connector/
 		// container/free-position の後（関連解決 + 非重なり配置の土台が揃った後）。
 		createScatterPlugin(),
