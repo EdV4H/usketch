@@ -31,7 +31,8 @@ export interface Mode7PluginOptions {
 	/** Layer ids the runtime picker must never offer (in addition to the plugin's own
 	 *  overlays and the HUD, which are always excluded). */
 	skipLayerIds?: string[];
-	/** Ground draw distance in canvas (world) units (`0` = unlimited / no clip; default `0`). */
+	/** Ground draw distance in canvas (world) units (`0` = auto / clip to the viewport;
+	 *  larger values extend the ground past it; default `1500`). */
 	drawDistance?: number;
 	/** Start with the flat-mode capture-frame overlay shown (default `false`). */
 	showCaptureFrame?: boolean;

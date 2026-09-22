@@ -85,11 +85,19 @@ export function fogOpacity(density: number): number {
  *     would float; `clip-path` keeps the 3D tilt intact (unlike `overflow`, flattening).
  */
 export function drawDistanceClip(distance: number, zoom: number, viewportHeightPx: number): string {
-	let insetTop = 0;
-	if (distance > 0 && zoom > 0 && viewportHeightPx > 0) {
-		insetTop = round((1 - (distance * zoom) / viewportHeightPx) * 100);
+	if (!(distance > 0) || !(zoom > 0) || !(viewportHeightPx > 0)) {
+		return "inset(0% 0% 0% 0%)"; // auto → clip to the box
 	}
-	return `inset(${insetTop}% 0% 0% 0%)`;
+	const bandPx = distance * zoom;
+	if (bandPx <= viewportHeightPx) {
+		// Within the viewport: keep only the near band; sides stay at the box.
+		return `inset(${round((1 - bandPx / viewportHeightPx) * 100)}% 0% 0% 0%)`;
+	}
+	// Beyond the viewport: extend equally on ALL sides so the far ground fans out
+	// (not just a box-wide strip). The grid overscans to match; the canvas container
+	// clips whatever runs off-screen. Negative inset grows the clip region past the box.
+	const over = round(bandPx - viewportHeightPx);
+	return `inset(${-over}px ${-over}px ${-over}px ${-over}px)`;
 }
 
 /**

@@ -77,9 +77,9 @@ describe("drawDistanceClip (canvas units)", () => {
 		// bandPx = 400 → insetTop = (1 - 400/800)*100 = 50
 		expect(drawDistanceClip(400, 1, 800)).toBe("inset(50% 0% 0% 0%)");
 	});
-	it("箱を超える距離は負 inset（箱の外まで描く）", () => {
-		// bandPx = 1568 > 784 → insetTop = (1 - 1568/784)*100 = -100
-		expect(drawDistanceClip(1568, 1, 784)).toBe("inset(-100% 0% 0% 0%)");
+	it("箱を超える距離は全方向へ負 inset（地面が横にも広がる）", () => {
+		// bandPx = 1568 > 784 → over = 1568 - 784 = 784, 全辺 -784px
+		expect(drawDistanceClip(1568, 1, 784)).toBe("inset(-784px -784px -784px -784px)");
 	});
 	it("ズームで px 換算が変わる", () => {
 		// distance 400 canvas, zoom 0.5 → bandPx 200 → insetTop (1-200/800)*100 = 75

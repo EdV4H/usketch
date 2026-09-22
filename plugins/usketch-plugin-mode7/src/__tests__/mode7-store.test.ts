@@ -42,8 +42,8 @@ describe("createMode7Store — capture frame", () => {
 });
 
 describe("createMode7Store — draw distance (canvas units)", () => {
-	it("既定は 0（無制限）", () => {
-		expect(createMode7Store().getState().drawDistance).toBe(0);
+	it("既定は 1500（地面を少し奥まで敷く）", () => {
+		expect(createMode7Store().getState().drawDistance).toBe(1500);
 	});
 	it("init.drawDistance は反映、負値/不正値は 0", () => {
 		expect(createMode7Store({ drawDistance: 3000 }).getState().drawDistance).toBe(3000);
@@ -54,11 +54,13 @@ describe("createMode7Store — draw distance (canvas units)", () => {
 		const s = createMode7Store();
 		let n = 0;
 		s.subscribe(() => n++);
-		s.setDrawDistance(-1); // クランプで 0 = 既定と同値
-		expect(s.getState().drawDistance).toBe(0);
+		s.setDrawDistance(1500); // 既定と同値
 		expect(n).toBe(0);
+		s.setDrawDistance(-1); // クランプで 0（変化）
+		expect(s.getState().drawDistance).toBe(0);
+		expect(n).toBe(1);
 		s.setDrawDistance(2500);
 		expect(s.getState().drawDistance).toBe(2500);
-		expect(n).toBe(1);
+		expect(n).toBe(2);
 	});
 });

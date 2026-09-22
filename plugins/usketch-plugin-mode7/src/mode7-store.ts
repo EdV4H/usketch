@@ -17,6 +17,10 @@ export interface Look {
 
 export const DEFAULT_LOOK: Look = { sky: "#0b1026", fog: 0.35, fogColor: "#0b1026" };
 
+/** Default ground draw distance in canvas units: extends the ground a bit past the
+ *  viewport so the 3D view opens on a proper receding plane (not just the box). */
+export const DEFAULT_DRAW_DISTANCE = 1500;
+
 /** Clamp a draw distance (canvas units, `>= 0`; non-finite / negative → 0 = unlimited). */
 function clampDistance(n: number): number {
 	if (!Number.isFinite(n) || n < 0) return 0;
@@ -121,7 +125,7 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 		camera: baseCamera,
 		look: baseLook,
 		tiltLayers: [...(init.tiltLayers ?? DEFAULT_TILT_LAYER_IDS)],
-		drawDistance: clampDistance(init.drawDistance ?? 0),
+		drawDistance: clampDistance(init.drawDistance ?? DEFAULT_DRAW_DISTANCE),
 		showCaptureFrame: init.showCaptureFrame ?? false,
 		captureRect: null,
 	};
