@@ -11,9 +11,11 @@
   スコープされる。コンテナ検出は **`data-testid` ではなく `[data-layer-id]` の親**で行う（`data-testid` は
   ビルドで除去され実行時に存在しないため）。スタイルシート方式なので React の再レンダで消えず、後からマウント
   する層にも適用され、per-element の注入も `MutationObserver` も要らない。コアの座標変換（affine `{x,y,zoom}`）には触れない。
-- 傾ける対象は **allow 方式**（既定 `dom-shapes`/`gpu-shapes`/`bg-grid`/`bg-dots`/`island-metaball`）で、
-  **HUD の「Mode 7 レイヤー」パネルから実行時に選択できる**（例: Shape 層のオン/オフ）。HUD 自身や
-  プラグインの sky/fog/capture 層は選択肢から除外され、絶対に傾かない（`skipLayerIds` で除外を追加可）。
+- 傾ける対象は **allow 方式**で、既定は「**固定UIクロム以外のほぼ全層**」（背景/Shape/GPU に加え、
+  選択・コネクタ・各種オーバーレイ層も含む。除外は `vim-status-line`/`vim-which-key`/`vim-help`/
+  `side-panel`/`presentation-overlay` の固定UI）。**HUD の「Mode 7 レイヤー」パネルから実行時に選択できる**
+  （例: Shape 層のオン/オフ）。HUD 自身やプラグインの sky/fog/capture 層は選択肢から除外され、絶対に
+  傾かない（`skipLayerIds` で除外を追加可）。既定一覧は `DEFAULT_TILT_LAYER_IDS` を参照。
 - **sky / fog / capture** の3つの非傾斜オーバーレイ層を追加。capture 層が板のポインタを捕捉して
   3D 下での編集破綻を防ぎ、ドラッグ=地上移動（viewport pan）・wheel=ズームでカメラを操作する。
 - **取り込み範囲（capture frame）**: 3Dビューが地面として映すのは「切替時のビューポート世界矩形」だけで、

@@ -17,14 +17,42 @@ export interface Look {
 
 export const DEFAULT_LOOK: Look = { sky: "#0b1026", fog: 0.35, fogColor: "#0b1026" };
 
-/** Board content layers tilted by default (Shapes + backgrounds). The set is
- *  runtime-selectable via the HUD, so this is only the starting selection. */
+/**
+ * Layers tilted by default: essentially everything on the board EXCEPT the persistent
+ * UI chrome that must stay flat/readable (vim status line / which-key / help, the side
+ * panel, the presentation overlay) — plus the plugin's own overlays + the HUD, which
+ * are always excluded from the picker. The set is runtime-selectable via the HUD, so
+ * this is only the starting selection. Ids not present on a given board are ignored.
+ */
 export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
-	"dom-shapes",
-	"gpu-shapes",
+	// backgrounds / content
 	"bg-grid",
 	"bg-dots",
 	"island-metaball",
+	"gpu-shapes",
+	"dom-shapes",
+	"usketch-plugin-dashboard:grid-overlay",
+	// shape-attached overlays (selection, connectors, editors) — follow the shapes
+	"comment-badges",
+	"connector-anchor-handles",
+	"__selection-foreground",
+	"connector-endpoints",
+	"connector-label-editor",
+	"usketch-plugin-shape-frame:title-editor",
+	"domain-connector-properties",
+	"unconfirmed-shapes-overlay",
+	// interaction / presence overlays anchored to the board
+	"vim-overlay",
+	"snap-guides",
+	"laser",
+	"freedraw-cursor",
+	"spotlight",
+	"follow-banner",
+	"whistle-indicator",
+	"voice-notes-indicator",
+	"transient",
+	"portal",
+	"usketch-presence-activity",
 ];
 
 export interface Mode7State {
