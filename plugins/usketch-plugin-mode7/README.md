@@ -5,9 +5,12 @@
 
 ## 仕組み
 
-- `perspective()+rotateX(pitch)+rotateZ(yaw)` の **CSS 3D 変換を「板コンテンツ層」の外側ラッパ div に注入**する。
-  各レイヤーは `canvas.tsx` で `data-layer-id` 付き div にラップされ、その外側 `transform` は React 非管理なので
-  注入が再レンダで消えない（`MutationObserver` で層の増減にも追従）。コアの座標変換（affine `{x,y,zoom}`）には触れない。
+- `perspective()+rotateX(pitch)+rotateZ(yaw)` の **CSS 3D 変換**を、`document.head` に挿した単一の `<style>`
+  シート（`!important` ルール）で「板コンテンツ層」の外側ラッパ div に当てる。各レイヤーは `canvas.tsx` で
+  `data-layer-id` 付き div にラップされ、ルールは `data-mode7-stage="on"` を付けたメインコンテナ配下に
+  スコープされる。コンテナ検出は **`data-testid` ではなく `[data-layer-id]` の親**で行う（`data-testid` は
+  ビルドで除去され実行時に存在しないため）。スタイルシート方式なので React の再レンダで消えず、後からマウント
+  する層にも適用され、per-element の注入も `MutationObserver` も要らない。コアの座標変換（affine `{x,y,zoom}`）には触れない。
 - 傾ける対象は **allow 方式**（既定 `dom-shapes`/`gpu-shapes`/`bg-grid`/`bg-dots`/`island-metaball`）で、
   **HUD の「Mode 7 レイヤー」パネルから実行時に選択できる**（例: Shape 層のオン/オフ）。HUD 自身や
   プラグインの sky/fog/capture 層は選択肢から除外され、絶対に傾かない（`skipLayerIds` で除外を追加可）。

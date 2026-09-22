@@ -23,17 +23,29 @@ export const CAPTURE_LAYER_ID = "mode7-capture";
 /** Wheel-zoom sensitivity (matches viewport-nav's deltaY-proportional feel). */
 const WHEEL_ZOOM = 0.0015;
 
-/** The main canvas container (largest area — a minimap tags one too). */
+/**
+ * The main canvas container: the element that directly wraps the board's layer
+ * divs. We locate it via `[data-layer-id]` (every layer wrapper is a direct child
+ * of the container) rather than `data-testid="canvas-container"` — `data-testid` is
+ * a test-only hook that the production/app build strips out, so it is absent in the
+ * running app and the old selector silently matched nothing (the tilt never applied).
+ * If several containers exist (e.g. a minimap that also renders layers), the largest
+ * by area wins.
+ */
 function mainContainer(): HTMLElement | null {
 	if (typeof document === "undefined") return null;
 	let best: HTMLElement | null = null;
 	let bestArea = 0;
-	for (const el of document.querySelectorAll('[data-testid="canvas-container"]')) {
-		const r = (el as HTMLElement).getBoundingClientRect();
+	const seen = new Set<HTMLElement>();
+	for (const el of document.querySelectorAll("[data-layer-id]")) {
+		const parent = (el as HTMLElement).parentElement;
+		if (!parent || seen.has(parent)) continue;
+		seen.add(parent);
+		const r = parent.getBoundingClientRect();
 		const area = r.width * r.height;
 		if (area > bestArea) {
 			bestArea = area;
-			best = el as HTMLElement;
+			best = parent;
 		}
 	}
 	return best;
