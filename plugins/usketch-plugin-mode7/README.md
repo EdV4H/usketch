@@ -58,6 +58,12 @@ createApp({
 
 見た目: `sky`（空色）/ `fog`（フォグ濃度 0–1）/ `fogColor`。
 
+**描画距離（`drawDistance` 0–1, HUD「描画距離(%)」）**: 地面をどこまで（地平線方向へ）描くか。
+`1`=地平線まで（クリップ無し・既定）、小さいほど遠方をカット＝遠くの散らばった Shape や
+地平線際のクラッタを消せる。実装は tilt 層の外側ラッパへの `clip-path: inset(top …)`（傾きは保持。
+`overflow` と違い `clip-path` は 3D を潰さない）。カット線はフォグと併用すると自然にぼける。
+※ Shape は DOM 上には残る（コアのカリングではなく描画クリップ）ので、真のジオメトリ間引きは別途。
+
 ## アクション（`mode7:<key>` で emit・HUD Controls に自動表示・サービス）
 
 `toggle` / `pitch-up` / `pitch-down` / `yaw-left` / `yaw-right` / `fov-narrow` / `fov-wide` / `reset` /
@@ -78,7 +84,7 @@ api?.setYaw(30);
 
 `Mode7Api`: `isActive` / `enable` / `disable` / `toggle` / `getCamera` / `setPitch` / `setYaw` /
 `setFov` / `setHorizon` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
-`getTiltLayers` / `setTiltLayers` / `toggleTiltLayer` /
+`getTiltLayers` / `setTiltLayers` / `toggleTiltLayer` / `getDrawDistance` / `setDrawDistance` /
 `isCaptureFrameVisible` / `setCaptureFrameVisible` / `toggleCaptureFrame` / `getCaptureRect` / `onChange`。
 
 ## スコープ外（v2 送り）

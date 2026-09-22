@@ -6,6 +6,7 @@ export {
 export { getMode7Api, type Mode7Api, mode7Service } from "./mode7-service.js";
 export type { Look } from "./mode7-store.js";
 export {
+	drawDistanceClip,
 	fogBackground,
 	skyBackground,
 	type TiltTransform,

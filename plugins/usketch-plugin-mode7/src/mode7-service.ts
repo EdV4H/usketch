@@ -32,6 +32,10 @@ export interface Mode7Api {
 	setTiltLayers(ids: readonly string[]): void;
 	/** Add/remove one layer id from the tilted set. */
 	toggleTiltLayer(id: string): void;
+	/** How far toward the horizon the ground is drawn, 0..1. */
+	getDrawDistance(): number;
+	/** Set the ground draw distance, 0..1 (1 = to the horizon; smaller = closer cutoff). */
+	setDrawDistance(distance: number): void;
 	/** Whether the flat-mode capture-frame overlay is shown. */
 	isCaptureFrameVisible(): boolean;
 	/** Show/hide the capture-frame overlay. */
@@ -66,6 +70,8 @@ export function createMode7Api(store: Mode7Store): Mode7Api {
 		getTiltLayers: () => store.getState().tiltLayers,
 		setTiltLayers: (ids) => store.setTiltLayers(ids),
 		toggleTiltLayer: (id) => store.toggleTiltLayer(id),
+		getDrawDistance: () => store.getState().drawDistance,
+		setDrawDistance: (distance) => store.setDrawDistance(distance),
 		isCaptureFrameVisible: () => store.getState().showCaptureFrame,
 		setCaptureFrameVisible: (show) => store.setCaptureFrame(show),
 		toggleCaptureFrame: () => store.toggleCaptureFrame(),

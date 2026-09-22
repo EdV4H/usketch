@@ -13,7 +13,7 @@
 import type { BoundingBox, PluginContext } from "@edv4h/usketch-shared";
 import { CaptureFrameLayer, CaptureLayer, FogLayer, SkyLayer } from "./mode7-layers.js";
 import type { Mode7Store } from "./mode7-store.js";
-import { tiltTransform } from "./mode7-transform.js";
+import { drawDistanceClip, tiltTransform } from "./mode7-transform.js";
 
 /** The plugin's own layer ids (never tilted). */
 export const SKY_LAYER_ID = "mode7-sky";
@@ -77,7 +77,12 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		container.setAttribute(STAGE_ATTR, "on");
 		ensureStyleEl();
 		if (!styleEl) return;
-		const { transform, transformOrigin } = tiltTransform(store.getState().camera);
+		const { camera, drawDistance } = store.getState();
+		const { transform, transformOrigin } = tiltTransform(camera);
+		// Draw distance: clip the far part of the ground off each tilted wrapper. Safe
+		// on the 3D element (clip-path keeps the tilt, unlike overflow); null at full.
+		const clip = drawDistanceClip(drawDistance, camera.horizon);
+		const clipRule = clip ? `clip-path:${clip} !important;` : "";
 		// `overflow:visible` + `transform-style:preserve-3d` are essential for layers
 		// like `dom-shapes`: their wrapper has `overflow:hidden` (which the CSS spec
 		// forces `transform-style` to `flat`) and an inner viewport-transform div that
@@ -89,7 +94,7 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 			.getState()
 			.tiltLayers.map(
 				(id) =>
-					`[${STAGE_ATTR}="on"] [data-layer-id="${attrValue(id)}"]{transform:${transform} !important;transform-origin:${transformOrigin} !important;overflow:visible !important;transform-style:preserve-3d !important;}`,
+					`[${STAGE_ATTR}="on"] [data-layer-id="${attrValue(id)}"]{transform:${transform} !important;transform-origin:${transformOrigin} !important;overflow:visible !important;transform-style:preserve-3d !important;${clipRule}}`,
 			)
 			.join("");
 		styleEl.textContent = layerRules;

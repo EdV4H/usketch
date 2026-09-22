@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Camera } from "../mode7-camera.js";
 import {
+	drawDistanceClip,
 	fogBackground,
 	fogOpacity,
 	rgba,
@@ -61,5 +62,20 @@ describe("fogBackground / fogOpacity", () => {
 	it("density=0 は不透明度 0（描かない）", () => {
 		expect(fogOpacity(0)).toBe(0);
 		expect(fogOpacity(2)).toBe(1);
+	});
+});
+
+describe("drawDistanceClip", () => {
+	it("full(1 以上)はクリップ無し = null", () => {
+		expect(drawDistanceClip(1, 0.45)).toBeNull();
+		expect(drawDistanceClip(1.5, 0.45)).toBeNull();
+	});
+	it("カット線は horizon〜下端の間（地面のみ削る）", () => {
+		// horizon 0.45 → h=45; d=0.5 → insetTop = 45 + 0.5*55 = 72.5
+		expect(drawDistanceClip(0.5, 0.45)).toBe("inset(72.5% 0% 0% 0%)");
+	});
+	it("d=0 は全カット(100%)、値はクランプ", () => {
+		expect(drawDistanceClip(0, 0.45)).toBe("inset(100% 0% 0% 0%)");
+		expect(drawDistanceClip(-1, 0.45)).toBe("inset(100% 0% 0% 0%)");
 	});
 });

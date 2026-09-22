@@ -69,6 +69,23 @@ export function fogOpacity(density: number): number {
 	return clamp01(density);
 }
 
+/**
+ * Draw-distance clip for the tilted layer wrappers: a `clip-path` that cuts off the
+ * FAR part of the ground (the top of the wrapper box, which the tilt sends toward the
+ * horizon) so distant content isn't drawn. `drawDistance` 0..1 is how far toward the
+ * horizon to draw (1 = all the way, no clip → returns `null`; smaller = closer cutoff).
+ * The cut line runs from the horizon (at full) down toward the near edge (at 0), so it
+ * only ever bites into the ground, never the near foreground. Empirically `clip-path`
+ * on the tilted wrapper keeps the 3D tilt intact (unlike `overflow`, which flattens).
+ */
+export function drawDistanceClip(drawDistance: number, horizon: number): string | null {
+	const d = clamp01(drawDistance);
+	if (d >= 1) return null;
+	const h = round(clamp01(horizon) * 100);
+	const insetTop = round(h + (1 - d) * (100 - h));
+	return `inset(${insetTop}% 0% 0% 0%)`;
+}
+
 // ── helpers ──
 
 function round(n: number): number {

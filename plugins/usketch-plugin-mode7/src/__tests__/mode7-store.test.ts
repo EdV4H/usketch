@@ -40,3 +40,25 @@ describe("createMode7Store — capture frame", () => {
 		expect(s.getState().captureRect).toBeNull();
 	});
 });
+
+describe("createMode7Store — draw distance", () => {
+	it("既定は 1（full）", () => {
+		expect(createMode7Store().getState().drawDistance).toBe(1);
+	});
+	it("init.drawDistance はクランプして反映", () => {
+		expect(createMode7Store({ drawDistance: 0.4 }).getState().drawDistance).toBe(0.4);
+		expect(createMode7Store({ drawDistance: 5 }).getState().drawDistance).toBe(1);
+		expect(createMode7Store({ drawDistance: -2 }).getState().drawDistance).toBe(0);
+	});
+	it("setDrawDistance はクランプし、同値なら通知しない", () => {
+		const s = createMode7Store();
+		let n = 0;
+		s.subscribe(() => n++);
+		s.setDrawDistance(2); // クランプで 1 = 既定と同値
+		expect(s.getState().drawDistance).toBe(1);
+		expect(n).toBe(0);
+		s.setDrawDistance(0.6);
+		expect(s.getState().drawDistance).toBe(0.6);
+		expect(n).toBe(1);
+	});
+});
