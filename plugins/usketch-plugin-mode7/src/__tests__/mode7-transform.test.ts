@@ -41,18 +41,21 @@ describe("rgba", () => {
 });
 
 describe("skyBackground", () => {
-	it("空色→横方向の縦グラデ、horizon 以下は透明", () => {
+	it("空色→横方向の縦グラデ、horizon を跨いでソフトに透明へ抜ける", () => {
+		// horizon 0.4 → h=40, mid=min(20,32)=20, hazeTop=32, clearBottom=48
 		const g = skyBackground("#88bbff", 0.4);
-		expect(g).toContain("linear-gradient(to bottom, #88bbff 0%");
-		expect(g).toContain("transparent 40%)");
+		expect(g).toBe(
+			"linear-gradient(to bottom, #88bbff 0%, #88bbff 20%, rgba(136, 187, 255, 0.35) 32%, transparent 48%)",
+		);
 	});
 });
 
 describe("fogBackground / fogOpacity", () => {
-	it("horizon で濃く、下端(カメラ)で晴れる", () => {
+	it("horizon の少し上からフェードインし horizon で濃く、下端(カメラ)で晴れる", () => {
+		// horizon 0.45 → h=45, fadeInTop=37
 		const g = fogBackground("#ffffff", 0.6, 0.45);
 		expect(g).toBe(
-			"linear-gradient(to bottom, transparent 45%, rgba(255, 255, 255, 0.6) 45%, transparent 100%)",
+			"linear-gradient(to bottom, transparent 37%, rgba(255, 255, 255, 0.6) 45%, transparent 100%)",
 		);
 	});
 	it("density=0 は不透明度 0（描かない）", () => {

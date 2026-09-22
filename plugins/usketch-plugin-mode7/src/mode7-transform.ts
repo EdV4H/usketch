@@ -29,25 +29,39 @@ export function tiltTransform(cam: Camera): TiltTransform {
 }
 
 /**
+ * Vertical blend band (in % of viewport height) straddling the horizon. The sky and
+ * fog gradients fade THROUGH the horizon over this band instead of stopping hard at
+ * it — otherwise the tilted plane's far edge (layers only paint the finite 2D
+ * viewport rect) shows as a crisp horizontal seam. A soft band hazes that edge away.
+ */
+const HORIZON_SOFT = 8;
+
+/**
  * Sky backdrop (painted behind the tilted plane): a vertical gradient from the sky
- * color at the top down to a paler haze at the horizon line, so the ground appears
- * to meet a sky. Below the horizon is transparent (the ground shows through).
+ * color at the top down to a paler haze that fades out smoothly ACROSS the horizon,
+ * so the ground appears to dissolve into a hazy sky rather than meeting a hard line.
+ * Fully transparent a little below the horizon (the near ground shows through).
  */
 export function skyBackground(sky: string, horizon: number): string {
 	const h = round(clamp01(horizon) * 100);
-	return `linear-gradient(to bottom, ${sky} 0%, ${sky} ${round(h * 0.55)}%, ${haze(sky)} ${h}%, transparent ${h}%)`;
+	const mid = round(Math.min(h * 0.5, h - HORIZON_SOFT));
+	const hazeTop = round(clamp(h - HORIZON_SOFT, 0, 100));
+	const clearBottom = round(clamp(h + HORIZON_SOFT, 0, 100));
+	return `linear-gradient(to bottom, ${sky} 0%, ${sky} ${mid}%, ${haze(sky)} ${hazeTop}%, transparent ${clearBottom}%)`;
 }
 
 /**
- * Fog overlay (painted in front of the plane): a haze that is densest right at the
- * horizon and clears toward the bottom (the camera), selling atmospheric depth.
- * `density` 0..1 scales the peak alpha; 0 disables it. Above the horizon is
- * transparent so it never dims the sky.
+ * Fog overlay (painted in front of the plane): a haze that FADES IN from a little
+ * above the horizon, peaks right at it, and clears toward the bottom (the camera).
+ * The soft top edge (above the horizon) is what covers the ground plane's far edge,
+ * hiding the seam; the fade to the bottom sells atmospheric depth. `density` 0..1
+ * scales the peak alpha; 0 disables it entirely.
  */
 export function fogBackground(color: string, density: number, horizon: number): string {
 	const h = round(clamp01(horizon) * 100);
 	const a = clamp01(density);
-	return `linear-gradient(to bottom, transparent ${h}%, ${rgba(color, a)} ${h}%, transparent 100%)`;
+	const fadeInTop = round(clamp(h - HORIZON_SOFT, 0, 100));
+	return `linear-gradient(to bottom, transparent ${fadeInTop}%, ${rgba(color, a)} ${h}%, transparent 100%)`;
 }
 
 /** Peak fog opacity for the overlay element (kept separate so 0 density → no paint). */
@@ -64,6 +78,11 @@ function round(n: number): number {
 function clamp01(n: number): number {
 	if (!Number.isFinite(n)) return 0;
 	return Math.min(1, Math.max(0, n));
+}
+
+function clamp(n: number, lo: number, hi: number): number {
+	if (!Number.isFinite(n)) return lo;
+	return Math.min(hi, Math.max(lo, n));
 }
 
 /** A translucent version of the sky color for the horizon haze band. */
