@@ -7,6 +7,7 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
 import {
+	CAPTURE_FRAME_LAYER_ID,
 	CAPTURE_LAYER_ID,
 	FOG_LAYER_ID,
 	SKY_LAYER_ID,
@@ -30,6 +31,8 @@ export interface Mode7PluginOptions {
 	/** Layer ids the runtime picker must never offer (in addition to the plugin's own
 	 *  overlays and the HUD, which are always excluded). */
 	skipLayerIds?: string[];
+	/** Start with the flat-mode capture-frame overlay shown (default `false`). */
+	showCaptureFrame?: boolean;
 	/** Keyboard shortcut bindings (opt-in; no defaults). */
 	shortcuts?: Mode7Shortcuts;
 }
@@ -40,6 +43,7 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 		camera: options.camera,
 		look: options.look,
 		tiltLayers: options.tiltLayerIds,
+		showCaptureFrame: options.showCaptureFrame,
 	});
 	const api = createMode7Api(store);
 	// Layers the picker must never tilt (tilting the HUD or our own overlays makes
@@ -48,6 +52,7 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 		SKY_LAYER_ID,
 		FOG_LAYER_ID,
 		CAPTURE_LAYER_ID,
+		CAPTURE_FRAME_LAYER_ID,
 		"debug-hud",
 		...(options.skipLayerIds ?? []),
 	];

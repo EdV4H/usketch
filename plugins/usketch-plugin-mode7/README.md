@@ -16,6 +16,11 @@
   プラグインの sky/fog/capture 層は選択肢から除外され、絶対に傾かない（`skipLayerIds` で除外を追加可）。
 - **sky / fog / capture** の3つの非傾斜オーバーレイ層を追加。capture 層が板のポインタを捕捉して
   3D 下での編集破綻を防ぎ、ドラッグ=地上移動（viewport pan）・wheel=ズームでカメラを操作する。
+- **取り込み範囲（capture frame）**: 3Dビューが地面として映すのは「切替時のビューポート世界矩形」だけで、
+  その外の Shape は初期3Dビューに出ない（本方式は遠方を描画しない＝現ビューポート分のみ。前進パンで到達は可）。
+  これを可視化するため、切替 ON の瞬間にビューポート世界矩形をスナップショットし、**フラットモードで
+  ワールド固定の破線枠**として描く（HUD トグル `取り込み範囲` / アクション `取り込み範囲の表示切替` で ON/OFF）。
+  枠外の Shape が一目で分かるので、切替前の配置調整に使える。枠自体は非傾斜・非固定レイヤーで shape 化しない。
 - 状態は**ビュー限定（per-viewer・非永続・非同期）** ＝ shape 化しない（presentation と同類）。
 
 ## 使い方
@@ -53,7 +58,8 @@ createApp({
 
 ## アクション（`mode7:<key>` で emit・HUD Controls に自動表示・サービス）
 
-`toggle` / `pitch-up` / `pitch-down` / `yaw-left` / `yaw-right` / `fov-narrow` / `fov-wide` / `reset`。
+`toggle` / `pitch-up` / `pitch-down` / `yaw-left` / `yaw-right` / `fov-narrow` / `fov-wide` / `reset` /
+`capture-frame`（取り込み範囲の表示切替）。
 
 ショートカットは **opt-in・既定なし**（共有レジストリは `event.key` 照合で macOS の Option+英字合成 /
 Shift+数字変換に弱く、既定を持たせると layout により無反応になるため）。`shortcuts` オプションで任意に割当。
@@ -70,7 +76,8 @@ api?.setYaw(30);
 
 `Mode7Api`: `isActive` / `enable` / `disable` / `toggle` / `getCamera` / `setPitch` / `setYaw` /
 `setFov` / `setHorizon` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
-`getTiltLayers` / `setTiltLayers` / `toggleTiltLayer` / `onChange`。
+`getTiltLayers` / `setTiltLayers` / `toggleTiltLayer` /
+`isCaptureFrameVisible` / `setCaptureFrameVisible` / `toggleCaptureFrame` / `getCaptureRect` / `onChange`。
 
 ## スコープ外（v2 送り）
 

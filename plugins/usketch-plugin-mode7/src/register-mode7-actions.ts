@@ -16,7 +16,8 @@ export type Mode7ActionKey =
 	| "yaw-right"
 	| "fov-narrow"
 	| "fov-wide"
-	| "reset";
+	| "reset"
+	| "capture-frame";
 
 /** Host shortcut overrides: a combo string binds the action; omitting a key leaves
  *  it unbound (there are no built-in defaults). `null` is also treated as unbound. */
@@ -94,6 +95,13 @@ export function registerMode7Actions(
 			isEnabled: on,
 		},
 		{ key: "reset", label: "カメラをリセット", order: 40, run: () => api.reset(), isEnabled: on },
+		{
+			key: "capture-frame",
+			label: "取り込み範囲の表示切替",
+			order: 50,
+			run: () => api.toggleCaptureFrame(),
+			isActive: () => api.isCaptureFrameVisible(),
+		},
 	];
 
 	const teardowns: (() => void)[] = [];

@@ -21,6 +21,7 @@ export function registerMode7Hud(
 		order: 14,
 		fields: [
 			{ name: "enabled", label: "3Dビュー", type: "boolean" },
+			{ name: "captureFrame", label: "取り込み範囲", type: "boolean" },
 			{
 				name: "pitch",
 				label: "傾き(°)",
@@ -49,6 +50,8 @@ export function registerMode7Hud(
 			switch (name) {
 				case "enabled":
 					return api.isActive();
+				case "captureFrame":
+					return api.isCaptureFrameVisible();
 				case "pitch":
 					return cam.pitch;
 				case "yaw":
@@ -71,6 +74,10 @@ export function registerMode7Hud(
 			if (name === "enabled") {
 				if (value === true || value === "true") api.enable();
 				else api.disable();
+				return;
+			}
+			if (name === "captureFrame") {
+				api.setCaptureFrameVisible(value === true || value === "true");
 				return;
 			}
 			if (name === "sky") {

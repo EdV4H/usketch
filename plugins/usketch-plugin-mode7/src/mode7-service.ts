@@ -1,7 +1,7 @@
 // Host-facing API on the `ctx.services` seam (same convention as dashboard/window-
 // system): thin, typed delegation to the reactive store so a host or another plugin
 // can drive the Mode 7 view without the HUD.
-import { defineService, type ServiceRegistry } from "@edv4h/usketch-shared";
+import { type BoundingBox, defineService, type ServiceRegistry } from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
 import type { Look, Mode7Store } from "./mode7-store.js";
 
@@ -32,7 +32,15 @@ export interface Mode7Api {
 	setTiltLayers(ids: readonly string[]): void;
 	/** Add/remove one layer id from the tilted set. */
 	toggleTiltLayer(id: string): void;
-	/** Fire on any active/camera/look/tilt-layer change. Returns an unsubscribe. */
+	/** Whether the flat-mode capture-frame overlay is shown. */
+	isCaptureFrameVisible(): boolean;
+	/** Show/hide the capture-frame overlay. */
+	setCaptureFrameVisible(show: boolean): void;
+	/** Flip the capture-frame overlay visibility. */
+	toggleCaptureFrame(): void;
+	/** The world rect captured at the last switch-on, or `null`. */
+	getCaptureRect(): BoundingBox | null;
+	/** Fire on any active/camera/look/tilt-layer/frame change. Returns an unsubscribe. */
 	onChange(listener: () => void): () => void;
 }
 
@@ -58,6 +66,10 @@ export function createMode7Api(store: Mode7Store): Mode7Api {
 		getTiltLayers: () => store.getState().tiltLayers,
 		setTiltLayers: (ids) => store.setTiltLayers(ids),
 		toggleTiltLayer: (id) => store.toggleTiltLayer(id),
+		isCaptureFrameVisible: () => store.getState().showCaptureFrame,
+		setCaptureFrameVisible: (show) => store.setCaptureFrame(show),
+		toggleCaptureFrame: () => store.toggleCaptureFrame(),
+		getCaptureRect: () => store.getState().captureRect,
 		onChange: (listener) => store.subscribe(listener),
 	};
 }

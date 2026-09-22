@@ -10,8 +10,8 @@
 //   2. Registers the sky / fog / capture overlay layers (they self-gate on `active`).
 //   3. Drives the camera position: capture-layer drag pans the viewport (move over
 //      the ground) and wheel zooms — reusing the store's affine viewport.
-import type { PluginContext } from "@edv4h/usketch-shared";
-import { CaptureLayer, FogLayer, SkyLayer } from "./mode7-layers.js";
+import type { BoundingBox, PluginContext } from "@edv4h/usketch-shared";
+import { CaptureFrameLayer, CaptureLayer, FogLayer, SkyLayer } from "./mode7-layers.js";
 import type { Mode7Store } from "./mode7-store.js";
 import { tiltTransform } from "./mode7-transform.js";
 
@@ -19,6 +19,7 @@ import { tiltTransform } from "./mode7-transform.js";
 export const SKY_LAYER_ID = "mode7-sky";
 export const FOG_LAYER_ID = "mode7-fog";
 export const CAPTURE_LAYER_ID = "mode7-capture";
+export const CAPTURE_FRAME_LAYER_ID = "mode7-capture-frame";
 
 /** Wheel-zoom sensitivity (matches viewport-nav's deltaY-proportional feel). */
 const WHEEL_ZOOM = 0.0015;
@@ -101,9 +102,45 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		}
 	};
 
+	/**
+	 * The current viewport as a WORLD rectangle (== `LayerRenderContext.viewportBounds`,
+	 * recomputed here because the runtime has no render ctx): screen box [0,0,W,H]
+	 * inverted through the affine viewport (`world = (screen - vp) / zoom`).
+	 */
+	const viewportWorldRect = (): BoundingBox | null => {
+		const c = mainContainer();
+		if (!c) return null;
+		const r = c.getBoundingClientRect();
+		const vp = ctx.store.getViewport();
+		if (!vp.zoom || r.width <= 0 || r.height <= 0) return null;
+		return {
+			x: -vp.x / vp.zoom,
+			y: -vp.y / vp.zoom,
+			width: r.width / vp.zoom,
+			height: r.height / vp.zoom,
+		};
+	};
+
+	// Snapshot the capture rect when the view is switched ON (the frame then shows
+	// "what the 3D ground covered" back in flat mode), and seed it the first time the
+	// overlay is switched on with nothing captured yet.
+	let prevActive = false;
+	const maybeCapture = (): void => {
+		const st = store.getState();
+		const rising = st.active && !prevActive;
+		// Update the edge tracker BEFORE setCaptureRect — it notifies synchronously and
+		// re-enters sync()/maybeCapture(), so a stale `prevActive` would loop forever.
+		prevActive = st.active;
+		if (rising || (st.showCaptureFrame && !st.captureRect)) {
+			const rect = viewportWorldRect();
+			if (rect) store.setCaptureRect(rect);
+		}
+	};
+
 	const sync = (): void => {
 		if (store.getState().active) applyTilt();
 		else clearAll();
+		maybeCapture();
 	};
 
 	// Camera drive from the capture layer (reuse the affine viewport).
@@ -134,6 +171,13 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		fixed: true,
 		render: () => <CaptureLayer store={store} handlers={handlers} />,
 	});
+	// The capture-frame overlay is NON-fixed (world-anchored via the viewport
+	// transform) so it pans/zooms with the board; it self-hides unless flat + toggled.
+	ctx.layers.register({
+		id: CAPTURE_FRAME_LAYER_ID,
+		order: 8000,
+		render: (rc) => <CaptureFrameLayer store={store} zoom={rc.viewport.zoom} />,
+	});
 
 	// Re-sync on active / camera / tilt-layer changes.
 	const unsubscribe = store.subscribe(sync);
@@ -149,5 +193,6 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		ctx.layers.unregister(SKY_LAYER_ID);
 		ctx.layers.unregister(FOG_LAYER_ID);
 		ctx.layers.unregister(CAPTURE_LAYER_ID);
+		ctx.layers.unregister(CAPTURE_FRAME_LAYER_ID);
 	};
 }

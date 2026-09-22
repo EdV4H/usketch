@@ -2,6 +2,7 @@
 // geometry, and the appearance ("look" = sky color, fog). The runtime / service /
 // HUD mutate it; the layer React components subscribe via `useSyncExternalStore`.
 // Kept tiny and framework-agnostic (same pattern as bg-grid's visibility store).
+import type { BoundingBox } from "@edv4h/usketch-shared";
 import { type Camera, clampCamera, DEFAULT_CAMERA, updateCamera } from "./mode7-camera.js";
 
 /** Appearance settings, independent of the camera geometry. */
@@ -32,6 +33,15 @@ export interface Mode7State {
 	look: Look;
 	/** Layer ids currently rendered in 3D (user-selectable at runtime). */
 	tiltLayers: string[];
+	/** Whether to draw the "capture frame" overlay in flat mode (HUD toggle). */
+	showCaptureFrame: boolean;
+	/**
+	 * The world-space rectangle the 3D ground plane covers, snapshotted at the moment
+	 * the view was last switched on (`null` before the first switch / seed). Shapes
+	 * outside it don't appear in the initial 3D view — the frame makes that visible.
+	 * The runtime sets this (it needs the canvas pixel size); the store only holds it.
+	 */
+	captureRect: BoundingBox | null;
 }
 
 export interface Mode7Init {
@@ -39,6 +49,7 @@ export interface Mode7Init {
 	camera?: Partial<Camera>;
 	look?: Partial<Look>;
 	tiltLayers?: readonly string[];
+	showCaptureFrame?: boolean;
 }
 
 export interface Mode7Store {
@@ -53,6 +64,12 @@ export interface Mode7Store {
 	setTiltLayers(ids: readonly string[]): void;
 	/** Add/remove one layer id from the tilted set. */
 	toggleTiltLayer(id: string): void;
+	/** Show/hide the flat-mode capture-frame overlay. */
+	setCaptureFrame(show: boolean): void;
+	/** Flip the capture-frame overlay visibility. */
+	toggleCaptureFrame(): void;
+	/** Store the captured world rect (called by the runtime; `null` clears it). */
+	setCaptureRect(rect: BoundingBox | null): void;
 	reset(): void;
 }
 
@@ -64,6 +81,8 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 		camera: baseCamera,
 		look: baseLook,
 		tiltLayers: [...(init.tiltLayers ?? DEFAULT_TILT_LAYER_IDS)],
+		showCaptureFrame: init.showCaptureFrame ?? false,
+		captureRect: null,
 	};
 
 	const listeners = new Set<() => void>();
@@ -118,6 +137,19 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 				...state,
 				tiltLayers: has ? state.tiltLayers.filter((x) => x !== id) : [...state.tiltLayers, id],
 			};
+			notify();
+		},
+		setCaptureFrame(show) {
+			if (state.showCaptureFrame === show) return;
+			state = { ...state, showCaptureFrame: show };
+			notify();
+		},
+		toggleCaptureFrame() {
+			state = { ...state, showCaptureFrame: !state.showCaptureFrame };
+			notify();
+		},
+		setCaptureRect(rect) {
+			state = { ...state, captureRect: rect };
 			notify();
 		},
 		reset() {

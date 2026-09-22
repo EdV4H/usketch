@@ -40,6 +40,35 @@ export function SkyLayer({ store }: { store: Mode7Store }) {
 	);
 }
 
+/**
+ * The "capture frame": a fixed, world-anchored rectangle marking the region the 3D
+ * ground plane covered at the last switch-on. Shown only in FLAT mode (so it never
+ * fights the tilt) when the HUD toggle is on — it lets the user see which shapes fall
+ * inside the captured region vs. outside (outside = won't appear in the initial 3D
+ * view). It is a NON-tilted, non-fixed layer, so the viewport transform anchors it to
+ * world space; `zoom` (from the layer render ctx) keeps the border ~constant on screen.
+ */
+export function CaptureFrameLayer({ store, zoom }: { store: Mode7Store; zoom: number }) {
+	const { active, showCaptureFrame, captureRect } = useMode7(store);
+	if (active || !showCaptureFrame || !captureRect) return null;
+	const border = 2 / (zoom || 1); // world px → ~2 screen px under the viewport scale
+	return (
+		<div
+			style={{
+				position: "absolute",
+				left: captureRect.x,
+				top: captureRect.y,
+				width: captureRect.width,
+				height: captureRect.height,
+				boxSizing: "border-box",
+				border: `${border}px dashed rgba(80, 140, 255, 0.9)`,
+				background: "rgba(80, 140, 255, 0.06)",
+				pointerEvents: "none",
+			}}
+		/>
+	);
+}
+
 export function FogLayer({ store }: { store: Mode7Store }) {
 	const { active, camera, look } = useMode7(store);
 	if (!active || fogOpacity(look.fog) <= 0) return null;
