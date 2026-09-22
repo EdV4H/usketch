@@ -86,7 +86,24 @@ export function setupMode7Runtime(
 		}
 	};
 
+	// Re-apply when the layer set changes (new/re-created wrappers lose the style).
+	// Attached lazily: plugin setup runs BEFORE the Canvas mounts, so the container
+	// doesn't exist yet here — it's wired the first time one is found (e.g. the first
+	// toggle), not at setup.
+	let observer: MutationObserver | null = null;
+	const ensureObserver = (): void => {
+		if (observer) return;
+		const container = mainContainer();
+		if (container && typeof MutationObserver !== "undefined") {
+			observer = new MutationObserver(() => {
+				if (store.getState().active) applyTilt();
+			});
+			observer.observe(container, { childList: true });
+		}
+	};
+
 	const sync = (): void => {
+		ensureObserver();
 		if (store.getState().active) applyTilt();
 		else clearTilt();
 	};
@@ -123,17 +140,8 @@ export function setupMode7Runtime(
 	// Re-sync on camera / active changes.
 	const unsubscribe = store.subscribe(sync);
 
-	// Re-apply when the layer set changes (new/re-created wrappers lose the style).
-	let observer: MutationObserver | null = null;
-	const container = mainContainer();
-	if (container && typeof MutationObserver !== "undefined") {
-		observer = new MutationObserver(() => {
-			if (store.getState().active) applyTilt();
-		});
-		observer.observe(container, { childList: true });
-	}
-
-	// Initial apply (honors enabledInitially).
+	// Initial apply (honors enabledInitially; also attaches the observer if the
+	// container is already mounted).
 	sync();
 
 	return () => {
