@@ -69,11 +69,17 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		const stage = stageStyle(cam);
 		const tilt = layerTilt(cam);
 		const stageRule = `[${STAGE_ATTR}="on"]{perspective:${stage.perspective} !important;perspective-origin:${stage.perspectiveOrigin} !important;}`;
+		// `overflow:visible` + `transform-style:preserve-3d` are essential for layers
+		// like `dom-shapes`: their wrapper has `overflow:hidden` (which the CSS spec
+		// forces `transform-style` to `flat`) and an inner viewport-transform div that
+		// Chrome composites separately — so without these the SHAPES render flat in
+		// screen space while only the wrapper tilts. Overriding overflow keeps the
+		// whole subtree in the 3D context; the canvas container still clips.
 		const layerRules = store
 			.getState()
 			.tiltLayers.map(
 				(id) =>
-					`[${STAGE_ATTR}="on"]>[data-layer-id="${attrValue(id)}"]{transform:${tilt.transform} !important;transform-origin:${tilt.transformOrigin} !important;transform-style:flat;}`,
+					`[${STAGE_ATTR}="on"]>[data-layer-id="${attrValue(id)}"]{transform:${tilt.transform} !important;transform-origin:${tilt.transformOrigin} !important;overflow:visible !important;transform-style:preserve-3d !important;}`,
 			)
 			.join("");
 		styleEl.textContent = stageRule + layerRules;
