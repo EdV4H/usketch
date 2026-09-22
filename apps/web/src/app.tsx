@@ -23,6 +23,7 @@ import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
+import { createMode7Plugin } from "@edv4h/usketch-plugin-mode7";
 import { createPortalPlugin } from "@edv4h/usketch-plugin-portal";
 import { createPresenceActivityPlugin } from "@edv4h/usketch-plugin-presence-activity";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
@@ -205,6 +206,9 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		// ウィンドウシステム（画角固定 ＋ i3風タイル/自由配置）。dashboard と同じく
 		// container/free-position の後・autoEnable:false で opt-in（HUD「ウィンドウ化」）。
 		createWindowSystemPlugin({ autoEnable: false }),
+		// Mode 7（擬似3D地平面ビュー）。板コンテンツ層を CSS 3D で傾けるビューモード。
+		// 既定 OFF（HUD「3Dビュー切替」/ mode7:toggle で opt-in）。
+		createMode7Plugin(),
 		// 関連Shapeを「ぶちまける」— HUD の「関連Shapeをぶちまける」アクション。connector/
 		// container/free-position の後（関連解決 + 非重なり配置の土台が揃った後）。
 		createScatterPlugin(),
