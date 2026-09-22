@@ -66,17 +66,17 @@ describe("fogBackground / fogOpacity", () => {
 });
 
 describe("drawDistanceClip (canvas units)", () => {
-	it("距離 0 / 不正値は無制限 = null", () => {
-		expect(drawDistanceClip(0, 1, 784)).toBeNull();
-		expect(drawDistanceClip(-5, 1, 784)).toBeNull();
-		expect(drawDistanceClip(400, 0, 784)).toBeNull();
-		expect(drawDistanceClip(400, 1, 0)).toBeNull();
+	it("距離 0 / 不正値でも常に箱クリップ inset(0)（Shape が箱＝グリッド範囲で切れる）", () => {
+		expect(drawDistanceClip(0, 1, 784)).toBe("inset(0% 0% 0% 0%)");
+		expect(drawDistanceClip(-5, 1, 784)).toBe("inset(0% 0% 0% 0%)");
+		expect(drawDistanceClip(400, 0, 784)).toBe("inset(0% 0% 0% 0%)");
+		expect(drawDistanceClip(400, 1, 0)).toBe("inset(0% 0% 0% 0%)");
 	});
-	it("ビューポート全体を覆う距離は null（クリップ不要）", () => {
-		// bandPx = 2000*1 = 2000 >= 784
-		expect(drawDistanceClip(2000, 1, 784)).toBeNull();
+	it("ビューポート全体を覆う距離も箱クリップ inset(0)", () => {
+		// bandPx = 2000*1 = 2000 >= 784 → top は箱端(0)
+		expect(drawDistanceClip(2000, 1, 784)).toBe("inset(0% 0% 0% 0%)");
 	});
-	it("近傍 distance*zoom px 分だけ残す（上をカット）", () => {
+	it("有限距離は近傍 distance*zoom px 分だけ残す（上をカット）", () => {
 		// bandPx = 400 → insetTop = (1 - 400/800)*100 = 50
 		expect(drawDistanceClip(400, 1, 800)).toBe("inset(50% 0% 0% 0%)");
 	});

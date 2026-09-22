@@ -79,16 +79,16 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		if (!styleEl) return;
 		const { camera, drawDistance } = store.getState();
 		const { transform, transformOrigin } = tiltTransform(camera);
-		// Draw distance (canvas units): clip the far part of the ground off each tilted
-		// wrapper. It maps to screen px via the current zoom + container height, so this
-		// must re-run on viewport (zoom) changes. Safe on the 3D element (clip-path keeps
-		// the tilt, unlike overflow); null when unlimited or covering the whole view.
+		// Clip each tilted wrapper to its box (so overflow:visible doesn't float content
+		// past the grid), tightening the top for a finite draw distance. Distance is in
+		// canvas units → maps to px via the current zoom + container height, so this
+		// re-runs on viewport (zoom) changes. clip-path keeps the tilt (overflow flattens).
 		const clip = drawDistanceClip(
 			drawDistance,
 			ctx.store.getViewport().zoom,
 			container.getBoundingClientRect().height,
 		);
-		const clipRule = clip ? `clip-path:${clip} !important;` : "";
+		const clipRule = `clip-path:${clip} !important;`;
 		// `overflow:visible` + `transform-style:preserve-3d` are essential for layers
 		// like `dom-shapes`: their wrapper has `overflow:hidden` (which the CSS spec
 		// forces `transform-style` to `flat`) and an inner viewport-transform div that

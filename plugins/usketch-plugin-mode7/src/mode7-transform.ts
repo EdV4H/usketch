@@ -70,26 +70,25 @@ export function fogOpacity(density: number): number {
 }
 
 /**
- * Draw-distance clip for the tilted layer wrappers: a `clip-path` that cuts off the
- * FAR part of the ground so distant content isn't drawn. The distance is in **canvas
- * (world) units** measured forward from the near edge (bottom of the viewport): only
- * shapes within `distance` units of the near edge are kept. Since the tilt is applied
- * to the flat viewport plane, `distance` world-units map to `distance * zoom` screen
- * px at the bottom of the wrapper box; we clip everything above that band.
+ * The `clip-path` for the tilted layer wrappers. It ALWAYS clips to the wrapper box
+ * (`inset(0 …)`): the tilt uses `overflow:visible` to keep the 3D intact, which would
+ * otherwise reveal content ABOVE the box (past the horizon) — but the background grid
+ * only fills the box, so those far shapes float in the gridless sky. Clipping to the
+ * box makes the tilted content stop exactly where the grid does, so nothing floats.
  *
- * Returns `null` (no clip) when the distance is unlimited (`<= 0`) or already covers
- * the whole viewport (`distance * zoom >= viewportHeightPx`). Empirically `clip-path`
- * on the tilted wrapper keeps the 3D tilt intact (unlike `overflow`, which flattens).
+ * On top of that, a finite draw `distance` (in **canvas/world units**, measured
+ * forward from the near edge = bottom of the viewport) tightens the TOP further: only
+ * content within `distance` units of the near edge is kept. `distance` world-units map
+ * to `distance * zoom` screen px at the bottom of the wrapper box. `distance <= 0`
+ * (unlimited) or one that covers the whole viewport leaves the top at the box edge.
+ * `clip-path` keeps the 3D tilt intact (unlike `overflow`, which flattens).
  */
-export function drawDistanceClip(
-	distance: number,
-	zoom: number,
-	viewportHeightPx: number,
-): string | null {
-	if (!(distance > 0) || !(zoom > 0) || !(viewportHeightPx > 0)) return null;
-	const bandPx = distance * zoom;
-	if (bandPx >= viewportHeightPx) return null;
-	const insetTop = round((1 - bandPx / viewportHeightPx) * 100);
+export function drawDistanceClip(distance: number, zoom: number, viewportHeightPx: number): string {
+	let insetTop = 0;
+	if (distance > 0 && zoom > 0 && viewportHeightPx > 0) {
+		const bandPx = distance * zoom;
+		if (bandPx < viewportHeightPx) insetTop = round((1 - bandPx / viewportHeightPx) * 100);
+	}
 	return `inset(${insetTop}% 0% 0% 0%)`;
 }
 
