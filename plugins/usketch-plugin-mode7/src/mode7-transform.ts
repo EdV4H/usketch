@@ -2,41 +2,28 @@
 // Camera into the CSS 3D properties applied to the stage (canvas container) and the
 // tilted layer wrappers, plus the sky / fog gradients painted behind and in front.
 //
-// Canonical 3D scene: `perspective` lives on the STAGE (one shared vanishing point
-// for every tilted layer), and each layer wrapper carries `rotateX(pitch)
-// rotateZ(yaw)`. yaw spins the flat board (heading), pitch tilts it back into a
-// ground plane, and the shared perspective foreshortens it so far parts recede to
-// the horizon. The pivot is a horizontal line at `horizon` (origin Y), so content
-// above it recedes toward the vanishing line and content below comes toward the
+// The tilt is a self-contained transform applied to each selected layer wrapper:
+//   perspective(fov) rotateX(pitch) rotateZ(yaw)
+// The `perspective()` FUNCTION (rather than a `perspective` property on a parent) is
+// used deliberately — it foreshortens the wrapper's own rotateX without depending on
+// the wrapper being a direct child of a perspective element, which is what actually
+// makes the plane recede in 3D. yaw spins the flat board (heading), pitch tilts it
+// back into a ground plane. The pivot is a horizontal line at `horizon` (origin Y),
+// so content above it recedes toward the vanishing line and below comes toward the
 // viewer.
 import type { Camera } from "./mode7-camera.js";
 
-export interface StageStyle {
-	/** `perspective` for the stage (canvas container). */
-	perspective: string;
-	/** `perspective-origin` — the vanishing point (horizon). */
-	perspectiveOrigin: string;
-}
-
-export interface LayerTilt {
-	/** `transform` for a tilted layer wrapper. */
+export interface TiltTransform {
+	/** `transform` for a tilted layer wrapper (includes its own perspective). */
 	transform: string;
 	/** `transform-origin` — pivots the tilt about the horizon line. */
 	transformOrigin: string;
 }
 
-/** The perspective the stage container applies to all tilted layers. */
-export function stageStyle(cam: Camera): StageStyle {
+/** The full CSS transform (perspective + rotate) for a tilted layer wrapper. */
+export function tiltTransform(cam: Camera): TiltTransform {
 	return {
-		perspective: `${round(cam.fov)}px`,
-		perspectiveOrigin: `50% ${round(cam.horizon * 100)}%`,
-	};
-}
-
-/** The rotate transform each selected layer wrapper carries. */
-export function layerTilt(cam: Camera): LayerTilt {
-	return {
-		transform: `rotateX(${round(cam.pitch)}deg) rotateZ(${round(cam.yaw)}deg)`,
+		transform: `perspective(${round(cam.fov)}px) rotateX(${round(cam.pitch)}deg) rotateZ(${round(cam.yaw)}deg)`,
 		transformOrigin: `50% ${round(cam.horizon * 100)}%`,
 	};
 }

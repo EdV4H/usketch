@@ -7,11 +7,9 @@ export { getMode7Api, type Mode7Api, mode7Service } from "./mode7-service.js";
 export type { Look } from "./mode7-store.js";
 export {
 	fogBackground,
-	type LayerTilt,
-	layerTilt,
-	type StageStyle,
 	skyBackground,
-	stageStyle,
+	type TiltTransform,
+	tiltTransform,
 } from "./mode7-transform.js";
 export { createMode7Plugin, type Mode7PluginOptions } from "./plugin.js";
 export type {

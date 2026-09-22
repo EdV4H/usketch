@@ -1,20 +1,19 @@
 // The Mode 7 runtime: it turns the shared store's `active`/camera state into the
 // actual visual effect, without touching core coordinate math.
 //   1. Injects a single <style> sheet that tilts the selected board content layers
-//      into 3D — `perspective` on the main canvas container (one shared vanishing
-//      point) and `rotateX/rotateZ` on each selected layer wrapper
-//      (`[data-layer-id="…"]`). The container is marked with a `data-mode7-stage`
-//      attribute so the rules are scoped to it (not a minimap). Using a stylesheet
-//      with `!important` — rather than per-element inline styles — means React can't
-//      reconcile the transform away and it applies to layers that mount later, with
-//      no per-element querying or MutationObserver needed.
+//      into 3D — each selected layer wrapper (`[data-layer-id="…"]`) gets a
+//      self-contained `perspective(fov) rotateX rotateZ`. The main container is
+//      marked with a `data-mode7-stage` attribute so the rules are scoped to it (not
+//      a minimap). Using a stylesheet with `!important` — rather than per-element
+//      inline styles — means React can't reconcile the transform away and it applies
+//      to layers that mount later, with no per-element querying or MutationObserver.
 //   2. Registers the sky / fog / capture overlay layers (they self-gate on `active`).
 //   3. Drives the camera position: capture-layer drag pans the viewport (move over
 //      the ground) and wheel zooms — reusing the store's affine viewport.
 import type { PluginContext } from "@edv4h/usketch-shared";
 import { CaptureLayer, FogLayer, SkyLayer } from "./mode7-layers.js";
 import type { Mode7Store } from "./mode7-store.js";
-import { layerTilt, stageStyle } from "./mode7-transform.js";
+import { tiltTransform } from "./mode7-transform.js";
 
 /** The plugin's own layer ids (never tilted). */
 export const SKY_LAYER_ID = "mode7-sky";
@@ -65,24 +64,22 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		container.setAttribute(STAGE_ATTR, "on");
 		ensureStyleEl();
 		if (!styleEl) return;
-		const cam = store.getState().camera;
-		const stage = stageStyle(cam);
-		const tilt = layerTilt(cam);
-		const stageRule = `[${STAGE_ATTR}="on"]{perspective:${stage.perspective} !important;perspective-origin:${stage.perspectiveOrigin} !important;}`;
+		const { transform, transformOrigin } = tiltTransform(store.getState().camera);
 		// `overflow:visible` + `transform-style:preserve-3d` are essential for layers
 		// like `dom-shapes`: their wrapper has `overflow:hidden` (which the CSS spec
 		// forces `transform-style` to `flat`) and an inner viewport-transform div that
 		// Chrome composites separately — so without these the SHAPES render flat in
 		// screen space while only the wrapper tilts. Overriding overflow keeps the
 		// whole subtree in the 3D context; the canvas container still clips.
+		// A DESCENDANT selector (space, not `>`) matches the wrapper regardless of nesting.
 		const layerRules = store
 			.getState()
 			.tiltLayers.map(
 				(id) =>
-					`[${STAGE_ATTR}="on"]>[data-layer-id="${attrValue(id)}"]{transform:${tilt.transform} !important;transform-origin:${tilt.transformOrigin} !important;overflow:visible !important;transform-style:preserve-3d !important;}`,
+					`[${STAGE_ATTR}="on"] [data-layer-id="${attrValue(id)}"]{transform:${transform} !important;transform-origin:${transformOrigin} !important;overflow:visible !important;transform-style:preserve-3d !important;}`,
 			)
 			.join("");
-		styleEl.textContent = stageRule + layerRules;
+		styleEl.textContent = layerRules;
 	};
 
 	const clearAll = (): void => {
