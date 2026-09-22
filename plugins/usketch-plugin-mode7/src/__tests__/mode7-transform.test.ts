@@ -1,21 +1,35 @@
 import { describe, expect, it } from "vitest";
 import type { Camera } from "../mode7-camera.js";
-import { fogBackground, fogOpacity, rgba, skyBackground, tiltStyle } from "../mode7-transform.js";
+import {
+	fogBackground,
+	fogOpacity,
+	layerTilt,
+	rgba,
+	skyBackground,
+	stageStyle,
+} from "../mode7-transform.js";
 
 const CAM: Camera = { pitch: 55, yaw: 12, fov: 600, horizon: 0.45 };
 
-describe("tiltStyle", () => {
-	it("perspective→rotateX→rotateZ の順で transform を組む", () => {
-		const s = tiltStyle(CAM);
-		expect(s.transform).toBe("perspective(600px) rotateX(55deg) rotateZ(12deg)");
+describe("stageStyle", () => {
+	it("perspective は fov(px)、origin は横中央・horizon 割合", () => {
+		const s = stageStyle(CAM);
+		expect(s.perspective).toBe("600px");
+		expect(s.perspectiveOrigin).toBe("50% 45%");
+	});
+});
+
+describe("layerTilt", () => {
+	it("rotateX→rotateZ の順で transform を組む", () => {
+		expect(layerTilt(CAM).transform).toBe("rotateX(55deg) rotateZ(12deg)");
 	});
 	it("transform-origin は横中央・horizon 割合", () => {
-		expect(tiltStyle(CAM).transformOrigin).toBe("50% 45%");
+		expect(layerTilt(CAM).transformOrigin).toBe("50% 45%");
 	});
 	it("値は丸められる", () => {
-		const s = tiltStyle({ pitch: 55.00001, yaw: 0, fov: 600, horizon: 0.333 });
-		expect(s.transform).toBe("perspective(600px) rotateX(55deg) rotateZ(0deg)");
-		expect(s.transformOrigin).toBe("50% 33.3%");
+		const t = layerTilt({ pitch: 55.00001, yaw: 0, fov: 600, horizon: 0.333 });
+		expect(t.transform).toBe("rotateX(55deg) rotateZ(0deg)");
+		expect(t.transformOrigin).toBe("50% 33.3%");
 	});
 });
 
