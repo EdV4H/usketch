@@ -18,15 +18,6 @@ export const SKY_LAYER_ID = "mode7-sky";
 export const FOG_LAYER_ID = "mode7-fog";
 export const CAPTURE_LAYER_ID = "mode7-capture";
 
-/** Board content layers tilted by default (Shapes + backgrounds). Host-overridable. */
-export const DEFAULT_TILT_LAYER_IDS = [
-	"dom-shapes",
-	"gpu-shapes",
-	"bg-grid",
-	"bg-dots",
-	"island-metaball",
-];
-
 /** Wheel-zoom sensitivity (matches viewport-nav's deltaY-proportional feel). */
 const WHEEL_ZOOM = 0.0015;
 
@@ -46,44 +37,54 @@ function mainContainer(): HTMLElement | null {
 	return best;
 }
 
-export interface Mode7RuntimeOptions {
-	tiltLayerIds?: string[];
-}
-
 /**
- * Wire the runtime to a store. Returns a teardown that clears every injected
- * transform, unregisters the overlay layers, and drops all listeners.
+ * Wire the runtime to a store. The set of tilted layers is read live from the
+ * store (user-selectable via the HUD). Returns a teardown that clears every
+ * injected transform, unregisters the overlay layers, and drops all listeners.
  */
-export function setupMode7Runtime(
-	ctx: PluginContext,
-	store: Mode7Store,
-	options: Mode7RuntimeOptions = {},
-): () => void {
-	const tiltIds = options.tiltLayerIds ?? DEFAULT_TILT_LAYER_IDS;
+export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => void {
+	// Layer ids that currently carry an injected transform — so a layer removed from
+	// the selection (or a deactivate) is cleared without touching unrelated layers.
+	const applied = new Set<string>();
+
+	const clearOne = (container: HTMLElement, id: string): void => {
+		const el = container.querySelector<HTMLElement>(`[data-layer-id="${CSS.escape(id)}"]`);
+		if (el) {
+			el.style.transform = "";
+			el.style.transformOrigin = "";
+		}
+	};
 
 	const applyTilt = (): void => {
 		const container = mainContainer();
 		if (!container) return;
 		const { transform, transformOrigin } = tiltStyle(store.getState().camera);
-		for (const id of tiltIds) {
+		const desired = store.getState().tiltLayers;
+		const desiredSet = new Set(desired);
+		// Clear layers that left the selection.
+		for (const id of [...applied]) {
+			if (!desiredSet.has(id)) {
+				clearOne(container, id);
+				applied.delete(id);
+			}
+		}
+		// Apply / refresh the selected layers.
+		for (const id of desired) {
 			const el = container.querySelector<HTMLElement>(`[data-layer-id="${CSS.escape(id)}"]`);
 			if (el) {
 				el.style.transform = transform;
 				el.style.transformOrigin = transformOrigin;
+				applied.add(id);
 			}
 		}
 	};
 
-	const clearTilt = (): void => {
+	const clearAll = (): void => {
 		const container = mainContainer();
-		if (!container) return;
-		for (const id of tiltIds) {
-			const el = container.querySelector<HTMLElement>(`[data-layer-id="${CSS.escape(id)}"]`);
-			if (el) {
-				el.style.transform = "";
-				el.style.transformOrigin = "";
-			}
+		for (const id of [...applied]) {
+			if (container) clearOne(container, id);
 		}
+		applied.clear();
 	};
 
 	// Re-apply when the layer set changes (new/re-created wrappers lose the style).
@@ -105,7 +106,7 @@ export function setupMode7Runtime(
 	const sync = (): void => {
 		ensureObserver();
 		if (store.getState().active) applyTilt();
-		else clearTilt();
+		else clearAll();
 	};
 
 	// Camera drive from the capture layer (reuse the affine viewport).
@@ -145,7 +146,7 @@ export function setupMode7Runtime(
 	sync();
 
 	return () => {
-		clearTilt();
+		clearAll();
 		observer?.disconnect();
 		unsubscribe();
 		ctx.layers.unregister(SKY_LAYER_ID);

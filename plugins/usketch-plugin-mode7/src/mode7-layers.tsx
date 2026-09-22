@@ -6,6 +6,7 @@
 //              driving the camera (drag = move over the ground, wheel = zoom).
 // All three read the shared store via useSyncExternalStore and render nothing when
 // the view is inactive. They are registered ONCE and self-gate on `active`.
+import type { PluginContext } from "@edv4h/usketch-shared";
 import { type PointerEvent as ReactPointerEvent, useRef, useSyncExternalStore } from "react";
 import type { Mode7Store } from "./mode7-store.js";
 import { fogBackground, fogOpacity, skyBackground } from "./mode7-transform.js";
@@ -51,6 +52,62 @@ export function FogLayer({ store }: { store: Mode7Store }) {
 				background: fogBackground(look.fogColor, look.fog, camera.horizon),
 			}}
 		/>
+	);
+}
+
+/**
+ * A live checklist (contributed as a HUD panel) of the board's layers, letting the
+ * user pick which ones render in 3D — e.g. tick the Shape layer(s). Reads the layer
+ * list from `ctx.layers.getLayers()` at render (re-rendered on any store change) and
+ * excludes the control surfaces that must never tilt (HUD + the plugin's overlays).
+ */
+export function LayerPicker({
+	ctx,
+	store,
+	excluded,
+}: {
+	ctx: PluginContext;
+	store: Mode7Store;
+	excluded: readonly string[];
+}) {
+	const state = useMode7(store);
+	const selected = new Set(state.tiltLayers);
+	const excludedSet = new Set(excluded);
+	const layers = ctx.layers
+		.getLayers()
+		.filter((l) => !excludedSet.has(l.id))
+		.slice()
+		.sort((a, b) => a.order - b.order);
+
+	return (
+		<div
+			style={{ display: "flex", flexDirection: "column", gap: 4, opacity: state.active ? 1 : 0.55 }}
+		>
+			<div style={{ fontSize: 11, color: "var(--fg-tertiary, #888)" }}>3D にするレイヤー</div>
+			{layers.length === 0 ? (
+				<div style={{ fontSize: 11, color: "var(--fg-tertiary, #888)" }}>レイヤーがありません</div>
+			) : (
+				layers.map((l) => (
+					<label
+						key={l.id}
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: 6,
+							fontSize: 12,
+							cursor: "pointer",
+						}}
+					>
+						<input
+							type="checkbox"
+							checked={selected.has(l.id)}
+							onChange={() => store.toggleTiltLayer(l.id)}
+						/>
+						<span>{l.id}</span>
+					</label>
+				))
+			)}
+		</div>
 	);
 }
 

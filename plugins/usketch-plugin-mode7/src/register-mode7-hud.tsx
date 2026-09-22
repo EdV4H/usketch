@@ -1,13 +1,21 @@
-// HUD wiring — the plugin exposes no bespoke panel (per the plugin-system rules),
-// only a declarative settings group that drives the service. The camera OPERATIONS
+// HUD wiring — all UI is contributed to the shared HUD (per the plugin-system
+// rules): a declarative settings group (camera / look) that drives the service, plus
+// a small panel for picking which layers render in 3D. The camera OPERATIONS
 // (toggle / pitch / yaw / …) surface separately as actions (register-mode7-actions).
 import type { PluginContext } from "@edv4h/usketch-shared";
 import { CAMERA_LIMITS } from "./mode7-camera.js";
+import { LayerPicker } from "./mode7-layers.js";
 import type { Mode7Api } from "./mode7-service.js";
+import type { Mode7Store } from "./mode7-store.js";
 
-/** Register the Mode 7 settings group. Returns a teardown. */
-export function registerMode7Hud(ctx: PluginContext, api: Mode7Api): () => void {
-	return ctx.hud.registerSettings({
+/** Register the Mode 7 settings group + the layer picker panel. Returns a teardown. */
+export function registerMode7Hud(
+	ctx: PluginContext,
+	api: Mode7Api,
+	store: Mode7Store,
+	excludedLayerIds: readonly string[],
+): () => void {
+	const unregisterSettings = ctx.hud.registerSettings({
 		id: "usketch-plugin-mode7:settings",
 		label: "Mode 7 (3D ビュー)",
 		order: 14,
@@ -95,4 +103,16 @@ export function registerMode7Hud(ctx: PluginContext, api: Mode7Api): () => void 
 		},
 		subscribe: (listener) => api.onChange(listener),
 	});
+
+	const unregisterPanel = ctx.hud.registerPanel({
+		id: "usketch-plugin-mode7:layer-picker",
+		title: "Mode 7 レイヤー",
+		order: 15,
+		render: () => <LayerPicker ctx={ctx} store={store} excluded={excludedLayerIds} />,
+	});
+
+	return () => {
+		unregisterPanel();
+		unregisterSettings();
+	};
 }

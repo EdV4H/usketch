@@ -8,8 +8,9 @@
 - `perspective()+rotateX(pitch)+rotateZ(yaw)` の **CSS 3D 変換を「板コンテンツ層」の外側ラッパ div に注入**する。
   各レイヤーは `canvas.tsx` で `data-layer-id` 付き div にラップされ、その外側 `transform` は React 非管理なので
   注入が再レンダで消えない（`MutationObserver` で層の増減にも追従）。コアの座標変換（affine `{x,y,zoom}`）には触れない。
-- 傾ける対象は **allow 方式**（既定 `dom-shapes`/`gpu-shapes`/`bg-grid`/`bg-dots`/`island-metaball`）。
-  HUD・選択ハンドル・各種バナー等の UI 層は傾けない。
+- 傾ける対象は **allow 方式**（既定 `dom-shapes`/`gpu-shapes`/`bg-grid`/`bg-dots`/`island-metaball`）で、
+  **HUD の「Mode 7 レイヤー」パネルから実行時に選択できる**（例: Shape 層のオン/オフ）。HUD 自身や
+  プラグインの sky/fog/capture 層は選択肢から除外され、絶対に傾かない（`skipLayerIds` で除外を追加可）。
 - **sky / fog / capture** の3つの非傾斜オーバーレイ層を追加。capture 層が板のポインタを捕捉して
   3D 下での編集破綻を防ぎ、ドラッグ=地上移動（viewport pan）・wheel=ズームでカメラを操作する。
 - 状態は**ビュー限定（per-viewer・非永続・非同期）** ＝ shape 化しない（presentation と同類）。
@@ -65,7 +66,8 @@ api?.setYaw(30);
 ```
 
 `Mode7Api`: `isActive` / `enable` / `disable` / `toggle` / `getCamera` / `setPitch` / `setYaw` /
-`setFov` / `setHorizon` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` / `onChange`。
+`setFov` / `setHorizon` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
+`getTiltLayers` / `setTiltLayers` / `toggleTiltLayer` / `onChange`。
 
 ## スコープ外（v2 送り）
 

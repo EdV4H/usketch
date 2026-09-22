@@ -6,7 +6,12 @@
 // the HUD "3Dビュー切替" action, the service, or an emitted `mode7:toggle` event.
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
-import { setupMode7Runtime } from "./mode7-runtime.js";
+import {
+	CAPTURE_LAYER_ID,
+	FOG_LAYER_ID,
+	SKY_LAYER_ID,
+	setupMode7Runtime,
+} from "./mode7-runtime.js";
 import { createMode7Api, mode7Service } from "./mode7-service.js";
 import { createMode7Store, type Look } from "./mode7-store.js";
 import { type Mode7Shortcuts, registerMode7Actions } from "./register-mode7-actions.js";
@@ -19,8 +24,12 @@ export interface Mode7PluginOptions {
 	camera?: Partial<Camera>;
 	/** Initial appearance (sky / fog). */
 	look?: Partial<Look>;
-	/** Board content layer ids to tilt (default: Shapes + backgrounds). */
+	/** Initial set of tilted layer ids (default: Shapes + backgrounds). The set is
+	 *  also selectable at runtime via the HUD layer picker. */
 	tiltLayerIds?: string[];
+	/** Layer ids the runtime picker must never offer (in addition to the plugin's own
+	 *  overlays and the HUD, which are always excluded). */
+	skipLayerIds?: string[];
 	/** Keyboard shortcut bindings (opt-in; no defaults). */
 	shortcuts?: Mode7Shortcuts;
 }
@@ -30,16 +39,26 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 		active: options.enabledInitially ?? false,
 		camera: options.camera,
 		look: options.look,
+		tiltLayers: options.tiltLayerIds,
 	});
 	const api = createMode7Api(store);
+	// Layers the picker must never tilt (tilting the HUD or our own overlays makes
+	// no sense and could hide the very controls used to turn the view off).
+	const excludedLayerIds = [
+		SKY_LAYER_ID,
+		FOG_LAYER_ID,
+		CAPTURE_LAYER_ID,
+		"debug-hud",
+		...(options.skipLayerIds ?? []),
+	];
 
 	return {
 		id: "usketch-plugin-mode7",
 		name: "Mode 7 (3D ビュー)",
 		setup(ctx: PluginContext) {
-			const stopRuntime = setupMode7Runtime(ctx, store, { tiltLayerIds: options.tiltLayerIds });
+			const stopRuntime = setupMode7Runtime(ctx, store);
 			const stopActions = registerMode7Actions(ctx, api, options.shortcuts);
-			const stopHud = registerMode7Hud(ctx, api);
+			const stopHud = registerMode7Hud(ctx, api, store, excludedLayerIds);
 			// Provide the service LAST so a failed earlier step can't leak it.
 			const unprovideService = mode7Service.provide(ctx.services, api);
 

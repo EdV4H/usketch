@@ -16,16 +16,29 @@ export interface Look {
 
 export const DEFAULT_LOOK: Look = { sky: "#0b1026", fog: 0.35, fogColor: "#0b1026" };
 
+/** Board content layers tilted by default (Shapes + backgrounds). The set is
+ *  runtime-selectable via the HUD, so this is only the starting selection. */
+export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
+	"dom-shapes",
+	"gpu-shapes",
+	"bg-grid",
+	"bg-dots",
+	"island-metaball",
+];
+
 export interface Mode7State {
 	active: boolean;
 	camera: Camera;
 	look: Look;
+	/** Layer ids currently rendered in 3D (user-selectable at runtime). */
+	tiltLayers: string[];
 }
 
 export interface Mode7Init {
 	active?: boolean;
 	camera?: Partial<Camera>;
 	look?: Partial<Look>;
+	tiltLayers?: readonly string[];
 }
 
 export interface Mode7Store {
@@ -36,13 +49,22 @@ export interface Mode7Store {
 	setCamera(patch: Partial<Camera>): void;
 	adjustCamera(delta: Partial<Camera>): void;
 	setLook(patch: Partial<Look>): void;
+	/** Replace the whole set of tilted layer ids. */
+	setTiltLayers(ids: readonly string[]): void;
+	/** Add/remove one layer id from the tilted set. */
+	toggleTiltLayer(id: string): void;
 	reset(): void;
 }
 
 export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 	const baseCamera = clampCamera({ ...DEFAULT_CAMERA, ...init.camera });
 	const baseLook: Look = { ...DEFAULT_LOOK, ...init.look };
-	let state: Mode7State = { active: init.active ?? false, camera: baseCamera, look: baseLook };
+	let state: Mode7State = {
+		active: init.active ?? false,
+		camera: baseCamera,
+		look: baseLook,
+		tiltLayers: [...(init.tiltLayers ?? DEFAULT_TILT_LAYER_IDS)],
+	};
 
 	const listeners = new Set<() => void>();
 	const notify = () => {
@@ -84,6 +106,18 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 		},
 		setLook(patch) {
 			state = { ...state, look: { ...state.look, ...patch } };
+			notify();
+		},
+		setTiltLayers(ids) {
+			state = { ...state, tiltLayers: [...new Set(ids)] };
+			notify();
+		},
+		toggleTiltLayer(id) {
+			const has = state.tiltLayers.includes(id);
+			state = {
+				...state,
+				tiltLayers: has ? state.tiltLayers.filter((x) => x !== id) : [...state.tiltLayers, id],
+			};
 			notify();
 		},
 		reset() {

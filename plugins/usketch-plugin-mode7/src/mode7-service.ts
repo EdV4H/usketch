@@ -26,7 +26,13 @@ export interface Mode7Api {
 	setFogColor(color: string): void;
 	/** Restore the camera + look to the plugin's configured defaults. */
 	reset(): void;
-	/** Fire on any active/camera/look change. Returns an unsubscribe. */
+	/** The layer ids currently rendered in 3D. */
+	getTiltLayers(): readonly string[];
+	/** Replace the whole set of tilted layer ids. */
+	setTiltLayers(ids: readonly string[]): void;
+	/** Add/remove one layer id from the tilted set. */
+	toggleTiltLayer(id: string): void;
+	/** Fire on any active/camera/look/tilt-layer change. Returns an unsubscribe. */
 	onChange(listener: () => void): () => void;
 }
 
@@ -49,6 +55,9 @@ export function createMode7Api(store: Mode7Store): Mode7Api {
 		setFog: (density) => store.setLook({ fog: density }),
 		setFogColor: (color) => store.setLook({ fogColor: color }),
 		reset: () => store.reset(),
+		getTiltLayers: () => store.getState().tiltLayers,
+		setTiltLayers: (ids) => store.setTiltLayers(ids),
+		toggleTiltLayer: (id) => store.toggleTiltLayer(id),
 		onChange: (listener) => store.subscribe(listener),
 	};
 }
