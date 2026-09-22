@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Camera } from "../mode7-camera.js";
 import {
 	drawDistanceClip,
+	drawDistanceOverscanPx,
 	fogBackground,
 	fogOpacity,
 	rgba,
@@ -66,22 +67,36 @@ describe("fogBackground / fogOpacity", () => {
 });
 
 describe("drawDistanceClip (canvas units)", () => {
-	it("距離 0 / 不正値でも常に箱クリップ inset(0)（Shape が箱＝グリッド範囲で切れる）", () => {
+	it("距離 0 / 不正値は auto = 箱クリップ inset(0)", () => {
 		expect(drawDistanceClip(0, 1, 784)).toBe("inset(0% 0% 0% 0%)");
 		expect(drawDistanceClip(-5, 1, 784)).toBe("inset(0% 0% 0% 0%)");
 		expect(drawDistanceClip(400, 0, 784)).toBe("inset(0% 0% 0% 0%)");
 		expect(drawDistanceClip(400, 1, 0)).toBe("inset(0% 0% 0% 0%)");
 	});
-	it("ビューポート全体を覆う距離も箱クリップ inset(0)", () => {
-		// bandPx = 2000*1 = 2000 >= 784 → top は箱端(0)
-		expect(drawDistanceClip(2000, 1, 784)).toBe("inset(0% 0% 0% 0%)");
-	});
-	it("有限距離は近傍 distance*zoom px 分だけ残す（上をカット）", () => {
+	it("箱内の距離は正 inset（手前だけ残す）", () => {
 		// bandPx = 400 → insetTop = (1 - 400/800)*100 = 50
 		expect(drawDistanceClip(400, 1, 800)).toBe("inset(50% 0% 0% 0%)");
+	});
+	it("箱を超える距離は負 inset（箱の外まで描く）", () => {
+		// bandPx = 1568 > 784 → insetTop = (1 - 1568/784)*100 = -100
+		expect(drawDistanceClip(1568, 1, 784)).toBe("inset(-100% 0% 0% 0%)");
 	});
 	it("ズームで px 換算が変わる", () => {
 		// distance 400 canvas, zoom 0.5 → bandPx 200 → insetTop (1-200/800)*100 = 75
 		expect(drawDistanceClip(400, 0.5, 800)).toBe("inset(75% 0% 0% 0%)");
+	});
+});
+
+describe("drawDistanceOverscanPx", () => {
+	it("箱内 / auto / 不正値は 0（延長不要）", () => {
+		expect(drawDistanceOverscanPx(0, 1, 800)).toBe(0);
+		expect(drawDistanceOverscanPx(400, 1, 800)).toBe(0); // bandPx 400 < 800
+		expect(drawDistanceOverscanPx(400, 0, 800)).toBe(0);
+	});
+	it("箱超え分の px を返す（grid をそこまで延長）", () => {
+		// bandPx 1200 - 800 = 400
+		expect(drawDistanceOverscanPx(1200, 1, 800)).toBe(400);
+		// zoom 0.5: bandPx 500 - 400 = 100
+		expect(drawDistanceOverscanPx(1000, 0.5, 400)).toBe(100);
 	});
 });

@@ -13,7 +13,7 @@
 import type { BoundingBox, PluginContext } from "@edv4h/usketch-shared";
 import { CaptureFrameLayer, CaptureLayer, FogLayer, SkyLayer } from "./mode7-layers.js";
 import type { Mode7Store } from "./mode7-store.js";
-import { drawDistanceClip, tiltTransform } from "./mode7-transform.js";
+import { drawDistanceClip, drawDistanceOverscanPx, tiltTransform } from "./mode7-transform.js";
 
 /** The plugin's own layer ids (never tilted). */
 export const SKY_LAYER_ID = "mode7-sky";
@@ -23,6 +23,9 @@ export const CAPTURE_FRAME_LAYER_ID = "mode7-capture-frame";
 
 /** Wheel-zoom sensitivity (matches viewport-nav's deltaY-proportional feel). */
 const WHEEL_ZOOM = 0.0015;
+
+/** Extra px added to the grid overscan so it comfortably covers the clip line (rounding). */
+const OVERSCAN_BUFFER = 16;
 
 /**
  * The main canvas container: the element that directly wraps the board's layer
@@ -71,6 +74,16 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 	/** Keep an attribute-selector value valid (layer ids are simple, but be safe). */
 	const attrValue = (id: string): string => id.replace(/["\\]/g, "");
 
+	// Drive the background grid's overscan (only re-emit on change) so it extends past the
+	// viewport to stay under the far content a large draw distance reveals. No package
+	// dependency on bg-grid — a plain event it listens for (a no-op if bg-grid is absent).
+	let lastOverscan = -1;
+	const driveGridOverscan = (px: number): void => {
+		if (px === lastOverscan) return;
+		lastOverscan = px;
+		ctx.events.emit("bg-grid:set-overscan", { px });
+	};
+
 	const applyTilt = (): void => {
 		const container = mainContainer();
 		if (!container) return;
@@ -79,15 +92,16 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		if (!styleEl) return;
 		const { camera, drawDistance } = store.getState();
 		const { transform, transformOrigin } = tiltTransform(camera);
-		// Clip each tilted wrapper to its box (so overflow:visible doesn't float content
-		// past the grid), tightening the top for a finite draw distance. Distance is in
-		// canvas units → maps to px via the current zoom + container height, so this
-		// re-runs on viewport (zoom) changes. clip-path keeps the tilt (overflow flattens).
-		const clip = drawDistanceClip(
-			drawDistance,
-			ctx.store.getViewport().zoom,
-			container.getBoundingClientRect().height,
-		);
+		// Clip each tilted wrapper (so overflow:visible doesn't float content past the
+		// grid); a finite draw distance tightens the top, one beyond the viewport lets it
+		// extend (negative inset) with the grid overscanned to match. Distance is canvas
+		// units → maps to px via zoom + container height, so this re-runs on viewport (zoom)
+		// changes. clip-path keeps the tilt (overflow flattens).
+		const zoom = ctx.store.getViewport().zoom;
+		const heightPx = container.getBoundingClientRect().height;
+		const clip = drawDistanceClip(drawDistance, zoom, heightPx);
+		const overscan = drawDistanceOverscanPx(drawDistance, zoom, heightPx);
+		driveGridOverscan(overscan > 0 ? overscan + OVERSCAN_BUFFER : 0);
 		const clipRule = `clip-path:${clip} !important;`;
 		// `overflow:visible` + `transform-style:preserve-3d` are essential for layers
 		// like `dom-shapes`: their wrapper has `overflow:hidden` (which the CSS spec
@@ -111,6 +125,7 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		if (typeof document !== "undefined") {
 			for (const el of document.querySelectorAll(`[${STAGE_ATTR}]`)) el.removeAttribute(STAGE_ATTR);
 		}
+		driveGridOverscan(0); // restore the grid to the viewport when the view is off
 	};
 
 	/**

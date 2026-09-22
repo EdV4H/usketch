@@ -70,26 +70,42 @@ export function fogOpacity(density: number): number {
 }
 
 /**
- * The `clip-path` for the tilted layer wrappers. It ALWAYS clips to the wrapper box
- * (`inset(0 …)`): the tilt uses `overflow:visible` to keep the 3D intact, which would
- * otherwise reveal content ABOVE the box (past the horizon) — but the background grid
- * only fills the box, so those far shapes float in the gridless sky. Clipping to the
- * box makes the tilted content stop exactly where the grid does, so nothing floats.
+ * The `clip-path` for the tilted layer wrappers. The tilt uses `overflow:visible` to
+ * keep the 3D intact, which would otherwise let content float PAST the grid; the clip
+ * bounds the tilted content instead.
  *
- * On top of that, a finite draw `distance` (in **canvas/world units**, measured
- * forward from the near edge = bottom of the viewport) tightens the TOP further: only
- * content within `distance` units of the near edge is kept. `distance` world-units map
- * to `distance * zoom` screen px at the bottom of the wrapper box. `distance <= 0`
- * (unlimited) or one that covers the whole viewport leaves the top at the box edge.
- * `clip-path` keeps the 3D tilt intact (unlike `overflow`, which flattens).
+ * `distance` is the draw distance in **canvas/world units** measured forward from the
+ * near edge (bottom of the viewport). `distance <= 0` means "auto": clip exactly to the
+ * box (`inset(0)` — nothing floats past the grid, no overscan). A positive `distance`
+ * maps to `distance * zoom` screen px at the bottom of the wrapper box:
+ *   - within the box (`distance*zoom < height`) → positive inset (a closer cutoff);
+ *   - beyond the box (`distance*zoom > height`) → NEGATIVE inset, i.e. the clip extends
+ *     above the box so content farther than the viewport is drawn. The background grid
+ *     must be extended to match (see {@link drawDistanceOverscanPx}) or that far content
+ *     would float; `clip-path` keeps the 3D tilt intact (unlike `overflow`, flattening).
  */
 export function drawDistanceClip(distance: number, zoom: number, viewportHeightPx: number): string {
 	let insetTop = 0;
 	if (distance > 0 && zoom > 0 && viewportHeightPx > 0) {
-		const bandPx = distance * zoom;
-		if (bandPx < viewportHeightPx) insetTop = round((1 - bandPx / viewportHeightPx) * 100);
+		insetTop = round((1 - (distance * zoom) / viewportHeightPx) * 100);
 	}
 	return `inset(${insetTop}% 0% 0% 0%)`;
+}
+
+/**
+ * The px the background grid must extend ABOVE/BEYOND the viewport box to stay under the
+ * content that {@link drawDistanceClip} reveals for a draw `distance` larger than the
+ * viewport. `0` when the distance is auto/within the box (no extension needed). This is
+ * driven into the grid via the `bg-grid:set-overscan` event so grid + shapes end together.
+ */
+export function drawDistanceOverscanPx(
+	distance: number,
+	zoom: number,
+	viewportHeightPx: number,
+): number {
+	if (!(distance > 0) || !(zoom > 0) || !(viewportHeightPx > 0)) return 0;
+	const bandPx = distance * zoom;
+	return bandPx > viewportHeightPx ? Math.ceil(bandPx - viewportHeightPx) : 0;
 }
 
 // ── helpers ──
