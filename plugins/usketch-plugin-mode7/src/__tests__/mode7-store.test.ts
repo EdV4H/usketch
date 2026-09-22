@@ -41,24 +41,24 @@ describe("createMode7Store — capture frame", () => {
 	});
 });
 
-describe("createMode7Store — draw distance", () => {
-	it("既定は 1（full）", () => {
-		expect(createMode7Store().getState().drawDistance).toBe(1);
+describe("createMode7Store — draw distance (canvas units)", () => {
+	it("既定は 0（無制限）", () => {
+		expect(createMode7Store().getState().drawDistance).toBe(0);
 	});
-	it("init.drawDistance はクランプして反映", () => {
-		expect(createMode7Store({ drawDistance: 0.4 }).getState().drawDistance).toBe(0.4);
-		expect(createMode7Store({ drawDistance: 5 }).getState().drawDistance).toBe(1);
+	it("init.drawDistance は反映、負値/不正値は 0", () => {
+		expect(createMode7Store({ drawDistance: 3000 }).getState().drawDistance).toBe(3000);
 		expect(createMode7Store({ drawDistance: -2 }).getState().drawDistance).toBe(0);
+		expect(createMode7Store({ drawDistance: Number.NaN }).getState().drawDistance).toBe(0);
 	});
 	it("setDrawDistance はクランプし、同値なら通知しない", () => {
 		const s = createMode7Store();
 		let n = 0;
 		s.subscribe(() => n++);
-		s.setDrawDistance(2); // クランプで 1 = 既定と同値
-		expect(s.getState().drawDistance).toBe(1);
+		s.setDrawDistance(-1); // クランプで 0 = 既定と同値
+		expect(s.getState().drawDistance).toBe(0);
 		expect(n).toBe(0);
-		s.setDrawDistance(0.6);
-		expect(s.getState().drawDistance).toBe(0.6);
+		s.setDrawDistance(2500);
+		expect(s.getState().drawDistance).toBe(2500);
 		expect(n).toBe(1);
 	});
 });

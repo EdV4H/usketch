@@ -71,18 +71,25 @@ export function fogOpacity(density: number): number {
 
 /**
  * Draw-distance clip for the tilted layer wrappers: a `clip-path` that cuts off the
- * FAR part of the ground (the top of the wrapper box, which the tilt sends toward the
- * horizon) so distant content isn't drawn. `drawDistance` 0..1 is how far toward the
- * horizon to draw (1 = all the way, no clip → returns `null`; smaller = closer cutoff).
- * The cut line runs from the horizon (at full) down toward the near edge (at 0), so it
- * only ever bites into the ground, never the near foreground. Empirically `clip-path`
+ * FAR part of the ground so distant content isn't drawn. The distance is in **canvas
+ * (world) units** measured forward from the near edge (bottom of the viewport): only
+ * shapes within `distance` units of the near edge are kept. Since the tilt is applied
+ * to the flat viewport plane, `distance` world-units map to `distance * zoom` screen
+ * px at the bottom of the wrapper box; we clip everything above that band.
+ *
+ * Returns `null` (no clip) when the distance is unlimited (`<= 0`) or already covers
+ * the whole viewport (`distance * zoom >= viewportHeightPx`). Empirically `clip-path`
  * on the tilted wrapper keeps the 3D tilt intact (unlike `overflow`, which flattens).
  */
-export function drawDistanceClip(drawDistance: number, horizon: number): string | null {
-	const d = clamp01(drawDistance);
-	if (d >= 1) return null;
-	const h = round(clamp01(horizon) * 100);
-	const insetTop = round(h + (1 - d) * (100 - h));
+export function drawDistanceClip(
+	distance: number,
+	zoom: number,
+	viewportHeightPx: number,
+): string | null {
+	if (!(distance > 0) || !(zoom > 0) || !(viewportHeightPx > 0)) return null;
+	const bandPx = distance * zoom;
+	if (bandPx >= viewportHeightPx) return null;
+	const insetTop = round((1 - bandPx / viewportHeightPx) * 100);
 	return `inset(${insetTop}% 0% 0% 0%)`;
 }
 

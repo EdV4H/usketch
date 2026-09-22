@@ -65,17 +65,23 @@ describe("fogBackground / fogOpacity", () => {
 	});
 });
 
-describe("drawDistanceClip", () => {
-	it("full(1 以上)はクリップ無し = null", () => {
-		expect(drawDistanceClip(1, 0.45)).toBeNull();
-		expect(drawDistanceClip(1.5, 0.45)).toBeNull();
+describe("drawDistanceClip (canvas units)", () => {
+	it("距離 0 / 不正値は無制限 = null", () => {
+		expect(drawDistanceClip(0, 1, 784)).toBeNull();
+		expect(drawDistanceClip(-5, 1, 784)).toBeNull();
+		expect(drawDistanceClip(400, 0, 784)).toBeNull();
+		expect(drawDistanceClip(400, 1, 0)).toBeNull();
 	});
-	it("カット線は horizon〜下端の間（地面のみ削る）", () => {
-		// horizon 0.45 → h=45; d=0.5 → insetTop = 45 + 0.5*55 = 72.5
-		expect(drawDistanceClip(0.5, 0.45)).toBe("inset(72.5% 0% 0% 0%)");
+	it("ビューポート全体を覆う距離は null（クリップ不要）", () => {
+		// bandPx = 2000*1 = 2000 >= 784
+		expect(drawDistanceClip(2000, 1, 784)).toBeNull();
 	});
-	it("d=0 は全カット(100%)、値はクランプ", () => {
-		expect(drawDistanceClip(0, 0.45)).toBe("inset(100% 0% 0% 0%)");
-		expect(drawDistanceClip(-1, 0.45)).toBe("inset(100% 0% 0% 0%)");
+	it("近傍 distance*zoom px 分だけ残す（上をカット）", () => {
+		// bandPx = 400 → insetTop = (1 - 400/800)*100 = 50
+		expect(drawDistanceClip(400, 1, 800)).toBe("inset(50% 0% 0% 0%)");
+	});
+	it("ズームで px 換算が変わる", () => {
+		// distance 400 canvas, zoom 0.5 → bandPx 200 → insetTop (1-200/800)*100 = 75
+		expect(drawDistanceClip(400, 0.5, 800)).toBe("inset(75% 0% 0% 0%)");
 	});
 });

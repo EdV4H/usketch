@@ -79,9 +79,15 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		if (!styleEl) return;
 		const { camera, drawDistance } = store.getState();
 		const { transform, transformOrigin } = tiltTransform(camera);
-		// Draw distance: clip the far part of the ground off each tilted wrapper. Safe
-		// on the 3D element (clip-path keeps the tilt, unlike overflow); null at full.
-		const clip = drawDistanceClip(drawDistance, camera.horizon);
+		// Draw distance (canvas units): clip the far part of the ground off each tilted
+		// wrapper. It maps to screen px via the current zoom + container height, so this
+		// must re-run on viewport (zoom) changes. Safe on the 3D element (clip-path keeps
+		// the tilt, unlike overflow); null when unlimited or covering the whole view.
+		const clip = drawDistanceClip(
+			drawDistance,
+			ctx.store.getViewport().zoom,
+			container.getBoundingClientRect().height,
+		);
 		const clipRule = clip ? `clip-path:${clip} !important;` : "";
 		// `overflow:visible` + `transform-style:preserve-3d` are essential for layers
 		// like `dom-shapes`: their wrapper has `overflow:hidden` (which the CSS spec
@@ -187,6 +193,17 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 	// Re-sync on active / camera / tilt-layer changes.
 	const unsubscribe = store.subscribe(sync);
 
+	// The draw-distance clip is in canvas units → depends on the board zoom + container
+	// height, so re-apply the tilt on viewport changes and window resize while active.
+	const reapplyIfActive = (): void => {
+		if (store.getState().active) applyTilt();
+	};
+	const offViewport = ctx.store.onMutation((e) => {
+		if (e.type === "viewport:changed") reapplyIfActive();
+	});
+	const onResize = typeof window !== "undefined" ? reapplyIfActive : null;
+	if (onResize) window.addEventListener("resize", onResize);
+
 	// Initial apply (honors enabledInitially).
 	sync();
 
@@ -195,6 +212,8 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		styleEl?.remove();
 		styleEl = null;
 		unsubscribe();
+		offViewport();
+		if (onResize) window.removeEventListener("resize", onResize);
 		ctx.layers.unregister(SKY_LAYER_ID);
 		ctx.layers.unregister(FOG_LAYER_ID);
 		ctx.layers.unregister(CAPTURE_LAYER_ID);

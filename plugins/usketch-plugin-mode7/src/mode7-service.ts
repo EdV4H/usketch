@@ -32,9 +32,9 @@ export interface Mode7Api {
 	setTiltLayers(ids: readonly string[]): void;
 	/** Add/remove one layer id from the tilted set. */
 	toggleTiltLayer(id: string): void;
-	/** How far toward the horizon the ground is drawn, 0..1. */
+	/** Ground draw distance in canvas (world) units (`0` = unlimited). */
 	getDrawDistance(): number;
-	/** Set the ground draw distance, 0..1 (1 = to the horizon; smaller = closer cutoff). */
+	/** Set the ground draw distance in canvas units (`0` = unlimited; hides content beyond). */
 	setDrawDistance(distance: number): void;
 	/** Whether the flat-mode capture-frame overlay is shown. */
 	isCaptureFrameVisible(): boolean;

@@ -40,7 +40,14 @@ export function registerMode7Hud(
 				step: 50,
 			},
 			{ name: "horizon", label: "地平線(%)", type: "number", min: 10, max: 90, step: 5 },
-			{ name: "drawDistance", label: "描画距離(%)", type: "number", min: 10, max: 100, step: 5 },
+			{
+				name: "drawDistance",
+				label: "描画距離(Canvas)",
+				type: "number",
+				min: 0,
+				max: 50000,
+				step: 500,
+			},
 			{ name: "fog", label: "フォグ(%)", type: "number", min: 0, max: 100, step: 5 },
 			{ name: "sky", label: "空色", type: "color" },
 			{ name: "fogColor", label: "フォグ色", type: "color" },
@@ -62,7 +69,7 @@ export function registerMode7Hud(
 				case "horizon":
 					return Math.round(cam.horizon * 100);
 				case "drawDistance":
-					return Math.round(api.getDrawDistance() * 100);
+					return Math.round(api.getDrawDistance());
 				case "fog":
 					return Math.round(look.fog * 100);
 				case "sky":
@@ -107,7 +114,7 @@ export function registerMode7Hud(
 					api.setHorizon(n / 100);
 					break;
 				case "drawDistance":
-					api.setDrawDistance(n / 100);
+					api.setDrawDistance(n);
 					break;
 				case "fog":
 					api.setFog(n / 100);

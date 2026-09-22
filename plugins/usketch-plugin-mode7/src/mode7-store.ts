@@ -17,10 +17,10 @@ export interface Look {
 
 export const DEFAULT_LOOK: Look = { sky: "#0b1026", fog: 0.35, fogColor: "#0b1026" };
 
-/** Clamp a value into 0..1 (non-finite → 1, the "full draw distance" default). */
-function clampUnit(n: number): number {
-	if (!Number.isFinite(n)) return 1;
-	return Math.min(1, Math.max(0, n));
+/** Clamp a draw distance (canvas units, `>= 0`; non-finite / negative → 0 = unlimited). */
+function clampDistance(n: number): number {
+	if (!Number.isFinite(n) || n < 0) return 0;
+	return n;
 }
 
 /**
@@ -67,8 +67,8 @@ export interface Mode7State {
 	look: Look;
 	/** Layer ids currently rendered in 3D (user-selectable at runtime). */
 	tiltLayers: string[];
-	/** How far toward the horizon the ground is drawn, 0..1 (1 = to the horizon / no
-	 *  clip; smaller = a closer far-cutoff that hides distant content). */
+	/** How far the ground is drawn, in **canvas (world) units** measured forward from the
+	 *  near edge (`0` = unlimited / no clip; a positive value hides content beyond it). */
 	drawDistance: number;
 	/** Whether to draw the "capture frame" overlay in flat mode (HUD toggle). */
 	showCaptureFrame: boolean;
@@ -102,7 +102,7 @@ export interface Mode7Store {
 	setTiltLayers(ids: readonly string[]): void;
 	/** Add/remove one layer id from the tilted set. */
 	toggleTiltLayer(id: string): void;
-	/** Set the ground draw distance, 0..1 (clamped). */
+	/** Set the ground draw distance in canvas units (`0` = unlimited; clamped `>= 0`). */
 	setDrawDistance(distance: number): void;
 	/** Show/hide the flat-mode capture-frame overlay. */
 	setCaptureFrame(show: boolean): void;
@@ -121,7 +121,7 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 		camera: baseCamera,
 		look: baseLook,
 		tiltLayers: [...(init.tiltLayers ?? DEFAULT_TILT_LAYER_IDS)],
-		drawDistance: clampUnit(init.drawDistance ?? 1),
+		drawDistance: clampDistance(init.drawDistance ?? 0),
 		showCaptureFrame: init.showCaptureFrame ?? false,
 		captureRect: null,
 	};
@@ -181,7 +181,7 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 			notify();
 		},
 		setDrawDistance(distance) {
-			const d = clampUnit(distance);
+			const d = clampDistance(distance);
 			if (state.drawDistance === d) return;
 			state = { ...state, drawDistance: d };
 			notify();
