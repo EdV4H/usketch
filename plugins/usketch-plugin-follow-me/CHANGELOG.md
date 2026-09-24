@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-follow-me
 
+## 2.1.11
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+
 ## 2.1.10
 
 ### Patch Changes

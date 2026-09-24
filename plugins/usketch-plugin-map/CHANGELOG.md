@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-map
 
+## 0.13.4
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-store@3.8.0
+
 ## 0.13.3
 
 ### Patch Changes

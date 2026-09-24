@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-keyboard-shortcuts
 
+## 2.1.15
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-store@3.8.0
+
 ## 2.1.14
 
 ### Patch Changes

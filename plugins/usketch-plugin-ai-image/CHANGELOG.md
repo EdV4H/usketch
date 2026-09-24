@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-ai-image
 
+## 2.0.15
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-plugin-ai-agent@3.0.15
+
 ## 2.0.14
 
 ### Patch Changes
