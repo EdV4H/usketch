@@ -12,6 +12,7 @@ import { createAiRecognizePlugin } from "@edv4h/usketch-plugin-ai-recognize";
 import { createAssetStorePlugin } from "@edv4h/usketch-plugin-asset-store";
 import { createDotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
+import { createCharacterPlugin } from "@edv4h/usketch-plugin-character";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createAttachablePlugin, createContainerPlugin } from "@edv4h/usketch-plugin-container";
 import { createDashboardPlugin } from "@edv4h/usketch-plugin-dashboard";
@@ -86,6 +87,7 @@ import { CopilotPill } from "./components/board-frame/index.js";
 import { ShareDialog } from "./components/share-dialog.js";
 import { InfoTab } from "./components/side-panel/info-tab.js";
 import { boardMetaStore } from "./lib/board-meta-store.js";
+import { characterAppearance, renderCharacter } from "./lib/character-renderer.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
@@ -273,6 +275,8 @@ export function App() {
 	// 手札(hand)のローカル保持キー / awareness 枚数共有の userId に使う。
 	const userIdRef = useRef<string | undefined>(authUser?.id);
 	userIdRef.current = authUser?.id;
+	const userNameRef = useRef<string | undefined>(authUser?.name);
+	userNameRef.current = authUser?.name;
 
 	// react-router の navigate() は pushState ベースで popstate を発火しない。
 	// presentation plugin は popstate で modeRef を再読込する設計なので、
@@ -450,6 +454,20 @@ export function App() {
 			extraPlugins.push(createLaserPlugin());
 			extraPlugins.push(createSpotlightPlugin());
 			extraPlugins.push(createWhistlePlugin());
+		}
+
+		// 操作キャラ（WASD）: ローカル/Cloud 共通。Cloud では awareness で他ユーザーの
+		// キャラと共存する。見た目はプラグインに持たせず、ホストの renderer を注入。
+		{
+			const seed = userIdRef.current ?? getDevUser()?.id ?? "local";
+			extraPlugins.push(
+				createCharacterPlugin({
+					wsProvider: wsProvider ?? undefined,
+					userName: userNameRef.current ?? getDevUser()?.name,
+					appearance: characterAppearance(seed),
+					renderCharacter,
+				}),
+			);
 		}
 
 		// 共有タイマー（Timter）: ローカル/Cloud 共通。タイマーは `timer` シェイプとして

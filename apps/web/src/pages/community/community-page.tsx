@@ -7,6 +7,7 @@ import { createDotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createBoardInfoPanelPlugin } from "@edv4h/usketch-plugin-board-info-panel";
 import { createFilterPlugin } from "@edv4h/usketch-plugin-canvas-filter";
+import { createCharacterPlugin } from "@edv4h/usketch-plugin-character";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createCommunityChatPlugin } from "@edv4h/usketch-plugin-community-chat";
 import { createDebugHudPlugin } from "@edv4h/usketch-plugin-debug-hud";
@@ -38,6 +39,7 @@ import { createWsProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { api } from "../../lib/api.js";
+import { characterAppearance, renderCharacter } from "../../lib/character-renderer.js";
 import { getDevUser } from "../../lib/dev-auth.js";
 import { getErrorMessage } from "../../lib/errors.js";
 import { useAuth } from "../../lib/use-auth.js";
@@ -202,6 +204,17 @@ export function CommunityPage() {
 					extraPlugins.push(createWhistlePlugin());
 					extraPlugins.push(createFilterPlugin());
 				}
+
+				// 操作キャラ（WASD）: 接続中は awareness で他ユーザーのキャラと共存。
+				// 見た目はプラグインに持たせず、ホストの renderer を注入。
+				extraPlugins.push(
+					createCharacterPlugin({
+						wsProvider: wsProvider ?? undefined,
+						userName: authUserName ?? undefined,
+						appearance: characterAppearance(authUserId ?? getDevUser()?.id ?? "local"),
+						renderCharacter,
+					}),
+				);
 
 				const basePlugins: UsketchPlugin[] = [
 					createGridBgPlugin(),

@@ -246,6 +246,9 @@ importers:
       '@edv4h/usketch-plugin-canvas-filter':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-canvas-filter
+      '@edv4h/usketch-plugin-character':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-character
       '@edv4h/usketch-plugin-comments':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-comments
@@ -2556,6 +2559,25 @@ importers:
       '@edv4h/usketch-store':
         specifier: workspace:*
         version: link:../../packages/store
+      react:
+        specifier: 19.2.8
+        version: 19.2.8
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.18
+        version: 19.2.18
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@25.9.5)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+
+  plugins/usketch-plugin-character:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       react:
         specifier: 19.2.8
         version: 19.2.8
