@@ -77,6 +77,23 @@ export function normalizeAngle(deg: number): number {
 }
 
 /**
+ * 角度を (-180, 180] の範囲に正規化する（向き・カメラ回転用）。
+ */
+export function wrapDeg(deg: number): number {
+	if (!Number.isFinite(deg)) return 0;
+	const w = ((((deg + 180) % 360) + 360) % 360) - 180;
+	return w === -180 ? 180 : w + 0; // `+ 0` folds -0 into 0
+}
+
+/**
+ * `from` から `to` へ回る最短の符号付き角度差（度, (-180, 180]）。
+ * 例: 170 → -170 は +20。
+ */
+export function shortestAngleDelta(from: number, to: number): number {
+	return wrapDeg(to - from);
+}
+
+/**
  * 角度を最近傍の step 倍数にスナップする。
  * @param deg 角度（度）
  * @param step スナップ間隔（例: 15）

@@ -3,6 +3,7 @@
 // layouts, embeds), so the math lives here for any plugin or host to compose,
 // rather than being re-derived per feature.
 import type { BoundingBox, Viewport, ViewportConstraint } from "@edv4h/usketch-shared";
+import { viewportRotation } from "@edv4h/usketch-shared";
 
 /** Clamp on a single axis to `[min, max]`; when the range is inverted (the content
  *  is smaller than the screen on that axis) pin to `max` (top-/left-aligned). */
@@ -20,12 +21,17 @@ function clampAxis(v: number, min: number, max: number): number {
  *
  * (Screen maps to world as `screen = viewport.{x,y} + world * zoom`, so the world
  * point at screen 0 is `-viewport.{x,y} / zoom`.)
+ *
+ * Only defined for an UNROTATED camera: a rotated viewport (`rotation` ≠ 0) is
+ * returned unchanged — the axis-aligned clamp is meaningless there, and rebuilding
+ * the viewport would silently drop the rotation.
  */
 export function clampViewportToBounds(
 	vp: Viewport,
 	bounds: BoundingBox,
 	viewportSize: { width: number; height: number },
 ): Viewport {
+	if (viewportRotation(vp) !== 0) return vp;
 	const zoom = vp.zoom;
 	const right = bounds.x + bounds.width;
 	const bottom = bounds.y + bounds.height;

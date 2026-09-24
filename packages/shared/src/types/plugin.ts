@@ -844,6 +844,13 @@ export interface BoardStore {
 	panBy(dx: number, dy: number): void;
 	zoomTo(zoom: number, center: Point): void;
 	/**
+	 * Turn the camera to `deg` (degrees, clockwise-positive; see {@link Viewport.rotation})
+	 * about screen point `center` — the world point under `center` stays fixed.
+	 * Instant by default (safe to call every frame, e.g. from a follow camera);
+	 * pass `{ animate: true }` to tween the short way round.
+	 */
+	rotateTo(deg: number, center: Point, opts?: ViewportAnimationOptions): void;
+	/**
 	 * Install a viewport constraint (or `null` to clear). It is applied inside the
 	 * single viewport-commit path, so EVERY change — {@link setViewport},
 	 * {@link panBy}, {@link zoomTo}, {@link animateViewportTo} — is passed through

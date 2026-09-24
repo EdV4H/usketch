@@ -1,13 +1,85 @@
 import type { BoundingBox, Point, Viewport } from "../types/geometry.js";
 
-/** ワールド座標をスクリーン座標に変換 */
-export function worldToScreen(wx: number, wy: number, vp: Viewport): Point {
-	return { x: wx * vp.zoom + vp.x, y: wy * vp.zoom + vp.y };
+/** The viewport's rotation in degrees (`0` when unset or non-finite). */
+export function viewportRotation(vp: Viewport): number {
+	const r = vp.rotation;
+	return typeof r === "number" && Number.isFinite(r) ? r : 0;
 }
 
-/** スクリーン座標をワールド座標に変換 */
+/** ワールド座標をスクリーン座標に変換（`screen = R(rot)·(zoom·world) + (x, y)`） */
+export function worldToScreen(wx: number, wy: number, vp: Viewport): Point {
+	const deg = viewportRotation(vp);
+	if (deg === 0) return { x: wx * vp.zoom + vp.x, y: wy * vp.zoom + vp.y };
+	const rad = (deg * Math.PI) / 180;
+	const cos = Math.cos(rad);
+	const sin = Math.sin(rad);
+	const sx = wx * vp.zoom;
+	const sy = wy * vp.zoom;
+	return { x: sx * cos - sy * sin + vp.x, y: sx * sin + sy * cos + vp.y };
+}
+
+/** スクリーン座標をワールド座標に変換（worldToScreen の逆） */
 export function screenToWorld(sx: number, sy: number, vp: Viewport): Point {
-	return { x: (sx - vp.x) / vp.zoom, y: (sy - vp.y) / vp.zoom };
+	const deg = viewportRotation(vp);
+	if (deg === 0) return { x: (sx - vp.x) / vp.zoom, y: (sy - vp.y) / vp.zoom };
+	const rad = (deg * Math.PI) / 180;
+	const cos = Math.cos(rad);
+	const sin = Math.sin(rad);
+	const dx = sx - vp.x;
+	const dy = sy - vp.y;
+	// R(-rot) · (p - t), then undo the zoom.
+	return { x: (dx * cos + dy * sin) / vp.zoom, y: (-dx * sin + dy * cos) / vp.zoom };
+}
+
+/**
+ * The viewport (with the given zoom/rotation) that places world point `world` at
+ * screen point `screen` — the inverse problem every "center on / keep under cursor /
+ * follow" operation solves: `t = screen − R(rot)·(zoom·world)`.
+ */
+export function viewportAnchoredAt(
+	world: Point,
+	screen: Point,
+	zoom: number,
+	rotation = 0,
+): Viewport {
+	const origin = worldToScreen(world.x, world.y, { x: 0, y: 0, zoom, rotation });
+	const vp: Viewport = { x: screen.x - origin.x, y: screen.y - origin.y, zoom };
+	if (rotation !== 0) vp.rotation = rotation;
+	return vp;
+}
+
+/**
+ * World-space AABB of a screen rectangle `[0,0,width,height]` — the visible region.
+ * Under rotation this is the bounding box of the four inverse-mapped corners, so it
+ * always covers everything on screen (equal to the exact rect when unrotated).
+ */
+export function screenRectToWorldBounds(width: number, height: number, vp: Viewport): BoundingBox {
+	if (viewportRotation(vp) === 0) {
+		return {
+			x: -vp.x / vp.zoom,
+			y: -vp.y / vp.zoom,
+			width: width / vp.zoom,
+			height: height / vp.zoom,
+		};
+	}
+	const corners = [
+		screenToWorld(0, 0, vp),
+		screenToWorld(width, 0, vp),
+		screenToWorld(0, height, vp),
+		screenToWorld(width, height, vp),
+	];
+	const xs = corners.map((c) => c.x);
+	const ys = corners.map((c) => c.y);
+	const minX = Math.min(...xs);
+	const minY = Math.min(...ys);
+	return { x: minX, y: minY, width: Math.max(...xs) - minX, height: Math.max(...ys) - minY };
+}
+
+/** CSS transform for a world-space layer (`transform-origin: 0 0`). */
+export function viewportTransformStyle(vp: Viewport): string {
+	const deg = viewportRotation(vp);
+	const base = `translate(${vp.x}px, ${vp.y}px)`;
+	return deg === 0 ? `${base} scale(${vp.zoom})` : `${base} rotate(${deg}deg) scale(${vp.zoom})`;
 }
 
 /**
