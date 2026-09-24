@@ -94,8 +94,11 @@ export {
 export {
 	boundsToScreenRect,
 	getSelectionBounds,
+	overlayFrameStyle,
 	screenRectToWorldBounds,
+	screenToOverlay,
 	screenToWorld,
+	unrotatedViewport,
 	viewportAnchoredAt,
 	viewportRotation,
 	viewportTransformStyle,

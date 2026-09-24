@@ -1,4 +1,5 @@
 import type { ShapeData, ShapeDefinition, Viewport } from "@edv4h/usketch-shared";
+import { worldToScreen } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { findHandleAtScreenPoint, getRotationCursor } from "../internal/resize-handles.js";
 import { createTestToolContext, makeShape } from "./test-helpers.js";
@@ -124,5 +125,23 @@ describe("getRotationCursor", () => {
 
 	it("falls back to the convex offset for non-corner handles", () => {
 		expect(decodeURIComponent(getRotationCursor("n"))).toContain("rotate(180.0 16 16)");
+	});
+});
+
+describe("hit tests under camera rotation", () => {
+	it("finds the SE handle where it is actually drawn on the rotated screen", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(makeShape({ id: "a", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.setSelection(["a"]);
+		const rotated: Viewport = { x: 400, y: 300, zoom: 1, rotation: 90 };
+		// World SE corner (100, 100) under a 90° camera: R(100,100) + t = (-100, 100) + t.
+		const se = worldToScreen(100, 100, rotated);
+		expect(se).toEqual({ x: 300, y: 400 });
+		expect(findHandleAtScreenPoint(se, ctx.shapes, ctx.store, rotated)).toEqual({
+			shapeId: "a",
+			handle: "se",
+		});
+		// Where the handle would be WITHOUT the rotation is now empty space.
+		expect(findHandleAtScreenPoint({ x: 500, y: 400 }, ctx.shapes, ctx.store, rotated)).toBeNull();
 	});
 });

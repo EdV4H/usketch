@@ -162,6 +162,8 @@ export function createFramePlugin(): UsketchPlugin {
 				id: "usketch-plugin-shape-frame:title-editor",
 				order: 84,
 				fixed: true,
+				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+				worldOverlay: true,
 				render: (renderCtx) => <FrameTitleEditor ctx={ctx} viewport={renderCtx.viewport} />,
 			});
 

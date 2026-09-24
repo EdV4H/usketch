@@ -38,6 +38,8 @@ export function createYwebsocketSyncPlugin(options: YwebsocketSyncOptions): Yweb
 				id: UNCONFIRMED_OVERLAY_LAYER_ID,
 				order: 250,
 				fixed: true,
+				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+				worldOverlay: true,
 				render: (renderCtx) => (
 					<UnconfirmedOverlay
 						store={ctx.store}
