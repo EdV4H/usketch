@@ -63,6 +63,8 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 	"transient",
 	"portal",
 	"usketch-presence-activity",
+	// controllable characters (usketch-plugin-character) walk on the ground plane
+	"character",
 ];
 
 export interface Mode7State {
