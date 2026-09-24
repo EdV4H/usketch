@@ -1,5 +1,16 @@
 # @edv4h/usketch-plugin-mode7
 
+## 0.2.1
+
+### Patch Changes
+
+- 749fd70: Tilt the `character` layer (usketch-plugin-character) by default, so controllable
+  characters walk on the 3D ground plane.
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-store@3.8.0
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,5 +1,44 @@
 # @edv4h/usketch-shared
 
+## 4.14.0
+
+### Minor Changes
+
+- fa69bfb: Camera rotation in the Core viewport. `Viewport` gains an optional `rotation`
+  (degrees, clockwise-positive) applied about the screen origin:
+  `screen = R(rotation) · (zoom · world) + (x, y)`. When it is unset or `0` every
+  transform reduces exactly to the previous translate+scale, so existing viewports,
+  plugins and CSS output are unchanged.
+  - shared: rotation-aware `worldToScreen` / `screenToWorld`, plus
+    `viewportAnchoredAt`, `screenRectToWorldBounds`, `viewportTransformStyle`,
+    `viewportRotation`, `wrapDeg` and `shortestAngleDelta`. `centerOnWorld` /
+    `zoomToLevel` / `screenCenterWorld` keep the current rotation.
+  - canvas-engine: layers render through the rotation-aware transform, and
+    `viewportBounds` becomes the world AABB of the (possibly rotated) screen.
+  - store: new `rotateTo(deg, center, opts?)` (keeps the world point under `center`
+    fixed, instant by default); `zoomTo` / `fitToBounds` preserve the rotation;
+    `animateViewportTo` turns the short way round; a zero rotation is normalized
+    away. `clampViewportToBounds` passes rotated viewports through unchanged.
+
+  Note: overlays that hand-roll `(p - vp.x) / zoom` math are still unrotated, so
+  they are only correct while `rotation` is `0`.
+
+- f4b7387: Keep overlays aligned under camera rotation.
+  - shared / canvas-engine: new `Layer.worldOverlay` for fixed layers that draw
+    world-anchored things in screen px. Under rotation the canvas turns such a layer
+    with the world (about the world origin on screen) and renders it with an
+    unrotated viewport, so existing `zoom·w + (x, y)` math stays correct unchanged.
+    Helpers: `unrotatedViewport`, `screenToOverlay`, `overlayFrameStyle`. The
+    selection foreground is a world overlay by default
+    (`SelectionForeground.worldOverlay`).
+  - tool-helpers: resize/rotation handle hit tests compare in the same overlay frame,
+    so handles can be grabbed where they're drawn.
+  - bg-grid: the grid turns with the camera (a diagonal-sized square rotated about
+    the screen center, phased onto world multiples).
+  - snap, presence-activity, tool-vim, shape-freedraw, shape-connector,
+    sync-ywebsocket, comments, shape-frame: their board-anchored overlays opt into
+    `worldOverlay`; snap's visible-candidate area is rotation-aware.
+
 ## 4.13.0
 
 ### Minor Changes
