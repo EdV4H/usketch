@@ -1,5 +1,11 @@
 import type { CanvasPointerEvent, RenderMode, ShapeData } from "@edv4h/usketch-shared";
-import { compareZIndex, DEFAULT_THEME, screenRectToWorldBounds } from "@edv4h/usketch-shared";
+import {
+	compareZIndex,
+	DEFAULT_THEME,
+	overlayFrameStyle,
+	screenRectToWorldBounds,
+	unrotatedViewport,
+} from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
 import { getTransformStyle, screenToWorld } from "../coordinate-transformer.js";
@@ -390,6 +396,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 					id: "__selection-foreground",
 					order: active.order ?? 80,
 					fixed: active.fixed ?? true,
+					worldOverlay: active.worldOverlay ?? true,
 					render: active.render,
 				});
 				mounted = true;
@@ -579,6 +586,11 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 
 	const layers = app.layers.getLayers();
 	const viewportTransform = getTransformStyle(viewport);
+	// World overlays under camera rotation get the unrotated viewport + a rotating wrapper.
+	const overlayStyle = overlayFrameStyle(viewport);
+	const overlayCtx = overlayStyle
+		? { ...renderCtx, viewport: unrotatedViewport(viewport) }
+		: renderCtx;
 
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: Canvas is the interactive drawing surface
@@ -602,8 +614,29 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 			onDragOver={handleDragOver}
 			onDrop={handleDrop}
 		>
+			{/* The rotating overlay box may swing off-screen; never let an overlay's own
+			    <svg> box clip what it draws. */}
+			{overlayStyle && <style>{"[data-world-overlay] svg{overflow:visible}"}</style>}
 			{layers.map((layer) => {
 				if (layer.fixed) {
+					// A world overlay under camera rotation: turn it with the world about
+					// the world origin on screen and let it compute unrotated (see
+					// `unrotatedViewport`). The rotating box keeps the layer's full size so
+					// `inset: 0` / `100%` children resolve as before.
+					if (layer.worldOverlay && overlayStyle) {
+						return (
+							<div
+								key={layer.id}
+								data-layer-id={layer.id}
+								data-world-overlay=""
+								style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+							>
+								<div style={{ position: "absolute", inset: 0, ...overlayStyle }}>
+									<div style={{ pointerEvents: "auto" }}>{layer.render(overlayCtx)}</div>
+								</div>
+							</div>
+						);
+					}
 					return (
 						<div
 							key={layer.id}

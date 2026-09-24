@@ -65,6 +65,16 @@ export interface Layer {
 	interactable?: boolean;
 	fixed?: boolean;
 	/**
+	 * For a `fixed` layer that draws WORLD-ANCHORED things in screen px (selection
+	 * handles, guides, badges…). Under camera rotation the canvas turns the layer
+	 * with the world and hands its `render` an unrotated `viewport`, so the usual
+	 * `zoom·w + (x, y)` math stays correct unchanged (see `unrotatedViewport` /
+	 * `screenToOverlay`). Leave unset for real screen UI (HUD, panels, banners).
+	 * Content should not rely on clipping to the layer box (inner `<svg>`s are made
+	 * `overflow: visible`). Full-screen `<canvas>` drawings don't fit this model.
+	 */
+	worldOverlay?: boolean;
+	/**
 	 * When true, `order` is treated as a preference: if another layer already
 	 * occupies the same effective order, this one is bumped up until it finds a
 	 * free slot (like a dev-server picking the next open port). This gives a
@@ -112,6 +122,11 @@ export interface SelectionForeground {
 	order?: number;
 	/** Whether the mounted layer should skip viewport transform. Defaults to true. */
 	fixed?: boolean;
+	/**
+	 * Follow the camera rotation as a world overlay (see {@link Layer.worldOverlay}).
+	 * Defaults to true — selection UI is anchored to the shapes it outlines.
+	 */
+	worldOverlay?: boolean;
 	render: (ctx: LayerRenderContext) => ReactElement | null;
 }
 

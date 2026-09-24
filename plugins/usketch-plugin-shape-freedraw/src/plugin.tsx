@@ -81,6 +81,8 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 				id: "freedraw-cursor",
 				order: 92,
 				fixed: true,
+				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+				worldOverlay: true,
 				interactable: false,
 				render: (rc) => (
 					<FreedrawCursor settings={settings} pointer={pointer} viewport={rc.viewport} />

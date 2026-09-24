@@ -75,6 +75,42 @@ export function screenRectToWorldBounds(width: number, height: number, vp: Viewp
 	return { x: minX, y: minY, width: Math.max(...xs) - minX, height: Math.max(...ys) - minY };
 }
 
+// ── Overlay frame ────────────────────────────────────────────────────────────
+// Screen-space overlays (selection handles, snap guides, …) position things with
+// the UNROTATED formula `zoom·w + (x, y)`. Under camera rotation the canvas renders
+// such a layer inside a wrapper turned by `rotation` about `(x, y)` (the world
+// origin on screen), because `R·(zoom·w) + t = t + R·((zoom·w + t) − t)` — i.e. the
+// unrotated position turned about `t` is exactly the true screen position. So
+// overlay code keeps its math, given `unrotatedViewport(vp)`, and pointer hit tests
+// compare in the same "overlay frame" via `screenToOverlay`.
+
+/** The viewport without its rotation — what overlay-frame code computes with. */
+export function unrotatedViewport(vp: Viewport): Viewport {
+	if (vp.rotation === undefined) return vp;
+	return { x: vp.x, y: vp.y, zoom: vp.zoom };
+}
+
+/** Map a real screen point into the overlay frame (inverse of the overlay wrapper). */
+export function screenToOverlay(sx: number, sy: number, vp: Viewport): Point {
+	const deg = viewportRotation(vp);
+	if (deg === 0) return { x: sx, y: sy };
+	const rad = (deg * Math.PI) / 180;
+	const cos = Math.cos(rad);
+	const sin = Math.sin(rad);
+	const dx = sx - vp.x;
+	const dy = sy - vp.y;
+	return { x: vp.x + dx * cos + dy * sin, y: vp.y - dx * sin + dy * cos };
+}
+
+/** CSS for the overlay-frame wrapper, or `null` when the camera isn't rotated. */
+export function overlayFrameStyle(
+	vp: Viewport,
+): { transform: string; transformOrigin: string } | null {
+	const deg = viewportRotation(vp);
+	if (deg === 0) return null;
+	return { transform: `rotate(${deg}deg)`, transformOrigin: `${vp.x}px ${vp.y}px` };
+}
+
 /** CSS transform for a world-space layer (`transform-origin: 0 0`). */
 export function viewportTransformStyle(vp: Viewport): string {
 	const deg = viewportRotation(vp);

@@ -7,6 +7,7 @@ import type {
 	UsketchPlugin,
 	Viewport,
 } from "@edv4h/usketch-shared";
+import { screenRectToWorldBounds } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { effectiveSnapEnabled } from "./alt-behavior.js";
 import { DEFAULT_GUIDE_STYLE, DEFAULT_SNAP_THRESHOLD } from "./constants.js";
@@ -357,6 +358,8 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				id: "snap-guides",
 				order: 90,
 				fixed: true,
+				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+				worldOverlay: true,
 				render: (renderCtx) => <SnapGuideOverlay viewport={renderCtx.viewport} />,
 			});
 
@@ -521,14 +524,8 @@ function getMovingBoundingBox(
 }
 
 function getVisibleWorldRect(viewport: Viewport): BoundingBox {
-	const w = window.innerWidth;
-	const h = window.innerHeight;
-	return {
-		x: -viewport.x / viewport.zoom,
-		y: -viewport.y / viewport.zoom,
-		width: w / viewport.zoom,
-		height: h / viewport.zoom,
-	};
+	// Rotation-aware (AABB of the turned screen); identical to the plain rect unrotated.
+	return screenRectToWorldBounds(window.innerWidth, window.innerHeight, viewport);
 }
 
 function boxesOverlap(a: BoundingBox, b: BoundingBox): boolean {

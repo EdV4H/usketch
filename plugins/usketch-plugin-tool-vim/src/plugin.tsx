@@ -199,6 +199,8 @@ export function createVimToolPlugin(
 				id: "vim-overlay",
 				order: 85,
 				fixed: true,
+				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+				worldOverlay: true,
 				interactable: false,
 				render: (rc) => <VimOverlay store={uiStore} viewport={rc.viewport} />,
 			});

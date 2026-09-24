@@ -261,6 +261,8 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 					id: CONNECTOR_LAYER_IDS.endpoints,
 					order: 81,
 					fixed: true,
+					// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+					worldOverlay: true,
 					render: (renderCtx) => <EndpointOverlay ctx={ctx} viewport={renderCtx.viewport} />,
 				});
 			}
@@ -272,6 +274,8 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 					id: CONNECTOR_LAYER_IDS.labelEditor,
 					order: 83,
 					fixed: true,
+					// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+					worldOverlay: true,
 					render: (renderCtx) => <ConnectorLabelEditor ctx={ctx} viewport={renderCtx.viewport} />,
 				});
 			}
@@ -283,6 +287,8 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 					id: CONNECTOR_LAYER_IDS.anchorHandles,
 					order: 79,
 					fixed: true,
+					// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+					worldOverlay: true,
 					render: (renderCtx) => (
 						<AnchorHandleOverlay ctx={ctx} viewport={renderCtx.viewport} mode={anchorHandlesMode} />
 					),

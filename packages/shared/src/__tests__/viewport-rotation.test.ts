@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Viewport } from "../index.js";
 import {
+	overlayFrameStyle,
 	screenRectToWorldBounds,
+	screenToOverlay,
 	screenToWorld,
+	unrotatedViewport,
 	viewportAnchoredAt,
 	viewportTransformStyle,
 	worldToScreen,
@@ -103,5 +106,35 @@ describe("wrapDeg / shortestAngleDelta", () => {
 		expect(shortestAngleDelta(170, -170)).toBe(20);
 		expect(shortestAngleDelta(-170, 170)).toBe(-20);
 		expect(shortestAngleDelta(10, 350)).toBe(-20);
+	});
+});
+
+describe("overlay frame", () => {
+	const vp: Viewport = { x: 310, y: -45, zoom: 1.3, rotation: -37 };
+	it("unrotated overlay positions, turned about (x, y), land on the true screen point", () => {
+		const style = overlayFrameStyle(vp);
+		expect(style).toEqual({ transform: "rotate(-37deg)", transformOrigin: "310px -45px" });
+		const flat = unrotatedViewport(vp);
+		const w = { x: 123, y: 456 };
+		const o = worldToScreen(w.x, w.y, flat); // what overlay code computes
+		// Apply the wrapper: rotate o about (vp.x, vp.y).
+		const rad = (-37 * Math.PI) / 180;
+		const dx = o.x - vp.x;
+		const dy = o.y - vp.y;
+		const shown = {
+			x: vp.x + dx * Math.cos(rad) - dy * Math.sin(rad),
+			y: vp.y + dx * Math.sin(rad) + dy * Math.cos(rad),
+		};
+		close(shown, worldToScreen(w.x, w.y, vp));
+	});
+	it("screenToOverlay maps a real screen point back into the overlay frame", () => {
+		const s = worldToScreen(-20, 77, vp);
+		close(screenToOverlay(s.x, s.y, vp), worldToScreen(-20, 77, unrotatedViewport(vp)));
+	});
+	it("is the identity without rotation", () => {
+		const flat: Viewport = { x: 5, y: 6, zoom: 2 };
+		expect(overlayFrameStyle(flat)).toBeNull();
+		expect(unrotatedViewport(flat)).toBe(flat);
+		expect(screenToOverlay(9, 8, flat)).toEqual({ x: 9, y: 8 });
 	});
 });

@@ -59,6 +59,8 @@ export function createPresenceActivityPlugin(options: PresenceActivityOptions): 
 				id: LAYER_ID,
 				order: 248,
 				fixed: true,
+				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+				worldOverlay: true,
 				render: (renderCtx) => (
 					<ActivityOverlay
 						store={ctx.store}

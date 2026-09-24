@@ -12,6 +12,8 @@ import {
 	isShapeResizable,
 	normalizeAngle,
 	safeRotation,
+	screenToOverlay,
+	unrotatedViewport,
 	unrotatePoint,
 	worldToScreen,
 } from "@edv4h/usketch-shared";
@@ -21,6 +23,22 @@ const HANDLE_SIZE = 8;
 const HIT_AREA = 20;
 
 const ALL_HANDLES: ResizeHandle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+
+/**
+ * Map a pointer + viewport into the overlay frame the selection UI is drawn in:
+ * under camera rotation, handles are laid out with the unrotated viewport and the
+ * whole overlay is turned with the world (see `unrotatedViewport`). Identity when
+ * the camera isn't rotated.
+ */
+function toOverlayFrame(
+	point: Point,
+	viewport: Viewport,
+): { screenPoint: Point; viewport: Viewport } {
+	return {
+		screenPoint: screenToOverlay(point.x, point.y, viewport),
+		viewport: unrotatedViewport(viewport),
+	};
+}
 
 export function getHandlePositions(
 	bounds: BoundingBox,
@@ -44,11 +62,13 @@ export function getHandlePositions(
 }
 
 export function findHandleAtScreenPoint(
-	screenPoint: Point,
+	rawScreenPoint: Point,
 	shapes: ShapeRegistry,
 	store: BoardStore,
-	viewport: Viewport,
+	rawViewport: Viewport,
 ): { shapeId: string; handle: ResizeHandle } | null {
+	// Compare in the overlay frame, where the handles are drawn (camera rotation).
+	const { screenPoint, viewport } = toOverlayFrame(rawScreenPoint, rawViewport);
 	const selection = store.getSelection();
 	if (selection.size !== 1) return null;
 
@@ -107,11 +127,13 @@ export function findHandleAtScreenPoint(
 const ROTATION_OUTER_MARGIN = 12;
 
 export function findRotationHandleAtScreenPoint(
-	screenPoint: Point,
+	rawScreenPoint: Point,
 	shapes: ShapeRegistry,
 	store: BoardStore,
-	viewport: Viewport,
+	rawViewport: Viewport,
 ): { shapeId: string; corner: ResizeHandle } | null {
+	// Compare in the overlay frame, where the handles are drawn (camera rotation).
+	const { screenPoint, viewport } = toOverlayFrame(rawScreenPoint, rawViewport);
 	const selection = store.getSelection();
 	if (selection.size !== 1) return null;
 
@@ -496,10 +518,12 @@ export function getMultiSelectionBounds(
 }
 
 export function findMultiHandleAtScreenPoint(
-	screenPoint: Point,
+	rawScreenPoint: Point,
 	groupBounds: BoundingBox,
-	viewport: Viewport,
+	rawViewport: Viewport,
 ): ResizeHandle | null {
+	// Compare in the overlay frame, where the handles are drawn (camera rotation).
+	const { screenPoint, viewport } = toOverlayFrame(rawScreenPoint, rawViewport);
 	const positions = getHandlePositions(groupBounds, viewport);
 	const halfHit = HIT_AREA / 2;
 	for (const handle of ALL_HANDLES) {
@@ -523,10 +547,12 @@ export function findMultiHandleAtScreenPoint(
  * variant) no un-rotation is needed. Returns which corner, or `null`.
  */
 export function findMultiRotationHandleAtScreenPoint(
-	screenPoint: Point,
+	rawScreenPoint: Point,
 	groupBounds: BoundingBox,
-	viewport: Viewport,
+	rawViewport: Viewport,
 ): ResizeHandle | null {
+	// Compare in the overlay frame, where the handles are drawn (camera rotation).
+	const { screenPoint, viewport } = toOverlayFrame(rawScreenPoint, rawViewport);
 	const positions = getHandlePositions(groupBounds, viewport);
 	const cornerHandles: ResizeHandle[] = ["nw", "ne", "se", "sw"];
 	const halfHit = HIT_AREA / 2;
