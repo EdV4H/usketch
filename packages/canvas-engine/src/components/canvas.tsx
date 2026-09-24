@@ -1,8 +1,8 @@
 import type { CanvasPointerEvent, RenderMode, ShapeData } from "@edv4h/usketch-shared";
-import { compareZIndex, DEFAULT_THEME } from "@edv4h/usketch-shared";
+import { compareZIndex, DEFAULT_THEME, screenRectToWorldBounds } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../context.js";
-import { screenToWorld } from "../coordinate-transformer.js";
+import { getTransformStyle, screenToWorld } from "../coordinate-transformer.js";
 import { dispatchDropToRegistry, extractPasteContent } from "../external-content-dispatch.js";
 import { gestureStep, type PointerSample } from "../gesture.js";
 import { useFilterPredicate } from "../hooks/use-filter-predicate.js";
@@ -560,13 +560,9 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 	// Visible region in world coords (screenToWorld of the top-left + size/zoom).
 	// width/height are 0 until the container is measured — consumers treat that as
 	// "unknown" and skip viewport-based decisions.
+	// Under camera rotation this is the AABB of the rotated screen (see screenRectToWorldBounds).
 	const viewportBounds = useMemo(
-		() => ({
-			x: -viewport.x / viewport.zoom,
-			y: -viewport.y / viewport.zoom,
-			width: canvasSize.width / viewport.zoom,
-			height: canvasSize.height / viewport.zoom,
-		}),
+		() => screenRectToWorldBounds(canvasSize.width, canvasSize.height, viewport),
 		[viewport, canvasSize],
 	);
 
@@ -582,7 +578,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 	};
 
 	const layers = app.layers.getLayers();
-	const viewportTransform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
+	const viewportTransform = getTransformStyle(viewport);
 
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: Canvas is the interactive drawing surface

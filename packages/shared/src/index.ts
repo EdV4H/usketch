@@ -94,7 +94,11 @@ export {
 export {
 	boundsToScreenRect,
 	getSelectionBounds,
+	screenRectToWorldBounds,
 	screenToWorld,
+	viewportAnchoredAt,
+	viewportRotation,
+	viewportTransformStyle,
 	worldToScreen,
 } from "./utils/geometry.js";
 // Utils
@@ -119,9 +123,11 @@ export {
 	normalizeAngle,
 	rotatePoint,
 	safeRotation,
+	shortestAngleDelta,
 	snapAngle,
 	unrotatePoint,
 	withRotation,
+	wrapDeg,
 } from "./utils/rotation.js";
 // Shape diff
 export { bidiffShape, diffShape } from "./utils/shape-diff.js";
