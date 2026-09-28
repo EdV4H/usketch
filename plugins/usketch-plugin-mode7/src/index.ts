@@ -13,6 +13,12 @@ export {
 	type TiltTransform,
 	tiltTransform,
 } from "./mode7-transform.js";
+export {
+	DEFAULT_TRANSITION_MS,
+	type Mode7Easing,
+	type Mode7SwitchOptions,
+	type Mode7TransitionOptions,
+} from "./mode7-transition.js";
 export { createMode7Plugin, type Mode7PluginOptions } from "./plugin.js";
 export type {
 	Mode7ActionKey,

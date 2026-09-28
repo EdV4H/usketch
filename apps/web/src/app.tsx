@@ -210,7 +210,8 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		createWindowSystemPlugin({ autoEnable: false }),
 		// Mode 7（擬似3D地平面ビュー）。板コンテンツ層を CSS 3D で傾けるビューモード。
 		// 既定 OFF（HUD「3Dビュー切替」/ mode7:toggle で opt-in）。
-		createMode7Plugin(),
+		// 切替時は地面がせり上がり、空/フォグがフェードする（#1103）。
+		createMode7Plugin({ transition: { durationMs: 900 } }),
 		// 関連Shapeを「ぶちまける」— HUD の「関連Shapeをぶちまける」アクション。connector/
 		// container/free-position の後（関連解決 + 非重なり配置の土台が揃った後）。
 		createScatterPlugin(),

@@ -4,13 +4,22 @@
 import { type BoundingBox, defineService, type ServiceRegistry } from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
 import type { Look, Mode7Store } from "./mode7-store.js";
+import type { Mode7SwitchOptions, Mode7Transition } from "./mode7-transition.js";
 
 export interface Mode7Api {
-	/** Whether the 3D view is currently on. */
+	/** Whether the 3D view is currently shown (still `true` during an exit transition). */
 	isActive(): boolean;
-	enable(): void;
-	disable(): void;
-	toggle(): void;
+	/** Turn the view on. `{ animate: true }` raises the ground from flat and fades the
+	 *  sky/fog in; the default follows the plugin's `transition` option. */
+	enable(opts?: Mode7SwitchOptions): void;
+	/** Turn the view off (animated: back to flat, then inactive). */
+	disable(opts?: Mode7SwitchOptions): void;
+	/** Flip the view; mid-transition it reverses from the current state. */
+	toggle(opts?: Mode7SwitchOptions): void;
+	/** Whether an enter/exit transition is running (fires `onChange` per frame). */
+	isTransitioning(): boolean;
+	/** The rendered transition amount, 0 (flat/off) … 1 (fully 3D), eased. */
+	getTransitionAmount(): number;
 	/** The current camera geometry. */
 	getCamera(): Camera;
 	setPitch(deg: number): void;
@@ -44,18 +53,20 @@ export interface Mode7Api {
 	toggleCaptureFrame(): void;
 	/** The world rect captured at the last switch-on, or `null`. */
 	getCaptureRect(): BoundingBox | null;
-	/** Fire on any active/camera/look/tilt-layer/frame change. Returns an unsubscribe. */
+	/** Fire on any active/transition/camera/look/tilt-layer/frame change. Returns an unsubscribe. */
 	onChange(listener: () => void): () => void;
 }
 
 export const mode7Service = defineService<Mode7Api>("usketch-plugin-mode7");
 
-export function createMode7Api(store: Mode7Store): Mode7Api {
+export function createMode7Api(store: Mode7Store, transition: Mode7Transition): Mode7Api {
 	return {
 		isActive: () => store.getState().active,
-		enable: () => store.setActive(true),
-		disable: () => store.setActive(false),
-		toggle: () => store.toggle(),
+		enable: (opts) => transition.enable(opts),
+		disable: (opts) => transition.disable(opts),
+		toggle: (opts) => transition.toggle(opts),
+		isTransitioning: () => transition.isTransitioning(),
+		getTransitionAmount: () => store.getState().amount,
 		getCamera: () => store.getState().camera,
 		setPitch: (deg) => store.setCamera({ pitch: deg }),
 		setYaw: (deg) => store.setCamera({ yaw: deg }),

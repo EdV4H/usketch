@@ -39,6 +39,7 @@ createApp({
       look: { sky: "#0b1026", fog: 0.35 },
       // tiltLayerIds: [...],           // 傾ける層を上書き
       // shortcuts: { toggle: "…" },    // キーバインド（opt-in・既定なし）
+      // transition: { durationMs: 900, easing: "ease-in-out" }, // 切替アニメ（既定 0＝即時）
     }),
   ],
 });
@@ -46,6 +47,21 @@ createApp({
 
 有効化は HUD の「3Dビュー切替」アクション、サービス `getMode7Api(app.services)?.toggle()`、
 またはイベント `app.events.emit("mode7:toggle")` のいずれでも可能。
+
+### 切替アニメーション（`transition`）
+
+`transition.durationMs` を指定すると、ON/OFF が**アニメーション**になる（既定 `0`＝従来どおり即時）。
+
+- **ON**: 地面が平ら（pitch 0）から `camera.pitch` までせり上がり、空・フォグがフェードイン。
+- **OFF**: 逆再生し、平らに戻りきってから非アクティブになる（それまで capture 層が編集を塞ぐ）。
+- 途中で切り替えると、**今の状態から逆再生**（ジャンプしない）。
+- 保存されたカメラ/見た目は常に目標値のまま。アニメするのは描画値だけ（pitch・yaw を
+  遷移量でスケール、空/フォグは不透明度、描画距離の手前切り取りも同率でフェード）。
+- 1 フレームにつき store 更新は 1 回。`prefers-reduced-motion` なら終了状態へ即時。
+- 呼び出し単位で上書き可: `api.enable({ animate: true })` / `api.disable({ animate: false })`。
+  `durationMs` 未設定で `animate: true` の場合は 900ms。
+- `api.isTransitioning()` / `api.getTransitionAmount()`（0…1）で進行中かを取れる。`onChange` は
+  遷移中も毎フレーム発火するので、ホスト側のオーバーレイを同期できる。
 
 ## カメラ
 
@@ -91,7 +107,8 @@ api?.setPitch(60);
 api?.setYaw(30);
 ```
 
-`Mode7Api`: `isActive` / `enable` / `disable` / `toggle` / `getCamera` / `setPitch` / `setYaw` /
+`Mode7Api`: `isActive` / `enable` / `disable` / `toggle`（各 `{ animate? }`）/ `isTransitioning` /
+`getTransitionAmount` / `getCamera` / `setPitch` / `setYaw` /
 `setFov` / `setHorizon` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
 `getTiltLayers` / `setTiltLayers` / `toggleTiltLayer` / `getDrawDistance` / `setDrawDistance` /
 `isCaptureFrameVisible` / `setCaptureFrameVisible` / `toggleCaptureFrame` / `getCaptureRect` / `onChange`。

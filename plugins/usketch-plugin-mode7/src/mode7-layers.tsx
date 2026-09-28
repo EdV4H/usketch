@@ -26,7 +26,7 @@ function localCenter(e: { clientX: number; clientY: number; currentTarget: Eleme
 }
 
 export function SkyLayer({ store }: { store: Mode7Store }) {
-	const { active, camera, look } = useMode7(store);
+	const { active, amount, camera, look } = useMode7(store);
 	if (!active) return null;
 	return (
 		<div
@@ -35,6 +35,8 @@ export function SkyLayer({ store }: { store: Mode7Store }) {
 				inset: 0,
 				pointerEvents: "none",
 				background: skyBackground(look.sky, camera.horizon),
+				// Fades with the enter/exit transition (1 when settled).
+				opacity: amount,
 			}}
 		/>
 	);
@@ -70,7 +72,7 @@ export function CaptureFrameLayer({ store, zoom }: { store: Mode7Store; zoom: nu
 }
 
 export function FogLayer({ store }: { store: Mode7Store }) {
-	const { active, camera, look } = useMode7(store);
+	const { active, amount, camera, look } = useMode7(store);
 	if (!active || fogOpacity(look.fog) <= 0) return null;
 	return (
 		<div
@@ -79,6 +81,7 @@ export function FogLayer({ store }: { store: Mode7Store }) {
 				inset: 0,
 				pointerEvents: "none",
 				background: fogBackground(look.fogColor, look.fog, camera.horizon),
+				opacity: amount,
 			}}
 		/>
 	);

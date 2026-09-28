@@ -68,7 +68,16 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 ];
 
 export interface Mode7State {
+	/** Whether the 3D view is shown. Stays `true` while an exit transition plays, so the
+	 *  capture layer keeps blocking edits until the board is flat again. */
 	active: boolean;
+	/** Linear transition progress, 0 (flat / off) … 1 (fully in 3D). Settled at `1`
+	 *  while active and `0` while inactive; only in between during a transition. */
+	progress: number;
+	/** The eased amount actually RENDERED (tilt scale, sky/fog opacity), 0 … 1. */
+	amount: number;
+	/** Whether an enter/exit transition is running. */
+	transitioning: boolean;
 	camera: Camera;
 	look: Look;
 	/** Layer ids currently rendered in 3D (user-selectable at runtime). */
@@ -96,11 +105,20 @@ export interface Mode7Init {
 	showCaptureFrame?: boolean;
 }
 
+/** The presentation fields a transition drives, set together in ONE update per frame. */
+export type Mode7Presentation = Pick<
+	Mode7State,
+	"active" | "progress" | "amount" | "transitioning"
+>;
+
 export interface Mode7Store {
 	getState(): Mode7State;
 	subscribe(cb: () => void): () => void;
+	/** Switch instantly (settles progress/amount, cancels nothing — see the transition). */
 	setActive(active: boolean): void;
 	toggle(): void;
+	/** Set the transition-driven fields in one notification (used by the transition). */
+	setPresentation(p: Mode7Presentation): void;
 	setCamera(patch: Partial<Camera>): void;
 	adjustCamera(delta: Partial<Camera>): void;
 	setLook(patch: Partial<Look>): void;
@@ -124,6 +142,9 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 	const baseLook: Look = { ...DEFAULT_LOOK, ...init.look };
 	let state: Mode7State = {
 		active: init.active ?? false,
+		progress: init.active ? 1 : 0,
+		amount: init.active ? 1 : 0,
+		transitioning: false,
 		camera: baseCamera,
 		look: baseLook,
 		tiltLayers: [...(init.tiltLayers ?? DEFAULT_TILT_LAYER_IDS)],
@@ -146,12 +167,27 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 			};
 		},
 		setActive(active) {
-			if (state.active === active) return;
-			state = { ...state, active };
+			const v = active ? 1 : 0;
+			if (state.active === active && state.progress === v && !state.transitioning) return;
+			state = { ...state, active, progress: v, amount: v, transitioning: false };
 			notify();
 		},
 		toggle() {
-			state = { ...state, active: !state.active };
+			const active = !state.active;
+			const v = active ? 1 : 0;
+			state = { ...state, active, progress: v, amount: v, transitioning: false };
+			notify();
+		},
+		setPresentation(p) {
+			if (
+				state.active === p.active &&
+				state.progress === p.progress &&
+				state.amount === p.amount &&
+				state.transitioning === p.transitioning
+			) {
+				return;
+			}
+			state = { ...state, ...p };
 			notify();
 		},
 		setCamera(patch) {
