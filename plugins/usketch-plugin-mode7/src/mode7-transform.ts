@@ -21,6 +21,17 @@ export interface TiltTransform {
 }
 
 /** The full CSS transform (perspective + rotate) for a tilted layer wrapper. */
+/**
+ * The camera as rendered at transition `amount` (0 = flat, 1 = the stored camera):
+ * pitch and yaw scale toward 0 so the ground rises from (and settles back to) the
+ * flat board without a heading snap. fov/horizon are kept — at pitch 0 they're inert.
+ */
+export function transitionCamera(cam: Camera, amount: number): Camera {
+	const a = Math.min(1, Math.max(0, amount));
+	if (a === 1) return cam;
+	return { ...cam, pitch: cam.pitch * a, yaw: cam.yaw * a };
+}
+
 export function tiltTransform(cam: Camera): TiltTransform {
 	return {
 		transform: `perspective(${round(cam.fov)}px) rotateX(${round(cam.pitch)}deg) rotateZ(${round(cam.yaw)}deg)`,
@@ -84,14 +95,22 @@ export function fogOpacity(density: number): number {
  *     must be extended to match (see {@link drawDistanceOverscanPx}) or that far content
  *     would float; `clip-path` keeps the 3D tilt intact (unlike `overflow`, flattening).
  */
-export function drawDistanceClip(distance: number, zoom: number, viewportHeightPx: number): string {
+export function drawDistanceClip(
+	distance: number,
+	zoom: number,
+	viewportHeightPx: number,
+	/** Transition amount 0…1: a near-band clip fades in with the tilt, so the still-flat
+	 *  board isn't cut off at the top while the ground rises. */
+	strength = 1,
+): string {
 	if (!(distance > 0) || !(zoom > 0) || !(viewportHeightPx > 0)) {
 		return "inset(0% 0% 0% 0%)"; // auto → clip to the box
 	}
 	const bandPx = distance * zoom;
 	if (bandPx <= viewportHeightPx) {
 		// Within the viewport: keep only the near band; sides stay at the box.
-		return `inset(${round((1 - bandPx / viewportHeightPx) * 100)}% 0% 0% 0%)`;
+		const s = Math.min(1, Math.max(0, strength));
+		return `inset(${round((1 - bandPx / viewportHeightPx) * 100 * s)}% 0% 0% 0%)`;
 	}
 	// Beyond the viewport: extend equally on ALL sides so the far ground fans out
 	// (not just a box-wide strip). The grid overscans to match; the canvas container

@@ -15,6 +15,7 @@ import {
 } from "./mode7-runtime.js";
 import { createMode7Api, mode7Service } from "./mode7-service.js";
 import { createMode7Store, type Look } from "./mode7-store.js";
+import { createMode7Transition, type Mode7TransitionOptions } from "./mode7-transition.js";
 import { type Mode7Shortcuts, registerMode7Actions } from "./register-mode7-actions.js";
 import { registerMode7Hud } from "./register-mode7-hud.js";
 
@@ -38,6 +39,13 @@ export interface Mode7PluginOptions {
 	showCaptureFrame?: boolean;
 	/** Keyboard shortcut bindings (opt-in; no defaults). */
 	shortcuts?: Mode7Shortcuts;
+	/**
+	 * Animate switching the view on/off: the ground rises from flat to `camera.pitch`
+	 * (and back) while the sky/fog fade. Default `durationMs: 0` = instant; with it
+	 * set, every switch (HUD, actions, `mode7:toggle`, service) animates unless a call
+	 * passes `{ animate: false }`. Honors `prefers-reduced-motion`.
+	 */
+	transition?: Mode7TransitionOptions;
 }
 
 export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlugin {
@@ -49,7 +57,8 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 		drawDistance: options.drawDistance,
 		showCaptureFrame: options.showCaptureFrame,
 	});
-	const api = createMode7Api(store);
+	const transition = createMode7Transition(store, options.transition);
+	const api = createMode7Api(store, transition);
 	// Layers the picker must never tilt (tilting the HUD or our own overlays makes
 	// no sense and could hide the very controls used to turn the view off).
 	const excludedLayerIds = [
@@ -75,6 +84,7 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 				unprovideService();
 				stopHud();
 				stopActions();
+				transition.dispose();
 				stopRuntime();
 			};
 		},

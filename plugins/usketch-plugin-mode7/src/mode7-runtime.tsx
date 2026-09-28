@@ -13,7 +13,12 @@
 import type { BoundingBox, PluginContext } from "@edv4h/usketch-shared";
 import { CaptureFrameLayer, CaptureLayer, FogLayer, SkyLayer } from "./mode7-layers.js";
 import type { Mode7Store } from "./mode7-store.js";
-import { drawDistanceClip, drawDistanceOverscanPx, tiltTransform } from "./mode7-transform.js";
+import {
+	drawDistanceClip,
+	drawDistanceOverscanPx,
+	tiltTransform,
+	transitionCamera,
+} from "./mode7-transform.js";
 
 /** The plugin's own layer ids (never tilted). */
 export const SKY_LAYER_ID = "mode7-sky";
@@ -90,8 +95,9 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		container.setAttribute(STAGE_ATTR, "on");
 		ensureStyleEl();
 		if (!styleEl) return;
-		const { camera, drawDistance } = store.getState();
-		const { transform, transformOrigin } = tiltTransform(camera);
+		const { camera, drawDistance, amount } = store.getState();
+		// During an enter/exit transition the tilt is scaled by the eased amount.
+		const { transform, transformOrigin } = tiltTransform(transitionCamera(camera, amount));
 		// Clip each tilted wrapper (so overflow:visible doesn't float content past the
 		// grid); a finite draw distance tightens the top, one beyond the viewport lets it
 		// extend (negative inset) with the grid overscanned to match. Distance is canvas
@@ -99,7 +105,7 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		// changes. clip-path keeps the tilt (overflow flattens).
 		const zoom = ctx.store.getViewport().zoom;
 		const heightPx = container.getBoundingClientRect().height;
-		const clip = drawDistanceClip(drawDistance, zoom, heightPx);
+		const clip = drawDistanceClip(drawDistance, zoom, heightPx, amount);
 		const overscan = drawDistanceOverscanPx(drawDistance, zoom, heightPx);
 		driveGridOverscan(overscan > 0 ? overscan + OVERSCAN_BUFFER : 0);
 		const clipRule = `clip-path:${clip} !important;`;
