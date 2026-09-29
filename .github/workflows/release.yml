@@ -55,7 +55,7 @@ jobs:
         # tags/releases left uncreated even though npm publish fully succeeded.
         # Tolerate the failure here and reconcile below in a single batched push.
         continue-on-error: true
-        uses: changesets/action@v1
+        uses: changesets/action@v2.1.0
         with:
           version: pnpm run version
           publish: pnpm release
