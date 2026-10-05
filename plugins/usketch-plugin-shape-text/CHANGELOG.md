@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-shape-text
 
+## 3.0.18
+
+### Patch Changes
+
+- Updated dependencies [38ca865]
+- Updated dependencies [b71dd10]
+  - @edv4h/usketch-shared@4.15.0
+  - @edv4h/usketch-store@3.8.1
+  - @edv4h/usketch-shape-utils@2.2.11
+
 ## 3.0.17
 
 ### Patch Changes
