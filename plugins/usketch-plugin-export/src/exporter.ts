@@ -55,6 +55,7 @@ export async function htmlShapeToSvg(
 	element: ReactNode,
 	shape: ShapeData,
 	fonts?: SatoriFont[],
+	loadAdditionalAsset?: SatoriOptions["loadAdditionalAsset"],
 ): Promise<string> {
 	const resolvedFonts = fonts ?? [
 		{ name: "Inter", data: await loadFont(), weight: 400 as const, style: "normal" as const },
@@ -63,6 +64,7 @@ export async function htmlShapeToSvg(
 		width: shape.width,
 		height: shape.height,
 		fonts: resolvedFonts,
+		...(loadAdditionalAsset ? { loadAdditionalAsset } : {}),
 	});
 	const inner = svg.replace(/<svg[^>]*>/, "").replace(/<\/svg>$/, "");
 	return `<g transform="translate(${shape.x}, ${shape.y})">${inner}</g>`;
