@@ -1,5 +1,11 @@
 # @edv4h/usketch-plugin-export
 
+## 2.2.0
+
+### Minor Changes
+
+- 25183f1: 範囲指定エクスポート `exportRegion` / `buildRegionSvg` を追加。ボード座標の矩形を z-order・回転を反映して描画し、`filter` / `fonts` / `background` を指定できる。taint 時は空白にせずエラーにする。
+
 ## 2.1.9
 
 ### Patch Changes
