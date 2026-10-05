@@ -33,6 +33,7 @@ export type {
 	HudRegistry,
 	HudSettingsDescriptor,
 	Layer,
+	LayerExportBackgroundContext,
 	LayerManager,
 	LayerRenderContext,
 	MarkdownConverter,

@@ -1,10 +1,12 @@
 import type { LayerRenderContext, PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { useId, useSyncExternalStore } from "react";
-
-const DOT_SPACING = 20;
-const DOT_RADIUS = 1;
-const DOT_COLOR = "#c0c0c0";
-const DOT_OPACITY = 0.6;
+import {
+	DOT_COLOR,
+	DOT_OPACITY,
+	DOT_RADIUS,
+	DOT_SPACING,
+	renderDotsExportBackground,
+} from "./export-background.js";
 
 // ── Shared visibility state ──
 
@@ -74,6 +76,8 @@ export function createDotsBgPlugin(): UsketchPlugin {
 				order: 10,
 				fixed: true,
 				render: (renderCtx) => <DotsBackground viewport={renderCtx.viewport} />,
+				renderExportBackground: (exportCtx) =>
+					visible ? renderDotsExportBackground(exportCtx) : null,
 			});
 
 			const off = ctx.events.on<{ type: string }>("bg:set", ({ type }) => {
