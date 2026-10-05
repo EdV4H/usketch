@@ -306,6 +306,12 @@ export interface ShapeDefinition {
 	resize: (data: ShapeData, handle: ResizeHandle, delta: Point) => ShapeData;
 	createDefault: (params: { id: string; x: number; y: number }) => ShapeData;
 	renderTarget?: RenderTarget;
+	/**
+	 * 書き出し（exportRegion / buildRegionSvg）専用の描画。あれば `render` の代わりに使う。
+	 * `renderTarget: "html"` では Satori に渡されるため、インライン style のみ・フック/memo なし・同期の
+	 * 純粋な要素を返すこと（className のスタイルは解釈されない）。
+	 */
+	renderForExport?: (data: ShapeData) => ReactElement;
 	minSize?: { width: number; height: number };
 	/**
 	 * Whether the shape can be resized by the user. Default: `true`.
