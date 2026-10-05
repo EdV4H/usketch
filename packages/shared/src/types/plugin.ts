@@ -91,6 +91,29 @@ export interface Layer {
 	 * back to the default. Ignored when `avoidCollision` is falsy.
 	 */
 	collisionStep?: number;
+	/**
+	 * Marks this as a BACKGROUND layer that can be included in region exports
+	 * (`exportRegion({ includeBackgroundLayers: true })` in `usketch-plugin-export`).
+	 * Return SVG elements in BOARD coordinates covering `ctx.rect` (the exporter's
+	 * viewBox is the rect itself, so a `patternUnits="userSpaceOnUse"` pattern lands
+	 * on world multiples as-is), or `null` when the background is currently hidden.
+	 * Exported backgrounds are drawn in ascending `order`, under all shapes.
+	 */
+	renderExportBackground?: (ctx: LayerExportBackgroundContext) => ReactElement | null;
+}
+
+/** Input to {@link Layer.renderExportBackground}. */
+export interface LayerExportBackgroundContext {
+	/** The exported region in board coordinates. */
+	rect: BoundingBox;
+	/**
+	 * The zoom to draw at. Only screen-px-sized details (e.g. a 1px grid line →
+	 * `1 / zoom` board units) or zoom-adaptive spacing should depend on it; `1`
+	 * means "as seen at 100%", the capture-time zoom reproduces the screen look.
+	 */
+	zoom: number;
+	/** Unique prefix for SVG ids (`<pattern id>` etc.) so layers don't collide. */
+	idPrefix: string;
 }
 
 export interface LayerManager {

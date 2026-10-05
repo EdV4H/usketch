@@ -9,11 +9,13 @@ import {
 	useState,
 	useSyncExternalStore,
 } from "react";
+import {
+	GRID_COLOR,
+	GRID_OPACITY,
+	GRID_SIZE,
+	renderGridExportBackground,
+} from "./export-background.js";
 import { rotatedGridFrame } from "./grid-frame.js";
-
-const GRID_SIZE = 20;
-const GRID_COLOR = "#e0e0e0";
-const GRID_OPACITY = 0.5;
 
 // ── Shared visibility + overscan state ──
 
@@ -182,6 +184,8 @@ export function createGridBgPlugin(): UsketchPlugin {
 				order: 10,
 				fixed: true,
 				render: (renderCtx) => <GridBackground viewport={renderCtx.viewport} />,
+				renderExportBackground: (exportCtx) =>
+					visible ? renderGridExportBackground(exportCtx) : null,
 			});
 
 			const off = ctx.events.on<{ type: string }>("bg:set", ({ type }) => {

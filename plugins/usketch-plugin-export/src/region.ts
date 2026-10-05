@@ -1,6 +1,8 @@
 import {
 	compareZIndex,
 	getShapeAABB,
+	type Layer,
+	type LayerManager,
 	rectsIntersect,
 	type ShapeData,
 	type ShapeRegistry,
@@ -25,6 +27,43 @@ export interface ExportRegionOptions {
 	filter?: (shape: ShapeData) => boolean;
 	/** HTML シェイプ描画用フォント（日本語フォントなどをホストが渡す）。省略時は Inter(latin) */
 	fonts?: SatoriFont[];
+	/**
+	 * true で背景レイヤー（`Layer.renderExportBackground` を持つレイヤー。bg-grid / bg-dots 等）を
+	 * `background` の上・シェイプの下に `order` 昇順で描く。既定 false（背景は `background` のみ）。
+	 * true のときは `layers` が必須。
+	 */
+	includeBackgroundLayers?: boolean;
+	/** 背景レイヤーの取得元。通常はホストの `app.layers` を渡す */
+	layers?: LayerManager | readonly Layer[];
+	/**
+	 * 背景レイヤーをどのズームの見た目で描くか。既定 1（ボード座標基準 = 100% 表示の見た目）。
+	 * 撮影時の `viewport.zoom` を渡すと画面と同じ見た目（例: グリッド線幅 1px = 1/zoom ボード単位）になる。
+	 * グリッド間隔・ドット位置はもともとボード座標固定なので、どちらでも変わらない。
+	 */
+	backgroundZoom?: number;
+}
+
+function renderBackgroundLayers(options: ExportRegionOptions): string[] {
+	const { includeBackgroundLayers, layers, rect, backgroundZoom = 1 } = options;
+	if (!includeBackgroundLayers) return [];
+	if (!layers) {
+		throw new Error("exportRegion: includeBackgroundLayers requires `layers` (e.g. app.layers)");
+	}
+	if (!(backgroundZoom > 0)) {
+		throw new Error("exportRegion: backgroundZoom must be a positive number");
+	}
+	const list = "getLayers" in layers ? layers.getLayers() : layers;
+	const markup: string[] = [];
+	for (const layer of [...list].sort((a, b) => a.order - b.order)) {
+		if (!layer.renderExportBackground) continue;
+		const element = layer.renderExportBackground({
+			rect,
+			zoom: backgroundZoom,
+			idPrefix: `usketch-bg-${layer.id.replace(/[^\w-]/g, "_")}`,
+		});
+		if (element) markup.push(renderToStaticMarkup(element));
+	}
+	return markup;
 }
 
 /**
@@ -40,6 +79,8 @@ export async function buildRegionSvg(
 	if (!(rect.width > 0) || !(rect.height > 0)) {
 		throw new Error("exportRegion: rect must have positive width and height");
 	}
+
+	const backgroundLayers = renderBackgroundLayers(options);
 
 	const targets = [...shapes.values()]
 		.filter(
@@ -71,7 +112,7 @@ export async function buildRegionSvg(
 <defs><clipPath id="usketch-region"><rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" /></clipPath></defs>
 ${bg}
 <g clip-path="url(#usketch-region)">
-${elements.join("\n")}
+${[...backgroundLayers, ...elements].join("\n")}
 </g>
 </svg>`;
 }
