@@ -6,13 +6,18 @@ function makePluginCtx() {
 	const unregister = vi.fn();
 	const registerHandler = vi.fn(() => unregister);
 	const registerShape = vi.fn();
+	const unregisterAction = vi.fn();
+	const registerAction = vi.fn(() => unregisterAction);
+	const unregisterSettings = vi.fn();
+	const registerSettings = vi.fn(() => unregisterSettings);
 	const registerLayer = vi.fn();
-	const unregisterLayer = vi.fn();
 	const get = vi.fn(() => undefined);
 	const ctx = {
 		store: {} as PluginContext["store"],
 		shapes: { register: registerShape },
-		layers: { register: registerLayer, unregister: unregisterLayer },
+		layers: { register: registerLayer },
+		actions: { register: registerAction },
+		hud: { registerSettings },
 		externalContent: { register: registerHandler },
 		services: { get },
 	} as unknown as PluginContext;
@@ -20,8 +25,11 @@ function makePluginCtx() {
 		ctx,
 		registerHandler,
 		registerShape,
+		registerAction,
+		unregisterAction,
+		registerSettings,
+		unregisterSettings,
 		registerLayer,
-		unregisterLayer,
 		unregister,
 		get,
 	};
@@ -55,30 +63,31 @@ describe("createPdfImportPlugin", () => {
 		expect(handler.id).toBe("usketch-plugin-pdf-import:pdf-file");
 	});
 
-	it("registers the grid toolbar as a screen-fixed overlay layer", () => {
+	it("puts its column controls in the HUD instead of its own overlay layer", () => {
 		const plugin = createPdfImportPlugin();
-		const { ctx, registerLayer } = makePluginCtx();
+		const { ctx, registerAction, registerSettings, registerLayer } = makePluginCtx();
 
 		plugin.setup?.(ctx);
 
-		expect(registerLayer).toHaveBeenCalledTimes(1);
-		// Screen-space, so the bar keeps its size regardless of zoom.
-		expect(registerLayer.mock.calls[0]?.[0]).toMatchObject({
-			id: "pdf-import:grid-toolbar",
-			fixed: true,
-		});
+		expect(registerLayer).not.toHaveBeenCalled();
+		const actionIds = registerAction.mock.calls.map(([a]) => (a as { id: string }).id);
+		expect(actionIds).toEqual(["pdf-import:set-columns", "pdf-import:square-grid"]);
+		expect(registerSettings).toHaveBeenCalledWith(
+			expect.objectContaining({ id: "pdf-import:grid" }),
+		);
 	});
 
-	it("unregisters the handler and the toolbar on teardown", () => {
+	it("unregisters the handler and every HUD contribution on teardown", () => {
 		const plugin = createPdfImportPlugin();
-		const { ctx, unregister, unregisterLayer } = makePluginCtx();
+		const { ctx, unregister, unregisterAction, unregisterSettings } = makePluginCtx();
 
 		const teardown = plugin.setup?.(ctx);
 		expect(unregister).not.toHaveBeenCalled();
 
 		teardown?.();
 		expect(unregister).toHaveBeenCalledTimes(1);
-		expect(unregisterLayer).toHaveBeenCalledWith("pdf-import:grid-toolbar");
+		expect(unregisterAction).toHaveBeenCalledTimes(2);
+		expect(unregisterSettings).toHaveBeenCalledTimes(1);
 	});
 
 	it("resolves the asset store lazily, so plugin registration order does not matter", () => {

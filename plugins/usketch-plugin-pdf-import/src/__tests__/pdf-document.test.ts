@@ -13,7 +13,10 @@ const mocks = vi.hoisted(() => ({
 	getDocument: vi.fn(),
 	globalWorkerOptions: { workerSrc: "" },
 	version: "6.1.200",
+	dropCachedDocument: vi.fn(),
 }));
+
+vi.mock("../page-renderer.js", () => ({ dropCachedDocument: mocks.dropCachedDocument }));
 
 vi.mock("pdfjs-dist", () => ({
 	getDocument: mocks.getDocument,
@@ -34,7 +37,7 @@ function fakeLoadingTask(numPages: number) {
 beforeEach(() => {
 	vi.useFakeTimers();
 	resetDocumentCache();
-	setWorkerSrc(undefined);
+	setWorkerSrc("/pdf.worker.mjs");
 	mocks.getDocument.mockReset();
 	mocks.globalWorkerOptions.workerSrc = "";
 	vi.stubGlobal(
@@ -99,12 +102,16 @@ describe("acquireDocument", () => {
 	});
 
 	it("does not cache a failed open, so a later retry can succeed", async () => {
+		const destroy = vi.fn(async () => undefined);
 		mocks.getDocument.mockReturnValueOnce({
 			promise: Promise.reject(Object.assign(new Error("nope"), { name: "InvalidPDFException" })),
-			destroy: async () => undefined,
+			destroy,
 		});
 
 		await expect(acquireDocument("asset:1", "src")).rejects.toThrow(/壊れている/);
+		// Nobody else holds the failed task, so it must be destroyed here or its
+		// worker-side state leaks (e.g. a PasswordException keeps it alive).
+		expect(destroy).toHaveBeenCalledTimes(1);
 
 		mocks.getDocument.mockReturnValue(fakeLoadingTask(1).task);
 		await expect(acquireDocument("asset:1", "src")).resolves.toMatchObject({ numPages: 1 });
@@ -118,21 +125,29 @@ describe("acquireDocument", () => {
 
 		await expect(acquireDocument("asset:1", "https://example.test/a.pdf")).rejects.toThrow(/404/);
 	});
-});
 
-describe("worker configuration", () => {
-	it("pins the CDN worker to the bundled pdf.js version", async () => {
+	it("drops the document's cached renders when it is torn down", async () => {
 		mocks.getDocument.mockReturnValue(fakeLoadingTask(1).task);
 
 		await acquireDocument("asset:1", "src");
+		releaseDocument("asset:1");
+		await vi.advanceTimersByTimeAsync(10_000);
 
-		expect(mocks.globalWorkerOptions.workerSrc).toBe(
-			"https://cdn.jsdelivr.net/npm/pdfjs-dist@6.1.200/build/pdf.worker.min.mjs",
-		);
+		expect(mocks.dropCachedDocument).toHaveBeenCalledWith("asset:1");
+	});
+});
+
+describe("worker configuration", () => {
+	it("refuses to start without a worker URL instead of fetching one from a CDN", async () => {
+		setWorkerSrc(undefined);
+		mocks.getDocument.mockReturnValue(fakeLoadingTask(1).task);
+
+		await expect(acquireDocument("asset:1", "src")).rejects.toThrow(/workerSrc/);
+		expect(mocks.globalWorkerOptions.workerSrc).toBe("");
+		expect(mocks.getDocument).not.toHaveBeenCalled();
 	});
 
 	it("prefers an explicitly configured worker URL", async () => {
-		setWorkerSrc("/pdf.worker.mjs");
 		mocks.getDocument.mockReturnValue(fakeLoadingTask(1).task);
 
 		await acquireDocument("asset:1", "src");
@@ -141,6 +156,7 @@ describe("worker configuration", () => {
 	});
 
 	it("leaves a worker URL the host already configured untouched", async () => {
+		setWorkerSrc(undefined);
 		mocks.globalWorkerOptions.workerSrc = "/host-configured.mjs";
 		mocks.getDocument.mockReturnValue(fakeLoadingTask(1).task);
 

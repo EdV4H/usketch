@@ -16,22 +16,34 @@ const MAX_CONCURRENT_RENDERS = 3;
 
 /**
  * Device-pixel width a page needs to look sharp right now, quantized to powers
- * of two.
+ * of two, then capped so the buffer's **area** stays within `maxRenderPixels`.
  *
  * Quantizing matters: the world layer is CSS-scaled, so without it a pinch
  * gesture would kick off a fresh pdf.js render on every animation frame. Powers
  * of two mean at most a handful of distinct renders across the whole zoom
  * range, and re-renders land on zoom boundaries rather than continuously.
+ *
+ * The cap is on area, not width, because both limits that matter are areas:
+ * browsers refuse canvases past a pixel count (iOS Safari at ~16.7M px), and
+ * the bitmap cache budget is counted in pixels. It has to be applied here, not
+ * inside `renderPage`: the cache is keyed by the width returned from this
+ * function, so shrinking the canvas later would file a smaller bitmap under the
+ * larger key.
+ *
+ * @param aspect page height / width
  */
 export function targetRenderWidth(
 	worldWidth: number,
 	zoom: number,
 	devicePixelRatio: number,
-	maxRenderSize: number,
+	maxRenderPixels: number,
+	aspect: number,
 ): number {
 	const needed = worldWidth * zoom * devicePixelRatio;
 	const quantized = 2 ** Math.ceil(Math.log2(Math.max(needed, 1)));
-	return Math.round(clamp(quantized, MIN_RENDER_WIDTH, Math.max(maxRenderSize, MIN_RENDER_WIDTH)));
+	const safeAspect = Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
+	const maxWidth = Math.floor(Math.sqrt(Math.max(maxRenderPixels, 0) / safeAspect));
+	return Math.round(clamp(quantized, MIN_RENDER_WIDTH, Math.max(maxWidth, MIN_RENDER_WIDTH)));
 }
 
 /** Fit `content` inside `box` preserving aspect ratio (letterbox). */
@@ -114,11 +126,27 @@ function putCachedPage(key: string, canvas: HTMLCanvasElement): void {
 	}
 }
 
+/**
+ * Drop every cached bitmap of one document. Called when the document itself is
+ * torn down, so deleting a PDF from the board frees its renders too instead of
+ * leaving them resident for the rest of the session.
+ */
+export function dropCachedDocument(documentKey: string): void {
+	const prefix = `${documentKey}:`;
+	for (const [key, entry] of cache) {
+		if (!key.startsWith(prefix)) continue;
+		cache.delete(key);
+		cachedPixels -= entry.pixels;
+	}
+}
+
 let activeRenders = 0;
 const waiting: (() => void)[] = [];
 
 async function acquireRenderSlot(): Promise<() => void> {
-	if (activeRenders >= MAX_CONCURRENT_RENDERS) {
+	// Re-check after waking: a woken waiter resumes on a later microtask, and a
+	// fresh caller may have claimed the freed slot in between.
+	while (activeRenders >= MAX_CONCURRENT_RENDERS) {
 		await new Promise<void>((resolve) => waiting.push(resolve));
 	}
 	activeRenders++;
@@ -205,6 +233,11 @@ export function isCancellation(err: unknown): boolean {
 export function resetPageCache(): void {
 	cache.clear();
 	cachedPixels = 0;
+}
+
+/** Test seam: renders currently holding a slot. */
+export function activeRenderCount(): number {
+	return activeRenders;
 }
 
 /** Test seam: total pixels currently charged against the cache budget. */

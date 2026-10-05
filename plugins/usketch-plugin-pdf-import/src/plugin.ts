@@ -1,18 +1,22 @@
 import { getAssetStore } from "@edv4h/usketch-plugin-asset-store";
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
-import { createPdfFileHandler } from "./external-content-handler.js";
-import { PdfGridToolbar } from "./grid-toolbar.js";
+import { createPdfFileHandler, PDF_IMPORT_DEFAULTS } from "./external-content-handler.js";
+import {
+	createSetPdfColumnsCommand,
+	getSelectedPdfColumns,
+	selectedPdfPages,
+	squareColumns,
+} from "./grid-control.js";
 import { setWorkerSrc } from "./pdf-document.js";
 import { createPdfPageShapeDefinition } from "./pdf-page-shape.js";
 import { PDF_PAGE_SHAPE_TYPE, type PdfImportOptions } from "./types.js";
 
-/** Longest side of a page's render buffer, in device pixels. */
-const DEFAULT_MAX_RENDER_SIZE = 4096;
-/** Gap between grid cells, in world units. */
-const DEFAULT_GAP = 24;
-/** Above the shape layers, alongside the other property bars. */
-const TOOLBAR_LAYER_ORDER = 83;
-const TOOLBAR_LAYER_ID = "pdf-import:grid-toolbar";
+/**
+ * Area cap of a page's render buffer, in device pixels. ≈32MB at 4 bytes per
+ * pixel — a third of the bitmap cache budget, and well under the canvas area
+ * limit of iOS Safari (~16.7M px).
+ */
+const DEFAULT_MAX_RENDER_PIXELS = 8_000_000;
 
 /**
  * Expands a pasted or dropped PDF into one live page shape per page.
@@ -21,10 +25,11 @@ const TOOLBAR_LAYER_ID = "pdf-import:grid-toolbar";
  * browser at the resolution the current zoom needs, so they stay sharp at any
  * zoom level rather than being frozen at import-time resolution.
  *
- * Requires the asset store plugin (`@edv4h/usketch-plugin-asset-store`).
+ * Requires the asset store plugin (`@edv4h/usketch-plugin-asset-store`) and a
+ * self-hosted pdf.js worker (`workerSrc`).
  */
 export function createPdfImportPlugin(options: PdfImportOptions = {}): UsketchPlugin {
-	const gap = options.gap ?? DEFAULT_GAP;
+	const gap = options.gap ?? PDF_IMPORT_DEFAULTS.gap;
 
 	return {
 		id: "usketch-plugin-pdf-import",
@@ -40,27 +45,54 @@ export function createPdfImportPlugin(options: PdfImportOptions = {}): UsketchPl
 					// Resolved per render rather than here, so this plugin can be
 					// registered before the one that provides the store.
 					getAssets: () => getAssetStore(ctx),
-					maxRenderSize: options.maxRenderSize ?? DEFAULT_MAX_RENDER_SIZE,
+					maxRenderPixels: options.maxRenderPixels ?? DEFAULT_MAX_RENDER_PIXELS,
 				}),
 			);
-
-			// Column control shown above a multi-page selection. A `fixed` layer
-			// rather than a selection foreground — that slot holds a single winner
-			// and already belongs to the select tool.
-			ctx.layers.register({
-				id: TOOLBAR_LAYER_ID,
-				order: TOOLBAR_LAYER_ORDER,
-				fixed: true,
-				render: () => <PdfGridToolbar gap={gap} />,
-			});
 
 			const unregisterHandler = ctx.externalContent.register(
 				createPdfFileHandler(options, () => getAssetStore(ctx)),
 			);
 
+			// Column controls live in the HUD: plugins must not ship their own
+			// toolbars. Move these to a selection-contextual HUD slot once it exists.
+			const setColumns = (columns: number) => {
+				const command = createSetPdfColumnsCommand(ctx.store, columns, gap);
+				if (command) ctx.commands.execute(command);
+			};
+			const hasGrid = () => selectedPdfPages(ctx.store).length >= 2;
+
+			const unregisterSetColumns = ctx.actions.register({
+				id: "pdf-import:set-columns",
+				label: "列数を変更",
+				group: "PDF",
+				params: [{ name: "columns", label: "列数", type: "number", min: 1, step: 1, default: 2 }],
+				isEnabled: hasGrid,
+				run: ({ columns }) => setColumns(Number(columns)),
+			});
+			const unregisterSquare = ctx.actions.register({
+				id: "pdf-import:square-grid",
+				label: "正方形に近い並びに戻す",
+				group: "PDF",
+				isEnabled: hasGrid,
+				run: () => setColumns(squareColumns(selectedPdfPages(ctx.store).length)),
+			});
+			const unregisterSettings = ctx.hud.registerSettings({
+				id: "pdf-import:grid",
+				label: "選択中のPDFページ（2枚以上）",
+				fields: [{ name: "columns", label: "列数", type: "number", min: 1, step: 1 }],
+				get: (name) => (name === "columns" ? getSelectedPdfColumns(ctx.store) : undefined),
+				set: (name, value) => {
+					if (name === "columns") setColumns(Number(value));
+				},
+				// Selection and page positions both live in the store.
+				subscribe: (listener) => ctx.store.subscribe(listener),
+			});
+
 			return () => {
 				unregisterHandler();
-				ctx.layers.unregister(TOOLBAR_LAYER_ID);
+				unregisterSetColumns();
+				unregisterSquare();
+				unregisterSettings();
 			};
 		},
 	};

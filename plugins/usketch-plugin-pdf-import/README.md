@@ -9,7 +9,7 @@ PDF をキャンバスに**ペースト／ドロップすると全ページが�
 3. 各ページを `pdf-page` シェイプとして**グリッド配置**（`ceil(sqrt(n))` 列、左→右で折り返し）する。シェイプが持つのは `assetId` + ページ番号 + ページの原寸（PDF ポイント）だけ。
 4. グリッドが画面に収まらない場合だけ**ズームアウトして全体を表示する**（`store.fitToBounds`）。既に収まっている場合はビューポートを動かさない。
 5. 各 `pdf-page` シェイプは、**現在のズームに必要な解像度で pdf.js にページを描かせて** canvas に転送する。ズームすると解像度を上げて描き直す。
-6. ページを複数選択すると、その上に**列数を変えるツールバー**が浮かぶ（下記）。
+6. ページを複数選択すると、**HUD から列数を変えられる**（下記）。
 
 **PDF 1 ファイル = 1 コマンド**なので、1 回の undo で丸ごと取り消せる。PDF 以外のファイルが同じペイロードに混ざっていた場合は `ctx.externalContent.dispatch` で**再ディスパッチ**し、画像ハンドラ等に処理を委ねる。
 
@@ -23,36 +23,48 @@ PDF をキャンバスに**ペースト／ドロップすると全ページが�
 
 トレードオフとして、**閲覧側の全クライアントが pdf.js をロードして描画する**コストを払う。これを避けたい場合は取り込み時ラスタライズの方が適している。
 
-## 列数の変更（グリッドツールバー）
+## 列数の変更（HUD）
 
-`pdf-page` シェイプを 2 つ以上選択すると、選択範囲の上に小さなツールバーが出る。
+`pdf-page` シェイプを 2 つ以上選択すると、Control HUD（バッククォートで開くパネル）の「PDF取り込み」セクションから並びを変えられる。プラグイン独自のツールバーは持たない（UI は HUD に登録する方針のため）。
 
-```
-┌───────────────────────┐
-│ 列 ◀ 3 ▶  │ ↺  8ページ │
-└───────────────────────┘
-```
+| HUD の項目 | 種類 | 内容 |
+| --- | --- | --- |
+| 列数を変更 | アクション（`pdf-import:set-columns`） | 1 行に並ぶページ数を指定して並べ替える |
+| 正方形に近い並びに戻す | アクション（`pdf-import:square-grid`） | 取り込み直後と同じ `ceil(sqrt(n))` 列に戻す |
+| 選択中のPDFページ › 列数 | 設定（`pdf-import:grid`） | 現在の列数をライブ表示し、その場で変更もできる |
 
-- **◀ / ▶** で 1 行に並ぶページ数を増減する。行数はページ数から自動で決まる（行と列を両方固定すると積がページ数と一致しないケースが出るため、指定するのは列数だけ）。
-- **↺** で取り込み直後と同じ、正方形に近い並び（`ceil(sqrt(n))` 列）に戻す。
-- 並べ替えは**選択範囲の上端と水平中心を固定**したまま行う（グリッドは下方向に伸びる）。この 2 点はツールバーのアンカーそのものなので、連続してクリックしてもバーがカーソルの下から逃げない。
+アクションは PDF ページが 2 枚以上選択されている時だけ有効になる（`isEnabled`）。
+
+- 行数はページ数から自動で決まる（行と列を両方固定すると積がページ数と一致しないケースが出るため、指定するのは列数だけ）。
+- 並べ替えは**選択範囲の上端と水平中心を固定**したまま行う（グリッドは下方向に伸びる）。列数を続けて変えても 1 行目が視線の位置から動かない。
 - **ドキュメント順 → ページ番号順**に並べ直すため、手で動かして順序が崩れたページも揃う。複数の PDF を選択した場合はドキュメントごとにまとまる。
 - 1 回の操作 = 1 コマンドなので undo で元の配置に戻る。
 
 現在の列数はシェイプに保存せず、**ページの位置から読み取っている**。手で動かした後・undo 後・他クライアントから同期された後でも、その時点の見た目に対して素直な値が出る。
 
-実装は選択 UI（selection foreground）ではなく `fixed` なオーバーレイレイヤーとして登録している。selection foreground は単一勝者のスロットで、既に select ツールが使っているため。位置決めは canvas-engine の `ShapeAnchorOverlay` に任せている。
+操作ロジックは `BoardStore` を受け取る純関数として公開している。ホストが独自の導線から呼ぶこともできる。
 
-アンカーは上端固定で、**下端へのフォールバックはあえて使っていない**。下端は行数が変わるたびに動くので、フォールバックするとせっかく上端を固定した意味が無くなりバーが飛ぶ。取り込み時のオートフィットの余白（96px）は、選択された状態で置かれるページの上にバーが収まるよう、ストア既定の 40px より広めにとってある。
+```ts
+import {
+  createSetPdfColumnsCommand,
+  getSelectedPdfColumns,
+} from "@edv4h/usketch-plugin-pdf-import";
+
+getSelectedPdfColumns(app.store); // 選択中のページの列数（2 枚未満なら 0）
+const command = createSetPdfColumnsCommand(app.store, 4, 24);
+if (command) app.commands.execute(command);
+```
+
+選択に追従する HUD のコンテキスト UI（#882）が入ったら、そちらに載せ替える予定。
 
 ## 描画パイプラインの要点
 
 - **ズーム購読**: シェイプのコンポーネントは shape identity で memo 化されており、ズームでは再描画されない。そのため `store.subscribe` を自前で張っている。
 - **量子化**: スナップショットは生のズーム値ではなく「必要な描画幅を 2 の冪に丸めた値」。ピンチ操作のたびに pdf.js を叩かないようにするため。ズーム全域でも数種類の解像度しか使わない。
-- **上限**: `maxRenderSize`（既定 4096px）で backing store の長辺を制限する。無制限にすると深いズームで巨大な canvas を確保してしまう。
+- **上限**: `maxRenderPixels`（既定 800 万 px ≈ 32MB）で backing store の**面積**を制限する。幅ではなく面積で制限するのは、効いてくる制約がどちらも面積だから。ブラウザの canvas 上限（iOS Safari はおよそ 1670 万 px で、超えると黙って白紙になる）も、下記キャッシュの予算も面積で決まる。制限はキャッシュキーを決める `targetRenderWidth` 側でかける（描画時に縮めるとキーと canvas の実寸がずれるため）。
 - **ドキュメント共有**: 同じ PDF の全ページが 1 つの `PDFDocumentProxy` を参照カウント付きで共有する。50 ページの取り込みで 50 回開いたりはしない。ページが画面外に出て unmount されても 5 秒の猶予を置いてから破棄するので、パンのたびに開き直さない。
 - **同時実行制限**: pdf.js の描画は同時 3 件まで。取り込み直後に全ページが殺到しないようにする。
-- **キャッシュ**: 描画済みビットマップを合計 2400 万ピクセル程度まで LRU で保持する。viewport LOD で unmount されたページに戻ってきたとき即座に表示できる。
+- **キャッシュ**: 描画済みビットマップを合計 2400 万ピクセル程度まで LRU で保持する。viewport LOD で unmount されたページに戻ってきたとき即座に表示できる。ドキュメントを破棄する時に、そのドキュメントのビットマップもまとめて捨てる。
 - **再描画中の空白防止**: オフスクリーンに描いてから転送するので、ズーム中にページが真っ白になることがない。
 - **LOD**: 縮小時・画面外では `simplifiedComponent`（白いページ矩形）に差し替わり、pdf.js は動かない。
 
@@ -60,10 +72,12 @@ PDF をキャンバスに**ペースト／ドロップすると全ページが�
 
 ```ts
 import { createPdfImportPlugin } from "@edv4h/usketch-plugin-pdf-import";
+// Vite の場合。ワーカーをホスト自身のオリジンから配信する
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 const plugins = [
   createAssetStorePlugin({ doc }), // 必須
-  createPdfImportPlugin(),
+  createPdfImportPlugin({ workerSrc: pdfWorkerUrl }), // workerSrc も必須
 ];
 ```
 
@@ -73,31 +87,44 @@ const plugins = [
 
 | オプション | 既定値 | 説明 |
 | --- | --- | --- |
-| `maxSizeMB` | `50` | PDF ファイル自体のサイズ上限。超過分はアップロードせずエラー通知 |
+| `maxSizeMB` | `50` | アセットストアに独自の uploader（`setUploader`）がある時の、PDF ファイル自体のサイズ上限 |
+| `inlineMaxSizeMB` | `4` | アセットストアが既定の uploader（Yjs ドキュメントに直接書く）のままの時のサイズ上限。image プラグインと同じ値 |
 | `maxPages` | `50` | 配置するページ数の上限。超過時は先頭 N ページのみ + 警告 |
 | `maxPageWorldSize` | `480` | 配置後の 1 ページの長辺（ワールド単位） |
-| `gap` | `24` | グリッドの間隔（ワールド単位）。ツールバーでの並べ替えにも使われる |
-| `maxRenderSize` | `4096` | ページ描画バッファの長辺（device pixel）上限 |
+| `gap` | `24` | グリッドの間隔（ワールド単位）。HUD での並べ替えにも使われる |
+| `maxRenderPixels` | `8000000` | ページ描画バッファの面積（device pixel）上限 |
 | `fitOnImport` | `true` | 取り込み後に全体が見えるようズームアウトする。ズームインは決してしない |
 | `order` | `0` | ハンドラの優先度。プラグイン既定値なのでサードパーティが上書きできる |
-| `workerSrc` | jsDelivr CDN | pdf.js ワーカーの URL（下記） |
+| `workerSrc` | なし（必須） | pdf.js ワーカーの URL（下記） |
 
 `maxPages` はページ数が保存バイト数に影響しない設計なので、ボードの扱いやすさ（シェイプ数と描画負荷）だけを基準にした値。
 
+サイズ上限が uploader の有無で変わるのは、既定の uploader が PDF を base64 のまま 1 回の Yjs update としてドキュメントに書き込むため。大きな update は同期や永続化で黙って失敗しうる。この問題は image プラグインでも起きる既存の問題なので、別 Issue で扱う。
+
 ## pdf.js ワーカーについて
 
-このプラグインは素の `tsc` でビルドされるためバンドラ固有の形式（`?url`、`new URL(…, import.meta.url)`）が使えない。既定では**バンドル版と同じバージョンに固定した jsDelivr の URL** からワーカーを読み込む（`@edv4h/usketch-plugin-export` のフォント取得と同じ方式）。
+pdf.js のワーカーは**実行コード**なので、第三者の CDN からは読み込まない。ホストが自分のオリジンから配信し、その URL を `workerSrc` で渡す。指定が無い場合、PDF を開こうとした時点でエラーになる（黙って CDN を読みに行くことはしない）。ホストが既に `GlobalWorkerOptions.workerSrc` を設定している場合はそれを尊重し、上書きしない。
 
-オフライン環境や CSP が厳しい環境では `workerSrc` で自己ホストしたワーカーを指定する。**`pdfjs-dist` の依存バージョンと完全に一致**していないと pdf.js は起動しない。
+このプラグインは素の `tsc` でビルドされるため、バンドラ固有の形式（`?url`、`new URL(…, import.meta.url)`）でワーカーを参照できない。参照はホスト側のバンドラで解決する。ワーカーは **`pdfjs-dist` の依存バージョンと完全に一致**していないと pdf.js が起動しないので、ホストにも同じバージョンの `pdfjs-dist` を入れる。
 
 ```ts
-// Vite などバンドラを持つホスト側から渡す
-createPdfImportPlugin({
-  workerSrc: new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString(),
-});
+// Vite
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+createPdfImportPlugin({ workerSrc: pdfWorkerUrl });
 ```
 
-ホストが既に `GlobalWorkerOptions.workerSrc` を設定している場合はそれを尊重し、上書きしない。
+### CSP
+
+Content-Security-Policy を設定しているホストでは、少なくとも次が必要になる。
+
+| ディレクティブ | 必要な値 | 理由 |
+| --- | --- | --- |
+| `worker-src` | `'self'`（ワーカーの配信元） | pdf.js のワーカー本体（module worker） |
+| `worker-src` | `blob:`（ワーカーを別オリジンから配信する場合だけ） | pdf.js は別オリジンのワーカーを `blob:` の URL で包んで起動する。同一オリジンなら不要 |
+| `script-src` | `'self'` | pdf.js 本体（動的 import でチャンク分割されている） |
+| `connect-src` | `data:` と、`setUploader` で使う保存先のオリジン | シェイプが PDF を `fetch` して読む。既定ではアセットは data URL |
+
+pdf.js v6 はフォント処理などで `eval` / `new Function` を使わないので、`'unsafe-eval'` は不要。
 
 ## ストレージについて
 
@@ -122,11 +149,11 @@ ctx.events.on<PdfImportProgressEvent>("pdf-import:progress", ({ fileName, page, 
 });
 ```
 
-エラー・警告（サイズ超過、パスワード付き PDF、ページ数打ち切り、アセットストア未登録）は `ai:status` の `{ status: "error", message }` で通知する。
+エラー（サイズ超過、パスワード付き PDF、アセットストア未登録など）は `ai:status` の `{ status: "error", message }` で通知する。ページ数の打ち切りは取り込み自体は成功しているので、`{ status: "done", message }` で通知する。
 
 ## 制約
 
 - パスワード付き PDF は非対応（エラー通知のみ）。
 - pdf.js v6 は `Promise.withResolvers` を要求するため Safari 17.4+ / Chrome 119+ / Firefox 121+ が必要。
 - リンクや選択可能テキストは保持されない（canvas に描画するため）。
-- `maxRenderSize` を超える倍率まで拡大すると、そこから先は引き伸ばしになる。ページ全体ではなく可視領域だけを高解像度で描くタイル描画は未実装。
+- `maxRenderPixels` を超える倍率まで拡大すると、そこから先は引き伸ばしになる。ページ全体ではなく可視領域だけを高解像度で描くタイル描画は未実装。

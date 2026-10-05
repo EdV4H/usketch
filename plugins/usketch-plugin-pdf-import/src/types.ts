@@ -38,10 +38,16 @@ export interface PdfPageSize {
 
 export interface PdfImportOptions {
 	/**
-	 * Max accepted size of the PDF file. Default 50 (MB). The whole document is
-	 * stored in the asset store, so this bounds what lands in the board.
+	 * Max accepted size of the PDF file when the asset store uploads to a
+	 * server (`setUploader` was called). Default 50 (MB).
 	 */
 	maxSizeMB?: number;
+	/**
+	 * Max accepted size of the PDF file while the asset store still uses its
+	 * default uploader, which inlines the whole file into the shared Yjs doc as
+	 * one update. Default 4 (MB), the same cap the image plugin uses.
+	 */
+	inlineMaxSizeMB?: number;
 	/**
 	 * Max pages placed from one PDF. Default 50. Unlike a rasterizing importer,
 	 * page count does not affect stored bytes — the cost is shape count and
@@ -60,16 +66,18 @@ export interface PdfImportOptions {
 	 */
 	fitOnImport?: boolean;
 	/**
-	 * Cap on the longest side of a page's render buffer, in device pixels.
-	 * Default 4096. Raising it keeps pages sharp at deeper zoom at the cost of
-	 * memory — a 4096px A4 page costs roughly 47MB while it is on screen.
+	 * Cap on the **area** of a page's render buffer, in device pixels. Default
+	 * 8,000,000 (≈32MB per page at 4 bytes per pixel). Raising it keeps pages
+	 * sharp at deeper zoom at the cost of memory; past ~16.7M px iOS Safari
+	 * refuses to draw the canvas at all and the page renders blank.
 	 */
-	maxRenderSize?: number;
+	maxRenderPixels?: number;
 	/**
-	 * URL of the pdf.js worker module. Defaults to a jsDelivr URL pinned to the
-	 * bundled pdf.js version. Override to self-host — the worker build **must**
-	 * match the `pdfjs-dist` version this plugin depends on, or pdf.js refuses
-	 * to start.
+	 * URL of the pdf.js worker module, served by the host. **Required** unless
+	 * the host already set `GlobalWorkerOptions.workerSrc` itself: the worker is
+	 * executable code, so the plugin never falls back to a CDN. The worker
+	 * build must match the `pdfjs-dist` version this plugin depends on, or
+	 * pdf.js refuses to start.
 	 */
 	workerSrc?: string;
 }

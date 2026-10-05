@@ -3,12 +3,11 @@ import type {
 	BoundingBox,
 	ExternalContentHandler,
 	ExternalContentHandlerCtx,
-	ShapeData,
 } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
 import { layoutPagesInGrid } from "./layout.js";
 import { acquireDocument, explainFailure, readPageSizes, releaseDocument } from "./pdf-document.js";
-import { PAGE_STYLE } from "./pdf-page-shape.js";
+import { pageStyle } from "./pdf-page-shape.js";
 import {
 	PDF_PAGE_SHAPE_TYPE,
 	type PdfImportOptions,
@@ -23,20 +22,18 @@ export type GetAssetStore = () => AssetStore | undefined;
 /** Emitted once per measured page so hosts can show import progress. */
 export const PDF_IMPORT_PROGRESS_EVENT = "pdf-import:progress";
 
-const DEFAULTS = {
+/** Option defaults, shared with the plugin so each lives in one place. */
+export const PDF_IMPORT_DEFAULTS = {
 	maxSizeMB: 50,
+	inlineMaxSizeMB: 4,
 	maxPages: 50,
 	maxPageWorldSize: 480,
 	gap: 24,
 	order: 0,
 } as const;
 
-/**
- * Screen-pixel margin left around an auto-fitted import. Wider than the store's
- * 40px default so the grid toolbar — anchored above the pages, which land
- * selected — has room to sit instead of being clamped over the first row.
- */
-const FIT_PADDING = 96;
+/** Screen-pixel margin around an auto-fitted import — the store's default. */
+const FIT_PADDING = 40;
 
 /**
  * A file is treated as a PDF by MIME type, falling back to the extension —
@@ -61,11 +58,12 @@ export function createPdfFileHandler(
 	getAssets?: GetAssetStore,
 ): ExternalContentHandler<"file"> {
 	const {
-		maxSizeMB = DEFAULTS.maxSizeMB,
-		maxPages = DEFAULTS.maxPages,
-		maxPageWorldSize = DEFAULTS.maxPageWorldSize,
-		gap = DEFAULTS.gap,
-		order = DEFAULTS.order,
+		maxSizeMB = PDF_IMPORT_DEFAULTS.maxSizeMB,
+		inlineMaxSizeMB = PDF_IMPORT_DEFAULTS.inlineMaxSizeMB,
+		maxPages = PDF_IMPORT_DEFAULTS.maxPages,
+		maxPageWorldSize = PDF_IMPORT_DEFAULTS.maxPageWorldSize,
+		gap = PDF_IMPORT_DEFAULTS.gap,
+		order = PDF_IMPORT_DEFAULTS.order,
 		fitOnImport = true,
 	} = options;
 
@@ -81,8 +79,11 @@ export function createPdfFileHandler(
 			const others = content.files.filter((f) => !isPdfFile(f));
 
 			const origin = viewportCenterToWorld(ctx);
-			let offsetX = 0;
+			// Grids differ in width, so each one is placed by its left edge, just
+			// right of the previous grid. Only the first is centered on the view.
+			let nextLeft: number | undefined;
 			let imported: BoundingBox | null = null;
+			const placedIds: string[] = [];
 
 			for (const file of pdfs) {
 				// One PDF must never abort the rest of the batch: the registry runs a
@@ -90,21 +91,28 @@ export function createPdfFileHandler(
 				// remaining file, including the non-PDF remainder below.
 				try {
 					const placed = await importPdf(file, ctx, {
-						center: { x: origin.x + offsetX, y: origin.y },
+						center: origin,
+						left: nextLeft,
 						maxSizeMB,
+						inlineMaxSizeMB,
 						maxPages,
 						maxPageWorldSize,
 						gap,
 						assets: getAssets?.(),
 					});
 					if (placed) {
-						offsetX += placed.width + gap;
-						imported = imported ? union(imported, placed) : placed;
+						nextLeft = placed.bounds.x + placed.bounds.width + gap;
+						imported = imported ? union(imported, placed.bounds) : placed.bounds;
+						placedIds.push(...placed.ids);
 					}
 				} catch (err) {
 					emitError(ctx, `「${file.name}」の取り込みに失敗しました: ${describeError(err)}`);
 				}
 			}
+
+			// Select once, after the loop: selecting per file would leave only the
+			// last PDF's pages selected.
+			if (placedIds.length > 0) ctx.store.setSelection(placedIds);
 
 			// Frame once, over everything imported — fitting per file would leave the
 			// viewport parked on whichever PDF happened to be last.
@@ -118,28 +126,31 @@ export function createPdfFileHandler(
 }
 
 interface ImportOptions {
+	/** Where the grid is centered — vertically always, horizontally unless `left` is set. */
 	center: { x: number; y: number };
+	/** Left edge of the grid, when it must sit beside an earlier one. */
+	left?: number;
 	maxSizeMB: number;
+	inlineMaxSizeMB: number;
 	maxPages: number;
 	maxPageWorldSize: number;
 	gap: number;
 	assets?: AssetStore;
 }
 
-/** Import one PDF. Returns the grid's world bounds, or null when nothing was placed. */
+interface PlacedPdf {
+	/** World bounds of the grid. */
+	bounds: BoundingBox;
+	/** Ids of the page shapes that were added. */
+	ids: string[];
+}
+
+/** Import one PDF. Returns what was placed, or null when nothing was. */
 async function importPdf(
 	file: File,
 	ctx: ExternalContentHandlerCtx,
 	opts: ImportOptions,
-): Promise<BoundingBox | null> {
-	if (file.size > opts.maxSizeMB * 1024 * 1024) {
-		emitError(
-			ctx,
-			`「${file.name}」は${(file.size / 1024 / 1024).toFixed(1)}MBです。上限は${opts.maxSizeMB}MBです。`,
-		);
-		return null;
-	}
-
+): Promise<PlacedPdf | null> {
 	// Pages reference the document by asset id, so without a store there is
 	// nowhere to put the bytes — inlining a whole PDF into every page shape
 	// would duplicate it once per page.
@@ -151,24 +162,34 @@ async function importPdf(
 		return null;
 	}
 
-	const dataUrl = await fileToDataUrl(file);
-	const assetId = await opts.assets.upload("pdf", dataUrl, {
-		mimeType: "application/pdf",
-		size: file.size,
-	});
+	// The default uploader writes the whole file into the shared Yjs doc as a
+	// single update, which large files do not survive (sync message and storage
+	// limits). Only allow the larger cap when uploads go somewhere else.
+	const limitMB = opts.assets.hasCustomUploader() ? opts.maxSizeMB : opts.inlineMaxSizeMB;
+	if (file.size > limitMB * 1024 * 1024) {
+		emitError(
+			ctx,
+			`「${file.name}」は${(file.size / 1024 / 1024).toFixed(1)}MBです。上限は${limitMB}MBです。`,
+		);
+		return null;
+	}
 
-	// Read page geometry through the same shared cache the shapes will use, so
-	// the document is parsed once and is already warm when they mount.
-	const source = opts.assets.resolve(assetId) ?? dataUrl;
-	const document = await acquireDocument(assetId, source);
+	const dataUrl = await fileToDataUrl(file);
+
+	// Open and measure the local copy *before* uploading. The upload is final
+	// — the default store writes into the shared doc, which syncs to every
+	// client and has no delete — so a password-protected, corrupt or empty PDF
+	// must be turned away first.
+	const pendingKey = `pdf-import:pending:${generateId()}`;
 	let measured: Awaited<ReturnType<typeof readPageSizes>>;
 	try {
+		const document = await acquireDocument(pendingKey, dataUrl);
 		measured = await readPageSizes(document, opts.maxPages, (page, totalPages) => {
 			const payload: PdfImportProgressEvent = { fileName: file.name, page, totalPages };
 			ctx.events.emit(PDF_IMPORT_PROGRESS_EVENT, payload);
 		});
 	} finally {
-		releaseDocument(assetId);
+		releaseDocument(pendingKey);
 	}
 
 	if (measured.sizes.length === 0) {
@@ -176,8 +197,19 @@ async function importPdf(
 		return null;
 	}
 
+	const assetId = await opts.assets.upload("pdf", dataUrl, {
+		mimeType: "application/pdf",
+		size: file.size,
+	});
+
 	const worldSizes = measured.sizes.map((page) => worldSize(page, opts.maxPageWorldSize));
-	const grid = layoutPagesInGrid(worldSizes, { gap: opts.gap, center: opts.center });
+	let grid = layoutPagesInGrid(worldSizes, { gap: opts.gap, center: opts.center });
+	if (opts.left !== undefined) {
+		grid = layoutPagesInGrid(worldSizes, {
+			gap: opts.gap,
+			center: { x: opts.left + grid.width / 2, y: opts.center.y },
+		});
+	}
 
 	const shapes: PdfPageShapeData[] = [];
 	for (const [index, page] of measured.sizes.entries()) {
@@ -191,7 +223,7 @@ async function importPdf(
 			y: position.y,
 			width: size.width,
 			height: size.height,
-			style: { ...PAGE_STYLE },
+			style: pageStyle(),
 			assetId,
 			pageNumber: page.pageNumber,
 			pageCount: measured.totalPages,
@@ -209,16 +241,19 @@ async function importPdf(
 			for (const shape of shapes) ctx.store.deleteShape(shape.id);
 		},
 	});
-	ctx.store.setSelection(shapes.map((s) => s.id));
 
 	if (measured.truncated) {
-		emitError(
-			ctx,
-			`「${file.name}」は${measured.totalPages}ページ中、先頭${shapes.length}ページのみ取り込みました。`,
-		);
+		// Informational, not a failure: the import itself succeeded.
+		ctx.events.emit("ai:status", {
+			status: "done",
+			message: `「${file.name}」は${measured.totalPages}ページ中、先頭${shapes.length}ページのみ取り込みました。`,
+		});
 	}
 
-	return { x: grid.x, y: grid.y, width: grid.width, height: grid.height };
+	return {
+		bounds: { x: grid.x, y: grid.y, width: grid.width, height: grid.height },
+		ids: shapes.map((s) => s.id),
+	};
 }
 
 /**
@@ -263,7 +298,10 @@ function frameImport(ctx: ExternalContentHandlerCtx, bounds: BoundingBox): void 
 	const size = viewportSize();
 	if (size.width <= 0 || size.height <= 0) return;
 	const { zoom } = ctx.store.getViewport();
-	const fitsAlready = bounds.width * zoom <= size.width && bounds.height * zoom <= size.height;
+	// Same margin `fitToBounds` leaves, so "already fits" and "fit" agree.
+	const fitsAlready =
+		bounds.width * zoom <= size.width - FIT_PADDING * 2 &&
+		bounds.height * zoom <= size.height - FIT_PADDING * 2;
 	if (fitsAlready) return;
 	ctx.store.fitToBounds(bounds, size, FIT_PADDING);
 }
@@ -295,6 +333,3 @@ function emitError(ctx: ExternalContentHandlerCtx, message: string): void {
 function describeError(err: unknown): string {
 	return explainFailure(err).message;
 }
-
-/** Re-exported for tests that build page shapes by hand. */
-export type { ShapeData };

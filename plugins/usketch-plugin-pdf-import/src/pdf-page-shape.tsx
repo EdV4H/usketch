@@ -7,6 +7,7 @@ import {
 	type ResizeHandle,
 	type ShapeData,
 	type ShapeDefinition,
+	type ShapeStyle,
 	safeRotation,
 	withRotation,
 } from "@edv4h/usketch-shared";
@@ -27,15 +28,14 @@ import { PDF_PAGE_SHAPE_TYPE, type PdfPageShapeData } from "./types.js";
 export interface PdfPageShapeDeps {
 	store: BoardStore;
 	getAssets: () => AssetStore | undefined;
-	maxRenderSize: number;
+	/** Cap on a page's render buffer area, in device pixels. */
+	maxRenderPixels: number;
 }
 
-const PAGE_STYLE = {
-	fill: "#ffffff",
-	stroke: "#e0e0e0",
-	strokeWidth: 1,
-	opacity: 1,
-} as const;
+/** Paper look shared by freshly imported pages and `createDefault`. */
+export function pageStyle(): ShapeStyle {
+	return { ...DEFAULT_STYLE, fill: "#ffffff", stroke: "#e0e0e0", strokeWidth: 1, opacity: 1 };
+}
 
 function devicePixelRatio(): number {
 	return typeof window === "undefined" ? 1 : Math.min(window.devicePixelRatio || 1, 2);
@@ -53,7 +53,7 @@ function blit(target: HTMLCanvasElement | null, source: HTMLCanvasElement): void
 }
 
 function PdfPageView({ data, deps }: { data: PdfPageShapeData; deps: PdfPageShapeDeps }) {
-	const { store, getAssets, maxRenderSize } = deps;
+	const { store, getAssets, maxRenderPixels } = deps;
 	const assets = getAssets();
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
@@ -74,7 +74,13 @@ function PdfPageView({ data, deps }: { data: PdfPageShapeData; deps: PdfPageShap
 	// pinch gesture produces a handful of re-renders instead of one per frame.
 	const subscribeStore = useCallback((cb: () => void) => store.subscribe(cb), [store]);
 	const renderWidth = useSyncExternalStore(subscribeStore, () =>
-		targetRenderWidth(data.width, store.getViewport().zoom, devicePixelRatio(), maxRenderSize),
+		targetRenderWidth(
+			data.width,
+			store.getViewport().zoom,
+			devicePixelRatio(),
+			maxRenderPixels,
+			data.pointHeight / data.pointWidth,
+		),
 	);
 
 	// Hold the shared document for as long as this page is mounted. Kept apart
@@ -161,11 +167,15 @@ function PdfPageView({ data, deps }: { data: PdfPageShapeData; deps: PdfPageShap
 					visibility: painted ? "visible" : "hidden",
 				}}
 			/>
-			{painted ? null : (
+			{/* A failed re-render must not hide behind the last good bitmap, so the
+			    error shows whether or not something was painted before. */}
+			{painted && !error ? null : (
 				<span
 					style={{
 						position: "absolute",
 						color: "#999",
+						background: painted ? "rgba(255,255,255,0.85)" : undefined,
+						padding: painted ? "2px 6px" : undefined,
 						fontSize: 13,
 						fontFamily: "system-ui",
 					}}
@@ -266,7 +276,7 @@ function createDefault(params: { id: string; x: number; y: number }): PdfPageSha
 		y: params.y,
 		width: 339,
 		height: 480,
-		style: { ...DEFAULT_STYLE, ...PAGE_STYLE },
+		style: pageStyle(),
 		assetId: "",
 		pageNumber: 1,
 		pageCount: 1,
@@ -309,5 +319,3 @@ export function createPdfPageShapeDefinition(deps: PdfPageShapeDeps): ShapeDefin
 		debugFields,
 	};
 }
-
-export { PAGE_STYLE };

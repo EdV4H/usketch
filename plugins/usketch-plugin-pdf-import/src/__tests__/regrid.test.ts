@@ -57,6 +57,20 @@ describe("detectColumns", () => {
 		expect(detectColumns([page(1, 0, 0), page(2, 120, 6), page(3, 0, 220)])).toBe(2);
 	});
 
+	it("reads a first row of mixed heights in full, laid out as the grid lays it out", () => {
+		// A 400-tall page next to two 100-tall ones: the short pages sit 150
+		// below the cell top, past half the *shortest* page (50).
+		const tall = { height: 400 };
+		const short = { height: 100 };
+		const pages = [
+			page(1, 0, 0, tall),
+			page(2, 120, 150, short),
+			page(3, 240, 150, short),
+			page(4, 0, 420, tall),
+		];
+		expect(detectColumns(pages)).toBe(3);
+	});
+
 	it("returns 0 for an empty selection", () => {
 		expect(detectColumns([])).toBe(0);
 	});
@@ -95,9 +109,8 @@ describe("reflowPages", () => {
 		expect(ordered.map((p) => p.id)).toEqual(["a1", "a2", "b1", "b2"]);
 	});
 
-	// The grid toolbar is anchored to the selection's top edge and horizontal
-	// center, so both must survive a reflow or the bar jumps out from under the
-	// cursor between clicks.
+	// Pinning the top edge keeps the first row where the user is looking while
+	// they step through column counts.
 	it("keeps the top edge fixed however the row count changes", () => {
 		const before = grid3x2();
 		const topBefore = Math.min(...before.map((s) => s.y));

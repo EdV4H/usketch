@@ -68,12 +68,24 @@ function makeCtx() {
 	return { ctx, addShape, deleteShape, setSelection, execute, emit, dispatch, fitToBounds };
 }
 
-function fakeAssets(uploadImpl = vi.fn(async () => "asset:pdf1")) {
+function fakeAssets(uploadImpl = vi.fn(async () => "asset:pdf1"), customUploader = false) {
 	const store = {
 		upload: uploadImpl,
 		resolve: vi.fn(() => "data:application/pdf;base64,AAA"),
+		hasCustomUploader: () => customUploader,
 	} as unknown as AssetStore;
 	return { assets: store, upload: uploadImpl };
+}
+
+function boundsOf(shapes: PdfPageShapeData[]) {
+	const left = Math.min(...shapes.map((s) => s.x));
+	const top = Math.min(...shapes.map((s) => s.y));
+	return {
+		left,
+		top,
+		right: Math.max(...shapes.map((s) => s.x + s.width)),
+		bottom: Math.max(...shapes.map((s) => s.y + s.height)),
+	};
 }
 
 function pdfFile(name = "report.pdf", type = "application/pdf", size = 1024): File {
@@ -215,6 +227,62 @@ describe("createPdfFileHandler / handle", () => {
 
 		expect(acquireDocument).toHaveBeenCalledTimes(1);
 		expect(releaseDocument).toHaveBeenCalledTimes(1);
+		expect(releaseDocument).toHaveBeenCalledWith(acquireDocument.mock.calls[0]?.[0]);
+	});
+
+	it("measures the local copy first and uploads only once the PDF has opened", async () => {
+		const order: string[] = [];
+		const upload = vi.fn(async () => {
+			order.push("upload");
+			return "asset:pdf1";
+		});
+		const { assets } = fakeAssets(upload);
+		acquireDocument.mockImplementation(async (_key: string, src: string) => {
+			order.push("open");
+			// The bytes come from the file itself, not from the asset store.
+			expect(src).toMatch(/^data:application\/pdf/);
+			return { numPages: 3 };
+		});
+		readPageSizes.mockImplementation(async () => {
+			order.push("measure");
+			return measured(3);
+		});
+		const h = createPdfFileHandler({}, () => assets);
+		const { ctx } = makeCtx();
+
+		await h.handle(fileContent([pdfFile()]), ctx);
+
+		expect(order).toEqual(["open", "measure", "upload"]);
+	});
+
+	it("selects every imported page once, across all PDFs in the payload", async () => {
+		const { assets } = fakeAssets();
+		const h = createPdfFileHandler({}, () => assets);
+		const { ctx, addShape, setSelection } = makeCtx();
+
+		await h.handle(fileContent([pdfFile("a.pdf"), pdfFile("b.pdf")]), ctx);
+
+		expect(setSelection).toHaveBeenCalledTimes(1);
+		expect(setSelection).toHaveBeenCalledWith(placedShapes(addShape).map((s) => s.id));
+		expect(placedShapes(addShape)).toHaveLength(6);
+	});
+
+	it("places PDFs of different page counts side by side without overlap", async () => {
+		// The review's case: a 1-page PDF then a 9-page one. Centering each grid
+		// at "previous center + previous width" overlapped them by a full page.
+		const { assets } = fakeAssets();
+		const h = createPdfFileHandler({}, () => assets);
+		const { ctx, addShape } = makeCtx();
+		readPageSizes.mockResolvedValueOnce(measured(1)).mockResolvedValueOnce(measured(9));
+
+		await h.handle(fileContent([pdfFile("one.pdf"), pdfFile("nine.pdf")]), ctx);
+
+		const shapes = placedShapes(addShape);
+		const first = boundsOf(shapes.filter((s) => s.fileName === "one.pdf"));
+		const second = boundsOf(shapes.filter((s) => s.fileName === "nine.pdf"));
+		expect(second.left).toBeGreaterThanOrEqual(first.right + 24);
+		// Both stay vertically centered on the same line.
+		expect((first.top + first.bottom) / 2).toBeCloseTo((second.top + second.bottom) / 2, 0);
 	});
 
 	it("emits a progress event per page", async () => {
@@ -322,7 +390,7 @@ describe("createPdfFileHandler / failures", () => {
 	});
 
 	it("rejects oversized PDFs without uploading them", async () => {
-		const { assets, upload } = fakeAssets();
+		const { assets, upload } = fakeAssets(undefined, true);
 		const h = createPdfFileHandler({ maxSizeMB: 1 }, () => assets);
 		const { ctx, addShape, emit } = makeCtx();
 
@@ -331,6 +399,43 @@ describe("createPdfFileHandler / failures", () => {
 		expect(upload).not.toHaveBeenCalled();
 		expect(addShape).not.toHaveBeenCalled();
 		expect(statusMessages(emit).join()).toContain("big.pdf");
+	});
+
+	it("caps PDFs at the inline limit while the asset store writes into the shared doc", async () => {
+		const { assets, upload } = fakeAssets();
+		const h = createPdfFileHandler({}, () => assets);
+		const { ctx, addShape, emit } = makeCtx();
+
+		await h.handle(fileContent([pdfFile("big.pdf", "application/pdf", 5 * 1024 * 1024)]), ctx);
+
+		expect(upload).not.toHaveBeenCalled();
+		expect(addShape).not.toHaveBeenCalled();
+		expect(statusMessages(emit).join()).toContain("上限は4MB");
+	});
+
+	it("allows the larger limit once uploads go to a custom uploader", async () => {
+		const { assets, upload } = fakeAssets(undefined, true);
+		const h = createPdfFileHandler({}, () => assets);
+		const { ctx, addShape } = makeCtx();
+
+		await h.handle(fileContent([pdfFile("big.pdf", "application/pdf", 5 * 1024 * 1024)]), ctx);
+
+		expect(upload).toHaveBeenCalledTimes(1);
+		expect(addShape).toHaveBeenCalled();
+	});
+
+	it("does not upload a PDF that fails to open", async () => {
+		const { assets, upload } = fakeAssets();
+		const h = createPdfFileHandler({}, () => assets);
+		const { ctx } = makeCtx();
+		acquireDocument.mockRejectedValue(new Error("パスワード付きPDFのため読み込めません"));
+
+		await h.handle(fileContent([pdfFile()]), ctx);
+
+		// The default store writes into the synced doc and cannot delete, so an
+		// upload here would leak the bytes to every client for good.
+		expect(upload).not.toHaveBeenCalled();
+		expect(releaseDocument).toHaveBeenCalledTimes(1);
 	});
 
 	it("reports a load failure instead of throwing out of the dispatch", async () => {
@@ -378,16 +483,22 @@ describe("createPdfFileHandler / failures", () => {
 		const message = statusMessages(emit).join();
 		expect(message).toContain("9");
 		expect(message).toContain("2");
+		// The import succeeded; truncation is a notice, not an error.
+		const statuses = emit.mock.calls
+			.filter(([event]) => event === "ai:status")
+			.map(([, payload]) => (payload as { status: string }).status);
+		expect(statuses).toEqual(["done"]);
 	});
 
 	it("reports a document with no readable pages", async () => {
-		const { assets } = fakeAssets();
+		const { assets, upload } = fakeAssets();
 		const h = createPdfFileHandler({}, () => assets);
 		const { ctx, addShape, execute, emit } = makeCtx();
 		readPageSizes.mockResolvedValue(measured(0));
 
 		await h.handle(fileContent([pdfFile()]), ctx);
 
+		expect(upload).not.toHaveBeenCalled();
 		expect(addShape).not.toHaveBeenCalled();
 		expect(execute).not.toHaveBeenCalled();
 		expect(statusMessages(emit)).toHaveLength(1);

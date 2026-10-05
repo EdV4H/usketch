@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cachedPixelCount, getCachedPage, renderPage, resetPageCache } from "../page-renderer.js";
+import {
+	activeRenderCount,
+	cachedPixelCount,
+	dropCachedDocument,
+	getCachedPage,
+	renderPage,
+	resetPageCache,
+} from "../page-renderer.js";
 
 /** A4-shaped fake document whose pages render instantly. */
 function fakeDocument(): { document: PDFDocumentProxy; getPage: ReturnType<typeof vi.fn> } {
@@ -13,9 +20,14 @@ function fakeDocument(): { document: PDFDocumentProxy; getPage: ReturnType<typeo
 	return { document: { getPage } as unknown as PDFDocumentProxy, getPage };
 }
 
-function render(document: PDFDocumentProxy, width: number, pageNumber = 1) {
+function render(
+	document: PDFDocumentProxy,
+	width: number,
+	pageNumber = 1,
+	documentKey = "asset:a",
+) {
 	return renderPage({
-		documentKey: "asset:a",
+		documentKey,
 		document,
 		pageNumber,
 		width,
@@ -86,5 +98,74 @@ describe("renderPage caching", () => {
 		resetPageCache();
 
 		expect(cachedPixelCount()).toBe(0);
+	});
+});
+
+describe("dropCachedDocument", () => {
+	it("frees every render of that document and nothing else", async () => {
+		const { document } = fakeDocument();
+
+		await render(document, 256, 1, "asset:a");
+		await render(document, 512, 2, "asset:a");
+		const kept = await render(document, 256, 1, "asset:b");
+
+		dropCachedDocument("asset:a");
+
+		expect(getCachedPage("asset:a", 1, 256)).toBeUndefined();
+		expect(getCachedPage("asset:a", 2, 512)).toBeUndefined();
+		expect(getCachedPage("asset:b", 1, 256)).toBe(kept);
+		expect(cachedPixelCount()).toBe(kept.width * kept.height);
+	});
+});
+
+describe("render concurrency", () => {
+	it("never runs more than three renders, even when a caller arrives as a slot frees", async () => {
+		const finishers: (() => void)[] = [];
+		let peak = 0;
+		let lateCaller: Promise<unknown> | undefined;
+		const document = {
+			getPage: vi.fn(async (pageNumber: number) => ({
+				getViewport: ({ scale }: { scale: number }) => ({
+					width: 595 * scale,
+					height: 842 * scale,
+				}),
+				render: () => {
+					peak = Math.max(peak, activeRenderCount());
+					return { promise: new Promise<void>((resolve) => finishers.push(resolve)) };
+				},
+				cleanup: () => {
+					// Runs just before the slot is released: start a new render on
+					// the microtask that lands between the release and the queued
+					// waiter resuming — the window the old `if` let through.
+					if (pageNumber === 1 && !lateCaller) {
+						queueMicrotask(() => {
+							lateCaller = render(document, 256, 9);
+						});
+					}
+				},
+			})),
+		} as unknown as PDFDocumentProxy;
+
+		const renders = [1, 2, 3, 4].map((page) => render(document, 256, page));
+		await vi.waitFor(() => expect(finishers).toHaveLength(3));
+
+		finishers[0]?.();
+		await vi.waitFor(() => expect(lateCaller).toBeDefined());
+		await vi.waitFor(() => expect(finishers.length).toBeGreaterThanOrEqual(4));
+
+		expect(peak).toBeLessThanOrEqual(3);
+		expect(activeRenderCount()).toBeLessThanOrEqual(3);
+
+		// Drain everything so no render leaks into the next test. Finishing one
+		// render lets a queued one start, so keep finishing until all five ran.
+		const all = Promise.all([...renders, lateCaller]);
+		let finished = 1;
+		while (finished < 5) {
+			await vi.waitFor(() => expect(finishers.length).toBeGreaterThan(finished));
+			finishers[finished]?.();
+			finished++;
+		}
+		await all;
+		expect(activeRenderCount()).toBe(0);
 	});
 });

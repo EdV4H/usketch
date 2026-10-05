@@ -1,15 +1,6 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import { dropCachedDocument } from "./page-renderer.js";
 import type { PdfPageSize } from "./types.js";
-
-/**
- * pdf.js needs its worker as a URL it can fetch at runtime. This plugin is
- * compiled with plain `tsc`, so bundler-specific forms (`?url`,
- * `new URL(…, import.meta.url)`) are unavailable — the worker is loaded from a
- * CDN pinned to the exact bundled version, the same approach the export plugin
- * uses for its font. Hosts that cannot reach a CDN pass `workerSrc`.
- */
-const CDN_WORKER_URL = (version: string) =>
-	`https://cdn.jsdelivr.net/npm/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
 
 let configuredWorkerSrc: string | undefined;
 
@@ -21,6 +12,11 @@ export function setWorkerSrc(workerSrc: string | undefined): void {
 /**
  * pdf.js is imported dynamically so the ~1MB library is code-split out of the
  * plugin entry and only fetched when a PDF is actually on the board.
+ *
+ * The worker is executable code, so this never falls back to a third-party
+ * CDN: the host must serve it itself (`workerSrc`), or have configured pdf.js
+ * already. This plugin is compiled with plain `tsc`, so it cannot reference the
+ * worker file with bundler syntax on the host's behalf.
  */
 async function loadPdfjs() {
 	const pdfjs = await import("pdfjs-dist");
@@ -28,7 +24,9 @@ async function loadPdfjs() {
 	if (configuredWorkerSrc) {
 		pdfjs.GlobalWorkerOptions.workerSrc = configuredWorkerSrc;
 	} else if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-		pdfjs.GlobalWorkerOptions.workerSrc = CDN_WORKER_URL(pdfjs.version);
+		throw new Error(
+			"pdf.js のワーカーが設定されていません（createPdfImportPlugin の workerSrc を指定してください）",
+		);
 	}
 	return pdfjs;
 }
@@ -67,12 +65,18 @@ export function acquireDocument(key: string, src: string): Promise<PDFDocumentPr
 		try {
 			return await task.promise;
 		} catch (err) {
-			// A failed open must not poison the cache — the next attempt
-			// (e.g. after the network comes back) should retry cleanly.
-			documents.delete(key);
+			// A failed open (e.g. a PasswordException) leaves the loading task
+			// alive in the worker, and nobody else holds a handle to it.
+			void task.destroy();
 			throw explainFailure(err);
 		}
-	})();
+	})().catch((err: unknown) => {
+		// A failed open must not poison the cache — the next attempt (e.g. after
+		// the network comes back) should retry cleanly. Covers failures before
+		// the task exists too (no worker configured, fetch failed).
+		if (documents.get(key)?.document === document) documents.delete(key);
+		throw err;
+	});
 
 	documents.set(key, { refCount: 1, document, destroy: () => destroy() });
 	return document;
@@ -95,6 +99,8 @@ export function releaseDocument(key: string): void {
 		// A shape may have re-acquired it while we waited.
 		if (documents.get(key) !== entry || entry.refCount > 0) return;
 		documents.delete(key);
+		// Its bitmaps are only reachable through this document, so they go too.
+		dropCachedDocument(key);
 		// `destroy()` also terminates the worker's state for this document.
 		void entry.document.catch(() => undefined).then(() => entry.destroy());
 	}, TEARDOWN_DELAY_MS);

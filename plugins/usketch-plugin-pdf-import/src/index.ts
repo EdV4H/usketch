@@ -1,9 +1,15 @@
 export {
 	createPdfFileHandler,
 	type GetAssetStore,
+	PDF_IMPORT_DEFAULTS,
 	PDF_IMPORT_PROGRESS_EVENT,
 } from "./external-content-handler.js";
-export { PdfGridToolbar } from "./grid-toolbar.js";
+export {
+	createSetPdfColumnsCommand,
+	getSelectedPdfColumns,
+	selectedPdfPages,
+	squareColumns,
+} from "./grid-control.js";
 export {
 	type GridLayout,
 	type GridLayoutOptions,
@@ -12,7 +18,11 @@ export {
 } from "./layout.js";
 export { containSize, targetRenderWidth } from "./page-renderer.js";
 export { acquireDocument, readPageSizes, releaseDocument } from "./pdf-document.js";
-export { createPdfPageShapeDefinition, type PdfPageShapeDeps } from "./pdf-page-shape.js";
+export {
+	createPdfPageShapeDefinition,
+	type PdfPageShapeDeps,
+	pageStyle,
+} from "./pdf-page-shape.js";
 export { createPdfImportPlugin } from "./plugin.js";
 export { clampColumns, detectColumns, type PagePatch, reflowPages } from "./regrid.js";
 export {

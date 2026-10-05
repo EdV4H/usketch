@@ -10,24 +10,24 @@ export interface PagePatch {
 
 /**
  * How many columns the pages are currently arranged in, read back from their
- * positions rather than stored on the shapes — so the toolbar still shows a
+ * positions rather than stored on the shapes — so the HUD still shows a
  * sensible number after pages have been moved, undone, or synced from a peer.
  */
 export function detectColumns(pages: readonly PdfPageShapeData[]): number {
 	if (pages.length === 0) return 0;
 	const topY = Math.min(...pages.map((p) => p.y));
-	// Pages of different heights are centered in their cell, so a row's `y`
-	// values are close but not equal — compare against a fraction of the
-	// shortest page rather than requiring an exact match.
-	const tolerance = Math.min(...pages.map((p) => p.height)) / 2;
-	return pages.filter((p) => p.y - topY <= tolerance).length;
+	// Pages are centered in cells as tall as the tallest page, so a first-row
+	// page sits less than half a cell below the top, while the second row
+	// starts a full cell (plus gap) down. Half the *tallest* page separates the
+	// two; half the shortest would cut a mixed-height first row short.
+	const tolerance = Math.max(...pages.map((p) => p.height)) / 2;
+	return pages.filter((p) => p.y - topY < tolerance).length;
 }
 
 /**
  * Rearrange pages into `columns`, pinning the group's **top edge** and
- * horizontal center. Those are exactly the two coordinates the grid toolbar is
- * anchored to, so the bar stays put between clicks instead of sliding out from
- * under the cursor as the row count changes. The grid therefore grows downward.
+ * horizontal center. Pinning the top keeps the first row where the user is looking
+ * as the row count changes; the grid therefore grows downward.
  *
  * Reading order (document, then page number) is restored, so a reflow also
  * tidies up pages that were dragged out of sequence.
