@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-laser",
-	"version": "2.0.9",
+	"version": "2.0.17",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -27,7 +27,7 @@
 	"devDependencies": {
 		"@types/react": "19.2.18",
 		"typescript": "7.0.2",
-		"vitest": "4.1.10"
+		"vitest": "4.1.11"
 	},
 	"publishConfig": {
 		"access": "public"

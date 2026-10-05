@@ -1,7 +1,14 @@
-import type { BoundingBox, PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import {
+	type BoundingBox,
+	type Command,
+	generateId,
+	type PluginContext,
+	type ShapeData,
+	type UsketchPlugin,
+} from "@edv4h/usketch-shared";
 import type * as Y from "yjs";
 import { type PortalChrome, PortalLayer } from "./portal-layer.js";
-import { createPortalStore, defaultPortalBox } from "./portal-store.js";
+import { createPortalStore, defaultPortalBox, type PortalEntry } from "./portal-store.js";
 
 export interface PortalPluginOptions {
 	/** Shared Yjs doc — shared portals live in its `portals` map. */
@@ -37,6 +44,36 @@ export function createPortalPlugin(options: PortalPluginOptions): UsketchPlugin 
 				boardId: options.boardId,
 			});
 
+			const boundsOf = (shapeId: string): BoundingBox | null => {
+				const shape = ctx.store.getShape(shapeId);
+				if (!shape) return null;
+				const def = ctx.shapes.get(shape.type);
+				return def
+					? def.getBounds(shape)
+					: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+			};
+
+			// Restore a held portal's shape back to the canvas (undoable). Held
+			// portals own the only copy of the shape, so "closing" one restores it
+			// instead of discarding it.
+			const restoreToCanvas = (entry: PortalEntry, shared: boolean) => {
+				const snapshot = entry.shape;
+				// Re-add the held shape unless there's no snapshot, or a shape with the
+				// same id is already on the canvas (conflict) — in which case we only
+				// detach the portal. Either way go through a Command so it's undoable.
+				const readd = !!snapshot && !ctx.store.getShape(snapshot.id);
+				ctx.commands.execute({
+					execute() {
+						if (readd && snapshot) ctx.store.addShape(snapshot);
+						store.remove(entry.id);
+					},
+					undo() {
+						store.insert(entry, shared);
+						if (readd && snapshot) ctx.store.deleteShape(snapshot.id);
+					},
+				});
+			};
+
 			ctx.layers.register({
 				id: LAYER_ID,
 				order: 150,
@@ -47,19 +84,11 @@ export function createPortalPlugin(options: PortalPluginOptions): UsketchPlugin 
 						store={ctx.store}
 						shapes={ctx.shapes}
 						Chrome={options.components?.Chrome}
+						onRestore={restoreToCanvas}
 					/>
 				),
 			});
 			ctx.events.emit("layers:changed", {});
-
-			const boundsOf = (shapeId: string): BoundingBox | null => {
-				const shape = ctx.store.getShape(shapeId);
-				if (!shape) return null;
-				const def = ctx.shapes.get(shape.type);
-				return def
-					? def.getBounds(shape)
-					: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
-			};
 
 			const offActions = [
 				ctx.actions.register({
@@ -80,13 +109,56 @@ export function createPortalPlugin(options: PortalPluginOptions): UsketchPlugin 
 						}
 					},
 				}),
+				// Stash: remove the selected shapes from the canvas and hold them in
+				// the portal (snapshot). Restore puts them back. Mirrors the card hand.
+				ctx.actions.register({
+					id: "portal:stash-selected",
+					label: "📥 選択を取り込む",
+					group: "Portal",
+					order: 0.5,
+					isEnabled: () => ctx.store.getSelection().size >= 1,
+					run: () => {
+						let i = 0;
+						for (const id of [...ctx.store.getSelection()]) {
+							const shape = ctx.store.getShape(id);
+							const bounds = boundsOf(id);
+							if (!shape || !bounds) continue;
+							const snapshot: ShapeData = { ...shape };
+							const entry: PortalEntry = {
+								id: generateId(),
+								shapeId: shape.id,
+								shape: snapshot,
+								...defaultPortalBox(bounds, i),
+							};
+							const cmd: Command = {
+								execute() {
+									ctx.store.deleteShape(id);
+									store.insert(entry, false);
+								},
+								undo() {
+									store.remove(entry.id);
+									ctx.store.addShape(snapshot);
+								},
+							};
+							ctx.commands.execute(cmd);
+							i++;
+						}
+					},
+				}),
 				ctx.actions.register({
 					id: "portal:clear-mine",
 					label: "✕ 自分のポータルを全解除",
 					group: "Portal",
 					order: 1,
 					isEnabled: () => store.getAll().some((it) => !it.shared),
-					run: () => store.clearPrivate(),
+					run: () => {
+						// Held portals hold the only copy → restore to canvas instead of
+						// discarding. Pin portals just detach.
+						for (const it of store.getAll().filter((x) => !x.shared)) {
+							if (it.entry.shape) restoreToCanvas(it.entry, false);
+							else store.remove(it.entry.id);
+						}
+					},
 				}),
 			];
 

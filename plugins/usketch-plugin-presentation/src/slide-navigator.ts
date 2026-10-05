@@ -13,6 +13,12 @@ export interface SlideNavigatorOptions {
 	 * 「スライド指定した Frame だけ」や専用の画角 shape を対象にしたいときに差し替える。
 	 */
 	isSlide?: IsSlide;
+	/**
+	 * gotoIndex の fitToBounds に渡す余白（px）。省略時は 40。
+	 * 発表用途でスライドを画角いっぱい（上下または左右が端に接する）に収めたい
+	 * ときは 0 を渡す。余白 0 で生じるレターボックスはホスト側のマスク等で扱う。
+	 */
+	fitPadding?: number;
 }
 
 /**
@@ -35,6 +41,8 @@ export class SlideNavigator {
 	private frameIds: Set<string>;
 	/** スライド判定述語（省略時は Frame）。 */
 	private readonly isSlide: IsSlide;
+	/** fitToBounds の余白（px）。省略時 40。発表で画角いっぱいにしたいときは 0。 */
+	private readonly fitPadding: number;
 
 	constructor(
 		private readonly store: BoardStore,
@@ -42,6 +50,7 @@ export class SlideNavigator {
 		options: SlideNavigatorOptions = {},
 	) {
 		this.isSlide = options.isSlide ?? defaultIsSlide;
+		this.fitPadding = options.fitPadding ?? 40;
 		this.getViewportSize = getViewportSize;
 		const initialSlides = this.getSlides();
 		this.frameIds = new Set(initialSlides.map((s) => s.id));
@@ -108,6 +117,18 @@ export class SlideNavigator {
 		return this.currentIndex;
 	}
 
+	/** 現在スライドの world 矩形 (回転無視の AABB)。スライドが無ければ null。 */
+	getCurrentBounds(): BoundingBox | null {
+		const slides = this.getSlides();
+		const s = slides[this.currentIndex];
+		return s ? { x: s.x, y: s.y, width: s.width, height: s.height } : null;
+	}
+
+	/** 内部の store。ホスト側 overlay が viewport 購読/取得に使う。 */
+	getStore(): BoardStore {
+		return this.store;
+	}
+
 	gotoIndex(index: number): void {
 		const slides = this.getSlides();
 		if (slides.length === 0) return;
@@ -125,7 +146,7 @@ export class SlideNavigator {
 				width: target.width,
 				height: target.height,
 			};
-			this.store.fitToBounds(bounds, this.getViewportSize());
+			this.store.fitToBounds(bounds, this.getViewportSize(), this.fitPadding);
 		}
 		for (const l of this.changeListeners) l(clamped);
 	}

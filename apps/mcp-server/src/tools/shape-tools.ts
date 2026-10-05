@@ -5,7 +5,7 @@
  * Y.Doc を直接操作し、WebSocket 経由でリアルタイム同期する
  */
 
-import { DEFAULT_STYLE } from "@edv4h/usketch-shared";
+import { DEFAULT_STYLE, type ShapeData } from "@edv4h/usketch-shared";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ConnectionManager } from "../client/connection-manager.js";
@@ -54,6 +54,24 @@ const shapeUpdateSchema = z
 		style: styleSchema,
 	})
 	.passthrough();
+
+/** Centre of the union bounding box of some boxes, for placing the AI presence cursor. */
+function centroidOf(
+	boxes: Array<{ x: number; y: number; width: number; height: number }>,
+): { x: number; y: number } | undefined {
+	if (boxes.length === 0) return undefined;
+	let minX = Number.POSITIVE_INFINITY;
+	let minY = Number.POSITIVE_INFINITY;
+	let maxX = Number.NEGATIVE_INFINITY;
+	let maxY = Number.NEGATIVE_INFINITY;
+	for (const b of boxes) {
+		minX = Math.min(minX, b.x);
+		minY = Math.min(minY, b.y);
+		maxX = Math.max(maxX, b.x + b.width);
+		maxY = Math.max(maxY, b.y + b.height);
+	}
+	return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+}
 
 export function registerShapeTools(server: McpServer, connections: ConnectionManager): void {
 	server.tool(
@@ -153,6 +171,15 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 				}
 			});
 
+			// Show it as an AI participant editing these shapes (feature #960).
+			if (placedShapes.length > 0) {
+				conn.showAiActivity({
+					shapeIds: placedShapes.map((s) => s.id),
+					action: "edit",
+					cursor: centroidOf(shapes),
+				});
+			}
+
 			return {
 				content: [
 					{
@@ -218,6 +245,15 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 				}
 			});
 
+			// Show it as an AI participant editing these shapes (feature #960).
+			if (updatedIds.length > 0) {
+				const boxes = updatedIds
+					.map((id) => conn.getShape(id))
+					.filter((s): s is ShapeData => Boolean(s))
+					.map((s) => ({ x: s.x, y: s.y, width: s.width, height: s.height }));
+				conn.showAiActivity({ shapeIds: updatedIds, action: "edit", cursor: centroidOf(boxes) });
+			}
+
 			return {
 				content: [
 					{
@@ -242,6 +278,12 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 			const deleted: string[] = [];
 			const notFound: string[] = [];
 
+			// Capture bounds BEFORE deletion so the AI cursor can point at where it acted.
+			const delBoxes = shapeIds
+				.map((id) => conn.getShape(id))
+				.filter((s): s is ShapeData => Boolean(s))
+				.map((s) => ({ x: s.x, y: s.y, width: s.width, height: s.height }));
+
 			conn.doc.transact(() => {
 				for (const id of shapeIds) {
 					if (shapesMap.has(id)) {
@@ -252,6 +294,9 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 					}
 				}
 			});
+
+			// The shapes are gone, so no outline — just show the AI cursor at the spot.
+			if (deleted.length > 0) conn.showAiActivity({ cursor: centroidOf(delBoxes) });
 
 			return {
 				content: [

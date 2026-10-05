@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	type CellSampler,
 	type Cells,
 	cellKey,
 	cellsBounds,
@@ -7,6 +8,7 @@ import {
 	floodFill,
 	parseCellKey,
 	regionFillCells,
+	samplerFloodFill,
 	terrainAtCell,
 	worldToCell,
 } from "../autotile.js";
@@ -120,5 +122,68 @@ describe("regionFillCells", () => {
 		expect(new Set(regionFillCells(cells, 0, 0, new Set(["water"])))).toEqual(
 			new Set(["0,0", "1,0"]),
 		);
+	});
+});
+
+describe("samplerFloodFill", () => {
+	// A base of "water" everywhere, with a 3x3 pocket of "grass" (edges are the
+	// pocket's walls) centred at origin — models an enclosed region on infinite base.
+	const enclosedSampler: CellSampler = (c, r) =>
+		c >= -1 && c <= 1 && r >= -1 && r <= 1 ? "grass" : "water";
+
+	it("fills an enclosed region exactly, not truncated", () => {
+		const res = samplerFloodFill(enclosedSampler, 0, 0, 8192);
+		expect(res.truncated).toBe(false);
+		expect(new Set(res.cells)).toEqual(
+			new Set(["-1,-1", "0,-1", "1,-1", "-1,0", "0,0", "1,0", "-1,1", "0,1", "1,1"]),
+		);
+	});
+
+	it("honours the sampled (base) terrain, not just overrides", () => {
+		// Clicking the surrounding water floods the water region — which is open, so
+		// it truncates at the cap rather than filling the whole plane.
+		const res = samplerFloodFill(enclosedSampler, 5, 5, 200);
+		expect(res.truncated).toBe(true);
+		expect(res.cells.length).toBe(200);
+	});
+
+	it("truncates on an unbounded (single-terrain) field and caps output", () => {
+		const all: CellSampler = () => "water";
+		const res = samplerFloodFill(all, 0, 0, 100);
+		expect(res.truncated).toBe(true);
+		expect(res.cells.length).toBe(100);
+	});
+
+	it("returns an empty region for an undefined start (no base, no override)", () => {
+		const none: CellSampler = () => undefined;
+		const res = samplerFloodFill(none, 0, 0, 8192);
+		expect(res.cells).toEqual([]);
+		expect(res.truncated).toBe(false);
+	});
+
+	it("returns a deterministic empty result for a non-positive cap", () => {
+		for (const cap of [0, -1]) {
+			const res = samplerFloodFill(() => "grass", 0, 0, cap);
+			expect(res.cells).toEqual([]);
+			expect(res.truncated).toBe(false);
+		}
+	});
+
+	it("does not flag an enclosed region whose size is exactly maxCells", () => {
+		// The 3x3 pocket has exactly 9 cells; with maxCells=9 it closes without a
+		// matching cell left over, so it must NOT be reported truncated.
+		const res = samplerFloodFill(enclosedSampler, 0, 0, 9);
+		expect(res.cells.length).toBe(9);
+		expect(res.truncated).toBe(false);
+	});
+
+	it("expands breadth-first so a capped result clusters around the start", () => {
+		const all: CellSampler = () => "grass";
+		const res = samplerFloodFill(all, 0, 0, 5);
+		// BFS ring order: start, then its 4 neighbours (Manhattan distance ≤ 1).
+		for (const k of res.cells) {
+			const [c, r] = k.split(",").map(Number);
+			expect(Math.abs(c) + Math.abs(r)).toBeLessThanOrEqual(1);
+		}
 	});
 });

@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-markdown-to-shape",
-	"version": "0.2.0",
+	"version": "0.2.6",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -27,7 +27,7 @@
 	},
 	"devDependencies": {
 		"typescript": "7.0.2",
-		"vitest": "4.1.10"
+		"vitest": "4.1.11"
 	},
 	"publishConfig": {
 		"access": "public"

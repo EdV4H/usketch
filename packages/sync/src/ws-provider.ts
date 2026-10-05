@@ -10,6 +10,7 @@ import {
 	MSG_BROADCAST,
 	MSG_PARTITION_META,
 	MSG_PARTITION_REQUEST,
+	MSG_SESSION,
 	MSG_SYNC_STEP1,
 	MSG_SYNC_STEP2,
 	MSG_YJS_UPDATE,
@@ -39,6 +40,11 @@ export interface WsProviderHandle {
 	/** リモートからのブロードキャストイベントを受信 */
 	onBroadcast(handler: (msg: Record<string, unknown>) => void): () => void;
 
+	/** セッション意図をサーバーへ送信（server-authoritative。SessionManager が処理） */
+	sendSession(msg: Record<string, unknown>): void;
+	/** サーバーからのセッションメッセージを受信 */
+	onSession(handler: (msg: Record<string, unknown>) => void): () => void;
+
 	/** 接続状態の変化を購読 */
 	onStatusChange(handler: (status: WsConnectionStatus) => void): () => void;
 
@@ -60,6 +66,7 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 	const broadcastListeners = new Set<(msg: Record<string, unknown>) => void>();
+	const sessionListeners = new Set<(msg: Record<string, unknown>) => void>();
 	const statusListeners = new Set<(status: WsConnectionStatus) => void>();
 	const partitionMetaListeners = new Set<(meta: PartitionMeta) => void>();
 	let consecutiveFailures = 0;
@@ -111,6 +118,15 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 		ws.send(buf);
 	}
 
+	function sendSession(msg: Record<string, unknown>) {
+		if (!ws || ws.readyState !== WebSocket.OPEN) return;
+		const encoded = new TextEncoder().encode(JSON.stringify(msg));
+		const buf = new Uint8Array(encoded.length + 1);
+		buf[0] = MSG_SESSION;
+		buf.set(encoded, 1);
+		ws.send(buf);
+	}
+
 	const handle: WsProviderHandle = {
 		get connected() {
 			return connected;
@@ -120,6 +136,11 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 		onBroadcast(handler: (msg: Record<string, unknown>) => void): () => void {
 			broadcastListeners.add(handler);
 			return () => broadcastListeners.delete(handler);
+		},
+		sendSession,
+		onSession(handler: (msg: Record<string, unknown>) => void): () => void {
+			sessionListeners.add(handler);
+			return () => sessionListeners.delete(handler);
 		},
 		onStatusChange(handler: (status: WsConnectionStatus) => void): () => void {
 			statusListeners.add(handler);
@@ -150,6 +171,7 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 				ws = null;
 			}
 			broadcastListeners.clear();
+			sessionListeners.clear();
 			statusListeners.clear();
 			partitionMetaListeners.clear();
 		},
@@ -201,6 +223,17 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 					try {
 						const msg = JSON.parse(new TextDecoder().decode(payload)) as Record<string, unknown>;
 						for (const listener of broadcastListeners) {
+							listener(msg);
+						}
+					} catch {
+						// 不正なメッセージは無視
+					}
+					break;
+				}
+				case MSG_SESSION: {
+					try {
+						const msg = JSON.parse(new TextDecoder().decode(payload)) as Record<string, unknown>;
+						for (const listener of sessionListeners) {
 							listener(msg);
 						}
 					} catch {

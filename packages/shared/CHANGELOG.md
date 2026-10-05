@@ -1,5 +1,100 @@
 # @edv4h/usketch-shared
 
+## 4.14.0
+
+### Minor Changes
+
+- fa69bfb: Camera rotation in the Core viewport. `Viewport` gains an optional `rotation`
+  (degrees, clockwise-positive) applied about the screen origin:
+  `screen = R(rotation) · (zoom · world) + (x, y)`. When it is unset or `0` every
+  transform reduces exactly to the previous translate+scale, so existing viewports,
+  plugins and CSS output are unchanged.
+  - shared: rotation-aware `worldToScreen` / `screenToWorld`, plus
+    `viewportAnchoredAt`, `screenRectToWorldBounds`, `viewportTransformStyle`,
+    `viewportRotation`, `wrapDeg` and `shortestAngleDelta`. `centerOnWorld` /
+    `zoomToLevel` / `screenCenterWorld` keep the current rotation.
+  - canvas-engine: layers render through the rotation-aware transform, and
+    `viewportBounds` becomes the world AABB of the (possibly rotated) screen.
+  - store: new `rotateTo(deg, center, opts?)` (keeps the world point under `center`
+    fixed, instant by default); `zoomTo` / `fitToBounds` preserve the rotation;
+    `animateViewportTo` turns the short way round; a zero rotation is normalized
+    away. `clampViewportToBounds` passes rotated viewports through unchanged.
+
+  Note: overlays that hand-roll `(p - vp.x) / zoom` math are still unrotated, so
+  they are only correct while `rotation` is `0`.
+
+- f4b7387: Keep overlays aligned under camera rotation.
+  - shared / canvas-engine: new `Layer.worldOverlay` for fixed layers that draw
+    world-anchored things in screen px. Under rotation the canvas turns such a layer
+    with the world (about the world origin on screen) and renders it with an
+    unrotated viewport, so existing `zoom·w + (x, y)` math stays correct unchanged.
+    Helpers: `unrotatedViewport`, `screenToOverlay`, `overlayFrameStyle`. The
+    selection foreground is a world overlay by default
+    (`SelectionForeground.worldOverlay`).
+  - tool-helpers: resize/rotation handle hit tests compare in the same overlay frame,
+    so handles can be grabbed where they're drawn.
+  - bg-grid: the grid turns with the camera (a diagonal-sized square rotated about
+    the screen center, phased onto world multiples).
+  - snap, presence-activity, tool-vim, shape-freedraw, shape-connector,
+    sync-ywebsocket, comments, shape-frame: their board-anchored overlays opt into
+    `worldOverlay`; snap's visible-candidate area is rotation-aware.
+
+## 4.13.0
+
+### Minor Changes
+
+- 85b766e: feat(store): ビューポート制約フック＋汎用スクロール範囲（描画制限）ヘルパー
+  - 全 viewport 変更が通る単一経路 commitViewport に制約関数を適用する
+    `BoardStore.setViewportConstraint((vp)=>vp)` / `getViewportConstraint()` を追加
+    （setViewport/panBy/zoomTo/animate すべてコミット時に制約を通るので、保存 viewport が
+    制約に反しない＝後追いクランプの競合が無い）。型 ViewportConstraint。
+  - 汎用の「描画制限」ヘルパーを追加: `clampViewportToBounds(vp, bounds, viewportSize)`（純関数）と
+    `boundsConstraint({ getBounds, getViewportSize })`（ViewportConstraint 生成）。任意のプラグイン/
+    ホストが `store.setViewportConstraint(boundsConstraint({...}))` でスクロール範囲を設定できる。
+
+## 4.12.0
+
+### Minor Changes
+
+- 102a284: canvas-engine: タッチ（マルチポインタ）ジェスチャ対応 (#1004)。
+
+  `Canvas` が 2 本指を `pointerId` で追跡し、**ピンチ＝ズーム / 2 本指ドラッグ＝パン**を `store.zoomTo`（中点中心・距離比）/ `store.panBy`（中点移動）で viewport に反映（wheel と同じ経路・クランプ共有）。ジェスチャ中はツールへの配送を抑止し、全指が離れるまで再開しない。単一タッチは「移動 or タップ確定まで pending」にして 2 本目の指が来ても描画/選択が誤発火しない。Safari の `gesturestart`/`gesturechange` は握り潰しから**ズーム変換**へ置換（ブラウザ標準ズームの抑止は維持）。
+  - **`CanvasPointerEvent`** に `pointerId?` / `pointerType?` を追加（optional・後方互換）。ツールがタッチ/ペン/マウスを区別可能に。
+  - **`Canvas`** に `touchGestures?: boolean` prop（既定 `true`）。マウス/ペン/wheel の既存挙動は不変（touch のみ新経路）。ジェスチャ中は `canvas:gesture` イベントを emit。
+  - ジェスチャ計算 `gestureStep` / `pointerDistance` / `pointerMidpoint` を純関数として公開・ユニットテスト。
+
+## 4.11.0
+
+### Minor Changes
+
+- 5e301c0: shared: `defineService` — 型付きサービスハンドルで `ctx.services` / `app.services` を扱う
+
+  プラグインが「ホスト向けの操作 API」を HUD 非依存で公開するための標準シーム。`defineService<T>(key)`
+  が `ServiceHandle<T>`（`key` ＋型付き `provide`/`get`/`has`）を返す。provider と consumer が
+  key・型でズレず、`ctx.services`（plugin）と `app.services`（host）は同一 registry なので同じ
+  アクセサで両方に使える。プラグイン不在時は `get` が `undefined`（optional 扱い）。
+
+  用途は docs/plugin-system-design.md を参照（操作ロジックは HUD クロージャに埋めず純関数化し、
+  ホスト向けは `defineService` で公開する規約）。
+
+## 4.10.0
+
+### Minor Changes
+
+- 9747462: レイヤー登録に衝突回避オプション `avoidCollision` を追加
+
+  プラグインは他プラグインが使う `order` 値を認知できず衝突しがち（現状 `84`/`85`/`90` などで重複多数）。`avoidCollision: true` を指定すると、`order` を「希望値」として扱い、既に同じ実効orderが埋まっていれば空きスロットまで押し上げて一意な順序を割り当てる（開発サーバーのポート確保方式）。押し上げ幅は `collisionStep` で指定可能（既定は帯内に留まる微小値、`1` で整数ポート方式）。未指定レイヤーの挙動は不変。
+
+## 4.9.0
+
+### Minor Changes
+
+- bba174a: 回転まわりの選択 UI を修正。
+  - **複数選択したシェイプを回転できるようにした**。従来は回転ハンドルの検出が単一選択限定で、複数選択（グループ化していない選択）は回転できなかった。複数選択のバウンディングボックスの角外側に回転ゾーンを追加し、選択中の全シェイプを共通中心まわりに剛体回転する `startMultiRotateSession` を追加（コネクタは端点回転、undo/redo 対応）。ホバー時は回転カーソルも出る。
+  - **図形のコネクタ・アンカーハンドル（上下左右）が図形の回転に追従するようにした**。従来は回転した図形でもアンカー（コネクタの始点/接続点）が軸平行の辺の中点に出ていて、辺から外れていた。`getAnchorPoint` / `clampToShapeEdge` を回転対応にし（ローカル座標で計算 → 中心まわりに回転して world 座標へ）、選択時の外側オフセットも辺の法線方向へ回すようにした。これで回転済み図形からも正しい辺の位置でコネクタを繋げられる。
+  - **グループ回転でコネクタが崩れる不具合を修正**。コネクタは形状を端点（絶対座標）で定義するため、グループ回転で `rotation` を焼き込むと二重変換で線・ハンドルが崩れていた。`ShapeDefinition.rotate` フック（`move` と対）を追加し、コネクタは端点を回して `rotation` は据え置く（`rotateConnector`）。
+  - **回転ハンドルのカーソルを角ごとの回転アイコンにした**。従来は全ての角で `grab` 固定だったが、掴んだ角（ne/se/sw/nw）＋シェイプの現在回転角に合わせた回転カーソル（150°円弧＋接線方向ダブル矢じりの SVG data URI）を表示する。`tool-helpers` に `getRotationCursor(corner, rotationDeg)` を追加し、`findRotationHandleAtScreenPoint` はどの角かも返すようになった。
+
 ## 4.8.0
 
 ### Minor Changes

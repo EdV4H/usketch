@@ -45,6 +45,19 @@ export interface PresentationPluginOptions {
 	 * present モードのオーバーレイとショートカットだけ流用できる。
 	 */
 	renderEditUI?: boolean;
+	/**
+	 * present オーバーレイの「終了」操作。省略時は URL クエリ (?mode=edit) を書き換える。
+	 * state 駆動のホストは `() => setPresenting(false)` 等を渡す。
+	 */
+	onExit?: () => void;
+	/** present 時に画角 (現スライド) 以外の Canvas を暗幕で隠すか (overlay トグルの初期値)。 */
+	mask?: boolean;
+	/**
+	 * スライドに寄せるときの fitToBounds 余白 (px)。省略時 40。
+	 * 発表でスライドを画角いっぱい (上下または左右が端に接する) にしたいときは 0。
+	 * 余白 0 のレターボックスは mask で暗転できる。
+	 */
+	fitPadding?: number;
 }
 
 function defaultGetViewportSize(): { width: number; height: number } {
@@ -73,6 +86,9 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 	const getViewportSize = opts.getViewportSize ?? defaultGetViewportSize;
 	const isSlide = opts.isSlide;
 	const renderEditUI = opts.renderEditUI ?? true;
+	const onExit = opts.onExit;
+	const mask = opts.mask;
+	const fitPadding = opts.fitPadding;
 
 	return {
 		id: "presentation",
@@ -80,6 +96,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 		setup(ctx: PluginContext) {
 			let nav: SlideNavigator | null = new SlideNavigator(ctx.store, getViewportSize, {
 				isSlide,
+				fitPadding,
 			});
 			const unregisters: Array<() => void> = [];
 			const navRef = nav;
@@ -178,6 +195,8 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 							subscribeMode={subscribeMode}
 							navigateToBoard={navigateToBoard}
 							renderEditUI={renderEditUI}
+							onExit={onExit}
+							mask={mask}
 						/>
 					);
 				},
@@ -207,6 +226,8 @@ interface PresentationLayerProps {
 	subscribeMode: (listener: () => void) => () => void;
 	navigateToBoard: () => void;
 	renderEditUI: boolean;
+	onExit?: () => void;
+	mask?: boolean;
 }
 
 function PresentationLayer({
@@ -218,11 +239,13 @@ function PresentationLayer({
 	subscribeMode,
 	navigateToBoard,
 	renderEditUI,
+	onExit,
+	mask,
 }: PresentationLayerProps) {
 	const [mode, setMode] = usePresentationMode(getMode, subscribeMode);
 	void setMode;
 	if (mode === "off") return null;
-	if (mode === "present") return <PresentModeOverlay nav={nav} />;
+	if (mode === "present") return <PresentModeOverlay nav={nav} onExit={onExit} mask={mask} />;
 	void renderCtx;
 	// edit モードのパネルはホスト側が持つ場合 renderEditUI=false で抑止する。
 	if (!renderEditUI) return null;

@@ -1,5 +1,52 @@
 # @edv4h/usketch-dom-renderer
 
+## 2.1.8
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+
+## 2.1.7
+
+### Patch Changes
+
+- 877d6e5: feat(dom-renderer): シェイプ wrapper に `data-shape-id` を付与
+
+  各シェイプの DOM ラッパーに `data-shape-id={shape.id}` を追加し、DOM 上でシェイプ要素を id で特定できるようにした。位置は `left`/`top` で指定しているため、プラグイン（dashboard のスライドアニメーション等）が id セレクタで `left`/`top` のトランジションを当てられる。
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+
+## 2.1.6
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+
+## 2.1.5
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+
+## 2.1.4
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+
+## 2.1.3
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+
 ## 2.1.2
 
 ### Patch Changes

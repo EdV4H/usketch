@@ -1,5 +1,60 @@
 # @edv4h/usketch-plugin-ai-actions
 
+## 2.1.9
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-canvas-engine@1.5.0
+  - @edv4h/usketch-plugin-ai-agent@3.0.15
+
+## 2.1.8
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+  - @edv4h/usketch-canvas-engine@1.4.1
+  - @edv4h/usketch-plugin-ai-agent@3.0.14
+
+## 2.1.7
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-canvas-engine@1.4.0
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-plugin-ai-agent@3.0.13
+
+## 2.1.6
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-canvas-engine@1.3.5
+  - @edv4h/usketch-plugin-ai-agent@3.0.12
+
+## 2.1.5
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+  - @edv4h/usketch-canvas-engine@1.3.4
+  - @edv4h/usketch-plugin-ai-agent@3.0.11
+
+## 2.1.4
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-canvas-engine@1.3.3
+  - @edv4h/usketch-plugin-ai-agent@3.0.10
+
 ## 2.1.3
 
 ### Patch Changes

@@ -1,5 +1,92 @@
 # @edv4h/usketch-plugin-viewport-nav
 
+## 2.2.2
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-store@3.8.0
+  - @edv4h/usketch-core@2.4.4
+
+## 2.2.1
+
+### Patch Changes
+
+- Updated dependencies [1854e30]
+  - @edv4h/usketch-store@3.7.0
+
+## 2.2.0
+
+### Minor Changes
+
+- fc7fa63: feat(viewport-nav): zoomSensitivity のクランプ上限を 6 に引き上げ＋可動域を上書き可能に
+  - `zoomSensitivity` のクランプ既定上限を `3` → `6` に引き上げ（トラックパッドでの最速要望に対応）。
+    既定 `zoomSensitivity=1` は不変で**後方互換**。
+  - `ViewportNavOptions.zoomSensitivityRange?: { min?; max? }` を追加。ホストがクランプ可動域
+    （既定 `{ min: 0.25, max: 6 }`）を上書きできる。`min > max` などの破綻指定は無視して既定へフォールバック。
+    範囲は setup 時に一度だけ解決（`zoomSensitivity` の getter は wheel ごとに評価）。
+  - README を更新。
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+  - @edv4h/usketch-store@3.6.0
+  - @edv4h/usketch-core@2.4.3
+
+## 2.1.0
+
+### Minor Changes
+
+- 6d817c1: feat(viewport-nav): ホイール/トラックパッドのズーム感度を設定可能に（deltaY 比例 + zoomSensitivity）
+  - `createViewportNavPlugin(options?)` に `ViewportNavOptions.zoomSensitivity` を追加。
+  - ズーム係数を `deltaY` の**符号だけ**の固定 `0.9/1.1` から、**大きさに比例**する
+    `exp(-deltaY * 0.001 * zoomSensitivity)` に変更。小さい `deltaY` を連発する
+    トラックパッドのピンチと `deltaY≈±100` のマウスホイールとの体感差が縮む。
+  - `zoomSensitivity` 省略時（=1）は従来の 0.9/1.1 とほぼ同じ挙動＝**後方互換**。
+    範囲は 0.25〜3 にクランプ。
+  - `zoomSensitivity` は `number` に加えて **`() => number`（getter）** も受け付ける。
+    wheel イベントごとに評価するため、設定 UI からの感度変更をライブ反映できる。
+  - `ViewportNavOptions` を re-export。README を追加。
+
+## 2.0.13
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-core@2.4.2
+  - @edv4h/usketch-store@3.5.4
+
+## 2.0.12
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-core@2.4.1
+  - @edv4h/usketch-store@3.5.3
+
+## 2.0.11
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+  - @edv4h/usketch-core@2.4.0
+  - @edv4h/usketch-store@3.5.2
+
+## 2.0.10
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-core@2.3.2
+  - @edv4h/usketch-store@3.5.1
+
 ## 2.0.9
 
 ### Patch Changes

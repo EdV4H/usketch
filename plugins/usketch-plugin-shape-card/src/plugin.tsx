@@ -12,7 +12,7 @@ import {
 	zIndexAfterAll,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand, createUpdateShapeCommand } from "@edv4h/usketch-store";
-import { drawTop, shuffle } from "./deck.js";
+import { drawN, drawTop, shuffle } from "./deck.js";
 import {
 	CARD_TYPE,
 	createBareCardShape,
@@ -20,9 +20,14 @@ import {
 	createDeckShape,
 	DECK_TYPE,
 } from "./factory.js";
-import { getBounds, makeAspectResize, rectHitTest } from "./geometry.js";
-import { type CardHandAwareness, createHandStore, type HandCardEntry } from "./hand-store.js";
-import { HandTray } from "./hand-tray.js";
+import { getBounds, gridPositions, makeAspectResize, rectHitTest } from "./geometry.js";
+import { HandPanel } from "./hand-panel.js";
+import {
+	type CardHandAwareness,
+	createHandStore,
+	type HandCardEntry,
+	type HandStore,
+} from "./hand-store.js";
 import {
 	injectPlacementStyles,
 	PLACEMENT_TRANSIENT_TYPE,
@@ -76,6 +81,31 @@ export interface CreateCardPluginOptions {
 	 * 既定で無効。後方互換で戻したい場合のみ `true`。
 	 */
 	legacyDoubleClickActions?: boolean;
+	/**
+	 * 手札(hand)の headless 運用オプション。手札の**状態**（localStorage 永続・awareness
+	 * 枚数共有・`card:*` アクション/イベント）はプラグインが持ちつつ、**UI を host が自作**
+	 * できるようにする。既定は現行どおり Control HUD の Hand パネルを出す（後方互換）。
+	 */
+	hand?: {
+		/**
+		 * 内蔵手札 UI の表示モード。`"hud"`（既定）は Control HUD の Hand パネルを登録。
+		 * `"none"` は内蔵 UI を一切登録しない（host が独自 UI を描く headless 運用）。
+		 * 状態・アクション・awareness 共有は `"none"` でも維持される。
+		 */
+		ui?: "hud" | "none";
+		/**
+		 * host 側で生成した {@link HandStore} を注入する。渡すとプラグインはこの**同一
+		 * インスタンス**を使うので、host UI が `subscribe` すれば同一タブ内の変更も受け取れる
+		 * （localStorage の storage イベントは同一タブで発火しない問題を回避）。省略時は
+		 * `userId`/`boardId` からプラグインが生成する。
+		 */
+		store?: HandStore;
+		/**
+		 * プラグインが実際に使う {@link HandStore}（注入 or 生成のいずれでも）を host へ渡す
+		 * コールバック。host UI の配線に使う。
+		 */
+		onStore?: (store: HandStore) => void;
+	};
 }
 
 // ── icons ──
@@ -240,18 +270,8 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				return type === CARD_TYPE || (enableDeck && type === DECK_TYPE);
 			}
 
-			// 新規配置時のアニメは描画ツール / デッキ操作の確定点で明示的に emit する
-			// （shape:added を購読すると、保存済みボードのロード時に全カードが一斉に
-			// アニメしてしまうため、対話的な配置だけに絞る）。
-
-			// 移動後: shapes:move-end
-			const offMoveEnd = ctx.events.on<{ shapeIds: string[] }>("shapes:move-end", (data) => {
-				if (!data?.shapeIds) return;
-				for (const id of data.shapeIds) {
-					const shape = ctx.store.getShape(id);
-					if (shape && isCardLike(shape.type)) emitPlacement(shape);
-				}
-			});
+			// 出現演出（placement アニメ）は「手札から場に出したとき」だけに限定する。
+			// デッキドロー / バラし / 手動ドロー / 移動では再生しない（playCardFromHand のみ emit）。
 
 			// ── flip / deck-draw インタラクション（ダブルクリック検出） ──
 			let lastClickTime = 0;
@@ -310,12 +330,116 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				};
 				ctx.commands.execute(command);
 				ctx.store.setSelection([newCard.id]);
-				emitPlacement(newCard);
+			}
+
+			// N 個の zIndex を「全 shape の上」に積んで返す。各値は直前を含めて計算するので
+			// 互いに重ならず、この順で上へ重なる（配置は非重複だが決定的な前後関係を保つ）。
+			function zStackAboveAll(count: number): string[] {
+				let allZ = ctx.store.getShapesSorted().map((s) => s.zIndex);
+				const out: string[] = [];
+				for (let i = 0; i < count; i++) {
+					const z = zIndexAfterAll(allZ);
+					out.push(z);
+					allZ = [...allZ, z];
+				}
+				return out;
+			}
+
+			// デッキから複数の card fields を取り出し、指定レイアウトで場に展開する共通処理。
+			// `layout(n)` は n 枚ぶんのワールド座標を返す。単一 Command で Undo/Redo 可能。
+			function spreadCards(
+				deck: ShapeData,
+				drawn: Record<string, unknown>[],
+				restCards: Record<string, unknown>[],
+				layout: (n: number) => Point[],
+			) {
+				const meta = readDeckMeta(deck);
+				const cardType = meta.cardType;
+				const def = cardType ? registry.get(cardType) : undefined;
+				if (!def || !cardType || drawn.length === 0) return;
+
+				const positions = layout(drawn.length);
+				const zStack = zStackAboveAll(drawn.length);
+				const newCards = drawn.map((fields, i) =>
+					createCardShape(def, {
+						x: positions[i]?.x ?? deck.x,
+						y: positions[i]?.y ?? deck.y,
+						fields,
+						zIndex: zStack[i],
+					}),
+				);
+
+				const deckBefore: DeckMeta = {
+					cardType,
+					cards: [...drawn, ...restCards],
+					faceDown: meta.faceDown ?? true,
+				};
+				const deckAfter: DeckMeta = { cardType, cards: restCards, faceDown: meta.faceDown ?? true };
+
+				ctx.commands.execute({
+					execute() {
+						ctx.store.updateShape(deck.id, { meta: deckAfter as ShapeData["meta"] });
+						for (const c of newCards) ctx.store.addShape(c);
+					},
+					undo() {
+						for (const c of newCards) ctx.store.deleteShape(c.id);
+						ctx.store.updateShape(deck.id, { meta: deckBefore as ShapeData["meta"] });
+					},
+				});
+				ctx.store.setSelection(newCards.map((c) => c.id));
+			}
+
+			const SPREAD_GAP = 16;
+
+			// 場に N 枚引く: デッキの右隣に1列で並べる。
+			function drawManyFromDeck(deck: ShapeData, count: number) {
+				const meta = readDeckMeta(deck);
+				const def = meta.cardType ? registry.get(meta.cardType) : undefined;
+				if (!def) return;
+				const { drawn, rest } = drawN(meta.cards ?? [], count);
+				const stepX = def.defaultSize.width + SPREAD_GAP;
+				spreadCards(deck, drawn, rest, (n) =>
+					gridPositions(n, {
+						cols: n, // 1 行
+						stepX,
+						stepY: 0,
+						originX: deck.x + deck.width + SPREAD_GAP,
+						originY: deck.y,
+					}),
+				);
+			}
+
+			// デッキをバラす: 全カードを回転なし・等間隔の折り返しグリッドで場に展開し、山札を空にする。
+			function scatterDeck(deck: ShapeData) {
+				const meta = readDeckMeta(deck);
+				const def = meta.cardType ? registry.get(meta.cardType) : undefined;
+				if (!def) return;
+				const cards = meta.cards ?? [];
+				if (cards.length === 0) return;
+				const stepX = def.defaultSize.width + SPREAD_GAP;
+				const stepY = def.defaultSize.height + SPREAD_GAP;
+				// 画面幅（ワールド換算）に収まる列数で折り返す。
+				const vw = typeof window !== "undefined" ? window.innerWidth : 1200;
+				const zoom = ctx.store.getViewport().zoom || 1;
+				const availableWorld = (vw * 0.9) / zoom;
+				const cols = Math.max(1, Math.min(cards.length, Math.floor(availableWorld / stepX)));
+				spreadCards(deck, cards, [], (n) =>
+					gridPositions(n, {
+						cols,
+						stepX,
+						stepY,
+						originX: deck.x + deck.width + SPREAD_GAP,
+						originY: deck.y,
+					}),
+				);
 			}
 
 			// ── 手札(hand): 内容はローカル限定、枚数だけ awareness 共有（#671 / 真 private は #686） ──
 			const localUserId = opts.userId ?? "local";
-			const handStore = createHandStore(localUserId, opts.boardId);
+			// host が注入した store があればそれを使い（同一インスタンス共有 → 同一タブでも
+			// subscribe が発火）、無ければ userId/boardId から生成する。実インスタンスを onStore で host へ渡す。
+			const handStore = opts.hand?.store ?? createHandStore(localUserId, opts.boardId);
+			opts.hand?.onStore?.(handStore);
 			const awareness = opts.wsProvider?.awareness;
 
 			function broadcastHandCount() {
@@ -394,6 +518,41 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 				emitPlacement(card);
 			}
 
+			// 手札に N 枚引く: デッキから取り出し、場に出さず直接ローカル手札へ入れる（Undo 可能）。
+			function drawToHandFromDeck(deck: ShapeData, count: number) {
+				const meta = readDeckMeta(deck);
+				const cardType = meta.cardType;
+				const def = cardType ? registry.get(cardType) : undefined;
+				if (!def || !cardType) return;
+				const cards = meta.cards ?? [];
+				const { drawn, rest } = drawN(cards, count);
+				if (drawn.length === 0) return;
+
+				const entries: HandCardEntry[] = drawn.map((fields) => ({
+					id: generateId(),
+					cardType,
+					fields: fields as Record<string, unknown>,
+					width: def.defaultSize.width,
+					height: def.defaultSize.height,
+				}));
+
+				const deckBefore: DeckMeta = { cardType, cards, faceDown: meta.faceDown ?? true };
+				const deckAfter: DeckMeta = { cardType, cards: rest, faceDown: meta.faceDown ?? true };
+
+				ctx.commands.execute({
+					execute() {
+						ctx.store.updateShape(deck.id, { meta: deckAfter as ShapeData["meta"] });
+						for (const e of entries) handStore.addToHand(e);
+						broadcastHandCount();
+					},
+					undo() {
+						for (const e of entries) handStore.removeFromHand(e.id);
+						ctx.store.updateShape(deck.id, { meta: deckBefore as ShapeData["meta"] });
+						broadcastHandCount();
+					},
+				});
+			}
+
 			// ── 操作メニュー / トレイからのイベント ──
 			const offFlip = ctx.events.on<{ id: string }>("card:flip", ({ id }) => {
 				const shape = ctx.store.getShape(id);
@@ -402,6 +561,24 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 			const offDraw = ctx.events.on<{ id: string }>("card-deck:draw", ({ id }) => {
 				const deck = ctx.store.getShape(id);
 				if (enableDeck && deck?.type === DECK_TYPE) drawFromDeck(deck);
+			});
+			const offDrawMany = ctx.events.on<{ id: string; count: number }>(
+				"card-deck:draw-many",
+				({ id, count }) => {
+					const deck = ctx.store.getShape(id);
+					if (enableDeck && deck?.type === DECK_TYPE) drawManyFromDeck(deck, count);
+				},
+			);
+			const offDrawToHand = ctx.events.on<{ id: string; count: number }>(
+				"card-deck:draw-to-hand",
+				({ id, count }) => {
+					const deck = ctx.store.getShape(id);
+					if (enableDeck && deck?.type === DECK_TYPE) drawToHandFromDeck(deck, count);
+				},
+			);
+			const offScatter = ctx.events.on<{ id: string }>("card-deck:scatter", ({ id }) => {
+				const deck = ctx.store.getShape(id);
+				if (enableDeck && deck?.type === DECK_TYPE) scatterDeck(deck);
 			});
 			const offToHand = ctx.events.on<{ id: string }>("card:to-hand", ({ id }) =>
 				moveCardToHand(id),
@@ -475,6 +652,39 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 							run: () => {
 								const id = selectedOfType(DECK_TYPE);
 								if (id) ctx.events.emit("card-deck:shuffle", { id });
+							},
+						}),
+						ctx.actions.register({
+							id: "card-deck:draw-many",
+							label: "Draw cards to board",
+							group: "Card",
+							params: [{ name: "count", type: "number", default: 5, min: 1, max: 52, step: 1 }],
+							isEnabled: () => selectedOfType(DECK_TYPE) !== undefined,
+							run: ({ count }) => {
+								const id = selectedOfType(DECK_TYPE);
+								if (id) ctx.events.emit("card-deck:draw-many", { id, count: Number(count) || 5 });
+							},
+						}),
+						ctx.actions.register({
+							id: "card-deck:draw-to-hand",
+							label: "Draw to hand",
+							group: "Card",
+							params: [{ name: "count", type: "number", default: 1, min: 1, max: 52, step: 1 }],
+							isEnabled: () => selectedOfType(DECK_TYPE) !== undefined,
+							run: ({ count }) => {
+								const id = selectedOfType(DECK_TYPE);
+								if (id)
+									ctx.events.emit("card-deck:draw-to-hand", { id, count: Number(count) || 1 });
+							},
+						}),
+						ctx.actions.register({
+							id: "card-deck:scatter",
+							label: "Spread deck",
+							group: "Card",
+							isEnabled: () => selectedOfType(DECK_TYPE) !== undefined,
+							run: () => {
+								const id = selectedOfType(DECK_TYPE);
+								if (id) ctx.events.emit("card-deck:scatter", { id });
 							},
 						}),
 					);
@@ -606,7 +816,6 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 						if (draft && draft.width > 2 && draft.height > 2) {
 							toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, draft));
 							toolCtx.store.setSelection([draft.id]);
-							emitPlacement(draft);
 						} else if (def) {
 							// クリック: 既定サイズで配置（クリック点を中心に）
 							const placed = createCardShape(def, {
@@ -616,7 +825,6 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 							});
 							toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, placed));
 							toolCtx.store.setSelection([placed.id]);
-							emitPlacement(placed);
 						}
 						drawState = null;
 						toolCtx.store.resetToDefaultTool();
@@ -673,7 +881,6 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 							});
 							toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, deck));
 							toolCtx.store.setSelection([deck.id]);
-							emitPlacement(deck);
 							toolCtx.store.resetToDefaultTool();
 						},
 					});
@@ -681,34 +888,42 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 
 			// カード操作の追従メニューは Control HUD の Action(card:*)に統合したため撤去。
 
-			// ── 手札トレイ層（画面下部固定 HUD。自分の手札のみ中身表示） ──
-			ctx.layers.register({
-				id: "card-hand",
-				order: 90,
-				fixed: true,
-				render: () => (
-					<HandTray
-						handStore={handStore}
-						registry={registry}
-						localUserId={localUserId}
-						awareness={awareness}
-					/>
-				),
-			});
+			// ── 手札は Control HUD の「Hand」パネルとして登録（独自トレイUIは廃止） ──
+			// 自分の手札のみ中身を表示。他者は枚数のみ（awareness）。
+			// `hand.ui === "none"` の headless 運用では内蔵 UI を登録せず、host が自作する。
+			const offHandPanel =
+				opts.hand?.ui === "none"
+					? undefined
+					: ctx.hud.registerPanel({
+							id: "usketch-plugin-shape-card:hand",
+							title: "Hand",
+							order: 0,
+							render: () => (
+								<HandPanel
+									handStore={handStore}
+									registry={registry}
+									localUserId={localUserId}
+									awareness={awareness}
+									onPlay={(id) => ctx.events.emit("card:play-from-hand", { id })}
+								/>
+							),
+						});
 
 			// ── teardown ──
 			return () => {
 				offSelectType();
-				offMoveEnd();
 				offPointerDown?.();
 				offShuffleEvent();
 				offShuffleShortcut?.();
 				offFlip();
 				offDraw();
+				offDrawMany();
+				offDrawToHand();
+				offScatter();
 				offToHand();
 				offPlayFromHand();
 				for (const off of offActions) off();
-				ctx.layers.unregister("card-hand");
+				offHandPanel?.();
 				awareness?.setLocalStateField("cardHand", null);
 			};
 		},

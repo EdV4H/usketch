@@ -1,5 +1,70 @@
 # @edv4h/usketch-plugin-comments
 
+## 2.0.15
+
+### Patch Changes
+
+- f4b7387: Keep overlays aligned under camera rotation.
+  - shared / canvas-engine: new `Layer.worldOverlay` for fixed layers that draw
+    world-anchored things in screen px. Under rotation the canvas turns such a layer
+    with the world (about the world origin on screen) and renders it with an
+    unrotated viewport, so existing `zoom·w + (x, y)` math stays correct unchanged.
+    Helpers: `unrotatedViewport`, `screenToOverlay`, `overlayFrameStyle`. The
+    selection foreground is a world overlay by default
+    (`SelectionForeground.worldOverlay`).
+  - tool-helpers: resize/rotation handle hit tests compare in the same overlay frame,
+    so handles can be grabbed where they're drawn.
+  - bg-grid: the grid turns with the camera (a diagonal-sized square rotated about
+    the screen center, phased onto world multiples).
+  - snap, presence-activity, tool-vim, shape-freedraw, shape-connector,
+    sync-ywebsocket, comments, shape-frame: their board-anchored overlays opt into
+    `worldOverlay`; snap's visible-candidate area is rotation-aware.
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-plugin-side-panel@2.0.15
+
+## 2.0.14
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+  - @edv4h/usketch-plugin-side-panel@2.0.14
+
+## 2.0.13
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-plugin-side-panel@2.0.13
+
+## 2.0.12
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-plugin-side-panel@2.0.12
+
+## 2.0.11
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+  - @edv4h/usketch-plugin-side-panel@2.0.11
+
+## 2.0.10
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-plugin-side-panel@2.0.10
+
 ## 2.0.9
 
 ### Patch Changes

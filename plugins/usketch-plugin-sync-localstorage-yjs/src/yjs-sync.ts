@@ -16,12 +16,35 @@ export interface YjsSyncHandle {
 	destroy(): void;
 }
 
+export interface CreateYjsSyncOptions {
+	/** IndexedDB のドキュメント名。省略時は "usketch-default"。 */
+	docName?: string;
+	/**
+	 * 永続化を後付けする既存 Y.Doc。指定時はこの doc に IndexeddbPersistence を張り、
+	 * 内部で新規 doc を作らない（ネットワーク provider と同一 doc を共有できる）。
+	 * この doc はホスト所有とみなし、`destroy()` では破棄しない。
+	 */
+	doc?: Y.Doc;
+}
+
+const DEFAULT_DOC_NAME = "usketch-default";
+
 function toPlainObject(shape: ShapeData): Record<string, unknown> {
 	return JSON.parse(JSON.stringify(shape));
 }
 
-export function createYjsSync(store: BoardStore, docName: string): YjsSyncHandle {
-	const doc = new Y.Doc();
+export function createYjsSync(
+	store: BoardStore,
+	docNameOrOptions?: string | CreateYjsSyncOptions,
+): YjsSyncHandle {
+	const options: CreateYjsSyncOptions =
+		typeof docNameOrOptions === "string" ? { docName: docNameOrOptions } : (docNameOrOptions ?? {});
+	const docName = options.docName ?? DEFAULT_DOC_NAME;
+
+	// 外部 doc が渡されればそれを使い、破棄はホストに委ねる（ownsDoc=false）。
+	const externalDoc = options.doc;
+	const ownsDoc = externalDoc === undefined;
+	const doc = externalDoc ?? new Y.Doc();
 	const idbProvider = new IndexeddbPersistence(docName, doc);
 	const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
 	const status = new SyncStatusTracker();
@@ -257,7 +280,10 @@ export function createYjsSync(store: BoardStore, docName: string): YjsSyncHandle
 			entry.unobserve();
 		}
 		loadedPartitions.clear();
-		doc.destroy();
+		// 外部提供の doc はホスト所有なので破棄しない（IndexedDB provider のみ破棄）。
+		if (ownsDoc) {
+			doc.destroy();
+		}
 		idbProvider.destroy();
 	}
 

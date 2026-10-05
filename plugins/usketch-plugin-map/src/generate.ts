@@ -3,10 +3,10 @@
 // (view / regenerate).
 import type { BoardStore, Command, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
-import { type CellBox, type Cells, cellKey, cellsBounds } from "./autotile.js";
+import { type CellBox, type Cells, cellKey } from "./autotile.js";
 import { genStateStore } from "./gen-state.js";
 import { GENERATORS_BY_ID } from "./generators/index.js";
-import { isTileMap, makeTileMap, type TileMapShapeData } from "./tilemap-shape.js";
+import { isTileMap, makeTileMap, type TileMapShapeData, tilemapBounds } from "./tilemap-shape.js";
 
 /** Hard cap so a zoomed-out "view" generation can't explode into millions of cells. */
 const MAX_BOX_DIM = 256;
@@ -99,8 +99,10 @@ export function generateIntoBox(deps: GenerateDeps, req: GenerateRequest): void 
 	}
 	Object.assign(next, gen.generate({ box, seed: req.seed, params: req.params }));
 
-	const prevBounds = cellsBounds(prev, tile);
-	const nextBounds = cellsBounds(next, tile);
+	// Bounds enclose the shape's placed icons too, so generating terrain doesn't
+	// clip an icon-only cell out of the box.
+	const prevBounds = tilemapBounds(prev, shape.icons, tile);
+	const nextBounds = tilemapBounds(next, shape.icons, tile);
 	if (created) {
 		// Newly created this action: commit as an add so undo deletes it and redo
 		// re-adds it (updateShape on a deleted id would no-op, breaking redo).

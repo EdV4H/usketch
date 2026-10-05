@@ -4,6 +4,7 @@
 // `store.animateViewportTo`, so every logic-driven jump/zoom is smooth.
 import type { Point, Viewport } from "../types/geometry.js";
 import type { BoardStore } from "../types/plugin.js";
+import { screenToWorld, viewportAnchoredAt, viewportRotation } from "./geometry.js";
 
 /** Ease-in-out cubic — the default viewport-animation easing. */
 export function easeInOutCubic(t: number): number {
@@ -19,8 +20,7 @@ export function getScreenSize(): { width: number; height: number } {
 /** World coordinate currently at the screen centre. */
 export function screenCenterWorld(store: BoardStore): Point {
 	const { width, height } = getScreenSize();
-	const vp = store.getViewport();
-	return { x: (width / 2 - vp.x) / vp.zoom, y: (height / 2 - vp.y) / vp.zoom };
+	return screenToWorld(width / 2, height / 2, store.getViewport());
 }
 
 /** Shared move options passed through to `animateViewportTo`. */
@@ -36,12 +36,14 @@ export function centerOnWorld(
 	opts: ViewportMoveOptions & { zoom?: number } = {},
 ): void {
 	const { width, height } = getScreenSize();
-	const zoom = opts.zoom ?? store.getViewport().zoom;
-	const target: Viewport = {
-		x: width / 2 - point.x * zoom,
-		y: height / 2 - point.y * zoom,
+	const vp = store.getViewport();
+	const zoom = opts.zoom ?? vp.zoom;
+	const target = viewportAnchoredAt(
+		point,
+		{ x: width / 2, y: height / 2 },
 		zoom,
-	};
+		viewportRotation(vp),
+	);
 	store.animateViewportTo(target, opts);
 }
 
@@ -56,7 +58,9 @@ export function zoomToLevel(
 	const vp = store.getViewport();
 	const clamped = Math.min(Math.max(zoom, 0.1), 10);
 	const scale = clamped / vp.zoom;
+	// Scaling about a screen point commutes with the rotation, so keep it as-is.
 	const target: Viewport = {
+		...vp,
 		x: center.x - (center.x - vp.x) * scale,
 		y: center.y - (center.y - vp.y) * scale,
 		zoom: clamped,

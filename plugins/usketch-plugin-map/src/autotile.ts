@@ -3,6 +3,8 @@ import type { BoundingBox } from "@edv4h/usketch-shared";
 import type { TerrainKey } from "./terrain.js";
 
 export type Cells = Record<string, TerrainKey>;
+/** Sparse grid of world-layer icons: cellKey → iconKey (one icon per cell). */
+export type IconCells = Record<string, string>;
 
 /** Sparse-map key for a cell. */
 export function cellKey(col: number, row: number): string {
@@ -33,13 +35,13 @@ export function terrainAtCell(
 	return cells[cellKey(col, row)] ?? empty ?? undefined;
 }
 
-/** Bounding box (world units) enclosing all painted cells. Empty → zero box. */
-export function cellsBounds(cells: Cells, tile: number): BoundingBox {
+/** Bounding box (world units) enclosing all given cell keys. Empty → zero box. */
+export function keysBounds(keys: Iterable<string>, tile: number): BoundingBox {
 	let minC = Infinity;
 	let minR = Infinity;
 	let maxC = -Infinity;
 	let maxR = -Infinity;
-	for (const key of Object.keys(cells)) {
+	for (const key of keys) {
 		const [c, r] = parseCellKey(key);
 		if (c < minC) minC = c;
 		if (r < minR) minR = r;
@@ -53,6 +55,11 @@ export function cellsBounds(cells: Cells, tile: number): BoundingBox {
 		width: (maxC - minC + 1) * tile,
 		height: (maxR - minR + 1) * tile,
 	};
+}
+
+/** Bounding box (world units) enclosing all painted cells. Empty → zero box. */
+export function cellsBounds(cells: Cells, tile: number): BoundingBox {
+	return keysBounds(Object.keys(cells), tile);
 }
 
 export interface ExposedEdges {
@@ -145,4 +152,67 @@ export function regionFillCells(
 	const start = cells[cellKey(startCol, startRow)];
 	if (start !== undefined && exclude.has(start)) return [];
 	return floodFill(cells, startCol, startRow, box);
+}
+
+/** A terrain lookup for any cell (override ?? base ?? empty); may be undefined. */
+export type CellSampler = (col: number, row: number) => TerrainKey | undefined;
+
+export interface SamplerFloodResult {
+	/** Cell keys forming the connected region (empty when the start is undefined). */
+	cells: string[];
+	/**
+	 * `true` if the flood hit `maxCells` before the region closed — i.e. the region
+	 * is not enclosed (or is larger than the cap). Callers should treat this as
+	 * "cannot fill" rather than filling an arbitrary blob.
+	 */
+	truncated: boolean;
+}
+
+/**
+ * Flood fill over a **sampler** (override ?? base ?? empty) rather than the sparse
+ * override map — this is what makes region fill work on the infinite base terrain,
+ * where unpainted cells still have a real (generated) terrain. Because that field
+ * is boundless, the flood is capped by `maxCells` and uses **breadth-first** order
+ * so a capped result is a compact blob around the start. If it hits the cap before
+ * the region closes, `truncated` is set and the caller aborts (the region is open,
+ * e.g. an infinite ocean). An `undefined` start terrain yields an empty region.
+ */
+export function samplerFloodFill(
+	sample: CellSampler,
+	startCol: number,
+	startRow: number,
+	maxCells: number,
+): SamplerFloodResult {
+	const target = sample(startCol, startRow);
+	if (target === undefined) return { cells: [], truncated: false };
+	// Non-positive cap: nothing can be filled. Return a deterministic empty result
+	// rather than reporting a bogus truncation.
+	if (maxCells <= 0) return { cells: [], truncated: false };
+
+	const out: string[] = [];
+	const seen = new Set<string>([cellKey(startCol, startRow)]);
+	const queue: [number, number][] = [[startCol, startRow]];
+	let head = 0;
+	while (head < queue.length) {
+		const [c, r] = queue[head++];
+		if (sample(c, r) !== target) continue;
+		// A matching cell we have no room for ⇒ the region extends past the cap, so
+		// it is not (provably) enclosed. A region of *exactly* maxCells cells closes
+		// with no matching cell left to dequeue, and is correctly reported enclosed.
+		if (out.length >= maxCells) return { cells: out, truncated: true };
+		out.push(cellKey(c, r));
+		for (const [nc, nr] of [
+			[c + 1, r],
+			[c - 1, r],
+			[c, r + 1],
+			[c, r - 1],
+		] as const) {
+			const k = cellKey(nc, nr);
+			if (!seen.has(k)) {
+				seen.add(k);
+				queue.push([nc, nr]);
+			}
+		}
+	}
+	return { cells: out, truncated: false };
 }

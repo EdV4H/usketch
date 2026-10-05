@@ -1,12 +1,15 @@
 // Deterministic value-noise elevation field (fBm) — no external deps.
-// Elevation is sampled per cell and normalised to [0,1].
+// Elevation is sampled per cell. `hash2` is zero-centred (~[-0.5, 0.5)), so the
+// noise and fBm below are likewise **centred on 0** (roughly [-0.5, 0.5)), NOT
+// [0, 1). Consumers that want a band split apply their own contrast window.
 import { hash2 } from "./rng.js";
 
 function smoothstep(t: number): number {
 	return t * t * (3 - 2 * t);
 }
 
-/** Bilinear value noise at (x,y) using a seeded integer lattice. Range ~[0,1). */
+/** Bilinear value noise at (x,y) using a seeded integer lattice. Zero-centred,
+ * range ~[-0.5, 0.5) (inherited from `hash2`). */
 function valueNoise2D(seed: number, x: number, y: number): number {
 	const x0 = Math.floor(x);
 	const y0 = Math.floor(y);
@@ -23,7 +26,9 @@ function valueNoise2D(seed: number, x: number, y: number): number {
 
 /**
  * fractal Brownian motion: sum of octaves of value noise. `scale` sets the base
- * frequency (world-cell → noise space). Returns a value normalised to [0,1].
+ * frequency (world-cell → noise space). The amplitude-weighted average keeps the
+ * output in the same **zero-centred ~[-0.5, 0.5)** domain as the value noise
+ * (empirically ≈[-0.41, 0.40] at the default scale) — it is NOT [0, 1].
  */
 export function fbm(seed: number, cx: number, cy: number, scale: number, octaves = 4): number {
 	let amp = 1;

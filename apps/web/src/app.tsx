@@ -12,19 +12,27 @@ import { createAiRecognizePlugin } from "@edv4h/usketch-plugin-ai-recognize";
 import { createAssetStorePlugin } from "@edv4h/usketch-plugin-asset-store";
 import { createDotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
+import { createCharacterPlugin } from "@edv4h/usketch-plugin-character";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createAttachablePlugin, createContainerPlugin } from "@edv4h/usketch-plugin-container";
+import { createDashboardPlugin } from "@edv4h/usketch-plugin-dashboard";
+import { createDeepLinkPlugin } from "@edv4h/usketch-plugin-deep-link";
 import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
+import { createEdgePanPlugin } from "@edv4h/usketch-plugin-edge-pan";
 import { createExportPlugin } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
+import { createMode7Plugin } from "@edv4h/usketch-plugin-mode7";
 import { createPdfImportPlugin } from "@edv4h/usketch-plugin-pdf-import";
 import { createPortalPlugin } from "@edv4h/usketch-plugin-portal";
+import { createPresenceActivityPlugin } from "@edv4h/usketch-plugin-presence-activity";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enhanced";
 import { createPresentationPlugin } from "@edv4h/usketch-plugin-presentation";
+import { createScatterPlugin } from "@edv4h/usketch-plugin-scatter";
+import { createSessionPlugin } from "@edv4h/usketch-plugin-session";
 import { createBasicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
 import { createCardPlugin, EXAMPLE_CARD_TYPES } from "@edv4h/usketch-plugin-shape-card";
 import { createConnectorPlugin } from "@edv4h/usketch-plugin-shape-connector";
@@ -42,6 +50,7 @@ import { createWireframePlugin } from "@edv4h/usketch-plugin-shape-wireframe";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { createSnapPlugin } from "@edv4h/usketch-plugin-snap";
 import { createSpotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
+import { createStartPositionPlugin } from "@edv4h/usketch-plugin-start-position";
 import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import {
 	createDivergenceTracker,
@@ -62,6 +71,8 @@ import {
 	createWhisperTranscriber,
 } from "@edv4h/usketch-plugin-voice-notes";
 import { createWhistlePlugin } from "@edv4h/usketch-plugin-whistle";
+import { createWindowSystemPlugin, getWindowSystemApi } from "@edv4h/usketch-plugin-window-system";
+import { votingClientType } from "@edv4h/usketch-session-voting/client";
 import type { UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import {
@@ -73,11 +84,11 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { CopilotPill, TopBar } from "./components/board-frame/index.js";
+import { CopilotPill } from "./components/board-frame/index.js";
 import { ShareDialog } from "./components/share-dialog.js";
 import { InfoTab } from "./components/side-panel/info-tab.js";
-import { SidePanelToggles } from "./components/side-panel/side-panel-toggles.js";
 import { boardMetaStore } from "./lib/board-meta-store.js";
+import { characterAppearance, renderCharacter } from "./lib/character-renderer.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
@@ -106,6 +117,16 @@ function readPresentationMode(search: string): PresentationMode {
 	const params = new URLSearchParams(search);
 	if (params.get("present") !== "1") return "off";
 	return params.get("mode") === "present" ? "present" : "edit";
+}
+
+/**
+ * `?desktop=1` があれば、このボードを「デスクトップ」として開く — window-system
+ * プラグインを既定で有効化する（コミュニティページの「デスクトップを追加」で作成した
+ * ボードに付く）。有効化で config シェイプが作られ shape として永続化されるので、
+ * 次回以降はフラグ無しでもデスクトップのまま。冪等（既存 config には作用しない）。
+ */
+function readDesktopTemplate(search: string): boolean {
+	return new URLSearchParams(search).get("desktop") === "1";
 }
 
 interface CardHandWiring {
@@ -156,6 +177,7 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 			},
 		}),
 		createViewportNavPlugin(),
+		createEdgePanPlugin(),
 		createBasicShapePlugin(),
 		createGroupPlugin(),
 		createFramePlugin(),
@@ -183,6 +205,20 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		createFreePositionPlugin(),
 		createContainerPlugin(),
 		createAttachablePlugin(),
+		// ダッシュボード（sortable なグリッド）。container/free-position の後に置き、
+		// during-drag reflow をトップレベル移動の最後の writer にする。autoCreate:false
+		// で、メインボードを勝手にグリッド化せず、HUD の「ダッシュボード化」で opt-in。
+		createDashboardPlugin({ autoCreate: false }),
+		// ウィンドウシステム（画角固定 ＋ i3風タイル/自由配置）。dashboard と同じく
+		// container/free-position の後・autoEnable:false で opt-in（HUD「ウィンドウ化」）。
+		createWindowSystemPlugin({ autoEnable: false }),
+		// Mode 7（擬似3D地平面ビュー）。板コンテンツ層を CSS 3D で傾けるビューモード。
+		// 既定 OFF（HUD「3Dビュー切替」/ mode7:toggle で opt-in）。
+		// 切替時は地面がせり上がり、空/フォグがフェードする（#1103）。
+		createMode7Plugin({ transition: { durationMs: 900 } }),
+		// 関連Shapeを「ぶちまける」— HUD の「関連Shapeをぶちまける」アクション。connector/
+		// container/free-position の後（関連解決 + 非重なり配置の土台が揃った後）。
+		createScatterPlugin(),
 		createExportPlugin(),
 		createGpuRendererPlugin(),
 		createDomRendererPlugin({
@@ -234,11 +270,18 @@ export function App() {
 	const modeRef = useRef<PresentationMode>(presentationMode);
 	modeRef.current = presentationMode;
 
+	// 「デスクトップを追加」で開かれたか（?desktop=1）。app 再生成を避けるため ref で保持し、
+	// 初期化 effect の依存には入れない（present と同様、URL クエリで app を作り直さない）。
+	const desktopTemplateRef = useRef<boolean>(readDesktopTemplate(location.search));
+	desktopTemplateRef.current = readDesktopTemplate(location.search);
+
 	// 最新のユーザー id を board-init effect の依存に入れずに参照するための ref
 	// （modeRef と同じ理由: 依存に入れると auth 解決のたびに board が作り直される）。
 	// 手札(hand)のローカル保持キー / awareness 枚数共有の userId に使う。
 	const userIdRef = useRef<string | undefined>(authUser?.id);
 	userIdRef.current = authUser?.id;
+	const userNameRef = useRef<string | undefined>(authUser?.name);
+	userNameRef.current = authUser?.name;
 
 	// react-router の navigate() は pushState ベースで popstate を発火しない。
 	// presentation plugin は popstate で modeRef を再読込する設計なので、
@@ -336,6 +379,8 @@ export function App() {
 					userName: "Anonymous",
 				}),
 			);
+			// Draws every other participant's live selection/edit/marquee (#960).
+			extraPlugins.push(createPresenceActivityPlugin({ wsProvider }));
 			extraPlugins.push(
 				createPresenceEnhancedPlugin({
 					wsProvider,
@@ -392,10 +437,42 @@ export function App() {
 
 			extraPlugins.push(createWhistlePlugin(wsProvider));
 			extraPlugins.push(createActivityFeedPlugin({ wsProvider, boardId, apiUrl }));
+
+			// Live interactive sessions (voting first) — server-authoritative via the
+			// MSG_SESSION channel. userId MUST match the WS connection identity so the
+			// panel can tell whether this client is the host. The WS uses the dev user
+			// in DEV (via `?devUserId=`) and the cookie-auth user in prod, so mirror
+			// that precedence here — preferring authUser first would break host
+			// detection (no "締める"/"終了") whenever the two identities differ.
+			extraPlugins.push(
+				createSessionPlugin({
+					wsProvider,
+					boardId,
+					userId:
+						(import.meta.env.DEV ? getDevUser()?.id : undefined) ??
+						userIdRef.current ??
+						"anonymous",
+					types: [votingClientType],
+				}),
+			);
 		} else {
 			extraPlugins.push(createLaserPlugin());
 			extraPlugins.push(createSpotlightPlugin());
 			extraPlugins.push(createWhistlePlugin());
+		}
+
+		// 操作キャラ（WASD）: ローカル/Cloud 共通。Cloud では awareness で他ユーザーの
+		// キャラと共存する。見た目はプラグインに持たせず、ホストの renderer を注入。
+		{
+			const seed = userIdRef.current ?? getDevUser()?.id ?? "local";
+			extraPlugins.push(
+				createCharacterPlugin({
+					wsProvider: wsProvider ?? undefined,
+					userName: userNameRef.current ?? getDevUser()?.name,
+					appearance: characterAppearance(seed),
+					renderCharacter,
+				}),
+			);
 		}
 
 		// 共有タイマー（Timter）: ローカル/Cloud 共通。タイマーは `timer` シェイプとして
@@ -450,6 +527,14 @@ export function App() {
 			}),
 		);
 
+		// スタート位置: ボードの初期視点（座標/画角/Shape）へ起動時に移動。deep-link より
+		// 前に登録して viewport:claimed を購読させ、URL ディープリンクがあればそちらに譲る。
+		extraPlugins.push(createStartPositionPlugin());
+
+		// Deep link: URL ⇄ 選択/視点の同期（Figma の ?node-id 相当）。最後に登録し、
+		// setup が whenSynced 後に走ることで、サーバ視点復元より後に URL アンカーを適用する。
+		extraPlugins.push(createDeepLinkPlugin());
+
 		syncHandle.whenSynced
 			.then(() => {
 				if (cancelled) return;
@@ -490,6 +575,12 @@ export function App() {
 									/>
 								),
 							});
+						}
+
+						// 「デスクトップを追加」で開いたボードは window-system を既定で有効化。
+						// whenSynced 後なので既存 config は複製されない（enable は冪等）。
+						if (desktopTemplateRef.current) {
+							getWindowSystemApi(a.services)?.enable();
 						}
 
 						setApp(instance);
@@ -699,10 +790,10 @@ export function App() {
 				}}
 			>
 				{/*
-					エディタ全体 (Canvas + TopBar 等) をひとつの div で包む。
+					エディタ全体 (Canvas + 各種オーバーレイ) をひとつの div で包む。
 					プレゼン編集モード中は stage 矩形に縮め、外側を発表 UI が取り囲む形にする。
 					transform を当てると内側の position: fixed 要素の containing block が
-					この div になるため、Toolbar 等を書き換えずに相対化できる (CSS spec)。
+					この div になるため、HUD 等を書き換えずに相対化できる (CSS spec)。
 				*/}
 				<div
 					style={
@@ -727,17 +818,15 @@ export function App() {
 					}
 				>
 					<Canvas />
-					{!hideToolbar && (
-						<>
-							<TopBar boardId={boardId} isCloudBoard={isCloudBoard} compact={isPresentEdit} />
-							{isCloudBoard && !isPresentEdit && <SidePanelToggles app={app} />}
-							{isCloudBoard && !isPresentEdit && <CopilotPill />}
-						</>
-					)}
+					{/* TopBar は撤去: ロゴ(→dashboard)/テーマ/プレゼン/コミュニティは全て
+					    Control HUD の action(nav:dashboard / theme:* / edit:present /
+					    nav:community)に一本化済み。HUD は `` ` `` で開く（bottom-center に
+					    常時ヒントあり）。 */}
+					{!hideToolbar && isCloudBoard && !isPresentEdit && <CopilotPill />}
 				</div>
 				{/* 閉じタグ: エディタ全体ラッパーの終わり */}
 				{showShare && boardId && (
-					<ShareDialog boardId={boardId} onClose={() => setShowShare(false)} />
+					<ShareDialog boardId={boardId} onClose={() => setShowShare(false)} store={app?.store} />
 				)}
 				{isCloudBoard && wsStatus === "failed" && (
 					<div

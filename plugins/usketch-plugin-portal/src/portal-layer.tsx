@@ -78,9 +78,20 @@ function ShapeContent({
 export interface PortalChromeProps {
 	entry: PortalEntry;
 	shared: boolean;
+	/**
+	 * true when the portal **holds** the shape (removed from canvas); see {@link restore}.
+	 * Optional for backward compatibility with existing custom chromes (defaults to false).
+	 */
+	held?: boolean;
 	title: string;
 	toggleShared: () => void;
 	remove: () => void;
+	/**
+	 * Restore a held portal's shape to the canvas (present only when `held`).
+	 * Held portals should offer this instead of a destructive close, since the
+	 * portal holds the only copy of the shape.
+	 */
+	restore?: () => void;
 	/** Spread onto the drag handle (header). */
 	dragHandleProps: { onPointerDown: (e: React.PointerEvent) => void };
 	/** Spread onto the resize grip. */
@@ -151,22 +162,50 @@ export function DefaultPortalChrome(p: PortalChromeProps) {
 				</span>
 				<button
 					type="button"
-					title={p.shared ? "全員に共有中（クリックで個人に戻す）" : "個人（クリックで全員に共有）"}
+					title={
+						p.held && p.shared
+							? "共有スタッシュ: ⤴ でキャンバスに戻してから解除してください"
+							: p.shared
+								? "全員に共有中（クリックで個人に戻す）"
+								: "個人（クリックで全員に共有）"
+					}
+					disabled={p.held && p.shared}
 					onPointerDown={(e) => e.stopPropagation()}
 					onClick={p.toggleShared}
-					style={headerBtn}
+					style={{
+						...headerBtn,
+						cursor: p.held && p.shared ? "default" : "pointer",
+						opacity: p.held && p.shared ? 0.5 : 1,
+					}}
 				>
 					{p.shared ? "👥" : "🔒"}
 				</button>
-				<button
-					type="button"
-					title="閉じる"
-					onPointerDown={(e) => e.stopPropagation()}
-					onClick={p.remove}
-					style={{ ...headerBtn, color: "#9ca3af" }}
-				>
-					✕
-				</button>
+				{p.held ? (
+					<button
+						type="button"
+						title="キャンバスに戻す"
+						disabled={!p.restore}
+						onPointerDown={(e) => e.stopPropagation()}
+						onClick={p.restore}
+						style={{
+							...headerBtn,
+							color: p.restore ? "#2563eb" : "#9ca3af",
+							cursor: p.restore ? "pointer" : "default",
+						}}
+					>
+						⤴
+					</button>
+				) : (
+					<button
+						type="button"
+						title="閉じる"
+						onPointerDown={(e) => e.stopPropagation()}
+						onClick={p.remove}
+						style={{ ...headerBtn, color: "#9ca3af" }}
+					>
+						✕
+					</button>
+				)}
 			</div>
 			<div style={{ flex: 1, minHeight: 0, position: "relative" }}>
 				{p.children}
@@ -192,20 +231,24 @@ export function DefaultPortalChrome(p: PortalChromeProps) {
 function PortalPanel({
 	entry,
 	shared,
+	held,
 	shape,
 	def,
 	onUpdate,
 	onRemove,
 	onToggleShared,
+	onRestore,
 	Chrome,
 }: {
 	entry: PortalEntry;
 	shared: boolean;
+	held: boolean;
 	shape: ShapeData;
 	def: ReturnType<ShapeRegistry["get"]>;
 	onUpdate: (id: string, patch: Partial<Pick<PortalEntry, "x" | "y" | "w" | "h">>) => void;
 	onRemove: (id: string) => void;
 	onToggleShared: (id: string, shared: boolean) => void;
+	onRestore?: (entry: PortalEntry, shared: boolean) => void;
 	Chrome: PortalChrome;
 }) {
 	const bodyH = Math.max(0, entry.h - PORTAL_HEADER_H);
@@ -242,9 +285,18 @@ function PortalPanel({
 		<Chrome
 			entry={entry}
 			shared={shared}
+			held={held}
 			title={(shape as { label?: string }).label || shape.type}
-			toggleShared={() => onToggleShared(entry.id, !shared)}
-			remove={() => onRemove(entry.id)}
+			// Un-sharing a *held* portal would strand the shape: it stays off the
+			// (shared) board while its only snapshot returns to local storage, so
+			// other clients can no longer restore it. Lock the toggle in that case —
+			// un-share by ⤴ restoring first. (No-op here keeps custom chromes safe.)
+			toggleShared={held && shared ? () => {} : () => onToggleShared(entry.id, !shared)}
+			// For held portals `remove` must never discard the shape (the portal holds
+			// the only copy) — route it to restore. Safe even for custom chromes that
+			// wire a destructive close; a no-op when no restore handler is available.
+			remove={held ? () => onRestore?.(entry, shared) : () => onRemove(entry.id)}
+			restore={held && onRestore ? () => onRestore(entry, shared) : undefined}
 			dragHandleProps={{ onPointerDown: startDrag }}
 			resizeHandleProps={{ onPointerDown: startResize }}
 		>
@@ -258,39 +310,47 @@ export function PortalLayer({
 	store,
 	shapes,
 	Chrome = DefaultPortalChrome,
+	onRestore,
 }: {
 	portalStore: PortalStore;
 	store: BoardStore;
 	shapes: ShapeRegistry;
 	Chrome?: PortalChrome;
+	/** Restore a held portal's shape to the canvas (undoable; provided by the plugin). */
+	onRestore?: (entry: PortalEntry, shared: boolean) => void;
 }) {
 	const items = useSyncExternalStore(portalStore.subscribe, portalStore.getAll);
 	// Re-render on any store mutation so pinned shapes reflect edits.
 	const [, tick] = useReducer((n: number) => n + 1, 0);
 	useEffect(() => store.subscribe(tick), [store]);
 
-	// Drop portals whose target shape no longer exists.
+	// Drop **pin** portals whose target shape no longer exists. Held portals own
+	// their shape snapshot (it isn't on the board), so they must never be dropped
+	// here — that would lose the only copy.
 	useEffect(() => {
 		for (const { entry } of items) {
-			if (!store.getShape(entry.shapeId)) portalStore.remove(entry.id);
+			if (!entry.shape && !store.getShape(entry.shapeId)) portalStore.remove(entry.id);
 		}
 	}, [items, store, portalStore]);
 
 	return (
 		<>
 			{items.map(({ entry, shared }) => {
-				const shape = store.getShape(entry.shapeId);
+				const held = !!entry.shape;
+				const shape = entry.shape ?? store.getShape(entry.shapeId);
 				if (!shape) return null;
 				return (
 					<PortalPanel
 						key={entry.id}
 						entry={entry}
 						shared={shared}
+						held={held}
 						shape={shape}
 						def={shapes.get(shape.type)}
 						onUpdate={portalStore.update}
 						onRemove={portalStore.remove}
 						onToggleShared={portalStore.setShared}
+						onRestore={onRestore}
 						Chrome={Chrome}
 					/>
 				);

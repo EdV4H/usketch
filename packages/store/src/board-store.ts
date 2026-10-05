@@ -8,6 +8,7 @@ import type {
 	Viewport,
 	ViewportAnimationConfig,
 	ViewportAnimationOptions,
+	ViewportConstraint,
 } from "@edv4h/usketch-shared";
 import {
 	compareZIndex,
@@ -15,6 +16,11 @@ import {
 	easeInOutCubic,
 	getRotatedAABB,
 	safeRotation,
+	screenToWorld,
+	shortestAngleDelta,
+	viewportAnchoredAt,
+	viewportRotation,
+	wrapDeg,
 	zIndexBetween,
 } from "@edv4h/usketch-shared";
 import { createSpatialIndex } from "./spatial-index.js";
@@ -31,9 +37,42 @@ export interface BoardState {
 
 const INITIAL_DEFAULT_TOOL_ID = "select";
 
+/** Default zoom clamp range applied by `zoomTo` / `fitToBounds`. Hosts can widen
+ *  or narrow it via {@link BoardStoreOptions.zoomRange}. */
+const DEFAULT_MIN_ZOOM = 0.1;
+const DEFAULT_MAX_ZOOM = 10;
+
+interface ResolvedZoomRange {
+	min: number;
+	max: number;
+}
+
+/** Validate the option's zoom range into a usable `{min,max}` (invalid → default). */
+function resolveZoomRange(range: BoardStoreOptions["zoomRange"]): ResolvedZoomRange {
+	const min =
+		typeof range?.min === "number" && Number.isFinite(range.min) && range.min > 0
+			? range.min
+			: DEFAULT_MIN_ZOOM;
+	const max =
+		typeof range?.max === "number" && Number.isFinite(range.max) && range.max > 0
+			? range.max
+			: DEFAULT_MAX_ZOOM;
+	// A broken range (min > max) falls back to the defaults.
+	if (min > max) return { min: DEFAULT_MIN_ZOOM, max: DEFAULT_MAX_ZOOM };
+	return { min, max };
+}
+
 export interface BoardStoreOptions {
 	/** Override the default smooth-viewport-animation behaviour (default: on). */
 	viewportAnimation?: Partial<ViewportAnimationConfig>;
+	/**
+	 * Zoom-magnitude clamp range applied by `zoomTo` / `fitToBounds`.
+	 * Default `{ min: 0.1, max: 10 }`. Hosts that need to zoom past ×10 (or below
+	 * ×0.1) widen this. A non-positive / non-finite bound, or `min > max`, falls
+	 * back to the default. `setViewportConstraint` can still further restrict the
+	 * committed viewport, but cannot widen it beyond this range.
+	 */
+	zoomRange?: { min?: number; max?: number };
 }
 
 export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
@@ -46,6 +85,10 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		viewport: { x: 0, y: 0, zoom: 1 },
 		styleSettings: { ...DEFAULT_STYLE },
 	};
+
+	const zoomRange = resolveZoomRange(options.zoomRange);
+	/** Clamp a zoom magnitude into the configured range. */
+	const clampZoom = (zoom: number) => Math.min(zoomRange.max, Math.max(zoomRange.min, zoom));
 
 	const spatialIndex = createSpatialIndex();
 	const listeners = new Set<() => void>();
@@ -107,9 +150,15 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		viewportRafId = null;
 	}
 
-	/** Assign the viewport and fan out the usual change notifications. */
+	// Optional constraint applied to EVERY viewport commit — the single choke point
+	// all viewport changes flow through — so the stored viewport can never violate it.
+	let viewportConstraint: ViewportConstraint | null = null;
+
+	/** Assign the viewport (passed through the active constraint) and fan out the
+	 *  usual change notifications. */
 	function commitViewport(viewport: Viewport) {
-		state.viewport = viewport;
+		const constrained = viewportConstraint ? viewportConstraint(viewport) : viewport;
+		state.viewport = normalizeRotation(constrained);
 		notify();
 		notifyMutation({ type: "viewport:changed" });
 	}
@@ -122,16 +171,29 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		);
 	}
 
-	/** rAF tween to `target`, with instant fallback when animation can't/shouldn't run. */
-	function animateViewportTo(target: Viewport, opts?: ViewportAnimationOptions) {
+	/** Wrap `rotation` into (-180, 180] and drop the key entirely when it is 0, so an
+	 *  unrotated viewport stays the exact `{x, y, zoom}` shape it always was. */
+	function normalizeRotation(viewport: Viewport): Viewport {
+		if (!("rotation" in viewport)) return viewport;
+		const { rotation, ...rest } = viewport;
+		const deg = wrapDeg(rotation ?? 0);
+		return deg === 0 ? rest : { ...rest, rotation: deg };
+	}
+
+	/**
+	 * Drive a viewport tween: `frameAt(k)` yields the viewport at eased progress
+	 * `k ∈ [0,1]`. Falls back to an instant commit of `target` when animation
+	 * can't/shouldn't run (disabled, reduced motion, no rAF, or `near`).
+	 */
+	function runViewportTween(
+		target: Viewport,
+		frameAt: (k: number) => Viewport,
+		near: boolean,
+		opts?: ViewportAnimationOptions,
+	) {
 		cancelViewportAnimation();
 		const duration = opts?.durationMs ?? viewportAnimation.durationMs;
 		const animate = opts?.animate ?? viewportAnimation.enabled;
-		const from = state.viewport;
-		const near =
-			Math.abs(from.x - target.x) < 0.01 &&
-			Math.abs(from.y - target.y) < 0.01 &&
-			Math.abs(from.zoom - target.zoom) < 1e-4;
 		if (
 			!animate ||
 			near ||
@@ -147,12 +209,7 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		const start = performance.now();
 		const step = (now: number) => {
 			const t = Math.min(1, (now - start) / duration);
-			const k = easing(t);
-			commitViewport({
-				x: from.x + (target.x - from.x) * k,
-				y: from.y + (target.y - from.y) * k,
-				zoom: from.zoom + (target.zoom - from.zoom) * k,
-			});
+			commitViewport(t < 1 ? frameAt(easing(t)) : target);
 			if (t < 1) {
 				viewportRafId = requestAnimationFrame(step);
 			} else {
@@ -160,6 +217,47 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 			}
 		};
 		viewportRafId = requestAnimationFrame(step);
+	}
+
+	/** rAF tween to `target`, with instant fallback when animation can't/shouldn't run. */
+	function animateViewportTo(target: Viewport, opts?: ViewportAnimationOptions) {
+		const from = state.viewport;
+		const fromRot = viewportRotation(from);
+		// Turn the short way round (170° → -170° is +20°, not -340°).
+		const dRot = shortestAngleDelta(fromRot, viewportRotation(target));
+		const near =
+			Math.abs(from.x - target.x) < 0.01 &&
+			Math.abs(from.y - target.y) < 0.01 &&
+			Math.abs(from.zoom - target.zoom) < 1e-4 &&
+			Math.abs(dRot) < 1e-3;
+		runViewportTween(
+			target,
+			(k) => ({
+				x: from.x + (target.x - from.x) * k,
+				y: from.y + (target.y - from.y) * k,
+				zoom: from.zoom + (target.zoom - from.zoom) * k,
+				rotation: fromRot + dRot * k,
+			}),
+			near,
+			opts,
+		);
+	}
+
+	/**
+	 * Turn the camera to `deg` about screen point `center` (the world point under it
+	 * stays put — also on every animated frame, so the pivot never wobbles). Instant
+	 * by default (per-frame callers like a follow camera); `{ animate: true }` tweens.
+	 */
+	function rotateTo(deg: number, center: Point, opts?: ViewportAnimationOptions) {
+		const from = state.viewport;
+		const pivot = screenToWorld(center.x, center.y, from);
+		const fromRot = viewportRotation(from);
+		const dRot = shortestAngleDelta(fromRot, wrapDeg(deg));
+		const at = (rot: number) => viewportAnchoredAt(pivot, center, from.zoom, wrapDeg(rot));
+		runViewportTween(at(fromRot + dRot), (k) => at(fromRot + dRot * k), Math.abs(dRot) < 1e-3, {
+			...opts,
+			animate: opts?.animate ?? false,
+		});
 	}
 
 	function setActiveToolId(id: string) {
@@ -364,6 +462,17 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 			commitViewport(viewport);
 		},
 
+		setViewportConstraint(constraint: ViewportConstraint | null) {
+			viewportConstraint = constraint;
+			// Re-commit the current viewport so it immediately snaps into the new
+			// constraint (or is released when clearing).
+			cancelViewportAnimation();
+			commitViewport(state.viewport);
+		},
+		getViewportConstraint() {
+			return viewportConstraint;
+		},
+
 		panBy(dx: number, dy: number) {
 			cancelViewportAnimation();
 			commitViewport({
@@ -375,15 +484,19 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 
 		zoomTo(zoom: number, center: Point) {
 			cancelViewportAnimation();
-			const clampedZoom = Math.min(Math.max(zoom, 0.1), 10);
+			const clampedZoom = clampZoom(zoom);
 			const oldZoom = state.viewport.zoom;
 			const scale = clampedZoom / oldZoom;
+			// Scaling about a screen point commutes with the camera rotation → keep it.
 			commitViewport({
+				...state.viewport,
 				x: center.x - (center.x - state.viewport.x) * scale,
 				y: center.y - (center.y - state.viewport.y) * scale,
 				zoom: clampedZoom,
 			});
 		},
+
+		rotateTo,
 
 		animateViewportTo,
 		getViewportAnimation: () => ({ ...viewportAnimation }),
@@ -406,16 +519,18 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 			const availW = Math.max(1, viewportSize.width - padding * 2);
 			const availH = Math.max(1, viewportSize.height - padding * 2);
 			const rawZoom = Math.min(availW / bounds.width, availH / bounds.height);
-			const zoom = Math.min(Math.max(rawZoom, 0.1), 10);
+			const zoom = clampZoom(rawZoom);
 			const cx = bounds.x + bounds.width / 2;
 			const cy = bounds.y + bounds.height / 2;
 			// Programmatic fit → animate by default (see animateViewportTo fallbacks).
+			// Keep the current camera rotation; center the bounds under it.
 			animateViewportTo(
-				{
-					x: viewportSize.width / 2 - cx * zoom,
-					y: viewportSize.height / 2 - cy * zoom,
+				viewportAnchoredAt(
+					{ x: cx, y: cy },
+					{ x: viewportSize.width / 2, y: viewportSize.height / 2 },
 					zoom,
-				},
+					viewportRotation(state.viewport),
+				),
 				opts,
 			);
 		},

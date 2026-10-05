@@ -1,5 +1,84 @@
 # @edv4h/usketch-plugin-bg-grid
 
+## 2.3.0
+
+### Minor Changes
+
+- f4b7387: Keep overlays aligned under camera rotation.
+  - shared / canvas-engine: new `Layer.worldOverlay` for fixed layers that draw
+    world-anchored things in screen px. Under rotation the canvas turns such a layer
+    with the world (about the world origin on screen) and renders it with an
+    unrotated viewport, so existing `zoom·w + (x, y)` math stays correct unchanged.
+    Helpers: `unrotatedViewport`, `screenToOverlay`, `overlayFrameStyle`. The
+    selection foreground is a world overlay by default
+    (`SelectionForeground.worldOverlay`).
+  - tool-helpers: resize/rotation handle hit tests compare in the same overlay frame,
+    so handles can be grabbed where they're drawn.
+  - bg-grid: the grid turns with the camera (a diagonal-sized square rotated about
+    the screen center, phased onto world multiples).
+  - snap, presence-activity, tool-vim, shape-freedraw, shape-connector,
+    sync-ywebsocket, comments, shape-frame: their board-anchored overlays opt into
+    `worldOverlay`; snap's visible-candidate area is rotation-aware.
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-core@2.4.4
+
+## 2.2.0
+
+### Minor Changes
+
+- 0f5b33f: feat(bg-grid): ビューポート外までグリッドを広げる overscan を追加
+
+  `bg-grid:set-overscan` イベント（`{ px }`）でグリッドの描画範囲をビューポート箱の外側へ px 単位で
+  拡張できるようにした。既定 0（従来どおり箱ぶん）。パターンの位相はワールド倍数に保つ（オフセットを
+  overscan ぶんシフト）。Mode 7 の擬似3D地平面で、傾けた際に箱の外へ露出する遠方 Shape の下にも
+  グリッドを敷き続ける（＝グリッドが途中で途切れて遠方 Shape が浮く問題を解消）ために使う。
+  イベント購読なので bg-grid 非利用時は no-op、消費側との間にパッケージ依存を作らない。
+
+## 2.1.8
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+  - @edv4h/usketch-core@2.4.3
+
+## 2.1.7
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-core@2.4.2
+
+## 2.1.6
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-core@2.4.1
+
+## 2.1.5
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+  - @edv4h/usketch-core@2.4.0
+
+## 2.1.4
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-core@2.3.2
+
 ## 2.1.3
 
 ### Patch Changes

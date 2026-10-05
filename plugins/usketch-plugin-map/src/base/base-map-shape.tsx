@@ -1,7 +1,7 @@
 // The `base-map` shape is a DATA-ONLY registry (like `tilemap`): it holds the
-// base registry (name / colour / beacon icon / radius) so bases persist + sync
+// base registry (name / colour / beacon cell / radius) so bases persist + sync
 // (Yjs) + undo through the shape store. It draws NOTHING and owns NO territory —
-// each base's territory is DERIVED at read time from its beacon + the terrain
+// each base's territory is DERIVED at read time from its beacon cell + the terrain
 // paint (see territory.ts). Locked and non-hit-testable so it's a substrate.
 import type { BoundingBox, ShapeData, ShapeDefinition } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
@@ -14,8 +14,13 @@ export interface BaseInfo {
 	color: string; // hex, e.g. "#EF5350"
 	/** Territory radius in tiles around the beacon (the core is always owned). */
 	radius: number;
-	/** The single beacon: the map-icon whose position seeds this base's core. */
-	beaconIconId?: string;
+	/** The single beacon: the grid cell (`cellKey("c,r")`) whose centre seeds this
+	 *  base's core disk. Undefined until the user places a beacon in base mode. */
+	beaconCell?: string;
+	/** Optional landmark-icon override (an ICONS key). When unset, the base shows
+	 *  the icon DERIVED from its `radius` tier (see base-icon.ts) — so a base is
+	 *  always its own landmark, no separate stamped icon needed. */
+	icon?: string;
 }
 
 export const DEFAULT_BASE_RADIUS = 5;

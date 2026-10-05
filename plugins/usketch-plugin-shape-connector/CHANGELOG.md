@@ -1,5 +1,103 @@
 # @edv4h/usketch-plugin-shape-connector
 
+## 3.3.6
+
+### Patch Changes
+
+- f4b7387: Keep overlays aligned under camera rotation.
+  - shared / canvas-engine: new `Layer.worldOverlay` for fixed layers that draw
+    world-anchored things in screen px. Under rotation the canvas turns such a layer
+    with the world (about the world origin on screen) and renders it with an
+    unrotated viewport, so existing `zoom·w + (x, y)` math stays correct unchanged.
+    Helpers: `unrotatedViewport`, `screenToOverlay`, `overlayFrameStyle`. The
+    selection foreground is a world overlay by default
+    (`SelectionForeground.worldOverlay`).
+  - tool-helpers: resize/rotation handle hit tests compare in the same overlay frame,
+    so handles can be grabbed where they're drawn.
+  - bg-grid: the grid turns with the camera (a diagonal-sized square rotated about
+    the screen center, phased onto world multiples).
+  - snap, presence-activity, tool-vim, shape-freedraw, shape-connector,
+    sync-ywebsocket, comments, shape-frame: their board-anchored overlays opt into
+    `worldOverlay`; snap's visible-candidate area is rotation-aware.
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-canvas-engine@1.5.0
+  - @edv4h/usketch-store@3.8.0
+  - @edv4h/usketch-core@2.4.4
+  - @edv4h/usketch-connector-anchor@0.4.5
+
+## 3.3.5
+
+### Patch Changes
+
+- Updated dependencies [1854e30]
+  - @edv4h/usketch-store@3.7.0
+
+## 3.3.4
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+  - @edv4h/usketch-store@3.6.0
+  - @edv4h/usketch-canvas-engine@1.4.1
+  - @edv4h/usketch-core@2.4.3
+  - @edv4h/usketch-connector-anchor@0.4.4
+
+## 3.3.3
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-canvas-engine@1.4.0
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-core@2.4.2
+  - @edv4h/usketch-store@3.5.4
+  - @edv4h/usketch-connector-anchor@0.4.3
+
+## 3.3.2
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-canvas-engine@1.3.5
+  - @edv4h/usketch-core@2.4.1
+  - @edv4h/usketch-store@3.5.3
+  - @edv4h/usketch-connector-anchor@0.4.2
+
+## 3.3.1
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+  - @edv4h/usketch-core@2.4.0
+  - @edv4h/usketch-canvas-engine@1.3.4
+  - @edv4h/usketch-store@3.5.2
+  - @edv4h/usketch-connector-anchor@0.4.1
+
+## 3.3.0
+
+### Minor Changes
+
+- bba174a: 回転まわりの選択 UI を修正。
+  - **複数選択したシェイプを回転できるようにした**。従来は回転ハンドルの検出が単一選択限定で、複数選択（グループ化していない選択）は回転できなかった。複数選択のバウンディングボックスの角外側に回転ゾーンを追加し、選択中の全シェイプを共通中心まわりに剛体回転する `startMultiRotateSession` を追加（コネクタは端点回転、undo/redo 対応）。ホバー時は回転カーソルも出る。
+  - **図形のコネクタ・アンカーハンドル（上下左右）が図形の回転に追従するようにした**。従来は回転した図形でもアンカー（コネクタの始点/接続点）が軸平行の辺の中点に出ていて、辺から外れていた。`getAnchorPoint` / `clampToShapeEdge` を回転対応にし（ローカル座標で計算 → 中心まわりに回転して world 座標へ）、選択時の外側オフセットも辺の法線方向へ回すようにした。これで回転済み図形からも正しい辺の位置でコネクタを繋げられる。
+  - **グループ回転でコネクタが崩れる不具合を修正**。コネクタは形状を端点（絶対座標）で定義するため、グループ回転で `rotation` を焼き込むと二重変換で線・ハンドルが崩れていた。`ShapeDefinition.rotate` フック（`move` と対）を追加し、コネクタは端点を回して `rotation` は据え置く（`rotateConnector`）。
+  - **回転ハンドルのカーソルを角ごとの回転アイコンにした**。従来は全ての角で `grab` 固定だったが、掴んだ角（ne/se/sw/nw）＋シェイプの現在回転角に合わせた回転カーソル（150°円弧＋接線方向ダブル矢じりの SVG data URI）を表示する。`tool-helpers` に `getRotationCursor(corner, rotationDeg)` を追加し、`findRotationHandleAtScreenPoint` はどの角かも返すようになった。
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-connector-anchor@0.4.0
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-canvas-engine@1.3.3
+  - @edv4h/usketch-core@2.3.2
+  - @edv4h/usketch-store@3.5.1
+
 ## 3.2.4
 
 ### Patch Changes

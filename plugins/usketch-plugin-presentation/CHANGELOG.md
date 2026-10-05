@@ -1,5 +1,78 @@
 # @edv4h/usketch-plugin-presentation
 
+## 2.3.6
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-store@3.8.0
+
+## 2.3.5
+
+### Patch Changes
+
+- Updated dependencies [1854e30]
+  - @edv4h/usketch-store@3.7.0
+
+## 2.3.4
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+  - @edv4h/usketch-store@3.6.0
+
+## 2.3.3
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-store@3.5.4
+
+## 2.3.2
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-store@3.5.3
+
+## 2.3.1
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+  - @edv4h/usketch-store@3.5.2
+
+## 2.3.0
+
+### Minor Changes
+
+- 92297ee: `SlideNavigator` / `createPresentationPlugin` に `fitPadding` オプションを追加。
+
+  `gotoIndex` の `store.fitToBounds` に渡す余白 (px) をホストから指定できる (省略時は従来どおり 40)。発表でスライドを画角いっぱい (上下または左右が画角の端に接する) に収めたいときは `fitPadding: 0` を渡す。余白 0 で生じるレターボックスは `mask` で暗転できる。
+
+## 2.2.1
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-store@3.5.1
+
+## 2.2.0
+
+### Minor Changes
+
+- b042238: `PresentModeOverlay` / `createPresentationPlugin` に発表オーバーレイの拡張を追加。
+  - **`onExit`**: 発表を抜ける処理をホストから注入できる（`PresentModeOverlay` の `onExit` prop / `createPresentationPlugin` の `onExit` option）。省略時は従来どおり URL クエリ (`?mode=edit`) を書き換える。これまで終了ボタンは URL 駆動固定で、state 駆動のホストではクリックしても抜けられなかったのを解消。
+  - **`mask`**: 発表中に現スライド（画角）以外の Canvas を暗幕で隠すマスクを追加。オーバーレイ内のトグルボタンで ON/OFF でき、`mask` prop/option でその初期値を渡せる。viewport のアニメーションにも追従する。
+  - `SlideNavigator` に `getCurrentBounds()`（現スライドの world 矩形）と `getStore()`（ホスト overlay が viewport 取得/購読に使う）を追加。
+
 ## 2.1.0
 
 ### Minor Changes

@@ -1,5 +1,73 @@
 # @edv4h/usketch-plugin-shape-basic
 
+## 2.1.11
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-store@3.8.0
+  - @edv4h/usketch-core@2.4.4
+  - @edv4h/usketch-shape-utils@2.2.10
+
+## 2.1.10
+
+### Patch Changes
+
+- Updated dependencies [1854e30]
+  - @edv4h/usketch-store@3.7.0
+
+## 2.1.9
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+  - @edv4h/usketch-store@3.6.0
+  - @edv4h/usketch-core@2.4.3
+  - @edv4h/usketch-shape-utils@2.2.9
+
+## 2.1.8
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-core@2.4.2
+  - @edv4h/usketch-store@3.5.4
+  - @edv4h/usketch-shape-utils@2.2.8
+
+## 2.1.7
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-core@2.4.1
+  - @edv4h/usketch-store@3.5.3
+  - @edv4h/usketch-shape-utils@2.2.7
+
+## 2.1.6
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+  - @edv4h/usketch-core@2.4.0
+  - @edv4h/usketch-store@3.5.2
+  - @edv4h/usketch-shape-utils@2.2.6
+
+## 2.1.5
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-core@2.3.2
+  - @edv4h/usketch-store@3.5.1
+  - @edv4h/usketch-shape-utils@2.2.5
+
 ## 2.1.4
 
 ### Patch Changes

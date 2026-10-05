@@ -1,4 +1,7 @@
 // Geometry
+
+// Service seam (typed host-facing plugin APIs over ctx.services / app.services)
+export { defineService, type ServiceHandle } from "./service.js";
 export type { BoundingBox, Point, Viewport } from "./types/geometry.js";
 // LOD
 export type { LodController, LodPolicy, LodPolicyContext, RenderMode } from "./types/lod.js";
@@ -64,6 +67,7 @@ export type {
 	UsketchPlugin,
 	ViewportAnimationConfig,
 	ViewportAnimationOptions,
+	ViewportConstraint,
 } from "./types/plugin.js";
 // Shape
 export type { ResizeHandle, ShapeData, ShapeStyle } from "./types/shape.js";
@@ -90,7 +94,14 @@ export {
 export {
 	boundsToScreenRect,
 	getSelectionBounds,
+	overlayFrameStyle,
+	screenRectToWorldBounds,
+	screenToOverlay,
 	screenToWorld,
+	unrotatedViewport,
+	viewportAnchoredAt,
+	viewportRotation,
+	viewportTransformStyle,
 	worldToScreen,
 } from "./utils/geometry.js";
 // Utils
@@ -115,9 +126,11 @@ export {
 	normalizeAngle,
 	rotatePoint,
 	safeRotation,
+	shortestAngleDelta,
 	snapAngle,
 	unrotatePoint,
 	withRotation,
+	wrapDeg,
 } from "./utils/rotation.js";
 // Shape diff
 export { bidiffShape, diffShape } from "./utils/shape-diff.js";

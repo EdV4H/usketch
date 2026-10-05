@@ -119,6 +119,72 @@ const packages = [
 			},
 		],
 	},
+	{
+		name: "@edv4h/usketch-session-protocol",
+		summary:
+			"Type-only wire contract for live interactive sessions (server-authoritative). Transported over the sync package's MSG_SESSION channel; each session type owns its own opaque payloads.",
+		reference: "https://www.npmjs.com/package/@edv4h/usketch-session-protocol",
+		install: "pnpm add @edv4h/usketch-session-protocol",
+		exports: [
+			{
+				name: "SessionView",
+				kind: "type",
+				signature: "interface<TPublic>",
+				description: "Public session as seen by clients (id, type, host, participants, public state).",
+			},
+			{
+				name: "Participant",
+				kind: "type",
+				signature: "interface",
+				description: "A participant keyed by userId, with role + live connection state.",
+			},
+			{
+				name: "SessionConfig",
+				kind: "type",
+				signature: "{ type; [k]: unknown }",
+				description: "Create payload — a `type` discriminator plus the type's own fields.",
+			},
+			{
+				name: "ClientToServer / ServerToClient",
+				kind: "type",
+				signature: "union",
+				description: "Wire messages (create/join/action/leave/close/end/sync ↔ state/private/ended/error).",
+			},
+			{
+				name: "ServerSessionType",
+				kind: "type",
+				signature: "interface",
+				description: "Server extension contract (init/reduce/privateFor/close) a session type implements.",
+			},
+		],
+	},
+	{
+		name: "@edv4h/usketch-session-voting",
+		summary:
+			"The `voting` session type — the first one built on the session framework. Server + client halves under subpath exports (`/server`, `/client`) so the server bundle stays React-free.",
+		reference: "https://www.npmjs.com/package/@edv4h/usketch-session-voting",
+		install: "pnpm add @edv4h/usketch-session-voting",
+		exports: [
+			{
+				name: "votingServerType",
+				kind: "const",
+				signature: "ServerSessionType",
+				description: "From `/server` — dedup, secret ballot, multi/re-vote, close. Register into SessionManager.",
+			},
+			{
+				name: "votingClientType",
+				kind: "const",
+				signature: "ClientSessionType",
+				description: "From `/client` — poll card + create form. Pass to createSessionPlugin({ types }).",
+			},
+			{
+				name: "VotingPublicState / VotingConfig",
+				kind: "type",
+				signature: "interface",
+				description: "Voting's public state (question/options/tally/status) and create config.",
+			},
+		],
+	},
 ] as const;
 ---
 

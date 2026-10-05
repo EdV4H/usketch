@@ -55,6 +55,8 @@ export function createCommentsPlugin(options: CommentsPluginOptions): UsketchPlu
 				id: "comment-badges",
 				order: 55,
 				fixed: true,
+				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+				worldOverlay: true,
 				render: (renderCtx) => (
 					<CommentBadgeLayer
 						ctx={renderCtx}

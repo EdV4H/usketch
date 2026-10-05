@@ -6,7 +6,7 @@ import type {
 	ShapeData,
 	Viewport,
 } from "@edv4h/usketch-shared";
-import { generateId } from "@edv4h/usketch-shared";
+import { generateId, safeRotation } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { useCallback, useSyncExternalStore } from "react";
 import { createDefaultConnector } from "./shapes/connector.js";
@@ -435,7 +435,9 @@ export function AnchorHandleOverlay({ ctx, viewport, mode = "single" }: AnchorHa
 				anchors.map((anchor) => {
 					const point = getAnchorPoint(shape, anchor);
 					const screen = worldToScreen(point, viewport);
-					const offsetScreen = isSelected ? applySelectedOffset(screen, anchor) : screen;
+					const offsetScreen = isSelected
+						? applySelectedOffset(screen, anchor, safeRotation(shape.rotation))
+						: screen;
 					return (
 						<AnchorHandle
 							key={`${shape.id}-${anchor}`}
@@ -451,19 +453,30 @@ export function AnchorHandleOverlay({ ctx, viewport, mode = "single" }: AnchorHa
 	);
 }
 
-function applySelectedOffset(screen: Point, anchor: AnchorType): Point {
-	switch (anchor) {
-		case "top":
-			return { x: screen.x, y: screen.y - SELECTED_OFFSET };
-		case "bottom":
-			return { x: screen.x, y: screen.y + SELECTED_OFFSET };
-		case "left":
-			return { x: screen.x - SELECTED_OFFSET, y: screen.y };
-		case "right":
-			return { x: screen.x + SELECTED_OFFSET, y: screen.y };
-		default:
-			return screen;
-	}
+/**
+ * Push a selected shape's anchor handle outward so it clears the shape edge.
+ * The outward direction is rotated by the shape's rotation so the offset stays
+ * perpendicular to the (rotated) edge instead of always pointing screen-axis.
+ */
+function applySelectedOffset(screen: Point, anchor: AnchorType, rotationDeg: number): Point {
+	const dir =
+		anchor === "top"
+			? { x: 0, y: -1 }
+			: anchor === "bottom"
+				? { x: 0, y: 1 }
+				: anchor === "left"
+					? { x: -1, y: 0 }
+					: anchor === "right"
+						? { x: 1, y: 0 }
+						: null;
+	if (!dir) return screen;
+	const rad = (rotationDeg * Math.PI) / 180;
+	const cos = Math.cos(rad);
+	const sin = Math.sin(rad);
+	return {
+		x: screen.x + (dir.x * cos - dir.y * sin) * SELECTED_OFFSET,
+		y: screen.y + (dir.x * sin + dir.y * cos) * SELECTED_OFFSET,
+	};
 }
 
 function AnchorHandle({

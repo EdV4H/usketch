@@ -1,5 +1,66 @@
 # @edv4h/usketch-plugin-sync-localstorage-yjs
 
+## 2.1.2
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+
+## 2.1.1
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+
+## 2.1.0
+
+### Minor Changes
+
+- 50e6635: feat(sync-localstorage-yjs): docName を可変化＋外部 Y.Doc への IndexedDB 永続化後付けに対応
+  - `createSyncLocalstorageYjsPlugin(options?)` に `SyncLocalstorageYjsOptions` を追加。
+    - `docName?: string | (() => string)` — IndexedDB doc 名をボード単位で分離可能に
+      （複数ボードでの衝突を回避）。省略時は `"usketch-default"` で**後方互換**。
+    - `doc?: Y.Doc` — ホストが持つ既存 Y.Doc（ネットワーク provider 接続済み）に IndexedDB
+      永続化を**後付け**できる。内部で新規 doc を作らず、同一 doc にローカル永続化と
+      ネットワーク同期を共存させられる。
+  - 外部提供の doc は**ホスト所有**として扱い、teardown（`destroy()`）では破棄しない
+    （IndexedDB provider のみ破棄）。内部生成 doc は従来どおり破棄する。
+  - `createYjsSync(store, docNameOrOptions)` が `string` に加え `CreateYjsSyncOptions`
+    （`{ docName?, doc? }`）を受け付けるように（既存の文字列呼び出しは後方互換）。
+  - README を追加：実体が IndexedDB（`y-indexeddb`）である旨、`docName`/`doc` の使い方、
+    シェイプ格納 map 名が `"shapes"` 固定である前提を明記。
+
+## 2.0.13
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+
+## 2.0.12
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+
+## 2.0.11
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+
+## 2.0.10
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+
 ## 2.0.9
 
 ### Patch Changes

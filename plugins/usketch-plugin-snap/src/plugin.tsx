@@ -7,6 +7,7 @@ import type {
 	UsketchPlugin,
 	Viewport,
 } from "@edv4h/usketch-shared";
+import { screenRectToWorldBounds } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { effectiveSnapEnabled } from "./alt-behavior.js";
 import { DEFAULT_GUIDE_STYLE, DEFAULT_SNAP_THRESHOLD } from "./constants.js";
@@ -18,6 +19,7 @@ import type {
 	SnapLine,
 	SnapResult,
 	SnapSettings,
+	SpacingGuide,
 } from "./engine/types.js";
 import { GuideLayer } from "./guide-layer.js";
 
@@ -25,10 +27,15 @@ import { GuideLayer } from "./guide-layer.js";
 
 interface SnapGuideState {
 	lines: SnapLine[];
+	gaps: SpacingGuide[];
 	guideStyle: GuideStyle;
 }
 
-let currentState: SnapGuideState = { lines: [], guideStyle: { ...DEFAULT_GUIDE_STYLE } };
+let currentState: SnapGuideState = {
+	lines: [],
+	gaps: [],
+	guideStyle: { ...DEFAULT_GUIDE_STYLE },
+};
 const stateListeners: Set<() => void> = new Set();
 
 function setState(patch: Partial<SnapGuideState>) {
@@ -74,11 +81,39 @@ function toScreenLines(lines: SnapLine[], vp: { x: number; y: number; zoom: numb
 	});
 }
 
+function toScreenGaps(
+	gaps: SpacingGuide[],
+	vp: { x: number; y: number; zoom: number },
+): SpacingGuide[] {
+	return gaps.map((g) => ({
+		...g,
+		// Convert `length` too so the returned guide is entirely in screen units
+		// (no world/screen mixing). The world-space length stays available on
+		// `state.gaps` for anything semantic (e.g. a future gap label).
+		length: g.length * vp.zoom,
+		segments: g.segments.map((s) => {
+			if (g.axis === "x") {
+				return {
+					start: worldToScreen(s.start, 0, vp).x,
+					end: worldToScreen(s.end, 0, vp).x,
+					cross: worldToScreen(0, s.cross, vp).y,
+				};
+			}
+			return {
+				start: worldToScreen(0, s.start, vp).y,
+				end: worldToScreen(0, s.end, vp).y,
+				cross: worldToScreen(s.cross, 0, vp).x,
+			};
+		}),
+	}));
+}
+
 function SnapGuideOverlay({ viewport }: SnapGuideOverlayProps) {
 	const state = useSyncExternalStore(subscribeState, getState, getState);
-	if (state.lines.length === 0) return null;
+	if (state.lines.length === 0 && state.gaps.length === 0) return null;
 
 	const screenLines = toScreenLines(state.lines, viewport);
+	const screenGaps = toScreenGaps(state.gaps, viewport);
 
 	return (
 		<svg
@@ -92,7 +127,7 @@ function SnapGuideOverlay({ viewport }: SnapGuideOverlayProps) {
 				pointerEvents: "none",
 			}}
 		>
-			<GuideLayer lines={screenLines} style={state.guideStyle} />
+			<GuideLayer lines={screenLines} gaps={screenGaps} style={state.guideStyle} />
 		</svg>
 	);
 }
@@ -104,6 +139,8 @@ export interface SnapPluginOptions {
 	enabled?: boolean;
 	/** Alt(Option) キーの挙動（既定 "suppress"）。"invert" で無効時も Alt で一時スナップ。 */
 	altBehavior?: AltBehavior;
+	/** 等間隔（distribution）スナップ＝gap 複製＋gap 中央（既定 true）。 */
+	distributeSnap?: boolean;
 }
 
 export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin {
@@ -117,6 +154,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				threshold: DEFAULT_SNAP_THRESHOLD,
 				edgeSnap: true,
 				centerSnap: true,
+				distributeSnap: options.distributeSnap ?? true,
 				viewportOnly: true,
 				guideStyle: { ...DEFAULT_GUIDE_STYLE },
 				altBehavior: options.altBehavior ?? "suppress",
@@ -139,14 +177,14 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				pointerDown = true;
 				frameSnapResult = null;
 				frameCandidateBoxes = null;
-				setState({ lines: [] });
+				setState({ lines: [], gaps: [] });
 			});
 
 			const offPointerUp = ctx.events.on<CanvasPointerEvent>("canvas:pointerup", () => {
 				pointerDown = false;
 				frameSnapResult = null;
 				frameCandidateBoxes = null;
-				setState({ lines: [] });
+				setState({ lines: [], gaps: [] });
 			});
 
 			// ── Alt key tracking ──
@@ -204,7 +242,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 					originalUpdateShape(id, updates);
 					// スナップしないドラッグ中はガイドを消す。
 					if (pointerDown) {
-						setState({ lines: [] });
+						setState({ lines: [], gaps: [] });
 					}
 					return;
 				}
@@ -218,7 +256,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				// Skip snap for connectors — they have their own anchor/snap logic
 				if (shape.type === "connector") {
 					originalUpdateShape(id, updates);
-					setState({ lines: [] });
+					setState({ lines: [], gaps: [] });
 					return;
 				}
 
@@ -309,7 +347,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 					: applySnapToUpdates(updates, result);
 				originalUpdateShape(id, snapped);
 
-				setState({ lines: result.lines });
+				setState({ lines: result.lines, gaps: result.gaps ?? [] });
 			}
 
 			ctx.store.updateShape = patchedUpdateShape;
@@ -320,6 +358,8 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				id: "snap-guides",
 				order: 90,
 				fixed: true,
+				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+				worldOverlay: true,
 				render: (renderCtx) => <SnapGuideOverlay viewport={renderCtx.viewport} />,
 			});
 
@@ -336,7 +376,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				window.removeEventListener("blur", onBlur);
 				ctx.store.updateShape = originalUpdateShape;
 				ctx.layers.unregister("snap-guides");
-				setState({ lines: [], guideStyle: { ...DEFAULT_GUIDE_STYLE } });
+				setState({ lines: [], gaps: [], guideStyle: { ...DEFAULT_GUIDE_STYLE } });
 				stateListeners.clear();
 			};
 		},
@@ -484,14 +524,8 @@ function getMovingBoundingBox(
 }
 
 function getVisibleWorldRect(viewport: Viewport): BoundingBox {
-	const w = window.innerWidth;
-	const h = window.innerHeight;
-	return {
-		x: -viewport.x / viewport.zoom,
-		y: -viewport.y / viewport.zoom,
-		width: w / viewport.zoom,
-		height: h / viewport.zoom,
-	};
+	// Rotation-aware (AABB of the turned screen); identical to the plain rect unrotated.
+	return screenRectToWorldBounds(window.innerWidth, window.innerHeight, viewport);
 }
 
 function boxesOverlap(a: BoundingBox, b: BoundingBox): boolean {

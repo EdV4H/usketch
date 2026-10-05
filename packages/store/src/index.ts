@@ -3,7 +3,7 @@ export {
 	type AttachableResolution,
 	createAttachableAttacher,
 } from "./attachable-attacher.js";
-export type { BoardState } from "./board-store.js";
+export type { BoardState, BoardStoreOptions } from "./board-store.js";
 export { createBoardStore } from "./board-store.js";
 export {
 	containsAABB,
@@ -49,3 +49,4 @@ export {
 } from "./hierarchy-utils.js";
 export type { SpatialIndex } from "./spatial-index.js";
 export { createSpatialIndex } from "./spatial-index.js";
+export { boundsConstraint, clampViewportToBounds } from "./viewport-constraints.js";

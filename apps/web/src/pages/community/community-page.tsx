@@ -7,6 +7,7 @@ import { createDotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createBoardInfoPanelPlugin } from "@edv4h/usketch-plugin-board-info-panel";
 import { createFilterPlugin } from "@edv4h/usketch-plugin-canvas-filter";
+import { createCharacterPlugin } from "@edv4h/usketch-plugin-character";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createCommunityChatPlugin } from "@edv4h/usketch-plugin-community-chat";
 import { createDebugHudPlugin } from "@edv4h/usketch-plugin-debug-hud";
@@ -25,6 +26,7 @@ import { createIslandPlugin } from "@edv4h/usketch-plugin-shape-island";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { createSpatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
 import { createSpotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
+import { createStartPositionPlugin } from "@edv4h/usketch-plugin-start-position";
 import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import { createPanToolPlugin } from "@edv4h/usketch-plugin-tool-pan";
 import { createSelectToolPlugin } from "@edv4h/usketch-plugin-tool-select";
@@ -37,12 +39,14 @@ import { createWsProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { api } from "../../lib/api.js";
+import { characterAppearance, renderCharacter } from "../../lib/character-renderer.js";
 import { getDevUser } from "../../lib/dev-auth.js";
 import { getErrorMessage } from "../../lib/errors.js";
 import { useAuth } from "../../lib/use-auth.js";
 import { useCommunityActions } from "../../lib/use-community-actions.js";
 import { useKeyboardShortcuts } from "../../lib/use-keyboard-shortcuts.js";
 import { CommunityHeader } from "./community-header.js";
+import { stockTerritoryStyle } from "./map-territory-style.js";
 
 export function CommunityPage() {
 	const { slug } = useParams<{ slug: string }>();
@@ -201,6 +205,17 @@ export function CommunityPage() {
 					extraPlugins.push(createFilterPlugin());
 				}
 
+				// 操作キャラ（WASD）: 接続中は awareness で他ユーザーのキャラと共存。
+				// 見た目はプラグインに持たせず、ホストの renderer を注入。
+				extraPlugins.push(
+					createCharacterPlugin({
+						wsProvider: wsProvider ?? undefined,
+						userName: authUserName ?? undefined,
+						appearance: characterAppearance(authUserId ?? getDevUser()?.id ?? "local"),
+						renderCharacter,
+					}),
+				);
+
 				const basePlugins: UsketchPlugin[] = [
 					createGridBgPlugin(),
 					createDotsBgPlugin(),
@@ -211,8 +226,12 @@ export function CommunityPage() {
 					createGroupPlugin(),
 					createIslandPlugin(),
 					// Demo default: unset tiles read as sea, so the world map is an
-					// infinite ocean with painted land (off-map counts as water).
-					createMapPlugin({ emptyTerrain: "water" }),
+					// infinite ocean with painted land (off-map counts as water). The map
+					// plugin is headless for territory — the demo app owns the look via
+					// `stockTerritoryStyle` (the reference fill/border/ring + label).
+					createMapPlugin({ emptyTerrain: "water", territory: stockTerritoryStyle }),
+					// マップの初期視点（スタート位置）を HUD で設定・起動時移動。
+					createStartPositionPlugin(),
 					createDomRendererPlugin(),
 					// Control HUD: hosts plugin operations/settings + the useCommunityActions
 					// actions (toggle with the backtick key). Replaces bespoke on-canvas UI.

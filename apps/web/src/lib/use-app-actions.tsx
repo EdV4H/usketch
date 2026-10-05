@@ -117,6 +117,40 @@ export function useAppActions(
 			run: () => setTheme("system"),
 		});
 
+		// ── サイドパネル（旧: 右端の SidePanelToggles レールを HUD action に一本化）──
+		// cloud ボードのみ（コメント/AI/情報/履歴は cloud 機能）。旧レールと同じ
+		// `side-panel:open`（指定タブを常に開く。閉じるはパネル自身の × ボタン）。
+		if (isCloudBoard) {
+			reg({
+				id: "panel:comments",
+				group: "パネル",
+				label: "コメント",
+				icon: () => <I.comment size={14} />,
+				run: () => app.events.emit("side-panel:open", { tabId: "comments" }),
+			});
+			reg({
+				id: "panel:ai-chat",
+				group: "パネル",
+				label: "AI チャット",
+				icon: () => <I.sparkles size={14} />,
+				run: () => app.events.emit("side-panel:open", { tabId: "ai-chat" }),
+			});
+			reg({
+				id: "panel:info",
+				group: "パネル",
+				label: "ボード情報",
+				icon: () => <I.folder size={14} />,
+				run: () => app.events.emit("side-panel:open", { tabId: "info" }),
+			});
+			reg({
+				id: "panel:activity",
+				group: "パネル",
+				label: "履歴",
+				icon: () => <I.history size={14} />,
+				run: () => app.events.emit("side-panel:open", { tabId: "activity" }),
+			});
+		}
+
 		reg({
 			id: "nav:dashboard",
 			group: "移動",

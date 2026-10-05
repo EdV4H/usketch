@@ -4,10 +4,24 @@
  */
 
 import type { ShapeData } from "@edv4h/usketch-shared";
-import { MSG_SYNC_STEP1, MSG_SYNC_STEP2, MSG_YJS_UPDATE } from "@edv4h/usketch-sync";
+import {
+	Awareness,
+	applyAwarenessUpdate,
+	encodeAwarenessUpdate,
+	MSG_AWARENESS,
+	MSG_SYNC_STEP1,
+	MSG_SYNC_STEP2,
+	MSG_YJS_UPDATE,
+} from "@edv4h/usketch-sync";
 import WebSocket from "ws";
 import * as Y from "yjs";
 import type { McpConfig } from "../config.js";
+
+/** Identity the AI participant presents as on the board (a normal presence `user`). */
+const AI_NAME = "AI 🤖";
+const AI_COLOR = "#7c3aed";
+/** How long an AI edit stays highlighted before the outline clears. */
+const ACTIVITY_HOLD_MS = 1600;
 
 /** TLS + WS アップグレード + 初期同期を含む全体接続タイムアウト */
 const OVERALL_CONNECT_TIMEOUT_MS = 10_000;
@@ -17,21 +31,71 @@ const POST_OPEN_SYNC_TIMEOUT_MS = 1_000;
 
 export class BoardConnection {
 	readonly doc: Y.Doc;
+	/** Presence channel so the AI appears as a participant (cursor/selection/edit). */
+	readonly awareness: Awareness;
 	private ws: WebSocket | null = null;
 	private connected = false;
 	private connectPromise: Promise<void> | null = null;
+	private aiUserSet = false;
+	private activityTimer: ReturnType<typeof setTimeout> | null = null;
 
 	constructor(
 		readonly boardId: string,
 		private readonly config: McpConfig,
 	) {
 		this.doc = new Y.Doc();
+		this.awareness = new Awareness(this.doc);
 
 		// ローカル変更を WebSocket 経由で送信
 		this.doc.on("update", (update: Uint8Array, origin: unknown) => {
 			if (origin === "remote") return;
 			this.sendUpdate(update);
 		});
+
+		// Presence (awareness) の変更も WebSocket 経由で送信（board-room が中継）
+		this.awareness.on(
+			"update",
+			(
+				{ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] },
+				origin: unknown,
+			) => {
+				if (origin === "remote") return;
+				const changed = [...added, ...updated, ...removed];
+				this.sendAwareness(encodeAwarenessUpdate(this.awareness, changed));
+			},
+		);
+	}
+
+	/**
+	 * Show the AI editing/selecting `shapeIds` as a live presence participant on the
+	 * canvas (feature #960): sets the AI `user` (once), an optional `cursor`, and the
+	 * `activity` field the web overlay renders, then auto-clears the outline after a
+	 * short hold so it reads as "AI just did this". No-op while disconnected — there's
+	 * no socket to broadcast on, and we don't want to leave a pending timer or stale
+	 * local state that would flush on reconnect.
+	 */
+	showAiActivity(opts: {
+		shapeIds?: string[];
+		cursor?: { x: number; y: number };
+		action?: "select" | "edit";
+		holdMs?: number;
+	}): void {
+		if (!this.connected) return;
+		if (!this.aiUserSet) {
+			this.awareness.setLocalStateField("user", { name: AI_NAME, color: AI_COLOR });
+			this.aiUserSet = true;
+		}
+		if (opts.cursor) this.awareness.setLocalStateField("cursor", opts.cursor);
+		const ids = opts.shapeIds ?? [];
+		this.awareness.setLocalStateField(
+			"activity",
+			ids.length > 0 ? { shapeIds: ids, action: opts.action ?? "edit", label: AI_NAME } : null,
+		);
+		if (this.activityTimer) clearTimeout(this.activityTimer);
+		this.activityTimer = setTimeout(() => {
+			this.awareness.setLocalStateField("activity", null);
+			this.activityTimer = null;
+		}, opts.holdMs ?? ACTIVITY_HOLD_MS);
 	}
 
 	/** 接続を確立し初期同期を待つ */
@@ -118,6 +182,10 @@ export class BoardConnection {
 						}
 						break;
 					}
+					case MSG_AWARENESS: {
+						applyAwarenessUpdate(this.awareness, payload, "remote");
+						break;
+					}
 				}
 			});
 
@@ -195,10 +263,24 @@ export class BoardConnection {
 		this.ws.send(msg);
 	}
 
+	/** Awareness update を WebSocket で送信（board-room が他クライアントへ中継） */
+	private sendAwareness(payload: Uint8Array): void {
+		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+		const msg = new Uint8Array(payload.length + 1);
+		msg[0] = MSG_AWARENESS;
+		msg.set(payload, 1);
+		this.ws.send(msg);
+	}
+
 	/** 接続を閉じる */
 	destroy(): void {
 		this.connected = false;
 		this.connectPromise = null;
+		if (this.activityTimer) {
+			clearTimeout(this.activityTimer);
+			this.activityTimer = null;
+		}
+		this.awareness.destroy();
 		if (this.ws) {
 			this.ws.close();
 			this.ws = null;

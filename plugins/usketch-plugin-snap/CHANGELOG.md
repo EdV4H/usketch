@@ -1,5 +1,95 @@
 # @edv4h/usketch-plugin-snap
 
+## 2.4.4
+
+### Patch Changes
+
+- f4b7387: Keep overlays aligned under camera rotation.
+  - shared / canvas-engine: new `Layer.worldOverlay` for fixed layers that draw
+    world-anchored things in screen px. Under rotation the canvas turns such a layer
+    with the world (about the world origin on screen) and renders it with an
+    unrotated viewport, so existing `zoom·w + (x, y)` math stays correct unchanged.
+    Helpers: `unrotatedViewport`, `screenToOverlay`, `overlayFrameStyle`. The
+    selection foreground is a world overlay by default
+    (`SelectionForeground.worldOverlay`).
+  - tool-helpers: resize/rotation handle hit tests compare in the same overlay frame,
+    so handles can be grabbed where they're drawn.
+  - bg-grid: the grid turns with the camera (a diagonal-sized square rotated about
+    the screen center, phased onto world multiples).
+  - snap, presence-activity, tool-vim, shape-freedraw, shape-connector,
+    sync-ywebsocket, comments, shape-frame: their board-anchored overlays opt into
+    `worldOverlay`; snap's visible-candidate area is rotation-aware.
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-core@2.4.4
+
+## 2.4.3
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+  - @edv4h/usketch-core@2.4.3
+
+## 2.4.2
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-core@2.4.2
+
+## 2.4.1
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-core@2.4.1
+
+## 2.4.0
+
+### Minor Changes
+
+- fec3b90: snap: 等間隔（distribution）スナップを追加 — ドラッグ中に隣接シェイプとの間隔を等しくする位置へ吸着
+
+  これまでの Snap はエッジ/中心の1次元整列のみで、**等間隔スナップが無かった**。tldraw の
+  gap snapping に倣い、2つの挙動を追加:
+  - **gap 複製（等間隔配置）**: 既存の隙間 L を、**行内の任意のシェイプの外側**に複製する。例: 2つの
+    シェイプが 100px 空いていれば、3つ目をドラッグすると 100px の隙間になる位置へ吸着（3連の等間隔）。
+    さらに外側（別のシェイプを越えた先）で等間隔になる位置も対象。既存シェイプに重なる位置は除外。
+    同じ長さの隙間は**全部ハイライト**。
+  - **gap 中央**: シェイプより広い隙間の中央へ吸着し、左右の間隔を等しくする。
+
+  対象は「同じ行/列」のシェイプ（直交方向の範囲が重なるもの）に限定。整列スナップと軸ごとに競合した
+  場合は**より近い方**を採用。ガイドは両端キャップ付きの実線セグメントで、点線の整列線と区別できる。
+  リサイズ中は無効。
+
+  あわせて**整列ガイドの不具合も修正**: これまでは吸着値に一致する候補を1つしか反映せず、同じ値に
+  複数シェイプが揃っていても線・指標が1シェイプ分しか出なかった。修正後は**同一値の全シェイプを
+  1本の連続線＋各シェイプの指標**で反映する（tldraw 同様）。
+  - 既定 **ON**。`snap:configure({ distributeSnap: false })` または `createSnapPlugin({ distributeSnap: false })` で無効化可能。
+  - 公開型: `SpacingGuide` / `GapSegment` / `SnapResult.gaps` / `SnapSettings.distributeSnap`。
+  - 純ロジックは `engine/distribute.ts`（単体テスト付き）。
+
+## 2.3.5
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+  - @edv4h/usketch-core@2.4.0
+
+## 2.3.4
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-core@2.3.2
+
 ## 2.3.3
 
 ### Patch Changes

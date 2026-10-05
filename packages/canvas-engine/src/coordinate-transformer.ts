@@ -1,19 +1,21 @@
 import type { Point, Viewport } from "@edv4h/usketch-shared";
+import {
+	screenToWorld as sharedScreenToWorld,
+	worldToScreen as sharedWorldToScreen,
+	viewportTransformStyle,
+} from "@edv4h/usketch-shared";
+
+// Point-object wrappers over the shared (rotation-aware) viewport math, so the two
+// transform APIs can never drift apart.
 
 export function screenToWorld(point: Point, viewport: Viewport): Point {
-	return {
-		x: (point.x - viewport.x) / viewport.zoom,
-		y: (point.y - viewport.y) / viewport.zoom,
-	};
+	return sharedScreenToWorld(point.x, point.y, viewport);
 }
 
 export function worldToScreen(point: Point, viewport: Viewport): Point {
-	return {
-		x: point.x * viewport.zoom + viewport.x,
-		y: point.y * viewport.zoom + viewport.y,
-	};
+	return sharedWorldToScreen(point.x, point.y, viewport);
 }
 
 export function getTransformStyle(viewport: Viewport): string {
-	return `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
+	return viewportTransformStyle(viewport);
 }

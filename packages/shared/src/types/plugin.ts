@@ -53,10 +53,44 @@ export interface GpuPrimitive {
 
 export interface Layer {
 	id: string;
+	/**
+	 * Stacking order. Layers are drawn in ascending `order`, so a higher `order`
+	 * is painted later and therefore appears on top. Plugins can't see which
+	 * values other plugins already use, so collisions are common; treat this as
+	 * a *preferred* value and set {@link Layer.avoidCollision} to have the manager
+	 * resolve a unique effective order.
+	 */
 	order: number;
 	render: (ctx: LayerRenderContext) => ReactElement | null;
 	interactable?: boolean;
 	fixed?: boolean;
+	/**
+	 * For a `fixed` layer that draws WORLD-ANCHORED things in screen px (selection
+	 * handles, guides, badges…). Under camera rotation the canvas turns the layer
+	 * with the world and hands its `render` an unrotated `viewport`, so the usual
+	 * `zoom·w + (x, y)` math stays correct unchanged (see `unrotatedViewport` /
+	 * `screenToOverlay`). Leave unset for real screen UI (HUD, panels, banners).
+	 * Content should not rely on clipping to the layer box (inner `<svg>`s are made
+	 * `overflow: visible`). Full-screen `<canvas>` drawings don't fit this model.
+	 */
+	worldOverlay?: boolean;
+	/**
+	 * When true, `order` is treated as a preference: if another layer already
+	 * occupies the same effective order, this one is bumped up until it finds a
+	 * free slot (like a dev-server picking the next open port). This gives a
+	 * deterministic "sit just above whatever is already at my level" stacking
+	 * without hardcoding magic gaps. Defaults to false (legacy behavior: exact
+	 * `order`, ties broken by registration order).
+	 */
+	avoidCollision?: boolean;
+	/**
+	 * Bump amount per collision when {@link Layer.avoidCollision} is set. Defaults
+	 * to a tiny step (1/1024) that keeps the layer below the next integer order
+	 * for any realistic number of collisions (< 1024 at the same base). Set to
+	 * `1` for integer, port-style bumps. Non-positive or non-finite values fall
+	 * back to the default. Ignored when `avoidCollision` is falsy.
+	 */
+	collisionStep?: number;
 }
 
 export interface LayerManager {
@@ -88,6 +122,11 @@ export interface SelectionForeground {
 	order?: number;
 	/** Whether the mounted layer should skip viewport transform. Defaults to true. */
 	fixed?: boolean;
+	/**
+	 * Follow the camera rotation as a world overlay (see {@link Layer.worldOverlay}).
+	 * Defaults to true — selection UI is anchored to the shapes it outlines.
+	 */
+	worldOverlay?: boolean;
 	render: (ctx: LayerRenderContext) => ReactElement | null;
 }
 
@@ -350,6 +389,16 @@ export interface ShapeDefinition {
 	};
 	/** Shape-specific move logic (e.g. updating absolute point arrays). Default: update x/y only. */
 	move?: (data: ShapeData, dx: number, dy: number) => Partial<ShapeData>;
+	/**
+	 * Shape-specific rigid-rotation logic (rotating absolute point arrays around
+	 * `center` by `angleRad`), used when the shape is rotated as a container
+	 * child. Shapes whose geometry is defined by absolute points (e.g. a
+	 * connector's source/target/control points) implement this to rotate those
+	 * points instead of receiving a baked `rotation` value — which would
+	 * double-transform them. Default (unset): bake `rotation` + rotate the bbox
+	 * center, the correct behavior for box-defined shapes.
+	 */
+	rotate?: (data: ShapeData, angleRad: number, center: Point) => Partial<ShapeData>;
 	/** Fit shape data to new bounding box (for multi-resize). Default: apply newBounds as-is. */
 	applyBounds?: (data: ShapeData, newBounds: BoundingBox) => Partial<ShapeData>;
 	/** Return GPU-renderable primitive data, or null to fall back to DOM rendering. */
@@ -437,6 +486,15 @@ export interface CanvasPointerEvent {
 	metaKey: boolean;
 	altKey: boolean;
 	button: number;
+	/** The originating pointer's id (`PointerEvent.pointerId`). Optional so
+	 *  non-DOM callers (tests, synthetic events) can omit it. Lets tools tell
+	 *  primary from secondary pointers. */
+	pointerId?: number;
+	/** The originating pointer's device type. Optional; lets tools distinguish
+	 *  touch/pen from mouse (palm rejection, pressure, ignoring secondary touches).
+	 *  The known values are surfaced for autocomplete while still accepting the raw
+	 *  DOM `PointerEvent.pointerType` string (which may be empty or vendor-specific). */
+	pointerType?: "mouse" | "pen" | "touch" | (string & Record<never, never>);
 }
 
 export interface CanvasWheelEvent {
@@ -753,6 +811,13 @@ export interface ViewportAnimationOptions {
 	animate?: boolean;
 }
 
+/**
+ * Maps a proposed viewport to an allowed one. Applied on every viewport commit
+ * (see {@link BoardStore.setViewportConstraint}). Must be pure and cheap — it runs
+ * per pan/zoom frame. Return the input unchanged to allow it as-is.
+ */
+export type ViewportConstraint = (viewport: Viewport) => Viewport;
+
 export interface BoardStore {
 	getShapes(): ReadonlyMap<string, ShapeData>;
 	/** Return shapes sorted by zIndex (ascending = back to front). Cached internally. */
@@ -793,6 +858,24 @@ export interface BoardStore {
 	setViewport(viewport: Viewport): void;
 	panBy(dx: number, dy: number): void;
 	zoomTo(zoom: number, center: Point): void;
+	/**
+	 * Turn the camera to `deg` (degrees, clockwise-positive; see {@link Viewport.rotation})
+	 * about screen point `center` — the world point under `center` stays fixed.
+	 * Instant by default (safe to call every frame, e.g. from a follow camera);
+	 * pass `{ animate: true }` to tween the short way round.
+	 */
+	rotateTo(deg: number, center: Point, opts?: ViewportAnimationOptions): void;
+	/**
+	 * Install a viewport constraint (or `null` to clear). It is applied inside the
+	 * single viewport-commit path, so EVERY change — {@link setViewport},
+	 * {@link panBy}, {@link zoomTo}, {@link animateViewportTo} — is passed through
+	 * it and the stored viewport can never violate it (no fighting an after-the-fact
+	 * clamp). Setting one immediately re-commits the current viewport through it.
+	 * Only one constraint is active at a time; setting replaces the previous.
+	 */
+	setViewportConstraint(constraint: ViewportConstraint | null): void;
+	/** The active viewport constraint, or `null`. */
+	getViewportConstraint(): ViewportConstraint | null;
 	/**
 	 * Smoothly tween the viewport to `target` (the default for logic-driven
 	 * jumps/zoom). Falls back to an instant set when animation is disabled,

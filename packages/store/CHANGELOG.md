@@ -1,5 +1,103 @@
 # @edv4h/usketch-store
 
+## 3.8.0
+
+### Minor Changes
+
+- fa69bfb: Camera rotation in the Core viewport. `Viewport` gains an optional `rotation`
+  (degrees, clockwise-positive) applied about the screen origin:
+  `screen = R(rotation) · (zoom · world) + (x, y)`. When it is unset or `0` every
+  transform reduces exactly to the previous translate+scale, so existing viewports,
+  plugins and CSS output are unchanged.
+  - shared: rotation-aware `worldToScreen` / `screenToWorld`, plus
+    `viewportAnchoredAt`, `screenRectToWorldBounds`, `viewportTransformStyle`,
+    `viewportRotation`, `wrapDeg` and `shortestAngleDelta`. `centerOnWorld` /
+    `zoomToLevel` / `screenCenterWorld` keep the current rotation.
+  - canvas-engine: layers render through the rotation-aware transform, and
+    `viewportBounds` becomes the world AABB of the (possibly rotated) screen.
+  - store: new `rotateTo(deg, center, opts?)` (keeps the world point under `center`
+    fixed, instant by default); `zoomTo` / `fitToBounds` preserve the rotation;
+    `animateViewportTo` turns the short way round; a zero rotation is normalized
+    away. `clampViewportToBounds` passes rotated viewports through unchanged.
+
+  Note: overlays that hand-roll `(p - vp.x) / zoom` math are still unrotated, so
+  they are only correct while `rotation` is `0`.
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-core@2.4.4
+
+## 3.7.0
+
+### Minor Changes
+
+- 1854e30: feat(store): ズーム倍率クランプ [0.1, 10] を `createBoardStore({ zoomRange })` で設定可能に
+  - `BoardStoreOptions.zoomRange?: { min?: number; max?: number }` を追加。`zoomTo` /
+    `fitToBounds` のズーム倍率クランプがこれを参照する。既定は現状どおり
+    `{ min: 0.1, max: 10 }` で**後方互換**。
+  - ホストが ×10 を超えて拡大（または ×0.1 未満に縮小）したい場合にオプトインで可動域を広げられる。
+    ```ts
+    createBoardStore({ zoomRange: { min: 0.05, max: 40 } });
+    ```
+  - 非正/非有限の境界や `min > max` の破綻指定は無視して既定へフォールバック。
+  - `setViewportConstraint` は commit をさらに絞ることはできるが、この範囲を超えて広げることはできない
+    （クランプが先に効くため）。ホストが可動域を広げる正規手段としてこのオプションを使う。
+  - `BoardStoreOptions` を index から re-export。
+
+## 3.6.0
+
+### Minor Changes
+
+- 85b766e: feat(store): ビューポート制約フック＋汎用スクロール範囲（描画制限）ヘルパー
+  - 全 viewport 変更が通る単一経路 commitViewport に制約関数を適用する
+    `BoardStore.setViewportConstraint((vp)=>vp)` / `getViewportConstraint()` を追加
+    （setViewport/panBy/zoomTo/animate すべてコミット時に制約を通るので、保存 viewport が
+    制約に反しない＝後追いクランプの競合が無い）。型 ViewportConstraint。
+  - 汎用の「描画制限」ヘルパーを追加: `clampViewportToBounds(vp, bounds, viewportSize)`（純関数）と
+    `boundsConstraint({ getBounds, getViewportSize })`（ViewportConstraint 生成）。任意のプラグイン/
+    ホストが `store.setViewportConstraint(boundsConstraint({...}))` でスクロール範囲を設定できる。
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+  - @edv4h/usketch-core@2.4.3
+
+## 3.5.4
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-core@2.4.2
+
+## 3.5.3
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-core@2.4.1
+
+## 3.5.2
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+  - @edv4h/usketch-core@2.4.0
+
+## 3.5.1
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-core@2.3.2
+
 ## 3.5.0
 
 ### Minor Changes

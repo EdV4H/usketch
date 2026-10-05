@@ -97,6 +97,7 @@ const ShapeWrapper = memo(function ShapeWrapper({
 
 	return (
 		<div
+			data-shape-id={shape.id}
 			style={{
 				position: "absolute",
 				left: bounds.x,

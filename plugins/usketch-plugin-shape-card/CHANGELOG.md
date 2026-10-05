@@ -1,5 +1,112 @@
 # @edv4h/usketch-plugin-shape-card
 
+## 1.7.5
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-canvas-engine@1.5.0
+  - @edv4h/usketch-store@3.8.0
+  - @edv4h/usketch-core@2.4.4
+
+## 1.7.4
+
+### Patch Changes
+
+- Updated dependencies [1854e30]
+  - @edv4h/usketch-store@3.7.0
+
+## 1.7.3
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+  - @edv4h/usketch-store@3.6.0
+  - @edv4h/usketch-canvas-engine@1.4.1
+  - @edv4h/usketch-core@2.4.3
+
+## 1.7.2
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-canvas-engine@1.4.0
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-core@2.4.2
+  - @edv4h/usketch-store@3.5.4
+
+## 1.7.1
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-canvas-engine@1.3.5
+  - @edv4h/usketch-core@2.4.1
+  - @edv4h/usketch-store@3.5.3
+
+## 1.7.0
+
+### Minor Changes
+
+- ec65083: カード手札を headless 化：host が独自の手札 UI を作れるように（#915）
+
+  手札の状態（localStorage 永続・awareness 枚数共有・`card:*` アクション/イベント）はプラグインが持ちつつ、UI を host が差し替えられるようにした。後方互換（既定は現行どおり HUD の Hand パネルを出す）。
+  - `CreateCardPluginOptions.hand` を追加:
+    - `ui: "hud" | "none"`（既定 `"hud"`）— `"none"` で内蔵手札UIを一切登録しない（headless）。
+    - `store`— host 生成の `HandStore` を注入し**同一インスタンス共有**（同一タブでも `subscribe` が発火）。
+    - `onStore(store)` — プラグインが使う `HandStore` 実体を host へ渡す。
+  - `createHandStore` / `HandStore` / `HandCardEntry` / `CardHandAwareness` を `index.ts` から export。
+  - `card:to-hand` / `card-deck:draw-to-hand` / `card:play-from-hand` は headless でも従来どおり機能。
+
+## 1.6.0
+
+### Minor Changes
+
+- 2319e60: 手札(Hand)を独自の下部固定トレイから Control HUD の「Hand」パネルへ移行
+
+  プラグインUIはHUDに登録する方針に合わせ、独自トレイUI（`ctx.layers.register("card-hand")` の画面下部固定オーバーレイ）を廃止し、`ctx.hud.registerPanel` で「Hand」パネルとして登録。カード面サムネ＋「場に出す」ボタン＋他者枚数を HUD 内に表示する（挙動・privacyモデルは不変）。
+
+### Patch Changes
+
+- f4fd9d5: カードの出現演出（placement アニメ）を「手札から場に出したとき」だけに限定
+
+  これまではデッキドロー / 複数ドロー / デッキをバラす / 手動ドロー / 移動でも placement アニメ（deal/slam 等）が再生されていた。演出が意味を持つ「手札プレイ」に絞り、`playCardFromHand` 以外の `emitPlacement` 呼び出し（`shapes:move-end` 購読を含む）を撤去した。
+
+## 1.5.0
+
+### Minor Changes
+
+- 1b1be6d: デッキのユーティリティアクションを追加（Control HUD の Card グループに自動表示）
+  - **Draw cards to board**（既定5枚・枚数パラメータ）: 山札上から N 枚を場に1列で展開。
+  - **Draw to hand**（既定1枚・枚数パラメータ）: 山札上から N 枚を場に出さず直接ローカル手札へ。
+  - **Spread deck**: 山札の全カードを回転なし・等間隔の折り返しグリッドで場に展開し、山札を空にする。
+
+  いずれも単一コマンドで Undo/Redo 可能。純関数 `drawN`（deck.ts）と `gridPositions`（geometry.ts）を追加。
+
+## 1.4.5
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+  - @edv4h/usketch-core@2.4.0
+  - @edv4h/usketch-canvas-engine@1.3.4
+  - @edv4h/usketch-store@3.5.2
+
+## 1.4.4
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-canvas-engine@1.3.3
+  - @edv4h/usketch-core@2.3.2
+  - @edv4h/usketch-store@3.5.1
+
 ## 1.4.3
 
 ### Patch Changes

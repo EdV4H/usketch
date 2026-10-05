@@ -1,7 +1,7 @@
 import type { ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import satori from "satori";
+import satori, { type SatoriOptions } from "satori";
 
 /** シェイプ全体のバウンディングボックスを計算 */
 function computeBounds(shapes: Map<string, ShapeData>) {
@@ -51,16 +51,24 @@ async function loadFont(): Promise<ArrayBuffer> {
 }
 
 /** HTMLシェイプをSatoriでSVG文字列に変換（foreignObject不使用、taint安全） */
-async function htmlShapeToSvg(element: ReactNode, shape: ShapeData): Promise<string> {
-	const fontData = await loadFont();
+export async function htmlShapeToSvg(
+	element: ReactNode,
+	shape: ShapeData,
+	fonts?: SatoriFont[],
+): Promise<string> {
+	const resolvedFonts = fonts ?? [
+		{ name: "Inter", data: await loadFont(), weight: 400 as const, style: "normal" as const },
+	];
 	const svg = await satori(element as ReactElement, {
 		width: shape.width,
 		height: shape.height,
-		fonts: [{ name: "Inter", data: fontData, weight: 400, style: "normal" }],
+		fonts: resolvedFonts,
 	});
 	const inner = svg.replace(/<svg[^>]*>/, "").replace(/<\/svg>$/, "");
 	return `<g transform="translate(${shape.x}, ${shape.y})">${inner}</g>`;
 }
+
+export type SatoriFont = SatoriOptions["fonts"][number];
 
 /**
  * シェイプデータからSVG文字列を構築してエクスポートする。

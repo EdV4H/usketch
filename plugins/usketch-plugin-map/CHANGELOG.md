@@ -1,5 +1,261 @@
 # @edv4h/usketch-plugin-map
 
+## 0.13.4
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-store@3.8.0
+
+## 0.13.3
+
+### Patch Changes
+
+- Updated dependencies [1854e30]
+  - @edv4h/usketch-store@3.7.0
+
+## 0.13.2
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+  - @edv4h/usketch-store@3.6.0
+
+## 0.13.1
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-store@3.5.4
+
+## 0.13.0
+
+### Minor Changes
+
+- e1ddcca: 拠点編集 API の公開 (#992) と EnterBanner のヘッドレス化 (#993)。
+
+  **#992 拠点編集を host に公開**: 拠点のミューテーション op を index から export — `createBase` / `setBeacon` / `deleteBase` / `setBaseRadius` / `setBaseIcon`（すべて Undo 対応）と型 `BaseDeps`（`{ store, commands, tile }`）。あわせて半径連動アイコンのプレビュー用に `baseIconFor` / `effectiveBaseIcon` / `BASE_ICON_TIERS`、既定半径 `DEFAULT_BASE_RADIUS` も公開。host は `baseStateStore.activeBaseId` と組み合わせ、DS 独自の拠点エディタ（半径スライダ + `ICONS` を使ったアイコン上書きグリッド）を組める。
+
+  **#993 EnterBanner のヘッドレス化**: エリア入場トースト + 現在地インジケータを `territory.enterBanner.render` フックに委譲。プラグインは「ビューポート中心がいる拠点 + 入場遷移」の追跡を担い、host は見た目だけを返す（新 `EnterBannerState` 型: `current` / `entered` / `enteredKey`）。フック未指定なら EnterBanner は描画されない（region/label と同じ headless 方針）。デモアプリ(community) は `stockTerritoryStyle` に reference 実装を持ち従来の見た目を維持。
+
+## 0.12.0
+
+### Minor Changes
+
+- 9fb20e7: 拠点 (base) の仕様を刷新: 拠点自身がランドマークアイコンを持つように。
+  - **拠点がアイコンを表示**: 拠点を置くと、そのマスに自動でアイコンが表示される（別途スタンプする必要なし）。アイコンは既定で**半径の大きさに連動**（半径 1–8=`tent` / 9–16=`town` / 17+=`castle`）し、拠点設定で任意アイコンに上書きも可能（`BaseInfo.icon`）。アイコンは派生値で保存しない（territory と同じく beacon から描画）。
+  - **配置の自由化**: base モードのクリックは、除外地形（水など）以外の**任意のセル**に拠点を設置できる。以前の「アイコンのあるマスのみ」制約は撤去し、代わりに除外地形ガードを追加。
+  - **スタンプモードの廃止**: 独立した `stamp` モードと世界レイヤーのアイコングリッド描画を廃止し、アイコンは拠点に一本化。36 種のアイコンは拠点のアイコン上書き候補として利用可能。
+  - `setBaseRadius` / `setBaseIcon`（Undo 対応）を追加し、HUD の「拠点: 半径とアイコン」から半径とアイコン上書きを編集可能に。
+
+  注: 既存ボードにスタンプ済みのグリッドアイコン (`TileMapShapeData.icons`) は表示されなくなります（データは保持）。
+
+- b353ab2: アイコンセットを別パッケージ `@edv4h/usketch-map-icons` に分離 + territory 描画をヘッドレス化。
+
+  **新パッケージ `@edv4h/usketch-map-icons`**: RPG マップのアイコン定義（`ICONS` / `ICONS_BY_KEY` / `IconDef` / `IconCategory` / `ICON_CATEGORIES` / `SvgNode`）をデータのみの依存ゼロパッケージとして切り出し。プラグインからも従来どおり re-export するため既存の `import { ICONS } from "@edv4h/usketch-plugin-map"` は不変。
+
+  **territory のヘッドレス化（破壊的変更）**: プラグインは領域(range)・ラベルを自前で描画しなくなり、`territory.region.render` / `territory.label.render` フックにホストの描画を委ねる。`TerritoryStyle` から stock 用パラメータ `fillOpacity` / `border` / `ring` / `label.enabled` を削除（描画は完全にホスト側の render で行う）。既存のデモアプリ（community）は reference 実装 `stockTerritoryStyle` を持ち従来の見た目を維持。render フック未指定だと領域・ラベルは描画されない。
+
+- b08b570: territory の範囲描画に完全カスタムフック `region.render` を追加 (#990)。
+
+  `label.render` と同じく、レイヤーが位置決め・ビューポート追従・重なり順・`show` 連動・再描画を担い、ホストは見た目だけを返せる。`region.render(region)` が設定されると、full detail 時はストックの塗り/枠/リングの代わりにホストの SVG を各領域に描画する（coarse LOD はストックのブロックのまま）。ワールド座標の SVG を返す（レイヤーがビューポート変換を適用）。`null` を返すとその領域は描画しない。
+
+  ホストが描画に必要なジオメトリを渡す新しい `TerritoryRegion` 型（`baseRegions()` で取得）:
+  - `baseId` / `name` / `color` / `anchor{x,y}`（bbox 中心・ワールド）/ `count`
+  - `cells`（cellKey 群）/ `tile` / `bounds`（ワールド bbox）
+  - `beaconCell` / `radius`（リング描画用）
+  - `outline`（露出エッジの SVG パス・ワールド座標。枠線描画用）
+
+  `TerritoryRegion` と `baseRegions` を公開 export に追加。
+
+### Patch Changes
+
+- Updated dependencies [b353ab2]
+  - @edv4h/usketch-map-icons@0.1.0
+
+## 0.11.1
+
+### Patch Changes
+
+- 355717d: 拠点領域 (territory) が無限地形の生成マスを考慮するように修正 (#982)。
+  - exclude / コアディスクの判定を **実効地形**（`cells[k] ?? baseTerrainAt(seed, …)`）で行うようになり、`baseSeed` で生成された海がコアディスクに取り込まれなくなった。以前は保存済みマス (`cells[k]`) しか見ていなかったため、生成マス（`undefined`）が exclude されず領域に含まれていた。
+  - コアディスクにも exclude を適用（従来は半径内を無条件に領有していた）。
+  - 領域キャッシュのシグネチャに `baseSeed` を含め、再シード時に再計算されるようにした。
+  - ビーコン（拠点）はランドマークのアイコンが置かれたマスにのみ設置できるように制限（アイコン以外の空きマスには置けない）。
+
+## 0.11.0
+
+### Minor Changes
+
+- e00b876: feat(map): customizable territory (領域) overlay + host-facing territory readout
+
+  Two host-integration points for the base "territory" feature:
+  - **Custom UI** — `createMapPlugin({ territory })` now takes a `TerritoryStyle`:
+    `fillOpacity`, `border` (ratio/opacity), `ring` (enabled/strokeWidth/dash/opacity),
+    `label` (enabled + a `render(anchor)` override for the name chip), and
+    `show: "base-mode" | "always"` (default `"base-mode"` — only while editing bases;
+    `"always"` surfaces areas to end users). Merges over the defaults, so omitting it
+    keeps the stock look.
+  - **External readout** — the map service (`getMapApi(app.services)`) gains
+    `getTerritory()` (`cellKey → baseId`), `getBaseAt(x, y)`, `getBases()`,
+    `getBaseRegions()` (per-base centre / colour / cell count), and
+    `onTerritoryChange(cb)`, so a host can drive its own minimap / area labels /
+    "you are in X" without importing internals.
+
+  Also exports `baseIdAtWorld`, `baseRegionAnchors`, `getBaseMap`, `BaseRegionAnchor`,
+  and the `TerritoryStyle` / `resolveTerritoryStyle` / `DEFAULT_TERRITORY_STYLE` types.
+
+## 0.10.0
+
+### Minor Changes
+
+- a1de384: feat(map)!: world-layer icons are now GRID DATA on the tilemap, not free shapes (#955)
+
+  Placed map icons and base beacons are unified into the tilemap's cell-grid model
+  (the same island pattern as terrain), so the generic Select tool can't touch the
+  world layer — there are no shapes to grab — while the Map tool edits it directly.
+  - Icons live on `TileMapShapeData.icons` (`cellKey → iconKey`, one per cell). The
+    Map tool's **stamp** writes a cell and **eraser** removes it (icons take priority
+    over terrain). They render via the new `MapIconGridLayer` (order 44: above
+    terrain/base, below host resource shapes). Persist / sync / undo for free.
+  - Base beacons are now **cells**: `BaseInfo.beaconCell` (`cellKey`) replaces
+    `beaconIconId`. Base mode sets the beacon at the clicked cell; territory + the
+    radius ring derive from the cell centre.
+
+  **BREAKING** (clean break — no data migration; pre-1.0):
+  - The `map-icon` shape type is **removed**: `MAP_ICON_TYPE`, `MapIconShapeData`,
+    `makeMapIcon`, and the shape definition no longer exist / are no longer exported.
+    Old boards' free `map-icon` shapes are ignored (not rendered). Hosts wanting
+    freely-movable markers should use their own shape type.
+  - `BaseInfo.beaconIconId` and `MapIconShapeData.meta.baseId` are gone; existing
+    bases without a `beaconCell` have no territory until a beacon is re-placed.
+  - New: `renderIconAt(iconKey, col, row, tile)` exported for drawing a grid icon.
+
+## 0.9.0
+
+### Minor Changes
+
+- 5e301c0: map: ホスト向け `MapApi` サービスを追加（`getMapApi(app.services)` / #927・#946 の一般化）
+
+  これまで #927（tool-state）・#946（無限地形）で場当たりに export していたホスト向け操作を、
+  `defineService` の標準シームに集約。プラグインが `setup` で `mapService.provide(ctx.services, createMapApi(ctx.store))`
+  し、ホストは `getMapApi(app.services)?.enableInfiniteTerrain({ seed })` のように、個別 export 名も
+  store も知らずに駆動できる（プラグイン不在なら `undefined`）。
+
+  `MapApi` は store バインド済みの無限地形操作（enable/disable/get/set/isEnabled）＋ reactive
+  stores（`toolState` / `renderConfig`）を公開。既存の関数/ストア export は後方互換で維持。これが
+  「操作ロジックは純関数、HUD はそれを呼ぶだけ、ホスト向けは service で公開」規約の参照実装。
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-store@3.5.3
+
+## 0.8.0
+
+### Minor Changes
+
+- 96777bd: map: 無限ベース地形を HUD 以外から制御できる公開 API（#946 / #937 follow-up）
+
+  `#937` の無限ベース地形（`tilemap.baseSeed`）を、Control HUD の「無限地形」トグルに依存せず
+  **ホスト独自 UI から enable/disable/seed** できるようにする公開 API を追加。seed は shape に載る
+  同期状態なので、`renderConfigStore` のような module-scoped store ではなく **`BoardStore` を受け取る
+  関数**として提供する。HUD のトグルもこの API を呼ぶよう変更し、実装を一本化。
+  - `infinite-terrain.ts`: `enableInfiniteTerrain(store, { seed?, tile? })` / `disableInfiniteTerrain(store)` /
+    `getInfiniteSeed(store)` / `isInfiniteTerrainEnabled(store)` / `setInfiniteSeed(store, seed|null)` /
+    `DEFAULT_INFINITE_SEED`。HUD と同じロジック（seededTilemap ?? lowestTilemap ?? 生成、`baseGen` 凍結、
+    seed 整数丸め、決定論的ターゲット選択）。
+  - `use-infinite-terrain.ts`: `useInfiniteTerrain(store)` — reactive な `seed`＋`enable/disable/setSeed`
+    を返す React hook（issue の option 1 の使い勝手）。shape 変更のみ購読（pan/zoom では再描画しない）。
+  - index から re-export: 上記 API に加え、issue が挙げた `seededTilemap` / `lowestTilemap` / `isTileMap` /
+    `makeTileMap` / `resolveTilemap` / `DEFAULT_BASE_GEN` / `baseTerrainAt` / `BaseGenParams`。
+  - 公開 API の単体テストを追加。
+
+## 0.7.0
+
+### Minor Changes
+
+- 3de7408: map: 無限・手続き生成のベース地形（チャンク読み込み Phase 1 / #926）
+
+  ワールドマップを**実質無限**にする最初の段階。未設定セルを、seed とワールド座標の
+  **決定論的な純関数** `baseTerrainAt(seed, col, row)` で埋める。関数はどの座標でも定義され、
+  連続ノイズを world 座標でサンプルするため、**チャンク境界でシームレス**・**保存不要**
+  （未編集の地形は seed から再生成でき、無限に広げてもデータが増えない）。編集した差分は
+  従来どおりスパースな override として shape に残る。
+  - 新規 `base-terrain.ts`: `baseTerrainAt`（固定グローバル閾値で band 分類）＋チャンク単位の
+    LRU キャッシュ＋`makeTerrainSampler`（override ?? base）。
+  - `map-layer.tsx`: 無限ベース描画パス（可視セル範囲のみ描画＝O(visible)、full/coarse 両対応、
+    オートタイルは総関数 sampler 経由でチャンク境界の破綻なし）。空ボードでも描画。
+  - `tilemap-shape.ts`: `baseSeed?: number` を `tilemap` shape に追加。seed は**アプリローカルな
+    render config ではなく shape（同期・永続対象）に持つ**ので、生成した世界は**リロードしても
+    消えず、ボード上の全員に同期**される。
+  - `tilemap-shape.ts`: `baseGen?: BaseGenParams`（`version`＋`scale`/`seaLevel`/`gMin`/`gMax`）を
+    shape に記録し、**生成契約を凍結**。既定値をチューニングしたりアルゴリズムを差し替えても、
+    既存ボードは自分が生成された時のパラメータで描かれ続ける（未設定＝v1 として `resolveBaseGen`
+    でフォールバック）。`baseTerrainAt`/`makeTerrainSampler` はこの params 駆動に変更。
+  - HUD「RPG マップ」の **「無限地形」トグル＋「シード」** は tilemap shape の `baseSeed`＋`baseGen`
+    を読み書きする（無ければ空 tilemap を生成して stamp）。
+  - 決定論・分布・sampler・パラメータ凍結（`baseGen`）の単体テスト。
+
+  後続（Phase 2/3）で、編集差分のチャンク shape 化（独立同期）／サーバー空間ストリーミングを予定。
+
+- 3ec0a5c: map: 領域塗り／塗りつぶしを無限ベース地形に対応（sampler ベース＋上限で安全化）
+
+  無限ベース地形（`baseSeed`）が有効なとき、塗りつぶし／領域塗りが**未編集セルの見た目どおりの
+  地形（sampler = override ?? base）**を対象に flood するようになった。従来はスパースな override
+  （`cells`）だけを見ていたため、生成された地形の上ではまともに塗れなかった。
+  - 新規 `samplerFloodFill(sample, startCol, startRow, maxCells)`（`autotile.ts`）: サンプラ上を
+    **幅優先**で flood。無限に連結しうるので `maxCells`（8192）で上限を設け、上限に達したら
+    `truncated` を返す。
+  - `map-tool` の `doFill` / `doRegionFill`: 無限ベースが有効なら sampler 経路を使い、**囲まれた
+    領域（上限内で自然終了）はそのまま塗り、囲まれていない開けた地形（上限到達）は塗らずに中止**
+    （`map:fill-aborted` イベントを発火）。有限ボードの従来挙動は不変。
+  - 単体テスト（enclosed 充填・open 打ち切り・BFS・sampled 地形の尊重）を追加。
+
+  後続: 中止時のユーザー通知（HUD トースト）と、`emptyTerrain`（無限の海）モードへの拡張。
+
+## 0.6.0
+
+### Minor Changes
+
+- 091ef4a: map: ツール状態の公開 reactive store を export（#927）— ホスト独自 UI から mode/terrain/icon を駆動可能に
+
+  Control HUD（`debug-hud`）以外の UI（ActionRing / ラジアルメニュー / 独自ツールバー等）から
+  マップツールの状態を切り替えられるよう、内部の app-local reactive store を公開した。
+  `renderConfigStore` と同じ「public reactive store（get/set/subscribe）」パターンで一貫。
+
+  追加 export（`@edv4h/usketch-plugin-map`）:
+  - `toolStateStore` ＋ `type MapToolState` ＋ `useMapToolState()` — mode / terrain / iconKey / excludeTerrains
+  - `MAP_MODES`（`brush|eraser|fill|region|stamp|generate|base` の順序付き配列。`MapMode` はこれから派生）
+  - `rangeEraseStore` ＋ `type RangeEraseTargets` ＋ `useRangeEraseTargets()`
+  - `genStateStore` ＋ `type GenState` / `type WorldRect` ＋ `useGenState()`
+  - `baseStateStore` ＋ `type BaseToolState` ＋ `useBaseState()`
+  - `type ReactiveStore`（各 store の共通インターフェース）
+
+  既に export 済みの `TERRAINS` / `ICONS` / `MAP_MODES` と組み合わせて、ホストが Control HUD に
+  依存しないツール切替 UI を実装できる。いずれも同期対象外（presentation/interaction state）。
+
+## 0.5.2
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+  - @edv4h/usketch-store@3.5.2
+
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-store@3.5.1
+
 ## 0.5.0
 
 ### Minor Changes

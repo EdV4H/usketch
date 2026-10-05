@@ -35,7 +35,7 @@ pnpm dev
 
 ### 描画・編集
 - **Shape plugins**: rect, ellipse, text, sticky, freedraw, image, frame, connector, group, island, portal, counter, wireframe, community-region, board-portal
-- **Tool plugins**: select（XState 駆動の移動・リサイズ・回転）, pan
+- **Tool plugins**: select（XState 駆動の移動・リサイズ・回転）, pan, map（RPG/ワールドマップの地形ペイント）
 - **Background**: grid, dots
 - **Snap & smart guides**、キーボードショートカット、Undo/Redo（コマンドパターン）
 
@@ -43,6 +43,7 @@ pnpm dev
 - **Realtime sync**: Cloudflare Durable Objects + Yjs WebSocket（awareness 付き）
 - **Offline-first**: y-indexeddb によるローカル永続化、再接続時の自動同期
 - **Presence**: ライブカーソル、拡張アバター、follow-me、spatial chat、reactions、whistle
+- **Live sessions**: サーバー権限の投票（途中参加・再接続猶予・ホスト移譲・秘密投票）。イベント型を足せるフレームワーク
 - **Link sharing**: 公開 / 限定公開 + role 管理（owner / editor / viewer）
 
 ### AI ネイティブ
@@ -71,14 +72,16 @@ packages/
   core/           — plugin API / レイヤーシステム / TransientRegistry
   canvas-engine/  — ビューポート / 座標変換 / minimap
   store/          — Zustand ベースのボードストア
-  sync/           — WebSocket provider（awareness + 再接続）
+  sync/           — WebSocket provider（awareness + 再接続 + MSG_SESSION チャネル）
   shared/         — 共有型 / shape data model / utilities
   ui/             — 共通 UI コンポーネント
   dom-renderer/ / gpu-renderer/ — 2 系統の描画バックエンド
   server-core/    — サーバープラグイン基盤
+  session-protocol/ — ライブ・セッションの client↔server 共通型（型のみ）
+  session-voting/   — セッション型「投票」（server / client ペア）
 
 plugins/
-  50+ plugin（詳細は docs/ を参照）
+  70+ plugin（詳細は docs/ を参照）。session（ライブ・セッション基盤）/ map（ワールドマップ）等
 ```
 
 ## 技術スタック
@@ -113,6 +116,9 @@ plugins/
 | [プラグインシステム設計書](docs/plugin-system-design.md) | 統一プラグイン API の詳細 |
 | [Third-Party Plugin Authoring](apps/docs/src/content/docs/guides/third-party-plugin.mdx) | 外部パッケージから uSketch を拡張する完全ガイド |
 | [`@edv4h/usketch-shape-utils`](packages/usketch-shape-utils/README.md) | shape プラグイン共通ユーティリティ（bounds / hit-test / resize / GPU） |
+| [`@edv4h/usketch-plugin-session`](plugins/usketch-plugin-session/README.md) | ライブ・セッション基盤（サーバー権限・投票・イベント型を足せる） |
+| [`@edv4h/usketch-session-protocol`](packages/usketch-session-protocol/README.md) | セッションの client↔server ワイヤ契約（型のみ） |
+| [`@edv4h/usketch-session-voting`](packages/usketch-session-voting/README.md) | 最初のセッション型「投票」（server / client ペア） |
 | [プロダクト企画書](docs/new-product-proposal.md) | ビジョン・MVP スコープ・ビジネスモデル |
 | [ユースケース集](docs/use-cases.md) | 主要ユーザーシナリオ |
 | [開発ロードマップ](docs/roadmap.md) | Phase 0〜4 の開発計画と実績 |

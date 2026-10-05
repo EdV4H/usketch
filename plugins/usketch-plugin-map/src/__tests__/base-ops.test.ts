@@ -1,7 +1,15 @@
 import type { BoardStore, Command, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import type { BaseInfo } from "../base/base-map-shape.js";
-import { baseIdAtWorld, baseRegionAnchors, deleteBase } from "../base/base-ops.js";
+import {
+	baseIdAtWorld,
+	baseRegionAnchors,
+	baseRegions,
+	deleteBase,
+	setBaseIcon,
+	setBaseRadius,
+	setBeacon,
+} from "../base/base-ops.js";
 import type { Territory } from "../base/territory.js";
 
 describe("baseIdAtWorld", () => {
@@ -36,66 +44,162 @@ describe("baseRegionAnchors", () => {
 	});
 });
 
-describe("deleteBase", () => {
-	function harness() {
-		const shapes = new Map<string, ShapeData>();
-		shapes.set("bm", {
-			id: "bm",
-			type: "base-map",
-			tile: 40,
-			bases: {
-				b1: { name: "B1", color: "#f00", radius: 5, beaconIconId: "i1" },
-				b2: { name: "B2", color: "#00f", radius: 5 },
-			},
-		} as unknown as ShapeData);
-		shapes.set("i1", {
-			id: "i1",
-			type: "map-icon",
-			x: 0,
-			y: 0,
-			width: 40,
-			height: 40,
-			meta: { iconKey: "town", category: "landmark", baseId: "b1" },
-		} as unknown as ShapeData);
-		let last: Command | null = null;
-		const store = {
-			getShapes: () => shapes,
-			getShape: (id: string) => shapes.get(id),
-			updateShape: (id: string, patch: Partial<ShapeData>) => {
-				const s = shapes.get(id);
-				if (s) shapes.set(id, { ...s, ...patch });
-			},
-		} as unknown as BoardStore;
-		const commands = {
-			execute: (c: Command) => {
-				last = c;
-				c.execute();
-			},
-		} as unknown as CommandRegistry;
-		return { shapes, store, commands, getLast: () => last };
-	}
+describe("baseRegions", () => {
+	const bases: Record<string, BaseInfo> = {
+		red: { name: "Red", color: "#EF5350", radius: 5, beaconCell: "0,0" },
+		blue: { name: "Blue", color: "#4A7FB8", radius: 3 },
+	};
+	it("groups territory into one region per base with full geometry", () => {
+		const territory: Territory = { "0,0": "red", "1,0": "red", "5,5": "blue" };
+		const regions = baseRegions(territory, bases, 40);
+		const red = regions.find((r) => r.baseId === "red");
+		expect(red?.count).toBe(2);
+		expect(red?.cells.slice().sort()).toEqual(["0,0", "1,0"]);
+		expect(red?.bounds).toEqual({ x: 0, y: 0, width: 80, height: 40 });
+		expect(red?.anchor).toEqual({ x: 40, y: 20 }); // bbox centre: cells 0..1 → x=40
+		expect(red?.beaconCell).toBe("0,0");
+		expect(red?.radius).toBe(5);
+		expect(red?.outline.length).toBeGreaterThan(0); // has exposed border edges
+		const blue = regions.find((r) => r.baseId === "blue");
+		expect(blue?.count).toBe(1);
+		expect(blue?.beaconCell).toBeUndefined();
+	});
+	it("skips base ids not in the registry", () => {
+		expect(baseRegions({ "0,0": "ghost" }, bases, 40)).toEqual([]);
+	});
+});
 
-	it("removes the base and clears its beacon icon's baseId; undo restores", () => {
-		const h = harness();
+type Bases = Record<
+	string,
+	{ name: string; color: string; radius: number; beaconCell?: string; icon?: string }
+>;
+
+function harness(bases: Bases) {
+	const shapes = new Map<string, ShapeData>();
+	shapes.set("bm", {
+		id: "bm",
+		type: "base-map",
+		tile: 40,
+		bases,
+	} as unknown as ShapeData);
+	let last: Command | null = null;
+	const store = {
+		getShapes: () => shapes,
+		getShape: (id: string) => shapes.get(id),
+		updateShape: (id: string, patch: Partial<ShapeData>) => {
+			const s = shapes.get(id);
+			if (s) shapes.set(id, { ...s, ...patch });
+		},
+	} as unknown as BoardStore;
+	const commands = {
+		execute: (c: Command) => {
+			last = c;
+			c.execute();
+		},
+	} as unknown as CommandRegistry;
+	return { shapes, store, commands, getLast: () => last };
+}
+const basesOf = (h: ReturnType<typeof harness>) => (h.shapes.get("bm") as { bases: Bases }).bases;
+
+describe("setBeacon", () => {
+	it("sets the base's beacon cell; undo restores", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5 } });
+		setBeacon({ store: h.store, commands: h.commands, tile: 40 }, "3,2", "b1");
+		expect(basesOf(h).b1.beaconCell).toBe("3,2");
+		h.getLast()?.undo();
+		expect(basesOf(h).b1.beaconCell).toBeUndefined();
+	});
+
+	it("enforces 1:1 — moving a cell to another base detaches the first", () => {
+		const h = harness({
+			b1: { name: "B1", color: "#f00", radius: 5, beaconCell: "3,2" },
+			b2: { name: "B2", color: "#00f", radius: 5 },
+		});
+		setBeacon({ store: h.store, commands: h.commands, tile: 40 }, "3,2", "b2");
+		expect(basesOf(h).b2.beaconCell).toBe("3,2");
+		expect(basesOf(h).b1.beaconCell).toBeUndefined(); // detached from the same cell
+	});
+
+	it("is a no-op when the cell is already this base's beacon", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5, beaconCell: "1,1" } });
+		setBeacon({ store: h.store, commands: h.commands, tile: 40 }, "1,1", "b1");
+		expect(h.getLast()).toBeNull();
+	});
+});
+
+describe("deleteBase", () => {
+	it("removes the base; undo restores", () => {
+		const h = harness({
+			b1: { name: "B1", color: "#f00", radius: 5, beaconCell: "0,0" },
+			b2: { name: "B2", color: "#00f", radius: 5 },
+		});
 		deleteBase({ store: h.store, commands: h.commands, tile: 40 }, "b1");
-		expect(Object.keys((h.shapes.get("bm") as { bases: object }).bases)).toEqual(["b2"]);
-		expect((h.shapes.get("i1") as { meta: { baseId?: string } }).meta.baseId).toBeUndefined();
+		expect(Object.keys(basesOf(h))).toEqual(["b2"]);
 
 		h.getLast()?.undo();
-		expect(Object.keys((h.shapes.get("bm") as { bases: object }).bases).sort()).toEqual([
-			"b1",
-			"b2",
-		]);
-		expect((h.shapes.get("i1") as { meta: { baseId?: string } }).meta.baseId).toBe("b1");
+		expect(Object.keys(basesOf(h)).sort()).toEqual(["b1", "b2"]);
 	});
 
 	it("is a no-op when the base does not exist", () => {
-		const h = harness();
+		const h = harness({
+			b1: { name: "B1", color: "#f00", radius: 5 },
+			b2: { name: "B2", color: "#00f", radius: 5 },
+		});
 		deleteBase({ store: h.store, commands: h.commands, tile: 40 }, "ghost");
 		expect(h.getLast()).toBeNull();
-		expect(Object.keys((h.shapes.get("bm") as { bases: object }).bases).sort()).toEqual([
-			"b1",
-			"b2",
-		]);
+		expect(Object.keys(basesOf(h)).sort()).toEqual(["b1", "b2"]);
+	});
+});
+
+describe("setBaseRadius", () => {
+	const deps = (h: ReturnType<typeof harness>) => ({
+		store: h.store,
+		commands: h.commands,
+		tile: 40,
+	});
+	it("rounds, clamps to >= 1, and undo restores", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5 } });
+		setBaseRadius(deps(h), "b1", 8.6);
+		expect(basesOf(h).b1.radius).toBe(9); // rounded
+		h.getLast()?.undo();
+		expect(basesOf(h).b1.radius).toBe(5);
+		setBaseRadius(deps(h), "b1", -3);
+		expect(basesOf(h).b1.radius).toBe(1); // clamped to >= 1
+	});
+	it("ignores non-finite input (no NaN corruption)", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5 } });
+		setBaseRadius(deps(h), "b1", Number.NaN);
+		expect(h.getLast()).toBeNull();
+		expect(basesOf(h).b1.radius).toBe(5);
+	});
+	it("is a no-op when the (rounded) radius is unchanged", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5 } });
+		setBaseRadius(deps(h), "b1", 5.2); // rounds to 5 = current
+		expect(h.getLast()).toBeNull();
+	});
+});
+
+describe("setBaseIcon", () => {
+	const deps = (h: ReturnType<typeof harness>) => ({
+		store: h.store,
+		commands: h.commands,
+		tile: 40,
+	});
+	it("sets an override; undo restores (clears back to the derived tier)", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5 } });
+		setBaseIcon(deps(h), "b1", "port");
+		expect(basesOf(h).b1.icon).toBe("port");
+		h.getLast()?.undo();
+		expect(basesOf(h).b1.icon).toBeUndefined();
+	});
+	it("null clears an existing override", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5, icon: "port" } });
+		setBaseIcon(deps(h), "b1", null);
+		expect(basesOf(h).b1.icon).toBeUndefined();
+	});
+	it("is a no-op when the override is unchanged", () => {
+		const h = harness({ b1: { name: "B1", color: "#f00", radius: 5, icon: "port" } });
+		setBaseIcon(deps(h), "b1", "port");
+		expect(h.getLast()).toBeNull();
 	});
 });

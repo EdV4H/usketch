@@ -1,5 +1,82 @@
 # @edv4h/usketch-plugin-presence-cursor
 
+## 2.2.3
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+
+## 2.2.2
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+
+## 2.2.1
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+
+## 2.2.0
+
+### Minor Changes
+
+- 44a679e: feat(presence): show every participant's live selection on the canvas (#960, foundation)
+
+  Adds a general multiplayer "activity" presence channel so you can see what other
+  participants are selecting/editing — the foundation for making AI edits feel
+  collaborative.
+  - New `@edv4h/usketch-plugin-presence-activity`: a canvas overlay that reads the
+    Yjs awareness `activity` field (`{ shapeIds?, marquee?, action }`) for every
+    remote participant and outlines their selected/edited shapes in the participant's
+    presence color, with a name badge and an "editing" pulse. It's actor-agnostic —
+    humans and the AI participant are drawn identically (the AI is just a participant
+    whose `user.name` is "AI"); no `kind`/`isAi` discriminator.
+  - `presence-cursor` now publishes the local selection to that `activity` field, so
+    remote selection — previously never rendered — is visible to everyone.
+
+  Cursors and the Members list already came free from `presence-cursor` /
+  `presence-store`; this only adds the selection/edit outlines. Drivers that make the
+  AI a participant (MCP client, in-app AI agent) build on this in follow-ups.
+
+### Patch Changes
+
+- Updated dependencies [06f3ef8]
+  - @edv4h/usketch-sync@1.3.0
+
+## 2.1.7
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+
+## 2.1.6
+
+### Patch Changes
+
+- Updated dependencies [6a1e9b9]
+  - @edv4h/usketch-sync@1.2.0
+
+## 2.1.5
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+
+## 2.1.4
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+
 ## 2.1.3
 
 ### Patch Changes

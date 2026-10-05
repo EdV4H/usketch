@@ -5,6 +5,7 @@ import {
 	findShapeAtPoint as findShapeAtPointGeneric,
 	getAnchorPoint,
 	moveConnector,
+	rotateConnector,
 } from "@edv4h/usketch-connector-anchor";
 import type {
 	CanvasPointerEvent,
@@ -129,6 +130,7 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 				hitTest: hitTestConnector,
 				resize: (data) => ({ ...data }),
 				move: moveConnector,
+				rotate: rotateConnector,
 				createDefault: createDefaultConnector,
 				renderTarget: "svg",
 				resizable: false,
@@ -259,6 +261,8 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 					id: CONNECTOR_LAYER_IDS.endpoints,
 					order: 81,
 					fixed: true,
+					// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+					worldOverlay: true,
 					render: (renderCtx) => <EndpointOverlay ctx={ctx} viewport={renderCtx.viewport} />,
 				});
 			}
@@ -270,6 +274,8 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 					id: CONNECTOR_LAYER_IDS.labelEditor,
 					order: 83,
 					fixed: true,
+					// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+					worldOverlay: true,
 					render: (renderCtx) => <ConnectorLabelEditor ctx={ctx} viewport={renderCtx.viewport} />,
 				});
 			}
@@ -281,6 +287,8 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 					id: CONNECTOR_LAYER_IDS.anchorHandles,
 					order: 79,
 					fixed: true,
+					// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+					worldOverlay: true,
 					render: (renderCtx) => (
 						<AnchorHandleOverlay ctx={ctx} viewport={renderCtx.viewport} mode={anchorHandlesMode} />
 					),

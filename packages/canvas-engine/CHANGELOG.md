@@ -1,5 +1,100 @@
 # @edv4h/usketch-canvas-engine
 
+## 1.5.0
+
+### Minor Changes
+
+- fa69bfb: Camera rotation in the Core viewport. `Viewport` gains an optional `rotation`
+  (degrees, clockwise-positive) applied about the screen origin:
+  `screen = R(rotation) · (zoom · world) + (x, y)`. When it is unset or `0` every
+  transform reduces exactly to the previous translate+scale, so existing viewports,
+  plugins and CSS output are unchanged.
+  - shared: rotation-aware `worldToScreen` / `screenToWorld`, plus
+    `viewportAnchoredAt`, `screenRectToWorldBounds`, `viewportTransformStyle`,
+    `viewportRotation`, `wrapDeg` and `shortestAngleDelta`. `centerOnWorld` /
+    `zoomToLevel` / `screenCenterWorld` keep the current rotation.
+  - canvas-engine: layers render through the rotation-aware transform, and
+    `viewportBounds` becomes the world AABB of the (possibly rotated) screen.
+  - store: new `rotateTo(deg, center, opts?)` (keeps the world point under `center`
+    fixed, instant by default); `zoomTo` / `fitToBounds` preserve the rotation;
+    `animateViewportTo` turns the short way round; a zero rotation is normalized
+    away. `clampViewportToBounds` passes rotated viewports through unchanged.
+
+  Note: overlays that hand-roll `(p - vp.x) / zoom` math are still unrotated, so
+  they are only correct while `rotation` is `0`.
+
+- f4b7387: Keep overlays aligned under camera rotation.
+  - shared / canvas-engine: new `Layer.worldOverlay` for fixed layers that draw
+    world-anchored things in screen px. Under rotation the canvas turns such a layer
+    with the world (about the world origin on screen) and renders it with an
+    unrotated viewport, so existing `zoom·w + (x, y)` math stays correct unchanged.
+    Helpers: `unrotatedViewport`, `screenToOverlay`, `overlayFrameStyle`. The
+    selection foreground is a world overlay by default
+    (`SelectionForeground.worldOverlay`).
+  - tool-helpers: resize/rotation handle hit tests compare in the same overlay frame,
+    so handles can be grabbed where they're drawn.
+  - bg-grid: the grid turns with the camera (a diagonal-sized square rotated about
+    the screen center, phased onto world multiples).
+  - snap, presence-activity, tool-vim, shape-freedraw, shape-connector,
+    sync-ywebsocket, comments, shape-frame: their board-anchored overlays opt into
+    `worldOverlay`; snap's visible-candidate area is rotation-aware.
+
+### Patch Changes
+
+- Updated dependencies [fa69bfb]
+- Updated dependencies [f4b7387]
+  - @edv4h/usketch-shared@4.14.0
+  - @edv4h/usketch-core@2.4.4
+
+## 1.4.1
+
+### Patch Changes
+
+- Updated dependencies [85b766e]
+  - @edv4h/usketch-shared@4.13.0
+  - @edv4h/usketch-core@2.4.3
+
+## 1.4.0
+
+### Minor Changes
+
+- 102a284: canvas-engine: タッチ（マルチポインタ）ジェスチャ対応 (#1004)。
+
+  `Canvas` が 2 本指を `pointerId` で追跡し、**ピンチ＝ズーム / 2 本指ドラッグ＝パン**を `store.zoomTo`（中点中心・距離比）/ `store.panBy`（中点移動）で viewport に反映（wheel と同じ経路・クランプ共有）。ジェスチャ中はツールへの配送を抑止し、全指が離れるまで再開しない。単一タッチは「移動 or タップ確定まで pending」にして 2 本目の指が来ても描画/選択が誤発火しない。Safari の `gesturestart`/`gesturechange` は握り潰しから**ズーム変換**へ置換（ブラウザ標準ズームの抑止は維持）。
+  - **`CanvasPointerEvent`** に `pointerId?` / `pointerType?` を追加（optional・後方互換）。ツールがタッチ/ペン/マウスを区別可能に。
+  - **`Canvas`** に `touchGestures?: boolean` prop（既定 `true`）。マウス/ペン/wheel の既存挙動は不変（touch のみ新経路）。ジェスチャ中は `canvas:gesture` イベントを emit。
+  - ジェスチャ計算 `gestureStep` / `pointerDistance` / `pointerMidpoint` を純関数として公開・ユニットテスト。
+
+### Patch Changes
+
+- Updated dependencies [102a284]
+  - @edv4h/usketch-shared@4.12.0
+  - @edv4h/usketch-core@2.4.2
+
+## 1.3.5
+
+### Patch Changes
+
+- Updated dependencies [5e301c0]
+  - @edv4h/usketch-shared@4.11.0
+  - @edv4h/usketch-core@2.4.1
+
+## 1.3.4
+
+### Patch Changes
+
+- Updated dependencies [9747462]
+  - @edv4h/usketch-shared@4.10.0
+  - @edv4h/usketch-core@2.4.0
+
+## 1.3.3
+
+### Patch Changes
+
+- Updated dependencies [bba174a]
+  - @edv4h/usketch-shared@4.9.0
+  - @edv4h/usketch-core@2.3.2
+
 ## 1.3.2
 
 ### Patch Changes
