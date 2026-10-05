@@ -1,6 +1,6 @@
 import type { BoardStore, Command, ShapeData } from "@edv4h/usketch-shared";
 import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
-import { clampColumns, detectColumns, reflowPages } from "./regrid.js";
+import { detectColumns, reflowPages } from "./regrid.js";
 import { PDF_PAGE_SHAPE_TYPE, type PdfPageShapeData } from "./types.js";
 
 function isPdfPage(shape: ShapeData | undefined): shape is PdfPageShapeData {
@@ -40,7 +40,7 @@ export function createSetPdfColumnsCommand(
 	const pages = selectedPdfPages(store);
 	if (pages.length < 2 || !Number.isFinite(columns)) return null;
 
-	const patches = reflowPages(pages, clampColumns(columns, pages.length), gap);
+	const patches = reflowPages(pages, columns, gap);
 	const updates = patches.flatMap((patch) => {
 		const current = pages.find((p) => p.id === patch.id);
 		if (!current || (current.x === patch.x && current.y === patch.y)) return [];

@@ -21,7 +21,7 @@ import {
 	renderPage,
 	targetRenderWidth,
 } from "./page-renderer.js";
-import { acquireDocument, explainFailure, releaseDocument } from "./pdf-document.js";
+import { acquireDocument, explainFailure } from "./pdf-document.js";
 import { PDF_PAGE_SHAPE_TYPE, type PdfPageShapeData } from "./types.js";
 
 /** Wiring the shape needs but cannot reach from `render(data)` alone. */
@@ -88,9 +88,9 @@ function PdfPageView({ data, deps }: { data: PdfPageShapeData; deps: PdfPageShap
 	// and reopening the PDF.
 	useEffect(() => {
 		if (!src) return;
-		const key = data.assetId;
 		let active = true;
-		acquireDocument(key, src).then(
+		const lease = acquireDocument(data.assetId, src);
+		lease.document.then(
 			(loaded) => {
 				if (active) setDocument(loaded);
 			},
@@ -101,7 +101,7 @@ function PdfPageView({ data, deps }: { data: PdfPageShapeData; deps: PdfPageShap
 		return () => {
 			active = false;
 			setDocument(null);
-			releaseDocument(key);
+			lease.release();
 		};
 	}, [src, data.assetId]);
 

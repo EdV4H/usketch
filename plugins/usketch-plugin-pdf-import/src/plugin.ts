@@ -1,13 +1,9 @@
 import { getAssetStore } from "@edv4h/usketch-plugin-asset-store";
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { createPdfFileHandler, PDF_IMPORT_DEFAULTS } from "./external-content-handler.js";
-import {
-	createSetPdfColumnsCommand,
-	getSelectedPdfColumns,
-	selectedPdfPages,
-	squareColumns,
-} from "./grid-control.js";
+import { selectedPdfPages } from "./grid-control.js";
 import { setWorkerSrc } from "./pdf-document.js";
+import { createPdfImportApi, pdfImportService } from "./pdf-import-service.js";
 import { createPdfPageShapeDefinition } from "./pdf-page-shape.js";
 import { PDF_PAGE_SHAPE_TYPE, type PdfImportOptions } from "./types.js";
 
@@ -17,6 +13,13 @@ import { PDF_PAGE_SHAPE_TYPE, type PdfImportOptions } from "./types.js";
  * limit of iOS Safari (~16.7M px).
  */
 const DEFAULT_MAX_RENDER_PIXELS = 8_000_000;
+
+/**
+ * How long the HUD's column field waits for typing to stop before reflowing.
+ * The HUD applies a number field on every keystroke, so without this typing
+ * "12" would reflow to 1 column and then to 12, leaving two undo steps.
+ */
+export const COLUMNS_INPUT_DEBOUNCE_MS = 400;
 
 /**
  * Expands a pasted or dropped PDF into one live page shape per page.
@@ -53,12 +56,11 @@ export function createPdfImportPlugin(options: PdfImportOptions = {}): UsketchPl
 				createPdfFileHandler(options, () => getAssetStore(ctx)),
 			);
 
+			const api = createPdfImportApi(ctx.store, ctx.commands, gap);
+			const unprovide = pdfImportService.provide(ctx.services, api);
+
 			// Column controls live in the HUD: plugins must not ship their own
 			// toolbars. Move these to a selection-contextual HUD slot once it exists.
-			const setColumns = (columns: number) => {
-				const command = createSetPdfColumnsCommand(ctx.store, columns, gap);
-				if (command) ctx.commands.execute(command);
-			};
 			const hasGrid = () => selectedPdfPages(ctx.store).length >= 2;
 
 			const unregisterSetColumns = ctx.actions.register({
@@ -67,28 +69,53 @@ export function createPdfImportPlugin(options: PdfImportOptions = {}): UsketchPl
 				group: "PDF",
 				params: [{ name: "columns", label: "列数", type: "number", min: 1, step: 1, default: 2 }],
 				isEnabled: hasGrid,
-				run: ({ columns }) => setColumns(Number(columns)),
+				run: ({ columns }) => api.setSelectedColumns(Number(columns)),
 			});
 			const unregisterSquare = ctx.actions.register({
 				id: "pdf-import:square-grid",
 				label: "正方形に近い並びに戻す",
 				group: "PDF",
 				isEnabled: hasGrid,
-				run: () => setColumns(squareColumns(selectedPdfPages(ctx.store).length)),
+				run: () => api.resetSelectedToSquareGrid(),
 			});
+
+			// While the user is typing, show what they typed rather than the
+			// current arrangement, and reflow once they stop.
+			let pendingColumns: number | undefined;
+			let pendingTimer: ReturnType<typeof setTimeout> | undefined;
+			const fieldListeners = new Set<() => void>();
 			const unregisterSettings = ctx.hud.registerSettings({
 				id: "pdf-import:grid",
 				label: "選択中のPDFページ（2枚以上）",
 				fields: [{ name: "columns", label: "列数", type: "number", min: 1, step: 1 }],
-				get: (name) => (name === "columns" ? getSelectedPdfColumns(ctx.store) : undefined),
+				get: (name) =>
+					name === "columns" ? (pendingColumns ?? api.getSelectedColumns()) : undefined,
 				set: (name, value) => {
-					if (name === "columns") setColumns(Number(value));
+					if (name !== "columns") return;
+					pendingColumns = Number(value);
+					clearTimeout(pendingTimer);
+					pendingTimer = setTimeout(() => {
+						const columns = pendingColumns;
+						pendingColumns = undefined;
+						if (columns !== undefined) api.setSelectedColumns(columns);
+						// The reflow may be a no-op, so re-read the real value explicitly.
+						for (const listener of fieldListeners) listener();
+					}, COLUMNS_INPUT_DEBOUNCE_MS);
 				},
 				// Selection and page positions both live in the store.
-				subscribe: (listener) => ctx.store.subscribe(listener),
+				subscribe: (listener) => {
+					fieldListeners.add(listener);
+					const unsubscribe = ctx.store.subscribe(listener);
+					return () => {
+						fieldListeners.delete(listener);
+						unsubscribe();
+					};
+				},
 			});
 
 			return () => {
+				clearTimeout(pendingTimer);
+				unprovide();
 				unregisterHandler();
 				unregisterSetColumns();
 				unregisterSquare();

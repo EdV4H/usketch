@@ -1,12 +1,23 @@
 import type { AssetStore } from "@edv4h/usketch-plugin-asset-store";
-import type {
-	BoundingBox,
-	ExternalContentHandler,
-	ExternalContentHandlerCtx,
+import {
+	type BoundingBox,
+	centerOnWorld,
+	type ExternalContentFile,
+	type ExternalContentHandler,
+	type ExternalContentHandlerCtx,
+	generateId,
+	getScreenSize,
+	getShapeAABB,
+	screenCenterWorld,
+	worldToScreen,
 } from "@edv4h/usketch-shared";
-import { generateId } from "@edv4h/usketch-shared";
 import { layoutPagesInGrid } from "./layout.js";
-import { acquireDocument, explainFailure, readPageSizes, releaseDocument } from "./pdf-document.js";
+import {
+	acquireDocument,
+	type DocumentLease,
+	explainFailure,
+	readPageSizes,
+} from "./pdf-document.js";
 import { pageStyle } from "./pdf-page-shape.js";
 import {
 	PDF_PAGE_SHAPE_TYPE,
@@ -25,7 +36,6 @@ export const PDF_IMPORT_PROGRESS_EVENT = "pdf-import:progress";
 /** Option defaults, shared with the plugin so each lives in one place. */
 export const PDF_IMPORT_DEFAULTS = {
 	maxSizeMB: 50,
-	inlineMaxSizeMB: 4,
 	maxPages: 50,
 	maxPageWorldSize: 480,
 	gap: 24,
@@ -59,7 +69,6 @@ export function createPdfFileHandler(
 ): ExternalContentHandler<"file"> {
 	const {
 		maxSizeMB = PDF_IMPORT_DEFAULTS.maxSizeMB,
-		inlineMaxSizeMB = PDF_IMPORT_DEFAULTS.inlineMaxSizeMB,
 		maxPages = PDF_IMPORT_DEFAULTS.maxPages,
 		maxPageWorldSize = PDF_IMPORT_DEFAULTS.maxPageWorldSize,
 		gap = PDF_IMPORT_DEFAULTS.gap,
@@ -78,60 +87,109 @@ export function createPdfFileHandler(
 			const pdfs = content.files.filter(isPdfFile);
 			const others = content.files.filter((f) => !isPdfFile(f));
 
-			const origin = viewportCenterToWorld(ctx);
-			// Grids differ in width, so each one is placed by its left edge, just
-			// right of the previous grid. Only the first is centered on the view.
-			let nextLeft: number | undefined;
-			let imported: BoundingBox | null = null;
-			const placedIds: string[] = [];
+			// Hand the rest of the payload to its own handlers first. They have no
+			// drop point either and put what they make at the screen center, so the
+			// PDFs go beside whatever they placed rather than underneath it.
+			const other = others.length > 0 ? await dispatchOthers(ctx, content.via, others) : null;
 
-			for (const file of pdfs) {
-				// One PDF must never abort the rest of the batch: the registry runs a
-				// single winning handler, so a throw here would silently drop every
-				// remaining file, including the non-PDF remainder below.
-				try {
-					const placed = await importPdf(file, ctx, {
-						center: origin,
-						left: nextLeft,
-						maxSizeMB,
-						inlineMaxSizeMB,
-						maxPages,
-						maxPageWorldSize,
-						gap,
-						assets: getAssets?.(),
-					});
-					if (placed) {
-						nextLeft = placed.bounds.x + placed.bounds.width + gap;
-						imported = imported ? union(imported, placed.bounds) : placed.bounds;
-						placedIds.push(...placed.ids);
+			// Grids differ in width, so each one is placed by its left edge, just
+			// right of the previous one, top-aligned with it. Only a first grid
+			// with nothing beside it is centered on the view.
+			let anchor = other
+				? { left: other.bounds.x + other.bounds.width + gap, top: other.bounds.y }
+				: undefined;
+			const center = screenCenterWorld(ctx.store);
+			const placed: PlacedPdf[] = [];
+
+			try {
+				for (const file of pdfs) {
+					// One PDF must never abort the rest of the batch: the registry runs
+					// a single winning handler, so a throw here would silently drop
+					// every remaining file.
+					try {
+						const pdf = await importPdf(file, ctx, {
+							center,
+							anchor,
+							maxSizeMB,
+							maxPages,
+							maxPageWorldSize,
+							gap,
+							assets: getAssets?.(),
+						});
+						if (pdf) {
+							placed.push(pdf);
+							anchor = { left: pdf.bounds.x + pdf.bounds.width + gap, top: pdf.bounds.y };
+						}
+					} catch (err) {
+						emitError(ctx, `「${file.name}」の取り込みに失敗しました: ${describeError(err)}`);
 					}
-				} catch (err) {
-					emitError(ctx, `「${file.name}」の取り込みに失敗しました: ${describeError(err)}`);
 				}
+
+				const shapes = placed.flatMap((pdf) => pdf.shapes);
+				if (shapes.length > 0) {
+					// One command for the whole drop, so a single undo takes back every
+					// PDF in it.
+					ctx.commands.execute({
+						execute: () => {
+							for (const shape of shapes) ctx.store.addShape(shape);
+						},
+						undo: () => {
+							for (const shape of shapes) ctx.store.deleteShape(shape.id);
+						},
+					});
+				}
+			} finally {
+				// Held until the pages exist, so they mount onto the already-parsed
+				// document instead of fetching and parsing it again.
+				for (const pdf of placed) pdf.lease.release();
 			}
 
-			// Select once, after the loop: selecting per file would leave only the
-			// last PDF's pages selected.
-			if (placedIds.length > 0) ctx.store.setSelection(placedIds);
+			const pdfIds = placed.flatMap((pdf) => pdf.shapes.map((shape) => shape.id));
+			if (pdfIds.length === 0) return;
 
-			// Frame once, over everything imported — fitting per file would leave the
-			// viewport parked on whichever PDF happened to be last.
-			if (fitOnImport && imported) frameImport(ctx, imported);
-
-			if (others.length > 0) {
-				await ctx.externalContent.dispatch({ kind: "file", via: content.via, files: others });
+			// Select and frame once, over everything this drop produced — doing it
+			// per file would leave only the last PDF selected and in view.
+			ctx.store.setSelection([...(other?.ids ?? []), ...pdfIds]);
+			if (fitOnImport) {
+				const bounds = placed.map((pdf) => pdf.bounds).reduce(union);
+				frameImport(ctx, other ? union(other.bounds, bounds) : bounds);
 			}
 		},
 	};
 }
 
+/** What the re-dispatched remainder of the payload put on the board. */
+interface OtherContent {
+	bounds: BoundingBox;
+	ids: string[];
+}
+
+/**
+ * Re-dispatch the non-PDF files and report what their handlers added, measured
+ * as the store's shapes before and after — so it works whichever handler (image
+ * or third-party) claims them.
+ */
+async function dispatchOthers(
+	ctx: ExternalContentHandlerCtx,
+	via: ExternalContentFile["via"],
+	files: File[],
+): Promise<OtherContent | null> {
+	const before = new Set(ctx.store.getShapes().keys());
+	await ctx.externalContent.dispatch({ kind: "file", via, files });
+	const added = [...ctx.store.getShapes().values()].filter((shape) => !before.has(shape.id));
+	if (added.length === 0) return null;
+	return {
+		bounds: added.map(getShapeAABB).reduce(union),
+		ids: added.map((shape) => shape.id),
+	};
+}
+
 interface ImportOptions {
-	/** Where the grid is centered — vertically always, horizontally unless `left` is set. */
+	/** Where the grid is centered, unless `anchor` is set. */
 	center: { x: number; y: number };
-	/** Left edge of the grid, when it must sit beside an earlier one. */
-	left?: number;
+	/** Top-left corner of the grid, when it must sit beside earlier content. */
+	anchor?: { left: number; top: number };
 	maxSizeMB: number;
-	inlineMaxSizeMB: number;
 	maxPages: number;
 	maxPageWorldSize: number;
 	gap: number;
@@ -141,11 +199,13 @@ interface ImportOptions {
 interface PlacedPdf {
 	/** World bounds of the grid. */
 	bounds: BoundingBox;
-	/** Ids of the page shapes that were added. */
-	ids: string[];
+	/** Page shapes to add. */
+	shapes: PdfPageShapeData[];
+	/** The measured document, already filed under its asset id. Release once the pages exist. */
+	lease: DocumentLease;
 }
 
-/** Import one PDF. Returns what was placed, or null when nothing was. */
+/** Prepare one PDF's pages. Returns null when there is nothing to place. */
 async function importPdf(
 	file: File,
 	ctx: ExternalContentHandlerCtx,
@@ -162,15 +222,14 @@ async function importPdf(
 		return null;
 	}
 
-	// The default uploader writes the whole file into the shared Yjs doc as a
-	// single update, which large files do not survive (sync message and storage
-	// limits). Only allow the larger cap when uploads go somewhere else.
-	const limitMB = opts.assets.hasCustomUploader() ? opts.maxSizeMB : opts.inlineMaxSizeMB;
-	if (file.size > limitMB * 1024 * 1024) {
-		emitError(
-			ctx,
-			`「${file.name}」は${(file.size / 1024 / 1024).toFixed(1)}MBです。上限は${limitMB}MBです。`,
-		);
+	// The store knows how large a payload its uploader can take (the default
+	// one writes into the shared doc, which large files do not survive).
+	const limitBytes = Math.min(
+		opts.maxSizeMB * 1024 * 1024,
+		opts.assets.maxUploadBytes() ?? Number.POSITIVE_INFINITY,
+	);
+	if (file.size > limitBytes) {
+		emitError(ctx, `「${file.name}」は${toMB(file.size)}MBです。上限は${toMB(limitBytes)}MBです。`);
 		return null;
 	}
 
@@ -180,80 +239,80 @@ async function importPdf(
 	// — the default store writes into the shared doc, which syncs to every
 	// client and has no delete — so a password-protected, corrupt or empty PDF
 	// must be turned away first.
-	const pendingKey = `pdf-import:pending:${generateId()}`;
-	let measured: Awaited<ReturnType<typeof readPageSizes>>;
+	const lease = acquireDocument(`pdf-import:pending:${generateId()}`, dataUrl);
+	let handedOver = false;
 	try {
-		const document = await acquireDocument(pendingKey, dataUrl);
-		measured = await readPageSizes(document, opts.maxPages, (page, totalPages) => {
-			const payload: PdfImportProgressEvent = { fileName: file.name, page, totalPages };
-			ctx.events.emit(PDF_IMPORT_PROGRESS_EVENT, payload);
+		const measured = await readPageSizes(
+			await lease.document,
+			opts.maxPages,
+			(page, totalPages) => {
+				const payload: PdfImportProgressEvent = { fileName: file.name, page, totalPages };
+				ctx.events.emit(PDF_IMPORT_PROGRESS_EVENT, payload);
+			},
+		);
+
+		if (measured.sizes.length === 0) {
+			emitError(ctx, `「${file.name}」から読み取れるページがありませんでした。`);
+			return null;
+		}
+
+		const assetId = await opts.assets.upload("pdf", dataUrl, {
+			mimeType: "application/pdf",
+			size: file.size,
 		});
+		// The pages will ask for the document by asset id; give them this one.
+		lease.rekey(assetId);
+
+		const worldSizes = measured.sizes.map((page) => worldSize(page, opts.maxPageWorldSize));
+		const grid = layoutPagesInGrid(worldSizes, { gap: opts.gap, center: { x: 0, y: 0 } });
+		// Lay out once around the origin, then move the finished grid into place.
+		const dx = Math.round(opts.anchor ? opts.anchor.left - grid.x : opts.center.x);
+		const dy = Math.round(opts.anchor ? opts.anchor.top - grid.y : opts.center.y);
+
+		const shapes: PdfPageShapeData[] = [];
+		for (const [index, page] of measured.sizes.entries()) {
+			const size = worldSizes[index];
+			const position = grid.positions[index];
+			if (!size || !position) continue;
+			shapes.push({
+				id: generateId(),
+				type: PDF_PAGE_SHAPE_TYPE,
+				x: position.x + dx,
+				y: position.y + dy,
+				width: size.width,
+				height: size.height,
+				style: pageStyle(),
+				assetId,
+				pageNumber: page.pageNumber,
+				pageCount: measured.totalPages,
+				fileName: file.name,
+				pointWidth: page.width,
+				pointHeight: page.height,
+			});
+		}
+
+		if (measured.truncated) {
+			// Informational, not a failure: the import itself succeeded.
+			ctx.events.emit("ai:status", {
+				status: "done",
+				message: `「${file.name}」は${measured.totalPages}ページ中、先頭${shapes.length}ページのみ取り込みました。`,
+			});
+		}
+
+		handedOver = true;
+		return {
+			bounds: { x: grid.x + dx, y: grid.y + dy, width: grid.width, height: grid.height },
+			shapes,
+			lease,
+		};
 	} finally {
-		releaseDocument(pendingKey);
+		if (!handedOver) lease.release();
 	}
+}
 
-	if (measured.sizes.length === 0) {
-		emitError(ctx, `「${file.name}」から読み取れるページがありませんでした。`);
-		return null;
-	}
-
-	const assetId = await opts.assets.upload("pdf", dataUrl, {
-		mimeType: "application/pdf",
-		size: file.size,
-	});
-
-	const worldSizes = measured.sizes.map((page) => worldSize(page, opts.maxPageWorldSize));
-	let grid = layoutPagesInGrid(worldSizes, { gap: opts.gap, center: opts.center });
-	if (opts.left !== undefined) {
-		grid = layoutPagesInGrid(worldSizes, {
-			gap: opts.gap,
-			center: { x: opts.left + grid.width / 2, y: opts.center.y },
-		});
-	}
-
-	const shapes: PdfPageShapeData[] = [];
-	for (const [index, page] of measured.sizes.entries()) {
-		const size = worldSizes[index];
-		const position = grid.positions[index];
-		if (!size || !position) continue;
-		shapes.push({
-			id: generateId(),
-			type: PDF_PAGE_SHAPE_TYPE,
-			x: position.x,
-			y: position.y,
-			width: size.width,
-			height: size.height,
-			style: pageStyle(),
-			assetId,
-			pageNumber: page.pageNumber,
-			pageCount: measured.totalPages,
-			fileName: file.name,
-			pointWidth: page.width,
-			pointHeight: page.height,
-		});
-	}
-
-	ctx.commands.execute({
-		execute: () => {
-			for (const shape of shapes) ctx.store.addShape(shape);
-		},
-		undo: () => {
-			for (const shape of shapes) ctx.store.deleteShape(shape.id);
-		},
-	});
-
-	if (measured.truncated) {
-		// Informational, not a failure: the import itself succeeded.
-		ctx.events.emit("ai:status", {
-			status: "done",
-			message: `「${file.name}」は${measured.totalPages}ページ中、先頭${shapes.length}ページのみ取り込みました。`,
-		});
-	}
-
-	return {
-		bounds: { x: grid.x, y: grid.y, width: grid.width, height: grid.height },
-		ids: shapes.map((s) => s.id),
-	};
+/** Megabytes to one decimal place, without a trailing ".0". */
+function toMB(bytes: number): number {
+	return Number((bytes / 1024 / 1024).toFixed(1));
 }
 
 /**
@@ -289,40 +348,48 @@ function union(a: BoundingBox, b: BoundingBox): BoundingBox {
 }
 
 /**
- * Zoom out far enough to reveal the whole import — a 20-page grid is several
- * times taller than the viewport, so without this the user would paste and see
- * a fragment of one page. Only ever zooms *out*: an import that already fits
- * leaves the viewport exactly where the user put it.
+ * Bring the whole import into view — a 20-page grid is several times taller
+ * than the viewport, so without this the user would paste and see a fragment
+ * of one page. Never zooms *in*: an import that is already on screen leaves the
+ * viewport exactly where the user put it, and one that is off screen but would
+ * fit at the current zoom is only panned to.
  */
 function frameImport(ctx: ExternalContentHandlerCtx, bounds: BoundingBox): void {
-	const size = viewportSize();
+	const size = getScreenSize();
 	if (size.width <= 0 || size.height <= 0) return;
-	const { zoom } = ctx.store.getViewport();
-	// Same margin `fitToBounds` leaves, so "already fits" and "fit" agree.
-	const fitsAlready =
-		bounds.width * zoom <= size.width - FIT_PADDING * 2 &&
-		bounds.height * zoom <= size.height - FIT_PADDING * 2;
-	if (fitsAlready) return;
+	// Where the import's corners land on screen; under a rotated viewport the
+	// on-screen footprint is not simply the world size times the zoom.
+	const corners = [
+		[bounds.x, bounds.y],
+		[bounds.x + bounds.width, bounds.y],
+		[bounds.x, bounds.y + bounds.height],
+		[bounds.x + bounds.width, bounds.y + bounds.height],
+	].map(([x = 0, y = 0]) => worldToScreen(x, y, ctx.store.getViewport()));
+	const xs = corners.map((p) => p.x);
+	const ys = corners.map((p) => p.y);
+	const minX = Math.min(...xs);
+	const maxX = Math.max(...xs);
+	const minY = Math.min(...ys);
+	const maxY = Math.max(...ys);
+
+	// Same margin `fitToBounds` leaves, so "already in view" and "fit" agree.
+	const onScreen =
+		minX >= FIT_PADDING &&
+		minY >= FIT_PADDING &&
+		maxX <= size.width - FIT_PADDING &&
+		maxY <= size.height - FIT_PADDING;
+	if (onScreen) return;
+
+	const fitsAtThisZoom =
+		maxX - minX <= size.width - FIT_PADDING * 2 && maxY - minY <= size.height - FIT_PADDING * 2;
+	if (fitsAtThisZoom) {
+		centerOnWorld(ctx.store, {
+			x: bounds.x + bounds.width / 2,
+			y: bounds.y + bounds.height / 2,
+		});
+		return;
+	}
 	ctx.store.fitToBounds(bounds, size, FIT_PADDING);
-}
-
-/**
- * Convert the visible screen center to world coordinates. The external-content
- * payload carries no drop point, so handlers place content where the user is
- * currently looking — same strategy as the image plugin.
- */
-function viewportCenterToWorld(ctx: ExternalContentHandlerCtx): { x: number; y: number } {
-	const vp = ctx.store.getViewport();
-	const { width, height } = viewportSize();
-	return {
-		x: (width / 2 - vp.x) / vp.zoom,
-		y: (height / 2 - vp.y) / vp.zoom,
-	};
-}
-
-function viewportSize(): { width: number; height: number } {
-	if (typeof window === "undefined") return { width: 0, height: 0 };
-	return { width: window.innerWidth, height: window.innerHeight };
 }
 
 /** `ai:status` is the only failure channel hosts subscribe to today. */

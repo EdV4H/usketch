@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	activeRenderCount,
 	cachedPixelCount,
-	dropCachedDocument,
 	getCachedPage,
 	renderPage,
 	resetPageCache,
@@ -98,23 +97,6 @@ describe("renderPage caching", () => {
 		resetPageCache();
 
 		expect(cachedPixelCount()).toBe(0);
-	});
-});
-
-describe("dropCachedDocument", () => {
-	it("frees every render of that document and nothing else", async () => {
-		const { document } = fakeDocument();
-
-		await render(document, 256, 1, "asset:a");
-		await render(document, 512, 2, "asset:a");
-		const kept = await render(document, 256, 1, "asset:b");
-
-		dropCachedDocument("asset:a");
-
-		expect(getCachedPage("asset:a", 1, 256)).toBeUndefined();
-		expect(getCachedPage("asset:a", 2, 512)).toBeUndefined();
-		expect(getCachedPage("asset:b", 1, 256)).toBe(kept);
-		expect(cachedPixelCount()).toBe(kept.width * kept.height);
 	});
 });
 

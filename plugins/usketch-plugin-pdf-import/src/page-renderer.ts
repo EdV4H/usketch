@@ -126,20 +126,6 @@ function putCachedPage(key: string, canvas: HTMLCanvasElement): void {
 	}
 }
 
-/**
- * Drop every cached bitmap of one document. Called when the document itself is
- * torn down, so deleting a PDF from the board frees its renders too instead of
- * leaving them resident for the rest of the session.
- */
-export function dropCachedDocument(documentKey: string): void {
-	const prefix = `${documentKey}:`;
-	for (const [key, entry] of cache) {
-		if (!key.startsWith(prefix)) continue;
-		cache.delete(key);
-		cachedPixels -= entry.pixels;
-	}
-}
-
 let activeRenders = 0;
 const waiting: (() => void)[] = [];
 

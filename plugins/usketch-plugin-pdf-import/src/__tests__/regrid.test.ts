@@ -106,7 +106,71 @@ describe("reflowPages", () => {
 		const patches = reflowPages(mixed, 4, 20);
 
 		const ordered = [...patches].sort((a, b) => a.x - b.x);
-		expect(ordered.map((p) => p.id)).toEqual(["a1", "a2", "b1", "b2"]);
+		expect(ordered.map((p) => p.id)).toEqual(["b1", "b2", "a1", "a2"]);
+	});
+
+	it("orders documents by where their first pages sit, not by asset id", () => {
+		// Imported left to right: "z" first, then "a". Asset ids are content
+		// hashes, so their sort order says nothing about which came first.
+		const z = { assetId: "asset:z", fileName: "z.pdf" };
+		const a = { assetId: "asset:a", fileName: "a.pdf" };
+		const pages = [
+			page(1, 0, 0, { id: "z1", ...z }),
+			page(2, 0, 220, { id: "z2", ...z }),
+			page(1, 300, 0, { id: "a1", ...a }),
+			page(2, 300, 220, { id: "a2", ...a }),
+		];
+
+		const first = reflowPages(pages, 4, 20);
+		const order = (patches: { id: string; x: number }[]) =>
+			[...patches].sort((p, q) => p.x - q.x).map((p) => p.id);
+		expect(order(first)).toEqual(["z1", "z2", "a1", "a2"]);
+
+		// ...and stays that way however often the grid is reflowed.
+		let current = pages;
+		for (const columns of [1, 3, 2, 4]) {
+			const patches = new Map(reflowPages(current, columns, 20).map((p) => [p.id, p]));
+			current = current.map((p) => ({ ...p, ...patches.get(p.id) }));
+		}
+		expect(order(reflowPages(current, 4, 20))).toEqual(["z1", "z2", "a1", "a2"]);
+	});
+
+	it("does not creep downward when the tallest page is not in the first row", () => {
+		// Short pages centered in cells as tall as page 3 (cell top at -100).
+		let current = [
+			page(1, 0, 0, { height: 100 }),
+			page(2, 120, 0, { height: 100 }),
+			page(3, 240, 0, { height: 300 }),
+			page(4, 360, 0, { height: 100 }),
+		];
+		const tops: number[] = [];
+		for (const columns of [2, 4, 2, 4, 2]) {
+			const patches = new Map(reflowPages(current, columns, 20).map((p) => [p.id, p]));
+			current = current.map((p) => ({ ...p, ...patches.get(p.id) }));
+			tops.push(Math.min(...current.map((p) => p.y)));
+		}
+		expect(new Set(tops.filter((_, i) => i % 2 === 0)).size).toBe(1); // every 2-column pass
+		expect(new Set(tops.filter((_, i) => i % 2 === 1)).size).toBe(1); // every 4-column pass
+		// The first page sits where it started: centered in a cell whose top is
+		// 100 above it, the inset page 3's height gives every shorter page.
+		expect(current.find((p) => p.id === "p1")?.y).toBe(0);
+	});
+
+	it("does not drift sideways when the widest page is not in the first column", () => {
+		let current = [
+			page(1, 0, 0, { width: 50 }),
+			page(2, 120, 0, { width: 100 }),
+			page(3, 0, 220, { width: 50 }),
+			page(4, 120, 220, { width: 100 }),
+		];
+		const lefts: number[] = [];
+		for (const columns of [1, 2, 1, 2]) {
+			const patches = new Map(reflowPages(current, columns, 20).map((p) => [p.id, p]));
+			current = current.map((p) => ({ ...p, ...patches.get(p.id) }));
+			lefts.push(Math.min(...current.map((p) => p.x)));
+		}
+		expect(lefts[0]).toBe(lefts[2]);
+		expect(lefts[1]).toBe(lefts[3]);
 	});
 
 	// Pinning the top edge keeps the first row where the user is looking while

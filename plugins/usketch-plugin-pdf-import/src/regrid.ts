@@ -1,4 +1,4 @@
-import { layoutPagesInGrid } from "./layout.js";
+import { clampColumns, layoutPagesInGrid } from "./layout.js";
 import type { PdfPageShapeData } from "./types.js";
 
 /** New top-left position for one page. */
@@ -25,12 +25,19 @@ export function detectColumns(pages: readonly PdfPageShapeData[]): number {
 }
 
 /**
- * Rearrange pages into `columns`, pinning the group's **top edge** and
+ * Rearrange pages into `columns`, pinning the grid's **top edge** and
  * horizontal center. Pinning the top keeps the first row where the user is looking
  * as the row count changes; the grid therefore grows downward.
  *
+ * Both are measured on the grid's cells, not on the pages: a page shorter than
+ * the tallest one sits centered in its cell, below the cell top. Pinning the
+ * topmost *page* instead would push the grid down by that inset on every
+ * reflow whenever the tallest page is not in the first row.
+ *
  * Reading order (document, then page number) is restored, so a reflow also
- * tidies up pages that were dragged out of sequence.
+ * tidies up pages that were dragged out of sequence. Documents keep the order
+ * their first pages are currently in, read row by row — so an import keeps its
+ * left-to-right order, and repeated reflows never reshuffle documents.
  */
 export function reflowPages(
 	pages: readonly PdfPageShapeData[],
@@ -39,33 +46,53 @@ export function reflowPages(
 ): PagePatch[] {
 	if (pages.length === 0) return [];
 
+	const cellWidth = Math.max(...pages.map((p) => p.width));
+	const cellHeight = Math.max(...pages.map((p) => p.height));
+	const documentRank = rankDocuments(pages, cellHeight / 2);
 	const ordered = [...pages].sort(
-		(a, b) => a.assetId.localeCompare(b.assetId) || a.pageNumber - b.pageNumber,
+		(a, b) =>
+			(documentRank.get(a.assetId) ?? 0) - (documentRank.get(b.assetId) ?? 0) ||
+			a.pageNumber - b.pageNumber,
 	);
 
-	const top = Math.min(...pages.map((p) => p.y));
-	const center = {
-		x: (Math.min(...pages.map((p) => p.x)) + Math.max(...pages.map((p) => p.x + p.width))) / 2,
-		y: (top + Math.max(...pages.map((p) => p.y + p.height))) / 2,
-	};
+	// Recover the cell box each page sits centered in.
+	const top = Math.min(...pages.map((p) => p.y - (cellHeight - p.height) / 2));
+	const left = Math.min(...pages.map((p) => p.x - (cellWidth - p.width) / 2));
+	const right = Math.max(...pages.map((p) => p.x + (cellWidth + p.width) / 2));
 
+	// `layoutPagesInGrid` centers the grid, so aim its center half the new
+	// grid's height below the top edge.
+	const rows = Math.ceil(pages.length / clampColumns(columns, pages.length));
+	const height = rows * cellHeight + (rows - 1) * gap;
 	const grid = layoutPagesInGrid(
 		ordered.map((p) => ({ width: p.width, height: p.height })),
-		{ gap, center, columns: clampColumns(columns, ordered.length) },
+		{ gap, center: { x: (left + right) / 2, y: top + height / 2 }, columns },
 	);
-
-	// `layoutPagesInGrid` centers on the given point; slide the finished grid so
-	// its top lands back on the group's original top edge.
-	const dy = top - grid.y;
 
 	return ordered.flatMap((page, index) => {
 		const position = grid.positions[index];
-		return position ? [{ id: page.id, x: position.x, y: position.y + dy }] : [];
+		return position ? [{ id: page.id, x: position.x, y: position.y }] : [];
 	});
 }
 
-/** At least one column, never more than there are pages to fill them. */
-export function clampColumns(columns: number, pageCount: number): number {
-	if (pageCount <= 0) return 1;
-	return Math.min(Math.max(Math.floor(columns), 1), pageCount);
+/**
+ * Rank each document by where its first page sits: rows top to bottom, then
+ * left to right within a row. Two first pages less than `rowTolerance` apart
+ * vertically count as one row.
+ */
+function rankDocuments(
+	pages: readonly PdfPageShapeData[],
+	rowTolerance: number,
+): Map<string, number> {
+	const leaders = new Map<string, PdfPageShapeData>();
+	for (const page of pages) {
+		const leader = leaders.get(page.assetId);
+		if (!leader || page.pageNumber < leader.pageNumber) leaders.set(page.assetId, page);
+	}
+	const sorted = [...leaders.values()].sort((a, b) => {
+		const dy = a.y + a.height / 2 - (b.y + b.height / 2);
+		if (Math.abs(dy) >= rowTolerance) return dy;
+		return a.x + a.width / 2 - (b.x + b.width / 2) || a.assetId.localeCompare(b.assetId);
+	});
+	return new Map(sorted.map((leader, rank) => [leader.assetId, rank]));
 }

@@ -10,8 +10,8 @@ export interface GridLayoutOptions {
 	/** World point the whole grid is centered on. */
 	center: { x: number; y: number };
 	/**
-	 * Pages per row. Omit for a roughly square grid (`ceil(sqrt(n))`), which is
-	 * the shape a freshly imported document gets.
+	 * Pages per row, clamped to `1..pages.length`. Omit for a roughly square
+	 * grid (`ceil(sqrt(n))`), which is the shape a freshly imported document gets.
 	 */
 	columns?: number;
 }
@@ -44,9 +44,10 @@ export function layoutPagesInGrid(
 		return { positions: [], cols: 0, rows: 0, x: center.x, y: center.y, width: 0, height: 0 };
 	}
 
-	const cols = columns
-		? Math.min(Math.max(Math.floor(columns), 1), pages.length)
-		: Math.ceil(Math.sqrt(pages.length));
+	const cols =
+		columns === undefined
+			? Math.ceil(Math.sqrt(pages.length))
+			: clampColumns(columns, pages.length);
 	const rows = Math.ceil(pages.length / cols);
 	const cellWidth = Math.max(...pages.map((p) => p.width));
 	const cellHeight = Math.max(...pages.map((p) => p.height));
@@ -66,4 +67,10 @@ export function layoutPagesInGrid(
 	});
 
 	return { positions, cols, rows, x: originX, y: originY, width, height };
+}
+
+/** At least one column, never more than there are pages to fill them. */
+export function clampColumns(columns: number, pageCount: number): number {
+	if (pageCount <= 0) return 1;
+	return Math.min(Math.max(Math.floor(columns), 1), pageCount);
 }

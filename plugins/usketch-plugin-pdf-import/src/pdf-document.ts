@@ -1,5 +1,4 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { dropCachedDocument } from "./page-renderer.js";
 import type { PdfPageSize } from "./types.js";
 
 let configuredWorkerSrc: string | undefined;
@@ -36,24 +35,55 @@ interface CacheEntry {
 	destroy: () => Promise<void>;
 	/** Number of live holders; the document is torn down when it hits zero. */
 	refCount: number;
+	/** Pending teardown, cancelled if a holder comes back during the grace period. */
+	teardown?: ReturnType<typeof setTimeout>;
+}
+
+/** One holder's claim on a shared document. Release it exactly once. */
+export interface DocumentLease {
+	document: Promise<PDFDocumentProxy>;
+	/** Drop this holder's reference. Idempotent. */
+	release(): void;
+	/**
+	 * Move the still-held document under `key`, so a later `acquireDocument(key)`
+	 * reuses it instead of fetching and parsing the bytes again. No-op when `key`
+	 * is already cached (the same document was imported before).
+	 */
+	rekey(key: string): void;
 }
 
 const documents = new Map<string, CacheEntry>();
+
+/**
+ * Grace period before an unreferenced document is torn down. Panning a page
+ * out of view unmounts its shape (viewport LOD), so a single-page PDF would
+ * otherwise be closed and reopened on every pass.
+ */
+const TEARDOWN_DELAY_MS = 5_000;
 
 /**
  * Open a PDF, sharing one `PDFDocumentProxy` across every page shape that
  * references it. A 50-page import must not open 50 copies of the same
  * document — they would each spin up worker state for the same bytes.
  *
- * Every `acquireDocument` must be paired with a `releaseDocument`.
+ * The lease is bound to the entry it was taken on, not to `key`: after a
+ * failed open drops the entry, a later acquire under the same key gets a fresh
+ * one that a stale release must not touch.
  */
-export function acquireDocument(key: string, src: string): Promise<PDFDocumentProxy> {
-	const existing = documents.get(key);
-	if (existing) {
-		existing.refCount++;
-		return existing.document;
+export function acquireDocument(key: string, src: string): DocumentLease {
+	let entry = documents.get(key);
+	if (entry) {
+		entry.refCount++;
+		clearTimeout(entry.teardown);
+		entry.teardown = undefined;
+	} else {
+		entry = openDocument(src);
+		documents.set(key, entry);
 	}
+	return leaseOn(entry);
+}
 
+function openDocument(src: string): CacheEntry {
 	// Assigned once the loading task exists; `destroy()` lives on the task, not
 	// on the document, in pdf.js v6.
 	let destroy: () => Promise<void> = async () => undefined;
@@ -70,40 +100,52 @@ export function acquireDocument(key: string, src: string): Promise<PDFDocumentPr
 			void task.destroy();
 			throw explainFailure(err);
 		}
-	})().catch((err: unknown) => {
-		// A failed open must not poison the cache — the next attempt (e.g. after
-		// the network comes back) should retry cleanly. Covers failures before
-		// the task exists too (no worker configured, fetch failed).
-		if (documents.get(key)?.document === document) documents.delete(key);
-		throw err;
-	});
-
-	documents.set(key, { refCount: 1, document, destroy: () => destroy() });
-	return document;
+	})();
+	const entry: CacheEntry = { refCount: 1, document, destroy: () => destroy() };
+	// A failed open must not poison the cache — the next attempt (e.g. after
+	// the network comes back) should retry cleanly. Covers failures before the
+	// task exists too (no worker configured, fetch failed). The entry may have
+	// been rekeyed meanwhile, so look it up by identity.
+	document.catch(() => forget(entry));
+	return entry;
 }
 
-/**
- * Grace period before an unreferenced document is torn down. Panning a page
- * out of view unmounts its shape (viewport LOD), so a single-page PDF would
- * otherwise be closed and reopened on every pass.
- */
-const TEARDOWN_DELAY_MS = 5_000;
+function leaseOn(entry: CacheEntry): DocumentLease {
+	let released = false;
+	return {
+		document: entry.document,
+		release() {
+			if (released) return;
+			released = true;
+			entry.refCount--;
+			if (entry.refCount > 0 || !isCached(entry)) return;
+			entry.teardown = setTimeout(() => {
+				if (entry.refCount > 0) return;
+				forget(entry);
+				// `destroy()` also terminates the worker's state for this document.
+				// Its rendered bitmaps stay in the page cache, under its budget, so
+				// a page that comes back into view paints at once.
+				void entry.document.catch(() => undefined).then(() => entry.destroy());
+			}, TEARDOWN_DELAY_MS);
+		},
+		rekey(key) {
+			if (released || documents.has(key)) return;
+			forget(entry);
+			documents.set(key, entry);
+		},
+	};
+}
 
-/** Drop one reference; tears the document down once nobody holds it. */
-export function releaseDocument(key: string): void {
-	const entry = documents.get(key);
-	if (!entry) return;
-	entry.refCount--;
-	if (entry.refCount > 0) return;
-	setTimeout(() => {
-		// A shape may have re-acquired it while we waited.
-		if (documents.get(key) !== entry || entry.refCount > 0) return;
-		documents.delete(key);
-		// Its bitmaps are only reachable through this document, so they go too.
-		dropCachedDocument(key);
-		// `destroy()` also terminates the worker's state for this document.
-		void entry.document.catch(() => undefined).then(() => entry.destroy());
-	}, TEARDOWN_DELAY_MS);
+function isCached(entry: CacheEntry): boolean {
+	for (const cached of documents.values()) if (cached === entry) return true;
+	return false;
+}
+
+function forget(entry: CacheEntry): void {
+	clearTimeout(entry.teardown);
+	for (const [key, cached] of documents) {
+		if (cached === entry) documents.delete(key);
+	}
 }
 
 /** Read the intrinsic size of every page, for laying the import out. */
@@ -161,5 +203,6 @@ export function explainFailure(err: unknown): Error {
 
 /** Test seam: forget every cached document. */
 export function resetDocumentCache(): void {
+	for (const entry of documents.values()) clearTimeout(entry.teardown);
 	documents.clear();
 }

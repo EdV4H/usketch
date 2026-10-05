@@ -38,16 +38,12 @@ export interface PdfPageSize {
 
 export interface PdfImportOptions {
 	/**
-	 * Max accepted size of the PDF file when the asset store uploads to a
-	 * server (`setUploader` was called). Default 50 (MB).
+	 * Max accepted size of the PDF file. Default 50 (MB). The asset store's own
+	 * `maxUploadBytes()` applies on top: while it still uses its default
+	 * uploader, which inlines the whole file into the shared Yjs doc as one
+	 * update, that is 4MB.
 	 */
 	maxSizeMB?: number;
-	/**
-	 * Max accepted size of the PDF file while the asset store still uses its
-	 * default uploader, which inlines the whole file into the shared Yjs doc as
-	 * one update. Default 4 (MB), the same cap the image plugin uses.
-	 */
-	inlineMaxSizeMB?: number;
 	/**
 	 * Max pages placed from one PDF. Default 50. Unlike a rasterizing importer,
 	 * page count does not affect stored bytes — the cost is shape count and
@@ -61,8 +57,9 @@ export interface PdfImportOptions {
 	/** Default 0 (lowest, so third-party plugins win). */
 	order?: number;
 	/**
-	 * Zoom out after import so the whole page grid is visible. Default true.
-	 * Never zooms in — an import that already fits leaves the viewport alone.
+	 * Bring the whole import into view afterwards, zooming out if it does not
+	 * fit. Default true. Never zooms in — an import that is already on screen
+	 * leaves the viewport alone.
 	 */
 	fitOnImport?: boolean;
 	/**
