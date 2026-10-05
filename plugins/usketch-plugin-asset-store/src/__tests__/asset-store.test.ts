@@ -37,6 +37,13 @@ describe("createAssetStore", () => {
 		expect(store.resolve(id)).toBe("https://cdn/x.png");
 	});
 
+	it("hasCustomUploader reports whether the inline default was replaced", () => {
+		const store = createAssetStore(new Y.Doc());
+		expect(store.hasCustomUploader()).toBe(false);
+		store.setUploader(async () => ({ id: "cdn:1", src: "https://cdn/x.pdf" }));
+		expect(store.hasCustomUploader()).toBe(true);
+	});
+
 	it("setResolver transforms the resolved src", async () => {
 		const store = createAssetStore(new Y.Doc());
 		const id = await store.upload("image", "data:x");

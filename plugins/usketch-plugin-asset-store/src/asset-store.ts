@@ -38,6 +38,12 @@ export interface AssetStore {
 	 */
 	upload(type: string, dataUrl: string, meta?: AssetRecord["meta"]): Promise<string>;
 	setUploader(fn: AssetUploader): void;
+	/**
+	 * Whether {@link AssetStore.setUploader} has replaced the default uploader.
+	 * The default inlines the whole payload into the shared Yjs doc, so callers
+	 * can use this to accept large payloads only when they leave the doc.
+	 */
+	hasCustomUploader(): boolean;
 	setResolver(fn: AssetResolver): void;
 	subscribe(cb: () => void): () => void;
 	destroy(): void;
@@ -72,6 +78,7 @@ export function createAssetStore(doc: Y.Doc, opts: CreateAssetStoreOptions = {})
 		id: `asset:${hashKey(dataUrl)}`,
 		src: dataUrl,
 	});
+	let customUploader = false;
 	let resolver: AssetResolver = (record) => record.src;
 
 	const observer = () => {
@@ -94,7 +101,9 @@ export function createAssetStore(doc: Y.Doc, opts: CreateAssetStoreOptions = {})
 		},
 		setUploader: (fn) => {
 			uploader = fn;
+			customUploader = true;
 		},
+		hasCustomUploader: () => customUploader,
 		setResolver: (fn) => {
 			resolver = fn;
 		},
