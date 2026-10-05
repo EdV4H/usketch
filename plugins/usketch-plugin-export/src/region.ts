@@ -1,4 +1,10 @@
-import type { ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
+import {
+	compareZIndex,
+	getShapeAABB,
+	rectsIntersect,
+	type ShapeData,
+	type ShapeRegistry,
+} from "@edv4h/usketch-shared";
 import { renderToStaticMarkup } from "react-dom/server";
 import { htmlShapeToSvg, type SatoriFont } from "./exporter.js";
 
@@ -21,30 +27,6 @@ export interface ExportRegionOptions {
 	fonts?: SatoriFont[];
 }
 
-/** 回転を考慮した外接矩形が rect と交差するか */
-function intersects(shape: ShapeData, rect: RegionRect): boolean {
-	const cx = shape.x + shape.width / 2;
-	const cy = shape.y + shape.height / 2;
-	const rad = ((shape.rotation ?? 0) * Math.PI) / 180;
-	const cos = Math.abs(Math.cos(rad));
-	const sin = Math.abs(Math.sin(rad));
-	const hw = (shape.width * cos + shape.height * sin) / 2;
-	const hh = (shape.width * sin + shape.height * cos) / 2;
-	return (
-		cx + hw > rect.x &&
-		cx - hw < rect.x + rect.width &&
-		cy + hh > rect.y &&
-		cy - hh < rect.y + rect.height
-	);
-}
-
-/** zIndex(分数インデックス: 辞書順で大きいほど前面) の昇順。未設定は最背面。 */
-function byZIndex(a: ShapeData, b: ShapeData): number {
-	const za = a.zIndex ?? "";
-	const zb = b.zIndex ?? "";
-	return za < zb ? -1 : za > zb ? 1 : 0;
-}
-
 /**
  * ボード座標の矩形を、画面と同じ z-order・回転で SVG 文字列にする（矩形外はクリップ）。
  * HTML シェイプは Satori で SVG 化する（foreignObject 不使用、taint 安全）。
@@ -60,8 +42,10 @@ export async function buildRegionSvg(
 	}
 
 	const targets = [...shapes.values()]
-		.filter((s) => !s.hidden && intersects(s, rect) && (filter ? filter(s) : true))
-		.sort(byZIndex);
+		.filter(
+			(s) => !s.hidden && rectsIntersect(getShapeAABB(s), rect) && (filter ? filter(s) : true),
+		)
+		.sort((a, b) => compareZIndex(a.zIndex, b.zIndex));
 
 	const elements: string[] = [];
 	for (const shape of targets) {
