@@ -81,6 +81,7 @@ import {
 	type WsConnectionStatus,
 	type WsProviderHandle,
 } from "@edv4h/usketch-sync";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router";
@@ -197,7 +198,8 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		createImageShapePlugin(),
 		// PDF のペースト／ドロップを pdf-page シェイプの集合に展開する。アセット
 		// ストア（extraPlugins 側で登録）を使うが lazy 解決なので登録順は問わない。
-		createPdfImportPlugin(),
+		// pdf.js のワーカーは実行コードなので CDN ではなく自前でバンドルして配信する。
+		createPdfImportPlugin({ workerSrc: pdfWorkerUrl }),
 		createCounterPlugin(),
 		createWireframePlugin(),
 		createDomainDesignPlugin(),
