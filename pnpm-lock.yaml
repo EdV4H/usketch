@@ -538,6 +538,9 @@ importers:
       better-auth:
         specifier: 1.6.29
         version: 1.6.29(@cloudflare/workers-types@5.20260907.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260907.1)(kysely@0.29.3))(mongodb@7.1.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.11(@types/node@25.9.5)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)))
+      pdfjs-dist:
+        specifier: 6.1.200
+        version: 6.1.200
       react:
         specifier: 19.2.8
         version: 19.2.8
