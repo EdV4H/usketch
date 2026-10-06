@@ -119,3 +119,38 @@ describe("hidden / locked base logic", () => {
 		});
 	});
 });
+
+describe("lockScope: self", () => {
+	it("does not cascade to descendants, which use their own locked flag", () => {
+		const store = createBoardStore();
+		store.addShape(makeShape({ id: "frame", type: "frame", locked: true, lockScope: "self" }));
+		store.addShape(makeShape({ id: "child", parentId: "frame" }));
+		store.addShape(makeShape({ id: "locked-child", parentId: "frame", locked: true }));
+
+		expect(isEffectivelyLocked(store, store.getShape("frame")!)).toBe(true);
+		expect(isEffectivelyLocked(store, store.getShape("child")!)).toBe(false);
+		expect(isEffectivelyLocked(store, store.getShape("locked-child")!)).toBe(true);
+	});
+
+	it("a cascading ancestor still locks through a self-locked frame", () => {
+		const store = createBoardStore();
+		store.addShape(makeShape({ id: "group", type: "group", locked: true }));
+		store.addShape(makeShape({ id: "frame", parentId: "group", locked: true, lockScope: "self" }));
+		store.addShape(makeShape({ id: "child", parentId: "frame" }));
+
+		expect(isEffectivelyLocked(store, store.getShape("child")!)).toBe(true);
+	});
+
+	it("createSetLockedCommand sets/clears lockScope with undo", () => {
+		const store = createBoardStore();
+		store.addShape(makeShape({ id: "frame" }));
+		const cmd = createSetLockedCommand(store, ["frame"], true, "self");
+		cmd.execute();
+		expect(store.getShape("frame")).toMatchObject({ locked: true, lockScope: "self" });
+		cmd.undo();
+		expect(store.getShape("frame")?.locked).toBeUndefined();
+		expect(store.getShape("frame")?.lockScope).toBeUndefined();
+		createSetLockedCommand(store, ["frame"], true).execute();
+		expect(store.getShape("frame")?.lockScope).toBeUndefined();
+	});
+});

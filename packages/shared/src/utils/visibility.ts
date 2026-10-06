@@ -18,3 +18,12 @@ export function isShapeHidden(shape: ShapeData): boolean {
 export function isShapeLocked(shape: ShapeData): boolean {
 	return shape.locked === true;
 }
+
+/**
+ * Whether a shape's `locked` flag cascades to its descendants: it is locked and
+ * its `lockScope` is not `"self"`. Like {@link isShapeLocked}, checks the shape
+ * in isolation.
+ */
+export function isShapeLockCascading(shape: ShapeData): boolean {
+	return shape.locked === true && shape.lockScope !== "self";
+}

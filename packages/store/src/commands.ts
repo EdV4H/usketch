@@ -117,8 +117,20 @@ export function createSetLockedCommand(
 	store: BoardStore,
 	shapeIds: readonly string[],
 	value: boolean,
+	/** `"self"` locks only the shape itself (not descendants). Ignored/cleared when unlocking. */
+	scope?: "self",
 ): Command {
-	return createSetBooleanFieldCommand(store, shapeIds, "locked", value);
+	const updates: Array<{ id: string; from: Partial<ShapeData>; to: Partial<ShapeData> }> = [];
+	for (const id of shapeIds) {
+		const shape = store.getShape(id);
+		if (!shape) continue;
+		updates.push({
+			id,
+			from: { locked: shape.locked, lockScope: shape.lockScope },
+			to: { locked: value ? true : undefined, lockScope: value ? scope : undefined },
+		});
+	}
+	return createBatchUpdateShapesCommand(store, updates);
 }
 
 /** Create a group from selected shapes */
