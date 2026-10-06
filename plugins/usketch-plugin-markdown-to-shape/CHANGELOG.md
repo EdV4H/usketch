@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-markdown-to-shape
 
+## 0.2.8
+
+### Patch Changes
+
+- Updated dependencies [bfba838]
+  - @edv4h/usketch-shared@4.16.0
+  - @edv4h/usketch-connector-anchor@0.4.7
+
 ## 0.2.7
 
 ### Patch Changes
