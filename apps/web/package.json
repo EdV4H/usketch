@@ -105,7 +105,7 @@
 		"@types/react-dom": "19.2.7",
 		"@vitejs/plugin-react": "6.1.1",
 		"typescript": "7.0.2",
-		"vite": "8.2.2",
+		"vite": "8.3.2",
 		"vitest": "5.0.3",
 		"wrangler": "4.129.0"
 	}
