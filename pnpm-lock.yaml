@@ -892,10 +892,10 @@ importers:
         version: link:../shared
       '@zag-js/core':
         specifier: ^1.37.0
-        version: 1.43.3
+        version: 1.45.0
       '@zag-js/vanilla':
         specifier: ^1.37.0
-        version: 1.43.3
+        version: 1.45.0
       react:
         specifier: '>=19'
         version: 19.3.0
@@ -1374,10 +1374,10 @@ importers:
         version: link:../../packages/store
       '@zag-js/core':
         specifier: ^1.37.0
-        version: 1.43.3
+        version: 1.45.0
       '@zag-js/vanilla':
         specifier: ^1.37.0
-        version: 1.43.3
+        version: 1.45.0
       react:
         specifier: '>=19'
         version: 19.3.0
@@ -2244,10 +2244,10 @@ importers:
         version: link:../../packages/store
       '@zag-js/core':
         specifier: ^1.37.0
-        version: 1.43.3
+        version: 1.45.0
       '@zag-js/vanilla':
         specifier: ^1.37.0
-        version: 1.43.3
+        version: 1.45.0
       mermaid:
         specifier: ^12.0.0
         version: 12.1.0
@@ -5616,23 +5616,23 @@ packages:
   '@webgpu/types@0.1.74':
     resolution: {integrity: sha512-lgiI4hbuLcI9unnm2cL/tvCaQU45dp0xcLWJh5uB/9MBGvIA4F8XIk7nSiBeg+K4xWGYwgZKn80LmERI5CxoTA==}
 
-  '@zag-js/core@1.43.3':
-    resolution: {integrity: sha512-afREBcZWvPLHz/2AxJeuAP2o6+o3V7NZO/MutLhdclKaVSBlPzCr6qqP9k8hq1zOxk1jogKT5VVGielzWDY2Dw==}
+  '@zag-js/core@1.45.0':
+    resolution: {integrity: sha512-xDd+ezb1+jzGVf+85HgVuqBzCuX+x8/GH+FnPESsSU97Hzq6OYJbvd56YpN5gioqViuJkJUFkPBCYcq0Niw2LA==}
 
-  '@zag-js/dom-query@1.43.3':
-    resolution: {integrity: sha512-kpTTYMemMmHxhp4gyOllK7/Lf86AySTO+AlGds9iQM21eUwi1jvc9q3VTxP+qD/KwHePGftfPwkwxifC3iSGbw==}
+  '@zag-js/dom-query@1.45.0':
+    resolution: {integrity: sha512-rJIESTiyzS6sfplDZxlO5WO0fTeHwL8RFylPDetpAtxhbADIV3kcP6qAd7pEMyXM5rdh7qTXOFm0PJOU2selyA==}
 
-  '@zag-js/store@1.43.3':
-    resolution: {integrity: sha512-NL3Uxk5Rszjd+X+cPXw0N7Kn5TNMyrS6cTMazlBOcN2+J68mzXhNFvM/0H38m0X+3ybK3sE5Ta6NPlhOQADRqw==}
+  '@zag-js/store@1.45.0':
+    resolution: {integrity: sha512-zA5zfOXZsDEZxK7gzGF0dldZn3imxaxY8r7g+Zcs/Am0x5VAmVJx2uJHs1Vwx9agZ0XHtnqBVrjV+UhUzST5rg==}
 
-  '@zag-js/types@1.43.3':
-    resolution: {integrity: sha512-QokzUgkJ7a/TRE8SAXqlm1XfiNDbyM8y+mx0PpmzHa8bvmWXLEe/Zx2TRz8aYoGim75NluYzDy3x+WWileF7uA==}
+  '@zag-js/types@1.45.0':
+    resolution: {integrity: sha512-92xETOwIVWksA+wqZ/Dex/obbC5cgCCRCF7HQ7Cf8Wgv0jBKqUphccZRzmHic1qOthoW7ZAK2xkUtyXFmd2/SQ==}
 
-  '@zag-js/utils@1.43.3':
-    resolution: {integrity: sha512-9P9fvFFxuiDcLqX0BYgGNkf0/a/id32nHvQpwgv/Xv3b9n5yeyw2U8nKefpWr+1VfFsrpf2XMXiA2CDSWZgt2g==}
+  '@zag-js/utils@1.45.0':
+    resolution: {integrity: sha512-LyeGfTEojjhDcajCCGxvjrgFuPoMia1HKefdP6KqvJpC78+1awahBoZpYYZlbab2WPawgCaprcDevBJFlOe6Ag==}
 
-  '@zag-js/vanilla@1.43.3':
-    resolution: {integrity: sha512-wHb5vvUFuThJfNEk1lCKxKOFfdsvvNYy5TJbnnSRdlxXUD6w2OxiPPPc7bu+PUxJDpEA7Eu3Xr1lGf5IGYRxgg==}
+  '@zag-js/vanilla@1.45.0':
+    resolution: {integrity: sha512-XbRGIsVX4VJq6sVY0iC1VHuyGQp3kiMMs75tjHdU6OPDO9rYjk8Cj1agNUngiGsBzEZuuZ9GVqXcrvhe4yueuQ==}
 
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
@@ -10758,31 +10758,31 @@ snapshots:
 
   '@webgpu/types@0.1.74': {}
 
-  '@zag-js/core@1.43.3':
+  '@zag-js/core@1.45.0':
     dependencies:
-      '@zag-js/dom-query': 1.43.3
-      '@zag-js/utils': 1.43.3
+      '@zag-js/dom-query': 1.45.0
+      '@zag-js/utils': 1.45.0
 
-  '@zag-js/dom-query@1.43.3':
+  '@zag-js/dom-query@1.45.0':
     dependencies:
-      '@zag-js/types': 1.43.3
+      '@zag-js/types': 1.45.0
 
-  '@zag-js/store@1.43.3':
+  '@zag-js/store@1.45.0':
     dependencies:
       proxy-compare: 3.0.1
 
-  '@zag-js/types@1.43.3':
+  '@zag-js/types@1.45.0':
     dependencies:
       csstype: 3.2.3
 
-  '@zag-js/utils@1.43.3': {}
+  '@zag-js/utils@1.45.0': {}
 
-  '@zag-js/vanilla@1.43.3':
+  '@zag-js/vanilla@1.45.0':
     dependencies:
-      '@zag-js/core': 1.43.3
-      '@zag-js/store': 1.43.3
-      '@zag-js/types': 1.43.3
-      '@zag-js/utils': 1.43.3
+      '@zag-js/core': 1.45.0
+      '@zag-js/store': 1.45.0
+      '@zag-js/types': 1.45.0
+      '@zag-js/utils': 1.45.0
 
   accepts@2.0.0:
     dependencies:
