@@ -57,10 +57,10 @@ jobs:
         continue-on-error: true
         uses: changesets/action@v2.1.2
         with:
-          version: pnpm run version
-          publish: pnpm release
-          title: "🎉 release: Version Packages"
-          commit: "🎉 release: version packages"
+          version-script: pnpm run version
+          publish-script: pnpm release
+          pr-title: "🎉 release: Version Packages"
+          commit-message: "🎉 release: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # No NODE_AUTH_TOKEN / NPM_TOKEN — npm authenticates via GitHub OIDC
