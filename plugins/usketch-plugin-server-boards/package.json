@@ -21,7 +21,7 @@
 		"@hono/zod-validator": "0.9.1",
 		"drizzle-orm": "0.45.3",
 		"hono": "4.13.13",
-		"zod": "4.5.4"
+		"zod": "4.6.5"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "5.20260907.1",
