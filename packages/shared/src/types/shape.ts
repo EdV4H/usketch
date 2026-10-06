@@ -82,6 +82,14 @@ export interface ShapeData<TMeta = Record<string, unknown>> {
 	 */
 	locked?: boolean;
 	/**
+	 * When `"self"`, `locked` applies to this shape only and does NOT cascade to
+	 * descendants (they are judged by their own `locked`). Unset keeps the default
+	 * behavior of cascading. Kept separate from `locked` (rather than
+	 * `locked: boolean | "self"`) so older clients still treat `locked: true` as a
+	 * full-subtree lock — they can only over-lock, never under-lock.
+	 */
+	lockScope?: "self";
+	/**
 	 * Application/domain-specific metadata — the **preferred** place for data
 	 * that is not intrinsic to the shape's geometry (e.g. external references,
 	 * identifiers, feature flags). Typed via the `TMeta` type parameter.

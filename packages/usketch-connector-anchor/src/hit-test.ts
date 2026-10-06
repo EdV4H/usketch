@@ -1,4 +1,9 @@
-import type { BoundingBox, Point, ShapeData } from "@edv4h/usketch-shared";
+import {
+	type BoundingBox,
+	isShapeLockCascading,
+	type Point,
+	type ShapeData,
+} from "@edv4h/usketch-shared";
 import {
 	bezierBounds,
 	distanceToLineSegment,
@@ -47,16 +52,19 @@ export function findShapeAtPoint(
 	// id (siblings reuse a parent's result) since this runs in a hot pointer path;
 	// the cache is pre-seeded before recursing so a parentId cycle terminates.
 	const blockedCache = new Map<string, boolean>();
-	const isBlocked = (data: ShapeData): boolean => {
-		const cached = blockedCache.get(data.id);
+	// `viaAncestor`: only hidden / cascading locks (not `lockScope: "self"`) block descendants.
+	const isBlocked = (data: ShapeData, viaAncestor = false): boolean => {
+		const key = viaAncestor ? `a:${data.id}` : data.id;
+		const cached = blockedCache.get(key);
 		if (cached !== undefined) return cached;
-		blockedCache.set(data.id, false); // cycle guard
-		let result = data.hidden === true || data.locked === true;
+		blockedCache.set(key, false); // cycle guard
+		let result =
+			data.hidden === true || (viaAncestor ? isShapeLockCascading(data) : data.locked === true);
 		if (!result && typeof data.parentId === "string") {
 			const parent = shapeMap.get(data.parentId);
-			if (parent) result = isBlocked(parent);
+			if (parent) result = isBlocked(parent, true);
 		}
-		blockedCache.set(data.id, result);
+		blockedCache.set(key, result);
 		return result;
 	};
 	let fallbackContainer: ShapeData | null = null;

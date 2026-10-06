@@ -2,6 +2,7 @@ import {
 	type BoardStore,
 	type BoundingBox,
 	isShapeHidden,
+	isShapeLockCascading,
 	isShapeLocked,
 	type ShapeData,
 } from "@edv4h/usketch-shared";
@@ -93,13 +94,14 @@ export function isEffectivelyHidden(store: BoardStore, shape: ShapeData): boolea
 }
 
 /**
- * Whether a shape is effectively locked: its own `locked` flag OR any ancestor's.
- * Cascade mirrors Figma — locking a group/frame locks its subtree.
+ * Whether a shape is effectively locked: its own `locked` flag OR any ancestor's
+ * cascading lock. Cascade mirrors Figma — locking a group/frame locks its subtree,
+ * unless the ancestor is locked with `lockScope: "self"` (frame-only lock).
  */
 export function isEffectivelyLocked(store: BoardStore, shape: ShapeData): boolean {
 	if (isShapeLocked(shape)) return true;
 	if (typeof shape.parentId !== "string") return false;
-	return getAncestorChain(store, shape.id).some(isShapeLocked);
+	return getAncestorChain(store, shape.id).some(isShapeLockCascading);
 }
 
 /** Check if reparenting would create a cycle */
