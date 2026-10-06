@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-voice-notes
 
+## 0.1.11
+
+### Patch Changes
+
+- Updated dependencies [bfba838]
+  - @edv4h/usketch-shared@4.16.0
+  - @edv4h/usketch-connector-anchor@0.4.7
+
 ## 0.1.10
 
 ### Patch Changes

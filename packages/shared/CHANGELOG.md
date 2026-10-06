@@ -1,5 +1,11 @@
 # @edv4h/usketch-shared
 
+## 4.16.0
+
+### Minor Changes
+
+- bfba838: feat(store): `ShapeData.lockScope: "self"` を追加。`"self"` のロックは子孫へ伝播しない (フレームだけロック)。`createSetLockedCommand` に `scope` 引数を追加。
+
 ## 4.15.0
 
 ### Minor Changes

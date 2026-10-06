@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-shape-sticky
 
+## 3.1.13
+
+### Patch Changes
+
+- Updated dependencies [bfba838]
+  - @edv4h/usketch-shared@4.16.0
+  - @edv4h/usketch-store@3.9.0
+  - @edv4h/usketch-shape-utils@2.2.12
+
 ## 3.1.12
 
 ### Patch Changes
