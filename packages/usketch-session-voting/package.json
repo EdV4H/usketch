@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-session-voting",
-	"version": "0.2.5",
+	"version": "0.2.7",
 	"type": "module",
 	"exports": {
 		"./server": {
@@ -28,9 +28,9 @@
 		"react": ">=19"
 	},
 	"devDependencies": {
-		"@types/react": "19.2.18",
+		"@types/react": "19.3.0",
 		"typescript": "7.0.2",
-		"vitest": "4.1.11"
+		"vitest": "5.0.3"
 	},
 	"publishConfig": {
 		"access": "public"

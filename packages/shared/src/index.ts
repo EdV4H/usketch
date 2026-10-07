@@ -33,6 +33,7 @@ export type {
 	HudRegistry,
 	HudSettingsDescriptor,
 	Layer,
+	LayerExportBackgroundContext,
 	LayerManager,
 	LayerRenderContext,
 	MarkdownConverter,
@@ -150,7 +151,7 @@ export {
 	rectsIntersect,
 	scaleRectAboutCenter,
 } from "./utils/viewport-lod.js";
-export { isShapeHidden, isShapeLocked } from "./utils/visibility.js";
+export { isShapeHidden, isShapeLockCascading, isShapeLocked } from "./utils/visibility.js";
 // Z-order
 export {
 	compareZIndex,

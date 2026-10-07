@@ -1,10 +1,14 @@
 import {
 	compareZIndex,
 	getShapeAABB,
+	type Layer,
+	type LayerManager,
 	rectsIntersect,
 	type ShapeData,
+	type ShapeDefinition,
 	type ShapeRegistry,
 } from "@edv4h/usketch-shared";
+import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { htmlShapeToSvg, type SatoriFont } from "./exporter.js";
 
@@ -25,6 +29,55 @@ export interface ExportRegionOptions {
 	filter?: (shape: ShapeData) => boolean;
 	/** HTML シェイプ描画用フォント（日本語フォントなどをホストが渡す）。省略時は Inter(latin) */
 	fonts?: SatoriFont[];
+	/**
+	 * Satori の loadAdditionalAsset。足りないグリフ・言語のフォントを必要な分だけ返す
+	 * （ホストは描く文字だけのサブセットを返せる）。
+	 */
+	loadAdditionalAsset?: (languageCode: string, segment: string) => Promise<SatoriFont[] | string>;
+	/** 書き出し用描画の差し替え。null なら `def.renderForExport ?? def.render` を使う */
+	renderShape?: (shape: ShapeData, def: ShapeDefinition) => ReactElement | null;
+	/**
+	 * シェイプ単位の描画失敗時の扱い。既定 "placeholder"（破線の矩形）。
+	 * 失敗しても範囲全体は失敗させない。
+	 */
+	onShapeError?: (shape: ShapeData, error: unknown) => "skip" | "placeholder";
+	/**
+	 * true で背景レイヤー（`Layer.renderExportBackground` を持つレイヤー。bg-grid / bg-dots 等）を
+	 * `background` の上・シェイプの下に `order` 昇順で描く。既定 false（背景は `background` のみ）。
+	 * true のときは `layers` が必須。
+	 */
+	includeBackgroundLayers?: boolean;
+	/** 背景レイヤーの取得元。通常はホストの `app.layers` を渡す */
+	layers?: LayerManager | readonly Layer[];
+	/**
+	 * 背景レイヤーをどのズームの見た目で描くか。既定 1（ボード座標基準 = 100% 表示の見た目）。
+	 * 撮影時の `viewport.zoom` を渡すと画面と同じ見た目（例: グリッド線幅 1px = 1/zoom ボード単位）になる。
+	 * グリッド間隔・ドット位置はもともとボード座標固定なので、どちらでも変わらない。
+	 */
+	backgroundZoom?: number;
+}
+
+function renderBackgroundLayers(options: ExportRegionOptions): string[] {
+	const { includeBackgroundLayers, layers, rect, backgroundZoom = 1 } = options;
+	if (!includeBackgroundLayers) return [];
+	if (!layers) {
+		throw new Error("exportRegion: includeBackgroundLayers requires `layers` (e.g. app.layers)");
+	}
+	if (!(backgroundZoom > 0)) {
+		throw new Error("exportRegion: backgroundZoom must be a positive number");
+	}
+	const list = "getLayers" in layers ? layers.getLayers() : layers;
+	const markup: string[] = [];
+	for (const layer of [...list].sort((a, b) => a.order - b.order)) {
+		if (!layer.renderExportBackground) continue;
+		const element = layer.renderExportBackground({
+			rect,
+			zoom: backgroundZoom,
+			idPrefix: `usketch-bg-${layer.id.replace(/[^\w-]/g, "_")}`,
+		});
+		if (element) markup.push(renderToStaticMarkup(element));
+	}
+	return markup;
 }
 
 /**
@@ -36,10 +89,13 @@ export async function buildRegionSvg(
 	shapeRegistry: ShapeRegistry,
 	options: ExportRegionOptions,
 ): Promise<string> {
-	const { rect, background, filter, fonts } = options;
+	const { rect, background, filter, fonts, loadAdditionalAsset, renderShape, onShapeError } =
+		options;
 	if (!(rect.width > 0) || !(rect.height > 0)) {
 		throw new Error("exportRegion: rect must have positive width and height");
 	}
+
+	const backgroundLayers = renderBackgroundLayers(options);
 
 	const targets = [...shapes.values()]
 		.filter(
@@ -51,11 +107,17 @@ export async function buildRegionSvg(
 	for (const shape of targets) {
 		const def = shapeRegistry.get(shape.type);
 		if (!def) continue;
-		const element = def.render(shape);
-		const markup =
-			def.renderTarget === "html"
-				? await htmlShapeToSvg(element, shape, fonts)
-				: renderToStaticMarkup(element);
+		let markup: string;
+		try {
+			const element = renderShape?.(shape, def) ?? (def.renderForExport ?? def.render)(shape);
+			markup =
+				def.renderTarget === "html"
+					? await htmlShapeToSvg(element, shape, fonts, loadAdditionalAsset)
+					: renderToStaticMarkup(element);
+		} catch (error) {
+			if ((onShapeError?.(shape, error) ?? "placeholder") === "skip") continue;
+			markup = `<rect x="${shape.x}" y="${shape.y}" width="${shape.width}" height="${shape.height}" fill="none" stroke="#999" stroke-dasharray="4 2" />`;
+		}
 		const rotation = shape.rotation ?? 0;
 		elements.push(
 			rotation
@@ -71,7 +133,7 @@ export async function buildRegionSvg(
 <defs><clipPath id="usketch-region"><rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" /></clipPath></defs>
 ${bg}
 <g clip-path="url(#usketch-region)">
-${elements.join("\n")}
+${[...backgroundLayers, ...elements].join("\n")}
 </g>
 </svg>`;
 }

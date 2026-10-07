@@ -26,16 +26,16 @@
 		"@edv4h/usketch-sync": "workspace:*",
 		"@hono/zod-validator": "0.9.1",
 		"better-auth": "1.6.29",
-		"drizzle-orm": "0.45.2",
-		"hono": "4.13.7",
+		"drizzle-orm": "0.45.3",
+		"hono": "4.13.13",
 		"yjs": "^13.6.0",
-		"zod": "4.5.4"
+		"zod": "4.6.5"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "5.20260907.1",
-		"drizzle-kit": "0.31.10",
+		"@cloudflare/workers-types": "5.20261006.1",
+		"drizzle-kit": "0.31.11",
 		"typescript": "7.0.2",
-		"vitest": "4.1.11",
-		"wrangler": "4.129.0"
+		"vitest": "5.0.3",
+		"wrangler": "4.147.0"
 	}
 }

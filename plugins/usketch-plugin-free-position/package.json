@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-free-position",
-	"version": "0.1.13",
+	"version": "0.1.15",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -23,7 +23,7 @@
 	},
 	"devDependencies": {
 		"typescript": "7.0.2",
-		"vitest": "4.1.11"
+		"vitest": "5.0.3"
 	},
 	"publishConfig": {
 		"access": "public"

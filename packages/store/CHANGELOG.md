@@ -1,5 +1,26 @@
 # @edv4h/usketch-store
 
+## 3.9.0
+
+### Minor Changes
+
+- bfba838: feat(store): `ShapeData.lockScope: "self"` を追加。`"self"` のロックは子孫へ伝播しない (フレームだけロック)。`createSetLockedCommand` に `scope` 引数を追加。
+
+### Patch Changes
+
+- Updated dependencies [bfba838]
+  - @edv4h/usketch-shared@4.16.0
+  - @edv4h/usketch-core@2.4.6
+
+## 3.8.1
+
+### Patch Changes
+
+- Updated dependencies [38ca865]
+- Updated dependencies [b71dd10]
+  - @edv4h/usketch-shared@4.15.0
+  - @edv4h/usketch-core@2.4.5
+
 ## 3.8.0
 
 ### Minor Changes

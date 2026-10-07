@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-viewport-nav",
-	"version": "2.2.2",
+	"version": "2.2.4",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -24,7 +24,7 @@
 	},
 	"devDependencies": {
 		"typescript": "7.0.2",
-		"vitest": "4.1.11"
+		"vitest": "5.0.3"
 	},
 	"publishConfig": {
 		"access": "public"

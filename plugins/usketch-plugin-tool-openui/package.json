@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-tool-openui",
-	"version": "1.1.10",
+	"version": "1.1.13",
 	"description": "Experimental OpenUI tool plugin: prompt → OpenUI Lang → openui shape. Provides a toolbar tool, a side-panel prompt UI, a Make Real button on selection, and OpenAI / OpenAI-compatible providers.",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -24,7 +24,7 @@
 		"@edv4h/usketch-plugin-shape-openui": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
 		"@edv4h/usketch-store": "workspace:*",
-		"@openuidev/react-lang": "0.2.15"
+		"@openuidev/react-lang": "0.3.1"
 	},
 	"peerDependencies": {
 		"@modelcontextprotocol/sdk": ">=1.0.0",
@@ -37,9 +37,9 @@
 		}
 	},
 	"devDependencies": {
-		"@types/react": "19.2.18",
+		"@types/react": "19.3.0",
 		"typescript": "7.0.2",
-		"vitest": "4.1.11"
+		"vitest": "5.0.3"
 	},
 	"publishConfig": {
 		"access": "public"

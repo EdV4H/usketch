@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-export",
-	"version": "2.1.9",
+	"version": "2.3.1",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -19,17 +19,17 @@
 	"dependencies": {
 		"@edv4h/usketch-core": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
-		"satori": "0.33.4"
+		"satori": "0.35.0"
 	},
 	"peerDependencies": {
 		"react": ">=19",
 		"react-dom": ">=19"
 	},
 	"devDependencies": {
-		"@types/react": "19.2.18",
-		"@types/react-dom": "19.2.7",
+		"@types/react": "19.3.0",
+		"@types/react-dom": "19.3.0",
 		"typescript": "7.0.2",
-		"vitest": "4.1.11"
+		"vitest": "5.0.3"
 	},
 	"publishConfig": {
 		"access": "public"

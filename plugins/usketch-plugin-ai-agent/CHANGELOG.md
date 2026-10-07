@@ -1,5 +1,21 @@
 # @edv4h/usketch-plugin-ai-agent
 
+## 3.0.17
+
+### Patch Changes
+
+- bfba838: feat(store): `ShapeData.lockScope: "self"` を追加。`"self"` のロックは子孫へ伝播しない (フレームだけロック)。`createSetLockedCommand` に `scope` 引数を追加。
+- Updated dependencies [bfba838]
+  - @edv4h/usketch-shared@4.16.0
+
+## 3.0.16
+
+### Patch Changes
+
+- Updated dependencies [38ca865]
+- Updated dependencies [b71dd10]
+  - @edv4h/usketch-shared@4.15.0
+
 ## 3.0.15
 
 ### Patch Changes
