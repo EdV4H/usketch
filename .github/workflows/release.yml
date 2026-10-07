@@ -68,12 +68,22 @@ jobs:
 
       # Reconcile any tags that changeset publish created locally but failed to
       # push. A single batched `git push --tags` (retried) replaces the ~80
-      # individual pushes and reliably lands the stragglers.
+      # individual pushes and reliably lands the stragglers. Only tags missing on
+      # the remote are pushed: a tag the action already pushed (possibly as a
+      # different object) would otherwise reject the whole batch as "already exists".
       - name: Reconcile git tags
         if: always()
         run: |
+          mapfile -t pending < <(comm -23 \
+            <(git tag --list | sort) \
+            <(git ls-remote --tags --refs origin | sed 's#.*refs/tags/##' | sort))
+          if [ "${#pending[@]}" -eq 0 ]; then
+            echo "all tags already on origin"
+            exit 0
+          fi
+          printf 'pushing missing tag: %s\n' "${pending[@]}"
           n=0
-          until git push origin --tags; do
+          until git push origin "${pending[@]/#/refs/tags/}"; do
             n=$((n + 1))
             if [ "$n" -ge 5 ]; then
               echo "::error::failed to push tags after $n attempts"
@@ -114,7 +124,8 @@ jobs:
           done
 
       # Only the tag push is tolerated above. If the changesets step failed for
-      # any other reason (e.g. npm publish actually failed), fail the job.
+      # any other reason (e.g. npm publish actually failed), fail the job — and
+      # say exactly which packages are still missing from npm.
       - name: Verify publish succeeded
         if: ${{ always() && steps.changesets.outcome == 'failure' }}
         run: |
@@ -126,37 +137,35 @@ jobs:
 
           # The `commit_refs` tag-push failure can abort the changesets action
           # *before* it sets `published`, even though `changeset publish` already
-          # finished publishing to npm. `changeset publish` creates each package's
-          # local git tag only after that package publishes, so a per-package tag
-          # on the release commit is concrete evidence that package published.
-          #
-          # Don't accept "any tag" — a publish that fails partway would leave some
-          # tags and mask an incomplete release. Instead require a tag for *every*
-          # package whose version was bumped in this release commit.
-          mapfile -t changed < <(git diff --name-only "HEAD^1" HEAD -- '**/package.json' 'package.json' || true)
-          bumped=0
-          missing=""
-          for f in "${changed[@]}"; do
-            [ -f "$f" ] || continue
-            [ "$(node -p "require('./$f').private === true" 2>/dev/null || echo false)" = "true" ] && continue
-            new_ver=$(node -p "require('./$f').version" 2>/dev/null || echo "")
-            name=$(node -p "require('./$f').name" 2>/dev/null || echo "")
-            [ -z "$name" ] || [ -z "$new_ver" ] && continue
-            old_ver=$(git show "HEAD^1:$f" 2>/dev/null | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "")
-            [ "$new_ver" = "$old_ver" ] && continue   # version unchanged → not a publish target
-            bumped=$((bumped + 1))
-            if ! git tag --points-at HEAD | grep -Fqx "$name@$new_ver"; then
-              missing="$missing $name@$new_ver"
+          # finished publishing to npm. Use the registry as ground truth: every
+          # non-private workspace package must have its current version on npm.
+          # This also covers re-runs on non-release commits, where packages left
+          # unpublished by an earlier failed run are retried.
+          missing=()
+          while IFS=$'\t' read -r name ver; do
+            if [ -z "$(npm view "$name@$ver" version 2>/dev/null)" ]; then
+              missing+=("$name@$ver")
             fi
-          done
+          done < <(pnpm -r ls --json --depth -1 | node -e '
+            for (const p of JSON.parse(require("fs").readFileSync(0, "utf8")))
+              if (!p.private && p.name && p.version) console.log(`${p.name}\t${p.version}`);
+          ')
 
-          if [ -n "$missing" ]; then
-            echo "::error::publish incomplete — no release tag for:$missing"
-            exit 1
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "published output was unset, but every public package version is on npm — npm publish succeeded."
+            exit 0
           fi
-          if [ "$bumped" -eq 0 ]; then
-            echo "::error::changesets step failed and no packages were published."
-            exit 1
-          fi
-          echo "published output was unset, but all $bumped bumped package(s) have tags on the release commit — npm publish succeeded."
-          exit 0
+
+          {
+            echo "### ❌ npm publish incomplete"
+            echo
+            echo "Not on npm yet (${#missing[@]}):"
+            echo
+            printf -- '- `%s`\n' "${missing[@]}"
+            echo
+            echo "A \`404 Not Found\` from \`npm publish\` under OIDC usually means the package has no"
+            echo "Trusted Publisher on npmjs.com (Settings → Trusted Publisher → GitHub Actions:"
+            echo "\`EdV4H/usketch\` / \`release.yml\`). Fix that, then re-run this workflow."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::publish incomplete — not on npm: ${missing[*]}"
+          exit 1
