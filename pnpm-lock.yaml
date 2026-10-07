@@ -394,6 +394,9 @@ importers:
       '@edv4h/usketch-plugin-bg-grid':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-bg-grid
+      '@edv4h/usketch-plugin-bg-liquid':
+        specifier: workspace:*
+        version: link:../../plugins/usketch-plugin-bg-liquid
       '@edv4h/usketch-plugin-board-info-panel':
         specifier: workspace:*
         version: link:../../plugins/usketch-plugin-board-info-panel
@@ -1142,6 +1145,28 @@ importers:
         version: 5.0.3(@types/node@25.9.9)(jsdom@30.1.2(@noble/hashes@2.0.1))(vite@8.3.3(@types/node@25.9.9)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
 
   plugins/usketch-plugin-bg-grid:
+    dependencies:
+      '@edv4h/usketch-core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      react:
+        specifier: '>=19'
+        version: 19.3.0
+    devDependencies:
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.3
+        version: 5.0.3(@types/node@25.9.9)(jsdom@30.1.2(@noble/hashes@2.0.1))(vite@8.3.3(@types/node@25.9.9)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+
+  plugins/usketch-plugin-bg-liquid:
     dependencies:
       '@edv4h/usketch-core':
         specifier: workspace:*
