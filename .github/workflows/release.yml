@@ -68,12 +68,22 @@ jobs:
 
       # Reconcile any tags that changeset publish created locally but failed to
       # push. A single batched `git push --tags` (retried) replaces the ~80
-      # individual pushes and reliably lands the stragglers.
+      # individual pushes and reliably lands the stragglers. Only tags missing on
+      # the remote are pushed: a tag the action already pushed (possibly as a
+      # different object) would otherwise reject the whole batch as "already exists".
       - name: Reconcile git tags
         if: always()
         run: |
+          mapfile -t pending < <(comm -23 \
+            <(git tag --list | sort) \
+            <(git ls-remote --tags --refs origin | sed 's#.*refs/tags/##' | sort))
+          if [ "${#pending[@]}" -eq 0 ]; then
+            echo "all tags already on origin"
+            exit 0
+          fi
+          printf 'pushing missing tag: %s\n' "${pending[@]}"
           n=0
-          until git push origin --tags; do
+          until git push origin "${pending[@]/#/refs/tags/}"; do
             n=$((n + 1))
             if [ "$n" -ge 5 ]; then
               echo "::error::failed to push tags after $n attempts"
