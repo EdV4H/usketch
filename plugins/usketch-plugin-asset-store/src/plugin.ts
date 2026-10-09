@@ -14,6 +14,8 @@ export interface AssetStorePluginOptions {
 	/** Shared Yjs doc — assets live in its `assets` map. */
 	doc: Y.Doc;
 	mapName?: string;
+	/** Cap on a payload inlined into the doc by the default uploader. Default 4MB. */
+	inlineMaxBytes?: number;
 }
 
 /**
@@ -29,7 +31,10 @@ export function createAssetStorePlugin(options: AssetStorePluginOptions): Usketc
 		name: "アセットストア",
 
 		setup(ctx: PluginContext) {
-			const store = createAssetStore(options.doc, { mapName: options.mapName });
+			const store = createAssetStore(options.doc, {
+				mapName: options.mapName,
+				inlineMaxBytes: options.inlineMaxBytes,
+			});
 			const off = ctx.services.provide(ASSET_STORE_SERVICE, store);
 			return () => {
 				off();

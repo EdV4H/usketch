@@ -37,6 +37,18 @@ describe("createAssetStore", () => {
 		expect(store.resolve(id)).toBe("https://cdn/x.png");
 	});
 
+	it("caps uploads only while they are inlined into the doc", () => {
+		const store = createAssetStore(new Y.Doc());
+		expect(store.maxUploadBytes()).toBe(4 * 1024 * 1024);
+		store.setUploader(async () => ({ id: "cdn:1", src: "https://cdn/x.pdf" }));
+		expect(store.maxUploadBytes()).toBeUndefined();
+	});
+
+	it("takes the inline cap from its options", () => {
+		const store = createAssetStore(new Y.Doc(), { inlineMaxBytes: 1024 });
+		expect(store.maxUploadBytes()).toBe(1024);
+	});
+
 	it("setResolver transforms the resolved src", async () => {
 		const store = createAssetStore(new Y.Doc());
 		const id = await store.upload("image", "data:x");

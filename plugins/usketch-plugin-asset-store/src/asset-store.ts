@@ -38,6 +38,14 @@ export interface AssetStore {
 	 */
 	upload(type: string, dataUrl: string, meta?: AssetRecord["meta"]): Promise<string>;
 	setUploader(fn: AssetUploader): void;
+	/**
+	 * Largest payload, in bytes, the current uploader can take — or undefined
+	 * when it sets no limit. The default uploader writes the whole payload into
+	 * the shared Yjs doc as a single update, which large payloads do not survive
+	 * (sync message and storage limits), so it is capped; an uploader installed
+	 * with {@link AssetStore.setUploader} sends payloads elsewhere and is not.
+	 */
+	maxUploadBytes(): number | undefined;
 	setResolver(fn: AssetResolver): void;
 	subscribe(cb: () => void): () => void;
 	destroy(): void;
@@ -57,7 +65,12 @@ export function hashKey(input: string): string {
 export interface CreateAssetStoreOptions {
 	/** Y.Map name on the doc. Default "assets". */
 	mapName?: string;
+	/** {@link AssetStore.maxUploadBytes} while the default uploader is in use. Default 4MB. */
+	inlineMaxBytes?: number;
 }
+
+/** Default cap on a payload inlined into the shared doc. */
+export const DEFAULT_INLINE_MAX_BYTES = 4 * 1024 * 1024;
 
 /**
  * Asset store backed by a Yjs Map on the shared doc, so assets sync to every
@@ -72,6 +85,8 @@ export function createAssetStore(doc: Y.Doc, opts: CreateAssetStoreOptions = {})
 		id: `asset:${hashKey(dataUrl)}`,
 		src: dataUrl,
 	});
+	let customUploader = false;
+	const inlineMaxBytes = opts.inlineMaxBytes ?? DEFAULT_INLINE_MAX_BYTES;
 	let resolver: AssetResolver = (record) => record.src;
 
 	const observer = () => {
@@ -94,7 +109,9 @@ export function createAssetStore(doc: Y.Doc, opts: CreateAssetStoreOptions = {})
 		},
 		setUploader: (fn) => {
 			uploader = fn;
+			customUploader = true;
 		},
+		maxUploadBytes: () => (customUploader ? undefined : inlineMaxBytes),
 		setResolver: (fn) => {
 			resolver = fn;
 		},
