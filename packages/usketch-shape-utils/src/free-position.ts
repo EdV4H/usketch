@@ -59,7 +59,9 @@ function moveTo(box: BoundingBox, x: number, y: number): BoundingBox {
  * `desired` 中心からの同心リングを外側へ広げ、衝突しない最近傍の位置を返す。
  * 各半径でサンプリングした候補のうち desired 中心に最も近いものを採用。
  */
-function findByRing(opts: Required<Omit<FindFreePositionOptions, "maxIterations" | "direction" | "gap">>): BoundingBox {
+function findByRing(
+	opts: Required<Omit<FindFreePositionOptions, "maxIterations" | "direction" | "gap">>,
+): BoundingBox {
 	const { desired, occupied, step, maxDistance } = opts;
 	if (!overlapsAny(desired, occupied)) return desired;
 
