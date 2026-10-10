@@ -96,20 +96,29 @@ const SNAP_ANCHORS: AnchorType[] = ["top", "right", "bottom", "left"];
 /** Penalty multiplier for center snap — makes edge anchors preferred over center. */
 const CENTER_SNAP_PENALTY = 3;
 
-/** Find the closest snap anchor on a shape. Returns the anchor type and distance. */
+/** Center of a shape, used as the reference point for resolving `auto` anchors. */
+function shapeCenter(shape: ShapeData): Point {
+	return { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
+}
+
+/**
+ * Find the closest snap anchor on a shape. Returns the anchor type and distance.
+ * For the `auto` (center) snap, `point` is the edge intersection facing `from`
+ * (the other end of the connector), matching what `tracking` recomputes later.
+ */
 function findSnapAnchor(
 	shape: ShapeData,
 	worldPoint: Point,
+	from: Point,
 ): { anchor: AnchorType; point: Point; dist: number } {
 	const cx = shape.x + shape.width / 2;
 	const cy = shape.y + shape.height / 2;
-	const center: Point = { x: cx, y: cy };
 	const centerDist = Math.hypot(worldPoint.x - cx, worldPoint.y - cy);
 
 	// Center uses penalized distance so edge anchors are preferred
 	let best = {
 		anchor: "auto" as AnchorType,
-		point: center,
+		point: getAnchorPoint(shape, "auto", from),
 		dist: centerDist * CENTER_SNAP_PENALTY,
 		realDist: centerDist,
 	};
@@ -171,7 +180,7 @@ function handleDrawMove(ctx: PluginContext, worldPoint: Point) {
 
 	if (targetShape && targetShape.id !== drawState.sourceShape.id) {
 		// Over a target shape — snap to nearest anchor or clamp to edge
-		const snap = findSnapAnchor(targetShape, worldPoint);
+		const snap = findSnapAnchor(targetShape, worldPoint, shapeCenter(drawState.sourceShape));
 
 		let targetAnchor: AnchorType;
 		let targetPoint: Point;
@@ -240,7 +249,7 @@ function handleDrawEnd(ctx: PluginContext, worldPoint: Point) {
 			return;
 		}
 		// Use release target with snap
-		const snap = findSnapAnchor(releaseTarget, worldPoint);
+		const snap = findSnapAnchor(releaseTarget, worldPoint, shapeCenter(drawState.sourceShape));
 		const targetAnchor = snap.dist <= SNAP_DISTANCE ? snap.anchor : "custom";
 		const targetPoint =
 			snap.dist <= SNAP_DISTANCE ? snap.point : clampToShapeEdge(releaseTarget, worldPoint);
