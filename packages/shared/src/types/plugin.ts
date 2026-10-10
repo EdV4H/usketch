@@ -490,6 +490,13 @@ export interface ShapeRegistry {
 
 export interface ToolDefinition {
 	icon: () => ReactElement;
+	/** Human-readable name (e.g. "Sticky note"). Lets a host resolve the active
+	 *  tool's display via `app.tools.get(id)?.label` without its own id table. */
+	label?: string;
+	/** Framework-agnostic icon key; the host maps it to its own icon set. */
+	iconKey?: string;
+	/** Free-form display metadata (e.g. the current variant of a composite tool). */
+	meta?: Record<string, unknown>;
 	cursor?: string;
 	shortcut?: string;
 	order?: number;
