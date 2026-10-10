@@ -2,6 +2,8 @@ import type { BoundingBox } from "@edv4h/usketch-shared";
 
 export type FreePositionStrategy = "ring" | "push";
 
+export type FreePositionDirection = "right" | "left" | "down" | "up";
+
 export interface FindFreePositionOptions {
 	/** 置きたい位置・サイズ（回転 shape は回転後 AABB を渡す）。 */
 	desired: BoundingBox;
@@ -15,6 +17,16 @@ export interface FindFreePositionOptions {
 	maxDistance?: number;
 	/** push の反復上限（既定 50）。 */
 	maxIterations?: number;
+	/**
+	 * 指定すると strategy に関わらず、その方向へ一直線にずらして最初の空きを返す。
+	 * ずらし幅は `step`、上限は `maxDistance`（超過時は best-effort で desired）。
+	 */
+	direction?: FreePositionDirection;
+	/**
+	 * 既存矩形との最小余白（world px、既定 0）。各 occupied を gap だけ膨らませて判定する。
+	 * desired が既に空いている場合でも gap 内に既存があれば移動対象になる。
+	 */
+	gap?: number;
 }
 
 const EPS = 0.01;
@@ -47,7 +59,7 @@ function moveTo(box: BoundingBox, x: number, y: number): BoundingBox {
  * `desired` 中心からの同心リングを外側へ広げ、衝突しない最近傍の位置を返す。
  * 各半径でサンプリングした候補のうち desired 中心に最も近いものを採用。
  */
-function findByRing(opts: Required<Omit<FindFreePositionOptions, "maxIterations">>): BoundingBox {
+function findByRing(opts: Required<Omit<FindFreePositionOptions, "maxIterations" | "direction" | "gap">>): BoundingBox {
 	const { desired, occupied, step, maxDistance } = opts;
 	if (!overlapsAny(desired, occupied)) return desired;
 
@@ -82,7 +94,7 @@ function findByRing(opts: Required<Omit<FindFreePositionOptions, "maxIterations"
  * 連鎖的な重なりに備えて反復し、上限で打ち切り（best-effort）。
  */
 function findByPush(
-	opts: Required<Omit<FindFreePositionOptions, "step" | "maxDistance">>,
+	opts: Required<Omit<FindFreePositionOptions, "step" | "maxDistance" | "direction" | "gap">>,
 ): BoundingBox {
 	const { occupied, maxIterations } = opts;
 	let box = opts.desired;
@@ -122,26 +134,62 @@ function findByPush(
 	return box;
 }
 
+/** 指定方向へ step 刻みでずらし、最初に衝突しない位置を返す。見つからなければ desired。 */
+function findByDirection(
+	desired: BoundingBox,
+	occupied: BoundingBox[],
+	direction: FreePositionDirection,
+	step: number,
+	maxDistance: number,
+): BoundingBox {
+	const dx = direction === "right" ? 1 : direction === "left" ? -1 : 0;
+	const dy = direction === "down" ? 1 : direction === "up" ? -1 : 0;
+	for (let d = step; d <= maxDistance; d += step) {
+		const candidate = moveTo(desired, desired.x + dx * d, desired.y + dy * d);
+		if (!overlapsAny(candidate, occupied)) return candidate;
+	}
+	return desired;
+}
+
 /**
  * `desired` に最も近い、occupied と重ならない位置（同サイズ）を返す。
  * `desired` がそのまま空いていればそのまま返す。
  */
 export function findFreePosition(opts: FindFreePositionOptions): BoundingBox {
 	const strategy = opts.strategy ?? "ring";
-	if (opts.occupied.length === 0 || !overlapsAny(opts.desired, opts.occupied)) {
+	const gap = Math.max(0, opts.gap ?? 0);
+	const occupied =
+		gap > 0
+			? opts.occupied.map((o) => ({
+					x: o.x - gap,
+					y: o.y - gap,
+					width: o.width + gap * 2,
+					height: o.height + gap * 2,
+				}))
+			: opts.occupied;
+	if (occupied.length === 0 || !overlapsAny(opts.desired, occupied)) {
 		return opts.desired;
+	}
+	if (opts.direction) {
+		return findByDirection(
+			opts.desired,
+			occupied,
+			opts.direction,
+			opts.step ?? 20,
+			opts.maxDistance ?? 2000,
+		);
 	}
 	if (strategy === "push") {
 		return findByPush({
 			desired: opts.desired,
-			occupied: opts.occupied,
+			occupied,
 			strategy,
 			maxIterations: opts.maxIterations ?? 50,
 		});
 	}
 	return findByRing({
 		desired: opts.desired,
-		occupied: opts.occupied,
+		occupied,
 		strategy,
 		step: opts.step ?? 20,
 		maxDistance: opts.maxDistance ?? 2000,
