@@ -65,4 +65,41 @@ describe("findFreePosition", () => {
 		const dist = Math.hypot(r.x, r.y);
 		expect(dist).toBeLessThan(300); // 近傍に収まる
 	});
+
+	it("direction: right は常に右へずらす（y は不変）", () => {
+		const occupied = [box(0, 0, 100, 80)];
+		const r = findFreePosition({ desired: box(10, 0), occupied, direction: "right", step: 20 });
+		expect(r.y).toBe(0);
+		expect(r.x).toBeGreaterThanOrEqual(100);
+		expect(overlapsAny(r, occupied)).toBe(false);
+	});
+
+	it("direction: up / left / down も軸固定で空きを返す", () => {
+		const occupied = [box(0, 0, 100, 80)];
+		const up = findFreePosition({ desired: box(0, 0), occupied, direction: "up", step: 10 });
+		expect(up.x).toBe(0);
+		expect(up.y).toBeLessThanOrEqual(-80);
+		const left = findFreePosition({ desired: box(0, 0), occupied, direction: "left", step: 10 });
+		expect(left.y).toBe(0);
+		expect(left.x).toBeLessThanOrEqual(-100);
+		const down = findFreePosition({ desired: box(0, 0), occupied, direction: "down", step: 10 });
+		expect(down.y).toBeGreaterThanOrEqual(80);
+	});
+
+	it("gap: 結果は既存矩形から gap 以上離れる", () => {
+		const occupied = [box(0, 0, 100, 80)];
+		for (const strategy of ["ring", "push"] as const) {
+			const r = findFreePosition({ desired: box(10, 10), occupied, strategy, gap: 30 });
+			const inflated = [{ x: -30, y: -30, width: 160, height: 140 }];
+			expect(overlapsAny(r, inflated)).toBe(false);
+		}
+	});
+
+	it("gap: desired が接触していなくても gap 内なら移動する", () => {
+		const occupied = [box(0, 0, 100, 80)];
+		const d = box(110, 0); // 10px 離れているだけ
+		expect(findFreePosition({ desired: d, occupied })).toEqual(d);
+		const r = findFreePosition({ desired: d, occupied, gap: 40, direction: "right" });
+		expect(r.x).toBeGreaterThanOrEqual(140);
+	});
 });
