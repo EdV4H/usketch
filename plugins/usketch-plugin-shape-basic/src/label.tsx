@@ -14,22 +14,25 @@ export const LABELABLE_TYPES = new Set([
 
 type GeoShape = ShapeData & GeoTextData;
 
-const centerContainer: React.CSSProperties = {
+const FLEX_ALIGN = { start: "flex-start", center: "center", middle: "center", end: "flex-end" };
+
+const labelContainer = (data: GeoShape): React.CSSProperties => ({
 	width: "100%",
 	height: "100%",
 	display: "flex",
-	alignItems: "center",
-	justifyContent: "center",
+	alignItems: FLEX_ALIGN[data.verticalAlign ?? "middle"],
+	justifyContent: FLEX_ALIGN[data.textAlign ?? "center"],
 	boxSizing: "border-box",
 	padding: 6,
-};
+});
 
 const textBase = (data: GeoShape): React.CSSProperties => ({
 	fontFamily: "system-ui, sans-serif",
 	fontSize: data.fontSize ?? 14,
 	color: "#1e1e1e",
 	lineHeight: 1.3,
-	textAlign: "center",
+	textAlign: data.textAlign === "start" ? "left" : data.textAlign === "end" ? "right" : "center",
+	fontWeight: data.fontWeight ?? "normal",
 	whiteSpace: "pre-wrap",
 	wordBreak: "break-word",
 	outline: "none",
@@ -58,7 +61,7 @@ function GeoLabel({ data }: { data: GeoShape }) {
 				// XHTML namespace on the foreignObject root for correct cross-browser SVG rendering
 				// (React's HTMLDivElement type omits `xmlns`, so it's applied as a raw attribute).
 				{...({ xmlns: "http://www.w3.org/1999/xhtml" } as Record<string, string>)}
-				style={{ ...centerContainer, pointerEvents: editing ? "auto" : "none" }}
+				style={{ ...labelContainer(data), pointerEvents: editing ? "auto" : "none" }}
 			>
 				{editing ? (
 					// biome-ignore lint/a11y/useSemanticElements: contentEditable div is standard for text editing
