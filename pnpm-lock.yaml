@@ -198,7 +198,7 @@ importers:
         version: 5.3.0
       '@fontsource/ibm-plex-sans-jp':
         specifier: ^5.2
-        version: 5.3.0
+        version: 5.3.1
       astro:
         specifier: ^7.0.0
         version: 7.3.8(@types/node@25.9.9)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)
@@ -4074,8 +4074,8 @@ packages:
   '@fontsource/geist-mono@5.3.0':
     resolution: {integrity: sha512-UtJ1BBBCVpMYdIcW7nEB45UAoAw5M53ZXs2t0ciPW+IokuAAIc56M8+kW5tXbRJCTpDw4XTtU7proT6NdQAHTg==}
 
-  '@fontsource/ibm-plex-sans-jp@5.3.0':
-    resolution: {integrity: sha512-Eas8EEVkh0UbITQMskrCF5Ha1L24GagNsvjMfrKwhv3KNPFRjbZAt0fLO4lSgfx4U4rHWpX5JeMDJNXF+hcguQ==}
+  '@fontsource/ibm-plex-sans-jp@5.3.1':
+    resolution: {integrity: sha512-lFejXBGcWN/htaffKJryghb/zd2WKwFKyJWJRTcRP57/HUAGEdjNHI0UtIUN8pv4A5F9hPBxZ0dY8oILd88xIA==}
 
   '@hono/node-server@2.0.12':
     resolution: {integrity: sha512-eWpQYr67tqJLeaSUl0Q+TquuYfUdTibpOJlUMV2FfUP7+KqCC5TufnwnlXL6mobZBJbGAYRd7ZvEBDCbLInjhg==}
@@ -9301,7 +9301,7 @@ snapshots:
 
   '@fontsource/geist-mono@5.3.0': {}
 
-  '@fontsource/ibm-plex-sans-jp@5.3.0': {}
+  '@fontsource/ibm-plex-sans-jp@5.3.1': {}
 
   '@hono/node-server@2.0.12(hono@4.13.13)':
     dependencies:
@@ -10749,7 +10749,7 @@ snapshots:
   css-tree@3.2.1:
     dependencies:
       mdn-data: 2.27.1
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
 
   css-what@7.0.0: {}
 
