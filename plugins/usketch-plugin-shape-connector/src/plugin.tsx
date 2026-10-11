@@ -23,6 +23,7 @@ import {
 	AnchorHandleOverlay,
 	setupAnchorHandles,
 } from "./anchor-handle-overlay.js";
+import { type ConnectorEndSpec, isTooShortDrag, resolveConnectorEnds } from "./connector-ends.js";
 import { ConnectorLabelEditor, handleConnectorClick, setEditingLabel } from "./connector-label.js";
 import { EndpointOverlay } from "./endpoint-overlay.js";
 import {
@@ -141,93 +142,84 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 
 			// ── Drawing tool ──
 
+			// A null shape is a free end fixed at its point.
 			let drawState: {
 				connectorId: string;
-				sourceShape: ShapeData;
-				sourceAnchor: AnchorType;
+				sourceShape: ShapeData | null;
+				startPoint: Point;
 			} | null = null;
 
+			// Shape under the pointer as a connector end, or a free end at the pointer.
+			function endAt(toolCtx: ToolContext, point: Point): ConnectorEndSpec {
+				return { shape: findShapeAtPoint(toolCtx, point), anchor: "auto", point };
+			}
+
+			function sourceEnd(): ConnectorEndSpec {
+				const ds = drawState as NonNullable<typeof drawState>;
+				return { shape: ds.sourceShape, anchor: "auto", point: ds.startPoint };
+			}
+
 			function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
-				const sourceShape = findShapeAtPoint(toolCtx, event.worldPoint);
-				if (!sourceShape) return;
-
 				const id = generateId();
-				const sourceAnchor: AnchorType = "auto";
-				const sourcePoint = getAnchorPoint(sourceShape, sourceAnchor, event.worldPoint);
+				const startPoint = { x: event.worldPoint.x, y: event.worldPoint.y };
+				const sourceShape = findShapeAtPoint(toolCtx, startPoint);
+				drawState = { connectorId: id, sourceShape, startPoint };
 
+				const ends = resolveConnectorEnds(sourceEnd(), {
+					shape: null,
+					anchor: "auto",
+					point: startPoint,
+				});
 				const connector: ConnectorShapeData = {
-					...createDefaultConnector({ id, x: sourcePoint.x, y: sourcePoint.y }),
-					sourceId: sourceShape.id,
-					targetId: undefined,
-					sourceAnchor,
-					targetAnchor: "auto",
-					sourcePoint,
-					targetPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
+					...createDefaultConnector({ id, x: startPoint.x, y: startPoint.y }),
+					...ends,
 					style: { ...toolCtx.store.getStyleSettings(), fill: "transparent" },
 				};
 
 				toolCtx.store.addShape(connector);
-				drawState = { connectorId: id, sourceShape, sourceAnchor };
 			}
 
 			function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
 				if (!drawState) return;
-
-				const targetShape = findShapeAtPoint(toolCtx, event.worldPoint);
-				const targetPoint = event.worldPoint;
-
-				const sourcePoint = getAnchorPoint(
-					drawState.sourceShape,
-					drawState.sourceAnchor,
-					targetPoint,
+				const { sourcePoint, targetPoint, x, y, width, height } = resolveConnectorEnds(
+					sourceEnd(),
+					endAt(toolCtx, event.worldPoint),
 				);
-
-				const updates: Partial<ConnectorShapeData> = {
+				toolCtx.store.updateShape(drawState.connectorId, {
 					sourcePoint,
-					targetPoint: targetShape ? getAnchorPoint(targetShape, "auto", sourcePoint) : targetPoint,
-				};
-
-				const sp = updates.sourcePoint as Point;
-				const tp = updates.targetPoint as Point;
-				updates.x = Math.min(sp.x, tp.x);
-				updates.y = Math.min(sp.y, tp.y);
-				updates.width = Math.abs(tp.x - sp.x);
-				updates.height = Math.abs(tp.y - sp.y);
-
-				toolCtx.store.updateShape(drawState.connectorId, updates);
+					targetPoint,
+					x,
+					y,
+					width,
+					height,
+				} as Partial<ConnectorShapeData>);
 			}
 
 			function onPointerUp(toolCtx: ToolContext, event: CanvasPointerEvent) {
 				if (!drawState) return;
 
-				const targetShape = findShapeAtPoint(toolCtx, event.worldPoint);
 				const connector = toolCtx.store.getShape(drawState.connectorId);
+				const target = endAt(toolCtx, event.worldPoint);
+				// The preview is never kept as-is: it is either discarded or re-added
+				// below through a command so the whole draw is a single undo step.
+				toolCtx.store.deleteShape(drawState.connectorId);
 
-				if (!connector || !targetShape || targetShape.id === drawState.sourceShape.id) {
-					toolCtx.store.deleteShape(drawState.connectorId);
+				const sameShape =
+					drawState.sourceShape !== null && target.shape?.id === drawState.sourceShape.id;
+				const tooShort = isTooShortDrag(
+					drawState.startPoint,
+					event.worldPoint,
+					toolCtx.store.getViewport().zoom,
+				);
+				if (!connector || sameShape || tooShort) {
 					drawState = null;
 					return;
 				}
 
-				const sourcePoint = getAnchorPoint(drawState.sourceShape, drawState.sourceAnchor, {
-					x: targetShape.x + targetShape.width / 2,
-					y: targetShape.y + targetShape.height / 2,
-				});
-				const targetPoint = getAnchorPoint(targetShape, "auto", sourcePoint);
-
-				const finalUpdates: Partial<ConnectorShapeData> = {
-					targetId: targetShape.id,
-					targetAnchor: "auto",
-					sourcePoint,
-					targetPoint,
-					x: Math.min(sourcePoint.x, targetPoint.x),
-					y: Math.min(sourcePoint.y, targetPoint.y),
-					width: Math.abs(targetPoint.x - sourcePoint.x),
-					height: Math.abs(targetPoint.y - sourcePoint.y),
+				const finalShape: ConnectorShapeData = {
+					...(connector as ConnectorShapeData),
+					...resolveConnectorEnds(sourceEnd(), target),
 				};
-
-				toolCtx.store.deleteShape(drawState.connectorId);
-				const finalShape: ConnectorShapeData = { ...connector, ...finalUpdates };
 				toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, finalShape));
 
 				drawState = null;

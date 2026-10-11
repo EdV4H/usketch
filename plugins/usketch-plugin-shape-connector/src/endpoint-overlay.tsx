@@ -1,12 +1,8 @@
-import {
-	clampToShapeEdge,
-	getAnchorPoint,
-	getAnchorRatio,
-	getDefaultControlPoint,
-} from "@edv4h/usketch-connector-anchor";
+import { clampToShapeEdge, getDefaultControlPoint } from "@edv4h/usketch-connector-anchor";
 import type { PluginContext, Point, ShapeData, Viewport } from "@edv4h/usketch-shared";
 import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import { useCallback, useSyncExternalStore } from "react";
+import { isTooShortDrag, moveConnectorEnd } from "./connector-ends.js";
 import {
 	type EndpointDragState,
 	getEndpointDrag,
@@ -273,8 +269,12 @@ function EndpointHandle({
 			const currentShapeId =
 				endpoint === "source" ? connectorData.sourceId : connectorData.targetId;
 
+			// Raw pointer position (drag.currentPoint is clamped while sliding).
+			let pointer = worldPoint;
+
 			const onMove = (me: PointerEvent) => {
 				const wp = screenToWorld({ x: me.clientX, y: me.clientY }, viewport);
+				pointer = wp;
 
 				if (endpoint === "controlPoint") {
 					setEndpointDrag({
@@ -336,25 +336,8 @@ function EndpointHandle({
 								{ id: connectorId, from: before, to: after },
 							]),
 						);
-					} else if (drag.targetShapeId) {
-						// Reconnect to a different shape
-						const newTarget = ctx.store.getShape(drag.targetShapeId);
-						if (newTarget) {
-							commitEndpointReconnect(ctx, connectorId, connector, drag.endpoint, newTarget);
-						}
-					} else if (currentShapeId) {
-						// Slide anchor: commit the new custom position on the same shape
-						const currentShape = ctx.store.getShape(currentShapeId);
-						if (currentShape) {
-							commitAnchorSlide(
-								ctx,
-								connectorId,
-								connector,
-								drag.endpoint,
-								currentShape,
-								drag.currentPoint,
-							);
-						}
+					} else {
+						commitEndpointDrop(ctx, connectorId, drag.endpoint, worldPoint, pointer, viewport);
 					}
 				}
 				setEndpointDrag(null);
@@ -388,122 +371,32 @@ function EndpointHandle({
 	);
 }
 
-function commitEndpointReconnect(
+/**
+ * Commit a dragged endpoint (see {@link moveConnectorEnd}): connect, slide,
+ * detach to a free end, or move a free end. A click without real movement and
+ * a drop onto the shape the other end is attached to change nothing.
+ */
+function commitEndpointDrop(
 	ctx: PluginContext,
 	connectorId: string,
-	connector: ShapeData,
 	endpoint: "source" | "target",
-	newShape: ShapeData,
+	startPoint: Point,
+	dropPoint: Point,
+	viewport: Viewport,
 ) {
-	const connectorData = connector as ConnectorShapeData;
-	const otherShapeId =
-		endpoint === "source" ? (connectorData.targetId as string) : (connectorData.sourceId as string);
-	const otherShape = ctx.store.getShape(otherShapeId);
-	if (!otherShape) return;
+	const connector = ctx.store.getShape(connectorId) as ConnectorShapeData | undefined;
+	if (!connector) return;
+	if (isTooShortDrag(startPoint, dropPoint, viewport.zoom)) return;
+	const dropShape = findShapeAtPoint(ctx, dropPoint);
+	const otherId = endpoint === "source" ? connector.targetId : connector.sourceId;
+	if (dropShape && dropShape.id === otherId) return;
 
-	const newCenter = { x: newShape.x + newShape.width / 2, y: newShape.y + newShape.height / 2 };
-	const otherCenter = {
-		x: otherShape.x + otherShape.width / 2,
-		y: otherShape.y + otherShape.height / 2,
-	};
-
-	let sourcePoint: Point;
-	let targetPoint: Point;
-
-	if (endpoint === "source") {
-		sourcePoint = getAnchorPoint(newShape, "auto", otherCenter);
-		targetPoint = getAnchorPoint(otherShape, "auto", newCenter);
-	} else {
-		sourcePoint = getAnchorPoint(otherShape, "auto", newCenter);
-		targetPoint = getAnchorPoint(newShape, "auto", otherCenter);
-	}
-
-	const fromData: Partial<ConnectorShapeData> = {
-		[endpoint === "source" ? "sourceId" : "targetId"]:
-			endpoint === "source" ? connectorData.sourceId : connectorData.targetId,
-		sourcePoint: connectorData.sourcePoint,
-		targetPoint: connectorData.targetPoint,
-		sourceAnchor: connectorData.sourceAnchor,
-		targetAnchor: connectorData.targetAnchor,
-		x: connector.x,
-		y: connector.y,
-		width: connector.width,
-		height: connector.height,
-	};
-
-	const toData: Partial<ConnectorShapeData> = {
-		[endpoint === "source" ? "sourceId" : "targetId"]: newShape.id,
-		sourcePoint,
-		targetPoint,
-		sourceAnchor: "auto",
-		targetAnchor: "auto",
-		x: Math.min(sourcePoint.x, targetPoint.x),
-		y: Math.min(sourcePoint.y, targetPoint.y),
-		width: Math.abs(targetPoint.x - sourcePoint.x),
-		height: Math.abs(targetPoint.y - sourcePoint.y),
-	};
-
-	ctx.commands.execute(
-		createBatchUpdateShapesCommand(ctx.store, [{ id: connectorId, from: fromData, to: toData }]),
+	const to = moveConnectorEnd(connector, endpoint, { shape: dropShape, point: dropPoint }, (id) =>
+		ctx.store.getShape(id),
 	);
-}
-
-function commitAnchorSlide(
-	ctx: PluginContext,
-	connectorId: string,
-	connector: ShapeData,
-	endpoint: "source" | "target",
-	shape: ShapeData,
-	dragPoint: Point,
-) {
-	const connectorData = connector as ConnectorShapeData;
-	const edgePoint = clampToShapeEdge(shape, dragPoint);
-	const anchorKey = endpoint === "source" ? "sourceAnchor" : "targetAnchor";
-	const pointKey = endpoint === "source" ? "sourcePoint" : "targetPoint";
-	const ratioKey = endpoint === "source" ? "sourceAnchorRatio" : "targetAnchorRatio";
-
-	// Recalculate the other endpoint (it depends on the new position for "auto" anchors)
-	const otherShapeId =
-		endpoint === "source" ? (connectorData.targetId as string) : (connectorData.sourceId as string);
-	const otherShape = ctx.store.getShape(otherShapeId);
-	if (!otherShape) return;
-
-	const otherAnchor =
-		endpoint === "source"
-			? (connectorData.targetAnchor ?? "auto")
-			: (connectorData.sourceAnchor ?? "auto");
-	const otherPoint =
-		otherAnchor === "custom"
-			? ((endpoint === "source" ? connectorData.targetPoint : connectorData.sourcePoint) as Point)
-			: getAnchorPoint(otherShape, otherAnchor, edgePoint);
-
-	const newSourcePoint = endpoint === "source" ? edgePoint : otherPoint;
-	const newTargetPoint = endpoint === "target" ? edgePoint : otherPoint;
-
-	const from: Partial<ConnectorShapeData> = {
-		[anchorKey]: connectorData[anchorKey],
-		[pointKey]: connectorData[pointKey],
-		[ratioKey]: connectorData[ratioKey],
-		sourcePoint: connectorData.sourcePoint,
-		targetPoint: connectorData.targetPoint,
-		x: connector.x,
-		y: connector.y,
-		width: connector.width,
-		height: connector.height,
-	};
-
-	const to: Partial<ConnectorShapeData> = {
-		[anchorKey]: "custom",
-		[pointKey]: edgePoint,
-		[ratioKey]: getAnchorRatio(shape, edgePoint),
-		sourcePoint: newSourcePoint,
-		targetPoint: newTargetPoint,
-		x: Math.min(newSourcePoint.x, newTargetPoint.x),
-		y: Math.min(newSourcePoint.y, newTargetPoint.y),
-		width: Math.abs(newTargetPoint.x - newSourcePoint.x),
-		height: Math.abs(newTargetPoint.y - newSourcePoint.y),
-	};
-
+	const from = Object.fromEntries(
+		Object.keys(to).map((key) => [key, connector[key as keyof ConnectorShapeData]]),
+	) as Partial<ConnectorShapeData>;
 	ctx.commands.execute(createBatchUpdateShapesCommand(ctx.store, [{ id: connectorId, from, to }]));
 }
 

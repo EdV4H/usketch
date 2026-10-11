@@ -165,23 +165,30 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 			if (!conn) continue;
 			const sourceId = conn.sourceId;
 			const targetId = conn.targetId;
-			if (!sourceId || !targetId) continue;
-
-			const source = store.getShape(sourceId);
-			const target = store.getShape(targetId);
-			if (!source || !target) continue;
+			// An end without a shape is a free endpoint: it stays at its stored point.
+			const source = sourceId ? store.getShape(sourceId) : undefined;
+			const target = targetId ? store.getShape(targetId) : undefined;
+			if (!source && !target) continue;
+			if ((!source && !conn.sourcePoint) || (!target && !conn.targetPoint)) continue;
 
 			const sourceAnchor = conn.sourceAnchor ?? "auto";
 			const targetAnchor = conn.targetAnchor ?? "auto";
 
-			const targetCenter = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
-			const sourceCenter = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
+			// "auto" faces the other end: its shape center, or its fixed point when free.
+			const targetCenter = target
+				? { x: target.x + target.width / 2, y: target.y + target.height / 2 }
+				: (conn.targetPoint as Point);
+			const sourceCenter = source
+				? { x: source.x + source.width / 2, y: source.y + source.height / 2 }
+				: (conn.sourcePoint as Point);
 
 			// custom アンカーは比率（shape からの相対位置）があればそこから毎回計算する。
 			// 現在の sourcePoint に移動量を足す方式だと、同じ移動でコネクタ自身も平行移動
 			// された場合（フレームごとのドラッグ等）に二重に動き、処理順で結果が変わる。
 			let sourcePoint: Point;
-			if (sourceAnchor === "custom" && conn.sourceAnchorRatio) {
+			if (!source) {
+				sourcePoint = conn.sourcePoint as Point;
+			} else if (sourceAnchor === "custom" && conn.sourceAnchorRatio) {
 				sourcePoint = getPointFromAnchorRatio(source, conn.sourceAnchorRatio);
 			} else if (sourceAnchor === "custom" && sourceId === payload.id) {
 				const old = conn.sourcePoint as Point;
@@ -193,7 +200,9 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 			}
 
 			let targetPoint: Point;
-			if (targetAnchor === "custom" && conn.targetAnchorRatio) {
+			if (!target) {
+				targetPoint = conn.targetPoint as Point;
+			} else if (targetAnchor === "custom" && conn.targetAnchorRatio) {
 				targetPoint = getPointFromAnchorRatio(target, conn.targetAnchorRatio);
 			} else if (targetAnchor === "custom" && targetId === payload.id) {
 				const old = conn.targetPoint as Point;

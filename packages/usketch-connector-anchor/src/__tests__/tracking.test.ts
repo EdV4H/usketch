@@ -215,6 +215,69 @@ describe("createConnectorTracker", () => {
 		stop();
 	});
 
+	it("tracks the connected end of a half-connected connector and keeps the free end fixed", () => {
+		// a: (0,0)-(100,60). Free target to the right at (400, 30).
+		const a = makeRect("a", 0, 0);
+		const conn: ConnectableShapeData = {
+			...makeConnector("c1", "a", "unused"),
+			targetId: undefined,
+			sourcePoint: { x: 100, y: 30 },
+			targetPoint: { x: 400, y: 30 },
+		};
+		store.__addShape(a);
+		store.__addShape(conn);
+
+		const stop = createConnectorTracker({
+			store,
+			isConnectorType: (t) => t === "connector",
+		});
+
+		// Move a right by 100. The auto source anchor faces the free target point.
+		store.__updateRaw("a", { x: 100 });
+
+		const patch = store
+			.__getRecordedUpdates()
+			.filter((u) => u.id === "c1")
+			.at(-1)?.patch as Partial<ConnectableShapeData> | undefined;
+		expect(patch).toBeDefined();
+		expect(patch?.targetPoint).toEqual({ x: 400, y: 30 });
+		expect(patch?.sourcePoint).toEqual({ x: 200, y: 30 });
+		expect(patch?.x).toBe(200);
+		expect(patch?.y).toBe(30);
+		expect(patch?.width).toBe(200);
+		expect(patch?.height).toBe(0);
+
+		stop();
+	});
+
+	it("tracks a connector whose only connection is the target", () => {
+		const b = makeRect("b", 300, 0);
+		const conn: ConnectableShapeData = {
+			...makeConnector("c1", "unused", "b"),
+			sourceId: undefined,
+			sourcePoint: { x: 0, y: 30 },
+			targetPoint: { x: 300, y: 30 },
+		};
+		store.__addShape(b);
+		store.__addShape(conn);
+
+		const stop = createConnectorTracker({
+			store,
+			isConnectorType: (t) => t === "connector",
+		});
+
+		store.__updateRaw("b", { x: 500 });
+
+		const patch = store
+			.__getRecordedUpdates()
+			.filter((u) => u.id === "c1")
+			.at(-1)?.patch as Partial<ConnectableShapeData> | undefined;
+		expect(patch?.sourcePoint).toEqual({ x: 0, y: 30 });
+		expect(patch?.targetPoint).toEqual({ x: 500, y: 30 });
+
+		stop();
+	});
+
 	it("teardown removes all listeners", () => {
 		const stop = createConnectorTracker({
 			store,
