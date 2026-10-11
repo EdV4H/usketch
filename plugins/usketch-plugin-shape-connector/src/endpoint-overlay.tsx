@@ -1,6 +1,7 @@
 import {
 	clampToShapeEdge,
 	getAnchorPoint,
+	getAnchorRatio,
 	getDefaultControlPoint,
 } from "@edv4h/usketch-connector-anchor";
 import type { PluginContext, Point, ShapeData, Viewport } from "@edv4h/usketch-shared";
@@ -459,6 +460,7 @@ function commitAnchorSlide(
 	const edgePoint = clampToShapeEdge(shape, dragPoint);
 	const anchorKey = endpoint === "source" ? "sourceAnchor" : "targetAnchor";
 	const pointKey = endpoint === "source" ? "sourcePoint" : "targetPoint";
+	const ratioKey = endpoint === "source" ? "sourceAnchorRatio" : "targetAnchorRatio";
 
 	// Recalculate the other endpoint (it depends on the new position for "auto" anchors)
 	const otherShapeId =
@@ -481,6 +483,7 @@ function commitAnchorSlide(
 	const from: Partial<ConnectorShapeData> = {
 		[anchorKey]: connectorData[anchorKey],
 		[pointKey]: connectorData[pointKey],
+		[ratioKey]: connectorData[ratioKey],
 		sourcePoint: connectorData.sourcePoint,
 		targetPoint: connectorData.targetPoint,
 		x: connector.x,
@@ -492,6 +495,7 @@ function commitAnchorSlide(
 	const to: Partial<ConnectorShapeData> = {
 		[anchorKey]: "custom",
 		[pointKey]: edgePoint,
+		[ratioKey]: getAnchorRatio(shape, edgePoint),
 		sourcePoint: newSourcePoint,
 		targetPoint: newTargetPoint,
 		x: Math.min(newSourcePoint.x, newTargetPoint.x),
