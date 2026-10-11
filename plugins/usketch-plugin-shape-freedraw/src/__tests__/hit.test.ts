@@ -1,6 +1,7 @@
 import type { ShapeStyle } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { eraserHits, hitStroke, maxHalfWidth, strokeBounds } from "../geometry/hit.js";
+import { createFreedrawShapeDefinition } from "../shape.js";
 import type { FreedrawShapeData, PenKind, StrokePoint } from "../types.js";
 
 const style = (strokeWidth: number): ShapeStyle => ({
@@ -80,5 +81,34 @@ describe("eraserHits", () => {
 	});
 	it("どの点も外なら false", () => {
 		expect(eraserHits(shape, { x: 25, y: 100 }, 6)).toBe(false);
+	});
+});
+
+describe("createFreedrawShapeDefinition hitTest mode", () => {
+	const shape = fd([
+		{ x: 0, y: 0 },
+		{ x: 100, y: 0 },
+		{ x: 100, y: 100 },
+	]);
+	const gap = { x: 20, y: 80 };
+
+	it("stroke モードではストロークの隙間は当たらない", () => {
+		const def = createFreedrawShapeDefinition(() => "stroke");
+		expect(def.hitTest(shape, gap)).toBe(false);
+		expect(def.hitTest(shape, { x: 50, y: 0 })).toBe(true);
+	});
+
+	it("bounds モードでは外接矩形内なら当たる", () => {
+		const def = createFreedrawShapeDefinition(() => "bounds");
+		expect(def.hitTest(shape, gap)).toBe(true);
+		expect(def.hitTest(shape, { x: 300, y: 300 })).toBe(false);
+	});
+
+	it("モードは判定ごとに評価される", () => {
+		let mode: "stroke" | "bounds" = "stroke";
+		const def = createFreedrawShapeDefinition(() => mode);
+		expect(def.hitTest(shape, gap)).toBe(false);
+		mode = "bounds";
+		expect(def.hitTest(shape, gap)).toBe(true);
 	});
 });

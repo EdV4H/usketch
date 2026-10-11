@@ -3,7 +3,7 @@ import { type FreedrawConfigInput, parseFreedrawConfig } from "./config.js";
 import { createDrawController } from "./draw-tool.js";
 import { PEN_META } from "./pen-meta.js";
 import { createFreedrawSettingsStore } from "./settings-store.js";
-import { freedrawShapeDefinition } from "./shape.js";
+import { createFreedrawShapeDefinition, type FreedrawHitTestMode } from "./shape.js";
 import type { PenKind } from "./types.js";
 import { createPointerStore, FreedrawCursor } from "./ui/cursor-overlay.js";
 import type { BoolStore } from "./ui/palette.js";
@@ -55,7 +55,11 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 			const active = createBoolStore(ctx.store.getActiveToolId() === TOOL_ID);
 			const draw = createDrawController(settings, pointer);
 
-			ctx.shapes.register("freedraw", freedrawShapeDefinition);
+			let hitMode: FreedrawHitTestMode = config.hitTest;
+			ctx.shapes.register(
+				"freedraw",
+				createFreedrawShapeDefinition(() => hitMode),
+			);
 
 			ctx.tools.register(TOOL_ID, {
 				icon: FreedrawIcon,
@@ -107,6 +111,12 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 				if (cur.mode === "eraser") settings.update({ eraserSize: size });
 				else settings.update({ sizes: { ...cur.sizes, [cur.pen]: size } });
 			});
+			const offHitTest = ctx.events.on<{ mode: FreedrawHitTestMode }>(
+				"freedraw:set-hit-test",
+				({ mode }) => {
+					if (mode === "stroke" || mode === "bounds") hitMode = mode;
+				},
+			);
 			const offEraser = ctx.events.on("freedraw:toggle-eraser", () => {
 				const cur = settings.getSnapshot();
 				settings.update({ mode: cur.mode === "eraser" ? "pen" : "eraser" });
@@ -176,6 +186,7 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 				offColor();
 				offSize();
 				offEraser();
+				offHitTest();
 				for (const off of offActions) off();
 				if (typeof window !== "undefined") {
 					window.removeEventListener("keydown", onKeyDown, true);
