@@ -34,6 +34,7 @@ interface EditableRefs {
 	growOnly: boolean;
 	minHeight: number;
 	deleteWhenEmpty: boolean;
+	fitOnInput: EditableTextOptions["fitOnInput"];
 }
 
 interface EditableSchema extends MachineSchema {
@@ -41,6 +42,7 @@ interface EditableSchema extends MachineSchema {
 		editingShapeId: string | null;
 		textSnapshot: string | null;
 		heightSnapshot: number | null;
+		widthSnapshot: number | null;
 		clickedShapeId: string | null;
 	};
 	refs: EditableRefs;
@@ -70,6 +72,7 @@ const machine = createMachine<EditableSchema>({
 			editingShapeId: bindable<string | null>(() => ({ defaultValue: null })),
 			textSnapshot: bindable<string | null>(() => ({ defaultValue: null })),
 			heightSnapshot: bindable<number | null>(() => ({ defaultValue: null })),
+			widthSnapshot: bindable<number | null>(() => ({ defaultValue: null })),
 			clickedShapeId: bindable<string | null>(() => ({ defaultValue: null })),
 		};
 	},
@@ -83,6 +86,7 @@ const machine = createMachine<EditableSchema>({
 			growOnly: false,
 			minHeight: 24,
 			deleteWhenEmpty: false,
+			fitOnInput: undefined,
 		};
 	},
 	states: {
@@ -184,6 +188,7 @@ const machine = createMachine<EditableSchema>({
 				if (!shape || !isEditableType(shape.type)) return;
 				context.set("textSnapshot", (shape as TextLike).text ?? "");
 				context.set("heightSnapshot", shape.height);
+				context.set("widthSnapshot", shape.width);
 				context.set("clickedShapeId", null);
 				const t = refs.get("clickTimer");
 				if (t != null) {
@@ -205,6 +210,7 @@ const machine = createMachine<EditableSchema>({
 				if (!id) return;
 				const prevText = context.get("textSnapshot");
 				const prevHeight = context.get("heightSnapshot");
+				const prevWidth = context.get("widthSnapshot");
 				const ctx = refs.get("ctx");
 				const settle = refs.get("settleTimer");
 				if (settle != null) {
@@ -216,6 +222,7 @@ const machine = createMachine<EditableSchema>({
 					context.set("editingShapeId", null);
 					context.set("textSnapshot", null);
 					context.set("heightSnapshot", null);
+					context.set("widthSnapshot", null);
 				};
 				if (!shape) return reset();
 				ctx.store.updateShape(id, { isEditing: false } as Partial<ShapeData>);
@@ -229,9 +236,21 @@ const machine = createMachine<EditableSchema>({
 						execute: () => ctx.store.deleteShape(id),
 						undo: () => ctx.store.addShape(snapshot),
 					});
-				} else if (currentText !== prevText || shape.height !== prevHeight) {
-					const from = { text: prevText, height: prevHeight ?? shape.height } as Partial<ShapeData>;
-					const to = { text: currentText, height: shape.height } as Partial<ShapeData>;
+				} else if (
+					currentText !== prevText ||
+					shape.height !== prevHeight ||
+					shape.width !== prevWidth
+				) {
+					const from = {
+						text: prevText,
+						height: prevHeight ?? shape.height,
+						width: prevWidth ?? shape.width,
+					} as Partial<ShapeData>;
+					const to = {
+						text: currentText,
+						height: shape.height,
+						width: shape.width,
+					} as Partial<ShapeData>;
 					ctx.commands.execute({
 						execute: () => ctx.store.updateShape(id, to),
 						undo: () => ctx.store.updateShape(id, from),
@@ -251,6 +270,8 @@ const machine = createMachine<EditableSchema>({
 					const floor = refs.get("growOnly") ? shape.height : refs.get("minHeight");
 					(patch as { height?: number }).height = Math.max(floor, event.scrollHeight);
 				}
+				const fit = refs.get("fitOnInput")?.(shape, event.text);
+				if (fit) Object.assign(patch, fit);
 				ctx.store.updateShape(event.id, patch);
 			},
 			sendEnterEdit({ send }) {
@@ -283,12 +304,24 @@ export interface EditableTextOptions {
 	 * just clear the label. Default false.
 	 */
 	deleteWhenEmpty?: boolean;
+	/**
+	 * Extra geometry patch applied on each text input, merged over the height
+	 * growth (e.g. the text shape's auto width). Return null to leave the shape
+	 * as is. Changes it makes are part of the edit's single undo step.
+	 */
+	fitOnInput?: (shape: ShapeData, text: string) => Partial<ShapeData> | null;
 }
 
 export interface EditableTextController {
 	/** Begin editing a specific shape explicitly (e.g. right after creation). */
 	beginEdit(shapeId: string): void;
 	isEditing(): boolean;
+	/**
+	 * Forget a pending first click, so the next pointer-down on the shape does
+	 * not complete a double-click into edit mode. Call from a handler that has
+	 * already consumed the double-click (e.g. a resize-handle double-click).
+	 */
+	cancelPendingClick(): void;
 	teardown(): void;
 }
 
@@ -304,6 +337,7 @@ export function createEditableTextController(
 	service.refs.set("growOnly", options.growOnly ?? false);
 	service.refs.set("minHeight", options.minHeight ?? 24);
 	service.refs.set("deleteWhenEmpty", options.deleteWhenEmpty ?? false);
+	service.refs.set("fitOnInput", options.fitOnInput);
 	service.start();
 
 	const matches = (...values: string[]) => {
@@ -358,6 +392,9 @@ export function createEditableTextController(
 			service.send({ type: "CREATE_SHAPE", shapeId });
 		},
 		isEditing: () => matches("editing"),
+		cancelPendingClick() {
+			service.send({ type: "CLICK_TIMEOUT" });
+		},
 		teardown() {
 			const clickTimer = service.refs.get("clickTimer");
 			if (clickTimer != null) clearTimeout(clickTimer);

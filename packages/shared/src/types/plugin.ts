@@ -416,6 +416,12 @@ export interface ShapeDefinition {
 		 */
 		hitTest?: "center" | "contain";
 	};
+	/**
+	 * Double-click on one of this shape's resize handles while it is the only
+	 * selected shape (e.g. the text shape returns to auto width). Return `true`
+	 * when handled — the select tool then skips starting a resize drag.
+	 */
+	onHandleDoubleClick?: (ctx: ToolContext, data: ShapeData, handle: ResizeHandle) => boolean;
 	/** Shape-specific move logic (e.g. updating absolute point arrays). Default: update x/y only. */
 	move?: (data: ShapeData, dx: number, dy: number) => Partial<ShapeData>;
 	/**
