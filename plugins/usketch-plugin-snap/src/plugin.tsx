@@ -165,6 +165,8 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 
 			let pointerDown = false;
 			let altKeyHeld = false;
+			// select ツールの移動ドラッグ中（Alt＝複製なのでスナップ解除に使わない）
+			let moveDragging = false;
 
 			// Frame-level caches for multi-shape snap consistency
 			let frameSnapResult: SnapResult | null = null;
@@ -180,8 +182,13 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				setState({ lines: [], gaps: [] });
 			});
 
+			const offMoveStart = ctx.events.on("shapes:move-start", () => {
+				moveDragging = true;
+			});
+
 			const offPointerUp = ctx.events.on<CanvasPointerEvent>("canvas:pointerup", () => {
 				pointerDown = false;
+				moveDragging = false;
 				frameSnapResult = null;
 				frameCandidateBoxes = null;
 				setState({ lines: [], gaps: [] });
@@ -235,6 +242,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 					settings.enabled,
 					altKeyHeld,
 					settings.altBehavior,
+					moveDragging,
 				);
 				const shouldSnap = pointerDown && effectiveEnabled && hasPositionUpdate(updates);
 
@@ -368,6 +376,7 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 			return () => {
 				offPointerDown();
 				offPointerUp();
+				offMoveStart();
 				offConfigure();
 				offGetSettings();
 				offSnapAction();

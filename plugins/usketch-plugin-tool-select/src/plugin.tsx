@@ -1,14 +1,17 @@
 import type {
 	CanvasPointerEvent,
 	PluginContext,
+	ShapeData,
 	ToolContext,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { safeRotation } from "@edv4h/usketch-shared";
 import {
+	createAddShapesCommand,
 	createDeleteWithChildrenCommand,
 	isEffectivelyHidden,
 	isEffectivelyLocked,
+	rootShapeIds,
 } from "@edv4h/usketch-store";
 import {
 	findHandleAtScreenPoint,
@@ -28,6 +31,12 @@ import {
 } from "@edv4h/usketch-tool-helpers";
 import { clearMovingSelectionListeners, setMovingSelection } from "./drag-state.js";
 import { clearDropTargetListeners, setDropTargetId } from "./drop-target-state.js";
+import {
+	addDuplicatePreview,
+	cloneAtCurrentPositions,
+	removeShapes,
+	restoreShapes,
+} from "./duplicate-drag.js";
 import {
 	clearEditingGroupListeners,
 	getEditingGroupId,
@@ -91,6 +100,11 @@ type DragState =
 			kind: "move";
 			session: ReturnType<typeof startDragSession>;
 			movingIds: ReadonlySet<string>;
+			/** Snapshots of the moving shapes at pointerdown (Option+drag duplicate). */
+			startShapes: ShapeData[];
+			/** Ids of the stay-behind preview while Option is held, else `null`. */
+			duplicatePreviewIds: string[] | null;
+			toolCtx: ToolContext;
 	  }
 	| {
 			kind: "resize";
@@ -140,6 +154,38 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			let overrideCursor = "";
 			let lastClickTime = 0;
 			let lastClickId: string | null = null;
+
+			// ── Option(Alt)+drag duplicate ──
+			// Toggled by the Alt key itself (not only pointermove) so pressing or
+			// releasing Option while the mouse is still switches move ⇔ duplicate.
+
+			function setDuplicating(on: boolean) {
+				if (dragState?.kind !== "move") return;
+				const { toolCtx } = dragState;
+				if (on && !dragState.duplicatePreviewIds) {
+					dragState.duplicatePreviewIds = addDuplicatePreview(toolCtx.store, dragState.startShapes);
+				} else if (!on && dragState.duplicatePreviewIds) {
+					removeShapes(toolCtx.store, dragState.duplicatePreviewIds);
+					dragState.duplicatePreviewIds = null;
+				}
+			}
+
+			function onDuplicateKey(e: KeyboardEvent) {
+				if (e.key === "Alt") setDuplicating(e.type === "keydown");
+			}
+			function onDuplicateBlur() {
+				setDuplicating(false);
+			}
+			function startDuplicateKeyTracking() {
+				window.addEventListener("keydown", onDuplicateKey);
+				window.addEventListener("keyup", onDuplicateKey);
+				window.addEventListener("blur", onDuplicateBlur);
+			}
+			function stopDuplicateKeyTracking() {
+				window.removeEventListener("keydown", onDuplicateKey);
+				window.removeEventListener("keyup", onDuplicateKey);
+				window.removeEventListener("blur", onDuplicateBlur);
+			}
 
 			// Inject a <style> tag to override canvas cursor via !important
 			const styleEl = document.createElement("style");
@@ -337,7 +383,16 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 						kind: "move",
 						session,
 						movingIds: session.movingShapeIds,
+						startShapes: [...session.movingShapeIds].flatMap((id) => {
+							const shape = toolCtx.store.getShape(id);
+							return shape ? [{ ...shape }] : [];
+						}),
+						duplicatePreviewIds: null,
+						toolCtx,
 					};
+					toolCtx.events.emit("shapes:move-start", { shapeIds: [...currentSelection] });
+					startDuplicateKeyTracking();
+					setDuplicating(event.altKey);
 				} else {
 					// Click on empty — start marquee selection
 					if (!event.shiftKey) {
@@ -395,6 +450,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				}
 
 				// kind === "move"
+				setDuplicating(event.altKey);
 				dragState.session.update(event);
 
 				// Drop target: find frame/group under the cursor (excluding dragged shapes).
@@ -403,6 +459,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				const entries = [...allShapes.entries()].reverse();
 				for (const [id, shape] of entries) {
 					if (dragState.movingIds.has(id)) continue;
+					if (dragState.duplicatePreviewIds?.includes(id)) continue;
 					if (shape.type !== "frame" && shape.type !== "group") continue;
 					const def = toolCtx.shapes.get(shape.type);
 					const bounds = def
@@ -462,9 +519,28 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 
 				// kind === "move"
 				setMovingSelection(false);
+				stopDuplicateKeyTracking();
 				const userSelectedIds = [...toolCtx.store.getSelection()];
+				// Option held at drop: the originals go back to where they started (commit
+				// reverts them) and copies are added where the originals were dropped.
+				const clones = dragState.duplicatePreviewIds
+					? cloneAtCurrentPositions(toolCtx.store, dragState.movingIds)
+					: null;
+				setDuplicating(false);
 				const result = dragState.session.commit();
-				if (result) {
+				if (result && clones) {
+					const { startShapes } = dragState;
+					queueMicrotask(() => {
+						// commit() reverted the originals while snap was still active (the
+						// tool's pointerup runs before `canvas:pointerup`), so a snap may
+						// have nudged them. Put them back exactly where they started.
+						restoreShapes(toolCtx.store, startShapes);
+						toolCtx.commands.execute(createAddShapesCommand(toolCtx.store, clones));
+						const cloneRootIds = rootShapeIds(clones);
+						toolCtx.store.setSelection(cloneRootIds);
+						toolCtx.events.emit("shapes:move-end", { shapeIds: cloneRootIds });
+					});
+				} else if (result) {
 					queueMicrotask(() => {
 						toolCtx.commands.execute(result.command);
 						// Notify after the move command is committed so reparent won't be undone.
@@ -475,6 +551,8 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			}
 
 			function onDeactivate(toolCtx: ToolContext) {
+				setDuplicating(false);
+				stopDuplicateKeyTracking();
 				dragState = null;
 				enableTextSelection();
 				setMovingSelection(false);
@@ -527,6 +605,8 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			// ── Teardown ──
 			return () => {
 				offConfigure();
+				setDuplicating(false);
+				stopDuplicateKeyTracking();
 				// overlayColors はインスタンス所有なので reset 不要（GC で破棄）。#640
 				setOverrideCursor("");
 				setMovingSelection(false);

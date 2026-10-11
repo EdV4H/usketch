@@ -729,6 +729,8 @@ export interface CoreEventMap {
 	"filter:changed": { predicate: ((shape: ShapeData) => boolean) | null; config: unknown };
 	"time-travel:enter": { shapes: Map<string, ShapeData> };
 	"time-travel:exit": Record<string, never>;
+	/** select ツールが選択の移動ドラッグを開始した（pointerdown 時）。 */
+	"shapes:move-start": { shapeIds: string[] };
 	"shapes:move-end": { shapeIds: string[] };
 	"snap:configure": { enabled: boolean };
 	"partition:request": { partitions: string[] };

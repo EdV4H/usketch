@@ -15,6 +15,7 @@ export {
 } from "./collision-utils.js";
 export {
 	createAddShapeCommand,
+	createAddShapesCommand,
 	createBatchUpdateShapesCommand,
 	createBringForwardCommand,
 	createBringSelectionToFrontCommand,
@@ -36,6 +37,13 @@ export {
 	type ContainmentAttacherOptions,
 	createContainmentAttacher,
 } from "./containment-attacher.js";
+export {
+	type CloneShapesOptions,
+	cloneShapes,
+	collectWithDescendants,
+	rootShapeIds,
+	translateShape,
+} from "./duplicate.js";
 export {
 	computeGroupBounds,
 	getAncestorChain,
