@@ -4,14 +4,16 @@ import {
 	DEFAULT_STYLE,
 	type PluginContext,
 	type Point,
-	type ResizeHandle,
 	type ShapeData,
 	type UsketchPlugin,
 	withRotation,
 } from "@edv4h/usketch-shared";
 import { useCallback, useSyncExternalStore } from "react";
 import { createImageFileHandler, createImageUrlHandler } from "./external-content-handler.js";
-import type { ImageShapeData } from "./types.js";
+import { registerImageHud } from "./hud/register-image-hud.js";
+import { MIN_IMAGE_SIZE, resizeImageShape } from "./image-resize.js";
+import { createImageApi, imageService } from "./image-service.js";
+import { DEFAULT_IMAGE_FIT, type ImageShapeData } from "./types.js";
 
 // Lazily resolves the shared asset store at render/serialize time (these run
 // without a PluginContext). Set in setup, so it's order-independent.
@@ -52,7 +54,7 @@ function ImageView({ data }: { data: ImageShapeData }) {
 					style={{
 						width: "100%",
 						height: "100%",
-						objectFit: "contain",
+						objectFit: data.fit ?? DEFAULT_IMAGE_FIT,
 						pointerEvents: "none",
 					}}
 				/>
@@ -78,47 +80,6 @@ function hitTest(data: ShapeData, point: Point): boolean {
 		point.y >= data.y &&
 		point.y <= data.y + data.height
 	);
-}
-
-function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData {
-	let { x, y, width, height } = data;
-	switch (handle) {
-		case "se":
-			width += delta.x;
-			height += delta.y;
-			break;
-		case "nw":
-			x += delta.x;
-			y += delta.y;
-			width -= delta.x;
-			height -= delta.y;
-			break;
-		case "ne":
-			y += delta.y;
-			width += delta.x;
-			height -= delta.y;
-			break;
-		case "sw":
-			x += delta.x;
-			width -= delta.x;
-			height += delta.y;
-			break;
-		case "e":
-			width += delta.x;
-			break;
-		case "w":
-			x += delta.x;
-			width -= delta.x;
-			break;
-		case "n":
-			y += delta.y;
-			height -= delta.y;
-			break;
-		case "s":
-			height += delta.y;
-			break;
-	}
-	return { ...data, x, y, width: Math.max(40, width), height: Math.max(40, height) };
 }
 
 function createDefault(params: { id: string; x: number; y: number }): ImageShapeData {
@@ -177,10 +138,10 @@ export function createImageShapePlugin(): UsketchPlugin {
 				render,
 				getBounds,
 				hitTest: withRotation(hitTest),
-				resize,
+				resize: resizeImageShape,
 				createDefault,
 				renderTarget: "html",
-				minSize: { width: 40, height: 40 },
+				minSize: { width: MIN_IMAGE_SIZE, height: MIN_IMAGE_SIZE },
 				serializeForAi,
 				serializeForRecognition,
 				debugFields,
@@ -199,9 +160,17 @@ export function createImageShapePlugin(): UsketchPlugin {
 			// `.svg` URL drop/paste → image shape (above embed's generic URL handler).
 			const unregisterUrlHandler = ctx.externalContent.register(createImageUrlHandler());
 
+			const unprovideService = imageService.provide(
+				ctx.services,
+				createImageApi(ctx.store, ctx.commands),
+			);
+			const unregisterHud = registerImageHud(ctx);
+
 			return () => {
 				unregisterHandler();
 				unregisterUrlHandler();
+				unprovideService();
+				unregisterHud();
 				getAssets = null;
 			};
 		},
