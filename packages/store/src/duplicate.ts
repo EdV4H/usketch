@@ -81,6 +81,7 @@ export interface CloneShapesOptions {
 /**
  * shape 群を新 id で複製する。複製対象どうしの参照（`parentId` と
  * コネクタの `sourceId` / `targetId`）は複製先へ張り替え、対象外を指す参照は元のまま残す。
+ * テキスト編集中フラグ（`isEditing`）は引き継がない。
  */
 export function cloneShapes(
 	shapes: readonly ShapeData[],
@@ -100,6 +101,10 @@ export function cloneShapes(
 			const ref = refs[key];
 			const mapped = typeof ref === "string" ? idMap.get(ref) : undefined;
 			if (mapped) Object.assign(next, { [key]: mapped });
+		}
+		// Text-edit mode is transient UI state; a copy must not open its editor.
+		if ((shape as { isEditing?: unknown }).isEditing === true) {
+			Object.assign(next, { isEditing: false });
 		}
 		return next;
 	});

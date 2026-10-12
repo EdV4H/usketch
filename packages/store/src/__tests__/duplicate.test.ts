@@ -114,6 +114,11 @@ describe("cloneShapes", () => {
 		expect(shapes[0]).toMatchObject({ x: 3, y: 4, sourcePoint: { x: 3, y: 4 } });
 	});
 
+	it("copies never start in text-edit mode", () => {
+		const { shapes } = cloneShapes([makeShape({ id: "a", isEditing: true })]);
+		expect(shapes[0]?.isEditing).toBe(false);
+	});
+
 	it("does not mutate the input shapes", () => {
 		const input = makeShape({ id: "a", x: 1 });
 		cloneShapes([input], { dx: 10, dy: 10 });
