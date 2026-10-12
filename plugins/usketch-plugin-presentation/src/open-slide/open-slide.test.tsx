@@ -44,7 +44,7 @@ function shapeOf(overrides: Partial<OpenSlideShapeData> = {}): OpenSlideShapeDat
 	return {
 		...createOpenSlideShapeData({
 			id: "os1",
-			deck: { id: "demo" },
+			deck: { id: "demo", title: "Demo" },
 			center: { x: 960, y: 540 },
 			width: 1920,
 		}),
@@ -93,12 +93,20 @@ describe("open-slide Shape のジオメトリ", () => {
 	it("中心を基準に 16:9 の Shape を作る", () => {
 		const s = createOpenSlideShapeData({
 			id: "x",
-			deck: { id: "demo" },
+			deck: { id: "demo", title: "Demo" },
 			center: { x: 0, y: 0 },
 			width: 1600,
 			pageCount: 4,
 		});
-		expect(s).toMatchObject({ x: -800, y: -450, width: 1600, height: 900, page: 0, pageCount: 4 });
+		expect(s).toMatchObject({
+			x: -800,
+			y: -450,
+			width: 1600,
+			height: 900,
+			page: 0,
+			pageCount: 4,
+			title: "Demo",
+		});
 		expect(isOpenSlideShape(s)).toBe(true);
 	});
 

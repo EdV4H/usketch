@@ -22,7 +22,7 @@ export const OPEN_SLIDE_MIN_WIDTH = 160;
 
 export interface CreateOpenSlideShapeParams {
 	id: string;
-	deck: Pick<OpenSlideDeck, "id">;
+	deck: Pick<OpenSlideDeck, "id" | "title">;
 	/** Shape の中心 (world)。 */
 	center: Point;
 	/** 幅 (world px)。省略時 {@link OPEN_SLIDE_DEFAULT_WIDTH}。 */
@@ -44,6 +44,7 @@ export function createOpenSlideShapeData(params: CreateOpenSlideShapeParams): Op
 		height,
 		style: { fill: "#ffffff", stroke: "transparent", strokeWidth: 0, opacity: 1 },
 		deckId: params.deck.id,
+		title: params.deck.title,
 		page: 0,
 		pageCount: Math.max(1, Math.floor(params.pageCount ?? 1)),
 	};
@@ -90,8 +91,9 @@ function hitTest(data: ShapeData, point: Point): boolean {
 }
 
 function deckTitle(registry: OpenSlideDeckRegistry, shape: ShapeData): string {
-	const deckId = (shape as Partial<OpenSlideShapeData>).deckId ?? "";
-	return registry.getDeck(deckId)?.title ?? deckId;
+	const data = shape as Partial<OpenSlideShapeData>;
+	const deckId = data.deckId ?? "";
+	return registry.getDeck(deckId)?.title ?? data.title ?? deckId;
 }
 
 export interface OpenSlideShapeDefinitionOptions {
@@ -165,7 +167,7 @@ export function createOpenSlideShapeDefinition({
 			const deck = registry.getDecks()[0];
 			const shape = createOpenSlideShapeData({
 				id,
-				deck: { id: deck?.id ?? "" },
+				deck: { id: deck?.id ?? "", title: deck?.title ?? "" },
 				center: { x, y },
 				pageCount: deck ? registry.getPageCount(deck.id) : undefined,
 			});

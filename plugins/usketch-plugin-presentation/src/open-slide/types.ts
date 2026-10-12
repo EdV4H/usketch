@@ -50,6 +50,8 @@ export interface OpenSlideShapeData extends ShapeData {
 	type: typeof OPEN_SLIDE_SHAPE_TYPE;
 	/** 参照するデッキの id ({@link OpenSlideDeck.id})。 */
 	deckId: string;
+	/** 挿入時点のデッキ名。スライド一覧の表示や、デッキが未登録のときの表示に使う。 */
+	title: string;
 	/** 編集時に表示するページ (0 始まり)。発表中の送りではこの値は書き換えない。 */
 	page: number;
 	/**
