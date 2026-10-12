@@ -1,7 +1,13 @@
-export { createStartPositionPlugin } from "./plugin.js";
+export {
+	type CreateStartPositionPluginOptions,
+	createStartPositionPlugin,
+	type StartPositionFallback,
+} from "./plugin.js";
 export {
 	applyStartPosition,
 	captureViewport,
+	fitAllContent,
+	type ViewportSizeGetter,
 } from "./resolve.js";
 export {
 	createStartPositionShapeDefinition,

@@ -1,6 +1,6 @@
 import type { BoardStore, BoundingBox, ShapeData, Viewport } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
-import { applyStartPosition, captureViewport } from "../resolve.js";
+import { applyStartPosition, captureViewport, fitAllContent } from "../resolve.js";
 
 interface Recorded {
 	animateViewportTo: { vp: Viewport }[];
@@ -14,6 +14,7 @@ function fakeStore(opts: { viewport?: Viewport; shapes?: Record<string, ShapeDat
 	const rec: Recorded = { animateViewportTo: [], fitToBounds: [] };
 	const shapes = opts.shapes ?? {};
 	const store = {
+		getShapes: () => new Map(Object.entries(shapes)),
 		getViewport: () => opts.viewport ?? { x: 0, y: 0, zoom: 1 },
 		getShape: (id: string) => shapes[id],
 		animateViewportTo: (vp: Viewport) => rec.animateViewportTo.push({ vp }),
@@ -104,5 +105,42 @@ describe("captureViewport", () => {
 		expect(cap.zoom).toBe(2);
 		expect(Number.isFinite(cap.x)).toBe(true);
 		expect(Number.isFinite(cap.y)).toBe(true);
+	});
+});
+
+describe("fitAllContent", () => {
+	const rect = (id: string, x: number, y: number, w: number, h: number, extra = {}): ShapeData =>
+		({
+			id,
+			type: "rect",
+			x,
+			y,
+			width: w,
+			height: h,
+			rotation: 0,
+			...extra,
+		}) as unknown as ShapeData;
+
+	it("frames the union of all shapes with the given screen size", () => {
+		const { store, rec } = fakeStore({
+			shapes: { a: rect("a", 100, 100, 50, 50), b: rect("b", 300, 200, 100, 100) },
+		});
+		expect(fitAllContent(store, { getViewportSize: () => ({ width: 800, height: 600 }) })).toBe(
+			true,
+		);
+		expect(rec.fitToBounds[0].bounds).toEqual({ x: 100, y: 100, width: 300, height: 200 });
+	});
+
+	it("ignores the data-only start-position shape at the origin", () => {
+		const sp = rect("sp", 0, 0, 0, 0, { type: "start-position" });
+		const { store, rec } = fakeStore({ shapes: { sp, a: rect("a", 500, 500, 100, 100) } });
+		expect(fitAllContent(store)).toBe(true);
+		expect(rec.fitToBounds[0].bounds).toEqual({ x: 500, y: 500, width: 100, height: 100 });
+	});
+
+	it("does nothing for an empty board", () => {
+		const { store, rec } = fakeStore();
+		expect(fitAllContent(store)).toBe(false);
+		expect(rec.fitToBounds).toHaveLength(0);
 	});
 });
