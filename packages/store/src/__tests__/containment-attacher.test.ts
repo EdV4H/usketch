@@ -67,6 +67,27 @@ describe("createContainmentAttacher", () => {
 		stop();
 	});
 
+	it("keeps the parentId a shape is added with when that container contains it (duplicate)", () => {
+		const store = createBoardStore();
+		const execute = vi.fn((cmd: { execute(): void }) => cmd.execute());
+		const stop = createContainmentAttacher({
+			store,
+			commands: { ...makeCommands(), execute } as unknown as CommandRegistry,
+			events: makeEvents(),
+			isAttachTarget: isFrame,
+		});
+
+		// Original frame and its same-size copy overlap the copied child exactly
+		// (Option+drag preview / Cmd+D on top). The original comes first in the store.
+		store.addShape(makeShape({ id: "frame", type: "frame", x: 0, y: 0, width: 400, height: 400 }));
+		store.addShape(makeShape({ id: "copy", type: "frame", x: 0, y: 0, width: 400, height: 400 }));
+		store.addShape(makeShape({ id: "child", parentId: "copy", x: 20, y: 20 }));
+
+		expect(store.getShape("child")?.parentId).toBe("copy");
+		expect(execute).not.toHaveBeenCalled();
+		stop();
+	});
+
 	it("does not attach a shape added outside any container", () => {
 		const store = createBoardStore();
 		const stop = createContainmentAttacher({

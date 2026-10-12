@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
 	addDuplicatePreview,
 	cloneAtCurrentPositions,
+	duplicateTargetIds,
 	removeShapes,
 	restoreShapes,
 } from "../duplicate-drag.js";
@@ -34,6 +35,21 @@ describe("addDuplicatePreview", () => {
 		expect(ids).toHaveLength(1);
 		expect(store.getShape(ids[0] as string)).toMatchObject({ x: 0, type: "rectangle" });
 		expect(store.getShape("a")?.x).toBe(100);
+	});
+});
+
+describe("addDuplicatePreview z-order", () => {
+	it("puts each preview just below its original so the dragged shapes stay on top", () => {
+		const store = createBoardStore();
+		store.addShape(makeShape({ id: "under" }));
+		store.addShape(makeShape({ id: "frame", type: "frame" }));
+		store.addShape(makeShape({ id: "child", parentId: "frame" }));
+		const start = ["frame", "child"].map((id) => ({ ...store.getShape(id) }) as ShapeData);
+
+		const [pFrame, pChild] = addDuplicatePreview(store, start);
+
+		const order = store.getShapesSorted().map((s) => s.id);
+		expect(order).toEqual(["under", pFrame, "frame", pChild, "child"]);
 	});
 });
 
@@ -82,5 +98,18 @@ describe("restoreShapes", () => {
 
 		expect(store.getShape("a")).toMatchObject({ x: 0, y: 0 });
 		expect(store.getShape("gone")).toBeUndefined();
+	});
+});
+
+describe("duplicateTargetIds", () => {
+	it("adds connectors running between the moving shapes (frame children)", () => {
+		const store = createBoardStore();
+		store.addShape(makeShape({ id: "frame", type: "frame", width: 500, height: 500 }));
+		store.addShape(makeShape({ id: "A", parentId: "frame" }));
+		store.addShape(makeShape({ id: "B", parentId: "frame", x: 300 }));
+		store.addShape(makeShape({ id: "C", type: "connector", sourceId: "A", targetId: "B" }));
+		store.addShape(makeShape({ id: "out", type: "connector", sourceId: "A", targetId: "Z" }));
+
+		expect(duplicateTargetIds(store, ["frame", "A", "B"])).toEqual(["frame", "A", "B", "C"]);
 	});
 });

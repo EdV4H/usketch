@@ -11,6 +11,7 @@ import {
 import {
 	cloneShapes,
 	collectWithDescendants,
+	connectorsBetween,
 	createAddShapesCommand,
 	rootShapeIds,
 	translateShape,
@@ -29,9 +30,16 @@ function isInputFocused(): boolean {
 	return tag === "INPUT" || tag === "TEXTAREA" || (el as HTMLElement).isContentEditable;
 }
 
-/** 選択中の shape とその子孫（frame / group の中身）。 */
+/** 選択中の shape とその子孫（frame / group の中身）、およびそれらを結ぶコネクタ。 */
 function collectShapes(store: BoardStore): ShapeData[] {
-	return collectWithDescendants(store, store.getSelection());
+	const shapes = collectWithDescendants(store, store.getSelection());
+	return [
+		...shapes,
+		...connectorsBetween(
+			store,
+			shapes.map((s) => s.id),
+		),
+	];
 }
 
 /** 新規 shape 群（新 id・親子/接続の張り替え・初期 +20 オフセット）を生成。 */

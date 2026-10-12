@@ -69,6 +69,26 @@ describe("duplicateShapes (Cmd+D)", () => {
 		expect(store.getShapes().size).toBe(4);
 	});
 
+	it("duplicates a connector between children of a selected frame", () => {
+		const store = createBoardStore();
+		const commands = createCommandRegistry();
+		store.addShape(makeShape({ id: "frame", type: "frame", width: 500, height: 500 }));
+		store.addShape(makeShape({ id: "A", parentId: "frame" }));
+		store.addShape(makeShape({ id: "B", parentId: "frame", x: 300 }));
+		// Connectors never get a parentId, so they are not descendants of the frame.
+		store.addShape(makeShape({ id: "C", type: "connector", sourceId: "A", targetId: "B" }));
+		store.setSelection(["frame"]);
+
+		duplicateShapes(store, commands);
+
+		const conns = [...store.getShapes().values()].filter((s) => s.type === "connector");
+		expect(conns).toHaveLength(2);
+		const copy = conns.find((c) => c.id !== "C");
+		const copyA = store.getShape(copy?.sourceId as string);
+		expect(copyA?.id).not.toBe("A");
+		expect(copyA?.parentId).not.toBe("frame");
+	});
+
 	it("is undone in a single step", () => {
 		const store = createBoardStore();
 		const commands = createCommandRegistry();

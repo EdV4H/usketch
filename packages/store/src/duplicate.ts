@@ -33,6 +33,22 @@ export function collectWithDescendants(store: BoardStore, ids: Iterable<string>)
 	return result;
 }
 
+/**
+ * 両端（`sourceId` / `targetId`）がともに `ids` に含まれるコネクタのうち、`ids` に無いもの。
+ * コネクタは frame の子にならないので、frame を複製するときはこれで中の矢印を拾う。
+ */
+export function connectorsBetween(store: BoardStore, ids: Iterable<string>): ShapeData[] {
+	const set = new Set(ids);
+	const result: ShapeData[] = [];
+	for (const [id, shape] of store.getShapes()) {
+		if (set.has(id)) continue;
+		const { sourceId, targetId } = shape as { sourceId?: unknown; targetId?: unknown };
+		if (typeof sourceId !== "string" || typeof targetId !== "string") continue;
+		if (set.has(sourceId) && set.has(targetId)) result.push({ ...shape });
+	}
+	return result;
+}
+
 /** 親が `shapes` に含まれない shape（＝複製の起点）の id。確定後の選択に使う。 */
 export function rootShapeIds(shapes: readonly ShapeData[]): string[] {
 	const ids = new Set(shapes.map((s) => s.id));

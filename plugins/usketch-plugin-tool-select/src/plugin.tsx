@@ -34,6 +34,7 @@ import { clearDropTargetListeners, setDropTargetId } from "./drop-target-state.j
 import {
 	addDuplicatePreview,
 	cloneAtCurrentPositions,
+	duplicateTargetIds,
 	removeShapes,
 	restoreShapes,
 } from "./duplicate-drag.js";
@@ -383,7 +384,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 						kind: "move",
 						session,
 						movingIds: session.movingShapeIds,
-						startShapes: [...session.movingShapeIds].flatMap((id) => {
+						startShapes: duplicateTargetIds(toolCtx.store, session.movingShapeIds).flatMap((id) => {
 							const shape = toolCtx.store.getShape(id);
 							return shape ? [{ ...shape }] : [];
 						}),
@@ -524,7 +525,10 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				// Option held at drop: the originals go back to where they started (commit
 				// reverts them) and copies are added where the originals were dropped.
 				const clones = dragState.duplicatePreviewIds
-					? cloneAtCurrentPositions(toolCtx.store, dragState.movingIds)
+					? cloneAtCurrentPositions(
+							toolCtx.store,
+							dragState.startShapes.map((s) => s.id),
+						)
 					: null;
 				setDuplicating(false);
 				const result = dragState.session.commit();

@@ -1,7 +1,12 @@
 import type { ShapeData, ShapeDefinition, ShapeRegistry } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { createBoardStore } from "../board-store.js";
-import { cloneShapes, collectWithDescendants, rootShapeIds } from "../duplicate.js";
+import {
+	cloneShapes,
+	collectWithDescendants,
+	connectorsBetween,
+	rootShapeIds,
+} from "../duplicate.js";
 
 function makeShape(overrides: Partial<ShapeData> = {}): ShapeData {
 	return {
@@ -124,5 +129,20 @@ describe("rootShapeIds", () => {
 			makeShape({ id: "inOuter", parentId: "outer" }),
 		]);
 		expect(ids).toEqual(["frame", "inOuter"]);
+	});
+});
+
+describe("connectorsBetween", () => {
+	it("returns connectors whose both ends are in the set and that are not in it yet", () => {
+		const store = createBoardStore();
+		store.addShape(makeShape({ id: "A" }));
+		store.addShape(makeShape({ id: "B" }));
+		store.addShape(makeShape({ id: "X" }));
+		store.addShape(makeShape({ id: "AB", type: "connector", sourceId: "A", targetId: "B" }));
+		store.addShape(makeShape({ id: "AX", type: "connector", sourceId: "A", targetId: "X" }));
+		store.addShape(makeShape({ id: "free", type: "connector" }));
+
+		expect(connectorsBetween(store, ["A", "B"]).map((s) => s.id)).toEqual(["AB"]);
+		expect(connectorsBetween(store, ["A", "B", "AB"])).toEqual([]);
 	});
 });

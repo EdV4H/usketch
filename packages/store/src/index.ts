@@ -41,6 +41,7 @@ export {
 	type CloneShapesOptions,
 	cloneShapes,
 	collectWithDescendants,
+	connectorsBetween,
 	rootShapeIds,
 	translateShape,
 } from "./duplicate.js";
