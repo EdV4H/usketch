@@ -20,6 +20,7 @@ type EditableEvent =
 	| { type: "CLICK_TIMEOUT" }
 	| { type: "SETTLE_TIMEOUT" }
 	| { type: "TEXT_INPUT"; id: string; text: string; scrollHeight: number }
+	| { type: "TEXT_PREVIEW"; id: string; text: string; scrollHeight: number }
 	| { type: "TEXT_BLUR"; id: string }
 	| { type: "TEXT_ESCAPE"; id: string }
 	| { type: "OUTSIDE_CLICK" }
@@ -57,6 +58,7 @@ interface EditableSchema extends MachineSchema {
 		| "enterEdit"
 		| "exitEdit"
 		| "updateText"
+		| "previewText"
 		| "sendEnterEdit"
 		| "startSettleTimer";
 	effect: never;
@@ -124,6 +126,7 @@ const machine = createMachine<EditableSchema>({
 					entry: ["startSettleTimer"],
 					on: {
 						TEXT_INPUT: { guard: "isEditingTarget", actions: ["updateText"] },
+						TEXT_PREVIEW: { guard: "isEditingTarget", actions: ["previewText"] },
 						TEXT_ESCAPE: { guard: "isEditingTarget", target: "idle", actions: ["exitEdit"] },
 						DESELECTED: { target: "idle", actions: ["exitEdit"] },
 						SETTLE_TIMEOUT: { target: "active" },
@@ -132,6 +135,7 @@ const machine = createMachine<EditableSchema>({
 				active: {
 					on: {
 						TEXT_INPUT: { guard: "isEditingTarget", actions: ["updateText"] },
+						TEXT_PREVIEW: { guard: "isEditingTarget", actions: ["previewText"] },
 						TEXT_BLUR: { guard: "isEditingTarget", target: "idle", actions: ["exitEdit"] },
 						OUTSIDE_CLICK: { target: "idle", actions: ["exitEdit"] },
 						TEXT_ESCAPE: { guard: "isEditingTarget", target: "idle", actions: ["exitEdit"] },
@@ -259,20 +263,25 @@ const machine = createMachine<EditableSchema>({
 				reset();
 			},
 			updateText({ refs, event }) {
-				if (!("text" in event)) return;
+				if (event.type !== "TEXT_INPUT") return;
 				const ctx = refs.get("ctx");
 				const shape = ctx.store.getShape(event.id);
 				if (!shape) return;
-				const patch: Partial<ShapeData> = { text: event.text } as Partial<ShapeData>;
-				if (refs.get("growHeight")) {
-					// grow-only shapes (sticky) never shrink below their current
-					// (possibly manually-resized) height; others fit down to minHeight.
-					const floor = refs.get("growOnly") ? shape.height : refs.get("minHeight");
-					(patch as { height?: number }).height = Math.max(floor, event.scrollHeight);
-				}
-				const fit = refs.get("fitOnInput")?.(shape, event.text);
-				if (fit) Object.assign(patch, fit);
-				ctx.store.updateShape(event.id, patch);
+				ctx.store.updateShape(event.id, {
+					text: event.text,
+					...fitGeometry(refs, shape, event.text, event.scrollHeight),
+				} as Partial<ShapeData>);
+			},
+			previewText({ refs, event }) {
+				// IME composition: resize to the unconfirmed content but leave
+				// `text` alone — it is committed on composition end. Geometry
+				// changes stay inside the edit's single undo step (see exitEdit).
+				if (event.type !== "TEXT_PREVIEW") return;
+				const ctx = refs.get("ctx");
+				const shape = ctx.store.getShape(event.id);
+				if (!shape) return;
+				const patch = fitGeometry(refs, shape, event.text, event.scrollHeight);
+				if (Object.keys(patch).length > 0) ctx.store.updateShape(event.id, patch);
 			},
 			sendEnterEdit({ send }) {
 				send({ type: "ENTER_EDIT" });
@@ -282,6 +291,25 @@ const machine = createMachine<EditableSchema>({
 });
 
 type TextLike = ShapeData & { text?: string };
+
+/** Height growth plus the plugin's `fitOnInput` patch for the editor content. */
+function fitGeometry(
+	refs: { get<K extends keyof EditableRefs>(key: K): EditableRefs[K] },
+	shape: ShapeData,
+	text: string,
+	scrollHeight: number,
+): Partial<ShapeData> {
+	const patch: Partial<ShapeData> = {};
+	if (refs.get("growHeight")) {
+		// grow-only shapes (sticky) never shrink below their current
+		// (possibly manually-resized) height; others fit down to minHeight.
+		const floor = refs.get("growOnly") ? shape.height : refs.get("minHeight");
+		patch.height = Math.max(floor, scrollHeight);
+	}
+	const fit = refs.get("fitOnInput")?.(shape, text);
+	if (fit) Object.assign(patch, fit);
+	return patch;
+}
 
 export interface EditableTextOptions {
 	/** Which shape types this controller edits. */
@@ -349,6 +377,10 @@ export function createEditableTextController(
 		const { id, text, scrollHeight } = (e as CustomEvent).detail;
 		service.send({ type: "TEXT_INPUT", id, text, scrollHeight });
 	};
+	const onPreview = (e: Event) => {
+		const { id, text, scrollHeight } = (e as CustomEvent).detail;
+		service.send({ type: "TEXT_PREVIEW", id, text, scrollHeight });
+	};
 	const onBlur = (e: Event) => {
 		const { id } = (e as CustomEvent).detail;
 		requestAnimationFrame(() => service.send({ type: "TEXT_BLUR", id }));
@@ -365,6 +397,7 @@ export function createEditableTextController(
 		service.send({ type: "OUTSIDE_CLICK" });
 	};
 	window.addEventListener("usketch:text-input", onInput);
+	window.addEventListener("usketch:text-preview", onPreview);
 	window.addEventListener("usketch:text-blur", onBlur);
 	window.addEventListener("usketch:text-escape", onEscape);
 	window.addEventListener("pointerdown", onWindowPointerDown, true);
@@ -402,6 +435,7 @@ export function createEditableTextController(
 			if (settleTimer != null) clearTimeout(settleTimer);
 			service.stop();
 			window.removeEventListener("usketch:text-input", onInput);
+			window.removeEventListener("usketch:text-preview", onPreview);
 			window.removeEventListener("usketch:text-blur", onBlur);
 			window.removeEventListener("usketch:text-escape", onEscape);
 			window.removeEventListener("pointerdown", onWindowPointerDown, true);

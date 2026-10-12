@@ -5,4 +5,4 @@
 "@edv4h/usketch-shape-utils": minor
 ---
 
-テキストに Figma 風の自動幅を追加。新規テキストは入力に合わせて横に広がり（折り返しなし）、左右・四隅のハンドルで幅を変えると固定幅（折り返し）に切り替わる。左右ハンドルのダブルクリックで自動幅に戻り内容にフィットする。`ShapeDefinition.onHandleDoubleClick`、編集コントローラの `fitOnInput` / `cancelPendingClick` を追加。
+テキストに Figma 風の自動幅を追加。新規テキストは入力に合わせて横に広がり（折り返しなし）、左右・四隅のハンドルで幅を変えると固定幅（折り返し）に切り替わる。左右ハンドルのダブルクリックで自動幅に戻り内容にフィットする。`ShapeDefinition.onHandleDoubleClick`、編集コントローラの `fitOnInput` / `cancelPendingClick` を追加。 IME 変換中も未確定文字に合わせて幅を広げる（`TEXT_PREVIEW_EVENT`）。

@@ -95,6 +95,13 @@ describe("fitTextOnInput", () => {
 		});
 	});
 
+	it("IME 変換中の未確定文字も含めた内容に幅を合わせ、確定で短くなれば縮む", () => {
+		const shape = textShape({ autoWidth: true });
+		// 「にほんご」と打っている途中（未確定）→ 確定して「日本語」
+		expect(fitTextOnInput(shape, "あいうにほんご", measure)).toEqual({ width: 78 });
+		expect(fitTextOnInput(shape, "あいう日本語", measure)).toEqual({ width: 68 });
+	});
+
 	it("固定幅（autoWidth 無し含む）は幅を変えない", () => {
 		expect(fitTextOnInput(textShape({ autoWidth: false }), "abcd", measure)).toBeNull();
 		expect(fitTextOnInput(textShape(), "abcd", measure)).toBeNull();

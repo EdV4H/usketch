@@ -9,6 +9,7 @@ export {
 	TEXT_BLUR_EVENT,
 	TEXT_ESCAPE_EVENT,
 	TEXT_INPUT_EVENT,
+	TEXT_PREVIEW_EVENT,
 } from "./editable-text/render-props.js";
 export {
 	type FindFreePositionOptions,
