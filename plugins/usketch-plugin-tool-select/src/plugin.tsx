@@ -187,16 +187,17 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			function startDuplicateKeyTracking() {
 				keyTracking = true;
 				setSnapAltToggleSuppressed(true);
-				window.addEventListener("keydown", onDuplicateKey);
-				window.addEventListener("keyup", onDuplicateKey);
+				// Capture phase: a focused text editor stops keydown from bubbling.
+				window.addEventListener("keydown", onDuplicateKey, true);
+				window.addEventListener("keyup", onDuplicateKey, true);
 				window.addEventListener("blur", onDuplicateBlur);
 			}
 			function stopDuplicateKeyTracking() {
 				if (!keyTracking) return;
 				keyTracking = false;
 				setSnapAltToggleSuppressed(false);
-				window.removeEventListener("keydown", onDuplicateKey);
-				window.removeEventListener("keyup", onDuplicateKey);
+				window.removeEventListener("keydown", onDuplicateKey, true);
+				window.removeEventListener("keyup", onDuplicateKey, true);
 				window.removeEventListener("blur", onDuplicateBlur);
 			}
 
