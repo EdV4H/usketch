@@ -27,6 +27,8 @@ const MASK_BG = "rgba(12,12,16,0.92)";
 export function PresentModeOverlay({ nav, onExit, mask }: Props) {
 	const [index, setIndex] = useState(nav.getCurrentIndex());
 	const [total, setTotal] = useState(nav.getSlides().length);
+	// open-slide デッキなどスライド内にページがあるときの位置。
+	const [step, setStep] = useState(nav.getCurrentStep());
 	const [visible, setVisible] = useState(true);
 	const [masked, setMasked] = useState(mask ?? false);
 	// viewport 変化 (fit アニメ含む) でマスク位置を再計算させるためのリビジョン。
@@ -35,8 +37,9 @@ export function PresentModeOverlay({ nav, onExit, mask }: Props) {
 	const store = nav.getStore();
 
 	useEffect(() => {
-		const unsub = nav.onChange((i) => {
+		const unsub = nav.onChange((i, s) => {
 			setIndex(i);
+			setStep(s);
 			setTotal(nav.getSlides().length);
 		});
 		return unsub;
@@ -114,6 +117,7 @@ export function PresentModeOverlay({ nav, onExit, mask }: Props) {
 		);
 	}
 
+	const stepCount = nav.getCurrentStepCount();
 	const progress = total > 1 ? index / (total - 1) : 1;
 
 	// 現スライドの画面矩形 (Canvas ローカル座標 = viewport 変換)。Canvas がほぼ全画面の
@@ -280,7 +284,7 @@ export function PresentModeOverlay({ nav, onExit, mask }: Props) {
 					}}
 				>
 					<NavButton
-						disabled={index === 0}
+						disabled={!nav.hasPrev()}
 						onClick={() => nav.prev()}
 						ariaLabel="前のスライド"
 						direction="prev"
@@ -297,9 +301,15 @@ export function PresentModeOverlay({ nav, onExit, mask }: Props) {
 					>
 						<span style={{ color: "white", fontWeight: 600 }}>{index + 1}</span>
 						<span style={{ color: "rgba(255,255,255,0.5)" }}> / {total}</span>
+						{stepCount > 1 && (
+							<span style={{ color: "rgba(255,255,255,0.5)" }}>
+								{" "}
+								· {step + 1}/{stepCount}
+							</span>
+						)}
 					</div>
 					<NavButton
-						disabled={index >= total - 1}
+						disabled={!nav.hasNext()}
 						onClick={() => nav.next()}
 						ariaLabel="次のスライド"
 						direction="next"
