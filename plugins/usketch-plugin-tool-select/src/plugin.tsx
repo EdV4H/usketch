@@ -1,3 +1,4 @@
+import { DomShapeLayer } from "@edv4h/usketch-dom-renderer";
 import type {
 	CanvasPointerEvent,
 	PluginContext,
@@ -32,10 +33,10 @@ import {
 import { clearMovingSelectionListeners, setMovingSelection } from "./drag-state.js";
 import { clearDropTargetListeners, setDropTargetId } from "./drop-target-state.js";
 import {
-	addDuplicatePreview,
 	cloneAtCurrentPositions,
 	duplicateTargetIds,
-	removeShapes,
+	previewRenderContext,
+	previewSnapCandidates,
 	restoreShapes,
 } from "./duplicate-drag.js";
 import {
@@ -103,8 +104,8 @@ type DragState =
 			movingIds: ReadonlySet<string>;
 			/** Snapshots of the moving shapes at pointerdown (Option+drag duplicate). */
 			startShapes: ShapeData[];
-			/** Ids of the stay-behind preview while Option is held, else `null`. */
-			duplicatePreviewIds: string[] | null;
+			/** Option is held: drop duplicates instead of moving (stay-behind preview shown). */
+			duplicating: boolean;
 			toolCtx: ToolContext;
 	  }
 	| {
@@ -160,15 +161,17 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			// Toggled by the Alt key itself (not only pointermove) so pressing or
 			// releasing Option while the mouse is still switches move ⇔ duplicate.
 
+			// The stay-behind preview is drawn by an overlay layer from the drag-start
+			// snapshots; it never enters the store (no history, sync or listeners).
+
 			function setDuplicating(on: boolean) {
-				if (dragState?.kind !== "move") return;
-				const { toolCtx } = dragState;
-				if (on && !dragState.duplicatePreviewIds) {
-					dragState.duplicatePreviewIds = addDuplicatePreview(toolCtx.store, dragState.startShapes);
-				} else if (!on && dragState.duplicatePreviewIds) {
-					removeShapes(toolCtx.store, dragState.duplicatePreviewIds);
-					dragState.duplicatePreviewIds = null;
-				}
+				if (dragState?.kind !== "move" || dragState.duplicating === on) return;
+				dragState.duplicating = on;
+				// Let the snap plugin (if any) align the copy with the stay-behind originals.
+				ctx.events.emit("snap:extra-candidates", {
+					boxes: on ? previewSnapCandidates(dragState.startShapes, ctx.shapes) : [],
+				});
+				ctx.events.emit("layers:changed", {});
 			}
 
 			// While a move drag may duplicate, Alt means "duplicate", so ask the snap
@@ -401,7 +404,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 							const shape = toolCtx.store.getShape(id);
 							return shape ? [{ ...shape }] : [];
 						}),
-						duplicatePreviewIds: null,
+						duplicating: false,
 						toolCtx,
 					};
 					startDuplicateKeyTracking();
@@ -472,7 +475,6 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				const entries = [...allShapes.entries()].reverse();
 				for (const [id, shape] of entries) {
 					if (dragState.movingIds.has(id)) continue;
-					if (dragState.duplicatePreviewIds?.includes(id)) continue;
 					if (shape.type !== "frame" && shape.type !== "group") continue;
 					const def = toolCtx.shapes.get(shape.type);
 					const bounds = def
@@ -536,7 +538,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				const userSelectedIds = [...toolCtx.store.getSelection()];
 				// Option held at drop: the originals go back to where they started (commit
 				// reverts them) and copies are added where the originals were dropped.
-				const clones = dragState.duplicatePreviewIds
+				const clones = dragState.duplicating
 					? cloneAtCurrentPositions(
 							toolCtx.store,
 							dragState.startShapes.map((s) => s.id),
@@ -578,6 +580,22 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				toolCtx.store.setHoveredShapeId(null);
 				updateDropTarget(null);
 			}
+
+			ctx.layers.register({
+				id: "usketch-plugin-tool-select:duplicate-preview",
+				// Just under the DOM shape layer (50): the dragged shapes stay on top.
+				order: 49,
+				render: (renderCtx) =>
+					dragState?.kind === "move" && dragState.duplicating ? (
+						<div data-duplicate-preview="">
+							<style>{"[data-duplicate-preview] *{pointer-events:none!important}"}</style>
+							<DomShapeLayer
+								ctx={previewRenderContext(renderCtx, dragState.startShapes)}
+								shapeRegistry={ctx.shapes}
+							/>
+						</div>
+					) : null,
+			});
 
 			ctx.tools.register("select", {
 				icon: SelectIcon,
@@ -621,6 +639,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			// ── Teardown ──
 			return () => {
 				offConfigure();
+				ctx.layers.unregister("usketch-plugin-tool-select:duplicate-preview");
 				setDuplicating(false);
 				stopDuplicateKeyTracking();
 				// overlayColors はインスタンス所有なので reset 不要（GC で破棄）。#640

@@ -1,4 +1,11 @@
-import { type BoardStore, type ShapeData, zIndexBetween } from "@edv4h/usketch-shared";
+import {
+	type BoardStore,
+	type BoundingBox,
+	compareZIndex,
+	type LayerRenderContext,
+	type ShapeData,
+	type ShapeRegistry,
+} from "@edv4h/usketch-shared";
 import { cloneShapes, connectorsBetween } from "@edv4h/usketch-store";
 
 /**
@@ -11,34 +18,42 @@ export function duplicateTargetIds(store: BoardStore, movingIds: Iterable<string
 }
 
 /**
- * Option(Alt)+ドラッグ複製のプレビュー。ドラッグ中は元の shape がカーソルに付いて動くので、
- * 「その場に残る側」の見た目として開始位置のコピーを store に直接置く（履歴には積まない）。
- * 返り値の id はドラッグ終了・Option 解除時に {@link removeShapes} で消す。
+ * Option(Alt)+ドラッグ複製のプレビュー（「その場に残る側」）を描くための LayerRenderContext。
+ * プレビューは store に入れず、開始時のスナップショットだけを既存の shape 描画で表示する。
  */
-export function addDuplicatePreview(
-	store: BoardStore,
-	startShapes: readonly ShapeData[],
-): string[] {
-	// 元と同じ zIndex だと後から追加したプレビューが前面に来て、ドラッグ中の元を隠す。
-	// 各プレビューを元の直下（ひとつ手前の key との間）に差し込む。
-	const keys = store
-		.getShapesSorted()
-		.map((s) => s.zIndex)
-		.filter((k): k is string => typeof k === "string");
-	const { shapes } = cloneShapes(startShapes);
-	for (const shape of shapes) {
-		const own = shape.zIndex;
-		if (typeof own === "string") {
-			const lower = keys.filter((k) => k < own).at(-1) ?? null;
-			shape.zIndex = zIndexBetween(lower, own);
-		}
-		store.addShape(shape);
-	}
-	return shapes.map((s) => s.id);
+export function previewRenderContext(
+	base: LayerRenderContext,
+	snapshots: readonly ShapeData[],
+): LayerRenderContext {
+	// 表示専用: 編集中のスナップショットがテキストエディタを出してフォーカスを奪わないようにする。
+	const inert = snapshots.map((s) =>
+		(s as { isEditing?: unknown }).isEditing === true ? { ...s, isEditing: false } : s,
+	);
+	return {
+		...base,
+		shapes: new Map(inert.map((s) => [s.id, s])),
+		shapesSorted: [...inert].sort((a, b) => compareZIndex(a.zIndex, b.zIndex)),
+		selection: new Set(),
+		hoveredShapeId: null,
+	};
 }
 
-export function removeShapes(store: BoardStore, ids: Iterable<string>): void {
-	for (const id of ids) store.deleteShape(id);
+/**
+ * プレビュー（開始位置）をスナップ候補として渡す矩形。複製を元と揃えて置けるようにする。
+ * スナップ対象と同じく、最上位の shape だけ（子は親フレーム内の文脈なので除く）、コネクタは除く。
+ */
+export function previewSnapCandidates(
+	snapshots: readonly ShapeData[],
+	registry?: ShapeRegistry,
+): BoundingBox[] {
+	const ids = new Set(snapshots.map((s) => s.id));
+	return snapshots
+		.filter((s) => s.type !== "connector")
+		.filter((s) => typeof s.parentId !== "string" || !ids.has(s.parentId))
+		.map(
+			(s) =>
+				registry?.get(s.type)?.getBounds(s) ?? { x: s.x, y: s.y, width: s.width, height: s.height },
+		);
 }
 
 /** snapshot の状態へ shape を書き戻す（履歴には積まない）。 */
