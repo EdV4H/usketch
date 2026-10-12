@@ -171,18 +171,30 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				}
 			}
 
+			// While a move drag may duplicate, Alt means "duplicate", so ask the snap
+			// plugin (if any) not to treat it as its snap toggle.
+			let keyTracking = false;
+			function setSnapAltToggleSuppressed(suppressed: boolean) {
+				ctx.events.emit("snap:alt-toggle-suppress", { suppressed });
+			}
 			function onDuplicateKey(e: KeyboardEvent) {
 				if (e.key === "Alt") setDuplicating(e.type === "keydown");
 			}
 			function onDuplicateBlur() {
 				setDuplicating(false);
+				setSnapAltToggleSuppressed(false);
 			}
 			function startDuplicateKeyTracking() {
+				keyTracking = true;
+				setSnapAltToggleSuppressed(true);
 				window.addEventListener("keydown", onDuplicateKey);
 				window.addEventListener("keyup", onDuplicateKey);
 				window.addEventListener("blur", onDuplicateBlur);
 			}
 			function stopDuplicateKeyTracking() {
+				if (!keyTracking) return;
+				keyTracking = false;
+				setSnapAltToggleSuppressed(false);
 				window.removeEventListener("keydown", onDuplicateKey);
 				window.removeEventListener("keyup", onDuplicateKey);
 				window.removeEventListener("blur", onDuplicateBlur);
@@ -391,7 +403,6 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 						duplicatePreviewIds: null,
 						toolCtx,
 					};
-					toolCtx.events.emit("shapes:move-start", { shapeIds: [...currentSelection] });
 					startDuplicateKeyTracking();
 					setDuplicating(event.altKey);
 				} else {

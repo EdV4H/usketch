@@ -19,7 +19,7 @@ describe("effectiveSnapEnabled", () => {
 		expect(effectiveSnapEnabled(false, true, "invert")).toBe(true);
 	});
 
-	it("移動ドラッグ中は Alt を無視する（Option+ドラッグ＝複製に使うため）", () => {
+	it("altToggleSuppressed の間は Alt を無視する", () => {
 		expect(effectiveSnapEnabled(true, true, "suppress", true)).toBe(true);
 		expect(effectiveSnapEnabled(false, true, "invert", true)).toBe(false);
 	});

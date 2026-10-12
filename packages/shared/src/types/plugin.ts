@@ -729,10 +729,12 @@ export interface CoreEventMap {
 	"filter:changed": { predicate: ((shape: ShapeData) => boolean) | null; config: unknown };
 	"time-travel:enter": { shapes: Map<string, ShapeData> };
 	"time-travel:exit": Record<string, never>;
-	/** select ツールが選択の移動ドラッグを開始した（pointerdown 時）。 */
-	"shapes:move-start": { shapeIds: string[] };
 	"shapes:move-end": { shapeIds: string[] };
 	"snap:configure": { enabled: boolean };
+	/** Alt によるスナップ切替を一時的に無効にする（Alt を別用途に使う間だけ true）。 */
+	"snap:alt-toggle-suppress": { suppressed: boolean };
+	/** 一時的な追加のスナップ候補（ワールド座標の矩形）。空配列で解除。 */
+	"snap:extra-candidates": { boxes: BoundingBox[] };
 	"partition:request": { partitions: string[] };
 	"canvas:drop": { files: FileList; worldPoint: Point; screenPoint: Point };
 }

@@ -5,14 +5,15 @@ import type { AltBehavior } from "./engine/types.js";
  * - 非押下: `enabled` のまま
  * - 押下 + `"suppress"`: 常に false（従来挙動）
  * - 押下 + `"invert"`: `!enabled`（無効→一時有効 / 有効→一時無効）
- * - 選択移動ドラッグ中（`moveDragging`）は Alt を無視する。Alt は Option+ドラッグ複製に使う。
+ * - `altToggleSuppressed`（`snap:alt-toggle-suppress` で他プラグインが一時的に立てる）の間は
+ *   Alt を無視し `enabled` のまま。
  */
 export function effectiveSnapEnabled(
 	enabled: boolean,
 	altKeyHeld: boolean,
 	altBehavior: AltBehavior,
-	moveDragging = false,
+	altToggleSuppressed = false,
 ): boolean {
-	if (!altKeyHeld || moveDragging) return enabled;
+	if (!altKeyHeld || altToggleSuppressed) return enabled;
 	return altBehavior === "invert" ? !enabled : false;
 }
