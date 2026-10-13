@@ -29,9 +29,30 @@ function toCommand(store: BoardStore, updates: ShapeUpdate[]): Command | null {
 }
 
 /**
+ * The box snapped to `aspect`: the largest rect of that ratio inside the
+ * current box, centered on it. With `fit: "contain"` this is exactly the area
+ * the bitmap already occupies, so the image itself doesn't move or scale.
+ */
+export function fitBoxToAspect(
+	shape: ImageShapeData,
+	aspect: number,
+): Pick<ImageShapeData, "x" | "y" | "width" | "height"> {
+	const width = Math.min(shape.width, shape.height * aspect);
+	const height = width / aspect;
+	return {
+		x: shape.x + (shape.width - width) / 2,
+		y: shape.y + (shape.height - height) / 2,
+		width,
+		height,
+	};
+}
+
+/**
  * Undoable command switching the resize mode of the image shapes among `ids`.
- * Switching to `keep-aspect` keeps the current size and, when no ratio is
- * stored yet, locks the current box ratio. Returns `null` when nothing changes.
+ * Switching to `keep-aspect` locks the image's original ratio (`aspectRatio`,
+ * stored on import) and snaps the box to it right away. An image without a
+ * stored ratio has no original to go back to, so it locks its current box
+ * ratio and keeps its size. Returns `null` when nothing changes.
  */
 export function setImageResizeMode(
 	store: BoardStore,
@@ -43,9 +64,18 @@ export function setImageResizeMode(
 		if (shape.resizeMode === mode) continue;
 		const from: Partial<ImageShapeData> = { resizeMode: shape.resizeMode };
 		const to: Partial<ImageShapeData> = { resizeMode: mode };
-		if (mode === "keep-aspect" && shape.aspectRatio === undefined) {
-			from.aspectRatio = undefined;
-			to.aspectRatio = getImageAspect(shape);
+		if (mode === "keep-aspect") {
+			const aspect = getImageAspect(shape);
+			if (shape.aspectRatio === undefined) {
+				from.aspectRatio = undefined;
+				to.aspectRatio = aspect;
+			} else {
+				const box = fitBoxToAspect(shape, aspect);
+				if (box.width !== shape.width || box.height !== shape.height) {
+					Object.assign(from, { x: shape.x, y: shape.y, width: shape.width, height: shape.height });
+					Object.assign(to, box);
+				}
+			}
 		}
 		updates.push({ id: shape.id, from, to });
 	}

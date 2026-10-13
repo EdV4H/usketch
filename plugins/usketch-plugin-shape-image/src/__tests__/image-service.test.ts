@@ -36,12 +36,25 @@ describe("setImageResizeMode", () => {
 		expect((store.getShape("r") as ImageShapeData).resizeMode).toBeUndefined();
 	});
 
-	it("locks the current box ratio when switching to keep-aspect without a stored one", () => {
+	it("locks the current box ratio and keeps the size when no original ratio is stored", () => {
 		const { store, get } = setup();
-		setImageResizeMode(store, ["a", "b"], "keep-aspect")?.execute();
+		setImageResizeMode(store, ["a"], "keep-aspect")?.execute();
 		expect(get("a").aspectRatio).toBe(3);
+		expect(get("a")).toMatchObject({ x: 0, y: 0, width: 300, height: 100 });
+	});
+
+	it("snaps the box to the original ratio, centered inside the current box", () => {
+		const { store, get } = setup();
+		setImageResizeMode(store, ["b"], "keep-aspect")?.execute();
 		expect(get("b").aspectRatio).toBe(1.5);
-		expect(get("b").width).toBe(300);
+		expect(get("b")).toMatchObject({ x: 75, y: 0, width: 150, height: 100 });
+	});
+
+	it("leaves a box that already has the original ratio alone", () => {
+		const store = createBoardStore();
+		store.addShape(image("c", { aspectRatio: 3, resizeMode: "free" }));
+		setImageResizeMode(store, ["c"], "keep-aspect")?.execute();
+		expect(store.getShape("c")).toMatchObject({ x: 0, y: 0, width: 300, height: 100 });
 	});
 
 	it("undoes in one step", () => {
@@ -52,6 +65,7 @@ describe("setImageResizeMode", () => {
 		expect(get("a").resizeMode).toBeUndefined();
 		expect(get("a").aspectRatio).toBeUndefined();
 		expect(get("b").resizeMode).toBe("free");
+		expect(get("b")).toMatchObject({ x: 0, y: 0, width: 300, height: 100 });
 	});
 
 	it("returns null when nothing changes", () => {
