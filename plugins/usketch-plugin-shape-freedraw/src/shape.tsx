@@ -65,8 +65,12 @@ function getBounds(shape: ShapeData): BoundingBox {
 	return strokeBounds(asFreedraw(shape));
 }
 
-function hitTest(shape: ShapeData, point: Point): boolean {
-	return hitStroke(asFreedraw(shape), point);
+/** 当たり判定モード。`stroke`: ストローク実体 / `bounds`: 外接矩形全体。 */
+export type FreedrawHitTestMode = "stroke" | "bounds";
+
+function hitBounds(shape: ShapeData, point: Point): boolean {
+	const b = strokeBounds(asFreedraw(shape));
+	return point.x >= b.x && point.x <= b.x + b.width && point.y >= b.y && point.y <= b.y + b.height;
 }
 
 function mapPoints(
@@ -224,11 +228,20 @@ function debugFields(shape: ShapeData): Record<string, unknown> {
 	};
 }
 
-/** shape レジストリ用の定義。 */
-export const freedrawShapeDefinition: ShapeDefinition = {
+/** shape レジストリ用の定義を作る。`getHitMode` は判定ごとに評価されるので実行時に切り替えられる。 */
+export function createFreedrawShapeDefinition(
+	getHitMode: () => FreedrawHitTestMode = () => "stroke",
+): ShapeDefinition {
+	return {
+		...baseDefinition,
+		hitTest: (shape, point) =>
+			getHitMode() === "bounds" ? hitBounds(shape, point) : hitStroke(asFreedraw(shape), point),
+	};
+}
+
+const baseDefinition: Omit<ShapeDefinition, "hitTest"> = {
 	render,
 	getBounds,
-	hitTest,
 	resize,
 	createDefault,
 	move,
@@ -238,6 +251,9 @@ export const freedrawShapeDefinition: ShapeDefinition = {
 	serializeForRecognition,
 	debugFields,
 };
+
+/** 既定（ストローク実体判定）の定義。 */
+export const freedrawShapeDefinition: ShapeDefinition = createFreedrawShapeDefinition();
 
 // 描画ツール/消しゴムから使う幾何ヘルパも再エクスポート。
 export { eraserHits, maxHalfWidth, strokeBounds };
