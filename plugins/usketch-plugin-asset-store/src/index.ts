@@ -4,6 +4,7 @@ export {
 	type AssetStore,
 	type AssetUploader,
 	createAssetStore,
+	DEFAULT_INLINE_MAX_BYTES,
 	hashKey,
 } from "./asset-store.js";
 export {
