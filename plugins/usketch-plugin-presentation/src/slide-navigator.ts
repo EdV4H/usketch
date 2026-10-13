@@ -3,8 +3,19 @@ import type { BoardStore, BoundingBox, ShapeData } from "@edv4h/usketch-shared";
 /** ある shape をスライドとして扱うかどうかを判定する述語。 */
 export type IsSlide = (shape: ShapeData) => boolean;
 
+/**
+ * スライド 1 枚の中にある「ステップ数」（→ / Space で順に送るページ数）を返す関数。
+ * 1 以下ならスライド内送りはなく、次の操作で次のスライドへ移る。
+ */
+export type GetStepCount = (shape: ShapeData) => number;
+
 /** 既定のスライド判定: Frame シェイプをスライドとして扱う。 */
-const defaultIsSlide: IsSlide = (s) => s.type === "frame";
+export const defaultIsSlide: IsSlide = (s) => s.type === "frame";
+
+const defaultGetStepCount: GetStepCount = () => 1;
+
+/** onChange の購読関数。`step` はスライド内の 0 始まりのステップ位置。 */
+export type SlideChangeListener = (index: number, step: number) => void;
 
 export interface SlideNavigatorOptions {
 	/**
@@ -19,6 +30,12 @@ export interface SlideNavigatorOptions {
 	 * ときは 0 を渡す。余白 0 で生じるレターボックスはホスト側のマスク等で扱う。
 	 */
 	fitPadding?: number;
+	/**
+	 * スライド内のステップ数（複数ページを持つ shape のページ数など）。省略時は常に 1。
+	 * next / prev はステップを先に消費してから前後のスライドへ移る。
+	 * 値は毎回呼び出して読むので、非同期に確定するページ数にも追従する。
+	 */
+	getStepCount?: GetStepCount;
 }
 
 /**
@@ -28,13 +45,15 @@ export interface SlideNavigatorOptions {
  */
 export class SlideNavigator {
 	private currentIndex = 0;
+	/** 現在スライド内のステップ位置（0 始まり）。スライドが変わると 0 か末尾に置き直す。 */
+	private currentStep = 0;
 	/**
 	 * 現在選択中のスライド（Frame）の shape id。
 	 * 並び替えや追加で index だけ覚えていると指す Frame が変わってしまうので、
 	 * 可能な限り id で追跡し、mutation 後に新しい slides 配列から index を再導出する。
 	 */
 	private currentFrameId: string | null = null;
-	private readonly changeListeners = new Set<(index: number) => void>();
+	private readonly changeListeners = new Set<SlideChangeListener>();
 	private readonly unsubscribeStore: () => void;
 	private getViewportSize: () => { width: number; height: number };
 	/** 現在 Frame として扱っている shape id。`shape:removed` で id が消えたかどうかの判定に使う。 */
@@ -43,6 +62,8 @@ export class SlideNavigator {
 	private readonly isSlide: IsSlide;
 	/** fitToBounds の余白（px）。省略時 40。発表で画角いっぱいにしたいときは 0。 */
 	private readonly fitPadding: number;
+	/** スライド内ステップ数（省略時 1）。 */
+	private readonly getStepCount: GetStepCount;
 
 	constructor(
 		private readonly store: BoardStore,
@@ -51,6 +72,7 @@ export class SlideNavigator {
 	) {
 		this.isSlide = options.isSlide ?? defaultIsSlide;
 		this.fitPadding = options.fitPadding ?? 40;
+		this.getStepCount = options.getStepCount ?? defaultGetStepCount;
 		this.getViewportSize = getViewportSize;
 		const initialSlides = this.getSlides();
 		this.frameIds = new Set(initialSlides.map((s) => s.id));
@@ -66,6 +88,7 @@ export class SlideNavigator {
 			if (slides.length === 0) {
 				this.currentFrameId = null;
 				this.currentIndex = 0;
+				this.currentStep = 0;
 			} else {
 				// id が残っていればその新 index に、無ければ旧 index を slides 数に clamp
 				const foundIdx = this.currentFrameId
@@ -76,9 +99,15 @@ export class SlideNavigator {
 				} else {
 					this.currentIndex = Math.min(this.currentIndex, slides.length - 1);
 					this.currentFrameId = slides[this.currentIndex]?.id ?? null;
+					this.currentStep = 0;
 				}
+				// ページ数が減った (デッキ差し替え等) ときに範囲外のステップを残さない。
+				this.currentStep = Math.min(
+					this.currentStep,
+					this.stepCountOf(slides[this.currentIndex]) - 1,
+				);
 			}
-			for (const l of this.changeListeners) l(this.currentIndex);
+			this.notify();
 		});
 	}
 
@@ -117,6 +146,31 @@ export class SlideNavigator {
 		return this.currentIndex;
 	}
 
+	/** 現在スライド内のステップ位置（0 始まり）。 */
+	getCurrentStep(): number {
+		return this.currentStep;
+	}
+
+	/** 現在スライドのステップ数（スライドが無ければ 0）。 */
+	getCurrentStepCount(): number {
+		const s = this.getSlides()[this.currentIndex];
+		return s ? this.stepCountOf(s) : 0;
+	}
+
+	/** next() で進める先があるか（スライド内の残りステップか、次のスライド）。 */
+	hasNext(): boolean {
+		const slides = this.getSlides();
+		if (slides.length === 0) return false;
+		if (this.currentStep < this.stepCountOf(slides[this.currentIndex]) - 1) return true;
+		return this.currentIndex < slides.length - 1;
+	}
+
+	/** prev() で戻る先があるか。 */
+	hasPrev(): boolean {
+		if (this.getSlides().length === 0) return false;
+		return this.currentStep > 0 || this.currentIndex > 0;
+	}
+
 	/** 現在スライドの world 矩形 (回転無視の AABB)。スライドが無ければ null。 */
 	getCurrentBounds(): BoundingBox | null {
 		const slides = this.getSlides();
@@ -129,7 +183,11 @@ export class SlideNavigator {
 		return this.store;
 	}
 
-	gotoIndex(index: number): void {
+	/**
+	 * index 番目のスライドへ寄せる。`step` はそのスライド内のステップ位置（省略時 0）で、
+	 * スライドのステップ数に clamp する。
+	 */
+	gotoIndex(index: number, step = 0): void {
 		const slides = this.getSlides();
 		if (slides.length === 0) return;
 		const clamped = Math.max(0, Math.min(index, slides.length - 1));
@@ -139,6 +197,7 @@ export class SlideNavigator {
 		this.currentIndex = clamped;
 		const target = slides[clamped];
 		this.currentFrameId = target?.id ?? null;
+		this.currentStep = Math.max(0, Math.min(step, this.stepCountOf(target) - 1));
 		if (target) {
 			const bounds: BoundingBox = {
 				x: target.x,
@@ -148,30 +207,70 @@ export class SlideNavigator {
 			};
 			this.store.fitToBounds(bounds, this.getViewportSize(), this.fitPadding);
 		}
-		for (const l of this.changeListeners) l(clamped);
+		this.notify();
 	}
 
+	/** スライド内の次のステップ、無ければ次のスライドの先頭ステップへ進む。 */
 	next(): void {
-		this.gotoIndex(this.currentIndex + 1);
+		const slides = this.getSlides();
+		if (slides.length === 0) return;
+		if (this.currentStep < this.stepCountOf(slides[this.currentIndex]) - 1) {
+			// 同じスライド内の送りは画角が変わらないので fit せず通知だけ行う。
+			this.currentStep += 1;
+			this.notify();
+			return;
+		}
+		if (this.currentIndex >= slides.length - 1) {
+			// 末尾では従来どおり現在スライドに寄せ直す（ステップ位置は保つ）。
+			this.gotoIndex(this.currentIndex, this.currentStep);
+			return;
+		}
+		this.gotoIndex(this.currentIndex + 1, 0);
 	}
 
+	/** スライド内の前のステップ、無ければ前のスライドの最終ステップへ戻る。 */
 	prev(): void {
-		this.gotoIndex(this.currentIndex - 1);
+		const slides = this.getSlides();
+		if (slides.length === 0) return;
+		if (this.currentStep > 0) {
+			this.currentStep -= 1;
+			this.notify();
+			return;
+		}
+		if (this.currentIndex <= 0) {
+			this.gotoIndex(0, 0);
+			return;
+		}
+		const prevIndex = this.currentIndex - 1;
+		this.gotoIndex(prevIndex, this.stepCountOf(slides[prevIndex]) - 1);
 	}
 
 	first(): void {
-		this.gotoIndex(0);
+		this.gotoIndex(0, 0);
 	}
 
+	/** 最後のスライドの最終ステップへ寄せる。 */
 	last(): void {
-		this.gotoIndex(this.getSlides().length - 1);
+		const slides = this.getSlides();
+		const lastIndex = slides.length - 1;
+		this.gotoIndex(lastIndex, this.stepCountOf(slides[lastIndex]) - 1);
 	}
 
-	onChange(listener: (index: number) => void): () => void {
+	onChange(listener: SlideChangeListener): () => void {
 		this.changeListeners.add(listener);
 		return () => {
 			this.changeListeners.delete(listener);
 		};
+	}
+
+	private stepCountOf(shape: ShapeData | undefined): number {
+		if (!shape) return 1;
+		const n = Math.floor(this.getStepCount(shape));
+		return Number.isFinite(n) && n > 1 ? n : 1;
+	}
+
+	private notify(): void {
+		for (const l of this.changeListeners) l(this.currentIndex, this.currentStep);
 	}
 
 	destroy(): void {
