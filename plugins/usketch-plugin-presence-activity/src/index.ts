@@ -12,10 +12,12 @@ export {
 	createMotionClock,
 	MAX_KEYFRAMES,
 	MAX_MOTION_MS,
+	MAX_MOVES_PER_KEYFRAME,
 	type MotionClock,
 	type MotionPoint,
 	motionDuration,
 	normalizeMotion,
+	type ShapeMove,
 	sampleMotion,
 } from "./motion.js";
 export { createPresenceActivityPlugin, type PresenceActivityOptions } from "./plugin.js";

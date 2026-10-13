@@ -4,6 +4,7 @@ import {
 	createMotionClock,
 	MAX_KEYFRAMES,
 	MAX_MOTION_MS,
+	MAX_MOVES_PER_KEYFRAME,
 	motionDuration,
 	normalizeMotion,
 	sampleMotion,
@@ -86,6 +87,55 @@ describe("sampleMotion", () => {
 	});
 });
 
+describe("sampleMotion moves (ghosts)", () => {
+	const from = { x: 0, y: 0, width: 10, height: 10 };
+	const mid = { x: 100, y: 0, width: 10, height: 10 };
+	const to = { x: 100, y: 100, width: 20, height: 20 };
+	const motion = linear([
+		{ at: 0, cursor: { x: 0, y: 0 } },
+		{ at: 100, moves: [{ shapeId: "a", box: from }] },
+		{ at: 200, moves: [{ shapeId: "a", box: mid }] },
+		{ at: 300, moves: [{ shapeId: "a", box: to }], shapeIds: ["a"] },
+	]);
+
+	it("shows no ghost before the shape's first move keyframe", () => {
+		expect(sampleMotion(motion, 50).ghosts).toEqual([]);
+	});
+
+	it("interpolates the ghost through every move keyframe", () => {
+		expect(sampleMotion(motion, 100).ghosts).toEqual([{ shapeId: "a", box: from }]);
+		expect(sampleMotion(motion, 150).ghosts).toEqual([
+			{ shapeId: "a", box: { x: 50, y: 0, width: 10, height: 10 } },
+		]);
+		expect(sampleMotion(motion, 250).ghosts).toEqual([
+			{ shapeId: "a", box: { x: 100, y: 50, width: 15, height: 15 } },
+		]);
+	});
+
+	it("drops the ghost on arrival (the real shape is already there)", () => {
+		expect(sampleMotion(motion, 300).ghosts).toEqual([]);
+		expect(sampleMotion(motion, 300).shapeIds).toEqual(["a"]);
+	});
+
+	it("tracks several shapes independently", () => {
+		const m = linear([
+			{ at: 0, moves: [{ shapeId: "a", box: from }] },
+			{
+				at: 100,
+				moves: [
+					{ shapeId: "a", box: mid },
+					{ shapeId: "b", box: from },
+				],
+			},
+			{ at: 200, moves: [{ shapeId: "b", box: mid }] },
+		]);
+		expect(sampleMotion(m, 50).ghosts.map((g) => g.shapeId)).toEqual(["a"]);
+		expect(sampleMotion(m, 150).ghosts).toEqual([
+			{ shapeId: "b", box: { x: 50, y: 0, width: 10, height: 10 } },
+		]);
+	});
+});
+
 describe("motionDuration", () => {
 	it("is the time of the last keyframe", () => {
 		expect(motionDuration(linear([{ at: 0 }, { at: 300 }, { at: 120 }]))).toBe(300);
@@ -119,6 +169,36 @@ describe("normalizeMotion", () => {
 				{ at: MAX_MOTION_MS, marquee: null },
 			],
 		});
+	});
+
+	it("keeps valid moves and drops malformed ones", () => {
+		const box = { x: 1, y: 2, width: 3, height: 4 };
+		const m = normalizeMotion({
+			id: "x",
+			keyframes: [
+				{
+					at: 0,
+					moves: [
+						{ shapeId: "a", box },
+						{ shapeId: 1, box },
+						{ shapeId: "b", box: { x: 1 } },
+						null,
+					],
+				},
+				{ at: 10, moves: [{ shapeId: 2 }] },
+			],
+		});
+		expect(m?.keyframes).toEqual([{ at: 0, moves: [{ shapeId: "a", box }] }, { at: 10 }]);
+	});
+
+	it("caps the moves per keyframe", () => {
+		const box = { x: 0, y: 0, width: 1, height: 1 };
+		const moves = Array.from({ length: MAX_MOVES_PER_KEYFRAME + 5 }, (_, i) => ({
+			shapeId: `s${i}`,
+			box,
+		}));
+		const m = normalizeMotion({ id: "x", keyframes: [{ at: 0, moves }] });
+		expect(m?.keyframes[0].moves).toHaveLength(MAX_MOVES_PER_KEYFRAME);
 	});
 
 	it("caps the number of keyframes", () => {

@@ -221,6 +221,12 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 			const shapesMap = conn.getShapesMap();
 			const updatedIds: string[] = [];
 			const notFound: string[] = [];
+			// Bounds BEFORE the update, so a move/resize can be replayed as a drag.
+			const beforeBoxes = new Map<string, Box>();
+			for (const { id } of updates) {
+				const s = conn.getShape(id);
+				if (s) beforeBoxes.set(id, { x: s.x, y: s.y, width: s.width, height: s.height });
+			}
 
 			conn.doc.transact(() => {
 				for (const update of updates) {
@@ -267,7 +273,8 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 			if (updatedIds.length > 0) {
 				const visited = updatedIds.flatMap((id) => {
 					const s = conn.getShape(id);
-					return s ? [{ id, box: { x: s.x, y: s.y, width: s.width, height: s.height } }] : [];
+					const box = s && { x: s.x, y: s.y, width: s.width, height: s.height };
+					return box ? [{ id, box, from: beforeBoxes.get(id) }] : [];
 				});
 				conn.showAiActivity({ shapeIds: updatedIds, action: "edit", stops: visitShapes(visited) });
 			}

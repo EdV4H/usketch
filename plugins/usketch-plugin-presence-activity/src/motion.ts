@@ -13,6 +13,10 @@ export interface MotionPoint {
  * - `cursor` / `marquee` are **interpolated** toward the next keyframe that sets them
  *   (`marquee: null` ends the rectangle, and is never interpolated into).
  * - `shapeIds` / `action` are **held** until the next keyframe that sets them.
+ * - `moves` places a ghost of each listed shape; a shape's ghost is **interpolated**
+ *   between consecutive keyframes that list it, and is shown only while it is
+ *   between its first and last such keyframe (the real shape already sits at the
+ *   destination in the doc, so the ghost replays the trip and then disappears).
  *
  * New tracks can be added later as further optional fields: receivers ignore keys
  * they don't know, so the schema stays backward compatible.
@@ -24,6 +28,14 @@ export interface ActivityKeyframe {
 	shapeIds?: string[];
 	marquee?: BoundingBox | null;
 	action?: "select" | "edit";
+	/** World bounds of shapes being moved, at this instant (see the class comment). */
+	moves?: ShapeMove[];
+}
+
+/** One shape's position in a {@link ActivityKeyframe.moves} track. */
+export interface ShapeMove {
+	shapeId: string;
+	box: BoundingBox;
 }
 
 /**
@@ -49,6 +61,8 @@ export interface ActivityFrame {
 	shapeIds: string[];
 	marquee?: BoundingBox;
 	action: "select" | "edit";
+	/** Ghosts of shapes currently in transit (world bounds). */
+	ghosts: ShapeMove[];
 	/** `true` once playback has reached the last keyframe (the final frame is held). */
 	done: boolean;
 }
@@ -56,6 +70,7 @@ export interface ActivityFrame {
 /** Upper bounds so a malformed/hostile peer can't make every receiver do unbounded work. */
 export const MAX_KEYFRAMES = 256;
 export const MAX_MOTION_MS = 60_000;
+export const MAX_MOVES_PER_KEYFRAME = 64;
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
@@ -100,6 +115,15 @@ export function normalizeMotion(raw: unknown): ActivityMotion | null {
 			if (box) kf.marquee = box;
 		}
 		if (r.action === "select" || r.action === "edit") kf.action = r.action;
+		if (Array.isArray(r.moves)) {
+			const moves: ShapeMove[] = [];
+			for (const m of r.moves.slice(0, MAX_MOVES_PER_KEYFRAME)) {
+				const shapeId = (m as Record<string, unknown> | null)?.shapeId;
+				const box = readBox((m as Record<string, unknown> | null)?.box);
+				if (typeof shapeId === "string" && box) moves.push({ shapeId, box });
+			}
+			if (moves.length > 0) kf.moves = moves;
+		}
 		out.push(kf);
 	}
 	if (out.length === 0) return null;
@@ -112,6 +136,13 @@ export function normalizeMotion(raw: unknown): ActivityMotion | null {
 export function motionDuration(motion: ActivityMotion): number {
 	return motion.keyframes.reduce((max, k) => Math.max(max, k.at), 0);
 }
+
+const lerpBox = (a: BoundingBox, b: BoundingBox, p: number): BoundingBox => ({
+	x: lerp(a.x, b.x, p),
+	y: lerp(a.y, b.y, p),
+	width: lerp(a.width, b.width, p),
+	height: lerp(a.height, b.height, p),
+});
 
 const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -161,6 +192,37 @@ function holdTrack<T>(
 }
 
 /**
+ * Ghost of every shape in the `moves` track that is mid-trip at `elapsed`: past its
+ * first keyframe and before its last one, interpolated between the two around it.
+ */
+function sampleGhosts(
+	keyframes: readonly ActivityKeyframe[],
+	elapsed: number,
+	ease: (t: number) => number,
+): ShapeMove[] {
+	const tracks = new Map<string, Array<{ at: number; box: BoundingBox }>>();
+	for (const k of keyframes) {
+		for (const m of k.moves ?? []) {
+			const track = tracks.get(m.shapeId) ?? [];
+			track.push({ at: k.at, box: m.box });
+			tracks.set(m.shapeId, track);
+		}
+	}
+	const ghosts: ShapeMove[] = [];
+	for (const [shapeId, track] of tracks) {
+		const last = track[track.length - 1];
+		if (elapsed < track[0].at || elapsed >= last.at) continue;
+		let i = 0;
+		while (track[i + 1].at <= elapsed) i++;
+		const a = track[i];
+		const b = track[i + 1];
+		const p = b.at === a.at ? 1 : ease((elapsed - a.at) / (b.at - a.at));
+		ghosts.push({ shapeId, box: lerpBox(a.box, b.box, p) });
+	}
+	return ghosts;
+}
+
+/**
  * Sample a motion `elapsed` ms after playback started. Pure: same inputs, same
  * frame. Past the end it returns the final frame with `done: true`.
  */
@@ -176,24 +238,14 @@ export function sampleMotion(motion: ActivityMotion, elapsed: number): ActivityF
 		(a, b, p) => ({ x: lerp(a.x, b.x, p), y: lerp(a.y, b.y, p) }),
 		ease,
 	);
-	const marquee = sampleTrack<BoundingBox>(
-		keyframes,
-		t,
-		(k) => k.marquee,
-		(a, b, p) => ({
-			x: lerp(a.x, b.x, p),
-			y: lerp(a.y, b.y, p),
-			width: lerp(a.width, b.width, p),
-			height: lerp(a.height, b.height, p),
-		}),
-		ease,
-	);
+	const marquee = sampleTrack<BoundingBox>(keyframes, t, (k) => k.marquee, lerpBox, ease);
 
 	return {
 		cursor,
 		shapeIds: holdTrack(keyframes, t, (k) => k.shapeIds) ?? [],
 		marquee,
 		action: holdTrack(keyframes, t, (k) => k.action) ?? "edit",
+		ghosts: sampleGhosts(keyframes, t, ease),
 		done: t >= motionDuration(motion),
 	};
 }

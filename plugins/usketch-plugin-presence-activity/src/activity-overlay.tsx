@@ -64,7 +64,10 @@ export function collectParticipants(
 		const playing = frame ? !frame.done : false;
 		// Keep a still-playing motion even when its current frame shows nothing, so the
 		// overlay keeps ticking until its first visible keyframe.
-		if (boxes.length === 0 && !marquee && !frame?.cursor && !playing) continue;
+		const ghosts = frame?.ghosts ?? [];
+		if (boxes.length === 0 && !marquee && !frame?.cursor && ghosts.length === 0 && !playing) {
+			continue;
+		}
 
 		out.push({
 			clientId,
@@ -74,6 +77,7 @@ export function collectParticipants(
 			boxes,
 			marquee,
 			...(frame?.cursor ? { cursor: frame.cursor } : {}),
+			...(ghosts.length > 0 ? { ghosts } : {}),
 			...(frame ? { playing } : {}),
 		});
 	}
@@ -185,13 +189,16 @@ function ParticipantActivity({
 	style: ResolvedActivityStyle;
 }) {
 	const editing = p.action === "edit";
-	const { outline, marquee: mq, badge } = style;
+	const { outline, marquee: mq, badge, ghost } = style;
 	const pad = outline.padding;
 	const rects = p.boxes.map((b) => worldRectToScreen(b, viewport));
 	const union = unionBounds(p.boxes);
 	const badgeAt = union ? worldRectToScreen(union, viewport) : null;
 	const marquee = p.marquee ? worldRectToScreen(p.marquee, viewport) : null;
 	const label = editing ? `${p.name}${badge.editingSuffix}` : p.name;
+	const ghostRects = ghost.enabled
+		? (p.ghosts ?? []).map((g) => worldRectToScreen(g.box, viewport))
+		: [];
 	const cursor =
 		style.cursor.enabled && p.cursor
 			? { x: p.cursor.x * viewport.zoom + viewport.x, y: p.cursor.y * viewport.zoom + viewport.y }
@@ -223,6 +230,24 @@ function ParticipantActivity({
 						/>
 					)}
 				</rect>
+			))}
+
+			{/* Ghosts of shapes in transit (motion `moves` track). */}
+			{ghostRects.map((r, i) => (
+				<rect
+					// biome-ignore lint/suspicious/noArrayIndexKey: ghosts are positional, order-stable per render
+					key={`ghost-${i}`}
+					x={r.x}
+					y={r.y}
+					width={r.width}
+					height={r.height}
+					fill={p.color}
+					fillOpacity={ghost.fillOpacity}
+					stroke={p.color}
+					strokeWidth={ghost.strokeWidth}
+					strokeDasharray={ghost.dash}
+					rx={outline.radius}
+				/>
 			))}
 
 			{/* In-progress marquee rectangle. */}

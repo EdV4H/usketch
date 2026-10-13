@@ -17,6 +17,8 @@ export interface PresenceParticipant {
 	marquee?: BoundingBox;
 	/** Cursor position (world coords) while the participant's `motion` is drawing one. */
 	cursor?: { x: number; y: number };
+	/** Ghosts of shapes the participant's `motion` is moving right now (world coords). */
+	ghosts?: Array<{ shapeId: string; box: BoundingBox }>;
 	/** `true` while the participant's `motion` still has frames to play. */
 	playing?: boolean;
 }
@@ -53,6 +55,13 @@ export interface PresenceActivityStyle {
 		fontSize?: number;
 		fontWeight?: number;
 	};
+	/** Ghost of a shape in transit while a participant's `motion` moves it. */
+	ghost?: {
+		enabled?: boolean;
+		fillOpacity?: number;
+		strokeWidth?: number;
+		dash?: string;
+	};
 	/** Cursor drawn while a participant's `motion` moves one (see `ActivityMotion`). */
 	cursor?: {
 		enabled?: boolean;
@@ -74,6 +83,7 @@ export interface ResolvedActivityStyle {
 	outline: Required<NonNullable<PresenceActivityStyle["outline"]>>;
 	marquee: Required<NonNullable<PresenceActivityStyle["marquee"]>>;
 	badge: Required<NonNullable<PresenceActivityStyle["badge"]>>;
+	ghost: Required<NonNullable<PresenceActivityStyle["ghost"]>>;
 	cursor: Required<NonNullable<PresenceActivityStyle["cursor"]>>;
 	aiParticipant: Required<NonNullable<PresenceActivityStyle["aiParticipant"]>>;
 	renderParticipant?: PresenceActivityStyle["renderParticipant"];
@@ -84,6 +94,7 @@ export const DEFAULT_ACTIVITY_STYLE: ResolvedActivityStyle = {
 	outline: { strokeWidth: 2, padding: 3, radius: 4, opacity: 0.9, pulse: true },
 	marquee: { fillOpacity: 0.08, strokeWidth: 1.5, dash: "6 4" },
 	badge: { enabled: true, editingSuffix: " ✏️", fontSize: 11, fontWeight: 600 },
+	ghost: { enabled: true, fillOpacity: 0.12, strokeWidth: 1.5, dash: "4 3" },
 	cursor: { enabled: true },
 	aiParticipant: { label: "AI 🤖", color: "#7c3aed" },
 };
@@ -110,6 +121,7 @@ export function resolveActivityStyle(style?: PresenceActivityStyle): ResolvedAct
 		outline: mergeDefined(DEFAULT_ACTIVITY_STYLE.outline, style?.outline),
 		marquee: mergeDefined(DEFAULT_ACTIVITY_STYLE.marquee, style?.marquee),
 		badge: mergeDefined(DEFAULT_ACTIVITY_STYLE.badge, style?.badge),
+		ghost: mergeDefined(DEFAULT_ACTIVITY_STYLE.ghost, style?.ghost),
 		cursor: mergeDefined(DEFAULT_ACTIVITY_STYLE.cursor, style?.cursor),
 		aiParticipant: mergeDefined(DEFAULT_ACTIVITY_STYLE.aiParticipant, style?.aiParticipant),
 		renderParticipant: style?.renderParticipant,

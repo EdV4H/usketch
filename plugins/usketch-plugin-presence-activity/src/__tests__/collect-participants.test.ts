@@ -168,4 +168,26 @@ describe("collectParticipants with activity.motion", () => {
 		expect(p.boxes).toHaveLength(1);
 		expect(p.playing).toBeUndefined();
 	});
+
+	it("carries ghosts of shapes in transit", () => {
+		const clock = createMotionClock(() => 50);
+		const aw = fakeAwareness({
+			2: {
+				user: { name: "AI" },
+				activity: {
+					motion: {
+						id: "mv",
+						easing: "linear",
+						keyframes: [
+							{ at: 0, moves: [{ shapeId: "a", box: { x: 0, y: 0, width: 10, height: 10 } }] },
+							{ at: 100, moves: [{ shapeId: "a", box: { x: 100, y: 0, width: 10, height: 10 } }] },
+						],
+					},
+				},
+			},
+		});
+		// First sight starts the clock at 50 → elapsed 0.
+		const [p] = collectParticipants(aw, store, shapes, clock);
+		expect(p.ghosts).toEqual([{ shapeId: "a", box: { x: 0, y: 0, width: 10, height: 10 } }]);
+	});
 });

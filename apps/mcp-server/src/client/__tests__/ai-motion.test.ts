@@ -67,4 +67,29 @@ describe("buildAiMotion", () => {
 		expect(m?.keyframes[1]).toEqual({ at: HOP_MS, cursor: { x: 5, y: 5 } });
 		expect(m && finalCursor(m)).toEqual({ x: 5, y: 5 });
 	});
+
+	it("drags a moved shape from its old box to its new one", () => {
+		const before = { x: 0, y: 0, width: 20, height: 10 };
+		const after = { x: 200, y: 100, width: 20, height: 10 };
+		const moved = visitShapes([{ id: "a", box: after, from: before }]);
+		expect(moved[0].move).toEqual({ shapeId: "a", from: before, to: after });
+
+		const m = buildAiMotion({ id: "m", stops: moved, from: { x: -50, y: -50 } });
+		expect(m?.keyframes).toEqual([
+			{ at: 0, cursor: { x: -50, y: -50 } },
+			{ at: HOP_MS, cursor: { x: 10, y: 5 }, moves: [{ shapeId: "a", box: before }] },
+			{
+				at: HOP_MS * 2,
+				cursor: { x: 210, y: 105 },
+				shapeIds: ["a"],
+				action: "edit",
+				moves: [{ shapeId: "a", box: after }],
+			},
+		]);
+	});
+
+	it("does not drag a shape whose box did not change", () => {
+		const b = box(0, 0);
+		expect(visitShapes([{ id: "a", box: b, from: { ...b } }])[0].move).toBeUndefined();
+	});
 });
