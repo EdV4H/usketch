@@ -49,9 +49,19 @@ describe("resizeImageShape", () => {
 		expect((out as ImageShapeData).aspectRatio).toBeUndefined();
 	});
 
-	it("clamps to the 40px minimum without distorting", () => {
+	it("clamps the long side to the 40px minimum without distorting", () => {
 		const out = resizeImageShape(base, "se", { x: -1000, y: 0 });
-		expect(out.height).toBe(40);
-		expect(out.width).toBe(80);
+		expect(out.width).toBe(40);
+		expect(out.height).toBe(20);
+		const tall = resizeImageShape({ ...base, width: 100, height: 200 }, "se", { x: -1000, y: 0 });
+		expect(tall.height).toBe(40);
+		expect(tall.width).toBe(20);
+	});
+
+	it("does not blow up a wide image whose short side is under 40", () => {
+		const wide = { ...base, width: 400, height: 25, aspectRatio: 16 };
+		const out = resizeImageShape(wide, "se", { x: -16, y: 0 });
+		expect(out.width).toBe(384);
+		expect(out.height).toBe(24);
 	});
 });

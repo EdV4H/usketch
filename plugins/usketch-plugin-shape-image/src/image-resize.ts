@@ -24,10 +24,10 @@ export function getImageAspect(data: ShapeData): number {
 }
 
 const freeResize = createResize(MIN_IMAGE_SIZE, MIN_IMAGE_SIZE);
-const aspectResize = createAspectResize(getImageAspect, {
-	minWidth: MIN_IMAGE_SIZE,
-	minHeight: MIN_IMAGE_SIZE,
-});
+// keep-aspect clamps only the long side: a 40×40 floor on both axes would
+// blow a wide/tall image up on its first drag (16:1 at 400×25 → 640×40).
+const wideResize = createAspectResize(getImageAspect, { minWidth: MIN_IMAGE_SIZE });
+const tallResize = createAspectResize(getImageAspect, { minHeight: MIN_IMAGE_SIZE });
 
 /**
  * `ShapeDefinition.resize` for images. `keep-aspect` locks the ratio on every
@@ -37,6 +37,7 @@ const aspectResize = createAspectResize(getImageAspect, {
  */
 export function resizeImageShape(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData {
 	if (getImageResizeMode(data) === "free") return freeResize(data, handle, delta);
+	const aspectResize = getImageAspect(data) >= 1 ? wideResize : tallResize;
 	const resized = aspectResize(data, handle, delta);
 	if (isValidRatio((data as ImageShapeData).aspectRatio)) return resized;
 	return { ...resized, aspectRatio: getImageAspect(data) } as ImageShapeData;
