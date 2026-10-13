@@ -10,8 +10,12 @@ import type {
 	StoreEvent,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
-import { fitContent } from "@edv4h/usketch-shared";
-import { applyStartPosition, captureViewport } from "./resolve.js";
+import {
+	applyStartPosition,
+	captureViewport,
+	fitAllContent,
+	type ViewportSizeGetter,
+} from "./resolve.js";
 import {
 	createStartPositionShapeDefinition,
 	findStartPosition,
@@ -49,7 +53,32 @@ function startOfForm(f: Form): StartPosition {
 		: { kind: "coordinate", x: f.x, y: f.y };
 }
 
-export function createStartPositionPlugin(): UsketchPlugin {
+/** What to do when the board has no start position set. */
+export type StartPositionFallback = "none" | "fit-content";
+
+export interface CreateStartPositionPluginOptions {
+	/**
+	 * Behavior for a board with no start position. `"none"` (default) leaves the
+	 * camera alone; `"fit-content"` frames all shapes once the initial sync is done
+	 * (centered at the minimum zoom when they don't fit), unless another camera
+	 * plugin (e.g. deep-link) already claimed the viewport or the user already
+	 * panned/zoomed while we waited.
+	 */
+	fallback?: StartPositionFallback;
+	/**
+	 * Resolves when the host's initial sync has finished (e.g. y-websocket `sync`).
+	 * When given, the no-start-position decision is made then instead of after the
+	 * sync timeout.
+	 */
+	whenReady?: () => Promise<void>;
+	/** Canvas size in screen px, for hosts whose canvas isn't the whole window. */
+	getViewportSize?: ViewportSizeGetter;
+}
+
+export function createStartPositionPlugin(
+	options: CreateStartPositionPluginOptions = {},
+): UsketchPlugin {
+	const { fallback = "none", whenReady, getViewportSize } = options;
 	return {
 		id: "usketch-plugin-start-position",
 		name: "スタート位置",
@@ -125,9 +154,9 @@ export function createStartPositionPlugin(): UsketchPlugin {
 			const goToStart = (animate: boolean): void => {
 				const s = currentShape();
 				if (!s?.start) return;
-				const ok = applyStartPosition(ctx.store, s.start, { animate });
+				const ok = applyStartPosition(ctx.store, s.start, { animate, getViewportSize });
 				// A "shape" start whose shape was deleted → frame all content instead.
-				if (!ok) fitContent(ctx.store, { animate });
+				if (!ok) fitAllContent(ctx.store, { animate, getViewportSize });
 			};
 
 			const offs: Array<() => void> = [
@@ -196,14 +225,37 @@ export function createStartPositionPlugin(): UsketchPlugin {
 			// can cancel it — otherwise it could move the camera after disposal. When the
 			// move can't resolve — `applyStartPosition` returns false only for a shape
 			// target that's gone — frame all content instead (documented fallback).
+			const initialViewport = ctx.store.getViewport();
+			const userMoved = (): boolean => {
+				const vp = ctx.store.getViewport();
+				return (
+					vp.x !== initialViewport.x ||
+					vp.y !== initialViewport.y ||
+					vp.zoom !== initialViewport.zoom
+				);
+			};
+
+			// Nothing defined → (opt-in) frame all content. Per-user and only if nobody
+			// (deep-link, the user) has moved the camera while we waited.
+			const applyFallback = (): void => {
+				if (fallback !== "fit-content") return;
+				applyTimer = setTimeout(() => {
+					applyTimer = null;
+					if (disposed || guard.shouldYield() || userMoved()) return;
+					if (fitAllContent(ctx.store, { animate: false, getViewportSize })) {
+						claimViewport(ctx.events, SOURCE, START_POSITION_PRIORITY);
+					}
+				}, 0);
+			};
+
 			const applyOnLoad = (start: StartPosition): void => {
 				applyTimer = setTimeout(() => {
 					applyTimer = null;
 					if (disposed || guard.shouldYield()) return;
-					if (applyStartPosition(ctx.store, start, { animate: false })) {
+					if (applyStartPosition(ctx.store, start, { animate: false, getViewportSize })) {
 						claimViewport(ctx.events, SOURCE, START_POSITION_PRIORITY);
 					} else {
-						fitContent(ctx.store, { animate: false });
+						fitAllContent(ctx.store, { animate: false, getViewportSize });
 					}
 				}, 0);
 			};
@@ -226,6 +278,17 @@ export function createStartPositionPlugin(): UsketchPlugin {
 				applyOnLoad(start);
 			};
 
+			// Sync is "done": decide with whatever has arrived. Used by the timeout and
+			// by the host's `whenReady`.
+			const decide = (): void => {
+				if (settled) return;
+				const s = currentShape();
+				finishWait();
+				if (s && s.autoApply === false) return;
+				if (s?.start) applyOnLoad(s.start);
+				else applyFallback();
+			};
+
 			attemptAutoApply();
 			if (!settled) {
 				offWait = ctx.store.onMutation((e: StoreEvent) => {
@@ -236,12 +299,10 @@ export function createStartPositionPlugin(): UsketchPlugin {
 				// Timed out waiting for the (start-position or referenced) shape to sync.
 				// Apply whatever is defined now, falling back to fit-all if a shape target
 				// is still missing — matching the documented "frame all if gone" behavior.
-				waitTimer = setTimeout(() => {
-					if (settled) return;
-					const s = currentShape();
-					finishWait();
-					if (s && s.autoApply !== false && s.start) applyOnLoad(s.start);
-				}, SYNC_TIMEOUT_MS);
+				waitTimer = setTimeout(decide, SYNC_TIMEOUT_MS);
+				whenReady?.().then(decide, () => {
+					/* host sync failed — the timeout still decides */
+				});
 			}
 
 			return () => {

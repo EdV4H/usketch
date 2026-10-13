@@ -38,6 +38,18 @@ const shapeInputSchema = z
 		height: z.number().min(0).max(10000).describe("高さ"),
 		text: z.string().max(1000).optional().describe("テキスト内容"),
 		fontSize: z.number().min(8).max(256).optional().describe("フォントサイズ"),
+		textAlign: z
+			.enum(["start", "center", "end"])
+			.optional()
+			.describe("基本図形のテキスト水平位置 (既定 center)"),
+		verticalAlign: z
+			.enum(["start", "middle", "end"])
+			.optional()
+			.describe("基本図形のテキスト垂直位置 (既定 middle)"),
+		fontWeight: z
+			.enum(["normal", "bold"])
+			.optional()
+			.describe("基本図形のテキスト太さ (既定 normal)"),
 		style: styleSchema.describe("スタイル (fill, stroke, strokeWidth, opacity)"),
 	})
 	.passthrough();
@@ -51,6 +63,9 @@ const shapeUpdateSchema = z
 		height: z.number().min(0).max(10000).optional(),
 		text: z.string().max(1000).optional(),
 		fontSize: z.number().min(8).max(256).optional(),
+		textAlign: z.enum(["start", "center", "end"]).optional(),
+		verticalAlign: z.enum(["start", "middle", "end"]).optional(),
+		fontWeight: z.enum(["normal", "bold"]).optional(),
 		style: styleSchema,
 	})
 	.passthrough();
