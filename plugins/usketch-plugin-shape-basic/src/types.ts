@@ -12,5 +12,11 @@ export interface RectangleShapeData extends ShapeData {
 export interface GeoTextData {
 	text?: string;
 	fontSize?: number;
+	/** Horizontal text alignment. Undefined keeps the legacy "center". */
+	textAlign?: "start" | "center" | "end";
+	/** Vertical text alignment inside the shape. Undefined keeps the legacy "middle". */
+	verticalAlign?: "start" | "middle" | "end";
+	/** Undefined keeps the legacy "normal". */
+	fontWeight?: "normal" | "bold";
 	isEditing?: boolean;
 }
