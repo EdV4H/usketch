@@ -1,5 +1,12 @@
 # @edv4h/usketch-connector-anchor
 
+## 0.4.8
+
+### Patch Changes
+
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+
 ## 0.4.7
 
 ### Patch Changes

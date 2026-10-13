@@ -1,5 +1,17 @@
 # @edv4h/usketch-plugin-shape-connector
 
+## 3.3.9
+
+### Patch Changes
+
+- 959e64b: アンカーハンドルで auto アンカーに接続したとき、端点が相手 shape の中心ではなく辺上の交点として保存されるように修正 (#810)
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+  - @edv4h/usketch-canvas-engine@1.5.3
+  - @edv4h/usketch-core@2.4.7
+  - @edv4h/usketch-store@3.9.1
+  - @edv4h/usketch-connector-anchor@0.4.8
+
 ## 3.3.8
 
 ### Patch Changes

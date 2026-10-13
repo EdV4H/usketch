@@ -1,5 +1,18 @@
 # @edv4h/usketch-plugin-shape-freedraw
 
+## 3.3.0
+
+### Minor Changes
+
+- 4f0eb6a: 当たり判定モード `hitTest: "stroke" | "bounds"` を `FreedrawConfig` に追加（既定 `"stroke"`）。実行時は `freedraw:set-hit-test` イベントで切り替え可能。
+
+### Patch Changes
+
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+  - @edv4h/usketch-core@2.4.7
+  - @edv4h/usketch-store@3.9.1
+
 ## 3.2.12
 
 ### Patch Changes

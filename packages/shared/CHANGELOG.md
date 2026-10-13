@@ -1,5 +1,11 @@
 # @edv4h/usketch-shared
 
+## 4.17.0
+
+### Minor Changes
+
+- dc5d8d1: `ToolDefinition` に任意の表示メタ `label` / `iconKey` / `meta` を追加 (#1019)
+
 ## 4.16.0
 
 ### Minor Changes
