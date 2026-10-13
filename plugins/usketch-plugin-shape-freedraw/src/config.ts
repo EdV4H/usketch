@@ -37,6 +37,11 @@ export const FreedrawConfigSchema = z.object({
 	defaultEraserSize: z.number().min(ERASER_RANGE.min).max(ERASER_RANGE.max).default(30),
 	/** 筆圧の効き（10〜100、既定60）。 */
 	brushDynamics: z.number().min(BRUSH_DYNAMICS_RANGE.min).max(BRUSH_DYNAMICS_RANGE.max).default(60),
+	/**
+	 * 当たり判定モード。`"stroke"` はストローク実体のみ（既定）、`"bounds"` は外接矩形全体。
+	 * 実行時は `freedraw:set-hit-test` イベントで切り替えられる。
+	 */
+	hitTest: z.enum(["stroke", "bounds"]).default("stroke"),
 	/** ペン先カーソル表示。 */
 	cursorPreview: z.boolean().default(true),
 	/** 設定の localStorage 永続化を行うか。 */
