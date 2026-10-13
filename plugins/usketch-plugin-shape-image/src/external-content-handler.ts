@@ -203,6 +203,8 @@ async function placeImageShape(
 			strokeWidth: 1,
 			opacity: 1,
 		},
+		// Lock to the bitmap's own ratio (not the rounded w/h) for keep-aspect resizing.
+		aspectRatio: dimensions.width / dimensions.height,
 		src: assetId ? "" : dataUrl,
 		...(assetId ? { assetId } : {}),
 	};
