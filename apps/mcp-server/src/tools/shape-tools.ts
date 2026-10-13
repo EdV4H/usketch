@@ -8,6 +8,7 @@
 import { DEFAULT_STYLE, type ShapeData } from "@edv4h/usketch-shared";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { type Box, visitShapes } from "../client/ai-motion.js";
 import type { ConnectionManager } from "../client/connection-manager.js";
 
 const styleSchema = z
@@ -150,6 +151,7 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 			const conn = await connections.getConnection(boardId);
 			const shapesMap = conn.getShapesMap();
 			const placedShapes: Array<{ id: string; type: string }> = [];
+			const placedBoxes: Array<{ id: string; box: Box }> = [];
 
 			conn.doc.transact(() => {
 				for (const shape of shapes) {
@@ -183,15 +185,16 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 
 					shapesMap.set(id, shapeData);
 					placedShapes.push({ id, type });
+					placedBoxes.push({ id, box: { x, y, width, height } });
 				}
 			});
 
-			// Show it as an AI participant editing these shapes (feature #960).
+			// Show it as an AI participant visiting and editing these shapes in turn (#960).
 			if (placedShapes.length > 0) {
 				conn.showAiActivity({
 					shapeIds: placedShapes.map((s) => s.id),
 					action: "edit",
-					cursor: centroidOf(shapes),
+					stops: visitShapes(placedBoxes),
 				});
 			}
 
@@ -260,13 +263,13 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 				}
 			});
 
-			// Show it as an AI participant editing these shapes (feature #960).
+			// Show it as an AI participant visiting and editing these shapes in turn (#960).
 			if (updatedIds.length > 0) {
-				const boxes = updatedIds
-					.map((id) => conn.getShape(id))
-					.filter((s): s is ShapeData => Boolean(s))
-					.map((s) => ({ x: s.x, y: s.y, width: s.width, height: s.height }));
-				conn.showAiActivity({ shapeIds: updatedIds, action: "edit", cursor: centroidOf(boxes) });
+				const visited = updatedIds.flatMap((id) => {
+					const s = conn.getShape(id);
+					return s ? [{ id, box: { x: s.x, y: s.y, width: s.width, height: s.height } }] : [];
+				});
+				conn.showAiActivity({ shapeIds: updatedIds, action: "edit", stops: visitShapes(visited) });
 			}
 
 			return {
@@ -310,8 +313,9 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 				}
 			});
 
-			// The shapes are gone, so no outline — just show the AI cursor at the spot.
-			if (deleted.length > 0) conn.showAiActivity({ cursor: centroidOf(delBoxes) });
+			// The shapes are gone, so no outline — the AI cursor just glides to the spot.
+			const spot = centroidOf(delBoxes);
+			if (deleted.length > 0 && spot) conn.showAiActivity({ stops: [{ cursor: spot }] });
 
 			return {
 				content: [

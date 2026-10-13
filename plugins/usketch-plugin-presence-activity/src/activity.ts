@@ -1,4 +1,5 @@
 import type { BoundingBox } from "@edv4h/usketch-shared";
+import type { ActivityMotion } from "./motion.js";
 
 /**
  * A participant's live "activity" — what they are currently selecting / editing —
@@ -19,6 +20,14 @@ export interface PresenceActivity {
 	action?: "select" | "edit";
 	/** Optional label shown on the badge instead of the participant name. */
 	label?: string;
+	/**
+	 * A continuous movement (cursor path + selection/edit steps) as one value. When
+	 * present, receivers that understand it play the motion and ignore
+	 * `shapeIds` / `marquee` / `action` above — senders should set those to the
+	 * motion's FINAL state so older clients still show the end result.
+	 * See {@link ActivityMotion}.
+	 */
+	motion?: ActivityMotion;
 }
 
 /** The awareness `user` field this overlay reads (a subset of what presence-cursor writes). */
