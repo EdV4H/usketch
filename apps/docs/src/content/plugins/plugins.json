@@ -136,6 +136,14 @@
 		"install": "pnpm add @edv4h/usketch-plugin-bg-dots"
 	},
 	{
+		"id": "bg-liquid",
+		"name": "Liquid",
+		"category": "bg",
+		"glyph": "≈",
+		"summary": "Thick, slowly flowing liquid background that parts around chosen shapes.",
+		"install": "pnpm add @edv4h/usketch-plugin-bg-liquid"
+	},
+	{
 		"id": "ai-copilot",
 		"name": "AI Copilot",
 		"category": "ai",

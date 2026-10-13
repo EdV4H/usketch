@@ -12,6 +12,7 @@ import { createAiRecognizePlugin } from "@edv4h/usketch-plugin-ai-recognize";
 import { createAssetStorePlugin } from "@edv4h/usketch-plugin-asset-store";
 import { createDotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
+import { createLiquidBgPlugin } from "@edv4h/usketch-plugin-bg-liquid";
 import { createCharacterPlugin } from "@edv4h/usketch-plugin-character";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createAttachablePlugin, createContainerPlugin } from "@edv4h/usketch-plugin-container";
@@ -138,6 +139,7 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 	return [
 		createGridBgPlugin(),
 		createDotsBgPlugin(),
+		createLiquidBgPlugin(),
 		createSelectToolPlugin(),
 		createPanToolPlugin(),
 		createVimToolPlugin(undefined, {
