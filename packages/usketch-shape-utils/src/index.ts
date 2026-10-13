@@ -12,6 +12,7 @@ export {
 } from "./editable-text/render-props.js";
 export {
 	type FindFreePositionOptions,
+	type FreePositionDirection,
 	type FreePositionStrategy,
 	findFreePosition,
 	overlapsAny,
