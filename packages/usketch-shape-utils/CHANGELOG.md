@@ -1,5 +1,17 @@
 # @edv4h/usketch-shape-utils
 
+## 2.3.0
+
+### Minor Changes
+
+- 083ff59: `findFreePosition` に `gap`（既存矩形との余白）と `direction`（right / left / down / up への固定方向探索）オプションを追加
+- 7856e60: feat(shape-image): 画像Shapeごとにリサイズ挙動を選べるようにした。`resizeMode`（`"keep-aspect"` 既定 / `"free"`）と、自由リサイズ時の収まり方 `fit`（`"contain"` 既定 / `"cover"` / `"fill"`）を追加し、Control HUD の「画像のリサイズ」から選択中の画像に設定できる。取り込み時に元画像の縦横比を `aspectRatio` として保存し、自由から比率固定に切り替えると枠をその比率に合わせる。操作は純関数 `setImageResizeMode` / `setImageFit` と `getImageApi` サービスで公開。`@edv4h/usketch-shape-utils` にアスペクト比固定リサイズの共有ヘルパー `createAspectResize` を追加し、card の `makeAspectResize` はそれを使うように変更（挙動は同じ）。
+
+### Patch Changes
+
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+
 ## 2.2.12
 
 ### Patch Changes
