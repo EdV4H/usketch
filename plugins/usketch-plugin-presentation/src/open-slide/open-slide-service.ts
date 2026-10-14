@@ -9,8 +9,10 @@ import {
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import type { OpenSlideDeckRegistry } from "./deck-registry.js";
+import type { OpenSlideEditState } from "./edit-state.js";
 import { createOpenSlideShapeData } from "./open-slide-shape.js";
-import { isOpenSlideShape, type OpenSlideDeck } from "./types.js";
+import { resetOpenSlideOverrides, setOpenSlidePalette } from "./overrides.js";
+import { isOpenSlideShape, type OpenSlideDeck, type OpenSlideDesign } from "./types.js";
 
 export interface InsertOpenSlideDeckOptions {
 	deckId: string;
@@ -28,6 +30,21 @@ export interface OpenSlideApi {
 	insertDeck(options: InsertOpenSlideDeckOptions): string | null;
 	/** 編集時に表示するページを変える。 */
 	setPage(shapeId: string, page: number): void;
+	/** デッキの中身の編集を始める (デッキのダブルクリックと同じ)。 */
+	beginEdit(shapeId: string): void;
+	/** デッキの中身の編集を終える。 */
+	endEdit(): void;
+	/** いま中身を編集しているデッキ Shape の id。 */
+	getEditingId(): string | null;
+	/** {@link getEditingId} の変化を購読する。 */
+	subscribeEditing(listener: () => void): () => void;
+	/** 配色を差し替える（undo 可）。null の色はデッキ側に戻す。 */
+	setPalette(
+		shapeId: string,
+		palette: { [K in keyof OpenSlideDesign["palette"]]?: string | null },
+	): void;
+	/** 差し替えをすべて消してデッキ側の内容に戻す（undo 可）。 */
+	resetOverrides(shapeId: string): void;
 }
 
 export const openSlideService = defineService<OpenSlideApi>(
@@ -57,6 +74,7 @@ export interface CreateOpenSlideApiDeps {
 	store: BoardStore;
 	commands: CommandRegistry;
 	registry: OpenSlideDeckRegistry;
+	editState: OpenSlideEditState;
 	getViewportSize: () => { width: number; height: number };
 }
 
@@ -64,6 +82,7 @@ export function createOpenSlideApi({
 	store,
 	commands,
 	registry,
+	editState,
 	getViewportSize,
 }: CreateOpenSlideApiDeps): OpenSlideApi {
 	return {
@@ -96,5 +115,14 @@ export function createOpenSlideApi({
 			return shape.id;
 		},
 		setPage: (shapeId, page) => setOpenSlidePage(store, registry, shapeId, page),
+		beginEdit: (shapeId) => {
+			const shape = store.getShape(shapeId);
+			if (shape && isOpenSlideShape(shape)) editState.begin(shapeId);
+		},
+		endEdit: () => editState.end(),
+		getEditingId: editState.get,
+		subscribeEditing: editState.subscribe,
+		setPalette: (shapeId, palette) => setOpenSlidePalette(store, commands, shapeId, palette),
+		resetOverrides: (shapeId) => resetOpenSlideOverrides(store, commands, shapeId),
 	};
 }

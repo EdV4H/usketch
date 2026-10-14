@@ -1,12 +1,21 @@
-import type { CommandRegistry } from "@edv4h/usketch-shared";
+import type { Command, CommandRegistry } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { type Context, createContext, useContext } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { OpenSlideDeckRegistry } from "./deck-registry.js";
+import { OpenSlideEditState } from "./edit-state.js";
 import { createOpenSlideApi, setOpenSlidePage } from "./open-slide-service.js";
 import { createOpenSlideShapeData, resizeOpenSlideShape } from "./open-slide-shape.js";
 import { OpenSlideShapeView } from "./open-slide-shape-view.js";
+import { OpenSlideText } from "./open-slide-text.js";
+import {
+	resetOpenSlideOverrides,
+	setOpenSlidePalette,
+	setOpenSlideText,
+	withOpenSlidePalette,
+	withOpenSlideText,
+} from "./overrides.js";
 import { MutablePresentCursor } from "./present-cursor.js";
 import { isOpenSlideShape, type OpenSlideModule, type OpenSlideShapeData } from "./types.js";
 
@@ -145,6 +154,7 @@ describe("OpenSlideShapeView", () => {
 		registry: OpenSlideDeckRegistry,
 		shape: OpenSlideShapeData,
 		cursor = new MutablePresentCursor(),
+		editState = new OpenSlideEditState(),
 	) {
 		return renderToStaticMarkup(
 			<OpenSlideShapeView
@@ -152,9 +162,62 @@ describe("OpenSlideShapeView", () => {
 				registry={registry}
 				presentCursor={cursor}
 				onSetPage={() => {}}
+				editState={editState}
+				onCommitText={() => {}}
 			/>,
 		);
 	}
+
+	async function textRegistry() {
+		const Title = () => (
+			<h1>
+				<OpenSlideText id="title">Hello</OpenSlideText>
+			</h1>
+		);
+		const registry = new OpenSlideDeckRegistry([
+			{
+				id: "demo",
+				title: "Demo",
+				load: async () => ({ ...deckModule([]), default: [Title, Title] }),
+			},
+		]);
+		await registry.load("demo");
+		return registry;
+	}
+
+	it("OpenSlideText は差し替えがあればその文字を、なければ初期値を出す", async () => {
+		const registry = await textRegistry();
+		expect(render(registry, shapeOf({ page: 0 }))).toContain("<h1>Hello</h1>");
+		const html = render(
+			registry,
+			shapeOf({ page: 1, overrides: { text: { "0:title": "First", "1:title": "Second" } } }),
+		);
+		expect(html).toContain("Second");
+		expect(html).not.toContain("First");
+	});
+
+	it("編集中のデッキだけ OpenSlideText を入力欄にする。発表中は編集しない", async () => {
+		const registry = await textRegistry();
+		const editState = new OpenSlideEditState();
+		editState.begin("os1");
+		// HTML の属性名は大文字小文字を区別しないので、小文字にそろえて見る。
+		const html = (shape: OpenSlideShapeData, cursor?: MutablePresentCursor) =>
+			render(registry, shape, cursor, editState).toLowerCase();
+		expect(html(shapeOf())).toContain('contenteditable="plaintext-only"');
+		expect(html(shapeOf({ id: "os2" }))).not.toContain("contenteditable");
+		const cursor = new MutablePresentCursor();
+		cursor.set({ shapeId: "os1", step: 0 });
+		expect(html(shapeOf(), cursor)).not.toContain("contenteditable");
+	});
+
+	it("配色の差し替えはデッキの design に重ねる", async () => {
+		const html = render(
+			await loadedRegistry(),
+			shapeOf({ overrides: { palette: { accent: "#00ff00" } } }),
+		);
+		expect(html).toContain("--osd-accent:#00ff00");
+		expect(html).toContain("--osd-bg:#101010");
+	});
 
 	it("編集中は Shape の page を表示し、ページ送りを出す", async () => {
 		const html = render(await loadedRegistry(), shapeOf({ page: 1 }));
@@ -211,6 +274,7 @@ describe("open-slide サービス", () => {
 			store,
 			commands: commandsFor(),
 			registry,
+			editState: new OpenSlideEditState(),
 			getViewportSize: () => ({ width: 800, height: 600 }),
 		});
 
@@ -239,5 +303,87 @@ describe("open-slide サービス", () => {
 		expect((store.getShape("os1") as OpenSlideShapeData).page).toBe(1);
 		setOpenSlidePage(store, registry, "os1", -1);
 		expect((store.getShape("os1") as OpenSlideShapeData).page).toBe(0);
+	});
+});
+
+describe("open-slide の差し替え", () => {
+	function recordingCommands(): CommandRegistry & { last: () => Command | undefined } {
+		const done: Command[] = [];
+		return {
+			...commandsFor(),
+			execute: (c) => {
+				c.execute();
+				done.push(c);
+			},
+			last: () => done.at(-1),
+		};
+	}
+
+	it("初期値と同じ文字や null は差し替えを消し、空なら {} になる", () => {
+		const a = withOpenSlideText(undefined, 0, "title", "New", "Old");
+		expect(a).toEqual({ text: { "0:title": "New" } });
+		expect(withOpenSlideText(a, 0, "title", "Old", "Old")).toEqual({});
+		expect(withOpenSlideText(a, 0, "title", null, "Old")).toEqual({});
+		const b = withOpenSlidePalette(a, { accent: "#00ff00", bg: null });
+		expect(b).toEqual({ text: { "0:title": "New" }, palette: { accent: "#00ff00" } });
+		expect(withOpenSlidePalette(b, { accent: null })).toEqual({ text: { "0:title": "New" } });
+	});
+
+	it("setOpenSlideText / setOpenSlidePalette は undo でき、reset で全部消える", () => {
+		const store = createBoardStore();
+		store.addShape(shapeOf());
+		const commands = recordingCommands();
+		const overrides = () => (store.getShape("os1") as OpenSlideShapeData).overrides;
+
+		setOpenSlideText(store, commands, "os1", {
+			page: 1,
+			id: "title",
+			value: "New",
+			defaultValue: "Old",
+		});
+		expect(overrides()).toEqual({ text: { "1:title": "New" } });
+		commands.last()?.undo();
+		expect(overrides()).toEqual({});
+
+		setOpenSlidePalette(store, commands, "os1", { text: "#111111" });
+		expect(overrides()).toEqual({ palette: { text: "#111111" } });
+		resetOpenSlideOverrides(store, commands, "os1");
+		expect(overrides()).toEqual({});
+	});
+
+	it("変化がなければコマンドを積まない", () => {
+		const store = createBoardStore();
+		store.addShape(shapeOf());
+		const commands = recordingCommands();
+		setOpenSlideText(store, commands, "os1", {
+			page: 0,
+			id: "title",
+			value: "Old",
+			defaultValue: "Old",
+		});
+		expect(commands.last()).toBeUndefined();
+	});
+
+	it("beginEdit はデッキ Shape だけ編集状態にする", () => {
+		const store = createBoardStore();
+		store.addShape(shapeOf());
+		const editState = new OpenSlideEditState();
+		const api = createOpenSlideApi({
+			store,
+			commands: commandsFor(),
+			registry: new OpenSlideDeckRegistry([]),
+			editState,
+			getViewportSize: () => ({ width: 800, height: 600 }),
+		});
+		api.beginEdit("missing");
+		expect(api.getEditingId()).toBeNull();
+		api.beginEdit("os1");
+		expect(api.getEditingId()).toBe("os1");
+		api.endEdit();
+		expect(api.getEditingId()).toBeNull();
+	});
+
+	it("ボードの外では OpenSlideText は初期値をそのまま出す", () => {
+		expect(renderToStaticMarkup(<OpenSlideText id="t">Plain</OpenSlideText>)).toBe("Plain");
 	});
 });

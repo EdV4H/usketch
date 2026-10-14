@@ -6,12 +6,14 @@ import type {
 } from "@edv4h/usketch-shared";
 import { useEffect, useState } from "react";
 import { OpenSlideDeckRegistry } from "./open-slide/deck-registry.js";
+import { OpenSlideEditState } from "./open-slide/edit-state.js";
 import {
 	createOpenSlideApi,
 	openSlideService,
 	setOpenSlidePage,
 } from "./open-slide/open-slide-service.js";
 import { createOpenSlideShapeDefinition } from "./open-slide/open-slide-shape.js";
+import { setOpenSlideText } from "./open-slide/overrides.js";
 import { MutablePresentCursor } from "./open-slide/present-cursor.js";
 import { isOpenSlideShape, OPEN_SLIDE_SHAPE_TYPE, type OpenSlideDeck } from "./open-slide/types.js";
 import { PresentEditOverlay } from "./present-edit-overlay.js";
@@ -147,12 +149,23 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 				unregisters.push(subscribeMode(syncPresentCursor));
 				syncPresentCursor();
 
+				// デッキの中身の編集中に発表へ入ったら編集を終える。
+				const editState = new OpenSlideEditState();
+				unregisters.push(
+					subscribeMode(() => {
+						if (getMode() === "present") editState.end();
+					}),
+				);
+
 				ctx.shapes.register(
 					OPEN_SLIDE_SHAPE_TYPE,
 					createOpenSlideShapeDefinition({
 						registry: deckRegistry,
 						presentCursor,
 						onSetPage: (shapeId, page) => setOpenSlidePage(ctx.store, deckRegistry, shapeId, page),
+						editState,
+						onCommitText: (shapeId, params) =>
+							setOpenSlideText(ctx.store, ctx.commands, shapeId, params),
 					}),
 				);
 
@@ -160,6 +173,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 					store: ctx.store,
 					commands: ctx.commands,
 					registry: deckRegistry,
+					editState,
 					getViewportSize,
 				});
 				unregisters.push(openSlideService.provide(ctx.services, api));
@@ -183,6 +197,37 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 							if (deckId) api.insertDeck({ deckId });
 						},
 						isEnabled: () => decks.length > 0,
+					}),
+				);
+				const selectedDeckId = (): string | null => {
+					const selection = ctx.store.getSelection();
+					if (selection.size !== 1) return null;
+					const [id] = selection;
+					const shape = id ? ctx.store.getShape(id) : undefined;
+					return shape && isOpenSlideShape(shape) ? shape.id : null;
+				};
+				unregisters.push(
+					ctx.actions.register({
+						id: "presentation:edit-open-slide",
+						label: "デッキの中身を編集",
+						group: "Presentation",
+						run: () => {
+							const id = selectedDeckId();
+							if (id) api.beginEdit(id);
+						},
+						isEnabled: () => selectedDeckId() !== null,
+					}),
+				);
+				unregisters.push(
+					ctx.actions.register({
+						id: "presentation:reset-open-slide",
+						label: "デッキを元の内容に戻す",
+						group: "Presentation",
+						run: () => {
+							const id = selectedDeckId();
+							if (id) api.resetOverrides(id);
+						},
+						isEnabled: () => selectedDeckId() !== null,
 					}),
 				);
 			}
