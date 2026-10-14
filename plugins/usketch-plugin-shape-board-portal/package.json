@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-shape-board-portal",
-	"version": "2.0.19",
+	"version": "2.0.20",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -27,7 +27,7 @@
 	"devDependencies": {
 		"@types/react": "19.3.0",
 		"typescript": "7.0.2",
-		"vitest": "5.0.3"
+		"vitest": "5.0.4"
 	},
 	"publishConfig": {
 		"access": "public"

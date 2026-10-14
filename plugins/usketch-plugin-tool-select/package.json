@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-tool-select",
-	"version": "3.2.13",
+	"version": "3.2.14",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -29,7 +29,7 @@
 	"devDependencies": {
 		"@types/react": "19.3.0",
 		"typescript": "7.0.2",
-		"vitest": "5.0.3"
+		"vitest": "5.0.4"
 	},
 	"publishConfig": {
 		"access": "public"

@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-sync-localstorage-yjs
 
+## 2.1.5
+
+### Patch Changes
+
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+
 ## 2.1.4
 
 ### Patch Changes
