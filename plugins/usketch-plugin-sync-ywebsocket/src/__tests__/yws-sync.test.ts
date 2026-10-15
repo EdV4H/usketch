@@ -132,6 +132,47 @@ describe("createYwebsocketSync (store ↔ Y.Doc binding)", () => {
 		expect((shapesMap.get("s1") as { x: number }).x).toBe(200);
 		expect(before).toBe(0);
 	});
+
+	describe("2 クライアント間の同期", () => {
+		/** 2 つの Y.Doc を互いの update で繋ぎ、別々の store にバインドする。 */
+		function setupPair() {
+			const docA = new Y.Doc();
+			const docB = new Y.Doc();
+			docA.on("update", (update: Uint8Array, origin: unknown) => {
+				if (origin !== "peer") Y.applyUpdate(docB, update, "peer");
+			});
+			docB.on("update", (update: Uint8Array, origin: unknown) => {
+				if (origin !== "peer") Y.applyUpdate(docA, update, "peer");
+			});
+			const a = setup({ doc: docA });
+			const b = setup({ doc: docB });
+			return { a: a.store, b: b.store, docA };
+		}
+
+		it("キーを undefined にした更新（キーの削除）が相手に伝わる", () => {
+			const { a, b } = setupPair();
+			a.addShape(makeShape({ id: "s1", parentId: "g1" }));
+			expect(b.getShape("s1")?.parentId).toBe("g1");
+
+			a.updateShape("s1", { parentId: undefined });
+
+			expect(b.getShape("s1")?.parentId).toBeUndefined();
+			expect(b.getShape("s1")?.x).toBe(0);
+		});
+
+		it("相手の値に無くても、ストアが振る zIndex は消さない", () => {
+			const { b, docA } = setupPair();
+			const shapesMapA = docA.getMap<Record<string, unknown>>("shapes");
+			const { zIndex: _omit, ...withoutZ } = makeShape({ id: "s1", zIndex: "a0" });
+			docA.transact(() => shapesMapA.set("s1", { ...withoutZ, zIndex: "a0" }));
+			expect(b.getShape("s1")?.zIndex).toBe("a0");
+
+			docA.transact(() => shapesMapA.set("s1", { ...withoutZ, x: 10 }));
+
+			expect(b.getShape("s1")?.x).toBe(10);
+			expect(b.getShape("s1")?.zIndex).toBe("a0");
+		});
+	});
 });
 
 describe("createYwebsocketSync (shouldSync filter)", () => {

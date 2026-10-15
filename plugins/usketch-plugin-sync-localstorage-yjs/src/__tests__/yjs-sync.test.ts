@@ -210,6 +210,38 @@ describe("createYjsSync", () => {
 	});
 });
 
+describe("createYjsSync — 2 クライアント間の同期", () => {
+	const handles: YjsSyncHandle[] = [];
+
+	afterEach(() => {
+		while (handles.length) handles.pop()?.destroy();
+	});
+
+	it("キーを undefined にした更新（キーの削除）が相手に伝わる", async () => {
+		const docA = new Y.Doc();
+		const docB = new Y.Doc();
+		docA.on("update", (update: Uint8Array, origin: unknown) => {
+			if (origin !== "peer") Y.applyUpdate(docB, update, "peer");
+		});
+		docB.on("update", (update: Uint8Array, origin: unknown) => {
+			if (origin !== "peer") Y.applyUpdate(docA, update, "peer");
+		});
+		const a = createTestStore();
+		const b = createTestStore();
+		handles.push(createYjsSync(a, { docName: `test-pair-a-${crypto.randomUUID()}`, doc: docA }));
+		handles.push(createYjsSync(b, { docName: `test-pair-b-${crypto.randomUUID()}`, doc: docB }));
+		await Promise.all(handles.map((h) => h.whenSynced));
+
+		a.addShape(makeShape({ id: "s1", parentId: "g1" }));
+		expect(b.getShape("s1")?.parentId).toBe("g1");
+
+		a.updateShape("s1", { parentId: undefined });
+
+		expect(b.getShape("s1")?.parentId).toBeUndefined();
+		expect(b.getShape("s1")?.width).toBe(100);
+	});
+});
+
 describe("createYjsSync — options (docName / external doc)", () => {
 	let store: BoardStore;
 	let syncHandle: YjsSyncHandle;
