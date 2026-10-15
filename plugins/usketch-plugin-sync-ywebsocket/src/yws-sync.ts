@@ -10,6 +10,22 @@ function toPlainObject(shape: ShapeData): Record<string, unknown> {
 	return JSON.parse(JSON.stringify(shape));
 }
 
+// ストアが自前で振る値。古いクライアントの書き込みに無くても消さない。
+const STORE_MANAGED_KEYS = new Set(["id", "zIndex", "createdAt", "updatedAt"]);
+
+/**
+ * Y.Map の値を正として、`existing` にあって `incoming` に無いキーを `undefined` にした更新を作る。
+ * 送信側の `toPlainObject` は `undefined` のキーを落とすので、受信側で「無いキー＝削除」と扱わないと
+ * `updateShape` のマージで古い値（ungroup 後の `parentId` など）が残る。
+ */
+function toReplacingUpdates(existing: ShapeData, incoming: ShapeData): Partial<ShapeData> {
+	const updates: Record<string, unknown> = { ...incoming };
+	for (const key of Object.keys(existing)) {
+		if (!(key in incoming) && !STORE_MANAGED_KEYS.has(key)) updates[key] = undefined;
+	}
+	return updates as Partial<ShapeData>;
+}
+
 type ProviderState = {
 	provider: WebsocketProvider;
 	unbind: () => void;
@@ -220,7 +236,7 @@ export function createYwebsocketSync(
 								const shape = value as unknown as ShapeData;
 								const existing = store.getShape(key);
 								if (existing) {
-									store.updateShape(key, shape);
+									store.updateShape(key, toReplacingUpdates(existing, shape));
 								} else {
 									store.addShape(shape);
 									if (!isLocalTxn) {
