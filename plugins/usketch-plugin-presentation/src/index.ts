@@ -7,10 +7,21 @@ export {
 	OPEN_SLIDE_MIN_WIDTH,
 	resizeOpenSlideShape,
 } from "./open-slide/open-slide-shape.js";
+export type { OpenSlideTextProps } from "./open-slide/open-slide-text.js";
+export { OpenSlideText } from "./open-slide/open-slide-text.js";
+export {
+	resetOpenSlideOverrides,
+	resolveOpenSlideDesign,
+	setOpenSlidePalette,
+	setOpenSlideText,
+	withOpenSlidePalette,
+	withOpenSlideText,
+} from "./open-slide/overrides.js";
 export type {
 	OpenSlideDeck,
 	OpenSlideDesign,
 	OpenSlideModule,
+	OpenSlideOverrides,
 	OpenSlideShapeData,
 } from "./open-slide/types.js";
 export {
@@ -19,6 +30,7 @@ export {
 	OPEN_SLIDE_CANVAS_HEIGHT,
 	OPEN_SLIDE_CANVAS_WIDTH,
 	OPEN_SLIDE_SHAPE_TYPE,
+	openSlideTextKey,
 } from "./open-slide/types.js";
 export type { PresentationMode, PresentationPluginOptions } from "./plugin.js";
 export { createPresentationPlugin } from "./plugin.js";

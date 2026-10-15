@@ -59,6 +59,21 @@ export interface OpenSlideShapeData extends ShapeData {
 	 * 読み込み後はデッキ側の実ページ数を優先する。
 	 */
 	pageCount: number;
+	/** ボード上で書き換えた中身。書き換えていない箇所はデッキ側の値を使う。 */
+	overrides?: OpenSlideOverrides;
+}
+
+/** デッキ Shape ごとの差し替え。デッキの作者が印を付けた箇所だけが対象。 */
+export interface OpenSlideOverrides {
+	/** `OpenSlideText` の文字。キーは `${ページ番号}:${id}` ({@link openSlideTextKey})。 */
+	text?: Record<string, string>;
+	/** 配色。指定した色だけデッキの `design.palette` を上書きする。 */
+	palette?: Partial<OpenSlideDesign["palette"]>;
+}
+
+/** {@link OpenSlideOverrides.text} のキー。 */
+export function openSlideTextKey(page: number, id: string): string {
+	return `${page}:${id}`;
 }
 
 export function isOpenSlideShape(shape: ShapeData): shape is OpenSlideShapeData {

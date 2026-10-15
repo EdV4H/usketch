@@ -6,7 +6,8 @@ import type {
 	ShapeDefinition,
 } from "@edv4h/usketch-shared";
 import type { OpenSlideDeckRegistry } from "./deck-registry.js";
-import { OpenSlideShapeView } from "./open-slide-shape-view.js";
+import type { OpenSlideEditState } from "./edit-state.js";
+import { OpenSlideShapeView, type OpenSlideShapeViewProps } from "./open-slide-shape-view.js";
 import type { PresentCursor } from "./present-cursor.js";
 import {
 	OPEN_SLIDE_ASPECT,
@@ -100,6 +101,8 @@ export interface OpenSlideShapeDefinitionOptions {
 	registry: OpenSlideDeckRegistry;
 	presentCursor: PresentCursor;
 	onSetPage: (shapeId: string, page: number) => void;
+	editState: OpenSlideEditState;
+	onCommitText: OpenSlideShapeViewProps["onCommitText"];
 }
 
 /** open-slide デッキ Shape の定義。 */
@@ -107,6 +110,8 @@ export function createOpenSlideShapeDefinition({
 	registry,
 	presentCursor,
 	onSetPage,
+	editState,
+	onCommitText,
 }: OpenSlideShapeDefinitionOptions): ShapeDefinition {
 	function SimplifiedOpenSlide({ shape }: { shape: ShapeData }) {
 		return (
@@ -141,6 +146,8 @@ export function createOpenSlideShapeDefinition({
 				registry={registry}
 				presentCursor={presentCursor}
 				onSetPage={onSetPage}
+				editState={editState}
+				onCommitText={onCommitText}
 			/>
 		),
 		renderForExport: (shape) => (
