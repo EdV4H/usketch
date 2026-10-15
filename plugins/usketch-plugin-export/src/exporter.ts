@@ -50,6 +50,10 @@ async function loadFont(): Promise<ArrayBuffer> {
 	return fontCache;
 }
 
+// Satori の出力ごとに振る通し番号。shape.id から作ると id の文字種によっては別シェイプが
+// 同じ名前空間になり、同じシェイプを 2 回描いたときも衝突するため、呼び出しごとに分ける。
+let satoriScopeSeq = 0;
+
 /** HTMLシェイプをSatoriでSVG文字列に変換（foreignObject不使用、taint安全） */
 export async function htmlShapeToSvg(
 	element: ReactNode,
@@ -67,7 +71,18 @@ export async function htmlShapeToSvg(
 		...(loadAdditionalAsset ? { loadAdditionalAsset } : {}),
 	});
 	const inner = svg.replace(/<svg[^>]*>/, "").replace(/<\/svg>$/, "");
-	return `<g transform="translate(${shape.x}, ${shape.y})">${inner}</g>`;
+	satoriScopeSeq += 1;
+	return `<g transform="translate(${shape.x}, ${shape.y})">${scopeSatoriIds(inner, `s${satoriScopeSeq}`)}</g>`;
+}
+
+/**
+ * Satori は呼び出しごとに同じ id（`satori_cp-id` など）で clipPath / mask を出すため、
+ * 複数シェイプの SVG を 1 枚に並べると後のシェイプが先のシェイプの clipPath を参照してしまい、
+ * 切り抜きがずれる（文字が欠ける・要素が消える）。出力ごとに id と参照を名前空間で分ける。
+ * `scope` は id に使える文字（英数字・`-`・`_`）だけにすること。
+ */
+export function scopeSatoriIds(markup: string, scope: string): string {
+	return markup.replace(/(\sid="|url\(#|href="#)satori_/g, `$1satori_${scope}_`);
 }
 
 export type SatoriFont = SatoriOptions["fonts"][number];
