@@ -3,13 +3,19 @@ import {
 	type BoundingBox,
 	type CommandRegistry,
 	type EventBus,
-	generateId,
 	getRotatedAABB,
 	type ShapeData,
 	type ShapeRegistry,
 	safeRotation,
 } from "@edv4h/usketch-shared";
-import { createAddShapeCommand } from "@edv4h/usketch-store";
+import {
+	cloneShapes,
+	collectWithDescendants,
+	connectorsBetween,
+	createAddShapesCommand,
+	rootShapeIds,
+	translateShape,
+} from "@edv4h/usketch-store";
 
 const PASTE_OFFSET = 20;
 const CLIPBOARD_FORMAT = "usketch/shapes";
@@ -24,57 +30,29 @@ function isInputFocused(): boolean {
 	return tag === "INPUT" || tag === "TEXTAREA" || (el as HTMLElement).isContentEditable;
 }
 
+/** 選択中の shape とその子孫（frame / group の中身）、およびそれらを結ぶコネクタ。 */
 function collectShapes(store: BoardStore): ShapeData[] {
-	const selection = store.getSelection();
-	if (selection.size === 0) return [];
-	const shapes: ShapeData[] = [];
-	for (const id of selection) {
-		const shape = store.getShape(id);
-		if (shape) shapes.push({ ...shape });
-	}
-	return shapes;
+	const shapes = collectWithDescendants(store, store.getSelection());
+	return [
+		...shapes,
+		...connectorsBetween(
+			store,
+			shapes.map((s) => s.id),
+		),
+	];
 }
 
-/**
- * shape を (dx, dy) 平行移動する。`ShapeDefinition.move`（コネクタの endpoints など
- * 絶対座標フィールドも動かす）があればそれを使い、無ければ x/y のみ更新する。
- */
-function translateShape(
-	shape: ShapeData,
-	dx: number,
-	dy: number,
-	registry?: ShapeRegistry,
-): ShapeData {
-	const move = registry?.get(shape.type)?.move;
-	if (move) return { ...shape, ...move(shape, dx, dy) };
-	return { ...shape, x: shape.x + dx, y: shape.y + dy };
-}
-
-/** 新規 shape 群（新 id・親子の付け替え・初期 +20 オフセット）を生成。 */
+/** 新規 shape 群（新 id・親子/接続の張り替え・初期 +20 オフセット）を生成。 */
 function cloneWithNewIds(
 	shapes: ShapeData[],
 	registry?: ShapeRegistry,
 ): { newShapes: ShapeData[]; newIds: string[] } {
-	const idMap = new Map<string, string>();
-	const newIds: string[] = [];
-	for (const shape of shapes) {
-		const newId = generateId();
-		idMap.set(shape.id, newId);
-		newIds.push(newId);
-	}
-	const newShapes = shapes.map((shape) => {
-		const newId = idMap.get(shape.id) ?? shape.id;
-		const parentId =
-			shape.parentId && idMap.has(shape.parentId as string)
-				? idMap.get(shape.parentId as string)
-				: undefined;
-		return {
-			...translateShape(shape, PASTE_OFFSET, PASTE_OFFSET, registry),
-			id: newId,
-			...(parentId !== undefined ? { parentId } : {}),
-		} as ShapeData;
+	const { shapes: newShapes } = cloneShapes(shapes, {
+		dx: PASTE_OFFSET,
+		dy: PASTE_OFFSET,
+		registry,
 	});
-	return { newShapes, newIds };
+	return { newShapes, newIds: rootShapeIds(newShapes) };
 }
 
 /**
@@ -135,9 +113,7 @@ function placeAndCommit(
 			},
 		});
 	}
-	for (const shape of placed) {
-		commands.execute(createAddShapeCommand(store, shape));
-	}
+	commands.execute(createAddShapesCommand(store, placed));
 	store.setSelection(newIds);
 }
 

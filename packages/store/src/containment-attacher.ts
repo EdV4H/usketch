@@ -39,11 +39,18 @@ export function createContainmentAttacher(opts: ContainmentAttacherOptions): () 
 	const canAttach =
 		opts.canAttach ?? ((s: ShapeData) => s.type !== "connector" && !isAttachTarget(s));
 
-	function autoReparent(shapeId: string) {
+	function autoReparent(shapeId: string, keepContainingParent = false) {
 		const shape = store.getShape(shapeId);
 		if (!shape || !canAttach(shape)) return;
 
 		const shapeBounds = boundsOf(shape);
+		// A shape added with a parentId (duplicate / paste) keeps that parent while
+		// it still contains the shape. Re-picking would tie-break same-size
+		// containers (e.g. the original frame under its copy) toward the wrong one.
+		if (keepContainingParent && typeof shape.parentId === "string") {
+			const parent = store.getShape(shape.parentId);
+			if (parent && isAttachTarget(parent) && containsAABB(boundsOf(parent), shapeBounds)) return;
+		}
 		// Find the smallest attach-target container that fully contains the shape.
 		let best: ShapeData | null = null;
 		for (const [id, candidate] of store.getShapes()) {
@@ -82,7 +89,7 @@ export function createContainmentAttacher(opts: ContainmentAttacherOptions): () 
 	const offAdded = store.onMutation((event) => {
 		if (event.type !== "shape:added") return;
 		const payload = event.payload as { id?: string } | undefined;
-		if (payload?.id) autoReparent(payload.id);
+		if (payload?.id) autoReparent(payload.id, true);
 	});
 
 	return () => {
