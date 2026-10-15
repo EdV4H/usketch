@@ -1,3 +1,4 @@
+import type { ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { startResizeSession } from "../resize.js";
 import { createTestToolContext, makePointerEvent, makeShape } from "./test-helpers.js";
@@ -110,5 +111,64 @@ describe("startResizeSession (multi)", () => {
 		});
 		// No update at all — pointerdown + pointerup with zero motion.
 		expect(session.commit()).toBeNull();
+	});
+});
+
+describe("startResizeSession — ShapeDefinition.flip hook", () => {
+	function ctxWithFlipShape(calls: Array<{ x: boolean; y: boolean }>) {
+		const ctx = createTestToolContext();
+		const rect = ctx.shapes.get("rect")!;
+		ctx.shapes.register("flippy", {
+			...rect,
+			flip: (data: ShapeData, axes: { x: boolean; y: boolean }) => {
+				calls.push(axes);
+				return { "x-flips": ((data["x-flips"] as number | undefined) ?? 0) + 1 };
+			},
+		});
+		return ctx;
+	}
+
+	it("single: calls flip with the crossed axis and applies its patch", () => {
+		const calls: Array<{ x: boolean; y: boolean }> = [];
+		const ctx = ctxWithFlipShape(calls);
+		ctx.store.addShape(makeShape({ id: "a", type: "flippy", x: 0, y: 0, width: 100, height: 50 }));
+		const session = startResizeSession({
+			kind: "single",
+			ctx,
+			shapeId: "a",
+			handle: "e",
+			startPoint: { x: 100, y: 25 },
+		});
+		// Drag the east handle past the west edge.
+		session.update(makePointerEvent({ x: -20, y: 25 }));
+		expect(calls).toEqual([{ x: true, y: false }]);
+		expect(ctx.store.getShape("a")?.["x-flips"]).toBe(1);
+		// Continued drag must keep the flipped field (not reset from stale startData).
+		session.update(makePointerEvent({ x: -40, y: 25 }));
+		expect(ctx.store.getShape("a")?.["x-flips"]).toBe(1);
+		// The flip is part of the committed command.
+		const result = session.commit();
+		expect(ctx.store.getShape("a")?.["x-flips"]).toBeUndefined();
+		ctx.commands.execute(result!.command);
+		expect(ctx.store.getShape("a")?.["x-flips"]).toBe(1);
+	});
+
+	it("multi: calls flip for each shape whose definition has the hook", () => {
+		const calls: Array<{ x: boolean; y: boolean }> = [];
+		const ctx = ctxWithFlipShape(calls);
+		ctx.store.addShape(makeShape({ id: "a", type: "flippy", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.addShape(makeShape({ id: "b", x: 200, y: 0, width: 100, height: 100 }));
+		const session = startResizeSession({
+			kind: "multi",
+			ctx,
+			selection: new Set(["a", "b"]),
+			handle: "s",
+			startPoint: { x: 150, y: 100 },
+			groupBounds: { x: 0, y: 0, width: 300, height: 100 },
+		});
+		session.update(makePointerEvent({ x: 150, y: -50 }));
+		expect(calls).toEqual([{ x: false, y: true }]);
+		expect(ctx.store.getShape("a")?.["x-flips"]).toBe(1);
+		expect(ctx.store.getShape("b")?.["x-flips"]).toBeUndefined();
 	});
 });
