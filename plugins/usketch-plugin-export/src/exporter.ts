@@ -67,7 +67,17 @@ export async function htmlShapeToSvg(
 		...(loadAdditionalAsset ? { loadAdditionalAsset } : {}),
 	});
 	const inner = svg.replace(/<svg[^>]*>/, "").replace(/<\/svg>$/, "");
-	return `<g transform="translate(${shape.x}, ${shape.y})">${inner}</g>`;
+	return `<g transform="translate(${shape.x}, ${shape.y})">${scopeSatoriIds(inner, shape.id)}</g>`;
+}
+
+/**
+ * Satori は呼び出しごとに同じ id（`satori_cp-id` など）で clipPath / mask を出すため、
+ * 複数シェイプの SVG を 1 枚に並べると後のシェイプが先のシェイプの clipPath を参照してしまい、
+ * 切り抜きがずれる（文字が欠ける・要素が消える）。シェイプごとに id と参照を名前空間で分ける。
+ */
+export function scopeSatoriIds(markup: string, scope: string): string {
+	const prefix = `satori_${scope.replace(/[^\w-]/g, "_")}_`;
+	return markup.replace(/(\bid="|url\(#|href="#)satori_/g, `$1${prefix}`);
 }
 
 export type SatoriFont = SatoriOptions["fonts"][number];
