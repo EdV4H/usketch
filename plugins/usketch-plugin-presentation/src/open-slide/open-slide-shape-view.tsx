@@ -1,6 +1,6 @@
 import { isShapeLocked } from "@edv4h/usketch-shared";
 import type { CSSProperties, ReactNode } from "react";
-import { Component, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { Component, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { OpenSlideDeckRegistry } from "./deck-registry.js";
 import { openSlideDesignToCssVars } from "./design.js";
 import type { OpenSlideEditState } from "./edit-state.js";
@@ -31,6 +31,20 @@ export interface OpenSlideShapeViewProps {
 	) => void;
 }
 
+/** デッキ Shape の描画ごとに付ける属性。値は shapeId。 */
+const OPEN_SLIDE_SHAPE_ATTR = "data-open-slide-shape-id";
+
+/**
+ * 押した場所が、このデッキ Shape のどれかの描画の内側か。
+ * ホストはスライド一覧のサムネイルなどで同じ Shape を複数描くので、
+ * 自分の描画の外でも同じ Shape の描画の内側なら「デッキの外」とは見なさない。
+ */
+export function isInsideOpenSlideShape(target: EventTarget | null, shapeId: string): boolean {
+	const el = target as { closest?: (selector: string) => Element | null } | null;
+	if (typeof el?.closest !== "function") return false;
+	return el.closest(`[${OPEN_SLIDE_SHAPE_ATTR}]`)?.getAttribute(OPEN_SLIDE_SHAPE_ATTR) === shapeId;
+}
+
 function clampPage(page: number, total: number): number {
 	if (total <= 0) return 0;
 	const n = Number.isFinite(page) ? Math.floor(page) : 0;
@@ -59,7 +73,6 @@ export function OpenSlideShapeView({
 	const editingId = useSyncExternalStore(editState.subscribe, editState.get, editState.get);
 	const presenting = position?.shapeId === shape.id;
 	const editing = editingId === shape.id && !presenting;
-	const frameRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		if (!deck) return;
@@ -72,8 +85,7 @@ export function OpenSlideShapeView({
 	useEffect(() => {
 		if (!editing) return;
 		const onPointerDown = (e: PointerEvent) => {
-			const frame = frameRef.current;
-			if (frame && e.target instanceof Node && frame.contains(e.target)) return;
+			if (isInsideOpenSlideShape(e.target, shape.id)) return;
 			editState.end(shape.id);
 		};
 		const onKeyDown = (e: KeyboardEvent) => {
@@ -116,7 +128,7 @@ export function OpenSlideShapeView({
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: ボード上のデッキ。ダブルクリックで中身の編集を始める
 		<div
-			ref={frameRef}
+			data-open-slide-shape-id={shape.id}
 			style={frameStyle(design, editing)}
 			onDoubleClick={(e) => {
 				if (presenting || isShapeLocked(shape)) return;

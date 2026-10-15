@@ -7,7 +7,7 @@ import { OpenSlideDeckRegistry } from "./deck-registry.js";
 import { OpenSlideEditState } from "./edit-state.js";
 import { createOpenSlideApi, setOpenSlidePage } from "./open-slide-service.js";
 import { createOpenSlideShapeData, resizeOpenSlideShape } from "./open-slide-shape.js";
-import { OpenSlideShapeView } from "./open-slide-shape-view.js";
+import { isInsideOpenSlideShape, OpenSlideShapeView } from "./open-slide-shape-view.js";
 import { OpenSlideText } from "./open-slide-text.js";
 import {
 	resetOpenSlideOverrides,
@@ -253,6 +253,21 @@ describe("OpenSlideShapeView", () => {
 		]);
 		await registry.load("demo");
 		expect(render(registry, shapeOf({ page: 1 }))).toContain("<p>2/2</p>");
+	});
+
+	it("デッキの描画に shapeId を付ける", async () => {
+		expect(render(await loadedRegistry(), shapeOf())).toContain('data-open-slide-shape-id="os1"');
+	});
+
+	it("同じ Shape の別の描画 (サムネイル等) の内側はデッキの外と見なさない", () => {
+		// closest だけを持つ最小の要素。属性を持つ祖先を返す。
+		const inside = (shapeId: string | null) => ({
+			closest: () => (shapeId === null ? null : { getAttribute: () => shapeId }),
+		});
+		expect(isInsideOpenSlideShape(inside("os1") as unknown as EventTarget, "os1")).toBe(true);
+		expect(isInsideOpenSlideShape(inside("os2") as unknown as EventTarget, "os1")).toBe(false);
+		expect(isInsideOpenSlideShape(inside(null) as unknown as EventTarget, "os1")).toBe(false);
+		expect(isInsideOpenSlideShape(null, "os1")).toBe(false);
 	});
 
 	it("読み込み前・未登録はプレースホルダを出す", () => {
