@@ -4,6 +4,7 @@ import {
 	createConnectorTracker,
 	findShapeAtPoint as findShapeAtPointGeneric,
 	getAnchorPoint,
+	getAnchorRatio,
 	moveConnector,
 	rotateConnector,
 } from "@edv4h/usketch-connector-anchor";
@@ -361,8 +362,10 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 				};
 				const nsp = getAnchorPoint(sourceShape, newSourceAnchor, targetCenter);
 				const ntp = getAnchorPoint(targetShape, newTargetAnchor, sourceCenter);
+				const ratioKey = endpoint === "source" ? "sourceAnchorRatio" : "targetAnchorRatio";
 				const from: Partial<ConnectorShapeData> = {
 					[key]: (c as unknown as Record<string, unknown>)[key] as AnchorType,
+					[ratioKey]: c[ratioKey],
 					sourcePoint: c.sourcePoint,
 					targetPoint: c.targetPoint,
 					x: c.x,
@@ -372,6 +375,15 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 				};
 				const to: Partial<ConnectorShapeData> = {
 					[key]: value,
+					// custom は tracker が比率から端点を再計算するので、確定位置の比率を保存する。
+					...(value === "custom"
+						? {
+								[ratioKey]:
+									endpoint === "source"
+										? getAnchorRatio(sourceShape, nsp)
+										: getAnchorRatio(targetShape, ntp),
+							}
+						: {}),
 					sourcePoint: nsp,
 					targetPoint: ntp,
 					x: Math.min(nsp.x, ntp.x),

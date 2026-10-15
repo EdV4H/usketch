@@ -1,5 +1,6 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { moveConnector } from "../move.js";
 import { type ConnectorTrackingStore, createConnectorTracker } from "../tracking.js";
 import type { ConnectableShapeData } from "../types.js";
 
@@ -231,5 +232,71 @@ describe("createConnectorTracker", () => {
 		store.__updateRaw("a", { x: 50 });
 
 		expect(updateSpy).not.toHaveBeenCalled();
+	});
+	// Issue #2: フレーム内の矢印を（フレームごと・範囲選択ごと）移動すると、custom アンカーの
+	// 端点が稀に変な方向を向く。ドラッグがコネクタ自身を先に平行移動（moveConnector）した後、
+	// 接続先 shape の移動を受けた tracker が同じ移動量をもう一度足していた（処理順依存）。
+	describe("custom anchor with ratio (issue #2)", () => {
+		function setupCustom() {
+			const a = makeRect("a", 0, 0); // 100x60
+			const b = makeRect("b", 300, 100);
+			const conn: ConnectableShapeData = {
+				...makeConnector("c1", "a", "b"),
+				sourceAnchor: "custom",
+				targetAnchor: "custom",
+				// a の右辺の上から 1/3、b の左辺の下から 1/3
+				sourcePoint: { x: 100, y: 20 },
+				targetPoint: { x: 300, y: 140 },
+				sourceAnchorRatio: { x: 1, y: 1 / 3 },
+				targetAnchorRatio: { x: 0, y: 2 / 3 },
+			};
+			store.__addShape(a);
+			store.__addShape(b);
+			store.__addShape(conn);
+			const stop = createConnectorTracker({ store, isConnectorType: (t) => t === "connector" });
+			return { conn, stop };
+		}
+
+		function endpoints() {
+			const c = store.getShape("c1") as ConnectableShapeData;
+			return [c.sourcePoint, c.targetPoint];
+		}
+
+		it("does not double-shift when the connector is translated before its shapes", () => {
+			const { conn, stop } = setupCustom();
+			const [dx, dy] = [40, 30];
+			// ドラッグセッションの順序: コネクタ（root）→ 子の a → b
+			store.__updateRaw("c1", moveConnector(conn, dx, dy));
+			store.__updateRaw("a", { x: dx, y: dy });
+			store.__updateRaw("b", { x: 300 + dx, y: 100 + dy });
+
+			expect(endpoints()).toEqual([
+				{ x: 100 + dx, y: 20 + dy },
+				{ x: 300 + dx, y: 140 + dy },
+			]);
+			stop();
+		});
+
+		it("gives the same result regardless of update order", () => {
+			const { conn, stop } = setupCustom();
+			const [dx, dy] = [40, 30];
+			store.__updateRaw("a", { x: dx, y: dy });
+			store.__updateRaw("c1", moveConnector(conn, dx, dy));
+			store.__updateRaw("b", { x: 300 + dx, y: 100 + dy });
+
+			expect(endpoints()).toEqual([
+				{ x: 100 + dx, y: 20 + dy },
+				{ x: 300 + dx, y: 140 + dy },
+			]);
+			stop();
+		});
+
+		it("keeps the anchor at the same relative position when the shape is resized", () => {
+			const { stop } = setupCustom();
+			store.__updateRaw("a", { width: 200, height: 90 });
+
+			expect(endpoints()[0]).toEqual({ x: 200, y: 30 });
+			stop();
+		});
 	});
 });

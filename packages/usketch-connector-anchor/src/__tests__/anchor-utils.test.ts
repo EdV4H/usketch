@@ -1,6 +1,11 @@
 import type { Point, ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
-import { clampToShapeEdge, getAnchorPoint } from "../anchor-utils.js";
+import {
+	clampToShapeEdge,
+	getAnchorPoint,
+	getAnchorRatio,
+	getPointFromAnchorRatio,
+} from "../anchor-utils.js";
 
 const style = { fill: "#fff", stroke: "#000", strokeWidth: 1, opacity: 1 };
 
@@ -58,5 +63,34 @@ describe("clampToShapeEdge rotation", () => {
 	it("回転 0 では従来通り最近傍の辺に落とす", () => {
 		near(clampToShapeEdge(square(), { x: 200, y: 50 }), { x: 100, y: 50 });
 		near(clampToShapeEdge(square(), { x: 50, y: -30 }), { x: 50, y: 0 });
+	});
+});
+
+describe("getAnchorRatio / getPointFromAnchorRatio", () => {
+	const shape = { id: "s", type: "rect", x: 100, y: 50, width: 200, height: 100 } as ShapeData;
+
+	it("converts an edge point to a ratio and back", () => {
+		const point = { x: 300, y: 75 };
+		const ratio = getAnchorRatio(shape, point);
+		expect(ratio).toEqual({ x: 1, y: 0.25 });
+		expect(getPointFromAnchorRatio(shape, ratio)).toEqual(point);
+	});
+
+	it("follows the shape's position and size", () => {
+		const moved = { ...shape, x: 0, y: 0, width: 400, height: 40 };
+		expect(getPointFromAnchorRatio(moved, { x: 1, y: 0.25 })).toEqual({ x: 400, y: 10 });
+	});
+
+	it("round-trips through rotation", () => {
+		const rotated = { ...shape, rotation: 90 };
+		const world = getPointFromAnchorRatio(rotated, { x: 1, y: 0.25 });
+		const back = getAnchorRatio(rotated, world);
+		expect(back.x).toBeCloseTo(1);
+		expect(back.y).toBeCloseTo(0.25);
+	});
+
+	it("uses 0.5 on a zero-size axis", () => {
+		const line = { ...shape, height: 0 };
+		expect(getAnchorRatio(line, { x: 150, y: 50 })).toEqual({ x: 0.25, y: 0.5 });
 	});
 });

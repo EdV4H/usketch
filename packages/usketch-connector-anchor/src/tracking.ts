@@ -1,5 +1,5 @@
 import type { Point, ShapeData } from "@edv4h/usketch-shared";
-import { clampToShapeEdge, getAnchorPoint } from "./anchor-utils.js";
+import { clampToShapeEdge, getAnchorPoint, getPointFromAnchorRatio } from "./anchor-utils.js";
 import { getDefaultControlPoint } from "./path-utils.js";
 import type { ConnectableShapeData } from "./types.js";
 
@@ -177,8 +177,13 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 			const targetCenter = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
 			const sourceCenter = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
 
+			// custom アンカーは比率（shape からの相対位置）があればそこから毎回計算する。
+			// 現在の sourcePoint に移動量を足す方式だと、同じ移動でコネクタ自身も平行移動
+			// された場合（フレームごとのドラッグ等）に二重に動き、処理順で結果が変わる。
 			let sourcePoint: Point;
-			if (sourceAnchor === "custom" && sourceId === payload.id) {
+			if (sourceAnchor === "custom" && conn.sourceAnchorRatio) {
+				sourcePoint = getPointFromAnchorRatio(source, conn.sourceAnchorRatio);
+			} else if (sourceAnchor === "custom" && sourceId === payload.id) {
 				const old = conn.sourcePoint as Point;
 				sourcePoint = clampToShapeEdge(source, { x: old.x + dx, y: old.y + dy });
 			} else if (sourceAnchor === "custom") {
@@ -188,7 +193,9 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 			}
 
 			let targetPoint: Point;
-			if (targetAnchor === "custom" && targetId === payload.id) {
+			if (targetAnchor === "custom" && conn.targetAnchorRatio) {
+				targetPoint = getPointFromAnchorRatio(target, conn.targetAnchorRatio);
+			} else if (targetAnchor === "custom" && targetId === payload.id) {
 				const old = conn.targetPoint as Point;
 				targetPoint = clampToShapeEdge(target, { x: old.x + dx, y: old.y + dy });
 			} else if (targetAnchor === "custom") {

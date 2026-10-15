@@ -1,4 +1,9 @@
-import { type AnchorType, clampToShapeEdge, getAnchorPoint } from "@edv4h/usketch-connector-anchor";
+import {
+	type AnchorType,
+	clampToShapeEdge,
+	getAnchorPoint,
+	getAnchorRatio,
+} from "@edv4h/usketch-connector-anchor";
 import type {
 	CanvasPointerEvent,
 	PluginContext,
@@ -260,6 +265,9 @@ function handleDrawEnd(ctx: PluginContext, worldPoint: Point) {
 			...connector,
 			targetId: releaseTarget.id,
 			targetAnchor,
+			...(targetAnchor === "custom"
+				? { targetAnchorRatio: getAnchorRatio(releaseTarget, targetPoint) }
+				: {}),
 			sourcePoint,
 			targetPoint,
 			x: Math.min(sourcePoint.x, targetPoint.x),
@@ -286,6 +294,9 @@ function handleDrawEnd(ctx: PluginContext, worldPoint: Point) {
 		...connector,
 		targetId: targetShape.id,
 		targetAnchor,
+		...(targetAnchor === "custom"
+			? { targetAnchorRatio: getAnchorRatio(targetShape, targetPoint) }
+			: {}),
 		sourcePoint,
 		targetPoint,
 		x: Math.min(sourcePoint.x, targetPoint.x),
