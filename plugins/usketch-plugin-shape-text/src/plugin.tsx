@@ -6,13 +6,20 @@ import {
 	generateId,
 	type PluginContext,
 	type Point,
-	type ResizeHandle,
 	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
 	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
+import { createDomTextMeasurer } from "./dom-text-measurer.js";
+import {
+	AUTO_WIDTH_MIN,
+	fitTextOnInput,
+	fitTextToContent,
+	isSideHandle,
+	resizeText,
+} from "./text-sizing.js";
 
 /** Text shape extension: intrinsic data for the `text` shape. */
 export interface TextShapeData extends ShapeData {
@@ -20,6 +27,12 @@ export interface TextShapeData extends ShapeData {
 	fontSize: number;
 	fontFamily: string;
 	isEditing: boolean;
+	/**
+	 * true: auto width (no wrapping, width follows the longest line).
+	 * false / absent: fixed width (wraps). Texts saved before auto width
+	 * existed have no flag and keep their fixed width.
+	 */
+	autoWidth?: boolean;
 }
 
 /**
@@ -59,8 +72,9 @@ function SimplifiedText({ shape }: { shape: ShapeData }) {
 const textStyle = (data: TextShapeData): React.CSSProperties => ({
 	width: "100%",
 	height: "100%",
-	whiteSpace: "pre-wrap",
-	wordBreak: "break-word",
+	// Auto width never wraps — the shape widens to the longest line instead.
+	whiteSpace: data.autoWidth ? "pre" : "pre-wrap",
+	wordBreak: data.autoWidth ? undefined : "break-word",
 	outline: "none",
 	fontFamily: data.fontFamily ?? "system-ui, sans-serif",
 	fontSize: data.fontSize ?? 16,
@@ -103,47 +117,6 @@ function hitTest(data: ShapeData, point: Point): boolean {
 	);
 }
 
-function resize(data: ShapeData, handle: ResizeHandle, delta: Point): ShapeData {
-	let { x, y, width, height } = data;
-	switch (handle) {
-		case "se":
-			width += delta.x;
-			height += delta.y;
-			break;
-		case "nw":
-			x += delta.x;
-			y += delta.y;
-			width -= delta.x;
-			height -= delta.y;
-			break;
-		case "ne":
-			y += delta.y;
-			width += delta.x;
-			height -= delta.y;
-			break;
-		case "sw":
-			x += delta.x;
-			width -= delta.x;
-			height += delta.y;
-			break;
-		case "e":
-			width += delta.x;
-			break;
-		case "w":
-			x += delta.x;
-			width -= delta.x;
-			break;
-		case "n":
-			y += delta.y;
-			height -= delta.y;
-			break;
-		case "s":
-			height += delta.y;
-			break;
-	}
-	return { ...data, x, y, width: Math.max(40, width), height: Math.max(24, height) };
-}
-
 function createDefault(params: { id: string; x: number; y: number }): TextShapeData {
 	return {
 		id: params.id,
@@ -174,6 +147,7 @@ function debugFields(shape: ShapeData): Record<string, unknown> {
 		fontSize: data.fontSize ?? 16,
 		fontFamily: data.fontFamily ?? "system-ui, sans-serif",
 		isEditing: data.isEditing ?? false,
+		autoWidth: data.autoWidth ?? false,
 	};
 }
 
@@ -205,6 +179,8 @@ export function createTextPlugin(): UsketchPlugin {
 		name: "テキスト",
 
 		setup(ctx: PluginContext) {
+			const measurer = createDomTextMeasurer();
+
 			// Shared editable-text controller (machine + DOM/canvas wiring).
 			const editor = createEditableTextController(ctx, {
 				isEditableType: (type) => type === "text",
@@ -212,6 +188,7 @@ export function createTextPlugin(): UsketchPlugin {
 				growHeight: true,
 				minHeight: 28,
 				deleteWhenEmpty: true,
+				fitOnInput: (shape, text) => fitTextOnInput(shape, text, measurer.measure),
 			});
 
 			// ── Shape registration ──
@@ -219,13 +196,22 @@ export function createTextPlugin(): UsketchPlugin {
 				render,
 				getBounds,
 				hitTest: withRotation(hitTest),
-				resize,
+				resize: resizeText,
 				createDefault,
 				renderTarget: "html",
 				minSize: { width: 40, height: 24 },
 				simplifiedComponent: SimplifiedText,
 				serializeForAi,
 				debugFields,
+				onHandleDoubleClick(toolCtx, data, handle) {
+					if (!isSideHandle(handle)) return false;
+					const command = fitTextToContent(toolCtx.store, data.id, measurer.measure);
+					if (command) toolCtx.commands.execute(command);
+					// The canvas emits this pointer-down to the editor right after the
+					// tool; without this it would also count as a double-click to edit.
+					editor.cancelPendingClick();
+					return true;
+				},
 			});
 
 			// ── Draw tool registration ──
@@ -237,8 +223,14 @@ export function createTextPlugin(): UsketchPlugin {
 				onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
 					const id = generateId();
 					const defaults = createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
-					// Anchor: left-center (shift Y up by half height)
-					const shape = { ...defaults, y: defaults.y - defaults.height / 2 };
+					// Anchor: left-center (shift Y up by half height). New text starts
+					// in auto width and grows to the right as the user types.
+					const shape: TextShapeData = {
+						...defaults,
+						y: defaults.y - defaults.height / 2,
+						autoWidth: true,
+						width: AUTO_WIDTH_MIN,
+					};
 					toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 					toolCtx.store.setSelection([id]);
 					toolCtx.store.resetToDefaultTool();
@@ -251,6 +243,7 @@ export function createTextPlugin(): UsketchPlugin {
 			// ── Teardown ──
 			return () => {
 				editor.teardown();
+				measurer.dispose();
 			};
 		},
 	};

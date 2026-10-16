@@ -10,6 +10,12 @@ import type {
 export const TEXT_INPUT_EVENT = "usketch:text-input";
 export const TEXT_BLUR_EVENT = "usketch:text-blur";
 export const TEXT_ESCAPE_EVENT = "usketch:text-escape";
+/**
+ * Editor content while an IME composition is in progress (unconfirmed text
+ * included). Lets the shape resize to fit before the text is committed; the
+ * text itself is committed by the `TEXT_INPUT_EVENT` on composition end.
+ */
+export const TEXT_PREVIEW_EVENT = "usketch:text-preview";
 
 function focusAtEnd(el: HTMLElement): void {
 	el.focus();
@@ -29,13 +35,14 @@ function focusAtEnd(el: HTMLElement): void {
  * shapes). Handles IME composition, Escape, blur, and one-time focus.
  */
 export function editableTextProps(id: string, text: string) {
-	const dispatchInput = (el: HTMLElement) => {
+	const dispatch = (type: string, el: HTMLElement) => {
 		window.dispatchEvent(
-			new CustomEvent(TEXT_INPUT_EVENT, {
+			new CustomEvent(type, {
 				detail: { id, text: el.innerText, scrollHeight: el.scrollHeight },
 			}),
 		);
 	};
+	const dispatchInput = (el: HTMLElement) => dispatch(TEXT_INPUT_EVENT, el);
 	return {
 		contentEditable: "plaintext-only" as const,
 		suppressContentEditableWarning: true,
@@ -57,9 +64,16 @@ export function editableTextProps(id: string, text: string) {
 			requestAnimationFrame(() => focusAtEnd(el));
 		},
 		onInput: (e: FormEvent<HTMLElement>) => {
-			if ((e.nativeEvent as InputEvent).isComposing) return;
+			// Mid-composition the DOM already holds the unconfirmed text (input
+			// fires after each compositionupdate), so preview it for sizing only.
+			if ((e.nativeEvent as InputEvent).isComposing) {
+				dispatch(TEXT_PREVIEW_EVENT, e.currentTarget);
+				return;
+			}
 			dispatchInput(e.currentTarget);
 		},
+		onCompositionStart: (e: ReactCompositionEvent<HTMLElement>) =>
+			dispatch(TEXT_PREVIEW_EVENT, e.currentTarget),
 		onCompositionEnd: (e: ReactCompositionEvent<HTMLElement>) => dispatchInput(e.currentTarget),
 		onKeyDown: (e: ReactKeyboardEvent) => {
 			e.stopPropagation();
