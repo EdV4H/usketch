@@ -26,7 +26,7 @@
 		"@cloudflare/workers-types": "5.20261014.1",
 		"drizzle-orm": "0.45.4",
 		"typescript": "7.0.2",
-		"vitest": "5.0.4"
+		"vitest": "5.0.5"
 	},
 	"publishConfig": {
 		"access": "public"
