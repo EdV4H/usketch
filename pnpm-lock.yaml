@@ -1448,8 +1448,8 @@ importers:
         specifier: '>=19'
         version: 19.3.1(react@19.3.1)
       satori:
-        specifier: 0.47.1
-        version: 0.47.1
+        specifier: 0.62.0
+        version: 0.62.0
     devDependencies:
       '@types/react':
         specifier: 19.3.0
@@ -7508,8 +7508,8 @@ packages:
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  satori@0.47.1:
-    resolution: {integrity: sha512-hoRMFMXQ9o4VvcOZ+5pXKRAuWJkjvUzRz3fZJoFrAT3MVfuUvMWROe50lB7AREI1m9a0FAlEMDdQ3WPvHLm7FA==}
+  satori@0.62.0:
+    resolution: {integrity: sha512-6w3G54svVX9B3RY3S7XgZ3i9ZNtvO7Z8AWWUPcHM3HMhgvmYAZOl5TkWBqE8moxRxHW0i2XPbjI1mUsUmWGriA==}
     engines: {node: '>=16'}
 
   satteri@0.10.5:
@@ -13024,7 +13024,7 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
-  satori@0.47.1:
+  satori@0.62.0:
     dependencies:
       '@shuding/opentype.js': 1.4.0-beta.0
       css-background-parser: 0.1.0
