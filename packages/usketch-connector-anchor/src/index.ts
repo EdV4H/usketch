@@ -3,6 +3,8 @@ export {
 	clampToShapeEdge,
 	findClosestAnchor,
 	getAnchorPoint,
+	getAnchorRatio,
+	getPointFromAnchorRatio,
 } from "./anchor-utils.js";
 export {
 	type CascadeDeleteOptions,

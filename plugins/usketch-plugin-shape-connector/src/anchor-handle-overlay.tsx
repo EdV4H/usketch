@@ -1,4 +1,9 @@
-import { type AnchorType, clampToShapeEdge, getAnchorPoint } from "@edv4h/usketch-connector-anchor";
+import {
+	type AnchorType,
+	clampToShapeEdge,
+	getAnchorPoint,
+	getAnchorRatio,
+} from "@edv4h/usketch-connector-anchor";
 import type {
 	CanvasPointerEvent,
 	PluginContext,
@@ -9,6 +14,7 @@ import type {
 import { generateId, safeRotation } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { useCallback, useSyncExternalStore } from "react";
+import { MIN_DRAG_SCREEN_PX, resolveConnectorEnds } from "./connector-ends.js";
 import { createDefaultConnector } from "./shapes/connector.js";
 import type { ConnectorShapeData } from "./types.js";
 
@@ -73,6 +79,8 @@ interface AnchorDrawState {
 }
 
 let drawState: AnchorDrawState | null = null;
+/** Whether the pointer has travelled far enough since the handle press to count as a drag. */
+let anchorDragMoved = false;
 const drawListeners = new Set<() => void>();
 
 function setAnchorDraw(state: AnchorDrawState | null) {
@@ -243,8 +251,30 @@ function handleDrawEnd(ctx: PluginContext, worldPoint: Point) {
 	if (!connector || !targetShape) {
 		// Also try to find shape at release point
 		const releaseTarget = findNonConnectorShape(ctx, worldPoint);
-		if (!connector || !releaseTarget || releaseTarget.id === drawState.sourceShape.id) {
+		if (
+			!connector ||
+			!anchorDragMoved ||
+			(releaseTarget && releaseTarget.id === drawState.sourceShape.id)
+		) {
 			ctx.store.deleteShape(drawState.connectorId);
+			setAnchorDraw(null);
+			return;
+		}
+		if (!releaseTarget) {
+			// Released on empty space → free end fixed at the release point.
+			ctx.store.deleteShape(drawState.connectorId);
+			const finalShape: ConnectorShapeData = {
+				...(connector as ConnectorShapeData),
+				...resolveConnectorEnds(
+					{
+						shape: drawState.sourceShape,
+						anchor: drawState.sourceAnchor,
+						point: getAnchorPoint(drawState.sourceShape, drawState.sourceAnchor),
+					},
+					{ shape: null, anchor: "auto", point: worldPoint },
+				),
+			};
+			ctx.commands.execute(createAddShapeCommand(ctx.store, finalShape));
 			setAnchorDraw(null);
 			return;
 		}
@@ -260,6 +290,9 @@ function handleDrawEnd(ctx: PluginContext, worldPoint: Point) {
 			...connector,
 			targetId: releaseTarget.id,
 			targetAnchor,
+			...(targetAnchor === "custom"
+				? { targetAnchorRatio: getAnchorRatio(releaseTarget, targetPoint) }
+				: {}),
 			sourcePoint,
 			targetPoint,
 			x: Math.min(sourcePoint.x, targetPoint.x),
@@ -286,6 +319,9 @@ function handleDrawEnd(ctx: PluginContext, worldPoint: Point) {
 		...connector,
 		targetId: targetShape.id,
 		targetAnchor,
+		...(targetAnchor === "custom"
+			? { targetAnchorRatio: getAnchorRatio(targetShape, targetPoint) }
+			: {}),
 		sourcePoint,
 		targetPoint,
 		x: Math.min(sourcePoint.x, targetPoint.x),
@@ -506,6 +542,22 @@ function AnchorHandle({
 
 			const id = generateId();
 			const sourcePoint = getAnchorPoint(shape, anchor);
+
+			// The handle may sit off the shape, so tell a click from a drag by the
+			// pointer's own travel rather than by distance from the anchor.
+			anchorDragMoved = false;
+			const start = { x: e.clientX, y: e.clientY };
+			const onMove = (me: PointerEvent) => {
+				if (Math.hypot(me.clientX - start.x, me.clientY - start.y) < MIN_DRAG_SCREEN_PX) return;
+				anchorDragMoved = true;
+				stopTracking();
+			};
+			const stopTracking = () => {
+				window.removeEventListener("pointermove", onMove);
+				window.removeEventListener("pointerup", stopTracking);
+			};
+			window.addEventListener("pointermove", onMove);
+			window.addEventListener("pointerup", stopTracking);
 
 			const connector: ConnectorShapeData = {
 				...createDefaultConnector({ id, x: sourcePoint.x, y: sourcePoint.y }),
