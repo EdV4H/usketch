@@ -1,5 +1,5 @@
 import type { LayerRenderContext, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
-import { isShapeOutsideViewport, safeRotation } from "@edv4h/usketch-shared";
+import { isShapeContainer, isShapeOutsideViewport, safeRotation } from "@edv4h/usketch-shared";
 import { memo } from "react";
 import { LodFallback } from "./lod-fallback.js";
 
@@ -8,15 +8,11 @@ import { LodFallback } from "./lod-fallback.js";
  * while preserving the relative order within each sibling group. The input must
  * already be sorted by z-order (e.g. zIndex ascending).
  *
- * Rationale: DOM z-ordering is controlled by source order + zIndex; containers
- * (frame/group) must render before their children so the child elements
- * appear on top. Using a stable group-by-parent pass keeps the zIndex-based
- * order within siblings intact.
+ * Rationale: DOM z-ordering is controlled by source order + zIndex; parents
+ * must render before their children so the child elements appear on top. Using
+ * a stable group-by-parent pass keeps the zIndex-based order within siblings intact.
  */
-function stableParentSort(
-	sorted: readonly ShapeData[],
-	_containerTypes: ReadonlySet<string>,
-): ShapeData[] {
+function stableParentSort(sorted: readonly ShapeData[]): ShapeData[] {
 	// Group children by parentId (preserving order from `sorted`)
 	const childrenByParent = new Map<string, ShapeData[]>();
 	const topLevel: ShapeData[] = [];
@@ -58,7 +54,6 @@ function stableParentSort(
 // zIndex so they render above the frame's opaque background.
 // Only applied when a drop target is active, not during normal selection.
 const DROP_TARGET_Z_BOOST = 100_000;
-const CONTAINER_SHAPE_TYPES = new Set(["frame", "group"]);
 
 /**
  * 1 シェイプ分のラッパ。`React.memo` で囲み、props が参照的に等しいフレームでは
@@ -73,12 +68,15 @@ const ShapeWrapper = memo(function ShapeWrapper({
 	index,
 	selected,
 	overDropTarget,
+	isContainer,
 	def,
 }: {
 	shape: ShapeData;
 	index: number;
 	selected: boolean;
 	overDropTarget: boolean;
+	/** Whether this instance is a container (`ShapeDefinition.container`, see `isShapeContainer`). */
+	isContainer: boolean;
 	def: { render: (data: ShapeData) => React.ReactElement; renderTarget?: string };
 }) {
 	const bounds = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
@@ -91,8 +89,7 @@ const ShapeWrapper = memo(function ShapeWrapper({
 	const svgW = Math.max(bounds.width, 1);
 	const svgH = Math.max(bounds.height, 1);
 
-	// Containers (frame/group) use pointerEvents: none to let children receive clicks
-	const isContainer = CONTAINER_SHAPE_TYPES.has(shape.type);
+	// Containers use pointerEvents: none to let children receive clicks
 	const boosted = selected && !isContainer && overDropTarget;
 
 	return (
@@ -164,8 +161,7 @@ export function DomShapeLayer({
 	// then reorder so that each child appears immediately after its parent container.
 	// This preserves user-controlled z-order within each sibling group while keeping
 	// the container-before-child invariant required by the DOM stacking context.
-	const CONTAINER_TYPES = new Set(["frame", "group"]);
-	const shapes = stableParentSort(ctx.shapesSorted, CONTAINER_TYPES);
+	const shapes = stableParentSort(ctx.shapesSorted);
 
 	return (
 		<div data-layer="shapes">
@@ -264,6 +260,7 @@ export function DomShapeLayer({
 						index={index}
 						selected={selected}
 						overDropTarget={selected && !!dropTargetId}
+						isContainer={isShapeContainer(def, shape)}
 						def={def}
 					/>
 				);
