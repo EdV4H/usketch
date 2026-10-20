@@ -16,7 +16,7 @@ export interface ContainmentAttacherOptions {
 	 * Whether a shape is eligible to be auto-attached as a child. Default:
 	 * anything that isn't a connector and isn't itself an attach-target — so
 	 * attach-target containers (e.g. frames) stay top-level and don't nest, while
-	 * non-attach containers (island/group) and plain shapes may attach.
+	 * non-attach containers (e.g. group) and plain shapes may attach.
 	 */
 	canAttach?: (shape: ShapeData) => boolean;
 }

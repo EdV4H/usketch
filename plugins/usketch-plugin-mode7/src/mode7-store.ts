@@ -38,7 +38,6 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 	// backgrounds / content
 	"bg-grid",
 	"bg-dots",
-	"island-metaball",
 	"gpu-shapes",
 	"dom-shapes",
 	"usketch-plugin-dashboard:grid-overlay",

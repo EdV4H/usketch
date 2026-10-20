@@ -67,7 +67,7 @@ export interface ShapeData<TMeta = Record<string, unknown>> {
 	createdAt?: number;
 	/** Unix millis — updated by the store on every mutation. */
 	updatedAt?: number;
-	/** Parent shape id for hierarchical grouping (frames, islands, groups). */
+	/** Parent shape id for hierarchical grouping (frames, groups). */
 	parentId?: string;
 	/**
 	 * When true, the shape is not rendered and is excluded from hit-testing,
