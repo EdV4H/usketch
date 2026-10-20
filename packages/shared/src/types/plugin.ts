@@ -349,7 +349,7 @@ export interface ShapeDefinition {
 		/**
 		 * Whether children can be selected / resized individually. Default:
 		 * `false` (group behavior — clicking a child selects the whole container).
-		 * `true` gives frame/island behavior (clicking a child, or marquee over
+		 * `true` gives frame behavior (clicking a child, or marquee over
 		 * it, selects the child itself). Only consulted when the shape is an
 		 * enabled container.
 		 */

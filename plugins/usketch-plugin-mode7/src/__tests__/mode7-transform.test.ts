@@ -108,7 +108,7 @@ describe("tiltLayerRules", () => {
 		transform: "rotateX(60deg)",
 		transformOrigin: "50% 50%",
 		clip: "inset(10% 0% 0% 0%)",
-		depthLayerIds: new Set(["island-metaball"]),
+		depthLayerIds: new Set(["usketch-map:relief"]),
 	};
 
 	it("clips plain layers to the draw distance", () => {
@@ -119,11 +119,11 @@ describe("tiltLayerRules", () => {
 	});
 
 	it("keeps depth layers unclipped and 3D through the inner wrappers", () => {
-		const css = tiltLayerRules(["island-metaball"], opts);
+		const css = tiltLayerRules(["usketch-map:relief"], opts);
 		expect(css).not.toContain("clip-path");
 		expect(css).toContain("transform:rotateX(60deg) !important;");
 		expect(css).toContain(
-			'[data-mode7-stage="on"] [data-layer-id="island-metaball"]>div,[data-mode7-stage="on"] [data-layer-id="island-metaball"]>div>div{transform-style:preserve-3d}',
+			'[data-mode7-stage="on"] [data-layer-id="usketch-map:relief"]>div,[data-mode7-stage="on"] [data-layer-id="usketch-map:relief"]>div>div{transform-style:preserve-3d}',
 		);
 	});
 

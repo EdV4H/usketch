@@ -34,7 +34,7 @@ pnpm dev
 ## 主な機能
 
 ### 描画・編集
-- **Shape plugins**: rect, ellipse, text, sticky, freedraw, image, frame, connector, group, island, portal, counter, wireframe, community-region, board-portal
+- **Shape plugins**: rect, ellipse, text, sticky, freedraw, image, frame, connector, group, portal, counter, wireframe, community-region, board-portal
 - **Tool plugins**: select（XState 駆動の移動・リサイズ・回転）, pan, map（RPG/ワールドマップの地形ペイント）
 - **Background**: grid, dots
 - **Snap & smart guides**、キーボードショートカット、Undo/Redo（コマンドパターン）

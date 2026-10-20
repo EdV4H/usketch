@@ -159,7 +159,7 @@ export interface TiltRuleOptions {
  * Plain layers get the draw-distance clip. A `clip-path` is a grouping property that
  * FLATTENS its subtree onto the plane, so DEPTH layers skip it and instead keep the
  * 3D context through the engine's inner wrappers (viewport-transform / pointer divs):
- * content that sets its own depth (a raised island, a character standing on it) then
+ * content that sets its own depth (raised map terrain, a character standing on it) then
  * rises out of the tilted ground instead of being painted onto it.
  */
 export function tiltLayerRules(layerIds: readonly string[], o: TiltRuleOptions): string {

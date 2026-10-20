@@ -56,14 +56,6 @@
 		"install": "pnpm add @edv4h/usketch-plugin-shape-group"
 	},
 	{
-		"id": "shape-island",
-		"name": "Island",
-		"category": "shape",
-		"glyph": "isle",
-		"summary": "Soft-edge region that collects shapes by proximity.",
-		"install": "pnpm add @edv4h/usketch-plugin-shape-island"
-	},
-	{
 		"id": "shape-counter",
 		"name": "Counter",
 		"category": "shape",

@@ -9,7 +9,7 @@ import { LodFallback } from "./lod-fallback.js";
  * already be sorted by z-order (e.g. zIndex ascending).
  *
  * Rationale: DOM z-ordering is controlled by source order + zIndex; containers
- * (frame/island/group) must render before their children so the child elements
+ * (frame/group) must render before their children so the child elements
  * appear on top. Using a stable group-by-parent pass keeps the zIndex-based
  * order within siblings intact.
  */
@@ -58,7 +58,7 @@ function stableParentSort(
 // zIndex so they render above the frame's opaque background.
 // Only applied when a drop target is active, not during normal selection.
 const DROP_TARGET_Z_BOOST = 100_000;
-const CONTAINER_SHAPE_TYPES = new Set(["frame", "island", "group"]);
+const CONTAINER_SHAPE_TYPES = new Set(["frame", "group"]);
 
 /**
  * 1 シェイプ分のラッパ。`React.memo` で囲み、props が参照的に等しいフレームでは
@@ -91,7 +91,7 @@ const ShapeWrapper = memo(function ShapeWrapper({
 	const svgW = Math.max(bounds.width, 1);
 	const svgH = Math.max(bounds.height, 1);
 
-	// Containers (island/frame/group) use pointerEvents: none to let children receive clicks
+	// Containers (frame/group) use pointerEvents: none to let children receive clicks
 	const isContainer = CONTAINER_SHAPE_TYPES.has(shape.type);
 	const boosted = selected && !isContainer && overDropTarget;
 
@@ -164,7 +164,7 @@ export function DomShapeLayer({
 	// then reorder so that each child appears immediately after its parent container.
 	// This preserves user-controlled z-order within each sibling group while keeping
 	// the container-before-child invariant required by the DOM stacking context.
-	const CONTAINER_TYPES = new Set(["frame", "island", "group"]);
+	const CONTAINER_TYPES = new Set(["frame", "group"]);
 	const shapes = stableParentSort(ctx.shapesSorted, CONTAINER_TYPES);
 
 	return (

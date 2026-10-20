@@ -38,7 +38,6 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 	// backgrounds / content
 	"bg-grid",
 	"bg-dots",
-	"island-metaball",
 	// map plugin: flat terrain + base areas/icons, and the raised relief (a depth layer)
 	"usketch-map:terrain",
 	"usketch-map:relief",
