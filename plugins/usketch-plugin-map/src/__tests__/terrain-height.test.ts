@@ -4,7 +4,13 @@ import type { Cells } from "../autotile.js";
 import { computeRelief, wallStyle } from "../map-relief-layer.js";
 import { renderConfigStore } from "../render-config.js";
 import { TERRAIN_KEYS } from "../terrain.js";
-import { groundHeightAt, LEVEL_HEIGHT, TERRAIN_LEVELS, terrainLevel } from "../terrain-height.js";
+import {
+	boardTerrainSampler,
+	groundHeightAt,
+	LEVEL_HEIGHT,
+	TERRAIN_LEVELS,
+	terrainLevel,
+} from "../terrain-height.js";
 import { makeTileMap } from "../tilemap-shape.js";
 
 const TILE = 40;
@@ -36,6 +42,21 @@ describe("groundHeightAt", () => {
 		expect(groundHeightAt(store, 10, 10, TILE)).toBe(LEVEL_HEIGHT);
 		expect(groundHeightAt(store, 50, 10, TILE)).toBe(3 * LEVEL_HEIGHT);
 		expect(groundHeightAt(store, 500, 500, TILE)).toBe(0); // empty = water
+	});
+
+	it("reuses the sampler until the shapes or render config change", () => {
+		renderConfigStore.set({ emptyTerrain: "water" });
+		let shapes = storeWith({ "0,0": "grass" }).getShapes();
+		const store = { getShapes: () => shapes } as unknown as BoardStore;
+		const first = boardTerrainSampler(store);
+		expect(boardTerrainSampler(store)).toBe(first);
+		shapes = storeWith({ "0,0": "mtn" }).getShapes();
+		expect(groundHeightAt(store, 10, 10, TILE)).toBe(3 * LEVEL_HEIGHT);
+		const second = boardTerrainSampler(store);
+		renderConfigStore.set({ emptyTerrain: "sand" });
+		expect(boardTerrainSampler(store)).not.toBe(second);
+		expect(groundHeightAt(store, 500, 500, TILE)).toBe(LEVEL_HEIGHT);
+		renderConfigStore.set({ emptyTerrain: "water" });
 	});
 });
 

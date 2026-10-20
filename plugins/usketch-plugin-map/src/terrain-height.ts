@@ -49,8 +49,29 @@ export function mergeTilemapCells(tilemaps: readonly TileMapShapeData[]): Cells 
 	);
 }
 
-/** The board's terrain at any cell: painted override, else generated base, else empty. */
+interface CachedSampler {
+	shapes: ReturnType<BoardStore["getShapes"]>;
+	config: ReturnType<typeof renderConfigStore.get>;
+	sampler: TerrainSampler;
+}
+const samplerCache = new WeakMap<BoardStore, CachedSampler>();
+
+/**
+ * The board's terrain at any cell: painted override, else generated base, else empty.
+ * Cached per store until the shapes map or the render config changes (both are
+ * replaced, never mutated, on update): the character samples it several times a frame.
+ */
 export function boardTerrainSampler(store: BoardStore): TerrainSampler {
+	const shapes = store.getShapes();
+	const config = renderConfigStore.get();
+	const hit = samplerCache.get(store);
+	if (hit && hit.shapes === shapes && hit.config === config) return hit.sampler;
+	const sampler = buildSampler(store);
+	samplerCache.set(store, { shapes, config, sampler });
+	return sampler;
+}
+
+function buildSampler(store: BoardStore): TerrainSampler {
 	const tilemaps: TileMapShapeData[] = [];
 	for (const [, shape] of store.getShapes()) {
 		if (isTileMap(shape)) tilemaps.push(shape);
