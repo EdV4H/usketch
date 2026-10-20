@@ -7,6 +7,7 @@ import {
 	fogOpacity,
 	rgba,
 	skyBackground,
+	tiltLayerRules,
 	tiltTransform,
 } from "../mode7-transform.js";
 
@@ -98,5 +99,35 @@ describe("drawDistanceOverscanPx", () => {
 		expect(drawDistanceOverscanPx(1200, 1, 800)).toBe(400);
 		// zoom 0.5: bandPx 500 - 400 = 100
 		expect(drawDistanceOverscanPx(1000, 0.5, 400)).toBe(100);
+	});
+});
+
+describe("tiltLayerRules", () => {
+	const opts = {
+		stageAttr: "data-mode7-stage",
+		transform: "rotateX(60deg)",
+		transformOrigin: "50% 50%",
+		clip: "inset(10% 0% 0% 0%)",
+		depthLayerIds: new Set(["island-metaball"]),
+	};
+
+	it("clips plain layers to the draw distance", () => {
+		const css = tiltLayerRules(["dom-shapes"], opts);
+		expect(css).toContain('[data-mode7-stage="on"] [data-layer-id="dom-shapes"]{');
+		expect(css).toContain("clip-path:inset(10% 0% 0% 0%) !important;");
+		expect(css).not.toContain(">div");
+	});
+
+	it("keeps depth layers unclipped and 3D through the inner wrappers", () => {
+		const css = tiltLayerRules(["island-metaball"], opts);
+		expect(css).not.toContain("clip-path");
+		expect(css).toContain("transform:rotateX(60deg) !important;");
+		expect(css).toContain(
+			'[data-mode7-stage="on"] [data-layer-id="island-metaball"]>div,[data-mode7-stage="on"] [data-layer-id="island-metaball"]>div>div{transform-style:preserve-3d}',
+		);
+	});
+
+	it("strips quotes from layer ids", () => {
+		expect(tiltLayerRules(['a"b'], opts)).toContain('[data-layer-id="ab"]');
 	});
 });

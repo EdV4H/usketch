@@ -23,6 +23,7 @@ import {
 } from "./infinite-terrain.js";
 import type { ReactiveStore } from "./reactive-store.js";
 import { type MapRenderConfig, renderConfigStore } from "./render-config.js";
+import { groundHeightAt } from "./terrain-height.js";
 import { DEFAULT_TILE } from "./tilemap-shape.js";
 import { type MapToolState, toolStateStore } from "./tool-state.js";
 
@@ -47,6 +48,9 @@ export interface MapApi {
 	getBases(): Record<string, BaseInfo>;
 	/** One anchor per base that owns cells: centre (world), colour, name, cell count. */
 	getBaseRegions(): BaseRegionAnchor[];
+	// ── Terrain height (高さ) — derived from each cell's terrain (see terrain-height.ts). ──
+	/** Ground height (world units) at a world point. */
+	getHeightAt(x: number, y: number): number;
 	/** Fire `listener` whenever the territory could have changed (shapes / exclude set). Returns an unsubscribe. */
 	onTerritoryChange(listener: () => void): () => void;
 	// ── Reactive stores backing the map tool + Tweaks (get/set/subscribe). NOTE:
@@ -83,6 +87,7 @@ export function createMapApi(store: BoardStore, defaultTile = DEFAULT_TILE): Map
 			return baseIdAtWorld(territory, x, y, tile);
 		},
 		getBases: () => getBaseMap(store)?.bases ?? {},
+		getHeightAt: (x, y) => groundHeightAt(store, x, y, defaultTile),
 		getBaseRegions: () => {
 			const { baseMap, tile, territory } = snapshot();
 			return baseRegionAnchors(territory, baseMap?.bases ?? {}, tile);

@@ -64,6 +64,7 @@ export {
 	isInfiniteTerrainEnabled,
 	setInfiniteSeed,
 } from "./infinite-terrain.js";
+export { RELIEF_LAYER_ID } from "./map-relief-layer.js";
 // ── Host-facing service (recommended seam; #927/#946 pattern generalized) ──
 // `getMapApi(app.services)?.enableInfiniteTerrain({ seed })` from a host, without
 // the Control HUD and without importing individual helpers (undefined if absent).
@@ -88,6 +89,7 @@ export {
 	renderConfigStore,
 } from "./render-config.js";
 export { TERRAINS, type TerrainDef, type TerrainKey } from "./terrain.js";
+export { LEVEL_HEIGHT, TERRAIN_LEVELS, terrainLevel } from "./terrain-height.js";
 export {
 	DEFAULT_TILE,
 	isTileMap,

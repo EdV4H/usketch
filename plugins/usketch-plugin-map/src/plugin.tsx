@@ -2,7 +2,7 @@
 // data-only `tilemap` + `base-map` shapes, the base landmark-icon layer, the `map`
 // tool (brush/eraser/fill/generate/base), and the Tweaks HUD settings. Landmark
 // icons belong to bases (derived from radius), not a separate stamp step.
-import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import { groundHeightService, type PluginContext, type UsketchPlugin } from "@edv4h/usketch-shared";
 import { BaseIconLayer } from "./base/base-icon-layer.js";
 import { BaseAreaLayer } from "./base/base-layer.js";
 import { BASE_MAP_TYPE, createBaseMapShapeDefinition } from "./base/base-map-shape.js";
@@ -16,12 +16,14 @@ import {
 	getInfiniteSeed,
 	isInfiniteTerrainEnabled,
 } from "./infinite-terrain.js";
-import { MapTerrainLayer } from "./map-layer.js";
+import { GROUND_OVERSCAN_EVENT, MAX_GROUND_OVERSCAN_PX, MapTerrainLayer } from "./map-layer.js";
+import { MapReliefLayer, RELIEF_LAYER_ID } from "./map-relief-layer.js";
 import { createMapApi, mapService } from "./map-service.js";
 import { createMapToolDefinition } from "./map-tool.js";
 import { MAP_TOOL_ID } from "./map-tool-id.js";
 import type { ColorMode } from "./palette.js";
 import { createRangeEraseToolDefinition, RANGE_ERASE_TOOL_ID } from "./range-erase-tool.js";
+import { createReactiveStore } from "./reactive-store.js";
 import { type LineStyle, renderConfigStore } from "./render-config.js";
 import { TERRAINS, type TerrainKey } from "./terrain.js";
 import { createTileMapShapeDefinition, DEFAULT_TILE, TILEMAP_TYPE } from "./tilemap-shape.js";
@@ -73,13 +75,40 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			ctx.shapes.register(TILEMAP_TYPE, createTileMapShapeDefinition(tile));
 			ctx.shapes.register(BASE_MAP_TYPE, createBaseMapShapeDefinition(tile));
 
+			// Ground revealed past the viewport by a 3D view (Mode 7): the terrain extends
+			// under it so the far edge isn't a bare box (see GROUND_OVERSCAN_EVENT).
+			const overscan = createReactiveStore({ px: 0 });
+			const offOverscan = ctx.events.on<{ px: number }>(GROUND_OVERSCAN_EVENT, (data) => {
+				const px = Number(data?.px);
+				overscan.set({
+					px: Number.isFinite(px) ? Math.min(MAX_GROUND_OVERSCAN_PX, Math.max(0, px)) : 0,
+				});
+			});
+
 			// ── Terrain MapLayer (behind all shapes) ──
 			ctx.layers.register({
 				id: TERRAIN_LAYER_ID,
 				order: 40,
 				fixed: true,
 				render: (lctx) => (
-					<MapTerrainLayer store={ctx.store} renderMode={lctx.renderMode} tile={tile} />
+					<MapTerrainLayer
+						store={ctx.store}
+						renderMode={lctx.renderMode}
+						tile={tile}
+						overscan={overscan}
+					/>
+				),
+			});
+
+			// ── Relief: the terrain's height as cliffs, shown only in a 3D view (Mode 7,
+			//    where it is a depth layer). Above the flat terrain (40), below base
+			//    areas / icons (42/44) so those stay visible. ──
+			ctx.layers.register({
+				id: RELIEF_LAYER_ID,
+				order: 41,
+				fixed: true,
+				render: (lctx) => (
+					<MapReliefLayer store={ctx.store} renderMode={lctx.renderMode} tile={tile} />
 				),
 			});
 
@@ -232,11 +261,19 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			//    Provided LAST, after every throw-prone registration above, so a setup
 			//    failure can't leak the service (createApp only rolls back a returned
 			//    teardown). ──
-			const unprovideService = mapService.provide(ctx.services, createMapApi(ctx.store, tile));
+			const api = createMapApi(ctx.store, tile);
+			const unprovideService = mapService.provide(ctx.services, api);
+			// The board's ground height = the terrain's (a character can't climb cliffs).
+			const unprovideGround = groundHeightService.provide(ctx.services, {
+				heightAt: (x, y) => api.getHeightAt(x, y),
+			});
 
 			return () => {
+				unprovideGround();
 				unprovideService();
+				offOverscan();
 				ctx.layers.unregister(TERRAIN_LAYER_ID);
+				ctx.layers.unregister(RELIEF_LAYER_ID);
 				ctx.layers.unregister(BASE_LAYER_ID);
 				ctx.layers.unregister(BASE_ICON_LAYER_ID);
 				if (enterBannerRender) ctx.layers.unregister(ENTER_BANNER_ID);
