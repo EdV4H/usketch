@@ -156,7 +156,7 @@ export interface TrackHoverOptions {
 /**
  * Top-most shape under a world point, with the same precedence rules
  * tool-select uses: non-container shapes win over containers, group
- * children resolve to the top-level group ancestor, frame/island children
+ * children resolve to the top-level group ancestor, frame children
  * stay selectable directly.
  *
  * Exposed (rather than inlined inside `trackHover`) because tools other
