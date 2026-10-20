@@ -5,7 +5,7 @@ import type {
 	ToolContext,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
-import { generateId } from "@edv4h/usketch-shared";
+import { generateId, groundHeightService } from "@edv4h/usketch-shared";
 import { containsAABB, createAddShapeCommand, createReparentCommand } from "@edv4h/usketch-store";
 import { cleanupIslandGroupTimers, detachIsland, reconcileIslandGroups } from "./auto-group.js";
 import { IslandMetaballLayer } from "./island-metaball-layer.js";
@@ -16,6 +16,8 @@ import {
 	renderIsland,
 	resizeIsland,
 } from "./island-render.js";
+import { createIslandApi, createIslandGroundHeight, islandService } from "./island-service.js";
+import { registerIslandHud } from "./register-island-hud.js";
 
 function IslandIcon() {
 	return (
@@ -48,9 +50,12 @@ export function createIslandPlugin(): UsketchPlugin {
 			});
 
 			// ── Metaball background layer (renders below shapes) ──
+			// Order 41: above the background grid (10) and a map's terrain (40) — islands
+			// are land standing on the sea, and in 3D the ground lines must not run across
+			// their cliffs — but below the map's base areas / icons (42/44) and shapes (50).
 			ctx.layers.register({
 				id: "island-metaball",
-				order: -1,
+				order: 41,
 				fixed: true,
 				render: () => <IslandMetaballLayer store={ctx.store} />,
 			});
@@ -216,7 +221,21 @@ export function createIslandPlugin(): UsketchPlugin {
 				}
 			});
 
+			// ── Elevation: HUD + host-facing service + board ground height ──
+
+			const api = createIslandApi(ctx.store, ctx.commands);
+			const stopHud = registerIslandHud(ctx, api);
+			// Provide the services LAST so a failed earlier step can't leak them.
+			const unprovideGround = groundHeightService.provide(
+				ctx.services,
+				createIslandGroundHeight(api),
+			);
+			const unprovideService = islandService.provide(ctx.services, api);
+
 			return () => {
+				unprovideService();
+				unprovideGround();
+				stopHud();
 				unsubMoveEnd();
 				unsubAdded();
 				unsubDetach();

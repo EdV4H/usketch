@@ -67,6 +67,15 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 	"character",
 ];
 
+/**
+ * Tilted layers rendered with real DEPTH: they skip the draw-distance clip (a
+ * `clip-path` flattens 3D) so content can rise out of the ground — the island plugin's
+ * raised blocks and a character standing on one. Shapes (`dom-shapes`) are opt-in via
+ * the `depthLayerIds` option: lifting the members of a raised island needs it, at the
+ * cost of shapes past the draw distance no longer being cut off.
+ */
+export const DEFAULT_DEPTH_LAYER_IDS: readonly string[] = ["island-metaball", "character"];
+
 export interface Mode7State {
 	/** Whether the 3D view is shown. Stays `true` while an exit transition plays, so the
 	 *  capture layer keeps blocking edits until the board is flat again. */

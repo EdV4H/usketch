@@ -4,13 +4,15 @@ export {
 	DEFAULT_CAMERA,
 } from "./mode7-camera.js";
 export { getMode7Api, type Mode7Api, mode7Service } from "./mode7-service.js";
-export type { Look } from "./mode7-store.js";
+export { DEFAULT_DEPTH_LAYER_IDS, DEFAULT_TILT_LAYER_IDS, type Look } from "./mode7-store.js";
 export {
 	drawDistanceClip,
 	drawDistanceOverscanPx,
 	fogBackground,
 	skyBackground,
+	type TiltRuleOptions,
 	type TiltTransform,
+	tiltLayerRules,
 	tiltTransform,
 } from "./mode7-transform.js";
 export {

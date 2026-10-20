@@ -33,7 +33,7 @@ createCharacterPlugin({
   as CSS `rotate()` and the viewport `rotation`.
 - **Render props**: `heading` (world), `screenHeading` (= `heading + viewport.rotation`,
   what to rotate a top-down sprite by), `moving`, `speed`, `zoom`, `appearance`,
-  `name`, `isSelf`, `id`. Each character is placed centered on its screen position
+  `name`, `isSelf`, `id`, `elevation`. Each character is placed centered on its screen position
   in one screen-space layer, so self and remote characters look the same under zoom
   and camera rotation.
 - **Control schemes**
@@ -53,6 +53,12 @@ createCharacterPlugin({
   character is published under the `character` awareness field (~20 Hz, only when it
   changes) and others are eased between updates. It's ephemeral: a character
   vanishes when its owner disconnects or turns it off. Nothing is stored as shapes.
+- **Ground height**: when a plugin provides `groundHeightService` (from
+  `@edv4h/usketch-shared`, e.g. the island plugin's raised islands), moving onto
+  ground more than `motion.maxStep` (default 24 world units, HUD "登れる段差") higher
+  than where the character stands is blocked; it slides along the cliff instead.
+  Stepping down is always allowed. The render props carry `elevation`, and under a
+  3D view (Mode 7) the character is lifted onto the ground it stands on.
 - **Input**: held keys are tracked from window `keydown`/`keyup` (capture phase,
   `event.code`), swallowed while the character is on so single-letter tool
   shortcuts don't fire. Typing in text fields, and key chords with Ctrl/Cmd/Alt,
@@ -60,8 +66,8 @@ createCharacterPlugin({
 
 ## HUD
 
-A "キャラクター" settings group (on/off, camera, scheme, speed, turn rate, screen
-position, camera lag) plus actions to toggle the character and to place it at the
+A "キャラクター" settings group (on/off, camera, scheme, speed, turn rate, climbable
+step, screen position, camera lag) plus actions to toggle the character and to place it at the
 screen position.
 
 ## Service

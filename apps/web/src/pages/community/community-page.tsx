@@ -15,6 +15,11 @@ import { createRippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createKeyboardShortcutsPlugin } from "@edv4h/usketch-plugin-keyboard-shortcuts";
 import { createMapPlugin } from "@edv4h/usketch-plugin-map";
+import {
+	createMode7Plugin,
+	DEFAULT_DEPTH_LAYER_IDS,
+	DEFAULT_TILT_LAYER_IDS,
+} from "@edv4h/usketch-plugin-mode7";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createReactionsPlugin } from "@edv4h/usketch-plugin-reactions";
 import {
@@ -232,6 +237,19 @@ export function CommunityPage() {
 					createMapPlugin({ emptyTerrain: "water", territory: stockTerritoryStyle }),
 					// マップの初期視点（スタート位置）を HUD で設定・起動時移動。
 					createStartPositionPlugin(),
+					// Mode 7（擬似3D）。高さのある島が立体に立ち上がり、島の上の図形やキャラも
+					// その上に乗る（dom-shapes を深度レイヤーに含める）。マップの地形層も一緒に
+					// 傾ける。既定 OFF、HUD「3Dビュー切替」で切替。
+					createMode7Plugin({
+						transition: { durationMs: 900 },
+						tiltLayerIds: [
+							...DEFAULT_TILT_LAYER_IDS,
+							"usketch-map:terrain",
+							"usketch-map:base",
+							"usketch-map:base-icons",
+						],
+						depthLayerIds: [...DEFAULT_DEPTH_LAYER_IDS, "dom-shapes"],
+					}),
 					createDomRendererPlugin(),
 					// Control HUD: hosts plugin operations/settings + the useCommunityActions
 					// actions (toggle with the backtick key). Replaces bespoke on-canvas UI.

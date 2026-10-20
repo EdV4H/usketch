@@ -35,6 +35,12 @@ export interface Mode7PluginOptions {
 	/** Ground draw distance in canvas (world) units (`0` = auto / clip to the viewport;
 	 *  larger values extend the ground past it; default `1500`). */
 	drawDistance?: number;
+	/**
+	 * Tilted layers rendered with real depth (default `DEFAULT_DEPTH_LAYER_IDS`:
+	 * the island blocks + characters). They skip the draw-distance clip, which would
+	 * flatten them. Add `"dom-shapes"` to lift the shapes standing on raised islands.
+	 */
+	depthLayerIds?: string[];
 	/** Start with the flat-mode capture-frame overlay shown (default `false`). */
 	showCaptureFrame?: boolean;
 	/** Keyboard shortcut bindings (opt-in; no defaults). */
@@ -74,7 +80,7 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 		id: "usketch-plugin-mode7",
 		name: "Mode 7 (3D ビュー)",
 		setup(ctx: PluginContext) {
-			const stopRuntime = setupMode7Runtime(ctx, store);
+			const stopRuntime = setupMode7Runtime(ctx, store, { depthLayerIds: options.depthLayerIds });
 			const stopActions = registerMode7Actions(ctx, api, options.shortcuts);
 			const stopHud = registerMode7Hud(ctx, api, store, excludedLayerIds);
 			// Provide the service LAST so a failed earlier step can't leak it.
