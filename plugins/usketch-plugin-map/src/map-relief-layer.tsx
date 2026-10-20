@@ -169,9 +169,11 @@ export function MapReliefLayer({
 		};
 		const u1 = store.subscribe(rerender);
 		const u2 = renderConfigStore.subscribe(rerender);
+		window.addEventListener("resize", rerender);
 		return () => {
 			u1();
 			u2();
+			window.removeEventListener("resize", rerender);
 			cancelAnimationFrame(rafRef.current);
 		};
 	}, [store]);
@@ -200,8 +202,14 @@ export function MapReliefLayer({
 			data-uskmap-relief=""
 			style={
 				{
+					// Sized in px, not `inset: 0`: as a depth layer its wrappers get preserve-3d,
+					// which makes the (0-height) inner wrapper the containing block, so a
+					// percentage box would collapse and the top faces would not paint.
 					position: "absolute",
-					inset: 0,
+					left: 0,
+					top: 0,
+					width: window.innerWidth,
+					height: window.innerHeight,
 					pointerEvents: "none",
 					display: "none",
 					transformStyle: "preserve-3d",
@@ -222,19 +230,40 @@ export function MapReliefLayer({
 					}}
 				/>
 			))}
-			{levels.map((level) => (
-				<div
-					key={`top-${level}`}
-					style={{
-						position: "absolute",
-						inset: 0,
-						transform: `translateZ(${level * LEVEL_HEIGHT * vp.zoom}px)`,
-					}}
-				>
-					{/* Patterns come from MapTerrainLayer's <defs> (document-wide ids). */}
-					<svg width="100%" height="100%" style={{ display: "block", overflow: "visible" }}>
-						<g transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}>
-							{relief.tops.get(level)?.map((cell) => (
+			{levels.map((level) => {
+				const cells = relief.tops.get(level) ?? [];
+				// Each face is only as big as its cells' bounding box: a lifted plane is its
+				// own compositing layer, and a full-viewport one near the camera is costly.
+				let c0 = Infinity;
+				let r0 = Infinity;
+				let c1 = -Infinity;
+				let r1 = -Infinity;
+				for (const cell of cells) {
+					c0 = Math.min(c0, cell.col);
+					r0 = Math.min(r0, cell.row);
+					c1 = Math.max(c1, cell.col + 1);
+					r1 = Math.max(r1, cell.row + 1);
+				}
+				const left = c0 * tile * vp.zoom + vp.x;
+				const top = r0 * tile * vp.zoom + vp.y;
+				const width = (c1 - c0) * tile * vp.zoom;
+				const height = (r1 - r0) * tile * vp.zoom;
+				return (
+					<svg
+						key={`top-${level}`}
+						width={width}
+						height={height}
+						style={{
+							position: "absolute",
+							left,
+							top,
+							overflow: "visible",
+							transform: `translateZ(${level * LEVEL_HEIGHT * vp.zoom}px)`,
+						}}
+					>
+						{/* Patterns come from MapTerrainLayer's <defs> (document-wide ids). */}
+						<g transform={`translate(${vp.x - left} ${vp.y - top}) scale(${vp.zoom})`}>
+							{cells.map((cell) => (
 								<rect
 									key={cell.key}
 									x={cell.col * tile}
@@ -248,8 +277,8 @@ export function MapReliefLayer({
 							))}
 						</g>
 					</svg>
-				</div>
-			))}
+				);
+			})}
 		</div>
 	);
 }
