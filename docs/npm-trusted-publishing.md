@@ -124,7 +124,6 @@ the next 5 minutes"** so the rest of the bulk run proceeds without prompting.
 @edv4h/usketch-plugin-shape-freedraw
 @edv4h/usketch-plugin-shape-group
 @edv4h/usketch-plugin-shape-image
-@edv4h/usketch-plugin-shape-island
 @edv4h/usketch-plugin-shape-markdown
 @edv4h/usketch-plugin-shape-openui
 @edv4h/usketch-plugin-shape-sticky

@@ -22,7 +22,6 @@ import {
 	createBoardPortalPlugin,
 } from "@edv4h/usketch-plugin-shape-board-portal";
 import { createGroupPlugin } from "@edv4h/usketch-plugin-shape-group";
-import { createIslandPlugin } from "@edv4h/usketch-plugin-shape-island";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { createSpatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
 import { createSpotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
@@ -224,7 +223,6 @@ export function CommunityPage() {
 					createViewportNavPlugin(),
 					portalPlugin,
 					createGroupPlugin(),
-					createIslandPlugin(),
 					// Demo default: unset tiles read as sea, so the world map is an
 					// infinite ocean with painted land (off-map counts as water). The map
 					// plugin is headless for territory — the demo app owns the look via
