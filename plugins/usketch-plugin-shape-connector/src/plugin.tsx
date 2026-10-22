@@ -2,7 +2,6 @@ import {
 	type AnchorType,
 	createCascadeDelete,
 	createConnectorTracker,
-	findShapeAtPoint as findShapeAtPointGeneric,
 	getAnchorPoint,
 	moveConnector,
 	rotateConnector,
@@ -24,6 +23,7 @@ import {
 } from "./anchor-handle-overlay.js";
 import { ConnectorLabelEditor, handleConnectorClick, setEditingLabel } from "./connector-label.js";
 import { EndpointOverlay } from "./endpoint-overlay.js";
+import { findShapeAtPoint } from "./find-shape-at-point.js";
 import {
 	type ArrowHead,
 	createDefaultConnector,
@@ -86,17 +86,6 @@ function ConnectorIcon() {
 			<polygon points="16,4 11,5 15,9" fill="currentColor" />
 		</svg>
 	);
-}
-
-// Exclude all known connector types so connector tools never anchor to another
-// connector. "domain-connector" lives in the DDD plugin, but listing the string
-// here (rather than importing the constant) keeps shape-connector free of any
-// reverse dependency on domain-design.
-const EXCLUDE_CONNECTOR = new Set(["connector", "domain-connector"]);
-
-/** Find a shape at a point (excluding connectors and frames/groups — prefer their children) */
-export function findShapeAtPoint(ctx: ToolContext | PluginContext, point: Point): ShapeData | null {
-	return findShapeAtPointGeneric(ctx, point, { excludeTypes: EXCLUDE_CONNECTOR });
 }
 
 function debugFields(shape: ShapeData): Record<string, unknown> {
