@@ -5,7 +5,7 @@
 // awareness. The plugin draws NOTHING itself — pass `renderCharacter` for the look.
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import type { CameraMode } from "./character-camera.js";
-import type { ControlScheme, MotionParams } from "./character-physics.js";
+import type { ControlScheme, DriftParams, MotionParams } from "./character-physics.js";
 import { setupCharacterRuntime } from "./character-runtime.js";
 import { characterService, createCharacterApi } from "./character-service.js";
 import { createCharacterStore } from "./character-store.js";
@@ -27,7 +27,7 @@ export interface CharacterPluginOptions {
 	wsProvider?: { awareness: CharacterAwareness };
 	/** Display name sent with your character. */
 	userName?: string;
-	/** Movement keys as `KeyboardEvent.code` lists (default WASD). */
+	/** Movement keys as `KeyboardEvent.code` lists (default WASD, drift Space). */
 	keys?: Partial<CharacterKeys>;
 	/** Start with the character on (default `false`). */
 	enabledInitially?: boolean;
@@ -37,6 +37,11 @@ export interface CharacterPluginOptions {
 	controlScheme?: ControlScheme;
 	/** Speed / turning / vehicle tuning. */
 	motion?: Partial<MotionParams>;
+	/**
+	 * Vehicle: hold the drift key while steering at speed to drift. `true` = default
+	 * tuning, an object = overrides. Default off.
+	 */
+	drift?: boolean | Partial<DriftParams>;
 	/** Where the character sits on screen, as canvas fractions (default center). */
 	screenAnchor?: { x?: number; y?: number };
 	/** Follow-camera lag: 0 = rigid (default) … 0.99 = heavy. */
@@ -53,6 +58,7 @@ export function createCharacterPlugin(options: CharacterPluginOptions = {}): Usk
 				cameraMode: options.cameraMode,
 				controlScheme: options.controlScheme,
 				motion: options.motion,
+				drift: options.drift,
 				anchor: options.screenAnchor,
 				followSmoothing: options.followSmoothing,
 				appearance: options.appearance,

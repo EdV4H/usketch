@@ -52,7 +52,13 @@ describe("createKeyInput", () => {
 	it("tracks held bound keys and swallows them", () => {
 		const input = createKeyInput(DEFAULT_KEYS, () => true);
 		const e = dom.fire("keydown", { code: "KeyW" });
-		expect(input.read()).toEqual({ up: true, down: false, left: false, right: false });
+		expect(input.read()).toEqual({
+			up: true,
+			down: false,
+			left: false,
+			right: false,
+			drift: false,
+		});
 		expect(e.stopImmediatePropagation).toHaveBeenCalled();
 		dom.fire("keyup", { code: "KeyW" });
 		expect(input.read().up).toBe(false);
@@ -79,6 +85,25 @@ describe("createKeyInput", () => {
 		expect(input.read().up).toBe(true);
 		dom.fire("keydown", { code: "KeyA", target: { tagName: "INPUT", type: "number" } });
 		expect(input.read().left).toBe(false);
+		input.dispose();
+	});
+
+	it("captures the drift key only while drift is active", () => {
+		let driftOn = false;
+		const input = createKeyInput(
+			DEFAULT_KEYS,
+			() => true,
+			() => driftOn,
+		);
+		const ignored = dom.fire("keydown", { code: "Space" });
+		expect(input.read().drift).toBe(false);
+		expect(ignored.preventDefault).not.toHaveBeenCalled();
+		driftOn = true;
+		const taken = dom.fire("keydown", { code: "Space" });
+		expect(input.read().drift).toBe(true);
+		expect(taken.preventDefault).toHaveBeenCalled();
+		dom.fire("keyup", { code: "Space" });
+		expect(input.read().drift).toBe(false);
 		input.dispose();
 	});
 

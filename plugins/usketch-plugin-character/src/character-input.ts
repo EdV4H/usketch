@@ -7,7 +7,7 @@ import type { MoveInput } from "./character-physics.js";
 import type { CharacterKeys } from "./character-types.js";
 
 export interface KeyInput {
-	/** The currently held directions. */
+	/** The currently held directions (and the drift key). */
 	read(): MoveInput;
 	/** Whether any bound key is held. */
 	anyHeld(): boolean;
@@ -42,7 +42,12 @@ function isTextInput(target: EventTarget | null): boolean {
  * false no key is captured (and none is swallowed). Held keys are cleared on window
  * blur / tab hide so a key released elsewhere can't get stuck "down".
  */
-export function createKeyInput(initialKeys: CharacterKeys, isActive: () => boolean): KeyInput {
+export function createKeyInput(
+	initialKeys: CharacterKeys,
+	isActive: () => boolean,
+	/** Whether the drift key does anything now (else it is left to the host, e.g. Space-pan). */
+	isDriftActive: () => boolean = () => false,
+): KeyInput {
 	let keys = initialKeys;
 	const held = new Set<string>();
 
@@ -50,6 +55,7 @@ export function createKeyInput(initialKeys: CharacterKeys, isActive: () => boole
 		for (const dir of ["up", "down", "left", "right"] as const) {
 			if (keys[dir].includes(code)) return dir;
 		}
+		if (keys.drift?.includes(code) && isDriftActive()) return "drift";
 		return null;
 	};
 
@@ -81,7 +87,7 @@ export function createKeyInput(initialKeys: CharacterKeys, isActive: () => boole
 		document.addEventListener("visibilitychange", onVisibility);
 	}
 
-	const isHeld = (dir: keyof CharacterKeys) => keys[dir].some((c) => held.has(c));
+	const isHeld = (dir: keyof CharacterKeys) => keys[dir]?.some((c) => held.has(c)) ?? false;
 
 	return {
 		read: () => ({
@@ -89,6 +95,7 @@ export function createKeyInput(initialKeys: CharacterKeys, isActive: () => boole
 			down: isHeld("down"),
 			left: isHeld("left"),
 			right: isHeld("right"),
+			drift: isHeld("drift"),
 		}),
 		anyHeld: () => held.size > 0,
 		setKeys(next) {
