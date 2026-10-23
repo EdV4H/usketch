@@ -38,6 +38,7 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 			},
 			{ name: "moveSpeed", label: "速度", type: "number", min: 50, max: 3000, step: 50 },
 			{ name: "turnRate", label: "旋回(°/秒)", type: "number", min: 30, max: 1080, step: 30 },
+			{ name: "maxStep", label: "登れる段差", type: "number", min: 0, max: 400, step: 4 },
 			{ name: "anchorX", label: "画面位置 横(%)", type: "number", min: 0, max: 100, step: 5 },
 			{ name: "anchorY", label: "画面位置 縦(%)", type: "number", min: 0, max: 100, step: 5 },
 			{ name: "smoothing", label: "カメラ遅れ(%)", type: "number", min: 0, max: 95, step: 5 },
@@ -56,6 +57,8 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return motion.moveSpeed;
 				case "turnRate":
 					return motion.turnRate;
+				case "maxStep":
+					return motion.maxStep;
 				case "anchorX":
 					return Math.round(anchor.x * 100);
 				case "anchorY":
@@ -88,6 +91,9 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					break;
 				case "turnRate":
 					api.setMotion({ turnRate: n });
+					break;
+				case "maxStep":
+					api.setMotion({ maxStep: n });
 					break;
 				case "anchorX":
 					api.setAnchor({ x: n / 100 });

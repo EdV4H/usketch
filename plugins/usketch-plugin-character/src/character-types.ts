@@ -28,6 +28,8 @@ export interface CharacterRenderProps {
 	appearance: CharacterAppearance;
 	/** The owner's display name, if any. */
 	name?: string;
+	/** Ground height the character stands on, world units (0 = the flat board). */
+	elevation: number;
 }
 
 /**

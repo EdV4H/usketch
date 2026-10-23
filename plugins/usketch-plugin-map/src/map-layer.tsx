@@ -14,12 +14,23 @@ import {
 import { genStateStore } from "./gen-state.js";
 import { blockFactor, downsampleCells, type TileDetail, tileDetail } from "./lod.js";
 import { terrainCssVars } from "./palette.js";
+import type { ReactiveStore } from "./reactive-store.js";
 import { renderConfigStore } from "./render-config.js";
 import { renderSvgNodes } from "./svg-nodes.js";
 import { TERRAINS, type TerrainKey, terrainDarkVar, terrainPatternId } from "./terrain.js";
+import { mergeTilemapCells } from "./terrain-height.js";
 import { isTileMap, seededTilemap, type TileMapShapeData } from "./tilemap-shape.js";
 
 export const WOBBLE_FILTER_ID = "uskmap-wobble";
+
+/**
+ * Event a 3D view emits with how many screen px of ground it reveals past the viewport
+ * (Mode 7 drives the background grid with it). The terrain follows, capped at
+ * {@link MAX_GROUND_OVERSCAN_PX} so a huge draw distance can't explode the cell count;
+ * the raised relief stays inside the window, so its edge cliffs sit on drawn ground.
+ */
+export const GROUND_OVERSCAN_EVENT = "bg-grid:set-overscan";
+export const MAX_GROUND_OVERSCAN_PX = 160;
 const GRID_PATTERN_ID = "uskmap-grid";
 
 const EDGE_RATIO = 0.22; // dark "one shade darker" ring thickness, fraction of a tile
@@ -286,11 +297,14 @@ function renderInfiniteCoarse(
 	return nodes;
 }
 
-/** Visible world rect from the current viewport (best-effort, window-sized). */
-export function visibleWorldRect(store: BoardStore): DOMRectReadOnly | null {
+/**
+ * Visible world rect from the current viewport (best-effort, window-sized), grown by
+ * `overscanPx` screen px on every side (a 3D view showing ground past the box).
+ */
+export function visibleWorldRect(store: BoardStore, overscanPx = 0): DOMRectReadOnly | null {
 	if (typeof window === "undefined") return null;
 	const vp = store.getViewport();
-	const pad = 64;
+	const pad = 64 + Math.max(0, overscanPx);
 	const left = (-vp.x - pad) / vp.zoom;
 	const top = (-vp.y - pad) / vp.zoom;
 	const right = (window.innerWidth - vp.x + pad) / vp.zoom;
@@ -302,11 +316,14 @@ export function MapTerrainLayer({
 	store,
 	renderMode,
 	tile: defaultTile,
+	overscan,
 }: {
 	store: BoardStore;
 	renderMode?: RenderMode;
 	/** Reference tile size for the empty-terrain background LOD. */
 	tile: number;
+	/** Extra screen px of ground to draw past the viewport (see `GROUND_OVERSCAN_EVENT`). */
+	overscan?: ReactiveStore<{ px: number }>;
 }) {
 	const [, force] = useState(0);
 	const rafRef = useRef(0);
@@ -319,17 +336,20 @@ export function MapTerrainLayer({
 		const u1 = store.subscribe(rerender);
 		const u2 = renderConfigStore.subscribe(rerender);
 		const u3 = genStateStore.subscribe(rerender);
+		const u4 = overscan?.subscribe(rerender);
 		return () => {
 			u1();
 			u2();
 			u3();
+			u4?.();
 			cancelAnimationFrame(rafRef.current);
 		};
-	}, [store]);
+	}, [store, overscan]);
 
 	const vp = store.getViewport();
 	const cfg = renderConfigStore.get();
-	const visible = visibleWorldRect(store);
+	const overscanPx = overscan?.get().px ?? 0;
+	const visible = visibleWorldRect(store, overscanPx);
 	const pending = genStateStore.get().pendingRect;
 
 	const tilemaps: TileMapShapeData[] = [];
@@ -360,18 +380,8 @@ export function MapTerrainLayer({
 	let baseNodes: React.ReactElement[] = [];
 	let baseWobble = false;
 	if (baseActive && visible && baseSeed != null) {
-		// Overrides for the sampler. The common case is a single shared tilemap —
-		// reuse its `cells` directly (read-only here) to avoid copying every RAF
-		// frame; only allocate + merge when several tilemaps coexist. Merge in
-		// id order so overlapping cells resolve deterministically (highest id
-		// wins) — insertion order isn't consistent across synced clients.
-		const merged: Cells =
-			tilemaps.length === 1
-				? tilemaps[0].cells
-				: Object.assign(
-						{},
-						...[...tilemaps].sort((a, b) => (a.id < b.id ? -1 : 1)).map((tm) => tm.cells),
-					);
+		// Overrides for the sampler (several tilemaps merge deterministically by id).
+		const merged: Cells = mergeTilemapCells(tilemaps);
 		const detail = tileDetail(defaultTile * vp.zoom, renderMode);
 		baseWobble = cfg.lineStyle === "wobble" && detail === "full";
 		baseNodes =
@@ -399,7 +409,8 @@ export function MapTerrainLayer({
 				width: "100%",
 				height: "100%",
 				pointerEvents: "none",
-				overflow: "hidden",
+				// Ground drawn past the viewport (3D overscan) must not be cut at the box.
+				overflow: overscanPx > 0 ? "visible" : "hidden",
 			}}
 		>
 			<svg
