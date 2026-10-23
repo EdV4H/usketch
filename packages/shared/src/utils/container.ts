@@ -15,7 +15,10 @@ import type { ShapeData } from "../types/shape.js";
  * the containment attacher all agree on what counts as a container — replacing
  * the old hardcoded `frame`/`group` type checks.
  */
-export function isShapeContainer(def: ShapeDefinition | undefined, shape: ShapeData): boolean {
+export function isShapeContainer(
+	def: Pick<ShapeDefinition, "container"> | undefined,
+	shape: ShapeData,
+): boolean {
 	const c = def?.container;
 	if (!c) return false;
 	const e = c.enabled;
