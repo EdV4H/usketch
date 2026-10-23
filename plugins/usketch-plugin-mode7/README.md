@@ -108,10 +108,23 @@ api?.setYaw(30);
 ```
 
 `Mode7Api`: `isActive` / `enable` / `disable` / `toggle`（各 `{ animate? }`）/ `isTransitioning` /
-`getTransitionAmount` / `getCamera` / `setPitch` / `setYaw` /
+`getTransitionAmount` / `getCamera` / `getRenderedCamera` / `setPitch` / `setYaw` /
 `setFov` / `setHorizon` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
 `getTiltLayers` / `setTiltLayers` / `toggleTiltLayer` / `getDrawDistance` / `setDrawDistance` /
 `isCaptureFrameVisible` / `setCaptureFrameVisible` / `toggleCaptureFrame` / `getCaptureRect` / `onChange`。
+
+## 地面上の点の投影
+
+地面の上に物を描く（車・スプライト・タイヤ痕）ときや、画面の点から地面の点を求めるときは、
+CSS 変換を自前で組まずに次の純関数を使う。座標はキャンバス左上基準の px（傾ける前の平面 ↔ 画面）。
+
+```ts
+import { getMode7Api, projectToGround, unprojectFromGround } from "@edv4h/usketch-plugin-mode7";
+const cam = getMode7Api(app.services)?.getRenderedCamera(); // 遷移中は傾きが縮んだカメラ
+const size = { width, height };                              // キャンバスの px サイズ
+projectToGround(sx, sy, cam, size);   // → { x, y, depth, scale } | null（目の後ろ）
+unprojectFromGround(x, y, cam, size); // → { x, y } | null（地平線より上）
+```
 
 ## スコープ外（v2 送り）
 

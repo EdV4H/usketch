@@ -11,9 +11,17 @@ export interface MoveInput {
 	down: boolean;
 	left: boolean;
 	right: boolean;
+	/** Vehicle: the drift key (only acts when drift is enabled). */
+	drift?: boolean;
 }
 
-export const NO_INPUT: MoveInput = { up: false, down: false, left: false, right: false };
+export const NO_INPUT: MoveInput = {
+	up: false,
+	down: false,
+	left: false,
+	right: false,
+	drift: false,
+};
 
 export interface CharacterPose {
 	/** World position. */
@@ -25,7 +33,28 @@ export interface CharacterPose {
 	speed: number;
 	/** Whether the character moved this step. */
 	moving: boolean;
+	/** Vehicle: the held steering, -1 (left) … 1 (right). 0 for `directional`. */
+	steering: number;
+	/**
+	 * Vehicle: body yaw relative to `heading`, degrees (clockwise-positive). The car
+	 * travels along `heading` but is drawn at `heading + slip` while drifting.
+	 */
+	slip: number;
+	/** Vehicle: the running drift's direction, -1 (left) / 1 (right), 0 = not drifting. */
+	drift: -1 | 0 | 1;
 }
+
+/** A pose at rest at the origin, facing up. */
+export const ORIGIN_POSE: CharacterPose = {
+	x: 0,
+	y: 0,
+	heading: 0,
+	speed: 0,
+	moving: false,
+	steering: 0,
+	slip: 0,
+	drift: 0,
+};
 
 export interface MotionParams {
 	/** Top speed, world units / s. */
@@ -46,6 +75,42 @@ export const DEFAULT_MOTION: MotionParams = {
 	acceleration: 900,
 	friction: 700,
 	reverseRatio: 0.5,
+};
+
+/**
+ * Vehicle drift tuning: holding the drift key while steering at speed starts an
+ * arcade drift (a tighter turn with the body slid into it); releasing the key,
+ * slowing down or reversing ends it, and the slip eases back.
+ */
+export interface DriftParams {
+	/** Speed that starts a drift, as a fraction of `moveSpeed`. */
+	startSpeed: number;
+	/** Speed below which a drift ends, as a fraction of `moveSpeed`. */
+	stopSpeed: number;
+	/** Turn rate while drifting, as a multiple of `turnRate`. */
+	turnRate: number;
+	/**
+	 * How much steering tightens (into the drift) or opens (against it) the turn,
+	 * as a multiple of `turnRate`. Capped at the drift `turnRate`, so
+	 * countersteering never turns the car the other way.
+	 */
+	steerRate: number;
+	/** Body slip while drifting, degrees. */
+	slipAngle: number;
+	/** Extra slip when steering into the drift, degrees. */
+	steerSlipAngle: number;
+	/** How fast the slip follows its target (1/s, exponential). */
+	recoveryRate: number;
+}
+
+export const DEFAULT_DRIFT: DriftParams = {
+	startSpeed: 0.27,
+	stopSpeed: 0.17,
+	turnRate: 1.27,
+	steerRate: 0.23,
+	slipAngle: 28,
+	steerSlipAngle: 8,
+	recoveryRate: 8,
 };
 
 /** Unit vector of a heading in world space (0° → (0, -1), 90° → (1, 0)). */
@@ -80,7 +145,8 @@ function approach(v: number, target: number, step: number): number {
  *   rather than snapping keeps a heading-following camera from spinning.)
  * - `vehicle`: up/down are throttle/reverse along the heading, left/right steer.
  *   Steering authority scales with speed (a stopped car can't turn) and inverts
- *   when reversing, like a car.
+ *   when reversing, like a car. With `driftParams`, holding the drift key while
+ *   steering at speed drifts (see `DriftParams`).
  */
 export function stepCharacter(
 	pose: CharacterPose,
@@ -89,6 +155,7 @@ export function stepCharacter(
 	scheme: ControlScheme,
 	params: MotionParams,
 	cameraRotation = 0,
+	driftParams: DriftParams | null = null,
 ): CharacterPose {
 	if (dt <= 0) return pose;
 	if (scheme === "directional") {
@@ -107,6 +174,9 @@ export function stepCharacter(
 			heading: turnToward(pose.heading, target, params.turnRate * dt),
 			speed: params.moveSpeed,
 			moving: true,
+			steering: 0,
+			slip: 0,
+			drift: 0,
 		};
 	}
 
@@ -123,14 +193,26 @@ export function stepCharacter(
 		speed = approach(speed, 0, params.friction * dt);
 	}
 
-	const steer = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-	const authority = Math.min(1, (Math.abs(speed) / Math.max(1, params.moveSpeed)) * 3);
-	const heading =
-		steer === 0 || authority === 0
-			? pose.heading
-			: wrapDeg(pose.heading + steer * Math.sign(speed) * authority * params.turnRate * dt);
+	const steering = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+	const drift = nextDrift(pose.drift, input.drift === true, steering, speed, params, driftParams);
+	let turn: number;
+	if (drift !== 0 && driftParams) {
+		const into = steering * drift;
+		turn = drift * (driftParams.turnRate + into * driftParams.steerRate) * params.turnRate;
+	} else {
+		const authority = Math.min(1, (Math.abs(speed) / Math.max(1, params.moveSpeed)) * 3);
+		turn = steering * Math.sign(speed) * authority * params.turnRate;
+	}
+	const heading = turn === 0 ? pose.heading : wrapDeg(pose.heading + turn * dt);
+	const slip = nextSlip(pose.slip, drift, steering, dt, driftParams ?? DEFAULT_DRIFT);
 
-	if (speed === 0 && heading === pose.heading) {
+	if (
+		speed === 0 &&
+		heading === pose.heading &&
+		steering === pose.steering &&
+		slip === pose.slip &&
+		drift === pose.drift
+	) {
 		return pose.moving || pose.speed !== 0 ? { ...pose, speed: 0, moving: false } : pose;
 	}
 	const dir = headingVector(heading);
@@ -140,5 +222,36 @@ export function stepCharacter(
 		heading,
 		speed,
 		moving: speed !== 0,
+		steering,
+		slip,
+		drift,
 	};
+}
+
+function nextDrift(
+	current: -1 | 0 | 1,
+	held: boolean,
+	steering: number,
+	speed: number,
+	params: MotionParams,
+	driftParams: DriftParams | null,
+): -1 | 0 | 1 {
+	// Drifts only run forward: a stopped car never spins in place, whatever the tuning.
+	if (!driftParams || !held || speed <= 0) return 0;
+	if (current !== 0) return speed < driftParams.stopSpeed * params.moveSpeed ? 0 : current;
+	if (steering === 0 || speed < driftParams.startSpeed * params.moveSpeed) return 0;
+	return steering > 0 ? 1 : -1;
+}
+
+function nextSlip(
+	slip: number,
+	drift: -1 | 0 | 1,
+	steering: number,
+	dt: number,
+	driftParams: DriftParams,
+): number {
+	const target =
+		drift * (driftParams.slipAngle + Math.max(0, steering * drift) * driftParams.steerSlipAngle);
+	const next = slip + (target - slip) * (1 - Math.exp(-driftParams.recoveryRate * dt));
+	return Math.abs(next - target) < 0.001 ? target : next;
 }

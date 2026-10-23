@@ -4,6 +4,7 @@
 import { type BoundingBox, defineService, type ServiceRegistry } from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
 import type { Look, Mode7Store } from "./mode7-store.js";
+import { transitionCamera } from "./mode7-transform.js";
 import type { Mode7SwitchOptions, Mode7Transition } from "./mode7-transition.js";
 
 export interface Mode7Api {
@@ -20,8 +21,14 @@ export interface Mode7Api {
 	isTransitioning(): boolean;
 	/** The rendered transition amount, 0 (flat/off) … 1 (fully 3D), eased. */
 	getTransitionAmount(): number;
-	/** The current camera geometry. */
+	/** The current camera geometry (the target; see `getRenderedCamera` mid-transition). */
 	getCamera(): Camera;
+	/**
+	 * The camera as drawn right now: `getCamera()` with pitch/yaw scaled by the
+	 * transition amount (flat when off). Feed it to `projectToGround` /
+	 * `unprojectFromGround` to line things up with the ground.
+	 */
+	getRenderedCamera(): Camera;
 	setPitch(deg: number): void;
 	setYaw(deg: number): void;
 	setFov(px: number): void;
@@ -68,6 +75,7 @@ export function createMode7Api(store: Mode7Store, transition: Mode7Transition): 
 		isTransitioning: () => transition.isTransitioning(),
 		getTransitionAmount: () => store.getState().amount,
 		getCamera: () => store.getState().camera,
+		getRenderedCamera: () => transitionCamera(store.getState().camera, store.getState().amount),
 		setPitch: (deg) => store.setCamera({ pitch: deg }),
 		setYaw: (deg) => store.setCamera({ yaw: deg }),
 		setFov: (px) => store.setCamera({ fov: px }),
