@@ -15,6 +15,9 @@ const shape = (
 const inBounds = (s: ShapeData, p: Point) =>
 	p.x >= s.x && p.x <= s.x + s.width && p.y >= s.y && p.y <= s.y + s.height;
 
+/** `container` を宣言している図形タイプ（frame / group と同じ扱いになるもの） */
+const CONTAINER_TYPES = new Set(["frame", "group", "voice-frame"]);
+
 /** `shapes` は挿入順、`sorted` は zIndex 順（省略時は挿入順と同じ） */
 function ctx(shapes: ShapeData[], sorted: ShapeData[] = shapes) {
 	return {
@@ -22,7 +25,12 @@ function ctx(shapes: ShapeData[], sorted: ShapeData[] = shapes) {
 			getShapes: () => new Map(shapes.map((s) => [s.id, s])),
 			getShapesSorted: () => sorted,
 		},
-		shapes: { get: () => ({ hitTest: inBounds }) },
+		shapes: {
+			get: (type: string) => ({
+				hitTest: inBounds,
+				...(CONTAINER_TYPES.has(type) ? { container: {} } : {}),
+			}),
+		},
 	} as unknown as PluginContext;
 }
 
@@ -57,5 +65,33 @@ describe("findShapeAtPoint (connector anchor target)", () => {
 		const child = shape("child", "rect", {}, 10, 10, 20, 20);
 		expect(findShapeAtPoint(ctx([child, frame]), { x: 15, y: 15 })?.id).toBe("child");
 		expect(findShapeAtPoint(ctx([child, frame]), P)?.id).toBe("f");
+	});
+
+	it("コンテナ判定は図形タイプ名ではなく ShapeDefinition の container 宣言で行う", () => {
+		const child = shape("child", "rect", {}, 10, 10, 20, 20);
+		// frame / group 以外でも container を宣言していればコンテナ扱い
+		const voiceFrame = shape("vf", "voice-frame");
+		expect(findShapeAtPoint(ctx([child, voiceFrame]), { x: 15, y: 15 })?.id).toBe("child");
+		expect(findShapeAtPoint(ctx([child, voiceFrame]), P)?.id).toBe("vf");
+		// container を宣言していない図形は前面にあればそのまま返す
+		const plain = shape("p", "rect");
+		expect(findShapeAtPoint(ctx([child, plain]), { x: 15, y: 15 })?.id).toBe("p");
+	});
+
+	it("container.enabled が false を返すインスタンスはコンテナ扱いしない", () => {
+		const child = shape("child", "rect", {}, 10, 10, 20, 20);
+		const wf = shape("wf", "panel", { meta: { component: "button" } } as Partial<ShapeData>);
+		const c = {
+			...ctx([child, wf]),
+			shapes: {
+				get: (type: string) => ({
+					hitTest: inBounds,
+					...(type === "panel"
+						? { container: { enabled: (d: ShapeData) => d.meta?.component === "card" } }
+						: {}),
+				}),
+			},
+		} as unknown as PluginContext;
+		expect(findShapeAtPoint(c, { x: 15, y: 15 })?.id).toBe("wf");
 	});
 });
