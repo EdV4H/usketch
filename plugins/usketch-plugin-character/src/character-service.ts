@@ -46,7 +46,7 @@ export interface CharacterApi {
 	/** Follow smoothing (0 = rigid … 0.99 = heavy lag). */
 	getFollowSmoothing(): number;
 	setFollowSmoothing(value: number): void;
-	/** Replace the movement key bindings (`KeyboardEvent.code` values). */
+	/** Replace the movement key bindings (`KeyboardEvent.code` values; omitted `drift` is kept). */
 	setKeys(keys: CharacterKeys): void;
 	/** Swap the character renderer (`undefined` = draw nothing). */
 	setRenderer(renderer: CharacterRenderer | undefined): void;

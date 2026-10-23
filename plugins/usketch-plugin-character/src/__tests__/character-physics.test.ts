@@ -171,6 +171,14 @@ describe("vehicle drift", () => {
 		expect(released.slip).toBeLessThan(d.slip);
 		expect(run(released, { up: true }, 60).slip).toBe(0);
 	});
+	it("never drifts while stopped or reversing, whatever the tuning", () => {
+		const loose = { ...DEFAULT_DRIFT, startSpeed: 0, stopSpeed: 0 };
+		const p = step(origin, { left: true, drift: true }, 0.05, loose);
+		expect(p.drift).toBe(0);
+		expect(p.heading).toBe(0);
+		const rev = { ...origin, speed: -100, moving: true };
+		expect(step(rev, { down: true, left: true, drift: true }, 0.05, loose).drift).toBe(0);
+	});
 	it("ends when the car slows below stopSpeed", () => {
 		let p = step(top, { up: true, right: true, drift: true });
 		for (let i = 0; i < 100 && p.drift !== 0; i++) p = step(p, { right: true, drift: true });

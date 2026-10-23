@@ -29,6 +29,33 @@ const NON_TEXT_INPUTS = new Set([
 	"image",
 ]);
 
+/** ARIA widgets Space activates or types into. */
+const SPACE_ROLES = new Set([
+	"button",
+	"checkbox",
+	"combobox",
+	"link",
+	"menuitem",
+	"menuitemcheckbox",
+	"menuitemradio",
+	"option",
+	"radio",
+	"slider",
+	"switch",
+	"tab",
+	"textbox",
+]);
+
+/** Elements Space activates (or types into): the drift key must not steal it from them. */
+function isSpaceTarget(target: EventTarget | null): boolean {
+	const el = target as (HTMLElement & { getAttribute?: (n: string) => string | null }) | null;
+	if (!el || typeof el.tagName !== "string") return false;
+	if (["INPUT", "TEXTAREA", "SELECT", "BUTTON", "A", "SUMMARY"].includes(el.tagName)) return true;
+	if (el.isContentEditable === true) return true;
+	const role = typeof el.getAttribute === "function" ? el.getAttribute("role") : null;
+	return role !== null && SPACE_ROLES.has(role);
+}
+
 function isTextInput(target: EventTarget | null): boolean {
 	const el = target as (HTMLElement & { type?: string }) | null;
 	if (!el || typeof el.tagName !== "string") return false;
@@ -62,7 +89,9 @@ export function createKeyInput(
 	const onKeyDown = (e: KeyboardEvent): void => {
 		if (!isActive() || isTextInput(e.target)) return;
 		if (e.ctrlKey || e.metaKey || e.altKey) return; // leave chords (Cmd+S …) alone
-		if (!directionOf(e.code)) return;
+		const dir = directionOf(e.code);
+		if (!dir) return;
+		if (dir === "drift" && isSpaceTarget(e.target)) return;
 		held.add(e.code);
 		e.preventDefault();
 		e.stopImmediatePropagation();
@@ -99,7 +128,8 @@ export function createKeyInput(
 		}),
 		anyHeld: () => held.size > 0,
 		setKeys(next) {
-			keys = next;
+			// Rebinding movement keeps the drift key unless `drift` is given (`[]` unbinds).
+			keys = { ...next, drift: next.drift ?? keys.drift };
 			held.clear();
 		},
 		dispose() {

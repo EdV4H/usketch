@@ -35,7 +35,8 @@ export function tiltOrigin(cam: Camera, size: StageSize): { x: number; y: number
 
 /**
  * Project a flat-canvas point (px, before the tilt) onto the screen. `null` when the
- * point is behind the eye (beyond the vanishing line).
+ * point is at or behind the eye: very NEAR points far below the pivot (the ground
+ * tips up past the viewer). Far points only approach the vanishing line.
  */
 export function projectToGround(
 	x: number,

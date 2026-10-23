@@ -77,12 +77,14 @@ export function sanitizeDrift(
 	if (d === true) return base;
 	const nonNegative = (v: number | undefined, fallback: number) => Math.max(0, finite(v, fallback));
 	const startSpeed = nonNegative(d.startSpeed, base.startSpeed);
+	const turnRate = nonNegative(d.turnRate, base.turnRate);
 	return {
 		startSpeed,
 		// A drift must not end above the speed that starts it.
 		stopSpeed: Math.min(startSpeed, nonNegative(d.stopSpeed, base.stopSpeed)),
-		turnRate: nonNegative(d.turnRate, base.turnRate),
-		steerRate: nonNegative(d.steerRate, base.steerRate),
+		turnRate,
+		// Countersteering may open the curve, never reverse it.
+		steerRate: Math.min(turnRate, nonNegative(d.steerRate, base.steerRate)),
 		slipAngle: Math.min(90, nonNegative(d.slipAngle, base.slipAngle)),
 		steerSlipAngle: Math.min(90, nonNegative(d.steerSlipAngle, base.steerSlipAngle)),
 		recoveryRate: positive(finite(d.recoveryRate, base.recoveryRate), base.recoveryRate),
@@ -106,6 +108,8 @@ export function createCharacterStore(init: CharacterStoreInit = {}) {
 		remotes: new Map(),
 	};
 	let renderer: CharacterRenderer | undefined = init.renderer;
+	// The tuning survives turning drift off, so turning it back on keeps it.
+	let driftTuning: DriftParams = state.drift ?? DEFAULT_DRIFT;
 	const listeners = new Set<() => void>();
 
 	const set = (patch: Partial<CharacterState>): void => {
@@ -149,7 +153,9 @@ export function createCharacterStore(init: CharacterStoreInit = {}) {
 		},
 		/** `true` = on (current or default tuning), `false` = off, an object = tuning overrides. */
 		setDrift(d: boolean | Partial<DriftParams>): void {
-			set({ drift: sanitizeDrift(d, state.drift ?? DEFAULT_DRIFT) });
+			const drift = sanitizeDrift(d, driftTuning);
+			if (drift) driftTuning = drift;
+			set({ drift });
 		},
 		setAnchor(a: Partial<Point>): void {
 			set({

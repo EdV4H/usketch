@@ -107,6 +107,40 @@ describe("createKeyInput", () => {
 		input.dispose();
 	});
 
+	it("leaves Space to a focused button or checkbox", () => {
+		const input = createKeyInput(
+			DEFAULT_KEYS,
+			() => true,
+			() => true,
+		);
+		const e = dom.fire("keydown", {
+			code: "Space",
+			target: { tagName: "INPUT", type: "checkbox" },
+		});
+		expect(input.read().drift).toBe(false);
+		expect(e.preventDefault).not.toHaveBeenCalled();
+		dom.fire("keydown", { code: "Space", target: { tagName: "BUTTON" } });
+		expect(input.read().drift).toBe(false);
+		input.dispose();
+	});
+
+	it("keeps the drift key when movement keys are rebound", () => {
+		const input = createKeyInput(
+			DEFAULT_KEYS,
+			() => true,
+			() => true,
+		);
+		input.setKeys({
+			up: ["ArrowUp"],
+			down: ["ArrowDown"],
+			left: ["ArrowLeft"],
+			right: ["ArrowRight"],
+		});
+		dom.fire("keydown", { code: "Space" });
+		expect(input.read().drift).toBe(true);
+		input.dispose();
+	});
+
 	it("honours custom bindings (multiple codes per direction)", () => {
 		const input = createKeyInput({ ...DEFAULT_KEYS, up: ["ArrowUp", "KeyW"] }, () => true);
 		dom.fire("keydown", { code: "ArrowUp" });

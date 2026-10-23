@@ -91,7 +91,8 @@ export interface DriftParams {
 	turnRate: number;
 	/**
 	 * How much steering tightens (into the drift) or opens (against it) the turn,
-	 * as a multiple of `turnRate`. Countersteering never spins the car.
+	 * as a multiple of `turnRate`. Capped at the drift `turnRate`, so
+	 * countersteering never turns the car the other way.
 	 */
 	steerRate: number;
 	/** Body slip while drifting, degrees. */
@@ -235,7 +236,8 @@ function nextDrift(
 	params: MotionParams,
 	driftParams: DriftParams | null,
 ): -1 | 0 | 1 {
-	if (!driftParams || !held) return 0;
+	// Drifts only run forward: a stopped car never spins in place, whatever the tuning.
+	if (!driftParams || !held || speed <= 0) return 0;
 	if (current !== 0) return speed < driftParams.stopSpeed * params.moveSpeed ? 0 : current;
 	if (steering === 0 || speed < driftParams.startSpeed * params.moveSpeed) return 0;
 	return steering > 0 ? 1 : -1;
