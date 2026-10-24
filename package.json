@@ -20,7 +20,7 @@
 		"prepare": "prek install"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.5.15",
+		"@biomejs/biome": "2.6.2",
 		"@changesets/cli": "3.0.3",
 		"@j178/prek": "0.5.7",
 		"turbo": "2.11.10",
