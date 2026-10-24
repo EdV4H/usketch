@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-presence-activity
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [1962032]
+  - @edv4h/usketch-shared@4.17.1
+
 ## 0.4.0
 
 ### Minor Changes

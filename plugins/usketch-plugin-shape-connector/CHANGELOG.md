@@ -1,5 +1,17 @@
 # @edv4h/usketch-plugin-shape-connector
 
+## 3.3.11
+
+### Patch Changes
+
+- 1962032: refactor(connector-anchor): `findShapeAtPoint` のコンテナ判定を `frame` / `group` の型名ハードコードから `ShapeDefinition.container` 宣言（`isShapeContainer`）に置き換え。`container` を宣言する他の図形（例: voice-notes の voice-frame）も、コネクタの接続先判定で中の図形より後回しにされるようになる。`isShapeContainer` は `container` だけを持つ定義も受け取れるよう引数型を `Pick<ShapeDefinition, "container">` に広げた（後方互換）。
+- Updated dependencies [1962032]
+  - @edv4h/usketch-connector-anchor@0.4.9
+  - @edv4h/usketch-shared@4.17.1
+  - @edv4h/usketch-canvas-engine@1.5.4
+  - @edv4h/usketch-core@2.4.8
+  - @edv4h/usketch-store@3.9.2
+
 ## 3.3.10
 
 ### Patch Changes

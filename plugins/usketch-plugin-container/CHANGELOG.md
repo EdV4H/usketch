@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-container
 
+## 0.3.16
+
+### Patch Changes
+
+- Updated dependencies [1962032]
+  - @edv4h/usketch-shared@4.17.1
+  - @edv4h/usketch-store@3.9.2
+
 ## 0.3.15
 
 ### Patch Changes

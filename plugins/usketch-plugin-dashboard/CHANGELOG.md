@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-dashboard
 
+## 0.2.6
+
+### Patch Changes
+
+- Updated dependencies [1962032]
+  - @edv4h/usketch-shared@4.17.1
+  - @edv4h/usketch-store@3.9.2
+
 ## 0.2.5
 
 ### Patch Changes
