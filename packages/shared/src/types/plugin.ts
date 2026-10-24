@@ -738,6 +738,10 @@ export interface CoreEventMap {
 	"time-travel:exit": Record<string, never>;
 	"shapes:move-end": { shapeIds: string[] };
 	"snap:configure": { enabled: boolean };
+	/** Alt によるスナップ切替を一時的に無効にする（Alt を別用途に使う間だけ true）。 */
+	"snap:alt-toggle-suppress": { suppressed: boolean };
+	/** 一時的な追加のスナップ候補（ワールド座標の矩形）。空配列で解除。 */
+	"snap:extra-candidates": { boxes: BoundingBox[] };
 	"partition:request": { partitions: string[] };
 	"canvas:drop": { files: FileList; worldPoint: Point; screenPoint: Point };
 }

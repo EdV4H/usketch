@@ -18,4 +18,9 @@ describe("effectiveSnapEnabled", () => {
 		// 無効 → 一時有効（新規。これが #636 の要望）
 		expect(effectiveSnapEnabled(false, true, "invert")).toBe(true);
 	});
+
+	it("altToggleSuppressed の間は Alt を無視する", () => {
+		expect(effectiveSnapEnabled(true, true, "suppress", true)).toBe(true);
+		expect(effectiveSnapEnabled(false, true, "invert", true)).toBe(false);
+	});
 });
