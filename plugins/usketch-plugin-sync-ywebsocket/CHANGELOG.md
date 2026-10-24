@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-sync-ywebsocket
 
+## 2.0.22
+
+### Patch Changes
+
+- Updated dependencies [1962032]
+  - @edv4h/usketch-shared@4.17.1
+
 ## 2.0.21
 
 ### Patch Changes
