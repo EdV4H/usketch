@@ -46,19 +46,74 @@ const SPACE_ROLES = new Set([
 	"textbox",
 ]);
 
+type FocusTarget = HTMLElement & {
+	type?: string;
+	getAttribute?: (n: string) => string | null;
+	closest?: (selector: string) => Element | null;
+};
+
+const asElement = (target: EventTarget | null): FocusTarget | null => {
+	const el = target as FocusTarget | null;
+	return el && typeof el.tagName === "string" ? el : null;
+};
+
 /** Elements Space activates (or types into): the drift key must not steal it from them. */
 function isSpaceTarget(target: EventTarget | null): boolean {
-	const el = target as (HTMLElement & { getAttribute?: (n: string) => string | null }) | null;
-	if (!el || typeof el.tagName !== "string") return false;
+	const el = asElement(target);
+	if (!el) return false;
 	if (["INPUT", "TEXTAREA", "SELECT", "BUTTON", "A", "SUMMARY"].includes(el.tagName)) return true;
 	if (el.isContentEditable === true) return true;
 	const role = typeof el.getAttribute === "function" ? el.getAttribute("role") : null;
 	return role !== null && SPACE_ROLES.has(role);
 }
 
+/** Containers that own the keyboard while focus is inside them (a dialog opened mid-drive). */
+const KEY_OWNER_SELECTOR =
+	'dialog, [role="dialog"], [role="alertdialog"], [role="menu"], [role="menubar"], [role="listbox"]';
+
+/** `<input type>`s that move their value or selection with the arrow keys. */
+const ARROW_INPUTS = new Set(["range", "radio"]);
+
+/** ARIA widgets that use the arrow keys (radio groups, tabs, sliders, trees, grids …). */
+const ARROW_ROLES = new Set([
+	"gridcell",
+	"listbox",
+	"menuitem",
+	"menuitemcheckbox",
+	"menuitemradio",
+	"option",
+	"radio",
+	"scrollbar",
+	"slider",
+	"spinbutton",
+	"tab",
+	"tree",
+	"treeitem",
+]);
+
+/** Focus is inside a dialog or menu: every bound key is left to it. */
+function isInKeyOwner(target: EventTarget | null): boolean {
+	const el = asElement(target);
+	return typeof el?.closest === "function" && el.closest(KEY_OWNER_SELECTOR) !== null;
+}
+
+/** The focused element uses the arrow keys itself, so arrow bindings are left to it. */
+function isArrowTarget(target: EventTarget | null): boolean {
+	const el = asElement(target);
+	if (!el) return false;
+	if (el.tagName === "INPUT" && ARROW_INPUTS.has((el.type ?? "").toLowerCase())) return true;
+	const role = typeof el.getAttribute === "function" ? el.getAttribute("role") : null;
+	return role !== null && ARROW_ROLES.has(role);
+}
+
+/** Focus where no bound key may be taken: typing, or a dialog / menu. */
+function blocksAllKeys(target: EventTarget | null): boolean {
+	return isTextInput(target) || isInKeyOwner(target);
+}
+
 function isTextInput(target: EventTarget | null): boolean {
-	const el = target as (HTMLElement & { type?: string }) | null;
-	if (!el || typeof el.tagName !== "string") return false;
+	const el = asElement(target);
+	if (!el) return false;
 	const tag = el.tagName;
 	if (tag === "INPUT") return !NON_TEXT_INPUTS.has((el.type ?? "text").toLowerCase());
 	return tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable === true;
@@ -66,8 +121,10 @@ function isTextInput(target: EventTarget | null): boolean {
 
 /**
  * Listen for the bound keys on `window`. `isActive()` gates everything: while it is
- * false no key is captured (and none is swallowed). Held keys are cleared on window
- * blur / tab hide so a key released elsewhere can't get stuck "down".
+ * false no key is captured (and none is swallowed). Keys are left alone while focus is
+ * in a text field or inside a dialog / menu, and arrow keys while a widget that uses
+ * them (slider, radio, tab …) has focus. Held keys are cleared on window blur, tab hide
+ * and focus moving into such a target, so a key released elsewhere can't get stuck "down".
  */
 export function createKeyInput(
 	initialKeys: CharacterKeys,
@@ -87,11 +144,12 @@ export function createKeyInput(
 	};
 
 	const onKeyDown = (e: KeyboardEvent): void => {
-		if (!isActive() || isTextInput(e.target)) return;
+		if (!isActive() || blocksAllKeys(e.target)) return;
 		if (e.ctrlKey || e.metaKey || e.altKey) return; // leave chords (Cmd+S …) alone
 		const dir = directionOf(e.code);
 		if (!dir) return;
 		if (dir === "drift" && isSpaceTarget(e.target)) return;
+		if (e.code.startsWith("Arrow") && isArrowTarget(e.target)) return;
 		held.add(e.code);
 		e.preventDefault();
 		e.stopImmediatePropagation();
@@ -107,6 +165,12 @@ export function createKeyInput(
 	const onVisibility = (): void => {
 		if (typeof document !== "undefined" && document.hidden) clear();
 	};
+	// Focus moving into a field, dialog or arrow-key widget hands the keyboard to it:
+	// drop what is held so the character doesn't keep driving on a key the new target now
+	// receives (its keyup would no longer reach us as a bound key).
+	const onFocusIn = (e: FocusEvent): void => {
+		if (blocksAllKeys(e.target) || isArrowTarget(e.target)) clear();
+	};
 
 	const hasWindow = typeof window !== "undefined";
 	if (hasWindow) {
@@ -114,6 +178,7 @@ export function createKeyInput(
 		window.addEventListener("keyup", onKeyUp, true);
 		window.addEventListener("blur", clear);
 		document.addEventListener("visibilitychange", onVisibility);
+		document.addEventListener("focusin", onFocusIn);
 	}
 
 	const isHeld = (dir: keyof CharacterKeys) => keys[dir]?.some((c) => held.has(c)) ?? false;
@@ -138,6 +203,7 @@ export function createKeyInput(
 			window.removeEventListener("keyup", onKeyUp, true);
 			window.removeEventListener("blur", clear);
 			document.removeEventListener("visibilitychange", onVisibility);
+			document.removeEventListener("focusin", onFocusIn);
 		},
 	};
 }
