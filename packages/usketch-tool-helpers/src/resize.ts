@@ -129,7 +129,8 @@ function createSingleResizeSession(opts: {
 				const current = ctx.store.getShape(shapeId);
 				if (current) {
 					const anchor = getAnchorEdges(state.handle, rawBounds);
-					const flippedData = { ...current };
+					const flipPatch = def.flip?.(current, { x: flip.flippedX, y: flip.flippedY }) ?? {};
+					const flippedData = { ...current, ...flipPatch };
 					if (flip.flippedX && anchor.x !== undefined) {
 						flippedData.x = anchor.x;
 						flippedData.width = 0;
@@ -143,13 +144,9 @@ function createSingleResizeSession(opts: {
 						startData: flippedData,
 						startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
 					};
-					ctx.store.updateShape(shapeId, {
-						x: flippedData.x,
-						y: flippedData.y,
-					});
-					const updates: ShapeUpdateMap = new Map([
-						[shapeId, { x: flippedData.x, y: flippedData.y }],
-					]);
+					const patch = { ...flipPatch, x: flippedData.x, y: flippedData.y };
+					ctx.store.updateShape(shapeId, patch);
+					const updates: ShapeUpdateMap = new Map([[shapeId, patch]]);
 					return { updates, flippedHandle: flip.handle };
 				}
 			}
@@ -276,7 +273,10 @@ function createMultiResizeSession(opts: {
 				ctx.events.emit("snap:configure", { enabled: false });
 				const flipUpdates: ShapeUpdateMap = new Map();
 				for (const [id, data] of flippedShapeData) {
-					const update: Partial<ShapeData> = {};
+					const shape = ctx.store.getShape(id);
+					const flipFn = shape ? ctx.shapes.get(shape.type)?.flip : undefined;
+					const update: Partial<ShapeData> =
+						shape && flipFn ? { ...flipFn(shape, { x: flip.flippedX, y: flip.flippedY }) } : {};
 					if (flip.flippedX) {
 						update.x = data.x;
 						update.width = 0;
