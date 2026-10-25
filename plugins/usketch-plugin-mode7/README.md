@@ -90,6 +90,8 @@ createApp({
 
 ※ Shape は DOM 上には残る（コアのカリングではなく描画クリップ）ので、真のジオメトリ間引きは別途。
 
+3D 表示の開始・終了時には `usketch:stage-3d` イベント（`{ active }`、`STAGE_3D_EVENT`）を出す。map プラグインはこれを見て、段差（立体）を 3D 表示中だけ組み立てる。
+
 **深度レイヤー（`depthLayerIds`）**: `clip-path` は傾き自体は保つが、配下の奥行き（`translateZ`）を
 平面に潰す。そこで深度レイヤーはこのクリップを外し、エンジンの内側ラッパーにも
 `transform-style: preserve-3d` を付けて 3D 文脈を通す。既定 `DEFAULT_DEPTH_LAYER_IDS` は

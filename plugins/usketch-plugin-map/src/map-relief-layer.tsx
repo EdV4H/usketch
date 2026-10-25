@@ -1,16 +1,17 @@
 // MapReliefLayer — the terrain's height in 3D. Cells above sea level get their
 // terrain repainted as a top face lifted to their level (one SVG per level), and a
 // cliff wall stands on every edge where the neighbour is lower. Only a 3D view gives
-// those depths meaning, so the layer is shown under the Mode 7 stage only (the flat
+// those depths meaning, so the layer renders only while a 3D stage is on (the flat
 // board already shows the same terrain in MapTerrainLayer) and is meant to be one of
 // Mode 7's depth layers.
-import type { BoardStore, RenderMode, Viewport } from "@edv4h/usketch-shared";
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import type { BoardStore, RenderMode } from "@edv4h/usketch-shared";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { cellKey } from "./autotile.js";
 import type { TerrainSampler } from "./base-terrain.js";
 import { tileDetail } from "./lod.js";
-import { visibleCellRange, visibleWorldRect } from "./map-layer.js";
+import { visibleCellRange, visibleRegion, visibleWorldRect } from "./map-layer.js";
 import { terrainCssVars } from "./palette.js";
+import type { ReactiveStore } from "./reactive-store.js";
 import { renderConfigStore } from "./render-config.js";
 import { type TerrainKey, terrainDarkVar, terrainPatternId } from "./terrain.js";
 import { boardTerrainSampler, LEVEL_HEIGHT, terrainLevel } from "./terrain-height.js";
@@ -35,6 +36,9 @@ export interface ReliefWall {
 	col: number;
 	row: number;
 	side: "n" | "s" | "w" | "e";
+	/** Cells the wall runs along (east from `col` for n/s, south from `row` for w/e):
+	 *  neighbouring edges with the same side, levels and terrain become one wall. */
+	length: number;
 	/** Level of the higher (owning) cell — the wall's top. */
 	top: number;
 	/** Level of the lower neighbour — the wall's foot. */
@@ -55,13 +59,18 @@ const NEIGHBOURS = [
 	["e", 1, 0],
 ] as const;
 
-/** The raised top faces + cliff walls of the cells in a (inclusive) range. Pure. */
+/**
+ * The raised top faces + cliff walls of the cells in a (inclusive) range, with runs of
+ * matching edges merged into one wall each (fewer 3D planes to composite). Pure.
+ */
 export function computeRelief(
 	sample: TerrainSampler,
 	range: { c0: number; c1: number; r0: number; r1: number },
 ): Relief {
 	const tops = new Map<number, ReliefTop[]>();
 	const walls: ReliefWall[] = [];
+	// The wall currently open on each edge line (row for n/s, column for w/e).
+	const open = new Map<string, ReliefWall>();
 	for (let r = range.r0; r <= range.r1; r++) {
 		for (let c = range.c0; c <= range.c1; c++) {
 			const terrain = sample(c, r);
@@ -77,15 +86,33 @@ export function computeRelief(
 			for (const [side, dc, dr] of NEIGHBOURS) {
 				const below = terrainLevel(sample(c + dc, r + dr));
 				if (below < level) {
-					walls.push({
+					// Extend the wall the previous cell on this edge line left, if it matches:
+					// n/s walls run east along a row, w/e walls run south down a column.
+					const along = side === "n" || side === "s";
+					const lineKey = along ? `${side}:r${r}` : `${side}:c${c}`;
+					const last = open.get(lineKey);
+					if (
+						last &&
+						(along ? last.col + last.length === c : last.row + last.length === r) &&
+						last.top === level &&
+						last.bottom === below &&
+						last.terrain === terrain
+					) {
+						last.length++;
+						continue;
+					}
+					const wall: ReliefWall = {
 						key: `${k}:${side}`,
 						col: c,
 						row: r,
 						side,
+						length: 1,
 						top: level,
 						bottom: below,
 						terrain,
-					});
+					};
+					walls.push(wall);
+					open.set(lineKey, wall);
 				}
 			}
 		}
@@ -94,57 +121,38 @@ export function computeRelief(
 }
 
 /**
- * Screen-space placement of a wall (the layer is fixed: world → screen through the
- * viewport). The wall starts as a flat strip on the board along the cell edge and is
- * folded up into the vertical plane: lifted to its top level, then rotated 90° about
- * the edge so it hangs down to the neighbour's level.
+ * Placement of a wall in the layer's world frame (world units × `zoom`; the frame is
+ * translated by the viewport). The wall starts as a flat strip on the board along the
+ * cell edge(s) and is folded up into the vertical plane: lifted to its top level, then
+ * rotated 90° about the edge so it hangs down to the neighbour's level.
  */
-export function wallStyle(
-	w: ReliefWall,
-	tile: number,
-	vp: Pick<Viewport, "x" | "y" | "zoom">,
-): CSSProperties {
-	const t = tile * vp.zoom;
-	const h = (w.top - w.bottom) * LEVEL_HEIGHT * vp.zoom;
-	const lift = w.top * LEVEL_HEIGHT * vp.zoom;
-	const x = w.col * t + vp.x;
-	const y = w.row * t + vp.y;
+export function wallStyle(w: ReliefWall, tile: number, zoom: number): CSSProperties {
+	const t = tile * zoom;
+	const len = w.length * t;
+	const h = (w.top - w.bottom) * LEVEL_HEIGHT * zoom;
+	const lift = w.top * LEVEL_HEIGHT * zoom;
+	const x = w.col * t;
+	const y = w.row * t;
 	const base: CSSProperties = { position: "absolute", transformOrigin: "0 0" };
 	switch (w.side) {
 		case "n":
-			return {
-				...base,
-				left: x,
-				top: y,
-				width: t,
-				height: h,
-				transform: `translateZ(${lift}px) rotateX(-90deg)`,
-			};
 		case "s":
 			return {
 				...base,
 				left: x,
-				top: y + t,
-				width: t,
+				top: w.side === "s" ? y + t : y,
+				width: len,
 				height: h,
 				transform: `translateZ(${lift}px) rotateX(-90deg)`,
 			};
 		case "w":
-			return {
-				...base,
-				left: x,
-				top: y,
-				width: h,
-				height: t,
-				transform: `translateZ(${lift}px) rotateY(90deg)`,
-			};
 		case "e":
 			return {
 				...base,
-				left: x + t,
+				left: w.side === "e" ? x + t : x,
 				top: y,
 				width: h,
-				height: t,
+				height: len,
 				transform: `translateZ(${lift}px) rotateY(90deg)`,
 			};
 	}
@@ -154,10 +162,13 @@ export function MapReliefLayer({
 	store,
 	renderMode,
 	tile,
+	stage,
 }: {
 	store: BoardStore;
 	renderMode?: RenderMode;
 	tile: number;
+	/** Whether a 3D stage (Mode 7) is on; the relief is only built and drawn then. */
+	stage: ReactiveStore<{ active: boolean }>;
 }) {
 	const [, force] = useState(0);
 	const rafRef = useRef(0);
@@ -169,33 +180,32 @@ export function MapReliefLayer({
 		};
 		const u1 = store.subscribe(rerender);
 		const u2 = renderConfigStore.subscribe(rerender);
+		const u3 = stage.subscribe(rerender);
 		window.addEventListener("resize", rerender);
 		return () => {
 			u1();
 			u2();
+			u3();
 			window.removeEventListener("resize", rerender);
 			cancelAnimationFrame(rafRef.current);
 		};
-	}, [store]);
+	}, [store, stage]);
 
 	const vp = store.getViewport();
-	// Zoomed out the terrain itself drops to flat coarse blocks; so does the relief.
-	if (tileDetail(tile * vp.zoom, renderMode) !== "full") return null;
-	const visible = visibleCellRange(visibleWorldRect(store), tile);
-	if (!visible) return null;
-	// Stay a couple of cells inside the flat terrain's extent: raised faces on its very
-	// edge would stick up past where the ground ends and float against the sky.
-	const range = {
-		c0: visible.c0 + EDGE_INSET,
-		c1: visible.c1 - EDGE_INSET,
-		r0: visible.r0 + EDGE_INSET,
-		r1: visible.r1 - EDGE_INSET,
-	};
-	const relief = computeRelief(boardTerrainSampler(store), range);
-	if (relief.walls.length === 0 && relief.tops.size === 0) return null;
-
+	const zoom = vp.zoom;
 	const cfg = renderConfigStore.get();
-	const levels = [...relief.tops.keys()].sort((a, b) => a - b);
+	// Zoomed out the terrain itself drops to flat coarse blocks; so does the relief.
+	const on = stage.get().active && tileDetail(tile * zoom, renderMode) === "full";
+	// The on-screen region in steps of a few cells (rebuilt only when it moves a step),
+	// which the flat ground always covers.
+	const area = on ? visibleRegion(visibleWorldRect(store), tile) : null;
+	const sampler = on ? boardTerrainSampler(store) : null;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the area's edges
+	const content = useMemo(
+		() => (sampler && area ? renderRelief(sampler, area, tile, zoom) : null),
+		[sampler, tile, zoom, area?.left, area?.top, area?.width, area?.height],
+	);
+	if (!content) return null;
 
 	return (
 		<div
@@ -218,11 +228,49 @@ export function MapReliefLayer({
 			}
 		>
 			<style>{STAGE_CSS}</style>
+			{/* The world frame: only its translate changes while panning. */}
+			<div
+				style={{
+					position: "absolute",
+					left: 0,
+					top: 0,
+					transform: `translate3d(${vp.x}px, ${vp.y}px, 0)`,
+					transformStyle: "preserve-3d",
+				}}
+			>
+				{content}
+			</div>
+		</div>
+	);
+}
+
+/** The walls + lifted top faces over `area` (cells inset from its edge), world × zoom. */
+function renderRelief(
+	sample: TerrainSampler,
+	area: DOMRectReadOnly,
+	tile: number,
+	zoom: number,
+): React.ReactElement | null {
+	const cells = visibleCellRange(area, tile);
+	if (!cells) return null;
+	// Stay a couple of cells inside the flat terrain's extent: raised faces on its very
+	// edge would stick up past where the ground ends and float against the sky.
+	const relief = computeRelief(sample, {
+		c0: cells.c0 + EDGE_INSET,
+		c1: cells.c1 - EDGE_INSET,
+		r0: cells.r0 + EDGE_INSET,
+		r1: cells.r1 - EDGE_INSET,
+	});
+	if (relief.walls.length === 0 && relief.tops.size === 0) return null;
+	const levels = [...relief.tops.keys()].sort((a, b) => a - b);
+	const t = tile * zoom;
+	return (
+		<>
 			{relief.walls.map((w) => (
 				<div
 					key={w.key}
 					style={{
-						...wallStyle(w, tile, vp),
+						...wallStyle(w, tile, zoom),
 						background: terrainDarkVar(w.terrain),
 						// East/west faces a touch darker so the two wall directions read apart.
 						boxShadow:
@@ -231,39 +279,35 @@ export function MapReliefLayer({
 				/>
 			))}
 			{levels.map((level) => {
-				const cells = relief.tops.get(level) ?? [];
+				const faces = relief.tops.get(level) ?? [];
 				// Each face is only as big as its cells' bounding box: a lifted plane is its
 				// own compositing layer, and a full-viewport one near the camera is costly.
 				let c0 = Infinity;
 				let r0 = Infinity;
 				let c1 = -Infinity;
 				let r1 = -Infinity;
-				for (const cell of cells) {
+				for (const cell of faces) {
 					c0 = Math.min(c0, cell.col);
 					r0 = Math.min(r0, cell.row);
 					c1 = Math.max(c1, cell.col + 1);
 					r1 = Math.max(r1, cell.row + 1);
 				}
-				const left = c0 * tile * vp.zoom + vp.x;
-				const top = r0 * tile * vp.zoom + vp.y;
-				const width = (c1 - c0) * tile * vp.zoom;
-				const height = (r1 - r0) * tile * vp.zoom;
 				return (
 					<svg
 						key={`top-${level}`}
-						width={width}
-						height={height}
+						width={(c1 - c0) * t}
+						height={(r1 - r0) * t}
 						style={{
 							position: "absolute",
-							left,
-							top,
+							left: c0 * t,
+							top: r0 * t,
 							overflow: "visible",
-							transform: `translateZ(${level * LEVEL_HEIGHT * vp.zoom}px)`,
+							transform: `translateZ(${level * LEVEL_HEIGHT * zoom}px)`,
 						}}
 					>
 						{/* Patterns come from MapTerrainLayer's <defs> (document-wide ids). */}
-						<g transform={`translate(${vp.x - left} ${vp.y - top}) scale(${vp.zoom})`}>
-							{cells.map((cell) => (
+						<g transform={`scale(${zoom}) translate(${-c0 * tile} ${-r0 * tile})`}>
+							{faces.map((cell) => (
 								<rect
 									key={cell.key}
 									x={cell.col * tile}
@@ -279,6 +323,6 @@ export function MapReliefLayer({
 					</svg>
 				);
 			})}
-		</div>
+		</>
 	);
 }

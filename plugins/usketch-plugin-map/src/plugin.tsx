@@ -16,7 +16,12 @@ import {
 	getInfiniteSeed,
 	isInfiniteTerrainEnabled,
 } from "./infinite-terrain.js";
-import { GROUND_OVERSCAN_EVENT, MAX_GROUND_OVERSCAN_PX, MapTerrainLayer } from "./map-layer.js";
+import {
+	GROUND_OVERSCAN_EVENT,
+	MAX_GROUND_OVERSCAN_PX,
+	MapTerrainLayer,
+	STAGE_3D_EVENT,
+} from "./map-layer.js";
 import { MapReliefLayer, RELIEF_LAYER_ID } from "./map-relief-layer.js";
 import { createMapApi, mapService } from "./map-service.js";
 import { createMapToolDefinition } from "./map-tool.js";
@@ -85,6 +90,17 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				});
 			});
 
+			// Whether a 3D view (Mode 7) is showing the board: the relief is only built then.
+			// Seeded from the attribute Mode 7 sets, in case it was already on before us.
+			const stage = createReactiveStore({
+				active:
+					typeof document !== "undefined" &&
+					document.querySelector('[data-mode7-stage="on"]') !== null,
+			});
+			const offStage = ctx.events.on<{ active: boolean }>(STAGE_3D_EVENT, (data) => {
+				stage.set({ active: data?.active === true });
+			});
+
 			// ── Terrain MapLayer (behind all shapes) ──
 			ctx.layers.register({
 				id: TERRAIN_LAYER_ID,
@@ -112,7 +128,12 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
 				worldOverlay: true,
 				render: (lctx) => (
-					<MapReliefLayer store={ctx.store} renderMode={lctx.renderMode} tile={tile} />
+					<MapReliefLayer
+						store={ctx.store}
+						renderMode={lctx.renderMode}
+						tile={tile}
+						stage={stage}
+					/>
 				),
 			});
 
@@ -280,6 +301,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				unprovideGround();
 				unprovideService();
 				offOverscan();
+				offStage();
 				ctx.layers.unregister(TERRAIN_LAYER_ID);
 				ctx.layers.unregister(RELIEF_LAYER_ID);
 				ctx.layers.unregister(BASE_LAYER_ID);
