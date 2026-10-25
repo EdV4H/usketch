@@ -1,5 +1,26 @@
 # @edv4h/usketch-plugin-sync-localstorage-yjs
 
+## 2.1.7
+
+### Patch Changes
+
+- Updated dependencies [1962032]
+- Updated dependencies [8cb3482]
+  - @edv4h/usketch-shared@4.18.0
+
+## 2.1.6
+
+### Patch Changes
+
+- 767719a: shape のフィールドを `undefined` にする更新（ungroup の `parentId` やコネクタ端点の `sourceId` / `targetId` の切り離しなど）が、他のクライアントに伝わらない問題を直す。受信した Y.Map の値を正とし、手元にあって受信値に無いキーを消すようにした（`zIndex` / `createdAt` / `updatedAt` などストアが振る値は残す）。
+
+## 2.1.5
+
+### Patch Changes
+
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+
 ## 2.1.4
 
 ### Patch Changes

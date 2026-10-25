@@ -1,5 +1,32 @@
 # @edv4h/usketch-plugin-shape-basic
 
+## 2.2.1
+
+### Patch Changes
+
+- Updated dependencies [1962032]
+- Updated dependencies [8cb3482]
+  - @edv4h/usketch-shared@4.18.0
+  - @edv4h/usketch-core@2.4.8
+  - @edv4h/usketch-store@3.9.2
+  - @edv4h/usketch-shape-utils@2.3.1
+
+## 2.2.0
+
+### Minor Changes
+
+- 93e6dba: 基本図形のテキストに `textAlign` / `verticalAlign` / `fontWeight` を追加（未指定は従来どおり中央・標準）。MCP の shape_create / shape_update スキーマにも追加。
+
+### Patch Changes
+
+- Updated dependencies [083ff59]
+- Updated dependencies [7856e60]
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shape-utils@2.3.0
+  - @edv4h/usketch-shared@4.17.0
+  - @edv4h/usketch-core@2.4.7
+  - @edv4h/usketch-store@3.9.1
+
 ## 2.1.13
 
 ### Patch Changes

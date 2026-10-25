@@ -1,5 +1,20 @@
 # @edv4h/usketch-plugin-presence-cursor
 
+## 2.2.7
+
+### Patch Changes
+
+- Updated dependencies [1962032]
+- Updated dependencies [8cb3482]
+  - @edv4h/usketch-shared@4.18.0
+
+## 2.2.6
+
+### Patch Changes
+
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+
 ## 2.2.5
 
 ### Patch Changes

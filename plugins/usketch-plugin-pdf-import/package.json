@@ -1,6 +1,6 @@
 {
-	"name": "@edv4h/usketch-plugin-shape-island",
-	"version": "3.0.18",
+	"name": "@edv4h/usketch-plugin-pdf-import",
+	"version": "0.1.1",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -18,16 +18,20 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@edv4h/usketch-canvas-engine": "workspace:*",
+		"@edv4h/usketch-plugin-asset-store": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
-		"@edv4h/usketch-store": "workspace:*"
+		"@edv4h/usketch-store": "workspace:*",
+		"pdfjs-dist": "6.4.299"
 	},
 	"peerDependencies": {
 		"react": ">=19"
 	},
 	"devDependencies": {
 		"@types/react": "19.3.0",
+		"jsdom": "30.1.3",
 		"typescript": "7.0.2",
-		"vitest": "5.0.3"
+		"vitest": "5.0.5"
 	},
 	"publishConfig": {
 		"access": "public"
@@ -40,7 +44,7 @@
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/EdV4H/usketch.git",
-		"directory": "plugins/usketch-plugin-shape-island"
+		"directory": "plugins/usketch-plugin-pdf-import"
 	},
 	"homepage": "https://github.com/EdV4H/usketch#readme",
 	"bugs": {

@@ -5,10 +5,21 @@ import type {
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { useEffect, useState } from "react";
+import { OpenSlideDeckRegistry } from "./open-slide/deck-registry.js";
+import { OpenSlideEditState } from "./open-slide/edit-state.js";
+import {
+	createOpenSlideApi,
+	openSlideService,
+	setOpenSlidePage,
+} from "./open-slide/open-slide-service.js";
+import { createOpenSlideShapeDefinition } from "./open-slide/open-slide-shape.js";
+import { setOpenSlideText } from "./open-slide/overrides.js";
+import { MutablePresentCursor } from "./open-slide/present-cursor.js";
+import { isOpenSlideShape, OPEN_SLIDE_SHAPE_TYPE, type OpenSlideDeck } from "./open-slide/types.js";
 import { PresentEditOverlay } from "./present-edit-overlay.js";
 import { PresentModeOverlay } from "./present-mode-overlay.js";
-import type { IsSlide } from "./slide-navigator.js";
-import { SlideNavigator } from "./slide-navigator.js";
+import type { GetStepCount, IsSlide } from "./slide-navigator.js";
+import { defaultIsSlide, SlideNavigator } from "./slide-navigator.js";
 
 /** "off" = プレゼン UI 非表示（通常のホワイトボード扱い） */
 export type PresentationMode = "off" | "edit" | "present";
@@ -58,6 +69,16 @@ export interface PresentationPluginOptions {
 	 * 余白 0 のレターボックスは mask で暗転できる。
 	 */
 	fitPadding?: number;
+	/**
+	 * open-slide (https://github.com/1weiho/open-slide) のデッキを置ける Shape を有効にする。
+	 * 有効にすると `open-slide` Shape・挿入 action・{@link getOpenSlideApi} サービスが登録され、
+	 * open-slide Shape は `isSlide` に関係なく常にスライドとして並ぶ。発表では →/Space で
+	 * デッキ内のページを送り、最終ページの次で次のスライドへ進む。
+	 */
+	openSlide?: {
+		/** 置けるデッキ。モジュールは表示時に遅延 import する。 */
+		decks: readonly OpenSlideDeck[];
+	};
 }
 
 function defaultGetViewportSize(): { width: number; height: number } {
@@ -89,17 +110,127 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 	const onExit = opts.onExit;
 	const mask = opts.mask;
 	const fitPadding = opts.fitPadding;
+	const openSlide = opts.openSlide;
 
 	return {
 		id: "presentation",
 		name: "Presentation",
 		setup(ctx: PluginContext) {
-			let nav: SlideNavigator | null = new SlideNavigator(ctx.store, getViewportSize, {
-				isSlide,
-				fitPadding,
-			});
 			const unregisters: Array<() => void> = [];
+			const deckRegistry = openSlide ? new OpenSlideDeckRegistry(openSlide.decks) : null;
+			const baseIsSlide = isSlide ?? defaultIsSlide;
+			const navIsSlide: IsSlide | undefined = deckRegistry
+				? (s) => isOpenSlideShape(s) || baseIsSlide(s)
+				: isSlide;
+			const getStepCount: GetStepCount | undefined = deckRegistry
+				? (s) =>
+						isOpenSlideShape(s) ? (deckRegistry.getPageCount(s.deckId) ?? s.pageCount ?? 1) : 1
+				: undefined;
+			let nav: SlideNavigator | null = new SlideNavigator(ctx.store, getViewportSize, {
+				isSlide: navIsSlide,
+				fitPadding,
+				getStepCount,
+			});
 			const navRef = nav;
+
+			if (deckRegistry) {
+				// 発表中の現在位置を open-slide Shape に流し、画角に入ったデッキだけが
+				// 発表のステップ (ページ) を表示する。
+				const presentCursor = new MutablePresentCursor();
+				const syncPresentCursor = () => {
+					if (getMode() !== "present") {
+						presentCursor.set(null);
+						return;
+					}
+					const slide = navRef.getSlides()[navRef.getCurrentIndex()];
+					presentCursor.set(slide ? { shapeId: slide.id, step: navRef.getCurrentStep() } : null);
+				};
+				unregisters.push(navRef.onChange(syncPresentCursor));
+				unregisters.push(subscribeMode(syncPresentCursor));
+				syncPresentCursor();
+
+				// デッキの中身の編集中に発表へ入ったら編集を終える。
+				const editState = new OpenSlideEditState();
+				unregisters.push(
+					subscribeMode(() => {
+						if (getMode() === "present") editState.end();
+					}),
+				);
+
+				ctx.shapes.register(
+					OPEN_SLIDE_SHAPE_TYPE,
+					createOpenSlideShapeDefinition({
+						registry: deckRegistry,
+						presentCursor,
+						onSetPage: (shapeId, page) => setOpenSlidePage(ctx.store, deckRegistry, shapeId, page),
+						editState,
+						onCommitText: (shapeId, params) =>
+							setOpenSlideText(ctx.store, ctx.commands, shapeId, params),
+					}),
+				);
+
+				const api = createOpenSlideApi({
+					store: ctx.store,
+					commands: ctx.commands,
+					registry: deckRegistry,
+					editState,
+					getViewportSize,
+				});
+				unregisters.push(openSlideService.provide(ctx.services, api));
+				const decks = deckRegistry.getDecks();
+				unregisters.push(
+					ctx.actions.register({
+						id: "presentation:insert-open-slide",
+						label: "open-slide デッキを置く",
+						group: "Presentation",
+						params: [
+							{
+								name: "deckId",
+								label: "デッキ",
+								type: "enum",
+								options: decks.map((d) => ({ value: d.id, label: d.title })),
+								default: decks[0]?.id,
+							},
+						],
+						run: (args) => {
+							const deckId = typeof args.deckId === "string" ? args.deckId : decks[0]?.id;
+							if (deckId) api.insertDeck({ deckId });
+						},
+						isEnabled: () => decks.length > 0,
+					}),
+				);
+				const selectedDeckId = (): string | null => {
+					const selection = ctx.store.getSelection();
+					if (selection.size !== 1) return null;
+					const [id] = selection;
+					const shape = id ? ctx.store.getShape(id) : undefined;
+					return shape && isOpenSlideShape(shape) ? shape.id : null;
+				};
+				unregisters.push(
+					ctx.actions.register({
+						id: "presentation:edit-open-slide",
+						label: "デッキの中身を編集",
+						group: "Presentation",
+						run: () => {
+							const id = selectedDeckId();
+							if (id) api.beginEdit(id);
+						},
+						isEnabled: () => selectedDeckId() !== null,
+					}),
+				);
+				unregisters.push(
+					ctx.actions.register({
+						id: "presentation:reset-open-slide",
+						label: "デッキを元の内容に戻す",
+						group: "Presentation",
+						run: () => {
+							const id = selectedDeckId();
+							if (id) api.resetOverrides(id);
+						},
+						isEnabled: () => selectedDeckId() !== null,
+					}),
+				);
+			}
 
 			// 発表モード中のみ動くショートカット群（mode を実行時に毎回評価する）
 			const ifPresent = (fn: () => void) => () => {

@@ -1,5 +1,28 @@
 # @edv4h/usketch-plugin-export
 
+## 2.3.4
+
+### Patch Changes
+
+- Updated dependencies [1962032]
+- Updated dependencies [8cb3482]
+  - @edv4h/usketch-shared@4.18.0
+  - @edv4h/usketch-core@2.4.8
+
+## 2.3.3
+
+### Patch Changes
+
+- 08c9a1e: `exportRegion` / `exportCanvas` で HTML シェイプが 2 つ以上あると、Satori が出す clipPath / mask の id が重なり、後のシェイプが先のシェイプの切り抜きを使ってしまう問題を直す（文字が途中で欠ける・一部の要素が消える）。Satori の出力ごとに id とその参照を名前空間で分ける。
+
+## 2.3.2
+
+### Patch Changes
+
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+  - @edv4h/usketch-core@2.4.7
+
 ## 2.3.1
 
 ### Patch Changes

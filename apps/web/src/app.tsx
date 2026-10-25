@@ -25,6 +25,7 @@ import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
 import { createMode7Plugin } from "@edv4h/usketch-plugin-mode7";
+import { createPdfImportPlugin } from "@edv4h/usketch-plugin-pdf-import";
 import { createPortalPlugin } from "@edv4h/usketch-plugin-portal";
 import { createPresenceActivityPlugin } from "@edv4h/usketch-plugin-presence-activity";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
@@ -80,6 +81,7 @@ import {
 	type WsConnectionStatus,
 	type WsProviderHandle,
 } from "@edv4h/usketch-sync";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router";
@@ -194,6 +196,10 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 			wsProvider: cardHand.wsProvider ?? undefined,
 		}),
 		createImageShapePlugin(),
+		// PDF のペースト／ドロップを pdf-page シェイプの集合に展開する。アセット
+		// ストア（extraPlugins 側で登録）を使うが lazy 解決なので登録順は問わない。
+		// pdf.js のワーカーは実行コードなので CDN ではなく自前でバンドルして配信する。
+		createPdfImportPlugin({ workerSrc: pdfWorkerUrl }),
 		createCounterPlugin(),
 		createWireframePlugin(),
 		createDomainDesignPlugin(),

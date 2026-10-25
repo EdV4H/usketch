@@ -1,5 +1,24 @@
 # @edv4h/usketch-plugin-start-position
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [1962032]
+- Updated dependencies [8cb3482]
+  - @edv4h/usketch-shared@4.18.0
+
+## 0.2.0
+
+### Minor Changes
+
+- 7224e76: feat(start-position): スタート位置が未設定のボードを開いた時に全 Shape を画面に収める `fallback: "fit-content"` を追加。初期同期の完了を即座に知らせる `whenReady`、キャンバスサイズを渡す `getViewportSize` も追加。同期待ち中にユーザーや deep-link がカメラを動かしていたら fallback は動かない。フィット計算は start-position shape を除外し、回転を考慮するようになった。
+
+### Patch Changes
+
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+
 ## 0.1.6
 
 ### Patch Changes

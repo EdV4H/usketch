@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-shape-card",
-	"version": "1.7.7",
+	"version": "1.7.9",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -20,6 +20,7 @@
 	"dependencies": {
 		"@edv4h/usketch-canvas-engine": "workspace:*",
 		"@edv4h/usketch-core": "workspace:*",
+		"@edv4h/usketch-shape-utils": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*",
 		"@edv4h/usketch-store": "workspace:*"
 	},
@@ -29,7 +30,7 @@
 	"devDependencies": {
 		"@types/react": "19.3.0",
 		"typescript": "7.0.2",
-		"vitest": "5.0.3"
+		"vitest": "5.0.5"
 	},
 	"publishConfig": {
 		"access": "public"

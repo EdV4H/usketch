@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
 	type CharacterPose,
+	DEFAULT_DRIFT,
 	DEFAULT_MOTION,
 	headingVector,
 	type MoveInput,
 	NO_INPUT,
+	ORIGIN_POSE,
 	stepCharacter,
 	turnToward,
 	vectorHeading,
 } from "../character-physics.js";
 
-const origin: CharacterPose = { x: 0, y: 0, heading: 0, speed: 0, moving: false };
+const origin: CharacterPose = ORIGIN_POSE;
 const held = (p: Partial<MoveInput>): MoveInput => ({ ...NO_INPUT, ...p });
 
 describe("heading helpers", () => {
@@ -111,5 +113,76 @@ describe("vehicle scheme", () => {
 		for (let i = 0; i < 100; i++)
 			p = stepCharacter(p, held({ down: true }), 0.05, "vehicle", DEFAULT_MOTION);
 		expect(p.speed).toBe(-DEFAULT_MOTION.moveSpeed * DEFAULT_MOTION.reverseRatio);
+	});
+});
+
+describe("vehicle drift", () => {
+	const top: CharacterPose = { ...origin, speed: DEFAULT_MOTION.moveSpeed, moving: true };
+	const step = (p: CharacterPose, input: Partial<MoveInput>, dt = 0.05, drift = DEFAULT_DRIFT) =>
+		stepCharacter(p, held(input), dt, "vehicle", DEFAULT_MOTION, 0, drift);
+	const run = (p: CharacterPose, input: Partial<MoveInput>, frames: number) => {
+		let q = p;
+		for (let i = 0; i < frames; i++) q = step(q, input);
+		return q;
+	};
+
+	it("reports the held steering, even when stopped", () => {
+		expect(step(origin, { left: true }).steering).toBe(-1);
+		expect(step(origin, { right: true }).steering).toBe(1);
+		expect(step(origin, {}).steering).toBe(0);
+	});
+	it("starts toward the steering at speed and turns tighter than normal steering", () => {
+		const normal = step(top, { up: true, right: true });
+		const drift = step(top, { up: true, right: true, drift: true });
+		expect(drift.drift).toBe(1);
+		expect(drift.heading).toBeGreaterThan(normal.heading);
+		expect(step(top, { up: true, left: true, drift: true }).drift).toBe(-1);
+	});
+	it("needs the drift key, steering, enough speed and drift enabled", () => {
+		expect(step(top, { up: true, right: true }).drift).toBe(0);
+		expect(step(top, { up: true, drift: true }).drift).toBe(0);
+		const slow = { ...top, speed: DEFAULT_DRIFT.startSpeed * DEFAULT_MOTION.moveSpeed * 0.5 };
+		expect(step(slow, { right: true, drift: true }).drift).toBe(0);
+		expect(
+			stepCharacter(
+				top,
+				held({ up: true, right: true, drift: true }),
+				0.05,
+				"vehicle",
+				DEFAULT_MOTION,
+			).drift,
+		).toBe(0);
+	});
+	it("keeps drifting without steering; countersteering opens the curve but keeps turning in", () => {
+		const d = step(top, { up: true, right: true, drift: true });
+		const straight = step(d, { up: true, drift: true });
+		const counter = step(d, { up: true, left: true, drift: true });
+		expect(straight.drift).toBe(1);
+		expect(counter.drift).toBe(1);
+		expect(counter.heading - d.heading).toBeGreaterThan(0);
+		expect(counter.heading - d.heading).toBeLessThan(straight.heading - d.heading);
+	});
+	it("slides the body into the drift and eases back after release", () => {
+		const d = run(top, { up: true, right: true, drift: true }, 40);
+		expect(d.slip).toBeCloseTo(DEFAULT_DRIFT.slipAngle + DEFAULT_DRIFT.steerSlipAngle, 1);
+		const released = step(d, { up: true });
+		expect(released.drift).toBe(0);
+		expect(released.slip).toBeGreaterThan(0);
+		expect(released.slip).toBeLessThan(d.slip);
+		expect(run(released, { up: true }, 60).slip).toBe(0);
+	});
+	it("never drifts while stopped or reversing, whatever the tuning", () => {
+		const loose = { ...DEFAULT_DRIFT, startSpeed: 0, stopSpeed: 0 };
+		const p = step(origin, { left: true, drift: true }, 0.05, loose);
+		expect(p.drift).toBe(0);
+		expect(p.heading).toBe(0);
+		const rev = { ...origin, speed: -100, moving: true };
+		expect(step(rev, { down: true, left: true, drift: true }, 0.05, loose).drift).toBe(0);
+	});
+	it("ends when the car slows below stopSpeed", () => {
+		let p = step(top, { up: true, right: true, drift: true });
+		for (let i = 0; i < 100 && p.drift !== 0; i++) p = step(p, { right: true, drift: true });
+		expect(p.drift).toBe(0);
+		expect(p.speed).toBeLessThan(DEFAULT_DRIFT.stopSpeed * DEFAULT_MOTION.moveSpeed);
 	});
 });

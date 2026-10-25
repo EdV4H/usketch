@@ -22,12 +22,20 @@ export interface CharacterRenderProps {
 	moving: boolean;
 	/** Signed speed along the heading, world units / s. */
 	speed: number;
+	/** Vehicle: held steering, -1 (left) … 1 (right) — e.g. to turn the front wheels. */
+	steering: number;
+	/** Vehicle: body yaw relative to `heading` while drifting, degrees (draw at `heading + slip`). */
+	slip: number;
+	/** Vehicle: whether a drift is running (e.g. to lay tire marks). */
+	drifting: boolean;
 	/** Current viewport zoom (scale the sprite with the world, or not). */
 	zoom: number;
 	/** The owner's broadcast appearance. */
 	appearance: CharacterAppearance;
 	/** The owner's display name, if any. */
 	name?: string;
+	/** Ground height the character stands on, world units (0 = the flat board). */
+	elevation: number;
 }
 
 /**
@@ -44,6 +52,9 @@ export interface RemoteCharacter {
 	heading: number;
 	speed: number;
 	moving: boolean;
+	steering: number;
+	slip: number;
+	drifting: boolean;
 	appearance: CharacterAppearance;
 	name?: string;
 }
@@ -54,6 +65,8 @@ export interface CharacterKeys {
 	down: string[];
 	left: string[];
 	right: string[];
+	/** Vehicle drift key. Only captured while the vehicle scheme has drift on. */
+	drift?: string[];
 }
 
 export const DEFAULT_KEYS: CharacterKeys = {
@@ -61,4 +74,5 @@ export const DEFAULT_KEYS: CharacterKeys = {
 	down: ["KeyS"],
 	left: ["KeyA"],
 	right: ["KeyD"],
+	drift: ["Space"],
 };

@@ -1,5 +1,27 @@
 # @edv4h/usketch-plugin-map
 
+## 0.14.0
+
+### Minor Changes
+
+- 8cb3482: map のセルに高さを追加。地形タイプから段（水 0 / 陸 1 / 岩 2 / 山 3 / 雪 4）を自動で決め、Mode 7 では段差を崖として立体表示する。キャラクターは「登れる段差」より高い崖を登れない（降りるのは自由）。高さは共有の `groundHeightService` で公開し、`getMapApi().getHeightAt()` でも取得できる。
+
+### Patch Changes
+
+- b04570b: キャラの「追従（向きで回転）」などでカメラが回転したとき、地形・段差・拠点・拠点アイコンのレイヤーも世界と一緒に回るようにする（world overlay 化し、表示範囲を回転した画面の外接矩形で取る）。
+- Updated dependencies [1962032]
+- Updated dependencies [8cb3482]
+  - @edv4h/usketch-shared@4.18.0
+  - @edv4h/usketch-store@3.9.2
+
+## 0.13.7
+
+### Patch Changes
+
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+  - @edv4h/usketch-store@3.9.1
+
 ## 0.13.6
 
 ### Patch Changes

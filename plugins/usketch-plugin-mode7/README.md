@@ -38,6 +38,7 @@ createApp({
       camera: { pitch: 55, fov: 600 },  // 初期カメラ（部分指定可）
       look: { sky: "#0b1026", fog: 0.35 },
       // tiltLayerIds: [...],           // 傾ける層を上書き
+      // depthLayerIds: [...],          // 本当に奥行きを持たせる層（既定 DEFAULT_DEPTH_LAYER_IDS）
       // shortcuts: { toggle: "…" },    // キーバインド（opt-in・既定なし）
       // transition: { durationMs: 900, easing: "ease-in-out" }, // 切替アニメ（既定 0＝即時）
     }),
@@ -89,6 +90,14 @@ createApp({
 
 ※ Shape は DOM 上には残る（コアのカリングではなく描画クリップ）ので、真のジオメトリ間引きは別途。
 
+3D 表示の開始・終了時には `usketch:stage-3d` イベント（`{ active }`、`STAGE_3D_EVENT`）を出す。map プラグインはこれを見て、段差（立体）を 3D 表示中だけ組み立てる。
+
+**深度レイヤー（`depthLayerIds`）**: `clip-path` は傾き自体は保つが、配下の奥行き（`translateZ`）を
+平面に潰す。そこで深度レイヤーはこのクリップを外し、エンジンの内側ラッパーにも
+`transform-style: preserve-3d` を付けて 3D 文脈を通す。既定 `DEFAULT_DEPTH_LAYER_IDS` は
+`usketch-map:relief`（map プラグインの高いセルの崖と上面）と `character`（その上に立つキャラ）。
+深度レイヤーは描画距離のクリップを受けない。
+
 ## アクション（`mode7:<key>` で emit・HUD Controls に自動表示・サービス）
 
 `toggle` / `pitch-up` / `pitch-down` / `yaw-left` / `yaw-right` / `fov-narrow` / `fov-wide` / `reset` /
@@ -108,10 +117,23 @@ api?.setYaw(30);
 ```
 
 `Mode7Api`: `isActive` / `enable` / `disable` / `toggle`（各 `{ animate? }`）/ `isTransitioning` /
-`getTransitionAmount` / `getCamera` / `setPitch` / `setYaw` /
+`getTransitionAmount` / `getCamera` / `getRenderedCamera` / `setPitch` / `setYaw` /
 `setFov` / `setHorizon` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
 `getTiltLayers` / `setTiltLayers` / `toggleTiltLayer` / `getDrawDistance` / `setDrawDistance` /
 `isCaptureFrameVisible` / `setCaptureFrameVisible` / `toggleCaptureFrame` / `getCaptureRect` / `onChange`。
+
+## 地面上の点の投影
+
+地面の上に物を描く（車・スプライト・タイヤ痕）ときや、画面の点から地面の点を求めるときは、
+CSS 変換を自前で組まずに次の純関数を使う。座標はキャンバス左上基準の px（傾ける前の平面 ↔ 画面）。
+
+```ts
+import { getMode7Api, projectToGround, unprojectFromGround } from "@edv4h/usketch-plugin-mode7";
+const cam = getMode7Api(app.services)?.getRenderedCamera(); // 遷移中は傾きが縮んだカメラ
+const size = { width, height };                              // キャンバスの px サイズ
+projectToGround(sx, sy, cam, size);   // → { x, y, depth, scale } | null（目の後ろ）
+unprojectFromGround(x, y, cam, size); // → { x, y } | null（地平線より上）
+```
 
 ## スコープ外（v2 送り）
 

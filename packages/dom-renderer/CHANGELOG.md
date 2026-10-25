@@ -1,5 +1,27 @@
 # @edv4h/usketch-dom-renderer
 
+## 2.1.13
+
+### Patch Changes
+
+- Updated dependencies [1962032]
+- Updated dependencies [8cb3482]
+  - @edv4h/usketch-shared@4.18.0
+
+## 2.1.12
+
+### Patch Changes
+
+- f4f26f2: コンテナ扱いの判定を固定の type リスト（`frame` / `island` / `group`）から、shape 定義の `container` 宣言（`isShapeContainer`）に切り替える。これにより `voice-frame` などプラグイン側でコンテナを宣言した shape も、ポインタイベントの透過とドロップ先ハイライト時の zIndex 持ち上げ除外が frame と同じように効く。
+- cbfbf92: 島（`@edv4h/usketch-plugin-shape-island`）プラグインを削除したのに合わせ、mode7 の既定の傾けるレイヤーから `island-metaball` を外し、DOM レンダラーが `island` をコンテナ扱いする固定リストからも外す。
+
+## 2.1.11
+
+### Patch Changes
+
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+
 ## 2.1.10
 
 ### Patch Changes

@@ -25,12 +25,22 @@ export interface CharacterWireState {
 	heading: number;
 	speed: number;
 	moving: boolean;
+	/** Vehicle steering, -1 … 1 (absent from older clients → 0). */
+	steering?: number;
+	/** Vehicle body slip, degrees (absent from older clients → 0). */
+	slip?: number;
+	/** Vehicle drift running (absent from older clients → false). */
+	drifting?: boolean;
 	appearance: CharacterAppearance;
 	name?: string;
 }
 
+/** The largest slip accepted from the wire, degrees. */
+const MAX_WIRE_SLIP = 90;
+const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
 /** Validate an untrusted awareness payload (other clients can send anything). */
-export function parseWireState(v: unknown): CharacterWireState | null {
+export function parseWireState(v: unknown): Omit<RemoteCharacter, "id"> | null {
 	if (!v || typeof v !== "object") return null;
 	const o = v as Record<string, unknown>;
 	const num = (k: string) =>
@@ -49,6 +59,9 @@ export function parseWireState(v: unknown): CharacterWireState | null {
 		heading: wrapDeg(heading),
 		speed: num("speed") ?? 0,
 		moving: o.moving === true,
+		steering: clamp(num("steering") ?? 0, -1, 1),
+		slip: clamp(num("slip") ?? 0, -MAX_WIRE_SLIP, MAX_WIRE_SLIP),
+		drifting: o.drifting === true,
 		appearance,
 		name: typeof o.name === "string" ? o.name : undefined,
 	};
@@ -86,6 +99,10 @@ export function createCharacterSync(
 					heading: s.pose.heading,
 					speed: s.pose.speed,
 					moving: s.pose.moving,
+					steering: s.pose.steering,
+					// Half-degree steps: a settling slip doesn't publish every frame forever.
+					slip: Math.round(s.pose.slip * 2) / 2,
+					drifting: s.pose.drift !== 0,
 					appearance: s.appearance,
 					name: s.name,
 				}
@@ -144,7 +161,8 @@ export function easeRemotes(
 		const dx = t.x - d.x;
 		const dy = t.y - d.y;
 		const dh = wrapDeg(t.heading - d.heading);
-		if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05 && Math.abs(dh) < 0.05) {
+		const ds = t.slip - d.slip;
+		if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05 && Math.abs(dh) < 0.05 && Math.abs(ds) < 0.05) {
 			next.set(id, t);
 			continue;
 		}
@@ -154,6 +172,7 @@ export function easeRemotes(
 			x: d.x + dx * alpha,
 			y: d.y + dy * alpha,
 			heading: wrapDeg(d.heading + dh * alpha),
+			slip: d.slip + ds * alpha,
 		});
 	}
 	return { next, settling };

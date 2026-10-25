@@ -1,5 +1,40 @@
 # @edv4h/usketch-plugin-shape-connector
 
+## 3.3.11
+
+### Patch Changes
+
+- 1962032: refactor(connector-anchor): `findShapeAtPoint` のコンテナ判定を `frame` / `group` の型名ハードコードから `ShapeDefinition.container` 宣言（`isShapeContainer`）に置き換え。`container` を宣言する他の図形（例: voice-notes の voice-frame）も、コネクタの接続先判定で中の図形より後回しにされるようになる。`isShapeContainer` は `container` だけを持つ定義も受け取れるよう引数型を `Pick<ShapeDefinition, "container">` に広げた（後方互換）。
+- Updated dependencies [1962032]
+- Updated dependencies [8cb3482]
+  - @edv4h/usketch-connector-anchor@0.4.9
+  - @edv4h/usketch-shared@4.18.0
+  - @edv4h/usketch-canvas-engine@1.5.4
+  - @edv4h/usketch-core@2.4.8
+  - @edv4h/usketch-store@3.9.2
+
+## 3.3.10
+
+### Patch Changes
+
+- 38e6c99: 選択ツールのアンカーハンドル（図形ホバーで出る接続点からコネクタを引く操作）の接続先判定を、コネクタツール・端点ドラッグと同じ `findShapeAtPoint`（`@edv4h/usketch-connector-anchor`）に統一する。独自実装だった `findNonConnectorShape` を削除し、次のように揃う:
+  
+  - 重なった図形は挿入順ではなく zIndex 順で最前面のものを接続先にする（前面へ移動した図形が正しく選ばれる）
+  - 非表示・ロック中の図形（とロックされたコンテナの子）にはアンカーハンドルを出さず、接続先にもしない
+  - `domain-connector` も接続先から除外する
+
+## 3.3.9
+
+### Patch Changes
+
+- 959e64b: アンカーハンドルで auto アンカーに接続したとき、端点が相手 shape の中心ではなく辺上の交点として保存されるように修正 (#810)
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+  - @edv4h/usketch-canvas-engine@1.5.3
+  - @edv4h/usketch-core@2.4.7
+  - @edv4h/usketch-store@3.9.1
+  - @edv4h/usketch-connector-anchor@0.4.8
+
 ## 3.3.8
 
 ### Patch Changes

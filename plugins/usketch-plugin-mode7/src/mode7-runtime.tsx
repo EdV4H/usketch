@@ -12,10 +12,11 @@
 //      the ground) and wheel zooms — reusing the store's affine viewport.
 import type { BoundingBox, PluginContext } from "@edv4h/usketch-shared";
 import { CaptureFrameLayer, CaptureLayer, FogLayer, SkyLayer } from "./mode7-layers.js";
-import type { Mode7Store } from "./mode7-store.js";
+import { DEFAULT_DEPTH_LAYER_IDS, type Mode7Store } from "./mode7-store.js";
 import {
 	drawDistanceClip,
 	drawDistanceOverscanPx,
+	tiltLayerRules,
 	tiltTransform,
 	transitionCamera,
 } from "./mode7-transform.js";
@@ -28,6 +29,9 @@ export const CAPTURE_FRAME_LAYER_ID = "mode7-capture-frame";
 
 /** Wheel-zoom sensitivity (matches viewport-nav's deltaY-proportional feel). */
 const WHEEL_ZOOM = 0.0015;
+
+/** Emitted with `{ active }` when the 3D stage starts / stops showing the board. */
+export const STAGE_3D_EVENT = "usketch:stage-3d";
 
 /** Extra px added to the grid overscan so it comfortably covers the clip line (rounding). */
 const OVERSCAN_BUFFER = 16;
@@ -65,8 +69,13 @@ function mainContainer(): HTMLElement | null {
  * store (user-selectable via the HUD). Returns a teardown that clears every
  * injected transform, unregisters the overlay layers, and drops all listeners.
  */
-export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => void {
+export function setupMode7Runtime(
+	ctx: PluginContext,
+	store: Mode7Store,
+	options: { depthLayerIds?: readonly string[] } = {},
+): () => void {
 	const STAGE_ATTR = "data-mode7-stage";
+	const depthLayers = new Set(options.depthLayerIds ?? DEFAULT_DEPTH_LAYER_IDS);
 	let styleEl: HTMLStyleElement | null = null;
 
 	const ensureStyleEl = (): void => {
@@ -76,9 +85,6 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		document.head.appendChild(styleEl);
 	};
 
-	/** Keep an attribute-selector value valid (layer ids are simple, but be safe). */
-	const attrValue = (id: string): string => id.replace(/["\\]/g, "");
-
 	// Drive the background grid's overscan (only re-emit on change) so it extends past the
 	// viewport to stay under the far content a large draw distance reveals. No package
 	// dependency on bg-grid — a plain event it listens for (a no-op if bg-grid is absent).
@@ -87,6 +93,15 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		if (px === lastOverscan) return;
 		lastOverscan = px;
 		ctx.events.emit("bg-grid:set-overscan", { px });
+	};
+
+	// Tell ground plugins when the 3D stage starts / stops showing the board (the map
+	// builds its raised relief only then). A plain event, like the overscan below.
+	let lastStage = false;
+	const announceStage = (active: boolean): void => {
+		if (active === lastStage) return;
+		lastStage = active;
+		ctx.events.emit(STAGE_3D_EVENT, { active });
 	};
 
 	const applyTilt = (): void => {
@@ -102,28 +117,20 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 		// grid); a finite draw distance tightens the top, one beyond the viewport lets it
 		// extend (negative inset) with the grid overscanned to match. Distance is canvas
 		// units → maps to px via zoom + container height, so this re-runs on viewport (zoom)
-		// changes. clip-path keeps the tilt (overflow flattens).
+		// changes. clip-path keeps the tilt (overflow flattens) but flattens depth, so
+		// depth layers skip it (see `tiltLayerRules`).
 		const zoom = ctx.store.getViewport().zoom;
 		const heightPx = container.getBoundingClientRect().height;
 		const clip = drawDistanceClip(drawDistance, zoom, heightPx, amount);
 		const overscan = drawDistanceOverscanPx(drawDistance, zoom, heightPx);
 		driveGridOverscan(overscan > 0 ? overscan + OVERSCAN_BUFFER : 0);
-		const clipRule = `clip-path:${clip} !important;`;
-		// `overflow:visible` + `transform-style:preserve-3d` are essential for layers
-		// like `dom-shapes`: their wrapper has `overflow:hidden` (which the CSS spec
-		// forces `transform-style` to `flat`) and an inner viewport-transform div that
-		// Chrome composites separately — so without these the SHAPES render flat in
-		// screen space while only the wrapper tilts. Overriding overflow keeps the
-		// whole subtree in the 3D context; the canvas container still clips.
-		// A DESCENDANT selector (space, not `>`) matches the wrapper regardless of nesting.
-		const layerRules = store
-			.getState()
-			.tiltLayers.map(
-				(id) =>
-					`[${STAGE_ATTR}="on"] [data-layer-id="${attrValue(id)}"]{transform:${transform} !important;transform-origin:${transformOrigin} !important;overflow:visible !important;transform-style:preserve-3d !important;${clipRule}}`,
-			)
-			.join("");
-		styleEl.textContent = layerRules;
+		styleEl.textContent = tiltLayerRules(store.getState().tiltLayers, {
+			stageAttr: STAGE_ATTR,
+			transform,
+			transformOrigin,
+			clip,
+			depthLayerIds: depthLayers,
+		});
 	};
 
 	const clearAll = (): void => {
@@ -170,8 +177,10 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 	};
 
 	const sync = (): void => {
-		if (store.getState().active) applyTilt();
+		const active = store.getState().active;
+		if (active) applyTilt();
 		else clearAll();
+		announceStage(active);
 		maybeCapture();
 	};
 
@@ -230,6 +239,7 @@ export function setupMode7Runtime(ctx: PluginContext, store: Mode7Store): () => 
 
 	return () => {
 		clearAll();
+		announceStage(false);
 		styleEl?.remove();
 		styleEl = null;
 		unsubscribe();

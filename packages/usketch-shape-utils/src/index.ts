@@ -12,9 +12,10 @@ export {
 } from "./editable-text/render-props.js";
 export {
 	type FindFreePositionOptions,
+	type FreePositionDirection,
 	type FreePositionStrategy,
 	findFreePosition,
 	overlapsAny,
 } from "./free-position.js";
 export { aabbHitTest, ellipseHitTest, lineHitTest, pointInPolygon } from "./hit-test.js";
-export { createResize } from "./resize.js";
+export { type AspectResizeOptions, createAspectResize, createResize } from "./resize.js";

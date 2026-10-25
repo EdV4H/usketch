@@ -16,6 +16,13 @@ import {
 import WebSocket from "ws";
 import * as Y from "yjs";
 import type { McpConfig } from "../config.js";
+import {
+	aiMotionDuration,
+	buildAiMotion,
+	finalCursor,
+	type MotionStop,
+	type Point,
+} from "./ai-motion.js";
 
 /** Identity the AI participant presents as on the board (a normal presence `user`). */
 const AI_NAME = "AI 🤖";
@@ -38,6 +45,8 @@ export class BoardConnection {
 	private connectPromise: Promise<void> | null = null;
 	private aiUserSet = false;
 	private activityTimer: ReturnType<typeof setTimeout> | null = null;
+	/** Where the AI cursor last came to rest — the start of its next motion. */
+	private aiCursor: Point | undefined;
 
 	constructor(
 		readonly boardId: string,
@@ -73,29 +82,52 @@ export class BoardConnection {
 	 * short hold so it reads as "AI just did this". No-op while disconnected — there's
 	 * no socket to broadcast on, and we don't want to leave a pending timer or stale
 	 * local state that would flush on reconnect.
+	 *
+	 * With `stops`, the AI moves through them as ONE continuous `activity.motion`
+	 * (cursor glides from where it last rested, outlining each stop's shapes on
+	 * arrival). The overlay draws the moving cursor, so the resting `cursor` field is
+	 * cleared during playback and set to the end point when the outline clears.
+	 * `shapeIds` should then be the final outline set (what non-motion clients show).
 	 */
 	showAiActivity(opts: {
 		shapeIds?: string[];
-		cursor?: { x: number; y: number };
+		cursor?: Point;
 		action?: "select" | "edit";
 		holdMs?: number;
+		stops?: MotionStop[];
 	}): void {
 		if (!this.connected) return;
 		if (!this.aiUserSet) {
 			this.awareness.setLocalStateField("user", { name: AI_NAME, color: AI_COLOR });
 			this.aiUserSet = true;
 		}
-		if (opts.cursor) this.awareness.setLocalStateField("cursor", opts.cursor);
+		const action = opts.action ?? "edit";
+		const motion = opts.stops
+			? buildAiMotion({ id: crypto.randomUUID(), stops: opts.stops, from: this.aiCursor, action })
+			: null;
+		const endCursor = motion ? finalCursor(motion) : opts.cursor;
+		if (motion) this.awareness.setLocalStateField("cursor", null);
+		else if (opts.cursor) this.awareness.setLocalStateField("cursor", opts.cursor);
+		if (endCursor) this.aiCursor = endCursor;
+
 		const ids = opts.shapeIds ?? [];
 		this.awareness.setLocalStateField(
 			"activity",
-			ids.length > 0 ? { shapeIds: ids, action: opts.action ?? "edit", label: AI_NAME } : null,
+			ids.length > 0 || motion
+				? { shapeIds: ids, action, label: AI_NAME, ...(motion ? { motion } : {}) }
+				: null,
 		);
 		if (this.activityTimer) clearTimeout(this.activityTimer);
-		this.activityTimer = setTimeout(() => {
-			this.awareness.setLocalStateField("activity", null);
-			this.activityTimer = null;
-		}, opts.holdMs ?? ACTIVITY_HOLD_MS);
+		const playMs = motion ? aiMotionDuration(motion) : 0;
+		this.activityTimer = setTimeout(
+			() => {
+				this.awareness.setLocalStateField("activity", null);
+				// Leave the AI cursor resting where the motion ended.
+				if (motion && endCursor) this.awareness.setLocalStateField("cursor", endCursor);
+				this.activityTimer = null;
+			},
+			playMs + (opts.holdMs ?? ACTIVITY_HOLD_MS),
+		);
 	}
 
 	/** 接続を確立し初期同期を待つ */

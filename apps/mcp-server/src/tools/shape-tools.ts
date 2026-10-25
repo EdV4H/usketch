@@ -8,6 +8,7 @@
 import { DEFAULT_STYLE, type ShapeData } from "@edv4h/usketch-shared";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { type Box, visitShapes } from "../client/ai-motion.js";
 import type { ConnectionManager } from "../client/connection-manager.js";
 
 const styleSchema = z
@@ -38,6 +39,18 @@ const shapeInputSchema = z
 		height: z.number().min(0).max(10000).describe("高さ"),
 		text: z.string().max(1000).optional().describe("テキスト内容"),
 		fontSize: z.number().min(8).max(256).optional().describe("フォントサイズ"),
+		textAlign: z
+			.enum(["start", "center", "end"])
+			.optional()
+			.describe("基本図形のテキスト水平位置 (既定 center)"),
+		verticalAlign: z
+			.enum(["start", "middle", "end"])
+			.optional()
+			.describe("基本図形のテキスト垂直位置 (既定 middle)"),
+		fontWeight: z
+			.enum(["normal", "bold"])
+			.optional()
+			.describe("基本図形のテキスト太さ (既定 normal)"),
 		style: styleSchema.describe("スタイル (fill, stroke, strokeWidth, opacity)"),
 	})
 	.passthrough();
@@ -51,6 +64,9 @@ const shapeUpdateSchema = z
 		height: z.number().min(0).max(10000).optional(),
 		text: z.string().max(1000).optional(),
 		fontSize: z.number().min(8).max(256).optional(),
+		textAlign: z.enum(["start", "center", "end"]).optional(),
+		verticalAlign: z.enum(["start", "middle", "end"]).optional(),
+		fontWeight: z.enum(["normal", "bold"]).optional(),
 		style: styleSchema,
 	})
 	.passthrough();
@@ -135,6 +151,7 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 			const conn = await connections.getConnection(boardId);
 			const shapesMap = conn.getShapesMap();
 			const placedShapes: Array<{ id: string; type: string }> = [];
+			const placedBoxes: Array<{ id: string; box: Box }> = [];
 
 			conn.doc.transact(() => {
 				for (const shape of shapes) {
@@ -168,15 +185,16 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 
 					shapesMap.set(id, shapeData);
 					placedShapes.push({ id, type });
+					placedBoxes.push({ id, box: { x, y, width, height } });
 				}
 			});
 
-			// Show it as an AI participant editing these shapes (feature #960).
+			// Show it as an AI participant visiting and editing these shapes in turn (#960).
 			if (placedShapes.length > 0) {
 				conn.showAiActivity({
 					shapeIds: placedShapes.map((s) => s.id),
 					action: "edit",
-					cursor: centroidOf(shapes),
+					stops: visitShapes(placedBoxes),
 				});
 			}
 
@@ -203,6 +221,12 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 			const shapesMap = conn.getShapesMap();
 			const updatedIds: string[] = [];
 			const notFound: string[] = [];
+			// Bounds BEFORE the update, so a move/resize can be replayed as a drag.
+			const beforeBoxes = new Map<string, Box>();
+			for (const { id } of updates) {
+				const s = conn.getShape(id);
+				if (s) beforeBoxes.set(id, { x: s.x, y: s.y, width: s.width, height: s.height });
+			}
 
 			conn.doc.transact(() => {
 				for (const update of updates) {
@@ -245,13 +269,14 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 				}
 			});
 
-			// Show it as an AI participant editing these shapes (feature #960).
+			// Show it as an AI participant visiting and editing these shapes in turn (#960).
 			if (updatedIds.length > 0) {
-				const boxes = updatedIds
-					.map((id) => conn.getShape(id))
-					.filter((s): s is ShapeData => Boolean(s))
-					.map((s) => ({ x: s.x, y: s.y, width: s.width, height: s.height }));
-				conn.showAiActivity({ shapeIds: updatedIds, action: "edit", cursor: centroidOf(boxes) });
+				const visited = updatedIds.flatMap((id) => {
+					const s = conn.getShape(id);
+					const box = s && { x: s.x, y: s.y, width: s.width, height: s.height };
+					return box ? [{ id, box, from: beforeBoxes.get(id) }] : [];
+				});
+				conn.showAiActivity({ shapeIds: updatedIds, action: "edit", stops: visitShapes(visited) });
 			}
 
 			return {
@@ -295,8 +320,9 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 				}
 			});
 
-			// The shapes are gone, so no outline — just show the AI cursor at the spot.
-			if (deleted.length > 0) conn.showAiActivity({ cursor: centroidOf(delBoxes) });
+			// The shapes are gone, so no outline — the AI cursor just glides to the spot.
+			const spot = centroidOf(delBoxes);
+			if (deleted.length > 0 && spot) conn.showAiActivity({ stops: [{ cursor: spot }] });
 
 			return {
 				content: [

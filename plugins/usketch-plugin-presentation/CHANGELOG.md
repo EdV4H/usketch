@@ -1,5 +1,38 @@
 # @edv4h/usketch-plugin-presentation
 
+## 2.5.2
+
+### Patch Changes
+
+- Updated dependencies [1962032]
+- Updated dependencies [8cb3482]
+  - @edv4h/usketch-shared@4.18.0
+  - @edv4h/usketch-store@3.9.2
+
+## 2.5.1
+
+### Patch Changes
+
+- 828ae0f: ホストがスライド一覧のサムネイルなどで同じデッキ Shape を複数描いていると、デッキの文字を押した瞬間に中身の編集が終わってしまう問題を直す。編集を終える「デッキの外を押した」判定を、描画ごとではなく同じ Shape のどの描画の内側でもないときに限る。
+
+## 2.5.0
+
+### Minor Changes
+
+- 2ddb996: open-slide デッキの中身をボード上で書き換えられるようにする。デッキのページで `OpenSlideText` に囲んだ文字は、デッキをダブルクリックするとその場で編集でき、配色 3 色も差し替えられる。差し替えは Shape の `overrides` に保存され、undo できる。`OpenSlideApi` に `beginEdit` / `endEdit` / `setPalette` / `resetOverrides` などを足し、「デッキの中身を編集」「デッキを元の内容に戻す」アクションを登録する。
+
+## 2.4.0
+
+### Minor Changes
+
+- 90eca0b: feat(presentation): open-slide のデッキを置ける `open-slide` Shape を追加。`createPresentationPlugin({ openSlide: { decks } })` で有効化し、発表では →/Space でデッキ内のページを送ってから次のスライドへ進む。`SlideNavigator` にスライド内ステップ (`getStepCount` / `getCurrentStep` / `hasNext` / `hasPrev`) を追加。
+
+### Patch Changes
+
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+  - @edv4h/usketch-store@3.9.1
+
 ## 2.3.8
 
 ### Patch Changes

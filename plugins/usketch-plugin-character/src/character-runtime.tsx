@@ -2,6 +2,7 @@
 // plus smoothing of remote characters. One rAF loop that runs only while the local
 // character is enabled or a remote one is still easing into place.
 import {
+	groundHeightService,
 	type PluginContext,
 	type Point,
 	screenToWorld,
@@ -19,7 +20,7 @@ import {
 } from "./character-camera.js";
 import { createKeyInput } from "./character-input.js";
 import { CharacterLayer } from "./character-layer.js";
-import { stepCharacter } from "./character-physics.js";
+import { constrainToGround, type HeightAt, stepCharacter } from "./character-physics.js";
 import type { CharacterStore } from "./character-store.js";
 import {
 	type CharacterAwareness,
@@ -92,7 +93,11 @@ export function setupCharacterRuntime(
 	store: CharacterStore,
 	options: CharacterRuntimeOptions,
 ): CharacterRuntime {
-	const keys = createKeyInput(options.keys, () => store.getState().enabled);
+	const keys = createKeyInput(
+		options.keys,
+		() => store.getState().enabled,
+		() => store.getState().controlScheme === "vehicle" && store.getState().drift !== null,
+	);
 	let cam: CameraFocus | null = null;
 	let display: ReadonlyMap<string, RemoteCharacter> = new Map();
 	let rafId: number | null = null;
@@ -101,6 +106,10 @@ export function setupCharacterRuntime(
 	let writing = false;
 
 	const anchorPoint = (): Point => anchorPx(store.getState().anchor, canvasSize());
+
+	// Ground height from whichever plugin provides it (e.g. the map's raised terrain), looked up
+	// per call so a provider registered later still counts. Absent = flat board.
+	const heightAt: HeightAt = (x, y) => groundHeightService.get(ctx.services)?.heightAt(x, y) ?? 0;
 
 	const sync: CharacterSync | null = options.awareness
 		? createCharacterSync(options.awareness, store, () => ensureLoop())
@@ -141,14 +150,17 @@ export function setupCharacterRuntime(
 			if (s.followSuspended && keys.anyHeld()) store.setFollowSuspended(false);
 
 			const vp = ctx.store.getViewport();
-			const pose = stepCharacter(
+			const stepped = stepCharacter(
 				s.pose,
 				input,
 				dt,
 				s.controlScheme,
 				s.motion,
 				viewportRotation(vp),
+				s.drift,
 			);
+			// Cliffs taller than the climbable step block the move (slide along them).
+			const pose = constrainToGround(s.pose, stepped, heightAt, s.motion.maxStep);
 			store.setPose(pose);
 			s = store.getState();
 
@@ -235,7 +247,7 @@ export function setupCharacterRuntime(
 		id: CHARACTER_LAYER_ID,
 		order: CHARACTER_LAYER_ORDER,
 		fixed: true,
-		render: (rc) => <CharacterLayer store={store} viewport={rc.viewport} />,
+		render: (rc) => <CharacterLayer store={store} viewport={rc.viewport} heightAt={heightAt} />,
 	});
 
 	if (store.getState().enabled || sync) ensureLoop();
@@ -270,6 +282,9 @@ function sameRemotes(
 			o.heading !== r.heading ||
 			o.moving !== r.moving ||
 			o.speed !== r.speed ||
+			o.steering !== r.steering ||
+			o.slip !== r.slip ||
+			o.drifting !== r.drifting ||
 			o.name !== r.name ||
 			o.appearance !== r.appearance
 		) {

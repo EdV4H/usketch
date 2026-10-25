@@ -9,9 +9,10 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { parseCellKey } from "../autotile.js";
 import { renderIconAt } from "../icon-render.js";
-import { visibleCellRange, visibleWorldRect } from "../map-layer.js";
+import { layerOverflow, visibleCellRange, visibleWorldRect } from "../map-layer.js";
 import { terrainCssVars } from "../palette.js";
 import { renderConfigStore } from "../render-config.js";
+import { WobbleFilter } from "../wobble-filter.js";
 import { effectiveBaseIcon } from "./base-icon.js";
 import { getBaseMap } from "./base-ops.js";
 
@@ -66,26 +67,13 @@ export function BaseIconLayer({
 	if (nodes.length === 0) return null;
 
 	return (
-		<div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+		<div
+			style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: layerOverflow(vp) }}
+		>
 			<svg width="100%" height="100%" style={{ display: "block", overflow: "visible" }}>
 				<defs>
 					{/* Own wobble filter (distinct id) so it doesn't clash with terrain's. */}
-					<filter id={BASE_ICON_WOBBLE_FILTER_ID}>
-						<feTurbulence
-							type="fractalNoise"
-							baseFrequency="0.014"
-							numOctaves="2"
-							seed="7"
-							result="n"
-						/>
-						<feDisplacementMap
-							in="SourceGraphic"
-							in2="n"
-							scale="2.1"
-							xChannelSelector="R"
-							yChannelSelector="G"
-						/>
-					</filter>
+					<WobbleFilter id={BASE_ICON_WOBBLE_FILTER_ID} />
 				</defs>
 				<g
 					style={cssVars as React.CSSProperties}

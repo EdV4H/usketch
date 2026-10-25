@@ -1,5 +1,7 @@
 // Geometry
 
+// Ground height (terrain elevation shared across plugins)
+export { type GroundHeightApi, groundHeightService } from "./ground-height.js";
 // Service seam (typed host-facing plugin APIs over ctx.services / app.services)
 export { defineService, type ServiceHandle } from "./service.js";
 export type { BoundingBox, Point, Viewport } from "./types/geometry.js";

@@ -2,6 +2,7 @@ import type { BoardStore, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { describe, expect, it } from "vitest";
 import { collectParticipants } from "../activity-overlay.js";
+import { createMotionClock } from "../motion.js";
 
 type Awareness = WsProviderHandle["awareness"];
 
@@ -92,5 +93,101 @@ describe("collectParticipants", () => {
 	it("ignores clients with no activity field", () => {
 		const aw = fakeAwareness({ 2: { user: { name: "Bob" } } });
 		expect(collectParticipants(aw, fakeStore({}), shapes)).toEqual([]);
+	});
+});
+
+describe("collectParticipants with activity.motion", () => {
+	const motionActivity = {
+		// Static fields = the motion's final state, for clients that don't play motions.
+		shapeIds: ["a", "b"],
+		action: "edit",
+		label: "AI 🤖",
+		motion: {
+			id: "m1",
+			easing: "linear",
+			keyframes: [
+				{ at: 0, cursor: { x: 0, y: 0 } },
+				{ at: 100, cursor: { x: 100, y: 0 }, shapeIds: ["a"], action: "select" },
+				{ at: 200, cursor: { x: 200, y: 0 }, shapeIds: ["a", "b"], action: "edit" },
+			],
+		},
+	};
+	const store = fakeStore({ a: shape("a"), b: shape("b") });
+
+	it("ignores the motion without a clock (legacy behaviour)", () => {
+		const aw = fakeAwareness({ 2: { user: { name: "AI" }, activity: motionActivity } });
+		const [p] = collectParticipants(aw, store, shapes);
+		expect(p.boxes).toHaveLength(2);
+		expect(p.cursor).toBeUndefined();
+		expect(p.playing).toBeUndefined();
+	});
+
+	it("samples the motion on the receiver's clock", () => {
+		let now = 0;
+		const clock = createMotionClock(() => now);
+		const aw = fakeAwareness({ 2: { user: { name: "AI" }, activity: motionActivity } });
+
+		// First sight starts the clock: cursor only, still playing.
+		let [p] = collectParticipants(aw, store, shapes, clock);
+		expect(p.boxes).toEqual([]);
+		expect(p.cursor).toEqual({ x: 0, y: 0 });
+		expect(p.playing).toBe(true);
+
+		now = 150;
+		[p] = collectParticipants(aw, store, shapes, clock);
+		expect(p.boxes).toHaveLength(1);
+		expect(p.action).toBe("select");
+		expect(p.cursor).toEqual({ x: 150, y: 0 });
+
+		now = 500;
+		[p] = collectParticipants(aw, store, shapes, clock);
+		expect(p.boxes).toHaveLength(2);
+		expect(p.action).toBe("edit");
+		expect(p.playing).toBe(false);
+	});
+
+	it("keeps a playing participant whose current frame shows nothing yet", () => {
+		const clock = createMotionClock(() => 0);
+		const aw = fakeAwareness({
+			2: {
+				user: { name: "AI" },
+				activity: { motion: { id: "m", keyframes: [{ at: 0 }, { at: 300, shapeIds: ["a"] }] } },
+			},
+		});
+		const [p] = collectParticipants(aw, store, shapes, clock);
+		expect(p.playing).toBe(true);
+		expect(p.boxes).toEqual([]);
+	});
+
+	it("falls back to the static fields when the motion is malformed", () => {
+		const clock = createMotionClock(() => 0);
+		const aw = fakeAwareness({
+			2: { user: { name: "AI" }, activity: { shapeIds: ["a"], motion: { id: 5 } } },
+		});
+		const [p] = collectParticipants(aw, store, shapes, clock);
+		expect(p.boxes).toHaveLength(1);
+		expect(p.playing).toBeUndefined();
+	});
+
+	it("carries ghosts of shapes in transit", () => {
+		const clock = createMotionClock(() => 50);
+		const aw = fakeAwareness({
+			2: {
+				user: { name: "AI" },
+				activity: {
+					motion: {
+						id: "mv",
+						easing: "linear",
+						keyframes: [
+							{ at: 0, moves: [{ shapeId: "a", box: { x: 0, y: 0, width: 10, height: 10 } }] },
+							{ at: 100, moves: [{ shapeId: "a", box: { x: 100, y: 0, width: 10, height: 10 } }] },
+						],
+					},
+				},
+			},
+		});
+		// First sight starts the clock at 50 → elapsed 0.
+		const [p] = collectParticipants(aw, store, shapes, clock);
+		expect(p.ghosts).toEqual([{ shapeId: "a", box: { x: 0, y: 0, width: 10, height: 10 } }]);
 	});
 });

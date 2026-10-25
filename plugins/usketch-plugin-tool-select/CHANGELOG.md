@@ -1,5 +1,32 @@
 # @edv4h/usketch-plugin-tool-select
 
+## 3.2.16
+
+### Patch Changes
+
+- Updated dependencies [1962032]
+- Updated dependencies [8cb3482]
+  - @edv4h/usketch-shared@4.18.0
+  - @edv4h/usketch-core@2.4.8
+  - @edv4h/usketch-store@3.9.2
+  - @edv4h/usketch-tool-helpers@0.7.10
+
+## 3.2.15
+
+### Patch Changes
+
+- 16c8b8b: 図形をドラッグ中のドロップ先ハイライトを、固定の type（`frame` / `group`）ではなく shape 定義の `container.autoAttach`（`isContainerAutoAttach`）で判定する。実際に子として取り込むコンテナ（containment attacher と同じ条件）だけがハイライトされるようになり、ドロップしても取り込まれない `group` はハイライトされなくなる。
+
+## 3.2.14
+
+### Patch Changes
+
+- Updated dependencies [dc5d8d1]
+  - @edv4h/usketch-shared@4.17.0
+  - @edv4h/usketch-core@2.4.7
+  - @edv4h/usketch-store@3.9.1
+  - @edv4h/usketch-tool-helpers@0.7.9
+
 ## 3.2.13
 
 ### Patch Changes

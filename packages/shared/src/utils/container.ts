@@ -13,9 +13,12 @@ import type { ShapeData } from "../types/shape.js";
  *
  * Centralizes the rule so selection resolution, descendant follow, snap, and
  * the containment attacher all agree on what counts as a container — replacing
- * the old hardcoded `frame`/`island`/`group` type checks.
+ * the old hardcoded `frame`/`group` type checks.
  */
-export function isShapeContainer(def: ShapeDefinition | undefined, shape: ShapeData): boolean {
+export function isShapeContainer(
+	def: Pick<ShapeDefinition, "container"> | undefined,
+	shape: ShapeData,
+): boolean {
 	const c = def?.container;
 	if (!c) return false;
 	const e = c.enabled;
@@ -25,7 +28,7 @@ export function isShapeContainer(def: ShapeDefinition | undefined, shape: ShapeD
 
 /**
  * Resolve whether a container's children are individually selectable /
- * resizable (frame/island behavior) versus selecting the whole container
+ * resizable (frame behavior) versus selecting the whole container
  * (group behavior). Always `false` for non-containers.
  */
 export function hasSelectableChildren(def: ShapeDefinition | undefined, shape: ShapeData): boolean {
@@ -36,7 +39,7 @@ export function hasSelectableChildren(def: ShapeDefinition | undefined, shape: S
 
 /**
  * Resolve whether a container auto-attaches shapes dropped inside it as
- * children (frame-style), versus managing membership itself (group/island).
+ * children (frame-style), versus managing membership itself (group).
  * Always `false` for non-containers.
  */
 export function isContainerAutoAttach(def: ShapeDefinition | undefined, shape: ShapeData): boolean {

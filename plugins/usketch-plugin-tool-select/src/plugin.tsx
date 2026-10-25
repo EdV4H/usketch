@@ -27,6 +27,7 @@ import {
 	trackHover,
 } from "@edv4h/usketch-tool-helpers";
 import { clearMovingSelectionListeners, setMovingSelection } from "./drag-state.js";
+import { findDropTarget } from "./drop-target.js";
 import { clearDropTargetListeners, setDropTargetId } from "./drop-target-state.js";
 import {
 	clearEditingGroupListeners,
@@ -397,28 +398,8 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				// kind === "move"
 				dragState.session.update(event);
 
-				// Drop target: find frame/group under the cursor (excluding dragged shapes).
-				const allShapes = toolCtx.store.getShapes();
-				let dropTarget: string | null = null;
-				const entries = [...allShapes.entries()].reverse();
-				for (const [id, shape] of entries) {
-					if (dragState.movingIds.has(id)) continue;
-					if (shape.type !== "frame" && shape.type !== "group") continue;
-					const def = toolCtx.shapes.get(shape.type);
-					const bounds = def
-						? def.getBounds(shape)
-						: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
-					if (
-						event.worldPoint.x >= bounds.x &&
-						event.worldPoint.x <= bounds.x + bounds.width &&
-						event.worldPoint.y >= bounds.y &&
-						event.worldPoint.y <= bounds.y + bounds.height
-					) {
-						dropTarget = id;
-						break;
-					}
-				}
-				updateDropTarget(dropTarget);
+				// Drop target: the auto-attach container under the cursor (excluding dragged shapes).
+				updateDropTarget(findDropTarget(toolCtx, event.worldPoint, dragState.movingIds));
 			}
 
 			function onPointerUp(toolCtx: ToolContext, _event: CanvasPointerEvent) {

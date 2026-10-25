@@ -15,6 +15,7 @@ import { createRippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createKeyboardShortcutsPlugin } from "@edv4h/usketch-plugin-keyboard-shortcuts";
 import { createMapPlugin } from "@edv4h/usketch-plugin-map";
+import { createMode7Plugin } from "@edv4h/usketch-plugin-mode7";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createReactionsPlugin } from "@edv4h/usketch-plugin-reactions";
 import {
@@ -22,7 +23,6 @@ import {
 	createBoardPortalPlugin,
 } from "@edv4h/usketch-plugin-shape-board-portal";
 import { createGroupPlugin } from "@edv4h/usketch-plugin-shape-group";
-import { createIslandPlugin } from "@edv4h/usketch-plugin-shape-island";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { createSpatialChatPlugin } from "@edv4h/usketch-plugin-spatial-chat";
 import { createSpotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
@@ -224,7 +224,6 @@ export function CommunityPage() {
 					createViewportNavPlugin(),
 					portalPlugin,
 					createGroupPlugin(),
-					createIslandPlugin(),
 					// Demo default: unset tiles read as sea, so the world map is an
 					// infinite ocean with painted land (off-map counts as water). The map
 					// plugin is headless for territory — the demo app owns the look via
@@ -232,6 +231,9 @@ export function CommunityPage() {
 					createMapPlugin({ emptyTerrain: "water", territory: stockTerritoryStyle }),
 					// マップの初期視点（スタート位置）を HUD で設定・起動時移動。
 					createStartPositionPlugin(),
+					// Mode 7（擬似3D）。マップの地形が高さ（地形の種類で決まる段）ごとに崖として
+					// 立ち上がり、キャラもその上に乗る。既定 OFF、HUD「3Dビュー切替」で切替。
+					createMode7Plugin({ transition: { durationMs: 900 } }),
 					createDomRendererPlugin(),
 					// Control HUD: hosts plugin operations/settings + the useCommunityActions
 					// actions (toggle with the backtick key). Replaces bespoke on-canvas UI.
