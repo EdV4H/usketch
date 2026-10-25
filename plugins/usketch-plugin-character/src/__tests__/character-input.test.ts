@@ -161,53 +161,111 @@ describe("createKeyInput", () => {
 		input.dispose();
 	});
 
+	/** A fake element: `role`, `matches` by role / tag, and an optional parent. */
+	const el = (
+		tagName: string,
+		opts: { role?: string; type?: string; parent?: object; board?: boolean } = {},
+	) => ({
+		tagName,
+		type: opts.type,
+		parentElement: opts.parent ?? null,
+		getAttribute: (n: string) => (n === "role" ? (opts.role ?? null) : null),
+		matches: (sel: string) =>
+			(opts.role !== undefined && sel.includes(`[role="${opts.role}"]`)) ||
+			sel.split(", ").includes(tagName.toLowerCase()),
+		querySelector: () => (opts.board ? {} : null),
+	});
+
 	it("leaves every key to an open dialog or menu", () => {
 		const input = createKeyInput(
 			DEFAULT_KEYS,
 			() => true,
 			() => true,
 		);
-		const inDialog = {
-			tagName: "DIV",
-			closest: (sel: string) => (sel.includes('[role="dialog"]') ? {} : null),
-		};
-		for (const code of ["KeyW", "ArrowLeft", "Space"]) {
-			const e = dom.fire("keydown", { code, target: inDialog });
-			expect(e.preventDefault).not.toHaveBeenCalled();
+		const inDialog = el("DIV", { parent: el("DIV", { role: "dialog" }) });
+		const inMenu = el("DIV", { role: "menuitem", parent: el("DIV", { role: "menu" }) });
+		for (const target of [inDialog, inMenu]) {
+			for (const code of ["KeyW", "ArrowLeft", "Space"]) {
+				const e = dom.fire("keydown", { code, target });
+				expect(e.preventDefault).not.toHaveBeenCalled();
+			}
 		}
 		expect(input.anyHeld()).toBe(false);
 		input.dispose();
 	});
 
-	it("leaves arrow keys (only) to a focused slider, radio or tab", () => {
+	it("still drives when the host shows the board itself inside a dialog", () => {
+		const input = createKeyInput(DEFAULT_KEYS, () => true);
+		const onBoard = el("DIV", { parent: el("DIALOG", { board: true }) });
+		dom.fire("keydown", { code: "KeyW", target: onBoard });
+		expect(input.read().up).toBe(true);
+		input.dispose();
+	});
+
+	it("sees through shadow DOM via composedPath", () => {
+		const input = createKeyInput(DEFAULT_KEYS, () => true);
+		const inner = el("DIV", { role: "dialog" });
+		const host = el("SL-DIALOG");
+		const e = dom.fire("keydown", {
+			code: "KeyW",
+			target: host,
+			composedPath: () => [inner, host],
+		});
+		expect(e.preventDefault).not.toHaveBeenCalled();
+		expect(input.anyHeld()).toBe(false);
+		input.dispose();
+	});
+
+	it("leaves arrow keys (only) to a focused slider, radio, tab or menubar item", () => {
 		const input = createKeyInput({ ...DEFAULT_KEYS, left: ["KeyA", "ArrowLeft"] }, () => true);
-		const slider = {
-			tagName: "DIV",
-			getAttribute: (n: string) => (n === "role" ? "slider" : null),
-		};
+		const slider = el("DIV", { role: "slider" });
 		const arrow = dom.fire("keydown", { code: "ArrowLeft", target: slider });
 		expect(arrow.preventDefault).not.toHaveBeenCalled();
 		expect(input.read().left).toBe(false);
-		dom.fire("keydown", { code: "ArrowLeft", target: { tagName: "INPUT", type: "range" } });
+		dom.fire("keydown", { code: "ArrowLeft", target: el("INPUT", { type: "range" }) });
 		expect(input.read().left).toBe(false);
 		dom.fire("keydown", { code: "KeyA", target: slider });
+		expect(input.read().left).toBe(true);
+		dom.fire("keyup", { code: "KeyA" });
+		const barItem = el("DIV", { role: "menuitem", parent: el("DIV", { role: "menubar" }) });
+		dom.fire("keydown", { code: "KeyA", target: barItem });
 		expect(input.read().left).toBe(true);
 		input.dispose();
 	});
 
-	it("drops held keys when focus moves into a field, dialog or arrow widget", () => {
-		const input = createKeyInput(DEFAULT_KEYS, () => true);
+	it("treats a numpad key that acts as an arrow like an arrow", () => {
+		const input = createKeyInput({ ...DEFAULT_KEYS, left: ["Numpad4"] }, () => true);
+		const e = dom.fire("keydown", {
+			code: "Numpad4",
+			key: "ArrowLeft",
+			target: el("DIV", { role: "slider" }),
+		});
+		expect(e.preventDefault).not.toHaveBeenCalled();
+		dom.fire("keydown", { code: "Numpad4", key: "4", target: el("DIV", { role: "slider" }) });
+		expect(input.read().left).toBe(true);
+		input.dispose();
+	});
+
+	it("releases held keys the newly focused target uses", () => {
+		const input = createKeyInput(
+			{ ...DEFAULT_KEYS, left: ["KeyA", "ArrowLeft"] },
+			() => true,
+			() => true,
+		);
 		dom.fire("keydown", { code: "KeyW" });
-		dom.fireDoc("focusin", { target: { tagName: "BUTTON" } });
-		expect(input.read().up).toBe(true);
-		dom.fireDoc("focusin", { target: { tagName: "TEXTAREA" } });
+		dom.fire("keydown", { code: "ArrowLeft" });
+		dom.fire("keydown", { code: "Space" });
+		// A button takes Space (activated on keyup), nothing else.
+		dom.fireDoc("focusin", { target: el("BUTTON") });
+		expect(input.read()).toMatchObject({ up: true, left: true, drift: false });
+		const spaceUp = dom.fire("keyup", { code: "Space" });
+		expect(spaceUp.preventDefault).not.toHaveBeenCalled();
+		// A radio takes the arrows; WASD keeps driving.
+		dom.fireDoc("focusin", { target: el("INPUT", { type: "radio" }) });
+		expect(input.read()).toMatchObject({ up: true, left: false });
+		// A text field or dialog takes everything.
+		dom.fireDoc("focusin", { target: el("TEXTAREA") });
 		expect(input.anyHeld()).toBe(false);
-		dom.fire("keydown", { code: "KeyW" });
-		dom.fireDoc("focusin", { target: { tagName: "INPUT", type: "radio" } });
-		expect(input.anyHeld()).toBe(false);
-		// The released key's keyup now belongs to the new target.
-		const up = dom.fire("keyup", { code: "KeyW" });
-		expect(up.preventDefault).not.toHaveBeenCalled();
 		input.dispose();
 	});
 

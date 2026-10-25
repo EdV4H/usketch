@@ -55,11 +55,13 @@ createCharacterPlugin({
   (1/s). The drift key is only captured while drift is on.
 - **Keyboard focus**: movement keys are captured on `window` while the character is
   on, except where the page needs them: nothing is taken while a text field has focus
-  or focus is inside a dialog / menu (`dialog`, `role="dialog"`, `alertdialog`, `menu`,
-  `menubar`, `listbox`), arrow keys are left to widgets that use them (range / radio
-  inputs, `role="slider"`, `radio`, `tab`, `option`, `treeitem` …), and Space is left
-  to buttons, links and other controls it activates. Moving focus into such a target
-  releases the held keys.
+  or focus is inside a dialog / menu (`dialog`, `role="dialog"`, `alertdialog`, `menu`;
+  a dialog that contains the board itself doesn't count), arrow keys are left to
+  widgets that use them (range / radio inputs, `role="slider"`, `radio`, `tab`,
+  `option`, `combobox`, `menubar` items, `grid`, `treeitem` …) while WASD keeps
+  driving, and Space is left to buttons, links and other controls it activates. Focus
+  is read through `composedPath()`, so web-component dialogs count too. Moving focus
+  to such a target releases the held keys it uses.
 - **Camera modes**
   - `fixed` — follow, world stays upright.
   - `rotate` — follow and turn the world by `-heading` (character always faces up).
