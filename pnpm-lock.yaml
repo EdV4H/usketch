@@ -1575,7 +1575,7 @@ importers:
     dependencies:
       '@dagrejs/dagre':
         specifier: ^3.0.0
-        version: 3.1.1
+        version: 3.1.2
       '@edv4h/usketch-connector-anchor':
         specifier: workspace:*
         version: link:../../packages/usketch-connector-anchor
@@ -3432,11 +3432,11 @@ packages:
     resolution: {integrity: sha512-OoKoR0f76dCY666JlcbhmVTs2drYj1GUXZTYTcbUgJjh9Nv41aFfZ21bPQTERm5+L5cBDo466NltB2lplS5GBw==}
     engines: {node: '>=20.19.0'}
 
-  '@dagrejs/dagre@3.1.1':
-    resolution: {integrity: sha512-zroZB1dFOFiGgv4Xcrn1DckB1o4aOikPqD2NDQPV0WM//CXGcS6xiD0rNkqHmw6FEg4tabt4nxPLwgCWT+Vb2A==}
+  '@dagrejs/dagre@3.1.2':
+    resolution: {integrity: sha512-RdPzG77xlWvILaXKsMMKGe51DBtHLgMbY4sIukgAqJeAe25wMr9+3Ae+uyJaV4xOaK8k6Rn96fbHm5rT3johfA==}
 
-  '@dagrejs/graphlib@4.0.5':
-    resolution: {integrity: sha512-7xrBTqIts3o+PMUZX97wSc+7TUbW+/rULzGNCTP6yooNVDXbzw4Wutg/H/xOutTB/c/k0YqOAavgPh4/Zk9PFA==}
+  '@dagrejs/graphlib@4.0.6':
+    resolution: {integrity: sha512-Hjv7hbfmSBMP4nVXMFt4gusqWWHghQF0qNT4V5KHo4Jatvd+2L5VHKFnnIjXVuDnaHIRz7ZuHSnlf0RuZkOwWA==}
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
@@ -9019,11 +9019,11 @@ snapshots:
 
   '@csstools/css-tokenizer@4.0.2': {}
 
-  '@dagrejs/dagre@3.1.1':
+  '@dagrejs/dagre@3.1.2':
     dependencies:
-      '@dagrejs/graphlib': 4.0.5
+      '@dagrejs/graphlib': 4.0.6
 
-  '@dagrejs/graphlib@4.0.5': {}
+  '@dagrejs/graphlib@4.0.6': {}
 
   '@drizzle-team/brocli@0.10.2': {}
 
