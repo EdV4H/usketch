@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-debug-hud
 
+## 3.3.13
+
+### Patch Changes
+
+- Updated dependencies [2fa13a5]
+- Updated dependencies [2fe644e]
+  - @edv4h/usketch-shared@4.19.0
+
 ## 3.3.12
 
 ### Patch Changes
