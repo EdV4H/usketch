@@ -1,5 +1,34 @@
 # @edv4h/usketch-store
 
+## 3.10.0
+
+### Minor Changes
+
+- 6f3ef3b: feat(connector): コネクタの自由端点に対応（通常の矢印）。`createConnectorPlugin({ freeEnds: true })` で有効になる（既定は無効で、従来どおり両端とも図形が必要）。
+  
+  - `connector-draw`（L）とアンカーハンドルからの作成で、図形上なら接続、何もない所ならその座標で端点を固定する（片側だけの接続も可、画面上 4px 未満のドラッグは破棄）
+  - フレーム / グループの内側は「何もない所」として扱い、辺の近く（画面上 8px 以内）でだけ接続する
+  - 端点ハンドルのドラッグで自由端の移動・図形への接続・切り離しができる
+  - 片側接続のコネクタは接続側だけ図形に追従し、接続先の図形が削除されると切り離して自由端になる（select の Delete とグループ削除では Undo で再接続）
+  - L ツールはドラッグが始まるまでプレビュー用のコネクタを store に追加しない
+  - 端点の解決ロジック（`resolveConnectorEnds` / `moveConnectorEnd` / `computeEndpointDrop` / `findEndShapeAtPoint` など）を export
+  - `CascadeDeleteStore` に `updateShape` が必須になった
+- 9b3a0a1: feat(tool-select): Option(Alt)+ドラッグで選択図形を複製（Figma と同じく元はその場に残り、複製が動く）。ドラッグ中に Option を押す/離すで複製⇔移動を即切替。ドラッグ中の複製は履歴なしで store に入れて動かすので、共同編集の相手にも複製が動いて見える。ドロップで 1 つの追加コマンドに置き換え、Undo / Redo とも 1 手。動かさずに離したら複製しない。
+  
+  - **snap（挙動の変更）**: スナップを一時的に切り替えるキーを Alt(Option) から **Ctrl / Cmd** に変更（Alt は複製に使うため）。`altBehavior` オプションは名前を変えずに Ctrl / Cmd の挙動を指定する。
+  - tool-select: 複製の純関数 `addDragCopies` / `commitDragCopies` / `removeDragCopies` / `resolveCopyParents` / `duplicateTargetIds` を export。複製の親（フレームへの出し入れ）は containment-attacher と同じ規則で先に決め、追加時に別の reparent が履歴に積まれないようにした。ドラッグ中の Alt キーは preventDefault する（Windows でメニューバーにフォーカスが移らないように）。
+  - store: 複製の純関数 `collectWithDescendants` / `connectorsBetween` / `cloneShapes` / `rootShapeIds` / `translateShape`、複数追加を 1 手にする `createAddShapesCommand`、attacher と同じ親の決め方 `findAttachParent` を追加。
+  - store: `createContainmentAttacher` は、`parentId` 付きで追加された shape の親を保つ（フレームはまだその shape を含んでいれば、グループは常に）。Cmd+D / ペーストで複製を元フレームに重ねて置いたときに元フレームへ誤って付け替わる問題と、グループの複製で子がグループから外れる問題の修正。
+  - store: `cloneShapes` は `isEditing` を引き継がない（複製がテキスト編集モードで始まりフォーカスを奪わない）。
+  - keyboard-shortcuts: Cmd+D / ペーストが frame・group の子孫と、それらを結ぶコネクタも複製し、両端とも複製されたコネクタの `sourceId` / `targetId` を複製先へ張り替えるよう修正。Undo 1 回で全体が戻る。確定後は複製元で選択していた図形の複製だけを選択する（間のコネクタは選択しない）。
+
+### Patch Changes
+
+- Updated dependencies [2fa13a5]
+- Updated dependencies [2fe644e]
+  - @edv4h/usketch-shared@4.19.0
+  - @edv4h/usketch-core@2.4.9
+
 ## 3.9.2
 
 ### Patch Changes

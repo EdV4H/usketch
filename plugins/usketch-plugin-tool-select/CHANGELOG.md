@@ -1,5 +1,38 @@
 # @edv4h/usketch-plugin-tool-select
 
+## 3.3.0
+
+### Minor Changes
+
+- 2fe644e: テキストに Figma 風の自動幅を追加。新規テキストは入力に合わせて横に広がり（折り返しなし）、左右・四隅のハンドルで幅を変えると固定幅（折り返し）に切り替わる。左右ハンドルのダブルクリックで自動幅に戻り内容にフィットする。`ShapeDefinition.onHandleDoubleClick`、編集コントローラの `fitOnInput` / `cancelPendingClick` を追加。 IME 変換中も未確定文字に合わせて幅を広げる（`TEXT_PREVIEW_EVENT`）。
+  
+  - 複数選択のリサイズでも幅が変われば固定幅に切り替える（text に `applyBounds` を追加）
+  - 子をレイアウトするコンテナ（グリッド等）の中では、入力時に幅を争わず固定幅に切り替える
+  - 2px 未満の横ハンドル操作（ダブルクリック時の手ぶれ等）では幅も自動幅も変えない
+  - 回転したテキストは入力で大きさが変わっても左上の角を保つ
+  - `fitOnInput` に適用予定の高さ（`next.height`）を渡し、`fitOnInput` が変えたフィールドはすべて編集の Undo 1 手に含める
+  
+  AI / MCP 経由で作るテキストは固定幅のまま（#1210）。
+- 9b3a0a1: feat(tool-select): Option(Alt)+ドラッグで選択図形を複製（Figma と同じく元はその場に残り、複製が動く）。ドラッグ中に Option を押す/離すで複製⇔移動を即切替。ドラッグ中の複製は履歴なしで store に入れて動かすので、共同編集の相手にも複製が動いて見える。ドロップで 1 つの追加コマンドに置き換え、Undo / Redo とも 1 手。動かさずに離したら複製しない。
+  
+  - **snap（挙動の変更）**: スナップを一時的に切り替えるキーを Alt(Option) から **Ctrl / Cmd** に変更（Alt は複製に使うため）。`altBehavior` オプションは名前を変えずに Ctrl / Cmd の挙動を指定する。
+  - tool-select: 複製の純関数 `addDragCopies` / `commitDragCopies` / `removeDragCopies` / `resolveCopyParents` / `duplicateTargetIds` を export。複製の親（フレームへの出し入れ）は containment-attacher と同じ規則で先に決め、追加時に別の reparent が履歴に積まれないようにした。ドラッグ中の Alt キーは preventDefault する（Windows でメニューバーにフォーカスが移らないように）。
+  - store: 複製の純関数 `collectWithDescendants` / `connectorsBetween` / `cloneShapes` / `rootShapeIds` / `translateShape`、複数追加を 1 手にする `createAddShapesCommand`、attacher と同じ親の決め方 `findAttachParent` を追加。
+  - store: `createContainmentAttacher` は、`parentId` 付きで追加された shape の親を保つ（フレームはまだその shape を含んでいれば、グループは常に）。Cmd+D / ペーストで複製を元フレームに重ねて置いたときに元フレームへ誤って付け替わる問題と、グループの複製で子がグループから外れる問題の修正。
+  - store: `cloneShapes` は `isEditing` を引き継がない（複製がテキスト編集モードで始まりフォーカスを奪わない）。
+  - keyboard-shortcuts: Cmd+D / ペーストが frame・group の子孫と、それらを結ぶコネクタも複製し、両端とも複製されたコネクタの `sourceId` / `targetId` を複製先へ張り替えるよう修正。Undo 1 回で全体が戻る。確定後は複製元で選択していた図形の複製だけを選択する（間のコネクタは選択しない）。
+
+### Patch Changes
+
+- Updated dependencies [2fa13a5]
+- Updated dependencies [2fe644e]
+- Updated dependencies [6f3ef3b]
+- Updated dependencies [9b3a0a1]
+  - @edv4h/usketch-shared@4.19.0
+  - @edv4h/usketch-tool-helpers@0.8.0
+  - @edv4h/usketch-store@3.10.0
+  - @edv4h/usketch-core@2.4.9
+
 ## 3.2.16
 
 ### Patch Changes

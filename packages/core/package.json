@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-core",
-	"version": "2.4.8",
+	"version": "2.4.9",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

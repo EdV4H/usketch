@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-character
 
+## 0.3.1
+
+### Patch Changes
+
+- 61da0d9: Refine the focus rules for movement keys. A dialog that contains the board no longer blocks driving, and a menubar or listbox now counts as an arrow-key widget instead of taking every key. Focus is read through `composedPath()`, so dialogs inside web components are seen. Composite arrow-key roles (combobox, grid, tablist, radiogroup, toolbar …) are added. Numpad keys that act as arrows are treated as arrows. When focus moves, only the held keys the new target uses are released, so WASD doesn't stutter on a radio and a button pressed with Space while drifting still fires.
+- da8a562: Leave movement keys to dialogs, menus and arrow-key widgets. While focus is inside a dialog or menu no bound key is captured, arrow keys are left to a focused slider / radio / tab / option, and moving focus into a text field, dialog or such a widget releases the held keys (so a car no longer keeps driving or steers while you operate a dialog).
+- Updated dependencies [2fa13a5]
+- Updated dependencies [2fe644e]
+  - @edv4h/usketch-shared@4.19.0
+
 ## 0.3.0
 
 ### Minor Changes

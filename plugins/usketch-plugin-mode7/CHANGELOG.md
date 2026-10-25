@@ -1,5 +1,17 @@
 # @edv4h/usketch-plugin-mode7
 
+## 0.4.1
+
+### Patch Changes
+
+- 2d972ec: マップ上をキャラで歩いたときの重さを改善する。地形は 16 マス単位のチャンクで描いてメモ化し、移動はラッパーの translate だけにする（キャラなど他の図形が動いても作り直さない）。段差（立体）は Mode 7 が `usketch:stage-3d` で 3D 表示中を知らせたときだけ組み立て、同じ高さ・地形が続く崖の面を 1 枚にまとめる。手描き風のゆらぎは feTurbulence をやめ、一度だけ作るタイル状のノイズ画像に置き換え、かかる範囲を画面内に絞る。カメラ回転中の描画範囲は角度に依存しない正方形にする。
+- Updated dependencies [2fa13a5]
+- Updated dependencies [2fe644e]
+- Updated dependencies [6f3ef3b]
+- Updated dependencies [9b3a0a1]
+  - @edv4h/usketch-shared@4.19.0
+  - @edv4h/usketch-store@3.10.0
+
 ## 0.4.0
 
 ### Minor Changes
