@@ -1,12 +1,12 @@
-import type { LayerRenderContext, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
-import { createBoardStore } from "@edv4h/usketch-store";
+import type { Command, ShapeData } from "@edv4h/usketch-shared";
+import { createBoardStore, createContainmentAttacher } from "@edv4h/usketch-store";
 import { describe, expect, it } from "vitest";
 import {
-	cloneAtCurrentPositions,
+	addDragCopies,
+	commitDragCopies,
 	duplicateTargetIds,
-	previewRenderContext,
-	previewSnapCandidates,
-	restoreShapes,
+	removeDragCopies,
+	resolveCopyParents,
 } from "../duplicate-drag.js";
 
 function makeShape(overrides: Partial<ShapeData> = {}): ShapeData {
@@ -22,43 +22,33 @@ function makeShape(overrides: Partial<ShapeData> = {}): ShapeData {
 	};
 }
 
-describe("cloneAtCurrentPositions", () => {
-	it("copies the moving shapes where they are now, with internal references rewired", () => {
-		const store = createBoardStore();
-		store.addShape(makeShape({ id: "frame", type: "frame", x: 200 }));
-		store.addShape(makeShape({ id: "child", parentId: "frame", x: 210 }));
-		store.addShape(makeShape({ id: "C", type: "connector", sourceId: "child", targetId: "X" }));
+const isFrame = (s: ShapeData) => s.type === "frame";
 
-		const clones = cloneAtCurrentPositions(store, ["frame", "child", "C"]);
-
-		expect(clones).toHaveLength(3);
-		const ids = new Set(clones.map((c) => c.id));
-		expect(ids.has("frame")).toBe(false);
-		const frame = clones.find((c) => c.type === "frame");
-		const child = clones.find((c) => c.type === "rectangle");
-		const conn = clones.find((c) => c.type === "connector");
-		expect(frame?.x).toBe(200);
-		expect(child?.parentId).toBe(frame?.id);
-		expect(conn?.sourceId).toBe(child?.id);
-		expect(conn?.targetId).toBe("X");
-		// Store is untouched — the caller commits the clones through a command.
-		expect(store.getShapes().size).toBe(3);
+/** BoardStore + a containment attacher (frames are attach targets) + a recording history. */
+function setup() {
+	const store = createBoardStore();
+	const history: Command[] = [];
+	const commands = {
+		execute(cmd: Command) {
+			cmd.execute();
+			history.push(cmd);
+		},
+		undo() {
+			history.pop()?.undo();
+		},
+	};
+	const noopEvents = { on: () => () => {}, emit: () => {} };
+	createContainmentAttacher({
+		store,
+		commands: commands as never,
+		events: noopEvents as never,
+		isAttachTarget: isFrame,
 	});
-});
+	return { store, history, commands };
+}
 
-describe("restoreShapes", () => {
-	it("writes the snapshots back and skips shapes that are gone", () => {
-		const store = createBoardStore();
-		const start = makeShape({ id: "a", x: 0, y: 0 });
-		store.addShape(start);
-		store.updateShape("a", { x: 3, y: -2 });
-
-		restoreShapes(store, [start, makeShape({ id: "gone" })]);
-
-		expect(store.getShape("a")).toMatchObject({ x: 0, y: 0 });
-		expect(store.getShape("gone")).toBeUndefined();
-	});
-});
+const others = (store: ReturnType<typeof createBoardStore>, ids: string[]) =>
+	[...store.getShapes().values()].filter((s) => !ids.includes(s.id));
 
 describe("duplicateTargetIds", () => {
 	it("adds connectors running between the moving shapes (frame children)", () => {
@@ -73,60 +63,103 @@ describe("duplicateTargetIds", () => {
 	});
 });
 
-describe("previewRenderContext", () => {
-	it("renders only the snapshots, sorted by zIndex, with nothing selected or hovered", () => {
-		const base = {
-			shapes: new Map([["real", makeShape({ id: "real" })]]),
-			shapesSorted: [makeShape({ id: "real" })],
-			selection: new Set(["real"]),
-			hoveredShapeId: "real",
-			renderMode: "normal",
-		} as unknown as LayerRenderContext;
-		const child = makeShape({ id: "child", parentId: "frame", zIndex: "a2" });
-		const frame = makeShape({ id: "frame", type: "frame", zIndex: "a1" });
+describe("addDragCopies / commitDragCopies", () => {
+	it("adds copies at the originals' place without history, rewiring internal references", () => {
+		const { store, history } = setup();
+		store.addShape(makeShape({ id: "frame", type: "frame", width: 500, height: 500 }));
+		store.addShape(makeShape({ id: "A", parentId: "frame" }));
+		store.addShape(makeShape({ id: "B", parentId: "frame", x: 300 }));
+		store.addShape(makeShape({ id: "C", type: "connector", sourceId: "A", targetId: "B" }));
 
-		const ctx = previewRenderContext(base, [child, frame]);
+		const copies = addDragCopies(store, ["frame"], ["frame", "A", "B"], isFrame);
 
-		expect([...ctx.shapes.keys()].sort()).toEqual(["child", "frame"]);
-		expect(ctx.shapesSorted.map((s) => s.id)).toEqual(["frame", "child"]);
-		expect(ctx.selection.size).toBe(0);
-		expect(ctx.hoveredShapeId).toBeNull();
-		expect(ctx.renderMode).toBe("normal");
+		expect(copies.shapes).toHaveLength(4);
+		expect(copies.rootIds).toHaveLength(1);
+		const frameCopy = store.getShape(copies.rootIds[0] as string);
+		expect(frameCopy).toMatchObject({ type: "frame", x: 0, y: 0 });
+		const kids = others(store, ["frame", "A", "B", "C"]).filter(
+			(s) => s.parentId === frameCopy?.id,
+		);
+		expect(kids).toHaveLength(2);
+		const conn = copies.shapes.find((s) => s.type === "connector");
+		expect(kids.map((k) => k.id).sort()).toEqual([conn?.sourceId, conn?.targetId].sort());
+		expect(history).toHaveLength(0);
 	});
 
-	it("renders snapshots as not editing so a preview never mounts (and focuses) a text editor", () => {
-		const base = {
-			shapes: new Map(),
-			shapesSorted: [],
-			selection: new Set(),
-		} as unknown as LayerRenderContext;
-		const ctx = previewRenderContext(base, [makeShape({ id: "a", isEditing: true })]);
-		expect(ctx.shapes.get("a")?.isEditing).toBe(false);
-		expect(ctx.shapesSorted[0]?.isEditing).toBe(false);
+	it("keeps the children of a duplicated group in the copied group", () => {
+		const { store, history } = setup();
+		store.addShape(makeShape({ id: "g", type: "group", x: 0, y: 0, width: 10, height: 10 }));
+		store.addShape(makeShape({ id: "A", parentId: "g", x: 0, y: 0 }));
+
+		const copies = addDragCopies(store, ["g"], ["g", "A"], isFrame);
+
+		const [groupCopy] = copies.rootIds;
+		const childCopy = copies.shapes.find((s) => s.id !== groupCopy);
+		expect(store.getShape(childCopy?.id as string)?.parentId).toBe(groupCopy);
+		expect(history).toHaveLength(0);
+	});
+
+	it("replaces the copies with one undoable add at their dropped position", () => {
+		const { store, history, commands } = setup();
+		store.addShape(makeShape({ id: "A" }));
+		const copies = addDragCopies(store, ["A"], ["A"], isFrame);
+		const copyId = copies.rootIds[0] as string;
+		store.updateShape(copyId, { x: 400, y: 50 });
+
+		const add = commitDragCopies(store, copies, isFrame);
+		expect(store.getShape(copyId)).toBeUndefined();
+		commands.execute(add);
+
+		expect(store.getShape(copyId)).toMatchObject({ x: 400, y: 50 });
+		expect(store.getShape("A")).toMatchObject({ x: 0, y: 0 });
+		expect(history).toHaveLength(1);
+		commands.undo();
+		expect([...store.getShapes().keys()]).toEqual(["A"]);
+	});
+
+	it("attaches a copy dropped into a frame (and detaches one dropped out) without extra undo steps", () => {
+		const { store, history, commands } = setup();
+		store.addShape(makeShape({ id: "frame", type: "frame", x: 0, y: 0, width: 500, height: 500 }));
+		store.addShape(makeShape({ id: "A", parentId: "frame", x: 10, y: 10 }));
+		store.addShape(makeShape({ id: "B", x: 1000, y: 0 }));
+
+		const out = addDragCopies(store, ["A"], ["A"], isFrame);
+		store.updateShape(out.rootIds[0] as string, { x: 700, y: 10 });
+		commands.execute(commitDragCopies(store, out, isFrame));
+		expect(store.getShape(out.rootIds[0] as string)?.parentId).toBeUndefined();
+
+		const inside = addDragCopies(store, ["B"], ["B"], isFrame);
+		store.updateShape(inside.rootIds[0] as string, { x: 200, y: 200 });
+		commands.execute(commitDragCopies(store, inside, isFrame));
+		expect(store.getShape(inside.rootIds[0] as string)?.parentId).toBe("frame");
+
+		expect(history).toHaveLength(2);
+	});
+
+	it("removeDragCopies takes every copy back out", () => {
+		const { store } = setup();
+		store.addShape(makeShape({ id: "A" }));
+		store.addShape(makeShape({ id: "B", x: 300 }));
+		store.addShape(makeShape({ id: "C", type: "connector", sourceId: "A", targetId: "B" }));
+		const copies = addDragCopies(store, ["A", "B"], ["A", "B"], isFrame);
+		expect(store.getShapes().size).toBe(6);
+
+		removeDragCopies(store, copies);
+		expect([...store.getShapes().keys()]).toEqual(["A", "B", "C"]);
 	});
 });
 
-describe("previewSnapCandidates", () => {
-	it("returns the bounds of the top-level snapshots, skipping children and connectors", () => {
-		const frame = makeShape({ id: "frame", type: "frame", x: 10, y: 20, width: 300, height: 200 });
-		const child = makeShape({ id: "child", parentId: "frame", x: 30, y: 40 });
-		const conn = makeShape({ id: "C", type: "connector", x: 0, y: 0, width: 5, height: 5 });
-		const other = makeShape({ id: "inOuter", parentId: "outer", x: 500, y: 0 });
-
-		expect(previewSnapCandidates([frame, child, conn, other])).toEqual([
-			{ x: 10, y: 20, width: 300, height: 200 },
-			{ x: 500, y: 0, width: 100, height: 100 },
-		]);
-	});
-
-	it("uses ShapeDefinition.getBounds when the registry has one", () => {
-		const registry = {
-			get: () => ({
-				getBounds: (s: ShapeData) => ({ x: s.x - 1, y: s.y - 1, width: 2, height: 2 }),
-			}),
-		} as unknown as ShapeRegistry;
-		expect(previewSnapCandidates([makeShape({ id: "a", x: 5, y: 5 })], registry)).toEqual([
-			{ x: 4, y: 4, width: 2, height: 2 },
-		]);
+describe("resolveCopyParents", () => {
+	it("leaves connectors, frames and children of other copies alone", () => {
+		const store = createBoardStore();
+		store.addShape(makeShape({ id: "frame", type: "frame", width: 500, height: 500 }));
+		const shapes = [
+			makeShape({ id: "f2", type: "frame", x: 10, y: 10, width: 100, height: 100 }),
+			makeShape({ id: "kid", parentId: "f2", x: 20, y: 20, width: 10, height: 10 }),
+			makeShape({ id: "conn", type: "connector", x: 20, y: 20, width: 1, height: 1 }),
+			makeShape({ id: "loose", x: 300, y: 300, width: 10, height: 10 }),
+		];
+		const resolved = resolveCopyParents(store, shapes, isFrame);
+		expect(resolved.map((s) => s.parentId)).toEqual([undefined, "f2", undefined, "frame"]);
 	});
 });

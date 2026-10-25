@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effectiveSnapEnabled } from "./alt-behavior.js";
+import { effectiveSnapEnabled, isSnapToggleKey } from "./alt-behavior.js";
 
 describe("effectiveSnapEnabled", () => {
 	it("Alt 非押下なら enabled のまま", () => {
@@ -18,9 +18,13 @@ describe("effectiveSnapEnabled", () => {
 		// 無効 → 一時有効（新規。これが #636 の要望）
 		expect(effectiveSnapEnabled(false, true, "invert")).toBe(true);
 	});
+});
 
-	it("altToggleSuppressed の間は Alt を無視する", () => {
-		expect(effectiveSnapEnabled(true, true, "suppress", true)).toBe(true);
-		expect(effectiveSnapEnabled(false, true, "invert", true)).toBe(false);
+describe("isSnapToggleKey", () => {
+	it("Ctrl / Cmd で切り替え、Alt(Option) は複製用なので使わない", () => {
+		expect(isSnapToggleKey("Control")).toBe(true);
+		expect(isSnapToggleKey("Meta")).toBe(true);
+		expect(isSnapToggleKey("Alt")).toBe(false);
+		expect(isSnapToggleKey("Shift")).toBe(false);
 	});
 });

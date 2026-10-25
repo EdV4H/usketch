@@ -21,7 +21,13 @@ const PASTE_OFFSET = 20;
 const CLIPBOARD_FORMAT = "usketch/shapes";
 
 /** Fallback storage when navigator.clipboard is unavailable */
-let inMemoryClipboard: ShapeData[] | null = null;
+interface ClipboardContent {
+	shapes: ShapeData[];
+	/** Shapes to select after pasting (the copied selection, without auto-added connectors). */
+	selectedIds?: string[];
+}
+
+let inMemoryClipboard: ClipboardContent | null = null;
 
 function isInputFocused(): boolean {
 	const el = document.activeElement;
@@ -30,29 +36,46 @@ function isInputFocused(): boolean {
 	return tag === "INPUT" || tag === "TEXTAREA" || (el as HTMLElement).isContentEditable;
 }
 
-/** 選択中の shape とその子孫（frame / group の中身）、およびそれらを結ぶコネクタ。 */
-function collectShapes(store: BoardStore): ShapeData[] {
+/**
+ * 選択中の shape とその子孫（frame / group の中身）、およびそれらを結ぶコネクタ。
+ * `selectedIds` は複製後に選択し直す起点（選択中の shape のうち親が含まれないもの）で、
+ * 自動で足したコネクタは含めない。
+ */
+function collectShapes(store: BoardStore): { shapes: ShapeData[]; selectedIds: string[] } {
 	const shapes = collectWithDescendants(store, store.getSelection());
-	return [
-		...shapes,
-		...connectorsBetween(
-			store,
-			shapes.map((s) => s.id),
-		),
-	];
+	return {
+		shapes: [
+			...shapes,
+			...connectorsBetween(
+				store,
+				shapes.map((s) => s.id),
+			),
+		],
+		selectedIds: rootShapeIds(shapes),
+	};
 }
 
-/** 新規 shape 群（新 id・親子/接続の張り替え・初期 +20 オフセット）を生成。 */
+/**
+ * 新規 shape 群（新 id・親子/接続の張り替え・初期 +20 オフセット）を生成。`newIds` は
+ * 確定後に選択する id で、`selectedIds`（複製元で選択されていたもの）の複製先。
+ */
 function cloneWithNewIds(
 	shapes: ShapeData[],
+	selectedIds: readonly string[] | undefined,
 	registry?: ShapeRegistry,
 ): { newShapes: ShapeData[]; newIds: string[] } {
-	const { shapes: newShapes } = cloneShapes(shapes, {
+	const { shapes: newShapes, idMap } = cloneShapes(shapes, {
 		dx: PASTE_OFFSET,
 		dy: PASTE_OFFSET,
 		registry,
 	});
-	return { newShapes, newIds: rootShapeIds(newShapes) };
+	const newIds = selectedIds
+		? selectedIds.flatMap((id) => {
+				const mapped = idMap.get(id);
+				return mapped ? [mapped] : [];
+			})
+		: rootShapeIds(newShapes);
+	return { newShapes, newIds };
 }
 
 /**
@@ -119,13 +142,15 @@ function placeAndCommit(
 
 export async function copyShapes(store: BoardStore): Promise<void> {
 	if (isInputFocused()) return;
-	const shapes = collectShapes(store);
+	const { shapes, selectedIds } = collectShapes(store);
 	if (shapes.length === 0) return;
 
-	inMemoryClipboard = shapes;
+	inMemoryClipboard = { shapes, selectedIds };
 
 	try {
-		await navigator.clipboard.writeText(JSON.stringify({ format: CLIPBOARD_FORMAT, shapes }));
+		await navigator.clipboard.writeText(
+			JSON.stringify({ format: CLIPBOARD_FORMAT, shapes, selectedIds }),
+		);
 	} catch {
 		// Clipboard API not available; in-memory fallback is already set
 	}
@@ -139,22 +164,26 @@ export async function pasteShapes(
 ): Promise<void> {
 	if (isInputFocused()) return;
 
-	let shapes: ShapeData[] | null = null;
+	let content: ClipboardContent | null = null;
 
 	try {
 		const text = await navigator.clipboard.readText();
 		const data = JSON.parse(text);
 		if (data?.format === CLIPBOARD_FORMAT && Array.isArray(data.shapes)) {
-			shapes = data.shapes as ShapeData[];
+			content = {
+				shapes: data.shapes as ShapeData[],
+				// Older clipboard data has no selectedIds: fall back to the roots.
+				selectedIds: Array.isArray(data.selectedIds) ? (data.selectedIds as string[]) : undefined,
+			};
 		}
 	} catch {
 		// Clipboard API failed; fall through to in-memory
 	}
 
-	if (!shapes) shapes = inMemoryClipboard;
-	if (!shapes || shapes.length === 0) return;
+	if (!content) content = inMemoryClipboard;
+	if (!content || content.shapes.length === 0) return;
 
-	const { newShapes, newIds } = cloneWithNewIds(shapes, shapeRegistry);
+	const { newShapes, newIds } = cloneWithNewIds(content.shapes, content.selectedIds, shapeRegistry);
 	placeAndCommit(store, commands, events, newShapes, newIds, shapeRegistry);
 }
 
@@ -166,9 +195,9 @@ export function duplicateShapes(
 ): void {
 	if (isInputFocused()) return;
 
-	const shapes = collectShapes(store);
+	const { shapes, selectedIds } = collectShapes(store);
 	if (shapes.length === 0) return;
 
-	const { newShapes, newIds } = cloneWithNewIds(shapes, shapeRegistry);
+	const { newShapes, newIds } = cloneWithNewIds(shapes, selectedIds, shapeRegistry);
 	placeAndCommit(store, commands, events, newShapes, newIds, shapeRegistry);
 }

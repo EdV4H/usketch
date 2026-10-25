@@ -24,6 +24,32 @@ export interface ContainmentAttacherOptions {
 const boundsOf = (s: ShapeData) => ({ x: s.x, y: s.y, width: s.width, height: s.height });
 
 /**
+ * The container {@link createContainmentAttacher} attaches `shape` to: the
+ * smallest attach-target container that fully contains it (never one of its
+ * own descendants), or null. `shape` may be a not-yet-added copy; the store
+ * entry with its id, if any, is skipped.
+ */
+export function findAttachParent(
+	store: BoardStore,
+	shape: ShapeData,
+	isAttachTarget: (shape: ShapeData) => boolean,
+): ShapeData | null {
+	const shapeBounds = boundsOf(shape);
+	let best: ShapeData | null = null;
+	for (const [id, candidate] of store.getShapes()) {
+		if (id === shape.id) continue;
+		if (!isAttachTarget(candidate)) continue;
+		// Never nest a shape into one of its own descendants.
+		if (wouldCreateCycle(store, shape.id, id)) continue;
+		if (!containsAABB(boundsOf(candidate), shapeBounds)) continue;
+		if (!best || candidate.width * candidate.height < best.width * best.height) {
+			best = candidate;
+		}
+	}
+	return best;
+}
+
+/**
  * Wire up automatic parent-child attachment by containment. When a shape is
  * added or finishes a move, find the smallest attach-target container that
  * fully contains it and set its `parentId` (or clear it when moved out).
@@ -44,25 +70,18 @@ export function createContainmentAttacher(opts: ContainmentAttacherOptions): () 
 		if (!shape || !canAttach(shape)) return;
 
 		const shapeBounds = boundsOf(shape);
-		// A shape added with a parentId (duplicate / paste) keeps that parent while
-		// it still contains the shape. Re-picking would tie-break same-size
-		// containers (e.g. the original frame under its copy) toward the wrong one.
+		// A shape added with a parentId (duplicate / paste) keeps that parent: an
+		// attach-target parent (frame) while it still contains the shape — re-picking
+		// would tie-break same-size containers (e.g. the original frame under its
+		// copy) toward the wrong one — and any other parent (group) always, since
+		// that membership is not decided by containment.
 		if (keepContainingParent && typeof shape.parentId === "string") {
 			const parent = store.getShape(shape.parentId);
-			if (parent && isAttachTarget(parent) && containsAABB(boundsOf(parent), shapeBounds)) return;
-		}
-		// Find the smallest attach-target container that fully contains the shape.
-		let best: ShapeData | null = null;
-		for (const [id, candidate] of store.getShapes()) {
-			if (id === shapeId) continue;
-			if (!isAttachTarget(candidate)) continue;
-			// Never nest a shape into one of its own descendants.
-			if (wouldCreateCycle(store, shapeId, id)) continue;
-			if (!containsAABB(boundsOf(candidate), shapeBounds)) continue;
-			if (!best || candidate.width * candidate.height < best.width * best.height) {
-				best = candidate;
+			if (parent && (!isAttachTarget(parent) || containsAABB(boundsOf(parent), shapeBounds))) {
+				return;
 			}
 		}
+		const best = findAttachParent(store, shape, isAttachTarget);
 
 		const currentParentId = shape.parentId as string | undefined;
 		const newParentId = best?.id;

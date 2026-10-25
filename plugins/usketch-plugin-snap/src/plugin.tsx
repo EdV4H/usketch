@@ -9,7 +9,7 @@ import type {
 } from "@edv4h/usketch-shared";
 import { screenRectToWorldBounds } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
-import { effectiveSnapEnabled } from "./alt-behavior.js";
+import { effectiveSnapEnabled, isSnapToggleKey } from "./alt-behavior.js";
 import { DEFAULT_GUIDE_STYLE, DEFAULT_SNAP_THRESHOLD } from "./constants.js";
 import { calculateSnap, type SnapEdgeFilter } from "./engine/snap-engine.js";
 import type {
@@ -137,7 +137,10 @@ function SnapGuideOverlay({ viewport }: SnapGuideOverlayProps) {
 export interface SnapPluginOptions {
 	/** 初期のスナップ有効状態（既定 true）。 */
 	enabled?: boolean;
-	/** Alt(Option) キーの挙動（既定 "suppress"）。"invert" で無効時も Alt で一時スナップ。 */
+	/**
+	 * スナップ一時切替キー（Ctrl / Cmd）の挙動（既定 "suppress"）。"invert" で無効時も
+	 * Ctrl / Cmd で一時スナップ。名前は互換のため。Alt(Option) はドラッグ複製に使うので切替に使わない。
+	 */
 	altBehavior?: AltBehavior;
 	/** 等間隔（distribution）スナップ＝gap 複製＋gap 中央（既定 true）。 */
 	distributeSnap?: boolean;
@@ -165,10 +168,6 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 
 			let pointerDown = false;
 			let altKeyHeld = false;
-			// `snap:alt-toggle-suppress` で他プラグインが Alt を別用途に使う間は true。
-			let altToggleSuppressed = false;
-			// `snap:extra-candidates` で渡された、store に無い一時的なスナップ候補（ワールド座標）。
-			let extraCandidates: readonly BoundingBox[] = [];
 
 			// Frame-level caches for multi-shape snap consistency
 			let frameSnapResult: SnapResult | null = null;
@@ -184,23 +183,6 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				setState({ lines: [], gaps: [] });
 			});
 
-			// 公開契約: Alt によるスナップ切替を一時的に無効にする（呼び出し側が false で戻す）。
-			// 公開契約: 一時的な追加のスナップ候補（ワールド座標の矩形）。空配列で解除。
-			const offExtraCandidates = ctx.events.on<{ boxes: readonly BoundingBox[] }>(
-				"snap:extra-candidates",
-				(data) => {
-					extraCandidates = Array.isArray(data.boxes) ? data.boxes : [];
-					frameCandidateBoxes = null;
-				},
-			);
-
-			const offAltToggleSuppress = ctx.events.on<{ suppressed: boolean }>(
-				"snap:alt-toggle-suppress",
-				(data) => {
-					altToggleSuppressed = data.suppressed === true;
-				},
-			);
-
 			const offPointerUp = ctx.events.on<CanvasPointerEvent>("canvas:pointerup", () => {
 				pointerDown = false;
 				frameSnapResult = null;
@@ -208,13 +190,13 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				setState({ lines: [], gaps: [] });
 			});
 
-			// ── Alt key tracking ──
+			// ── Toggle key tracking (Ctrl / Cmd) ──
 
 			function onKeyDown(e: KeyboardEvent) {
-				if (e.key === "Alt") altKeyHeld = true;
+				if (isSnapToggleKey(e.key)) altKeyHeld = true;
 			}
 			function onKeyUp(e: KeyboardEvent) {
-				if (e.key === "Alt") altKeyHeld = false;
+				if (isSnapToggleKey(e.key)) altKeyHeld = false;
 			}
 			function onBlur() {
 				altKeyHeld = false;
@@ -256,7 +238,6 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 					settings.enabled,
 					altKeyHeld,
 					settings.altBehavior,
-					altToggleSuppressed,
 				);
 				const shouldSnap = pointerDown && effectiveEnabled && hasPositionUpdate(updates);
 
@@ -339,7 +320,6 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 						movingIds,
 						settings.viewportOnly ? ctx.store.getViewport() : null,
 						settings.excludeTargets,
-						extraCandidates,
 					);
 				frameCandidateBoxes = candidateBoxes;
 
@@ -391,8 +371,6 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 			return () => {
 				offPointerDown();
 				offPointerUp();
-				offAltToggleSuppress();
-				offExtraCandidates();
 				offConfigure();
 				offGetSettings();
 				offSnapAction();
@@ -563,7 +541,6 @@ function getCandidateBoxes(
 	movingIds: ReadonlySet<string>,
 	viewport: Viewport | null,
 	excludeTargets?: (shape: ShapeData) => boolean,
-	extraCandidates: readonly BoundingBox[] = [],
 ): Map<string, BoundingBox> {
 	const visibleRect = viewport ? getVisibleWorldRect(viewport) : null;
 
@@ -609,10 +586,6 @@ function getCandidateBoxes(
 		if (visibleRect && !boxesOverlap(box, visibleRect)) continue;
 		boxes.set(id, box);
 	}
-	extraCandidates.forEach((box, i) => {
-		if (visibleRect && !boxesOverlap(box, visibleRect)) return;
-		boxes.set(`snap:extra-candidate:${i}`, box);
-	});
 	return boxes;
 }
 

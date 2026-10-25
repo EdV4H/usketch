@@ -36,6 +36,7 @@ export {
 export {
 	type ContainmentAttacherOptions,
 	createContainmentAttacher,
+	findAttachParent,
 } from "./containment-attacher.js";
 export {
 	type CloneShapesOptions,

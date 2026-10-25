@@ -71,7 +71,7 @@ export interface GuideStyle {
 }
 
 /**
- * Alt(Option) キー押下中の挙動。
+ * スナップ一時切替キー（Ctrl / Cmd）押下中の挙動（名前は互換のため Alt のまま）。
  * - `"suppress"`（既定・従来）: 押下中は無条件にスナップ抑止。
  * - `"invert"`: 押下中は `enabled` を一時反転（無効時に一時有効、有効時に一時無効）。
  */
@@ -90,7 +90,7 @@ export interface SnapSettings {
 	distributeSnap?: boolean;
 	viewportOnly: boolean;
 	guideStyle: GuideStyle;
-	/** Alt(Option) キーの挙動（既定 `"suppress"`）。 */
+	/** スナップ一時切替キー（Ctrl / Cmd）の挙動（既定 `"suppress"`）。 */
 	altBehavior: AltBehavior;
 	/**
 	 * スナップ計算から完全に除外する述語。`true` を返すシェイプは

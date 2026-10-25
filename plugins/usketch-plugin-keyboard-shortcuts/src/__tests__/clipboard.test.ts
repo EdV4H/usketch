@@ -89,6 +89,23 @@ describe("duplicateShapes (Cmd+D)", () => {
 		expect(copyA?.parentId).not.toBe("frame");
 	});
 
+	it("selects the copies of the selection, not the connectors added between them", () => {
+		const store = createBoardStore();
+		const commands = createCommandRegistry();
+		store.addShape(makeShape({ id: "A" }));
+		store.addShape(makeShape({ id: "B", x: 300 }));
+		store.addShape(makeShape({ id: "C", type: "connector", sourceId: "A", targetId: "B" }));
+		store.setSelection(["A", "B"]);
+
+		duplicateShapes(store, commands);
+
+		const selected = [...store.getSelection()].map((id) => store.getShape(id));
+		expect(selected).toHaveLength(2);
+		expect(selected.every((s) => s?.type === "rectangle")).toBe(true);
+		// The connector between them is still duplicated.
+		expect([...store.getShapes().values()].filter((s) => s.type === "connector")).toHaveLength(2);
+	});
+
 	it("is undone in a single step", () => {
 		const store = createBoardStore();
 		const commands = createCommandRegistry();
