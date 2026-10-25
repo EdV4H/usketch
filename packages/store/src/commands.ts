@@ -12,6 +12,21 @@ export function createAddShapeCommand(store: BoardStore, shape: ShapeData): Comm
 	};
 }
 
+/** Add several shapes as one undo step (duplicate / paste). Undo removes in reverse order. */
+export function createAddShapesCommand(store: BoardStore, shapes: readonly ShapeData[]): Command {
+	return {
+		execute() {
+			for (const shape of shapes) store.addShape(shape);
+		},
+		undo() {
+			for (let i = shapes.length - 1; i >= 0; i--) {
+				const shape = shapes[i];
+				if (shape) store.deleteShape(shape.id);
+			}
+		},
+	};
+}
+
 export function createDeleteShapeCommand(store: BoardStore, shapeId: string): Command {
 	let snapshot: ShapeData | undefined;
 	return {
