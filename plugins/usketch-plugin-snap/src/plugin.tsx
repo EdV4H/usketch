@@ -9,7 +9,7 @@ import type {
 } from "@edv4h/usketch-shared";
 import { screenRectToWorldBounds } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
-import { effectiveSnapEnabled } from "./alt-behavior.js";
+import { effectiveSnapEnabled, isSnapToggleKey } from "./alt-behavior.js";
 import { DEFAULT_GUIDE_STYLE, DEFAULT_SNAP_THRESHOLD } from "./constants.js";
 import { calculateSnap, type SnapEdgeFilter } from "./engine/snap-engine.js";
 import type {
@@ -137,7 +137,10 @@ function SnapGuideOverlay({ viewport }: SnapGuideOverlayProps) {
 export interface SnapPluginOptions {
 	/** 初期のスナップ有効状態（既定 true）。 */
 	enabled?: boolean;
-	/** Alt(Option) キーの挙動（既定 "suppress"）。"invert" で無効時も Alt で一時スナップ。 */
+	/**
+	 * スナップ一時切替キー（Ctrl / Cmd）の挙動（既定 "suppress"）。"invert" で無効時も
+	 * Ctrl / Cmd で一時スナップ。名前は互換のため。Alt(Option) はドラッグ複製に使うので切替に使わない。
+	 */
 	altBehavior?: AltBehavior;
 	/** 等間隔（distribution）スナップ＝gap 複製＋gap 中央（既定 true）。 */
 	distributeSnap?: boolean;
@@ -187,13 +190,13 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				setState({ lines: [], gaps: [] });
 			});
 
-			// ── Alt key tracking ──
+			// ── Toggle key tracking (Ctrl / Cmd) ──
 
 			function onKeyDown(e: KeyboardEvent) {
-				if (e.key === "Alt") altKeyHeld = true;
+				if (isSnapToggleKey(e.key)) altKeyHeld = true;
 			}
 			function onKeyUp(e: KeyboardEvent) {
-				if (e.key === "Alt") altKeyHeld = false;
+				if (isSnapToggleKey(e.key)) altKeyHeld = false;
 			}
 			function onBlur() {
 				altKeyHeld = false;

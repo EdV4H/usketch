@@ -67,6 +67,51 @@ describe("createContainmentAttacher", () => {
 		stop();
 	});
 
+	it("keeps the parentId a shape is added with while that container contains it (Cmd+D / paste over the original)", () => {
+		const store = createBoardStore();
+		const execute = vi.fn((cmd: { execute(): void }) => cmd.execute());
+		const stop = createContainmentAttacher({
+			store,
+			commands: { ...makeCommands(), execute } as unknown as CommandRegistry,
+			events: makeEvents(),
+			isAttachTarget: isFrame,
+		});
+
+		// Cmd+D / paste can place a frame's copy over the original (e.g. no free spot
+		// found). Both same-size frames contain the copied child; re-picking the
+		// "smallest" would tie-break to the original (first in the store) and pull
+		// the copy's child out of its own frame, behind the copy's opaque background.
+		store.addShape(makeShape({ id: "frame", type: "frame", x: 0, y: 0, width: 400, height: 400 }));
+		store.addShape(makeShape({ id: "copy", type: "frame", x: 0, y: 0, width: 400, height: 400 }));
+		store.addShape(makeShape({ id: "child", parentId: "copy", x: 20, y: 20 }));
+
+		expect(store.getShape("child")?.parentId).toBe("copy");
+		expect(execute).not.toHaveBeenCalled();
+		stop();
+	});
+
+	it("keeps a group parent a shape is added with (duplicating a group keeps its children)", () => {
+		const store = createBoardStore();
+		const execute = vi.fn((cmd: { execute(): void }) => cmd.execute());
+		const stop = createContainmentAttacher({
+			store,
+			commands: { ...makeCommands(), execute } as unknown as CommandRegistry,
+			events: makeEvents(),
+			isAttachTarget: isFrame,
+		});
+
+		// A group is not an attach target, and its children need not lie inside its
+		// stored bounds (they are kept in sync elsewhere); the copy's child must stay
+		// in the copied group rather than being detached to the top level.
+		store.addShape(makeShape({ id: "frame", type: "frame", x: 0, y: 0, width: 400, height: 400 }));
+		store.addShape(makeShape({ id: "group", type: "group", x: 500, y: 0, width: 10, height: 10 }));
+		store.addShape(makeShape({ id: "child", parentId: "group", x: 20, y: 20 }));
+
+		expect(store.getShape("child")?.parentId).toBe("group");
+		expect(execute).not.toHaveBeenCalled();
+		stop();
+	});
+
 	it("does not attach a shape added outside any container", () => {
 		const store = createBoardStore();
 		const stop = createContainmentAttacher({

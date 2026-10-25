@@ -1,10 +1,12 @@
 import type {
 	CanvasPointerEvent,
 	PluginContext,
+	Point,
+	ShapeData,
 	ToolContext,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
-import { safeRotation } from "@edv4h/usketch-shared";
+import { isContainerAutoAttach, safeRotation } from "@edv4h/usketch-shared";
 import {
 	createDeleteWithChildrenCommand,
 	isEffectivelyHidden,
@@ -29,6 +31,12 @@ import {
 import { clearMovingSelectionListeners, setMovingSelection } from "./drag-state.js";
 import { findDropTarget } from "./drop-target.js";
 import { clearDropTargetListeners, setDropTargetId } from "./drop-target-state.js";
+import {
+	addDragCopies,
+	commitDragCopies,
+	type DragCopies,
+	removeDragCopies,
+} from "./duplicate-drag.js";
 import {
 	clearEditingGroupListeners,
 	getEditingGroupId,
@@ -93,6 +101,16 @@ type DragState =
 			kind: "move";
 			session: ReturnType<typeof startDragSession>;
 			movingIds: ReadonlySet<string>;
+			toolCtx: ToolContext;
+			startPoint: Point;
+			/** Selection when the drag started (what a plain move moves). */
+			selectedIds: string[];
+			/** Shapes the plain move moves (selection + descendants). */
+			originalMovingIds: ReadonlySet<string>;
+			/** Option(Alt) is held: the drag moves these copies and the originals stay. */
+			copies: DragCopies | null;
+			/** Last pointer event, replayed when Option toggles mid-drag. */
+			lastEvent: CanvasPointerEvent | null;
 	  }
 	| {
 			kind: "resize";
@@ -143,6 +161,96 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			let lastClickTime = 0;
 			let lastClickId: string | null = null;
 			const trackHandleClick = createHandleClickTracker();
+
+			// ── Option(Alt)+drag duplicate ──
+			// Like Figma: while Option is held the drag moves copies and the originals
+			// stay where they are. The copies live in the store during the drag (so a
+			// collaborator sees the copy move, not the original) without history; the
+			// drop replaces them with one undoable add. Toggled by the Alt key itself
+			// (not only pointermove) so pressing or releasing Option while the mouse is
+			// still switches move ⇔ duplicate.
+
+			const isAttachTarget = (shape: ShapeData) =>
+				isContainerAutoAttach(ctx.shapes.get(shape.type), shape);
+
+			// Snap must not nudge the shapes put back to their start positions when the
+			// drag switches between the originals and the copies.
+			function withoutSnap(fn: () => void) {
+				let enabled = false;
+				ctx.events.emit("snap:get-settings", (settings: { enabled: boolean }) => {
+					enabled = settings.enabled;
+				});
+				if (enabled) ctx.events.emit("snap:configure", { enabled: false });
+				try {
+					fn();
+				} finally {
+					if (enabled) ctx.events.emit("snap:configure", { enabled: true });
+				}
+			}
+
+			function setDuplicating(on: boolean) {
+				if (dragState?.kind !== "move" || (dragState.copies !== null) === on) return;
+				const state = dragState;
+				const { store } = state.toolCtx;
+				withoutSnap(() => {
+					// Put whatever the current session moved back where it started.
+					state.session.cancel();
+					if (on) {
+						state.copies = addDragCopies(
+							store,
+							state.selectedIds,
+							state.originalMovingIds,
+							isAttachTarget,
+						);
+						store.setSelection(state.copies.rootIds);
+					} else {
+						if (state.copies) removeDragCopies(store, state.copies);
+						state.copies = null;
+						store.setSelection(state.selectedIds);
+					}
+				});
+				state.session = startDragSession({
+					ctx: state.toolCtx,
+					startPoint: state.startPoint,
+					shapeIds: store.getSelection(),
+				});
+				state.movingIds = state.session.movingShapeIds;
+				if (state.lastEvent) state.session.update(state.lastEvent);
+			}
+
+			let keyTracking = false;
+			function onDuplicateKey(e: KeyboardEvent) {
+				if (e.key !== "Alt") return;
+				// Alt alone would focus the menu bar on Windows / Linux.
+				e.preventDefault();
+				setDuplicating(e.type === "keydown");
+			}
+			function onDuplicateBlur() {
+				setDuplicating(false);
+			}
+			function startDuplicateKeyTracking() {
+				keyTracking = true;
+				// Capture phase: a focused text editor stops keydown from bubbling.
+				window.addEventListener("keydown", onDuplicateKey, true);
+				window.addEventListener("keyup", onDuplicateKey, true);
+				window.addEventListener("blur", onDuplicateBlur);
+			}
+			function stopDuplicateKeyTracking() {
+				if (!keyTracking) return;
+				keyTracking = false;
+				window.removeEventListener("keydown", onDuplicateKey, true);
+				window.removeEventListener("keyup", onDuplicateKey, true);
+				window.removeEventListener("blur", onDuplicateBlur);
+			}
+
+			/** Drop the copies of an unfinished duplicate drag (the originals never moved). */
+			function discardCopies() {
+				if (dragState?.kind !== "move" || !dragState.copies) return;
+				const { store } = dragState.toolCtx;
+				removeDragCopies(store, dragState.copies);
+				dragState.copies = null;
+				store.setSelection(dragState.selectedIds);
+			}
 
 			// Inject a <style> tag to override canvas cursor via !important
 			const styleEl = document.createElement("style");
@@ -348,7 +456,15 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 						kind: "move",
 						session,
 						movingIds: session.movingShapeIds,
+						toolCtx,
+						startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
+						selectedIds: [...currentSelection],
+						originalMovingIds: session.movingShapeIds,
+						copies: null,
+						lastEvent: null,
 					};
+					startDuplicateKeyTracking();
+					setDuplicating(event.altKey);
 				} else {
 					// Click on empty — start marquee selection
 					if (!event.shiftKey) {
@@ -406,6 +522,8 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				}
 
 				// kind === "move"
+				dragState.lastEvent = event;
+				setDuplicating(event.altKey);
 				dragState.session.update(event);
 
 				// Drop target: the auto-attach container under the cursor (excluding dragged shapes).
@@ -453,6 +571,27 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 
 				// kind === "move"
 				setMovingSelection(false);
+				stopDuplicateKeyTracking();
+				const { copies } = dragState;
+				if (copies) {
+					// Option held at drop: the originals never moved; the copies become one
+					// undoable add where they were dropped. A click without moving adds none.
+					const moved = copies.shapes.some((s) => {
+						const now = toolCtx.store.getShape(s.id);
+						return !!now && (now.x !== s.x || now.y !== s.y);
+					});
+					const add = moved ? commitDragCopies(toolCtx.store, copies, isAttachTarget) : null;
+					if (!add) discardCopies();
+					dragState = null;
+					if (add) {
+						queueMicrotask(() => {
+							toolCtx.commands.execute(add);
+							toolCtx.store.setSelection(copies.rootIds);
+							toolCtx.events.emit("shapes:move-end", { shapeIds: copies.rootIds });
+						});
+					}
+					return;
+				}
 				const userSelectedIds = [...toolCtx.store.getSelection()];
 				const result = dragState.session.commit();
 				if (result) {
@@ -466,6 +605,8 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			}
 
 			function onDeactivate(toolCtx: ToolContext) {
+				discardCopies();
+				stopDuplicateKeyTracking();
 				dragState = null;
 				enableTextSelection();
 				setMovingSelection(false);
@@ -518,6 +659,8 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			// ── Teardown ──
 			return () => {
 				offConfigure();
+				discardCopies();
+				stopDuplicateKeyTracking();
 				// overlayColors はインスタンス所有なので reset 不要（GC で破棄）。#640
 				setOverrideCursor("");
 				setMovingSelection(false);

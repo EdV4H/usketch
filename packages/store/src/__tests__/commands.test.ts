@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createBoardStore } from "../board-store.js";
 import {
 	createAddShapeCommand,
+	createAddShapesCommand,
 	createBatchUpdateShapesCommand,
 	createBringForwardCommand,
 	createBringSelectionToFrontCommand,
@@ -43,6 +44,35 @@ describe("Commands", () => {
 
 			cmd.undo();
 			expect(store.getShape("s1")).toBeUndefined();
+		});
+	});
+
+	describe("createAddShapesCommand", () => {
+		it("adds every shape in one step and removes them all in one undo", () => {
+			const store = createBoardStore();
+			const cmd = createAddShapesCommand(store, [
+				makeShape({ id: "a" }),
+				makeShape({ id: "b" }),
+				makeShape({ id: "c" }),
+			]);
+
+			cmd.execute();
+			expect([...store.getShapes().keys()].sort()).toEqual(["a", "b", "c"]);
+
+			cmd.undo();
+			expect(store.getShapes().size).toBe(0);
+
+			cmd.execute();
+			expect(store.getShapes().size).toBe(3);
+		});
+
+		it("undo tolerates shapes already removed by a cascade", () => {
+			const store = createBoardStore();
+			const cmd = createAddShapesCommand(store, [makeShape({ id: "a" }), makeShape({ id: "b" })]);
+			cmd.execute();
+			store.deleteShape("b");
+			expect(() => cmd.undo()).not.toThrow();
+			expect(store.getShapes().size).toBe(0);
 		});
 	});
 
