@@ -298,5 +298,68 @@ describe("createConnectorTracker", () => {
 			expect(endpoints()[0]).toEqual({ x: 200, y: 30 });
 			stop();
 		});
+
+		// 比率を持たない旧データは、初期化時の位置から比率を補完して同じ計算に乗せる。
+		function setupLegacy(order: "shapes-first" | "connector-first" = "shapes-first") {
+			const a = makeRect("a", 0, 0);
+			const b = makeRect("b", 300, 100);
+			const conn: ConnectableShapeData = {
+				...makeConnector("c1", "a", "b"),
+				sourceAnchor: "custom",
+				targetAnchor: "custom",
+				sourcePoint: { x: 100, y: 20 },
+				targetPoint: { x: 300, y: 140 },
+			};
+			if (order === "shapes-first") {
+				store.__addShape(a);
+				store.__addShape(b);
+				store.__addShape(conn);
+			}
+			const stop = createConnectorTracker({ store, isConnectorType: (t) => t === "connector" });
+			if (order === "connector-first") {
+				store.__addShape(conn);
+				store.__addShape(a);
+				store.__addShape(b);
+			}
+			return { conn, stop };
+		}
+
+		it("does not double-shift legacy connectors without a ratio", () => {
+			const { conn, stop } = setupLegacy();
+			const [dx, dy] = [40, 30];
+			store.__updateRaw("c1", moveConnector(conn, dx, dy));
+			store.__updateRaw("a", { x: dx, y: dy });
+			store.__updateRaw("b", { x: 300 + dx, y: 100 + dy });
+
+			expect(endpoints()).toEqual([
+				{ x: 100 + dx, y: 20 + dy },
+				{ x: 300 + dx, y: 140 + dy },
+			]);
+			stop();
+		});
+
+		it("writes the backfilled ratio on the first tracked move", () => {
+			const { stop } = setupLegacy();
+			store.__updateRaw("a", { x: 10, y: 0 });
+
+			const c = store.getShape("c1") as ConnectableShapeData;
+			expect(c.sourceAnchorRatio).toEqual({ x: 1, y: 1 / 3 });
+			expect(c.targetAnchorRatio).toEqual({ x: 0, y: 2 / 3 });
+			stop();
+		});
+
+		it("backfills when the connected shapes arrive after the connector", () => {
+			const { conn, stop } = setupLegacy("connector-first");
+			const [dx, dy] = [40, 30];
+			store.__updateRaw("c1", moveConnector(conn, dx, dy));
+			store.__updateRaw("a", { x: dx, y: dy });
+			store.__updateRaw("b", { x: 300 + dx, y: 100 + dy });
+
+			expect(endpoints()).toEqual([
+				{ x: 100 + dx, y: 20 + dy },
+				{ x: 300 + dx, y: 140 + dy },
+			]);
+			stop();
+		});
 	});
 });

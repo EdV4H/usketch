@@ -3,7 +3,6 @@ import {
 	createCascadeDelete,
 	createConnectorTracker,
 	getAnchorPoint,
-	getAnchorRatio,
 	moveConnector,
 	rotateConnector,
 } from "@edv4h/usketch-connector-anchor";
@@ -17,6 +16,7 @@ import type {
 } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
 import { createAddShapeCommand, createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
+import { computeAnchorChange } from "./anchor-change.js";
 import {
 	type AnchorHandleMode,
 	AnchorHandleOverlay,
@@ -323,63 +323,18 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 					createBatchUpdateShapesCommand(ctx.store, [{ id, from, to: { [key]: value } }]),
 				);
 			};
-			// アンカー変更。両端が shape に接続している場合のみ端点座標を再計算する。
-			// 片方でも未接続なら anchor フィールドだけ更新する（HUD の action は
-			// connector 選択中は常に有効なので、no-op にせず値は必ず反映させる）。
+			// アンカー変更。差分の計算は computeAnchorChange（両端が接続していれば端点座標も
+			// 再計算、片方でも未接続ならアンカーと custom の比率だけ）。HUD の action は
+			// connector 選択中は常に有効なので、no-op にせず値は必ず反映させる。
 			const setConnectorAnchor = (endpoint: "source" | "target", value: AnchorType) => {
 				const id = selectedConnectorId();
 				if (!id) return;
 				const c = ctx.store.getShape(id) as ConnectorShapeData | undefined;
 				if (!c) return;
-				const key = endpoint === "source" ? "sourceAnchor" : "targetAnchor";
-				const sourceShape = c.sourceId ? ctx.store.getShape(c.sourceId) : undefined;
-				const targetShape = c.targetId ? ctx.store.getShape(c.targetId) : undefined;
-				if (!sourceShape || !targetShape) {
-					// 端点が両方 shape に接続していない → 座標再計算はせずフィールドのみ更新。
-					updateConnectorProp(key, value);
-					return;
-				}
-				const newSourceAnchor = endpoint === "source" ? value : (c.sourceAnchor ?? "auto");
-				const newTargetAnchor = endpoint === "target" ? value : (c.targetAnchor ?? "auto");
-				const targetCenter = {
-					x: targetShape.x + targetShape.width / 2,
-					y: targetShape.y + targetShape.height / 2,
-				};
-				const sourceCenter = {
-					x: sourceShape.x + sourceShape.width / 2,
-					y: sourceShape.y + sourceShape.height / 2,
-				};
-				const nsp = getAnchorPoint(sourceShape, newSourceAnchor, targetCenter);
-				const ntp = getAnchorPoint(targetShape, newTargetAnchor, sourceCenter);
-				const ratioKey = endpoint === "source" ? "sourceAnchorRatio" : "targetAnchorRatio";
-				const from: Partial<ConnectorShapeData> = {
-					[key]: (c as unknown as Record<string, unknown>)[key] as AnchorType,
-					[ratioKey]: c[ratioKey],
-					sourcePoint: c.sourcePoint,
-					targetPoint: c.targetPoint,
-					x: c.x,
-					y: c.y,
-					width: c.width,
-					height: c.height,
-				};
-				const to: Partial<ConnectorShapeData> = {
-					[key]: value,
-					// custom は tracker が比率から端点を再計算するので、確定位置の比率を保存する。
-					...(value === "custom"
-						? {
-								[ratioKey]:
-									endpoint === "source"
-										? getAnchorRatio(sourceShape, nsp)
-										: getAnchorRatio(targetShape, ntp),
-							}
-						: {}),
-					sourcePoint: nsp,
-					targetPoint: ntp,
-					x: Math.min(nsp.x, ntp.x),
-					y: Math.min(nsp.y, ntp.y),
-					width: Math.abs(ntp.x - nsp.x),
-					height: Math.abs(ntp.y - nsp.y),
-				};
+				const { from, to } = computeAnchorChange(c, endpoint, value, {
+					source: c.sourceId ? ctx.store.getShape(c.sourceId) : undefined,
+					target: c.targetId ? ctx.store.getShape(c.targetId) : undefined,
+				});
 				ctx.commands.execute(createBatchUpdateShapesCommand(ctx.store, [{ id, from, to }]));
 			};
 			const anchorOptions = [

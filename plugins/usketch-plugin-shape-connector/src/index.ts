@@ -1,3 +1,4 @@
+export { type AnchorChange, computeAnchorChange } from "./anchor-change.js";
 export {
 	type AnchorHandleMode,
 	CONNECTOR_LAYER_IDS,
