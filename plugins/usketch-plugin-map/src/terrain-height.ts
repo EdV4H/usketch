@@ -49,8 +49,33 @@ export function mergeTilemapCells(tilemaps: readonly TileMapShapeData[]): Cells 
 	);
 }
 
+const tilemapCache = new WeakMap<
+	BoardStore,
+	{ shapes: ReturnType<BoardStore["getShapes"]>; tilemaps: readonly TileMapShapeData[] }
+>();
+
+/**
+ * The board's tilemap shapes, as the same array for as long as none of them changes.
+ * Other shapes (a walking character, a sticky being dragged) replace the shapes map
+ * every frame; keying the terrain's caches on this instead keeps them warm through that.
+ */
+export function boardTilemaps(store: BoardStore): readonly TileMapShapeData[] {
+	const shapes = store.getShapes();
+	const hit = tilemapCache.get(store);
+	if (hit && hit.shapes === shapes) return hit.tilemaps;
+	const next: TileMapShapeData[] = [];
+	for (const [, shape] of shapes) {
+		if (isTileMap(shape)) next.push(shape);
+	}
+	const prev = hit?.tilemaps;
+	const same = prev && prev.length === next.length && prev.every((tm, i) => tm === next[i]);
+	const tilemaps = same ? prev : next;
+	tilemapCache.set(store, { shapes, tilemaps });
+	return tilemaps;
+}
+
 interface CachedSampler {
-	shapes: ReturnType<BoardStore["getShapes"]>;
+	tilemaps: readonly TileMapShapeData[];
 	config: ReturnType<typeof renderConfigStore.get>;
 	sampler: TerrainSampler;
 }
@@ -58,24 +83,20 @@ const samplerCache = new WeakMap<BoardStore, CachedSampler>();
 
 /**
  * The board's terrain at any cell: painted override, else generated base, else empty.
- * Cached per store until the shapes map or the render config changes (both are
- * replaced, never mutated, on update): the character samples it several times a frame.
+ * Cached per store until a tilemap or the render config changes (both are replaced,
+ * never mutated, on update): the character samples it several times a frame.
  */
 export function boardTerrainSampler(store: BoardStore): TerrainSampler {
-	const shapes = store.getShapes();
+	const tilemaps = boardTilemaps(store);
 	const config = renderConfigStore.get();
 	const hit = samplerCache.get(store);
-	if (hit && hit.shapes === shapes && hit.config === config) return hit.sampler;
-	const sampler = buildSampler(store);
-	samplerCache.set(store, { shapes, config, sampler });
+	if (hit && hit.tilemaps === tilemaps && hit.config === config) return hit.sampler;
+	const sampler = buildSampler(tilemaps);
+	samplerCache.set(store, { tilemaps, config, sampler });
 	return sampler;
 }
 
-function buildSampler(store: BoardStore): TerrainSampler {
-	const tilemaps: TileMapShapeData[] = [];
-	for (const [, shape] of store.getShapes()) {
-		if (isTileMap(shape)) tilemaps.push(shape);
-	}
+function buildSampler(tilemaps: readonly TileMapShapeData[]): TerrainSampler {
 	const seeded = seededTilemap(tilemaps);
 	return makeTerrainSampler(
 		mergeTilemapCells(tilemaps),

@@ -10,6 +10,7 @@ export {
 	tiltOrigin,
 	unprojectFromGround,
 } from "./mode7-projection.js";
+export { STAGE_3D_EVENT } from "./mode7-runtime.js";
 export { getMode7Api, type Mode7Api, mode7Service } from "./mode7-service.js";
 export { DEFAULT_DEPTH_LAYER_IDS, DEFAULT_TILT_LAYER_IDS, type Look } from "./mode7-store.js";
 export {
