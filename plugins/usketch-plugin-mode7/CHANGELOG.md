@@ -1,5 +1,19 @@
 # @edv4h/usketch-plugin-mode7
 
+## 0.4.0
+
+### Minor Changes
+
+- d099a8d: character: vehicle drift (opt-in `drift` option: hold Space and steer at speed) and the held steering, body slip and drift state on the pose, render props and awareness. `CharacterPose` gains `steering` / `slip` / `drift`, and `parseWireState` now returns the full remote shape (`Omit<RemoteCharacter, "id">`, vehicle fields filled in). mode7: `projectToGround` / `unprojectFromGround` / `tiltOrigin` point math, `transitionCamera` export and `getRenderedCamera()` on the service.
+- 8cb3482: map のセルに高さを追加。地形タイプから段（水 0 / 陸 1 / 岩 2 / 山 3 / 雪 4）を自動で決め、Mode 7 では段差を崖として立体表示する。キャラクターは「登れる段差」より高い崖を登れない（降りるのは自由）。高さは共有の `groundHeightService` で公開し、`getMapApi().getHeightAt()` でも取得できる。
+
+### Patch Changes
+
+- Updated dependencies [1962032]
+- Updated dependencies [8cb3482]
+  - @edv4h/usketch-shared@4.18.0
+  - @edv4h/usketch-store@3.9.2
+
 ## 0.3.4
 
 ### Patch Changes

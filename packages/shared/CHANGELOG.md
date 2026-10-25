@@ -1,5 +1,15 @@
 # @edv4h/usketch-shared
 
+## 4.18.0
+
+### Minor Changes
+
+- 8cb3482: map のセルに高さを追加。地形タイプから段（水 0 / 陸 1 / 岩 2 / 山 3 / 雪 4）を自動で決め、Mode 7 では段差を崖として立体表示する。キャラクターは「登れる段差」より高い崖を登れない（降りるのは自由）。高さは共有の `groundHeightService` で公開し、`getMapApi().getHeightAt()` でも取得できる。
+
+### Patch Changes
+
+- 1962032: refactor(connector-anchor): `findShapeAtPoint` のコンテナ判定を `frame` / `group` の型名ハードコードから `ShapeDefinition.container` 宣言（`isShapeContainer`）に置き換え。`container` を宣言する他の図形（例: voice-notes の voice-frame）も、コネクタの接続先判定で中の図形より後回しにされるようになる。`isShapeContainer` は `container` だけを持つ定義も受け取れるよう引数型を `Pick<ShapeDefinition, "container">` に広げた（後方互換）。
+
 ## 4.17.0
 
 ### Minor Changes
