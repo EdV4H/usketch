@@ -49,70 +49,111 @@ const SPACE_ROLES = new Set([
 type FocusTarget = HTMLElement & {
 	type?: string;
 	getAttribute?: (n: string) => string | null;
-	closest?: (selector: string) => Element | null;
+	matches?: (selector: string) => boolean;
+	querySelector?: (selector: string) => Element | null;
+	parentElement?: FocusTarget | null;
 };
 
-const asElement = (target: EventTarget | null): FocusTarget | null => {
-	const el = target as FocusTarget | null;
+const asElement = (target: EventTarget | null | undefined): FocusTarget | null => {
+	const el = target as FocusTarget | null | undefined;
 	return el && typeof el.tagName === "string" ? el : null;
 };
 
+/**
+ * The focused element and its ancestors, innermost first. `composedPath()` reaches into
+ * (open) shadow roots, so a web-component dialog or slider is seen as itself rather than
+ * as its retargeted host; without it, the light-DOM parent chain.
+ */
+function focusPath(e: Event): FocusTarget[] {
+	const raw = typeof e.composedPath === "function" ? e.composedPath() : [];
+	const path = raw.map(asElement).filter((el): el is FocusTarget => el !== null);
+	if (path.length > 0) return path;
+	const chain: FocusTarget[] = [];
+	for (let el = asElement(e.target); el; el = asElement(el.parentElement)) chain.push(el);
+	return chain;
+}
+
+const roleOf = (el: FocusTarget | undefined): string | null =>
+	el && typeof el.getAttribute === "function" ? el.getAttribute("role") : null;
+
 /** Elements Space activates (or types into): the drift key must not steal it from them. */
-function isSpaceTarget(target: EventTarget | null): boolean {
-	const el = asElement(target);
+function isSpaceTarget(el: FocusTarget | undefined): boolean {
 	if (!el) return false;
 	if (["INPUT", "TEXTAREA", "SELECT", "BUTTON", "A", "SUMMARY"].includes(el.tagName)) return true;
 	if (el.isContentEditable === true) return true;
-	const role = typeof el.getAttribute === "function" ? el.getAttribute("role") : null;
+	const role = roleOf(el);
 	return role !== null && SPACE_ROLES.has(role);
 }
 
-/** Containers that own the keyboard while focus is inside them (a dialog opened mid-drive). */
-const KEY_OWNER_SELECTOR =
-	'dialog, [role="dialog"], [role="alertdialog"], [role="menu"], [role="menubar"], [role="listbox"]';
+/**
+ * Overlays that own the keyboard while focus is inside them (a dialog or menu opened
+ * mid-drive). Persistent containers such as a menubar or a sidebar listbox are not
+ * here: their items are arrow-key widgets, which keep WASD driving.
+ */
+const KEY_OWNER_SELECTOR = 'dialog, [role="dialog"], [role="alertdialog"], [role="menu"]';
+
+/** Marks the board's layers, to tell a host dialog that wraps the whole board apart. */
+const BOARD_SELECTOR = "[data-layer-id]";
 
 /** `<input type>`s that move their value or selection with the arrow keys. */
 const ARROW_INPUTS = new Set(["range", "radio"]);
 
-/** ARIA widgets that use the arrow keys (radio groups, tabs, sliders, trees, grids …). */
+/** ARIA widgets (and composite containers that keep focus) that use the arrow keys. */
 const ARROW_ROLES = new Set([
+	"combobox",
+	"grid",
 	"gridcell",
 	"listbox",
+	"menubar",
 	"menuitem",
 	"menuitemcheckbox",
 	"menuitemradio",
 	"option",
 	"radio",
+	"radiogroup",
 	"scrollbar",
+	"separator",
 	"slider",
 	"spinbutton",
 	"tab",
+	"tablist",
+	"toolbar",
 	"tree",
+	"treegrid",
 	"treeitem",
 ]);
 
-/** Focus is inside a dialog or menu: every bound key is left to it. */
-function isInKeyOwner(target: EventTarget | null): boolean {
-	const el = asElement(target);
-	return typeof el?.closest === "function" && el.closest(KEY_OWNER_SELECTOR) !== null;
+/**
+ * Focus is inside a dialog or menu: every bound key is left to it. A dialog that holds
+ * the board itself (the host shows the board in a modal) doesn't count, or the
+ * character could never be driven there.
+ */
+function isInKeyOwner(path: readonly FocusTarget[]): boolean {
+	const owner = path.find(
+		(el) => typeof el.matches === "function" && el.matches(KEY_OWNER_SELECTOR),
+	);
+	if (!owner) return false;
+	return typeof owner.querySelector !== "function" || owner.querySelector(BOARD_SELECTOR) === null;
 }
 
 /** The focused element uses the arrow keys itself, so arrow bindings are left to it. */
-function isArrowTarget(target: EventTarget | null): boolean {
-	const el = asElement(target);
+function isArrowTarget(el: FocusTarget | undefined): boolean {
 	if (!el) return false;
 	if (el.tagName === "INPUT" && ARROW_INPUTS.has((el.type ?? "").toLowerCase())) return true;
-	const role = typeof el.getAttribute === "function" ? el.getAttribute("role") : null;
+	const role = roleOf(el);
 	return role !== null && ARROW_ROLES.has(role);
 }
 
+/** Whether a key acts as an arrow (by code, or by key: numpad 4/6 with NumLock off). */
+const isArrowKey = (code: string, key: string | undefined): boolean =>
+	code.startsWith("Arrow") || (key ?? "").startsWith("Arrow");
+
 /** Focus where no bound key may be taken: typing, or a dialog / menu. */
-function blocksAllKeys(target: EventTarget | null): boolean {
-	return isTextInput(target) || isInKeyOwner(target);
+function blocksAllKeys(path: readonly FocusTarget[]): boolean {
+	return isTextInput(path[0]) || isInKeyOwner(path);
 }
 
-function isTextInput(target: EventTarget | null): boolean {
-	const el = asElement(target);
+function isTextInput(el: FocusTarget | undefined): boolean {
 	if (!el) return false;
 	const tag = el.tagName;
 	if (tag === "INPUT") return !NON_TEXT_INPUTS.has((el.type ?? "text").toLowerCase());
@@ -122,9 +163,10 @@ function isTextInput(target: EventTarget | null): boolean {
 /**
  * Listen for the bound keys on `window`. `isActive()` gates everything: while it is
  * false no key is captured (and none is swallowed). Keys are left alone while focus is
- * in a text field or inside a dialog / menu, and arrow keys while a widget that uses
- * them (slider, radio, tab …) has focus. Held keys are cleared on window blur, tab hide
- * and focus moving into such a target, so a key released elsewhere can't get stuck "down".
+ * in a text field or inside a dialog / menu, arrow keys while a widget that uses them
+ * (slider, radio, tab …) has focus, and the drift key on controls Space activates.
+ * Held keys are cleared on window blur and tab hide, and released when focus moves to
+ * a target that uses them, so a key released elsewhere can't get stuck "down".
  */
 export function createKeyInput(
 	initialKeys: CharacterKeys,
@@ -133,7 +175,8 @@ export function createKeyInput(
 	isDriftActive: () => boolean = () => false,
 ): KeyInput {
 	let keys = initialKeys;
-	const held = new Set<string>();
+	/** Held codes → the `key` they produced (to tell numpad arrows from digits). */
+	const held = new Map<string, string>();
 
 	const directionOf = (code: string): keyof CharacterKeys | null => {
 		for (const dir of ["up", "down", "left", "right"] as const) {
@@ -144,13 +187,15 @@ export function createKeyInput(
 	};
 
 	const onKeyDown = (e: KeyboardEvent): void => {
-		if (!isActive() || blocksAllKeys(e.target)) return;
+		if (!isActive()) return;
 		if (e.ctrlKey || e.metaKey || e.altKey) return; // leave chords (Cmd+S …) alone
 		const dir = directionOf(e.code);
 		if (!dir) return;
-		if (dir === "drift" && isSpaceTarget(e.target)) return;
-		if (e.code.startsWith("Arrow") && isArrowTarget(e.target)) return;
-		held.add(e.code);
+		const path = focusPath(e);
+		if (blocksAllKeys(path)) return;
+		if (dir === "drift" && isSpaceTarget(path[0])) return;
+		if (isArrowKey(e.code, e.key) && isArrowTarget(path[0])) return;
+		held.set(e.code, e.key ?? "");
 		e.preventDefault();
 		e.stopImmediatePropagation();
 	};
@@ -165,11 +210,21 @@ export function createKeyInput(
 	const onVisibility = (): void => {
 		if (typeof document !== "undefined" && document.hidden) clear();
 	};
-	// Focus moving into a field, dialog or arrow-key widget hands the keyboard to it:
-	// drop what is held so the character doesn't keep driving on a key the new target now
-	// receives (its keyup would no longer reach us as a bound key).
+	// Focus moving to a target that uses a held key hands that key to it: release it, or
+	// the character keeps going and the key's keyup is swallowed (a button that Space
+	// activates on keyup would never fire). Keys the new target ignores stay held.
 	const onFocusIn = (e: FocusEvent): void => {
-		if (blocksAllKeys(e.target) || isArrowTarget(e.target)) clear();
+		const path = focusPath(e);
+		if (blocksAllKeys(path)) {
+			clear();
+			return;
+		}
+		const owned = [...held].filter(
+			([code, key]) =>
+				(isArrowKey(code, key) && isArrowTarget(path[0])) ||
+				((keys.drift?.includes(code) ?? false) && isSpaceTarget(path[0])),
+		);
+		for (const [code] of owned) held.delete(code);
 	};
 
 	const hasWindow = typeof window !== "undefined";
