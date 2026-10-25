@@ -38,6 +38,11 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 	// backgrounds / content
 	"bg-grid",
 	"bg-dots",
+	// map plugin: flat terrain + base areas/icons, and the raised relief (a depth layer)
+	"usketch-map:terrain",
+	"usketch-map:relief",
+	"usketch-map:base",
+	"usketch-map:base-icons",
 	"gpu-shapes",
 	"dom-shapes",
 	"usketch-plugin-dashboard:grid-overlay",
@@ -65,6 +70,13 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 	// controllable characters (usketch-plugin-character) walk on the ground plane
 	"character",
 ];
+
+/**
+ * Tilted layers rendered with real DEPTH: they skip the draw-distance clip (a
+ * `clip-path` flattens 3D) so content can rise out of the ground — the map plugin's
+ * raised terrain (cliffs) and a character standing on it.
+ */
+export const DEFAULT_DEPTH_LAYER_IDS: readonly string[] = ["usketch-map:relief", "character"];
 
 export interface Mode7State {
 	/** Whether the 3D view is shown. Stays `true` while an exit transition plays, so the

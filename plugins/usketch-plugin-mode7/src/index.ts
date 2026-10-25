@@ -11,13 +11,15 @@ export {
 	unprojectFromGround,
 } from "./mode7-projection.js";
 export { getMode7Api, type Mode7Api, mode7Service } from "./mode7-service.js";
-export type { Look } from "./mode7-store.js";
+export { DEFAULT_DEPTH_LAYER_IDS, DEFAULT_TILT_LAYER_IDS, type Look } from "./mode7-store.js";
 export {
 	drawDistanceClip,
 	drawDistanceOverscanPx,
 	fogBackground,
 	skyBackground,
+	type TiltRuleOptions,
 	type TiltTransform,
+	tiltLayerRules,
 	tiltTransform,
 	transitionCamera,
 } from "./mode7-transform.js";

@@ -6,6 +6,7 @@
 // overlay is invisible (data + scaffold only) — the demo app / host provides the look.
 import type { BoardStore, RenderMode } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
+import { layerOverflow } from "../map-layer.js";
 import { MAP_TOOL_ID } from "../map-tool-id.js";
 import { useMapToolState } from "../tool-state.js";
 import { baseRegionAnchors, baseRegions, getBaseMap } from "./base-ops.js";
@@ -74,7 +75,9 @@ export function BaseAreaLayer({
 	const anchors = labelRender ? baseRegionAnchors(territory, base.bases, tile) : [];
 
 	return (
-		<div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+		<div
+			style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: layerOverflow(vp) }}
+		>
 			{worldNodes.length > 0 ? (
 				<svg width="100%" height="100%" style={{ display: "block", overflow: "visible" }}>
 					<g transform={`translate(${vp.x} ${vp.y}) scale(${vp.zoom})`}>{worldNodes}</g>

@@ -54,6 +54,7 @@ const AT_REST = { speed: 0, moving: false, steering: 0, slip: 0, drift: 0 } as c
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const positive = (v: number, fallback: number) => (Number.isFinite(v) && v > 0 ? v : fallback);
+const nonNegative = (v: number, fallback: number) => (Number.isFinite(v) && v >= 0 ? v : fallback);
 
 function sanitizeMotion(m: Partial<MotionParams>, base: MotionParams): MotionParams {
 	return {
@@ -62,6 +63,7 @@ function sanitizeMotion(m: Partial<MotionParams>, base: MotionParams): MotionPar
 		acceleration: positive(m.acceleration ?? base.acceleration, base.acceleration),
 		friction: positive(m.friction ?? base.friction, base.friction),
 		reverseRatio: clamp01(m.reverseRatio ?? base.reverseRatio),
+		maxStep: nonNegative(m.maxStep ?? base.maxStep, base.maxStep),
 	};
 }
 

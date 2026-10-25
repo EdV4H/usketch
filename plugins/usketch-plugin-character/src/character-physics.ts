@@ -67,6 +67,9 @@ export interface MotionParams {
 	friction: number;
 	/** Vehicle: reverse top speed as a fraction of `moveSpeed`. */
 	reverseRatio: number;
+	/** Tallest step up the character can climb, world units (ground height, e.g. the map
+	 *  plugin's raised terrain). Stepping DOWN is always allowed. */
+	maxStep: number;
 }
 
 export const DEFAULT_MOTION: MotionParams = {
@@ -75,6 +78,7 @@ export const DEFAULT_MOTION: MotionParams = {
 	acceleration: 900,
 	friction: 700,
 	reverseRatio: 0.5,
+	maxStep: 24,
 };
 
 /**
@@ -226,6 +230,31 @@ export function stepCharacter(
 		slip,
 		drift,
 	};
+}
+
+/** Ground height at a world point (world units; see `groundHeightService`). */
+export type HeightAt = (x: number, y: number) => number;
+
+/**
+ * Keep a step from `prev` to `next` on climbable ground: moving onto ground more than
+ * `maxStep` higher than where the character stands is blocked. A blocked move first
+ * tries to slide along the cliff (keep only the x or only the y part), so walking into
+ * a wall at an angle glides along it; failing both, the character stays put (a
+ * vehicle also loses its speed, as if it bumped the wall). The heading still turns.
+ */
+export function constrainToGround(
+	prev: CharacterPose,
+	next: CharacterPose,
+	heightAt: HeightAt,
+	maxStep: number,
+): CharacterPose {
+	if (next.x === prev.x && next.y === prev.y) return next;
+	const limit = heightAt(prev.x, prev.y) + Math.max(0, maxStep);
+	const ok = (x: number, y: number) => heightAt(x, y) <= limit;
+	if (ok(next.x, next.y)) return next;
+	if (next.x !== prev.x && ok(next.x, prev.y)) return { ...next, y: prev.y };
+	if (next.y !== prev.y && ok(prev.x, next.y)) return { ...next, x: prev.x };
+	return { ...next, x: prev.x, y: prev.y, speed: 0, moving: false };
 }
 
 function nextDrift(

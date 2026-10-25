@@ -38,6 +38,7 @@ createApp({
       camera: { pitch: 55, fov: 600 },  // 初期カメラ（部分指定可）
       look: { sky: "#0b1026", fog: 0.35 },
       // tiltLayerIds: [...],           // 傾ける層を上書き
+      // depthLayerIds: [...],          // 本当に奥行きを持たせる層（既定 DEFAULT_DEPTH_LAYER_IDS）
       // shortcuts: { toggle: "…" },    // キーバインド（opt-in・既定なし）
       // transition: { durationMs: 900, easing: "ease-in-out" }, // 切替アニメ（既定 0＝即時）
     }),
@@ -88,6 +89,12 @@ createApp({
   下にもグリッドが敷かれる（専用グリッド不要）。`viewport:changed` でズームにも追従。
 
 ※ Shape は DOM 上には残る（コアのカリングではなく描画クリップ）ので、真のジオメトリ間引きは別途。
+
+**深度レイヤー（`depthLayerIds`）**: `clip-path` は傾き自体は保つが、配下の奥行き（`translateZ`）を
+平面に潰す。そこで深度レイヤーはこのクリップを外し、エンジンの内側ラッパーにも
+`transform-style: preserve-3d` を付けて 3D 文脈を通す。既定 `DEFAULT_DEPTH_LAYER_IDS` は
+`usketch-map:relief`（map プラグインの高いセルの崖と上面）と `character`（その上に立つキャラ）。
+深度レイヤーは描画距離のクリップを受けない。
 
 ## アクション（`mode7:<key>` で emit・HUD Controls に自動表示・サービス）
 
