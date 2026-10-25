@@ -9,6 +9,7 @@ import type {
 import { generateId, safeRotation } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { useCallback, useSyncExternalStore } from "react";
+import { findShapeAtPoint } from "./find-shape-at-point.js";
 import { createDefaultConnector } from "./shapes/connector.js";
 import type { ConnectorShapeData } from "./types.js";
 
@@ -149,7 +150,7 @@ export function setupAnchorHandles(ctx: PluginContext): () => void {
 			return;
 		}
 
-		const shape = findNonConnectorShape(ctx, event.worldPoint);
+		const shape = findShapeAtPoint(ctx, event.worldPoint);
 		setAnchorHover(shape?.id ?? null);
 	});
 
@@ -176,7 +177,7 @@ export function setupAnchorHandles(ctx: PluginContext): () => void {
 function handleDrawMove(ctx: PluginContext, worldPoint: Point) {
 	if (!drawState) return;
 
-	const targetShape = findNonConnectorShape(ctx, worldPoint);
+	const targetShape = findShapeAtPoint(ctx, worldPoint);
 
 	if (targetShape && targetShape.id !== drawState.sourceShape.id) {
 		// Over a target shape — snap to nearest anchor or clamp to edge
@@ -242,7 +243,7 @@ function handleDrawEnd(ctx: PluginContext, worldPoint: Point) {
 
 	if (!connector || !targetShape) {
 		// Also try to find shape at release point
-		const releaseTarget = findNonConnectorShape(ctx, worldPoint);
+		const releaseTarget = findShapeAtPoint(ctx, worldPoint);
 		if (!connector || !releaseTarget || releaseTarget.id === drawState.sourceShape.id) {
 			ctx.store.deleteShape(drawState.connectorId);
 			setAnchorDraw(null);
@@ -295,23 +296,6 @@ function handleDrawEnd(ctx: PluginContext, worldPoint: Point) {
 	};
 	ctx.commands.execute(createAddShapeCommand(ctx.store, finalShape));
 	setAnchorDraw(null);
-}
-
-function findNonConnectorShape(ctx: PluginContext, point: Point): ShapeData | null {
-	const shapes = ctx.store.getShapes();
-	const entries = [...shapes.entries()].reverse();
-	let fallbackContainer: ShapeData | null = null;
-	for (const [, data] of entries) {
-		if (data.type === "connector") continue;
-		const def = ctx.shapes.get(data.type);
-		if (!def?.hitTest(data, point)) continue;
-		if (data.type === "frame" || data.type === "group") {
-			if (!fallbackContainer) fallbackContainer = data;
-			continue;
-		}
-		return data;
-	}
-	return fallbackContainer;
 }
 
 // ── Overlay Component ──

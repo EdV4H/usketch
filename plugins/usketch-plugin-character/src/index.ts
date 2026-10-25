@@ -10,10 +10,13 @@ export {
 export {
 	type CharacterPose,
 	type ControlScheme,
+	DEFAULT_DRIFT,
 	DEFAULT_MOTION,
+	type DriftParams,
 	headingVector,
 	type MotionParams,
 	type MoveInput,
+	ORIGIN_POSE,
 	stepCharacter,
 	turnToward,
 	vectorHeading,

@@ -93,7 +93,11 @@ export function setupCharacterRuntime(
 	store: CharacterStore,
 	options: CharacterRuntimeOptions,
 ): CharacterRuntime {
-	const keys = createKeyInput(options.keys, () => store.getState().enabled);
+	const keys = createKeyInput(
+		options.keys,
+		() => store.getState().enabled,
+		() => store.getState().controlScheme === "vehicle" && store.getState().drift !== null,
+	);
 	let cam: CameraFocus | null = null;
 	let display: ReadonlyMap<string, RemoteCharacter> = new Map();
 	let rafId: number | null = null;
@@ -153,6 +157,7 @@ export function setupCharacterRuntime(
 				s.controlScheme,
 				s.motion,
 				viewportRotation(vp),
+				s.drift,
 			);
 			// Cliffs taller than the climbable step block the move (slide along them).
 			const pose = constrainToGround(s.pose, stepped, heightAt, s.motion.maxStep);
@@ -277,6 +282,9 @@ function sameRemotes(
 			o.heading !== r.heading ||
 			o.moving !== r.moving ||
 			o.speed !== r.speed ||
+			o.steering !== r.steering ||
+			o.slip !== r.slip ||
+			o.drifting !== r.drifting ||
 			o.name !== r.name ||
 			o.appearance !== r.appearance
 		) {

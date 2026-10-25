@@ -7,7 +7,7 @@ import type { MoveInput } from "./character-physics.js";
 import type { CharacterKeys } from "./character-types.js";
 
 export interface KeyInput {
-	/** The currently held directions. */
+	/** The currently held directions (and the drift key). */
 	read(): MoveInput;
 	/** Whether any bound key is held. */
 	anyHeld(): boolean;
@@ -29,6 +29,33 @@ const NON_TEXT_INPUTS = new Set([
 	"image",
 ]);
 
+/** ARIA widgets Space activates or types into. */
+const SPACE_ROLES = new Set([
+	"button",
+	"checkbox",
+	"combobox",
+	"link",
+	"menuitem",
+	"menuitemcheckbox",
+	"menuitemradio",
+	"option",
+	"radio",
+	"slider",
+	"switch",
+	"tab",
+	"textbox",
+]);
+
+/** Elements Space activates (or types into): the drift key must not steal it from them. */
+function isSpaceTarget(target: EventTarget | null): boolean {
+	const el = target as (HTMLElement & { getAttribute?: (n: string) => string | null }) | null;
+	if (!el || typeof el.tagName !== "string") return false;
+	if (["INPUT", "TEXTAREA", "SELECT", "BUTTON", "A", "SUMMARY"].includes(el.tagName)) return true;
+	if (el.isContentEditable === true) return true;
+	const role = typeof el.getAttribute === "function" ? el.getAttribute("role") : null;
+	return role !== null && SPACE_ROLES.has(role);
+}
+
 function isTextInput(target: EventTarget | null): boolean {
 	const el = target as (HTMLElement & { type?: string }) | null;
 	if (!el || typeof el.tagName !== "string") return false;
@@ -42,7 +69,12 @@ function isTextInput(target: EventTarget | null): boolean {
  * false no key is captured (and none is swallowed). Held keys are cleared on window
  * blur / tab hide so a key released elsewhere can't get stuck "down".
  */
-export function createKeyInput(initialKeys: CharacterKeys, isActive: () => boolean): KeyInput {
+export function createKeyInput(
+	initialKeys: CharacterKeys,
+	isActive: () => boolean,
+	/** Whether the drift key does anything now (else it is left to the host, e.g. Space-pan). */
+	isDriftActive: () => boolean = () => false,
+): KeyInput {
 	let keys = initialKeys;
 	const held = new Set<string>();
 
@@ -50,13 +82,16 @@ export function createKeyInput(initialKeys: CharacterKeys, isActive: () => boole
 		for (const dir of ["up", "down", "left", "right"] as const) {
 			if (keys[dir].includes(code)) return dir;
 		}
+		if (keys.drift?.includes(code) && isDriftActive()) return "drift";
 		return null;
 	};
 
 	const onKeyDown = (e: KeyboardEvent): void => {
 		if (!isActive() || isTextInput(e.target)) return;
 		if (e.ctrlKey || e.metaKey || e.altKey) return; // leave chords (Cmd+S …) alone
-		if (!directionOf(e.code)) return;
+		const dir = directionOf(e.code);
+		if (!dir) return;
+		if (dir === "drift" && isSpaceTarget(e.target)) return;
 		held.add(e.code);
 		e.preventDefault();
 		e.stopImmediatePropagation();
@@ -81,7 +116,7 @@ export function createKeyInput(initialKeys: CharacterKeys, isActive: () => boole
 		document.addEventListener("visibilitychange", onVisibility);
 	}
 
-	const isHeld = (dir: keyof CharacterKeys) => keys[dir].some((c) => held.has(c));
+	const isHeld = (dir: keyof CharacterKeys) => keys[dir]?.some((c) => held.has(c)) ?? false;
 
 	return {
 		read: () => ({
@@ -89,10 +124,12 @@ export function createKeyInput(initialKeys: CharacterKeys, isActive: () => boole
 			down: isHeld("down"),
 			left: isHeld("left"),
 			right: isHeld("right"),
+			drift: isHeld("drift"),
 		}),
 		anyHeld: () => held.size > 0,
 		setKeys(next) {
-			keys = next;
+			// Rebinding movement keeps the drift key unless `drift` is given (`[]` unbinds).
+			keys = { ...next, drift: next.drift ?? keys.drift };
 			held.clear();
 		},
 		dispose() {

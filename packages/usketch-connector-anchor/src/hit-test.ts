@@ -1,8 +1,10 @@
 import {
 	type BoundingBox,
+	isShapeContainer,
 	isShapeLockCascading,
 	type Point,
 	type ShapeData,
+	type ShapeDefinition,
 } from "@edv4h/usketch-shared";
 import {
 	bezierBounds,
@@ -26,7 +28,7 @@ export interface FindShapeAtPointContext {
 		getShapesSorted?(): readonly ShapeData[];
 	};
 	shapes: {
-		get(type: string): { hitTest: (data: ShapeData, point: Point) => boolean } | undefined;
+		get(type: string): Pick<ShapeDefinition, "hitTest" | "container"> | undefined;
 	};
 }
 
@@ -34,8 +36,8 @@ export interface FindShapeAtPointContext {
  * Find the topmost shape at a point. Iterates in reverse zIndex order so the
  * visually-topmost shape wins. Skips any shape type listed in `excludeTypes`
  * (typically the caller's own connector type to avoid hit testing connectors
- * as drag targets), and prefers concrete shapes over containers
- * (`frame` / `group`) when both overlap.
+ * as drag targets), and prefers concrete shapes over containers (shapes whose
+ * definition declares `container`, e.g. `frame` / `group`) when both overlap.
  */
 export function findShapeAtPoint(
 	ctx: FindShapeAtPointContext,
@@ -73,7 +75,7 @@ export function findShapeAtPoint(
 		if (isBlocked(data)) continue;
 		const def = ctx.shapes.get(data.type);
 		if (!def?.hitTest(data, point)) continue;
-		if (data.type === "frame" || data.type === "group") {
+		if (isShapeContainer(def, data)) {
 			if (!fallbackContainer) fallbackContainer = data;
 			continue;
 		}

@@ -97,7 +97,7 @@
 		"pdfjs-dist": "6.4.299",
 		"react": "19.3.1",
 		"react-dom": "19.3.1",
-		"react-router": "8.4.0"
+		"react-router": "8.5.0"
 	},
 	"devDependencies": {
 		"@edv4h/usketch-plugin-debug-hud": "workspace:*",
@@ -106,8 +106,8 @@
 		"@types/react-dom": "19.3.0",
 		"@vitejs/plugin-react": "6.1.2",
 		"typescript": "7.0.2",
-		"vite": "8.3.4",
+		"vite": "8.3.5",
 		"vitest": "5.0.5",
-		"wrangler": "4.151.1"
+		"wrangler": "4.152.0"
 	}
 }

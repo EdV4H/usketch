@@ -2,7 +2,12 @@
 // render/appearance hooks, as typed calls a host or another plugin can drive.
 import { defineService, type Point, type ServiceRegistry } from "@edv4h/usketch-shared";
 import type { CameraMode } from "./character-camera.js";
-import type { CharacterPose, ControlScheme, MotionParams } from "./character-physics.js";
+import type {
+	CharacterPose,
+	ControlScheme,
+	DriftParams,
+	MotionParams,
+} from "./character-physics.js";
 import type { CharacterRuntime } from "./character-runtime.js";
 import type { CharacterStore } from "./character-store.js";
 import type {
@@ -31,13 +36,17 @@ export interface CharacterApi {
 	setControlScheme(scheme: ControlScheme): void;
 	getMotion(): MotionParams;
 	setMotion(motion: Partial<MotionParams>): void;
+	/** Vehicle drift tuning, or `null` when drifting is off. */
+	getDrift(): DriftParams | null;
+	/** `true` = on (current or default tuning), `false` = off, an object = tuning overrides. */
+	setDrift(drift: boolean | Partial<DriftParams>): void;
 	/** Screen anchor as canvas fractions (0..1). */
 	getAnchor(): Point;
 	setAnchor(anchor: Partial<Point>): void;
 	/** Follow smoothing (0 = rigid … 0.99 = heavy lag). */
 	getFollowSmoothing(): number;
 	setFollowSmoothing(value: number): void;
-	/** Replace the movement key bindings (`KeyboardEvent.code` values). */
+	/** Replace the movement key bindings (`KeyboardEvent.code` values; omitted `drift` is kept). */
 	setKeys(keys: CharacterKeys): void;
 	/** Swap the character renderer (`undefined` = draw nothing). */
 	setRenderer(renderer: CharacterRenderer | undefined): void;
@@ -67,6 +76,8 @@ export function createCharacterApi(store: CharacterStore, runtime: CharacterRunt
 		setControlScheme: (scheme) => store.setControlScheme(scheme),
 		getMotion: () => store.getState().motion,
 		setMotion: (motion) => store.setMotion(motion),
+		getDrift: () => store.getState().drift,
+		setDrift: (drift) => store.setDrift(drift),
 		getAnchor: () => store.getState().anchor,
 		setAnchor: (anchor) => store.setAnchor(anchor),
 		getFollowSmoothing: () => store.getState().followSmoothing,

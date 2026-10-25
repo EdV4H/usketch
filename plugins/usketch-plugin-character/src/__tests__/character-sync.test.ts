@@ -46,8 +46,19 @@ describe("parseWireState", () => {
 			heading: -90,
 			speed: 0,
 			moving: false,
+			steering: 0,
+			slip: 0,
+			drifting: false,
 			appearance: {},
 			name: undefined,
+		});
+	});
+	it("clamps vehicle fields", () => {
+		expect(
+			parseWireState({ x: 0, y: 0, heading: 0, steering: 5, slip: -400, drifting: true }),
+		).toMatchObject({ steering: 1, slip: -90, drifting: true });
+		expect(parseWireState({ x: 0, y: 0, heading: 0, steering: "x" })).toMatchObject({
+			steering: 0,
 		});
 	});
 });
@@ -73,6 +84,19 @@ describe("createCharacterSync", () => {
 		t = 100;
 		sync.publish();
 		expect(aw.states.get(1)?.[AWARENESS_FIELD]).toMatchObject({ x: 10 });
+	});
+
+	it("publishes steering, slip and drift", () => {
+		const aw = fakeAwareness(1);
+		const store = createCharacterStore({ enabled: true });
+		const sync = createCharacterSync(aw, store, () => {});
+		store.setPose({ ...store.getState().pose, steering: -1, slip: -12.3, drift: -1 });
+		sync.publish(true);
+		expect(aw.states.get(1)?.[AWARENESS_FIELD]).toMatchObject({
+			steering: -1,
+			slip: -12.5,
+			drifting: true,
+		});
 	});
 
 	it("publishes null while disabled and withdraws on dispose", () => {
@@ -106,13 +130,16 @@ describe("createCharacterSync", () => {
 });
 
 describe("easeRemotes", () => {
-	const r = (id: string, x: number, heading = 0): RemoteCharacter => ({
+	const r = (id: string, x: number, heading = 0, slip = 0): RemoteCharacter => ({
 		id,
 		x,
 		y: 0,
 		heading,
 		speed: 0,
 		moving: false,
+		steering: 0,
+		slip,
+		drifting: false,
 		appearance: {},
 	});
 	it("shows newcomers at once, eases known ones, drops the departed", () => {
@@ -130,6 +157,15 @@ describe("easeRemotes", () => {
 		expect(next.get("a")?.x).toBe(5);
 		expect(next.get("a")?.heading).toBe(180);
 		expect(next.has("gone")).toBe(false);
+	});
+	it("eases the slip too", () => {
+		const { next, settling } = easeRemotes(
+			new Map([["a", r("a", 0, 0, 0)]]),
+			new Map([["a", r("a", 0, 0, 20)]]),
+			0.5,
+		);
+		expect(settling).toBe(true);
+		expect(next.get("a")?.slip).toBe(10);
 	});
 	it("settles once within tolerance", () => {
 		const t = new Map([["a", r("a", 10)]]);
