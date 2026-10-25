@@ -50,6 +50,7 @@ export {
 	type ResizeSessionOptions,
 	type ResizeUpdate,
 	startResizeSession,
+	toLocalFlipAxes,
 } from "./resize.js";
 export {
 	type MultiRotateSessionOptions,

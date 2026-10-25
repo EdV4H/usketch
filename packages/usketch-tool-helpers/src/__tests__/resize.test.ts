@@ -1,6 +1,6 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
-import { startResizeSession } from "../resize.js";
+import { startResizeSession, toLocalFlipAxes } from "../resize.js";
 import { createTestToolContext, makePointerEvent, makeShape } from "./test-helpers.js";
 
 describe("startResizeSession (single)", () => {
@@ -117,7 +117,8 @@ describe("startResizeSession (multi)", () => {
 describe("startResizeSession — ShapeDefinition.flip hook", () => {
 	function ctxWithFlipShape(calls: Array<{ x: boolean; y: boolean }>) {
 		const ctx = createTestToolContext();
-		const rect = ctx.shapes.get("rect")!;
+		const rect = ctx.shapes.get("rect");
+		if (!rect) throw new Error("rect shape is not registered");
 		ctx.shapes.register("flippy", {
 			...rect,
 			flip: (data: ShapeData, axes: { x: boolean; y: boolean }) => {
@@ -149,7 +150,8 @@ describe("startResizeSession — ShapeDefinition.flip hook", () => {
 		// The flip is part of the committed command.
 		const result = session.commit();
 		expect(ctx.store.getShape("a")?.["x-flips"]).toBeUndefined();
-		ctx.commands.execute(result!.command);
+		if (!result) throw new Error("expected a commit");
+		ctx.commands.execute(result.command);
 		expect(ctx.store.getShape("a")?.["x-flips"]).toBe(1);
 	});
 
@@ -170,5 +172,66 @@ describe("startResizeSession — ShapeDefinition.flip hook", () => {
 		expect(calls).toEqual([{ x: false, y: true }]);
 		expect(ctx.store.getShape("a")?.["x-flips"]).toBe(1);
 		expect(ctx.store.getShape("b")?.["x-flips"]).toBeUndefined();
+	});
+
+	it("multi: passes the flip in the shape's local axes when it is rotated ~90°", () => {
+		const calls: Array<{ x: boolean; y: boolean }> = [];
+		const ctx = ctxWithFlipShape(calls);
+		ctx.store.addShape(
+			makeShape({ id: "a", type: "flippy", x: 0, y: 0, width: 100, height: 100, rotation: 90 }),
+		);
+		ctx.store.addShape(makeShape({ id: "b", x: 200, y: 0, width: 100, height: 100 }));
+		const session = startResizeSession({
+			kind: "multi",
+			ctx,
+			selection: new Set(["a", "b"]),
+			handle: "s",
+			startPoint: { x: 150, y: 100 },
+			groupBounds: { x: 0, y: 0, width: 300, height: 100 },
+		});
+		// A vertical (world y) flip is along the rotated shape's local x axis.
+		session.update(makePointerEvent({ x: 150, y: -50 }));
+		expect(calls).toEqual([{ x: true, y: false }]);
+	});
+
+	it("cancel clears fields that flip added", () => {
+		for (const kind of ["single", "multi"] as const) {
+			const ctx = ctxWithFlipShape([]);
+			ctx.store.addShape(
+				makeShape({ id: "a", type: "flippy", x: 0, y: 0, width: 100, height: 50 }),
+			);
+			const session =
+				kind === "single"
+					? startResizeSession({
+							kind,
+							ctx,
+							shapeId: "a",
+							handle: "e",
+							startPoint: { x: 100, y: 25 },
+						})
+					: startResizeSession({
+							kind,
+							ctx,
+							selection: new Set(["a"]),
+							handle: "e",
+							startPoint: { x: 100, y: 25 },
+							groupBounds: { x: 0, y: 0, width: 100, height: 50 },
+						});
+			session.update(makePointerEvent({ x: -20, y: 25 }));
+			expect(ctx.store.getShape("a")?.["x-flips"]).toBe(1);
+			session.cancel();
+			expect(ctx.store.getShape("a")?.["x-flips"]).toBeUndefined();
+			expect(ctx.store.getShape("a")).toMatchObject({ x: 0, width: 100 });
+		}
+	});
+});
+
+describe("toLocalFlipAxes", () => {
+	it("keeps the axes near 0° / 180° and swaps them near 90° / 270°", () => {
+		const axes = { x: true, y: false };
+		expect(toLocalFlipAxes(axes, undefined)).toEqual(axes);
+		expect(toLocalFlipAxes(axes, 170)).toEqual(axes);
+		expect(toLocalFlipAxes(axes, 90)).toEqual({ x: false, y: true });
+		expect(toLocalFlipAxes(axes, -100)).toEqual({ x: false, y: true });
 	});
 });

@@ -177,9 +177,28 @@ function createSingleResizeSession(opts: {
 		cancel(): void {
 			if (cancelled) return;
 			cancelled = true;
-			ctx.store.updateShape(shapeId, initialSnapshot);
+			const current = ctx.store.getShape(shapeId);
+			// Revert via the diff so fields added during the drag (e.g. by `flip`) are cleared too.
+			ctx.store.updateShape(
+				shapeId,
+				current ? bidiffShape(initialSnapshot, current).from : initialSnapshot,
+			);
 		},
 	};
+}
+
+/**
+ * Convert a flip of the world axes into the shape's local (un-rotated) axes,
+ * which is what `ShapeDefinition.flip` receives. A shape rotated closer to
+ * 90° / 270° than to 0° / 180° has its local x along world y, so the axes swap.
+ * (A single-shape resize already works in local axes.)
+ */
+export function toLocalFlipAxes(
+	axes: { x: boolean; y: boolean },
+	rotation: number | undefined,
+): { x: boolean; y: boolean } {
+	const rad = (safeRotation(rotation) * Math.PI) / 180;
+	return Math.abs(Math.cos(rad)) >= Math.abs(Math.sin(rad)) ? axes : { x: axes.y, y: axes.x };
 }
 
 // ── Multi-selection resize ───────────────────────────────────────────
@@ -275,8 +294,9 @@ function createMultiResizeSession(opts: {
 				for (const [id, data] of flippedShapeData) {
 					const shape = ctx.store.getShape(id);
 					const flipFn = shape ? ctx.shapes.get(shape.type)?.flip : undefined;
+					const axes = { x: flip.flippedX, y: flip.flippedY };
 					const update: Partial<ShapeData> =
-						shape && flipFn ? { ...flipFn(shape, { x: flip.flippedX, y: flip.flippedY }) } : {};
+						shape && flipFn ? { ...flipFn(shape, toLocalFlipAxes(axes, shape.rotation)) } : {};
 					if (flip.flippedX) {
 						update.x = data.x;
 						update.width = 0;
@@ -369,7 +389,8 @@ function createMultiResizeSession(opts: {
 			if (cancelled) return;
 			cancelled = true;
 			for (const [id, original] of originalFullShapes) {
-				ctx.store.updateShape(id, original);
+				const current = ctx.store.getShape(id);
+				ctx.store.updateShape(id, current ? bidiffShape(original, current).from : original);
 			}
 		},
 	};
