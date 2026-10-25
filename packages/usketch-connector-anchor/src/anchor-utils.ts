@@ -125,6 +125,29 @@ export function findClosestAnchor(shape: ShapeData, point: Point): AnchorType {
 	return closest;
 }
 
+/**
+ * `point`（world 座標）を shape 内の相対位置に変換する。shape ローカル（回転前）座標で
+ * x/y を width/height に対する比率で返す（幅・高さ 0 の軸は 0.5）。custom アンカーを
+ * shape からの相対位置として保持するのに使い、{@link getPointFromAnchorRatio} で戻す。
+ */
+export function getAnchorRatio(shape: ShapeData, point: Point): Point {
+	const center: Point = { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
+	const angleRad = shapeAngleRad(shape);
+	const local = angleRad ? unrotatePoint(point, center, angleRad) : point;
+	return {
+		x: shape.width ? (local.x - shape.x) / shape.width : 0.5,
+		y: shape.height ? (local.y - shape.y) / shape.height : 0.5,
+	};
+}
+
+/** {@link getAnchorRatio} の逆変換。shape の現在の位置・サイズ・回転から world 座標を返す。 */
+export function getPointFromAnchorRatio(shape: ShapeData, ratio: Point): Point {
+	const center: Point = { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };
+	const angleRad = shapeAngleRad(shape);
+	const local: Point = { x: shape.x + ratio.x * shape.width, y: shape.y + ratio.y * shape.height };
+	return angleRad ? rotatePoint(local, center, angleRad) : local;
+}
+
 /** Clamp a point to the nearest position on a shape's (possibly rotated) edge. */
 export function clampToShapeEdge(shape: ShapeData, point: Point): Point {
 	const center: Point = { x: shape.x + shape.width / 2, y: shape.y + shape.height / 2 };

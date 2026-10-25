@@ -1,5 +1,10 @@
 import type { Point, ShapeData } from "@edv4h/usketch-shared";
-import { clampToShapeEdge, getAnchorPoint } from "./anchor-utils.js";
+import {
+	clampToShapeEdge,
+	getAnchorPoint,
+	getAnchorRatio,
+	getPointFromAnchorRatio,
+} from "./anchor-utils.js";
 import { getDefaultControlPoint } from "./path-utils.js";
 import type { ConnectableShapeData } from "./types.js";
 
@@ -132,15 +137,55 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 		const shape = store.getShape(id);
 		if (shape) prevPositions.set(id, { x: shape.x, y: shape.y });
 	}
+
+	// 比率を持たない旧データの custom 端点は、端点と接続先 shape が揃っている時点
+	// （初期化時・追加時）の位置から比率を補完しておく。移動時はこの比率で計算し、
+	// 同じ更新で shape に書き込む（遅延マイグレーション）。
+	type LegacyRatio = { shapeId: string; ratio: Point };
+	const legacyRatios = new Map<string, { source?: LegacyRatio; target?: LegacyRatio }>();
+	function captureLegacyRatio(
+		conn: ConnectableShapeData,
+		endpoint: "source" | "target",
+	): LegacyRatio | undefined {
+		const anchor = endpoint === "source" ? conn.sourceAnchor : conn.targetAnchor;
+		const ratio = endpoint === "source" ? conn.sourceAnchorRatio : conn.targetAnchorRatio;
+		const shapeId = endpoint === "source" ? conn.sourceId : conn.targetId;
+		const point = endpoint === "source" ? conn.sourcePoint : conn.targetPoint;
+		if (anchor !== "custom" || ratio || !shapeId || !point) return undefined;
+		const shape = store.getShape(shapeId);
+		if (!shape) return undefined;
+		return { shapeId, ratio: getAnchorRatio(shape, point) };
+	}
+	function captureLegacyRatios(connId: string) {
+		const conn = store.getShape(connId) as ConnectableShapeData | undefined;
+		if (!conn || !isConnectorType(conn.type)) return;
+		const prev = legacyRatios.get(connId);
+		const source = prev?.source ?? captureLegacyRatio(conn, "source");
+		const target = prev?.target ?? captureLegacyRatio(conn, "target");
+		if (source || target) legacyRatios.set(connId, { source, target });
+	}
+	function legacyRatio(connId: string, endpoint: "source" | "target", shapeId: string) {
+		const entry = legacyRatios.get(connId)?.[endpoint];
+		return entry?.shapeId === shapeId ? entry.ratio : undefined;
+	}
+
 	for (const [id, shape] of store.getShapes()) {
-		if (!isConnectorType(shape.type)) {
+		if (isConnectorType(shape.type)) {
+			captureLegacyRatios(id);
+		} else {
 			prevPositions.set(id, { x: shape.x, y: shape.y });
 		}
 	}
 	const unsubCacheAdd = store.onMutation((event) => {
+		const payload = event.payload as { id?: string } | undefined;
+		if (!payload?.id) return;
 		if (event.type === "shape:added") {
-			const payload = event.payload as { id?: string } | undefined;
-			if (payload?.id) cachePosition(payload.id);
+			cachePosition(payload.id);
+			captureLegacyRatios(payload.id);
+			// 接続先が後から届いた（同期の到着順）場合も補完する。
+			for (const connId of connectorIndex.get(payload.id) ?? []) captureLegacyRatios(connId);
+		} else if (event.type === "shape:removed") {
+			legacyRatios.delete(payload.id);
 		}
 	});
 
@@ -177,8 +222,16 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 			const targetCenter = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
 			const sourceCenter = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
 
+			// custom アンカーは比率（shape からの相対位置）があればそこから毎回計算する。
+			// 現在の sourcePoint に移動量を足す方式だと、同じ移動でコネクタ自身も平行移動
+			// された場合（フレームごとのドラッグ等）に二重に動き、処理順で結果が変わる。
+			const sourceRatio = conn.sourceAnchorRatio ?? legacyRatio(connId, "source", sourceId);
+			const targetRatio = conn.targetAnchorRatio ?? legacyRatio(connId, "target", targetId);
+
 			let sourcePoint: Point;
-			if (sourceAnchor === "custom" && sourceId === payload.id) {
+			if (sourceAnchor === "custom" && sourceRatio) {
+				sourcePoint = getPointFromAnchorRatio(source, sourceRatio);
+			} else if (sourceAnchor === "custom" && sourceId === payload.id) {
 				const old = conn.sourcePoint as Point;
 				sourcePoint = clampToShapeEdge(source, { x: old.x + dx, y: old.y + dy });
 			} else if (sourceAnchor === "custom") {
@@ -188,7 +241,9 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 			}
 
 			let targetPoint: Point;
-			if (targetAnchor === "custom" && targetId === payload.id) {
+			if (targetAnchor === "custom" && targetRatio) {
+				targetPoint = getPointFromAnchorRatio(target, targetRatio);
+			} else if (targetAnchor === "custom" && targetId === payload.id) {
 				const old = conn.targetPoint as Point;
 				targetPoint = clampToShapeEdge(target, { x: old.x + dx, y: old.y + dy });
 			} else if (targetAnchor === "custom") {
@@ -209,6 +264,15 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 			if (conn.controlPointAuto && conn.pathType === "curve") {
 				updates.controlPoint = getDefaultControlPoint(sourcePoint, targetPoint);
 			}
+
+			// 補完した比率を書き込んで旧データを移行する。
+			if (sourceAnchor === "custom" && !conn.sourceAnchorRatio && sourceRatio) {
+				updates.sourceAnchorRatio = sourceRatio;
+			}
+			if (targetAnchor === "custom" && !conn.targetAnchorRatio && targetRatio) {
+				updates.targetAnchorRatio = targetRatio;
+			}
+			legacyRatios.delete(connId);
 
 			store.updateShape(connId, updates as Partial<ShapeData>);
 		}
