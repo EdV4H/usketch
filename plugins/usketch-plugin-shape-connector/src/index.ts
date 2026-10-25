@@ -1,5 +1,20 @@
 export { type AnchorChange, computeAnchorChange } from "./anchor-change.js";
 export {
+	type ConnectorEndSpec,
+	type ConnectorEnds,
+	computeEndpointDrop,
+	type EndpointDropChange,
+	isTooShortDrag,
+	MIN_DRAG_SCREEN_PX,
+	moveConnectorEnd,
+	resolveConnectorEnds,
+} from "./connector-ends.js";
+export {
+	CONTAINER_EDGE_SCREEN_PX,
+	findEndShapeAtPoint,
+	findShapeAtPoint,
+} from "./find-shape-at-point.js";
+export {
 	type AnchorHandleMode,
 	CONNECTOR_LAYER_IDS,
 	type ConnectorPluginOptions,

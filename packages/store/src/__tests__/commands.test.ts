@@ -211,6 +211,45 @@ describe("Commands", () => {
 			expect(store.getShape("conn1")).toBeUndefined();
 			expect(store.getShape("s2")).toBeDefined();
 		});
+
+		it("detaches a half-connected connector instead of deleting it, undo reattaches", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "s1" }));
+			store.addShape(
+				makeShape({
+					id: "conn1",
+					type: "connector",
+					sourceId: "s1",
+					sourcePoint: { x: 100, y: 50 },
+					targetPoint: { x: 400, y: 50 },
+				} as ShapeData),
+			);
+
+			const cmd = createDeleteWithChildrenCommand(store, "s1");
+			cmd.execute();
+			expect(store.getShape("s1")).toBeUndefined();
+			const detached = store.getShape("conn1") as ShapeData & Record<string, unknown>;
+			expect(detached).toBeDefined();
+			expect(detached.sourceId).toBeUndefined();
+			expect(detached.sourcePoint).toEqual({ x: 100, y: 50 });
+			expect(detached.targetPoint).toEqual({ x: 400, y: 50 });
+
+			cmd.undo();
+			expect(store.getShape("s1")).toBeDefined();
+			expect((store.getShape("conn1") as ShapeData & Record<string, unknown>).sourceId).toBe("s1");
+		});
+
+		it("deletes a half-connected connector that is itself among the deleted shapes", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "g1", type: "group" }));
+			store.addShape(makeShape({ id: "s1", parentId: "g1" } as ShapeData));
+			store.addShape(
+				makeShape({ id: "conn1", type: "connector", parentId: "g1", targetId: "s1" } as ShapeData),
+			);
+
+			createDeleteWithChildrenCommand(store, "g1").execute();
+			expect(store.getShape("conn1")).toBeUndefined();
+		});
 	});
 
 	describe("Z-order commands", () => {

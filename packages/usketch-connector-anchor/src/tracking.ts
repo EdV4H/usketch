@@ -164,9 +164,9 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 		const target = prev?.target ?? captureLegacyRatio(conn, "target");
 		if (source || target) legacyRatios.set(connId, { source, target });
 	}
-	function legacyRatio(connId: string, endpoint: "source" | "target", shapeId: string) {
+	function legacyRatio(connId: string, endpoint: "source" | "target", shapeId: string | undefined) {
 		const entry = legacyRatios.get(connId)?.[endpoint];
-		return entry?.shapeId === shapeId ? entry.ratio : undefined;
+		return entry && entry.shapeId === shapeId ? entry.ratio : undefined;
 	}
 
 	for (const [id, shape] of store.getShapes()) {
@@ -210,17 +210,22 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 			if (!conn) continue;
 			const sourceId = conn.sourceId;
 			const targetId = conn.targetId;
-			if (!sourceId || !targetId) continue;
-
-			const source = store.getShape(sourceId);
-			const target = store.getShape(targetId);
-			if (!source || !target) continue;
+			// An end without a shape is a free endpoint: it stays at its stored point.
+			const source = sourceId ? store.getShape(sourceId) : undefined;
+			const target = targetId ? store.getShape(targetId) : undefined;
+			if (!source && !target) continue;
+			if ((!source && !conn.sourcePoint) || (!target && !conn.targetPoint)) continue;
 
 			const sourceAnchor = conn.sourceAnchor ?? "auto";
 			const targetAnchor = conn.targetAnchor ?? "auto";
 
-			const targetCenter = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
-			const sourceCenter = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
+			// "auto" faces the other end: its shape center, or its fixed point when free.
+			const targetCenter = target
+				? { x: target.x + target.width / 2, y: target.y + target.height / 2 }
+				: (conn.targetPoint as Point);
+			const sourceCenter = source
+				? { x: source.x + source.width / 2, y: source.y + source.height / 2 }
+				: (conn.sourcePoint as Point);
 
 			// custom アンカーは比率（shape からの相対位置）があればそこから毎回計算する。
 			// 現在の sourcePoint に移動量を足す方式だと、同じ移動でコネクタ自身も平行移動
@@ -229,7 +234,9 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 			const targetRatio = conn.targetAnchorRatio ?? legacyRatio(connId, "target", targetId);
 
 			let sourcePoint: Point;
-			if (sourceAnchor === "custom" && sourceRatio) {
+			if (!source) {
+				sourcePoint = conn.sourcePoint as Point;
+			} else if (sourceAnchor === "custom" && sourceRatio) {
 				sourcePoint = getPointFromAnchorRatio(source, sourceRatio);
 			} else if (sourceAnchor === "custom" && sourceId === payload.id) {
 				const old = conn.sourcePoint as Point;
@@ -241,7 +248,9 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 			}
 
 			let targetPoint: Point;
-			if (targetAnchor === "custom" && targetRatio) {
+			if (!target) {
+				targetPoint = conn.targetPoint as Point;
+			} else if (targetAnchor === "custom" && targetRatio) {
 				targetPoint = getPointFromAnchorRatio(target, targetRatio);
 			} else if (targetAnchor === "custom" && targetId === payload.id) {
 				const old = conn.targetPoint as Point;
@@ -266,10 +275,10 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 			}
 
 			// 補完した比率を書き込んで旧データを移行する。
-			if (sourceAnchor === "custom" && !conn.sourceAnchorRatio && sourceRatio) {
+			if (source && sourceAnchor === "custom" && !conn.sourceAnchorRatio && sourceRatio) {
 				updates.sourceAnchorRatio = sourceRatio;
 			}
-			if (targetAnchor === "custom" && !conn.targetAnchorRatio && targetRatio) {
+			if (target && targetAnchor === "custom" && !conn.targetAnchorRatio && targetRatio) {
 				updates.targetAnchorRatio = targetRatio;
 			}
 			legacyRatios.delete(connId);

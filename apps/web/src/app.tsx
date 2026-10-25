@@ -182,7 +182,7 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		createBasicShapePlugin(),
 		createGroupPlugin(),
 		createFramePlugin(),
-		createConnectorPlugin(),
+		createConnectorPlugin({ freeEnds: true }),
 		createFreedrawPlugin(),
 		createTextPlugin(),
 		createMarkdownPlugin(),

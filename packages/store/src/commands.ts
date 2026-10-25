@@ -215,6 +215,7 @@ export function createReparentCommand(
 /** Delete a shape and all its children recursively */
 export function createDeleteWithChildrenCommand(store: BoardStore, shapeId: string): Command {
 	let deletedShapes: ShapeData[] = [];
+	let detached: { id: string; key: "sourceId" | "targetId"; shapeId: string }[] = [];
 
 	function collectDescendants(id: string): string[] {
 		const ids = [id];
@@ -229,20 +230,33 @@ export function createDeleteWithChildrenCommand(store: BoardStore, shapeId: stri
 	return {
 		execute() {
 			const allIds = collectDescendants(shapeId);
-			// Also collect connectors attached to any of these shapes
+			// Also collect connectors attached to any of these shapes. A connector
+			// with only one connected end is detached (that end becomes free at its
+			// current point) rather than deleted.
 			const connectorIds = new Set<string>();
+			detached = [];
 			for (const [, shape] of store.getShapes()) {
-				if (shape.type !== "connector") continue;
+				if (shape.type !== "connector" || allIds.includes(shape.id)) continue;
 				const { sourceId, targetId } = shape as {
 					sourceId?: string;
 					targetId?: string;
 				};
-				if (
-					(sourceId !== undefined && allIds.includes(sourceId)) ||
-					(targetId !== undefined && allIds.includes(targetId))
-				) {
+				const sourceHit = sourceId !== undefined && allIds.includes(sourceId);
+				const targetHit = targetId !== undefined && allIds.includes(targetId);
+				if (!sourceHit && !targetHit) continue;
+				if (sourceId && targetId) {
 					connectorIds.add(shape.id);
+				} else {
+					const key = sourceHit ? "sourceId" : "targetId";
+					detached.push({
+						id: shape.id,
+						key,
+						shapeId: (sourceHit ? sourceId : targetId) as string,
+					});
 				}
+			}
+			for (const d of detached) {
+				store.updateShape(d.id, { [d.key]: undefined } as Partial<ShapeData>);
 			}
 			const toDelete = [...new Set([...allIds, ...connectorIds])];
 			deletedShapes = [];
@@ -259,6 +273,9 @@ export function createDeleteWithChildrenCommand(store: BoardStore, shapeId: stri
 			// Restore in original order (parents first)
 			for (const snap of deletedShapes) {
 				store.addShape(snap);
+			}
+			for (const d of detached) {
+				store.updateShape(d.id, { [d.key]: d.shapeId } as Partial<ShapeData>);
 			}
 		},
 	};
