@@ -1,6 +1,7 @@
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import type { Cells } from "../autotile.js";
+import { chunkArea, visibleRegion } from "../map-layer.js";
 import { computeRelief, wallStyle } from "../map-relief-layer.js";
 import { renderConfigStore } from "../render-config.js";
 import { TERRAIN_KEYS } from "../terrain.js";
@@ -79,21 +80,48 @@ describe("computeRelief", () => {
 		expect(walls["1,0:w"]).toEqual([1, 3]);
 		expect(walls["1,0:e"]).toEqual([0, 3]);
 	});
+	it("merges a run of matching edges into one wall", () => {
+		const row: Cells = { "0,0": "grass", "1,0": "grass", "2,0": "grass", "3,0": "mtn" };
+		const at = (c: number, r: number) => row[`${c},${r}`] ?? "water";
+		const relief = computeRelief(at, { c0: 0, c1: 3, r0: 0, r1: 0 });
+		const north = relief.walls.filter((w) => w.side === "n");
+		// Three grass cells share one north wall; the mountain's differs in height.
+		expect(north.map((w) => [w.col, w.length, w.top])).toEqual([
+			[0, 3, 1],
+			[3, 1, 3],
+		]);
+	});
 });
 
 describe("wallStyle", () => {
-	it("folds a south wall down from its top level along the cell's bottom edge", () => {
+	it("folds a south wall down from its top level along the cells' bottom edge", () => {
 		const style = wallStyle(
-			{ key: "k", col: 1, row: 2, side: "s", top: 3, bottom: 1, terrain: "mtn" },
+			{ key: "k", col: 1, row: 2, side: "s", length: 2, top: 3, bottom: 1, terrain: "mtn" },
 			TILE,
-			{ x: 5, y: 7, zoom: 2 },
+			2,
 		);
 		expect(style).toMatchObject({
-			left: 1 * TILE * 2 + 5,
-			top: 3 * TILE * 2 + 7,
-			width: TILE * 2,
+			left: 1 * TILE * 2,
+			top: 3 * TILE * 2,
+			width: 2 * TILE * 2,
 			height: 2 * LEVEL_HEIGHT * 2,
 			transform: `translateZ(${3 * LEVEL_HEIGHT * 2}px) rotateX(-90deg)`,
 		});
+	});
+});
+
+describe("chunkArea", () => {
+	it("snaps the drawn area out to whole chunks", () => {
+		const a = chunkArea({ left: 10, top: -5, right: 110, bottom: 45 } as DOMRectReadOnly, TILE);
+		const chunk = 16 * TILE;
+		expect(a && [a.left, a.top, a.right, a.bottom]).toEqual([0, -chunk, chunk, chunk]);
+	});
+});
+
+describe("visibleRegion", () => {
+	it("snaps to a few cells, inside the chunk area", () => {
+		const r = visibleRegion({ left: 10, top: -5, right: 110, bottom: 45 } as DOMRectReadOnly, TILE);
+		const step = 4 * TILE;
+		expect(r && [r.left, r.top, r.right, r.bottom]).toEqual([0, -step, step, step]);
 	});
 });

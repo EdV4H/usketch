@@ -30,6 +30,9 @@ export const CAPTURE_FRAME_LAYER_ID = "mode7-capture-frame";
 /** Wheel-zoom sensitivity (matches viewport-nav's deltaY-proportional feel). */
 const WHEEL_ZOOM = 0.0015;
 
+/** Emitted with `{ active }` when the 3D stage starts / stops showing the board. */
+export const STAGE_3D_EVENT = "usketch:stage-3d";
+
 /** Extra px added to the grid overscan so it comfortably covers the clip line (rounding). */
 const OVERSCAN_BUFFER = 16;
 
@@ -90,6 +93,15 @@ export function setupMode7Runtime(
 		if (px === lastOverscan) return;
 		lastOverscan = px;
 		ctx.events.emit("bg-grid:set-overscan", { px });
+	};
+
+	// Tell ground plugins when the 3D stage starts / stops showing the board (the map
+	// builds its raised relief only then). A plain event, like the overscan below.
+	let lastStage = false;
+	const announceStage = (active: boolean): void => {
+		if (active === lastStage) return;
+		lastStage = active;
+		ctx.events.emit(STAGE_3D_EVENT, { active });
 	};
 
 	const applyTilt = (): void => {
@@ -165,8 +177,10 @@ export function setupMode7Runtime(
 	};
 
 	const sync = (): void => {
-		if (store.getState().active) applyTilt();
+		const active = store.getState().active;
+		if (active) applyTilt();
 		else clearAll();
+		announceStage(active);
 		maybeCapture();
 	};
 
@@ -225,6 +239,7 @@ export function setupMode7Runtime(
 
 	return () => {
 		clearAll();
+		announceStage(false);
 		styleEl?.remove();
 		styleEl = null;
 		unsubscribe();
