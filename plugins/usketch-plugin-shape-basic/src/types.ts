@@ -20,3 +20,10 @@ export interface GeoTextData {
 	fontWeight?: "normal" | "bold";
 	isEditing?: boolean;
 }
+
+export type ArrowDirection = "right" | "left" | "up" | "down";
+
+/** Arrow shape extension: which way the head points (unset = `"right"`, legacy). */
+export interface ArrowShapeData extends ShapeData {
+	direction?: ArrowDirection;
+}

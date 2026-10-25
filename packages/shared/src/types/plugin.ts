@@ -428,6 +428,15 @@ export interface ShapeDefinition {
 	 * center, the correct behavior for box-defined shapes.
 	 */
 	rotate?: (data: ShapeData, angleRad: number, center: Point) => Partial<ShapeData>;
+	/**
+	 * Called when a resize drag crosses the anchored edge and the bounding box
+	 * flips (`axes.x` = horizontal flip, `axes.y` = vertical flip). The axes are
+	 * in the shape's local (un-rotated) frame: for a rotated shape in a
+	 * multi-selection the world axes are mapped to the nearest local axes. Return
+	 * the fields to patch so orientation-bearing geometry follows the flip (e.g.
+	 * an arrow reversing its direction). Default (unset): nothing besides bounds.
+	 */
+	flip?: (data: ShapeData, axes: { x: boolean; y: boolean }) => Partial<ShapeData>;
 	/** Fit shape data to new bounding box (for multi-resize). Default: apply newBounds as-is. */
 	applyBounds?: (data: ShapeData, newBounds: BoundingBox) => Partial<ShapeData>;
 	/** Return GPU-renderable primitive data, or null to fall back to DOM rendering. */

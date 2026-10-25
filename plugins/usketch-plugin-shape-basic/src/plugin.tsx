@@ -18,6 +18,7 @@ import {
 	withRotation,
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
+import { getDrawDragPatch } from "./draw-drag.js";
 import {
 	ellipseGpuPrimitive,
 	lineGpuPrimitive,
@@ -26,7 +27,7 @@ import {
 } from "./gpu.js";
 import { LABELABLE_TYPES, withLabel } from "./label.js";
 import { BASIC_SHAPE_SUBTYPES } from "./registry.js";
-import { getArrowPoints, renderArrow } from "./shapes/arrow.js";
+import { flipArrow, getArrowPoints, renderArrow } from "./shapes/arrow.js";
 import { getDiamondPoints, renderDiamond } from "./shapes/diamond.js";
 import { renderEllipse } from "./shapes/ellipse.js";
 import { renderLine } from "./shapes/line.js";
@@ -34,7 +35,7 @@ import { renderRectangle } from "./shapes/rectangle.js";
 import { renderRoundedRect } from "./shapes/rounded-rect.js";
 import { getStarPoints, renderStar } from "./shapes/star.js";
 import { getTrianglePoints, renderTriangle } from "./shapes/triangle.js";
-import type { RectangleShapeData } from "./types.js";
+import type { ArrowShapeData, RectangleShapeData } from "./types.js";
 
 function rectangleSerializeForAi(shape: ShapeData): Record<string, unknown> {
 	const data = shape as RectangleShapeData;
@@ -49,6 +50,11 @@ function rectangleDebugFields(shape: ShapeData): Record<string, unknown> {
 	// key and the field disappears from the panel).
 	const data = shape as RectangleShapeData;
 	return { cornerRadius: data.cornerRadius ?? 0 };
+}
+
+function arrowDirectionFields(shape: ShapeData): Record<string, unknown> {
+	// Mirror the renderer's default so legacy arrows show their implicit direction.
+	return { direction: (shape as ArrowShapeData).direction ?? "right" };
 }
 
 const SHAPE_RENDERERS: Record<
@@ -121,6 +127,7 @@ export function createBasicShapePlugin(): UsketchPlugin {
 
 				const gpuFn = SHAPE_GPU_PRIMITIVES[subtype.type];
 				const isRectangle = subtype.type === "rectangle";
+				const isArrow = subtype.type === "arrow";
 				// 2D shapes get an editable centered label; 1D (arrow/line) render as-is.
 				const render = LABELABLE_TYPES.has(subtype.type) ? withLabel(renderer) : renderer;
 				ctx.shapes.register(subtype.type, {
@@ -130,8 +137,17 @@ export function createBasicShapePlugin(): UsketchPlugin {
 					resize: createResize(1, 1),
 					createDefault: subtype.createDefault,
 					gpuPrimitive: gpuFn,
-					serializeForAi: isRectangle ? rectangleSerializeForAi : undefined,
-					debugFields: isRectangle ? rectangleDebugFields : undefined,
+					flip: isArrow ? flipArrow : undefined,
+					serializeForAi: isRectangle
+						? rectangleSerializeForAi
+						: isArrow
+							? arrowDirectionFields
+							: undefined,
+					debugFields: isRectangle
+						? rectangleDebugFields
+						: isArrow
+							? arrowDirectionFields
+							: undefined,
 				});
 			}
 
@@ -145,7 +161,8 @@ export function createBasicShapePlugin(): UsketchPlugin {
 
 			// Tool state
 			let currentSubtype = BASIC_SHAPE_SUBTYPES[0].type;
-			let drawState: { startX: number; startY: number; shapeId: string } | null = null;
+			let drawState: { startX: number; startY: number; shapeId: string; type: string } | null =
+				null;
 
 			// Listen for subtype changes from the toolbar picker
 			const offSubtype = ctx.events.on<{ type: string }>("basic-shape:select-subtype", (data) => {
@@ -173,7 +190,12 @@ export function createBasicShapePlugin(): UsketchPlugin {
 				if (!subtype) return;
 
 				const id = generateId();
-				drawState = { startX: event.worldPoint.x, startY: event.worldPoint.y, shapeId: id };
+				drawState = {
+					startX: event.worldPoint.x,
+					startY: event.worldPoint.y,
+					shapeId: id,
+					type: subtype.type,
+				};
 				const shape = subtype.createDefault({ id, x: event.worldPoint.x, y: event.worldPoint.y });
 				shape.width = 0;
 				shape.height = 0;
@@ -183,11 +205,11 @@ export function createBasicShapePlugin(): UsketchPlugin {
 
 			function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
 				if (!drawState) return;
-				const x = Math.min(drawState.startX, event.worldPoint.x);
-				const y = Math.min(drawState.startY, event.worldPoint.y);
-				const width = Math.abs(event.worldPoint.x - drawState.startX);
-				const height = Math.abs(event.worldPoint.y - drawState.startY);
-				toolCtx.store.updateShape(drawState.shapeId, { x, y, width, height });
+				const start = { x: drawState.startX, y: drawState.startY };
+				toolCtx.store.updateShape(
+					drawState.shapeId,
+					getDrawDragPatch(drawState.type, start, event.worldPoint),
+				);
 			}
 
 			function onPointerUp(toolCtx: ToolContext) {
