@@ -20,6 +20,7 @@ type EditableEvent =
 	| { type: "CLICK_TIMEOUT" }
 	| { type: "SETTLE_TIMEOUT" }
 	| { type: "TEXT_INPUT"; id: string; text: string; scrollHeight: number }
+	| { type: "TEXT_PREVIEW"; id: string; text: string; scrollHeight: number }
 	| { type: "TEXT_BLUR"; id: string }
 	| { type: "TEXT_ESCAPE"; id: string }
 	| { type: "OUTSIDE_CLICK" }
@@ -34,6 +35,9 @@ interface EditableRefs {
 	growOnly: boolean;
 	minHeight: number;
 	deleteWhenEmpty: boolean;
+	fitOnInput: EditableTextOptions["fitOnInput"];
+	/** Values before the edit of fields `fitOnInput` changed (beyond text/width/height). */
+	fitSnapshot: Record<string, unknown>;
 }
 
 interface EditableSchema extends MachineSchema {
@@ -41,6 +45,7 @@ interface EditableSchema extends MachineSchema {
 		editingShapeId: string | null;
 		textSnapshot: string | null;
 		heightSnapshot: number | null;
+		widthSnapshot: number | null;
 		clickedShapeId: string | null;
 	};
 	refs: EditableRefs;
@@ -55,6 +60,7 @@ interface EditableSchema extends MachineSchema {
 		| "enterEdit"
 		| "exitEdit"
 		| "updateText"
+		| "previewText"
 		| "sendEnterEdit"
 		| "startSettleTimer";
 	effect: never;
@@ -70,6 +76,7 @@ const machine = createMachine<EditableSchema>({
 			editingShapeId: bindable<string | null>(() => ({ defaultValue: null })),
 			textSnapshot: bindable<string | null>(() => ({ defaultValue: null })),
 			heightSnapshot: bindable<number | null>(() => ({ defaultValue: null })),
+			widthSnapshot: bindable<number | null>(() => ({ defaultValue: null })),
 			clickedShapeId: bindable<string | null>(() => ({ defaultValue: null })),
 		};
 	},
@@ -83,6 +90,8 @@ const machine = createMachine<EditableSchema>({
 			growOnly: false,
 			minHeight: 24,
 			deleteWhenEmpty: false,
+			fitOnInput: undefined,
+			fitSnapshot: {},
 		};
 	},
 	states: {
@@ -120,6 +129,7 @@ const machine = createMachine<EditableSchema>({
 					entry: ["startSettleTimer"],
 					on: {
 						TEXT_INPUT: { guard: "isEditingTarget", actions: ["updateText"] },
+						TEXT_PREVIEW: { guard: "isEditingTarget", actions: ["previewText"] },
 						TEXT_ESCAPE: { guard: "isEditingTarget", target: "idle", actions: ["exitEdit"] },
 						DESELECTED: { target: "idle", actions: ["exitEdit"] },
 						SETTLE_TIMEOUT: { target: "active" },
@@ -128,6 +138,7 @@ const machine = createMachine<EditableSchema>({
 				active: {
 					on: {
 						TEXT_INPUT: { guard: "isEditingTarget", actions: ["updateText"] },
+						TEXT_PREVIEW: { guard: "isEditingTarget", actions: ["previewText"] },
 						TEXT_BLUR: { guard: "isEditingTarget", target: "idle", actions: ["exitEdit"] },
 						OUTSIDE_CLICK: { target: "idle", actions: ["exitEdit"] },
 						TEXT_ESCAPE: { guard: "isEditingTarget", target: "idle", actions: ["exitEdit"] },
@@ -184,6 +195,8 @@ const machine = createMachine<EditableSchema>({
 				if (!shape || !isEditableType(shape.type)) return;
 				context.set("textSnapshot", (shape as TextLike).text ?? "");
 				context.set("heightSnapshot", shape.height);
+				context.set("widthSnapshot", shape.width);
+				refs.set("fitSnapshot", {});
 				context.set("clickedShapeId", null);
 				const t = refs.get("clickTimer");
 				if (t != null) {
@@ -205,6 +218,7 @@ const machine = createMachine<EditableSchema>({
 				if (!id) return;
 				const prevText = context.get("textSnapshot");
 				const prevHeight = context.get("heightSnapshot");
+				const prevWidth = context.get("widthSnapshot");
 				const ctx = refs.get("ctx");
 				const settle = refs.get("settleTimer");
 				if (settle != null) {
@@ -216,6 +230,7 @@ const machine = createMachine<EditableSchema>({
 					context.set("editingShapeId", null);
 					context.set("textSnapshot", null);
 					context.set("heightSnapshot", null);
+					context.set("widthSnapshot", null);
 				};
 				if (!shape) return reset();
 				ctx.store.updateShape(id, { isEditing: false } as Partial<ShapeData>);
@@ -229,9 +244,38 @@ const machine = createMachine<EditableSchema>({
 						execute: () => ctx.store.deleteShape(id),
 						undo: () => ctx.store.addShape(snapshot),
 					});
-				} else if (currentText !== prevText || shape.height !== prevHeight) {
-					const from = { text: prevText, height: prevHeight ?? shape.height } as Partial<ShapeData>;
-					const to = { text: currentText, height: shape.height } as Partial<ShapeData>;
+				} else {
+					// Fields `fitOnInput` changed (e.g. auto width, the position of a
+					// rotated text) belong to the same undo step.
+					const fitSnapshot = refs.get("fitSnapshot");
+					const current = shape as unknown as Record<string, unknown>;
+					const fitFrom: Record<string, unknown> = {};
+					const fitTo: Record<string, unknown> = {};
+					for (const [key, value] of Object.entries(fitSnapshot)) {
+						if (current[key] === value) continue;
+						fitFrom[key] = value;
+						fitTo[key] = current[key];
+					}
+					if (
+						currentText === prevText &&
+						shape.height === prevHeight &&
+						shape.width === prevWidth &&
+						Object.keys(fitTo).length === 0
+					) {
+						return reset();
+					}
+					const from = {
+						...fitFrom,
+						text: prevText,
+						height: prevHeight ?? shape.height,
+						width: prevWidth ?? shape.width,
+					} as Partial<ShapeData>;
+					const to = {
+						...fitTo,
+						text: currentText,
+						height: shape.height,
+						width: shape.width,
+					} as Partial<ShapeData>;
 					ctx.commands.execute({
 						execute: () => ctx.store.updateShape(id, to),
 						undo: () => ctx.store.updateShape(id, from),
@@ -240,18 +284,25 @@ const machine = createMachine<EditableSchema>({
 				reset();
 			},
 			updateText({ refs, event }) {
-				if (!("text" in event)) return;
+				if (event.type !== "TEXT_INPUT") return;
 				const ctx = refs.get("ctx");
 				const shape = ctx.store.getShape(event.id);
 				if (!shape) return;
-				const patch: Partial<ShapeData> = { text: event.text } as Partial<ShapeData>;
-				if (refs.get("growHeight")) {
-					// grow-only shapes (sticky) never shrink below their current
-					// (possibly manually-resized) height; others fit down to minHeight.
-					const floor = refs.get("growOnly") ? shape.height : refs.get("minHeight");
-					(patch as { height?: number }).height = Math.max(floor, event.scrollHeight);
-				}
-				ctx.store.updateShape(event.id, patch);
+				ctx.store.updateShape(event.id, {
+					text: event.text,
+					...fitGeometry(refs, shape, event.text, event.scrollHeight),
+				} as Partial<ShapeData>);
+			},
+			previewText({ refs, event }) {
+				// IME composition: resize to the unconfirmed content but leave
+				// `text` alone — it is committed on composition end. Geometry
+				// changes stay inside the edit's single undo step (see exitEdit).
+				if (event.type !== "TEXT_PREVIEW") return;
+				const ctx = refs.get("ctx");
+				const shape = ctx.store.getShape(event.id);
+				if (!shape) return;
+				const patch = fitGeometry(refs, shape, event.text, event.scrollHeight);
+				if (Object.keys(patch).length > 0) ctx.store.updateShape(event.id, patch);
 			},
 			sendEnterEdit({ send }) {
 				send({ type: "ENTER_EDIT" });
@@ -261,6 +312,33 @@ const machine = createMachine<EditableSchema>({
 });
 
 type TextLike = ShapeData & { text?: string };
+
+/** Height growth plus the plugin's `fitOnInput` patch for the editor content. */
+function fitGeometry(
+	refs: { get<K extends keyof EditableRefs>(key: K): EditableRefs[K] },
+	shape: ShapeData,
+	text: string,
+	scrollHeight: number,
+): Partial<ShapeData> {
+	const patch: Partial<ShapeData> = {};
+	if (refs.get("growHeight")) {
+		// grow-only shapes (sticky) never shrink below their current
+		// (possibly manually-resized) height; others fit down to minHeight.
+		const floor = refs.get("growOnly") ? shape.height : refs.get("minHeight");
+		patch.height = Math.max(floor, scrollHeight);
+	}
+	const fit = refs.get("fitOnInput")?.(shape, text, { height: patch.height ?? shape.height });
+	if (fit) {
+		const snapshot = refs.get("fitSnapshot");
+		const before = shape as unknown as Record<string, unknown>;
+		for (const key of Object.keys(fit)) {
+			if (key === "text" || key === "width" || key === "height") continue;
+			if (!(key in snapshot)) snapshot[key] = before[key];
+		}
+		Object.assign(patch, fit);
+	}
+	return patch;
+}
 
 export interface EditableTextOptions {
 	/** Which shape types this controller edits. */
@@ -283,12 +361,29 @@ export interface EditableTextOptions {
 	 * just clear the label. Default false.
 	 */
 	deleteWhenEmpty?: boolean;
+	/**
+	 * Extra geometry patch applied on each text input, merged over the height
+	 * growth (e.g. the text shape's auto width). `next.height` is the height the
+	 * input is about to apply. Return null to leave the shape as is. Changes it
+	 * makes (any field) are part of the edit's single undo step.
+	 */
+	fitOnInput?: (
+		shape: ShapeData,
+		text: string,
+		next: { height: number },
+	) => Partial<ShapeData> | null;
 }
 
 export interface EditableTextController {
 	/** Begin editing a specific shape explicitly (e.g. right after creation). */
 	beginEdit(shapeId: string): void;
 	isEditing(): boolean;
+	/**
+	 * Forget a pending first click, so the next pointer-down on the shape does
+	 * not complete a double-click into edit mode. Call from a handler that has
+	 * already consumed the double-click (e.g. a resize-handle double-click).
+	 */
+	cancelPendingClick(): void;
 	teardown(): void;
 }
 
@@ -304,6 +399,7 @@ export function createEditableTextController(
 	service.refs.set("growOnly", options.growOnly ?? false);
 	service.refs.set("minHeight", options.minHeight ?? 24);
 	service.refs.set("deleteWhenEmpty", options.deleteWhenEmpty ?? false);
+	service.refs.set("fitOnInput", options.fitOnInput);
 	service.start();
 
 	const matches = (...values: string[]) => {
@@ -314,6 +410,10 @@ export function createEditableTextController(
 	const onInput = (e: Event) => {
 		const { id, text, scrollHeight } = (e as CustomEvent).detail;
 		service.send({ type: "TEXT_INPUT", id, text, scrollHeight });
+	};
+	const onPreview = (e: Event) => {
+		const { id, text, scrollHeight } = (e as CustomEvent).detail;
+		service.send({ type: "TEXT_PREVIEW", id, text, scrollHeight });
 	};
 	const onBlur = (e: Event) => {
 		const { id } = (e as CustomEvent).detail;
@@ -331,6 +431,7 @@ export function createEditableTextController(
 		service.send({ type: "OUTSIDE_CLICK" });
 	};
 	window.addEventListener("usketch:text-input", onInput);
+	window.addEventListener("usketch:text-preview", onPreview);
 	window.addEventListener("usketch:text-blur", onBlur);
 	window.addEventListener("usketch:text-escape", onEscape);
 	window.addEventListener("pointerdown", onWindowPointerDown, true);
@@ -358,6 +459,9 @@ export function createEditableTextController(
 			service.send({ type: "CREATE_SHAPE", shapeId });
 		},
 		isEditing: () => matches("editing"),
+		cancelPendingClick() {
+			service.send({ type: "CLICK_TIMEOUT" });
+		},
 		teardown() {
 			const clickTimer = service.refs.get("clickTimer");
 			if (clickTimer != null) clearTimeout(clickTimer);
@@ -365,6 +469,7 @@ export function createEditableTextController(
 			if (settleTimer != null) clearTimeout(settleTimer);
 			service.stop();
 			window.removeEventListener("usketch:text-input", onInput);
+			window.removeEventListener("usketch:text-preview", onPreview);
 			window.removeEventListener("usketch:text-blur", onBlur);
 			window.removeEventListener("usketch:text-escape", onEscape);
 			window.removeEventListener("pointerdown", onWindowPointerDown, true);
