@@ -34,10 +34,11 @@ function fakeDom() {
 	};
 	return {
 		win,
+		doc,
 		fire,
 		document,
-		fireDoc: (t: string) => {
-			for (const f of doc.get(t) ?? []) f({});
+		fireDoc: (t: string, init: Record<string, unknown> = {}) => {
+			for (const f of doc.get(t) ?? []) f(init);
 		},
 	};
 }
@@ -160,9 +161,60 @@ describe("createKeyInput", () => {
 		input.dispose();
 	});
 
+	it("leaves every key to an open dialog or menu", () => {
+		const input = createKeyInput(
+			DEFAULT_KEYS,
+			() => true,
+			() => true,
+		);
+		const inDialog = {
+			tagName: "DIV",
+			closest: (sel: string) => (sel.includes('[role="dialog"]') ? {} : null),
+		};
+		for (const code of ["KeyW", "ArrowLeft", "Space"]) {
+			const e = dom.fire("keydown", { code, target: inDialog });
+			expect(e.preventDefault).not.toHaveBeenCalled();
+		}
+		expect(input.anyHeld()).toBe(false);
+		input.dispose();
+	});
+
+	it("leaves arrow keys (only) to a focused slider, radio or tab", () => {
+		const input = createKeyInput({ ...DEFAULT_KEYS, left: ["KeyA", "ArrowLeft"] }, () => true);
+		const slider = {
+			tagName: "DIV",
+			getAttribute: (n: string) => (n === "role" ? "slider" : null),
+		};
+		const arrow = dom.fire("keydown", { code: "ArrowLeft", target: slider });
+		expect(arrow.preventDefault).not.toHaveBeenCalled();
+		expect(input.read().left).toBe(false);
+		dom.fire("keydown", { code: "ArrowLeft", target: { tagName: "INPUT", type: "range" } });
+		expect(input.read().left).toBe(false);
+		dom.fire("keydown", { code: "KeyA", target: slider });
+		expect(input.read().left).toBe(true);
+		input.dispose();
+	});
+
+	it("drops held keys when focus moves into a field, dialog or arrow widget", () => {
+		const input = createKeyInput(DEFAULT_KEYS, () => true);
+		dom.fire("keydown", { code: "KeyW" });
+		dom.fireDoc("focusin", { target: { tagName: "BUTTON" } });
+		expect(input.read().up).toBe(true);
+		dom.fireDoc("focusin", { target: { tagName: "TEXTAREA" } });
+		expect(input.anyHeld()).toBe(false);
+		dom.fire("keydown", { code: "KeyW" });
+		dom.fireDoc("focusin", { target: { tagName: "INPUT", type: "radio" } });
+		expect(input.anyHeld()).toBe(false);
+		// The released key's keyup now belongs to the new target.
+		const up = dom.fire("keyup", { code: "KeyW" });
+		expect(up.preventDefault).not.toHaveBeenCalled();
+		input.dispose();
+	});
+
 	it("removes every listener on dispose", () => {
 		const input = createKeyInput(DEFAULT_KEYS, () => true);
 		input.dispose();
 		for (const fns of dom.win.values()) expect(fns).toHaveLength(0);
+		for (const fns of dom.doc.values()) expect(fns).toHaveLength(0);
 	});
 });
