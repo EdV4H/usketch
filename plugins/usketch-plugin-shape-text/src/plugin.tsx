@@ -4,6 +4,7 @@ import {
 	type CanvasPointerEvent,
 	DEFAULT_STYLE,
 	generateId,
+	getContainerLayout,
 	type PluginContext,
 	type Point,
 	type ShapeData,
@@ -15,6 +16,7 @@ import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { createDomTextMeasurer } from "./dom-text-measurer.js";
 import {
 	AUTO_WIDTH_MIN,
+	applyTextBounds,
 	fitTextOnInput,
 	fitTextToContent,
 	isSideHandle,
@@ -117,6 +119,13 @@ function hitTest(data: ShapeData, point: Point): boolean {
 	);
 }
 
+/** Whether the shape's parent is a container that lays out (and sizes) its children. */
+function isInLayoutContainer(ctx: PluginContext, shape: ShapeData): boolean {
+	if (typeof shape.parentId !== "string") return false;
+	const parent = ctx.store.getShape(shape.parentId);
+	return !!parent && !!getContainerLayout(ctx.shapes.get(parent.type));
+}
+
 function createDefault(params: { id: string; x: number; y: number }): TextShapeData {
 	return {
 		id: params.id,
@@ -188,7 +197,11 @@ export function createTextPlugin(): UsketchPlugin {
 				growHeight: true,
 				minHeight: 28,
 				deleteWhenEmpty: true,
-				fitOnInput: (shape, text) => fitTextOnInput(shape, text, measurer.measure),
+				fitOnInput: (shape, text, next) =>
+					fitTextOnInput(shape, text, measurer.measure, {
+						height: next.height,
+						laidOut: isInLayoutContainer(ctx, shape),
+					}),
 			});
 
 			// ── Shape registration ──
@@ -197,6 +210,7 @@ export function createTextPlugin(): UsketchPlugin {
 				getBounds,
 				hitTest: withRotation(hitTest),
 				resize: resizeText,
+				applyBounds: applyTextBounds,
 				createDefault,
 				renderTarget: "html",
 				minSize: { width: 40, height: 24 },

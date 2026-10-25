@@ -4,9 +4,11 @@ import { createBoardStore } from "@edv4h/usketch-store";
 import { describe, expect, it } from "vitest";
 import {
 	AUTO_WIDTH_MIN,
+	applyTextBounds,
 	computeAutoFitPatch,
 	fitTextOnInput,
 	fitTextToContent,
+	keepTopLeft,
 	resizeText,
 	type TextMeasurer,
 } from "./text-sizing.js";
@@ -70,9 +72,56 @@ describe("resizeText", () => {
 		expect((out as { autoWidth?: boolean }).autoWidth).toBe(false);
 	});
 
+	it("手ぶれ程度（2px 未満）の横ハンドル操作では幅も自動幅も変わらない", () => {
+		const narrow = textShape({ autoWidth: true, width: 24 });
+		const out = resizeText(narrow, "e", { x: 0.5, y: 0 });
+		expect(out.width).toBe(24);
+		expect((out as { autoWidth?: boolean }).autoWidth).toBe(true);
+		const left = resizeText(narrow, "w", { x: -1, y: 0 });
+		expect(left).toMatchObject({ x: 100, width: 24, autoWidth: true });
+	});
+
 	it("autoWidth を持たない既存テキストに autoWidth を付け足さない", () => {
 		const out = resizeText(textShape(), "e", { x: 30, y: 0 });
 		expect("autoWidth" in out).toBe(false);
+	});
+});
+
+describe("applyTextBounds（複数選択のリサイズ）", () => {
+	it("幅が変われば固定幅に切り替える", () => {
+		const patch = applyTextBounds(textShape({ autoWidth: true }), {
+			x: 100,
+			y: 50,
+			width: 120,
+			height: 28,
+		});
+		expect(patch).toEqual({ x: 100, y: 50, width: 120, height: 28, autoWidth: false });
+	});
+
+	it("幅が変わらなければ自動幅のまま", () => {
+		const patch = applyTextBounds(textShape({ autoWidth: true }), {
+			x: 140,
+			y: 80,
+			width: 200,
+			height: 28,
+		});
+		expect("autoWidth" in patch).toBe(false);
+	});
+});
+
+describe("keepTopLeft", () => {
+	it("回転していなければ null", () => {
+		expect(keepTopLeft(textShape(), 300, 28)).toBeNull();
+	});
+
+	it("回転したテキストの左上の角を動かさない", () => {
+		const shape = textShape({ rotation: 90, x: 0, y: 0, width: 100, height: 20 });
+		// 90° 回転: 中心 (50,10)、左上の角はワールドで (60,-40)
+		const pos = keepTopLeft(shape, 200, 20) as { x: number; y: number };
+		const center = { x: pos.x + 100, y: pos.y + 10 };
+		// 新しい左上の角 = 中心 + R(90°)(-100,-10) = 中心 + (10,-100)
+		expect(center.x + 10).toBeCloseTo(60);
+		expect(center.y - 100).toBeCloseTo(-40);
 	});
 });
 
@@ -100,6 +149,18 @@ describe("fitTextOnInput", () => {
 		// 「にほんご」と打っている途中（未確定）→ 確定して「日本語」
 		expect(fitTextOnInput(shape, "あいうにほんご", measure)).toEqual({ width: 78 });
 		expect(fitTextOnInput(shape, "あいう日本語", measure)).toEqual({ width: 68 });
+	});
+
+	it("子をレイアウトするコンテナの中では幅を争わずに固定幅へ切り替える", () => {
+		expect(
+			fitTextOnInput(textShape({ autoWidth: true }), "abcd", measure, { laidOut: true }),
+		).toEqual({ autoWidth: false });
+	});
+
+	it("回転したテキストは左上の角を保つ位置も返す", () => {
+		const shape = textShape({ autoWidth: true, rotation: 90 });
+		const patch = fitTextOnInput(shape, "abcd", measure, { height: 28 });
+		expect(patch).toMatchObject({ width: 48, ...keepTopLeft(shape, 48, 28) });
 	});
 
 	it("固定幅（autoWidth 無し含む）は幅を変えない", () => {

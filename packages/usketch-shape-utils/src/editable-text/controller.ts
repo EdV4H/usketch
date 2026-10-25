@@ -36,6 +36,8 @@ interface EditableRefs {
 	minHeight: number;
 	deleteWhenEmpty: boolean;
 	fitOnInput: EditableTextOptions["fitOnInput"];
+	/** Values before the edit of fields `fitOnInput` changed (beyond text/width/height). */
+	fitSnapshot: Record<string, unknown>;
 }
 
 interface EditableSchema extends MachineSchema {
@@ -89,6 +91,7 @@ const machine = createMachine<EditableSchema>({
 			minHeight: 24,
 			deleteWhenEmpty: false,
 			fitOnInput: undefined,
+			fitSnapshot: {},
 		};
 	},
 	states: {
@@ -193,6 +196,7 @@ const machine = createMachine<EditableSchema>({
 				context.set("textSnapshot", (shape as TextLike).text ?? "");
 				context.set("heightSnapshot", shape.height);
 				context.set("widthSnapshot", shape.width);
+				refs.set("fitSnapshot", {});
 				context.set("clickedShapeId", null);
 				const t = refs.get("clickTimer");
 				if (t != null) {
@@ -240,17 +244,34 @@ const machine = createMachine<EditableSchema>({
 						execute: () => ctx.store.deleteShape(id),
 						undo: () => ctx.store.addShape(snapshot),
 					});
-				} else if (
-					currentText !== prevText ||
-					shape.height !== prevHeight ||
-					shape.width !== prevWidth
-				) {
+				} else {
+					// Fields `fitOnInput` changed (e.g. auto width, the position of a
+					// rotated text) belong to the same undo step.
+					const fitSnapshot = refs.get("fitSnapshot");
+					const current = shape as unknown as Record<string, unknown>;
+					const fitFrom: Record<string, unknown> = {};
+					const fitTo: Record<string, unknown> = {};
+					for (const [key, value] of Object.entries(fitSnapshot)) {
+						if (current[key] === value) continue;
+						fitFrom[key] = value;
+						fitTo[key] = current[key];
+					}
+					if (
+						currentText === prevText &&
+						shape.height === prevHeight &&
+						shape.width === prevWidth &&
+						Object.keys(fitTo).length === 0
+					) {
+						return reset();
+					}
 					const from = {
+						...fitFrom,
 						text: prevText,
 						height: prevHeight ?? shape.height,
 						width: prevWidth ?? shape.width,
 					} as Partial<ShapeData>;
 					const to = {
+						...fitTo,
 						text: currentText,
 						height: shape.height,
 						width: shape.width,
@@ -306,8 +327,16 @@ function fitGeometry(
 		const floor = refs.get("growOnly") ? shape.height : refs.get("minHeight");
 		patch.height = Math.max(floor, scrollHeight);
 	}
-	const fit = refs.get("fitOnInput")?.(shape, text);
-	if (fit) Object.assign(patch, fit);
+	const fit = refs.get("fitOnInput")?.(shape, text, { height: patch.height ?? shape.height });
+	if (fit) {
+		const snapshot = refs.get("fitSnapshot");
+		const before = shape as unknown as Record<string, unknown>;
+		for (const key of Object.keys(fit)) {
+			if (key === "text" || key === "width" || key === "height") continue;
+			if (!(key in snapshot)) snapshot[key] = before[key];
+		}
+		Object.assign(patch, fit);
+	}
 	return patch;
 }
 
@@ -334,10 +363,15 @@ export interface EditableTextOptions {
 	deleteWhenEmpty?: boolean;
 	/**
 	 * Extra geometry patch applied on each text input, merged over the height
-	 * growth (e.g. the text shape's auto width). Return null to leave the shape
-	 * as is. Changes it makes are part of the edit's single undo step.
+	 * growth (e.g. the text shape's auto width). `next.height` is the height the
+	 * input is about to apply. Return null to leave the shape as is. Changes it
+	 * makes (any field) are part of the edit's single undo step.
 	 */
-	fitOnInput?: (shape: ShapeData, text: string) => Partial<ShapeData> | null;
+	fitOnInput?: (
+		shape: ShapeData,
+		text: string,
+		next: { height: number },
+	) => Partial<ShapeData> | null;
 }
 
 export interface EditableTextController {

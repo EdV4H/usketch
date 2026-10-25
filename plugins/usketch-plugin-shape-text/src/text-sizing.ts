@@ -1,4 +1,12 @@
-import type { BoardStore, Command, Point, ResizeHandle, ShapeData } from "@edv4h/usketch-shared";
+import {
+	type BoardStore,
+	type BoundingBox,
+	type Command,
+	type Point,
+	type ResizeHandle,
+	type ShapeData,
+	safeRotation,
+} from "@edv4h/usketch-shared";
 import { createUpdateShapeCommand } from "@edv4h/usketch-store";
 
 /**
@@ -11,6 +19,12 @@ import { createUpdateShapeCommand } from "@edv4h/usketch-store";
 
 /** Smallest auto width, so an empty text still shows its caret. */
 export const AUTO_WIDTH_MIN = 16;
+
+/**
+ * Width changes smaller than this (world px) are hand jitter — e.g. the first
+ * click of a handle double-click — and keep the width (and auto width) as is.
+ */
+export const WIDTH_JITTER = 2;
 
 /** Unwrapped box size (padding included) of `text` rendered in the given font. */
 export type TextMeasurer = (input: { text: string; fontSize: number; fontFamily: string }) => {
@@ -84,8 +98,16 @@ export function resizeText(data: ShapeData, handle: ResizeHandle, delta: Point):
 			break;
 	}
 	// n/s handles leave the width alone — don't let the min-width clamp widen a
-	// narrow auto-width text (e.g. an empty one) as a side effect.
-	if (isHorizontalHandle(handle)) width = Math.max(40, width);
+	// narrow auto-width text (e.g. an empty one) as a side effect. Neither does
+	// a jitter-sized drag of a side handle.
+	if (isHorizontalHandle(handle)) {
+		if (Math.abs(width - data.width) < WIDTH_JITTER) {
+			width = data.width;
+			x = data.x;
+		} else {
+			width = Math.max(40, width);
+		}
+	}
 	const resized = { ...data, x, y, width, height: Math.max(24, height) };
 	// Only an actual width change turns auto width into fixed width; merely
 	// grabbing a handle (or the first half of a double-click) must not.
@@ -93,6 +115,38 @@ export function resizeText(data: ShapeData, handle: ResizeHandle, delta: Point):
 		(resized as TextLike).autoWidth = false;
 	}
 	return resized;
+}
+
+/**
+ * `ShapeDefinition.applyBounds` for multi-selection resize, which bypasses
+ * `resize`: a real width change turns auto width into fixed width there too.
+ */
+export function applyTextBounds(data: ShapeData, bounds: BoundingBox): Partial<ShapeData> {
+	const patch: Partial<TextLike> = { ...bounds };
+	if ((data as TextLike).autoWidth && Math.abs(bounds.width - data.width) >= WIDTH_JITTER) {
+		patch.autoWidth = false;
+	}
+	return patch;
+}
+
+/**
+ * Position that keeps a rotated shape's top-left corner where it is when its
+ * size changes to `width` × `height`. A shape rotates around its center, so a
+ * new size alone would shift the visible left / top edges. Null when unrotated.
+ */
+export function keepTopLeft(data: ShapeData, width: number, height: number): Point | null {
+	const rad = (safeRotation(data.rotation) * Math.PI) / 180;
+	if (!rad) return null;
+	const cos = Math.cos(rad);
+	const sin = Math.sin(rad);
+	const rotate = (u: number, v: number): Point => ({ x: u * cos - v * sin, y: u * sin + v * cos });
+	const offset = rotate(-data.width / 2, -data.height / 2);
+	const topLeft = {
+		x: data.x + data.width / 2 + offset.x,
+		y: data.y + data.height / 2 + offset.y,
+	};
+	const toCenter = rotate(width / 2, height / 2);
+	return { x: topLeft.x + toCenter.x - width / 2, y: topLeft.y + toCenter.y - height / 2 };
 }
 
 /** Patch that returns the text to auto width, fitted to its content. */
@@ -108,15 +162,30 @@ export function computeAutoFitPatch(
 	};
 }
 
-/** Width patch applied while typing: auto-width text follows its content. */
+/**
+ * Geometry patch applied while typing. Auto-width text follows its content.
+ * A rotated text keeps its top-left corner in place as it grows (`height` is
+ * the height the editor is about to apply). Inside a container that lays out
+ * its children (and so sets their width), the text switches to fixed width
+ * instead of fighting the layout over the width.
+ */
 export function fitTextOnInput(
 	data: ShapeData,
 	text: string,
 	measure: TextMeasurer,
-): { width: number } | null {
-	if (!(data as TextLike).autoWidth) return null;
-	const size = measureText(data as TextLike, text, measure);
-	return { width: Math.max(AUTO_WIDTH_MIN, Math.ceil(size.width)) };
+	options: { height?: number; laidOut?: boolean } = {},
+): Partial<TextLike> | null {
+	const patch: Partial<TextLike> = {};
+	let width = data.width;
+	if ((data as TextLike).autoWidth) {
+		if (options.laidOut) return { autoWidth: false };
+		const size = measureText(data as TextLike, text, measure);
+		width = Math.max(AUTO_WIDTH_MIN, Math.ceil(size.width));
+		patch.width = width;
+	}
+	const position = keepTopLeft(data, width, options.height ?? data.height);
+	if (position) Object.assign(patch, position);
+	return Object.keys(patch).length > 0 ? patch : null;
 }
 
 /**
