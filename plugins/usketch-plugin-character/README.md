@@ -53,6 +53,13 @@ createCharacterPlugin({
   `startSpeed` / `stopSpeed` (fractions of `moveSpeed`), `turnRate` / `steerRate`
   (multiples of `turnRate`), `slipAngle` / `steerSlipAngle` (degrees), `recoveryRate`
   (1/s). The drift key is only captured while drift is on.
+- **Keyboard focus**: movement keys are captured on `window` while the character is
+  on, except where the page needs them: nothing is taken while a text field has focus
+  or focus is inside a dialog / menu (`dialog`, `role="dialog"`, `alertdialog`, `menu`,
+  `menubar`, `listbox`), arrow keys are left to widgets that use them (range / radio
+  inputs, `role="slider"`, `radio`, `tab`, `option`, `treeitem` …), and Space is left
+  to buttons, links and other controls it activates. Moving focus into such a target
+  releases the held keys.
 - **Camera modes**
   - `fixed` — follow, world stays upright.
   - `rotate` — follow and turn the world by `-heading` (character always faces up).
