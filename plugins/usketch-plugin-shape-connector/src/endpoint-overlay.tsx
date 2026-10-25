@@ -12,7 +12,7 @@ import {
 	setEndpointDrag,
 	subscribeEndpointDrag,
 } from "./endpoint-drag-state.js";
-import { findShapeAtPoint } from "./plugin.js";
+import { findShapeAtPoint } from "./find-shape-at-point.js";
 import type { ConnectorShapeData } from "./types.js";
 
 const HANDLE_RADIUS = 5;

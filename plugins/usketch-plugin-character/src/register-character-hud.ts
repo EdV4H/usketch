@@ -36,6 +36,7 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					{ value: "vehicle", label: "車（前進＋旋回）" },
 				],
 			},
+			{ name: "drift", label: "ドリフト（車・Space）", type: "boolean" },
 			{ name: "moveSpeed", label: "速度", type: "number", min: 50, max: 3000, step: 50 },
 			{ name: "turnRate", label: "旋回(°/秒)", type: "number", min: 30, max: 1080, step: 30 },
 			{ name: "maxStep", label: "登れる段差", type: "number", min: 0, max: 400, step: 4 },
@@ -53,6 +54,8 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return api.getCameraMode();
 				case "controlScheme":
 					return api.getControlScheme();
+				case "drift":
+					return api.getDrift() !== null;
 				case "moveSpeed":
 					return motion.moveSpeed;
 				case "turnRate":
@@ -81,6 +84,9 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				case "controlScheme":
 					if (SCHEMES.includes(value as ControlScheme))
 						api.setControlScheme(value as ControlScheme);
+					return;
+				case "drift":
+					api.setDrift(truthy(value));
 					return;
 			}
 			const n = Number(value);

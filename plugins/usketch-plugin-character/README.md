@@ -23,6 +23,7 @@ createCharacterPlugin({
   keys: { up: ["KeyW", "ArrowUp"] }, // KeyboardEvent.code values
   cameraMode: "rotate",            // "fixed" | "rotate" | "free"
   controlScheme: "vehicle",        // "directional" | "vehicle"
+  drift: true,                     // vehicle: Space + steer drifts (or tuning overrides)
   screenAnchor: { x: 0.5, y: 0.75 },
 });
 ```
@@ -32,8 +33,8 @@ createCharacterPlugin({
 - **Heading**: degrees, `0` = up (world −y), clockwise-positive — the same convention
   as CSS `rotate()` and the viewport `rotation`.
 - **Render props**: `heading` (world), `screenHeading` (= `heading + viewport.rotation`,
-  what to rotate a top-down sprite by), `moving`, `speed`, `zoom`, `appearance`,
-  `name`, `isSelf`, `id`, `elevation`. Each character is placed centered on its screen position
+  what to rotate a top-down sprite by), `moving`, `speed`, `steering`, `slip`,
+  `drifting`, `zoom`, `appearance`, `name`, `isSelf`, `id`, `elevation`. Each character is placed centered on its screen position
   in one screen-space layer, so self and remote characters look the same under zoom
   and camera rotation.
 - **Control schemes**
@@ -41,7 +42,17 @@ createCharacterPlugin({
     turns toward the movement at `turnRate`. With the `rotate` camera, left/right
     therefore circle (the camera follows the turn).
   - `vehicle` — up/down throttle and reverse, left/right steer. Steering scales
-    with speed (a stopped car can't turn) and inverts in reverse.
+    with speed (a stopped car can't turn) and inverts in reverse. The held steering
+    (-1 … 1) is in the pose and render props, e.g. to turn the front wheels.
+- **Drift** (`vehicle`, opt-in via `drift`): hold the drift key (Space) and steer at
+  speed to start an arcade drift toward the steering. It turns tighter than normal
+  steering and slides the body by `slip` degrees (draw the car at `heading + slip`;
+  it keeps traveling along `heading`). Steering into the drift tightens it,
+  countersteering opens it (never spins). Releasing the key, slowing below
+  `stopSpeed` or reversing ends it, and the slip eases back. Tuning (`DriftParams`):
+  `startSpeed` / `stopSpeed` (fractions of `moveSpeed`), `turnRate` / `steerRate`
+  (multiples of `turnRate`), `slipAngle` / `steerSlipAngle` (degrees), `recoveryRate`
+  (1/s). The drift key is only captured while drift is on.
 - **Camera modes**
   - `fixed` — follow, world stays upright.
   - `rotate` — follow and turn the world by `-heading` (character always faces up).
@@ -51,7 +62,8 @@ createCharacterPlugin({
   following. Turning the character off turns the camera back upright.
 - **Multiplayer**: pass `wsProvider` (anything with a y-protocols `awareness`). Your
   character is published under the `character` awareness field (~20 Hz, only when it
-  changes) and others are eased between updates. It's ephemeral: a character
+  changes, including `steering`, `slip` and `drifting`) and others are eased between
+  updates. It's ephemeral: a character
   vanishes when its owner disconnects or turns it off. Nothing is stored as shapes.
 - **Ground height**: when a plugin provides `groundHeightService` (from
   `@edv4h/usketch-shared`, e.g. the map plugin's raised terrain), moving onto
@@ -66,8 +78,8 @@ createCharacterPlugin({
 
 ## HUD
 
-A "キャラクター" settings group (on/off, camera, scheme, speed, turn rate, climbable
-step, screen position, camera lag) plus actions to toggle the character and to place it at the
+A "キャラクター" settings group (on/off, camera, scheme, drift, speed, turn rate,
+climbable step, screen position, camera lag) plus actions to toggle the character and to place it at the
 screen position.
 
 ## Service
@@ -79,7 +91,8 @@ const api = getCharacterApi(app.services);
 api?.enable();
 api?.setCameraMode("rotate");
 api?.setRenderer(myRenderer);
-api?.getPose(); // { x, y, heading, speed, moving }
+api?.setDrift({ slipAngle: 35 }); // true / false / tuning overrides
+api?.getPose(); // { x, y, heading, speed, moving, steering, slip, drift }
 ```
 
 ## Limitations

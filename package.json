@@ -4,7 +4,7 @@
 	"private": true,
 	"description": "Real-time collaborative whiteboard application",
 	"license": "MIT",
-	"packageManager": "pnpm@12.14.0",
+	"packageManager": "pnpm@12.15.0",
 	"scripts": {
 		"dev": "turbo run dev",
 		"build": "turbo run build",
@@ -22,8 +22,8 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.5.15",
 		"@changesets/cli": "3.0.3",
-		"@j178/prek": "0.5.6",
-		"turbo": "2.11.9",
+		"@j178/prek": "0.5.7",
+		"turbo": "2.11.10",
 		"typescript": "7.0.2"
 	},
 	"pnpm": {
