@@ -34,6 +34,7 @@ import {
 	getEditingGroupId,
 	setEditingGroupId,
 } from "./group-edit-state.js";
+import { createHandleClickTracker } from "./handle-double-click.js";
 import type { MarqueeRect } from "./marquee-state.js";
 import { clearMarqueeListeners, setMarquee, setMarqueeMode } from "./marquee-state.js";
 import { createOverlayColorStore, type OverlayColors } from "./overlay-colors.js";
@@ -141,6 +142,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			let overrideCursor = "";
 			let lastClickTime = 0;
 			let lastClickId: string | null = null;
+			const trackHandleClick = createHandleClickTracker();
 
 			// Inject a <style> tag to override canvas cursor via !important
 			const styleEl = document.createElement("style");
@@ -233,6 +235,14 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				if (handleHit) {
 					const shape = toolCtx.store.getShape(handleHit.shapeId);
 					if (shape) {
+						if (
+							trackHandleClick(handleHit.shapeId, handleHit.handle, Date.now()) &&
+							toolCtx.shapes
+								.get(shape.type)
+								?.onHandleDoubleClick?.(toolCtx, shape, handleHit.handle)
+						) {
+							return;
+						}
 						const shapeRotation = safeRotation(shape.rotation);
 						setOverrideCursor(
 							shapeRotation
