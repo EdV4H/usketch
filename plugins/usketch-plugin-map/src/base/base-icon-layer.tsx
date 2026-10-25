@@ -9,7 +9,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { parseCellKey } from "../autotile.js";
 import { renderIconAt } from "../icon-render.js";
-import { visibleCellRange, visibleWorldRect } from "../map-layer.js";
+import { layerOverflow, visibleCellRange, visibleWorldRect } from "../map-layer.js";
 import { terrainCssVars } from "../palette.js";
 import { renderConfigStore } from "../render-config.js";
 import { effectiveBaseIcon } from "./base-icon.js";
@@ -66,7 +66,9 @@ export function BaseIconLayer({
 	if (nodes.length === 0) return null;
 
 	return (
-		<div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+		<div
+			style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: layerOverflow(vp) }}
+		>
 			<svg width="100%" height="100%" style={{ display: "block", overflow: "visible" }}>
 				<defs>
 					{/* Own wobble filter (distinct id) so it doesn't clash with terrain's. */}

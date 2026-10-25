@@ -1,7 +1,13 @@
 // MapLayer — renders the RPG terrain behind all shapes. Reads the tilemap
 // DATA from the shape store (single source of truth, synced + undoable) and
 // paints it; input is handled by the map tool, not this layer (pointer-events:none).
-import type { BoardStore, RenderMode } from "@edv4h/usketch-shared";
+import {
+	type BoardStore,
+	type RenderMode,
+	screenToOverlay,
+	type Viewport,
+	viewportRotation,
+} from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
 import { type Cells, cellKey, exposedEdges, parseCellKey } from "./autotile.js";
 import {
@@ -299,17 +305,34 @@ function renderInfiniteCoarse(
 
 /**
  * Visible world rect from the current viewport (best-effort, window-sized), grown by
- * `overscanPx` screen px on every side (a 3D view showing ground past the box).
+ * `overscanPx` screen px on every side (a 3D view showing ground past the box). Under
+ * camera rotation the map's layers are world overlays (turned with the world, drawn
+ * with the unrotated `x/y/zoom`), so this is the bounding box of the rotated screen.
  */
 export function visibleWorldRect(store: BoardStore, overscanPx = 0): DOMRectReadOnly | null {
 	if (typeof window === "undefined") return null;
 	const vp = store.getViewport();
 	const pad = 64 + Math.max(0, overscanPx);
-	const left = (-vp.x - pad) / vp.zoom;
-	const top = (-vp.y - pad) / vp.zoom;
-	const right = (window.innerWidth - vp.x + pad) / vp.zoom;
-	const bottom = (window.innerHeight - vp.y + pad) / vp.zoom;
-	return new DOMRectReadOnly(left, top, right - left, bottom - top);
+	const corners = [
+		[-pad, -pad],
+		[window.innerWidth + pad, -pad],
+		[-pad, window.innerHeight + pad],
+		[window.innerWidth + pad, window.innerHeight + pad],
+	].map(([sx, sy]) => screenToOverlay(sx, sy, vp));
+	const xs = corners.map((p) => (p.x - vp.x) / vp.zoom);
+	const ys = corners.map((p) => (p.y - vp.y) / vp.zoom);
+	const left = Math.min(...xs);
+	const top = Math.min(...ys);
+	return new DOMRectReadOnly(left, top, Math.max(...xs) - left, Math.max(...ys) - top);
+}
+
+/**
+ * `overflow` for a map layer's root box: clipped to the layer normally, but visible
+ * when the box itself turns with the camera (its corners would cut the ground) or the
+ * ground is overscanned past it for a 3D view.
+ */
+export function layerOverflow(vp: Viewport, overscanPx = 0): "visible" | "hidden" {
+	return overscanPx > 0 || viewportRotation(vp) !== 0 ? "visible" : "hidden";
 }
 
 export function MapTerrainLayer({
@@ -410,7 +433,7 @@ export function MapTerrainLayer({
 				height: "100%",
 				pointerEvents: "none",
 				// Ground drawn past the viewport (3D overscan) must not be cut at the box.
-				overflow: overscanPx > 0 ? "visible" : "hidden",
+				overflow: layerOverflow(vp, overscanPx),
 			}}
 		>
 			<svg

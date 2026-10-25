@@ -90,6 +90,8 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				id: TERRAIN_LAYER_ID,
 				order: 40,
 				fixed: true,
+				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+				worldOverlay: true,
 				render: (lctx) => (
 					<MapTerrainLayer
 						store={ctx.store}
@@ -107,6 +109,8 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				id: RELIEF_LAYER_ID,
 				order: 41,
 				fixed: true,
+				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+				worldOverlay: true,
 				render: (lctx) => (
 					<MapReliefLayer store={ctx.store} renderMode={lctx.renderMode} tile={tile} />
 				),
@@ -117,6 +121,8 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				id: BASE_LAYER_ID,
 				order: 42,
 				fixed: true,
+				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+				worldOverlay: true,
 				render: (lctx) => (
 					<BaseAreaLayer store={ctx.store} renderMode={lctx.renderMode} style={territoryStyle} />
 				),
@@ -129,6 +135,8 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				id: BASE_ICON_LAYER_ID,
 				order: 44,
 				fixed: true,
+				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
+				worldOverlay: true,
 				render: (lctx) => (
 					<BaseIconLayer store={ctx.store} renderMode={lctx.renderMode} tile={tile} />
 				),
