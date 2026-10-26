@@ -154,7 +154,7 @@ export interface TrackHoverOptions {
 }
 
 /**
- * Top-most shape under a world point, with the same precedence rules
+ * Top-most shape (by zIndex) under a world point, with the same precedence rules
  * tool-select uses: non-container shapes win over containers, group
  * children resolve to the top-level group ancestor, frame children
  * stay selectable directly.
@@ -176,11 +176,15 @@ export function findShapeAtPoint(
 				? new Set(options.excludeIds)
 				: null;
 	const filter = options.filter;
-	const shapes = ctx.store.getShapes();
-	const entries = [...shapes.entries()].reverse();
+	// Walk front to back by zIndex (the order shapes are drawn in), not by Map
+	// insertion order: the two differ after a z-order change (e.g. send to back),
+	// and the shape drawn on top must win.
+	const sorted = ctx.store.getShapesSorted();
 
 	let containerHit: string | null = null;
-	for (const [id, data] of entries) {
+	for (let i = sorted.length - 1; i >= 0; i--) {
+		const data = sorted[i];
+		const id = data.id;
 		// Skip excluded / filtered-out shapes before hit-testing.
 		if (excludeSet?.has(id)) continue;
 		if (filter && !filter(data)) continue;

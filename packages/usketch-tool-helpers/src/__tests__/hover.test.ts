@@ -1,4 +1,5 @@
 import type { ShapeDefinition } from "@edv4h/usketch-shared";
+import { createBoardStore, createSendToBackCommand } from "@edv4h/usketch-store";
 import { describe, expect, it } from "vitest";
 import { findShapeAtPoint, trackHover } from "../hover.js";
 import { createTestToolContext, makePointerEvent, makeShape } from "./test-helpers.js";
@@ -16,6 +17,27 @@ describe("findShapeAtPoint", () => {
 		ctx.store.addShape(makeShape({ id: "bottom", x: 0, y: 0, width: 100, height: 100 }));
 		ctx.store.addShape(makeShape({ id: "top", x: 0, y: 0, width: 100, height: 100 }));
 		expect(findShapeAtPoint(ctx, { x: 50, y: 50 })).toBe("top");
+	});
+
+	it("orders by zIndex, not by insertion order", () => {
+		const ctx = createTestToolContext();
+		// Inserted first but drawn on top (higher zIndex).
+		ctx.store.addShape(
+			makeShape({ id: "front", zIndex: "a2", x: 0, y: 0, width: 100, height: 100 }),
+		);
+		ctx.store.addShape(
+			makeShape({ id: "back", zIndex: "a1", x: 0, y: 0, width: 100, height: 100 }),
+		);
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 })).toBe("front");
+	});
+
+	it("follows a send-to-back on the real store", () => {
+		const ctx = { ...createTestToolContext(), store: createBoardStore() };
+		ctx.store.addShape(makeShape({ id: "a", x: 0, y: 0, width: 100, height: 100 }));
+		ctx.store.addShape(makeShape({ id: "b", x: 0, y: 0, width: 100, height: 100 }));
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 })).toBe("b");
+		createSendToBackCommand(ctx.store, "b").execute();
+		expect(findShapeAtPoint(ctx, { x: 50, y: 50 })).toBe("a");
 	});
 
 	it("skips a hidden top shape and returns the one beneath it", () => {
