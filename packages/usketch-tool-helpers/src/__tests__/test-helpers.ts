@@ -9,6 +9,7 @@ import type {
 	ShapeRegistry,
 	ToolContext,
 } from "@edv4h/usketch-shared";
+import { compareZIndex } from "@edv4h/usketch-shared";
 
 /**
  * Minimal BoardStore for unit tests — no `@edv4h/usketch-store` dep, no
@@ -32,6 +33,8 @@ export function createTestStore(): BoardStore {
 
 	return {
 		getShapes: () => shapes,
+		// Stable sort, so shapes without a zIndex keep their insertion order.
+		getShapesSorted: () => [...shapes.values()].sort((a, b) => compareZIndex(a.zIndex, b.zIndex)),
 		getShape: (id: string) => shapes.get(id),
 		addShape(shape: ShapeData) {
 			shapes.set(shape.id, shape);
