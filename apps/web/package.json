@@ -33,6 +33,7 @@
 		"@edv4h/usketch-plugin-avatar": "workspace:*",
 		"@edv4h/usketch-plugin-bg-dots": "workspace:*",
 		"@edv4h/usketch-plugin-bg-grid": "workspace:*",
+		"@edv4h/usketch-plugin-bg-liquid": "workspace:*",
 		"@edv4h/usketch-plugin-board-info-panel": "workspace:*",
 		"@edv4h/usketch-plugin-edge-pan": "workspace:*",
 		"@edv4h/usketch-plugin-effect-ripple": "workspace:*",
