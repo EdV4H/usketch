@@ -232,32 +232,52 @@ export function createDeleteWithChildrenCommand(store: BoardStore, shapeId: stri
 	let deletedShapes: ShapeData[] = [];
 	let detached: { id: string; key: "sourceId" | "targetId"; shapeId: string }[] = [];
 
+	/**
+	 * `id` and its descendants in pre-order (parent before its children, siblings
+	 * in store order). Indexes children by parentId in one pass instead of
+	 * scanning the whole store per descendant, which was O(descendants × shapes).
+	 */
 	function collectDescendants(id: string): string[] {
-		const ids = [id];
-		for (const [, shape] of store.getShapes()) {
-			if (shape.parentId === id) {
-				ids.push(...collectDescendants(shape.id));
+		const childrenByParent = new Map<string, string[]>();
+		for (const [childId, shape] of store.getShapes()) {
+			if (typeof shape.parentId !== "string") continue;
+			let bucket = childrenByParent.get(shape.parentId);
+			if (!bucket) {
+				bucket = [];
+				childrenByParent.set(shape.parentId, bucket);
 			}
+			bucket.push(childId);
 		}
+		const ids: string[] = [];
+		const visited = new Set<string>();
+		function emit(current: string) {
+			// Guard against parentId cycles.
+			if (visited.has(current)) return;
+			visited.add(current);
+			ids.push(current);
+			for (const child of childrenByParent.get(current) ?? []) emit(child);
+		}
+		emit(id);
 		return ids;
 	}
 
 	return {
 		execute() {
 			const allIds = collectDescendants(shapeId);
+			const allIdSet = new Set(allIds);
 			// Also collect connectors attached to any of these shapes. A connector
 			// with only one connected end is detached (that end becomes free at its
 			// current point) rather than deleted.
 			const connectorIds = new Set<string>();
 			detached = [];
 			for (const [, shape] of store.getShapes()) {
-				if (shape.type !== "connector" || allIds.includes(shape.id)) continue;
+				if (shape.type !== "connector" || allIdSet.has(shape.id)) continue;
 				const { sourceId, targetId } = shape as {
 					sourceId?: string;
 					targetId?: string;
 				};
-				const sourceHit = sourceId !== undefined && allIds.includes(sourceId);
-				const targetHit = targetId !== undefined && allIds.includes(targetId);
+				const sourceHit = sourceId !== undefined && allIdSet.has(sourceId);
+				const targetHit = targetId !== undefined && allIdSet.has(targetId);
 				if (!sourceHit && !targetHit) continue;
 				if (sourceId && targetId) {
 					connectorIds.add(shape.id);
