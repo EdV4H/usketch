@@ -296,6 +296,32 @@ export function createDeleteWithChildrenCommand(store: BoardStore, shapeId: stri
 	};
 }
 
+/**
+ * Delete a container but keep its children: direct children are reattached to
+ * the container's own parent (positions are absolute, so they stay in place),
+ * then the now-empty container is deleted together with its connectors.
+ */
+export function createDeleteKeepChildrenCommand(store: BoardStore, shapeId: string): Command {
+	const remove = createDeleteWithChildrenCommand(store, shapeId);
+	let reparent: Command | null = null;
+	return {
+		execute() {
+			const shape = store.getShape(shapeId);
+			const childIds: string[] = [];
+			for (const [, s] of store.getShapes()) {
+				if (s.parentId === shapeId) childIds.push(s.id);
+			}
+			reparent = createReparentCommand(store, childIds, shape?.parentId);
+			reparent.execute();
+			remove.execute();
+		},
+		undo() {
+			remove.undo();
+			reparent?.undo();
+		},
+	};
+}
+
 // ─── z-order commands ───────────────────────────────────────────────────────
 
 const NOOP_COMMAND: Command = {

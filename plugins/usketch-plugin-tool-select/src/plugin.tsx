@@ -6,8 +6,13 @@ import type {
 	ToolContext,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
-import { isContainerAutoAttach, safeRotation } from "@edv4h/usketch-shared";
 import {
+	isContainerAutoAttach,
+	safeRotation,
+	shouldDeleteContainerChildren,
+} from "@edv4h/usketch-shared";
+import {
+	createDeleteKeepChildrenCommand,
 	createDeleteWithChildrenCommand,
 	isEffectivelyHidden,
 	isEffectivelyLocked,
@@ -80,7 +85,14 @@ function deleteSelectedShapes(ctx: PluginContext) {
 		// both are excluded from canvas interaction.
 		if (shape && (isEffectivelyLocked(ctx.store, shape) || isEffectivelyHidden(ctx.store, shape)))
 			continue;
-		ctx.commands.execute(createDeleteWithChildrenCommand(ctx.store, id));
+		// Containers may opt out of deleting their contents (e.g. a frame set to
+		// keep its items), in which case the children are left in place.
+		const keepChildren = shape && !shouldDeleteContainerChildren(ctx.shapes.get(shape.type), shape);
+		ctx.commands.execute(
+			keepChildren
+				? createDeleteKeepChildrenCommand(ctx.store, id)
+				: createDeleteWithChildrenCommand(ctx.store, id),
+		);
 	}
 	// No explicit clearSelection: `store.deleteShape` already drops deleted ids from
 	// the selection, so skipped (locked/hidden) shapes stay selected while a

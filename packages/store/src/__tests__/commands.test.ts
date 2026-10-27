@@ -8,6 +8,7 @@ import {
 	createBringForwardCommand,
 	createBringSelectionToFrontCommand,
 	createBringToFrontCommand,
+	createDeleteKeepChildrenCommand,
 	createDeleteShapeCommand,
 	createDeleteWithChildrenCommand,
 	createGroupCommand,
@@ -279,6 +280,60 @@ describe("Commands", () => {
 
 			createDeleteWithChildrenCommand(store, "g1").execute();
 			expect(store.getShape("conn1")).toBeUndefined();
+		});
+	});
+
+	describe("createDeleteKeepChildrenCommand", () => {
+		it("deletes only the container and reattaches children to its parent, undo restores", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "outer", type: "frame" }));
+			store.addShape(makeShape({ id: "f1", type: "frame", parentId: "outer" } as ShapeData));
+			store.addShape(makeShape({ id: "c1", parentId: "f1", x: 30, y: 40 } as ShapeData));
+			store.addShape(makeShape({ id: "gc", parentId: "c1" } as ShapeData));
+
+			const cmd = createDeleteKeepChildrenCommand(store, "f1");
+			cmd.execute();
+			expect(store.getShape("f1")).toBeUndefined();
+			expect(store.getShape("c1")).toMatchObject({ parentId: "outer", x: 30, y: 40 });
+			expect(store.getShape("gc")!.parentId).toBe("c1");
+
+			cmd.undo();
+			expect(store.getShape("f1")).toBeDefined();
+			expect(store.getShape("c1")!.parentId).toBe("f1");
+			expect(store.getShape("gc")!.parentId).toBe("c1");
+		});
+
+		it("moves children to the root when the container has no parent", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "f1", type: "frame" }));
+			store.addShape(makeShape({ id: "c1", parentId: "f1" } as ShapeData));
+
+			createDeleteKeepChildrenCommand(store, "f1").execute();
+			expect(store.getShape("f1")).toBeUndefined();
+			expect(store.getShape("c1")!.parentId).toBeUndefined();
+		});
+
+		it("still deletes connectors attached to the container itself", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "f1", type: "frame" }));
+			store.addShape(makeShape({ id: "c1", parentId: "f1" } as ShapeData));
+			store.addShape(
+				makeShape({
+					id: "conn1",
+					type: "connector",
+					parentId: "f1",
+					sourceId: "f1",
+					targetId: "c1",
+				} as ShapeData),
+			);
+
+			const cmd = createDeleteKeepChildrenCommand(store, "f1");
+			cmd.execute();
+			expect(store.getShape("conn1")).toBeUndefined();
+			expect(store.getShape("c1")).toBeDefined();
+
+			cmd.undo();
+			expect(store.getShape("conn1")!.parentId).toBe("f1");
 		});
 	});
 

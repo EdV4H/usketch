@@ -364,6 +364,13 @@ export interface ShapeDefinition {
 		 */
 		autoAttach?: boolean | ((data: ShapeData) => boolean);
 		/**
+		 * Whether deleting this container also deletes its children (and their
+		 * descendants). Default: `true`. When `false`, deleting the container
+		 * keeps its direct children in place, reattached to the container's own
+		 * parent (or the canvas root). Evaluate via {@link shouldDeleteContainerChildren}.
+		 */
+		deleteChildren?: boolean | ((data: ShapeData) => boolean);
+		/**
 		 * Arrange the container's children (shapes referencing it via `parentId`).
 		 * Invoked by the container plugin on attach/detach, container move/resize,
 		 * and child add. Returns the patches to apply to each child. Omit for

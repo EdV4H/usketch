@@ -7,7 +7,9 @@ import type {
 } from "@edv4h/usketch-shared";
 import { generateId } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
+import { shouldDeleteFrameContents } from "./frame-service.js";
 import { FrameTitleEditor, setEditingFrameTitle } from "./frame-title-editor.js";
+import { registerFrameHud } from "./hud/register-frame-hud.js";
 import {
 	createDefaultFrame,
 	getBoundsFrame,
@@ -88,7 +90,12 @@ export function createFramePlugin(): UsketchPlugin {
 				simplifiedComponent: SimplifiedFrame,
 				// Frames are containers whose children stay individually selectable
 				// and are auto-attached on overlap (handled by the container plugin).
-				container: { selectableChildren: true, autoAttach: true },
+				// Deleting a frame deletes its contents unless the frame opts out.
+				container: {
+					selectableChildren: true,
+					autoAttach: true,
+					deleteChildren: (data) => shouldDeleteFrameContents(data as FrameShapeData),
+				},
 			});
 
 			// Drawing tool state
@@ -167,7 +174,11 @@ export function createFramePlugin(): UsketchPlugin {
 				render: (renderCtx) => <FrameTitleEditor ctx={ctx} viewport={renderCtx.viewport} />,
 			});
 
+			// ── Delete option (HUD) ──
+			const unregisterHud = registerFrameHud(ctx);
+
 			return () => {
+				unregisterHud();
 				setEditingFrameTitle(null);
 			};
 		},

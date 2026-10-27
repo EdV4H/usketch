@@ -20,6 +20,7 @@ export {
 	createBringForwardCommand,
 	createBringSelectionToFrontCommand,
 	createBringToFrontCommand,
+	createDeleteKeepChildrenCommand,
 	createDeleteShapeCommand,
 	createDeleteWithChildrenCommand,
 	createGroupCommand,

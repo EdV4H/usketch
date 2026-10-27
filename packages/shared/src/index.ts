@@ -93,6 +93,7 @@ export {
 	hasSelectableChildren,
 	isContainerAutoAttach,
 	isShapeContainer,
+	shouldDeleteContainerChildren,
 } from "./utils/container.js";
 export {
 	boundsToScreenRect,

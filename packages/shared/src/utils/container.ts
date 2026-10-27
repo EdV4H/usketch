@@ -48,6 +48,22 @@ export function isContainerAutoAttach(def: ShapeDefinition | undefined, shape: S
 	return typeof a === "function" ? a(shape) : a === true;
 }
 
+/**
+ * Resolve whether deleting this shape also deletes its children. Defaults to
+ * `true` (also for non-containers, whose `parentId` children — if any — have
+ * always been deleted together); only a container that opts out via
+ * {@link ShapeDefinition.container.deleteChildren} keeps them.
+ */
+export function shouldDeleteContainerChildren(
+	def: ShapeDefinition | undefined,
+	shape: ShapeData,
+): boolean {
+	if (!isShapeContainer(def, shape)) return true;
+	const d = def?.container?.deleteChildren;
+	if (d === undefined) return true;
+	return typeof d === "function" ? d(shape) : d === true;
+}
+
 /** The container's child-layout function, or `undefined` if it uses free positioning. */
 export function getContainerLayout(def: ShapeDefinition | undefined) {
 	return def?.container?.layout;
