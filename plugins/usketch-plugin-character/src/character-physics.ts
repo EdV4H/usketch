@@ -276,7 +276,6 @@ export function constrainToGround(
 	return { ...next, x: prev.x, y: prev.y, speed: 0, moving: false };
 }
 
-/** Vehicle speed after a step of throttle (1), reverse (-1) or coasting (0). */
 /**
  * Jump tuning. The arc is set by its apex `height` and `timeToApex`; gravity and the
  * take-off speed follow from them (see `jumpArc`).
@@ -415,6 +414,7 @@ export function stepVertical(
 	return { pose: nextPose, timers: nextTimers };
 }
 
+/** Vehicle speed after a step of throttle (1), reverse (-1) or coasting (0). */
 function throttledSpeed(speed: number, throttle: number, dt: number, params: MotionParams): number {
 	if (throttle > 0) {
 		// Braking from reverse uses friction + throttle for a snappier stop.
