@@ -1,6 +1,6 @@
 import type { LayerRenderContext, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
 import { isShapeContainer, isShapeOutsideViewport, safeRotation } from "@edv4h/usketch-shared";
-import { memo } from "react";
+import { type ComponentType, memo } from "react";
 import { LodFallback } from "./lod-fallback.js";
 
 /**
@@ -123,6 +123,24 @@ const ShapeWrapper = memo(function ShapeWrapper({
 	);
 });
 
+/**
+ * LOD 表示の 1 シェイプ分。`ShapeWrapper` と同じく `React.memo` で囲み、`shape` 参照と
+ * `Simplified` が変わらないフレームでは再描画をスキップする。
+ *
+ * 画面外のシェイプはすべてここを通るため、memo が無いとパン・ズームの毎フレームや、
+ * 別のシェイプを 1 件ドラッグしただけでも、画面外のシェイプ全件の simplifiedComponent が
+ * 再実行されていた。
+ */
+const LodShape = memo(function LodShape({
+	shape,
+	Simplified,
+}: {
+	shape: ShapeData;
+	Simplified: ComponentType<{ shape: ShapeData }>;
+}) {
+	return <Simplified shape={shape} />;
+});
+
 export function DomShapeLayer({
 	ctx,
 	shapeRegistry,
@@ -193,7 +211,7 @@ export function DomShapeLayer({
 				if (isLod) {
 					if (def?.gpuPrimitive && gpuActive) return null;
 					const Simplified = def?.simplifiedComponent ?? LodFallback;
-					return <Simplified key={shape.id} shape={shape} />;
+					return <LodShape key={shape.id} shape={shape} Simplified={Simplified} />;
 				}
 				if (!def) {
 					const sx = shape.x || 0;
