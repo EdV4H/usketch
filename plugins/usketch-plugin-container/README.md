@@ -44,7 +44,6 @@ ctx.shapes.register("wireframe", {
     enabled: (s) => s.meta?.component === "card", // only cards are containers
     selectableChildren: true,                     // children selectable individually
     autoAttach: true,                             // drop-inside attaches as child
-    deleteChildren: true,                         // default; false keeps children on delete
     layout: stackLayout({ padding: 16, gap: 8 }), // arrange children vertically
   },
 });

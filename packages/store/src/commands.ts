@@ -297,11 +297,42 @@ export function createDeleteWithChildrenCommand(store: BoardStore, shapeId: stri
 }
 
 /**
- * Delete a container but keep its children: direct children are reattached to
- * the container's own parent (positions are absolute, so they stay in place),
- * then the now-empty container is deleted together with its connectors.
+ * Delete one or more shapes as one undo step. By default each shape's
+ * descendants are deleted with it, mirroring a cascading `locked`. `"self"`
+ * deletes only the shapes themselves (mirroring `lockScope: "self"`): their
+ * direct children are reattached to the deleted shape's parent and keep their
+ * (absolute) position. Either way, connectors attached to a deleted shape are
+ * deleted or detached as in {@link createDeleteWithChildrenCommand}.
  */
-export function createDeleteKeepChildrenCommand(store: BoardStore, shapeId: string): Command {
+export function createDeleteShapesCommand(
+	store: BoardStore,
+	shapeIds: readonly string[],
+	/** `"self"` deletes only the shapes (not descendants). See {@link createSetLockedCommand}. */
+	scope?: "self",
+): Command {
+	let steps: Command[] = [];
+	return {
+		execute() {
+			steps = [];
+			for (const id of shapeIds) {
+				// Already gone (e.g. deleted above as another shape's descendant).
+				if (!store.getShape(id)) continue;
+				const step =
+					scope === "self"
+						? createDeleteKeepChildrenCommand(store, id)
+						: createDeleteWithChildrenCommand(store, id);
+				step.execute();
+				steps.push(step);
+			}
+		},
+		undo() {
+			for (const step of [...steps].reverse()) step.undo();
+		},
+	};
+}
+
+/** Delete a shape but reattach its direct children to its parent (see {@link createDeleteShapesCommand}). */
+function createDeleteKeepChildrenCommand(store: BoardStore, shapeId: string): Command {
 	const remove = createDeleteWithChildrenCommand(store, shapeId);
 	let reparent: Command | null = null;
 	return {

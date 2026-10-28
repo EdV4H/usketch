@@ -8,8 +8,8 @@ import {
 	createBringForwardCommand,
 	createBringSelectionToFrontCommand,
 	createBringToFrontCommand,
-	createDeleteKeepChildrenCommand,
 	createDeleteShapeCommand,
+	createDeleteShapesCommand,
 	createDeleteWithChildrenCommand,
 	createGroupCommand,
 	createMoveShapesCommand,
@@ -283,15 +283,32 @@ describe("Commands", () => {
 		});
 	});
 
-	describe("createDeleteKeepChildrenCommand", () => {
-		it("deletes only the container and reattaches children to its parent, undo restores", () => {
+	describe("createDeleteShapesCommand", () => {
+		it("deletes shapes with their descendants by default, as one undo step", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "f1", type: "frame" }));
+			store.addShape(makeShape({ id: "c1", parentId: "f1" } as ShapeData));
+			store.addShape(makeShape({ id: "s2" }));
+
+			// c1 is selected too but already goes with f1 — no error, still one step.
+			const cmd = createDeleteShapesCommand(store, ["f1", "c1", "s2"]);
+			cmd.execute();
+			expect(store.getShapes().size).toBe(0);
+
+			cmd.undo();
+			expect(store.getShape("f1")).toBeDefined();
+			expect(store.getShape("c1")!.parentId).toBe("f1");
+			expect(store.getShape("s2")).toBeDefined();
+		});
+
+		it('"self" deletes only the container and reattaches children to its parent, undo restores', () => {
 			const store = createBoardStore();
 			store.addShape(makeShape({ id: "outer", type: "frame" }));
 			store.addShape(makeShape({ id: "f1", type: "frame", parentId: "outer" } as ShapeData));
 			store.addShape(makeShape({ id: "c1", parentId: "f1", x: 30, y: 40 } as ShapeData));
 			store.addShape(makeShape({ id: "gc", parentId: "c1" } as ShapeData));
 
-			const cmd = createDeleteKeepChildrenCommand(store, "f1");
+			const cmd = createDeleteShapesCommand(store, ["f1"], "self");
 			cmd.execute();
 			expect(store.getShape("f1")).toBeUndefined();
 			expect(store.getShape("c1")).toMatchObject({ parentId: "outer", x: 30, y: 40 });
@@ -303,17 +320,34 @@ describe("Commands", () => {
 			expect(store.getShape("gc")!.parentId).toBe("c1");
 		});
 
-		it("moves children to the root when the container has no parent", () => {
+		it('"self" moves children to the root when the container has no parent', () => {
 			const store = createBoardStore();
 			store.addShape(makeShape({ id: "f1", type: "frame" }));
 			store.addShape(makeShape({ id: "c1", parentId: "f1" } as ShapeData));
 
-			createDeleteKeepChildrenCommand(store, "f1").execute();
+			createDeleteShapesCommand(store, ["f1"], "self").execute();
 			expect(store.getShape("f1")).toBeUndefined();
 			expect(store.getShape("c1")!.parentId).toBeUndefined();
 		});
 
-		it("still deletes connectors attached to the container itself", () => {
+		it('"self" with a selected child deletes both and undo restores the hierarchy', () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "f1", type: "frame" }));
+			store.addShape(makeShape({ id: "c1", parentId: "f1" } as ShapeData));
+			store.addShape(makeShape({ id: "gc", parentId: "c1" } as ShapeData));
+
+			const cmd = createDeleteShapesCommand(store, ["f1", "c1"], "self");
+			cmd.execute();
+			expect(store.getShape("f1")).toBeUndefined();
+			expect(store.getShape("c1")).toBeUndefined();
+			expect(store.getShape("gc")!.parentId).toBeUndefined();
+
+			cmd.undo();
+			expect(store.getShape("c1")!.parentId).toBe("f1");
+			expect(store.getShape("gc")!.parentId).toBe("c1");
+		});
+
+		it('"self" still deletes connectors attached to the container itself', () => {
 			const store = createBoardStore();
 			store.addShape(makeShape({ id: "f1", type: "frame" }));
 			store.addShape(makeShape({ id: "c1", parentId: "f1" } as ShapeData));
@@ -327,7 +361,7 @@ describe("Commands", () => {
 				} as ShapeData),
 			);
 
-			const cmd = createDeleteKeepChildrenCommand(store, "f1");
+			const cmd = createDeleteShapesCommand(store, ["f1"], "self");
 			cmd.execute();
 			expect(store.getShape("conn1")).toBeUndefined();
 			expect(store.getShape("c1")).toBeDefined();

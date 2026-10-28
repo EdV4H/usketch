@@ -1,3 +1,4 @@
+export { createDeleteSelectionCommand } from "./delete-selection.js";
 export {
 	addDragCopies,
 	commitDragCopies,

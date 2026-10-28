@@ -6,7 +6,6 @@ import {
 	hasSelectableChildren,
 	isContainerAutoAttach,
 	isShapeContainer,
-	shouldDeleteContainerChildren,
 } from "../utils/container.js";
 
 const shape = (overrides: Partial<ShapeData> = {}): ShapeData =>
@@ -76,24 +75,6 @@ describe("isContainerAutoAttach", () => {
 		const d = def({ autoAttach: (s) => s.meta?.component === "card" });
 		expect(isContainerAutoAttach(d, shape({ meta: { component: "card" } }))).toBe(true);
 		expect(isContainerAutoAttach(d, shape({ meta: { component: "x" } }))).toBe(false);
-	});
-});
-
-describe("shouldDeleteContainerChildren", () => {
-	it("is true by default and for non-containers", () => {
-		expect(shouldDeleteContainerChildren(def({}), shape())).toBe(true);
-		expect(shouldDeleteContainerChildren(undefined, shape())).toBe(true);
-		expect(
-			shouldDeleteContainerChildren(def({ enabled: false, deleteChildren: false }), shape()),
-		).toBe(true);
-	});
-
-	it("honors boolean and predicate forms", () => {
-		expect(shouldDeleteContainerChildren(def({ deleteChildren: false }), shape())).toBe(false);
-		expect(shouldDeleteContainerChildren(def({ deleteChildren: true }), shape())).toBe(true);
-		const d = def({ deleteChildren: (s) => s.meta?.keep !== true });
-		expect(shouldDeleteContainerChildren(d, shape({ meta: { keep: true } }))).toBe(false);
-		expect(shouldDeleteContainerChildren(d, shape())).toBe(true);
 	});
 });
 

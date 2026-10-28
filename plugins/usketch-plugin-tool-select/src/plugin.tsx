@@ -6,17 +6,7 @@ import type {
 	ToolContext,
 	UsketchPlugin,
 } from "@edv4h/usketch-shared";
-import {
-	isContainerAutoAttach,
-	safeRotation,
-	shouldDeleteContainerChildren,
-} from "@edv4h/usketch-shared";
-import {
-	createDeleteKeepChildrenCommand,
-	createDeleteWithChildrenCommand,
-	isEffectivelyHidden,
-	isEffectivelyLocked,
-} from "@edv4h/usketch-store";
+import { isContainerAutoAttach, safeRotation } from "@edv4h/usketch-shared";
 import {
 	findHandleAtScreenPoint,
 	findMultiHandleAtScreenPoint,
@@ -33,6 +23,7 @@ import {
 	startRotateSession,
 	trackHover,
 } from "@edv4h/usketch-tool-helpers";
+import { createDeleteSelectionCommand } from "./delete-selection.js";
 import { clearMovingSelectionListeners, setMovingSelection } from "./drag-state.js";
 import { findDropTarget } from "./drop-target.js";
 import { clearDropTargetListeners, setDropTargetId } from "./drop-target-state.js";
@@ -75,25 +66,10 @@ function SelectIcon() {
 
 // ── Shared helper ──
 
-function deleteSelectedShapes(ctx: PluginContext) {
-	const selection = ctx.store.getSelection();
-	if (selection.size === 0) return;
+function deleteSelectedShapes(ctx: PluginContext, scope?: "self") {
 	if (ctx.store.getActiveToolId() !== "select") return;
-	for (const id of selection) {
-		const shape = ctx.store.getShape(id);
-		// Locked or hidden shapes (or those under such an ancestor) resist deletion —
-		// both are excluded from canvas interaction.
-		if (shape && (isEffectivelyLocked(ctx.store, shape) || isEffectivelyHidden(ctx.store, shape)))
-			continue;
-		// Containers may opt out of deleting their contents (e.g. a frame set to
-		// keep its items), in which case the children are left in place.
-		const keepChildren = shape && !shouldDeleteContainerChildren(ctx.shapes.get(shape.type), shape);
-		ctx.commands.execute(
-			keepChildren
-				? createDeleteKeepChildrenCommand(ctx.store, id)
-				: createDeleteWithChildrenCommand(ctx.store, id),
-		);
-	}
+	const cmd = createDeleteSelectionCommand(ctx.store, scope);
+	if (cmd) ctx.commands.execute(cmd);
 	// No explicit clearSelection: `store.deleteShape` already drops deleted ids from
 	// the selection, so skipped (locked/hidden) shapes stay selected while a
 	// full-delete still ends with an empty selection.
@@ -658,9 +634,12 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				),
 			});
 
-			// Delete selected shapes
+			// Delete selected shapes with their contents; Shift deletes a frame (or
+			// any container) only, leaving its contents in place.
 			ctx.shortcuts.register("Delete", () => deleteSelectedShapes(ctx));
 			ctx.shortcuts.register("Backspace", () => deleteSelectedShapes(ctx));
+			ctx.shortcuts.register("Shift+Delete", () => deleteSelectedShapes(ctx, "self"));
+			ctx.shortcuts.register("Shift+Backspace", () => deleteSelectedShapes(ctx, "self"));
 
 			// 実行時に色を変更（snap:configure と対になる select:configure）。
 			// `{ overlay: { strokeColor, handleFillColor } }` も平坦な形も受け付ける。
