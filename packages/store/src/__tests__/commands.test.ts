@@ -270,6 +270,37 @@ describe("Commands", () => {
 			expect((store.getShape("conn1") as ShapeData & Record<string, unknown>).sourceId).toBe("s1");
 		});
 
+		it("deletes nested descendants and undo restores parents before children", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "f1", type: "frame" }));
+			store.addShape(makeShape({ id: "g1", type: "group", parentId: "f1" } as ShapeData));
+			store.addShape(makeShape({ id: "c1", parentId: "g1" } as ShapeData));
+			store.addShape(makeShape({ id: "c2", parentId: "f1" } as ShapeData));
+			store.addShape(makeShape({ id: "other" }));
+
+			const cmd = createDeleteWithChildrenCommand(store, "f1");
+			cmd.execute();
+			expect([...store.getShapes().keys()]).toEqual(["other"]);
+
+			const restored: string[] = [];
+			const off = store.onMutation((event) => {
+				if (event.type === "shape:added") restored.push((event.payload as { id: string }).id);
+			});
+			cmd.undo();
+			off();
+			expect(restored).toEqual(["f1", "g1", "c1", "c2"]);
+		});
+
+		it("terminates on a parentId cycle", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "a", type: "group", parentId: "b" } as ShapeData));
+			store.addShape(makeShape({ id: "b", type: "group", parentId: "a" } as ShapeData));
+			store.addShape(makeShape({ id: "other" }));
+
+			createDeleteWithChildrenCommand(store, "a").execute();
+			expect([...store.getShapes().keys()]).toEqual(["other"]);
+		});
+
 		it("deletes a half-connected connector that is itself among the deleted shapes", () => {
 			const store = createBoardStore();
 			store.addShape(makeShape({ id: "g1", type: "group" }));
