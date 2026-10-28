@@ -39,7 +39,11 @@ import { createWsProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { api } from "../../lib/api.js";
-import { characterAppearance, renderCharacter } from "../../lib/character-renderer.js";
+import {
+	characterAppearance,
+	renderCharacter,
+	renderCharacterShadow,
+} from "../../lib/character-renderer.js";
 import { getDevUser } from "../../lib/dev-auth.js";
 import { getErrorMessage } from "../../lib/errors.js";
 import { useAuth } from "../../lib/use-auth.js";
@@ -213,6 +217,7 @@ export function CommunityPage() {
 						userName: authUserName ?? undefined,
 						appearance: characterAppearance(authUserId ?? getDevUser()?.id ?? "local"),
 						renderCharacter,
+						renderShadow: renderCharacterShadow,
 					}),
 				);
 

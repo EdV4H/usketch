@@ -20,7 +20,14 @@ import {
 } from "./character-camera.js";
 import { createKeyInput } from "./character-input.js";
 import { CharacterLayer } from "./character-layer.js";
-import { constrainToGround, type HeightAt, stepCharacter } from "./character-physics.js";
+import {
+	constrainToGround,
+	type HeightAt,
+	IDLE_JUMP,
+	type JumpTimers,
+	stepCharacter,
+	stepVertical,
+} from "./character-physics.js";
 import type { CharacterStore } from "./character-store.js";
 import {
 	type CharacterAwareness,
@@ -84,6 +91,8 @@ export interface CharacterRuntime {
 	placeAtAnchor(): void;
 	/** The screen-px anchor (for rotating the camera about the character's spot). */
 	anchorPoint(): Point;
+	/** Jump on the next frame, as a full (held) jump. No-op while jumping is off. */
+	jump(): void;
 	setKeys(keys: CharacterKeys): void;
 	dispose(): void;
 }
@@ -97,7 +106,12 @@ export function setupCharacterRuntime(
 		options.keys,
 		() => store.getState().enabled,
 		() => store.getState().controlScheme === "vehicle" && store.getState().drift !== null,
+		() => store.getState().jump !== null,
 	);
+	let jumpTimers: JumpTimers = IDLE_JUMP;
+	// `jump()` from code: a press on the next frame, held until the apex (a full jump).
+	let pendingJump = false;
+	let holdJump = false;
 	let cam: CameraFocus | null = null;
 	let display: ReadonlyMap<string, RemoteCharacter> = new Map();
 	let rafId: number | null = null;
@@ -119,6 +133,7 @@ export function setupCharacterRuntime(
 		const vp = ctx.store.getViewport();
 		const a = anchorPoint();
 		store.setPosition(screenToWorld(a.x, a.y, vp));
+		jumpTimers = IDLE_JUMP;
 		cam = null;
 	};
 
@@ -146,7 +161,14 @@ export function setupCharacterRuntime(
 				store.setHeading(-viewportRotation(ctx.store.getViewport()));
 				s = store.getState();
 			}
-			const input = keys.read();
+			const keyInput = keys.read();
+			const input = {
+				...keyInput,
+				jump: keyInput.jump || holdJump,
+				jumpPressed: keyInput.jumpPressed || pendingJump,
+			};
+			if (pendingJump) holdJump = true;
+			pendingJump = false;
 			if (s.followSuspended && keys.anyHeld()) store.setFollowSuspended(false);
 
 			const vp = ctx.store.getViewport();
@@ -160,7 +182,20 @@ export function setupCharacterRuntime(
 				s.drift,
 			);
 			// Cliffs taller than the climbable step block the move (slide along them).
-			const pose = constrainToGround(s.pose, stepped, heightAt, s.motion.maxStep);
+			const moved = constrainToGround(s.pose, stepped, heightAt, s.motion.maxStep);
+			// Then up and down: jumps, falls off cliffs, landings.
+			const vertical = stepVertical(
+				moved,
+				jumpTimers,
+				input,
+				dt,
+				heightAt(moved.x, moved.y),
+				s.motion.maxStep,
+				s.jump,
+			);
+			jumpTimers = vertical.timers;
+			const pose = vertical.pose;
+			if (holdJump && (!pose.airborne || pose.vz <= 0)) holdJump = false;
 			store.setPose(pose);
 			s = store.getState();
 
@@ -255,6 +290,12 @@ export function setupCharacterRuntime(
 	return {
 		placeAtAnchor,
 		anchorPoint,
+		jump() {
+			const s = store.getState();
+			if (!s.enabled || !s.jump) return;
+			pendingJump = true;
+			ensureLoop();
+		},
 		setKeys: (k) => keys.setKeys(k),
 		dispose() {
 			if (rafId !== null) cancelFrame(rafId);
@@ -285,6 +326,8 @@ function sameRemotes(
 			o.steering !== r.steering ||
 			o.slip !== r.slip ||
 			o.drifting !== r.drifting ||
+			o.z !== r.z ||
+			o.airborne !== r.airborne ||
 			o.name !== r.name ||
 			o.appearance !== r.appearance
 		) {

@@ -34,8 +34,16 @@ export interface CharacterRenderProps {
 	appearance: CharacterAppearance;
 	/** The owner's display name, if any. */
 	name?: string;
-	/** Ground height the character stands on, world units (0 = the flat board). */
+	/** Ground height under the character, world units (0 = the flat board). Where the shadow goes. */
 	elevation: number;
+	/** Height of the feet, world units (absolute like `elevation`; above it while in the air). */
+	z: number;
+	/** How high the feet are above the ground under them (`z - elevation`, 0 = standing). */
+	altitude: number;
+	/** Whether the character is in the air (jumping or falling). */
+	airborne: boolean;
+	/** Vertical speed, world units / s (positive = rising), e.g. for a rise / fall pose. */
+	verticalSpeed: number;
 }
 
 /**
@@ -55,6 +63,11 @@ export interface RemoteCharacter {
 	steering: number;
 	slip: number;
 	drifting: boolean;
+	/** Feet height (absolute), or `null` from a client that doesn't send it (= on the ground). */
+	z: number | null;
+	airborne: boolean;
+	/** Vertical speed as last sent (0 from older clients). */
+	vz: number;
 	appearance: CharacterAppearance;
 	name?: string;
 }
@@ -67,6 +80,11 @@ export interface CharacterKeys {
 	right: string[];
 	/** Vehicle drift key. Only captured while the vehicle scheme has drift on. */
 	drift?: string[];
+	/**
+	 * Jump key. Only captured while jumping is on. Where it shares a key with an active
+	 * drift (both default to Space), the drift wins.
+	 */
+	jump?: string[];
 }
 
 export const DEFAULT_KEYS: CharacterKeys = {
@@ -75,4 +93,5 @@ export const DEFAULT_KEYS: CharacterKeys = {
 	left: ["KeyA"],
 	right: ["KeyD"],
 	drift: ["Space"],
+	jump: ["Space"],
 };
