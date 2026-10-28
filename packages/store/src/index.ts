@@ -21,6 +21,7 @@ export {
 	createBringSelectionToFrontCommand,
 	createBringToFrontCommand,
 	createDeleteShapeCommand,
+	createDeleteShapesCommand,
 	createDeleteWithChildrenCommand,
 	createGroupCommand,
 	createMoveShapesCommand,

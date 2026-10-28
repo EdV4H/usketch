@@ -296,6 +296,63 @@ export function createDeleteWithChildrenCommand(store: BoardStore, shapeId: stri
 	};
 }
 
+/**
+ * Delete one or more shapes as one undo step. By default each shape's
+ * descendants are deleted with it, mirroring a cascading `locked`. `"self"`
+ * deletes only the shapes themselves (mirroring `lockScope: "self"`): their
+ * direct children are reattached to the deleted shape's parent and keep their
+ * (absolute) position. Either way, connectors attached to a deleted shape are
+ * deleted or detached as in {@link createDeleteWithChildrenCommand}.
+ */
+export function createDeleteShapesCommand(
+	store: BoardStore,
+	shapeIds: readonly string[],
+	/** `"self"` deletes only the shapes (not descendants). See {@link createSetLockedCommand}. */
+	scope?: "self",
+): Command {
+	let steps: Command[] = [];
+	return {
+		execute() {
+			steps = [];
+			for (const id of shapeIds) {
+				// Already gone (e.g. deleted above as another shape's descendant).
+				if (!store.getShape(id)) continue;
+				const step =
+					scope === "self"
+						? createDeleteKeepChildrenCommand(store, id)
+						: createDeleteWithChildrenCommand(store, id);
+				step.execute();
+				steps.push(step);
+			}
+		},
+		undo() {
+			for (const step of [...steps].reverse()) step.undo();
+		},
+	};
+}
+
+/** Delete a shape but reattach its direct children to its parent (see {@link createDeleteShapesCommand}). */
+function createDeleteKeepChildrenCommand(store: BoardStore, shapeId: string): Command {
+	const remove = createDeleteWithChildrenCommand(store, shapeId);
+	let reparent: Command | null = null;
+	return {
+		execute() {
+			const shape = store.getShape(shapeId);
+			const childIds: string[] = [];
+			for (const [, s] of store.getShapes()) {
+				if (s.parentId === shapeId) childIds.push(s.id);
+			}
+			reparent = createReparentCommand(store, childIds, shape?.parentId);
+			reparent.execute();
+			remove.execute();
+		},
+		undo() {
+			remove.undo();
+			reparent?.undo();
+		},
+	};
+}
+
 // ─── z-order commands ───────────────────────────────────────────────────────
 
 const NOOP_COMMAND: Command = {
