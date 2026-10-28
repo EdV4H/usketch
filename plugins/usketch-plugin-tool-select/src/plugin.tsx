@@ -39,6 +39,8 @@ import {
 	setEditingGroupId,
 } from "./group-edit-state.js";
 import { createHandleClickTracker } from "./handle-double-click.js";
+import { resolveSelectToolKeybindings, type SelectToolKeybindings } from "./keybindings.js";
+import { createToggleLockSelectionCommand } from "./lock-selection.js";
 import type { MarqueeRect } from "./marquee-state.js";
 import { clearMarqueeListeners, setMarquee, setMarqueeMode } from "./marquee-state.js";
 import { createOverlayColorStore, type OverlayColors } from "./overlay-colors.js";
@@ -73,6 +75,12 @@ function deleteSelectedShapes(ctx: PluginContext, scope?: "self") {
 	// No explicit clearSelection: `store.deleteShape` already drops deleted ids from
 	// the selection, so skipped (locked/hidden) shapes stay selected while a
 	// full-delete still ends with an empty selection.
+}
+
+function toggleLockSelectedShapes(ctx: PluginContext, scope?: "self") {
+	if (ctx.store.getActiveToolId() !== "select") return;
+	const cmd = createToggleLockSelectionCommand(ctx.store, scope);
+	if (cmd) ctx.commands.execute(cmd);
 }
 
 // ── Drag state types ──
@@ -125,6 +133,11 @@ type DragState =
 export interface SelectToolPluginOptions {
 	/** 選択オーバーレイ（選択枠/ハンドル）の色。CSS 変数（例 `var(--colors-primary)`）も可。 */
 	overlay?: Partial<OverlayColors>;
+	/**
+	 * 削除・ロックのキー割り当て。指定した操作だけ既定値を置き換え、`[]` で割り当てなし。
+	 * 既定値は `DEFAULT_SELECT_TOOL_KEYBINDINGS`。
+	 */
+	keybindings?: Partial<SelectToolKeybindings>;
 }
 
 export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): UsketchPlugin {
@@ -634,12 +647,22 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				),
 			});
 
-			// Delete selected shapes with their contents; Shift deletes a frame (or
-			// any container) only, leaving its contents in place.
-			ctx.shortcuts.register("Delete", () => deleteSelectedShapes(ctx));
-			ctx.shortcuts.register("Backspace", () => deleteSelectedShapes(ctx));
-			ctx.shortcuts.register("Shift+Delete", () => deleteSelectedShapes(ctx, "self"));
-			ctx.shortcuts.register("Shift+Backspace", () => deleteSelectedShapes(ctx, "self"));
+			// Delete / lock the selection. Each has a "with contents" and a "self"
+			// (e.g. frame only) variant; the keys are host-configurable.
+			const keys = resolveSelectToolKeybindings(options.keybindings);
+			const bindings: Array<[readonly string[], () => void, string]> = [
+				[keys.delete, () => deleteSelectedShapes(ctx), "削除（中身ごと）"],
+				[keys.deleteSelf, () => deleteSelectedShapes(ctx, "self"), "削除（フレームだけ）"],
+				[keys.toggleLock, () => toggleLockSelectedShapes(ctx), "ロック切替（中身ごと）"],
+				[
+					keys.toggleLockSelf,
+					() => toggleLockSelectedShapes(ctx, "self"),
+					"ロック切替（フレームだけ）",
+				],
+			];
+			const offShortcuts = bindings.flatMap(([combos, run, label]) =>
+				combos.map((combo) => ctx.shortcuts.register(combo, run, { label, category: "edit" })),
+			);
 
 			// 実行時に色を変更（snap:configure と対になる select:configure）。
 			// `{ overlay: { strokeColor, handleFillColor } }` も平坦な形も受け付ける。
@@ -649,6 +672,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 
 			// ── Teardown ──
 			return () => {
+				for (const off of offShortcuts) off();
 				offConfigure();
 				discardCopies();
 				stopDuplicateKeyTracking();
