@@ -46,6 +46,8 @@ export const CHARACTER_VIEWPORT_PRIORITY = 20;
 const REMOTE_SMOOTHING = 0.75;
 /** Largest simulated step, so a background-tab pause doesn't teleport the character. */
 const MAX_DT = 0.05;
+/** How long a measured canvas size is reused (a window resize re-measures at once). */
+const CANVAS_SIZE_TTL_MS = 500;
 
 function scheduleFrame(fn: (now: number) => void): number {
 	if (typeof requestAnimationFrame === "function") return requestAnimationFrame(fn);
@@ -119,7 +121,23 @@ export function setupCharacterRuntime(
 	// Set while WE write the viewport, so our own writes don't read as a user pan.
 	let writing = false;
 
-	const anchorPoint = (): Point => anchorPx(store.getState().anchor, canvasSize());
+	// The anchor is read every frame while following; measuring the canvas walks the layer
+	// wrappers and forces a layout, so the size is cached and refreshed on resize or after
+	// a short TTL (covers layout changes that aren't a window resize, e.g. a side panel).
+	let sizeCache: { width: number; height: number; at: number } | null = null;
+	const cachedCanvasSize = (): { width: number; height: number } => {
+		const now = Date.now();
+		if (!sizeCache || now - sizeCache.at > CANVAS_SIZE_TTL_MS) {
+			sizeCache = { ...canvasSize(), at: now };
+		}
+		return sizeCache;
+	};
+	const onResize = (): void => {
+		sizeCache = null;
+	};
+	if (typeof window !== "undefined") window.addEventListener("resize", onResize);
+
+	const anchorPoint = (): Point => anchorPx(store.getState().anchor, cachedCanvasSize());
 
 	// Ground height from whichever plugin provides it (e.g. the map's raised terrain), looked up
 	// per call so a provider registered later still counts. Absent = flat board.
@@ -304,6 +322,7 @@ export function setupCharacterRuntime(
 			offViewport();
 			keys.dispose();
 			sync?.dispose();
+			if (typeof window !== "undefined") window.removeEventListener("resize", onResize);
 			ctx.layers.unregister(CHARACTER_LAYER_ID);
 		},
 	};
