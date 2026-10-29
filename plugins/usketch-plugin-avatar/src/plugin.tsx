@@ -3,6 +3,8 @@ import type { WsProviderHandle } from "@edv4h/usketch-sync";
 import { AvatarCircle } from "./avatar-circle.js";
 
 const AVATAR_BASE_SIZE = 40;
+/** viewportCenter の awareness 送信間隔の下限（ms）。キャラ追従などで毎フレーム動くビューポートでも ~20Hz に抑える */
+const VIEWPORT_SYNC_INTERVAL_MS = 50;
 /** アバターの最小ピクセルサイズ */
 const AVATAR_MIN_SIZE = 20;
 
@@ -43,10 +45,17 @@ export interface AvatarPluginOptions {
 	userId: string;
 	userName: string;
 	userImage?: string | null;
+	/**
+	 * クライアントの awareness 状態に対して true を返す間、そのクライアントのアバター（自分を含む）を
+	 * 表示しない。例: 操作キャラ（`character` フィールド）で表示されている間は二重に出さない。
+	 */
+	hideAvatar?: (state: Record<string, unknown>) => boolean;
 }
 
 export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin {
-	const { wsProvider, userId, userName, userImage } = options;
+	const { wsProvider, userId, userName, userImage, hideAvatar } = options;
+	const isHidden = (state: Record<string, unknown> | null | undefined) =>
+		!!state && !!hideAvatar?.(state);
 	const { awareness } = wsProvider;
 
 	return {
@@ -64,8 +73,26 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 			let selfName = userName;
 			let selfImage = userImage ?? null;
 			let selfUserId = userId;
+			let selfHidden = isHidden(awareness.getLocalState());
+
+			// 送信を間引く: 直近の送信から VIEWPORT_SYNC_INTERVAL_MS 以内なら最後の値だけを後で送る
+			let lastViewportSync = Number.NEGATIVE_INFINITY;
+			let viewportSyncTimer: ReturnType<typeof setTimeout> | null = null;
+			function scheduleViewportCenterSync() {
+				if (viewportSyncTimer !== null) return;
+				const wait = lastViewportSync + VIEWPORT_SYNC_INTERVAL_MS - Date.now();
+				if (wait <= 0) {
+					syncLocalViewportCenter();
+					return;
+				}
+				viewportSyncTimer = setTimeout(() => {
+					viewportSyncTimer = null;
+					syncLocalViewportCenter();
+				}, wait);
+			}
 
 			function syncLocalViewportCenter() {
+				lastViewportSync = Date.now();
 				const viewport = ctx.store.getViewport();
 				// ビューポートの中央をワールド座標で計算
 				// viewport: { x, y, zoom } where x,y is the top-left offset
@@ -89,7 +116,7 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				if (vp.x === lastVp.x && vp.y === lastVp.y && vp.zoom === lastVp.zoom) return;
 				const zoomChanged = vp.zoom !== lastVp.zoom;
 				lastVp = vp;
-				syncLocalViewportCenter();
+				scheduleViewportCenterSync();
 				// ズームが変わったらアバターサイズを更新
 				if (zoomChanged) {
 					currentZoom = vp.zoom;
@@ -119,6 +146,7 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 			function registerSelfLayer() {
 				const size = avatarSize(currentZoom);
 				ctx.layers.unregister("avatar-self");
+				if (selfHidden) return;
 				ctx.layers.register({
 					id: "avatar-self",
 					order: 85,
@@ -159,10 +187,17 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				const newName = av?.name ?? userName;
 				const newImage = av?.image ?? userImage ?? null;
 				const newUserId = av?.userId ?? userId;
-				if (newName !== selfName || newImage !== selfImage || newUserId !== selfUserId) {
+				const newHidden = isHidden(localState);
+				if (
+					newName !== selfName ||
+					newImage !== selfImage ||
+					newUserId !== selfUserId ||
+					newHidden !== selfHidden
+				) {
 					selfName = newName;
 					selfImage = newImage;
 					selfUserId = newUserId;
+					selfHidden = newHidden;
 					registerSelfLayer();
 				}
 
@@ -178,6 +213,7 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 					const viewportCenter = state.viewportCenter as { x: number; y: number } | undefined;
 
 					if (
+						isHidden(state) ||
 						!avatar ||
 						!viewportCenter ||
 						typeof viewportCenter.x !== "number" ||
@@ -234,6 +270,7 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 
 			return () => {
 				clearTimeout(delayedCheck);
+				if (viewportSyncTimer !== null) clearTimeout(viewportSyncTimer);
 				awareness.off("change", onAwarenessChange);
 				unsubStore();
 				ctx.layers.unregister("avatar-self");
