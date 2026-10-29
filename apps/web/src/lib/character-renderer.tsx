@@ -107,8 +107,9 @@ export function renderCharacterShadow(props: CharacterRenderProps) {
 				width: d,
 				height: d,
 				borderRadius: "50%",
-				background: `rgba(0, 0, 0, ${(0.35 * k).toFixed(3)})`,
-				filter: "blur(1.5px)",
+				// A soft edge from the gradient, not `filter: blur` — a filter inside Mode 7's
+				// preserve-3d scene is re-rasterized on the GPU whenever the scene moves.
+				background: `radial-gradient(closest-side, rgba(0, 0, 0, ${(0.35 * k).toFixed(3)}) 70%, rgba(0, 0, 0, 0))`,
 			}}
 		/>
 	);
