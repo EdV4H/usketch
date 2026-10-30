@@ -21,6 +21,7 @@ import type {
 	SnapSettings,
 	SpacingGuide,
 } from "./engine/types.js";
+import { getNearestFrameAncestor } from "./frame-ancestor.js";
 import { GuideLayer } from "./guide-layer.js";
 
 // ── Shared mutable state for the plugin ──
@@ -544,12 +545,11 @@ function getCandidateBoxes(
 ): Map<string, BoundingBox> {
 	const visibleRect = viewport ? getVisibleWorldRect(viewport) : null;
 
-	// Determine the nearest frame ancestor of moving shapes.
-	// Walk up the parentId chain to find the first "frame" type ancestor.
-	// This correctly handles shapes inside groups within frames.
+	// Determine the nearest frame-like ancestor of moving shapes (see
+	// getNearestFrameAncestor). This correctly handles shapes inside groups within frames.
 	let movingFrameId: string | null | undefined;
 	for (const id of movingIds) {
-		const frameId = getNearestFrameAncestor(store, id);
+		const frameId = getNearestFrameAncestor(store, ctx.shapes, id);
 		if (movingFrameId === undefined) {
 			movingFrameId = frameId;
 		} else if (movingFrameId !== frameId) {
@@ -575,7 +575,7 @@ function getCandidateBoxes(
 		//   (also allow snapping to the parent frame itself)
 		// - If moving shapes are top-level, don't snap to shapes inside frames
 		if (movingFrameId !== undefined) {
-			const candidateFrameId = getNearestFrameAncestor(store, id);
+			const candidateFrameId = getNearestFrameAncestor(store, ctx.shapes, id);
 			if (candidateFrameId !== movingFrameId && id !== movingFrameId) continue;
 		}
 
@@ -587,22 +587,4 @@ function getCandidateBoxes(
 		boxes.set(id, box);
 	}
 	return boxes;
-}
-
-/** Walk up the parentId chain to find the nearest frame-type ancestor. Returns null if top-level. */
-function getNearestFrameAncestor(store: BoardStore, shapeId: string): string | null {
-	let currentId = shapeId;
-	const visited = new Set<string>();
-	for (;;) {
-		const shape = store.getShape(currentId);
-		if (!shape) return null;
-		const pid = shape.parentId as string | undefined;
-		if (!pid) return null;
-		if (visited.has(pid)) return null; // circular reference guard
-		visited.add(pid);
-		const parent = store.getShape(pid);
-		if (!parent) return null;
-		if (parent.type === "frame") return pid;
-		currentId = pid;
-	}
 }

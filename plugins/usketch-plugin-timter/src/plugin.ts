@@ -138,6 +138,12 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 			// ── Per-timer actions, rebuilt on store change + ticked while running ──
 			let perTimerOffs: (() => void)[] = [];
 			let tick: ReturnType<typeof setInterval> | null = null;
+			// The store notifies on every pan / zoom / selection / drag frame. Skip
+			// when the shapes map is unchanged, and only re-register the actions when
+			// a label (= timer list, order, state or displayed second) actually
+			// changed — every register/unregister re-renders the Controls dock.
+			let lastShapes: ReturnType<typeof ctx.store.getShapes> | null = null;
+			let lastLabels: string | null = null;
 
 			const clearPerTimer = () => {
 				for (const off of perTimerOffs) off();
@@ -145,21 +151,41 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 			};
 
 			const rebuild = () => {
-				clearPerTimer();
+				lastShapes = ctx.store.getShapes();
 				const timers = listTimers();
 				const serverNow = now();
-
-				timers.forEach((s, idx) => {
-					const n = idx + 1;
+				const toggleLabels = timers.map((s, idx) => {
 					const icon = resolveTimerKind(s.timerType).icon ?? "⏱";
 					const done = isDone(coreOf(s), serverNow);
 					const time = formatDuration(displayMs(coreOf(s), serverNow));
+					return `${s.running ? "⏸" : "▶"} ${icon} #${idx + 1} ${time}${done ? " ⏰終了" : ""}`;
+				});
+				const labels = timers.map((s, idx) => `${s.id}\u0000${toggleLabels[idx]}`).join("\n");
+				if (labels !== lastLabels) {
+					lastLabels = labels;
+					registerPerTimer(timers, toggleLabels);
+				}
+
+				const needsTick = timers.some(
+					(s) => s.running && !(s.timerType === "countdown" && isDone(coreOf(s), serverNow)),
+				);
+				if (needsTick && tick == null) tick = setInterval(rebuild, 1000);
+				else if (!needsTick && tick != null) {
+					clearInterval(tick);
+					tick = null;
+				}
+			};
+
+			const registerPerTimer = (timers: TimerShapeData[], toggleLabels: string[]) => {
+				clearPerTimer();
+				timers.forEach((s, idx) => {
+					const n = idx + 1;
 					perTimerOffs.push(
 						ctx.actions.register({
 							id: `timter:${s.id}:toggle`,
 							group: "Timter",
 							order: 10 + idx * 3,
-							label: `${s.running ? "⏸" : "▶"} ${icon} #${n} ${time}${done ? " ⏰終了" : ""}`,
+							label: toggleLabels[idx] ?? "",
 							isActive: () =>
 								(ctx.store.getShape(s.id) as TimerShapeData | undefined)?.running ?? false,
 							run: () => dispatchTimerShapeAction({ id: s.id, action: "toggle" }),
@@ -180,18 +206,11 @@ export function createTimterPlugin(options: TimterPluginOptions): UsketchPlugin 
 						}),
 					);
 				});
-
-				const needsTick = timers.some(
-					(s) => s.running && !(s.timerType === "countdown" && isDone(coreOf(s), serverNow)),
-				);
-				if (needsTick && tick == null) tick = setInterval(rebuild, 1000);
-				else if (!needsTick && tick != null) {
-					clearInterval(tick);
-					tick = null;
-				}
 			};
 
-			const unsub = ctx.store.subscribe(rebuild);
+			const unsub = ctx.store.subscribe(() => {
+				if (ctx.store.getShapes() !== lastShapes) rebuild();
+			});
 			rebuild();
 
 			return () => {
