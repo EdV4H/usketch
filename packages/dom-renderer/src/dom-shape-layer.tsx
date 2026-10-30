@@ -1,6 +1,16 @@
-import type { LayerRenderContext, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
-import { isShapeContainer, isShapeOutsideViewport, safeRotation } from "@edv4h/usketch-shared";
-import { type ComponentType, memo } from "react";
+import type {
+	BoundingBox,
+	LayerRenderContext,
+	ShapeData,
+	ShapeRegistry,
+} from "@edv4h/usketch-shared";
+import {
+	isShapeContainer,
+	isShapeOutsideViewport,
+	safeRotation,
+	scaleRectAboutCenter,
+} from "@edv4h/usketch-shared";
+import { type ComponentType, memo, useMemo } from "react";
 import { LodFallback } from "./lod-fallback.js";
 
 /**
@@ -48,6 +58,29 @@ function stableParentSort(sorted: readonly ShapeData[]): ShapeData[] {
 		if (!emittedIds.has(shape.id)) result.push(shape);
 	}
 	return result;
+}
+
+/**
+ * The region outside which shapes are not rendered at all: `viewportBounds` scaled
+ * by `ratio` about its center, then grown by `padPx` screen px on every side (a 3D
+ * view showing content past the viewport). `null` while the canvas is unmeasured
+ * (nothing is culled then).
+ */
+export function cullRegion(
+	viewportBounds: BoundingBox,
+	ratio: number,
+	padPx: number,
+	zoom: number,
+): BoundingBox | null {
+	if (viewportBounds.width <= 0 || viewportBounds.height <= 0) return null;
+	const scaled = scaleRectAboutCenter(viewportBounds, ratio);
+	const pad = padPx > 0 && zoom > 0 ? padPx / zoom : 0;
+	return {
+		x: scaled.x - pad,
+		y: scaled.y - pad,
+		width: scaled.width + 2 * pad,
+		height: scaled.height + 2 * pad,
+	};
 }
 
 // When dragging shapes onto a frame (drop target detected), boost their
@@ -148,6 +181,9 @@ export function DomShapeLayer({
 	dropTargetId,
 	viewportLod = true,
 	viewportLodRatio = 1.2,
+	viewportCull = true,
+	viewportCullRatio = 2,
+	cullPadPx = 0,
 }: {
 	ctx: LayerRenderContext;
 	shapeRegistry: ShapeRegistry;
@@ -159,9 +195,33 @@ export function DomShapeLayer({
 	viewportLod?: boolean;
 	/** Full-detail region as a multiple of the viewport (1.2 = 120%). See isShapeOutsideViewport. */
 	viewportLodRatio?: number;
+	/** Don't render shapes outside `viewportCullRatio` × the viewport at all. */
+	viewportCull?: boolean;
+	/**
+	 * Cull region as a multiple of the viewport (2 = 200%). While `viewportLod` is on it
+	 * is never below `viewportLodRatio` (shapes between the two render simplified).
+	 */
+	viewportCullRatio?: number;
+	/** Extra screen px around the cull region (content a 3D view shows past the viewport). */
+	cullPadPx?: number;
 }) {
+	// Parents-before-children order only depends on the shapes, not the viewport, so
+	// it is not redone on every pan / zoom frame.
+	const shapes = useMemo(() => stableParentSort(ctx.shapesSorted), [ctx.shapesSorted]);
+
 	// `gpu-only` mode: hide the DOM layer entirely (reserved for future use).
 	if (ctx.renderMode === "gpu-only") return null;
+
+	// Off-screen shapes beyond the cull region aren't mounted: even simplified, every
+	// mounted node is walked and painted again on each pan / zoom frame.
+	const culling = viewportCull
+		? cullRegion(
+				ctx.viewportBounds,
+				viewportLod ? Math.max(viewportCullRatio, viewportLodRatio) : viewportCullRatio,
+				cullPadPx,
+				ctx.viewport.zoom,
+			)
+		: null;
 
 	// Global LOD (zoom/count/fps): every shape renders simplified.
 	const globalLod = ctx.renderMode === "lod";
@@ -175,12 +235,6 @@ export function DomShapeLayer({
 	const gpuActive = ctx.renderMode !== "interactive" && claimedIds !== undefined;
 	const effectiveClaimedIds = gpuActive ? claimedIds : undefined;
 
-	// Use pre-sorted shapes (by zIndex ascending) from the layer render context,
-	// then reorder so that each child appears immediately after its parent container.
-	// This preserves user-controlled z-order within each sibling group while keeping
-	// the container-before-child invariant required by the DOM stacking context.
-	const shapes = stableParentSort(ctx.shapesSorted);
-
 	return (
 		<div data-layer="shapes">
 			{shapes.map((shape, index) => {
@@ -193,6 +247,7 @@ export function DomShapeLayer({
 					return null;
 				}
 				const def = shapeRegistry.get(shape.type);
+				if (culling && isShapeOutsideViewport(shape, culling, 1)) return null;
 				// LOD when the global mode says so, OR (per-shape) when the shape sits
 				// outside the scaled viewport — off-screen shapes render simplified.
 				const isLod =
