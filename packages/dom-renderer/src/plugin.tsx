@@ -7,9 +7,15 @@ export interface DomRendererOptions {
 	 * `true` (default) uses a 120% region; pass `{ ratio }` to tune the
 	 * full-detail region (1.0 = exactly the viewport, 1.2 = 20% buffer beyond it,
 	 * 0.5 = only the central half). `false` disables it (all shapes full-detail).
-	 * While on, shapes beyond `cullRatio` × the viewport (default 2) are not rendered.
 	 */
-	viewportLod?: boolean | { ratio?: number; cullRatio?: number };
+	viewportLod?: boolean | { ratio?: number };
+	/**
+	 * Don't render shapes far outside the camera viewport at all (perf: every mounted
+	 * shape is painted again on each pan / zoom frame). `true` (default) culls beyond a
+	 * 200% region; pass `{ ratio }` to tune it (never below the LOD region while LOD is
+	 * on). `false` disables it (every shape stays mounted).
+	 */
+	viewportCull?: boolean | { ratio?: number };
 }
 
 /** Runtime override of the viewport-LOD setting (emit to adjust from a UI control). */
@@ -18,6 +24,13 @@ export interface SetViewportLodEvent {
 	ratio?: number;
 }
 export const SET_VIEWPORT_LOD_EVENT = "renderer:set-viewport-lod";
+
+/** Runtime override of the viewport-culling setting (emit to adjust from a UI control). */
+export interface SetViewportCullEvent {
+	enabled?: boolean;
+	ratio?: number;
+}
+export const SET_VIEWPORT_CULL_EVENT = "renderer:set-viewport-cull";
 
 /**
  * Event a 3D view (Mode 7) emits with how many screen px of the board it shows past the
@@ -44,8 +57,9 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 	let viewportLodRatio = sanitizeRatio(
 		typeof options.viewportLod === "object" ? options.viewportLod.ratio : undefined,
 	);
-	const viewportCullRatio = sanitizeRatio(
-		typeof options.viewportLod === "object" ? options.viewportLod.cullRatio : undefined,
+	let viewportCullEnabled = options.viewportCull !== false;
+	let viewportCullRatio = sanitizeRatio(
+		typeof options.viewportCull === "object" ? options.viewportCull.ratio : undefined,
 		DEFAULT_VIEWPORT_CULL_RATIO,
 	);
 
@@ -67,6 +81,17 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 				if (typeof d.ratio === "number") viewportLodRatio = sanitizeRatio(d.ratio);
 				ctx.events.emit("layers:changed", {});
 			});
+
+			const unsubViewportCull = ctx.events.on<SetViewportCullEvent>(
+				SET_VIEWPORT_CULL_EVENT,
+				(d) => {
+					if (typeof d.enabled === "boolean") viewportCullEnabled = d.enabled;
+					if (typeof d.ratio === "number") {
+						viewportCullRatio = sanitizeRatio(d.ratio, DEFAULT_VIEWPORT_CULL_RATIO);
+					}
+					ctx.events.emit("layers:changed", {});
+				},
+			);
 
 			const unsubOverscan = ctx.events.on<{ px: number }>(VIEWPORT_OVERSCAN_EVENT, ({ px }) => {
 				const next = Number.isFinite(px) && px > 0 ? px : 0;
@@ -122,6 +147,7 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 						dropTargetId={dropTargetId}
 						viewportLod={viewportLodEnabled}
 						viewportLodRatio={viewportLodRatio}
+						viewportCull={viewportCullEnabled}
 						viewportCullRatio={viewportCullRatio}
 						cullPadPx={overscanPx}
 					/>
@@ -132,6 +158,7 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 				unsubClaim();
 				unsubDropTarget();
 				unsubViewportLod();
+				unsubViewportCull();
 				unsubOverscan();
 				ctx.layers.unregister("dom-shapes");
 			};

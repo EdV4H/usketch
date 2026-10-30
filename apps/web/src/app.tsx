@@ -95,7 +95,7 @@ import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
 import { presenceStore, readPresenceMembers } from "./lib/presence-store.js";
 import { computePresentStage, type StageRect } from "./lib/present-stage.js";
-import { loadViewportLod } from "./lib/render-settings.js";
+import { loadViewportCull, loadViewportLod } from "./lib/render-settings.js";
 import { syncStatusStore } from "./lib/sync-status-store.js";
 import { useAppActions } from "./lib/use-app-actions.js";
 import { useAuth } from "./lib/use-auth.js";
@@ -224,14 +224,18 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		createExportPlugin(),
 		createGpuRendererPlugin(),
 		createDomRendererPlugin({
-			// Initial value from persisted user setting; live changes come from the
-			// Control HUD action (SET_VIEWPORT_LOD_EVENT).
+			// Initial values from persisted user settings; live changes come from the
+			// Control HUD (SET_VIEWPORT_LOD_EVENT / SET_VIEWPORT_CULL_EVENT).
 			viewportLod: (() => {
 				const s = loadViewportLod();
 				return s.enabled ? { ratio: s.ratio } : false;
 			})(),
+			viewportCull: (() => {
+				const s = loadViewportCull();
+				return s.enabled ? { ratio: s.ratio } : false;
+			})(),
 		}),
-		// Registers the viewport-LOD toggle + % control into the Control HUD.
+		// Registers the viewport-LOD / culling toggles + % controls into the Control HUD.
 		createViewportLodControlPlugin(),
 		// Contributes the Board meta panel to the Control HUD (replaces the hardcoded
 		// General-panel Board section + __usketchBoardMeta global).

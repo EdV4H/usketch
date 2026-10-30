@@ -116,18 +116,51 @@ describe("DomShapeLayer viewport LOD", () => {
 		expect(container.querySelector('[data-lod-id="far"]')).not.toBeNull();
 	});
 
-	it("draws everything when viewport LOD is off", () => {
+	it("draws everything when culling is off", () => {
 		const shapes = [shape("near", 0), shape("gone", 5000)];
 		act(() =>
 			root.render(
 				createElement(DomShapeLayer, {
 					ctx: ctx(0, shapes),
 					shapeRegistry: registry,
-					viewportLod: false,
+					viewportCull: false,
 				}),
 			),
 		);
-		expect(container.querySelector('[data-shape-id="gone"]')).not.toBeNull();
+		expect(container.querySelector('[data-lod-id="gone"]')).not.toBeNull();
+	});
+
+	it("culls with its own ratio when viewport LOD is off", () => {
+		const shapes = [shape("band", 900), shape("gone", 5000)];
+		act(() =>
+			root.render(
+				createElement(DomShapeLayer, {
+					ctx: ctx(0, shapes),
+					shapeRegistry: registry,
+					viewportLod: false,
+					viewportCullRatio: 1.5,
+				}),
+			),
+		);
+		// LOD off: shapes inside the cull region render at full detail.
+		expect(container.querySelector('[data-shape-id="band"]')).not.toBeNull();
+		expect(container.querySelector('[data-shape-id="gone"]')).toBeNull();
+	});
+
+	it("never culls inside the LOD region", () => {
+		const shapes = [shape("band", 900)];
+		act(() =>
+			root.render(
+				createElement(DomShapeLayer, {
+					ctx: ctx(0, shapes),
+					shapeRegistry: registry,
+					viewportLodRatio: 1.5,
+					viewportCullRatio: 1,
+				}),
+			),
+		);
+		// Inside the 150% LOD region (full detail) even though the cull ratio is 100%.
+		expect(container.querySelector('[data-shape-id="band"]')).not.toBeNull();
 	});
 });
 

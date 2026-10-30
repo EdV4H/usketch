@@ -181,6 +181,7 @@ export function DomShapeLayer({
 	dropTargetId,
 	viewportLod = true,
 	viewportLodRatio = 1.2,
+	viewportCull = true,
 	viewportCullRatio = 2,
 	cullPadPx = 0,
 }: {
@@ -194,10 +195,11 @@ export function DomShapeLayer({
 	viewportLod?: boolean;
 	/** Full-detail region as a multiple of the viewport (1.2 = 120%). See isShapeOutsideViewport. */
 	viewportLodRatio?: number;
+	/** Don't render shapes outside `viewportCullRatio` × the viewport at all. */
+	viewportCull?: boolean;
 	/**
-	 * With `viewportLod` on, shapes outside this multiple of the viewport are not rendered
-	 * at all (between it and `viewportLodRatio` they render simplified). Never below
-	 * `viewportLodRatio`.
+	 * Cull region as a multiple of the viewport (2 = 200%). While `viewportLod` is on it
+	 * is never below `viewportLodRatio` (shapes between the two render simplified).
 	 */
 	viewportCullRatio?: number;
 	/** Extra screen px around the cull region (content a 3D view shows past the viewport). */
@@ -212,10 +214,10 @@ export function DomShapeLayer({
 
 	// Off-screen shapes beyond the cull region aren't mounted: even simplified, every
 	// mounted node is walked and painted again on each pan / zoom frame.
-	const culling = viewportLod
+	const culling = viewportCull
 		? cullRegion(
 				ctx.viewportBounds,
-				Math.max(viewportCullRatio, viewportLodRatio),
+				viewportLod ? Math.max(viewportCullRatio, viewportLodRatio) : viewportCullRatio,
 				cullPadPx,
 				ctx.viewport.zoom,
 			)
