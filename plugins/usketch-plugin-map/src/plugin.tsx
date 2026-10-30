@@ -133,6 +133,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 						renderMode={lctx.renderMode}
 						tile={tile}
 						stage={stage}
+						overscan={overscan}
 					/>
 				),
 			});
