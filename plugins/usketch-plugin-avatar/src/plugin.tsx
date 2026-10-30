@@ -146,7 +146,12 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 			function registerSelfLayer() {
 				const size = avatarSize(currentZoom);
 				ctx.layers.unregister("avatar-self");
-				if (selfHidden) return;
+				// The canvas only re-reads its layers on "layers:changed" (or when something
+				// else re-renders it), so say so: otherwise hiding/showing waits for a pan.
+				if (selfHidden) {
+					ctx.events.emit("layers:changed", {});
+					return;
+				}
 				ctx.layers.register({
 					id: "avatar-self",
 					order: 85,
@@ -176,6 +181,7 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 						</div>
 					),
 				});
+				ctx.events.emit("layers:changed", {});
 			}
 
 			function onAwarenessChange() {
@@ -274,6 +280,7 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				awareness.off("change", onAwarenessChange);
 				unsubStore();
 				ctx.layers.unregister("avatar-self");
+				ctx.events.emit("layers:changed", {});
 			};
 		},
 	};

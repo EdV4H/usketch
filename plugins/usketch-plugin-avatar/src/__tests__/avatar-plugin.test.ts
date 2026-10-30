@@ -37,7 +37,9 @@ function fakeCtx() {
 	const storeListeners = new Set<() => void>();
 	const layers = new Set<string>();
 	const transients = new Set<string>();
+	const emitted: string[] = [];
 	const ctx = {
+		events: { emit: (name: string) => emitted.push(name) },
 		store: {
 			getViewport: () => viewport,
 			subscribe: (l: () => void) => {
@@ -59,6 +61,7 @@ function fakeCtx() {
 		ctx: ctx as unknown as PluginContext,
 		layers,
 		transients,
+		emitted,
 		pan(dx: number) {
 			viewport = { ...viewport, x: viewport.x + dx };
 			for (const l of storeListeners) l();
@@ -100,6 +103,17 @@ describe("avatar plugin", () => {
 		expect(layers.has("avatar-self")).toBe(false);
 		awareness.setLocalStateField("character", null);
 		expect(layers.has("avatar-self")).toBe(true);
+		dispose?.();
+	});
+
+	it("tells the canvas to re-read its layers when your avatar hides or shows", () => {
+		const { awareness, emitted, dispose } = setup();
+		emitted.length = 0;
+		awareness.setLocalStateField("character", { x: 0, y: 0 });
+		expect(emitted).toContain("layers:changed");
+		emitted.length = 0;
+		awareness.setLocalStateField("character", null);
+		expect(emitted).toContain("layers:changed");
 		dispose?.();
 	});
 
