@@ -89,7 +89,11 @@ import { CopilotPill } from "./components/board-frame/index.js";
 import { ShareDialog } from "./components/share-dialog.js";
 import { InfoTab } from "./components/side-panel/info-tab.js";
 import { boardMetaStore } from "./lib/board-meta-store.js";
-import { characterAppearance, renderCharacter } from "./lib/character-renderer.js";
+import {
+	characterAppearance,
+	renderCharacter,
+	renderCharacterShadow,
+} from "./lib/character-renderer.js";
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
@@ -477,6 +481,7 @@ export function App() {
 					userName: userNameRef.current ?? getDevUser()?.name,
 					appearance: characterAppearance(seed),
 					renderCharacter,
+					renderShadow: renderCharacterShadow,
 				}),
 			);
 		}

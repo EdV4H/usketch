@@ -24,6 +24,8 @@ createCharacterPlugin({
   cameraMode: "rotate",            // "fixed" | "rotate" | "free"
   controlScheme: "vehicle",        // "directional" | "vehicle"
   drift: true,                     // vehicle: Space + steer drifts (or tuning overrides)
+  jump: true,                      // Space jumps (or tuning overrides)
+  renderShadow: ({ altitude }) => <div className="shadow" style={{ scale: 1 / (1 + altitude / 60) }} />,
   screenAnchor: { x: 0.5, y: 0.75 },
 });
 ```
@@ -34,7 +36,8 @@ createCharacterPlugin({
   as CSS `rotate()` and the viewport `rotation`.
 - **Render props**: `heading` (world), `screenHeading` (= `heading + viewport.rotation`,
   what to rotate a top-down sprite by), `moving`, `speed`, `steering`, `slip`,
-  `drifting`, `zoom`, `appearance`, `name`, `isSelf`, `id`, `elevation`. Each character is placed centered on its screen position
+  `drifting`, `zoom`, `appearance`, `name`, `isSelf`, `id`, `elevation`, `z`, `altitude`,
+  `airborne`, `verticalSpeed`. Each character is placed centered on its screen position
   in one screen-space layer, so self and remote characters look the same under zoom
   and camera rotation.
 - **Control schemes**
@@ -53,6 +56,18 @@ createCharacterPlugin({
   `startSpeed` / `stopSpeed` (fractions of `moveSpeed`), `turnRate` / `steerRate`
   (multiples of `turnRate`), `slipAngle` / `steerSlipAngle` (degrees), `recoveryRate`
   (1/s). The drift key is only captured while drift is on.
+- **Jump** (opt-in via `jump`): press the jump key (Space) to jump. The arc is set by
+  its apex `height` (world units) and `timeToApex`; it falls `fallGravity` × faster than
+  it rises, releasing the key while rising cuts it short (`releaseCut`), a press within
+  `bufferTime` before landing jumps on touchdown, and a jump within `coyoteTime` of
+  walking off a ledge still counts. The pose carries the feet height `z` (absolute, like
+  the ground height), `vz` and `airborne`. Where the jump key is also the active drift
+  key (vehicle + drift, both Space by default) the drift wins. `api.jump()` (and the HUD
+  action) jumps from code, as a full jump.
+- **Shadow**: pass `renderShadow` to draw a shadow; it is placed on the ground under
+  each character while the body stands at its feet height `z`, so under a 3D view
+  (Mode 7) a jump lifts the body off its shadow. `altitude` (`z - elevation`) lets it
+  shrink as the character rises.
 - **Keyboard focus**: movement keys are captured on `window` while the character is
   on, except where the page needs them: nothing is taken while a text field has focus
   or focus is inside a dialog / menu (`dialog`, `role="dialog"`, `alertdialog`, `menu`;
@@ -78,8 +93,11 @@ createCharacterPlugin({
   `@edv4h/usketch-shared`, e.g. the map plugin's raised terrain), moving onto
   ground more than `motion.maxStep` (default 24 world units, HUD "登れる段差") higher
   than where the character stands is blocked; it slides along the cliff instead.
-  Stepping down is always allowed. The render props carry `elevation`, and under a
-  3D view (Mode 7) the character is lifted onto the ground it stands on.
+  The step is measured from the feet, so mid-jump taller cliffs are reachable; a ledge
+  within the step above the feet is landed on. Stepping down within the step snaps
+  down; a bigger drop falls (gravity applies even with jumping off). The render props
+  carry `elevation` (the ground) and `z` (the feet), and under a 3D view (Mode 7) the
+  character is lifted to its feet height.
 - **Input**: held keys are tracked from window `keydown`/`keyup` (capture phase,
   `event.code`), swallowed while the character is on so single-letter tool
   shortcuts don't fire. Typing in text fields, and key chords with Ctrl/Cmd/Alt,
@@ -87,9 +105,9 @@ createCharacterPlugin({
 
 ## HUD
 
-A "キャラクター" settings group (on/off, camera, scheme, drift, speed, turn rate,
-climbable step, screen position, camera lag) plus actions to toggle the character and to place it at the
-screen position.
+A "キャラクター" settings group (on/off, camera, scheme, drift, jump, jump height, speed,
+turn rate, climbable step, screen position, camera lag) plus actions to toggle the
+character, to place it at the screen position, and to jump.
 
 ## Service
 
@@ -101,7 +119,10 @@ api?.enable();
 api?.setCameraMode("rotate");
 api?.setRenderer(myRenderer);
 api?.setDrift({ slipAngle: 35 }); // true / false / tuning overrides
-api?.getPose(); // { x, y, heading, speed, moving, steering, slip, drift }
+api?.setJump({ height: 60 });     // true / false / tuning overrides
+api?.jump();
+api?.setShadowRenderer(myShadow);
+api?.getPose(); // { x, y, heading, speed, moving, steering, slip, drift, z, vz, airborne }
 ```
 
 ## Limitations

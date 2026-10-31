@@ -8,27 +8,22 @@ import {
 	type Viewport,
 	viewportRotation,
 } from "@edv4h/usketch-shared";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { type Cells, cellKey, exposedEdges, parseCellKey } from "./autotile.js";
-import {
-	type BaseGenParams,
-	baseTerrainAt,
-	makeTerrainSampler,
-	resolveBaseGen,
-	type TerrainSampler,
-} from "./base-terrain.js";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { chunkRange, inChunkRange, parseChunkKey } from "./chunk-plan.js";
 import { genStateStore } from "./gen-state.js";
-import { blockFactor, downsampleCells, type TileDetail, tileDetail } from "./lod.js";
+import { CELL_LINE, GRID_PATTERN_ID, groundMarkup, WOBBLE_FILTER_ID } from "./ground-markup.js";
+import { tileDetail } from "./lod.js";
 import { terrainCssVars } from "./palette.js";
 import type { ReactiveStore } from "./reactive-store.js";
 import { type MapRenderConfig, renderConfigStore } from "./render-config.js";
 import { renderSvgNodes } from "./svg-nodes.js";
-import { TERRAINS, type TerrainKey, terrainDarkVar, terrainPatternId } from "./terrain.js";
-import { boardTilemaps, mergeTilemapCells } from "./terrain-height.js";
-import { seededTilemap, type TileMapShapeData } from "./tilemap-shape.js";
+import { TERRAINS, terrainPatternId } from "./terrain.js";
+import { boardTilemaps } from "./terrain-height.js";
+import type { TileMapShapeData } from "./tilemap-shape.js";
+import { type ChunkRanges, useChunkPlan } from "./use-chunk-plan.js";
 import { WobbleFilter } from "./wobble-filter.js";
 
-export const WOBBLE_FILTER_ID = "uskmap-wobble";
+export { visibleCellRange, WOBBLE_FILTER_ID } from "./ground-markup.js";
 
 /**
  * Event a 3D view emits with how many screen px of ground it reveals past the viewport
@@ -43,14 +38,14 @@ export const MAX_GROUND_OVERSCAN_PX = 160;
  * does). The raised relief only means anything in 3D, so it is built only while on.
  */
 export const STAGE_3D_EVENT = "usketch:stage-3d";
-const GRID_PATTERN_ID = "uskmap-grid";
 
-const EDGE_RATIO = 0.22; // dark "one shade darker" ring thickness, fraction of a tile
-const EDGE_OPACITY = 0.42;
-const CELL_LINE = "rgba(20,20,20,.06)";
-
-/** Shared SVG defs: 12 terrain patterns + a per-tile grid + the wobble filter. */
-function MapDefs({ tile, wobbleRegion }: { tile: number; wobbleRegion?: DOMRectReadOnly | null }) {
+/**
+ * Shared SVG defs: 12 terrain patterns + a per-tile grid + the wobble filter. The filter
+ * covers each filtered group's own box (one chunk), so it doesn't change while panning.
+ * Memoized: the layer re-renders every frame the view moves, and rebuilding the
+ * patterns' hundreds of elements each time was a large share of a frame's script.
+ */
+const MapDefs = memo(function MapDefs({ tile }: { tile: number }) {
 	return (
 		<defs>
 			{TERRAINS.map((t) => (
@@ -69,230 +64,10 @@ function MapDefs({ tile, wobbleRegion }: { tile: number; wobbleRegion?: DOMRectR
 			<pattern id={GRID_PATTERN_ID} width={tile} height={tile} patternUnits="userSpaceOnUse">
 				<rect width={tile} height={tile} fill="none" stroke={CELL_LINE} strokeWidth={1} />
 			</pattern>
-			<WobbleFilter id={WOBBLE_FILTER_ID} region={wobbleRegion} />
+			<WobbleFilter id={WOBBLE_FILTER_ID} />
 		</defs>
 	);
-}
-
-function culled(x: number, y: number, size: number, visible?: DOMRectReadOnly | null): boolean {
-	return (
-		!!visible &&
-		(x > visible.right || y > visible.bottom || x + size < visible.left || y + size < visible.top)
-	);
-}
-
-interface CellRange {
-	c0: number;
-	c1: number;
-	r0: number;
-	r1: number;
-}
-
-/**
- * Visible cell index range (inclusive), or null when the viewport is unknown.
- * `right`/`bottom` are exclusive edges, so the end index uses `ceil - 1` — a cell
- * only counts if it actually overlaps the rect (no extra row/col on a boundary).
- */
-export function visibleCellRange(
-	visible: DOMRectReadOnly | null | undefined,
-	tile: number,
-): CellRange | null {
-	if (!visible) return null;
-	return {
-		c0: Math.floor(visible.left / tile),
-		c1: Math.ceil(visible.right / tile) - 1,
-		r0: Math.floor(visible.top / tile),
-		r1: Math.ceil(visible.bottom / tile) - 1,
-	};
-}
-
-/**
- * Full tier: per-cell pattern + autotile strips. Walks only the visible cell
- * RANGE (O(visible), not O(totalCells)) — full only runs zoomed in, so the range
- * is small even for a huge map.
- */
-function renderFullCells(
-	cells: Cells,
-	tile: number,
-	visible: DOMRectReadOnly | null | undefined,
-	empty: TerrainKey | null,
-): React.ReactElement[] {
-	const nodes: React.ReactElement[] = [];
-	const t = EDGE_RATIO * tile;
-	const emit = (c: number, r: number) => {
-		const terrain = cells[cellKey(c, r)];
-		if (!terrain) return;
-		const x = c * tile;
-		const y = r * tile;
-		const k = cellKey(c, r);
-		nodes.push(
-			<rect
-				key={`${k}:base`}
-				x={x}
-				y={y}
-				width={tile}
-				height={tile}
-				fill={`url(#${terrainPatternId(terrain)})`}
-				stroke={CELL_LINE}
-				strokeWidth={1}
-			/>,
-		);
-		// Unset neighbours count as `empty` so painted tiles matching the empty
-		// terrain (e.g. water on a water background) don't draw a spurious coast.
-		const edge = exposedEdges(cells, c, r, empty);
-		const dark = terrainDarkVar(terrain);
-		const strip = (sx: number, sy: number, sw: number, sh: number, sk: string) => (
-			<rect key={sk} x={sx} y={sy} width={sw} height={sh} fill={dark} opacity={EDGE_OPACITY} />
-		);
-		if (edge.n) nodes.push(strip(x, y, tile, t, `${k}:n`));
-		if (edge.s) nodes.push(strip(x, y + tile - t, tile, t, `${k}:s`));
-		if (edge.w) nodes.push(strip(x, y, t, tile, `${k}:w`));
-		if (edge.e) nodes.push(strip(x + tile - t, y, t, tile, `${k}:e`));
-	};
-	const range = visibleCellRange(visible, tile);
-	if (range) {
-		for (let r = range.r0; r <= range.r1; r++)
-			for (let c = range.c0; c <= range.c1; c++) emit(c, r);
-	} else {
-		for (const key of Object.keys(cells)) {
-			const [c, r] = parseCellKey(key);
-			emit(c, r);
-		}
-	}
-	return nodes;
-}
-
-/**
- * Coarse tier: flat colour, cells downsampled into merged blocks. Node count is
- * bounded by the on-screen block size regardless of map size / zoom.
- */
-function renderCoarseCells(
-	cells: Cells,
-	tile: number,
-	screenTilePx: number,
-	visible?: DOMRectReadOnly | null,
-): React.ReactElement[] {
-	const factor = blockFactor(screenTilePx);
-	const bt = factor * tile;
-	const nodes: React.ReactElement[] = [];
-	for (const [bk, terrain] of Object.entries(downsampleCells(cells, factor))) {
-		const [bc, br] = parseCellKey(bk);
-		const x = bc * bt;
-		const y = br * bt;
-		if (culled(x, y, bt, visible)) continue;
-		nodes.push(<rect key={bk} x={x} y={y} width={bt} height={bt} fill={`var(--t-${terrain})`} />);
-	}
-	return nodes;
-}
-
-function renderCells(
-	cells: Cells,
-	tile: number,
-	detail: TileDetail,
-	screenTilePx: number,
-	visible: DOMRectReadOnly | null | undefined,
-	empty: TerrainKey | null,
-): React.ReactElement[] {
-	if (detail === "full") return renderFullCells(cells, tile, visible, empty);
-	return renderCoarseCells(cells, tile, screenTilePx, visible);
-}
-
-/**
- * Infinite base terrain, full tier. Walks the visible cell RANGE and fills EVERY
- * cell from `sample` (painted override, else generated base — always defined), so
- * unpainted space shows generated terrain. Autotile edges compare `sample`d
- * neighbours, which are total, so band borders read correctly with no gaps.
- */
-function renderInfiniteFull(
-	sample: TerrainSampler,
-	tile: number,
-	visible: DOMRectReadOnly | null | undefined,
-): React.ReactElement[] {
-	const range = visibleCellRange(visible, tile);
-	if (!range) return [];
-	const nodes: React.ReactElement[] = [];
-	const t = EDGE_RATIO * tile;
-	for (let r = range.r0; r <= range.r1; r++) {
-		for (let c = range.c0; c <= range.c1; c++) {
-			const terrain = sample(c, r);
-			if (!terrain) continue;
-			const x = c * tile;
-			const y = r * tile;
-			const k = cellKey(c, r);
-			nodes.push(
-				<rect
-					key={`${k}:base`}
-					x={x}
-					y={y}
-					width={tile}
-					height={tile}
-					fill={`url(#${terrainPatternId(terrain)})`}
-					stroke={CELL_LINE}
-					strokeWidth={1}
-				/>,
-			);
-			const dark = terrainDarkVar(terrain);
-			const strip = (sx: number, sy: number, sw: number, sh: number, sk: string) => (
-				<rect key={sk} x={sx} y={sy} width={sw} height={sh} fill={dark} opacity={EDGE_OPACITY} />
-			);
-			if (sample(c, r - 1) !== terrain) nodes.push(strip(x, y, tile, t, `${k}:n`));
-			if (sample(c, r + 1) !== terrain) nodes.push(strip(x, y + tile - t, tile, t, `${k}:s`));
-			if (sample(c - 1, r) !== terrain) nodes.push(strip(x, y, t, tile, `${k}:w`));
-			if (sample(c + 1, r) !== terrain) nodes.push(strip(x + tile - t, y, t, tile, `${k}:e`));
-		}
-	}
-	return nodes;
-}
-
-/**
- * Infinite base terrain, coarse tier. Flat-colour blocks over the visible block
- * range sampled from the base field (bounded by on-screen blocks, not map size),
- * with painted overrides downsampled on top.
- */
-function renderInfiniteCoarse(
-	overrides: Cells,
-	seed: number,
-	tile: number,
-	screenTilePx: number,
-	visible: DOMRectReadOnly | null | undefined,
-	gen: BaseGenParams,
-): React.ReactElement[] {
-	if (!visible) return [];
-	const factor = blockFactor(screenTilePx);
-	const bt = factor * tile;
-	const half = factor >> 1;
-	const nodes: React.ReactElement[] = [];
-	const bc0 = Math.floor(visible.left / bt);
-	const bc1 = Math.ceil(visible.right / bt) - 1;
-	const br0 = Math.floor(visible.top / bt);
-	const br1 = Math.ceil(visible.bottom / bt) - 1;
-	for (let br = br0; br <= br1; br++) {
-		for (let bc = bc0; bc <= bc1; bc++) {
-			const terrain = baseTerrainAt(seed, bc * factor + half, br * factor + half, gen);
-			nodes.push(
-				<rect
-					key={`b:${bc},${br}`}
-					x={bc * bt}
-					y={br * bt}
-					width={bt}
-					height={bt}
-					fill={`var(--t-${terrain})`}
-				/>,
-			);
-		}
-	}
-	// Painted overrides on top (only the edited area; bounded).
-	for (const [bk, terrain] of Object.entries(downsampleCells(overrides, factor))) {
-		const [bc, br] = parseCellKey(bk);
-		const x = bc * bt;
-		const y = br * bt;
-		if (culled(x, y, bt, visible)) continue;
-		nodes.push(
-			<rect key={`o:${bk}`} x={x} y={y} width={bt} height={bt} fill={`var(--t-${terrain})`} />,
-		);
-	}
-	return nodes;
-}
+});
 
 /**
  * Visible world rect from the current viewport (best-effort, window-sized), grown by
@@ -371,23 +146,25 @@ export function MapTerrainLayer({
 	// Only the tilemaps matter here: other shapes (a walking character) change every frame.
 	const tilemaps = boardTilemaps(store);
 	const overscanPx = overscan?.get().px ?? 0;
-	// Drawn area: the visible rect snapped out to whole chunks, so panning inside a
-	// chunk changes nothing but the wrapper's translate (see the render below).
 	const visible = visibleWorldRect(store, overscanPx);
-	const area = chunkArea(visible, defaultTile);
-	// The wobble is redone over its whole region every frame the ground moves, so it
-	// covers only what's on screen, not the larger chunk-snapped area.
-	const wobbleRegion = visibleRegion(visible, defaultTile);
 	const pending = genStateStore.get().pendingRect;
 	const zoom = vp.zoom;
 	const cssVars = terrainCssVars(cfg.colorMode, cfg.strokeScale);
+	// Zoomed in, the ground is drawn chunk by chunk (each memoized on its own), so walking
+	// over a chunk edge only builds the chunks coming into view. Zoomed out, the coarse
+	// tier's merged blocks are few and the chunks many, so it stays one drawing over the
+	// visible rect snapped out to whole chunks.
+	const chunked = tileDetail(defaultTile * zoom, renderMode) === "full";
+	const ranges = chunked ? groundChunkRanges(visible, defaultTile) : null;
+	const chunks = useChunkPlan(ranges, 1);
+	const area = chunked ? null : chunkArea(visible, defaultTile);
 
-	// The ground's nodes depend on the drawn area, the board's tilemaps, the render
-	// config and the zoom (LOD) — not on the pan, so they're rebuilt only when one of
-	// those changes and React skips the (identical) subtree on every other frame.
+	// The coarse ground depends on the drawn area, the board's tilemaps, the render config
+	// and the zoom (LOD) — not on the pan, so it's rebuilt only when one of those changes
+	// and React skips the (identical) subtree on every other frame.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the area's edges
-	const ground = useMemo(
-		() => renderGround(tilemaps, cfg, defaultTile, zoom, renderMode, area),
+	const coarse = useMemo(
+		() => groundMarkup(tilemaps, cfg, defaultTile, zoom, renderMode, area),
 		[
 			tilemaps,
 			cfg,
@@ -418,27 +195,46 @@ export function MapTerrainLayer({
 		>
 			{/* Patterns + filters, referenced document-wide (also by the relief layer). */}
 			<svg width={0} height={0} style={{ position: "absolute" }} aria-hidden="true">
-				<MapDefs tile={defaultTile} wobbleRegion={wobbleRegion} />
+				<MapDefs tile={defaultTile} />
 			</svg>
-			{area && (
+			{visible && (
 				// Only this wrapper moves while panning: a plain translate the compositor
 				// can apply to the already-painted ground (the filtered SVG isn't redrawn).
+				// It sits at the world origin; the one SVG inside draws in world units × zoom.
+				// Chunks are groups in that SVG, not positioned boxes: a positioned box gets
+				// its own paint layer, which Chrome repaints on every frame the wrapper moves.
 				<div
 					style={{
 						position: "absolute",
 						left: 0,
 						top: 0,
-						transform: `translate(${vp.x + area.left * zoom}px, ${vp.y + area.top * zoom}px)`,
+						transform: `translate(${vp.x}px, ${vp.y}px)`,
 						willChange: "transform",
 					}}
 				>
-					<svg
-						width={area.width * zoom}
-						height={area.height * zoom}
-						style={{ display: "block", overflow: "visible" }}
-					>
-						<g transform={`scale(${zoom}) translate(${-area.left} ${-area.top})`}>
-							{ground}
+					{/* 1×1, not 0×0: an outer <svg> with a zero size isn't rendered at all. */}
+					<svg width={1} height={1} style={{ display: "block", overflow: "visible" }}>
+						<g transform={`scale(${zoom})`}>
+							{chunks.map((key) => {
+								const [cx, cy] = parseChunkKey(key);
+								return (
+									<GroundChunk
+										key={key}
+										cx={cx}
+										cy={cy}
+										shown={ranges != null && inChunkRange(ranges.need, cx, cy)}
+										tilemaps={tilemaps}
+										cfg={cfg}
+										tile={defaultTile}
+										zoom={zoom}
+										renderMode={renderMode}
+									/>
+								);
+							})}
+							{coarse && (
+								// biome-ignore lint/security/noDangerouslySetInnerHtml: markup from ground-markup (known terrain keys + numbers only)
+								<g dangerouslySetInnerHTML={{ __html: coarse }} />
+							)}
 							{pending && (pending.w > 0 || pending.h > 0) && (
 								<rect
 									x={pending.x}
@@ -460,33 +256,67 @@ export function MapTerrainLayer({
 	);
 }
 
-/** Chunk side, in cells: the drawn ground snaps out to this grid. */
-const CHUNK_CELLS = 16;
-/** Step (cells) the visible region moves in (see {@link visibleRegion}). */
-const REGION_STEP_CELLS = 4;
-
 /**
- * `rect` snapped out to multiples of `step` (world units), clipped to `within` if given.
- * A plain rect (not `new DOMRectReadOnly`) so it also works outside a browser.
+ * One chunk of the ground at full detail, in world units. Its markup is rebuilt only when
+ * the board's tilemaps, the render config, the tile, zoom or LOD change — never on a pan,
+ * and never because another chunk came into view. A chunk built ahead stays hidden until
+ * it is needed, so it isn't painted (or drawn past the usual edge in a 3D view) before.
  */
-function snapOut(
-	rect: DOMRectReadOnly,
-	step: number,
-	within?: DOMRectReadOnly | null,
-): DOMRectReadOnly {
-	let left = Math.floor(rect.left / step) * step;
-	let top = Math.floor(rect.top / step) * step;
-	let right = Math.ceil(rect.right / step) * step;
-	let bottom = Math.ceil(rect.bottom / step) * step;
-	if (within) {
-		left = Math.max(left, within.left);
-		top = Math.max(top, within.top);
-		right = Math.max(left, Math.min(right, within.right));
-		bottom = Math.max(top, Math.min(bottom, within.bottom));
-	}
-	const width = right - left;
-	const height = bottom - top;
+const GroundChunk = memo(function GroundChunk({
+	cx,
+	cy,
+	shown,
+	tilemaps,
+	cfg,
+	tile,
+	zoom,
+	renderMode,
+}: {
+	cx: number;
+	cy: number;
+	shown: boolean;
+	tilemaps: readonly TileMapShapeData[];
+	cfg: MapRenderConfig;
+	tile: number;
+	zoom: number;
+	renderMode: RenderMode | undefined;
+}) {
+	const html = useMemo(() => {
+		const size = CHUNK_CELLS * tile;
+		const x0 = cx * size;
+		const y0 = cy * size;
+		// The wobble moves pixels across the chunk's edge, so the chunk also draws a cell of
+		// its neighbours' ground for it to pull from. The filtered result there is opaque and
+		// the same as the neighbour's own, so the overlap doesn't show.
+		const margin = cfg.lineStyle === "wobble" ? tile : 0;
+		const area = worldRect(x0 - margin, y0 - margin, size + 2 * margin, size + 2 * margin);
+		return groundMarkup(tilemaps, cfg, tile, zoom, renderMode, area);
+	}, [cx, cy, tilemaps, cfg, tile, zoom, renderMode]);
+	return (
+		// biome-ignore lint/security/noDangerouslySetInnerHtml: markup from ground-markup (known terrain keys + numbers only)
+		<g visibility={shown ? undefined : "hidden"} dangerouslySetInnerHTML={{ __html: html }} />
+	);
+});
+
+/** Chunk side, in cells: the ground is drawn and memoized one chunk at a time. */
+export const CHUNK_CELLS = 16;
+/** How far (cells) past the drawn rect chunks are built ahead of coming into view. */
+export const PREFETCH_CELLS = 8;
+
+/** A plain rect (not `new DOMRectReadOnly`) so it also works outside a browser. */
+function worldRect(left: number, top: number, width: number, height: number): DOMRectReadOnly {
+	const right = left + width;
+	const bottom = top + height;
 	return { left, top, right, bottom, x: left, y: top, width, height, toJSON: () => ({}) };
+}
+
+/** `rect` snapped out to multiples of `step` (world units). */
+function snapOut(rect: DOMRectReadOnly, step: number): DOMRectReadOnly {
+	const left = Math.floor(rect.left / step) * step;
+	const top = Math.floor(rect.top / step) * step;
+	const right = Math.ceil(rect.right / step) * step;
+	const bottom = Math.ceil(rect.bottom / step) * step;
+	return worldRect(left, top, right - left, bottom - top);
 }
 
 /** `rect` grown to whole chunks of `tile`-sized cells (null passes through). */
@@ -498,95 +328,17 @@ export function chunkArea(
 }
 
 /**
- * `rect` grown to a few cells' steps, inside the chunk area: the part of the drawn
- * ground actually on screen, for work that scales with area (the wobble filter, which
- * is redone over its whole region each frame the ground moves; the 3D relief).
+ * The chunks the ground draws for a drawn rect (`visibleWorldRect`, with any 3D
+ * overscan): the ones it overlaps (`need`, shown), and the ones within
+ * {@link PREFETCH_CELLS} built ahead (hidden until needed) and kept until they drift
+ * past that again.
  */
-export function visibleRegion(
-	rect: DOMRectReadOnly | null | undefined,
+export function groundChunkRanges(
+	visible: DOMRectReadOnly | null | undefined,
 	tile: number,
-): DOMRectReadOnly | null {
-	return rect ? snapOut(rect, REGION_STEP_CELLS * tile, chunkArea(rect, tile)) : null;
-}
-
-/** The ground's SVG nodes over `area`, in world units (see MapTerrainLayer). */
-function renderGround(
-	tilemaps: readonly TileMapShapeData[],
-	cfg: MapRenderConfig,
-	defaultTile: number,
-	zoom: number,
-	renderMode: RenderMode | undefined,
-	area: DOMRectReadOnly | null,
-): React.ReactElement | null {
-	if (!area) return null;
-
-	// Empty-terrain background: fill the visible area with the fallback terrain so
-	// unpainted / off-map space reads as (e.g.) sea, with painted tiles on top.
-	const empty = cfg.emptyTerrain;
-	const bgCoarse = tileDetail(defaultTile * zoom, renderMode) === "coarse";
-	// Match painted tiles: wobble the empty background + grid too at full detail.
-	const bgWobble = cfg.lineStyle === "wobble" && !bgCoarse;
-
-	// Infinite base terrain: one pass fills the whole viewport from the base field
-	// (+ painted overrides + autotile), replacing the flat empty background and the
-	// per-tilemap render. The seed lives on the tilemap SHAPE (persisted + synced),
-	// so the generated world survives reloads and is shared with everyone on the
-	// board. Chosen deterministically (by id) so every synced client renders the
-	// same world even if several seeded tilemaps coexist.
-	const seededTm = seededTilemap(tilemaps);
-	const baseSeed = seededTm?.baseSeed ?? null;
-	if (baseSeed != null) {
-		// Generation params are frozen on the shape; missing ⇒ v1 (resolveBaseGen).
-		const baseGen = resolveBaseGen(seededTm?.baseGen);
-		// Overrides for the sampler (several tilemaps merge deterministically by id).
-		const merged: Cells = mergeTilemapCells(tilemaps);
-		const detail = tileDetail(defaultTile * zoom, renderMode);
-		const baseWobble = cfg.lineStyle === "wobble" && detail === "full";
-		const nodes =
-			detail === "full"
-				? renderInfiniteFull(
-						makeTerrainSampler(merged, baseSeed, empty, baseGen),
-						defaultTile,
-						area,
-					)
-				: renderInfiniteCoarse(merged, baseSeed, defaultTile, defaultTile * zoom, area, baseGen);
-		return <g filter={baseWobble ? `url(#${WOBBLE_FILTER_ID})` : undefined}>{nodes}</g>;
-	}
-
-	return (
-		<>
-			{empty && (
-				<g filter={bgWobble ? `url(#${WOBBLE_FILTER_ID})` : undefined}>
-					<rect
-						x={area.left}
-						y={area.top}
-						width={area.width}
-						height={area.height}
-						fill={bgCoarse ? `var(--t-${empty})` : `url(#${terrainPatternId(empty)})`}
-					/>
-					{!bgCoarse && (
-						// Same tile grid as painted cells, so unset tiles aren't blank.
-						<rect
-							x={area.left}
-							y={area.top}
-							width={area.width}
-							height={area.height}
-							fill={`url(#${GRID_PATTERN_ID})`}
-						/>
-					)}
-				</g>
-			)}
-			{tilemaps.map((tm) => {
-				const screenTilePx = tm.tile * zoom;
-				const detail = tileDetail(screenTilePx, renderMode);
-				// Wobble only pays off (and is only visible) at full detail.
-				const useWobble = cfg.lineStyle === "wobble" && detail === "full";
-				return (
-					<g key={tm.id} filter={useWobble ? `url(#${WOBBLE_FILTER_ID})` : undefined}>
-						{renderCells(tm.cells, tm.tile, detail, screenTilePx, area, empty)}
-					</g>
-				);
-			})}
-		</>
-	);
+): ChunkRanges | null {
+	const size = CHUNK_CELLS * tile;
+	const need = chunkRange(visible, size);
+	const soon = chunkRange(visible, size, PREFETCH_CELLS * tile);
+	return need && soon ? { need, soon, keep: chunkRange(visible, size, size) ?? soon } : null;
 }

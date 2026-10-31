@@ -13,6 +13,10 @@ export interface MoveInput {
 	right: boolean;
 	/** Vehicle: the drift key (only acts when drift is enabled). */
 	drift?: boolean;
+	/** The jump key is held (a release while rising cuts the jump short). */
+	jump?: boolean;
+	/** The jump key was pressed since the previous step (an edge, so a quick tap counts). */
+	jumpPressed?: boolean;
 }
 
 export const NO_INPUT: MoveInput = {
@@ -21,6 +25,8 @@ export const NO_INPUT: MoveInput = {
 	left: false,
 	right: false,
 	drift: false,
+	jump: false,
+	jumpPressed: false,
 };
 
 export interface CharacterPose {
@@ -42,6 +48,16 @@ export interface CharacterPose {
 	slip: number;
 	/** Vehicle: the running drift's direction, -1 (left) / 1 (right), 0 = not drifting. */
 	drift: -1 | 0 | 1;
+	/**
+	 * Height of the character's feet, world units — absolute, like the ground height
+	 * (0 = the flat board). On the ground it equals the ground height; it rises above it
+	 * while jumping or falling, so it stays smooth across cliff edges.
+	 */
+	z: number;
+	/** Vertical speed, world units / s (positive = rising). */
+	vz: number;
+	/** Whether the character is in the air (jumping or falling). */
+	airborne: boolean;
 }
 
 /** A pose at rest at the origin, facing up. */
@@ -54,6 +70,9 @@ export const ORIGIN_POSE: CharacterPose = {
 	steering: 0,
 	slip: 0,
 	drift: 0,
+	z: 0,
+	vz: 0,
+	airborne: false,
 };
 
 export interface MotionParams {
@@ -181,23 +200,17 @@ export function stepCharacter(
 			steering: 0,
 			slip: 0,
 			drift: 0,
+			z: pose.z,
+			vz: pose.vz,
+			airborne: pose.airborne,
 		};
 	}
 
+	// In the air a car keeps its momentum: no throttle, brakes or steering until it lands.
+	const grounded = !pose.airborne;
 	const throttle = (input.up ? 1 : 0) - (input.down ? 1 : 0);
-	let speed = pose.speed;
-	if (throttle > 0) {
-		// Braking from reverse uses friction + throttle for a snappier stop.
-		const accel = speed < 0 ? params.acceleration + params.friction : params.acceleration;
-		speed = approach(speed, params.moveSpeed, accel * dt);
-	} else if (throttle < 0) {
-		const accel = speed > 0 ? params.acceleration + params.friction : params.acceleration;
-		speed = approach(speed, -params.moveSpeed * params.reverseRatio, accel * dt);
-	} else {
-		speed = approach(speed, 0, params.friction * dt);
-	}
-
-	const steering = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+	const speed = grounded ? throttledSpeed(pose.speed, throttle, dt, params) : pose.speed;
+	const steering = grounded ? (input.right ? 1 : 0) - (input.left ? 1 : 0) : 0;
 	const drift = nextDrift(pose.drift, input.drift === true, steering, speed, params, driftParams);
 	let turn: number;
 	if (drift !== 0 && driftParams) {
@@ -229,6 +242,9 @@ export function stepCharacter(
 		steering,
 		slip,
 		drift,
+		z: pose.z,
+		vz: pose.vz,
+		airborne: pose.airborne,
 	};
 }
 
@@ -249,12 +265,167 @@ export function constrainToGround(
 	maxStep: number,
 ): CharacterPose {
 	if (next.x === prev.x && next.y === prev.y) return next;
-	const limit = heightAt(prev.x, prev.y) + Math.max(0, maxStep);
+	// Measured from the feet: on the ground that is the ground itself, in the air it is
+	// higher, so a jump clears cliffs the step alone can't.
+	const feet = Math.max(heightAt(prev.x, prev.y), prev.z ?? 0);
+	const limit = feet + Math.max(0, maxStep);
 	const ok = (x: number, y: number) => heightAt(x, y) <= limit;
 	if (ok(next.x, next.y)) return next;
 	if (next.x !== prev.x && ok(next.x, prev.y)) return { ...next, y: prev.y };
 	if (next.y !== prev.y && ok(prev.x, next.y)) return { ...next, x: prev.x };
 	return { ...next, x: prev.x, y: prev.y, speed: 0, moving: false };
+}
+
+/**
+ * Jump tuning. The arc is set by its apex `height` and `timeToApex`; gravity and the
+ * take-off speed follow from them (see `jumpArc`).
+ */
+export interface JumpParams {
+	/** Apex of a jump from the ground, world units above the take-off point. */
+	height: number;
+	/** Seconds from take-off to the apex. */
+	timeToApex: number;
+	/** Gravity multiplier while falling (> 1 = floaty rise, snappy fall). */
+	fallGravity: number;
+	/** Releasing the key while rising scales the vertical speed by this (0 … 1): a short hop. */
+	releaseCut: number;
+	/** Seconds after walking off a ledge during which a jump still counts as from the ground. */
+	coyoteTime: number;
+	/** Seconds a press just before landing is remembered and jumps on touchdown. */
+	bufferTime: number;
+}
+
+export const DEFAULT_JUMP: JumpParams = {
+	height: 40,
+	timeToApex: 0.32,
+	fallGravity: 1.5,
+	releaseCut: 0.5,
+	coyoteTime: 0.1,
+	bufferTime: 0.1,
+};
+
+/** Gravity (world units / s²) and take-off speed (world units / s) of a jump. */
+export function jumpArc(params: JumpParams): { gravity: number; speed: number } {
+	const t = Math.max(0.01, params.timeToApex);
+	return { gravity: (2 * params.height) / (t * t), speed: (2 * params.height) / t };
+}
+
+/** Per-character jump bookkeeping that is not part of the visible pose. */
+export interface JumpTimers {
+	/** Seconds since the character last stood on the ground. */
+	sinceGround: number;
+	/** Seconds since the jump key was last pressed (`Infinity` = no pending press). */
+	sincePress: number;
+	/** The current airtime started with a jump (not a fall), so coyote time is spent. */
+	jumped: boolean;
+	/** The rise has been cut short already (the key was released). */
+	cut: boolean;
+}
+
+export const IDLE_JUMP: JumpTimers = {
+	sinceGround: 0,
+	sincePress: Number.POSITIVE_INFINITY,
+	jumped: false,
+	cut: false,
+};
+
+/**
+ * Advance the vertical motion by `dt` seconds, after the horizontal step put the
+ * character over ground of height `ground`.
+ *
+ * - On the ground, a step up (already limited to `maxStep` by `constrainToGround`) or a
+ *   step down of at most `maxStep` keeps the feet on the ground; a bigger drop starts a
+ *   fall instead of snapping down.
+ * - With `jump` tuning, a press (or one buffered for `bufferTime`) jumps from the ground
+ *   or within `coyoteTime` of leaving it; releasing the key while rising cuts the jump.
+ * - In the air, gravity pulls the feet down (`fallGravity` × while falling) until they
+ *   meet the ground. Without `jump` the default arc's gravity still drives falls.
+ */
+export function stepVertical(
+	pose: CharacterPose,
+	timers: JumpTimers,
+	input: MoveInput,
+	dt: number,
+	ground: number,
+	maxStep: number,
+	jump: JumpParams | null,
+): { pose: CharacterPose; timers: JumpTimers } {
+	if (dt <= 0) return { pose, timers };
+	let { z, vz, airborne } = pose;
+	let { sinceGround, sincePress, jumped, cut } = timers;
+
+	if (!airborne) {
+		if (z - ground > Math.max(0, maxStep)) {
+			airborne = true; // walked off a cliff: fall
+			vz = 0;
+		} else {
+			z = ground;
+			jumped = false; // e.g. teleported mid-jump
+			cut = false;
+		}
+	} else if (z < ground) {
+		z = ground; // reached a ledge within the step mid-air: stand on its edge
+	}
+	sinceGround = airborne ? sinceGround + dt : 0;
+
+	const arc = jumpArc(jump ?? DEFAULT_JUMP);
+	if (jump) {
+		sincePress = input.jumpPressed ? 0 : sincePress + dt;
+		const fromGround = !airborne || (!jumped && sinceGround <= jump.coyoteTime);
+		if (sincePress <= jump.bufferTime && fromGround) {
+			airborne = true;
+			vz = arc.speed;
+			jumped = true;
+			cut = false;
+			sincePress = Number.POSITIVE_INFINITY;
+		} else if (jumped && !cut && vz > 0 && !input.jump) {
+			vz *= Math.min(1, Math.max(0, jump.releaseCut));
+			cut = true;
+		}
+	} else {
+		sincePress = Number.POSITIVE_INFINITY;
+	}
+
+	if (airborne) {
+		const gravity = vz > 0 ? arc.gravity : arc.gravity * (jump ?? DEFAULT_JUMP).fallGravity;
+		vz -= gravity * dt;
+		z += vz * dt;
+		if (z <= ground) {
+			z = ground;
+			vz = 0;
+			airborne = false;
+			jumped = false;
+			cut = false;
+			sinceGround = 0;
+		}
+	}
+
+	const nextTimers =
+		sinceGround === timers.sinceGround &&
+		sincePress === timers.sincePress &&
+		jumped === timers.jumped &&
+		cut === timers.cut
+			? timers
+			: { sinceGround, sincePress, jumped, cut };
+	const nextPose =
+		z === pose.z && vz === pose.vz && airborne === pose.airborne
+			? pose
+			: { ...pose, z, vz, airborne };
+	return { pose: nextPose, timers: nextTimers };
+}
+
+/** Vehicle speed after a step of throttle (1), reverse (-1) or coasting (0). */
+function throttledSpeed(speed: number, throttle: number, dt: number, params: MotionParams): number {
+	if (throttle > 0) {
+		// Braking from reverse uses friction + throttle for a snappier stop.
+		const accel = speed < 0 ? params.acceleration + params.friction : params.acceleration;
+		return approach(speed, params.moveSpeed, accel * dt);
+	}
+	if (throttle < 0) {
+		const accel = speed > 0 ? params.acceleration + params.friction : params.acceleration;
+		return approach(speed, -params.moveSpeed * params.reverseRatio, accel * dt);
+	}
+	return approach(speed, 0, params.friction * dt);
 }
 
 function nextDrift(

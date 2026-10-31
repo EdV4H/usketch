@@ -6,6 +6,7 @@ import type {
 	CharacterPose,
 	ControlScheme,
 	DriftParams,
+	JumpParams,
 	MotionParams,
 } from "./character-physics.js";
 import type { CharacterRuntime } from "./character-runtime.js";
@@ -40,16 +41,24 @@ export interface CharacterApi {
 	getDrift(): DriftParams | null;
 	/** `true` = on (current or default tuning), `false` = off, an object = tuning overrides. */
 	setDrift(drift: boolean | Partial<DriftParams>): void;
+	/** Jump tuning, or `null` when jumping is off. */
+	getJump(): JumpParams | null;
+	/** `true` = on (current or default tuning), `false` = off, an object = tuning overrides. */
+	setJump(jump: boolean | Partial<JumpParams>): void;
+	/** Jump now, as if the jump key were pressed and held (no-op while off or disabled). */
+	jump(): void;
 	/** Screen anchor as canvas fractions (0..1). */
 	getAnchor(): Point;
 	setAnchor(anchor: Partial<Point>): void;
 	/** Follow smoothing (0 = rigid … 0.99 = heavy lag). */
 	getFollowSmoothing(): number;
 	setFollowSmoothing(value: number): void;
-	/** Replace the movement key bindings (`KeyboardEvent.code` values; omitted `drift` is kept). */
+	/** Replace the key bindings (`KeyboardEvent.code` values; omitted `drift` / `jump` are kept). */
 	setKeys(keys: CharacterKeys): void;
 	/** Swap the character renderer (`undefined` = draw nothing). */
 	setRenderer(renderer: CharacterRenderer | undefined): void;
+	/** Swap the shadow renderer, drawn on the ground under each character (`undefined` = none). */
+	setShadowRenderer(renderer: CharacterRenderer | undefined): void;
 	/** Replace the broadcast appearance data. */
 	setAppearance(appearance: CharacterAppearance): void;
 	/** Other clients' live characters. */
@@ -78,12 +87,16 @@ export function createCharacterApi(store: CharacterStore, runtime: CharacterRunt
 		setMotion: (motion) => store.setMotion(motion),
 		getDrift: () => store.getState().drift,
 		setDrift: (drift) => store.setDrift(drift),
+		getJump: () => store.getState().jump,
+		setJump: (jump) => store.setJump(jump),
+		jump: () => runtime.jump(),
 		getAnchor: () => store.getState().anchor,
 		setAnchor: (anchor) => store.setAnchor(anchor),
 		getFollowSmoothing: () => store.getState().followSmoothing,
 		setFollowSmoothing: (v) => store.setFollowSmoothing(v),
 		setKeys: (keys) => runtime.setKeys(keys),
 		setRenderer: (r) => store.setRenderer(r),
+		setShadowRenderer: (r) => store.setShadowRenderer(r),
 		setAppearance: (a) => store.setAppearance(a),
 		getRemotes: () => store.getState().remotes,
 		onChange: (listener) => store.subscribe(listener),
