@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-mode7
 
+## 0.4.2
+
+### Patch Changes
+
+- Updated dependencies [33a4ef2]
+- Updated dependencies [157cce0]
+  - @edv4h/usketch-store@3.11.0
+
 ## 0.4.1
 
 ### Patch Changes
