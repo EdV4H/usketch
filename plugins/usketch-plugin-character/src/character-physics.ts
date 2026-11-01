@@ -13,6 +13,13 @@ export interface MoveInput {
 	right: boolean;
 	/** Vehicle: the drift key (only acts when drift is enabled). */
 	drift?: boolean;
+	/**
+	 * Analog forward / back, -1 (full reverse / screen down) … 1 (full throttle / screen
+	 * up), e.g. from a touch stick. When set it replaces `up` / `down`.
+	 */
+	throttle?: number;
+	/** Analog steering, -1 (left) … 1 (right). When set it replaces `left` / `right`. */
+	steer?: number;
 }
 
 export const NO_INPUT: MoveInput = {
@@ -135,6 +142,20 @@ export function turnToward(from: number, to: number, maxStep: number): number {
 	return wrapDeg(from + Math.sign(d) * maxStep);
 }
 
+const clampUnit = (v: number): number => (Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0);
+
+/** Forward / back of an input, -1 … 1: the analog `throttle` when set, else up − down. */
+export function inputThrottle(input: MoveInput): number {
+	if (input.throttle !== undefined) return clampUnit(input.throttle);
+	return (input.up ? 1 : 0) - (input.down ? 1 : 0);
+}
+
+/** Left / right of an input, -1 … 1: the analog `steer` when set, else right − left. */
+export function inputSteer(input: MoveInput): number {
+	if (input.steer !== undefined) return clampUnit(input.steer);
+	return (input.right ? 1 : 0) - (input.left ? 1 : 0);
+}
+
 function approach(v: number, target: number, step: number): number {
 	if (v < target) return Math.min(target, v + step);
 	return Math.max(target, v - step);
@@ -146,11 +167,13 @@ function approach(v: number, target: number, step: number): number {
  * - `directional`: the held keys give a SCREEN-space direction (up = screen up),
  *   turned into world space through the camera rotation; the character moves that
  *   way at `moveSpeed` and its heading turns toward it at `turnRate`. (Turning
- *   rather than snapping keeps a heading-following camera from spinning.)
+ *   rather than snapping keeps a heading-following camera from spinning.) An analog
+ *   input (`steer` / `throttle`) moves at `moveSpeed` × its length (capped at 1).
  * - `vehicle`: up/down are throttle/reverse along the heading, left/right steer.
  *   Steering authority scales with speed (a stopped car can't turn) and inverts
  *   when reversing, like a car. With `driftParams`, holding the drift key while
- *   steering at speed drifts (see `DriftParams`).
+ *   steering at speed drifts (see `DriftParams`). An analog `throttle` aims for that
+ *   fraction of the top speed, and an analog `steer` turns by that fraction.
  */
 export function stepCharacter(
 	pose: CharacterPose,
@@ -163,20 +186,22 @@ export function stepCharacter(
 ): CharacterPose {
 	if (dt <= 0) return pose;
 	if (scheme === "directional") {
-		const sx = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-		const sy = (input.down ? 1 : 0) - (input.up ? 1 : 0);
+		const sx = inputSteer(input);
+		const sy = -inputThrottle(input);
 		if (sx === 0 && sy === 0) {
 			return pose.moving || pose.speed !== 0 ? { ...pose, speed: 0, moving: false } : pose;
 		}
 		// Screen direction → world direction: undo the camera rotation.
 		const target = wrapDeg(vectorHeading(sx, sy) - cameraRotation);
 		const dir = headingVector(target);
-		const dist = params.moveSpeed * dt;
+		// Keys are always full speed (diagonals normalized); an analog stick scales it.
+		const moveSpeed = params.moveSpeed * Math.min(1, Math.hypot(sx, sy));
+		const dist = moveSpeed * dt;
 		return {
 			x: pose.x + dir.x * dist,
 			y: pose.y + dir.y * dist,
 			heading: turnToward(pose.heading, target, params.turnRate * dt),
-			speed: params.moveSpeed,
+			speed: moveSpeed,
 			moving: true,
 			steering: 0,
 			slip: 0,
@@ -184,20 +209,28 @@ export function stepCharacter(
 		};
 	}
 
-	const throttle = (input.up ? 1 : 0) - (input.down ? 1 : 0);
+	const throttle = inputThrottle(input);
 	let speed = pose.speed;
 	if (throttle > 0) {
-		// Braking from reverse uses friction + throttle for a snappier stop.
-		const accel = speed < 0 ? params.acceleration + params.friction : params.acceleration;
-		speed = approach(speed, params.moveSpeed, accel * dt);
+		// Partial (analog) throttle aims for that fraction of the top speed; easing off
+		// above it slows down like coasting. Braking from reverse uses friction + throttle
+		// for a snappier stop.
+		const target = params.moveSpeed * throttle;
+		let accel = params.acceleration;
+		if (speed < 0) accel = params.acceleration + params.friction;
+		else if (speed > target) accel = params.friction;
+		speed = approach(speed, target, accel * dt);
 	} else if (throttle < 0) {
-		const accel = speed > 0 ? params.acceleration + params.friction : params.acceleration;
-		speed = approach(speed, -params.moveSpeed * params.reverseRatio, accel * dt);
+		const target = params.moveSpeed * params.reverseRatio * throttle;
+		let accel = params.acceleration;
+		if (speed > 0) accel = params.acceleration + params.friction;
+		else if (speed < target) accel = params.friction;
+		speed = approach(speed, target, accel * dt);
 	} else {
 		speed = approach(speed, 0, params.friction * dt);
 	}
 
-	const steering = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+	const steering = inputSteer(input);
 	const drift = nextDrift(pose.drift, input.drift === true, steering, speed, params, driftParams);
 	let turn: number;
 	if (drift !== 0 && driftParams) {

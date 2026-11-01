@@ -16,6 +16,7 @@ import type {
 	CharacterRenderer,
 	RemoteCharacter,
 } from "./character-types.js";
+import type { VirtualInput } from "./character-virtual-input.js";
 
 export interface CharacterApi {
 	isEnabled(): boolean;
@@ -48,6 +49,15 @@ export interface CharacterApi {
 	setFollowSmoothing(value: number): void;
 	/** Replace the movement key bindings (`KeyboardEvent.code` values; omitted `drift` is kept). */
 	setKeys(keys: CharacterKeys): void;
+	/**
+	 * Drive with a non-keyboard control (an on-screen stick, a gamepad …): analog
+	 * `throttle` / `steer` (-1 … 1) and the `drift` button, combined with the held keys.
+	 * Send the current state on every change and `null` (or all zero) on release.
+	 * Turning the character off releases it.
+	 */
+	setVirtualInput(input: Partial<VirtualInput> | null): void;
+	/** The virtual control's current input, or `null` when released. */
+	getVirtualInput(): VirtualInput | null;
 	/** Swap the character renderer (`undefined` = draw nothing). */
 	setRenderer(renderer: CharacterRenderer | undefined): void;
 	/** Replace the broadcast appearance data. */
@@ -83,6 +93,8 @@ export function createCharacterApi(store: CharacterStore, runtime: CharacterRunt
 		getFollowSmoothing: () => store.getState().followSmoothing,
 		setFollowSmoothing: (v) => store.setFollowSmoothing(v),
 		setKeys: (keys) => runtime.setKeys(keys),
+		setVirtualInput: (input) => runtime.setVirtualInput(input),
+		getVirtualInput: () => runtime.getVirtualInput(),
 		setRenderer: (r) => store.setRenderer(r),
 		setAppearance: (a) => store.setAppearance(a),
 		getRemotes: () => store.getState().remotes,

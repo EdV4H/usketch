@@ -62,6 +62,13 @@ createCharacterPlugin({
   driving, and Space is left to buttons, links and other controls it activates. Focus
   is read through `composedPath()`, so web-component dialogs count too. Moving focus
   to such a target releases the held keys it uses.
+- **Touch / gamepad (virtual input)**: a host control feeds analog input with
+  `api.setVirtualInput({ throttle, steer, drift })` (`throttle` / `steer` in -1 … 1;
+  `directional` reads them as screen up / right). Send the current state on every
+  change and `null` on release. It adds to the held keys (capped at ±1), so keyboard
+  and stick can drive together; a partial `throttle` aims for that fraction of the top
+  speed and a partial `steer` turns by that fraction. Touching it resumes a paused
+  follow camera like a movement key, and turning the character off releases it.
 - **Camera modes**
   - `fixed` — follow, world stays upright.
   - `rotate` — follow and turn the world by `-heading` (character always faces up).
@@ -102,6 +109,7 @@ api?.setCameraMode("rotate");
 api?.setRenderer(myRenderer);
 api?.setDrift({ slipAngle: 35 }); // true / false / tuning overrides
 api?.getPose(); // { x, y, heading, speed, moving, steering, slip, drift }
+api?.setVirtualInput({ throttle: 0.8, steer: -0.3 }); // touch stick; null on release
 ```
 
 ## Limitations
