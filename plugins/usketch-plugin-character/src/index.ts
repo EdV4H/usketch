@@ -14,6 +14,8 @@ export {
 	DEFAULT_MOTION,
 	type DriftParams,
 	headingVector,
+	inputSteer,
+	inputThrottle,
 	type MotionParams,
 	type MoveInput,
 	ORIGIN_POSE,
@@ -41,4 +43,10 @@ export {
 	DEFAULT_KEYS,
 	type RemoteCharacter,
 } from "./character-types.js";
+export {
+	combineInput,
+	isVirtualInputActive,
+	normalizeVirtualInput,
+	type VirtualInput,
+} from "./character-virtual-input.js";
 export { type CharacterPluginOptions, createCharacterPlugin } from "./plugin.js";

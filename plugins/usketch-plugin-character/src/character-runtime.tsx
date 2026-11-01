@@ -29,6 +29,12 @@ import {
 	easeRemotes,
 } from "./character-sync.js";
 import type { CharacterKeys, RemoteCharacter } from "./character-types.js";
+import {
+	combineInput,
+	isVirtualInputActive,
+	normalizeVirtualInput,
+	type VirtualInput,
+} from "./character-virtual-input.js";
 
 export const CHARACTER_LAYER_ID = "character";
 /** Above shapes and most overlays, below the HUD (9999). */
@@ -85,6 +91,9 @@ export interface CharacterRuntime {
 	/** The screen-px anchor (for rotating the camera about the character's spot). */
 	anchorPoint(): Point;
 	setKeys(keys: CharacterKeys): void;
+	/** Feed analog input from a host control (touch stick …); `null` releases it. */
+	setVirtualInput(input: Partial<VirtualInput> | null): void;
+	getVirtualInput(): VirtualInput | null;
 	dispose(): void;
 }
 
@@ -98,6 +107,9 @@ export function setupCharacterRuntime(
 		() => store.getState().enabled,
 		() => store.getState().controlScheme === "vehicle" && store.getState().drift !== null,
 	);
+	// Cleared when the character turns off, so a control that never sent its release
+	// (unmounted mid-touch) can't leave the next ride driving on its own.
+	let virtual: VirtualInput | null = null;
 	let cam: CameraFocus | null = null;
 	let display: ReadonlyMap<string, RemoteCharacter> = new Map();
 	let rafId: number | null = null;
@@ -146,8 +158,10 @@ export function setupCharacterRuntime(
 				store.setHeading(-viewportRotation(ctx.store.getViewport()));
 				s = store.getState();
 			}
-			const input = keys.read();
-			if (s.followSuspended && keys.anyHeld()) store.setFollowSuspended(false);
+			const input = combineInput(keys.read(), virtual);
+			if (s.followSuspended && (keys.anyHeld() || isVirtualInputActive(virtual))) {
+				store.setFollowSuspended(false);
+			}
 
 			const vp = ctx.store.getViewport();
 			const stepped = stepCharacter(
@@ -214,6 +228,7 @@ export function setupCharacterRuntime(
 				});
 			} else {
 				cam = null;
+				virtual = null;
 				// Hand the camera back upright.
 				if (viewportRotation(ctx.store.getViewport()) !== 0) {
 					ctx.store.rotateTo(0, anchorPoint(), { animate: true });
@@ -231,7 +246,8 @@ export function setupCharacterRuntime(
 
 	// A viewport change we didn't make: zoom (wheel / keys) is welcome — the follow
 	// keeps the character on its anchor at the new zoom. A pure pan means the user
-	// wants to look around, so pause following until a movement key is pressed.
+	// wants to look around, so pause following until a movement key (or the virtual
+	// control) is pressed.
 	let lastZoom = ctx.store.getViewport().zoom;
 	const offViewport = ctx.store.onMutation((e) => {
 		if (e.type !== "viewport:changed") return;
@@ -256,6 +272,12 @@ export function setupCharacterRuntime(
 		placeAtAnchor,
 		anchorPoint,
 		setKeys: (k) => keys.setKeys(k),
+		setVirtualInput(input) {
+			// Ignored while off (like the keys), so input sent before the character is
+			// turned on can't make it drive away on its own the moment it spawns.
+			virtual = store.getState().enabled ? normalizeVirtualInput(input) : null;
+		},
+		getVirtualInput: () => (virtual ? { ...virtual } : null),
 		dispose() {
 			if (rafId !== null) cancelFrame(rafId);
 			rafId = null;
