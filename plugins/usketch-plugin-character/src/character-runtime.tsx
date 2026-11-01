@@ -23,6 +23,7 @@ import { CharacterLayer } from "./character-layer.js";
 import {
 	constrainToGround,
 	type HeightAt,
+	holdDriftForHop,
 	IDLE_JUMP,
 	type JumpTimers,
 	stepCharacter,
@@ -205,9 +206,10 @@ export function setupCharacterRuntime(
 			}
 
 			const vp = ctx.store.getViewport();
+			const hopHeight = driftHopHeight(s);
 			const stepped = stepCharacter(
 				s.pose,
-				input,
+				holdDriftForHop(input, s.pose, hopHeight),
 				dt,
 				s.controlScheme,
 				s.motion,
@@ -225,7 +227,7 @@ export function setupCharacterRuntime(
 				heightAt(moved.x, moved.y),
 				s.motion.maxStep,
 				effectiveJump(s),
-				driftHopHeight(s),
+				hopHeight,
 			);
 			jumpTimers = vertical.timers;
 			const pose = vertical.pose;

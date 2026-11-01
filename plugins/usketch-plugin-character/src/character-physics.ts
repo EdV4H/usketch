@@ -557,6 +557,21 @@ export function stepVertical(
 	return { pose: nextPose, timers: nextTimers };
 }
 
+/**
+ * The input for the horizontal step on a frame that may start a drift hop: the press
+ * that hops doesn't also start the drift (it would carry through the air), so the drift
+ * begins on landing if the key is still held and steering.
+ */
+export function holdDriftForHop(
+	input: MoveInput,
+	pose: CharacterPose,
+	hopHeight: number,
+): MoveInput {
+	return hopHeight > 0 && input.driftPressed && !pose.airborne && input.drift
+		? { ...input, drift: false }
+		: input;
+}
+
 /** An air jump's take-off speed: the same gravity reaches `ratio` × the height. */
 export function airJumpSpeed(takeoffSpeed: number, ratio: number): number {
 	return takeoffSpeed * Math.sqrt(Math.max(0, Number.isFinite(ratio) ? ratio : 0));

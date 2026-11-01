@@ -7,6 +7,7 @@ import {
 	DEFAULT_HOVER,
 	DEFAULT_JUMP,
 	drainHoverGauge,
+	holdDriftForHop,
 	hoverSpeed,
 	IDLE_JUMP,
 	type JumpParams,
@@ -249,6 +250,15 @@ describe("drift hop", () => {
 		expect(hopIn(10, held({ drift: true })).pose.airborne).toBe(false);
 		const flying = { ...ORIGIN_POSE, z: 30, vz: -5, airborne: true };
 		expect(hopIn(10, held({ drift: true, driftPressed: true }), flying).pose.vz).toBeLessThan(-5);
+	});
+	it("the press that hops doesn't start the drift; it starts on landing", () => {
+		const press = held({ drift: true, driftPressed: true, right: true, up: true });
+		expect(holdDriftForHop(press, ORIGIN_POSE, 10).drift).toBe(false);
+		expect(holdDriftForHop(press, ORIGIN_POSE, 0)).toBe(press); // no hop: drifts at once
+		const flying = { ...ORIGIN_POSE, airborne: true };
+		expect(holdDriftForHop(press, flying, 10)).toBe(press);
+		const holding = held({ drift: true, right: true, up: true });
+		expect(holdDriftForHop(holding, ORIGIN_POSE, 10)).toBe(holding);
 	});
 	it("only a vehicle with drift + hop on hops", () => {
 		const store = createCharacterStore({ drift: { hop: true, hopHeight: 12 } });
