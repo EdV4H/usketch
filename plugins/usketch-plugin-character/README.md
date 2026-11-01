@@ -70,9 +70,12 @@ createCharacterPlugin({
   `airJumpRatio` (default 0.8) × `height` (take-off speed × √ratio). They come back on
   landing.
 - **Hover** (`jump.hover`, default off; `true` or a partial `HoverParams`): once the air
-  jumps are used up (or there are none), holding the jump key while falling fixes the
-  descent at `fallSpeed` (default 15 world units / s, 0 = hold the altitude) and drains a
-  gauge that lasts `duration` (1.5 s); an empty gauge falls normally. The gauge refills
+  jumps are used up (or there are none), holding the jump key while falling fires a
+  thrust and drains a gauge that lasts `duration` (1.5 s); an empty gauge falls normally.
+  `thrust` is a multiple of gravity (default 0 = a glide): below 1 the character sinks,
+  at 1 it keeps its vertical speed, above 1 it climbs for as long as the key is held.
+  Sinking is capped at `fallSpeed` (default 15 world units / s, 0 = never sink), climbing
+  at `riseSpeed` (60). The gauge refills
   on the ground over `rechargeTime` (0.8 s), not at once on landing. The pose carries
   `hovering` and `hoverGauge` (stays 1 with hovering off); both are broadcast.
 - **Vehicle**: only hops — `airJumps` and `hover` are ignored in the `vehicle` scheme.
@@ -126,7 +129,7 @@ createCharacterPlugin({
 ## HUD
 
 A "キャラクター" settings group (on/off, camera, scheme, drift, jump, jump height, air
-jumps, hover, hover time, speed, turn rate, climbable step, screen position, camera lag) plus actions to toggle the
+jumps, hover, hover time, hover thrust, speed, turn rate, climbable step, screen position, camera lag) plus actions to toggle the
 character, to place it at the screen position, and to jump.
 
 ## Service

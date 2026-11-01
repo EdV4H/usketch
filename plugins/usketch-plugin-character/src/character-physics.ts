@@ -344,22 +344,33 @@ export interface JumpParams {
 
 /**
  * Hover tuning. Once the air jumps are used up (or there are none), holding the jump key
- * while falling fixes the descent at `fallSpeed` and drains a gauge; an empty gauge falls
- * normally. The gauge refills on the ground over `rechargeTime` (not instantly on landing).
+ * while falling fires a thrust and drains a gauge; an empty gauge falls normally. The
+ * gauge refills on the ground over `rechargeTime` (not instantly on landing).
+ *
+ * The thrust is a multiple of gravity (a thrust-to-weight ratio, so no mass is needed):
+ * below 1 the character still sinks, at 1 it keeps its vertical speed, above 1 it climbs
+ * for as long as the key is held. Sinking is capped at `fallSpeed`, climbing at
+ * `riseSpeed`.
  */
 export interface HoverParams {
 	/** Seconds of hover a full gauge lasts. */
 	duration: number;
-	/** Descent speed while hovering, world units / s (0 = hold the altitude). */
+	/** Fastest descent while hovering, world units / s (0 = never sink). */
 	fallSpeed: number;
 	/** Seconds on the ground to refill an empty gauge. */
 	rechargeTime: number;
+	/** Thrust as a multiple of gravity: < 1 sinks, 1 balances, > 1 climbs. */
+	thrust: number;
+	/** Fastest climb while hovering, world units / s. */
+	riseSpeed: number;
 }
 
 export const DEFAULT_HOVER: HoverParams = {
 	duration: 1.5,
 	fallSpeed: 15,
 	rechargeTime: 0.8,
+	thrust: 0,
+	riseSpeed: 60,
 };
 
 export const DEFAULT_JUMP: JumpParams = {
@@ -423,7 +434,8 @@ export const IDLE_JUMP: JumpTimers = {
  * - A fresh press in the air uses one of the `airJumps` while any remain (`airJumpRatio`
  *   of the height); they come back on landing.
  * - With `hover` tuning, once the air jumps are used up, holding the key while falling
- *   hovers: the descent is fixed at `fallSpeed` while the gauge drains; an empty gauge
+ *   hovers: the thrust pushes against gravity (see `hoverSpeed`) while the gauge drains,
+ *   and it keeps firing while the key stays held, also once it climbs; an empty gauge
  *   falls normally. On the ground the gauge refills over `rechargeTime`.
  * - In the air, gravity pulls the feet down (`fallGravity` × while falling) until they
  *   meet the ground. Without `jump` the default arc's gravity still drives falls.
@@ -478,20 +490,21 @@ export function stepVertical(
 			vz *= Math.min(1, Math.max(0, jump.releaseCut));
 			cut = true;
 		}
-		// Hover: the air jumps used up, the key held, falling, and gauge left.
+		// Hover: the air jumps used up, the key held, falling (or already hovering: a thrust
+		// above gravity climbs), and gauge left.
 		hovering =
 			hover !== null &&
 			airborne &&
 			airJumpsUsed >= Math.max(0, jump.airJumps) &&
 			input.jump === true &&
-			vz <= 0 &&
+			(vz <= 0 || pose.hovering) &&
 			hoverGauge > 0;
 	} else {
 		sincePress = Number.POSITIVE_INFINITY;
 	}
 
 	if (hovering && hover) {
-		vz = -Math.max(0, hover.fallSpeed);
+		vz = hoverSpeed(vz, dt, arc.gravity, hover);
 		z += vz * dt;
 		hoverGauge = drainHoverGauge(hoverGauge, dt, hover);
 	} else if (airborne) {
@@ -535,6 +548,17 @@ export function stepVertical(
 /** An air jump's take-off speed: the same gravity reaches `ratio` × the height. */
 export function airJumpSpeed(takeoffSpeed: number, ratio: number): number {
 	return takeoffSpeed * Math.sqrt(Math.max(0, Number.isFinite(ratio) ? ratio : 0));
+}
+
+/**
+ * The vertical speed after `dt` seconds of hovering from `vz`: the thrust (× `gravity`)
+ * against gravity, so the speed changes by (thrust − 1) × gravity per second, kept
+ * between −`fallSpeed` (a faster fall is caught at once) and `riseSpeed`.
+ */
+export function hoverSpeed(vz: number, dt: number, gravity: number, hover: HoverParams): number {
+	const thrust = Number.isFinite(hover.thrust) ? Math.max(0, hover.thrust) : 0;
+	const next = vz + (thrust - 1) * gravity * dt;
+	return Math.min(Math.max(0, hover.riseSpeed), Math.max(-Math.max(0, hover.fallSpeed), next));
 }
 
 /** The hover gauge after `dt` seconds of hovering (a full gauge lasts `duration`). */

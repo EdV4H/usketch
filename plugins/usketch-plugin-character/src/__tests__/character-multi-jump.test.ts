@@ -5,6 +5,7 @@ import {
 	DEFAULT_HOVER,
 	DEFAULT_JUMP,
 	drainHoverGauge,
+	hoverSpeed,
 	IDLE_JUMP,
 	type JumpParams,
 	type JumpTimers,
@@ -140,6 +141,33 @@ describe("hover", () => {
 		const { trace } = run(jump, holdAll, apexStep + 30);
 		expect(trace[apexStep + 29].pose.z).toBeCloseTo(trace[apexStep + 10].pose.z, 9);
 	});
+	it("a thrust above gravity climbs while the key is held, up to riseSpeed", () => {
+		const jump: JumpParams = { ...HOVER, hover: { ...DEFAULT_HOVER, thrust: 1.5, duration: 5 } };
+		const apexStep = Math.ceil(jump.timeToApex / DT) + 2;
+		const { trace } = run(jump, holdAll, apexStep + 240);
+		const start = trace.findIndex((s) => s.pose.hovering);
+		const later = trace[apexStep + 239].pose;
+		expect(later.hovering).toBe(true);
+		expect(later.vz).toBe(DEFAULT_HOVER.riseSpeed);
+		expect(later.z).toBeGreaterThan(trace[start].pose.z);
+		// Releasing the key stops the thrust: it falls back down.
+		let pose = later;
+		let timers = trace[apexStep + 239].timers;
+		for (let i = 0; i < 60; i++) {
+			({ pose, timers } = stepVertical(pose, timers, NO_INPUT, DT, 0, MAX_STEP, jump));
+		}
+		expect(pose.hovering).toBe(false);
+		expect(pose.vz).toBeLessThan(0);
+	});
+	it("hoverSpeed: thrust − 1 times gravity, between −fallSpeed and riseSpeed", () => {
+		const h = { ...DEFAULT_HOVER, fallSpeed: 15, riseSpeed: 60 };
+		expect(hoverSpeed(-5, 0.1, 100, { ...h, thrust: 1 })).toBe(-5); // balanced
+		expect(hoverSpeed(0, 0.1, 100, { ...h, thrust: 1.5 })).toBeCloseTo(5);
+		expect(hoverSpeed(0, 0.1, 100, { ...h, thrust: 0.5 })).toBeCloseTo(-5);
+		expect(hoverSpeed(-200, 0.1, 100, { ...h, thrust: 0 })).toBe(-15); // a fast fall is caught
+		expect(hoverSpeed(58, 0.1, 100, { ...h, thrust: 3 })).toBe(60);
+		expect(hoverSpeed(0, 0.1, 100, { ...h, thrust: Number.NaN })).toBe(-10);
+	});
 	it("not while rising, and not without the key", () => {
 		const { trace } = run(HOVER, pressesAt(0), 200);
 		expect(trace.some((s) => s.pose.hovering)).toBe(false);
@@ -216,9 +244,13 @@ describe("tuning", () => {
 		expect(sanitizeJump(true)?.hover).toBeNull();
 	});
 	it("rejects nonsense hover values", () => {
-		expect(sanitizeHover({ duration: 0, fallSpeed: -3, rechargeTime: Number.NaN }, null)).toEqual(
-			DEFAULT_HOVER,
-		);
+		expect(
+			sanitizeHover(
+				{ duration: 0, fallSpeed: -3, rechargeTime: Number.NaN, thrust: -1, riseSpeed: Infinity },
+				null,
+			),
+		).toEqual(DEFAULT_HOVER);
+		expect(sanitizeHover({ thrust: 1.2 }, null)?.thrust).toBe(1.2);
 		expect(sanitizeHover(undefined, DEFAULT_HOVER)).toBe(DEFAULT_HOVER);
 	});
 	it("keeps the hover tuning across hover off → on", () => {

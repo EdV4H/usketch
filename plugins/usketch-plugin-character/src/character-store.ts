@@ -128,6 +128,8 @@ export function sanitizeHover(
 		duration: positive(finite(h.duration, tuning.duration), tuning.duration),
 		fallSpeed: nonNegative(finite(h.fallSpeed, tuning.fallSpeed), tuning.fallSpeed),
 		rechargeTime: nonNegative(finite(h.rechargeTime, tuning.rechargeTime), tuning.rechargeTime),
+		thrust: nonNegative(finite(h.thrust, tuning.thrust), tuning.thrust),
+		riseSpeed: nonNegative(finite(h.riseSpeed, tuning.riseSpeed), tuning.riseSpeed),
 	};
 }
 

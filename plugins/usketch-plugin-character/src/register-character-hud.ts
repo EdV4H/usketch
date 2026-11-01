@@ -49,6 +49,14 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				max: 5,
 				step: 0.1,
 			},
+			{
+				name: "hoverThrust",
+				label: "ホバーの推力(重力比)",
+				type: "number",
+				min: 0,
+				max: 3,
+				step: 0.1,
+			},
 			{ name: "moveSpeed", label: "速度", type: "number", min: 50, max: 3000, step: 50 },
 			{ name: "turnRate", label: "旋回(°/秒)", type: "number", min: 30, max: 1080, step: 30 },
 			{ name: "maxStep", label: "登れる段差", type: "number", min: 0, max: 400, step: 4 },
@@ -78,6 +86,8 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return (api.getJump()?.hover ?? null) !== null;
 				case "hoverDuration":
 					return (api.getJump()?.hover ?? DEFAULT_HOVER).duration;
+				case "hoverThrust":
+					return (api.getJump()?.hover ?? DEFAULT_HOVER).thrust;
 				case "moveSpeed":
 					return motion.moveSpeed;
 				case "turnRate":
@@ -139,6 +149,9 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					break;
 				case "hoverDuration":
 					if (api.getJump()?.hover) api.setJump({ hover: { duration: n } });
+					break;
+				case "hoverThrust":
+					if (api.getJump()?.hover) api.setJump({ hover: { thrust: n } });
 					break;
 				case "anchorX":
 					api.setAnchor({ x: n / 100 });
