@@ -1,7 +1,8 @@
 // The demo app's look for the character plugin (the plugin itself draws nothing).
 // A top-down "pawn" (round body + nose showing the facing) or, with
 // `appearance.kind === "car"`, a small top-down car. Both turn by `screenHeading`;
-// the name label stays upright underneath.
+// the name label stays upright underneath. `renderCharacterShadow` is the round
+// shadow left on the ground under a jumping character.
 import type { CharacterAppearance, CharacterRenderProps } from "@edv4h/usketch-plugin-character";
 
 /** Stable hue per user so each player keeps a recognizable color. */
@@ -90,5 +91,26 @@ export function renderCharacter(props: CharacterRenderProps) {
 				</div>
 			)}
 		</div>
+	);
+}
+
+/** World units of altitude at which the shadow has shrunk to half its size. */
+const SHADOW_HALF_ALTITUDE = 60;
+
+/** A soft round shadow on the ground: smaller and fainter the higher the character is. */
+export function renderCharacterShadow(props: CharacterRenderProps) {
+	const k = 1 / (1 + Math.max(0, props.altitude) / SHADOW_HALF_ALTITUDE);
+	const d = SIZE * 0.8 * k;
+	return (
+		<div
+			style={{
+				width: d,
+				height: d,
+				borderRadius: "50%",
+				// A soft edge from the gradient, not `filter: blur` — a filter inside Mode 7's
+				// preserve-3d scene is re-rasterized on the GPU whenever the scene moves.
+				background: `radial-gradient(closest-side, rgba(0, 0, 0, ${(0.35 * k).toFixed(3)}) 70%, rgba(0, 0, 0, 0))`,
+			}}
+		/>
 	);
 }

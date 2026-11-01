@@ -1,8 +1,8 @@
-// HUD wiring — a declarative settings group + two actions, all delegating to the
+// HUD wiring — a declarative settings group + three actions, all delegating to the
 // service (no plugin-owned UI; the character's LOOK is the host's renderer).
 import type { PluginContext } from "@edv4h/usketch-shared";
 import type { CameraMode } from "./character-camera.js";
-import type { ControlScheme } from "./character-physics.js";
+import { type ControlScheme, DEFAULT_JUMP } from "./character-physics.js";
 import type { CharacterApi } from "./character-service.js";
 
 const CAMERA_MODES: readonly CameraMode[] = ["fixed", "rotate", "free"];
@@ -37,6 +37,8 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				],
 			},
 			{ name: "drift", label: "ドリフト（車・Space）", type: "boolean" },
+			{ name: "jump", label: "ジャンプ（Space）", type: "boolean" },
+			{ name: "jumpHeight", label: "ジャンプの高さ", type: "number", min: 8, max: 200, step: 4 },
 			{ name: "moveSpeed", label: "速度", type: "number", min: 50, max: 3000, step: 50 },
 			{ name: "turnRate", label: "旋回(°/秒)", type: "number", min: 30, max: 1080, step: 30 },
 			{ name: "maxStep", label: "登れる段差", type: "number", min: 0, max: 400, step: 4 },
@@ -56,6 +58,10 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return api.getControlScheme();
 				case "drift":
 					return api.getDrift() !== null;
+				case "jump":
+					return api.getJump() !== null;
+				case "jumpHeight":
+					return (api.getJump() ?? DEFAULT_JUMP).height;
 				case "moveSpeed":
 					return motion.moveSpeed;
 				case "turnRate":
@@ -88,6 +94,9 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				case "drift":
 					api.setDrift(truthy(value));
 					return;
+				case "jump":
+					api.setJump(truthy(value));
+					return;
 			}
 			const n = Number(value);
 			if (!Number.isFinite(n)) return;
@@ -100,6 +109,10 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					break;
 				case "maxStep":
 					api.setMotion({ maxStep: n });
+					break;
+				case "jumpHeight":
+					// Tuning while off keeps it off (applied when jumping is turned on).
+					if (api.getJump()) api.setJump({ height: n });
 					break;
 				case "anchorX":
 					api.setAnchor({ x: n / 100 });
@@ -132,7 +145,17 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 		isEnabled: () => api.isEnabled(),
 	});
 
+	const offJump = ctx.actions.register({
+		id: "character:jump",
+		label: "ジャンプ",
+		group: "キャラクター",
+		order: 3,
+		run: () => api.jump(),
+		isEnabled: () => api.isEnabled() && api.getJump() !== null,
+	});
+
 	return () => {
+		offJump();
 		offPlace();
 		offToggle();
 		offSettings();

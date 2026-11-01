@@ -31,6 +31,12 @@ export interface CharacterWireState {
 	slip?: number;
 	/** Vehicle drift running (absent from older clients → false). */
 	drifting?: boolean;
+	/** Feet height, absolute world units (absent from older clients → on the ground). */
+	z?: number;
+	/** In the air (absent → false). */
+	airborne?: boolean;
+	/** Vertical speed (absent → 0). */
+	vz?: number;
 	appearance: CharacterAppearance;
 	name?: string;
 }
@@ -62,6 +68,9 @@ export function parseWireState(v: unknown): Omit<RemoteCharacter, "id"> | null {
 		steering: clamp(num("steering") ?? 0, -1, 1),
 		slip: clamp(num("slip") ?? 0, -MAX_WIRE_SLIP, MAX_WIRE_SLIP),
 		drifting: o.drifting === true,
+		z: num("z"),
+		airborne: o.airborne === true,
+		vz: num("vz") ?? 0,
 		appearance,
 		name: typeof o.name === "string" ? o.name : undefined,
 	};
@@ -103,6 +112,9 @@ export function createCharacterSync(
 					// Half-degree steps: a settling slip doesn't publish every frame forever.
 					slip: Math.round(s.pose.slip * 2) / 2,
 					drifting: s.pose.drift !== 0,
+					z: s.pose.z,
+					airborne: s.pose.airborne,
+					vz: s.pose.vz,
 					appearance: s.appearance,
 					name: s.name,
 				}
@@ -162,7 +174,16 @@ export function easeRemotes(
 		const dy = t.y - d.y;
 		const dh = wrapDeg(t.heading - d.heading);
 		const ds = t.slip - d.slip;
-		if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05 && Math.abs(dh) < 0.05 && Math.abs(ds) < 0.05) {
+		// Height eases only between two known values (an older client sends none).
+		const known = typeof t.z === "number" && typeof d.z === "number";
+		const dz = known ? (t.z as number) - (d.z as number) : 0;
+		if (
+			Math.abs(dx) < 0.05 &&
+			Math.abs(dy) < 0.05 &&
+			Math.abs(dh) < 0.05 &&
+			Math.abs(ds) < 0.05 &&
+			Math.abs(dz) < 0.05
+		) {
 			next.set(id, t);
 			continue;
 		}
@@ -173,6 +194,7 @@ export function easeRemotes(
 			y: d.y + dy * alpha,
 			heading: wrapDeg(d.heading + dh * alpha),
 			slip: d.slip + ds * alpha,
+			z: known ? (d.z as number) + dz * alpha : t.z,
 		});
 	}
 	return { next, settling };

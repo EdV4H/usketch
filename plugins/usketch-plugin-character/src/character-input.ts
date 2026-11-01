@@ -7,7 +7,10 @@ import type { MoveInput } from "./character-physics.js";
 import type { CharacterKeys } from "./character-types.js";
 
 export interface KeyInput {
-	/** The currently held directions (and the drift key). */
+	/**
+	 * The currently held directions (and the drift / jump keys). `jumpPressed` reports
+	 * a jump press since the previous `read()`, so a tap between two frames isn't lost.
+	 */
 	read(): MoveInput;
 	/** Whether any bound key is held. */
 	anyHeld(): boolean;
@@ -76,7 +79,7 @@ function focusPath(e: Event): FocusTarget[] {
 const roleOf = (el: FocusTarget | undefined): string | null =>
 	el && typeof el.getAttribute === "function" ? el.getAttribute("role") : null;
 
-/** Elements Space activates (or types into): the drift key must not steal it from them. */
+/** Elements Space activates (or types into): the drift and jump keys must not steal it from them. */
 function isSpaceTarget(el: FocusTarget | undefined): boolean {
 	if (!el) return false;
 	if (["INPUT", "TEXTAREA", "SELECT", "BUTTON", "A", "SUMMARY"].includes(el.tagName)) return true;
@@ -164,7 +167,7 @@ function isTextInput(el: FocusTarget | undefined): boolean {
  * Listen for the bound keys on `window`. `isActive()` gates everything: while it is
  * false no key is captured (and none is swallowed). Keys are left alone while focus is
  * in a text field or inside a dialog / menu, arrow keys while a widget that uses them
- * (slider, radio, tab …) has focus, and the drift key on controls Space activates.
+ * (slider, radio, tab …) has focus, and the drift / jump keys on controls Space activates.
  * Held keys are cleared on window blur and tab hide, and released when focus moves to
  * a target that uses them, so a key released elsewhere can't get stuck "down".
  */
@@ -173,18 +176,28 @@ export function createKeyInput(
 	isActive: () => boolean,
 	/** Whether the drift key does anything now (else it is left to the host, e.g. Space-pan). */
 	isDriftActive: () => boolean = () => false,
+	/** Whether the jump key does anything now (else it is left to the host). */
+	isJumpActive: () => boolean = () => false,
 ): KeyInput {
 	let keys = initialKeys;
 	/** Held codes → the `key` they produced (to tell numpad arrows from digits). */
 	const held = new Map<string, string>();
+	/** Held codes that act as the jump key (bound when pressed, so a rebind can't strand one). */
+	const jumpHeld = new Set<string>();
+	let jumpPressed = false;
 
 	const directionOf = (code: string): keyof CharacterKeys | null => {
 		for (const dir of ["up", "down", "left", "right"] as const) {
 			if (keys[dir].includes(code)) return dir;
 		}
 		if (keys.drift?.includes(code) && isDriftActive()) return "drift";
+		if (keys.jump?.includes(code) && isJumpActive()) return "jump";
 		return null;
 	};
+
+	/** Keys Space activates on buttons etc.: the drift and jump keys yield to those. */
+	const isSpaceLike = (code: string): boolean =>
+		(keys.drift?.includes(code) ?? false) || (keys.jump?.includes(code) ?? false);
 
 	const onKeyDown = (e: KeyboardEvent): void => {
 		if (!isActive()) return;
@@ -193,20 +206,34 @@ export function createKeyInput(
 		if (!dir) return;
 		const path = focusPath(e);
 		if (blocksAllKeys(path)) return;
-		if (dir === "drift" && isSpaceTarget(path[0])) return;
+		if ((dir === "drift" || dir === "jump") && isSpaceTarget(path[0])) return;
 		if (isArrowKey(e.code, e.key) && isArrowTarget(path[0])) return;
 		held.set(e.code, e.key ?? "");
+		if (dir === "jump") {
+			// Auto-repeat keydowns are not new presses.
+			if (!e.repeat && !jumpHeld.has(e.code)) jumpPressed = true;
+			jumpHeld.add(e.code);
+		}
 		e.preventDefault();
 		e.stopImmediatePropagation();
+	};
+
+	const release = (code: string): boolean => {
+		jumpHeld.delete(code);
+		return held.delete(code);
 	};
 
 	const onKeyUp = (e: KeyboardEvent): void => {
-		if (!held.delete(e.code)) return;
+		if (!release(e.code)) return;
 		e.preventDefault();
 		e.stopImmediatePropagation();
 	};
 
-	const clear = (): void => held.clear();
+	const clear = (): void => {
+		held.clear();
+		jumpHeld.clear();
+		jumpPressed = false;
+	};
 	const onVisibility = (): void => {
 		if (typeof document !== "undefined" && document.hidden) clear();
 	};
@@ -222,9 +249,9 @@ export function createKeyInput(
 		const owned = [...held].filter(
 			([code, key]) =>
 				(isArrowKey(code, key) && isArrowTarget(path[0])) ||
-				((keys.drift?.includes(code) ?? false) && isSpaceTarget(path[0])),
+				(isSpaceLike(code) && isSpaceTarget(path[0])),
 		);
-		for (const [code] of owned) held.delete(code);
+		for (const [code] of owned) release(code);
 	};
 
 	const hasWindow = typeof window !== "undefined";
@@ -239,18 +266,25 @@ export function createKeyInput(
 	const isHeld = (dir: keyof CharacterKeys) => keys[dir]?.some((c) => held.has(c)) ?? false;
 
 	return {
-		read: () => ({
-			up: isHeld("up"),
-			down: isHeld("down"),
-			left: isHeld("left"),
-			right: isHeld("right"),
-			drift: isHeld("drift"),
-		}),
+		read: () => {
+			const pressed = jumpPressed;
+			jumpPressed = false;
+			return {
+				up: isHeld("up"),
+				down: isHeld("down"),
+				left: isHeld("left"),
+				right: isHeld("right"),
+				// A key bound to both acts as the drift while drift is on (directionOf).
+				drift: isDriftActive() && isHeld("drift"),
+				jump: jumpHeld.size > 0,
+				jumpPressed: pressed,
+			};
+		},
 		anyHeld: () => held.size > 0,
 		setKeys(next) {
-			// Rebinding movement keeps the drift key unless `drift` is given (`[]` unbinds).
-			keys = { ...next, drift: next.drift ?? keys.drift };
-			held.clear();
+			// Rebinding movement keeps the drift / jump keys unless given (`[]` unbinds).
+			keys = { ...next, drift: next.drift ?? keys.drift, jump: next.jump ?? keys.jump };
+			clear();
 		},
 		dispose() {
 			if (!hasWindow) return;

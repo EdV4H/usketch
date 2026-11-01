@@ -35,6 +35,16 @@ describe("constrainToGround", () => {
 		expect(constrainToGround(pose(12, 5), next, heightAt, 0)).toBe(next);
 	});
 
+	it("measures the step from the feet while in the air", () => {
+		// Feet 90 high mid-jump: the 100 plateau is within a 24 step of them.
+		const next = pose(12, 5);
+		expect(constrainToGround(pose(5, 5, { z: 90, airborne: true }), next, heightAt, 24)).toBe(next);
+		// Not high enough yet: blocked, as on the ground.
+		expect(
+			constrainToGround(pose(5, 5, { z: 60, airborne: true }), pose(12, 5), heightAt, 24),
+		).toMatchObject({ x: 5, y: 5 });
+	});
+
 	it("measures the step from where the character stands", () => {
 		// Already on the plateau: walking across it is flat.
 		const next = pose(50, 5);

@@ -12,6 +12,16 @@ describe("tileDetail", () => {
 	it("global lod mode forces coarse", () => {
 		expect(tileDetail(40, "lod")).toBe("coarse");
 	});
+	it("takes the full-detail threshold as a parameter", () => {
+		expect(tileDetail(30, undefined, 40)).toBe("coarse");
+		expect(tileDetail(40, undefined, 40)).toBe("full");
+		expect(tileDetail(12, undefined, 10)).toBe("full");
+		expect(tileDetail(40, "lod", 10)).toBe("coarse");
+	});
+	it("falls back to the default threshold for junk", () => {
+		expect(tileDetail(24, undefined, 0)).toBe("full");
+		expect(tileDetail(20, undefined, Number.NaN)).toBe("coarse");
+	});
 });
 
 describe("blockFactor", () => {

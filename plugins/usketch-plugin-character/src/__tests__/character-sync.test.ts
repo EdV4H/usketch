@@ -49,8 +49,21 @@ describe("parseWireState", () => {
 			steering: 0,
 			slip: 0,
 			drifting: false,
+			z: null,
+			airborne: false,
+			vz: 0,
 			appearance: {},
 			name: undefined,
+		});
+	});
+	it("reads the jump fields", () => {
+		expect(
+			parseWireState({ x: 0, y: 0, heading: 0, z: 40, airborne: true, vz: -12 }),
+		).toMatchObject({ z: 40, airborne: true, vz: -12 });
+		expect(parseWireState({ x: 0, y: 0, heading: 0, z: "high", vz: Number.NaN })).toMatchObject({
+			z: null,
+			airborne: false,
+			vz: 0,
 		});
 	});
 	it("clamps vehicle fields", () => {
@@ -130,7 +143,13 @@ describe("createCharacterSync", () => {
 });
 
 describe("easeRemotes", () => {
-	const r = (id: string, x: number, heading = 0, slip = 0): RemoteCharacter => ({
+	const r = (
+		id: string,
+		x: number,
+		heading = 0,
+		slip = 0,
+		z: number | null = null,
+	): RemoteCharacter => ({
 		id,
 		x,
 		y: 0,
@@ -140,6 +159,9 @@ describe("easeRemotes", () => {
 		steering: 0,
 		slip,
 		drifting: false,
+		z,
+		airborne: z !== null,
+		vz: 0,
 		appearance: {},
 	});
 	it("shows newcomers at once, eases known ones, drops the departed", () => {
@@ -166,6 +188,22 @@ describe("easeRemotes", () => {
 		);
 		expect(settling).toBe(true);
 		expect(next.get("a")?.slip).toBe(10);
+	});
+	it("eases the feet height between known values only", () => {
+		const { next, settling } = easeRemotes(
+			new Map([["a", r("a", 0, 0, 0, 0)]]),
+			new Map([["a", r("a", 0, 0, 0, 40)]]),
+			0.5,
+		);
+		expect(settling).toBe(true);
+		expect(next.get("a")?.z).toBe(20);
+		// From a client that didn't send a height: no easing from "unknown".
+		const fresh = easeRemotes(
+			new Map([["a", r("a", 0)]]),
+			new Map([["a", r("a", 10, 0, 0, 40)]]),
+			0.5,
+		);
+		expect(fresh.next.get("a")?.z).toBe(40);
 	});
 	it("settles once within tolerance", () => {
 		const t = new Map([["a", r("a", 10)]]);
