@@ -53,7 +53,7 @@ export interface CharacterApi {
 	 * Drive with a non-keyboard control (an on-screen stick, a gamepad …): analog
 	 * `throttle` / `steer` (-1 … 1) and the `drift` button, combined with the held keys.
 	 * Send the current state on every change and `null` (or all zero) on release.
-	 * Turning the character off releases it.
+	 * Ignored while the character is off, and turning it off releases it.
 	 */
 	setVirtualInput(input: Partial<VirtualInput> | null): void;
 	/** The virtual control's current input, or `null` when released. */

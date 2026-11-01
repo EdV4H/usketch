@@ -1,7 +1,7 @@
 // Non-keyboard movement input (an on-screen touch stick, a gamepad …) that a host
 // feeds through `CharacterApi.setVirtualInput`. It is analog and is combined with the
 // held keys each frame, so a keyboard and a touch stick can drive at the same time.
-import { inputSteer, inputThrottle, type MoveInput } from "./character-physics.js";
+import { clampUnit, inputSteer, inputThrottle, type MoveInput } from "./character-physics.js";
 
 /** Analog input from a host control. Missing fields count as released. */
 export interface VirtualInput {
@@ -12,9 +12,6 @@ export interface VirtualInput {
 	/** Vehicle: the drift button (only acts when drift is enabled). */
 	drift: boolean;
 }
-
-const clampUnit = (v: number | undefined): number =>
-	v !== undefined && Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0;
 
 /** Clamp a host value into a `VirtualInput`; `null` (or all released) = no input. */
 export function normalizeVirtualInput(input: Partial<VirtualInput> | null): VirtualInput | null {

@@ -68,7 +68,8 @@ createCharacterPlugin({
   change and `null` on release. It adds to the held keys (capped at ±1), so keyboard
   and stick can drive together; a partial `throttle` aims for that fraction of the top
   speed and a partial `steer` turns by that fraction. Touching it resumes a paused
-  follow camera like a movement key, and turning the character off releases it.
+  follow camera like a movement key. It is ignored while the character is off, and
+  turning the character off releases it.
 - **Camera modes**
   - `fixed` — follow, world stays upright.
   - `rotate` — follow and turn the world by `-heading` (character always faces up).

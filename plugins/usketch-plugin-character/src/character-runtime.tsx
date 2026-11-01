@@ -273,9 +273,11 @@ export function setupCharacterRuntime(
 		anchorPoint,
 		setKeys: (k) => keys.setKeys(k),
 		setVirtualInput(input) {
-			virtual = normalizeVirtualInput(input);
+			// Ignored while off (like the keys), so input sent before the character is
+			// turned on can't make it drive away on its own the moment it spawns.
+			virtual = store.getState().enabled ? normalizeVirtualInput(input) : null;
 		},
-		getVirtualInput: () => virtual,
+		getVirtualInput: () => (virtual ? { ...virtual } : null),
 		dispose() {
 			if (rafId !== null) cancelFrame(rafId);
 			rafId = null;

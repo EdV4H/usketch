@@ -142,7 +142,9 @@ export function turnToward(from: number, to: number, maxStep: number): number {
 	return wrapDeg(from + Math.sign(d) * maxStep);
 }
 
-const clampUnit = (v: number): number => (Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0);
+/** Clamp to -1 … 1; a missing or non-finite value counts as 0 (released). */
+export const clampUnit = (v: number | undefined): number =>
+	v !== undefined && Number.isFinite(v) ? Math.max(-1, Math.min(1, v)) : 0;
 
 /** Forward / back of an input, -1 … 1: the analog `throttle` when set, else up − down. */
 export function inputThrottle(input: MoveInput): number {
@@ -218,13 +220,13 @@ export function stepCharacter(
 		const target = params.moveSpeed * throttle;
 		let accel = params.acceleration;
 		if (speed < 0) accel = params.acceleration + params.friction;
-		else if (speed > target) accel = params.friction;
+		else if (speed > target && throttle < 1) accel = params.friction;
 		speed = approach(speed, target, accel * dt);
 	} else if (throttle < 0) {
 		const target = params.moveSpeed * params.reverseRatio * throttle;
 		let accel = params.acceleration;
 		if (speed > 0) accel = params.acceleration + params.friction;
-		else if (speed < target) accel = params.friction;
+		else if (speed < target && throttle > -1) accel = params.friction;
 		speed = approach(speed, target, accel * dt);
 	} else {
 		speed = approach(speed, 0, params.friction * dt);
