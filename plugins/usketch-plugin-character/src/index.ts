@@ -8,6 +8,12 @@ export {
 	targetRotation,
 } from "./character-camera.js";
 export {
+	KEY_CHOICES,
+	type KeyChoice,
+	keyChoiceOf,
+	withKeyChoice,
+} from "./character-key-choices.js";
+export {
 	airJumpSpeed,
 	type CharacterPose,
 	type ControlScheme,
@@ -34,12 +40,6 @@ export {
 	turnToward,
 	vectorHeading,
 } from "./character-physics.js";
-export {
-	KEY_CHOICES,
-	type KeyChoice,
-	keyChoiceOf,
-	withKeyChoice,
-} from "./character-key-choices.js";
 export { CHARACTER_LAYER_ID, CHARACTER_VIEWPORT_PRIORITY } from "./character-runtime.js";
 export {
 	type CharacterApi,
