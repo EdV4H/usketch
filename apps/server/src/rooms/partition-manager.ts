@@ -1,7 +1,5 @@
 import { MSG_PARTITION_META } from "@edv4h/usketch-sync";
-
-/** バッファの最大件数 */
-const MAX_UPDATES_BUFFER = 500;
+import { compactUpdates } from "./update-compaction.js";
 
 export interface PartitionMeta {
 	partitions: string[];
@@ -39,6 +37,19 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 		}
 	}
 
+	/**
+	 * パーティションのバッファが閾値を超えていれば 1 件にマージする（無損失）。
+	 * マージ中に追加された update は失わないよう、マージ対象の件数を先に固定する。
+	 */
+	async function compactPartition(partitionName: string): Promise<void> {
+		const before = partitionUpdates.get(partitionName);
+		if (!before) return;
+		const count = before.length;
+		const merged = await compactUpdates(before.slice(0, count));
+		const current = partitionUpdates.get(partitionName) ?? before;
+		partitionUpdates.set(partitionName, [...merged, ...current.slice(count)]);
+	}
+
 	/** パーティション別 updates を永続化（デバウンス済み） */
 	function schedulePartitionSave(partitionName: string): void {
 		if (saveScheduled.get(partitionName)) return;
@@ -46,9 +57,10 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 		setTimeout(() => {
 			void (async () => {
 				try {
+					await compactPartition(partitionName);
 					const updates = partitionUpdates.get(partitionName);
 					if (!updates) return;
-					const data = updates.slice(-MAX_UPDATES_BUFFER).map((u) => Array.from(u));
+					const data = updates.map((u) => Array.from(u));
 					await deps.storage.put(`yjs_updates:${partitionName}`, JSON.stringify(data));
 				} catch (e) {
 					console.error("[BoardRoom] Failed to persist partition updates:", e);
@@ -124,12 +136,8 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 		if (metaChanged) {
 			void savePartitionMeta();
 		}
+		// 古い update は捨てない。件数の抑制は保存時の圧縮で行う。
 		schedulePartitionSave(partName);
-
-		// バッファサイズ制限
-		if (partUpdates.length > MAX_UPDATES_BUFFER) {
-			partitionUpdates.set(partName, partUpdates.slice(-MAX_UPDATES_BUFFER));
-		}
 	}
 
 	/** ストレージからパーティションデータをロード（初回のみ、並行呼び出し安全） */
@@ -190,5 +198,6 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 		trackUpdate,
 		loadFromStorage,
 		getPartitionUpdates,
+		compactPartition,
 	};
 }
