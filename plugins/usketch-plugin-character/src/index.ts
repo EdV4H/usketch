@@ -16,6 +16,8 @@ export {
 	type DriftParams,
 	headingVector,
 	IDLE_JUMP,
+	inputSteer,
+	inputThrottle,
 	type JumpParams,
 	type JumpTimers,
 	jumpArc,
@@ -47,4 +49,10 @@ export {
 	DEFAULT_KEYS,
 	type RemoteCharacter,
 } from "./character-types.js";
+export {
+	combineInput,
+	isVirtualInputActive,
+	normalizeVirtualInput,
+	type VirtualInput,
+} from "./character-virtual-input.js";
 export { type CharacterPluginOptions, createCharacterPlugin } from "./plugin.js";
