@@ -52,6 +52,8 @@ describe("parseWireState", () => {
 			z: null,
 			airborne: false,
 			vz: 0,
+			hovering: false,
+			hoverGauge: null,
 			appearance: {},
 			name: undefined,
 		});

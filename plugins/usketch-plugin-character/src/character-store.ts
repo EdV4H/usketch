@@ -7,10 +7,13 @@ import {
 	type CharacterPose,
 	type ControlScheme,
 	DEFAULT_DRIFT,
+	DEFAULT_HOVER,
 	DEFAULT_JUMP,
 	DEFAULT_MOTION,
 	type DriftParams,
+	type HoverParams,
 	type JumpParams,
+	jumpForScheme,
 	type MotionParams,
 	ORIGIN_POSE,
 } from "./character-physics.js";
@@ -46,7 +49,7 @@ export interface CharacterStoreInit {
 	controlScheme?: ControlScheme;
 	motion?: Partial<MotionParams>;
 	drift?: boolean | Partial<DriftParams>;
-	jump?: boolean | Partial<JumpParams>;
+	jump?: boolean | JumpInit;
 	anchor?: Partial<Point>;
 	followSmoothing?: number;
 	appearance?: CharacterAppearance;
@@ -58,7 +61,7 @@ export interface CharacterStoreInit {
 /** Stopped, wheels straight, no drift (scheme switches). */
 const AT_REST = { speed: 0, moving: false, steering: 0, slip: 0, drift: 0 } as const;
 /** At rest and grounded: a teleport lands on whatever ground is there (`z` snaps up to it). */
-const LANDED = { ...AT_REST, z: 0, vz: 0, airborne: false } as const;
+const LANDED = { ...AT_REST, z: 0, vz: 0, airborne: false, hovering: false } as const;
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const positive = (v: number, fallback: number) => (Number.isFinite(v) && v > 0 ? v : fallback);
@@ -101,10 +104,41 @@ export function sanitizeDrift(
 	};
 }
 
-/** `true` = defaults, `false` / omitted = off, an object = defaults overridden. */
+/** Jump tuning as a caller passes it: `hover` also takes `true` / `false` / a partial. */
+export type JumpInit = Omit<Partial<JumpParams>, "hover"> & {
+	hover?: boolean | Partial<HoverParams> | null;
+};
+
+/** The most air jumps accepted (beyond it a jump key held down is flying, not jumping). */
+export const MAX_AIR_JUMPS = 99;
+
+/**
+ * `true` = on with `tuning` (the last one used, else the defaults), `false` / `null` =
+ * off, an object = `tuning` overridden, omitted = `current` unchanged.
+ */
+export function sanitizeHover(
+	h: boolean | Partial<HoverParams> | null | undefined,
+	current: HoverParams | null,
+	tuning: HoverParams = current ?? DEFAULT_HOVER,
+): HoverParams | null {
+	if (h === undefined) return current;
+	if (!h) return null;
+	if (h === true) return tuning;
+	return {
+		duration: positive(finite(h.duration, tuning.duration), tuning.duration),
+		fallSpeed: nonNegative(finite(h.fallSpeed, tuning.fallSpeed), tuning.fallSpeed),
+		rechargeTime: nonNegative(finite(h.rechargeTime, tuning.rechargeTime), tuning.rechargeTime),
+	};
+}
+
+/**
+ * `true` = defaults, `false` / omitted = off, an object = defaults overridden. `hoverTuning`
+ * is what `hover: true` turns on (the last hover tuning, so off → on keeps it).
+ */
 export function sanitizeJump(
-	j: boolean | Partial<JumpParams> | undefined,
+	j: boolean | JumpInit | undefined,
 	base: JumpParams = DEFAULT_JUMP,
+	hoverTuning: HoverParams = base.hover ?? DEFAULT_HOVER,
 ): JumpParams | null {
 	if (!j) return null;
 	if (j === true) return base;
@@ -118,7 +152,23 @@ export function sanitizeJump(
 		releaseCut: clamp01(finite(j.releaseCut, base.releaseCut)),
 		coyoteTime: seconds(j.coyoteTime, base.coyoteTime),
 		bufferTime: seconds(j.bufferTime, base.bufferTime),
+		airJumps: Math.min(
+			MAX_AIR_JUMPS,
+			Math.floor(nonNegative(finite(j.airJumps, base.airJumps), base.airJumps)),
+		),
+		airJumpRatio: positive(finite(j.airJumpRatio, base.airJumpRatio), base.airJumpRatio),
+		hover: sanitizeHover(j.hover, base.hover, hoverTuning),
 	};
+}
+
+/** The jump tuning in effect: a vehicle only hops (see `jumpForScheme`). */
+export function effectiveJump(state: CharacterState): JumpParams | null {
+	return jumpForScheme(state.jump, state.controlScheme);
+}
+
+/** The hover gauge to show / broadcast: `null` while hovering is off (in effect). */
+export function hoverGaugeOf(state: CharacterState): number | null {
+	return effectiveJump(state)?.hover ? state.pose.hoverGauge : null;
 }
 
 export function createCharacterStore(init: CharacterStoreInit = {}) {
@@ -143,6 +193,7 @@ export function createCharacterStore(init: CharacterStoreInit = {}) {
 	// The tunings survive turning drift / jump off, so turning them back on keeps them.
 	let driftTuning: DriftParams = state.drift ?? DEFAULT_DRIFT;
 	let jumpTuning: JumpParams = state.jump ?? DEFAULT_JUMP;
+	let hoverTuning: HoverParams = state.jump?.hover ?? DEFAULT_HOVER;
 	const listeners = new Set<() => void>();
 
 	const set = (patch: Partial<CharacterState>): void => {
@@ -195,10 +246,14 @@ export function createCharacterStore(init: CharacterStoreInit = {}) {
 			if (drift) driftTuning = drift;
 			set({ drift });
 		},
-		/** `true` = on (current or default tuning), `false` = off, an object = tuning overrides. */
-		setJump(j: boolean | Partial<JumpParams>): void {
-			const jump = sanitizeJump(j, jumpTuning);
+		/**
+		 * `true` = on (current or default tuning), `false` = off, an object = tuning
+		 * overrides (its `hover`: `true` / `false` / a partial, as for the jump).
+		 */
+		setJump(j: boolean | JumpInit): void {
+			const jump = sanitizeJump(j, jumpTuning, hoverTuning);
 			if (jump) jumpTuning = jump;
+			if (jump?.hover) hoverTuning = jump.hover;
 			set({ jump });
 		},
 		setAnchor(a: Partial<Point>): void {

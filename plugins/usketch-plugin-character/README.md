@@ -37,7 +37,8 @@ createCharacterPlugin({
 - **Render props**: `heading` (world), `screenHeading` (= `heading + viewport.rotation`,
   what to rotate a top-down sprite by), `moving`, `speed`, `steering`, `slip`,
   `drifting`, `zoom`, `appearance`, `name`, `isSelf`, `id`, `elevation`, `z`, `altitude`,
-  `airborne`, `verticalSpeed`. Each character is placed centered on its screen position
+  `airborne`, `verticalSpeed`, `hovering`, `hoverGauge` (0 … 1, `null` with hovering
+  off). Each character is placed centered on its screen position
   in one screen-space layer, so self and remote characters look the same under zoom
   and camera rotation.
 - **Control schemes**
@@ -64,6 +65,17 @@ createCharacterPlugin({
   the ground height), `vz` and `airborne`. Where the jump key is also the active drift
   key (vehicle + drift, both Space by default) the drift wins. `api.jump()` (and the HUD
   action) jumps from code, as a full jump.
+- **Multi-jump** (`jump.airJumps`, default 0): a fresh press in the air uses one of
+  `airJumps` extra jumps while any remain (1 = a double jump); each reaches
+  `airJumpRatio` (default 0.8) × `height` (take-off speed × √ratio). They come back on
+  landing.
+- **Hover** (`jump.hover`, default off; `true` or a partial `HoverParams`): once the air
+  jumps are used up (or there are none), holding the jump key while falling fixes the
+  descent at `fallSpeed` (default 15 world units / s, 0 = hold the altitude) and drains a
+  gauge that lasts `duration` (1.5 s); an empty gauge falls normally. The gauge refills
+  on the ground over `rechargeTime` (0.8 s), not at once on landing. The pose carries
+  `hovering` and `hoverGauge` (stays 1 with hovering off); both are broadcast.
+- **Vehicle**: only hops — `airJumps` and `hover` are ignored in the `vehicle` scheme.
 - **Shadow**: pass `renderShadow` to draw a shadow; it is placed on the ground under
   each character while the body stands at its feet height `z`, so under a 3D view
   (Mode 7) a jump lifts the body off its shadow. `altitude` (`z - elevation`) lets it
@@ -113,8 +125,8 @@ createCharacterPlugin({
 
 ## HUD
 
-A "キャラクター" settings group (on/off, camera, scheme, drift, jump, jump height, speed,
-turn rate, climbable step, screen position, camera lag) plus actions to toggle the
+A "キャラクター" settings group (on/off, camera, scheme, drift, jump, jump height, air
+jumps, hover, hover time, speed, turn rate, climbable step, screen position, camera lag) plus actions to toggle the
 character, to place it at the screen position, and to jump.
 
 ## Service
@@ -128,9 +140,10 @@ api?.setCameraMode("rotate");
 api?.setRenderer(myRenderer);
 api?.setDrift({ slipAngle: 35 }); // true / false / tuning overrides
 api?.setJump({ height: 60 });     // true / false / tuning overrides
+api?.setJump({ airJumps: 1, hover: { duration: 2 } }); // double jump + hover (hover: true / false / partial)
 api?.jump();
 api?.setShadowRenderer(myShadow);
-api?.getPose(); // { x, y, heading, speed, moving, steering, slip, drift, z, vz, airborne }
+api?.getPose(); // { x, y, heading, speed, moving, steering, slip, drift, z, vz, airborne, hovering, hoverGauge }
 api?.setVirtualInput({ throttle: 0.8, steer: -0.3 }); // touch stick; null on release
 ```
 

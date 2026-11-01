@@ -34,6 +34,8 @@ describe("jump tuning", () => {
 			releaseCut: 3,
 			coyoteTime: 9,
 			bufferTime: -1,
+			airJumps: -2,
+			airJumpRatio: 0,
 		});
 		expect(j).toEqual({
 			height: DEFAULT_JUMP.height,
@@ -42,6 +44,9 @@ describe("jump tuning", () => {
 			releaseCut: 1,
 			coyoteTime: 1,
 			bufferTime: 0,
+			airJumps: DEFAULT_JUMP.airJumps,
+			airJumpRatio: DEFAULT_JUMP.airJumpRatio,
+			hover: null,
 		});
 	});
 	it("keeps custom tuning across off → on", () => {

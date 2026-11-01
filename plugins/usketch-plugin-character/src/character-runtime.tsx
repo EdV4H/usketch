@@ -28,7 +28,7 @@ import {
 	stepCharacter,
 	stepVertical,
 } from "./character-physics.js";
-import type { CharacterStore } from "./character-store.js";
+import { type CharacterStore, effectiveJump } from "./character-store.js";
 import {
 	type CharacterAwareness,
 	type CharacterSync,
@@ -223,7 +223,8 @@ export function setupCharacterRuntime(
 				dt,
 				heightAt(moved.x, moved.y),
 				s.motion.maxStep,
-				s.jump,
+				// A vehicle only hops (no air jumps / hover).
+				effectiveJump(s),
 			);
 			jumpTimers = vertical.timers;
 			const pose = vertical.pose;
@@ -369,6 +370,8 @@ function sameRemotes(
 			o.drifting !== r.drifting ||
 			o.z !== r.z ||
 			o.airborne !== r.airborne ||
+			o.hovering !== r.hovering ||
+			o.hoverGauge !== r.hoverGauge ||
 			o.name !== r.name ||
 			o.appearance !== r.appearance
 		) {

@@ -44,6 +44,13 @@ export interface CharacterRenderProps {
 	airborne: boolean;
 	/** Vertical speed, world units / s (positive = rising), e.g. for a rise / fall pose. */
 	verticalSpeed: number;
+	/** Hovering (the jump key held in a fall), e.g. for flapping or a glow at the feet. */
+	hovering: boolean;
+	/**
+	 * Hover gauge, 0 (empty) … 1 (full) — drains while hovering, refills on the ground — or
+	 * `null` while hovering is off (also from clients that don't send it).
+	 */
+	hoverGauge: number | null;
 }
 
 /**
@@ -68,6 +75,10 @@ export interface RemoteCharacter {
 	airborne: boolean;
 	/** Vertical speed as last sent (0 from older clients). */
 	vz: number;
+	/** Hovering as last sent (false from older clients). */
+	hovering: boolean;
+	/** Hover gauge 0 … 1, or `null` with hovering off / from older clients. */
+	hoverGauge: number | null;
 	appearance: CharacterAppearance;
 	name?: string;
 }

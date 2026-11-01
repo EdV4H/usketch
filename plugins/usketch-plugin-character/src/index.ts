@@ -8,12 +8,16 @@ export {
 	targetRotation,
 } from "./character-camera.js";
 export {
+	airJumpSpeed,
 	type CharacterPose,
 	type ControlScheme,
 	DEFAULT_DRIFT,
+	DEFAULT_HOVER,
 	DEFAULT_JUMP,
 	DEFAULT_MOTION,
 	type DriftParams,
+	drainHoverGauge,
+	type HoverParams,
 	headingVector,
 	IDLE_JUMP,
 	inputSteer,
@@ -21,9 +25,11 @@ export {
 	type JumpParams,
 	type JumpTimers,
 	jumpArc,
+	jumpForScheme,
 	type MotionParams,
 	type MoveInput,
 	ORIGIN_POSE,
+	rechargeHoverGauge,
 	stepCharacter,
 	stepVertical,
 	turnToward,
@@ -35,6 +41,14 @@ export {
 	characterService,
 	getCharacterApi,
 } from "./character-service.js";
+export {
+	effectiveJump,
+	hoverGaugeOf,
+	type JumpInit,
+	MAX_AIR_JUMPS,
+	sanitizeHover,
+	sanitizeJump,
+} from "./character-store.js";
 export {
 	AWARENESS_FIELD,
 	type CharacterAwareness,

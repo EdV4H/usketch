@@ -10,7 +10,7 @@ import type {
 	MotionParams,
 } from "./character-physics.js";
 import type { CharacterRuntime } from "./character-runtime.js";
-import type { CharacterStore } from "./character-store.js";
+import type { CharacterStore, JumpInit } from "./character-store.js";
 import type {
 	CharacterAppearance,
 	CharacterKeys,
@@ -45,7 +45,7 @@ export interface CharacterApi {
 	/** Jump tuning, or `null` when jumping is off. */
 	getJump(): JumpParams | null;
 	/** `true` = on (current or default tuning), `false` = off, an object = tuning overrides. */
-	setJump(jump: boolean | Partial<JumpParams>): void;
+	setJump(jump: boolean | JumpInit): void;
 	/** Jump now, as if the jump key were pressed and held (no-op while off or disabled). */
 	jump(): void;
 	/** Screen anchor as canvas fractions (0..1). */
