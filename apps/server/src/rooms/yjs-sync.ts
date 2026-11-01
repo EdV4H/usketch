@@ -1,7 +1,6 @@
 /** Yjs updates バッファの管理と永続化 */
 
-/** バッファの最大件数 */
-const MAX_UPDATES_BUFFER = 500;
+import { compactUpdates } from "./update-compaction.js";
 
 // yjs を動的importするためのキャッシュ
 let yjsModule: typeof import("yjs") | null = null;
@@ -52,6 +51,16 @@ export function createYjsSync(deps: YjsSyncDeps) {
 		}
 	}
 
+	/**
+	 * バッファが閾値を超えていれば 1 件にマージする（無損失）。
+	 * マージ中に push された update は失わないよう、マージ対象の件数を先に固定する。
+	 */
+	async function compact(): Promise<void> {
+		const count = updates.length;
+		const merged = await compactUpdates(updates.slice(0, count));
+		updates = [...merged, ...updates.slice(count)];
+	}
+
 	/** updates を storage に永続化（デバウンス: 最大5秒ごと） */
 	function scheduleSave(): void {
 		if (saveScheduled) return;
@@ -59,7 +68,8 @@ export function createYjsSync(deps: YjsSyncDeps) {
 		setTimeout(() => {
 			void (async () => {
 				try {
-					const data = updates.slice(-MAX_UPDATES_BUFFER).map((u) => Array.from(u));
+					await compact();
+					const data = updates.map((u) => Array.from(u));
 					await deps.storage.put("yjs_updates", JSON.stringify(data));
 				} catch (e) {
 					console.error("[BoardRoom] Failed to persist Yjs updates:", e);
@@ -87,12 +97,13 @@ export function createYjsSync(deps: YjsSyncDeps) {
 		return { doc };
 	}
 
-	/** update をバッファに追加 */
+	/**
+	 * update をバッファに追加する。古い update は捨てない（捨てると初期同期で
+	 * その update に依存するシェイプが欠ける）。件数の抑制は scheduleSave 時の
+	 * 圧縮で行う。
+	 */
 	function pushUpdate(update: Uint8Array): void {
 		updates.push(update);
-		if (updates.length > MAX_UPDATES_BUFFER) {
-			updates = updates.slice(-MAX_UPDATES_BUFFER);
-		}
 	}
 
 	/** クライアントからの update を Y.Doc に適用。成功時 true、失敗時 false を返す */
@@ -130,5 +141,6 @@ export function createYjsSync(deps: YjsSyncDeps) {
 		applyClientUpdate,
 		getUpdates,
 		destroyDoc,
+		compact,
 	};
 }
