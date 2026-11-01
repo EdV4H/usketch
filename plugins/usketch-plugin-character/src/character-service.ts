@@ -56,6 +56,8 @@ export interface CharacterApi {
 	setFollowSmoothing(value: number): void;
 	/** Replace the key bindings (`KeyboardEvent.code` values; omitted `drift` / `jump` are kept). */
 	setKeys(keys: CharacterKeys): void;
+	/** The current key bindings. */
+	getKeys(): CharacterKeys;
 	/**
 	 * Drive with a non-keyboard control (an on-screen stick, a gamepad …): analog
 	 * `throttle` / `steer` (-1 … 1) and the `drift` button, combined with the held keys.
@@ -105,6 +107,7 @@ export function createCharacterApi(store: CharacterStore, runtime: CharacterRunt
 		getFollowSmoothing: () => store.getState().followSmoothing,
 		setFollowSmoothing: (v) => store.setFollowSmoothing(v),
 		setKeys: (keys) => runtime.setKeys(keys),
+		getKeys: () => runtime.getKeys(),
 		setVirtualInput: (input) => runtime.setVirtualInput(input),
 		getVirtualInput: () => runtime.getVirtualInput(),
 		setRenderer: (r) => store.setRenderer(r),

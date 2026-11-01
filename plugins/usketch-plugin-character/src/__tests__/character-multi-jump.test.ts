@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { keyChoiceOf, withKeyChoice } from "../character-key-choices.js";
 import {
 	airJumpSpeed,
 	type CharacterPose,
+	DEFAULT_DRIFT,
 	DEFAULT_HOVER,
 	DEFAULT_JUMP,
 	drainHoverGauge,
@@ -10,7 +12,6 @@ import {
 	type JumpParams,
 	type JumpTimers,
 	jumpArc,
-	jumpForScheme,
 	type MoveInput,
 	NO_INPUT,
 	ORIGIN_POSE,
@@ -19,12 +20,15 @@ import {
 } from "../character-physics.js";
 import {
 	createCharacterStore,
+	driftHopHeight,
 	effectiveJump,
 	hoverGaugeOf,
+	sanitizeDrift,
 	sanitizeHover,
 	sanitizeJump,
 } from "../character-store.js";
 import { createCharacterSync, parseWireState } from "../character-sync.js";
+import { DEFAULT_KEYS } from "../character-types.js";
 
 const DT = 1 / 120;
 const MAX_STEP = 24;
@@ -217,19 +221,44 @@ describe("hover", () => {
 });
 
 describe("vehicle", () => {
-	it("only hops: no air jumps, no hover", () => {
-		const jump: JumpParams = { ...DEFAULT_JUMP, airJumps: 2, hover: DEFAULT_HOVER };
-		expect(jumpForScheme(jump, "vehicle")).toEqual({ ...jump, airJumps: 0, hover: null });
-		expect(jumpForScheme(jump, "directional")).toBe(jump);
-		expect(jumpForScheme(null, "vehicle")).toBeNull();
-	});
-	it("the store's effective jump follows the scheme", () => {
+	it("gets air jumps and hover too (the jump has its own key)", () => {
 		const store = createCharacterStore({ jump: { airJumps: 1, hover: true } });
+		store.setControlScheme("vehicle");
 		expect(effectiveJump(store.getState())?.airJumps).toBe(1);
 		expect(hoverGaugeOf(store.getState())).toBe(1);
+	});
+});
+
+describe("drift hop", () => {
+	const hopIn = (hop: number, input: MoveInput, pose = ORIGIN_POSE) =>
+		stepVertical(pose, IDLE_JUMP, input, DT, 0, MAX_STEP, null, hop);
+	it("a drift press on the ground hops hopHeight high", () => {
+		let { pose, timers } = hopIn(10, held({ drift: true, driftPressed: true }));
+		expect(pose.airborne).toBe(true);
+		let top = 0;
+		for (let i = 0; i < 120 && pose.airborne; i++) {
+			({ pose, timers } = stepVertical(pose, timers, held({ drift: true }), DT, 0, MAX_STEP, null));
+			top = Math.max(top, pose.z);
+		}
+		expect(top).toBeGreaterThan(9);
+		expect(top).toBeLessThan(10.5);
+		expect(pose.airborne).toBe(false);
+	});
+	it("not without the hop, nor from a held key, nor in the air", () => {
+		expect(hopIn(0, held({ drift: true, driftPressed: true })).pose.airborne).toBe(false);
+		expect(hopIn(10, held({ drift: true })).pose.airborne).toBe(false);
+		const flying = { ...ORIGIN_POSE, z: 30, vz: -5, airborne: true };
+		expect(hopIn(10, held({ drift: true, driftPressed: true }), flying).pose.vz).toBeLessThan(-5);
+	});
+	it("only a vehicle with drift + hop on hops", () => {
+		const store = createCharacterStore({ drift: { hop: true, hopHeight: 12 } });
+		expect(driftHopHeight(store.getState())).toBe(0);
 		store.setControlScheme("vehicle");
-		expect(effectiveJump(store.getState())?.airJumps).toBe(0);
-		expect(hoverGaugeOf(store.getState())).toBeNull();
+		expect(driftHopHeight(store.getState())).toBe(12);
+		store.setDrift({ hop: false });
+		expect(driftHopHeight(store.getState())).toBe(0);
+		expect(sanitizeDrift({ hopHeight: -4 })?.hopHeight).toBe(0);
+		expect(sanitizeDrift({ hopHeight: Number.NaN })?.hopHeight).toBe(DEFAULT_DRIFT.hopHeight);
 	});
 });
 
@@ -293,5 +322,16 @@ describe("sync", () => {
 		sync.publish(true);
 		expect(sent.at(-1)).toMatchObject({ hovering: true, hoverGauge: 0.4 });
 		sync.dispose();
+	});
+});
+
+describe("key choices", () => {
+	it("maps HUD choices to codes and back", () => {
+		expect(keyChoiceOf(DEFAULT_KEYS.drift)?.value).toBe("shift");
+		expect(keyChoiceOf(DEFAULT_KEYS.jump)?.value).toBe("space");
+		expect(keyChoiceOf(["ShiftRight", "ShiftLeft"])?.value).toBe("shift");
+		expect(keyChoiceOf(["KeyQ"])).toBeNull();
+		expect(withKeyChoice(DEFAULT_KEYS, "jump", "z").jump).toEqual(["KeyZ"]);
+		expect(withKeyChoice(DEFAULT_KEYS, "drift", "nope")).toBe(DEFAULT_KEYS);
 	});
 });

@@ -23,7 +23,7 @@ createCharacterPlugin({
   keys: { up: ["KeyW", "ArrowUp"] }, // KeyboardEvent.code values
   cameraMode: "rotate",            // "fixed" | "rotate" | "free"
   controlScheme: "vehicle",        // "directional" | "vehicle"
-  drift: true,                     // vehicle: Space + steer drifts (or tuning overrides)
+  drift: true,                     // vehicle: Shift + steer drifts (or tuning overrides)
   jump: true,                      // Space jumps (or tuning overrides)
   renderShadow: ({ altitude }) => <div className="shadow" style={{ scale: 1 / (1 + altitude / 60) }} />,
   screenAnchor: { x: 0.5, y: 0.75 },
@@ -48,7 +48,7 @@ createCharacterPlugin({
   - `vehicle` — up/down throttle and reverse, left/right steer. Steering scales
     with speed (a stopped car can't turn) and inverts in reverse. The held steering
     (-1 … 1) is in the pose and render props, e.g. to turn the front wheels.
-- **Drift** (`vehicle`, opt-in via `drift`): hold the drift key (Space) and steer at
+- **Drift** (`vehicle`, opt-in via `drift`): hold the drift key (Shift) and steer at
   speed to start an arcade drift toward the steering. It turns tighter than normal
   steering and slides the body by `slip` degrees (draw the car at `heading + slip`;
   it keeps traveling along `heading`). Steering into the drift tightens it,
@@ -56,14 +56,17 @@ createCharacterPlugin({
   `stopSpeed` or reversing ends it, and the slip eases back. Tuning (`DriftParams`):
   `startSpeed` / `stopSpeed` (fractions of `moveSpeed`), `turnRate` / `steerRate`
   (multiples of `turnRate`), `slipAngle` / `steerSlipAngle` (degrees), `recoveryRate`
-  (1/s). The drift key is only captured while drift is on.
+  (1/s). With `hop: true`, pressing the drift key on the ground hops `hopHeight`
+  (default 10) first, and the drift starts on landing if the key is still held and
+  steering (a car can't steer in the air). The drift key is only captured while drift
+  is on.
 - **Jump** (opt-in via `jump`): press the jump key (Space) to jump. The arc is set by
   its apex `height` (world units) and `timeToApex`; it falls `fallGravity` × faster than
   it rises, releasing the key while rising cuts it short (`releaseCut`), a press within
   `bufferTime` before landing jumps on touchdown, and a jump within `coyoteTime` of
   walking off a ledge still counts. The pose carries the feet height `z` (absolute, like
   the ground height), `vz` and `airborne`. Where the jump key is also the active drift
-  key (vehicle + drift, both Space by default) the drift wins. `api.jump()` (and the HUD
+  key (both can be rebound) the drift wins. `api.jump()` (and the HUD
   action) jumps from code, as a full jump.
 - **Multi-jump** (`jump.airJumps`, default 0): a fresh press in the air uses one of
   `airJumps` extra jumps while any remain (1 = a double jump); each reaches
@@ -78,7 +81,9 @@ createCharacterPlugin({
   at `riseSpeed` (60). The gauge refills
   on the ground over `rechargeTime` (0.8 s), not at once on landing. The pose carries
   `hovering` and `hoverGauge` (stays 1 with hovering off); both are broadcast.
-- **Vehicle**: only hops — `airJumps` and `hover` are ignored in the `vehicle` scheme.
+- **Keys**: the jump (Space) and the drift (Shift) have their own keys. The HUD offers
+  a few keys for each (`KEY_CHOICES`: Space, Shift, Z, X, C, J, K, L); `setKeys` takes
+  any `KeyboardEvent.code`s and `getKeys` returns the bindings.
 - **Shadow**: pass `renderShadow` to draw a shadow; it is placed on the ground under
   each character while the body stands at its feet height `z`, so under a 3D view
   (Mode 7) a jump lifts the body off its shadow. `altitude` (`z - elevation`) lets it
@@ -128,7 +133,7 @@ createCharacterPlugin({
 
 ## HUD
 
-A "キャラクター" settings group (on/off, camera, scheme, drift, jump, jump height, air
+A "キャラクター" settings group (on/off, camera, scheme, drift, drift key, drift hop, jump, jump key, jump height, air
 jumps, hover, hover time, hover thrust, speed, turn rate, climbable step, screen position, camera lag) plus actions to toggle the
 character, to place it at the screen position, and to jump.
 
@@ -141,10 +146,11 @@ const api = getCharacterApi(app.services);
 api?.enable();
 api?.setCameraMode("rotate");
 api?.setRenderer(myRenderer);
-api?.setDrift({ slipAngle: 35 }); // true / false / tuning overrides
+api?.setDrift({ slipAngle: 35, hop: true }); // true / false / tuning overrides
 api?.setJump({ height: 60 });     // true / false / tuning overrides
 api?.setJump({ airJumps: 1, hover: { duration: 2 } }); // double jump + hover (hover: true / false / partial)
 api?.jump();
+api?.setKeys({ ...api.getKeys(), drift: ["KeyX"] }); // KeyboardEvent.code values
 api?.setShadowRenderer(myShadow);
 api?.getPose(); // { x, y, heading, speed, moving, steering, slip, drift, z, vz, airborne, hovering, hoverGauge }
 api?.setVirtualInput({ throttle: 0.8, steer: -0.3 }); // touch stick; null on release

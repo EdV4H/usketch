@@ -28,7 +28,7 @@ import {
 	stepCharacter,
 	stepVertical,
 } from "./character-physics.js";
-import { type CharacterStore, effectiveJump } from "./character-store.js";
+import { type CharacterStore, driftHopHeight, effectiveJump } from "./character-store.js";
 import {
 	type CharacterAwareness,
 	type CharacterSync,
@@ -102,6 +102,7 @@ export interface CharacterRuntime {
 	/** Jump on the next frame, as a full (held) jump. No-op while jumping is off. */
 	jump(): void;
 	setKeys(keys: CharacterKeys): void;
+	getKeys(): CharacterKeys;
 	/** Feed analog input from a host control (touch stick …); `null` releases it. */
 	setVirtualInput(input: Partial<VirtualInput> | null): void;
 	getVirtualInput(): VirtualInput | null;
@@ -223,8 +224,8 @@ export function setupCharacterRuntime(
 				dt,
 				heightAt(moved.x, moved.y),
 				s.motion.maxStep,
-				// A vehicle only hops (no air jumps / hover).
 				effectiveJump(s),
+				driftHopHeight(s),
 			);
 			jumpTimers = vertical.timers;
 			const pose = vertical.pose;
@@ -332,6 +333,7 @@ export function setupCharacterRuntime(
 			ensureLoop();
 		},
 		setKeys: (k) => keys.setKeys(k),
+		getKeys: () => keys.getKeys(),
 		setVirtualInput(input) {
 			// Ignored while off (like the keys), so input sent before the character is
 			// turned on can't make it drive away on its own the moment it spawns.

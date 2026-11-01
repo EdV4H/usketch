@@ -61,6 +61,7 @@ describe("createKeyInput", () => {
 			drift: false,
 			jump: false,
 			jumpPressed: false,
+			driftPressed: false,
 		});
 		expect(e.stopImmediatePropagation).toHaveBeenCalled();
 		dom.fire("keyup", { code: "KeyW" });
@@ -91,21 +92,24 @@ describe("createKeyInput", () => {
 		input.dispose();
 	});
 
-	it("captures the drift key only while drift is active", () => {
+	it("captures the drift key (Shift by default) only while drift is active", () => {
 		let driftOn = false;
 		const input = createKeyInput(
 			DEFAULT_KEYS,
 			() => true,
 			() => driftOn,
 		);
-		const ignored = dom.fire("keydown", { code: "Space" });
-		expect(input.read().drift).toBe(false);
+		const ignored = dom.fire("keydown", { code: "ShiftLeft" });
+		expect(input.read()).toMatchObject({ drift: false, driftPressed: false });
 		expect(ignored.preventDefault).not.toHaveBeenCalled();
 		driftOn = true;
-		const taken = dom.fire("keydown", { code: "Space" });
-		expect(input.read().drift).toBe(true);
+		const taken = dom.fire("keydown", { code: "ShiftRight" });
+		expect(input.read()).toMatchObject({ drift: true, driftPressed: true });
 		expect(taken.preventDefault).toHaveBeenCalled();
-		dom.fire("keyup", { code: "Space" });
+		// The press is an edge: held on, it isn't pressed again (auto-repeat neither).
+		dom.fire("keydown", { code: "ShiftRight", repeat: true });
+		expect(input.read()).toMatchObject({ drift: true, driftPressed: false });
+		dom.fire("keyup", { code: "ShiftRight" });
 		expect(input.read().drift).toBe(false);
 		input.dispose();
 	});
@@ -158,7 +162,7 @@ describe("createKeyInput", () => {
 
 	it("lets an active drift win a key it shares with the jump", () => {
 		const input = createKeyInput(
-			DEFAULT_KEYS,
+			{ ...DEFAULT_KEYS, drift: ["Space"] },
 			() => true,
 			() => true,
 			() => true,
@@ -193,7 +197,7 @@ describe("createKeyInput", () => {
 			left: ["ArrowLeft"],
 			right: ["ArrowRight"],
 		});
-		dom.fire("keydown", { code: "Space" });
+		dom.fire("keydown", { code: "ShiftLeft" });
 		expect(input.read().drift).toBe(true);
 		input.dispose();
 	});

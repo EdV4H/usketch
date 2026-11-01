@@ -25,7 +25,6 @@ export {
 	type JumpParams,
 	type JumpTimers,
 	jumpArc,
-	jumpForScheme,
 	type MotionParams,
 	type MoveInput,
 	ORIGIN_POSE,
@@ -35,6 +34,12 @@ export {
 	turnToward,
 	vectorHeading,
 } from "./character-physics.js";
+export {
+	KEY_CHOICES,
+	type KeyChoice,
+	keyChoiceOf,
+	withKeyChoice,
+} from "./character-key-choices.js";
 export { CHARACTER_LAYER_ID, CHARACTER_VIEWPORT_PRIORITY } from "./character-runtime.js";
 export {
 	type CharacterApi,

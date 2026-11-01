@@ -13,6 +13,8 @@ export interface MoveInput {
 	right: boolean;
 	/** Vehicle: the drift key (only acts when drift is enabled). */
 	drift?: boolean;
+	/** The drift key was pressed since the previous step (an edge: starts a drift hop). */
+	driftPressed?: boolean;
 	/** The jump key is held (a release while rising cuts the jump short). */
 	jump?: boolean;
 	/** The jump key was pressed since the previous step (an edge, so a quick tap counts). */
@@ -140,6 +142,13 @@ export interface DriftParams {
 	steerSlipAngle: number;
 	/** How fast the slip follows its target (1/s, exponential). */
 	recoveryRate: number;
+	/**
+	 * Pressing the drift key on the ground hops first (a small jump; the drift starts on
+	 * landing if still held and steering, since a car can't steer in the air).
+	 */
+	hop: boolean;
+	/** Height of that hop, world units. */
+	hopHeight: number;
 }
 
 export const DEFAULT_DRIFT: DriftParams = {
@@ -150,6 +159,8 @@ export const DEFAULT_DRIFT: DriftParams = {
 	slipAngle: 28,
 	steerSlipAngle: 8,
 	recoveryRate: 8,
+	hop: false,
+	hopHeight: 10,
 };
 
 /** Unit vector of a heading in world space (0° → (0, -1), 90° → (1, 0)). */
@@ -385,15 +396,6 @@ export const DEFAULT_JUMP: JumpParams = {
 	hover: null,
 };
 
-/**
- * The jump tuning a control scheme uses: a vehicle only hops (no air jumps, no hover),
- * whatever the tuning says.
- */
-export function jumpForScheme(jump: JumpParams | null, scheme: ControlScheme): JumpParams | null {
-	if (!jump || scheme !== "vehicle" || (jump.airJumps === 0 && jump.hover === null)) return jump;
-	return { ...jump, airJumps: 0, hover: null };
-}
-
 /** Gravity (world units / s²) and take-off speed (world units / s) of a jump. */
 export function jumpArc(params: JumpParams): { gravity: number; speed: number } {
 	const t = Math.max(0.01, params.timeToApex);
@@ -437,6 +439,8 @@ export const IDLE_JUMP: JumpTimers = {
  *   hovers: the thrust pushes against gravity (see `hoverSpeed`) while the gauge drains,
  *   and it keeps firing while the key stays held, also once it climbs; an empty gauge
  *   falls normally. On the ground the gauge refills over `rechargeTime`.
+ * - A `hopHeight` above 0 (a vehicle's drift hop) makes a drift-key press on the ground
+ *   hop that high, under the same gravity.
  * - In the air, gravity pulls the feet down (`fallGravity` × while falling) until they
  *   meet the ground. Without `jump` the default arc's gravity still drives falls.
  */
@@ -448,6 +452,7 @@ export function stepVertical(
 	ground: number,
 	maxStep: number,
 	jump: JumpParams | null,
+	hopHeight = 0,
 ): { pose: CharacterPose; timers: JumpTimers } {
 	if (dt <= 0) return { pose, timers };
 	let { z, vz, airborne, hoverGauge } = pose;
@@ -470,6 +475,13 @@ export function stepVertical(
 	sinceGround = airborne ? sinceGround + dt : 0;
 
 	const arc = jumpArc(jump ?? DEFAULT_JUMP);
+	if (hopHeight > 0 && input.driftPressed && !airborne) {
+		// A drift hop: spends the ground jump (no coyote jump after it), never cut short.
+		airborne = true;
+		vz = Math.sqrt(2 * arc.gravity * hopHeight);
+		jumped = true;
+		cut = true;
+	}
 	const hover = jump?.hover ?? null;
 	if (jump) {
 		sincePress = input.jumpPressed ? 0 : sincePress + dt;

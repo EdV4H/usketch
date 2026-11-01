@@ -13,7 +13,6 @@ import {
 	type DriftParams,
 	type HoverParams,
 	type JumpParams,
-	jumpForScheme,
 	type MotionParams,
 	ORIGIN_POSE,
 } from "./character-physics.js";
@@ -101,6 +100,8 @@ export function sanitizeDrift(
 		slipAngle: Math.min(90, nonNegative(d.slipAngle, base.slipAngle)),
 		steerSlipAngle: Math.min(90, nonNegative(d.steerSlipAngle, base.steerSlipAngle)),
 		recoveryRate: positive(finite(d.recoveryRate, base.recoveryRate), base.recoveryRate),
+		hop: typeof d.hop === "boolean" ? d.hop : base.hop,
+		hopHeight: nonNegative(d.hopHeight, base.hopHeight),
 	};
 }
 
@@ -163,9 +164,15 @@ export function sanitizeJump(
 	};
 }
 
-/** The jump tuning in effect: a vehicle only hops (see `jumpForScheme`). */
+/** The jump tuning in effect (the same for both control schemes). */
 export function effectiveJump(state: CharacterState): JumpParams | null {
-	return jumpForScheme(state.jump, state.controlScheme);
+	return state.jump;
+}
+
+/** Height of the drift hop in effect: a vehicle with drift + hop on, else 0. */
+export function driftHopHeight(state: CharacterState): number {
+	const d = state.drift;
+	return state.controlScheme === "vehicle" && d?.hop ? d.hopHeight : 0;
 }
 
 /** The hover gauge to show / broadcast: `null` while hovering is off (in effect). */

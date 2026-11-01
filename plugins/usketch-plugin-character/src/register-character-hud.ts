@@ -2,6 +2,7 @@
 // service (no plugin-owned UI; the character's LOOK is the host's renderer).
 import type { PluginContext } from "@edv4h/usketch-shared";
 import type { CameraMode } from "./character-camera.js";
+import { KEY_CHOICES, keyChoiceOf, withKeyChoice } from "./character-key-choices.js";
 import { type ControlScheme, DEFAULT_HOVER, DEFAULT_JUMP } from "./character-physics.js";
 import type { CharacterApi } from "./character-service.js";
 
@@ -9,6 +10,7 @@ const CAMERA_MODES: readonly CameraMode[] = ["fixed", "rotate", "free"];
 const SCHEMES: readonly ControlScheme[] = ["directional", "vehicle"];
 
 const truthy = (v: unknown) => v === true || v === "true";
+const KEY_OPTIONS = KEY_CHOICES.map((c) => ({ value: c.value, label: c.label }));
 
 export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () => void {
 	const offSettings = ctx.hud.registerSettings({
@@ -36,8 +38,11 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					{ value: "vehicle", label: "車（前進＋旋回）" },
 				],
 			},
-			{ name: "drift", label: "ドリフト（車・Space）", type: "boolean" },
-			{ name: "jump", label: "ジャンプ（Space）", type: "boolean" },
+			{ name: "drift", label: "ドリフト（車）", type: "boolean" },
+			{ name: "driftKey", label: "ドリフトのキー", type: "enum", options: KEY_OPTIONS },
+			{ name: "driftHop", label: "ドリフトでホップ", type: "boolean" },
+			{ name: "jump", label: "ジャンプ", type: "boolean" },
+			{ name: "jumpKey", label: "ジャンプのキー", type: "enum", options: KEY_OPTIONS },
 			{ name: "jumpHeight", label: "ジャンプの高さ", type: "number", min: 8, max: 200, step: 4 },
 			{ name: "airJumps", label: "空中ジャンプ回数", type: "number", min: 0, max: 5, step: 1 },
 			{ name: "hover", label: "ホバー", type: "boolean" },
@@ -76,6 +81,12 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return api.getControlScheme();
 				case "drift":
 					return api.getDrift() !== null;
+				case "driftKey":
+					return keyChoiceOf(api.getKeys().drift)?.value;
+				case "driftHop":
+					return api.getDrift()?.hop ?? false;
+				case "jumpKey":
+					return keyChoiceOf(api.getKeys().jump)?.value;
 				case "jump":
 					return api.getJump() !== null;
 				case "jumpHeight":
@@ -119,6 +130,16 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return;
 				case "drift":
 					api.setDrift(truthy(value));
+					return;
+				case "driftKey":
+				case "jumpKey":
+					api.setKeys(
+						withKeyChoice(api.getKeys(), name === "driftKey" ? "drift" : "jump", String(value)),
+					);
+					return;
+				case "driftHop":
+					// Like the other drift tuning: only while drifting is on.
+					if (api.getDrift()) api.setDrift({ hop: truthy(value) });
 					return;
 				case "jump":
 					api.setJump(truthy(value));
