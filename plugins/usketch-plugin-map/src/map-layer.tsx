@@ -15,7 +15,11 @@ import { CELL_LINE, GRID_PATTERN_ID, groundMarkup, WOBBLE_FILTER_ID } from "./gr
 import { tileDetail } from "./lod.js";
 import { terrainCssVars } from "./palette.js";
 import type { ReactiveStore } from "./reactive-store.js";
-import { type MapRenderConfig, renderConfigStore } from "./render-config.js";
+import {
+	DEFAULT_GROUND_OVERSCAN_MAX_PX,
+	type MapRenderConfig,
+	renderConfigStore,
+} from "./render-config.js";
 import { renderSvgNodes } from "./svg-nodes.js";
 import { TERRAINS, terrainPatternId } from "./terrain.js";
 import { boardTilemaps } from "./terrain-height.js";
@@ -27,12 +31,14 @@ export { visibleCellRange, WOBBLE_FILTER_ID } from "./ground-markup.js";
 
 /**
  * Event a 3D view emits with how many screen px of ground it reveals past the viewport
- * (Mode 7 drives the background grid with it). The terrain follows, capped at
- * {@link MAX_GROUND_OVERSCAN_PX} so a huge draw distance can't explode the cell count;
- * the raised relief stays inside the window, so its edge cliffs sit on drawn ground.
+ * (Mode 7 drives the background grid with it). The terrain follows, capped at the render
+ * config's `groundOverscanMaxPx` (default {@link MAX_GROUND_OVERSCAN_PX}) so a huge draw
+ * distance can't explode the cell count; the raised relief stays on the screen's cells
+ * unless `reliefOverscan` is on, and always a few cells inside the drawn ground.
  */
 export const GROUND_OVERSCAN_EVENT = "bg-grid:set-overscan";
-export const MAX_GROUND_OVERSCAN_PX = 160;
+/** The default ground overscan cap (see `MapRenderConfig.groundOverscanMaxPx`). */
+export const MAX_GROUND_OVERSCAN_PX = DEFAULT_GROUND_OVERSCAN_MAX_PX;
 /**
  * Event a 3D view emits when it starts / stops showing the board (`{ active }`; Mode 7
  * does). The raised relief only means anything in 3D, so it is built only while on.
@@ -154,7 +160,7 @@ export function MapTerrainLayer({
 	// over a chunk edge only builds the chunks coming into view. Zoomed out, the coarse
 	// tier's merged blocks are few and the chunks many, so it stays one drawing over the
 	// visible rect snapped out to whole chunks.
-	const chunked = tileDetail(defaultTile * zoom, renderMode) === "full";
+	const chunked = tileDetail(defaultTile * zoom, renderMode, cfg.fullDetailMinPx) === "full";
 	const ranges = chunked ? groundChunkRanges(visible, defaultTile) : null;
 	const chunks = useChunkPlan(ranges, 1);
 	const area = chunked ? null : chunkArea(visible, defaultTile);

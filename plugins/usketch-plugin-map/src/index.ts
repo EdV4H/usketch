@@ -64,7 +64,7 @@ export {
 	isInfiniteTerrainEnabled,
 	setInfiniteSeed,
 } from "./infinite-terrain.js";
-export { RELIEF_LAYER_ID } from "./map-relief-layer.js";
+export { RELIEF_LAYER_ID, reliefCellRange } from "./map-relief-layer.js";
 // ── Host-facing service (recommended seam; #927/#946 pattern generalized) ──
 // `getMapApi(app.services)?.enableInfiniteTerrain({ seed })` from a host, without
 // the Control HUD and without importing individual helpers (undefined if absent).
@@ -84,7 +84,13 @@ export {
 // `renderConfigStore`. Not synced across clients (presentation/interaction state).
 export type { ReactiveStore } from "./reactive-store.js";
 export {
+	clampGroundOverscan,
+	DEFAULT_FULL_DETAIL_MIN_PX,
+	DEFAULT_GROUND_OVERSCAN_MAX_PX,
+	DEFAULT_RELIEF_EDGE_INSET,
+	detailConfigPatch,
 	type LineStyle,
+	type MapDetailField,
 	type MapRenderConfig,
 	renderConfigStore,
 } from "./render-config.js";

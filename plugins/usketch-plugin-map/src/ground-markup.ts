@@ -59,7 +59,8 @@ function culled(x: number, y: number, size: number, visible?: DOMRectReadOnly | 
 	);
 }
 
-interface CellRange {
+/** An inclusive range of cell indices. */
+export interface CellRange {
 	c0: number;
 	c1: number;
 	r0: number;
@@ -241,7 +242,7 @@ export function groundMarkup(
 	// Empty-terrain background: fill the visible area with the fallback terrain so
 	// unpainted / off-map space reads as (e.g.) sea, with painted tiles on top.
 	const empty = known(cfg.emptyTerrain);
-	const bgCoarse = tileDetail(defaultTile * zoom, renderMode) === "coarse";
+	const bgCoarse = tileDetail(defaultTile * zoom, renderMode, cfg.fullDetailMinPx) === "coarse";
 	// Match painted tiles: wobble the empty background + grid too at full detail.
 	const bgWobble = cfg.lineStyle === "wobble" && !bgCoarse;
 
@@ -258,7 +259,7 @@ export function groundMarkup(
 		const baseGen = resolveBaseGen(seededTm?.baseGen);
 		// Overrides for the sampler (several tilemaps merge deterministically by id).
 		const merged: Cells = mergeTilemapCells(tilemaps);
-		const detail = tileDetail(defaultTile * zoom, renderMode);
+		const detail = tileDetail(defaultTile * zoom, renderMode, cfg.fullDetailMinPx);
 		const body =
 			detail === "full"
 				? infiniteFullMarkup(
@@ -288,7 +289,7 @@ export function groundMarkup(
 		const tile = Number(tm.tile);
 		if (!Number.isFinite(tile) || tile <= 0) continue;
 		const screenTilePx = tile * zoom;
-		const detail = tileDetail(screenTilePx, renderMode);
+		const detail = tileDetail(screenTilePx, renderMode, cfg.fullDetailMinPx);
 		// Wobble only pays off (and is only visible) at full detail.
 		const body =
 			detail === "full"

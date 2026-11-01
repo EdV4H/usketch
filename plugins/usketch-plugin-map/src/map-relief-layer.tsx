@@ -8,21 +8,19 @@ import type { BoardStore, RenderMode } from "@edv4h/usketch-shared";
 import { type CSSProperties, memo, useEffect, useMemo, useRef, useState } from "react";
 import { cellKey } from "./autotile.js";
 import type { TerrainSampler } from "./base-terrain.js";
-import { inChunkRange, parseChunkKey } from "./chunk-plan.js";
-import { CELL_LINE, isKnownTerrain } from "./ground-markup.js";
+import { type ChunkRange, inChunkRange, parseChunkKey } from "./chunk-plan.js";
+import { CELL_LINE, type CellRange, isKnownTerrain } from "./ground-markup.js";
 import { tileDetail } from "./lod.js";
 import { CHUNK_CELLS, groundChunkRanges, visibleCellRange, visibleWorldRect } from "./map-layer.js";
 import { terrainCssVars } from "./palette.js";
 import type { ReactiveStore } from "./reactive-store.js";
-import { renderConfigStore } from "./render-config.js";
+import { DEFAULT_RELIEF_EDGE_INSET, renderConfigStore } from "./render-config.js";
 import { type TerrainKey, terrainDarkVar, terrainPatternId } from "./terrain.js";
 import { boardTerrainSampler, LEVEL_HEIGHT, terrainLevel } from "./terrain-height.js";
 import { useChunkPlan } from "./use-chunk-plan.js";
 
 export const RELIEF_LAYER_ID = "usketch-map:relief";
 
-/** Cells left flat along the edge of the drawn terrain (see the render). */
-const EDGE_INSET = 2;
 /** Step (cells) the relief's on-screen extent moves in. */
 const REGION_STEP = 4;
 /** Shown only while the Mode 7 stage is on (the attribute it sets on the canvas). */
@@ -162,6 +160,38 @@ export function wallStyle(w: ReliefWall, tile: number, zoom: number): CSSPropert
 	}
 }
 
+/**
+ * The cells the relief covers (inclusive): the cells of `view` in steps of a few cells,
+ * kept `edgeInset` cells inside the drawn ground (its `need` chunks) — raised faces on
+ * its very edge would stick up past where the ground ends and float against the sky.
+ * Only the chunks on this edge are clipped, so only they are rebuilt as it moves. A
+ * non-finite or negative inset counts as the default. Pure.
+ */
+export function reliefCellRange(
+	ground: ChunkRange,
+	view: CellRange,
+	edgeInset: number = DEFAULT_RELIEF_EDGE_INSET,
+): CellRange {
+	const inset =
+		Number.isFinite(edgeInset) && edgeInset >= 0
+			? Math.floor(edgeInset)
+			: DEFAULT_RELIEF_EDGE_INSET;
+	// First / last covered cell along an axis, from the ground's first / last chunk and
+	// the first / last cell of the view.
+	const lo = (chunk: number, cell: number) =>
+		Math.max(chunk * CHUNK_CELLS, Math.floor(cell / REGION_STEP) * REGION_STEP) + inset;
+	const hi = (chunk: number, cell: number) =>
+		Math.min((chunk + 1) * CHUNK_CELLS, Math.ceil((cell + 1) / REGION_STEP) * REGION_STEP) -
+		1 -
+		inset;
+	return {
+		c0: lo(ground.cx0, view.c0),
+		c1: hi(ground.cx1, view.c1),
+		r0: lo(ground.cy0, view.r0),
+		r1: hi(ground.cy1, view.r1),
+	};
+}
+
 export function MapReliefLayer({
 	store,
 	renderMode,
@@ -204,36 +234,22 @@ export function MapReliefLayer({
 	const zoom = vp.zoom;
 	const cfg = renderConfigStore.get();
 	// Zoomed out the terrain itself drops to flat coarse blocks; so does the relief.
-	const on = stage.get().active && tileDetail(tile * zoom, renderMode) === "full";
-	// Drawn chunk by chunk like the ground, over the on-screen rect (no overscan); chunks
-	// about to come into view are built a chunk per frame and stay hidden until they do.
-	const visible = on ? visibleWorldRect(store) : null;
+	const on =
+		stage.get().active && tileDetail(tile * zoom, renderMode, cfg.fullDetailMinPx) === "full";
+	// Drawn chunk by chunk like the ground, over the on-screen rect — or the ground's whole
+	// overscanned rect with `reliefOverscan`; chunks about to come into view are built a
+	// chunk per frame and stay hidden until they do.
+	const groundOverscanPx = overscan?.get().px ?? 0;
+	const visible = on ? visibleWorldRect(store, cfg.reliefOverscan ? groundOverscanPx : 0) : null;
 	const ranges = on ? groundChunkRanges(visible, tile) : null;
 	const chunks = useChunkPlan(ranges, 1);
 	const sampler = on ? boardTerrainSampler(store) : null;
 	const ground = on
-		? groundChunkRanges(visibleWorldRect(store, overscan?.get().px ?? 0), tile)?.need
+		? groundChunkRanges(visibleWorldRect(store, groundOverscanPx), tile)?.need
 		: null;
 	const view = visibleCellRange(visible, tile);
 	if (!sampler || !ranges || !ground || !view || chunks.length === 0) return null;
-	// The cells the relief covers: the on-screen ones in steps of a few cells, kept a couple
-	// of cells inside the drawn ground — raised faces on its very edge would stick up past
-	// where the ground ends and float against the sky. Only the chunks on this edge are
-	// clipped, so only they are rebuilt as it moves.
-	// First / last covered cell along an axis, from the ground's first / last chunk and
-	// the first / last on-screen cell.
-	const lo = (chunk: number, cell: number) =>
-		Math.max(chunk * CHUNK_CELLS, Math.floor(cell / REGION_STEP) * REGION_STEP) + EDGE_INSET;
-	const hi = (chunk: number, cell: number) =>
-		Math.min((chunk + 1) * CHUNK_CELLS, Math.ceil((cell + 1) / REGION_STEP) * REGION_STEP) -
-		1 -
-		EDGE_INSET;
-	const inner = {
-		c0: lo(ground.cx0, view.c0),
-		c1: hi(ground.cx1, view.c1),
-		r0: lo(ground.cy0, view.r0),
-		r1: hi(ground.cy1, view.r1),
-	};
+	const inner = reliefCellRange(ground, view, cfg.reliefEdgeInset);
 
 	return (
 		<div
