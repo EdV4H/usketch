@@ -13,6 +13,8 @@ export interface MoveInput {
 	right: boolean;
 	/** Vehicle: the drift key (only acts when drift is enabled). */
 	drift?: boolean;
+	/** The drift key was pressed since the previous step (an edge: starts a drift hop). */
+	driftPressed?: boolean;
 	/** The jump key is held (a release while rising cuts the jump short). */
 	jump?: boolean;
 	/** The jump key was pressed since the previous step (an edge, so a quick tap counts). */
@@ -65,6 +67,13 @@ export interface CharacterPose {
 	vz: number;
 	/** Whether the character is in the air (jumping or falling). */
 	airborne: boolean;
+	/** Hovering: the jump key held while falling slows the descent (see `HoverParams`). */
+	hovering: boolean;
+	/**
+	 * Hover gauge, 0 (empty) … 1 (full): drains while hovering, refills on the ground.
+	 * Stays 1 while hovering is off.
+	 */
+	hoverGauge: number;
 }
 
 /** A pose at rest at the origin, facing up. */
@@ -80,6 +89,8 @@ export const ORIGIN_POSE: CharacterPose = {
 	z: 0,
 	vz: 0,
 	airborne: false,
+	hovering: false,
+	hoverGauge: 1,
 };
 
 export interface MotionParams {
@@ -131,6 +142,13 @@ export interface DriftParams {
 	steerSlipAngle: number;
 	/** How fast the slip follows its target (1/s, exponential). */
 	recoveryRate: number;
+	/**
+	 * Pressing the drift key on the ground hops first (a small jump; the drift starts on
+	 * landing if still held and steering, since a car can't steer in the air).
+	 */
+	hop: boolean;
+	/** Height of that hop, world units. */
+	hopHeight: number;
 }
 
 export const DEFAULT_DRIFT: DriftParams = {
@@ -141,6 +159,8 @@ export const DEFAULT_DRIFT: DriftParams = {
 	slipAngle: 28,
 	steerSlipAngle: 8,
 	recoveryRate: 8,
+	hop: false,
+	hopHeight: 10,
 };
 
 /** Unit vector of a heading in world space (0° → (0, -1), 90° → (1, 0)). */
@@ -230,6 +250,8 @@ export function stepCharacter(
 			z: pose.z,
 			vz: pose.vz,
 			airborne: pose.airborne,
+			hovering: pose.hovering,
+			hoverGauge: pose.hoverGauge,
 		};
 	}
 
@@ -273,6 +295,8 @@ export function stepCharacter(
 		z: pose.z,
 		vz: pose.vz,
 		airborne: pose.airborne,
+		hovering: pose.hovering,
+		hoverGauge: pose.hoverGauge,
 	};
 }
 
@@ -321,7 +345,44 @@ export interface JumpParams {
 	coyoteTime: number;
 	/** Seconds a press just before landing is remembered and jumps on touchdown. */
 	bufferTime: number;
+	/** Extra jumps in the air (0 = a single jump, 1 = a double jump …), reset on landing. */
+	airJumps: number;
+	/** An air jump's height as a fraction of `height` (its take-off speed is × √ratio). */
+	airJumpRatio: number;
+	/** Hovering while the key is held in a fall, or `null` = off. */
+	hover: HoverParams | null;
 }
+
+/**
+ * Hover tuning. Once the air jumps are used up (or there are none), holding the jump key
+ * while falling fires a thrust and drains a gauge; an empty gauge falls normally. The
+ * gauge refills on the ground over `rechargeTime` (not instantly on landing).
+ *
+ * The thrust is a multiple of gravity (a thrust-to-weight ratio, so no mass is needed):
+ * below 1 the character still sinks, at 1 it keeps its vertical speed, above 1 it climbs
+ * for as long as the key is held. Sinking is capped at `fallSpeed`, climbing at
+ * `riseSpeed`.
+ */
+export interface HoverParams {
+	/** Seconds of hover a full gauge lasts. */
+	duration: number;
+	/** Fastest descent while hovering, world units / s (0 = never sink). */
+	fallSpeed: number;
+	/** Seconds on the ground to refill an empty gauge. */
+	rechargeTime: number;
+	/** Thrust as a multiple of gravity: < 1 sinks, 1 balances, > 1 climbs. */
+	thrust: number;
+	/** Fastest climb while hovering, world units / s. */
+	riseSpeed: number;
+}
+
+export const DEFAULT_HOVER: HoverParams = {
+	duration: 1.5,
+	fallSpeed: 15,
+	rechargeTime: 0.8,
+	thrust: 0,
+	riseSpeed: 60,
+};
 
 export const DEFAULT_JUMP: JumpParams = {
 	height: 40,
@@ -330,6 +391,9 @@ export const DEFAULT_JUMP: JumpParams = {
 	releaseCut: 0.5,
 	coyoteTime: 0.1,
 	bufferTime: 0.1,
+	airJumps: 0,
+	airJumpRatio: 0.8,
+	hover: null,
 };
 
 /** Gravity (world units / s²) and take-off speed (world units / s) of a jump. */
@@ -348,6 +412,8 @@ export interface JumpTimers {
 	jumped: boolean;
 	/** The rise has been cut short already (the key was released). */
 	cut: boolean;
+	/** Air jumps used since the character last stood on the ground. */
+	airJumpsUsed: number;
 }
 
 export const IDLE_JUMP: JumpTimers = {
@@ -355,6 +421,7 @@ export const IDLE_JUMP: JumpTimers = {
 	sincePress: Number.POSITIVE_INFINITY,
 	jumped: false,
 	cut: false,
+	airJumpsUsed: 0,
 };
 
 /**
@@ -366,6 +433,14 @@ export const IDLE_JUMP: JumpTimers = {
  *   fall instead of snapping down.
  * - With `jump` tuning, a press (or one buffered for `bufferTime`) jumps from the ground
  *   or within `coyoteTime` of leaving it; releasing the key while rising cuts the jump.
+ * - A fresh press in the air uses one of the `airJumps` while any remain (`airJumpRatio`
+ *   of the height); they come back on landing.
+ * - With `hover` tuning, once the air jumps are used up, holding the key while falling
+ *   hovers: the thrust pushes against gravity (see `hoverSpeed`) while the gauge drains,
+ *   and it keeps firing while the key stays held, also once it climbs; an empty gauge
+ *   falls normally. On the ground the gauge refills over `rechargeTime`.
+ * - A `hopHeight` above 0 (a vehicle's drift hop) makes a drift-key press on the ground
+ *   hop that high, under the same gravity.
  * - In the air, gravity pulls the feet down (`fallGravity` × while falling) until they
  *   meet the ground. Without `jump` the default arc's gravity still drives falls.
  */
@@ -377,10 +452,12 @@ export function stepVertical(
 	ground: number,
 	maxStep: number,
 	jump: JumpParams | null,
+	hopHeight = 0,
 ): { pose: CharacterPose; timers: JumpTimers } {
 	if (dt <= 0) return { pose, timers };
-	let { z, vz, airborne } = pose;
-	let { sinceGround, sincePress, jumped, cut } = timers;
+	let { z, vz, airborne, hoverGauge } = pose;
+	let hovering = false;
+	let { sinceGround, sincePress, jumped, cut, airJumpsUsed } = timers;
 
 	if (!airborne) {
 		if (z - ground > Math.max(0, maxStep)) {
@@ -390,6 +467,7 @@ export function stepVertical(
 			z = ground;
 			jumped = false; // e.g. teleported mid-jump
 			cut = false;
+			airJumpsUsed = 0;
 		}
 	} else if (z < ground) {
 		z = ground; // reached a ledge within the step mid-air: stand on its edge
@@ -397,6 +475,14 @@ export function stepVertical(
 	sinceGround = airborne ? sinceGround + dt : 0;
 
 	const arc = jumpArc(jump ?? DEFAULT_JUMP);
+	if (hopHeight > 0 && input.driftPressed && !airborne) {
+		// A drift hop: spends the ground jump (no coyote jump after it), never cut short.
+		airborne = true;
+		vz = Math.sqrt(2 * arc.gravity * hopHeight);
+		jumped = true;
+		cut = true;
+	}
+	const hover = jump?.hover ?? null;
 	if (jump) {
 		sincePress = input.jumpPressed ? 0 : sincePress + dt;
 		const fromGround = !airborne || (!jumped && sinceGround <= jump.coyoteTime);
@@ -406,40 +492,112 @@ export function stepVertical(
 			jumped = true;
 			cut = false;
 			sincePress = Number.POSITIVE_INFINITY;
+		} else if (input.jumpPressed && airborne && airJumpsUsed < Math.max(0, jump.airJumps)) {
+			vz = airJumpSpeed(arc.speed, jump.airJumpRatio);
+			airJumpsUsed++;
+			jumped = true;
+			cut = false;
+			sincePress = Number.POSITIVE_INFINITY;
 		} else if (jumped && !cut && vz > 0 && !input.jump) {
 			vz *= Math.min(1, Math.max(0, jump.releaseCut));
 			cut = true;
 		}
+		// Hover: the air jumps used up, the key held, falling (or already hovering: a thrust
+		// above gravity climbs), and gauge left.
+		hovering =
+			hover !== null &&
+			airborne &&
+			airJumpsUsed >= Math.max(0, jump.airJumps) &&
+			input.jump === true &&
+			(vz <= 0 || pose.hovering) &&
+			hoverGauge > 0;
 	} else {
 		sincePress = Number.POSITIVE_INFINITY;
 	}
 
-	if (airborne) {
+	if (hovering && hover) {
+		vz = hoverSpeed(vz, dt, arc.gravity, hover);
+		z += vz * dt;
+		hoverGauge = drainHoverGauge(hoverGauge, dt, hover);
+	} else if (airborne) {
 		const gravity = vz > 0 ? arc.gravity : arc.gravity * (jump ?? DEFAULT_JUMP).fallGravity;
 		vz -= gravity * dt;
 		z += vz * dt;
-		if (z <= ground) {
-			z = ground;
-			vz = 0;
-			airborne = false;
-			jumped = false;
-			cut = false;
-			sinceGround = 0;
-		}
 	}
+	if (airborne && z <= ground) {
+		z = ground;
+		vz = 0;
+		airborne = false;
+		hovering = false;
+		jumped = false;
+		cut = false;
+		airJumpsUsed = 0;
+		sinceGround = 0;
+	}
+	// The gauge refills only on the ground; with hover off it stays full.
+	if (!hover) hoverGauge = 1;
+	else if (!airborne) hoverGauge = rechargeHoverGauge(hoverGauge, dt, hover);
 
 	const nextTimers =
 		sinceGround === timers.sinceGround &&
 		sincePress === timers.sincePress &&
 		jumped === timers.jumped &&
-		cut === timers.cut
+		cut === timers.cut &&
+		airJumpsUsed === timers.airJumpsUsed
 			? timers
-			: { sinceGround, sincePress, jumped, cut };
+			: { sinceGround, sincePress, jumped, cut, airJumpsUsed };
 	const nextPose =
-		z === pose.z && vz === pose.vz && airborne === pose.airborne
+		z === pose.z &&
+		vz === pose.vz &&
+		airborne === pose.airborne &&
+		hovering === pose.hovering &&
+		hoverGauge === pose.hoverGauge
 			? pose
-			: { ...pose, z, vz, airborne };
+			: { ...pose, z, vz, airborne, hovering, hoverGauge };
 	return { pose: nextPose, timers: nextTimers };
+}
+
+/**
+ * The input for the horizontal step on a frame that may start a drift hop: the press
+ * that hops doesn't also start the drift (it would carry through the air), so the drift
+ * begins on landing if the key is still held and steering.
+ */
+export function holdDriftForHop(
+	input: MoveInput,
+	pose: CharacterPose,
+	hopHeight: number,
+): MoveInput {
+	return hopHeight > 0 && input.driftPressed && !pose.airborne && input.drift
+		? { ...input, drift: false }
+		: input;
+}
+
+/** An air jump's take-off speed: the same gravity reaches `ratio` × the height. */
+export function airJumpSpeed(takeoffSpeed: number, ratio: number): number {
+	return takeoffSpeed * Math.sqrt(Math.max(0, Number.isFinite(ratio) ? ratio : 0));
+}
+
+/**
+ * The vertical speed after `dt` seconds of hovering from `vz`: the thrust (× `gravity`)
+ * against gravity, so the speed changes by (thrust − 1) × gravity per second, kept
+ * between −`fallSpeed` (a faster fall is caught at once) and `riseSpeed`.
+ */
+export function hoverSpeed(vz: number, dt: number, gravity: number, hover: HoverParams): number {
+	const thrust = Number.isFinite(hover.thrust) ? Math.max(0, hover.thrust) : 0;
+	const next = vz + (thrust - 1) * gravity * dt;
+	return Math.min(Math.max(0, hover.riseSpeed), Math.max(-Math.max(0, hover.fallSpeed), next));
+}
+
+/** The hover gauge after `dt` seconds of hovering (a full gauge lasts `duration`). */
+export function drainHoverGauge(gauge: number, dt: number, hover: HoverParams): number {
+	if (!(hover.duration > 0)) return 0;
+	return Math.max(0, gauge - dt / hover.duration);
+}
+
+/** The hover gauge after `dt` seconds on the ground (empty → full in `rechargeTime`). */
+export function rechargeHoverGauge(gauge: number, dt: number, hover: HoverParams): number {
+	if (!(hover.rechargeTime > 0)) return 1;
+	return Math.min(1, gauge + dt / hover.rechargeTime);
 }
 
 /** Vehicle speed after a step of throttle (1), reverse (-1) or coasting (0). */

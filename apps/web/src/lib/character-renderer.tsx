@@ -1,8 +1,9 @@
 // The demo app's look for the character plugin (the plugin itself draws nothing).
 // A top-down "pawn" (round body + nose showing the facing) or, with
 // `appearance.kind === "car"`, a small top-down car. Both turn by `screenHeading`;
-// the name label stays upright underneath. `renderCharacterShadow` is the round
-// shadow left on the ground under a jumping character.
+// the name label stays upright underneath. While hovering a glow shows at the feet, and
+// a small ring beside the body shows the hover gauge (only while hovering or refilling).
+// `renderCharacterShadow` is the round shadow left on the ground under a jumping character.
 import type { CharacterAppearance, CharacterRenderProps } from "@edv4h/usketch-plugin-character";
 
 /** Stable hue per user so each player keeps a recognizable color. */
@@ -56,9 +57,69 @@ function Car({ color }: { color: string }) {
 	);
 }
 
+/** Hover glow at the feet: a soft cyan ring with a few "wind" strokes. */
+function HoverGlow() {
+	return (
+		<svg
+			width={SIZE * 1.4}
+			height={SIZE * 0.6}
+			viewBox="-25 -11 50 22"
+			aria-hidden="true"
+			style={{
+				position: "absolute",
+				left: "50%",
+				top: SIZE * 0.72,
+				transform: "translateX(-50%)",
+				pointerEvents: "none",
+			}}
+		>
+			<ellipse rx={20} ry={7} fill="rgba(120, 220, 255, 0.28)" />
+			<ellipse rx={14} ry={4.5} fill="none" stroke="rgba(200, 245, 255, 0.9)" strokeWidth={1.5} />
+			<path
+				d="M-9 3 L-11 9 M0 4 L0 10 M9 3 L11 9"
+				stroke="rgba(200, 245, 255, 0.8)"
+				strokeWidth={1.5}
+				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}
+
+const GAUGE_R = 6;
+const GAUGE_LEN = 2 * Math.PI * GAUGE_R;
+
+/** The hover gauge: a small ring beside the body, green → amber → red as it empties. */
+function HoverGauge({ value }: { value: number }) {
+	const v = Math.min(1, Math.max(0, value));
+	const color = v > 0.5 ? "#4ade80" : v > 0.2 ? "#fbbf24" : "#f87171";
+	return (
+		<svg
+			width={16}
+			height={16}
+			viewBox="-8 -8 16 16"
+			aria-hidden="true"
+			style={{ position: "absolute", left: SIZE - 2, top: -4, pointerEvents: "none" }}
+		>
+			<circle r={GAUGE_R} fill="rgba(0,0,0,0.45)" stroke="rgba(255,255,255,0.35)" strokeWidth={2} />
+			<circle
+				r={GAUGE_R}
+				fill="none"
+				stroke={color}
+				strokeWidth={2.5}
+				strokeLinecap="round"
+				strokeDasharray={`${GAUGE_LEN * v} ${GAUGE_LEN}`}
+				transform="rotate(-90)"
+			/>
+		</svg>
+	);
+}
+
 export function renderCharacter(props: CharacterRenderProps) {
 	const color = typeof props.appearance.color === "string" ? props.appearance.color : "#4a7cff";
 	const body = props.appearance.kind === "car" ? <Car color={color} /> : <Pawn color={color} />;
+	// The gauge only while it matters: hovering, or refilling after a hover.
+	const gauge =
+		props.hoverGauge !== null && (props.hovering || props.hoverGauge < 1) ? props.hoverGauge : null;
 	return (
 		<div
 			style={{
@@ -68,9 +129,11 @@ export function renderCharacter(props: CharacterRenderProps) {
 				filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))",
 			}}
 		>
+			{props.hovering && <HoverGlow />}
 			<div style={{ transform: `rotate(${props.screenHeading}deg)`, width: SIZE, height: SIZE }}>
 				{body}
 			</div>
+			{gauge !== null && <HoverGauge value={gauge} />}
 			{props.name && (
 				<div
 					style={{

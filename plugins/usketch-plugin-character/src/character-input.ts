@@ -8,10 +8,13 @@ import type { CharacterKeys } from "./character-types.js";
 
 export interface KeyInput {
 	/**
-	 * The currently held directions (and the drift / jump keys). `jumpPressed` reports
-	 * a jump press since the previous `read()`, so a tap between two frames isn't lost.
+	 * The currently held directions (and the drift / jump keys). `jumpPressed` /
+	 * `driftPressed` report a press since the previous `read()`, so a tap between two
+	 * frames isn't lost.
 	 */
 	read(): MoveInput;
+	/** The current key bindings. */
+	getKeys(): CharacterKeys;
 	/** Whether any bound key is held. */
 	anyHeld(): boolean;
 	/** Replace the key bindings (held state is cleared). */
@@ -185,6 +188,9 @@ export function createKeyInput(
 	/** Held codes that act as the jump key (bound when pressed, so a rebind can't strand one). */
 	const jumpHeld = new Set<string>();
 	let jumpPressed = false;
+	/** Held codes that act as the drift key (as for the jump). */
+	const driftHeld = new Set<string>();
+	let driftPressed = false;
 
 	const directionOf = (code: string): keyof CharacterKeys | null => {
 		for (const dir of ["up", "down", "left", "right"] as const) {
@@ -213,6 +219,9 @@ export function createKeyInput(
 			// Auto-repeat keydowns are not new presses.
 			if (!e.repeat && !jumpHeld.has(e.code)) jumpPressed = true;
 			jumpHeld.add(e.code);
+		} else if (dir === "drift") {
+			if (!e.repeat && !driftHeld.has(e.code)) driftPressed = true;
+			driftHeld.add(e.code);
 		}
 		e.preventDefault();
 		e.stopImmediatePropagation();
@@ -220,6 +229,7 @@ export function createKeyInput(
 
 	const release = (code: string): boolean => {
 		jumpHeld.delete(code);
+		driftHeld.delete(code);
 		return held.delete(code);
 	};
 
@@ -233,6 +243,8 @@ export function createKeyInput(
 		held.clear();
 		jumpHeld.clear();
 		jumpPressed = false;
+		driftHeld.clear();
+		driftPressed = false;
 	};
 	const onVisibility = (): void => {
 		if (typeof document !== "undefined" && document.hidden) clear();
@@ -269,6 +281,8 @@ export function createKeyInput(
 		read: () => {
 			const pressed = jumpPressed;
 			jumpPressed = false;
+			const drifted = driftPressed && isDriftActive();
+			driftPressed = false;
 			return {
 				up: isHeld("up"),
 				down: isHeld("down"),
@@ -278,8 +292,10 @@ export function createKeyInput(
 				drift: isDriftActive() && isHeld("drift"),
 				jump: jumpHeld.size > 0,
 				jumpPressed: pressed,
+				driftPressed: drifted,
 			};
 		},
+		getKeys: () => keys,
 		anyHeld: () => held.size > 0,
 		setKeys(next) {
 			// Rebinding movement keeps the drift / jump keys unless given (`[]` unbinds).

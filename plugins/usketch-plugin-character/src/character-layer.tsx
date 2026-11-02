@@ -8,7 +8,7 @@
 import { type Viewport, viewportRotation, worldToScreen, wrapDeg } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import type { HeightAt } from "./character-physics.js";
-import type { CharacterStore } from "./character-store.js";
+import { type CharacterStore, hoverGaugeOf } from "./character-store.js";
 import type { CharacterRenderer, CharacterRenderProps } from "./character-types.js";
 
 /** Screen px a shadow floats above its ground, so it doesn't z-fight a raised terrain top. */
@@ -92,6 +92,8 @@ export function CharacterLayer({
 				altitude: z - elevation,
 				airborne: r.airborne,
 				verticalSpeed: r.vz,
+				hovering: r.hovering,
+				hoverGauge: r.hoverGauge,
 			},
 		});
 	}
@@ -121,6 +123,8 @@ export function CharacterLayer({
 				altitude: z - elevation,
 				airborne: pose.airborne,
 				verticalSpeed: pose.vz,
+				hovering: pose.hovering,
+				hoverGauge: hoverGaugeOf(state),
 			},
 		});
 	}

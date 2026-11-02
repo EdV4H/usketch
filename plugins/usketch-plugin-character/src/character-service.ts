@@ -10,7 +10,7 @@ import type {
 	MotionParams,
 } from "./character-physics.js";
 import type { CharacterRuntime } from "./character-runtime.js";
-import type { CharacterStore } from "./character-store.js";
+import type { CharacterStore, JumpInit } from "./character-store.js";
 import type {
 	CharacterAppearance,
 	CharacterKeys,
@@ -45,7 +45,7 @@ export interface CharacterApi {
 	/** Jump tuning, or `null` when jumping is off. */
 	getJump(): JumpParams | null;
 	/** `true` = on (current or default tuning), `false` = off, an object = tuning overrides. */
-	setJump(jump: boolean | Partial<JumpParams>): void;
+	setJump(jump: boolean | JumpInit): void;
 	/** Jump now, as if the jump key were pressed and held (no-op while off or disabled). */
 	jump(): void;
 	/** Screen anchor as canvas fractions (0..1). */
@@ -56,6 +56,8 @@ export interface CharacterApi {
 	setFollowSmoothing(value: number): void;
 	/** Replace the key bindings (`KeyboardEvent.code` values; omitted `drift` / `jump` are kept). */
 	setKeys(keys: CharacterKeys): void;
+	/** The current key bindings. */
+	getKeys(): CharacterKeys;
 	/**
 	 * Drive with a non-keyboard control (an on-screen stick, a gamepad …): analog
 	 * `throttle` / `steer` (-1 … 1) and the `drift` button, combined with the held keys.
@@ -105,6 +107,7 @@ export function createCharacterApi(store: CharacterStore, runtime: CharacterRunt
 		getFollowSmoothing: () => store.getState().followSmoothing,
 		setFollowSmoothing: (v) => store.setFollowSmoothing(v),
 		setKeys: (keys) => runtime.setKeys(keys),
+		getKeys: () => runtime.getKeys(),
 		setVirtualInput: (input) => runtime.setVirtualInput(input),
 		getVirtualInput: () => runtime.getVirtualInput(),
 		setRenderer: (r) => store.setRenderer(r),

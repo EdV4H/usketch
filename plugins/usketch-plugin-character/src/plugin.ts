@@ -5,10 +5,10 @@
 // awareness. The plugin draws NOTHING itself — pass `renderCharacter` for the look.
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import type { CameraMode } from "./character-camera.js";
-import type { ControlScheme, DriftParams, JumpParams, MotionParams } from "./character-physics.js";
+import type { ControlScheme, DriftParams, MotionParams } from "./character-physics.js";
 import { setupCharacterRuntime } from "./character-runtime.js";
 import { characterService, createCharacterApi } from "./character-service.js";
-import { createCharacterStore } from "./character-store.js";
+import { createCharacterStore, type JumpInit } from "./character-store.js";
 import type { CharacterAwareness } from "./character-sync.js";
 import {
 	type CharacterAppearance,
@@ -49,9 +49,10 @@ export interface CharacterPluginOptions {
 	drift?: boolean | Partial<DriftParams>;
 	/**
 	 * Press the jump key (Space) to jump: hop over cliffs taller than `motion.maxStep`.
-	 * `true` = default tuning, an object = overrides. Default off.
+	 * `true` = default tuning, an object = overrides (`airJumps` for multi-jumps, `hover:
+	 * true` / a partial to hover while the key is held in a fall). Default off.
 	 */
-	jump?: boolean | Partial<JumpParams>;
+	jump?: boolean | JumpInit;
 	/** Where the character sits on screen, as canvas fractions (default center). */
 	screenAnchor?: { x?: number; y?: number };
 	/** Follow-camera lag: 0 = rigid (default) … 0.99 = heavy. */

@@ -4,7 +4,7 @@
 // disconnects — which is exactly the "coexisting live characters" semantics.
 // Typed structurally so the plugin doesn't depend on @edv4h/usketch-sync.
 import { wrapDeg } from "@edv4h/usketch-shared";
-import type { CharacterStore } from "./character-store.js";
+import { type CharacterStore, hoverGaugeOf } from "./character-store.js";
 import type { CharacterAppearance, RemoteCharacter } from "./character-types.js";
 
 /** The slice of a y-protocols `Awareness` this plugin uses. */
@@ -37,9 +37,16 @@ export interface CharacterWireState {
 	airborne?: boolean;
 	/** Vertical speed (absent → 0). */
 	vz?: number;
+	/** Hovering (absent → false). */
+	hovering?: boolean;
+	/** Hover gauge 0 … 1, `null` with hovering off (absent → null). */
+	hoverGauge?: number | null;
 	appearance: CharacterAppearance;
 	name?: string;
 }
+
+/** Steps the hover gauge is published in, so a refilling gauge doesn't publish every frame. */
+const WIRE_GAUGE_STEP = 0.05;
 
 /** The largest slip accepted from the wire, degrees. */
 const MAX_WIRE_SLIP = 90;
@@ -71,6 +78,8 @@ export function parseWireState(v: unknown): Omit<RemoteCharacter, "id"> | null {
 		z: num("z"),
 		airborne: o.airborne === true,
 		vz: num("vz") ?? 0,
+		hovering: o.hovering === true,
+		hoverGauge: ((g) => (g === null ? null : clamp(g, 0, 1)))(num("hoverGauge")),
 		appearance,
 		name: typeof o.name === "string" ? o.name : undefined,
 	};
@@ -101,6 +110,7 @@ export function createCharacterSync(
 		const s = store.getState();
 		const t = now();
 		if (!force && t - lastSent < BROADCAST_INTERVAL_MS) return;
+		const gauge = hoverGaugeOf(s);
 		const wire: CharacterWireState | null = s.enabled
 			? {
 					x: s.pose.x,
@@ -115,6 +125,8 @@ export function createCharacterSync(
 					z: s.pose.z,
 					airborne: s.pose.airborne,
 					vz: s.pose.vz,
+					hovering: s.pose.hovering,
+					hoverGauge: gauge === null ? null : Math.round(gauge / WIRE_GAUGE_STEP) * WIRE_GAUGE_STEP,
 					appearance: s.appearance,
 					name: s.name,
 				}

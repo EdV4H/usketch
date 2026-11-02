@@ -44,6 +44,13 @@ export interface CharacterRenderProps {
 	airborne: boolean;
 	/** Vertical speed, world units / s (positive = rising), e.g. for a rise / fall pose. */
 	verticalSpeed: number;
+	/** Hovering (the jump key held in a fall), e.g. for flapping or a glow at the feet. */
+	hovering: boolean;
+	/**
+	 * Hover gauge, 0 (empty) … 1 (full) — drains while hovering, refills on the ground — or
+	 * `null` while hovering is off (also from clients that don't send it).
+	 */
+	hoverGauge: number | null;
 }
 
 /**
@@ -68,6 +75,10 @@ export interface RemoteCharacter {
 	airborne: boolean;
 	/** Vertical speed as last sent (0 from older clients). */
 	vz: number;
+	/** Hovering as last sent (false from older clients). */
+	hovering: boolean;
+	/** Hover gauge 0 … 1, or `null` with hovering off / from older clients. */
+	hoverGauge: number | null;
 	appearance: CharacterAppearance;
 	name?: string;
 }
@@ -78,11 +89,11 @@ export interface CharacterKeys {
 	down: string[];
 	left: string[];
 	right: string[];
-	/** Vehicle drift key. Only captured while the vehicle scheme has drift on. */
+	/** Vehicle drift key (default Shift). Only captured while the vehicle scheme has drift on. */
 	drift?: string[];
 	/**
-	 * Jump key. Only captured while jumping is on. Where it shares a key with an active
-	 * drift (both default to Space), the drift wins.
+	 * Jump key (default Space). Only captured while jumping is on. Where it shares a key
+	 * with an active drift, the drift wins.
 	 */
 	jump?: string[];
 }
@@ -92,6 +103,6 @@ export const DEFAULT_KEYS: CharacterKeys = {
 	down: ["KeyS"],
 	left: ["KeyA"],
 	right: ["KeyD"],
-	drift: ["Space"],
+	drift: ["ShiftLeft", "ShiftRight"],
 	jump: ["Space"],
 };
