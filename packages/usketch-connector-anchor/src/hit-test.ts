@@ -46,13 +46,15 @@ export function findShapeAtPoint(
 ): ShapeData | null {
 	const exclude = options?.excludeTypes;
 	const shapeMap = ctx.store.getShapes();
-	const ordered: ShapeData[] = ctx.store.getShapesSorted
-		? [...ctx.store.getShapesSorted()].reverse()
-		: [...shapeMap.values()].reverse();
+	// Walk front to back without copying: this runs on every pointermove (the
+	// connector plugin's anchor-handle hover), so avoid an O(n) array copy + reverse.
+	const ordered: readonly ShapeData[] = ctx.store.getShapesSorted
+		? ctx.store.getShapesSorted()
+		: [...shapeMap.values()];
 	// A hidden/locked shape (or one under a hidden/locked ancestor) is not a valid
 	// anchor target — mirrors the engine-wide interaction rule. Memoized per shape
-	// id (siblings reuse a parent's result) since this runs in a hot pointer path;
-	// the cache is pre-seeded before recursing so a parentId cycle terminates.
+	// id (siblings reuse a parent's result); the cache is pre-seeded before
+	// recursing so a parentId cycle terminates.
 	const blockedCache = new Map<string, boolean>();
 	// `viaAncestor`: only hidden / cascading locks (not `lockScope: "self"`) block descendants.
 	const isBlocked = (data: ShapeData, viaAncestor = false): boolean => {
@@ -70,11 +72,14 @@ export function findShapeAtPoint(
 		return result;
 	};
 	let fallbackContainer: ShapeData | null = null;
-	for (const data of ordered) {
+	for (let i = ordered.length - 1; i >= 0; i--) {
+		const data = ordered[i];
 		if (exclude?.has(data.type)) continue;
-		if (isBlocked(data)) continue;
 		const def = ctx.shapes.get(data.type);
 		if (!def?.hitTest(data, point)) continue;
+		// Checked after the hit-test: for a child shape this walks its ancestor
+		// chain, so only pay for it on shapes actually under the point.
+		if (isBlocked(data)) continue;
 		if (isShapeContainer(def, data)) {
 			if (!fallbackContainer) fallbackContainer = data;
 			continue;
