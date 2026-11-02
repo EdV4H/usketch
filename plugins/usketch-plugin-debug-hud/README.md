@@ -24,6 +24,21 @@ appears on toggle).
   an action.
 - **Default style / Clear canvas** — edit `store` default style; batch-delete.
 
+### Navigating many plugins
+
+Each plugin with HUD contributions gets its own section. With dozens of
+plugins the dock would be a long scroll, so:
+
+- Plugin sections start **collapsed**; the header shows how many controls each
+  holds. ⊟ in the dock header collapses every plugin section at once.
+- **☆ / ★ pins** a plugin: pinned sections move to a "Pinned" group at the top
+  (in pin order) and open automatically.
+- Open / pinned state persists in `localStorage` (`usketch-debug-hud-dock`).
+- The search box (sticky at the top, `Esc` clears) matches plugin name / id,
+  action label / group / id, settings label / field names, and panel titles.
+  Matching sections are force-expanded while a query is active; a plugin-name
+  match shows all of that plugin's controls.
+
 ## Exposing plugin operations to the HUD
 
 Register actions in your plugin's `setup` via `ctx.actions` — the HUD renders a

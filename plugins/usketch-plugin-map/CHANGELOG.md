@@ -1,5 +1,18 @@
 # @edv4h/usketch-plugin-map
 
+## 0.15.0
+
+### Minor Changes
+
+- b2c73d5: The map's draw range and level of detail can now be adjusted (defaults unchanged): how far past the screen the ground is drawn in a 3D view (`groundOverscanMaxPx`), whether the cliffs also cover that ground (`reliefOverscan`), how many cells along the ground's edge stay flat (`reliefEdgeInset`), and the on-screen tile size for full detail (`fullDetailMinPx`). Set them from the Control HUD "RPG マップ" settings, `createMapPlugin({ detail })`, or `getMapApi(services).renderConfig`. `tileDetail` takes the threshold as an optional third argument, and `reliefCellRange` / `clampGroundOverscan` / `detailConfigPatch` are exported.
+
+### Patch Changes
+
+- 2f24534: Walking into new terrain no longer stutters as much: the ground and the Mode 7 relief are drawn chunk by chunk, so crossing a chunk edge builds only the chunks coming into view (chunks about to come into view are built ahead, one per frame, and stay hidden until needed). Each chunk is built as SVG/HTML markup instead of hundreds of React elements, and the shared pattern defs no longer rebuild every frame.
+- Updated dependencies [33a4ef2]
+- Updated dependencies [157cce0]
+  - @edv4h/usketch-store@3.11.0
+
 ## 0.14.1
 
 ### Patch Changes
