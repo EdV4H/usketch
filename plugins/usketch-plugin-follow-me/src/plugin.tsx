@@ -78,13 +78,32 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 			// per-item action pattern used by other plugins (e.g. timter): one
 			// "follow" action per online member, plus an "Unfollow" toggle.
 			let followActionOffs: (() => void)[] = [];
+			// 直近に登録した内容（フォロー状態 + メンバーの id・名前・presenting）。
+			// awareness の "change" はリモートのカーソル移動やパンでも毎回発火するので、
+			// 登録内容が変わらないときは unregister/register（と HUD への通知）を省く。
+			let followActionsKey: string | null = null;
 			const clearFollowActions = () => {
 				for (const off of followActionOffs) off();
 				followActionOffs = [];
+				followActionsKey = null;
 			};
 
+			function followActionsKeyOf(states: ReturnType<typeof awareness.getStates>): string {
+				let key = `${followingClientId ?? ""}\u0000${followingName}`;
+				for (const [clientId, state] of states) {
+					if (clientId === awareness.doc.clientID) continue;
+					const user = state.user as { name?: string } | undefined;
+					key += `\u0000${clientId}\u0001${user?.name ?? ""}\u0001${state.presenting === true ? 1 : 0}`;
+				}
+				return key;
+			}
+
 			function rebuildFollowActions() {
+				const states = awareness.getStates();
+				const key = followActionsKeyOf(states);
+				if (key === followActionsKey) return;
 				clearFollowActions();
+				followActionsKey = key;
 				followActionOffs.push(
 					ctx.actions.register({
 						id: "follow:unfollow",
@@ -96,7 +115,6 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 					}),
 				);
 
-				const states = awareness.getStates();
 				let order = 1;
 				for (const [clientId, state] of states) {
 					if (clientId === awareness.doc.clientID) continue;
