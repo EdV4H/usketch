@@ -1,5 +1,6 @@
 import type { CanvasPointerEvent, EventBus, UsketchPlugin } from "@edv4h/usketch-shared";
 import { DebugHud } from "./debug-hud.js";
+import { createDockPrefsStore } from "./dock-prefs-store.js";
 import { EventLogger } from "./event-logger.js";
 import { FpsCounter } from "./fps-counter.js";
 import { PointerTracker } from "./pointer-tracker.js";
@@ -9,6 +10,7 @@ import { createVisibilityStore } from "./visibility-store.js";
 const EXCLUDED_EVENTS = new Set(["canvas:pointermove"]);
 
 const VISIBILITY_STORAGE_KEY = "usketch-debug-hud-visible";
+const DOCK_PREFS_STORAGE_KEY = "usketch-debug-hud-dock";
 
 function formatEventLabel(event: string, data: unknown): string {
 	if (data == null || typeof data !== "object") return event;
@@ -29,6 +31,7 @@ export function createDebugHudPlugin(): UsketchPlugin {
 			const eventLogger = new EventLogger();
 			const pointerTracker = new PointerTracker();
 			const visibility = createVisibilityStore(VISIBILITY_STORAGE_KEY);
+			const dockPrefs = createDockPrefsStore(DOCK_PREFS_STORAGE_KEY);
 
 			// Start FPS counter
 			fpsCounter.start();
@@ -70,6 +73,7 @@ export function createDebugHudPlugin(): UsketchPlugin {
 						events={ctx.events}
 						ctx={renderCtx}
 						visibility={visibility}
+						dockPrefs={dockPrefs}
 					/>
 				),
 			});
