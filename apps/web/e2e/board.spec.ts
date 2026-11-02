@@ -50,12 +50,17 @@ test.describe("Board", () => {
 		// （コマンドパレットは廃止し、アクション検索は Control HUD に一本化）。
 		await page.keyboard.press("`");
 
-		const search = page.getByPlaceholder("アクションを検索…");
+		const search = page.getByPlaceholder("プラグイン / 操作を検索…");
 		await expect(search).toBeVisible();
-		// アプリ横断アクション（テーマ）が Controls に列挙されている
-		await expect(page.getByText("テーマ切替: ライト", { exact: true })).toBeVisible();
+		// プラグインのセクションは既定で畳まれているので、アクションはまだ見えない。
+		const themeAction = page.getByText("テーマ切替: ライト", { exact: true });
+		await expect(themeAction).not.toBeVisible();
+		// 検索するとヒットしたセクションが自動展開され、アプリ横断アクション（テーマ）が出る。
+		await search.fill("テーマ");
+		await expect(themeAction).toBeVisible();
 
-		// バッククォートで閉じる
+		// バッククォートで閉じる（入力欄にフォーカスがあると ` は文字入力になるので外す）
+		await search.blur();
 		await page.keyboard.press("`");
 		await expect(search).not.toBeVisible();
 	});
@@ -68,7 +73,7 @@ test.describe("Board", () => {
 
 		await page.keyboard.press("`");
 
-		const search = page.getByPlaceholder("アクションを検索…");
+		const search = page.getByPlaceholder("プラグイン / 操作を検索…");
 		await expect(search).toBeVisible();
 
 		// 検索で絞り込み → アクションを発火
