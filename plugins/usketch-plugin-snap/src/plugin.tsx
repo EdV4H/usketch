@@ -296,7 +296,8 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				// shape's snap result. A move only needs the cached delta, so don't
 				// build the selection's bounding box here: doing it for every dragged
 				// shape made one pointermove O(selected²).
-				if (frameSnapResult && currentFrame === frameId) {
+				// (`frameSnapResult` is cleared by the microtask that ends the frame.)
+				if (frameSnapResult) {
 					const snapped = isResize
 						? applySnapToResize(
 								updates,

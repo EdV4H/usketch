@@ -1,5 +1,5 @@
 import type { BoundingBox, ShapeData } from "@edv4h/usketch-shared";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createSnapPlugin } from "./plugin.js";
 
 // The plugin reads window size for viewport culling and listens for keys.
@@ -20,6 +20,12 @@ afterAll(() => {
 });
 
 type Listener = (p: unknown) => void;
+
+// Tear plugins down even when an assertion fails, so state can't leak between tests.
+const teardowns: (() => void)[] = [];
+afterEach(() => {
+	for (const t of teardowns.splice(0)) t();
+});
 
 function rect(id: string, x: number, y: number): ShapeData {
 	return { id, type: "rect", x, y, width: 100, height: 80 } as ShapeData;
@@ -69,12 +75,11 @@ function setup(initial: ShapeData[], selected: string[]) {
 		actions: { register: () => () => {} },
 		layers: { register() {}, unregister() {} },
 	};
-	const teardown = createSnapPlugin().setup(ctx as never) as () => void;
+	teardowns.push(createSnapPlugin().setup(ctx as never) as () => void);
 	ctx.events.emit("canvas:pointerdown", {});
 	return {
 		shapes,
 		store,
-		teardown,
 		resetCalls: () => {
 			getShapeCalls = 0;
 		},
@@ -85,7 +90,7 @@ function setup(initial: ShapeData[], selected: string[]) {
 describe("multi-shape drag", () => {
 	it("applies the first shape's snap delta to every dragged shape in the frame", async () => {
 		// Selection spans x 0..220; the target's left edge is at 300.
-		const { shapes, store, teardown } = setup(
+		const { shapes, store } = setup(
 			[rect("a", 0, 0), rect("b", 120, 0), rect("t", 300, 0)],
 			["a", "b"],
 		);
@@ -95,7 +100,6 @@ describe("multi-shape drag", () => {
 		await Promise.resolve();
 		expect(shapes.get("a")?.x).toBe(80);
 		expect(shapes.get("b")?.x).toBe(200);
-		teardown();
 	});
 
 	it("does not rescan the whole selection for every dragged shape", async () => {
@@ -106,13 +110,12 @@ describe("multi-shape drag", () => {
 			initial.push(rect(`s${i}`, (i % 20) * 150, Math.floor(i / 20) * 150));
 			ids.push(`s${i}`);
 		}
-		const { store, teardown, resetCalls, calls } = setup(initial, ids);
+		const { store, resetCalls, calls } = setup(initial, ids);
 		resetCalls();
 		for (const s of initial) store.updateShape(s.id, { x: s.x + 3, y: s.y + 2 });
 		await Promise.resolve();
 		// One bounding-box pass for the first shape plus a constant number of
 		// lookups per shape — not n per shape (n² = 40 000).
 		expect(calls()).toBeLessThan(n * 5);
-		teardown();
 	});
 });
