@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-shape-group
 
+## 2.1.13
+
+### Patch Changes
+
+- Updated dependencies [33a4ef2]
+- Updated dependencies [157cce0]
+  - @edv4h/usketch-store@3.11.0
+
 ## 2.1.12
 
 ### Patch Changes

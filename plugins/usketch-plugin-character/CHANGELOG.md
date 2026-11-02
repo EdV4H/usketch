@@ -1,5 +1,21 @@
 # @edv4h/usketch-plugin-character
 
+## 0.4.0
+
+### Minor Changes
+
+- c14714d: The drift has its own key: the default drift key is now Shift (it was Space, shared with the jump; the jump stays on Space). The HUD "キャラクター" group gains ドリフトのキー / ジャンプのキー (a few keys each, `KEY_CHOICES`) and ドリフトでホップ; `api.getKeys()` returns the bindings. `DriftParams.hop` (default off) makes a drift-key press on the ground hop `hopHeight` (default 10) first, with the drift starting on landing if still held and steering. Since the keys no longer clash, the vehicle scheme now gets air jumps and hover too.
+- 41dbc2f: feat(character): ジャンプを追加（`jump` オプション / HUD「ジャンプ（Space）」「ジャンプの高さ」/ `api.jump()`）。足元の高さ `z` を持つ縦方向の物理（重力・小ジャンプ・先行入力・コヨーテ時間）で、ジャンプ中は段差制限を足元から測るので高い崖にも乗れる。`maxStep` を超える落差は重力で落ちる。影を地面に置く `renderShadow` スロットを追加し、Mode 7 では本体が影から浮く。render props に `z` / `altitude` / `airborne` / `verticalSpeed`、awareness に `z` / `airborne` / `vz` を追加
+- 77ffc65: Multi-jump and hover. `jump.airJumps` (default 0) gives extra jumps in the air (1 = a double jump), each `airJumpRatio` (default 0.8) × the jump height, reset on landing. `jump.hover` (`true` or a partial `HoverParams`, default off) lets the jump key, held while falling once the air jumps are used up, fire a thrust while a gauge drains (`duration`): `thrust` is a multiple of gravity (default 0 = a glide; above 1 it climbs while the key is held), with the descent capped at `fallSpeed` and the climb at `riseSpeed`; an empty gauge falls normally, and the gauge refills on the ground over `rechargeTime`. The pose and render props gain `hovering` / `hoverGauge` (both broadcast; older clients read as not hovering), and the HUD "キャラクター" group gains 空中ジャンプ回数 / ホバー / ホバー時間(秒) / ホバーの推力(重力比). Both control schemes get them.
+- 96f0f66: feat(character): タッチスティックやゲームパッドから操作できる外部入力 API `setVirtualInput({ throttle, steer, drift })` を追加した。`throttle` / `steer` は -1 〜 1 のアナログ値で、押しているキーと足し合わせる（±1 で頭打ち）。部分的なアクセルはその割合の最高速度を目標にし、部分的なハンドルはその割合だけ曲がる。キャラクターを OFF にすると入力は解除される。
+  
+  - `MoveInput` にアナログの `throttle` / `steer`（任意）を追加し、`stepCharacter` が読むようにした。キー入力だけのときの挙動は変わらない。
+  - `getVirtualInput()`、純関数 `combineInput` / `normalizeVirtualInput` / `isVirtualInputActive` / `inputThrottle` / `inputSteer` を公開。
+
+### Patch Changes
+
+- c7e886c: The camera anchor no longer measures the canvas every frame: its size is cached and refreshed on window resize or after 500 ms.
+
 ## 0.3.1
 
 ### Patch Changes
