@@ -95,6 +95,14 @@ describe("follow-me Control HUD actions", () => {
 		h.aw.emit();
 		expect(h.actions.get("follow:member:2")?.label).toBe("📺 Alice");
 
+		// A missing name ("Unknown") and an empty name ("") label differently, so they must rebuild.
+		h.aw.states.set(3, { user: {} });
+		h.aw.emit();
+		expect(h.actions.get("follow:member:3")?.label).toBe("👤 Unknown");
+		h.aw.states.set(3, { user: { name: "" } });
+		h.aw.emit();
+		expect(h.actions.get("follow:member:3")?.label).toBe("👤 ");
+
 		h.aw.states.delete(4);
 		h.aw.emit();
 		expect(h.actions.has("follow:member:4")).toBe(false);

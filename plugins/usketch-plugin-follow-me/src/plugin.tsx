@@ -27,6 +27,12 @@ function FollowBanner({ name }: { name: string }) {
 	);
 }
 
+/** Display name of an awareness member (shared by the action label and its rebuild key). */
+function memberName(state: Record<string, unknown>): string {
+	const user = state.user as { name?: string } | undefined;
+	return user?.name ?? "Unknown";
+}
+
 export interface FollowMePluginOptions {
 	wsProvider: WsProviderHandle;
 }
@@ -92,8 +98,7 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				let key = `${followingClientId ?? ""}\u0000${followingName}`;
 				for (const [clientId, state] of states) {
 					if (clientId === awareness.doc.clientID) continue;
-					const user = state.user as { name?: string } | undefined;
-					key += `\u0000${clientId}\u0001${user?.name ?? ""}\u0001${state.presenting === true ? 1 : 0}`;
+					key += `\u0000${clientId}\u0001${memberName(state)}\u0001${state.presenting === true ? 1 : 0}`;
 				}
 				return key;
 			}
@@ -118,8 +123,7 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				let order = 1;
 				for (const [clientId, state] of states) {
 					if (clientId === awareness.doc.clientID) continue;
-					const user = state.user as { name?: string } | undefined;
-					const name = user?.name ?? "Unknown";
+					const name = memberName(state);
 					const presenting = state.presenting === true;
 					followActionOffs.push(
 						ctx.actions.register({
@@ -187,8 +191,7 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				for (const [clientId, state] of states) {
 					if (clientId === awareness.doc.clientID) continue;
 					if (state.presenting === true) {
-						const user = state.user as { name?: string } | undefined;
-						startFollow(clientId, user?.name ?? "Unknown");
+						startFollow(clientId, memberName(state));
 						return;
 					}
 				}
