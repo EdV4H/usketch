@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import type { ClientToServer, ServerToClient } from "@edv4h/usketch-session-protocol";
 import { votingServerType } from "@edv4h/usketch-session-voting/server";
+import type { ShapeData } from "@edv4h/usketch-shared";
 import {
 	MSG_AWARENESS,
 	MSG_BROADCAST,
@@ -14,6 +15,8 @@ import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { boardMembers } from "./db/schema.js";
 import { handleAiPlaceShapes, handleAiUpdateShapes } from "./rooms/ai-handler.js";
+import { handleHistoryRequest } from "./rooms/history-handler.js";
+import { createHistoryManager } from "./rooms/history-manager.js";
 import { createPartitionManager } from "./rooms/partition-manager.js";
 import { SessionManager, type SessionSnapshot } from "./rooms/session-manager.js";
 import { createSnapshotManager } from "./rooms/snapshot-manager.js";
@@ -38,6 +41,20 @@ export class BoardRoom extends DurableObject<Env> {
 		getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
 		getWebSockets: () => this.ctx.getWebSockets(),
 	});
+	// Git 風のボード履歴（自動・手動コミット）。Yjs ドキュメントの shapes をスナップショットする。
+	private readonly history = createHistoryManager({
+		storage: this.ctx.storage,
+		getShapes: async () => {
+			const { doc } = await this.yjsSync.getOrCreateDoc();
+			return doc.getMap<ShapeData>("shapes").toJSON() as Record<string, ShapeData>;
+		},
+	});
+
+	/** Yjs の保存を予約し、履歴の自動コミットにも編集を知らせる。 */
+	private noteBoardEdit(): void {
+		this.yjsSync.scheduleSave();
+		this.history.noteEdit();
+	}
 
 	// Server-authoritative live sessions (voting / tutorial / card game). State is
 	// persisted to DO storage and the reconnect grace uses the DO alarm.
@@ -128,7 +145,7 @@ export class BoardRoom extends DurableObject<Env> {
 				getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
 				pushUpdate: (u) => this.yjsSync.pushUpdate(u),
 				broadcastAll: (d) => this.broadcastAll(d),
-				scheduleSave: () => this.yjsSync.scheduleSave(),
+				scheduleSave: () => this.noteBoardEdit(),
 			});
 		}
 
@@ -137,13 +154,16 @@ export class BoardRoom extends DurableObject<Env> {
 				getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
 				pushUpdate: (u) => this.yjsSync.pushUpdate(u),
 				broadcastAll: (d) => this.broadcastAll(d),
-				scheduleSave: () => this.yjsSync.scheduleSave(),
+				scheduleSave: () => this.noteBoardEdit(),
 			});
 		}
 
 		if (url.pathname === "/thumbnail") {
 			return handleThumbnail(url, () => this.yjsSync.getOrCreateDoc());
 		}
+
+		const historyResponse = await handleHistoryRequest(request, url, this.history);
+		if (historyResponse) return historyResponse;
 
 		if (url.pathname === "/snapshots" && request.method === "GET") {
 			return this.snapshots.handleListSnapshots();
@@ -204,7 +224,7 @@ export class BoardRoom extends DurableObject<Env> {
 				this.yjsSync.pushUpdate(payload);
 				this.partitions.trackUpdate(payload);
 				this.broadcast(ws, data);
-				this.yjsSync.scheduleSave();
+				this.noteBoardEdit();
 				break;
 			}
 			case MSG_AWARENESS:
@@ -303,7 +323,10 @@ export class BoardRoom extends DurableObject<Env> {
 		}
 
 		if (this.ctx.getWebSockets().length === 0) {
-			this.yjsSync.destroyDoc();
+			// 最後の接続が切れた → 未コミットの変更を履歴に残してからドキュメントを破棄する。
+			await this.history.flushAutoCommit();
+			// コミット中に誰かが接続し直していたら、ドキュメントは使用中なので残す。
+			if (this.ctx.getWebSockets().length === 0) this.yjsSync.destroyDoc();
 		}
 	}
 
