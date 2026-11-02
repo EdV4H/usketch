@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-timter
 
+## 0.3.17
+
+### Patch Changes
+
+- 6bec950: タイマーごとの Controls アクションを、パン・ズーム・選択・他の図形のドラッグのたびに登録し直さないようにした。図形が変わっていないストア通知は無視し、表示ラベル（並び・状態・表示秒）が変わったときだけ登録し直す。
+- Updated dependencies [33a4ef2]
+- Updated dependencies [157cce0]
+  - @edv4h/usketch-store@3.11.0
+
 ## 0.3.16
 
 ### Patch Changes
