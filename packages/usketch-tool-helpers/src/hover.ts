@@ -188,11 +188,14 @@ export function findShapeAtPoint(
 		// Skip excluded / filtered-out shapes before hit-testing.
 		if (excludeSet?.has(id)) continue;
 		if (filter && !filter(data)) continue;
-		// Hidden or locked shapes (or those under a hidden/locked ancestor) are not
-		// interactive — never resolve as the shape under the cursor.
-		if (isEffectivelyHidden(ctx.store, data) || isEffectivelyLocked(ctx.store, data)) continue;
 		const def = ctx.shapes.get(data.type);
 		if (!def?.hitTest(data, point)) continue;
+		// Hidden or locked shapes (or those under a hidden/locked ancestor) are not
+		// interactive — never resolve as the shape under the cursor. Checked after
+		// the hit-test: for a child shape this walks its ancestor chain, and this
+		// loop runs over the whole board on every pointermove, so only pay for it on
+		// shapes actually under the point.
+		if (isEffectivelyHidden(ctx.store, data) || isEffectivelyLocked(ctx.store, data)) continue;
 
 		if (editingGroupId) {
 			if (data.parentId === editingGroupId) return id;
