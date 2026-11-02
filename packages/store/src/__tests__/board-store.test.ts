@@ -513,6 +513,49 @@ describe("BoardStore", () => {
 			expect(third.map((s) => s.id)).toEqual(["s1", "s2", "s3"]);
 		});
 
+		it("getShapesSorted: an update without zIndex swaps the shape in place without re-sorting", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "s1", zIndex: "a2" }));
+			store.addShape(makeShape({ id: "s2", zIndex: "a0" }));
+			store.addShape(makeShape({ id: "s3", zIndex: "a1" }));
+			const first = store.getShapesSorted();
+			expect(first.map((s) => s.id)).toEqual(["s2", "s3", "s1"]);
+
+			store.updateShape("s3", { x: 42 });
+			store.updateShape("s1", { y: 7 });
+			const second = store.getShapesSorted();
+			expect(second).not.toBe(first); // new array for memo deps
+			expect(second.map((s) => s.id)).toEqual(["s2", "s3", "s1"]);
+			expect(second[1]).toBe(store.getShape("s3"));
+			expect(second[2]).toBe(store.getShape("s1"));
+			expect(first[1].x).not.toBe(42); // the previous array is left untouched
+			expect(store.getShapesSorted()).toBe(second);
+		});
+
+		it("getShapesSorted: an update that changes zIndex re-sorts", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "s1", zIndex: "a0" }));
+			store.addShape(makeShape({ id: "s2", zIndex: "a1" }));
+			store.getShapesSorted();
+			store.updateShape("s2", { x: 1 }); // queued patch
+			store.updateShape("s1", { zIndex: "a2" }); // then a reorder
+			expect(store.getShapesSorted().map((s) => s.id)).toEqual(["s2", "s1"]);
+			expect(store.getShapesSorted()[0]).toBe(store.getShape("s2"));
+		});
+
+		it("getShapesSorted: in-place updates keep the same order as a fresh sort for equal zIndex", () => {
+			const store = createBoardStore();
+			store.addShape(makeShape({ id: "a", zIndex: "a0" }));
+			store.addShape(makeShape({ id: "b", zIndex: "a0" }));
+			store.addShape(makeShape({ id: "c", zIndex: "a0" }));
+			store.getShapesSorted();
+			store.updateShape("a", { x: 5 });
+			const patched = store.getShapesSorted().map((s) => s.id);
+			store.addShape(makeShape({ id: "d", zIndex: "a1" })); // forces a full sort
+			store.deleteShape("d");
+			expect(store.getShapesSorted().map((s) => s.id)).toEqual(patched);
+		});
+
 		it("ensureZIndex: no-op when all shapes already have zIndex", () => {
 			const store = createBoardStore();
 			store.addShape(makeShape({ id: "s1" }));
