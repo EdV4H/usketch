@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-shape-connector
 
+## 3.4.1
+
+### Patch Changes
+
+- Updated dependencies [33a4ef2]
+- Updated dependencies [157cce0]
+  - @edv4h/usketch-store@3.11.0
+
 ## 3.4.0
 
 ### Minor Changes
