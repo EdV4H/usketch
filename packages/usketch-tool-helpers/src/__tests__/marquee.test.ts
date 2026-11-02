@@ -45,6 +45,42 @@ describe("startMarqueeSession", () => {
 		expect([...u.hitIds]).toEqual(["normal"]);
 	});
 
+	it("excludes children under a hidden or locked ancestor (cascade)", () => {
+		const ctx = createTestToolContext();
+		ctx.store.addShape(
+			makeShape({
+				id: "hiddenFrame",
+				type: "frame",
+				x: 0,
+				y: 0,
+				width: 100,
+				height: 100,
+				hidden: true,
+			}),
+		);
+		ctx.store.addShape(
+			makeShape({
+				id: "lockedFrame",
+				type: "frame",
+				x: 200,
+				y: 0,
+				width: 100,
+				height: 100,
+				locked: true,
+			}),
+		);
+		ctx.store.addShape(
+			makeShape({ id: "a", parentId: "hiddenFrame", x: 10, y: 10, width: 20, height: 20 }),
+		);
+		ctx.store.addShape(
+			makeShape({ id: "b", parentId: "lockedFrame", x: 210, y: 10, width: 20, height: 20 }),
+		);
+		ctx.store.addShape(makeShape({ id: "free", x: 400, y: 10, width: 20, height: 20 }));
+		const session = startMarqueeSession({ ctx, startWorldPoint: { x: -10, y: -10 } });
+		const u = session.update(makePointerEvent({ x: 500, y: 50 }));
+		expect([...u.hitIds]).toEqual(["free"]);
+	});
+
 	it("selects an attachable child individually, not its parent", () => {
 		const ctx = createTestToolContext();
 		ctx.shapes.register("sticker", {

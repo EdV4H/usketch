@@ -77,6 +77,9 @@ export function setupMode7Runtime(
 	const STAGE_ATTR = "data-mode7-stage";
 	const depthLayers = new Set(options.depthLayerIds ?? DEFAULT_DEPTH_LAYER_IDS);
 	let styleEl: HTMLStyleElement | null = null;
+	// The stylesheet text last written: rewriting a `<style>` with the same text still
+	// rebuilds the sheet and restyles the whole stage, so identical text is skipped.
+	let lastCss = "";
 
 	const ensureStyleEl = (): void => {
 		if (styleEl || typeof document === "undefined") return;
@@ -124,17 +127,21 @@ export function setupMode7Runtime(
 		const clip = drawDistanceClip(drawDistance, zoom, heightPx, amount);
 		const overscan = drawDistanceOverscanPx(drawDistance, zoom, heightPx);
 		driveGridOverscan(overscan > 0 ? overscan + OVERSCAN_BUFFER : 0);
-		styleEl.textContent = tiltLayerRules(store.getState().tiltLayers, {
+		const css = tiltLayerRules(store.getState().tiltLayers, {
 			stageAttr: STAGE_ATTR,
 			transform,
 			transformOrigin,
 			clip,
 			depthLayerIds: depthLayers,
 		});
+		if (css === lastCss) return;
+		lastCss = css;
+		styleEl.textContent = css;
 	};
 
 	const clearAll = (): void => {
 		if (styleEl) styleEl.textContent = "";
+		lastCss = "";
 		if (typeof document !== "undefined") {
 			for (const el of document.querySelectorAll(`[${STAGE_ATTR}]`)) el.removeAttribute(STAGE_ATTR);
 		}
@@ -224,12 +231,19 @@ export function setupMode7Runtime(
 	const unsubscribe = store.subscribe(sync);
 
 	// The draw-distance clip is in canvas units → depends on the board zoom + container
-	// height, so re-apply the tilt on viewport changes and window resize while active.
+	// height, so re-apply the tilt on zoom changes and window resize while active. A pan
+	// (every frame while a camera follows something) changes neither, and re-applying on
+	// it walked the layers, forced a layout and restyled the stage each frame.
 	const reapplyIfActive = (): void => {
 		if (store.getState().active) applyTilt();
 	};
+	let lastZoom = ctx.store.getViewport().zoom;
 	const offViewport = ctx.store.onMutation((e) => {
-		if (e.type === "viewport:changed") reapplyIfActive();
+		if (e.type !== "viewport:changed") return;
+		const zoom = ctx.store.getViewport().zoom;
+		if (zoom === lastZoom) return;
+		lastZoom = zoom;
+		reapplyIfActive();
 	});
 	const onResize = typeof window !== "undefined" ? reapplyIfActive : null;
 	if (onResize) window.addEventListener("resize", onResize);

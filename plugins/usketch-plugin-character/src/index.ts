@@ -8,16 +8,35 @@ export {
 	targetRotation,
 } from "./character-camera.js";
 export {
+	KEY_CHOICES,
+	type KeyChoice,
+	keyChoiceOf,
+	withKeyChoice,
+} from "./character-key-choices.js";
+export {
+	airJumpSpeed,
 	type CharacterPose,
 	type ControlScheme,
 	DEFAULT_DRIFT,
+	DEFAULT_HOVER,
+	DEFAULT_JUMP,
 	DEFAULT_MOTION,
 	type DriftParams,
+	drainHoverGauge,
+	type HoverParams,
 	headingVector,
+	IDLE_JUMP,
+	inputSteer,
+	inputThrottle,
+	type JumpParams,
+	type JumpTimers,
+	jumpArc,
 	type MotionParams,
 	type MoveInput,
 	ORIGIN_POSE,
+	rechargeHoverGauge,
 	stepCharacter,
+	stepVertical,
 	turnToward,
 	vectorHeading,
 } from "./character-physics.js";
@@ -27,6 +46,14 @@ export {
 	characterService,
 	getCharacterApi,
 } from "./character-service.js";
+export {
+	effectiveJump,
+	hoverGaugeOf,
+	type JumpInit,
+	MAX_AIR_JUMPS,
+	sanitizeHover,
+	sanitizeJump,
+} from "./character-store.js";
 export {
 	AWARENESS_FIELD,
 	type CharacterAwareness,
@@ -41,4 +68,10 @@ export {
 	DEFAULT_KEYS,
 	type RemoteCharacter,
 } from "./character-types.js";
+export {
+	combineInput,
+	isVirtualInputActive,
+	normalizeVirtualInput,
+	type VirtualInput,
+} from "./character-virtual-input.js";
 export { type CharacterPluginOptions, createCharacterPlugin } from "./plugin.js";

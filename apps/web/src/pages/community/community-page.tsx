@@ -7,7 +7,10 @@ import { createDotsBgPlugin } from "@edv4h/usketch-plugin-bg-dots";
 import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createBoardInfoPanelPlugin } from "@edv4h/usketch-plugin-board-info-panel";
 import { createFilterPlugin } from "@edv4h/usketch-plugin-canvas-filter";
-import { createCharacterPlugin } from "@edv4h/usketch-plugin-character";
+import {
+	AWARENESS_FIELD as CHARACTER_AWARENESS_FIELD,
+	createCharacterPlugin,
+} from "@edv4h/usketch-plugin-character";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createCommunityChatPlugin } from "@edv4h/usketch-plugin-community-chat";
 import { createDebugHudPlugin } from "@edv4h/usketch-plugin-debug-hud";
@@ -39,7 +42,11 @@ import { createWsProvider, type WsProviderHandle } from "@edv4h/usketch-sync";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { api } from "../../lib/api.js";
-import { characterAppearance, renderCharacter } from "../../lib/character-renderer.js";
+import {
+	characterAppearance,
+	renderCharacter,
+	renderCharacterShadow,
+} from "../../lib/character-renderer.js";
 import { getDevUser } from "../../lib/dev-auth.js";
 import { getErrorMessage } from "../../lib/errors.js";
 import { useAuth } from "../../lib/use-auth.js";
@@ -141,6 +148,8 @@ export function CommunityPage() {
 							userId: authUserId ?? "anonymous",
 							userName: authUserName ?? "Anonymous",
 							userImage: authUserImage,
+							// 操作キャラが出ている間はキャラが本人の表示なので、アバターは重ねない。
+							hideAvatar: (state) => state[CHARACTER_AWARENESS_FIELD] != null,
 						}),
 					);
 					// サイドパネル + ボード情報パネル + コメント
@@ -213,6 +222,7 @@ export function CommunityPage() {
 						userName: authUserName ?? undefined,
 						appearance: characterAppearance(authUserId ?? getDevUser()?.id ?? "local"),
 						renderCharacter,
+						renderShadow: renderCharacterShadow,
 					}),
 				);
 

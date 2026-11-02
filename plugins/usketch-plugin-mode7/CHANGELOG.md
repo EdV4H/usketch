@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-mode7
 
+## 0.4.2
+
+### Patch Changes
+
+- c7e886c: Mode 7 no longer re-applies the tilt on every pan: the stylesheet is rebuilt only when the zoom, window size, camera or tilted layers change, and an unchanged stylesheet is not rewritten. Walking a character (the camera follows it every frame) no longer restyles the whole stage each frame.
+- Updated dependencies [33a4ef2]
+- Updated dependencies [157cce0]
+  - @edv4h/usketch-store@3.11.0
+
 ## 0.4.1
 
 ### Patch Changes

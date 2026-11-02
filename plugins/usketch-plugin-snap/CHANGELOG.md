@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-snap
 
+## 2.5.1
+
+### Patch Changes
+
+- dbabcc7: ドラッグ中のスナップ候補集めで、画面外の図形を先に除外してから親フレームを辿るようにした。大きなボードでのポインタ移動 1 回あたりのスナップ処理が約 2.5〜3.5 倍速くなる（スナップ結果は変わらない）。
+- cd93ca9: refactor(snap): 「フレーム内の図形はそのフレーム内だけでスナップする」判定の対象を `type === "frame"` 固定から、ShapeDefinition の `container` 宣言（`hasSelectableChildren`）で判定するようにした。子を個別に選択できるコンテナ（`frame` に加えて音声メモの voice-frame など）が、フレームと同じスナップの範囲分けになる。
+
 ## 2.5.0
 
 ### Minor Changes

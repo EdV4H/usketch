@@ -4,6 +4,8 @@ import {
 	DEFAULT_DRIFT,
 	DEFAULT_MOTION,
 	headingVector,
+	inputSteer,
+	inputThrottle,
 	type MoveInput,
 	NO_INPUT,
 	ORIGIN_POSE,
@@ -184,5 +186,78 @@ describe("vehicle drift", () => {
 		for (let i = 0; i < 100 && p.drift !== 0; i++) p = step(p, { right: true, drift: true });
 		expect(p.drift).toBe(0);
 		expect(p.speed).toBeLessThan(DEFAULT_DRIFT.stopSpeed * DEFAULT_MOTION.moveSpeed);
+	});
+});
+
+describe("analog input (throttle / steer)", () => {
+	it("analog values replace the key booleans and are clamped to ±1", () => {
+		expect(inputThrottle(held({ up: true, throttle: -0.5 }))).toBe(-0.5);
+		expect(inputSteer(held({ left: true, steer: 0.25 }))).toBe(0.25);
+		expect(inputThrottle(held({ throttle: 3 }))).toBe(1);
+		expect(inputSteer(held({ steer: Number.NaN }))).toBe(0);
+		expect(inputThrottle(held({ down: true }))).toBe(-1);
+		expect(inputSteer(held({ right: true }))).toBe(1);
+	});
+	it("directional: moves at moveSpeed × the stick length", () => {
+		const p = stepCharacter(origin, held({ throttle: 0.5 }), 1, "directional", DEFAULT_MOTION);
+		expect(p.y).toBeCloseTo(-DEFAULT_MOTION.moveSpeed * 0.5, 9);
+		expect(p.speed).toBeCloseTo(DEFAULT_MOTION.moveSpeed * 0.5, 9);
+		const diag = stepCharacter(
+			origin,
+			held({ throttle: 1, steer: 1 }),
+			1,
+			"directional",
+			DEFAULT_MOTION,
+		);
+		expect(Math.hypot(diag.x, diag.y)).toBeCloseTo(DEFAULT_MOTION.moveSpeed, 9);
+	});
+	it("vehicle: partial throttle settles at that fraction of the top speed", () => {
+		let p = origin;
+		for (let i = 0; i < 200; i++) {
+			p = stepCharacter(p, held({ throttle: 0.5 }), 0.02, "vehicle", DEFAULT_MOTION);
+		}
+		expect(p.speed).toBeCloseTo(DEFAULT_MOTION.moveSpeed * 0.5, 6);
+		// Easing off from top speed slows down (coasting), rather than holding the speed.
+		const top = { ...origin, speed: DEFAULT_MOTION.moveSpeed, moving: true };
+		const eased = stepCharacter(top, held({ throttle: 0.5 }), 0.1, "vehicle", DEFAULT_MOTION);
+		expect(eased.speed).toBeCloseTo(DEFAULT_MOTION.moveSpeed - DEFAULT_MOTION.friction * 0.1, 6);
+	});
+	it("vehicle: partial reverse is capped by reverseRatio × the stick", () => {
+		let p = origin;
+		for (let i = 0; i < 200; i++) {
+			p = stepCharacter(p, held({ throttle: -0.5 }), 0.02, "vehicle", DEFAULT_MOTION);
+		}
+		expect(p.speed).toBeCloseTo(-DEFAULT_MOTION.moveSpeed * DEFAULT_MOTION.reverseRatio * 0.5, 6);
+	});
+	it("vehicle: partial steer turns by that fraction and is reported as steering", () => {
+		const top = { ...origin, speed: DEFAULT_MOTION.moveSpeed, moving: true };
+		const full = stepCharacter(
+			top,
+			held({ up: true, right: true }),
+			0.1,
+			"vehicle",
+			DEFAULT_MOTION,
+		);
+		const half = stepCharacter(top, held({ up: true, steer: 0.5 }), 0.1, "vehicle", DEFAULT_MOTION);
+		expect(half.heading).toBeCloseTo(full.heading / 2, 9);
+		expect(half.steering).toBe(0.5);
+	});
+	it("full analog input matches the keys exactly", () => {
+		const top = { ...origin, speed: 200, moving: true };
+		const keys = stepCharacter(
+			top,
+			held({ up: true, left: true }),
+			0.05,
+			"vehicle",
+			DEFAULT_MOTION,
+		);
+		const stick = stepCharacter(
+			top,
+			held({ throttle: 1, steer: -1 }),
+			0.05,
+			"vehicle",
+			DEFAULT_MOTION,
+		);
+		expect(stick).toEqual(keys);
 	});
 });

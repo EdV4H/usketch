@@ -11,6 +11,7 @@ import type {
 	ToolRegistry,
 } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import type { DockPrefsStore } from "./dock-prefs-store.js";
 import type { EventLogger } from "./event-logger.js";
 import type { FpsCounter } from "./fps-counter.js";
 import { Minimap } from "./overlays/minimap.js";
@@ -42,6 +43,7 @@ interface DebugHudProps {
 	events: EventBus;
 	ctx: LayerRenderContext;
 	visibility: VisibilityStore;
+	dockPrefs: DockPrefsStore;
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -65,6 +67,7 @@ export function DebugHud({
 	events,
 	ctx,
 	visibility,
+	dockPrefs,
 }: DebugHudProps) {
 	const subscribeVisibility = useCallback(
 		(cb: () => void) => visibility.subscribe(cb),
@@ -169,6 +172,7 @@ export function DebugHud({
 				activeToolId={activeToolId}
 				collapsed={controlsCollapsed}
 				onToggleCollapsed={() => setControlsCollapsed((c) => !c)}
+				prefs={dockPrefs}
 				shapesSection={
 					<ShapesPanel
 						store={store}
