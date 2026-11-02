@@ -570,6 +570,14 @@ function getCandidateBoxes(
 		const parentId = shape.parentId as string | undefined;
 		if (parentId && movingIds.has(parentId)) continue;
 
+		// Cull off-screen shapes before the frame-context check below: that check
+		// walks the parent chain, and on a large board most shapes are off-screen.
+		const def = ctx.shapes.get(shape.type);
+		const box = def
+			? def.getBounds(shape)
+			: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
+		if (visibleRect && !boxesOverlap(box, visibleRect)) continue;
+
 		// Only snap within the same frame context:
 		// - If moving shapes are inside a frame, only snap to shapes in the same frame
 		//   (also allow snapping to the parent frame itself)
@@ -579,11 +587,6 @@ function getCandidateBoxes(
 			if (candidateFrameId !== movingFrameId && id !== movingFrameId) continue;
 		}
 
-		const def = ctx.shapes.get(shape.type);
-		const box = def
-			? def.getBounds(shape)
-			: { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
-		if (visibleRect && !boxesOverlap(box, visibleRect)) continue;
 		boxes.set(id, box);
 	}
 	return boxes;
