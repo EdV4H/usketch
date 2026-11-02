@@ -94,6 +94,14 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 	const listeners = new Set<() => void>();
 	const mutationListeners = new Set<(event: StoreEvent) => void>();
 	let sortedCache: readonly ShapeData[] | null = null;
+	// Updates that leave z-order alone (no `zIndex` in `updates`) don't re-sort:
+	// the new objects are queued here and swapped into a copy of `sortedCache` at
+	// their existing positions on the next `getShapesSorted()`. Same result as a
+	// fresh sort — the comparator only reads `zIndex`, and ties keep Map order,
+	// which `Map.set` on an existing key doesn't change.
+	let sortedPatches: Map<string, ShapeData> | null = null;
+	/** id → index in `sortedCache`, built on the first patch after a full sort. */
+	let sortedPositions: Map<string, number> | null = null;
 	// Incremental max-zIndex tracking: updated on add/update/delete so that
 	// `addShape` can append a new tail key in O(1) without rescanning all shapes.
 	// `null` means we need to recompute (e.g. after deletion of the current max).
@@ -101,6 +109,15 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 
 	function invalidateSort() {
 		sortedCache = null;
+		sortedPatches = null;
+		sortedPositions = null;
+	}
+
+	/** Keep the sorted cache valid across an update that didn't touch `zIndex`. */
+	function patchSort(shape: ShapeData) {
+		if (!sortedCache) return;
+		if (!sortedPatches) sortedPatches = new Map();
+		sortedPatches.set(shape.id, shape);
 	}
 
 	function recomputeMaxZIndex(): void {
@@ -271,6 +288,26 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 		getShapes: () => state.shapes,
 
 		getShapesSorted() {
+			if (sortedCache && sortedPatches) {
+				if (!sortedPositions) {
+					sortedPositions = new Map();
+					for (let i = 0; i < sortedCache.length; i++) sortedPositions.set(sortedCache[i].id, i);
+				}
+				// A new array, so callers holding the previous one (and memo deps) see the change.
+				const next = sortedCache.slice();
+				let missing = false;
+				for (const [id, shape] of sortedPatches) {
+					const i = sortedPositions.get(id);
+					if (i === undefined) missing = true;
+					else next[i] = shape;
+				}
+				// Not expected (add/delete invalidate), but never serve a stale list.
+				if (missing) invalidateSort();
+				else {
+					sortedCache = next;
+					sortedPatches = null;
+				}
+			}
 			if (sortedCache) return sortedCache;
 			sortedCache = [...state.shapes.values()].sort((a, b) => compareZIndex(a.zIndex, b.zIndex));
 			return sortedCache;
@@ -323,8 +360,10 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 				) {
 					recomputeMaxZIndex();
 				}
+				invalidateSort();
+			} else {
+				patchSort(updated);
 			}
-			invalidateSort();
 			notify();
 			// before/after を載せて、追従系が自前で前回位置を持たなくても差分を取れるように。
 			notifyMutation({
