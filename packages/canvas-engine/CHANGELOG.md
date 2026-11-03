@@ -1,5 +1,13 @@
 # @edv4h/usketch-canvas-engine
 
+## 1.5.6
+
+### Patch Changes
+
+- f9702b7: perf(canvas-engine): 描画対象から隠れた図形を除くフィルタで、何も除外しないときは図形 Map をコピーせずそのまま使うようにした。親を持たない図形は hidden キャッシュも使わない。ドラッグ中の 1 フレームあたりの処理が 5,000 図形で約 550µs → 約 25µs になる。
+- ca67108: perf: 図形のドラッグ中に、ボード全体を z 順で並べ直さない。`getShapesSorted()` は zIndex を変えない更新では並びをそのまま使い、更新された図形だけを差し替える。Canvas の描画リストも自前で並べ直さず、ストアの並びを使う。
+- a5dcd43: perf(canvas-engine): TransientLayer で 1 つの transient を emit / dismiss したときに、変わっていない他の transient（リモートカーソル・アバターなど）を描き直さない
+
 ## 1.5.5
 
 ### Patch Changes

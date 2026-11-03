@@ -1,5 +1,11 @@
 # @edv4h/usketch-store
 
+## 3.11.1
+
+### Patch Changes
+
+- ca67108: perf: 図形のドラッグ中に、ボード全体を z 順で並べ直さない。`getShapesSorted()` は zIndex を変えない更新では並びをそのまま使い、更新された図形だけを差し替える。Canvas の描画リストも自前で並べ直さず、ストアの並びを使う。
+
 ## 3.11.0
 
 ### Minor Changes

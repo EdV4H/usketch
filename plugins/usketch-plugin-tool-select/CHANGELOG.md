@@ -1,5 +1,16 @@
 # @edv4h/usketch-plugin-tool-select
 
+## 3.4.1
+
+### Patch Changes
+
+- f0df42d: ダブルクリックでグループ編集に入れる図形を、`"group"` / `"frame"` の type 名決め打ちから ShapeDefinition の `container` 宣言（`isShapeContainer`）で判定するようにした。`voice-frame` などプラグインのコンテナにもダブルクリックで入れるようになる。
+- 8d4651f: 図形ドラッグ中のドロップ先（autoAttach コンテナ）判定で、ポインタ移動のたびに全図形をコピー・逆順にして走査していたのをやめ、ドラッグ開始後の最初の判定でコンテナだけを集めて以降はそれだけを判定するようにした。
+- Updated dependencies [5f28265]
+- Updated dependencies [ca67108]
+  - @edv4h/usketch-tool-helpers@0.8.2
+  - @edv4h/usketch-store@3.11.1
+
 ## 3.4.0
 
 ### Minor Changes

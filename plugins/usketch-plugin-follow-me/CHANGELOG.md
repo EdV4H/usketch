@@ -1,5 +1,11 @@
 # @edv4h/usketch-plugin-follow-me
 
+## 2.1.17
+
+### Patch Changes
+
+- 1efa53c: perf(follow-me): リモートのカーソル移動・パンなど、メンバー構成やフォロー状態が変わらない awareness 更新では Follow の Control HUD アクションを登録し直さない
+
 ## 2.1.16
 
 ### Patch Changes
