@@ -33,8 +33,8 @@ export function createDebugHudPlugin(): UsketchPlugin {
 			const visibility = createVisibilityStore(VISIBILITY_STORAGE_KEY);
 			const dockPrefs = createDockPrefsStore(DOCK_PREFS_STORAGE_KEY);
 
-			// Start FPS counter
-			fpsCounter.start();
+			// The FPS counter runs its rAF loop only while the HUD's FPS readout is
+			// subscribed (i.e. while the HUD is open), so it is not started here.
 
 			// Monkey-patch emit to capture events. Push is skipped while the HUD is hidden
 			// so the drag path stays free of EventLogger work when no UI is observing it.
@@ -79,7 +79,7 @@ export function createDebugHudPlugin(): UsketchPlugin {
 			});
 
 			return () => {
-				fpsCounter.stop();
+				fpsCounter.dispose();
 				pointerTracker.dispose();
 				eventLogger.dispose();
 				(ctx.events as { emit: EventBus["emit"] }).emit = originalEmit;
