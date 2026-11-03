@@ -82,7 +82,7 @@ describe("TransientLayer", () => {
 		expect(renders.sort()).toEqual(["a", "b", "c"]);
 	});
 
-	it("re-renders an object when its type's renderer is replaced", () => {
+	it("re-renders every object when its type's renderer is replaced", () => {
 		const registry = setup();
 		act(() => root.render(<TransientLayer registry={registry} ctx={ctx} />));
 

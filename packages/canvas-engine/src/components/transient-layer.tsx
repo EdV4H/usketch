@@ -10,8 +10,10 @@ import { useTransientSubscribe } from "../hooks/use-transient-subscribe.js";
 /**
  * One transient object. Memoized so an `emit` / `dismiss` of one object (e.g. a
  * single remote cursor moving) re-renders only that object instead of every
- * transient on the board. `emit` always stores a fresh object, so a changed object
- * has a new reference; a Canvas re-render passes a new `ctx` and re-renders all.
+ * transient on the board. The registry stores the emitted object as-is, so this
+ * relies on callers emitting a new object for every change (all current callers
+ * pass a fresh literal; never mutate an emitted object and re-emit it). A Canvas
+ * re-render passes a new `ctx` and re-renders all.
  */
 const TransientItem = memo(function TransientItem({
 	obj,
