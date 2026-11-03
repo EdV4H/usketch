@@ -234,6 +234,13 @@ describe("chunked storage", () => {
 		expect(await readChunked(storage, "k")).toEqual(bytes(3));
 	});
 
+	it("rejects a length the chunks don't add up to before allocating it", async () => {
+		const { storage, map } = fakeStorage();
+		map.set("k:meta", { gen: 1, length: 1e12, chunks: 1 });
+		map.set("k:g1:0", bytes(5));
+		await expect(readChunked(storage, "k")).rejects.toThrow(/expected/);
+	});
+
 	it("also removes chunks an interrupted earlier cleanup left behind", async () => {
 		const { storage, map } = fakeStorage();
 		await writeChunked(storage, "k", bytes(10));

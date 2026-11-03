@@ -79,18 +79,21 @@ export async function readChunked(
 		const got = await storage.get(batch);
 		for (const [k, v] of got) parts.set(k, v);
 	}
-	const out = new Uint8Array(meta.length);
-	let offset = 0;
-	for (const k of keys) {
+	// 全チャンクがそろって長さが合うのを確かめてから確保する（壊れた meta で巨大な確保をしない）
+	const chunks = keys.map((k) => {
 		const part = toBytes(parts.get(k));
-		if (!part || offset + part.length > meta.length) {
-			throw new Error(`[chunked-storage] chunk ${k} is missing or too long`);
-		}
+		if (!part) throw new Error(`[chunked-storage] chunk ${k} is missing`);
+		return part;
+	});
+	const total = chunks.reduce((sum, part) => sum + part.length, 0);
+	if (total !== meta.length) {
+		throw new Error(`[chunked-storage] ${key} is ${total} bytes, expected ${meta.length}`);
+	}
+	const out = new Uint8Array(total);
+	let offset = 0;
+	for (const part of chunks) {
 		out.set(part, offset);
 		offset += part.length;
-	}
-	if (offset !== meta.length) {
-		throw new Error(`[chunked-storage] ${key} is ${offset} bytes, expected ${meta.length}`);
 	}
 	return out;
 }
