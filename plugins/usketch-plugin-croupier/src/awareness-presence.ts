@@ -3,6 +3,7 @@ import type { CroupierPresence } from "./croupier-service.js";
 /** The Yjs Awareness subset used here (same shape as y-protocols' `Awareness`). */
 export interface PresenceAwareness {
 	setLocalStateField(field: string, value: unknown): void;
+	getLocalState(): Record<string, unknown> | null;
 	getStates(): Map<number, Record<string, unknown>>;
 	on(event: "change", listener: () => void): void;
 	off(event: "change", listener: () => void): void;
@@ -15,13 +16,23 @@ export const CROUPIER_AWARENESS_FIELD = "croupier";
  * Build a {@link CroupierPresence} from a Yjs awareness: publishes the local user
  * id, and reports a user online while any connected client publishes theirs.
  * Listeners only fire when the set of online users changes (not on every cursor
- * move), so table views are not rebuilt needlessly.
+ * move), so table views are not rebuilt needlessly. Pass a getter for `userId` when
+ * the user is known only later (e.g. after sign-in): the published id follows it.
  */
 export function createAwarenessPresence(
 	awareness: PresenceAwareness,
-	userId: string,
+	userId: string | (() => string),
 ): CroupierPresence & { dispose(): void } {
-	awareness.setLocalStateField(CROUPIER_AWARENESS_FIELD, { userId });
+	const currentId = () => (typeof userId === "function" ? userId() : userId);
+	const publish = () => {
+		const id = currentId();
+		const field = awareness.getLocalState()?.[CROUPIER_AWARENESS_FIELD] as
+			| { userId?: unknown }
+			| undefined;
+		if (field?.userId !== id)
+			awareness.setLocalStateField(CROUPIER_AWARENESS_FIELD, { userId: id });
+	};
+	publish();
 
 	const readOnline = (): Set<string> => {
 		const ids = new Set<string>();
@@ -37,6 +48,7 @@ export function createAwarenessPresence(
 
 	const listeners = new Set<() => void>();
 	const onChange = () => {
+		publish();
 		const next = readOnline();
 		const nextKey = key(next);
 		online = next;

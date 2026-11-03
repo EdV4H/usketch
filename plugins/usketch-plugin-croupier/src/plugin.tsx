@@ -32,8 +32,11 @@ import {
 export const CROUPIER_TABLE_TOOL_ID = "croupier-table-draw";
 
 export interface CroupierPluginOptions {
-	/** The local player. */
-	player: CroupierPlayer;
+	/**
+	 * The local player. Pass a getter when the user is known only after the plugin is
+	 * created (e.g. a session that loads after the board), so moves use the real id.
+	 */
+	player: CroupierPlayer | (() => CroupierPlayer);
 	/** Games that can be played on this board. The first one is the default. */
 	games: CroupierGameDefinition[];
 	/**
@@ -260,7 +263,7 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 					return t - since;
 				};
 				for (const table of listTables(ctx.store)) {
-					const me = options.player.userId;
+					const me = api.me().userId;
 					const seats = listSeats(ctx.store, table.id);
 					if (!seats.some((s) => s.meta.userId === me)) continue;
 					// Host gone: the first connected player (in join order) takes over.

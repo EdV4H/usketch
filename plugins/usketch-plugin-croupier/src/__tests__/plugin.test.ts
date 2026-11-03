@@ -125,6 +125,27 @@ describe("createCroupierPlugin", () => {
 		expect(patches.map((p: { id: string }) => p.id)).toEqual([seat.id]);
 	});
 
+	it("acts as the player the getter returns now (e.g. after sign-in)", () => {
+		const store = createBoardStore();
+		const ctx = {
+			store,
+			shapes: createShapeRegistry(),
+			tools: createToolRegistry(),
+			actions: createActionRegistry(),
+			commands: createCommandRegistry(),
+			services: createServiceRegistry(),
+		} as unknown as PluginContext;
+		let player = { userId: "local", name: "Guest" };
+		createCroupierPlugin({ player: () => player, games: [valuesCard] }).setup(ctx);
+		const api = must(croupierService.get(ctx.services));
+		const id = api.createTable("values-card", { x: 0, y: 0 }) as string;
+		expect(getTable(store, id)?.meta.hostUserId).toBe("local");
+		player = { userId: "alice", name: "Alice" };
+		api.join(id);
+		expect(listSeats(store, id).map((s) => s.meta.userId)).toEqual(["alice"]);
+		expect(api.getView(id)?.mySeat?.meta.name).toBe("Alice");
+	});
+
 	it("disposes its service", () => {
 		const { ctx, dispose } = harness({ userId: "alice" });
 		dispose();

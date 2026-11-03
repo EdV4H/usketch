@@ -505,7 +505,9 @@ export function App() {
 		// ゲームテーブル（croupier）: croupier のゲームをシェイプとして遊ぶ。進行状態は
 		// テーブルシェイプ、参加者は座席シェイプとして通常のシェイプ同期に乗る。
 		// 1 シェイプ = 1 値の同期なので、手番制のゲームだけを載せる（同時に動くゲームは不可）。
-		const croupierUserId = userIdRef.current ?? getDevUser()?.id ?? "local";
+		// ログインはボードの後に届くことがあるので、ユーザーは毎回 ref から読む
+		// （作成時の値で固定すると、GitHub ログインの人が全員 "local" になる）。
+		const croupierUserId = () => userIdRef.current ?? getDevUser()?.id ?? "local";
 		// Cloud では awareness から接続中の人を知り、抜けた人の手番をホストが代行する。
 		croupierPresence = wsProvider
 			? createAwarenessPresence(wsProvider.awareness, croupierUserId)
@@ -513,10 +515,10 @@ export function App() {
 		extraPlugins.push(
 			createCroupierPlugin({
 				presence: croupierPresence ?? undefined,
-				player: {
-					userId: croupierUserId,
+				player: () => ({
+					userId: croupierUserId(),
 					name: userNameRef.current ?? getDevUser()?.name ?? "Guest",
-				},
+				}),
 				games: [
 					defineCroupierGame({
 						id: "values-card",

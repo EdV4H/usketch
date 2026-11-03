@@ -77,7 +77,8 @@ export interface CroupierPresence {
 export interface CreateCroupierApiParams {
 	store: BoardStore;
 	registry: GameRegistry;
-	player: CroupierPlayer;
+	/** The local player, or a getter when it is known only later (e.g. after sign-in). */
+	player: CroupierPlayer | (() => CroupierPlayer);
 	presence?: CroupierPresence;
 	now?: () => number;
 	addShape?: (shape: TableShape) => void;
@@ -88,7 +89,9 @@ export interface CreateCroupierApiParams {
 export type CroupierApiHandle = CroupierApi & { dispose(): void };
 
 export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiHandle {
-	const { store, registry, player, presence } = params;
+	const { store, registry, presence } = params;
+	const me = (): CroupierPlayer =>
+		typeof params.player === "function" ? params.player() : params.player;
 	const now = params.now ?? Date.now;
 	const addShape = params.addShape ?? ((shape: TableShape) => store.addShape(shape));
 	const tableSize = params.tableSize ?? DEFAULT_TABLE_SIZE;
@@ -100,7 +103,7 @@ export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiH
 	const cache = new Map<string, { key: unknown[]; view: TableView | undefined }>();
 	const keyFor = (tableId: string): unknown[] => {
 		const shapes = store.getShapes();
-		const key: unknown[] = [presenceVersion, shapes.get(tableId)];
+		const key: unknown[] = [presenceVersion, me().userId, shapes.get(tableId)];
 		for (const shape of shapes.values()) {
 			if (shape.parentId === tableId && isSeat(shape)) key.push(shape);
 		}
@@ -132,7 +135,7 @@ export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiH
 			listeners.clear();
 			cache.clear();
 		},
-		me: () => player,
+		me,
 		games: () => [...registry.values()],
 		createTable(game, center, options) {
 			if (!registry.has(game)) return null;
@@ -143,7 +146,7 @@ export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiH
 					game,
 					x: center.x - tableSize.width / 2,
 					y: center.y - tableSize.height / 2,
-					host: player,
+					host: me(),
 					options,
 					size: tableSize,
 				}),
@@ -159,7 +162,7 @@ export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiH
 			const key = keyFor(tableId);
 			const hit = cache.get(tableId);
 			if (hit && sameKey(hit.key, key)) return hit.view;
-			const view = getTableView(store, registry, tableId, player.userId);
+			const view = getTableView(store, registry, tableId, me().userId);
 			// Drop entries of deleted tables so the cache does not grow with the board's history.
 			if (view) cache.set(tableId, { key, view });
 			else cache.delete(tableId);
@@ -169,23 +172,23 @@ export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiH
 			listeners.add(listener);
 			return () => listeners.delete(listener);
 		},
-		join: (tableId) => joinTable(store, registry, tableId, player, now()),
-		leave: (tableId) => leaveTable(store, tableId, player.userId),
-		kick: (tableId, userId) => kickFromTable(store, tableId, player.userId, userId),
+		join: (tableId) => joinTable(store, registry, tableId, me(), now()),
+		leave: (tableId) => leaveTable(store, tableId, me().userId),
+		kick: (tableId, userId) => kickFromTable(store, tableId, me().userId, userId),
 		claimHost(tableId) {
 			const table = getTable(store, tableId);
 			const hostAway = table ? !(presence?.isOnline(table.meta.hostUserId) ?? true) : false;
-			return claimHost(store, tableId, player.userId, hostAway);
+			return claimHost(store, tableId, me().userId, hostAway);
 		},
-		setOptions: (tableId, options) => setTableOptions(store, tableId, player.userId, options),
-		start: (tableId) => startGame(store, registry, tableId, player.userId, now()),
+		setOptions: (tableId, options) => setTableOptions(store, tableId, me().userId, options),
+		start: (tableId) => startGame(store, registry, tableId, me().userId, now()),
 		dispatch: (tableId, action, payload) =>
-			dispatchAction(store, registry, tableId, player.userId, action, payload, now()),
+			dispatchAction(store, registry, tableId, me().userId, action, payload, now()),
 		takeOver: (tableId, players) =>
-			takeOverTurn(store, registry, tableId, player.userId, now, players),
-		endGame: (tableId) => endGame(store, registry, tableId, player.userId, now()),
-		reset: (tableId) => resetTable(store, tableId, player.userId),
-		setNote: (tableId, note) => setSeatNote(store, tableId, player.userId, note),
+			takeOverTurn(store, registry, tableId, me().userId, now, players),
+		endGame: (tableId) => endGame(store, registry, tableId, me().userId, now()),
+		reset: (tableId) => resetTable(store, tableId, me().userId),
+		setNote: (tableId, note) => setSeatNote(store, tableId, me().userId, note),
 		isOnline: (userId) => presence?.isOnline(userId) ?? true,
 	};
 }

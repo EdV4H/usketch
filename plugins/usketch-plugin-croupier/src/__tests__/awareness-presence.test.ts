@@ -17,6 +17,7 @@ function fakeAwareness(clientId: number) {
 			emit();
 		},
 		getStates: () => states,
+		getLocalState: () => states.get(clientId) ?? null,
 		on: (_e, l) => listeners.add(l),
 		off: (_e, l) => listeners.delete(l),
 	};
@@ -52,6 +53,19 @@ describe("createAwarenessPresence", () => {
 		expect(listener).toHaveBeenCalledTimes(1);
 		setRemote(2, { [CROUPIER_AWARENESS_FIELD]: { userId: "bob" }, cursor: { x: 2 } });
 		expect(listener).toHaveBeenCalledTimes(1);
+	});
+
+	it("follows a user id that is known only later", () => {
+		const { awareness, states, setRemote } = fakeAwareness(1);
+		let id = "local";
+		const presence = createAwarenessPresence(awareness, () => id);
+		expect(presence.isOnline("local")).toBe(true);
+		id = "alice";
+		// Any awareness change (e.g. someone's cursor) republishes the current id.
+		setRemote(2, { cursor: { x: 1 } });
+		expect(states.get(1)?.[CROUPIER_AWARENESS_FIELD]).toEqual({ userId: "alice" });
+		expect(presence.isOnline("alice")).toBe(true);
+		expect(presence.isOnline("local")).toBe(false);
 	});
 
 	it("clears its field and stops listening on dispose", () => {
