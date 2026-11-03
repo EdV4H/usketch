@@ -1,3 +1,4 @@
+import { createValuesCardConfig, type ValuesCardState } from "@edv4h/croupier-plugin-values-card";
 import { AppProvider, Canvas, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
@@ -15,6 +16,12 @@ import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createCharacterPlugin } from "@edv4h/usketch-plugin-character";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createAttachablePlugin, createContainerPlugin } from "@edv4h/usketch-plugin-container";
+import {
+	createAwarenessPresence,
+	createCroupierPlugin,
+	createMapGameState,
+	defineCroupierGame,
+} from "@edv4h/usketch-plugin-croupier";
 import { createDashboardPlugin } from "@edv4h/usketch-plugin-dashboard";
 import { createDeepLinkPlugin } from "@edv4h/usketch-plugin-deep-link";
 import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
@@ -340,6 +347,7 @@ export function App() {
 		const extraPlugins: UsketchPlugin[] = [];
 		let wsProvider: WsProviderHandle | null = null;
 		let offPresence: (() => void) | null = null;
+		let croupierPresence: ReturnType<typeof createAwarenessPresence> | null = null;
 		// Divergence tracker — surfaces shapes that exist in the local Y.Doc
 		// but the server hasn't acknowledged. Wired up only for cloud boards
 		// because local boards never round-trip with a server.
@@ -495,6 +503,58 @@ export function App() {
 			}),
 		);
 
+		// ゲームテーブル（croupier）: croupier のゲームをシェイプとして遊ぶ。進行状態は
+		// テーブルシェイプ、参加者は座席シェイプとして通常のシェイプ同期に乗る。
+		// 1 シェイプ = 1 値の同期なので、手番制のゲームだけを載せる（同時に動くゲームは不可）。
+		// ログインはボードの後に届くことがあるので、ユーザーは毎回 ref から読む
+		// （作成時の値で固定すると、GitHub ログインの人が全員 "local" になる）。
+		const croupierUserId = () => userIdRef.current ?? getDevUser()?.id ?? "local";
+		// Cloud では awareness から接続中の人を知り、抜けた人の手番をホストが代行する。
+		croupierPresence = wsProvider
+			? createAwarenessPresence(wsProvider.awareness, croupierUserId)
+			: null;
+		extraPlugins.push(
+			createCroupierPlugin({
+				presence: croupierPresence ?? undefined,
+				// 進行中のゲームはテーブルの meta ではなく doc の別マップに置く（テーブルを
+				// ドラッグするたびに snapshot ごと履歴に積まれないように）。
+				gameState: createMapGameState(syncHandle.doc.getMap("croupier")),
+				player: () => ({
+					userId: croupierUserId(),
+					name: userNameRef.current ?? getDevUser()?.name ?? "Guest",
+				}),
+				games: [
+					defineCroupierGame({
+						id: "values-card",
+						label: "Values Card",
+						createConfig: (options) =>
+							createValuesCardConfig({
+								theme: typeof options.theme === "string" ? options.theme : undefined,
+							}),
+						// 既定の見た目でカードを選んで捨てる / 拾うためのボタン。
+						actionChoices: (action, gameView, viewer) => {
+							const view = gameView as ValuesCardState | null;
+							if (!view) return [];
+							if (action === "discardCard") {
+								return (view.players[viewer]?.hand ?? []).map((card) => ({
+									label: `捨てる: ${card.name}`,
+									payload: { cardId: card.id },
+								}));
+							}
+							if (action === "drawFromDiscard") {
+								return view.discardPool.map(({ card }) => ({
+									label: `拾う: ${card.name}`,
+									payload: { cardId: card.id },
+								}));
+							}
+							return [{ label: action === "drawFromDeck" ? "山札から引く" : action }];
+						},
+					}),
+				],
+				now: () => serverClock.now(),
+			}),
+		);
+
 		// Portal: 任意のシェイプを画面固定でピン。既定は個人（localStorage）、共有トグルで
 		// doc の `portals` マップに載せて全員へ。ローカル/Cloud 共通。
 		extraPlugins.push(
@@ -608,6 +668,7 @@ export function App() {
 			instance?.destroy();
 			serverClock.destroy();
 			offPresence?.();
+			croupierPresence?.dispose();
 			presenceStore.set([]);
 			wsProvider?.destroy();
 			wsProviderRef.current = null;
