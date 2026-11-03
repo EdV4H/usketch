@@ -2,6 +2,7 @@ import { createValuesCardConfig } from "@edv4h/croupier-plugin-values-card";
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { describe, expect, it } from "vitest";
+import { bindGameState, createMapGameState, type GameStateMap } from "../game-state.js";
 import {
 	claimHost,
 	dispatchAction,
@@ -332,5 +333,64 @@ describe("readers", () => {
 		const seat = listSeats(store, tableId)[0];
 		expect(isTable({ ...table, meta: null } as unknown as ShapeData)).toBe(false);
 		expect(isSeat({ ...seat, meta: null } as unknown as ShapeData)).toBe(false);
+	});
+});
+
+describe("games kept outside the table (bindGameState)", () => {
+	function mapStore() {
+		const values = new Map<string, unknown>();
+		const observers = new Set<() => void>();
+		const emit = () => {
+			for (const o of observers) o();
+		};
+		const map: GameStateMap = {
+			get: (k) => values.get(k),
+			set: (k, v) => {
+				values.set(k, v);
+				emit();
+			},
+			delete: (k) => {
+				values.delete(k);
+				emit();
+			},
+			observe: (o) => observers.add(o),
+			unobserve: (o) => observers.delete(o),
+		};
+		return { values, map };
+	}
+
+	it("plays from the map and leaves only the phase on the table", () => {
+		const { store, tableId } = setup();
+		const { values, map } = mapStore();
+		const unbind = bindGameState(store, createMapGameState(map));
+		seatAll(store, tableId);
+		expect(startGame(store, registry, tableId, "alice", 10, 5)).toEqual({ ok: true });
+		expect(getTable(store, tableId)?.meta).toMatchObject({ phase: "playing", snapshot: null });
+		expect(values.has(tableId)).toBe(true);
+
+		const tableBefore = getTable(store, tableId);
+		expect(
+			dispatchAction(store, registry, tableId, "alice", "drawFromDeck", undefined, 11),
+		).toEqual({ ok: true });
+		// A move inside the turn does not touch the table shape.
+		expect(getTable(store, tableId)).toBe(tableBefore);
+		expect(viewOf(store, tableId, "alice")?.stage).toBe("waitingForDiscard");
+
+		resetTable(store, tableId, "alice");
+		expect(values.has(tableId)).toBe(false);
+		expect(getTable(store, tableId)?.meta.phase).toBe("lobby");
+		unbind();
+	});
+
+	it("drops the game of a deleted table", () => {
+		const { store, tableId } = setup();
+		const { values, map } = mapStore();
+		const unbind = bindGameState(store, createMapGameState(map));
+		seatAll(store, tableId);
+		startGame(store, registry, tableId, "alice", 10, 5);
+		store.deleteShape(tableId);
+		repairTables(store, new Set([tableId]));
+		expect(values.has(tableId)).toBe(false);
+		unbind();
 	});
 });

@@ -33,7 +33,8 @@ createCroupierPlugin({
           : [{ label: action }],
     }),
   ],
-  presence: createAwarenessPresence(wsProvider.awareness, userId), // optional, see "Absent players"
+  presence: createAwarenessPresence(wsProvider.awareness, () => userId), // optional, see "Absent players"
+  gameState: createMapGameState(doc.getMap("croupier")), // recommended, see "How it syncs"
   now: serverClock.now,  // optional: shared clock for turn timing
   renderTable,           // optional: your own look (see below)
   renderSeat,
@@ -46,11 +47,13 @@ A board shape is synced as one value (last writer wins), so each write has one o
 
 | Shape | `meta` | Written by |
 | --- | --- | --- |
-| `croupier-table` | game id, options, host, phase (`lobby` / `playing` / `finished`), engine snapshot (`CroupierCore#toSnapshot`) | the host (lobby, start, reset) and the player whose turn it is |
+| `croupier-table` | game id, options, host, phase (`lobby` / `playing` / `finished`) | the host (lobby, start, reset), and whoever ends the game |
+| `gameState` entry (keyed by table id) | engine snapshot (`CroupierCore#toSnapshot`), turn start time | the player whose turn it is |
 | `croupier-seat` (child of the table) | user id, name, join time, result note | the seated player |
 
 - **Joining** adds a seat shape instead of editing a shared list, so players joining at the same moment never drop each other. Seat order = turn order.
-- **Playing**: an action restores the engine from the table (`CroupierCore.fromSnapshot`), dispatches it and writes the new snapshot back. The snapshot log is capped (`SNAPSHOT_LOG_LIMIT`).
+- **Playing**: an action restores the engine from the stored snapshot (`CroupierCore.fromSnapshot`), dispatches it and writes the new snapshot back. The snapshot log is capped (`SNAPSHOT_LOG_LIMIT`).
+- **Where the snapshot lives**: pass `gameState: createMapGameState(doc.getMap("croupier"))` (any `Y.Map`-like map synced with the board). Without it the snapshot (a few KB) sits in the table's `meta`; the board rewrites a shape as a whole on every change, so every move — and every frame of dragging the table — adds the whole snapshot to the board's history.
 - **Hidden information** is hidden by the game's `playerView` only: renderers get `getPlayerView(localPlayer)`, but the snapshot itself is readable by every client. Fine for social games; a game that must be cheat-proof needs a server (see `@croupier/server`).
 - **Absent players**: with a `presence` adapter (`{ isOnline(userId), subscribe(listener) }`; `createAwarenessPresence` builds one from a Yjs awareness), the host's client plays the turn of a player who has been offline for `awayGraceMs` (default 20 s) with the game's bot — only that player's turn, never one of a connected player. Once a turn exceeds the game's own `turnTimeoutMs`, the bot plays it for whoever is due. An offline host is replaced by the first connected player. `awayGraceMs: false` turns this off.
 - **Copy / delete**: a pasted copy of a table becomes a fresh lobby (same host), its copied seats are dropped, and seats of a table that was deleted are removed (`repairTables`, run on every change). A seat whose table has not loaded yet is kept.

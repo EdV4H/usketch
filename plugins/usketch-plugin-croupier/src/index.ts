@@ -12,6 +12,15 @@ export {
 	croupierService,
 } from "./croupier-service.js";
 export {
+	bindGameState,
+	boundGameState,
+	createMapGameState,
+	type GameStateMap,
+	type GameStateStore,
+	readGameState,
+	type TableGameState,
+} from "./game-state.js";
+export {
 	CROUPIER_TABLE_TOOL_ID,
 	type CroupierPluginOptions,
 	createCroupierPlugin,

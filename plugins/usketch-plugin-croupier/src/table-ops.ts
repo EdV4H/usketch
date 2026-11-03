@@ -15,6 +15,7 @@
  * Every client can read the snapshot (hidden information is only hidden by
  * `getPlayerView`), which is the accepted trade-off of a serverless board.
  */
+
 import {
 	type BotDecision,
 	CroupierCore,
@@ -22,6 +23,7 @@ import {
 	type PlayerId,
 } from "@edv4h/croupier-core";
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
+import { boundGameState, readGameState, writeGameState } from "./game-state.js";
 import {
 	CROUPIER_SEAT_TYPE,
 	CROUPIER_TABLE_TYPE,
@@ -103,22 +105,29 @@ function limits(def: CroupierGameDefinition | undefined) {
 // update replaces it, so a stale entry is never reused).
 const viewEngines = new WeakMap<CroupierSnapshot, CroupierCore>();
 
-function restore(def: CroupierGameDefinition, meta: TableMeta): CroupierCore | null {
-	if (!meta.snapshot) return null;
+function restore(
+	def: CroupierGameDefinition,
+	meta: TableMeta,
+	snapshot: CroupierSnapshot | undefined,
+): CroupierCore | null {
+	if (!snapshot) return null;
 	try {
-		return CroupierCore.fromSnapshot(def.createConfig(meta.options), meta.snapshot);
+		return CroupierCore.fromSnapshot(def.createConfig(meta.options), snapshot);
 	} catch {
 		// A snapshot from an incompatible game version: show the table, refuse actions.
 		return null;
 	}
 }
 
-function viewEngine(def: CroupierGameDefinition, meta: TableMeta): CroupierCore | null {
-	const snapshot = meta.snapshot;
+function viewEngine(
+	def: CroupierGameDefinition,
+	meta: TableMeta,
+	snapshot: CroupierSnapshot | undefined,
+): CroupierCore | null {
 	if (!snapshot) return null;
 	const cached = viewEngines.get(snapshot);
 	if (cached) return cached;
-	const engine = restore(def, meta);
+	const engine = restore(def, meta, snapshot);
 	if (engine) viewEngines.set(snapshot, engine);
 	return engine;
 }
@@ -136,18 +145,29 @@ function allowedActionsOf(engine: CroupierCore): string[] {
 	return stageActions ?? phaseConfig.allowedActions ?? [];
 }
 
+function snapshotOf(store: BoardStore, table: TableShape): CroupierSnapshot | undefined {
+	return readGameState(store, table)?.snapshot;
+}
+
 function writeSnapshot(store: BoardStore, table: TableShape, engine: CroupierCore, now: number) {
-	const prev = table.meta.snapshot;
-	const snapshot = engine.toSnapshot({ logLimit: SNAPSHOT_LOG_LIMIT });
-	const before = prev ? currentKey(prev) : "";
+	const prev = readGameState(store, table);
+	const snapshot = engine.toSnapshot({ logLimit: SNAPSHOT_LOG_LIMIT }) as CroupierSnapshot;
+	const before = prev ? currentKey(prev.snapshot) : "";
 	const turnChanged = currentKey(snapshot) !== before;
-	const meta: TableMeta = {
-		...table.meta,
-		snapshot: snapshot as CroupierSnapshot,
-		phase: snapshot.finished ? "finished" : "playing",
-		turnStartedAt: turnChanged ? now : table.meta.turnStartedAt,
-	};
-	store.updateShape(table.id, { meta } as Partial<ShapeData>);
+	const fields = writeGameState(store, table, {
+		snapshot,
+		turnStartedAt: turnChanged ? now : (prev?.turnStartedAt ?? now),
+	});
+	writeTableMeta(store, table, { ...fields, phase: snapshot.finished ? "finished" : "playing" });
+}
+
+/** Write table meta only when something changed (a table write rewrites the whole shape). */
+function writeTableMeta(store: BoardStore, table: TableShape, patch: Partial<TableMeta>) {
+	const changed = (Object.keys(patch) as (keyof TableMeta)[]).some(
+		(key) => table.meta[key] !== patch[key],
+	);
+	if (!changed) return;
+	store.updateShape(table.id, { meta: { ...table.meta, ...patch } } as Partial<ShapeData>);
 }
 
 /** Identifies a turn: who is to act, in which phase (stages within a turn do not count). */
@@ -380,7 +400,7 @@ export function dispatchAction(
 	const def = registry.get(table.meta.game);
 	if (!def) return fail(`Unknown game "${table.meta.game}"`);
 	// Always restore a fresh engine: dispatch mutates it.
-	const engine = restore(def, table.meta);
+	const engine = restore(def, table.meta, snapshotOf(store, table));
 	if (!engine) return fail("The game state cannot be read");
 	const result = engine.dispatch(actorId, action, payload);
 	if (!result.ok) return fail(result.error ?? "Action rejected");
@@ -407,7 +427,7 @@ export async function takeOverTurn(
 	if (table.meta.phase !== "playing") return fail("The game is not in progress");
 	const def = registry.get(table.meta.game);
 	if (!def) return fail(`Unknown game "${table.meta.game}"`);
-	const engine = restore(def, table.meta);
+	const engine = restore(def, table.meta, snapshotOf(store, table));
 	if (!engine) return fail("The game state cannot be read");
 	const strategy = def.bot ?? engine.getConfig().bot;
 	if (!strategy) return fail("This game has no bot strategy");
@@ -438,7 +458,7 @@ export async function takeOverTurn(
 	if (!acted) return fail("The bot found nothing to do");
 	// The bot may be async: drop the result if someone moved meanwhile.
 	const latest = getTable(store, tableId);
-	if (!latest || latest.meta.snapshot?.revision !== revision) return fail("The game moved on");
+	if (!latest || snapshotOf(store, latest)?.revision !== revision) return fail("The game moved on");
 	writeSnapshot(store, latest, engine, now());
 	return ok;
 }
@@ -457,7 +477,7 @@ export function endGame(
 	if (table.meta.phase !== "playing") return fail("The game is not in progress");
 	const def = registry.get(table.meta.game);
 	if (!def) return fail(`Unknown game "${table.meta.game}"`);
-	const engine = restore(def, table.meta);
+	const engine = restore(def, table.meta, snapshotOf(store, table));
 	if (!engine) return fail("The game state cannot be read");
 	engine.endSession();
 	writeSnapshot(store, table, engine, now);
@@ -469,9 +489,7 @@ export function resetTable(store: BoardStore, tableId: string, actorId: string):
 	const table = getTable(store, tableId);
 	if (!table) return fail("Table not found");
 	if (table.meta.hostUserId !== actorId) return fail("Only the host can reset the table");
-	store.updateShape(tableId, {
-		meta: { ...table.meta, phase: "lobby", snapshot: null, turnStartedAt: null },
-	} as Partial<ShapeData>);
+	writeTableMeta(store, table, { ...writeGameState(store, table, null), phase: "lobby" });
 	return ok;
 }
 
@@ -514,6 +532,13 @@ export function repairTables(
 			meta: { ...table.meta, tableId: id, phase: "lobby", snapshot: null, turnStartedAt: null },
 		} as Partial<ShapeData>);
 	}
+	// Games of deleted tables (kept outside the shapes).
+	const gameState = boundGameState(store);
+	if (gameState) {
+		for (const id of removedTables) {
+			if (!shapes.has(id) && gameState.get(id)) gameState.set(id, null);
+		}
+	}
 	for (const shape of [...shapes.values()]) {
 		if (shape.type !== CROUPIER_SEAT_TYPE || typeof shape.parentId !== "string") continue;
 		const parentId = shape.parentId;
@@ -544,7 +569,7 @@ export function getTableView(
 	const mySeat = seats.find((s) => s.meta.userId === viewerId);
 	const isHost = table.meta.hostUserId === viewerId;
 	const { min, max } = limits(def);
-	const engine = def ? viewEngine(def, table.meta) : null;
+	const engine = def ? viewEngine(def, table.meta, snapshotOf(store, table)) : null;
 	const currentPlayers =
 		engine && !engine.getEngineState().finished ? currentPlayersOf(engine) : [];
 	const isMyTurn = currentPlayers.includes(viewerId);

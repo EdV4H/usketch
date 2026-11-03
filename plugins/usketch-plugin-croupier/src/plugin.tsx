@@ -8,6 +8,7 @@ import {
 	createCroupierApi,
 	croupierService,
 } from "./croupier-service.js";
+import { bindGameState, type GameStateStore, readGameState } from "./game-state.js";
 import {
 	DEFAULT_TABLE_SIZE,
 	type GameRegistry,
@@ -44,6 +45,13 @@ export interface CroupierPluginOptions {
 	 * players and handing the host role over. Without it everyone counts as online.
 	 */
 	presence?: CroupierPresence;
+	/**
+	 * Where running games are kept. Default: the table shape's meta, which the board
+	 * rewrites as a whole on every change (each drag frame included), so long games
+	 * bloat the board's history. Pass `createMapGameState(doc.getMap("croupier"))`
+	 * to keep them in a document map beside the shapes.
+	 */
+	gameState?: GameStateStore;
 	/** Clock for turn timing. Use a shared server clock when the board has one. Default `Date.now`. */
 	now?: () => number;
 	/** Host look for the table. Defaults to {@link defaultRenderTable}. */
@@ -101,11 +109,15 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 			const registry: GameRegistry = new Map(options.games.map((g) => [g.id, g]));
 			const now = options.now ?? Date.now;
 			const tableSize = options.tableSize ?? DEFAULT_TABLE_SIZE;
+			const unbindGameState = options.gameState
+				? bindGameState(ctx.store, options.gameState)
+				: () => {};
 			const api: CroupierApiHandle = createCroupierApi({
 				store: ctx.store,
 				registry,
 				player: options.player,
 				presence: options.presence,
+				gameState: options.gameState,
 				now,
 				tableSize,
 				// Creating / removing a table is undoable like any shape.
@@ -275,15 +287,16 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 						continue;
 					}
 					if (table.meta.phase !== "playing" || busy.has(table.id)) continue;
-					const revision = table.meta.snapshot?.revision;
+					const game = readGameState(ctx.store, table);
+					const revision = game?.snapshot.revision;
 					if (revision !== undefined && failedRevision.get(table.id) === revision) continue;
 					const view = api.getView(table.id);
 					if (!view || view.isMyTurn) continue;
 					const def = registry.get(table.meta.game);
 					const timeout = def
 						? getActiveTimeoutMs(def.createConfig(table.meta.options), {
-								phase: table.meta.snapshot?.phase ?? "",
-								stage: table.meta.snapshot?.stage,
+								phase: game?.snapshot.phase ?? "",
+								stage: game?.snapshot.stage,
 								currentPlayers: view.currentPlayers,
 								players: seats.map((s) => s.meta.userId),
 								finished: false,
@@ -291,8 +304,8 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 						: undefined;
 					const timedOut =
 						timeout !== undefined &&
-						table.meta.turnStartedAt !== null &&
-						t - table.meta.turnStartedAt >= timeout;
+						game?.turnStartedAt != null &&
+						t - game.turnStartedAt >= timeout;
 					const absent = view.currentPlayers.filter((p) => awayFor(p) >= grace);
 					if (absent.length === 0 && !timedOut) continue;
 					busy.add(table.id);
@@ -315,6 +328,7 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 				for (const off of offActions) off();
 				unprovide();
 				api.dispose();
+				unbindGameState();
 			};
 		},
 	};

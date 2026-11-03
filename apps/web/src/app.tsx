@@ -19,6 +19,7 @@ import { createAttachablePlugin, createContainerPlugin } from "@edv4h/usketch-pl
 import {
 	createAwarenessPresence,
 	createCroupierPlugin,
+	createMapGameState,
 	defineCroupierGame,
 } from "@edv4h/usketch-plugin-croupier";
 import { createDashboardPlugin } from "@edv4h/usketch-plugin-dashboard";
@@ -515,6 +516,9 @@ export function App() {
 		extraPlugins.push(
 			createCroupierPlugin({
 				presence: croupierPresence ?? undefined,
+				// 進行中のゲームはテーブルの meta ではなく doc の別マップに置く（テーブルを
+				// ドラッグするたびに snapshot ごと履歴に積まれないように）。
+				gameState: createMapGameState(syncHandle.doc.getMap("croupier")),
 				player: () => ({
 					userId: croupierUserId(),
 					name: userNameRef.current ?? getDevUser()?.name ?? "Guest",

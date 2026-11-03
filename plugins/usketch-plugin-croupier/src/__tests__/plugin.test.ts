@@ -10,8 +10,9 @@ import type { PluginContext } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { croupierService } from "../croupier-service.js";
+import { createMapGameState } from "../game-state.js";
 import { CROUPIER_TABLE_TOOL_ID, createCroupierPlugin } from "../plugin.js";
-import { getTable, joinTable, listSeats, startGame } from "../table-ops.js";
+import { dispatchAction, getTable, joinTable, listSeats, startGame } from "../table-ops.js";
 import { CROUPIER_SEAT_TYPE, CROUPIER_TABLE_TYPE, defineCroupierGame } from "../types.js";
 
 const valuesCard = defineCroupierGame({
@@ -144,6 +145,53 @@ describe("createCroupierPlugin", () => {
 		api.join(id);
 		expect(listSeats(store, id).map((s) => s.meta.userId)).toEqual(["alice"]);
 		expect(api.getView(id)?.mySeat?.meta.name).toBe("Alice");
+	});
+
+	it("refreshes views when a game kept in gameState changes", () => {
+		const store = createBoardStore();
+		const ctx = {
+			store,
+			shapes: createShapeRegistry(),
+			tools: createToolRegistry(),
+			actions: createActionRegistry(),
+			commands: createCommandRegistry(),
+			services: createServiceRegistry(),
+		} as unknown as PluginContext;
+		const values = new Map<string, unknown>();
+		const observers = new Set<() => void>();
+		const map = {
+			get: (k: string) => values.get(k),
+			set: (k: string, v: unknown) => {
+				values.set(k, v);
+				for (const o of observers) o();
+			},
+			delete: (k: string) => {
+				values.delete(k);
+				for (const o of observers) o();
+			},
+			observe: (o: () => void) => observers.add(o),
+			unobserve: (o: () => void) => observers.delete(o),
+		};
+		createCroupierPlugin({
+			player: { userId: "alice", name: "alice" },
+			games: [valuesCard],
+			gameState: createMapGameState(map),
+		}).setup(ctx);
+		const api = must(croupierService.get(ctx.services));
+		const id = api.createTable("values-card", { x: 0, y: 0 }) as string;
+		joinTable(store, registry, id, { userId: "bob", name: "bob" }, 1);
+		api.join(id);
+		const listener = vi.fn();
+		api.subscribe(listener);
+		expect(api.start(id)).toEqual({ ok: true });
+		expect(listener).toHaveBeenCalled();
+		const before = must(api.getView(id));
+		expect(before.stage).toBe("waitingForDraw");
+		const current = before.currentPlayers[0];
+		expect(dispatchAction(store, registry, id, current, "drawFromDeck", undefined, 2).ok).toBe(
+			true,
+		);
+		expect(api.getView(id)?.stage).toBe("waitingForDiscard");
 	});
 
 	it("disposes its service", () => {

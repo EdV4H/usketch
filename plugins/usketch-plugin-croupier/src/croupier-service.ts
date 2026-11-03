@@ -1,7 +1,9 @@
 // Host-facing API of the croupier plugin, published on `ctx.services` (see
 // docs/plugin-system-design.md). Every method is a thin binding of a table-ops
 // function to the board store and the local player.
+
 import { type BoardStore, defineService, generateId } from "@edv4h/usketch-shared";
+import { boundGameState, type GameStateStore } from "./game-state.js";
 import {
 	claimHost,
 	DEFAULT_TABLE_SIZE,
@@ -80,6 +82,8 @@ export interface CreateCroupierApiParams {
 	/** The local player, or a getter when it is known only later (e.g. after sign-in). */
 	player: CroupierPlayer | (() => CroupierPlayer);
 	presence?: CroupierPresence;
+	/** Where running games are kept (bound to `store` by the caller); its changes refresh views. */
+	gameState?: GameStateStore;
 	now?: () => number;
 	addShape?: (shape: TableShape) => void;
 	tableSize?: { width: number; height: number };
@@ -103,7 +107,12 @@ export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiH
 	const cache = new Map<string, { key: unknown[]; view: TableView | undefined }>();
 	const keyFor = (tableId: string): unknown[] => {
 		const shapes = store.getShapes();
-		const key: unknown[] = [presenceVersion, me().userId, shapes.get(tableId)];
+		const key: unknown[] = [
+			presenceVersion,
+			me().userId,
+			shapes.get(tableId),
+			boundGameState(store)?.get(tableId),
+		];
 		for (const shape of shapes.values()) {
 			if (shape.parentId === tableId && isSeat(shape)) key.push(shape);
 		}
@@ -123,6 +132,8 @@ export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiH
 		lastShapes = shapes;
 		notify();
 	});
+	// Games kept outside the shapes (see `bindGameState`).
+	const offGameState = params.gameState?.subscribe(notify);
 	const offPresence = presence?.subscribe(() => {
 		presenceVersion++;
 		notify();
@@ -131,6 +142,7 @@ export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiH
 	return {
 		dispose() {
 			offStore();
+			offGameState?.();
 			offPresence?.();
 			listeners.clear();
 			cache.clear();
