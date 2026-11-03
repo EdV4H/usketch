@@ -1,5 +1,5 @@
 import type { BoardStore, BoundingBox, ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
-import { useEffect, useReducer, useSyncExternalStore } from "react";
+import { memo, useEffect, useReducer, useSyncExternalStore } from "react";
 import { PORTAL_HEADER_H, type PortalEntry, type PortalStore } from "./portal-store.js";
 
 // Keep panel pointer/click/wheel from reaching the canvas (which would pan/select).
@@ -228,7 +228,14 @@ export function DefaultPortalChrome(p: PortalChromeProps) {
 	);
 }
 
-function PortalPanel({
+/**
+ * Memoized: the canvas re-renders fixed layers on every viewport change (pan /
+ * zoom), hover and selection change, and {@link PortalLayer} also ticks on any
+ * store mutation. All props here are stable references (portal-store entries,
+ * immutable store shapes, the shape def, store methods), so a panel re-renders
+ * — and re-runs `def.render` — only when its own entry or pinned shape changes.
+ */
+const PortalPanel = memo(function PortalPanel({
 	entry,
 	shared,
 	held,
@@ -303,7 +310,7 @@ function PortalPanel({
 			<ShapeContent def={def} shape={shape} bodyW={entry.w} bodyH={bodyH} />
 		</Chrome>
 	);
-}
+});
 
 export function PortalLayer({
 	portalStore,

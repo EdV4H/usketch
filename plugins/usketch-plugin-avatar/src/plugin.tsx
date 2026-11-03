@@ -67,7 +67,13 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 				render: (obj) => <WorldAvatar obj={obj} />,
 			});
 
-			const activeAvatars = new Set<number>();
+			// 最後に emit したリモートアバターの中身（clientId ごと）。awareness の change は
+			// カーソル移動など avatar / viewportCenter 以外の変更でも来るので、中身が変わった
+			// クライアントだけ emit し直す（アバターの transient に ttl は無いので延長も不要）。
+			const emittedAvatars = new Map<
+				number,
+				{ userId: string; name: string; image: string | null; x: number; y: number }
+			>();
 
 			// self-avatar用の状態（awareness変更時に更新→レイヤー再登録）
 			let selfName = userName;
@@ -229,28 +235,41 @@ export function createAvatarPlugin(options: AvatarPluginOptions): UsketchPlugin 
 					}
 
 					currentClients.add(clientId);
+					const next = {
+						userId: avatar.userId || String(clientId),
+						name: avatar.name || "",
+						image: avatar.image ?? null,
+						x: viewportCenter.x,
+						y: viewportCenter.y,
+					};
+					const prev = emittedAvatars.get(clientId);
+					if (
+						prev &&
+						prev.userId === next.userId &&
+						prev.name === next.name &&
+						prev.image === next.image &&
+						prev.x === next.x &&
+						prev.y === next.y
+					) {
+						continue;
+					}
+					emittedAvatars.set(clientId, next);
 					ctx.transient.emit({
 						id: `avatar-${clientId}`,
 						type: "avatar",
-						sourceUserId: avatar.userId || String(clientId),
-						position: { x: viewportCenter.x, y: viewportCenter.y },
-						data: {
-							name: avatar.name || "",
-							image: avatar.image ?? null,
-						},
+						sourceUserId: next.userId,
+						position: { x: next.x, y: next.y },
+						data: { name: next.name, image: next.image },
 						createdAt: Date.now(),
 					});
 				}
 
-				// 切断されたクライアントのアバターを削除
-				for (const clientId of activeAvatars) {
+				// 切断された・非表示になったクライアントのアバターを削除
+				for (const clientId of emittedAvatars.keys()) {
 					if (!currentClients.has(clientId)) {
+						emittedAvatars.delete(clientId);
 						ctx.transient.dismiss(`avatar-${clientId}`);
 					}
-				}
-				activeAvatars.clear();
-				for (const id of currentClients) {
-					activeAvatars.add(id);
 				}
 			}
 
