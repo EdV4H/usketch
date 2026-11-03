@@ -1,0 +1,41 @@
+// リファクタ巡回ルーティン（Claude の定期実行）の設定ファイル。
+// 巡回は毎回、main のこのファイルを読んでから動き方を決める。
+// ルーティン自体は平日 9:23 / 13:23 / 17:23（Asia/Tokyo）に起動する。それより多くは動かない。
+// 書き方は JSONC（コメント可）。キーが無いときは右のコメントにある既定値を使う。
+{
+	// false にすると、起動しても何もせず終える。（既定: true）
+	"enabled": true,
+
+	// 作業してよい曜日と時間帯。起動した時刻の「時」が hours に含まれるときだけ作業する。
+	// days は mon / tue / wed / thu / fri / sat / sun。hours は 9 / 13 / 17 から選ぶ（起動時刻に合わせる）。
+	"schedule": {
+		"timezone": "Asia/Tokyo",
+		"days": ["mon", "tue", "wed", "thu", "fri"],
+		"hours": [9, 13, 17]
+	},
+
+	// 未マージの claude-refactor PR がこの本数以上あれば、新しい PR も Issue も作らない。（既定: 2）
+	"prConcurrentLimit": 2,
+
+	// 1 日（timezone の日付）に作る claude-refactor PR の上限。マージ済み・クローズ済みも数える。（既定: 1）
+	"prDailyLimit": 1,
+
+	// true なら、新しい作業の前に、main より遅れている未マージの claude-refactor PR を
+	// 「Update branch」で最新にしておく（Renovate の rebaseWhen: behind-base-branch 相当）。
+	// 競合する PR は更新せず、スレッドで報告するだけにする。（既定: true）
+	"updateBehindPRs": true,
+
+	// true なら、作った PR に自動マージ（マージコミット）を予約し、CI が緑になったら自動でマージさせる。
+	// main へのマージは本番デプロイになるので、既定は false。（既定: false）
+	"automerge": false,
+
+	// 狙う改善の種類。"refactor"（設計の改善）と "perf"（計測で効果が確認できる性能改善）。（既定: 両方）
+	"kinds": ["refactor", "perf"],
+
+	// 1 本の PR の差分の目安。これを超える候補は実装せず Issue に回す。（既定: 3 ファイル・150 行）
+	"maxChangedFiles": 3,
+	"maxChangedLines": 150,
+
+	// 触らないパス（glob）。ここにかかる候補は選ばない。（既定: なし）
+	"ignorePaths": []
+}
