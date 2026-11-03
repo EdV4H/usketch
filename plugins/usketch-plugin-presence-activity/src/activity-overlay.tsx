@@ -85,6 +85,51 @@ export function collectParticipants(
 	return out;
 }
 
+/** The client ids an awareness `change` event reports. */
+export interface AwarenessChange {
+	added: readonly number[];
+	updated: readonly number[];
+	removed: readonly number[];
+}
+
+/** What the overlay draws from one awareness state: `activity` and the user's name / color. */
+function drawnSignature(state: Record<string, unknown> | undefined): string {
+	const user = state?.user as PresenceUser | undefined;
+	return JSON.stringify([state?.activity ?? null, user?.name ?? null, user?.color ?? null]);
+}
+
+/**
+ * Decide whether an awareness `change` can alter what the overlay draws. Awareness also
+ * carries `cursor`, `viewportCenter`, `avatar`, `character`, … — each pointer move (the
+ * local user's too) is a `change` — so only a remote participant whose `activity` /
+ * `user.name` / `user.color` differs from what this filter last saw, or a participant
+ * that left, returns true. A participant's first update always returns true. Exported
+ * for testing.
+ */
+export function createActivityChangeFilter(
+	awareness: Awareness,
+): (change: AwarenessChange) => boolean {
+	const seen = new Map<number, string>();
+	return ({ added, updated, removed }) => {
+		const self = awareness.doc.clientID;
+		let changed = false;
+		for (const id of removed) {
+			seen.delete(id);
+			if (id !== self) changed = true;
+		}
+		for (const ids of [added, updated]) {
+			for (const id of ids) {
+				if (id === self) continue;
+				const sig = drawnSignature(awareness.getStates().get(id));
+				if (seen.get(id) === sig) continue;
+				seen.set(id, sig);
+				changed = true;
+			}
+		}
+		return changed;
+	};
+}
+
 /** A clock frozen past the end of every motion — used under `prefers-reduced-motion`. */
 const FINAL_FRAME_CLOCK: MotionClock = {
 	elapsed: () => Number.POSITIVE_INFINITY,
@@ -101,7 +146,8 @@ function prefersReducedMotion(): boolean {
 /**
  * Screen-space SVG overlay drawing every remote participant's selection / edit /
  * marquee in their presence color (feature #960). Mirrors the coordinate math of
- * `UnconfirmedOverlay`. Re-renders on awareness change (own subscription) and on
+ * `UnconfirmedOverlay`. Re-renders when a remote `activity` / `user` changes (own
+ * awareness subscription, see {@link createActivityChangeFilter}) and on
  * viewport change (the fixed layer re-renders and passes a fresh `viewport`).
  */
 export function ActivityOverlay({
@@ -121,8 +167,13 @@ export function ActivityOverlay({
 }) {
 	const [, bump] = useReducer((n: number) => n + 1, 0);
 	useEffect(() => {
-		awareness.on("change", bump);
-		return () => awareness.off("change", bump);
+		// Skip cursor / viewport / avatar updates: they don't change what's drawn here.
+		const changed = createActivityChangeFilter(awareness);
+		const onChange = (change: AwarenessChange) => {
+			if (changed(change)) bump();
+		};
+		awareness.on("change", onChange);
+		return () => awareness.off("change", onChange);
 	}, [awareness]);
 
 	// Local in-app AI activity (this tab only) — the agent has no awareness presence.
