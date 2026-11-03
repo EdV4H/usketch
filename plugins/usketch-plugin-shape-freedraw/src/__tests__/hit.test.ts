@@ -41,6 +41,34 @@ describe("hitStroke", () => {
 		expect(hitStroke(dot, { x: 12, y: 12 })).toBe(true);
 		expect(hitStroke(dot, { x: 40, y: 40 })).toBe(false);
 	});
+	it("半幅 + tolerance ちょうどの点（線の横・端の先）は true のまま", () => {
+		// size 4 → 半幅 2、tolerance 2 → 判定半径 4
+		expect(hitStroke(shape, { x: 50, y: 4 })).toBe(true);
+		expect(hitStroke(shape, { x: 50, y: -4 })).toBe(true);
+		expect(hitStroke(shape, { x: -4, y: 0 })).toBe(true);
+		expect(hitStroke(shape, { x: 104, y: 0 })).toBe(true);
+		expect(hitStroke(shape, { x: 50, y: 4.01 })).toBe(false);
+		expect(hitStroke(shape, { x: 104.01, y: 0 })).toBe(false);
+	});
+	it("筆ペンは筆圧の高い点の太さまで届く", () => {
+		// size 10: 半幅 = (min + (max - min) * p) / 2, min = 2.2, max = 15.5
+		const brush = fd(
+			[
+				{ x: 0, y: 0, p: 0 },
+				{ x: 100, y: 0, p: 1 },
+			],
+			10,
+			"brush",
+		);
+		expect(hitStroke(brush, { x: 50, y: 15.5 / 2 + 2 })).toBe(true);
+		expect(hitStroke(brush, { x: 50, y: 15.5 / 2 + 2.1 })).toBe(false);
+	});
+	it("同じ shape で何度呼んでも、点から遠い・近いの結果は変わらない", () => {
+		for (let i = 0; i < 3; i++) {
+			expect(hitStroke(shape, { x: 500, y: 500 })).toBe(false);
+			expect(hitStroke(shape, { x: 50, y: 1 })).toBe(true);
+		}
+	});
 });
 
 describe("strokeBounds", () => {
