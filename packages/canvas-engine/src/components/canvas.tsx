@@ -44,6 +44,24 @@ function isEffectivelyHiddenInMap(
 	return result;
 }
 
+/**
+ * The render list: `filtered` in z-order (back to front). `storeSorted` is the
+ * store's own z-sorted list of the same live shape map (`BoardStore.getShapesSorted`,
+ * cached and kept in order across moves), or `null` when `filtered` comes from
+ * elsewhere (time-travel snapshot). Filtering that list keeps its order, so the
+ * board isn't sorted again on every drag frame; without it we sort here.
+ */
+export function sortRenderShapes(
+	filtered: ReadonlyMap<string, ShapeData>,
+	storeSorted: readonly ShapeData[] | null,
+): readonly ShapeData[] {
+	if (!storeSorted) {
+		return [...filtered.values()].sort((a, b) => compareZIndex(a.zIndex, b.zIndex));
+	}
+	if (filtered.size === storeSorted.length) return storeSorted;
+	return storeSorted.filter((s) => filtered.has(s.id));
+}
+
 function toCanvasEvent(
 	containerRef: React.RefObject<HTMLDivElement | null>,
 	viewport: { x: number; y: number; zoom: number },
@@ -560,8 +578,12 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 	}, [shapes, filterPredicate, timeTravelShapes]);
 
 	const shapesSorted = useMemo(
-		() => [...filteredShapes.values()].sort((a, b) => compareZIndex(a.zIndex, b.zIndex)),
-		[filteredShapes],
+		() =>
+			sortRenderShapes(
+				filteredShapes,
+				!timeTravelShapes && shapes === app.store.getShapes() ? app.store.getShapesSorted() : null,
+			),
+		[filteredShapes, shapes, timeTravelShapes, app.store],
 	);
 
 	// Visible region in world coords (screenToWorld of the top-left + size/zoom).

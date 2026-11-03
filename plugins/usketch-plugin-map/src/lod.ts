@@ -19,11 +19,17 @@ export const COARSE_BLOCK_PX = 24;
 /**
  * Pick a detail tier from the on-screen tile size (world tile × zoom, in px). A
  * global `renderMode` of "lod" forces coarse so the map simplifies in step with
- * the rest of the canvas.
+ * the rest of the canvas. `fullMinPx` is the threshold (the render config's
+ * `fullDetailMinPx`; the ground and the relief pass the same one).
  */
-export function tileDetail(screenTilePx: number, renderMode?: RenderMode): TileDetail {
+export function tileDetail(
+	screenTilePx: number,
+	renderMode?: RenderMode,
+	fullMinPx: number = FULL_MIN_PX,
+): TileDetail {
 	if (renderMode === "lod") return "coarse";
-	return screenTilePx >= FULL_MIN_PX ? "full" : "coarse";
+	const min = Number.isFinite(fullMinPx) && fullMinPx > 0 ? fullMinPx : FULL_MIN_PX;
+	return screenTilePx >= min ? "full" : "coarse";
 }
 
 /**

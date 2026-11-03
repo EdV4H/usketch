@@ -16,12 +16,7 @@ import {
 	getInfiniteSeed,
 	isInfiniteTerrainEnabled,
 } from "./infinite-terrain.js";
-import {
-	GROUND_OVERSCAN_EVENT,
-	MAX_GROUND_OVERSCAN_PX,
-	MapTerrainLayer,
-	STAGE_3D_EVENT,
-} from "./map-layer.js";
+import { GROUND_OVERSCAN_EVENT, MapTerrainLayer, STAGE_3D_EVENT } from "./map-layer.js";
 import { MapReliefLayer, RELIEF_LAYER_ID } from "./map-relief-layer.js";
 import { createMapApi, mapService } from "./map-service.js";
 import { createMapToolDefinition } from "./map-tool.js";
@@ -29,7 +24,14 @@ import { MAP_TOOL_ID } from "./map-tool-id.js";
 import type { ColorMode } from "./palette.js";
 import { createRangeEraseToolDefinition, RANGE_ERASE_TOOL_ID } from "./range-erase-tool.js";
 import { createReactiveStore } from "./reactive-store.js";
-import { type LineStyle, renderConfigStore } from "./render-config.js";
+import {
+	clampGroundOverscan,
+	detailConfigPatch,
+	type LineStyle,
+	type MapDetailField,
+	type MapRenderConfig,
+	renderConfigStore,
+} from "./render-config.js";
 import { TERRAINS, type TerrainKey } from "./terrain.js";
 import { createTileMapShapeDefinition, DEFAULT_TILE, TILEMAP_TYPE } from "./tilemap-shape.js";
 
@@ -51,6 +53,13 @@ export interface MapPluginOptions {
 	 * (`"base-mode"` default, or `"always"`). Omit a hook → that part isn't drawn.
 	 */
 	territory?: TerritoryStyle;
+	/**
+	 * Initial draw range / level of detail (ground overscan cap in a 3D view, whether the
+	 * relief covers it, the relief's edge inset, the full-detail threshold). Omitted
+	 * fields keep the defaults. Adjustable at runtime via the Control HUD "RPG マップ"
+	 * settings or `getMapApi(...).renderConfig`.
+	 */
+	detail?: Partial<Pick<MapRenderConfig, MapDetailField>>;
 }
 
 const TERRAIN_LAYER_ID = "usketch-map:terrain";
@@ -68,6 +77,10 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			emptyTerrain: options.emptyTerrain,
 		});
 	}
+	for (const [name, value] of Object.entries(options.detail ?? {})) {
+		const patch = detailConfigPatch(name, value, renderConfigStore.get());
+		if (patch) renderConfigStore.set(patch);
+	}
 
 	return {
 		id: "usketch-plugin-map",
@@ -81,14 +94,19 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			ctx.shapes.register(BASE_MAP_TYPE, createBaseMapShapeDefinition(tile));
 
 			// Ground revealed past the viewport by a 3D view (Mode 7): the terrain extends
-			// under it so the far edge isn't a bare box (see GROUND_OVERSCAN_EVENT).
+			// under it so the far edge isn't a bare box (see GROUND_OVERSCAN_EVENT). The
+			// requested px is kept so changing the cap (render config) re-applies it.
 			const overscan = createReactiveStore({ px: 0 });
-			const offOverscan = ctx.events.on<{ px: number }>(GROUND_OVERSCAN_EVENT, (data) => {
-				const px = Number(data?.px);
+			let requestedOverscan = 0;
+			const applyOverscan = () =>
 				overscan.set({
-					px: Number.isFinite(px) ? Math.min(MAX_GROUND_OVERSCAN_PX, Math.max(0, px)) : 0,
+					px: clampGroundOverscan(requestedOverscan, renderConfigStore.get().groundOverscanMaxPx),
 				});
+			const offOverscan = ctx.events.on<{ px: number }>(GROUND_OVERSCAN_EVENT, (data) => {
+				requestedOverscan = Number(data?.px);
+				applyOverscan();
 			});
+			const offOverscanCap = renderConfigStore.subscribe(applyOverscan);
 
 			// Whether a 3D view (Mode 7) is showing the board: the relief is only built then.
 			// Seeded from the attribute Mode 7 sets, in case it was already on before us.
@@ -133,6 +151,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 						renderMode={lctx.renderMode}
 						tile={tile}
 						stage={stage}
+						overscan={overscan}
 					/>
 				),
 			});
@@ -220,6 +239,32 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 					// space deterministically so the world can be panned forever.
 					{ name: "infinite", label: "無限地形", type: "boolean" },
 					{ name: "seed", label: "シード", type: "number", min: 0, max: 999999, step: 1 },
+					// Draw range in a 3D view (Mode 7) + level of detail (see MapRenderConfig).
+					{
+						name: "groundOverscanMaxPx",
+						label: "3D: 画面外の地面(px)",
+						type: "number",
+						min: 0,
+						max: 2000,
+						step: 20,
+					},
+					{ name: "reliefOverscan", label: "3D: 画面外の地面にも崖", type: "boolean" },
+					{
+						name: "reliefEdgeInset",
+						label: "3D: 崖を作らない縁(マス)",
+						type: "number",
+						min: 0,
+						max: 8,
+						step: 1,
+					},
+					{
+						name: "fullDetailMinPx",
+						label: "詳細表示の最小マス(px)",
+						type: "number",
+						min: 4,
+						max: 96,
+						step: 2,
+					},
 				],
 				get: (name) => {
 					if (name === "emptyTerrain") return renderConfigStore.get().emptyTerrain ?? "none";
@@ -230,7 +275,9 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 					return renderConfigStore.get()[name as keyof ReturnType<typeof renderConfigStore.get>];
 				},
 				set: (name, value) => {
-					if (name === "strokeScale") renderConfigStore.set({ strokeScale: Number(value) });
+					const detail = detailConfigPatch(name, value, renderConfigStore.get());
+					if (detail) renderConfigStore.set(detail);
+					else if (name === "strokeScale") renderConfigStore.set({ strokeScale: Number(value) });
 					else if (name === "colorMode") renderConfigStore.set({ colorMode: value as ColorMode });
 					else if (name === "lineStyle") renderConfigStore.set({ lineStyle: value as LineStyle });
 					else if (name === "emptyTerrain")
@@ -301,6 +348,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				unprovideGround();
 				unprovideService();
 				offOverscan();
+				offOverscanCap();
 				offStage();
 				ctx.layers.unregister(TERRAIN_LAYER_ID);
 				ctx.layers.unregister(RELIEF_LAYER_ID);

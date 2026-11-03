@@ -1,10 +1,10 @@
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import type { Cells } from "../autotile.js";
-import { chunkArea, visibleRegion } from "../map-layer.js";
-import { computeRelief, wallStyle } from "../map-relief-layer.js";
+import { chunkArea } from "../map-layer.js";
+import { computeRelief, reliefChunkMarkup, wallStyle } from "../map-relief-layer.js";
 import { renderConfigStore } from "../render-config.js";
-import { TERRAIN_KEYS } from "../terrain.js";
+import { TERRAIN_KEYS, type TerrainKey } from "../terrain.js";
 import {
 	boardTerrainSampler,
 	groundHeightAt,
@@ -118,10 +118,18 @@ describe("chunkArea", () => {
 	});
 });
 
-describe("visibleRegion", () => {
-	it("snaps to a few cells, inside the chunk area", () => {
-		const r = visibleRegion({ left: 10, top: -5, right: 110, bottom: 45 } as DOMRectReadOnly, TILE);
-		const step = 4 * TILE;
-		expect(r && [r.left, r.top, r.right, r.bottom]).toEqual([0, -step, step, step]);
+describe("reliefChunkMarkup", () => {
+	it("draws the walls and lifted faces of raised cells", () => {
+		// A stone cell (level 2) in water: four walls and one face.
+		const sample = (c: number, r: number) => (c === 1 && r === 1 ? "stone" : "water") as TerrainKey;
+		const html = reliefChunkMarkup(sample, { c0: 0, c1: 2, r0: 0, r1: 2 }, TILE, 1);
+		expect(html.match(/<div /g)).toHaveLength(4);
+		expect(html).toContain("translateZ(32px)");
+		expect(html).toContain("url(#uskmap-pat-stone)");
+	});
+
+	it("never writes out an unknown terrain", () => {
+		const sample = () => "constructor" as TerrainKey;
+		expect(reliefChunkMarkup(sample, { c0: 0, c1: 1, r0: 0, r1: 1 }, TILE, 1)).toBe("");
 	});
 });

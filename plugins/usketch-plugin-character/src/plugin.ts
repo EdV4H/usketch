@@ -8,7 +8,7 @@ import type { CameraMode } from "./character-camera.js";
 import type { ControlScheme, DriftParams, MotionParams } from "./character-physics.js";
 import { setupCharacterRuntime } from "./character-runtime.js";
 import { characterService, createCharacterApi } from "./character-service.js";
-import { createCharacterStore } from "./character-store.js";
+import { createCharacterStore, type JumpInit } from "./character-store.js";
 import type { CharacterAwareness } from "./character-sync.js";
 import {
 	type CharacterAppearance,
@@ -21,13 +21,18 @@ import { registerCharacterHud } from "./register-character-hud.js";
 export interface CharacterPluginOptions {
 	/** Draws a character (self and others). Omitted = headless (nothing drawn). */
 	renderCharacter?: CharacterRenderer;
+	/**
+	 * Draws a character's shadow, placed on the ground under it (the body stands at its
+	 * feet height, so a jump lifts it off the shadow in 3D). Omitted = no shadow.
+	 */
+	renderShadow?: CharacterRenderer;
 	/** Broadcast look data for your character (e.g. `{ color: "#e44" }`). */
 	appearance?: CharacterAppearance;
 	/** Multiplayer: share characters through this provider's awareness. Omitted = solo. */
 	wsProvider?: { awareness: CharacterAwareness };
 	/** Display name sent with your character. */
 	userName?: string;
-	/** Movement keys as `KeyboardEvent.code` lists (default WASD, drift Space). */
+	/** Keys as `KeyboardEvent.code` lists (default WASD, drift and jump Space). */
 	keys?: Partial<CharacterKeys>;
 	/** Start with the character on (default `false`). */
 	enabledInitially?: boolean;
@@ -42,6 +47,12 @@ export interface CharacterPluginOptions {
 	 * tuning, an object = overrides. Default off.
 	 */
 	drift?: boolean | Partial<DriftParams>;
+	/**
+	 * Press the jump key (Space) to jump: hop over cliffs taller than `motion.maxStep`.
+	 * `true` = default tuning, an object = overrides (`airJumps` for multi-jumps, `hover:
+	 * true` / a partial to hover while the key is held in a fall). Default off.
+	 */
+	jump?: boolean | JumpInit;
 	/** Where the character sits on screen, as canvas fractions (default center). */
 	screenAnchor?: { x?: number; y?: number };
 	/** Follow-camera lag: 0 = rigid (default) … 0.99 = heavy. */
@@ -59,11 +70,13 @@ export function createCharacterPlugin(options: CharacterPluginOptions = {}): Usk
 				controlScheme: options.controlScheme,
 				motion: options.motion,
 				drift: options.drift,
+				jump: options.jump,
 				anchor: options.screenAnchor,
 				followSmoothing: options.followSmoothing,
 				appearance: options.appearance,
 				name: options.userName,
 				renderer: options.renderCharacter,
+				shadowRenderer: options.renderShadow,
 			});
 			const runtime = setupCharacterRuntime(ctx, store, {
 				keys: { ...DEFAULT_KEYS, ...options.keys },

@@ -20,8 +20,16 @@ import {
 } from "./character-camera.js";
 import { createKeyInput } from "./character-input.js";
 import { CharacterLayer } from "./character-layer.js";
-import { constrainToGround, type HeightAt, stepCharacter } from "./character-physics.js";
-import type { CharacterStore } from "./character-store.js";
+import {
+	constrainToGround,
+	type HeightAt,
+	holdDriftForHop,
+	IDLE_JUMP,
+	type JumpTimers,
+	stepCharacter,
+	stepVertical,
+} from "./character-physics.js";
+import { type CharacterStore, driftHopHeight, effectiveJump } from "./character-store.js";
 import {
 	type CharacterAwareness,
 	type CharacterSync,
@@ -29,6 +37,12 @@ import {
 	easeRemotes,
 } from "./character-sync.js";
 import type { CharacterKeys, RemoteCharacter } from "./character-types.js";
+import {
+	combineInput,
+	isVirtualInputActive,
+	normalizeVirtualInput,
+	type VirtualInput,
+} from "./character-virtual-input.js";
 
 export const CHARACTER_LAYER_ID = "character";
 /** Above shapes and most overlays, below the HUD (9999). */
@@ -39,6 +53,8 @@ export const CHARACTER_VIEWPORT_PRIORITY = 20;
 const REMOTE_SMOOTHING = 0.75;
 /** Largest simulated step, so a background-tab pause doesn't teleport the character. */
 const MAX_DT = 0.05;
+/** How long a measured canvas size is reused (a window resize re-measures at once). */
+const CANVAS_SIZE_TTL_MS = 500;
 
 function scheduleFrame(fn: (now: number) => void): number {
 	if (typeof requestAnimationFrame === "function") return requestAnimationFrame(fn);
@@ -84,7 +100,13 @@ export interface CharacterRuntime {
 	placeAtAnchor(): void;
 	/** The screen-px anchor (for rotating the camera about the character's spot). */
 	anchorPoint(): Point;
+	/** Jump on the next frame, as a full (held) jump. No-op while jumping is off. */
+	jump(): void;
 	setKeys(keys: CharacterKeys): void;
+	getKeys(): CharacterKeys;
+	/** Feed analog input from a host control (touch stick …); `null` releases it. */
+	setVirtualInput(input: Partial<VirtualInput> | null): void;
+	getVirtualInput(): VirtualInput | null;
 	dispose(): void;
 }
 
@@ -97,7 +119,15 @@ export function setupCharacterRuntime(
 		options.keys,
 		() => store.getState().enabled,
 		() => store.getState().controlScheme === "vehicle" && store.getState().drift !== null,
+		() => store.getState().jump !== null,
 	);
+	let jumpTimers: JumpTimers = IDLE_JUMP;
+	// `jump()` from code: a press on the next frame, held until the apex (a full jump).
+	let pendingJump = false;
+	let holdJump = false;
+	// Cleared when the character turns off, so a control that never sent its release
+	// (unmounted mid-touch) can't leave the next ride driving on its own.
+	let virtual: VirtualInput | null = null;
 	let cam: CameraFocus | null = null;
 	let display: ReadonlyMap<string, RemoteCharacter> = new Map();
 	let rafId: number | null = null;
@@ -105,7 +135,23 @@ export function setupCharacterRuntime(
 	// Set while WE write the viewport, so our own writes don't read as a user pan.
 	let writing = false;
 
-	const anchorPoint = (): Point => anchorPx(store.getState().anchor, canvasSize());
+	// The anchor is read every frame while following; measuring the canvas walks the layer
+	// wrappers and forces a layout, so the size is cached and refreshed on resize or after
+	// a short TTL (covers layout changes that aren't a window resize, e.g. a side panel).
+	let sizeCache: { width: number; height: number; at: number } | null = null;
+	const cachedCanvasSize = (): { width: number; height: number } => {
+		const now = Date.now();
+		if (!sizeCache || now - sizeCache.at > CANVAS_SIZE_TTL_MS) {
+			sizeCache = { ...canvasSize(), at: now };
+		}
+		return sizeCache;
+	};
+	const onResize = (): void => {
+		sizeCache = null;
+	};
+	if (typeof window !== "undefined") window.addEventListener("resize", onResize);
+
+	const anchorPoint = (): Point => anchorPx(store.getState().anchor, cachedCanvasSize());
 
 	// Ground height from whichever plugin provides it (e.g. the map's raised terrain), looked up
 	// per call so a provider registered later still counts. Absent = flat board.
@@ -119,6 +165,7 @@ export function setupCharacterRuntime(
 		const vp = ctx.store.getViewport();
 		const a = anchorPoint();
 		store.setPosition(screenToWorld(a.x, a.y, vp));
+		jumpTimers = IDLE_JUMP;
 		cam = null;
 	};
 
@@ -146,13 +193,23 @@ export function setupCharacterRuntime(
 				store.setHeading(-viewportRotation(ctx.store.getViewport()));
 				s = store.getState();
 			}
-			const input = keys.read();
-			if (s.followSuspended && keys.anyHeld()) store.setFollowSuspended(false);
+			const keyInput = combineInput(keys.read(), virtual);
+			const input = {
+				...keyInput,
+				jump: keyInput.jump || holdJump,
+				jumpPressed: keyInput.jumpPressed || pendingJump,
+			};
+			if (pendingJump) holdJump = true;
+			pendingJump = false;
+			if (s.followSuspended && (keys.anyHeld() || isVirtualInputActive(virtual))) {
+				store.setFollowSuspended(false);
+			}
 
 			const vp = ctx.store.getViewport();
+			const hopHeight = driftHopHeight(s);
 			const stepped = stepCharacter(
 				s.pose,
-				input,
+				holdDriftForHop(input, s.pose, hopHeight),
 				dt,
 				s.controlScheme,
 				s.motion,
@@ -160,7 +217,21 @@ export function setupCharacterRuntime(
 				s.drift,
 			);
 			// Cliffs taller than the climbable step block the move (slide along them).
-			const pose = constrainToGround(s.pose, stepped, heightAt, s.motion.maxStep);
+			const moved = constrainToGround(s.pose, stepped, heightAt, s.motion.maxStep);
+			// Then up and down: jumps, falls off cliffs, landings.
+			const vertical = stepVertical(
+				moved,
+				jumpTimers,
+				input,
+				dt,
+				heightAt(moved.x, moved.y),
+				s.motion.maxStep,
+				effectiveJump(s),
+				hopHeight,
+			);
+			jumpTimers = vertical.timers;
+			const pose = vertical.pose;
+			if (holdJump && (!pose.airborne || pose.vz <= 0)) holdJump = false;
 			store.setPose(pose);
 			s = store.getState();
 
@@ -214,6 +285,7 @@ export function setupCharacterRuntime(
 				});
 			} else {
 				cam = null;
+				virtual = null;
 				// Hand the camera back upright.
 				if (viewportRotation(ctx.store.getViewport()) !== 0) {
 					ctx.store.rotateTo(0, anchorPoint(), { animate: true });
@@ -231,7 +303,8 @@ export function setupCharacterRuntime(
 
 	// A viewport change we didn't make: zoom (wheel / keys) is welcome — the follow
 	// keeps the character on its anchor at the new zoom. A pure pan means the user
-	// wants to look around, so pause following until a movement key is pressed.
+	// wants to look around, so pause following until a movement key (or the virtual
+	// control) is pressed.
 	let lastZoom = ctx.store.getViewport().zoom;
 	const offViewport = ctx.store.onMutation((e) => {
 		if (e.type !== "viewport:changed") return;
@@ -255,7 +328,20 @@ export function setupCharacterRuntime(
 	return {
 		placeAtAnchor,
 		anchorPoint,
+		jump() {
+			const s = store.getState();
+			if (!s.enabled || !s.jump) return;
+			pendingJump = true;
+			ensureLoop();
+		},
 		setKeys: (k) => keys.setKeys(k),
+		getKeys: () => keys.getKeys(),
+		setVirtualInput(input) {
+			// Ignored while off (like the keys), so input sent before the character is
+			// turned on can't make it drive away on its own the moment it spawns.
+			virtual = store.getState().enabled ? normalizeVirtualInput(input) : null;
+		},
+		getVirtualInput: () => (virtual ? { ...virtual } : null),
 		dispose() {
 			if (rafId !== null) cancelFrame(rafId);
 			rafId = null;
@@ -263,6 +349,7 @@ export function setupCharacterRuntime(
 			offViewport();
 			keys.dispose();
 			sync?.dispose();
+			if (typeof window !== "undefined") window.removeEventListener("resize", onResize);
 			ctx.layers.unregister(CHARACTER_LAYER_ID);
 		},
 	};
@@ -285,6 +372,10 @@ function sameRemotes(
 			o.steering !== r.steering ||
 			o.slip !== r.slip ||
 			o.drifting !== r.drifting ||
+			o.z !== r.z ||
+			o.airborne !== r.airborne ||
+			o.hovering !== r.hovering ||
+			o.hoverGauge !== r.hoverGauge ||
 			o.name !== r.name ||
 			o.appearance !== r.appearance
 		) {
