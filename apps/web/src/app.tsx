@@ -1,3 +1,5 @@
+import { createPlanningPokerConfig } from "@edv4h/croupier-plugin-planning-poker";
+import { createValuesCardConfig } from "@edv4h/croupier-plugin-values-card";
 import { AppProvider, Canvas, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
@@ -15,6 +17,7 @@ import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createCharacterPlugin } from "@edv4h/usketch-plugin-character";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createAttachablePlugin, createContainerPlugin } from "@edv4h/usketch-plugin-container";
+import { createCroupierPlugin, defineCroupierGame } from "@edv4h/usketch-plugin-croupier";
 import { createDashboardPlugin } from "@edv4h/usketch-plugin-dashboard";
 import { createDeepLinkPlugin } from "@edv4h/usketch-plugin-deep-link";
 import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
@@ -492,6 +495,34 @@ export function App() {
 			createTimterPlugin({
 				serverClock,
 				userId: userIdRef.current ?? getDevUser()?.id ?? "local",
+			}),
+		);
+
+		// ゲームテーブル（croupier）: croupier のゲームをシェイプとして遊ぶ。進行状態は
+		// テーブルシェイプ、参加者は座席シェイプとして通常のシェイプ同期に乗る。
+		extraPlugins.push(
+			createCroupierPlugin({
+				player: {
+					userId: userIdRef.current ?? getDevUser()?.id ?? "local",
+					name: userNameRef.current ?? getDevUser()?.name ?? "Guest",
+				},
+				games: [
+					defineCroupierGame({
+						id: "values-card",
+						label: "Values Card",
+						createConfig: (options) =>
+							createValuesCardConfig({
+								theme: typeof options.theme === "string" ? options.theme : undefined,
+							}),
+					}),
+					defineCroupierGame({
+						id: "planning-poker",
+						label: "Planning Poker",
+						createConfig: () => createPlanningPokerConfig(),
+						minPlayers: 1,
+					}),
+				],
+				now: () => serverClock.now(),
 			}),
 		);
 

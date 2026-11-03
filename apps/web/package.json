@@ -12,6 +12,8 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@edv4h/croupier-plugin-planning-poker": "0.1.0",
+		"@edv4h/croupier-plugin-values-card": "0.1.0",
 		"@edv4h/usketch-canvas-engine": "workspace:*",
 		"@edv4h/usketch-connector-anchor": "workspace:*",
 		"@edv4h/usketch-core": "workspace:*",
@@ -22,6 +24,7 @@
 		"@edv4h/usketch-plugin-ai-agent": "workspace:*",
 		"@edv4h/usketch-plugin-ai-chat": "workspace:*",
 		"@edv4h/usketch-plugin-comments": "workspace:*",
+		"@edv4h/usketch-plugin-croupier": "workspace:*",
 		"@edv4h/usketch-plugin-community-chat": "workspace:*",
 		"@edv4h/usketch-plugin-container": "workspace:*",
 		"@edv4h/usketch-plugin-dashboard": "workspace:*",
