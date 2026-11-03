@@ -23,21 +23,30 @@ const spotlightState: {
 	onUpdate: null,
 };
 
+/**
+ * スポットライトを Canvas2D に描く。描画は「位置・表示状態・ビューポート・
+ * ウィンドウサイズ」が変わったときに 1 フレームだけ行い、止まっている間は
+ * 何もしない（以前は表示中ずっと毎フレーム全画面を描き直していた）。
+ */
 function SpotlightCanvas({ ctx: renderCtx }: { ctx: LayerRenderContext }) {
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
-	const rafRef = useRef<number>(0);
+	const requestDrawRef = useRef<(() => void) | null>(null);
 	const viewportRef = useRef(renderCtx.viewport);
 	viewportRef.current = renderCtx.viewport;
+	const { x: viewportX, y: viewportY, zoom: viewportZoom } = renderCtx.viewport;
 
 	useEffect(() => {
 		if (!canvasRef.current) return;
 		const canvas: HTMLCanvasElement = canvasRef.current;
 		const c2d = canvas.getContext("2d") as CanvasRenderingContext2D;
 		if (!c2d) return;
-		let running = true;
+		let rafId = 0;
+		// 前回のフレームに暗幕を描いたか。非表示になったら 1 回だけ消す。
+		let drawnActive = false;
 
 		function draw() {
-			if (!running) return;
+			rafId = 0;
+			if (!spotlightState.active && !drawnActive) return;
 
 			const dpr = window.devicePixelRatio || 1;
 			const w = window.innerWidth;
@@ -52,65 +61,67 @@ function SpotlightCanvas({ ctx: renderCtx }: { ctx: LayerRenderContext }) {
 
 			c2d.setTransform(dpr, 0, 0, dpr, 0, 0);
 			c2d.clearRect(0, 0, w, h);
+			drawnActive = spotlightState.active;
+			if (!spotlightState.active) return;
 
-			if (spotlightState.active) {
-				const { x: vx, y: vy, zoom } = viewportRef.current;
-				// ワールド座標→スクリーン座標
-				const screenX = spotlightState.worldX * zoom + vx;
-				const screenY = spotlightState.worldY * zoom + vy;
-				const screenRadius = SPOTLIGHT_RADIUS * zoom;
+			const { x: vx, y: vy, zoom } = viewportRef.current;
+			// ワールド座標→スクリーン座標
+			const screenX = spotlightState.worldX * zoom + vx;
+			const screenY = spotlightState.worldY * zoom + vy;
+			const screenRadius = SPOTLIGHT_RADIUS * zoom;
 
-				// 全画面を暗くする
-				c2d.fillStyle = "rgba(0, 0, 0, 0.6)";
-				c2d.fillRect(0, 0, w, h);
+			// 全画面を暗くする
+			c2d.fillStyle = "rgba(0, 0, 0, 0.6)";
+			c2d.fillRect(0, 0, w, h);
 
-				// 穴を開ける（destination-outで円形を切り抜き）
-				c2d.globalCompositeOperation = "destination-out";
-				c2d.beginPath();
-				c2d.arc(screenX, screenY, screenRadius, 0, Math.PI * 2);
-				c2d.fill();
+			// 穴を開ける（destination-outで円形を切り抜き）
+			c2d.globalCompositeOperation = "destination-out";
+			c2d.beginPath();
+			c2d.arc(screenX, screenY, screenRadius, 0, Math.PI * 2);
+			c2d.fill();
 
-				// ソフトエッジ（グラデーション）
-				const gradient = c2d.createRadialGradient(
-					screenX,
-					screenY,
-					screenRadius * 0.8,
-					screenX,
-					screenY,
-					screenRadius,
-				);
-				gradient.addColorStop(0, "rgba(0,0,0,1)");
-				gradient.addColorStop(1, "rgba(0,0,0,0)");
-				c2d.fillStyle = gradient;
-				c2d.beginPath();
-				c2d.arc(screenX, screenY, screenRadius, 0, Math.PI * 2);
-				c2d.fill();
+			// ソフトエッジ（グラデーション）
+			const gradient = c2d.createRadialGradient(
+				screenX,
+				screenY,
+				screenRadius * 0.8,
+				screenX,
+				screenY,
+				screenRadius,
+			);
+			gradient.addColorStop(0, "rgba(0,0,0,1)");
+			gradient.addColorStop(1, "rgba(0,0,0,0)");
+			c2d.fillStyle = gradient;
+			c2d.beginPath();
+			c2d.arc(screenX, screenY, screenRadius, 0, Math.PI * 2);
+			c2d.fill();
 
-				c2d.globalCompositeOperation = "source-over";
-
-				rafRef.current = requestAnimationFrame(draw);
-			} else {
-				rafRef.current = 0;
-			}
+			c2d.globalCompositeOperation = "source-over";
 		}
 
-		// 状態変更通知用コールバック
-		spotlightState.onUpdate = () => {
-			if (rafRef.current === 0 && running) {
-				rafRef.current = requestAnimationFrame(draw);
-			}
+		// 同じフレーム内の複数の変更は 1 回の描画にまとめる
+		const requestDraw = () => {
+			if (rafId === 0) rafId = requestAnimationFrame(draw);
 		};
-
-		if (spotlightState.active) {
-			rafRef.current = requestAnimationFrame(draw);
-		}
+		requestDrawRef.current = requestDraw;
+		// 状態変更通知用コールバック
+		spotlightState.onUpdate = requestDraw;
+		window.addEventListener("resize", requestDraw);
+		requestDraw();
 
 		return () => {
-			running = false;
+			requestDrawRef.current = null;
 			spotlightState.onUpdate = null;
-			if (rafRef.current) cancelAnimationFrame(rafRef.current);
+			window.removeEventListener("resize", requestDraw);
+			if (rafId) cancelAnimationFrame(rafId);
 		};
 	}, []);
+
+	// パン・ズームで穴の位置と大きさが変わるので描き直す
+	// biome-ignore lint/correctness/useExhaustiveDependencies: ビューポートの値が変わったときだけ描き直す
+	useEffect(() => {
+		requestDrawRef.current?.();
+	}, [viewportX, viewportY, viewportZoom]);
 
 	return (
 		<canvas
