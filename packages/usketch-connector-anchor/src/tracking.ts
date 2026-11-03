@@ -131,11 +131,31 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 	});
 	rebuildIndex();
 
-	// Cache previous positions to compute deltas for custom anchors.
-	const prevPositions = new Map<string, { x: number; y: number }>();
+	// 前回の位置・サイズ・回転。custom アンカーの移動量の計算と、端点の位置に効かない
+	// 更新（文字入力・色・zIndex など）でコネクタを書き直さないための判定に使う。
+	type Geometry = Pick<ShapeData, "x" | "y" | "width" | "height" | "rotation">;
+	const prevGeometry = new Map<string, Geometry>();
+	function toGeometry(shape: ShapeData): Geometry {
+		return {
+			x: shape.x,
+			y: shape.y,
+			width: shape.width,
+			height: shape.height,
+			rotation: shape.rotation,
+		};
+	}
+	function sameGeometry(a: Geometry, b: ShapeData): boolean {
+		return (
+			a.x === b.x &&
+			a.y === b.y &&
+			a.width === b.width &&
+			a.height === b.height &&
+			a.rotation === b.rotation
+		);
+	}
 	function cachePosition(id: string) {
 		const shape = store.getShape(id);
-		if (shape) prevPositions.set(id, { x: shape.x, y: shape.y });
+		if (shape) prevGeometry.set(id, toGeometry(shape));
 	}
 
 	// 比率を持たない旧データの custom 端点は、端点と接続先 shape が揃っている時点
@@ -173,7 +193,7 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 		if (isConnectorType(shape.type)) {
 			captureLegacyRatios(id);
 		} else {
-			prevPositions.set(id, { x: shape.x, y: shape.y });
+			prevGeometry.set(id, toGeometry(shape));
 		}
 	}
 	const unsubCacheAdd = store.onMutation((event) => {
@@ -201,7 +221,10 @@ export function createConnectorTracker(opts: ConnectorTrackerOptions): () => voi
 		}
 
 		const movedShape = store.getShape(payload.id);
-		const prev = prevPositions.get(payload.id);
+		const prev = prevGeometry.get(payload.id);
+		// 端点は接続先の位置・サイズ・回転だけで決まるので、それが変わっていなければ
+		// コネクタは今のままで正しい（書き直すと Yjs への書き込みと再描画が無駄に走る）。
+		if (movedShape && prev && sameGeometry(prev, movedShape)) return;
 		const dx = movedShape && prev ? movedShape.x - prev.x : 0;
 		const dy = movedShape && prev ? movedShape.y - prev.y : 0;
 
