@@ -25,7 +25,7 @@ import {
 } from "@edv4h/usketch-tool-helpers";
 import { createDeleteSelectionCommand } from "./delete-selection.js";
 import { clearMovingSelectionListeners, setMovingSelection } from "./drag-state.js";
-import { findDropTarget } from "./drop-target.js";
+import { createDropTargetFinder } from "./drop-target.js";
 import { clearDropTargetListeners, setDropTargetId } from "./drop-target-state.js";
 import {
 	addDragCopies,
@@ -97,6 +97,8 @@ type DragState =
 			kind: "move";
 			session: ReturnType<typeof startDragSession>;
 			movingIds: ReadonlySet<string>;
+			/** Drop-target hit test for this drag (containers collected once, excluding `movingIds`). */
+			findDropTarget: (point: Point) => string | null;
 			toolCtx: ToolContext;
 			startPoint: Point;
 			/** Selection when the drag started (what a plain move moves). */
@@ -216,6 +218,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 					shapeIds: store.getSelection(),
 				});
 				state.movingIds = state.session.movingShapeIds;
+				state.findDropTarget = createDropTargetFinder(state.toolCtx, state.movingIds);
 				if (state.lastEvent) state.session.update(state.lastEvent);
 			}
 
@@ -457,6 +460,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 						kind: "move",
 						session,
 						movingIds: session.movingShapeIds,
+						findDropTarget: createDropTargetFinder(toolCtx, session.movingShapeIds),
 						toolCtx,
 						startPoint: { x: event.worldPoint.x, y: event.worldPoint.y },
 						selectedIds: [...currentSelection],
@@ -528,7 +532,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				dragState.session.update(event);
 
 				// Drop target: the auto-attach container under the cursor (excluding dragged shapes).
-				updateDropTarget(findDropTarget(toolCtx, event.worldPoint, dragState.movingIds));
+				updateDropTarget(dragState.findDropTarget(event.worldPoint));
 			}
 
 			function onPointerUp(toolCtx: ToolContext, _event: CanvasPointerEvent) {
