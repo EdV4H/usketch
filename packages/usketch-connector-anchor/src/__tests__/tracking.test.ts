@@ -149,6 +149,50 @@ describe("createConnectorTracker", () => {
 		stop();
 	});
 
+	it("does NOT rewrite connectors when a referenced shape changes without moving (text, style, zIndex)", () => {
+		store.__addShape(makeRect("a", 0, 0));
+		store.__addShape(makeRect("b", 300, 0));
+		store.__addShape(makeConnector("c1", "a", "b"));
+
+		const stop = createConnectorTracker({
+			store,
+			isConnectorType: (t) => t === "connector",
+		});
+
+		store.__updateRaw("b", { text: "hello" } as Partial<ShapeData>);
+		store.__updateRaw("b", { style: { fill: "#f00", stroke: "#000", strokeWidth: 1, opacity: 1 } });
+		store.__updateRaw("a", { zIndex: "a5" } as Partial<ShapeData>);
+
+		expect(store.__getRecordedUpdates().filter((u) => u.id === "c1")).toHaveLength(0);
+
+		stop();
+	});
+
+	it("recomputes after a text-only update once the shape resizes or rotates", () => {
+		store.__addShape(makeRect("a", 0, 0));
+		store.__addShape(makeRect("b", 300, 0));
+		store.__addShape(makeConnector("c1", "a", "b"));
+
+		const stop = createConnectorTracker({
+			store,
+			isConnectorType: (t) => t === "connector",
+		});
+
+		store.__updateRaw("b", { text: "hello" } as Partial<ShapeData>);
+		// Text grew the shape: the auto anchor on b moves down with the new center
+		// (y = 30 at the original height of 60).
+		store.__updateRaw("b", { height: 200 });
+		store.__updateRaw("b", { rotation: Math.PI / 2 });
+
+		const connUpdates = store.__getRecordedUpdates().filter((u) => u.id === "c1");
+		expect(connUpdates).toHaveLength(2);
+		const afterResize = connUpdates[0]?.patch as Partial<ConnectableShapeData>;
+		expect(afterResize.targetPoint?.x).toBe(300);
+		expect(afterResize.targetPoint?.y).toBeGreaterThan(30);
+
+		stop();
+	});
+
 	it("follows endpoint reconnection (sourceId/targetId changing on shape:updated)", () => {
 		const a = makeRect("a", 0, 0);
 		const b = makeRect("b", 300, 0);
