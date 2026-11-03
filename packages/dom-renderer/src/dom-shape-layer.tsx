@@ -22,9 +22,9 @@ import { LodFallback } from "./lod-fallback.js";
  * must render before their children so the child elements appear on top. Using
  * a stable group-by-parent pass keeps the zIndex-based order within siblings intact.
  */
-function stableParentSort(sorted: readonly ShapeData[]): ShapeData[] {
+export function stableParentSort(sorted: readonly ShapeData[]): readonly ShapeData[] {
 	// Group children by parentId (preserving order from `sorted`)
-	const childrenByParent = new Map<string, ShapeData[]>();
+	let childrenByParent: Map<string, ShapeData[]> | null = null;
 	const topLevel: ShapeData[] = [];
 	for (const shape of sorted) {
 		const parentId =
@@ -32,6 +32,7 @@ function stableParentSort(sorted: readonly ShapeData[]): ShapeData[] {
 		if (parentId === null) {
 			topLevel.push(shape);
 		} else {
+			childrenByParent ??= new Map();
 			let bucket = childrenByParent.get(parentId);
 			if (!bucket) {
 				bucket = [];
@@ -40,22 +41,31 @@ function stableParentSort(sorted: readonly ShapeData[]): ShapeData[] {
 			bucket.push(shape);
 		}
 	}
+	// No shape has a parent: the z-order is already the render order. This runs on
+	// every drag frame (the store hands out a new sorted array per update), so skip
+	// building a second array for the common all-top-level board.
+	if (childrenByParent === null) return sorted;
+	const byParent = childrenByParent;
 
 	// Recursive emit: parent first, then its children (each child may also be a parent)
 	const result: ShapeData[] = [];
 	function emit(shape: ShapeData) {
 		result.push(shape);
-		const children = childrenByParent.get(shape.id);
+		const children = byParent.get(shape.id);
 		if (children) {
 			for (const child of children) emit(child);
 		}
 	}
 	for (const shape of topLevel) emit(shape);
 
-	// Append orphaned children (whose parent is missing) in their original order
-	const emittedIds = new Set(result.map((s) => s.id));
-	for (const shape of sorted) {
-		if (!emittedIds.has(shape.id)) result.push(shape);
+	// Append orphaned children (whose parent is missing, or in a parent cycle) in their
+	// original order. Each shape is emitted at most once, so there are none when every
+	// shape was emitted — the common case, which then skips building the id set.
+	if (result.length < sorted.length) {
+		const emittedIds = new Set(result.map((s) => s.id));
+		for (const shape of sorted) {
+			if (!emittedIds.has(shape.id)) result.push(shape);
+		}
 	}
 	return result;
 }

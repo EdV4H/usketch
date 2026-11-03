@@ -8,7 +8,7 @@ import type {
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { cullRegion, DomShapeLayer } from "./dom-shape-layer.js";
+import { cullRegion, DomShapeLayer, stableParentSort } from "./dom-shape-layer.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -182,5 +182,26 @@ describe("cullRegion", () => {
 
 	it("is null while the canvas is unmeasured", () => {
 		expect(cullRegion({ x: 0, y: 0, width: 0, height: 0 }, 2, 0, 1)).toBeNull();
+	});
+});
+
+describe("stableParentSort", () => {
+	const s = (id: string, parentId?: string) =>
+		({ id, type: "box", ...(parentId ? { parentId } : {}) }) as unknown as ShapeData;
+	const ids = (list: readonly ShapeData[]) => list.map((x) => x.id);
+
+	it("returns the input as-is when no shape has a parent", () => {
+		const sorted = [s("a"), s("b"), s("c")];
+		expect(stableParentSort(sorted)).toBe(sorted);
+	});
+
+	it("puts each child right after its parent, keeping sibling order", () => {
+		const sorted = [s("c1", "f"), s("a"), s("f"), s("c2", "f"), s("g1", "c1")];
+		expect(ids(stableParentSort(sorted))).toEqual(["a", "f", "c1", "g1", "c2"]);
+	});
+
+	it("appends children whose parent is missing or in a cycle, in input order", () => {
+		const sorted = [s("x", "missing"), s("a"), s("p", "q"), s("q", "p"), s("c", "a")];
+		expect(ids(stableParentSort(sorted))).toEqual(["a", "c", "x", "p", "q"]);
 	});
 });

@@ -1,4 +1,10 @@
-import type { BoardStore, Command, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
+import type {
+	BoardStore,
+	Command,
+	CommandRegistry,
+	ShapeData,
+	StoreEventType,
+} from "@edv4h/usketch-shared";
 import { computeMinimap, zIndexBetween } from "@edv4h/usketch-shared";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -20,6 +26,13 @@ const TOP_BAR_HEIGHT = 64;
 const BOTTOM_RESERVED = 120;
 const SIDEBAR_RESERVED = SIDEBAR_WIDTH + SIDEBAR_LEFT_MARGIN * 2;
 const ASPECT = 9 / 16;
+/** サムネの中身（図形の位置・形・重なり順）が変わりうる store イベント。 */
+const THUMB_MUTATIONS: ReadonlySet<StoreEventType> = new Set<StoreEventType>([
+	"shape:added",
+	"shape:updated",
+	"shape:removed",
+	"shapes:z-index-initialized",
+]);
 
 interface StageRect {
 	left: number;
@@ -62,10 +75,13 @@ export function PresentEditOverlay({ nav, store, commands, navigateToBoard }: Pr
 	);
 	const lastFitRef = useRef<string>("");
 	// サムネ再描画用のリビジョン。shape が追加/更新/削除されたら bump。
+	// viewport・選択・ツールの変化ではサムネの中身は変わらないので bump しない
+	// （スライド移動の fitToBounds アニメーション中に毎フレーム全サムネを作り直さない）。
 	const [storeRev, setStoreRev] = useState(0);
 	useEffect(() => {
 		let scheduled = false;
-		const unsub = store.onMutation(() => {
+		const unsub = store.onMutation((event) => {
+			if (!THUMB_MUTATIONS.has(event.type)) return;
 			if (scheduled) return;
 			scheduled = true;
 			requestAnimationFrame(() => {
