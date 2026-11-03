@@ -34,6 +34,7 @@ import {
 	removeDragCopies,
 } from "./duplicate-drag.js";
 import {
+	canEnterGroupEdit,
 	clearEditingGroupListeners,
 	getEditingGroupId,
 	setEditingGroupId,
@@ -411,8 +412,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				});
 
 				if (rawHitId && now - lastClickTime < 400 && lastClickId === rawHitId) {
-					const shape = toolCtx.store.getShape(rawHitId);
-					if (shape?.type === "group" || shape?.type === "frame") {
+					if (canEnterGroupEdit(toolCtx.shapes, toolCtx.store.getShape(rawHitId))) {
 						setEditingGroupId(rawHitId);
 						toolCtx.store.clearSelection();
 						lastClickTime = 0;
