@@ -101,6 +101,12 @@ interface MemberInfo {
 	status: string;
 }
 
+/** y-protocols Awareness の "change" イベントの第1引数（使う項目だけ）。 */
+interface AwarenessMembershipChange {
+	added: readonly number[];
+	removed: readonly number[];
+}
+
 export interface PresenceEnhancedOptions {
 	wsProvider: WsProviderHandle;
 	boardId: string;
@@ -187,8 +193,11 @@ export function createPresenceEnhancedPlugin(options: PresenceEnhancedOptions): 
 			fetchAndRenderGhosts();
 			pollTimer = setInterval(fetchAndRenderGhosts, 30000);
 
-			// awareness変更時にも更新（オンラインになったらゴースト消す）
-			function onAwarenessChange() {
+			// 参加者が増減したときだけ再取得する（オンラインになったらゴースト消す）。
+			// awareness の "change" はカーソル移動など既存参加者の状態更新でも毎回発火するので、
+			// updated だけの変更ではメンバー一覧を取りに行かない。
+			function onAwarenessChange({ added, removed }: AwarenessMembershipChange) {
+				if (added.length === 0 && removed.length === 0) return;
 				fetchAndRenderGhosts();
 			}
 			awareness.on("change", onAwarenessChange);
