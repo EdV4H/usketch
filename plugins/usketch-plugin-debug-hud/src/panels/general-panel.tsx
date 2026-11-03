@@ -20,6 +20,7 @@ import {
 	MINI_BUTTON_ACCENT,
 	PANEL_BASE,
 	SECTION_STYLE,
+	TEXT_MUTED,
 } from "../styles.js";
 
 interface GeneralPanelProps {
@@ -97,7 +98,10 @@ export function GeneralPanel({
 		>
 			{/* FPS */}
 			<div style={SECTION_STYLE}>
-				<span style={{ color: fpsColor(fps), fontWeight: "bold" }}>{fps} FPS</span>
+				{/* 0 = no reading yet: the counter only measures while this panel is open. */}
+				<span style={{ color: fps > 0 ? fpsColor(fps) : TEXT_MUTED, fontWeight: "bold" }}>
+					{fps > 0 ? fps : "–"} FPS
+				</span>
 				<FpsGraph fpsCounter={fpsCounter} />
 			</div>
 
