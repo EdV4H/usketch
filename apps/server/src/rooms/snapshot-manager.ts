@@ -118,9 +118,13 @@ export function createSnapshotManager(deps: SnapshotManagerDeps) {
 
 			const Y = await getYjs();
 			const snapshotDoc = new Y.Doc();
-			Y.applyUpdate(snapshotDoc, state);
-			const shapes = shapesOf(snapshotDoc);
-			snapshotDoc.destroy();
+			let shapes: Record<string, unknown>[];
+			try {
+				Y.applyUpdate(snapshotDoc, state);
+				shapes = shapesOf(snapshotDoc);
+			} finally {
+				snapshotDoc.destroy();
+			}
 
 			return new Response(JSON.stringify({ timestamp: ts, shapes }), {
 				status: 200,

@@ -224,6 +224,16 @@ describe("chunked storage", () => {
 		expect(await readChunked(storage, "k")).toBeUndefined();
 	});
 
+	it("rejects inconsistent meta on read and replaces it on write", async () => {
+		const { storage, map } = fakeStorage();
+		map.set("k:meta", { gen: 1, length: -1, chunks: 1 });
+		await expect(readChunked(storage, "k")).rejects.toThrow(/malformed/);
+		map.set("k:meta", { gen: 1, length: 10, chunks: 0 });
+		await expect(readChunked(storage, "k")).rejects.toThrow(/malformed/);
+		await writeChunked(storage, "k", bytes(3));
+		expect(await readChunked(storage, "k")).toEqual(bytes(3));
+	});
+
 	it("also removes chunks an interrupted earlier cleanup left behind", async () => {
 		const { storage, map } = fakeStorage();
 		await writeChunked(storage, "k", bytes(10));

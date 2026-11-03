@@ -41,21 +41,37 @@ function toBytes(value: unknown): Uint8Array | null {
 
 function isMeta(value: unknown): value is ChunkMeta {
 	if (!value || typeof value !== "object") return false;
-	const m = value as Record<string, unknown>;
-	return Number.isInteger(m.gen) && Number.isInteger(m.length) && Number.isInteger(m.chunks);
+	const { gen, length, chunks } = value as Record<string, unknown>;
+	const nonNegative = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 0;
+	return (
+		nonNegative(gen) &&
+		nonNegative(length) &&
+		nonNegative(chunks) &&
+		// 空の値はチャンクなし、それ以外は 1 チャンク以上で、チャンク数が長さを超えない
+		(length === 0 ? chunks === 0 : chunks > 0 && chunks <= length)
+	);
 }
 
-async function readMeta(storage: DurableObjectStorage, key: string): Promise<ChunkMeta | null> {
+/** `key` の meta。なければ `null`。壊れていれば、`strict` なら例外、そうでなければ `null`。 */
+async function readMeta(
+	storage: DurableObjectStorage,
+	key: string,
+	strict: boolean,
+): Promise<ChunkMeta | null> {
 	const meta = await storage.get(metaKey(key));
-	return isMeta(meta) ? meta : null;
+	if (meta === undefined) return null;
+	if (isMeta(meta)) return meta;
+	if (strict) throw new Error(`[chunked-storage] ${metaKey(key)} is malformed`);
+	return null;
 }
 
-/** `key` に保存したバイナリを読む。保存されていなければ `undefined`。欠けていれば例外。 */
+/** `key` に保存したバイナリを読む。保存されていなければ `undefined`。壊れていれば例外。 */
 export async function readChunked(
 	storage: DurableObjectStorage,
 	key: string,
 ): Promise<Uint8Array | undefined> {
-	const meta = await readMeta(storage, key);
+	// 壊れた meta は「ない」扱いにしない（空のボードとして上書きしないため）
+	const meta = await readMeta(storage, key, true);
 	if (!meta) return undefined;
 	const keys = chunkKeys(key, meta);
 	const parts = new Map<string, unknown>();
@@ -85,7 +101,8 @@ export async function writeChunked(
 	key: string,
 	data: Uint8Array,
 ): Promise<void> {
-	const prev = await readMeta(storage, key);
+	// 壊れた meta は上書きする。古い世代のチャンクは下の掃除で消える
+	const prev = await readMeta(storage, key, false);
 	const meta: ChunkMeta = {
 		gen: (prev?.gen ?? 0) + 1,
 		length: data.length,
@@ -118,7 +135,7 @@ async function deleteChunks(
 
 /** `key` に保存したバイナリを消す。 */
 export async function deleteChunked(storage: DurableObjectStorage, key: string): Promise<void> {
-	// meta を先に消す（途中で止まっても、読めない値ではなく「ない値」になる）
-	await storage.delete(metaKey(key));
+	// チャンクを先に消す。途中で止まっても meta が残るので、もう一度呼べば掃除できる
 	await deleteChunks(storage, key, () => true);
+	await storage.delete(metaKey(key));
 }
