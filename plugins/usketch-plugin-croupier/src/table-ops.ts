@@ -517,6 +517,11 @@ export function setSeatNote(
  *   client has seen and then lost: a seat that merely arrived before its table
  *   (board still loading, out-of-order sync) must not be taken for an orphan.
  * - A bare seat (no table or no meta, e.g. from the shape's `createDefault`) is removed.
+ * - A table that is playing or finished but has no game goes back to the lobby with
+ *   its seats. Undoing the deletion of a running table brings the shape back, but
+ *   not its game, which was dropped with the table (and lives outside the undo scope).
+ *   The game is always written before the phase, so a client never sees a started
+ *   table before its game.
  */
 export function repairTables(
 	store: BoardStore,
@@ -532,6 +537,15 @@ export function repairTables(
 		store.updateShape(id, {
 			meta: { ...table.meta, tableId: id, phase: "lobby", snapshot: null, turnStartedAt: null },
 		} as Partial<ShapeData>);
+	}
+	// Started tables whose game is gone (e.g. restored by undo after deletion).
+	for (const shape of shapes.values()) {
+		if (!isTable(shape) || copied.has(shape.id)) continue;
+		if (shape.meta.phase === "lobby" || readGameState(store, shape)) continue;
+		writeTableMeta(store, shape, {
+			...writeGameState(store, shape, null),
+			phase: "lobby",
+		});
 	}
 	// Games of deleted tables (kept outside the shapes).
 	const gameState = boundGameState(store);

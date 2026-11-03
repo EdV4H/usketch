@@ -99,7 +99,9 @@ describe("lobby", () => {
 		expect(startGame(store, registry, tableId, "alice", 2).ok).toBe(false); // 1 player
 		joinTable(store, registry, tableId, bob, 3);
 		expect(startGame(store, registry, tableId, "bob", 4).ok).toBe(false); // not host
-		expect(viewOf(store, tableId, "alice")?.canStart).toBe(true);
+		// Players can sit down and start again.
+		seatAll(store, tableId, [carol]);
+		expect(viewOf(store, tableId, "carol")?.mySeat).toBeDefined();
 		expect(startGame(store, registry, tableId, "alice", 5, 42)).toEqual({ ok: true });
 		expect(getTable(store, tableId)?.meta.phase).toBe("playing");
 		// No joining once started.
@@ -393,6 +395,40 @@ describe("games kept outside the table (bindGameState)", () => {
 		resetTable(store, tableId, "alice");
 		expect(values.has(tableId)).toBe(false);
 		expect(getTable(store, tableId)?.meta.phase).toBe("lobby");
+		unbind();
+	});
+
+	it("sends a started table whose game is gone back to the lobby", () => {
+		const { store, tableId } = setup();
+		const { values, map } = mapStore();
+		const unbind = bindGameState(store, createMapGameState(map));
+		seatAll(store, tableId);
+		startGame(store, registry, tableId, "alice", 10, 5);
+		const table = getTable(store, tableId);
+		if (!table) throw new Error("no table");
+		// Delete the running table, then bring the shape back (what undo does).
+		store.deleteShape(tableId);
+		repairTables(store, new Set([tableId]));
+		expect(values.has(tableId)).toBe(false);
+		store.addShape(table);
+
+		repairTables(store);
+		expect(getTable(store, tableId)?.meta.phase).toBe("lobby");
+		// Players can sit down and start again.
+		seatAll(store, tableId, [carol]);
+		expect(viewOf(store, tableId, "carol")?.mySeat).toBeDefined();
+		unbind();
+	});
+
+	it("leaves a started table with its game as it is", () => {
+		const { store, tableId } = setup();
+		const { map } = mapStore();
+		const unbind = bindGameState(store, createMapGameState(map));
+		seatAll(store, tableId);
+		startGame(store, registry, tableId, "alice", 10, 5);
+		const before = getTable(store, tableId);
+		repairTables(store);
+		expect(getTable(store, tableId)).toBe(before);
 		unbind();
 	});
 
