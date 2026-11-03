@@ -13,7 +13,7 @@ import {
 	useSyncExternalStore,
 } from "react";
 import type { CroupierApi } from "./croupier-service.js";
-import { isSeat, layoutSeats, makeTableShape, SEAT_SIZE } from "./table-ops.js";
+import { isSeat, isTable, layoutSeats, makeTableShape, SEAT_SIZE } from "./table-ops.js";
 import { CROUPIER_SEAT_TYPE, type SeatShape, type TableShape, type TableView } from "./types.js";
 
 /** What a table renderer receives. `view` is always the local player's view. */
@@ -265,7 +265,8 @@ export function tableShapeDefinition(opts: TableShapeOptions): ShapeDefinition {
 	const render = opts.renderTable ?? defaultRenderTable;
 	return {
 		renderTarget: "html",
-		render: (data) => <TableHost shape={data as TableShape} api={opts.api} render={render} />,
+		render: (data) =>
+			isTable(data) ? <TableHost shape={data} api={opts.api} render={render} /> : <></>,
 		getBounds: rectBounds,
 		hitTest: rectHit,
 		resize: resizeRect,
@@ -298,7 +299,9 @@ export function seatShapeDefinition(opts: SeatShapeOptions): ShapeDefinition {
 	const render = opts.renderSeat ?? defaultRenderSeat;
 	return {
 		renderTarget: "html",
-		render: (data) => <SeatHost seat={data as SeatShape} api={opts.api} render={render} />,
+		// A malformed seat (no table / meta, e.g. from createDefault) renders nothing.
+		render: (data) =>
+			isSeat(data) ? <SeatHost seat={data} api={opts.api} render={render} /> : <></>,
 		getBounds: rectBounds,
 		hitTest: rectHit,
 		resize: (data) => data,

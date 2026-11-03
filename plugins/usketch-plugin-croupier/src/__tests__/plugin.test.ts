@@ -194,6 +194,17 @@ describe("createCroupierPlugin", () => {
 		expect(api.getView(id)?.stage).toBe("waitingForDiscard");
 	});
 
+	it("renders nothing for a malformed seat or table", () => {
+		const { ctx } = harness({ userId: "alice" });
+		const bare = { id: "x", type: CROUPIER_SEAT_TYPE, x: 0, y: 0, width: 0, height: 0 };
+		const seat = ctx.shapes.get(CROUPIER_SEAT_TYPE)?.render?.(bare as never);
+		const table = ctx.shapes
+			.get(CROUPIER_TABLE_TYPE)
+			?.render?.({ ...bare, type: CROUPIER_TABLE_TYPE, meta: null } as never);
+		expect((seat as { props: { seat?: unknown } }).props.seat).toBeUndefined();
+		expect((table as { props: { shape?: unknown } }).props.shape).toBeUndefined();
+	});
+
 	it("disposes its service", () => {
 		const { ctx, dispose } = harness({ userId: "alice" });
 		dispose();
