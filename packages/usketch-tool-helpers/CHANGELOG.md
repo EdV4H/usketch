@@ -1,5 +1,13 @@
 # @edv4h/usketch-tool-helpers
 
+## 0.8.2
+
+### Patch Changes
+
+- 5f28265: perf: ホバー判定（`findShapeAtPoint`）と範囲選択（`findShapesInRect`）で、座標の当たり判定を先に行い、親をたどる非表示・ロック判定は当たった図形だけにする。フレーム内の図形が多いボードでポインタ移動ごとの処理時間が約 1/15 になる。判定結果は変わらない。
+- Updated dependencies [ca67108]
+  - @edv4h/usketch-store@3.11.1
+
 ## 0.8.1
 
 ### Patch Changes

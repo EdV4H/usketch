@@ -1,5 +1,11 @@
 # @edv4h/usketch-plugin-presence-activity
 
+## 0.4.3
+
+### Patch Changes
+
+- 947dbcb: 参加者アクティビティのオーバーレイが、カーソル移動など `activity` / `user` 以外の awareness 変化（自分のカーソル移動も含む）のたびに描き直していたのをやめた。リモート参加者の `activity`・名前・色が変わったときと、参加者が抜けたときだけ描き直す。
+
 ## 0.4.2
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-shape-markdown
 
+## 0.1.17
+
+### Patch Changes
+
+- af60aea: Markdown 図形をドラッグ・リサイズしている間、ソースが変わっていなければ Markdown のパースと highlight.js を毎フレームやり直さないようにした（表示は変わらない）
+- Updated dependencies [ca67108]
+  - @edv4h/usketch-store@3.11.1
+
 ## 0.1.16
 
 ### Patch Changes

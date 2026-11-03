@@ -1,5 +1,16 @@
 # @edv4h/usketch-plugin-shape-freedraw
 
+## 3.3.4
+
+### Patch Changes
+
+- 9d468ab: perf(freedraw): 消しゴムのドラッグ中、カーソルから遠いストロークは点を 1 つずつ調べずに範囲（点の bbox を最大半幅で広げたもの）だけで除外するようにした。範囲は shape ごとにキャッシュする。これまでは pointermove のたびに全ストロークの全点を調べていた。判定結果は変わらない
+- 8f0ea72: perf(freedraw): ホバーの当たり判定で、カーソルから遠いストロークは線分を調べずに外す
+  
+  `hitStroke` の先頭で、点の範囲を最大半幅 + tolerance だけ広げた箱（shape ごとにキャッシュ、消しゴムと共有）の外にあるカーソルを即 false にする。判定結果は変わらない。
+- Updated dependencies [ca67108]
+  - @edv4h/usketch-store@3.11.1
+
 ## 3.3.3
 
 ### Patch Changes

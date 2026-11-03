@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-community-chat
 
+## 3.0.25
+
+### Patch Changes
+
+- Updated dependencies [ca67108]
+  - @edv4h/usketch-store@3.11.1
+
 ## 3.0.24
 
 ### Patch Changes

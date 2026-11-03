@@ -1,5 +1,11 @@
 # @edv4h/usketch-plugin-avatar
 
+## 2.2.1
+
+### Patch Changes
+
+- 926a2e5: カーソル移動など、アバターの見た目に関係しない awareness の更新では、リモート参加者のアバターを emit し直さないようにした。アバターや viewportCenter が変わった人だけ emit する。
+
 ## 2.2.0
 
 ### Minor Changes
