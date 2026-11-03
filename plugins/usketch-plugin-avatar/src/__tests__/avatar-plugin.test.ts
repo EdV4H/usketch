@@ -37,6 +37,7 @@ function fakeCtx() {
 	const storeListeners = new Set<() => void>();
 	const layers = new Set<string>();
 	const transients = new Set<string>();
+	const transientEmits: { id: string; position: { x: number; y: number } }[] = [];
 	const emitted: string[] = [];
 	const ctx = {
 		events: { emit: (name: string) => emitted.push(name) },
@@ -53,7 +54,10 @@ function fakeCtx() {
 		},
 		transient: {
 			registerType: () => {},
-			emit: (o: { id: string }) => transients.add(o.id),
+			emit: (o: { id: string; position: { x: number; y: number } }) => {
+				transientEmits.push(o);
+				transients.add(o.id);
+			},
 			dismiss: (id: string) => transients.delete(id),
 		},
 	};
@@ -61,6 +65,7 @@ function fakeCtx() {
 		ctx: ctx as unknown as PluginContext,
 		layers,
 		transients,
+		transientEmits,
 		emitted,
 		pan(dx: number) {
 			viewport = { ...viewport, x: viewport.x + dx };
@@ -124,6 +129,29 @@ describe("avatar plugin", () => {
 		expect(transients.has("avatar-2")).toBe(true);
 		awareness.setRemote(2, { avatar: avatar("a"), viewportCenter: vc, character: { x: 1 } });
 		expect(transients.has("avatar-2")).toBe(false);
+		dispose?.();
+	});
+
+	it("re-emits another client's avatar only when its avatar or viewportCenter changes", () => {
+		const { awareness, transients, transientEmits, dispose } = setup();
+		const a = avatar("a");
+		awareness.setRemote(2, { avatar: a, viewportCenter: { x: 1, y: 2 } });
+		awareness.setRemote(3, { avatar: avatar("b"), viewportCenter: { x: 5, y: 5 } });
+		transientEmits.length = 0;
+		// Cursor moves (yours or theirs) change awareness but not what the avatar shows.
+		awareness.setLocalStateField("cursor", { x: 10, y: 10 });
+		awareness.setRemote(2, { avatar: a, viewportCenter: { x: 1, y: 2 }, cursor: { x: 3, y: 4 } });
+		expect(transientEmits).toEqual([]);
+		// Their viewport moved: only that avatar is emitted again, at the new spot.
+		awareness.setRemote(2, { avatar: a, viewportCenter: { x: 7, y: 8 } });
+		expect(transientEmits.map((o) => [o.id, o.position])).toEqual([["avatar-2", { x: 7, y: 8 }]]);
+		// Hidden and shown again: it comes back even though nothing else changed.
+		awareness.setRemote(2, { avatar: a, viewportCenter: { x: 7, y: 8 }, character: { x: 1 } });
+		expect(transients.has("avatar-2")).toBe(false);
+		transientEmits.length = 0;
+		awareness.setRemote(2, { avatar: a, viewportCenter: { x: 7, y: 8 } });
+		expect(transients.has("avatar-2")).toBe(true);
+		expect(transientEmits.map((o) => o.id)).toEqual(["avatar-2"]);
 		dispose?.();
 	});
 
