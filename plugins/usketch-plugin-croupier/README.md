@@ -26,6 +26,11 @@ createCroupierPlugin({
       createConfig: (options) => createValuesCardConfig({ theme: String(options.theme ?? "") }),
       defaultOptions: { theme: "大事にしたいこと" },
       maxPlayers: 8,
+      // Buttons of the built-in look: one per card for actions that take a card.
+      actionChoices: (action, view, viewer) =>
+        action === "discardCard"
+          ? view.players[viewer].hand.map((c) => ({ label: c.name, payload: { cardId: c.id } }))
+          : [{ label: action }],
     }),
   ],
   presence: createAwarenessPresence(wsProvider.awareness, userId), // optional, see "Absent players"

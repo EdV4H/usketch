@@ -55,6 +55,7 @@ export {
 	type TableRenderer,
 } from "./table-shape.js";
 export {
+	type ActionChoice,
 	CROUPIER_SEAT_TYPE,
 	CROUPIER_SHAPE_TYPES,
 	CROUPIER_TABLE_TYPE,

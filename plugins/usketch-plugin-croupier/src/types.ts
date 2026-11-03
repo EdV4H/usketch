@@ -39,8 +39,20 @@ export interface CroupierGameDefinition<S extends GameState = GameState> {
 	minPlayers?: number;
 	/** Seats available. Default 8. */
 	maxPlayers?: number;
+	/**
+	 * Buttons of an action in the built-in look (e.g. one per card in hand for
+	 * `discardCard`); an empty list hides the action. Without it, each allowed action is
+	 * one button dispatched without a payload. Custom renderers can ignore it.
+	 */
+	actionChoices?(action: string, gameView: unknown, viewer: PlayerId): ActionChoice[];
 	/** Strategy used when the host plays for an absent player. Defaults to `config.bot`. */
 	bot?: BotStrategy<S>;
+}
+
+/** One button of the built-in look: dispatches `action` with `payload`. */
+export interface ActionChoice {
+	label: string;
+	payload?: unknown;
 }
 
 /** `croupier-table` meta. Written by the host (lobby / start / reset) and the current player (actions). */

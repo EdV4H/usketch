@@ -162,11 +162,19 @@ export const defaultRenderTable: TableRenderer = ({ shape, view, api }) => {
 			)}
 			{view.isMyTurn && (
 				<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-					{view.allowedActions.map((action) => (
-						<Button key={action} onClick={() => api.dispatch(shape.id, action)}>
-							{action}
-						</Button>
-					))}
+					{view.allowedActions.flatMap((action) => {
+						const choices = view.definition?.actionChoices
+							? view.definition.actionChoices(action, view.gameView, api.me().userId)
+							: [{ label: action }];
+						return choices.map((choice) => (
+							<Button
+								key={`${action}:${choice.label}`}
+								onClick={() => api.dispatch(shape.id, action, choice.payload)}
+							>
+								{choice.label}
+							</Button>
+						));
+					})}
 				</div>
 			)}
 			{view.gameView !== null && (

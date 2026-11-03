@@ -1,4 +1,4 @@
-import { createValuesCardConfig } from "@edv4h/croupier-plugin-values-card";
+import { createValuesCardConfig, type ValuesCardState } from "@edv4h/croupier-plugin-values-card";
 import { AppProvider, Canvas, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
 import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
@@ -525,6 +525,24 @@ export function App() {
 							createValuesCardConfig({
 								theme: typeof options.theme === "string" ? options.theme : undefined,
 							}),
+						// 既定の見た目でカードを選んで捨てる / 拾うためのボタン。
+						actionChoices: (action, gameView, viewer) => {
+							const view = gameView as ValuesCardState | null;
+							if (!view) return [];
+							if (action === "discardCard") {
+								return (view.players[viewer]?.hand ?? []).map((card) => ({
+									label: `捨てる: ${card.name}`,
+									payload: { cardId: card.id },
+								}));
+							}
+							if (action === "drawFromDiscard") {
+								return view.discardPool.map(({ card }) => ({
+									label: `拾う: ${card.name}`,
+									payload: { cardId: card.id },
+								}));
+							}
+							return [{ label: action === "drawFromDeck" ? "山札から引く" : action }];
+						},
 					}),
 				],
 				now: () => serverClock.now(),
