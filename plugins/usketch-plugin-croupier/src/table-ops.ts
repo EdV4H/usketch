@@ -516,6 +516,7 @@ export function setSeatNote(
  * - Seats of the tables in `removedTables` are removed. Pass only tables this
  *   client has seen and then lost: a seat that merely arrived before its table
  *   (board still loading, out-of-order sync) must not be taken for an orphan.
+ * - A bare seat (no table or no meta, e.g. from the shape's `createDefault`) is removed.
  */
 export function repairTables(
 	store: BoardStore,
@@ -540,7 +541,12 @@ export function repairTables(
 		}
 	}
 	for (const shape of [...shapes.values()]) {
-		if (shape.type !== CROUPIER_SEAT_TYPE || typeof shape.parentId !== "string") continue;
+		if (shape.type !== CROUPIER_SEAT_TYPE) continue;
+		// A bare seat (e.g. from the shape's createDefault) belongs to no table.
+		if (!isSeat(shape)) {
+			store.deleteShape(shape.id);
+			continue;
+		}
 		const parentId = shape.parentId;
 		const removed = removedTables.has(parentId) && !shapes.has(parentId);
 		const copiedSeat = copied.has(parentId);

@@ -306,7 +306,8 @@ export function seatShapeDefinition(opts: SeatShapeOptions): ShapeDefinition {
 		hitTest: rectHit,
 		resize: (data) => data,
 		resizable: false,
-		// Seats are only created by joining; a bare one has no table and is cleaned up.
+		// Seats are only created by joining; a bare one (no table, no meta) is removed
+		// by `repairTables` and renders nothing meanwhile.
 		createDefault: ({ id, x, y }) => ({
 			id,
 			type: CROUPIER_SEAT_TYPE,

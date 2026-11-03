@@ -314,6 +314,20 @@ describe("repairTables", () => {
 		expect(store.getShape("early")).toBeUndefined();
 	});
 
+	it("drops a bare seat that belongs to no table", () => {
+		const { store } = setup();
+		store.addShape({
+			id: "bare",
+			type: "croupier-seat",
+			x: 0,
+			y: 0,
+			width: 0,
+			height: 0,
+		} as ShapeData);
+		repairTables(store);
+		expect(store.getShape("bare")).toBeUndefined();
+	});
+
 	it("drops a seat under a table whose id was not made by joinTable", () => {
 		const { store, tableId } = setup();
 		seatAll(store, tableId);

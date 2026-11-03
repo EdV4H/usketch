@@ -2,7 +2,7 @@
 // docs/plugin-system-design.md). Every method is a thin binding of a table-ops
 // function to the board store and the local player.
 
-import { type BoardStore, defineService, generateId } from "@edv4h/usketch-shared";
+import { type BoardStore, defineService, generateId, type ShapeData } from "@edv4h/usketch-shared";
 import { boundGameState, type GameStateStore } from "./game-state.js";
 import {
 	claimHost,
@@ -105,19 +105,31 @@ export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiH
 	// so `useSyncExternalStore` gets a stable snapshot.
 	let presenceVersion = 0;
 	const cache = new Map<string, { key: unknown[]; view: TableView | undefined }>();
-	const keyFor = (tableId: string): unknown[] => {
+	// Seats by table, built once per shapes snapshot: getView runs on every render,
+	// so it must not scan the whole board each time.
+	let seatIndexOf: ReturnType<typeof store.getShapes> | null = null;
+	let seatIndex = new Map<string, ShapeData[]>();
+	const seatsOf = (tableId: string): ShapeData[] => {
 		const shapes = store.getShapes();
-		const key: unknown[] = [
-			presenceVersion,
-			me().userId,
-			shapes.get(tableId),
-			boundGameState(store)?.get(tableId),
-		];
-		for (const shape of shapes.values()) {
-			if (shape.parentId === tableId && isSeat(shape)) key.push(shape);
+		if (shapes !== seatIndexOf) {
+			seatIndexOf = shapes;
+			seatIndex = new Map();
+			for (const shape of shapes.values()) {
+				if (!isSeat(shape)) continue;
+				const list = seatIndex.get(shape.parentId);
+				if (list) list.push(shape);
+				else seatIndex.set(shape.parentId, [shape]);
+			}
 		}
-		return key;
+		return seatIndex.get(tableId) ?? [];
 	};
+	const keyFor = (tableId: string): unknown[] => [
+		presenceVersion,
+		me().userId,
+		store.getShapes().get(tableId),
+		boundGameState(store)?.get(tableId),
+		...seatsOf(tableId),
+	];
 	const sameKey = (a: unknown[], b: unknown[]) =>
 		a.length === b.length && a.every((v, i) => v === b[i]);
 
