@@ -223,21 +223,29 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 				}),
 			];
 
-			// ── Housekeeping: reset copied tables, drop orphaned seats ──
+			// ── Housekeeping: reset copied tables, drop seats of deleted tables ──
 			let lastShapes: ReturnType<typeof ctx.store.getShapes> | null = null;
-			const offRepair = ctx.store.subscribe(() => {
+			let seenTables = new Set<string>();
+			const repair = () => {
 				const shapes = ctx.store.getShapes();
 				if (shapes === lastShapes) return;
 				lastShapes = shapes;
-				repairTables(ctx.store, options.player.userId);
-			});
-			repairTables(ctx.store, options.player.userId);
+				const tables = new Set(listTables(ctx.store).map((t) => t.id));
+				const removed = new Set([...seenTables].filter((id) => !tables.has(id)));
+				seenTables = tables;
+				repairTables(ctx.store, removed);
+			};
+			const offRepair = ctx.store.subscribe(repair);
+			repair();
 
 			// ── Absent players (host's client only) ──
 			const awayGraceMs = options.awayGraceMs;
 			const grace = awayGraceMs === false ? Number.POSITIVE_INFINITY : (awayGraceMs ?? 20_000);
 			const offlineSince = new Map<string, number>();
 			const busy = new Set<string>();
+			// Snapshot revision at which a takeover last failed, per table: retry only
+			// once the game moved, instead of re-running the bot every tick.
+			const failedRevision = new Map<string, number>();
 			const watch = () => {
 				const presence = options.presence;
 				const t = now();
@@ -264,6 +272,8 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 						continue;
 					}
 					if (table.meta.phase !== "playing" || busy.has(table.id)) continue;
+					const revision = table.meta.snapshot?.revision;
+					if (revision !== undefined && failedRevision.get(table.id) === revision) continue;
 					const view = api.getView(table.id);
 					if (!view || view.isMyTurn) continue;
 					const def = registry.get(table.meta.game);
@@ -280,10 +290,18 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 						timeout !== undefined &&
 						table.meta.turnStartedAt !== null &&
 						t - table.meta.turnStartedAt >= timeout;
-					const absent = view.currentPlayers.some((p) => awayFor(p) >= grace);
-					if (!absent && !timedOut) continue;
+					const absent = view.currentPlayers.filter((p) => awayFor(p) >= grace);
+					if (absent.length === 0 && !timedOut) continue;
 					busy.add(table.id);
-					void api.takeOver(table.id).finally(() => busy.delete(table.id));
+					// Play only for the absent players (several may be due at once); on a
+					// turn timeout, for everyone still due.
+					void api
+						.takeOver(table.id, timedOut ? undefined : absent)
+						.then((result) => {
+							if (result.ok) failedRevision.delete(table.id);
+							else if (revision !== undefined) failedRevision.set(table.id, revision);
+						})
+						.finally(() => busy.delete(table.id));
 				}
 			};
 			const timer = awayGraceMs === false ? null : setInterval(watch, WATCH_INTERVAL_MS);

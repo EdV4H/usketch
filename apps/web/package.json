@@ -12,7 +12,6 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@edv4h/croupier-plugin-planning-poker": "0.1.0",
 		"@edv4h/croupier-plugin-values-card": "0.1.0",
 		"@edv4h/usketch-canvas-engine": "workspace:*",
 		"@edv4h/usketch-connector-anchor": "workspace:*",

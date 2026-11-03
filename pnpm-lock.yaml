@@ -346,9 +346,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@edv4h/croupier-plugin-planning-poker':
-        specifier: 0.1.0
-        version: 0.1.0
       '@edv4h/croupier-plugin-values-card':
         specifier: 0.1.0
         version: 0.1.0
@@ -3489,9 +3486,6 @@ packages:
 
   '@edv4h/croupier-core@0.1.0':
     resolution: {integrity: sha512-Fb3YzSW+xlPDBQX/8OjQTGjvj9Dq9RW0dIJVwjevzwFpLqk1FLohqxFtWYtdo59nOSt6jzTJdadnZMjGDXpqZw==}
-
-  '@edv4h/croupier-plugin-planning-poker@0.1.0':
-    resolution: {integrity: sha512-xYFYugf+MbXy2v/WTe0y+NVFbjku+Xlgs7hsO5G2d7nMPfIQO/vXXWzhNyRDrJCDzYfj17+DpcUn0++jGrKjrw==}
 
   '@edv4h/croupier-plugin-values-card@0.1.0':
     resolution: {integrity: sha512-rpMqu0gtv9GT6pDiS4TVCsCgIUzfbCAJvAsEpkyJQYk/j8p1/NbJVCQuiFtjEBRZoZjn3rq/cTrdqZWFrlJAtA==}
@@ -9088,10 +9082,6 @@ snapshots:
   '@edv4h/croupier-core@0.1.0':
     dependencies:
       xstate: 5.33.3
-
-  '@edv4h/croupier-plugin-planning-poker@0.1.0':
-    dependencies:
-      '@edv4h/croupier-core': 0.1.0
 
   '@edv4h/croupier-plugin-values-card@0.1.0':
     dependencies:

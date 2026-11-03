@@ -55,8 +55,8 @@ export interface CroupierApi {
 	setOptions(tableId: string, options: GameOptions): OpResult;
 	start(tableId: string): OpResult;
 	dispatch(tableId: string, action: string, payload?: unknown): OpResult;
-	/** Play the current turn for an absent player with the game's bot (host only). */
-	takeOver(tableId: string): Promise<OpResult>;
+	/** Play the current turn with the game's bot (host only), for `players` or everyone due. */
+	takeOver(tableId: string, players?: readonly string[]): Promise<OpResult>;
 	endGame(tableId: string): OpResult;
 	reset(tableId: string): OpResult;
 	setNote(tableId: string, note: string): OpResult;
@@ -158,7 +158,9 @@ export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiH
 			const hit = cache.get(tableId);
 			if (hit && sameKey(hit.key, key)) return hit.view;
 			const view = getTableView(store, registry, tableId, player.userId);
-			cache.set(tableId, { key, view });
+			// Drop entries of deleted tables so the cache does not grow with the board's history.
+			if (view) cache.set(tableId, { key, view });
+			else cache.delete(tableId);
 			return view;
 		},
 		subscribe(listener) {
@@ -177,7 +179,8 @@ export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiH
 		start: (tableId) => startGame(store, registry, tableId, player.userId, now()),
 		dispatch: (tableId, action, payload) =>
 			dispatchAction(store, registry, tableId, player.userId, action, payload, now()),
-		takeOver: (tableId) => takeOverTurn(store, registry, tableId, player.userId, now),
+		takeOver: (tableId, players) =>
+			takeOverTurn(store, registry, tableId, player.userId, now, players),
 		endGame: (tableId) => endGame(store, registry, tableId, player.userId, now()),
 		reset: (tableId) => resetTable(store, tableId, player.userId),
 		setNote: (tableId, note) => setSeatNote(store, tableId, player.userId, note),

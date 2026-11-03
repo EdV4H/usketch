@@ -16,9 +16,9 @@
  * `getPlayerView`), which is the accepted trade-off of a serverless board.
  */
 import {
+	type BotDecision,
 	CroupierCore,
 	type CroupierSnapshot,
-	executeBotTakeover,
 	type PlayerId,
 } from "@edv4h/croupier-core";
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
@@ -189,7 +189,11 @@ export function makeTableShape(registry: GameRegistry, params: CreateTableParams
 	} as TableShape;
 }
 
-/** Place seats in a row along the inside bottom edge of the table. */
+/**
+ * Place seats in a row along the inside bottom edge of the table. Only seats whose
+ * geometry actually changes get a patch: every write is a sync, and the container
+ * arrange step applies these patches on every table update (e.g. each action).
+ */
 export function layoutSeats(
 	table: ShapeData,
 	seats: readonly ShapeData[],
@@ -203,18 +207,25 @@ export function layoutSeats(
 			((a.meta as Partial<SeatMeta>)?.joinedAt ?? 0) -
 				((b.meta as Partial<SeatMeta>)?.joinedAt ?? 0) || a.id.localeCompare(b.id),
 	);
-	return sorted.map((seat, i) => ({
-		id: seat.id,
-		patch: { x: left + i * step, y, width: SEAT_SIZE.width, height: SEAT_SIZE.height },
-	}));
+	return sorted
+		.map((seat, i) => ({
+			seat,
+			patch: { x: left + i * step, y, width: SEAT_SIZE.width, height: SEAT_SIZE.height },
+		}))
+		.filter(
+			({ seat, patch }) =>
+				seat.x !== patch.x ||
+				seat.y !== patch.y ||
+				seat.width !== patch.width ||
+				seat.height !== patch.height,
+		)
+		.map(({ seat, patch }) => ({ id: seat.id, patch }));
 }
 
 function relayout(store: BoardStore, table: TableShape, onlyId?: string) {
 	for (const { id, patch } of layoutSeats(table, listSeats(store, table.id))) {
-		// Only touch seats whose position actually changed (each write is a sync).
 		if (onlyId && id !== onlyId) continue;
-		const seat = store.getShape(id);
-		if (seat && (seat.x !== patch.x || seat.y !== patch.y)) store.updateShape(id, patch);
+		store.updateShape(id, patch);
 	}
 }
 
@@ -375,8 +386,9 @@ export function dispatchAction(
 }
 
 /**
- * Play the current turn for absent players with the game's bot strategy
- * (host only). Resolves with the actions taken.
+ * Play the current turn with the game's bot strategy (host only). `players`
+ * limits it to those players (e.g. the absent ones in a game where several act
+ * at once); by default it plays for everyone whose turn it is.
  */
 export async function takeOverTurn(
 	store: BoardStore,
@@ -384,6 +396,7 @@ export async function takeOverTurn(
 	tableId: string,
 	actorId: string,
 	now: () => number,
+	players?: readonly PlayerId[],
 ): Promise<OpResult> {
 	const table = getTable(store, tableId);
 	if (!table) return fail("Table not found");
@@ -396,15 +409,28 @@ export async function takeOverTurn(
 	const strategy = def.bot ?? engine.getConfig().bot;
 	if (!strategy) return fail("This game has no bot strategy");
 	const revision = engine.getRevision();
-	const absent = currentPlayersOf(engine).join(",");
-	// A turn can take several actions (e.g. draw, then discard): keep going until
-	// the turn passes to someone else, the game ends or the bot has nothing to do.
+	const targets = new Set(players ?? currentPlayersOf(engine));
+	// A turn can take several actions (e.g. draw, then discard): keep going while
+	// a target player is still due and the bot makes progress.
 	let acted = false;
-	for (let step = 0; step < MAX_BOT_STEPS; step++) {
-		const taken = await executeBotTakeover(engine, strategy);
-		if (!taken.some((t) => t.decision)) break;
+	for (let step = 0; step < MAX_BOT_STEPS && !engine.getEngineState().finished; step++) {
+		const due = currentPlayersOf(engine).filter((p) => targets.has(p));
+		let progressed = false;
+		for (const playerId of due) {
+			const view = engine.getPlayerView(playerId);
+			const state = engine.getEngineState();
+			let decision: BotDecision | null;
+			try {
+				decision = await strategy.decide(playerId, view, state);
+			} catch {
+				decision = strategy.fallback?.(playerId, view, state) ?? null;
+			}
+			if (decision && engine.dispatch(playerId, decision.action, decision.payload).ok) {
+				progressed = true;
+			}
+		}
+		if (!progressed) break;
 		acted = true;
-		if (engine.getEngineState().finished || currentPlayersOf(engine).join(",") !== absent) break;
 	}
 	if (!acted) return fail("The bot found nothing to do");
 	// The bot may be async: drop the result if someone moved meanwhile.
@@ -462,13 +488,18 @@ export function setSeatNote(
 // ── Housekeeping ──
 
 /**
- * Repair what copy/paste and deletion leave behind. Idempotent, so every client
- * may run it on each store change:
- * - a copied table (its id differs from `meta.tableId`) becomes a fresh lobby
- *   hosted by `viewerId`, and copied seats are removed;
- * - seats whose table is gone are removed.
+ * Repair what copy/paste and deletion leave behind. Every client may run it on
+ * each store change: it only writes values that every client computes alike.
+ * - A copied table (its id differs from `meta.tableId`) becomes a fresh lobby
+ *   with the same host, and seats copied along with it are removed.
+ * - Seats of the tables in `removedTables` are removed. Pass only tables this
+ *   client has seen and then lost: a seat that merely arrived before its table
+ *   (board still loading, out-of-order sync) must not be taken for an orphan.
  */
-export function repairTables(store: BoardStore, viewerId: string): void {
+export function repairTables(
+	store: BoardStore,
+	removedTables: ReadonlySet<string> = new Set(),
+): void {
 	const shapes = store.getShapes();
 	const copied = new Set<string>();
 	for (const shape of shapes.values()) {
@@ -477,25 +508,21 @@ export function repairTables(store: BoardStore, viewerId: string): void {
 	for (const id of copied) {
 		const table = shapes.get(id) as TableShape;
 		store.updateShape(id, {
-			meta: {
-				...table.meta,
-				tableId: id,
-				hostUserId: viewerId,
-				phase: "lobby",
-				snapshot: null,
-				turnStartedAt: null,
-			},
+			meta: { ...table.meta, tableId: id, phase: "lobby", snapshot: null, turnStartedAt: null },
 		} as Partial<ShapeData>);
 	}
 	for (const shape of [...shapes.values()]) {
-		if (shape.type !== CROUPIER_SEAT_TYPE) continue;
-		const parent = typeof shape.parentId === "string" ? shapes.get(shape.parentId) : undefined;
-		const orphan = !isTable(parent);
-		const copiedSeat = typeof shape.parentId === "string" && copied.has(shape.parentId);
-		// A seat whose id is not the deterministic one was produced by a copy.
+		if (shape.type !== CROUPIER_SEAT_TYPE || typeof shape.parentId !== "string") continue;
+		const parentId = shape.parentId;
+		const removed = removedTables.has(parentId) && !shapes.has(parentId);
+		const copiedSeat = copied.has(parentId);
+		// Under an existing table, a seat whose id is not the deterministic one was
+		// produced by a copy (even when the table itself was repaired earlier).
 		const foreign =
-			!orphan && isSeat(shape) && shape.id !== seatIdFor(shape.parentId, shape.meta.userId);
-		if (orphan || copiedSeat || foreign) store.deleteShape(shape.id);
+			isTable(shapes.get(parentId)) &&
+			isSeat(shape) &&
+			shape.id !== seatIdFor(parentId, shape.meta.userId);
+		if (removed || copiedSeat || foreign) store.deleteShape(shape.id);
 	}
 }
 

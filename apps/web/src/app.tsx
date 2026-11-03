@@ -1,4 +1,3 @@
-import { createPlanningPokerConfig } from "@edv4h/croupier-plugin-planning-poker";
 import { createValuesCardConfig } from "@edv4h/croupier-plugin-values-card";
 import { AppProvider, Canvas, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
@@ -17,7 +16,11 @@ import { createGridBgPlugin } from "@edv4h/usketch-plugin-bg-grid";
 import { createCharacterPlugin } from "@edv4h/usketch-plugin-character";
 import { createCommentsPlugin } from "@edv4h/usketch-plugin-comments";
 import { createAttachablePlugin, createContainerPlugin } from "@edv4h/usketch-plugin-container";
-import { createCroupierPlugin, defineCroupierGame } from "@edv4h/usketch-plugin-croupier";
+import {
+	createAwarenessPresence,
+	createCroupierPlugin,
+	defineCroupierGame,
+} from "@edv4h/usketch-plugin-croupier";
 import { createDashboardPlugin } from "@edv4h/usketch-plugin-dashboard";
 import { createDeepLinkPlugin } from "@edv4h/usketch-plugin-deep-link";
 import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
@@ -343,6 +346,7 @@ export function App() {
 		const extraPlugins: UsketchPlugin[] = [];
 		let wsProvider: WsProviderHandle | null = null;
 		let offPresence: (() => void) | null = null;
+		let croupierPresence: ReturnType<typeof createAwarenessPresence> | null = null;
 		// Divergence tracker — surfaces shapes that exist in the local Y.Doc
 		// but the server hasn't acknowledged. Wired up only for cloud boards
 		// because local boards never round-trip with a server.
@@ -500,10 +504,17 @@ export function App() {
 
 		// ゲームテーブル（croupier）: croupier のゲームをシェイプとして遊ぶ。進行状態は
 		// テーブルシェイプ、参加者は座席シェイプとして通常のシェイプ同期に乗る。
+		// 1 シェイプ = 1 値の同期なので、手番制のゲームだけを載せる（同時に動くゲームは不可）。
+		const croupierUserId = userIdRef.current ?? getDevUser()?.id ?? "local";
+		// Cloud では awareness から接続中の人を知り、抜けた人の手番をホストが代行する。
+		croupierPresence = wsProvider
+			? createAwarenessPresence(wsProvider.awareness, croupierUserId)
+			: null;
 		extraPlugins.push(
 			createCroupierPlugin({
+				presence: croupierPresence ?? undefined,
 				player: {
-					userId: userIdRef.current ?? getDevUser()?.id ?? "local",
+					userId: croupierUserId,
 					name: userNameRef.current ?? getDevUser()?.name ?? "Guest",
 				},
 				games: [
@@ -514,12 +525,6 @@ export function App() {
 							createValuesCardConfig({
 								theme: typeof options.theme === "string" ? options.theme : undefined,
 							}),
-					}),
-					defineCroupierGame({
-						id: "planning-poker",
-						label: "Planning Poker",
-						createConfig: () => createPlanningPokerConfig(),
-						minPlayers: 1,
 					}),
 				],
 				now: () => serverClock.now(),
@@ -639,6 +644,7 @@ export function App() {
 			instance?.destroy();
 			serverClock.destroy();
 			offPresence?.();
+			croupierPresence?.dispose();
 			presenceStore.set([]);
 			wsProvider?.destroy();
 			wsProviderRef.current = null;

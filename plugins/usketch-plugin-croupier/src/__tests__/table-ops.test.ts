@@ -227,6 +227,19 @@ describe("playing through the engine snapshot", () => {
 		expect(getTable(store, tableId)?.meta.turnStartedAt).toBe(13);
 	});
 
+	it("plays only the listed players' turns when told who is absent", async () => {
+		const { store, tableId } = setup();
+		seatAll(store, tableId);
+		startGame(store, registry, tableId, "alice", 10, 5);
+		expect(viewOf(store, tableId, "alice")?.currentPlayers).toEqual(["alice"]);
+		// Bob is absent, but it is alice's (online) turn: the bot must not move for her.
+		expect((await takeOverTurn(store, registry, tableId, "alice", () => 11, ["bob"])).ok).toBe(
+			false,
+		);
+		expect(viewOf(store, tableId, "alice")?.stage).toBe("waitingForDraw");
+		expect(viewOf(store, tableId, "alice")?.currentPlayers).toEqual(["alice"]);
+	});
+
 	it("ends early on the host's request and resets to the lobby", () => {
 		const { store, tableId } = setup();
 		seatAll(store, tableId);
@@ -263,7 +276,7 @@ describe("playing through the engine snapshot", () => {
 });
 
 describe("repairTables", () => {
-	it("turns a copied table into a fresh lobby and drops copied and orphaned seats", () => {
+	it("turns a copied table into a fresh lobby and drops copied seats", () => {
 		const { store, tableId } = setup();
 		seatAll(store, tableId);
 		startGame(store, registry, tableId, "alice", 10, 5);
@@ -272,17 +285,39 @@ describe("repairTables", () => {
 		// What copy/paste produces: new ids, same meta, parentId remapped.
 		store.addShape({ ...table, id: "t2", x: 900 });
 		store.addShape({ ...seat, id: "copied-seat", parentId: "t2" });
-		store.addShape({ ...seat, id: "orphan", parentId: "gone" });
 
-		repairTables(store, "bob");
+		repairTables(store);
 
 		const copy = getTable(store, "t2");
 		expect(copy?.meta).toMatchObject({ tableId: "t2", phase: "lobby", snapshot: null });
-		expect(copy?.meta.hostUserId).toBe("bob");
+		// The copy keeps its host, so every client resets it the same way.
+		expect(copy?.meta.hostUserId).toBe("alice");
 		expect(store.getShape("copied-seat")).toBeUndefined();
-		expect(store.getShape("orphan")).toBeUndefined();
 		// The original is untouched.
 		expect(getTable(store, tableId)?.meta.phase).toBe("playing");
+		expect(listSeats(store, tableId)).toHaveLength(2);
+	});
+
+	it("only drops a seat without a table once that table was seen and removed", () => {
+		const { store, tableId } = setup();
+		seatAll(store, tableId);
+		const seat = listSeats(store, tableId)[0];
+		// A seat can arrive before its table while the board loads: keep it.
+		store.addShape({ ...seat, id: "early", parentId: "later" });
+		repairTables(store);
+		expect(store.getShape("early")).toBeDefined();
+
+		repairTables(store, new Set(["later"]));
+		expect(store.getShape("early")).toBeUndefined();
+	});
+
+	it("drops a seat under a table whose id was not made by joinTable", () => {
+		const { store, tableId } = setup();
+		seatAll(store, tableId);
+		const seat = listSeats(store, tableId)[0];
+		store.addShape({ ...seat, id: "foreign", parentId: tableId });
+		repairTables(store);
+		expect(store.getShape("foreign")).toBeUndefined();
 		expect(listSeats(store, tableId)).toHaveLength(2);
 	});
 });

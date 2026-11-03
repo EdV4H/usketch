@@ -1,4 +1,9 @@
 export {
+	CROUPIER_AWARENESS_FIELD,
+	createAwarenessPresence,
+	type PresenceAwareness,
+} from "./awareness-presence.js";
+export {
 	type CreateCroupierApiParams,
 	type CroupierApi,
 	type CroupierApiHandle,
