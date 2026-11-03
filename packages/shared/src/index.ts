@@ -2,6 +2,39 @@
 
 // Ground height (terrain elevation shared across plugins)
 export { type GroundHeightApi, groundHeightService } from "./ground-height.js";
+// Board history (content-addressed snapshots, diff, restore)
+export { canonicalJson } from "./history/canonical-json.js";
+export type { ShapeFieldChange, TreeDiff } from "./history/diff.js";
+export { diffShapeFields, diffTrees } from "./history/diff.js";
+export type { HistoryObjectKind } from "./history/hash.js";
+export { hashHistoryObject } from "./history/hash.js";
+export type {
+	BoardSnapshot,
+	HistoryCommit,
+	HistoryCommitTrigger,
+	HistoryObject,
+	HistoryTreeEntries,
+	ShapeCollection,
+} from "./history/objects.js";
+export {
+	createBlob,
+	createCommit,
+	createTree,
+	HISTORY_EXCLUDED_SHAPE_KEYS,
+	normalizeShapeForHistory,
+	parseBlob,
+	parseCommit,
+	parseTree,
+	shapeEntries,
+	snapshotShapes,
+} from "./history/objects.js";
+export type { RestoreOptions, RestorePlan } from "./history/restore.js";
+export {
+	applyRestorePlan,
+	createRestoreCommand,
+	isEmptyRestorePlan,
+	planRestore,
+} from "./history/restore.js";
 // Service seam (typed host-facing plugin APIs over ctx.services / app.services)
 export { defineService, type ServiceHandle } from "./service.js";
 export type { BoundingBox, Point, Viewport } from "./types/geometry.js";
