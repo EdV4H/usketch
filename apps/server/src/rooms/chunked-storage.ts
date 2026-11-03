@@ -100,15 +100,25 @@ export async function writeChunked(
 		await storage.put(entries);
 	}
 	await storage.put(metaKey(key), meta);
-	if (prev) {
-		for (const batch of batches(chunkKeys(key, prev))) await storage.delete(batch);
-	}
+	// 今の世代以外のチャンクを消す（前回の掃除が途中で止まった分も含めて）
+	const current = `${key}:g${meta.gen}:`;
+	await deleteChunks(storage, key, (k) => !k.startsWith(current));
+}
+
+/** `key` のチャンクのうち、`drop` が true を返すものを消す。 */
+async function deleteChunks(
+	storage: DurableObjectStorage,
+	key: string,
+	drop: (chunkKey: string) => boolean,
+): Promise<void> {
+	const listed = await storage.list({ prefix: `${key}:g` });
+	const stale = [...listed.keys()].filter(drop);
+	for (const batch of batches(stale)) await storage.delete(batch);
 }
 
 /** `key` に保存したバイナリを消す。 */
 export async function deleteChunked(storage: DurableObjectStorage, key: string): Promise<void> {
-	const meta = await readMeta(storage, key);
-	if (!meta) return;
+	// meta を先に消す（途中で止まっても、読めない値ではなく「ない値」になる）
 	await storage.delete(metaKey(key));
-	for (const batch of batches(chunkKeys(key, meta))) await storage.delete(batch);
+	await deleteChunks(storage, key, () => true);
 }

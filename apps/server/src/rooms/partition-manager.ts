@@ -1,6 +1,7 @@
 import { MSG_PARTITION_META } from "@edv4h/usketch-sync";
 import { readChunked, writeChunked } from "./chunked-storage.js";
 import { compactUpdates, parseLegacyUpdates } from "./update-compaction.js";
+import { MAX_SAVE_RETRIES } from "./yjs-sync.js";
 
 /** パーティションの Yjs 状態（バイナリ、分割保存）のキー。 */
 export function partitionStateKey(name: string): string {
@@ -33,6 +34,10 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 	const dirty = new Set<string>();
 	/** 旧形式のキーが残っているパーティション（新形式で保存できたら消す） */
 	const legacyPresent = new Set<string>();
+	/** 保存済みの状態が読めなかったパーティション（上書きしないよう保存しない） */
+	const unreadable = new Set<string>();
+	/** パーティションごとの、続けて失敗した保存の回数 */
+	const failures = new Map<string, number>();
 
 	/** 現在の四半期のパーティション名を返す */
 	function getCurrentPartitionName(): string {
@@ -68,6 +73,7 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 	/** パーティションをまとめて、今の状態を storage に永続化する */
 	async function savePartition(partitionName: string): Promise<void> {
 		dirty.delete(partitionName);
+		if (unreadable.has(partitionName)) return;
 		await compactPartition(partitionName);
 		const state = partitionUpdates.get(partitionName)?.[0];
 		if (!state) return;
@@ -87,8 +93,12 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 			void (async () => {
 				try {
 					await savePartition(partitionName);
+					failures.delete(partitionName);
 				} catch (e) {
-					dirty.add(partitionName);
+					const count = (failures.get(partitionName) ?? 0) + 1;
+					failures.set(partitionName, count);
+					// 続けて失敗したら、次の update が届くまで再試行しない
+					if (count < MAX_SAVE_RETRIES) dirty.add(partitionName);
 					console.error("[BoardRoom] Failed to persist partition updates:", e);
 				} finally {
 					saveScheduled.set(partitionName, false);
@@ -187,12 +197,27 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 
 			if (partitionMeta) {
 				for (const name of partitionMeta.partitions) {
-					// 読めなければ例外のまま返す（空のパーティションで上書きしないため）
-					const state = await readChunked(deps.storage, partitionStateKey(name));
-					const legacy = await deps.storage.get(legacyPartitionKey(name));
-					if (legacy !== undefined) legacyPresent.add(name);
-					// 新形式があればそれが最新。旧形式は移行前のボードだけが持つ。
-					const restored = state ? [state] : parseLegacyUpdates(legacy);
+					let state: Uint8Array | undefined;
+					try {
+						state = await readChunked(deps.storage, partitionStateKey(name));
+					} catch (e) {
+						// パーティションは絞り込み用の履歴なので、読めなくてもボードは開く。
+						// 空のパーティションで上書きしないよう、このパーティションは保存しない。
+						console.error(`[BoardRoom] Failed to read partition ${name}, skipping:`, e);
+						unreadable.add(name);
+						continue;
+					}
+					// 新形式があればそれが最新。旧形式は移行前のボードだけが読む（大きいので）。
+					let restored: Uint8Array[];
+					if (state) {
+						restored = [state];
+						// 移行後に消し損ねた旧キーがあっても、次の保存で消す
+						legacyPresent.add(name);
+					} else {
+						const legacy = await deps.storage.get(legacyPartitionKey(name));
+						if (legacy !== undefined) legacyPresent.add(name);
+						restored = parseLegacyUpdates(legacy);
+					}
 					// 読み込み中に追加された update を後ろに残す
 					const pending = partitionUpdates.get(name) ?? [];
 					if (restored.length > 0 || pending.length > 0) {

@@ -6,7 +6,7 @@ import { deleteChunked, readChunked, writeChunked } from "./chunked-storage.js";
  * スナップショット時点のボード状態（`encodeStateAsUpdate`）のキー。
  * 以前は `Y.snapshot`（状態ベクトルと削除集合だけ）を `snapshot:<ts>` に保存し、
  * 読むときに今の doc から復元していたが、それには doc が削除済みの中身を
- * 全部持っている必要がある（gc: false）。保存は不要な履歴を GC するので、
+ * 全部持っている必要がある（gc: false）。サーバーの doc も保存も GC するので、
  * スナップショットは時点の状態そのものを持つ。
  */
 function snapshotStateKey(ts: number): string {
@@ -101,28 +101,26 @@ export function createSnapshotManager(deps: SnapshotManagerDeps) {
 				});
 			}
 
-			const Y = await getYjs();
-			let shapes: Record<string, unknown>[];
 			const state = await readChunked(deps.storage, snapshotStateKey(ts));
-			if (state) {
-				const snapshotDoc = new Y.Doc();
-				Y.applyUpdate(snapshotDoc, state);
-				shapes = shapesOf(snapshotDoc);
-				snapshotDoc.destroy();
-			} else {
-				const stored = await deps.storage.get<number[]>(legacySnapshotKey(ts));
-				if (!stored) {
-					return new Response(JSON.stringify({ error: "Snapshot not found" }), {
-						status: 404,
-						headers: { "Content-Type": "application/json" },
-					});
-				}
-				// 旧形式。今の doc が削除済みの中身を持っているときだけ復元できる。
-				const { doc } = await deps.getOrCreateDoc();
-				const snapshotDoc = Y.createDocFromSnapshot(doc, Y.decodeSnapshot(new Uint8Array(stored)));
-				shapes = shapesOf(snapshotDoc);
-				snapshotDoc.destroy();
+			if (!state) {
+				// 旧形式（Y.snapshot）は gc: false の doc がないと復元できず、サーバーの
+				// doc は GC 有効なので以前から読めなかった。
+				const legacy = await deps.storage.get(legacySnapshotKey(ts));
+				return new Response(
+					JSON.stringify({
+						error: legacy
+							? "Snapshot is in an old format and can't be restored"
+							: "Snapshot not found",
+					}),
+					{ status: legacy ? 410 : 404, headers: { "Content-Type": "application/json" } },
+				);
 			}
+
+			const Y = await getYjs();
+			const snapshotDoc = new Y.Doc();
+			Y.applyUpdate(snapshotDoc, state);
+			const shapes = shapesOf(snapshotDoc);
+			snapshotDoc.destroy();
 
 			return new Response(JSON.stringify({ timestamp: ts, shapes }), {
 				status: 200,

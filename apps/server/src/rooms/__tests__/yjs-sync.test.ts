@@ -4,7 +4,7 @@ import { CHUNK_BYTES, deleteChunked, readChunked, writeChunked } from "../chunke
 import { createPartitionManager, partitionStateKey } from "../partition-manager.js";
 import { createSnapshotManager } from "../snapshot-manager.js";
 import { compactUpdates } from "../update-compaction.js";
-import { createYjsSync, LEGACY_UPDATES_KEY, STATE_KEY } from "../yjs-sync.js";
+import { createYjsSync, LEGACY_UPDATES_KEY, MAX_SAVE_RETRIES, STATE_KEY } from "../yjs-sync.js";
 
 /** Many more edits than the old 500-entry compaction threshold. */
 const EDITS = 600;
@@ -23,6 +23,10 @@ function fakeStorage() {
 			if (typeof key === "string") map.set(key, value);
 			else for (const [k, v] of Object.entries(key)) map.set(k, v);
 		},
+		list: async ({ prefix }: { prefix: string }) =>
+			new Map(
+				[...map].filter(([k]) => k.startsWith(prefix)).sort(([a], [b]) => a.localeCompare(b)),
+			),
 		delete: async (key: string | string[]) => {
 			if (!Array.isArray(key)) return map.delete(key);
 			let n = 0;
@@ -176,6 +180,28 @@ describe("createYjsSync", () => {
 	});
 });
 
+describe("createYjsSync save failures", () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+	});
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it("stops retrying after a few failed saves until the next update", async () => {
+		const { storage } = fakeStorage();
+		const put = vi.spyOn(storage, "put").mockRejectedValue(new Error("quota"));
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const sync = createYjsSync({ storage });
+		await sync.loadUpdates();
+		editBoard(1, (u) => sync.pushUpdate(u));
+		sync.scheduleSave();
+		await vi.runAllTimersAsync();
+		expect(put).toHaveBeenCalledTimes(MAX_SAVE_RETRIES);
+		errorSpy.mockRestore();
+	});
+});
+
 describe("chunked storage", () => {
 	const bytes = (n: number) => Uint8Array.from({ length: n }, (_, i) => i % 251);
 
@@ -196,6 +222,15 @@ describe("chunked storage", () => {
 		await deleteChunked(storage, "k");
 		expect(map.size).toBe(0);
 		expect(await readChunked(storage, "k")).toBeUndefined();
+	});
+
+	it("also removes chunks an interrupted earlier cleanup left behind", async () => {
+		const { storage, map } = fakeStorage();
+		await writeChunked(storage, "k", bytes(10));
+		map.set("k:g0:0", bytes(5)); // left over from an older generation
+		map.set("k2:g1:0", bytes(5)); // another value whose key starts with "k"
+		await writeChunked(storage, "k", bytes(20));
+		expect([...map.keys()].sort()).toEqual(["k2:g1:0", "k:g2:0", "k:meta"]);
 	});
 });
 
@@ -232,6 +267,36 @@ describe("createPartitionManager", () => {
 		const updates = partitions.getPartitionUpdates(name) ?? [];
 		expect(updates).toHaveLength(1);
 		expect(docFrom(updates).get("first")).toEqual({ id: "first", x: 0 });
+	});
+
+	it("still loads other partitions when one can't be read, and never overwrites it", async () => {
+		const { storage, map } = fakeStorage();
+		vi.useFakeTimers();
+		const name = createPartitionManager({ storage }).getCurrentPartitionName();
+		map.set(
+			"partition_meta",
+			JSON.stringify({
+				partitions: ["shapes:2020-Q1", name],
+				activePartition: name,
+				shapeCount: {},
+			}),
+		);
+		map.set(`${partitionStateKey("shapes:2020-Q1")}:meta`, { gen: 1, length: 10, chunks: 1 });
+		const good: Uint8Array[] = [];
+		editBoard(2, (u) => good.push(u));
+		await writeChunked(storage, partitionStateKey(name), good[1]);
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const partitions = createPartitionManager({ storage });
+		await partitions.loadFromStorage();
+		expect(partitions.getPartitionUpdates(name)).toHaveLength(1);
+		await partitions.savePartition("shapes:2020-Q1");
+		expect(map.get(`${partitionStateKey("shapes:2020-Q1")}:meta`)).toEqual({
+			gen: 1,
+			length: 10,
+			chunks: 1,
+		});
+		errorSpy.mockRestore();
 	});
 
 	it("saves a partition as binary and reloads it, migrating the old key", async () => {
@@ -282,6 +347,9 @@ describe("createSnapshotManager", () => {
 
 		const res = await snapshots.handleGetSnapshot(String(created.timestamp));
 		expect(res.status).toBe(200);
+		expect((await snapshots.handleGetSnapshot("1")).status).toBe(404);
+		await storage.put("snapshot:2", [0]);
+		expect((await snapshots.handleGetSnapshot("2")).status).toBe(410);
 		expect(((await res.json()) as { shapes: unknown[] }).shapes).toEqual([{ id: "a", x: 1 }]);
 	});
 });
