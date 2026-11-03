@@ -5,7 +5,7 @@
 // runs the reorder runtime. Register it AFTER the container / free-position
 // plugins so its during-drag reflow is the last writer on top-level moves.
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
-import { ensureDashboardConfig } from "./config-ops.js";
+import { ensureDashboardConfig, trackDashboardConfig } from "./config-ops.js";
 import { DASHBOARD_CONFIG_TYPE, type DashboardDefaults } from "./dashboard-config-shape.js";
 import { createDashboardConfigShapeDefinition } from "./dashboard-config-shape-def.js";
 import { repackBoard, setupDashboard } from "./dashboard-runtime.js";
@@ -35,6 +35,9 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 			// renders nothing on a non-dashboard board, so it's safe to always register.
 			resetGridOverlayVisible();
 			ctx.layers.register(gridOverlayLayer);
+
+			// First, so every config lookup below (runtime, viewport lock, HUD) is O(1).
+			const stopConfigTracking = trackDashboardConfig(ctx.store);
 
 			const api = createDashboardApi(ctx, defaults);
 
@@ -74,6 +77,7 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): Usk
 				stopRuntime();
 				stopViewportLock();
 				ctx.layers.unregister(gridOverlayLayer.id);
+				stopConfigTracking();
 			};
 		},
 	};
