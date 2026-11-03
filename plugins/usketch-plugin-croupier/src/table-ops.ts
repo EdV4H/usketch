@@ -55,13 +55,16 @@ const fail = (error: string): OpResult => ({ ok: false, error });
 // ── Readers ──
 
 export function isTable(shape: ShapeData | undefined): shape is TableShape {
-	return shape?.type === CROUPIER_TABLE_TYPE && typeof shape.meta === "object";
+	return (
+		shape?.type === CROUPIER_TABLE_TYPE && typeof shape.meta === "object" && shape.meta !== null
+	);
 }
 
 export function isSeat(shape: ShapeData | undefined): shape is SeatShape {
 	return (
 		shape?.type === CROUPIER_SEAT_TYPE &&
 		typeof shape.meta === "object" &&
+		shape.meta !== null &&
 		typeof shape.parentId === "string"
 	);
 }

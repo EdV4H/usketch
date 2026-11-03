@@ -113,6 +113,18 @@ describe("createCroupierPlugin", () => {
 		expect(getTable(store, "copy")?.meta.tableId).toBe("copy");
 	});
 
+	it("lays out only seat children of a table", () => {
+		const { api, store, ctx } = harness({ userId: "alice" });
+		const id = api.createTable("values-card", { x: 0, y: 0 }) as string;
+		api.join(id);
+		const table = must(getTable(store, id));
+		const seat = { ...listSeats(store, id)[0], x: 9999 };
+		const note = { ...seat, id: "note", type: "sticky-note", meta: {} };
+		const layout = ctx.shapes.get(CROUPIER_TABLE_TYPE)?.container?.layout;
+		const patches = layout?.({ container: table, children: [note, seat] } as never) ?? [];
+		expect(patches.map((p: { id: string }) => p.id)).toEqual([seat.id]);
+	});
+
 	it("disposes its service", () => {
 		const { ctx, dispose } = harness({ userId: "alice" });
 		dispose();

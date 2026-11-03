@@ -9,6 +9,8 @@ import {
 	type GameRegistry,
 	getTable,
 	getTableView,
+	isSeat,
+	isTable,
 	joinTable,
 	kickFromTable,
 	leaveTable,
@@ -319,5 +321,16 @@ describe("repairTables", () => {
 		repairTables(store);
 		expect(store.getShape("foreign")).toBeUndefined();
 		expect(listSeats(store, tableId)).toHaveLength(2);
+	});
+});
+
+describe("readers", () => {
+	it("reject shapes whose meta is null", () => {
+		const { store, tableId } = setup();
+		seatAll(store, tableId);
+		const table = getTable(store, tableId) as ShapeData;
+		const seat = listSeats(store, tableId)[0];
+		expect(isTable({ ...table, meta: null } as unknown as ShapeData)).toBe(false);
+		expect(isSeat({ ...seat, meta: null } as unknown as ShapeData)).toBe(false);
 	});
 });

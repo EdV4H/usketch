@@ -13,7 +13,7 @@ import {
 	useSyncExternalStore,
 } from "react";
 import type { CroupierApi } from "./croupier-service.js";
-import { layoutSeats, makeTableShape, SEAT_SIZE } from "./table-ops.js";
+import { isSeat, layoutSeats, makeTableShape, SEAT_SIZE } from "./table-ops.js";
 import { CROUPIER_SEAT_TYPE, type SeatShape, type TableShape, type TableView } from "./types.js";
 
 /** What a table renderer receives. `view` is always the local player's view. */
@@ -275,7 +275,8 @@ export function tableShapeDefinition(opts: TableShapeOptions): ShapeDefinition {
 		container: {
 			selectableChildren: false,
 			autoAttach: false,
-			layout: ({ container, children }) => layoutSeats(container, children),
+			// Only seats are laid out; any other child keeps where it is.
+			layout: ({ container, children }) => layoutSeats(container, children.filter(isSeat)),
 		},
 	};
 }

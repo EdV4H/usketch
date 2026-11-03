@@ -8,7 +8,9 @@ import {
 	dispatchAction,
 	endGame,
 	type GameRegistry,
+	getTable,
 	getTableView,
+	isSeat,
 	joinTable,
 	kickFromTable,
 	leaveTable,
@@ -100,7 +102,7 @@ export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiH
 		const shapes = store.getShapes();
 		const key: unknown[] = [presenceVersion, shapes.get(tableId)];
 		for (const shape of shapes.values()) {
-			if (shape.parentId === tableId) key.push(shape);
+			if (shape.parentId === tableId && isSeat(shape)) key.push(shape);
 		}
 		return key;
 	};
@@ -171,7 +173,7 @@ export function createCroupierApi(params: CreateCroupierApiParams): CroupierApiH
 		leave: (tableId) => leaveTable(store, tableId, player.userId),
 		kick: (tableId, userId) => kickFromTable(store, tableId, player.userId, userId),
 		claimHost(tableId) {
-			const table = store.getShape(tableId) as TableShape | undefined;
+			const table = getTable(store, tableId);
 			const hostAway = table ? !(presence?.isOnline(table.meta.hostUserId) ?? true) : false;
 			return claimHost(store, tableId, player.userId, hostAway);
 		},
