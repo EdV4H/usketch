@@ -104,7 +104,10 @@ createCharacterPlugin({
   and stick can drive together; a partial `throttle` aims for that fraction of the top
   speed and a partial `steer` turns by that fraction. Touching it resumes a paused
   follow camera like a movement key. It is ignored while the character is off, and
-  turning the character off releases it.
+  turning the character off releases it. `jump: true` is the jump button: held like the
+  jump key (release while rising for a short hop, hold in a fall to hover), and a press
+  between two frames still counts. A `drift` press also starts a drift hop when
+  `drift.hop` is on.
 - **Camera modes**
   - `fixed` — follow, world stays upright.
   - `rotate` — follow and turn the world by `-heading` (character always faces up).
@@ -154,6 +157,7 @@ api?.setKeys({ ...api.getKeys(), drift: ["KeyX"] }); // KeyboardEvent.code value
 api?.setShadowRenderer(myShadow);
 api?.getPose(); // { x, y, heading, speed, moving, steering, slip, drift, z, vz, airborne, hovering, hoverGauge }
 api?.setVirtualInput({ throttle: 0.8, steer: -0.3 }); // touch stick; null on release
+api?.setVirtualInput({ throttle: 0.8, steer: 0, jump: true }); // + jump button held
 ```
 
 ## Limitations

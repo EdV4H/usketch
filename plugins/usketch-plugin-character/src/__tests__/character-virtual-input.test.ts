@@ -4,6 +4,7 @@ import {
 	combineInput,
 	isVirtualInputActive,
 	normalizeVirtualInput,
+	virtualPresses,
 } from "../character-virtual-input.js";
 
 const keys = (p: Partial<MoveInput>): MoveInput => ({ ...NO_INPUT, ...p });
@@ -14,8 +15,20 @@ describe("normalizeVirtualInput", () => {
 			throttle: 1,
 			steer: -0.3,
 			drift: false,
+			jump: false,
 		});
-		expect(normalizeVirtualInput({ drift: true })).toEqual({ throttle: 0, steer: 0, drift: true });
+		expect(normalizeVirtualInput({ drift: true })).toEqual({
+			throttle: 0,
+			steer: 0,
+			drift: true,
+			jump: false,
+		});
+		expect(normalizeVirtualInput({ jump: true })).toEqual({
+			throttle: 0,
+			steer: 0,
+			drift: false,
+			jump: true,
+		});
 		expect(normalizeVirtualInput({ steer: Number.POSITIVE_INFINITY })).toBeNull();
 	});
 	it("treats null and an all-released control as no input", () => {
@@ -43,5 +56,28 @@ describe("combineInput", () => {
 		expect(
 			combineInput(keys({ drift: true }), { throttle: 0.2, steer: 0, drift: false }).drift,
 		).toBe(true);
+	});
+});
+
+describe("virtual jump", () => {
+	it("counts a held jump button as active input and ORs it with the jump key", () => {
+		expect(isVirtualInputActive({ throttle: 0, steer: 0, drift: false, jump: true })).toBe(true);
+		expect(combineInput(keys({}), { throttle: 0, steer: 0, drift: false, jump: true }).jump).toBe(
+			true,
+		);
+		expect(combineInput(keys({ jump: true }), { throttle: 0.5, steer: 0, drift: false }).jump).toBe(
+			true,
+		);
+		expect(combineInput(keys({}), { throttle: 0.5, steer: 0, drift: false }).jump).toBe(false);
+	});
+	it("reports a press only on the edge where a button goes down", () => {
+		const up = { throttle: 0, steer: 0, drift: false, jump: false };
+		const jump = { ...up, jump: true };
+		const both = { ...up, jump: true, drift: true };
+		expect(virtualPresses(null, jump)).toEqual({ jump: true, drift: false });
+		expect(virtualPresses(up, jump)).toEqual({ jump: true, drift: false });
+		expect(virtualPresses(jump, jump)).toEqual({ jump: false, drift: false });
+		expect(virtualPresses(jump, both)).toEqual({ jump: false, drift: true });
+		expect(virtualPresses(jump, null)).toEqual({ jump: false, drift: false });
 	});
 });

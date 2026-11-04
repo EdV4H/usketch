@@ -73,5 +73,6 @@ export {
 	isVirtualInputActive,
 	normalizeVirtualInput,
 	type VirtualInput,
+	virtualPresses,
 } from "./character-virtual-input.js";
 export { type CharacterPluginOptions, createCharacterPlugin } from "./plugin.js";
