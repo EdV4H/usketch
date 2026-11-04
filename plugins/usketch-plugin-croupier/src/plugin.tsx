@@ -14,7 +14,8 @@ import {
 	type GameRegistry,
 	listSeats,
 	listTables,
-	repairTables,
+	repairScannedTables,
+	scanTables,
 } from "./table-ops.js";
 import {
 	type SeatRenderer,
@@ -245,10 +246,15 @@ export function createCroupierPlugin(options: CroupierPluginOptions): UsketchPlu
 				const shapes = ctx.store.getShapes();
 				if (shapes === lastShapes) return;
 				lastShapes = shapes;
-				const tables = new Set(listTables(ctx.store).map((t) => t.id));
-				const removed = new Set([...seenTables].filter((id) => !tables.has(id)));
+				// One pass over the board per change (this runs on each frame of any drag).
+				const scanned = scanTables(shapes);
+				const tables = new Set(scanned.tables.map((t) => t.id));
+				const removed = new Set<string>();
+				for (const id of seenTables) {
+					if (!tables.has(id)) removed.add(id);
+				}
 				seenTables = tables;
-				repairTables(ctx.store, removed);
+				repairScannedTables(ctx.store, scanned, removed);
 			};
 			const offRepair = ctx.store.subscribe(repair);
 			repair();
