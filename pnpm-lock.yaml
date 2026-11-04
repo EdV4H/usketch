@@ -162,6 +162,10 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  react: 19.3.1
+  react-dom: 19.3.1
+
 importers:
 
   .:
@@ -209,10 +213,10 @@ importers:
         specifier: ^7.1
         version: 7.2.0
       react:
-        specifier: ^19.1
+        specifier: 19.3.1
         version: 19.3.1
       react-dom:
-        specifier: ^19.1
+        specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
       rehype-autolink-headings:
         specifier: ^7.1
@@ -648,7 +652,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -667,10 +671,10 @@ importers:
         specifier: workspace:*
         version: link:../shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
       react-dom:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
     devDependencies:
       '@types/react':
@@ -708,10 +712,10 @@ importers:
         specifier: workspace:*
         version: link:../shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
       react-dom:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
     devDependencies:
       '@types/react':
@@ -736,10 +740,10 @@ importers:
         specifier: workspace:*
         version: link:../shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
       react-dom:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
     devDependencies:
       '@types/react':
@@ -792,7 +796,7 @@ importers:
         specifier: 4.0.0
         version: 4.0.0
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
       xid-ts:
         specifier: 1.3.1
@@ -887,7 +891,7 @@ importers:
         specifier: workspace:*
         version: link:../usketch-session-protocol
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -912,7 +916,7 @@ importers:
         specifier: ^1.37.0
         version: 1.47.0
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -950,7 +954,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -975,7 +979,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1013,7 +1017,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1035,7 +1039,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1121,7 +1125,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1143,7 +1147,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1165,7 +1169,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1190,7 +1194,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1212,7 +1216,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1231,7 +1235,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1253,7 +1257,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1278,7 +1282,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1319,7 +1323,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@edv4h/croupier-plugin-values-card':
@@ -1347,7 +1351,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1366,7 +1370,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1425,7 +1429,7 @@ importers:
         specifier: ^1.37.0
         version: 1.47.0
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1460,7 +1464,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1482,10 +1486,10 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
       react-dom:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
       satori:
         specifier: 0.63.2
@@ -1513,7 +1517,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1554,7 +1558,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1576,7 +1580,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1601,7 +1605,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1651,7 +1655,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1682,7 +1686,7 @@ importers:
         specifier: 6.5.438
         version: 6.5.438
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1704,7 +1708,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
       yjs:
         specifier: ^13.6.0
@@ -1729,7 +1733,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1751,7 +1755,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1773,7 +1777,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1795,7 +1799,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1823,7 +1827,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -1995,7 +1999,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2023,7 +2027,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2045,7 +2049,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2076,7 +2080,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2095,7 +2099,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2126,7 +2130,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2151,7 +2155,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2176,7 +2180,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2201,7 +2205,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2229,7 +2233,7 @@ importers:
         specifier: ^1.2.2
         version: 1.2.3
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
       zod:
         specifier: ^4.0.0
@@ -2257,7 +2261,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2285,7 +2289,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2319,7 +2323,7 @@ importers:
         specifier: ^12.0.0
         version: 12.2.0
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
       react-markdown:
         specifier: ^10.0.0
@@ -2353,7 +2357,7 @@ importers:
         specifier: 1.0.2
         version: 1.0.2(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
       zod:
         specifier: ^4.0.0 || >=3.25.0 <4.0.0
@@ -2381,7 +2385,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2406,7 +2410,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2428,7 +2432,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2447,7 +2451,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2469,7 +2473,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2491,7 +2495,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2513,7 +2517,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2532,7 +2536,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2576,7 +2580,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
       y-protocols:
         specifier: 1.0.7
@@ -2610,7 +2614,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2647,7 +2651,7 @@ importers:
         specifier: 1.0.2
         version: 1.0.2(@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
       zod:
         specifier: ^4.0.0 || >=3.25.0 <4.0.0
@@ -2675,7 +2679,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2703,7 +2707,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/usketch-tool-helpers
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2731,7 +2735,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/usketch-tool-helpers
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
       xstate:
         specifier: ^5.18.0
@@ -2778,7 +2782,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2800,7 +2804,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2822,7 +2826,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -2844,7 +2848,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/store
       react:
-        specifier: '>=19'
+        specifier: 19.3.1
         version: 19.3.1
     devDependencies:
       '@types/react':
@@ -3005,8 +3009,8 @@ packages:
     peerDependencies:
       '@types/react': ^17.0.50 || ^18.0.21 || ^19.0.0
       '@types/react-dom': ^17.0.17 || ^18.0.6 || ^19.0.0
-      react: ^17.0.2 || ^18.0.0 || ^19.0.0
-      react-dom: ^17.0.2 || ^18.0.0 || ^19.0.0
+      react: 19.3.1
+      react-dom: 19.3.1
 
   '@astrojs/telemetry@3.4.2':
     resolution: {integrity: sha512-2JOMRUxJrBSfiVDfeKLv1wBmvSIx1Y6u2YEO8awZ9qSq3u/rNAiUyFdOYi8dHv91kHrmYEQX7pRDw0J4xyj3UA==}
@@ -4548,8 +4552,8 @@ packages:
     peerDependencies:
       '@openuidev/observability': '>=0.0.4 <0.1.0'
       '@openuidev/react-lang': '>=1.0.0 <2.0.0'
-      react: ^18.3.1 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
+      react: 19.3.1
+      react-dom: 19.3.1
     peerDependenciesMeta:
       '@openuidev/react-lang':
         optional: true
@@ -4570,8 +4574,8 @@ packages:
     resolution: {integrity: sha512-nCNALKj71GmKo5x0dR10hr3LKf88MHxlkVgnsbYQdJTxBd3TbD9wqlgJkBcAZNFD4kPHINJ0iTdUAbR871XWBw==}
     peerDependencies:
       '@modelcontextprotocol/sdk': '>=1.0.0'
-      react: '*'
-      react-dom: '*'
+      react: 19.3.1
+      react-dom: 19.3.1
       react-native: '*'
       zod: ^3.25.0 || ^4.0.0
     peerDependenciesMeta:
@@ -4616,7 +4620,7 @@ packages:
     resolution: {integrity: sha512-z4eqJvfiNnFMHIIvXP3CY57y2WJs5g2v3X0zm9mEJkrkNv4rDxu+sg9Jh8EkXyeqBkB7SOcboo9dMVqhyrACIg==}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4625,7 +4629,7 @@ packages:
     resolution: {integrity: sha512-jCi/QKUM2r1Ju5a3J64TH2A5SpKAgh0LpknyqdQ4m6DCV0xJ2HG1xARRwNGPQfi1SLdLWZ1OJz6F4OMBBNiGJA==}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4635,8 +4639,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
+      react-dom: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4648,8 +4652,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
+      react-dom: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4660,7 +4664,7 @@ packages:
     resolution: {integrity: sha512-0rFg/Rj2Q62NCm62jZw0QX7a3sz6QCQU0LpZdNrJX8byRGaGVTqbrW9jAoIAHyMQqsNpeZ81YgSizOt5WXq0Pw==}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4670,8 +4674,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
+      react-dom: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4682,7 +4686,7 @@ packages:
     resolution: {integrity: sha512-kGkGegYIdQsOb4XjsfM97rXsiHaBwco+hFI66oO4s9LU+PLAC5oJ7khdOVFxkhsmlbpUqDAvXw11CluXP+jkHg==}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4692,8 +4696,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
+      react-dom: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4705,8 +4709,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
+      react-dom: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4718,8 +4722,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
+      react-dom: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4731,8 +4735,8 @@ packages:
     peerDependencies:
       '@types/react': '*'
       '@types/react-dom': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
+      react-dom: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4743,7 +4747,7 @@ packages:
     resolution: {integrity: sha512-aeNmHnBxbi2St0au6VBVC7JXFlhLlOnvIIlePNniyUNAClzmtAUEY8/pBiK3iHjufOlwA+c20/8jngo7xcrg8A==}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4752,7 +4756,7 @@ packages:
     resolution: {integrity: sha512-Jl+bCv8HxKnlTLVrcDE8zTMJ09R9/ukw4qBs/oZClOfoQk/cOTbDn+NceXfV7j09YPVQUryJPHurafcSg6EVKA==}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4761,7 +4765,7 @@ packages:
     resolution: {integrity: sha512-FkBMwD+qbGQeMu1cOHnuGB6x4yzPjho8ap5WtbEJ26umhgqVXbhekKUQO+hZEL1vU92a3wHwdp0HAcqAUF5iDg==}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4770,7 +4774,7 @@ packages:
     resolution: {integrity: sha512-BjasUjixPFdS+NKkypcyyN5Pmg83Olst0+c6vGov0diwTEo6mgdqVR6hxcEgFuh4QrAs7Rc+9KuGJ9TVCj0Zzg==}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4779,7 +4783,7 @@ packages:
     resolution: {integrity: sha512-Qp8WbZOBe+blgpuUT+lw2xheLP8q0oatc9UpmiemEICxGvFLYmHm9QowVZGHtJlGbS6A6yJ3iViad/2cVjnOiA==}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4788,7 +4792,7 @@ packages:
     resolution: {integrity: sha512-Il0+boE7w/XebUHyBjroE+DbByORGR9KKmITzbR7MyQ4akpORYP/ZmbhAr0DG7RmmBqoOnZdy2QlvajJ2QA59g==}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -4797,7 +4801,7 @@ packages:
     resolution: {integrity: sha512-RbJRS4UWQFkzHTTwVymMTUv8EqYhOp8dOOviLj2ugtTiXRaRQS7GLGxZTLL1jWhMeoSCf5zmcZkqTl9IiYfXcQ==}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -5629,8 +5633,8 @@ packages:
       next: ^14.0.0 || ^15.0.0 || ^16.0.0
       pg: ^8.0.0
       prisma: ^5.0.0 || ^6.0.0 || ^7.0.0
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
+      react: 19.3.1
+      react-dom: 19.3.1
       solid-js: ^1.0.0
       svelte: ^4.0.0 || ^5.0.0
       vitest: ^2.0.0 || ^3.0.0 || ^4.0.0
@@ -5776,8 +5780,8 @@ packages:
   cmdk@1.1.1:
     resolution: {integrity: sha512-Vsv7kFaXm+ptHDMZ7izaRsP70GgrW9NBNGswt9OZaVBLlE0SNpDq8eu/VGXyF9r7M0azK3Wy7OlYXsuyYLFzHg==}
     peerDependencies:
-      react: ^18 || ^19 || ^19.0.0-rc
-      react-dom: ^18 || ^19 || ^19.0.0-rc
+      react: 19.3.1
+      react-dom: 19.3.1
 
   collapse-white-space@2.1.0:
     resolution: {integrity: sha512-loKTxY1zCOuG4j9f6EPnuyyYkf58RnhhWTvRoZEokgB+WbdXehfjFviyOVYkqzEWz1Q5kRiZdBYS5SwxbQYwzw==}
@@ -6854,7 +6858,7 @@ packages:
   lucide-react@0.575.0:
     resolution: {integrity: sha512-VuXgKZrk0uiDlWjGGXmKV6MSk9Yy4l10qgVvzGn2AWBx1Ylt0iBexKOAoA6I7JO3m+M9oeovJd3yYENfkUbOeg==}
     peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.1
 
   magic-string@1.4.3:
     resolution: {integrity: sha512-z12OxmaPGE0F4xlpGdjuAUckipLpQlTAuAmyGhNoD7ODpYUzvDfvtxUbjM/jwznyP178oju/KDdyi220wNJ0RQ==}
@@ -7352,13 +7356,13 @@ packages:
   react-dom@19.3.1:
     resolution: {integrity: sha512-Y0bARz53lhEC1NMCASs0/j+faB/zqt3R8hpvg1e8+61ZVJ4UL0UdC4cBbXfZMcIuhrfgeILTLe+ZeBCavQPtKQ==}
     peerDependencies:
-      react: ^19.3.1
+      react: 19.3.1
 
   react-markdown@10.1.0:
     resolution: {integrity: sha512-qKxVopLT/TyA6BX3Ue5NwabOsAzm0Q7kAPwq6L+wWDwisYs7R8vZ0nRXqq6rkueboxpkjvLGU9fWifiX/ZZFxQ==}
     peerDependencies:
       '@types/react': '>=18'
-      react: '>=18'
+      react: 19.3.1
 
   react-refresh@0.18.0:
     resolution: {integrity: sha512-QgT5//D3jfjJb6Gsjxv0Slpj23ip+HtOpnNgnb2S5zU3CB26G/IDPGoy4RJB42wzFE46DRsstbW6tKHoKbhAxw==}
@@ -7369,7 +7373,7 @@ packages:
     engines: {node: '>=10'}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -7379,7 +7383,7 @@ packages:
     engines: {node: '>=10'}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -7390,8 +7394,8 @@ packages:
     peerDependencies:
       '@types/react': '>=19.2.0'
       '@types/react-dom': '>=19.2.0'
-      react: '>=19.2.7'
-      react-dom: '>=19.2.7'
+      react: 19.3.1
+      react-dom: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -7405,7 +7409,7 @@ packages:
     engines: {node: '>=10'}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -7927,7 +7931,7 @@ packages:
     engines: {node: '>=10'}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -7937,7 +7941,7 @@ packages:
     engines: {node: '>=10'}
     peerDependencies:
       '@types/react': '*'
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+      react: 19.3.1
     peerDependenciesMeta:
       '@types/react':
         optional: true

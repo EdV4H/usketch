@@ -25,11 +25,5 @@
 		"@j178/prek": "0.5.9",
 		"turbo": "2.11.10",
 		"typescript": "7.0.2"
-	},
-	"pnpm": {
-		"overrides": {
-			"react": "19.3.1",
-			"react-dom": "19.3.1"
-		}
 	}
 }
