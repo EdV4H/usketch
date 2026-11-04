@@ -1,5 +1,11 @@
 # @edv4h/usketch-plugin-croupier
 
+## 0.1.2
+
+### Patch Changes
+
+- f4fd42c: The table housekeeping that runs on every shapes change (each frame of any drag) now walks the board once instead of six times, so dragging on a board with game tables is cheaper. No behaviour change.
+
 ## 0.1.1
 
 ### Patch Changes
