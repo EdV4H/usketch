@@ -527,10 +527,39 @@ export function repairTables(
 	store: BoardStore,
 	removedTables: ReadonlySet<string> = new Set(),
 ): void {
-	const shapes = store.getShapes();
-	const copied = new Set<string>();
+	repairScannedTables(store, scanTables(store.getShapes()), removedTables);
+}
+
+/** The tables and seat shapes of a board, found in one pass over its shapes. */
+export interface ScannedTables {
+	shapes: ReturnType<BoardStore["getShapes"]>;
+	tables: TableShape[];
+	seats: ShapeData[];
+}
+
+export function scanTables(shapes: ReturnType<BoardStore["getShapes"]>): ScannedTables {
+	const tables: TableShape[] = [];
+	const seats: ShapeData[] = [];
 	for (const shape of shapes.values()) {
-		if (isTable(shape) && shape.meta.tableId !== shape.id) copied.add(shape.id);
+		if (isTable(shape)) tables.push(shape);
+		else if (shape.type === CROUPIER_SEAT_TYPE) seats.push(shape);
+	}
+	return { shapes, tables, seats };
+}
+
+/**
+ * {@link repairTables} on a board already scanned with {@link scanTables}. The plugin
+ * runs it on every shapes change (each frame of any drag), so it walks the board
+ * once and then only the tables and seats.
+ */
+export function repairScannedTables(
+	store: BoardStore,
+	{ shapes, tables, seats }: ScannedTables,
+	removedTables: ReadonlySet<string>,
+): void {
+	const copied = new Set<string>();
+	for (const table of tables) {
+		if (table.meta.tableId !== table.id) copied.add(table.id);
 	}
 	for (const id of copied) {
 		const table = shapes.get(id) as TableShape;
@@ -539,8 +568,8 @@ export function repairTables(
 		} as Partial<ShapeData>);
 	}
 	// Started tables whose game is gone (e.g. restored by undo after deletion).
-	for (const shape of shapes.values()) {
-		if (!isTable(shape) || copied.has(shape.id)) continue;
+	for (const shape of tables) {
+		if (copied.has(shape.id)) continue;
 		if (shape.meta.phase === "lobby" || readGameState(store, shape)) continue;
 		writeTableMeta(store, shape, {
 			...writeGameState(store, shape, null),
@@ -554,8 +583,7 @@ export function repairTables(
 			if (!shapes.has(id) && gameState.get(id)) gameState.set(id, null);
 		}
 	}
-	for (const shape of [...shapes.values()]) {
-		if (shape.type !== CROUPIER_SEAT_TYPE) continue;
+	for (const shape of seats) {
 		// A bare seat (e.g. from the shape's createDefault) belongs to no table.
 		if (!isSeat(shape)) {
 			store.deleteShape(shape.id);
