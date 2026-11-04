@@ -42,6 +42,7 @@ import {
 	isVirtualInputActive,
 	normalizeVirtualInput,
 	type VirtualInput,
+	virtualPresses,
 } from "./character-virtual-input.js";
 
 export const CHARACTER_LAYER_ID = "character";
@@ -128,6 +129,9 @@ export function setupCharacterRuntime(
 	// Cleared when the character turns off, so a control that never sent its release
 	// (unmounted mid-touch) can't leave the next ride driving on its own.
 	let virtual: VirtualInput | null = null;
+	// Virtual button presses since the last frame (a tap may press and release in between).
+	let virtualJumpPressed = false;
+	let virtualDriftPressed = false;
 	let cam: CameraFocus | null = null;
 	let display: ReadonlyMap<string, RemoteCharacter> = new Map();
 	let rafId: number | null = null;
@@ -197,10 +201,13 @@ export function setupCharacterRuntime(
 			const input = {
 				...keyInput,
 				jump: keyInput.jump || holdJump,
-				jumpPressed: keyInput.jumpPressed || pendingJump,
+				jumpPressed: keyInput.jumpPressed || pendingJump || virtualJumpPressed,
+				driftPressed: keyInput.driftPressed || virtualDriftPressed,
 			};
 			if (pendingJump) holdJump = true;
 			pendingJump = false;
+			virtualJumpPressed = false;
+			virtualDriftPressed = false;
 			if (s.followSuspended && (keys.anyHeld() || isVirtualInputActive(virtual))) {
 				store.setFollowSuspended(false);
 			}
@@ -286,6 +293,8 @@ export function setupCharacterRuntime(
 			} else {
 				cam = null;
 				virtual = null;
+				virtualJumpPressed = false;
+				virtualDriftPressed = false;
 				// Hand the camera back upright.
 				if (viewportRotation(ctx.store.getViewport()) !== 0) {
 					ctx.store.rotateTo(0, anchorPoint(), { animate: true });
@@ -339,7 +348,12 @@ export function setupCharacterRuntime(
 		setVirtualInput(input) {
 			// Ignored while off (like the keys), so input sent before the character is
 			// turned on can't make it drive away on its own the moment it spawns.
-			virtual = store.getState().enabled ? normalizeVirtualInput(input) : null;
+			const next = store.getState().enabled ? normalizeVirtualInput(input) : null;
+			const pressed = virtualPresses(virtual, next);
+			if (pressed.jump) virtualJumpPressed = true;
+			if (pressed.drift) virtualDriftPressed = true;
+			virtual = next;
+			if (pressed.jump || pressed.drift) ensureLoop();
 		},
 		getVirtualInput: () => (virtual ? { ...virtual } : null),
 		dispose() {
