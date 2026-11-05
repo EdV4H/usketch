@@ -47,7 +47,8 @@ export const VIEWPORT_OVERSCAN_EVENT = "bg-grid:set-overscan";
  */
 export interface HideShapesEvent {
 	source: string;
-	ids: ReadonlySet<string>;
+	/** Any iterable of ids (a `Set` usually); copied on receipt. Empty = show them all again. */
+	ids: Iterable<string>;
 }
 export const HIDE_SHAPES_EVENT = "renderer:hide-shapes";
 
@@ -75,6 +76,15 @@ function sameIds(a: ReadonlySet<string> | undefined, b: ReadonlySet<string>): bo
 	if (!a) return true;
 	for (const id of b) if (!a.has(id)) return false;
 	return true;
+}
+
+/** A copy of the event's ids as a Set of strings, or `null` when it isn't iterable. */
+export function toIdSet(ids: unknown): Set<string> | null {
+	if (ids == null || typeof (ids as Iterable<unknown>)[Symbol.iterator] !== "function") return null;
+	if (typeof ids === "string") return null;
+	const out = new Set<string>();
+	for (const id of ids as Iterable<unknown>) if (typeof id === "string") out.add(id);
+	return out;
 }
 
 const DEFAULT_VIEWPORT_LOD_RATIO = 1.2;
@@ -117,10 +127,12 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 			let hiddenIds: ReadonlySet<string> | undefined;
 
 			const unsubHide = ctx.events.on<HideShapesEvent>(HIDE_SHAPES_EVENT, (d) => {
-				if (typeof d?.source !== "string" || !(d.ids instanceof Set)) return;
-				if (sameIds(hiddenBySource.get(d.source), d.ids)) return;
-				if (d.ids.size === 0) hiddenBySource.delete(d.source);
-				else hiddenBySource.set(d.source, d.ids);
+				if (typeof d?.source !== "string") return;
+				const ids = toIdSet(d.ids);
+				if (!ids) return;
+				if (sameIds(hiddenBySource.get(d.source), ids)) return;
+				if (ids.size === 0) hiddenBySource.delete(d.source);
+				else hiddenBySource.set(d.source, ids);
 				hiddenIds = unionHiddenIds(hiddenBySource);
 				ctx.events.emit("layers:changed", {});
 			});

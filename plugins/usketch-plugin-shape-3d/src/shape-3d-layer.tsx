@@ -27,7 +27,8 @@ export const SHAPE_3D_LAYER_ID = "shape-3d";
 
 /**
  * The shape's own drawing at its world size, scaled to the node's px box (re-rendered
- * only when the shape or the zoom changes, not as the camera moves).
+ * only when the shape or the zoom changes, not as the camera moves). No opacity here:
+ * the renderers apply `style.opacity` themselves, as on the flat DOM layer.
  */
 const StandContent = memo(function StandContent({
 	shape,
@@ -48,7 +49,6 @@ const StandContent = memo(function StandContent({
 				height: shape.height,
 				transform: `scale(${zoom})`,
 				transformOrigin: "0 0",
-				opacity: shape.style?.opacity,
 			}}
 		>
 			<ShapeContent shape={shape} def={def} />
