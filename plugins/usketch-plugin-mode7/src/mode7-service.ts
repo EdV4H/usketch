@@ -1,7 +1,12 @@
 // Host-facing API on the `ctx.services` seam (same convention as dashboard/window-
 // system): thin, typed delegation to the reactive store so a host or another plugin
 // can drive the Mode 7 view without the HUD.
-import { type BoundingBox, defineService, type ServiceRegistry } from "@edv4h/usketch-shared";
+import {
+	type BoundingBox,
+	defineService,
+	type ServiceRegistry,
+	type View3dApi,
+} from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
 import type { Look, Mode7Store } from "./mode7-store.js";
 import { transitionCamera } from "./mode7-transform.js";
@@ -102,4 +107,20 @@ export function createMode7Api(store: Mode7Store, transition: Mode7Transition): 
 /** Host accessor: `getMode7Api(app.services)?.toggle()`. Undefined when inactive. */
 export function getMode7Api(services: ServiceRegistry): Mode7Api | undefined {
 	return mode7Service.get(services);
+}
+
+/**
+ * The generic 3D-view state (`view3dService` in shared) backed by this store, so
+ * plugins that rise out of the ground in 3D follow the view without depending on Mode 7.
+ */
+export function createView3dApi(store: Mode7Store): View3dApi {
+	return {
+		amount: () => store.getState().amount,
+		camera: () => {
+			const { camera, amount } = store.getState();
+			const c = transitionCamera(camera, amount);
+			return { pitch: c.pitch, yaw: c.yaw, fov: c.fov, horizon: c.horizon };
+		},
+		subscribe: (listener) => store.subscribe(listener),
+	};
 }

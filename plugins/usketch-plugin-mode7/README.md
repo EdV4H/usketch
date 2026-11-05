@@ -90,12 +90,13 @@ createApp({
 
 ※ Shape は DOM 上には残る（コアのカリングではなく描画クリップ）ので、真のジオメトリ間引きは別途。
 
-3D 表示の開始・終了時には `usketch:stage-3d` イベント（`{ active }`、`STAGE_3D_EVENT`）を出す。map プラグインはこれを見て、段差（立体）を 3D 表示中だけ組み立てる。
+3D 表示の開始・終了時には `usketch:stage-3d` イベント（`{ active }`、`STAGE_3D_EVENT`）を出す。
+また、shared の `view3dService`（遷移量 `amount()` と描画中のカメラ `camera()`、`subscribe`）を提供する。Mode 7 に依存せずに「地面と一緒に起き上がる」ものを作るときはこちらを読む（`usketch-plugin-shape-3d` が使用）。map プラグインはこれを見て、段差（立体）を 3D 表示中だけ組み立てる。
 
 **深度レイヤー（`depthLayerIds`）**: `clip-path` は傾き自体は保つが、配下の奥行き（`translateZ`）を
 平面に潰す。そこで深度レイヤーはこのクリップを外し、エンジンの内側ラッパーにも
 `transform-style: preserve-3d` を付けて 3D 文脈を通す。既定 `DEFAULT_DEPTH_LAYER_IDS` は
-`usketch-map:relief`（map プラグインの高いセルの崖と上面）と `character`（その上に立つキャラ）。
+`usketch-map:relief`（map プラグインの高いセルの崖と上面）、`shape-3d`（`usketch-plugin-shape-3d` が立てた Shape）と `character`（その上に立つキャラ）。
 深度レイヤーは描画距離のクリップを受けない。
 
 ## アクション（`mode7:<key>` で emit・HUD Controls に自動表示・サービス）
@@ -137,5 +138,7 @@ unprojectFromGround(x, y, cam, size); // → { x, y } | null（地平線より�
 
 ## スコープ外（v2 送り）
 
-3D 中の編集（perspective 逆投影して `screenToWorld` を補正）／WebGPU 真3D／Shape の billboard 立て起こし／
+3D 中の編集（perspective 逆投影して `screenToWorld` を補正）／WebGPU 真3D／
 視差・霧・地平線もやの高度化／minimap の3Dプレビュー。
+
+Shape を立てて描くのは `@edv4h/usketch-plugin-shape-3d`（別プラグイン）。

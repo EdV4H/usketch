@@ -1,0 +1,167 @@
+import type { ShapeData, Viewport } from "@edv4h/usketch-shared";
+import { describe, expect, it } from "vitest";
+import {
+	DEFAULT_SHAPE_3D_LIMITS,
+	lerpAngle,
+	selectShapes3d,
+	shadowStyle,
+	standBox,
+	standFoot,
+	standPose,
+	standTransform,
+} from "../shape-3d-layout.js";
+import { normalizeShape3d, SHAPE_3D_KEY, type Shape3dParams } from "../shape-3d-params.js";
+
+const shape = (id: string, x: number, y: number, extra: Record<string, unknown> = {}): ShapeData =>
+	({
+		id,
+		type: "rect",
+		x,
+		y,
+		width: 40,
+		height: 20,
+		style: {},
+		[SHAPE_3D_KEY]: { mode: "stand" },
+		...extra,
+	}) as unknown as ShapeData;
+
+const params = (raw: Record<string, unknown> = {}) =>
+	normalizeShape3d({ mode: "stand", ...raw }) as Shape3dParams;
+const vp = (zoom = 1, rotation = 0): Viewport => ({ x: 0, y: 0, zoom, rotation });
+
+describe("standFoot", () => {
+	it("is the middle of the bottom edge", () => {
+		expect(standFoot(shape("a", 0, 0))).toEqual({ x: 20, y: 20 });
+	});
+	it("follows the shape's rotation", () => {
+		const foot = standFoot(shape("a", 0, 0, { rotation: 90 }));
+		// Rotated 90° clockwise about its centre (20, 10): the bottom edge points left.
+		expect(foot.x).toBeCloseTo(10);
+		expect(foot.y).toBeCloseTo(10);
+	});
+});
+
+describe("lerpAngle", () => {
+	it("turns the short way round", () => {
+		expect(lerpAngle(170, -170, 0.5)).toBe(180);
+		expect(lerpAngle(10, 30, 0.5)).toBe(20);
+	});
+});
+
+describe("standPose / standTransform", () => {
+	it("lies flat where the board draws it at amount 0", () => {
+		const p = standPose(shape("a", 0, 0, { rotation: 30 }), params(), {
+			viewport: vp(2, 15),
+			amount: 0,
+			yaw: 40,
+			groundHeight: 0,
+		});
+		expect(p.raise).toBe(0);
+		expect(p.face).toBe(45); // rotation + viewport rotation
+		expect(standTransform(p)).toBe("rotateZ(45deg)");
+	});
+	it("stands up and faces the camera (against its yaw) at amount 1", () => {
+		const p = standPose(shape("a", 0, 0), params(), {
+			viewport: vp(2),
+			amount: 1,
+			yaw: 40,
+			groundHeight: 16,
+		});
+		expect(p).toMatchObject({ x: 40, y: 40, face: -40, raise: 1, lift: 32 });
+		expect(standTransform(p)).toBe("translateZ(32px) rotateZ(-40deg) rotateX(-90deg)");
+	});
+	it("keeps its own heading when fixed", () => {
+		const p = standPose(shape("a", 0, 0, { rotation: 30 }), params({ facing: "fixed" }), {
+			viewport: vp(),
+			amount: 1,
+			yaw: 40,
+			groundHeight: 0,
+		});
+		expect(p.face).toBe(30);
+	});
+	it("ignores the ground when told to", () => {
+		const p = standPose(shape("a", 0, 0), params({ ground: false }), {
+			viewport: vp(),
+			amount: 1,
+			yaw: 0,
+			groundHeight: 48,
+		});
+		expect(p.lift).toBe(0);
+	});
+	it("half stands up mid-transition", () => {
+		const p = standPose(shape("a", 0, 0), params(), {
+			viewport: vp(),
+			amount: 0.5,
+			yaw: 0,
+			groundHeight: 0,
+		});
+		expect(standTransform(p)).toBe("rotateX(-45deg)");
+	});
+});
+
+describe("standBox / shadowStyle", () => {
+	it("sizes the node to the shape on screen with its bottom-centre at the foot", () => {
+		expect(standBox({ x: 100, y: 50, width: 40, height: 20, zoom: 2 })).toEqual({
+			left: 60,
+			top: 10,
+			width: 80,
+			height: 40,
+		});
+	});
+	it("has no transform when flat, unrotated and on flat ground", () => {
+		const p = standPose(shape("a", 0, 0), params(), {
+			viewport: vp(),
+			amount: 0,
+			yaw: 0,
+			groundHeight: 0,
+		});
+		expect(standTransform(p)).toBeUndefined();
+	});
+	it("floats the shadow just above the ground and fades it in", () => {
+		const p = standPose(shape("a", 0, 0), params(), {
+			viewport: vp(),
+			amount: 0.5,
+			yaw: 0,
+			groundHeight: 10,
+		});
+		const s = shadowStyle(p);
+		expect(s.transform).toBe("translateZ(10.5px) rotateZ(0deg) translate(-50%, -50%)");
+		expect(s.opacity).toBe(0.5);
+		expect(s.width).toBe(36);
+	});
+});
+
+describe("selectShapes3d", () => {
+	const base = {
+		types: {},
+		viewport: vp(),
+		viewportBounds: { x: 0, y: 0, width: 500, height: 500 },
+		overscanPx: 0,
+		renderMode: "interactive" as const,
+		amount: 1,
+		limits: DEFAULT_SHAPE_3D_LIMITS,
+	};
+	it("is empty while flat or in the global LOD mode", () => {
+		const shapes = [shape("a", 10, 10)];
+		expect(selectShapes3d({ ...base, shapes, amount: 0 })).toEqual([]);
+		expect(selectShapes3d({ ...base, shapes, renderMode: "lod" })).toEqual([]);
+	});
+	it("keeps only 3D shapes on the drawn ground, big enough to see", () => {
+		const shapes = [
+			shape("in", 10, 10),
+			shape("flat", 10, 10, { [SHAPE_3D_KEY]: undefined }),
+			shape("far", 900, 10),
+			shape("tiny", 10, 10, { width: 2, height: 2 }),
+		];
+		expect(selectShapes3d({ ...base, shapes }).map((e) => e.shape.id)).toEqual(["in"]);
+	});
+	it("grows the drawn ground by the 3D overscan", () => {
+		const shapes = [shape("far", 900, 10)];
+		expect(selectShapes3d({ ...base, shapes, overscanPx: 500 })).toHaveLength(1);
+	});
+	it("keeps the nearest (lowest on screen) when over the limit, in z-order", () => {
+		const shapes = [shape("top", 10, 0), shape("bottom", 10, 300), shape("mid", 10, 100)];
+		const out = selectShapes3d({ ...base, shapes, limits: { minPx: 0, maxCount: 2 } });
+		expect(out.map((e) => e.shape.id)).toEqual(["bottom", "mid"]);
+	});
+});

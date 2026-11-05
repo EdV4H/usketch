@@ -45,6 +45,8 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 	"usketch-map:base-icons",
 	"gpu-shapes",
 	"dom-shapes",
+	// shapes stood up / raised in 3D by usketch-plugin-shape-3d (a depth layer)
+	"shape-3d",
 	"usketch-plugin-dashboard:grid-overlay",
 	// shape-attached overlays (selection, connectors, editors) — follow the shapes
 	"comment-badges",
@@ -74,9 +76,14 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 /**
  * Tilted layers rendered with real DEPTH: they skip the draw-distance clip (a
  * `clip-path` flattens 3D) so content can rise out of the ground — the map plugin's
- * raised terrain (cliffs) and a character standing on it.
+ * raised terrain (cliffs), shapes stood up by usketch-plugin-shape-3d, and a character
+ * standing on them.
  */
-export const DEFAULT_DEPTH_LAYER_IDS: readonly string[] = ["usketch-map:relief", "character"];
+export const DEFAULT_DEPTH_LAYER_IDS: readonly string[] = [
+	"usketch-map:relief",
+	"shape-3d",
+	"character",
+];
 
 export interface Mode7State {
 	/** Whether the 3D view is shown. Stays `true` while an exit transition plays, so the
