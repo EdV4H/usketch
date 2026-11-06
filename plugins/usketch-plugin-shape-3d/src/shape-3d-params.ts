@@ -6,11 +6,31 @@ import type { ShapeData } from "@edv4h/usketch-shared";
 /** The ShapeData key holding a shape's 3D parameters. */
 export const SHAPE_3D_KEY = "x-shape-3d";
 
-/** How a shape stands out of the ground in 3D. */
-export type Shape3dMode = "stand";
+/**
+ * How a shape stands out of the ground in 3D: `stand` folds it upright about its bottom
+ * edge (a sign), `box` lifts it as the top of a block with walls down to the ground (a
+ * crate, a building), `float` lifts it flat into the air (a label, a balloon).
+ */
+export type Shape3dMode = "stand" | "box" | "float";
 
 /** Every mode, in HUD order. */
-export const SHAPE_3D_MODES: readonly Shape3dMode[] = ["stand"];
+export const SHAPE_3D_MODES: readonly Shape3dMode[] = ["stand", "box", "float"];
+
+/**
+ * Modes a shape type may use when its config names none. `box` is left out: it only
+ * suits shapes that fill their box (an ellipse or a pen stroke as a block looks wrong).
+ */
+export const DEFAULT_TYPE_MODES: readonly Shape3dMode[] = ["stand", "float"];
+
+/** Default `height` (world units; one terrain level is 16) per mode that uses it. */
+export const DEFAULT_SHAPE_3D_HEIGHT: Readonly<Record<Shape3dMode, number>> = {
+	stand: 0,
+	box: 16,
+	float: 24,
+};
+
+/** `height` is clamped to 0…this (world units). */
+export const MAX_SHAPE_3D_HEIGHT = 2000;
 
 /**
  * Which way a stood-up shape faces: `"camera"` turns to face the viewer (a sign, a
@@ -20,6 +40,9 @@ export type Shape3dFacing = "camera" | "fixed";
 
 export interface Shape3dParams {
 	mode: Shape3dMode;
+	/** `box`: the block's height / `float`: how high it floats (world units). Unused by
+	 *  `stand`. Defaults per mode ({@link DEFAULT_SHAPE_3D_HEIGHT}). */
+	height: number;
 	/** `stand` only. Default `"camera"`. */
 	facing: Shape3dFacing;
 	/** Stand on the terrain's height (the shared ground-height service). Default `true`. */
@@ -31,7 +54,7 @@ export interface Shape3dParams {
 /** What a shape may hold under {@link SHAPE_3D_KEY} (any field may be missing). */
 export type Shape3dInput = Omit<Partial<Shape3dParams>, "mode"> & { mode?: string };
 
-export const DEFAULT_SHAPE_3D_PARAMS: Omit<Shape3dParams, "mode"> = {
+export const DEFAULT_SHAPE_3D_PARAMS: Omit<Shape3dParams, "mode" | "height"> = {
 	facing: "camera",
 	ground: true,
 	shadow: true,
@@ -51,6 +74,7 @@ export function normalizeShape3d(raw: unknown): Shape3dParams | null {
 	if (!isMode(r.mode)) return null;
 	return {
 		mode: r.mode,
+		height: validHeight(r.height) ?? DEFAULT_SHAPE_3D_HEIGHT[r.mode],
 		facing:
 			r.facing === "fixed" || r.facing === "camera" ? r.facing : DEFAULT_SHAPE_3D_PARAMS.facing,
 		ground: typeof r.ground === "boolean" ? r.ground : DEFAULT_SHAPE_3D_PARAMS.ground,
@@ -58,10 +82,29 @@ export function normalizeShape3d(raw: unknown): Shape3dParams | null {
 	};
 }
 
+/** A usable `height` (clamped), or `null` when it isn't a finite number. */
+function validHeight(v: unknown): number | null {
+	if (typeof v !== "number" || !Number.isFinite(v)) return null;
+	return Math.min(MAX_SHAPE_3D_HEIGHT, Math.max(0, v));
+}
+
+/**
+ * The parameters as they are stored on a shape: normalized, but `height` kept only when
+ * it was given — so a shape switched between `box` and `float` takes each mode's default
+ * height instead of carrying the other's. `null` when there is no usable mode. Pure.
+ */
+export function storedShape3d(raw: unknown): Shape3dInput | null {
+	const params = normalizeShape3d(raw);
+	if (!params) return null;
+	const height = validHeight((raw as Record<string, unknown>).height);
+	const { height: _resolved, ...rest } = params;
+	return height === null ? rest : { ...rest, height };
+}
+
 // ── Per-type configuration (passed by the host, not declared by shape plugins) ──
 
 export interface Shape3dTypeConfig {
-	/** Modes this shape type may use. Default: every mode. `[]` = never 3D. */
+	/** Modes this shape type may use. Default {@link DEFAULT_TYPE_MODES}. `[]` = never 3D. */
 	modes?: readonly Shape3dMode[];
 	/** Parameters a shape of this type gets when it holds none of its own (e.g. portals
 	 *  always stand). A function can decide per shape; `null` = stays flat. */
@@ -70,11 +113,20 @@ export interface Shape3dTypeConfig {
 
 export type Shape3dTypes = Readonly<Record<string, Shape3dTypeConfig>>;
 
+const ALL_MODES = { modes: SHAPE_3D_MODES };
+
 /**
- * Built-in per-type settings: embedded pages and generated UI are heavy live HTML that
- * blurs or stutters under a 3D transform, so they stay flat.
+ * Built-in per-type settings. Shapes that fill their box may also be a `box`; embedded
+ * pages and generated UI are heavy live HTML that blurs or stutters under a 3D
+ * transform, so they stay flat. Other types get {@link DEFAULT_TYPE_MODES}.
  */
 export const DEFAULT_SHAPE_3D_TYPES: Shape3dTypes = {
+	rectangle: ALL_MODES,
+	"rounded-rect": ALL_MODES,
+	sticky: ALL_MODES,
+	card: ALL_MODES,
+	frame: ALL_MODES,
+	image: ALL_MODES,
 	embed: { modes: [] },
 	openui: { modes: [] },
 };
@@ -88,7 +140,7 @@ export function mergeShape3dTypes(base: Shape3dTypes, over: Shape3dTypes = {}): 
 
 /** The modes a shape type may use. */
 export function availableModes(types: Shape3dTypes, type: string): readonly Shape3dMode[] {
-	return types[type]?.modes ?? SHAPE_3D_MODES;
+	return types[type]?.modes ?? DEFAULT_TYPE_MODES;
 }
 
 /** A shape's own (normalized) parameters, ignoring its type's default. */

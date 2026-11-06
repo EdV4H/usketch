@@ -1,10 +1,16 @@
 // HUD wiring (all UI lives in the shared HUD): a settings group for the selected
 // shapes' 3D look, and one for the draw limits. They only call the service.
 import type { PluginContext } from "@edv4h/usketch-shared";
+import { MAX_SHAPE_3D_HEIGHT } from "./shape-3d-params.js";
 import type { Shape3dApi } from "./shape-3d-service.js";
 import type { Shape3dSettings } from "./shape-3d-settings.js";
 
-const MODE_LABELS: Record<string, string> = { none: "なし", stand: "立てる" };
+const MODE_LABELS: Record<string, string> = {
+	none: "なし",
+	stand: "立てる",
+	box: "箱",
+	float: "浮かせる",
+};
 
 /** Register the HUD settings. Returns a teardown. */
 export function registerShape3dHud(
@@ -42,8 +48,16 @@ export function registerShape3dHud(
 			return [
 				{ name: "mode", label: "3D 表示", type: "enum" as const, options: modeOptions() },
 				{
+					name: "height",
+					label: "高さ（箱・浮かせる）",
+					type: "number" as const,
+					min: 0,
+					max: MAX_SHAPE_3D_HEIGHT,
+					step: 4,
+				},
+				{
 					name: "facing",
-					label: "向き",
+					label: "向き（立てる）",
 					type: "enum" as const,
 					options: [
 						{ value: "camera", label: "カメラの方" },
@@ -59,6 +73,8 @@ export function registerShape3dHud(
 			switch (name) {
 				case "mode":
 					return p?.mode ?? "none";
+				case "height":
+					return p?.height ?? 0;
 				case "facing":
 					return p?.facing ?? "camera";
 				case "ground":
@@ -79,7 +95,13 @@ export function registerShape3dHud(
 			}
 			// Other fields only change shapes that are already 3D.
 			const threeD = ids.filter((id) => api.get(id));
-			if (name === "facing" && (value === "camera" || value === "fixed")) {
+			if (name === "height" && typeof value === "number" && Number.isFinite(value)) {
+				// Only shapes that use a height (a stood-up shape keeps its natural size).
+				api.set(
+					threeD.filter((id) => api.get(id)?.mode !== "stand"),
+					{ height: value },
+				);
+			} else if (name === "facing" && (value === "camera" || value === "fixed")) {
 				api.set(threeD, { facing: value });
 			} else if ((name === "ground" || name === "shadow") && typeof value === "boolean") {
 				api.set(threeD, { [name]: value });

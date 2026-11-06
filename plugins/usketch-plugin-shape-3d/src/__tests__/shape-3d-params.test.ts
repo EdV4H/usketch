@@ -7,6 +7,7 @@ import {
 	normalizeShape3d,
 	resolveShape3d,
 	SHAPE_3D_KEY,
+	storedShape3d,
 } from "../shape-3d-params.js";
 
 const shape = (type: string, extra: Record<string, unknown> = {}): ShapeData =>
@@ -16,6 +17,7 @@ describe("normalizeShape3d", () => {
 	it("fills defaults", () => {
 		expect(normalizeShape3d({ mode: "stand" })).toEqual({
 			mode: "stand",
+			height: 0,
 			facing: "camera",
 			ground: true,
 			shadow: true,
@@ -24,8 +26,17 @@ describe("normalizeShape3d", () => {
 	it("keeps valid fields and drops invalid / unknown ones", () => {
 		expect(
 			normalizeShape3d({ mode: "stand", facing: "fixed", ground: false, shadow: "no", junk: 1 }),
-		).toEqual({ mode: "stand", facing: "fixed", ground: false, shadow: true });
+		).toEqual({ mode: "stand", height: 0, facing: "fixed", ground: false, shadow: true });
 		expect(normalizeShape3d({ mode: "stand", facing: "sideways" })?.facing).toBe("camera");
+	});
+	it("gives box and float their default height, and clamps a given one", () => {
+		expect(normalizeShape3d({ mode: "box" })?.height).toBe(16);
+		expect(normalizeShape3d({ mode: "float" })?.height).toBe(24);
+		expect(normalizeShape3d({ mode: "box", height: 40 })?.height).toBe(40);
+		expect(normalizeShape3d({ mode: "box", height: -5 })?.height).toBe(0);
+		expect(normalizeShape3d({ mode: "box", height: 1e9 })?.height).toBe(2000);
+		expect(normalizeShape3d({ mode: "float", height: Number.NaN })?.height).toBe(24);
+		expect(normalizeShape3d({ mode: "float", height: "8" })?.height).toBe(24);
 	});
 	it("is null without a usable mode", () => {
 		expect(normalizeShape3d(undefined)).toBeNull();
@@ -39,7 +50,12 @@ describe("per-type config", () => {
 	it("keeps embeds and generated UI flat by default", () => {
 		expect(availableModes(DEFAULT_SHAPE_3D_TYPES, "embed")).toEqual([]);
 		expect(availableModes(DEFAULT_SHAPE_3D_TYPES, "openui")).toEqual([]);
-		expect(availableModes(DEFAULT_SHAPE_3D_TYPES, "rect")).toEqual(["stand"]);
+	});
+	it("lets only box-like types be a box", () => {
+		expect(availableModes(DEFAULT_SHAPE_3D_TYPES, "ellipse")).toEqual(["stand", "float"]);
+		for (const type of ["rectangle", "rounded-rect", "sticky", "card", "frame", "image"]) {
+			expect(availableModes(DEFAULT_SHAPE_3D_TYPES, type)).toEqual(["stand", "box", "float"]);
+		}
 	});
 	it("merges host settings over the built-in ones per type", () => {
 		const types = mergeShape3dTypes(DEFAULT_SHAPE_3D_TYPES, {
@@ -73,5 +89,18 @@ describe("resolveShape3d", () => {
 	});
 	it("is null for a flat shape", () => {
 		expect(resolveShape3d(shape("rect"), {})).toBeNull();
+	});
+});
+
+describe("storedShape3d", () => {
+	it("keeps a given height but not a defaulted one", () => {
+		expect(storedShape3d({ mode: "box" })).toEqual({
+			mode: "box",
+			facing: "camera",
+			ground: true,
+			shadow: true,
+		});
+		expect(storedShape3d({ mode: "box", height: 40, junk: 1 })?.height).toBe(40);
+		expect(storedShape3d({ mode: "nope" })).toBeNull();
 	});
 });

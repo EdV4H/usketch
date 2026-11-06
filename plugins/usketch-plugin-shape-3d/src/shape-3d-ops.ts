@@ -9,6 +9,7 @@ import {
 	type Shape3dInput,
 	type Shape3dParams,
 	type Shape3dTypes,
+	storedShape3d,
 } from "./shape-3d-params.js";
 
 /** A shape's own 3D parameters (normalized), or `null` when it has none / it's missing. */
@@ -33,9 +34,13 @@ export function setShape3d(
 	for (const id of ids) {
 		const shape = store.getShape(id);
 		if (!shape || shape.locked) continue;
-		const next = normalizeShape3d({ ...ownShape3d(shape), ...patch });
+		// Merge over what the shape holds (not its normalized form), so a defaulted height
+		// stays a default when the mode changes.
+		const own = shape[SHAPE_3D_KEY];
+		const merged = { ...(own && typeof own === "object" ? own : {}), ...patch };
+		const next = normalizeShape3d(merged);
 		if (!next || !availableModes(types, shape.type).includes(next.mode)) continue;
-		store.updateShape(id, { [SHAPE_3D_KEY]: next });
+		store.updateShape(id, { [SHAPE_3D_KEY]: storedShape3d(merged) });
 		updated.push(id);
 	}
 	return updated;
