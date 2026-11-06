@@ -34,6 +34,7 @@ function tracker(initial: View3dSnapshot): View3dTracker & { set(s: View3dSnapsh
 			listeners.add(l);
 			return () => listeners.delete(l);
 		},
+		subscribeCamera: () => () => {},
 		dispose() {},
 		set(s) {
 			snap = s;

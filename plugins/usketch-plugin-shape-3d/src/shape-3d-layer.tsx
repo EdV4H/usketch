@@ -259,8 +259,8 @@ function renderCustom(
 		height: round3(pose.height * pose.zoom),
 		faceCamera: frame.faceCamera,
 		content: <StandContent shape={shape} def={def} zoom={pose.zoom} />,
-		camera: camera.get,
-		subscribe: camera.subscribe,
+		camera: () => camera.get(),
+		subscribe: (listener) => camera.subscribe(listener),
 	});
 	return element ? { pose, transform: frame.transform, element } : null;
 }

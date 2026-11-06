@@ -25,7 +25,8 @@ export interface Shape3dRenderContext {
 	/** The camera as drawn now (pitch / yaw scaled by `amount`), `null` without a 3D view.
 	 *  For a canvas (three.js etc.) that matches its own camera to the view. */
 	camera(): View3dCamera | null;
-	/** Notified on every camera change, without re-rendering React. Returns an unsubscribe. */
+	/** Notified on every change of the camera or the transition amount (also once a 3D view
+	 *  appears later), without re-rendering React. Returns an unsubscribe. */
 	subscribe(listener: () => void): () => void;
 }
 

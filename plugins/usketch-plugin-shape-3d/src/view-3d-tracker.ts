@@ -20,6 +20,11 @@ export interface View3dTracker {
 	/** The current state (a stable object until it changes). */
 	get(): View3dSnapshot;
 	subscribe(listener: () => void): () => void;
+	/**
+	 * Notified on EVERY change the view reports (camera pitch / yaw / fov and the amount),
+	 * and when a provider comes or goes — also for a provider that sets up later.
+	 */
+	subscribeCamera(listener: () => void): () => void;
 	dispose(): void;
 }
 
@@ -28,6 +33,15 @@ export function createView3dTracker(services: ServiceRegistry, events: EventBus)
 	let unsubscribeApi: (() => void) | null = null;
 	let attached: unknown = null;
 	const listeners = new Set<() => void>();
+	const cameraListeners = new Set<() => void>();
+	const notifyCamera = (): void => {
+		for (const l of [...cameraListeners]) l();
+	};
+
+	const onApiChange = (): void => {
+		read();
+		notifyCamera();
+	};
 
 	const read = (): void => {
 		const api = view3dService.get(services);
@@ -53,8 +67,9 @@ export function createView3dTracker(services: ServiceRegistry, events: EventBus)
 		unsubscribeApi?.();
 		unsubscribeApi = null;
 		attached = api ?? null;
-		if (api) unsubscribeApi = api.subscribe(read);
+		if (api) unsubscribeApi = api.subscribe(onApiChange);
 		read();
+		notifyCamera();
 	};
 
 	// The stage event may fire during the provider's own setup, before it provides the
@@ -71,12 +86,17 @@ export function createView3dTracker(services: ServiceRegistry, events: EventBus)
 			listeners.add(listener);
 			return () => listeners.delete(listener);
 		},
+		subscribeCamera(listener) {
+			cameraListeners.add(listener);
+			return () => cameraListeners.delete(listener);
+		},
 		dispose() {
 			disposed = true;
 			offStage();
 			unsubscribeApi?.();
 			unsubscribeApi = null;
 			listeners.clear();
+			cameraListeners.clear();
 		},
 	};
 }

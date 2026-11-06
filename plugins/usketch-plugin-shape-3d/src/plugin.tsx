@@ -62,14 +62,11 @@ export function createShape3dPlugin(options: Shape3dPluginOptions = {}): Usketch
 			};
 			const heightAt = (x: number, y: number) =>
 				groundHeightService.get(ctx.services)?.heightAt(x, y) ?? 0;
-			// The view's camera for a type's own `render3d` (looked up on use: the provider
-			// may set up after this plugin, or come and go).
+			// The view's camera for a type's own `render3d`. Notifications go through the
+			// tracker, which attaches to a provider that sets up later or comes and goes.
 			const camera: Shape3dCameraSource = {
 				get: () => view3dService.get(ctx.services)?.camera() ?? null,
-				subscribe: (listener) => {
-					const api = view3dService.get(ctx.services);
-					return api ? api.subscribe(listener) : () => {};
-				},
+				subscribe: (listener) => tracker.subscribeCamera(listener),
 			};
 
 			ctx.layers.register({
