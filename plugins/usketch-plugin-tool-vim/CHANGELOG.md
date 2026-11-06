@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-tool-vim
 
+## 0.1.24
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-core@2.4.11
+  - @edv4h/usketch-store@3.11.3
+  - @edv4h/usketch-tool-helpers@0.8.4
+
 ## 0.1.23
 
 ### Patch Changes

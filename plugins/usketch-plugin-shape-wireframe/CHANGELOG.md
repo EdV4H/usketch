@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-shape-wireframe
 
+## 3.1.19
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-store@3.11.3
+
 ## 3.1.18
 
 ### Patch Changes

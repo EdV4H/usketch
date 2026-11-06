@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-shape-image
 
+## 3.3.6
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-store@3.11.3
+  - @edv4h/usketch-shape-utils@2.4.2
+  - @edv4h/usketch-plugin-asset-store@0.2.4
+
 ## 3.3.5
 
 ### Patch Changes
