@@ -8,6 +8,7 @@ import {
 	type ShapeData,
 	type ShapeDefinition,
 } from "@edv4h/usketch-shared";
+import { getPenDefinition } from "./custom-pens.js";
 import { brushOutlineD } from "./geometry/brush-outline.js";
 import { eraserHits, hitStroke, maxHalfWidth, strokeBounds } from "./geometry/hit.js";
 import { smoothPathD } from "./geometry/smooth-path.js";
@@ -20,6 +21,12 @@ function render(shape: ShapeData) {
 	const data = asFreedraw(shape);
 	const pts = data.points ?? [];
 	if (pts.length === 0) return <g />;
+
+	// 外から足したペン（登録していないクライアントでは下のボールペン描画にフォールバック）。
+	const custom = getPenDefinition(data.pen);
+	if (custom) {
+		return data.draft && custom.renderDraft ? custom.renderDraft(data) : custom.render(data);
+	}
 
 	const color = data.style.stroke;
 	const size = data.style.strokeWidth;
@@ -184,6 +191,8 @@ function createDefault(params: { id: string; x: number; y: number }): FreedrawSh
 
 function gpuPrimitive(shape: ShapeData): GpuPrimitive | null {
 	const data = asFreedraw(shape);
+	// 外から足したペンは DOM(SVG) で描く。
+	if (getPenDefinition(data.pen)) return null;
 	const m = penMeta(data.pen);
 	// 可変幅・合成ペン（筆ペン/蛍光ペン）は DOM(SVG) で描く。
 	if (m.variable || m.blend !== "normal") return null;

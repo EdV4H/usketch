@@ -1,4 +1,5 @@
-import type { PenKind } from "./types.js";
+import { getPenDefinition } from "./custom-pens.js";
+import type { PenId, PenKind } from "./types.js";
 
 /** 合成モード（CSS mix-blend-mode に対応）。 */
 export type BlendMode = "normal" | "multiply";
@@ -54,7 +55,31 @@ export const DEFAULT_SIZES: Record<PenKind, number> = {
 	highlighter: PEN_META.highlighter.defaultSize,
 };
 
-/** `pen` から PenMeta を取得（不明値は ballpoint にフォールバック）。 */
-export function penMeta(pen: PenKind | undefined): PenMeta {
-	return PEN_META[pen ?? DEFAULT_PEN] ?? PEN_META[DEFAULT_PEN];
+/** 組み込みのペンか。 */
+export function isBuiltInPen(pen: PenId | undefined): pen is PenKind {
+	return pen !== undefined && Object.hasOwn(PEN_META, pen);
+}
+
+/**
+ * `pen` から PenMeta を取得。外から足したペンは一定幅・不透明・通常合成として扱う。
+ * 不明値（登録していないペンを含む）は ballpoint にフォールバック。
+ */
+export function penMeta(pen: PenId | undefined): PenMeta {
+	if (isBuiltInPen(pen)) return PEN_META[pen];
+	const custom = getPenDefinition(pen);
+	if (custom) {
+		return {
+			label: custom.label,
+			defaultSize: custom.defaultSize,
+			variable: false,
+			alpha: 1,
+			blend: "normal",
+		};
+	}
+	return PEN_META[DEFAULT_PEN];
+}
+
+/** 組み込み + 登録済みのペンか（`freedraw:set-pen` で選べるか）。 */
+export function isKnownPen(pen: PenId | undefined): boolean {
+	return isBuiltInPen(pen) || getPenDefinition(pen) !== undefined;
 }
