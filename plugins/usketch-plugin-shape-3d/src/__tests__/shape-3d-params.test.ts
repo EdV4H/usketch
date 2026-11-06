@@ -1,0 +1,77 @@
+import type { ShapeData } from "@edv4h/usketch-shared";
+import { describe, expect, it } from "vitest";
+import {
+	availableModes,
+	DEFAULT_SHAPE_3D_TYPES,
+	mergeShape3dTypes,
+	normalizeShape3d,
+	resolveShape3d,
+	SHAPE_3D_KEY,
+} from "../shape-3d-params.js";
+
+const shape = (type: string, extra: Record<string, unknown> = {}): ShapeData =>
+	({ id: "s", type, x: 0, y: 0, width: 10, height: 10, style: {}, ...extra }) as ShapeData;
+
+describe("normalizeShape3d", () => {
+	it("fills defaults", () => {
+		expect(normalizeShape3d({ mode: "stand" })).toEqual({
+			mode: "stand",
+			facing: "camera",
+			ground: true,
+			shadow: true,
+		});
+	});
+	it("keeps valid fields and drops invalid / unknown ones", () => {
+		expect(
+			normalizeShape3d({ mode: "stand", facing: "fixed", ground: false, shadow: "no", junk: 1 }),
+		).toEqual({ mode: "stand", facing: "fixed", ground: false, shadow: true });
+		expect(normalizeShape3d({ mode: "stand", facing: "sideways" })?.facing).toBe("camera");
+	});
+	it("is null without a usable mode", () => {
+		expect(normalizeShape3d(undefined)).toBeNull();
+		expect(normalizeShape3d("stand")).toBeNull();
+		expect(normalizeShape3d({})).toBeNull();
+		expect(normalizeShape3d({ mode: "spin" })).toBeNull();
+	});
+});
+
+describe("per-type config", () => {
+	it("keeps embeds and generated UI flat by default", () => {
+		expect(availableModes(DEFAULT_SHAPE_3D_TYPES, "embed")).toEqual([]);
+		expect(availableModes(DEFAULT_SHAPE_3D_TYPES, "openui")).toEqual([]);
+		expect(availableModes(DEFAULT_SHAPE_3D_TYPES, "rect")).toEqual(["stand"]);
+	});
+	it("merges host settings over the built-in ones per type", () => {
+		const types = mergeShape3dTypes(DEFAULT_SHAPE_3D_TYPES, {
+			embed: { modes: ["stand"] },
+			portal: { default: { mode: "stand" } },
+		});
+		expect(availableModes(types, "embed")).toEqual(["stand"]);
+		expect(types.portal?.default).toEqual({ mode: "stand" });
+		expect(types.openui?.modes).toEqual([]);
+	});
+});
+
+describe("resolveShape3d", () => {
+	it("uses the shape's own parameters", () => {
+		const s = shape("rect", { [SHAPE_3D_KEY]: { mode: "stand", facing: "fixed" } });
+		expect(resolveShape3d(s, {})?.facing).toBe("fixed");
+	});
+	it("falls back to the type default (object or function)", () => {
+		expect(resolveShape3d(shape("portal"), { portal: { default: { mode: "stand" } } })?.mode).toBe(
+			"stand",
+		);
+		const byShape = {
+			portal: { default: (s: ShapeData) => (s.width > 5 ? { mode: "stand" } : null) },
+		};
+		expect(resolveShape3d(shape("portal"), byShape)).not.toBeNull();
+		expect(resolveShape3d(shape("portal", { width: 1 }), byShape)).toBeNull();
+	});
+	it("is null when the type doesn't allow the mode", () => {
+		const s = shape("embed", { [SHAPE_3D_KEY]: { mode: "stand" } });
+		expect(resolveShape3d(s, DEFAULT_SHAPE_3D_TYPES)).toBeNull();
+	});
+	it("is null for a flat shape", () => {
+		expect(resolveShape3d(shape("rect"), {})).toBeNull();
+	});
+});

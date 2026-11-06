@@ -4,7 +4,7 @@
 // camera. It is a view mode (editing is suspended while active), off by default,
 // and holds only per-viewer view state (never persisted as shapes). Toggle it via
 // the HUD "3Dビュー切替" action, the service, or an emitted `mode7:toggle` event.
-import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import { type PluginContext, type UsketchPlugin, view3dService } from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
 import {
 	CAPTURE_FRAME_LAYER_ID,
@@ -13,7 +13,7 @@ import {
 	SKY_LAYER_ID,
 	setupMode7Runtime,
 } from "./mode7-runtime.js";
-import { createMode7Api, mode7Service } from "./mode7-service.js";
+import { createMode7Api, createView3dApi, mode7Service } from "./mode7-service.js";
 import { createMode7Store, type Look } from "./mode7-store.js";
 import { createMode7Transition, type Mode7TransitionOptions } from "./mode7-transition.js";
 import { type Mode7Shortcuts, registerMode7Actions } from "./register-mode7-actions.js";
@@ -85,8 +85,10 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 			const stopHud = registerMode7Hud(ctx, api, store, excludedLayerIds);
 			// Provide the service LAST so a failed earlier step can't leak it.
 			const unprovideService = mode7Service.provide(ctx.services, api);
+			const unprovideView3d = view3dService.provide(ctx.services, createView3dApi(store));
 
 			return () => {
+				unprovideView3d();
 				unprovideService();
 				stopHud();
 				stopActions();

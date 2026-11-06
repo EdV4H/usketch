@@ -84,6 +84,21 @@ describe("DomShapeLayer viewport LOD", () => {
 		expect(container.querySelector('[data-lod-id="far-1"]')).not.toBeNull();
 	});
 
+	it("skips the shapes another layer draws in their place", () => {
+		const shapes = [shape("a", 0), shape("b", 0)];
+		act(() =>
+			root.render(
+				createElement(DomShapeLayer, {
+					ctx: ctx(0, shapes),
+					shapeRegistry: registry,
+					hiddenIds: new Set(["a"]),
+				}),
+			),
+		);
+		expect(container.querySelector('[data-shape-id="a"]')).toBeNull();
+		expect(container.querySelector('[data-shape-id="b"]')).not.toBeNull();
+	});
+
 	it("does not mount shapes beyond the cull region", () => {
 		const shapes = [shape("near", 0), shape("band", 900), shape("gone", 5000)];
 		render(ctx(0, shapes));

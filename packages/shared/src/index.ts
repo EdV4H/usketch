@@ -161,3 +161,5 @@ export {
 	zIndexBeforeAll,
 	zIndexBetween,
 } from "./utils/z-order.js";
+// 3D view state (Mode 7 etc.) shared across plugins
+export { type View3dApi, type View3dCamera, view3dService } from "./view-3d.js";

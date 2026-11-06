@@ -39,6 +39,54 @@ export const SET_VIEWPORT_CULL_EVENT = "renderer:set-viewport-cull";
  */
 export const VIEWPORT_OVERSCAN_EVENT = "bg-grid:set-overscan";
 
+/**
+ * Event another layer emits to draw some shapes in the DOM layer's place (e.g. stood
+ * up in 3D): the DOM layer skips them. Each `source` owns its own set — the next emit
+ * from the same source replaces it, an empty set clears it — so several sources don't
+ * undo each other. The union of all sources is hidden.
+ */
+export interface HideShapesEvent {
+	source: string;
+	/** Any iterable of ids (a `Set` usually); copied on receipt. Empty = show them all again. */
+	ids: Iterable<string>;
+}
+export const HIDE_SHAPES_EVENT = "renderer:hide-shapes";
+
+/** The union of every source's hidden ids (`undefined` when nothing is hidden). Pure. */
+export function unionHiddenIds(
+	bySource: ReadonlyMap<string, ReadonlySet<string>>,
+): ReadonlySet<string> | undefined {
+	let only: ReadonlySet<string> | undefined;
+	let merged: Set<string> | undefined;
+	for (const ids of bySource.values()) {
+		if (ids.size === 0) continue;
+		if (!only) {
+			only = ids;
+			continue;
+		}
+		merged ??= new Set(only);
+		for (const id of ids) merged.add(id);
+	}
+	return merged ?? only;
+}
+
+function sameIds(a: ReadonlySet<string> | undefined, b: ReadonlySet<string>): boolean {
+	const size = a?.size ?? 0;
+	if (size !== b.size) return false;
+	if (!a) return true;
+	for (const id of b) if (!a.has(id)) return false;
+	return true;
+}
+
+/** A copy of the event's ids as a Set of strings, or `null` when it isn't iterable. */
+export function toIdSet(ids: unknown): Set<string> | null {
+	if (ids == null || typeof (ids as Iterable<unknown>)[Symbol.iterator] !== "function") return null;
+	if (typeof ids === "string") return null;
+	const out = new Set<string>();
+	for (const id of ids as Iterable<unknown>) if (typeof id === "string") out.add(id);
+	return out;
+}
+
 const DEFAULT_VIEWPORT_LOD_RATIO = 1.2;
 const DEFAULT_VIEWPORT_CULL_RATIO = 2;
 
@@ -74,6 +122,20 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 			let dropTargetId: string | null = null;
 			// Screen px a 3D view shows past the viewport (see VIEWPORT_OVERSCAN_EVENT)
 			let overscanPx = 0;
+			// Shapes other layers draw instead, per source (see HIDE_SHAPES_EVENT)
+			const hiddenBySource = new Map<string, ReadonlySet<string>>();
+			let hiddenIds: ReadonlySet<string> | undefined;
+
+			const unsubHide = ctx.events.on<HideShapesEvent>(HIDE_SHAPES_EVENT, (d) => {
+				if (typeof d?.source !== "string") return;
+				const ids = toIdSet(d.ids);
+				if (!ids) return;
+				if (sameIds(hiddenBySource.get(d.source), ids)) return;
+				if (ids.size === 0) hiddenBySource.delete(d.source);
+				else hiddenBySource.set(d.source, ids);
+				hiddenIds = unionHiddenIds(hiddenBySource);
+				ctx.events.emit("layers:changed", {});
+			});
 
 			// Runtime viewport-LOD adjustment from a UI control (Control HUD).
 			const unsubViewportLod = ctx.events.on<SetViewportLodEvent>(SET_VIEWPORT_LOD_EVENT, (d) => {
@@ -150,6 +212,7 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 						viewportCull={viewportCullEnabled}
 						viewportCullRatio={viewportCullRatio}
 						cullPadPx={overscanPx}
+						hiddenIds={hiddenIds}
 					/>
 				),
 			});
@@ -160,6 +223,7 @@ export function createDomRendererPlugin(options: DomRendererOptions = {}): Usket
 				unsubViewportLod();
 				unsubViewportCull();
 				unsubOverscan();
+				unsubHide();
 				ctx.layers.unregister("dom-shapes");
 			};
 		},

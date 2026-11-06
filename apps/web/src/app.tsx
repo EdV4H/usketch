@@ -40,6 +40,7 @@ import { createPresenceEnhancedPlugin } from "@edv4h/usketch-plugin-presence-enh
 import { createPresentationPlugin } from "@edv4h/usketch-plugin-presentation";
 import { createScatterPlugin } from "@edv4h/usketch-plugin-scatter";
 import { createSessionPlugin } from "@edv4h/usketch-plugin-session";
+import { createShape3dPlugin } from "@edv4h/usketch-plugin-shape-3d";
 import { createBasicShapePlugin } from "@edv4h/usketch-plugin-shape-basic";
 import { createCardPlugin, EXAMPLE_CARD_TYPES } from "@edv4h/usketch-plugin-shape-card";
 import { createConnectorPlugin } from "@edv4h/usketch-plugin-shape-connector";
@@ -229,6 +230,8 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		// 既定 OFF（HUD「3Dビュー切替」/ mode7:toggle で opt-in）。
 		// 切替時は地面がせり上がり、空/フォグがフェードする（#1103）。
 		createMode7Plugin({ transition: { durationMs: 900 } }),
+		// Mode 7 中に Shape を立てる（`x-shape-3d` を持つ Shape だけ。HUD「3D（選択中の Shape）」）。
+		createShape3dPlugin(),
 		// 関連Shapeを「ぶちまける」— HUD の「関連Shapeをぶちまける」アクション。connector/
 		// container/free-position の後（関連解決 + 非重なり配置の土台が揃った後）。
 		createScatterPlugin(),
