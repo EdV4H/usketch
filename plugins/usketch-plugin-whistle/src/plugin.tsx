@@ -32,8 +32,11 @@ export interface WhistlePluginOptions {
 	 * プロンプトに落とす (発表中・ドライブ中など)。既定は常に true。
 	 */
 	canAutoMove?: () => boolean;
-	/** 文言の差し替え (i18n)。 */
-	labels?: WhistleLabelOverrides;
+	/**
+	 * 文言の差し替え (i18n)。関数を渡すと描画のたびに呼ぶので、表示言語の
+	 * 切り替えにも追従できる。
+	 */
+	labels?: WhistleLabelOverrides | (() => WhistleLabelOverrides);
 	/** 見た目の差し替え。渡さなかったものは既定の見た目。 */
 	renderers?: Partial<WhistleRenderers>;
 	/** 吹くショートカット。false で登録しない。既定 "Shift+W"。 */
@@ -52,7 +55,9 @@ function createPlugin(
 
 		setup(ctx: PluginContext) {
 			const cleanups: (() => void)[] = [];
-			const labels = resolveLabels(options.labels);
+			const getLabels = () =>
+				resolveLabels(typeof options.labels === "function" ? options.labels() : options.labels);
+			const labels = getLabels();
 			const renderers: WhistleRenderers = { ...DEFAULT_WHISTLE_RENDERERS, ...options.renderers };
 			let screenSize: ScreenSize | null = null;
 
@@ -162,7 +167,7 @@ function createPlugin(
 					<WhistleBoardOverlay
 						controller={controller}
 						store={ctx.store}
-						labels={labels}
+						labels={getLabels()}
 						renderers={renderers}
 						onResize={onResize}
 					/>
@@ -175,7 +180,11 @@ function createPlugin(
 				order: 99,
 				fixed: true,
 				render: () => (
-					<WhistleScreenOverlay controller={controller} labels={labels} renderers={renderers} />
+					<WhistleScreenOverlay
+						controller={controller}
+						labels={getLabels()}
+						renderers={renderers}
+					/>
 				),
 			});
 			cleanups.push(() => ctx.layers.unregister(WHISTLE_UI_LAYER_ID));

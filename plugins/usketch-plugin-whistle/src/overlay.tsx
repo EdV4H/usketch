@@ -268,7 +268,8 @@ function DefaultSentFeedback({ sent, text }: WhistleSentProps) {
 				bottom: 24,
 				left: "50%",
 				transform: "translateX(-50%)",
-				background: WHISTLE_KIND_COLORS[sent.kind],
+				background:
+					sent.cooldownRemainingMs !== undefined ? "#6b7280" : WHISTLE_KIND_COLORS[sent.kind],
 				color: "#fff",
 				borderRadius: 999,
 				padding: "6px 14px",
@@ -501,7 +502,14 @@ export function WhistleScreenOverlay({
 				)}
 			</div>
 			{state.sent && (
-				<SentFeedback sent={state.sent} text={labels.sent(labels.kindNames[state.sent.kind])} />
+				<SentFeedback
+					sent={state.sent}
+					text={
+						state.sent.cooldownRemainingMs !== undefined
+							? labels.cooldown(Math.ceil(state.sent.cooldownRemainingMs / 1000))
+							: labels.sent(labels.kindNames[state.sent.kind])
+					}
+				/>
 			)}
 		</div>
 	);

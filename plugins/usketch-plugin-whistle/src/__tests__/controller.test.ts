@@ -73,8 +73,12 @@ describe("blow", () => {
 			}),
 		]);
 		expect(controller.state.get().sent?.kind).toBe("gather");
+		vi.advanceTimersByTime(1000);
 		expect(controller.blow("call")).toBe(false);
-		vi.advanceTimersByTime(5000);
+		// 吹けなかったことを残り時間つきで伝える。broadcast はしない。
+		expect(controller.state.get().sent).toMatchObject({ kind: "call", cooldownRemainingMs: 4000 });
+		expect(sent).toHaveLength(1);
+		vi.advanceTimersByTime(4000);
 		expect(controller.blow("call")).toBe(true);
 	});
 

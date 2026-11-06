@@ -66,10 +66,14 @@ export interface WhistleFollow {
 	name: string;
 }
 
-/** 自分が吹いた直後のフィードバック。 */
+/**
+ * 自分が吹いた直後のフィードバック。`cooldownRemainingMs` があるときは、
+ * クールダウン中で吹けなかったことを表す (残り時間)。
+ */
 export interface WhistleSent {
 	id: string;
 	kind: WhistleKind;
+	cooldownRemainingMs?: number;
 }
 
 export interface WhistleOverlayState {
@@ -440,7 +444,16 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 			return true;
 		}
 		const at = now();
-		if (at < state.get().cooldownUntil) return false;
+		const cooldownUntil = state.get().cooldownUntil;
+		if (at < cooldownUntil) {
+			// 吹けなかったことを伝える (ツールリング等から押しても無反応に見えないように)。
+			const id = deps.generateId();
+			patch({ sent: { id, kind, cooldownRemainingMs: cooldownUntil - at } });
+			later(t.sentMs, () => {
+				if (state.get().sent?.id === id) patch({ sent: null });
+			});
+			return false;
+		}
 
 		const id = deps.generateId();
 		const name = deps.getLocalName();

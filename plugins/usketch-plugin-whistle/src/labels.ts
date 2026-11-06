@@ -24,6 +24,8 @@ export interface WhistleLabels {
 	end: string;
 	/** 吹いた直後のフィードバック。 */
 	sent: (kindName: string) => string;
+	/** クールダウン中で吹けなかったとき (残り秒数)。 */
+	cooldown: (seconds: number) => string;
 }
 
 export const DEFAULT_WHISTLE_LABELS: WhistleLabels = {
@@ -47,6 +49,7 @@ export const DEFAULT_WHISTLE_LABELS: WhistleLabels = {
 	leading: "みんなを案内しています",
 	end: "終了",
 	sent: (kindName) => `「${kindName}」を吹きました`,
+	cooldown: (seconds) => `あと${seconds}秒で吹けます`,
 };
 
 /** host が差し替える文言 (kindNames も一部だけ渡せる)。 */
