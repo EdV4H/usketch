@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-presentation
 
+## 2.5.6
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+  - @edv4h/usketch-store@3.11.2
+
 ## 2.5.5
 
 ### Patch Changes
