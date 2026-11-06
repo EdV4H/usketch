@@ -354,7 +354,8 @@ export const SWEEP_STEP = 4;
 /**
  * {@link constrainToGround} over the whole move in stretches of at most `step` world
  * units, so a fast move can't jump over something thinner than itself. Stops at the
- * first stretch that is fully blocked. Pure.
+ * first stretch that is fully blocked. At most 256 stretches: a move longer than
+ * 256 × `step` (far beyond a frame's, whose `dt` the runtime caps) takes longer ones. Pure.
  */
 export function sweepToGround(
 	prev: CharacterPose,
