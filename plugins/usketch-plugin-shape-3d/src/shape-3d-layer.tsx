@@ -1,4 +1,4 @@
-// The 3D layer: draws the shapes that stand out of the ground while the board is shown
+// The 3D layer: draws the shapes that rise out of the ground while the board is shown
 // in 3D (Mode 7). It must be one of the view's depth layers (Mode 7's default set has
 // it) so the `translateZ` / `rotateX` below rise out of the tilted ground instead of
 // being flattened onto it. The DOM shape layer skips the same shapes meanwhile.
@@ -11,14 +11,18 @@ import type {
 } from "@edv4h/usketch-shared";
 import { memo, useEffect, useSyncExternalStore } from "react";
 import {
+	boxTopTransform,
+	boxWalls,
+	poseBox,
+	poseOrigin,
+	poseTransform,
 	type Shape3dLimits,
-	STAND_ORIGIN,
 	selectShapes3d,
 	shadowStyle,
-	standBox,
-	standFoot,
-	standPose,
-	standTransform,
+	shapeAnchor,
+	shapePose,
+	wallColor,
+	wallShade,
 } from "./shape-3d-layout.js";
 import type { Shape3dTypes } from "./shape-3d-params.js";
 import type { View3dTracker } from "./view-3d-tracker.js";
@@ -117,14 +121,15 @@ export function Shape3dLayer({
 		>
 			{drawn.map(({ entry, def }) => {
 				const { shape, params } = entry;
-				const foot = standFoot(shape);
-				const pose = standPose(shape, params, {
+				const anchor = shapeAnchor(shape, params.mode);
+				const pose = shapePose(shape, params, {
 					viewport: rc.viewport,
 					amount: view.amount,
 					yaw: view.yaw,
-					groundHeight: params.ground ? heightAt(foot.x, foot.y) : 0,
+					groundHeight: params.ground ? heightAt(anchor.x, anchor.y) : 0,
 				});
-				const box = standBox(pose);
+				const box = poseBox(pose);
+				const isBox = pose.mode === "box";
 				const shadow = params.shadow ? shadowStyle(pose) : null;
 				return [
 					shadow ? (
@@ -148,14 +153,49 @@ export function Shape3dLayer({
 					<div
 						key={shape.id}
 						data-shape-3d-id={shape.id}
+						data-shape-3d-mode={pose.mode}
 						style={{
 							position: "absolute",
 							...box,
-							transform: standTransform(pose),
-							transformOrigin: STAND_ORIGIN,
+							transform: poseTransform(pose),
+							transformOrigin: poseOrigin(pose),
+							transformStyle: isBox ? "preserve-3d" : undefined,
 						}}
 					>
-						<StandContent shape={shape} def={def} zoom={pose.zoom} />
+						{isBox ? (
+							<>
+								{boxWalls(pose).map((w) => (
+									<div
+										key={w.side}
+										data-shape-3d-wall={w.side}
+										style={{
+											position: "absolute",
+											left: w.left,
+											top: w.top,
+											width: w.width,
+											height: w.height,
+											transformOrigin: w.transformOrigin,
+											transform: w.transform,
+											background: wallColor(shape),
+											boxShadow: wallShade(w.side),
+											backfaceVisibility: "hidden",
+										}}
+									/>
+								))}
+								<div
+									data-shape-3d-top=""
+									style={{
+										position: "absolute",
+										inset: 0,
+										transform: boxTopTransform(pose),
+									}}
+								>
+									<StandContent shape={shape} def={def} zoom={pose.zoom} />
+								</div>
+							</>
+						) : (
+							<StandContent shape={shape} def={def} zoom={pose.zoom} />
+						)}
 					</div>,
 				];
 			})}

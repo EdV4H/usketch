@@ -1,14 +1,18 @@
 import type { ShapeData, Viewport } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import {
+	boxTopTransform,
+	boxWalls,
 	DEFAULT_SHAPE_3D_LIMITS,
 	lerpAngle,
+	poseBox,
+	poseTransform,
 	selectShapes3d,
 	shadowStyle,
-	standBox,
+	shapeAnchor,
+	shapePose,
 	standFoot,
-	standPose,
-	standTransform,
+	wallColor,
 } from "../shape-3d-layout.js";
 import { normalizeShape3d, SHAPE_3D_KEY, type Shape3dParams } from "../shape-3d-params.js";
 
@@ -48,9 +52,9 @@ describe("lerpAngle", () => {
 	});
 });
 
-describe("standPose / standTransform", () => {
+describe("shapePose / poseTransform", () => {
 	it("lies flat where the board draws it at amount 0", () => {
-		const p = standPose(shape("a", 0, 0, { rotation: 30 }), params(), {
+		const p = shapePose(shape("a", 0, 0, { rotation: 30 }), params(), {
 			viewport: vp(2, 15),
 			amount: 0,
 			yaw: 40,
@@ -58,20 +62,20 @@ describe("standPose / standTransform", () => {
 		});
 		expect(p.raise).toBe(0);
 		expect(p.face).toBe(45); // rotation + viewport rotation
-		expect(standTransform(p)).toBe("rotateZ(45deg)");
+		expect(poseTransform(p)).toBe("rotateZ(45deg)");
 	});
 	it("stands up and faces the camera (against its yaw) at amount 1", () => {
-		const p = standPose(shape("a", 0, 0), params(), {
+		const p = shapePose(shape("a", 0, 0), params(), {
 			viewport: vp(2),
 			amount: 1,
 			yaw: 40,
 			groundHeight: 16,
 		});
 		expect(p).toMatchObject({ x: 40, y: 40, face: -40, raise: 1, lift: 32 });
-		expect(standTransform(p)).toBe("translateZ(32px) rotateZ(-40deg) rotateX(-90deg)");
+		expect(poseTransform(p)).toBe("translateZ(32px) rotateZ(-40deg) rotateX(-90deg)");
 	});
 	it("keeps its own heading when fixed", () => {
-		const p = standPose(shape("a", 0, 0, { rotation: 30 }), params({ facing: "fixed" }), {
+		const p = shapePose(shape("a", 0, 0, { rotation: 30 }), params({ facing: "fixed" }), {
 			viewport: vp(),
 			amount: 1,
 			yaw: 40,
@@ -80,7 +84,7 @@ describe("standPose / standTransform", () => {
 		expect(p.face).toBe(30);
 	});
 	it("ignores the ground when told to", () => {
-		const p = standPose(shape("a", 0, 0), params({ ground: false }), {
+		const p = shapePose(shape("a", 0, 0), params({ ground: false }), {
 			viewport: vp(),
 			amount: 1,
 			yaw: 0,
@@ -89,19 +93,19 @@ describe("standPose / standTransform", () => {
 		expect(p.lift).toBe(0);
 	});
 	it("half stands up mid-transition", () => {
-		const p = standPose(shape("a", 0, 0), params(), {
+		const p = shapePose(shape("a", 0, 0), params(), {
 			viewport: vp(),
 			amount: 0.5,
 			yaw: 0,
 			groundHeight: 0,
 		});
-		expect(standTransform(p)).toBe("rotateX(-45deg)");
+		expect(poseTransform(p)).toBe("rotateX(-45deg)");
 	});
 });
 
-describe("standBox / shadowStyle", () => {
+describe("poseBox / shadowStyle", () => {
 	it("sizes the node to the shape on screen with its bottom-centre at the foot", () => {
-		expect(standBox({ x: 100, y: 50, width: 40, height: 20, zoom: 2 })).toEqual({
+		expect(poseBox({ x: 100, y: 50, width: 40, height: 20, zoom: 2 })).toEqual({
 			left: 60,
 			top: 10,
 			width: 80,
@@ -109,25 +113,78 @@ describe("standBox / shadowStyle", () => {
 		});
 	});
 	it("has no transform when flat, unrotated and on flat ground", () => {
-		const p = standPose(shape("a", 0, 0), params(), {
+		const p = shapePose(shape("a", 0, 0), params(), {
 			viewport: vp(),
 			amount: 0,
 			yaw: 0,
 			groundHeight: 0,
 		});
-		expect(standTransform(p)).toBeUndefined();
+		expect(poseTransform(p)).toBeUndefined();
 	});
 	it("floats the shadow just above the ground and fades it in", () => {
-		const p = standPose(shape("a", 0, 0), params(), {
+		const p = shapePose(shape("a", 0, 0), params(), {
 			viewport: vp(),
 			amount: 0.5,
 			yaw: 0,
 			groundHeight: 10,
 		});
 		const s = shadowStyle(p);
+		if (!s) throw new Error("no shadow");
 		expect(s.transform).toBe("translateZ(10.5px) rotateZ(0deg) translate(-50%, -50%)");
 		expect(s.opacity).toBe(0.5);
 		expect(s.width).toBe(36);
+	});
+});
+
+describe("box / float", () => {
+	const view = (amount: number, groundHeight = 0) => ({
+		viewport: vp(2),
+		amount,
+		yaw: 30,
+		groundHeight,
+	});
+	it("anchors at the centre", () => {
+		expect(shapeAnchor(shape("a", 0, 0), "box")).toEqual({ x: 20, y: 10 });
+		const p = shapePose(shape("a", 0, 0), params({ mode: "float" }), view(1));
+		expect(poseBox(p)).toEqual({ left: 0, top: 0, width: 80, height: 40 });
+	});
+	it("floats up by its height with the view, keeping its heading (not the camera's)", () => {
+		const s = shape("a", 0, 0, { rotation: 20 });
+		const p = shapePose(s, params({ mode: "float", facing: "camera" }), view(0.5, 8));
+		expect(p.rise).toBe(24); // 24 × 0.5 × 2
+		expect(p.face).toBe(20);
+		expect(poseTransform(p)).toBe("translateZ(40px) rotateZ(20deg)");
+		expect(shadowStyle(p)?.transform).toBe(
+			"translateZ(16.5px) rotateZ(20deg) translate(-50%, -50%)",
+		);
+	});
+	it("lies flat at amount 0", () => {
+		const p = shapePose(shape("a", 0, 0), params({ mode: "box" }), view(0));
+		expect(p.rise).toBe(0);
+		expect(poseTransform(p)).toBeUndefined();
+		expect(boxTopTransform(p)).toBeUndefined();
+		expect(boxWalls(p)).toEqual([]);
+	});
+	it("lifts a box's top and folds four walls up from its edges", () => {
+		const p = shapePose(shape("a", 0, 0), params({ mode: "box", height: 10 }), view(1, 8));
+		expect(poseTransform(p)).toBe("translateZ(16px)");
+		expect(boxTopTransform(p)).toBe("translateZ(20px)");
+		expect(shadowStyle(p)).toBeNull();
+		const walls = Object.fromEntries(boxWalls(p).map((w) => [w.side, w]));
+		expect(walls.n).toMatchObject({ left: 0, top: 0, width: 80, height: 20 });
+		expect(walls.n?.transform).toBe("rotateX(90deg)");
+		expect(walls.s).toMatchObject({ left: 0, top: 20, width: 80, height: 20 });
+		expect(walls.s?.transform).toBe("rotateX(-90deg)");
+		expect(walls.w).toMatchObject({ left: 0, top: 0, width: 20, height: 40 });
+		expect(walls.w?.transform).toBe("rotateY(-90deg)");
+		expect(walls.e).toMatchObject({ left: 60, top: 0, width: 20, height: 40 });
+		expect(walls.e?.transform).toBe("rotateY(90deg)");
+	});
+	it("colours walls with the shape's fill, or grey", () => {
+		expect(wallColor(shape("a", 0, 0, { style: { fill: "#ff0000" } }))).toBe("#ff0000");
+		expect(wallColor(shape("a", 0, 0, { style: {}, color: "#00ff00" }))).toBe("#00ff00");
+		expect(wallColor(shape("a", 0, 0, { style: { fill: "transparent" } }))).toBe("#9e9e9e");
+		expect(wallColor(shape("a", 0, 0))).toBe("#9e9e9e");
 	});
 });
 

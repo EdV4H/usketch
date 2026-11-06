@@ -2,25 +2,36 @@ export { createShape3dPlugin, type Shape3dPluginOptions } from "./plugin.js";
 export { registerShape3dHud } from "./register-shape-3d-hud.js";
 export { SHAPE_3D_LAYER_ID } from "./shape-3d-layer.js";
 export {
+	type BoxSide,
+	type BoxWall,
+	boxTopTransform,
+	boxWalls,
 	DEFAULT_SHAPE_3D_LIMITS,
 	lerpAngle,
+	poseBox,
+	poseOrigin,
+	poseTransform,
 	SHADOW_LIFT_PX,
 	type Shape3dEntry,
 	type Shape3dLimits,
+	type ShapePose,
 	STAND_ORIGIN,
-	type StandPose,
 	selectShapes3d,
 	shadowStyle,
-	standBox,
+	shapeAnchor,
+	shapePose,
 	standFoot,
-	standPose,
-	standTransform,
+	wallColor,
+	wallShade,
 } from "./shape-3d-layout.js";
 export { clearShape3d, getShape3d, setShape3d } from "./shape-3d-ops.js";
 export {
 	availableModes,
+	DEFAULT_SHAPE_3D_HEIGHT,
 	DEFAULT_SHAPE_3D_PARAMS,
 	DEFAULT_SHAPE_3D_TYPES,
+	DEFAULT_TYPE_MODES,
+	MAX_SHAPE_3D_HEIGHT,
 	mergeShape3dTypes,
 	normalizeShape3d,
 	ownShape3d,
@@ -33,6 +44,7 @@ export {
 	type Shape3dParams,
 	type Shape3dTypeConfig,
 	type Shape3dTypes,
+	storedShape3d,
 } from "./shape-3d-params.js";
 export { getShape3dApi, type Shape3dApi, shape3dService } from "./shape-3d-service.js";
 export { STAGE_3D_EVENT } from "./view-3d-tracker.js";

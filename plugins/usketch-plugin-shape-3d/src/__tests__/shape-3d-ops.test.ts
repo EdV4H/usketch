@@ -1,7 +1,7 @@
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import { clearShape3d, getShape3d, setShape3d } from "../shape-3d-ops.js";
-import { SHAPE_3D_KEY } from "../shape-3d-params.js";
+import { DEFAULT_SHAPE_3D_TYPES, SHAPE_3D_KEY } from "../shape-3d-params.js";
 
 function fakeStore(shapes: ShapeData[]): BoardStore {
 	const map = new Map(shapes.map((s) => [s.id, s]));
@@ -25,6 +25,28 @@ describe("setShape3d", () => {
 		setShape3d(store, ["a"], { facing: "fixed" });
 		expect(getShape3d(store, "a")).toMatchObject({ mode: "stand", facing: "fixed" });
 		expect(getShape3d(store, "b")?.facing).toBe("camera");
+	});
+	it("gives each mode its own default height unless one was set", () => {
+		const store = fakeStore([shape("a", "rectangle")]);
+		const types = DEFAULT_SHAPE_3D_TYPES;
+		setShape3d(store, ["a"], { mode: "box" }, types);
+		expect(getShape3d(store, "a")?.height).toBe(16);
+		setShape3d(store, ["a"], { mode: "float" }, types);
+		expect(getShape3d(store, "a")?.height).toBe(24);
+		setShape3d(store, ["a"], { height: 40 }, types);
+		setShape3d(store, ["a"], { mode: "box" }, types);
+		expect(getShape3d(store, "a")?.height).toBe(40);
+	});
+	it("uses the built-in per-type settings by default", () => {
+		const store = fakeStore([shape("r", "rectangle"), shape("e", "embed")]);
+		expect(setShape3d(store, ["r", "e"], { mode: "box" })).toEqual(["r"]);
+		expect(setShape3d(store, ["e"], { mode: "stand" })).toEqual([]);
+	});
+	it("rejects box on a type that doesn't allow it", () => {
+		const store = fakeStore([shape("e", "ellipse")]);
+		expect(
+			setShape3d(store, ["e"], { mode: "box" }, { ellipse: { modes: ["stand", "float"] } }),
+		).toEqual([]);
 	});
 	it("skips a patch without a mode on a flat shape", () => {
 		const store = fakeStore([shape("a")]);
