@@ -7,9 +7,14 @@
 // `view3dService`, the ground from `groundHeightService`, and the DOM shape layer is told
 // which shapes to skip with its `renderer:hide-shapes` event.
 import { HIDE_SHAPES_EVENT, VIEWPORT_OVERSCAN_EVENT } from "@edv4h/usketch-dom-renderer";
-import { groundHeightService, type PluginContext, type UsketchPlugin } from "@edv4h/usketch-shared";
+import {
+	groundHeightService,
+	type PluginContext,
+	type UsketchPlugin,
+	view3dService,
+} from "@edv4h/usketch-shared";
 import { registerShape3dHud } from "./register-shape-3d-hud.js";
-import { SHAPE_3D_LAYER_ID, Shape3dLayer } from "./shape-3d-layer.js";
+import { SHAPE_3D_LAYER_ID, type Shape3dCameraSource, Shape3dLayer } from "./shape-3d-layer.js";
 import type { Shape3dLimits } from "./shape-3d-layout.js";
 import type { Shape3dTypes } from "./shape-3d-params.js";
 import { createShape3dApi, shape3dService } from "./shape-3d-service.js";
@@ -57,6 +62,15 @@ export function createShape3dPlugin(options: Shape3dPluginOptions = {}): Usketch
 			};
 			const heightAt = (x: number, y: number) =>
 				groundHeightService.get(ctx.services)?.heightAt(x, y) ?? 0;
+			// The view's camera for a type's own `render3d` (looked up on use: the provider
+			// may set up after this plugin, or come and go).
+			const camera: Shape3dCameraSource = {
+				get: () => view3dService.get(ctx.services)?.camera() ?? null,
+				subscribe: (listener) => {
+					const api = view3dService.get(ctx.services);
+					return api ? api.subscribe(listener) : () => {};
+				},
+			};
 
 			ctx.layers.register({
 				id: SHAPE_3D_LAYER_ID,
@@ -74,6 +88,7 @@ export function createShape3dPlugin(options: Shape3dPluginOptions = {}): Usketch
 						overscanPx={overscanPx}
 						heightAt={heightAt}
 						onDrawn={onDrawn}
+						camera={camera}
 					/>
 				),
 			});

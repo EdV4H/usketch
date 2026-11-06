@@ -136,6 +136,28 @@ export function poseTransform(p: ShapePose): string | undefined {
 	return parts.length > 0 ? parts.join(" ") : undefined;
 }
 
+/**
+ * Where a type's own `render3d` draws: the shape's node (as {@link poseBox} /
+ * {@link poseOrigin}) lifted to the ground and turned to the shape's own heading, plus
+ * how far to turn back to face the camera (scaled by the transition). The generic
+ * camera-facing turn isn't applied: `render3d` decides. Pure.
+ */
+export function render3dFrame(
+	shape: ShapeData,
+	params: Shape3dParams,
+	view: { viewport: Viewport; amount: number; yaw: number; groundHeight: number },
+): { pose: ShapePose; transform: string | undefined; faceCamera: number } {
+	const pose = shapePose(shape, { ...params, facing: "fixed" }, view);
+	const parts: string[] = [];
+	if (pose.lift > 0) parts.push(`translateZ(${round(pose.lift)}px)`);
+	if (pose.face !== 0) parts.push(`rotateZ(${round(pose.face)}deg)`);
+	return {
+		pose,
+		transform: parts.length > 0 ? parts.join(" ") : undefined,
+		faceCamera: round(wrapDeg(-view.yaw - pose.face) * pose.raise),
+	};
+}
+
 /** CSS for a `box` shape's top (the shape's own drawing), relative to its node. */
 export function boxTopTransform(p: Pick<ShapePose, "rise">): string | undefined {
 	return p.rise > 0 ? `translateZ(${round(p.rise)}px)` : undefined;

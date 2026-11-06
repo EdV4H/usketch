@@ -246,7 +246,8 @@ export function CommunityPage() {
 					// 立ち上がり、キャラもその上に乗る。既定 OFF、HUD「3Dビュー切替」で切替。
 					createMode7Plugin({ transition: { durationMs: 900 } }),
 					// Mode 7 中に Shape を立てる（HUD「3D（選択中の Shape）」で 1 つずつ指定）。
-					createShape3dPlugin(),
+					// ボードポータルは指定しなくても立つ（ゲートとして見えるように）。
+					createShape3dPlugin({ types: { "board-portal": { default: { mode: "stand" } } } }),
 					createDomRendererPlugin(),
 					// Control HUD: hosts plugin operations/settings + the useCommunityActions
 					// actions (toggle with the backtick key). Replaces bespoke on-canvas UI.

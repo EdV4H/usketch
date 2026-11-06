@@ -7,6 +7,7 @@ import {
 	lerpAngle,
 	poseBox,
 	poseTransform,
+	render3dFrame,
 	selectShapes3d,
 	shadowStyle,
 	shapeAnchor,
@@ -220,5 +221,20 @@ describe("selectShapes3d", () => {
 		const shapes = [shape("top", 10, 0), shape("bottom", 10, 300), shape("mid", 10, 100)];
 		const out = selectShapes3d({ ...base, shapes, limits: { minPx: 0, maxCount: 2 } });
 		expect(out.map((e) => e.shape.id)).toEqual(["bottom", "mid"]);
+	});
+});
+
+describe("render3dFrame", () => {
+	it("lifts and turns to the shape's own heading, and says how to face the camera", () => {
+		const s = shape("a", 0, 0, { rotation: 30 });
+		const f = render3dFrame(s, params({ facing: "camera" }), {
+			viewport: vp(2),
+			amount: 0.5,
+			yaw: 60,
+			groundHeight: 8,
+		});
+		expect(f.pose.face).toBe(30);
+		expect(f.transform).toBe("translateZ(16px) rotateZ(30deg)");
+		expect(f.faceCamera).toBe(-45); // (-60 - 30) × 0.5
 	});
 });
