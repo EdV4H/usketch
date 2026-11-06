@@ -33,13 +33,28 @@ export function parseWhistleKind(value: unknown): WhistleKind {
 	return isWhistleKind(value) ? value : DEFAULT_WHISTLE_KIND;
 }
 
+/** 「ついてきて」以外の種類。受け手の動き方を host が差し替えられる。 */
+export type WhistleArrivalKind = Exclude<WhistleKind, "follow">;
+
+/**
+ * 種類ごとの受け手の動き方の差し替え (`none` / `prompt` / `auto`)。
+ * 「ついてきて」は案内役が画角を送り続ける仕組みなので差し替えられない。
+ */
+export type WhistleMovementOverrides = Partial<
+	Record<WhistleArrivalKind, Exclude<WhistleMovement, "follow">>
+>;
+
 /**
  * 実際に受け手へ適用する移動。強制移動 (auto / follow) を受けられない状態
  * (発表中・ドライブ中など、host が `canAutoMove` で false を返す) のときは
  * 承諾制 (prompt) に落とす。
  */
-export function resolveMovement(kind: WhistleKind, canAutoMove: boolean): WhistleMovement {
-	const movement = WHISTLE_MOVEMENT[kind];
+export function resolveMovement(
+	kind: WhistleKind,
+	canAutoMove: boolean,
+	overrides?: WhistleMovementOverrides,
+): WhistleMovement {
+	const movement = (kind !== "follow" && overrides?.[kind]) || WHISTLE_MOVEMENT[kind];
 	if (!canAutoMove && (movement === "auto" || movement === "follow")) return "prompt";
 	return movement;
 }

@@ -20,6 +20,13 @@ describe("kinds", () => {
 		expect(resolveMovement("follow", false)).toBe("prompt");
 		expect(resolveMovement("call", false)).toBe("none");
 	});
+
+	it("動き方は host が差し替えられる (ついてきては対象外、強制移動の落とし方は同じ)", () => {
+		expect(resolveMovement("gather", true, { gather: "auto" })).toBe("auto");
+		expect(resolveMovement("gather", false, { gather: "auto" })).toBe("prompt");
+		expect(resolveMovement("assemble", true, { gather: "auto" })).toBe("auto");
+		expect(resolveMovement("call", true, { call: "prompt" })).toBe("prompt");
+	});
 });
 
 describe("parseWhistleMessage", () => {

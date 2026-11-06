@@ -1,11 +1,15 @@
 export {
 	createWhistleController,
+	defaultWhistleCameraMove,
 	WHISTLE_TIMINGS,
+	type WhistleCameraMove,
 	type WhistleController,
 	type WhistleControllerDeps,
 	type WhistleCountdown,
 	type WhistleFollow,
 	type WhistleIndicator,
+	type WhistleMoveReason,
+	type WhistleMoveRequest,
 	type WhistleOverlayState,
 	type WhistlePrompt,
 	type WhistlePulse,
@@ -20,8 +24,10 @@ export {
 	resolveMovement,
 	WHISTLE_KINDS,
 	WHISTLE_MOVEMENT,
+	type WhistleArrivalKind,
 	type WhistleKind,
 	type WhistleMovement,
+	type WhistleMovementOverrides,
 } from "./kinds.js";
 export {
 	DEFAULT_WHISTLE_LABELS,

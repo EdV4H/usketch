@@ -164,6 +164,31 @@ describe("受信: 種類ごとの移動", () => {
 		expect(moves).toHaveLength(0);
 	});
 
+	it("動き方の差し替え: 集合を自動にするとカウントダウンになる", () => {
+		const { controller } = setup({ movements: { gather: "auto" } });
+		controller.receive(blowMsg("gather"));
+		expect(controller.state.get().prompt).toBeNull();
+		expect(controller.state.get().countdown).not.toBeNull();
+	});
+
+	it("カメラの動かし方の差し替え: 理由と行き先を渡し、次の移動の前に止める", () => {
+		const cancel = vi.fn();
+		const moveCamera = vi.fn(() => cancel);
+		const { controller, moves } = setup({ moveCamera });
+		controller.receive(blowMsg("assemble"));
+		vi.advanceTimersByTime(3000);
+		expect(moveCamera).toHaveBeenLastCalledWith(
+			expect.objectContaining({ reason: "auto", kind: "assemble", target: FAR, zoom: 2 }),
+		);
+		expect(moves).toHaveLength(0);
+		controller.receive(blowMsg("gather"));
+		controller.acceptPrompt();
+		expect(cancel).toHaveBeenCalledTimes(1);
+		expect(moveCamera).toHaveBeenLastCalledWith(
+			expect.objectContaining({ reason: "accept", kind: "gather", animate: true }),
+		);
+	});
+
 	it("全員集合が来たら古い集合プロンプトは消える", () => {
 		const { controller } = setup();
 		controller.receive(blowMsg("gather"));

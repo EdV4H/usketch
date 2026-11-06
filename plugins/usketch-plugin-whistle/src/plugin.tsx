@@ -5,8 +5,12 @@ import {
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
-import { createWhistleController, type WhistleTimings } from "./controller.js";
-import { WHISTLE_KINDS, type WhistleKind } from "./kinds.js";
+import {
+	createWhistleController,
+	type WhistleCameraMove,
+	type WhistleTimings,
+} from "./controller.js";
+import { WHISTLE_KINDS, type WhistleKind, type WhistleMovementOverrides } from "./kinds.js";
 import { resolveLabels, type WhistleLabelOverrides } from "./labels.js";
 import {
 	DEFAULT_WHISTLE_RENDERERS,
@@ -43,6 +47,16 @@ export interface WhistlePluginOptions {
 	shortcut?: string | false;
 	/** 時間の調整 (ms)。 */
 	timings?: Partial<WhistleTimings>;
+	/**
+	 * 種類ごとの受け手の動き方の差し替え。例: `{ gather: "auto" }` で「集合」も
+	 * 自動で集める。「ついてきて」は差し替えられない。
+	 */
+	movements?: WhistleMovementOverrides;
+	/**
+	 * カメラの動かし方の差し替え (プロンプトで移動・全員集合・方向バッジを押したとき)。
+	 * 既定は `defaultWhistleCameraMove` (全員集合は一度引いてから寄る)。
+	 */
+	moveCamera?: WhistleCameraMove;
 }
 
 function createPlugin(
@@ -88,6 +102,8 @@ function createPlugin(
 				prefersReducedMotion,
 				generateId,
 				timings: options.timings,
+				movements: options.movements,
+				moveCamera: options.moveCamera,
 			});
 			cleanups.push(() => controller.dispose());
 

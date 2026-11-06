@@ -2,7 +2,12 @@
 // UI と PluginContext から切り離し、依存は注入する。plugin.tsx はこれを ctx に
 // つなぐだけで、オーバーレイは state を描くだけ。
 import { type BoardStore, type Point, type Viewport, worldToScreen } from "@edv4h/usketch-shared";
-import { DEFAULT_WHISTLE_KIND, resolveMovement, type WhistleKind } from "./kinds.js";
+import {
+	DEFAULT_WHISTLE_KIND,
+	resolveMovement,
+	type WhistleKind,
+	type WhistleMovementOverrides,
+} from "./kinds.js";
 import {
 	parseWhistleMessage,
 	type WhistleBlowMessage,
@@ -107,6 +112,45 @@ export const WHISTLE_TIMINGS = {
 
 export type WhistleTimings = { -readonly [K in keyof typeof WHISTLE_TIMINGS]: number };
 
+/**
+ * 受け手のカメラを吹いた人の視界へ動かす理由。
+ * - accept : 「集合」などのプロンプトで [移動する] を押した
+ * - auto   : 「全員集合」のカウントダウンが終わった
+ * - jump   : 画面外の方向バッジを押した
+ */
+export type WhistleMoveReason = "accept" | "auto" | "jump";
+
+export interface WhistleMoveRequest {
+	store: BoardStore;
+	reason: WhistleMoveReason;
+	kind: WhistleKind;
+	/** 行き先 (吹いた人の画面中央、world 座標)。 */
+	target: Point;
+	/** 吹いた人のズーム。わからないときは undefined (今のズームのまま)。 */
+	zoom?: number;
+	screen: ScreenSize;
+	/** false なら動きを付けない (prefers-reduced-motion)。 */
+	animate: boolean;
+}
+
+/**
+ * カメラの動かし方。動きを途中で止められるなら止める関数を返す
+ * (次の移動・追従の開始・plugin の終了で呼ぶ)。
+ */
+export type WhistleCameraMove = (req: WhistleMoveRequest) => (() => void) | undefined;
+
+/** 既定のカメラの動かし方。全員集合は一度引いてから寄り、それ以外はまっすぐ寄る。 */
+export const defaultWhistleCameraMove: WhistleCameraMove = (req) => {
+	if (req.reason === "auto") {
+		return swoopToWorld(req.store, req.target, req.screen, {
+			zoom: req.zoom,
+			animate: req.animate,
+		});
+	}
+	moveToWorld(req.store, req.target, req.screen, { zoom: req.zoom, animate: req.animate });
+	return undefined;
+};
+
 export interface WhistleControllerDeps {
 	store: BoardStore;
 	broadcast?: (msg: Record<string, unknown>) => void;
@@ -120,6 +164,10 @@ export interface WhistleControllerDeps {
 	generateId: () => string;
 	now?: () => number;
 	timings?: Partial<WhistleTimings>;
+	/** 種類ごとの受け手の動き方の差し替え。 */
+	movements?: WhistleMovementOverrides;
+	/** カメラの動かし方の差し替え。 */
+	moveCamera?: WhistleCameraMove;
 }
 
 export interface WhistleController {
@@ -165,12 +213,31 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 	// 自分で外れた / 断った follow の id。以降の follow 更新で再び引き込まない。
 	const leftFollowIds = new Set<string>();
 	let countdownTimer: ReturnType<typeof setTimeout> | null = null;
-	let cancelSwoop: (() => void) | null = null;
+	let cancelMove: (() => void) | null = null;
 	let unsubLeader: (() => void) | null = null;
 	let disposed = false;
 
 	const patch = (p: Partial<WhistleOverlayState>) => state.set((s) => ({ ...s, ...p }));
 	const animate = () => !(deps.prefersReducedMotion?.() ?? false);
+	const moveCamera = deps.moveCamera ?? defaultWhistleCameraMove;
+	const moveTo = (
+		reason: WhistleMoveReason,
+		kind: WhistleKind,
+		target: Point,
+		zoom: number | undefined,
+	) => {
+		cancelMove?.();
+		cancelMove =
+			moveCamera({
+				store,
+				reason,
+				kind,
+				target,
+				zoom,
+				screen: deps.getScreenSize(),
+				animate: animate(),
+			}) ?? null;
+	};
 
 	const later = (ms: number, fn: () => void) => {
 		const timer = setTimeout(() => {
@@ -277,7 +344,8 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 	};
 
 	const startFollowing = (id: string, name: string, position: Point, zoom?: number) => {
-		cancelSwoop?.();
+		cancelMove?.();
+		cancelMove = null;
 		stopFollowerWatch();
 		patch({ follow: { id, role: "follower", name } });
 		lastHeardAt = now();
@@ -318,7 +386,7 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 		const name = msg.sourceName;
 		addPulse({ id: msg.id, kind: msg.whistleKind, name, position: msg.position, local: false });
 
-		const movement = resolveMovement(msg.whistleKind, deps.canAutoMove?.() ?? true);
+		const movement = resolveMovement(msg.whistleKind, deps.canAutoMove?.() ?? true, deps.movements);
 		switch (movement) {
 			case "none": {
 				if (isOnScreen(msg.position)) return;
@@ -376,11 +444,7 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 					patch({ countdown: null });
 					// 追従中なら外れてから集まる。
 					leaveFollowing();
-					cancelSwoop?.();
-					cancelSwoop = swoopToWorld(store, c.position, deps.getScreenSize(), {
-						zoom: c.zoom,
-						animate: animate(),
-					});
+					moveTo("auto", msg.whistleKind, c.position, c.zoom);
 				}, t.countdownMs);
 				return;
 			}
@@ -507,7 +571,7 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 				return;
 			}
 			leaveFollowing();
-			moveToWorld(store, p.position, deps.getScreenSize(), { zoom: p.zoom, animate: animate() });
+			moveTo("accept", p.kind, p.position, p.zoom);
 		},
 		dismissPrompt() {
 			const p = state.get().prompt;
@@ -521,7 +585,7 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 			if (!ind) return;
 			state.set((s) => ({ ...s, indicators: s.indicators.filter((i) => i.id !== id) }));
 			leaveFollowing();
-			moveToWorld(store, ind.position, deps.getScreenSize(), { animate: animate() });
+			moveTo("jump", ind.kind, ind.position, undefined);
 		},
 		endFollow,
 		notifyUserInteraction() {
@@ -532,7 +596,7 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 			disposed = true;
 			stopLeading();
 			stopFollowerWatch();
-			cancelSwoop?.();
+			cancelMove?.();
 			if (countdownTimer !== null) clearTimeout(countdownTimer);
 			for (const timer of timers) clearTimeout(timer);
 			timers.clear();
