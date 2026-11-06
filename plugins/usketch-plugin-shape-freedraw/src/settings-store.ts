@@ -1,13 +1,15 @@
 import { type FreedrawConfig, STORAGE_KEY } from "./config.js";
-import type { PenKind } from "./types.js";
+import { isKnownPen, penMeta } from "./pen-meta.js";
+import type { PenId } from "./types.js";
 
 export type FreedrawMode = "pen" | "eraser";
 
 export interface FreedrawSettings {
 	mode: FreedrawMode;
-	pen: PenKind;
+	pen: PenId;
 	color: string;
-	sizes: Record<PenKind, number>;
+	/** ペンごとの太さ。外から足したペンは選ぶまで無いことがある（既定の太さを使う）。 */
+	sizes: Partial<Record<PenId, number>>;
 	eraserSize: number;
 	brushDynamics: number;
 	customColors: string[];
@@ -24,9 +26,9 @@ export interface FreedrawSettingsStore {
 
 /** localStorage に永続化するサブセット（mode は永続化しない）。 */
 interface PersistedSettings {
-	pen: PenKind;
+	pen: PenId;
 	color: string;
-	sizes: Record<PenKind, number>;
+	sizes: Partial<Record<PenId, number>>;
 	eraserSize: number;
 	brushDynamics: number;
 	customColors: string[];
@@ -65,7 +67,8 @@ export function createFreedrawSettingsStore(config: FreedrawConfig): FreedrawSet
 	const persisted = config.persistSettings ? loadPersisted() : null;
 	let state: FreedrawSettings = {
 		mode: "pen",
-		pen: persisted?.pen ?? config.defaultPen,
+		// 保存したペンが今は無い（外から足したペンを登録しなくなった）ときは既定に戻す。
+		pen: persisted?.pen && isKnownPen(persisted.pen) ? persisted.pen : config.defaultPen,
 		color: persisted?.color ?? config.defaultColor,
 		sizes: { ...config.defaultSizes, ...(persisted?.sizes ?? {}) },
 		eraserSize: persisted?.eraserSize ?? config.defaultEraserSize,
@@ -87,7 +90,8 @@ export function createFreedrawSettingsStore(config: FreedrawConfig): FreedrawSet
 			for (const l of listeners) l();
 		},
 		currentSize() {
-			return state.mode === "eraser" ? state.eraserSize : state.sizes[state.pen];
+			if (state.mode === "eraser") return state.eraserSize;
+			return state.sizes[state.pen] ?? penMeta(state.pen).defaultSize;
 		},
 	};
 }

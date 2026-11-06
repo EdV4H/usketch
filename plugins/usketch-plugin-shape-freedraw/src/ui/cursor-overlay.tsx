@@ -1,5 +1,6 @@
 import type { Point, Viewport } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
+import { getPenDefinition } from "../custom-pens.js";
 import { penMeta } from "../pen-meta.js";
 import type { FreedrawSettingsStore } from "../settings-store.js";
 
@@ -44,9 +45,11 @@ export function FreedrawCursor({ settings, pointer, viewport }: Props) {
 	const sx = world.x * viewport.zoom + viewport.x;
 	const sy = world.y * viewport.zoom + viewport.y;
 	const eraser = s.mode === "eraser";
-	const sizeWorld = eraser ? s.eraserSize : s.sizes[s.pen];
-	const d = Math.max(6, sizeWorld * viewport.zoom);
 	const m = penMeta(s.pen);
+	const sizeWorld = eraser ? s.eraserSize : (s.sizes[s.pen] ?? m.defaultSize);
+	const d = Math.max(6, sizeWorld * viewport.zoom);
+	// 色を使わないペン（外から足したペンの usesColor: false）は色なしのリングにする。
+	const ringColor = getPenDefinition(s.pen)?.usesColor === false ? "#6b7280" : s.color;
 
 	return (
 		<div
@@ -58,7 +61,7 @@ export function FreedrawCursor({ settings, pointer, viewport }: Props) {
 				height: d,
 				borderRadius: "9999px",
 				pointerEvents: "none",
-				border: eraser ? "1.5px dashed #6b7280" : `1.5px solid ${s.color}`,
+				border: eraser ? "1.5px dashed #6b7280" : `1.5px solid ${ringColor}`,
 				background: eraser ? "rgba(120,120,120,0.10)" : "transparent",
 				opacity: !eraser && m.blend === "multiply" ? 0.5 : 1,
 			}}

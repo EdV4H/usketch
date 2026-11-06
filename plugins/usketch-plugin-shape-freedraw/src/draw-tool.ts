@@ -8,17 +8,19 @@ import {
 } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { TUNING } from "./config.js";
+import { getPenDefinition } from "./custom-pens.js";
 import { createEraseStrokesCommand, findErasedStrokes } from "./eraser.js";
 import { smoothPressure, speedPressure } from "./geometry/brush-outline.js";
+import { penHalfWidth } from "./geometry/hit.js";
 import { simplifyPoints } from "./geometry/simplify.js";
 import { penMeta } from "./pen-meta.js";
 import type { FreedrawSettingsStore } from "./settings-store.js";
-import type { FreedrawShapeData, PenKind, StrokePoint } from "./types.js";
+import type { FreedrawShapeData, PenId, StrokePoint } from "./types.js";
 import type { PointerStore } from "./ui/cursor-overlay.js";
 
 interface StrokeState {
 	id: string;
-	pen: PenKind;
+	pen: PenId;
 	size: number;
 	color: string;
 	alpha: number;
@@ -32,10 +34,6 @@ interface StrokeState {
 
 interface EraseState {
 	removed: Map<string, ShapeData>;
-}
-
-function halfWidthForPen(variable: boolean, size: number): number {
-	return variable ? (size * 1.55) / 2 : size / 2;
 }
 
 function boundsOf(points: StrokePoint[], pad: number): BoundingBox {
@@ -84,7 +82,7 @@ export function createDrawController(
 		raf = requestAnimationFrame(() => {
 			raf = 0;
 			if (!stroke) return;
-			const pad = halfWidthForPen(stroke.variable, stroke.size);
+			const pad = penHalfWidth(stroke.pen, stroke.size);
 			const b = boundsOf(stroke.points, pad);
 			toolCtx.store.updateShape(stroke.id, {
 				x: b.x,
@@ -121,7 +119,7 @@ export function createDrawController(
 			}
 
 			const pen = s.pen;
-			const size = s.sizes[pen];
+			const size = s.sizes[pen] ?? penMeta(pen).defaultSize;
 			const m = penMeta(pen);
 			const id = generateId();
 			const first: StrokePoint = {
@@ -152,6 +150,7 @@ export function createDrawController(
 				style: buildStyle(s.color, size, m.alpha),
 				points: [first],
 				pen,
+				draft: true,
 			};
 			toolCtx.store.addShape(shape);
 		},
@@ -219,10 +218,13 @@ export function createDrawController(
 			const cur = stroke;
 			stroke = null;
 
-			// 確定: scratch を削除 → 間引き → undo 可能な追加コマンド。
+			// 確定: scratch を削除 → 間引き →（外から足したペンは finalize）→ undo 可能な追加コマンド。
 			toolCtx.store.deleteShape(cur.id);
-			const points = simplifyPoints(cur.points, TUNING.simplifyTolerance);
-			const pad = halfWidthForPen(cur.variable, cur.size);
+			const simplified = simplifyPoints(cur.points, TUNING.simplifyTolerance);
+			const finalized = getPenDefinition(cur.pen)?.finalize?.(simplified, { size: cur.size });
+			const points = finalized?.points ?? simplified;
+			if (points.length === 0) return;
+			const pad = penHalfWidth(cur.pen, cur.size);
 			const b = boundsOf(points, pad);
 			const shape: FreedrawShapeData = {
 				id: cur.id,
@@ -234,6 +236,7 @@ export function createDrawController(
 				style: buildStyle(cur.color, cur.size, cur.alpha),
 				points,
 				pen: cur.pen,
+				...(finalized?.penData ? { penData: finalized.penData } : {}),
 			};
 			toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 		},

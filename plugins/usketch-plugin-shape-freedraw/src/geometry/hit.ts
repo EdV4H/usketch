@@ -1,9 +1,22 @@
 import type { BoundingBox, Point } from "@edv4h/usketch-shared";
+import { getPenDefinition } from "../custom-pens.js";
 import { penMeta } from "../pen-meta.js";
-import type { FreedrawShapeData, PenKind, StrokePoint } from "../types.js";
+import type { FreedrawShapeData, PenId, StrokePoint } from "../types.js";
+
+/**
+ * ペンの最大半幅（world px）。外から足したペンは `halfWidth`（省略時 size/2）、
+ * 可変ペンは size×1.55/2、一定ペンは size/2。
+ */
+export function penHalfWidth(pen: PenId | undefined, size: number): number {
+	const custom = getPenDefinition(pen);
+	if (custom) return custom.halfWidth ? custom.halfWidth(size) : size / 2;
+	return penMeta(pen).variable ? (size * 1.55) / 2 : size / 2;
+}
 
 /** 点ごとの実効半幅（world px）。可変ペンは p×size、一定ペンは size 基準。 */
-function halfWidthAt(pt: StrokePoint, pen: PenKind | undefined, size: number): number {
+function halfWidthAt(pt: StrokePoint, pen: PenId | undefined, size: number): number {
+	const custom = getPenDefinition(pen);
+	if (custom) return penHalfWidth(pen, size);
 	const m = penMeta(pen);
 	if (m.variable) {
 		const min = Math.max(0.6, size * 0.22);
@@ -16,9 +29,7 @@ function halfWidthAt(pt: StrokePoint, pen: PenKind | undefined, size: number): n
 
 /** ストロークの最大半幅。 */
 export function maxHalfWidth(data: FreedrawShapeData): number {
-	const size = data.style?.strokeWidth ?? 1;
-	const m = penMeta(data.pen);
-	return m.variable ? (size * 1.55) / 2 : size / 2;
+	return penHalfWidth(data.pen, data.style?.strokeWidth ?? 1);
 }
 
 /** 点列 + 最大半幅で bbox を算出（細い線でも掴める）。 */

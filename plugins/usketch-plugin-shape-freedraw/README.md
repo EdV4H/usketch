@@ -34,6 +34,34 @@ const plugins = [
 一定幅ペンは中点を通る二次ベジェで平滑化、筆ペンは perfect-freehand で塗りアウトラインを生成。
 蛍光ペンは要素単位合成のため、同一ストローク内の交差は二重に濃くならず別ストローク同士は濃くなる。
 
+## 外からペンを足す
+
+組み込みの 4 種に、別のプラグインやホストがペンを足せる。足したペンのストロークも `freedraw`
+shape なので、選択・移動・拡大縮小（点列だけを伸ばし、太さは変えない）・消しゴム・当たり判定・
+undo・同期はそのまま効く。描画は SVG で、GPU には回さない。
+
+```tsx
+createFreedrawPlugin(undefined, {
+  pens: [
+    {
+      id: "road",                     // shape の pen に入る。組み込みの id とは重ねない
+      label: "道路",
+      defaultSize: 120,
+      sizeRange: { min: 40, max: 400 }, // freedraw:set-size をこの範囲に丸める
+      usesColor: false,               // ペン先カーソルを色なしで出す
+      render: (shape) => <Road shape={shape} />,
+      renderDraft: (shape) => <path d={...} />, // 描いている最中（shape.draft === true）
+      finalize: (points, { size }) => ({ points: tidy(points), penData: { closed: true } }),
+      halfWidth: (size) => size / 2 + 12, // 外接矩形・当たり判定・消しゴムの半幅
+    },
+  ],
+});
+```
+
+実行中に足すときは `getFreedrawApi(app.services)?.registerPen(def)`（戻り値で外す）。
+`listPens()` は組み込み → 足したペンの順で一覧を返すので、ペン選択 UI はこれで作れる。
+ペンを登録していないクライアントでは、そのストロークはボールペンの線（色・太さはそのまま）で描かれる。
+
 ## 消しゴム
 
 `mode: "eraser"` のとき、触れた freedraw ストロークを丸ごと削除する（ピクセル消去ではない）。
@@ -43,10 +71,13 @@ const plugins = [
 
 ```ts
 type PenKind = "ballpoint" | "felt" | "brush" | "highlighter";
+type PenId = PenKind | string; // 外から足したペンの id も入る
 interface StrokePoint { x: number; y: number; p?: number } // p=疑似筆圧 0..1
 interface FreedrawShapeData extends ShapeData {
   points: StrokePoint[];
-  pen?: PenKind; // 省略時 ballpoint（旧データ後方互換）
+  pen?: PenId; // 省略時 ballpoint（旧データ後方互換）
+  penData?: Record<string, unknown>; // 足したペンの finalize が返したデータ
+  draft?: boolean; // 描いている最中だけ true
 }
 ```
 
