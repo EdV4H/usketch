@@ -1,5 +1,12 @@
 # @edv4h/usketch-dom-renderer
 
+## 2.3.1
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+
 ## 2.3.0
 
 ### Minor Changes

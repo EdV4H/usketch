@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-spatial-chat
 
+## 2.0.24
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+
 ## 2.0.23
 
 ### Patch Changes

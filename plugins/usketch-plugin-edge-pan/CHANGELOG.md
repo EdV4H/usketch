@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-edge-pan
 
+## 0.2.8
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+
 ## 0.2.7
 
 ### Patch Changes
