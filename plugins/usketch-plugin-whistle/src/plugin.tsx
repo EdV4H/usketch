@@ -1,429 +1,225 @@
 import {
-	centerOnWorld,
 	generateId,
+	getScreenSize,
 	type PluginContext,
-	type TransientObject,
 	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import type { WsProviderHandle } from "@edv4h/usketch-sync";
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import {
+	createWhistleController,
+	type WhistleCameraMove,
+	type WhistleTimings,
+} from "./controller.js";
+import { WHISTLE_KINDS, type WhistleKind, type WhistleMovementOverrides } from "./kinds.js";
+import { resolveLabels, type WhistleLabelOverrides } from "./labels.js";
+import {
+	DEFAULT_WHISTLE_RENDERERS,
+	injectWhistleStyle,
+	prefersReducedMotion,
+	WhistleBoardOverlay,
+	type WhistleRenderers,
+	WhistleScreenOverlay,
+} from "./overlay.js";
+import type { ScreenSize } from "./viewport-moves.js";
+import { createWhistleApi, whistleService } from "./whistle-service.js";
 
-const WHISTLE_TTL = 3000;
-const INDICATOR_TTL = 5000;
-const COOLDOWN_MS = 5000;
-const EDGE_PADDING = 40;
+/** 波紋と方向バッジ (ボードに付く)。mode7 が傾けるレイヤーとして参照する id。 */
+export const WHISTLE_LAYER_ID = "whistle-indicator";
+/** プロンプト等の画面 UI。 */
+export const WHISTLE_UI_LAYER_ID = "whistle-ui";
 
-// ── Transient renderer: pulse ring effect ──
-
-function WhistleEffect({ obj }: { obj: TransientObject }) {
-	const name = (obj.data.name as string) || "";
-	return (
-		<div
-			style={{
-				position: "absolute",
-				left: -60,
-				top: -60,
-				width: 120,
-				height: 120,
-				pointerEvents: "none",
-				userSelect: "none",
-			}}
-		>
-			{[0, 1, 2].map((i) => (
-				<div
-					key={i}
-					style={{
-						position: "absolute",
-						inset: 0,
-						borderRadius: "50%",
-						border: "2px solid #3b82f6",
-						animation: `usketch-whistle-pulse ${WHISTLE_TTL}ms ease-out forwards`,
-						animationDelay: `${i * 200}ms`,
-						opacity: 0,
-					}}
-				/>
-			))}
-			{name && (
-				<div
-					style={{
-						position: "absolute",
-						top: "100%",
-						left: "50%",
-						transform: "translateX(-50%)",
-						marginTop: 4,
-						whiteSpace: "nowrap",
-						fontSize: 12,
-						fontFamily: "system-ui, sans-serif",
-						color: "#3b82f6",
-						fontWeight: 600,
-						animation: `usketch-whistle-fade ${WHISTLE_TTL}ms ease-out forwards`,
-					}}
-				>
-					{name}
-				</div>
-			)}
-		</div>
-	);
+export interface WhistlePluginOptions {
+	/** 自分の表示名。省略時は awareness の avatar.name / user.name。 */
+	getLocalName?: () => string;
+	/**
+	 * false を返す間は強制移動 (全員集合・ついてきて) をかけず、承諾制の
+	 * プロンプトに落とす (発表中・ドライブ中など)。既定は常に true。
+	 */
+	canAutoMove?: () => boolean;
+	/**
+	 * 文言の差し替え (i18n)。関数を渡すと描画のたびに呼ぶので、表示言語の
+	 * 切り替えにも追従できる。
+	 */
+	labels?: WhistleLabelOverrides | (() => WhistleLabelOverrides);
+	/** 見た目の差し替え。渡さなかったものは既定の見た目。 */
+	renderers?: Partial<WhistleRenderers>;
+	/** 吹くショートカット。false で登録しない。既定 "Shift+W"。 */
+	shortcut?: string | false;
+	/** 時間の調整 (ms)。 */
+	timings?: Partial<WhistleTimings>;
+	/**
+	 * 種類ごとの受け手の動き方の差し替え。例: `{ gather: "auto" }` で「集合」も
+	 * 自動で集める。「ついてきて」は差し替えられない。
+	 */
+	movements?: WhistleMovementOverrides;
+	/**
+	 * カメラの動かし方の差し替え (プロンプトで移動・全員集合・方向バッジを押したとき)。
+	 * 既定は `defaultWhistleCameraMove` (全員集合は一度引いてから寄る)。
+	 */
+	moveCamera?: WhistleCameraMove;
 }
 
-// ── CSS injection ──
-
-let styleInjected = false;
-function injectStyle() {
-	if (styleInjected) return;
-	styleInjected = true;
-	const style = document.createElement("style");
-	style.textContent = `
-		@keyframes usketch-whistle-pulse {
-			0% { transform: scale(0); opacity: 0.8; }
-			100% { transform: scale(3); opacity: 0; }
-		}
-		@keyframes usketch-whistle-fade {
-			0% { opacity: 1; }
-			70% { opacity: 1; }
-			100% { opacity: 0; }
-		}
-		@keyframes usketch-whistle-indicator-in {
-			0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
-			100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-		}
-	`;
-	document.head.appendChild(style);
-}
-
-// ── Off-screen indicator ──
-
-interface WhistleIndicatorData {
-	id: string;
-	name: string;
-	worldX: number;
-	worldY: number;
-}
-
-function computeIndicatorPosition(
-	worldX: number,
-	worldY: number,
-	vp: { x: number; y: number; zoom: number },
-): {
-	screenX: number;
-	screenY: number;
-	isOnScreen: boolean;
-	indicatorX: number;
-	indicatorY: number;
-} {
-	const screenX = worldX * vp.zoom + vp.x;
-	const screenY = worldY * vp.zoom + vp.y;
-
-	const isOnScreen =
-		screenX >= 0 && screenX <= window.innerWidth && screenY >= 0 && screenY <= window.innerHeight;
-
-	if (isOnScreen) {
-		return { screenX, screenY, isOnScreen, indicatorX: screenX, indicatorY: screenY };
-	}
-
-	const centerX = window.innerWidth / 2;
-	const centerY = window.innerHeight / 2;
-	const dx = screenX - centerX;
-	const dy = screenY - centerY;
-
-	if (dx === 0 && dy === 0) {
-		return { screenX, screenY, isOnScreen: true, indicatorX: centerX, indicatorY: centerY };
-	}
-
-	const scaleX =
-		dx !== 0
-			? (dx > 0 ? window.innerWidth - EDGE_PADDING - centerX : EDGE_PADDING - centerX) / dx
-			: Number.POSITIVE_INFINITY;
-	const scaleY =
-		dy !== 0
-			? (dy > 0 ? window.innerHeight - EDGE_PADDING - centerY : EDGE_PADDING - centerY) / dy
-			: Number.POSITIVE_INFINITY;
-	const scale = Math.min(Math.abs(scaleX), Math.abs(scaleY));
-
-	return {
-		screenX,
-		screenY,
-		isOnScreen,
-		indicatorX: centerX + dx * scale,
-		indicatorY: centerY + dy * scale,
-	};
-}
-
-function IndicatorItem({
-	data,
-	onJump,
-}: {
-	data: WhistleIndicatorData;
-	onJump: (worldX: number, worldY: number) => void;
-}) {
-	const handleClick = useCallback(() => {
-		onJump(data.worldX, data.worldY);
-	}, [data.worldX, data.worldY, onJump]);
-
-	return (
-		<button
-			type="button"
-			onClick={handleClick}
-			style={{
-				position: "absolute",
-				background: "#3b82f6",
-				color: "#fff",
-				border: "none",
-				borderRadius: 20,
-				padding: "6px 12px",
-				fontSize: 13,
-				fontFamily: "system-ui, sans-serif",
-				fontWeight: 600,
-				cursor: "pointer",
-				whiteSpace: "nowrap",
-				display: "flex",
-				alignItems: "center",
-				gap: 4,
-				animation: "usketch-whistle-indicator-in 200ms ease-out forwards",
-				boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-				zIndex: 200,
-			}}
-		>
-			<span style={{ fontSize: 16 }}>📢</span>
-			{data.name || "Someone"}
-		</button>
-	);
-}
-
-function WhistleIndicatorLayer({
-	subscribe,
-	getSnapshot,
-	store,
-}: {
-	subscribe: (cb: () => void) => () => void;
-	getSnapshot: () => WhistleIndicatorData[];
-	store: PluginContext["store"];
-}) {
-	const indicators = useSyncExternalStore(subscribe, getSnapshot);
-	const viewport = useSyncExternalStore(
-		(cb) => store.subscribe(cb),
-		() => store.getViewport(),
-	);
-
-	const handleJump = useCallback(
-		(worldX: number, worldY: number) => {
-			// Jump to an off-screen whistler → smooth by default.
-			centerOnWorld(store, { x: worldX, y: worldY });
-		},
-		[store],
-	);
-
-	const positioned = useMemo(() => {
-		return indicators
-			.map((ind) => {
-				const pos = computeIndicatorPosition(ind.worldX, ind.worldY, viewport);
-				return { ...ind, ...pos };
-			})
-			.filter((p) => !p.isOnScreen);
-	}, [indicators, viewport]);
-
-	if (positioned.length === 0) return null;
-
-	return (
-		<>
-			{positioned.map((item) => (
-				<div
-					key={item.id}
-					style={{
-						position: "fixed",
-						left: item.indicatorX,
-						top: item.indicatorY,
-						transform: "translate(-50%, -50%)",
-						pointerEvents: "auto",
-					}}
-				>
-					<IndicatorItem data={item} onJump={handleJump} />
-				</div>
-			))}
-		</>
-	);
-}
-
-// ── Plugin factory ──
-
-function createPlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
+function createPlugin(
+	wsProvider: WsProviderHandle | undefined,
+	options: WhistlePluginOptions,
+): UsketchPlugin {
 	return {
 		id: "usketch-plugin-whistle",
 		name: "ホイッスル",
 
 		setup(ctx: PluginContext) {
 			const cleanups: (() => void)[] = [];
-			let indicators: WhistleIndicatorData[] = [];
-			const indicatorListeners = new Set<() => void>();
-			const indicatorTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-			function indicatorSubscribe(cb: () => void): () => void {
-				indicatorListeners.add(cb);
-				return () => indicatorListeners.delete(cb);
-			}
-
-			function indicatorGetSnapshot(): WhistleIndicatorData[] {
-				return indicators;
-			}
-
-			function addIndicator(data: WhistleIndicatorData) {
-				indicators = [...indicators, data];
-				for (const cb of indicatorListeners) cb();
-
-				const timer = setTimeout(() => {
-					removeIndicator(data.id);
-				}, INDICATOR_TTL);
-
-				indicatorTimers.set(data.id, timer);
-			}
-
-			function removeIndicator(id: string) {
-				const prevLen = indicators.length;
-				indicators = indicators.filter((i) => i.id !== id);
-				const timer = indicatorTimers.get(id);
-				if (timer !== undefined) {
-					clearTimeout(timer);
-					indicatorTimers.delete(id);
-				}
-				if (indicators.length < prevLen) {
-					for (const cb of indicatorListeners) cb();
-				}
-			}
-
-			injectStyle();
-
-			ctx.transient.registerType("whistle", {
-				render: (obj) => <WhistleEffect obj={obj} />,
-			});
-
-			// ── Shortcut: W key ──
-			let lastWhistleTime = 0;
+			const getLabels = () =>
+				resolveLabels(typeof options.labels === "function" ? options.labels() : options.labels);
+			const labels = getLabels();
+			const renderers: WhistleRenderers = { ...DEFAULT_WHISTLE_RENDERERS, ...options.renderers };
+			let screenSize: ScreenSize | null = null;
 
 			function getLocalUserName(): string {
+				if (options.getLocalName) return options.getLocalName();
 				if (!wsProvider) return "";
-				const states = wsProvider.awareness.getStates();
-				const localId = wsProvider.awareness.doc.clientID;
-				const localState = states.get(localId) as
+				const localState = wsProvider.awareness.getStates().get(wsProvider.awareness.clientID) as
 					| { avatar?: { name?: string }; user?: { name?: string } }
 					| undefined;
 				return localState?.avatar?.name ?? localState?.user?.name ?? "";
 			}
 
-			function handleWhistle() {
-				const now = Date.now();
-				if (now - lastWhistleTime < COOLDOWN_MS) return;
-				lastWhistleTime = now;
-
-				const vp = ctx.store.getViewport();
-				const worldX = (window.innerWidth / 2 - vp.x) / vp.zoom;
-				const worldY = (window.innerHeight / 2 - vp.y) / vp.zoom;
-				const id = generateId();
-				const name = getLocalUserName();
-
-				ctx.transient.emit({
-					id,
-					type: "whistle",
-					sourceUserId: "local",
-					position: { x: worldX, y: worldY },
-					data: { name },
-					ttl: WHISTLE_TTL,
-					createdAt: Date.now(),
-				});
-
-				wsProvider?.broadcast({
-					kind: "whistle",
-					id,
-					sourceUserId: "local",
-					sourceName: name,
-					position: { x: worldX, y: worldY },
-				});
+			// 既定では、awareness で発表中 (follow-me の `presenting`) の人には強制移動をかけない。
+			function defaultCanAutoMove(): boolean {
+				if (!wsProvider) return true;
+				const localState = wsProvider.awareness.getStates().get(wsProvider.awareness.clientID) as
+					| { presenting?: unknown }
+					| undefined;
+				return localState?.presenting !== true;
 			}
 
-			cleanups.push(ctx.shortcuts.register("Shift+W", handleWhistle));
+			const controller = createWhistleController({
+				store: ctx.store,
+				broadcast: wsProvider ? (msg) => wsProvider.broadcast(msg) : undefined,
+				getLocalName: getLocalUserName,
+				getScreenSize: () => screenSize ?? getScreenSize(),
+				canAutoMove: options.canAutoMove ?? defaultCanAutoMove,
+				prefersReducedMotion,
+				generateId,
+				timings: options.timings,
+				movements: options.movements,
+				moveCamera: options.moveCamera,
+			});
+			cleanups.push(() => controller.dispose());
 
-			// ── Broadcast receiver ──
+			injectWhistleStyle();
+
+			// ── Host API ──
+			cleanups.push(whistleService.provide(ctx.services, createWhistleApi(controller)));
+
+			// ── Shortcut: 最後に選んだ種類で吹く ──
+			const shortcut = options.shortcut ?? "Shift+W";
+			if (shortcut !== false) {
+				cleanups.push(ctx.shortcuts.register(shortcut, () => controller.blow()));
+			}
+
+			// ── HUD: 種類ごとに吹くアクション + 案内/追従の終了 ──
+			// HUD は registry の通知でしか isActive / isEnabled を読み直さないので、
+			// 選択中の種類や ついてきて の状態が変わったら登録し直す。
+			let unregisterActions: (() => void)[] = [];
+			let actionsKey = "";
+			const registerActions = () => {
+				const s = controller.state.get();
+				const key = `${s.selectedKind}\u0000${s.follow?.role ?? ""}`;
+				if (key === actionsKey) return;
+				actionsKey = key;
+				for (const fn of unregisterActions) fn();
+				unregisterActions = WHISTLE_KINDS.map((kind: WhistleKind, i) =>
+					ctx.actions.register({
+						id: `whistle:blow:${kind}`,
+						label: labels.kindNames[kind],
+						group: "ホイッスル",
+						order: i,
+						run: () => {
+							controller.setSelectedKind(kind);
+							controller.blow(kind);
+						},
+						isActive: () => controller.state.get().selectedKind === kind,
+					}),
+				);
+				unregisterActions.push(
+					ctx.actions.register({
+						id: "whistle:end-follow",
+						label: s.follow?.role === "follower" ? labels.leave : labels.end,
+						group: "ホイッスル",
+						order: WHISTLE_KINDS.length,
+						isEnabled: () => controller.state.get().follow !== null,
+						run: () => controller.endFollow(),
+					}),
+				);
+			};
+			registerActions();
+			cleanups.push(controller.state.subscribe(registerActions));
+			cleanups.push(() => {
+				for (const fn of unregisterActions) fn();
+				unregisterActions = [];
+			});
+
+			// ── 受信 ──
 			if (wsProvider) {
-				const unsubBroadcast = wsProvider.onBroadcast((msg) => {
-					if (msg.kind !== "whistle") return;
-
-					const id = msg.id;
-					const position = msg.position as { x?: number; y?: number } | undefined;
-					const sourceName = msg.sourceName;
-
-					if (
-						typeof id !== "string" ||
-						!position ||
-						typeof position.x !== "number" ||
-						typeof position.y !== "number"
-					) {
-						return;
-					}
-
-					const name = typeof sourceName === "string" ? sourceName : "";
-					const userId = typeof msg.sourceUserId === "string" ? msg.sourceUserId : "remote";
-					const vp = ctx.store.getViewport();
-					const pos = computeIndicatorPosition(position.x, position.y, vp);
-
-					if (pos.isOnScreen) {
-						ctx.transient.emit({
-							id,
-							type: "whistle",
-							sourceUserId: userId,
-							position: { x: position.x, y: position.y },
-							data: { name },
-							ttl: WHISTLE_TTL,
-							createdAt: Date.now(),
-						});
-					} else {
-						// Also emit transient at the world position (visible when user scrolls there)
-						ctx.transient.emit({
-							id,
-							type: "whistle",
-							sourceUserId: userId,
-							position: { x: position.x, y: position.y },
-							data: { name },
-							ttl: WHISTLE_TTL,
-							createdAt: Date.now(),
-						});
-
-						addIndicator({
-							id: `${id}-indicator`,
-							name,
-							worldX: position.x,
-							worldY: position.y,
-						});
-					}
-				});
-				cleanups.push(unsubBroadcast);
+				cleanups.push(wsProvider.onBroadcast((msg) => controller.receive(msg)));
 			}
 
-			// ── Indicator layer ──
+			// ── 追従中に自分で操作したら外れる ──
+			// 画角の変化は controller が見ている (自分が動かした以外の変化で外れる)。
+			// キャンバスを押しただけ (画角が変わらない操作) でも外れるようにする。
+			cleanups.push(ctx.events.on("canvas:pointerdown", () => controller.notifyUserInteraction()));
+
+			// ── Overlay ──
+			const onResize = (size: ScreenSize) => {
+				screenSize = size;
+			};
+			// 波紋と方向バッジはボードに付く (mode7 の傾けレイヤー対象のまま)。
 			ctx.layers.register({
-				id: "whistle-indicator",
+				id: WHISTLE_LAYER_ID,
 				order: 98,
 				fixed: true,
 				render: () => (
-					<WhistleIndicatorLayer
-						subscribe={indicatorSubscribe}
-						getSnapshot={indicatorGetSnapshot}
+					<WhistleBoardOverlay
+						controller={controller}
 						store={ctx.store}
+						labels={getLabels()}
+						renderers={renderers}
+						onResize={onResize}
 					/>
 				),
 			});
-			cleanups.push(() => ctx.layers.unregister("whistle-indicator"));
+			cleanups.push(() => ctx.layers.unregister(WHISTLE_LAYER_ID));
+			// プロンプト・カウントダウン・バナー・枠・フィードバックは画面に付く UI。
+			ctx.layers.register({
+				id: WHISTLE_UI_LAYER_ID,
+				order: 99,
+				fixed: true,
+				render: () => (
+					<WhistleScreenOverlay
+						controller={controller}
+						labels={getLabels()}
+						renderers={renderers}
+					/>
+				),
+			});
+			cleanups.push(() => ctx.layers.unregister(WHISTLE_UI_LAYER_ID));
 
 			return () => {
-				for (const fn of cleanups) fn();
+				for (const fn of cleanups.reverse()) fn();
 				cleanups.length = 0;
-				for (const timer of indicatorTimers.values()) clearTimeout(timer);
-				indicatorTimers.clear();
-				indicators = [];
-				indicatorListeners.clear();
 			};
 		},
 	};
 }
 
-export function createWhistlePlugin(wsProvider?: WsProviderHandle): UsketchPlugin {
-	return createPlugin(wsProvider);
+/**
+ * ホイッスル plugin。`wsProvider` は broadcast / onBroadcast だけを使う
+ * (Yjs awareness で同期する host はアダプタを渡せばよい)。
+ */
+export function createWhistlePlugin(
+	wsProvider?: WsProviderHandle,
+	options: WhistlePluginOptions = {},
+): UsketchPlugin {
+	return createPlugin(wsProvider, options);
 }
