@@ -37,6 +37,11 @@ describe("setShape3d", () => {
 		setShape3d(store, ["a"], { mode: "box" }, types);
 		expect(getShape3d(store, "a")?.height).toBe(40);
 	});
+	it("uses the built-in per-type settings by default", () => {
+		const store = fakeStore([shape("r", "rectangle"), shape("e", "embed")]);
+		expect(setShape3d(store, ["r", "e"], { mode: "box" })).toEqual(["r"]);
+		expect(setShape3d(store, ["e"], { mode: "stand" })).toEqual([]);
+	});
 	it("rejects box on a type that doesn't allow it", () => {
 		const store = fakeStore([shape("e", "ellipse")]);
 		expect(

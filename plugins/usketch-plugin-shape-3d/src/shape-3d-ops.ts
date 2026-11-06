@@ -3,6 +3,7 @@
 import type { BoardStore } from "@edv4h/usketch-shared";
 import {
 	availableModes,
+	DEFAULT_SHAPE_3D_TYPES,
 	normalizeShape3d,
 	ownShape3d,
 	SHAPE_3D_KEY,
@@ -21,14 +22,14 @@ export function getShape3d(store: BoardStore, id: string): Shape3dParams | null 
 /**
  * Merge `patch` into each shape's own 3D parameters (a shape without any takes the
  * defaults; give `mode` to start one). Shapes whose type doesn't allow the resulting
- * mode, missing / locked shapes, and patches that leave no valid mode are skipped.
+ * mode (per `types`, the built-in {@link DEFAULT_SHAPE_3D_TYPES} unless given), missing / locked shapes, and patches that leave no valid mode are skipped.
  * Returns the ids actually updated.
  */
 export function setShape3d(
 	store: BoardStore,
 	ids: Iterable<string>,
 	patch: Shape3dInput,
-	types: Shape3dTypes = {},
+	types: Shape3dTypes = DEFAULT_SHAPE_3D_TYPES,
 ): string[] {
 	const updated: string[] = [];
 	for (const id of ids) {

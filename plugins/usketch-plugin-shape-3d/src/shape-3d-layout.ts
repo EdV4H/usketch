@@ -293,9 +293,9 @@ export function selectShapes3d(input: {
 		const params = resolveShape3d(shape, input.types);
 		if (!params) continue;
 		if (Math.max(shape.width, shape.height) * zoom < input.limits.minPx) continue;
-		const foot = shapeAnchor(shape, params.mode);
-		if (foot.x < x0 || foot.x > x1 || foot.y < y0 || foot.y > y1) continue;
-		found.push({ shape, params, screenY: worldToScreen(foot.x, foot.y, input.viewport).y });
+		const at = shapeAnchor(shape, params.mode);
+		if (at.x < x0 || at.x > x1 || at.y < y0 || at.y > y1) continue;
+		found.push({ shape, params, screenY: worldToScreen(at.x, at.y, input.viewport).y });
 	}
 	const max = Math.max(0, Math.floor(input.limits.maxCount));
 	if (found.length > max) {
