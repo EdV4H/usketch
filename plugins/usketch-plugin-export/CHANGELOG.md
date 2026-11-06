@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-export
 
+## 2.3.6
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+  - @edv4h/usketch-core@2.4.10
+
 ## 2.3.5
 
 ### Patch Changes
