@@ -1,6 +1,6 @@
 import { useRef, useSyncExternalStore } from "react";
 import { ERASER_RANGE, SIZE_RANGE } from "../config.js";
-import { PEN_KINDS, PEN_META, PRESET_COLORS } from "../pen-meta.js";
+import { PEN_KINDS, PEN_META, PRESET_COLORS, penMeta } from "../pen-meta.js";
 import type { FreedrawSettingsStore } from "../settings-store.js";
 import type { PenKind } from "../types.js";
 
@@ -26,7 +26,7 @@ export function FreedrawPalette({ settings, active }: Props) {
 
 	const eraser = s.mode === "eraser";
 	const colors = [...PRESET_COLORS, ...s.customColors.filter((c) => !PRESET_COLORS.includes(c))];
-	const sizeValue = eraser ? s.eraserSize : s.sizes[s.pen];
+	const sizeValue = eraser ? s.eraserSize : (s.sizes[s.pen] ?? penMeta(s.pen).defaultSize);
 	const range = eraser ? ERASER_RANGE : SIZE_RANGE;
 
 	const selectPen = (pen: PenKind) => settings.update({ pen, mode: "pen" });

@@ -4,6 +4,12 @@ import type { ShapeData } from "@edv4h/usketch-shared";
 export type PenKind = "ballpoint" | "felt" | "brush" | "highlighter";
 
 /**
+ * shape / 設定に入るペンの id。組み込みの {@link PenKind} か、外から足したペン
+ * （`FreedrawPenDefinition.id`）。
+ */
+export type PenId = PenKind | (string & {});
+
+/**
  * ストロークの点。`p` は疑似筆圧 0..1（筆ペンのみ意味を持つ）。
  * 座標は world（既存の freedraw 同様、絶対座標）。`p` 省略時は一定幅扱いで、
  * 旧データ（`{x,y}` のみ）と後方互換。
@@ -21,5 +27,9 @@ export interface StrokePoint {
  */
 export interface FreedrawShapeData extends ShapeData {
 	points: StrokePoint[];
-	pen?: PenKind;
+	pen?: PenId;
+	/** 外から足したペンの保存データ（`FreedrawPenDefinition.finalize` が返したもの）。 */
+	penData?: Record<string, unknown>;
+	/** 描いている最中の仮のストロークだけ `true`（確定で消える）。 */
+	draft?: boolean;
 }

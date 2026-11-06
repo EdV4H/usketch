@@ -1,10 +1,18 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { type FreedrawConfigInput, parseFreedrawConfig } from "./config.js";
+import {
+	assertCustomPenId,
+	clampPenSize,
+	type FreedrawPenDefinition,
+	getPenDefinition,
+	registerPen,
+} from "./custom-pens.js";
 import { createDrawController } from "./draw-tool.js";
-import { PEN_META } from "./pen-meta.js";
+import { freedrawApi, freedrawService, listPens } from "./freedraw-service.js";
+import { isKnownPen } from "./pen-meta.js";
 import { createFreedrawSettingsStore } from "./settings-store.js";
 import { createFreedrawShapeDefinition, type FreedrawHitTestMode } from "./shape.js";
-import type { PenKind } from "./types.js";
+import type { PenId } from "./types.js";
 import { createPointerStore, FreedrawCursor } from "./ui/cursor-overlay.js";
 import type { BoolStore } from "./ui/palette.js";
 
@@ -42,14 +50,35 @@ function createBoolStore(initial: boolean) {
 	return store;
 }
 
-export function createFreedrawPlugin(configInput?: FreedrawConfigInput): UsketchPlugin {
+/** `createFreedrawPlugin` の 2 つ目の引数（JSON にできない設定）。 */
+export interface FreedrawPluginOptions {
+	/**
+	 * 組み込みの 4 種に足すペン。setup で登録し、teardown で外す。ペンは shape の描画と
+	 * 当たり判定に効くので、実行中に足し外しせず、ここで渡す。
+	 */
+	pens?: FreedrawPenDefinition[];
+}
+
+const BUILT_IN_SIZE_MAX = 64;
+
+export function createFreedrawPlugin(
+	configInput?: FreedrawConfigInput,
+	options: FreedrawPluginOptions = {},
+): UsketchPlugin {
 	const config = parseFreedrawConfig(configInput);
+	const pens = options.pens ?? [];
+	// 組み込みの id と重なるペンは、何も登録しないうちに弾く。
+	for (const def of pens) assertCustomPenId(def.id);
+	const sizeMax = Math.max(BUILT_IN_SIZE_MAX, ...pens.map((d) => d.sizeRange?.max ?? 0));
 
 	return {
 		id: "usketch-plugin-shape-freedraw",
 		name: "フリーハンド",
 
 		setup(ctx: PluginContext) {
+			// 設定の復元で保存済みのペンを確かめるため、ペンは設定ストアより先に登録する。
+			const offPens = pens.map((def) => registerPen(def));
+			const offService = freedrawService.provide(ctx.services, freedrawApi);
 			const settings = createFreedrawSettingsStore(config);
 			const pointer = createPointerStore();
 			const active = createBoolStore(ctx.store.getActiveToolId() === TOOL_ID);
@@ -96,8 +125,8 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 			// カーソル(描画フィードバック)は維持。
 
 			// ── vim 連携 / 外部からの設定変更イベント ──
-			const offPen = ctx.events.on<{ pen: PenKind }>("freedraw:set-pen", ({ pen }) => {
-				if (PEN_META[pen]) settings.update({ pen, mode: "pen" });
+			const offPen = ctx.events.on<{ pen: PenId }>("freedraw:set-pen", ({ pen }) => {
+				if (isKnownPen(pen)) settings.update({ pen, mode: "pen" });
 			});
 			const offColor = ctx.events.on<{ color: string }>("freedraw:set-color", ({ color }) => {
 				const cur = settings.getSnapshot();
@@ -109,7 +138,10 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 			const offSize = ctx.events.on<{ size: number }>("freedraw:set-size", ({ size }) => {
 				const cur = settings.getSnapshot();
 				if (cur.mode === "eraser") settings.update({ eraserSize: size });
-				else settings.update({ sizes: { ...cur.sizes, [cur.pen]: size } });
+				else {
+					const clamped = clampPenSize(getPenDefinition(cur.pen), size);
+					settings.update({ sizes: { ...cur.sizes, [cur.pen]: clamped } });
+				}
 			});
 			const offHitTest = ctx.events.on<{ mode: FreedrawHitTestMode }>(
 				"freedraw:set-hit-test",
@@ -138,6 +170,10 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 								{ value: "felt", label: "Felt" },
 								{ value: "brush", label: "Brush" },
 								{ value: "highlighter", label: "Highlighter" },
+								// 外から足したペン（setup 時点の登録分）。
+								...listPens()
+									.filter((p) => !p.builtIn)
+									.map((p) => ({ value: p.id, label: p.label })),
 							],
 						},
 					],
@@ -154,7 +190,8 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 					id: "freedraw:size",
 					label: "Size",
 					group: "Freedraw",
-					params: [{ name: "size", type: "number", min: 1, max: 64, step: 1, default: 4 }],
+					// 足したペンの太さの範囲まで届くようにする（実際の値は set-size がペンごとに丸める）。
+					params: [{ name: "size", type: "number", min: 1, max: sizeMax, step: 1, default: 4 }],
 					run: ({ size }) => ctx.events.emit("freedraw:set-size", { size: Number(size) }),
 				}),
 				ctx.actions.register({
@@ -192,6 +229,8 @@ export function createFreedrawPlugin(configInput?: FreedrawConfigInput): Usketch
 					window.removeEventListener("keydown", onKeyDown, true);
 				}
 				ctx.layers.unregister("freedraw-cursor");
+				offService();
+				for (const off of offPens) off();
 			};
 		},
 	};

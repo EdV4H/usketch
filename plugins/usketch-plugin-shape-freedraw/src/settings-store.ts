@@ -1,13 +1,16 @@
 import { type FreedrawConfig, STORAGE_KEY } from "./config.js";
-import type { PenKind } from "./types.js";
+import { clampPenSize, getPenDefinition } from "./custom-pens.js";
+import { DEFAULT_PEN, isKnownPen, penMeta } from "./pen-meta.js";
+import type { PenId } from "./types.js";
 
 export type FreedrawMode = "pen" | "eraser";
 
 export interface FreedrawSettings {
 	mode: FreedrawMode;
-	pen: PenKind;
+	pen: PenId;
 	color: string;
-	sizes: Record<PenKind, number>;
+	/** ペンごとの太さ。外から足したペンは選ぶまで無いことがある（既定の太さを使う）。 */
+	sizes: Partial<Record<PenId, number>>;
 	eraserSize: number;
 	brushDynamics: number;
 	customColors: string[];
@@ -24,9 +27,9 @@ export interface FreedrawSettingsStore {
 
 /** localStorage に永続化するサブセット（mode は永続化しない）。 */
 interface PersistedSettings {
-	pen: PenKind;
+	pen: PenId;
 	color: string;
-	sizes: Record<PenKind, number>;
+	sizes: Partial<Record<PenId, number>>;
 	eraserSize: number;
 	brushDynamics: number;
 	customColors: string[];
@@ -61,11 +64,22 @@ function savePersisted(s: FreedrawSettings): void {
 	}
 }
 
+/** 既定のペン。設定の `defaultPen` が知らないペンなら ballpoint。 */
+function defaultPen(config: FreedrawConfig): PenId {
+	return isKnownPen(config.defaultPen) ? config.defaultPen : DEFAULT_PEN;
+}
+
+/** ペンの太さ（未設定なら既定の太さ）。外から足したペンは範囲に丸める。 */
+export function penSize(s: Pick<FreedrawSettings, "sizes">, pen: PenId): number {
+	return clampPenSize(getPenDefinition(pen), s.sizes[pen] ?? penMeta(pen).defaultSize);
+}
+
 export function createFreedrawSettingsStore(config: FreedrawConfig): FreedrawSettingsStore {
 	const persisted = config.persistSettings ? loadPersisted() : null;
 	let state: FreedrawSettings = {
 		mode: "pen",
-		pen: persisted?.pen ?? config.defaultPen,
+		// 保存したペンが今は無い（外から足したペンを登録しなくなった）ときは既定に戻す。
+		pen: persisted?.pen && isKnownPen(persisted.pen) ? persisted.pen : defaultPen(config),
 		color: persisted?.color ?? config.defaultColor,
 		sizes: { ...config.defaultSizes, ...(persisted?.sizes ?? {}) },
 		eraserSize: persisted?.eraserSize ?? config.defaultEraserSize,
@@ -87,7 +101,8 @@ export function createFreedrawSettingsStore(config: FreedrawConfig): FreedrawSet
 			for (const l of listeners) l();
 		},
 		currentSize() {
-			return state.mode === "eraser" ? state.eraserSize : state.sizes[state.pen];
+			if (state.mode === "eraser") return state.eraserSize;
+			return penSize(state, state.pen);
 		},
 	};
 }

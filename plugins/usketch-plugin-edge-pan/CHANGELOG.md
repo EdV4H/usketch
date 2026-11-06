@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-edge-pan
 
+## 0.2.7
+
+### Patch Changes
+
+- 1e73440: While a shape is being dragged, edge-pan no longer looks up the canvas element and reads its size (`querySelectorAll` + `getBoundingClientRect`) on every animation frame; the size is measured once per drag and re-measured on window resize. No visible change.
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+
 ## 0.2.6
 
 ### Patch Changes

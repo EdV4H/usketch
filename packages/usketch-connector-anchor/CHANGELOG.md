@@ -1,5 +1,12 @@
 # @edv4h/usketch-connector-anchor
 
+## 0.5.2
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+
 ## 0.5.1
 
 ### Patch Changes

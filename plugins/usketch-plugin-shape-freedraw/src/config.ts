@@ -18,17 +18,20 @@ export const TUNING = {
 	simplifyTolerance: 0.6,
 } as const;
 
-const SizesSchema = z.object({
-	ballpoint: z.number().positive(),
-	felt: z.number().positive(),
-	brush: z.number().positive(),
-	highlighter: z.number().positive(),
-});
+// 組み込みの 4 種は必須。外から足したペンの太さも id をキーにして持てる。
+const SizesSchema = z
+	.object({
+		ballpoint: z.number().positive(),
+		felt: z.number().positive(),
+		brush: z.number().positive(),
+		highlighter: z.number().positive(),
+	})
+	.catchall(z.number().positive());
 
 /** プラグイン設定（JSON 可、Zod 検証）。実行時の可変状態は settings-store が持つ。 */
 export const FreedrawConfigSchema = z.object({
-	/** 既定ペン。 */
-	defaultPen: z.enum(["ballpoint", "felt", "brush", "highlighter"]).default(DEFAULT_PEN),
+	/** 既定ペン（組み込みのペンか、外から足したペンの id）。 */
+	defaultPen: z.string().default(DEFAULT_PEN),
 	/** 既定色。 */
 	defaultColor: z.string().default(PRESET_COLORS[0]),
 	/** ペンごとの既定太さ。 */
