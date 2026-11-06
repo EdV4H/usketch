@@ -4,12 +4,7 @@ export {
 	FreedrawConfigSchema,
 	parseFreedrawConfig,
 } from "./config.js";
-export {
-	type FinalizedStroke,
-	type FreedrawPenDefinition,
-	type PenSizeRange,
-	registerPen,
-} from "./custom-pens.js";
+export type { FinalizedStroke, FreedrawPenDefinition, PenSizeRange } from "./custom-pens.js";
 export {
 	type FreedrawApi,
 	type FreedrawPenInfo,

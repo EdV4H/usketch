@@ -58,8 +58,10 @@ createFreedrawPlugin(undefined, {
 });
 ```
 
-実行中に足すときは `getFreedrawApi(app.services)?.registerPen(def)`（戻り値で外す）。
-`listPens()` は組み込み → 足したペンの順で一覧を返すので、ペン選択 UI はこれで作れる。
+ペンは shape の描画と当たり判定に効くので、実行中に足し外しせず、プラグインの引数で渡す。
+`getFreedrawApi(app.services)?.listPens()`（または `listPens()`）は組み込み → 足したペンの順で
+一覧を返すので、ペン選択 UI はこれで作れる。`finalize` が返す `penData` は移動・拡大縮小でそのまま
+写されるので、座標は入れない（点列から毎回作る）。
 ペンを登録していないクライアントでは、そのストロークはボールペンの線（色・太さはそのまま）で描かれる。
 
 ## 消しゴム

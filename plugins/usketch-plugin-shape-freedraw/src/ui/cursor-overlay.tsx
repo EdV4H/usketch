@@ -2,7 +2,7 @@ import type { Point, Viewport } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { getPenDefinition } from "../custom-pens.js";
 import { penMeta } from "../pen-meta.js";
-import type { FreedrawSettingsStore } from "../settings-store.js";
+import { type FreedrawSettingsStore, penSize } from "../settings-store.js";
 
 /** ポインタの world 位置（ペン先カーソル用）。null=非表示。 */
 export interface PointerStore {
@@ -46,7 +46,7 @@ export function FreedrawCursor({ settings, pointer, viewport }: Props) {
 	const sy = world.y * viewport.zoom + viewport.y;
 	const eraser = s.mode === "eraser";
 	const m = penMeta(s.pen);
-	const sizeWorld = eraser ? s.eraserSize : (s.sizes[s.pen] ?? m.defaultSize);
+	const sizeWorld = eraser ? s.eraserSize : penSize(s, s.pen);
 	const d = Math.max(6, sizeWorld * viewport.zoom);
 	// 色を使わないペン（外から足したペンの usesColor: false）は色なしのリングにする。
 	const ringColor = getPenDefinition(s.pen)?.usesColor === false ? "#6b7280" : s.color;

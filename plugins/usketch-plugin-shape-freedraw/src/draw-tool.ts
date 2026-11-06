@@ -14,7 +14,7 @@ import { smoothPressure, speedPressure } from "./geometry/brush-outline.js";
 import { penHalfWidth } from "./geometry/hit.js";
 import { simplifyPoints } from "./geometry/simplify.js";
 import { penMeta } from "./pen-meta.js";
-import type { FreedrawSettingsStore } from "./settings-store.js";
+import { type FreedrawSettingsStore, penSize } from "./settings-store.js";
 import type { FreedrawShapeData, PenId, StrokePoint } from "./types.js";
 import type { PointerStore } from "./ui/cursor-overlay.js";
 
@@ -119,7 +119,7 @@ export function createDrawController(
 			}
 
 			const pen = s.pen;
-			const size = s.sizes[pen] ?? penMeta(pen).defaultSize;
+			const size = penSize(s, pen);
 			const m = penMeta(pen);
 			const id = generateId();
 			const first: StrokePoint = {

@@ -11,13 +11,15 @@ export interface PenSizeRange {
 export interface FinalizedStroke {
 	/** 保存する点列（world 座標）。 */
 	points: StrokePoint[];
-	/** ペン固有の保存データ。shape の `penData` に入る。 */
+	/**
+	 * ペン固有の保存データ。shape の `penData` に入る。移動・拡大縮小では点列だけが
+	 * 変わり、`penData` はそのまま写されるので、座標（点列から作った形など）は入れない。
+	 */
 	penData?: Record<string, unknown>;
 }
 
 /**
- * 外から足すペンの定義（`createFreedrawPlugin(config, { pens })` か
- * {@link FreedrawApi.registerPen} で登録する）。
+ * 外から足すペンの定義（`createFreedrawPlugin(config, { pens })` で渡す）。
  *
  * 足したペンのストロークも組み込みのペンと同じ `freedraw` shape になるので、選択・移動・
  * 拡大縮小・消しゴム・当たり判定・undo はそのまま効く。描画は SVG（DOM）で行い、GPU には
@@ -51,7 +53,7 @@ export interface FreedrawPenDefinition {
 
 // 登録は JS ランタイム単位（同じランタイムの AppInstance で共有）。shape の当たり判定や
 // 外接矩形は shape だけを受け取る純関数から呼ばれるため、ここから引けるようにしている。
-const registry = new Map<string, FreedrawPenDefinition>();
+const registry = new Map<string, { def: FreedrawPenDefinition; count: number }>();
 // 組み込みのペンの id（pen-meta.ts の PEN_KINDS と同じ。循環 import を避けて自前で持つ）。
 const BUILT_IN_IDS: ReadonlySet<string> = new Set<PenKind>([
 	"ballpoint",
@@ -65,18 +67,32 @@ const notify = () => {
 	for (const l of listeners) l();
 };
 
+/** 組み込みのペンの id なら例外にする（登録より前に全部確かめるため分けている）。 */
+export function assertCustomPenId(id: string): void {
+	if (BUILT_IN_IDS.has(id)) throw new Error(`freedraw: "${id}" is a built-in pen id`);
+}
+
 /**
- * ペンを登録する。同じ id があれば置き換える。戻り値で登録を外す（その後に同じ id で
- * 別の定義が登録されていれば、そちらは残す）。
+ * ペンを登録する（freedraw プラグインの setup から呼ぶ）。同じ定義は登録した数だけ
+ * 数え、全部外れたら消す（同じランタイムの複数ボードで共有しても、1 つの teardown で
+ * 他のボードから消えない）。同じ id の別の定義は置き換える。戻り値で 1 回ぶん外す。
  */
 export function registerPen(def: FreedrawPenDefinition): () => void {
-	if (BUILT_IN_IDS.has(def.id)) {
-		throw new Error(`freedraw: "${def.id}" is a built-in pen id`);
+	assertCustomPenId(def.id);
+	const cur = registry.get(def.id);
+	if (cur && cur.def === def) cur.count += 1;
+	else {
+		registry.set(def.id, { def, count: 1 });
+		notify();
 	}
-	registry.set(def.id, def);
-	notify();
+	let released = false;
 	return () => {
-		if (registry.get(def.id) !== def) return;
+		if (released) return;
+		released = true;
+		const entry = registry.get(def.id);
+		if (!entry || entry.def !== def) return;
+		entry.count -= 1;
+		if (entry.count > 0) return;
 		registry.delete(def.id);
 		notify();
 	};
@@ -84,12 +100,12 @@ export function registerPen(def: FreedrawPenDefinition): () => void {
 
 /** 登録済みのペン定義（組み込みのペンは含まない）。 */
 export function getPenDefinition(id: string | undefined): FreedrawPenDefinition | undefined {
-	return id === undefined ? undefined : registry.get(id);
+	return id === undefined ? undefined : registry.get(id)?.def;
 }
 
 /** 登録済みのペン定義の一覧（登録順）。 */
 export function listPenDefinitions(): FreedrawPenDefinition[] {
-	return [...registry.values()];
+	return [...registry.values()].map((e) => e.def);
 }
 
 /** 登録が変わったら呼ぶ。戻り値で解除。 */

@@ -1,12 +1,7 @@
-// freedraw のホスト向け API（`ctx.services`）。外からペンを足す・ペンの一覧を読む。
+// freedraw のホスト向け API（`ctx.services`）。ペンの一覧を読む（ペンを足すのは
+// `createFreedrawPlugin(config, { pens })`）。
 import { defineService, type ServiceRegistry } from "@edv4h/usketch-shared";
-import {
-	type FreedrawPenDefinition,
-	listPenDefinitions,
-	onPensChange,
-	type PenSizeRange,
-	registerPen,
-} from "./custom-pens.js";
+import { listPenDefinitions, onPensChange, type PenSizeRange } from "./custom-pens.js";
 import { PEN_KINDS, PEN_META } from "./pen-meta.js";
 import type { PenId } from "./types.js";
 
@@ -25,8 +20,6 @@ export interface FreedrawPenInfo {
 export interface FreedrawApi {
 	/** 選べるペン（組み込み → 外から足したペンの登録順）。 */
 	listPens(): FreedrawPenInfo[];
-	/** ペンを足す。同じ id は置き換える。戻り値で外す。 */
-	registerPen(def: FreedrawPenDefinition): () => void;
 	/** ペンの登録が変わったら呼ぶ。戻り値で解除。 */
 	onPensChange(listener: () => void): () => void;
 }
@@ -51,7 +44,7 @@ export function listPens(): FreedrawPenInfo[] {
 	return [...builtIn, ...custom];
 }
 
-export const freedrawApi: FreedrawApi = { listPens, registerPen, onPensChange };
+export const freedrawApi: FreedrawApi = { listPens, onPensChange };
 
 /** freedraw の API のサービス。`setup` で provide する。 */
 export const freedrawService = defineService<FreedrawApi>("usketch-plugin-shape-freedraw");

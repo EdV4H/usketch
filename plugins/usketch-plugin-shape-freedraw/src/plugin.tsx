@@ -1,6 +1,7 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { type FreedrawConfigInput, parseFreedrawConfig } from "./config.js";
 import {
+	assertCustomPenId,
 	clampPenSize,
 	type FreedrawPenDefinition,
 	getPenDefinition,
@@ -51,15 +52,24 @@ function createBoolStore(initial: boolean) {
 
 /** `createFreedrawPlugin` の 2 つ目の引数（JSON にできない設定）。 */
 export interface FreedrawPluginOptions {
-	/** 組み込みの 4 種に足すペン。setup で登録し、teardown で外す。 */
+	/**
+	 * 組み込みの 4 種に足すペン。setup で登録し、teardown で外す。ペンは shape の描画と
+	 * 当たり判定に効くので、実行中に足し外しせず、ここで渡す。
+	 */
 	pens?: FreedrawPenDefinition[];
 }
+
+const BUILT_IN_SIZE_MAX = 64;
 
 export function createFreedrawPlugin(
 	configInput?: FreedrawConfigInput,
 	options: FreedrawPluginOptions = {},
 ): UsketchPlugin {
 	const config = parseFreedrawConfig(configInput);
+	const pens = options.pens ?? [];
+	// 組み込みの id と重なるペンは、何も登録しないうちに弾く。
+	for (const def of pens) assertCustomPenId(def.id);
+	const sizeMax = Math.max(BUILT_IN_SIZE_MAX, ...pens.map((d) => d.sizeRange?.max ?? 0));
 
 	return {
 		id: "usketch-plugin-shape-freedraw",
@@ -67,7 +77,7 @@ export function createFreedrawPlugin(
 
 		setup(ctx: PluginContext) {
 			// 設定の復元で保存済みのペンを確かめるため、ペンは設定ストアより先に登録する。
-			const offPens = (options.pens ?? []).map((def) => registerPen(def));
+			const offPens = pens.map((def) => registerPen(def));
 			const offService = freedrawService.provide(ctx.services, freedrawApi);
 			const settings = createFreedrawSettingsStore(config);
 			const pointer = createPointerStore();
@@ -180,7 +190,8 @@ export function createFreedrawPlugin(
 					id: "freedraw:size",
 					label: "Size",
 					group: "Freedraw",
-					params: [{ name: "size", type: "number", min: 1, max: 64, step: 1, default: 4 }],
+					// 足したペンの太さの範囲まで届くようにする（実際の値は set-size がペンごとに丸める）。
+					params: [{ name: "size", type: "number", min: 1, max: sizeMax, step: 1, default: 4 }],
 					run: ({ size }) => ctx.events.emit("freedraw:set-size", { size: Number(size) }),
 				}),
 				ctx.actions.register({

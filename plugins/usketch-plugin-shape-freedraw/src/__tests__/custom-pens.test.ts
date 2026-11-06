@@ -9,6 +9,7 @@ import { findErasedStrokes } from "../eraser.js";
 import { listPens } from "../freedraw-service.js";
 import { hitStroke, maxHalfWidth, strokeBounds } from "../geometry/hit.js";
 import { isKnownPen, penMeta } from "../pen-meta.js";
+import { createFreedrawPlugin } from "../plugin.js";
 import { createFreedrawSettingsStore } from "../settings-store.js";
 import { freedrawShapeDefinition } from "../shape.js";
 import type { FreedrawShapeData, StrokePoint } from "../types.js";
@@ -87,6 +88,24 @@ describe("registerPen", () => {
 		expect(() => registerPen({ ...road, id: "felt" })).toThrow();
 	});
 
+	it("プラグインに組み込みの id を渡すと、何も登録しないうちに弾く", () => {
+		const other = { ...road, id: "other" };
+		expect(() =>
+			createFreedrawPlugin(undefined, { pens: [other, { ...road, id: "felt" }] }),
+		).toThrow();
+		expect(isKnownPen("other")).toBe(false);
+	});
+
+	it("同じ定義は登録した数だけ外すまで残る（複数ボードで共有）", () => {
+		const offSecond = registerPen(road);
+		off?.();
+		off = null;
+		expect(isKnownPen("road")).toBe(true);
+		offSecond();
+		offSecond(); // 2 回呼んでも 1 回ぶん
+		expect(isKnownPen("road")).toBe(false);
+	});
+
 	it("置き換えたあとで古い登録を外しても、新しい定義は残る", () => {
 		const next = { ...road, label: "新しい道路" };
 		const offNext = registerPen(next);
@@ -152,6 +171,23 @@ describe("外から足したペンの描画", () => {
 });
 
 describe("外から足したペンの設定", () => {
+	it("知らない defaultPen は ballpoint にする", () => {
+		const s = createFreedrawSettingsStore(
+			parseFreedrawConfig({ persistSettings: false, defaultPen: "pencil" }),
+		);
+		expect(s.getSnapshot().pen).toBe("ballpoint");
+		const r = createFreedrawSettingsStore(
+			parseFreedrawConfig({ persistSettings: false, defaultPen: "road" }),
+		);
+		expect(r.getSnapshot().pen).toBe("road");
+	});
+
+	it("足したペンの太さは範囲に丸める（保存値が範囲外でも）", () => {
+		const s = createFreedrawSettingsStore(parseFreedrawConfig({ persistSettings: false }));
+		s.update({ pen: "road", sizes: { ...s.getSnapshot().sizes, road: 500 } });
+		expect(s.currentSize()).toBe(200);
+	});
+
 	it("太さが無ければ既定の太さを使う", () => {
 		const s = createFreedrawSettingsStore(parseFreedrawConfig({ persistSettings: false }));
 		s.update({ pen: "road" });
