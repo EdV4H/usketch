@@ -81,9 +81,10 @@ export function planSwoop(
 	const dist = Math.hypot(point.x - from.x, point.y - from.y);
 	const fitZoom = (Math.min(size.width, size.height) * 0.8) / Math.max(dist, 1);
 	const baseZoom = Math.min(current.zoom, zoom);
-	// 両方がすでに画面に収まる距離なら引かない。
-	if (fitZoom >= baseZoom * 0.9) return { outward: null, target };
 	const outZoom = Math.max(fitZoom, 0.1);
+	// 両方がすでに画面に収まる距離か、すでに最小ズーム付近でこれ以上引けないなら
+	// 引かずに 1 段で動かす。
+	if (outZoom >= baseZoom * 0.9) return { outward: null, target };
 	const mid = { x: (from.x + point.x) / 2, y: (from.y + point.y) / 2 };
 	return { outward: viewportCenteredOn(current, mid, size, outZoom), target };
 }

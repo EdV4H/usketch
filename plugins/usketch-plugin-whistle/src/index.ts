@@ -54,6 +54,7 @@ export {
 export {
 	createWhistlePlugin,
 	WHISTLE_LAYER_ID,
+	WHISTLE_UI_LAYER_ID,
 	type WhistlePluginOptions,
 } from "./plugin.js";
 export {

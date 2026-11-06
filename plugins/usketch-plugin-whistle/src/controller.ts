@@ -1,7 +1,7 @@
 // ホイッスルの振る舞い (吹く・受ける・移動する) をまとめたコントローラ。
 // UI と PluginContext から切り離し、依存は注入する。plugin.tsx はこれを ctx に
 // つなぐだけで、オーバーレイは state を描くだけ。
-import { type BoardStore, type Point, worldToScreen } from "@edv4h/usketch-shared";
+import { type BoardStore, type Point, type Viewport, worldToScreen } from "@edv4h/usketch-shared";
 import { DEFAULT_WHISTLE_KIND, resolveMovement, type WhistleKind } from "./kinds.js";
 import {
 	parseWhistleMessage,
@@ -25,6 +25,8 @@ export interface WhistlePulse {
 	position: Point;
 	/** 自分が吹いたものか。 */
 	local: boolean;
+	/** state に残る時間 (ms)。演出はこの中で終える。 */
+	durationMs: number;
 }
 
 /** 画面外で吹かれた「おーい」の方向バッジ。 */
@@ -91,6 +93,12 @@ export const WHISTLE_TIMINGS = {
 	sentMs: 2000,
 	cooldownMs: 5000,
 	followBroadcastMs: 80,
+	/** 画角が動いていなくても案内中であることを知らせる間隔。 */
+	followHeartbeatMs: 2000,
+	/** これだけ案内役から何も届かなければ、切断とみなして追従をやめる。 */
+	followStaleMs: 7000,
+	/** follower が案内役の画角へ寄せるときの短いアニメーション。 */
+	followTweenMs: 120,
 } as const;
 
 export type WhistleTimings = { -readonly [K in keyof typeof WHISTLE_TIMINGS]: number };
@@ -176,7 +184,8 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 		return true;
 	};
 
-	const addPulse = (pulse: WhistlePulse) => {
+	const addPulse = (p: Omit<WhistlePulse, "durationMs">) => {
+		const pulse: WhistlePulse = { ...p, durationMs: t.pulseMs };
 		state.set((s) => ({ ...s, pulses: [...s.pulses.filter((p) => p.id !== pulse.id), pulse] }));
 		later(t.pulseMs, () =>
 			state.set((s) => ({ ...s, pulses: s.pulses.filter((p) => p.id !== pulse.id) })),
@@ -207,6 +216,7 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 		patch({ follow: { id, role: "leader", name } });
 		let last = store.getViewport();
 		let pending: ReturnType<typeof setTimeout> | null = null;
+		let seq = 0;
 		const send = () => {
 			pending = null;
 			const vp = store.getViewport();
@@ -217,9 +227,12 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 				sourceName: name,
 				center: screenCenterWorldIn(store, deps.getScreenSize()),
 				zoom: vp.zoom,
+				seq: ++seq,
 			};
 			deps.broadcast?.({ ...msg });
 		};
+		// 画角が止まっていても生存を知らせる (follower 側の切断検知のため)。
+		const heartbeat = setInterval(send, t.followHeartbeatMs);
 		const unsub = store.subscribe(() => {
 			const vp = store.getViewport();
 			if (vp.x === last.x && vp.y === last.y && vp.zoom === last.zoom) return;
@@ -228,22 +241,69 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 		});
 		unsubLeader = () => {
 			unsub();
+			clearInterval(heartbeat);
 			if (pending !== null) clearTimeout(pending);
 		};
 	};
 
 	// ── ついてきて (follower) ──
 
+	// 自分 (このコントローラ) が動かしている間の行き先と、その動きが終わる時刻。
+	// それ以外で画角が変わったら「自分で操作した」とみなして追従から外れる
+	// (ホイール・キーボード・フィット・パンなど、入力の種類を問わない)。
+	let ownTarget: Viewport | null = null;
+	let ownMoveUntil = 0;
+	let lastHeardAt = 0;
+	let unsubFollower: (() => void) | null = null;
+
+	const applyOwnMove = (target: Viewport, durationMs: number) => {
+		const animated = animate() && durationMs > 0;
+		ownTarget = target;
+		ownMoveUntil = now() + (animated ? durationMs : 0) + 100;
+		store.animateViewportTo(target, animated ? { animate: true, durationMs } : { animate: false });
+	};
+
+	const sameViewport = (a: Viewport, b: Viewport) =>
+		Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5 && Math.abs(a.zoom - b.zoom) < 1e-4;
+
+	const stopFollowerWatch = () => {
+		unsubFollower?.();
+		unsubFollower = null;
+		ownTarget = null;
+	};
+
 	const startFollowing = (id: string, name: string, position: Point, zoom?: number) => {
 		cancelSwoop?.();
+		stopFollowerWatch();
 		patch({ follow: { id, role: "follower", name } });
-		moveToWorld(store, position, deps.getScreenSize(), { zoom, animate: animate() });
+		lastHeardAt = now();
+		const size = deps.getScreenSize();
+		applyOwnMove(viewportCenteredOn(store.getViewport(), position, size, zoom), 500);
+		const unsub = store.subscribe(() => {
+			if (now() < ownMoveUntil) return;
+			if (ownTarget && sameViewport(store.getViewport(), ownTarget)) return;
+			leaveFollowing();
+		});
+		const stale = setInterval(() => {
+			if (now() - lastHeardAt > t.followStaleMs) {
+				const f = state.get().follow;
+				if (f?.role === "follower" && f.id === id) {
+					stopFollowerWatch();
+					patch({ follow: null });
+				}
+			}
+		}, 1000);
+		unsubFollower = () => {
+			unsub();
+			clearInterval(stale);
+		};
 	};
 
 	const leaveFollowing = () => {
 		const f = state.get().follow;
 		if (f?.role !== "follower") return;
 		leftFollowIds.add(f.id);
+		stopFollowerWatch();
 		patch({ follow: null });
 	};
 
@@ -293,7 +353,9 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 			}
 			case "auto": {
 				clearCountdown();
+				// 全員集合が来たら、それより前の「集合」プロンプトは古くなるので消す。
 				patch({
+					prompt: null,
 					countdown: {
 						id: msg.id,
 						name,
@@ -330,13 +392,16 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 	const receiveFollow = (msg: WhistleFollowMessage) => {
 		const f = state.get().follow;
 		if (f?.role === "follower" && f.id === msg.id) {
+			lastHeardAt = now();
 			const target = viewportCenteredOn(
 				store.getViewport(),
 				msg.center,
 				deps.getScreenSize(),
 				msg.zoom,
 			);
-			store.animateViewportTo(target, { animate: false });
+			// 画角が変わっていない heartbeat なら動かさない。
+			if (ownTarget && sameViewport(target, ownTarget)) return;
+			applyOwnMove(target, t.followTweenMs);
 			return;
 		}
 		// 承諾待ち (強制移動を受けられない人) のプロンプトは、行き先を最新に保つ。
@@ -346,7 +411,10 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 
 	const receiveFollowEnd = (id: string) => {
 		const s = state.get();
-		if (s.follow?.role === "follower" && s.follow.id === id) patch({ follow: null });
+		if (s.follow?.role === "follower" && s.follow.id === id) {
+			stopFollowerWatch();
+			patch({ follow: null });
+		}
 		if (s.prompt?.id === id && s.prompt.kind === "follow") patch({ prompt: null });
 	};
 
@@ -450,6 +518,7 @@ export function createWhistleController(deps: WhistleControllerDeps): WhistleCon
 			if (state.get().follow?.role === "leader") endFollow();
 			disposed = true;
 			stopLeading();
+			stopFollowerWatch();
 			cancelSwoop?.();
 			if (countdownTimer !== null) clearTimeout(countdownTimer);
 			for (const timer of timers) clearTimeout(timer);

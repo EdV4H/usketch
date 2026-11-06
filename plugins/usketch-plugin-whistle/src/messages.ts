@@ -26,6 +26,11 @@ export interface WhistleFollowMessage {
 	/** 吹いた人の画面中央 (world)。 */
 	center: Point;
 	zoom: number;
+	/**
+	 * 送るたびに増える連番。画角が止まっていても生存確認 (heartbeat) として
+	 * 同じ内容を送り直すので、状態ベースの中継 (awareness) でも変化として届くようにする。
+	 */
+	seq?: number;
 }
 
 /** ついてきて (follow) の終了。 */
@@ -80,6 +85,7 @@ export function parseWhistleMessage(msg: Record<string, unknown>): WhistleMessag
 				sourceName: readString(msg.sourceName),
 				center,
 				zoom,
+				seq: isFiniteNumber(msg.seq) ? msg.seq : undefined,
 			};
 		}
 		case "whistle-follow-end":

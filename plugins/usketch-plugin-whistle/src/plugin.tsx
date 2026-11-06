@@ -12,14 +12,17 @@ import {
 	DEFAULT_WHISTLE_RENDERERS,
 	injectWhistleStyle,
 	prefersReducedMotion,
-	WHISTLE_UI_ATTR,
-	WhistleOverlay,
+	WhistleBoardOverlay,
 	type WhistleRenderers,
+	WhistleScreenOverlay,
 } from "./overlay.js";
 import type { ScreenSize } from "./viewport-moves.js";
 import { createWhistleApi, whistleService } from "./whistle-service.js";
 
+/** 波紋と方向バッジ (ボードに付く)。mode7 が傾けるレイヤーとして参照する id。 */
 export const WHISTLE_LAYER_ID = "whistle-indicator";
+/** プロンプト等の画面 UI。 */
+export const WHISTLE_UI_LAYER_ID = "whistle-ui";
 
 export interface WhistlePluginOptions {
 	/** 自分の表示名。省略時は awareness の avatar.name / user.name。 */
@@ -62,12 +65,21 @@ function createPlugin(
 				return localState?.avatar?.name ?? localState?.user?.name ?? "";
 			}
 
+			// 既定では、awareness で発表中 (follow-me の `presenting`) の人には強制移動をかけない。
+			function defaultCanAutoMove(): boolean {
+				if (!wsProvider) return true;
+				const localState = wsProvider.awareness.getStates().get(wsProvider.awareness.clientID) as
+					| { presenting?: unknown }
+					| undefined;
+				return localState?.presenting !== true;
+			}
+
 			const controller = createWhistleController({
 				store: ctx.store,
 				broadcast: wsProvider ? (msg) => wsProvider.broadcast(msg) : undefined,
 				getLocalName: getLocalUserName,
 				getScreenSize: () => screenSize ?? getScreenSize(),
-				canAutoMove: options.canAutoMove,
+				canAutoMove: options.canAutoMove ?? defaultCanAutoMove,
 				prefersReducedMotion,
 				generateId,
 				timings: options.timings,
@@ -86,8 +98,17 @@ function createPlugin(
 			}
 
 			// ── HUD: 種類ごとに吹くアクション + 案内/追従の終了 ──
-			WHISTLE_KINDS.forEach((kind: WhistleKind, i) => {
-				cleanups.push(
+			// HUD は registry の通知でしか isActive / isEnabled を読み直さないので、
+			// 選択中の種類や ついてきて の状態が変わったら登録し直す。
+			let unregisterActions: (() => void)[] = [];
+			let actionsKey = "";
+			const registerActions = () => {
+				const s = controller.state.get();
+				const key = `${s.selectedKind}\u0000${s.follow?.role ?? ""}`;
+				if (key === actionsKey) return;
+				actionsKey = key;
+				for (const fn of unregisterActions) fn();
+				unregisterActions = WHISTLE_KINDS.map((kind: WhistleKind, i) =>
 					ctx.actions.register({
 						id: `whistle:blow:${kind}`,
 						label: labels.kindNames[kind],
@@ -100,17 +121,23 @@ function createPlugin(
 						isActive: () => controller.state.get().selectedKind === kind,
 					}),
 				);
+				unregisterActions.push(
+					ctx.actions.register({
+						id: "whistle:end-follow",
+						label: s.follow?.role === "follower" ? labels.leave : labels.end,
+						group: "ホイッスル",
+						order: WHISTLE_KINDS.length,
+						isEnabled: () => controller.state.get().follow !== null,
+						run: () => controller.endFollow(),
+					}),
+				);
+			};
+			registerActions();
+			cleanups.push(controller.state.subscribe(registerActions));
+			cleanups.push(() => {
+				for (const fn of unregisterActions) fn();
+				unregisterActions = [];
 			});
-			cleanups.push(
-				ctx.actions.register({
-					id: "whistle:end-follow",
-					label: labels.end,
-					group: "ホイッスル",
-					order: WHISTLE_KINDS.length,
-					isEnabled: () => controller.state.get().follow !== null,
-					run: () => controller.endFollow(),
-				}),
-			);
 
 			// ── 受信 ──
 			if (wsProvider) {
@@ -118,27 +145,21 @@ function createPlugin(
 			}
 
 			// ── 追従中に自分で操作したら外れる ──
-			const isWhistleUi = (target: EventTarget | null) =>
-				target instanceof Element && target.closest(`[${WHISTLE_UI_ATTR}]`) !== null;
+			// 画角の変化は controller が見ている (自分が動かした以外の変化で外れる)。
+			// キャンバスを押しただけ (画角が変わらない操作) でも外れるようにする。
 			cleanups.push(ctx.events.on("canvas:pointerdown", () => controller.notifyUserInteraction()));
-			if (typeof window !== "undefined") {
-				const onWheel = (e: WheelEvent) => {
-					if (!isWhistleUi(e.target)) controller.notifyUserInteraction();
-				};
-				window.addEventListener("wheel", onWheel, { passive: true, capture: true });
-				cleanups.push(() => window.removeEventListener("wheel", onWheel, { capture: true }));
-			}
 
 			// ── Overlay ──
 			const onResize = (size: ScreenSize) => {
 				screenSize = size;
 			};
+			// 波紋と方向バッジはボードに付く (mode7 の傾けレイヤー対象のまま)。
 			ctx.layers.register({
 				id: WHISTLE_LAYER_ID,
 				order: 98,
 				fixed: true,
 				render: () => (
-					<WhistleOverlay
+					<WhistleBoardOverlay
 						controller={controller}
 						store={ctx.store}
 						labels={labels}
@@ -148,6 +169,16 @@ function createPlugin(
 				),
 			});
 			cleanups.push(() => ctx.layers.unregister(WHISTLE_LAYER_ID));
+			// プロンプト・カウントダウン・バナー・枠・フィードバックは画面に付く UI。
+			ctx.layers.register({
+				id: WHISTLE_UI_LAYER_ID,
+				order: 99,
+				fixed: true,
+				render: () => (
+					<WhistleScreenOverlay controller={controller} labels={labels} renderers={renderers} />
+				),
+			});
+			cleanups.push(() => ctx.layers.unregister(WHISTLE_UI_LAYER_ID));
 
 			return () => {
 				for (const fn of cleanups.reverse()) fn();

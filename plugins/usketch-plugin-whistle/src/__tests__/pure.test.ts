@@ -65,6 +65,11 @@ describe("planSwoop", () => {
 		expect(plan.outward).toBeNull();
 	});
 
+	it("すでに最小ズーム付近ならこれ以上引かない", () => {
+		const plan = planSwoop({ x: 0, y: 0, zoom: 0.1 }, { x: 50000, y: 0 }, SIZE);
+		expect(plan.outward).toBeNull();
+	});
+
 	it("遠いときは中点まで引いてから寄る", () => {
 		const plan = planSwoop({ x: 0, y: 0, zoom: 1 }, { x: 5500, y: 400 }, SIZE, 1.5);
 		expect(plan.outward?.zoom).toBeLessThan(1);

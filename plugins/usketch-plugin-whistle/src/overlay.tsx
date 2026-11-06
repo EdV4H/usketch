@@ -131,6 +131,9 @@ const card: CSSProperties = {
 function DefaultPulse({ pulse, name, kindName, reducedMotion }: WhistlePulseProps) {
 	const color = WHISTLE_KIND_COLORS[pulse.kind];
 	const rings = RING_COUNT[pulse.kind];
+	// 波紋は state に残る時間 (pulse.durationMs) の中で終わるように割り振る。
+	const stagger = 200;
+	const ringMs = Math.max(pulse.durationMs - (rings - 1) * stagger, 300);
 	return (
 		<div style={{ position: "absolute", left: -60, top: -60, width: 120, height: 120 }}>
 			{Array.from({ length: rings }, (_, i) => (
@@ -145,7 +148,7 @@ function DefaultPulse({ pulse, name, kindName, reducedMotion }: WhistlePulseProp
 						opacity: reducedMotion ? 0.6 : 0,
 						animation: reducedMotion
 							? undefined
-							: `usketch-whistle-pulse 1600ms ease-out ${i * 200}ms 2 forwards`,
+							: `usketch-whistle-pulse ${ringMs}ms ease-out ${i * stagger}ms 1 forwards`,
 					}}
 				/>
 			))}
@@ -161,7 +164,9 @@ function DefaultPulse({ pulse, name, kindName, reducedMotion }: WhistlePulseProp
 					fontSize: 12,
 					fontWeight: 600,
 					color,
-					animation: reducedMotion ? undefined : "usketch-whistle-fade 3000ms ease-out forwards",
+					animation: reducedMotion
+						? undefined
+						: `usketch-whistle-fade ${pulse.durationMs}ms ease-out forwards`,
 				}}
 			>
 				{name} · {kindName}
@@ -333,7 +338,12 @@ function useNow(active: boolean, intervalMs = 100): number {
 	return now;
 }
 
-export function WhistleOverlay({
+function useWhistleState(controller: WhistleController) {
+	return useSyncExternalStore(controller.state.subscribe, controller.state.get);
+}
+
+/** 波紋と方向バッジ (ボードに付くもの)。キャンバスの大きさもここで測る。 */
+export function WhistleBoardOverlay({
 	controller,
 	store,
 	labels,
@@ -347,7 +357,7 @@ export function WhistleOverlay({
 	/** キャンバスの大きさを controller に伝える。 */
 	onResize: (size: ScreenSize) => void;
 }) {
-	const state = useSyncExternalStore(controller.state.subscribe, controller.state.get);
+	const state = useWhistleState(controller);
 	const viewport = useSyncExternalStore(
 		(cb) => store.subscribe(cb),
 		() => store.getViewport(),
@@ -371,18 +381,9 @@ export function WhistleOverlay({
 		return () => ro.disconnect();
 	}, [onResize]);
 
-	const now = useNow(state.countdown !== null);
 	const reducedMotion = prefersReducedMotion();
-	const { Pulse, Indicator, Prompt, Countdown, FollowBanner, FollowFrame, SentFeedback } =
-		renderers;
+	const { Pulse, Indicator } = renderers;
 	const name = (n: string) => displayName(n, labels);
-
-	const promptTitle = (p: WhistlePrompt) =>
-		p.kind === "assemble"
-			? labels.callingAll(name(p.name))
-			: p.kind === "follow"
-				? labels.invitingToFollow(name(p.name))
-				: labels.calling(name(p.name));
 
 	return (
 		<div
@@ -424,6 +425,34 @@ export function WhistleOverlay({
 						</div>
 					);
 				})}
+		</div>
+	);
+}
+
+/** プロンプト・カウントダウン・追従バナー/枠・吹いたフィードバック (画面に付く UI)。 */
+export function WhistleScreenOverlay({
+	controller,
+	labels,
+	renderers,
+}: {
+	controller: WhistleController;
+	labels: WhistleLabels;
+	renderers: WhistleRenderers;
+}) {
+	const state = useWhistleState(controller);
+	const now = useNow(state.countdown !== null);
+	const { Prompt, Countdown, FollowBanner, FollowFrame, SentFeedback } = renderers;
+	const name = (n: string) => displayName(n, labels);
+
+	const promptTitle = (p: WhistlePrompt) =>
+		p.kind === "assemble"
+			? labels.callingAll(name(p.name))
+			: p.kind === "follow"
+				? labels.invitingToFollow(name(p.name))
+				: labels.calling(name(p.name));
+
+	return (
+		<div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
 			{state.follow?.role === "follower" && <FollowFrame follow={state.follow} />}
 			<div
 				{...{ [WHISTLE_UI_ATTR]: "" }}
@@ -451,7 +480,7 @@ export function WhistleOverlay({
 						onEnd={controller.endFollow}
 					/>
 				)}
-				{state.countdown ? (
+				{state.countdown && (
 					<Countdown
 						countdown={state.countdown}
 						title={labels.assembling(name(state.countdown.name))}
@@ -459,7 +488,8 @@ export function WhistleOverlay({
 						remainingMs={state.countdown.endsAt - now}
 						onStay={controller.stayCountdown}
 					/>
-				) : state.prompt ? (
+				)}
+				{state.prompt && (
 					<Prompt
 						prompt={state.prompt}
 						title={promptTitle(state.prompt)}
@@ -468,7 +498,7 @@ export function WhistleOverlay({
 						onAccept={controller.acceptPrompt}
 						onDismiss={controller.dismissPrompt}
 					/>
-				) : null}
+				)}
 			</div>
 			{state.sent && (
 				<SentFeedback sent={state.sent} text={labels.sent(labels.kindNames[state.sent.kind])} />

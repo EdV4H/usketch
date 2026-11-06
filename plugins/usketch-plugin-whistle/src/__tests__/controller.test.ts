@@ -160,6 +160,14 @@ describe("受信: 種類ごとの移動", () => {
 		expect(moves).toHaveLength(0);
 	});
 
+	it("全員集合が来たら古い集合プロンプトは消える", () => {
+		const { controller } = setup();
+		controller.receive(blowMsg("gather"));
+		controller.receive(blowMsg("assemble"));
+		expect(controller.state.get().prompt).toBeNull();
+		expect(controller.state.get().countdown).not.toBeNull();
+	});
+
 	it("同じ id は二度処理しない", () => {
 		const { controller } = setup();
 		controller.receive(blowMsg("gather"));
@@ -235,6 +243,29 @@ describe("ついてきて", () => {
 		expect(controller.state.get().prompt?.kind).toBe("follow");
 		controller.acceptPrompt();
 		expect(controller.state.get().follow?.role).toBe("follower");
+	});
+
+	it("follower: 自分で画角を動かすと (入力の種類を問わず) 外れる", () => {
+		const { controller, setViewport } = setup();
+		controller.receive(blowMsg("follow"));
+		vi.advanceTimersByTime(700); // 入りのアニメーションが終わるまで待つ
+		setViewport({ x: 1, y: 2, zoom: 1 });
+		expect(controller.state.get().follow).toBeNull();
+	});
+
+	it("follower: 案内役から何も届かなくなったら追従をやめる", () => {
+		const { controller } = setup();
+		controller.receive(blowMsg("follow"));
+		vi.advanceTimersByTime(8000);
+		expect(controller.state.get().follow).toBeNull();
+	});
+
+	it("leader: 画角が止まっていても連番付きで生存を知らせる", () => {
+		const { controller, sent } = setup();
+		controller.blow("follow");
+		vi.advanceTimersByTime(4000);
+		const beats = sent.filter((m) => m.kind === "whistle-follow");
+		expect(beats.map((m) => m.seq)).toEqual([1, 2]);
 	});
 
 	it("dispose で案内中なら終了を流す", () => {
