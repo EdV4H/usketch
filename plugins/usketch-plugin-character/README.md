@@ -129,6 +129,12 @@ createCharacterPlugin({
   down; a bigger drop falls (gravity applies even with jumping off). The render props
   carry `elevation` (the ground) and `z` (the feet), and under a 3D view (Mode 7) the
   character is lifted to its feet height.
+- **Solids**: when a plugin provides `solidHeightService` (e.g. shape-3d's shapes with
+  a `collision`), its answer is combined with the ground: a wall (`Infinity`) blocks
+  every move into it (sliding along it like a cliff), and a finite top is a ledge that
+  is stepped or jumped onto and stood on (`blockingHeight` / `standingHeight`). A move
+  is checked in stretches of at most `SWEEP_STEP` (4) world units (`sweepToGround`), so
+  a fast character or vehicle can't skip a thin wall within one frame.
 - **Input**: held keys are tracked from window `keydown`/`keyup` (capture phase,
   `event.code`), swallowed while the character is on so single-letter tool
   shortcuts don't fire. Typing in text fields, and key chords with Ctrl/Cmd/Alt,

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	availableModes,
 	DEFAULT_SHAPE_3D_TYPES,
+	effectiveCollision,
 	mergeShape3dTypes,
 	normalizeShape3d,
 	resolveShape3d,
@@ -21,12 +22,20 @@ describe("normalizeShape3d", () => {
 			facing: "camera",
 			ground: true,
 			shadow: true,
+			collision: "none",
 		});
 	});
 	it("keeps valid fields and drops invalid / unknown ones", () => {
 		expect(
 			normalizeShape3d({ mode: "stand", facing: "fixed", ground: false, shadow: "no", junk: 1 }),
-		).toEqual({ mode: "stand", height: 0, facing: "fixed", ground: false, shadow: true });
+		).toEqual({
+			mode: "stand",
+			height: 0,
+			facing: "fixed",
+			ground: false,
+			shadow: true,
+			collision: "none",
+		});
 		expect(normalizeShape3d({ mode: "stand", facing: "sideways" })?.facing).toBe("camera");
 	});
 	it("gives box and float their default height, and clamps a given one", () => {
@@ -43,6 +52,24 @@ describe("normalizeShape3d", () => {
 		expect(normalizeShape3d("stand")).toBeNull();
 		expect(normalizeShape3d({})).toBeNull();
 		expect(normalizeShape3d({ mode: "spin" })).toBeNull();
+	});
+});
+
+describe("collision", () => {
+	it("keeps a valid collision and drops an unknown one", () => {
+		expect(normalizeShape3d({ mode: "box", collision: "platform" })?.collision).toBe("platform");
+		expect(normalizeShape3d({ mode: "box", collision: "bouncy" })?.collision).toBe("none");
+		expect(storedShape3d({ mode: "stand", collision: "solid" })?.collision).toBe("solid");
+	});
+	it("only allows what the mode can have", () => {
+		expect(effectiveCollision({ mode: "box", collision: "platform" })).toBe("platform");
+		expect(effectiveCollision({ mode: "box", collision: "solid" })).toBe("solid");
+		// A stood-up plane has no top: a platform becomes a wall.
+		expect(effectiveCollision({ mode: "stand", collision: "platform" })).toBe("solid");
+		expect(effectiveCollision({ mode: "stand", collision: "solid" })).toBe("solid");
+		// A floating shape hangs above the ground.
+		expect(effectiveCollision({ mode: "float", collision: "solid" })).toBe("none");
+		expect(effectiveCollision({ mode: "float", collision: "platform" })).toBe("none");
 	});
 });
 
@@ -99,6 +126,7 @@ describe("storedShape3d", () => {
 			facing: "camera",
 			ground: true,
 			shadow: true,
+			collision: "none",
 		});
 		expect(storedShape3d({ mode: "box", height: 40, junk: 1 })?.height).toBe(40);
 		expect(storedShape3d({ mode: "nope" })).toBeNull();

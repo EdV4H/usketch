@@ -4,6 +4,7 @@
 export { type GroundHeightApi, groundHeightService } from "./ground-height.js";
 // Service seam (typed host-facing plugin APIs over ctx.services / app.services)
 export { defineService, type ServiceHandle } from "./service.js";
+export { type SolidHeightApi, solidHeightService } from "./solid-height.js";
 export type { BoundingBox, Point, Viewport } from "./types/geometry.js";
 // LOD
 export type { LodController, LodPolicy, LodPolicyContext, RenderMode } from "./types/lod.js";

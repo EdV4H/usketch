@@ -15,6 +15,7 @@ export {
 } from "./character-key-choices.js";
 export {
 	airJumpSpeed,
+	blockingHeight,
 	type CharacterPose,
 	type ControlScheme,
 	DEFAULT_DRIFT,
@@ -35,8 +36,12 @@ export {
 	type MoveInput,
 	ORIGIN_POSE,
 	rechargeHoverGauge,
+	type SolidAt,
+	SWEEP_STEP,
+	standingHeight,
 	stepCharacter,
 	stepVertical,
+	sweepToGround,
 	turnToward,
 	vectorHeading,
 } from "./character-physics.js";
