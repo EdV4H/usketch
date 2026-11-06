@@ -93,4 +93,22 @@ describe("createView3dTracker", () => {
 		await Promise.resolve();
 		expect(t.get()).toEqual({ amount: 1, yaw: 10 });
 	});
+
+	it("tells camera listeners about every change, also from a provider set up later", () => {
+		const services = registry();
+		const events = bus();
+		const t = createView3dTracker(services, events);
+		const listener = vi.fn();
+		t.subscribeCamera(listener); // before any provider exists
+		const view = fakeView();
+		view3dService.provide(services, view);
+		events.fire(STAGE_3D_EVENT);
+		expect(listener).toHaveBeenCalledTimes(1); // the provider appearing
+		view.set(0.5, 40);
+		view.set(0.5, 40); // unchanged amount / yaw still notifies (e.g. the pitch moved)
+		expect(listener).toHaveBeenCalledTimes(3);
+		t.dispose();
+		view.set(1, 40);
+		expect(listener).toHaveBeenCalledTimes(3);
+	});
 });

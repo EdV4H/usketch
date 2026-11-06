@@ -1,6 +1,6 @@
 export { createShape3dPlugin, type Shape3dPluginOptions } from "./plugin.js";
 export { registerShape3dHud } from "./register-shape-3d-hud.js";
-export { SHAPE_3D_LAYER_ID } from "./shape-3d-layer.js";
+export { SHAPE_3D_LAYER_ID, type Shape3dCameraSource } from "./shape-3d-layer.js";
 export {
 	type BoxSide,
 	type BoxWall,
@@ -11,6 +11,7 @@ export {
 	poseBox,
 	poseOrigin,
 	poseTransform,
+	render3dFrame,
 	SHADOW_LIFT_PX,
 	type Shape3dEntry,
 	type Shape3dLimits,
@@ -46,5 +47,10 @@ export {
 	type Shape3dTypes,
 	storedShape3d,
 } from "./shape-3d-params.js";
+export {
+	crossRender3d,
+	type Shape3dRender,
+	type Shape3dRenderContext,
+} from "./shape-3d-render3d.js";
 export { getShape3dApi, type Shape3dApi, shape3dService } from "./shape-3d-service.js";
 export { STAGE_3D_EVENT } from "./view-3d-tracker.js";

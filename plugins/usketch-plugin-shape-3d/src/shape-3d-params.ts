@@ -2,6 +2,7 @@
 // the core ShapeData type is untouched and a board without this plugin just carries
 // them along (sync keeps unknown keys). Everything here is pure.
 import type { ShapeData } from "@edv4h/usketch-shared";
+import type { Shape3dRender } from "./shape-3d-render3d.js";
 
 /** The ShapeData key holding a shape's 3D parameters. */
 export const SHAPE_3D_KEY = "x-shape-3d";
@@ -109,6 +110,10 @@ export interface Shape3dTypeConfig {
 	/** Parameters a shape of this type gets when it holds none of its own (e.g. portals
 	 *  always stand). A function can decide per shape; `null` = stays flat. */
 	default?: Shape3dInput | ((shape: ShapeData) => Shape3dInput | null);
+	/** The type's own 3D look, used instead of the generic stand / box / float drawing
+	 *  (e.g. a tree as two crossed planes, or a three.js canvas). Returning `null` falls
+	 *  back to the generic drawing for that shape. */
+	render3d?: Shape3dRender;
 }
 
 export type Shape3dTypes = Readonly<Record<string, Shape3dTypeConfig>>;

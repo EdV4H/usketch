@@ -59,6 +59,36 @@ Shape データの拡張キー `x-shape-3d`（`SHAPE_3D_KEY`）に置く。コ�
 - 既定で 3 種すべて使える: `rectangle` / `rounded-rect` / `sticky` / `card` / `frame` / `image`。
 - 対象外（`modes: []`）: `embed` / `openui`。
 
+種別ごとに渡せるもの（`Shape3dTypeConfig`）:
+
+- `modes`: 使える mode。`[]` で対象外。
+- `default`: Shape が `x-shape-3d` を持たないときの既定（関数で Shape ごとに決めてもよい）。例: `{ "board-portal": { default: { mode: "stand" } } }` でポータルを常に立てる（web の community ページはこの設定）。
+- `render3d`: 種別の自前の 3D 表現。あれば汎用の stand / box / float の代わりに使う（`null` を返すとその Shape は汎用の描画）。
+
+### `render3d`（種別の自前の 3D 表現）
+
+```ts
+import { crossRender3d, type Shape3dRender } from "@edv4h/usketch-plugin-shape-3d";
+
+createShape3dPlugin({
+  types: {
+    image: { render3d: crossRender3d }, // 立てた画像を十字の 2 枚板で描く（木・草のスプライト）
+  },
+});
+```
+
+レイヤーは Shape の大きさのノードを足元（stand）または中心に置き、地形の高さまで持ち上げて Shape 自身の向きに回し（`preserve-3d`）、その中に `render3d` の戻り値を描く。ノードの地面は z = 0。`render3d(shape, ctx)` の `ctx`（`Shape3dRenderContext`）:
+
+| 項目 | 内容 |
+|---|---|
+| `params` / `amount` / `zoom` | 解決済みのパラメーター、遷移量（0 では平面に描くこと）、画面 px / world unit |
+| `width` / `height` | ノードの大きさ（画面 px） |
+| `faceCamera` | カメラの方を向くために足す `rotateZ` の角度（遷移量込み） |
+| `content` | Shape 自身の描画（ノードいっぱい）。何度使ってもよい |
+| `camera()` / `subscribe()` | 描画中のカメラ（pitch / yaw / fov）とその変更通知。three.js などの canvas を Mode 7 のカメラに合わせて描くときに使う（React を再描画せずに canvas だけ更新できる） |
+
+three.js を使う場合は依存をその Shape プラグイン側に持ち、`import()` で遅延読み込みし、WebGL コンテキストは 1 つを共有するのがおすすめ（ブラウザが同時に持てる数に上限があるため）。
+
 ## 見え方
 
 - 3D ビューのせり上がり（遷移量 0…1）に合わせて、stand は足元（下辺の中点）を軸に起き上がり、box / float は中心を基準に `height` までせり上がる。OFF にすると平面に戻り、平面の描画に切り替わる。
