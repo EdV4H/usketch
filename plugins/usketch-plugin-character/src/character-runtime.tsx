@@ -6,6 +6,7 @@ import {
 	type PluginContext,
 	type Point,
 	screenToWorld,
+	solidHeightService,
 	type Viewport,
 	viewportRotation,
 } from "@edv4h/usketch-shared";
@@ -21,13 +22,16 @@ import {
 import { createKeyInput } from "./character-input.js";
 import { CharacterLayer } from "./character-layer.js";
 import {
-	constrainToGround,
+	blockingHeight,
 	type HeightAt,
 	holdDriftForHop,
 	IDLE_JUMP,
 	type JumpTimers,
+	type SolidAt,
+	standingHeight,
 	stepCharacter,
 	stepVertical,
+	sweepToGround,
 } from "./character-physics.js";
 import { type CharacterStore, driftHopHeight, effectiveJump } from "./character-store.js";
 import {
@@ -159,7 +163,12 @@ export function setupCharacterRuntime(
 
 	// Ground height from whichever plugin provides it (e.g. the map's raised terrain), looked up
 	// per call so a provider registered later still counts. Absent = flat board.
-	const heightAt: HeightAt = (x, y) => groundHeightService.get(ctx.services)?.heightAt(x, y) ?? 0;
+	const groundAt: HeightAt = (x, y) => groundHeightService.get(ctx.services)?.heightAt(x, y) ?? 0;
+	// Solids on the ground (e.g. raised 3D shapes): walls block, tops can be stood on.
+	const solidAt: SolidAt = (x, y) => solidHeightService.get(ctx.services)?.heightAt(x, y) ?? null;
+	// What a move must clear (walls included) and what the feet stand on (walls excluded).
+	const blockAt: HeightAt = (x, y) => blockingHeight(groundAt(x, y), solidAt(x, y));
+	const heightAt: HeightAt = (x, y) => standingHeight(groundAt(x, y), solidAt(x, y));
 
 	const sync: CharacterSync | null = options.awareness
 		? createCharacterSync(options.awareness, store, () => ensureLoop())
@@ -223,8 +232,9 @@ export function setupCharacterRuntime(
 				viewportRotation(vp),
 				s.drift,
 			);
-			// Cliffs taller than the climbable step block the move (slide along them).
-			const moved = constrainToGround(s.pose, stepped, heightAt, s.motion.maxStep);
+			// Cliffs taller than the climbable step and walls block the move (slide along
+			// them), checked in short stretches so a fast move can't skip a thin wall.
+			const moved = sweepToGround(s.pose, stepped, blockAt, s.motion.maxStep);
 			// Then up and down: jumps, falls off cliffs, landings.
 			const vertical = stepVertical(
 				moved,

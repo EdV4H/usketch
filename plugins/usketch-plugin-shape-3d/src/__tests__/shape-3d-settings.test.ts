@@ -24,4 +24,14 @@ describe("createShape3dSettings", () => {
 		s.setLimits({ maxCount: 12 });
 		expect(listener).toHaveBeenCalledTimes(1);
 	});
+	it("keeps collision on in 2D unless told 3D-only", () => {
+		const s = createShape3dSettings({});
+		expect(s.get().limits.collisionIn3dOnly).toBe(false);
+		s.setLimits({ collisionIn3dOnly: true });
+		expect(s.get().limits.collisionIn3dOnly).toBe(true);
+		const bad = createShape3dSettings({
+			limits: { collisionIn3dOnly: "yes" as unknown as boolean },
+		});
+		expect(bad.get().limits.collisionIn3dOnly).toBe(false);
+	});
 });

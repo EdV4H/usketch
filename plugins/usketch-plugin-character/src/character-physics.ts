@@ -303,6 +303,25 @@ export function stepCharacter(
 /** Ground height at a world point (world units; see `groundHeightService`). */
 export type HeightAt = (x: number, y: number) => number;
 
+/** A solid's top at a world point (see `solidHeightService`): `null` = none, `Infinity` = wall. */
+export type SolidAt = (x: number, y: number) => number | null;
+
+/**
+ * The height a move is checked against (`constrainToGround`): the ground, or a solid
+ * standing on it when that is higher — a wall (`Infinity`) always blocks. Pure.
+ */
+export function blockingHeight(ground: number, solid: number | null): number {
+	return solid !== null && solid > ground ? solid : ground;
+}
+
+/**
+ * The height the feet stand on (landing, shadow, 3D lift): like {@link blockingHeight}
+ * but only a top that can be stood on counts, never a wall. Pure.
+ */
+export function standingHeight(ground: number, solid: number | null): number {
+	return solid !== null && Number.isFinite(solid) && solid > ground ? solid : ground;
+}
+
 /**
  * Keep a step from `prev` to `next` on climbable ground: moving onto ground more than
  * `maxStep` higher than where the character stands is blocked. A blocked move first
@@ -326,6 +345,36 @@ export function constrainToGround(
 	if (next.x !== prev.x && ok(next.x, prev.y)) return { ...next, y: prev.y };
 	if (next.y !== prev.y && ok(prev.x, next.y)) return { ...next, x: prev.x };
 	return { ...next, x: prev.x, y: prev.y, speed: 0, moving: false };
+}
+
+/** Longest stretch `sweepToGround` checks in one go, world units: thin walls (a stood-up
+ *  shape's base) stay solid even when a frame moves farther than they are thick. */
+export const SWEEP_STEP = 4;
+
+/**
+ * {@link constrainToGround} over the whole move in stretches of at most `step` world
+ * units, so a fast move can't jump over something thinner than itself. Stops at the
+ * first stretch that is fully blocked. Pure.
+ */
+export function sweepToGround(
+	prev: CharacterPose,
+	next: CharacterPose,
+	heightAt: HeightAt,
+	maxStep: number,
+	step = SWEEP_STEP,
+): CharacterPose {
+	const dx = next.x - prev.x;
+	const dy = next.y - prev.y;
+	const n = Math.min(256, Math.ceil(Math.hypot(dx, dy) / Math.max(0.5, step)));
+	if (n <= 1) return constrainToGround(prev, next, heightAt, maxStep);
+	let cur = prev;
+	for (let i = 0; i < n; i++) {
+		const target = { ...next, x: cur.x + dx / n, y: cur.y + dy / n };
+		const moved = constrainToGround(cur, target, heightAt, maxStep);
+		if (moved.x === cur.x && moved.y === cur.y) return moved;
+		cur = moved;
+	}
+	return cur;
 }
 
 /**

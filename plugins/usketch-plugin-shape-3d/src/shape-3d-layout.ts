@@ -274,9 +274,16 @@ export interface Shape3dLimits {
 	minPx: number;
 	/** At most this many shapes are drawn in 3D — the nearest (lowest on screen) win. */
 	maxCount: number;
+	/** Shapes block the character only while the view is (partly) 3D. Default `false`:
+	 *  like terrain steps, they block on the flat board too. */
+	collisionIn3dOnly: boolean;
 }
 
-export const DEFAULT_SHAPE_3D_LIMITS: Shape3dLimits = { minPx: 8, maxCount: 200 };
+export const DEFAULT_SHAPE_3D_LIMITS: Shape3dLimits = {
+	minPx: 8,
+	maxCount: 200,
+	collisionIn3dOnly: false,
+};
 
 export interface Shape3dEntry {
 	shape: ShapeData;

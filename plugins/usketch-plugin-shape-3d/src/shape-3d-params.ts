@@ -39,6 +39,23 @@ export const MAX_SHAPE_3D_HEIGHT = 2000;
  */
 export type Shape3dFacing = "camera" | "fixed";
 
+/**
+ * How a walking character meets the shape: `none` passes through, `solid` is a wall it
+ * can't pass (it slides along), `platform` is a block whose top it can stand on (walked
+ * up within the step limit, else jumped onto).
+ */
+export type Shape3dCollision = "none" | "solid" | "platform";
+
+/** Every collision, in HUD order. */
+export const SHAPE_3D_COLLISIONS: readonly Shape3dCollision[] = ["none", "solid", "platform"];
+
+/** The collisions each mode can have: a floating shape has none (it can be walked under). */
+export const COLLISIONS_BY_MODE: Readonly<Record<Shape3dMode, readonly Shape3dCollision[]>> = {
+	stand: ["none", "solid"],
+	box: ["none", "solid", "platform"],
+	float: ["none"],
+};
+
 export interface Shape3dParams {
 	mode: Shape3dMode;
 	/** `box`: the block's height / `float`: how high it floats (world units). Unused by
@@ -50,6 +67,8 @@ export interface Shape3dParams {
 	ground: boolean;
 	/** Cast a soft shadow on the ground. Default `true`. */
 	shadow: boolean;
+	/** How a walking character meets it. Default `"none"`. See {@link effectiveCollision}. */
+	collision: Shape3dCollision;
 }
 
 /** What a shape may hold under {@link SHAPE_3D_KEY} (any field may be missing). */
@@ -59,6 +78,7 @@ export const DEFAULT_SHAPE_3D_PARAMS: Omit<Shape3dParams, "mode" | "height"> = {
 	facing: "camera",
 	ground: true,
 	shadow: true,
+	collision: "none",
 };
 
 function isMode(v: unknown): v is Shape3dMode {
@@ -80,7 +100,23 @@ export function normalizeShape3d(raw: unknown): Shape3dParams | null {
 			r.facing === "fixed" || r.facing === "camera" ? r.facing : DEFAULT_SHAPE_3D_PARAMS.facing,
 		ground: typeof r.ground === "boolean" ? r.ground : DEFAULT_SHAPE_3D_PARAMS.ground,
 		shadow: typeof r.shadow === "boolean" ? r.shadow : DEFAULT_SHAPE_3D_PARAMS.shadow,
+		collision: (SHAPE_3D_COLLISIONS as readonly unknown[]).includes(r.collision)
+			? (r.collision as Shape3dCollision)
+			: DEFAULT_SHAPE_3D_PARAMS.collision,
 	};
+}
+
+/**
+ * The collision a shape really has in its mode: as set when the mode allows it, a
+ * `platform` stood up is a `solid` wall, anything else the mode can't have is `none`.
+ * (Stored as set, so switching back to `box` restores it.) Pure.
+ */
+export function effectiveCollision(
+	params: Pick<Shape3dParams, "mode" | "collision">,
+): Shape3dCollision {
+	const allowed = COLLISIONS_BY_MODE[params.mode];
+	if (allowed.includes(params.collision)) return params.collision;
+	return params.collision === "platform" && allowed.includes("solid") ? "solid" : "none";
 }
 
 /** A usable `height` (clamped), or `null` when it isn't a finite number. */

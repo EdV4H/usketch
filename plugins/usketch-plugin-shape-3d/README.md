@@ -5,6 +5,7 @@ Mode 7（`@edv4h/usketch-plugin-mode7`）などの 3D ビュー中に、**3D パ
 - 描画は map の崖やキャラクターと同じ **CSS 3D だけ**（`translateZ` / `rotateX(-90deg)` / `rotateY(90deg)` の折り曲げ）。3D ライブラリには依存しない。
 - 各 Shape プラグインの既存の `render` をそのまま立てるので、全 Shape 種別で使える。
 - Mode 7 にも map にも依存しない。3D ビューの状態は shared の `view3dService`、地面の高さは `groundHeightService` から読み、DOM の Shape 層には `renderer:hide-shapes` で「この Shape は描かない」を伝える。
+- 当たり判定（`collision`）を持つ Shape は shared の `solidHeightService` で「ここに立体がある」を答える。キャラクター（`@edv4h/usketch-plugin-character`）はそれを見て壁で止まり、乗れる箱に乗る。
 
 ## 使い方
 
@@ -40,6 +41,7 @@ Shape データの拡張キー `x-shape-3d`（`SHAPE_3D_KEY`）に置く。コ�
   facing: "camera",         // stand のみ。"camera" = 常にカメラの方を向く（看板・木）/ "fixed" = 下辺に沿って立つ（塀）
   ground: true,             // 地形（groundHeightService）の高さに乗る
   shadow: true,             // 影を落とす（stand / float。box は地面に接しているので描かない）
+  collision: "none",        // キャラとの当たり判定: "none" / "solid" = 壁（通れない）/ "platform" = 乗れる（box のみ）
 }
 ```
 
@@ -89,6 +91,21 @@ createShape3dPlugin({
 
 three.js を使う場合は依存をその Shape プラグイン側に持ち、`import()` で遅延読み込みし、WebGL コンテキストは 1 つを共有するのがおすすめ（ブラウザが同時に持てる数に上限があるため）。
 
+### 当たり判定（`collision`）
+
+キャラクターとの当たり判定。既定は `"none"`（すり抜ける）。mode ごとに使えるものが決まっていて（`COLLISIONS_BY_MODE`）、使えない値は `effectiveCollision` で読み替える（保存値はそのままなので、mode を戻すと元に戻る）。
+
+| mode | 当たる範囲 | `solid`（壁） | `platform`（乗れる） |
+|---|---|---|---|
+| `box` | Shape の矩形全体（回転込み） | 通れない | 天面（地形の高さ＋`height`）に乗れる。段差が `maxStep` 以下なら歩いて上がれ、高ければジャンプで乗る |
+| `stand`（`facing: "fixed"`） | 下辺に沿った厚さ 8 の帯（塀） | 通れない | 天面がないので壁扱い |
+| `stand`（`facing: "camera"`） | 足元の円（半径 = 幅 / 4、最小 4） | 通れない | 壁扱い |
+| `float` | なし（宙に浮いている） | — | — |
+
+- 既定では 2D 表示中も当たる（キャラは 2D でも歩けるので）。HUD の「当たり判定は 3D 表示中だけ」（`limits.collisionIn3dOnly`）で 3D ビュー中だけにできる。
+- 当たり判定は描画の制限（最大数・最小サイズ・描画距離）とは無関係に、全 Shape に効く。Shape は 256 単位のグリッドに振り分けて引くので、数が多くても 1 点の問い合わせは軽い。
+- 判定の本体は純関数（`colliderFor` / `buildColliderIndex` / `solidHeightAt`）として export している。
+
 ## 見え方
 
 - 3D ビューのせり上がり（遷移量 0…1）に合わせて、stand は足元（下辺の中点）を軸に起き上がり、box / float は中心を基準に `height` までせり上がる。OFF にすると平面に戻り、平面の描画に切り替わる。
@@ -97,8 +114,8 @@ three.js を使う場合は依存をその Shape プラグイン側に持ち、`
 
 ## HUD
 
-- **3D（選択中の Shape）**: 3D 表示（なし / 立てる / 箱 / 浮かせる。選択中の種別で使えるものだけ）、高さ（箱・浮かせる）、向き（立てる）、地形に乗せる、影。2D で選んで設定し、Mode 7 で見る。
-- **3D 表示（全体）**: 3D にする最大数、最小サイズ(px)。
+- **3D（選択中の Shape）**: 3D 表示（なし / 立てる / 箱 / 浮かせる。選択中の種別で使えるものだけ）、高さ（箱・浮かせる）、向き（立てる）、地形に乗せる、影、当たり判定（なし / 壁 / 乗れる。選択中の mode で使えるものだけ）。2D で選んで設定し、Mode 7 で見る。
+- **3D 表示（全体）**: 3D にする最大数、最小サイズ(px)、当たり判定は 3D 表示中だけ。
 
 ## サービス API
 
@@ -106,7 +123,7 @@ three.js を使う場合は依存をその Shape プラグイン側に持ち、`
 import { getShape3dApi } from "@edv4h/usketch-plugin-shape-3d";
 const api = getShape3dApi(app.services);
 api?.set(["shape-1"], { mode: "stand", facing: "fixed" });
-api?.set(["shape-2"], { mode: "box", height: 32 });
+api?.set(["shape-2"], { mode: "box", height: 32, collision: "platform" });
 api?.clear(["shape-1"]);
 api?.registerType("sticky", { modes: [] }); // 実行時に種別の設定を足す（戻り値で取り消し）
 ```

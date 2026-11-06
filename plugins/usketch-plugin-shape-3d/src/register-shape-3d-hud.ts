@@ -1,7 +1,13 @@
 // HUD wiring (all UI lives in the shared HUD): a settings group for the selected
 // shapes' 3D look, and one for the draw limits. They only call the service.
 import type { PluginContext } from "@edv4h/usketch-shared";
-import { MAX_SHAPE_3D_HEIGHT } from "./shape-3d-params.js";
+import {
+	COLLISIONS_BY_MODE,
+	effectiveCollision,
+	MAX_SHAPE_3D_HEIGHT,
+	SHAPE_3D_COLLISIONS,
+	type Shape3dCollision,
+} from "./shape-3d-params.js";
 import type { Shape3dApi } from "./shape-3d-service.js";
 import type { Shape3dSettings } from "./shape-3d-settings.js";
 
@@ -10,6 +16,12 @@ const MODE_LABELS: Record<string, string> = {
 	stand: "立てる",
 	box: "箱",
 	float: "浮かせる",
+};
+
+const COLLISION_LABELS: Record<Shape3dCollision, string> = {
+	none: "なし",
+	solid: "壁（通れない）",
+	platform: "乗れる（箱）",
 };
 
 /** Register the HUD settings. Returns a teardown. */
@@ -39,6 +51,18 @@ export function registerShape3dHud(
 			...[...modes].map((m) => ({ value: m, label: MODE_LABELS[m] ?? m })),
 		];
 	};
+	// Only the collisions the selected 3D shapes' modes can have (a floating shape: none).
+	const collisionOptions = () => {
+		const allowed = new Set<Shape3dCollision>(["none"]);
+		for (const id of selection()) {
+			const p = api.get(id);
+			if (p) for (const c of COLLISIONS_BY_MODE[p.mode]) allowed.add(c);
+		}
+		return SHAPE_3D_COLLISIONS.filter((c) => allowed.has(c)).map((c) => ({
+			value: c,
+			label: COLLISION_LABELS[c],
+		}));
+	};
 
 	const unregisterSelected = ctx.hud.registerSettings({
 		id: "usketch-plugin-shape-3d:selected",
@@ -66,6 +90,12 @@ export function registerShape3dHud(
 				},
 				{ name: "ground", label: "地形に乗せる", type: "boolean" as const },
 				{ name: "shadow", label: "影", type: "boolean" as const },
+				{
+					name: "collision",
+					label: "当たり判定（キャラ）",
+					type: "enum" as const,
+					options: collisionOptions(),
+				},
 			];
 		},
 		get(name) {
@@ -81,6 +111,8 @@ export function registerShape3dHud(
 					return p?.ground ?? true;
 				case "shadow":
 					return p?.shadow ?? true;
+				case "collision":
+					return p ? effectiveCollision(p) : "none";
 				default:
 					return undefined;
 			}
@@ -105,6 +137,11 @@ export function registerShape3dHud(
 				api.set(threeD, { facing: value });
 			} else if ((name === "ground" || name === "shadow") && typeof value === "boolean") {
 				api.set(threeD, { [name]: value });
+			} else if (
+				name === "collision" &&
+				(SHAPE_3D_COLLISIONS as readonly unknown[]).includes(value)
+			) {
+				api.set(threeD, { collision: value as Shape3dCollision });
 			}
 		},
 		subscribe: (listener) => ctx.store.subscribe(listener),
@@ -117,12 +154,26 @@ export function registerShape3dHud(
 		fields: [
 			{ name: "maxCount", label: "3D にする最大数", type: "number", min: 0, max: 2000, step: 10 },
 			{ name: "minPx", label: "最小サイズ(px)", type: "number", min: 0, max: 200, step: 1 },
+			{ name: "collisionIn3dOnly", label: "当たり判定は 3D 表示中だけ", type: "boolean" },
 		],
 		get(name) {
 			const l = api.getLimits();
-			return name === "maxCount" ? l.maxCount : name === "minPx" ? l.minPx : undefined;
+			switch (name) {
+				case "maxCount":
+					return l.maxCount;
+				case "minPx":
+					return l.minPx;
+				case "collisionIn3dOnly":
+					return l.collisionIn3dOnly;
+				default:
+					return undefined;
+			}
 		},
 		set(name, value) {
+			if (name === "collisionIn3dOnly") {
+				if (typeof value === "boolean") api.setLimits({ collisionIn3dOnly: value });
+				return;
+			}
 			if (typeof value !== "number") return;
 			if (name === "maxCount") api.setLimits({ maxCount: value });
 			else if (name === "minPx") api.setLimits({ minPx: value });

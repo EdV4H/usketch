@@ -59,7 +59,14 @@ export function createShape3dSettings(init: {
 		},
 		setLimits(limits) {
 			const next = sanitizeLimits({ ...state.limits, ...limits });
-			if (next.minPx === state.limits.minPx && next.maxCount === state.limits.maxCount) return;
+			const prev = state.limits;
+			if (
+				next.minPx === prev.minPx &&
+				next.maxCount === prev.maxCount &&
+				next.collisionIn3dOnly === prev.collisionIn3dOnly
+			) {
+				return;
+			}
 			state = { ...state, limits: next };
 			notify();
 		},
@@ -73,5 +80,9 @@ function sanitizeLimits(l: Shape3dLimits): Shape3dLimits {
 			Number.isFinite(l.maxCount) && l.maxCount >= 0
 				? Math.floor(l.maxCount)
 				: DEFAULT_SHAPE_3D_LIMITS.maxCount,
+		collisionIn3dOnly:
+			typeof l.collisionIn3dOnly === "boolean"
+				? l.collisionIn3dOnly
+				: DEFAULT_SHAPE_3D_LIMITS.collisionIn3dOnly,
 	};
 }
