@@ -71,12 +71,7 @@ describe("resolveShuffle", () => {
 	it("prefers the card-type animation over the plugin default", () => {
 		const own = animation(800);
 		const def = makeCardType("t", own);
-		const r = resolveShuffle(
-			readDeckMeta(deckShape({ shuffledAt: 0 })),
-			def,
-			animation(100),
-			500,
-		);
+		const r = resolveShuffle(readDeckMeta(deckShape({ shuffledAt: 0 })), def, animation(100), 500);
 		expect(r?.animation).toBe(own);
 	});
 
