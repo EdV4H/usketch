@@ -44,4 +44,13 @@ describe("createFreedrawApi の getSettings / onSettingsChange", () => {
 		settings.update({ color: "#00ff00" });
 		expect(listener).toHaveBeenCalledTimes(1);
 	});
+
+	it("getSettings() の値が変わらない更新では呼ばない", () => {
+		const { api, settings } = makeApi();
+		const listener = vi.fn();
+		api.onSettingsChange(listener);
+		settings.update({ customColors: ["#123456"], brushDynamics: 0.2 });
+		settings.update({ color: settings.getSnapshot().color });
+		expect(listener).not.toHaveBeenCalled();
+	});
 });
