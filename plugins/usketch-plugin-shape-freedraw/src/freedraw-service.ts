@@ -61,20 +61,36 @@ export function listPens(): FreedrawPenInfo[] {
 
 /** プラグインの設定ストアにつないだ API。`setup` ごとに作る。 */
 export function createFreedrawApi(settings: FreedrawSettingsStore): FreedrawApi {
+	const current = (): FreedrawCurrentSettings => {
+		const s = settings.getSnapshot();
+		return {
+			mode: s.mode,
+			pen: s.pen,
+			color: s.color,
+			size: penSize(s, s.pen),
+			eraserSize: s.eraserSize,
+		};
+	};
+	const same = (a: FreedrawCurrentSettings, b: FreedrawCurrentSettings) =>
+		a.mode === b.mode &&
+		a.pen === b.pen &&
+		a.color === b.color &&
+		a.size === b.size &&
+		a.eraserSize === b.eraserSize;
 	return {
 		listPens,
 		onPensChange,
-		getSettings() {
-			const s = settings.getSnapshot();
-			return {
-				mode: s.mode,
-				pen: s.pen,
-				color: s.color,
-				size: penSize(s, s.pen),
-				eraserSize: s.eraserSize,
-			};
+		getSettings: current,
+		onSettingsChange(listener) {
+			// getSettings() の値が変わったときだけ呼ぶ（カスタム色の追加などでは呼ばない）。
+			let last = current();
+			return settings.subscribe(() => {
+				const next = current();
+				if (same(last, next)) return;
+				last = next;
+				listener();
+			});
 		},
-		onSettingsChange: (listener) => settings.subscribe(listener),
 	};
 }
 
