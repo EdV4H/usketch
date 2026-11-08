@@ -86,8 +86,11 @@ export interface DeckShuffleRenderProps {
  * host が描く（プラグインは見た目を持たない）。reduced-motion の扱いも host に任せる。
  */
 export interface DeckShuffleAnimation {
-	/** 再生時間（ms）。枚数で長さが変わる演出のために関数も受ける。 */
-	durationMs: number | ((count: number) => number);
+	/**
+	 * 再生時間（ms）。枚数や切り方（`startAt` から決める等）で長さが変わる演出のために
+	 * 関数も受ける。
+	 */
+	durationMs: number | ((deck: { count: number; startAt: number }) => number);
 	render(props: DeckShuffleRenderProps): ReactElement;
 }
 
