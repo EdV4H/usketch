@@ -51,6 +51,11 @@ import {
 const DOUBLE_CLICK_MS = 400;
 const GENERIC_ACCENT = "rgba(79, 140, 255, 0.9)";
 
+/** ドロー等で山札を書き換えても、再生中のシャッフル演出を止めないように残す。 */
+function keepShuffledAt(meta: Partial<DeckMeta>): Pick<DeckMeta, "shuffledAt"> {
+	return typeof meta.shuffledAt === "number" ? { shuffledAt: meta.shuffledAt } : {};
+}
+
 export interface CreateCardPluginOptions {
 	/**
 	 * 使用する card-type。**既定は空**で、空でもプラグインは生成できる（描画ツールは出ない）。
@@ -322,8 +327,18 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					zIndex: zIndexAfterAll(allZ),
 				});
 
-				const deckBefore: DeckMeta = { cardType, cards, faceDown: meta.faceDown ?? true };
-				const deckAfter: DeckMeta = { cardType, cards: rest, faceDown: meta.faceDown ?? true };
+				const deckBefore: DeckMeta = {
+					cardType,
+					cards,
+					faceDown: meta.faceDown ?? true,
+					...keepShuffledAt(meta),
+				};
+				const deckAfter: DeckMeta = {
+					cardType,
+					cards: rest,
+					faceDown: meta.faceDown ?? true,
+					...keepShuffledAt(meta),
+				};
 
 				const command: Command = {
 					execute() {
@@ -380,8 +395,14 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					cardType,
 					cards: [...drawn, ...restCards],
 					faceDown: meta.faceDown ?? true,
+					...keepShuffledAt(meta),
 				};
-				const deckAfter: DeckMeta = { cardType, cards: restCards, faceDown: meta.faceDown ?? true };
+				const deckAfter: DeckMeta = {
+					cardType,
+					cards: restCards,
+					faceDown: meta.faceDown ?? true,
+					...keepShuffledAt(meta),
+				};
 
 				ctx.commands.execute({
 					execute() {
@@ -543,8 +564,18 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					height: def.defaultSize.height,
 				}));
 
-				const deckBefore: DeckMeta = { cardType, cards, faceDown: meta.faceDown ?? true };
-				const deckAfter: DeckMeta = { cardType, cards: rest, faceDown: meta.faceDown ?? true };
+				const deckBefore: DeckMeta = {
+					cardType,
+					cards,
+					faceDown: meta.faceDown ?? true,
+					...keepShuffledAt(meta),
+				};
+				const deckAfter: DeckMeta = {
+					cardType,
+					cards: rest,
+					faceDown: meta.faceDown ?? true,
+					...keepShuffledAt(meta),
+				};
 
 				ctx.commands.execute({
 					execute() {
@@ -725,18 +756,24 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					const deck = ctx.store.getShape(id);
 					if (!deck || deck.type !== DECK_TYPE) continue;
 					const m = readDeckMeta(deck);
-					const before: DeckMeta = {
+					const cards = m.cards ?? [];
+					// 1 枚以下は並びが変わらないので、同期も Undo 履歴も増やさない。
+					if (cards.length < 2) continue;
+					// Undo では演出を出さない: 戻す側の meta からは shuffledAt を外す
+					// （直前のシャッフルの再生中に戻しても、それを再生し直さない）。
+					const { shuffledAt: _previous, ...rest } = m;
+					const before = {
+						...rest,
 						cardType: m.cardType ?? "",
-						cards: m.cards ?? [],
+						cards,
 						faceDown: m.faceDown ?? true,
-						...(typeof m.shuffledAt === "number" ? { shuffledAt: m.shuffledAt } : {}),
-					};
+					} satisfies DeckMeta;
 					// shuffledAt はシャッフル演出の再生開始時刻（全員の画面で共有）。
-					const after: DeckMeta = {
+					const after = {
 						...before,
-						cards: shuffle(before.cards),
+						cards: shuffle(cards),
 						shuffledAt: Date.now(),
-					};
+					} satisfies DeckMeta;
 					// Command 経由で更新し Undo/Redo 可能にする
 					ctx.commands.execute(
 						createUpdateShapeCommand(

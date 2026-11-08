@@ -5,6 +5,7 @@ import { DECK_TYPE } from "../factory.js";
 import { createCardPlugin } from "../plugin.js";
 import { createDeckRenderer, resolveShuffleEnd } from "../render-deck.js";
 import type { CardTypeDefinition, DeckShuffleAnimation, DeckShuffleRenderProps } from "../types.js";
+import { readDeckMeta } from "../types.js";
 
 function makeCardType(id: string, shuffleAnimation?: DeckShuffleAnimation): CardTypeDefinition {
 	return {
@@ -41,41 +42,52 @@ const animation = (durationMs: DeckShuffleAnimation["durationMs"]): DeckShuffleA
 describe("resolveShuffleEnd", () => {
 	it("returns null without an animation or a shuffle time", () => {
 		const def = makeCardType("t");
-		expect(resolveShuffleEnd(deckShape({ shuffledAt: 1000 }), def, undefined, 1000)).toBeNull();
-		expect(resolveShuffleEnd(deckShape({}), def, animation(500), 1000)).toBeNull();
+		expect(
+			resolveShuffleEnd(readDeckMeta(deckShape({ shuffledAt: 1000 })), def, undefined, 1000),
+		).toBeNull();
+		expect(resolveShuffleEnd(readDeckMeta(deckShape({})), def, animation(500), 1000)).toBeNull();
 	});
 
 	it("plays from shuffledAt for durationMs", () => {
 		const def = makeCardType("t");
 		const shape = deckShape({ shuffledAt: 1000 });
-		expect(resolveShuffleEnd(shape, def, animation(500), 1200)).toMatchObject({
+		expect(resolveShuffleEnd(readDeckMeta(shape), def, animation(500), 1200)).toMatchObject({
 			startAt: 1000,
 			durationMs: 500,
 		});
-		expect(resolveShuffleEnd(shape, def, animation(500), 1500)).toBeNull();
+		expect(resolveShuffleEnd(readDeckMeta(shape), def, animation(500), 1500)).toBeNull();
 	});
 
 	it("resolves a duration that depends on the deck", () => {
 		const def = makeCardType("t");
 		const byCount = vi.fn(({ count }: { count: number; startAt: number }) => count * 100);
 		const shape = deckShape({ shuffledAt: 1000 });
-		expect(resolveShuffleEnd(shape, def, animation(byCount), 1000)?.durationMs).toBe(300);
+		expect(resolveShuffleEnd(readDeckMeta(shape), def, animation(byCount), 1000)?.durationMs).toBe(
+			300,
+		);
 		expect(byCount).toHaveBeenCalledWith({ count: 3, startAt: 1000 });
 	});
 
 	it("prefers the card-type animation over the plugin default", () => {
 		const own = animation(800);
 		const def = makeCardType("t", own);
-		const r = resolveShuffleEnd(deckShape({ shuffledAt: 0 }), def, animation(100), 500);
+		const r = resolveShuffleEnd(
+			readDeckMeta(deckShape({ shuffledAt: 0 })),
+			def,
+			animation(100),
+			500,
+		);
 		expect(r?.animation).toBe(own);
 	});
 
 	it("does not play for a deck that cannot be shuffled", () => {
 		const def = makeCardType("t");
 		const shape = deckShape({ shuffledAt: 1000, cards: [{ n: 1 }] });
-		expect(resolveShuffleEnd(shape, def, animation(500), 1000)).toBeNull();
+		expect(resolveShuffleEnd(readDeckMeta(shape), def, animation(500), 1000)).toBeNull();
 	});
 });
+
+type GateProps = { until: number; Render: unknown; props: DeckShuffleRenderProps };
 
 describe("createDeckRenderer with shuffleAnimation", () => {
 	it("hands the host the shuffle details while it plays", () => {
@@ -87,23 +99,38 @@ describe("createDeckRenderer with shuffleAnimation", () => {
 		const now = Date.now();
 		const out = renderDeck(deckShape({ shuffledAt: now }));
 		expect(isValidElement(out)).toBe(true);
-		expect(render).toHaveBeenCalledTimes(1);
-		const props = render.mock.calls[0]?.[0] as DeckShuffleRenderProps;
-		expect(props).toMatchObject({ count: 3, startAt: now, durationMs: 1000, faceDown: true });
-		expect(isValidElement(props.renderBack())).toBe(true);
+		const gate = (out as ReactElement<GateProps>).props;
+		// host の render は要素として描く (hooks を使えるように、その場では呼ばない)。
+		expect(render).not.toHaveBeenCalled();
+		expect(gate.Render).toBe(render);
+		expect(gate.until).toBe(now + 1000);
+		expect(gate.props).toMatchObject({ count: 3, startAt: now, durationMs: 1000, faceDown: true });
+		expect(isValidElement(gate.props.renderBack())).toBe(true);
+		expect(isValidElement(gate.props.renderTop())).toBe(true);
 	});
 
 	it("draws the resting deck once the shuffle is over", () => {
 		const render = vi.fn(() => (<div />) as ReactElement);
 		const def = makeCardType("t");
 		const renderDeck = createDeckRenderer(new Map([["t", def]]), { durationMs: 1000, render });
-		renderDeck(deckShape({ shuffledAt: Date.now() - 5000 }));
-		expect(render).not.toHaveBeenCalled();
+		const out = renderDeck(deckShape({ shuffledAt: Date.now() - 5000 })) as ReactElement<
+			Partial<GateProps>
+		>;
+		expect(out.props.Render).toBeUndefined();
+	});
+});
+
+describe("clock skew", () => {
+	it("ignores a shuffle time further ahead than the animation lasts", () => {
+		const def = makeCardType("t");
+		const shape = deckShape({ shuffledAt: 10_000 });
+		expect(resolveShuffleEnd(readDeckMeta(shape), def, animation(500), 9_600)).not.toBeNull();
+		expect(resolveShuffleEnd(readDeckMeta(shape), def, animation(500), 9_000)).toBeNull();
 	});
 });
 
 describe("card-deck:shuffle", () => {
-	it("records when the deck was shuffled, and undo restores the previous time", () => {
+	it("records when the deck was shuffled, and undo drops it so nothing replays", () => {
 		const handlers = new Map<string, (data: unknown) => void>();
 		const executed: Command[] = [];
 		let deck = deckShape({ shuffledAt: 10 });
@@ -153,6 +180,40 @@ describe("card-deck:shuffle", () => {
 		expect((deck.meta as { shuffledAt?: number }).shuffledAt).toBe(12345);
 		expect((deck.meta as { cards: unknown[] }).cards).toHaveLength(3);
 		executed[0]?.undo();
-		expect((deck.meta as { shuffledAt?: number }).shuffledAt).toBe(10);
+		expect((deck.meta as { shuffledAt?: number }).shuffledAt).toBeUndefined();
+		expect((deck.meta as { cardType: string }).cardType).toBe("t");
+	});
+
+	it("does not touch a deck with fewer than two cards", () => {
+		const handlers = new Map<string, (data: unknown) => void>();
+		const execute = vi.fn();
+		const deck = deckShape({ cards: [{ n: 1 }] });
+		const noop = () => {};
+		const ctx = {
+			events: {
+				on: (name: string, fn: (data: unknown) => void) => {
+					handlers.set(name, fn);
+					return noop;
+				},
+				emit: noop,
+				off: noop,
+			},
+			transient: { registerType: noop, emit: noop },
+			shapes: { register: noop, get: () => undefined },
+			tools: { register: noop },
+			layers: { register: noop, unregister: noop },
+			hud: { registerPanel: () => noop, registerSettings: () => noop },
+			actions: { register: () => noop, unregister: noop, get: () => undefined },
+			shortcuts: { register: () => noop },
+			store: {
+				getShape: () => deck,
+				getShapesSorted: () => [deck],
+				getSelection: () => new Set<string>(),
+			},
+			commands: { execute },
+		} as unknown as PluginContext;
+		createCardPlugin({ cardTypes: [makeCardType("t")] }).setup(ctx);
+		handlers.get("card-deck:shuffle")?.({ id: "d1" });
+		expect(execute).not.toHaveBeenCalled();
 	});
 });

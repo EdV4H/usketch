@@ -157,13 +157,16 @@ createCardPlugin({
   shuffleAnimation: {
     durationMs: ({ count, startAt }) => 1200, // 枚数や切り方で長さを変えるなら関数で
     // startAt は全員共通。経過分を飛ばして再生すれば同時に終わる（seed にも使える）
-    render: ({ count, startAt, durationMs, faceDown, renderBack }) => (
+    // 要素として描くので hooks を使ってよい。renderTop() は静止時に見えている面
+    render: ({ count, startAt, durationMs, faceDown, renderBack, renderTop }) => (
       <MyShuffle count={count} startAt={startAt} back={renderBack()} />
     ),
   },
 });
 ```
 
+ドローしても再生中の演出は止まらず、シャッフルの Undo では `shuffledAt` を消すので取り消しで演出は出ません。
+`shuffledAt` はシャッフルした人の時計なので、再生時間より先の時刻（時計の狂い）は再生しません。
 reduced-motion の扱いも host に任せます。
 
 > Slam の見た目・重み3段階は Claude Design の「Card Animations」ショーケース（Slam Place）を移植したもの。

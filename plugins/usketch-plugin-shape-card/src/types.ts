@@ -69,7 +69,8 @@ export interface DeckShuffleRenderProps {
 	count: number;
 	/**
 	 * シャッフルを始めた時刻（epoch ms）。全員の画面で同じ値なので、これを基準に再生すれば
-	 * 同時に終わる。乱数の seed にも使える。
+	 * 同時に終わる。乱数の seed にも使える。時計がずれた画面では少し先の時刻のことがある
+	 * （再生時間より先なら演出自体を出さない）。
 	 */
 	startAt: number;
 	/** 再生時間（ms）。`durationMs` を解決した値。 */
@@ -78,6 +79,11 @@ export interface DeckShuffleRenderProps {
 	faceDown: boolean;
 	/** 一番上のカードの裏面（card-type が無い / 空のデッキなら null）。 */
 	renderBack(): ReactElement | null;
+	/**
+	 * 静止した山札の一番上に見えている面（伏せ置きなら裏、表向きなら表）。演出の前後で
+	 * 見た目を揃えるのに使う。card-type が無い / 空のデッキなら null。
+	 */
+	renderTop(): ReactElement | null;
 }
 
 /**
@@ -91,6 +97,7 @@ export interface DeckShuffleAnimation {
 	 * 関数も受ける。
 	 */
 	durationMs: number | ((deck: { count: number; startAt: number }) => number);
+	/** 演出を描くコンポーネント。React の要素として描くので hooks を使ってよい。 */
 	render(props: DeckShuffleRenderProps): ReactElement;
 }
 
@@ -173,8 +180,9 @@ export type DeckMeta = {
 	/** 伏せ置きかどうか（描画で裏面を見せる）。 */
 	faceDown: boolean;
 	/**
-	 * 最後にシャッフルした時刻（epoch ms、シャッフルした人の時計）。shape と一緒に同期
-	 * されるので、各画面はこの時刻から {@link DeckShuffleAnimation} を再生する。
+	 * シャッフル演出の開始時刻（epoch ms、シャッフルした人の時計）。shape と一緒に同期
+	 * されるので、各画面はこの時刻から {@link DeckShuffleAnimation} を再生する。ドローでは
+	 * 残り、シャッフルの Undo では消える（取り消しで演出を出さないため）。
 	 */
 	shuffledAt?: number;
 };
