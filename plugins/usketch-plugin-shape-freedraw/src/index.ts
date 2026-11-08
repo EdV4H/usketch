@@ -5,7 +5,7 @@ export {
 	parseFreedrawConfig,
 } from "./config.js";
 export type { FinalizedStroke, FreedrawPenDefinition, PenSizeRange } from "./custom-pens.js";
-export { nearestOnPolyline, snapEndpoints } from "./endpoint-snap.js";
+export { type Nearest, nearestOnPolyline, snapEndpoints } from "./endpoint-snap.js";
 export {
 	type FreedrawApi,
 	type FreedrawCurrentSettings,

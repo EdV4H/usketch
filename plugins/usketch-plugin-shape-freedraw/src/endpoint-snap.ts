@@ -1,7 +1,7 @@
 // 線の端を、同じペンの近くの線へつなぐ（`endpointSnap`）。
 import type { FreedrawShapeData, StrokeJoins, StrokePoint } from "./types.js";
 
-interface Nearest {
+export interface Nearest {
 	x: number;
 	y: number;
 	dist: number;
