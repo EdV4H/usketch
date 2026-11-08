@@ -2773,7 +2773,7 @@ importers:
         version: 19.3.1
       xstate:
         specifier: ^5.18.0
-        version: 5.33.3
+        version: 5.33.4
       zod:
         specifier: ^4.0.0
         version: 4.6.7
@@ -8195,8 +8195,8 @@ packages:
   xmlchars@2.2.0:
     resolution: {integrity: sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==}
 
-  xstate@5.33.3:
-    resolution: {integrity: sha512-AnDRjS/GyKHmbA1PyhVCYBqYsA7EGe3KGgeD0ht3NFsXzoz7leX/HQDFX9QlHFJ/ltLHPsgChJYwPzRvB/0b4g==}
+  xstate@5.33.4:
+    resolution: {integrity: sha512-eGNMu3BNqU0Z85P+ouYG5OCZqIABU+QsW6vUieFt9p9gOGs3C+BL10Exg7XdRPSXPQKlP6XoYpYf93r9VmW8mQ==}
 
   xxhash-wasm@1.1.0:
     resolution: {integrity: sha512-147y/6YNh+tlp6nd/2pWq38i9h6mz/EuQ6njIrmW8D1BS5nCqs0P6DG+m6zTGnNz5I+uhZ0SHxBs9BsPrwcKDA==}
@@ -8976,7 +8976,7 @@ snapshots:
 
   '@edv4h/croupier-core@0.1.0':
     dependencies:
-      xstate: 5.33.3
+      xstate: 5.33.4
 
   '@edv4h/croupier-plugin-values-card@0.1.0':
     dependencies:
@@ -13599,7 +13599,7 @@ snapshots:
 
   xmlchars@2.2.0: {}
 
-  xstate@5.33.3: {}
+  xstate@5.33.4: {}
 
   xxhash-wasm@1.1.0: {}
 
