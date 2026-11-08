@@ -84,6 +84,12 @@ createCharacterPlugin({
 - **Keys**: the jump (Space) and the drift (Shift) have their own keys. The HUD offers
   a few keys for each (`KEY_CHOICES`: Space, Shift, Z, X, C, J, K, L); `setKeys` takes
   any `KeyboardEvent.code`s and `getKeys` returns the bindings.
+- **Standing up in 3D**: each spot (and the wrapper around the renderer's content) keeps
+  the 3D context (`transform-style: preserve-3d`), so under a 3D view (Mode 7) a
+  renderer can stand a flat sprite up out of the tilted ground instead of having it lie
+  on it: read the drawn camera from `view3dService` (`@edv4h/usketch-shared`) and turn
+  the sprite by `rotateX(-pitch)` around its bottom edge (`transform-origin: bottom`).
+  On the flat board `pitch` is 0, so the same renderer draws top-down there.
 - **Shadow**: pass `renderShadow` to draw a shadow; it is placed on the ground under
   each character while the body stands at its feet height `z`, so under a 3D view
   (Mode 7) a jump lifts the body off its shadow. `altitude` (`z - elevation`) lets it
