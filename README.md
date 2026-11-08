@@ -10,7 +10,7 @@
 ## Quick start
 
 ```bash
-# Node.js 22 + pnpm 10 が必要
+# Node.js 26 + pnpm 12 が必要（CI と同じ。pnpm のバージョンは package.json の packageManager で固定）
 pnpm install
 pnpm dev
 ```
@@ -34,9 +34,10 @@ pnpm dev
 ## 主な機能
 
 ### 描画・編集
-- **Shape plugins**: rect, ellipse, text, sticky, freedraw, image, frame, connector, group, portal, counter, wireframe, community-region, board-portal
+- **Shape plugins**: rect, ellipse, text, sticky, freedraw, image, frame, connector, group, portal, counter, wireframe, community-region, board-portal, markdown, embed, card, domain-design（DDD 図）, pdf-import（PDF の全ページ展開）
 - **Tool plugins**: select（XState 駆動の移動・リサイズ・回転）, pan, map（RPG/ワールドマップの地形ペイント）
 - **Background**: grid, dots
+- **3D ビュー**: mode7（Canvas を奥へ傾ける擬似 3D 表示）、shape-3d（Shape を地面から立ち上げる・当たり判定）、character（操作キャラ + 追従カメラ・ジャンプ）
 - **Snap & smart guides**、キーボードショートカット、Undo/Redo（コマンドパターン）
 
 ### コラボレーション
@@ -63,9 +64,9 @@ pnpm dev
 
 ```
 apps/
-  web/         — メイン Web アプリ（React 19 + Vite 7）
+  web/         — メイン Web アプリ（React 19 + Vite 8）
   server/      — Edge API サーバー（Hono + Cloudflare Workers）
-  docs/        — ドキュメントサイト（Astro Starlight）
+  docs/        — ドキュメントサイト（Astro、GitHub Pages に公開）
   mcp-server/  — MCP サーバー（Claude Code 連携）
 
 packages/
@@ -79,17 +80,21 @@ packages/
   server-core/    — サーバープラグイン基盤
   session-protocol/ — ライブ・セッションの client↔server 共通型（型のみ）
   session-voting/   — セッション型「投票」（server / client ペア）
+  shape-utils/      — shape プラグイン共通ユーティリティ（bounds / hit-test / resize）
+  tool-helpers/     — ツール用 state machine helper（drag / resize / rotate / marquee）
+  connector-anchor/ — connector 系の anchor / endpoint / 追従ロジック
+  map-icons/        — map プラグインのアイコンセット（データのみ）
 
 plugins/
-  70+ plugin（詳細は docs/ を参照）。session（ライブ・セッション基盤）/ map（ワールドマップ）等
+  80+ plugin（詳細は docs/ を参照）。session（ライブ・セッション基盤）/ map（ワールドマップ）等
 ```
 
 ## 技術スタック
 
 | カテゴリ | 技術 |
 |---------|------|
-| フレームワーク | React 19 / TypeScript 5.9 |
-| ビルド | Vite 7 / Turborepo / pnpm |
+| フレームワーク | React 19 / TypeScript 7 |
+| ビルド | Vite 8 / Turborepo / pnpm 12 |
 | リント | Biome |
 | テスト | Vitest / Playwright |
 | 状態マシン | XState 5 / @zag-js/core |

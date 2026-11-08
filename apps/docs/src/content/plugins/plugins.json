@@ -540,5 +540,101 @@
 		"glyph": "🗺",
 		"summary": "RPG / world-map builder: paint terrain, stamp icons, autotile, region fill and generators. Exposes public tool-state stores so hosts can drive it from custom UIs.",
 		"install": "pnpm add @edv4h/usketch-plugin-map"
+	},
+	{
+		"id": "character",
+		"name": "Character",
+		"category": "tool",
+		"glyph": "CHR",
+		"summary": "Controllable character with customizable keys and a following camera (fixed, rotating with the heading, or free); the host draws it, and other users' characters appear through awareness.",
+		"install": "pnpm add @edv4h/usketch-plugin-character"
+	},
+	{
+		"id": "croupier",
+		"name": "Croupier",
+		"category": "shape",
+		"glyph": "CRP",
+		"summary": "Play turn-based croupier games on the board: a table shape holds the game, each player gets a seat shape, synced like any other shape — no game server needed.",
+		"install": "pnpm add @edv4h/usketch-plugin-croupier"
+	},
+	{
+		"id": "dashboard",
+		"name": "Dashboard",
+		"category": "ui",
+		"glyph": "DSH",
+		"summary": "Turns the canvas into a sortable flow grid: top-level shapes snap to whole cells and reflow live while you drag one into place.",
+		"install": "pnpm add @edv4h/usketch-plugin-dashboard"
+	},
+	{
+		"id": "deep-link",
+		"name": "Deep Link",
+		"category": "ui",
+		"glyph": "URL",
+		"summary": "Share the selection or an exact camera position by URL (?shape= / ?x=&y=&zoom=), like Figma's node links.",
+		"install": "pnpm add @edv4h/usketch-plugin-deep-link"
+	},
+	{
+		"id": "edge-pan",
+		"name": "Edge Pan",
+		"category": "ui",
+		"glyph": "EDG",
+		"summary": "Auto-pans the viewport while you drag a shape near the edge of the screen, keeping the shape under the cursor.",
+		"install": "pnpm add @edv4h/usketch-plugin-edge-pan"
+	},
+	{
+		"id": "mode7",
+		"name": "Mode 7",
+		"category": "effect",
+		"glyph": "M7",
+		"summary": "SNES Mode 7-style pseudo-3D view mode that tilts the canvas into a receding ground plane (view only, off by default).",
+		"install": "pnpm add @edv4h/usketch-plugin-mode7"
+	},
+	{
+		"id": "pdf-import",
+		"name": "PDF Import",
+		"category": "shape",
+		"glyph": "PDF",
+		"summary": "Paste or drop a PDF to lay out every page as a shape; pages are re-rendered for the current zoom so they stay sharp, and the file is stored once in the asset store.",
+		"install": "pnpm add @edv4h/usketch-plugin-pdf-import"
+	},
+	{
+		"id": "presence-activity",
+		"name": "Presence Activity",
+		"category": "presence",
+		"glyph": "ACT",
+		"summary": "Draws other participants' live selections, edits and marquees on the canvas — the AI participant included.",
+		"install": "pnpm add @edv4h/usketch-plugin-presence-activity"
+	},
+	{
+		"id": "scatter",
+		"name": "Scatter",
+		"category": "tool",
+		"glyph": "SCT",
+		"summary": "Scatters a seed shape's related shapes (or newly spawned ones) across the canvas in one undoable step, with pluggable relations, patterns and animation.",
+		"install": "pnpm add @edv4h/usketch-plugin-scatter"
+	},
+	{
+		"id": "shape-3d",
+		"name": "3D Shapes",
+		"category": "effect",
+		"glyph": "3D",
+		"summary": "Stands shapes up from the ground in Mode 7 and other 3D views (stand / box / float), with optional collision for the character.",
+		"install": "pnpm add @edv4h/usketch-plugin-shape-3d"
+	},
+	{
+		"id": "start-position",
+		"name": "Start Position",
+		"category": "ui",
+		"glyph": "STR",
+		"summary": "Define where a board starts (a coordinate, an exact framing or a shape to frame) and move each viewer's camera there on load.",
+		"install": "pnpm add @edv4h/usketch-plugin-start-position"
+	},
+	{
+		"id": "window-system",
+		"name": "Window System",
+		"category": "ui",
+		"glyph": "WIN",
+		"summary": "Turns the canvas into a window system: a locked viewport and free or i3 / sway-style tiled layout for top-level shapes.",
+		"install": "pnpm add @edv4h/usketch-plugin-window-system"
 	}
 ]

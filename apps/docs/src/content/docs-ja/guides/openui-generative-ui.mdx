@@ -39,7 +39,7 @@ build 時に設定できる env var は任意で 1 つ:
 ```ts
 import { createApp } from "@edv4h/usketch-core";
 import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
-import { openUIShapePlugin } from "@edv4h/usketch-plugin-shape-openui";
+import { createOpenUIShapePlugin } from "@edv4h/usketch-plugin-shape-openui";
 import {
 	createOpenUIToolPlugin,
 	createServerProxyProvider,
@@ -50,7 +50,7 @@ const app = await createApp({
 	plugins: [
 		// tool plugin の前に side panel を入れる (タブ登録 event を受けるため)。
 		createSidePanelPlugin(),
-		openUIShapePlugin,
+		createOpenUIShapePlugin(),
 		createOpenUIToolPlugin({
 			provider: createServerProxyProvider({
 				apiUrl: import.meta.env.VITE_API_URL,

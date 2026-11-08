@@ -16,7 +16,7 @@ This guide assumes you have written at least one of:
 - `class MyTool extends StateNode` for a custom tool,
 - code that calls `editor.createShape(...)` / `editor.updateShapes(...)`.
 
-It is **not** a tutorial — start with [Building a Shape Plugin](./shape-plugin) and [Building a Tool Plugin](./tool-plugin) if you have never written uSketch code before. It is also **not** a comparison of features the two libraries don't share: tldraw's collaborative presence avatars, AI agents, and document import for the proprietary `.tldr` format are out of scope.
+It is **not** a tutorial — start with [Building a Shape Plugin](../shape-plugin/) and [Building a Tool Plugin](../tool-plugin/) if you have never written uSketch code before. It is also **not** a comparison of features the two libraries don't share: tldraw's collaborative presence avatars, AI agents, and document import for the proprietary `.tldr` format are out of scope.
 
 ## Conceptual mapping
 
@@ -176,7 +176,7 @@ export const cardPlugin: UsketchPlugin = {
 Two patterns to internalize:
 
 - **No wrapper class.** `ShapeDefinition` is the object literal; there is no `this`. State (caches, timers) belongs in the `setup()` closure.
-- **Cast `ShapeData` to your extension interface** inside `render` / `hitTest` / `resize` so plugin-specific fields are type-safe. This mirrors the `as RectangleShapeData` pattern in [Building a Shape Plugin](./shape-plugin).
+- **Cast `ShapeData` to your extension interface** inside `render` / `hitTest` / `resize` so plugin-specific fields are type-safe. This mirrors the `as RectangleShapeData` pattern in [Building a Shape Plugin](../shape-plugin/).
 
 ### Step 2. TLBaseShape props → flat ShapeData
 
@@ -211,7 +211,7 @@ The reserved core fields you must not redefine:
 | `meta` | `TMeta` | Application data — see below. |
 | `createdAt`, `updatedAt` | `number?` | Optional millisecond timestamps. |
 
-Anything that isn't geometry (an `employeeId`, an external `versionId`) belongs in `meta`. There is also an `x-*` escape hatch for legacy migrations, but new code should use `meta`. See [Shape System → Extending shapes](/docs/concepts/shape-system/#extending-shapes).
+Anything that isn't geometry (an `employeeId`, an external `versionId`) belongs in `meta`. There is also an `x-*` escape hatch for legacy migrations, but new code should use `meta`. See [Shape System → Extending shapes](../../concepts/shape-system/#extending-shapes).
 
 ### Step 3. createShapes → store.addShape + commands
 
@@ -374,7 +374,7 @@ function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
 }
 ```
 
-If your tool has many transitions or you want to share drag / resize / rotate behaviour with the built-in select tool, reach for `@edv4h/usketch-tool-helpers`. Its `startDragSession` / `startResizeSession` / `startRotateSession` / `startMarqueeSession` helpers cover most of what tldraw's `StateNode` library provides out of the box; see the [Reusable Session Helpers](./tool-plugin#reusable-session-helpers) section of *Building a Tool Plugin* for the patterns.
+If your tool has many transitions or you want to share drag / resize / rotate behaviour with the built-in select tool, reach for `@edv4h/usketch-tool-helpers`. Its `startDragSession` / `startResizeSession` / `startRotateSession` / `startMarqueeSession` helpers cover most of what tldraw's `StateNode` library provides out of the box; see the [Reusable Session Helpers](../tool-plugin/#reusable-session-helpers) section of *Building a Tool Plugin* for the patterns.
 
 ### Step 3. Inputs API
 
@@ -699,7 +699,7 @@ export const youtubeEmbedPlugin: UsketchPlugin = {
 };
 ```
 
-Resolution follows a single-winner rule (highest `order` wins, last-registered breaks ties). See [External Content](./external-content) for the full contract.
+Resolution follows a single-winner rule (highest `order` wins, last-registered breaks ties). See [External Content](../external-content/) for the full contract.
 
 ## Selection UI replacement
 
@@ -717,7 +717,7 @@ const app = await createApp({
 });
 ```
 
-Plugins can also opt in via `ctx.ui.registerSelectionForeground({ id, priority, render })`. The registry picks the highest-priority entry, with last-registered winning ties; `@edv4h/usketch-plugin-tool-select` self-registers a default at priority 0. See [Selection Foreground](./selection-foreground) for the full API.
+Plugins can also opt in via `ctx.ui.registerSelectionForeground({ id, priority, render })`. The registry picks the highest-priority entry, with last-registered winning ties; `@edv4h/usketch-plugin-tool-select` self-registers a default at priority 0. See [Selection Foreground](../selection-foreground/) for the full API.
 
 ## Common pitfalls
 
@@ -821,11 +821,11 @@ ctx.store.onMutation((event) => {
 
 ## Where to go next
 
-- [Building a Shape Plugin](./shape-plugin) — the canonical reference for `ShapeDefinition` and the drawing-tool pattern.
-- [Building a Tool Plugin](./tool-plugin) — phase variables, lifecycle, and the `@edv4h/usketch-tool-helpers` sessions.
-- [Selection Foreground](./selection-foreground) — replace the default selection chrome with your own React component.
-- [External Content](./external-content) — register drop / paste / URL handlers with priority resolution.
-- [Third-Party Plugin Authoring](./third-party-plugin) — ship a uSketch plugin as a standalone npm package.
-- [Domain Design Plugin](./domain-design-plugin) — a built-in plugin that demonstrates the patterns end-to-end.
+- [Building a Shape Plugin](../shape-plugin/) — the canonical reference for `ShapeDefinition` and the drawing-tool pattern.
+- [Building a Tool Plugin](../tool-plugin/) — phase variables, lifecycle, and the `@edv4h/usketch-tool-helpers` sessions.
+- [Selection Foreground](../selection-foreground/) — replace the default selection chrome with your own React component.
+- [External Content](../external-content/) — register drop / paste / URL handlers with priority resolution.
+- [Third-Party Plugin Authoring](../third-party-plugin/) — ship a uSketch plugin as a standalone npm package.
+- [Domain Design Plugin](../domain-design-plugin/) — a built-in plugin that demonstrates the patterns end-to-end.
 
 Found a tldraw concept this guide didn't cover? Open an issue or send a pull request — migration notes contributed by readers are the best way to keep this document accurate.
