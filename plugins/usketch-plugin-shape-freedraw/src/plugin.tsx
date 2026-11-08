@@ -8,7 +8,7 @@ import {
 	registerPen,
 } from "./custom-pens.js";
 import { createDrawController } from "./draw-tool.js";
-import { freedrawApi, freedrawService, listPens } from "./freedraw-service.js";
+import { createFreedrawApi, freedrawService, listPens } from "./freedraw-service.js";
 import { isKnownPen } from "./pen-meta.js";
 import { createFreedrawSettingsStore } from "./settings-store.js";
 import { createFreedrawShapeDefinition, type FreedrawHitTestMode } from "./shape.js";
@@ -78,8 +78,8 @@ export function createFreedrawPlugin(
 		setup(ctx: PluginContext) {
 			// 設定の復元で保存済みのペンを確かめるため、ペンは設定ストアより先に登録する。
 			const offPens = pens.map((def) => registerPen(def));
-			const offService = freedrawService.provide(ctx.services, freedrawApi);
 			const settings = createFreedrawSettingsStore(config);
+			const offService = freedrawService.provide(ctx.services, createFreedrawApi(settings));
 			const pointer = createPointerStore();
 			const active = createBoolStore(ctx.store.getActiveToolId() === TOOL_ID);
 			const draw = createDrawController(settings, pointer);
