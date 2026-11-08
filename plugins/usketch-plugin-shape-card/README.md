@@ -130,6 +130,7 @@ store.addShape(
 createCardPlugin({
   cardTypes,                         // 追加 card-type
   placementAnimation: { preset: "drop" }, // 既定の配置アニメ（card-type 個別指定が優先）
+  shuffleAnimation,                  // 既定のシャッフル演出（card-type 個別指定が優先。既定なし）
   enableDeck: true,                  // デッキ機構の ON/OFF（既定 true）
   userId: "u1",                      // 手札のローカル保持キー（既定 "local"）
   boardId: "board-123",              // 手札の localStorage キーを board 単位に分ける（任意）
@@ -145,6 +146,25 @@ createCardPlugin({
   **重いほど大きく・ゆっくり**（light < medium < heavy）。
   組込例では playing-card = `slam-medium`、uno = `slam-heavy`。
 - 独自 `{ keyframes: string; durationMs: number; easing?: string }`
+
+シャッフル演出（`shuffleAnimation`）は見た目を host が描く拡張ポイントです。プラグインはシャッフル時に
+`DeckMeta.shuffledAt`（epoch ms）を記録し、そこから `durationMs` の間だけデッキの描画を `render` の戻り値に
+差し替えます。`shuffledAt` は shape と一緒に同期されるので、ボードにいる全員の画面で同じ時刻から再生されます。
+
+```tsx
+createCardPlugin({
+  cardTypes,
+  shuffleAnimation: {
+    durationMs: (count) => 1200,     // 枚数で長さを変えるなら関数で
+    // startAt は全員共通。経過分を飛ばして再生すれば同時に終わる（seed にも使える）
+    render: ({ count, startAt, durationMs, faceDown, renderBack }) => (
+      <MyShuffle count={count} startAt={startAt} back={renderBack()} />
+    ),
+  },
+});
+```
+
+reduced-motion の扱いも host に任せます。
 
 > Slam の見た目・重み3段階は Claude Design の「Card Animations」ショーケース（Slam Place）を移植したもの。
 > ドロップ/移動（`shapes:move-end`）/ドロー時に、配置点を中心とした一発の衝撃エフェクトとして再生される。

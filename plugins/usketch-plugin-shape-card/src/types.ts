@@ -62,6 +62,35 @@ export type CardText = {
 	maxWidth?: number;
 };
 
+/** {@link DeckShuffleAnimation.render} に渡す、再生中のデッキの情報。 */
+export interface DeckShuffleRenderProps {
+	shape: ShapeData;
+	/** 山札の枚数（シャッフル後）。 */
+	count: number;
+	/**
+	 * シャッフルを始めた時刻（epoch ms）。全員の画面で同じ値なので、これを基準に再生すれば
+	 * 同時に終わる。乱数の seed にも使える。
+	 */
+	startAt: number;
+	/** 再生時間（ms）。`durationMs` を解決した値。 */
+	durationMs: number;
+	/** 伏せ置きのデッキか（`DeckMeta.faceDown`）。 */
+	faceDown: boolean;
+	/** 一番上のカードの裏面（card-type が無い / 空のデッキなら null）。 */
+	renderBack(): ReactElement | null;
+}
+
+/**
+ * デッキのシャッフル演出。プラグインはシャッフル時に `DeckMeta.shuffledAt` を記録し、
+ * そこから `durationMs` の間だけデッキの描画を `render` の戻り値に差し替える。動き自体は
+ * host が描く（プラグインは見た目を持たない）。reduced-motion の扱いも host に任せる。
+ */
+export interface DeckShuffleAnimation {
+	/** 再生時間（ms）。枚数で長さが変わる演出のために関数も受ける。 */
+	durationMs: number | ((count: number) => number);
+	render(props: DeckShuffleRenderProps): ReactElement;
+}
+
 /** 1つの面（表 or 裏）の定義: テクスチャ + テキスト配置。 */
 export type CardFace = {
 	texture?: CardTexture;
@@ -92,6 +121,11 @@ export interface CardTypeDefinition<TFields = Record<string, unknown>> {
 	resizable?: boolean;
 	/** この card-type 固有の配置アニメ。省略時はプラグイン既定を使用。 */
 	placementAnimation?: PlacementAnimation;
+	/**
+	 * この card-type のデッキをシャッフルしたときの見た目。省略時はプラグイン既定
+	 * （`createCardPlugin({ shuffleAnimation })`）を使う。どちらも無ければ動かない。
+	 */
+	shuffleAnimation?: DeckShuffleAnimation;
 	// 関数は method 構文（bivariant）にして、具象 TFields の定義を
 	// CardTypeDefinition<Record<string, unknown>> として束ねられるようにする。
 	/** ツールバー / ピッカー用アイコン。 */
@@ -135,6 +169,11 @@ export type DeckMeta = {
 	cards: Record<string, unknown>[];
 	/** 伏せ置きかどうか（描画で裏面を見せる）。 */
 	faceDown: boolean;
+	/**
+	 * 最後にシャッフルした時刻（epoch ms、シャッフルした人の時計）。shape と一緒に同期
+	 * されるので、各画面はこの時刻から {@link DeckShuffleAnimation} を再生する。
+	 */
+	shuffledAt?: number;
 };
 
 export type DeckShape = ShapeData<DeckMeta>;
