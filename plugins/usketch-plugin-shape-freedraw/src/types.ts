@@ -32,4 +32,15 @@ export interface FreedrawShapeData extends ShapeData {
 	penData?: Record<string, unknown>;
 	/** 描いている最中の仮のストロークだけ `true`（確定で消える）。 */
 	draft?: boolean;
+	/**
+	 * 端を近くの線へつないだか（`endpointSnap`）。`start` は points の先頭、`end` は末尾。
+	 * 座標は持たないので、移動・拡大縮小でもそのまま写る。
+	 */
+	joins?: StrokeJoins;
+}
+
+/** {@link FreedrawShapeData.joins}。 */
+export interface StrokeJoins {
+	start?: true;
+	end?: true;
 }

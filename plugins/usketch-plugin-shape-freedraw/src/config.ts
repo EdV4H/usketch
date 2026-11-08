@@ -16,6 +16,8 @@ export const TUNING = {
 	startPressure: 0.45,
 	/** 確定時の RDP 間引き許容誤差（world px、0 で無効）。 */
 	simplifyTolerance: 0.6,
+	/** 線の端を近くの線へつなぐ距離（screen px）。これに線の太さの半分を足す。 */
+	endpointSnapDist: 12,
 } as const;
 
 // 組み込みの 4 種は必須。外から足したペンの太さも id をキーにして持てる。
@@ -45,6 +47,12 @@ export const FreedrawConfigSchema = z.object({
 	 * 実行時は `freedraw:set-hit-test` イベントで切り替えられる。
 	 */
 	hitTest: z.enum(["stroke", "bounds"]).default("stroke"),
+	/**
+	 * 手を離したとき、線の端が同じペンの近くの線に入っていたら、その線のいちばん近い点まで
+	 * 伸ばしてつなぐ。実行時は `freedraw:set-endpoint-snap` イベントで切り替えられる。
+	 * Ctrl / ⌘ を押しながら離すと、その線だけ逆になる。
+	 */
+	endpointSnap: z.boolean().default(false),
 	/** ペン先カーソル表示。 */
 	cursorPreview: z.boolean().default(true),
 	/** 設定の localStorage 永続化を行うか。 */

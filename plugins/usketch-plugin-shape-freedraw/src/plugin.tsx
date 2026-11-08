@@ -82,7 +82,8 @@ export function createFreedrawPlugin(
 			const offService = freedrawService.provide(ctx.services, createFreedrawApi(settings));
 			const pointer = createPointerStore();
 			const active = createBoolStore(ctx.store.getActiveToolId() === TOOL_ID);
-			const draw = createDrawController(settings, pointer);
+			let endpointSnap = config.endpointSnap;
+			const draw = createDrawController(settings, pointer, { endpointSnap: () => endpointSnap });
 
 			let hitMode: FreedrawHitTestMode = config.hitTest;
 			ctx.shapes.register(
@@ -143,6 +144,12 @@ export function createFreedrawPlugin(
 					settings.update({ sizes: { ...cur.sizes, [cur.pen]: clamped } });
 				}
 			});
+			const offEndpointSnap = ctx.events.on<{ enabled: boolean }>(
+				"freedraw:set-endpoint-snap",
+				({ enabled }) => {
+					if (typeof enabled === "boolean") endpointSnap = enabled;
+				},
+			);
 			const offHitTest = ctx.events.on<{ mode: FreedrawHitTestMode }>(
 				"freedraw:set-hit-test",
 				({ mode }) => {
@@ -224,6 +231,7 @@ export function createFreedrawPlugin(
 				offSize();
 				offEraser();
 				offHitTest();
+				offEndpointSnap();
 				for (const off of offActions) off();
 				if (typeof window !== "undefined") {
 					window.removeEventListener("keydown", onKeyDown, true);

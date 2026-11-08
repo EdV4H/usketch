@@ -5,6 +5,7 @@ export {
 	parseFreedrawConfig,
 } from "./config.js";
 export type { FinalizedStroke, FreedrawPenDefinition, PenSizeRange } from "./custom-pens.js";
+export { type Nearest, nearestOnPolyline, snapEndpoints } from "./endpoint-snap.js";
 export {
 	type FreedrawApi,
 	type FreedrawCurrentSettings,
@@ -18,4 +19,4 @@ export { DEFAULT_PEN, PEN_KINDS, PEN_META, PRESET_COLORS } from "./pen-meta.js";
 export { createFreedrawPlugin, type FreedrawPluginOptions } from "./plugin.js";
 export type { FreedrawMode } from "./settings-store.js";
 export type { FreedrawHitTestMode } from "./shape.js";
-export type { FreedrawShapeData, PenId, PenKind, StrokePoint } from "./types.js";
+export type { FreedrawShapeData, PenId, PenKind, StrokeJoins, StrokePoint } from "./types.js";

@@ -16,6 +16,8 @@ export interface FinalizedStroke {
 	 * 変わり、`penData` はそのまま写されるので、座標（点列から作った形など）は入れない。
 	 */
 	penData?: Record<string, unknown>;
+	/** `false` なら端をつながない（周回コースのように端が無い線）。既定 `true`。 */
+	snapEnds?: boolean;
 }
 
 /**
@@ -49,6 +51,11 @@ export interface FreedrawPenDefinition {
 	 * 省略時は `size / 2`。
 	 */
 	halfWidth?(size: number): number;
+	/**
+	 * 端をつなぐ距離（world px、`endpointSnap` が有効なとき）。省略時は
+	 * 画面上の数 px + `halfWidth(size)`。
+	 */
+	snapDistance?(size: number): number;
 }
 
 // 登録は JS ランタイム単位（同じランタイムの AppInstance で共有）。shape の当たり判定や

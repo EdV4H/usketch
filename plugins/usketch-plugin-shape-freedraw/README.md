@@ -64,6 +64,15 @@ createFreedrawPlugin(undefined, {
 写されるので、座標は入れない（点列から毎回作る）。
 ペンを登録していないクライアントでは、そのストロークはボールペンの線（色・太さはそのまま）で描かれる。
 
+## 線の端をつなぐ
+
+`endpointSnap: true`（または `freedraw:set-endpoint-snap` `{enabled}`）のとき、手を離した線の
+始点・終点が**同じペン**の近くの線に入っていたら、その線のいちばん近い点まで線を伸ばしてつなぐ。
+Ctrl / ⌘ を押しながら離すと、その線だけ有効・無効が逆になる。つないだ端は shape の
+`joins`（`{ start?: true, end?: true }`）に残るので、足したペンの描画はそれを見て端の飾りを省ける。
+つなぐ距離は、画面上の 12px + 線の太さの半分。足したペンは `snapDistance(size)` で決められ、
+`finalize` が `snapEnds: false` を返した線（端が無い周回など）はつながない。
+
 ## 消しゴム
 
 `mode: "eraser"` のとき、触れた freedraw ストロークを丸ごと削除する（ピクセル消去ではない）。
@@ -80,6 +89,7 @@ interface FreedrawShapeData extends ShapeData {
   pen?: PenId; // 省略時 ballpoint（旧データ後方互換）
   penData?: Record<string, unknown>; // 足したペンの finalize が返したデータ
   draft?: boolean; // 描いている最中だけ true
+  joins?: { start?: true; end?: true }; // 端を近くの線へつないだか（endpointSnap）
 }
 ```
 
@@ -89,4 +99,4 @@ interface FreedrawShapeData extends ShapeData {
 
 `ctx.events.emit` で設定を操作できる（vim プラグインの ex コマンド等から）:
 `freedraw:set-pen` `{pen}` / `freedraw:set-color` `{color}` / `freedraw:set-size` `{size}` /
-`freedraw:toggle-eraser`。
+`freedraw:toggle-eraser` / `freedraw:set-endpoint-snap` `{enabled}`。

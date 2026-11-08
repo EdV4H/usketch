@@ -9,13 +9,14 @@ import {
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { TUNING } from "./config.js";
 import { getPenDefinition } from "./custom-pens.js";
+import { snapEndpoints } from "./endpoint-snap.js";
 import { createEraseStrokesCommand, findErasedStrokes } from "./eraser.js";
 import { smoothPressure, speedPressure } from "./geometry/brush-outline.js";
 import { penHalfWidth } from "./geometry/hit.js";
 import { simplifyPoints } from "./geometry/simplify.js";
-import { penMeta } from "./pen-meta.js";
+import { DEFAULT_PEN, penMeta } from "./pen-meta.js";
 import { type FreedrawSettingsStore, penSize } from "./settings-store.js";
-import type { FreedrawShapeData, PenId, StrokePoint } from "./types.js";
+import type { FreedrawShapeData, PenId, StrokeJoins, StrokePoint } from "./types.js";
 import type { PointerStore } from "./ui/cursor-overlay.js";
 
 interface StrokeState {
@@ -65,9 +66,27 @@ export interface DrawController {
 	reset(): void;
 }
 
+export interface DrawControllerOptions {
+	/** 線の端を同じペンの近くの線へつなぐか（Ctrl / ⌘ を押しながら離すと逆になる）。 */
+	endpointSnap?: () => boolean;
+}
+
+/** つなぐ相手: 同じペンの、確定した freedraw の線。 */
+function snapTargets(toolCtx: ToolContext, pen: PenId, selfId: string): FreedrawShapeData[] {
+	const out: FreedrawShapeData[] = [];
+	for (const [, shape] of toolCtx.store.getShapes()) {
+		if (shape.type !== "freedraw" || shape.id === selfId) continue;
+		const f = shape as FreedrawShapeData;
+		if (f.draft || (f.pen ?? DEFAULT_PEN) !== pen) continue;
+		out.push(f);
+	}
+	return out;
+}
+
 export function createDrawController(
 	settings: FreedrawSettingsStore,
 	pointer: PointerStore,
+	options: DrawControllerOptions = {},
 ): DrawController {
 	let stroke: StrokeState | null = null;
 	let erase: EraseState | null = null;
@@ -196,7 +215,7 @@ export function createDrawController(
 			flush(toolCtx);
 		},
 
-		onPointerUp(toolCtx, _event) {
+		onPointerUp(toolCtx, event) {
 			const s = settings.getSnapshot();
 
 			if (s.mode === "eraser") {
@@ -221,9 +240,21 @@ export function createDrawController(
 			// 確定: scratch を削除 → 間引き →（外から足したペンは finalize）→ undo 可能な追加コマンド。
 			toolCtx.store.deleteShape(cur.id);
 			const simplified = simplifyPoints(cur.points, TUNING.simplifyTolerance);
-			const finalized = getPenDefinition(cur.pen)?.finalize?.(simplified, { size: cur.size });
-			const points = finalized?.points ?? simplified;
+			const def = getPenDefinition(cur.pen);
+			const finalized = def?.finalize?.(simplified, { size: cur.size });
+			let points = finalized?.points ?? simplified;
 			if (points.length === 0) return;
+			let joins: StrokeJoins | undefined;
+			const snapOn = (options.endpointSnap?.() ?? false) !== (event.ctrlKey || event.metaKey);
+			if (snapOn && finalized?.snapEnds !== false) {
+				const zoom = toolCtx.store.getViewport().zoom || 1;
+				const maxDist =
+					def?.snapDistance?.(cur.size) ??
+					TUNING.endpointSnapDist / zoom + penHalfWidth(cur.pen, cur.size);
+				const snapped = snapEndpoints(points, snapTargets(toolCtx, cur.pen, cur.id), maxDist);
+				points = snapped.points;
+				joins = snapped.joins;
+			}
 			const pad = penHalfWidth(cur.pen, cur.size);
 			const b = boundsOf(points, pad);
 			const shape: FreedrawShapeData = {
@@ -237,6 +268,7 @@ export function createDrawController(
 				points,
 				pen: cur.pen,
 				...(finalized?.penData ? { penData: finalized.penData } : {}),
+				...(joins ? { joins } : {}),
 			};
 			toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
 		},
