@@ -55,12 +55,12 @@ describe("resolveShuffleEnd", () => {
 		expect(resolveShuffleEnd(shape, def, animation(500), 1500)).toBeNull();
 	});
 
-	it("resolves a duration that depends on the count", () => {
+	it("resolves a duration that depends on the deck", () => {
 		const def = makeCardType("t");
-		const byCount = vi.fn((count: number) => count * 100);
+		const byCount = vi.fn(({ count }: { count: number; startAt: number }) => count * 100);
 		const shape = deckShape({ shuffledAt: 1000 });
 		expect(resolveShuffleEnd(shape, def, animation(byCount), 1000)?.durationMs).toBe(300);
-		expect(byCount).toHaveBeenCalledWith(3);
+		expect(byCount).toHaveBeenCalledWith({ count: 3, startAt: 1000 });
 	});
 
 	it("prefers the card-type animation over the plugin default", () => {

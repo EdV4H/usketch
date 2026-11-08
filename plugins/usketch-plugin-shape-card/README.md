@@ -155,7 +155,7 @@ createCardPlugin({
 createCardPlugin({
   cardTypes,
   shuffleAnimation: {
-    durationMs: (count) => 1200,     // 枚数で長さを変えるなら関数で
+    durationMs: ({ count, startAt }) => 1200, // 枚数や切り方で長さを変えるなら関数で
     // startAt は全員共通。経過分を飛ばして再生すれば同時に終わる（seed にも使える）
     render: ({ count, startAt, durationMs, faceDown, renderBack }) => (
       <MyShuffle count={count} startAt={startAt} back={renderBack()} />

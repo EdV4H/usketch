@@ -23,7 +23,9 @@ export function resolveShuffleEnd(
 	const count = (meta.cards ?? []).length;
 	if (count < 2) return null;
 	const raw =
-		typeof animation.durationMs === "function" ? animation.durationMs(count) : animation.durationMs;
+		typeof animation.durationMs === "function"
+			? animation.durationMs({ count, startAt })
+			: animation.durationMs;
 	const durationMs = Number.isFinite(raw) ? Math.max(0, raw) : 0;
 	if (durationMs === 0 || now >= startAt + durationMs) return null;
 	return { animation, startAt, durationMs };
