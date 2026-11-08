@@ -44,9 +44,22 @@ function Spot({
 				height: 0,
 				pointerEvents: "none",
 				transform: lift > 0 ? `translateZ(${lift}px)` : undefined,
+				// Keep the 3D context down to the renderer's content, so under a 3D view
+				// (Mode 7) a renderer can stand its sprite up out of the ground (e.g.
+				// `rotateX(-pitch)` with the pitch from `view3dService`) instead of having it
+				// flattened onto the spot's plane. The flat board is unaffected.
+				transformStyle: "preserve-3d",
 			}}
 		>
-			<div style={{ position: "absolute", left: 0, top: 0, transform: "translate(-50%, -50%)" }}>
+			<div
+				style={{
+					position: "absolute",
+					left: 0,
+					top: 0,
+					transform: "translate(-50%, -50%)",
+					transformStyle: "preserve-3d",
+				}}
+			>
 				{renderer(props)}
 			</div>
 		</div>
