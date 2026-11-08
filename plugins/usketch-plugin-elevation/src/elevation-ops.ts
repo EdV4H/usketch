@@ -1,13 +1,7 @@
 // Operations on the board's elevation, as plain functions over a BoardStore (the HUD
 // and the service only call these). Each one is a single undo step when a command
 // registry is given, and writes straight to the store otherwise.
-import {
-	type BoardStore,
-	type Command,
-	type CommandRegistry,
-	generateId,
-	type ShapeData,
-} from "@edv4h/usketch-shared";
+import type { BoardStore, Command, CommandRegistry, ShapeData } from "@edv4h/usketch-shared";
 import {
 	DEFAULT_GEN,
 	DEFAULT_WATER_RATIO,
@@ -30,6 +24,14 @@ export interface ElevationDeps {
 
 /** Seed used when the infinite terrain is made without one. */
 export const DEFAULT_ELEVATION_SEED = 1;
+
+/**
+ * The id every client gives the field it creates. Fixed, so two clients turning the
+ * terrain on at once write the same shape (one field) instead of two fields whose
+ * chunk ids (`elev:<field>:…`) differ — the edits on the field that doesn't win would
+ * otherwise be lost.
+ */
+export const ELEVATION_FIELD_ID = "elevation-field";
 
 function run(deps: ElevationDeps, command: Command): void {
 	if (deps.commands) deps.commands.execute(command);
@@ -83,7 +85,7 @@ export function enableInfiniteElevation(
 				? Math.min(MAX_HEIGHT, Math.max(0, Number(opts.waterLevel) || 0))
 				: (current?.waterLevel ?? Math.round(gen.relief * DEFAULT_WATER_RATIO));
 	if (!shape) {
-		const field = makeFieldShape(generateId(), { seed, gen, waterLevel });
+		const field = makeFieldShape(ELEVATION_FIELD_ID, { seed, gen, waterLevel });
 		run(deps, {
 			execute: () => deps.store.addShape(field),
 			undo: () => deps.store.deleteShape(field.id),

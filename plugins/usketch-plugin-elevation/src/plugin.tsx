@@ -104,13 +104,17 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 			syncMapHeight();
 
 			// Provide the services LAST so a failed earlier step can't leak them.
-			const unprovideGround = groundHeightService.provide(ctx.services, { heightAt });
+			const ground = { heightAt };
+			const unprovideGround = groundHeightService.provide(ctx.services, ground);
 			const unprovide = elevationService.provide(ctx.services, api);
 
 			return () => {
 				unprovide();
+				// Hand the height back to the previous provider only while ours is still the
+				// one in use: a provider that came after this plugin stays.
+				const stillOurs = groundHeightService.get(ctx.services) === ground;
 				unprovideGround();
-				if (previous) groundHeightService.provide(ctx.services, previous);
+				if (stillOurs && previous) groundHeightService.provide(ctx.services, previous);
 				offStore();
 				if (mapHeightOff) mapHeightSwitch.get(ctx.services)?.setHeightEnabled?.(true);
 				stopHud();

@@ -5,6 +5,7 @@ import { DEFAULT_GEN, makeChunkShape, normalizeField } from "../elevation-field.
 import {
 	clearElevationEdits,
 	disableInfiniteElevation,
+	ELEVATION_FIELD_ID,
 	editedChunkCount,
 	enableInfiniteElevation,
 	getElevationField,
@@ -26,6 +27,15 @@ describe("enableInfiniteElevation", () => {
 		expect(f).toMatchObject({ seed: 7, gen: DEFAULT_GEN, waterLevel: 48 });
 		commands.undo();
 		expect(getElevationField(store)).toBeNull();
+	});
+
+	it("gives every new field the same id, so clients turning it on at once make one field", () => {
+		const a = setup();
+		const b = setup();
+		enableInfiniteElevation(a.deps, { seed: 1 });
+		enableInfiniteElevation(b.deps, { seed: 2 });
+		expect(getElevationField(a.store)?.id).toBe(ELEVATION_FIELD_ID);
+		expect(getElevationField(b.store)?.id).toBe(ELEVATION_FIELD_ID);
 	});
 
 	it("changes only the given parameters and keeps the rest", () => {

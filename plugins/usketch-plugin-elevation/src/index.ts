@@ -37,6 +37,7 @@ export {
 	clearElevationEdits,
 	DEFAULT_ELEVATION_SEED,
 	disableInfiniteElevation,
+	ELEVATION_FIELD_ID,
 	type ElevationDeps,
 	type EnableElevationOptions,
 	editedChunkCount,

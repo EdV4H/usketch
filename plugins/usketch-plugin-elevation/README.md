@@ -42,7 +42,7 @@ getElevationApi(app.services)?.enableInfinite({ seed: 7, gen: { relief: 400 }, w
 ## データ
 
 ```ts
-// ボードに 1 個（複数あれば id が一番小さいもの）
+// ボードに 1 個。id は固定の `elevation-field`（同時に作っても 1 個になる）。複数あれば id が一番小さいもの
 { type: "elevation-field", spacing: 16, chunk: 32, version: 1,
   seed?: number, gen?: { v: 1, relief, scale, roughness, ridges, octaves }, waterLevel?: number }
 

@@ -69,4 +69,12 @@ describe("elevation plugin", () => {
 		expect(setHeightEnabled).toHaveBeenLastCalledWith(true);
 		expect(ground()).toBe(16);
 	});
+
+	it("on teardown leaves a ground provider that came after it in place", () => {
+		const { ctx, dispose } = harness(true);
+		const later = { heightAt: () => 99 };
+		groundHeightService.provide(ctx.services, later);
+		dispose();
+		expect(groundHeightService.get(ctx.services)).toBe(later);
+	});
 });
