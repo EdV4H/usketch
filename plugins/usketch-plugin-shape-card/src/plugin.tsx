@@ -42,6 +42,7 @@ import { createCardSimplified, createDeckSimplified } from "./render-simplified.
 import {
 	type CardTypeDefinition,
 	type DeckMeta,
+	type DeckShuffleAnimation,
 	type PlacementAnimation,
 	readCardMeta,
 	readDeckMeta,
@@ -58,6 +59,12 @@ export interface CreateCardPluginOptions {
 	cardTypes?: CardTypeDefinition[];
 	/** 既定の配置アニメ（card-type 個別指定が優先される）。 */
 	placementAnimation?: PlacementAnimation;
+	/**
+	 * 既定のシャッフル演出（card-type 個別指定 `CardTypeDefinition.shuffleAnimation` が優先）。
+	 * 省略時は動かない（並びだけ入れ替わる）。シャッフル時刻は `DeckMeta.shuffledAt` として
+	 * 同期されるので、ボードにいる全員の画面で同じ時刻から再生される。
+	 */
+	shuffleAnimation?: DeckShuffleAnimation;
 	/** デッキ機構を有効にするか。既定 true。 */
 	enableDeck?: boolean;
 	/**
@@ -165,7 +172,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 	let slamNonce = 0;
 	const getSlam = (id: string) => slamming.get(id);
 	const renderCard = createCardRenderer(registry, getSlam);
-	const renderDeck = createDeckRenderer(registry);
+	const renderDeck = createDeckRenderer(registry, opts.shuffleAnimation);
 	const cardSimplified = createCardSimplified(registry);
 	const deckSimplified = createDeckSimplified(registry);
 	const hasCardTypes = registry.size > 0;
@@ -722,8 +729,14 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 						cardType: m.cardType ?? "",
 						cards: m.cards ?? [],
 						faceDown: m.faceDown ?? true,
+						...(typeof m.shuffledAt === "number" ? { shuffledAt: m.shuffledAt } : {}),
 					};
-					const after: DeckMeta = { ...before, cards: shuffle(before.cards) };
+					// shuffledAt はシャッフル演出の再生開始時刻（全員の画面で共有）。
+					const after: DeckMeta = {
+						...before,
+						cards: shuffle(before.cards),
+						shuffledAt: Date.now(),
+					};
 					// Command 経由で更新し Undo/Redo 可能にする
 					ctx.commands.execute(
 						createUpdateShapeCommand(
