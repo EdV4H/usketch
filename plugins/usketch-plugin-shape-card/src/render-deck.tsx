@@ -20,7 +20,7 @@ const LAYER_OFFSET = 3;
  * なりうる。再生時間より先の時刻は時計の狂いとみなして再生しない（何分も演出が
  * 出っぱなしになるのを防ぐ）。逆に再生時間より遅れている画面では演出は出ない。
  */
-export function resolveShuffleEnd(
+export function resolveShuffle(
 	meta: Partial<DeckMeta>,
 	def: CardTypeDefinition | undefined,
 	pluginDefault: DeckShuffleAnimation | undefined,
@@ -80,7 +80,7 @@ export function createDeckRenderer(
 		const meta = readDeckMeta(shape);
 		const def = meta.cardType ? registry.get(meta.cardType) : undefined;
 		const idle = renderDeckStatic(shape, meta, def);
-		const shuffle = resolveShuffleEnd(meta, def, shuffleAnimation, Date.now());
+		const shuffle = resolveShuffle(meta, def, shuffleAnimation, Date.now());
 		if (!shuffle) return idle;
 		const cards = meta.cards ?? [];
 		const top = cards[0];

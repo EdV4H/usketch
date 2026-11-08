@@ -3,7 +3,7 @@ import { isValidElement, type ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { DECK_TYPE } from "../factory.js";
 import { createCardPlugin } from "../plugin.js";
-import { createDeckRenderer, resolveShuffleEnd } from "../render-deck.js";
+import { createDeckRenderer, resolveShuffle } from "../render-deck.js";
 import type { CardTypeDefinition, DeckShuffleAnimation, DeckShuffleRenderProps } from "../types.js";
 import { readDeckMeta } from "../types.js";
 
@@ -39,30 +39,30 @@ const animation = (durationMs: DeckShuffleAnimation["durationMs"]): DeckShuffleA
 	render: () => (<div data-kind="shuffling" />) as ReactElement,
 });
 
-describe("resolveShuffleEnd", () => {
+describe("resolveShuffle", () => {
 	it("returns null without an animation or a shuffle time", () => {
 		const def = makeCardType("t");
 		expect(
-			resolveShuffleEnd(readDeckMeta(deckShape({ shuffledAt: 1000 })), def, undefined, 1000),
+			resolveShuffle(readDeckMeta(deckShape({ shuffledAt: 1000 })), def, undefined, 1000),
 		).toBeNull();
-		expect(resolveShuffleEnd(readDeckMeta(deckShape({})), def, animation(500), 1000)).toBeNull();
+		expect(resolveShuffle(readDeckMeta(deckShape({})), def, animation(500), 1000)).toBeNull();
 	});
 
 	it("plays from shuffledAt for durationMs", () => {
 		const def = makeCardType("t");
 		const shape = deckShape({ shuffledAt: 1000 });
-		expect(resolveShuffleEnd(readDeckMeta(shape), def, animation(500), 1200)).toMatchObject({
+		expect(resolveShuffle(readDeckMeta(shape), def, animation(500), 1200)).toMatchObject({
 			startAt: 1000,
 			durationMs: 500,
 		});
-		expect(resolveShuffleEnd(readDeckMeta(shape), def, animation(500), 1500)).toBeNull();
+		expect(resolveShuffle(readDeckMeta(shape), def, animation(500), 1500)).toBeNull();
 	});
 
 	it("resolves a duration that depends on the deck", () => {
 		const def = makeCardType("t");
 		const byCount = vi.fn(({ count }: { count: number; startAt: number }) => count * 100);
 		const shape = deckShape({ shuffledAt: 1000 });
-		expect(resolveShuffleEnd(readDeckMeta(shape), def, animation(byCount), 1000)?.durationMs).toBe(
+		expect(resolveShuffle(readDeckMeta(shape), def, animation(byCount), 1000)?.durationMs).toBe(
 			300,
 		);
 		expect(byCount).toHaveBeenCalledWith({ count: 3, startAt: 1000 });
@@ -71,7 +71,7 @@ describe("resolveShuffleEnd", () => {
 	it("prefers the card-type animation over the plugin default", () => {
 		const own = animation(800);
 		const def = makeCardType("t", own);
-		const r = resolveShuffleEnd(
+		const r = resolveShuffle(
 			readDeckMeta(deckShape({ shuffledAt: 0 })),
 			def,
 			animation(100),
@@ -83,7 +83,7 @@ describe("resolveShuffleEnd", () => {
 	it("does not play for a deck that cannot be shuffled", () => {
 		const def = makeCardType("t");
 		const shape = deckShape({ shuffledAt: 1000, cards: [{ n: 1 }] });
-		expect(resolveShuffleEnd(readDeckMeta(shape), def, animation(500), 1000)).toBeNull();
+		expect(resolveShuffle(readDeckMeta(shape), def, animation(500), 1000)).toBeNull();
 	});
 });
 
@@ -144,8 +144,8 @@ describe("clock skew", () => {
 	it("ignores a shuffle time further ahead than the animation lasts", () => {
 		const def = makeCardType("t");
 		const shape = deckShape({ shuffledAt: 10_000 });
-		expect(resolveShuffleEnd(readDeckMeta(shape), def, animation(500), 9_600)).not.toBeNull();
-		expect(resolveShuffleEnd(readDeckMeta(shape), def, animation(500), 9_000)).toBeNull();
+		expect(resolveShuffle(readDeckMeta(shape), def, animation(500), 9_600)).not.toBeNull();
+		expect(resolveShuffle(readDeckMeta(shape), def, animation(500), 9_000)).toBeNull();
 	});
 });
 
