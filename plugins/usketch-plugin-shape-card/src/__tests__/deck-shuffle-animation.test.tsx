@@ -87,7 +87,22 @@ describe("resolveShuffleEnd", () => {
 	});
 });
 
-type GateProps = { until: number; Render: unknown; props: DeckShuffleRenderProps };
+type GateProps = { until: number; playing: ReactElement; idle: ReactElement };
+
+/** 要素ツリーから `type` の要素を探す（描画せずに中身を確かめる）。 */
+function findElement(node: unknown, type: unknown): ReactElement<DeckShuffleRenderProps> | null {
+	if (!isValidElement(node)) {
+		if (Array.isArray(node)) {
+			for (const child of node) {
+				const hit = findElement(child, type);
+				if (hit) return hit;
+			}
+		}
+		return null;
+	}
+	if (node.type === type) return node as ReactElement<DeckShuffleRenderProps>;
+	return findElement((node.props as { children?: unknown }).children, type);
+}
 
 describe("createDeckRenderer with shuffleAnimation", () => {
 	it("hands the host the shuffle details while it plays", () => {
@@ -97,26 +112,31 @@ describe("createDeckRenderer with shuffleAnimation", () => {
 		const def = makeCardType("t");
 		const renderDeck = createDeckRenderer(new Map([["t", def]]), { durationMs: 1000, render });
 		const now = Date.now();
-		const out = renderDeck(deckShape({ shuffledAt: now }));
-		expect(isValidElement(out)).toBe(true);
-		const gate = (out as ReactElement<GateProps>).props;
+		const out = renderDeck(deckShape({ shuffledAt: now })) as ReactElement<GateProps>;
+		expect(out.props.until).toBe(now + 1000);
 		// host の render は要素として描く (hooks を使えるように、その場では呼ばない)。
 		expect(render).not.toHaveBeenCalled();
-		expect(gate.Render).toBe(render);
-		expect(gate.until).toBe(now + 1000);
-		expect(gate.props).toMatchObject({ count: 3, startAt: now, durationMs: 1000, faceDown: true });
-		expect(isValidElement(gate.props.renderBack())).toBe(true);
-		expect(isValidElement(gate.props.renderTop())).toBe(true);
+		const host = findElement(out.props.playing, render);
+		expect(host?.props).toMatchObject({
+			count: 3,
+			startAt: now,
+			durationMs: 1000,
+			faceDown: true,
+		});
+		expect(isValidElement(host?.props.renderBack())).toBe(true);
+		expect(isValidElement(host?.props.renderTop())).toBe(true);
+		// 外枠と残枚数バッジはプラグインが描いたまま。
+		expect(JSON.stringify(out.props.playing.props)).toContain('"children":3');
+		expect(findElement(out.props.idle, render)).toBeNull();
 	});
 
 	it("draws the resting deck once the shuffle is over", () => {
 		const render = vi.fn(() => (<div />) as ReactElement);
 		const def = makeCardType("t");
 		const renderDeck = createDeckRenderer(new Map([["t", def]]), { durationMs: 1000, render });
-		const out = renderDeck(deckShape({ shuffledAt: Date.now() - 5000 })) as ReactElement<
-			Partial<GateProps>
-		>;
-		expect(out.props.Render).toBeUndefined();
+		const out = renderDeck(deckShape({ shuffledAt: Date.now() - 5000 }));
+		expect(findElement(out, render)).toBeNull();
+		expect((out as ReactElement<Partial<GateProps>>).props.until).toBeUndefined();
 	});
 });
 

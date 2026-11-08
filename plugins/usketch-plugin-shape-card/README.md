@@ -148,8 +148,8 @@ createCardPlugin({
 - 独自 `{ keyframes: string; durationMs: number; easing?: string }`
 
 シャッフル演出（`shuffleAnimation`）は見た目を host が描く拡張ポイントです。プラグインはシャッフル時に
-`DeckMeta.shuffledAt`（epoch ms）を記録し、そこから `durationMs` の間だけデッキの描画を `render` の戻り値に
-差し替えます。`shuffledAt` は shape と一緒に同期されるので、ボードにいる全員の画面で同じ時刻から再生されます。
+`DeckMeta.shuffledAt`（epoch ms）を記録し、そこから `durationMs` の間だけ山札の厚みと一番上のカードを
+`render` の描画に差し替えます（外枠と残枚数バッジはそのまま）。`shuffledAt` は shape と一緒に同期されるので、ボードにいる全員の画面で同じ時刻から再生されます。
 
 ```tsx
 createCardPlugin({

@@ -88,8 +88,10 @@ export interface DeckShuffleRenderProps {
 
 /**
  * デッキのシャッフル演出。プラグインはシャッフル時に `DeckMeta.shuffledAt` を記録し、
- * そこから `durationMs` の間だけデッキの描画を `render` の戻り値に差し替える。動き自体は
- * host が描く（プラグインは見た目を持たない）。reduced-motion の扱いも host に任せる。
+ * そこから `durationMs` の間だけ、山札の厚みと一番上のカードを `render` の描画に差し替える
+ * （外枠の opacity・pointer-events と残枚数バッジはプラグインが描いたまま）。動き自体は
+ * host が描く（プラグインは見た目を持たない）。reduced-motion の扱いも host に任せる
+ * （動かさないなら `durationMs` を 0 にすれば差し替えない）。
  */
 export interface DeckShuffleAnimation {
 	/**

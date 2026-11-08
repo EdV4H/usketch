@@ -42,19 +42,16 @@ export function resolveShuffleEnd(
 }
 
 /**
- * 再生中は host の演出、`until` を過ぎたら `idle` を描く。shape が再描画されなくても
+ * 再生中は `playing`、`until` を過ぎたら `idle` を描く。shape が再描画されなくても
  * 自前のタイマーで静止表示へ戻る（シャッフルごとに key を変えて作り直す）。
- * host の `render` は要素として描くので、中で hooks を使ってよい。
  */
 function ShuffleGate({
 	until,
-	Render,
-	props,
+	playing,
 	idle,
 }: {
 	until: number;
-	Render: DeckShuffleAnimation["render"];
-	props: DeckShuffleRenderProps;
+	playing: ReactElement;
 	idle: ReactElement;
 }) {
 	const [done, setDone] = useState(() => Date.now() >= until);
@@ -67,7 +64,7 @@ function ShuffleGate({
 		const timer = setTimeout(() => setDone(true), rest);
 		return () => clearTimeout(timer);
 	}, [until]);
-	return done ? idle : <Render {...props} />;
+	return done ? idle : playing;
 }
 
 /**
@@ -98,22 +95,30 @@ export function createDeckRenderer(
 			renderTop: () =>
 				def && top ? (faceDown ? def.renderBack(top) : def.renderFront(top)) : null,
 		};
+		// host の render は要素として描く（中で hooks を使えるように）。外枠（opacity・
+		// pointer-events）と残枚数バッジはプラグインが描いたまま、山の部分だけを差し替える。
+		const Render = shuffle.animation.render;
+		const playing = renderDeckStatic(shape, meta, def, <Render {...props} />);
 		return (
 			<ShuffleGate
 				key={`shuffle-${shuffle.startAt}`}
 				until={shuffle.startAt + shuffle.durationMs}
-				Render={shuffle.animation.render}
-				props={props}
+				playing={playing}
 				idle={idle}
 			/>
 		);
 	};
 }
 
+/**
+ * 山札の静止表示。`pile` を渡すと、厚みのレイヤーと一番上のカードの代わりにそれを
+ * 描く（外枠と残枚数バッジはそのまま）。
+ */
 function renderDeckStatic(
 	shape: ShapeData,
 	meta: Partial<DeckMeta>,
 	def: CardTypeDefinition | undefined,
+	pile?: ReactElement,
 ) {
 	const cards = meta.cards ?? [];
 	const count = cards.length;
@@ -138,58 +143,62 @@ function renderDeckStatic(
 				userSelect: "none",
 			}}
 		>
-			{/* 厚み表現: 後ろにずらした空レイヤー */}
-			{Array.from({ length: layers }, (_, i) => {
-				const d = (layers - i) * LAYER_OFFSET;
-				return (
+			{pile ?? (
+				<>
+					{/* 厚み表現: 後ろにずらした空レイヤー */}
+					{Array.from({ length: layers }, (_, i) => {
+						const d = (layers - i) * LAYER_OFFSET;
+						return (
+							<div
+								key={`layer-${shape.id}-${i}`}
+								style={{
+									position: "absolute",
+									left: d,
+									top: d,
+									right: -d,
+									bottom: -d,
+									borderRadius: 10,
+									background: "#fff",
+									border: "1px solid rgba(0,0,0,0.15)",
+									boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
+								}}
+							/>
+						);
+					})}
+
+					{/* 一番上のカード or 空表示 */}
 					<div
-						key={`layer-${shape.id}-${i}`}
 						style={{
 							position: "absolute",
-							left: d,
-							top: d,
-							right: -d,
-							bottom: -d,
+							inset: 0,
 							borderRadius: 10,
+							overflow: "hidden",
 							background: "#fff",
-							border: "1px solid rgba(0,0,0,0.15)",
-							boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
-						}}
-					/>
-				);
-			})}
-
-			{/* 一番上のカード or 空表示 */}
-			<div
-				style={{
-					position: "absolute",
-					inset: 0,
-					borderRadius: 10,
-					overflow: "hidden",
-					background: "#fff",
-					boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-					border: count === 0 ? "2px dashed #bbb" : "1px solid rgba(0,0,0,0.2)",
-				}}
-			>
-				{count === 0 ? (
-					<div
-						style={{
-							width: "100%",
-							height: "100%",
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							color: "#999",
-							fontSize: 12,
-							fontFamily: "system-ui, sans-serif",
+							boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+							border: count === 0 ? "2px dashed #bbb" : "1px solid rgba(0,0,0,0.2)",
 						}}
 					>
-						空
+						{count === 0 ? (
+							<div
+								style={{
+									width: "100%",
+									height: "100%",
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									color: "#999",
+									fontSize: 12,
+									fontFamily: "system-ui, sans-serif",
+								}}
+							>
+								空
+							</div>
+						) : (
+							topFace
+						)}
 					</div>
-				) : (
-					topFace
-				)}
-			</div>
+				</>
+			)}
 
 			{/* 残枚数バッジ */}
 			{count > 0 && (
