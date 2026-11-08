@@ -1,5 +1,11 @@
 # @edv4h/usketch-plugin-shape-freedraw
 
+## 3.5.0
+
+### Minor Changes
+
+- 84d8688: ホスト向け API（`getFreedrawApi(app.services)`）に `getSettings()` と `onSettingsChange()` を足した。今のペン・色・太さ・モードを読めるので、ホストのペン選択 UI を、freedraw が前回の設定から戻した値に合わせられる。
+
 ## 3.4.1
 
 ### Patch Changes
