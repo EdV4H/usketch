@@ -19,6 +19,7 @@ const base: MapRenderConfig = {
 	reliefOverscan: false,
 	reliefEdgeInset: 2,
 	fullDetailMinPx: 24,
+	heightEnabled: true,
 };
 
 describe("render config defaults", () => {

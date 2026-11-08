@@ -106,8 +106,9 @@ function buildSampler(tilemaps: readonly TileMapShapeData[]): TerrainSampler {
 	);
 }
 
-/** Ground height (world units) at a world point on the board. */
+/** Ground height (world units) at a world point on the board (0 while heights are off). */
 export function groundHeightAt(store: BoardStore, x: number, y: number, tile: number): number {
+	if (!renderConfigStore.get().heightEnabled) return 0;
 	const [c, r] = worldToCell(x, y, tile);
 	return terrainLevel(boardTerrainSampler(store)(c, r)) * LEVEL_HEIGHT;
 }

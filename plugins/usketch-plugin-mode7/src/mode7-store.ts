@@ -43,6 +43,8 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 	"usketch-map:relief",
 	"usketch-map:base",
 	"usketch-map:base-icons",
+	// usketch-plugin-elevation: the elevation's colours / shading on the flat ground
+	"usketch-elevation:ground",
 	"gpu-shapes",
 	"dom-shapes",
 	// shapes stood up / raised in 3D by usketch-plugin-shape-3d (a depth layer)

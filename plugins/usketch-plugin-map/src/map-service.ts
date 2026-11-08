@@ -51,6 +51,11 @@ export interface MapApi {
 	// ── Terrain height (高さ) — derived from each cell's terrain (see terrain-height.ts). ──
 	/** Ground height (world units) at a world point. */
 	getHeightAt(x: number, y: number): number;
+	/**
+	 * Switch the terrain's heights on / off (`renderConfig.heightEnabled`): off, there are
+	 * no cliffs and `getHeightAt` is 0 — for a board whose height another plugin owns.
+	 */
+	setHeightEnabled(on: boolean): void;
 	/** Fire `listener` whenever the territory could have changed (shapes / exclude set). Returns an unsubscribe. */
 	onTerritoryChange(listener: () => void): () => void;
 	// ── Reactive stores backing the map tool + Tweaks (get/set/subscribe). NOTE:
@@ -88,6 +93,7 @@ export function createMapApi(store: BoardStore, defaultTile = DEFAULT_TILE): Map
 		},
 		getBases: () => getBaseMap(store)?.bases ?? {},
 		getHeightAt: (x, y) => groundHeightAt(store, x, y, defaultTile),
+		setHeightEnabled: (on) => renderConfigStore.set({ heightEnabled: on === true }),
 		getBaseRegions: () => {
 			const { baseMap, tile, territory } = snapshot();
 			return baseRegionAnchors(territory, baseMap?.bases ?? {}, tile);
