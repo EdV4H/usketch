@@ -78,3 +78,22 @@ describe("elevation plugin", () => {
 		expect(groundHeightService.get(ctx.services)).toBe(later);
 	});
 });
+
+describe("elevation plugin — brush", () => {
+	it("registers the elevation tool and its cursor layer, and paints through the service", () => {
+		const { ctx, api, dispose } = harness(false);
+		expect(ctx.tools.get("elevation")).toBeDefined();
+		expect(ctx.layers.getLayers().some((l) => l.id === "usketch-elevation:brush-cursor")).toBe(
+			true,
+		);
+		api.brush.set({ radius: 64, strength: 50 });
+		expect(api.paint([{ x: 96, y: 96 }], { seconds: 0.5 })).toBe(1);
+		expect(api.getHeightAt(96, 96)).toBeCloseTo(100, 0); // on a sample: 50 × 4 × 0.5
+		ctx.commands.undo();
+		expect(api.getField()).toBeNull();
+		dispose();
+		expect(ctx.layers.getLayers().some((l) => l.id === "usketch-elevation:brush-cursor")).toBe(
+			false,
+		);
+	});
+});
