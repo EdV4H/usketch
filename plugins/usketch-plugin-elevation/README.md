@@ -84,13 +84,14 @@ elevation?.paint([{ x: 0, y: 0 }, { x: 600, y: 0 }], { mode: "raise", seconds: 1
 
 ## Mode 7
 
-3D ビュー（`view3dService` の `amount() > 0`）の間は、層 `usketch-elevation:mesh`（order 46、傾けない層）が WebGL2 の canvas 1 枚に標高をメッシュとして描き、地面が本当に盛り上がる。
+3D ビュー（`view3dService` の `amount() > 0`）の間は、層 `usketch-elevation:mesh`（既定 order 46・`meshOrder` で変えられる、傾けない層）が WebGL2 の canvas 1 枚に標高をメッシュとして描き、地面が本当に盛り上がる。
 
 - 位置は Mode 7 の CSS の傾き `perspective(fov) rotateX(pitch) rotateZ(yaw)` と同じ式を頂点シェーダーで計算する（`projectLifted`）。高さは `h × zoom` px で、キャラや map の崖の持ち上げと同じなので、丘・キャラ・板がずれない。
 - 色・等高線・陰影・水面は 2D と同じ設定（HUD の「標高の表示」）。水面は水位で平ら。シードなしの場では高さ 0 の所は透明で、板の地面から丘だけが盛り上がる。
 - メッシュが描いている間は 2D の層 `usketch-elevation:ground` は描かない（3D を抜けると戻る）。WebGL2 が使えないときは今まで通り、2D の層が陰影つきの絵として傾く。
 - 3D ビューが地面を画面の外まで見せるとき（`bg-grid:set-overscan`）は、その分も描く（上限 `maxOverscanPx`、既定 1200）。
 - `createElevationPlugin({ mesh: false })` でメッシュを使わず、2D の層を傾けるだけにできる。
+- 層の重なり順は `groundOrder`（2D の層、既定 45）と `meshOrder`（メッシュ、既定 46）で変えられる。既定では map の地面（40）・拠点の範囲（42）・拠点のアイコン（44）より上に描くので、それらを標高の上に出したいときは下げる（例: `{ groundOrder: 40.5, meshOrder: 41.5 }`）。上に出した層は平らな地面のまま描かれ、丘の高さには沿わない。
 
 キャラクター（`@edv4h/usketch-plugin-character`）は 3D ビューで坂に沿って傾き、坂でのジャンプは坂の向きにも跳ぶ。なめらかな坂は段差（`maxStep`）では止まらないので、キャラの `motion.maxSlope` を設定すること（`45` くらいを推奨。web アプリはこの値）。それより急な坂は登れず、ずり落ちる。3D 表示のない Shape も丘の高さに乗る（shape-3d の `limits.groundFlat`）。
 

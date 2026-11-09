@@ -45,7 +45,26 @@ export interface ElevationPluginOptions {
 	mesh?: boolean;
 	/** Most screen px of ground drawn past the viewport for a 3D view. Default 1200. */
 	maxOverscanPx?: number;
+	/**
+	 * Stacking order of the flat ground layer. Default 45: above the map's ground (40–44),
+	 * below the shapes (50). Lower it (e.g. 41.5) to keep layers such as the map's base
+	 * areas (42) and base icons (44) drawn over the elevation.
+	 */
+	groundOrder?: number;
+	/**
+	 * Stacking order of the 3D mesh layer. Default 46, just above the flat ground. Like
+	 * `groundOrder`, lower it to keep other ground layers drawn over the raised surface.
+	 */
+	meshOrder?: number;
 }
+
+/** Default stacking orders of the ground and mesh layers. */
+export const DEFAULT_GROUND_ORDER = 45;
+export const DEFAULT_MESH_ORDER = 46;
+
+/** A host's layer order, or the default when it isn't a finite number (the sort would break). */
+const layerOrder = (value: number | undefined, fallback: number): number =>
+	typeof value === "number" && Number.isFinite(value) ? value : fallback;
 
 /** Event a 3D view emits with the screen px of ground it shows past the viewport. */
 export const GROUND_OVERSCAN_EVENT = "bg-grid:set-overscan";
@@ -88,8 +107,8 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 
 			ctx.layers.register({
 				id: GROUND_LAYER_ID,
-				// Above the map's ground (40–44), below the shapes (50).
-				order: 45,
+				// Above the map's ground (40–44), below the shapes (50), unless the host says.
+				order: layerOrder(options.groundOrder, DEFAULT_GROUND_ORDER),
 				avoidCollision: true,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
@@ -109,7 +128,7 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 					id: MESH_LAYER_ID,
 					// Just above the flat ground, below the shapes. NOT tilted by Mode 7: it
 					// projects itself (and so isn't in Mode 7's tilt list).
-					order: 46,
+					order: layerOrder(options.meshOrder, DEFAULT_MESH_ORDER),
 					avoidCollision: true,
 					fixed: true,
 					render: () => (
