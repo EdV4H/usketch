@@ -97,3 +97,12 @@ describe("elevation plugin — brush", () => {
 		);
 	});
 });
+
+describe("elevation plugin — 3D mesh", () => {
+	it("registers the mesh layer (not tilted by Mode 7), and none with mesh: false", () => {
+		const { ctx, dispose } = harness(false);
+		expect(ctx.layers.getLayers().some((l) => l.id === "usketch-elevation:mesh")).toBe(true);
+		dispose();
+		expect(ctx.layers.getLayers().some((l) => l.id === "usketch-elevation:mesh")).toBe(false);
+	});
+});

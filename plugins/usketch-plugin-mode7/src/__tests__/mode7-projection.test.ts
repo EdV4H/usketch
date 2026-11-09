@@ -25,6 +25,35 @@ describe("projectToGround", () => {
 		expect(near?.depth).toBeGreaterThan(0);
 		expect(far?.scale).toBeLessThan(1);
 	});
+	it("lifts a point by z like a depth layer's translateZ (the CSS matrices, multiplied out)", () => {
+		// perspective(fov) · rotateX(pitch) · rotateZ(yaw) · translateZ(z), about the origin.
+		const css = (x: number, y: number, z: number, cam: Camera) => {
+			const o = tiltOrigin(cam, SIZE);
+			const r = (d: number) => (d * Math.PI) / 180;
+			let p = [x - o.x, y - o.y, z];
+			const [cz, sz] = [Math.cos(r(cam.yaw)), Math.sin(r(cam.yaw))];
+			p = [p[0] * cz - p[1] * sz, p[0] * sz + p[1] * cz, p[2]];
+			const [cx, sx] = [Math.cos(r(cam.pitch)), Math.sin(r(cam.pitch))];
+			p = [p[0], p[1] * cx - p[2] * sx, p[1] * sx + p[2] * cx];
+			const w = 1 - p[2] / cam.fov; // perspective(d): w = 1 − z/d
+			return { x: o.x + p[0] / w, y: o.y + p[1] / w };
+		};
+		for (const [x, y, z] of [
+			[300, 500, 0],
+			[300, 500, 80],
+			[900, 200, 240],
+			[50, 760, 10],
+		]) {
+			const p = projectToGround(x, y, CAM, SIZE, z);
+			const c = css(x, y, z, CAM);
+			expect(p?.x).toBeCloseTo(c.x, 6);
+			expect(p?.y).toBeCloseTo(c.y, 6);
+		}
+		// Up on screen when tilted back.
+		const ground = projectToGround(600, 500, { ...CAM, yaw: 0 }, SIZE);
+		const lifted = projectToGround(600, 500, { ...CAM, yaw: 0 }, SIZE, 100);
+		expect(lifted?.y).toBeLessThan(ground?.y ?? 0);
+	});
 	it("returns null behind the eye", () => {
 		expect(projectToGround(600, 360 + 2000, { ...CAM, yaw: 0, pitch: 80 }, SIZE)).toBeNull();
 	});
