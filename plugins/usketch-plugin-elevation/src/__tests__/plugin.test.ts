@@ -11,12 +11,18 @@ import { defineService, groundHeightService, type PluginContext } from "@edv4h/u
 import { createBoardStore } from "@edv4h/usketch-store";
 import { describe, expect, it, vi } from "vitest";
 import { GROUND_LAYER_ID } from "../elevation-layer.js";
+import { MESH_LAYER_ID } from "../elevation-mesh-layer.js";
 import { getElevationApi } from "../elevation-service.js";
-import { createElevationPlugin } from "../plugin.js";
+import {
+	createElevationPlugin,
+	DEFAULT_GROUND_ORDER,
+	DEFAULT_MESH_ORDER,
+	type ElevationPluginOptions,
+} from "../plugin.js";
 
 const mapLike = defineService<{ setHeightEnabled: (on: boolean) => void }>("usketch-plugin-map");
 
-function harness(withMap: boolean) {
+function harness(withMap: boolean, options: ElevationPluginOptions = {}) {
 	const store = createBoardStore();
 	const ctx = {
 		store,
@@ -34,7 +40,7 @@ function harness(withMap: boolean) {
 		groundHeightService.provide(ctx.services, { heightAt: () => 16 });
 		mapLike.provide(ctx.services, { setHeightEnabled });
 	}
-	const dispose = createElevationPlugin().setup(ctx) as () => void;
+	const dispose = createElevationPlugin(options).setup(ctx) as () => void;
 	const api = getElevationApi(ctx.services);
 	if (!api) throw new Error("service not provided");
 	return { ctx, api, dispose, setHeightEnabled };
@@ -47,6 +53,20 @@ describe("elevation plugin", () => {
 		dispose();
 		expect(ctx.layers.getLayers().some((l) => l.id === GROUND_LAYER_ID)).toBe(false);
 		expect(getElevationApi(ctx.services)).toBeUndefined();
+	});
+
+	it("puts the ground and mesh layers at the default orders, or where the host says", () => {
+		const orderOf = (h: ReturnType<typeof harness>, id: string) =>
+			h.ctx.layers.getLayers().find((l) => l.id === id)?.order;
+		const byDefault = harness(false);
+		expect(orderOf(byDefault, GROUND_LAYER_ID)).toBe(DEFAULT_GROUND_ORDER);
+		expect(orderOf(byDefault, MESH_LAYER_ID)).toBe(DEFAULT_MESH_ORDER);
+		byDefault.dispose();
+
+		const lowered = harness(false, { groundOrder: 40.5, meshOrder: 41.5 });
+		expect(orderOf(lowered, GROUND_LAYER_ID)).toBe(40.5);
+		expect(orderOf(lowered, MESH_LAYER_ID)).toBe(41.5);
+		lowered.dispose();
 	});
 
 	it("owns the ground height only on a board with a field, else defers to the map", () => {

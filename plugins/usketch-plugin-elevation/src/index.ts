@@ -121,6 +121,8 @@ export {
 } from "./elevation-tool.js";
 export {
 	createElevationPlugin,
+	DEFAULT_GROUND_ORDER,
+	DEFAULT_MESH_ORDER,
 	type ElevationPluginOptions,
 	GROUND_OVERSCAN_EVENT,
 } from "./plugin.js";
