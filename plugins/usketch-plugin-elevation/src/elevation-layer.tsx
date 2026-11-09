@@ -167,12 +167,15 @@ export function ElevationGroundLayer({
 	display,
 	overscan,
 	preview,
+	mesh,
 }: {
 	store: BoardStore;
 	display: ReactiveStore<ElevationDisplay>;
 	/** Extra screen px of ground to draw past the viewport (a 3D view's far ground). */
 	overscan: ReactiveStore<{ px: number }>;
 	preview?: ReactiveStore<StrokePreview>;
+	/** While the 3D mesh draws the ground, this layer draws nothing. */
+	mesh?: ReactiveStore<{ drawing: boolean }>;
 }) {
 	const [, force] = useState(0);
 	const rafRef = useRef(0);
@@ -186,13 +189,16 @@ export function ElevationGroundLayer({
 			display.subscribe(rerender),
 			overscan.subscribe(rerender),
 			...(preview ? [preview.subscribe(rerender)] : []),
+			...(mesh ? [mesh.subscribe(rerender)] : []),
 		];
 		return () => {
 			for (const off of offs) off();
 			cancelAnimationFrame(rafRef.current);
 		};
-	}, [store, display, overscan, preview]);
+	}, [store, display, overscan, preview, mesh]);
 
+	// The 3D mesh draws the ground: nothing to draw here (no tiles kept busy meanwhile).
+	if (mesh?.get().drawing) return null;
 	const stored = boardElevation(store);
 	const drafting = preview?.get().model ?? null;
 	const model = drafting ?? stored;

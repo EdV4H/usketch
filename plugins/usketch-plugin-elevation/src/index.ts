@@ -51,6 +51,17 @@ export {
 	tileRevision,
 } from "./elevation-layer.js";
 export {
+	buildTileMesh,
+	type MeshCamera,
+	projectLifted,
+	RAMP_WIDTH,
+	rampPixels,
+	rampRange,
+	tileIndices,
+	VERTEX_FLOATS,
+} from "./elevation-mesh.js";
+export { ElevationMeshLayer, MESH_LAYER_ID, type MeshState } from "./elevation-mesh-layer.js";
+export {
 	boardElevation,
 	boardField,
 	DEFAULT_BASE_CACHE,

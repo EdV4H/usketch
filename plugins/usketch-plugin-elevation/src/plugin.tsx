@@ -18,6 +18,7 @@ import { BRUSH_CURSOR_LAYER_ID, BrushCursorLayer } from "./brush-cursor-layer.js
 import { type BrushSettings, DEFAULT_BRUSH, normalizeBrush } from "./elevation-brush.js";
 import { CHUNK_TYPE, FIELD_TYPE } from "./elevation-field.js";
 import { ElevationGroundLayer, GROUND_LAYER_ID, type StrokePreview } from "./elevation-layer.js";
+import { ElevationMeshLayer, MESH_LAYER_ID, type MeshState } from "./elevation-mesh-layer.js";
 import { boardElevation, elevationSampler, setBaseCacheLimit } from "./elevation-model.js";
 import { createElevationApi, elevationService } from "./elevation-service.js";
 import { DEFAULT_DISPLAY, type ElevationDisplay } from "./elevation-shade.js";
@@ -37,6 +38,11 @@ export interface ElevationPluginOptions {
 	brush?: Partial<BrushSettings>;
 	/** Generated chunks kept in memory (about 4 KB each). Default 512. */
 	baseCacheChunks?: number;
+	/**
+	 * Draw the ground as a raised surface (WebGL2) in a 3D view such as Mode 7. Off:
+	 * the flat colours / shading are tilted with the board. Default on.
+	 */
+	mesh?: boolean;
 	/** Most screen px of ground drawn past the viewport for a 3D view. Default 1200. */
 	maxOverscanPx?: number;
 }
@@ -72,6 +78,7 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 			const preview = createReactiveStore<StrokePreview>({ model: null });
 			const cursor = createReactiveStore<BrushCursor>({ x: 0, y: 0, visible: false });
 			const view3d = () => view3dService.get(ctx.services);
+			const mesh = createReactiveStore<MeshState>({ drawing: false });
 			const maxOverscan = options.maxOverscanPx ?? DEFAULT_MAX_OVERSCAN_PX;
 			const overscan = createReactiveStore({ px: 0 });
 			const offOverscan = ctx.events.on<{ px: number }>(GROUND_OVERSCAN_EVENT, (data) => {
@@ -93,9 +100,29 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 						display={display}
 						overscan={overscan}
 						preview={preview}
+						mesh={options.mesh === false ? undefined : mesh}
 					/>
 				),
 			});
+			if (options.mesh !== false) {
+				ctx.layers.register({
+					id: MESH_LAYER_ID,
+					// Just above the flat ground, below the shapes. NOT tilted by Mode 7: it
+					// projects itself (and so isn't in Mode 7's tilt list).
+					order: 46,
+					avoidCollision: true,
+					fixed: true,
+					render: () => (
+						<ElevationMeshLayer
+							store={ctx.store}
+							display={display}
+							overscan={overscan}
+							view3d={view3d}
+							state={mesh}
+						/>
+					),
+				});
+			}
 			ctx.layers.register({
 				id: BRUSH_CURSOR_LAYER_ID,
 				// Over the shapes, under the selection UI and the HUD.
@@ -161,6 +188,7 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 				if (mapHeightOff) mapHeightSwitch.get(ctx.services)?.setHeightEnabled?.(true);
 				stopHud();
 				ctx.layers.unregister(GROUND_LAYER_ID);
+				if (options.mesh !== false) ctx.layers.unregister(MESH_LAYER_ID);
 				ctx.layers.unregister(BRUSH_CURSOR_LAYER_ID);
 				offOverscan();
 			};
