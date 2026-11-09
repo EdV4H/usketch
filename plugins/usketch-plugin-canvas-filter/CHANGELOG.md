@@ -1,5 +1,11 @@
 # @edv4h/usketch-plugin-canvas-filter
 
+## 3.1.17
+
+### Patch Changes
+
+- 004ae3a: どこからも使われていない `FilterIndicator`（Control HUD のアクションに置き換わった旧フィルタ表示ボタン）と、内部の `applyFilter` を削除した。どちらもパッケージの入口から export されておらず、挙動は変わらない。
+
 ## 3.1.16
 
 ### Patch Changes
