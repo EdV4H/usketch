@@ -6,6 +6,7 @@ import {
 	defineService,
 	type ServiceRegistry,
 } from "@edv4h/usketch-shared";
+import type { BrushSettings } from "./elevation-brush.js";
 import type { ElevationFieldConfig } from "./elevation-field.js";
 import { elevationHeightAt } from "./elevation-model.js";
 import {
@@ -15,6 +16,8 @@ import {
 	editedChunkCount,
 	enableInfiniteElevation,
 	getElevationField,
+	type PaintOptions,
+	paintElevation,
 	removeElevationField,
 } from "./elevation-ops.js";
 import type { ElevationDisplay } from "./elevation-shade.js";
@@ -35,8 +38,16 @@ export interface ElevationApi {
 	editedChunkCount(): number;
 	/** Ground height (world units) at a world point; 0 without a field. */
 	getHeightAt(x: number, y: number): number;
+	/**
+	 * One brush stroke along `path` (world points), one undo step: what the tool does
+	 * between pointer down and up. Missing brush settings come from {@link brush}.
+	 * Returns the number of chunks changed.
+	 */
+	paint(path: readonly { x: number; y: number }[], opts?: PaintOptions): number;
 	/** The look (colours / shading / contours). App-local, not synced. */
 	display: ReactiveStore<ElevationDisplay>;
+	/** The elevation tool's brush (mode, radius, strength…). App-local, not synced. */
+	brush: ReactiveStore<BrushSettings>;
 }
 
 export const elevationService = defineService<ElevationApi>("usketch-plugin-elevation");
@@ -46,6 +57,7 @@ export function createElevationApi(
 	store: BoardStore,
 	commands: CommandRegistry | undefined,
 	display: ReactiveStore<ElevationDisplay>,
+	brush: ReactiveStore<BrushSettings>,
 ): ElevationApi {
 	const deps = { store, commands };
 	return {
@@ -56,7 +68,10 @@ export function createElevationApi(
 		getField: () => getElevationField(store),
 		editedChunkCount: () => editedChunkCount(store),
 		getHeightAt: (x, y) => elevationHeightAt(store, x, y),
+		paint: (path, opts) =>
+			paintElevation(deps, path, { ...opts, brush: { ...brush.get(), ...opts?.brush } }),
 		display,
+		brush,
 	};
 }
 

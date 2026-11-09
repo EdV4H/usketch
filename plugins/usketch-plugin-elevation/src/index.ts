@@ -1,3 +1,25 @@
+export { BRUSH_CURSOR_LAYER_ID, BrushCursorLayer } from "./brush-cursor-layer.js";
+export {
+	applyDab,
+	applyDabs,
+	BRUSH_FALLOFFS,
+	BRUSH_MODES,
+	type BrushFalloff,
+	type BrushMode,
+	type BrushSettings,
+	beginStroke,
+	type ChunkChange,
+	type DabOptions,
+	DEFAULT_BRUSH,
+	dabsAlong,
+	falloffWeight,
+	MAX_RADIUS,
+	MIN_RADIUS,
+	normalizeBrush,
+	RAISE_RATE,
+	type Stroke,
+	strokeChanges,
+} from "./elevation-brush.js";
 export { decodeChunk, encodeChunk, isEmptyChunk } from "./elevation-codec.js";
 export {
 	CHUNK_TYPE,
@@ -21,11 +43,18 @@ export {
 	normalizeField,
 	normalizeGen,
 } from "./elevation-field.js";
-export { ElevationGroundLayer, GROUND_LAYER_ID, tileRevision } from "./elevation-layer.js";
+export {
+	ElevationGroundLayer,
+	GROUND_LAYER_ID,
+	STROKE_TILE_PX,
+	type StrokePreview,
+	tileRevision,
+} from "./elevation-layer.js";
 export {
 	boardElevation,
 	boardField,
 	DEFAULT_BASE_CACHE,
+	type DeltaValues,
 	type ElevationModel,
 	type ElevationSampler,
 	elevationHeightAt,
@@ -43,7 +72,10 @@ export {
 	editedChunkCount,
 	enableInfiniteElevation,
 	getElevationField,
+	type PaintOptions,
+	paintElevation,
 	removeElevationField,
+	writeChunkEdits,
 } from "./elevation-ops.js";
 export {
 	createElevationApi,
@@ -70,6 +102,12 @@ export {
 	visibleWorldRect,
 	type WorldRect,
 } from "./elevation-tiles.js";
+export {
+	type BrushCursor,
+	createElevationToolDefinition,
+	ELEVATION_TOOL_ID,
+	type ElevationToolDeps,
+} from "./elevation-tool.js";
 export {
 	createElevationPlugin,
 	type ElevationPluginOptions,

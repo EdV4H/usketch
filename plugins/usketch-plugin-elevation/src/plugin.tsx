@@ -12,19 +12,29 @@ import {
 	groundHeightService,
 	type PluginContext,
 	type UsketchPlugin,
+	view3dService,
 } from "@edv4h/usketch-shared";
+import { BRUSH_CURSOR_LAYER_ID, BrushCursorLayer } from "./brush-cursor-layer.js";
+import { type BrushSettings, DEFAULT_BRUSH, normalizeBrush } from "./elevation-brush.js";
 import { CHUNK_TYPE, FIELD_TYPE } from "./elevation-field.js";
-import { ElevationGroundLayer, GROUND_LAYER_ID } from "./elevation-layer.js";
+import { ElevationGroundLayer, GROUND_LAYER_ID, type StrokePreview } from "./elevation-layer.js";
 import { boardElevation, elevationSampler, setBaseCacheLimit } from "./elevation-model.js";
 import { createElevationApi, elevationService } from "./elevation-service.js";
 import { DEFAULT_DISPLAY, type ElevationDisplay } from "./elevation-shade.js";
 import { createChunkShapeDefinition, createFieldShapeDefinition } from "./elevation-shapes.js";
+import {
+	type BrushCursor,
+	createElevationToolDefinition,
+	ELEVATION_TOOL_ID,
+} from "./elevation-tool.js";
 import { createReactiveStore } from "./reactive-store.js";
 import { registerElevationHud } from "./register-elevation-hud.js";
 
 export interface ElevationPluginOptions {
 	/** The initial look (colours / shading / contours). */
 	display?: Partial<ElevationDisplay>;
+	/** The brush's initial settings. */
+	brush?: Partial<BrushSettings>;
 	/** Generated chunks kept in memory (about 4 KB each). Default 512. */
 	baseCacheChunks?: number;
 	/** Most screen px of ground drawn past the viewport for a 3D view. Default 1200. */
@@ -56,6 +66,12 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 				...DEFAULT_DISPLAY,
 				...options.display,
 			});
+			const brush = createReactiveStore<BrushSettings>(
+				normalizeBrush({ ...DEFAULT_BRUSH, ...options.brush }),
+			);
+			const preview = createReactiveStore<StrokePreview>({ model: null });
+			const cursor = createReactiveStore<BrushCursor>({ x: 0, y: 0, visible: false });
+			const view3d = () => view3dService.get(ctx.services);
 			const maxOverscan = options.maxOverscanPx ?? DEFAULT_MAX_OVERSCAN_PX;
 			const overscan = createReactiveStore({ px: 0 });
 			const offOverscan = ctx.events.on<{ px: number }>(GROUND_OVERSCAN_EVENT, (data) => {
@@ -72,11 +88,37 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
 				worldOverlay: true,
 				render: () => (
-					<ElevationGroundLayer store={ctx.store} display={display} overscan={overscan} />
+					<ElevationGroundLayer
+						store={ctx.store}
+						display={display}
+						overscan={overscan}
+						preview={preview}
+					/>
 				),
 			});
+			ctx.layers.register({
+				id: BRUSH_CURSOR_LAYER_ID,
+				// Over the shapes, under the selection UI and the HUD.
+				order: 150,
+				avoidCollision: true,
+				fixed: true,
+				worldOverlay: true,
+				render: () => (
+					<BrushCursorLayer
+						store={ctx.store}
+						brush={brush}
+						cursor={cursor}
+						preview={preview}
+						view3d={view3d}
+					/>
+				),
+			});
+			ctx.tools.register(
+				ELEVATION_TOOL_ID,
+				createElevationToolDefinition({ brush, preview, cursor }),
+			);
 
-			const api = createElevationApi(ctx.store, ctx.commands, display);
+			const api = createElevationApi(ctx.store, ctx.commands, display, brush);
 			const stopHud = registerElevationHud(ctx, api);
 
 			// One owner of the board's height: this plugin where the board has a field, the
@@ -119,6 +161,7 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 				if (mapHeightOff) mapHeightSwitch.get(ctx.services)?.setHeightEnabled?.(true);
 				stopHud();
 				ctx.layers.unregister(GROUND_LAYER_ID);
+				ctx.layers.unregister(BRUSH_CURSOR_LAYER_ID);
 				offOverscan();
 			};
 		},

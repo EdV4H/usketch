@@ -18,6 +18,14 @@ export const MAX_HEIGHT = 4095.75;
 /** Stored deltas are in quarter units. */
 export const DELTA_SCALE = 4;
 
+/**
+ * The id every client gives the field it creates. Fixed, so two clients turning the
+ * terrain on at once write the same shape (one field) instead of two fields whose
+ * chunk ids (`elev:<field>:…`) differ — the edits on the field that doesn't win would
+ * otherwise be lost.
+ */
+export const ELEVATION_FIELD_ID = "elevation-field";
+
 /** Parameters of the infinite terrain, frozen on the field when it is created. */
 export interface ElevationGenParams {
 	/** Generator version. */

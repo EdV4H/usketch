@@ -2,12 +2,26 @@
 // the look as live settings, the terrain operations as actions. The actions only call
 // the service's functions.
 import type { PluginContext } from "@edv4h/usketch-shared";
+import { type BrushSettings, MAX_RADIUS, MIN_RADIUS, normalizeBrush } from "./elevation-brush.js";
 import { DEFAULT_GEN, DEFAULT_WATER_RATIO, MAX_HEIGHT } from "./elevation-field.js";
 import { DEFAULT_ELEVATION_SEED } from "./elevation-ops.js";
 import type { ElevationApi } from "./elevation-service.js";
 import type { ElevationDisplay } from "./elevation-shade.js";
 
 const GROUP = "標高";
+
+const MODE_OPTIONS: { value: BrushSettings["mode"]; label: string }[] = [
+	{ value: "raise", label: "盛る（Shift で削る）" },
+	{ value: "lower", label: "削る（Shift で盛る）" },
+	{ value: "smooth", label: "ならす" },
+	{ value: "flatten", label: "平らにする（Alt+クリックで高さを拾う）" },
+	{ value: "terrace", label: "段にする" },
+];
+const FALLOFF_OPTIONS: { value: BrushSettings["falloff"]; label: string }[] = [
+	{ value: "smooth", label: "なめらか" },
+	{ value: "linear", label: "直線" },
+	{ value: "flat", label: "平ら（縁まで同じ）" },
+];
 
 /** Register the HUD settings + actions. Returns one teardown for all of them. */
 export function registerElevationHud(ctx: PluginContext, api: ElevationApi): () => void {
@@ -38,6 +52,41 @@ export function registerElevationHud(ctx: PluginContext, api: ElevationApi): () 
 				}
 			},
 			subscribe: api.display.subscribe,
+		}),
+	);
+	offs.push(
+		ctx.hud.registerSettings({
+			id: "usketch-elevation:brush",
+			label: "標高ブラシ（ツール: G）",
+			fields: [
+				{ name: "mode", label: "モード", type: "enum", options: MODE_OPTIONS },
+				{
+					name: "radius",
+					label: "半径",
+					type: "number",
+					min: MIN_RADIUS,
+					max: MAX_RADIUS,
+					step: 16,
+				},
+				{ name: "strength", label: "強さ", type: "number", min: 1, max: 100, step: 1 },
+				{ name: "falloff", label: "縁の落ち方", type: "enum", options: FALLOFF_OPTIONS },
+				{
+					name: "flattenHeight",
+					label: "平らにする高さ（-1 で 押した所）",
+					type: "number",
+					min: -1,
+					max: MAX_HEIGHT,
+					step: 8,
+				},
+				{ name: "terraceStep", label: "段の間隔", type: "number", min: 1, max: 1024, step: 8 },
+			],
+			get: (name) => api.brush.get()[name as keyof BrushSettings],
+			set: (name, value) => {
+				// Checked like synced data: a HUD field can hand over a string or junk.
+				const next = normalizeBrush({ ...api.brush.get(), [name]: value });
+				api.brush.set({ [name]: next[name as keyof BrushSettings] });
+			},
+			subscribe: api.brush.subscribe,
 		}),
 	);
 	offs.push(

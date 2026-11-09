@@ -18,11 +18,17 @@ import {
 } from "./elevation-field.js";
 import { baseHeight } from "./elevation-noise.js";
 
-/** The board's elevation as read from its shapes. */
+/**
+ * A chunk's deltas in quarter units, row-major: `Int16Array` as stored, `Float32Array`
+ * while a brush stroke is being drawn (small steps would round away otherwise).
+ */
+export type DeltaValues = Int16Array | Float32Array;
+
+/** The board's elevation as read from its shapes (or a brush stroke's preview of it). */
 export interface ElevationModel {
 	field: ElevationFieldConfig;
-	/** Decoded deltas by `chunkKey(cx, cy)` (quarter units). */
-	chunks: ReadonlyMap<string, Int16Array>;
+	/** Deltas by `chunkKey(cx, cy)` (quarter units). Never mutated: replaced when changed. */
+	chunks: ReadonlyMap<string, DeltaValues>;
 }
 
 /** The field the board uses: the lowest id, so every synced client picks the same one. */
@@ -80,7 +86,7 @@ export function boardElevation(store: BoardStore): ElevationModel | null {
 	if (!same && fieldShape) {
 		const field = normalizeField(fieldShape);
 		const length = field.chunk * field.chunk;
-		const chunks = new Map<string, Int16Array>();
+		const chunks = new Map<string, DeltaValues>();
 		for (const c of chunkShapes) {
 			if (!Number.isInteger(c.cx) || !Number.isInteger(c.cy)) continue;
 			const values = decodeShape(c, length);
