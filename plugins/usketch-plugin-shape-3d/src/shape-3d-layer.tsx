@@ -109,6 +109,7 @@ export function Shape3dLayer({
 		renderMode: rc.renderMode,
 		amount: view.amount,
 		limits,
+		heightAt,
 	});
 	const drawn: { entry: (typeof entries)[number]; def: ShapeDefinition }[] = [];
 	for (const entry of entries) {

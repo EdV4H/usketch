@@ -106,8 +106,12 @@ describe("Shape3dLayer", () => {
 		expect(node?.style.transform).toBe("translateZ(16px) rotateX(-90deg)");
 		expect(node?.querySelector("[data-drawn]")).not.toBeNull();
 		expect(host.querySelector('[data-shape-3d-shadow="a"]')).not.toBeNull();
-		expect(host.querySelector('[data-shape-3d-id="flat"]')).toBeNull();
-		expect(onDrawn).toHaveBeenLastCalledWith(new Set(["a"]));
+		// A shape without 3D parameters lies flat on the raised ground (groundFlat).
+		const flat = host.querySelector<HTMLElement>('[data-shape-3d-id="flat"]');
+		expect(flat?.getAttribute("data-shape-3d-mode")).toBe("float");
+		expect(flat?.style.transform).toBe("translateZ(16px)");
+		expect(host.querySelector('[data-shape-3d-shadow="flat"]')).toBeNull();
+		expect(onDrawn).toHaveBeenLastCalledWith(new Set(["a", "flat"]));
 	});
 
 	it("leaves out the shadow when it is off", () => {

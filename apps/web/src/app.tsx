@@ -26,6 +26,7 @@ import { createDashboardPlugin } from "@edv4h/usketch-plugin-dashboard";
 import { createDeepLinkPlugin } from "@edv4h/usketch-plugin-deep-link";
 import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
 import { createEdgePanPlugin } from "@edv4h/usketch-plugin-edge-pan";
+import { createElevationPlugin } from "@edv4h/usketch-plugin-elevation";
 import { createExportPlugin } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
@@ -226,6 +227,9 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		// ウィンドウシステム（画角固定 ＋ i3風タイル/自由配置）。dashboard と同じく
 		// container/free-position の後・autoEnable:false で opt-in（HUD「ウィンドウ化」）。
 		createWindowSystemPlugin({ autoEnable: false }),
+		// 標高（連続した高さの地形）。HUD「標高 → 無限地形を作る・変える」で opt-in。
+		// 地面の高さサービスを提供するので、キャラは坂を上り下りし、3D の Shape は丘に乗る。
+		createElevationPlugin(),
 		// Mode 7（擬似3D地平面ビュー）。板コンテンツ層を CSS 3D で傾けるビューモード。
 		// 既定 OFF（HUD「3Dビュー切替」/ mode7:toggle で opt-in）。
 		// 切替時は地面がせり上がり、空/フォグがフェードする（#1103）。
@@ -493,6 +497,8 @@ export function App() {
 					appearance: characterAppearance(seed),
 					renderCharacter,
 					renderShadow: renderCharacterShadow,
+					// 標高の坂は 45° まで歩いて登れる（map の段は maxStep のまま）。
+					motion: { maxSlope: 45 },
 				}),
 			);
 		}

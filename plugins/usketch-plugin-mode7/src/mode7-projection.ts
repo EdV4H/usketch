@@ -37,12 +37,17 @@ export function tiltOrigin(cam: Camera, size: StageSize): { x: number; y: number
  * Project a flat-canvas point (px, before the tilt) onto the screen. `null` when the
  * point is at or behind the eye: very NEAR points far below the pivot (the ground
  * tips up past the viewer). Far points only approach the vanishing line.
+ *
+ * `z` lifts the point off the ground toward the viewer, in px (a depth layer's
+ * `translateZ`: height × zoom), so something drawn by other means than the tilted CSS
+ * layers (a WebGL terrain mesh) lines up with them. Default 0 (on the ground).
  */
 export function projectToGround(
 	x: number,
 	y: number,
 	cam: Camera,
 	size: StageSize,
+	z = 0,
 ): GroundProjection | null {
 	const o = tiltOrigin(cam, size);
 	const x0 = x - o.x;
@@ -51,8 +56,11 @@ export function projectToGround(
 	const sinYaw = Math.sin(rad(cam.yaw));
 	const x1 = x0 * cosYaw - y0 * sinYaw;
 	const y1 = x0 * sinYaw + y0 * cosYaw;
-	const y2 = y1 * Math.cos(rad(cam.pitch));
-	const z2 = y1 * Math.sin(rad(cam.pitch));
+	// rotateX(pitch) of (y1, z): y' = y·cos − z·sin, z' = y·sin + z·cos
+	const cosPitch = Math.cos(rad(cam.pitch));
+	const sinPitch = Math.sin(rad(cam.pitch));
+	const y2 = y1 * cosPitch - z * sinPitch;
+	const z2 = y1 * sinPitch + z * cosPitch;
 	const w = 1 - z2 / cam.fov;
 	if (w <= 0) return null;
 	return { x: o.x + x1 / w, y: o.y + y2 / w, depth: z2, scale: 1 / w };

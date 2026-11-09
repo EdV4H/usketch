@@ -59,6 +59,14 @@ describe("map service seam", () => {
 		expect(typeof api.toolState.get).toBe("function");
 		expect(typeof api.renderConfig.subscribe).toBe("function");
 	});
+
+	it("switches the terrain's heights off and on (for a board whose height another plugin owns)", () => {
+		const api = createMapApi(fakeStore());
+		api.setHeightEnabled(false);
+		expect(api.renderConfig.get().heightEnabled).toBe(false);
+		api.setHeightEnabled(true);
+		expect(api.renderConfig.get().heightEnabled).toBe(true);
+	});
 });
 
 /** Store with a base-map (b1 beaconed at cell 0,0, radius 1) + an empty tilemap. */

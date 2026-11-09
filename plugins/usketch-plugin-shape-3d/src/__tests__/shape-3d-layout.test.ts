@@ -4,6 +4,7 @@ import {
 	boxTopTransform,
 	boxWalls,
 	DEFAULT_SHAPE_3D_LIMITS,
+	GROUND_FLAT_PARAMS,
 	lerpAngle,
 	poseBox,
 	poseTransform,
@@ -212,6 +213,24 @@ describe("selectShapes3d", () => {
 			shape("tiny", 10, 10, { width: 2, height: 2 }),
 		];
 		expect(selectShapes3d({ ...base, shapes }).map((e) => e.shape.id)).toEqual(["in"]);
+	});
+	it("lays parameterless shapes on raised ground flat at its height (groundFlat)", () => {
+		const shapes = [
+			shape("hill", 10, 10, { [SHAPE_3D_KEY]: undefined }),
+			shape("low", 200, 10, { [SHAPE_3D_KEY]: undefined }),
+			shape("own", 10, 10),
+			shape("embed", 10, 10, { type: "embed", [SHAPE_3D_KEY]: undefined }),
+		];
+		const types = { embed: { modes: [] } };
+		const heightAt = (x: number) => (x < 100 ? 32 : 0);
+		const out = selectShapes3d({ ...base, types, shapes, heightAt });
+		expect(out.map((e) => e.shape.id)).toEqual(["hill", "own"]);
+		expect(out[0].params).toEqual(GROUND_FLAT_PARAMS);
+		expect(out[1].params.mode).toBe("stand");
+		const off = { ...DEFAULT_SHAPE_3D_LIMITS, groundFlat: false };
+		expect(
+			selectShapes3d({ ...base, shapes, heightAt, limits: off }).map((e) => e.shape.id),
+		).toEqual(["own"]);
 	});
 	it("grows the drawn ground by the 3D overscan", () => {
 		const shapes = [shape("far", 900, 10)];
