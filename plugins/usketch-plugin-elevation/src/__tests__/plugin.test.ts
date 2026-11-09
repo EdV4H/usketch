@@ -67,6 +67,12 @@ describe("elevation plugin", () => {
 		expect(orderOf(lowered, GROUND_LAYER_ID)).toBe(40.5);
 		expect(orderOf(lowered, MESH_LAYER_ID)).toBe(41.5);
 		lowered.dispose();
+
+		// Not a finite number: the default, so the layer sort stays well-defined.
+		const broken = harness(false, { groundOrder: Number.NaN, meshOrder: Number.POSITIVE_INFINITY });
+		expect(orderOf(broken, GROUND_LAYER_ID)).toBe(DEFAULT_GROUND_ORDER);
+		expect(orderOf(broken, MESH_LAYER_ID)).toBe(DEFAULT_MESH_ORDER);
+		broken.dispose();
 	});
 
 	it("owns the ground height only on a board with a field, else defers to the map", () => {

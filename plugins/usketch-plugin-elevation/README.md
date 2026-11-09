@@ -84,7 +84,7 @@ elevation?.paint([{ x: 0, y: 0 }, { x: 600, y: 0 }], { mode: "raise", seconds: 1
 
 ## Mode 7
 
-3D ビュー（`view3dService` の `amount() > 0`）の間は、層 `usketch-elevation:mesh`（order 46、傾けない層）が WebGL2 の canvas 1 枚に標高をメッシュとして描き、地面が本当に盛り上がる。
+3D ビュー（`view3dService` の `amount() > 0`）の間は、層 `usketch-elevation:mesh`（既定 order 46・`meshOrder` で変えられる、傾けない層）が WebGL2 の canvas 1 枚に標高をメッシュとして描き、地面が本当に盛り上がる。
 
 - 位置は Mode 7 の CSS の傾き `perspective(fov) rotateX(pitch) rotateZ(yaw)` と同じ式を頂点シェーダーで計算する（`projectLifted`）。高さは `h × zoom` px で、キャラや map の崖の持ち上げと同じなので、丘・キャラ・板がずれない。
 - 色・等高線・陰影・水面は 2D と同じ設定（HUD の「標高の表示」）。水面は水位で平ら。シードなしの場では高さ 0 の所は透明で、板の地面から丘だけが盛り上がる。

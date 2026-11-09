@@ -62,6 +62,10 @@ export interface ElevationPluginOptions {
 export const DEFAULT_GROUND_ORDER = 45;
 export const DEFAULT_MESH_ORDER = 46;
 
+/** A host's layer order, or the default when it isn't a finite number (the sort would break). */
+const layerOrder = (value: number | undefined, fallback: number): number =>
+	typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
 /** Event a 3D view emits with the screen px of ground it shows past the viewport. */
 export const GROUND_OVERSCAN_EVENT = "bg-grid:set-overscan";
 const DEFAULT_MAX_OVERSCAN_PX = 1200;
@@ -104,7 +108,7 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 			ctx.layers.register({
 				id: GROUND_LAYER_ID,
 				// Above the map's ground (40–44), below the shapes (50), unless the host says.
-				order: options.groundOrder ?? DEFAULT_GROUND_ORDER,
+				order: layerOrder(options.groundOrder, DEFAULT_GROUND_ORDER),
 				avoidCollision: true,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
@@ -124,7 +128,7 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 					id: MESH_LAYER_ID,
 					// Just above the flat ground, below the shapes. NOT tilted by Mode 7: it
 					// projects itself (and so isn't in Mode 7's tilt list).
-					order: options.meshOrder ?? DEFAULT_MESH_ORDER,
+					order: layerOrder(options.meshOrder, DEFAULT_MESH_ORDER),
 					avoidCollision: true,
 					fixed: true,
 					render: () => (
