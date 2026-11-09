@@ -8,6 +8,7 @@ import {
 	screenToWorld,
 	solidHeightService,
 	type Viewport,
+	view3dService,
 	viewportRotation,
 } from "@edv4h/usketch-shared";
 import {
@@ -20,14 +21,18 @@ import {
 	targetRotation,
 } from "./character-camera.js";
 import { createKeyInput } from "./character-input.js";
-import { CharacterLayer } from "./character-layer.js";
+import { CharacterLayer, type CharacterView3d } from "./character-layer.js";
 import {
 	blockingHeight,
+	groundSlope,
 	type HeightAt,
 	holdDriftForHop,
 	IDLE_JUMP,
 	type JumpTimers,
+	pushInAir,
 	type SolidAt,
+	SWEEP_STEP,
+	slideOnSteep,
 	standingHeight,
 	stepCharacter,
 	stepVertical,
@@ -170,6 +175,12 @@ export function setupCharacterRuntime(
 	const blockAt: HeightAt = (x, y) => blockingHeight(groundAt(x, y), solidAt(x, y));
 	const heightAt: HeightAt = (x, y) => standingHeight(groundAt(x, y), solidAt(x, y));
 
+	// The 3D view (Mode 7), looked up per call: a provider set up later still counts.
+	const view3d: CharacterView3d = {
+		amount: () => view3dService.get(ctx.services)?.amount() ?? 0,
+		subscribe: (listener) => view3dService.get(ctx.services)?.subscribe(listener) ?? (() => {}),
+	};
+
 	const sync: CharacterSync | null = options.awareness
 		? createCharacterSync(options.awareness, store, () => ensureLoop())
 		: null;
@@ -232,10 +243,22 @@ export function setupCharacterRuntime(
 				viewportRotation(vp),
 				s.drift,
 			);
-			// Cliffs taller than the climbable step and walls block the move (slide along
-			// them), checked in short stretches so a fast move can't skip a thin wall.
-			const moved = sweepToGround(s.pose, stepped, blockAt, s.motion.maxStep);
-			// Then up and down: jumps, falls off cliffs, landings.
+			// Cliffs taller than the climbable step, slopes steeper than the climbable one
+			// and walls block the move (slide along them), checked in short stretches so a
+			// fast move can't skip a thin wall. In the air a slope jump's sideways speed
+			// carries on.
+			const swept = sweepToGround(
+				s.pose,
+				pushInAir(s.pose, stepped, dt),
+				blockAt,
+				s.motion.maxStep,
+				SWEEP_STEP,
+				s.motion.maxSlope,
+			);
+			// Ground steeper than that slides the character down.
+			const moved = slideOnSteep(swept, heightAt, blockAt, s.motion, dt);
+			// Then up and down: jumps (along the slope as far as tuned), falls off cliffs,
+			// landings.
 			const vertical = stepVertical(
 				moved,
 				jumpTimers,
@@ -245,6 +268,7 @@ export function setupCharacterRuntime(
 				s.motion.maxStep,
 				effectiveJump(s),
 				hopHeight,
+				groundSlope(heightAt, moved.x, moved.y),
 			);
 			jumpTimers = vertical.timers;
 			const pose = vertical.pose;
@@ -339,7 +363,9 @@ export function setupCharacterRuntime(
 		id: CHARACTER_LAYER_ID,
 		order: CHARACTER_LAYER_ORDER,
 		fixed: true,
-		render: (rc) => <CharacterLayer store={store} viewport={rc.viewport} heightAt={heightAt} />,
+		render: (rc) => (
+			<CharacterLayer store={store} viewport={rc.viewport} heightAt={heightAt} view3d={view3d} />
+		),
 	});
 
 	if (store.getState().enabled || sync) ensureLoop();

@@ -45,6 +45,14 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 			{ name: "jumpKey", label: "ジャンプのキー", type: "enum", options: KEY_OPTIONS },
 			{ name: "jumpHeight", label: "ジャンプの高さ", type: "number", min: 8, max: 200, step: 4 },
 			{ name: "airJumps", label: "空中ジャンプ回数", type: "number", min: 0, max: 5, step: 1 },
+			{
+				name: "jumpSlope",
+				label: "坂でのジャンプの向き（0 = 真上、1 = 坂に垂直）",
+				type: "number",
+				min: 0,
+				max: 1,
+				step: 0.1,
+			},
 			{ name: "hover", label: "ホバー", type: "boolean" },
 			{
 				name: "hoverDuration",
@@ -65,6 +73,22 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 			{ name: "moveSpeed", label: "速度", type: "number", min: 50, max: 3000, step: 50 },
 			{ name: "turnRate", label: "旋回(°/秒)", type: "number", min: 30, max: 1080, step: 30 },
 			{ name: "maxStep", label: "登れる段差", type: "number", min: 0, max: 400, step: 4 },
+			{
+				name: "maxSlope",
+				label: "登れる坂の角度（0 で 制限なし）",
+				type: "number",
+				min: 0,
+				max: 89,
+				step: 5,
+			},
+			{
+				name: "slopeTilt",
+				label: "坂に合わせて傾ける（3D、0〜1）",
+				type: "number",
+				min: 0,
+				max: 1,
+				step: 0.1,
+			},
 			{ name: "anchorX", label: "画面位置 横(%)", type: "number", min: 0, max: 100, step: 5 },
 			{ name: "anchorY", label: "画面位置 縦(%)", type: "number", min: 0, max: 100, step: 5 },
 			{ name: "smoothing", label: "カメラ遅れ(%)", type: "number", min: 0, max: 95, step: 5 },
@@ -93,6 +117,8 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return (api.getJump() ?? DEFAULT_JUMP).height;
 				case "airJumps":
 					return (api.getJump() ?? DEFAULT_JUMP).airJumps;
+				case "jumpSlope":
+					return (api.getJump() ?? DEFAULT_JUMP).slopeRatio;
 				case "hover":
 					return (api.getJump()?.hover ?? null) !== null;
 				case "hoverDuration":
@@ -105,6 +131,10 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return motion.turnRate;
 				case "maxStep":
 					return motion.maxStep;
+				case "maxSlope":
+					return motion.maxSlope;
+				case "slopeTilt":
+					return motion.slopeTilt;
 				case "anchorX":
 					return Math.round(anchor.x * 100);
 				case "anchorY":
@@ -161,12 +191,21 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				case "maxStep":
 					api.setMotion({ maxStep: n });
 					break;
+				case "maxSlope":
+					api.setMotion({ maxSlope: n });
+					break;
+				case "slopeTilt":
+					api.setMotion({ slopeTilt: n });
+					break;
 				case "jumpHeight":
 					// Tuning while off keeps it off (applied when jumping is turned on).
 					if (api.getJump()) api.setJump({ height: n });
 					break;
 				case "airJumps":
 					if (api.getJump()) api.setJump({ airJumps: n });
+					break;
+				case "jumpSlope":
+					if (api.getJump()) api.setJump({ slopeRatio: n });
 					break;
 				case "hoverDuration":
 					if (api.getJump()?.hover) api.setJump({ hover: { duration: n } });

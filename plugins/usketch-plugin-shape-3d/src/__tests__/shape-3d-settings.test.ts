@@ -34,4 +34,15 @@ describe("createShape3dSettings", () => {
 		});
 		expect(bad.get().limits.collisionIn3dOnly).toBe(false);
 	});
+	it("lays parameterless shapes on the terrain by default, and can be switched off", () => {
+		const s = createShape3dSettings({});
+		expect(s.get().limits.groundFlat).toBe(true);
+		const listener = vi.fn();
+		s.subscribe(listener);
+		s.setLimits({ groundFlat: false });
+		expect(s.get().limits.groundFlat).toBe(false);
+		expect(listener).toHaveBeenCalledTimes(1);
+		const bad = createShape3dSettings({ limits: { groundFlat: 1 as unknown as boolean } });
+		expect(bad.get().limits.groundFlat).toBe(true);
+	});
 });

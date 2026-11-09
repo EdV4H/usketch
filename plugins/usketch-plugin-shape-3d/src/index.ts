@@ -19,6 +19,7 @@ export {
 	boxTopTransform,
 	boxWalls,
 	DEFAULT_SHAPE_3D_LIMITS,
+	GROUND_FLAT_PARAMS,
 	lerpAngle,
 	poseBox,
 	poseOrigin,

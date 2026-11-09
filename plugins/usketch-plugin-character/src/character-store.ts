@@ -60,7 +60,15 @@ export interface CharacterStoreInit {
 /** Stopped, wheels straight, no drift (scheme switches). */
 const AT_REST = { speed: 0, moving: false, steering: 0, slip: 0, drift: 0 } as const;
 /** At rest and grounded: a teleport lands on whatever ground is there (`z` snaps up to it). */
-const LANDED = { ...AT_REST, z: 0, vz: 0, airborne: false, hovering: false } as const;
+const LANDED = {
+	...AT_REST,
+	z: 0,
+	vz: 0,
+	vx: 0,
+	vy: 0,
+	airborne: false,
+	hovering: false,
+} as const;
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const positive = (v: number, fallback: number) => (Number.isFinite(v) && v > 0 ? v : fallback);
@@ -74,6 +82,8 @@ function sanitizeMotion(m: Partial<MotionParams>, base: MotionParams): MotionPar
 		friction: positive(m.friction ?? base.friction, base.friction),
 		reverseRatio: clamp01(m.reverseRatio ?? base.reverseRatio),
 		maxStep: nonNegative(m.maxStep ?? base.maxStep, base.maxStep),
+		maxSlope: Math.min(89, nonNegative(m.maxSlope ?? base.maxSlope, base.maxSlope)),
+		slopeTilt: Number.isFinite(m.slopeTilt) ? clamp01(m.slopeTilt as number) : base.slopeTilt,
 	};
 }
 
@@ -161,6 +171,7 @@ export function sanitizeJump(
 		),
 		airJumpRatio: positive(finite(j.airJumpRatio, base.airJumpRatio), base.airJumpRatio),
 		hover: sanitizeHover(j.hover, base.hover, hoverTuning),
+		slopeRatio: clamp01(finite(j.slopeRatio, base.slopeRatio)),
 	};
 }
 

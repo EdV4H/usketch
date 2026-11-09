@@ -155,6 +155,7 @@ export function registerShape3dHud(
 			{ name: "maxCount", label: "3D にする最大数", type: "number", min: 0, max: 2000, step: 10 },
 			{ name: "minPx", label: "最小サイズ(px)", type: "number", min: 0, max: 200, step: 1 },
 			{ name: "collisionIn3dOnly", label: "当たり判定は 3D 表示中だけ", type: "boolean" },
+			{ name: "groundFlat", label: "3D 表示のない Shape も地形の高さに乗せる", type: "boolean" },
 		],
 		get(name) {
 			const l = api.getLimits();
@@ -165,13 +166,15 @@ export function registerShape3dHud(
 					return l.minPx;
 				case "collisionIn3dOnly":
 					return l.collisionIn3dOnly;
+				case "groundFlat":
+					return l.groundFlat;
 				default:
 					return undefined;
 			}
 		},
 		set(name, value) {
-			if (name === "collisionIn3dOnly") {
-				if (typeof value === "boolean") api.setLimits({ collisionIn3dOnly: value });
+			if (name === "collisionIn3dOnly" || name === "groundFlat") {
+				if (typeof value === "boolean") api.setLimits({ [name]: value });
 				return;
 			}
 			if (typeof value !== "number") return;
