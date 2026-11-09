@@ -1,11 +1,17 @@
 export {
 	CAMERA_LIMITS,
 	type Camera,
+	cameraHeightPx,
 	DEFAULT_CAMERA,
-	eyeLiftPx,
-	MAX_EYE_HEIGHT,
+	MAX_CAMERA_HEIGHT,
 	type RenderedCamera,
 } from "./mode7-camera.js";
+export {
+	DEFAULT_HEIGHT_KEYS,
+	DEFAULT_HEIGHT_SPEED,
+	type HeightKeys,
+	heightStep,
+} from "./mode7-height-keys.js";
 export {
 	type GroundProjection,
 	type ProjectionCamera,

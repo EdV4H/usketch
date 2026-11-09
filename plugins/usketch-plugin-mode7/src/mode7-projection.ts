@@ -6,12 +6,14 @@
 // The tilt is `perspective(fov) rotateX(pitch) rotateZ(yaw)` about the origin
 // (50% width, `horizon` height), applied right-to-left: rotateZ spins the flat point,
 // rotateX tips it back (y → y·cos, z = y·sin), and the perspective divides by
-// w = 1 - z / fov. Pass the camera as rendered (`getRenderedCamera`): its `lift` (the
-// eye raised above the board) draws everything that many px lower.
+// w = 1 - z / fov. Pass the camera as rendered (`getRenderedCamera`): its `heightPx`
+// (the camera raised above the board) draws everything that many px lower.
 import type { Camera } from "./mode7-camera.js";
 
-/** A camera as drawn; `lift` (px, default 0) is how far the eye is raised (see `eyeLiftPx`). */
-export type ProjectionCamera = Camera & { lift?: number };
+/** A camera as drawn; `heightPx` (default 0) is how far it is raised (see `cameraHeightPx`). */
+export type ProjectionCamera = Pick<Camera, "pitch" | "yaw" | "fov" | "horizon"> & {
+	heightPx?: number;
+};
 
 /** Canvas size in px (the stage the tilted layers fill). */
 export interface StageSize {
@@ -63,7 +65,7 @@ export function projectToGround(
 	// rotateX(pitch) of (y1, z): y' = y·cos − z·sin, z' = y·sin + z·cos
 	const cosPitch = Math.cos(rad(cam.pitch));
 	const sinPitch = Math.sin(rad(cam.pitch));
-	const h = z - (cam.lift ?? 0);
+	const h = z - (cam.heightPx ?? 0);
 	const y2 = y1 * cosPitch - h * sinPitch;
 	const z2 = y1 * sinPitch + h * cosPitch;
 	const w = 1 - z2 / cam.fov;
@@ -88,7 +90,7 @@ export function unprojectFromGround(
 	const py = y - o.y;
 	const cosPitch = Math.cos(rad(cam.pitch));
 	const sinPitch = Math.sin(rad(cam.pitch));
-	const h = z - (cam.lift ?? 0);
+	const h = z - (cam.heightPx ?? 0);
 	const denominator = cosPitch + (py * sinPitch) / cam.fov;
 	if (denominator <= 0) return null;
 	// py·w = y1·cos − h·sin with w = 1 − (y1·sin + h·cos) / fov, solved for y1.

@@ -118,20 +118,27 @@ api?.setYaw(30);
 ```
 
 `Mode7Api`: `isActive` / `enable` / `disable` / `toggle`（各 `{ animate? }`）/ `isTransitioning` /
-`getTransitionAmount` / `getCamera` / `getRenderedCamera` / `getEyeHeight` / `setEyeHeight` /
-`setPitch` / `setYaw` /
-`setFov` / `setHorizon` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
+`getTransitionAmount` / `getCamera` / `getRenderedCamera` / `setPitch` / `setYaw` /
+`setFov` / `setHorizon` / `setHeight` / `getHeightKeys` / `setHeightKeys` / `getHeightSpeed` / `setHeightSpeed` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
 `getTiltLayers` / `setTiltLayers` / `toggleTiltLayer` / `getDrawDistance` / `setDrawDistance` /
 `isCaptureFrameVisible` / `setCaptureFrameVisible` / `toggleCaptureFrame` / `getCaptureRect` / `onChange`。
 
-## 目の高さ
+## カメラの高さ
 
-`setEyeHeight(height)`（ワールド単位、`0` = ボードの高さ）で目を上げると、すべてがその分だけ
-下に描かれ、その高さの地面が平らなボードと同じ位置に見える。高い山を歩くキャラクターが画面の
-上へ抜けないよう、追いかける側が毎フレーム足元の地面の高さを（自分でなめらかにして）渡す。
-`@edv4h/usketch-plugin-character` は `view3dService.setEyeHeight` を通して自動でこれを行う。
-描画上の上げ幅は `getRenderedCamera().lift`（px = 高さ × zoom × 遷移量）。WebGL などで
-自前に描く場合はこれを引いてから投影する（`projectToGround` は `lift` を見る）。
+`Camera.height`（ワールド単位、`0` = ボードの高さ）でカメラを上げると、すべてがその分だけ下に
+描かれ、その高さの地面が平らなボードと同じ位置に見える。`setHeight(height)` または
+`setCamera` 相当の `{ height }` で変える。カメラの横の位置はボードの viewport（スクロール位置）。
+高い山を歩くキャラクターが画面の上へ抜けないよう、追いかける側が毎フレーム足元の地面の高さを
+（自分でなめらかにして）渡す。`@edv4h/usketch-plugin-character` は
+`view3dService.setCameraHeight` を通して自動でこれを行う。描画上の上げ幅は
+`getRenderedCamera().heightPx`（px = 高さ × zoom × 遷移量）。WebGL などで自前に描く場合は
+これを引いてから投影する（`projectToGround` は `heightPx` を見る）。
+
+3D ビューのあいだは **Space を押している間カメラが上がり、Shift で下がる**（画面上で毎秒
+`heightSpeed` px、既定 480）。キーは `KeyboardEvent.code` で、`heightKeys` オプション
+（`{ up?, down? }`、`false` で無効）か `setHeightKeys` で変えられる。入力欄・ボタン・スライダーに
+フォーカスがあるときと、同じキーを先に使うプラグイン（キャラクターのジャンプ）がいるときは動かない。
+キャラクターが追いかけている間は、キャラクターがカメラの高さを毎フレーム決める。
 
 ## 地面上の点の投影
 
@@ -144,7 +151,7 @@ const cam = getMode7Api(app.services)?.getRenderedCamera(); // 遷移中は傾�
 const size = { width, height };                              // キャンバスの px サイズ
 projectToGround(sx, sy, cam, size, z);   // → { x, y, depth, scale } | null（目の後ろ）
 unprojectFromGround(x, y, cam, size, z); // → { x, y } | null（地平線より上）
-// z = 地面からの高さ（px、省略で 0）。cam.lift（目の高さ）は両方が自動で差し引く。
+// z = 地面からの高さ（px、省略で 0）。cam.heightPx（カメラの高さ）は両方が自動で差し引く。
 ```
 
 ## スコープ外（v2 送り）

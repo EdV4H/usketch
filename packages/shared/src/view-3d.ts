@@ -11,11 +11,11 @@ export interface View3dCamera {
 	fov: number;
 	horizon: number;
 	/**
-	 * Screen px the eye is raised above the board (a height × zoom, already scaled by the
-	 * transition amount): everything is drawn `lift` px lower, so ground at that height
-	 * shows where the flat board would. Absent = `0` (an older provider).
+	 * Screen px the camera is raised above the board (its height × zoom, already scaled by
+	 * the transition amount): everything is drawn this much lower, so ground at that
+	 * height shows where the flat board would. Absent = `0` (an older provider).
 	 */
-	lift?: number;
+	heightPx?: number;
 }
 
 /**
@@ -31,11 +31,11 @@ export interface View3dApi {
 	/** The camera as drawn now (its pitch / yaw already scaled by `amount`). */
 	camera(): View3dCamera;
 	/**
-	 * Raise the eye to `height` (world units), e.g. the ground under a followed character,
-	 * so walking up a mountain doesn't climb out of the view. `0` = the board's level.
-	 * Optional: a provider without it keeps the eye at the board.
+	 * Raise the camera to `height` (world units), e.g. the ground under a followed
+	 * character, so walking up a mountain doesn't climb out of the view. `0` = the
+	 * board's level. Optional: a provider without it keeps the camera at the board.
 	 */
-	setEyeHeight?(height: number): void;
+	setCameraHeight?(height: number): void;
 	/** Notified on every change of `amount` or the camera. Returns an unsubscribe. */
 	subscribe(listener: () => void): () => void;
 }

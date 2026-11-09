@@ -13,8 +13,8 @@ export interface MeshCamera {
 	yaw: number;
 	fov: number;
 	horizon: number;
-	/** Px the eye is raised above the board: everything is drawn this much lower. Default 0. */
-	lift?: number;
+	/** Px the camera is raised above the board: everything is drawn this much lower. Default 0. */
+	heightPx?: number;
 }
 
 /**
@@ -41,7 +41,7 @@ export function projectLifted(
 	const y0 = y - oy;
 	const x1 = x0 * cy - y0 * sy;
 	const y1 = x0 * sy + y0 * cy;
-	const h = z - (cam.lift ?? 0);
+	const h = z - (cam.heightPx ?? 0);
 	const y2 = y1 * cp - h * sp;
 	const z2 = y1 * sp + h * cp;
 	const w = 1 - z2 / cam.fov;
