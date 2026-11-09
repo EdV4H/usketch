@@ -65,6 +65,13 @@ export interface CharacterPose {
 	z: number;
 	/** Vertical speed, world units / s (positive = rising). */
 	vz: number;
+	/**
+	 * Sideways speed in the air, world units / s: a jump off a slope leaves the ground
+	 * partly along it (see `JumpParams.slopeRatio`). Added to the move while airborne,
+	 * cleared on landing.
+	 */
+	vx: number;
+	vy: number;
 	/** Whether the character is in the air (jumping or falling). */
 	airborne: boolean;
 	/** Hovering: the jump key held while falling slows the descent (see `HoverParams`). */
@@ -88,6 +95,8 @@ export const ORIGIN_POSE: CharacterPose = {
 	drift: 0,
 	z: 0,
 	vz: 0,
+	vx: 0,
+	vy: 0,
 	airborne: false,
 	hovering: false,
 	hoverGauge: 1,
@@ -107,6 +116,18 @@ export interface MotionParams {
 	/** Tallest step up the character can climb, world units (ground height, e.g. the map
 	 *  plugin's raised terrain). Stepping DOWN is always allowed. */
 	maxStep: number;
+	/**
+	 * Steepest slope the character can walk up, degrees; `0` = no limit. Steeper ground
+	 * (an elevation hill) blocks the way up like a cliff, and standing on it slides down.
+	 * Steps (the map's terrain levels) are left to `maxStep`: see {@link groundSlope}.
+	 * A jump still clears it.
+	 */
+	maxSlope: number;
+	/**
+	 * How far the character leans with the ground under it in a 3D view (Mode 7), `0`
+	 * (stays level) … `1` (lies along the slope). Only the look.
+	 */
+	slopeTilt: number;
 }
 
 export const DEFAULT_MOTION: MotionParams = {
@@ -116,6 +137,8 @@ export const DEFAULT_MOTION: MotionParams = {
 	friction: 700,
 	reverseRatio: 0.5,
 	maxStep: 24,
+	maxSlope: 0,
+	slopeTilt: 1,
 };
 
 /**
@@ -249,6 +272,8 @@ export function stepCharacter(
 			drift: 0,
 			z: pose.z,
 			vz: pose.vz,
+			vx: pose.vx,
+			vy: pose.vy,
 			airborne: pose.airborne,
 			hovering: pose.hovering,
 			hoverGauge: pose.hoverGauge,
@@ -294,6 +319,8 @@ export function stepCharacter(
 		drift,
 		z: pose.z,
 		vz: pose.vz,
+		vx: pose.vx,
+		vy: pose.vy,
 		airborne: pose.airborne,
 		hovering: pose.hovering,
 		hoverGauge: pose.hoverGauge,
@@ -334,17 +361,124 @@ export function constrainToGround(
 	next: CharacterPose,
 	heightAt: HeightAt,
 	maxStep: number,
+	maxSlope = 0,
 ): CharacterPose {
 	if (next.x === prev.x && next.y === prev.y) return next;
 	// Measured from the feet: on the ground that is the ground itself, in the air it is
 	// higher, so a jump clears cliffs the step alone can't.
 	const feet = Math.max(heightAt(prev.x, prev.y), prev.z ?? 0);
 	const limit = feet + Math.max(0, maxStep);
-	const ok = (x: number, y: number) => heightAt(x, y) <= limit;
+	// The slope only binds on the ground: in the air the feet clear it like a cliff.
+	const steep = !prev.airborne && maxSlope > 0 ? slopeLimit(maxSlope) : Number.POSITIVE_INFINITY;
+	const ok = (x: number, y: number) =>
+		heightAt(x, y) <= limit && risingSlope(heightAt, prev, x, y) <= steep;
 	if (ok(next.x, next.y)) return next;
 	if (next.x !== prev.x && ok(next.x, prev.y)) return { ...next, y: prev.y };
 	if (next.y !== prev.y && ok(prev.x, next.y)) return { ...next, x: prev.x };
 	return { ...next, x: prev.x, y: prev.y, speed: 0, moving: false };
+}
+
+/** Half-width of the stencil that measures the ground's slope, world units. */
+export const SLOPE_PROBE = 8;
+
+/**
+ * The smaller of two same-signed differences, 0 when they disagree (a "minmod"). Taken
+ * over the stretch before and after a point, a smooth slope keeps its gradient while a
+ * step (flat on one side of it) gives 0: steps stay `maxStep`'s business.
+ */
+function minmod(a: number, b: number): number {
+	if (!(a * b > 0)) return 0;
+	return Math.abs(a) < Math.abs(b) ? a : b;
+}
+
+/** `tan(maxSlope)` for a limit in degrees (capped below vertical). */
+function slopeLimit(maxSlope: number): number {
+	return Math.tan((Math.min(89, maxSlope) * Math.PI) / 180);
+}
+
+/**
+ * The ground's gradient at a point (rise per world unit along x and y), measured
+ * {@link SLOPE_PROBE} units to either side with a minmod: a smooth slope reads as its
+ * gradient, a step — or a wall — next to the point as flat. Pure.
+ */
+export function groundSlope(
+	heightAt: HeightAt,
+	x: number,
+	y: number,
+	probe = SLOPE_PROBE,
+): { x: number; y: number } {
+	const h = heightAt(x, y);
+	if (!Number.isFinite(h)) return { x: 0, y: 0 };
+	const gx = minmod(h - heightAt(x - probe, y), heightAt(x + probe, y) - h) / probe;
+	const gy = minmod(h - heightAt(x, y - probe), heightAt(x, y + probe) - h) / probe;
+	return { x: Number.isFinite(gx) ? gx : 0, y: Number.isFinite(gy) ? gy : 0 };
+}
+
+/** The ground's rise per unit at `(x, y)` along the way from `from` to it (0 = flat). */
+function risingSlope(
+	heightAt: HeightAt,
+	from: { x: number; y: number },
+	x: number,
+	y: number,
+): number {
+	const d = Math.hypot(x - from.x, y - from.y);
+	if (!(d > 0)) return 0;
+	const ux = ((x - from.x) / d) * SLOPE_PROBE;
+	const uy = ((y - from.y) / d) * SLOPE_PROBE;
+	const h = heightAt(x, y);
+	const rise = minmod(h - heightAt(x - ux, y - uy), heightAt(x + ux, y + uy) - h) / SLOPE_PROBE;
+	return Number.isFinite(rise) ? rise : 0;
+}
+
+/** Sliding speed down ground steeper than `maxSlope`, as a fraction of `moveSpeed`. */
+export const SLIDE_SPEED = 0.5;
+
+/**
+ * On ground steeper than `motion.maxSlope`, slide `dt` seconds downhill (at
+ * {@link SLIDE_SPEED} × `moveSpeed`); walls still block (`blockAt`). Unchanged in the
+ * air, on gentle ground, or with no slope limit. Pure.
+ */
+export function slideOnSteep(
+	pose: CharacterPose,
+	heightAt: HeightAt,
+	blockAt: HeightAt,
+	motion: Pick<MotionParams, "maxSlope" | "maxStep" | "moveSpeed">,
+	dt: number,
+): CharacterPose {
+	if (pose.airborne || !(motion.maxSlope > 0) || !(dt > 0)) return pose;
+	const g = groundSlope(heightAt, pose.x, pose.y);
+	const m = Math.hypot(g.x, g.y);
+	if (!(m > slopeLimit(motion.maxSlope))) return pose;
+	const d = (motion.moveSpeed * SLIDE_SPEED * dt) / m;
+	const next = { ...pose, x: pose.x - g.x * d, y: pose.y - g.y * d };
+	const moved = sweepToGround(pose, next, blockAt, motion.maxStep);
+	return moved.x === pose.x && moved.y === pose.y ? pose : moved;
+}
+
+/** In the air, add the sideways speed a slope jump left (`vx` / `vy`) to a move. Pure. */
+export function pushInAir(prev: CharacterPose, next: CharacterPose, dt: number): CharacterPose {
+	if (!prev.airborne || !(dt > 0) || (prev.vx === 0 && prev.vy === 0)) return next;
+	return { ...next, x: next.x + prev.vx * dt, y: next.y + prev.vy * dt };
+}
+
+/**
+ * A jump's take-off velocity off ground with gradient `slope`: `speed` along a direction
+ * between straight up (`ratio` 0) and the ground's normal (`ratio` 1). On flat ground
+ * it is straight up whatever the ratio. Pure.
+ */
+export function takeoffVelocity(
+	speed: number,
+	slope: { x: number; y: number },
+	ratio: number,
+): { vx: number; vy: number; vz: number } {
+	const k = Number.isFinite(ratio) ? Math.min(1, Math.max(0, ratio)) : 0;
+	const nl = Math.hypot(slope.x, slope.y, 1);
+	const dx = (-slope.x / nl) * k;
+	const dy = (-slope.y / nl) * k;
+	const dz = 1 - k + k / nl;
+	const len = Math.hypot(dx, dy, dz);
+	// (`+ 0` turns a -0 from a flat ground into 0.)
+	return { vx: (speed * dx) / len + 0, vy: (speed * dy) / len + 0, vz: (speed * dz) / len };
 }
 
 /** Longest stretch `sweepToGround` checks in one go, world units: thin walls (a stood-up
@@ -363,15 +497,16 @@ export function sweepToGround(
 	heightAt: HeightAt,
 	maxStep: number,
 	step = SWEEP_STEP,
+	maxSlope = 0,
 ): CharacterPose {
 	const dx = next.x - prev.x;
 	const dy = next.y - prev.y;
 	const n = Math.min(256, Math.ceil(Math.hypot(dx, dy) / Math.max(0.5, step)));
-	if (n <= 1) return constrainToGround(prev, next, heightAt, maxStep);
+	if (n <= 1) return constrainToGround(prev, next, heightAt, maxStep, maxSlope);
 	let cur = prev;
 	for (let i = 0; i < n; i++) {
 		const target = { ...next, x: cur.x + dx / n, y: cur.y + dy / n };
-		const moved = constrainToGround(cur, target, heightAt, maxStep);
+		const moved = constrainToGround(cur, target, heightAt, maxStep, maxSlope);
 		if (moved.x === cur.x && moved.y === cur.y) return moved;
 		cur = moved;
 	}
@@ -401,6 +536,12 @@ export interface JumpParams {
 	airJumpRatio: number;
 	/** Hovering while the key is held in a fall, or `null` = off. */
 	hover: HoverParams | null;
+	/**
+	 * Which way a jump off a slope leaves the ground: `0` = straight up, `1` = along the
+	 * ground's normal (a steep slope throws it far sideways), in between = a blend. Air
+	 * jumps and the drift hop always go straight up.
+	 */
+	slopeRatio: number;
 }
 
 /**
@@ -444,6 +585,7 @@ export const DEFAULT_JUMP: JumpParams = {
 	airJumps: 0,
 	airJumpRatio: 0.8,
 	hover: null,
+	slopeRatio: 0.5,
 };
 
 /** Gravity (world units / s²) and take-off speed (world units / s) of a jump. */
@@ -474,6 +616,8 @@ export const IDLE_JUMP: JumpTimers = {
 	airJumpsUsed: 0,
 };
 
+const FLAT = { x: 0, y: 0 } as const;
+
 /**
  * Advance the vertical motion by `dt` seconds, after the horizontal step put the
  * character over ground of height `ground`.
@@ -493,6 +637,9 @@ export const IDLE_JUMP: JumpTimers = {
  *   hop that high, under the same gravity.
  * - In the air, gravity pulls the feet down (`fallGravity` × while falling) until they
  *   meet the ground. Without `jump` the default arc's gravity still drives falls.
+ * - A jump from the ground leaves along `slope` (the ground's gradient there) as far as
+ *   `jump.slopeRatio` says: part of its speed goes sideways (`vx` / `vy`, see
+ *   `pushInAir`) until it lands.
  */
 export function stepVertical(
 	pose: CharacterPose,
@@ -503,9 +650,10 @@ export function stepVertical(
 	maxStep: number,
 	jump: JumpParams | null,
 	hopHeight = 0,
+	slope: { x: number; y: number } = FLAT,
 ): { pose: CharacterPose; timers: JumpTimers } {
 	if (dt <= 0) return { pose, timers };
-	let { z, vz, airborne, hoverGauge } = pose;
+	let { z, vz, vx, vy, airborne, hoverGauge } = pose;
 	let hovering = false;
 	let { sinceGround, sincePress, jumped, cut, airJumpsUsed } = timers;
 
@@ -538,7 +686,7 @@ export function stepVertical(
 		const fromGround = !airborne || (!jumped && sinceGround <= jump.coyoteTime);
 		if (sincePress <= jump.bufferTime && fromGround) {
 			airborne = true;
-			vz = arc.speed;
+			({ vx, vy, vz } = takeoffVelocity(arc.speed, slope, jump.slopeRatio));
 			jumped = true;
 			cut = false;
 			sincePress = Number.POSITIVE_INFINITY;
@@ -577,6 +725,8 @@ export function stepVertical(
 	if (airborne && z <= ground) {
 		z = ground;
 		vz = 0;
+		vx = 0;
+		vy = 0;
 		airborne = false;
 		hovering = false;
 		jumped = false;
@@ -599,11 +749,13 @@ export function stepVertical(
 	const nextPose =
 		z === pose.z &&
 		vz === pose.vz &&
+		vx === pose.vx &&
+		vy === pose.vy &&
 		airborne === pose.airborne &&
 		hovering === pose.hovering &&
 		hoverGauge === pose.hoverGauge
 			? pose
-			: { ...pose, z, vz, airborne, hovering, hoverGauge };
+			: { ...pose, z, vz, vx, vy, airborne, hovering, hoverGauge };
 	return { pose: nextPose, timers: nextTimers };
 }
 
