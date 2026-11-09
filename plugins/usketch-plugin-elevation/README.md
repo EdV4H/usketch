@@ -92,8 +92,10 @@ elevation?.paint([{ x: 0, y: 0 }, { x: 600, y: 0 }], { mode: "raise", seconds: 1
 - 3D ビューが地面を画面の外まで見せるとき（`bg-grid:set-overscan`）は、その分も描く（上限 `maxOverscanPx`、既定 1200）。
 - `createElevationPlugin({ mesh: false })` でメッシュを使わず、2D の層を傾けるだけにできる。
 
+キャラクター（`@edv4h/usketch-plugin-character`）は 3D ビューで坂に沿って傾き、坂でのジャンプは坂の向きにも跳ぶ。なめらかな坂は段差（`maxStep`）では止まらないので、キャラの `motion.maxSlope` を設定すること（`45` くらいを推奨。web アプリはこの値）。それより急な坂は登れず、ずり落ちる。3D 表示のない Shape も丘の高さに乗る（shape-3d の `limits.groundFlat`）。
+
 制約: Shape やキャラは DOM の層なので、メッシュより常に手前に描かれる（丘の裏に隠れない）。フォグ・描画距離はまだ無い。
 
 ## 段階
 
-1. データ・無限生成・2D 表示 → 2. ブラシ → 3. Mode 7 の WebGL メッシュ（この版） → 4. キャラの急斜面（`maxSlope`）。
+1. データ・無限生成・2D 表示 → 2. ブラシ → 3. Mode 7 の WebGL メッシュ → 4. キャラの急斜面（`maxSlope`）・傾き・坂でのジャンプ（この版）。

@@ -141,6 +141,21 @@ createCharacterPlugin({
   is stepped or jumped onto and stood on (`blockingHeight` / `standingHeight`). A move
   is checked in stretches of at most `SWEEP_STEP` (4) world units (`sweepToGround`), so
   a fast character or vehicle can't skip a thin wall within one frame.
+- **Slopes**: on smooth ground (e.g. the elevation plugin's hills) the step alone never
+  binds, so `motion.maxSlope` (degrees, default 0 = no limit, HUD "登れる坂の角度")
+  limits the slope walked UP; steeper ground blocks like a cliff, and standing on it
+  slides down (`slideOnSteep`, half the move speed). The slope is measured with a
+  minmod over ±8 world units (`groundSlope`), so a step — the map's flat terrain
+  levels, a box's edge — reads as flat and stays `maxStep`'s business. In the air the
+  limit doesn't apply (jump up it).
+- **Jumping off a slope** leaves between straight up and the ground's normal:
+  `jump.slopeRatio` (0 = up, 1 = the normal, default 0.5, HUD "坂でのジャンプの向き").
+  The sideways part (`pose.vx` / `vy`) carries through the air (`pushInAir`) and is
+  dropped on landing. Air jumps and the drift hop go straight up.
+- **Leaning**: under a 3D view (Mode 7) the layer lays each character (and its shadow)
+  along the ground under it, by `motion.slopeTilt` (0 … 1, default 1, HUD
+  "坂に合わせて傾ける") × the 3D transition (`slopeTiltTransform`). The flat board is
+  unchanged.
 - **Input**: held keys are tracked from window `keydown`/`keyup` (capture phase,
   `event.code`), swallowed while the character is on so single-letter tool
   shortcuts don't fire. Typing in text fields, and key chords with Ctrl/Cmd/Alt,
@@ -149,7 +164,7 @@ createCharacterPlugin({
 ## HUD
 
 A "キャラクター" settings group (on/off, camera, scheme, drift, drift key, drift hop, jump, jump key, jump height, air
-jumps, hover, hover time, hover thrust, speed, turn rate, climbable step, screen position, camera lag) plus actions to toggle the
+jumps, jump direction on slopes, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, screen position, camera lag) plus actions to toggle the
 character, to place it at the screen position, and to jump.
 
 ## Service

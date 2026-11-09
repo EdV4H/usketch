@@ -497,6 +497,8 @@ export function App() {
 					appearance: characterAppearance(seed),
 					renderCharacter,
 					renderShadow: renderCharacterShadow,
+					// 標高の坂は 45° まで歩いて登れる（map の段は maxStep のまま）。
+					motion: { maxSlope: 45 },
 				}),
 			);
 		}
