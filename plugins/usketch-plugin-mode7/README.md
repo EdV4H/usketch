@@ -118,10 +118,20 @@ api?.setYaw(30);
 ```
 
 `Mode7Api`: `isActive` / `enable` / `disable` / `toggle`（各 `{ animate? }`）/ `isTransitioning` /
-`getTransitionAmount` / `getCamera` / `getRenderedCamera` / `setPitch` / `setYaw` /
+`getTransitionAmount` / `getCamera` / `getRenderedCamera` / `getEyeHeight` / `setEyeHeight` /
+`setPitch` / `setYaw` /
 `setFov` / `setHorizon` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
 `getTiltLayers` / `setTiltLayers` / `toggleTiltLayer` / `getDrawDistance` / `setDrawDistance` /
 `isCaptureFrameVisible` / `setCaptureFrameVisible` / `toggleCaptureFrame` / `getCaptureRect` / `onChange`。
+
+## 目の高さ
+
+`setEyeHeight(height)`（ワールド単位、`0` = ボードの高さ）で目を上げると、すべてがその分だけ
+下に描かれ、その高さの地面が平らなボードと同じ位置に見える。高い山を歩くキャラクターが画面の
+上へ抜けないよう、追いかける側が毎フレーム足元の地面の高さを（自分でなめらかにして）渡す。
+`@edv4h/usketch-plugin-character` は `view3dService.setEyeHeight` を通して自動でこれを行う。
+描画上の上げ幅は `getRenderedCamera().lift`（px = 高さ × zoom × 遷移量）。WebGL などで
+自前に描く場合はこれを引いてから投影する（`projectToGround` は `lift` を見る）。
 
 ## 地面上の点の投影
 
@@ -132,8 +142,9 @@ CSS 変換を自前で組まずに次の純関数を使う。座標はキャン�
 import { getMode7Api, projectToGround, unprojectFromGround } from "@edv4h/usketch-plugin-mode7";
 const cam = getMode7Api(app.services)?.getRenderedCamera(); // 遷移中は傾きが縮んだカメラ
 const size = { width, height };                              // キャンバスの px サイズ
-projectToGround(sx, sy, cam, size);   // → { x, y, depth, scale } | null（目の後ろ）
-unprojectFromGround(x, y, cam, size); // → { x, y } | null（地平線より上）
+projectToGround(sx, sy, cam, size, z);   // → { x, y, depth, scale } | null（目の後ろ）
+unprojectFromGround(x, y, cam, size, z); // → { x, y } | null（地平線より上）
+// z = 地面からの高さ（px、省略で 0）。cam.lift（目の高さ）は両方が自動で差し引く。
 ```
 
 ## スコープ外（v2 送り）

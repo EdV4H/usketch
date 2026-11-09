@@ -15,6 +15,31 @@ export interface Camera {
 	horizon: number;
 }
 
+/** The camera as drawn: {@link Camera} plus how far the eye is raised (see `eyeLiftPx`). */
+export interface RenderedCamera extends Camera {
+	/** Screen px the eye is raised above the board: everything is drawn this much lower. */
+	lift: number;
+}
+
+/** Largest eye height accepted (world units), far above any terrain. */
+export const MAX_EYE_HEIGHT = 100_000;
+
+/** Keep an eye height usable: finite, within ±{@link MAX_EYE_HEIGHT}; anything else is 0. */
+export function clampEyeHeight(height: number): number {
+	if (!Number.isFinite(height)) return 0;
+	return Math.min(MAX_EYE_HEIGHT, Math.max(-MAX_EYE_HEIGHT, height));
+}
+
+/**
+ * Screen px the eye is raised for an eye `height` (world units) at `zoom`, faded with the
+ * transition `amount` so the flat board (0) is never shifted.
+ */
+export function eyeLiftPx(height: number, zoom: number, amount: number): number {
+	const a = Math.min(1, Math.max(0, Number.isFinite(amount) ? amount : 0));
+	const z = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+	return clampEyeHeight(height) * z * a;
+}
+
 /** Allowed ranges. pitch stays < 90 so the plane never goes fully edge-on
  *  (which would collapse to a line); horizon stays off the very edges. */
 export const CAMERA_LIMITS = {

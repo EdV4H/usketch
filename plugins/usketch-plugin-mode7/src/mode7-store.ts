@@ -3,7 +3,16 @@
 // HUD mutate it; the layer React components subscribe via `useSyncExternalStore`.
 // Kept tiny and framework-agnostic (same pattern as bg-grid's visibility store).
 import type { BoundingBox } from "@edv4h/usketch-shared";
-import { type Camera, clampCamera, DEFAULT_CAMERA, updateCamera } from "./mode7-camera.js";
+import {
+	type Camera,
+	clampCamera,
+	clampEyeHeight,
+	DEFAULT_CAMERA,
+	updateCamera,
+} from "./mode7-camera.js";
+
+/** Eye-height changes smaller than this (world units) are not applied. */
+const EYE_HEIGHT_EPSILON = 0.01;
 
 /** Appearance settings, independent of the camera geometry. */
 export interface Look {
@@ -114,6 +123,12 @@ export interface Mode7State {
 	 * The runtime sets this (it needs the canvas pixel size); the store only holds it.
 	 */
 	captureRect: BoundingBox | null;
+	/**
+	 * How high the eye is raised, in world units (`0` = the board's level): the ground at
+	 * this height is drawn where the flat board would be. Set by whatever the camera
+	 * follows (e.g. a character on a mountain, via `view3dService`). Not part of `reset`.
+	 */
+	eyeHeight: number;
 }
 
 export interface Mode7Init {
@@ -154,6 +169,8 @@ export interface Mode7Store {
 	toggleCaptureFrame(): void;
 	/** Store the captured world rect (called by the runtime; `null` clears it). */
 	setCaptureRect(rect: BoundingBox | null): void;
+	/** Raise the eye to `height` world units (see `eyeHeight`). */
+	setEyeHeight(height: number): void;
 	reset(): void;
 }
 
@@ -171,6 +188,7 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 		drawDistance: clampDistance(init.drawDistance ?? DEFAULT_DRAW_DISTANCE),
 		showCaptureFrame: init.showCaptureFrame ?? false,
 		captureRect: null,
+		eyeHeight: 0,
 	};
 
 	const listeners = new Set<() => void>();
@@ -259,6 +277,15 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 		},
 		setCaptureRect(rect) {
 			state = { ...state, captureRect: rect };
+			notify();
+		},
+		setEyeHeight(height) {
+			const h = clampEyeHeight(height);
+			// Followers ease toward their target every frame: skip changes too small to see
+			// (but always settle exactly back on the board's level).
+			if (h === state.eyeHeight) return;
+			if (h !== 0 && Math.abs(h - state.eyeHeight) < EYE_HEIGHT_EPSILON) return;
+			state = { ...state, eyeHeight: h };
 			notify();
 		},
 		reset() {

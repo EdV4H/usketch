@@ -42,6 +42,16 @@ describe("projectLifted", () => {
 		expect(up?.depth).toBeGreaterThan(g?.depth ?? 0);
 		expect(projectLifted(640, 360 + 4000, 0, { ...CAM, pitch: 80 }, SIZE)).toBeNull();
 	});
+
+	it("draws everything `lift` px lower when the eye is raised", () => {
+		const raised = { ...CAM, lift: 120 };
+		expect(projectLifted(640, 500, 120, raised, SIZE)).toEqual(
+			projectLifted(640, 500, 0, CAM, SIZE),
+		);
+		expect(projectLifted(300, 200, 200, raised, SIZE)).toEqual(
+			projectLifted(300, 200, 80, CAM, SIZE),
+		);
+	});
 });
 
 describe("buildTileMesh", () => {
