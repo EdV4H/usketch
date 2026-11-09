@@ -7,7 +7,7 @@ import {
 	type ServiceRegistry,
 	type View3dApi,
 } from "@edv4h/usketch-shared";
-import type { Camera } from "./mode7-camera.js";
+import { type Camera, eyeLiftPx, type RenderedCamera } from "./mode7-camera.js";
 import type { Look, Mode7Store } from "./mode7-store.js";
 import { transitionCamera } from "./mode7-transform.js";
 import type { Mode7SwitchOptions, Mode7Transition } from "./mode7-transition.js";
@@ -30,10 +30,18 @@ export interface Mode7Api {
 	getCamera(): Camera;
 	/**
 	 * The camera as drawn right now: `getCamera()` with pitch/yaw scaled by the
-	 * transition amount (flat when off). Feed it to `projectToGround` /
-	 * `unprojectFromGround` to line things up with the ground.
+	 * transition amount (flat when off), plus the eye's `lift` in px. Feed it to
+	 * `projectToGround` / `unprojectFromGround` to line things up with the ground.
 	 */
-	getRenderedCamera(): Camera;
+	getRenderedCamera(): RenderedCamera;
+	/** How high the eye is raised, world units (`0` = the board's level). */
+	getEyeHeight(): number;
+	/**
+	 * Raise the eye to `height` world units: the ground at that height is drawn where the
+	 * flat board would be, so following something up a mountain keeps it in view. A
+	 * follower sets it every frame (ease it yourself); `0` brings the eye back down.
+	 */
+	setEyeHeight(height: number): void;
 	setPitch(deg: number): void;
 	setYaw(deg: number): void;
 	setFov(px: number): void;
@@ -71,7 +79,18 @@ export interface Mode7Api {
 
 export const mode7Service = defineService<Mode7Api>("usketch-plugin-mode7");
 
-export function createMode7Api(store: Mode7Store, transition: Mode7Transition): Mode7Api {
+/** The camera as drawn now: the transition-scaled camera plus the eye lift (px). */
+export function renderedCamera(store: Mode7Store, zoom: number): RenderedCamera {
+	const { camera, amount, eyeHeight } = store.getState();
+	return { ...transitionCamera(camera, amount), lift: eyeLiftPx(eyeHeight, zoom, amount) };
+}
+
+/** `zoom` reads the board's current zoom (the eye height is in world units). */
+export function createMode7Api(
+	store: Mode7Store,
+	transition: Mode7Transition,
+	zoom: () => number = () => 1,
+): Mode7Api {
 	return {
 		isActive: () => store.getState().active,
 		enable: (opts) => transition.enable(opts),
@@ -80,7 +99,9 @@ export function createMode7Api(store: Mode7Store, transition: Mode7Transition): 
 		isTransitioning: () => transition.isTransitioning(),
 		getTransitionAmount: () => store.getState().amount,
 		getCamera: () => store.getState().camera,
-		getRenderedCamera: () => transitionCamera(store.getState().camera, store.getState().amount),
+		getRenderedCamera: () => renderedCamera(store, zoom()),
+		getEyeHeight: () => store.getState().eyeHeight,
+		setEyeHeight: (height) => store.setEyeHeight(height),
 		setPitch: (deg) => store.setCamera({ pitch: deg }),
 		setYaw: (deg) => store.setCamera({ yaw: deg }),
 		setFov: (px) => store.setCamera({ fov: px }),
@@ -113,14 +134,14 @@ export function getMode7Api(services: ServiceRegistry): Mode7Api | undefined {
  * The generic 3D-view state (`view3dService` in shared) backed by this store, so
  * plugins that rise out of the ground in 3D follow the view without depending on Mode 7.
  */
-export function createView3dApi(store: Mode7Store): View3dApi {
+export function createView3dApi(store: Mode7Store, zoom: () => number = () => 1): View3dApi {
 	return {
 		amount: () => store.getState().amount,
 		camera: () => {
-			const { camera, amount } = store.getState();
-			const c = transitionCamera(camera, amount);
-			return { pitch: c.pitch, yaw: c.yaw, fov: c.fov, horizon: c.horizon };
+			const c = renderedCamera(store, zoom());
+			return { pitch: c.pitch, yaw: c.yaw, fov: c.fov, horizon: c.horizon, lift: c.lift };
 		},
+		setEyeHeight: (height) => store.setEyeHeight(height),
 		subscribe: (listener) => store.subscribe(listener),
 	};
 }

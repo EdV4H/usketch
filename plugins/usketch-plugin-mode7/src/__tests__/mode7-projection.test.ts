@@ -81,3 +81,34 @@ describe("unprojectFromGround", () => {
 		expect(unprojectFromGround(600, vanish - 1, CAM, SIZE)).toBeNull();
 	});
 });
+
+describe("eye lift", () => {
+	const cam = { ...CAM, lift: 150 };
+	it("draws everything `lift` px lower: ground at that height shows like the flat board", () => {
+		for (const [x, y] of [
+			[300, 500],
+			[900, 200],
+			[600, 700],
+		]) {
+			const raised = projectToGround(x, y, cam, SIZE, 150);
+			const board = projectToGround(x, y, CAM, SIZE);
+			expect(raised?.x).toBeCloseTo(board?.x ?? Number.NaN, 9);
+			expect(raised?.y).toBeCloseTo(board?.y ?? Number.NaN, 9);
+		}
+	});
+	it("unprojects back onto ground at any height", () => {
+		for (const z of [0, 40, 150, 300]) {
+			for (const [x, y] of [
+				[300, 500],
+				[900, 420],
+				[600, 760],
+			]) {
+				const s = projectToGround(x, y, cam, SIZE, z);
+				if (!s) continue;
+				const back = unprojectFromGround(s.x, s.y, cam, SIZE, z);
+				expect(back?.x).toBeCloseTo(x, 6);
+				expect(back?.y).toBeCloseTo(y, 6);
+			}
+		}
+	});
+});
