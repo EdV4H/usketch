@@ -16,6 +16,7 @@ import {
 	type MotionParams,
 	ORIGIN_POSE,
 } from "./character-physics.js";
+import { type CharacterSize, DEFAULT_SIZE, sanitizeSize } from "./character-size.js";
 import type { CharacterAppearance, CharacterRenderer, RemoteCharacter } from "./character-types.js";
 
 export interface CharacterState {
@@ -34,6 +35,8 @@ export interface CharacterState {
 	anchor: Point;
 	/** 0 = rigid follow … 0.99 = heavy lag. */
 	followSmoothing: number;
+	/** How big the body is drawn (only the look). */
+	size: CharacterSize;
 	/** True after the user panned by hand; a movement key resumes following. */
 	followSuspended: boolean;
 	appearance: CharacterAppearance;
@@ -51,6 +54,7 @@ export interface CharacterStoreInit {
 	jump?: boolean | JumpInit;
 	anchor?: Partial<Point>;
 	followSmoothing?: number;
+	size?: Partial<CharacterSize>;
 	appearance?: CharacterAppearance;
 	name?: string;
 	renderer?: CharacterRenderer;
@@ -203,6 +207,7 @@ export function createCharacterStore(init: CharacterStoreInit = {}) {
 		jump: sanitizeJump(init.jump),
 		anchor: { x: clamp01(init.anchor?.x ?? 0.5), y: clamp01(init.anchor?.y ?? 0.5) },
 		followSmoothing: Math.min(0.99, Math.max(0, init.followSmoothing ?? 0)),
+		size: sanitizeSize(init.size, DEFAULT_SIZE),
 		followSuspended: false,
 		appearance: init.appearance ?? {},
 		name: init.name,
@@ -283,6 +288,10 @@ export function createCharacterStore(init: CharacterStoreInit = {}) {
 		},
 		setFollowSmoothing(v: number): void {
 			if (Number.isFinite(v)) set({ followSmoothing: Math.min(0.99, Math.max(0, v)) });
+		},
+		/** Change the body size; omitted fields keep their current value. */
+		setSize(s: Partial<CharacterSize>): void {
+			set({ size: sanitizeSize(s, state.size) });
 		},
 		setFollowSuspended(followSuspended: boolean): void {
 			if (followSuspended !== state.followSuspended) set({ followSuspended });

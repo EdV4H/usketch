@@ -10,6 +10,7 @@ import type {
 	MotionParams,
 } from "./character-physics.js";
 import type { CharacterRuntime } from "./character-runtime.js";
+import type { CharacterSize } from "./character-size.js";
 import type { CharacterStore, JumpInit } from "./character-store.js";
 import type {
 	CharacterAppearance,
@@ -54,6 +55,10 @@ export interface CharacterApi {
 	/** Follow smoothing (0 = rigid … 0.99 = heavy lag). */
 	getFollowSmoothing(): number;
 	setFollowSmoothing(value: number): void;
+	/** How big the body is drawn (a fixed screen size, or one that scales with the ground). */
+	getSize(): CharacterSize;
+	/** Change the body size; omitted fields keep their current value. Only the look. */
+	setSize(size: Partial<CharacterSize>): void;
 	/** Replace the key bindings (`KeyboardEvent.code` values; omitted `drift` / `jump` are kept). */
 	setKeys(keys: CharacterKeys): void;
 	/** The current key bindings. */
@@ -106,6 +111,8 @@ export function createCharacterApi(store: CharacterStore, runtime: CharacterRunt
 		setAnchor: (anchor) => store.setAnchor(anchor),
 		getFollowSmoothing: () => store.getState().followSmoothing,
 		setFollowSmoothing: (v) => store.setFollowSmoothing(v),
+		getSize: () => store.getState().size,
+		setSize: (size) => store.setSize(size),
 		setKeys: (keys) => runtime.setKeys(keys),
 		getKeys: () => runtime.getKeys(),
 		setVirtualInput: (input) => runtime.setVirtualInput(input),

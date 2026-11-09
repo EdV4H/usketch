@@ -36,11 +36,18 @@ createCharacterPlugin({
   as CSS `rotate()` and the viewport `rotation`.
 - **Render props**: `heading` (world), `screenHeading` (= `heading + viewport.rotation`,
   what to rotate a top-down sprite by), `moving`, `speed`, `steering`, `slip`,
-  `drifting`, `zoom`, `appearance`, `name`, `isSelf`, `id`, `elevation`, `z`, `altitude`,
+  `drifting`, `zoom`, `size`, `appearance`, `name`, `isSelf`, `id`, `elevation`, `z`, `altitude`,
   `airborne`, `verticalSpeed`, `hovering`, `hoverGauge` (0 … 1, `null` with hovering
   off). Each character is placed centered on its screen position
   in one screen-space layer, so self and remote characters look the same under zoom
   and camera rotation.
+- **Size** (`size` option / `setSize`, only the look): `size` in the render props is the
+  screen px to draw the body at. `{ scale: "screen", value: 36 }` (the default) keeps it
+  the same on screen at every zoom, like a map pin. `{ scale: "world", value: 24 }`
+  makes it 24 world units, so it scales with the ground (zooming out shrinks it like the
+  terrain), kept within `minPx` (default 12) … `maxPx` (default 480) on screen. The
+  physics still treat a character as a point: `motion.maxStep` and `jump.height` decide
+  what it climbs, not its size.
 - **Control schemes**
   - `directional` — keys move in screen directions (camera-relative); the heading
     turns toward the movement at `turnRate`. With the `rotate` camera, left/right
@@ -164,7 +171,7 @@ createCharacterPlugin({
 ## HUD
 
 A "キャラクター" settings group (on/off, camera, scheme, drift, drift key, drift hop, jump, jump key, jump height, air
-jumps, jump direction on slopes, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, screen position, camera lag) plus actions to toggle the
+jumps, jump direction on slopes, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, size and its scale, screen position, camera lag) plus actions to toggle the
 character, to place it at the screen position, and to jump.
 
 ## Service
@@ -182,6 +189,7 @@ api?.setJump({ airJumps: 1, hover: { duration: 2 } }); // double jump + hover (h
 api?.jump();
 api?.setKeys({ ...api.getKeys(), drift: ["KeyX"] }); // KeyboardEvent.code values
 api?.setShadowRenderer(myShadow);
+api?.setSize({ scale: "world", value: 24, minPx: 20 }); // scale with the ground (render props `size`)
 api?.getPose(); // { x, y, heading, speed, moving, steering, slip, drift, z, vz, airborne, hovering, hoverGauge }
 api?.setVirtualInput({ throttle: 0.8, steer: -0.3 }); // touch stick; null on release
 api?.setVirtualInput({ throttle: 0.8, steer: 0, jump: true }); // + jump button held

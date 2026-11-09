@@ -21,11 +21,9 @@ export function characterAppearance(
 	return { color: characterColor(seed), kind };
 }
 
-const SIZE = 36;
-
-function Pawn({ color }: { color: string }) {
+function Pawn({ color, size }: { color: string; size: number }) {
 	return (
-		<svg width={SIZE} height={SIZE} viewBox="-18 -18 36 36" aria-hidden="true">
+		<svg width={size} height={size} viewBox="-18 -18 36 36" aria-hidden="true">
 			<path d="M0 -17 L7 -9 L-7 -9 Z" fill={color} stroke="#fff" strokeWidth={1.5} />
 			<circle r={11} fill={color} stroke="#fff" strokeWidth={2.5} />
 			<circle cx={-4} cy={-4} r={2} fill="#fff" />
@@ -34,9 +32,9 @@ function Pawn({ color }: { color: string }) {
 	);
 }
 
-function Car({ color }: { color: string }) {
+function Car({ color, size }: { color: string; size: number }) {
 	return (
-		<svg width={SIZE} height={SIZE} viewBox="-18 -18 36 36" aria-hidden="true">
+		<svg width={size} height={size} viewBox="-18 -18 36 36" aria-hidden="true">
 			<rect
 				x={-9}
 				y={-16}
@@ -58,17 +56,17 @@ function Car({ color }: { color: string }) {
 }
 
 /** Hover glow at the feet: a soft cyan ring with a few "wind" strokes. */
-function HoverGlow() {
+function HoverGlow({ size }: { size: number }) {
 	return (
 		<svg
-			width={SIZE * 1.4}
-			height={SIZE * 0.6}
+			width={size * 1.4}
+			height={size * 0.6}
 			viewBox="-25 -11 50 22"
 			aria-hidden="true"
 			style={{
 				position: "absolute",
 				left: "50%",
-				top: SIZE * 0.72,
+				top: size * 0.72,
 				transform: "translateX(-50%)",
 				pointerEvents: "none",
 			}}
@@ -89,7 +87,7 @@ const GAUGE_R = 6;
 const GAUGE_LEN = 2 * Math.PI * GAUGE_R;
 
 /** The hover gauge: a small ring beside the body, green → amber → red as it empties. */
-function HoverGauge({ value }: { value: number }) {
+function HoverGauge({ value, size }: { value: number; size: number }) {
 	const v = Math.min(1, Math.max(0, value));
 	const color = v > 0.5 ? "#4ade80" : v > 0.2 ? "#fbbf24" : "#f87171";
 	return (
@@ -98,7 +96,7 @@ function HoverGauge({ value }: { value: number }) {
 			height={16}
 			viewBox="-8 -8 16 16"
 			aria-hidden="true"
-			style={{ position: "absolute", left: SIZE - 2, top: -4, pointerEvents: "none" }}
+			style={{ position: "absolute", left: size - 2, top: -4, pointerEvents: "none" }}
 		>
 			<circle r={GAUGE_R} fill="rgba(0,0,0,0.45)" stroke="rgba(255,255,255,0.35)" strokeWidth={2} />
 			<circle
@@ -116,7 +114,14 @@ function HoverGauge({ value }: { value: number }) {
 
 export function renderCharacter(props: CharacterRenderProps) {
 	const color = typeof props.appearance.color === "string" ? props.appearance.color : "#4a7cff";
-	const body = props.appearance.kind === "car" ? <Car color={color} /> : <Pawn color={color} />;
+	// The plugin's size setting (fixed on screen, or scaled with the ground) at this zoom.
+	const size = props.size;
+	const body =
+		props.appearance.kind === "car" ? (
+			<Car color={color} size={size} />
+		) : (
+			<Pawn color={color} size={size} />
+		);
 	// The gauge only while it matters: hovering, or refilling after a hover.
 	const gauge =
 		props.hoverGauge !== null && (props.hovering || props.hoverGauge < 1) ? props.hoverGauge : null;
@@ -124,21 +129,21 @@ export function renderCharacter(props: CharacterRenderProps) {
 		<div
 			style={{
 				position: "relative",
-				width: SIZE,
-				height: SIZE,
+				width: size,
+				height: size,
 				filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))",
 			}}
 		>
-			{props.hovering && <HoverGlow />}
-			<div style={{ transform: `rotate(${props.screenHeading}deg)`, width: SIZE, height: SIZE }}>
+			{props.hovering && <HoverGlow size={size} />}
+			<div style={{ transform: `rotate(${props.screenHeading}deg)`, width: size, height: size }}>
 				{body}
 			</div>
-			{gauge !== null && <HoverGauge value={gauge} />}
+			{gauge !== null && <HoverGauge value={gauge} size={size} />}
 			{props.name && (
 				<div
 					style={{
 						position: "absolute",
-						top: SIZE + 2,
+						top: size + 2,
 						left: "50%",
 						transform: "translateX(-50%)",
 						fontSize: 11,
@@ -163,7 +168,7 @@ const SHADOW_HALF_ALTITUDE = 60;
 /** A soft round shadow on the ground: smaller and fainter the higher the character is. */
 export function renderCharacterShadow(props: CharacterRenderProps) {
 	const k = 1 / (1 + Math.max(0, props.altitude) / SHADOW_HALF_ALTITUDE);
-	const d = SIZE * 0.8 * k;
+	const d = props.size * 0.8 * k;
 	return (
 		<div
 			style={{
