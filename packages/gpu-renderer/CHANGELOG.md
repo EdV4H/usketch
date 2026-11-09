@@ -1,5 +1,12 @@
 # @edv4h/usketch-gpu-renderer
 
+## 2.1.16
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+
 ## 2.1.15
 
 ### Patch Changes

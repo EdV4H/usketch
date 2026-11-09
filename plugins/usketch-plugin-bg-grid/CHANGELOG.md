@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-bg-grid
 
+## 2.4.7
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-core@2.4.12
+
 ## 2.4.6
 
 ### Patch Changes

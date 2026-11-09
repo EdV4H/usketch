@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-tool-pan
 
+## 2.0.26
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-core@2.4.12
+  - @edv4h/usketch-store@3.11.4
+
 ## 2.0.25
 
 ### Patch Changes
