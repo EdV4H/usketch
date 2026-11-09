@@ -30,6 +30,12 @@ export interface CharacterRenderProps {
 	drifting: boolean;
 	/** Current viewport zoom (scale the sprite with the world, or not). */
 	zoom: number;
+	/**
+	 * Screen px to draw the body at, from the plugin's `size` setting at this zoom (a
+	 * fixed size, or one that scales with the ground). Size the sprite and its shadow by
+	 * this so the host and the HUD agree.
+	 */
+	size: number;
 	/** The owner's broadcast appearance. */
 	appearance: CharacterAppearance;
 	/** The owner's display name, if any. */

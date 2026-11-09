@@ -52,6 +52,14 @@ export {
 	getCharacterApi,
 } from "./character-service.js";
 export {
+	type CharacterSize,
+	type CharacterSizeScale,
+	characterSizePx,
+	DEFAULT_SIZE,
+	MAX_SIZE_VALUE,
+	sanitizeSize,
+} from "./character-size.js";
+export {
 	effectiveJump,
 	hoverGaugeOf,
 	type JumpInit,

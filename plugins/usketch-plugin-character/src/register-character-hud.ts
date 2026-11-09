@@ -5,9 +5,11 @@ import type { CameraMode } from "./character-camera.js";
 import { KEY_CHOICES, keyChoiceOf, withKeyChoice } from "./character-key-choices.js";
 import { type ControlScheme, DEFAULT_HOVER, DEFAULT_JUMP } from "./character-physics.js";
 import type { CharacterApi } from "./character-service.js";
+import type { CharacterSizeScale } from "./character-size.js";
 
 const CAMERA_MODES: readonly CameraMode[] = ["fixed", "rotate", "free"];
 const SCHEMES: readonly ControlScheme[] = ["directional", "vehicle"];
+const SIZE_SCALES: readonly CharacterSizeScale[] = ["screen", "world"];
 
 const truthy = (v: unknown) => v === true || v === "true";
 const KEY_OPTIONS = KEY_CHOICES.map((c) => ({ value: c.value, label: c.label }));
@@ -89,6 +91,23 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				max: 1,
 				step: 0.1,
 			},
+			{
+				name: "sizeScale",
+				label: "キャラの大きさの基準",
+				type: "enum",
+				options: [
+					{ value: "screen", label: "画面で固定（ズームしても同じ）" },
+					{ value: "world", label: "地面と同じ縮尺" },
+				],
+			},
+			{
+				name: "size",
+				label: "キャラの大きさ（画面固定は px、地面の縮尺は world 単位）",
+				type: "number",
+				min: 4,
+				max: 400,
+				step: 2,
+			},
 			{ name: "anchorX", label: "画面位置 横(%)", type: "number", min: 0, max: 100, step: 5 },
 			{ name: "anchorY", label: "画面位置 縦(%)", type: "number", min: 0, max: 100, step: 5 },
 			{ name: "smoothing", label: "カメラ遅れ(%)", type: "number", min: 0, max: 95, step: 5 },
@@ -135,6 +154,10 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return motion.maxSlope;
 				case "slopeTilt":
 					return motion.slopeTilt;
+				case "sizeScale":
+					return api.getSize().scale;
+				case "size":
+					return api.getSize().value;
 				case "anchorX":
 					return Math.round(anchor.x * 100);
 				case "anchorY":
@@ -178,6 +201,10 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					// Like the other jump tuning: only while jumping is on.
 					if (api.getJump()) api.setJump({ hover: truthy(value) });
 					return;
+				case "sizeScale":
+					if (SIZE_SCALES.includes(value as CharacterSizeScale))
+						api.setSize({ scale: value as CharacterSizeScale });
+					return;
 			}
 			const n = Number(value);
 			if (!Number.isFinite(n)) return;
@@ -212,6 +239,9 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					break;
 				case "hoverThrust":
 					if (api.getJump()?.hover) api.setJump({ hover: { thrust: n } });
+					break;
+				case "size":
+					api.setSize({ value: n });
 					break;
 				case "anchorX":
 					api.setAnchor({ x: n / 100 });

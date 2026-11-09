@@ -8,6 +8,7 @@ import type { CameraMode } from "./character-camera.js";
 import type { ControlScheme, DriftParams, MotionParams } from "./character-physics.js";
 import { setupCharacterRuntime } from "./character-runtime.js";
 import { characterService, createCharacterApi } from "./character-service.js";
+import type { CharacterSize } from "./character-size.js";
 import { createCharacterStore, type JumpInit } from "./character-store.js";
 import type { CharacterAwareness } from "./character-sync.js";
 import {
@@ -57,6 +58,11 @@ export interface CharacterPluginOptions {
 	screenAnchor?: { x?: number; y?: number };
 	/** Follow-camera lag: 0 = rigid (default) … 0.99 = heavy. */
 	followSmoothing?: number;
+	/**
+	 * How big the body is drawn, handed to the renderers as `size` (screen px). Default 36 px
+	 * at every zoom; `{ scale: "world", value: 24 }` scales it with the ground instead.
+	 */
+	size?: Partial<CharacterSize>;
 }
 
 export function createCharacterPlugin(options: CharacterPluginOptions = {}): UsketchPlugin {
@@ -73,6 +79,7 @@ export function createCharacterPlugin(options: CharacterPluginOptions = {}): Usk
 				jump: options.jump,
 				anchor: options.screenAnchor,
 				followSmoothing: options.followSmoothing,
+				size: options.size,
 				appearance: options.appearance,
 				name: options.userName,
 				renderer: options.renderCharacter,

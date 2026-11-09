@@ -8,6 +8,7 @@
 import { type Viewport, viewportRotation, worldToScreen, wrapDeg } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { groundSlope, type HeightAt } from "./character-physics.js";
+import { characterSizePx } from "./character-size.js";
 import { type CharacterStore, hoverGaugeOf } from "./character-store.js";
 import type { CharacterRenderer, CharacterRenderProps } from "./character-types.js";
 
@@ -136,6 +137,7 @@ export function CharacterLayer({
 	const shadowRenderer = store.getShadowRenderer();
 
 	const rot = viewportRotation(viewport);
+	const size = characterSizePx(state.size, viewport.zoom);
 	// Lean on screen: the world gradient turned with the camera (zoom scales the ground
 	// and the height alike, so it stays a rise per px), scaled by the tuning and the 3D
 	// transition (a lean on the flat board would only squash the sprite).
@@ -169,6 +171,7 @@ export function CharacterLayer({
 				slip: r.slip,
 				drifting: r.drifting,
 				zoom: viewport.zoom,
+				size,
 				appearance: r.appearance,
 				name: r.name,
 				elevation,
@@ -201,6 +204,7 @@ export function CharacterLayer({
 				slip: pose.slip,
 				drifting: pose.drift !== 0,
 				zoom: viewport.zoom,
+				size,
 				appearance: state.appearance,
 				name: state.name,
 				elevation,
