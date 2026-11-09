@@ -8,6 +8,7 @@ import {
 	type View3dApi,
 } from "@edv4h/usketch-shared";
 import { type Camera, cameraHeightPx, type RenderedCamera } from "./mode7-camera.js";
+import type { HeightKeyConfig, HeightKeys } from "./mode7-height-keys.js";
 import type { Look, Mode7Store } from "./mode7-store.js";
 import { transitionCamera } from "./mode7-transform.js";
 import type { Mode7SwitchOptions, Mode7Transition } from "./mode7-transition.js";
@@ -44,6 +45,13 @@ export interface Mode7Api {
 	 * mountain keeps it in view. A follower sets it every frame (ease it yourself).
 	 */
 	setHeight(height: number): void;
+	/** The keys that raise / lower the camera while held (`KeyboardEvent.code`), or `null` (off). */
+	getHeightKeys(): HeightKeys | null;
+	/** Rebind the height keys; `null` turns them off. */
+	setHeightKeys(keys: HeightKeys | null): void;
+	/** How fast the height keys move the camera, screen px per second. */
+	getHeightSpeed(): number;
+	setHeightSpeed(pxPerSecond: number): void;
 	/** Nudge camera fields by deltas (re-clamped). */
 	adjust(delta: Partial<Camera>): void;
 	/** The current appearance (sky / fog). */
@@ -91,6 +99,7 @@ export function createMode7Api(
 	store: Mode7Store,
 	transition: Mode7Transition,
 	zoom: () => number = () => 1,
+	heightKeys: HeightKeyConfig = { keys: null, speed: 0 },
 ): Mode7Api {
 	return {
 		isActive: () => store.getState().active,
@@ -106,6 +115,14 @@ export function createMode7Api(
 		setFov: (px) => store.setCamera({ fov: px }),
 		setHorizon: (fraction) => store.setCamera({ horizon: fraction }),
 		setHeight: (height) => store.setCamera({ height }),
+		getHeightKeys: () => heightKeys.keys,
+		setHeightKeys: (keys) => {
+			heightKeys.keys = keys ? { up: [...keys.up], down: [...keys.down] } : null;
+		},
+		getHeightSpeed: () => heightKeys.speed,
+		setHeightSpeed: (pxPerSecond) => {
+			if (Number.isFinite(pxPerSecond) && pxPerSecond >= 0) heightKeys.speed = pxPerSecond;
+		},
 		adjust: (delta) => store.adjustCamera(delta),
 		getLook: () => store.getState().look,
 		setSky: (color) => store.setLook({ sky: color }),

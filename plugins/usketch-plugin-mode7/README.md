@@ -119,7 +119,7 @@ api?.setYaw(30);
 
 `Mode7Api`: `isActive` / `enable` / `disable` / `toggle`（各 `{ animate? }`）/ `isTransitioning` /
 `getTransitionAmount` / `getCamera` / `getRenderedCamera` / `setPitch` / `setYaw` /
-`setFov` / `setHorizon` / `setHeight` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
+`setFov` / `setHorizon` / `setHeight` / `getHeightKeys` / `setHeightKeys` / `getHeightSpeed` / `setHeightSpeed` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
 `getTiltLayers` / `setTiltLayers` / `toggleTiltLayer` / `getDrawDistance` / `setDrawDistance` /
 `isCaptureFrameVisible` / `setCaptureFrameVisible` / `toggleCaptureFrame` / `getCaptureRect` / `onChange`。
 
@@ -133,6 +133,12 @@ api?.setYaw(30);
 `view3dService.setCameraHeight` を通して自動でこれを行う。描画上の上げ幅は
 `getRenderedCamera().heightPx`（px = 高さ × zoom × 遷移量）。WebGL などで自前に描く場合は
 これを引いてから投影する（`projectToGround` は `heightPx` を見る）。
+
+3D ビューのあいだは **Space を押している間カメラが上がり、Shift で下がる**（画面上で毎秒
+`heightSpeed` px、既定 480）。キーは `KeyboardEvent.code` で、`heightKeys` オプション
+（`{ up?, down? }`、`false` で無効）か `setHeightKeys` で変えられる。入力欄・ボタン・スライダーに
+フォーカスがあるときと、同じキーを先に使うプラグイン（キャラクターのジャンプ）がいるときは動かない。
+キャラクターが追いかけている間は、キャラクターがカメラの高さを毎フレーム決める。
 
 ## 地面上の点の投影
 

@@ -7,6 +7,13 @@
 import { type PluginContext, type UsketchPlugin, view3dService } from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
 import {
+	DEFAULT_HEIGHT_SPEED,
+	type HeightKeyConfig,
+	type HeightKeys,
+	resolveHeightKeys,
+	setupHeightKeys,
+} from "./mode7-height-keys.js";
+import {
 	CAPTURE_FRAME_LAYER_ID,
 	CAPTURE_LAYER_ID,
 	FOG_LAYER_ID,
@@ -46,6 +53,14 @@ export interface Mode7PluginOptions {
 	/** Keyboard shortcut bindings (opt-in; no defaults). */
 	shortcuts?: Mode7Shortcuts;
 	/**
+	 * Keys that raise / lower the camera (`camera.height`) while held in the 3D view,
+	 * as `KeyboardEvent.code`s. Default Space = up, Shift = down; give either side to
+	 * rebind it, `false` to turn them off. Rebindable later via the service.
+	 */
+	heightKeys?: Partial<HeightKeys> | false;
+	/** How fast the height keys move the camera, screen px per second (default 480). */
+	heightSpeed?: number;
+	/**
 	 * Animate switching the view on/off: the ground rises from flat to `camera.pitch`
 	 * (and back) while the sky/fog fade. Default `durationMs: 0` = instant; with it
 	 * set, every switch (HUD, actions, `mode7:toggle`, service) animates unless a call
@@ -66,7 +81,16 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 	const transition = createMode7Transition(store, options.transition);
 	// The board's zoom, once set up (the camera height is in world units, drawn × zoom).
 	let zoom = (): number => 1;
-	const api = createMode7Api(store, transition, () => zoom());
+	const heightKeys: HeightKeyConfig = {
+		keys: resolveHeightKeys(options.heightKeys),
+		speed:
+			options.heightSpeed !== undefined &&
+			Number.isFinite(options.heightSpeed) &&
+			options.heightSpeed >= 0
+				? options.heightSpeed
+				: DEFAULT_HEIGHT_SPEED,
+	};
+	const api = createMode7Api(store, transition, () => zoom(), heightKeys);
 	// Layers the picker must never tilt (tilting the HUD or our own overlays makes
 	// no sense and could hide the very controls used to turn the view off).
 	const excludedLayerIds = [
@@ -85,6 +109,7 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 			zoom = () => ctx.store.getViewport().zoom;
 			const stopRuntime = setupMode7Runtime(ctx, store, { depthLayerIds: options.depthLayerIds });
 			const stopActions = registerMode7Actions(ctx, api, options.shortcuts);
+			const stopHeightKeys = setupHeightKeys(store, heightKeys, () => zoom());
 			const stopHud = registerMode7Hud(ctx, api, store, excludedLayerIds);
 			// Provide the service LAST so a failed earlier step can't leak it.
 			const unprovideService = mode7Service.provide(ctx.services, api);
@@ -97,6 +122,7 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 				unprovideView3d();
 				unprovideService();
 				stopHud();
+				stopHeightKeys();
 				stopActions();
 				transition.dispose();
 				stopRuntime();
