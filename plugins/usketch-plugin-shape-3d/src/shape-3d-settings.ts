@@ -63,7 +63,8 @@ export function createShape3dSettings(init: {
 			if (
 				next.minPx === prev.minPx &&
 				next.maxCount === prev.maxCount &&
-				next.collisionIn3dOnly === prev.collisionIn3dOnly
+				next.collisionIn3dOnly === prev.collisionIn3dOnly &&
+				next.groundFlat === prev.groundFlat
 			) {
 				return;
 			}
@@ -84,5 +85,7 @@ function sanitizeLimits(l: Shape3dLimits): Shape3dLimits {
 			typeof l.collisionIn3dOnly === "boolean"
 				? l.collisionIn3dOnly
 				: DEFAULT_SHAPE_3D_LIMITS.collisionIn3dOnly,
+		groundFlat:
+			typeof l.groundFlat === "boolean" ? l.groundFlat : DEFAULT_SHAPE_3D_LIMITS.groundFlat,
 	};
 }

@@ -17,6 +17,7 @@ import {
 	wrapDeg,
 } from "@edv4h/usketch-shared";
 import {
+	availableModes,
 	resolveShape3d,
 	type Shape3dMode,
 	type Shape3dParams,
@@ -277,12 +278,27 @@ export interface Shape3dLimits {
 	/** Shapes block the character only while the view is (partly) 3D. Default `false`:
 	 *  like terrain steps, they block on the flat board too. */
 	collisionIn3dOnly: boolean;
+	/** Shapes holding no 3D parameters still lie on the terrain's height where it is
+	 *  raised (drawn here as a flat `float` of height 0), instead of on the board at 0.
+	 *  Default `true`. */
+	groundFlat: boolean;
 }
 
 export const DEFAULT_SHAPE_3D_LIMITS: Shape3dLimits = {
 	minPx: 8,
 	maxCount: 200,
 	collisionIn3dOnly: false,
+	groundFlat: true,
+};
+
+/** What a shape holding no 3D parameters is drawn as on raised ground: flat, at its height. */
+export const GROUND_FLAT_PARAMS: Shape3dParams = {
+	mode: "float",
+	height: 0,
+	facing: "camera",
+	ground: true,
+	shadow: false,
+	collision: "none",
 };
 
 export interface Shape3dEntry {
@@ -294,7 +310,10 @@ export interface Shape3dEntry {
  * The shapes to draw in 3D now (in z-order). Only while the view is (partly) 3D, never
  * in the global LOD mode, and only shapes whose anchor is on the drawn ground: the board
  * box grown by the 3D view's overscan. A depth layer isn't clipped by the draw distance,
- * so a shape farther out would stand in the sky past the ground's end. Pure.
+ * so a shape farther out would stand in the sky past the ground's end. With
+ * `limits.groundFlat` and a `heightAt`, a shape holding no 3D parameters whose centre is
+ * on raised ground is drawn too, lying flat at that height ({@link GROUND_FLAT_PARAMS}).
+ * Pure.
  */
 export function selectShapes3d(input: {
 	shapes: readonly ShapeData[];
@@ -306,6 +325,8 @@ export function selectShapes3d(input: {
 	renderMode: RenderMode;
 	amount: number;
 	limits: Shape3dLimits;
+	/** The terrain's height (world units) for `limits.groundFlat`; absent = no terrain. */
+	heightAt?: (x: number, y: number) => number;
 }): Shape3dEntry[] {
 	if (!(input.amount > 0) || input.renderMode === "lod") return [];
 	const zoom = input.viewport.zoom;
@@ -319,7 +340,7 @@ export function selectShapes3d(input: {
 	const found: (Shape3dEntry & { screenY: number })[] = [];
 	for (const shape of input.shapes) {
 		if (!shape || typeof shape.id !== "string") continue;
-		const params = resolveShape3d(shape, input.types);
+		const params = resolveShape3d(shape, input.types) ?? groundFlatParams(shape, input);
 		if (!params) continue;
 		if (Math.max(shape.width, shape.height) * zoom < input.limits.minPx) continue;
 		const at = shapeAnchor(shape, params.mode);
@@ -339,6 +360,22 @@ export function selectShapes3d(input: {
 			.map(({ shape, params }) => ({ shape, params }));
 	}
 	return found.map(({ shape, params }) => ({ shape, params }));
+}
+
+/** {@link GROUND_FLAT_PARAMS} for a parameterless shape on raised ground, else `null`. */
+function groundFlatParams(
+	shape: ShapeData,
+	input: {
+		types: Shape3dTypes;
+		limits: Shape3dLimits;
+		heightAt?: (x: number, y: number) => number;
+	},
+): Shape3dParams | null {
+	if (!input.limits.groundFlat || !input.heightAt) return null;
+	if (!availableModes(input.types, shape.type).includes("float")) return null;
+	const at = shapeAnchor(shape, "float");
+	const h = input.heightAt(at.x, at.y);
+	return Number.isFinite(h) && h > 0 ? GROUND_FLAT_PARAMS : null;
 }
 
 function clamp01(n: number): number {
