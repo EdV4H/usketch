@@ -43,8 +43,8 @@ describe("projectLifted", () => {
 		expect(projectLifted(640, 360 + 4000, 0, { ...CAM, pitch: 80 }, SIZE)).toBeNull();
 	});
 
-	it("draws everything `lift` px lower when the eye is raised", () => {
-		const raised = { ...CAM, lift: 120 };
+	it("draws everything `heightPx` lower when the camera is raised", () => {
+		const raised = { ...CAM, heightPx: 120 };
 		expect(projectLifted(640, 500, 120, raised, SIZE)).toEqual(
 			projectLifted(640, 500, 0, CAM, SIZE),
 		);

@@ -62,10 +62,10 @@ export const CHARACTER_VIEWPORT_PRIORITY = 20;
 /** Remote pose smoothing (see `smoothingAlpha`). */
 const REMOTE_SMOOTHING = 0.75;
 /**
- * Eye-height smoothing (see `smoothingAlpha`): the 3D view's eye follows the ground
+ * Camera-height smoothing (see `smoothingAlpha`): the 3D view's camera follows the ground
  * under the character at its own, never-rigid pace, so a step up a cliff glides.
  */
-const EYE_SMOOTHING = 0.9;
+const CAMERA_HEIGHT_SMOOTHING = 0.9;
 /** Largest simulated step, so a background-tab pause doesn't teleport the character. */
 const MAX_DT = 0.05;
 /** How long a measured canvas size is reused (a window resize re-measures at once). */
@@ -147,13 +147,13 @@ export function setupCharacterRuntime(
 	let virtualJumpPressed = false;
 	let virtualDriftPressed = false;
 	let cam: CameraFocus | null = null;
-	// The eye height we last gave the 3D view (world units), eased toward the ground under
-	// the character; `null` while we aren't driving it.
-	let eye: number | null = null;
-	const setEye = (height: number | null): void => {
-		if (height === eye) return;
-		eye = height;
-		view3dService.get(ctx.services)?.setEyeHeight?.(height ?? 0);
+	// The camera height we last gave the 3D view (world units), eased toward the ground
+	// under the character; `null` while we aren't driving it.
+	let cameraHeight: number | null = null;
+	const setCameraHeight = (height: number | null): void => {
+		if (height === cameraHeight) return;
+		cameraHeight = height;
+		view3dService.get(ctx.services)?.setCameraHeight?.(height ?? 0);
 	};
 	let display: ReadonlyMap<string, RemoteCharacter> = new Map();
 	let rafId: number | null = null;
@@ -303,19 +303,19 @@ export function setupCharacterRuntime(
 				cam = easeFocus(from, target, smoothingAlpha(s.followSmoothing, dt));
 				const next = followViewport(cam, anchor, vp.zoom);
 				if (!sameViewport(vp, next)) writeViewport(next);
-				// Raise the 3D view's eye with the ground under the feet (not the body, so a
+				// Raise the 3D view's camera with the ground under the feet (not the body, so a
 				// jump still rises on screen): on a mountain the character stays in view.
-				// Only while the view is (partly) 3D: the flat board has no eye to raise.
+				// Only while the view is (partly) 3D: the flat board has no camera to raise.
 				if (view3d.amount() > 0) {
 					const ground = heightAt(pose.x, pose.y);
-					const eyeTarget = Number.isFinite(ground) ? ground : 0;
-					const eyeFrom = eye ?? 0;
-					setEye(eyeFrom + (eyeTarget - eyeFrom) * smoothingAlpha(EYE_SMOOTHING, dt));
+					const to = Number.isFinite(ground) ? ground : 0;
+					const at = cameraHeight ?? 0;
+					setCameraHeight(at + (to - at) * smoothingAlpha(CAMERA_HEIGHT_SMOOTHING, dt));
 				} else {
-					setEye(null);
+					setCameraHeight(null);
 				}
 			} else if (s.cameraMode === "free") {
-				setEye(null);
+				setCameraHeight(null);
 			}
 			sync?.publish();
 		}
@@ -352,7 +352,7 @@ export function setupCharacterRuntime(
 				});
 			} else {
 				cam = null;
-				setEye(null);
+				setCameraHeight(null);
 				virtual = null;
 				virtualJumpPressed = false;
 				virtualDriftPressed = false;
@@ -424,7 +424,7 @@ export function setupCharacterRuntime(
 			rafId = null;
 			unsubscribe();
 			offViewport();
-			setEye(null);
+			setCameraHeight(null);
 			keys.dispose();
 			sync?.dispose();
 			if (typeof window !== "undefined") window.removeEventListener("resize", onResize);

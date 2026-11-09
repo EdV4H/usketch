@@ -3,8 +3,10 @@ import {
 	adjustCamera,
 	CAMERA_LIMITS,
 	type Camera,
+	cameraHeightPx,
 	clampCamera,
 	DEFAULT_CAMERA,
+	MAX_CAMERA_HEIGHT,
 	updateCamera,
 	wrapDeg,
 } from "../mode7-camera.js";
@@ -71,5 +73,21 @@ describe("adjustCamera", () => {
 	it("yaw の加算は wrap する", () => {
 		const base: Camera = { pitch: 50, yaw: 170, fov: 600, horizon: 0.45 };
 		expect(adjustCamera(base, { yaw: 30 }).yaw).toBe(-160);
+	});
+});
+
+describe("camera height", () => {
+	it("defaults to 0, keeps finite values within the limit and adjusts by deltas", () => {
+		expect(clampCamera({ ...DEFAULT_CAMERA }).height).toBe(0);
+		expect(updateCamera(DEFAULT_CAMERA, { height: 320 }).height).toBe(320);
+		expect(updateCamera(DEFAULT_CAMERA, { height: Number.NaN }).height).toBe(0);
+		expect(updateCamera(DEFAULT_CAMERA, { height: 1e9 }).height).toBe(MAX_CAMERA_HEIGHT);
+		expect(adjustCamera({ ...DEFAULT_CAMERA, height: 10 }, { height: 5 }).height).toBe(15);
+	});
+	it("is drawn as height × zoom × amount px", () => {
+		expect(cameraHeightPx(100, 2, 1)).toBe(200);
+		expect(cameraHeightPx(100, 2, 0.25)).toBe(50);
+		expect(cameraHeightPx(100, 0, 1)).toBe(100); // a broken zoom counts as 1
+		expect(cameraHeightPx(undefined, 2, 1)).toBe(0);
 	});
 });

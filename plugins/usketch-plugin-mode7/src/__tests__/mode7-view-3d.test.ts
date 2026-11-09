@@ -26,34 +26,29 @@ describe("createView3dApi (view3dService)", () => {
 		expect(n).toBe(2);
 	});
 
-	it("raises the eye: lift = height × zoom × amount", () => {
+	it("raises the camera: heightPx = height × zoom × amount", () => {
 		const store = createMode7Store({ active: true });
 		let zoom = 2;
 		const api = createView3dApi(store, () => zoom);
 		let n = 0;
 		api.subscribe(() => n++);
-		expect(api.camera().lift).toBe(0);
-		api.setEyeHeight?.(120);
-		expect(api.camera().lift).toBe(240);
+		expect(api.camera().heightPx).toBe(0);
+		api.setCameraHeight?.(120);
+		expect(store.getState().camera.height).toBe(120);
+		expect(api.camera().heightPx).toBe(240);
 		zoom = 0.5;
-		expect(api.camera().lift).toBe(60);
+		expect(api.camera().heightPx).toBe(60);
 		store.setPresentation({ active: true, progress: 0.5, amount: 0.5, transitioning: true });
-		expect(api.camera().lift).toBe(30);
+		expect(api.camera().heightPx).toBe(30);
 		// A change too small to see doesn't notify; back to 0 always does.
-		api.setEyeHeight?.(120.001);
+		api.setCameraHeight?.(120.001);
 		expect(n).toBe(2);
-		api.setEyeHeight?.(0);
-		expect(store.getState().eyeHeight).toBe(0);
+		api.setCameraHeight?.(0);
+		expect(store.getState().camera.height).toBe(0);
 		expect(n).toBe(3);
-		api.setEyeHeight?.(Number.NaN);
-		expect(store.getState().eyeHeight).toBe(0);
-	});
-
-	it("keeps the eye height through reset", () => {
-		const store = createMode7Store();
-		store.setEyeHeight(50);
-		store.reset();
-		expect(store.getState().eyeHeight).toBe(50);
+		api.setCameraHeight?.(Number.NaN);
+		expect(store.getState().camera.height).toBe(0);
+		expect(n).toBe(3);
 	});
 });
 

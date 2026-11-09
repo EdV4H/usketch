@@ -11,7 +11,7 @@
 //   3. Drives the camera position: capture-layer drag pans the viewport (move over
 //      the ground) and wheel zooms — reusing the store's affine viewport.
 import type { BoundingBox, PluginContext } from "@edv4h/usketch-shared";
-import { eyeLiftPx } from "./mode7-camera.js";
+import { cameraHeightPx } from "./mode7-camera.js";
 import { CaptureFrameLayer, CaptureLayer, FogLayer, SkyLayer } from "./mode7-layers.js";
 import { DEFAULT_DEPTH_LAYER_IDS, type Mode7State, type Mode7Store } from "./mode7-store.js";
 import {
@@ -35,19 +35,27 @@ const WHEEL_ZOOM = 0.0015;
 export const STAGE_3D_EVENT = "usketch:stage-3d";
 
 /**
- * CSS variable on the stage holding the eye lift (px). The tilt rules lower every layer
- * by it, so a follower can move the eye every frame by setting one property instead of
- * rewriting the stylesheet.
+ * CSS variable on the stage holding the camera height (px). The tilt rules lower every
+ * layer by it, so a follower can move the camera up and down every frame by setting one
+ * property instead of rewriting the stylesheet.
  */
-export const EYE_LIFT_VAR = "--usketch-mode7-eye-lift";
+export const CAMERA_HEIGHT_VAR = "--usketch-mode7-camera-height";
 
-/** True when `a` and `b` differ in nothing but the eye height. */
-function onlyEyeHeightChanged(a: Mode7State, b: Mode7State): boolean {
-	if (a.eyeHeight === b.eyeHeight) return false;
+/** True when `a` and `b` differ in nothing but the camera height. */
+function onlyHeightChanged(a: Mode7State, b: Mode7State): boolean {
+	if (a.camera === b.camera) return false;
 	for (const key of Object.keys(a) as (keyof Mode7State)[]) {
-		if (key !== "eyeHeight" && a[key] !== b[key]) return false;
+		if (key !== "camera" && a[key] !== b[key]) return false;
 	}
-	return true;
+	const c = a.camera;
+	const d = b.camera;
+	return (
+		c.pitch === d.pitch &&
+		c.yaw === d.yaw &&
+		c.fov === d.fov &&
+		c.horizon === d.horizon &&
+		(c.height ?? 0) !== (d.height ?? 0)
+	);
 }
 
 /** Extra px added to the grid overscan so it comfortably covers the clip line (rounding). */
@@ -124,17 +132,18 @@ export function setupMode7Runtime(
 		ctx.events.emit(STAGE_3D_EVENT, { active });
 	};
 
-	// The stage the tilt was last applied to (reused for the per-frame eye lift).
+	// The stage the tilt was last applied to (reused for the per-frame camera height).
 	let stage: HTMLElement | null = null;
 	let lastLift = "";
 	const applyLift = (container: HTMLElement | null = stage): void => {
 		if (!container) return;
-		const { eyeHeight, amount } = store.getState();
-		const px = Math.round(eyeLiftPx(eyeHeight, ctx.store.getViewport().zoom, amount) * 100) / 100;
+		const { camera, amount } = store.getState();
+		const zoom = ctx.store.getViewport().zoom;
+		const px = Math.round(cameraHeightPx(camera.height, zoom, amount) * 100) / 100;
 		const value = `${px}px`;
 		if (value === lastLift && container === stage) return;
 		lastLift = value;
-		container.style.setProperty(EYE_LIFT_VAR, value);
+		container.style.setProperty(CAMERA_HEIGHT_VAR, value);
 	};
 
 	const applyTilt = (): void => {
@@ -142,7 +151,7 @@ export function setupMode7Runtime(
 		if (!container) return;
 		container.setAttribute(STAGE_ATTR, "on");
 		if (container !== stage) {
-			stage?.style.removeProperty(EYE_LIFT_VAR);
+			stage?.style.removeProperty(CAMERA_HEIGHT_VAR);
 			lastLift = "";
 		}
 		applyLift(container);
@@ -153,8 +162,8 @@ export function setupMode7Runtime(
 		// During an enter/exit transition the tilt is scaled by the eased amount.
 		const tilt = tiltTransform(transitionCamera(camera, amount));
 		const { transformOrigin } = tilt;
-		// Then lowered by the eye lift (applied first, along the board's normal).
-		const transform = `${tilt.transform} translateZ(calc(var(${EYE_LIFT_VAR}, 0px) * -1))`;
+		// Then lowered by the camera height (applied first, along the board's normal).
+		const transform = `${tilt.transform} translateZ(calc(var(${CAMERA_HEIGHT_VAR}, 0px) * -1))`;
 		// Clip each tilted wrapper (so overflow:visible doesn't float content past the
 		// grid); a finite draw distance tightens the top, one beyond the viewport lets it
 		// extend (negative inset) with the grid overscanned to match. Distance is canvas
@@ -181,7 +190,7 @@ export function setupMode7Runtime(
 	const clearAll = (): void => {
 		if (styleEl) styleEl.textContent = "";
 		lastCss = "";
-		stage?.style.removeProperty(EYE_LIFT_VAR);
+		stage?.style.removeProperty(CAMERA_HEIGHT_VAR);
 		stage = null;
 		lastLift = "";
 		if (typeof document !== "undefined") {
@@ -269,12 +278,12 @@ export function setupMode7Runtime(
 		render: (rc) => <CaptureFrameLayer store={store} zoom={rc.viewport.zoom} />,
 	});
 
-	// Re-sync on active / camera / tilt-layer changes. An eye-height change alone (every
-	// frame while a follower climbs) only updates the stage's lift variable.
+	// Re-sync on active / camera / tilt-layer changes. A camera-height change alone (every
+	// frame while a follower climbs) only updates the stage's height variable.
 	let prevState = store.getState();
 	const unsubscribe = store.subscribe(() => {
 		const next = store.getState();
-		const liftOnly = onlyEyeHeightChanged(prevState, next);
+		const liftOnly = onlyHeightChanged(prevState, next);
 		prevState = next;
 		if (!liftOnly) sync();
 		else if (next.active) {

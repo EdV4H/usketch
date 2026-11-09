@@ -64,7 +64,7 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 		showCaptureFrame: options.showCaptureFrame,
 	});
 	const transition = createMode7Transition(store, options.transition);
-	// The board's zoom, once set up (the eye height is in world units, drawn × zoom).
+	// The board's zoom, once set up (the camera height is in world units, drawn × zoom).
 	let zoom = (): number => 1;
 	const api = createMode7Api(store, transition, () => zoom());
 	// Layers the picker must never tilt (tilting the HUD or our own overlays makes

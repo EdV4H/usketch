@@ -49,7 +49,7 @@ uniform float uZoom;
 uniform vec2 uPivot;   // the tilt's origin (px)
 uniform vec4 uCam;     // cos yaw, sin yaw, cos pitch, sin pitch
 uniform float uFov;
-uniform float uLift;   // px the eye is raised (everything drawn this much lower)
+uniform float uCameraHeight; // px the camera is raised (everything drawn this much lower)
 uniform vec2 uSize;    // stage px
 uniform float uWater;  // < 0: none
 out float vHeight;
@@ -57,7 +57,7 @@ out float vShade;
 void main() {
 	vec2 s = uOrigin + vec2(aVertex.x * uAxis.x - aVertex.y * uAxis.y, aVertex.x * uAxis.y + aVertex.y * uAxis.x);
 	float h = uWater >= 0.0 ? max(aVertex.z, uWater) : aVertex.z;
-	float z = h * uZoom - uLift;
+	float z = h * uZoom - uCameraHeight;
 	float x0 = s.x - uPivot.x;
 	float y0 = s.y - uPivot.y;
 	float x1 = x0 * uCam.x - y0 * uCam.y;
@@ -160,7 +160,7 @@ class MeshRenderer {
 			"uPivot",
 			"uCam",
 			"uFov",
-			"uLift",
+			"uCameraHeight",
 			"uSize",
 			"uWater",
 			"uRamp",
@@ -262,7 +262,7 @@ class MeshRenderer {
 			Math.sin(camera.pitch * r),
 		);
 		gl.uniform1f(u.uFov, camera.fov);
-		gl.uniform1f(u.uLift, camera.lift ?? 0);
+		gl.uniform1f(u.uCameraHeight, camera.heightPx ?? 0);
 		gl.uniform2f(u.uSize, width, height);
 		gl.uniform1f(u.uWater, field.waterLevel ?? -1);
 		gl.uniform1i(u.uRamp, 0);

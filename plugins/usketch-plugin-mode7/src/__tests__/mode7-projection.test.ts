@@ -82,9 +82,9 @@ describe("unprojectFromGround", () => {
 	});
 });
 
-describe("eye lift", () => {
-	const cam = { ...CAM, lift: 150 };
-	it("draws everything `lift` px lower: ground at that height shows like the flat board", () => {
+describe("camera height", () => {
+	const cam = { ...CAM, heightPx: 150 };
+	it("draws everything `heightPx` lower: ground at that height shows like the flat board", () => {
 		for (const [x, y] of [
 			[300, 500],
 			[900, 200],
