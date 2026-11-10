@@ -25,6 +25,7 @@ import { createKeyInput } from "./character-input.js";
 import { CharacterLayer, type CharacterView3d } from "./character-layer.js";
 import {
 	blockingHeight,
+	DEFAULT_JUMP,
 	groundSlope,
 	type HeightAt,
 	holdDriftForHop,
@@ -264,6 +265,7 @@ export function setupCharacterRuntime(
 				s.motion,
 				viewportRotation(vp),
 				s.drift,
+				(effectiveJump(s) ?? DEFAULT_JUMP).airControl,
 			);
 			// Cliffs taller than the climbable step, slopes steeper than the climbable one
 			// and walls block the move (slide along them), checked in short stretches so a

@@ -4,6 +4,7 @@
 // disconnects — which is exactly the "coexisting live characters" semantics.
 // Typed structurally so the plugin doesn't depend on @edv4h/usketch-sync.
 import { wrapDeg } from "@edv4h/usketch-shared";
+import type { ControlScheme } from "./character-physics.js";
 import { type CharacterStore, hoverGaugeOf } from "./character-store.js";
 import type { CharacterAppearance, RemoteCharacter } from "./character-types.js";
 
@@ -25,6 +26,8 @@ export interface CharacterWireState {
 	heading: number;
 	speed: number;
 	moving: boolean;
+	/** Control scheme (absent from older clients → `"directional"`). */
+	scheme?: ControlScheme;
 	/** Vehicle steering, -1 … 1 (absent from older clients → 0). */
 	steering?: number;
 	/** Vehicle body slip, degrees (absent from older clients → 0). */
@@ -72,6 +75,7 @@ export function parseWireState(v: unknown): Omit<RemoteCharacter, "id"> | null {
 		heading: wrapDeg(heading),
 		speed: num("speed") ?? 0,
 		moving: o.moving === true,
+		controlScheme: o.scheme === "vehicle" ? "vehicle" : "directional",
 		steering: clamp(num("steering") ?? 0, -1, 1),
 		slip: clamp(num("slip") ?? 0, -MAX_WIRE_SLIP, MAX_WIRE_SLIP),
 		drifting: o.drifting === true,
@@ -118,6 +122,7 @@ export function createCharacterSync(
 					heading: s.pose.heading,
 					speed: s.pose.speed,
 					moving: s.pose.moving,
+					scheme: s.controlScheme,
 					steering: s.pose.steering,
 					// Half-degree steps: a settling slip doesn't publish every frame forever.
 					slip: Math.round(s.pose.slip * 2) / 2,

@@ -42,6 +42,7 @@ describe("jump tuning", () => {
 			airJumps: -2,
 			airJumpRatio: 0,
 			slopeRatio: 7,
+			airControl: -3,
 		});
 		expect(j).toEqual({
 			height: DEFAULT_JUMP.height,
@@ -54,6 +55,7 @@ describe("jump tuning", () => {
 			airJumpRatio: DEFAULT_JUMP.airJumpRatio,
 			hover: null,
 			slopeRatio: 1,
+			airControl: 0,
 		});
 	});
 	it("keeps custom tuning across off → on", () => {

@@ -72,6 +72,13 @@ export interface CharacterPose {
 	 */
 	vx: number;
 	vy: number;
+	/**
+	 * Velocity of the move itself (the walk or the drive), world units / s: what a jump
+	 * carries into the air. On the ground the keys set it at once; in the air they only
+	 * pull it around as far as `JumpParams.airControl` allows.
+	 */
+	moveVx: number;
+	moveVy: number;
 	/** Whether the character is in the air (jumping or falling). */
 	airborne: boolean;
 	/** Hovering: the jump key held while falling slows the descent (see `HoverParams`). */
@@ -97,6 +104,8 @@ export const ORIGIN_POSE: CharacterPose = {
 	vz: 0,
 	vx: 0,
 	vy: 0,
+	moveVx: 0,
+	moveVy: 0,
 	airborne: false,
 	hovering: false,
 	hoverGauge: 1,
@@ -226,6 +235,18 @@ function approach(v: number, target: number, step: number): number {
 }
 
 /**
+ * Seconds a full {@link JumpParams.airControl} (just under 1) takes to bring the move in
+ * the air from a stop to full speed (or a full-speed move to a stop). Lower control
+ * stretches it (`AIR_CONTROL_TIME / airControl`); at 1 the keys act at once, as on the
+ * ground.
+ */
+export const AIR_CONTROL_TIME = 0.1;
+
+/** Clamp an air control setting to 0 … 1 (a non-finite one counts as 1: full control). */
+export const clampAirControl = (v: number): number =>
+	Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
+
+/**
  * Advance `pose` by `dt` seconds.
  *
  * - `directional`: the held keys give a SCREEN-space direction (up = screen up),
@@ -238,6 +259,11 @@ function approach(v: number, target: number, step: number): number {
  *   when reversing, like a car. With `driftParams`, holding the drift key while
  *   steering at speed drifts (see `DriftParams`). An analog `throttle` aims for that
  *   fraction of the top speed, and an analog `steer` turns by that fraction.
+ * - In the air, `airControl` (0 … 1) is how much of that handling is left: a walk keeps
+ *   its take-off velocity and the keys pull it toward theirs (see `AIR_CONTROL_TIME`;
+ *   at 1 they set it at once, as on the ground), and a car keeps its speed (no throttle
+ *   or brakes) while steering at `airControl` × the ground's — the way it travels
+ *   turns with it.
  */
 export function stepCharacter(
 	pose: CharacterPose,
@@ -247,25 +273,38 @@ export function stepCharacter(
 	params: MotionParams,
 	cameraRotation = 0,
 	driftParams: DriftParams | null = null,
+	airControl = DEFAULT_JUMP.airControl,
 ): CharacterPose {
 	if (dt <= 0) return pose;
+	const control = clampAirControl(airControl);
 	if (scheme === "directional") {
 		const sx = inputSteer(input);
 		const sy = -inputThrottle(input);
-		if (sx === 0 && sy === 0) {
-			return pose.moving || pose.speed !== 0 ? { ...pose, speed: 0, moving: false } : pose;
-		}
+		const held = sx !== 0 || sy !== 0;
 		// Screen direction → world direction: undo the camera rotation.
-		const target = wrapDeg(vectorHeading(sx, sy) - cameraRotation);
+		const target = held ? wrapDeg(vectorHeading(sx, sy) - cameraRotation) : pose.heading;
 		const dir = headingVector(target);
 		// Keys are always full speed (diagonals normalized); an analog stick scales it.
-		const moveSpeed = params.moveSpeed * Math.min(1, Math.hypot(sx, sy));
-		const dist = moveSpeed * dt;
+		const want = held ? params.moveSpeed * Math.min(1, Math.hypot(sx, sy)) : 0;
+		let vx = dir.x * want;
+		let vy = dir.y * want;
+		if (pose.airborne && control < 1) {
+			// In the air the move keeps its momentum; the keys only pull it around.
+			const reach = (params.moveSpeed * control * dt) / AIR_CONTROL_TIME;
+			({ x: vx, y: vy } = approachVector(pose.moveVx, pose.moveVy, vx, vy, reach));
+		}
+		const speed = Math.hypot(vx, vy);
+		if (speed === 0) {
+			return pose.moving || pose.speed !== 0 || pose.moveVx !== 0 || pose.moveVy !== 0
+				? { ...pose, speed: 0, moving: false, moveVx: 0, moveVy: 0 }
+				: pose;
+		}
 		return {
-			x: pose.x + dir.x * dist,
-			y: pose.y + dir.y * dist,
-			heading: turnToward(pose.heading, target, params.turnRate * dt),
-			speed: moveSpeed,
+			x: pose.x + vx * dt,
+			y: pose.y + vy * dt,
+			// Faces the keys while they are held, else keeps its facing (drifting on in the air).
+			heading: held ? turnToward(pose.heading, target, params.turnRate * dt) : pose.heading,
+			speed,
 			moving: true,
 			steering: 0,
 			slip: 0,
@@ -274,19 +313,27 @@ export function stepCharacter(
 			vz: pose.vz,
 			vx: pose.vx,
 			vy: pose.vy,
+			moveVx: vx,
+			moveVy: vy,
 			airborne: pose.airborne,
 			hovering: pose.hovering,
 			hoverGauge: pose.hoverGauge,
 		};
 	}
 
-	// In the air a car keeps its momentum: no throttle, brakes or steering until it lands.
+	// In the air a car keeps its momentum: no throttle or brakes until it lands, and the
+	// steering only as far as the air control allows.
 	const grounded = !pose.airborne;
 	const speed = grounded
 		? throttledSpeed(pose.speed, inputThrottle(input), dt, params)
 		: pose.speed;
-	const steering = grounded ? inputSteer(input) : 0;
-	const drift = nextDrift(pose.drift, input.drift === true, steering, speed, params, driftParams);
+	// (`+ 0` turns a -0 from no control into 0.)
+	const steering = grounded ? inputSteer(input) : inputSteer(input) * control + 0;
+	// A drift starts only on the ground (a running one carries on through the air).
+	const drift =
+		grounded || pose.drift !== 0
+			? nextDrift(pose.drift, input.drift === true, steering, speed, params, driftParams)
+			: 0;
 	let turn: number;
 	if (drift !== 0 && driftParams) {
 		const into = steering * drift;
@@ -305,7 +352,9 @@ export function stepCharacter(
 		slip === pose.slip &&
 		drift === pose.drift
 	) {
-		return pose.moving || pose.speed !== 0 ? { ...pose, speed: 0, moving: false } : pose;
+		return pose.moving || pose.speed !== 0 || pose.moveVx !== 0 || pose.moveVy !== 0
+			? { ...pose, speed: 0, moving: false, moveVx: 0, moveVy: 0 }
+			: pose;
 	}
 	const dir = headingVector(heading);
 	return {
@@ -321,10 +370,28 @@ export function stepCharacter(
 		vz: pose.vz,
 		vx: pose.vx,
 		vy: pose.vy,
+		moveVx: dir.x * speed,
+		moveVy: dir.y * speed,
 		airborne: pose.airborne,
 		hovering: pose.hovering,
 		hoverGauge: pose.hoverGauge,
 	};
+}
+
+/** Move the vector `(x, y)` toward `(tx, ty)` by at most `step` (its length). */
+function approachVector(
+	x: number,
+	y: number,
+	tx: number,
+	ty: number,
+	step: number,
+): { x: number; y: number } {
+	const dx = tx - x;
+	const dy = ty - y;
+	const d = Math.hypot(dx, dy);
+	if (d <= step) return { x: tx, y: ty };
+	if (!(step > 0)) return { x, y };
+	return { x: x + (dx / d) * step, y: y + (dy / d) * step };
 }
 
 /** Ground height at a world point (world units; see `groundHeightService`). */
@@ -375,7 +442,7 @@ export function constrainToGround(
 	if (ok(next.x, next.y)) return next;
 	if (next.x !== prev.x && ok(next.x, prev.y)) return { ...next, y: prev.y };
 	if (next.y !== prev.y && ok(prev.x, next.y)) return { ...next, x: prev.x };
-	return { ...next, x: prev.x, y: prev.y, speed: 0, moving: false };
+	return { ...next, x: prev.x, y: prev.y, speed: 0, moving: false, moveVx: 0, moveVy: 0 };
 }
 
 /** Half-width of the stencil that measures the ground's slope, world units. */
@@ -542,6 +609,12 @@ export interface JumpParams {
 	 * jumps and the drift hop always go straight up.
 	 */
 	slopeRatio: number;
+	/**
+	 * How much of the ground's handling is left in the air, `0` (none: the take-off
+	 * velocity carries the jump, a car can't steer) … `1` (as on the ground). See
+	 * `stepCharacter`. Falls with jumping off use the default.
+	 */
+	airControl: number;
 }
 
 /**
@@ -586,6 +659,7 @@ export const DEFAULT_JUMP: JumpParams = {
 	airJumpRatio: 0.8,
 	hover: null,
 	slopeRatio: 0.5,
+	airControl: 0.5,
 };
 
 /** Gravity (world units / s²) and take-off speed (world units / s) of a jump. */

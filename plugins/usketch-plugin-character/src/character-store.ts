@@ -183,6 +183,7 @@ export function sanitizeJump(
 		airJumpRatio: positive(finite(j.airJumpRatio, base.airJumpRatio), base.airJumpRatio),
 		hover: sanitizeHover(j.hover, base.hover, hoverTuning),
 		slopeRatio: clamp01(finite(j.slopeRatio, base.slopeRatio)),
+		airControl: clamp01(finite(j.airControl, base.airControl)),
 	};
 }
 

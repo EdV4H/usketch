@@ -55,6 +55,14 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				max: 1,
 				step: 0.1,
 			},
+			{
+				name: "airControl",
+				label: "空中制御（0 = 効かない、1 = 地上と同じ）",
+				type: "number",
+				min: 0,
+				max: 1,
+				step: 0.05,
+			},
 			{ name: "hover", label: "ホバー", type: "boolean" },
 			{
 				name: "hoverDuration",
@@ -138,6 +146,8 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return (api.getJump() ?? DEFAULT_JUMP).airJumps;
 				case "jumpSlope":
 					return (api.getJump() ?? DEFAULT_JUMP).slopeRatio;
+				case "airControl":
+					return (api.getJump() ?? DEFAULT_JUMP).airControl;
 				case "hover":
 					return (api.getJump()?.hover ?? null) !== null;
 				case "hoverDuration":
@@ -233,6 +243,9 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					break;
 				case "jumpSlope":
 					if (api.getJump()) api.setJump({ slopeRatio: n });
+					break;
+				case "airControl":
+					if (api.getJump()) api.setJump({ airControl: n });
 					break;
 				case "hoverDuration":
 					if (api.getJump()?.hover) api.setJump({ hover: { duration: n } });

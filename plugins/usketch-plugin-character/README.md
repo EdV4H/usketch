@@ -65,7 +65,7 @@ createCharacterPlugin({
   (multiples of `turnRate`), `slipAngle` / `steerSlipAngle` (degrees), `recoveryRate`
   (1/s). With `hop: true`, pressing the drift key on the ground hops `hopHeight`
   (default 10) first, and the drift starts on landing if the key is still held and
-  steering (a car can't steer in the air). The drift key is only captured while drift
+  steering (a drift only starts on the ground). The drift key is only captured while drift
   is on.
 - **Jump** (opt-in via `jump`): press the jump key (Space) to jump. The arc is set by
   its apex `height` (world units) and `timeToApex`; it falls `fallGravity` × faster than
@@ -88,6 +88,14 @@ createCharacterPlugin({
   at `riseSpeed` (60). The gauge refills
   on the ground over `rechargeTime` (0.8 s), not at once on landing. The pose carries
   `hovering` and `hoverGauge` (stays 1 with hovering off); both are broadcast.
+- **Air control** (`jump.airControl`, 0 … 1, default 0.5, HUD "空中制御"): how much of
+  the ground handling is left in the air. A walk (`directional`) keeps its take-off
+  velocity (`pose.moveVx` / `moveVy`) and the keys pull it toward theirs, reaching full
+  speed from a stop in `AIR_CONTROL_TIME` (0.1 s) / `airControl`; releasing them slows it
+  the same way. A car keeps its speed (no throttle or brakes in the air) and steers at
+  `airControl` × the ground's, its travel turning with it; a running drift carries on. 0
+  = ballistic (the take-off velocity carries the jump, a car can't steer), 1 = as on the
+  ground. Falls with jumping off use the default.
 - **Keys**: the jump (Space) and the drift (Shift) have their own keys. The HUD offers
   a few keys for each (`KEY_CHOICES`: Space, Shift, Z, X, C, J, K, L); `setKeys` takes
   any `KeyboardEvent.code`s and `getKeys` returns the bindings.
@@ -139,7 +147,8 @@ createCharacterPlugin({
   the body's height exactly (`setCameraHeightMargin` at runtime).
 - **Multiplayer**: pass `wsProvider` (anything with a y-protocols `awareness`). Your
   character is published under the `character` awareness field (~20 Hz, only when it
-  changes, including `steering`, `slip` and `drifting`) and others are eased between
+  changes, including `steering`, `slip`, `drifting` and the control scheme — the
+  render props' `controlScheme`, e.g. to draw a car for `"vehicle"`) and others are eased between
   updates. It's ephemeral: a character
   vanishes when its owner disconnects or turns it off. Nothing is stored as shapes.
 - **Ground height**: when a plugin provides `groundHeightService` (from
@@ -182,7 +191,7 @@ createCharacterPlugin({
 ## HUD
 
 A "キャラクター" settings group (on/off, camera, scheme, drift, drift key, drift hop, jump, jump key, jump height, air
-jumps, jump direction on slopes, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, size and its scale, screen position, camera lag) plus actions to toggle the
+jumps, jump direction on slopes, air control, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, size and its scale, screen position, camera lag) plus actions to toggle the
 character, to place it at the screen position, and to jump.
 
 ## Service
