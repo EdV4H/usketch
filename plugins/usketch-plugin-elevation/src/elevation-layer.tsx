@@ -11,7 +11,13 @@ import {
 	viewportRotation,
 } from "@edv4h/usketch-shared";
 import { memo, useEffect, useRef, useState } from "react";
-import { DECAL_MARGIN, paintDecalTile, tileWorldRect } from "./elevation-decals.js";
+import {
+	DECAL_MARGIN,
+	decalLookupArea,
+	decalTileArea,
+	paintDecalTile,
+	tileWorldRect,
+} from "./elevation-decals.js";
 import { chunkKey } from "./elevation-field.js";
 import {
 	boardElevation,
@@ -192,18 +198,16 @@ export function ElevationGroundLayer({
 }) {
 	const [, force] = useState(0);
 	const rafRef = useRef(0);
-	const is3d = () => (view3d?.()?.amount() ?? 0) > 0;
-	const shown3d = useRef(is3d());
-	// biome-ignore lint/correctness/useExhaustiveDependencies: is3d reads only view3d
+	// One re-render per frame at most: a request while one is pending joins it (cancelling
+	// and re-requesting would keep pushing it back while something notifies every frame).
+	const rerender = useRef(() => {
+		if (rafRef.current) return;
+		rafRef.current = requestAnimationFrame(() => {
+			rafRef.current = 0;
+			force((n) => n + 1);
+		});
+	}).current;
 	useEffect(() => {
-		const rerender = () => {
-			cancelAnimationFrame(rafRef.current);
-			rafRef.current = requestAnimationFrame(() => force((n) => n + 1));
-		};
-		// The 3D view changes every frame while it moves: re-render only when it turns on / off.
-		const onView = () => {
-			if (is3d() !== shown3d.current) rerender();
-		};
 		const offs = [
 			store.subscribe(rerender),
 			display.subscribe(rerender),
@@ -212,15 +216,26 @@ export function ElevationGroundLayer({
 			...(mesh ? [mesh.subscribe(rerender)] : []),
 			...(decals ? [decals.subscribe(rerender)] : []),
 		];
-		const offView = view3d?.()?.subscribe(onView);
 		return () => {
 			for (const off of offs) off();
-			offView?.();
 			cancelAnimationFrame(rafRef.current);
+			rafRef.current = 0;
 		};
-	}, [store, display, overscan, preview, mesh, decals, view3d]);
-	shown3d.current = is3d();
-	const decalView: GroundDecalView = shown3d.current ? "3d" : "flat";
+	}, [store, display, overscan, preview, mesh, decals, rerender]);
+	// The 3D view as provided now: looked up on every render, so one provided (or
+	// replaced) after this layer mounted is picked up on the next re-render.
+	const viewApi = view3d?.();
+	const shown3d = (viewApi?.amount() ?? 0) > 0;
+	const shownRef = useRef(shown3d);
+	shownRef.current = shown3d;
+	useEffect(() => {
+		if (!viewApi) return;
+		// It notifies every frame while it moves: re-render only when it turns on / off.
+		return viewApi.subscribe(() => {
+			if (viewApi.amount() > 0 !== shownRef.current) rerender();
+		});
+	}, [viewApi, rerender]);
+	const decalView: GroundDecalView = shown3d ? "3d" : "flat";
 
 	// The 3D mesh draws the ground: nothing to draw here (no tiles kept busy meanwhile).
 	if (mesh?.get().drawing) return null;
@@ -263,7 +278,10 @@ export function ElevationGroundLayer({
 					display={look}
 				/>,
 			);
-			if (decals && decals.listFor(decalView, tileWorldRect(tx, ty, plan.worldSize)).length > 0) {
+			if (
+				decals &&
+				decals.listFor(decalView, decalLookupArea(tileWorldRect(tx, ty, plan.worldSize))).length > 0
+			) {
 				decalTiles.push(
 					<DecalTile
 						key={`decal:${plan.level}:${tx},${ty}`}
@@ -420,7 +438,7 @@ const DecalTile = memo(function DecalTile(props: DecalTileProps) {
 			was &&
 			was.view === view &&
 			was.px === px &&
-			!decals.changedSince(was.version, view, rect)
+			!decals.changedSince(was.version, view, decalTileArea(rect, px))
 		) {
 			return;
 		}

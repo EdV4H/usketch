@@ -30,6 +30,42 @@ export function decalTilePx(screenPx: number, max = DECAL_MAX_PX): number {
 	return px;
 }
 
+/**
+ * The resolution to keep a decal tile at, with hysteresis so a camera hovering near a
+ * power-of-two boundary doesn't repaint it every frame: grow only once the bitmap would
+ * be magnified more than 1.5× (`screenPx` > 1.5 · `current`), shrink only once it is
+ * more than 3× what the screen shows. `current` `null` (nothing painted yet): just
+ * {@link decalTilePx}. Pure.
+ */
+export function nextDecalTilePx(
+	screenPx: number,
+	current: number | null,
+	max = DECAL_MAX_PX,
+): number {
+	const target = decalTilePx(screenPx, max);
+	if (current === null || current > max) return target;
+	if (target > current) return screenPx > current * 1.5 ? target : current;
+	if (target < current) return screenPx * 3 < current ? target : current;
+	return current;
+}
+
+/**
+ * The world rect a tile's decal bitmap covers at `px`: the tile plus
+ * {@link DECAL_MARGIN} bitmap px on every side. Pure.
+ */
+export function decalTileArea(rect: GroundDecalRect, px: number): GroundDecalRect {
+	const m = (DECAL_MARGIN * (rect.right - rect.left)) / px;
+	return { left: rect.left - m, top: rect.top - m, right: rect.right + m, bottom: rect.bottom + m };
+}
+
+/**
+ * The area to ask the registry about for a tile before its resolution is known: the
+ * widest margin any resolution paints (that of {@link DECAL_MIN_PX}). Pure.
+ */
+export function decalLookupArea(rect: GroundDecalRect): GroundDecalRect {
+	return decalTileArea(rect, DECAL_MIN_PX);
+}
+
 /** A ground tile's world rect. Pure. */
 export function tileWorldRect(tx: number, ty: number, worldSize: number): GroundDecalRect {
 	return {
@@ -42,8 +78,9 @@ export function tileWorldRect(tx: number, ty: number, worldSize: number): Ground
 
 /**
  * The px a tile spans on screen under a 3D view: the larger side of the box around its
- * four corners projected at ground level (`z` world units, e.g. its mean height). A
- * corner at or behind the eye counts as huge (the tile is right under the camera). Pure.
+ * four corners projected at `z` world units (e.g. its mean height). A tile partly at or
+ * behind the eye counts as huge (it is the ground right under the camera); one wholly
+ * behind it as 0 (not seen at all). Pure.
  */
 export function projectedTilePx(
 	rect: GroundDecalRect,
@@ -54,6 +91,7 @@ export function projectedTilePx(
 ): number {
 	const xs: number[] = [];
 	const ys: number[] = [];
+	let behind = 0;
 	for (const [x, y] of [
 		[rect.left, rect.top],
 		[rect.right, rect.top],
@@ -62,10 +100,15 @@ export function projectedTilePx(
 	]) {
 		const s = worldToScreen(x, y, vp);
 		const p = projectLifted(s.x, s.y, z * vp.zoom, cam, size);
-		if (!p) return Number.POSITIVE_INFINITY;
+		if (!p) {
+			behind++;
+			continue;
+		}
 		xs.push(p.x);
 		ys.push(p.y);
 	}
+	if (behind === 4) return 0;
+	if (behind > 0) return Number.POSITIVE_INFINITY;
 	return Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
 }
 
@@ -84,13 +127,7 @@ export function paintDecalTile(
 ): number {
 	const full = px + 2 * DECAL_MARGIN;
 	const s = px / (rect.right - rect.left);
-	const m = DECAL_MARGIN / s;
-	const area = {
-		left: rect.left - m,
-		top: rect.top - m,
-		right: rect.right + m,
-		bottom: rect.bottom + m,
-	};
+	const area = decalTileArea(rect, px);
 	ctx.setTransform(1, 0, 0, 1, 0, 0);
 	ctx.clearRect(0, 0, full, full);
 	let painted = 0;

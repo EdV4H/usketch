@@ -18,8 +18,10 @@ import {
 import { useEffect, useRef, useState } from "react";
 import {
 	DECAL_MARGIN,
+	decalLookupArea,
 	decalTexMapping,
-	decalTilePx,
+	decalTileArea,
+	nextDecalTilePx,
 	paintDecalTile,
 	projectedTilePx,
 	tileWorldRect,
@@ -130,6 +132,8 @@ interface TileMesh {
 	revision: string;
 	buffer: WebGLBuffer;
 	used: number;
+	/** The tile's mean drawn height (world units): where its decals are judged for size. */
+	meanHeight: number;
 }
 
 /** A tile's decal texture and what it was painted from. */
@@ -140,12 +144,38 @@ interface DecalTexture {
 	/** The decal registry's version when painted. */
 	version: number;
 	used: number;
+	/** GPU bytes it holds (with its mipmaps), for the memory cap. */
+	bytes: number;
 }
 
-/** Decal tiles (re)painted per frame at most; the rest wait for the next frames. */
-export const DECAL_PAINTS_PER_FRAME = 4;
-/** …and at most this long per frame. */
+/**
+ * Decal bitmap texels (re)painted per frame at most — about one 1024² tile, or many
+ * small far ones; the rest wait for the next frames. The first paint of a frame always
+ * runs, so one large paint can exceed it (and then nothing else paints that frame).
+ */
+export const DECAL_TEXELS_PER_FRAME = 1_200_000;
+/** …and no new paint starts after this long in a frame. */
 const DECAL_FRAME_BUDGET_MS = 6;
+/**
+ * GPU bytes all decal textures may hold. Over it, the least recently drawn textures not
+ * drawn this frame are dropped (they repaint when seen again).
+ */
+export const DECAL_TEXTURE_BYTES = 64 * 1024 * 1024;
+
+/** Bytes of a decal texture of `px` (+ margin) with its mipmaps (≈ 4/3). */
+const decalBytes = (px: number) => Math.ceil(((px + 2 * DECAL_MARGIN) ** 2 * 4 * 4) / 3);
+
+/** The mean height of a tile's vertices (water drawn at its level). */
+function meanHeight(vertices: Float32Array, water: number | null): number {
+	let sum = 0;
+	let n = 0;
+	for (let i = 2; i < vertices.length; i += VERTEX_FLOATS) {
+		const h = vertices[i];
+		sum += water !== null && h < water ? water : h;
+		n++;
+	}
+	return n > 0 ? sum / n : 0;
+}
 
 /** Owns the GL objects of one canvas. */
 class MeshRenderer {
@@ -319,10 +349,12 @@ class MeshRenderer {
 		gl.uniform1f(u.uFadeZero, field.seed === null && field.waterLevel === null ? 1 : 0);
 		gl.uniform1i(u.uDecal, 1);
 		const decals = opts.decals;
-		let paints = 0;
+		let texels = 0;
 		const paintStart = performance.now();
-		const canPaint = () =>
-			paints < DECAL_PAINTS_PER_FRAME && performance.now() - paintStart < DECAL_FRAME_BUDGET_MS;
+		const canPaint = (cost: number) =>
+			texels === 0 ||
+			(texels + cost <= DECAL_TEXELS_PER_FRAME &&
+				performance.now() - paintStart < DECAL_FRAME_BUDGET_MS);
 
 		const sampler = elevationSampler(model);
 		const fk = `${field.id}|${field.spacing}|${n}|${field.seed}|${field.waterLevel}|${field.gen.relief}|${field.gen.scale}|${field.gen.roughness}|${field.gen.ridges}|${field.gen.octaves}`;
@@ -336,12 +368,14 @@ class MeshRenderer {
 					const buffer = tile?.buffer ?? gl.createBuffer();
 					if (!buffer) continue;
 					gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-					gl.bufferData(
-						gl.ARRAY_BUFFER,
-						buildTileMesh(sampler, plan.level, tx, ty),
-						gl.STATIC_DRAW,
-					);
-					tile = { revision, buffer, used: this.frame };
+					const vertices = buildTileMesh(sampler, plan.level, tx, ty);
+					gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+					tile = {
+						revision,
+						buffer,
+						used: this.frame,
+						meanHeight: meanHeight(vertices, field.waterLevel),
+					};
 					this.tiles.set(key, tile);
 				}
 				tile.used = this.frame;
@@ -351,13 +385,17 @@ class MeshRenderer {
 				const o = worldToScreen(tx * plan.worldSize, ty * plan.worldSize, vp);
 				gl.uniform2f(u.uOrigin, o.x, o.y);
 				const decal = decals
-					? this.decalFor(decals, `${plan.level}:${chunkKey(tx, ty)}`, tx, ty, plan.worldSize, {
+					? this.decalFor(decals, key, tx, ty, plan.worldSize, {
 							vp,
 							camera,
 							width,
 							height,
+							dpr: opts.dpr,
+							z: tile.meanHeight,
 							canPaint,
-							painted: () => paints++,
+							painted: (cost) => {
+								texels += cost;
+							},
 						})
 					: null;
 				if (decal?.pending) pending = true;
@@ -380,12 +418,7 @@ class MeshRenderer {
 				this.tiles.delete(key);
 			}
 		}
-		for (const [key, tex] of this.decalTextures) {
-			if (this.frame - tex.used > 120) {
-				gl.deleteTexture(tex.texture);
-				this.decalTextures.delete(key);
-			}
-		}
+		this.dropDecalTextures();
 		gl.activeTexture(gl.TEXTURE0);
 		return pending;
 	}
@@ -406,33 +439,41 @@ class MeshRenderer {
 			camera: MeshCamera;
 			width: number;
 			height: number;
-			canPaint: () => boolean;
-			painted: () => void;
+			dpr: number;
+			/** The tile's mean height (world units), to judge its size on screen. */
+			z: number;
+			canPaint: (texels: number) => boolean;
+			painted: (texels: number) => void;
 		},
 	): { texture: DecalTexture | null; pending: boolean } {
 		const { gl } = this;
 		const rect = tileWorldRect(tx, ty, worldSize);
 		let tex = this.decalTextures.get(key) ?? null;
-		if (decals.listFor("3d", rect).length === 0) {
+		// Ask with the widest margin a bitmap paints, so a decal just past the edge counts.
+		if (decals.listFor("3d", decalLookupArea(rect)).length === 0) {
 			if (tex) {
 				gl.deleteTexture(tex.texture);
 				this.decalTextures.delete(key);
 			}
 			return { texture: null, pending: false };
 		}
-		const px = decalTilePx(
-			projectedTilePx(rect, 0, at.vp, at.camera, { width: at.width, height: at.height }),
-		);
-		const stale = !tex || tex.px !== px || decals.changedSince(tex.version, "3d", rect);
+		// Bitmap px for the tile's size in device px, held steady near a boundary.
+		const screen =
+			projectedTilePx(rect, at.z, at.vp, at.camera, { width: at.width, height: at.height }) *
+			at.dpr;
+		const px = nextDecalTilePx(screen, tex?.px ?? null);
+		const stale =
+			!tex || tex.px !== px || decals.changedSince(tex.version, "3d", decalTileArea(rect, tex.px));
 		if (!stale) {
 			if (tex) tex.used = this.frame;
 			return { texture: tex, pending: false };
 		}
-		if (!at.canPaint()) {
+		const cost = (px + 2 * DECAL_MARGIN) ** 2;
+		if (!at.canPaint(cost)) {
 			if (tex) tex.used = this.frame;
 			return { texture: tex, pending: true };
 		}
-		at.painted();
+		at.painted(cost);
 		const version = decals.version();
 		const canvas = this.scratchCanvas(px + 2 * DECAL_MARGIN);
 		const ctx = canvas?.getContext("2d");
@@ -451,9 +492,36 @@ class MeshRenderer {
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-		tex = { texture, px, version, used: this.frame };
+		tex = { texture, px, version, used: this.frame, bytes: decalBytes(px) };
 		this.decalTextures.set(key, tex);
 		return { texture: tex, pending: false };
+	}
+
+	/**
+	 * Drop decal textures not drawn for a while, then the least recently drawn ones while
+	 * all of them hold more than {@link DECAL_TEXTURE_BYTES} (never one drawn this frame).
+	 */
+	private dropDecalTextures(): void {
+		const { gl } = this;
+		let total = 0;
+		for (const [key, tex] of this.decalTextures) {
+			if (this.frame - tex.used > 120) {
+				gl.deleteTexture(tex.texture);
+				this.decalTextures.delete(key);
+			} else {
+				total += tex.bytes;
+			}
+		}
+		if (total <= DECAL_TEXTURE_BYTES) return;
+		const old = [...this.decalTextures]
+			.filter(([, tex]) => tex.used < this.frame)
+			.sort((a, b) => a[1].used - b[1].used);
+		for (const [key, tex] of old) {
+			if (total <= DECAL_TEXTURE_BYTES) break;
+			gl.deleteTexture(tex.texture);
+			this.decalTextures.delete(key);
+			total -= tex.bytes;
+		}
 	}
 
 	/** One reusable 2D canvas to paint decal bitmaps in, `size` px square. */

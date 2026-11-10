@@ -46,6 +46,8 @@ export interface GroundDecal {
 	/**
 	 * The world rect the decal can paint in, or `null` / absent for anywhere. Tiles
 	 * outside it are skipped (and need no bitmap at all), so give it when you can.
+	 * Read on `set` and on every `invalidate` (cached in between): call `invalidate`
+	 * when it changes.
 	 */
 	bounds?(): GroundDecalRect | null;
 	/** Which grounds it is painted on. Default both. */
@@ -66,9 +68,9 @@ export interface GroundDecalApi {
 	/** Remove decal `id` (no-op if absent). */
 	remove(id: string): void;
 	/**
-	 * Repaint decal `id` because what it paints changed. `rect` limits the repaint to
-	 * that world area (e.g. the stroke that changed); default: its bounds (everywhere
-	 * without bounds).
+	 * Repaint decal `id` because what it paints changed, and re-read its bounds. `rect`
+	 * limits the repaint to that world area (e.g. the stroke that changed); default: its
+	 * bounds before and after (everywhere without bounds).
 	 */
 	invalidate(id: string, rect?: GroundDecalRect | null): void;
 	/** The decals in paint order. */
@@ -110,6 +112,11 @@ function unionRect(a: GroundDecalRect | null, b: GroundDecalRect | null): Ground
 	};
 }
 
+function sameRect(a: GroundDecalRect | null, b: GroundDecalRect | null): boolean {
+	if (!a || !b) return a === b;
+	return a.left === b.left && a.top === b.top && a.right === b.right && a.bottom === b.bottom;
+}
+
 /** A decal's bounds, checked (a non-finite or inverted rect counts as everywhere). */
 function boundsOf(decal: GroundDecal): GroundDecalRect | null {
 	const b = decal.bounds?.() ?? null;
@@ -126,6 +133,19 @@ function viewsOf(decal: GroundDecal): readonly GroundDecalView[] {
 	return decal.views && decal.views.length > 0 ? decal.views : ALL_GROUND_DECAL_VIEWS;
 }
 
+/** A registered decal with its bounds and views, read on `set` / `invalidate`. */
+interface Slot {
+	decal: GroundDecal;
+	bounds: GroundDecalRect | null;
+	views: readonly GroundDecalView[];
+}
+
+const slotOf = (decal: GroundDecal): Slot => ({
+	decal,
+	bounds: boundsOf(decal),
+	views: viewsOf(decal),
+});
+
 interface Change {
 	version: number;
 	rect: GroundDecalRect | null;
@@ -137,8 +157,8 @@ const CHANGE_LOG = 256;
 
 /** A new, empty registry (the service's implementation; usually reached via {@link groundDecals}). */
 export function createGroundDecalRegistry(): GroundDecalApi {
-	const decals = new Map<string, GroundDecal>();
-	let sorted: GroundDecalEntry[] | null = null;
+	const decals = new Map<string, Slot>();
+	let sorted: (GroundDecalEntry & { slot: Slot })[] | null = null;
 	let version = 0;
 	let changes: Change[] = [];
 	// Versions up to this one are no longer in the log.
@@ -156,10 +176,10 @@ export function createGroundDecalRegistry(): GroundDecalApi {
 		for (const l of [...listeners]) l();
 	};
 
-	const list = (): readonly GroundDecalEntry[] => {
+	const sortedSlots = () => {
 		if (!sorted) {
 			sorted = [...decals]
-				.map(([id, decal]) => ({ id, decal }))
+				.map(([id, slot]) => ({ id, decal: slot.decal, slot }))
 				.sort(
 					(a, b) =>
 						(a.decal.order ?? 0) - (b.decal.order ?? 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
@@ -167,16 +187,19 @@ export function createGroundDecalRegistry(): GroundDecalApi {
 		}
 		return sorted;
 	};
+	const list = (): readonly GroundDecalEntry[] =>
+		sortedSlots().map(({ id, decal }) => ({ id, decal }));
 
 	const api: GroundDecalApi = {
 		set(id, decal) {
 			const prev = decals.get(id);
-			decals.set(id, decal);
+			const slot = slotOf(decal);
+			decals.set(id, slot);
 			sorted = null;
-			const views = prev ? [...new Set([...viewsOf(prev), ...viewsOf(decal)])] : viewsOf(decal);
-			record(prev ? unionRect(boundsOf(prev), boundsOf(decal)) : boundsOf(decal), views);
+			const views = prev ? [...new Set([...prev.views, ...slot.views])] : slot.views;
+			record(prev ? unionRect(prev.bounds, slot.bounds) : slot.bounds, views);
 			return () => {
-				if (decals.get(id) === decal) api.remove(id);
+				if (decals.get(id)?.decal === decal) api.remove(id);
 			};
 		},
 		remove(id) {
@@ -184,18 +207,31 @@ export function createGroundDecalRegistry(): GroundDecalApi {
 			if (!prev) return;
 			decals.delete(id);
 			sorted = null;
-			record(boundsOf(prev), viewsOf(prev));
+			record(prev.bounds, prev.views);
 		},
 		invalidate(id, rect) {
-			const decal = decals.get(id);
-			if (!decal) return;
-			record(rect === undefined ? boundsOf(decal) : rect, viewsOf(decal));
+			const slot = decals.get(id);
+			if (!slot) return;
+			const before = slot.bounds;
+			slot.bounds = boundsOf(slot.decal);
+			// Bounds that moved also repaint where they were and are (tiles that already
+			// hold other decals there must pick this one up / drop it).
+			const moved = !sameRect(before, slot.bounds);
+			const changed =
+				rect === undefined
+					? unionRect(before, slot.bounds)
+					: moved
+						? unionRect(rect, unionRect(before, slot.bounds))
+						: rect;
+			record(changed, slot.views);
 		},
 		list,
 		listFor(view, rect) {
-			return list().filter(
-				(e) => viewsOf(e.decal).includes(view) && decalRectsMeet(boundsOf(e.decal), rect),
-			);
+			const out: GroundDecalEntry[] = [];
+			for (const { id, decal, slot } of sortedSlots()) {
+				if (slot.views.includes(view) && decalRectsMeet(slot.bounds, rect)) out.push({ id, decal });
+			}
+			return out;
 		},
 		version: () => version,
 		changedSince(since, view, rect) {

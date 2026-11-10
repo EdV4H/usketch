@@ -4,8 +4,11 @@ import {
 	DECAL_MARGIN,
 	DECAL_MAX_PX,
 	DECAL_MIN_PX,
+	decalLookupArea,
 	decalTexMapping,
+	decalTileArea,
 	decalTilePx,
+	nextDecalTilePx,
 	paintDecalTile,
 	projectedTilePx,
 	tileWorldRect,
@@ -44,6 +47,36 @@ describe("decalTilePx", () => {
 	});
 });
 
+describe("nextDecalTilePx", () => {
+	it("starts at decalTilePx, then grows past 1.5× and shrinks past 3× only", () => {
+		expect(nextDecalTilePx(500, null)).toBe(512);
+		// Hovering around the 512 / 1024 boundary keeps 512 …
+		for (const screen of [560, 600, 700, 760]) expect(nextDecalTilePx(screen, 512)).toBe(512);
+		// … until the bitmap would be magnified past 1.5×.
+		expect(nextDecalTilePx(800, 512)).toBe(1024);
+		// Back down near the boundary keeps 1024 …
+		for (const screen of [600, 500, 400, 342]) expect(nextDecalTilePx(screen, 1024)).toBe(1024);
+		// … until it is more than 3× what shows.
+		expect(nextDecalTilePx(300, 1024)).toBe(512);
+		// A lowered limit applies at once.
+		expect(nextDecalTilePx(5000, 1024, 512)).toBe(512);
+	});
+});
+
+describe("decalTileArea / decalLookupArea", () => {
+	it("is the tile plus the margin in bitmap px; the lookup takes the widest margin", () => {
+		const r = tileWorldRect(0, 0, 512);
+		expect(decalTileArea(r, 256)).toEqual({
+			left: -4,
+			top: -4,
+			right: 516,
+			bottom: 516,
+		});
+		const m = (DECAL_MARGIN * 512) / DECAL_MIN_PX;
+		expect(decalLookupArea(r)).toEqual({ left: -m, top: -m, right: 512 + m, bottom: 512 + m });
+	});
+});
+
 describe("tileWorldRect / decalTexMapping", () => {
 	it("maps a tile's local coordinates onto its bitmap inside the margin", () => {
 		expect(tileWorldRect(1, -2, 512)).toEqual({ left: 512, top: -1024, right: 1024, bottom: -512 });
@@ -65,8 +98,18 @@ describe("projectedTilePx", () => {
 		const near = projectedTilePx(tileWorldRect(1, 1, 512), 0, vp, tilted, size);
 		const far = projectedTilePx(tileWorldRect(1, -6, 512), 0, vp, tilted, size);
 		expect(far).toBeLessThan(near);
-		const eye = projectedTilePx(tileWorldRect(0, 40, 512), 0, vp, { ...tilted, fov: 300 }, size);
-		expect(eye).toBe(Number.POSITIVE_INFINITY);
+		// Straddling the eye: the ground right under the camera.
+		const eyeCam = { ...tilted, fov: 300 };
+		const straddle = [...Array(80).keys()]
+			.map((ty) => projectedTilePx(tileWorldRect(0, ty, 512), 0, vp, eyeCam, size))
+			.find((px) => px === Number.POSITIVE_INFINITY);
+		expect(straddle).toBe(Number.POSITIVE_INFINITY);
+		// Wholly behind the eye: not seen.
+		expect(projectedTilePx(tileWorldRect(0, 200, 512), 0, vp, eyeCam, size)).toBe(0);
+		// Raised ground shows bigger (closer to the eye) than the board at the same spot.
+		const low = projectedTilePx(tileWorldRect(1, 1, 512), 0, vp, tilted, size);
+		const high = projectedTilePx(tileWorldRect(1, 1, 512), 200, vp, tilted, size);
+		expect(high).toBeGreaterThan(low);
 	});
 });
 

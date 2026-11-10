@@ -63,6 +63,25 @@ describe("ground decal registry", () => {
 		]);
 	});
 
+	it("reads bounds on set / invalidate only, and repaints where moved bounds were and are", () => {
+		const r = createGroundDecalRegistry();
+		let b = rect(0, 0, 10, 10);
+		const bounds = vi.fn(() => b);
+		r.set("d", decal({ bounds }));
+		r.listFor("flat", rect(0, 0, 5, 5));
+		r.listFor("3d", rect(0, 0, 5, 5));
+		expect(bounds).toHaveBeenCalledTimes(1);
+		// Moved without telling: still the cached bounds.
+		b = rect(100, 100, 110, 110);
+		expect(r.listFor("flat", rect(100, 100, 105, 105))).toHaveLength(0);
+		const v = r.version();
+		r.invalidate("d", rect(100, 100, 101, 101));
+		expect(bounds).toHaveBeenCalledTimes(2);
+		expect(r.listFor("flat", rect(100, 100, 105, 105))).toHaveLength(1);
+		// The old place repaints too (a tile there must drop it), not just the given rect.
+		expect(r.changedSince(v, "flat", rect(1, 1, 2, 2))).toBe(true);
+	});
+
 	it("treats broken bounds as everywhere", () => {
 		const r = createGroundDecalRegistry();
 		r.set("nan", decal({ bounds: () => rect(Number.NaN, 0, 1, 1) }));
