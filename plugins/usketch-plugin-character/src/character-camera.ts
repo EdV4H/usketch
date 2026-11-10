@@ -62,6 +62,29 @@ export function followViewport(cam: CameraFocus, anchor: Point, zoom: number): V
 	return viewportAnchoredAt(cam.focus, anchor, zoom, cam.rotation);
 }
 
+/**
+ * The height (world units) the 3D view's camera should follow, platformer-style:
+ *
+ * - On the ground: the ground the character stands on (`pose.z`).
+ * - In the air (a jump, a fall, a hover): the height it left the ground from (`prev`)
+ *   holds, so a jump still rises on screen and flying over a pit doesn't dip the view;
+ *   but it never falls behind the body by more than `margin` (a hover climbing above
+ *   an ordinary jump drags it up) nor stays above the feet (falling off a cliff takes
+ *   it down).
+ *
+ * `prev` is the last value this returned, `null` when starting to follow (the body's
+ * height is taken as is). Feed the result to the camera through its own smoothing.
+ */
+export function followCameraHeight(
+	prev: number | null,
+	pose: { z: number; airborne: boolean },
+	margin: number,
+): number {
+	const z = Number.isFinite(pose.z) ? pose.z : 0;
+	if (!pose.airborne || prev === null || !Number.isFinite(prev)) return z;
+	return Math.min(z, Math.max(z - Math.max(0, margin), prev));
+}
+
 /** True when two viewports are the same to within sub-pixel / sub-degree noise. */
 export function sameViewport(a: Viewport, b: Viewport): boolean {
 	return (

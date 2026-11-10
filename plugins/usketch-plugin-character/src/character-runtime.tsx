@@ -15,6 +15,7 @@ import {
 	anchorPx,
 	type CameraFocus,
 	easeFocus,
+	followCameraHeight,
 	followViewport,
 	sameViewport,
 	smoothingAlpha,
@@ -24,6 +25,7 @@ import { createKeyInput } from "./character-input.js";
 import { CharacterLayer, type CharacterView3d } from "./character-layer.js";
 import {
 	blockingHeight,
+	DEFAULT_JUMP,
 	groundSlope,
 	type HeightAt,
 	holdDriftForHop,
@@ -150,7 +152,10 @@ export function setupCharacterRuntime(
 	// The camera height we last gave the 3D view (world units), eased toward the ground
 	// under the character; `null` while we aren't driving it.
 	let cameraHeight: number | null = null;
+	// The unsmoothed height it follows (see `followCameraHeight`); `null` while not driving.
+	let cameraBase: number | null = null;
 	const setCameraHeight = (height: number | null): void => {
+		if (height === null) cameraBase = null;
 		if (height === cameraHeight) return;
 		cameraHeight = height;
 		view3dService.get(ctx.services)?.setCameraHeight?.(height ?? 0);
@@ -303,12 +308,18 @@ export function setupCharacterRuntime(
 				cam = easeFocus(from, target, smoothingAlpha(s.followSmoothing, dt));
 				const next = followViewport(cam, anchor, vp.zoom);
 				if (!sameViewport(vp, next)) writeViewport(next);
-				// Raise the 3D view's camera with the ground under the feet (not the body, so a
-				// jump still rises on screen): on a mountain the character stays in view.
+				// Raise the 3D view's camera with the character: on a mountain it stays in view.
+				// In the air it holds the take-off height (a jump still rises on screen, a pit
+				// below doesn't dip the view) until a hover climbs past a jump's height or a
+				// fall drops below it (see `followCameraHeight`).
 				// Only while the view is (partly) 3D: the flat board has no camera to raise.
 				if (view3d.amount() > 0) {
-					const ground = heightAt(pose.x, pose.y);
-					const to = Number.isFinite(ground) ? ground : 0;
+					cameraBase = followCameraHeight(
+						cameraBase,
+						pose,
+						(effectiveJump(s) ?? DEFAULT_JUMP).height,
+					);
+					const to = cameraBase;
 					const at = cameraHeight ?? 0;
 					setCameraHeight(at + (to - at) * smoothingAlpha(CAMERA_HEIGHT_SMOOTHING, dt));
 				} else {

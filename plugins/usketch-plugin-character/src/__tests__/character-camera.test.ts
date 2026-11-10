@@ -3,11 +3,54 @@ import { describe, expect, it } from "vitest";
 import {
 	anchorPx,
 	easeFocus,
+	followCameraHeight,
 	followViewport,
 	sameViewport,
 	smoothingAlpha,
 	targetRotation,
 } from "../character-camera.js";
+
+describe("followCameraHeight", () => {
+	const air = (z: number) => ({ z, airborne: true });
+	const ground = (z: number) => ({ z, airborne: false });
+
+	it("follows the ground the character stands on", () => {
+		expect(followCameraHeight(null, ground(30), 40)).toBe(30);
+		expect(followCameraHeight(10, ground(30), 40)).toBe(30);
+	});
+
+	it("holds the take-off height through an ordinary jump", () => {
+		let h = followCameraHeight(null, ground(10), 40);
+		for (const z of [20, 35, 50, 35, 20]) {
+			h = followCameraHeight(h, air(z), 40);
+			expect(h).toBe(10);
+		}
+	});
+
+	it("doesn't dip while jumping over a pit (in the air the ground below is ignored)", () => {
+		// Only the body's height counts in the air: the pose carries no ground.
+		expect(followCameraHeight(50, air(55), 40)).toBe(50);
+	});
+
+	it("rises once a hover climbs past the margin, keeping the body within it", () => {
+		expect(followCameraHeight(10, air(80), 40)).toBe(40);
+		expect(followCameraHeight(40, air(120), 40)).toBe(80);
+	});
+
+	it("comes down with a fall below the take-off height", () => {
+		expect(followCameraHeight(50, air(20), 40)).toBe(20);
+		expect(followCameraHeight(20, air(-5), 40)).toBe(-5);
+	});
+
+	it("starts from the body's height when it begins following mid-air", () => {
+		expect(followCameraHeight(null, air(70), 40)).toBe(70);
+	});
+
+	it("treats a negative margin as 0 and a non-finite height as the board", () => {
+		expect(followCameraHeight(10, air(30), -5)).toBe(30);
+		expect(followCameraHeight(10, ground(Number.NaN), 40)).toBe(0);
+	});
+});
 
 describe("follow camera", () => {
 	it("pins the character to its anchor, with and without rotation", () => {
