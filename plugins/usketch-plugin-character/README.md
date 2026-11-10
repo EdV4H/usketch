@@ -129,9 +129,14 @@ createCharacterPlugin({
   Panning by hand pauses following; press a movement key to resume. Zooming keeps
   following. Turning the character off turns the camera back upright.
 
-  Under a 3D view (Mode 7) the follow also raises the view's camera with the ground
-  under the character's feet (eased; `view3dService.setCameraHeight`), so climbing a
-  mountain doesn't walk the character out of the top of the screen. A jump still rises.
+  Under a 3D view (Mode 7) the follow also raises the view's camera with the character
+  (eased; `view3dService.setCameraHeight`), so climbing a mountain doesn't walk the
+  character out of the top of the screen. On the ground it follows the feet; in the air
+  it holds the take-off height, so an ordinary jump still rises on screen and running off
+  a ledge over a pit doesn't dip the view. A hover or a high multi-jump that climbs more
+  than `cameraHeightMargin` above the take-off height (default = the jump's height) drags
+  the camera up with it, and a fall below the take-off height takes it down. `0` follows
+  the body's height exactly (`setCameraHeightMargin` at runtime).
 - **Multiplayer**: pass `wsProvider` (anything with a y-protocols `awareness`). Your
   character is published under the `character` awareness field (~20 Hz, only when it
   changes, including `steering`, `slip` and `drifting`) and others are eased between
@@ -165,8 +170,10 @@ createCharacterPlugin({
   dropped on landing. Air jumps and the drift hop go straight up.
 - **Leaning**: under a 3D view (Mode 7) the layer lays each character (and its shadow)
   along the ground under it, by `motion.slopeTilt` (0 … 1, default 1, HUD
-  "坂に合わせて傾ける") × the 3D transition (`slopeTiltTransform`). The flat board is
-  unchanged.
+  "坂に合わせて傾ける") × the 3D transition (`slopeTiltTransform`). In the air the
+  body's lean fades out over the first `AIR_LEAN_FADE` world units above the ground
+  (`bodyLeanFactor`), so terrain passing below a jump or a hover doesn't tilt it; the
+  shadow still lies along the ground. The flat board is unchanged.
 - **Input**: held keys are tracked from window `keydown`/`keyup` (capture phase,
   `event.code`), swallowed while the character is on so single-letter tool
   shortcuts don't fire. Typing in text fields, and key chords with Ctrl/Cmd/Alt,

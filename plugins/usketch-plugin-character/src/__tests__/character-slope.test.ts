@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { slopeTiltTransform } from "../character-layer.js";
+import { AIR_LEAN_FADE, bodyLeanFactor, slopeTiltTransform } from "../character-layer.js";
 import {
 	type CharacterPose,
 	constrainToGround,
@@ -147,5 +147,22 @@ describe("slopeTiltTransform", () => {
 		// Down the screen (+y) rises with a +y gradient.
 		const [, y2, z2] = apply(slopeTiltTransform(0, 0.5) as string, [0, 1, 0]);
 		expect(z2 / y2).toBeCloseTo(0.5, 5);
+	});
+});
+
+describe("bodyLeanFactor", () => {
+	it("leans fully on the ground, whatever the altitude says", () => {
+		expect(bodyLeanFactor(0, false)).toBe(1);
+		expect(bodyLeanFactor(30, false)).toBe(1);
+	});
+
+	it("still leans fully at the instant of take-off", () => {
+		expect(bodyLeanFactor(0, true)).toBe(1);
+	});
+
+	it("fades out over AIR_LEAN_FADE in the air, then stays level", () => {
+		expect(bodyLeanFactor(AIR_LEAN_FADE / 2, true)).toBeCloseTo(0.5);
+		expect(bodyLeanFactor(AIR_LEAN_FADE, true)).toBe(0);
+		expect(bodyLeanFactor(200, true)).toBe(0);
 	});
 });

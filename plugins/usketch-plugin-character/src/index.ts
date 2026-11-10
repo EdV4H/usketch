@@ -3,6 +3,7 @@ export {
 	type CameraFocus,
 	type CameraMode,
 	easeFocus,
+	followCameraHeight,
 	followViewport,
 	smoothingAlpha,
 	targetRotation,
