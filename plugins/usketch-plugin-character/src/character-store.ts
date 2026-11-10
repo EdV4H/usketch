@@ -2,7 +2,7 @@
 // shared with others only through awareness). A tiny subscribe/notify store so the
 // layer, HUD and service all read the same source of truth.
 import { type Point, wrapDeg } from "@edv4h/usketch-shared";
-import type { CameraMode } from "./character-camera.js";
+import { type CameraMode, defaultCameraHeightMargin } from "./character-camera.js";
 import {
 	type CharacterPose,
 	type ControlScheme,
@@ -35,6 +35,12 @@ export interface CharacterState {
 	anchor: Point;
 	/** 0 = rigid follow … 0.99 = heavy lag. */
 	followSmoothing: number;
+	/**
+	 * Under a 3D view, how far (world units) the body may rise above the ground under it
+	 * before the camera height follows it up; `null` = the jump's height (see
+	 * `followCameraHeight`).
+	 */
+	cameraHeightMargin: number | null;
 	/** How big the body is drawn (only the look). */
 	size: CharacterSize;
 	/** True after the user panned by hand; a movement key resumes following. */
@@ -54,6 +60,7 @@ export interface CharacterStoreInit {
 	jump?: boolean | JumpInit;
 	anchor?: Partial<Point>;
 	followSmoothing?: number;
+	cameraHeightMargin?: number | null;
 	size?: Partial<CharacterSize>;
 	appearance?: CharacterAppearance;
 	name?: string;
@@ -195,6 +202,18 @@ export function hoverGaugeOf(state: CharacterState): number | null {
 	return effectiveJump(state)?.hover ? state.pose.hoverGauge : null;
 }
 
+function sanitizeMargin(v: number | null | undefined): number | null {
+	return v !== null && v !== undefined && Number.isFinite(v) && v >= 0 ? v : null;
+}
+
+/** The camera-height margin in effect (see `CharacterState.cameraHeightMargin`). */
+export function cameraHeightMarginOf(state: CharacterState): number {
+	return (
+		state.cameraHeightMargin ??
+		defaultCameraHeightMargin(effectiveJump(state)?.height ?? null, driftHopHeight(state))
+	);
+}
+
 export function createCharacterStore(init: CharacterStoreInit = {}) {
 	let state: CharacterState = {
 		enabled: init.enabled ?? false,
@@ -207,6 +226,7 @@ export function createCharacterStore(init: CharacterStoreInit = {}) {
 		jump: sanitizeJump(init.jump),
 		anchor: { x: clamp01(init.anchor?.x ?? 0.5), y: clamp01(init.anchor?.y ?? 0.5) },
 		followSmoothing: Math.min(0.99, Math.max(0, init.followSmoothing ?? 0)),
+		cameraHeightMargin: sanitizeMargin(init.cameraHeightMargin),
 		size: sanitizeSize(init.size, DEFAULT_SIZE),
 		followSuspended: false,
 		appearance: init.appearance ?? {},
@@ -288,6 +308,10 @@ export function createCharacterStore(init: CharacterStoreInit = {}) {
 		},
 		setFollowSmoothing(v: number): void {
 			if (Number.isFinite(v)) set({ followSmoothing: Math.min(0.99, Math.max(0, v)) });
+		},
+		/** `null` = the jump's height; a negative / non-finite value also falls back to it. */
+		setCameraHeightMargin(v: number | null): void {
+			set({ cameraHeightMargin: sanitizeMargin(v) });
 		},
 		/** Change the body size; omitted fields keep their current value. */
 		setSize(s: Partial<CharacterSize>): void {

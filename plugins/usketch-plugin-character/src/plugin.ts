@@ -59,6 +59,13 @@ export interface CharacterPluginOptions {
 	/** Follow-camera lag: 0 = rigid (default) … 0.99 = heavy. */
 	followSmoothing?: number;
 	/**
+	 * Under a 3D view (Mode 7) the follow raises the camera with the ground under the
+	 * feet; the body pulls it higher only once it is more than this (world units) above
+	 * that ground. Default = the jump's height (an ordinary jump doesn't bob the view, a
+	 * long hover or a fall stays in view); `0` = follow the body's height exactly.
+	 */
+	cameraHeightMargin?: number;
+	/**
 	 * How big the body is drawn, handed to the renderers as `size` (screen px). Default 36 px
 	 * at every zoom; `{ scale: "world", value: 24 }` scales it with the ground instead.
 	 */
@@ -79,6 +86,7 @@ export function createCharacterPlugin(options: CharacterPluginOptions = {}): Usk
 				jump: options.jump,
 				anchor: options.screenAnchor,
 				followSmoothing: options.followSmoothing,
+				cameraHeightMargin: options.cameraHeightMargin,
 				size: options.size,
 				appearance: options.appearance,
 				name: options.userName,
