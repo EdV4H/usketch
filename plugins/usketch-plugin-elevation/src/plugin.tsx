@@ -9,6 +9,7 @@
 // cliffs and steps are switched off there (through the map's service, if present).
 import {
 	defineService,
+	groundDecals,
 	groundHeightService,
 	type PluginContext,
 	type UsketchPlugin,
@@ -97,6 +98,8 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 			const preview = createReactiveStore<StrokePreview>({ model: null });
 			const cursor = createReactiveStore<BrushCursor>({ x: 0, y: 0, visible: false });
 			const view3d = () => view3dService.get(ctx.services);
+			// Ground decals other plugins paint onto the ground (shared registry, provided on first use).
+			const decals = groundDecals(ctx.services);
 			const mesh = createReactiveStore<MeshState>({ drawing: false });
 			const maxOverscan = options.maxOverscanPx ?? DEFAULT_MAX_OVERSCAN_PX;
 			const overscan = createReactiveStore({ px: 0 });
@@ -120,6 +123,8 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 						overscan={overscan}
 						preview={preview}
 						mesh={options.mesh === false ? undefined : mesh}
+						decals={decals}
+						view3d={view3d}
 					/>
 				),
 			});
@@ -138,6 +143,7 @@ export function createElevationPlugin(options: ElevationPluginOptions = {}): Usk
 							overscan={overscan}
 							view3d={view3d}
 							state={mesh}
+							decals={decals}
 						/>
 					),
 				});
