@@ -165,8 +165,10 @@ createCharacterPlugin({
   dropped on landing. Air jumps and the drift hop go straight up.
 - **Leaning**: under a 3D view (Mode 7) the layer lays each character (and its shadow)
   along the ground under it, by `motion.slopeTilt` (0 … 1, default 1, HUD
-  "坂に合わせて傾ける") × the 3D transition (`slopeTiltTransform`). The flat board is
-  unchanged.
+  "坂に合わせて傾ける") × the 3D transition (`slopeTiltTransform`). In the air the
+  body's lean fades out over the first `AIR_LEAN_FADE` world units above the ground
+  (`bodyLeanFactor`), so terrain passing below a jump or a hover doesn't tilt it; the
+  shadow still lies along the ground. The flat board is unchanged.
 - **Input**: held keys are tracked from window `keydown`/`keyup` (capture phase,
   `event.code`), swallowed while the character is on so single-letter tool
   shortcuts don't fire. Typing in text fields, and key chords with Ctrl/Cmd/Alt,
