@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-shape-frame
 
+## 3.2.17
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-core@2.4.13
+  - @edv4h/usketch-store@3.11.5
+
 ## 3.2.16
 
 ### Patch Changes

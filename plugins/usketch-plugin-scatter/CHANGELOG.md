@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-scatter
 
+## 0.2.11
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-shape-utils@2.4.4
+
 ## 0.2.10
 
 ### Patch Changes
