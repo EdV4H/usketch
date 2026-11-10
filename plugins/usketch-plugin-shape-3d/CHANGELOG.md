@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-shape-3d
 
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-dom-renderer@2.3.2
+
 ## 0.3.0
 
 ### Minor Changes
