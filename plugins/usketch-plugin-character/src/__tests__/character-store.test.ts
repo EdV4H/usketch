@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_DRIFT, DEFAULT_JUMP } from "../character-physics.js";
-import { createCharacterStore, sanitizeDrift, sanitizeJump } from "../character-store.js";
+import {
+	cameraHeightMarginOf,
+	createCharacterStore,
+	sanitizeDrift,
+	sanitizeJump,
+} from "../character-store.js";
 
 describe("drift tuning", () => {
 	it("is off by default and on with defaults for `true`", () => {
@@ -63,5 +68,18 @@ describe("jump tuning", () => {
 		store.setPose({ ...store.getState().pose, z: 90, vz: 120, airborne: true });
 		store.setPosition({ x: 5, y: 5 });
 		expect(store.getState().pose).toMatchObject({ x: 5, y: 5, z: 0, vz: 0, airborne: false });
+	});
+});
+
+describe("camera height margin", () => {
+	it("is the jump height unless set; bad values fall back", () => {
+		const store = createCharacterStore({ jump: { height: 60 } });
+		expect(store.getState().cameraHeightMargin).toBeNull();
+		expect(cameraHeightMarginOf(store.getState())).toBe(60);
+		store.setCameraHeightMargin(0);
+		expect(cameraHeightMarginOf(store.getState())).toBe(0);
+		store.setCameraHeightMargin(-3);
+		expect(store.getState().cameraHeightMargin).toBeNull();
+		expect(cameraHeightMarginOf(createCharacterStore().getState())).toBe(0);
 	});
 });

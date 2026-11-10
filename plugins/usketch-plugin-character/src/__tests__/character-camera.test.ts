@@ -2,7 +2,9 @@ import { worldToScreen } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import {
 	anchorPx,
+	defaultCameraHeightMargin,
 	easeFocus,
+	followCameraHeight,
 	followViewport,
 	sameViewport,
 	smoothingAlpha,
@@ -64,5 +66,21 @@ describe("smoothing", () => {
 			true,
 		);
 		expect(sameViewport({ x: 1, y: 1, zoom: 1 }, { x: 1, y: 1, zoom: 1, rotation: 1 })).toBe(false);
+	});
+});
+
+describe("followCameraHeight", () => {
+	it("follows the ground, and the body only past the margin", () => {
+		expect(followCameraHeight(100, 100, 48)).toBe(100); // standing
+		expect(followCameraHeight(100, 140, 48)).toBe(100); // an ordinary jump
+		expect(followCameraHeight(100, 200, 48)).toBe(152); // hovering high
+		expect(followCameraHeight(100, 200, 0)).toBe(200); // margin 0 = the body
+		expect(followCameraHeight(Number.NaN, 30, 48)).toBe(0);
+		expect(followCameraHeight(10, Number.NaN, 0)).toBe(10);
+	});
+	it("defaults the margin to the jump (or drift hop) height", () => {
+		expect(defaultCameraHeightMargin(48, 0)).toBe(48);
+		expect(defaultCameraHeightMargin(null, 12)).toBe(12);
+		expect(defaultCameraHeightMargin(null, 0)).toBe(0);
 	});
 });

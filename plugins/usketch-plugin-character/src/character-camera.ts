@@ -52,6 +52,27 @@ export function easeFocus(current: CameraFocus, target: CameraFocus, alpha: numb
 	};
 }
 
+/**
+ * The camera height (world units) a 3D view should follow: the ground under the feet,
+ * pulled up only by the part of the body's height more than `margin` above that ground.
+ * So an ordinary jump (within `margin`) doesn't bob the whole view, while a long hover,
+ * a high multi-jump or a fall from a cliff keeps the body in view. Pure.
+ */
+export function followCameraHeight(ground: number, bodyZ: number, margin: number): number {
+	const g = Number.isFinite(ground) ? ground : 0;
+	const z = Number.isFinite(bodyZ) ? bodyZ : g;
+	const over = z - g - (Number.isFinite(margin) ? Math.max(0, margin) : 0);
+	return over > 0 ? g + over : g;
+}
+
+/**
+ * The default `cameraHeightMargin`: the highest an ordinary jump goes (the jump's apex,
+ * or the drift hop), so those never move the camera. `0` without jumping.
+ */
+export function defaultCameraHeightMargin(jumpHeight: number | null, hopHeight: number): number {
+	return Math.max(0, jumpHeight ?? 0, hopHeight);
+}
+
 /** Screen-pixel anchor from a fractional anchor and the canvas size. */
 export function anchorPx(anchor: Point, size: { width: number; height: number }): Point {
 	return { x: anchor.x * size.width, y: anchor.y * size.height };

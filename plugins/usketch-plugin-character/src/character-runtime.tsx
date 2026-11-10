@@ -15,6 +15,7 @@ import {
 	anchorPx,
 	type CameraFocus,
 	easeFocus,
+	followCameraHeight,
 	followViewport,
 	sameViewport,
 	smoothingAlpha,
@@ -38,7 +39,12 @@ import {
 	stepVertical,
 	sweepToGround,
 } from "./character-physics.js";
-import { type CharacterStore, driftHopHeight, effectiveJump } from "./character-store.js";
+import {
+	type CharacterStore,
+	cameraHeightMarginOf,
+	driftHopHeight,
+	effectiveJump,
+} from "./character-store.js";
 import {
 	type CharacterAwareness,
 	type CharacterSync,
@@ -303,12 +309,12 @@ export function setupCharacterRuntime(
 				cam = easeFocus(from, target, smoothingAlpha(s.followSmoothing, dt));
 				const next = followViewport(cam, anchor, vp.zoom);
 				if (!sameViewport(vp, next)) writeViewport(next);
-				// Raise the 3D view's camera with the ground under the feet (not the body, so a
-				// jump still rises on screen): on a mountain the character stays in view.
+				// Raise the 3D view's camera with the ground under the feet: on a mountain the
+				// character stays in view. The body pulls it higher only past the margin (an
+				// ordinary jump still rises on screen; a long hover or a fall stays in view).
 				// Only while the view is (partly) 3D: the flat board has no camera to raise.
 				if (view3d.amount() > 0) {
-					const ground = heightAt(pose.x, pose.y);
-					const to = Number.isFinite(ground) ? ground : 0;
+					const to = followCameraHeight(heightAt(pose.x, pose.y), pose.z, cameraHeightMarginOf(s));
 					const at = cameraHeight ?? 0;
 					setCameraHeight(at + (to - at) * smoothingAlpha(CAMERA_HEIGHT_SMOOTHING, dt));
 				} else {

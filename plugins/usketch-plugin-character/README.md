@@ -131,7 +131,11 @@ createCharacterPlugin({
 
   Under a 3D view (Mode 7) the follow also raises the view's camera with the ground
   under the character's feet (eased; `view3dService.setCameraHeight`), so climbing a
-  mountain doesn't walk the character out of the top of the screen. A jump still rises.
+  mountain doesn't walk the character out of the top of the screen. The body pulls the
+  camera higher only once it is more than `cameraHeightMargin` above that ground
+  (default = the jump's height): an ordinary jump still rises on screen without bobbing
+  the view, while a long hover, a high multi-jump or a fall from a cliff stays in view.
+  `0` follows the body's height exactly (`setCameraHeightMargin` at runtime).
 - **Multiplayer**: pass `wsProvider` (anything with a y-protocols `awareness`). Your
   character is published under the `character` awareness field (~20 Hz, only when it
   changes, including `steering`, `slip` and `drifting`) and others are eased between
