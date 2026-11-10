@@ -53,16 +53,27 @@ export function easeFocus(current: CameraFocus, target: CameraFocus, alpha: numb
 }
 
 /**
- * The camera height (world units) a 3D view should follow: the ground under the feet,
- * pulled up only by the part of the body's height more than `margin` above that ground.
- * So an ordinary jump (within `margin`) doesn't bob the whole view, while a long hover,
- * a high multi-jump or a fall from a cliff keeps the body in view. Pure.
+ * The height (world units) the 3D view's camera should follow, platformer-style:
+ *
+ * - On the ground: the ground the character stands on (`pose.z`).
+ * - In the air (a jump, a fall, a hover): the height it left the ground from (`prev`)
+ *   holds, so a jump still rises on screen and flying over a pit doesn't dip the view;
+ *   but it never falls behind the body by more than `margin` (a hover climbing above
+ *   an ordinary jump drags it up) nor stays above the feet (falling off a cliff takes
+ *   it down).
+ *
+ * `prev` is the last value this returned, `null` when starting to follow (the body's
+ * height is taken as is). Feed the result to the camera through its own smoothing.
  */
-export function followCameraHeight(ground: number, bodyZ: number, margin: number): number {
-	const g = Number.isFinite(ground) ? ground : 0;
-	const z = Number.isFinite(bodyZ) ? bodyZ : g;
-	const over = z - g - (Number.isFinite(margin) ? Math.max(0, margin) : 0);
-	return over > 0 ? g + over : g;
+export function followCameraHeight(
+	prev: number | null,
+	pose: { z: number; airborne: boolean },
+	margin: number,
+): number {
+	const z = Number.isFinite(pose.z) ? pose.z : 0;
+	if (!pose.airborne || prev === null || !Number.isFinite(prev)) return z;
+	const m = Number.isFinite(margin) ? Math.max(0, margin) : 0;
+	return Math.min(z, Math.max(z - m, prev));
 }
 
 /**

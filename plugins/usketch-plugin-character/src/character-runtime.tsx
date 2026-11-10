@@ -156,7 +156,10 @@ export function setupCharacterRuntime(
 	// The camera height we last gave the 3D view (world units), eased toward the ground
 	// under the character; `null` while we aren't driving it.
 	let cameraHeight: number | null = null;
+	// The unsmoothed height it follows (see `followCameraHeight`); `null` while not driving.
+	let cameraBase: number | null = null;
 	const setCameraHeight = (height: number | null): void => {
+		if (height === null) cameraBase = null;
 		if (height === cameraHeight) return;
 		cameraHeight = height;
 		view3dService.get(ctx.services)?.setCameraHeight?.(height ?? 0);
@@ -309,12 +312,14 @@ export function setupCharacterRuntime(
 				cam = easeFocus(from, target, smoothingAlpha(s.followSmoothing, dt));
 				const next = followViewport(cam, anchor, vp.zoom);
 				if (!sameViewport(vp, next)) writeViewport(next);
-				// Raise the 3D view's camera with the ground under the feet: on a mountain the
-				// character stays in view. The body pulls it higher only past the margin (an
-				// ordinary jump still rises on screen; a long hover or a fall stays in view).
+				// Raise the 3D view's camera with the character: on a mountain it stays in view.
+				// In the air it holds the take-off height (a jump still rises on screen, a pit
+				// below doesn't dip the view) until a hover climbs past the margin or a fall
+				// drops below it (see `followCameraHeight`).
 				// Only while the view is (partly) 3D: the flat board has no camera to raise.
 				if (view3d.amount() > 0) {
-					const to = followCameraHeight(heightAt(pose.x, pose.y), pose.z, cameraHeightMarginOf(s));
+					cameraBase = followCameraHeight(cameraBase, pose, cameraHeightMarginOf(s));
+					const to = cameraBase;
 					const at = cameraHeight ?? 0;
 					setCameraHeight(at + (to - at) * smoothingAlpha(CAMERA_HEIGHT_SMOOTHING, dt));
 				} else {
