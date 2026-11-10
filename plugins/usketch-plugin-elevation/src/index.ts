@@ -22,6 +22,16 @@ export {
 } from "./elevation-brush.js";
 export { decodeChunk, encodeChunk, isEmptyChunk } from "./elevation-codec.js";
 export {
+	DECAL_MARGIN,
+	DECAL_MAX_PX,
+	DECAL_MIN_PX,
+	decalTexMapping,
+	decalTilePx,
+	paintDecalTile,
+	projectedTilePx,
+	tileWorldRect,
+} from "./elevation-decals.js";
+export {
 	CHUNK_TYPE,
 	chunkKey,
 	chunkShapeId,

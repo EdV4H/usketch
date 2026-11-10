@@ -9,12 +9,21 @@
 // in front of the hills, even behind one.
 import {
 	type BoardStore,
+	type GroundDecalApi,
 	type View3dApi,
 	type Viewport,
 	viewportRotation,
 	worldToScreen,
 } from "@edv4h/usketch-shared";
 import { useEffect, useRef, useState } from "react";
+import {
+	DECAL_MARGIN,
+	decalTexMapping,
+	decalTilePx,
+	paintDecalTile,
+	projectedTilePx,
+	tileWorldRect,
+} from "./elevation-decals.js";
 import { chunkKey } from "./elevation-field.js";
 import { tileRevision } from "./elevation-layer.js";
 import {
@@ -54,6 +63,7 @@ uniform vec2 uSize;    // stage px
 uniform float uWater;  // < 0: none
 out float vHeight;
 out float vShade;
+out vec2 vLocal;
 void main() {
 	vec2 s = uOrigin + vec2(aVertex.x * uAxis.x - aVertex.y * uAxis.y, aVertex.x * uAxis.y + aVertex.y * uAxis.x);
 	float h = uWater >= 0.0 ? max(aVertex.z, uWater) : aVertex.z;
@@ -75,12 +85,14 @@ void main() {
 	);
 	vHeight = aVertex.z;
 	vShade = aVertex.w;
+	vLocal = aVertex.xy;
 }`;
 
 const FRAGMENT = `#version 300 es
 precision highp float;
 in float vHeight;
 in float vShade;
+in vec2 vLocal;
 uniform sampler2D uRamp;
 uniform float uRange;
 uniform float uWater;
@@ -88,11 +100,15 @@ uniform float uContour;
 uniform float uTint;
 uniform float uShadeOn;
 uniform float uFadeZero;
+uniform sampler2D uDecal; // the tile's ground decals (premultiplied)
+uniform float uDecalOn;
+uniform vec2 uDecalMap;   // uv = local · x + y
 out vec4 outColor;
 void main() {
 	vec3 c = uTint > 0.5 ? texture(uRamp, vec2(clamp(vHeight / uRange, 0.0, 1.0), 0.5)).rgb : vec3(0.86);
 	bool under = uWater >= 0.0 && vHeight < uWater;
-	if (uShadeOn > 0.5 && !under) c *= vShade;
+	bool lit = uShadeOn > 0.5 && !under;
+	if (lit) c *= vShade;
 	if (uContour > 0.0 && !under && vHeight > 0.0) {
 		float t = vHeight / uContour;
 		float d = abs(fract(t - 0.5) - 0.5) / max(fwidth(t), 1e-5);
@@ -100,14 +116,36 @@ void main() {
 	}
 	// A field without generated terrain: flat ground (0) is see-through, as in 2D.
 	float a = uFadeZero > 0.5 ? clamp(vHeight / 6.0, 0.0, 1.0) : 1.0;
-	outColor = vec4(c * a, a);
+	vec3 rgb = c * a;
+	// Ground decals lie on the surface: shaded like it, over the colours and contours.
+	if (uDecalOn > 0.5) {
+		vec4 d = texture(uDecal, vLocal * uDecalMap.x + uDecalMap.y);
+		vec3 dc = lit ? d.rgb * vShade : d.rgb;
+		rgb = dc + rgb * (1.0 - d.a);
+		a = d.a + a * (1.0 - d.a);
+	}
+	outColor = vec4(rgb, a);
 }`;
-
 interface TileMesh {
 	revision: string;
 	buffer: WebGLBuffer;
 	used: number;
 }
+
+/** A tile's decal texture and what it was painted from. */
+interface DecalTexture {
+	texture: WebGLTexture;
+	/** Bitmap px (before the margin). */
+	px: number;
+	/** The decal registry's version when painted. */
+	version: number;
+	used: number;
+}
+
+/** Decal tiles (re)painted per frame at most; the rest wait for the next frames. */
+export const DECAL_PAINTS_PER_FRAME = 4;
+/** …and at most this long per frame. */
+const DECAL_FRAME_BUDGET_MS = 6;
 
 /** Owns the GL objects of one canvas. */
 class MeshRenderer {
@@ -119,6 +157,8 @@ class MeshRenderer {
 	private readonly ramp: WebGLTexture;
 	private rampKey = "";
 	private readonly tiles = new Map<string, TileMesh>();
+	private readonly decalTextures = new Map<string, DecalTexture>();
+	private scratch: HTMLCanvasElement | null = null;
 	private frame = 0;
 	private readonly u: Record<string, WebGLUniformLocation | null> = {};
 
@@ -169,6 +209,9 @@ class MeshRenderer {
 			"uTint",
 			"uShadeOn",
 			"uFadeZero",
+			"uDecal",
+			"uDecalOn",
+			"uDecalMap",
 		]) {
 			this.u[name] = gl.getUniformLocation(program, name);
 		}
@@ -196,7 +239,10 @@ class MeshRenderer {
 		overscanPx: number;
 		display: ElevationDisplay;
 		store: BoardStore;
-	}): void {
+		/** Ground decals painted onto the surface (their `"3d"` view). */
+		decals?: GroundDecalApi;
+	}): boolean {
+		let pending = false;
 		const { gl, u } = this;
 		const { model, viewport: vp, camera, width, height, display } = opts;
 		const field = model.field;
@@ -213,7 +259,7 @@ class MeshRenderer {
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		const rect = visibleWorldRect(opts.store, opts.overscanPx);
 		const plan = rect ? planTiles(field, rect, vp.zoom) : null;
-		if (!plan) return;
+		if (!plan) return false;
 
 		this.frame++;
 		// biome-ignore lint/correctness/useHookAtTopLevel: WebGL's useProgram, not a React hook
@@ -271,6 +317,12 @@ class MeshRenderer {
 		gl.uniform1f(u.uTint, display.tint ? 1 : 0);
 		gl.uniform1f(u.uShadeOn, display.shade ? 1 : 0);
 		gl.uniform1f(u.uFadeZero, field.seed === null && field.waterLevel === null ? 1 : 0);
+		gl.uniform1i(u.uDecal, 1);
+		const decals = opts.decals;
+		let paints = 0;
+		const paintStart = performance.now();
+		const canPaint = () =>
+			paints < DECAL_PAINTS_PER_FRAME && performance.now() - paintStart < DECAL_FRAME_BUDGET_MS;
 
 		const sampler = elevationSampler(model);
 		const fk = `${field.id}|${field.spacing}|${n}|${field.seed}|${field.waterLevel}|${field.gen.relief}|${field.gen.scale}|${field.gen.roughness}|${field.gen.ridges}|${field.gen.octaves}`;
@@ -298,6 +350,26 @@ class MeshRenderer {
 				gl.vertexAttribPointer(0, VERTEX_FLOATS, gl.FLOAT, false, VERTEX_FLOATS * 4, 0);
 				const o = worldToScreen(tx * plan.worldSize, ty * plan.worldSize, vp);
 				gl.uniform2f(u.uOrigin, o.x, o.y);
+				const decal = decals
+					? this.decalFor(decals, `${plan.level}:${chunkKey(tx, ty)}`, tx, ty, plan.worldSize, {
+							vp,
+							camera,
+							width,
+							height,
+							canPaint,
+							painted: () => paints++,
+						})
+					: null;
+				if (decal?.pending) pending = true;
+				if (decal?.texture) {
+					const map = decalTexMapping(plan.worldSize, decal.texture.px);
+					gl.activeTexture(gl.TEXTURE1);
+					gl.bindTexture(gl.TEXTURE_2D, decal.texture.texture);
+					gl.uniform1f(u.uDecalOn, 1);
+					gl.uniform2f(u.uDecalMap, map.scale, map.offset);
+				} else {
+					gl.uniform1f(u.uDecalOn, 0);
+				}
 				gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
 			}
 		}
@@ -308,12 +380,97 @@ class MeshRenderer {
 				this.tiles.delete(key);
 			}
 		}
+		for (const [key, tex] of this.decalTextures) {
+			if (this.frame - tex.used > 120) {
+				gl.deleteTexture(tex.texture);
+				this.decalTextures.delete(key);
+			}
+		}
+		gl.activeTexture(gl.TEXTURE0);
+		return pending;
+	}
+
+	/**
+	 * The decal texture for a tile, (re)painted when the decals there changed or the
+	 * tile now shows at another resolution — within the frame's paint budget (`pending`
+	 * when it had to wait: a stale texture is used meanwhile). `null` texture: no decals.
+	 */
+	private decalFor(
+		decals: GroundDecalApi,
+		key: string,
+		tx: number,
+		ty: number,
+		worldSize: number,
+		at: {
+			vp: Viewport;
+			camera: MeshCamera;
+			width: number;
+			height: number;
+			canPaint: () => boolean;
+			painted: () => void;
+		},
+	): { texture: DecalTexture | null; pending: boolean } {
+		const { gl } = this;
+		const rect = tileWorldRect(tx, ty, worldSize);
+		let tex = this.decalTextures.get(key) ?? null;
+		if (decals.listFor("3d", rect).length === 0) {
+			if (tex) {
+				gl.deleteTexture(tex.texture);
+				this.decalTextures.delete(key);
+			}
+			return { texture: null, pending: false };
+		}
+		const px = decalTilePx(
+			projectedTilePx(rect, 0, at.vp, at.camera, { width: at.width, height: at.height }),
+		);
+		const stale = !tex || tex.px !== px || decals.changedSince(tex.version, "3d", rect);
+		if (!stale) {
+			if (tex) tex.used = this.frame;
+			return { texture: tex, pending: false };
+		}
+		if (!at.canPaint()) {
+			if (tex) tex.used = this.frame;
+			return { texture: tex, pending: true };
+		}
+		at.painted();
+		const version = decals.version();
+		const canvas = this.scratchCanvas(px + 2 * DECAL_MARGIN);
+		const ctx = canvas?.getContext("2d");
+		if (!canvas || !ctx) return { texture: tex, pending: false };
+		paintDecalTile(ctx, decals, "3d", rect, px);
+		const texture = tex?.texture ?? gl.createTexture();
+		if (!texture) return { texture: null, pending: false };
+		gl.activeTexture(gl.TEXTURE1);
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+		gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+		gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+		// Mipmaps: far ground shrinks the bitmap a lot (thin lines would shimmer).
+		gl.generateMipmap(gl.TEXTURE_2D);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		tex = { texture, px, version, used: this.frame };
+		this.decalTextures.set(key, tex);
+		return { texture: tex, pending: false };
+	}
+
+	/** One reusable 2D canvas to paint decal bitmaps in, `size` px square. */
+	private scratchCanvas(size: number): HTMLCanvasElement | null {
+		if (typeof document === "undefined") return null;
+		if (!this.scratch) this.scratch = document.createElement("canvas");
+		if (this.scratch.width !== size) this.scratch.width = size;
+		if (this.scratch.height !== size) this.scratch.height = size;
+		return this.scratch;
 	}
 
 	dispose(): void {
 		const { gl } = this;
 		for (const tile of this.tiles.values()) gl.deleteBuffer(tile.buffer);
 		this.tiles.clear();
+		for (const tex of this.decalTextures.values()) gl.deleteTexture(tex.texture);
+		this.decalTextures.clear();
 		gl.deleteBuffer(this.indexBuffer);
 		gl.deleteTexture(this.ramp);
 		gl.deleteVertexArray(this.vao);
@@ -327,12 +484,15 @@ export function ElevationMeshLayer({
 	overscan,
 	view3d,
 	state,
+	decals,
 }: {
 	store: BoardStore;
 	display: ReactiveStore<ElevationDisplay>;
 	overscan: ReactiveStore<{ px: number }>;
 	view3d: () => View3dApi | undefined;
 	state: ReactiveStore<MeshState>;
+	/** Ground decals to paint onto the surface. */
+	decals?: GroundDecalApi;
 }) {
 	const isOn = () => (view3d()?.amount() ?? 0) > 0 && boardElevation(store) !== null;
 	const [on, setOn] = useState(isOn);
@@ -352,7 +512,14 @@ export function ElevationMeshLayer({
 	}, [on, state]);
 	if (!on) return null;
 	return (
-		<MeshCanvas store={store} display={display} overscan={overscan} view3d={view3d} state={state} />
+		<MeshCanvas
+			store={store}
+			display={display}
+			overscan={overscan}
+			view3d={view3d}
+			state={state}
+			decals={decals}
+		/>
 	);
 }
 
@@ -362,12 +529,14 @@ function MeshCanvas({
 	overscan,
 	view3d,
 	state,
+	decals,
 }: {
 	store: BoardStore;
 	display: ReactiveStore<ElevationDisplay>;
 	overscan: ReactiveStore<{ px: number }>;
 	view3d: () => View3dApi | undefined;
 	state: ReactiveStore<MeshState>;
+	decals?: GroundDecalApi;
 }) {
 	const ref = useRef<HTMLCanvasElement>(null);
 	useEffect(() => {
@@ -384,7 +553,7 @@ function MeshCanvas({
 			const model = boardElevation(store);
 			const v = view3d();
 			if (!model || !v) return;
-			renderer.draw({
+			const pending = renderer.draw({
 				model,
 				viewport: store.getViewport(),
 				camera: v.camera(),
@@ -394,7 +563,10 @@ function MeshCanvas({
 				overscanPx: overscan.get().px,
 				display: display.get(),
 				store,
+				decals,
 			});
+			// Decal tiles left for the next frames (the paint budget ran out).
+			if (pending) schedule();
 		};
 		const schedule = () => {
 			if (!raf) raf = requestAnimationFrame(draw);
@@ -404,6 +576,7 @@ function MeshCanvas({
 			display.subscribe(schedule),
 			overscan.subscribe(schedule),
 			view3d()?.subscribe(schedule),
+			decals?.subscribe(schedule),
 		];
 		const onResize = () => schedule();
 		window.addEventListener("resize", onResize);
@@ -416,7 +589,7 @@ function MeshCanvas({
 			renderer.dispose();
 			state.set({ drawing: false });
 		};
-	}, [store, display, overscan, view3d, state]);
+	}, [store, display, overscan, view3d, state, decals]);
 	return (
 		<canvas
 			ref={ref}

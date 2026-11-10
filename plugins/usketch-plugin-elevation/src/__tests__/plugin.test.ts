@@ -7,7 +7,13 @@ import {
 	createShapeRegistry,
 	createToolRegistry,
 } from "@edv4h/usketch-core";
-import { defineService, groundHeightService, type PluginContext } from "@edv4h/usketch-shared";
+import {
+	defineService,
+	groundDecalService,
+	groundDecals,
+	groundHeightService,
+	type PluginContext,
+} from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import { describe, expect, it, vi } from "vitest";
 import { GROUND_LAYER_ID } from "../elevation-layer.js";
@@ -53,6 +59,34 @@ describe("elevation plugin", () => {
 		dispose();
 		expect(ctx.layers.getLayers().some((l) => l.id === GROUND_LAYER_ID)).toBe(false);
 		expect(getElevationApi(ctx.services)).toBeUndefined();
+	});
+
+	it("shares the board's ground-decal registry, whoever provided it first", () => {
+		const before = harness(false);
+		// The plugin provided one on setup (a decal painter registering later finds it).
+		const provided = groundDecalService.get(before.ctx.services);
+		expect(provided).toBeDefined();
+		expect(groundDecals(before.ctx.services)).toBe(provided);
+		before.dispose();
+
+		// A painter that came first provided it: the plugin uses that one.
+		const store = createBoardStore();
+		const services = createServiceRegistry();
+		const early = groundDecals(services);
+		const ctx = {
+			store,
+			shapes: createShapeRegistry(),
+			tools: createToolRegistry(),
+			actions: createActionRegistry(),
+			commands: createCommandRegistry(),
+			services,
+			events: createEventBus(),
+			layers: createLayerManager(),
+			hud: { registerSettings: () => () => {}, registerPanel: () => () => {} },
+		} as unknown as PluginContext;
+		const dispose = createElevationPlugin().setup(ctx) as () => void;
+		expect(groundDecalService.get(services)).toBe(early);
+		dispose();
 	});
 
 	it("puts the ground and mesh layers at the default orders, or where the host says", () => {

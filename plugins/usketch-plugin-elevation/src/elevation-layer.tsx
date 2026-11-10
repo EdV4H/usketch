@@ -3,8 +3,15 @@
 // heights, its resolution or the look change. Panning only moves one wrapper. Tiles are
 // drawn a few per frame (see the draw queue), so zooming out over an infinite terrain
 // never blocks a frame for long. Input goes to tools; the layer is pointer-events:none.
-import { type BoardStore, viewportRotation } from "@edv4h/usketch-shared";
+import {
+	type BoardStore,
+	type GroundDecalApi,
+	type GroundDecalView,
+	type View3dApi,
+	viewportRotation,
+} from "@edv4h/usketch-shared";
 import { memo, useEffect, useRef, useState } from "react";
+import { DECAL_MARGIN, paintDecalTile, tileWorldRect } from "./elevation-decals.js";
 import { chunkKey } from "./elevation-field.js";
 import {
 	boardElevation,
@@ -168,6 +175,8 @@ export function ElevationGroundLayer({
 	overscan,
 	preview,
 	mesh,
+	decals,
+	view3d,
 }: {
 	store: BoardStore;
 	display: ReactiveStore<ElevationDisplay>;
@@ -176,13 +185,24 @@ export function ElevationGroundLayer({
 	preview?: ReactiveStore<StrokePreview>;
 	/** While the 3D mesh draws the ground, this layer draws nothing. */
 	mesh?: ReactiveStore<{ drawing: boolean }>;
+	/** Ground decals laid over the tiles: their `"flat"` view, or `"3d"` while this layer stands in for the mesh. */
+	decals?: GroundDecalApi;
+	/** The 3D view, to tell which of the decals' views this layer shows. */
+	view3d?: () => View3dApi | undefined;
 }) {
 	const [, force] = useState(0);
 	const rafRef = useRef(0);
+	const is3d = () => (view3d?.()?.amount() ?? 0) > 0;
+	const shown3d = useRef(is3d());
+	// biome-ignore lint/correctness/useExhaustiveDependencies: is3d reads only view3d
 	useEffect(() => {
 		const rerender = () => {
 			cancelAnimationFrame(rafRef.current);
 			rafRef.current = requestAnimationFrame(() => force((n) => n + 1));
+		};
+		// The 3D view changes every frame while it moves: re-render only when it turns on / off.
+		const onView = () => {
+			if (is3d() !== shown3d.current) rerender();
 		};
 		const offs = [
 			store.subscribe(rerender),
@@ -190,12 +210,17 @@ export function ElevationGroundLayer({
 			overscan.subscribe(rerender),
 			...(preview ? [preview.subscribe(rerender)] : []),
 			...(mesh ? [mesh.subscribe(rerender)] : []),
+			...(decals ? [decals.subscribe(rerender)] : []),
 		];
+		const offView = view3d?.()?.subscribe(onView);
 		return () => {
 			for (const off of offs) off();
+			offView?.();
 			cancelAnimationFrame(rafRef.current);
 		};
-	}, [store, display, overscan, preview, mesh]);
+	}, [store, display, overscan, preview, mesh, decals, view3d]);
+	shown3d.current = is3d();
+	const decalView: GroundDecalView = shown3d.current ? "3d" : "flat";
 
 	// The 3D mesh draws the ground: nothing to draw here (no tiles kept busy meanwhile).
 	if (mesh?.get().drawing) return null;
@@ -212,6 +237,8 @@ export function ElevationGroundLayer({
 	const look = display.get();
 	const fk = fieldKey(model);
 	const tiles = [];
+	const decalTiles = [];
+	const decalVersion = decals?.version() ?? 0;
 	for (let ty = plan.ty0; ty <= plan.ty1; ty++) {
 		for (let tx = plan.tx0; tx <= plan.tx1; tx++) {
 			const left = Math.round(tx * plan.worldSize * vp.zoom);
@@ -236,6 +263,24 @@ export function ElevationGroundLayer({
 					display={look}
 				/>,
 			);
+			if (decals && decals.listFor(decalView, tileWorldRect(tx, ty, plan.worldSize)).length > 0) {
+				decalTiles.push(
+					<DecalTile
+						key={`decal:${plan.level}:${tx},${ty}`}
+						decals={decals}
+						view={decalView}
+						version={decalVersion}
+						tx={tx}
+						ty={ty}
+						worldSize={plan.worldSize}
+						px={plan.px}
+						left={left}
+						top={top}
+						width={Math.round((tx + 1) * plan.worldSize * vp.zoom) - left}
+						height={Math.round((ty + 1) * plan.worldSize * vp.zoom) - top}
+					/>,
+				);
+			}
 		}
 	}
 	return (
@@ -262,6 +307,8 @@ export function ElevationGroundLayer({
 				}}
 			>
 				{tiles}
+				{/* Over every ground tile (their margins overlap the neighbours). */}
+				{decalTiles}
 			</div>
 		</div>
 	);
@@ -341,3 +388,65 @@ const ElevationTile = memo(
 		a.revision === b.revision &&
 		a.display === b.display,
 );
+
+interface DecalTileProps {
+	decals: GroundDecalApi;
+	view: GroundDecalView;
+	/** The registry's version: a change re-checks whether this tile must repaint. */
+	version: number;
+	tx: number;
+	ty: number;
+	worldSize: number;
+	px: number;
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+}
+
+/** One tile's ground decals, over its ground tile: repainted only when they change there. */
+const DecalTile = memo(function DecalTile(props: DecalTileProps) {
+	const ref = useRef<HTMLCanvasElement>(null);
+	// What the bitmap holds: the registry version, view and size it was painted at.
+	const painted = useRef<{ version: number; view: GroundDecalView; px: number } | null>(null);
+	const { decals, view, version, tx, ty, worldSize, px } = props;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: `version` triggers the check
+	useEffect(() => {
+		const canvas = ref.current;
+		if (!canvas) return;
+		const rect = tileWorldRect(tx, ty, worldSize);
+		const was = painted.current;
+		if (
+			was &&
+			was.view === view &&
+			was.px === px &&
+			!decals.changedSince(was.version, view, rect)
+		) {
+			return;
+		}
+		return queueDraw(canvas, () => {
+			const ctx = canvas.getContext("2d");
+			if (!ctx) return;
+			const at = decals.version();
+			paintDecalTile(ctx, decals, view, rect, px);
+			painted.current = { version: at, view, px };
+		});
+	}, [decals, view, version, tx, ty, worldSize, px]);
+	const mx = (props.width / px) * DECAL_MARGIN;
+	const my = (props.height / px) * DECAL_MARGIN;
+	return (
+		<canvas
+			ref={ref}
+			data-usketch-ground-decals=""
+			width={px + 2 * DECAL_MARGIN}
+			height={px + 2 * DECAL_MARGIN}
+			style={{
+				position: "absolute",
+				left: props.left - mx,
+				top: props.top - my,
+				width: props.width + 2 * mx,
+				height: props.height + 2 * my,
+			}}
+		/>
+	);
+});

@@ -95,7 +95,35 @@ elevation?.paint([{ x: 0, y: 0 }, { x: 600, y: 0 }], { mode: "raise", seconds: 1
 
 キャラクター（`@edv4h/usketch-plugin-character`）は 3D ビューで坂に沿って傾き、坂でのジャンプは坂の向きにも跳ぶ。なめらかな坂は段差（`maxStep`）では止まらないので、キャラの `motion.maxSlope` を設定すること（`45` くらいを推奨。web アプリはこの値）。それより急な坂は登れず、ずり落ちる。3D 表示のない Shape も丘の高さに乗る（shape-3d の `limits.groundFlat`）。
 
-制約: Shape やキャラは DOM の層なので、メッシュより常に手前に描かれる（丘の裏に隠れない）。フォグ・描画距離はまだ無い。
+制約: Shape やキャラは DOM の層なので、メッシュより常に手前に描かれる（丘の裏に隠れない）。フォグ・描画距離はまだ無い。地面に沿わせたい線や塗り（コース・道など）は、次の「地面のデカール」で描く。
+
+## 地面のデカール
+
+shared の `groundDecals(services)`（`groundDecalService`）に登録した「地面に塗るもの」を、標高の地面そのものに描く。3D ビューでは起伏に沿って曲がり、地面と同じ陰影がつき、丘の裏では地面と一緒に隠れる（DOM の Shape は平らな板のまま・常に手前）。
+
+```ts
+import { groundDecals } from "@edv4h/usketch-shared";
+
+const off = groundDecals(ctx.services).set("my-plugin:course", {
+	// world 単位で描く（ctx は変換・クリップ済み）。タイルごとに何度も呼ばれるので軽く・純粋に。
+	paint(ctx, { rect, pxPerUnit, view }) {
+		ctx.strokeStyle = "#3b3b40";
+		ctx.lineWidth = 200;
+		ctx.stroke(coursePath);
+	},
+	bounds: () => courseBounds, // 描く範囲（world）。外のタイルは塗らない。省略 = どこでも
+	views: ["3d"], // "flat"（平面の地面）/ "3d"（3D の地面）。既定は両方
+	order: 0, // 小さいほど下
+});
+// 中身が変わったら: groundDecals(ctx.services).invalidate("my-plugin:course", changedRect)
+```
+
+- レジストリは最初に使った側（デカールを足すプラグイン・この plugin のどちらでも）が provide する。plugin の順番に依存しない。標高の無いボードでは描かれない。
+- **3D**: メッシュのタイル（標高と同じ LOD）ごとにデカールを Canvas2D で塗り、テクスチャとして貼る。解像度はそのタイルが画面に映る大きさ（`projectedTilePx`）に合わせた 2 のべき乗（64…1024 px、`decalTilePx`）。遠くはミップマップで粗く、近くは細かい。塗り直しは 1 フレーム 4 タイル・6ms まで（超えた分は次のフレーム。その間は古い絵のまま）。デカールのあるタイルだけがテクスチャを持つ。
+- **平面**: 2D の地面の各タイルの上に、デカールの canvas を 1 枚重ねる（地面のタイルの絵は塗り直さない）。2D の層が 3D の代わりに傾いているとき（WebGL2 なし / `mesh: false`）は `"3d"` のデカールを描く。
+- 塗り直しは変わった所だけ: `set` / `remove` は新旧の `bounds`、`invalidate` は渡した範囲（省略で `bounds`）にかかるタイルだけを塗り直す（`changedSince`）。
+- `paint` が投げたデカールは飛ばす（ほかは描く）。
+- 解像度の目安: 既定の場（チャンク 32 × 間隔 16 = 512 units / タイル）で、等倍・近くのタイルは 1〜2 px / unit、ズームアウト・遠くのタイルは粗くなる（道幅 200 なら遠くでも十数 px）。細い線は `pxPerUnit` を見て最小の太さを保つこと。
 
 ## 段階
 
