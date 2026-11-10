@@ -55,6 +55,13 @@ export interface CharacterApi {
 	/** Follow smoothing (0 = rigid … 0.99 = heavy lag). */
 	getFollowSmoothing(): number;
 	setFollowSmoothing(value: number): void;
+	/**
+	 * Under a 3D view, how far (world units) the body may rise above the ground before the
+	 * camera height follows it up. `null` (default) = the jump's height, so an ordinary
+	 * jump doesn't bob the view; `0` = the camera follows the body's height exactly.
+	 */
+	getCameraHeightMargin(): number | null;
+	setCameraHeightMargin(value: number | null): void;
 	/** How big the body is drawn (a fixed screen size, or one that scales with the ground). */
 	getSize(): CharacterSize;
 	/** Change the body size; omitted fields keep their current value. Only the look. */
@@ -111,6 +118,8 @@ export function createCharacterApi(store: CharacterStore, runtime: CharacterRunt
 		setAnchor: (anchor) => store.setAnchor(anchor),
 		getFollowSmoothing: () => store.getState().followSmoothing,
 		setFollowSmoothing: (v) => store.setFollowSmoothing(v),
+		getCameraHeightMargin: () => store.getState().cameraHeightMargin,
+		setCameraHeightMargin: (v) => store.setCameraHeightMargin(v),
 		getSize: () => store.getState().size,
 		setSize: (size) => store.setSize(size),
 		setKeys: (keys) => runtime.setKeys(keys),

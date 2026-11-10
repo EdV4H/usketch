@@ -2,7 +2,9 @@ import { worldToScreen } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import {
 	anchorPx,
+	defaultCameraHeightMargin,
 	easeFocus,
+	followCameraHeight,
 	followViewport,
 	sameViewport,
 	smoothingAlpha,
@@ -64,5 +66,43 @@ describe("smoothing", () => {
 			true,
 		);
 		expect(sameViewport({ x: 1, y: 1, zoom: 1 }, { x: 1, y: 1, zoom: 1, rotation: 1 })).toBe(false);
+	});
+});
+
+describe("followCameraHeight", () => {
+	const air = (z: number) => ({ z, airborne: true });
+	const ground = (z: number) => ({ z, airborne: false });
+	it("follows the body on the ground", () => {
+		expect(followCameraHeight(null, ground(100), 48)).toBe(100);
+		expect(followCameraHeight(100, ground(130), 48)).toBe(130); // up a slope
+	});
+	it("holds the take-off height through an ordinary jump", () => {
+		expect(followCameraHeight(100, air(140), 48)).toBe(100);
+	});
+	it("doesn't dip over a pit", () => {
+		// Ran off a ledge at 100: the body is still at 100, the ground below is lower.
+		expect(followCameraHeight(100, air(100), 48)).toBe(100);
+	});
+	it("rises with a hover past the margin", () => {
+		expect(followCameraHeight(10, air(40), 40)).toBe(10);
+		expect(followCameraHeight(10, air(80), 40)).toBe(40);
+	});
+	it("follows a fall below the take-off height", () => {
+		expect(followCameraHeight(50, air(20), 40)).toBe(20);
+	});
+	it("starts from the body when it begins mid-air", () => {
+		expect(followCameraHeight(null, air(70), 40)).toBe(70);
+	});
+	it("margin 0 (or negative) follows the body", () => {
+		expect(followCameraHeight(10, air(30), 0)).toBe(30);
+		expect(followCameraHeight(10, air(30), -5)).toBe(30);
+	});
+	it("treats a non-finite height as 0", () => {
+		expect(followCameraHeight(10, ground(Number.NaN), 40)).toBe(0);
+	});
+	it("defaults the margin to the jump (or drift hop) height", () => {
+		expect(defaultCameraHeightMargin(48, 0)).toBe(48);
+		expect(defaultCameraHeightMargin(null, 12)).toBe(12);
+		expect(defaultCameraHeightMargin(null, 0)).toBe(0);
 	});
 });
