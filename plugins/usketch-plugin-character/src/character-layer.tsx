@@ -61,6 +61,22 @@ export function slopeTiltTransform(gx: number, gy: number): string | null {
 		.join(", ")})`;
 }
 
+/**
+ * World units above the ground over which an airborne body's lean fades out, so leaving
+ * the ground (or touching down) eases instead of snapping level.
+ */
+export const AIR_LEAN_FADE = 8;
+
+/**
+ * How much of the ground's lean a body takes, 0 … 1: all of it on the ground, none once
+ * it is `AIR_LEAN_FADE` above the ground in the air (jumping, falling, hovering), so the
+ * terrain it flies over doesn't tip it. The shadow, lying on the ground, always leans. Pure.
+ */
+export function bodyLeanFactor(altitude: number, airborne: boolean): number {
+	if (!airborne || !(altitude > 0)) return 1;
+	return Math.max(0, 1 - altitude / AIR_LEAN_FADE);
+}
+
 function Spot({
 	shadow = false,
 	x,
@@ -144,22 +160,32 @@ export function CharacterLayer({
 	const lean = Math.max(0, Math.min(1, state.motion.slopeTilt)) * Math.max(0, Math.min(1, amount));
 	const cosR = Math.cos((rot * Math.PI) / 180);
 	const sinR = Math.sin((rot * Math.PI) / 180);
-	const tiltAt = (x: number, y: number): string | null => {
-		if (!(lean > 0) || !heightAt) return null;
+	// `k` scales the lean further (an airborne body's, see `bodyLeanFactor`).
+	const tiltAt = (x: number, y: number, k = 1): string | null => {
+		const l = lean * k;
+		if (!(l > 0) || !heightAt) return null;
 		const g = groundSlope(heightAt, x, y);
-		return slopeTiltTransform((g.x * cosR - g.y * sinR) * lean, (g.x * sinR + g.y * cosR) * lean);
+		return slopeTiltTransform((g.x * cosR - g.y * sinR) * l, (g.x * sinR + g.y * cosR) * l);
 	};
 	const bodies: {
 		at: { x: number; y: number };
+		/** The ground's lean (for the shadow). */
 		tilt: string | null;
+		/** The body's lean: the ground's, faded out in the air. */
+		bodyTilt: string | null;
 		props: CharacterRenderProps;
 	}[] = [];
+	const leanOf = (x: number, y: number, altitude: number, airborne: boolean) => {
+		const tilt = tiltAt(x, y);
+		const k = bodyLeanFactor(altitude, airborne);
+		return { tilt, bodyTilt: k >= 1 ? tilt : tiltAt(x, y, k) };
+	};
 	for (const r of state.remotes.values()) {
 		const elevation = heightAt?.(r.x, r.y) ?? 0;
 		const z = Math.max(elevation, r.z ?? elevation);
 		bodies.push({
 			at: worldToScreen(r.x, r.y, viewport),
-			tilt: tiltAt(r.x, r.y),
+			...leanOf(r.x, r.y, z - elevation, r.airborne),
 			props: {
 				id: r.id,
 				isSelf: false,
@@ -192,7 +218,7 @@ export function CharacterLayer({
 		// Self last → drawn on top of the others.
 		bodies.push({
 			at: worldToScreen(pose.x, pose.y, viewport),
-			tilt: tiltAt(pose.x, pose.y),
+			...leanOf(pose.x, pose.y, z - elevation, pose.airborne),
 			props: {
 				id: "self",
 				isSelf: true,
@@ -235,13 +261,13 @@ export function CharacterLayer({
 				/>
 			))
 		: [];
-	const bodySpots = bodies.map(({ at, tilt, props }) => (
+	const bodySpots = bodies.map(({ at, bodyTilt, props }) => (
 		<Spot
 			key={key(props)}
 			x={at.x}
 			y={at.y}
 			lift={props.z * viewport.zoom}
-			tilt={tilt}
+			tilt={bodyTilt}
 			renderer={renderer}
 			props={props}
 		/>
