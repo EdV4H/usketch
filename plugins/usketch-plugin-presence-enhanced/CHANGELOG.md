@@ -1,5 +1,12 @@
 # @edv4h/usketch-plugin-presence-enhanced
 
+## 2.0.27
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+
 ## 2.0.26
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @edv4h/usketch-core
 
+## 2.4.13
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+
 ## 2.4.12
 
 ### Patch Changes

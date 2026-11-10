@@ -1,5 +1,13 @@
 # @edv4h/usketch-store
 
+## 3.11.5
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-core@2.4.13
+
 ## 3.11.4
 
 ### Patch Changes
