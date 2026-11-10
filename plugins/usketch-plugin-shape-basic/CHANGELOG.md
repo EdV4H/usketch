@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-shape-basic
 
+## 2.3.5
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-core@2.4.12
+  - @edv4h/usketch-store@3.11.4
+  - @edv4h/usketch-shape-utils@2.4.3
+
 ## 2.3.4
 
 ### Patch Changes
