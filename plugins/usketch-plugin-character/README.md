@@ -88,9 +88,18 @@ createCharacterPlugin({
   at `riseSpeed` (60). The gauge refills
   on the ground over `rechargeTime` (0.8 s), not at once on landing. The pose carries
   `hovering` and `hoverGauge` (stays 1 with hovering off); both are broadcast.
-- **Keys**: the jump (Space) and the drift (Shift) have their own keys. The HUD offers
-  a few keys for each (`KEY_CHOICES`: Space, Shift, Z, X, C, J, K, L); `setKeys` takes
-  any `KeyboardEvent.code`s and `getKeys` returns the bindings.
+- **Keys**: the jump (Space) and the drift (Shift) have their own keys. Every action
+  (up / down / left / right / jump / drift, up to two keys each) can be rebound from the
+  HUD's "キー設定" panel: click a key and press the new one (Esc cancels, Delete /
+  Backspace removes it); a key taken from another action moves over, a direction left
+  without a key is flagged, and "既定に戻す" goes back to the host's `keys`. Esc, Tab and
+  lone Ctrl / Alt / Meta are refused, Shift only fits the jump and the drift. The panel
+  saves per viewer in localStorage (`usketch-plugin-character:keys`, over the host's
+  `keys`; `saveKeys: false` keeps it to the session). The rules are pure functions in
+  `character-keys.ts` (`bindKey`, `unbindKey`, `canBindKey`, `keyLabel`,
+  `parseStoredKeys` …). API: `setKeys(keys, { save? })`, `getKeys`, `getDefaultKeys`,
+  `resetKeys`, `onKeysChange`, and `captureNextKey(onKey)` for a key-picking UI of your
+  own.
 - **Standing up in 3D**: each spot (and the wrapper around the renderer's content) keeps
   the 3D context (`transform-style: preserve-3d`), so under a 3D view (Mode 7) a
   renderer can stand a flat sprite up out of the tilted ground instead of having it lie

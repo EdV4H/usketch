@@ -14,6 +14,24 @@ export {
 	keyChoiceOf,
 	withKeyChoice,
 } from "./character-key-choices.js";
+export {
+	actionOfKey,
+	bindKey,
+	canBindKey,
+	defaultKeyStorage,
+	KEY_ACTION_LABELS,
+	KEY_ACTIONS,
+	KEYS_STORAGE_KEY,
+	type KeyAction,
+	type KeyStorage,
+	keyLabel,
+	loadStoredKeys,
+	MAX_KEYS_PER_ACTION,
+	parseStoredKeys,
+	saveStoredKeys,
+	unbindKey,
+	unboundDirections,
+} from "./character-keys.js";
 export { FLAT_JUMP_MAX_SCALE, flatJumpLift } from "./character-layer.js";
 export {
 	airJumpSpeed,

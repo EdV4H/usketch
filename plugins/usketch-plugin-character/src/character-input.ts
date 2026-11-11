@@ -19,6 +19,13 @@ export interface KeyInput {
 	anyHeld(): boolean;
 	/** Replace the key bindings (held state is cleared). */
 	setKeys(keys: CharacterKeys): void;
+	/**
+	 * Hand the next key press to `onKey` instead of the character (a key-config UI picking
+	 * a binding): its `KeyboardEvent.code`, whatever the focus and whether the character is
+	 * on, swallowed with its keyup. One press per call; a newer call replaces an older one.
+	 * Returns a cancel.
+	 */
+	captureNextKey(onKey: (code: string) => void): () => void;
 	dispose(): void;
 }
 
@@ -191,6 +198,10 @@ export function createKeyInput(
 	/** Held codes that act as the drift key (as for the jump). */
 	const driftHeld = new Set<string>();
 	let driftPressed = false;
+	/** A pending `captureNextKey`. */
+	let capture: ((code: string) => void) | null = null;
+	/** Codes whose keydown a capture took: their keyup is swallowed too. */
+	const captured = new Set<string>();
 
 	const directionOf = (code: string): keyof CharacterKeys | null => {
 		for (const dir of ["up", "down", "left", "right"] as const) {
@@ -206,6 +217,21 @@ export function createKeyInput(
 		(keys.drift?.includes(code) ?? false) || (keys.jump?.includes(code) ?? false);
 
 	const onKeyDown = (e: KeyboardEvent): void => {
+		if (capture) {
+			const onKey = capture;
+			capture = null;
+			captured.add(e.code);
+			e.preventDefault();
+			e.stopImmediatePropagation();
+			onKey(e.code);
+			return;
+		}
+		if (captured.has(e.code)) {
+			// Auto-repeat of a key a capture just took.
+			e.preventDefault();
+			e.stopImmediatePropagation();
+			return;
+		}
 		if (!isActive()) return;
 		if (e.ctrlKey || e.metaKey || e.altKey) return; // leave chords (Cmd+S …) alone
 		const dir = directionOf(e.code);
@@ -234,6 +260,11 @@ export function createKeyInput(
 	};
 
 	const onKeyUp = (e: KeyboardEvent): void => {
+		if (captured.delete(e.code)) {
+			e.preventDefault();
+			e.stopImmediatePropagation();
+			return;
+		}
 		if (!release(e.code)) return;
 		e.preventDefault();
 		e.stopImmediatePropagation();
@@ -302,8 +333,15 @@ export function createKeyInput(
 			keys = { ...next, drift: next.drift ?? keys.drift, jump: next.jump ?? keys.jump };
 			clear();
 		},
+		captureNextKey(onKey) {
+			capture = onKey;
+			return () => {
+				if (capture === onKey) capture = null;
+			};
+		},
 		dispose() {
 			if (!hasWindow) return;
+			capture = null;
 			window.removeEventListener("keydown", onKeyDown, true);
 			window.removeEventListener("keyup", onKeyUp, true);
 			window.removeEventListener("blur", clear);

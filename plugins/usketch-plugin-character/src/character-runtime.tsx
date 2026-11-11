@@ -125,6 +125,10 @@ export interface CharacterRuntime {
 	jump(): void;
 	setKeys(keys: CharacterKeys): void;
 	getKeys(): CharacterKeys;
+	/** Listen for key binding changes. Returns an unsubscribe. */
+	onKeysChange(listener: () => void): () => void;
+	/** See `KeyInput.captureNextKey`. */
+	captureNextKey(onKey: (code: string) => void): () => void;
 	/** Feed analog input from a host control (touch stick …); `null` releases it. */
 	setVirtualInput(input: Partial<VirtualInput> | null): void;
 	getVirtualInput(): VirtualInput | null;
@@ -143,6 +147,7 @@ export function setupCharacterRuntime(
 		() => store.getState().jump !== null,
 	);
 	let jumpTimers: JumpTimers = IDLE_JUMP;
+	const keysListeners = new Set<() => void>();
 	// `jump()` from code: a press on the next frame, held until the apex (a full jump).
 	let pendingJump = false;
 	let holdJump = false;
@@ -417,8 +422,18 @@ export function setupCharacterRuntime(
 			pendingJump = true;
 			ensureLoop();
 		},
-		setKeys: (k) => keys.setKeys(k),
+		setKeys(k) {
+			keys.setKeys(k);
+			for (const l of [...keysListeners]) l();
+		},
 		getKeys: () => keys.getKeys(),
+		onKeysChange(listener) {
+			keysListeners.add(listener);
+			return () => {
+				keysListeners.delete(listener);
+			};
+		},
+		captureNextKey: (onKey) => keys.captureNextKey(onKey),
 		setVirtualInput(input) {
 			// Ignored while off (like the keys), so input sent before the character is
 			// turned on can't make it drive away on its own the moment it spawns.

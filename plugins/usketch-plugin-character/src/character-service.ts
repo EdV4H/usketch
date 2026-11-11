@@ -2,6 +2,7 @@
 // render/appearance hooks, as typed calls a host or another plugin can drive.
 import { defineService, type Point, type ServiceRegistry } from "@edv4h/usketch-shared";
 import type { CameraMode } from "./character-camera.js";
+import { type KeyStorage, saveStoredKeys } from "./character-keys.js";
 import type {
 	CharacterPose,
 	ControlScheme,
@@ -66,10 +67,25 @@ export interface CharacterApi {
 	getSize(): CharacterSize;
 	/** Change the body size; omitted fields keep their current value. Only the look. */
 	setSize(size: Partial<CharacterSize>): void;
-	/** Replace the key bindings (`KeyboardEvent.code` values; omitted `drift` / `jump` are kept). */
-	setKeys(keys: CharacterKeys): void;
+	/**
+	 * Replace the key bindings (`KeyboardEvent.code` values; omitted `drift` / `jump` are
+	 * kept). `save: true` also keeps them for this viewer (localStorage), so they win over
+	 * the host's `keys` on the next visit — what the HUD's key settings do.
+	 */
+	setKeys(keys: CharacterKeys, options?: { save?: boolean }): void;
 	/** The current key bindings. */
 	getKeys(): CharacterKeys;
+	/** The host's bindings (the plugin's `keys` option over the defaults). */
+	getDefaultKeys(): CharacterKeys;
+	/** Back to {@link getDefaultKeys}, forgetting this viewer's saved bindings. */
+	resetKeys(): void;
+	/** Listen for key binding changes. Returns an unsubscribe. */
+	onKeysChange(listener: () => void): () => void;
+	/**
+	 * For a key-config UI: the next key press goes to `onKey` (its `KeyboardEvent.code`)
+	 * instead of moving the character, wherever focus is. Returns a cancel.
+	 */
+	captureNextKey(onKey: (code: string) => void): () => void;
 	/**
 	 * Drive with a non-keyboard control (an on-screen stick, a gamepad …): analog
 	 * `throttle` / `steer` (-1 … 1) and the `drift` button, combined with the held keys.
@@ -93,7 +109,18 @@ export interface CharacterApi {
 
 export const characterService = defineService<CharacterApi>("usketch-plugin-character");
 
-export function createCharacterApi(store: CharacterStore, runtime: CharacterRuntime): CharacterApi {
+export interface CharacterKeyConfig {
+	/** The host's bindings (what "reset" goes back to). */
+	defaults: CharacterKeys;
+	/** Where a viewer's saved bindings live; `null` = not saved. */
+	storage: KeyStorage | null;
+}
+
+export function createCharacterApi(
+	store: CharacterStore,
+	runtime: CharacterRuntime,
+	keyConfig: CharacterKeyConfig = { defaults: runtime.getKeys(), storage: null },
+): CharacterApi {
 	return {
 		isEnabled: () => store.getState().enabled,
 		enable: () => store.setEnabled(true),
@@ -122,8 +149,18 @@ export function createCharacterApi(store: CharacterStore, runtime: CharacterRunt
 		setCameraHeightMargin: (v) => store.setCameraHeightMargin(v),
 		getSize: () => store.getState().size,
 		setSize: (size) => store.setSize(size),
-		setKeys: (keys) => runtime.setKeys(keys),
+		setKeys(keys, options) {
+			runtime.setKeys(keys);
+			if (options?.save) saveStoredKeys(keyConfig.storage, runtime.getKeys());
+		},
 		getKeys: () => runtime.getKeys(),
+		getDefaultKeys: () => keyConfig.defaults,
+		resetKeys() {
+			saveStoredKeys(keyConfig.storage, null);
+			runtime.setKeys(keyConfig.defaults);
+		},
+		onKeysChange: (listener) => runtime.onKeysChange(listener),
+		captureNextKey: (onKey) => runtime.captureNextKey(onKey),
 		setVirtualInput: (input) => runtime.setVirtualInput(input),
 		getVirtualInput: () => runtime.getVirtualInput(),
 		setRenderer: (r) => store.setRenderer(r),
