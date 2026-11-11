@@ -1,9 +1,10 @@
 // Hold-to-fly camera height: while the 3D view is on, holding an "up" key raises
 // `camera.height` and a "down" key lowers it, at a steady on-screen speed. Keys are
 // `KeyboardEvent.code`s (layout-independent), Space / Shift by default, and the host
-// can rebind or turn them off. Anything that drives the height itself (e.g. a followed
-// character via `view3dService.setCameraHeight`) simply overrides it on its next frame;
-// a plugin that handles the same key first (the character's jump on Space stops the
+// can rebind or turn them off. While something drives the height itself (e.g. a followed
+// character via `view3dService.setCameraHeight`) the keys leave it alone — else the two
+// would tug the camera back and forth every frame (a shaking view); a plugin that
+// handles the same key first (the character's jump on Space stops the
 // event in the capture phase) keeps it.
 import type { Mode7Store } from "./mode7-store.js";
 
@@ -21,6 +22,32 @@ export const DEFAULT_HEIGHT_KEYS: HeightKeys = {
 
 /** Screen px per second the camera rises / sinks while a key is held. */
 export const DEFAULT_HEIGHT_SPEED = 480;
+
+/**
+ * Milliseconds after a driver last set the height (`view3dService.setCameraHeight`)
+ * during which the keys don't move it: a follower sets it every frame.
+ */
+export const HEIGHT_DRIVER_HOLD_MS = 250;
+
+/** Remembers when a driver last set the camera height (see {@link HEIGHT_DRIVER_HOLD_MS}). */
+export interface HeightDriver {
+	/** A driver set the height now. */
+	mark(): void;
+	/** Whether a driver set it within the hold. */
+	active(): boolean;
+}
+
+export function createHeightDriver(
+	now: () => number = () => (typeof performance !== "undefined" ? performance.now() : Date.now()),
+): HeightDriver {
+	let last = Number.NEGATIVE_INFINITY;
+	return {
+		mark: () => {
+			last = now();
+		},
+		active: () => now() - last < HEIGHT_DRIVER_HOLD_MS,
+	};
+}
 
 /** Longest step simulated in one frame (a background-tab pause doesn't jump the camera). */
 const MAX_DT = 0.05;
@@ -91,6 +118,8 @@ export function setupHeightKeys(
 	store: Mode7Store,
 	config: HeightKeyConfig,
 	zoom: () => number,
+	/** Whether something else drives the height now (the keys then leave it alone). */
+	driven: () => boolean = () => false,
 ): () => void {
 	const held = new Set<string>();
 	let raf: number | null = null;
@@ -113,7 +142,7 @@ export function setupHeightKeys(
 			last = null;
 			return;
 		}
-		const dh = heightStep(dir, config.speed, dt, zoom());
+		const dh = driven() ? 0 : heightStep(dir, config.speed, dt, zoom());
 		if (dh !== 0) store.setCamera({ height: (store.getState().camera.height ?? 0) + dh });
 		raf = requestAnimationFrame(frame);
 	};
