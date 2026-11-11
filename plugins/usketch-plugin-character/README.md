@@ -100,8 +100,11 @@ createCharacterPlugin({
 - **Air attitude** (vehicle, `jump.spinRate`, default 270 °/s, 0 = off, HUD "空中で車体を回す速さ"):
   in the air the throttle keys pitch the body (forward = nose down, back = nose up) and,
   with the drift key held, the steering rolls it (right = right side down) instead of
-  yawing it (`stepAirSpin` / `holdSteerForRoll`). Released keys hold the attitude; a full
-  flip wraps back to level. The pose and render props carry `pitch` / `roll` (degrees,
+  yawing it (`stepAirSpin` / `holdSteerForRoll`). The spin has weight: `jump.spinInertia`
+  (default 0.3 s, 0 = none, HUD "車体の回転の慣性") is how long it takes to build up to
+  `spinRate`, and a released spin slows to a stop over the same time (`pose.pitchRate` /
+  `rollRate`); with 0 the body turns only while a key is held. A full flip wraps back to
+  level. The pose and render props carry `pitch` / `roll` (degrees,
   0 on the ground; broadcast). On touchdown (`landVehicle`) the body is set back on its
   wheels: tilted at most `landingTolerance` (default 35°, HUD "着地の許容角") from the
   ground under it (`landingTilt`, slopes included) it drives on, beyond that it keeps
@@ -201,7 +204,7 @@ createCharacterPlugin({
 ## HUD
 
 A "キャラクター" settings group (on/off, camera, scheme, drift, drift key, drift hop, jump, jump key, jump height, air
-jumps, jump direction on slopes, air control, air spin rate, landing tolerance, crash speed, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, size and its scale, screen position, camera lag) plus actions to toggle the
+jumps, jump direction on slopes, air control, air spin rate, spin inertia, landing tolerance, crash speed, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, size and its scale, screen position, camera lag) plus actions to toggle the
 character, to place it at the screen position, and to jump.
 
 ## Service

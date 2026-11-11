@@ -36,6 +36,47 @@ describe("stepAirSpin", () => {
 	});
 });
 
+describe("stepAirSpin with inertia", () => {
+	const spin = (pose: CharacterPose, input: MoveInput, steps: number, dt = 0.05) => {
+		let p = pose;
+		for (let i = 0; i < steps; i++) p = stepAirSpin(p, input, dt, 300, 0.2);
+		return p;
+	};
+
+	it("builds the spin up over spinInertia", () => {
+		const first = stepAirSpin(flying, held({ down: true }), 0.05, 300, 0.2);
+		expect(first.pitchRate).toBeCloseTo(75); // a quarter of the way after 0.05 of 0.2 s
+		expect(first.pitch).toBeCloseTo((75 / 2) * 0.05);
+		expect(spin(flying, held({ down: true }), 4).pitchRate).toBeCloseTo(300);
+	});
+
+	it("keeps turning after the key is released, slowing to a stop over spinInertia", () => {
+		const spinning = { ...flying, pitchRate: 300, pitch: 10 };
+		const coast = stepAirSpin(spinning, NO_INPUT, 0.05, 300, 0.2);
+		expect(coast.pitchRate).toBeCloseTo(225);
+		expect(coast.pitch).toBeGreaterThan(10);
+		const stopped = spin(spinning, NO_INPUT, 4);
+		expect(stopped.pitchRate).toBe(0);
+		expect(stepAirSpin(stopped, NO_INPUT, 0.05, 300, 0.2)).toBe(stopped);
+	});
+
+	it("rolls on after the drift key is let go", () => {
+		const rolling = { ...flying, rollRate: -300 };
+		const next = stepAirSpin(rolling, held({ left: true }), 0.05, 300, 0.2);
+		expect(next.rollRate).toBeCloseTo(-225);
+		expect(next.roll).toBeLessThan(0);
+	});
+
+	it("is stopped by landing", () => {
+		const landing = { ...flying, pitch: 10, pitchRate: 200, rollRate: -50, airborne: false };
+		expect(landVehicle(flying, landing, FLAT, DEFAULT_JUMP)).toMatchObject({
+			pitch: 0,
+			pitchRate: 0,
+			rollRate: 0,
+		});
+	});
+});
+
 describe("holdSteerForRoll", () => {
 	it("drops the steering (no yaw) while rolling in the air", () => {
 		const input = held({ right: true, drift: true, steer: 0.5 });

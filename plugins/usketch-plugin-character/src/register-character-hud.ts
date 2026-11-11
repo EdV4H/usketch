@@ -72,6 +72,14 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				step: 30,
 			},
 			{
+				name: "spinInertia",
+				label: "車体の回転の慣性（車、秒、0 = なし）",
+				type: "number",
+				min: 0,
+				max: 2,
+				step: 0.05,
+			},
+			{
 				name: "landingTolerance",
 				label: "着地の許容角（車、°）",
 				type: "number",
@@ -174,6 +182,8 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return (api.getJump() ?? DEFAULT_JUMP).airControl;
 				case "spinRate":
 					return (api.getJump() ?? DEFAULT_JUMP).spinRate;
+				case "spinInertia":
+					return (api.getJump() ?? DEFAULT_JUMP).spinInertia;
 				case "landingTolerance":
 					return (api.getJump() ?? DEFAULT_JUMP).landingTolerance;
 				case "crashSpeed":
@@ -279,6 +289,9 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					break;
 				case "spinRate":
 					if (api.getJump()) api.setJump({ spinRate: n });
+					break;
+				case "spinInertia":
+					if (api.getJump()) api.setJump({ spinInertia: n });
 					break;
 				case "landingTolerance":
 					if (api.getJump()) api.setJump({ landingTolerance: n });

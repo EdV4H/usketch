@@ -275,7 +275,7 @@ export function setupCharacterRuntime(
 			// key held, which then doesn't also yaw it).
 			const spinRate = s.controlScheme === "vehicle" ? air.spinRate : 0;
 			const stepped = stepCharacter(
-				stepAirSpin(s.pose, input, dt, spinRate),
+				stepAirSpin(s.pose, input, dt, spinRate, air.spinInertia),
 				holdSteerForRoll(holdDriftForHop(input, s.pose, hopHeight), s.pose, spinRate),
 				dt,
 				s.controlScheme,

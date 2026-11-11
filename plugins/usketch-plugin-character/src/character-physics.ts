@@ -87,6 +87,13 @@ export interface CharacterPose {
 	 */
 	pitch: number;
 	roll: number;
+	/**
+	 * Vehicle: how fast the body is turning about those axes, degrees / s — its spin,
+	 * which carries on after the keys are released while `JumpParams.spinInertia` > 0.
+	 * 0 on the ground.
+	 */
+	pitchRate: number;
+	rollRate: number;
 	/** Whether the character is in the air (jumping or falling). */
 	airborne: boolean;
 	/** Hovering: the jump key held while falling slows the descent (see `HoverParams`). */
@@ -116,6 +123,8 @@ export const ORIGIN_POSE: CharacterPose = {
 	moveVy: 0,
 	pitch: 0,
 	roll: 0,
+	pitchRate: 0,
+	rollRate: 0,
 	airborne: false,
 	hovering: false,
 	hoverGauge: 1,
@@ -327,6 +336,8 @@ export function stepCharacter(
 			moveVy: vy,
 			pitch: pose.pitch,
 			roll: pose.roll,
+			pitchRate: pose.pitchRate,
+			rollRate: pose.rollRate,
 			airborne: pose.airborne,
 			hovering: pose.hovering,
 			hoverGauge: pose.hoverGauge,
@@ -386,6 +397,8 @@ export function stepCharacter(
 		moveVy: dir.y * speed,
 		pitch: pose.pitch,
 		roll: pose.roll,
+		pitchRate: pose.pitchRate,
+		rollRate: pose.rollRate,
 		airborne: pose.airborne,
 		hovering: pose.hovering,
 		hoverGauge: pose.hoverGauge,
@@ -637,6 +650,12 @@ export interface JumpParams {
 	 */
 	spinRate: number;
 	/**
+	 * Vehicle: the weight of that spin, seconds: how long the keys take to bring the body
+	 * from still to `spinRate` — and a released spin to a stop, so it keeps turning for a
+	 * while. `0` = none (it turns only while a key is held). See `stepAirSpin`.
+	 */
+	spinInertia: number;
+	/**
 	 * Vehicle: the most a body may be tilted from the ground under it on touchdown,
 	 * degrees, for a clean landing. See `landVehicle`.
 	 */
@@ -689,6 +708,7 @@ export const DEFAULT_JUMP: JumpParams = {
 	slopeRatio: 0.5,
 	airControl: 0.5,
 	spinRate: 270,
+	spinInertia: 0.3,
 	landingTolerance: 35,
 	crashSpeed: 0.3,
 };
@@ -892,25 +912,39 @@ export function holdSteerForRoll(
 }
 
 /**
- * Turn a vehicle's body in the air for `dt` seconds at `spinRate` degrees / s: the
- * throttle (forward = nose down, back = nose up) pitches it, and the steering rolls it
- * while the drift key is held (right = right side down). Released keys hold the attitude.
- * The angles wrap, so a full flip comes round to 0. Unchanged on the ground. Pure.
+ * Turn a vehicle's body in the air for `dt` seconds: the throttle (forward = nose down,
+ * back = nose up) pitches it, and the steering rolls it while the drift key is held
+ * (right = right side down), each toward `spinRate` degrees / s. With `spinInertia`
+ * (seconds) the spin builds up over that long and a released one slows to a stop over it
+ * (it keeps turning a while); without, the body turns only while a key is held. The angles
+ * wrap, so a full flip comes round to 0. Unchanged on the ground. Pure.
  */
 export function stepAirSpin(
 	pose: CharacterPose,
 	input: MoveInput,
 	dt: number,
 	spinRate: number,
+	spinInertia = 0,
 ): CharacterPose {
 	if (!pose.airborne || !(spinRate > 0) || !(dt > 0)) return pose;
-	const pitchBy = -inputThrottle(input) * spinRate * dt;
-	const rollBy = rollsInAir(input, pose, spinRate) ? inputSteer(input) * spinRate * dt : 0;
-	if (pitchBy === 0 && rollBy === 0) return pose;
+	const pitchTo = -inputThrottle(input) * spinRate;
+	const rollTo = rollsInAir(input, pose, spinRate) ? inputSteer(input) * spinRate : 0;
+	const inertial = spinInertia > 0 && Number.isFinite(spinInertia);
+	const step = inertial ? (spinRate / spinInertia) * dt : Number.POSITIVE_INFINITY;
+	const pitchRate = inertial ? approach(pose.pitchRate, pitchTo, step) : pitchTo;
+	const rollRate = inertial ? approach(pose.rollRate, rollTo, step) : rollTo;
+	if (pitchRate === 0 && rollRate === 0 && pose.pitchRate === 0 && pose.rollRate === 0) {
+		return pose;
+	}
+	// With inertia the mean rate over the step (exact for a steady change of rate).
+	const pitchBy = (inertial ? (pose.pitchRate + pitchRate) / 2 : pitchRate) * dt;
+	const rollBy = (inertial ? (pose.rollRate + rollRate) / 2 : rollRate) * dt;
 	return {
 		...pose,
 		pitch: wrapAngle(pose.pitch + pitchBy),
 		roll: wrapAngle(pose.roll + rollBy),
+		pitchRate,
+		rollRate,
 	};
 }
 
@@ -951,7 +985,8 @@ export function landVehicle(
 	jump: Pick<JumpParams, "spinRate" | "landingTolerance" | "crashSpeed">,
 ): CharacterPose {
 	if (next.airborne) return next;
-	const landed = next.pitch === 0 && next.roll === 0 ? next : { ...next, pitch: 0, roll: 0 };
+	const level = next.pitch === 0 && next.roll === 0 && next.pitchRate === 0 && next.rollRate === 0;
+	const landed = level ? next : { ...next, pitch: 0, roll: 0, pitchRate: 0, rollRate: 0 };
 	// Only a body the keys could turn is judged (with spinning off it can't be lined up).
 	if (!prev.airborne || !(jump.spinRate > 0)) return landed;
 	const tilt = landingTilt(next.pitch, next.roll, next.heading, slope);
