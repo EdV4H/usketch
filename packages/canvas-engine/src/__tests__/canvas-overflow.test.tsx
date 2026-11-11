@@ -1,0 +1,80 @@
+// @vitest-environment jsdom
+import type { AppInstance } from "@edv4h/usketch-core";
+import type { Layer } from "@edv4h/usketch-shared";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Canvas } from "../components/canvas.js";
+import { AppProvider } from "../context.js";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+/** Just enough of an app for <Canvas> to mount with one ordinary (non-fixed) layer. */
+function stubApp(): AppInstance {
+	const viewport = { x: 0, y: 0, zoom: 1 };
+	// Snapshots must be stable references (useSyncExternalStore).
+	const shapes = new Map();
+	const selection = new Set<string>();
+	const sorted: never[] = [];
+	const layers: Layer[] = [{ id: "shapes", zIndex: 0, render: () => null } as unknown as Layer];
+	return {
+		store: {
+			subscribe: () => () => {},
+			getViewport: () => viewport,
+			getShapes: () => shapes,
+			getShapesSorted: () => sorted,
+			getSelection: () => selection,
+			getHoveredShapeId: () => null,
+			getActiveToolId: () => "select",
+		},
+		events: { on: () => () => {}, emit: () => {} },
+		tools: { get: () => undefined },
+		lod: { getMode: () => "dom", onModeChange: () => () => {}, tick: () => {} },
+		layers: { getLayers: () => layers, register: () => {}, unregister: () => {} },
+		selectionForeground: { getActive: () => null, subscribe: () => () => {} },
+		externalContent: { dispatch: async () => {} },
+		shapes: {},
+		commands: {},
+	} as unknown as AppInstance;
+}
+
+describe("Canvas overflow", () => {
+	let el: HTMLDivElement;
+	let root: Root;
+
+	beforeEach(() => {
+		vi.stubGlobal(
+			"ResizeObserver",
+			class {
+				observe() {}
+				disconnect() {}
+			},
+		);
+		el = document.createElement("div");
+		document.body.appendChild(el);
+		root = createRoot(el);
+	});
+
+	afterEach(() => {
+		act(() => root.unmount());
+		el.remove();
+		vi.unstubAllGlobals();
+	});
+
+	// `hidden` boxes can still be scrolled by the browser (e.g. focusing a textarea
+	// near the edge), which shifts the drawing away from hit-testing. `clip` can't.
+	it("clips (not hides) the container and layer frames so focus can't scroll them", () => {
+		act(() =>
+			root.render(
+				<AppProvider app={stubApp()}>
+					<Canvas />
+				</AppProvider>,
+			),
+		);
+
+		const container = el.querySelector<HTMLDivElement>("[data-testid='canvas-container']");
+		const layer = el.querySelector<HTMLDivElement>("[data-layer-id='shapes']");
+		expect(container?.style.overflow).toBe("clip");
+		expect(layer?.style.overflow).toBe("clip");
+	});
+});
