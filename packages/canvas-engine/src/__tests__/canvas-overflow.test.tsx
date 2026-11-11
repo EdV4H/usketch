@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-import type { AppInstance } from "@edv4h/usketch-core";
-import type { Layer } from "@edv4h/usketch-shared";
+// (No type-only import may come first: tsc drops it, and this pragma with it, from
+// the dist build CI runs.)
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Canvas } from "../components/canvas.js";
 import { AppProvider } from "../context.js";
+
+type AppInstance = Parameters<typeof AppProvider>[0]["app"];
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -16,7 +18,7 @@ function stubApp(): AppInstance {
 	const shapes = new Map();
 	const selection = new Set<string>();
 	const sorted: never[] = [];
-	const layers: Layer[] = [{ id: "shapes", zIndex: 0, render: () => null } as unknown as Layer];
+	const layers = [{ id: "shapes", zIndex: 0, render: () => null }];
 	return {
 		store: {
 			subscribe: () => () => {},
