@@ -26,24 +26,29 @@ import { CharacterLayer, type CharacterView3d } from "./character-layer.js";
 import {
 	blockingHeight,
 	DEFAULT_JUMP,
+	groundAttitude,
 	groundSlope,
 	type HeightAt,
 	holdDriftForHop,
 	IDLE_JUMP,
+	IDLE_TILT_LATCH,
 	type JumpTimers,
 	pushInAir,
 	type SolidAt,
 	SWEEP_STEP,
 	slideOnSteep,
 	standingHeight,
+	stepAirTilt,
 	stepCharacter,
 	stepVertical,
 	sweepToGround,
+	type TiltLatch,
 } from "./character-physics.js";
 import {
 	type CharacterStore,
 	cameraHeightMarginOf,
 	driftHopHeight,
+	effectiveAirTilt,
 	effectiveJump,
 } from "./character-store.js";
 import {
@@ -144,6 +149,7 @@ export function setupCharacterRuntime(
 		() => store.getState().jump !== null,
 	);
 	let jumpTimers: JumpTimers = IDLE_JUMP;
+	let tiltLatch: TiltLatch = IDLE_TILT_LATCH;
 	// `jump()` from code: a press on the next frame, held until the apex (a full jump).
 	let pendingJump = false;
 	let holdJump = false;
@@ -213,6 +219,7 @@ export function setupCharacterRuntime(
 		const a = anchorPoint();
 		store.setPosition(screenToWorld(a.x, a.y, vp));
 		jumpTimers = IDLE_JUMP;
+		tiltLatch = IDLE_TILT_LATCH;
 		cam = null;
 	};
 
@@ -295,7 +302,19 @@ export function setupCharacterRuntime(
 				groundSlope(heightAt, moved.x, moved.y),
 			);
 			jumpTimers = vertical.timers;
-			const pose = vertical.pose;
+			// The car's attitude: tilted by the keys in the air, judged at touchdown, settled
+			// onto the ground's lean on it.
+			const tilted = stepAirTilt(
+				s.pose,
+				vertical.pose,
+				tiltLatch,
+				input,
+				dt,
+				effectiveAirTilt(s),
+				(x, y, heading) => groundAttitude(groundSlope(heightAt, x, y), heading),
+			);
+			tiltLatch = tilted.latch;
+			const pose = tilted.pose;
 			if (holdJump && (!pose.airborne || pose.vz <= 0)) holdJump = false;
 			store.setPose(pose);
 			s = store.getState();
@@ -467,6 +486,8 @@ function sameRemotes(
 			o.airborne !== r.airborne ||
 			o.hovering !== r.hovering ||
 			o.hoverGauge !== r.hoverGauge ||
+			o.attitude?.pitch !== r.attitude?.pitch ||
+			o.attitude?.roll !== r.attitude?.roll ||
 			o.name !== r.name ||
 			o.appearance !== r.appearance
 		) {

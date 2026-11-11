@@ -3,6 +3,7 @@
 import { defineService, type Point, type ServiceRegistry } from "@edv4h/usketch-shared";
 import type { CameraMode } from "./character-camera.js";
 import type {
+	AirTiltParams,
 	CharacterPose,
 	ControlScheme,
 	DriftParams,
@@ -49,6 +50,13 @@ export interface CharacterApi {
 	setJump(jump: boolean | JumpInit): void;
 	/** Jump now, as if the jump key were pressed and held (no-op while off or disabled). */
 	jump(): void;
+	/** Vehicle air tilt tuning, or `null` when air tilt is off. */
+	getAirTilt(): AirTiltParams | null;
+	/**
+	 * Vehicle: tilt the body with the keys in the air and judge the landing. `true` = on
+	 * (current or default tuning), `false` = off, an object = tuning overrides.
+	 */
+	setAirTilt(airTilt: boolean | Partial<AirTiltParams>): void;
 	/** Screen anchor as canvas fractions (0..1). */
 	getAnchor(): Point;
 	setAnchor(anchor: Partial<Point>): void;
@@ -114,6 +122,8 @@ export function createCharacterApi(store: CharacterStore, runtime: CharacterRunt
 		getJump: () => store.getState().jump,
 		setJump: (jump) => store.setJump(jump),
 		jump: () => runtime.jump(),
+		getAirTilt: () => store.getState().airTilt,
+		setAirTilt: (airTilt) => store.setAirTilt(airTilt),
 		getAnchor: () => store.getState().anchor,
 		setAnchor: (anchor) => store.setAnchor(anchor),
 		getFollowSmoothing: () => store.getState().followSmoothing,

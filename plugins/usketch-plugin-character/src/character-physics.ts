@@ -88,6 +88,15 @@ export interface CharacterPose {
 	 * Stays 1 while hovering is off.
 	 */
 	hoverGauge: number;
+	/**
+	 * Vehicle with air tilt on (see {@link AirTiltParams}): the body's attitude against
+	 * level, degrees, in its own frame — `pitch` positive = nose up, `roll` positive =
+	 * right side down. On the ground it follows the ground's lean (see
+	 * {@link groundAttitude}); in the air the keys turn it, all the way round if held.
+	 * Both 0 otherwise.
+	 */
+	pitch: number;
+	roll: number;
 }
 
 /** A pose at rest at the origin, facing up. */
@@ -109,6 +118,8 @@ export const ORIGIN_POSE: CharacterPose = {
 	airborne: false,
 	hovering: false,
 	hoverGauge: 1,
+	pitch: 0,
+	roll: 0,
 };
 
 export interface MotionParams {
@@ -318,6 +329,8 @@ export function stepCharacter(
 			airborne: pose.airborne,
 			hovering: pose.hovering,
 			hoverGauge: pose.hoverGauge,
+			pitch: pose.pitch,
+			roll: pose.roll,
 		};
 	}
 
@@ -375,6 +388,8 @@ export function stepCharacter(
 		airborne: pose.airborne,
 		hovering: pose.hovering,
 		hoverGauge: pose.hoverGauge,
+		pitch: pose.pitch,
+		roll: pose.roll,
 	};
 }
 
@@ -924,4 +939,168 @@ function nextSlip(
 		drift * (driftParams.slipAngle + Math.max(0, steering * drift) * driftParams.steerSlipAngle);
 	const next = slip + (target - slip) * (1 - Math.exp(-driftParams.recoveryRate * dt));
 	return Math.abs(next - target) < 0.001 ? target : next;
+}
+
+/**
+ * Vehicle air tilt ("空中姿勢"): in the air the throttle keys pitch the body (forward =
+ * nose down, back = nose up) and the steering keys roll it (right = right side down),
+ * all the way round while held, so a car can flip. Keys already held at take-off only
+ * tilt once released and pressed again (see {@link TiltLatch}), so holding the throttle
+ * through a jump doesn't nose-dive it. The touchdown is judged by how far the body's up
+ * is from the ground's normal there ({@link attitudeError}): within `landingTolerance`
+ * it lands clean, beyond it keeps only `badLandingSpeed` of its speed. On the ground the
+ * body settles onto the ground's lean at `settleRate`.
+ */
+export interface AirTiltParams {
+	/** Pitch rate, degrees / s. */
+	pitchRate: number;
+	/** Roll rate, degrees / s. */
+	rollRate: number;
+	/** Largest angle between the body's up and the ground's normal that lands clean, degrees. */
+	landingTolerance: number;
+	/** Fraction of its speed a bad landing keeps, 0 (stops dead) … 1 (no penalty). */
+	badLandingSpeed: number;
+	/** How fast the body settles onto the ground's lean, 1/s (exponential). */
+	settleRate: number;
+}
+
+export const DEFAULT_AIR_TILT: AirTiltParams = {
+	pitchRate: 540,
+	rollRate: 540,
+	landingTolerance: 30,
+	badLandingSpeed: 0.5,
+	settleRate: 14,
+};
+
+/** A body attitude, degrees, in its own frame: `pitch` + = nose up, `roll` + = right side down. */
+export interface Attitude {
+	pitch: number;
+	roll: number;
+}
+
+export const LEVEL: Attitude = { pitch: 0, roll: 0 };
+
+const RAD = Math.PI / 180;
+
+/**
+ * The body's up for an attitude, in its own frame (x = right, y = back, z = up): pitched
+ * about its right axis, then rolled about its length — the same as CSS
+ * `rotateX(-pitch) rotateY(roll)` on a top-down sprite whose front is screen-up. Pure.
+ */
+export function attitudeUp(a: Attitude): { x: number; y: number; z: number } {
+	const p = a.pitch * RAD;
+	const r = a.roll * RAD;
+	return { x: Math.sin(r), y: Math.sin(p) * Math.cos(r), z: Math.cos(p) * Math.cos(r) };
+}
+
+/**
+ * The attitude that lies a body heading `heading` flat on ground with gradient `slope`
+ * (rise per world unit along x / y): ground rising ahead pitches it nose up, ground
+ * rising to its right rolls it left. Level on flat ground. Pure.
+ */
+export function groundAttitude(slope: { x: number; y: number }, heading: number): Attitude {
+	const len = Math.hypot(slope.x, slope.y, 1);
+	if (!Number.isFinite(len)) return LEVEL;
+	const h = heading * RAD;
+	const sin = Math.sin(h);
+	const cos = Math.cos(h);
+	// The ground's normal (-gx, -gy, 1) / len in the body's frame (see `attitudeUp`).
+	const x = (-slope.x * cos - slope.y * sin) / len;
+	const y = (slope.x * sin - slope.y * cos) / len;
+	const z = 1 / len;
+	// (`+ 0` turns a -0 from flat ground into 0.)
+	return {
+		pitch: Math.atan2(y, z) / RAD + 0,
+		roll: Math.asin(Math.max(-1, Math.min(1, x))) / RAD + 0,
+	};
+}
+
+/** Angle between two attitudes' up directions, degrees (0 … 180). Pure. */
+export function attitudeError(a: Attitude, b: Attitude): number {
+	const u = attitudeUp(a);
+	const v = attitudeUp(b);
+	const dot = Math.max(-1, Math.min(1, u.x * v.x + u.y * v.y + u.z * v.z));
+	return Math.acos(dot) / RAD;
+}
+
+/**
+ * Which tilt axes take input in the air: an axis whose keys were held at take-off is
+ * "unarmed" until they are released. Reset on the ground.
+ */
+export interface TiltLatch {
+	pitch: boolean;
+	roll: boolean;
+}
+
+export const IDLE_TILT_LATCH: TiltLatch = { pitch: false, roll: false };
+
+/** Ease the angle `from` toward `to` the short way round by `alpha` (0 … 1). */
+function settleAngle(from: number, to: number, alpha: number): number {
+	const d = shortestAngleDelta(from, to);
+	return Math.abs(d) < 0.01 ? to : wrapDeg(from + d * alpha);
+}
+
+/**
+ * The air tilt for a step that went from `prev` to `next` (after the vertical step), with
+ * `groundAt` the attitude that lies the body on the ground at a point. Without `tilt`
+ * the attitude stays level.
+ *
+ * - In the air (the take-off step included, which starts from the lean it had on the
+ *   ground): the armed axes turn at their rates (see {@link AirTiltParams}).
+ * - At touchdown: a body more than `landingTolerance` off the ground's normal keeps only
+ *   `badLandingSpeed` of its speed (and drops a running drift).
+ * - On the ground: the body settles onto `groundAt` (also right after a touchdown, so a
+ *   rough landing visibly slams down). Pure.
+ */
+export function stepAirTilt(
+	prev: CharacterPose,
+	next: CharacterPose,
+	latch: TiltLatch,
+	input: MoveInput,
+	dt: number,
+	tilt: AirTiltParams | null,
+	groundAt: (x: number, y: number, heading: number) => Attitude,
+): { pose: CharacterPose; latch: TiltLatch } {
+	if (!tilt) {
+		const pose = next.pitch === 0 && next.roll === 0 ? next : { ...next, pitch: 0, roll: 0 };
+		return { pose, latch: IDLE_TILT_LATCH };
+	}
+	if (dt <= 0) return { pose: next, latch };
+	const throttle = inputThrottle(input);
+	const steer = inputSteer(input);
+	if (next.airborne) {
+		// Taking off starts unarmed; an axis arms once its keys are let go.
+		const from = prev.airborne ? latch : IDLE_TILT_LATCH;
+		const armed: TiltLatch = {
+			pitch: from.pitch || throttle === 0,
+			roll: from.roll || steer === 0,
+		};
+		const pitch = armed.pitch ? wrapDeg(next.pitch - throttle * tilt.pitchRate * dt) : next.pitch;
+		const roll = armed.roll ? wrapDeg(next.roll + steer * tilt.rollRate * dt) : next.roll;
+		const nextLatch = armed.pitch === latch.pitch && armed.roll === latch.roll ? latch : armed;
+		const pose = pitch === next.pitch && roll === next.roll ? next : { ...next, pitch, roll };
+		return { pose, latch: nextLatch };
+	}
+	const ground = groundAt(next.x, next.y, next.heading);
+	let landed = next;
+	if (prev.airborne && attitudeError(next, ground) > tilt.landingTolerance) {
+		const k = Math.max(
+			0,
+			Math.min(1, Number.isFinite(tilt.badLandingSpeed) ? tilt.badLandingSpeed : 1),
+		);
+		const speed = next.speed * k;
+		landed = {
+			...next,
+			speed,
+			moving: speed !== 0,
+			moveVx: next.moveVx * k,
+			moveVy: next.moveVy * k,
+			drift: 0,
+		};
+	}
+	const alpha = 1 - Math.exp(-Math.max(0, tilt.settleRate) * dt);
+	const pitch = settleAngle(landed.pitch, ground.pitch, alpha);
+	const roll = settleAngle(landed.roll, ground.roll, alpha);
+	const pose = pitch === landed.pitch && roll === landed.roll ? landed : { ...landed, pitch, roll };
+	return { pose, latch: IDLE_TILT_LATCH };
 }

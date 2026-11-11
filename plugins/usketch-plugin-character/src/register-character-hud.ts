@@ -3,7 +3,12 @@
 import type { PluginContext } from "@edv4h/usketch-shared";
 import type { CameraMode } from "./character-camera.js";
 import { KEY_CHOICES, keyChoiceOf, withKeyChoice } from "./character-key-choices.js";
-import { type ControlScheme, DEFAULT_HOVER, DEFAULT_JUMP } from "./character-physics.js";
+import {
+	type ControlScheme,
+	DEFAULT_AIR_TILT,
+	DEFAULT_HOVER,
+	DEFAULT_JUMP,
+} from "./character-physics.js";
 import type { CharacterApi } from "./character-service.js";
 import type { CharacterSizeScale } from "./character-size.js";
 
@@ -62,6 +67,31 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				min: 0,
 				max: 1,
 				step: 0.05,
+			},
+			{ name: "airTilt", label: "空中姿勢（車、W/S で前後・A/D で左右に傾ける）", type: "boolean" },
+			{
+				name: "airTiltRate",
+				label: "空中で傾ける速さ(°/秒)",
+				type: "number",
+				min: 90,
+				max: 1440,
+				step: 30,
+			},
+			{
+				name: "landingTolerance",
+				label: "着地の許容角度(°)",
+				type: "number",
+				min: 5,
+				max: 90,
+				step: 5,
+			},
+			{
+				name: "badLandingSpeed",
+				label: "着地失敗で残る速度（0〜1）",
+				type: "number",
+				min: 0,
+				max: 1,
+				step: 0.1,
 			},
 			{ name: "hover", label: "ホバー", type: "boolean" },
 			{
@@ -148,6 +178,14 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return (api.getJump() ?? DEFAULT_JUMP).slopeRatio;
 				case "airControl":
 					return (api.getJump() ?? DEFAULT_JUMP).airControl;
+				case "airTilt":
+					return api.getAirTilt() !== null;
+				case "airTiltRate":
+					return (api.getAirTilt() ?? DEFAULT_AIR_TILT).pitchRate;
+				case "landingTolerance":
+					return (api.getAirTilt() ?? DEFAULT_AIR_TILT).landingTolerance;
+				case "badLandingSpeed":
+					return (api.getAirTilt() ?? DEFAULT_AIR_TILT).badLandingSpeed;
 				case "hover":
 					return (api.getJump()?.hover ?? null) !== null;
 				case "hoverDuration":
@@ -207,6 +245,9 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				case "jump":
 					api.setJump(truthy(value));
 					return;
+				case "airTilt":
+					api.setAirTilt(truthy(value));
+					return;
 				case "hover":
 					// Like the other jump tuning: only while jumping is on.
 					if (api.getJump()) api.setJump({ hover: truthy(value) });
@@ -246,6 +287,16 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					break;
 				case "airControl":
 					if (api.getJump()) api.setJump({ airControl: n });
+					break;
+				case "airTiltRate":
+					// Like the other tuning: only while air tilt is on. One rate for both axes.
+					if (api.getAirTilt()) api.setAirTilt({ pitchRate: n, rollRate: n });
+					break;
+				case "landingTolerance":
+					if (api.getAirTilt()) api.setAirTilt({ landingTolerance: n });
+					break;
+				case "badLandingSpeed":
+					if (api.getAirTilt()) api.setAirTilt({ badLandingSpeed: n });
 					break;
 				case "hoverDuration":
 					if (api.getJump()?.hover) api.setJump({ hover: { duration: n } });

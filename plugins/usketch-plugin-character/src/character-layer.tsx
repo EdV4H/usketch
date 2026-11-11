@@ -7,9 +7,15 @@
 // height — under a 3D view (Mode 7) a jump lifts the body off its shadow.
 import { type Viewport, viewportRotation, worldToScreen, wrapDeg } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
-import { groundSlope, type HeightAt } from "./character-physics.js";
+import {
+	type Attitude,
+	groundAttitude,
+	groundSlope,
+	type HeightAt,
+	LEVEL,
+} from "./character-physics.js";
 import { characterSizePx } from "./character-size.js";
-import { type CharacterStore, hoverGaugeOf } from "./character-store.js";
+import { type CharacterStore, effectiveAirTilt, hoverGaugeOf } from "./character-store.js";
 import type { CharacterRenderer, CharacterRenderProps } from "./character-types.js";
 
 /** Screen px a shadow floats above its ground, so it doesn't z-fight a raised terrain top. */
@@ -75,6 +81,20 @@ export const AIR_LEAN_FADE = 8;
 export function bodyLeanFactor(altitude: number, airborne: boolean): number {
 	if (!airborne || !(altitude > 0)) return 1;
 	return Math.max(0, 1 - altitude / AIR_LEAN_FADE);
+}
+
+/**
+ * The tilt a renderer adds on top of the spot's ground lean (see `CharacterRenderProps.pitch`):
+ * the body's `attitude` against level, less the share `k` of the ground's own lean
+ * (`ground`) that the spot already carries (`bodyLeanFactor`). Level with air tilt off
+ * (`attitude` `null`). Pure.
+ */
+export function residualTilt(attitude: Attitude | null, ground: Attitude, k: number): Attitude {
+	if (!attitude) return LEVEL;
+	return {
+		pitch: wrapDeg(attitude.pitch - k * ground.pitch),
+		roll: wrapDeg(attitude.roll - k * ground.roll),
+	};
 }
 
 function Spot({
@@ -180,6 +200,19 @@ export function CharacterLayer({
 		const k = bodyLeanFactor(altitude, airborne);
 		return { tilt, bodyTilt: k >= 1 ? tilt : tiltAt(x, y, k) };
 	};
+	// The air tilt left for the renderer (see `residualTilt`).
+	const tiltOf = (
+		attitude: Attitude | null,
+		x: number,
+		y: number,
+		heading: number,
+		altitude: number,
+		airborne: boolean,
+	): Attitude => {
+		if (!attitude) return LEVEL;
+		const ground = heightAt ? groundAttitude(groundSlope(heightAt, x, y), heading) : LEVEL;
+		return residualTilt(attitude, ground, bodyLeanFactor(altitude, airborne));
+	};
 	for (const r of state.remotes.values()) {
 		const elevation = heightAt?.(r.x, r.y) ?? 0;
 		const z = Math.max(elevation, r.z ?? elevation);
@@ -197,6 +230,7 @@ export function CharacterLayer({
 				steering: r.steering,
 				slip: r.slip,
 				drifting: r.drifting,
+				...tiltOf(r.attitude, r.x, r.y, r.heading, z - elevation, r.airborne),
 				zoom: viewport.zoom,
 				size,
 				appearance: r.appearance,
@@ -231,6 +265,14 @@ export function CharacterLayer({
 				steering: pose.steering,
 				slip: pose.slip,
 				drifting: pose.drift !== 0,
+				...tiltOf(
+					effectiveAirTilt(state) ? { pitch: pose.pitch, roll: pose.roll } : null,
+					pose.x,
+					pose.y,
+					pose.heading,
+					z - elevation,
+					pose.airborne,
+				),
 				zoom: viewport.zoom,
 				size,
 				appearance: state.appearance,

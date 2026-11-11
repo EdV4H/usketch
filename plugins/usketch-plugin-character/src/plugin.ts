@@ -5,7 +5,12 @@
 // awareness. The plugin draws NOTHING itself — pass `renderCharacter` for the look.
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import type { CameraMode } from "./character-camera.js";
-import type { ControlScheme, DriftParams, MotionParams } from "./character-physics.js";
+import type {
+	AirTiltParams,
+	ControlScheme,
+	DriftParams,
+	MotionParams,
+} from "./character-physics.js";
 import { setupCharacterRuntime } from "./character-runtime.js";
 import { characterService, createCharacterApi } from "./character-service.js";
 import type { CharacterSize } from "./character-size.js";
@@ -54,6 +59,12 @@ export interface CharacterPluginOptions {
 	 * true` / a partial to hover while the key is held in a fall). Default off.
 	 */
 	jump?: boolean | JumpInit;
+	/**
+	 * Vehicle: in the air the throttle keys pitch the body and the steering keys roll it
+	 * (all the way round while held), and a landing too far off the ground's lean loses
+	 * speed. `true` = default tuning, an object = overrides. Default off.
+	 */
+	airTilt?: boolean | Partial<AirTiltParams>;
 	/** Where the character sits on screen, as canvas fractions (default center). */
 	screenAnchor?: { x?: number; y?: number };
 	/** Follow-camera lag: 0 = rigid (default) … 0.99 = heavy. */
@@ -84,6 +95,7 @@ export function createCharacterPlugin(options: CharacterPluginOptions = {}): Usk
 				motion: options.motion,
 				drift: options.drift,
 				jump: options.jump,
+				airTilt: options.airTilt,
 				anchor: options.screenAnchor,
 				followSmoothing: options.followSmoothing,
 				cameraHeightMargin: options.cameraHeightMargin,

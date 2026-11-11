@@ -4,8 +4,10 @@
 import { type Point, wrapDeg } from "@edv4h/usketch-shared";
 import { type CameraMode, defaultCameraHeightMargin } from "./character-camera.js";
 import {
+	type AirTiltParams,
 	type CharacterPose,
 	type ControlScheme,
+	DEFAULT_AIR_TILT,
 	DEFAULT_DRIFT,
 	DEFAULT_HOVER,
 	DEFAULT_JUMP,
@@ -31,6 +33,8 @@ export interface CharacterState {
 	drift: DriftParams | null;
 	/** Jump tuning, or `null` when jumping is off. */
 	jump: JumpParams | null;
+	/** Vehicle air tilt tuning, or `null` when air tilt is off. */
+	airTilt: AirTiltParams | null;
 	/** Screen anchor as fractions of the canvas (0..1). */
 	anchor: Point;
 	/** 0 = rigid follow … 0.99 = heavy lag. */
@@ -58,6 +62,7 @@ export interface CharacterStoreInit {
 	motion?: Partial<MotionParams>;
 	drift?: boolean | Partial<DriftParams>;
 	jump?: boolean | JumpInit;
+	airTilt?: boolean | Partial<AirTiltParams>;
 	anchor?: Partial<Point>;
 	followSmoothing?: number;
 	cameraHeightMargin?: number | null;
@@ -68,8 +73,16 @@ export interface CharacterStoreInit {
 	shadowRenderer?: CharacterRenderer;
 }
 
-/** Stopped, wheels straight, no drift (scheme switches). */
-const AT_REST = { speed: 0, moving: false, steering: 0, slip: 0, drift: 0 } as const;
+/** Stopped, wheels straight, no drift, body level (scheme switches). */
+const AT_REST = {
+	speed: 0,
+	moving: false,
+	steering: 0,
+	slip: 0,
+	drift: 0,
+	pitch: 0,
+	roll: 0,
+} as const;
 /** At rest and grounded: a teleport lands on whatever ground is there (`z` snaps up to it). */
 const LANDED = {
 	...AT_REST,
@@ -187,6 +200,30 @@ export function sanitizeJump(
 	};
 }
 
+/** `true` = defaults, `false` / omitted = off, an object = defaults overridden. */
+export function sanitizeAirTilt(
+	t: boolean | Partial<AirTiltParams> | undefined,
+	base: AirTiltParams = DEFAULT_AIR_TILT,
+): AirTiltParams | null {
+	if (!t) return null;
+	if (t === true) return base;
+	return {
+		pitchRate: nonNegative(finite(t.pitchRate, base.pitchRate), base.pitchRate),
+		rollRate: nonNegative(finite(t.rollRate, base.rollRate), base.rollRate),
+		landingTolerance: Math.min(
+			180,
+			nonNegative(finite(t.landingTolerance, base.landingTolerance), base.landingTolerance),
+		),
+		badLandingSpeed: clamp01(finite(t.badLandingSpeed, base.badLandingSpeed)),
+		settleRate: positive(finite(t.settleRate, base.settleRate), base.settleRate),
+	};
+}
+
+/** The air tilt in effect: only the vehicle scheme tilts. */
+export function effectiveAirTilt(state: CharacterState): AirTiltParams | null {
+	return state.controlScheme === "vehicle" ? state.airTilt : null;
+}
+
 /** The jump tuning in effect (the same for both control schemes). */
 export function effectiveJump(state: CharacterState): JumpParams | null {
 	return state.jump;
@@ -225,6 +262,7 @@ export function createCharacterStore(init: CharacterStoreInit = {}) {
 		motion: sanitizeMotion(init.motion ?? {}, DEFAULT_MOTION),
 		drift: sanitizeDrift(init.drift),
 		jump: sanitizeJump(init.jump),
+		airTilt: sanitizeAirTilt(init.airTilt),
 		anchor: { x: clamp01(init.anchor?.x ?? 0.5), y: clamp01(init.anchor?.y ?? 0.5) },
 		followSmoothing: Math.min(0.99, Math.max(0, init.followSmoothing ?? 0)),
 		cameraHeightMargin: sanitizeMargin(init.cameraHeightMargin),
@@ -240,6 +278,7 @@ export function createCharacterStore(init: CharacterStoreInit = {}) {
 	let driftTuning: DriftParams = state.drift ?? DEFAULT_DRIFT;
 	let jumpTuning: JumpParams = state.jump ?? DEFAULT_JUMP;
 	let hoverTuning: HoverParams = state.jump?.hover ?? DEFAULT_HOVER;
+	let airTiltTuning: AirTiltParams = state.airTilt ?? DEFAULT_AIR_TILT;
 	const listeners = new Set<() => void>();
 
 	const set = (patch: Partial<CharacterState>): void => {
@@ -301,6 +340,12 @@ export function createCharacterStore(init: CharacterStoreInit = {}) {
 			if (jump) jumpTuning = jump;
 			if (jump?.hover) hoverTuning = jump.hover;
 			set({ jump });
+		},
+		/** `true` = on (current or default tuning), `false` = off, an object = tuning overrides. */
+		setAirTilt(t: boolean | Partial<AirTiltParams>): void {
+			const airTilt = sanitizeAirTilt(t, airTiltTuning);
+			if (airTilt) airTiltTuning = airTilt;
+			set({ airTilt });
 		},
 		setAnchor(a: Partial<Point>): void {
 			set({

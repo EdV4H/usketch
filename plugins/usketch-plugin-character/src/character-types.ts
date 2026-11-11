@@ -1,7 +1,7 @@
 // Public types. The plugin owns NO visuals: it computes where each character is
 // and which way it faces, then hands those props to a host-supplied renderer.
 import type { ReactNode } from "react";
-import type { ControlScheme } from "./character-physics.js";
+import type { Attitude, ControlScheme } from "./character-physics.js";
 
 /** JSON-serializable look data, broadcast so other clients can draw you the same way. */
 export type CharacterAppearance = Record<string, unknown>;
@@ -34,6 +34,16 @@ export interface CharacterRenderProps {
 	slip: number;
 	/** Vehicle: whether a drift is running (e.g. to lay tire marks). */
 	drifting: boolean;
+	/**
+	 * Vehicle air tilt: the body's pitch (+ = nose up) and roll (+ = right side down),
+	 * degrees, to apply in the body's own frame — after turning it by `screenHeading` —
+	 * ON TOP of the ground's lean the plugin already gives the spot (e.g.
+	 * `rotateX(${-pitch}deg) rotateY(${roll}deg)` about the body's middle). In the air it
+	 * is the whole tilt the keys gave; on the ground only what is left to settle. 0 while
+	 * air tilt is off.
+	 */
+	pitch: number;
+	roll: number;
 	/** Current viewport zoom (scale the sprite with the world, or not). */
 	zoom: number;
 	/**
@@ -93,6 +103,8 @@ export interface RemoteCharacter {
 	hovering: boolean;
 	/** Hover gauge 0 … 1, or `null` with hovering off / from older clients. */
 	hoverGauge: number | null;
+	/** The body's attitude against level (air tilt), or `null` with it off / from older clients. */
+	attitude: Attitude | null;
 	appearance: CharacterAppearance;
 	name?: string;
 }

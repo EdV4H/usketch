@@ -96,6 +96,20 @@ createCharacterPlugin({
   `airControl` × the ground's, its travel turning with it; a running drift carries on. 0
   = ballistic (the take-off velocity carries the jump, a car can't steer), 1 = as on the
   ground. Falls with jumping off use the default.
+- **Air tilt** (vehicle, opt-in via `airTilt`, HUD "空中姿勢"): in the air the throttle
+  keys pitch the body (W = nose down, S = nose up) and the steering keys roll it (D =
+  right side down), at `pitchRate` / `rollRate` (540°/s), all the way round while held —
+  a flip. Keys already held at take-off only tilt once released and pressed again, so
+  holding the throttle through a jump doesn't nose-dive. The steering still yaws by the
+  air control too (set it to 0 to roll only). A jump leaves with the lean it had on the
+  ground (off a ramp: nose up). At touchdown the body's up is compared with the
+  ground's normal there (`attitudeError`): within `landingTolerance` (30°) it lands
+  clean, beyond it keeps only `badLandingSpeed` (0.5) of its speed and drops a drift; a
+  full flip lands clean. On the ground the body settles onto the ground's lean at
+  `settleRate` (14/s). The pose carries `pitch` / `roll` (against level); the render
+  props carry the part the renderer must add on top of the spot's ground lean (apply
+  `rotateX(-pitch) rotateY(roll)` in the body's frame, about its middle). Broadcast as
+  `attitude`.
 - **Keys**: the jump (Space) and the drift (Shift) have their own keys. The HUD offers
   a few keys for each (`KEY_CHOICES`: Space, Shift, Z, X, C, J, K, L); `setKeys` takes
   any `KeyboardEvent.code`s and `getKeys` returns the bindings.
@@ -191,7 +205,7 @@ createCharacterPlugin({
 ## HUD
 
 A "キャラクター" settings group (on/off, camera, scheme, drift, drift key, drift hop, jump, jump key, jump height, air
-jumps, jump direction on slopes, air control, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, size and its scale, screen position, camera lag) plus actions to toggle the
+jumps, jump direction on slopes, air control, air tilt and its rate, landing tolerance, speed kept on a bad landing, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, size and its scale, screen position, camera lag) plus actions to toggle the
 character, to place it at the screen position, and to jump.
 
 ## Service
@@ -207,10 +221,11 @@ api?.setDrift({ slipAngle: 35, hop: true }); // true / false / tuning overrides
 api?.setJump({ height: 60 });     // true / false / tuning overrides
 api?.setJump({ airJumps: 1, hover: { duration: 2 } }); // double jump + hover (hover: true / false / partial)
 api?.jump();
+api?.setAirTilt({ landingTolerance: 45 }); // vehicle air tilt: true / false / tuning overrides
 api?.setKeys({ ...api.getKeys(), drift: ["KeyX"] }); // KeyboardEvent.code values
 api?.setShadowRenderer(myShadow);
 api?.setSize({ scale: "world", value: 24, minPx: 20 }); // scale with the ground (render props `size`)
-api?.getPose(); // { x, y, heading, speed, moving, steering, slip, drift, z, vz, airborne, hovering, hoverGauge }
+api?.getPose(); // { x, y, heading, speed, moving, steering, slip, drift, z, vz, airborne, hovering, hoverGauge, pitch, roll, … }
 api?.setVirtualInput({ throttle: 0.8, steer: -0.3 }); // touch stick; null on release
 api?.setVirtualInput({ throttle: 0.8, steer: 0, jump: true }); // + jump button held
 ```

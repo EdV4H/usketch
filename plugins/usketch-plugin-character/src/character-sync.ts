@@ -4,8 +4,8 @@
 // disconnects — which is exactly the "coexisting live characters" semantics.
 // Typed structurally so the plugin doesn't depend on @edv4h/usketch-sync.
 import { wrapDeg } from "@edv4h/usketch-shared";
-import type { ControlScheme } from "./character-physics.js";
-import { type CharacterStore, hoverGaugeOf } from "./character-store.js";
+import type { Attitude, ControlScheme } from "./character-physics.js";
+import { type CharacterStore, effectiveAirTilt, hoverGaugeOf } from "./character-store.js";
 import type { CharacterAppearance, RemoteCharacter } from "./character-types.js";
 
 /** The slice of a y-protocols `Awareness` this plugin uses. */
@@ -44,6 +44,8 @@ export interface CharacterWireState {
 	hovering?: boolean;
 	/** Hover gauge 0 … 1, `null` with hovering off (absent → null). */
 	hoverGauge?: number | null;
+	/** Air tilt attitude, degrees; `null` with air tilt off (absent → null). */
+	attitude?: Attitude | null;
 	appearance: CharacterAppearance;
 	name?: string;
 }
@@ -54,6 +56,20 @@ const WIRE_GAUGE_STEP = 0.05;
 /** The largest slip accepted from the wire, degrees. */
 const MAX_WIRE_SLIP = 90;
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+/** An attitude off the wire: two finite angles (wrapped), else `null`. */
+function parseAttitude(v: unknown): Attitude | null {
+	if (!v || typeof v !== "object") return null;
+	const { pitch, roll } = v as Record<string, unknown>;
+	if (typeof pitch !== "number" || !Number.isFinite(pitch)) return null;
+	if (typeof roll !== "number" || !Number.isFinite(roll)) return null;
+	return { pitch: wrapDeg(pitch), roll: wrapDeg(roll) };
+}
+
+/** Steps (degrees) the attitude is published in, so a settling body doesn't publish every frame. */
+const WIRE_ATTITUDE_STEP = 0.5;
+const wireAngle = (deg: number) =>
+	wrapDeg(Math.round(deg / WIRE_ATTITUDE_STEP) * WIRE_ATTITUDE_STEP);
 
 /** Validate an untrusted awareness payload (other clients can send anything). */
 export function parseWireState(v: unknown): Omit<RemoteCharacter, "id"> | null {
@@ -84,6 +100,7 @@ export function parseWireState(v: unknown): Omit<RemoteCharacter, "id"> | null {
 		vz: num("vz") ?? 0,
 		hovering: o.hovering === true,
 		hoverGauge: ((g) => (g === null ? null : clamp(g, 0, 1)))(num("hoverGauge")),
+		attitude: parseAttitude(o.attitude),
 		appearance,
 		name: typeof o.name === "string" ? o.name : undefined,
 	};
@@ -132,6 +149,9 @@ export function createCharacterSync(
 					vz: s.pose.vz,
 					hovering: s.pose.hovering,
 					hoverGauge: gauge === null ? null : Math.round(gauge / WIRE_GAUGE_STEP) * WIRE_GAUGE_STEP,
+					attitude: effectiveAirTilt(s)
+						? { pitch: wireAngle(s.pose.pitch), roll: wireAngle(s.pose.roll) }
+						: null,
 					appearance: s.appearance,
 					name: s.name,
 				}
@@ -194,12 +214,19 @@ export function easeRemotes(
 		// Height eases only between two known values (an older client sends none).
 		const known = typeof t.z === "number" && typeof d.z === "number";
 		const dz = known ? (t.z as number) - (d.z as number) : 0;
+		// The attitude eases only between two known ones (switching air tilt on/off snaps).
+		const ta = t.attitude;
+		const da = d.attitude;
+		const dp = ta && da ? wrapDeg(ta.pitch - da.pitch) : 0;
+		const dr = ta && da ? wrapDeg(ta.roll - da.roll) : 0;
 		if (
 			Math.abs(dx) < 0.05 &&
 			Math.abs(dy) < 0.05 &&
 			Math.abs(dh) < 0.05 &&
 			Math.abs(ds) < 0.05 &&
-			Math.abs(dz) < 0.05
+			Math.abs(dz) < 0.05 &&
+			Math.abs(dp) < 0.05 &&
+			Math.abs(dr) < 0.05
 		) {
 			next.set(id, t);
 			continue;
@@ -212,6 +239,10 @@ export function easeRemotes(
 			heading: wrapDeg(d.heading + dh * alpha),
 			slip: d.slip + ds * alpha,
 			z: known ? (d.z as number) + dz * alpha : t.z,
+			attitude:
+				ta && da
+					? { pitch: wrapDeg(da.pitch + dp * alpha), roll: wrapDeg(da.roll + dr * alpha) }
+					: ta,
 		});
 	}
 	return { next, settling };

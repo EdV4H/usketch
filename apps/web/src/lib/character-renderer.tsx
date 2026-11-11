@@ -232,6 +232,17 @@ function CarBox({ color, size }: { color: string; size: number }) {
 	);
 }
 
+/**
+ * The car's air tilt (`pitch` + = nose up, `roll` + = right side down, degrees) as CSS,
+ * turned about the box's middle (half its height `h` up) so a flip spins in place.
+ * `undefined` while level.
+ */
+export function carAttitudeTransform(pitch: number, roll: number, h: number): string | undefined {
+	if (pitch === 0 && roll === 0) return undefined;
+	const mid = h / 2;
+	return `translateZ(${mid}px) rotateX(${-pitch}deg) rotateY(${roll}deg) translateZ(${-mid}px)`;
+}
+
 /** Hover glow at the feet: a soft cyan ring with a few "wind" strokes. */
 function HoverGlow({ size }: { size: number }) {
 	return (
@@ -319,7 +330,17 @@ export function renderCharacter(props: CharacterRenderProps) {
 						transformStyle: "preserve-3d",
 					}}
 				>
-					<CarBox color={color} size={size} />
+					<div
+						data-car-attitude=""
+						style={{
+							position: "absolute",
+							inset: 0,
+							transform: carAttitudeTransform(props.pitch, props.roll, size * CAR_HEIGHT),
+							transformStyle: "preserve-3d",
+						}}
+					>
+						<CarBox color={color} size={size} />
+					</div>
 				</div>
 			) : (
 				<div style={{ transform: `rotate(${props.screenHeading}deg)`, width: size, height: size }}>
