@@ -1,67 +1,54 @@
 import type { ShortcutEntry, ShortcutMeta, ShortcutRegistry } from "@edv4h/usketch-shared";
+import { createKeymap, type KeymapInternal, type KeymapOwner, normalizeCombo } from "./keymap.js";
 
-function normalizeCombo(combo: string): string {
-	return (
-		combo
-			.toLowerCase()
-			.split("+")
-			.map((k) => k.trim())
-			// `mod` is the platform accelerator. eventToCombo maps Cmd/Ctrl → "ctrl",
-			// so aliasing mod → ctrl makes "Mod+Z" match Cmd+Z (mac) and Ctrl+Z (win).
-			.map((k) => (k === "mod" ? "ctrl" : k))
-			.sort()
-			.join("+")
-	);
-}
-
-function eventToCombo(event: KeyboardEvent): string {
-	const parts: string[] = [];
-	if (event.ctrlKey || event.metaKey) parts.push("ctrl");
-	if (event.shiftKey) parts.push("shift");
-	if (event.altKey) parts.push("alt");
-
-	const key = event.key.toLowerCase();
-	if (!["control", "meta", "shift", "alt"].includes(key)) {
-		parts.push(key);
-	}
-
-	return parts.sort().join("+");
-}
-
-interface Registration {
-	callback: () => void;
-	/** Original (un-normalized) combo, kept for {@link ShortcutRegistry.list}. */
-	combo: string;
-	meta?: ShortcutMeta;
-}
-
-export function createShortcutRegistry(): ShortcutRegistry {
-	const shortcuts = new Map<string, Registration>();
-
+/**
+ * The `ctx.shortcuts` API, as a thin layer over the {@link KeymapInternal keymap}: each
+ * `register` adds a `"press"` binding (id `<owner>:shortcut:<combo>` unless
+ * `meta.id` is given), so shortcuts take part in overlap detection and rebinding.
+ * Without a `keymap`, a private one is used (standalone / tests).
+ */
+export function createShortcutRegistry(
+	keymap: KeymapInternal = createKeymap(),
+	owner: KeymapOwner = {},
+	/** Ids registered through this API, shared across a keymap's scoped registries. */
+	shortcutIds: Set<string> = new Set(),
+): ShortcutRegistry {
 	return {
 		register(combo: string, callback: () => void, meta?: ShortcutMeta): () => void {
-			const normalized = normalizeCombo(combo);
-			shortcuts.set(normalized, { callback, combo, meta });
+			const id = meta?.id ?? `${owner.pluginId ?? "app"}:shortcut:${normalizeCombo(combo)}`;
+			const off = keymap.registerFor(owner, {
+				id,
+				keys: [combo],
+				kind: "press",
+				onPress: () => callback(),
+				...(meta?.label !== undefined ? { label: meta.label } : {}),
+				...(meta?.category !== undefined ? { category: meta.category } : {}),
+				...(meta?.when ? { when: meta.when } : {}),
+				...(meta?.priority !== undefined ? { priority: meta.priority } : {}),
+			});
+			shortcutIds.add(id);
 			return () => {
-				shortcuts.delete(normalized);
+				off();
+				if (!keymap.get(id)) shortcutIds.delete(id);
 			};
 		},
 
 		handleKeyDown(event: KeyboardEvent): boolean {
-			const registration = shortcuts.get(eventToCombo(event));
-			if (registration) {
-				event.preventDefault();
-				registration.callback();
-				return true;
-			}
-			return false;
+			return keymap.handleKeyDown(event);
 		},
 
 		list(): ShortcutEntry[] {
-			return [...shortcuts.values()].map(({ combo, meta }) => ({
-				combo,
-				...(meta ? { meta } : {}),
-			}));
+			const out: ShortcutEntry[] = [];
+			for (const binding of keymap.getAll()) {
+				if (!shortcutIds.has(binding.id)) continue;
+				const meta: ShortcutMeta = {
+					...(binding.label !== undefined ? { label: binding.label } : {}),
+					...(binding.category !== undefined ? { category: binding.category } : {}),
+				};
+				const hasMeta = Object.keys(meta).length > 0;
+				for (const combo of binding.keys) out.push({ combo, ...(hasMeta ? { meta } : {}) });
+			}
+			return out;
 		},
 	};
 }

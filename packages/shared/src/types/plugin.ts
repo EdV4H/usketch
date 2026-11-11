@@ -593,6 +593,15 @@ export interface ShortcutMeta {
 	label?: string;
 	/** Grouping key (e.g. "history", "edit"). */
 	category?: string;
+	/**
+	 * Stable {@link KeyBinding} id for this shortcut (the key a viewer's / host's
+	 * rebinding is stored under). Defaults to `<pluginId>:shortcut:<combo>`.
+	 */
+	id?: string;
+	/** Only fire while this returns true; see {@link KeyBindingSpec.when}. */
+	when?: () => boolean;
+	/** Tie-break against other bindings on the same key; see {@link KeyBindingSpec.priority}. */
+	priority?: number;
 }
 
 /** A single registered shortcut, as returned by {@link ShortcutRegistry.list}. */
@@ -609,9 +618,118 @@ export interface ShortcutRegistry {
 	 * macOS, Ctrl elsewhere). Returns an unregister function.
 	 */
 	register(combo: string, callback: () => void, meta?: ShortcutMeta): () => void;
+	/** Dispatch a keydown to the winning `"press"` binding; see {@link Keymap.handleKeyDown}. */
 	handleKeyDown(event: KeyboardEvent): boolean;
 	/** All currently-registered shortcuts (for cheat-sheet / settings UIs). */
 	list(): ShortcutEntry[];
+}
+
+// ── Keymap (key bindings + conflict detection) ──
+
+/**
+ * `"press"`: a discrete shortcut. `keys` are `"+"`-joined combos matched against
+ * `KeyboardEvent.key` (`"Mod+Shift+Z"`, `"s"`, `"Space"`), and the keymap calls
+ * `onPress` itself.
+ *
+ * `"hold"`: a key that acts while held (movement, camera height …). `keys` are
+ * `KeyboardEvent.code`s (`"KeyW"`, `"ShiftLeft"`), layout-independent. The plugin keeps
+ * its own keydown / keyup listeners; it reads its current keys with
+ * {@link Keymap.getKeys} and asks {@link Keymap.claims} whether a keydown is its own.
+ */
+export type KeyBindingKind = "press" | "hold";
+
+/** What a plugin declares for one bindable operation. */
+export interface KeyBindingSpec {
+	/**
+	 * Stable id, `<pluginId>:<name>` by convention (e.g. `usketch-plugin-mode7:camera-down`).
+	 * Rebindings are stored under it, so keep it the same across versions.
+	 */
+	id: string;
+	/** The plugin's default keys (combos for `"press"`, codes for `"hold"`). Empty = unbound. */
+	keys: readonly string[];
+	/** Default `"press"`. */
+	kind?: KeyBindingKind;
+	/** Human-readable name for settings UIs (e.g. "カメラを下げる"). */
+	label?: string;
+	/** Grouping key for settings UIs. */
+	category?: string;
+	/**
+	 * Whether the binding acts right now (e.g. only while the 3D view is on). Bindings
+	 * whose `when` is false step aside, so two plugins can share a key in different
+	 * situations. A throwing `when` counts as false.
+	 */
+	when?: () => boolean;
+	/**
+	 * When several bindings on the same key act at once, the highest priority wins
+	 * (default 0). Ties go to the plugin listed first in `createApp({ plugins })`;
+	 * bindings the host / core registers directly come before every plugin.
+	 */
+	priority?: number;
+	/** `"press"` only: run when this binding wins a keydown. */
+	onPress?: (event: KeyboardEvent) => void;
+}
+
+/** A registered binding, as settings / conflict UIs see it. */
+export interface KeyBinding {
+	id: string;
+	/** The plugin that registered it; undefined when the host / core did. */
+	pluginId?: string;
+	kind: KeyBindingKind;
+	label?: string;
+	category?: string;
+	priority: number;
+	/** The keys before the viewer's rebinding (host default, else the plugin's). */
+	defaultKeys: readonly string[];
+	/** The keys in effect. */
+	keys: readonly string[];
+	/** Whether the viewer rebound (or unbound) it. */
+	overridden: boolean;
+}
+
+/**
+ * Two or more bindings on the same physical key. `bindings` are in winning order: when
+ * all of them act at once, the first one gets the key. Whether they can act at once
+ * depends on their `when`, which is only known at runtime, so this lists every overlap.
+ */
+export interface KeyConflict {
+	/** Normalized key (`"s"`, `"shift"`, `"ctrl+z"`, `"space"`). */
+	key: string;
+	bindings: KeyBinding[];
+}
+
+/**
+ * Every key binding in the app (shortcuts, tool shortcuts and held keys), with the
+ * viewer's / host's rebindings and overlap detection. `ctx.keymap` attributes
+ * registrations to the calling plugin. {@link ShortcutRegistry.register} and
+ * {@link ToolDefinition.shortcut} register here too.
+ */
+export interface Keymap {
+	register(spec: KeyBindingSpec): () => void;
+	get(id: string): KeyBinding | undefined;
+	/** The keys in effect for `id` (empty when unbound or unknown). */
+	getKeys(id: string): readonly string[];
+	getAll(): KeyBinding[];
+	getConflicts(): KeyConflict[];
+	/** The binding that owns this keydown now (its `when` holds and it wins ties), if any. */
+	resolve(event: KeyboardEvent): KeyBinding | undefined;
+	/** Whether `id` is the binding that owns this keydown (for `"hold"` listeners). */
+	claims(id: string, event: KeyboardEvent): boolean;
+	/**
+	 * Run the winning `"press"` binding (and `preventDefault`). Returns false when no
+	 * binding matches or the winner is a `"hold"` binding (its plugin handles the key).
+	 */
+	handleKeyDown(event: KeyboardEvent): boolean;
+	/**
+	 * Rebind `id` for this viewer (`null` = unbind). Kept even before the binding is
+	 * registered, so saved settings can be applied at startup.
+	 */
+	setKeys(id: string, keys: readonly string[] | null): void;
+	/** Drop the viewer's rebinding of `id` (all of them when omitted). */
+	resetKeys(id?: string): void;
+	/** The viewer's rebindings by id (`null` = unbound), e.g. to persist them. */
+	getOverrides(): Readonly<Record<string, readonly string[] | null>>;
+	/** Called after any registration or rebinding. */
+	subscribe(listener: () => void): () => void;
 }
 
 // ── Action System ──
@@ -1064,6 +1182,8 @@ export interface PluginContext {
 	shapes: ShapeRegistry;
 	commands: CommandRegistry;
 	shortcuts: ShortcutRegistry;
+	/** All key bindings + conflict detection; see {@link Keymap}. */
+	keymap: Keymap;
 	events: EventBus;
 	transient: TransientRegistry;
 	lod: LodController;
