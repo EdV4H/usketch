@@ -98,8 +98,8 @@ createCharacterPlugin({
   = ballistic (the take-off velocity carries the jump, a car can't steer), 1 = as on the
   ground. Falls with jumping off use the default.
 - **Air attitude** (vehicle, `jump.spinRate`, default 270 °/s, 0 = off, HUD "空中で車体を回す速さ"):
-  in the air the throttle keys pitch the body (forward = nose down, back = nose up) and,
-  with the drift key held, the steering rolls it (right = right side down) instead of
+  in the air, with the drift key held, the throttle keys pitch the body (forward = nose
+  down, back = nose up) and the steering rolls it (right = right side down) instead of
   yawing it (`stepAirSpin` / `holdSteerForRoll`). The spin has weight: `jump.spinInertia`
   (default 0.3 s, 0 = none, HUD "車体の回転の慣性") is how long it takes to build up to
   `spinRate`, and a released spin slows to a stop over the same time (`pose.pitchRate` /

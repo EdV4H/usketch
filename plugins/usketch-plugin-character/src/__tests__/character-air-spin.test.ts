@@ -16,9 +16,10 @@ const flying: CharacterPose = { ...ORIGIN_POSE, airborne: true, z: 30, speed: 30
 const FLAT = { x: 0, y: 0 };
 
 describe("stepAirSpin", () => {
-	it("pitches with the throttle keys: forward = nose down, back = nose up", () => {
-		expect(stepAirSpin(flying, held({ up: true }), 0.1, 300).pitch).toBeCloseTo(-30);
-		expect(stepAirSpin(flying, held({ down: true }), 0.1, 300).pitch).toBeCloseTo(30);
+	it("pitches with the throttle keys while the drift key is held: forward = nose down", () => {
+		expect(stepAirSpin(flying, held({ up: true, drift: true }), 0.1, 300).pitch).toBeCloseTo(-30);
+		expect(stepAirSpin(flying, held({ down: true, drift: true }), 0.1, 300).pitch).toBeCloseTo(30);
+		expect(stepAirSpin(flying, held({ up: true }), 0.1, 300)).toBe(flying); // without: no pitch
 	});
 
 	it("rolls with the steering only while the drift key is held", () => {
@@ -30,9 +31,11 @@ describe("stepAirSpin", () => {
 	it("holds the attitude without keys, wraps a flip, and does nothing on the ground or when off", () => {
 		const tilted = { ...flying, pitch: 170 };
 		expect(stepAirSpin(tilted, NO_INPUT, 0.1, 300)).toBe(tilted);
-		expect(stepAirSpin(tilted, held({ down: true }), 0.1, 300).pitch).toBeCloseTo(-160);
-		expect(stepAirSpin(ORIGIN_POSE, held({ up: true }), 0.1, 300)).toBe(ORIGIN_POSE);
-		expect(stepAirSpin(flying, held({ up: true }), 0.1, 0)).toBe(flying);
+		expect(stepAirSpin(tilted, held({ down: true, drift: true }), 0.1, 300).pitch).toBeCloseTo(
+			-160,
+		);
+		expect(stepAirSpin(ORIGIN_POSE, held({ up: true, drift: true }), 0.1, 300)).toBe(ORIGIN_POSE);
+		expect(stepAirSpin(flying, held({ up: true, drift: true }), 0.1, 0)).toBe(flying);
 	});
 });
 
@@ -44,10 +47,10 @@ describe("stepAirSpin with inertia", () => {
 	};
 
 	it("builds the spin up over spinInertia", () => {
-		const first = stepAirSpin(flying, held({ down: true }), 0.05, 300, 0.2);
+		const first = stepAirSpin(flying, held({ down: true, drift: true }), 0.05, 300, 0.2);
 		expect(first.pitchRate).toBeCloseTo(75); // a quarter of the way after 0.05 of 0.2 s
 		expect(first.pitch).toBeCloseTo((75 / 2) * 0.05);
-		expect(spin(flying, held({ down: true }), 4).pitchRate).toBeCloseTo(300);
+		expect(spin(flying, held({ down: true, drift: true }), 4).pitchRate).toBeCloseTo(300);
 	});
 
 	it("keeps turning after the key is released, slowing to a stop over spinInertia", () => {

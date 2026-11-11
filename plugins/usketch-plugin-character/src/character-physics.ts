@@ -643,9 +643,9 @@ export interface JumpParams {
 	 */
 	airControl: number;
 	/**
-	 * Vehicle: how fast the keys turn the body in the air, degrees / s (`0` = off): the
-	 * throttle / brake keys pitch it (forward = nose down), and the steering rolls it
-	 * while the drift key is held (else it yaws, as `airControl` allows). See
+	 * Vehicle: how fast the keys turn the body in the air, degrees / s (`0` = off): with
+	 * the drift key held, the throttle / brake keys pitch it (forward = nose down) and the
+	 * steering rolls it (without the key the steering yaws, as `airControl` allows). See
 	 * `stepAirSpin`.
 	 */
 	spinRate: number;
@@ -891,10 +891,10 @@ function wrapAngle(deg: number): number {
 }
 
 /**
- * Whether the drift key turns the steering into a roll this step: a vehicle in the air
- * with spinning on and the key held.
+ * Whether the drift key turns the keys into a spin this step (pitch and roll): a vehicle
+ * in the air with spinning on and the key held.
  */
-function rollsInAir(input: MoveInput, pose: CharacterPose, spinRate: number): boolean {
+function spinsInAir(input: MoveInput, pose: CharacterPose, spinRate: number): boolean {
 	return pose.airborne && spinRate > 0 && input.drift === true;
 }
 
@@ -907,13 +907,13 @@ export function holdSteerForRoll(
 	pose: CharacterPose,
 	spinRate: number,
 ): MoveInput {
-	if (!rollsInAir(input, pose, spinRate)) return input;
+	if (!spinsInAir(input, pose, spinRate)) return input;
 	return { ...input, left: false, right: false, steer: undefined };
 }
 
 /**
- * Turn a vehicle's body in the air for `dt` seconds: the throttle (forward = nose down,
- * back = nose up) pitches it, and the steering rolls it while the drift key is held
+ * Turn a vehicle's body in the air for `dt` seconds while the drift key is held: the
+ * throttle (forward = nose down, back = nose up) pitches it and the steering rolls it
  * (right = right side down), each toward `spinRate` degrees / s. With `spinInertia`
  * (seconds) the spin builds up over that long and a released one slows to a stop over it
  * (it keeps turning a while); without, the body turns only while a key is held. The angles
@@ -927,8 +927,9 @@ export function stepAirSpin(
 	spinInertia = 0,
 ): CharacterPose {
 	if (!pose.airborne || !(spinRate > 0) || !(dt > 0)) return pose;
-	const pitchTo = -inputThrottle(input) * spinRate;
-	const rollTo = rollsInAir(input, pose, spinRate) ? inputSteer(input) * spinRate : 0;
+	const spins = spinsInAir(input, pose, spinRate);
+	const pitchTo = spins ? -inputThrottle(input) * spinRate : 0;
+	const rollTo = spins ? inputSteer(input) * spinRate : 0;
 	const inertial = spinInertia > 0 && Number.isFinite(spinInertia);
 	const step = inertial ? (spinRate / spinInertia) * dt : Number.POSITIVE_INFINITY;
 	const pitchRate = inertial ? approach(pose.pitchRate, pitchTo, step) : pitchTo;
