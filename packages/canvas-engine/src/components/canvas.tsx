@@ -650,7 +650,10 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 				position: "relative",
 				width: "100%",
 				height: "100%",
-				overflow: "hidden",
+				// `clip` (not `hidden`): a hidden box can still be scrolled by the browser
+				// (focus() / caret-into-view on a textarea near the edge), which shifts what
+				// is drawn while hit-testing keeps the unscrolled coordinates. Clip can't scroll.
+				overflow: "clip",
 				// `data-theme` による CSS 変数がある場合はそちらが効き、無い場合は従来の既定色にフォールバック
 				background: `var(--bg-canvas, ${DEFAULT_THEME.canvasBackground})`,
 				cursor: activeTool?.cursor ?? "default",
@@ -709,7 +712,9 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 							position: "absolute",
 							inset: 0,
 							pointerEvents: "none",
-							overflow: "hidden",
+							// `clip`, for the same reason as the container above: focusing a
+							// shape's editor near the edge must not scroll this layer.
+							overflow: "clip",
 						}}
 					>
 						<div
