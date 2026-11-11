@@ -46,6 +46,13 @@ export interface CharacterRenderProps {
 	z: number;
 	/** How high the feet are above the ground under them (`z - elevation`, 0 = standing). */
 	altitude: number;
+	/**
+	 * How 3D the view is, `0` (the flat board) … `1` (a 3D view such as Mode 7; between
+	 * while it transitions). On the flat board the plugin already lifts an airborne body up
+	 * the screen (see `flatJumpLift`); a renderer might stand its sprite up only as this
+	 * nears 1.
+	 */
+	depth: number;
 	/** Whether the character is in the air (jumping or falling). */
 	airborne: boolean;
 	/** Vertical speed, world units / s (positive = rising), e.g. for a rise / fall pose. */

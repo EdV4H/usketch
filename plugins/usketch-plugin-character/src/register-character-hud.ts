@@ -92,6 +92,14 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				step: 0.1,
 			},
 			{
+				name: "flatLift",
+				label: "ジャンプで画面上に浮かせる（2D、0〜3）",
+				type: "number",
+				min: 0,
+				max: 3,
+				step: 0.1,
+			},
+			{
 				name: "sizeScale",
 				label: "キャラの大きさの基準",
 				type: "enum",
@@ -154,6 +162,8 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return motion.maxSlope;
 				case "slopeTilt":
 					return motion.slopeTilt;
+				case "flatLift":
+					return motion.flatLift;
 				case "sizeScale":
 					return api.getSize().scale;
 				case "size":
@@ -223,6 +233,9 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					break;
 				case "slopeTilt":
 					api.setMotion({ slopeTilt: n });
+					break;
+				case "flatLift":
+					api.setMotion({ flatLift: n });
 					break;
 				case "jumpHeight":
 					// Tuning while off keeps it off (applied when jumping is turned on).

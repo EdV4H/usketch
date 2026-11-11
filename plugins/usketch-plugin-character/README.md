@@ -37,7 +37,7 @@ createCharacterPlugin({
 - **Render props**: `heading` (world), `screenHeading` (= `heading + viewport.rotation`,
   what to rotate a top-down sprite by), `moving`, `speed`, `steering`, `slip`,
   `drifting`, `zoom`, `size`, `appearance`, `name`, `isSelf`, `id`, `elevation`, `z`, `altitude`,
-  `airborne`, `verticalSpeed`, `hovering`, `hoverGauge` (0 … 1, `null` with hovering
+  `depth` (how 3D the view is, 0 = flat … 1 = Mode 7), `airborne`, `verticalSpeed`, `hovering`, `hoverGauge` (0 … 1, `null` with hovering
   off). Each character is placed centered on its screen position
   in one screen-space layer, so self and remote characters look the same under zoom
   and camera rotation.
@@ -101,6 +101,12 @@ createCharacterPlugin({
   each character while the body stands at its feet height `z`, so under a 3D view
   (Mode 7) a jump lifts the body off its shadow. `altitude` (`z - elevation`) lets it
   shrink as the character rises.
+- **Jumping on the flat board**: height can't be seen top-down, so there the layer lifts
+  an airborne body up the screen by `altitude × zoom × motion.flatLift` px (default 0.6,
+  0 … 3, HUD "ジャンプで画面上に浮かせる（2D）") and grows it a little
+  (`1 + altitude × 0.004`, at most ×1.5); the shadow stays at the feet. Both fade out
+  with the 3D transition, so in Mode 7 the body rises for real instead
+  (`flatJumpLift`). Renderers need nothing extra.
 - **Keyboard focus**: movement keys are captured on `window` while the character is
   on, except where the page needs them: nothing is taken while a text field has focus
   or focus is inside a dialog / menu (`dialog`, `role="dialog"`, `alertdialog`, `menu`;

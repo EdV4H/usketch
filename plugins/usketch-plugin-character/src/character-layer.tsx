@@ -4,7 +4,8 @@
 // screen-space layer keeps self/remote consistent (same size under zoom, same
 // `screenHeading` math under camera rotation). The optional `renderShadow` gets a spot
 // of its own on the GROUND under each character, while the body stands at its feet
-// height — under a 3D view (Mode 7) a jump lifts the body off its shadow.
+// height — under a 3D view (Mode 7) a jump lifts the body off its shadow; on the flat
+// board (where height can't be seen) it lifts the body up the screen instead.
 import { type Viewport, viewportRotation, worldToScreen, wrapDeg } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { groundSlope, type HeightAt } from "./character-physics.js";
@@ -77,11 +78,50 @@ export function bodyLeanFactor(altitude: number, airborne: boolean): number {
 	return Math.max(0, 1 - altitude / AIR_LEAN_FADE);
 }
 
+/** Largest extra scale a jump gives a body on the flat board (see {@link flatJumpLift}). */
+export const FLAT_JUMP_MAX_SCALE = 0.5;
+/** Extra scale per world unit of altitude on the flat board. */
+const FLAT_JUMP_SCALE_PER_UNIT = 0.004;
+
+/**
+ * How an airborne body shows its jump on the flat (2D) board, where its height can't be
+ * seen: lifted up the screen by `altitude × zoom × flatLift` px (the shadow stays at the
+ * feet) and grown a little (`1 + altitude × 0.004`, at most +50%) as if nearer the
+ * viewer. Both fade out with `depth` (`0` = flat … `1` = 3D), since in a 3D view the body
+ * rises for real and an up-the-screen shift would slide it along the ground. Pure.
+ */
+export function flatJumpLift(
+	altitude: number,
+	zoom: number,
+	depth: number,
+	flatLift: number,
+): { offset: number; scale: number } {
+	const flat = 1 - Math.max(0, Math.min(1, Number.isFinite(depth) ? depth : 0));
+	const a = Number.isFinite(altitude) ? Math.max(0, altitude) : 0;
+	if (!(flat > 0) || !(a > 0)) return { offset: 0, scale: 1 };
+	const k = Number.isFinite(flatLift) ? Math.max(0, flatLift) : 0;
+	const z = Number.isFinite(zoom) ? Math.max(0, zoom) : 0;
+	return {
+		offset: flat * a * z * k,
+		scale: 1 + flat * Math.min(FLAT_JUMP_MAX_SCALE, a * FLAT_JUMP_SCALE_PER_UNIT),
+	};
+}
+
+/** The spot's own transform: its 3D lift, then the flat board's jump look. */
+function spotTransform(lift: number, flat?: { offset: number; scale: number }): string | undefined {
+	const parts: string[] = [];
+	if (lift > 0) parts.push(`translateZ(${lift}px)`);
+	if (flat && flat.offset > 0) parts.push(`translateY(${-flat.offset}px)`);
+	if (flat && flat.scale !== 1) parts.push(`scale(${flat.scale})`);
+	return parts.length > 0 ? parts.join(" ") : undefined;
+}
+
 function Spot({
 	shadow = false,
 	x,
 	y,
 	lift,
+	flat,
 	tilt,
 	renderer,
 	props,
@@ -93,6 +133,8 @@ function Spot({
 	/** Screen px the spot stands above the board (height × zoom). Only visible under a
 	 *  3D view (Mode 7); the flat board ignores the z offset. */
 	lift: number;
+	/** The flat board's jump look (see {@link flatJumpLift}); bodies only. */
+	flat?: { offset: number; scale: number };
 	/** Lean with the ground (see {@link slopeTiltTransform}), or `null` = level. */
 	tilt: string | null;
 	renderer: CharacterRenderer;
@@ -109,7 +151,7 @@ function Spot({
 				width: 0,
 				height: 0,
 				pointerEvents: "none",
-				transform: lift > 0 ? `translateZ(${lift}px)` : undefined,
+				transform: spotTransform(lift, flat),
 				// Keep the 3D context down to the renderer's content, so under a 3D view
 				// (Mode 7) a renderer can stand its sprite up out of the ground (e.g.
 				// `rotateX(-pitch)` with the pitch from `view3dService`) instead of having it
@@ -152,12 +194,13 @@ export function CharacterLayer({
 	if (!renderer) return null; // headless: no look supplied → draw nothing
 	const shadowRenderer = store.getShadowRenderer();
 
+	const depth = Math.max(0, Math.min(1, Number.isFinite(amount) ? amount : 0));
 	const rot = viewportRotation(viewport);
 	const size = characterSizePx(state.size, viewport.zoom);
 	// Lean on screen: the world gradient turned with the camera (zoom scales the ground
 	// and the height alike, so it stays a rise per px), scaled by the tuning and the 3D
 	// transition (a lean on the flat board would only squash the sprite).
-	const lean = Math.max(0, Math.min(1, state.motion.slopeTilt)) * Math.max(0, Math.min(1, amount));
+	const lean = Math.max(0, Math.min(1, state.motion.slopeTilt)) * depth;
 	const cosR = Math.cos((rot * Math.PI) / 180);
 	const sinR = Math.sin((rot * Math.PI) / 180);
 	// `k` scales the lean further (an airborne body's, see `bodyLeanFactor`).
@@ -203,6 +246,7 @@ export function CharacterLayer({
 				elevation,
 				z,
 				altitude: z - elevation,
+				depth,
 				airborne: r.airborne,
 				verticalSpeed: r.vz,
 				hovering: r.hovering,
@@ -236,6 +280,7 @@ export function CharacterLayer({
 				elevation,
 				z,
 				altitude: z - elevation,
+				depth,
 				airborne: pose.airborne,
 				verticalSpeed: pose.vz,
 				hovering: pose.hovering,
@@ -267,6 +312,7 @@ export function CharacterLayer({
 			x={at.x}
 			y={at.y}
 			lift={props.z * viewport.zoom}
+			flat={flatJumpLift(props.altitude, viewport.zoom, depth, state.motion.flatLift)}
 			tilt={bodyTilt}
 			renderer={renderer}
 			props={props}

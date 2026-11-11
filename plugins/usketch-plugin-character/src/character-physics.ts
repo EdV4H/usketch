@@ -128,6 +128,12 @@ export interface MotionParams {
 	 * (stays level) … `1` (lies along the slope). Only the look.
 	 */
 	slopeTilt: number;
+	/**
+	 * How far a jump lifts the body up the screen on the flat (2D) board, as a fraction of
+	 * its altitude (`0` = no lift, the shadow alone shows the jump). Fades out as the view
+	 * turns 3D, where the body rises for real. Only the look: see `flatJumpLift`.
+	 */
+	flatLift: number;
 }
 
 export const DEFAULT_MOTION: MotionParams = {
@@ -139,6 +145,7 @@ export const DEFAULT_MOTION: MotionParams = {
 	maxStep: 24,
 	maxSlope: 0,
 	slopeTilt: 1,
+	flatLift: 0.6,
 };
 
 /**
