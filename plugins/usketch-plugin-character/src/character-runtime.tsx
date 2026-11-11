@@ -143,7 +143,13 @@ export function setupCharacterRuntime(
 	const keys = createKeyInput(
 		options.keys,
 		() => store.getState().enabled,
-		() => store.getState().controlScheme === "vehicle" && store.getState().drift !== null,
+		// The drift key also rolls a car in the air (`spinRate`), so it is a car's whenever
+		// either is on — and not left to the host (e.g. Mode 7's Shift = camera down).
+		() => {
+			const st = store.getState();
+			if (st.controlScheme !== "vehicle") return false;
+			return st.drift !== null || (effectiveJump(st) ?? DEFAULT_JUMP).spinRate > 0;
+		},
 		() => store.getState().jump !== null,
 	);
 	let jumpTimers: JumpTimers = IDLE_JUMP;
@@ -164,7 +170,11 @@ export function setupCharacterRuntime(
 	let cameraBase: number | null = null;
 	const setCameraHeight = (height: number | null): void => {
 		if (height === null) cameraBase = null;
-		if (height === cameraHeight) return;
+		// While following, the height is re-sent every frame even when unchanged (Mode 7
+		// skips a no-op write): that is how the view knows a follower drives it, so its own
+		// height keys (Shift / Space) yield instead of tugging the camera every frame.
+		// Letting go (`null`) is sent once.
+		if (height === cameraHeight && height === null) return;
 		cameraHeight = height;
 		view3dService.get(ctx.services)?.setCameraHeight?.(height ?? 0);
 	};

@@ -7,6 +7,7 @@
 import { type PluginContext, type UsketchPlugin, view3dService } from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
 import {
+	createHeightDriver,
 	DEFAULT_HEIGHT_SPEED,
 	type HeightKeyConfig,
 	type HeightKeys,
@@ -109,13 +110,15 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 			zoom = () => ctx.store.getViewport().zoom;
 			const stopRuntime = setupMode7Runtime(ctx, store, { depthLayerIds: options.depthLayerIds });
 			const stopActions = registerMode7Actions(ctx, api, options.shortcuts);
-			const stopHeightKeys = setupHeightKeys(store, heightKeys, () => zoom());
+			// A follower driving the height (view3dService) wins over the height keys.
+			const heightDriver = createHeightDriver();
+			const stopHeightKeys = setupHeightKeys(store, heightKeys, () => zoom(), heightDriver.active);
 			const stopHud = registerMode7Hud(ctx, api, store, excludedLayerIds);
 			// Provide the service LAST so a failed earlier step can't leak it.
 			const unprovideService = mode7Service.provide(ctx.services, api);
 			const unprovideView3d = view3dService.provide(
 				ctx.services,
-				createView3dApi(store, () => zoom()),
+				createView3dApi(store, () => zoom(), heightDriver.mark),
 			);
 
 			return () => {

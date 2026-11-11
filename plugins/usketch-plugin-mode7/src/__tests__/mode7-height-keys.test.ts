@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+	createHeightDriver,
 	DEFAULT_HEIGHT_KEYS,
+	HEIGHT_DRIVER_HOLD_MS,
 	heightStep,
 	resolveHeightKeys,
 	setupHeightKeys,
@@ -71,6 +73,27 @@ describe("setupHeightKeys", () => {
 		stop();
 	});
 
+	it("leaves the height alone while something else drives it", () => {
+		const { key, run } = harness();
+		const store = createMode7Store({ active: true });
+		const config = { keys: DEFAULT_HEIGHT_KEYS, speed: 480 };
+		let driven = true;
+		const stop = setupHeightKeys(
+			store,
+			config,
+			() => 1,
+			() => driven,
+		);
+		key("keydown", "ShiftLeft");
+		run(0);
+		run(50);
+		expect(store.getState().camera.height ?? 0).toBe(0);
+		driven = false; // the follower let go: the key works again
+		run(100);
+		expect(store.getState().camera.height).toBeCloseTo(-24, 6);
+		stop();
+	});
+
 	it("ignores the keys while the view is flat, in text fields, or when turned off", () => {
 		const { key, frames } = harness();
 		const store = createMode7Store({ active: false });
@@ -86,5 +109,18 @@ describe("setupHeightKeys", () => {
 		expect(key("keydown", "Space").defaultPrevented).toBe(false);
 		expect(frames.length).toBe(0);
 		stop();
+	});
+});
+
+describe("createHeightDriver", () => {
+	it("counts as driving for a short hold after each mark", () => {
+		let t = 1000;
+		const driver = createHeightDriver(() => t);
+		expect(driver.active()).toBe(false);
+		driver.mark();
+		t += HEIGHT_DRIVER_HOLD_MS - 1;
+		expect(driver.active()).toBe(true);
+		t += 2;
+		expect(driver.active()).toBe(false);
 	});
 });

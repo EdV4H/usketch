@@ -151,14 +151,22 @@ export function getMode7Api(services: ServiceRegistry): Mode7Api | undefined {
  * The generic 3D-view state (`view3dService` in shared) backed by this store, so
  * plugins that rise out of the ground in 3D follow the view without depending on Mode 7.
  */
-export function createView3dApi(store: Mode7Store, zoom: () => number = () => 1): View3dApi {
+export function createView3dApi(
+	store: Mode7Store,
+	zoom: () => number = () => 1,
+	/** Told whenever a follower sets the height, so the height keys yield to it. */
+	onDriveHeight: () => void = () => {},
+): View3dApi {
 	return {
 		amount: () => store.getState().amount,
 		camera: () => {
 			const c = renderedCamera(store, zoom());
 			return { pitch: c.pitch, yaw: c.yaw, fov: c.fov, horizon: c.horizon, heightPx: c.heightPx };
 		},
-		setCameraHeight: (height) => store.setCamera({ height }),
+		setCameraHeight: (height) => {
+			onDriveHeight();
+			store.setCamera({ height });
+		},
 		subscribe: (listener) => store.subscribe(listener),
 	};
 }

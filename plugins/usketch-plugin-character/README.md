@@ -65,8 +65,9 @@ createCharacterPlugin({
   (multiples of `turnRate`), `slipAngle` / `steerSlipAngle` (degrees), `recoveryRate`
   (1/s). With `hop: true`, pressing the drift key on the ground hops `hopHeight`
   (default 10) first, and the drift starts on landing if the key is still held and
-  steering (a drift only starts on the ground). The drift key is only captured while drift
-  is on.
+  steering (a drift only starts on the ground). The drift key is only captured by a car with drift
+  or the air roll (`jump.spinRate`) on, and then not left to the host (e.g. Mode 7's
+  Shift = camera down).
 - **Jump** (opt-in via `jump`): press the jump key (Space) to jump. The arc is set by
   its apex `height` (world units) and `timeToApex`; it falls `fallGravity` × faster than
   it rises, releasing the key while rising cuts it short (`releaseCut`), a press within
