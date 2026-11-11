@@ -26,6 +26,18 @@ describe("createView3dApi (view3dService)", () => {
 		expect(n).toBe(2);
 	});
 
+	it("tells the height keys a follower is driving the height", () => {
+		let marks = 0;
+		const api = createView3dApi(
+			createMode7Store({ active: true }),
+			() => 1,
+			() => marks++,
+		);
+		api.setCameraHeight?.(10);
+		api.setCameraHeight?.(12);
+		expect(marks).toBe(2);
+	});
+
 	it("raises the camera: heightPx = height × zoom × amount", () => {
 		const store = createMode7Store({ active: true });
 		let zoom = 2;

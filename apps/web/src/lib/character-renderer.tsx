@@ -1,7 +1,10 @@
 // The demo app's look for the character plugin (the plugin itself draws nothing).
-// A top-down "pawn" (round body + nose showing the facing) or, with
-// `appearance.kind === "car"`, a small top-down car. Both turn by `screenHeading`;
-// the name label stays upright underneath. While hovering a glow shows at the feet, and
+// A top-down "pawn" (round body + nose showing the facing) or, in the car scheme
+// (`controlScheme === "vehicle"`, or `appearance.kind === "car"`), a solid box: a top
+// face lifted by CSS 3D over four walls folded up from its edges, so under Mode 7 it
+// stands as a block while the flat board sees just its top. Both turn by
+// `screenHeading` (the car also by its drift `slip`, and in the air it tips by its
+// `pitch` / `roll`); the name label stays upright underneath. While hovering a glow shows at the feet, and
 // a small ring beside the body shows the hover gauge (only while hovering or refilling).
 // `renderCharacterShadow` is the round shadow left on the ground under a jumping character.
 import type { CharacterAppearance, CharacterRenderProps } from "@edv4h/usketch-plugin-character";
@@ -32,26 +35,223 @@ function Pawn({ color, size }: { color: string; size: number }) {
 	);
 }
 
-function Car({ color, size }: { color: string; size: number }) {
+/** The car box's footprint and height, as fractions of the sprite `size`. */
+const CAR_WIDTH = 0.5;
+const CAR_LENGTH = 0.86;
+const CAR_HEIGHT = 0.32;
+
+/** Whether to draw the car box: the vehicle scheme, or a look that asks for a car. */
+export function isCar(props: Pick<CharacterRenderProps, "controlScheme" | "appearance">): boolean {
+	return props.controlScheme === "vehicle" || props.appearance.kind === "car";
+}
+
+type CarSide = "front" | "back" | "left" | "right";
+
+/**
+ * The four walls of a `w` × `l` box (`h` tall) in its own px frame, front = up: each a
+ * strip along one edge folded up about it (as shape-3d's `boxWalls`), its face outward.
+ */
+function carWalls(w: number, l: number, h: number) {
+	return [
+		{
+			side: "front",
+			left: 0,
+			top: 0,
+			width: w,
+			height: h,
+			origin: "50% 0%",
+			turn: "rotateX(90deg)",
+		},
+		{
+			side: "right",
+			left: w - h,
+			top: 0,
+			width: h,
+			height: l,
+			origin: "100% 50%",
+			turn: "rotateY(90deg)",
+		},
+		{
+			side: "back",
+			left: 0,
+			top: l - h,
+			width: w,
+			height: h,
+			origin: "50% 100%",
+			turn: "rotateX(-90deg)",
+		},
+		{
+			side: "left",
+			left: 0,
+			top: 0,
+			width: h,
+			height: l,
+			origin: "0% 50%",
+			turn: "rotateY(-90deg)",
+		},
+	] as const satisfies readonly {
+		side: CarSide;
+		left: number;
+		top: number;
+		width: number;
+		height: number;
+		origin: string;
+		turn: string;
+	}[];
+}
+
+/** Darkening of each wall: the sides a touch darker than the ends, as the map's cliffs. */
+const WALL_SHADE: Record<CarSide, number> = { front: 0.18, back: 0.28, left: 0.38, right: 0.38 };
+
+/** What's painted on a wall: lights on the ends, two wheels on each side. */
+function WallDetail({ side, h }: { side: CarSide; h: number }) {
+	const lamp = (color: string, left: string) => (
+		<div
+			style={{
+				position: "absolute",
+				left,
+				top: "22%",
+				width: "22%",
+				height: "34%",
+				borderRadius: h * 0.12,
+				background: color,
+			}}
+		/>
+	);
+	if (side === "front") {
+		return (
+			<>
+				{lamp("#fff7c2", "10%")}
+				{lamp("#fff7c2", "68%")}
+			</>
+		);
+	}
+	if (side === "back") {
+		return (
+			<>
+				{lamp("#ff4d4d", "10%")}
+				{lamp("#ff4d4d", "68%")}
+			</>
+		);
+	}
+	// A side wall runs front (top) → back (bottom); its height is the box's, across it.
+	const wheel = (top: string) => (
+		<div
+			style={{
+				position: "absolute",
+				top,
+				left: "8%",
+				width: "84%",
+				height: "24%",
+				borderRadius: h * 0.2,
+				background: "#1f1f1f",
+			}}
+		/>
+	);
 	return (
-		<svg width={size} height={size} viewBox="-18 -18 36 36" aria-hidden="true">
-			<rect
-				x={-9}
-				y={-16}
-				width={18}
-				height={32}
-				rx={6}
-				fill={color}
-				stroke="#fff"
-				strokeWidth={2}
-			/>
-			<rect x={-6.5} y={-9} width={13} height={7} rx={2} fill="rgba(255,255,255,0.75)" />
-			<rect x={-6.5} y={6} width={13} height={5} rx={2} fill="rgba(0,0,0,0.25)" />
-			<rect x={-12} y={-12} width={3} height={7} rx={1} fill="#222" />
-			<rect x={9} y={-12} width={3} height={7} rx={1} fill="#222" />
-			<rect x={-12} y={6} width={3} height={7} rx={1} fill="#222" />
-			<rect x={9} y={6} width={3} height={7} rx={1} fill="#222" />
-		</svg>
+		<>
+			{wheel("10%")}
+			{wheel("66%")}
+		</>
+	);
+}
+
+/**
+ * CSS that tips the car box by its attitude in the air (`pitch` nose up, `roll` right side
+ * down, degrees) about its middle, `h` px up: `undefined` when level.
+ */
+export function carTiltTransform(pitch: number, roll: number, h: number): string | undefined {
+	if (pitch === 0 && roll === 0) return undefined;
+	const mid = Math.round(h * 50) / 100;
+	return `translateZ(${mid}px) rotateX(${-pitch}deg) rotateY(${roll}deg) translateZ(${-mid}px)`;
+}
+
+function CarBox({
+	color,
+	size,
+	pitch,
+	roll,
+}: {
+	color: string;
+	size: number;
+	pitch: number;
+	roll: number;
+}) {
+	const w = size * CAR_WIDTH;
+	const l = size * CAR_LENGTH;
+	const h = size * CAR_HEIGHT;
+	const edge = Math.max(1, size * 0.05);
+	return (
+		<div
+			data-character-car=""
+			style={{
+				position: "absolute",
+				left: (size - w) / 2,
+				top: (size - l) / 2,
+				width: w,
+				height: l,
+				transformStyle: "preserve-3d",
+				// Tipped in the air (pitch / roll), after the turn to the heading outside.
+				transform: carTiltTransform(pitch, roll, h),
+			}}
+		>
+			{carWalls(w, l, h).map((wall) => (
+				<div
+					key={wall.side}
+					data-car-wall={wall.side}
+					style={{
+						position: "absolute",
+						left: wall.left,
+						top: wall.top,
+						width: wall.width,
+						height: wall.height,
+						transformOrigin: wall.origin,
+						transform: wall.turn,
+						background: color,
+						boxShadow: `inset 0 0 0 9999px rgba(0,0,0,${WALL_SHADE[wall.side]})`,
+						backfaceVisibility: "hidden",
+					}}
+				>
+					<WallDetail side={wall.side} h={h} />
+				</div>
+			))}
+			<div
+				data-car-top=""
+				style={{
+					position: "absolute",
+					inset: 0,
+					boxSizing: "border-box",
+					border: `${edge}px solid #fff`,
+					borderRadius: size * 0.06,
+					background: color,
+					transform: `translateZ(${h}px)`,
+				}}
+			>
+				{/* Windshield (front) and rear window. */}
+				<div
+					style={{
+						position: "absolute",
+						left: "14%",
+						right: "14%",
+						top: "20%",
+						height: "22%",
+						borderRadius: size * 0.04,
+						background: "rgba(255,255,255,0.75)",
+					}}
+				/>
+				<div
+					style={{
+						position: "absolute",
+						left: "14%",
+						right: "14%",
+						bottom: "12%",
+						height: "14%",
+						borderRadius: size * 0.04,
+						background: "rgba(0,0,0,0.25)",
+					}}
+				/>
+			</div>
+		</div>
 	);
 }
 
@@ -116,12 +316,7 @@ export function renderCharacter(props: CharacterRenderProps) {
 	const color = typeof props.appearance.color === "string" ? props.appearance.color : "#4a7cff";
 	// The plugin's size setting (fixed on screen, or scaled with the ground) at this zoom.
 	const size = props.size;
-	const body =
-		props.appearance.kind === "car" ? (
-			<Car color={color} size={size} />
-		) : (
-			<Pawn color={color} size={size} />
-		);
+	const car = isCar(props);
 	// The gauge only while it matters: hovering, or refilling after a hover.
 	const gauge =
 		props.hoverGauge !== null && (props.hovering || props.hoverGauge < 1) ? props.hoverGauge : null;
@@ -131,13 +326,29 @@ export function renderCharacter(props: CharacterRenderProps) {
 				position: "relative",
 				width: size,
 				height: size,
-				filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))",
+				// A filter would flatten the car's 3D box: it keeps the CSS 3D context instead
+				// (its shadow is the ground shadow's).
+				filter: car ? undefined : "drop-shadow(0 2px 3px rgba(0,0,0,0.35))",
+				transformStyle: car ? "preserve-3d" : undefined,
 			}}
 		>
 			{props.hovering && <HoverGlow size={size} />}
-			<div style={{ transform: `rotate(${props.screenHeading}deg)`, width: size, height: size }}>
-				{body}
-			</div>
+			{car ? (
+				<div
+					style={{
+						position: "absolute",
+						inset: 0,
+						transform: `rotate(${props.screenHeading + props.slip}deg)`,
+						transformStyle: "preserve-3d",
+					}}
+				>
+					<CarBox color={color} size={size} pitch={props.pitch} roll={props.roll} />
+				</div>
+			) : (
+				<div style={{ transform: `rotate(${props.screenHeading}deg)`, width: size, height: size }}>
+					<Pawn color={color} size={size} />
+				</div>
+			)}
 			{gauge !== null && <HoverGauge value={gauge} size={size} />}
 			{props.name && (
 				<div
@@ -165,9 +376,30 @@ export function renderCharacter(props: CharacterRenderProps) {
 /** World units of altitude at which the shadow has shrunk to half its size. */
 const SHADOW_HALF_ALTITUDE = 60;
 
-/** A soft round shadow on the ground: smaller and fainter the higher the character is. */
+/**
+ * A soft shadow on the ground, smaller and fainter the higher the character is: round
+ * under the pawn, a rounded rectangle turned with the car under the car box.
+ */
 export function renderCharacterShadow(props: CharacterRenderProps) {
 	const k = 1 / (1 + Math.max(0, props.altitude) / SHADOW_HALF_ALTITUDE);
+	const alpha = (0.35 * k).toFixed(3);
+	if (isCar(props)) {
+		const w = props.size * CAR_WIDTH * 1.1 * k;
+		const l = props.size * CAR_LENGTH * 1.05 * k;
+		return (
+			<div
+				style={{
+					width: w,
+					height: l,
+					borderRadius: Math.min(w, l) * 0.3,
+					background: `rgba(0, 0, 0, ${alpha})`,
+					// A soft edge from box-shadow, not `filter: blur` (see below).
+					boxShadow: `0 0 ${Math.max(1, props.size * 0.08)}px rgba(0, 0, 0, ${alpha})`,
+					transform: `rotate(${props.screenHeading + props.slip}deg)`,
+				}}
+			/>
+		);
+	}
 	const d = props.size * 0.8 * k;
 	return (
 		<div
@@ -177,7 +409,7 @@ export function renderCharacterShadow(props: CharacterRenderProps) {
 				borderRadius: "50%",
 				// A soft edge from the gradient, not `filter: blur` — a filter inside Mode 7's
 				// preserve-3d scene is re-rasterized on the GPU whenever the scene moves.
-				background: `radial-gradient(closest-side, rgba(0, 0, 0, ${(0.35 * k).toFixed(3)}) 70%, rgba(0, 0, 0, 0))`,
+				background: `radial-gradient(closest-side, rgba(0, 0, 0, ${alpha}) 70%, rgba(0, 0, 0, 0))`,
 			}}
 		/>
 	);
