@@ -340,11 +340,14 @@ export function selectShapes3d(input: {
 	const found: (Shape3dEntry & { screenY: number })[] = [];
 	for (const shape of input.shapes) {
 		if (!shape || typeof shape.id !== "string") continue;
-		const params = resolveShape3d(shape, input.types) ?? groundFlatParams(shape, input);
-		if (!params) continue;
+		// Size and place first: they need no terrain, so a shape too small or off screen never
+		// samples `heightAt` (on a wide board that thrashes the terrain's chunk cache every frame).
 		if (Math.max(shape.width, shape.height) * zoom < input.limits.minPx) continue;
-		const at = shapeAnchor(shape, params.mode);
+		const own = resolveShape3d(shape, input.types);
+		const at = shapeAnchor(shape, own?.mode ?? GROUND_FLAT_PARAMS.mode);
 		if (at.x < x0 || at.x > x1 || at.y < y0 || at.y > y1) continue;
+		const params = own ?? groundFlatParams(shape, input);
+		if (!params) continue;
 		found.push({ shape, params, screenY: worldToScreen(at.x, at.y, input.viewport).y });
 	}
 	const max = Math.max(0, Math.floor(input.limits.maxCount));

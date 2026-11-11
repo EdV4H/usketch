@@ -232,6 +232,22 @@ describe("selectShapes3d", () => {
 			selectShapes3d({ ...base, shapes, heightAt, limits: off }).map((e) => e.shape.id),
 		).toEqual(["own"]);
 	});
+	it("samples the terrain only for parameterless shapes it may draw", () => {
+		const shapes = [
+			shape("hill", 10, 10, { [SHAPE_3D_KEY]: undefined }),
+			shape("far", 900, 10, { [SHAPE_3D_KEY]: undefined }),
+			shape("tiny", 10, 10, { width: 2, height: 2, [SHAPE_3D_KEY]: undefined }),
+			shape("own", 10, 10),
+		];
+		const asked: number[] = [];
+		const heightAt = (x: number) => {
+			asked.push(x);
+			return 32;
+		};
+		const out = selectShapes3d({ ...base, shapes, heightAt });
+		expect(out.map((e) => e.shape.id)).toEqual(["hill", "own"]);
+		expect(asked).toHaveLength(1);
+	});
 	it("grows the drawn ground by the 3D overscan", () => {
 		const shapes = [shape("far", 900, 10)];
 		expect(selectShapes3d({ ...base, shapes, overscanPx: 500 })).toHaveLength(1);
