@@ -43,6 +43,9 @@ describe("jump tuning", () => {
 			airJumpRatio: 0,
 			slopeRatio: 7,
 			airControl: -3,
+			spinRate: -10,
+			landingTolerance: 900,
+			crashSpeed: 4,
 		});
 		expect(j).toEqual({
 			height: DEFAULT_JUMP.height,
@@ -56,6 +59,9 @@ describe("jump tuning", () => {
 			hover: null,
 			slopeRatio: 1,
 			airControl: 0,
+			spinRate: DEFAULT_JUMP.spinRate,
+			landingTolerance: 180,
+			crashSpeed: 1,
 		});
 	});
 	it("keeps custom tuning across off → on", () => {

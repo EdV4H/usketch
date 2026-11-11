@@ -50,6 +50,8 @@ describe("parseWireState", () => {
 			steering: 0,
 			slip: 0,
 			drifting: false,
+			pitch: 0,
+			roll: 0,
 			z: null,
 			airborne: false,
 			vz: 0,
@@ -68,6 +70,13 @@ describe("parseWireState", () => {
 			airborne: false,
 			vz: 0,
 		});
+	});
+	it("reads the body attitude (wrapped, 0 when missing)", () => {
+		expect(parseWireState({ x: 0, y: 0, heading: 0, pitch: 270, roll: -45 })).toMatchObject({
+			pitch: -90,
+			roll: -45,
+		});
+		expect(parseWireState({ x: 0, y: 0, heading: 0, pitch: "up" })).toMatchObject({ pitch: 0 });
 	});
 	it("reads the control scheme (anything but vehicle is directional)", () => {
 		expect(parseWireState({ x: 0, y: 0, heading: 0, scheme: "vehicle" })?.controlScheme).toBe(

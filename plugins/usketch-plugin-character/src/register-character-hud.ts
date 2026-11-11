@@ -63,6 +63,30 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				max: 1,
 				step: 0.05,
 			},
+			{
+				name: "spinRate",
+				label: "空中で車体を回す速さ（車、°/秒、0 = 回さない）",
+				type: "number",
+				min: 0,
+				max: 1080,
+				step: 30,
+			},
+			{
+				name: "landingTolerance",
+				label: "着地の許容角（車、°）",
+				type: "number",
+				min: 0,
+				max: 180,
+				step: 5,
+			},
+			{
+				name: "crashSpeed",
+				label: "着地失敗で残る速さ（車、0〜1）",
+				type: "number",
+				min: 0,
+				max: 1,
+				step: 0.1,
+			},
 			{ name: "hover", label: "ホバー", type: "boolean" },
 			{
 				name: "hoverDuration",
@@ -148,6 +172,12 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return (api.getJump() ?? DEFAULT_JUMP).slopeRatio;
 				case "airControl":
 					return (api.getJump() ?? DEFAULT_JUMP).airControl;
+				case "spinRate":
+					return (api.getJump() ?? DEFAULT_JUMP).spinRate;
+				case "landingTolerance":
+					return (api.getJump() ?? DEFAULT_JUMP).landingTolerance;
+				case "crashSpeed":
+					return (api.getJump() ?? DEFAULT_JUMP).crashSpeed;
 				case "hover":
 					return (api.getJump()?.hover ?? null) !== null;
 				case "hoverDuration":
@@ -246,6 +276,15 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					break;
 				case "airControl":
 					if (api.getJump()) api.setJump({ airControl: n });
+					break;
+				case "spinRate":
+					if (api.getJump()) api.setJump({ spinRate: n });
+					break;
+				case "landingTolerance":
+					if (api.getJump()) api.setJump({ landingTolerance: n });
+					break;
+				case "crashSpeed":
+					if (api.getJump()) api.setJump({ crashSpeed: n });
 					break;
 				case "hoverDuration":
 					if (api.getJump()?.hover) api.setJump({ hover: { duration: n } });

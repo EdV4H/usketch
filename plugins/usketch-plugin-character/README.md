@@ -96,6 +96,15 @@ createCharacterPlugin({
   `airControl` × the ground's, its travel turning with it; a running drift carries on. 0
   = ballistic (the take-off velocity carries the jump, a car can't steer), 1 = as on the
   ground. Falls with jumping off use the default.
+- **Air attitude** (vehicle, `jump.spinRate`, default 270 °/s, 0 = off, HUD "空中で車体を回す速さ"):
+  in the air the throttle keys pitch the body (forward = nose down, back = nose up) and,
+  with the drift key held, the steering rolls it (right = right side down) instead of
+  yawing it (`stepAirSpin` / `holdSteerForRoll`). Released keys hold the attitude; a full
+  flip wraps back to level. The pose and render props carry `pitch` / `roll` (degrees,
+  0 on the ground; broadcast). On touchdown (`landVehicle`) the body is set back on its
+  wheels: tilted at most `landingTolerance` (default 35°, HUD "着地の許容角") from the
+  ground under it (`landingTilt`, slopes included) it drives on, beyond that it keeps
+  only `crashSpeed` (default 0.3, HUD "着地失敗で残る速さ") of its speed.
 - **Keys**: the jump (Space) and the drift (Shift) have their own keys. The HUD offers
   a few keys for each (`KEY_CHOICES`: Space, Shift, Z, X, C, J, K, L); `setKeys` takes
   any `KeyboardEvent.code`s and `getKeys` returns the bindings.
@@ -191,7 +200,7 @@ createCharacterPlugin({
 ## HUD
 
 A "キャラクター" settings group (on/off, camera, scheme, drift, drift key, drift hop, jump, jump key, jump height, air
-jumps, jump direction on slopes, air control, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, size and its scale, screen position, camera lag) plus actions to toggle the
+jumps, jump direction on slopes, air control, air spin rate, landing tolerance, crash speed, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, size and its scale, screen position, camera lag) plus actions to toggle the
 character, to place it at the screen position, and to jump.
 
 ## Service

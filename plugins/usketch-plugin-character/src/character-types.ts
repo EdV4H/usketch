@@ -34,6 +34,13 @@ export interface CharacterRenderProps {
 	slip: number;
 	/** Vehicle: whether a drift is running (e.g. to lay tire marks). */
 	drifting: boolean;
+	/**
+	 * Vehicle: the body's attitude in the air, degrees — `pitch` nose up (+), `roll` right
+	 * side down (+); 0 on the ground. Tip the body by them about its middle, after turning
+	 * it to `screenHeading` (e.g. `rotateX(-pitch) rotateY(roll)` in CSS 3D).
+	 */
+	pitch: number;
+	roll: number;
 	/** Current viewport zoom (scale the sprite with the world, or not). */
 	zoom: number;
 	/**
@@ -84,6 +91,9 @@ export interface RemoteCharacter {
 	steering: number;
 	slip: number;
 	drifting: boolean;
+	/** Vehicle body attitude in the air, degrees (0 from older clients). */
+	pitch: number;
+	roll: number;
 	/** Feet height (absolute), or `null` from a client that doesn't send it (= on the ground). */
 	z: number | null;
 	airborne: boolean;

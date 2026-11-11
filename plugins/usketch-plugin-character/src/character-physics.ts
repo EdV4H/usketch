@@ -79,6 +79,14 @@ export interface CharacterPose {
 	 */
 	moveVx: number;
 	moveVy: number;
+	/**
+	 * Vehicle: the body's attitude in the air, degrees, relative to lying flat on the
+	 * ground — `pitch` nose up (+) / down (−), `roll` right side down (+) / left side
+	 * down (−), each kept in −180 … 180. Turned with the keys while airborne (see
+	 * `stepAirSpin`), back to 0 on landing (see `landVehicle`). Always 0 on the ground.
+	 */
+	pitch: number;
+	roll: number;
 	/** Whether the character is in the air (jumping or falling). */
 	airborne: boolean;
 	/** Hovering: the jump key held while falling slows the descent (see `HoverParams`). */
@@ -106,6 +114,8 @@ export const ORIGIN_POSE: CharacterPose = {
 	vy: 0,
 	moveVx: 0,
 	moveVy: 0,
+	pitch: 0,
+	roll: 0,
 	airborne: false,
 	hovering: false,
 	hoverGauge: 1,
@@ -315,6 +325,8 @@ export function stepCharacter(
 			vy: pose.vy,
 			moveVx: vx,
 			moveVy: vy,
+			pitch: pose.pitch,
+			roll: pose.roll,
 			airborne: pose.airborne,
 			hovering: pose.hovering,
 			hoverGauge: pose.hoverGauge,
@@ -372,6 +384,8 @@ export function stepCharacter(
 		vy: pose.vy,
 		moveVx: dir.x * speed,
 		moveVy: dir.y * speed,
+		pitch: pose.pitch,
+		roll: pose.roll,
 		airborne: pose.airborne,
 		hovering: pose.hovering,
 		hoverGauge: pose.hoverGauge,
@@ -615,6 +629,20 @@ export interface JumpParams {
 	 * `stepCharacter`. Falls with jumping off use the default.
 	 */
 	airControl: number;
+	/**
+	 * Vehicle: how fast the keys turn the body in the air, degrees / s (`0` = off): the
+	 * throttle / brake keys pitch it (forward = nose down), and the steering rolls it
+	 * while the drift key is held (else it yaws, as `airControl` allows). See
+	 * `stepAirSpin`.
+	 */
+	spinRate: number;
+	/**
+	 * Vehicle: the most a body may be tilted from the ground under it on touchdown,
+	 * degrees, for a clean landing. See `landVehicle`.
+	 */
+	landingTolerance: number;
+	/** Vehicle: the fraction of its speed a car keeps after landing beyond the tolerance (0 … 1). */
+	crashSpeed: number;
 }
 
 /**
@@ -660,6 +688,9 @@ export const DEFAULT_JUMP: JumpParams = {
 	hover: null,
 	slopeRatio: 0.5,
 	airControl: 0.5,
+	spinRate: 270,
+	landingTolerance: 35,
+	crashSpeed: 0.3,
 };
 
 /** Gravity (world units / s²) and take-off speed (world units / s) of a jump. */
@@ -831,6 +862,109 @@ export function stepVertical(
 			? pose
 			: { ...pose, z, vz, vx, vy, airborne, hovering, hoverGauge };
 	return { pose: nextPose, timers: nextTimers };
+}
+
+/** An angle in degrees wrapped to −180 … 180. */
+function wrapAngle(deg: number): number {
+	const w = wrapDeg(deg);
+	return w === -180 ? 180 : w;
+}
+
+/**
+ * Whether the drift key turns the steering into a roll this step: a vehicle in the air
+ * with spinning on and the key held.
+ */
+function rollsInAir(input: MoveInput, pose: CharacterPose, spinRate: number): boolean {
+	return pose.airborne && spinRate > 0 && input.drift === true;
+}
+
+/**
+ * The input for the horizontal step of a vehicle in the air: while the drift key rolls
+ * the body (see {@link stepAirSpin}) the steering doesn't also yaw it.
+ */
+export function holdSteerForRoll(
+	input: MoveInput,
+	pose: CharacterPose,
+	spinRate: number,
+): MoveInput {
+	if (!rollsInAir(input, pose, spinRate)) return input;
+	return { ...input, left: false, right: false, steer: undefined };
+}
+
+/**
+ * Turn a vehicle's body in the air for `dt` seconds at `spinRate` degrees / s: the
+ * throttle (forward = nose down, back = nose up) pitches it, and the steering rolls it
+ * while the drift key is held (right = right side down). Released keys hold the attitude.
+ * The angles wrap, so a full flip comes round to 0. Unchanged on the ground. Pure.
+ */
+export function stepAirSpin(
+	pose: CharacterPose,
+	input: MoveInput,
+	dt: number,
+	spinRate: number,
+): CharacterPose {
+	if (!pose.airborne || !(spinRate > 0) || !(dt > 0)) return pose;
+	const pitchBy = -inputThrottle(input) * spinRate * dt;
+	const rollBy = rollsInAir(input, pose, spinRate) ? inputSteer(input) * spinRate * dt : 0;
+	if (pitchBy === 0 && rollBy === 0) return pose;
+	return {
+		...pose,
+		pitch: wrapAngle(pose.pitch + pitchBy),
+		roll: wrapAngle(pose.roll + rollBy),
+	};
+}
+
+/**
+ * How far (degrees, 0 … 180) a body at `pitch` / `roll` is tilted from ground whose
+ * gradient is `slope` (rise per world unit) under a car heading `heading`: the angle
+ * between the body's up and the ground's normal. Pure.
+ */
+export function landingTilt(
+	pitch: number,
+	roll: number,
+	heading: number,
+	slope: { x: number; y: number },
+): number {
+	const p = (pitch * Math.PI) / 180;
+	const r = (roll * Math.PI) / 180;
+	// The body's up in the car's frame (x right, y back, z up): rolled, then pitched.
+	const up = { x: Math.sin(r), y: Math.cos(r) * Math.sin(p), z: Math.cos(r) * Math.cos(p) };
+	// The ground's rise ahead and to the right, and its normal in the same frame.
+	const f = headingVector(heading);
+	const ahead = slope.x * f.x + slope.y * f.y;
+	const right = slope.x * -f.y + slope.y * f.x;
+	const len = Math.hypot(right, ahead, 1);
+	const dot = (up.x * -right + up.y * ahead + up.z) / len;
+	return (Math.acos(Math.max(-1, Math.min(1, dot))) * 180) / Math.PI;
+}
+
+/**
+ * On the step a vehicle lands (`prev` airborne, `next` on the ground), set the body back
+ * on its wheels: within `landingTolerance` of the ground under it (`slope`) it drives on,
+ * beyond it keeps only `crashSpeed` of its speed — judged only with spinning on
+ * (`spinRate` > 0). Its attitude is 0 on the ground in any case. Unchanged in the air. Pure.
+ */
+export function landVehicle(
+	prev: CharacterPose,
+	next: CharacterPose,
+	slope: { x: number; y: number },
+	jump: Pick<JumpParams, "spinRate" | "landingTolerance" | "crashSpeed">,
+): CharacterPose {
+	if (next.airborne) return next;
+	const landed = next.pitch === 0 && next.roll === 0 ? next : { ...next, pitch: 0, roll: 0 };
+	// Only a body the keys could turn is judged (with spinning off it can't be lined up).
+	if (!prev.airborne || !(jump.spinRate > 0)) return landed;
+	const tilt = landingTilt(next.pitch, next.roll, next.heading, slope);
+	if (tilt <= Math.max(0, jump.landingTolerance)) return landed;
+	const keep = Math.min(1, Math.max(0, Number.isFinite(jump.crashSpeed) ? jump.crashSpeed : 1));
+	const speed = next.speed * keep;
+	return {
+		...landed,
+		speed,
+		moving: speed !== 0,
+		moveVx: next.moveVx * keep,
+		moveVy: next.moveVy * keep,
+	};
 }
 
 /**

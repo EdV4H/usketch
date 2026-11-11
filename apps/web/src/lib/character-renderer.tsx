@@ -3,7 +3,8 @@
 // (`controlScheme === "vehicle"`, or `appearance.kind === "car"`), a solid box: a top
 // face lifted by CSS 3D over four walls folded up from its edges, so under Mode 7 it
 // stands as a block while the flat board sees just its top. Both turn by
-// `screenHeading` (the car also by its drift `slip`); the name label stays upright underneath. While hovering a glow shows at the feet, and
+// `screenHeading` (the car also by its drift `slip`, and in the air it tips by its
+// `pitch` / `roll`); the name label stays upright underneath. While hovering a glow shows at the feet, and
 // a small ring beside the body shows the hover gauge (only while hovering or refilling).
 // `renderCharacterShadow` is the round shadow left on the ground under a jumping character.
 import type { CharacterAppearance, CharacterRenderProps } from "@edv4h/usketch-plugin-character";
@@ -155,7 +156,27 @@ function WallDetail({ side, h }: { side: CarSide; h: number }) {
 	);
 }
 
-function CarBox({ color, size }: { color: string; size: number }) {
+/**
+ * CSS that tips the car box by its attitude in the air (`pitch` nose up, `roll` right side
+ * down, degrees) about its middle, `h` px up: `undefined` when level.
+ */
+export function carTiltTransform(pitch: number, roll: number, h: number): string | undefined {
+	if (pitch === 0 && roll === 0) return undefined;
+	const mid = Math.round(h * 50) / 100;
+	return `translateZ(${mid}px) rotateX(${-pitch}deg) rotateY(${roll}deg) translateZ(${-mid}px)`;
+}
+
+function CarBox({
+	color,
+	size,
+	pitch,
+	roll,
+}: {
+	color: string;
+	size: number;
+	pitch: number;
+	roll: number;
+}) {
 	const w = size * CAR_WIDTH;
 	const l = size * CAR_LENGTH;
 	const h = size * CAR_HEIGHT;
@@ -170,6 +191,8 @@ function CarBox({ color, size }: { color: string; size: number }) {
 				width: w,
 				height: l,
 				transformStyle: "preserve-3d",
+				// Tipped in the air (pitch / roll), after the turn to the heading outside.
+				transform: carTiltTransform(pitch, roll, h),
 			}}
 		>
 			{carWalls(w, l, h).map((wall) => (
@@ -319,7 +342,7 @@ export function renderCharacter(props: CharacterRenderProps) {
 						transformStyle: "preserve-3d",
 					}}
 				>
-					<CarBox color={color} size={size} />
+					<CarBox color={color} size={size} pitch={props.pitch} roll={props.roll} />
 				</div>
 			) : (
 				<div style={{ transform: `rotate(${props.screenHeading}deg)`, width: size, height: size }}>

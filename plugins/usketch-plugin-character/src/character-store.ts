@@ -184,6 +184,12 @@ export function sanitizeJump(
 		hover: sanitizeHover(j.hover, base.hover, hoverTuning),
 		slopeRatio: clamp01(finite(j.slopeRatio, base.slopeRatio)),
 		airControl: clamp01(finite(j.airControl, base.airControl)),
+		spinRate: nonNegative(finite(j.spinRate, base.spinRate), base.spinRate),
+		landingTolerance: Math.min(
+			180,
+			nonNegative(finite(j.landingTolerance, base.landingTolerance), base.landingTolerance),
+		),
+		crashSpeed: clamp01(finite(j.crashSpeed, base.crashSpeed)),
 	};
 }
 

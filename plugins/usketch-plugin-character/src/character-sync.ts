@@ -34,6 +34,9 @@ export interface CharacterWireState {
 	slip?: number;
 	/** Vehicle drift running (absent from older clients → false). */
 	drifting?: boolean;
+	/** Vehicle body pitch / roll in the air, degrees (absent from older clients → 0). */
+	pitch?: number;
+	roll?: number;
 	/** Feet height, absolute world units (absent from older clients → on the ground). */
 	z?: number;
 	/** In the air (absent → false). */
@@ -79,6 +82,8 @@ export function parseWireState(v: unknown): Omit<RemoteCharacter, "id"> | null {
 		steering: clamp(num("steering") ?? 0, -1, 1),
 		slip: clamp(num("slip") ?? 0, -MAX_WIRE_SLIP, MAX_WIRE_SLIP),
 		drifting: o.drifting === true,
+		pitch: wrapDeg(num("pitch") ?? 0),
+		roll: wrapDeg(num("roll") ?? 0),
 		z: num("z"),
 		airborne: o.airborne === true,
 		vz: num("vz") ?? 0,
@@ -127,6 +132,9 @@ export function createCharacterSync(
 					// Half-degree steps: a settling slip doesn't publish every frame forever.
 					slip: Math.round(s.pose.slip * 2) / 2,
 					drifting: s.pose.drift !== 0,
+					// Whole degrees: enough for the look, and a still body doesn't republish.
+					pitch: Math.round(s.pose.pitch),
+					roll: Math.round(s.pose.roll),
 					z: s.pose.z,
 					airborne: s.pose.airborne,
 					vz: s.pose.vz,
@@ -191,6 +199,8 @@ export function easeRemotes(
 		const dy = t.y - d.y;
 		const dh = wrapDeg(t.heading - d.heading);
 		const ds = t.slip - d.slip;
+		const dp = wrapDeg(t.pitch - d.pitch);
+		const dr = wrapDeg(t.roll - d.roll);
 		// Height eases only between two known values (an older client sends none).
 		const known = typeof t.z === "number" && typeof d.z === "number";
 		const dz = known ? (t.z as number) - (d.z as number) : 0;
@@ -199,6 +209,8 @@ export function easeRemotes(
 			Math.abs(dy) < 0.05 &&
 			Math.abs(dh) < 0.05 &&
 			Math.abs(ds) < 0.05 &&
+			Math.abs(dp) < 0.05 &&
+			Math.abs(dr) < 0.05 &&
 			Math.abs(dz) < 0.05
 		) {
 			next.set(id, t);
@@ -211,6 +223,8 @@ export function easeRemotes(
 			y: d.y + dy * alpha,
 			heading: wrapDeg(d.heading + dh * alpha),
 			slip: d.slip + ds * alpha,
+			pitch: wrapDeg(d.pitch + dp * alpha),
+			roll: wrapDeg(d.roll + dr * alpha),
 			z: known ? (d.z as number) + dz * alpha : t.z,
 		});
 	}

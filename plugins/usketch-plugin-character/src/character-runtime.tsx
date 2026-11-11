@@ -29,13 +29,16 @@ import {
 	groundSlope,
 	type HeightAt,
 	holdDriftForHop,
+	holdSteerForRoll,
 	IDLE_JUMP,
 	type JumpTimers,
+	landVehicle,
 	pushInAir,
 	type SolidAt,
 	SWEEP_STEP,
 	slideOnSteep,
 	standingHeight,
+	stepAirSpin,
 	stepCharacter,
 	stepVertical,
 	sweepToGround,
@@ -257,15 +260,19 @@ export function setupCharacterRuntime(
 
 			const vp = ctx.store.getViewport();
 			const hopHeight = driftHopHeight(s);
+			const air = effectiveJump(s) ?? DEFAULT_JUMP;
+			// A car in the air turns its body with the keys (pitch, and roll with the drift
+			// key held, which then doesn't also yaw it).
+			const spinRate = s.controlScheme === "vehicle" ? air.spinRate : 0;
 			const stepped = stepCharacter(
-				s.pose,
-				holdDriftForHop(input, s.pose, hopHeight),
+				stepAirSpin(s.pose, input, dt, spinRate),
+				holdSteerForRoll(holdDriftForHop(input, s.pose, hopHeight), s.pose, spinRate),
 				dt,
 				s.controlScheme,
 				s.motion,
 				viewportRotation(vp),
 				s.drift,
-				(effectiveJump(s) ?? DEFAULT_JUMP).airControl,
+				air.airControl,
 			);
 			// Cliffs taller than the climbable step, slopes steeper than the climbable one
 			// and walls block the move (slide along them), checked in short stretches so a
@@ -283,6 +290,7 @@ export function setupCharacterRuntime(
 			const moved = slideOnSteep(swept, heightAt, blockAt, s.motion, dt);
 			// Then up and down: jumps (along the slope as far as tuned), falls off cliffs,
 			// landings.
+			const slopeHere = groundSlope(heightAt, moved.x, moved.y);
 			const vertical = stepVertical(
 				moved,
 				jumpTimers,
@@ -292,10 +300,11 @@ export function setupCharacterRuntime(
 				s.motion.maxStep,
 				effectiveJump(s),
 				hopHeight,
-				groundSlope(heightAt, moved.x, moved.y),
+				slopeHere,
 			);
 			jumpTimers = vertical.timers;
-			const pose = vertical.pose;
+			// Touchdown puts a car back on its wheels; landing off the ground's tilt slows it.
+			const pose = landVehicle(s.pose, vertical.pose, slopeHere, { ...air, spinRate });
 			if (holdJump && (!pose.airborne || pose.vz <= 0)) holdJump = false;
 			store.setPose(pose);
 			s = store.getState();
