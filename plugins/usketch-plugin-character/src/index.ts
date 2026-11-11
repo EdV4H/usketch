@@ -14,6 +14,7 @@ export {
 	keyChoiceOf,
 	withKeyChoice,
 } from "./character-key-choices.js";
+export { FLAT_JUMP_MAX_SCALE, flatJumpLift } from "./character-layer.js";
 export {
 	airJumpSpeed,
 	blockingHeight,
