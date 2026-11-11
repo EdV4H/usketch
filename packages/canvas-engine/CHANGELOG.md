@@ -1,5 +1,11 @@
 # @edv4h/usketch-canvas-engine
 
+## 1.5.11
+
+### Patch Changes
+
+- 735c4b4: レイヤー枠と Canvas を `overflow: clip` にし、編集欄へのフォーカスでレイヤーがスクロールして図形の表示と当たり判定がずれる不具合を直す
+
 ## 1.5.10
 
 ### Patch Changes
