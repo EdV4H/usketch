@@ -35,6 +35,12 @@ export interface HistoryCommit {
 	author: string | null;
 	message: string;
 	trigger: HistoryCommitTrigger;
+	/**
+	 * `tree` の形。省略時は 1 つの tree にボードの全シェイプ（shape id → blob）。
+	 * `"pages"` のときは `tree` がページの一覧（page id → そのページのシェイプの tree）。
+	 * 省略時はハッシュに入らないので、これまでのコミットのハッシュは変わらない。
+	 */
+	layout?: "pages";
 }
 
 /** Everything needed to persist one snapshot of a board. */

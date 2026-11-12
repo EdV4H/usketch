@@ -447,10 +447,12 @@ export function App() {
 
 			extraPlugins.push(createCommentsPlugin({ boardId, apiUrl, extraHeaders: aiHeaders }));
 			// ボード履歴（サーバーの自動・手動コミット）の一覧・差分・プレビュー・復元。
-			extraPlugins.push(createHistoryPlugin({ boardId, apiUrl, extraHeaders: aiHeaders }));
+			// ページを使うボードでは、今開いているページの中身を見せる。
+			extraPlugins.push(createHistoryPlugin({ boardId, apiUrl, extraHeaders: aiHeaders, pageId }));
 
 			// AI プラグイン
-			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
+			// ページを使うボードでは、AI の配置・更新を今開いているページに書く。
+			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders, pageId }));
 			// ai-chat 内蔵の Cmd+K パレットは無効化（アクション操作は Control HUD の
 			// Controls／検索に一本化済み）。
 			extraPlugins.push(createAiChatPlugin({ boardId, enableCommandPalette: false }));

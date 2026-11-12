@@ -197,6 +197,25 @@ export function createPageDocs(deps: PageDocsDeps) {
 		for (const docId of docs) releaseIfIdle(docId);
 	}
 
+	/**
+	 * サーバー側で doc に書いた update を広める（AI など）。保存を予約し、その doc の
+	 * 購読者全員に中継する。doc は {@link load} で読み込んだもの。
+	 */
+	function publish(docId: string, update: Uint8Array): void {
+		const sync = loaded.get(docId);
+		if (!sync) return;
+		sync.pushUpdate(update);
+		sync.scheduleSave();
+		deps.onEdit?.(docId);
+		const frame = encodeDocFrame(MSG_DOC_UPDATE, docId, [update]);
+		for (const ws of subscribersOf(docId)) trySend(ws, frame);
+	}
+
+	/** {@link load} で読んだ doc を使い終えたとき。誰も見ておらず保存も済んでいれば外す。 */
+	function release(docId: string): void {
+		releaseIfIdle(docId);
+	}
+
 	/** 読み込み済みの doc の id（テスト・監視用）。 */
 	function loadedDocIds(): string[] {
 		return [...loaded.keys()];
@@ -209,5 +228,7 @@ export function createPageDocs(deps: PageDocsDeps) {
 		handleClose,
 		loadedDocIds,
 		load,
+		publish,
+		release,
 	};
 }
