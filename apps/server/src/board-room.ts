@@ -19,6 +19,7 @@ import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { boardMembers } from "./db/schema.js";
 import { handleAiPlaceShapes, handleAiUpdateShapes } from "./rooms/ai-handler.js";
+import { createBoardShapes } from "./rooms/board-shapes.js";
 import { handleHistoryRequest } from "./rooms/history-handler.js";
 import { createHistoryManager } from "./rooms/history-manager.js";
 import { createPageDocs } from "./rooms/page-docs.js";
@@ -60,6 +61,21 @@ export class BoardRoom extends DurableObject<Env> {
 	private readonly pageDocs = createPageDocs({
 		storage: this.ctx.storage,
 		getSockets: () => this.ctx.getWebSockets(),
+	});
+
+	// サーバー側の機能（AI・サムネイル）がシェイプを読み書きする入口。ページを使うボードは
+	// 指定したページ（省略時は先頭ページ）のページ doc、使わないボードはルート doc を開く。
+	private readonly boardShapes = createBoardShapes({
+		getRootDoc: () => this.yjsSync.getOrCreateDoc(),
+		publishRoot: (update) => {
+			this.yjsSync.pushUpdate(update);
+			const msg = new Uint8Array(update.length + 1);
+			msg[0] = MSG_YJS_UPDATE;
+			msg.set(update, 1);
+			this.broadcastAll(msg);
+			this.noteBoardEdit();
+		},
+		pageDocs: this.pageDocs,
 	});
 
 	/** Yjs の保存を予約し、履歴の自動コミットにも編集を知らせる。 */
@@ -154,24 +170,18 @@ export class BoardRoom extends DurableObject<Env> {
 
 		if (url.pathname === "/ai-place-shapes" && request.method === "POST") {
 			return handleAiPlaceShapes(request, {
-				getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
-				pushUpdate: (u) => this.yjsSync.pushUpdate(u),
-				broadcastAll: (d) => this.broadcastAll(d),
-				scheduleSave: () => this.noteBoardEdit(),
+				openShapes: (pageId) => this.boardShapes.open(pageId),
 			});
 		}
 
 		if (url.pathname === "/ai-update-shapes" && request.method === "POST") {
 			return handleAiUpdateShapes(request, {
-				getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
-				pushUpdate: (u) => this.yjsSync.pushUpdate(u),
-				broadcastAll: (d) => this.broadcastAll(d),
-				scheduleSave: () => this.noteBoardEdit(),
+				openShapes: (pageId) => this.boardShapes.open(pageId),
 			});
 		}
 
 		if (url.pathname === "/thumbnail") {
-			return handleThumbnail(url, () => this.yjsSync.getOrCreateDoc());
+			return handleThumbnail(url, (pageId) => this.boardShapes.open(pageId));
 		}
 
 		const historyResponse = await handleHistoryRequest(request, url, this.history);

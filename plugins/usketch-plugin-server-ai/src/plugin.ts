@@ -20,6 +20,11 @@ const completeSchema = z.object({
 	boardId: z.string().min(1),
 	image: z.string().max(10_000_000).optional(),
 	model: z.string().optional().default("gpt-4o"),
+	/** 書き込むページ（ページを使うボードで今開いているページ）。省略時は先頭ページ。 */
+	pageId: z
+		.string()
+		.regex(/^[A-Za-z0-9_-]{1,64}$/)
+		.optional(),
 });
 
 /** シェイプ数の上限 */
@@ -354,7 +359,7 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 
 			// POST /api/ai/complete — AIによるシェイプ生成
 			aiApp.post("/complete", zValidator("json", completeSchema), async (c) => {
-				const { prompt, canvasContext, boardId, image, model } = c.req.valid("json");
+				const { prompt, canvasContext, boardId, image, model, pageId } = c.req.valid("json");
 				const userId = c.get("userId");
 
 				// ボードアクセス制御: メンバーまたは公開ボードのみ許可
@@ -507,7 +512,7 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 									new Request("http://do/ai-place-shapes", {
 										method: "POST",
 										headers: { "Content-Type": "application/json" },
-										body: JSON.stringify({ shapes }),
+										body: JSON.stringify({ shapes, pageId }),
 									}),
 								);
 
@@ -554,7 +559,7 @@ export function createAiPlugin(schema: AiPluginSchema): ServerPlugin {
 									new Request("http://do/ai-update-shapes", {
 										method: "POST",
 										headers: { "Content-Type": "application/json" },
-										body: JSON.stringify({ updates }),
+										body: JSON.stringify({ updates, pageId }),
 									}),
 								);
 

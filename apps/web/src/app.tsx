@@ -450,7 +450,8 @@ export function App() {
 			extraPlugins.push(createHistoryPlugin({ boardId, apiUrl, extraHeaders: aiHeaders }));
 
 			// AI プラグイン
-			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
+			// ページを使うボードでは、AI の配置・更新を今開いているページに書く。
+			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders, pageId }));
 			// ai-chat 内蔵の Cmd+K パレットは無効化（アクション操作は Control HUD の
 			// Controls／検索に一本化済み）。
 			extraPlugins.push(createAiChatPlugin({ boardId, enableCommandPalette: false }));
