@@ -30,6 +30,7 @@ import { createElevationPlugin } from "@edv4h/usketch-plugin-elevation";
 import { createExportPlugin } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
+import { createHistoryPlugin } from "@edv4h/usketch-plugin-history";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
 import { createMode7Plugin } from "@edv4h/usketch-plugin-mode7";
@@ -424,6 +425,8 @@ export function App() {
 			}
 
 			extraPlugins.push(createCommentsPlugin({ boardId, apiUrl, extraHeaders: aiHeaders }));
+			// ボード履歴（サーバーの自動・手動コミット）の一覧・差分・プレビュー・復元。
+			extraPlugins.push(createHistoryPlugin({ boardId, apiUrl, extraHeaders: aiHeaders }));
 
 			// AI プラグイン
 			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
