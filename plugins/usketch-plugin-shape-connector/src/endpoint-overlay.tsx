@@ -1,15 +1,12 @@
-import { clampToShapeEdge, getDefaultControlPoint } from "@edv4h/usketch-connector-anchor";
+import { getDefaultControlPoint } from "@edv4h/usketch-connector-anchor";
 import type { PluginContext, Point, ShapeData, Viewport } from "@edv4h/usketch-shared";
-import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import { useCallback, useSyncExternalStore } from "react";
-import { computeEndpointDrop } from "./connector-ends.js";
+import { startEndpointDrag } from "./endpoint-drag.js";
 import {
 	type EndpointDragState,
 	getEndpointDrag,
-	setEndpointDrag,
 	subscribeEndpointDrag,
 } from "./endpoint-drag-state.js";
-import { findEndShapeAtPoint, findShapeAtPoint } from "./find-shape-at-point.js";
 import type { ConnectorShapeData } from "./types.js";
 
 const HANDLE_RADIUS = 5;
@@ -116,10 +113,8 @@ export function EndpointOverlay({ ctx, viewport, freeEnds = false }: EndpointOve
 			<EndpointHandle
 				screen={srcScreen}
 				endpoint="source"
-				connectorId={connectorId}
 				connector={connector}
 				ctx={ctx}
-				viewport={viewport}
 				worldPoint={sourcePoint}
 				freeEnds={freeEnds}
 			/>
@@ -128,10 +123,8 @@ export function EndpointOverlay({ ctx, viewport, freeEnds = false }: EndpointOve
 			<EndpointHandle
 				screen={tgtScreen}
 				endpoint="target"
-				connectorId={connectorId}
 				connector={connector}
 				ctx={ctx}
-				viewport={viewport}
 				worldPoint={targetPoint}
 				freeEnds={freeEnds}
 			/>
@@ -141,10 +134,8 @@ export function EndpointOverlay({ ctx, viewport, freeEnds = false }: EndpointOve
 				<EndpointHandle
 					screen={cpScreen}
 					endpoint="controlPoint"
-					connectorId={connectorId}
 					connector={connector}
 					ctx={ctx}
-					viewport={viewport}
 					worldPoint={cp}
 					isControlPoint
 				/>
@@ -237,20 +228,16 @@ function TargetHighlight({
 function EndpointHandle({
 	screen,
 	endpoint,
-	connectorId,
 	connector,
 	ctx,
-	viewport,
 	worldPoint,
 	isControlPoint,
 	freeEnds = false,
 }: {
 	screen: Point;
 	endpoint: "source" | "target" | "controlPoint";
-	connectorId: string;
 	connector: ShapeData;
 	ctx: PluginContext;
-	viewport: Viewport;
 	worldPoint: Point;
 	isControlPoint?: boolean;
 	freeEnds?: boolean;
@@ -260,111 +247,14 @@ function EndpointHandle({
 			e.stopPropagation();
 			e.preventDefault();
 
-			const svgEl = (e.currentTarget as SVGElement).ownerSVGElement;
-			if (!svgEl) return;
-
-			setEndpointDrag({
-				connectorId,
+			startEndpointDrag(ctx, {
+				connector: connector as ConnectorShapeData,
 				endpoint,
-				currentPoint: worldPoint,
-				targetShapeId: null,
+				startPoint: worldPoint,
+				freeEnds,
 			});
-
-			// The shape this endpoint is currently connected to
-			const connectorData = connector as ConnectorShapeData;
-			const currentShapeId =
-				endpoint === "source" ? connectorData.sourceId : connectorData.targetId;
-
-			// Raw pointer position (drag.currentPoint is clamped while sliding).
-			let pointer = worldPoint;
-
-			const onMove = (me: PointerEvent) => {
-				const wp = screenToWorld({ x: me.clientX, y: me.clientY }, viewport);
-				pointer = wp;
-
-				if (endpoint === "controlPoint") {
-					setEndpointDrag({
-						connectorId,
-						endpoint,
-						currentPoint: wp,
-						targetShapeId: null,
-					});
-					// Live-update the curve so the bend (and the handle, which reads the
-					// shape's controlPoint) follows the pointer during the drag instead of
-					// only snapping into place on release. The single undoable command is
-					// still committed once in onUp (before = original captured at
-					// pointerdown, after = final position).
-					ctx.store.updateShape(connectorId, {
-						controlPoint: wp,
-						controlPointAuto: false,
-					} as Partial<ConnectorShapeData>);
-					return;
-				}
-
-				// Check if we're over the same shape (slide anchor) or a different one (reconnect)
-				const hoverShape = freeEnds
-					? findEndShapeAtPoint(ctx, wp, viewport.zoom)
-					: findShapeAtPoint(ctx, wp);
-				const otherEndShapeId =
-					endpoint === "source" ? connectorData.targetId : connectorData.sourceId;
-
-				if (hoverShape && hoverShape.id === currentShapeId) {
-					// Sliding along current shape's edge
-					const edgePoint = clampToShapeEdge(hoverShape, wp);
-					setEndpointDrag({
-						connectorId,
-						endpoint,
-						currentPoint: edgePoint,
-						targetShapeId: null,
-					});
-				} else {
-					setEndpointDrag({
-						connectorId,
-						endpoint,
-						currentPoint: wp,
-						targetShapeId: hoverShape && hoverShape.id !== otherEndShapeId ? hoverShape.id : null,
-					});
-				}
-			};
-
-			const onUp = () => {
-				const drag = getEndpointDrag();
-				if (drag && drag.connectorId === connectorId) {
-					if (drag.endpoint === "controlPoint") {
-						const before: Partial<ConnectorShapeData> = {
-							controlPoint: connectorData.controlPoint,
-							controlPointAuto: connectorData.controlPointAuto,
-						};
-						const after: Partial<ConnectorShapeData> = {
-							controlPoint: drag.currentPoint,
-							controlPointAuto: false,
-						};
-						ctx.commands.execute(
-							createBatchUpdateShapesCommand(ctx.store, [
-								{ id: connectorId, from: before, to: after },
-							]),
-						);
-					} else {
-						commitEndpointDrop(
-							ctx,
-							connectorId,
-							drag.endpoint,
-							worldPoint,
-							pointer,
-							viewport,
-							freeEnds,
-						);
-					}
-				}
-				setEndpointDrag(null);
-				window.removeEventListener("pointermove", onMove);
-				window.removeEventListener("pointerup", onUp);
-			};
-
-			window.addEventListener("pointermove", onMove);
-			window.addEventListener("pointerup", onUp);
 		},
-		[connectorId, connector, endpoint, worldPoint, viewport, ctx, freeEnds],
+		[connector, endpoint, worldPoint, ctx, freeEnds],
 	);
 
 	const r = isControlPoint ? HANDLE_RADIUS - 1 : HANDLE_RADIUS;
@@ -387,41 +277,9 @@ function EndpointHandle({
 	);
 }
 
-/** Commit a dragged endpoint (see {@link computeEndpointDrop}). */
-function commitEndpointDrop(
-	ctx: PluginContext,
-	connectorId: string,
-	endpoint: "source" | "target",
-	startPoint: Point,
-	dropPoint: Point,
-	viewport: Viewport,
-	freeEnds: boolean,
-) {
-	const connector = ctx.store.getShape(connectorId) as ConnectorShapeData | undefined;
-	if (!connector) return;
-	const dropShape = freeEnds
-		? findEndShapeAtPoint(ctx, dropPoint, viewport.zoom)
-		: findShapeAtPoint(ctx, dropPoint);
-	const change = computeEndpointDrop(
-		connector,
-		endpoint,
-		{ shape: dropShape, point: dropPoint },
-		{ startPoint, zoom: viewport.zoom, freeEnds, getShape: (id) => ctx.store.getShape(id) },
-	);
-	if (!change) return;
-	ctx.commands.execute(createBatchUpdateShapesCommand(ctx.store, [{ id: connectorId, ...change }]));
-}
-
 function worldToScreen(point: Point, viewport: Viewport): Point {
 	return {
 		x: point.x * viewport.zoom + viewport.x,
 		y: point.y * viewport.zoom + viewport.y,
-	};
-}
-
-function screenToWorld(point: Point, viewport: Viewport): Point {
-	return {
-		x: (point.x - viewport.x) / viewport.zoom,
-		y: (point.y - viewport.y) / viewport.zoom,
 	};
 }
