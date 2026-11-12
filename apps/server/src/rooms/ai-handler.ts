@@ -1,4 +1,4 @@
-import { MSG_YJS_UPDATE } from "@edv4h/usketch-sync";
+import { PageNotFoundError, type ShapesTarget } from "./board-shapes.js";
 
 const DEFAULT_STYLE = {
 	fill: "#ffffff",
@@ -44,10 +44,40 @@ interface AiShapeUpdate {
 }
 
 export interface AiHandlerDeps {
-	getOrCreateDoc: () => Promise<{ doc: import("yjs").Doc }>;
-	pushUpdate: (update: Uint8Array) => void;
-	broadcastAll: (data: Uint8Array) => void;
-	scheduleSave: () => void;
+	/** 書き込み先の doc を開く（`pageId` 省略時はページを使うボードなら先頭ページ）。 */
+	openShapes: (pageId: string | null) => Promise<ShapesTarget>;
+}
+
+function jsonResponse(body: unknown, status: number): Response {
+	return new Response(JSON.stringify(body), {
+		status,
+		headers: { "Content-Type": "application/json" },
+	});
+}
+
+function readPageId(body: { pageId?: unknown }): string | null {
+	return typeof body.pageId === "string" && body.pageId ? body.pageId : null;
+}
+
+function errorResponse(err: unknown): Response {
+	if (err instanceof PageNotFoundError) return jsonResponse({ error: err.message }, 404);
+	return jsonResponse({ error: err instanceof Error ? err.message : "Unknown error" }, 500);
+}
+
+/** `edit` の中で doc に入った update を集め、終わったら広める。 */
+function transactAndPublish(target: ShapesTarget, edit: () => void): void {
+	const { doc } = target;
+	const pendingUpdates: Uint8Array[] = [];
+	const onUpdate = (update: Uint8Array) => {
+		pendingUpdates.push(update);
+	};
+	doc.on("update", onUpdate);
+	try {
+		doc.transact(edit);
+	} finally {
+		doc.off("update", onUpdate);
+	}
+	for (const update of pendingUpdates) target.publish(update);
 }
 
 /** AIシェイプ配置: Y.Docに書き込み → Yjs updateを全クライアントにbroadcast */
@@ -56,7 +86,7 @@ export async function handleAiPlaceShapes(
 	deps: AiHandlerDeps,
 ): Promise<Response> {
 	try {
-		const body = (await request.json()) as { shapes: AiShapeInput[] };
+		const body = (await request.json()) as { shapes: AiShapeInput[]; pageId?: unknown };
 		const shapes = body.shapes;
 		if (!shapes || !Array.isArray(shapes) || shapes.length === 0) {
 			return new Response(JSON.stringify({ error: "No shapes provided" }), {
@@ -65,8 +95,8 @@ export async function handleAiPlaceShapes(
 			});
 		}
 
-		const { doc } = await deps.getOrCreateDoc();
-		const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
+		const target = await deps.openShapes(readPageId(body));
+		const shapesMap = target.doc.getMap<Record<string, unknown>>("shapes");
 		const placedShapes: Array<{
 			id: string;
 			type: string;
@@ -76,14 +106,8 @@ export async function handleAiPlaceShapes(
 			height: number;
 		}> = [];
 
-		const pendingUpdates: Uint8Array[] = [];
-		const onUpdate = (update: Uint8Array) => {
-			pendingUpdates.push(update);
-		};
-		doc.on("update", onUpdate);
-
 		try {
-			doc.transact(() => {
+			transactAndPublish(target, () => {
 				for (const shape of shapes) {
 					const id = generateShapeId();
 					const baseStyle =
@@ -124,27 +148,12 @@ export async function handleAiPlaceShapes(
 				}
 			});
 		} finally {
-			doc.off("update", onUpdate);
+			target.release();
 		}
 
-		for (const update of pendingUpdates) {
-			deps.pushUpdate(update);
-			const msg = new Uint8Array(update.length + 1);
-			msg[0] = MSG_YJS_UPDATE;
-			msg.set(update, 1);
-			deps.broadcastAll(msg);
-		}
-
-		deps.scheduleSave();
-		return new Response(JSON.stringify({ placedShapes }), {
-			status: 200,
-			headers: { "Content-Type": "application/json" },
-		});
+		return jsonResponse({ placedShapes, pageId: target.pageId }, 200);
 	} catch (err) {
-		return new Response(
-			JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-			{ status: 500, headers: { "Content-Type": "application/json" } },
-		);
+		return errorResponse(err);
 	}
 }
 
@@ -154,7 +163,7 @@ export async function handleAiUpdateShapes(
 	deps: AiHandlerDeps,
 ): Promise<Response> {
 	try {
-		const body = (await request.json()) as { updates: AiShapeUpdate[] };
+		const body = (await request.json()) as { updates: AiShapeUpdate[]; pageId?: unknown };
 		const updates = body.updates;
 		if (!updates || !Array.isArray(updates) || updates.length === 0) {
 			return new Response(JSON.stringify({ error: "No updates provided" }), {
@@ -163,8 +172,8 @@ export async function handleAiUpdateShapes(
 			});
 		}
 
-		const { doc } = await deps.getOrCreateDoc();
-		const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
+		const target = await deps.openShapes(readPageId(body));
+		const shapesMap = target.doc.getMap<Record<string, unknown>>("shapes");
 		const updatedShapes: Array<{
 			id: string;
 			type: string;
@@ -174,14 +183,8 @@ export async function handleAiUpdateShapes(
 			height: number;
 		}> = [];
 
-		const pendingUpdates: Uint8Array[] = [];
-		const onUpdate = (update: Uint8Array) => {
-			pendingUpdates.push(update);
-		};
-		doc.on("update", onUpdate);
-
 		try {
-			doc.transact(() => {
+			transactAndPublish(target, () => {
 				for (const update of updates) {
 					const existing = shapesMap.get(update.id);
 					if (!existing) continue;
@@ -213,26 +216,11 @@ export async function handleAiUpdateShapes(
 				}
 			});
 		} finally {
-			doc.off("update", onUpdate);
+			target.release();
 		}
 
-		for (const update of pendingUpdates) {
-			deps.pushUpdate(update);
-			const msg = new Uint8Array(update.length + 1);
-			msg[0] = MSG_YJS_UPDATE;
-			msg.set(update, 1);
-			deps.broadcastAll(msg);
-		}
-
-		deps.scheduleSave();
-		return new Response(JSON.stringify({ updatedShapes }), {
-			status: 200,
-			headers: { "Content-Type": "application/json" },
-		});
+		return jsonResponse({ updatedShapes, pageId: target.pageId }, 200);
 	} catch (err) {
-		return new Response(
-			JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-			{ status: 500, headers: { "Content-Type": "application/json" } },
-		);
+		return errorResponse(err);
 	}
 }

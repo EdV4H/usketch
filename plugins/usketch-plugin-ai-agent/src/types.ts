@@ -4,6 +4,8 @@ export interface AiCompleteRequest {
 	boardId: string;
 	image?: string;
 	model?: string;
+	/** 書き込むページ（ページを使うボードで今開いているページ）。省略時はサーバーが先頭ページにする。 */
+	pageId?: string;
 }
 
 export interface AiStatusEvent {

@@ -1,6 +1,6 @@
 /**
  * MCP リソース定義
- * usketch://boards, usketch://boards/{boardId}/shapes
+ * usketch://boards, usketch://boards/{boardId}/shapes, usketch://boards/{boardId}/pages/{pageId}/shapes
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -38,20 +38,42 @@ export function registerBoardResources(
 	server.resource(
 		"board-shapes",
 		shapesTemplate,
-		{ description: "ボード上の全シェイプ", mimeType: "application/json" },
-		async (uri, variables) => {
-			const boardId = variables.boardId as string;
-			const conn = await connections.getConnection(boardId);
-			const shapes = conn.getAllShapes();
-			return {
-				contents: [
-					{
-						uri: uri.href,
-						mimeType: "application/json",
-						text: JSON.stringify(shapes, null, 2),
-					},
-				],
-			};
+		{
+			description: "ボード上の全シェイプ（ページを使うボードは先頭ページ）",
+			mimeType: "application/json",
 		},
+		async (uri, variables) => readShapes(connections, uri, variables.boardId as string, null),
 	);
+
+	const pageShapesTemplate = new ResourceTemplate(
+		"usketch://boards/{boardId}/pages/{pageId}/shapes",
+		{ list: undefined },
+	);
+
+	server.resource(
+		"board-page-shapes",
+		pageShapesTemplate,
+		{ description: "ページ上の全シェイプ（ページを使うボード）", mimeType: "application/json" },
+		async (uri, variables) =>
+			readShapes(connections, uri, variables.boardId as string, variables.pageId as string),
+	);
+}
+
+async function readShapes(
+	connections: ConnectionManager,
+	uri: URL,
+	boardId: string,
+	pageId: string | null,
+) {
+	const conn = await connections.getConnection(boardId);
+	const shapes = (await conn.openShapes(pageId)).all();
+	return {
+		contents: [
+			{
+				uri: uri.href,
+				mimeType: "application/json",
+				text: JSON.stringify(shapes, null, 2),
+			},
+		],
+	};
 }

@@ -92,6 +92,21 @@ export function getPage(root: Y.Doc, pageId: string): PageMeta | null {
 }
 
 /**
+ * ページ形式にする前（ルート doc の `shapes`）の中身が、どのページへ移ったか。
+ * 移行で `meta` に書く。無ければ先頭ページとみなす（履歴の古い版をどのページに見せるかに使う）。
+ */
+export const LEGACY_PAGE_ID_KEY = "legacyPageId";
+
+/** ページ形式にする前の中身が移ったページ。ページを使わないボードは null。 */
+export function getLegacyPageId(root: Y.Doc): string | null {
+	const pages = listPages(root, { includeDeleted: true });
+	if (pages.length === 0) return null;
+	const recorded = metaMap(root).get(LEGACY_PAGE_ID_KEY);
+	if (typeof recorded === "string" && pages.some((p) => p.id === recorded)) return recorded;
+	return listPages(root)[0]?.id ?? null;
+}
+
+/**
  * ページを使うボードか。版があり、削除されていないページが 1 枚以上あるときだけ true。
  * ページが 1 枚も無い状態は移行の途中か壊れたデータなので、ページ無しとして扱う。
  */

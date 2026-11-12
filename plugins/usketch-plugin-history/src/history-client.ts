@@ -21,6 +21,8 @@ export interface HistoryCommitPage {
 export interface HistoryCommitDetail {
 	hash: string;
 	commit: HistoryCommit;
+	/** Which page these shapes belong to (`null` on a board without pages). */
+	pageId?: string | null;
 	shapes: ShapeData[];
 }
 
@@ -32,6 +34,8 @@ export interface HistoryShapeModification {
 }
 
 export interface HistoryDiff {
+	/** Which page was compared (`null` on a board without pages). */
+	pageId?: string | null;
 	from: string;
 	/** A commit hash, or `"working"` for the current board. */
 	to: string;
@@ -47,6 +51,11 @@ export interface HistoryClientOptions {
 	extraHeaders?: Record<string, string>;
 	/** Defaults to `globalThis.fetch`. */
 	fetch?: typeof fetch;
+	/**
+	 * The page this client reads versions of, on a board with pages. Commits are
+	 * board-wide, but a commit's shapes and diffs are read per page.
+	 */
+	pageId?: string | null;
 }
 
 /** A request the server answered with a non-2xx status. */
@@ -107,11 +116,13 @@ export function createHistoryClient(options: HistoryClientOptions): HistoryClien
 			return request<HistoryCommitPage>(query ? `?${query}` : "");
 		},
 		getCommit(hash) {
-			return request<HistoryCommitDetail>(`/commits/${encodeURIComponent(hash)}`);
+			const page = options.pageId ? `?page=${encodeURIComponent(options.pageId)}` : "";
+			return request<HistoryCommitDetail>(`/commits/${encodeURIComponent(hash)}${page}`);
 		},
 		diff(from, to) {
 			const params = new URLSearchParams({ from });
 			if (to) params.set("to", to);
+			if (options.pageId) params.set("page", options.pageId);
 			return request<HistoryDiff>(`/diff?${params.toString()}`);
 		},
 		async createCommit({ message, trigger } = {}) {

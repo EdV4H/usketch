@@ -1,12 +1,14 @@
-import type { PluginContext, ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
+import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { useSyncExternalStore } from "react";
 import { compileFilter } from "./filter-engine.js";
 import { FilterPalette } from "./filter-palette.js";
-import { TimeTravelBanner, TimeTravelPanel } from "./time-travel.js";
 import type { FilterChangedEvent, ShapeFilterConfig } from "./types.js";
 
 export interface FilterPluginOptions {
-	/** Base URL for the board-room Durable Object HTTP API (for snapshots) */
+	/**
+	 * @deprecated Ignored. The Time Travel tab it enabled was removed; board history
+	 * (list / diff / preview / restore) lives in `@edv4h/usketch-plugin-history`.
+	 */
 	boardRoomApiUrl?: string;
 }
 
@@ -14,8 +16,6 @@ export function createFilterPlugin(_options?: FilterPluginOptions): UsketchPlugi
 	let ctx: PluginContext | null = null;
 	let currentConfig: ShapeFilterConfig | null = null;
 	let paletteOpen = false;
-	let timeTravelTs: number | null = null;
-	let timeTravelShapes: Map<string, ShapeData> | null = null;
 	const listeners = new Set<() => void>();
 
 	function notify() {
@@ -101,36 +101,12 @@ export function createFilterPlugin(_options?: FilterPluginOptions): UsketchPlugi
 		notify();
 	}
 
-	// ── Time Travel ──
-
-	function enterTimeTravel(shapes: Map<string, ShapeData>) {
-		if (!ctx) return;
-		timeTravelShapes = shapes;
-		// Emit a "always true" predicate but with time-travel shapes override
-		ctx.events.emit("time-travel:enter", { shapes });
-		notify();
-	}
-
-	function exitTimeTravel() {
-		if (!ctx) return;
-		timeTravelTs = null;
-		timeTravelShapes = null;
-		ctx.events.emit("time-travel:exit", {});
-		notify();
-	}
-
 	// ── React gate components ──
 
 	function FilterPaletteGate() {
 		const open = useSyncExternalStore(subscribe, () => paletteOpen);
 		if (!open) return null;
 		return <FilterPalette onApply={applyConfig} onClose={closePalette} />;
-	}
-
-	function TimeTravelBannerGate() {
-		const ts = useSyncExternalStore(subscribe, () => timeTravelTs);
-		if (ts == null) return null;
-		return <TimeTravelBanner timestamp={ts} onExit={exitTimeTravel} />;
 	}
 
 	const cleanups: (() => void)[] = [];
@@ -148,14 +124,6 @@ export function createFilterPlugin(_options?: FilterPluginOptions): UsketchPlugi
 				order: 998,
 				fixed: true,
 				render: () => <FilterPaletteGate />,
-			});
-
-			// Register time travel banner layer (fixed)
-			ctx.layers.register({
-				id: "time-travel-banner",
-				order: 999,
-				fixed: true,
-				render: () => <TimeTravelBannerGate />,
 			});
 
 			// Shortcut: Shift+F to toggle filter palette
@@ -180,47 +148,7 @@ export function createFilterPlugin(_options?: FilterPluginOptions): UsketchPlugi
 					isEnabled: () => currentConfig !== null,
 					run: clearFilter,
 				}),
-				ctx.actions.register({
-					id: "filter:time-travel-exit",
-					group: "フィルタ",
-					label: "タイムトラベル終了",
-					isEnabled: () => timeTravelTs !== null,
-					run: exitTimeTravel,
-				}),
 			);
-
-			// Listen for time-travel requests from filter palette or external
-			const unsubTtEnter = ctx.events.on<{ shapes: Map<string, ShapeData>; timestamp: number }>(
-				"time-travel:request",
-				(data) => {
-					timeTravelTs = data.timestamp;
-					enterTimeTravel(data.shapes);
-				},
-			);
-			cleanups.push(unsubTtEnter);
-
-			// Register Time Travel tab in side panel (if boardRoomApiUrl is available)
-			const apiUrl = _options?.boardRoomApiUrl;
-			if (apiUrl) {
-				ctx.events.emit("side-panel:register-tab", {
-					tab: {
-						id: "time-travel",
-						label: "Time Travel",
-						icon: "⏰",
-						order: 10,
-						render: () => (
-							<TimeTravelPanel
-								apiBaseUrl={apiUrl}
-								onEnter={(shapes, timestamp) => {
-									timeTravelTs = timestamp;
-									enterTimeTravel(shapes);
-								}}
-								onExit={exitTimeTravel}
-							/>
-						),
-					},
-				});
-			}
 
 			return () => {
 				for (const cleanup of cleanups) cleanup();
@@ -228,8 +156,6 @@ export function createFilterPlugin(_options?: FilterPluginOptions): UsketchPlugi
 
 				if (ctx) {
 					ctx.layers.unregister("filter-palette");
-					ctx.layers.unregister("time-travel-banner");
-					ctx.events.emit("side-panel:unregister-tab", { tabId: "time-travel" });
 
 					if (currentConfig) {
 						ctx.events.emit<FilterChangedEvent>("filter:changed", {
@@ -237,16 +163,10 @@ export function createFilterPlugin(_options?: FilterPluginOptions): UsketchPlugi
 							config: null,
 						});
 					}
-
-					if (timeTravelShapes) {
-						ctx.events.emit("time-travel:exit", {});
-					}
 				}
 
 				currentConfig = null;
 				paletteOpen = false;
-				timeTravelTs = null;
-				timeTravelShapes = null;
 				listeners.clear();
 				ctx = null;
 			};

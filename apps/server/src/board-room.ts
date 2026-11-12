@@ -4,6 +4,9 @@ import { votingServerType } from "@edv4h/usketch-session-voting/server";
 import type { ShapeData } from "@edv4h/usketch-shared";
 import {
 	decodeDocFrame,
+	getLegacyPageId,
+	isPagedBoard,
+	listPages,
 	MSG_AWARENESS,
 	MSG_BROADCAST,
 	MSG_DOC_SUBSCRIBE,
@@ -19,12 +22,13 @@ import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { boardMembers } from "./db/schema.js";
 import { handleAiPlaceShapes, handleAiUpdateShapes } from "./rooms/ai-handler.js";
+import { createBoardShapes, PageNotFoundError, type ShapesTarget } from "./rooms/board-shapes.js";
 import { handleHistoryRequest } from "./rooms/history-handler.js";
 import { createHistoryManager } from "./rooms/history-manager.js";
+import { deleteLegacySnapshots } from "./rooms/legacy-snapshot-cleanup.js";
 import { createPageDocs } from "./rooms/page-docs.js";
 import { createPartitionManager } from "./rooms/partition-manager.js";
 import { SessionManager, type SessionSnapshot } from "./rooms/session-manager.js";
-import { createSnapshotManager } from "./rooms/snapshot-manager.js";
 import { handleThumbnail } from "./rooms/thumbnail-handler.js";
 import { createYjsSync } from "./rooms/yjs-sync.js";
 import type { Env } from "./types.js";
@@ -41,25 +45,70 @@ export class BoardRoom extends DurableObject<Env> {
 
 	private readonly yjsSync = createYjsSync({ storage: this.ctx.storage });
 	private readonly partitions = createPartitionManager({ storage: this.ctx.storage });
-	private readonly snapshots = createSnapshotManager({
-		storage: this.ctx.storage,
-		getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
-		getWebSockets: () => this.ctx.getWebSockets(),
-	});
+	/** 旧スナップショット（Time Travel）の保存データを消す処理を、このインスタンスで始めたか。 */
+	private legacySnapshotsCleared = false;
 	// Git 風のボード履歴（自動・手動コミット）。Yjs ドキュメントの shapes をスナップショットする。
+	// ページを使うボードはページごとの tree にし、自動コミットは編集されたページだけを読む。
 	private readonly history = createHistoryManager({
 		storage: this.ctx.storage,
-		getShapes: async () => {
-			const { doc } = await this.yjsSync.getOrCreateDoc();
-			return doc.getMap<ShapeData>("shapes").toJSON() as Record<string, ShapeData>;
+		getShapes: async (pageId) => {
+			let target: ShapesTarget;
+			try {
+				target = await this.boardShapes.open(pageId);
+			} catch (e) {
+				// 削除済みのページなど、今は開けないページは空として比べる
+				if (e instanceof PageNotFoundError) return {};
+				throw e;
+			}
+			try {
+				return target.doc.getMap<ShapeData>("shapes").toJSON() as Record<string, ShapeData>;
+			} finally {
+				target.release();
+			}
 		},
+		getPageIds: async () => {
+			const { doc } = await this.yjsSync.getOrCreateDoc();
+			return isPagedBoard(doc) ? listPages(doc).map((p) => p.id) : null;
+		},
+		getLegacyPageId: async () => getLegacyPageId((await this.yjsSync.getOrCreateDoc()).doc),
 	});
 
+	/**
+	 * 旧スナップショット API の保存データを裏で消す（インスタンスごとに 1 回、接続時）。
+	 * 履歴は history-manager に一本化した。消し終わる前に止まっても次の接続でやり直す。
+	 */
+	private clearLegacySnapshots(): void {
+		if (this.legacySnapshotsCleared) return;
+		this.legacySnapshotsCleared = true;
+		this.ctx.waitUntil(
+			deleteLegacySnapshots(this.ctx.storage).catch((err) => {
+				this.legacySnapshotsCleared = false;
+				console.error("[BoardRoom] legacy snapshot cleanup failed:", err);
+			}),
+		);
+	}
+
 	// ページ doc（ルート doc とは別に同期する Y.Doc）。購読された doc だけを読み込む。
-	// 履歴はまだルート doc の shapes だけを見る（ページ対応は後続 PR）。
+	// ページの編集は、そのページを履歴の次の自動コミットで読み直す印にする。
 	private readonly pageDocs = createPageDocs({
 		storage: this.ctx.storage,
 		getSockets: () => this.ctx.getWebSockets(),
+		onEdit: (docId) => this.history.noteEdit(docId),
+	});
+
+	// サーバー側の機能（AI・サムネイル）がシェイプを読み書きする入口。ページを使うボードは
+	// 指定したページ（省略時は先頭ページ）のページ doc、使わないボードはルート doc を開く。
+	private readonly boardShapes = createBoardShapes({
+		getRootDoc: () => this.yjsSync.getOrCreateDoc(),
+		publishRoot: (update) => {
+			this.yjsSync.pushUpdate(update);
+			const msg = new Uint8Array(update.length + 1);
+			msg[0] = MSG_YJS_UPDATE;
+			msg.set(update, 1);
+			this.broadcastAll(msg);
+			this.noteBoardEdit();
+		},
+		pageDocs: this.pageDocs,
 	});
 
 	/** Yjs の保存を予約し、履歴の自動コミットにも編集を知らせる。 */
@@ -154,39 +203,22 @@ export class BoardRoom extends DurableObject<Env> {
 
 		if (url.pathname === "/ai-place-shapes" && request.method === "POST") {
 			return handleAiPlaceShapes(request, {
-				getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
-				pushUpdate: (u) => this.yjsSync.pushUpdate(u),
-				broadcastAll: (d) => this.broadcastAll(d),
-				scheduleSave: () => this.noteBoardEdit(),
+				openShapes: (pageId) => this.boardShapes.open(pageId),
 			});
 		}
 
 		if (url.pathname === "/ai-update-shapes" && request.method === "POST") {
 			return handleAiUpdateShapes(request, {
-				getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
-				pushUpdate: (u) => this.yjsSync.pushUpdate(u),
-				broadcastAll: (d) => this.broadcastAll(d),
-				scheduleSave: () => this.noteBoardEdit(),
+				openShapes: (pageId) => this.boardShapes.open(pageId),
 			});
 		}
 
 		if (url.pathname === "/thumbnail") {
-			return handleThumbnail(url, () => this.yjsSync.getOrCreateDoc());
+			return handleThumbnail(url, (pageId) => this.boardShapes.open(pageId));
 		}
 
 		const historyResponse = await handleHistoryRequest(request, url, this.history);
 		if (historyResponse) return historyResponse;
-
-		if (url.pathname === "/snapshots" && request.method === "GET") {
-			return this.snapshots.handleListSnapshots();
-		}
-		if (url.pathname === "/snapshot" && request.method === "POST") {
-			return this.snapshots.handleCreateSnapshot();
-		}
-		if (url.pathname.startsWith("/snapshots/") && request.method === "GET") {
-			const ts = url.pathname.split("/snapshots/")[1];
-			return this.snapshots.handleGetSnapshot(ts);
-		}
 
 		return new Response("BoardRoom OK", { status: 200 });
 	}
@@ -214,7 +246,7 @@ export class BoardRoom extends DurableObject<Env> {
 			}
 		}
 
-		this.snapshots.scheduleAutoSnapshot();
+		this.clearLegacySnapshots();
 		return new Response(null, { status: 101, webSocket: pair[0] });
 	}
 

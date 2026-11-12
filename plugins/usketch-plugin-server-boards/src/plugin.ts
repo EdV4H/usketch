@@ -546,7 +546,7 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				return room.fetch(new Request(url.toString(), c.req.raw));
 			});
 
-			// ── Durable Object プロキシ: snapshot / history API ──
+			// ── Durable Object プロキシ: history API ──
 			/**
 			 * ボードへのアクセス権。WebSocket 接続と同じく「メンバー、または公開ボード」で読める。
 			 * 書き込み（コミット作成など）は viewer ロールのメンバーには許さない。
@@ -596,9 +596,6 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				return room.fetch(new Request(url.toString(), c.req.raw));
 			}
 
-			boardsApp.all("/:boardId/snapshots/*", proxyToDurableObject);
-			boardsApp.all("/:boardId/snapshots", proxyToDurableObject);
-			boardsApp.post("/:boardId/snapshot", proxyToDurableObject);
 			boardsApp.all("/:boardId/history/*", proxyToDurableObject);
 			boardsApp.all("/:boardId/history", proxyToDurableObject);
 
@@ -789,6 +786,9 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				const id = env.BOARD_ROOM.idFromName(boardId);
 				const room = env.BOARD_ROOM.get(id);
 				const thumbnailUrl = new URL(`https://internal/thumbnail?w=${w}&h=${h}`);
+				// ページを使うボードは ?page= のページ（省略時は先頭ページ）
+				const page = c.req.query("page");
+				if (page) thumbnailUrl.searchParams.set("page", page);
 				const res = await room.fetch(thumbnailUrl.toString());
 				return new Response(res.body, {
 					status: res.status,
