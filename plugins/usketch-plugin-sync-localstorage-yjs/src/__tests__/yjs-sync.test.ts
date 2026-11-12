@@ -3,7 +3,7 @@ import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 import type { YjsSyncHandle } from "../yjs-sync.js";
-import { createYjsSync } from "../yjs-sync.js";
+import { createYjsSync, persistDocToIndexedDb } from "../yjs-sync.js";
 
 // Minimal BoardStore implementation for testing (avoids depending on @edv4h/usketch-store)
 function createTestStore(): BoardStore {
@@ -348,5 +348,37 @@ describe("createYjsSync — options (docName / external doc)", () => {
 		await syncHandle.whenSynced;
 		expect(store.getShape("pre1")?.x).toBe(5);
 		externalDoc.destroy();
+	});
+});
+
+describe("createYjsSync — persist: false（保存はホストが持つ）", () => {
+	it("IndexedDB を張らず、doc にあるシェイプをすぐ store に入れる", async () => {
+		const doc = new Y.Doc();
+		doc.getMap<Record<string, unknown>>("shapes").set("p1", { ...makeShape({ id: "p1", x: 3 }) });
+		const store = createTestStore();
+		const handle = createYjsSync(store, { doc, persist: false });
+		// whenSynced を待つ前から入っている
+		expect(store.getShape("p1")?.x).toBe(3);
+		await handle.whenSynced;
+		store.addShape(makeShape({ id: "p2" }));
+		expect(doc.getMap("shapes").has("p2")).toBe(true);
+		handle.destroy();
+		expect(doc.isDestroyed).toBe(false);
+	});
+
+	it("persistDocToIndexedDb で保存した doc を、別の doc に読み戻せる", async () => {
+		const name = `test-persist-${crypto.randomUUID()}`;
+		const doc = new Y.Doc();
+		const saved = persistDocToIndexedDb(name, doc);
+		await saved.whenSynced;
+		doc.getMap("shapes").set("k", { id: "k" });
+		await new Promise((r) => setTimeout(r, 50));
+		saved.destroy();
+
+		const again = new Y.Doc();
+		const loaded = persistDocToIndexedDb(name, again);
+		await loaded.whenSynced;
+		expect(again.getMap("shapes").has("k")).toBe(true);
+		loaded.destroy();
 	});
 });
