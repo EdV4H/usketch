@@ -69,8 +69,9 @@ export interface CharacterApi {
 	setSize(size: Partial<CharacterSize>): void;
 	/**
 	 * Replace the key bindings (`KeyboardEvent.code` values; omitted `drift` / `jump` are
-	 * kept). `save: true` also keeps them for this viewer (localStorage), so they win over
-	 * the host's `keys` on the next visit — what the HUD's key settings do.
+	 * kept): rebinds the keymap's `CHARACTER_KEY_IDS` for the viewer, where the app's key
+	 * settings keep them. `save` only matters on hosts without a keymap (deprecated).
+	 * @deprecated Use the keymap (`keymap.setKeys(CHARACTER_KEY_IDS.up, codes)`).
 	 */
 	setKeys(keys: CharacterKeys, options?: { save?: boolean }): void;
 	/** The current key bindings. */
@@ -87,6 +88,7 @@ export interface CharacterApi {
 	/**
 	 * For a key-config UI: the next key press goes to `onKey` (its `KeyboardEvent.code`)
 	 * instead of moving the character, wherever focus is. Returns a cancel.
+	 * @deprecated The app's key settings pick keys themselves (keymap gate).
 	 */
 	captureNextKey(onKey: (code: string) => void): () => void;
 	/**

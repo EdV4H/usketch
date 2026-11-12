@@ -8,8 +8,51 @@ export {
 	removeAwarenessStates,
 } from "y-protocols/awareness";
 export {
+	createPageDocManager,
+	type PageDocHandle,
+	type PageDocManager,
+	type PageDocManagerOptions,
+	type PageDocPersistence,
+} from "./page-doc-manager.js";
+export {
+	createPageScopedAwareness,
+	createPageScopedProvider,
+	PAGE_AWARENESS_FIELD,
+	PAGE_BROADCAST_FIELD,
+	type PageScopedAwareness,
+	type PageScopedProvider,
+} from "./page-scope.js";
+export {
+	BOARD_META_MAP_KEY,
+	type CreatePageOptions,
+	CURRENT_PAGES_VERSION,
+	createPage,
+	getPage,
+	getPagesVersion,
+	initPagedBoard,
+	isPagedBoard,
+	listPages,
+	newPageId,
+	observePages,
+	PAGE_SHAPES_MAP_KEY,
+	PAGES_MAP_KEY,
+	PAGES_VERSION_KEY,
+	type PageMeta,
+	pageDocGuid,
+	resolvePageId,
+	toPageMeta,
+} from "./pages.js";
+export {
+	type DocFrame,
+	decodeDocFrame,
+	encodeDocFrame,
+	isValidDocId,
 	MSG_AWARENESS,
 	MSG_BROADCAST,
+	MSG_DOC_SUBSCRIBE,
+	MSG_DOC_SYNC,
+	MSG_DOC_UNSUBSCRIBE,
+	MSG_DOC_UPDATE,
 	MSG_PARTITION_META,
 	MSG_PARTITION_REQUEST,
 	MSG_SESSION,
@@ -25,6 +68,7 @@ export {
 } from "./server-clock.js";
 export {
 	createWsProvider,
+	type DocSubscription,
 	type PartitionMeta,
 	type WsConnectionStatus,
 	type WsProviderHandle,

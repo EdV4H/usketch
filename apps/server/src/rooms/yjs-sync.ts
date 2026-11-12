@@ -21,9 +21,25 @@ async function getYjs(): Promise<typeof import("yjs")> {
 
 export interface YjsSyncDeps {
 	storage: DurableObjectStorage;
+	/** 状態を分割保存するキー。省略時はボードのルート doc（{@link STATE_KEY}）。 */
+	stateKey?: string;
+	/**
+	 * 旧形式のキー。読み込み時だけ使い、新形式で保存できたら消す。
+	 * 省略時はルート doc なら {@link LEGACY_UPDATES_KEY}、それ以外は旧形式なし。
+	 */
+	legacyKey?: string | null;
+	/** 予約していた保存が終わり、未保存の update が残っていないときに呼ぶ。 */
+	onSaved?: () => void;
 }
 
 export function createYjsSync(deps: YjsSyncDeps) {
+	const stateKey = deps.stateKey ?? STATE_KEY;
+	const legacyKey =
+		deps.legacyKey !== undefined
+			? deps.legacyKey
+			: stateKey === STATE_KEY
+				? LEGACY_UPDATES_KEY
+				: null;
 	let updates: Uint8Array[] = [];
 	let loaded = false;
 	let loadPromise: Promise<void> | null = null;
@@ -45,17 +61,19 @@ export function createYjsSync(deps: YjsSyncDeps) {
 		}
 		loadPromise = (async () => {
 			// 読めなければ例外のまま返す（空のボードとして始めて上書きしないため）
-			const state = await readChunked(deps.storage, STATE_KEY);
+			const state = await readChunked(deps.storage, stateKey);
 			// 新形式があればそれが最新。旧形式は移行前のボードだけが読む（大きいので）。
 			let restored: Uint8Array[];
 			if (state) {
 				restored = [state];
 				// 移行後に消し損ねた旧キーがあっても、次の保存で消す
 				legacyPresent = true;
-			} else {
-				const legacy = await deps.storage.get(LEGACY_UPDATES_KEY);
+			} else if (legacyKey) {
+				const legacy = await deps.storage.get(legacyKey);
 				legacyPresent = legacy !== undefined;
 				restored = parseLegacyUpdates(legacy);
+			} else {
+				restored = [];
 			}
 			// 読み込み中に push された update を後ろに残す
 			updates = [...restored, ...updates];
@@ -85,9 +103,9 @@ export function createYjsSync(deps: YjsSyncDeps) {
 		await compact();
 		const [state] = updates;
 		if (!state) return;
-		await writeChunked(deps.storage, STATE_KEY, state);
-		if (legacyPresent) {
-			await deps.storage.delete(LEGACY_UPDATES_KEY);
+		await writeChunked(deps.storage, stateKey, state);
+		if (legacyPresent && legacyKey) {
+			await deps.storage.delete(legacyKey);
 			legacyPresent = false;
 		}
 	}
@@ -110,6 +128,7 @@ export function createYjsSync(deps: YjsSyncDeps) {
 					saveScheduled = false;
 					// 保存中に届いた update（または失敗した保存）をもう一度保存する
 					if (dirty) scheduleSave();
+					else if (failures === 0) deps.onSaved?.();
 				}
 			})();
 		}, 5000);
@@ -156,6 +175,11 @@ export function createYjsSync(deps: YjsSyncDeps) {
 		return true;
 	}
 
+	/** 保存できていない update があるか（保存の予約中・直前の保存の失敗を含む）。 */
+	function isDirty(): boolean {
+		return dirty || saveScheduled || failures > 0;
+	}
+
 	/** 蓄積された全 updates を返す（初期同期用） */
 	function getUpdates(): Uint8Array[] {
 		return updates;
@@ -179,5 +203,6 @@ export function createYjsSync(deps: YjsSyncDeps) {
 		destroyDoc,
 		compact,
 		save,
+		isDirty,
 	};
 }

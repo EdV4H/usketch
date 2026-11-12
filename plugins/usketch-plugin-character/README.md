@@ -116,18 +116,14 @@ createCharacterPlugin({
   `keymap.getConflicts()`. While the character is on they sit above tool shortcuts and
   Mode 7's camera height keys (`CHARACTER_KEY_PRIORITY`; movement, then drift, then
   jump), and a key the keymap gives elsewhere is left alone. The jump (Space) and the
-  drift (Shift) have their own keys. Every action
-  (up / down / left / right / jump / drift, up to two keys each) can be rebound from the
-  HUD's "キー設定" panel: click a key and press the new one (Esc cancels, Delete /
-  Backspace removes it); a key taken from another action moves over, a direction left
-  without a key is flagged, and "既定に戻す" goes back to the host's `keys`. Esc, Tab and
-  lone Ctrl / Alt / Meta are refused, Shift only fits the jump and the drift. The panel
-  saves per viewer in localStorage (`usketch-plugin-character:keys`, over the host's
-  `keys`; `saveKeys: false` keeps it to the session). The rules are pure functions in
-  `character-keys.ts` (`bindKey`, `unbindKey`, `canBindKey`, `keyLabel`,
-  `parseStoredKeys` …). API: `setKeys(keys, { save? })`, `getKeys`, `getDefaultKeys`,
-  `resetKeys`, `onKeysChange`, and `captureNextKey(onKey)` for a key-picking UI of your
-  own.
+  drift (Shift) have their own keys. Viewers rebind them in the app's shared "キー設定"
+  panel (`usketch-plugin-key-settings`), which saves them; this plugin's own key panel
+  is gone. Keys a viewer saved with it (`usketch-plugin-character:keys`) are carried
+  into the keymap once and the old entry removed. Deprecated (removed in the next
+  major): `saveKeys`, `setKeys`'s `save` option, `captureNextKey`, and the
+  `character-keys.ts` helpers (`bindKey`, `unbindKey`, `canBindKey`, `keyLabel`,
+  `parseStoredKeys` …). `setKeys` / `getKeys` / `getDefaultKeys` / `resetKeys` /
+  `onKeysChange` work on the keymap's bindings.
 - **Standing up in 3D**: each spot (and the wrapper around the renderer's content) keeps
   the 3D context (`transform-style: preserve-3d`), so under a 3D view (Mode 7) a
   renderer can stand a flat sprite up out of the tilted ground instead of having it lie
