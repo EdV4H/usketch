@@ -3,8 +3,12 @@ import type { ClientToServer, ServerToClient } from "@edv4h/usketch-session-prot
 import { votingServerType } from "@edv4h/usketch-session-voting/server";
 import type { ShapeData } from "@edv4h/usketch-shared";
 import {
+	decodeDocFrame,
 	MSG_AWARENESS,
 	MSG_BROADCAST,
+	MSG_DOC_SUBSCRIBE,
+	MSG_DOC_UNSUBSCRIBE,
+	MSG_DOC_UPDATE,
 	MSG_PARTITION_REQUEST,
 	MSG_SESSION,
 	MSG_SYNC_STEP1,
@@ -17,6 +21,7 @@ import { boardMembers } from "./db/schema.js";
 import { handleAiPlaceShapes, handleAiUpdateShapes } from "./rooms/ai-handler.js";
 import { handleHistoryRequest } from "./rooms/history-handler.js";
 import { createHistoryManager } from "./rooms/history-manager.js";
+import { createPageDocs } from "./rooms/page-docs.js";
 import { createPartitionManager } from "./rooms/partition-manager.js";
 import { SessionManager, type SessionSnapshot } from "./rooms/session-manager.js";
 import { createSnapshotManager } from "./rooms/snapshot-manager.js";
@@ -48,6 +53,13 @@ export class BoardRoom extends DurableObject<Env> {
 			const { doc } = await this.yjsSync.getOrCreateDoc();
 			return doc.getMap<ShapeData>("shapes").toJSON() as Record<string, ShapeData>;
 		},
+	});
+
+	// ページ doc（ルート doc とは別に同期する Y.Doc）。購読された doc だけを読み込む。
+	// 履歴はまだルート doc の shapes だけを見る（ページ対応は後続 PR）。
+	private readonly pageDocs = createPageDocs({
+		storage: this.ctx.storage,
+		getSockets: () => this.ctx.getWebSockets(),
 	});
 
 	/** Yjs の保存を予約し、履歴の自動コミットにも編集を知らせる。 */
@@ -255,6 +267,21 @@ export class BoardRoom extends DurableObject<Env> {
 				this.partitions.sendPartitionMeta(ws);
 				break;
 			}
+			case MSG_DOC_SUBSCRIBE:
+			case MSG_DOC_UPDATE:
+			case MSG_DOC_UNSUBSCRIBE: {
+				const frame = decodeDocFrame(data);
+				if (!frame) break;
+				if (msgType === MSG_DOC_SUBSCRIBE) {
+					await this.pageDocs.handleSubscribe(ws, frame.docId, frame.parts[0]);
+				} else if (msgType === MSG_DOC_UPDATE) {
+					const [update] = frame.parts;
+					if (update) await this.pageDocs.handleUpdate(ws, frame.docId, update);
+				} else {
+					this.pageDocs.handleUnsubscribe(ws, frame.docId);
+				}
+				break;
+			}
 			case MSG_PARTITION_REQUEST: {
 				try {
 					const request = JSON.parse(new TextDecoder().decode(payload)) as {
@@ -316,6 +343,7 @@ export class BoardRoom extends DurableObject<Env> {
 				await this.flushSessionWrites();
 			}
 		}
+		this.pageDocs.handleClose(ws);
 		try {
 			ws.close(code);
 		} catch {

@@ -8,8 +8,16 @@ export {
 	removeAwarenessStates,
 } from "y-protocols/awareness";
 export {
+	type DocFrame,
+	decodeDocFrame,
+	encodeDocFrame,
+	isValidDocId,
 	MSG_AWARENESS,
 	MSG_BROADCAST,
+	MSG_DOC_SUBSCRIBE,
+	MSG_DOC_SYNC,
+	MSG_DOC_UNSUBSCRIBE,
+	MSG_DOC_UPDATE,
 	MSG_PARTITION_META,
 	MSG_PARTITION_REQUEST,
 	MSG_SESSION,
@@ -25,6 +33,7 @@ export {
 } from "./server-clock.js";
 export {
 	createWsProvider,
+	type DocSubscription,
 	type PartitionMeta,
 	type WsConnectionStatus,
 	type WsProviderHandle,

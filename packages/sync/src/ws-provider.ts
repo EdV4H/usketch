@@ -6,8 +6,14 @@ import {
 } from "y-protocols/awareness";
 import * as Y from "yjs";
 import {
+	decodeDocFrame,
+	encodeDocFrame,
 	MSG_AWARENESS,
 	MSG_BROADCAST,
+	MSG_DOC_SUBSCRIBE,
+	MSG_DOC_SYNC,
+	MSG_DOC_UNSUBSCRIBE,
+	MSG_DOC_UPDATE,
 	MSG_PARTITION_META,
 	MSG_PARTITION_REQUEST,
 	MSG_SESSION,
@@ -29,6 +35,19 @@ export interface PartitionMeta {
 	shapeCount: Record<string, number>;
 }
 
+/** {@link WsProviderHandle.subscribeDoc} の戻り値。 */
+export interface DocSubscription {
+	/** 購読している doc id。 */
+	readonly docId: string;
+	/**
+	 * サーバーとの最初の同期（サーバーにある差分を受け取った時点）で解決する。
+	 * 接続前に購読した場合は、接続して同期できた時点で解決する。
+	 */
+	readonly whenSynced: Promise<void>;
+	/** 購読をやめる（サーバーにも伝える）。doc 自体は破棄しない。 */
+	unsubscribe(): void;
+}
+
 export interface WsProviderHandle {
 	connected: boolean;
 
@@ -48,12 +67,23 @@ export interface WsProviderHandle {
 	/** 接続状態の変化を購読 */
 	onStatusChange(handler: (status: WsConnectionStatus) => void): () => void;
 
+	/**
+	 * ルート doc とは別の Y.Doc（ページ doc など）を `docId` で購読し、サーバーと同期する。
+	 * 再接続時は自動で購読し直す。同じ `docId` を二重に購読するとエラー。
+	 */
+	subscribeDoc(docId: string, doc: Y.Doc): DocSubscription;
+
 	/** 追加パーティションの読み込みを要求 */
 	requestPartition(names: string[]): void;
 	/** サーバーからのパーティションメタデータを購読 */
 	onPartitionMeta(handler: (meta: PartitionMeta) => void): () => void;
 
 	destroy(): void;
+}
+
+/** 中身の無い update（`[0, 0]`: 構造体 0 件・削除 0 件）か。 */
+function hasContent(update: Uint8Array): boolean {
+	return !(update.length === 2 && update[0] === 0 && update[1] === 0);
 }
 
 export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
@@ -70,6 +100,23 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 	const statusListeners = new Set<(status: WsConnectionStatus) => void>();
 	const partitionMetaListeners = new Set<(meta: PartitionMeta) => void>();
 	let consecutiveFailures = 0;
+
+	/** 購読中の個別 doc。key は doc id。 */
+	const subscribedDocs = new Map<
+		string,
+		{ doc: Y.Doc; onUpdate: (update: Uint8Array, origin: unknown) => void; synced: () => void }
+	>();
+
+	function sendRaw(data: Uint8Array<ArrayBuffer>): boolean {
+		if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+		ws.send(data);
+		return true;
+	}
+
+	/** 個別 doc の購読をサーバーへ送る（state vector 付き）。 */
+	function sendDocSubscribe(docId: string, doc: Y.Doc): void {
+		sendRaw(encodeDocFrame(MSG_DOC_SUBSCRIBE, docId, [Y.encodeStateVector(doc)]));
+	}
 
 	function notifyStatus(status: WsConnectionStatus) {
 		for (const listener of statusListeners) {
@@ -148,6 +195,35 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			handler(connected ? "connected" : "connecting");
 			return () => statusListeners.delete(handler);
 		},
+		subscribeDoc(docId: string, subDoc: Y.Doc): DocSubscription {
+			if (subscribedDocs.has(docId)) throw new Error(`Doc already subscribed: ${docId}`);
+			// 先に組み立てて、id が不正ならここで例外にする
+			const subscribeFrame = encodeDocFrame(MSG_DOC_SUBSCRIBE, docId, [
+				Y.encodeStateVector(subDoc),
+			]);
+			let resolveSynced: () => void = () => {};
+			const whenSynced = new Promise<void>((resolve) => {
+				resolveSynced = resolve;
+			});
+			const onUpdate = (update: Uint8Array, origin: unknown) => {
+				if (origin === "remote") return;
+				sendRaw(encodeDocFrame(MSG_DOC_UPDATE, docId, [update]));
+			};
+			subDoc.on("update", onUpdate);
+			subscribedDocs.set(docId, { doc: subDoc, onUpdate, synced: resolveSynced });
+			sendRaw(subscribeFrame);
+			return {
+				docId,
+				whenSynced,
+				unsubscribe() {
+					const entry = subscribedDocs.get(docId);
+					if (!entry || entry.doc !== subDoc) return;
+					subDoc.off("update", onUpdate);
+					subscribedDocs.delete(docId);
+					sendRaw(encodeDocFrame(MSG_DOC_UNSUBSCRIBE, docId));
+				},
+			};
+		},
 		requestPartition(names: string[]): void {
 			if (!ws || ws.readyState !== WebSocket.OPEN) return;
 			const encoded = new TextEncoder().encode(JSON.stringify({ partitions: names }));
@@ -166,6 +242,8 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			awareness.off("update", onAwarenessUpdate);
 			awareness.destroy();
 			doc.off("update", onDocUpdate);
+			for (const entry of subscribedDocs.values()) entry.doc.off("update", entry.onUpdate);
+			subscribedDocs.clear();
 			if (ws) {
 				ws.close();
 				ws = null;
@@ -195,6 +273,8 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 			msg[0] = MSG_AWARENESS;
 			msg.set(encoded, 1);
 			ws?.send(msg);
+			// 個別 doc は接続のたびに購読し直す（切断中の編集は DOC_SYNC の後に送り返す）
+			for (const [docId, entry] of subscribedDocs) sendDocSubscribe(docId, entry.doc);
 		});
 
 		ws.addEventListener("message", (event) => {
@@ -238,6 +318,29 @@ export function createWsProvider(options: WsProviderOptions): WsProviderHandle {
 						}
 					} catch {
 						// 不正なメッセージは無視
+					}
+					break;
+				}
+				case MSG_DOC_SYNC:
+				case MSG_DOC_UPDATE: {
+					const frame = decodeDocFrame(data);
+					const entry = frame && subscribedDocs.get(frame.docId);
+					if (!frame || !entry) break;
+					const [update, serverStateVector] = frame.parts;
+					try {
+						if (update && update.length > 0) Y.applyUpdate(entry.doc, update, "remote");
+					} catch (e) {
+						console.error("[WsProvider] Corrupt doc update from server, skipping:", e);
+					}
+					if (msgType === MSG_DOC_SYNC) {
+						// サーバーに足りない分（オフライン中の編集など）を送り返す
+						if (serverStateVector) {
+							const missing = Y.encodeStateAsUpdate(entry.doc, serverStateVector);
+							if (hasContent(missing)) {
+								sendRaw(encodeDocFrame(MSG_DOC_UPDATE, frame.docId, [missing]));
+							}
+						}
+						entry.synced();
 					}
 					break;
 				}
