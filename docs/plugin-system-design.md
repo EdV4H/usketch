@@ -194,7 +194,8 @@ interface PluginContext {
 - 解消: ホストは `createApp({ keymap: { keys: { [id]: keys | null } } })` で既定を差し替え、閲覧者は `keymap.setKeys(id, keys | null)` / `resetKeys(id?)` で付け替える（`getOverrides()` を保存し、次回 `createApp({ keymap: { overrides } })` に渡す）。
 - 保存先はホストが決める。`bindKeymapStorage(keymap, storage)` が `KeymapStorage`（`load` / `save` / 任意の `subscribe`）と keymap を同期する（起動時に読み込み、付け替えたときだけ保存、別タブの変更に追従）。localStorage なら `localStorageKeymapStorage({ key })`。
 - binding のメタ情報: `label` / `category` / `order`（設定画面の並び）、`customizable: false`（閲覧者が付け替えられない）、`enabled()`（今実行できるか。設定画面やチートシートでグレーアウトするだけで、キーの取り合いには影響しない）。`onPress` を省くと「一覧に出すだけ」の binding になる（貼り付けのようにブラウザのイベントで処理するキーを、重なりの検知と設定画面に載せる）。
-- 設定画面・チートシート向けの純関数（DOM / React なし）: `formatCombo`（mac は ⌃⌥⇧⌘ 記号）/ `formatKeyCode` / `formatBindingKey`、`comboFromKeyEvent`（押したキーを保存用のコンボに。アクセラレータは `mod` で保存するので OS をまたいでも同じ）、`isReservedCombo`（修飾キーだけ・ブラウザ予約の `Mod+W` など）、`bindingsUsingKey`、`assignKey(keymap, id, key, { slot, steal })` / `unassignKey`。HUD のキー設定パネルもこれを使う。
+- 設定画面・チートシート向けの純関数（DOM / React なし）: `formatCombo`（mac は ⌃⌥⇧⌘ 記号）/ `formatKeyCode` / `formatBindingKey`、`comboFromKeyEvent`（押したキーを保存用のコンボに。アクセラレータは `mod` で保存するので OS をまたいでも同じ）、`isReservedCombo`（修飾キーだけ・ブラウザ予約の `Mod+W` など）、`bindingsUsingKey`、`assignKey(keymap, id, key, { slot, steal })` / `unassignKey`。HUD のキー設定パネル（`usketch-plugin-key-settings`）もこれを使う。
+- **キー設定の画面は `usketch-plugin-key-settings` の共通パネル 1 つ**（全プラグインの binding を一覧・付け替え・保存）。プラグインは自分用のキー設定パネルを作らず、binding に `label` / `category` / `order` を付けて共通パネルに出す。
 
 ### 3.2 ツールプラグイン
 

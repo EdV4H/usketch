@@ -1,7 +1,9 @@
-// Key configuration: the pure rules behind the HUD's "キー設定" panel — which actions
-// can be bound, how a key is shown, which keys are refused, how a new binding moves a
-// key off the action that had it, and how bindings are stored per viewer. No DOM and
-// no store here (the panel and the plugin wire these up).
+// Key configuration rules from the character's own "キー設定" panel, which the app-wide
+// key settings (usketch-plugin-key-settings, on the keymap) replaced: which actions can
+// be bound, how a key is shown, which keys are refused, how a new binding moves a key
+// off the action that had it, and how bindings were stored per viewer. Kept for
+// compatibility (deprecated, removed in the next major); the plugin only still reads
+// the old storage to carry a viewer's keys over to the keymap once.
 import type { CharacterKeys } from "./character-types.js";
 
 export type KeyAction = "up" | "down" | "left" | "right" | "jump" | "drift";

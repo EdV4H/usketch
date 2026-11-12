@@ -40,7 +40,10 @@ describe("formatCombo / formatKeyCode", () => {
 		expect(formatCombo("Space", { isMac: false })).toBe("Space");
 		expect(formatCombo("ArrowUp", { isMac: false })).toBe("↑");
 		expect(formatKeyCode("KeyW", { isMac: false })).toBe("W");
-		expect(formatKeyCode("ShiftLeft", { isMac: true })).toBe("⇧");
+		expect(formatKeyCode("ShiftLeft", { isMac: true })).toBe("Left ⇧");
+		expect(
+			formatKeyCode("ShiftRight", { isMac: false, sides: { left: "左 ", right: "右 " } }),
+		).toBe("右 Shift");
 	});
 });
 
@@ -183,6 +186,19 @@ describe("bindKeymapStorage", () => {
 		stop();
 		keymap.setKeys("a", ["Z"]);
 		expect(storage.save).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps rebindings made before binding and saves them with the stored ones", () => {
+		const keymap = createKeymap();
+		keymap.register({ id: "a", keys: ["K"], onPress: () => {} });
+		keymap.register({ id: "b", keys: ["L"], onPress: () => {} });
+		keymap.setKeys("a", ["X"]);
+		keymap.setKeys("b", ["Y"]);
+		const storage = memoryStorage({ b: ["Z"] });
+		bindKeymapStorage(keymap, storage);
+		expect(keymap.getKeys("a")).toEqual(["X"]);
+		expect(keymap.getKeys("b")).toEqual(["Z"]);
+		expect(storage.save).toHaveBeenCalledWith({ a: ["X"], b: ["Z"] });
 	});
 
 	it("parses untrusted overrides", () => {

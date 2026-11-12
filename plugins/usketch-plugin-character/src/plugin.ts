@@ -5,7 +5,8 @@
 // awareness. The plugin draws NOTHING itself — pass `renderCharacter` for the look.
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import type { CameraMode } from "./character-camera.js";
-import { defaultKeyStorage, loadStoredKeys } from "./character-keys.js";
+import { CHARACTER_KEY_IDS } from "./character-input.js";
+import { defaultKeyStorage, loadStoredKeys, saveStoredKeys } from "./character-keys.js";
 import type { ControlScheme, DriftParams, MotionParams } from "./character-physics.js";
 import { setupCharacterRuntime } from "./character-runtime.js";
 import { characterService, createCharacterApi } from "./character-service.js";
@@ -35,13 +36,17 @@ export interface CharacterPluginOptions {
 	/** Display name sent with your character. */
 	userName?: string;
 	/**
-	 * Keys as `KeyboardEvent.code` lists (default WASD, drift Shift, jump Space). A viewer
-	 * who changed them in the HUD's key settings gets their own instead (localStorage).
+	 * Keys as `KeyboardEvent.code` lists (default WASD, drift Shift, jump Space): the
+	 * defaults of the keymap bindings `CHARACTER_KEY_IDS`. Viewers rebind them in the
+	 * app's key settings (`usketch-plugin-key-settings`).
 	 */
 	keys?: Partial<CharacterKeys>;
 	/**
 	 * Keep each viewer's key settings in localStorage (default `true`). `false` = the HUD
 	 * changes last only for the session.
+	 * @deprecated With a keymap (current hosts) the app's key settings keep them; this
+	 * only stops carrying over keys saved by older versions (and applies to hosts without
+	 * a keymap).
 	 */
 	saveKeys?: boolean;
 	/** Start with the character on (default `false`). */
@@ -103,17 +108,33 @@ export function createCharacterPlugin(options: CharacterPluginOptions = {}): Usk
 				shadowRenderer: options.renderShadow,
 			});
 			const defaultKeys: CharacterKeys = { ...DEFAULT_KEYS, ...options.keys };
+			const keymap = (ctx as Partial<PluginContext>).keymap ?? null;
 			const keyStorage = options.saveKeys === false ? null : defaultKeyStorage();
-			// The host's keys are the bindings' defaults; this viewer's saved ones go on top.
+			// The host's keys are the bindings' defaults; this viewer's rebindings go on top.
 			const runtime = setupCharacterRuntime(ctx, store, {
 				keys: defaultKeys,
 				awareness: options.wsProvider?.awareness,
 			});
 			const storedKeys = loadStoredKeys(keyStorage, defaultKeys);
-			if (storedKeys) runtime.setKeys(storedKeys);
+			if (storedKeys && keymap) {
+				// Carry the keys this plugin used to save itself into the keymap, once: the
+				// app's key settings (e.g. usketch-plugin-key-settings) keep them from now on.
+				// Rebindings already in the keymap win.
+				const overrides = keymap.getOverrides();
+				const current = runtime.getKeys();
+				const merged = { ...storedKeys };
+				for (const name of Object.keys(CHARACTER_KEY_IDS) as (keyof CharacterKeys)[]) {
+					if (CHARACTER_KEY_IDS[name] in overrides) merged[name] = current[name] ?? [];
+				}
+				runtime.setKeys(merged);
+				saveStoredKeys(keyStorage, null);
+			} else if (storedKeys) {
+				runtime.setKeys(storedKeys);
+			}
 			const api = createCharacterApi(store, runtime, {
 				defaults: defaultKeys,
-				storage: keyStorage,
+				// With a keymap, the app's key settings keep the viewer's keys.
+				storage: keymap ? null : keyStorage,
 			});
 			const stopHud = registerCharacterHud(ctx, api);
 			// Provide the service LAST so a failed earlier step can't leak it.

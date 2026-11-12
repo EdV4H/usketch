@@ -80,17 +80,32 @@ export function formatCombo(combo: string, options: FormatComboOptions = {}): st
 	return parts.join("+");
 }
 
-/** A held key (`KeyboardEvent.code`) for display: `"KeyW"` → `W`, `"ShiftLeft"` → `⇧` / `Shift`. */
-export function formatKeyCode(code: string, options: FormatComboOptions = {}): string {
+export interface FormatKeyCodeOptions extends FormatComboOptions {
+	/**
+	 * Prefixes for the left / right copy of a modifier (`ShiftLeft` …), so two bindings
+	 * on either side read apart. Default `{ left: "Left ", right: "Right " }`.
+	 */
+	sides?: { left: string; right: string };
+}
+
+/**
+ * A held key (`KeyboardEvent.code`) for display: `"KeyW"` → `W`, `"ShiftLeft"` →
+ * `Left Shift` (`Left ⇧` on macOS).
+ */
+export function formatKeyCode(code: string, options: FormatKeyCodeOptions = {}): string {
 	const key = codeToKey(code);
-	return formatCombo(key === "meta" ? "meta" : key, options);
+	const label = formatCombo(key, options);
+	const side = /^(?:Shift|Control|Alt|Meta|OS)(Left|Right)$/.exec(code)?.[1];
+	if (!side) return label;
+	const sides = options.sides ?? { left: "Left ", right: "Right " };
+	return `${side === "Left" ? sides.left : sides.right}${label}`;
 }
 
 /** {@link formatCombo} or {@link formatKeyCode}, by the binding's kind. */
 export function formatBindingKey(
 	kind: KeyBindingKind,
 	key: string,
-	options: FormatComboOptions = {},
+	options: FormatKeyCodeOptions = {},
 ): string {
 	return kind === "hold" ? formatKeyCode(key, options) : formatCombo(key, options);
 }

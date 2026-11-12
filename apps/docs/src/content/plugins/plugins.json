@@ -400,6 +400,14 @@
 		"install": "pnpm add @edv4h/usketch-plugin-keyboard-shortcuts"
 	},
 	{
+		"id": "key-settings",
+		"name": "Key Settings",
+		"category": "ui",
+		"glyph": "⌨",
+		"summary": "One HUD panel to see, rebind and save every plugin's keys, with overlaps marked.",
+		"install": "pnpm add @edv4h/usketch-plugin-key-settings"
+	},
+	{
 		"id": "voting",
 		"name": "Voting",
 		"category": "ui",

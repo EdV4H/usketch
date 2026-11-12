@@ -16,6 +16,7 @@ import { createCommunityChatPlugin } from "@edv4h/usketch-plugin-community-chat"
 import { createDebugHudPlugin } from "@edv4h/usketch-plugin-debug-hud";
 import { createRippleEffectPlugin } from "@edv4h/usketch-plugin-effect-ripple";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
+import { createKeySettingsPlugin } from "@edv4h/usketch-plugin-key-settings";
 import { createKeyboardShortcutsPlugin } from "@edv4h/usketch-plugin-keyboard-shortcuts";
 import { createMapPlugin } from "@edv4h/usketch-plugin-map";
 import { createMode7Plugin } from "@edv4h/usketch-plugin-mode7";
@@ -245,6 +246,8 @@ export function CommunityPage() {
 					// Mode 7（擬似3D）。マップの地形が高さ（地形の種類で決まる段）ごとに崖として
 					// 立ち上がり、キャラもその上に乗る。既定 OFF、HUD「3Dビュー切替」で切替。
 					createMode7Plugin({ transition: { durationMs: 900 } }),
+					// 全プラグインのキーを 1 つの HUD「キー設定」で一覧・付け替え。
+					createKeySettingsPlugin(),
 					// Mode 7 中に Shape を立てる（HUD「3D（選択中の Shape）」で 1 つずつ指定）。
 					// ボードポータルは指定しなくても立つ（ゲートとして見えるように）。
 					createShape3dPlugin({ types: { "board-portal": { default: { mode: "stand" } } } }),
