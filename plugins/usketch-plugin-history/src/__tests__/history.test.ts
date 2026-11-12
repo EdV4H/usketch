@@ -154,6 +154,24 @@ describe("createHistoryClient", () => {
 		expect(calls[0]?.init.headers).toEqual({ "X-User-Id": "u1" });
 	});
 
+	it("asks for the given page's shapes and diffs on a board with pages", async () => {
+		const { calls, fetchFn } = recordingFetch({});
+		const client = createHistoryClient({
+			apiUrl: "https://api.test",
+			boardId: "b",
+			pageId: "p2",
+			fetch: fetchFn,
+		});
+		await client.listCommits();
+		await client.diff(H1, H2);
+		await client.getCommit(H1);
+		expect(calls.map((c) => c.url)).toEqual([
+			"https://api.test/api/boards/b/history",
+			`https://api.test/api/boards/b/history/diff?from=${H1}&to=${H2}&page=p2`,
+			`https://api.test/api/boards/b/history/commits/${H1}?page=p2`,
+		]);
+	});
+
 	it("posts a commit as JSON and unwraps the response", async () => {
 		const { calls, fetchFn } = recordingFetch({ commit: summary(H2) }, 201);
 		const client = createHistoryClient({
