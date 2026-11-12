@@ -600,6 +600,12 @@ export interface ShortcutMeta {
 	id?: string;
 	/** Only fire while this returns true; see {@link KeyBindingSpec.when}. */
 	when?: () => boolean;
+	/** See {@link KeyBindingSpec.customizable}. */
+	customizable?: boolean;
+	/** See {@link KeyBindingSpec.enabled}. */
+	enabled?: () => boolean;
+	/** See {@link KeyBindingSpec.order}. */
+	order?: number;
 	/** Tie-break against other bindings on the same key; see {@link KeyBindingSpec.priority}. */
 	priority?: number;
 }
@@ -664,8 +670,23 @@ export interface KeyBindingSpec {
 	 * (default 0). Below that, the {@link KeyConflictPolicy} decides.
 	 */
 	priority?: number;
-	/** `"press"` only: run when this binding wins a keydown. */
+	/**
+	 * `"press"` only: run when this binding wins a keydown. Leave it out for a binding
+	 * that is only listed (shown in settings / cheat sheets and checked for overlaps)
+	 * while something else handles the key — e.g. paste, which the browser's `paste`
+	 * event carries.
+	 */
 	onPress?: (event: KeyboardEvent) => void;
+	/** Whether viewers may rebind it (default true). False keeps its default keys. */
+	customizable?: boolean;
+	/**
+	 * Whether the operation can run right now, for settings / cheat-sheet UIs to grey it
+	 * out (e.g. undo with an empty history). Unlike `when`, it does not change who gets
+	 * the key.
+	 */
+	enabled?: () => boolean;
+	/** Sort key within its category for settings UIs (lower first). */
+	order?: number;
 }
 
 /** A registered binding, as settings / conflict UIs see it. */
@@ -683,6 +704,13 @@ export interface KeyBinding {
 	keys: readonly string[];
 	/** Whether the viewer rebound (or unbound) it. */
 	overridden: boolean;
+	/** Whether viewers may rebind it. */
+	customizable: boolean;
+	/** {@link KeyBindingSpec.enabled} at the time of this snapshot (true when absent). */
+	enabled: boolean;
+	order?: number;
+	/** Whether it has an `onPress` (false = listed only). */
+	handled: boolean;
 }
 
 /**
@@ -772,6 +800,8 @@ export interface Keymap {
 	resetKeys(id?: string): void;
 	/** The viewer's rebindings by id (`null` = unbound), e.g. to persist them. */
 	getOverrides(): Readonly<Record<string, readonly string[] | null>>;
+	/** Replace all of the viewer's rebindings at once (one notification), e.g. when loading them. */
+	setOverrides(overrides: Readonly<Record<string, readonly string[] | null>>): void;
 	/** Called after any registration or rebinding. */
 	subscribe(listener: () => void): () => void;
 }

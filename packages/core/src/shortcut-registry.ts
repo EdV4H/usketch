@@ -25,6 +25,9 @@ export function createShortcutRegistry(
 				...(meta?.category !== undefined ? { category: meta.category } : {}),
 				...(meta?.when ? { when: meta.when } : {}),
 				...(meta?.priority !== undefined ? { priority: meta.priority } : {}),
+				...(meta?.customizable !== undefined ? { customizable: meta.customizable } : {}),
+				...(meta?.enabled ? { enabled: meta.enabled } : {}),
+				...(meta?.order !== undefined ? { order: meta.order } : {}),
 			});
 			shortcutIds.add(id);
 			return () => {

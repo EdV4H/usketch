@@ -203,6 +203,16 @@ export interface KeymapInternal extends Keymap {
 	registerFor(owner: KeymapOwner, spec: KeyBindingSpec): () => void;
 }
 
+const isEnabled = (entry: Entry): boolean => {
+	const enabled = entry.spec.enabled;
+	if (!enabled) return true;
+	try {
+		return enabled() !== false;
+	} catch {
+		return false;
+	}
+};
+
 const isActive = (entry: Entry): boolean => {
 	const when = entry.spec.when;
 	if (!when) return true;
@@ -265,6 +275,7 @@ export function createKeymap(options: CreateKeymapOptions = {}): KeymapInternal 
 	};
 
 	const keysOf = (entry: Entry): readonly string[] => {
+		if (entry.spec.customizable === false) return defaultKeysOf(entry);
 		if (overrides.has(entry.spec.id)) return overrides.get(entry.spec.id) ?? [];
 		return defaultKeysOf(entry);
 	};
@@ -278,7 +289,11 @@ export function createKeymap(options: CreateKeymapOptions = {}): KeymapInternal 
 		priority: entry.spec.priority ?? 0,
 		defaultKeys: [...defaultKeysOf(entry)],
 		keys: [...keysOf(entry)],
-		overridden: overrides.has(entry.spec.id),
+		overridden: entry.spec.customizable !== false && overrides.has(entry.spec.id),
+		customizable: entry.spec.customizable !== false,
+		enabled: isEnabled(entry),
+		...(entry.spec.order !== undefined ? { order: entry.spec.order } : {}),
+		handled: entry.kind === "press" && typeof entry.spec.onPress === "function",
 	});
 
 	const matches = (entry: Entry, event: KeyboardEvent, combos: readonly string[]): boolean => {
@@ -457,6 +472,14 @@ export function createKeymap(options: CreateKeymapOptions = {}): KeymapInternal 
 			notify();
 		},
 
+		setOverrides(next) {
+			overrides.clear();
+			for (const [id, keys] of Object.entries(next)) {
+				overrides.set(id, keys === null ? null : [...keys]);
+			}
+			notify();
+		},
+
 		getOverrides() {
 			const out: Record<string, readonly string[] | null> = {};
 			for (const [id, keys] of overrides) out[id] = keys === null ? null : [...keys];
@@ -490,6 +513,7 @@ export function scopeKeymap(keymap: KeymapInternal, owner: KeymapOwner): Keymap 
 		setKeys: keymap.setKeys,
 		resetKeys: keymap.resetKeys,
 		getOverrides: keymap.getOverrides,
+		setOverrides: keymap.setOverrides,
 		subscribe: keymap.subscribe,
 		getConflictPolicy: keymap.getConflictPolicy,
 		getGate: keymap.getGate,
