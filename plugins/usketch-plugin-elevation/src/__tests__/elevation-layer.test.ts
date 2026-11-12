@@ -42,4 +42,15 @@ describe("tileRevision", () => {
 			tileRevision(model([["1,0", at(1, 1)]]), 0, 0, 0),
 		);
 	});
+
+	it("is remembered per model, and a model with new deltas is worked out again", () => {
+		const m = model([["0,0", at(10, 10)]]);
+		const first = tileRevision(m, 0, 0, 0);
+		expect(tileRevision(m, 0, 0, 0)).toBe(first);
+		// Brushing gives a new model (new chunk arrays): its revision differs.
+		const brushed = model([...m.chunks, ["1,0", at(1, 1)]]);
+		expect(tileRevision(brushed, 0, 0, 0)).not.toBe(first);
+		// Another tile of the same model is its own entry.
+		expect(tileRevision(m, 0, 5, 5)).toBe("");
+	});
 });
