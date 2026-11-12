@@ -96,6 +96,7 @@ the next 5 minutes"** so the rest of the bulk run proceeds without prompting.
 @edv4h/usketch-plugin-export
 @edv4h/usketch-plugin-follow-me
 @edv4h/usketch-plugin-free-position
+@edv4h/usketch-plugin-key-settings
 @edv4h/usketch-plugin-keyboard-shortcuts
 @edv4h/usketch-plugin-laser
 @edv4h/usketch-plugin-map

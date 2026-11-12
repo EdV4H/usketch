@@ -1,9 +1,7 @@
 // HUD wiring — a declarative settings group + three actions, all delegating to the
 // service (no plugin-owned UI; the character's LOOK is the host's renderer).
 import type { PluginContext } from "@edv4h/usketch-shared";
-import { createElement } from "react";
 import type { CameraMode } from "./character-camera.js";
-import { CharacterKeySettings } from "./character-key-settings.js";
 import { type ControlScheme, DEFAULT_HOVER, DEFAULT_JUMP } from "./character-physics.js";
 import type { CharacterApi } from "./character-service.js";
 import type { CharacterSizeScale } from "./character-size.js";
@@ -349,16 +347,7 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 		isEnabled: () => api.isEnabled() && api.getJump() !== null,
 	});
 
-	// Key bindings: a panel of its own (click a key, press the new one), saved per viewer.
-	const offKeys = ctx.hud.registerPanel({
-		id: "usketch-plugin-character:keys",
-		title: "キー設定",
-		order: 16,
-		render: () => createElement(CharacterKeySettings, { api }),
-	});
-
 	return () => {
-		offKeys();
 		offJump();
 		offPlace();
 		offToggle();

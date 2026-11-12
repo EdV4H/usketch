@@ -41,6 +41,7 @@ export {
 	comboFromKeyEvent,
 	DEFAULT_RESERVED_COMBOS,
 	type FormatComboOptions,
+	type FormatKeyCodeOptions,
 	formatBindingKey,
 	formatCombo,
 	formatKeyCode,
