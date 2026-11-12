@@ -258,7 +258,11 @@ export function CommunityPage() {
 				if (cancelled || !store) return;
 
 				const plugins = [...basePlugins, ...extraPlugins];
-				const created = await createApp({ store, plugins });
+				const created = await createApp({
+					store,
+					plugins,
+					keymap: { warnConflicts: import.meta.env.DEV },
+				});
 				if (cancelled) {
 					created.destroy();
 					return;

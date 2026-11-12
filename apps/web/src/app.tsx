@@ -624,7 +624,9 @@ export function App() {
 					boardId,
 					wsProvider,
 				})
-					.then((plugins) => createApp({ store, plugins }))
+					.then((plugins) =>
+						createApp({ store, plugins, keymap: { warnConflicts: import.meta.env.DEV } }),
+					)
 					.then((created) => {
 						if (cancelled) {
 							created.destroy();

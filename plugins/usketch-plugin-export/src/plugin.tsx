@@ -17,9 +17,9 @@ export function createExportPlugin(): UsketchPlugin {
 				downloadBlob(exportJson(new Map(ctx.store.getShapes())), "usketch-export.json");
 			};
 
-			const unsub1 = ctx.shortcuts.register("ctrl+shift+e", () => exportImage("png"));
-			const unsub2 = ctx.shortcuts.register("ctrl+shift+alt+e", () => exportImage("svg"));
-			const unsub3 = ctx.shortcuts.register("ctrl+shift+j", exportJsonFile);
+			const unsub1 = ctx.shortcuts.register("Mod+shift+e", () => exportImage("png"));
+			const unsub2 = ctx.shortcuts.register("Mod+shift+alt+e", () => exportImage("svg"));
+			const unsub3 = ctx.shortcuts.register("Mod+shift+j", exportJsonFile);
 
 			// ── Control HUD 用 Action（Demo の Export メニュー相当） ──
 			const offActions = [
