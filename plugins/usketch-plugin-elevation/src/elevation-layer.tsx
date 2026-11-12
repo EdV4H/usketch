@@ -119,12 +119,34 @@ function edgeKey(a: DeltaValues, n: number, dx: number, dy: number): string | nu
 	return key;
 }
 
+/** Revisions already worked out, per model (models are never mutated: replaced when changed). */
+const revisions = new WeakMap<ElevationModel, Map<string, string>>();
+/** Tiles remembered per model before starting over (a long walk over an infinite terrain). */
+const REVISIONS_PER_MODEL = 4096;
+
 /**
  * A key that changes exactly when the deltas a tile reads change: the chunks under the
  * tile and the ring of samples around it (its edge slopes). At level 0 a ring chunk counts
- * by the strip the tile reads; at coarser levels by its array.
+ * by the strip the tile reads; at coarser levels by its array. Remembered per model, so
+ * the layers asking every frame (the 3D mesh, a re-render while the camera moves) work it
+ * out once per tile until the heights change.
  */
 export function tileRevision(model: ElevationModel, level: number, tx: number, ty: number): string {
+	let byTile = revisions.get(model);
+	if (!byTile) {
+		byTile = new Map();
+		revisions.set(model, byTile);
+	}
+	const key = `${level}:${tx},${ty}`;
+	const hit = byTile.get(key);
+	if (hit !== undefined) return hit;
+	if (byTile.size >= REVISIONS_PER_MODEL) byTile.clear();
+	const revision = computeTileRevision(model, level, tx, ty);
+	byTile.set(key, revision);
+	return revision;
+}
+
+function computeTileRevision(model: ElevationModel, level: number, tx: number, ty: number): string {
 	const per = 2 ** level;
 	const n = model.field.chunk;
 	const cx0 = tx * per - 1;
