@@ -183,7 +183,11 @@ interface PluginContext {
 
 - `ctx.shortcuts.register(combo, cb, meta)` と `ToolDefinition.shortcut` は内部で keymap の `"press"` binding になる（id は `<pluginId>:shortcut:<combo>` / `<pluginId>:tool:<toolId>`、`meta.id` で固定 id を付けられる）。
 - 押しっぱなしで使うキー（キャラの移動、Mode 7 のカメラ高さなど）は `ctx.keymap.register({ id, kind: "hold", keys: [code…], when })` で宣言し、keydown / keyup は今までどおりプラグインが処理する。処理する前に `ctx.keymap.claims(id, event)` で自分のキーか確かめ、今のキーは `ctx.keymap.getKeys(id)` で読む。**window の keydown を直接見るだけのキー割り当ては作らない**。
-- 同じキーに複数の binding が効くときは、`when()` が true のものの中で `priority` が高いもの → `createApp({ plugins })` で先に並んだプラグイン → 先に登録したもの、の順で 1 つだけが受け取る。ホスト / コアが直接登録したものはどのプラグインより先。
+- 同じキーに複数の binding が効くときは、`when()` が true のものだけを候補にし、`priority` が高いものを先にしたうえで、**振り分けルール（`KeyConflictPolicy`）** で決める。`createApp({ keymap: { conflictPolicy } })` で指定し、`keymap.setConflictPolicy()` で実行中にも切り替えられる。
+  - `"first"`（既定）: `createApp({ plugins })` で先に並んだプラグインの 1 つだけ（ホスト / コアが直接登録したものはどのプラグインより先）。
+  - `"last"`: 後に並んだプラグインの 1 つだけ（後から入れたプラグインが上書き）。
+  - `"all"`: 当てはまるもの全部。
+  - 関数 `(candidates, event) => KeyBinding[]`: 候補（`"first"` の順）から動かすものを返す。
 - `keymap.getConflicts()` で重なりの一覧（勝つ順）が取れる。`createApp({ keymap: { warnConflicts: true } })` で起動時に `console.warn` する（apps/web は開発時のみ ON）。
 - 解消: ホストは `createApp({ keymap: { keys: { [id]: keys | null } } })` で既定を差し替え、閲覧者は `keymap.setKeys(id, keys | null)` / `resetKeys(id?)` で付け替える（`getOverrides()` を保存し、次回 `createApp({ keymap: { overrides } })` に渡す）。
 

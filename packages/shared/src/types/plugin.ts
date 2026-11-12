@@ -660,9 +660,8 @@ export interface KeyBindingSpec {
 	 */
 	when?: () => boolean;
 	/**
-	 * When several bindings on the same key act at once, the highest priority wins
-	 * (default 0). Ties go to the plugin listed first in `createApp({ plugins })`;
-	 * bindings the host / core registers directly come before every plugin.
+	 * When several bindings on the same key act at once, a higher priority goes first
+	 * (default 0). Below that, the {@link KeyConflictPolicy} decides.
 	 */
 	priority?: number;
 	/** `"press"` only: run when this binding wins a keydown. */
@@ -687,15 +686,36 @@ export interface KeyBinding {
 }
 
 /**
- * Two or more bindings on the same physical key. `bindings` are in winning order: when
- * all of them act at once, the first one gets the key. Whether they can act at once
- * depends on their `when`, which is only known at runtime, so this lists every overlap.
+ * Two or more bindings on the same physical key. `bindings` are in the current
+ * {@link KeyConflictPolicy}'s order: under `"first"` / `"last"`, the first one gets the
+ * key when all of them act at once. Whether they can act at once depends on their
+ * `when`, which is only known at runtime, so this lists every overlap.
  */
 export interface KeyConflict {
 	/** Normalized key (`"s"`, `"shift"`, `"ctrl+z"`, `"space"`). */
 	key: string;
 	bindings: KeyBinding[];
 }
+
+/**
+ * Who gets a keydown that several active bindings (their `when` holds) match.
+ *
+ * - `"first"` (default): one binding — the highest `priority`, then the plugin listed
+ *   first in `createApp({ plugins })` (host / core registrations come before every
+ *   plugin), then the earliest registration.
+ * - `"last"`: one binding — the highest `priority`, then the plugin listed last (so a
+ *   later plugin overrides an earlier one, and plugins override host / core), then the
+ *   latest registration.
+ * - `"all"`: every one of them (in `"first"` order). `"hold"` bindings all claim the key.
+ * - a function: gets the candidates in `"first"` order and returns the ones that act
+ *   (any subset, in the order `"press"` callbacks should run; `[]` = none). If it
+ *   throws, the first candidate acts.
+ */
+export type KeyConflictPolicy =
+	| "first"
+	| "last"
+	| "all"
+	| ((candidates: readonly KeyBinding[], event: KeyboardEvent) => readonly KeyBinding[]);
 
 /**
  * Every key binding in the app (shortcuts, tool shortcuts and held keys), with the
@@ -710,15 +730,21 @@ export interface Keymap {
 	getKeys(id: string): readonly string[];
 	getAll(): KeyBinding[];
 	getConflicts(): KeyConflict[];
-	/** The binding that owns this keydown now (its `when` holds and it wins ties), if any. */
+	/** The first binding that gets this keydown now under the conflict policy, if any. */
 	resolve(event: KeyboardEvent): KeyBinding | undefined;
-	/** Whether `id` is the binding that owns this keydown (for `"hold"` listeners). */
+	/** Every binding that gets this keydown now under the conflict policy, in run order. */
+	resolveAll(event: KeyboardEvent): KeyBinding[];
+	/** Whether `id` gets this keydown (for `"hold"` listeners, before acting on a key). */
 	claims(id: string, event: KeyboardEvent): boolean;
 	/**
-	 * Run the winning `"press"` binding (and `preventDefault`). Returns false when no
-	 * binding matches or the winner is a `"hold"` binding (its plugin handles the key).
+	 * Run the `"press"` bindings that get this keydown (and `preventDefault`). Returns
+	 * false when none does — no match, or only `"hold"` bindings (their plugins handle it).
 	 */
 	handleKeyDown(event: KeyboardEvent): boolean;
+	/** The current {@link KeyConflictPolicy}. */
+	getConflictPolicy(): KeyConflictPolicy;
+	/** Switch the {@link KeyConflictPolicy} (takes effect on the next keydown; notifies subscribers). */
+	setConflictPolicy(policy: KeyConflictPolicy): void;
 	/**
 	 * Rebind `id` for this viewer (`null` = unbind). Kept even before the binding is
 	 * registered, so saved settings can be applied at startup.

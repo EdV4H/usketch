@@ -3,6 +3,7 @@ import type {
 	KeyBindingKind,
 	KeyBindingSpec,
 	KeyConflict,
+	KeyConflictPolicy,
 	Keymap,
 } from "@edv4h/usketch-shared";
 
@@ -100,6 +101,8 @@ export interface CreateKeymapOptions {
 	keys?: Readonly<Record<string, readonly string[] | null>>;
 	/** The viewer's saved rebindings to start from (as {@link Keymap.getOverrides} returns). */
 	overrides?: Readonly<Record<string, readonly string[] | null>>;
+	/** Who gets a key several active bindings share (default `"first"`); see {@link KeyConflictPolicy}. */
+	conflictPolicy?: KeyConflictPolicy;
 }
 
 export interface KeymapInternal extends Keymap {
@@ -117,9 +120,13 @@ const isActive = (entry: Entry): boolean => {
 	}
 };
 
-/** Winning order: priority (high first), then plugin order, then registration order. */
+/** `"first"` order: priority (high first), then plugin order, then registration order. */
 const compareEntries = (a: Entry, b: Entry): number =>
 	(b.spec.priority ?? 0) - (a.spec.priority ?? 0) || a.ownerIndex - b.ownerIndex || a.seq - b.seq;
+
+/** `"last"` order: priority (high first), then the plugin listed last / registered last. */
+const compareEntriesLast = (a: Entry, b: Entry): number =>
+	(b.spec.priority ?? 0) - (a.spec.priority ?? 0) || b.ownerIndex - a.ownerIndex || b.seq - a.seq;
 
 export function createKeymap(options: CreateKeymapOptions = {}): KeymapInternal {
 	const entries = new Map<string, Entry>();
@@ -129,6 +136,11 @@ export function createKeymap(options: CreateKeymapOptions = {}): KeymapInternal 
 	);
 	const listeners = new Set<() => void>();
 	let seq = 0;
+	let policy: KeyConflictPolicy = options.conflictPolicy ?? "first";
+
+	/** Display / winning order under the current policy (`"all"` and custom use `"first"`'s). */
+	const order = (): ((a: Entry, b: Entry) => number) =>
+		policy === "last" ? compareEntriesLast : compareEntries;
 
 	const notify = (): void => {
 		for (const listener of [...listeners]) {
@@ -171,13 +183,35 @@ export function createKeymap(options: CreateKeymapOptions = {}): KeymapInternal 
 		return keys.some((k) => normalizeCombo(k) === combo);
 	};
 
-	const winner = (event: KeyboardEvent): Entry | undefined => {
-		let best: Entry | undefined;
+	/** The bindings that get this keydown under the current policy, in the order they run. */
+	const selected = (event: KeyboardEvent): Entry[] => {
+		const candidates: Entry[] = [];
 		for (const entry of entries.values()) {
-			if (!matches(entry, event) || !isActive(entry)) continue;
-			if (!best || compareEntries(entry, best) < 0) best = entry;
+			if (matches(entry, event) && isActive(entry)) candidates.push(entry);
 		}
-		return best;
+		if (candidates.length <= 1) return candidates;
+		if (policy === "all") return candidates.sort(compareEntries);
+		if (policy === "first" || policy === "last") {
+			const cmp = order();
+			let best = candidates[0] as Entry;
+			for (const entry of candidates) if (cmp(entry, best) < 0) best = entry;
+			return [best];
+		}
+		candidates.sort(compareEntries);
+		let chosen: readonly KeyBinding[];
+		try {
+			chosen = policy(candidates.map(snapshot), event);
+		} catch (error) {
+			console.error("[usketch] keymap conflict policy threw; using the first binding", error);
+			return candidates.slice(0, 1);
+		}
+		const byId = new Map(candidates.map((e) => [e.spec.id, e]));
+		const out: Entry[] = [];
+		for (const binding of chosen ?? []) {
+			const entry = byId.get(binding.id);
+			if (entry && !out.includes(entry)) out.push(entry);
+		}
+		return out;
 	};
 
 	const registerFor = (owner: KeymapOwner, spec: KeyBindingSpec): (() => void) => {
@@ -216,7 +250,7 @@ export function createKeymap(options: CreateKeymapOptions = {}): KeymapInternal 
 		},
 
 		getAll() {
-			return [...entries.values()].sort(compareEntries).map(snapshot);
+			return [...entries.values()].sort(order()).map(snapshot);
 		},
 
 		getConflicts() {
@@ -233,27 +267,47 @@ export function createKeymap(options: CreateKeymapOptions = {}): KeymapInternal 
 			const conflicts: KeyConflict[] = [];
 			for (const [key, list] of byKey) {
 				if (list.length < 2) continue;
-				conflicts.push({ key, bindings: [...list].sort(compareEntries).map(snapshot) });
+				conflicts.push({ key, bindings: [...list].sort(order()).map(snapshot) });
 			}
 			return conflicts.sort((a, b) => a.key.localeCompare(b.key));
 		},
 
 		resolve(event) {
-			const entry = winner(event);
+			const entry = selected(event)[0];
 			return entry ? snapshot(entry) : undefined;
 		},
 
+		resolveAll(event) {
+			return selected(event).map(snapshot);
+		},
+
 		claims(id, event) {
-			return winner(event)?.spec.id === id;
+			return selected(event).some((entry) => entry.spec.id === id);
 		},
 
 		handleKeyDown(event) {
-			const entry = winner(event);
-			const onPress = entry?.kind === "press" ? entry.spec.onPress : undefined;
-			if (!onPress) return false; // no match, or a "hold" binding owns the key
+			// "hold" bindings among the selected ones are left to their plugins.
+			const presses = selected(event).filter((e) => e.kind === "press" && e.spec.onPress);
+			if (presses.length === 0) return false;
 			event.preventDefault();
-			onPress(event);
+			for (const entry of presses) {
+				try {
+					entry.spec.onPress?.(event);
+				} catch (error) {
+					console.error(`[usketch] key binding "${entry.spec.id}" threw`, error);
+				}
+			}
 			return true;
+		},
+
+		getConflictPolicy() {
+			return policy;
+		},
+
+		setConflictPolicy(next) {
+			if (next === policy) return;
+			policy = next;
+			notify();
 		},
 
 		setKeys(id, keys) {
@@ -298,21 +352,30 @@ export function scopeKeymap(keymap: KeymapInternal, owner: KeymapOwner): Keymap 
 		getAll: keymap.getAll,
 		getConflicts: keymap.getConflicts,
 		resolve: keymap.resolve,
+		resolveAll: keymap.resolveAll,
 		claims: keymap.claims,
 		handleKeyDown: keymap.handleKeyDown,
 		setKeys: keymap.setKeys,
 		resetKeys: keymap.resetKeys,
 		getOverrides: keymap.getOverrides,
 		subscribe: keymap.subscribe,
+		getConflictPolicy: keymap.getConflictPolicy,
+		setConflictPolicy: keymap.setConflictPolicy,
 	};
 }
 
-/** Human-readable list of overlaps, for a dev-time console warning. */
-export function describeConflicts(conflicts: readonly KeyConflict[]): string {
+/**
+ * Human-readable list of overlaps, for a dev-time console warning. `markWinner` puts ▶
+ * on the binding that gets the key when all of them act (`"first"` / `"last"` policies).
+ */
+export function describeConflicts(conflicts: readonly KeyConflict[], markWinner = true): string {
 	return conflicts
 		.map((c) => {
 			const who = c.bindings
-				.map((b, i) => `${i === 0 ? "▶ " : ""}${b.label ?? b.id} (${b.pluginId ?? "app"})`)
+				.map(
+					(b, i) =>
+						`${markWinner && i === 0 ? "▶ " : ""}${b.label ?? b.id} (${b.pluginId ?? "app"})`,
+				)
 				.join(" / ");
 			return `  ${c.key}: ${who}`;
 		})

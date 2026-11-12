@@ -1,4 +1,4 @@
-import type { BoardStore, UsketchPlugin } from "@edv4h/usketch-shared";
+import type { BoardStore, KeyConflictPolicy, UsketchPlugin } from "@edv4h/usketch-shared";
 import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../create-app.js";
 import { codeToKey, createKeymap, normalizeCombo } from "../keymap.js";
@@ -192,6 +192,84 @@ describe("createKeymap", () => {
 		keymap.handleKeyDown(keyEvent("x", "KeyX"));
 		expect(second).toHaveBeenCalledTimes(1);
 		expect(first).not.toHaveBeenCalled();
+	});
+});
+
+describe("conflict policies", () => {
+	const setup = (conflictPolicy?: KeyConflictPolicy) => {
+		const keymap = createKeymap(conflictPolicy ? { conflictPolicy } : {});
+		const a = vi.fn();
+		const b = vi.fn();
+		keymap.registerFor({ pluginId: "a", index: 0 }, { id: "a:x", keys: ["x"], onPress: a });
+		keymap.registerFor({ pluginId: "b", index: 1 }, { id: "b:x", keys: ["x"], onPress: b });
+		return { keymap, a, b };
+	};
+	const x = () => keyEvent("x", "KeyX");
+
+	it('"first" (default) gives the key to the earlier plugin', () => {
+		const { keymap, a, b } = setup();
+		keymap.handleKeyDown(x());
+		expect([a.mock.calls.length, b.mock.calls.length]).toEqual([1, 0]);
+		expect(keymap.getConflicts()[0]?.bindings.map((bd) => bd.id)).toEqual(["a:x", "b:x"]);
+	});
+
+	it('"last" gives the key to the later plugin and lists it first', () => {
+		const { keymap, a, b } = setup("last");
+		keymap.handleKeyDown(x());
+		expect([a.mock.calls.length, b.mock.calls.length]).toEqual([0, 1]);
+		expect(keymap.getConflicts()[0]?.bindings.map((bd) => bd.id)).toEqual(["b:x", "a:x"]);
+	});
+
+	it('"all" runs every active binding; hold bindings all claim', () => {
+		const { keymap, a, b } = setup("all");
+		keymap.register({ id: "c:x", kind: "hold", keys: ["KeyX"] });
+		expect(keymap.handleKeyDown(x())).toBe(true);
+		expect([a.mock.calls.length, b.mock.calls.length]).toEqual([1, 1]);
+		expect(keymap.claims("c:x", x())).toBe(true);
+		expect(keymap.resolveAll(x()).map((bd) => bd.id)).toEqual(["c:x", "a:x", "b:x"]);
+	});
+
+	it("a custom policy picks the subset (and order) that acts", () => {
+		const { keymap, a, b } = setup((candidates) => candidates.filter((c) => c.pluginId === "b"));
+		keymap.handleKeyDown(x());
+		expect([a.mock.calls.length, b.mock.calls.length]).toEqual([0, 1]);
+
+		keymap.setConflictPolicy(() => []);
+		expect(keymap.handleKeyDown(x())).toBe(false);
+
+		const err = vi.spyOn(console, "error").mockImplementation(() => {});
+		keymap.setConflictPolicy(() => {
+			throw new Error("boom");
+		});
+		keymap.handleKeyDown(x());
+		expect(a).toHaveBeenCalledTimes(1);
+		err.mockRestore();
+	});
+
+	it("setConflictPolicy switches at runtime and notifies", () => {
+		const { keymap, a, b } = setup();
+		const listener = vi.fn();
+		keymap.subscribe(listener);
+		keymap.setConflictPolicy("last");
+		expect(keymap.getConflictPolicy()).toBe("last");
+		expect(listener).toHaveBeenCalledTimes(1);
+		keymap.handleKeyDown(x());
+		expect([a.mock.calls.length, b.mock.calls.length]).toEqual([0, 1]);
+	});
+
+	it("priority still comes before the policy's tie-break", () => {
+		const { keymap, a } = setup("last");
+		keymap.registerFor(
+			{ pluginId: "a", index: 0 },
+			{
+				id: "a:x",
+				keys: ["x"],
+				onPress: a,
+				priority: 5,
+			},
+		);
+		keymap.handleKeyDown(x());
+		expect(a).toHaveBeenCalledTimes(1);
 	});
 });
 

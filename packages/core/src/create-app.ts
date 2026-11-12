@@ -102,8 +102,9 @@ export interface CreateAppOptions {
 		Partial<Pick<SelectionForeground, "priority" | "order" | "fixed">>;
 	/**
 	 * Key bindings: host defaults by binding id (`keys`), the viewer's saved rebindings
-	 * (`overrides`), and whether to `console.warn` the overlapping keys once the plugins
-	 * are set up (`warnConflicts`, default false).
+	 * (`overrides`), who gets a shared key (`conflictPolicy`, default `"first"`; can be
+	 * switched later with `app.keymap.setConflictPolicy`), and whether to `console.warn`
+	 * the overlapping keys once the plugins are set up (`warnConflicts`, default false).
 	 */
 	keymap?: CreateKeymapOptions & { warnConflicts?: boolean };
 }
@@ -248,8 +249,10 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	if (options.keymap?.warnConflicts) {
 		const conflicts = keymap.getConflicts();
 		if (conflicts.length > 0) {
+			const policy = keymap.getConflictPolicy();
+			const single = policy === "first" || policy === "last";
 			console.warn(
-				`[usketch] ${conflicts.length} key(s) are bound by more than one operation (▶ = wins when both act):\n${describeConflicts(conflicts)}`,
+				`[usketch] ${conflicts.length} key(s) are bound by more than one operation (conflict policy: ${typeof policy === "function" ? "custom" : policy}${single ? ", ▶ = gets the key when all act" : ""}):\n${describeConflicts(conflicts, single)}`,
 			);
 		}
 	}
