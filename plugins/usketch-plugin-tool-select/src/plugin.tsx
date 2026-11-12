@@ -174,15 +174,63 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			// hide rules of the built-in handles. See SelectionHandleProvider.
 			const handleRegistry = ctx.ui.selectionHandles;
 			const handleInteraction = createHandleInteractionStore();
-			let handleDrag: { hit: HandleHit; drag: SelectionHandleDrag } | null = null;
+			let handleDrag: {
+				hit: HandleHit;
+				drag: SelectionHandleDrag;
+				/** The last canvas event of the drag (a release off the canvas ends there). */
+				last: CanvasPointerEvent;
+				/** Removes the window release listeners. */
+				stopWindow: () => void;
+			} | null = null;
 
 			function cancelHandleDrag() {
 				if (!handleDrag) return;
-				const { drag } = handleDrag;
+				const { drag, stopWindow } = handleDrag;
 				handleDrag = null;
+				stopWindow();
 				handleInteraction.set({ dragging: null });
 				drag.cancel();
 			}
+
+			/**
+			 * Shift toggles the shape in the selection; a plain click selects it alone
+			 * unless it is already selected (then the selection is kept, so a
+			 * multi-selection can be dragged).
+			 */
+			function clickSelect(toolCtx: ToolContext, id: string, shiftKey: boolean) {
+				const selection = toolCtx.store.getSelection();
+				if (shiftKey) {
+					if (selection.has(id)) toolCtx.store.removeFromSelection(id);
+					else toolCtx.store.addToSelection(id);
+				} else if (!selection.has(id)) {
+					toolCtx.store.setSelection([id]);
+				}
+			}
+
+			/** End the handle drag at `event`. A press that did nothing clicks the handle's shape. */
+			function endHandleDrag(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				if (!handleDrag) return;
+				const { hit, drag, stopWindow } = handleDrag;
+				handleDrag = null;
+				stopWindow();
+				handleInteraction.set({ dragging: null });
+				setOverrideCursor("");
+				const shapeId = hit.handle.shapeId;
+				if (drag.end(event) === false && shapeId && toolCtx.store.getShape(shapeId)) {
+					clickSelect(toolCtx, shapeId, event.shiftKey);
+				}
+			}
+
+			// A provider removed mid-drag (its plugin torn down) can't finish the drag.
+			const offHandleRegistry = handleRegistry?.subscribe(() => {
+				if (
+					handleDrag &&
+					handleRegistry.get(handleDrag.hit.provider.id) !== handleDrag.hit.provider
+				) {
+					cancelHandleDrag();
+					setOverrideCursor("");
+				}
+			});
 			let overrideCursor = "";
 			let lastClickTime = 0;
 			let lastClickId: string | null = null;
@@ -302,6 +350,8 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			// ── Tool handlers ──
 
 			function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				// A drag whose release was missed must not run alongside a new press.
+				cancelHandleDrag();
 				disableTextSelection();
 				const viewport = toolCtx.store.getViewport();
 
@@ -433,7 +483,26 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 					const hit = findHandleAt(handleRegistry, toolCtx, event.screenPoint);
 					const drag = hit?.provider.startDrag(hit.handle, event, toolCtx);
 					if (hit && drag) {
-						handleDrag = { hit, drag };
+						// The canvas captures only touch pointers, so a mouse released off
+						// the canvas never reaches onPointerUp: end at the last canvas point.
+						const onWindowUp = () => {
+							if (handleDrag?.drag === drag) {
+								endHandleDrag(toolCtx, handleDrag.last);
+								syncBusy();
+							}
+						};
+						const win = typeof window === "undefined" ? undefined : window;
+						win?.addEventListener("pointerup", onWindowUp);
+						win?.addEventListener("pointercancel", onWindowUp);
+						handleDrag = {
+							hit,
+							drag,
+							last: event,
+							stopWindow: () => {
+								win?.removeEventListener("pointerup", onWindowUp);
+								win?.removeEventListener("pointercancel", onWindowUp);
+							},
+						};
 						handleInteraction.set({
 							hovered: null,
 							dragging: { providerId: hit.provider.id, handleId: hit.handle.id },
@@ -474,15 +543,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				const hitId = rawHitId;
 
 				if (hitId) {
-					if (event.shiftKey) {
-						if (selection.has(hitId)) {
-							toolCtx.store.removeFromSelection(hitId);
-						} else {
-							toolCtx.store.addToSelection(hitId);
-						}
-					} else if (!selection.has(hitId)) {
-						toolCtx.store.setSelection([hitId]);
-					}
+					clickSelect(toolCtx, hitId, event.shiftKey);
 
 					const currentSelection = toolCtx.store.getSelection();
 					setMovingSelection(true);
@@ -528,6 +589,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 
 			function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
 				if (handleDrag) {
+					handleDrag.last = event;
 					handleDrag.drag.move(event);
 					return;
 				}
@@ -600,23 +662,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				enableTextSelection();
 				updateDropTarget(null);
 				if (handleDrag) {
-					const { hit, drag } = handleDrag;
-					handleDrag = null;
-					handleInteraction.set({ dragging: null });
-					setOverrideCursor("");
-					// A press that did nothing is a click on the handle's shape.
-					const shapeId = hit.handle.shapeId;
-					if (drag.end(event) === false && shapeId && toolCtx.store.getShape(shapeId)) {
-						if (event.shiftKey) {
-							if (toolCtx.store.getSelection().has(shapeId)) {
-								toolCtx.store.removeFromSelection(shapeId);
-							} else {
-								toolCtx.store.addToSelection(shapeId);
-							}
-						} else {
-							toolCtx.store.setSelection([shapeId]);
-						}
-					}
+					endHandleDrag(toolCtx, event);
 					return;
 				}
 				if (!dragState) return;
@@ -792,6 +838,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			// ── Teardown ──
 			return () => {
 				cancelHandleDrag();
+				offHandleRegistry?.();
 				if (handleRegistry) ctx.layers.unregister(SELECT_TOOL_LAYER_IDS.handles);
 				for (const off of offShortcuts) off();
 				offConfigure();

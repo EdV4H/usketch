@@ -123,6 +123,33 @@ describe("end handles", () => {
 		expect(t.history).toHaveLength(0);
 	});
 
+	it("押したまま少し揺れただけなら、制御点を固定せずクリックとして扱わせる", () => {
+		const t = setup();
+		t.store.updateShape("k", { pathType: "curve" } as Partial<ConnectorShapeData>);
+		t.store.setSelection(["k"]);
+		const p = endpoints(t);
+		const handle = byId(t.handles(p), "controlPoint");
+		const { x, y } = handle.point;
+		const drag = p.startDrag(handle, t.at(x, y), t.ctx);
+		drag?.move(t.at(x + 1, y + 1));
+		expect(drag?.end(t.at(x + 1, y + 1))).toBe(false);
+		expect(connector(t).controlPoint).toBeUndefined();
+		expect(t.history).toHaveLength(0);
+	});
+
+	it("何も変わらない場所へ動かして離しても、クリックとは扱わせない", () => {
+		const t = setup();
+		t.store.setSelection(["k"]);
+		const p = endpoints(t);
+		const handle = byId(t.handles(p), "target");
+		const drag = p.startDrag(handle, t.at(handle.point.x, handle.point.y), t.ctx);
+		// Onto the shape at the other end: no change.
+		drag?.move(t.at(50, 50));
+		expect(drag?.end(t.at(50, 50))).toBe(true);
+		expect(connector(t).targetId).toBe("b");
+		expect(t.history).toHaveLength(0);
+	});
+
 	it("取り消すと、動かした制御点を元に戻す", () => {
 		const t = setup();
 		t.store.updateShape("k", { pathType: "curve" } as Partial<ConnectorShapeData>);

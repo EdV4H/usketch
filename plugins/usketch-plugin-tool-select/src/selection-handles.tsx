@@ -21,7 +21,7 @@ import {
 	findRotationHandleAtScreenPoint,
 	getMultiSelectionBounds,
 } from "@edv4h/usketch-tool-helpers";
-import { Fragment, useSyncExternalStore } from "react";
+import { Fragment, useCallback, useRef, useSyncExternalStore } from "react";
 import type { OverlayColorStore } from "./overlay-colors.js";
 
 /** Stable ids of the layers this plugin registers. */
@@ -99,25 +99,21 @@ export function handleToScreen(handle: SelectionHandle, viewport: Viewport): Poi
 }
 
 /**
- * Whether one of the select tool's own handles (rotation / resize, single or
- * multi-selection) is at `point`. Everything is in the overlay frame, so the
- * helpers get the unrotated viewport (their overlay mapping is then identity).
+ * A test for whether one of the select tool's own handles (rotation / resize,
+ * single or multi-selection) is at a point. Everything is in the overlay frame,
+ * so the helpers get the unrotated viewport (their overlay mapping is then
+ * identity). The multi-selection bounds are computed once, not per handle.
  */
-function onBuiltInHandle(ctx: HandleCtx, point: Point, viewport: Viewport): boolean {
-	if (findRotationHandleAtScreenPoint(point, ctx.shapes, ctx.store, viewport)) return true;
-	if (findHandleAtScreenPoint(point, ctx.shapes, ctx.store, viewport)) return true;
+function builtInHandleTest(ctx: HandleCtx, viewport: Viewport): (point: Point) => boolean {
 	const selection = ctx.store.getSelection();
-	if (selection.size > 1) {
-		const bounds = getMultiSelectionBounds(ctx.store, ctx.shapes, selection);
-		if (
-			bounds &&
-			(findMultiRotationHandleAtScreenPoint(point, bounds, viewport) ||
-				findMultiHandleAtScreenPoint(point, bounds, viewport))
-		) {
-			return true;
-		}
-	}
-	return false;
+	const bounds =
+		selection.size > 1 ? getMultiSelectionBounds(ctx.store, ctx.shapes, selection) : null;
+	return (point) =>
+		!!findRotationHandleAtScreenPoint(point, ctx.shapes, ctx.store, viewport) ||
+		!!findHandleAtScreenPoint(point, ctx.shapes, ctx.store, viewport) ||
+		(!!bounds &&
+			(!!findMultiRotationHandleAtScreenPoint(point, bounds, viewport) ||
+				!!findMultiHandleAtScreenPoint(point, bounds, viewport)));
 }
 
 export function handleState(ctx: HandleCtx): SelectionHandleState {
@@ -142,11 +138,10 @@ export function collectHandles(
 ): { provider: SelectionHandleProvider; handles: SelectionHandle[] }[] {
 	if (ctx.store.getActiveToolId() !== SELECT_TOOL_ID) return [];
 	const state = handleState(ctx);
+	const onBuiltIn = builtInHandleTest(ctx, viewport);
 	return registry.getAll().map((provider) => ({
 		provider,
-		handles: provider
-			.getHandles(state)
-			.filter((h) => !onBuiltInHandle(ctx, handleToScreen(h, viewport), viewport)),
+		handles: provider.getHandles(state).filter((h) => !onBuiltIn(handleToScreen(h, viewport))),
 	}));
 }
 
@@ -174,8 +169,19 @@ export function findHandleAt(
 	return null;
 }
 
-function useStoreValue<T>(store: BoardStore, get: () => T): T {
-	return useSyncExternalStore((cb) => store.subscribe(cb), get, get);
+/** Re-render on every store change (one listener; the providers may read anything). */
+function useStoreVersion(store: BoardStore): number {
+	const version = useRef(0);
+	const subscribe = useCallback(
+		(cb: () => void) =>
+			store.subscribe(() => {
+				version.current++;
+				cb();
+			}),
+		[store],
+	);
+	const get = () => version.current;
+	return useSyncExternalStore(subscribe, get, get);
 }
 
 interface SelectionHandlesOverlayProps extends HandleCtx {
@@ -211,11 +217,7 @@ export function SelectionHandlesOverlay({
 		colors.getSnapshot,
 		colors.getSnapshot,
 	);
-	// What the providers read: re-render when any of it changes.
-	useStoreValue(store, () => store.getShapes());
-	useStoreValue(store, () => store.getSelection());
-	useStoreValue(store, () => store.getHoveredShapeId());
-	useStoreValue(store, () => store.getActiveToolId());
+	useStoreVersion(store);
 	if (busy) return null;
 
 	const ctx = { store, shapes };

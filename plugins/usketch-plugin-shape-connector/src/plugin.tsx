@@ -301,7 +301,8 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 						state: handleState,
 					}),
 			].filter((p) => p !== false);
-			for (const provider of handleProviders) handleRegistry?.register(provider);
+			// The disposers remove only these providers (not a host's replacement under the same id).
+			const offHandleProviders = handleProviders.map((p) => handleRegistry?.register(p));
 
 			// ── Label editor overlay (Phase 6) ──
 
@@ -443,7 +444,7 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 				for (const off of offConnectorActions) off();
 				unsubLabelClick();
 				unsubPointerForLabel();
-				for (const provider of handleProviders) handleRegistry?.unregister(provider.id);
+				for (const off of offHandleProviders) off?.();
 				if (labelEditor) ctx.layers.unregister(CONNECTOR_LAYER_IDS.labelEditor);
 			};
 		},

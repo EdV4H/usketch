@@ -31,11 +31,30 @@ function stubDocument() {
 	return style;
 }
 
+/** A `window` that records its listeners so a test can fire them. */
+function stubWindow() {
+	const listeners = new Map<string, Set<() => void>>();
+	vi.stubGlobal("window", {
+		addEventListener: (type: string, fn: () => void) => {
+			if (!listeners.has(type)) listeners.set(type, new Set());
+			listeners.get(type)?.add(fn);
+		},
+		removeEventListener: (type: string, fn: () => void) => listeners.get(type)?.delete(fn),
+	});
+	return {
+		fire: (type: string) => {
+			for (const fn of [...(listeners.get(type) ?? [])]) fn();
+		},
+		count: () => [...listeners.values()].reduce((n, set) => n + set.size, 0),
+	};
+}
+
 const rect = (id: string, x: number, y: number, zIndex: string): ShapeData =>
 	({ id, type: "rect", x, y, width: 100, height: 100, rotation: 0, zIndex }) as ShapeData;
 
 function setup() {
 	const cursorStyle = stubDocument();
+	const win = stubWindow();
 	const store = createBoardStore();
 	store.addShape(rect("a", 0, 0, "a0"));
 	store.addShape(rect("b", 300, 0, "a1"));
@@ -91,10 +110,10 @@ function setup() {
 	const move = (x: number, y: number) => tool.onPointerMove?.(toolCtx, ev(x, y));
 	const up = (x: number, y: number, extra?: Partial<CanvasPointerEvent>) =>
 		tool.onPointerUp?.(toolCtx, ev(x, y, extra));
-	return { store, ctx, selectionHandles, cursorStyle, down, move, up, teardown, history };
+	return { store, ctx, selectionHandles, cursorStyle, win, down, move, up, teardown, history };
 }
 
-/** A provider with one fixed handle on shape `b`, recording its drag calls. */
+/** A provider with one fixed handle on shape `b`, recording its drag calls (with the point for end). */
 function provider(handle: Partial<SelectionHandle> = {}, opts: { moves?: boolean } = {}) {
 	const calls: string[] = [];
 	const h: SelectionHandle = {
@@ -107,8 +126,8 @@ function provider(handle: Partial<SelectionHandle> = {}, opts: { moves?: boolean
 	const drag: SelectionHandleDrag = {
 		cursor: "grabbing",
 		move: () => calls.push("move"),
-		end: () => {
-			calls.push("end");
+		end: (e) => {
+			calls.push(`end ${e.worldPoint.x},${e.worldPoint.y}`);
 			return opts.moves ?? true;
 		},
 		cancel: () => calls.push("cancel"),
@@ -142,7 +161,8 @@ describe("selection handles from other plugins", () => {
 		expect(t.cursorStyle.textContent).toContain("grabbing");
 		t.move(320, 170);
 		t.up(320, 170);
-		expect(calls).toEqual(["start", "move", "end"]);
+		expect(calls).toEqual(["start", "move", "end 320,170"]);
+		expect(t.win.count()).toBe(0);
 		expect(t.store.getShape("b")?.x).toBe(300);
 		expect(t.cursorStyle.textContent).toBe("");
 	});
@@ -159,6 +179,11 @@ describe("selection handles from other plugins", () => {
 		t.down(300, 150);
 		t.up(300, 150);
 		expect([...t.store.getSelection()]).toEqual(["b"]);
+		// Like a click on the body: an already selected shape keeps the selection.
+		t.store.setSelection(["a", "b"]);
+		t.down(300, 150);
+		t.up(300, 150);
+		expect([...t.store.getSelection()].sort()).toEqual(["a", "b"]);
 		t.store.setSelection(["a"]);
 		t.down(300, 150, { shiftKey: true });
 		t.up(300, 150, { shiftKey: true });
@@ -202,5 +227,37 @@ describe("selection handles from other plugins", () => {
 		t.teardown();
 		expect(calls).toEqual(["start", "cancel"]);
 		// afterEach tears down again: that must be harmless.
+	});
+
+	it("キャンバスの外で離したら、最後にキャンバスが伝えた位置で終える", () => {
+		const { p, calls } = provider();
+		t.selectionHandles.register(p);
+		t.down(300, 150);
+		t.move(320, 170);
+		t.win.fire("pointerup");
+		expect(calls).toEqual(["start", "move", "end 320,170"]);
+		expect(t.win.count()).toBe(0);
+		// Later moves with the button up go back to hovering.
+		t.move(50, 50);
+		expect(calls).toHaveLength(3);
+	});
+
+	it("離したのを取りこぼしたまま次に押したら、前のドラッグを取り消す", () => {
+		const { p, calls } = provider();
+		t.selectionHandles.register(p);
+		t.down(300, 150);
+		t.down(50, 50);
+		expect(calls).toEqual(["start", "cancel"]);
+		expect([...t.store.getSelection()]).toEqual(["a"]);
+	});
+
+	it("ドラッグ中に提供元が外されたら、そのドラッグを取り消す", () => {
+		const { p, calls } = provider();
+		const off = t.selectionHandles.register(p);
+		t.down(300, 150);
+		off();
+		t.move(320, 170);
+		t.up(320, 170);
+		expect(calls).toEqual(["start", "cancel"]);
 	});
 });

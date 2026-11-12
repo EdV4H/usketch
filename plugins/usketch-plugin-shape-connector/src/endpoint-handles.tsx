@@ -66,13 +66,14 @@ export function createEndpointHandleProvider(options: {
 			}
 			return handles;
 		},
-		startDrag(handle, _event, ctx) {
+		startDrag(handle, event, ctx) {
 			const c = selectedConnector(ctx.store.getSelection(), (sid) => ctx.store.getShape(sid));
 			if (!c) return null;
 			return createEndpointDrag(ctx, {
 				connector: c,
 				endpoint: handle.id as Endpoint,
 				startPoint: handle.point,
+				pressScreenPoint: event.screenPoint,
 				freeEnds,
 				state,
 			});

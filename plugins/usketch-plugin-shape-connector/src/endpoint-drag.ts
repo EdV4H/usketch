@@ -7,7 +7,7 @@ import type {
 	ToolContext,
 } from "@edv4h/usketch-shared";
 import { createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
-import { computeEndpointDrop } from "./connector-ends.js";
+import { computeEndpointDrop, MIN_DRAG_SCREEN_PX } from "./connector-ends.js";
 import { findEndShapeAtPoint, findShapeAtPoint } from "./find-shape-at-point.js";
 import type { ConnectorHandleStore } from "./handle-state.js";
 import type { ConnectorShapeData } from "./types.js";
@@ -19,6 +19,8 @@ export interface EndpointDragOptions {
 	endpoint: "source" | "target" | "controlPoint";
 	/** World position of the grabbed handle. */
 	startPoint: Point;
+	/** Screen position of the press (a move under `MIN_DRAG_SCREEN_PX` from it is not a drag). */
+	pressScreenPoint: Point;
 	/** Allow dropping an end on empty space (see `ConnectorPluginOptions.freeEnds`). */
 	freeEnds?: boolean;
 	state: ConnectorHandleStore;
@@ -30,7 +32,7 @@ export interface EndpointDragOptions {
  * the current viewport), and the release commits one undoable change.
  */
 export function createEndpointDrag(ctx: Ctx, options: EndpointDragOptions): SelectionHandleDrag {
-	const { connector, endpoint, startPoint, freeEnds = false, state } = options;
+	const { connector, endpoint, startPoint, pressScreenPoint, freeEnds = false, state } = options;
 	const connectorId = connector.id;
 	// The shape this end is attached to now, and the shape at the other end.
 	const currentShapeId = endpoint === "source" ? connector.sourceId : connector.targetId;
@@ -45,7 +47,16 @@ export function createEndpointDrag(ctx: Ctx, options: EndpointDragOptions): Sele
 		cursor: "grabbing",
 		move(event: CanvasPointerEvent) {
 			const wp = event.worldPoint;
-			moved = true;
+			// A jittery click is not a drag: it must not pin a control point or
+			// re-anchor an end (and the select tool then treats it as a click).
+			if (!moved) {
+				const d = Math.hypot(
+					event.screenPoint.x - pressScreenPoint.x,
+					event.screenPoint.y - pressScreenPoint.y,
+				);
+				if (d < MIN_DRAG_SCREEN_PX) return;
+				moved = true;
+			}
 
 			if (endpoint === "controlPoint") {
 				setDrag(wp, null);
@@ -87,7 +98,10 @@ export function createEndpointDrag(ctx: Ctx, options: EndpointDragOptions): Sele
 				);
 				return true;
 			}
-			return commitEndpointDrop(ctx, connectorId, endpoint, startPoint, event.worldPoint, freeEnds);
+			// A real drag, even one that changes nothing (e.g. dropped on the other
+			// end's shape): never a click.
+			commitEndpointDrop(ctx, connectorId, endpoint, startPoint, event.worldPoint, freeEnds);
+			return true;
 		},
 		cancel() {
 			state.set({ endpointDrag: null });
@@ -102,7 +116,7 @@ export function createEndpointDrag(ctx: Ctx, options: EndpointDragOptions): Sele
 	};
 }
 
-/** Commit a dragged endpoint (see {@link computeEndpointDrop}). Whether anything changed. */
+/** Commit a dragged endpoint (see {@link computeEndpointDrop}), if it changes anything. */
 function commitEndpointDrop(
 	ctx: Ctx,
 	connectorId: string,
@@ -110,9 +124,9 @@ function commitEndpointDrop(
 	startPoint: Point,
 	dropPoint: Point,
 	freeEnds: boolean,
-): boolean {
+): void {
 	const connector = ctx.store.getShape(connectorId) as ConnectorShapeData | undefined;
-	if (!connector) return false;
+	if (!connector) return;
 	const zoom = ctx.store.getViewport().zoom;
 	const dropShape = freeEnds
 		? findEndShapeAtPoint(ctx, dropPoint, zoom)
@@ -123,7 +137,6 @@ function commitEndpointDrop(
 		{ shape: dropShape, point: dropPoint },
 		{ startPoint, zoom, freeEnds, getShape: (id) => ctx.store.getShape(id) },
 	);
-	if (!change) return false;
+	if (!change) return;
 	ctx.commands.execute(createBatchUpdateShapesCommand(ctx.store, [{ id: connectorId, ...change }]));
-	return true;
 }
