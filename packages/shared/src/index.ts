@@ -54,6 +54,7 @@ export type {
 	KeyBindingSpec,
 	KeyConflict,
 	KeyConflictPolicy,
+	KeyGate,
 	Keymap,
 	Layer,
 	LayerExportBackgroundContext,

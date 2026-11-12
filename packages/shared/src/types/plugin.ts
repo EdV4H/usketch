@@ -711,6 +711,14 @@ export interface KeyConflict {
  *   (any subset, in the order `"press"` callbacks should run; `[]` = none). If it
  *   throws, the first candidate acts.
  */
+/**
+ * The host's say over every keydown: return false to keep `binding` from acting on it
+ * (e.g. while a settings dialog is open, while a shape is being edited inline, or to
+ * allow only some bindings in a restricted UI mode). Applies to `"hold"` bindings too
+ * (their `claims` turn false). A throwing gate blocks the key.
+ */
+export type KeyGate = (binding: KeyBinding, event: KeyboardEvent) => boolean;
+
 export type KeyConflictPolicy =
 	| "first"
 	| "last"
@@ -745,6 +753,16 @@ export interface Keymap {
 	getConflictPolicy(): KeyConflictPolicy;
 	/** Switch the {@link KeyConflictPolicy} (takes effect on the next keydown; notifies subscribers). */
 	setConflictPolicy(policy: KeyConflictPolicy): void;
+	/** The host's {@link KeyGate}, if any. */
+	getGate(): KeyGate | null;
+	/** Set (or clear with `null`) the host's {@link KeyGate}. */
+	setGate(gate: KeyGate | null): void;
+	/**
+	 * The key a combo (`"press"`) or `KeyboardEvent.code` (`"hold"`) stands for, as
+	 * {@link KeyConflict.key} names it under this keymap's `Mod` mode and platform
+	 * (e.g. to tell whether a key a viewer is about to bind is already taken).
+	 */
+	normalizeKey(key: string, kind?: KeyBindingKind): string;
 	/**
 	 * Rebind `id` for this viewer (`null` = unbind). Kept even before the binding is
 	 * registered, so saved settings can be applied at startup.

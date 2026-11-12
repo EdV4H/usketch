@@ -4,38 +4,83 @@ import type {
 	KeyBindingSpec,
 	KeyConflict,
 	KeyConflictPolicy,
+	KeyGate,
 	Keymap,
 } from "@edv4h/usketch-shared";
 
 /**
- * Normalize a `"+"`-joined combo: lower-case, order-independent, `mod` → `ctrl`
- * (the platform accelerator: {@link eventToCombo} folds Cmd and Ctrl into `ctrl`, so
- * `"Mod+Z"` matches Cmd+Z on macOS and Ctrl+Z elsewhere), and `" "` / `"spacebar"` →
- * `"space"`.
+ * How the `Mod` token (and the Cmd / Ctrl keys) match:
+ * - `"platform"` (default): `Mod` is Cmd on macOS and Ctrl elsewhere; Cmd and Ctrl are
+ *   different keys (on a Mac, `Ctrl+Z` is not `Mod+Z`).
+ * - `"either"`: Cmd and Ctrl are the same key everywhere, and `Mod` is that key.
  */
-export function normalizeCombo(combo: string): string {
-	return combo
-		.toLowerCase()
-		.split("+")
-		.map((k) => k.trim())
-		.map((k) => (k === "mod" ? "ctrl" : k === "spacebar" ? "space" : k))
-		.sort()
-		.join("+");
+export type ModKeyMode = "platform" | "either";
+
+/** Options for matching combos against keydowns. */
+export interface ComboOptions {
+	/** Default `"platform"`. */
+	mod?: ModKeyMode;
+	/** Whether to treat the platform as macOS. Default: detected from `navigator`. */
+	isMac?: boolean;
 }
 
-/** The normalized combo a keydown produces (see {@link normalizeCombo}). */
-export function eventToCombo(event: KeyboardEvent): string {
-	const parts: string[] = [];
-	if (event.ctrlKey || event.metaKey) parts.push("ctrl");
-	if (event.shiftKey) parts.push("shift");
-	if (event.altKey) parts.push("alt");
+const detectMac = (): boolean =>
+	typeof navigator !== "undefined" &&
+	/Mac|iPhone|iPad|iPod/.test(
+		(navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ??
+			navigator.platform ??
+			"",
+	);
 
-	const key = (event.key ?? "").toLowerCase();
-	if (!["control", "meta", "shift", "alt"].includes(key)) {
-		parts.push(key === " " ? "space" : key);
+const TOKEN_ALIASES: Record<string, string> = {
+	cmd: "meta",
+	command: "meta",
+	"⌘": "meta",
+	control: "ctrl",
+	opt: "alt",
+	option: "alt",
+	"⌥": "alt",
+	"⇧": "shift",
+	spacebar: "space",
+	esc: "escape",
+	del: "delete",
+	up: "arrowup",
+	down: "arrowdown",
+	left: "arrowleft",
+	right: "arrowright",
+};
+
+/**
+ * The canonical, platform-independent form of a `"+"`-joined combo: lower-case,
+ * order-independent, aliases folded (`Cmd` → `meta`, `Option` → `alt`, `Spacebar` →
+ * `space` …), and `?` expanded to `shift+/`. `Mod` is kept as `mod`, so the result is
+ * the same on every platform (safe to store, e.g. as a rebinding).
+ */
+export function normalizeCombo(combo: string): string {
+	const tokens = new Set<string>();
+	const trimmed = combo.trim();
+	// A lone "+" (or a combo ending in "++") names the plus key itself.
+	const raw = trimmed === "+" ? ["+"] : trimmed.replace(/\+\+$/, "+plus").split("+");
+	for (const part of raw) {
+		const t = part.trim().toLowerCase();
+		if (!t) continue;
+		if (t === "?") {
+			tokens.add("shift");
+			tokens.add("/");
+			continue;
+		}
+		tokens.add(t === "plus" ? "+" : (TOKEN_ALIASES[t] ?? t));
 	}
+	return [...tokens].sort().join("+");
+}
 
-	return parts.sort().join("+");
+/** Resolve `mod` (and, in `"either"` mode, Cmd) in a canonical combo for matching. */
+function resolveCombo(canonical: string, mod: ModKeyMode, isMac: boolean): string {
+	if (!canonical) return canonical;
+	const tokens = new Set(canonical.split("+"));
+	if (tokens.delete("mod")) tokens.add(mod === "either" ? "ctrl" : isMac ? "meta" : "ctrl");
+	if (mod === "either" && tokens.delete("meta")) tokens.add("ctrl");
+	return [...tokens].sort().join("+");
 }
 
 const CODE_TOKENS: Record<string, string> = {
@@ -44,8 +89,8 @@ const CODE_TOKENS: Record<string, string> = {
 	ShiftRight: "shift",
 	ControlLeft: "ctrl",
 	ControlRight: "ctrl",
-	MetaLeft: "ctrl",
-	MetaRight: "ctrl",
+	MetaLeft: "meta",
+	MetaRight: "meta",
 	AltLeft: "alt",
 	AltRight: "alt",
 	Minus: "-",
@@ -63,8 +108,9 @@ const CODE_TOKENS: Record<string, string> = {
 
 /**
  * The key a `KeyboardEvent.code` stands for on a US layout, in {@link normalizeCombo}
- * form (`"KeyW"` → `"w"`, `"ShiftLeft"` → `"shift"`, `"ArrowUp"` → `"arrowup"`). Used to
- * compare held-key bindings with shortcut combos when looking for overlaps.
+ * form (`"KeyW"` → `"w"`, `"Digit1"` → `"1"`, `"ShiftLeft"` → `"shift"`, `"ArrowUp"` →
+ * `"arrowup"`). Used for physical-key matching and to compare held-key bindings with
+ * shortcut combos when looking for overlaps.
  */
 export function codeToKey(code: string): string {
 	if (/^Key[A-Z]$/.test(code)) return code.slice(3).toLowerCase();
@@ -72,9 +118,50 @@ export function codeToKey(code: string): string {
 	return CODE_TOKENS[code] ?? code.toLowerCase();
 }
 
-/** The normalized key `key` stands for, for overlap detection. */
-const keyToken = (kind: KeyBindingKind, key: string): string =>
-	kind === "hold" ? codeToKey(key) : normalizeCombo(key);
+const MODIFIER_KEYS = new Set(["control", "meta", "shift", "alt", "os", "altgraph"]);
+
+/** A plain letter or digit: its `key` is trusted as-is (it follows the keyboard layout). */
+const isPlainKey = (key: string): boolean => /^[a-z0-9]$/.test(key);
+
+/**
+ * The combos a keydown can match, resolved for `options` (see {@link ComboOptions}).
+ * The first is from `KeyboardEvent.key` (follows the layout: `"q"` on AZERTY's A key).
+ * When Shift / Alt is held or the key is not a plain letter / digit, the physical key
+ * (`KeyboardEvent.code`) is added too, so `Shift+1` matches although `key` is `"!"`, and
+ * `Mod+Shift+]` matches although `key` is `"}"`.
+ */
+export function eventToCombos(event: KeyboardEvent, options: ComboOptions = {}): string[] {
+	const mod = options.mod ?? "platform";
+	const mods: string[] = [];
+	if (mod === "either") {
+		if (event.ctrlKey || event.metaKey) mods.push("ctrl");
+	} else {
+		if (event.ctrlKey) mods.push("ctrl");
+		if (event.metaKey) mods.push("meta");
+	}
+	if (event.shiftKey) mods.push("shift");
+	if (event.altKey) mods.push("alt");
+
+	const raw = (event.key ?? "").toLowerCase();
+	const key = raw === " " ? "space" : (TOKEN_ALIASES[raw] ?? raw);
+	const out: string[] = [];
+	const push = (k: string): void => {
+		const combo = (MODIFIER_KEYS.has(k) || !k ? [...mods] : [...mods, k]).sort().join("+");
+		if (!out.includes(combo)) out.push(combo);
+	};
+	push(key);
+	const code = event.code ?? "";
+	if (code && (event.shiftKey || event.altKey || !isPlainKey(key))) {
+		const physical = codeToKey(code);
+		if (physical && physical !== code.toLowerCase()) push(physical);
+	}
+	return out;
+}
+
+/** The main combo a keydown produces (its `key`-based form; see {@link eventToCombos}). */
+export function eventToCombo(event: KeyboardEvent, options: ComboOptions = {}): string {
+	return eventToCombos(event, options)[0] ?? "";
+}
 
 interface Entry {
 	spec: KeyBindingSpec;
@@ -103,6 +190,12 @@ export interface CreateKeymapOptions {
 	overrides?: Readonly<Record<string, readonly string[] | null>>;
 	/** Who gets a key several active bindings share (default `"first"`); see {@link KeyConflictPolicy}. */
 	conflictPolicy?: KeyConflictPolicy;
+	/** How `Mod` / Cmd / Ctrl match (default `"platform"`); see {@link ModKeyMode}. */
+	mod?: ModKeyMode;
+	/** Treat the platform as macOS (default: detected). */
+	isMac?: boolean;
+	/** The host's gate; see {@link Keymap.setGate}. */
+	gate?: KeyGate | null;
 }
 
 export interface KeymapInternal extends Keymap {
@@ -137,6 +230,19 @@ export function createKeymap(options: CreateKeymapOptions = {}): KeymapInternal 
 	const listeners = new Set<() => void>();
 	let seq = 0;
 	let policy: KeyConflictPolicy = options.conflictPolicy ?? "first";
+	let gate: KeyGate | null = options.gate ?? null;
+	const comboOptions: Required<ComboOptions> = {
+		mod: options.mod ?? "platform",
+		isMac: options.isMac ?? detectMac(),
+	};
+	/** A canonical combo resolved for this keymap's `mod` mode / platform. */
+	const resolve = (combo: string): string =>
+		resolveCombo(normalizeCombo(combo), comboOptions.mod, comboOptions.isMac);
+	/** The key `key` stands for, for overlap detection. */
+	const keyToken = (kind: KeyBindingKind, key: string): string =>
+		kind === "hold"
+			? resolveCombo(codeToKey(key), comboOptions.mod, comboOptions.isMac)
+			: resolve(key);
 
 	/** Display / winning order under the current policy (`"all"` and custom use `"first"`'s). */
 	const order = (): ((a: Entry, b: Entry) => number) =>
@@ -175,19 +281,33 @@ export function createKeymap(options: CreateKeymapOptions = {}): KeymapInternal 
 		overridden: overrides.has(entry.spec.id),
 	});
 
-	const matches = (entry: Entry, event: KeyboardEvent): boolean => {
+	const matches = (entry: Entry, event: KeyboardEvent, combos: readonly string[]): boolean => {
 		const keys = keysOf(entry);
 		if (keys.length === 0) return false;
 		if (entry.kind === "hold") return !!event.code && keys.includes(event.code);
-		const combo = eventToCombo(event);
-		return keys.some((k) => normalizeCombo(k) === combo);
+		return keys.some((k) => combos.includes(resolve(k)));
+	};
+
+	const passesGate = (entry: Entry, event: KeyboardEvent): boolean => {
+		if (!gate) return true;
+		try {
+			return gate(snapshot(entry), event) === true;
+		} catch (error) {
+			console.error("[usketch] keymap gate threw; blocking the key", error);
+			return false;
+		}
 	};
 
 	/** The bindings that get this keydown under the current policy, in the order they run. */
 	const selected = (event: KeyboardEvent): Entry[] => {
+		// Keys typed into an IME composition belong to the text, not to shortcuts.
+		if (event.isComposing || event.keyCode === 229) return [];
+		const combos = eventToCombos(event, comboOptions);
 		const candidates: Entry[] = [];
 		for (const entry of entries.values()) {
-			if (matches(entry, event) && isActive(entry)) candidates.push(entry);
+			if (matches(entry, event, combos) && isActive(entry) && passesGate(entry, event)) {
+				candidates.push(entry);
+			}
 		}
 		if (candidates.length <= 1) return candidates;
 		if (policy === "all") return candidates.sort(compareEntries);
@@ -304,6 +424,18 @@ export function createKeymap(options: CreateKeymapOptions = {}): KeymapInternal 
 			return policy;
 		},
 
+		getGate() {
+			return gate;
+		},
+
+		setGate(next) {
+			gate = next;
+		},
+
+		normalizeKey(key, kind = "press") {
+			return keyToken(kind, key);
+		},
+
 		setConflictPolicy(next) {
 			if (next === policy) return;
 			policy = next;
@@ -360,6 +492,9 @@ export function scopeKeymap(keymap: KeymapInternal, owner: KeymapOwner): Keymap 
 		getOverrides: keymap.getOverrides,
 		subscribe: keymap.subscribe,
 		getConflictPolicy: keymap.getConflictPolicy,
+		getGate: keymap.getGate,
+		setGate: keymap.setGate,
+		normalizeKey: keymap.normalizeKey,
 		setConflictPolicy: keymap.setConflictPolicy,
 	};
 }

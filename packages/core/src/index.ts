@@ -12,13 +12,16 @@ export { createApp } from "./create-app.js";
 export { createEventBus } from "./event-bus.js";
 export { createExternalContentRegistry } from "./external-content-registry.js";
 export {
+	type ComboOptions,
 	type CreateKeymapOptions,
 	codeToKey,
 	createKeymap,
 	describeConflicts,
 	eventToCombo,
+	eventToCombos,
 	type KeymapInternal,
 	type KeymapOwner,
+	type ModKeyMode,
 	normalizeCombo,
 	scopeKeymap,
 } from "./keymap.js";

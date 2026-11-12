@@ -188,6 +188,8 @@ interface PluginContext {
   - `"last"`: 後に並んだプラグインの 1 つだけ（後から入れたプラグインが上書き）。
   - `"all"`: 当てはまるもの全部。
   - 関数 `(candidates, event) => KeyBinding[]`: 候補（`"first"` の順）から動かすものを返す。
+- コンボの書き方: `Mod` はプラットフォームのアクセラレータ。`createApp({ keymap: { mod } })` で `"platform"`（既定。mac は ⌘ だけ、他は Ctrl）か `"either"`（⌘ と Ctrl のどちらでも）を選ぶ。**Ctrl / Cmd を意味するショートカットは `Ctrl+` ではなく `Mod+` で書く**（`Ctrl+` は mac では物理の Ctrl キー）。Shift / Alt つきの記号・数字は物理キー（`KeyboardEvent.code`）でも照合するので `Shift+1` や `Mod+Shift+]` と書ける。`?` は `Shift+/` の別名。
+- ホストのゲート: `createApp({ keymap: { gate } })` / `keymap.setGate((binding, event) => boolean)` で、ダイアログ表示中・インライン編集中・制限モードなどに binding をまとめて止める（`"hold"` の `claims` も false になる）。IME の変換中のキーは keymap が無視する。
 - `keymap.getConflicts()` で重なりの一覧（勝つ順）が取れる。`createApp({ keymap: { warnConflicts: true } })` で起動時に `console.warn` する（apps/web は開発時のみ ON）。
 - 解消: ホストは `createApp({ keymap: { keys: { [id]: keys | null } } })` で既定を差し替え、閲覧者は `keymap.setKeys(id, keys | null)` / `resetKeys(id?)` で付け替える（`getOverrides()` を保存し、次回 `createApp({ keymap: { overrides } })` に渡す）。
 

@@ -22,7 +22,9 @@ function keyEvent(
 
 describe("normalizeCombo / codeToKey", () => {
 	it("normalizes combos and codes to the same key names", () => {
-		expect(normalizeCombo("Shift+Mod+Z")).toBe("ctrl+shift+z");
+		expect(normalizeCombo("Shift+Mod+Z")).toBe("mod+shift+z");
+		expect(normalizeCombo("Cmd+Option+K")).toBe("alt+k+meta");
+		expect(normalizeCombo("?")).toBe("/+shift");
 		expect(normalizeCombo("Space")).toBe("space");
 		expect(codeToKey("KeyW")).toBe("w");
 		expect(codeToKey("Digit3")).toBe("3");
@@ -192,6 +194,84 @@ describe("createKeymap", () => {
 		keymap.handleKeyDown(keyEvent("x", "KeyX"));
 		expect(second).toHaveBeenCalledTimes(1);
 		expect(first).not.toHaveBeenCalled();
+	});
+});
+
+describe("Mod / physical keys / gate / IME", () => {
+	it('"platform" mode: Mod is Cmd on macOS and Ctrl elsewhere', () => {
+		const mac = createKeymap({ isMac: true });
+		const win = createKeymap({ isMac: false });
+		const onMac = vi.fn();
+		const onWin = vi.fn();
+		mac.register({ id: "u", keys: ["Mod+Z"], onPress: onMac });
+		win.register({ id: "u", keys: ["Mod+Z"], onPress: onWin });
+		expect(mac.handleKeyDown(keyEvent("z", "KeyZ", { metaKey: true }))).toBe(true);
+		expect(mac.handleKeyDown(keyEvent("z", "KeyZ", { ctrlKey: true }))).toBe(false);
+		expect(win.handleKeyDown(keyEvent("z", "KeyZ", { ctrlKey: true }))).toBe(true);
+		expect(win.handleKeyDown(keyEvent("z", "KeyZ", { metaKey: true }))).toBe(false);
+		expect([onMac.mock.calls.length, onWin.mock.calls.length]).toEqual([1, 1]);
+	});
+
+	it('"either" mode: Cmd and Ctrl both act as Mod', () => {
+		const keymap = createKeymap({ mod: "either", isMac: true });
+		const cb = vi.fn();
+		keymap.register({ id: "u", keys: ["Mod+Z"], onPress: cb });
+		keymap.handleKeyDown(keyEvent("z", "KeyZ", { metaKey: true }));
+		keymap.handleKeyDown(keyEvent("z", "KeyZ", { ctrlKey: true }));
+		expect(cb).toHaveBeenCalledTimes(2);
+	});
+
+	it("matches shifted symbols by physical key, and `?` as Shift+/", () => {
+		const keymap = createKeymap({ isMac: false });
+		const fit = vi.fn();
+		const front = vi.fn();
+		const help = vi.fn();
+		keymap.register({ id: "fit", keys: ["Shift+1"], onPress: fit });
+		keymap.register({ id: "front", keys: ["Mod+Shift+]"], onPress: front });
+		keymap.register({ id: "help", keys: ["?"], onPress: help });
+		keymap.handleKeyDown(keyEvent("!", "Digit1", { shiftKey: true }));
+		keymap.handleKeyDown(keyEvent("}", "BracketRight", { shiftKey: true, ctrlKey: true }));
+		keymap.handleKeyDown(keyEvent("?", "Slash", { shiftKey: true }));
+		expect([fit, front, help].map((f) => f.mock.calls.length)).toEqual([1, 1, 1]);
+	});
+
+	it("keeps plain letters on the layout's key (AZERTY's A key types `q`)", () => {
+		const keymap = createKeymap();
+		const q = vi.fn();
+		const a = vi.fn();
+		keymap.register({ id: "q", keys: ["q"], onPress: q });
+		keymap.register({ id: "a", keys: ["a"], onPress: a });
+		keymap.handleKeyDown(keyEvent("q", "KeyA"));
+		expect([q.mock.calls.length, a.mock.calls.length]).toEqual([1, 0]);
+	});
+
+	it("the host gate can block bindings (press and hold)", () => {
+		const cb = vi.fn();
+		const keymap = createKeymap({ gate: (b) => b.id.startsWith("host:") });
+		keymap.register({ id: "host:x", keys: ["x"], onPress: cb });
+		keymap.register({ id: "plugin:y", keys: ["y"], onPress: cb });
+		keymap.register({ id: "plugin:w", kind: "hold", keys: ["KeyW"] });
+		expect(keymap.handleKeyDown(keyEvent("x", "KeyX"))).toBe(true);
+		expect(keymap.handleKeyDown(keyEvent("y", "KeyY"))).toBe(false);
+		expect(keymap.claims("plugin:w", keyEvent("w", "KeyW"))).toBe(false);
+		keymap.setGate(null);
+		expect(keymap.handleKeyDown(keyEvent("y", "KeyY"))).toBe(true);
+		expect(keymap.claims("plugin:w", keyEvent("w", "KeyW"))).toBe(true);
+	});
+
+	it("ignores keys typed into an IME composition", () => {
+		const keymap = createKeymap();
+		const cb = vi.fn();
+		keymap.register({ id: "x", keys: ["x"], onPress: cb });
+		const e = { ...keyEvent("x", "KeyX"), isComposing: true } as KeyboardEvent;
+		expect(keymap.handleKeyDown(e)).toBe(false);
+		expect(cb).not.toHaveBeenCalled();
+	});
+
+	it("normalizeKey names keys the way conflicts do", () => {
+		const keymap = createKeymap({ isMac: true });
+		expect(keymap.normalizeKey("Mod+Shift+Z")).toBe("meta+shift+z");
+		expect(keymap.normalizeKey("ShiftLeft", "hold")).toBe("shift");
 	});
 });
 
