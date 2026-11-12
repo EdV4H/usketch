@@ -25,6 +25,30 @@ export interface CreateYjsSyncOptions {
 	 * この doc はホスト所有とみなし、`destroy()` では破棄しない。
 	 */
 	doc?: Y.Doc;
+	/**
+	 * IndexedDB に保存するか（既定 true）。false にすると保存はホストに任せ、doc に今ある
+	 * シェイプをすぐ store に読み込む（`whenSynced` もすぐ解決する）。ボード単位で保存を
+	 * 張った doc（ページ doc など）を、ページを開くたびに作る store に紐づけるときに使う。
+	 */
+	persist?: boolean;
+}
+
+/** {@link persistDocToIndexedDb} の戻り値。 */
+export interface IndexedDbPersistenceHandle {
+	/** 保存済みの中身を doc に読み込み終えたら解決する。 */
+	whenSynced: Promise<void>;
+	destroy(): void;
+}
+
+/** Y.Doc を IndexedDB（`docName`）に保存する。store とは紐づけない。 */
+export function persistDocToIndexedDb(docName: string, doc: Y.Doc): IndexedDbPersistenceHandle {
+	const provider = new IndexeddbPersistence(docName, doc);
+	return {
+		whenSynced: new Promise<void>((resolve) => provider.once("synced", () => resolve())),
+		destroy: () => {
+			provider.destroy();
+		},
+	};
 }
 
 const DEFAULT_DOC_NAME = "usketch-default";
@@ -61,7 +85,7 @@ export function createYjsSync(
 	const externalDoc = options.doc;
 	const ownsDoc = externalDoc === undefined;
 	const doc = externalDoc ?? new Y.Doc();
-	const idbProvider = new IndexeddbPersistence(docName, doc);
+	const idbProvider = options.persist === false ? null : new IndexeddbPersistence(docName, doc);
 	const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
 	const status = new SyncStatusTracker();
 
@@ -139,51 +163,51 @@ export function createYjsSync(
 
 	shapesMap.observe(observer);
 
-	// Wait for IndexedDB sync, then restore shapes to store
-	const whenSynced = new Promise<void>((resolve) => {
-		idbProvider.once("synced", () => {
-			if (destroyed) {
-				resolve();
-				return;
+	// doc にあるシェイプを store へ入れる（IndexedDB の読み込み後、または保存しないなら今すぐ）
+	function restore() {
+		isSyncing = true;
+		try {
+			const idsNeedingZIndex: string[] = [];
+			for (const [id, value] of shapesMap.entries()) {
+				const shape = value as unknown as ShapeData;
+				if (!store.getShape(id)) {
+					store.addShape(shape);
+				}
+				// Track legacy shapes that were persisted before z-order was introduced.
+				if (typeof shape.zIndex !== "string") {
+					idsNeedingZIndex.push(id);
+				}
 			}
 
-			isSyncing = true;
-			try {
-				const idsNeedingZIndex: string[] = [];
-				for (const [id, value] of shapesMap.entries()) {
-					const shape = value as unknown as ShapeData;
-					if (!store.getShape(id)) {
-						store.addShape(shape);
+			// Backfill zIndex for legacy shapes: addShape auto-assigned one, so push
+			// the new value back to Y.Map so we don't re-randomize on every load.
+			if (idsNeedingZIndex.length > 0) {
+				doc.transact(() => {
+					for (const id of idsNeedingZIndex) {
+						const current = store.getShape(id);
+						if (current) shapesMap.set(id, toPlainObject(current));
 					}
-					// Track legacy shapes that were persisted before z-order was introduced.
-					if (typeof shape.zIndex !== "string") {
-						idsNeedingZIndex.push(id);
-					}
-				}
-
-				// Backfill zIndex for legacy shapes: addShape auto-assigned one, so push
-				// the new value back to Y.Map so we don't re-randomize on every load.
-				if (idsNeedingZIndex.length > 0) {
-					doc.transact(() => {
-						for (const id of idsNeedingZIndex) {
-							const current = store.getShape(id);
-							if (current) shapesMap.set(id, toPlainObject(current));
-						}
-					});
-				}
-			} finally {
-				isSyncing = false;
+				});
 			}
+		} finally {
+			isSyncing = false;
+		}
 
-			status.update({
-				state: "synced",
-				shapeCount: shapesMap.size,
-				lastSyncedAt: Date.now(),
-			});
-
-			resolve();
+		status.update({
+			state: "synced",
+			shapeCount: shapesMap.size,
+			lastSyncedAt: Date.now(),
 		});
-	});
+	}
+
+	const whenSynced = idbProvider
+		? new Promise<void>((resolve) => {
+				idbProvider.once("synced", () => {
+					if (!destroyed) restore();
+					resolve();
+				});
+			})
+		: Promise.resolve(restore());
 
 	// ── Partition support ──
 	// Track additional Y.Maps and their observers for on-demand partition loading
@@ -300,7 +324,7 @@ export function createYjsSync(
 		if (ownsDoc) {
 			doc.destroy();
 		}
-		idbProvider.destroy();
+		idbProvider?.destroy();
 	}
 
 	return { doc, status, whenSynced, loadPartition, unloadPartition, getLoadedPartitions, destroy };
