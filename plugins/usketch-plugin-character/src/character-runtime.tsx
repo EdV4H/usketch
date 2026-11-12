@@ -129,6 +129,8 @@ export interface CharacterRuntime {
 	jump(): void;
 	setKeys(keys: CharacterKeys): void;
 	getKeys(): CharacterKeys;
+	/** See `KeyInput.getDefaultKeys`. */
+	getDefaultKeys(): CharacterKeys;
 	/** Listen for key binding changes. Returns an unsubscribe. */
 	onKeysChange(listener: () => void): () => void;
 	/** See `KeyInput.captureNextKey`. */
@@ -155,9 +157,10 @@ export function setupCharacterRuntime(
 			return st.drift !== null || (effectiveJump(st) ?? DEFAULT_JUMP).spinRate > 0;
 		},
 		() => store.getState().jump !== null,
+		// Older hosts have no keymap (the keys then live in the input).
+		(ctx as Partial<PluginContext>).keymap ?? null,
 	);
 	let jumpTimers: JumpTimers = IDLE_JUMP;
-	const keysListeners = new Set<() => void>();
 	// `jump()` from code: a press on the next frame, held until the apex (a full jump).
 	let pendingJump = false;
 	let holdJump = false;
@@ -443,17 +446,10 @@ export function setupCharacterRuntime(
 			pendingJump = true;
 			ensureLoop();
 		},
-		setKeys(k) {
-			keys.setKeys(k);
-			for (const l of [...keysListeners]) l();
-		},
+		setKeys: (k) => keys.setKeys(k),
 		getKeys: () => keys.getKeys(),
-		onKeysChange(listener) {
-			keysListeners.add(listener);
-			return () => {
-				keysListeners.delete(listener);
-			};
-		},
+		getDefaultKeys: () => keys.getDefaultKeys(),
+		onKeysChange: (listener) => keys.onKeysChange(listener),
 		captureNextKey: (onKey) => keys.captureNextKey(onKey),
 		setVirtualInput(input) {
 			// Ignored while off (like the keys), so input sent before the character is

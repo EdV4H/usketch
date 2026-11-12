@@ -104,8 +104,10 @@ createApp({
 `toggle` / `pitch-up` / `pitch-down` / `yaw-left` / `yaw-right` / `fov-narrow` / `fov-wide` / `reset` /
 `capture-frame`（取り込み範囲の表示切替）。
 
-ショートカットは **opt-in・既定なし**（共有レジストリは `event.key` 照合で macOS の Option+英字合成 /
-Shift+数字変換に弱く、既定を持たせると layout により無反応になるため）。`shortcuts` オプションで任意に割当。
+キーは **opt-in・既定なし**（どの文字キーも、どこかのツールや配列とぶつかるため）。各アクションはキーなしの
+keymap binding（id `usketch-plugin-mode7:<key>`）として登録されるので、キー設定に並び、ホストは
+`createApp({ keymap: { keys: { "usketch-plugin-mode7:toggle": ["Alt+M"] } } })` で割り当てる。
+`shortcuts` オプションも動くが非推奨（次のメジャーで削除）。
 
 ## サービス API
 
@@ -135,10 +137,14 @@ api?.setYaw(30);
 これを引いてから投影する（`projectToGround` は `heightPx` を見る）。
 
 3D ビューのあいだは **Space を押している間カメラが上がり、Shift で下がる**（画面上で毎秒
-`heightSpeed` px、既定 480）。キーは `KeyboardEvent.code` で、`heightKeys` オプション
-（`{ up?, down? }`、`false` で無効）か `setHeightKeys` で変えられる。入力欄・ボタン・スライダーに
-フォーカスがあるときと、同じキーを先に使うプラグイン（キャラクターのジャンプ）がいるときは動かない。
-キャラクターが追いかけている間は、キャラクターがカメラの高さを毎フレーム決めるので、高さキーは効かない
+`heightSpeed` px、既定 480）。キーは keymap の `"hold"` binding（`HEIGHT_KEY_IDS` =
+`usketch-plugin-mode7:camera-up` / `camera-down`、`KeyboardEvent.code`）で、既定は `heightKeys` オプション
+（`{ up?, down? }`、`false` でキーなし）。ホストは `createApp({ keymap: { keys } })`、閲覧者は
+`keymap.setKeys` で付け替える（`setHeightKeys` / `getHeightKeys` は非推奨のラッパー）。入力欄・ボタン・
+スライダーにフォーカスがあるときは動かない。同じキーの binding がほかにあれば keymap が振り分け、
+高さキーの priority（`HEIGHT_KEY_PRIORITY` = 10）はツールより上・キャラクターより下（キャラクターの
+ジャンプが Space を取る）。
+キャラクターが追いかけている間は、キャラクターがカメラの高さを毎フレーム決めるので、高さキーは keymap 上でも無効になる
 （`view3dService.setCameraHeight` が最後に呼ばれてから `HEIGHT_DRIVER_HOLD_MS` = 250ms の間。
 両方が毎フレーム高さを書き換えて画面がガタガタしないように）。
 

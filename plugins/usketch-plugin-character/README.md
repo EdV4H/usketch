@@ -109,7 +109,14 @@ createCharacterPlugin({
   wheels: tilted at most `landingTolerance` (default 35°, HUD "着地の許容角") from the
   ground under it (`landingTilt`, slopes included) it drives on, beyond that it keeps
   only `crashSpeed` (default 0.3, HUD "着地失敗で残る速さ") of its speed.
-- **Keys**: the jump (Space) and the drift (Shift) have their own keys. Every action
+- **Keys**: the keys are `"hold"` bindings in the app's keymap (`CHARACTER_KEY_IDS`:
+  `usketch-plugin-character:up` / `down` / `left` / `right` / `drift` / `jump`), with the
+  plugin's `keys` as their defaults, so hosts can also set them with
+  `createApp({ keymap: { keys } })` and overlaps with other plugins' keys show up in
+  `keymap.getConflicts()`. While the character is on they sit above tool shortcuts and
+  Mode 7's camera height keys (`CHARACTER_KEY_PRIORITY`; movement, then drift, then
+  jump), and a key the keymap gives elsewhere is left alone. The jump (Space) and the
+  drift (Shift) have their own keys. Every action
   (up / down / left / right / jump / drift, up to two keys each) can be rebound from the
   HUD's "キー設定" panel: click a key and press the new one (Esc cancels, Delete /
   Backspace removes it); a key taken from another action moves over, a direction left

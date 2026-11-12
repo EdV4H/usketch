@@ -1,10 +1,11 @@
 // The 4-path action wiring (event bus + action registry/HUD + optional keyboard),
 // same convention as window-system. Each operation is a plain call on the service.
 //
-// Shortcuts are OPT-IN with NO defaults: the shared registry matches on `event.key`,
-// which macOS Option-composes for letters and Shift-transforms for digits, so any
-// built-in letter/digit default would silently fail on some layout. Every action is
-// reachable via the HUD Controls + events; the host binds keys through `shortcuts`.
+// Keys are OPT-IN with NO defaults (any built-in letter would collide with some tool or
+// layout). Every action is a keymap binding with a fixed id (`usketch-plugin-mode7:<key>`,
+// no keys), so it shows up in key settings and hosts bind it with
+// `createApp({ keymap: { keys: { "usketch-plugin-mode7:toggle": ["Alt+M"] } } })`.
+// Every action is also reachable via the HUD Controls + events.
 import type { PluginContext } from "@edv4h/usketch-shared";
 import type { Mode7Api } from "./mode7-service.js";
 
@@ -19,8 +20,12 @@ export type Mode7ActionKey =
 	| "reset"
 	| "capture-frame";
 
-/** Host shortcut overrides: a combo string binds the action; omitting a key leaves
- *  it unbound (there are no built-in defaults). `null` is also treated as unbound. */
+/**
+ * Host shortcut overrides: a combo string binds the action; omitting a key leaves
+ * it unbound (there are no built-in defaults). `null` is also treated as unbound.
+ * @deprecated Use the keymap ids `usketch-plugin-mode7:<key>` with
+ * `createApp({ keymap: { keys } })`.
+ */
 export type Mode7Shortcuts = Partial<Record<Mode7ActionKey, string | null>>;
 
 const PITCH_STEP = 5;
@@ -120,7 +125,21 @@ export function registerMode7Actions(
 			}),
 		);
 		const combo = shortcuts[a.key];
-		if (combo) {
+		const keymap = (ctx as Partial<PluginContext>).keymap;
+		if (keymap) {
+			teardowns.push(
+				keymap.register({
+					id: `usketch-plugin-mode7:${a.key}`,
+					keys: combo ? [combo] : [],
+					label: a.label,
+					category: GROUP,
+					order: a.order,
+					...(a.isEnabled ? { enabled: a.isEnabled } : {}),
+					onPress: () => a.run(),
+				}),
+			);
+		} else if (combo) {
+			// Older hosts without a keymap.
 			teardowns.push(
 				ctx.shortcuts.register(combo, () => a.run(), { label: a.label, category: GROUP }),
 			);

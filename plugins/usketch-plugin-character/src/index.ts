@@ -8,6 +8,7 @@ export {
 	smoothingAlpha,
 	targetRotation,
 } from "./character-camera.js";
+export { CHARACTER_KEY_IDS, CHARACTER_KEY_PRIORITY } from "./character-input.js";
 export {
 	KEY_CHOICES,
 	type KeyChoice,

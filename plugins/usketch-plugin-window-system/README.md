@@ -59,24 +59,27 @@ createApp({
 
 ## キーボードショートカット
 
-共有ショートカットレジストリは `event.key` で照合するため、macOS では **Option + 英字**が別文字に
-合成される（Alt+T → "†"）。そのため既定でバインドするのは**矢印ベースのフォーカス / 移動のみ**
-（クロスプラットフォームで安全）:
+既定でバインドするのは**矢印ベースのフォーカス / 移動のみ**（文字キーはほかのツールとぶつかりやすい）:
 
 - フォーカス: `Alt + ↑ / ↓ / ← / →`
 - 移動: `Alt + Shift + ↑ / ↓ / ← / →`
 
-その他のアクションは HUD / イベント / サービスから操作でき、`shortcuts` オプションで任意のコンボを
-割り当て（または既定を無効化）できる:
+各アクションは keymap binding（id `usketch-plugin-window-system:<key>`、キーなしのものも）として登録され、
+キーを取るのはウィンドウボードの間だけ（`enable` を除く）。ホストは `createApp({ keymap: { keys } })` で
+割り当て・無効化する:
 
 ```ts
-createWindowSystemPlugin({
-  shortcuts: {
-    "toggle-mode": "Mod+Shift+Enter", // 任意コンボを割り当て
-    "focus-left": null,               // 既定を無効化
+createApp({
+  keymap: {
+    keys: {
+      "usketch-plugin-window-system:toggle-mode": ["Mod+Shift+Enter"], // 任意コンボを割り当て
+      "usketch-plugin-window-system:focus-left": null,                  // 既定を無効化
+    },
   },
 });
 ```
+
+`shortcuts` オプション（同じ形の `{ [action]: combo | null }`）も動くが非推奨（次のメジャーで削除）。
 
 ## サービス API
 
