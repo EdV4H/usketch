@@ -1,6 +1,7 @@
 // Public types. The plugin owns NO visuals: it computes where each character is
 // and which way it faces, then hands those props to a host-supplied renderer.
 import type { ReactNode } from "react";
+import type { ControlScheme } from "./character-physics.js";
 
 /** JSON-serializable look data, broadcast so other clients can draw you the same way. */
 export type CharacterAppearance = Record<string, unknown>;
@@ -20,6 +21,11 @@ export interface CharacterRenderProps {
 	screenHeading: number;
 	/** Whether the character is moving right now (drive walk cycles etc.). */
 	moving: boolean;
+	/**
+	 * How it is driven (`"vehicle"` = the car scheme), e.g. to draw a car for it. A remote
+	 * from a client that doesn't send it reads as `"directional"`.
+	 */
+	controlScheme: ControlScheme;
 	/** Signed speed along the heading, world units / s. */
 	speed: number;
 	/** Vehicle: held steering, -1 (left) … 1 (right) — e.g. to turn the front wheels. */
@@ -28,6 +34,13 @@ export interface CharacterRenderProps {
 	slip: number;
 	/** Vehicle: whether a drift is running (e.g. to lay tire marks). */
 	drifting: boolean;
+	/**
+	 * Vehicle: the body's attitude in the air, degrees — `pitch` nose up (+), `roll` right
+	 * side down (+); 0 on the ground. Tip the body by them about its middle, after turning
+	 * it to `screenHeading` (e.g. `rotateX(-pitch) rotateY(roll)` in CSS 3D).
+	 */
+	pitch: number;
+	roll: number;
 	/** Current viewport zoom (scale the sprite with the world, or not). */
 	zoom: number;
 	/**
@@ -80,9 +93,14 @@ export interface RemoteCharacter {
 	heading: number;
 	speed: number;
 	moving: boolean;
+	/** The owner's control scheme (`"directional"` from older clients). */
+	controlScheme: ControlScheme;
 	steering: number;
 	slip: number;
 	drifting: boolean;
+	/** Vehicle body attitude in the air, degrees (0 from older clients). */
+	pitch: number;
+	roll: number;
 	/** Feet height (absolute), or `null` from a client that doesn't send it (= on the ground). */
 	z: number | null;
 	airborne: boolean;

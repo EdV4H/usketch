@@ -65,8 +65,9 @@ createCharacterPlugin({
   (multiples of `turnRate`), `slipAngle` / `steerSlipAngle` (degrees), `recoveryRate`
   (1/s). With `hop: true`, pressing the drift key on the ground hops `hopHeight`
   (default 10) first, and the drift starts on landing if the key is still held and
-  steering (a car can't steer in the air). The drift key is only captured while drift
-  is on.
+  steering (a drift only starts on the ground). The drift key is only captured by a car with drift
+  or the air roll (`jump.spinRate`) on, and then not left to the host (e.g. Mode 7's
+  Shift = camera down).
 - **Jump** (opt-in via `jump`): press the jump key (Space) to jump. The arc is set by
   its apex `height` (world units) and `timeToApex`; it falls `fallGravity` × faster than
   it rises, releasing the key while rising cuts it short (`releaseCut`), a press within
@@ -88,6 +89,26 @@ createCharacterPlugin({
   at `riseSpeed` (60). The gauge refills
   on the ground over `rechargeTime` (0.8 s), not at once on landing. The pose carries
   `hovering` and `hoverGauge` (stays 1 with hovering off); both are broadcast.
+- **Air control** (`jump.airControl`, 0 … 1, default 0.5, HUD "空中制御"): how much of
+  the ground handling is left in the air. A walk (`directional`) keeps its take-off
+  velocity (`pose.moveVx` / `moveVy`) and the keys pull it toward theirs, reaching full
+  speed from a stop in `AIR_CONTROL_TIME` (0.1 s) / `airControl`; releasing them slows it
+  the same way. A car keeps its speed (no throttle or brakes in the air) and steers at
+  `airControl` × the ground's, its travel turning with it; a running drift carries on. 0
+  = ballistic (the take-off velocity carries the jump, a car can't steer), 1 = as on the
+  ground. Falls with jumping off use the default.
+- **Air attitude** (vehicle, `jump.spinRate`, default 270 °/s, 0 = off, HUD "空中で車体を回す速さ"):
+  in the air, with the drift key held, the throttle keys pitch the body (forward = nose
+  down, back = nose up) and the steering rolls it (right = right side down) instead of
+  yawing it (`stepAirSpin` / `holdSteerForRoll`). The spin has weight: `jump.spinInertia`
+  (default 0.3 s, 0 = none, HUD "車体の回転の慣性") is how long it takes to build up to
+  `spinRate`, and a released spin slows to a stop over the same time (`pose.pitchRate` /
+  `rollRate`); with 0 the body turns only while a key is held. A full flip wraps back to
+  level. The pose and render props carry `pitch` / `roll` (degrees,
+  0 on the ground; broadcast). On touchdown (`landVehicle`) the body is set back on its
+  wheels: tilted at most `landingTolerance` (default 35°, HUD "着地の許容角") from the
+  ground under it (`landingTilt`, slopes included) it drives on, beyond that it keeps
+  only `crashSpeed` (default 0.3, HUD "着地失敗で残る速さ") of its speed.
 - **Keys**: the jump (Space) and the drift (Shift) have their own keys. Every action
   (up / down / left / right / jump / drift, up to two keys each) can be rebound from the
   HUD's "キー設定" panel: click a key and press the new one (Esc cancels, Delete /
@@ -154,7 +175,8 @@ createCharacterPlugin({
   the body's height exactly (`setCameraHeightMargin` at runtime).
 - **Multiplayer**: pass `wsProvider` (anything with a y-protocols `awareness`). Your
   character is published under the `character` awareness field (~20 Hz, only when it
-  changes, including `steering`, `slip` and `drifting`) and others are eased between
+  changes, including `steering`, `slip`, `drifting` and the control scheme — the
+  render props' `controlScheme`, e.g. to draw a car for `"vehicle"`) and others are eased between
   updates. It's ephemeral: a character
   vanishes when its owner disconnects or turns it off. Nothing is stored as shapes.
 - **Ground height**: when a plugin provides `groundHeightService` (from
@@ -197,7 +219,7 @@ createCharacterPlugin({
 ## HUD
 
 A "キャラクター" settings group (on/off, camera, scheme, drift, drift key, drift hop, jump, jump key, jump height, air
-jumps, jump direction on slopes, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, size and its scale, screen position, camera lag) plus actions to toggle the
+jumps, jump direction on slopes, air control, air spin rate, spin inertia, landing tolerance, crash speed, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, size and its scale, screen position, camera lag) plus actions to toggle the
 character, to place it at the screen position, and to jump.
 
 ## Service
