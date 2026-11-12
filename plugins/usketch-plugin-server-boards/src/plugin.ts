@@ -786,6 +786,9 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				const id = env.BOARD_ROOM.idFromName(boardId);
 				const room = env.BOARD_ROOM.get(id);
 				const thumbnailUrl = new URL(`https://internal/thumbnail?w=${w}&h=${h}`);
+				// ページを使うボードは ?page= のページ（省略時は先頭ページ）
+				const page = c.req.query("page");
+				if (page) thumbnailUrl.searchParams.set("page", page);
 				const res = await room.fetch(thumbnailUrl.toString());
 				return new Response(res.body, {
 					status: res.status,

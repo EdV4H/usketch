@@ -1,22 +1,26 @@
 import { computeMinimap, minimapToSvg, type ShapeData } from "@edv4h/usketch-shared";
+import type { ShapesTarget } from "./board-shapes.js";
 
 /**
  * サムネイル SVG を生成して返す。
  * Y.Doc の shapesMap からシェイプを読み取り、minimap SVG に変換する。
+ * ページを使うボードは `?page=` のページ（省略時は先頭ページ）を描く。
  */
 export async function handleThumbnail(
 	url: URL,
-	getOrCreateDoc: () => Promise<{ doc: import("yjs").Doc }>,
+	openShapes: (pageId: string | null) => Promise<ShapesTarget>,
 ): Promise<Response> {
 	try {
 		const width = Math.min(Math.max(Number(url.searchParams.get("w")) || 240, 16), 1024);
 		const height = Math.min(Math.max(Number(url.searchParams.get("h")) || 160, 16), 1024);
 
-		const { doc } = await getOrCreateDoc();
-		const shapesMap = doc.getMap<Record<string, unknown>>("shapes");
+		const target = await openShapes(url.searchParams.get("page"));
+		const shapesMap = target.doc.getMap<Record<string, unknown>>("shapes");
+		const values = [...shapesMap.values()];
+		target.release();
 
 		const shapes: ShapeData[] = [];
-		for (const [, value] of shapesMap) {
+		for (const value of values) {
 			const s = value as Record<string, unknown>;
 			if (
 				typeof s.id === "string" &&
