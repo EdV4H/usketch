@@ -163,8 +163,126 @@ export interface SelectionForegroundRegistry {
 	subscribe(listener: () => void): () => void;
 }
 
+// ── Selection Handles (extension point for the select tool) ──
+
+/**
+ * One handle a plugin adds to the selection UI (e.g. a connector's anchor dots
+ * and end points). The select tool draws it, hit-tests it together with its own
+ * resize / rotation handles, and runs the drag, so every handle on the board
+ * shares one stacking order, one coordinate system, one cursor mechanism and one
+ * set of rules for when handles are hidden (while a shape is moved, resized or
+ * a marquee is drawn).
+ */
+export interface SelectionHandle {
+	/** Unique within its provider. */
+	id: string;
+	/** Position in WORLD coordinates. */
+	point: Point;
+	/** Screen-px offset added after projecting {@link point} (e.g. to clear a shape's edge). */
+	offset?: Point;
+	/** Hit radius in screen px. Default {@link DEFAULT_SELECTION_HANDLE_HIT_RADIUS}. */
+	hitRadius?: number;
+	/** CSS cursor while the pointer is over the handle (and during its drag). Default `"pointer"`. */
+	cursor?: string;
+	/**
+	 * Shape the handle belongs to. While the pointer is over the handle this shape
+	 * stays the hovered shape (a handle may sit just outside the shape), and a
+	 * press that does nothing (see {@link SelectionHandleDrag.end}) selects it.
+	 */
+	shapeId?: string;
+}
+
+/** Default {@link SelectionHandle.hitRadius} (screen px). */
+export const DEFAULT_SELECTION_HANDLE_HIT_RADIUS = 9;
+
+/** What a {@link SelectionHandleProvider} sees when it lists its handles. */
+export interface SelectionHandleState {
+	store: BoardStore;
+	shapes: ShapeRegistry;
+	selection: ReadonlySet<string>;
+	/** The select tool's hovered shape ({@link BoardStore.getHoveredShapeId}). */
+	hoveredShapeId: string | null;
+}
+
+/** A drag started from a handle. The select tool forwards the pointer to it. */
+export interface SelectionHandleDrag {
+	move(event: CanvasPointerEvent): void;
+	/**
+	 * The pointer was released. Return `false` when the press did nothing (a click
+	 * without a drag): the select tool then treats it as a click on the handle's
+	 * {@link SelectionHandle.shapeId}.
+	 */
+	end(event: CanvasPointerEvent): boolean | undefined;
+	/** The drag was abandoned (tool switched, plugin torn down). Undo any preview. */
+	cancel(): void;
+	/** Cursor during the drag. Defaults to the handle's cursor. */
+	cursor?: string;
+}
+
+/** What a {@link SelectionHandleProvider} draws with. */
+export interface SelectionHandleRenderContext extends SelectionHandleState {
+	/**
+	 * The viewport to project with. Handles are drawn in the selection overlay's
+	 * frame, so under camera rotation this is the unrotated viewport (see
+	 * `unrotatedViewport`); use {@link toScreen} for handle positions.
+	 */
+	viewport: Viewport;
+	/** The provider's handles that are shown now (empty while they are hidden). */
+	handles: readonly SelectionHandle[];
+	/** Id of this provider's handle under the pointer, or `null`. */
+	hoveredHandleId: string | null;
+	/** This provider's handle is being dragged: draw the drag feedback. */
+	dragging: boolean;
+	/** The selection overlay colors (`select:configure`), so handles match the selection frame. */
+	colors: { stroke: string; fill: string };
+	/** Screen position of a handle in the overlay frame ({@link SelectionHandle.point} + offset). */
+	toScreen(handle: SelectionHandle): Point;
+}
+
+/**
+ * A plugin's set of selection handles. Register with
+ * `ctx.ui.selectionHandles.register(provider)`.
+ *
+ * Precedence: the select tool's own rotation / resize handles always win, and a
+ * provider handle that sits on one of them is not shown. Among providers, higher
+ * `priority` is hit-tested (and drawn on top) first; within a provider, a later
+ * handle in the list wins.
+ */
+export interface SelectionHandleProvider {
+	id: string;
+	/** Default 0. */
+	priority?: number;
+	/** The handles for the current state. Called on every render and pointer move — keep it cheap. */
+	getHandles(state: SelectionHandleState): readonly SelectionHandle[];
+	/** A handle was pressed. Return the drag, or `null` to ignore the press. */
+	startDrag(
+		handle: SelectionHandle,
+		event: CanvasPointerEvent,
+		ctx: ToolContext,
+	): SelectionHandleDrag | null;
+	/** Draw the handles (in screen px, like a `fixed` world-overlay layer). */
+	render(ctx: SelectionHandleRenderContext): ReactElement | null;
+}
+
+export interface SelectionHandleRegistry {
+	/** Register a provider. Re-registering the same `id` replaces it. */
+	register(provider: SelectionHandleProvider): () => void;
+	unregister(id: string): void;
+	get(id: string): SelectionHandleProvider | undefined;
+	/** Providers by `priority` (highest first), ties in registration order. */
+	getAll(): readonly SelectionHandleProvider[];
+	/** Notified when a provider is added or removed. */
+	subscribe(listener: () => void): () => void;
+}
+
 export interface UiRegistry {
 	registerSelectionForeground(entry: SelectionForeground): () => void;
+	/**
+	 * Handles plugins add to the selection UI; drawn and driven by the select tool.
+	 * Optional so hand-built plugin contexts keep type-checking; `createApp` always
+	 * provides it.
+	 */
+	selectionHandles?: SelectionHandleRegistry;
 }
 
 // ── External Content (drop / paste / URL handlers) ──
