@@ -21,10 +21,10 @@ import { boardMembers } from "./db/schema.js";
 import { handleAiPlaceShapes, handleAiUpdateShapes } from "./rooms/ai-handler.js";
 import { handleHistoryRequest } from "./rooms/history-handler.js";
 import { createHistoryManager } from "./rooms/history-manager.js";
+import { deleteLegacySnapshots } from "./rooms/legacy-snapshot-cleanup.js";
 import { createPageDocs } from "./rooms/page-docs.js";
 import { createPartitionManager } from "./rooms/partition-manager.js";
 import { SessionManager, type SessionSnapshot } from "./rooms/session-manager.js";
-import { createSnapshotManager } from "./rooms/snapshot-manager.js";
 import { handleThumbnail } from "./rooms/thumbnail-handler.js";
 import { createYjsSync } from "./rooms/yjs-sync.js";
 import type { Env } from "./types.js";
@@ -41,11 +41,8 @@ export class BoardRoom extends DurableObject<Env> {
 
 	private readonly yjsSync = createYjsSync({ storage: this.ctx.storage });
 	private readonly partitions = createPartitionManager({ storage: this.ctx.storage });
-	private readonly snapshots = createSnapshotManager({
-		storage: this.ctx.storage,
-		getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
-		getWebSockets: () => this.ctx.getWebSockets(),
-	});
+	/** 旧スナップショット（Time Travel）の保存データを消す処理を、このインスタンスで始めたか。 */
+	private legacySnapshotsCleared = false;
 	// Git 風のボード履歴（自動・手動コミット）。Yjs ドキュメントの shapes をスナップショットする。
 	private readonly history = createHistoryManager({
 		storage: this.ctx.storage,
@@ -54,6 +51,21 @@ export class BoardRoom extends DurableObject<Env> {
 			return doc.getMap<ShapeData>("shapes").toJSON() as Record<string, ShapeData>;
 		},
 	});
+
+	/**
+	 * 旧スナップショット API の保存データを裏で消す（インスタンスごとに 1 回、接続時）。
+	 * 履歴は history-manager に一本化した。消し終わる前に止まっても次の接続でやり直す。
+	 */
+	private clearLegacySnapshots(): void {
+		if (this.legacySnapshotsCleared) return;
+		this.legacySnapshotsCleared = true;
+		this.ctx.waitUntil(
+			deleteLegacySnapshots(this.ctx.storage).catch((err) => {
+				this.legacySnapshotsCleared = false;
+				console.error("[BoardRoom] legacy snapshot cleanup failed:", err);
+			}),
+		);
+	}
 
 	// ページ doc（ルート doc とは別に同期する Y.Doc）。購読された doc だけを読み込む。
 	// 履歴はまだルート doc の shapes だけを見る（ページ対応は後続 PR）。
@@ -177,17 +189,6 @@ export class BoardRoom extends DurableObject<Env> {
 		const historyResponse = await handleHistoryRequest(request, url, this.history);
 		if (historyResponse) return historyResponse;
 
-		if (url.pathname === "/snapshots" && request.method === "GET") {
-			return this.snapshots.handleListSnapshots();
-		}
-		if (url.pathname === "/snapshot" && request.method === "POST") {
-			return this.snapshots.handleCreateSnapshot();
-		}
-		if (url.pathname.startsWith("/snapshots/") && request.method === "GET") {
-			const ts = url.pathname.split("/snapshots/")[1];
-			return this.snapshots.handleGetSnapshot(ts);
-		}
-
 		return new Response("BoardRoom OK", { status: 200 });
 	}
 
@@ -214,7 +215,7 @@ export class BoardRoom extends DurableObject<Env> {
 			}
 		}
 
-		this.snapshots.scheduleAutoSnapshot();
+		this.clearLegacySnapshots();
 		return new Response(null, { status: 101, webSocket: pair[0] });
 	}
 
