@@ -16,15 +16,12 @@ import type {
 import { generateId } from "@edv4h/usketch-shared";
 import { createAddShapeCommand, createBatchUpdateShapesCommand } from "@edv4h/usketch-store";
 import { computeAnchorChange } from "./anchor-change.js";
-import {
-	type AnchorHandleMode,
-	AnchorHandleOverlay,
-	setupAnchorHandles,
-} from "./anchor-handle-overlay.js";
+import { type AnchorHandleMode, createAnchorHandleProvider } from "./anchor-handles.js";
 import { type ConnectorEndSpec, isTooShortDrag, resolveConnectorEnds } from "./connector-ends.js";
 import { ConnectorLabelEditor, handleConnectorClick, setEditingLabel } from "./connector-label.js";
-import { EndpointOverlay } from "./endpoint-overlay.js";
+import { createEndpointHandleProvider } from "./endpoint-handles.js";
 import { findEndShapeAtPoint, findShapeAtPoint } from "./find-shape-at-point.js";
+import { createConnectorHandleStore } from "./handle-state.js";
 import {
 	type ArrowHead,
 	createDefaultConnector,
@@ -36,7 +33,7 @@ import {
 } from "./shapes/connector.js";
 import type { ConnectorShapeData } from "./types.js";
 
-export type { AnchorHandleMode } from "./anchor-handle-overlay.js";
+export type { AnchorHandleMode } from "./anchor-handles.js";
 export type { ConnectorShapeData } from "./types.js";
 
 /**
@@ -51,9 +48,31 @@ export type { ConnectorShapeData } from "./types.js";
  * only exports the connector data types the host needs to build one.
  */
 export const CONNECTOR_LAYER_IDS = {
+	/**
+	 * @deprecated No layer has this id any more: the end handles are a selection
+	 * handle provider (see {@link CONNECTOR_HANDLE_IDS}).
+	 */
 	endpoints: "connector-endpoints",
 	labelEditor: "connector-label-editor",
+	/**
+	 * @deprecated No layer has this id any more: the anchor handles are a
+	 * selection handle provider (see {@link CONNECTOR_HANDLE_IDS}).
+	 */
 	anchorHandles: "connector-anchor-handles",
+} as const;
+
+/**
+ * Ids of the selection handle providers this plugin registers on
+ * `ctx.ui.selectionHandles` (the select tool draws, hit-tests and drags them
+ * with its own handles). A host can turn one off at runtime with
+ * `app.selectionHandles.unregister(id)` and put it back with the provider
+ * `app.selectionHandles.get(id)` returned.
+ */
+export const CONNECTOR_HANDLE_IDS = {
+	/** The selected connector's ends (and a curve's control point). */
+	endpoints: "connector-endpoints",
+	/** The anchor dots on the selected / hovered shape that draw a connector. */
+	anchors: "connector-anchors",
 } as const;
 
 /**
@@ -74,7 +93,7 @@ export interface ConnectorPluginOptions {
 	 * Hover anchor handles + the anchor-drag drawing interaction.
 	 * - `true` (default) / an {@link AnchorHandleMode} string — enable the handles;
 	 *   a string picks *when* selected-shape anchors show (default mode `"single"`).
-	 * - `false` — disable entirely (no layer). The `connector-draw` tool still
+	 * - `false` — disable entirely (no handles). The `connector-draw` tool still
 	 *   works; only the hover-to-anchor affordance is removed.
 	 */
 	anchorHandles?: boolean | AnchorHandleMode;
@@ -259,20 +278,30 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 			// The parameter Toolbar is deliberately absent — the host owns that UI
 			// entirely (see apps/web).
 
-			// ── Endpoint overlay (Phase 5) ──
+			// ── End handles and anchor handles ──
+			// Added to the select tool's handles (ctx.ui.selectionHandles), which
+			// draws, hit-tests and drags them with its own resize / rotate handles:
+			// one stacking order, one coordinate system, one cursor and one color.
+			// Without a select tool that supports it there are no handles.
 
-			if (endpoints) {
-				ctx.layers.register({
-					id: CONNECTOR_LAYER_IDS.endpoints,
-					order: 81,
-					fixed: true,
-					// World-anchored: follow the camera rotation (see Layer.worldOverlay).
-					worldOverlay: true,
-					render: (renderCtx) => (
-						<EndpointOverlay ctx={ctx} viewport={renderCtx.viewport} freeEnds={freeEnds} />
-					),
-				});
-			}
+			const handleState = createConnectorHandleStore();
+			const handleRegistry = ctx.ui?.selectionHandles;
+			const handleProviders = [
+				endpoints &&
+					createEndpointHandleProvider({
+						id: CONNECTOR_HANDLE_IDS.endpoints,
+						freeEnds,
+						state: handleState,
+					}),
+				anchorHandlesEnabled &&
+					createAnchorHandleProvider({
+						id: CONNECTOR_HANDLE_IDS.anchors,
+						mode: anchorHandlesMode,
+						freeEnds,
+						state: handleState,
+					}),
+			].filter((p) => p !== false);
+			for (const provider of handleProviders) handleRegistry?.register(provider);
 
 			// ── Label editor overlay (Phase 6) ──
 
@@ -286,26 +315,6 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 					render: (renderCtx) => <ConnectorLabelEditor ctx={ctx} viewport={renderCtx.viewport} />,
 				});
 			}
-
-			// ── Anchor handle overlay (hover to show anchor points) ──
-
-			if (anchorHandlesEnabled) {
-				ctx.layers.register({
-					id: CONNECTOR_LAYER_IDS.anchorHandles,
-					order: 79,
-					fixed: true,
-					// World-anchored: follow the camera rotation (see Layer.worldOverlay).
-					worldOverlay: true,
-					render: (renderCtx) => (
-						<AnchorHandleOverlay ctx={ctx} viewport={renderCtx.viewport} mode={anchorHandlesMode} />
-					),
-				});
-			}
-
-			// Anchor-drag drawing/hover behavior is tied to the anchor-handles UI.
-			const cleanupAnchorHandles = anchorHandlesEnabled
-				? setupAnchorHandles(ctx, { freeEnds })
-				: undefined;
 
 			// Double-click detection for label editing
 			const unsubLabelClick = ctx.store.onMutation((event) => {
@@ -434,10 +443,8 @@ export function createConnectorPlugin(options: ConnectorPluginOptions = {}): Usk
 				for (const off of offConnectorActions) off();
 				unsubLabelClick();
 				unsubPointerForLabel();
-				cleanupAnchorHandles?.();
-				if (endpoints) ctx.layers.unregister(CONNECTOR_LAYER_IDS.endpoints);
+				for (const provider of handleProviders) handleRegistry?.unregister(provider.id);
 				if (labelEditor) ctx.layers.unregister(CONNECTOR_LAYER_IDS.labelEditor);
-				if (anchorHandlesEnabled) ctx.layers.unregister(CONNECTOR_LAYER_IDS.anchorHandles);
 			};
 		},
 	};

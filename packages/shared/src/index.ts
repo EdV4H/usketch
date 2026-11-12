@@ -105,6 +105,12 @@ export type {
 	RenderTarget,
 	SelectionForeground,
 	SelectionForegroundRegistry,
+	SelectionHandle,
+	SelectionHandleDrag,
+	SelectionHandleProvider,
+	SelectionHandleRegistry,
+	SelectionHandleRenderContext,
+	SelectionHandleState,
 	ServiceRegistry,
 	ShapeChange,
 	ShapeDefinition,
@@ -127,6 +133,7 @@ export type {
 	ViewportAnimationOptions,
 	ViewportConstraint,
 } from "./types/plugin.js";
+export { DEFAULT_SELECTION_HANDLE_HIT_RADIUS } from "./types/plugin.js";
 // Shape
 export type { ResizeHandle, ShapeData, ShapeStyle } from "./types/shape.js";
 export { DEFAULT_STYLE } from "./types/shape.js";
