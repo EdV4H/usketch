@@ -35,7 +35,7 @@ const serialize = (overrides: KeymapOverrides): string => {
 };
 
 /**
- * Load the saved rebindings into `keymap`, save whenever the viewer changes them, and
+ * Load the saved rebindings into `keymap` (over any made before binding), save whenever the viewer changes them, and
  * reload when the storage reports a change from elsewhere. Saves only when the
  * rebindings actually changed (registrations also notify the keymap). Returns a
  * function that stops syncing.
@@ -44,11 +44,28 @@ export function bindKeymapStorage(keymap: Keymap, storage: KeymapStorage): () =>
 	let last = serialize(keymap.getOverrides());
 	let applying = false;
 
-	// On start, nothing saved keeps the keymap as it is; a later change to "nothing saved"
-	// (another tab reset everything) means no rebindings.
+	// On start, the saved rebindings go over any made before (e.g. ones a plugin carried
+	// over from older storage of its own), and the result is saved if it differs. A later
+	// change to "nothing saved" (another tab reset everything) means no rebindings.
 	const apply = (initial: boolean): void => {
-		const loaded = storage.load() ?? (initial ? undefined : {});
-		if (!loaded) return;
+		const stored = storage.load();
+		if (initial) {
+			const current = keymap.getOverrides();
+			const merged = stored ? { ...current, ...stored } : current;
+			const text = serialize(merged);
+			if (text !== serialize(current)) {
+				applying = true;
+				try {
+					keymap.setOverrides(merged);
+				} finally {
+					applying = false;
+				}
+			}
+			last = text;
+			if (text !== serialize(stored ?? {})) storage.save(merged);
+			return;
+		}
+		const loaded = stored ?? {};
 		const text = serialize(loaded);
 		if (text === last) return;
 		applying = true;

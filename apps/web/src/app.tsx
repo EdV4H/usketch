@@ -31,6 +31,7 @@ import { createExportPlugin } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
 import { createHistoryPlugin } from "@edv4h/usketch-plugin-history";
+import { createKeySettingsPlugin } from "@edv4h/usketch-plugin-key-settings";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
 import { createMode7Plugin } from "@edv4h/usketch-plugin-mode7";
@@ -235,6 +236,8 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		// 既定 OFF（HUD「3Dビュー切替」/ mode7:toggle で opt-in）。
 		// 切替時は地面がせり上がり、空/フォグがフェードする（#1103）。
 		createMode7Plugin({ transition: { durationMs: 900 } }),
+		// 全プラグインのキーを 1 つの HUD「キー設定」で一覧・付け替え（閲覧者ごとに localStorage へ保存）。
+		createKeySettingsPlugin(),
 		// Mode 7 中に Shape を立てる（`x-shape-3d` を持つ Shape だけ。HUD「3D（選択中の Shape）」）。
 		createShape3dPlugin(),
 		// 関連Shapeを「ぶちまける」— HUD の「関連Shapeをぶちまける」アクション。connector/
