@@ -15,6 +15,7 @@ import { generateId, safeRotation } from "@edv4h/usketch-shared";
 import { createAddShapeCommand } from "@edv4h/usketch-store";
 import { useCallback, useSyncExternalStore } from "react";
 import { MIN_DRAG_SCREEN_PX, resolveConnectorEnds } from "./connector-ends.js";
+import { getEndpointDrag, subscribeEndpointDrag } from "./endpoint-drag-state.js";
 import { findEndShapeAtPoint, findShapeAtPoint } from "./find-shape-at-point.js";
 import { createDefaultConnector } from "./shapes/connector.js";
 import type { ConnectorShapeData } from "./types.js";
@@ -381,6 +382,9 @@ export function AnchorHandleOverlay({ ctx, viewport, mode = "single" }: AnchorHa
 	const hoverId = useSyncExternalStore(subscribeAnchorHover, getAnchorHover);
 	const drawing = useSyncExternalStore(subscribeAnchorDraw, getAnchorDraw);
 	const isDragging = useSyncExternalStore(subscribePointerDown, getPointerDown);
+	// An endpoint drag never reaches the canvas pointerdown (the handle stops it),
+	// so `isDragging` stays false; check it on its own.
+	const endpointDrag = useSyncExternalStore(subscribeEndpointDrag, getEndpointDrag);
 
 	const activeToolId = useSyncExternalStore(
 		(cb) => ctx.store.subscribe(cb),
@@ -440,8 +444,9 @@ export function AnchorHandleOverlay({ ctx, viewport, mode = "single" }: AnchorHa
 
 	if (drawing) return null;
 
-	// Hide anchor handles while dragging shapes
-	if (isDragging) return null;
+	// Hide anchor handles while dragging shapes or a connector end: the endpoint
+	// drop never snaps to these anchors, so showing them would mislead.
+	if (isDragging || endpointDrag) return null;
 
 	// Not drawing: show anchor handles on the selected + hovered shape, per `mode`.
 	// - "selection": every selected shape
