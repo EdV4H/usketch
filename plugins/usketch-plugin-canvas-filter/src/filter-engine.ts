@@ -71,19 +71,3 @@ export function compileFilter(config: ShapeFilterConfig): ShapeFilterPredicate {
 	}
 	return (shape) => rules.some((rule) => matchRule(shape, rule));
 }
-
-/**
- * Apply a filter predicate to a shapes map, returning a new map with only matching shapes.
- */
-export function applyFilter(
-	shapes: ReadonlyMap<string, ShapeData>,
-	predicate: ShapeFilterPredicate,
-): Map<string, ShapeData> {
-	const filtered = new Map<string, ShapeData>();
-	for (const [id, shape] of shapes) {
-		if (predicate(shape)) {
-			filtered.set(id, shape);
-		}
-	}
-	return filtered;
-}

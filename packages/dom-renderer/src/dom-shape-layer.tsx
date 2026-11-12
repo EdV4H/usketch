@@ -22,9 +22,9 @@ import { LodFallback } from "./lod-fallback.js";
  * must render before their children so the child elements appear on top. Using
  * a stable group-by-parent pass keeps the zIndex-based order within siblings intact.
  */
-function stableParentSort(sorted: readonly ShapeData[]): ShapeData[] {
+export function stableParentSort(sorted: readonly ShapeData[]): readonly ShapeData[] {
 	// Group children by parentId (preserving order from `sorted`)
-	const childrenByParent = new Map<string, ShapeData[]>();
+	let childrenByParent: Map<string, ShapeData[]> | null = null;
 	const topLevel: ShapeData[] = [];
 	for (const shape of sorted) {
 		const parentId =
@@ -32,6 +32,7 @@ function stableParentSort(sorted: readonly ShapeData[]): ShapeData[] {
 		if (parentId === null) {
 			topLevel.push(shape);
 		} else {
+			childrenByParent ??= new Map();
 			let bucket = childrenByParent.get(parentId);
 			if (!bucket) {
 				bucket = [];
@@ -40,22 +41,31 @@ function stableParentSort(sorted: readonly ShapeData[]): ShapeData[] {
 			bucket.push(shape);
 		}
 	}
+	// No shape has a parent: the z-order is already the render order. This runs on
+	// every drag frame (the store hands out a new sorted array per update), so skip
+	// building a second array for the common all-top-level board.
+	if (childrenByParent === null) return sorted;
+	const byParent = childrenByParent;
 
 	// Recursive emit: parent first, then its children (each child may also be a parent)
 	const result: ShapeData[] = [];
 	function emit(shape: ShapeData) {
 		result.push(shape);
-		const children = childrenByParent.get(shape.id);
+		const children = byParent.get(shape.id);
 		if (children) {
 			for (const child of children) emit(child);
 		}
 	}
 	for (const shape of topLevel) emit(shape);
 
-	// Append orphaned children (whose parent is missing) in their original order
-	const emittedIds = new Set(result.map((s) => s.id));
-	for (const shape of sorted) {
-		if (!emittedIds.has(shape.id)) result.push(shape);
+	// Append orphaned children (whose parent is missing, or in a parent cycle) in their
+	// original order. Each shape is emitted at most once, so there are none when every
+	// shape was emitted — the common case, which then skips building the id set.
+	if (result.length < sorted.length) {
+		const emittedIds = new Set(result.map((s) => s.id));
+		for (const shape of sorted) {
+			if (!emittedIds.has(shape.id)) result.push(shape);
+		}
 	}
 	return result;
 }
@@ -81,6 +91,37 @@ export function cullRegion(
 		width: scaled.width + 2 * pad,
 		height: scaled.height + 2 * pad,
 	};
+}
+
+/**
+ * A shape's own drawing, as the DOM layer paints it inside its box: an HTML shape's
+ * `render` as-is, an SVG shape's wrapped in an `<svg>` whose viewBox maps the shape's
+ * world box onto it. Exported so other layers that draw a shape elsewhere (e.g. stood
+ * up in 3D) look exactly the same. The caller supplies the positioned box around it.
+ */
+export function ShapeContent({
+	shape,
+	def,
+}: {
+	shape: ShapeData;
+	def: { render: (data: ShapeData) => React.ReactElement; renderTarget?: string };
+}): React.ReactElement {
+	if (def.renderTarget === "html") return def.render(shape);
+	// For SVG shapes with zero width or height, use a minimum viewBox size
+	// to avoid NaN from SVG coordinate scaling (e.g. horizontal/vertical lines,
+	// groups with no children, connectors between aligned shapes).
+	const svgW = Math.max(shape.width, 1);
+	const svgH = Math.max(shape.height, 1);
+	return (
+		<svg
+			width={svgW}
+			height={svgH}
+			viewBox={`${shape.x} ${shape.y} ${svgW} ${svgH}`}
+			style={{ display: "block", overflow: "visible" }}
+		>
+			{def.render(shape)}
+		</svg>
+	);
 }
 
 // When dragging shapes onto a frame (drop target detected), boost their
@@ -114,13 +155,6 @@ const ShapeWrapper = memo(function ShapeWrapper({
 }) {
 	const bounds = { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
 	const rotation = safeRotation(shape.rotation);
-	const isHtml = def.renderTarget === "html";
-
-	// For SVG shapes with zero width or height, use a minimum viewBox size
-	// to avoid NaN from SVG coordinate scaling (e.g. horizontal/vertical lines,
-	// groups with no children, connectors between aligned shapes).
-	const svgW = Math.max(bounds.width, 1);
-	const svgH = Math.max(bounds.height, 1);
 
 	// Containers use pointerEvents: none to let children receive clicks
 	const boosted = selected && !isContainer && overDropTarget;
@@ -140,18 +174,7 @@ const ShapeWrapper = memo(function ShapeWrapper({
 				transformOrigin: "center center",
 			}}
 		>
-			{isHtml ? (
-				def.render(shape)
-			) : (
-				<svg
-					width={svgW}
-					height={svgH}
-					viewBox={`${bounds.x} ${bounds.y} ${svgW} ${svgH}`}
-					style={{ display: "block", overflow: "visible" }}
-				>
-					{def.render(shape)}
-				</svg>
-			)}
+			<ShapeContent shape={shape} def={def} />
 		</div>
 	);
 });
@@ -184,6 +207,7 @@ export function DomShapeLayer({
 	viewportCull = true,
 	viewportCullRatio = 2,
 	cullPadPx = 0,
+	hiddenIds,
 }: {
 	ctx: LayerRenderContext;
 	shapeRegistry: ShapeRegistry;
@@ -204,6 +228,8 @@ export function DomShapeLayer({
 	viewportCullRatio?: number;
 	/** Extra screen px around the cull region (content a 3D view shows past the viewport). */
 	cullPadPx?: number;
+	/** Shapes another layer draws instead right now (see `HIDE_SHAPES_EVENT`). */
+	hiddenIds?: ReadonlySet<string>;
 }) {
 	// Parents-before-children order only depends on the shapes, not the viewport, so
 	// it is not redone on every pan / zoom frame.
@@ -246,6 +272,8 @@ export function DomShapeLayer({
 				if (effectiveClaimedIds?.has(shape.id)) {
 					return null;
 				}
+				// Skip shapes another layer draws in their place (e.g. stood up in 3D).
+				if (hiddenIds?.has(shape.id)) return null;
 				const def = shapeRegistry.get(shape.type);
 				if (culling && isShapeOutsideViewport(shape, culling, 1)) return null;
 				// LOD when the global mode says so, OR (per-shape) when the shape sits

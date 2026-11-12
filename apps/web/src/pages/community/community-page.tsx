@@ -21,6 +21,7 @@ import { createMapPlugin } from "@edv4h/usketch-plugin-map";
 import { createMode7Plugin } from "@edv4h/usketch-plugin-mode7";
 import { createPresenceCursorPlugin } from "@edv4h/usketch-plugin-presence-cursor";
 import { createReactionsPlugin } from "@edv4h/usketch-plugin-reactions";
+import { createShape3dPlugin } from "@edv4h/usketch-plugin-shape-3d";
 import {
 	type BoardPortalShapeData,
 	createBoardPortalPlugin,
@@ -244,6 +245,9 @@ export function CommunityPage() {
 					// Mode 7（擬似3D）。マップの地形が高さ（地形の種類で決まる段）ごとに崖として
 					// 立ち上がり、キャラもその上に乗る。既定 OFF、HUD「3Dビュー切替」で切替。
 					createMode7Plugin({ transition: { durationMs: 900 } }),
+					// Mode 7 中に Shape を立てる（HUD「3D（選択中の Shape）」で 1 つずつ指定）。
+					// ボードポータルは指定しなくても立つ（ゲートとして見えるように）。
+					createShape3dPlugin({ types: { "board-portal": { default: { mode: "stand" } } } }),
 					createDomRendererPlugin(),
 					// Control HUD: hosts plugin operations/settings + the useCommunityActions
 					// actions (toggle with the backtick key). Replaces bespoke on-canvas UI.

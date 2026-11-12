@@ -59,6 +59,15 @@ describe("groundHeightAt", () => {
 		expect(groundHeightAt(store, 500, 500, TILE)).toBe(LEVEL_HEIGHT);
 		renderConfigStore.set({ emptyTerrain: "water" });
 	});
+
+	it("is flat while the heights are switched off (another plugin owns them)", () => {
+		renderConfigStore.set({ emptyTerrain: "water" });
+		const store = storeWith({ "0,0": "mtn" });
+		renderConfigStore.set({ heightEnabled: false });
+		expect(groundHeightAt(store, 10, 10, TILE)).toBe(0);
+		renderConfigStore.set({ heightEnabled: true });
+		expect(groundHeightAt(store, 10, 10, TILE)).toBe(3 * LEVEL_HEIGHT);
+	});
 });
 
 describe("computeRelief", () => {

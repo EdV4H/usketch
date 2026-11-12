@@ -6,6 +6,9 @@
 //   - fov     … CSS `perspective()` distance in px (smaller = stronger perspective)
 //   - horizon … pivot line as a fraction of viewport height (0=top … 1=bottom);
 //               where the ground meets the sky after the tilt.
+//   - height  … how high the camera is, in world units (0 = the board's level). The
+//               ground at this height is drawn where the flat board would be. The
+//               camera's place across the board is the viewport (pan), not a field here.
 // Appearance (sky color, fog) is separate — see `mode7-transform.ts`.
 
 export interface Camera {
@@ -13,6 +16,33 @@ export interface Camera {
 	yaw: number;
 	fov: number;
 	horizon: number;
+	/** World units above the board (default 0). E.g. the ground under a followed character. */
+	height?: number;
+}
+
+/** The camera as drawn: {@link Camera} plus its height in screen px (see `cameraHeightPx`). */
+export interface RenderedCamera extends Camera {
+	/** Screen px the camera is raised above the board: everything is drawn this much lower. */
+	heightPx: number;
+}
+
+/** Largest camera height accepted (world units, either way), far beyond any terrain. */
+export const MAX_CAMERA_HEIGHT = 100_000;
+
+/** Keep a camera height usable: within ±{@link MAX_CAMERA_HEIGHT}; non-finite / absent = 0. */
+export function clampCameraHeight(height: number | undefined): number {
+	if (height === undefined || !Number.isFinite(height)) return 0;
+	return Math.min(MAX_CAMERA_HEIGHT, Math.max(-MAX_CAMERA_HEIGHT, height));
+}
+
+/**
+ * Screen px the camera is raised for a `height` (world units) at `zoom`, faded with the
+ * transition `amount` so the flat board (0) is never shifted.
+ */
+export function cameraHeightPx(height: number | undefined, zoom: number, amount: number): number {
+	const a = Math.min(1, Math.max(0, Number.isFinite(amount) ? amount : 0));
+	const z = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+	return clampCameraHeight(height) * z * a;
 }
 
 /** Allowed ranges. pitch stays < 90 so the plane never goes fully edge-on
@@ -46,6 +76,7 @@ export function clampCamera(c: Camera): Camera {
 		yaw: wrapDeg(c.yaw),
 		fov: clamp(c.fov, CAMERA_LIMITS.fov.min, CAMERA_LIMITS.fov.max),
 		horizon: clamp(c.horizon, CAMERA_LIMITS.horizon.min, CAMERA_LIMITS.horizon.max),
+		height: clampCameraHeight(c.height),
 	};
 }
 
@@ -61,5 +92,6 @@ export function adjustCamera(c: Camera, delta: Partial<Camera>): Camera {
 		yaw: c.yaw + (delta.yaw ?? 0),
 		fov: c.fov + (delta.fov ?? 0),
 		horizon: c.horizon + (delta.horizon ?? 0),
+		height: (c.height ?? 0) + (delta.height ?? 0),
 	});
 }

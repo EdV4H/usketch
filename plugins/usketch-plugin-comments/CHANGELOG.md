@@ -1,5 +1,37 @@
 # @edv4h/usketch-plugin-comments
 
+## 2.0.24
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-plugin-side-panel@2.0.24
+
+## 2.0.23
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-plugin-side-panel@2.0.23
+
+## 2.0.22
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-plugin-side-panel@2.0.22
+
+## 2.0.21
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+  - @edv4h/usketch-plugin-side-panel@2.0.21
+
 ## 2.0.20
 
 ### Patch Changes

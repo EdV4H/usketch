@@ -1,5 +1,51 @@
 # @edv4h/usketch-canvas-engine
 
+## 1.5.11
+
+### Patch Changes
+
+- 735c4b4: レイヤー枠と Canvas を `overflow: clip` にし、編集欄へのフォーカスでレイヤーがスクロールして図形の表示と当たり判定がずれる不具合を直す
+
+## 1.5.10
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-core@2.4.13
+
+## 1.5.9
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-core@2.4.12
+
+## 1.5.8
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-core@2.4.11
+
+## 1.5.7
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+  - @edv4h/usketch-core@2.4.10
+
+## 1.5.6
+
+### Patch Changes
+
+- f9702b7: perf(canvas-engine): 描画対象から隠れた図形を除くフィルタで、何も除外しないときは図形 Map をコピーせずそのまま使うようにした。親を持たない図形は hidden キャッシュも使わない。ドラッグ中の 1 フレームあたりの処理が 5,000 図形で約 550µs → 約 25µs になる。
+- ca67108: perf: 図形のドラッグ中に、ボード全体を z 順で並べ直さない。`getShapesSorted()` は zIndex を変えない更新では並びをそのまま使い、更新された図形だけを差し替える。Canvas の描画リストも自前で並べ直さず、ストアの並びを使う。
+- a5dcd43: perf(canvas-engine): TransientLayer で 1 つの transient を emit / dismiss したときに、変わっていない他の transient（リモートカーソル・アバターなど）を描き直さない
+
 ## 1.5.5
 
 ### Patch Changes

@@ -1,5 +1,62 @@
 # @edv4h/usketch-plugin-pdf-import
 
+## 0.1.9
+
+### Patch Changes
+
+- Updated dependencies [735c4b4]
+  - @edv4h/usketch-canvas-engine@1.5.11
+
+## 0.1.8
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-canvas-engine@1.5.10
+  - @edv4h/usketch-store@3.11.5
+  - @edv4h/usketch-plugin-asset-store@0.2.6
+
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-canvas-engine@1.5.9
+  - @edv4h/usketch-store@3.11.4
+  - @edv4h/usketch-plugin-asset-store@0.2.5
+
+## 0.1.6
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-canvas-engine@1.5.8
+  - @edv4h/usketch-store@3.11.3
+  - @edv4h/usketch-plugin-asset-store@0.2.4
+
+## 0.1.5
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+  - @edv4h/usketch-canvas-engine@1.5.7
+  - @edv4h/usketch-store@3.11.2
+  - @edv4h/usketch-plugin-asset-store@0.2.3
+
+## 0.1.4
+
+### Patch Changes
+
+- Updated dependencies [f9702b7]
+- Updated dependencies [ca67108]
+- Updated dependencies [a5dcd43]
+  - @edv4h/usketch-canvas-engine@1.5.6
+  - @edv4h/usketch-store@3.11.1
+
 ## 0.1.3
 
 ### Patch Changes

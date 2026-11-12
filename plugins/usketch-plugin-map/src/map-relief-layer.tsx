@@ -235,7 +235,9 @@ export function MapReliefLayer({
 	const cfg = renderConfigStore.get();
 	// Zoomed out the terrain itself drops to flat coarse blocks; so does the relief.
 	const on =
-		stage.get().active && tileDetail(tile * zoom, renderMode, cfg.fullDetailMinPx) === "full";
+		cfg.heightEnabled &&
+		stage.get().active &&
+		tileDetail(tile * zoom, renderMode, cfg.fullDetailMinPx) === "full";
 	// Drawn chunk by chunk like the ground, over the on-screen rect — or the ground's whole
 	// overscanned rect with `reliefOverscan`; chunks about to come into view are built a
 	// chunk per frame and stay hidden until they do.

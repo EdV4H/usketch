@@ -1,5 +1,72 @@
 # @edv4h/usketch-plugin-shape-card
 
+## 1.8.3
+
+### Patch Changes
+
+- Updated dependencies [735c4b4]
+  - @edv4h/usketch-canvas-engine@1.5.11
+
+## 1.8.2
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-canvas-engine@1.5.10
+  - @edv4h/usketch-core@2.4.13
+  - @edv4h/usketch-store@3.11.5
+  - @edv4h/usketch-shape-utils@2.4.4
+
+## 1.8.1
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-canvas-engine@1.5.9
+  - @edv4h/usketch-core@2.4.12
+  - @edv4h/usketch-store@3.11.4
+  - @edv4h/usketch-shape-utils@2.4.3
+
+## 1.8.0
+
+### Minor Changes
+
+- 7157bdf: デッキのシャッフル演出を host が差し込める `shuffleAnimation` を追加した（`createCardPlugin` の既定と `CardTypeDefinition` 個別の両方で指定でき、card-type 側が優先）。シャッフル時に `DeckMeta.shuffledAt`（epoch ms）を記録し、そこから `durationMs` の間だけ山札の厚みと一番上のカードを `render` の描画に差し替える（外枠と残枚数バッジはそのまま）。`shuffledAt` は shape と一緒に同期されるので全員の画面で同じ時刻から再生される。ドローでは `shuffledAt` を残し、シャッフルの Undo では消す（取り消しで演出を出さない）。1 枚以下のデッキのシャッフルは何もしない（同期も Undo 履歴も増やさない）。`render` は要素として描くので hooks を使える。指定しなければ従来どおり動かない。
+
+## 1.7.14
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-canvas-engine@1.5.8
+  - @edv4h/usketch-core@2.4.11
+  - @edv4h/usketch-store@3.11.3
+  - @edv4h/usketch-shape-utils@2.4.2
+
+## 1.7.13
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+  - @edv4h/usketch-canvas-engine@1.5.7
+  - @edv4h/usketch-core@2.4.10
+  - @edv4h/usketch-store@3.11.2
+  - @edv4h/usketch-shape-utils@2.4.1
+
+## 1.7.12
+
+### Patch Changes
+
+- Updated dependencies [f9702b7]
+- Updated dependencies [ca67108]
+- Updated dependencies [a5dcd43]
+  - @edv4h/usketch-canvas-engine@1.5.6
+  - @edv4h/usketch-store@3.11.1
+
 ## 1.7.11
 
 ### Patch Changes

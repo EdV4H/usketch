@@ -292,7 +292,24 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 				// Get current frame ID to cache snap results across multi-shape updates
 				const currentFrame = frameId;
 
-				// Build movingBox early so it can be used in both cached and fresh paths
+				// The rest of a multi-shape drag in the same frame reuses the first
+				// shape's snap result. A move only needs the cached delta, so don't
+				// build the selection's bounding box here: doing it for every dragged
+				// shape made one pointermove O(selected²).
+				// (`frameSnapResult` is cleared by the microtask that ends the frame.)
+				if (frameSnapResult) {
+					const snapped = isResize
+						? applySnapToResize(
+								updates,
+								frameSnapResult,
+								shape,
+								getResizedBoundingBox(shape, updates),
+							)
+						: applySnapToUpdates(updates, frameSnapResult);
+					originalUpdateShape(id, snapped);
+					return;
+				}
+
 				const selection = ctx.store.getSelection();
 				const movingIds = selection.size > 0 && selection.has(id) ? selection : new Set([id]);
 
@@ -304,14 +321,6 @@ export function createSnapPlugin(options: SnapPluginOptions = {}): UsketchPlugin
 							"x" in updates && typeof updates.x === "number" ? updates.x - shape.x : 0,
 							"y" in updates && typeof updates.y === "number" ? updates.y - shape.y : 0,
 						);
-
-				if (frameSnapResult && currentFrame === frameId) {
-					const snapped = isResize
-						? applySnapToResize(updates, frameSnapResult, shape, movingBox)
-						: applySnapToUpdates(updates, frameSnapResult);
-					originalUpdateShape(id, snapped);
-					return;
-				}
 
 				const candidateBoxes =
 					frameCandidateBoxes ??

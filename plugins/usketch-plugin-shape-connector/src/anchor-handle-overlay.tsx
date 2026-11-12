@@ -155,6 +155,15 @@ function findDropTarget(ctx: PluginContext, point: Point): ShapeData | null {
 		: findShapeAtPoint(ctx, point);
 }
 
+/** Show anchor handles on the shape under `point` (select tool only). */
+function updateAnchorHover(ctx: PluginContext, point: Point) {
+	if (ctx.store.getActiveToolId() !== "select") {
+		setAnchorHover(null);
+		return;
+	}
+	setAnchorHover(findShapeAtPoint(ctx, point)?.id ?? null);
+}
+
 export function setupAnchorHandles(
 	ctx: PluginContext,
 	options: { freeEnds?: boolean } = {},
@@ -166,14 +175,11 @@ export function setupAnchorHandles(
 			return;
 		}
 
-		const activeToolId = ctx.store.getActiveToolId();
-		if (activeToolId !== "select") {
-			setAnchorHover(null);
-			return;
-		}
-
-		const shape = findShapeAtPoint(ctx, event.worldPoint);
-		setAnchorHover(shape?.id ?? null);
+		// While the pointer is down (shape drag, marquee, resize, …) the overlay hides
+		// the handles, so skip hit-testing every shape on each move; pointerup
+		// refreshes the hover instead.
+		if (pointerDown) return;
+		updateAnchorHover(ctx, event.worldPoint);
 	});
 
 	const unsubDown = ctx.events.on<CanvasPointerEvent>("canvas:pointerdown", () => {
@@ -181,8 +187,13 @@ export function setupAnchorHandles(
 	});
 
 	const unsubUp = ctx.events.on<CanvasPointerEvent>("canvas:pointerup", (event) => {
+		if (!drawState) {
+			// Hover was not tracked during the press; resolve it at the release point.
+			if (pointerDown) updateAnchorHover(ctx, event.worldPoint);
+			setPointerDown(false);
+			return;
+		}
 		setPointerDown(false);
-		if (!drawState) return;
 		handleDrawEnd(ctx, event.worldPoint);
 	});
 

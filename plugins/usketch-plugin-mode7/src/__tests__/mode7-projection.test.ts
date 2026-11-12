@@ -25,6 +25,35 @@ describe("projectToGround", () => {
 		expect(near?.depth).toBeGreaterThan(0);
 		expect(far?.scale).toBeLessThan(1);
 	});
+	it("lifts a point by z like a depth layer's translateZ (the CSS matrices, multiplied out)", () => {
+		// perspective(fov) · rotateX(pitch) · rotateZ(yaw) · translateZ(z), about the origin.
+		const css = (x: number, y: number, z: number, cam: Camera) => {
+			const o = tiltOrigin(cam, SIZE);
+			const r = (d: number) => (d * Math.PI) / 180;
+			let p = [x - o.x, y - o.y, z];
+			const [cz, sz] = [Math.cos(r(cam.yaw)), Math.sin(r(cam.yaw))];
+			p = [p[0] * cz - p[1] * sz, p[0] * sz + p[1] * cz, p[2]];
+			const [cx, sx] = [Math.cos(r(cam.pitch)), Math.sin(r(cam.pitch))];
+			p = [p[0], p[1] * cx - p[2] * sx, p[1] * sx + p[2] * cx];
+			const w = 1 - p[2] / cam.fov; // perspective(d): w = 1 − z/d
+			return { x: o.x + p[0] / w, y: o.y + p[1] / w };
+		};
+		for (const [x, y, z] of [
+			[300, 500, 0],
+			[300, 500, 80],
+			[900, 200, 240],
+			[50, 760, 10],
+		]) {
+			const p = projectToGround(x, y, CAM, SIZE, z);
+			const c = css(x, y, z, CAM);
+			expect(p?.x).toBeCloseTo(c.x, 6);
+			expect(p?.y).toBeCloseTo(c.y, 6);
+		}
+		// Up on screen when tilted back.
+		const ground = projectToGround(600, 500, { ...CAM, yaw: 0 }, SIZE);
+		const lifted = projectToGround(600, 500, { ...CAM, yaw: 0 }, SIZE, 100);
+		expect(lifted?.y).toBeLessThan(ground?.y ?? 0);
+	});
 	it("returns null behind the eye", () => {
 		expect(projectToGround(600, 360 + 2000, { ...CAM, yaw: 0, pitch: 80 }, SIZE)).toBeNull();
 	});
@@ -50,5 +79,36 @@ describe("unprojectFromGround", () => {
 		const o = tiltOrigin(CAM, SIZE);
 		const vanish = o.y - CAM.fov / Math.tan((CAM.pitch * Math.PI) / 180);
 		expect(unprojectFromGround(600, vanish - 1, CAM, SIZE)).toBeNull();
+	});
+});
+
+describe("camera height", () => {
+	const cam = { ...CAM, heightPx: 150 };
+	it("draws everything `heightPx` lower: ground at that height shows like the flat board", () => {
+		for (const [x, y] of [
+			[300, 500],
+			[900, 200],
+			[600, 700],
+		]) {
+			const raised = projectToGround(x, y, cam, SIZE, 150);
+			const board = projectToGround(x, y, CAM, SIZE);
+			expect(raised?.x).toBeCloseTo(board?.x ?? Number.NaN, 9);
+			expect(raised?.y).toBeCloseTo(board?.y ?? Number.NaN, 9);
+		}
+	});
+	it("unprojects back onto ground at any height", () => {
+		for (const z of [0, 40, 150, 300]) {
+			for (const [x, y] of [
+				[300, 500],
+				[900, 420],
+				[600, 760],
+			]) {
+				const s = projectToGround(x, y, cam, SIZE, z);
+				if (!s) continue;
+				const back = unprojectFromGround(s.x, s.y, cam, SIZE, z);
+				expect(back?.x).toBeCloseTo(x, 6);
+				expect(back?.y).toBeCloseTo(y, 6);
+			}
+		}
 	});
 });

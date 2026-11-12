@@ -36,11 +36,18 @@ createCharacterPlugin({
   as CSS `rotate()` and the viewport `rotation`.
 - **Render props**: `heading` (world), `screenHeading` (= `heading + viewport.rotation`,
   what to rotate a top-down sprite by), `moving`, `speed`, `steering`, `slip`,
-  `drifting`, `zoom`, `appearance`, `name`, `isSelf`, `id`, `elevation`, `z`, `altitude`,
-  `airborne`, `verticalSpeed`, `hovering`, `hoverGauge` (0 … 1, `null` with hovering
+  `drifting`, `zoom`, `size`, `appearance`, `name`, `isSelf`, `id`, `elevation`, `z`, `altitude`,
+  `depth` (how 3D the view is, 0 = flat … 1 = Mode 7), `airborne`, `verticalSpeed`, `hovering`, `hoverGauge` (0 … 1, `null` with hovering
   off). Each character is placed centered on its screen position
   in one screen-space layer, so self and remote characters look the same under zoom
   and camera rotation.
+- **Size** (`size` option / `setSize`, only the look): `size` in the render props is the
+  screen px to draw the body at. `{ scale: "screen", value: 36 }` (the default) keeps it
+  the same on screen at every zoom, like a map pin. `{ scale: "world", value: 24 }`
+  makes it 24 world units, so it scales with the ground (zooming out shrinks it like the
+  terrain), kept within `minPx` (default 12) … `maxPx` (default 480) on screen. The
+  physics still treat a character as a point: `motion.maxStep` and `jump.height` decide
+  what it climbs, not its size.
 - **Control schemes**
   - `directional` — keys move in screen directions (camera-relative); the heading
     turns toward the movement at `turnRate`. With the `rotate` camera, left/right
@@ -58,8 +65,9 @@ createCharacterPlugin({
   (multiples of `turnRate`), `slipAngle` / `steerSlipAngle` (degrees), `recoveryRate`
   (1/s). With `hop: true`, pressing the drift key on the ground hops `hopHeight`
   (default 10) first, and the drift starts on landing if the key is still held and
-  steering (a car can't steer in the air). The drift key is only captured while drift
-  is on.
+  steering (a drift only starts on the ground). The drift key is only captured by a car with drift
+  or the air roll (`jump.spinRate`) on, and then not left to the host (e.g. Mode 7's
+  Shift = camera down).
 - **Jump** (opt-in via `jump`): press the jump key (Space) to jump. The arc is set by
   its apex `height` (world units) and `timeToApex`; it falls `fallGravity` × faster than
   it rises, releasing the key while rising cuts it short (`releaseCut`), a press within
@@ -81,13 +89,54 @@ createCharacterPlugin({
   at `riseSpeed` (60). The gauge refills
   on the ground over `rechargeTime` (0.8 s), not at once on landing. The pose carries
   `hovering` and `hoverGauge` (stays 1 with hovering off); both are broadcast.
-- **Keys**: the jump (Space) and the drift (Shift) have their own keys. The HUD offers
-  a few keys for each (`KEY_CHOICES`: Space, Shift, Z, X, C, J, K, L); `setKeys` takes
-  any `KeyboardEvent.code`s and `getKeys` returns the bindings.
+- **Air control** (`jump.airControl`, 0 … 1, default 0.5, HUD "空中制御"): how much of
+  the ground handling is left in the air. A walk (`directional`) keeps its take-off
+  velocity (`pose.moveVx` / `moveVy`) and the keys pull it toward theirs, reaching full
+  speed from a stop in `AIR_CONTROL_TIME` (0.1 s) / `airControl`; releasing them slows it
+  the same way. A car keeps its speed (no throttle or brakes in the air) and steers at
+  `airControl` × the ground's, its travel turning with it; a running drift carries on. 0
+  = ballistic (the take-off velocity carries the jump, a car can't steer), 1 = as on the
+  ground. Falls with jumping off use the default.
+- **Air attitude** (vehicle, `jump.spinRate`, default 270 °/s, 0 = off, HUD "空中で車体を回す速さ"):
+  in the air, with the drift key held, the throttle keys pitch the body (forward = nose
+  down, back = nose up) and the steering rolls it (right = right side down) instead of
+  yawing it (`stepAirSpin` / `holdSteerForRoll`). The spin has weight: `jump.spinInertia`
+  (default 0.3 s, 0 = none, HUD "車体の回転の慣性") is how long it takes to build up to
+  `spinRate`, and a released spin slows to a stop over the same time (`pose.pitchRate` /
+  `rollRate`); with 0 the body turns only while a key is held. A full flip wraps back to
+  level. The pose and render props carry `pitch` / `roll` (degrees,
+  0 on the ground; broadcast). On touchdown (`landVehicle`) the body is set back on its
+  wheels: tilted at most `landingTolerance` (default 35°, HUD "着地の許容角") from the
+  ground under it (`landingTilt`, slopes included) it drives on, beyond that it keeps
+  only `crashSpeed` (default 0.3, HUD "着地失敗で残る速さ") of its speed.
+- **Keys**: the jump (Space) and the drift (Shift) have their own keys. Every action
+  (up / down / left / right / jump / drift, up to two keys each) can be rebound from the
+  HUD's "キー設定" panel: click a key and press the new one (Esc cancels, Delete /
+  Backspace removes it); a key taken from another action moves over, a direction left
+  without a key is flagged, and "既定に戻す" goes back to the host's `keys`. Esc, Tab and
+  lone Ctrl / Alt / Meta are refused, Shift only fits the jump and the drift. The panel
+  saves per viewer in localStorage (`usketch-plugin-character:keys`, over the host's
+  `keys`; `saveKeys: false` keeps it to the session). The rules are pure functions in
+  `character-keys.ts` (`bindKey`, `unbindKey`, `canBindKey`, `keyLabel`,
+  `parseStoredKeys` …). API: `setKeys(keys, { save? })`, `getKeys`, `getDefaultKeys`,
+  `resetKeys`, `onKeysChange`, and `captureNextKey(onKey)` for a key-picking UI of your
+  own.
+- **Standing up in 3D**: each spot (and the wrapper around the renderer's content) keeps
+  the 3D context (`transform-style: preserve-3d`), so under a 3D view (Mode 7) a
+  renderer can stand a flat sprite up out of the tilted ground instead of having it lie
+  on it: read the drawn camera from `view3dService` (`@edv4h/usketch-shared`) and turn
+  the sprite by `rotateX(-pitch)` around its bottom edge (`transform-origin: bottom`).
+  On the flat board `pitch` is 0, so the same renderer draws top-down there.
 - **Shadow**: pass `renderShadow` to draw a shadow; it is placed on the ground under
   each character while the body stands at its feet height `z`, so under a 3D view
   (Mode 7) a jump lifts the body off its shadow. `altitude` (`z - elevation`) lets it
   shrink as the character rises.
+- **Jumping on the flat board**: height can't be seen top-down, so there the layer lifts
+  an airborne body up the screen by `altitude × zoom × motion.flatLift` px (default 0.6,
+  0 … 3, HUD "ジャンプで画面上に浮かせる（2D）") and grows it a little
+  (`1 + altitude × 0.004`, at most ×1.5); the shadow stays at the feet. Both fade out
+  with the 3D transition, so in Mode 7 the body rises for real instead
+  (`flatJumpLift`). Renderers need nothing extra.
 - **Keyboard focus**: movement keys are captured on `window` while the character is
   on, except where the page needs them: nothing is taken while a text field has focus
   or focus is inside a dialog / menu (`dialog`, `role="dialog"`, `alertdialog`, `menu`;
@@ -104,7 +153,10 @@ createCharacterPlugin({
   and stick can drive together; a partial `throttle` aims for that fraction of the top
   speed and a partial `steer` turns by that fraction. Touching it resumes a paused
   follow camera like a movement key. It is ignored while the character is off, and
-  turning the character off releases it.
+  turning the character off releases it. `jump: true` is the jump button: held like the
+  jump key (release while rising for a short hop, hold in a fall to hover), and a press
+  between two frames still counts. A `drift` press also starts a drift hop when
+  `drift.hop` is on.
 - **Camera modes**
   - `fixed` — follow, world stays upright.
   - `rotate` — follow and turn the world by `-heading` (character always faces up).
@@ -112,9 +164,19 @@ createCharacterPlugin({
 
   Panning by hand pauses following; press a movement key to resume. Zooming keeps
   following. Turning the character off turns the camera back upright.
+
+  Under a 3D view (Mode 7) the follow also raises the view's camera with the character
+  (eased; `view3dService.setCameraHeight`), so climbing a mountain doesn't walk the
+  character out of the top of the screen. On the ground it follows the feet; in the air
+  it holds the take-off height, so an ordinary jump still rises on screen and running off
+  a ledge over a pit doesn't dip the view. A hover or a high multi-jump that climbs more
+  than `cameraHeightMargin` above the take-off height (default = the jump's height) drags
+  the camera up with it, and a fall below the take-off height takes it down. `0` follows
+  the body's height exactly (`setCameraHeightMargin` at runtime).
 - **Multiplayer**: pass `wsProvider` (anything with a y-protocols `awareness`). Your
   character is published under the `character` awareness field (~20 Hz, only when it
-  changes, including `steering`, `slip` and `drifting`) and others are eased between
+  changes, including `steering`, `slip`, `drifting` and the control scheme — the
+  render props' `controlScheme`, e.g. to draw a car for `"vehicle"`) and others are eased between
   updates. It's ephemeral: a character
   vanishes when its owner disconnects or turns it off. Nothing is stored as shapes.
 - **Ground height**: when a plugin provides `groundHeightService` (from
@@ -126,6 +188,29 @@ createCharacterPlugin({
   down; a bigger drop falls (gravity applies even with jumping off). The render props
   carry `elevation` (the ground) and `z` (the feet), and under a 3D view (Mode 7) the
   character is lifted to its feet height.
+- **Solids**: when a plugin provides `solidHeightService` (e.g. shape-3d's shapes with
+  a `collision`), its answer is combined with the ground: a wall (`Infinity`) blocks
+  every move into it (sliding along it like a cliff), and a finite top is a ledge that
+  is stepped or jumped onto and stood on (`blockingHeight` / `standingHeight`). A move
+  is checked in stretches of at most `SWEEP_STEP` (4) world units (`sweepToGround`), so
+  a fast character or vehicle can't skip a thin wall within one frame.
+- **Slopes**: on smooth ground (e.g. the elevation plugin's hills) the step alone never
+  binds, so `motion.maxSlope` (degrees, default 0 = no limit, HUD "登れる坂の角度")
+  limits the slope walked UP; steeper ground blocks like a cliff, and standing on it
+  slides down (`slideOnSteep`, half the move speed). The slope is measured with a
+  minmod over ±8 world units (`groundSlope`), so a step — the map's flat terrain
+  levels, a box's edge — reads as flat and stays `maxStep`'s business. In the air the
+  limit doesn't apply (jump up it).
+- **Jumping off a slope** leaves between straight up and the ground's normal:
+  `jump.slopeRatio` (0 = up, 1 = the normal, default 0.5, HUD "坂でのジャンプの向き").
+  The sideways part (`pose.vx` / `vy`) carries through the air (`pushInAir`) and is
+  dropped on landing. Air jumps and the drift hop go straight up.
+- **Leaning**: under a 3D view (Mode 7) the layer lays each character (and its shadow)
+  along the ground under it, by `motion.slopeTilt` (0 … 1, default 1, HUD
+  "坂に合わせて傾ける") × the 3D transition (`slopeTiltTransform`). In the air the
+  body's lean fades out over the first `AIR_LEAN_FADE` world units above the ground
+  (`bodyLeanFactor`), so terrain passing below a jump or a hover doesn't tilt it; the
+  shadow still lies along the ground. The flat board is unchanged.
 - **Input**: held keys are tracked from window `keydown`/`keyup` (capture phase,
   `event.code`), swallowed while the character is on so single-letter tool
   shortcuts don't fire. Typing in text fields, and key chords with Ctrl/Cmd/Alt,
@@ -134,7 +219,7 @@ createCharacterPlugin({
 ## HUD
 
 A "キャラクター" settings group (on/off, camera, scheme, drift, drift key, drift hop, jump, jump key, jump height, air
-jumps, hover, hover time, hover thrust, speed, turn rate, climbable step, screen position, camera lag) plus actions to toggle the
+jumps, jump direction on slopes, air control, air spin rate, spin inertia, landing tolerance, crash speed, hover, hover time, hover thrust, speed, turn rate, climbable step, climbable slope, lean on slopes, size and its scale, screen position, camera lag) plus actions to toggle the
 character, to place it at the screen position, and to jump.
 
 ## Service
@@ -152,8 +237,10 @@ api?.setJump({ airJumps: 1, hover: { duration: 2 } }); // double jump + hover (h
 api?.jump();
 api?.setKeys({ ...api.getKeys(), drift: ["KeyX"] }); // KeyboardEvent.code values
 api?.setShadowRenderer(myShadow);
+api?.setSize({ scale: "world", value: 24, minPx: 20 }); // scale with the ground (render props `size`)
 api?.getPose(); // { x, y, heading, speed, moving, steering, slip, drift, z, vz, airborne, hovering, hoverGauge }
 api?.setVirtualInput({ throttle: 0.8, steer: -0.3 }); // touch stick; null on release
+api?.setVirtualInput({ throttle: 0.8, steer: 0, jump: true }); // + jump button held
 ```
 
 ## Limitations

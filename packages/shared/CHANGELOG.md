@@ -1,5 +1,31 @@
 # @edv4h/usketch-shared
 
+## 4.23.0
+
+### Minor Changes
+
+- 55459fd: Add ground decals: a board-wide registry of things painted ONTO the ground surface (a course, a road, a marking). `groundDecals(services)` returns the registry, providing it on first use so painters and renderers can come in any order (`groundDecalService` is the handle). A decal is `{ paint(ctx, { rect, pxPerUnit, view }), bounds?(), views?: ("flat" | "3d")[], order? }`, painted in world units. `set` / `remove` / `invalidate(id, rect?)` record what changed, and renderers repaint only the tiles a change touches (`changedSince(version, view, rect)`).
+
+## 4.22.0
+
+### Minor Changes
+
+- 9ffa649: Raise the 3D view's camera with the ground. Mode 7's `Camera` gets `height` (world units, default 0; `setHeight`): everything is drawn that much lower, so ground at that height shows where the flat board would. Hold Space / Shift in the 3D view to move the camera up / down (`heightKeys`, `heightSpeed`, rebindable via `setHeightKeys`). In shared, `View3dCamera.heightPx` and the optional `View3dApi.setCameraHeight` carry it; `getRenderedCamera().heightPx`, `projectToGround` / `unprojectFromGround` (now with a `z`) and the elevation mesh honor it. The character's follow camera sets it to the ground under the feet (eased), so walking up a high mountain no longer leaves the view.
+
+## 4.21.0
+
+### Minor Changes
+
+- abc7f44: 3D shapes can now collide with the character. A shape's `x-shape-3d` takes `collision`: `"none"` (default), `"solid"` (a wall) or `"platform"` (a box's top that can be stepped or jumped onto); a stood-up shape blocks along its bottom edge (fixed facing) or at a small disc at its foot (camera facing), a floating one never collides. The shape-3d plugin answers the new shared `solidHeightService` from a grid index of all shapes, and the character combines it with the ground height: walls block (sliding along them), tops are stood on, and moves are checked in short stretches (`sweepToGround`) so a fast move can't skip a thin wall. Collision applies in 2D too unless the new `collisionIn3dOnly` limit is set. Both settings are in the HUD.
+
+## 4.20.0
+
+### Minor Changes
+
+- df6edda: Shapes can now stand up out of the ground in Mode 7. The new `@edv4h/usketch-plugin-shape-3d` draws shapes holding `x-shape-3d` parameters (`mode: "stand"`, facing the camera or along their bottom edge, on the terrain, with a shadow) folded up in pure CSS 3D while the 3D view is on, and rising / settling with its transition; the flat board, export and editing are unchanged. Set it from the HUD group "3D（選択中の Shape）" or `getShape3dApi(app.services)`.
+  
+  Supporting pieces: shared gains `view3dService` (how 3D the board is shown, plus the drawn camera), which Mode 7 now provides; Mode 7 tilts the `shape-3d` layer with depth by default; the DOM renderer exports `ShapeContent` and skips shapes named by the `renderer:hide-shapes` event.
+
 ## 4.19.0
 
 ### Minor Changes

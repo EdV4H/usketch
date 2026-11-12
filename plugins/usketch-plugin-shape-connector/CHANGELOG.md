@@ -1,5 +1,70 @@
 # @edv4h/usketch-plugin-shape-connector
 
+## 3.4.7
+
+### Patch Changes
+
+- Updated dependencies [735c4b4]
+  - @edv4h/usketch-canvas-engine@1.5.11
+
+## 3.4.6
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-canvas-engine@1.5.10
+  - @edv4h/usketch-core@2.4.13
+  - @edv4h/usketch-store@3.11.5
+  - @edv4h/usketch-connector-anchor@0.5.5
+
+## 3.4.5
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-canvas-engine@1.5.9
+  - @edv4h/usketch-core@2.4.12
+  - @edv4h/usketch-store@3.11.4
+  - @edv4h/usketch-connector-anchor@0.5.4
+
+## 3.4.4
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-canvas-engine@1.5.8
+  - @edv4h/usketch-core@2.4.11
+  - @edv4h/usketch-store@3.11.3
+  - @edv4h/usketch-connector-anchor@0.5.3
+
+## 3.4.3
+
+### Patch Changes
+
+- 42c2e08: The anchor-handle hover no longer hit-tests every shape on each pointer move while the pointer is held down (shape drag, marquee, resize), since the handles are hidden then; the hover is resolved once at pointerup instead. No visible change.
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+  - @edv4h/usketch-canvas-engine@1.5.7
+  - @edv4h/usketch-core@2.4.10
+  - @edv4h/usketch-store@3.11.2
+  - @edv4h/usketch-connector-anchor@0.5.2
+
+## 3.4.2
+
+### Patch Changes
+
+- Updated dependencies [f9702b7]
+- Updated dependencies [04188f7]
+- Updated dependencies [b6f7224]
+- Updated dependencies [ca67108]
+- Updated dependencies [a5dcd43]
+  - @edv4h/usketch-canvas-engine@1.5.6
+  - @edv4h/usketch-connector-anchor@0.5.1
+  - @edv4h/usketch-store@3.11.1
+
 ## 3.4.1
 
 ### Patch Changes

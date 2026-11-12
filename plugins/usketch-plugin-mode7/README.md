@@ -90,12 +90,13 @@ createApp({
 
 ※ Shape は DOM 上には残る（コアのカリングではなく描画クリップ）ので、真のジオメトリ間引きは別途。
 
-3D 表示の開始・終了時には `usketch:stage-3d` イベント（`{ active }`、`STAGE_3D_EVENT`）を出す。map プラグインはこれを見て、段差（立体）を 3D 表示中だけ組み立てる。
+3D 表示の開始・終了時には `usketch:stage-3d` イベント（`{ active }`、`STAGE_3D_EVENT`）を出す。
+また、shared の `view3dService`（遷移量 `amount()` と描画中のカメラ `camera()`、`subscribe`）を提供する。Mode 7 に依存せずに「地面と一緒に起き上がる」ものを作るときはこちらを読む（`usketch-plugin-shape-3d` が使用）。map プラグインはこれを見て、段差（立体）を 3D 表示中だけ組み立てる。
 
 **深度レイヤー（`depthLayerIds`）**: `clip-path` は傾き自体は保つが、配下の奥行き（`translateZ`）を
 平面に潰す。そこで深度レイヤーはこのクリップを外し、エンジンの内側ラッパーにも
 `transform-style: preserve-3d` を付けて 3D 文脈を通す。既定 `DEFAULT_DEPTH_LAYER_IDS` は
-`usketch-map:relief`（map プラグインの高いセルの崖と上面）と `character`（その上に立つキャラ）。
+`usketch-map:relief`（map プラグインの高いセルの崖と上面）、`shape-3d`（`usketch-plugin-shape-3d` が立てた Shape）と `character`（その上に立つキャラ）。
 深度レイヤーは描画距離のクリップを受けない。
 
 ## アクション（`mode7:<key>` で emit・HUD Controls に自動表示・サービス）
@@ -118,9 +119,28 @@ api?.setYaw(30);
 
 `Mode7Api`: `isActive` / `enable` / `disable` / `toggle`（各 `{ animate? }`）/ `isTransitioning` /
 `getTransitionAmount` / `getCamera` / `getRenderedCamera` / `setPitch` / `setYaw` /
-`setFov` / `setHorizon` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
+`setFov` / `setHorizon` / `setHeight` / `getHeightKeys` / `setHeightKeys` / `getHeightSpeed` / `setHeightSpeed` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
 `getTiltLayers` / `setTiltLayers` / `toggleTiltLayer` / `getDrawDistance` / `setDrawDistance` /
 `isCaptureFrameVisible` / `setCaptureFrameVisible` / `toggleCaptureFrame` / `getCaptureRect` / `onChange`。
+
+## カメラの高さ
+
+`Camera.height`（ワールド単位、`0` = ボードの高さ）でカメラを上げると、すべてがその分だけ下に
+描かれ、その高さの地面が平らなボードと同じ位置に見える。`setHeight(height)` または
+`setCamera` 相当の `{ height }` で変える。カメラの横の位置はボードの viewport（スクロール位置）。
+高い山を歩くキャラクターが画面の上へ抜けないよう、追いかける側が毎フレーム足元の地面の高さを
+（自分でなめらかにして）渡す。`@edv4h/usketch-plugin-character` は
+`view3dService.setCameraHeight` を通して自動でこれを行う。描画上の上げ幅は
+`getRenderedCamera().heightPx`（px = 高さ × zoom × 遷移量）。WebGL などで自前に描く場合は
+これを引いてから投影する（`projectToGround` は `heightPx` を見る）。
+
+3D ビューのあいだは **Space を押している間カメラが上がり、Shift で下がる**（画面上で毎秒
+`heightSpeed` px、既定 480）。キーは `KeyboardEvent.code` で、`heightKeys` オプション
+（`{ up?, down? }`、`false` で無効）か `setHeightKeys` で変えられる。入力欄・ボタン・スライダーに
+フォーカスがあるときと、同じキーを先に使うプラグイン（キャラクターのジャンプ）がいるときは動かない。
+キャラクターが追いかけている間は、キャラクターがカメラの高さを毎フレーム決めるので、高さキーは効かない
+（`view3dService.setCameraHeight` が最後に呼ばれてから `HEIGHT_DRIVER_HOLD_MS` = 250ms の間。
+両方が毎フレーム高さを書き換えて画面がガタガタしないように）。
 
 ## 地面上の点の投影
 
@@ -131,11 +151,14 @@ CSS 変換を自前で組まずに次の純関数を使う。座標はキャン�
 import { getMode7Api, projectToGround, unprojectFromGround } from "@edv4h/usketch-plugin-mode7";
 const cam = getMode7Api(app.services)?.getRenderedCamera(); // 遷移中は傾きが縮んだカメラ
 const size = { width, height };                              // キャンバスの px サイズ
-projectToGround(sx, sy, cam, size);   // → { x, y, depth, scale } | null（目の後ろ）
-unprojectFromGround(x, y, cam, size); // → { x, y } | null（地平線より上）
+projectToGround(sx, sy, cam, size, z);   // → { x, y, depth, scale } | null（目の後ろ）
+unprojectFromGround(x, y, cam, size, z); // → { x, y } | null（地平線より上）
+// z = 地面からの高さ（px、省略で 0）。cam.heightPx（カメラの高さ）は両方が自動で差し引く。
 ```
 
 ## スコープ外（v2 送り）
 
-3D 中の編集（perspective 逆投影して `screenToWorld` を補正）／WebGPU 真3D／Shape の billboard 立て起こし／
+3D 中の編集（perspective 逆投影して `screenToWorld` を補正）／WebGPU 真3D／
 視差・霧・地平線もやの高度化／minimap の3Dプレビュー。
+
+Shape を立てて描くのは `@edv4h/usketch-plugin-shape-3d`（別プラグイン）。

@@ -1,5 +1,44 @@
 # @edv4h/usketch-plugin-community-chat
 
+## 3.0.29
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-store@3.11.5
+
+## 3.0.28
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-store@3.11.4
+
+## 3.0.27
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-store@3.11.3
+
+## 3.0.26
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+  - @edv4h/usketch-store@3.11.2
+
+## 3.0.25
+
+### Patch Changes
+
+- Updated dependencies [ca67108]
+  - @edv4h/usketch-store@3.11.1
+
 ## 3.0.24
 
 ### Patch Changes

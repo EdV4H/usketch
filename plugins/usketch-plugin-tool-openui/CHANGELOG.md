@@ -1,5 +1,66 @@
 # @edv4h/usketch-plugin-tool-openui
 
+## 1.1.24
+
+### Patch Changes
+
+- Updated dependencies [735c4b4]
+  - @edv4h/usketch-canvas-engine@1.5.11
+
+## 1.1.23
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-canvas-engine@1.5.10
+  - @edv4h/usketch-store@3.11.5
+  - @edv4h/usketch-plugin-export@2.3.9
+  - @edv4h/usketch-plugin-shape-openui@1.0.24
+
+## 1.1.22
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-canvas-engine@1.5.9
+  - @edv4h/usketch-store@3.11.4
+  - @edv4h/usketch-plugin-export@2.3.8
+  - @edv4h/usketch-plugin-shape-openui@1.0.23
+
+## 1.1.21
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-canvas-engine@1.5.8
+  - @edv4h/usketch-store@3.11.3
+  - @edv4h/usketch-plugin-export@2.3.7
+  - @edv4h/usketch-plugin-shape-openui@1.0.22
+
+## 1.1.20
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+  - @edv4h/usketch-canvas-engine@1.5.7
+  - @edv4h/usketch-store@3.11.2
+  - @edv4h/usketch-plugin-export@2.3.6
+  - @edv4h/usketch-plugin-shape-openui@1.0.21
+
+## 1.1.19
+
+### Patch Changes
+
+- Updated dependencies [f9702b7]
+- Updated dependencies [ca67108]
+- Updated dependencies [a5dcd43]
+  - @edv4h/usketch-canvas-engine@1.5.6
+  - @edv4h/usketch-store@3.11.1
+
 ## 1.1.18
 
 ### Patch Changes

@@ -1,5 +1,80 @@
 # @edv4h/usketch-plugin-shape-freedraw
 
+## 3.6.3
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-core@2.4.13
+  - @edv4h/usketch-store@3.11.5
+
+## 3.6.2
+
+### Patch Changes
+
+- 49beef7: 使われていなかった独自フローティングパレット（`src/ui/palette.tsx` の `FreedrawPalette`）と、それだけのために持っていた「ツールがアクティブか」のストア・`SIZE_RANGE` 定数を削除。どこからも描画されていなかったため、見た目と挙動は変わらない。
+
+## 3.6.1
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-core@2.4.12
+  - @edv4h/usketch-store@3.11.4
+
+## 3.6.0
+
+### Minor Changes
+
+- c7a776a: 線の端を、同じペンの近くの線へつなげるようにした（`endpointSnap`、既定は無効。実行時は `freedraw:set-endpoint-snap` で切り替え、Ctrl / ⌘ を押しながら離すとその線だけ逆）。手を離したとき、始点・終点が近くの線に入っていれば、その線のいちばん近い点まで伸ばし、つないだ端を shape の `joins` に残す。足したペンは `snapDistance(size)` でつなぐ距離を決められ、`finalize` が `snapEnds: false` を返した線はつながない。
+
+## 3.5.1
+
+### Patch Changes
+
+- 7cc228e: `onSettingsChange()` は `getSettings()` の値（モード・ペン・色・太さ・消しゴムの太さ）が変わったときだけ呼ぶようにした。カスタム色の追加や同じ値での更新では呼ばない。
+
+## 3.5.0
+
+### Minor Changes
+
+- 84d8688: ホスト向け API（`getFreedrawApi(app.services)`）に `getSettings()` と `onSettingsChange()` を足した。今のペン・色・太さ・モードを読めるので、ホストのペン選択 UI を、freedraw が前回の設定から戻した値に合わせられる。
+
+## 3.4.1
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-core@2.4.11
+  - @edv4h/usketch-store@3.11.3
+
+## 3.4.0
+
+### Minor Changes
+
+- 8e9c645: Other plugins and hosts can now add their own pens next to the four built-in ones. Pass them as `createFreedrawPlugin(config, { pens })`; the registration is reference-counted, so several boards in one runtime can share a pen. A pen supplies its own SVG `render` (and an optional `renderDraft` while drawing), an optional `finalize` that rewrites the points once on pointer-up and can store `penData` on the shape, its size range, its half width for bounds / hit-testing / the eraser, and whether it uses the colour. Its strokes stay `freedraw` shapes, so select / move / resize / erase / undo / sync work unchanged; a client without the pen draws them as ballpoint lines. `listPens()` (also on `getFreedrawApi(app.services)`) lists the built-in and added pens for a pen picker, `freedraw:set-pen` / the `freedraw:pen` action accept the added ids, and `freedraw:set-size` clamps to an added pen's size range.
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+  - @edv4h/usketch-core@2.4.10
+  - @edv4h/usketch-store@3.11.2
+
+## 3.3.4
+
+### Patch Changes
+
+- 9d468ab: perf(freedraw): 消しゴムのドラッグ中、カーソルから遠いストロークは点を 1 つずつ調べずに範囲（点の bbox を最大半幅で広げたもの）だけで除外するようにした。範囲は shape ごとにキャッシュする。これまでは pointermove のたびに全ストロークの全点を調べていた。判定結果は変わらない
+- 8f0ea72: perf(freedraw): ホバーの当たり判定で、カーソルから遠いストロークは線分を調べずに外す
+  
+  `hitStroke` の先頭で、点の範囲を最大半幅 + tolerance だけ広げた箱（shape ごとにキャッシュ、消しゴムと共有）の外にあるカーソルを即 false にする。判定結果は変わらない。
+- Updated dependencies [ca67108]
+  - @edv4h/usketch-store@3.11.1
+
 ## 3.3.3
 
 ### Patch Changes

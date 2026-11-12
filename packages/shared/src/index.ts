@@ -1,5 +1,17 @@
-// Geometry
-
+// Ground decals (things painted onto the ground surface, e.g. by a terrain renderer)
+export {
+	ALL_GROUND_DECAL_VIEWS,
+	createGroundDecalRegistry,
+	decalRectsMeet,
+	type GroundDecal,
+	type GroundDecalApi,
+	type GroundDecalArea,
+	type GroundDecalEntry,
+	type GroundDecalRect,
+	type GroundDecalView,
+	groundDecalService,
+	groundDecals,
+} from "./ground-decal.js";
 // Ground height (terrain elevation shared across plugins)
 export { type GroundHeightApi, groundHeightService } from "./ground-height.js";
 // Board history (content-addressed snapshots, diff, restore)
@@ -37,6 +49,9 @@ export {
 } from "./history/restore.js";
 // Service seam (typed host-facing plugin APIs over ctx.services / app.services)
 export { defineService, type ServiceHandle } from "./service.js";
+// Solid height (what stands on the ground, e.g. raised shapes)
+export { type SolidHeightApi, solidHeightService } from "./solid-height.js";
+// Geometry
 export type { BoundingBox, Point, Viewport } from "./types/geometry.js";
 // LOD
 export type { LodController, LodPolicy, LodPolicyContext, RenderMode } from "./types/lod.js";
@@ -194,3 +209,5 @@ export {
 	zIndexBeforeAll,
 	zIndexBetween,
 } from "./utils/z-order.js";
+// 3D view state (Mode 7 etc.) shared across plugins
+export { type View3dApi, type View3dCamera, view3dService } from "./view-3d.js";

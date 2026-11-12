@@ -3,6 +3,7 @@ export {
 	type CameraFocus,
 	type CameraMode,
 	easeFocus,
+	followCameraHeight,
 	followViewport,
 	smoothingAlpha,
 	targetRotation,
@@ -14,7 +15,27 @@ export {
 	withKeyChoice,
 } from "./character-key-choices.js";
 export {
+	actionOfKey,
+	bindKey,
+	canBindKey,
+	defaultKeyStorage,
+	KEY_ACTION_LABELS,
+	KEY_ACTIONS,
+	KEYS_STORAGE_KEY,
+	type KeyAction,
+	type KeyStorage,
+	keyLabel,
+	loadStoredKeys,
+	MAX_KEYS_PER_ACTION,
+	parseStoredKeys,
+	saveStoredKeys,
+	unbindKey,
+	unboundDirections,
+} from "./character-keys.js";
+export { FLAT_JUMP_MAX_SCALE, flatJumpLift } from "./character-layer.js";
+export {
 	airJumpSpeed,
+	blockingHeight,
 	type CharacterPose,
 	type ControlScheme,
 	DEFAULT_DRIFT,
@@ -35,8 +56,12 @@ export {
 	type MoveInput,
 	ORIGIN_POSE,
 	rechargeHoverGauge,
+	type SolidAt,
+	SWEEP_STEP,
+	standingHeight,
 	stepCharacter,
 	stepVertical,
+	sweepToGround,
 	turnToward,
 	vectorHeading,
 } from "./character-physics.js";
@@ -46,6 +71,14 @@ export {
 	characterService,
 	getCharacterApi,
 } from "./character-service.js";
+export {
+	type CharacterSize,
+	type CharacterSizeScale,
+	characterSizePx,
+	DEFAULT_SIZE,
+	MAX_SIZE_VALUE,
+	sanitizeSize,
+} from "./character-size.js";
 export {
 	effectiveJump,
 	hoverGaugeOf,
@@ -73,5 +106,6 @@ export {
 	isVirtualInputActive,
 	normalizeVirtualInput,
 	type VirtualInput,
+	virtualPresses,
 } from "./character-virtual-input.js";
 export { type CharacterPluginOptions, createCharacterPlugin } from "./plugin.js";

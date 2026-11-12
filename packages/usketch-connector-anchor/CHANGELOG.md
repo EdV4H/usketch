@@ -1,5 +1,40 @@
 # @edv4h/usketch-connector-anchor
 
+## 0.5.5
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+
+## 0.5.4
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+
+## 0.5.3
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+
+## 0.5.2
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+
+## 0.5.1
+
+### Patch Changes
+
+- 04188f7: perf: `findShapeAtPoint` が毎回 z 順の図形一覧をコピー・反転するのをやめ、非表示・ロック（親を含む）の判定を当たり判定に当たった図形だけで行うようにした。コネクタのアンカーハンドルはセレクトツールでのポインタ移動ごとにこれを呼ぶため、1,000 図形のボードで 1 回あたり約 127 µs → 約 17 µs になる。返す図形は変わらない。
+- b6f7224: perf: つながった図形の位置・サイズ・回転が変わらない更新（文字入力・色・zIndex など）では、コネクタの端点を計算し直して書き込まないようにした。付箋に線をつないだまま文字を打つと、1 文字ごとにつながっている本数ぶんコネクタを Yjs に書き込んでいた。
+
 ## 0.5.0
 
 ### Minor Changes

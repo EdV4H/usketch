@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { DEFAULT_PEN, DEFAULT_SIZES, PRESET_COLORS } from "./pen-meta.js";
 
-/** 太さ・消しゴム・筆圧感度の範囲（設計書 §7,§11,§12）。 */
-export const SIZE_RANGE = { min: 1, max: 48, step: 0.5 } as const;
+/** 消しゴム・筆圧感度の範囲（設計書 §11,§12）。 */
 export const ERASER_RANGE = { min: 10, max: 100, step: 1 } as const;
 export const BRUSH_DYNAMICS_RANGE = { min: 10, max: 100, step: 5 } as const;
 
@@ -16,19 +15,24 @@ export const TUNING = {
 	startPressure: 0.45,
 	/** 確定時の RDP 間引き許容誤差（world px、0 で無効）。 */
 	simplifyTolerance: 0.6,
+	/** 線の端を近くの線へつなぐ距離（screen px）。これに線の太さの半分を足す。 */
+	endpointSnapDist: 12,
 } as const;
 
-const SizesSchema = z.object({
-	ballpoint: z.number().positive(),
-	felt: z.number().positive(),
-	brush: z.number().positive(),
-	highlighter: z.number().positive(),
-});
+// 組み込みの 4 種は必須。外から足したペンの太さも id をキーにして持てる。
+const SizesSchema = z
+	.object({
+		ballpoint: z.number().positive(),
+		felt: z.number().positive(),
+		brush: z.number().positive(),
+		highlighter: z.number().positive(),
+	})
+	.catchall(z.number().positive());
 
 /** プラグイン設定（JSON 可、Zod 検証）。実行時の可変状態は settings-store が持つ。 */
 export const FreedrawConfigSchema = z.object({
-	/** 既定ペン。 */
-	defaultPen: z.enum(["ballpoint", "felt", "brush", "highlighter"]).default(DEFAULT_PEN),
+	/** 既定ペン（組み込みのペンか、外から足したペンの id）。 */
+	defaultPen: z.string().default(DEFAULT_PEN),
 	/** 既定色。 */
 	defaultColor: z.string().default(PRESET_COLORS[0]),
 	/** ペンごとの既定太さ。 */
@@ -42,6 +46,12 @@ export const FreedrawConfigSchema = z.object({
 	 * 実行時は `freedraw:set-hit-test` イベントで切り替えられる。
 	 */
 	hitTest: z.enum(["stroke", "bounds"]).default("stroke"),
+	/**
+	 * 手を離したとき、線の端が同じペンの近くの線に入っていたら、その線のいちばん近い点まで
+	 * 伸ばしてつなぐ。実行時は `freedraw:set-endpoint-snap` イベントで切り替えられる。
+	 * Ctrl / ⌘ を押しながら離すと、その線だけ逆になる。
+	 */
+	endpointSnap: z.boolean().default(false),
 	/** ペン先カーソル表示。 */
 	cursorPreview: z.boolean().default(true),
 	/** 設定の localStorage 永続化を行うか。 */

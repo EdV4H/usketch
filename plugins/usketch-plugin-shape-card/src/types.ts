@@ -62,6 +62,47 @@ export type CardText = {
 	maxWidth?: number;
 };
 
+/** {@link DeckShuffleAnimation.render} に渡す、再生中のデッキの情報。 */
+export interface DeckShuffleRenderProps {
+	shape: ShapeData;
+	/** 山札の枚数（シャッフル後）。 */
+	count: number;
+	/**
+	 * シャッフルを始めた時刻（epoch ms）。全員の画面で同じ値なので、これを基準に再生すれば
+	 * 同時に終わる。乱数の seed にも使える。時計がずれた画面では少し先の時刻のことがある
+	 * （再生時間より先なら演出自体を出さない）。
+	 */
+	startAt: number;
+	/** 再生時間（ms）。`durationMs` を解決した値。 */
+	durationMs: number;
+	/** 伏せ置きのデッキか（`DeckMeta.faceDown`）。 */
+	faceDown: boolean;
+	/** 一番上のカードの裏面（card-type が無い / 空のデッキなら null）。 */
+	renderBack(): ReactElement | null;
+	/**
+	 * 静止した山札の一番上に見えている面（伏せ置きなら裏、表向きなら表）。演出の前後で
+	 * 見た目を揃えるのに使う。card-type が無い / 空のデッキなら null。
+	 */
+	renderTop(): ReactElement | null;
+}
+
+/**
+ * デッキのシャッフル演出。プラグインはシャッフル時に `DeckMeta.shuffledAt` を記録し、
+ * そこから `durationMs` の間だけ、山札の厚みと一番上のカードを `render` の描画に差し替える
+ * （外枠の opacity・pointer-events と残枚数バッジはプラグインが描いたまま）。動き自体は
+ * host が描く（プラグインは見た目を持たない）。reduced-motion の扱いも host に任せる
+ * （動かさないなら `durationMs` を 0 にすれば差し替えない）。
+ */
+export interface DeckShuffleAnimation {
+	/**
+	 * 再生時間（ms）。枚数や切り方（`startAt` から決める等）で長さが変わる演出のために
+	 * 関数も受ける。
+	 */
+	durationMs: number | ((deck: { count: number; startAt: number }) => number);
+	/** 演出を描くコンポーネント。React の要素として描くので hooks を使ってよい。 */
+	render(props: DeckShuffleRenderProps): ReactElement;
+}
+
 /** 1つの面（表 or 裏）の定義: テクスチャ + テキスト配置。 */
 export type CardFace = {
 	texture?: CardTexture;
@@ -92,6 +133,11 @@ export interface CardTypeDefinition<TFields = Record<string, unknown>> {
 	resizable?: boolean;
 	/** この card-type 固有の配置アニメ。省略時はプラグイン既定を使用。 */
 	placementAnimation?: PlacementAnimation;
+	/**
+	 * この card-type のデッキをシャッフルしたときの見た目。省略時はプラグイン既定
+	 * （`createCardPlugin({ shuffleAnimation })`）を使う。どちらも無ければ動かない。
+	 */
+	shuffleAnimation?: DeckShuffleAnimation;
 	// 関数は method 構文（bivariant）にして、具象 TFields の定義を
 	// CardTypeDefinition<Record<string, unknown>> として束ねられるようにする。
 	/** ツールバー / ピッカー用アイコン。 */
@@ -135,6 +181,12 @@ export type DeckMeta = {
 	cards: Record<string, unknown>[];
 	/** 伏せ置きかどうか（描画で裏面を見せる）。 */
 	faceDown: boolean;
+	/**
+	 * シャッフル演出の開始時刻（epoch ms、シャッフルした人の時計）。shape と一緒に同期
+	 * されるので、各画面はこの時刻から {@link DeckShuffleAnimation} を再生する。ドローでは
+	 * 残り、シャッフルの Undo では消える（取り消しで演出を出さないため）。
+	 */
+	shuffledAt?: number;
 };
 
 export type DeckShape = ShapeData<DeckMeta>;

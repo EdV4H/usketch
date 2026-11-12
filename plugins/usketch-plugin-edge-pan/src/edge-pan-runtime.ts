@@ -58,13 +58,21 @@ export function setupEdgePan(ctx: PluginContext, resolve: () => ResolvedEdgePan)
 	const movingIds = new Set<string>();
 	// 自分の直接移動由来の shape:updated を弾くガード。
 	let applyingFollow = false;
+	// ドラッグ中の canvas サイズ。canvasSize() は DOM 検索＋getBoundingClientRect（強制レイアウト）
+	// なので毎フレームは測らず、ドラッグごとに 1 回測り、window の resize で測り直す。
+	let size: { width: number; height: number } | null = null;
+	const invalidateSize = () => {
+		size = null;
+	};
+	if (typeof window !== "undefined") window.addEventListener("resize", invalidateSize);
 
 	const frame = () => {
 		loop = null;
 		if (!dragActive || !lastPointer) return;
 		const settings = resolve();
 		if (settings.enabled) {
-			const { dx, dy } = edgePanDelta(lastPointer.screenPoint, canvasSize(), settings);
+			size ??= canvasSize();
+			const { dx, dy } = edgePanDelta(lastPointer.screenPoint, size, settings);
 			if (dx !== 0 || dy !== 0) {
 				const before = ctx.store.getViewport();
 				ctx.store.panBy(dx, dy);
@@ -100,6 +108,7 @@ export function setupEdgePan(ctx: PluginContext, resolve: () => ResolvedEdgePan)
 		dragActive = false;
 		pointerDown = false;
 		movingIds.clear();
+		size = null;
 		if (loop !== null) {
 			cancelFrame(loop);
 			loop = null;
@@ -142,5 +151,6 @@ export function setupEdgePan(ctx: PluginContext, resolve: () => ResolvedEdgePan)
 		offUpdated();
 		offMoveEnd();
 		stop();
+		if (typeof window !== "undefined") window.removeEventListener("resize", invalidateSize);
 	};
 }

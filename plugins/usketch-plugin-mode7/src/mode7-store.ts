@@ -5,6 +5,23 @@
 import type { BoundingBox } from "@edv4h/usketch-shared";
 import { type Camera, clampCamera, DEFAULT_CAMERA, updateCamera } from "./mode7-camera.js";
 
+/** Camera-height changes smaller than this (world units) are not applied. */
+const HEIGHT_EPSILON = 0.01;
+
+/** Whether `next` would look the same as `prev` (a follower eases the height every frame). */
+function sameCamera(prev: Camera, next: Camera): boolean {
+	const a = prev.height ?? 0;
+	const b = next.height ?? 0;
+	const sameHeight = a === b || (b !== 0 && Math.abs(a - b) < HEIGHT_EPSILON);
+	return (
+		sameHeight &&
+		prev.pitch === next.pitch &&
+		prev.yaw === next.yaw &&
+		prev.fov === next.fov &&
+		prev.horizon === next.horizon
+	);
+}
+
 /** Appearance settings, independent of the camera geometry. */
 export interface Look {
 	/** Sky backdrop color (CSS) painted behind the tilted plane. */
@@ -43,8 +60,12 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 	"usketch-map:relief",
 	"usketch-map:base",
 	"usketch-map:base-icons",
+	// usketch-plugin-elevation: the elevation's colours / shading on the flat ground
+	"usketch-elevation:ground",
 	"gpu-shapes",
 	"dom-shapes",
+	// shapes stood up / raised in 3D by usketch-plugin-shape-3d (a depth layer)
+	"shape-3d",
 	"usketch-plugin-dashboard:grid-overlay",
 	// shape-attached overlays (selection, connectors, editors) — follow the shapes
 	"comment-badges",
@@ -74,9 +95,14 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 /**
  * Tilted layers rendered with real DEPTH: they skip the draw-distance clip (a
  * `clip-path` flattens 3D) so content can rise out of the ground — the map plugin's
- * raised terrain (cliffs) and a character standing on it.
+ * raised terrain (cliffs), shapes stood up by usketch-plugin-shape-3d, and a character
+ * standing on them.
  */
-export const DEFAULT_DEPTH_LAYER_IDS: readonly string[] = ["usketch-map:relief", "character"];
+export const DEFAULT_DEPTH_LAYER_IDS: readonly string[] = [
+	"usketch-map:relief",
+	"shape-3d",
+	"character",
+];
 
 export interface Mode7State {
 	/** Whether the 3D view is shown. Stays `true` while an exit transition plays, so the
@@ -202,7 +228,9 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 			notify();
 		},
 		setCamera(patch) {
-			state = { ...state, camera: updateCamera(state.camera, patch) };
+			const camera = updateCamera(state.camera, patch);
+			if (sameCamera(state.camera, camera)) return;
+			state = { ...state, camera };
 			notify();
 		},
 		adjustCamera(delta) {
@@ -213,6 +241,7 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 					yaw: state.camera.yaw + (delta.yaw ?? 0),
 					fov: state.camera.fov + (delta.fov ?? 0),
 					horizon: state.camera.horizon + (delta.horizon ?? 0),
+					height: (state.camera.height ?? 0) + (delta.height ?? 0),
 				}),
 			};
 			notify();

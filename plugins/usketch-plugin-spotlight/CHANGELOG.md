@@ -1,5 +1,39 @@
 # @edv4h/usketch-plugin-spotlight
 
+## 2.0.27
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+
+## 2.0.26
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+
+## 2.0.25
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+
+## 2.0.24
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+
+## 2.0.23
+
+### Patch Changes
+
+- 7b65f43: スポットライト表示中に毎フレーム全画面を描き直していたのをやめ、位置・表示状態・ビューポート・ウィンドウサイズが変わったときだけ描くようにした。見た目は変わらない。
+
 ## 2.0.22
 
 ### Patch Changes

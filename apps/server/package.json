@@ -27,15 +27,15 @@
 		"@hono/zod-validator": "0.9.1",
 		"better-auth": "1.6.29",
 		"drizzle-orm": "0.45.4",
-		"hono": "4.13.14",
+		"hono": "4.13.17",
 		"yjs": "^13.6.0",
 		"zod": "4.6.7"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "5.20261101.1",
+		"@cloudflare/workers-types": "5.20261110.1",
 		"drizzle-kit": "0.31.11",
 		"typescript": "7.0.2",
-		"vitest": "5.0.5",
-		"wrangler": "4.156.0"
+		"vitest": "5.1.0",
+		"wrangler": "4.160.0"
 	}
 }

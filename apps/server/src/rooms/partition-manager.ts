@@ -1,5 +1,17 @@
 import { MSG_PARTITION_META } from "@edv4h/usketch-sync";
-import { compactUpdates } from "./update-compaction.js";
+import { readChunked, writeChunked } from "./chunked-storage.js";
+import { compactUpdates, parseLegacyUpdates } from "./update-compaction.js";
+import { MAX_SAVE_RETRIES } from "./yjs-sync.js";
+
+/** パーティションの Yjs 状態（バイナリ、分割保存）のキー。 */
+export function partitionStateKey(name: string): string {
+	return `yjs_partition:${name}`;
+}
+
+/** 旧形式（全 update を JSON の数値配列で保存）のキー。読み込み時だけ使う。 */
+function legacyPartitionKey(name: string): string {
+	return `yjs_updates:${name}`;
+}
 
 export interface PartitionMeta {
 	partitions: string[];
@@ -18,6 +30,14 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 	let loadPromise: Promise<void> | null = null;
 	/** パーティションごとの保存デバウンスフラグ */
 	const saveScheduled = new Map<string, boolean>();
+	/** 最後の保存より後に update が届いたパーティション */
+	const dirty = new Set<string>();
+	/** 旧形式のキーが残っているパーティション（新形式で保存できたら消す） */
+	const legacyPresent = new Set<string>();
+	/** 保存済みの状態が読めなかったパーティション（上書きしないよう保存しない） */
+	const unreadable = new Set<string>();
+	/** パーティションごとの、続けて失敗した保存の回数 */
+	const failures = new Map<string, number>();
 
 	/** 現在の四半期のパーティション名を返す */
 	function getCurrentPartitionName(): string {
@@ -38,8 +58,8 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 	}
 
 	/**
-	 * パーティションのバッファが閾値を超えていれば 1 件にマージする（無損失）。
-	 * マージ中に追加された update は失わないよう、マージ対象の件数を先に固定する。
+	 * パーティションのバッファを 1 件にまとめる（不要になった履歴は GC される）。
+	 * まとめている間に追加された update は失わないよう、対象の件数を先に固定する。
 	 */
 	async function compactPartition(partitionName: string): Promise<void> {
 		const before = partitionUpdates.get(partitionName);
@@ -50,22 +70,40 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 		partitionUpdates.set(partitionName, [...merged, ...current.slice(count)]);
 	}
 
+	/** パーティションをまとめて、今の状態を storage に永続化する */
+	async function savePartition(partitionName: string): Promise<void> {
+		dirty.delete(partitionName);
+		if (unreadable.has(partitionName)) return;
+		await compactPartition(partitionName);
+		const state = partitionUpdates.get(partitionName)?.[0];
+		if (!state) return;
+		await writeChunked(deps.storage, partitionStateKey(partitionName), state);
+		if (legacyPresent.has(partitionName)) {
+			await deps.storage.delete(legacyPartitionKey(partitionName));
+			legacyPresent.delete(partitionName);
+		}
+	}
+
 	/** パーティション別 updates を永続化（デバウンス済み） */
 	function schedulePartitionSave(partitionName: string): void {
+		dirty.add(partitionName);
 		if (saveScheduled.get(partitionName)) return;
 		saveScheduled.set(partitionName, true);
 		setTimeout(() => {
 			void (async () => {
 				try {
-					await compactPartition(partitionName);
-					const updates = partitionUpdates.get(partitionName);
-					if (!updates) return;
-					const data = updates.map((u) => Array.from(u));
-					await deps.storage.put(`yjs_updates:${partitionName}`, JSON.stringify(data));
+					await savePartition(partitionName);
+					failures.delete(partitionName);
 				} catch (e) {
+					const count = (failures.get(partitionName) ?? 0) + 1;
+					failures.set(partitionName, count);
+					// 続けて失敗したら、次の update が届くまで再試行しない
+					if (count < MAX_SAVE_RETRIES) dirty.add(partitionName);
 					console.error("[BoardRoom] Failed to persist partition updates:", e);
 				} finally {
 					saveScheduled.set(partitionName, false);
+					// 保存中に届いた update（または失敗した保存）をもう一度保存する
+					if (dirty.has(partitionName)) schedulePartitionSave(partitionName);
 				}
 			})();
 		}, 5000);
@@ -159,18 +197,31 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 
 			if (partitionMeta) {
 				for (const name of partitionMeta.partitions) {
-					const key = `yjs_updates:${name}`;
-					const data = await deps.storage.get<string>(key);
-					if (data) {
-						try {
-							const arr = JSON.parse(data) as number[][];
-							partitionUpdates.set(
-								name,
-								arr.map((a) => new Uint8Array(a)),
-							);
-						} catch {
-							// 破損データは無視
-						}
+					let state: Uint8Array | undefined;
+					try {
+						state = await readChunked(deps.storage, partitionStateKey(name));
+					} catch (e) {
+						// パーティションは絞り込み用の履歴なので、読めなくてもボードは開く。
+						// 空のパーティションで上書きしないよう、このパーティションは保存しない。
+						console.error(`[BoardRoom] Failed to read partition ${name}, skipping:`, e);
+						unreadable.add(name);
+						continue;
+					}
+					// 新形式があればそれが最新。旧形式は移行前のボードだけが読む（大きいので）。
+					let restored: Uint8Array[];
+					if (state) {
+						restored = [state];
+						// 移行後に消し損ねた旧キーがあっても、次の保存で消す
+						legacyPresent.add(name);
+					} else {
+						const legacy = await deps.storage.get(legacyPartitionKey(name));
+						if (legacy !== undefined) legacyPresent.add(name);
+						restored = parseLegacyUpdates(legacy);
+					}
+					// 読み込み中に追加された update を後ろに残す
+					const pending = partitionUpdates.get(name) ?? [];
+					if (restored.length > 0 || pending.length > 0) {
+						partitionUpdates.set(name, [...restored, ...pending]);
 					}
 				}
 			}
@@ -199,5 +250,6 @@ export function createPartitionManager(deps: PartitionManagerDeps) {
 		loadFromStorage,
 		getPartitionUpdates,
 		compactPartition,
+		savePartition,
 	};
 }

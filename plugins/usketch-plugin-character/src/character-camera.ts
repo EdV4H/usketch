@@ -52,6 +52,38 @@ export function easeFocus(current: CameraFocus, target: CameraFocus, alpha: numb
 	};
 }
 
+/**
+ * The height (world units) the 3D view's camera should follow, platformer-style:
+ *
+ * - On the ground: the ground the character stands on (`pose.z`).
+ * - In the air (a jump, a fall, a hover): the height it left the ground from (`prev`)
+ *   holds, so a jump still rises on screen and flying over a pit doesn't dip the view;
+ *   but it never falls behind the body by more than `margin` (a hover climbing above
+ *   an ordinary jump drags it up) nor stays above the feet (falling off a cliff takes
+ *   it down).
+ *
+ * `prev` is the last value this returned, `null` when starting to follow (the body's
+ * height is taken as is). Feed the result to the camera through its own smoothing.
+ */
+export function followCameraHeight(
+	prev: number | null,
+	pose: { z: number; airborne: boolean },
+	margin: number,
+): number {
+	const z = Number.isFinite(pose.z) ? pose.z : 0;
+	if (!pose.airborne || prev === null || !Number.isFinite(prev)) return z;
+	const m = Number.isFinite(margin) ? Math.max(0, margin) : 0;
+	return Math.min(z, Math.max(z - m, prev));
+}
+
+/**
+ * The default `cameraHeightMargin`: the highest an ordinary jump goes (the jump's apex,
+ * or the drift hop), so those never move the camera. `0` without jumping.
+ */
+export function defaultCameraHeightMargin(jumpHeight: number | null, hopHeight: number): number {
+	return Math.max(0, jumpHeight ?? 0, hopHeight);
+}
+
 /** Screen-pixel anchor from a fractional anchor and the canvas size. */
 export function anchorPx(anchor: Point, size: { width: number; height: number }): Point {
 	return { x: anchor.x * size.width, y: anchor.y * size.height };

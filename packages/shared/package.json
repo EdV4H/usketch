@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-shared",
-	"version": "4.19.0",
+	"version": "4.23.0",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -23,7 +23,7 @@
 	"devDependencies": {
 		"@types/react": "19.3.0",
 		"typescript": "7.0.2",
-		"vitest": "5.0.5"
+		"vitest": "5.1.0"
 	},
 	"dependencies": {
 		"fractional-indexing": "4.0.0",

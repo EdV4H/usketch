@@ -5,9 +5,11 @@
 // awareness. The plugin draws NOTHING itself — pass `renderCharacter` for the look.
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import type { CameraMode } from "./character-camera.js";
+import { defaultKeyStorage, loadStoredKeys } from "./character-keys.js";
 import type { ControlScheme, DriftParams, MotionParams } from "./character-physics.js";
 import { setupCharacterRuntime } from "./character-runtime.js";
 import { characterService, createCharacterApi } from "./character-service.js";
+import type { CharacterSize } from "./character-size.js";
 import { createCharacterStore, type JumpInit } from "./character-store.js";
 import type { CharacterAwareness } from "./character-sync.js";
 import {
@@ -32,8 +34,16 @@ export interface CharacterPluginOptions {
 	wsProvider?: { awareness: CharacterAwareness };
 	/** Display name sent with your character. */
 	userName?: string;
-	/** Keys as `KeyboardEvent.code` lists (default WASD, drift and jump Space). */
+	/**
+	 * Keys as `KeyboardEvent.code` lists (default WASD, drift Shift, jump Space). A viewer
+	 * who changed them in the HUD's key settings gets their own instead (localStorage).
+	 */
 	keys?: Partial<CharacterKeys>;
+	/**
+	 * Keep each viewer's key settings in localStorage (default `true`). `false` = the HUD
+	 * changes last only for the session.
+	 */
+	saveKeys?: boolean;
 	/** Start with the character on (default `false`). */
 	enabledInitially?: boolean;
 	/** Default `"fixed"`. */
@@ -57,6 +67,18 @@ export interface CharacterPluginOptions {
 	screenAnchor?: { x?: number; y?: number };
 	/** Follow-camera lag: 0 = rigid (default) … 0.99 = heavy. */
 	followSmoothing?: number;
+	/**
+	 * Under a 3D view (Mode 7) the follow raises the camera with the ground under the
+	 * feet; the body pulls it higher only once it is more than this (world units) above
+	 * that ground. Default = the jump's height (an ordinary jump doesn't bob the view, a
+	 * long hover or a fall stays in view); `0` = follow the body's height exactly.
+	 */
+	cameraHeightMargin?: number;
+	/**
+	 * How big the body is drawn, handed to the renderers as `size` (screen px). Default 36 px
+	 * at every zoom; `{ scale: "world", value: 24 }` scales it with the ground instead.
+	 */
+	size?: Partial<CharacterSize>;
 }
 
 export function createCharacterPlugin(options: CharacterPluginOptions = {}): UsketchPlugin {
@@ -73,16 +95,23 @@ export function createCharacterPlugin(options: CharacterPluginOptions = {}): Usk
 				jump: options.jump,
 				anchor: options.screenAnchor,
 				followSmoothing: options.followSmoothing,
+				cameraHeightMargin: options.cameraHeightMargin,
+				size: options.size,
 				appearance: options.appearance,
 				name: options.userName,
 				renderer: options.renderCharacter,
 				shadowRenderer: options.renderShadow,
 			});
+			const defaultKeys: CharacterKeys = { ...DEFAULT_KEYS, ...options.keys };
+			const keyStorage = options.saveKeys === false ? null : defaultKeyStorage();
 			const runtime = setupCharacterRuntime(ctx, store, {
-				keys: { ...DEFAULT_KEYS, ...options.keys },
+				keys: loadStoredKeys(keyStorage, defaultKeys) ?? defaultKeys,
 				awareness: options.wsProvider?.awareness,
 			});
-			const api = createCharacterApi(store, runtime);
+			const api = createCharacterApi(store, runtime, {
+				defaults: defaultKeys,
+				storage: keyStorage,
+			});
 			const stopHud = registerCharacterHud(ctx, api);
 			// Provide the service LAST so a failed earlier step can't leak it.
 			const unprovide = characterService.provide(ctx.services, api);

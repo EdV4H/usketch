@@ -1,5 +1,5 @@
 import type { ShapeData } from "@edv4h/usketch-shared";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Markdown, { type Components } from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
@@ -102,6 +102,27 @@ const mdComponents: Components = {
 	},
 };
 
+const remarkPlugins = [remarkGfm];
+// ignoreMissing: unsupported languages (incl. our ```mermaid``` blocks, which
+// highlight.js doesn't know) fall back to plain code instead of throwing and
+// breaking the whole render.
+const rehypePlugins: NonNullable<Parameters<typeof Markdown>[0]["rehypePlugins"]> = [
+	[rehypeHighlight, { ignoreMissing: true }],
+];
+
+/**
+ * The parsed + highlighted Markdown tree. `memo` on `source` so a re-render of the
+ * shape that leaves the source alone (dragging / resizing it, the height auto-fit,
+ * a selection toggle) doesn't parse the Markdown and re-run highlight.js again.
+ */
+const MarkdownContent = memo(function MarkdownContent({ source }: { source: string }) {
+	return (
+		<Markdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} components={mdComponents}>
+			{source}
+		</Markdown>
+	);
+});
+
 function MarkdownView({ shape }: { shape: ShapeData }) {
 	const { source } = readMarkdownMeta(shape);
 	const ref = useRef<HTMLDivElement>(null);
@@ -174,16 +195,7 @@ function MarkdownView({ shape }: { shape: ShapeData }) {
 			{source.trim() === "" ? (
 				<span className="usketch-md-empty">（空の Markdown — HUD の Edit source で編集）</span>
 			) : (
-				<Markdown
-					remarkPlugins={[remarkGfm]}
-					// ignoreMissing: unsupported languages (incl. our ```mermaid``` blocks,
-					// which highlight.js doesn't know) fall back to plain code instead of
-					// throwing and breaking the whole render.
-					rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
-					components={mdComponents}
-				>
-					{source}
-				</Markdown>
+				<MarkdownContent source={source} />
 			)}
 		</div>
 	);

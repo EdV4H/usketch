@@ -1,5 +1,75 @@
 # @edv4h/usketch-plugin-character
 
+## 0.10.1
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+
+## 0.10.0
+
+### Minor Changes
+
+- 4e81c14: The follow camera's height now accounts for jumps and hovers. In the air it holds the take-off height, so an ordinary jump still rises on screen and running off a ledge over a pit doesn't dip the view; a hover or a high multi-jump that climbs more than `cameraHeightMargin` (world units, default = the jump's height) above it drags the camera up, and a fall below it takes the camera down. `0` follows the body exactly; `getCameraHeightMargin` / `setCameraHeightMargin` change it at runtime.
+
+### Patch Changes
+
+- 28a95bf: An airborne character no longer leans with the terrain below it. In the air (jumping, falling, hovering) the body's slope lean fades out over the first `AIR_LEAN_FADE` (8) world units above the ground, so the ground it flies over doesn't tip it. Its shadow still lies along the ground.
+
+## 0.9.0
+
+### Minor Changes
+
+- 9ffa649: Raise the 3D view's camera with the ground. Mode 7's `Camera` gets `height` (world units, default 0; `setHeight`): everything is drawn that much lower, so ground at that height shows where the flat board would. Hold Space / Shift in the 3D view to move the camera up / down (`heightKeys`, `heightSpeed`, rebindable via `setHeightKeys`). In shared, `View3dCamera.heightPx` and the optional `View3dApi.setCameraHeight` carry it; `getRenderedCamera().heightPx`, `projectToGround` / `unprojectFromGround` (now with a `z`) and the elevation mesh honor it. The character's follow camera sets it to the ground under the feet (eased), so walking up a high mountain no longer leaves the view.
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+
+## 0.8.0
+
+### Minor Changes
+
+- aabfdc1: キャラの大きさを設定できるようにした。`size` オプション / `setSize` で、画面上いつも同じ大きさ (`scale: "screen"`、既定 36px) か、地面と同じ縮尺 (`scale: "world"`、ズームに合わせて変わり、`minPx` … `maxPx` に収める) を選べる。描く大きさはレンダラーに `size` (画面 px) で渡す。HUD のキャラクターの設定にも「大きさの基準」と「大きさ」を足した。見た目だけで、登れる段差やジャンプの高さは変わらない。
+
+## 0.7.0
+
+### Minor Changes
+
+- 7249582: feat(character): 坂への対応。`motion.maxSlope` より急な坂は登れずずり落ちる（段差は今まで通り `maxStep`）、3D ビューでは地面に沿って傾く（`motion.slopeTilt`）、坂でのジャンプは真上と坂の法線の間に跳ぶ（`jump.slopeRatio`）
+
+## 0.6.1
+
+### Patch Changes
+
+- e92809d: The character spots keep the 3D context down to the renderer's content (`transform-style: preserve-3d`), so under a 3D view (Mode 7) a renderer can stand its sprite up out of the ground (e.g. `rotateX(-pitch)` with the pitch from `view3dService`) instead of having it flattened onto the ground. The flat board looks the same.
+
+## 0.6.0
+
+### Minor Changes
+
+- abc7f44: 3D shapes can now collide with the character. A shape's `x-shape-3d` takes `collision`: `"none"` (default), `"solid"` (a wall) or `"platform"` (a box's top that can be stepped or jumped onto); a stood-up shape blocks along its bottom edge (fixed facing) or at a small disc at its foot (camera facing), a floating one never collides. The shape-3d plugin answers the new shared `solidHeightService` from a grid index of all shapes, and the character combines it with the ground height: walls block (sliding along them), tops are stood on, and moves are checked in short stretches (`sweepToGround`) so a fast move can't skip a thin wall. Collision applies in 2D too unless the new `collisionIn3dOnly` limit is set. Both settings are in the HUD.
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+
+## 0.5.0
+
+### Minor Changes
+
+- 97ffdde: `setVirtualInput` gains a `jump` button: held, it acts like the jump key (a release while rising cuts the jump short, holding it in a fall hovers, air jumps on each press), so a touch control can jump and hover too. Presses of the virtual jump and drift buttons are latched until the next frame, so a quick tap between frames still jumps (or starts a drift hop). `virtualPresses(prev, next)` is exported for hosts that need the same edges.
+
 ## 0.4.0
 
 ### Minor Changes

@@ -42,6 +42,7 @@ import { createCardSimplified, createDeckSimplified } from "./render-simplified.
 import {
 	type CardTypeDefinition,
 	type DeckMeta,
+	type DeckShuffleAnimation,
 	type PlacementAnimation,
 	readCardMeta,
 	readDeckMeta,
@@ -49,6 +50,11 @@ import {
 
 const DOUBLE_CLICK_MS = 400;
 const GENERIC_ACCENT = "rgba(79, 140, 255, 0.9)";
+
+/** ドロー等で山札を書き換えても、再生中のシャッフル演出を止めないように残す。 */
+function keepShuffledAt(meta: Partial<DeckMeta>): Pick<DeckMeta, "shuffledAt"> {
+	return typeof meta.shuffledAt === "number" ? { shuffledAt: meta.shuffledAt } : {};
+}
 
 export interface CreateCardPluginOptions {
 	/**
@@ -58,6 +64,12 @@ export interface CreateCardPluginOptions {
 	cardTypes?: CardTypeDefinition[];
 	/** 既定の配置アニメ（card-type 個別指定が優先される）。 */
 	placementAnimation?: PlacementAnimation;
+	/**
+	 * 既定のシャッフル演出（card-type 個別指定 `CardTypeDefinition.shuffleAnimation` が優先）。
+	 * 省略時は動かない（並びだけ入れ替わる）。シャッフル時刻は `DeckMeta.shuffledAt` として
+	 * 同期されるので、ボードにいる全員の画面で同じ時刻から再生される。
+	 */
+	shuffleAnimation?: DeckShuffleAnimation;
 	/** デッキ機構を有効にするか。既定 true。 */
 	enableDeck?: boolean;
 	/**
@@ -165,7 +177,7 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 	let slamNonce = 0;
 	const getSlam = (id: string) => slamming.get(id);
 	const renderCard = createCardRenderer(registry, getSlam);
-	const renderDeck = createDeckRenderer(registry);
+	const renderDeck = createDeckRenderer(registry, opts.shuffleAnimation);
 	const cardSimplified = createCardSimplified(registry);
 	const deckSimplified = createDeckSimplified(registry);
 	const hasCardTypes = registry.size > 0;
@@ -315,8 +327,18 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					zIndex: zIndexAfterAll(allZ),
 				});
 
-				const deckBefore: DeckMeta = { cardType, cards, faceDown: meta.faceDown ?? true };
-				const deckAfter: DeckMeta = { cardType, cards: rest, faceDown: meta.faceDown ?? true };
+				const deckBefore: DeckMeta = {
+					cardType,
+					cards,
+					faceDown: meta.faceDown ?? true,
+					...keepShuffledAt(meta),
+				};
+				const deckAfter: DeckMeta = {
+					cardType,
+					cards: rest,
+					faceDown: meta.faceDown ?? true,
+					...keepShuffledAt(meta),
+				};
 
 				const command: Command = {
 					execute() {
@@ -373,8 +395,14 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					cardType,
 					cards: [...drawn, ...restCards],
 					faceDown: meta.faceDown ?? true,
+					...keepShuffledAt(meta),
 				};
-				const deckAfter: DeckMeta = { cardType, cards: restCards, faceDown: meta.faceDown ?? true };
+				const deckAfter: DeckMeta = {
+					cardType,
+					cards: restCards,
+					faceDown: meta.faceDown ?? true,
+					...keepShuffledAt(meta),
+				};
 
 				ctx.commands.execute({
 					execute() {
@@ -536,8 +564,18 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					height: def.defaultSize.height,
 				}));
 
-				const deckBefore: DeckMeta = { cardType, cards, faceDown: meta.faceDown ?? true };
-				const deckAfter: DeckMeta = { cardType, cards: rest, faceDown: meta.faceDown ?? true };
+				const deckBefore: DeckMeta = {
+					cardType,
+					cards,
+					faceDown: meta.faceDown ?? true,
+					...keepShuffledAt(meta),
+				};
+				const deckAfter: DeckMeta = {
+					cardType,
+					cards: rest,
+					faceDown: meta.faceDown ?? true,
+					...keepShuffledAt(meta),
+				};
 
 				ctx.commands.execute({
 					execute() {
@@ -718,12 +756,24 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 					const deck = ctx.store.getShape(id);
 					if (!deck || deck.type !== DECK_TYPE) continue;
 					const m = readDeckMeta(deck);
-					const before: DeckMeta = {
+					const cards = m.cards ?? [];
+					// 1 枚以下は並びが変わらないので、同期も Undo 履歴も増やさない。
+					if (cards.length < 2) continue;
+					// Undo では演出を出さない: 戻す側の meta からは shuffledAt を外す
+					// （直前のシャッフルの再生中に戻しても、それを再生し直さない）。
+					const { shuffledAt: _previous, ...rest } = m;
+					const before = {
+						...rest,
 						cardType: m.cardType ?? "",
-						cards: m.cards ?? [],
+						cards,
 						faceDown: m.faceDown ?? true,
-					};
-					const after: DeckMeta = { ...before, cards: shuffle(before.cards) };
+					} satisfies DeckMeta;
+					// shuffledAt はシャッフル演出の再生開始時刻（全員の画面で共有）。
+					const after = {
+						...before,
+						cards: shuffle(cards),
+						shuffledAt: Date.now(),
+					} satisfies DeckMeta;
 					// Command 経由で更新し Undo/Redo 可能にする
 					ctx.commands.execute(
 						createUpdateShapeCommand(

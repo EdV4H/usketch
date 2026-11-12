@@ -6,30 +6,49 @@ import {
 	type PluginContext,
 	type Point,
 	screenToWorld,
+	solidHeightService,
 	type Viewport,
+	view3dService,
 	viewportRotation,
 } from "@edv4h/usketch-shared";
 import {
 	anchorPx,
 	type CameraFocus,
 	easeFocus,
+	followCameraHeight,
 	followViewport,
 	sameViewport,
 	smoothingAlpha,
 	targetRotation,
 } from "./character-camera.js";
 import { createKeyInput } from "./character-input.js";
-import { CharacterLayer } from "./character-layer.js";
+import { CharacterLayer, type CharacterView3d } from "./character-layer.js";
 import {
-	constrainToGround,
+	blockingHeight,
+	DEFAULT_JUMP,
+	groundSlope,
 	type HeightAt,
 	holdDriftForHop,
+	holdSteerForRoll,
 	IDLE_JUMP,
 	type JumpTimers,
+	landVehicle,
+	pushInAir,
+	type SolidAt,
+	SWEEP_STEP,
+	slideOnSteep,
+	standingHeight,
+	stepAirSpin,
 	stepCharacter,
 	stepVertical,
+	sweepToGround,
 } from "./character-physics.js";
-import { type CharacterStore, driftHopHeight, effectiveJump } from "./character-store.js";
+import {
+	type CharacterStore,
+	cameraHeightMarginOf,
+	driftHopHeight,
+	effectiveJump,
+} from "./character-store.js";
 import {
 	type CharacterAwareness,
 	type CharacterSync,
@@ -42,6 +61,7 @@ import {
 	isVirtualInputActive,
 	normalizeVirtualInput,
 	type VirtualInput,
+	virtualPresses,
 } from "./character-virtual-input.js";
 
 export const CHARACTER_LAYER_ID = "character";
@@ -51,6 +71,11 @@ const CHARACTER_LAYER_ORDER = 700;
 export const CHARACTER_VIEWPORT_PRIORITY = 20;
 /** Remote pose smoothing (see `smoothingAlpha`). */
 const REMOTE_SMOOTHING = 0.75;
+/**
+ * Camera-height smoothing (see `smoothingAlpha`): the 3D view's camera follows the ground
+ * under the character at its own, never-rigid pace, so a step up a cliff glides.
+ */
+const CAMERA_HEIGHT_SMOOTHING = 0.9;
 /** Largest simulated step, so a background-tab pause doesn't teleport the character. */
 const MAX_DT = 0.05;
 /** How long a measured canvas size is reused (a window resize re-measures at once). */
@@ -104,6 +129,10 @@ export interface CharacterRuntime {
 	jump(): void;
 	setKeys(keys: CharacterKeys): void;
 	getKeys(): CharacterKeys;
+	/** Listen for key binding changes. Returns an unsubscribe. */
+	onKeysChange(listener: () => void): () => void;
+	/** See `KeyInput.captureNextKey`. */
+	captureNextKey(onKey: (code: string) => void): () => void;
 	/** Feed analog input from a host control (touch stick …); `null` releases it. */
 	setVirtualInput(input: Partial<VirtualInput> | null): void;
 	getVirtualInput(): VirtualInput | null;
@@ -118,17 +147,42 @@ export function setupCharacterRuntime(
 	const keys = createKeyInput(
 		options.keys,
 		() => store.getState().enabled,
-		() => store.getState().controlScheme === "vehicle" && store.getState().drift !== null,
+		// The drift key also rolls a car in the air (`spinRate`), so it is a car's whenever
+		// either is on — and not left to the host (e.g. Mode 7's Shift = camera down).
+		() => {
+			const st = store.getState();
+			if (st.controlScheme !== "vehicle") return false;
+			return st.drift !== null || (effectiveJump(st) ?? DEFAULT_JUMP).spinRate > 0;
+		},
 		() => store.getState().jump !== null,
 	);
 	let jumpTimers: JumpTimers = IDLE_JUMP;
+	const keysListeners = new Set<() => void>();
 	// `jump()` from code: a press on the next frame, held until the apex (a full jump).
 	let pendingJump = false;
 	let holdJump = false;
 	// Cleared when the character turns off, so a control that never sent its release
 	// (unmounted mid-touch) can't leave the next ride driving on its own.
 	let virtual: VirtualInput | null = null;
+	// Virtual button presses since the last frame (a tap may press and release in between).
+	let virtualJumpPressed = false;
+	let virtualDriftPressed = false;
 	let cam: CameraFocus | null = null;
+	// The camera height we last gave the 3D view (world units), eased toward the ground
+	// under the character; `null` while we aren't driving it.
+	let cameraHeight: number | null = null;
+	// The unsmoothed height it follows (see `followCameraHeight`); `null` while not driving.
+	let cameraBase: number | null = null;
+	const setCameraHeight = (height: number | null): void => {
+		if (height === null) cameraBase = null;
+		// While following, the height is re-sent every frame even when unchanged (Mode 7
+		// skips a no-op write): that is how the view knows a follower drives it, so its own
+		// height keys (Shift / Space) yield instead of tugging the camera every frame.
+		// Letting go (`null`) is sent once.
+		if (height === cameraHeight && height === null) return;
+		cameraHeight = height;
+		view3dService.get(ctx.services)?.setCameraHeight?.(height ?? 0);
+	};
 	let display: ReadonlyMap<string, RemoteCharacter> = new Map();
 	let rafId: number | null = null;
 	let lastFrame: number | null = null;
@@ -155,7 +209,18 @@ export function setupCharacterRuntime(
 
 	// Ground height from whichever plugin provides it (e.g. the map's raised terrain), looked up
 	// per call so a provider registered later still counts. Absent = flat board.
-	const heightAt: HeightAt = (x, y) => groundHeightService.get(ctx.services)?.heightAt(x, y) ?? 0;
+	const groundAt: HeightAt = (x, y) => groundHeightService.get(ctx.services)?.heightAt(x, y) ?? 0;
+	// Solids on the ground (e.g. raised 3D shapes): walls block, tops can be stood on.
+	const solidAt: SolidAt = (x, y) => solidHeightService.get(ctx.services)?.heightAt(x, y) ?? null;
+	// What a move must clear (walls included) and what the feet stand on (walls excluded).
+	const blockAt: HeightAt = (x, y) => blockingHeight(groundAt(x, y), solidAt(x, y));
+	const heightAt: HeightAt = (x, y) => standingHeight(groundAt(x, y), solidAt(x, y));
+
+	// The 3D view (Mode 7), looked up per call: a provider set up later still counts.
+	const view3d: CharacterView3d = {
+		amount: () => view3dService.get(ctx.services)?.amount() ?? 0,
+		subscribe: (listener) => view3dService.get(ctx.services)?.subscribe(listener) ?? (() => {}),
+	};
 
 	const sync: CharacterSync | null = options.awareness
 		? createCharacterSync(options.awareness, store, () => ensureLoop())
@@ -197,28 +262,50 @@ export function setupCharacterRuntime(
 			const input = {
 				...keyInput,
 				jump: keyInput.jump || holdJump,
-				jumpPressed: keyInput.jumpPressed || pendingJump,
+				jumpPressed: keyInput.jumpPressed || pendingJump || virtualJumpPressed,
+				driftPressed: keyInput.driftPressed || virtualDriftPressed,
 			};
 			if (pendingJump) holdJump = true;
 			pendingJump = false;
+			virtualJumpPressed = false;
+			virtualDriftPressed = false;
 			if (s.followSuspended && (keys.anyHeld() || isVirtualInputActive(virtual))) {
 				store.setFollowSuspended(false);
 			}
 
 			const vp = ctx.store.getViewport();
 			const hopHeight = driftHopHeight(s);
+			const air = effectiveJump(s) ?? DEFAULT_JUMP;
+			// A car in the air turns its body with the keys (pitch, and roll with the drift
+			// key held, which then doesn't also yaw it).
+			const spinRate = s.controlScheme === "vehicle" ? air.spinRate : 0;
 			const stepped = stepCharacter(
-				s.pose,
-				holdDriftForHop(input, s.pose, hopHeight),
+				stepAirSpin(s.pose, input, dt, spinRate, air.spinInertia),
+				holdSteerForRoll(holdDriftForHop(input, s.pose, hopHeight), s.pose, spinRate),
 				dt,
 				s.controlScheme,
 				s.motion,
 				viewportRotation(vp),
 				s.drift,
+				air.airControl,
 			);
-			// Cliffs taller than the climbable step block the move (slide along them).
-			const moved = constrainToGround(s.pose, stepped, heightAt, s.motion.maxStep);
-			// Then up and down: jumps, falls off cliffs, landings.
+			// Cliffs taller than the climbable step, slopes steeper than the climbable one
+			// and walls block the move (slide along them), checked in short stretches so a
+			// fast move can't skip a thin wall. In the air a slope jump's sideways speed
+			// carries on.
+			const swept = sweepToGround(
+				s.pose,
+				pushInAir(s.pose, stepped, dt),
+				blockAt,
+				s.motion.maxStep,
+				SWEEP_STEP,
+				s.motion.maxSlope,
+			);
+			// Ground steeper than that slides the character down.
+			const moved = slideOnSteep(swept, heightAt, blockAt, s.motion, dt);
+			// Then up and down: jumps (along the slope as far as tuned), falls off cliffs,
+			// landings.
+			const slopeHere = groundSlope(heightAt, moved.x, moved.y);
 			const vertical = stepVertical(
 				moved,
 				jumpTimers,
@@ -228,9 +315,11 @@ export function setupCharacterRuntime(
 				s.motion.maxStep,
 				effectiveJump(s),
 				hopHeight,
+				slopeHere,
 			);
 			jumpTimers = vertical.timers;
-			const pose = vertical.pose;
+			// Touchdown puts a car back on its wheels; landing off the ground's tilt slows it.
+			const pose = landVehicle(s.pose, vertical.pose, slopeHere, { ...air, spinRate });
 			if (holdJump && (!pose.airborne || pose.vz <= 0)) holdJump = false;
 			store.setPose(pose);
 			s = store.getState();
@@ -249,6 +338,21 @@ export function setupCharacterRuntime(
 				cam = easeFocus(from, target, smoothingAlpha(s.followSmoothing, dt));
 				const next = followViewport(cam, anchor, vp.zoom);
 				if (!sameViewport(vp, next)) writeViewport(next);
+				// Raise the 3D view's camera with the character: on a mountain it stays in view.
+				// In the air it holds the take-off height (a jump still rises on screen, a pit
+				// below doesn't dip the view) until a hover climbs past the margin or a fall
+				// drops below it (see `followCameraHeight`).
+				// Only while the view is (partly) 3D: the flat board has no camera to raise.
+				if (view3d.amount() > 0) {
+					cameraBase = followCameraHeight(cameraBase, pose, cameraHeightMarginOf(s));
+					const to = cameraBase;
+					const at = cameraHeight ?? 0;
+					setCameraHeight(at + (to - at) * smoothingAlpha(CAMERA_HEIGHT_SMOOTHING, dt));
+				} else {
+					setCameraHeight(null);
+				}
+			} else if (s.cameraMode === "free") {
+				setCameraHeight(null);
 			}
 			sync?.publish();
 		}
@@ -285,7 +389,10 @@ export function setupCharacterRuntime(
 				});
 			} else {
 				cam = null;
+				setCameraHeight(null);
 				virtual = null;
+				virtualJumpPressed = false;
+				virtualDriftPressed = false;
 				// Hand the camera back upright.
 				if (viewportRotation(ctx.store.getViewport()) !== 0) {
 					ctx.store.rotateTo(0, anchorPoint(), { animate: true });
@@ -320,7 +427,9 @@ export function setupCharacterRuntime(
 		id: CHARACTER_LAYER_ID,
 		order: CHARACTER_LAYER_ORDER,
 		fixed: true,
-		render: (rc) => <CharacterLayer store={store} viewport={rc.viewport} heightAt={heightAt} />,
+		render: (rc) => (
+			<CharacterLayer store={store} viewport={rc.viewport} heightAt={heightAt} view3d={view3d} />
+		),
 	});
 
 	if (store.getState().enabled || sync) ensureLoop();
@@ -334,12 +443,27 @@ export function setupCharacterRuntime(
 			pendingJump = true;
 			ensureLoop();
 		},
-		setKeys: (k) => keys.setKeys(k),
+		setKeys(k) {
+			keys.setKeys(k);
+			for (const l of [...keysListeners]) l();
+		},
 		getKeys: () => keys.getKeys(),
+		onKeysChange(listener) {
+			keysListeners.add(listener);
+			return () => {
+				keysListeners.delete(listener);
+			};
+		},
+		captureNextKey: (onKey) => keys.captureNextKey(onKey),
 		setVirtualInput(input) {
 			// Ignored while off (like the keys), so input sent before the character is
 			// turned on can't make it drive away on its own the moment it spawns.
-			virtual = store.getState().enabled ? normalizeVirtualInput(input) : null;
+			const next = store.getState().enabled ? normalizeVirtualInput(input) : null;
+			const pressed = virtualPresses(virtual, next);
+			if (pressed.jump) virtualJumpPressed = true;
+			if (pressed.drift) virtualDriftPressed = true;
+			virtual = next;
+			if (pressed.jump || pressed.drift) ensureLoop();
 		},
 		getVirtualInput: () => (virtual ? { ...virtual } : null),
 		dispose() {
@@ -347,6 +471,7 @@ export function setupCharacterRuntime(
 			rafId = null;
 			unsubscribe();
 			offViewport();
+			setCameraHeight(null);
 			keys.dispose();
 			sync?.dispose();
 			if (typeof window !== "undefined") window.removeEventListener("resize", onResize);

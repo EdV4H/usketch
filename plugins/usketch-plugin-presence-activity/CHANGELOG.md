@@ -1,5 +1,39 @@
 # @edv4h/usketch-plugin-presence-activity
 
+## 0.4.7
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+
+## 0.4.6
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+
+## 0.4.5
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+
+## 0.4.4
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+
+## 0.4.3
+
+### Patch Changes
+
+- 947dbcb: 参加者アクティビティのオーバーレイが、カーソル移動など `activity` / `user` 以外の awareness 変化（自分のカーソル移動も含む）のたびに描き直していたのをやめた。リモート参加者の `activity`・名前・色が変わったときと、参加者が抜けたときだけ描き直す。
+
 ## 0.4.2
 
 ### Patch Changes

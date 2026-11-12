@@ -34,6 +34,45 @@ const plugins = [
 一定幅ペンは中点を通る二次ベジェで平滑化、筆ペンは perfect-freehand で塗りアウトラインを生成。
 蛍光ペンは要素単位合成のため、同一ストローク内の交差は二重に濃くならず別ストローク同士は濃くなる。
 
+## 外からペンを足す
+
+組み込みの 4 種に、別のプラグインやホストがペンを足せる。足したペンのストロークも `freedraw`
+shape なので、選択・移動・拡大縮小（点列だけを伸ばし、太さは変えない）・消しゴム・当たり判定・
+undo・同期はそのまま効く。描画は SVG で、GPU には回さない。
+
+```tsx
+createFreedrawPlugin(undefined, {
+  pens: [
+    {
+      id: "road",                     // shape の pen に入る。組み込みの id とは重ねない
+      label: "道路",
+      defaultSize: 120,
+      sizeRange: { min: 40, max: 400 }, // freedraw:set-size をこの範囲に丸める
+      usesColor: false,               // ペン先カーソルを色なしで出す
+      render: (shape) => <Road shape={shape} />,
+      renderDraft: (shape) => <path d={...} />, // 描いている最中（shape.draft === true）
+      finalize: (points, { size }) => ({ points: tidy(points), penData: { closed: true } }),
+      halfWidth: (size) => size / 2 + 12, // 外接矩形・当たり判定・消しゴムの半幅
+    },
+  ],
+});
+```
+
+ペンは shape の描画と当たり判定に効くので、実行中に足し外しせず、プラグインの引数で渡す。
+`getFreedrawApi(app.services)?.listPens()`（または `listPens()`）は組み込み → 足したペンの順で
+一覧を返すので、ペン選択 UI はこれで作れる。`finalize` が返す `penData` は移動・拡大縮小でそのまま
+写されるので、座標は入れない（点列から毎回作る）。
+ペンを登録していないクライアントでは、そのストロークはボールペンの線（色・太さはそのまま）で描かれる。
+
+## 線の端をつなぐ
+
+`endpointSnap: true`（または `freedraw:set-endpoint-snap` `{enabled}`）のとき、手を離した線の
+始点・終点が**同じペン**の近くの線に入っていたら、その線のいちばん近い点まで線を伸ばしてつなぐ。
+Ctrl / ⌘ を押しながら離すと、その線だけ有効・無効が逆になる。つないだ端は shape の
+`joins`（`{ start?: true, end?: true }`）に残るので、足したペンの描画はそれを見て端の飾りを省ける。
+つなぐ距離は、画面上の 12px + 線の太さの半分。足したペンは `snapDistance(size)` で決められ、
+`finalize` が `snapEnds: false` を返した線（端が無い周回など）はつながない。
+
 ## 消しゴム
 
 `mode: "eraser"` のとき、触れた freedraw ストロークを丸ごと削除する（ピクセル消去ではない）。
@@ -43,10 +82,14 @@ const plugins = [
 
 ```ts
 type PenKind = "ballpoint" | "felt" | "brush" | "highlighter";
+type PenId = PenKind | string; // 外から足したペンの id も入る
 interface StrokePoint { x: number; y: number; p?: number } // p=疑似筆圧 0..1
 interface FreedrawShapeData extends ShapeData {
   points: StrokePoint[];
-  pen?: PenKind; // 省略時 ballpoint（旧データ後方互換）
+  pen?: PenId; // 省略時 ballpoint（旧データ後方互換）
+  penData?: Record<string, unknown>; // 足したペンの finalize が返したデータ
+  draft?: boolean; // 描いている最中だけ true
+  joins?: { start?: true; end?: true }; // 端を近くの線へつないだか（endpointSnap）
 }
 ```
 
@@ -56,4 +99,4 @@ interface FreedrawShapeData extends ShapeData {
 
 `ctx.events.emit` で設定を操作できる（vim プラグインの ex コマンド等から）:
 `freedraw:set-pen` `{pen}` / `freedraw:set-color` `{color}` / `freedraw:set-size` `{size}` /
-`freedraw:toggle-eraser`。
+`freedraw:toggle-eraser` / `freedraw:set-endpoint-snap` `{enabled}`。

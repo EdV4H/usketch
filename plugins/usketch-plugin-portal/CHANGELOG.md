@@ -1,5 +1,39 @@
 # @edv4h/usketch-plugin-portal
 
+## 0.3.14
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+
+## 0.3.13
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+
+## 0.3.12
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+
+## 0.3.11
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+
+## 0.3.10
+
+### Patch Changes
+
+- 13418ff: ポータルのパネルを memo 化し、パン・ズーム・ホバー・選択の変化のたびにピン留めした図形を描き直さないようにした（パネルの位置・サイズやピン留めした図形自体が変わったときだけ再描画する）。
+
 ## 0.3.9
 
 ### Patch Changes

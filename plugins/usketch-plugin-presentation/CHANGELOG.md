@@ -1,5 +1,46 @@
 # @edv4h/usketch-plugin-presentation
 
+## 2.5.9
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-store@3.11.5
+
+## 2.5.8
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-store@3.11.4
+
+## 2.5.7
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-store@3.11.3
+
+## 2.5.6
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+  - @edv4h/usketch-store@3.11.2
+
+## 2.5.5
+
+### Patch Changes
+
+- b3f0ae6: どこからも import されていない旧スライド一覧パネル `slide-outline-panel.tsx` を削除。スライド一覧は `present-edit-overlay` のサムネ一覧に置き換わっており、パッケージの公開 export にも含まれていなかったため、挙動・公開 API の変化はなし。
+- 2ef9a65: プレゼン編集モードのスライドサムネを、図形の追加・更新・削除・重なり順の初期化のときだけ作り直すようにした。スライド移動のアニメーション・パン・選択の切替のたびに全スライドのサムネを作り直さない。
+- Updated dependencies [ca67108]
+  - @edv4h/usketch-store@3.11.1
+
 ## 2.5.4
 
 ### Patch Changes

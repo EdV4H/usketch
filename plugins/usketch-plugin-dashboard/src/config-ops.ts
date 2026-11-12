@@ -87,13 +87,67 @@ export function swapDelayOf(store: BoardStore): number {
  * which can differ per client) — the grid then can't diverge across peers.
  */
 export function getDashboardConfig(store: BoardStore): DashboardConfigData | undefined {
+	const shapes = store.getShapes();
+	const lookup = configLookups.get(store);
+	if (!lookup) return scanDashboardConfig(shapes);
+	// Only a shape added / removed (or turned into another type) can change WHICH
+	// shape is the config, so between those the remembered id is reused. The size
+	// check also covers a listener that runs before ours on that add / remove.
+	if (!lookup.stale && lookup.size === shapes.size) {
+		if (lookup.id === null) return undefined;
+		const shape = shapes.get(lookup.id);
+		if (shape && isDashboardConfig(shape)) return shape;
+	}
+	const found = scanDashboardConfig(shapes);
+	lookup.id = found?.id ?? null;
+	lookup.size = shapes.size;
+	lookup.stale = false;
+	return found;
+}
+
+function scanDashboardConfig(
+	shapes: ReadonlyMap<string, ShapeData>,
+): DashboardConfigData | undefined {
 	let chosen: DashboardConfigData | undefined;
-	for (const [, shape] of store.getShapes()) {
+	for (const shape of shapes.values()) {
 		if (isDashboardConfig(shape) && (chosen === undefined || shape.id < chosen.id)) {
 			chosen = shape;
 		}
 	}
 	return chosen;
+}
+
+/** Which shape is the config (`id`, `null` = none), as last found by a full scan. */
+interface ConfigLookup {
+	id: string | null;
+	/** Shape count at that scan. */
+	size: number;
+	/** Set when a shape was added / removed / changed type since that scan. */
+	stale: boolean;
+}
+
+const configLookups = new WeakMap<BoardStore, ConfigLookup>();
+
+/**
+ * Let {@link getDashboardConfig} remember where the config is on `store` instead
+ * of scanning every shape on each call: the runtime, viewport lock and overlay ask
+ * on every shape update and pan, which made a drag O(shapes) per moved shape even
+ * on boards that aren't dashboards. Returns the teardown (calls scan again after).
+ */
+export function trackDashboardConfig(store: BoardStore): () => void {
+	const lookup: ConfigLookup = { id: null, size: -1, stale: true };
+	configLookups.set(store, lookup);
+	const off = store.onMutation((event) => {
+		if (event.type === "shape:added" || event.type === "shape:removed") {
+			lookup.stale = true;
+		} else if (event.type === "shape:updated") {
+			if (event.payload.before?.type !== event.payload.after?.type) lookup.stale = true;
+		}
+	});
+	return () => {
+		off();
+		if (configLookups.get(store) === lookup) configLookups.delete(store);
+	};
 }
 
 /**

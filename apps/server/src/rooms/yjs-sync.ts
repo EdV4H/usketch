@@ -1,6 +1,14 @@
 /** Yjs updates バッファの管理と永続化 */
 
-import { compactUpdates } from "./update-compaction.js";
+import { readChunked, writeChunked } from "./chunked-storage.js";
+import { compactUpdates, parseLegacyUpdates } from "./update-compaction.js";
+
+/** ボードの Yjs 状態（バイナリ、分割保存）のキー。 */
+export const STATE_KEY = "yjs_state";
+/** 旧形式（全 update を JSON の数値配列で 1 キーに保存）のキー。読み込み時だけ使う。 */
+export const LEGACY_UPDATES_KEY = "yjs_updates";
+/** 保存に続けて失敗したとき、update を待たずに再試行する回数。 */
+export const MAX_SAVE_RETRIES = 3;
 
 // yjs を動的importするためのキャッシュ
 let yjsModule: typeof import("yjs") | null = null;
@@ -21,6 +29,12 @@ export function createYjsSync(deps: YjsSyncDeps) {
 	let loadPromise: Promise<void> | null = null;
 	let doc: import("yjs").Doc | null = null;
 	let saveScheduled = false;
+	/** 旧形式のキーが残っている（新形式で保存できたら消す） */
+	let legacyPresent = false;
+	/** 最後の保存より後に update が届いた */
+	let dirty = false;
+	/** 続けて失敗した保存の回数 */
+	let failures = 0;
 
 	/** storage から updates を復元（初回のみ、並行呼び出し安全） */
 	async function loadUpdates(): Promise<void> {
@@ -30,17 +44,21 @@ export function createYjsSync(deps: YjsSyncDeps) {
 			return;
 		}
 		loadPromise = (async () => {
-			const stored = await deps.storage.get<string>("yjs_updates");
-			if (stored) {
-				try {
-					const arr = JSON.parse(stored) as number[][];
-					for (const a of arr) {
-						updates.push(new Uint8Array(a));
-					}
-				} catch {
-					// 破損データは無視
-				}
+			// 読めなければ例外のまま返す（空のボードとして始めて上書きしないため）
+			const state = await readChunked(deps.storage, STATE_KEY);
+			// 新形式があればそれが最新。旧形式は移行前のボードだけが読む（大きいので）。
+			let restored: Uint8Array[];
+			if (state) {
+				restored = [state];
+				// 移行後に消し損ねた旧キーがあっても、次の保存で消す
+				legacyPresent = true;
+			} else {
+				const legacy = await deps.storage.get(LEGACY_UPDATES_KEY);
+				legacyPresent = legacy !== undefined;
+				restored = parseLegacyUpdates(legacy);
 			}
+			// 読み込み中に push された update を後ろに残す
+			updates = [...restored, ...updates];
 			loaded = true;
 		})();
 		try {
@@ -52,13 +70,26 @@ export function createYjsSync(deps: YjsSyncDeps) {
 	}
 
 	/**
-	 * バッファが閾値を超えていれば 1 件にマージする（無損失）。
-	 * マージ中に push された update は失わないよう、マージ対象の件数を先に固定する。
+	 * バッファを今の状態 1 件にまとめる（不要になった履歴は GC される）。
+	 * まとめている間に push された update は失わないよう、対象の件数を先に固定する。
 	 */
 	async function compact(): Promise<void> {
 		const count = updates.length;
 		const merged = await compactUpdates(updates.slice(0, count));
 		updates = [...merged, ...updates.slice(count)];
+	}
+
+	/** バッファをまとめて、今の状態を storage に永続化する */
+	async function save(): Promise<void> {
+		dirty = false;
+		await compact();
+		const [state] = updates;
+		if (!state) return;
+		await writeChunked(deps.storage, STATE_KEY, state);
+		if (legacyPresent) {
+			await deps.storage.delete(LEGACY_UPDATES_KEY);
+			legacyPresent = false;
+		}
 	}
 
 	/** updates を storage に永続化（デバウンス: 最大5秒ごと） */
@@ -68,13 +99,17 @@ export function createYjsSync(deps: YjsSyncDeps) {
 		setTimeout(() => {
 			void (async () => {
 				try {
-					await compact();
-					const data = updates.map((u) => Array.from(u));
-					await deps.storage.put("yjs_updates", JSON.stringify(data));
+					await save();
+					failures = 0;
 				} catch (e) {
+					failures++;
+					// 続けて失敗したら、次の update が届くまで再試行しない
+					if (failures < MAX_SAVE_RETRIES) dirty = true;
 					console.error("[BoardRoom] Failed to persist Yjs updates:", e);
 				} finally {
 					saveScheduled = false;
+					// 保存中に届いた update（または失敗した保存）をもう一度保存する
+					if (dirty) scheduleSave();
 				}
 			})();
 		}, 5000);
@@ -104,6 +139,7 @@ export function createYjsSync(deps: YjsSyncDeps) {
 	 */
 	function pushUpdate(update: Uint8Array): void {
 		updates.push(update);
+		dirty = true;
 	}
 
 	/** クライアントからの update を Y.Doc に適用。成功時 true、失敗時 false を返す */
@@ -142,5 +178,6 @@ export function createYjsSync(deps: YjsSyncDeps) {
 		getUpdates,
 		destroyDoc,
 		compact,
+		save,
 	};
 }

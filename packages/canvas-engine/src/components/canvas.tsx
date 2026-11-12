@@ -22,26 +22,62 @@ import { useTimeTravelShapes } from "../hooks/use-time-travel.js";
  * rendered. Mirrors `isEffectivelyHidden` in @edv4h/usketch-store (kept
  * dependency-free here since canvas-engine doesn't depend on the store).
  *
- * Memoized via the caller-provided `cache` (one per filtering pass) so siblings
- * reuse a parent's result — O(n) instead of O(n*depth) over a render pass. The
- * cache is pre-seeded to `false` before recursing, which also guards `parentId`
- * cycles.
+ * Only shapes with a parent go through the caller-provided `cache` (one per
+ * filtering pass) so siblings reuse a parent's result — O(n) instead of
+ * O(n*depth) over a render pass; a top-level shape is decided by its own flag
+ * without touching the cache. The cache is pre-seeded to `false` before
+ * recursing, which also guards `parentId` cycles.
  */
 function isEffectivelyHiddenInMap(
 	shapes: ReadonlyMap<string, ShapeData>,
 	shape: ShapeData,
 	cache: Map<string, boolean>,
 ): boolean {
+	if (shape.hidden === true) return true;
+	if (typeof shape.parentId !== "string") return false;
 	const cached = cache.get(shape.id);
 	if (cached !== undefined) return cached;
 	cache.set(shape.id, false); // cycle guard
-	let result = shape.hidden === true;
-	if (!result && typeof shape.parentId === "string") {
-		const parent = shapes.get(shape.parentId);
-		if (parent) result = isEffectivelyHiddenInMap(shapes, parent, cache);
-	}
+	const parent = shapes.get(shape.parentId);
+	const result = parent ? isEffectivelyHiddenInMap(shapes, parent, cache) : false;
 	cache.set(shape.id, result);
 	return result;
+}
+
+/**
+ * The shapes to render: `source` minus effectively-hidden shapes (self or any
+ * ancestor `hidden`) and, when given, shapes the feature filter `predicate`
+ * rejects. Map order is kept.
+ *
+ * When nothing is dropped — the usual case — `source` itself is returned, so a
+ * drag frame doesn't copy the whole board into a new Map. The copy is only made
+ * from the first dropped shape on.
+ */
+export function filterRenderShapes(
+	source: ReadonlyMap<string, ShapeData>,
+	predicate: ((shape: ShapeData) => boolean) | null,
+): ReadonlyMap<string, ShapeData> {
+	let filtered: Map<string, ShapeData> | null = null;
+	let kept = 0;
+	const hiddenCache = new Map<string, boolean>(); // memoize across this pass
+	for (const [id, shape] of source) {
+		const keep =
+			(!predicate || predicate(shape)) && !isEffectivelyHiddenInMap(source, shape, hiddenCache);
+		if (keep) {
+			if (filtered) filtered.set(id, shape);
+			else kept++;
+		} else if (!filtered) {
+			// First dropped shape: copy the `kept` shapes before it, then continue.
+			filtered = new Map();
+			if (kept > 0) {
+				for (const [keptId, keptShape] of source) {
+					filtered.set(keptId, keptShape);
+					if (filtered.size === kept) break;
+				}
+			}
+		}
+	}
+	return filtered ?? source;
 }
 
 /**
@@ -556,26 +592,17 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 	const filterPredicate = useFilterPredicate(app.events);
 	const timeTravelShapes = useTimeTravelShapes(app.events);
 
-	const filteredShapes = useMemo(() => {
-		// Source is the time-travel snapshot when active, otherwise the live shapes.
-		const source = timeTravelShapes ?? shapes;
-		// The plugin feature filter is a live-only concept; don't apply it to a
-		// historical snapshot.
-		const applyFeatureFilter = !timeTravelShapes && filterPredicate;
-		// Drop effectively-hidden shapes (self or any ancestor `hidden`) from every
-		// render path (dom/engine/gpu all read this via renderCtx.shapesSorted).
-		// Applied to both live and time-travel shapes since `hidden` is a core render
-		// primitive. Hidden shapes remain in the store, so a layers panel reading
-		// ctx.store can still list/toggle them.
-		const filtered = new Map<string, ShapeData>();
-		const hiddenCache = new Map<string, boolean>(); // memoize across this pass
-		for (const [id, shape] of source) {
-			if (applyFeatureFilter && !applyFeatureFilter(shape)) continue;
-			if (isEffectivelyHiddenInMap(source, shape, hiddenCache)) continue;
-			filtered.set(id, shape);
-		}
-		return filtered;
-	}, [shapes, filterPredicate, timeTravelShapes]);
+	const filteredShapes = useMemo(
+		() =>
+			// Source is the time-travel snapshot when active, otherwise the live shapes.
+			// The plugin feature filter is a live-only concept; don't apply it to a
+			// historical snapshot. Effectively-hidden shapes are dropped from every
+			// render path (dom/engine/gpu all read this via renderCtx.shapesSorted) for
+			// both — `hidden` is a core render primitive. Hidden shapes remain in the
+			// store, so a layers panel reading ctx.store can still list/toggle them.
+			filterRenderShapes(timeTravelShapes ?? shapes, timeTravelShapes ? null : filterPredicate),
+		[shapes, filterPredicate, timeTravelShapes],
+	);
 
 	const shapesSorted = useMemo(
 		() =>
@@ -623,7 +650,10 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 				position: "relative",
 				width: "100%",
 				height: "100%",
-				overflow: "hidden",
+				// `clip` (not `hidden`): a hidden box can still be scrolled by the browser
+				// (focus() / caret-into-view on a textarea near the edge), which shifts what
+				// is drawn while hit-testing keeps the unscrolled coordinates. Clip can't scroll.
+				overflow: "clip",
 				// `data-theme` による CSS 変数がある場合はそちらが効き、無い場合は従来の既定色にフォールバック
 				background: `var(--bg-canvas, ${DEFAULT_THEME.canvasBackground})`,
 				cursor: activeTool?.cursor ?? "default",
@@ -682,7 +712,9 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 							position: "absolute",
 							inset: 0,
 							pointerEvents: "none",
-							overflow: "hidden",
+							// `clip`, for the same reason as the container above: focusing a
+							// shape's editor near the edge must not scroll this layer.
+							overflow: "clip",
 						}}
 					>
 						<div

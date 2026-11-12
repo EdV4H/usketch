@@ -1,5 +1,45 @@
 # @edv4h/usketch-plugin-dashboard
 
+## 0.2.13
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-store@3.11.5
+
+## 0.2.12
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-store@3.11.4
+
+## 0.2.11
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-store@3.11.3
+
+## 0.2.10
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+  - @edv4h/usketch-store@3.11.2
+
+## 0.2.9
+
+### Patch Changes
+
+- bba8cf1: config（`dashboard-config`）の場所をプラグインが覚えておき、図形の追加・削除・型の変更があったときだけ探し直すようにした。これまではダッシュボードでないボードでも、図形の更新やパンのたびに全図形を走査していたため、ドラッグが「動かす図形数 × ボードの図形数」に比例して重くなっていた。公開 API・保存データの変更なし。
+- Updated dependencies [ca67108]
+  - @edv4h/usketch-store@3.11.1
+
 ## 0.2.8
 
 ### Patch Changes

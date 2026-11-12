@@ -4,8 +4,16 @@
 // camera. It is a view mode (editing is suspended while active), off by default,
 // and holds only per-viewer view state (never persisted as shapes). Toggle it via
 // the HUD "3Dビュー切替" action, the service, or an emitted `mode7:toggle` event.
-import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import { type PluginContext, type UsketchPlugin, view3dService } from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
+import {
+	createHeightDriver,
+	DEFAULT_HEIGHT_SPEED,
+	type HeightKeyConfig,
+	type HeightKeys,
+	resolveHeightKeys,
+	setupHeightKeys,
+} from "./mode7-height-keys.js";
 import {
 	CAPTURE_FRAME_LAYER_ID,
 	CAPTURE_LAYER_ID,
@@ -13,7 +21,7 @@ import {
 	SKY_LAYER_ID,
 	setupMode7Runtime,
 } from "./mode7-runtime.js";
-import { createMode7Api, mode7Service } from "./mode7-service.js";
+import { createMode7Api, createView3dApi, mode7Service } from "./mode7-service.js";
 import { createMode7Store, type Look } from "./mode7-store.js";
 import { createMode7Transition, type Mode7TransitionOptions } from "./mode7-transition.js";
 import { type Mode7Shortcuts, registerMode7Actions } from "./register-mode7-actions.js";
@@ -46,6 +54,14 @@ export interface Mode7PluginOptions {
 	/** Keyboard shortcut bindings (opt-in; no defaults). */
 	shortcuts?: Mode7Shortcuts;
 	/**
+	 * Keys that raise / lower the camera (`camera.height`) while held in the 3D view,
+	 * as `KeyboardEvent.code`s. Default Space = up, Shift = down; give either side to
+	 * rebind it, `false` to turn them off. Rebindable later via the service.
+	 */
+	heightKeys?: Partial<HeightKeys> | false;
+	/** How fast the height keys move the camera, screen px per second (default 480). */
+	heightSpeed?: number;
+	/**
 	 * Animate switching the view on/off: the ground rises from flat to `camera.pitch`
 	 * (and back) while the sky/fog fade. Default `durationMs: 0` = instant; with it
 	 * set, every switch (HUD, actions, `mode7:toggle`, service) animates unless a call
@@ -64,7 +80,18 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 		showCaptureFrame: options.showCaptureFrame,
 	});
 	const transition = createMode7Transition(store, options.transition);
-	const api = createMode7Api(store, transition);
+	// The board's zoom, once set up (the camera height is in world units, drawn × zoom).
+	let zoom = (): number => 1;
+	const heightKeys: HeightKeyConfig = {
+		keys: resolveHeightKeys(options.heightKeys),
+		speed:
+			options.heightSpeed !== undefined &&
+			Number.isFinite(options.heightSpeed) &&
+			options.heightSpeed >= 0
+				? options.heightSpeed
+				: DEFAULT_HEIGHT_SPEED,
+	};
+	const api = createMode7Api(store, transition, () => zoom(), heightKeys);
 	// Layers the picker must never tilt (tilting the HUD or our own overlays makes
 	// no sense and could hide the very controls used to turn the view off).
 	const excludedLayerIds = [
@@ -80,15 +107,25 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 		id: "usketch-plugin-mode7",
 		name: "Mode 7 (3D ビュー)",
 		setup(ctx: PluginContext) {
+			zoom = () => ctx.store.getViewport().zoom;
 			const stopRuntime = setupMode7Runtime(ctx, store, { depthLayerIds: options.depthLayerIds });
 			const stopActions = registerMode7Actions(ctx, api, options.shortcuts);
+			// A follower driving the height (view3dService) wins over the height keys.
+			const heightDriver = createHeightDriver();
+			const stopHeightKeys = setupHeightKeys(store, heightKeys, () => zoom(), heightDriver.active);
 			const stopHud = registerMode7Hud(ctx, api, store, excludedLayerIds);
 			// Provide the service LAST so a failed earlier step can't leak it.
 			const unprovideService = mode7Service.provide(ctx.services, api);
+			const unprovideView3d = view3dService.provide(
+				ctx.services,
+				createView3dApi(store, () => zoom(), heightDriver.mark),
+			);
 
 			return () => {
+				unprovideView3d();
 				unprovideService();
 				stopHud();
+				stopHeightKeys();
 				stopActions();
 				transition.dispose();
 				stopRuntime();

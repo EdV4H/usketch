@@ -1,5 +1,39 @@
 # @edv4h/usketch-plugin-presence-enhanced
 
+## 2.0.27
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+
+## 2.0.26
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+
+## 2.0.25
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+
+## 2.0.24
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+
+## 2.0.23
+
+### Patch Changes
+
+- f443c7f: カーソル移動など既存参加者の awareness 更新ではメンバー一覧（`/api/boards/:id/members`）を再取得しないようにした。参加者の増減時と 30 秒ごとのポーリングでは従来どおり再取得する。
+
 ## 2.0.22
 
 ### Patch Changes

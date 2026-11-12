@@ -33,6 +33,8 @@ export type {
 	CardTypeDefinition,
 	DeckMeta,
 	DeckShape,
+	DeckShuffleAnimation,
+	DeckShuffleRenderProps,
 	PlacementAnimation,
 	PlacementPreset,
 } from "./types.js";

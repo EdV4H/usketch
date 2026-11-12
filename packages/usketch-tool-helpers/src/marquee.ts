@@ -111,14 +111,16 @@ export function findShapesInRect(
 	const ids = new Set<string>();
 
 	for (const [id, data] of shapes) {
-		// Hidden or locked shapes (or those under a hidden/locked ancestor) never
-		// enter a marquee selection.
-		if (isEffectivelyHidden(ctx.store, data) || isEffectivelyLocked(ctx.store, data)) continue;
 		const def = ctx.shapes.get(data.type);
 		const bounds = def
 			? def.getBounds(data)
 			: { x: data.x, y: data.y, width: data.width, height: data.height };
 		if (!test(rect, bounds)) continue;
+		// Hidden or locked shapes (or those under a hidden/locked ancestor) never
+		// enter a marquee selection. Checked after the rect test so the ancestor
+		// walk only runs for shapes inside the marquee, not the whole board on
+		// every pointermove.
+		if (isEffectivelyHidden(ctx.store, data) || isEffectivelyLocked(ctx.store, data)) continue;
 
 		if (editingGroupId) {
 			if (data.parentId === editingGroupId) ids.add(id);

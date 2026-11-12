@@ -1,5 +1,43 @@
 # @edv4h/usketch-plugin-snap
 
+## 2.5.6
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-core@2.4.13
+
+## 2.5.5
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-core@2.4.12
+
+## 2.5.4
+
+### Patch Changes
+
+- Updated dependencies [abc7f44]
+  - @edv4h/usketch-shared@4.21.0
+  - @edv4h/usketch-core@2.4.11
+
+## 2.5.3
+
+### Patch Changes
+
+- Updated dependencies [df6edda]
+  - @edv4h/usketch-shared@4.20.0
+  - @edv4h/usketch-core@2.4.10
+
+## 2.5.2
+
+### Patch Changes
+
+- c59d98d: 複数図形をまとめてドラッグするとき、2 個目以降の図形ごとに選択全体の外接矩形を計算し直さないようにした。1 回のポインタ移動が選択数の 2 乗ではなく 1 乗に比例する処理になる（スナップ結果は同じ）。
+
 ## 2.5.1
 
 ### Patch Changes
