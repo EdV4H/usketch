@@ -1,5 +1,17 @@
 # @edv4h/usketch-sync
 
+## 1.4.0
+
+### Minor Changes
+
+- eb20881: マルチページのクライアント基盤（マルチページ PR2）。
+  
+  - `@edv4h/usketch-sync`: ルート doc の `pages` / `meta.pagesVersion` を扱う純関数（`listPages`・`createPage`・`initPagedBoard`・`isPagedBoard`・`resolvePageId`・`observePages` など）、ページ doc を手元保存とサーバー購読つきで開き直前のページを残す `createPageDocManager`、同じページの人だけを見せる awareness / broadcast の包み `createPageScopedProvider` を追加。
+  - `@edv4h/usketch-plugin-sync-localstorage-yjs`: `createYjsSync` に `persist: false`（保存はホストが持ち、doc の中身をすぐ store に入れる）を追加し、doc を IndexedDB に保存するだけの `persistDocToIndexedDb` を公開。
+  
+  `meta.pagesVersion` の無いボードはこれまでどおりルート doc の `shapes` を使う。
+- fff9073: ルート doc とは別の Y.Doc（ページ doc）を同じ WebSocket で同期できるようにした（マルチページの土台）。`WsProviderHandle.subscribeDoc(docId, doc)` で購読すると、state vector で差分だけを受け取り、ローカルの編集は `DOC_UPDATE` で送る。再接続時は自動で購読し直し、切断中の編集はサーバーに足りない分だけ送り返す。メッセージは `MSG_DOC_SUBSCRIBE` / `MSG_DOC_SYNC` / `MSG_DOC_UPDATE` / `MSG_DOC_UNSUBSCRIBE` と `encodeDocFrame` / `decodeDocFrame` / `isValidDocId` を追加。ルート doc 用の既存メッセージは変えていない。
+
 ## 1.3.0
 
 ### Minor Changes

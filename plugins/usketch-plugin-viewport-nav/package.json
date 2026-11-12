@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-viewport-nav",
-	"version": "2.2.13",
+	"version": "2.2.14",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

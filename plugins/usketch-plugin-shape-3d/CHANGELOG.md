@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-shape-3d
 
+## 0.3.3
+
+### Patch Changes
+
+- d61f1fc: The 3D layer checks a shape's size and position before sampling the terrain height for `groundFlat`, so shapes off screen or too small to draw no longer call `heightAt` on every frame of a 3D view. On a wide board over an infinite elevation terrain this stops the terrain's generated-chunk cache from being refilled every frame. What is drawn is unchanged.
+- Updated dependencies [b16cfe8]
+- Updated dependencies [d81aad4]
+  - @edv4h/usketch-shared@4.24.0
+  - @edv4h/usketch-dom-renderer@2.3.4
+
 ## 0.3.2
 
 ### Patch Changes

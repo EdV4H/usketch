@@ -1,5 +1,18 @@
 # @edv4h/usketch-shared
 
+## 4.24.0
+
+### Minor Changes
+
+- b16cfe8: Git 風のボード履歴の部品を追加。シェイプを正規化 JSON にして SHA-256 で content-address する `snapshotShapes` / `createBlob` / `createTree` / `createCommit`、ハッシュ比較だけで変化したシェイプを出す `diffTrees`、フィールド単位の `diffShapeFields`、過去の版に戻す編集を計算する `planRestore` と、それを BoardStore に適用する `applyRestorePlan` / 1 手で undo できる `createRestoreCommand` を公開する。Web Crypto だけに依存するので、ブラウザ・Workers・Node.js 19+ のどこでも同じハッシュになる。
+- d81aad4: Add `ctx.keymap` / `app.keymap`: one registry for every key binding, with overlap detection and rebinding. `ctx.shortcuts.register` and `ToolDefinition.shortcut` now register `"press"` bindings in it (attributed to the calling plugin), and plugins can declare `"hold"` keys (`KeyboardEvent.code`s) that they keep handling themselves, checking `keymap.claims(id, event)` first. When several bindings match one key, those whose `when()` holds and with the highest `priority` are the candidates, and a configurable conflict policy picks who acts: `"first"` (default; the plugin listed first in `createApp({ plugins })`), `"last"` (the plugin listed last), `"all"`, or a custom function. Set it with `createApp({ keymap: { conflictPolicy } })` or switch it at runtime with `keymap.setConflictPolicy`. `keymap.getConflicts()` lists the overlaps, and `createApp({ keymap: { warnConflicts: true } })` warns about them at startup. Hosts can replace defaults with `createApp({ keymap: { keys } })`, and viewers can rebind with `keymap.setKeys` / `resetKeys` (persist `getOverrides()` and pass it back as `keymap.overrides`).
+  
+  Combos: `Mod` is the platform accelerator, and hosts choose how it matches with `createApp({ keymap: { mod } })` — `"platform"` (default: Cmd on macOS, Ctrl elsewhere; on a Mac, Ctrl is a separate key) or `"either"` (Cmd and Ctrl both). Shifted symbols and digits also match by physical key (`Shift+1`, `Mod+Shift+]`), and `?` means `Shift+/`. Keys typed into an IME composition are ignored, and hosts can block bindings with `keymap.setGate`. The keyboard-shortcuts, shape-group and export plugins now register `Mod+…` instead of `Ctrl+…`, so they keep answering to Cmd on macOS.
+  
+  Behavior change: two plugins that register the same shortcut no longer overwrite each other (the later one used to win silently); both stay registered and the ranking above decides. Fixes: tool shortcuts now ignore Shift chords, so `Shift+S` (shuffle deck) no longer switches to the sticky-note tool; unregistering a shortcut that another registration with the same combo had replaced no longer removes the newer one.
+  
+  Settings UIs: bindings carry `customizable` (false = viewers can't rebind), `enabled()` (grey out an operation that can't run now, without changing who gets the key) and `order`, and a binding without `onPress` is listed only (shown and checked for overlaps while something else handles the key). `keymap.setOverrides` replaces all rebindings at once. `bindKeymapStorage(keymap, storage)` keeps the viewer's rebindings in a host-chosen `KeymapStorage` (`localStorageKeymapStorage` for localStorage, following other tabs). Headless helpers for key-settings panels and cheat sheets: `formatCombo` / `formatKeyCode` / `formatBindingKey` (⌃⌥⇧⌘ on macOS), `comboFromKeyEvent` (stores the accelerator as `mod`), `isReservedCombo`, `bindingsUsingKey`, `assignKey` (optionally taking the key from other bindings) and `unassignKey`.
+
 ## 4.23.0
 
 ### Minor Changes

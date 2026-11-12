@@ -1,5 +1,13 @@
 # @edv4h/usketch-plugin-shape-openui
 
+## 1.0.25
+
+### Patch Changes
+
+- Updated dependencies [b16cfe8]
+- Updated dependencies [d81aad4]
+  - @edv4h/usketch-shared@4.24.0
+
 ## 1.0.24
 
 ### Patch Changes
