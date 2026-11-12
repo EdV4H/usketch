@@ -335,4 +335,33 @@ describe("createKeyInput", () => {
 		for (const fns of dom.win.values()) expect(fns).toHaveLength(0);
 		for (const fns of dom.doc.values()) expect(fns).toHaveLength(0);
 	});
+	it("hands the next press to a capture instead of the character, even while off", () => {
+		const input = createKeyInput(DEFAULT_KEYS, () => false);
+		const got: string[] = [];
+		input.captureNextKey((code) => got.push(code));
+		const down = dom.fire("keydown", { code: "KeyQ", target: { tagName: "INPUT" } });
+		expect(got).toEqual(["KeyQ"]);
+		expect(down.stopImmediatePropagation).toHaveBeenCalled();
+		expect(dom.fire("keydown", { code: "KeyQ", repeat: true }).preventDefault).toHaveBeenCalled();
+		expect(dom.fire("keyup", { code: "KeyQ" }).preventDefault).toHaveBeenCalled();
+		// One press per capture.
+		dom.fire("keydown", { code: "KeyE" });
+		expect(got).toEqual(["KeyQ"]);
+		input.dispose();
+	});
+
+	it("takes a bound key from the character while capturing, and can be cancelled", () => {
+		const input = createKeyInput(DEFAULT_KEYS, () => true);
+		const got: string[] = [];
+		input.captureNextKey((code) => got.push(code));
+		dom.fire("keydown", { code: "KeyW" });
+		expect(input.read().up).toBe(false);
+		dom.fire("keyup", { code: "KeyW" });
+		const cancel = input.captureNextKey((code) => got.push(`late:${code}`));
+		cancel();
+		dom.fire("keydown", { code: "KeyW" });
+		expect(got).toEqual(["KeyW"]);
+		expect(input.read().up).toBe(true);
+		input.dispose();
+	});
 });

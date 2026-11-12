@@ -95,6 +95,7 @@ function sanitizeMotion(m: Partial<MotionParams>, base: MotionParams): MotionPar
 		maxStep: nonNegative(m.maxStep ?? base.maxStep, base.maxStep),
 		maxSlope: Math.min(89, nonNegative(m.maxSlope ?? base.maxSlope, base.maxSlope)),
 		slopeTilt: Number.isFinite(m.slopeTilt) ? clamp01(m.slopeTilt as number) : base.slopeTilt,
+		flatLift: Math.min(3, nonNegative(m.flatLift ?? base.flatLift, base.flatLift)),
 	};
 }
 
