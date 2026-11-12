@@ -75,7 +75,10 @@ export interface CharacterApi {
 	setKeys(keys: CharacterKeys, options?: { save?: boolean }): void;
 	/** The current key bindings. */
 	getKeys(): CharacterKeys;
-	/** The host's bindings (the plugin's `keys` option over the defaults). */
+	/**
+	 * The host's bindings (the plugin's `keys` option over the defaults, and the app's
+	 * `createApp({ keymap: { keys } })` for the `CHARACTER_KEY_IDS` bindings over those).
+	 */
 	getDefaultKeys(): CharacterKeys;
 	/** Back to {@link getDefaultKeys}, forgetting this viewer's saved bindings. */
 	resetKeys(): void;
@@ -110,7 +113,7 @@ export interface CharacterApi {
 export const characterService = defineService<CharacterApi>("usketch-plugin-character");
 
 export interface CharacterKeyConfig {
-	/** The host's bindings (what "reset" goes back to). */
+	/** @deprecated Unused: "reset" goes back to the keymap's defaults (`getDefaultKeys`). */
 	defaults: CharacterKeys;
 	/** Where a viewer's saved bindings live; `null` = not saved. */
 	storage: KeyStorage | null;
@@ -154,10 +157,10 @@ export function createCharacterApi(
 			if (options?.save) saveStoredKeys(keyConfig.storage, runtime.getKeys());
 		},
 		getKeys: () => runtime.getKeys(),
-		getDefaultKeys: () => keyConfig.defaults,
+		getDefaultKeys: () => runtime.getDefaultKeys(),
 		resetKeys() {
 			saveStoredKeys(keyConfig.storage, null);
-			runtime.setKeys(keyConfig.defaults);
+			runtime.setKeys(runtime.getDefaultKeys());
 		},
 		onKeysChange: (listener) => runtime.onKeysChange(listener),
 		captureNextKey: (onKey) => runtime.captureNextKey(onKey),

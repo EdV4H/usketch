@@ -25,8 +25,12 @@ export interface WindowSystemPluginOptions extends WindowDefaults {
 	 * service `enable()` / the HUD "ウィンドウ化" action.
 	 */
 	autoEnable?: boolean;
-	/** Keyboard shortcut overrides (combo string binds, `null` disables, omit keeps
-	 *  the default). Only arrow-based focus/move are bound by default. */
+	/**
+	 * Keyboard shortcut overrides (combo string binds, `null` disables, omit keeps
+	 * the default). Only arrow-based focus/move are bound by default.
+	 * @deprecated Use `createApp({ keymap: { keys } })` with the ids
+	 * `usketch-plugin-window-system:<action>`.
+	 */
 	shortcuts?: WindowShortcuts;
 }
 

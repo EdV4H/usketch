@@ -51,12 +51,16 @@ export interface Mode7PluginOptions {
 	depthLayerIds?: string[];
 	/** Start with the flat-mode capture-frame overlay shown (default `false`). */
 	showCaptureFrame?: boolean;
-	/** Keyboard shortcut bindings (opt-in; no defaults). */
+	/**
+	 * Keyboard shortcut bindings (opt-in; no defaults).
+	 * @deprecated Use `createApp({ keymap: { keys } })` with the ids `usketch-plugin-mode7:<action>`.
+	 */
 	shortcuts?: Mode7Shortcuts;
 	/**
 	 * Keys that raise / lower the camera (`camera.height`) while held in the 3D view,
 	 * as `KeyboardEvent.code`s. Default Space = up, Shift = down; give either side to
-	 * rebind it, `false` to turn them off. Rebindable later via the service.
+	 * rebind it, `false` to turn them off. These are the defaults of the keymap bindings
+	 * `HEIGHT_KEY_IDS`, which hosts can also set with `createApp({ keymap: { keys } })`.
 	 */
 	heightKeys?: Partial<HeightKeys> | false;
 	/** How fast the height keys move the camera, screen px per second (default 480). */
@@ -112,7 +116,14 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 			const stopActions = registerMode7Actions(ctx, api, options.shortcuts);
 			// A follower driving the height (view3dService) wins over the height keys.
 			const heightDriver = createHeightDriver();
-			const stopHeightKeys = setupHeightKeys(store, heightKeys, () => zoom(), heightDriver.active);
+			const stopHeightKeys = setupHeightKeys(
+				store,
+				heightKeys,
+				() => zoom(),
+				heightDriver.active,
+				// Older hosts have no keymap (the keys then work as before).
+				(ctx as Partial<PluginContext>).keymap ?? null,
+			);
 			const stopHud = registerMode7Hud(ctx, api, store, excludedLayerIds);
 			// Provide the service LAST so a failed earlier step can't leak it.
 			const unprovideService = mode7Service.provide(ctx.services, api);

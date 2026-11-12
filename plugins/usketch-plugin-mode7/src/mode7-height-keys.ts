@@ -1,12 +1,22 @@
 // Hold-to-fly camera height: while the 3D view is on, holding an "up" key raises
 // `camera.height` and a "down" key lowers it, at a steady on-screen speed. Keys are
-// `KeyboardEvent.code`s (layout-independent), Space / Shift by default, and the host
-// can rebind or turn them off. While something drives the height itself (e.g. a followed
-// character via `view3dService.setCameraHeight`) the keys leave it alone — else the two
-// would tug the camera back and forth every frame (a shaking view); a plugin that
-// handles the same key first (the character's jump on Space stops the
-// event in the capture phase) keeps it.
+// `KeyboardEvent.code`s (layout-independent), Space / Shift by default. They are `"hold"`
+// bindings in the app's keymap (HEIGHT_KEY_IDS), so hosts and viewers rebind them there
+// and the keymap decides who gets a shared key: the bindings only count while the view
+// is on and nothing else drives the height (e.g. a followed character via
+// `view3dService.setCameraHeight` — else the two would tug the camera back and forth
+// every frame), and sit below the character's keys (its jump on Space wins).
+import type { Keymap } from "@edv4h/usketch-shared";
 import type { Mode7Store } from "./mode7-store.js";
+
+/** Keymap ids of the height keys (rebind with `keymap.setKeys(id, codes)`). */
+export const HEIGHT_KEY_IDS = {
+	up: "usketch-plugin-mode7:camera-up",
+	down: "usketch-plugin-mode7:camera-down",
+} as const;
+
+/** Keymap priority of the height keys: above tool shortcuts (0), below the character's keys. */
+export const HEIGHT_KEY_PRIORITY = 10;
 
 /** Which keys move the camera up / down (`KeyboardEvent.code`). */
 export interface HeightKeys {
@@ -96,10 +106,12 @@ function usesKeys(target: EventTarget | null): boolean {
 
 /** The live settings, owned by the plugin (the service edits them, the listener reads them). */
 export interface HeightKeyConfig {
-	/** `null` = off. */
+	/** `null` = off. With a keymap, kept in step with its bindings. */
 	keys: HeightKeys | null;
 	/** Screen px per second. */
 	speed: number;
+	/** Set by {@link setupHeightKeys} with a keymap: rebind there (what the service calls). */
+	rebind?: (keys: HeightKeys | null) => void;
 }
 
 /** Normalize host input: `false` / `null` = off, a partial set falls back per direction. */
@@ -113,14 +125,20 @@ export function resolveHeightKeys(
 	};
 }
 
-/** Listen for the height keys; returns a teardown. */
+/**
+ * Listen for the height keys; returns a teardown. With a keymap (`ctx.keymap`) the keys
+ * are registered there (`config.keys` as their defaults) and only taken when the keymap
+ * gives them to us; without one (an older host) they are taken whenever the view is on.
+ */
 export function setupHeightKeys(
 	store: Mode7Store,
 	config: HeightKeyConfig,
 	zoom: () => number,
 	/** Whether something else drives the height now (the keys then leave it alone). */
 	driven: () => boolean = () => false,
+	keymap: Keymap | null = null,
 ): () => void {
+	const offKeymap = keymap ? bindHeightKeys(keymap, store, config, driven) : null;
 	const held = new Set<string>();
 	let raf: number | null = null;
 	let last: number | null = null;
@@ -152,13 +170,18 @@ export function setupHeightKeys(
 		}
 	};
 
-	const isKey = (code: string): boolean => {
+	const isKey = (e: KeyboardEvent): boolean => {
+		if (keymap) {
+			return keymap
+				.resolveAll(e)
+				.some((b) => b.id === HEIGHT_KEY_IDS.up || b.id === HEIGHT_KEY_IDS.down);
+		}
 		const keys = config.keys;
-		return !!keys && (keys.up.includes(code) || keys.down.includes(code));
+		return !!keys && (keys.up.includes(e.code) || keys.down.includes(e.code));
 	};
 
 	const onKeyDown = (e: KeyboardEvent): void => {
-		if (!isKey(e.code) || !store.getState().active) return;
+		if (!store.getState().active || !isKey(e)) return;
 		if (e.ctrlKey || e.metaKey || e.altKey) return;
 		if (usesKeys(e.target)) return;
 		held.add(e.code);
@@ -175,8 +198,8 @@ export function setupHeightKeys(
 
 	const hasWindow = typeof window !== "undefined";
 	if (hasWindow) {
-		// Bubble phase: a plugin that owns the key (capture phase + stopImmediatePropagation,
-		// like the character's jump) wins.
+		// Bubble phase: a plugin that takes the key in the capture phase and stops it (the
+		// character does, for listeners not on the keymap) keeps it there too.
 		window.addEventListener("keydown", onKeyDown);
 		window.addEventListener("keyup", onKeyUp);
 		window.addEventListener("blur", clear);
@@ -186,6 +209,7 @@ export function setupHeightKeys(
 	});
 
 	return () => {
+		offKeymap?.();
 		offStore();
 		clear();
 		if (raf !== null && typeof cancelAnimationFrame === "function") cancelAnimationFrame(raf);
@@ -195,5 +219,50 @@ export function setupHeightKeys(
 			window.removeEventListener("keyup", onKeyUp);
 			window.removeEventListener("blur", clear);
 		}
+	};
+}
+
+/** Register the height keys in `keymap` and keep `config.keys` in step. Returns a teardown. */
+function bindHeightKeys(
+	keymap: Keymap,
+	store: Mode7Store,
+	config: HeightKeyConfig,
+	driven: () => boolean,
+): () => void {
+	const when = (): boolean => store.getState().active && !driven();
+	const defaults = config.keys;
+	const offs = (["up", "down"] as const).map((dir, order) =>
+		keymap.register({
+			id: HEIGHT_KEY_IDS[dir],
+			kind: "hold",
+			keys: [...(defaults?.[dir] ?? [])],
+			label: dir === "up" ? "カメラを上げる" : "カメラを下げる",
+			category: "Mode 7 (3D)",
+			order,
+			priority: HEIGHT_KEY_PRIORITY,
+			when,
+		}),
+	);
+	const sync = (): void => {
+		const up = keymap.getKeys(HEIGHT_KEY_IDS.up);
+		const down = keymap.getKeys(HEIGHT_KEY_IDS.down);
+		config.keys = up.length === 0 && down.length === 0 ? null : { up: [...up], down: [...down] };
+	};
+	sync();
+	const offSubscribe = keymap.subscribe(sync);
+	config.rebind = (keys) => {
+		for (const dir of ["up", "down"] as const) {
+			const id = HEIGHT_KEY_IDS[dir];
+			const want = keys ? [...keys[dir]] : [];
+			const def = keymap.get(id)?.defaultKeys ?? [];
+			if (want.join() === def.join()) keymap.resetKeys(id);
+			else keymap.setKeys(id, want);
+		}
+	};
+	return () => {
+		delete config.rebind;
+		offSubscribe();
+		for (const off of offs) off();
+		config.keys = defaults;
 	};
 }

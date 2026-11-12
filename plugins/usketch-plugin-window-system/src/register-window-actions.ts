@@ -42,6 +42,8 @@ export type WindowActionKey =
 /**
  * Host shortcut overrides: a combo string binds the action (replacing any
  * default), `null` disables it, and omitting a key keeps the built-in default.
+ * @deprecated Use the keymap ids `usketch-plugin-window-system:<key>` with
+ * `createApp({ keymap: { keys } })` (`null` unbinds).
  */
 export type WindowShortcuts = Partial<Record<WindowActionKey, string | null>>;
 
@@ -175,10 +177,27 @@ export function registerWindowActions(
 				...(a.isEnabled ? { isEnabled: a.isEnabled } : {}),
 			}),
 		);
-		// Path 3 — keyboard: default (arrows) unless overridden; `null` disables.
+		// Path 3 — keyboard: default (arrows) unless overridden; `null` disables. Every
+		// action is a keymap binding `usketch-plugin-window-system:<key>` (unbound ones
+		// too, for key settings), taking its keys only on a window board.
 		const override = shortcuts[a.key];
 		const combo = override === undefined ? DEFAULT_SHORTCUTS[a.key] : override;
-		if (combo) {
+		const keymap = (ctx as Partial<PluginContext>).keymap;
+		if (keymap) {
+			teardowns.push(
+				keymap.register({
+					id: `usketch-plugin-window-system:${a.key}`,
+					keys: combo ? [combo] : [],
+					label: a.label,
+					category: GROUP,
+					order: a.order,
+					...(a.key === "enable" ? {} : { when: board }),
+					...(a.isEnabled ? { enabled: a.isEnabled } : {}),
+					onPress: () => a.run(),
+				}),
+			);
+		} else if (combo) {
+			// Older hosts without a keymap.
 			teardowns.push(
 				ctx.shortcuts.register(combo, () => a.run(), { label: a.label, category: GROUP }),
 			);
