@@ -11,6 +11,43 @@ export type { AppInstance, CreateAppOptions } from "./create-app.js";
 export { createApp } from "./create-app.js";
 export { createEventBus } from "./event-bus.js";
 export { createExternalContentRegistry } from "./external-content-registry.js";
+export {
+	type ComboOptions,
+	type CreateKeymapOptions,
+	codeToKey,
+	createKeymap,
+	describeConflicts,
+	eventToCombo,
+	eventToCombos,
+	type KeymapInternal,
+	type KeymapOwner,
+	type ModKeyMode,
+	normalizeCombo,
+	scopeKeymap,
+} from "./keymap.js";
+export {
+	bindKeymapStorage,
+	type KeymapOverrides,
+	type KeymapStorage,
+	type LocalStorageKeymapStorageOptions,
+	localStorageKeymapStorage,
+	parseKeymapOverrides,
+} from "./keymap-storage.js";
+export {
+	type AssignKeyOptions,
+	type AssignKeyResult,
+	assignKey,
+	bindingsUsingKey,
+	comboFromKeyEvent,
+	DEFAULT_RESERVED_COMBOS,
+	type FormatComboOptions,
+	formatBindingKey,
+	formatCombo,
+	formatKeyCode,
+	isReservedCombo,
+	type ReservedComboOptions,
+	unassignKey,
+} from "./keymap-ui.js";
 export { createLayerManager } from "./layer-manager.js";
 export type { CreateLodControllerOptions, LodControllerInternal } from "./lod/index.js";
 export {

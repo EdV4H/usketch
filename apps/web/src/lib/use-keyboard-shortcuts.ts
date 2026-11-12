@@ -2,7 +2,8 @@ import type { AppInstance } from "@edv4h/usketch-core";
 import { useEffect } from "react";
 
 /**
- * ツールショートカットとキーボードショートカットのハンドリングを統一するhook。
+ * ツールショートカットとキーボードショートカット（どちらも app.keymap に登録済み）を
+ * 処理するhook。
  * app.tsx と community.tsx で共通利用。
  * `disabled=true` でショートカット全般を停止 (例: 発表モード中)。
  */
@@ -26,19 +27,8 @@ export function useKeyboardShortcuts(app: AppInstance | null, disabled = false) 
 			if (isInput) {
 				return;
 			}
-			const tools = app.tools.getAll();
-			for (const [id, def] of tools) {
-				if (
-					def.shortcut &&
-					e.key.toLowerCase() === def.shortcut.toLowerCase() &&
-					!e.ctrlKey &&
-					!e.metaKey &&
-					!e.altKey
-				) {
-					app.store.setActiveToolId(id);
-					return;
-				}
-			}
+			// ツールのショートカット（ToolDefinition.shortcut）もキーマップに入っているので、
+			// 同じキーの重なりは keymap が when / priority / プラグイン順で 1 つに決める。
 			app.shortcuts.handleKeyDown(e);
 		};
 

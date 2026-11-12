@@ -45,9 +45,17 @@ export interface Mode7Api {
 	 * mountain keeps it in view. A follower sets it every frame (ease it yourself).
 	 */
 	setHeight(height: number): void;
-	/** The keys that raise / lower the camera while held (`KeyboardEvent.code`), or `null` (off). */
+	/**
+	 * The keys that raise / lower the camera while held (`KeyboardEvent.code`), or `null` (off).
+	 * @deprecated Read the keymap: `keymap.getKeys(HEIGHT_KEY_IDS.up)` / `.down`.
+	 */
 	getHeightKeys(): HeightKeys | null;
-	/** Rebind the height keys; `null` turns them off. */
+	/**
+	 * Rebind the height keys; `null` turns them off. With a keymap this rebinds its
+	 * bindings for the viewer.
+	 * @deprecated Use the keymap: `keymap.setKeys(HEIGHT_KEY_IDS.up, codes)`, or the host's
+	 * `createApp({ keymap: { keys } })`.
+	 */
 	setHeightKeys(keys: HeightKeys | null): void;
 	/** How fast the height keys move the camera, screen px per second. */
 	getHeightSpeed(): number;
@@ -117,7 +125,8 @@ export function createMode7Api(
 		setHeight: (height) => store.setCamera({ height }),
 		getHeightKeys: () => heightKeys.keys,
 		setHeightKeys: (keys) => {
-			heightKeys.keys = keys ? { up: [...keys.up], down: [...keys.down] } : null;
+			if (heightKeys.rebind) heightKeys.rebind(keys);
+			else heightKeys.keys = keys ? { up: [...keys.up], down: [...keys.down] } : null;
 		},
 		getHeightSpeed: () => heightKeys.speed,
 		setHeightSpeed: (pxPerSecond) => {

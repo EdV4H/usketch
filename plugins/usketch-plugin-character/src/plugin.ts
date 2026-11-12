@@ -104,10 +104,13 @@ export function createCharacterPlugin(options: CharacterPluginOptions = {}): Usk
 			});
 			const defaultKeys: CharacterKeys = { ...DEFAULT_KEYS, ...options.keys };
 			const keyStorage = options.saveKeys === false ? null : defaultKeyStorage();
+			// The host's keys are the bindings' defaults; this viewer's saved ones go on top.
 			const runtime = setupCharacterRuntime(ctx, store, {
-				keys: loadStoredKeys(keyStorage, defaultKeys) ?? defaultKeys,
+				keys: defaultKeys,
 				awareness: options.wsProvider?.awareness,
 			});
+			const storedKeys = loadStoredKeys(keyStorage, defaultKeys);
+			if (storedKeys) runtime.setKeys(storedKeys);
 			const api = createCharacterApi(store, runtime, {
 				defaults: defaultKeys,
 				storage: keyStorage,

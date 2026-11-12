@@ -9,6 +9,8 @@ export {
 export {
 	DEFAULT_HEIGHT_KEYS,
 	DEFAULT_HEIGHT_SPEED,
+	HEIGHT_KEY_IDS,
+	HEIGHT_KEY_PRIORITY,
 	type HeightKeys,
 	heightStep,
 } from "./mode7-height-keys.js";

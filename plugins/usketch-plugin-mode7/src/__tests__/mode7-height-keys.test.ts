@@ -1,8 +1,11 @@
+import { createKeymap } from "@edv4h/usketch-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	createHeightDriver,
 	DEFAULT_HEIGHT_KEYS,
 	HEIGHT_DRIVER_HOLD_MS,
+	HEIGHT_KEY_IDS,
+	type HeightKeyConfig,
 	heightStep,
 	resolveHeightKeys,
 	setupHeightKeys,
@@ -109,6 +112,52 @@ describe("setupHeightKeys", () => {
 		expect(key("keydown", "Space").defaultPrevented).toBe(false);
 		expect(frames.length).toBe(0);
 		stop();
+	});
+	it("with a keymap: registers hold bindings and takes a key only when it wins", () => {
+		const { key, run } = harness();
+		const keymap = createKeymap();
+		const store = createMode7Store({ active: true });
+		const config: HeightKeyConfig = { keys: DEFAULT_HEIGHT_KEYS, speed: 480 };
+		let driven = false;
+		const stop = setupHeightKeys(
+			store,
+			config,
+			() => 1,
+			() => driven,
+			keymap,
+		);
+		expect(keymap.get(HEIGHT_KEY_IDS.up)).toMatchObject({
+			kind: "hold",
+			defaultKeys: ["Space"],
+		});
+
+		// A binding above ours (the character's jump) keeps Space.
+		const offJump = keymap.register({ id: "jump", kind: "hold", keys: ["Space"], priority: 20 });
+		expect(key("keydown", "Space").defaultPrevented).toBe(false);
+		offJump();
+
+		// While a follower drives the height, the keys aren't ours.
+		driven = true;
+		expect(key("keydown", "Space").defaultPrevented).toBe(false);
+		driven = false;
+
+		// Rebinding in the keymap (or through the service's rebind) moves the key.
+		keymap.setKeys(HEIGHT_KEY_IDS.up, ["KeyE"]);
+		expect(config.keys?.up).toEqual(["KeyE"]);
+		expect(key("keydown", "Space").defaultPrevented).toBe(false);
+		expect(key("keydown", "KeyE").defaultPrevented).toBe(true);
+		run(0);
+		run(50);
+		expect(store.getState().camera.height).toBeCloseTo(24, 6);
+		key("keyup", "KeyE");
+		config.rebind?.(DEFAULT_HEIGHT_KEYS);
+		expect(keymap.getOverrides()).toEqual({});
+		config.rebind?.(null);
+		expect(config.keys).toBeNull();
+
+		stop();
+		expect(keymap.get(HEIGHT_KEY_IDS.up)).toBeUndefined();
+		expect(config.rebind).toBeUndefined();
 	});
 });
 

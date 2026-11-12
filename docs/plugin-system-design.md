@@ -170,11 +170,31 @@ interface PluginContext {
   tools: ToolRegistry                      // ツール登録
   shapes: ShapeRegistry                    // シェイプ登録
   commands: CommandRegistry                // コマンド登録（undo/redo対応）
-  shortcuts: ShortcutRegistry              // キーボードショートカット登録
+  shortcuts: ShortcutRegistry              // キーボードショートカット登録（keymap の互換レイヤー）
+  keymap: Keymap                           // 全キーバインド + 競合検知・付け替え
   events: EventBus                         // プラグイン間イベント通信
   transient: TransientRegistry             // 一時オブジェクト管理（コア組み込み）
 }
 ```
+
+### 3.1.1 キーバインドとプラグイン間のキー競合（keymap）
+
+複数のプラグインが同じキーを既定に持つと衝突する。キーは **すべて `ctx.keymap` に登録**し、持ち主のプラグインつきで 1 か所から見えるようにする。
+
+- `ctx.shortcuts.register(combo, cb, meta)` と `ToolDefinition.shortcut` は内部で keymap の `"press"` binding になる（id は `<pluginId>:shortcut:<combo>` / `<pluginId>:tool:<toolId>`、`meta.id` で固定 id を付けられる）。
+- 押しっぱなしで使うキー（キャラの移動、Mode 7 のカメラ高さなど）は `ctx.keymap.register({ id, kind: "hold", keys: [code…], when })` で宣言し、keydown / keyup は今までどおりプラグインが処理する。処理する前に `ctx.keymap.claims(id, event)` で自分のキーか確かめ、今のキーは `ctx.keymap.getKeys(id)` で読む。**window の keydown を直接見るだけのキー割り当ては作らない**。
+- 同じキーに複数の binding が効くときは、`when()` が true のものだけを候補にし、`priority` が高いものを先にしたうえで、**振り分けルール（`KeyConflictPolicy`）** で決める。`createApp({ keymap: { conflictPolicy } })` で指定し、`keymap.setConflictPolicy()` で実行中にも切り替えられる。
+  - `"first"`（既定）: `createApp({ plugins })` で先に並んだプラグインの 1 つだけ（ホスト / コアが直接登録したものはどのプラグインより先）。
+  - `"last"`: 後に並んだプラグインの 1 つだけ（後から入れたプラグインが上書き）。
+  - `"all"`: 当てはまるもの全部。
+  - 関数 `(candidates, event) => KeyBinding[]`: 候補（`"first"` の順）から動かすものを返す。
+- コンボの書き方: `Mod` はプラットフォームのアクセラレータ。`createApp({ keymap: { mod } })` で `"platform"`（既定。mac は ⌘ だけ、他は Ctrl）か `"either"`（⌘ と Ctrl のどちらでも）を選ぶ。**Ctrl / Cmd を意味するショートカットは `Ctrl+` ではなく `Mod+` で書く**（`Ctrl+` は mac では物理の Ctrl キー）。Shift / Alt つきの記号・数字は物理キー（`KeyboardEvent.code`）でも照合するので `Shift+1` や `Mod+Shift+]` と書ける。`?` は `Shift+/` の別名。
+- ホストのゲート: `createApp({ keymap: { gate } })` / `keymap.setGate((binding, event) => boolean)` で、ダイアログ表示中・インライン編集中・制限モードなどに binding をまとめて止める（`"hold"` の `claims` も false になる）。IME の変換中のキーは keymap が無視する。
+- `keymap.getConflicts()` で重なりの一覧（勝つ順）が取れる。`createApp({ keymap: { warnConflicts: true } })` で起動時に `console.warn` する（apps/web は開発時のみ ON）。
+- 解消: ホストは `createApp({ keymap: { keys: { [id]: keys | null } } })` で既定を差し替え、閲覧者は `keymap.setKeys(id, keys | null)` / `resetKeys(id?)` で付け替える（`getOverrides()` を保存し、次回 `createApp({ keymap: { overrides } })` に渡す）。
+- 保存先はホストが決める。`bindKeymapStorage(keymap, storage)` が `KeymapStorage`（`load` / `save` / 任意の `subscribe`）と keymap を同期する（起動時に読み込み、付け替えたときだけ保存、別タブの変更に追従）。localStorage なら `localStorageKeymapStorage({ key })`。
+- binding のメタ情報: `label` / `category` / `order`（設定画面の並び）、`customizable: false`（閲覧者が付け替えられない）、`enabled()`（今実行できるか。設定画面やチートシートでグレーアウトするだけで、キーの取り合いには影響しない）。`onPress` を省くと「一覧に出すだけ」の binding になる（貼り付けのようにブラウザのイベントで処理するキーを、重なりの検知と設定画面に載せる）。
+- 設定画面・チートシート向けの純関数（DOM / React なし）: `formatCombo`（mac は ⌃⌥⇧⌘ 記号）/ `formatKeyCode` / `formatBindingKey`、`comboFromKeyEvent`（押したキーを保存用のコンボに。アクセラレータは `mod` で保存するので OS をまたいでも同じ）、`isReservedCombo`（修飾キーだけ・ブラウザ予約の `Mod+W` など）、`bindingsUsingKey`、`assignKey(keymap, id, key, { slot, steal })` / `unassignKey`。HUD のキー設定パネルもこれを使う。
 
 ### 3.2 ツールプラグイン
 

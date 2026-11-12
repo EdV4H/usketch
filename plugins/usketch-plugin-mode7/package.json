@@ -42,6 +42,7 @@
 		"url": "https://github.com/EdV4H/usketch/issues"
 	},
 	"devDependencies": {
+		"@edv4h/usketch-core": "workspace:*",
 		"@types/react": "19.3.0",
 		"typescript": "7.0.2",
 		"vitest": "5.1.0"

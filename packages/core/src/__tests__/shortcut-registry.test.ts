@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { createShortcutRegistry } from "../shortcut-registry.js";
+import { createKeymap } from "../keymap.js";
+import { createShortcutRegistry as createRegistry } from "../shortcut-registry.js";
+
+/** Cmd and Ctrl both act as `Mod` (the `"either"` mode), so one test covers both. */
+const createShortcutRegistry = () => createRegistry(createKeymap({ mod: "either" }));
 
 /** Build a minimal KeyboardEvent-like object (handleKeyDown only reads these). */
 function keyEvent(

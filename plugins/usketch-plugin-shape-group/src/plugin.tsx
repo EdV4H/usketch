@@ -85,9 +85,9 @@ export function createGroupPlugin(): UsketchPlugin {
 			}
 
 			// Ctrl+G (Cmd+G on Mac) to group
-			ctx.shortcuts.register("Ctrl+g", groupSelected);
+			ctx.shortcuts.register("Mod+g", groupSelected);
 			// Ctrl+Shift+G (Cmd+Shift+G on Mac) to ungroup
-			ctx.shortcuts.register("Ctrl+Shift+g", ungroupSelected);
+			ctx.shortcuts.register("Mod+Shift+g", ungroupSelected);
 
 			// Control HUD からもグループ操作できるよう action 化（選択状態で活性）。
 			const selectionHasGroup = () => {
