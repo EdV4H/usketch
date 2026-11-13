@@ -1,5 +1,6 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import type * as Y from "yjs";
+import { watchMovedOutShapes } from "./page-transfer.js";
 import { createPagesApi } from "./pages-api.js";
 import type { OpenPageDoc } from "./pages-ops.js";
 import { PagesPanel } from "./pages-panel.js";
@@ -15,7 +16,10 @@ export interface PagesPluginOptions {
 	pageId: string;
 	/** ページを切り替える（ホストが URL の `?page=` を変えて開き直す）。 */
 	switchPage: (pageId: string) => void;
-	/** ページ doc を開く（ホストの page-doc manager の `open`）。無ければ複製を出さない。 */
+	/**
+	 * ページ doc を開く（ホストの page-doc manager の `open`）。無ければ複製と、
+	 * シェイプを別のページへ移す・コピーする操作を出さない。
+	 */
 	openPageDoc?: OpenPageDoc;
 }
 
@@ -47,7 +51,7 @@ export function createPagesPlugin(options: PagesPluginOptions): UsketchPlugin {
 				ctx.hud.registerPanel({
 					id: `${PAGES_PLUGIN_ID}:panel`,
 					title: "ページ",
-					render: () => <PagesPanel api={api} />,
+					render: () => <PagesPanel api={api} store={ctx.store} />,
 				}),
 				ctx.actions.register({
 					id: "pages:new",
@@ -87,6 +91,21 @@ export function createPagesPlugin(options: PagesPluginOptions): UsketchPlugin {
 						},
 					}),
 				);
+			}
+
+			// 別のページへ移したシェイプが同時編集で戻ってきたら消す（movedOut の印を見る）
+			if (options.openPageDoc) {
+				const handle = options.openPageDoc(options.pageId);
+				let stopWatching: (() => void) | null = null;
+				let disposed = false;
+				void handle.whenLoaded.then(() => {
+					if (!disposed) stopWatching = watchMovedOutShapes(handle.doc);
+				});
+				cleanups.push(() => {
+					disposed = true;
+					stopWatching?.();
+					handle.release();
+				});
 			}
 
 			// 発表モードの PageUp / PageDown と重ならないよう Alt を付ける

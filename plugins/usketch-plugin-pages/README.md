@@ -23,4 +23,14 @@ getPagesApi(app.services)?.create({ open: true });
 ページ一覧の読み書きは `@edv4h/usketch-sync` の純関数（`createPage` / `renamePage` / `reorderPage` / `deletePage` / `restorePage`）、
 ページの複製は `duplicatePage(root, pageId, openPageDoc)` でも行える。
 
+## シェイプを別のページへ移す・コピーする
+
+ページパネルの「選択中の N 個を別のページへ」で、選んだシェイプを別のページへ移す・コピーする。子シェイプと、両端が含まれるコネクタも一緒に動く。移さなかったものへの参照（親・コネクタの端）は外れる。
+
+```ts
+await getPagesApi(app.services)?.moveShapes(["shape-id"], "page-id", { open: true });
+```
+
+純関数は `moveShapesToPage(fromDoc, toDoc, ids, toPageId)` / `copyShapesToPage(fromDoc, toDoc, ids)`。移したシェイプは移動元のページ doc の `movedOut` に印が残り、同時編集で移動元に戻ってきたものはプラグインが消す。
+
 既存のボードをページ形式へ移す手順（自前のサーバーを持つ利用先向け）は、ドキュメントの [マルチページへの移行](https://edv4h.github.io/usketch/docs/ja/guides/multi-page-migration/) を参照。

@@ -125,4 +125,63 @@ describe("defaultPortalBox", () => {
 		expect(b.x).toBeLessThan(a.x);
 		expect(b.y).toBeGreaterThan(a.y);
 	});
+
+	it("マルチページ: 今のページのポータルだけを出し、新しいものにページを記録する", () => {
+		const { store: storage } = memStorage();
+		const doc = new Y.Doc();
+		// ページより前に作ったポータル（pageId なし）
+		const before = createPortalStore({ doc, userId: "u1", boardId: "b1", storage });
+		before.add("old", box);
+		before.add("old-shared", box, true);
+		before.destroy();
+
+		const p1 = createPortalStore({
+			doc,
+			userId: "u1",
+			boardId: "b1",
+			storage,
+			pageId: "p1",
+			legacyPageId: "p1",
+		});
+		expect(
+			p1
+				.getAll()
+				.map((i) => i.entry.shapeId)
+				.sort(),
+		).toEqual(["old", "old-shared"]);
+		const onP1 = p1.add("a", box, true);
+		expect(onP1.pageId).toBe("p1");
+		p1.destroy();
+
+		const p2 = createPortalStore({
+			doc,
+			userId: "u1",
+			boardId: "b1",
+			storage,
+			pageId: "p2",
+			legacyPageId: "p1",
+		});
+		expect(p2.getAll()).toEqual([]);
+		p2.add("b", box);
+		expect(p2.getAll().map((i) => i.entry.shapeId)).toEqual(["b"]);
+		// 消すのは今のページの個人ポータルだけ
+		p2.clearPrivate();
+		expect(p2.getAll()).toEqual([]);
+		p2.destroy();
+
+		const again = createPortalStore({
+			doc,
+			userId: "u1",
+			boardId: "b1",
+			storage,
+			pageId: "p1",
+			legacyPageId: "p1",
+		});
+		expect(
+			again
+				.getAll()
+				.map((i) => i.entry.shapeId)
+				.sort(),
+		).toEqual(["a", "old", "old-shared"]);
+	});
 });

@@ -1,3 +1,4 @@
+import type { BoardStore } from "@edv4h/usketch-shared";
 import type { PageMeta } from "@edv4h/usketch-sync";
 import type React from "react";
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
@@ -25,6 +26,89 @@ function usePages(api: PagesApi): { live: PageMeta[]; deleted: PageMeta[] } {
 	return useSyncExternalStore(api.subscribe, read, read);
 }
 
+const NO_STORE_SUBSCRIBE = () => () => {};
+
+/** 選択中のシェイプの数を購読する（store が無ければ 0）。 */
+function useSelectionSize(store: BoardStore | undefined): number {
+	const read = useCallback(() => store?.getSelection().size ?? 0, [store]);
+	return useSyncExternalStore(store ? store.subscribe : NO_STORE_SUBSCRIBE, read, read);
+}
+
+/** 選択中のシェイプを別のページへ移す・コピーする。 */
+function TransferSelection({
+	api,
+	store,
+	pages,
+	run,
+	busy,
+}: {
+	api: PagesApi;
+	store: BoardStore;
+	pages: PageMeta[];
+	run: (fn: () => unknown) => void;
+	busy: boolean;
+}) {
+	const count = useSelectionSize(store);
+	const others = pages.filter((p) => p.id !== api.currentPageId);
+	const [target, setTarget] = useState<string>("");
+	const [done, setDone] = useState<{ text: string; pageId: string } | null>(null);
+	const targetId = others.some((p) => p.id === target) ? target : (others[0]?.id ?? "");
+	if (others.length === 0 || (count === 0 && !done)) return null;
+	const targetName = others.find((p) => p.id === targetId)?.name || "（名前なし）";
+
+	const transfer = (kind: "move" | "copy") =>
+		run(async () => {
+			const ids = [...store.getSelection()];
+			const result =
+				kind === "move" ? await api.moveShapes(ids, targetId) : await api.copyShapes(ids, targetId);
+			if (kind === "move") store.clearSelection();
+			setDone({
+				text: `${result.length} 個を「${targetName}」へ${kind === "move" ? "移しました" : "コピーしました"}`,
+				pageId: targetId,
+			});
+		});
+
+	return (
+		<div style={transferStyle}>
+			{count > 0 && (
+				<>
+					<div style={{ color: MUTED }}>選択中の {count} 個を別のページへ</div>
+					<div style={transferRowStyle}>
+						<select
+							style={selectStyle}
+							aria-label="移す先のページ"
+							value={targetId}
+							onChange={(e) => setTarget(e.target.value)}
+						>
+							{others.map((p) => (
+								<option key={p.id} value={p.id}>
+									{p.name || "（名前なし）"}
+								</option>
+							))}
+						</select>
+						<button type="button" style={btnStyle} disabled={busy} onClick={() => transfer("move")}>
+							移す
+						</button>
+						<button type="button" style={btnStyle} disabled={busy} onClick={() => transfer("copy")}>
+							コピー
+						</button>
+					</div>
+				</>
+			)}
+			{done && (
+				<div style={transferRowStyle}>
+					<span style={{ ...ellipsisStyle, flex: 1, color: MUTED }} role="status">
+						{done.text}
+					</span>
+					<button type="button" style={linkBtnStyle} onClick={() => api.switchTo(done.pageId)}>
+						開く
+					</button>
+				</div>
+			)}
+		</div>
+	);
+}
+
 function formatDate(ms: number | undefined): string {
 	if (ms === undefined) return "";
 	const d = new Date(ms);
@@ -32,7 +116,7 @@ function formatDate(ms: number | undefined): string {
 }
 
 /** HUD のページパネル: 一覧・切り替え・追加・名前変更・並べ替え・複製・削除・復元。 */
-export function PagesPanel({ api }: { api: PagesApi }) {
+export function PagesPanel({ api, store }: { api: PagesApi; store?: BoardStore }) {
 	const { live, deleted } = usePages(api);
 	const [editing, setEditing] = useState<string | null>(null);
 	const [draft, setDraft] = useState("");
@@ -185,6 +269,9 @@ export function PagesPanel({ api }: { api: PagesApi }) {
 			>
 				＋ ページを追加
 			</button>
+			{store && api.canTransfer && (
+				<TransferSelection api={api} store={store} pages={live} run={run} busy={busy} />
+			)}
 			{error && <div style={errorStyle}>{error}</div>}
 			{deleted.length > 0 && (
 				<div style={deletedWrapStyle}>
@@ -315,6 +402,25 @@ const linkBtnStyle: React.CSSProperties = {
 	padding: "2px 0",
 	color: MUTED,
 	textAlign: "left",
+};
+const transferStyle: React.CSSProperties = {
+	display: "flex",
+	flexDirection: "column",
+	gap: 4,
+	paddingTop: 4,
+	borderTop: `1px solid ${LINE_SUBTLE}`,
+};
+const transferRowStyle: React.CSSProperties = { display: "flex", alignItems: "center", gap: 4 };
+const selectStyle: React.CSSProperties = {
+	flex: 1,
+	minWidth: 0,
+	padding: "2px 4px",
+	border: `1px solid ${LINE}`,
+	borderRadius: "var(--r-xs)",
+	background: "transparent",
+	color: "inherit",
+	font: "inherit",
+	fontSize: 10,
 };
 const deletedWrapStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 2 };
 const dateStyle: React.CSSProperties = {

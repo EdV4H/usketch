@@ -1,3 +1,11 @@
+export {
+	collectTransferShapes,
+	copyShapesToPage,
+	MOVED_OUT_MAP_KEY,
+	moveShapesToPage,
+	removeMovedOutShapes,
+	watchMovedOutShapes,
+} from "./page-transfer.js";
 export type { PagesApi, PagesApiDeps } from "./pages-api.js";
 export { createPagesApi } from "./pages-api.js";
 export type { OpenPageDoc } from "./pages-ops.js";
