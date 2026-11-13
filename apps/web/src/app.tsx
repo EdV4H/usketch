@@ -98,6 +98,7 @@ import {
 	createServerClock,
 	createWsProvider,
 	getLegacyPageId,
+	getPage,
 	initPagedBoard,
 	isPagedBoard,
 	listPages,
@@ -432,7 +433,20 @@ export function App() {
 
 			extraPlugins.push(createLaserPlugin(wsProvider));
 			extraPlugins.push(createSpotlightPlugin(wsProvider));
-			extraPlugins.push(createFollowMePlugin({ wsProvider }));
+			// ページを使うボードでは、別のページの人も追える（追っている人がページを移ればついて行く）
+			extraPlugins.push(
+				createFollowMePlugin({
+					wsProvider,
+					pages:
+						pageId && board.wsProvider
+							? {
+									awareness: board.wsProvider.awareness,
+									currentPageId: pageId,
+									switchPage: (id) => switchPageRef.current(id),
+								}
+							: undefined,
+				}),
+			);
 			extraPlugins.push(
 				createPresenceCursorPlugin({
 					wsProvider,
@@ -793,10 +807,20 @@ export function App() {
 			// オンラインメンバーを Control HUD (Members パネル) へ供給。
 			// TopBar の PresencePill を置き換え。ページに関係なくボードの全員を出す。
 			const awarenessForPresence = wsProvider.awareness;
-			const updatePresence = () => presenceStore.set(readPresenceMembers(awarenessForPresence));
+			// ページを使うボードでは、各人のページ名と「別のページにいるか」も添える。
+			const pageName = (id: string) =>
+				isPagedBoard(rootDoc) ? (getPage(rootDoc, id)?.name ?? null) : null;
+			const updatePresence = () =>
+				presenceStore.set(readPresenceMembers(awarenessForPresence, pageName));
 			awarenessForPresence.on("change", updatePresence);
+			const offPageNames = observePages(rootDoc, updatePresence);
+			presenceStore.openPage = (id) => switchPageRef.current(id);
 			updatePresence();
-			offPresence = () => awarenessForPresence.off("change", updatePresence);
+			offPresence = () => {
+				awarenessForPresence.off("change", updatePresence);
+				offPageNames();
+				presenceStore.openPage = null;
+			};
 		}
 
 		const pageDocs = createPageDocManager({
