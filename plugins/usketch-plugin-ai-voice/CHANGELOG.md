@@ -1,5 +1,15 @@
 # @edv4h/usketch-plugin-ai-voice
 
+## 2.0.25
+
+### Patch Changes
+
+- Updated dependencies [b16cfe8]
+- Updated dependencies [d81aad4]
+- Updated dependencies [1cd5107]
+  - @edv4h/usketch-shared@4.24.0
+  - @edv4h/usketch-plugin-ai-agent@3.1.0
+
 ## 2.0.24
 
 ### Patch Changes

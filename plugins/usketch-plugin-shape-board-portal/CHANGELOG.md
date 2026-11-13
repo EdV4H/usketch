@@ -1,5 +1,14 @@
 # @edv4h/usketch-plugin-shape-board-portal
 
+## 2.0.29
+
+### Patch Changes
+
+- Updated dependencies [b16cfe8]
+- Updated dependencies [d81aad4]
+  - @edv4h/usketch-shared@4.24.0
+  - @edv4h/usketch-store@3.11.6
+
 ## 2.0.28
 
 ### Patch Changes
