@@ -526,7 +526,11 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 		[],
 	);
 
-	// Native non-passive wheel listener to reliably prevent browser zoom
+	// Native non-passive wheel listener to reliably prevent browser zoom.
+	// The handlers read the viewport from the store when an event fires, so this
+	// effect doesn't depend on `viewport`: re-attaching on every pan/zoom would also
+	// reset `lastGestureScale` mid-pinch, and since a Safari gesture's `scale` is
+	// cumulative, each step would then zoom by the running product.
 	useEffect(() => {
 		const el = containerRef.current;
 		if (!el) return;
@@ -540,7 +544,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 			};
 			app.events.emit("canvas:wheel", {
 				screenPoint,
-				worldPoint: screenToWorld(screenPoint, viewport),
+				worldPoint: screenToWorld(screenPoint, app.store.getViewport()),
 				deltaX: e.deltaX,
 				deltaY: e.deltaY,
 				ctrlKey: e.ctrlKey,
@@ -587,7 +591,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 			el.removeEventListener("gesturestart", onGestureStart);
 			el.removeEventListener("gesturechange", onGestureChange);
 		};
-	}, [viewport, app.events, app.store, touchGestures]);
+	}, [app.events, app.store, touchGestures]);
 
 	const filterPredicate = useFilterPredicate(app.events);
 	const timeTravelShapes = useTimeTravelShapes(app.events);
