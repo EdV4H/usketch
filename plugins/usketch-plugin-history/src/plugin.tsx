@@ -12,6 +12,8 @@ export interface HistoryPluginOptions {
 	extraHeaders?: Record<string, string>;
 	/** Inject a client (tests, or a host with its own transport). */
 	client?: HistoryClient;
+	/** The page this plugin is mounted on, on a board with pages (previews and restores apply to it). */
+	pageId?: string | null;
 }
 
 /**
@@ -32,6 +34,7 @@ export function createHistoryPlugin(options: HistoryPluginOptions): UsketchPlugi
 					apiUrl: options.apiUrl,
 					boardId: options.boardId,
 					extraHeaders: options.extraHeaders,
+					pageId: options.pageId,
 				});
 			const controller = createHistoryController({
 				client,

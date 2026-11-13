@@ -104,7 +104,14 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 				anchorX: z.number().optional(),
 				anchorY: z.number().optional(),
 				text: z.string().min(1).max(2000),
+				/** マルチページ: コメントしたシェイプのあるページ。 */
+				pageId: z
+					.string()
+					.regex(/^[A-Za-z0-9_-]{1,64}$/)
+					.optional(),
 			});
+			// マルチページ: comments テーブルに page_id 列があるときだけ記録する（無いスキーマも動く）
+			const hasPageColumn = "pageId" in comments;
 
 			// POST /api/boards/:boardId/comments — スレッド作成（初期メッセージ付き）
 			commentsApp.post("/", zValidator("json", createThreadSchema), async (c) => {
@@ -126,6 +133,7 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 						id: threadId,
 						boardId,
 						anchorShapeId: body.anchorShapeId,
+						...(hasPageColumn ? { pageId: body.pageId ?? null } : {}),
 						anchorX: body.anchorX ?? 0,
 						anchorY: body.anchorY ?? 0,
 						createdBy: userId,
@@ -146,6 +154,7 @@ export function createCommentsPlugin(schema: CommentsPluginSchema): ServerPlugin
 						id: threadId,
 						boardId,
 						anchorShapeId: body.anchorShapeId,
+						pageId: hasPageColumn ? (body.pageId ?? null) : null,
 						anchorX: body.anchorX ?? 0,
 						anchorY: body.anchorY ?? 0,
 						resolved: 0,

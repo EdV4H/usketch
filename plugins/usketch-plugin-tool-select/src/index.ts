@@ -15,3 +15,4 @@ export {
 export { createToggleLockSelectionCommand } from "./lock-selection.js";
 export type { OverlayColors } from "./overlay-colors.js";
 export { createSelectToolPlugin, type SelectToolPluginOptions } from "./plugin.js";
+export { SELECT_TOOL_LAYER_IDS } from "./selection-handles.js";

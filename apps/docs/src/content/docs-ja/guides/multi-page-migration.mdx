@@ -1,0 +1,251 @@
+---
+title: マルチページへの移行
+description: uSketch を組み込んだアプリ（自前のサーバーを持つ利用先）が、1 ボードに複数のページを持てる形式へ移る手順。ページ doc の同期、ホストの初期化の分け方、既存ボードの移行と確かめ方。
+order: 32
+---
+
+uSketch のボードは 1 つの中に複数のページを持てるようになった。ページごとに別の `Y.Doc`（ページ doc）を使い、開いたページの doc だけを読み込む。このガイドは、uSketch を自分のアプリに組み込み、**同期や保存を自前のサーバーで行っている利用先**が、既存のボードを壊さずにこの形式へ移るための手順をまとめたもの。
+
+uSketch 本体（`apps/server` の BoardRoom と `apps/web`）はこの手順をすでに実装している。迷ったらそちらが参照実装になる（各節にファイルを挙げる）。
+
+## 何が変わるか
+
+これまでボードの中身は 1 つの `Y.Doc` の `shapes`（`Y.Map`）にあった。マルチページのボードでは、この doc を **ルート doc** と呼び、シェイプはページ doc に移る。
+
+| 置き場所 | これまで | マルチページのボード |
+| -------- | -------- | -------------------- |
+| ルート doc の `shapes` | すべてのシェイプ | 空（移行の入口。古いクライアントが書いたものはサーバーが 1 枚目へ移す） |
+| ルート doc の `pages` | なし | ページの一覧（id・名前・並び順・削除の印） |
+| ルート doc の `meta` | 利用先の値があれば、それだけ | `pagesVersion`（ページ形式の版）と `legacyPageId`（移行前の中身が移ったページ）が加わる |
+| ページ doc（guid `page:<pageId>`） | なし | そのページの `shapes` |
+
+`ShapeData` の形は変わらない。ルート doc の `shapes` 以外のキー（利用先が独自に置いている値）は移行で触らない。`meta` の他のキーもそのまま残る。
+
+## 何もしなくていい場合
+
+`meta.pagesVersion` の無いボードは、これまでどおりルート doc の `shapes` を読み書きする。新しいパッケージに上げても、移行を行わない限りボードの扱いは変わらない。マルチページを使わないなら、このガイドの手順は要らない。
+
+ただし、**同じボードを、ページに対応したクライアントと対応していないクライアントで開く** と困る。移行した後のボードを古いクライアントで開くと、ルートの `shapes` が空なので何も無いボードに見える。移行は、すべてのクライアントを新しくしてから行う。
+
+## 進める順番
+
+1. クライアント（ホスト）をページに対応させる（[ホストの初期化を分ける](#ホストの初期化を分ける)）。ページ形式でないボードは今までどおり動くので、先に出してよい
+2. サーバーでページ doc を同期・保存できるようにする（[ページ doc を同期する](#ページ-doc-を同期する)）
+3. サーバーでルートの `shapes` を読んでいる機能（サムネイル、AI、履歴、エクスポートなど）を、ページ doc を読むように直す
+4. 移行の前にボードのバックアップを取れるようにする
+5. 移行を有効にする（[既存ボードを移行する](#既存ボードを移行する)）。uSketch 本体は機能フラグ（サーバー `PAGES_MIGRATION`、Web `VITE_PAGES_MIGRATION`）で閉じたまま出し、準備ができてから開けている
+6. [移行を確かめる](#移行を確かめる)
+
+## ページ doc を同期する
+
+ページ doc はルート doc とは別に同期する。クライアント側は `createPageDocManager`（`@edv4h/usketch-sync`）が、開いたページの doc を作り、手元の保存とサーバーの購読を張る。サーバーとのやり取りは次の 2 つのどちらかで用意する。
+
+### A. uSketch のプロトコルを使う
+
+`createWsProvider` を使っているなら、同じ WebSocket の上で `DOC_*` メッセージ（ルート doc 用の 0〜7 は変わらない）を受けられるようにする。メッセージの組み立てと読み取りは `encodeDocFrame` / `decodeDocFrame` を使う。
+
+| メッセージ | 向き | 中身（parts） | サーバーがすること |
+| ---------- | ---- | ------------- | ------------------ |
+| `MSG_DOC_SUBSCRIBE`（8） | クライアント → サーバー | `[クライアントの state vector]` | doc を読み込み、`MSG_DOC_SYNC` で返す。この接続を購読者に加える |
+| `MSG_DOC_SYNC`（9） | サーバー → クライアント | `[クライアントに足りない差分, サーバーの state vector]` | — |
+| `MSG_DOC_UPDATE`（10） | 双方向 | `[update]` | 購読中の接続からなら適用・保存し、同じ doc の他の購読者にだけ送る |
+| `MSG_DOC_UNSUBSCRIBE`（11） | クライアント → サーバー | `[]` | 購読者から外す。誰も見ていなければメモリから外してよい |
+
+doc id にはページ id がそのまま入る（`isValidDocId` で英数字と `_` `-` だけか確かめる）。保存はページごとに分ける（uSketch 本体はキー `yjs_page:<pageId>`）。接続が切れたら、その接続の購読をすべて外す。再接続したクライアントは自分で購読し直し、切断中の編集を送り返す。
+
+参照実装: `apps/server/src/rooms/page-docs.ts`（`createPageDocs`）と、その呼び出し元の `apps/server/src/board-room.ts`。
+
+### B. 自前の通信を使う
+
+`y-websocket` などで同期しているなら、ページごとに別の部屋（例: `<boardId>/page:<pageId>`）を作り、`createPageDocManager` の `provider` に `subscribeDoc` を渡せばよい。
+
+```ts
+import { createPageDocManager, type DocSubscription } from "@edv4h/usketch-sync";
+import { WebsocketProvider } from "y-websocket";
+import type * as Y from "yjs";
+
+const pageDocs = createPageDocManager({
+	provider: {
+		subscribeDoc(docId: string, doc: Y.Doc): DocSubscription {
+			const ws = new WebsocketProvider(serverUrl, `${boardId}/page:${docId}`, doc);
+			const whenSynced = new Promise<void>((resolve) => {
+				if (ws.synced) resolve();
+				else ws.on("sync", (synced: boolean) => synced && resolve());
+			});
+			return { docId, whenSynced, unsubscribe: () => ws.destroy() };
+		},
+	},
+	persist: (pageId, doc) => persistDocToIndexedDb(`${boardId}:page:${pageId}`, doc),
+});
+```
+
+`whenSynced` はサーバーにある中身を受け取ったら解決する。手元に中身が無いページは、これを（既定で 3 秒まで）待ってから開く。サーバー側は、ページの部屋ごとに保存先を分ける（ボード id とページ id で引けるようにする）。ボード全体のバックアップや複製は、ルート doc だけでなくページ doc も含めること。
+
+## ホストの初期化を分ける
+
+これまで「ボードを開く」1 回の初期化で、`Y.Doc`・接続・`BoardStore`・`createApp` をまとめて作っていたなら、それを 2 つに分ける。
+
+- **ボード単位**（ボードを開いている間ずっと）: ルート doc、その保存と接続、`createPageDocManager`
+- **ページ単位**（ページを切り替えるたびに作り直す）: ページ doc を開く、`BoardStore`、`createYjsSync`、プラグイン、`createApp`
+
+```ts
+import { createApp } from "@edv4h/usketch-core";
+import { createPagesPlugin } from "@edv4h/usketch-plugin-pages";
+import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
+import { createBoardStore } from "@edv4h/usketch-store";
+import {
+	createPageScopedProvider,
+	isPagedBoard,
+	listPages,
+	observePages,
+	resolvePageId,
+} from "@edv4h/usketch-sync";
+
+// ページ単位: 開いたページの doc に store をつなぐ。戻り値で片付ける。
+async function openPage(pageId: string, switchPage: (id: string) => void) {
+	const handle = pageDocs.open(pageId);
+	// プラグインには「同じページの人だけが見える」provider を渡す
+	const scoped = createPageScopedProvider(wsProvider, pageId);
+	const store = createBoardStore();
+	await handle.whenLoaded;
+	// 保存と同期はボード単位で張ってあるので persist: false
+	const sync = createYjsSync(store, { doc: handle.doc, persist: false });
+	const app = await createApp({
+		store,
+		plugins: [
+			...yourPlugins(scoped),
+			createPagesPlugin({
+				rootDoc,
+				pageId,
+				switchPage,
+				openPageDoc: (id) => pageDocs.open(id),
+			}),
+		],
+	});
+	return () => {
+		app.destroy();
+		sync.destroy();
+		scoped.dispose();
+		handle.release();
+	};
+}
+
+// どのページを開くか: URL の ?page= → 前回開いたページ → 先頭ページ。
+function pickPage(): string | null {
+	if (!isPagedBoard(rootDoc)) return null; // ページ形式でなければ今までどおりルート doc を使う
+	return resolvePageId(listPages(rootDoc), { requested, lastOpened });
+}
+
+// サーバーが移行するとルート doc に版が届く。その時点で開き直す
+observePages(rootDoc, () => reopen(pickPage()));
+```
+
+- ページ形式でないボード（`pickPage()` が `null`）は、今までどおりルート doc に `createYjsSync` をつなぐ
+- ページを切り替えたら古いページの片付けを先に呼び、新しいページで `openPage` し直す。ルート doc と接続はそのまま残す
+- `createPageScopedProvider` は、自分の awareness に `page` を書き、他の人の状態とブロードキャストを同じページのものだけに絞る。メンバー一覧のようにボード全員を見せたいものには元の `wsProvider.awareness` を使う
+- undo の履歴はページごとに作り直す App に付くので、ページを切り替えると前のページの undo は残らない
+
+参照実装: `apps/web/src/app.tsx`（「ボード単位の初期化」と「ページ単位の初期化」の 2 つの effect）。
+
+## ページの UI を出す
+
+`@edv4h/usketch-plugin-pages` は、HUD にページパネル（一覧・切り替え・追加・名前変更・並べ替え・複製・削除と復元）と、アクション・キー（`Alt+PageDown` / `Alt+PageUp`）を足す。ホストの API は `getPagesApi(services)` で取れる。
+
+Follow・コメント・発表・エクスポート・ポータルをページに対応させるオプションは、[マルチページの「組み込むとき」](../multi-page/#組み込むとき) にまとめている。
+
+自分の UI を作るなら、ルート doc を受け取る純関数（`@edv4h/usketch-sync`）を使う: `listPages` / `createPage` / `renamePage` / `reorderPage` / `deletePage` / `restorePage` / `observePages`。`deletePage` は印（`deletedAt`）を付けるだけで、ページ doc は消さない。最後の 1 枚は消せない。
+
+## 既存ボードを移行する
+
+移行は **1 つのボードにつき 1 か所だけ** で行う。サーバーで同期しているボードはサーバーで、手元だけに保存しているボードはそのクライアントで行う。複数の場所で同時に行うと 1 枚目が 2 つできる。
+
+手順は、どこで止まってもシェイプが消えないように並べてある。
+
+```ts
+import {
+	copyRootShapesToPage,
+	finishPagesMigration,
+	needsPagesMigration,
+	newPageId,
+} from "@edv4h/usketch-sync";
+
+// ボードを開いたとき、クライアントに最初の同期を返す前に 1 回だけ呼ぶ
+async function migrateBoard(boardId: string, root: Y.Doc): Promise<void> {
+	if (!needsPagesMigration(root)) return;
+	await backupBoard(boardId, root); // 移行前の中身を残す
+
+	// 1 枚目の id を先に保存しておき、やり直しでも同じページへ写す
+	const pageId = (await loadPendingPageId(boardId)) ?? newPageId();
+	await savePendingPageId(boardId, pageId);
+
+	// 手順 1: ルートの shapes を 1 枚目のページ doc へ写す（ルートはまだ変えない）
+	const pageDoc = await loadPageDoc(boardId, pageId);
+	copyRootShapesToPage(root, pageDoc);
+	await savePageDoc(boardId, pageId, pageDoc); // ルートを変える前に保存しきる
+
+	// 手順 2: ルートに 1 枚目・版・legacyPageId を書き、写し終えたシェイプをルートから消す
+	finishPagesMigration(root, pageDoc, { pageId });
+	await saveRootDoc(boardId, root);
+	await clearPendingPageId(boardId);
+}
+```
+
+- 新しいボード（`shapes` が空）も同じ手順で 1 枚目だけ作られる。最初からページ形式で作るなら `initPagedBoard(root, { name: DEFAULT_FIRST_PAGE_NAME })` でもよい
+- 1 枚目の名前は既定で `DEFAULT_FIRST_PAGE_NAME`（「ページ 1」）。`finishPagesMigration` の `name` で変えられる
+- サーバーで doc を書き換えたら、その update をつながっているクライアントへ送る（uSketch 本体はルートの update を全接続へ、ページ doc の update をそのページの購読者へ送る）
+- 手元だけのボードでは、ページ doc を IndexedDB に書いた後、別の doc で読み直して中身が入っていることを確かめてからルートを書き換える（参照実装: `apps/web/src/lib/local-pages-migration.ts`）
+
+### 移行の後にルートへ書かれたシェイプ
+
+移行の後でも、古いクライアントがルートの `shapes` に書くことがある。サーバーはルートへの update を受けるたびに、それを 1 枚目へ移す。
+
+```ts
+import { getLegacyPageId, isPagedBoard, moveRootShapesToPage } from "@edv4h/usketch-sync";
+
+async function moveRootShapes(boardId: string, root: Y.Doc): Promise<void> {
+	const pageId = getLegacyPageId(root);
+	if (!isPagedBoard(root) || !pageId) return;
+	const pageDoc = await loadPageDoc(boardId, pageId);
+	const move = moveRootShapesToPage(root, pageDoc);
+	if (!move) return; // 移すものが無い
+	await savePageDoc(boardId, pageId, pageDoc); // 先にページ doc を保存する
+	move.removeFromRoot(); // 保存の前に落ちてもルートに残るので、次の呼び出しでやり直せる
+}
+```
+
+これは移行を止めていても行う（ページ形式のボードのルート `shapes` は常に空にしておく）。参照実装: `apps/server/src/rooms/pages-migration.ts`（`createPagesMigration`）。
+
+## 移行を確かめる
+
+`checkPagesMigration(before, root, pageDoc)` は、移行前にあったシェイプがすべて 1 枚目のページ doc に同じ中身で入り、ルートの `shapes` が空かを確かめる。`before` は移行前のルート `shapes` の `toJSON()`。移行後に編集されたシェイプは `changed` に出るので、編集が入る前（移行の直後や、バックアップから作った doc で試すとき）に使う。
+
+```ts
+import { checkPagesMigration } from "@edv4h/usketch-sync";
+
+const before = root.getMap("shapes").toJSON();
+await migrateBoard(boardId, root);
+const check = checkPagesMigration(before, root, await loadPageDoc(boardId, getLegacyPageId(root)!));
+if (!check.ok) console.error("migration mismatch", check.missing, check.changed, check.rootShapes);
+```
+
+本番で開ける前に、本番のボードのコピー（バックアップから作った doc）でこの確認を一通り回しておくとよい。
+
+## 気をつけること
+
+- **クライアントを先に新しくする。** 移行後のボードは古いクライアントでは空に見える
+- **ルートの `shapes` を読むサーバーの機能を直す。** 移行後はルートが空なので、サムネイル・AI・エクスポート・検索などは `isPagedBoard(root)` を見てページ doc を読む。uSketch 本体の履歴は、ページ形式のコミットで tree をページごとに持つ（`HistoryCommit.layout = "pages"`）
+- **バックアップを取る。** 移行はルート doc を書き換える。uSketch 本体は移行の直前に履歴のコミットを 1 つ取り、移行前の中身はそこから 1 枚目として戻せる
+- **コメントにページを記録するなら列を足す。** `@edv4h/usketch-plugin-server-comments` は、`comments` テーブルに `pageId`（`page_id`、text、null 可）列があればスレッドのページを保存する。無ければ今までどおり動く。クライアントは `createCommentsPlugin` の `pages` オプションを渡す
+- **ルート doc の他のキーは変わらない。** 利用先が `meta` に置いている値や、`shapes` 以外の `Y.Map` は移行で触らない
+
+## 公開している関数
+
+すべて `@edv4h/usketch-sync` から使える。
+
+| 用途 | 関数 |
+| ---- | ---- |
+| ボードの形式 | `isPagedBoard` / `getPagesVersion` / `getLegacyPageId` / `initPagedBoard` |
+| ページの一覧と操作 | `listPages` / `getPage` / `createPage` / `renamePage` / `reorderPage` / `deletePage` / `restorePage` / `observePages` / `resolvePageId` / `newPageId` |
+| ページ doc | `createPageDocManager` / `pageDocGuid` / `createPageScopedProvider` |
+| 通信（A の場合） | `MSG_DOC_SUBSCRIBE` / `MSG_DOC_SYNC` / `MSG_DOC_UPDATE` / `MSG_DOC_UNSUBSCRIBE` / `encodeDocFrame` / `decodeDocFrame` / `isValidDocId` |
+| 移行 | `needsPagesMigration` / `copyRootShapesToPage` / `finishPagesMigration` / `moveRootShapesToPage` / `countRootShapes` / `checkPagesMigration` / `DEFAULT_FIRST_PAGE_NAME` |

@@ -9,6 +9,12 @@ export type PresenceMemberValue = {
 	name: string;
 	color: string;
 	status?: string;
+	/** マルチページ: その人が開いているページ（ページを使うボードだけ）。 */
+	pageId?: string;
+	/** そのページの名前。 */
+	pageName?: string;
+	/** 自分と同じページにいるか（ページを使わないボードでは常に true）。 */
+	samePage?: boolean;
 };
 
 const PRESENCE_PALETTE = [
@@ -26,6 +32,8 @@ export interface PresenceStore {
 	getSnapshot(): { members: PresenceMemberValue[] };
 	set(members: PresenceMemberValue[]): void;
 	subscribe(listener: () => void): () => void;
+	/** マルチページ: そのページを開く（ホストが設定する。無ければ null）。 */
+	openPage: ((pageId: string) => void) | null;
 }
 
 export const presenceStore: PresenceStore = (() => {
@@ -40,10 +48,14 @@ export const presenceStore: PresenceStore = (() => {
 				m.clientId === n.clientId &&
 				m.name === n.name &&
 				m.color === n.color &&
-				m.status === n.status
+				m.status === n.status &&
+				m.pageId === n.pageId &&
+				m.pageName === n.pageName &&
+				m.samePage === n.samePage
 			);
 		});
 	return {
+		openPage: null,
 		getSnapshot: () => snapshot,
 		set(members: PresenceMemberValue[]) {
 			// Keep referential stability so useSyncExternalStore doesn't loop when
@@ -61,21 +73,36 @@ export const presenceStore: PresenceStore = (() => {
 	};
 })();
 
-/** Read other online members (excluding self) from a Yjs awareness. */
-export function readPresenceMembers(awareness: {
-	getStates: () => Map<number, Record<string, unknown>>;
-	doc: { clientID: number };
-}): PresenceMemberValue[] {
+/**
+ * Read other online members (excluding self) from a Yjs awareness.
+ * マルチページ: `pageName` を渡すと、awareness の `page` から各人のページと名前、自分と同じ
+ * ページにいるかを添える。
+ */
+export function readPresenceMembers(
+	awareness: {
+		getStates: () => Map<number, Record<string, unknown>>;
+		doc: { clientID: number };
+	},
+	pageName?: (pageId: string) => string | null,
+): PresenceMemberValue[] {
 	const members: PresenceMemberValue[] = [];
-	for (const [clientId, state] of awareness.getStates()) {
+	const states = awareness.getStates();
+	const myPage = states.get(awareness.doc.clientID)?.page;
+	for (const [clientId, state] of states) {
 		if (clientId === awareness.doc.clientID) continue;
 		const user = state.user as { name?: string; color?: string; status?: string } | undefined;
-		members.push({
+		const member: PresenceMemberValue = {
 			clientId,
 			name: user?.name ?? "Guest",
 			color: user?.color ?? presenceColor(clientId),
 			status: user?.status ?? (state.presenting === true ? "presenting" : "active"),
-		});
+		};
+		if (pageName && typeof state.page === "string") {
+			member.pageId = state.page;
+			member.pageName = pageName(state.page) ?? undefined;
+			member.samePage = state.page === myPage;
+		}
+		members.push(member);
 	}
 	return members;
 }

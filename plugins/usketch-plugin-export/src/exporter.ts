@@ -87,23 +87,12 @@ export function scopeSatoriIds(markup: string, scope: string): string {
 
 export type SatoriFont = SatoriOptions["fonts"][number];
 
-/**
- * シェイプデータからSVG文字列を構築してエクスポートする。
- * SVGシェイプ → renderToStaticMarkup、HTMLシェイプ → Satori(PNG) / foreignObject(SVG)
- */
-export async function exportCanvas(
+/** シェイプを SVG の要素（文字列）にする。HTML シェイプは PNG なら Satori、SVG なら foreignObject。 */
+async function renderShapeElements(
 	shapes: Map<string, ShapeData>,
 	shapeRegistry: ShapeRegistry,
-	options: ExportOptions,
-): Promise<Blob> {
-	if (shapes.size === 0) {
-		throw new Error("No shapes to export");
-	}
-
-	const bounds = computeBounds(shapes);
-	const background = options.background ?? "#ffffff";
-	const useSatori = options.format === "png";
-
+	useSatori: boolean,
+): Promise<string[]> {
 	const shapeElements: string[] = [];
 	for (const shape of shapes.values()) {
 		const def = shapeRegistry.get(shape.type);
@@ -128,18 +117,16 @@ export async function exportCanvas(
 			shapeElements.push(markup);
 		}
 	}
+	return shapeElements;
+}
 
-	const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${bounds.width}" height="${bounds.height}" viewBox="${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}">
-<rect x="${bounds.minX}" y="${bounds.minY}" width="${bounds.width}" height="${bounds.height}" fill="${background}" />
-${shapeElements.join("\n")}
-</svg>`;
-
-	if (options.format === "svg") {
-		return new Blob([svgContent], { type: "image/svg+xml" });
-	}
-
-	// PNG: SVGをCanvasに描画してBlobに変換
-	const pixelRatio = options.pixelRatio ?? 2;
+/** SVG 文字列を PNG にする（`width` × `height` を `pixelRatio` 倍で描く）。 */
+function svgToPng(
+	svgContent: string,
+	width: number,
+	height: number,
+	pixelRatio: number,
+): Promise<Blob> {
 	const img = new Image();
 	const svgBlob = new Blob([svgContent], { type: "image/svg+xml" });
 	const url = URL.createObjectURL(svgBlob);
@@ -147,8 +134,8 @@ ${shapeElements.join("\n")}
 	return new Promise<Blob>((resolve, reject) => {
 		img.onload = () => {
 			const canvas = document.createElement("canvas");
-			canvas.width = Math.ceil(bounds.width * pixelRatio);
-			canvas.height = Math.ceil(bounds.height * pixelRatio);
+			canvas.width = Math.ceil(width * pixelRatio);
+			canvas.height = Math.ceil(height * pixelRatio);
 			const ctx = canvas.getContext("2d");
 			if (!ctx) {
 				URL.revokeObjectURL(url);
@@ -156,7 +143,7 @@ ${shapeElements.join("\n")}
 				return;
 			}
 			ctx.scale(pixelRatio, pixelRatio);
-			ctx.drawImage(img, 0, 0, bounds.width, bounds.height);
+			ctx.drawImage(img, 0, 0, width, height);
 			URL.revokeObjectURL(url);
 
 			canvas.toBlob(
@@ -174,6 +161,123 @@ ${shapeElements.join("\n")}
 		};
 		img.src = url;
 	});
+}
+
+/**
+ * シェイプデータからSVG文字列を構築してエクスポートする。
+ * SVGシェイプ → renderToStaticMarkup、HTMLシェイプ → Satori(PNG) / foreignObject(SVG)
+ */
+export async function exportCanvas(
+	shapes: Map<string, ShapeData>,
+	shapeRegistry: ShapeRegistry,
+	options: ExportOptions,
+): Promise<Blob> {
+	if (shapes.size === 0) {
+		throw new Error("No shapes to export");
+	}
+
+	const bounds = computeBounds(shapes);
+	const background = options.background ?? "#ffffff";
+	const shapeElements = await renderShapeElements(shapes, shapeRegistry, options.format === "png");
+
+	const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${bounds.width}" height="${bounds.height}" viewBox="${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}">
+<rect x="${bounds.minX}" y="${bounds.minY}" width="${bounds.width}" height="${bounds.height}" fill="${background}" />
+${shapeElements.join("\n")}
+</svg>`;
+
+	if (options.format === "svg") {
+		return new Blob([svgContent], { type: "image/svg+xml" });
+	}
+	return svgToPng(svgContent, bounds.width, bounds.height, options.pixelRatio ?? 2);
+}
+
+/** 全ページを書き出すときの 1 ページ分。 */
+export interface ExportPage {
+	id: string;
+	name: string;
+	shapes: Map<string, ShapeData>;
+}
+
+/** ページ名の見出しの高さ（px）と、ページの間の余白。 */
+const PAGE_HEADING = 48;
+const PAGE_GAP = 40;
+
+function escapeXml(text: string): string {
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
+}
+
+/**
+ * 全ページの SVG を作る。ページを並び順に上から縦へ並べ、それぞれにページ名の見出しを付ける。
+ * シェイプの無いページは飛ばす。描くページが無ければ例外。
+ */
+export async function buildPagesSvg(
+	pages: readonly ExportPage[],
+	shapeRegistry: ShapeRegistry,
+	options: { useSatori: boolean; background?: string },
+): Promise<{ svg: string; width: number; height: number }> {
+	const drawn = pages.filter((p) => p.shapes.size > 0);
+	if (drawn.length === 0) throw new Error("No shapes to export");
+	const background = options.background ?? "#ffffff";
+
+	const width = Math.max(...drawn.map((p) => computeBounds(p.shapes).width));
+	const parts: string[] = [];
+	let y = 0;
+	for (const [index, page] of drawn.entries()) {
+		if (index > 0) {
+			parts.push(
+				`<line x1="0" y1="${y + PAGE_GAP / 2}" x2="${width}" y2="${y + PAGE_GAP / 2}" stroke="#d0d0d8" stroke-width="1" />`,
+			);
+			y += PAGE_GAP;
+		}
+		const bounds = computeBounds(page.shapes);
+		parts.push(
+			`<text x="20" y="${y + 32}" font-family="system-ui, sans-serif" font-size="20" font-weight="600" fill="#444">${escapeXml(page.name)}</text>`,
+		);
+		y += PAGE_HEADING;
+		const elements = await renderShapeElements(page.shapes, shapeRegistry, options.useSatori);
+		parts.push(
+			`<g data-page-id="${escapeXml(page.id)}" transform="translate(${-bounds.minX}, ${y - bounds.minY})">\n${elements.join("\n")}\n</g>`,
+		);
+		y += bounds.height;
+	}
+
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${y}" viewBox="0 0 ${width} ${y}">
+<rect x="0" y="0" width="${width}" height="${y}" fill="${background}" />
+${parts.join("\n")}
+</svg>`;
+	return { svg, width, height: y };
+}
+
+/** 全ページを 1 枚の画像（ページを縦に並べる）に書き出す。 */
+export async function exportPagesCanvas(
+	pages: readonly ExportPage[],
+	shapeRegistry: ShapeRegistry,
+	options: ExportOptions,
+): Promise<Blob> {
+	const { svg, width, height } = await buildPagesSvg(pages, shapeRegistry, {
+		useSatori: options.format === "png",
+		background: options.background,
+	});
+	if (options.format === "svg") return new Blob([svg], { type: "image/svg+xml" });
+	return svgToPng(svg, width, height, options.pixelRatio ?? 2);
+}
+
+/** 全ページの JSON（`{ pages: [{ id, name, shapes }] }`、`shapes` は {@link exportJson} と同じ形）。 */
+export function exportPagesJson(pages: readonly ExportPage[]): Blob {
+	const data = {
+		pages: pages.map((page) => ({
+			id: page.id,
+			name: page.name,
+			shapes: Object.fromEntries(
+				[...page.shapes].map(([id, shape]) => [id, JSON.parse(JSON.stringify(shape))]),
+			),
+		})),
+	};
+	return new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
 }
 
 /**

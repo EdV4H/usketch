@@ -283,6 +283,147 @@ describe("createHistoryManager", () => {
 	});
 });
 
+/** ページを使うボード: ページごとのシェイプと、読まれたページを記録する。 */
+function setupPaged(pages: Record<string, ShapeData[]>, options: { legacy?: ShapeData[] } = {}) {
+	const { storage, map } = fakeStorage();
+	const board = new Map<string, Map<string, ShapeData>>(
+		Object.entries(pages).map(([id, shapes]) => [id, new Map(shapes.map((s) => [s.id, s]))]),
+	);
+	// ページ形式にする前のルート shapes（移行前のコミットを作るため）
+	const legacy = options.legacy ? new Map(options.legacy.map((s) => [s.id, s])) : null;
+	let paged = !legacy;
+	const reads: (string | null)[] = [];
+	let clock = Date.UTC(2026, 10, 12, 0, 0, 0);
+	const history = createHistoryManager({
+		storage,
+		getShapes: async (pageId) => {
+			reads.push(pageId);
+			if (pageId === null) return Object.fromEntries(legacy ?? new Map());
+			return Object.fromEntries(board.get(pageId) ?? new Map());
+		},
+		getPageIds: async () => (paged ? [...board.keys()] : null),
+		getLegacyPageId: async () => (paged ? ([...board.keys()][0] ?? null) : null),
+		now: () => {
+			clock += 1000;
+			return clock;
+		},
+	});
+	return {
+		history,
+		board,
+		map,
+		reads,
+		migrate: () => {
+			paged = true;
+		},
+	};
+}
+
+describe("createHistoryManager — pages", () => {
+	it("ページごとの tree でコミットし、ページ指定で読める", async () => {
+		const { history } = setupPaged({ p1: [shape("a")], p2: [shape("b"), shape("c")] });
+		const commit = await history.recordCommit({ trigger: "auto" });
+		expect(commit?.layout).toBe("pages");
+		expect(commit?.shapeCount).toBe(3);
+		expect(commit?.stats).toEqual({ added: 3, removed: 0, modified: 0 });
+
+		const hash = commit?.hash as string;
+		expect((await history.getCommit(hash, "p2"))?.shapes.map((s) => s.id)).toEqual(["b", "c"]);
+		// 省略時は先頭ページ
+		const first = await history.getCommit(hash);
+		expect(first?.pageId).toBe("p1");
+		expect(first?.shapes.map((s) => s.id)).toEqual(["a"]);
+		// そのコミットに無いページは空
+		expect((await history.getCommit(hash, "zz"))?.shapes).toEqual([]);
+	});
+
+	it("自動コミットは編集されたページだけを読む", async () => {
+		const { history, board, reads } = setupPaged({ p1: [shape("a")], p2: [shape("b")] });
+		await history.recordCommit({ trigger: "auto" });
+		reads.length = 0;
+
+		board.get("p2")?.set("b", shape("b", { x: 10 }));
+		board.get("p1")?.set("a", shape("a", { x: 99 })); // 印の無い編集は読まない
+		history.noteEdit("p2");
+		const commit = await history.recordCommit({ trigger: "auto" });
+		expect(reads).toEqual(["p2"]);
+		expect(commit?.stats).toEqual({ added: 0, removed: 0, modified: 1 });
+		expect(commit?.shapeCount).toBe(2);
+
+		// 何も編集されていなければ何も読まず、コミットもしない
+		reads.length = 0;
+		expect(await history.recordCommit({ trigger: "auto" })).toBeNull();
+		expect(reads).toEqual([]);
+
+		// 手動コミットは全ページを読み直す
+		const manual = await history.recordCommit({ trigger: "manual", allowEmpty: true });
+		expect(reads.sort()).toEqual(["p1", "p2"]);
+		expect(manual?.stats.modified).toBe(1);
+	});
+
+	it("ページの差分を現在のボードや別のコミットと比べられる", async () => {
+		const { history, board } = setupPaged({ p1: [shape("a")], p2: [shape("b")] });
+		const c1 = (await history.recordCommit({ trigger: "auto" }))?.hash as string;
+		board.get("p2")?.set("n", shape("n"));
+		history.noteEdit("p2");
+		const c2 = (await history.recordCommit({ trigger: "auto" }))?.hash as string;
+
+		const toCommit = await history.diff(c1, c2, "p2");
+		expect(toCommit?.pageId).toBe("p2");
+		expect(toCommit?.added.map((s) => s.id)).toEqual(["n"]);
+		expect((await history.diff(c1, c2, "p1"))?.added).toEqual([]);
+
+		board.get("p1")?.delete("a");
+		const working = await history.diff(c2, "working", "p1");
+		expect(working?.removed.map((s) => s.id)).toEqual(["a"]);
+	});
+
+	it("消えたページのシェイプは removed に数える", async () => {
+		const { history, board } = setupPaged({ p1: [shape("a")], p2: [shape("b"), shape("c")] });
+		await history.recordCommit({ trigger: "auto" });
+		board.delete("p2");
+		const commit = await history.recordCommit({ trigger: "auto" });
+		expect(commit?.stats).toEqual({ added: 0, removed: 2, modified: 0 });
+		expect(commit?.shapeCount).toBe(1);
+	});
+
+	it("ページ形式にする前のコミットは、移行先のページの中身として見える", async () => {
+		const { history, migrate } = setupPaged(
+			{ p1: [shape("a"), shape("b")], p2: [] },
+			{
+				legacy: [shape("a"), shape("b")],
+			},
+		);
+		const before = (await history.recordCommit({ trigger: "auto" }))?.hash as string;
+		expect((await history.getCommit(before))?.pageId).toBeNull();
+
+		migrate();
+		const detail = await history.getCommit(before, "p1");
+		expect(detail?.shapes.map((s) => s.id)).toEqual(["a", "b"]);
+		expect((await history.getCommit(before, "p2"))?.shapes).toEqual([]);
+
+		// 移行後の最初のコミット: 中身は同じなので p1 の変更は 0
+		const after = await history.recordCommit({ trigger: "auto" });
+		expect(after?.layout).toBe("pages");
+		expect(after?.stats).toEqual({ added: 0, removed: 0, modified: 0 });
+		expect((await history.diff(before, "working", "p1"))?.added).toEqual([]);
+	});
+
+	it("コミットに失敗したら編集の印を戻す", async () => {
+		const { history, board, reads } = setupPaged({ p1: [shape("a")] });
+		await history.recordCommit({ trigger: "auto" });
+		history.noteEdit("p1");
+		board.get("p1")?.set("bad", { id: "bad", x: 1n } as unknown as ShapeData);
+		await expect(history.recordCommit({ trigger: "auto" })).rejects.toThrow();
+		board.get("p1")?.delete("bad");
+		board.get("p1")?.set("ok", shape("ok"));
+		reads.length = 0;
+		const commit = await history.recordCommit({ trigger: "auto" });
+		expect(reads).toEqual(["p1"]);
+		expect(commit?.stats.added).toBe(1);
+	});
+});
+
 describe("handleHistoryRequest", () => {
 	async function call(
 		history: ReturnType<typeof setup>["history"],

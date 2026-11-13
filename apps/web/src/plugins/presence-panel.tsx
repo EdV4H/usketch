@@ -1,4 +1,5 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
+import type React from "react";
 import { useSyncExternalStore } from "react";
 import { presenceStore } from "../lib/presence-store.js";
 
@@ -30,6 +31,23 @@ export function createPresencePanelPlugin(): UsketchPlugin {
 		},
 	};
 }
+
+/** 別のページにいる人の、ページ名のボタン（押すとそのページを開く）。 */
+const pageChipStyle: React.CSSProperties = {
+	maxWidth: 90,
+	overflow: "hidden",
+	textOverflow: "ellipsis",
+	whiteSpace: "nowrap",
+	padding: "1px 6px",
+	border: "1px solid color-mix(in srgb, currentColor 25%, transparent)",
+	borderRadius: "var(--r-xs)",
+	background: "transparent",
+	color: "color-mix(in srgb, currentColor 70%, transparent)",
+	font: "inherit",
+	fontSize: 9,
+	cursor: "pointer",
+	flexShrink: 0,
+};
 
 function PresencePanel() {
 	const snap = useSyncExternalStore(
@@ -67,6 +85,18 @@ function PresencePanel() {
 					>
 						{m.name}
 					</span>
+					{m.pageId && m.samePage === false && (
+						<button
+							type="button"
+							title={`${m.pageName || "（名前なし）"} を開く`}
+							aria-label={`${m.name} のいるページ（${m.pageName || "名前なし"}）を開く`}
+							disabled={!presenceStore.openPage}
+							onClick={() => m.pageId && presenceStore.openPage?.(m.pageId)}
+							style={pageChipStyle}
+						>
+							{m.pageName || "（名前なし）"}
+						</button>
+					)}
 					<span
 						title={m.status ?? "active"}
 						style={{

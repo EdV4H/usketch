@@ -10,6 +10,8 @@ export interface CommentThread {
 	id: string;
 	boardId: string;
 	anchorShapeId: string;
+	/** マルチページ: コメントしたシェイプのあるページ（ページより前のコメントは無い）。 */
+	pageId?: string | null;
 	anchorX: number;
 	anchorY: number;
 	resolved: number;

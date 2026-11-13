@@ -146,6 +146,8 @@ export const comments = sqliteTable(
 			.notNull()
 			.references(() => boards.id, { onDelete: "cascade" }),
 		anchorShapeId: text("anchor_shape_id").notNull(),
+		/** マルチページ: コメントしたシェイプのあるページ（ページより前のコメントは null）。 */
+		pageId: text("page_id"),
 		anchorX: real("anchor_x").notNull().default(0),
 		anchorY: real("anchor_y").notNull().default(0),
 		resolved: integer("resolved").notNull().default(0),

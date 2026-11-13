@@ -16,6 +16,7 @@ export {
 } from "./find-shape-at-point.js";
 export {
 	type AnchorHandleMode,
+	CONNECTOR_HANDLE_IDS,
 	CONNECTOR_LAYER_IDS,
 	type ConnectorPluginOptions,
 	createConnectorPlugin,

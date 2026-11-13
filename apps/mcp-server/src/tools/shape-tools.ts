@@ -10,6 +10,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { type Box, visitShapes } from "../client/ai-motion.js";
 import type { ConnectionManager } from "../client/connection-manager.js";
+import { pageIdSchema, withShapes } from "./page-target.js";
 
 const styleSchema = z
 	.object({
@@ -92,20 +93,20 @@ function centroidOf(
 export function registerShapeTools(server: McpServer, connections: ConnectionManager): void {
 	server.tool(
 		"shape_list",
-		"ボード上の全シェイプ一覧を取得",
-		{ boardId: z.string().describe("ボードID") },
-		async ({ boardId }) => {
-			const conn = await connections.getConnection(boardId);
-			const shapes = conn.getAllShapes();
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: JSON.stringify(shapes, null, 2),
-					},
-				],
-			};
-		},
+		"ボード上の全シェイプ一覧を取得（ページを使うボードは 1 ページ分）",
+		{ boardId: z.string().describe("ボードID"), pageId: pageIdSchema },
+		async ({ boardId, pageId }) =>
+			withShapes(connections, boardId, pageId, (_conn, view) => {
+				const shapes = view.all();
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: JSON.stringify(shapes, null, 2),
+						},
+					],
+				};
+			}),
 	);
 
 	server.tool(
@@ -114,30 +115,31 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 		{
 			boardId: z.string().describe("ボードID"),
 			shapeId: z.string().describe("シェイプID"),
+			pageId: pageIdSchema,
 		},
-		async ({ boardId, shapeId }) => {
-			const conn = await connections.getConnection(boardId);
-			const shape = conn.getShape(shapeId);
-			if (!shape) {
+		async ({ boardId, shapeId, pageId }) =>
+			withShapes(connections, boardId, pageId, (_conn, view) => {
+				const shape = view.get(shapeId);
+				if (!shape) {
+					return {
+						content: [
+							{
+								type: "text" as const,
+								text: `Shape not found: ${shapeId}`,
+							},
+						],
+						isError: true,
+					};
+				}
 				return {
 					content: [
 						{
 							type: "text" as const,
-							text: `Shape not found: ${shapeId}`,
+							text: JSON.stringify(shape, null, 2),
 						},
 					],
-					isError: true,
 				};
-			}
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: JSON.stringify(shape, null, 2),
-					},
-				],
-			};
-		},
+			}),
 	);
 
 	server.tool(
@@ -145,68 +147,84 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 		"シェイプを作成（複数可）。作成されたシェイプはリアルタイムにキャンバスに反映される",
 		{
 			boardId: z.string().describe("ボードID"),
+			pageId: pageIdSchema,
 			shapes: z.array(shapeInputSchema).min(1).max(50).describe("作成するシェイプの配列"),
 		},
-		async ({ boardId, shapes }) => {
-			const conn = await connections.getConnection(boardId);
-			const shapesMap = conn.getShapesMap();
-			const placedShapes: Array<{ id: string; type: string }> = [];
-			const placedBoxes: Array<{ id: string; box: Box }> = [];
+		async ({ boardId, shapes, pageId }) =>
+			withShapes(connections, boardId, pageId, (conn, view) => {
+				const shapesMap = view.map;
+				const placedShapes: Array<{ id: string; type: string }> = [];
+				const placedBoxes: Array<{ id: string; box: Box }> = [];
 
-			conn.doc.transact(() => {
-				for (const shape of shapes) {
-					const id = crypto.randomUUID();
-					const baseStyle =
-						shape.type === "text"
-							? { ...DEFAULT_STYLE, fill: "transparent", strokeWidth: 0 }
-							: DEFAULT_STYLE;
-					const { type, x, y, width, height, text, fontSize, style: inputStyle, ...extra } = shape;
-					const style = { ...baseStyle, ...inputStyle };
+				view.doc.transact(() => {
+					for (const shape of shapes) {
+						const id = crypto.randomUUID();
+						const baseStyle =
+							shape.type === "text"
+								? { ...DEFAULT_STYLE, fill: "transparent", strokeWidth: 0 }
+								: DEFAULT_STYLE;
+						const {
+							type,
+							x,
+							y,
+							width,
+							height,
+							text,
+							fontSize,
+							style: inputStyle,
+							...extra
+						} = shape;
+						const style = { ...baseStyle, ...inputStyle };
 
-					const shapeData: Record<string, unknown> = {
-						...extra,
-						id,
-						type,
-						x,
-						y,
-						width,
-						height,
-						style,
-					};
+						const shapeData: Record<string, unknown> = {
+							...extra,
+							id,
+							type,
+							x,
+							y,
+							width,
+							height,
+							style,
+						};
 
-					if (text !== undefined) {
-						shapeData.text = text;
+						if (text !== undefined) {
+							shapeData.text = text;
+						}
+						if (type === "text") {
+							shapeData.fontSize = fontSize ?? 16;
+							shapeData.fontFamily = "system-ui, sans-serif";
+							shapeData.isEditing = false;
+						}
+
+						shapesMap.set(id, shapeData);
+						placedShapes.push({ id, type });
+						placedBoxes.push({ id, box: { x, y, width, height } });
 					}
-					if (type === "text") {
-						shapeData.fontSize = fontSize ?? 16;
-						shapeData.fontFamily = "system-ui, sans-serif";
-						shapeData.isEditing = false;
-					}
-
-					shapesMap.set(id, shapeData);
-					placedShapes.push({ id, type });
-					placedBoxes.push({ id, box: { x, y, width, height } });
-				}
-			});
-
-			// Show it as an AI participant visiting and editing these shapes in turn (#960).
-			if (placedShapes.length > 0) {
-				conn.showAiActivity({
-					shapeIds: placedShapes.map((s) => s.id),
-					action: "edit",
-					stops: visitShapes(placedBoxes),
 				});
-			}
 
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: JSON.stringify({ created: placedShapes.length, shapes: placedShapes }, null, 2),
-					},
-				],
-			};
-		},
+				// Show it as an AI participant visiting and editing these shapes in turn (#960).
+				if (placedShapes.length > 0) {
+					conn.showAiActivity({
+						shapeIds: placedShapes.map((s) => s.id),
+						action: "edit",
+						stops: visitShapes(placedBoxes),
+						pageId: view.pageId,
+					});
+				}
+
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: JSON.stringify(
+								{ pageId: view.pageId, created: placedShapes.length, shapes: placedShapes },
+								null,
+								2,
+							),
+						},
+					],
+				};
+			}),
 	);
 
 	server.tool(
@@ -214,80 +232,100 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 		"シェイプを更新（複数可）。変更はリアルタイムにキャンバスに反映される",
 		{
 			boardId: z.string().describe("ボードID"),
+			pageId: pageIdSchema,
 			updates: z.array(shapeUpdateSchema).min(1).max(50).describe("更新内容の配列"),
 		},
-		async ({ boardId, updates }) => {
-			const conn = await connections.getConnection(boardId);
-			const shapesMap = conn.getShapesMap();
-			const updatedIds: string[] = [];
-			const notFound: string[] = [];
-			// Bounds BEFORE the update, so a move/resize can be replayed as a drag.
-			const beforeBoxes = new Map<string, Box>();
-			for (const { id } of updates) {
-				const s = conn.getShape(id);
-				if (s) beforeBoxes.set(id, { x: s.x, y: s.y, width: s.width, height: s.height });
-			}
-
-			conn.doc.transact(() => {
-				for (const update of updates) {
-					const existing = shapesMap.get(update.id);
-					if (!existing) {
-						notFound.push(update.id);
-						continue;
-					}
-
-					const { id, x, y, width, height, text, fontSize, style: updateStyle, ...extra } = update;
-					const updated: Record<string, unknown> = { ...existing };
-					if (x !== undefined) updated.x = x;
-					if (y !== undefined) updated.y = y;
-					if (width !== undefined) updated.width = width;
-					if (height !== undefined) updated.height = height;
-					if (text !== undefined) updated.text = text;
-					if (fontSize !== undefined) updated.fontSize = fontSize;
-					if (updateStyle !== undefined) {
-						const existingStyle = (existing.style ?? {}) as Record<string, unknown>;
-						updated.style = { ...existingStyle, ...updateStyle };
-					}
-					// カスタムプロパティを反映（予約キーは除外）
-					const reservedKeys = new Set([
-						"id",
-						"type",
-						"x",
-						"y",
-						"width",
-						"height",
-						"text",
-						"fontSize",
-						"style",
-					]);
-					for (const [key, value] of Object.entries(extra)) {
-						if (value !== undefined && !reservedKeys.has(key)) updated[key] = value;
-					}
-
-					shapesMap.set(id, updated);
-					updatedIds.push(id);
+		async ({ boardId, updates, pageId }) =>
+			withShapes(connections, boardId, pageId, (conn, view) => {
+				const shapesMap = view.map;
+				const updatedIds: string[] = [];
+				const notFound: string[] = [];
+				// Bounds BEFORE the update, so a move/resize can be replayed as a drag.
+				const beforeBoxes = new Map<string, Box>();
+				for (const { id } of updates) {
+					const s = view.get(id);
+					if (s) beforeBoxes.set(id, { x: s.x, y: s.y, width: s.width, height: s.height });
 				}
-			});
 
-			// Show it as an AI participant visiting and editing these shapes in turn (#960).
-			if (updatedIds.length > 0) {
-				const visited = updatedIds.flatMap((id) => {
-					const s = conn.getShape(id);
-					const box = s && { x: s.x, y: s.y, width: s.width, height: s.height };
-					return box ? [{ id, box, from: beforeBoxes.get(id) }] : [];
+				view.doc.transact(() => {
+					for (const update of updates) {
+						const existing = shapesMap.get(update.id);
+						if (!existing) {
+							notFound.push(update.id);
+							continue;
+						}
+
+						const {
+							id,
+							x,
+							y,
+							width,
+							height,
+							text,
+							fontSize,
+							style: updateStyle,
+							...extra
+						} = update;
+						const updated: Record<string, unknown> = { ...existing };
+						if (x !== undefined) updated.x = x;
+						if (y !== undefined) updated.y = y;
+						if (width !== undefined) updated.width = width;
+						if (height !== undefined) updated.height = height;
+						if (text !== undefined) updated.text = text;
+						if (fontSize !== undefined) updated.fontSize = fontSize;
+						if (updateStyle !== undefined) {
+							const existingStyle = (existing.style ?? {}) as Record<string, unknown>;
+							updated.style = { ...existingStyle, ...updateStyle };
+						}
+						// カスタムプロパティを反映（予約キーは除外）
+						const reservedKeys = new Set([
+							"id",
+							"type",
+							"x",
+							"y",
+							"width",
+							"height",
+							"text",
+							"fontSize",
+							"style",
+						]);
+						for (const [key, value] of Object.entries(extra)) {
+							if (value !== undefined && !reservedKeys.has(key)) updated[key] = value;
+						}
+
+						shapesMap.set(id, updated);
+						updatedIds.push(id);
+					}
 				});
-				conn.showAiActivity({ shapeIds: updatedIds, action: "edit", stops: visitShapes(visited) });
-			}
 
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: JSON.stringify({ updated: updatedIds.length, updatedIds, notFound }, null, 2),
-					},
-				],
-			};
-		},
+				// Show it as an AI participant visiting and editing these shapes in turn (#960).
+				if (updatedIds.length > 0) {
+					const visited = updatedIds.flatMap((id) => {
+						const s = view.get(id);
+						const box = s && { x: s.x, y: s.y, width: s.width, height: s.height };
+						return box ? [{ id, box, from: beforeBoxes.get(id) }] : [];
+					});
+					conn.showAiActivity({
+						shapeIds: updatedIds,
+						action: "edit",
+						stops: visitShapes(visited),
+						pageId: view.pageId,
+					});
+				}
+
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: JSON.stringify(
+								{ pageId: view.pageId, updated: updatedIds.length, updatedIds, notFound },
+								null,
+								2,
+							),
+						},
+					],
+				};
+			}),
 	);
 
 	server.tool(
@@ -295,47 +333,49 @@ export function registerShapeTools(server: McpServer, connections: ConnectionMan
 		"シェイプを削除（複数可）。削除はリアルタイムにキャンバスに反映される",
 		{
 			boardId: z.string().describe("ボードID"),
+			pageId: pageIdSchema,
 			shapeIds: z.array(z.string()).min(1).describe("削除するシェイプIDの配列"),
 		},
-		async ({ boardId, shapeIds }) => {
-			const conn = await connections.getConnection(boardId);
-			const shapesMap = conn.getShapesMap();
-			const deleted: string[] = [];
-			const notFound: string[] = [];
+		async ({ boardId, shapeIds, pageId }) =>
+			withShapes(connections, boardId, pageId, (conn, view) => {
+				const shapesMap = view.map;
+				const deleted: string[] = [];
+				const notFound: string[] = [];
 
-			// Capture bounds BEFORE deletion so the AI cursor can point at where it acted.
-			const delBoxes = shapeIds
-				.map((id) => conn.getShape(id))
-				.filter((s): s is ShapeData => Boolean(s))
-				.map((s) => ({ x: s.x, y: s.y, width: s.width, height: s.height }));
+				// Capture bounds BEFORE deletion so the AI cursor can point at where it acted.
+				const delBoxes = shapeIds
+					.map((id) => view.get(id))
+					.filter((s): s is ShapeData => Boolean(s))
+					.map((s) => ({ x: s.x, y: s.y, width: s.width, height: s.height }));
 
-			conn.doc.transact(() => {
-				for (const id of shapeIds) {
-					if (shapesMap.has(id)) {
-						shapesMap.delete(id);
-						deleted.push(id);
-					} else {
-						notFound.push(id);
+				view.doc.transact(() => {
+					for (const id of shapeIds) {
+						if (shapesMap.has(id)) {
+							shapesMap.delete(id);
+							deleted.push(id);
+						} else {
+							notFound.push(id);
+						}
 					}
-				}
-			});
+				});
 
-			// The shapes are gone, so no outline — the AI cursor just glides to the spot.
-			const spot = centroidOf(delBoxes);
-			if (deleted.length > 0 && spot) conn.showAiActivity({ stops: [{ cursor: spot }] });
+				// The shapes are gone, so no outline — the AI cursor just glides to the spot.
+				const spot = centroidOf(delBoxes);
+				if (deleted.length > 0 && spot)
+					conn.showAiActivity({ stops: [{ cursor: spot }], pageId: view.pageId });
 
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: JSON.stringify(
-							{ deleted: deleted.length, deletedIds: deleted, notFound },
-							null,
-							2,
-						),
-					},
-				],
-			};
-		},
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: JSON.stringify(
+								{ pageId: view.pageId, deleted: deleted.length, deletedIds: deleted, notFound },
+								null,
+								2,
+							),
+						},
+					],
+				};
+			}),
 	);
 }

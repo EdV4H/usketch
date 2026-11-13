@@ -15,6 +15,18 @@ export {
 	type PageDocPersistence,
 } from "./page-doc-manager.js";
 export {
+	checkPagesMigration,
+	copyRootShapesToPage,
+	countRootShapes,
+	DEFAULT_FIRST_PAGE_NAME,
+	type FinishPagesMigrationOptions,
+	type FinishPagesMigrationResult,
+	finishPagesMigration,
+	moveRootShapesToPage,
+	needsPagesMigration,
+	type PagesMigrationCheck,
+} from "./page-migration.js";
+export {
 	createPageScopedAwareness,
 	createPageScopedProvider,
 	PAGE_AWARENESS_FIELD,
@@ -27,10 +39,13 @@ export {
 	type CreatePageOptions,
 	CURRENT_PAGES_VERSION,
 	createPage,
+	deletePage,
+	getLegacyPageId,
 	getPage,
 	getPagesVersion,
 	initPagedBoard,
 	isPagedBoard,
+	LEGACY_PAGE_ID_KEY,
 	listPages,
 	newPageId,
 	observePages,
@@ -39,7 +54,10 @@ export {
 	PAGES_VERSION_KEY,
 	type PageMeta,
 	pageDocGuid,
+	renamePage,
+	reorderPage,
 	resolvePageId,
+	restorePage,
 	toPageMeta,
 } from "./pages.js";
 export {

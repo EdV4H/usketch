@@ -92,6 +92,21 @@ export function getPage(root: Y.Doc, pageId: string): PageMeta | null {
 }
 
 /**
+ * ページ形式にする前（ルート doc の `shapes`）の中身が、どのページへ移ったか。
+ * 移行で `meta` に書く。無ければ先頭ページとみなす（履歴の古い版をどのページに見せるかに使う）。
+ */
+export const LEGACY_PAGE_ID_KEY = "legacyPageId";
+
+/** ページ形式にする前の中身が移ったページ。ページを使わないボードは null。 */
+export function getLegacyPageId(root: Y.Doc): string | null {
+	const pages = listPages(root, { includeDeleted: true });
+	if (pages.length === 0) return null;
+	const recorded = metaMap(root).get(LEGACY_PAGE_ID_KEY);
+	if (typeof recorded === "string" && pages.some((p) => p.id === recorded)) return recorded;
+	return listPages(root)[0]?.id ?? null;
+}
+
+/**
  * ページを使うボードか。版があり、削除されていないページが 1 枚以上あるときだけ true。
  * ページが 1 枚も無い状態は移行の途中か壊れたデータなので、ページ無しとして扱う。
  */
@@ -138,6 +153,53 @@ export function createPage(root: Y.Doc, options: CreatePageOptions): PageMeta {
 	};
 	pagesMap(root).set(id, { ...page });
 	return page;
+}
+
+/** ページ名を変える。無いページは例外。 */
+export function renamePage(root: Y.Doc, pageId: string, name: string): PageMeta {
+	const page = getPage(root, pageId);
+	if (!page) throw new Error(`Page not found: ${pageId}`);
+	const next = { ...page, name };
+	pagesMap(root).set(pageId, next);
+	return next;
+}
+
+/**
+ * ページを並び順の `toIndex` 番目（削除済みを除いた 0 始まり）へ動かす。
+ * 範囲外は端に寄せる。無いページ・削除済みのページは例外。
+ */
+export function reorderPage(root: Y.Doc, pageId: string, toIndex: number): PageMeta {
+	const page = getPage(root, pageId);
+	if (!page || page.deletedAt !== undefined) throw new Error(`Page not found: ${pageId}`);
+	const others = listPages(root).filter((p) => p.id !== pageId);
+	const index = Math.max(0, Math.min(others.length, Math.trunc(toIndex)));
+	const before = others[index - 1]?.order ?? null;
+	const after = others[index]?.order ?? null;
+	const next = { ...page, order: generateKeyBetween(before, after) };
+	pagesMap(root).set(pageId, next);
+	return next;
+}
+
+/**
+ * ページを削除する（`deletedAt` を付けるだけで、中身は残る。{@link restorePage} で戻せる）。
+ * 最後の 1 枚は削除できない（例外）。
+ */
+export function deletePage(root: Y.Doc, pageId: string, options: { now?: number } = {}): PageMeta {
+	const page = getPage(root, pageId);
+	if (!page || page.deletedAt !== undefined) throw new Error(`Page not found: ${pageId}`);
+	if (listPages(root).length <= 1) throw new Error("Cannot delete the last page");
+	const next = { ...page, deletedAt: options.now ?? Date.now() };
+	pagesMap(root).set(pageId, next);
+	return next;
+}
+
+/** 削除したページを戻す。戻したページを返す。無いページは例外。 */
+export function restorePage(root: Y.Doc, pageId: string): PageMeta {
+	const page = getPage(root, pageId);
+	if (!page) throw new Error(`Page not found: ${pageId}`);
+	const { deletedAt: _deletedAt, ...rest } = page;
+	pagesMap(root).set(pageId, rest);
+	return rest;
 }
 
 /**

@@ -13,6 +13,7 @@ import type {
 	RenderMode,
 	SelectionForeground,
 	SelectionForegroundRegistry,
+	SelectionHandleRegistry,
 	ServiceRegistry,
 	ShapeRegistry,
 	ShortcutRegistry,
@@ -43,6 +44,7 @@ import {
 } from "./lod/index.js";
 import { createPluginRegistry } from "./plugin-registry.js";
 import { createSelectionForegroundRegistry } from "./selection-foreground-registry.js";
+import { createSelectionHandleRegistry } from "./selection-handle-registry.js";
 import { createServiceRegistry } from "./service-registry.js";
 import { createShapeRegistry } from "./shape-registry.js";
 import { createShortcutRegistry } from "./shortcut-registry.js";
@@ -68,6 +70,8 @@ export interface AppInstance {
 	ui: UiRegistry;
 	/** Exposed so canvas-engine can subscribe to the active entry. */
 	selectionForeground: SelectionForegroundRegistry;
+	/** Handles plugins add to the selection UI (same object as `ui.selectionHandles`). */
+	selectionHandles: SelectionHandleRegistry;
 	/** Exposed so canvas-engine can dispatch drop/paste content. */
 	externalContent: ExternalContentRegistry;
 	/** Enumerable declarative plugin operations (control HUD / command palette). */
@@ -127,8 +131,10 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	const hud = createHudRegistry();
 	const services = createServiceRegistry();
 	const selectionForeground = createSelectionForegroundRegistry();
+	const selectionHandles = createSelectionHandleRegistry();
 	const ui: UiRegistry = {
 		registerSelectionForeground: (entry) => selectionForeground.register(entry),
+		selectionHandles,
 	};
 	const externalContent = createExternalContentRegistry(() => ({
 		store,
@@ -284,6 +290,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		lod,
 		ui,
 		selectionForeground,
+		selectionHandles,
 		externalContent,
 		actions,
 		hud,

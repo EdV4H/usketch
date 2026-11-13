@@ -4,9 +4,12 @@
  *
  * - GET  /history?limit=&cursor=         コミット一覧（新しい順）
  * - POST /history/commits                手動コミット { message?, trigger?: "manual" | "restore" }
- * - GET  /history/commits/:hash          コミット時点のシェイプ全体
- * - GET  /history/diff?from=&to=         差分（to 省略で現在のボードと比較）
+ * - GET  /history/commits/:hash?page=    コミット時点のシェイプ全体
+ * - GET  /history/diff?from=&to=&page=   差分（to 省略で現在のボードと比較）
+ *
+ * `page` はページを使うボードでどのページを見るか（省略時は先頭ページ）。
  */
+import { isValidDocId } from "@edv4h/usketch-sync";
 import type { HistoryManager } from "./history-manager.js";
 
 const MAX_MESSAGE_LENGTH = 500;
@@ -38,6 +41,12 @@ async function readCommitBody(
 		message: (message ?? "").trim().slice(0, MAX_MESSAGE_LENGTH),
 		trigger: trigger ?? "manual",
 	};
+}
+
+/** `?page=`。doc id として使えない値は無視する。 */
+function readPage(url: URL): string | null {
+	const page = url.searchParams.get("page");
+	return page && isValidDocId(page) ? page : null;
 }
 
 /** `/history` 以下ならレスポンスを、それ以外は null を返す。 */
@@ -74,14 +83,18 @@ export async function handleHistoryRequest(
 
 		if (path.startsWith("/history/commits/") && request.method === "GET") {
 			const hash = path.slice("/history/commits/".length);
-			const detail = await history.getCommit(hash);
+			const detail = await history.getCommit(hash, readPage(url));
 			return detail ? json(detail) : json({ error: "Commit not found" }, 404);
 		}
 
 		if (path === "/history/diff" && request.method === "GET") {
 			const from = url.searchParams.get("from");
 			if (!from) return json({ error: "from is required" }, 400);
-			const result = await history.diff(from, url.searchParams.get("to") ?? undefined);
+			const result = await history.diff(
+				from,
+				url.searchParams.get("to") ?? undefined,
+				readPage(url),
+			);
 			return result ? json(result) : json({ error: "Commit not found" }, 404);
 		}
 

@@ -39,6 +39,11 @@ pnpm dev
 - **Background**: grid, dots
 - **Snap & smart guides**、キーボードショートカット、Undo/Redo（コマンドパターン）
 
+### マルチページ
+- 1 ボードに複数のページ。ページごとに別の Y.Doc で、開いたページだけ読み込む
+- HUD のページパネル（追加・名前変更・並べ替え・複製・削除と復元、`Alt+PageUp/Down`）とシェイプのページ間の移動・コピー
+- Members・Follow・コメント・発表・エクスポートもページに対応（[マルチページ](https://edv4h.github.io/usketch/docs/ja/guides/multi-page/)）
+
 ### コラボレーション
 - **Realtime sync**: Cloudflare Durable Objects + Yjs WebSocket（awareness 付き）
 - **Offline-first**: y-indexeddb によるローカル永続化、再接続時の自動同期
@@ -55,9 +60,10 @@ pnpm dev
 - **Frame ベースのスライド** + edit / present モード
 - Canvas が stage 矩形に縮退する "Canvas flavor" 設計
 - スライドサムネイル（minimap 連動）
+- マルチページのボードでは、ページをまたいで発表を進める
 
 ### エクスポート
-- PNG / SVG / JSON（Satori + Canvas）
+- PNG / SVG / JSON（Satori + Canvas）。マルチページのボードでは全ページをまとめて書き出せる
 
 ## プロジェクト構成
 

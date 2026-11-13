@@ -69,8 +69,11 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 	"usketch-plugin-dashboard:grid-overlay",
 	// shape-attached overlays (selection, connectors, editors) — follow the shapes
 	"comment-badges",
+	// connector-anchor-handles / connector-endpoints: shape-connector before 3.5
+	// (its handles are now drawn by the select tool's handles layer).
 	"connector-anchor-handles",
 	"__selection-foreground",
+	"usketch-plugin-tool-select:handles",
 	"connector-endpoints",
 	"connector-label-editor",
 	"usketch-plugin-shape-frame:title-editor",
