@@ -233,6 +233,7 @@ if (!check.ok) console.error("migration mismatch", check.missing, check.changed,
 - **クライアントを先に新しくする。** 移行後のボードは古いクライアントでは空に見える
 - **ルートの `shapes` を読むサーバーの機能を直す。** 移行後はルートが空なので、サムネイル・AI・エクスポート・検索などは `isPagedBoard(root)` を見てページ doc を読む。uSketch 本体の履歴は、ページ形式のコミットで tree をページごとに持つ（`HistoryCommit.layout = "pages"`）
 - **バックアップを取る。** 移行はルート doc を書き換える。uSketch 本体は移行の直前に履歴のコミットを 1 つ取り、移行前の中身はそこから 1 枚目として戻せる
+- **コメントにページを記録するなら列を足す。** `@edv4h/usketch-plugin-server-comments` は、`comments` テーブルに `pageId`（`page_id`、text、null 可）列があればスレッドのページを保存する。無ければ今までどおり動く。クライアントは `createCommentsPlugin` の `pages` オプションを渡す
 - **ルート doc の他のキーは変わらない。** 利用先が `meta` に置いている値や、`shapes` 以外の `Y.Map` は移行で触らない
 
 ## 公開している関数
