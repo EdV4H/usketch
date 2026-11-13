@@ -27,6 +27,7 @@ import { handleHistoryRequest } from "./rooms/history-handler.js";
 import { createHistoryManager } from "./rooms/history-manager.js";
 import { deleteLegacySnapshots } from "./rooms/legacy-snapshot-cleanup.js";
 import { createPageDocs } from "./rooms/page-docs.js";
+import { createPagesMigration } from "./rooms/pages-migration.js";
 import { createPartitionManager } from "./rooms/partition-manager.js";
 import { SessionManager, type SessionSnapshot } from "./rooms/session-manager.js";
 import { handleThumbnail } from "./rooms/thumbnail-handler.js";
@@ -102,14 +103,41 @@ export class BoardRoom extends DurableObject<Env> {
 		getRootDoc: () => this.yjsSync.getOrCreateDoc(),
 		publishRoot: (update) => {
 			this.yjsSync.pushUpdate(update);
-			const msg = new Uint8Array(update.length + 1);
-			msg[0] = MSG_YJS_UPDATE;
-			msg.set(update, 1);
-			this.broadcastAll(msg);
-			this.noteBoardEdit();
+			this.broadcastRootUpdate(update);
 		},
 		pageDocs: this.pageDocs,
 	});
+
+	// マルチページ移行。移行前のボードを開いたら、初回同期より前にルートの shapes を 1 枚目の
+	// ページ doc へ移す（機能フラグ PAGES_MIGRATION で開ける）。移行後にルートへ書かれた
+	// シェイプは 1 枚目へ移す。
+	private readonly pagesMigration = createPagesMigration({
+		enabled: this.env.PAGES_MIGRATION === "true",
+		storage: this.ctx.storage,
+		root: this.yjsSync,
+		pageDocs: this.pageDocs,
+		broadcastRoot: (update) => this.broadcastRootUpdate(update),
+		commitBeforeMigration: () =>
+			this.history.recordCommit({ trigger: "auto", message: "マルチページへの移行前" }),
+	});
+
+	/** サーバーで書いたルート doc の update を全接続へ送り、保存と履歴を予約する。 */
+	private broadcastRootUpdate(update: Uint8Array): void {
+		const msg = new Uint8Array(update.length + 1);
+		msg[0] = MSG_YJS_UPDATE;
+		msg.set(update, 1);
+		this.broadcastAll(msg);
+		this.noteBoardEdit();
+	}
+
+	/** 移行が要るボードなら移行する。失敗してもボードはページ無しのまま開ける。 */
+	private async ensurePagesMigrated(): Promise<void> {
+		try {
+			await this.pagesMigration.ensureMigrated();
+		} catch (e) {
+			console.error("[BoardRoom] Pages migration failed:", e);
+		}
+	}
 
 	/** Yjs の保存を予約し、履歴の自動コミットにも編集を知らせる。 */
 	private noteBoardEdit(): void {
@@ -195,6 +223,7 @@ export class BoardRoom extends DurableObject<Env> {
 	async fetch(request: Request): Promise<Response> {
 		await this.yjsSync.loadUpdates();
 		await this.partitions.loadFromStorage();
+		await this.ensurePagesMigrated();
 		const url = new URL(request.url);
 
 		if (url.pathname === "/ws") {
@@ -269,6 +298,12 @@ export class BoardRoom extends DurableObject<Env> {
 				this.partitions.trackUpdate(payload);
 				this.broadcast(ws, data);
 				this.noteBoardEdit();
+				// ページを使うボードのルート shapes に書かれたもの（古いクライアントなど）は 1 枚目へ移す
+				try {
+					await this.pagesMigration.moveRootShapes();
+				} catch (e) {
+					console.error("[BoardRoom] Failed to move root shapes to the first page:", e);
+				}
 				break;
 			}
 			case MSG_AWARENESS:
@@ -290,6 +325,8 @@ export class BoardRoom extends DurableObject<Env> {
 				break;
 			}
 			case MSG_SYNC_STEP1: {
+				// 休眠から戻った接続でも、初回同期より前に移行を済ませる
+				await this.ensurePagesMigrated();
 				for (const update of this.yjsSync.getUpdates()) {
 					const msg = new Uint8Array(update.length + 1);
 					msg[0] = MSG_SYNC_STEP2;

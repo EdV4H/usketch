@@ -130,6 +130,7 @@ import {
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
+import { migrateLocalBoard } from "./lib/local-pages-migration.js";
 import { presenceStore, readPresenceMembers } from "./lib/presence-store.js";
 import { computePresentStage, type StageRect } from "./lib/present-stage.js";
 import { loadViewportCull, loadViewportLod } from "./lib/render-settings.js";
@@ -793,8 +794,19 @@ export function App() {
 			setPagesState({ paged: isPagedBoard(rootDoc), pages: listPages(rootDoc) });
 		const offPages = observePages(rootDoc, readPages);
 
-		rootPersistence.whenSynced.then(() => {
+		rootPersistence.whenSynced.then(async () => {
 			if (cancelled) return;
+			// ローカルボードの移行はクライアントで行う（クラウドボードはサーバーが行う）
+			if (!isCloudBoard) {
+				try {
+					await migrateLocalBoard(boardId, rootDoc, {
+						migrate: import.meta.env.VITE_PAGES_MIGRATION === "true",
+					});
+				} catch (e) {
+					console.error("[pages] Local board migration failed:", e);
+				}
+				if (cancelled) return;
+			}
 			readPages();
 			setBoard({ boardId, rootDoc, wsProvider, serverClock, pageDocs });
 		});
