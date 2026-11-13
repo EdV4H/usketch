@@ -360,11 +360,19 @@
 		"install": "pnpm add @edv4h/usketch-plugin-comments"
 	},
 	{
+		"id": "pages",
+		"name": "Pages",
+		"category": "ui",
+		"glyph": "▤",
+		"summary": "Multiple pages in one board: HUD page panel, Alt+PageUp/Down, and moving or copying shapes between pages.",
+		"install": "pnpm add @edv4h/usketch-plugin-pages"
+	},
+	{
 		"id": "presentation",
 		"name": "Presentation",
 		"category": "ui",
 		"glyph": "▷",
-		"summary": "Frame‑based slides with edit/present modes.",
+		"summary": "Frame‑based slides with edit/present modes; on multi-page boards the deck continues across pages.",
 		"install": "pnpm add @edv4h/usketch-plugin-presentation"
 	},
 	{
@@ -372,7 +380,7 @@
 		"name": "Export",
 		"category": "ui",
 		"glyph": "⭳",
-		"summary": "Export PNG/SVG/JSON via Satori + Canvas.",
+		"summary": "Export PNG/SVG/JSON via Satori + Canvas, for one page or all pages.",
 		"install": "pnpm add @edv4h/usketch-plugin-export"
 	},
 	{
