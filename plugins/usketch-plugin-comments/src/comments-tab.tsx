@@ -1,12 +1,25 @@
 import type { EventBus } from "@edv4h/usketch-shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CommentClient } from "./comment-client.js";
+import type { CommentsPagesOptions } from "./plugin.js";
 import type { CommentThread } from "./types.js";
 
 interface CommentsTabProps {
 	client: CommentClient;
 	events: EventBus;
 	focusThreadId: string | null;
+	pages?: CommentsPagesOptions;
+}
+
+/** 別のページのコメントなら、そのページの id と名前。今のページ（またはページを使わない）なら null。 */
+function otherPageOf(
+	thread: CommentThread,
+	pages: CommentsPagesOptions | undefined,
+): { id: string; name: string } | null {
+	if (!pages) return null;
+	const pageId = thread.pageId ?? pages.legacyPageId ?? null;
+	if (!pageId || pageId === pages.currentPageId) return null;
+	return { id: pageId, name: pages.pageName(pageId) ?? "削除したページ" };
 }
 
 function formatTime(iso: string): string {
@@ -20,9 +33,13 @@ function ThreadItem({
 	onReply,
 	onResolve,
 	onDelete,
+	otherPage,
+	onOpenPage,
 }: {
 	thread: CommentThread;
 	isFocused: boolean;
+	otherPage: { id: string; name: string } | null;
+	onOpenPage: (pageId: string) => void;
 	onReply: (threadId: string, text: string) => void;
 	onResolve: (threadId: string, resolved: boolean) => void;
 	onDelete: (threadId: string) => void;
@@ -66,6 +83,26 @@ function ThreadItem({
 			>
 				<span style={{ fontSize: 11, color: "var(--fg-tertiary)" }}>
 					on shape {thread.anchorShapeId.slice(0, 8)}…
+					{otherPage && (
+						<button
+							type="button"
+							title={`${otherPage.name} を開く`}
+							aria-label={`このコメントのページ（${otherPage.name}）を開く`}
+							onClick={() => onOpenPage(otherPage.id)}
+							style={{
+								marginLeft: 6,
+								padding: "0 6px",
+								border: "1px solid var(--border-subtle)",
+								borderRadius: 4,
+								background: "transparent",
+								color: "var(--fg-secondary)",
+								fontSize: 10,
+								cursor: "pointer",
+							}}
+						>
+							{otherPage.name}
+						</button>
+					)}
 				</span>
 				<div style={{ display: "flex", gap: 4 }}>
 					<button
@@ -247,7 +284,7 @@ function NewThreadForm({
 	);
 }
 
-export function CommentsTab({ client, events, focusThreadId }: CommentsTabProps) {
+export function CommentsTab({ client, events, focusThreadId, pages }: CommentsTabProps) {
 	const [threads, setThreads] = useState<CommentThread[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [newThreadPrompt, setNewThreadPrompt] = useState<NewThreadPrompt | null>(null);
@@ -332,6 +369,7 @@ export function CommentsTab({ client, events, focusThreadId }: CommentsTabProps)
 				anchorX: newThreadPrompt.anchorX,
 				anchorY: newThreadPrompt.anchorY,
 				text,
+				pageId: pages?.currentPageId,
 			});
 			if (thread) {
 				setThreads((prev) => [thread, ...prev]);
@@ -340,7 +378,7 @@ export function CommentsTab({ client, events, focusThreadId }: CommentsTabProps)
 			}
 			setNewThreadPrompt(null);
 		},
-		[client, newThreadPrompt, events],
+		[client, newThreadPrompt, events, pages],
 	);
 
 	if (loading) {
@@ -380,6 +418,8 @@ export function CommentsTab({ client, events, focusThreadId }: CommentsTabProps)
 						onReply={handleReply}
 						onResolve={handleResolve}
 						onDelete={handleDelete}
+						otherPage={otherPageOf(thread, pages)}
+						onOpenPage={(pageId) => pages?.switchPage(pageId)}
 					/>
 				))
 			)}

@@ -233,6 +233,7 @@ Before enabling migration in production, run this check over copies of real boar
 - **Update clients first.** A migrated board looks empty in an old client
 - **Fix server features that read the root `shapes`.** After migration the root is empty, so thumbnails, AI, export, search and so on should check `isPagedBoard(root)` and read page docs. uSketch's history stores one tree per page in paged commits (`HistoryCommit.layout = "pages"`)
 - **Take a backup.** Migration rewrites the root doc. uSketch takes a history commit right before migrating, so the old content can be restored from it as page 1
+- **Add a column to record comment pages.** `@edv4h/usketch-plugin-server-comments` stores a thread's page when the `comments` table has a `pageId` column (`page_id`, nullable text); without it nothing changes. On the client, pass the `pages` option to `createCommentsPlugin`
 - **Other root keys are untouched.** Your own values in `meta` and any `Y.Map` other than `shapes` are left alone
 
 ## Exported functions

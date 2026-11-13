@@ -473,7 +473,22 @@ export function App() {
 				if (devUser) aiHeaders["X-User-Id"] = devUser.id;
 			}
 
-			extraPlugins.push(createCommentsPlugin({ boardId, apiUrl, extraHeaders: aiHeaders }));
+			// ページを使うボードでは、コメントにページを記録し、一覧から別のページへ移れる
+			extraPlugins.push(
+				createCommentsPlugin({
+					boardId,
+					apiUrl,
+					extraHeaders: aiHeaders,
+					pages: pageId
+						? {
+								currentPageId: pageId,
+								legacyPageId: getLegacyPageId(rootDoc),
+								pageName: (id) => getPage(rootDoc, id)?.name ?? null,
+								switchPage: (id) => switchPageRef.current(id),
+							}
+						: undefined,
+				}),
+			);
 			// ボード履歴（サーバーの自動・手動コミット）の一覧・差分・プレビュー・復元。
 			// ページを使うボードでは、今開いているページの中身を見せる。
 			extraPlugins.push(createHistoryPlugin({ boardId, apiUrl, extraHeaders: aiHeaders, pageId }));

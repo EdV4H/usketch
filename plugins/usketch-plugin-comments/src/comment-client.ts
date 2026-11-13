@@ -36,6 +36,8 @@ export function createCommentClient(options: CommentClientOptions) {
 		anchorX?: number;
 		anchorY?: number;
 		text: string;
+		/** マルチページ: 今のページ。 */
+		pageId?: string;
 	}): Promise<CommentThread | null> {
 		try {
 			const res = await fetch(base, {
