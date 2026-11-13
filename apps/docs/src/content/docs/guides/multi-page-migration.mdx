@@ -1,7 +1,7 @@
 ---
 title: Migrating to multi-page boards
 description: How an app that embeds uSketch and runs its own sync server moves to boards with multiple pages — syncing page docs, splitting host initialization, migrating existing boards, and verifying the result.
-order: 31
+order: 32
 ---
 
 A uSketch board can now hold multiple pages. Each page lives in its own `Y.Doc` (a **page doc**), and only the pages you open are loaded. This guide is for apps that embed uSketch and **run sync and storage on their own server**. It walks through moving to the new format without breaking existing boards.
@@ -150,6 +150,8 @@ Reference: `apps/web/src/app.tsx` (the "board-level" and "page-level" initializa
 ## Add the page UI
 
 `@edv4h/usketch-plugin-pages` adds a pages panel to the HUD (list, switch, add, rename, reorder, duplicate, delete and restore), plus actions and keys (`Alt+PageDown` / `Alt+PageUp`). Hosts can get its API with `getPagesApi(services)`.
+
+The options that make Follow, comments, presentation, export and portals page-aware are listed under [Embedding in Multi-page boards](../multi-page/#embedding).
 
 To build your own UI, use the pure functions in `@edv4h/usketch-sync` that take the root doc: `listPages` / `createPage` / `renamePage` / `reorderPage` / `deletePage` / `restorePage` / `observePages`. `deletePage` only sets a `deletedAt` mark and keeps the page doc. The last page cannot be deleted.
 

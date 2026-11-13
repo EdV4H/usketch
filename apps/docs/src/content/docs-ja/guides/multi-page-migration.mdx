@@ -1,7 +1,7 @@
 ---
 title: マルチページへの移行
 description: uSketch を組み込んだアプリ（自前のサーバーを持つ利用先）が、1 ボードに複数のページを持てる形式へ移る手順。ページ doc の同期、ホストの初期化の分け方、既存ボードの移行と確かめ方。
-order: 31
+order: 32
 ---
 
 uSketch のボードは 1 つの中に複数のページを持てるようになった。ページごとに別の `Y.Doc`（ページ doc）を使い、開いたページの doc だけを読み込む。このガイドは、uSketch を自分のアプリに組み込み、**同期や保存を自前のサーバーで行っている利用先**が、既存のボードを壊さずにこの形式へ移るための手順をまとめたもの。
@@ -150,6 +150,8 @@ observePages(rootDoc, () => reopen(pickPage()));
 ## ページの UI を出す
 
 `@edv4h/usketch-plugin-pages` は、HUD にページパネル（一覧・切り替え・追加・名前変更・並べ替え・複製・削除と復元）と、アクション・キー（`Alt+PageDown` / `Alt+PageUp`）を足す。ホストの API は `getPagesApi(services)` で取れる。
+
+Follow・コメント・発表・エクスポート・ポータルをページに対応させるオプションは、[マルチページの「組み込むとき」](../multi-page/#組み込むとき) にまとめている。
 
 自分の UI を作るなら、ルート doc を受け取る純関数（`@edv4h/usketch-sync`）を使う: `listPages` / `createPage` / `renamePage` / `reorderPage` / `deletePage` / `restorePage` / `observePages`。`deletePage` は印（`deletedAt`）を付けるだけで、ページ doc は消さない。最後の 1 枚は消せない。
 
