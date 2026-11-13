@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import type { PresentStart } from "./page-step.js";
 import type { SlideNavigator } from "./slide-navigator.js";
 
 interface Props {
@@ -11,6 +12,14 @@ interface Props {
 	onExit?: () => void;
 	/** 画角 (現スライド) 以外の Canvas を暗幕で隠すか。overlay 内トグルの初期値。 */
 	mask?: boolean;
+	/** 次（1）・前（-1）へ進める。省略時は nav の next / prev（ページをまたがない）。 */
+	step?: (direction: 1 | -1) => void;
+	/** 次・前へ進める先があるか。省略時は nav の hasNext / hasPrev。 */
+	canStep?: (direction: 1 | -1) => boolean;
+	/** 発表をどこから始めるか。省略時は先頭のスライド。 */
+	takeStart?: () => PresentStart;
+	/** 今のページの名前（マルチページのとき）。 */
+	pageLabel?: string | null;
 }
 
 /** onExit 未指定時のフォールバック (URL クエリで edit モードへ)。 */
@@ -24,7 +33,17 @@ function defaultExit(): void {
 
 const MASK_BG = "rgba(12,12,16,0.92)";
 
-export function PresentModeOverlay({ nav, onExit, mask }: Props) {
+export function PresentModeOverlay({
+	nav,
+	onExit,
+	mask,
+	step: stepProp,
+	canStep: canStepProp,
+	takeStart,
+	pageLabel,
+}: Props) {
+	const stepBy = stepProp ?? ((d: 1 | -1) => (d === 1 ? nav.next() : nav.prev()));
+	const canStep = canStepProp ?? ((d: 1 | -1) => (d === 1 ? nav.hasNext() : nav.hasPrev()));
 	const [index, setIndex] = useState(nav.getCurrentIndex());
 	const [total, setTotal] = useState(nav.getSlides().length);
 	// open-slide デッキなどスライド内にページがあるときの位置。
@@ -50,12 +69,15 @@ export function PresentModeOverlay({ nav, onExit, mask }: Props) {
 
 	// 発表モードに入った直後は Canvas コンテナサイズが edit → 画面全体に切り替わる
 	// 途中でもあり得る。React のレイアウト確定 (double rAF) を待って先頭スライドに fit する。
+	// 前のページから戻ってきたときは最後のスライドから。takeStart は mount 時に一度だけ読む。
+	// biome-ignore lint/correctness/useExhaustiveDependencies: 親の再描画で発表の位置を戻さない
 	useEffect(() => {
 		let raf1: number;
 		let raf2 = 0;
 		raf1 = requestAnimationFrame(() => {
 			raf2 = requestAnimationFrame(() => {
-				nav.first();
+				if (takeStart?.() === "last") nav.last();
+				else nav.first();
 			});
 		});
 		return () => {
@@ -110,7 +132,11 @@ export function PresentModeOverlay({ nav, onExit, mask }: Props) {
 						background: "var(--bg-surface-raised)",
 					}}
 				>
+					{pageLabel && <div style={{ fontWeight: 600, marginBottom: 4 }}>{pageLabel}</div>}
 					スライド（Frame）がありません。編集モードでフレームを追加してください。
+					{(canStep(1) || canStep(-1)) && (
+						<div style={{ marginTop: 4 }}>← → で前後のページへ進めます。</div>
+					)}
 				</div>
 			</div>,
 			document.body,
@@ -283,9 +309,35 @@ export function PresentModeOverlay({ nav, onExit, mask }: Props) {
 						boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
 					}}
 				>
+					{pageLabel && (
+						<>
+							<div
+								title={pageLabel}
+								style={{
+									padding: "0 10px",
+									fontSize: 12,
+									color: "rgba(255,255,255,0.75)",
+									maxWidth: 180,
+									overflow: "hidden",
+									textOverflow: "ellipsis",
+									whiteSpace: "nowrap",
+								}}
+							>
+								{pageLabel}
+							</div>
+							<div
+								style={{
+									width: 1,
+									height: 20,
+									background: "rgba(255,255,255,0.15)",
+									margin: "0 4px",
+								}}
+							/>
+						</>
+					)}
 					<NavButton
-						disabled={!nav.hasPrev()}
-						onClick={() => nav.prev()}
+						disabled={!canStep(-1)}
+						onClick={() => stepBy(-1)}
 						ariaLabel="前のスライド"
 						direction="prev"
 					/>
@@ -309,8 +361,8 @@ export function PresentModeOverlay({ nav, onExit, mask }: Props) {
 						)}
 					</div>
 					<NavButton
-						disabled={!nav.hasNext()}
-						onClick={() => nav.next()}
+						disabled={!canStep(1)}
+						onClick={() => stepBy(1)}
 						ariaLabel="次のスライド"
 						direction="next"
 					/>

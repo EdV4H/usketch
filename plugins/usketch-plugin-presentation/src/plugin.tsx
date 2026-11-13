@@ -16,6 +16,13 @@ import { createOpenSlideShapeDefinition } from "./open-slide/open-slide-shape.js
 import { setOpenSlideText } from "./open-slide/overrides.js";
 import { MutablePresentCursor } from "./open-slide/present-cursor.js";
 import { isOpenSlideShape, OPEN_SLIDE_SHAPE_TYPE, type OpenSlideDeck } from "./open-slide/types.js";
+import {
+	canStepPresentation,
+	type PresentationPagesOptions,
+	type PresentStart,
+	stepPresentation,
+	takePresentStart,
+} from "./page-step.js";
 import { PresentEditOverlay } from "./present-edit-overlay.js";
 import { PresentModeOverlay } from "./present-mode-overlay.js";
 import type { GetStepCount, IsSlide } from "./slide-navigator.js";
@@ -79,6 +86,11 @@ export interface PresentationPluginOptions {
 		/** 置けるデッキ。モジュールは表示時に遅延 import する。 */
 		decks: readonly OpenSlideDeck[];
 	};
+	/**
+	 * マルチページのボードで、発表をページをまたいで進める。最後のスライドの次で次のページの
+	 * 先頭へ、最初のスライドの前で前のページの最後へ移る。省略時は今のページの中だけ。
+	 */
+	pages?: PresentationPagesOptions;
 }
 
 function defaultGetViewportSize(): { width: number; height: number } {
@@ -111,6 +123,7 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 	const mask = opts.mask;
 	const fitPadding = opts.fitPadding;
 	const openSlide = opts.openSlide;
+	const pages = opts.pages;
 
 	return {
 		id: "presentation",
@@ -132,6 +145,18 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 				getStepCount,
 			});
 			const navRef = nav;
+			// 前のページから戻ってきたときは、そのページの最後のスライドから始める。
+			// 一度使ったら（発表を抜けて入り直したら）先頭から。
+			let startAt: PresentStart = takePresentStart();
+			const takeStart = (): PresentStart => {
+				const value = startAt;
+				startAt = "first";
+				return value;
+			};
+			const step = (direction: 1 | -1) => {
+				stepPresentation(navRef, direction, pages);
+			};
+			const canStep = (direction: 1 | -1) => canStepPresentation(navRef, direction, pages);
 
 			if (deckRegistry) {
 				// 発表中の現在位置を open-slide Shape に流し、画角に入ったデッキだけが
@@ -239,13 +264,13 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 			unregisters.push(
 				ctx.shortcuts.register(
 					"ArrowRight",
-					ifPresent(() => navRef.next()),
+					ifPresent(() => step(1)),
 				),
 			);
 			unregisters.push(
 				ctx.shortcuts.register(
 					"ArrowLeft",
-					ifPresent(() => navRef.prev()),
+					ifPresent(() => step(-1)),
 				),
 			);
 			unregisters.push(
@@ -283,10 +308,10 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 				if (e.ctrlKey || e.metaKey || e.altKey) return;
 				if (e.key === " " || e.key === "PageDown") {
 					e.preventDefault();
-					navRef.next();
+					step(1);
 				} else if (e.key === "PageUp") {
 					e.preventDefault();
-					navRef.prev();
+					step(-1);
 				}
 			};
 			window.addEventListener("keydown", onKeyDown);
@@ -328,6 +353,10 @@ export function createPresentationPlugin(opts: PresentationPluginOptions): Usket
 							renderEditUI={renderEditUI}
 							onExit={onExit}
 							mask={mask}
+							step={step}
+							canStep={canStep}
+							takeStart={takeStart}
+							pageLabel={pages?.pageLabel}
 						/>
 					);
 				},
@@ -359,6 +388,10 @@ interface PresentationLayerProps {
 	renderEditUI: boolean;
 	onExit?: () => void;
 	mask?: boolean;
+	step: (direction: 1 | -1) => void;
+	canStep: (direction: 1 | -1) => boolean;
+	takeStart: () => PresentStart;
+	pageLabel?: () => string | null;
 }
 
 function PresentationLayer({
@@ -372,11 +405,27 @@ function PresentationLayer({
 	renderEditUI,
 	onExit,
 	mask,
+	step,
+	canStep,
+	takeStart,
+	pageLabel,
 }: PresentationLayerProps) {
 	const [mode, setMode] = usePresentationMode(getMode, subscribeMode);
 	void setMode;
 	if (mode === "off") return null;
-	if (mode === "present") return <PresentModeOverlay nav={nav} onExit={onExit} mask={mask} />;
+	if (mode === "present") {
+		return (
+			<PresentModeOverlay
+				nav={nav}
+				onExit={onExit}
+				mask={mask}
+				step={step}
+				canStep={canStep}
+				takeStart={takeStart}
+				pageLabel={pageLabel?.() ?? null}
+			/>
+		);
+	}
 	void renderCtx;
 	// edit モードのパネルはホスト側が持つ場合 renderEditUI=false で抑止する。
 	if (!renderEditUI) return null;

@@ -32,6 +32,17 @@ export {
 	OPEN_SLIDE_SHAPE_TYPE,
 	openSlideTextKey,
 } from "./open-slide/types.js";
+export type {
+	PresentationPagesOptions,
+	PresentStart,
+	PresentStepResult,
+} from "./page-step.js";
+export {
+	canStepPresentation,
+	carryPresentStart,
+	stepPresentation,
+	takePresentStart,
+} from "./page-step.js";
 export type { PresentationMode, PresentationPluginOptions } from "./plugin.js";
 export { createPresentationPlugin } from "./plugin.js";
 export { PresentModeOverlay } from "./present-mode-overlay.js";

@@ -1,7 +1,7 @@
 import type { ShapeData, ShapeRegistry } from "@edv4h/usketch-shared";
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
-import { scopeSatoriIds } from "./exporter.js";
+import { buildPagesSvg, exportPagesJson, scopeSatoriIds } from "./exporter.js";
 import { buildRegionSvg } from "./region.js";
 
 describe("scopeSatoriIds", () => {
@@ -61,5 +61,44 @@ describe("buildRegionSvg の HTML シェイプ", () => {
 		const refs = [...svg.matchAll(/(?:url\(#|href="#)([^)"]+)/g)].map((m) => m[1]);
 		expect(refs.length).toBeGreaterThan(0);
 		for (const ref of refs) expect(ids).toContain(ref);
+	});
+});
+
+describe("全ページの書き出し", () => {
+	const svgRegistry = {
+		get: () => ({
+			renderTarget: "svg",
+			render: (s: ShapeData) =>
+				createElement("rect", { x: s.x, y: s.y, width: s.width, height: s.height }),
+		}),
+	} as unknown as ShapeRegistry;
+	const rect = (id: string, x: number, y: number) =>
+		({ id, type: "rect", x, y, width: 100, height: 50 }) as ShapeData;
+	const pages = [
+		{ id: "p1", name: "ページ 1", shapes: new Map([["a", rect("a", 0, 0)]]) },
+		{ id: "p2", name: "空", shapes: new Map<string, ShapeData>() },
+		{ id: "p3", name: "<設計>", shapes: new Map([["b", rect("b", 500, 300)]]) },
+	];
+
+	it("ページを縦に並べて見出しを付け、空のページは飛ばす", async () => {
+		const { svg, width, height } = await buildPagesSvg(pages, svgRegistry, { useSatori: false });
+		expect(width).toBe(140);
+		// 見出し 48 + 90、間 40、見出し 48 + 90
+		expect(height).toBe(48 + 90 + 40 + 48 + 90);
+		expect(svg).toContain(">ページ 1</text>");
+		expect(svg).toContain(">&lt;設計&gt;</text>");
+		expect(svg).not.toContain(">空</text>");
+		// 2 枚目のページは見出しの下（y = 226）に余白 20 を空けて置く（300 - 20 = 280 を 226 へ）
+		expect(svg).toContain('data-page-id="p3" transform="translate(-480, -54)"');
+	});
+
+	it("描くページが無ければ例外", async () => {
+		await expect(buildPagesSvg([pages[1]], svgRegistry, { useSatori: false })).rejects.toThrow();
+	});
+
+	it("JSON はページごとにシェイプを並べる", async () => {
+		const data = JSON.parse(await exportPagesJson(pages).text());
+		expect(data.pages.map((p: { id: string }) => p.id)).toEqual(["p1", "p2", "p3"]);
+		expect(data.pages[2].shapes.b).toMatchObject({ id: "b", x: 500 });
 	});
 });

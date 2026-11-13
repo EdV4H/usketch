@@ -27,7 +27,7 @@ import { createDeepLinkPlugin } from "@edv4h/usketch-plugin-deep-link";
 import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
 import { createEdgePanPlugin } from "@edv4h/usketch-plugin-edge-pan";
 import { createElevationPlugin } from "@edv4h/usketch-plugin-elevation";
-import { createExportPlugin } from "@edv4h/usketch-plugin-export";
+import { createExportPlugin, type ExportPluginOptions } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
 import { createHistoryPlugin } from "@edv4h/usketch-plugin-history";
@@ -35,7 +35,7 @@ import { createKeySettingsPlugin } from "@edv4h/usketch-plugin-key-settings";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
 import { createMode7Plugin } from "@edv4h/usketch-plugin-mode7";
-import { createPagesPlugin } from "@edv4h/usketch-plugin-pages";
+import { createPagesPlugin, neighborPage } from "@edv4h/usketch-plugin-pages";
 import { createPdfImportPlugin } from "@edv4h/usketch-plugin-pdf-import";
 import { createPortalPlugin } from "@edv4h/usketch-plugin-portal";
 import { createPresenceActivityPlugin } from "@edv4h/usketch-plugin-presence-activity";
@@ -89,7 +89,7 @@ import {
 import { createWhistlePlugin } from "@edv4h/usketch-plugin-whistle";
 import { createWindowSystemPlugin, getWindowSystemApi } from "@edv4h/usketch-plugin-window-system";
 import { votingClientType } from "@edv4h/usketch-session-voting/client";
-import type { UsketchPlugin } from "@edv4h/usketch-shared";
+import type { ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import {
 	createPage,
@@ -103,6 +103,7 @@ import {
 	isPagedBoard,
 	listPages,
 	observePages,
+	PAGE_SHAPES_MAP_KEY,
 	resolvePageId,
 	type WsConnectionStatus,
 	type WsProviderHandle,
@@ -177,7 +178,10 @@ interface CardHandWiring {
 	wsProvider?: WsProviderHandle | null;
 }
 
-function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
+function createBasePlugins(
+	cardHand: CardHandWiring,
+	exportOptions?: ExportPluginOptions,
+): UsketchPlugin[] {
 	return [
 		createGridBgPlugin(),
 		createDotsBgPlugin(),
@@ -269,7 +273,7 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		// 関連Shapeを「ぶちまける」— HUD の「関連Shapeをぶちまける」アクション。connector/
 		// container/free-position の後（関連解決 + 非重なり配置の土台が揃った後）。
 		createScatterPlugin(),
-		createExportPlugin(),
+		createExportPlugin(exportOptions),
 		createGpuRendererPlugin(),
 		createDomRendererPlugin({
 			// Initial values from persisted user settings; live changes come from the
@@ -300,8 +304,9 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 async function loadPlugins(
 	extra: UsketchPlugin[],
 	cardHand: CardHandWiring,
+	exportOptions?: ExportPluginOptions,
 ): Promise<UsketchPlugin[]> {
-	const plugins = [...createBasePlugins(cardHand), ...extra];
+	const plugins = [...createBasePlugins(cardHand, exportOptions), ...extra];
 	// Control HUD (universal plugin-operation panel). Promoted from DEV-only to a
 	// first-class, always-available panel — hidden by default, toggled with `` ` ``.
 	// Kept as a dynamic import so it stays code-split.
@@ -676,6 +681,23 @@ export function App() {
 					if (stage) return { width: stage.width, height: stage.height };
 					return { width: window.innerWidth, height: window.innerHeight };
 				},
+				// マルチページ: 最後のスライドの次で次のページへ、最初の前で前のページの最後へ。
+				// ページを切り替えても ?present / ?mode は残るので、発表のまま次のページが開く。
+				pages: pageId
+					? {
+							hasPage: (step) => neighborPage(rootDoc, pageId, step) !== null,
+							goToPage: (step) => {
+								const target = neighborPage(rootDoc, pageId, step);
+								if (target) switchPageRef.current(target.id);
+							},
+							pageLabel: () => {
+								const pages = listPages(rootDoc);
+								const index = pages.findIndex((p) => p.id === pageId);
+								if (pages.length < 2 || index < 0) return null;
+								return `${pages[index]?.name}（${index + 1}/${pages.length}）`;
+							},
+						}
+					: undefined,
 			}),
 		);
 
@@ -708,11 +730,32 @@ export function App() {
 				syncHandle = handle;
 				syncStatusStore.setTracker(divergenceHandle?.status ?? handle.status);
 
-				return loadPlugins(extraPlugins, {
-					userId: userIdRef.current ?? getDevUser()?.id ?? "local",
-					boardId,
-					wsProvider,
-				})
+				// マルチページ: 「全ページ」の書き出しは、開いていないページの doc も読んで並べる。
+				const exportOptions: ExportPluginOptions | undefined = pageId
+					? {
+							pages: {
+								list: () => listPages(rootDoc).map((p) => ({ id: p.id, name: p.name })),
+								loadShapes: async (id) => {
+									const handle = board.pageDocs.open(id);
+									try {
+										await handle.whenLoaded;
+										return new Map(handle.doc.getMap<ShapeData>(PAGE_SHAPES_MAP_KEY).entries());
+									} finally {
+										handle.release();
+									}
+								},
+							},
+						}
+					: undefined;
+				return loadPlugins(
+					extraPlugins,
+					{
+						userId: userIdRef.current ?? getDevUser()?.id ?? "local",
+						boardId,
+						wsProvider,
+					},
+					exportOptions,
+				)
 					.then((plugins) =>
 						createApp({ store, plugins, keymap: { warnConflicts: import.meta.env.DEV } }),
 					)
