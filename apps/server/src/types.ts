@@ -11,6 +11,8 @@ export interface Env extends ServerBindings {
 	GITHUB_CLIENT_ID?: string;
 	GITHUB_CLIENT_SECRET?: string;
 	OPENAI_API_KEY?: string;
+	/** "true" でマルチページ移行を行う（ボードを開いたときにルートの shapes を 1 枚目のページへ移す）。 */
+	PAGES_MIGRATION?: string;
 }
 
 export type AppDb = DrizzleD1Database<typeof schema>;
