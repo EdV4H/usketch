@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Depth stage bench</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; font: 13px/1.4 system-ui, sans-serif; background: #f6f6f4; }
+  #bar { position: fixed; left: 0; right: 0; top: 0; z-index: 10; padding: 8px 12px; background: #fff; border-bottom: 1px solid #ddd; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  #stage { position: absolute; left: 0; top: 48px; width: 100vw; height: calc(100vh - 48px); overflow: hidden; background: linear-gradient(#bcd9f2, #eef4f9 45%, #f6f6f4 45%); }
+  .layer { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .ground { position: absolute; left: -2000px; top: -3000px; width: 6000px; height: 6000px; background: repeating-conic-gradient(#d8e6c8 0 25%, #c9dcb5 0 50%) 0 0 / 200px 200px; }
+  .obj { position: absolute; left: 0; top: 0; transform-style: preserve-3d; }
+  .sign { width: 80px; height: 100px; background: #ffe680; border: 2px solid #c9a400; box-sizing: border-box; transform-origin: 50% 100%; }
+  .chr { width: 30px; height: 50px; background: #e0245e; border-radius: 15px 15px 4px 4px; transform-origin: 50% 100%; }
+  .cliff { width: 120px; height: 120px; transform-style: preserve-3d; }
+  .cliff > div { position: absolute; inset: 0; background: #9b8467; border: 1px solid #6d5a44; box-sizing: border-box; }
+  pre { position: fixed; right: 8px; bottom: 8px; z-index: 10; margin: 0; padding: 8px; background: rgba(255,255,255,.92); border: 1px solid #ccc; max-width: 46vw; max-height: 40vh; overflow: auto; font-size: 12px; }
+  button, select { font: inherit; padding: 4px 8px; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <label>構成 <select id="mode"><option value="separate">層ごと（今）</option><option value="merged">depth 層を 1 つに</option></select></label>
+  <label>物の数 <select id="n"><option>60</option><option selected>300</option><option>900</option></select></label>
+  <button id="run">計測（4 秒）</button>
+  <button id="all">全部まとめて計測</button>
+  <span id="status"></span>
+</div>
+<div id="stage"></div>
+<pre id="out">P0(b) — Mode 7 の depth 層（崖・3D Shape・キャラ）を、今のように層ごとに別の 3D 文脈で描く場合と、1 つの preserve-3d にまとめる場合の比較。
+「全部まとめて計測」で、前後関係のチェックとフレーム時間（カメラを回し続ける）を取ります。</pre>
+<script>
+// Same tilt as usketch-plugin-mode7: perspective(fov) rotateX(pitch) rotateZ(yaw) about (50%, horizon).
+const CAM = { pitch: 60, fov: 600, horizon: 0.45 };
+const stage = document.getElementById("stage");
+const out = document.getElementById("out");
+const statusEl = document.getElementById("status");
+let yaw = 0;
+let layers = [];
+
+function rand(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32); }
+
+function tilt() {
+  return `perspective(${CAM.fov}px) rotateX(${CAM.pitch}deg) rotateZ(${yaw}deg)`;
+}
+
+// Objects in flat-stage px (before the tilt). Stand-ups rotate up about their bottom edge
+// (rotateX(-90deg)), then turn to face the camera (counter the yaw) — like shape-3d / character.
+function build(mode, n) {
+  stage.textContent = "";
+  layers = [];
+  const W = stage.clientWidth, H = stage.clientHeight;
+  const mk = (id) => { const l = document.createElement("div"); l.className = "layer"; l.dataset.layer = id; l.style.transformOrigin = `50% ${CAM.horizon * 100}%`; stage.appendChild(l); layers.push(l); return l; };
+  const ground = mk("ground");
+  ground.appendChild(Object.assign(document.createElement("div"), { className: "ground" }));
+  ground.style.transformStyle = "flat";
+  let cliffs, signs, chars;
+  if (mode === "merged") { const d = mk("depth"); cliffs = signs = chars = d; }
+  else { cliffs = mk("cliffs"); signs = mk("signs"); chars = mk("chars"); }
+  const r = rand(7);
+  const objs = [];
+  const place = (parent, cls, x, y, extra) => {
+    const o = document.createElement("div");
+    o.className = "obj";
+    const inner = document.createElement("div");
+    inner.className = cls;
+    o.appendChild(inner);
+    o.dataset.x = x; o.dataset.y = y;
+    o.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    if (extra) extra(o, inner);
+    parent.appendChild(o);
+    objs.push({ o, inner, cls });
+    return o;
+  };
+  const per = Math.max(1, Math.floor(n / 3));
+  for (let i = 0; i < per; i++) {
+    place(cliffs, "cliff", W * (r() * 1.6 - 0.3), H * (r() * 1.4 - 0.9), (o, inner) => {
+      // a box: top face lifted, 4 side faces folded down
+      inner.innerHTML = "<div style='transform:translateZ(60px)'></div><div style='transform-origin:50% 100%;transform:rotateX(-90deg);height:60px;top:60px'></div><div style='transform-origin:50% 0;transform:rotateX(90deg);height:60px'></div><div style='transform-origin:0 50%;transform:rotateY(-90deg);width:60px'></div><div style='transform-origin:100% 50%;transform:rotateY(90deg);width:60px;left:60px'></div>";
+    });
+    place(signs, "sign", W * (r() * 1.6 - 0.3), H * (r() * 1.4 - 0.9));
+    place(chars, "chr", W * (r() * 1.6 - 0.3), H * (r() * 1.4 - 0.9));
+  }
+  // The probe pair: a character right BEHIND a sign (farther from the camera).
+  const probeSign = place(signs, "sign", W / 2 - 40, H * 0.25);
+  probeSign.firstChild.style.background = "#4b9be8"; probeSign.firstChild.id = "probe-sign";
+  const probeChr = place(chars, "chr", W / 2 - 15, H * 0.25 - 40);
+  probeChr.firstChild.style.background = "#111"; probeChr.firstChild.id = "probe-chr";
+  return objs;
+}
+
+let objs = [];
+function frame() {
+  const t = tilt();
+  for (const l of layers) l.style.transform = t;
+  // stand-ups face the camera: rotateZ(-yaw) then stand up
+  for (const { inner, cls } of objs) {
+    if (cls === "cliff") continue;
+    inner.style.transform = `rotateZ(${-yaw}deg) rotateX(-90deg)`;
+  }
+}
+
+function probe() {
+  // Which is hit at the character's centre? In a correct 3D sort the sign (in front) wins.
+  const c = document.getElementById("probe-chr").getBoundingClientRect();
+  const s = document.getElementById("probe-sign").getBoundingClientRect();
+  const x = c.left + c.width / 2, y = c.top + c.height / 2;
+  const overlap = x > s.left && x < s.right && y > s.top && y < s.bottom;
+  const hit = document.elementFromPoint(x, y);
+  return { overlapOnScreen: overlap, topmostAtCharacter: hit?.id || hit?.className || null, correct: overlap ? hit?.id === "probe-sign" : null };
+}
+
+function measure(ms) {
+  return new Promise((res) => {
+    const times = [];
+    let last = performance.now();
+    const end = last + ms;
+    const step = (now) => {
+      times.push(now - last); last = now;
+      yaw = (yaw + 0.6) % 360;
+      frame();
+      if (now < end) requestAnimationFrame(step); else res(times.slice(2));
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+function stats(t) {
+  const s = [...t].sort((a, b) => a - b);
+  const q = (p) => s[Math.min(s.length - 1, Math.floor(p * s.length))];
+  return { frames: t.length, p50: +q(0.5).toFixed(2), p95: +q(0.95).toFixed(2), max: +s[s.length - 1].toFixed(2) };
+}
+
+async function runOne(mode, n) {
+  objs = build(mode, n);
+  yaw = 0; frame();
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const p = probe();
+  const perf = stats(await measure(4000));
+  yaw = 0; frame();
+  return { mode, n, probe: p, frameMs: perf };
+}
+
+async function runAll() {
+  const results = [];
+  for (const n of [60, 300, 900]) for (const mode of ["separate", "merged"]) {
+    statusEl.textContent = `計測中: ${mode} × ${n}`;
+    results.push(await runOne(mode, n));
+    out.textContent = JSON.stringify({ ua: navigator.userAgent, results }, null, 1);
+  }
+  statusEl.textContent = "完了";
+  window.__result = { ua: navigator.userAgent, results };
+  return window.__result;
+}
+
+document.getElementById("run").onclick = async () => {
+  const r = await runOne(document.getElementById("mode").value, +document.getElementById("n").value);
+  out.textContent = JSON.stringify(r, null, 1);
+};
+document.getElementById("all").onclick = runAll;
+document.getElementById("mode").onchange = document.getElementById("n").onchange = () => { objs = build(document.getElementById("mode").value, +document.getElementById("n").value); frame(); };
+objs = build("separate", 300); frame();
+window.runAll = runAll; window.runOne = runOne;
+</script>
+</body>
+</html>

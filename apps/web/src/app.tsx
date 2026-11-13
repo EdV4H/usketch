@@ -27,7 +27,11 @@ import { createDeepLinkPlugin } from "@edv4h/usketch-plugin-deep-link";
 import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
 import { createEdgePanPlugin } from "@edv4h/usketch-plugin-edge-pan";
 import { createElevationPlugin } from "@edv4h/usketch-plugin-elevation";
-import { createExportPlugin, type ExportPluginOptions } from "@edv4h/usketch-plugin-export";
+import {
+	createExportPlugin,
+	type ExportPluginOptions,
+	exportRegion,
+} from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
 import { createHistoryPlugin } from "@edv4h/usketch-plugin-history";
@@ -266,6 +270,15 @@ function createBasePlugins(
 		// 既定 OFF（HUD「3Dビュー切替」/ mode7:toggle で opt-in）。
 		// 切替時は地面がせり上がり、空/フォグがフェードする（#1103）。
 		createMode7Plugin({ transition: { durationMs: 900 } }),
+		// P0 spike only (not for merge): expose the plugin context to Playwright.
+		{
+			id: "spike-3d-p0",
+			name: "spike",
+			setup(ctx) {
+				(window as unknown as { __spike3d?: unknown }).__spike3d = ctx;
+				(window as unknown as { __spikeExport?: unknown }).__spikeExport = exportRegion;
+			},
+		},
 		// 全プラグインのキーを 1 つの HUD「キー設定」で一覧・付け替え（閲覧者ごとに localStorage へ保存）。
 		createKeySettingsPlugin(),
 		// Mode 7 中に Shape を立てる（`x-shape-3d` を持つ Shape だけ。HUD「3D（選択中の Shape）」）。
