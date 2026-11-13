@@ -97,6 +97,7 @@ import {
 	createPageScopedProvider,
 	createServerClock,
 	createWsProvider,
+	getLegacyPageId,
 	initPagedBoard,
 	isPagedBoard,
 	listPages,
@@ -610,6 +611,9 @@ export function App() {
 				doc: rootDoc,
 				boardId,
 				userId: userIdRef.current ?? getDevUser()?.id ?? "local",
+				// ページを使うボードでは、今のページで作ったポータルだけを出す
+				pageId: pageId ?? undefined,
+				legacyPageId: pageId ? getLegacyPageId(rootDoc) : null,
 			}),
 		);
 

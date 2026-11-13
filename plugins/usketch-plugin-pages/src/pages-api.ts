@@ -10,6 +10,7 @@ import {
 	restorePage,
 } from "@edv4h/usketch-sync";
 import type * as Y from "yjs";
+import { copyShapesToPage, moveShapesToPage } from "./page-transfer.js";
 import { duplicatePage, neighborPage, nextPageName, type OpenPageDoc } from "./pages-ops.js";
 
 export interface PagesApiDeps {
@@ -19,7 +20,7 @@ export interface PagesApiDeps {
 	currentPageId: string;
 	/** ページを切り替える（ホストが URL を変えて開き直す）。 */
 	switchPage: (pageId: string) => void;
-	/** ページ doc を開く。無ければ複製はできない。 */
+	/** ページ doc を開く。無ければ複製と、ページをまたぐ移動・コピーはできない。 */
 	openPageDoc?: OpenPageDoc;
 	now?: () => number;
 }
@@ -49,12 +50,54 @@ export interface PagesApi {
 	/** 削除する（戻せる）。今のページなら隣のページへ移る。 */
 	delete(pageId: string): PageMeta;
 	restore(pageId: string): PageMeta;
+	/** ページをまたいでシェイプを移す・写せるか（`openPageDoc` があるか）。 */
+	readonly canTransfer: boolean;
+	/**
+	 * 今のページのシェイプ（子孫と、両端が含まれるコネクタも）を別のページへ移す。id は変えず、
+	 * 移動先の一番手前に置く。移さなかったものへの参照（親・コネクタの端）は外す。
+	 * `open` で移動先へ移る。移したシェイプの id を返す。
+	 */
+	moveShapes(
+		ids: Iterable<string>,
+		toPageId: string,
+		options?: { open?: boolean },
+	): Promise<string[]>;
+	/** {@link moveShapes} と同じ範囲を、新しい id で別のページへ写す。写したシェイプの id を返す。 */
+	copyShapes(
+		ids: Iterable<string>,
+		toPageId: string,
+		options?: { open?: boolean },
+	): Promise<string[]>;
 }
 
 export function createPagesApi(deps: PagesApiDeps): PagesApi {
 	const { root, currentPageId } = deps;
 	const now = deps.now ?? Date.now;
 	const indexOf = (pageId: string) => listPages(root).findIndex((p) => p.id === pageId);
+
+	/** 今のページと `toPageId` のページ doc を開き、読み込みを待って `run` する。 */
+	async function transfer(
+		toPageId: string,
+		open: boolean | undefined,
+		run: (from: Y.Doc, to: Y.Doc) => string[],
+	): Promise<string[]> {
+		const openPageDoc = deps.openPageDoc;
+		if (!openPageDoc) throw new Error("Moving shapes between pages needs openPageDoc");
+		if (toPageId === currentPageId) throw new Error("The target page is the current page");
+		if (indexOf(toPageId) < 0) throw new Error(`Page not found: ${toPageId}`);
+		const from = openPageDoc(currentPageId);
+		const to = openPageDoc(toPageId);
+		let ids: string[];
+		try {
+			await Promise.all([from.whenLoaded, to.whenLoaded]);
+			ids = run(from.doc, to.doc);
+		} finally {
+			to.release();
+			from.release();
+		}
+		if (open && ids.length > 0) deps.switchPage(toPageId);
+		return ids;
+	}
 
 	return {
 		currentPageId,
@@ -105,5 +148,10 @@ export function createPagesApi(deps: PagesApiDeps): PagesApi {
 			return page;
 		},
 		restore: (pageId) => restorePage(root, pageId),
+		canTransfer: deps.openPageDoc !== undefined,
+		moveShapes: (ids, toPageId, options = {}) =>
+			transfer(toPageId, options.open, (from, to) => moveShapesToPage(from, to, ids, toPageId)),
+		copyShapes: (ids, toPageId, options = {}) =>
+			transfer(toPageId, options.open, (from, to) => copyShapesToPage(from, to, ids)),
 	};
 }

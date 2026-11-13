@@ -16,6 +16,11 @@ export interface PortalEntry {
 	 * absent, the portal merely **pins** (mirrors) an on-canvas shape by `shapeId`.
 	 */
 	shape?: ShapeData;
+	/**
+	 * マルチページ: ポータルを作ったページ。そのページを開いているときだけ出す。
+	 * 無いもの（ページより前に作ったもの）は `legacyPageId` のページに出す。
+	 */
+	pageId?: string;
 }
 
 /** A portal plus whether it lives in the shared (everyone) or private (me) backend. */
@@ -46,7 +51,7 @@ export interface PortalStore {
 	remove(id: string): void;
 	/** Move a portal between the private and shared backends (keeps its id). */
 	setShared(id: string, shared: boolean): void;
-	/** Remove all of this user's private portals. */
+	/** Remove all of this user's private portals (on the current page when pages are used). */
 	clearPrivate(): void;
 	subscribe(cb: () => void): () => void;
 	destroy(): void;
@@ -75,6 +80,13 @@ export interface CreatePortalStoreOptions {
 	boardId?: string;
 	/** Injectable storage (tests). Defaults to `localStorage` when available. */
 	storage?: MinimalStorage | null;
+	/**
+	 * マルチページ: 今開いているページ。指定すると、このページのポータルだけを扱い、
+	 * 新しいポータルにこのページを記録する。省略するとページを区別しない。
+	 */
+	pageId?: string;
+	/** `pageId` の無い（ページより前に作った）ポータルを出すページ。 */
+	legacyPageId?: string | null;
 }
 
 /** Portal panel header height (px) — shared with the layer for body sizing. */
@@ -107,7 +119,14 @@ export function defaultPortalBox(
 }
 
 export function createPortalStore(options: CreatePortalStoreOptions): PortalStore {
-	const { doc, userId, boardId } = options;
+	const { doc, userId, boardId, pageId } = options;
+	const legacyPageId = options.legacyPageId ?? null;
+	/** 今のページのポータルか（ページを使わないなら全部）。 */
+	const onPage = (entry: PortalEntry): boolean =>
+		pageId === undefined || (entry.pageId ?? legacyPageId) === pageId;
+	/** 新しく入れるポータルに今のページを記録する。 */
+	const stamp = (entry: PortalEntry): PortalEntry =>
+		pageId === undefined || entry.pageId !== undefined ? entry : { ...entry, pageId };
 	const storage = options.storage !== undefined ? options.storage : safeStorage();
 	const key = storageKey(boardId, userId);
 	const sharedMap = doc.getMap<PortalEntry>("portals");
@@ -138,9 +157,9 @@ export function createPortalStore(options: CreatePortalStoreOptions): PortalStor
 	function computeSnapshot(): PortalItem[] {
 		const shared: PortalItem[] = [];
 		sharedMap.forEach((entry) => {
-			if (entry) shared.push({ entry, shared: true });
+			if (entry && onPage(entry)) shared.push({ entry, shared: true });
 		});
-		const mine: PortalItem[] = priv.map((entry) => ({ entry, shared: false }));
+		const mine: PortalItem[] = priv.filter(onPage).map((entry) => ({ entry, shared: false }));
 		return [...mine, ...shared].sort((a, b) => a.entry.id.localeCompare(b.entry.id));
 	}
 
@@ -156,7 +175,8 @@ export function createPortalStore(options: CreatePortalStoreOptions): PortalStor
 
 	const findPrivate = (id: string) => priv.find((e) => e.id === id);
 
-	function insertEntry(entry: PortalEntry, shared: boolean) {
+	function insertEntry(input: PortalEntry, shared: boolean) {
+		const entry = stamp(input);
 		if (shared) {
 			sharedMap.set(entry.id, entry); // observe → refresh (Map.set already upserts)
 		} else {
@@ -173,7 +193,7 @@ export function createPortalStore(options: CreatePortalStoreOptions): PortalStor
 		insert: (entry, shared = false) => insertEntry(entry, shared),
 
 		add(shapeId, box, shared = false) {
-			const entry: PortalEntry = { id: generateId(), shapeId, ...box };
+			const entry = stamp({ id: generateId(), shapeId, ...box });
 			insertEntry(entry, shared);
 			return entry;
 		},
@@ -221,8 +241,10 @@ export function createPortalStore(options: CreatePortalStoreOptions): PortalStor
 		},
 
 		clearPrivate() {
-			if (priv.length === 0) return;
-			priv = [];
+			// ページを使うときは、今のページのものだけを消す
+			const kept = priv.filter((e) => !onPage(e));
+			if (kept.length === priv.length) return;
+			priv = kept;
 			persistPrivate();
 			refresh();
 		},
