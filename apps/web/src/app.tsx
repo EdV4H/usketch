@@ -35,6 +35,7 @@ import { createKeySettingsPlugin } from "@edv4h/usketch-plugin-key-settings";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
 import { createMode7Plugin } from "@edv4h/usketch-plugin-mode7";
+import { createPagesPlugin } from "@edv4h/usketch-plugin-pages";
 import { createPdfImportPlugin } from "@edv4h/usketch-plugin-pdf-import";
 import { createPortalPlugin } from "@edv4h/usketch-plugin-portal";
 import { createPresenceActivityPlugin } from "@edv4h/usketch-plugin-presence-activity";
@@ -404,6 +405,17 @@ export function App() {
 		if (pageId) rememberLastPage(boardId, pageId);
 
 		const extraPlugins: UsketchPlugin[] = [];
+		// ページを使うボードでは HUD にページパネル（一覧・追加・切り替えなど）を出す。
+		if (pageId) {
+			extraPlugins.push(
+				createPagesPlugin({
+					rootDoc: board.rootDoc,
+					pageId,
+					switchPage: (id) => switchPageRef.current(id),
+					openPageDoc: (id) => board.pageDocs.open(id),
+				}),
+			);
+		}
 		// プラグインには「同じページの人だけが見える」provider を渡す（ページ無しなら元のまま）。
 		const scopedProvider =
 			board.wsProvider && pageId ? createPageScopedProvider(board.wsProvider, pageId) : null;

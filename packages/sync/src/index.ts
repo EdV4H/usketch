@@ -39,6 +39,7 @@ export {
 	type CreatePageOptions,
 	CURRENT_PAGES_VERSION,
 	createPage,
+	deletePage,
 	getLegacyPageId,
 	getPage,
 	getPagesVersion,
@@ -53,7 +54,10 @@ export {
 	PAGES_VERSION_KEY,
 	type PageMeta,
 	pageDocGuid,
+	renamePage,
+	reorderPage,
 	resolvePageId,
+	restorePage,
 	toPageMeta,
 } from "./pages.js";
 export {

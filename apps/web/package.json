@@ -46,6 +46,7 @@
 		"@edv4h/usketch-plugin-character": "workspace:*",
 		"@edv4h/usketch-plugin-map": "workspace:*",
 		"@edv4h/usketch-plugin-shape-image": "workspace:*",
+		"@edv4h/usketch-plugin-pages": "workspace:*",
 		"@edv4h/usketch-plugin-pdf-import": "workspace:*",
 		"@edv4h/usketch-plugin-shape-openui": "workspace:*",
 		"@edv4h/usketch-plugin-tool-openui": "workspace:*",
