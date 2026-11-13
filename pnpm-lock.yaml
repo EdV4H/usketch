@@ -315,7 +315,7 @@ importers:
         version: link:../../packages/sync
       '@hono/zod-validator':
         specifier: 0.9.1
-        version: 0.9.1(hono@4.13.17)(zod@4.6.7)
+        version: 0.9.1(hono@4.13.18)(zod@4.6.7)
       better-auth:
         specifier: 1.6.29
         version: 1.6.29(@cloudflare/workers-types@5.20261110.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261110.1)(kysely@0.29.3))(mongodb@7.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3)))
@@ -323,8 +323,8 @@ importers:
         specifier: 0.45.4
         version: 0.45.4(@cloudflare/workers-types@5.20261110.1)(kysely@0.29.3)
       hono:
-        specifier: 4.13.17
-        version: 4.13.17
+        specifier: 4.13.18
+        version: 4.13.18
       yjs:
         specifier: ^13.6.0
         version: 13.6.33
@@ -345,8 +345,8 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
       wrangler:
-        specifier: 4.160.0
-        version: 4.160.0(@cloudflare/workers-types@5.20261110.1)(@types/node@26.6.6)
+        specifier: 4.160.1
+        version: 4.160.1(@cloudflare/workers-types@5.20261110.1)(@types/node@26.6.6)
 
   apps/web:
     dependencies:
@@ -655,8 +655,8 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
       wrangler:
-        specifier: 4.160.0
-        version: 4.160.0(@cloudflare/workers-types@5.20261110.1)(@types/node@26.6.6)
+        specifier: 4.160.1
+        version: 4.160.1(@cloudflare/workers-types@5.20261110.1)(@types/node@26.6.6)
 
   examples/usketch-plugin-acme-shape-basic:
     dependencies:
@@ -789,8 +789,8 @@ importers:
   packages/server-core:
     dependencies:
       hono:
-        specifier: 4.13.17
-        version: 4.13.17
+        specifier: 4.13.18
+        version: 4.13.18
     devDependencies:
       '@cloudflare/workers-types':
         specifier: 5.20261110.1
@@ -1962,13 +1962,13 @@ importers:
         version: link:../../packages/server-core
       '@hono/zod-validator':
         specifier: 0.9.1
-        version: 0.9.1(hono@4.13.17)(zod@4.6.7)
+        version: 0.9.1(hono@4.13.18)(zod@4.6.7)
       drizzle-orm:
         specifier: 0.45.4
         version: 0.45.4(@cloudflare/workers-types@5.20261110.1)(kysely@0.29.3)
       hono:
-        specifier: 4.13.17
-        version: 4.13.17
+        specifier: 4.13.18
+        version: 4.13.18
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -1989,8 +1989,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/server-core
       hono:
-        specifier: 4.13.17
-        version: 4.13.17
+        specifier: 4.13.18
+        version: 4.13.18
     devDependencies:
       '@cloudflare/workers-types':
         specifier: 5.20261110.1
@@ -2009,13 +2009,13 @@ importers:
         version: link:../../packages/server-core
       '@hono/zod-validator':
         specifier: 0.9.1
-        version: 0.9.1(hono@4.13.17)(zod@4.6.7)
+        version: 0.9.1(hono@4.13.18)(zod@4.6.7)
       drizzle-orm:
         specifier: 0.45.4
         version: 0.45.4(@cloudflare/workers-types@5.20261110.1)(kysely@0.29.3)
       hono:
-        specifier: 4.13.17
-        version: 4.13.17
+        specifier: 4.13.18
+        version: 4.13.18
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -2037,13 +2037,13 @@ importers:
         version: link:../../packages/server-core
       '@hono/zod-validator':
         specifier: 0.9.1
-        version: 0.9.1(hono@4.13.17)(zod@4.6.7)
+        version: 0.9.1(hono@4.13.18)(zod@4.6.7)
       drizzle-orm:
         specifier: 0.45.4
         version: 0.45.4(@cloudflare/workers-types@5.20261110.1)(kysely@0.29.3)
       hono:
-        specifier: 4.13.17
-        version: 4.13.17
+        specifier: 4.13.18
+        version: 4.13.18
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -2065,13 +2065,13 @@ importers:
         version: link:../../packages/server-core
       '@hono/zod-validator':
         specifier: 0.9.1
-        version: 0.9.1(hono@4.13.17)(zod@4.6.7)
+        version: 0.9.1(hono@4.13.18)(zod@4.6.7)
       drizzle-orm:
         specifier: 0.45.4
         version: 0.45.4(@cloudflare/workers-types@5.20261110.1)(kysely@0.29.3)
       hono:
-        specifier: 4.13.17
-        version: 4.13.17
+        specifier: 4.13.18
+        version: 4.13.18
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -6666,8 +6666,8 @@ packages:
     resolution: {integrity: sha512-Xwwo44whKBVCYoliBQwaPvtd/2tYFkRQtXDWj1nackaV2JPXx3L0+Jvd8/qCJ2p+ML0/XVkJ2q+Mr+UVdpJK5w==}
     engines: {node: '>=12.0.0'}
 
-  hono@4.13.17:
-    resolution: {integrity: sha512-vZIcbkvjOR5hHRWERbGkr8fGfF0GGM1ooYkuH448iO3b2AdVEr3AXZSw4Z3Kn+1L5z0CVoVeyV29VGYmFh05kQ==}
+  hono@4.13.18:
+    resolution: {integrity: sha512-H9q/E1XizaWstJxUW881dmLxEj+t/TrGGnyxINkm4+sK0qUwsMtFdo2BWI9Vs3cIS19MU6b6iCijoUoEf4f3DA==}
     engines: {node: '>=16.9.0'}
 
   html-encoding-sniffer@7.0.0:
@@ -7161,8 +7161,8 @@ packages:
     resolution: {integrity: sha512-Lbgzdk0h4juoQ9fCKXW4by0UJqj+nOOrI9MJ1sSj4nI8aI2eo1qmvQEie4VD1glsS250n15LsWsYtCugiStS5A==}
     engines: {node: '>=18'}
 
-  miniflare@5.20261110.0-beta:
-    resolution: {integrity: sha512-UiJRL6D4pNkHxgZ3QXDCaz/N27FFuuHRRgOmD/SucEZIwDOfWwX7s/n8ZrFemFlURRfnQpBfAdWy8ixsW0yJWA==}
+  miniflare@5.20261110.1-beta:
+    resolution: {integrity: sha512-CO8T1DO3/JFxEWvJ7yaHiPx5Ph/5FhRzYKve6cM8O2frHmY7yWudV5p8FU11bfGRAerChGpuK+l0HoxOCw2nFw==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
       kerberos: ^2.0.0
@@ -8286,8 +8286,8 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
-  wrangler@4.160.0:
-    resolution: {integrity: sha512-nwzmpu7Hd5Csax02twpCNRAloC+kduXKw9rjfq+oEuo8RnjWRaahSV+qk+p0w88EgafMcDE0XnZRSfOM3lKEKg==}
+  wrangler@4.160.1:
+    resolution: {integrity: sha512-gM8daj5geYTEw+038dV5OQAmrSIo/9e97FoJuNf+r9PllWR0ZnqMI2LXZZDSHpGsMez3mKKFYH5o/hBsf1ZTHg==}
     engines: {node: '>=22.12.0'}
     hasBin: true
     peerDependencies:
@@ -9519,13 +9519,13 @@ snapshots:
 
   '@fontsource/ibm-plex-sans-jp@5.3.1': {}
 
-  '@hono/node-server@2.0.12(hono@4.13.17)':
+  '@hono/node-server@2.0.12(hono@4.13.18)':
     dependencies:
-      hono: 4.13.17
+      hono: 4.13.18
 
-  '@hono/zod-validator@0.9.1(hono@4.13.17)(zod@4.6.7)':
+  '@hono/zod-validator@0.9.1(hono@4.13.18)(zod@4.6.7)':
     dependencies:
-      hono: 4.13.17
+      hono: 4.13.18
       zod: 4.6.7
 
   '@iconify/types@2.0.0': {}
@@ -9756,7 +9756,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.32.2(supports-color@10.2.2)(zod@4.6.7)':
     dependencies:
-      '@hono/node-server': 2.0.12(hono@4.13.17)
+      '@hono/node-server': 2.0.12(hono@4.13.18)
       ajv: 8.20.0
       ajv-formats: 3.0.1
       content-type: 1.0.5
@@ -9766,7 +9766,7 @@ snapshots:
       eventsource-parser: 3.1.0
       express: 5.2.1(supports-color@10.2.2)
       express-rate-limit: 8.6.1(express@5.2.1(supports-color@10.2.2))(supports-color@10.2.2)
-      hono: 4.13.17
+      hono: 4.13.18
       jose: 6.2.4
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -11866,7 +11866,7 @@ snapshots:
 
   highlight.js@11.11.1: {}
 
-  hono@4.13.17: {}
+  hono@4.13.18: {}
 
   html-encoding-sniffer@7.0.0(@noble/hashes@2.0.1):
     dependencies:
@@ -12592,7 +12592,7 @@ snapshots:
     dependencies:
       mime-db: 1.54.0
 
-  miniflare@5.20261110.0-beta(@types/node@26.6.6):
+  miniflare@5.20261110.1-beta(@types/node@26.6.6):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       sharp: 0.35.5(@types/node@26.6.6)
@@ -13787,14 +13787,14 @@ snapshots:
       '@cloudflare/workerd-linux-arm64': 1.20261110.1
       '@cloudflare/workerd-windows-64': 1.20261110.1
 
-  wrangler@4.160.0(@cloudflare/workers-types@5.20261110.1)(@types/node@26.6.6):
+  wrangler@4.160.1(@cloudflare/workers-types@5.20261110.1)(@types/node@26.6.6):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
       '@cloudflare/unenv-preset': 2.16.2(unenv@2.0.0-rc.24)(workerd@1.20261110.1)
       '@cspotcode/source-map-support': 0.8.1
       blake3-wasm: 2.1.5
       esbuild: 0.28.2
-      miniflare: 5.20261110.0-beta(@types/node@26.6.6)
+      miniflare: 5.20261110.1-beta(@types/node@26.6.6)
       path-to-regexp: 6.3.0
       unenv: 2.0.0-rc.24
       workerd: 1.20261110.1
