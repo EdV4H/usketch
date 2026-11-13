@@ -5,6 +5,8 @@ main = "src/index.ts"
 
 [vars]
 WEB_URL = "https://usketch-web.pages.dev"
+# マルチページ: 開いたボードをページ形式へ移す（2026-11-13 に開けた。戻せない）
+PAGES_MIGRATION = "true"
 
 [[d1_databases]]
 binding = "DB"
