@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import {
 	createPage,
+	deletePage,
 	getPage,
 	getPagesVersion,
 	initPagedBoard,
@@ -9,7 +10,10 @@ import {
 	listPages,
 	newPageId,
 	observePages,
+	renamePage,
+	reorderPage,
 	resolvePageId,
+	restorePage,
 	toPageMeta,
 } from "../pages.js";
 import { isValidDocId } from "../protocol.js";
@@ -116,5 +120,48 @@ describe("pages", () => {
 		off();
 		createPage(root, { name: "B" });
 		expect(calls).toBe(before);
+	});
+});
+
+describe("ページの名前・並び・削除", () => {
+	function board() {
+		const root = new Y.Doc();
+		initPagedBoard(root, { name: "1", id: "p1" });
+		createPage(root, { name: "2", id: "p2" });
+		createPage(root, { name: "3", id: "p3" });
+		return root;
+	}
+	const ids = (root: Y.Doc) => listPages(root).map((p) => p.id);
+
+	it("名前を変える", () => {
+		const root = board();
+		renamePage(root, "p2", "二");
+		expect(getPage(root, "p2")?.name).toBe("二");
+		expect(() => renamePage(root, "zz", "x")).toThrow();
+	});
+
+	it("並び順を動かす（範囲外は端へ）", () => {
+		const root = board();
+		reorderPage(root, "p3", 0);
+		expect(ids(root)).toEqual(["p3", "p1", "p2"]);
+		reorderPage(root, "p3", 1);
+		expect(ids(root)).toEqual(["p1", "p3", "p2"]);
+		reorderPage(root, "p1", 99);
+		expect(ids(root)).toEqual(["p3", "p2", "p1"]);
+		reorderPage(root, "p1", -5);
+		expect(ids(root)).toEqual(["p1", "p3", "p2"]);
+	});
+
+	it("削除は印だけで、戻せる。最後の 1 枚は消せない", () => {
+		const root = board();
+		deletePage(root, "p2", { now: 5 });
+		expect(ids(root)).toEqual(["p1", "p3"]);
+		expect(getPage(root, "p2")?.deletedAt).toBe(5);
+		expect(() => deletePage(root, "p2")).toThrow();
+		deletePage(root, "p3");
+		expect(() => deletePage(root, "p1")).toThrow(/last page/);
+		restorePage(root, "p2");
+		expect(ids(root)).toEqual(["p1", "p2"]);
+		expect(getPage(root, "p2")?.deletedAt).toBeUndefined();
 	});
 });
