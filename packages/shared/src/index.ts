@@ -47,6 +47,24 @@ export {
 	isEmptyRestorePlan,
 	planRestore,
 } from "./history/restore.js";
+// 3D view state (Mode 7 etc.) shared across plugins
+export {
+	type GroundProjection,
+	type GroundRayOptions,
+	type Mat4,
+	type ProjectionCamera,
+	projectStagePoint,
+	projectWorld,
+	type StageSize,
+	type TiltCss,
+	tiltCss,
+	tiltOrigin,
+	unprojectOnGround,
+	unprojectStagePoint,
+	unprojectWorld,
+	type View3dProjection,
+	viewMatrix,
+} from "./projection-3d.js";
 // Service seam (typed host-facing plugin APIs over ctx.services / app.services)
 export { defineService, type ServiceHandle } from "./service.js";
 // Solid height (what stands on the ground, e.g. raised shapes)
@@ -223,5 +241,4 @@ export {
 	zIndexBeforeAll,
 	zIndexBetween,
 } from "./utils/z-order.js";
-// 3D view state (Mode 7 etc.) shared across plugins
 export { type View3dApi, type View3dCamera, view3dService } from "./view-3d.js";
