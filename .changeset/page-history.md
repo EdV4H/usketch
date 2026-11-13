@@ -1,7 +1,6 @@
 ---
 "@edv4h/usketch-shared": minor
 "@edv4h/usketch-sync": minor
-"@edv4h/usketch-plugin-history": minor
 ---
 
 マルチページ: 履歴をページ対応
