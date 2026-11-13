@@ -12,3 +12,5 @@
 - `moveRootShapesToPage(root, pageDoc)`: 移行後にルートへ書かれたシェイプ（古いクライアントなど）を 1 枚目へ移す
 - `checkPagesMigration(before, root, pageDoc)`: 移行前のシェイプが全部 1 枚目に同じ中身であり、ルートが空かを確かめる
 - `countRootShapes(root)`、`DEFAULT_FIRST_PAGE_NAME`
+
+移行の手順（自前のサーバーを持つ利用先向け）: https://edv4h.github.io/usketch/docs/ja/guides/multi-page-migration/

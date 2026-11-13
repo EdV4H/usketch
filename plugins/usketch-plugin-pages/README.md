@@ -22,3 +22,5 @@ getPagesApi(app.services)?.create({ open: true });
 
 ページ一覧の読み書きは `@edv4h/usketch-sync` の純関数（`createPage` / `renamePage` / `reorderPage` / `deletePage` / `restorePage`）、
 ページの複製は `duplicatePage(root, pageId, openPageDoc)` でも行える。
+
+既存のボードをページ形式へ移す手順（自前のサーバーを持つ利用先向け）は、ドキュメントの [マルチページへの移行](https://edv4h.github.io/usketch/docs/ja/guides/multi-page-migration/) を参照。
