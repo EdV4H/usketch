@@ -1,9 +1,17 @@
 import { DurableObject } from "cloudflare:workers";
 import type { ClientToServer, ServerToClient } from "@edv4h/usketch-session-protocol";
 import { votingServerType } from "@edv4h/usketch-session-voting/server";
+import type { ShapeData } from "@edv4h/usketch-shared";
 import {
+	decodeDocFrame,
+	getLegacyPageId,
+	isPagedBoard,
+	listPages,
 	MSG_AWARENESS,
 	MSG_BROADCAST,
+	MSG_DOC_SUBSCRIBE,
+	MSG_DOC_UNSUBSCRIBE,
+	MSG_DOC_UPDATE,
 	MSG_PARTITION_REQUEST,
 	MSG_SESSION,
 	MSG_SYNC_STEP1,
@@ -14,9 +22,14 @@ import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { boardMembers } from "./db/schema.js";
 import { handleAiPlaceShapes, handleAiUpdateShapes } from "./rooms/ai-handler.js";
+import { createBoardShapes, PageNotFoundError, type ShapesTarget } from "./rooms/board-shapes.js";
+import { handleHistoryRequest } from "./rooms/history-handler.js";
+import { createHistoryManager } from "./rooms/history-manager.js";
+import { deleteLegacySnapshots } from "./rooms/legacy-snapshot-cleanup.js";
+import { createPageDocs } from "./rooms/page-docs.js";
+import { createPagesMigration } from "./rooms/pages-migration.js";
 import { createPartitionManager } from "./rooms/partition-manager.js";
 import { SessionManager, type SessionSnapshot } from "./rooms/session-manager.js";
-import { createSnapshotManager } from "./rooms/snapshot-manager.js";
 import { handleThumbnail } from "./rooms/thumbnail-handler.js";
 import { createYjsSync } from "./rooms/yjs-sync.js";
 import type { Env } from "./types.js";
@@ -33,11 +46,104 @@ export class BoardRoom extends DurableObject<Env> {
 
 	private readonly yjsSync = createYjsSync({ storage: this.ctx.storage });
 	private readonly partitions = createPartitionManager({ storage: this.ctx.storage });
-	private readonly snapshots = createSnapshotManager({
+	/** 旧スナップショット（Time Travel）の保存データを消す処理を、このインスタンスで始めたか。 */
+	private legacySnapshotsCleared = false;
+	// Git 風のボード履歴（自動・手動コミット）。Yjs ドキュメントの shapes をスナップショットする。
+	// ページを使うボードはページごとの tree にし、自動コミットは編集されたページだけを読む。
+	private readonly history = createHistoryManager({
 		storage: this.ctx.storage,
-		getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
-		getWebSockets: () => this.ctx.getWebSockets(),
+		getShapes: async (pageId) => {
+			let target: ShapesTarget;
+			try {
+				target = await this.boardShapes.open(pageId);
+			} catch (e) {
+				// 削除済みのページなど、今は開けないページは空として比べる
+				if (e instanceof PageNotFoundError) return {};
+				throw e;
+			}
+			try {
+				return target.doc.getMap<ShapeData>("shapes").toJSON() as Record<string, ShapeData>;
+			} finally {
+				target.release();
+			}
+		},
+		getPageIds: async () => {
+			const { doc } = await this.yjsSync.getOrCreateDoc();
+			return isPagedBoard(doc) ? listPages(doc).map((p) => p.id) : null;
+		},
+		getLegacyPageId: async () => getLegacyPageId((await this.yjsSync.getOrCreateDoc()).doc),
 	});
+
+	/**
+	 * 旧スナップショット API の保存データを裏で消す（インスタンスごとに 1 回、接続時）。
+	 * 履歴は history-manager に一本化した。消し終わる前に止まっても次の接続でやり直す。
+	 */
+	private clearLegacySnapshots(): void {
+		if (this.legacySnapshotsCleared) return;
+		this.legacySnapshotsCleared = true;
+		this.ctx.waitUntil(
+			deleteLegacySnapshots(this.ctx.storage).catch((err) => {
+				this.legacySnapshotsCleared = false;
+				console.error("[BoardRoom] legacy snapshot cleanup failed:", err);
+			}),
+		);
+	}
+
+	// ページ doc（ルート doc とは別に同期する Y.Doc）。購読された doc だけを読み込む。
+	// ページの編集は、そのページを履歴の次の自動コミットで読み直す印にする。
+	private readonly pageDocs = createPageDocs({
+		storage: this.ctx.storage,
+		getSockets: () => this.ctx.getWebSockets(),
+		onEdit: (docId) => this.history.noteEdit(docId),
+	});
+
+	// サーバー側の機能（AI・サムネイル）がシェイプを読み書きする入口。ページを使うボードは
+	// 指定したページ（省略時は先頭ページ）のページ doc、使わないボードはルート doc を開く。
+	private readonly boardShapes = createBoardShapes({
+		getRootDoc: () => this.yjsSync.getOrCreateDoc(),
+		publishRoot: (update) => {
+			this.yjsSync.pushUpdate(update);
+			this.broadcastRootUpdate(update);
+		},
+		pageDocs: this.pageDocs,
+	});
+
+	// マルチページ移行。移行前のボードを開いたら、初回同期より前にルートの shapes を 1 枚目の
+	// ページ doc へ移す（機能フラグ PAGES_MIGRATION で開ける）。移行後にルートへ書かれた
+	// シェイプは 1 枚目へ移す。
+	private readonly pagesMigration = createPagesMigration({
+		enabled: this.env.PAGES_MIGRATION === "true",
+		storage: this.ctx.storage,
+		root: this.yjsSync,
+		pageDocs: this.pageDocs,
+		broadcastRoot: (update) => this.broadcastRootUpdate(update),
+		commitBeforeMigration: () =>
+			this.history.recordCommit({ trigger: "auto", message: "マルチページへの移行前" }),
+	});
+
+	/** サーバーで書いたルート doc の update を全接続へ送り、保存と履歴を予約する。 */
+	private broadcastRootUpdate(update: Uint8Array): void {
+		const msg = new Uint8Array(update.length + 1);
+		msg[0] = MSG_YJS_UPDATE;
+		msg.set(update, 1);
+		this.broadcastAll(msg);
+		this.noteBoardEdit();
+	}
+
+	/** 移行が要るボードなら移行する。失敗してもボードはページ無しのまま開ける。 */
+	private async ensurePagesMigrated(): Promise<void> {
+		try {
+			await this.pagesMigration.ensureMigrated();
+		} catch (e) {
+			console.error("[BoardRoom] Pages migration failed:", e);
+		}
+	}
+
+	/** Yjs の保存を予約し、履歴の自動コミットにも編集を知らせる。 */
+	private noteBoardEdit(): void {
+		this.yjsSync.scheduleSave();
+		this.history.noteEdit();
+	}
 
 	// Server-authoritative live sessions (voting / tutorial / card game). State is
 	// persisted to DO storage and the reconnect grace uses the DO alarm.
@@ -117,6 +223,7 @@ export class BoardRoom extends DurableObject<Env> {
 	async fetch(request: Request): Promise<Response> {
 		await this.yjsSync.loadUpdates();
 		await this.partitions.loadFromStorage();
+		await this.ensurePagesMigrated();
 		const url = new URL(request.url);
 
 		if (url.pathname === "/ws") {
@@ -125,36 +232,22 @@ export class BoardRoom extends DurableObject<Env> {
 
 		if (url.pathname === "/ai-place-shapes" && request.method === "POST") {
 			return handleAiPlaceShapes(request, {
-				getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
-				pushUpdate: (u) => this.yjsSync.pushUpdate(u),
-				broadcastAll: (d) => this.broadcastAll(d),
-				scheduleSave: () => this.yjsSync.scheduleSave(),
+				openShapes: (pageId) => this.boardShapes.open(pageId),
 			});
 		}
 
 		if (url.pathname === "/ai-update-shapes" && request.method === "POST") {
 			return handleAiUpdateShapes(request, {
-				getOrCreateDoc: () => this.yjsSync.getOrCreateDoc(),
-				pushUpdate: (u) => this.yjsSync.pushUpdate(u),
-				broadcastAll: (d) => this.broadcastAll(d),
-				scheduleSave: () => this.yjsSync.scheduleSave(),
+				openShapes: (pageId) => this.boardShapes.open(pageId),
 			});
 		}
 
 		if (url.pathname === "/thumbnail") {
-			return handleThumbnail(url, () => this.yjsSync.getOrCreateDoc());
+			return handleThumbnail(url, (pageId) => this.boardShapes.open(pageId));
 		}
 
-		if (url.pathname === "/snapshots" && request.method === "GET") {
-			return this.snapshots.handleListSnapshots();
-		}
-		if (url.pathname === "/snapshot" && request.method === "POST") {
-			return this.snapshots.handleCreateSnapshot();
-		}
-		if (url.pathname.startsWith("/snapshots/") && request.method === "GET") {
-			const ts = url.pathname.split("/snapshots/")[1];
-			return this.snapshots.handleGetSnapshot(ts);
-		}
+		const historyResponse = await handleHistoryRequest(request, url, this.history);
+		if (historyResponse) return historyResponse;
 
 		return new Response("BoardRoom OK", { status: 200 });
 	}
@@ -182,7 +275,7 @@ export class BoardRoom extends DurableObject<Env> {
 			}
 		}
 
-		this.snapshots.scheduleAutoSnapshot();
+		this.clearLegacySnapshots();
 		return new Response(null, { status: 101, webSocket: pair[0] });
 	}
 
@@ -204,7 +297,13 @@ export class BoardRoom extends DurableObject<Env> {
 				this.yjsSync.pushUpdate(payload);
 				this.partitions.trackUpdate(payload);
 				this.broadcast(ws, data);
-				this.yjsSync.scheduleSave();
+				this.noteBoardEdit();
+				// ページを使うボードのルート shapes に書かれたもの（古いクライアントなど）は 1 枚目へ移す
+				try {
+					await this.pagesMigration.moveRootShapes();
+				} catch (e) {
+					console.error("[BoardRoom] Failed to move root shapes to the first page:", e);
+				}
 				break;
 			}
 			case MSG_AWARENESS:
@@ -226,6 +325,8 @@ export class BoardRoom extends DurableObject<Env> {
 				break;
 			}
 			case MSG_SYNC_STEP1: {
+				// 休眠から戻った接続でも、初回同期より前に移行を済ませる
+				await this.ensurePagesMigrated();
 				for (const update of this.yjsSync.getUpdates()) {
 					const msg = new Uint8Array(update.length + 1);
 					msg[0] = MSG_SYNC_STEP2;
@@ -233,6 +334,21 @@ export class BoardRoom extends DurableObject<Env> {
 					ws.send(msg);
 				}
 				this.partitions.sendPartitionMeta(ws);
+				break;
+			}
+			case MSG_DOC_SUBSCRIBE:
+			case MSG_DOC_UPDATE:
+			case MSG_DOC_UNSUBSCRIBE: {
+				const frame = decodeDocFrame(data);
+				if (!frame) break;
+				if (msgType === MSG_DOC_SUBSCRIBE) {
+					await this.pageDocs.handleSubscribe(ws, frame.docId, frame.parts[0]);
+				} else if (msgType === MSG_DOC_UPDATE) {
+					const [update] = frame.parts;
+					if (update) await this.pageDocs.handleUpdate(ws, frame.docId, update);
+				} else {
+					this.pageDocs.handleUnsubscribe(ws, frame.docId);
+				}
 				break;
 			}
 			case MSG_PARTITION_REQUEST: {
@@ -296,6 +412,7 @@ export class BoardRoom extends DurableObject<Env> {
 				await this.flushSessionWrites();
 			}
 		}
+		this.pageDocs.handleClose(ws);
 		try {
 			ws.close(code);
 		} catch {
@@ -303,7 +420,10 @@ export class BoardRoom extends DurableObject<Env> {
 		}
 
 		if (this.ctx.getWebSockets().length === 0) {
-			this.yjsSync.destroyDoc();
+			// 最後の接続が切れた → 未コミットの変更を履歴に残してからドキュメントを破棄する。
+			await this.history.flushAutoCommit();
+			// コミット中に誰かが接続し直していたら、ドキュメントは使用中なので残す。
+			if (this.ctx.getWebSockets().length === 0) this.yjsSync.destroyDoc();
 		}
 	}
 

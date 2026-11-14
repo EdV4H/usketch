@@ -40,6 +40,12 @@ export interface MapRenderConfig {
 	 * relief); below it the ground drops to flat merged blocks and the relief is off.
 	 */
 	fullDetailMinPx: number;
+	/**
+	 * Whether the terrain has heights at all (cliffs in 3D, the ground-height service's
+	 * steps). Off, the map is a flat picture: another plugin owns the board's height
+	 * (e.g. usketch-plugin-elevation turns it off on a board with an elevation field).
+	 */
+	heightEnabled: boolean;
 }
 
 /** Defaults for the draw-range / detail fields (the original fixed values). */
@@ -56,6 +62,7 @@ export const renderConfigStore = createReactiveStore<MapRenderConfig>({
 	reliefOverscan: false,
 	reliefEdgeInset: DEFAULT_RELIEF_EDGE_INSET,
 	fullDetailMinPx: DEFAULT_FULL_DETAIL_MIN_PX,
+	heightEnabled: true,
 });
 
 /**

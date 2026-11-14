@@ -22,14 +22,28 @@ function CommentIcon() {
 	);
 }
 
+/** マルチページ: コメントにページを記録し、別のページのコメントからそのページへ移る。 */
+export interface CommentsPagesOptions {
+	/** 今開いているページ。新しいコメントに記録する。 */
+	currentPageId: string;
+	/** ページを記録していない（ページより前の）コメントがあるページ。 */
+	legacyPageId?: string | null;
+	/** ページの名前（無ければ null）。 */
+	pageName: (pageId: string) => string | null;
+	/** ページを開く。 */
+	switchPage: (pageId: string) => void;
+}
+
 export interface CommentsPluginOptions {
 	boardId: string;
 	apiUrl: string;
 	extraHeaders?: Record<string, string>;
+	/** マルチページ: 指定するとコメントにページを記録し、一覧に別のページのものを示す。 */
+	pages?: CommentsPagesOptions;
 }
 
 export function createCommentsPlugin(options: CommentsPluginOptions): UsketchPlugin {
-	const { boardId, apiUrl, extraHeaders } = options;
+	const { boardId, apiUrl, extraHeaders, pages } = options;
 
 	return {
 		id: "usketch-plugin-comments",
@@ -46,13 +60,14 @@ export function createCommentsPlugin(options: CommentsPluginOptions): UsketchPlu
 					icon: "💬",
 					iconComponent: () => <CommentIcon />,
 					order: 10,
-					render: () => <CommentsTabWrapper client={client} events={ctx.events} />,
+					render: () => <CommentsTabWrapper client={client} events={ctx.events} pages={pages} />,
 				},
 			});
 
 			// バッジレイヤー（fixedレイヤー = スクリーン座標系で描画）
 			ctx.layers.register({
 				id: "comment-badges",
+				view3d: "tilt",
 				order: 55,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).

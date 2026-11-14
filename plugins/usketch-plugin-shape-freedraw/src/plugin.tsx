@@ -14,7 +14,6 @@ import { createFreedrawSettingsStore } from "./settings-store.js";
 import { createFreedrawShapeDefinition, type FreedrawHitTestMode } from "./shape.js";
 import type { PenId } from "./types.js";
 import { createPointerStore, FreedrawCursor } from "./ui/cursor-overlay.js";
-import type { BoolStore } from "./ui/palette.js";
 
 const TOOL_ID = "freedraw-draw";
 
@@ -31,23 +30,6 @@ function FreedrawIcon() {
 			/>
 		</svg>
 	);
-}
-
-function createBoolStore(initial: boolean) {
-	let value = initial;
-	const listeners = new Set<() => void>();
-	const store: BoolStore & { set(v: boolean): void } = {
-		getSnapshot: () => value,
-		subscribe(l) {
-			listeners.add(l);
-			return () => listeners.delete(l);
-		},
-		set(v) {
-			value = v;
-			for (const l of listeners) l();
-		},
-	};
-	return store;
 }
 
 /** `createFreedrawPlugin` の 2 つ目の引数（JSON にできない設定）。 */
@@ -81,7 +63,6 @@ export function createFreedrawPlugin(
 			const settings = createFreedrawSettingsStore(config);
 			const offService = freedrawService.provide(ctx.services, createFreedrawApi(settings));
 			const pointer = createPointerStore();
-			const active = createBoolStore(ctx.store.getActiveToolId() === TOOL_ID);
 			let endpointSnap = config.endpointSnap;
 			const draw = createDrawController(settings, pointer, { endpointSnap: () => endpointSnap });
 
@@ -97,11 +78,9 @@ export function createFreedrawPlugin(
 				shortcut: "p",
 				order: 30,
 				onActivate(toolCtx) {
-					active.set(true);
 					toolCtx.events.emit("snap:configure", { enabled: false });
 				},
 				onDeactivate(toolCtx) {
-					active.set(false);
 					draw.reset();
 					toolCtx.events.emit("snap:configure", { enabled: true });
 				},
@@ -113,6 +92,7 @@ export function createFreedrawPlugin(
 			// ── 自前 UI レイヤー（Vim-first でツールバーが無くても動く） ──
 			ctx.layers.register({
 				id: "freedraw-cursor",
+				view3d: "tilt",
 				order: 92,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).

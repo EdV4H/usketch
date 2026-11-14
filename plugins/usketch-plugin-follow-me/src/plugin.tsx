@@ -1,6 +1,6 @@
 import type { PluginContext, UsketchPlugin } from "@edv4h/usketch-shared";
 import { centerOnWorld } from "@edv4h/usketch-shared";
-import type { WsProviderHandle } from "@edv4h/usketch-sync";
+import type { Awareness, WsProviderHandle } from "@edv4h/usketch-sync";
 
 function FollowBanner({ name }: { name: string }) {
 	return (
@@ -33,13 +33,40 @@ function memberName(state: Record<string, unknown>): string {
 	return user?.name ?? "Unknown";
 }
 
-export interface FollowMePluginOptions {
-	wsProvider: WsProviderHandle;
+/** マルチページ: 別のページの人を追うときの設定。 */
+export interface FollowMePagesOptions {
+	/** ボード全員（どのページにいても）の awareness。各人の `page` を読む。 */
+	awareness: Awareness;
+	/** 今開いているページ。 */
+	currentPageId: string;
+	/** ページを切り替える（ホストが App を作り直す）。 */
+	switchPage: (pageId: string) => void;
 }
 
+export interface FollowMePluginOptions {
+	wsProvider: WsProviderHandle;
+	/**
+	 * マルチページ: 指定すると、別のページにいる人も一覧に出し、追っている人がページを
+	 * 移ったら同じページへ移って追い続ける。
+	 */
+	pages?: FollowMePagesOptions;
+}
+
+/**
+ * ページを切り替えると App ごと作り直すので、追っている人を次の App へ引き継ぐ
+ * （同じタブの中だけ、少しの間だけ有効）。
+ */
+let carriedFollow: { clientId: number; name: string; at: number } | null = null;
+const CARRY_MS = 15_000;
+
 export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlugin {
-	const { wsProvider } = options;
-	const { awareness } = wsProvider;
+	const { wsProvider, pages } = options;
+	const awareness = pages?.awareness ?? wsProvider.awareness;
+	/** その人が別のページにいれば、そのページ id。 */
+	const otherPageOf = (state: Record<string, unknown> | undefined): string | null => {
+		if (!pages || typeof state?.page !== "string") return null;
+		return state.page === pages.currentPageId ? null : state.page;
+	};
 
 	return {
 		id: "usketch-plugin-follow-me",
@@ -53,6 +80,7 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				ctx.layers.unregister("follow-banner");
 				ctx.layers.register({
 					id: "follow-banner",
+					view3d: "tilt",
 					order: 95,
 					fixed: true,
 					render: () => {
@@ -70,6 +98,8 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				followingName = name;
 				updateBanner();
 				rebuildFollowActions();
+				// すぐに相手の位置へ（別のページにいれば、そのページを開く）
+				onAwarenessChange();
 			}
 
 			function stopFollow() {
@@ -98,7 +128,7 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				let key = `${followingClientId ?? ""}\u0000${followingName}`;
 				for (const [clientId, state] of states) {
 					if (clientId === awareness.doc.clientID) continue;
-					key += `\u0000${clientId}\u0001${memberName(state)}\u0001${state.presenting === true ? 1 : 0}`;
+					key += `\u0000${clientId}\u0001${memberName(state)}\u0001${state.presenting === true ? 1 : 0}\u0001${otherPageOf(state) ?? ""}`;
 				}
 				return key;
 			}
@@ -125,10 +155,11 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 					if (clientId === awareness.doc.clientID) continue;
 					const name = memberName(state);
 					const presenting = state.presenting === true;
+					const elsewhere = otherPageOf(state) !== null;
 					followActionOffs.push(
 						ctx.actions.register({
 							id: `follow:member:${clientId}`,
-							label: `${presenting ? "📺 " : "👤 "}${name}`,
+							label: `${presenting ? "📺 " : "👤 "}${name}${elsewhere ? "（別のページ）" : ""}`,
 							group: "Follow",
 							order: order++,
 							isActive: () => followingClientId === clientId,
@@ -140,6 +171,17 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 
 			// Follow コントロール初期登録（let 初期化後に実行）
 			rebuildFollowActions();
+
+			// ページを移る前に追っていた人を引き継ぐ
+			const carried = carriedFollow;
+			carriedFollow = null;
+			if (
+				carried &&
+				Date.now() - carried.at < CARRY_MS &&
+				awareness.getStates().has(carried.clientId)
+			) {
+				startFollow(carried.clientId, carried.name);
+			}
 
 			function onAwarenessChange() {
 				const states = awareness.getStates();
@@ -157,6 +199,14 @@ export function createFollowMePlugin(options: FollowMePluginOptions): UsketchPlu
 				if (followingClientId !== null) {
 					const targetState = states.get(followingClientId);
 					if (!targetState) return;
+
+					// 別のページへ移ったら、同じページを開いて追い続ける
+					const otherPage = otherPageOf(targetState);
+					if (pages && otherPage) {
+						carriedFollow = { clientId: followingClientId, name: followingName, at: Date.now() };
+						pages.switchPage(otherPage);
+						return;
+					}
 
 					const vc = targetState.viewportCenter as { x: number; y: number } | undefined;
 					if (!vc || typeof vc.x !== "number" || typeof vc.y !== "number") return;

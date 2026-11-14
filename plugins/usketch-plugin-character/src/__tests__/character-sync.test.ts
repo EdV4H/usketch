@@ -46,9 +46,12 @@ describe("parseWireState", () => {
 			heading: -90,
 			speed: 0,
 			moving: false,
+			controlScheme: "directional",
 			steering: 0,
 			slip: 0,
 			drifting: false,
+			pitch: 0,
+			roll: 0,
 			z: null,
 			airborne: false,
 			vz: 0,
@@ -67,6 +70,21 @@ describe("parseWireState", () => {
 			airborne: false,
 			vz: 0,
 		});
+	});
+	it("reads the body attitude (wrapped, 0 when missing)", () => {
+		expect(parseWireState({ x: 0, y: 0, heading: 0, pitch: 270, roll: -45 })).toMatchObject({
+			pitch: -90,
+			roll: -45,
+		});
+		expect(parseWireState({ x: 0, y: 0, heading: 0, pitch: "up" })).toMatchObject({ pitch: 0 });
+	});
+	it("reads the control scheme (anything but vehicle is directional)", () => {
+		expect(parseWireState({ x: 0, y: 0, heading: 0, scheme: "vehicle" })?.controlScheme).toBe(
+			"vehicle",
+		);
+		expect(parseWireState({ x: 0, y: 0, heading: 0, scheme: "tank" })?.controlScheme).toBe(
+			"directional",
+		);
 	});
 	it("clamps vehicle fields", () => {
 		expect(
@@ -99,6 +117,14 @@ describe("createCharacterSync", () => {
 		t = 100;
 		sync.publish();
 		expect(aw.states.get(1)?.[AWARENESS_FIELD]).toMatchObject({ x: 10 });
+	});
+
+	it("publishes the control scheme", () => {
+		const aw = fakeAwareness(1);
+		const store = createCharacterStore({ enabled: true, controlScheme: "vehicle" });
+		const sync = createCharacterSync(aw, store, () => {});
+		sync.publish(true);
+		expect(aw.states.get(1)?.[AWARENESS_FIELD]).toMatchObject({ scheme: "vehicle" });
 	});
 
 	it("publishes steering, slip and drift", () => {

@@ -1,25 +1,15 @@
-// The Mode 7 runtime: it turns the shared store's `active`/camera state into the
-// actual visual effect, without touching core coordinate math.
-//   1. Injects a single <style> sheet that tilts the selected board content layers
-//      into 3D — each selected layer wrapper (`[data-layer-id="…"]`) gets a
-//      self-contained `perspective(fov) rotateX rotateZ`. The main container is
-//      marked with a `data-mode7-stage` attribute so the rules are scoped to it (not
-//      a minimap). Using a stylesheet with `!important` — rather than per-element
-//      inline styles — means React can't reconcile the transform away and it applies
-//      to layers that mount later, with no per-element querying or MutationObserver.
+// The Mode 7 runtime. The tilt itself is drawn by the CSS 3D renderer
+// (`@edv4h/usketch-css3d-renderer`) from the board's 3D view state, which the Mode 7
+// store keeps; this runtime:
+//   1. Tells the renderer which layers to tilt (the HUD layer picker) and give depth.
 //   2. Registers the sky / fog / capture overlay layers (they self-gate on `active`).
 //   3. Drives the camera position: capture-layer drag pans the viewport (move over
 //      the ground) and wheel zooms — reusing the store's affine viewport.
-import type { BoundingBox, PluginContext } from "@edv4h/usketch-shared";
+//   4. Turns the viewport by the camera yaw while in 3D (see `mode7-yaw.ts`).
+import type { BoundingBox, PluginContext, View3dRendererApi } from "@edv4h/usketch-shared";
 import { CaptureFrameLayer, CaptureLayer, FogLayer, SkyLayer } from "./mode7-layers.js";
-import { DEFAULT_DEPTH_LAYER_IDS, type Mode7Store } from "./mode7-store.js";
-import {
-	drawDistanceClip,
-	drawDistanceOverscanPx,
-	tiltLayerRules,
-	tiltTransform,
-	transitionCamera,
-} from "./mode7-transform.js";
+import { DEFAULT_DEPTH_LAYER_IDS, type Mode7State, type Mode7Store } from "./mode7-store.js";
+import { createYawTurner, type YawTurner, yawPivot } from "./mode7-yaw.js";
 
 /** The plugin's own layer ids (never tilted). */
 export const SKY_LAYER_ID = "mode7-sky";
@@ -33,12 +23,32 @@ const WHEEL_ZOOM = 0.0015;
 /** Emitted with `{ active }` when the 3D stage starts / stops showing the board. */
 export const STAGE_3D_EVENT = "usketch:stage-3d";
 
-/** Extra px added to the grid overscan so it comfortably covers the clip line (rounding). */
-const OVERSCAN_BUFFER = 16;
+/**
+ * CSS variable on the stage holding the camera height (px), set by the CSS 3D renderer.
+ * @deprecated Import it from `@edv4h/usketch-css3d-renderer`.
+ */
+export { CAMERA_HEIGHT_VAR } from "@edv4h/usketch-css3d-renderer";
+
+/** True when `a` and `b` differ in nothing but the camera height. */
+function onlyHeightChanged(a: Mode7State, b: Mode7State): boolean {
+	if (a.camera === b.camera) return false;
+	for (const key of Object.keys(a) as (keyof Mode7State)[]) {
+		if (key !== "camera" && a[key] !== b[key]) return false;
+	}
+	const c = a.camera;
+	const d = b.camera;
+	return (
+		c.pitch === d.pitch &&
+		c.yaw === d.yaw &&
+		c.fov === d.fov &&
+		c.horizon === d.horizon &&
+		(c.height ?? 0) !== (d.height ?? 0)
+	);
+}
 
 /**
- * The main canvas container: the element that directly wraps the board's layer
- * divs. We locate it via `[data-layer-id]` (every layer wrapper is a direct child
+ * The main canvas container (for the capture rect and the yaw pivot): the element that
+ * directly wraps the board's layer divs. We locate it via `[data-layer-id]` (every layer wrapper is a direct child
  * of the container) rather than `data-testid="canvas-container"` — `data-testid` is
  * a test-only hook that the production/app build strips out, so it is absent in the
  * running app and the old selector silently matched nothing (the tilt never applied).
@@ -72,34 +82,49 @@ function mainContainer(): HTMLElement | null {
 export function setupMode7Runtime(
 	ctx: PluginContext,
 	store: Mode7Store,
-	options: { depthLayerIds?: readonly string[] } = {},
+	options: {
+		/** Draws the tilted layers (Mode 7 only tells it which ones). */
+		renderer: View3dRendererApi;
+		depthLayerIds?: readonly string[];
+		/** Turns the viewport by the yaw (default: one of its own on `ctx.store`). */
+		yaw?: YawTurner;
+		/**
+		 * Tilt layers that declare it (`Layer.view3d` `tilt` / `depth`) as well: each is
+		 * added to the tilted set the first time it is seen (so the picker can still take
+		 * it out). Off when the host gave its own `tiltLayerIds`.
+		 */
+		adoptDeclared?: boolean;
+		/** Layers never tilted, even when they declare it. */
+		excludedLayerIds?: readonly string[];
+	},
 ): () => void {
-	const STAGE_ATTR = "data-mode7-stage";
-	const depthLayers = new Set(options.depthLayerIds ?? DEFAULT_DEPTH_LAYER_IDS);
-	let styleEl: HTMLStyleElement | null = null;
-	// The stylesheet text last written: rewriting a `<style>` with the same text still
-	// rebuilds the sheet and restyles the whole stage, so identical text is skipped.
-	let lastCss = "";
-
-	const ensureStyleEl = (): void => {
-		if (styleEl || typeof document === "undefined") return;
-		styleEl = document.createElement("style");
-		styleEl.setAttribute("data-mode7", "");
-		document.head.appendChild(styleEl);
+	const { renderer } = options;
+	const excluded = new Set(options.excludedLayerIds ?? []);
+	// Layers declared `depth` keep their depth unless the host listed the depth layers.
+	const depthLayers = (): ReadonlySet<string> => {
+		if (options.depthLayerIds) return new Set(options.depthLayerIds);
+		const ids = new Set(DEFAULT_DEPTH_LAYER_IDS);
+		for (const layer of ctx.layers.getLayers()) {
+			if (layer.view3d === "depth") ids.add(layer.id);
+		}
+		return ids;
 	};
-
-	// Drive the background grid's overscan (only re-emit on change) so it extends past the
-	// viewport to stay under the far content a large draw distance reveals. No package
-	// dependency on bg-grid — a plain event it listens for (a no-op if bg-grid is absent).
-	let lastOverscan = -1;
-	const driveGridOverscan = (px: number): void => {
-		if (px === lastOverscan) return;
-		lastOverscan = px;
-		ctx.events.emit("bg-grid:set-overscan", { px });
+	// Layers declared `tilt` / `depth` join the tilted set once, when first seen.
+	const seenDeclared = new Set<string>();
+	const adoptDeclared = (): void => {
+		if (!options.adoptDeclared) return;
+		const current = store.getState().tiltLayers;
+		const add: string[] = [];
+		for (const layer of ctx.layers.getLayers()) {
+			if (layer.view3d !== "tilt" && layer.view3d !== "depth") continue;
+			if (seenDeclared.has(layer.id) || excluded.has(layer.id)) continue;
+			seenDeclared.add(layer.id);
+			if (!current.includes(layer.id)) add.push(layer.id);
+		}
+		if (add.length > 0) store.setTiltLayers([...current, ...add]);
 	};
-
 	// Tell ground plugins when the 3D stage starts / stops showing the board (the map
-	// builds its raised relief only then). A plain event, like the overscan below.
+	// builds its raised relief only then). A plain event.
 	let lastStage = false;
 	const announceStage = (active: boolean): void => {
 		if (active === lastStage) return;
@@ -107,45 +132,21 @@ export function setupMode7Runtime(
 		ctx.events.emit(STAGE_3D_EVENT, { active });
 	};
 
-	const applyTilt = (): void => {
-		const container = mainContainer();
-		if (!container) return;
-		container.setAttribute(STAGE_ATTR, "on");
-		ensureStyleEl();
-		if (!styleEl) return;
-		const { camera, drawDistance, amount } = store.getState();
-		// During an enter/exit transition the tilt is scaled by the eased amount.
-		const { transform, transformOrigin } = tiltTransform(transitionCamera(camera, amount));
-		// Clip each tilted wrapper (so overflow:visible doesn't float content past the
-		// grid); a finite draw distance tightens the top, one beyond the viewport lets it
-		// extend (negative inset) with the grid overscanned to match. Distance is canvas
-		// units → maps to px via zoom + container height, so this re-runs on viewport (zoom)
-		// changes. clip-path keeps the tilt (overflow flattens) but flattens depth, so
-		// depth layers skip it (see `tiltLayerRules`).
-		const zoom = ctx.store.getViewport().zoom;
-		const heightPx = container.getBoundingClientRect().height;
-		const clip = drawDistanceClip(drawDistance, zoom, heightPx, amount);
-		const overscan = drawDistanceOverscanPx(drawDistance, zoom, heightPx);
-		driveGridOverscan(overscan > 0 ? overscan + OVERSCAN_BUFFER : 0);
-		const css = tiltLayerRules(store.getState().tiltLayers, {
-			stageAttr: STAGE_ATTR,
-			transform,
-			transformOrigin,
-			clip,
-			depthLayerIds: depthLayers,
-		});
-		if (css === lastCss) return;
-		lastCss = css;
-		styleEl.textContent = css;
-	};
-
-	const clearAll = (): void => {
-		if (styleEl) styleEl.textContent = "";
-		lastCss = "";
-		if (typeof document !== "undefined") {
-			for (const el of document.querySelectorAll(`[${STAGE_ATTR}]`)) el.removeAttribute(STAGE_ATTR);
+	// The renderer tilts the layers in Mode 7's picker (and its depth layers).
+	let pushedTilt: readonly string[] | null = null;
+	let pushedDepth = "";
+	const pushLayers = (): void => {
+		const tilt = store.getState().tiltLayers;
+		if (tilt !== pushedTilt) {
+			pushedTilt = tilt;
+			renderer.setTiltLayers(tilt);
 		}
-		driveGridOverscan(0); // restore the grid to the viewport when the view is off
+		const depth = [...depthLayers()];
+		const key = depth.join("\n");
+		if (key !== pushedDepth) {
+			pushedDepth = key;
+			renderer.setDepthLayers(depth);
+		}
 	};
 
 	/**
@@ -183,10 +184,26 @@ export function setupMode7Runtime(
 		}
 	};
 
+	// Turn the viewport by the yaw (scaled by the transition) about the tilt's pivot.
+	const yaw = options.yaw ?? createYawTurner(ctx.store);
+	const pivot = () => {
+		const c = mainContainer();
+		if (!c) return null;
+		const r = c.getBoundingClientRect();
+		if (r.width <= 0 || r.height <= 0) return null;
+		return yawPivot(r, store.getState().camera.horizon);
+	};
+	const turnYaw = (): void => {
+		const { camera, amount } = store.getState();
+		yaw.sync(camera.yaw, amount, pivot);
+	};
+
 	const sync = (): void => {
 		const active = store.getState().active;
-		if (active) applyTilt();
-		else clearAll();
+		// Entering 3D: take in layers declared since setup.
+		if (active && !lastStage) adoptDeclared();
+		turnYaw();
+		pushLayers();
 		announceStage(active);
 		maybeCapture();
 	};
@@ -227,38 +244,41 @@ export function setupMode7Runtime(
 		render: (rc) => <CaptureFrameLayer store={store} zoom={rc.viewport.zoom} />,
 	});
 
-	// Re-sync on active / camera / tilt-layer changes.
-	const unsubscribe = store.subscribe(sync);
-
-	// The draw-distance clip is in canvas units → depends on the board zoom + container
-	// height, so re-apply the tilt on zoom changes and window resize while active. A pan
-	// (every frame while a camera follows something) changes neither, and re-applying on
-	// it walked the layers, forced a layout and restyled the stage each frame.
-	const reapplyIfActive = (): void => {
-		if (store.getState().active) applyTilt();
-	};
-	let lastZoom = ctx.store.getViewport().zoom;
-	const offViewport = ctx.store.onMutation((e) => {
-		if (e.type !== "viewport:changed") return;
-		const zoom = ctx.store.getViewport().zoom;
-		if (zoom === lastZoom) return;
-		lastZoom = zoom;
-		reapplyIfActive();
+	// Re-sync on active / camera / tilt-layer changes. A camera-height change alone (every
+	// frame while a follower climbs) is the renderer's alone.
+	let prevState = store.getState();
+	const unsubscribe = store.subscribe(() => {
+		const next = store.getState();
+		const liftOnly = onlyHeightChanged(prevState, next);
+		prevState = next;
+		if (!liftOnly) sync();
 	});
-	const onResize = typeof window !== "undefined" ? reapplyIfActive : null;
-	if (onResize) window.addEventListener("resize", onResize);
 
-	// Initial apply (honors enabledInitially).
+	adoptDeclared();
+	// Initial apply (honors enabledInitially). The stage may not be laid out yet: turn by
+	// the yaw once more on the next frame.
 	sync();
+	const retry =
+		typeof requestAnimationFrame === "function"
+			? requestAnimationFrame(() => {
+					adoptDeclared();
+					turnYaw();
+				})
+			: null;
+	// Layers registered later (plugins announce them with `layers:changed`).
+	const offLayers = ctx.events.on("layers:changed", () => {
+		adoptDeclared();
+		pushLayers();
+	});
 
 	return () => {
-		clearAll();
+		if (retry !== null) cancelAnimationFrame(retry);
+		offLayers();
+		yaw.restore(pivot);
 		announceStage(false);
-		styleEl?.remove();
-		styleEl = null;
 		unsubscribe();
-		offViewport();
-		if (onResize) window.removeEventListener("resize", onResize);
+		renderer.setTiltLayers(null);
+		renderer.setDepthLayers(null);
 		ctx.layers.unregister(SKY_LAYER_ID);
 		ctx.layers.unregister(FOG_LAYER_ID);
 		ctx.layers.unregister(CAPTURE_LAYER_ID);

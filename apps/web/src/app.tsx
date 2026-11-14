@@ -1,8 +1,10 @@
 import { createValuesCardConfig, type ValuesCardState } from "@edv4h/croupier-plugin-values-card";
 import { AppProvider, Canvas, TransientLayer } from "@edv4h/usketch-canvas-engine";
 import { type AppInstance, createApp } from "@edv4h/usketch-core";
+import { createCss3dRendererPlugin } from "@edv4h/usketch-css3d-renderer";
 import { createDomRendererPlugin } from "@edv4h/usketch-dom-renderer";
 import { createGpuRendererPlugin } from "@edv4h/usketch-gpu-renderer";
+import { createGpu3dRendererPlugin } from "@edv4h/usketch-gpu3d-renderer";
 import { createActivityFeedPlugin } from "@edv4h/usketch-plugin-activity-feed";
 import { createAiActionsPlugin } from "@edv4h/usketch-plugin-ai-actions";
 import { createAiAgentPlugin } from "@edv4h/usketch-plugin-ai-agent";
@@ -26,12 +28,16 @@ import { createDashboardPlugin } from "@edv4h/usketch-plugin-dashboard";
 import { createDeepLinkPlugin } from "@edv4h/usketch-plugin-deep-link";
 import { createDomainDesignPlugin } from "@edv4h/usketch-plugin-domain-design";
 import { createEdgePanPlugin } from "@edv4h/usketch-plugin-edge-pan";
-import { createExportPlugin } from "@edv4h/usketch-plugin-export";
+import { createElevationPlugin } from "@edv4h/usketch-plugin-elevation";
+import { createExportPlugin, type ExportPluginOptions } from "@edv4h/usketch-plugin-export";
 import { createFollowMePlugin } from "@edv4h/usketch-plugin-follow-me";
 import { createFreePositionPlugin } from "@edv4h/usketch-plugin-free-position";
+import { createHistoryPlugin } from "@edv4h/usketch-plugin-history";
+import { createKeySettingsPlugin } from "@edv4h/usketch-plugin-key-settings";
 import { createLaserPlugin } from "@edv4h/usketch-plugin-laser";
 import { createMarkdownToShapePlugin } from "@edv4h/usketch-plugin-markdown-to-shape";
 import { createMode7Plugin } from "@edv4h/usketch-plugin-mode7";
+import { createPagesPlugin, neighborPage } from "@edv4h/usketch-plugin-pages";
 import { createPdfImportPlugin } from "@edv4h/usketch-plugin-pdf-import";
 import { createPortalPlugin } from "@edv4h/usketch-plugin-portal";
 import { createPresenceActivityPlugin } from "@edv4h/usketch-plugin-presence-activity";
@@ -59,7 +65,11 @@ import { createSidePanelPlugin } from "@edv4h/usketch-plugin-side-panel";
 import { createSnapPlugin } from "@edv4h/usketch-plugin-snap";
 import { createSpotlightPlugin } from "@edv4h/usketch-plugin-spotlight";
 import { createStartPositionPlugin } from "@edv4h/usketch-plugin-start-position";
-import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
+import {
+	createYjsSync,
+	persistDocToIndexedDb,
+	type YjsSyncHandle,
+} from "@edv4h/usketch-plugin-sync-localstorage-yjs";
 import {
 	createDivergenceTracker,
 	type DivergenceTrackerHandle,
@@ -81,11 +91,22 @@ import {
 import { createWhistlePlugin } from "@edv4h/usketch-plugin-whistle";
 import { createWindowSystemPlugin, getWindowSystemApi } from "@edv4h/usketch-plugin-window-system";
 import { votingClientType } from "@edv4h/usketch-session-voting/client";
-import type { UsketchPlugin } from "@edv4h/usketch-shared";
+import type { ShapeData, UsketchPlugin } from "@edv4h/usketch-shared";
 import { createBoardStore } from "@edv4h/usketch-store";
 import {
+	createPage,
+	createPageDocManager,
+	createPageScopedProvider,
 	createServerClock,
 	createWsProvider,
+	getLegacyPageId,
+	getPage,
+	initPagedBoard,
+	isPagedBoard,
+	listPages,
+	observePages,
+	PAGE_SHAPES_MAP_KEY,
+	resolvePageId,
 	type WsConnectionStatus,
 	type WsProviderHandle,
 } from "@edv4h/usketch-sync";
@@ -93,10 +114,20 @@ import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router";
+import * as Y from "yjs";
 import { CopilotPill } from "./components/board-frame/index.js";
 import { ShareDialog } from "./components/share-dialog.js";
 import { InfoTab } from "./components/side-panel/info-tab.js";
 import { boardMetaStore } from "./lib/board-meta-store.js";
+import {
+	type BoardRuntime,
+	type PagesState,
+	pageDocName,
+	pageSearch,
+	readLastPage,
+	readRequestedPage,
+	rememberLastPage,
+} from "./lib/board-pages.js";
 import {
 	characterAppearance,
 	renderCharacter,
@@ -105,6 +136,7 @@ import {
 import { getDevUser } from "./lib/dev-auth.js";
 import { getErrorMessage } from "./lib/errors.js";
 import { localBoards } from "./lib/local-boards.js";
+import { migrateLocalBoard } from "./lib/local-pages-migration.js";
 import { presenceStore, readPresenceMembers } from "./lib/presence-store.js";
 import { computePresentStage, type StageRect } from "./lib/present-stage.js";
 import { loadViewportCull, loadViewportLod } from "./lib/render-settings.js";
@@ -142,13 +174,24 @@ function readDesktopTemplate(search: string): boolean {
 	return new URLSearchParams(search).get("desktop") === "1";
 }
 
+/**
+ * `?renderer3d=gpu` で 3D 表示を GPU レンダラー（WebGL2・実験中）で描く。既定は CSS 3D。
+ * 2 つのレンダラーを同じボードで見比べるための切替（#1304）。
+ */
+function readRenderer3d(search: string): "css" | "gpu" {
+	return new URLSearchParams(search).get("renderer3d") === "gpu" ? "gpu" : "css";
+}
+
 interface CardHandWiring {
 	userId: string;
 	boardId?: string;
 	wsProvider?: WsProviderHandle | null;
 }
 
-function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
+function createBasePlugins(
+	cardHand: CardHandWiring,
+	exportOptions?: ExportPluginOptions,
+): UsketchPlugin[] {
 	return [
 		createGridBgPlugin(),
 		createDotsBgPlugin(),
@@ -226,16 +269,27 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 		// ウィンドウシステム（画角固定 ＋ i3風タイル/自由配置）。dashboard と同じく
 		// container/free-position の後・autoEnable:false で opt-in（HUD「ウィンドウ化」）。
 		createWindowSystemPlugin({ autoEnable: false }),
+		// 標高（連続した高さの地形）。HUD「標高 → 無限地形を作る・変える」で opt-in。
+		// 地面の高さサービスを提供するので、キャラは坂を上り下りし、3D の Shape は丘に乗る。
+		createElevationPlugin(),
+		// 3D 表示の描画（既定は CSS 3D）。層を CSS の 3D 変形で傾けて地面にする。Mode 7 などの
+		// 3D ビューはボードの 3D 表示の状態を変えるだけで、描くのはこのレンダラー。
+		// `?renderer3d=gpu` なら WebGL2 の GPU レンダラー（実験中）で描く。
+		readRenderer3d(typeof window !== "undefined" ? window.location.search : "") === "gpu"
+			? createGpu3dRendererPlugin()
+			: createCss3dRendererPlugin(),
 		// Mode 7（擬似3D地平面ビュー）。板コンテンツ層を CSS 3D で傾けるビューモード。
 		// 既定 OFF（HUD「3Dビュー切替」/ mode7:toggle で opt-in）。
 		// 切替時は地面がせり上がり、空/フォグがフェードする（#1103）。
 		createMode7Plugin({ transition: { durationMs: 900 } }),
+		// 全プラグインのキーを 1 つの HUD「キー設定」で一覧・付け替え（閲覧者ごとに localStorage へ保存）。
+		createKeySettingsPlugin(),
 		// Mode 7 中に Shape を立てる（`x-shape-3d` を持つ Shape だけ。HUD「3D（選択中の Shape）」）。
 		createShape3dPlugin(),
 		// 関連Shapeを「ぶちまける」— HUD の「関連Shapeをぶちまける」アクション。connector/
 		// container/free-position の後（関連解決 + 非重なり配置の土台が揃った後）。
 		createScatterPlugin(),
-		createExportPlugin(),
+		createExportPlugin(exportOptions),
 		createGpuRendererPlugin(),
 		createDomRendererPlugin({
 			// Initial values from persisted user settings; live changes come from the
@@ -266,8 +320,9 @@ function createBasePlugins(cardHand: CardHandWiring): UsketchPlugin[] {
 async function loadPlugins(
 	extra: UsketchPlugin[],
 	cardHand: CardHandWiring,
+	exportOptions?: ExportPluginOptions,
 ): Promise<UsketchPlugin[]> {
-	const plugins = [...createBasePlugins(cardHand), ...extra];
+	const plugins = [...createBasePlugins(cardHand, exportOptions), ...extra];
 	// Control HUD (universal plugin-operation panel). Promoted from DEV-only to a
 	// first-class, always-available panel — hidden by default, toggled with `` ` ``.
 	// Kept as a dynamic import so it stays code-split.
@@ -311,10 +366,38 @@ export function App() {
 		window.dispatchEvent(new PopStateEvent("popstate"));
 	}, [presentationMode]);
 	const [app, setApp] = useState<AppInstance | null>(null);
+	const appRef = useRef<AppInstance | null>(null);
+	appRef.current = app;
 	const [error, setError] = useState<string | null>(null);
 	const [wsStatus, setWsStatus] = useState<WsConnectionStatus | null>(null);
 	const [boardName, setBoardName] = useState<string | null>(null);
 	const wsProviderRef = useRef<WsProviderHandle | null>(null);
+
+	// ボード単位で生きているもの（ルート doc・接続・ページ doc の管理役）と、ページの一覧。
+	const [board, setBoard] = useState<BoardRuntime | null>(null);
+	const lastOpenRef = useRef<{ pageId: string | null; ms: number } | null>(null);
+	const activePageIdRef = useRef<string | null>(null);
+	const switchPageRef = useRef<(pageId: string) => void>(() => {});
+	const [pagesState, setPagesState] = useState<PagesState | null>(null);
+	const pagesReady = pagesState !== null;
+	const paged = pagesState?.paged ?? false;
+	// 開くページ: URL の ?page= → 前回開いたページ → 先頭ページ。ページ無しのボードは null。
+	const activePageId =
+		boardId && pagesState?.paged
+			? resolvePageId(pagesState.pages, {
+					requested: readRequestedPage(location.search),
+					lastOpened: readLastPage(boardId),
+				})
+			: null;
+	// ページを切り替える（URL の ?page= を変える。ボードの接続はそのまま）。
+	const switchPage = useCallback(
+		(pageId: string) => {
+			navigate({ pathname: location.pathname, search: pageSearch(location.search, pageId) });
+		},
+		[navigate, location.pathname, location.search],
+	);
+	activePageIdRef.current = activePageId;
+	switchPageRef.current = switchPage;
 
 	// プレゼン編集モードの stage 矩形 (Canvas を縮退させて配置する)。
 	// app 生成 useEffect で presentation plugin に getViewportSize として渡すため、
@@ -325,74 +408,66 @@ export function App() {
 			: null,
 	);
 
-	// ボード初期化（boardId / isCloudBoard に依存）。
-	// presentationMode は依存に入れない（presentation plugin が popstate で modeRef を読み直す）。
+	// ページ単位の初期化。開くページ（ページ無しのボードはルートの shapes）ごとに BoardStore と
+	// App（プラグイン）を作り直す。React は cleanup を宣言順に走らせるので、ボード単位の effect
+	// より前に宣言し、deps に boardId も入れて、ボードを閉じるときは接続より先に App を壊す。
 	useEffect(() => {
-		if (!boardId) return;
+		if (!boardId || !board || board.boardId !== boardId || !pagesReady) return;
+		const pageId = paged ? activePageId : null;
+		if (paged && !pageId) return;
 
 		let cancelled = false;
 		let instance: AppInstance | null = null;
+		const startedAt = performance.now();
 		const store = createBoardStore();
-		const syncHandle = createYjsSync(store, `usketch-board-${boardId}`);
-
-		// Feed the sync-status panel (HUD) via a stable app store instead of a
-		// global. Base IDB tracker now; swapped to the divergence tracker below
-		// for cloud boards.
-		syncStatusStore.setTracker(syncHandle.status);
-
-		// Shared server clock so collaborative timers agree on "now" regardless of
-		// device clock skew. Cloud boards measure the offset against the server;
-		// local boards use the local clock (offset 0).
-		const serverClock = createServerClock({
-			baseUrl: isCloudBoard ? (import.meta.env.VITE_API_URL ?? "http://localhost:8787") : null,
-		});
+		const { rootDoc, serverClock } = board;
+		const pageHandle = pageId ? board.pageDocs.open(pageId) : null;
+		// store が紐づく doc。ページを使うボードはページ doc、使わないボードはルート doc。
+		const shapesDoc = pageHandle?.doc ?? rootDoc;
+		let syncHandle: YjsSyncHandle | null = null;
+		if (pageId) rememberLastPage(boardId, pageId);
 
 		const extraPlugins: UsketchPlugin[] = [];
-		let wsProvider: WsProviderHandle | null = null;
-		let offPresence: (() => void) | null = null;
+		// ページを使うボードでは HUD にページパネル（一覧・追加・切り替えなど）を出す。
+		if (pageId) {
+			extraPlugins.push(
+				createPagesPlugin({
+					rootDoc: board.rootDoc,
+					pageId,
+					switchPage: (id) => switchPageRef.current(id),
+					openPageDoc: (id) => board.pageDocs.open(id),
+				}),
+			);
+		}
+		// プラグインには「同じページの人だけが見える」provider を渡す（ページ無しなら元のまま）。
+		const scopedProvider =
+			board.wsProvider && pageId ? createPageScopedProvider(board.wsProvider, pageId) : null;
+		const wsProvider: WsProviderHandle | null = scopedProvider ?? board.wsProvider;
 		let croupierPresence: ReturnType<typeof createAwarenessPresence> | null = null;
 		// Divergence tracker — surfaces shapes that exist in the local Y.Doc
 		// but the server hasn't acknowledged. Wired up only for cloud boards
 		// because local boards never round-trip with a server.
 		let divergenceHandle: DivergenceTrackerHandle | null = null;
 
-		if (isCloudBoard) {
+		if (wsProvider) {
 			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
-			let wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
-			// DEV_MODE: WebSocketはカスタムヘッダーを送れないのでクエリパラメータで認証
-			if (import.meta.env.DEV) {
-				const devUser = getDevUser();
-				if (devUser) {
-					wsUrl += `?devUserId=${encodeURIComponent(devUser.id)}`;
-				}
-			}
-			wsProvider = createWsProvider({ url: wsUrl, doc: syncHandle.doc });
-			wsProviderRef.current = wsProvider;
-			wsProvider.onStatusChange(setWsStatus);
-
-			// Replace the IDB-only sync status (which can't see server divergence)
-			// with the divergence-aware tracker for cloud boards. The sync-status
-			// panel reads it via `syncStatusStore`; the canvas overlay via a prop.
-			const wsP = wsProvider;
-			divergenceHandle = createDivergenceTracker({
-				store,
-				doc: syncHandle.doc,
-				shapesMap: syncHandle.doc.getMap<Record<string, unknown>>("shapes"),
-				onConnectionStatusChange: (handler) => wsP.onStatusChange(handler),
-			});
-			syncStatusStore.setTracker(divergenceHandle.status);
-
-			// オンラインメンバーを Control HUD (Members パネル) へ供給。
-			// TopBar の PresencePill を置き換え。
-			const awarenessForPresence = wsProvider.awareness;
-			const updatePresence = () => presenceStore.set(readPresenceMembers(awarenessForPresence));
-			awarenessForPresence.on("change", updatePresence);
-			updatePresence();
-			offPresence = () => awarenessForPresence.off("change", updatePresence);
 
 			extraPlugins.push(createLaserPlugin(wsProvider));
 			extraPlugins.push(createSpotlightPlugin(wsProvider));
-			extraPlugins.push(createFollowMePlugin({ wsProvider }));
+			// ページを使うボードでは、別のページの人も追える（追っている人がページを移ればついて行く）
+			extraPlugins.push(
+				createFollowMePlugin({
+					wsProvider,
+					pages:
+						pageId && board.wsProvider
+							? {
+									awareness: board.wsProvider.awareness,
+									currentPageId: pageId,
+									switchPage: (id) => switchPageRef.current(id),
+								}
+							: undefined,
+				}),
+			);
 			extraPlugins.push(
 				createPresenceCursorPlugin({
 					wsProvider,
@@ -419,10 +494,29 @@ export function App() {
 				if (devUser) aiHeaders["X-User-Id"] = devUser.id;
 			}
 
-			extraPlugins.push(createCommentsPlugin({ boardId, apiUrl, extraHeaders: aiHeaders }));
+			// ページを使うボードでは、コメントにページを記録し、一覧から別のページへ移れる
+			extraPlugins.push(
+				createCommentsPlugin({
+					boardId,
+					apiUrl,
+					extraHeaders: aiHeaders,
+					pages: pageId
+						? {
+								currentPageId: pageId,
+								legacyPageId: getLegacyPageId(rootDoc),
+								pageName: (id) => getPage(rootDoc, id)?.name ?? null,
+								switchPage: (id) => switchPageRef.current(id),
+							}
+						: undefined,
+				}),
+			);
+			// ボード履歴（サーバーの自動・手動コミット）の一覧・差分・プレビュー・復元。
+			// ページを使うボードでは、今開いているページの中身を見せる。
+			extraPlugins.push(createHistoryPlugin({ boardId, apiUrl, extraHeaders: aiHeaders, pageId }));
 
 			// AI プラグイン
-			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders }));
+			// ページを使うボードでは、AI の配置・更新を今開いているページに書く。
+			extraPlugins.push(createAiAgentPlugin({ apiUrl, extraHeaders: aiHeaders, pageId }));
 			// ai-chat 内蔵の Cmd+K パレットは無効化（アクション操作は Control HUD の
 			// Controls／検索に一本化済み）。
 			extraPlugins.push(createAiChatPlugin({ boardId, enableCommandPalette: false }));
@@ -493,6 +587,8 @@ export function App() {
 					appearance: characterAppearance(seed),
 					renderCharacter,
 					renderShadow: renderCharacterShadow,
+					// 標高の坂は 45° まで歩いて登れる（map の段は maxStep のまま）。
+					motion: { maxSlope: 45 },
 				}),
 			);
 		}
@@ -521,7 +617,7 @@ export function App() {
 				presence: croupierPresence ?? undefined,
 				// 進行中のゲームはテーブルの meta ではなく doc の別マップに置く（テーブルを
 				// ドラッグするたびに snapshot ごと履歴に積まれないように）。
-				gameState: createMapGameState(syncHandle.doc.getMap("croupier")),
+				gameState: createMapGameState(rootDoc.getMap("croupier")),
 				player: () => ({
 					userId: croupierUserId(),
 					name: userNameRef.current ?? getDevUser()?.name ?? "Guest",
@@ -562,15 +658,18 @@ export function App() {
 		// doc の `portals` マップに載せて全員へ。ローカル/Cloud 共通。
 		extraPlugins.push(
 			createPortalPlugin({
-				doc: syncHandle.doc,
+				doc: rootDoc,
 				boardId,
 				userId: userIdRef.current ?? getDevUser()?.id ?? "local",
+				// ページを使うボードでは、今のページで作ったポータルだけを出す
+				pageId: pageId ?? undefined,
+				legacyPageId: pageId ? getLegacyPageId(rootDoc) : null,
 			}),
 		);
 
 		// Asset store: content-addressed な asset を doc の `assets` マップで共有。
 		// 画像等の重い blob を一度だけ保持し shape は assetId 参照（複製で再利用）。
-		extraPlugins.push(createAssetStorePlugin({ doc: syncHandle.doc }));
+		extraPlugins.push(createAssetStorePlugin({ doc: rootDoc }));
 
 		// Embed: 外部Web を iframe 埋め込み（`embed` シェイプ）。YouTube は再生位置を
 		// 全ユーザーで同期（server clock 基準）。URL 貼り付け/ドロップでも生成。
@@ -598,6 +697,23 @@ export function App() {
 					if (stage) return { width: stage.width, height: stage.height };
 					return { width: window.innerWidth, height: window.innerHeight };
 				},
+				// マルチページ: 最後のスライドの次で次のページへ、最初の前で前のページの最後へ。
+				// ページを切り替えても ?present / ?mode は残るので、発表のまま次のページが開く。
+				pages: pageId
+					? {
+							hasPage: (step) => neighborPage(rootDoc, pageId, step) !== null,
+							goToPage: (step) => {
+								const target = neighborPage(rootDoc, pageId, step);
+								if (target) switchPageRef.current(target.id);
+							},
+							pageLabel: () => {
+								const pages = listPages(rootDoc);
+								const index = pages.findIndex((p) => p.id === pageId);
+								if (pages.length < 2 || index < 0) return null;
+								return `${pages[index]?.name}（${index + 1}/${pages.length}）`;
+							},
+						}
+					: undefined,
 			}),
 		);
 
@@ -609,16 +725,56 @@ export function App() {
 		// setup が whenSynced 後に走ることで、サーバ視点復元より後に URL アンカーを適用する。
 		extraPlugins.push(createDeepLinkPlugin());
 
-		syncHandle.whenSynced
+		(pageHandle?.whenLoaded ?? Promise.resolve())
 			.then(() => {
 				if (cancelled) return;
 
-				return loadPlugins(extraPlugins, {
-					userId: userIdRef.current ?? getDevUser()?.id ?? "local",
-					boardId,
-					wsProvider,
-				})
-					.then((plugins) => createApp({ store, plugins }))
+				// Cloud boards: the divergence-aware tracker replaces the IDB-only status
+				// (which can't see server divergence). Created before the store is filled
+				// so every restored shape starts as "local" until the server confirms it.
+				if (board.wsProvider) {
+					const ws = board.wsProvider;
+					divergenceHandle = createDivergenceTracker({
+						store,
+						doc: shapesDoc,
+						shapesMap: shapesDoc.getMap<Record<string, unknown>>("shapes"),
+						onConnectionStatusChange: (handler) => ws.onStatusChange(handler),
+					});
+				}
+				// store と shapes を紐づける。保存と同期はボード単位で張ってあるので persist: false。
+				const handle = createYjsSync(store, { doc: shapesDoc, persist: false });
+				syncHandle = handle;
+				syncStatusStore.setTracker(divergenceHandle?.status ?? handle.status);
+
+				// マルチページ: 「全ページ」の書き出しは、開いていないページの doc も読んで並べる。
+				const exportOptions: ExportPluginOptions | undefined = pageId
+					? {
+							pages: {
+								list: () => listPages(rootDoc).map((p) => ({ id: p.id, name: p.name })),
+								loadShapes: async (id) => {
+									const handle = board.pageDocs.open(id);
+									try {
+										await handle.whenLoaded;
+										return new Map(handle.doc.getMap<ShapeData>(PAGE_SHAPES_MAP_KEY).entries());
+									} finally {
+										handle.release();
+									}
+								},
+							},
+						}
+					: undefined;
+				return loadPlugins(
+					extraPlugins,
+					{
+						userId: userIdRef.current ?? getDevUser()?.id ?? "local",
+						boardId,
+						wsProvider,
+					},
+					exportOptions,
+				)
+					.then((plugins) =>
+						createApp({ store, plugins, keymap: { warnConflicts: import.meta.env.DEV } }),
+					)
 					.then((created) => {
 						if (cancelled) {
 							created.destroy();
@@ -658,6 +814,13 @@ export function App() {
 						}
 
 						setApp(instance);
+						// ページの切替時間（App の作り直しまで含む）。重いプラグインで遅くなって
+						// いないかを見るため、開発中はコンソールに出す。
+						const openedMs = Math.round(performance.now() - startedAt);
+						lastOpenRef.current = { pageId, ms: openedMs };
+						if (import.meta.env.DEV && pageId) {
+							console.info(`[pages] opened ${pageId} in ${openedMs}ms`);
+						}
 					});
 			})
 			.catch((e) => {
@@ -669,20 +832,135 @@ export function App() {
 		return () => {
 			cancelled = true;
 			instance?.destroy();
-			serverClock.destroy();
-			offPresence?.();
 			croupierPresence?.dispose();
-			presenceStore.set([]);
-			wsProvider?.destroy();
-			wsProviderRef.current = null;
+			scopedProvider?.dispose();
 			divergenceHandle?.destroy();
-			syncHandle.destroy();
+			syncHandle?.destroy();
+			pageHandle?.release();
 			syncStatusStore.setTracker(null);
 			setApp(null);
 		};
 		// NOTE: presentationMode は依存に入れない。?present の切替では app を再作成せず、
 		// presentation plugin が modeRef 経由で最新値を読む（undo 履歴・WebSocket を残すため）。
-	}, [boardId, isCloudBoard, navigate]);
+	}, [boardId, isCloudBoard, navigate, board, pagesReady, paged, activePageId]);
+
+	// ボード単位の初期化（boardId / isCloudBoard に依存）。ルート doc・IndexedDB・WebSocket・
+	// サーバー時計・Members 用の awareness はボードを開いている間ずっと生かし、ページを
+	// 切り替えても作り直さない。ページ doc は pageDocs が開いたページの分だけ読む。
+	useEffect(() => {
+		if (!boardId) return;
+
+		let cancelled = false;
+		const rootDoc = new Y.Doc();
+		const rootPersistence = persistDocToIndexedDb(`usketch-board-${boardId}`, rootDoc);
+
+		// Shared server clock so collaborative timers agree on "now" regardless of
+		// device clock skew. Cloud boards measure the offset against the server;
+		// local boards use the local clock (offset 0).
+		const serverClock = createServerClock({
+			baseUrl: isCloudBoard ? (import.meta.env.VITE_API_URL ?? "http://localhost:8787") : null,
+		});
+
+		let wsProvider: WsProviderHandle | null = null;
+		let offPresence: (() => void) | null = null;
+
+		if (isCloudBoard) {
+			const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+			let wsUrl = `${apiUrl.replace(/^http/, "ws")}/api/boards/${boardId}/ws`;
+			// DEV_MODE: WebSocketはカスタムヘッダーを送れないのでクエリパラメータで認証
+			if (import.meta.env.DEV) {
+				const devUser = getDevUser();
+				if (devUser) {
+					wsUrl += `?devUserId=${encodeURIComponent(devUser.id)}`;
+				}
+			}
+			wsProvider = createWsProvider({ url: wsUrl, doc: rootDoc });
+			wsProviderRef.current = wsProvider;
+			wsProvider.onStatusChange(setWsStatus);
+
+			// オンラインメンバーを Control HUD (Members パネル) へ供給。
+			// TopBar の PresencePill を置き換え。ページに関係なくボードの全員を出す。
+			const awarenessForPresence = wsProvider.awareness;
+			// ページを使うボードでは、各人のページ名と「別のページにいるか」も添える。
+			const pageName = (id: string) =>
+				isPagedBoard(rootDoc) ? (getPage(rootDoc, id)?.name ?? null) : null;
+			const updatePresence = () =>
+				presenceStore.set(readPresenceMembers(awarenessForPresence, pageName));
+			awarenessForPresence.on("change", updatePresence);
+			const offPageNames = observePages(rootDoc, updatePresence);
+			presenceStore.openPage = (id) => switchPageRef.current(id);
+			updatePresence();
+			offPresence = () => {
+				awarenessForPresence.off("change", updatePresence);
+				offPageNames();
+				presenceStore.openPage = null;
+			};
+		}
+
+		const pageDocs = createPageDocManager({
+			provider: wsProvider,
+			persist: (pageId, doc) => persistDocToIndexedDb(pageDocName(boardId, pageId), doc),
+		});
+
+		// ページ一覧と「ページを使うボードか」はルート doc から読む。サーバーから版が届いて
+		// ページを使うボードだと分かった時点で、ページ単位の effect が開き直す。
+		const readPages = () =>
+			setPagesState({ paged: isPagedBoard(rootDoc), pages: listPages(rootDoc) });
+		const offPages = observePages(rootDoc, readPages);
+
+		rootPersistence.whenSynced.then(async () => {
+			if (cancelled) return;
+			// ローカルボードの移行はクライアントで行う（クラウドボードはサーバーが行う）
+			if (!isCloudBoard) {
+				try {
+					await migrateLocalBoard(boardId, rootDoc, {
+						migrate: import.meta.env.VITE_PAGES_MIGRATION === "true",
+					});
+				} catch (e) {
+					console.error("[pages] Local board migration failed:", e);
+				}
+				if (cancelled) return;
+			}
+			readPages();
+			setBoard({ boardId, rootDoc, wsProvider, serverClock, pageDocs });
+		});
+
+		return () => {
+			cancelled = true;
+			offPages();
+			pageDocs.destroy();
+			offPresence?.();
+			presenceStore.set([]);
+			wsProvider?.destroy();
+			wsProviderRef.current = null;
+			serverClock.destroy();
+			rootPersistence.destroy();
+			rootDoc.destroy();
+			setBoard(null);
+			setPagesState(null);
+		};
+	}, [boardId, isCloudBoard]);
+
+	// 開発用: ページの UI（pages プラグイン）が入るまで、コンソールからページを作って
+	// 切り替えられるようにする。`__usketchPages.init()` でまだ空のボードをページ形式にする。
+	useEffect(() => {
+		if (!import.meta.env.DEV || !board) return;
+		const w = window as unknown as { __usketchPages?: unknown };
+		w.__usketchPages = {
+			list: () => listPages(board.rootDoc),
+			current: () => activePageIdRef.current,
+			init: (name = "ページ 1") => initPagedBoard(board.rootDoc, { name }),
+			create: (name: string) => createPage(board.rootDoc, { name }),
+			switchTo: (pageId: string) => switchPageRef.current(pageId),
+			loaded: () => board.pageDocs.loadedPageIds(),
+			// 最後に開き終えたページと、そこまでの時間（ms）
+			lastOpen: () => lastOpenRef.current,
+			store: () => appRef.current?.store ?? null,
+		};
+		return () => {
+			delete w.__usketchPages;
+		};
+	}, [board]);
 
 	// Cloud ボードのタイトル取得（Control HUD の Board メタ表示用）
 	useEffect(() => {
@@ -842,7 +1120,26 @@ export function App() {
 		);
 	}
 
-	if (!app) return null;
+	if (!app) {
+		// ページを切り替えている間（ページ doc の読み込みと App の作り直し）だけ表示する。
+		if (!pagesState?.paged) return null;
+		return (
+			<div
+				style={{
+					position: "fixed",
+					inset: 0,
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+					background: "var(--bg-canvas-2, #0a0a0b)",
+					color: "var(--text-muted, #9aa0aa)",
+					fontSize: 13,
+				}}
+			>
+				ページを読み込み中…
+			</div>
+		);
+	}
 
 	// 発表モード中、または Vim-first UI では通常の chrome を隠す
 	// ツールバーは通常表示。Vim モードは既定 OFF で、Control HUD の "Vim mode"

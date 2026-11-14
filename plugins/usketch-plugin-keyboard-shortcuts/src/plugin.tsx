@@ -77,7 +77,7 @@ export function createKeyboardShortcutsPlugin(
 
 			// ── Select all ──
 			cleanups.push(
-				shortcuts.register("Ctrl+A", () => {
+				shortcuts.register("Mod+A", () => {
 					// Skip hidden/locked shapes (and those under a hidden/locked ancestor) —
 					// they aren't selectable via canvas interaction, so select-all matches.
 					const ids: string[] = [];
@@ -91,17 +91,17 @@ export function createKeyboardShortcutsPlugin(
 
 			// ── Clipboard ──
 			cleanups.push(
-				shortcuts.register("Ctrl+C", () => {
+				shortcuts.register("Mod+C", () => {
 					void copyShapes(store);
 				}),
 			);
 			cleanups.push(
-				shortcuts.register("Ctrl+V", () => {
+				shortcuts.register("Mod+V", () => {
 					void pasteShapes(store, commands, events, shapes);
 				}),
 			);
 			cleanups.push(
-				shortcuts.register("Ctrl+D", () => {
+				shortcuts.register("Mod+D", () => {
 					duplicateShapes(store, commands, events, shapes);
 				}),
 			);
@@ -130,7 +130,7 @@ export function createKeyboardShortcutsPlugin(
 				}),
 			);
 			cleanups.push(
-				shortcuts.register("Ctrl+Shift+]", () => {
+				shortcuts.register("Mod+Shift+]", () => {
 					if (store.getActiveToolId() !== "select") return;
 					const selection = store.getSelection();
 					if (selection.size === 0) return;
@@ -138,7 +138,7 @@ export function createKeyboardShortcutsPlugin(
 				}),
 			);
 			cleanups.push(
-				shortcuts.register("Ctrl+Shift+[", () => {
+				shortcuts.register("Mod+Shift+[", () => {
 					if (store.getActiveToolId() !== "select") return;
 					const selection = store.getSelection();
 					if (selection.size === 0) return;
@@ -163,29 +163,29 @@ export function createKeyboardShortcutsPlugin(
 				}),
 			);
 			cleanups.push(
-				shortcuts.register("Ctrl+0", () => {
+				shortcuts.register("Mod+0", () => {
 					zoomReset(store);
 				}),
 			);
 			cleanups.push(
-				shortcuts.register("Ctrl+1", () => {
+				shortcuts.register("Mod+1", () => {
 					zoomFit(store);
 				}),
 			);
 
 			// ── Side panel toggles ──
 			cleanups.push(
-				shortcuts.register("Ctrl+B", () => {
+				shortcuts.register("Mod+B", () => {
 					events.emit("side-panel:toggle", { tabId: "board-info" });
 				}),
 			);
 			cleanups.push(
-				shortcuts.register("Ctrl+/", () => {
+				shortcuts.register("Mod+/", () => {
 					events.emit("side-panel:toggle", { tabId: "comments" });
 				}),
 			);
 			cleanups.push(
-				shortcuts.register("Ctrl+Shift+M", () => {
+				shortcuts.register("Mod+Shift+M", () => {
 					events.emit("side-panel:toggle", { tabId: "community-chat" });
 				}),
 			);

@@ -1,5 +1,40 @@
 # @edv4h/usketch-plugin-shape-freedraw
 
+## 3.6.4
+
+### Patch Changes
+
+- Updated dependencies [b16cfe8]
+- Updated dependencies [d81aad4]
+- Updated dependencies [5adf284]
+  - @edv4h/usketch-shared@4.24.0
+  - @edv4h/usketch-core@2.5.0
+  - @edv4h/usketch-store@3.11.6
+
+## 3.6.3
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-core@2.4.13
+  - @edv4h/usketch-store@3.11.5
+
+## 3.6.2
+
+### Patch Changes
+
+- 49beef7: 使われていなかった独自フローティングパレット（`src/ui/palette.tsx` の `FreedrawPalette`）と、それだけのために持っていた「ツールがアクティブか」のストア・`SIZE_RANGE` 定数を削除。どこからも描画されていなかったため、見た目と挙動は変わらない。
+
+## 3.6.1
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-core@2.4.12
+  - @edv4h/usketch-store@3.11.4
+
 ## 3.6.0
 
 ### Minor Changes

@@ -9,7 +9,13 @@
 // only recomputes when paint or a beacon (position/radius/set) actually changes.
 import type { BoardStore } from "@edv4h/usketch-shared";
 import { type Cells, cellKey, parseCellKey, worldToCell } from "../autotile.js";
-import { makeTerrainSampler, resolveBaseGen, type TerrainSampler } from "../base-terrain.js";
+import {
+	type BaseGenParams,
+	baseGenSignature,
+	makeTerrainSampler,
+	resolveBaseGen,
+	type TerrainSampler,
+} from "../base-terrain.js";
 import { isTileMap, seededTilemap, type TileMapShapeData } from "../tilemap-shape.js";
 import { type BaseInfo, type BaseMapShapeData, isBaseMap } from "./base-map-shape.js";
 
@@ -26,6 +32,8 @@ interface Beacon {
 const EMPTY_CELLS: Cells = {};
 const EMPTY_HAND_PAINT: Record<string, true> = {};
 const cache = new WeakMap<Cells, Map<string, Territory>>();
+/** Results kept per `cells` object (see computeTerritory). */
+const MAX_SIGS_PER_CELLS = 8;
 
 function findBaseMap(store: BoardStore): BaseMapShapeData | undefined {
 	for (const [, s] of store.getShapes()) if (isBaseMap(s)) return s;
@@ -58,14 +66,16 @@ function signature(
 	beacons: Beacon[],
 	exclude: ReadonlySet<string>,
 	baseSeed: number | null,
+	gen: BaseGenParams,
 ): string {
 	const b = beacons
 		.map((x) => `${x.baseId}:${Math.round(x.cx)}:${Math.round(x.cy)}:${x.radius}`)
 		.sort()
 		.join("|");
-	// baseSeed affects the effective terrain (generated cells), so it must key the
-	// cache — the `cells` object identity can persist across a seed change.
-	return `${b}#${[...exclude].sort().join(",")}#seed:${baseSeed ?? "none"}`;
+	// baseSeed and the gen params affect the effective terrain (generated cells), so
+	// they must key the cache — the `cells` object identity can persist across a
+	// seed or gen change.
+	return `${b}#${[...exclude].sort().join(",")}#seed:${baseSeed ?? "none"}#gen:${baseGenSignature(gen)}`;
 }
 
 function build(
@@ -158,13 +168,14 @@ export function computeTerritory(
 	// base / `baseSeed`), not just hand-painted cells — otherwise a beacon's core
 	// disk swallows the generated sea (#982).
 	const baseSeed = seededTm?.baseSeed ?? null;
-	const sampler = makeTerrainSampler(cells, baseSeed, null, resolveBaseGen(seededTm?.baseGen));
-	const sig = signature(beacons, exclude, baseSeed);
+	const gen = resolveBaseGen(seededTm?.baseGen);
+	const sampler = makeTerrainSampler(cells, baseSeed, null, gen);
+	const sig = signature(beacons, exclude, baseSeed, gen);
 
 	// Keyed by the `cells` object: it gets a fresh identity on every paint/generate
 	// commit, and `handPaint` always changes alongside it, so this stays correct.
-	// (baseSeed is folded into `sig` since the `cells` identity can persist across
-	// a seed change.)
+	// (baseSeed and gen are folded into `sig` since the `cells` identity can persist
+	// across a seed or gen change.)
 	let bySig = cache.get(cells);
 	if (!bySig) {
 		bySig = new Map();
@@ -173,6 +184,9 @@ export function computeTerritory(
 	const cached = bySig.get(sig);
 	if (cached) return cached;
 	const result = build(beacons, handPaint, t, exclude, sampler);
+	// The same `cells` can outlive many seed / gen / beacon changes (e.g. an unpainted
+	// infinite board while its sliders move), so keep only the last few results.
+	if (bySig.size >= MAX_SIGS_PER_CELLS) bySig.delete(bySig.keys().next().value as string);
 	bySig.set(sig, result);
 	return result;
 }

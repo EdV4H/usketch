@@ -8,10 +8,19 @@ import {
 	Awareness,
 	applyAwarenessUpdate,
 	encodeAwarenessUpdate,
+	getPage,
+	isPagedBoard,
+	isValidDocId,
+	listPages,
 	MSG_AWARENESS,
+	MSG_DOC_SYNC,
+	MSG_DOC_UPDATE,
 	MSG_SYNC_STEP1,
 	MSG_SYNC_STEP2,
 	MSG_YJS_UPDATE,
+	PAGE_AWARENESS_FIELD,
+	PAGE_SHAPES_MAP_KEY,
+	type PageMeta,
 } from "@edv4h/usketch-sync";
 import WebSocket from "ws";
 import * as Y from "yjs";
@@ -23,6 +32,7 @@ import {
 	type MotionStop,
 	type Point,
 } from "./ai-motion.js";
+import { PageSubscriptions } from "./page-subscriptions.js";
 
 /** Identity the AI participant presents as on the board (a normal presence `user`). */
 const AI_NAME = "AI 🤖";
@@ -36,6 +46,45 @@ const OVERALL_CONNECT_TIMEOUT_MS = 10_000;
 /** OPEN 後に SYNC_STEP2 を待つ猶予時間（届かなければ空ボードとみなす） */
 const POST_OPEN_SYNC_TIMEOUT_MS = 1_000;
 
+/**
+ * サーバーは SYNC_STEP1 に、溜めている update を 1 件ずつ SYNC_STEP2 で返す。
+ * 最初の 1 件で同期済みにすると残りが届く前にツールが読んでしまうので、
+ * SYNC_STEP2 がこの時間来なくなってから同期済みにする。
+ */
+const SYNC_SETTLE_MS = 100;
+
+/** 指定したページが無い（削除済み・不正な id・ページを使わないボードへの指定）。 */
+export class PageNotFoundError extends Error {
+	constructor(readonly pageId: string) {
+		super(`Page not found: ${pageId}`);
+		this.name = "PageNotFoundError";
+	}
+}
+
+/**
+ * シェイプを読み書きする場所。ページを使うボードはページ doc、使わないボードはルート doc。
+ * 書くときは `doc.transact` の中で `map` を変える。
+ */
+export interface ShapesView {
+	/** 書くページ。ページを使わないボードは null。 */
+	pageId: string | null;
+	doc: Y.Doc;
+	map: Y.Map<Record<string, unknown>>;
+	get(shapeId: string): ShapeData | undefined;
+	all(): ShapeData[];
+}
+
+function shapesView(pageId: string | null, doc: Y.Doc): ShapesView {
+	const map = doc.getMap<Record<string, unknown>>(PAGE_SHAPES_MAP_KEY);
+	return {
+		pageId,
+		doc,
+		map,
+		get: (id) => map.get(id) as unknown as ShapeData | undefined,
+		all: () => [...map.values()] as unknown as ShapeData[],
+	};
+}
+
 export class BoardConnection {
 	readonly doc: Y.Doc;
 	/** Presence channel so the AI appears as a participant (cursor/selection/edit). */
@@ -45,8 +94,16 @@ export class BoardConnection {
 	private connectPromise: Promise<void> | null = null;
 	private aiUserSet = false;
 	private activityTimer: ReturnType<typeof setTimeout> | null = null;
-	/** Where the AI cursor last came to rest — the start of its next motion. */
-	private aiCursor: Point | undefined;
+	/** Where the AI cursor last came to rest on each page (`""` = no pages) — the start of its next motion. */
+	private readonly aiCursors = new Map<string, Point>();
+	/** 開いたページ doc。 */
+	private readonly pages = new PageSubscriptions({
+		send: (frame) => {
+			if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
+			this.ws.send(frame);
+			return true;
+		},
+	});
 
 	constructor(
 		readonly boardId: string,
@@ -95,20 +152,29 @@ export class BoardConnection {
 		action?: "select" | "edit";
 		holdMs?: number;
 		stops?: MotionStop[];
+		/** 操作したページ。ページを使うボードでは、同じページを見ている人にだけ AI が見える。 */
+		pageId?: string | null;
 	}): void {
 		if (!this.connected) return;
 		if (!this.aiUserSet) {
 			this.awareness.setLocalStateField("user", { name: AI_NAME, color: AI_COLOR });
 			this.aiUserSet = true;
 		}
+		const pageKey = opts.pageId ?? "";
+		if (opts.pageId) this.awareness.setLocalStateField(PAGE_AWARENESS_FIELD, opts.pageId);
 		const action = opts.action ?? "edit";
 		const motion = opts.stops
-			? buildAiMotion({ id: crypto.randomUUID(), stops: opts.stops, from: this.aiCursor, action })
+			? buildAiMotion({
+					id: crypto.randomUUID(),
+					stops: opts.stops,
+					from: this.aiCursors.get(pageKey),
+					action,
+				})
 			: null;
 		const endCursor = motion ? finalCursor(motion) : opts.cursor;
 		if (motion) this.awareness.setLocalStateField("cursor", null);
 		else if (opts.cursor) this.awareness.setLocalStateField("cursor", opts.cursor);
-		if (endCursor) this.aiCursor = endCursor;
+		if (endCursor) this.aiCursors.set(pageKey, endCursor);
 
 		const ids = opts.shapeIds ?? [];
 		this.awareness.setLocalStateField(
@@ -179,6 +245,8 @@ export class BoardConnection {
 				// 既に settle 済みなら何もしない（タイムアウト後の遅延 open など）
 				if (settled) return;
 				ws.send(new Uint8Array([MSG_SYNC_STEP1]));
+				// つながり直したときは、開いていたページ doc も購読し直す
+				this.pages.resubscribeAll();
 				// OPEN 後に短いウィンドウだけ SYNC_STEP2 を待つ。
 				// 届かなければ空ボードとみなして resolve する。
 				postOpenSyncTimer = setTimeout(() => {
@@ -207,15 +275,25 @@ export class BoardConnection {
 					case MSG_YJS_UPDATE: {
 						Y.applyUpdate(this.doc, payload, "remote");
 						if (msgType === MSG_SYNC_STEP2 && !settled) {
-							settled = true;
-							clearTimers();
-							this.connected = true;
-							resolve();
+							// 続きの SYNC_STEP2 を待つ（来るたびに待ち直す）
+							if (postOpenSyncTimer) clearTimeout(postOpenSyncTimer);
+							postOpenSyncTimer = setTimeout(() => {
+								if (settled) return;
+								settled = true;
+								clearTimeout(overallTimeout);
+								this.connected = true;
+								resolve();
+							}, SYNC_SETTLE_MS);
 						}
 						break;
 					}
 					case MSG_AWARENESS: {
 						applyAwarenessUpdate(this.awareness, payload, "remote");
+						break;
+					}
+					case MSG_DOC_SYNC:
+					case MSG_DOC_UPDATE: {
+						this.pages.handleFrame(data);
 						break;
 					}
 				}
@@ -264,26 +342,30 @@ export class BoardConnection {
 		return this.connected;
 	}
 
-	/** Y.Doc の shapes マップを取得 */
-	getShapesMap(): Y.Map<Record<string, unknown>> {
-		return this.doc.getMap<Record<string, unknown>>("shapes");
+	/** ページを使うボードか。 */
+	get isPaged(): boolean {
+		return isPagedBoard(this.doc);
 	}
 
-	/** 全シェイプを取得 */
-	getAllShapes(): ShapeData[] {
-		const shapesMap = this.getShapesMap();
-		const shapes: ShapeData[] = [];
-		for (const [, value] of shapesMap) {
-			shapes.push(value as unknown as ShapeData);
+	/** ページ一覧（並び順、削除済みを除く）。ページを使わないボードは空。 */
+	listPages(): PageMeta[] {
+		return this.isPaged ? listPages(this.doc) : [];
+	}
+
+	/**
+	 * シェイプを読み書きする場所を開く。ページを使うボードは `pageId` のページ（省略時は
+	 * 先頭ページ）のページ doc、使わないボードはルート doc。無いページは {@link PageNotFoundError}。
+	 */
+	async openShapes(pageId?: string | null): Promise<ShapesView> {
+		if (!this.isPaged) {
+			if (pageId) throw new PageNotFoundError(pageId);
+			return shapesView(null, this.doc);
 		}
-		return shapes;
-	}
-
-	/** 特定シェイプを取得 */
-	getShape(shapeId: string): ShapeData | undefined {
-		const shapesMap = this.getShapesMap();
-		const data = shapesMap.get(shapeId);
-		return data ? (data as unknown as ShapeData) : undefined;
+		const target = pageId ?? listPages(this.doc)[0]?.id;
+		if (!target || !isValidDocId(target)) throw new PageNotFoundError(target ?? "");
+		const page = getPage(this.doc, target);
+		if (!page || page.deletedAt !== undefined) throw new PageNotFoundError(target);
+		return shapesView(target, await this.pages.open(target));
 	}
 
 	/** Yjs update を WebSocket で送信 */
@@ -313,6 +395,7 @@ export class BoardConnection {
 			this.activityTimer = null;
 		}
 		this.awareness.destroy();
+		this.pages.destroy();
 		if (this.ws) {
 			this.ws.close();
 			this.ws = null;

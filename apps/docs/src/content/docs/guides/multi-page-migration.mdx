@@ -1,0 +1,251 @@
+---
+title: Migrating to multi-page boards
+description: How an app that embeds uSketch and runs its own sync server moves to boards with multiple pages — syncing page docs, splitting host initialization, migrating existing boards, and verifying the result.
+order: 32
+---
+
+A uSketch board can now hold multiple pages. Each page lives in its own `Y.Doc` (a **page doc**), and only the pages you open are loaded. This guide is for apps that embed uSketch and **run sync and storage on their own server**. It walks through moving to the new format without breaking existing boards.
+
+uSketch itself (the BoardRoom in `apps/server` and `apps/web`) already implements every step below. When in doubt, treat it as the reference implementation — each section names the files to read.
+
+## What changes
+
+Until now a board's content was the `shapes` `Y.Map` of a single `Y.Doc`. In a multi-page board that doc is called the **root doc**, and shapes move into page docs.
+
+| Location | Before | Multi-page board |
+| -------- | ------ | ---------------- |
+| Root doc `shapes` | Every shape | Empty (the migration entry point; shapes written there by old clients are moved to page 1 by the server) |
+| Root doc `pages` | — | The page list (id, name, order, deletion mark) |
+| Root doc `meta` | Only your own keys, if any | Adds `pagesVersion` (format version) and `legacyPageId` (the page that received the pre-migration content) |
+| Page doc (guid `page:<pageId>`) | — | That page's `shapes` |
+
+`ShapeData` does not change. Migration only touches the root doc's `shapes`; any other keys you store in the root doc — including other keys in `meta` — are left as they are.
+
+## When you don't need to do anything
+
+Boards without `meta.pagesVersion` keep reading and writing the root doc's `shapes` exactly as before. Upgrading the packages does not change how such boards behave until you migrate them. If you don't need multiple pages, you can skip this guide.
+
+The one thing to avoid is **opening the same board from page-aware and page-unaware clients**. After a board is migrated its root `shapes` is empty, so an old client sees a blank board. Only migrate after every client has been updated.
+
+## Order of work
+
+1. Make your client (host) page-aware ([Split host initialization](#split-host-initialization)). Non-paged boards keep working, so this can ship first
+2. Let your server sync and store page docs ([Sync page docs](#sync-page-docs))
+3. Update server features that read the root `shapes` (thumbnails, AI, history, export, …) to read page docs instead
+4. Make sure you can back up a board before migrating it
+5. Turn on migration ([Migrate existing boards](#migrate-existing-boards)). uSketch ships it behind feature flags (server `PAGES_MIGRATION`, web `VITE_PAGES_MIGRATION`) and opens them once everything is ready
+6. [Verify the migration](#verify-the-migration)
+
+## Sync page docs
+
+Page docs sync separately from the root doc. On the client, `createPageDocManager` (`@edv4h/usketch-sync`) creates the doc for each opened page and wires up local persistence and a server subscription. For the server side, pick one of the two options below.
+
+### A. Use the uSketch protocol
+
+If you use `createWsProvider`, accept the `DOC_*` messages on the same WebSocket (messages 0–7 for the root doc are unchanged). Build and parse them with `encodeDocFrame` / `decodeDocFrame`.
+
+| Message | Direction | Parts | What the server does |
+| ------- | --------- | ----- | -------------------- |
+| `MSG_DOC_SUBSCRIBE` (8) | client → server | `[client state vector]` | Load the doc, reply with `MSG_DOC_SYNC`, add the connection as a subscriber |
+| `MSG_DOC_SYNC` (9) | server → client | `[diff the client lacks, server state vector]` | — |
+| `MSG_DOC_UPDATE` (10) | both | `[update]` | If the sender is subscribed, apply and store it, then relay it only to the doc's other subscribers |
+| `MSG_DOC_UNSUBSCRIBE` (11) | client → server | `[]` | Remove the subscriber; unload the doc once nobody is watching |
+
+The doc id is the page id (check it with `isValidDocId`: letters, digits, `_` and `-` only). Store each page separately (uSketch uses the key `yjs_page:<pageId>`). When a connection closes, drop all of its subscriptions. A reconnecting client re-subscribes on its own and sends back edits made while offline.
+
+Reference: `apps/server/src/rooms/page-docs.ts` (`createPageDocs`) and its caller `apps/server/src/board-room.ts`.
+
+### B. Use your own transport
+
+If you sync with `y-websocket` or similar, give each page its own room (for example `<boardId>/page:<pageId>`) and pass a `subscribeDoc` to `createPageDocManager` as its `provider`.
+
+```ts
+import { createPageDocManager, type DocSubscription } from "@edv4h/usketch-sync";
+import { WebsocketProvider } from "y-websocket";
+import type * as Y from "yjs";
+
+const pageDocs = createPageDocManager({
+	provider: {
+		subscribeDoc(docId: string, doc: Y.Doc): DocSubscription {
+			const ws = new WebsocketProvider(serverUrl, `${boardId}/page:${docId}`, doc);
+			const whenSynced = new Promise<void>((resolve) => {
+				if (ws.synced) resolve();
+				else ws.on("sync", (synced: boolean) => synced && resolve());
+			});
+			return { docId, whenSynced, unsubscribe: () => ws.destroy() };
+		},
+	},
+	persist: (pageId, doc) => persistDocToIndexedDb(`${boardId}:page:${pageId}`, doc),
+});
+```
+
+`whenSynced` resolves once the server's content has arrived. A page with no local content waits for it (up to 3 seconds by default) before opening. On the server, store each page room separately, addressable by board id and page id. Board-wide backups and duplication must include the page docs, not just the root doc.
+
+## Split host initialization
+
+If your "open a board" step creates the `Y.Doc`, the connection, the `BoardStore` and `createApp` all at once, split it in two:
+
+- **Per board** (lives as long as the board is open): the root doc, its persistence and connection, `createPageDocManager`
+- **Per page** (recreated on every page switch): open the page doc, `BoardStore`, `createYjsSync`, plugins, `createApp`
+
+```ts
+import { createApp } from "@edv4h/usketch-core";
+import { createPagesPlugin } from "@edv4h/usketch-plugin-pages";
+import { createYjsSync } from "@edv4h/usketch-plugin-sync-localstorage-yjs";
+import { createBoardStore } from "@edv4h/usketch-store";
+import {
+	createPageScopedProvider,
+	isPagedBoard,
+	listPages,
+	observePages,
+	resolvePageId,
+} from "@edv4h/usketch-sync";
+
+// Per page: connect a store to the opened page doc. Returns a cleanup function.
+async function openPage(pageId: string, switchPage: (id: string) => void) {
+	const handle = pageDocs.open(pageId);
+	// Plugins get a provider that only shows people on the same page
+	const scoped = createPageScopedProvider(wsProvider, pageId);
+	const store = createBoardStore();
+	await handle.whenLoaded;
+	// Persistence and sync are owned per board, so persist: false
+	const sync = createYjsSync(store, { doc: handle.doc, persist: false });
+	const app = await createApp({
+		store,
+		plugins: [
+			...yourPlugins(scoped),
+			createPagesPlugin({
+				rootDoc,
+				pageId,
+				switchPage,
+				openPageDoc: (id) => pageDocs.open(id),
+			}),
+		],
+	});
+	return () => {
+		app.destroy();
+		sync.destroy();
+		scoped.dispose();
+		handle.release();
+	};
+}
+
+// Which page to open: ?page= in the URL → last opened page → first page.
+function pickPage(): string | null {
+	if (!isPagedBoard(rootDoc)) return null; // not paged: keep using the root doc
+	return resolvePageId(listPages(rootDoc), { requested, lastOpened });
+}
+
+// When the server migrates the board, the version arrives in the root doc; reopen then
+observePages(rootDoc, () => reopen(pickPage()));
+```
+
+- For non-paged boards (`pickPage()` returns `null`), keep connecting `createYjsSync` to the root doc as before
+- On a page switch, run the old page's cleanup first, then call `openPage` for the new one. The root doc and connection stay open
+- `createPageScopedProvider` writes `page` into your awareness state and filters other people's states and broadcasts to the same page. For things that should show everyone on the board, such as a member list, use the original `wsProvider.awareness`
+- Undo history belongs to the per-page App, so it does not survive a page switch
+
+Reference: `apps/web/src/app.tsx` (the "board-level" and "page-level" initialization effects).
+
+## Add the page UI
+
+`@edv4h/usketch-plugin-pages` adds a pages panel to the HUD (list, switch, add, rename, reorder, duplicate, delete and restore), plus actions and keys (`Alt+PageDown` / `Alt+PageUp`). Hosts can get its API with `getPagesApi(services)`.
+
+The options that make Follow, comments, presentation, export and portals page-aware are listed under [Embedding in Multi-page boards](../multi-page/#embedding).
+
+To build your own UI, use the pure functions in `@edv4h/usketch-sync` that take the root doc: `listPages` / `createPage` / `renamePage` / `reorderPage` / `deletePage` / `restorePage` / `observePages`. `deletePage` only sets a `deletedAt` mark and keeps the page doc. The last page cannot be deleted.
+
+## Migrate existing boards
+
+Migrate each board **in exactly one place**: on the server for boards it syncs, or on the client for boards stored only locally. Migrating in two places at once creates two first pages.
+
+The steps are ordered so that stopping at any point never loses shapes.
+
+```ts
+import {
+	copyRootShapesToPage,
+	finishPagesMigration,
+	needsPagesMigration,
+	newPageId,
+} from "@edv4h/usketch-sync";
+
+// Call once when a board is opened, before sending the first sync to clients
+async function migrateBoard(boardId: string, root: Y.Doc): Promise<void> {
+	if (!needsPagesMigration(root)) return;
+	await backupBoard(boardId, root); // keep the pre-migration content
+
+	// Store the first page id up front so a retry copies into the same page
+	const pageId = (await loadPendingPageId(boardId)) ?? newPageId();
+	await savePendingPageId(boardId, pageId);
+
+	// Step 1: copy the root shapes into the first page doc (the root is untouched)
+	const pageDoc = await loadPageDoc(boardId, pageId);
+	copyRootShapesToPage(root, pageDoc);
+	await savePageDoc(boardId, pageId, pageDoc); // fully persist before touching the root
+
+	// Step 2: write page 1, the version and legacyPageId; remove the copied shapes from the root
+	finishPagesMigration(root, pageDoc, { pageId });
+	await saveRootDoc(boardId, root);
+	await clearPendingPageId(boardId);
+}
+```
+
+- New boards (empty `shapes`) go through the same steps and just get a first page. To create boards in the paged format from the start, `initPagedBoard(root, { name: DEFAULT_FIRST_PAGE_NAME })` also works
+- The first page is named `DEFAULT_FIRST_PAGE_NAME` ("ページ 1") by default; pass `name` to `finishPagesMigration` to change it
+- When the server edits a doc, send the update to connected clients (uSketch sends root updates to every connection and page-doc updates to that page's subscribers)
+- For local-only boards, write the page doc to IndexedDB, read it back with a separate doc to confirm it is there, and only then rewrite the root (reference: `apps/web/src/lib/local-pages-migration.ts`)
+
+### Shapes written to the root after migration
+
+Old clients may still write to the root `shapes` after a board is migrated. Every time the server receives a root update, it moves such shapes to page 1.
+
+```ts
+import { getLegacyPageId, isPagedBoard, moveRootShapesToPage } from "@edv4h/usketch-sync";
+
+async function moveRootShapes(boardId: string, root: Y.Doc): Promise<void> {
+	const pageId = getLegacyPageId(root);
+	if (!isPagedBoard(root) || !pageId) return;
+	const pageDoc = await loadPageDoc(boardId, pageId);
+	const move = moveRootShapesToPage(root, pageDoc);
+	if (!move) return; // nothing to move
+	await savePageDoc(boardId, pageId, pageDoc); // persist the page doc first
+	move.removeFromRoot(); // if we crash before this, the shapes stay in the root and the next call retries
+}
+```
+
+Do this even while migration itself is turned off, so a paged board's root `shapes` always stays empty. Reference: `apps/server/src/rooms/pages-migration.ts` (`createPagesMigration`).
+
+## Verify the migration
+
+`checkPagesMigration(before, root, pageDoc)` checks that every shape that existed before migration is in the first page doc with identical content, and that the root `shapes` is empty. `before` is the `toJSON()` of the root `shapes` taken before migrating. Shapes edited after migration show up in `changed`, so run it before edits come in — right after migrating, or against a doc restored from a backup.
+
+```ts
+import { checkPagesMigration } from "@edv4h/usketch-sync";
+
+const before = root.getMap("shapes").toJSON();
+await migrateBoard(boardId, root);
+const check = checkPagesMigration(before, root, await loadPageDoc(boardId, getLegacyPageId(root)!));
+if (!check.ok) console.error("migration mismatch", check.missing, check.changed, check.rootShapes);
+```
+
+Before enabling migration in production, run this check over copies of real boards restored from backups.
+
+## Things to watch
+
+- **Update clients first.** A migrated board looks empty in an old client
+- **Fix server features that read the root `shapes`.** After migration the root is empty, so thumbnails, AI, export, search and so on should check `isPagedBoard(root)` and read page docs. uSketch's history stores one tree per page in paged commits (`HistoryCommit.layout = "pages"`)
+- **Take a backup.** Migration rewrites the root doc. uSketch takes a history commit right before migrating, so the old content can be restored from it as page 1
+- **Add a column to record comment pages.** `@edv4h/usketch-plugin-server-comments` stores a thread's page when the `comments` table has a `pageId` column (`page_id`, nullable text); without it nothing changes. On the client, pass the `pages` option to `createCommentsPlugin`
+- **Other root keys are untouched.** Your own values in `meta` and any `Y.Map` other than `shapes` are left alone
+
+## Exported functions
+
+All of these come from `@edv4h/usketch-sync`.
+
+| Purpose | Functions |
+| ------- | --------- |
+| Board format | `isPagedBoard` / `getPagesVersion` / `getLegacyPageId` / `initPagedBoard` |
+| Page list and edits | `listPages` / `getPage` / `createPage` / `renamePage` / `reorderPage` / `deletePage` / `restorePage` / `observePages` / `resolvePageId` / `newPageId` |
+| Page docs | `createPageDocManager` / `pageDocGuid` / `createPageScopedProvider` |
+| Transport (option A) | `MSG_DOC_SUBSCRIBE` / `MSG_DOC_SYNC` / `MSG_DOC_UPDATE` / `MSG_DOC_UNSUBSCRIBE` / `encodeDocFrame` / `decodeDocFrame` / `isValidDocId` |
+| Migration | `needsPagesMigration` / `copyRootShapesToPage` / `finishPagesMigration` / `moveRootShapesToPage` / `countRootShapes` / `checkPagesMigration` / `DEFAULT_FIRST_PAGE_NAME` |

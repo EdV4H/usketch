@@ -546,24 +546,58 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				return room.fetch(new Request(url.toString(), c.req.raw));
 			});
 
-			// ── Durable Object プロキシ: snapshot API ──
-			// 認証済みユーザーのリクエストを BoardRoom Durable Object にプロキシする
+			// ── Durable Object プロキシ: history API ──
+			/**
+			 * ボードへのアクセス権。WebSocket 接続と同じく「メンバー、または公開ボード」で読める。
+			 * 書き込み（コミット作成など）は viewer ロールのメンバーには許さない。
+			 */
+			async function getBoardAccess(
+				c: Context<HonoEnv>,
+				boardId: string,
+				userId: string,
+			): Promise<{ canRead: boolean; canWrite: boolean }> {
+				const db = c.get("db");
+				if (!db) return { canRead: false, canWrite: false };
+				const result = await db
+					.select({ isPublic: boards.isPublic, role: boardMembers.role })
+					.from(boards)
+					.leftJoin(
+						boardMembers,
+						and(eq(boards.id, boardMembers.boardId), eq(boardMembers.userId, userId)),
+					)
+					.where(eq(boards.id, boardId))
+					.limit(1);
+				const row = result[0];
+				if (!row || (row.role === null && !row.isPublic)) {
+					return { canRead: false, canWrite: false };
+				}
+				return { canRead: true, canWrite: row.role !== "viewer" };
+			}
+
+			// 認証済みでボードにアクセスできるユーザーのリクエストだけを BoardRoom Durable Object に
+			// プロキシする。userId はサーバー側で付け直す（クライアントが送った値は使わない）。
 			async function proxyToDurableObject(c: Context<HonoEnv>) {
 				const userId = c.get("userId");
 				if (!userId) return c.json({ error: "Unauthorized" }, 401);
 				const boardId = c.req.param("boardId");
 				if (!boardId) return c.json({ error: "Bad request" }, 400);
+				const access = await getBoardAccess(c, boardId, userId);
+				if (!access.canRead) return c.json({ error: "Board not found" }, 404);
+				const method = c.req.method;
+				if (method !== "GET" && method !== "HEAD" && !access.canWrite) {
+					return c.json({ error: "Forbidden" }, 403);
+				}
 				const env = c.env;
 				const id = env.BOARD_ROOM.idFromName(boardId);
 				const room = env.BOARD_ROOM.get(id);
 				const url = new URL(c.req.url);
 				url.pathname = url.pathname.replace(`/api/boards/${boardId}`, "");
+				url.searchParams.set("userId", userId);
 				return room.fetch(new Request(url.toString(), c.req.raw));
 			}
 
-			boardsApp.all("/:boardId/snapshots/*", proxyToDurableObject);
-			boardsApp.all("/:boardId/snapshots", proxyToDurableObject);
-			boardsApp.post("/:boardId/snapshot", proxyToDurableObject);
+			boardsApp.all("/:boardId/history/*", proxyToDurableObject);
+			boardsApp.all("/:boardId/history", proxyToDurableObject);
 
 			ctx.routes.register({ path: "/api/boards", app: boardsApp });
 
@@ -752,6 +786,9 @@ export function createBoardsPlugin(schema: BoardsPluginSchema): ServerPlugin {
 				const id = env.BOARD_ROOM.idFromName(boardId);
 				const room = env.BOARD_ROOM.get(id);
 				const thumbnailUrl = new URL(`https://internal/thumbnail?w=${w}&h=${h}`);
+				// ページを使うボードは ?page= のページ（省略時は先頭ページ）
+				const page = c.req.query("page");
+				if (page) thumbnailUrl.searchParams.set("page", page);
 				const res = await room.fetch(thumbnailUrl.toString());
 				return new Response(res.body, {
 					status: res.status,

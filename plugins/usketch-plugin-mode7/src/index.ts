@@ -1,10 +1,22 @@
 export {
 	CAMERA_LIMITS,
 	type Camera,
+	cameraHeightPx,
 	DEFAULT_CAMERA,
+	MAX_CAMERA_HEIGHT,
+	type RenderedCamera,
 } from "./mode7-camera.js";
 export {
+	DEFAULT_HEIGHT_KEYS,
+	DEFAULT_HEIGHT_SPEED,
+	HEIGHT_KEY_IDS,
+	HEIGHT_KEY_PRIORITY,
+	type HeightKeys,
+	heightStep,
+} from "./mode7-height-keys.js";
+export {
 	type GroundProjection,
+	type ProjectionCamera,
 	projectToGround,
 	type StageSize,
 	tiltOrigin,
@@ -20,6 +32,7 @@ export {
 	skyBackground,
 	type TiltRuleOptions,
 	type TiltTransform,
+	tiltCamera,
 	tiltLayerRules,
 	tiltTransform,
 	transitionCamera,
@@ -30,6 +43,7 @@ export {
 	type Mode7SwitchOptions,
 	type Mode7TransitionOptions,
 } from "./mode7-transition.js";
+export { yawPivot, yawTurn } from "./mode7-yaw.js";
 export { createMode7Plugin, type Mode7PluginOptions } from "./plugin.js";
 export type {
 	Mode7ActionKey,

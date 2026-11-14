@@ -1,0 +1,87 @@
+---
+title: Multi-page boards
+description: Hold several pages in one board. Covers the pages panel, moving and copying shapes between pages, the features that understand pages (Members, Follow, comments, presentation, export and more), and the options to pass when embedding.
+order: 31
+---
+
+A uSketch board can hold several pages. Split a workshop by stage or a design by screen, and move between pages without leaving the board's sharing settings, members and comments.
+
+- Each page lives in its own `Y.Doc` (a page doc), and **only the pages you open are loaded**. Adding pages doesn't make opening a page heavier.
+- Settings such as map and terrain are kept **per page**.
+- The open page shows in the URL as `?page=<pageId>`. Send the link and the other person opens the same page.
+
+Boards that don't use pages keep working as a single board. For moving existing boards to the page format (for apps that run their own server), see [Migrating to multi-page boards](../multi-page-migration/).
+
+## The pages panel
+
+Page operations live in the HUD pages panel (`@edv4h/usketch-plugin-pages`).
+
+| Operation | How |
+| --------- | --- |
+| Switch | Click a page in the list. `Alt+PageDown` (next) / `Alt+PageUp` (previous) |
+| Add | "＋ ページを追加". Adds a page right after the current one |
+| Rename | The ✎ button, or double-click the current page |
+| Reorder | Up / down buttons |
+| Duplicate | The duplicate button. Shapes are copied with new ids |
+| Delete and restore | Deleting only marks the page, and you can bring it back from "削除したページ". The last page can't be deleted |
+
+You can rebind the keys in the HUD "Key settings" panel (ids `usketch-plugin-pages:next` / `usketch-plugin-pages:prev`).
+
+## Moving and copying shapes to another page
+
+When shapes are selected, the pages panel shows "選択中の N 個を別のページへ" (move the N selected shapes to another page). Pick the target page and press move (移す) or copy (コピー).
+
+- Children (the contents of frames and groups) and connectors with both ends inside the selection move along.
+- References to shapes that stay behind are cut. A shape whose parent stayed behind becomes top-level, and a connector end whose shape stayed behind stays as a free point where it was.
+- Moved shapes go on top in the target page, keeping their stacking order.
+- Move keeps ids. Copy gives new ids.
+- After it finishes, "開く" (open) takes you to the target page.
+
+If someone is editing the source page at the same time, moved shapes don't come back there. The source page doc keeps a mark in `movedOut`, and the plugin removes any shape that comes back.
+
+## Features that understand pages
+
+| Feature | What it does with pages |
+| ------- | ----------------------- |
+| Presence (cursors, selections) | You only see people on the same page |
+| Members (HUD) | People on another page show that page's name. Click it to open the page |
+| Follow me | People on other pages are listed with "（別のページ）". When the person you follow changes page, you move with them and keep following |
+| Comments | A thread records the page it was written on. Threads from other pages show the page name in the list, and clicking it opens that page |
+| Presentation | Going past the last slide opens the next page at its first slide. Going back before the first slide opens the previous page at its last slide. The presenter bar shows the page name |
+| Export | "Export PNG / SVG / JSON（全ページ）" in the HUD exports every page. Images stack the pages vertically with a page-name heading each. JSON lists shapes per page |
+| Portal | A pinned portal only shows on the page that holds its shape |
+| History | Commits hold the content of each page. Commits from before the move to pages stay viewable |
+| AI and thumbnails | Server-side AI reads and writes the page you name (the first page if you don't). Thumbnails are made from the first page |
+| MCP | `page_list` lists pages, and the `pageId` argument on each tool picks the page |
+
+## Embedding
+
+The host recreates the `BoardStore` and the app on every page switch. Plugins get the current page and a function to switch pages. `apps/web/src/app.tsx` in uSketch is the reference implementation.
+
+```ts
+import { createPagesPlugin, getPagesApi } from "@edv4h/usketch-plugin-pages";
+
+createPagesPlugin({
+	rootDoc, // the root doc that holds the page list
+	pageId, // the page that's open now
+	switchPage: (id) => navigateToPage(id), // change ?page= in the URL
+	openPageDoc: (id) => pageDocs.open(id), // used by duplicate and cross-page move/copy
+});
+
+// Without the HUD
+const pages = getPagesApi(app.services);
+pages?.create({ open: true });
+await pages?.moveShapes(["shape-id"], "page-id", { open: true });
+```
+
+Every plugin that understands pages takes an optional `pages` option. Without it, the plugin works inside the current page only.
+
+| Plugin | `pages` option |
+| ------ | -------------- |
+| `@edv4h/usketch-plugin-follow-me` | `awareness` (the board-wide awareness), `currentPageId`, `switchPage` |
+| `@edv4h/usketch-plugin-comments` | `currentPageId`, `legacyPageId`, `pageName`, `switchPage` |
+| `@edv4h/usketch-plugin-presentation` | `hasPage(step)`, `goToPage(step)`, `pageLabel()` |
+| `@edv4h/usketch-plugin-export` | `list()`, `loadShapes(pageId)` |
+| `@edv4h/usketch-plugin-portal` | `pageId`, `legacyPageId` (top-level options, not under `pages`) |
+
+To store the page of a comment, the server's `comments` table also needs a `pageId` column (see "Things to watch" in the [migration guide](../multi-page-migration/)).

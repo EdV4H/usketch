@@ -65,6 +65,35 @@ export interface CharacterPose {
 	z: number;
 	/** Vertical speed, world units / s (positive = rising). */
 	vz: number;
+	/**
+	 * Sideways speed in the air, world units / s: a jump off a slope leaves the ground
+	 * partly along it (see `JumpParams.slopeRatio`). Added to the move while airborne,
+	 * cleared on landing.
+	 */
+	vx: number;
+	vy: number;
+	/**
+	 * Velocity of the move itself (the walk or the drive), world units / s: what a jump
+	 * carries into the air. On the ground the keys set it at once; in the air they only
+	 * pull it around as far as `JumpParams.airControl` allows.
+	 */
+	moveVx: number;
+	moveVy: number;
+	/**
+	 * Vehicle: the body's attitude in the air, degrees, relative to lying flat on the
+	 * ground — `pitch` nose up (+) / down (−), `roll` right side down (+) / left side
+	 * down (−), each kept in −180 … 180. Turned with the keys while airborne (see
+	 * `stepAirSpin`), back to 0 on landing (see `landVehicle`). Always 0 on the ground.
+	 */
+	pitch: number;
+	roll: number;
+	/**
+	 * Vehicle: how fast the body is turning about those axes, degrees / s — its spin,
+	 * which carries on after the keys are released while `JumpParams.spinInertia` > 0.
+	 * 0 on the ground.
+	 */
+	pitchRate: number;
+	rollRate: number;
 	/** Whether the character is in the air (jumping or falling). */
 	airborne: boolean;
 	/** Hovering: the jump key held while falling slows the descent (see `HoverParams`). */
@@ -88,6 +117,14 @@ export const ORIGIN_POSE: CharacterPose = {
 	drift: 0,
 	z: 0,
 	vz: 0,
+	vx: 0,
+	vy: 0,
+	moveVx: 0,
+	moveVy: 0,
+	pitch: 0,
+	roll: 0,
+	pitchRate: 0,
+	rollRate: 0,
 	airborne: false,
 	hovering: false,
 	hoverGauge: 1,
@@ -107,6 +144,24 @@ export interface MotionParams {
 	/** Tallest step up the character can climb, world units (ground height, e.g. the map
 	 *  plugin's raised terrain). Stepping DOWN is always allowed. */
 	maxStep: number;
+	/**
+	 * Steepest slope the character can walk up, degrees; `0` = no limit. Steeper ground
+	 * (an elevation hill) blocks the way up like a cliff, and standing on it slides down.
+	 * Steps (the map's terrain levels) are left to `maxStep`: see {@link groundSlope}.
+	 * A jump still clears it.
+	 */
+	maxSlope: number;
+	/**
+	 * How far the character leans with the ground under it in a 3D view (Mode 7), `0`
+	 * (stays level) … `1` (lies along the slope). Only the look.
+	 */
+	slopeTilt: number;
+	/**
+	 * How far a jump lifts the body up the screen on the flat (2D) board, as a fraction of
+	 * its altitude (`0` = no lift, the shadow alone shows the jump). Fades out as the view
+	 * turns 3D, where the body rises for real. Only the look: see `flatJumpLift`.
+	 */
+	flatLift: number;
 }
 
 export const DEFAULT_MOTION: MotionParams = {
@@ -116,6 +171,9 @@ export const DEFAULT_MOTION: MotionParams = {
 	friction: 700,
 	reverseRatio: 0.5,
 	maxStep: 24,
+	maxSlope: 0,
+	slopeTilt: 1,
+	flatLift: 0.6,
 };
 
 /**
@@ -203,6 +261,18 @@ function approach(v: number, target: number, step: number): number {
 }
 
 /**
+ * Seconds a full {@link JumpParams.airControl} (just under 1) takes to bring the move in
+ * the air from a stop to full speed (or a full-speed move to a stop). Lower control
+ * stretches it (`AIR_CONTROL_TIME / airControl`); at 1 the keys act at once, as on the
+ * ground.
+ */
+export const AIR_CONTROL_TIME = 0.1;
+
+/** Clamp an air control setting to 0 … 1 (a non-finite one counts as 1: full control). */
+export const clampAirControl = (v: number): number =>
+	Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
+
+/**
  * Advance `pose` by `dt` seconds.
  *
  * - `directional`: the held keys give a SCREEN-space direction (up = screen up),
@@ -215,6 +285,11 @@ function approach(v: number, target: number, step: number): number {
  *   when reversing, like a car. With `driftParams`, holding the drift key while
  *   steering at speed drifts (see `DriftParams`). An analog `throttle` aims for that
  *   fraction of the top speed, and an analog `steer` turns by that fraction.
+ * - In the air, `airControl` (0 … 1) is how much of that handling is left: a walk keeps
+ *   its take-off velocity and the keys pull it toward theirs (see `AIR_CONTROL_TIME`;
+ *   at 1 they set it at once, as on the ground), and a car keeps its speed (no throttle
+ *   or brakes) while steering at `airControl` × the ground's — the way it travels
+ *   turns with it.
  */
 export function stepCharacter(
 	pose: CharacterPose,
@@ -224,44 +299,71 @@ export function stepCharacter(
 	params: MotionParams,
 	cameraRotation = 0,
 	driftParams: DriftParams | null = null,
+	airControl = DEFAULT_JUMP.airControl,
 ): CharacterPose {
 	if (dt <= 0) return pose;
+	const control = clampAirControl(airControl);
 	if (scheme === "directional") {
 		const sx = inputSteer(input);
 		const sy = -inputThrottle(input);
-		if (sx === 0 && sy === 0) {
-			return pose.moving || pose.speed !== 0 ? { ...pose, speed: 0, moving: false } : pose;
-		}
+		const held = sx !== 0 || sy !== 0;
 		// Screen direction → world direction: undo the camera rotation.
-		const target = wrapDeg(vectorHeading(sx, sy) - cameraRotation);
+		const target = held ? wrapDeg(vectorHeading(sx, sy) - cameraRotation) : pose.heading;
 		const dir = headingVector(target);
 		// Keys are always full speed (diagonals normalized); an analog stick scales it.
-		const moveSpeed = params.moveSpeed * Math.min(1, Math.hypot(sx, sy));
-		const dist = moveSpeed * dt;
+		const want = held ? params.moveSpeed * Math.min(1, Math.hypot(sx, sy)) : 0;
+		let vx = dir.x * want;
+		let vy = dir.y * want;
+		if (pose.airborne && control < 1) {
+			// In the air the move keeps its momentum; the keys only pull it around.
+			const reach = (params.moveSpeed * control * dt) / AIR_CONTROL_TIME;
+			({ x: vx, y: vy } = approachVector(pose.moveVx, pose.moveVy, vx, vy, reach));
+		}
+		const speed = Math.hypot(vx, vy);
+		if (speed === 0) {
+			return pose.moving || pose.speed !== 0 || pose.moveVx !== 0 || pose.moveVy !== 0
+				? { ...pose, speed: 0, moving: false, moveVx: 0, moveVy: 0 }
+				: pose;
+		}
 		return {
-			x: pose.x + dir.x * dist,
-			y: pose.y + dir.y * dist,
-			heading: turnToward(pose.heading, target, params.turnRate * dt),
-			speed: moveSpeed,
+			x: pose.x + vx * dt,
+			y: pose.y + vy * dt,
+			// Faces the keys while they are held, else keeps its facing (drifting on in the air).
+			heading: held ? turnToward(pose.heading, target, params.turnRate * dt) : pose.heading,
+			speed,
 			moving: true,
 			steering: 0,
 			slip: 0,
 			drift: 0,
 			z: pose.z,
 			vz: pose.vz,
+			vx: pose.vx,
+			vy: pose.vy,
+			moveVx: vx,
+			moveVy: vy,
+			pitch: pose.pitch,
+			roll: pose.roll,
+			pitchRate: pose.pitchRate,
+			rollRate: pose.rollRate,
 			airborne: pose.airborne,
 			hovering: pose.hovering,
 			hoverGauge: pose.hoverGauge,
 		};
 	}
 
-	// In the air a car keeps its momentum: no throttle, brakes or steering until it lands.
+	// In the air a car keeps its momentum: no throttle or brakes until it lands, and the
+	// steering only as far as the air control allows.
 	const grounded = !pose.airborne;
 	const speed = grounded
 		? throttledSpeed(pose.speed, inputThrottle(input), dt, params)
 		: pose.speed;
-	const steering = grounded ? inputSteer(input) : 0;
-	const drift = nextDrift(pose.drift, input.drift === true, steering, speed, params, driftParams);
+	// (`+ 0` turns a -0 from no control into 0.)
+	const steering = grounded ? inputSteer(input) : inputSteer(input) * control + 0;
+	// A drift starts only on the ground (a running one carries on through the air).
+	const drift =
+		grounded || pose.drift !== 0
+			? nextDrift(pose.drift, input.drift === true, steering, speed, params, driftParams)
+			: 0;
 	let turn: number;
 	if (drift !== 0 && driftParams) {
 		const into = steering * drift;
@@ -280,7 +382,9 @@ export function stepCharacter(
 		slip === pose.slip &&
 		drift === pose.drift
 	) {
-		return pose.moving || pose.speed !== 0 ? { ...pose, speed: 0, moving: false } : pose;
+		return pose.moving || pose.speed !== 0 || pose.moveVx !== 0 || pose.moveVy !== 0
+			? { ...pose, speed: 0, moving: false, moveVx: 0, moveVy: 0 }
+			: pose;
 	}
 	const dir = headingVector(heading);
 	return {
@@ -294,16 +398,40 @@ export function stepCharacter(
 		drift,
 		z: pose.z,
 		vz: pose.vz,
+		vx: pose.vx,
+		vy: pose.vy,
+		moveVx: dir.x * speed,
+		moveVy: dir.y * speed,
+		pitch: pose.pitch,
+		roll: pose.roll,
+		pitchRate: pose.pitchRate,
+		rollRate: pose.rollRate,
 		airborne: pose.airborne,
 		hovering: pose.hovering,
 		hoverGauge: pose.hoverGauge,
 	};
 }
 
-/** Ground height at a world point (world units; see `groundHeightService`). */
+/** Move the vector `(x, y)` toward `(tx, ty)` by at most `step` (its length). */
+function approachVector(
+	x: number,
+	y: number,
+	tx: number,
+	ty: number,
+	step: number,
+): { x: number; y: number } {
+	const dx = tx - x;
+	const dy = ty - y;
+	const d = Math.hypot(dx, dy);
+	if (d <= step) return { x: tx, y: ty };
+	if (!(step > 0)) return { x, y };
+	return { x: x + (dx / d) * step, y: y + (dy / d) * step };
+}
+
+/** Ground height at a world point (world units; see `BoardHeightApi.groundAt`). */
 export type HeightAt = (x: number, y: number) => number;
 
-/** A solid's top at a world point (see `solidHeightService`): `null` = none, `Infinity` = wall. */
+/** A solid's top at a world point (see `BoardHeightApi.solidAt`): `null` = none, `Infinity` = wall. */
 export type SolidAt = (x: number, y: number) => number | null;
 
 /**
@@ -334,17 +462,124 @@ export function constrainToGround(
 	next: CharacterPose,
 	heightAt: HeightAt,
 	maxStep: number,
+	maxSlope = 0,
 ): CharacterPose {
 	if (next.x === prev.x && next.y === prev.y) return next;
 	// Measured from the feet: on the ground that is the ground itself, in the air it is
 	// higher, so a jump clears cliffs the step alone can't.
 	const feet = Math.max(heightAt(prev.x, prev.y), prev.z ?? 0);
 	const limit = feet + Math.max(0, maxStep);
-	const ok = (x: number, y: number) => heightAt(x, y) <= limit;
+	// The slope only binds on the ground: in the air the feet clear it like a cliff.
+	const steep = !prev.airborne && maxSlope > 0 ? slopeLimit(maxSlope) : Number.POSITIVE_INFINITY;
+	const ok = (x: number, y: number) =>
+		heightAt(x, y) <= limit && risingSlope(heightAt, prev, x, y) <= steep;
 	if (ok(next.x, next.y)) return next;
 	if (next.x !== prev.x && ok(next.x, prev.y)) return { ...next, y: prev.y };
 	if (next.y !== prev.y && ok(prev.x, next.y)) return { ...next, x: prev.x };
-	return { ...next, x: prev.x, y: prev.y, speed: 0, moving: false };
+	return { ...next, x: prev.x, y: prev.y, speed: 0, moving: false, moveVx: 0, moveVy: 0 };
+}
+
+/** Half-width of the stencil that measures the ground's slope, world units. */
+export const SLOPE_PROBE = 8;
+
+/**
+ * The smaller of two same-signed differences, 0 when they disagree (a "minmod"). Taken
+ * over the stretch before and after a point, a smooth slope keeps its gradient while a
+ * step (flat on one side of it) gives 0: steps stay `maxStep`'s business.
+ */
+function minmod(a: number, b: number): number {
+	if (!(a * b > 0)) return 0;
+	return Math.abs(a) < Math.abs(b) ? a : b;
+}
+
+/** `tan(maxSlope)` for a limit in degrees (capped below vertical). */
+function slopeLimit(maxSlope: number): number {
+	return Math.tan((Math.min(89, maxSlope) * Math.PI) / 180);
+}
+
+/**
+ * The ground's gradient at a point (rise per world unit along x and y), measured
+ * {@link SLOPE_PROBE} units to either side with a minmod: a smooth slope reads as its
+ * gradient, a step — or a wall — next to the point as flat. Pure.
+ */
+export function groundSlope(
+	heightAt: HeightAt,
+	x: number,
+	y: number,
+	probe = SLOPE_PROBE,
+): { x: number; y: number } {
+	const h = heightAt(x, y);
+	if (!Number.isFinite(h)) return { x: 0, y: 0 };
+	const gx = minmod(h - heightAt(x - probe, y), heightAt(x + probe, y) - h) / probe;
+	const gy = minmod(h - heightAt(x, y - probe), heightAt(x, y + probe) - h) / probe;
+	return { x: Number.isFinite(gx) ? gx : 0, y: Number.isFinite(gy) ? gy : 0 };
+}
+
+/** The ground's rise per unit at `(x, y)` along the way from `from` to it (0 = flat). */
+function risingSlope(
+	heightAt: HeightAt,
+	from: { x: number; y: number },
+	x: number,
+	y: number,
+): number {
+	const d = Math.hypot(x - from.x, y - from.y);
+	if (!(d > 0)) return 0;
+	const ux = ((x - from.x) / d) * SLOPE_PROBE;
+	const uy = ((y - from.y) / d) * SLOPE_PROBE;
+	const h = heightAt(x, y);
+	const rise = minmod(h - heightAt(x - ux, y - uy), heightAt(x + ux, y + uy) - h) / SLOPE_PROBE;
+	return Number.isFinite(rise) ? rise : 0;
+}
+
+/** Sliding speed down ground steeper than `maxSlope`, as a fraction of `moveSpeed`. */
+export const SLIDE_SPEED = 0.5;
+
+/**
+ * On ground steeper than `motion.maxSlope`, slide `dt` seconds downhill (at
+ * {@link SLIDE_SPEED} × `moveSpeed`); walls still block (`blockAt`). Unchanged in the
+ * air, on gentle ground, or with no slope limit. Pure.
+ */
+export function slideOnSteep(
+	pose: CharacterPose,
+	heightAt: HeightAt,
+	blockAt: HeightAt,
+	motion: Pick<MotionParams, "maxSlope" | "maxStep" | "moveSpeed">,
+	dt: number,
+): CharacterPose {
+	if (pose.airborne || !(motion.maxSlope > 0) || !(dt > 0)) return pose;
+	const g = groundSlope(heightAt, pose.x, pose.y);
+	const m = Math.hypot(g.x, g.y);
+	if (!(m > slopeLimit(motion.maxSlope))) return pose;
+	const d = (motion.moveSpeed * SLIDE_SPEED * dt) / m;
+	const next = { ...pose, x: pose.x - g.x * d, y: pose.y - g.y * d };
+	const moved = sweepToGround(pose, next, blockAt, motion.maxStep);
+	return moved.x === pose.x && moved.y === pose.y ? pose : moved;
+}
+
+/** In the air, add the sideways speed a slope jump left (`vx` / `vy`) to a move. Pure. */
+export function pushInAir(prev: CharacterPose, next: CharacterPose, dt: number): CharacterPose {
+	if (!prev.airborne || !(dt > 0) || (prev.vx === 0 && prev.vy === 0)) return next;
+	return { ...next, x: next.x + prev.vx * dt, y: next.y + prev.vy * dt };
+}
+
+/**
+ * A jump's take-off velocity off ground with gradient `slope`: `speed` along a direction
+ * between straight up (`ratio` 0) and the ground's normal (`ratio` 1). On flat ground
+ * it is straight up whatever the ratio. Pure.
+ */
+export function takeoffVelocity(
+	speed: number,
+	slope: { x: number; y: number },
+	ratio: number,
+): { vx: number; vy: number; vz: number } {
+	const k = Number.isFinite(ratio) ? Math.min(1, Math.max(0, ratio)) : 0;
+	const nl = Math.hypot(slope.x, slope.y, 1);
+	const dx = (-slope.x / nl) * k;
+	const dy = (-slope.y / nl) * k;
+	const dz = 1 - k + k / nl;
+	const len = Math.hypot(dx, dy, dz);
+	// (`+ 0` turns a -0 from a flat ground into 0.)
+	return { vx: (speed * dx) / len + 0, vy: (speed * dy) / len + 0, vz: (speed * dz) / len };
 }
 
 /** Longest stretch `sweepToGround` checks in one go, world units: thin walls (a stood-up
@@ -363,15 +598,16 @@ export function sweepToGround(
 	heightAt: HeightAt,
 	maxStep: number,
 	step = SWEEP_STEP,
+	maxSlope = 0,
 ): CharacterPose {
 	const dx = next.x - prev.x;
 	const dy = next.y - prev.y;
 	const n = Math.min(256, Math.ceil(Math.hypot(dx, dy) / Math.max(0.5, step)));
-	if (n <= 1) return constrainToGround(prev, next, heightAt, maxStep);
+	if (n <= 1) return constrainToGround(prev, next, heightAt, maxStep, maxSlope);
 	let cur = prev;
 	for (let i = 0; i < n; i++) {
 		const target = { ...next, x: cur.x + dx / n, y: cur.y + dy / n };
-		const moved = constrainToGround(cur, target, heightAt, maxStep);
+		const moved = constrainToGround(cur, target, heightAt, maxStep, maxSlope);
 		if (moved.x === cur.x && moved.y === cur.y) return moved;
 		cur = moved;
 	}
@@ -401,6 +637,38 @@ export interface JumpParams {
 	airJumpRatio: number;
 	/** Hovering while the key is held in a fall, or `null` = off. */
 	hover: HoverParams | null;
+	/**
+	 * Which way a jump off a slope leaves the ground: `0` = straight up, `1` = along the
+	 * ground's normal (a steep slope throws it far sideways), in between = a blend. Air
+	 * jumps and the drift hop always go straight up.
+	 */
+	slopeRatio: number;
+	/**
+	 * How much of the ground's handling is left in the air, `0` (none: the take-off
+	 * velocity carries the jump, a car can't steer) … `1` (as on the ground). See
+	 * `stepCharacter`. Falls with jumping off use the default.
+	 */
+	airControl: number;
+	/**
+	 * Vehicle: how fast the keys turn the body in the air, degrees / s (`0` = off): with
+	 * the drift key held, the throttle / brake keys pitch it (forward = nose down) and the
+	 * steering rolls it (without the key the steering yaws, as `airControl` allows). See
+	 * `stepAirSpin`.
+	 */
+	spinRate: number;
+	/**
+	 * Vehicle: the weight of that spin, seconds: how long the keys take to bring the body
+	 * from still to `spinRate` — and a released spin to a stop, so it keeps turning for a
+	 * while. `0` = none (it turns only while a key is held). See `stepAirSpin`.
+	 */
+	spinInertia: number;
+	/**
+	 * Vehicle: the most a body may be tilted from the ground under it on touchdown,
+	 * degrees, for a clean landing. See `landVehicle`.
+	 */
+	landingTolerance: number;
+	/** Vehicle: the fraction of its speed a car keeps after landing beyond the tolerance (0 … 1). */
+	crashSpeed: number;
 }
 
 /**
@@ -444,6 +712,12 @@ export const DEFAULT_JUMP: JumpParams = {
 	airJumps: 0,
 	airJumpRatio: 0.8,
 	hover: null,
+	slopeRatio: 0.5,
+	airControl: 0.5,
+	spinRate: 270,
+	spinInertia: 0.3,
+	landingTolerance: 35,
+	crashSpeed: 0.3,
 };
 
 /** Gravity (world units / s²) and take-off speed (world units / s) of a jump. */
@@ -474,6 +748,8 @@ export const IDLE_JUMP: JumpTimers = {
 	airJumpsUsed: 0,
 };
 
+const FLAT = { x: 0, y: 0 } as const;
+
 /**
  * Advance the vertical motion by `dt` seconds, after the horizontal step put the
  * character over ground of height `ground`.
@@ -493,6 +769,9 @@ export const IDLE_JUMP: JumpTimers = {
  *   hop that high, under the same gravity.
  * - In the air, gravity pulls the feet down (`fallGravity` × while falling) until they
  *   meet the ground. Without `jump` the default arc's gravity still drives falls.
+ * - A jump from the ground leaves along `slope` (the ground's gradient there) as far as
+ *   `jump.slopeRatio` says: part of its speed goes sideways (`vx` / `vy`, see
+ *   `pushInAir`) until it lands.
  */
 export function stepVertical(
 	pose: CharacterPose,
@@ -503,9 +782,10 @@ export function stepVertical(
 	maxStep: number,
 	jump: JumpParams | null,
 	hopHeight = 0,
+	slope: { x: number; y: number } = FLAT,
 ): { pose: CharacterPose; timers: JumpTimers } {
 	if (dt <= 0) return { pose, timers };
-	let { z, vz, airborne, hoverGauge } = pose;
+	let { z, vz, vx, vy, airborne, hoverGauge } = pose;
 	let hovering = false;
 	let { sinceGround, sincePress, jumped, cut, airJumpsUsed } = timers;
 
@@ -538,7 +818,7 @@ export function stepVertical(
 		const fromGround = !airborne || (!jumped && sinceGround <= jump.coyoteTime);
 		if (sincePress <= jump.bufferTime && fromGround) {
 			airborne = true;
-			vz = arc.speed;
+			({ vx, vy, vz } = takeoffVelocity(arc.speed, slope, jump.slopeRatio));
 			jumped = true;
 			cut = false;
 			sincePress = Number.POSITIVE_INFINITY;
@@ -577,6 +857,8 @@ export function stepVertical(
 	if (airborne && z <= ground) {
 		z = ground;
 		vz = 0;
+		vx = 0;
+		vy = 0;
 		airborne = false;
 		hovering = false;
 		jumped = false;
@@ -599,12 +881,133 @@ export function stepVertical(
 	const nextPose =
 		z === pose.z &&
 		vz === pose.vz &&
+		vx === pose.vx &&
+		vy === pose.vy &&
 		airborne === pose.airborne &&
 		hovering === pose.hovering &&
 		hoverGauge === pose.hoverGauge
 			? pose
-			: { ...pose, z, vz, airborne, hovering, hoverGauge };
+			: { ...pose, z, vz, vx, vy, airborne, hovering, hoverGauge };
 	return { pose: nextPose, timers: nextTimers };
+}
+
+/** An angle in degrees wrapped to −180 … 180. */
+function wrapAngle(deg: number): number {
+	const w = wrapDeg(deg);
+	return w === -180 ? 180 : w;
+}
+
+/**
+ * Whether the drift key turns the keys into a spin this step (pitch and roll): a vehicle
+ * in the air with spinning on and the key held.
+ */
+function spinsInAir(input: MoveInput, pose: CharacterPose, spinRate: number): boolean {
+	return pose.airborne && spinRate > 0 && input.drift === true;
+}
+
+/**
+ * The input for the horizontal step of a vehicle in the air: while the drift key rolls
+ * the body (see {@link stepAirSpin}) the steering doesn't also yaw it.
+ */
+export function holdSteerForRoll(
+	input: MoveInput,
+	pose: CharacterPose,
+	spinRate: number,
+): MoveInput {
+	if (!spinsInAir(input, pose, spinRate)) return input;
+	return { ...input, left: false, right: false, steer: undefined };
+}
+
+/**
+ * Turn a vehicle's body in the air for `dt` seconds while the drift key is held: the
+ * throttle (forward = nose down, back = nose up) pitches it and the steering rolls it
+ * (right = right side down), each toward `spinRate` degrees / s. With `spinInertia`
+ * (seconds) the spin builds up over that long and a released one slows to a stop over it
+ * (it keeps turning a while); without, the body turns only while a key is held. The angles
+ * wrap, so a full flip comes round to 0. Unchanged on the ground. Pure.
+ */
+export function stepAirSpin(
+	pose: CharacterPose,
+	input: MoveInput,
+	dt: number,
+	spinRate: number,
+	spinInertia = 0,
+): CharacterPose {
+	if (!pose.airborne || !(spinRate > 0) || !(dt > 0)) return pose;
+	const spins = spinsInAir(input, pose, spinRate);
+	const pitchTo = spins ? -inputThrottle(input) * spinRate : 0;
+	const rollTo = spins ? inputSteer(input) * spinRate : 0;
+	const inertial = spinInertia > 0 && Number.isFinite(spinInertia);
+	const step = inertial ? (spinRate / spinInertia) * dt : Number.POSITIVE_INFINITY;
+	const pitchRate = inertial ? approach(pose.pitchRate, pitchTo, step) : pitchTo;
+	const rollRate = inertial ? approach(pose.rollRate, rollTo, step) : rollTo;
+	if (pitchRate === 0 && rollRate === 0 && pose.pitchRate === 0 && pose.rollRate === 0) {
+		return pose;
+	}
+	// With inertia the mean rate over the step (exact for a steady change of rate).
+	const pitchBy = (inertial ? (pose.pitchRate + pitchRate) / 2 : pitchRate) * dt;
+	const rollBy = (inertial ? (pose.rollRate + rollRate) / 2 : rollRate) * dt;
+	return {
+		...pose,
+		pitch: wrapAngle(pose.pitch + pitchBy),
+		roll: wrapAngle(pose.roll + rollBy),
+		pitchRate,
+		rollRate,
+	};
+}
+
+/**
+ * How far (degrees, 0 … 180) a body at `pitch` / `roll` is tilted from ground whose
+ * gradient is `slope` (rise per world unit) under a car heading `heading`: the angle
+ * between the body's up and the ground's normal. Pure.
+ */
+export function landingTilt(
+	pitch: number,
+	roll: number,
+	heading: number,
+	slope: { x: number; y: number },
+): number {
+	const p = (pitch * Math.PI) / 180;
+	const r = (roll * Math.PI) / 180;
+	// The body's up in the car's frame (x right, y back, z up): rolled, then pitched.
+	const up = { x: Math.sin(r), y: Math.cos(r) * Math.sin(p), z: Math.cos(r) * Math.cos(p) };
+	// The ground's rise ahead and to the right, and its normal in the same frame.
+	const f = headingVector(heading);
+	const ahead = slope.x * f.x + slope.y * f.y;
+	const right = slope.x * -f.y + slope.y * f.x;
+	const len = Math.hypot(right, ahead, 1);
+	const dot = (up.x * -right + up.y * ahead + up.z) / len;
+	return (Math.acos(Math.max(-1, Math.min(1, dot))) * 180) / Math.PI;
+}
+
+/**
+ * On the step a vehicle lands (`prev` airborne, `next` on the ground), set the body back
+ * on its wheels: within `landingTolerance` of the ground under it (`slope`) it drives on,
+ * beyond it keeps only `crashSpeed` of its speed — judged only with spinning on
+ * (`spinRate` > 0). Its attitude is 0 on the ground in any case. Unchanged in the air. Pure.
+ */
+export function landVehicle(
+	prev: CharacterPose,
+	next: CharacterPose,
+	slope: { x: number; y: number },
+	jump: Pick<JumpParams, "spinRate" | "landingTolerance" | "crashSpeed">,
+): CharacterPose {
+	if (next.airborne) return next;
+	const level = next.pitch === 0 && next.roll === 0 && next.pitchRate === 0 && next.rollRate === 0;
+	const landed = level ? next : { ...next, pitch: 0, roll: 0, pitchRate: 0, rollRate: 0 };
+	// Only a body the keys could turn is judged (with spinning off it can't be lined up).
+	if (!prev.airborne || !(jump.spinRate > 0)) return landed;
+	const tilt = landingTilt(next.pitch, next.roll, next.heading, slope);
+	if (tilt <= Math.max(0, jump.landingTolerance)) return landed;
+	const keep = Math.min(1, Math.max(0, Number.isFinite(jump.crashSpeed) ? jump.crashSpeed : 1));
+	const speed = next.speed * keep;
+	return {
+		...landed,
+		speed,
+		moving: speed !== 0,
+		moveVx: next.moveVx * keep,
+		moveVy: next.moveVy * keep,
+	};
 }
 
 /**

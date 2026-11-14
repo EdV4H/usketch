@@ -1,10 +1,176 @@
-// Geometry
-
+// The board's height (ground + solid providers)
+export {
+	type BoardHeightApi,
+	boardHeight,
+	boardHeightService,
+	createBoardHeight,
+	type HeightKind,
+	type HeightProvider,
+} from "./board-height.js";
+export {
+	anchorPx,
+	createFollowView,
+	easeFollowFocus,
+	FOLLOW_CAMERA_HEIGHT_SMOOTHING,
+	type FollowFocus,
+	type FollowTarget,
+	type FollowViewDriver,
+	type FollowViewMode,
+	type FollowViewOptions,
+	type FollowViewStep,
+	followCameraHeight,
+	followRotation,
+	followView,
+	followViewport,
+	sameViewport,
+	smoothingAlpha,
+	turnedByView,
+} from "./follow-view.js";
+// Ground decals (things painted onto the ground surface, e.g. by a terrain renderer)
+export {
+	ALL_GROUND_DECAL_VIEWS,
+	createGroundDecalRegistry,
+	decalRectsMeet,
+	type GroundDecal,
+	type GroundDecalApi,
+	type GroundDecalArea,
+	type GroundDecalEntry,
+	type GroundDecalRect,
+	type GroundDecalView,
+	groundDecalService,
+	groundDecals,
+} from "./ground-decal.js";
 // Ground height (terrain elevation shared across plugins)
 export { type GroundHeightApi, groundHeightService } from "./ground-height.js";
+// Board history (content-addressed snapshots, diff, restore)
+export { canonicalJson } from "./history/canonical-json.js";
+export type { ShapeFieldChange, TreeDiff } from "./history/diff.js";
+export { diffShapeFields, diffTrees } from "./history/diff.js";
+export type { HistoryObjectKind } from "./history/hash.js";
+export { hashHistoryObject } from "./history/hash.js";
+export type {
+	BoardSnapshot,
+	HistoryCommit,
+	HistoryCommitTrigger,
+	HistoryObject,
+	HistoryTreeEntries,
+	ShapeCollection,
+} from "./history/objects.js";
+export {
+	createBlob,
+	createCommit,
+	createTree,
+	HISTORY_EXCLUDED_SHAPE_KEYS,
+	normalizeShapeForHistory,
+	parseBlob,
+	parseCommit,
+	parseTree,
+	shapeEntries,
+	snapshotShapes,
+} from "./history/objects.js";
+export type { RestoreOptions, RestorePlan } from "./history/restore.js";
+export {
+	applyRestorePlan,
+	createRestoreCommand,
+	isEmptyRestorePlan,
+	planRestore,
+} from "./history/restore.js";
+// 3D view state (Mode 7 etc.) shared across plugins
+export {
+	cameraEye,
+	type GroundProjection,
+	type GroundRayOptions,
+	isOccluded,
+	type Mat4,
+	type OcclusionOptions,
+	type ProjectionCamera,
+	projectStagePoint,
+	projectWorld,
+	type StageSize,
+	type TiltCss,
+	tiltCss,
+	tiltOrigin,
+	unprojectOnGround,
+	unprojectStagePoint,
+	unprojectWorld,
+	type View3dProjection,
+	viewMatrix,
+	type WorldPoint3d,
+} from "./projection-3d.js";
 // Service seam (typed host-facing plugin APIs over ctx.services / app.services)
 export { defineService, type ServiceHandle } from "./service.js";
+export {
+	createShapeClaims,
+	type ShapeClaimsApi,
+	shapeClaims,
+	shapeClaimsService,
+	unionShapeIds,
+} from "./shape-claims.js";
+// The solids 3D shapes make on the ground (a solid provider on the board's height)
+export {
+	areaContains,
+	buildColliderIndex,
+	COLLIDER_CELL,
+	type ColliderArea,
+	type ColliderIndex,
+	colliderFor,
+	createShapeSolids,
+	MIN_STAND_RADIUS,
+	SHAPE_SOLIDS_PROVIDER_ID,
+	type ShapeSolidsApi,
+	type ShapeSolidsOptions,
+	type ShapeView3dCollider,
+	STAND_WALL_THICKNESS,
+	shapeSolidsService,
+	shapeView3dAnchor,
+	shapeView3dFoot,
+	solidHeightAt,
+} from "./shape-solids.js";
+// A shape's 3D look (ShapeData.view3d) and a shape type's (ShapeDefinition.view3d)
+export {
+	DEFAULT_SHAPE_VIEW_3D,
+	DEFAULT_VIEW_3D_HEIGHT,
+	DEFAULT_VIEW_3D_TYPE_MODES,
+	LEGACY_SHAPE_VIEW_3D_KEY,
+	MAX_VIEW_3D_HEIGHT,
+	normalizeShapeView3d,
+	rawShapeView3d,
+	readShapeView3d,
+	resolveShapeView3d,
+	SHAPE_VIEW_3D_COLLISIONS,
+	SHAPE_VIEW_3D_MODES,
+	type ShapeTypeView3d,
+	type ShapeView3d,
+	type ShapeView3dCollision,
+	type ShapeView3dFacing,
+	type ShapeView3dInput,
+	type ShapeView3dMode,
+	type ShapeView3dRender,
+	type ShapeView3dRenderContext,
+	shapeTypeModes,
+	shapeView3dCollision,
+	shapeView3dPatch,
+	storedShapeView3d,
+	VIEW_3D_COLLISIONS_BY_MODE,
+} from "./shape-view-3d.js";
+export {
+	DEFAULT_VIEW3D_SHAPE_LIMITS,
+	declaredView3dShapeTypes,
+	GROUND_FLAT_VIEW3D,
+	lerpAngle,
+	sanitizeView3dShapeLimits,
+	selectView3dShapes,
+	type View3dShapeEntry,
+	type View3dShapeLimits,
+	type View3dShapeSource,
+	type View3dShapeTypes,
+	view3dShapeHeading,
+	view3dShapeSourceService,
+	view3dShapeWallColor,
+} from "./shape-view-3d-layout.js";
+// Solid height (what stands on the ground, e.g. raised shapes)
 export { type SolidHeightApi, solidHeightService } from "./solid-height.js";
+// Geometry
 export type { BoundingBox, Point, Viewport } from "./types/geometry.js";
 // LOD
 export type { LodController, LodPolicy, LodPolicyContext, RenderMode } from "./types/lod.js";
@@ -35,10 +201,18 @@ export type {
 	HudPanel,
 	HudRegistry,
 	HudSettingsDescriptor,
+	KeyBinding,
+	KeyBindingKind,
+	KeyBindingSpec,
+	KeyConflict,
+	KeyConflictPolicy,
+	KeyGate,
+	Keymap,
 	Layer,
 	LayerExportBackgroundContext,
 	LayerManager,
 	LayerRenderContext,
+	LayerView3d,
 	MarkdownConverter,
 	MarkdownConverterContext,
 	MarkdownConverterRegistry,
@@ -51,6 +225,12 @@ export type {
 	RenderTarget,
 	SelectionForeground,
 	SelectionForegroundRegistry,
+	SelectionHandle,
+	SelectionHandleDrag,
+	SelectionHandleProvider,
+	SelectionHandleRegistry,
+	SelectionHandleRenderContext,
+	SelectionHandleState,
 	ServiceRegistry,
 	ShapeChange,
 	ShapeDefinition,
@@ -73,6 +253,7 @@ export type {
 	ViewportAnimationOptions,
 	ViewportConstraint,
 } from "./types/plugin.js";
+export { DEFAULT_SELECTION_HANDLE_HIT_RADIUS } from "./types/plugin.js";
 // Shape
 export type { ResizeHandle, ShapeData, ShapeStyle } from "./types/shape.js";
 export { DEFAULT_STYLE } from "./types/shape.js";
@@ -162,5 +343,48 @@ export {
 	zIndexBeforeAll,
 	zIndexBetween,
 } from "./utils/z-order.js";
-// 3D view state (Mode 7 etc.) shared across plugins
-export { type View3dApi, type View3dCamera, view3dService } from "./view-3d.js";
+export {
+	OCCLUDED_OPACITY,
+	occludedStyle,
+	type View3dApi,
+	type View3dCamera,
+	type View3dOcclusionApi,
+	type View3dOcclusionLook,
+	view3dOcclusionService,
+	view3dService,
+} from "./view-3d.js";
+export {
+	createView3dGl,
+	VIEW3D_DEPTH_GLSL,
+	VIEW3D_DEPTH_RANGE_PX,
+	type View3dGlApi,
+	type View3dGlDrawable,
+	type View3dGlFrame,
+	view3dGl,
+	view3dGlService,
+} from "./view-3d-gl.js";
+export { type View3dRendererApi, view3dRendererService } from "./view-3d-renderer.js";
+export {
+	CAMERA_3D_LIMITS,
+	type Camera3d,
+	clampCamera3d,
+	clampDrawDistance,
+	createView3dCell,
+	DEFAULT_CAMERA_3D,
+	DEFAULT_DRAW_DISTANCE,
+	FLAT_VIEW_3D,
+	OVERSCAN_BUFFER_PX,
+	patchView3d,
+	sameView3d,
+	type View3dCell,
+	type View3dPatch,
+	type View3dState,
+	view3dCellOf,
+	view3dOverscanPx,
+} from "./view-3d-state.js";
+export {
+	createView3dTracker,
+	STAGE_3D_EVENT,
+	type View3dSnapshot,
+	type View3dTracker,
+} from "./view-3d-tracker.js";

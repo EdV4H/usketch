@@ -1,5 +1,40 @@
 # @edv4h/usketch-plugin-canvas-filter
 
+## 3.2.0
+
+### Minor Changes
+
+- 1a2b88e: 旧スナップショットの Time Travel を削除し、ボード履歴（`@edv4h/usketch-plugin-history`）に一本化した。canvas-filter は Time Travel タブ・バナー・`filter:time-travel-exit` アクション・`time-travel:request` の受け口を外し、`boardRoomApiUrl` オプションは無視するようになった（型は残して deprecated）。server-boards は `/api/boards/:id/snapshots`・`/snapshot` のプロキシを外した。
+
+### Patch Changes
+
+- Updated dependencies [b16cfe8]
+- Updated dependencies [d81aad4]
+  - @edv4h/usketch-shared@4.24.0
+  - @edv4h/usketch-store@3.11.6
+
+## 3.1.19
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-store@3.11.5
+
+## 3.1.18
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-store@3.11.4
+
+## 3.1.17
+
+### Patch Changes
+
+- 004ae3a: どこからも使われていない `FilterIndicator`（Control HUD のアクションに置き換わった旧フィルタ表示ボタン）と、内部の `applyFilter` を削除した。どちらもパッケージの入口から export されておらず、挙動は変わらない。
+
 ## 3.1.16
 
 ### Patch Changes

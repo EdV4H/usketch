@@ -1,5 +1,42 @@
 # @edv4h/usketch-core
 
+## 2.5.0
+
+### Minor Changes
+
+- d81aad4: Add `ctx.keymap` / `app.keymap`: one registry for every key binding, with overlap detection and rebinding. `ctx.shortcuts.register` and `ToolDefinition.shortcut` now register `"press"` bindings in it (attributed to the calling plugin), and plugins can declare `"hold"` keys (`KeyboardEvent.code`s) that they keep handling themselves, checking `keymap.claims(id, event)` first. When several bindings match one key, those whose `when()` holds and with the highest `priority` are the candidates, and a configurable conflict policy picks who acts: `"first"` (default; the plugin listed first in `createApp({ plugins })`), `"last"` (the plugin listed last), `"all"`, or a custom function. Set it with `createApp({ keymap: { conflictPolicy } })` or switch it at runtime with `keymap.setConflictPolicy`. `keymap.getConflicts()` lists the overlaps, and `createApp({ keymap: { warnConflicts: true } })` warns about them at startup. Hosts can replace defaults with `createApp({ keymap: { keys } })`, and viewers can rebind with `keymap.setKeys` / `resetKeys` (persist `getOverrides()` and pass it back as `keymap.overrides`).
+  
+  Combos: `Mod` is the platform accelerator, and hosts choose how it matches with `createApp({ keymap: { mod } })` — `"platform"` (default: Cmd on macOS, Ctrl elsewhere; on a Mac, Ctrl is a separate key) or `"either"` (Cmd and Ctrl both). Shifted symbols and digits also match by physical key (`Shift+1`, `Mod+Shift+]`), and `?` means `Shift+/`. Keys typed into an IME composition are ignored, and hosts can block bindings with `keymap.setGate`. The keyboard-shortcuts, shape-group and export plugins now register `Mod+…` instead of `Ctrl+…`, so they keep answering to Cmd on macOS.
+  
+  Behavior change: two plugins that register the same shortcut no longer overwrite each other (the later one used to win silently); both stay registered and the ranking above decides. Fixes: tool shortcuts now ignore Shift chords, so `Shift+S` (shuffle deck) no longer switches to the sticky-note tool; unregistering a shortcut that another registration with the same combo had replaced no longer removes the newer one.
+  
+  Settings UIs: bindings carry `customizable` (false = viewers can't rebind), `enabled()` (grey out an operation that can't run now, without changing who gets the key) and `order`, and a binding without `onPress` is listed only (shown and checked for overlaps while something else handles the key). `keymap.setOverrides` replaces all rebindings at once. `bindKeymapStorage(keymap, storage)` keeps the viewer's rebindings in a host-chosen `KeymapStorage` (`localStorageKeymapStorage` for localStorage, following other tabs). Headless helpers for key-settings panels and cheat sheets: `formatCombo` / `formatKeyCode` / `formatBindingKey` (⌃⌥⇧⌘ on macOS), `comboFromKeyEvent` (stores the accelerator as `mod`), `isReservedCombo`, `bindingsUsingKey`, `assignKey` (optionally taking the key from other bindings) and `unassignKey`.
+
+### Patch Changes
+
+- 5adf284: New `@edv4h/usketch-plugin-key-settings`: one HUD "キー設定" panel for every plugin's key bindings (the app's keymap). Bindings are grouped by category (or plugin) with a filter; click a key and press the new one (Esc cancels, Delete / Backspace removes it, "+" adds one). Keys another plugin also uses are marked ⚠ and kept (the keymap's conflict policy decides between them); a key one of the same plugin's other actions had moves over. While picking, the keymap gate blocks every binding. Reset per binding or all at once. The viewer's rebindings are saved through a `KeymapStorage` (default localStorage `"usketch:keymap"`; `storage: false` leaves it to the host). The rules are exported as pure functions (`groupBindings`, `applyPickedKey`, `sharersOf`, `captureKeys`).
+  
+  Character: its own "キー設定" HUD panel is removed in favour of the shared one. Keys a viewer saved with it (`usketch-plugin-character:keys`) are carried into the keymap once on a host with a keymap (and then saved by the app's key settings); `saveKeys`, `setKeys`'s `save` option, `captureNextKey` and the `character-keys.ts` helpers are deprecated.
+  
+  Core: `bindKeymapStorage` keeps rebindings made before it was bound (e.g. ones a plugin carried over) and saves them together with the stored ones. `formatKeyCode` tells left / right modifiers apart (`sides`, default `"Left "` / `"Right "`).
+- Updated dependencies [b16cfe8]
+- Updated dependencies [d81aad4]
+  - @edv4h/usketch-shared@4.24.0
+
+## 2.4.13
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+
+## 2.4.12
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+
 ## 2.4.11
 
 ### Patch Changes

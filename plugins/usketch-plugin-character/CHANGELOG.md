@@ -1,5 +1,73 @@
 # @edv4h/usketch-plugin-character
 
+## 0.11.0
+
+### Minor Changes
+
+- 312c835: feat(character): 空中制御を追加。`jump.airControl`（0〜1、既定 0.5、HUD「空中制御」）で、空中では跳んだ勢い（`pose.moveVx` / `moveVy`）が残り、方向移動はキーの方向へ少しずつ寄せられ、車は地上の `airControl` 倍で曲がれる（スロットル・ブレーキは効かない）。0 = 弾道どおり、1 = 地上と同じ。描画用に `controlScheme` を render props に追加し、awareness でも送る（古いクライアントは `"directional"`）。
+  
+  車は空中でドリフトキーを押している間、車体を傾けられる: 前後キーでピッチ（前 = 機首下げ）、左右でロール（`jump.spinRate`、既定 270°/秒、0 = なし）。着地時に地面とのズレが `jump.landingTolerance`（既定 35°）を超えると速度が `jump.crashSpeed`（既定 0.3）倍に落ちる。姿勢は `pose.pitch` / `roll`・render props・awareness に載る。回転には慣性がある（`jump.spinInertia`、既定 0.3 秒、0 = なし）: 回り始めがその時間で全速になり、キーを離しても同じ時間かけて止まる。
+- ad6e37b: On the flat (2D) board a jump now lifts the character up the screen and grows it a little while its shadow stays at the feet (`motion.flatLift`, HUD "ジャンプで画面上に浮かせる（2D）"). The look fades out as the view turns 3D, where the body rises for real. Renderers get a new `depth` prop (0 = flat … 1 = 3D).
+- 7b1fd52: Add a "キー設定" HUD panel: rebind every action (up / down / left / right / jump / drift, up to two keys each) by clicking a key and pressing the new one, with conflicts moved over, unbound directions flagged and "既定に戻す". Bindings are saved per viewer in localStorage (`saveKeys: false` to opt out). The old "ドリフトのキー" / "ジャンプのキー" HUD fields are folded into the panel. New API: `setKeys(keys, { save })`, `getDefaultKeys`, `resetKeys`, `onKeysChange`, `captureNextKey`; pure helpers in `character-keys`.
+- 6db00b3: Character, Mode 7 and window-system keys are now keymap bindings (`ctx.keymap`), so overlaps with other plugins show up in `keymap.getConflicts()` and hosts can set them with `createApp({ keymap: { keys } })`.
+  
+  - Character: the movement, drift and jump keys are `"hold"` bindings (`CHARACTER_KEY_IDS`, e.g. `usketch-plugin-character:jump`), with the plugin's `keys` as defaults. While the character is on they sit above tool shortcuts and Mode 7's camera height keys (`CHARACTER_KEY_PRIORITY`: movement, then drift, then jump), and a key the keymap gives to someone else is left alone. `setKeys` / `resetKeys` / `getDefaultKeys` / `onKeysChange` now go through the keymap (a viewer's saved keys are applied on top of the host's), so rebinding in the keymap updates the HUD's key settings too.
+  - Mode 7: the camera height keys are `"hold"` bindings `HEIGHT_KEY_IDS` (`usketch-plugin-mode7:camera-up` / `camera-down`, priority `HEIGHT_KEY_PRIORITY` = 10) that only count while the 3D view is on and no follower drives the height. `getHeightKeys` / `setHeightKeys` are deprecated wrappers. Every action is a binding `usketch-plugin-mode7:<action>` (no keys by default); the `shortcuts` option is deprecated.
+  - Window system: every action is a binding `usketch-plugin-window-system:<action>`, taking its keys (default `Alt+Arrow` / `Alt+Shift+Arrow`) only on a window board; the `shortcuts` option is deprecated.
+  
+  Hosts without a keymap (older `@edv4h/usketch-core`) keep the previous behaviour.
+- 5adf284: New `@edv4h/usketch-plugin-key-settings`: one HUD "キー設定" panel for every plugin's key bindings (the app's keymap). Bindings are grouped by category (or plugin) with a filter; click a key and press the new one (Esc cancels, Delete / Backspace removes it, "+" adds one). Keys another plugin also uses are marked ⚠ and kept (the keymap's conflict policy decides between them); a key one of the same plugin's other actions had moves over. While picking, the keymap gate blocks every binding. Reset per binding or all at once. The viewer's rebindings are saved through a `KeymapStorage` (default localStorage `"usketch:keymap"`; `storage: false` leaves it to the host). The rules are exported as pure functions (`groupBindings`, `applyPickedKey`, `sharersOf`, `captureKeys`).
+  
+  Character: its own "キー設定" HUD panel is removed in favour of the shared one. Keys a viewer saved with it (`usketch-plugin-character:keys`) are carried into the keymap once on a host with a keymap (and then saved by the app's key settings); `saveKeys`, `setKeys`'s `save` option, `captureNextKey` and the `character-keys.ts` helpers are deprecated.
+  
+  Core: `bindKeymapStorage` keeps rebindings made before it was bound (e.g. ones a plugin carried over) and saves them together with the stored ones. `formatKeyCode` tells left / right modifiers apart (`sides`, default `"Left "` / `"Right "`).
+
+### Patch Changes
+
+- Updated dependencies [b16cfe8]
+- Updated dependencies [d81aad4]
+  - @edv4h/usketch-shared@4.24.0
+
+## 0.10.1
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+
+## 0.10.0
+
+### Minor Changes
+
+- 4e81c14: The follow camera's height now accounts for jumps and hovers. In the air it holds the take-off height, so an ordinary jump still rises on screen and running off a ledge over a pit doesn't dip the view; a hover or a high multi-jump that climbs more than `cameraHeightMargin` (world units, default = the jump's height) above it drags the camera up, and a fall below it takes the camera down. `0` follows the body exactly; `getCameraHeightMargin` / `setCameraHeightMargin` change it at runtime.
+
+### Patch Changes
+
+- 28a95bf: An airborne character no longer leans with the terrain below it. In the air (jumping, falling, hovering) the body's slope lean fades out over the first `AIR_LEAN_FADE` (8) world units above the ground, so the ground it flies over doesn't tip it. Its shadow still lies along the ground.
+
+## 0.9.0
+
+### Minor Changes
+
+- 9ffa649: Raise the 3D view's camera with the ground. Mode 7's `Camera` gets `height` (world units, default 0; `setHeight`): everything is drawn that much lower, so ground at that height shows where the flat board would. Hold Space / Shift in the 3D view to move the camera up / down (`heightKeys`, `heightSpeed`, rebindable via `setHeightKeys`). In shared, `View3dCamera.heightPx` and the optional `View3dApi.setCameraHeight` carry it; `getRenderedCamera().heightPx`, `projectToGround` / `unprojectFromGround` (now with a `z`) and the elevation mesh honor it. The character's follow camera sets it to the ground under the feet (eased), so walking up a high mountain no longer leaves the view.
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+
+## 0.8.0
+
+### Minor Changes
+
+- aabfdc1: キャラの大きさを設定できるようにした。`size` オプション / `setSize` で、画面上いつも同じ大きさ (`scale: "screen"`、既定 36px) か、地面と同じ縮尺 (`scale: "world"`、ズームに合わせて変わり、`minPx` … `maxPx` に収める) を選べる。描く大きさはレンダラーに `size` (画面 px) で渡す。HUD のキャラクターの設定にも「大きさの基準」と「大きさ」を足した。見た目だけで、登れる段差やジャンプの高さは変わらない。
+
+## 0.7.0
+
+### Minor Changes
+
+- 7249582: feat(character): 坂への対応。`motion.maxSlope` より急な坂は登れずずり落ちる（段差は今まで通り `maxStep`）、3D ビューでは地面に沿って傾く（`motion.slopeTilt`）、坂でのジャンプは真上と坂の法線の間に跳ぶ（`jump.slopeRatio`）
+
 ## 0.6.1
 
 ### Patch Changes

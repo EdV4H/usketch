@@ -1,6 +1,13 @@
 import type { BoardStore, ShapeData } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
-import { clearShape3d, getShape3d, setShape3d } from "../shape-3d-ops.js";
+import {
+	clearShape3d,
+	clearShapeView3d,
+	getShape3d,
+	getShapeView3d,
+	setShape3d,
+	setShapeView3d,
+} from "../shape-3d-ops.js";
 import { DEFAULT_SHAPE_3D_TYPES, SHAPE_3D_KEY } from "../shape-3d-params.js";
 
 function fakeStore(shapes: ShapeData[]): BoardStore {
@@ -69,5 +76,48 @@ describe("clearShape3d", () => {
 		expect(clearShape3d(store, ["a", "b"])).toEqual(["a"]);
 		expect(getShape3d(store, "a")).toBeNull();
 		expect(store.getShape("a")?.[SHAPE_3D_KEY]).toBeUndefined();
+		expect(store.getShape("a")?.view3d).toBeUndefined();
+	});
+
+	it("clears a shape that only has view3d", () => {
+		const store = fakeStore([shape("a", "rect", { view3d: { mode: "float" } })]);
+		expect(clearShape3d(store, ["a"])).toEqual(["a"]);
+		expect(getShape3d(store, "a")).toBeNull();
+	});
+});
+
+describe("view3d and the older key", () => {
+	it("writes both, and reads a shape that has only view3d", () => {
+		const store = fakeStore([shape("a"), shape("b", "rect", { view3d: { mode: "stand" } })]);
+		setShape3d(store, ["a"], { mode: "float", height: 30 });
+		const a = store.getShape("a");
+		expect(a?.view3d).toEqual(a?.[SHAPE_3D_KEY]);
+		expect(a?.view3d).toMatchObject({ mode: "float", height: 30 });
+		expect(getShape3d(store, "b")?.mode).toBe("stand");
+		// A patch merges over what the shape holds under view3d too.
+		setShape3d(store, ["b"], { facing: "fixed" });
+		expect(getShape3d(store, "b")).toMatchObject({ mode: "stand", facing: "fixed" });
+	});
+});
+
+describe("setShapeView3d", () => {
+	it("checks the modes through a lookup, e.g. the core's declared types", () => {
+		const store = fakeStore([shape("a", "rectangle"), shape("b", "ellipse")]);
+		const declared: Record<string, { modes: ("stand" | "box" | "float")[] }> = {
+			rectangle: { modes: ["stand", "box", "float"] },
+		};
+		const lookup = (type: string) => declared[type];
+		expect(setShapeView3d(store, ["a", "b"], { mode: "box" }, lookup)).toEqual(["a"]);
+		expect(getShapeView3d(store, "a")?.mode).toBe("box");
+		// A type declaring nothing gets the stand / float modes.
+		expect(setShapeView3d(store, ["b"], { mode: "float" }, lookup)).toEqual(["b"]);
+		expect(clearShapeView3d(store, ["a", "b"])).toEqual(["a", "b"]);
+		expect(getShapeView3d(store, "a")).toBeNull();
+	});
+
+	it("keeps the older names as the same functions", () => {
+		expect(setShape3d).toBe(setShapeView3d);
+		expect(getShape3d).toBe(getShapeView3d);
+		expect(clearShape3d).toBe(clearShapeView3d);
 	});
 });

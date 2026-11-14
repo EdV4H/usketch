@@ -21,6 +21,13 @@ export interface PortalPluginOptions {
 	 * long as the custom Chrome wires `dragHandleProps`/`resizeHandleProps` and
 	 * renders its `children`. */
 	components?: { Chrome?: PortalChrome };
+	/**
+	 * マルチページ: 今開いているページ。指定すると、このページで作ったポータルだけを出す
+	 * （他のページのシェイプを指すポータルを「シェイプが無い」とみなして消さないため）。
+	 */
+	pageId?: string;
+	/** `pageId` の無い（ページより前に作った）ポータルを出すページ。 */
+	legacyPageId?: string | null;
 }
 
 const LAYER_ID = "portal";
@@ -42,6 +49,8 @@ export function createPortalPlugin(options: PortalPluginOptions): UsketchPlugin 
 				doc: options.doc,
 				userId: options.userId ?? "local",
 				boardId: options.boardId,
+				pageId: options.pageId,
+				legacyPageId: options.legacyPageId,
 			});
 
 			const boundsOf = (shapeId: string): BoundingBox | null => {
@@ -76,6 +85,7 @@ export function createPortalPlugin(options: PortalPluginOptions): UsketchPlugin 
 
 			ctx.layers.register({
 				id: LAYER_ID,
+				view3d: "tilt",
 				order: 150,
 				fixed: true,
 				render: () => (

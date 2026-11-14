@@ -5,6 +5,7 @@ import {
 	generateId,
 	type PluginContext,
 	type Point,
+	SHAPE_VIEW_3D_MODES,
 	type ShapeData,
 	type ToolContext,
 	type UsketchPlugin,
@@ -791,6 +792,8 @@ export function createCardPlugin(opts: CreateCardPluginOptions = {}): UsketchPlu
 
 			// ── shape 登録: card ──
 			ctx.shapes.register(CARD_TYPE, {
+				// Fills its box: may also be a block in 3D (stand / box / float).
+				view3d: { modes: SHAPE_VIEW_3D_MODES },
 				render: renderCard,
 				getBounds,
 				hitTest: withRotation(rectHitTest),

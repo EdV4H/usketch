@@ -1,6 +1,6 @@
 {
 	"name": "@edv4h/usketch-plugin-shape-3d",
-	"version": "0.2.0",
+	"version": "0.3.3",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -18,7 +18,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@edv4h/usketch-dom-renderer": "workspace:*",
+		"@edv4h/usketch-css3d-renderer": "workspace:*",
 		"@edv4h/usketch-shared": "workspace:*"
 	},
 	"peerDependencies": {

@@ -2,19 +2,22 @@
 // data-only `tilemap` + `base-map` shapes, the base landmark-icon layer, the `map`
 // tool (brush/eraser/fill/generate/base), and the Tweaks HUD settings. Landmark
 // icons belong to bases (derived from radius), not a separate stamp step.
-import { groundHeightService, type PluginContext, type UsketchPlugin } from "@edv4h/usketch-shared";
+import { boardHeight, type PluginContext, type UsketchPlugin } from "@edv4h/usketch-shared";
 import { BaseIconLayer } from "./base/base-icon-layer.js";
 import { BaseAreaLayer } from "./base/base-layer.js";
 import { BASE_MAP_TYPE, createBaseMapShapeDefinition } from "./base/base-map-shape.js";
 import { EnterBanner } from "./base/enter-banner.js";
 import { resolveTerritoryStyle, type TerritoryStyle } from "./base/territory-style.js";
+import { REGION_SIZE_RANGE, regionSizeOf } from "./base-terrain.js";
 import { genStateStore } from "./gen-state.js";
 import { registerMapHud } from "./hud/register-map-hud.js";
 import {
 	disableInfiniteTerrain,
 	enableInfiniteTerrain,
+	getInfiniteGen,
 	getInfiniteSeed,
 	isInfiniteTerrainEnabled,
+	setInfiniteRegion,
 } from "./infinite-terrain.js";
 import { GROUND_OVERSCAN_EVENT, MapTerrainLayer, STAGE_3D_EVENT } from "./map-layer.js";
 import { MapReliefLayer, RELIEF_LAYER_ID } from "./map-relief-layer.js";
@@ -67,6 +70,9 @@ const BASE_LAYER_ID = "usketch-map:base";
 const BASE_ICON_LAYER_ID = "usketch-map:base-icons";
 const ENTER_BANNER_ID = "usketch-map:enter-banner";
 
+/** The map plugin's id (also its ground provider's id on the board's height). */
+const MAP_PLUGIN_ID = "usketch-plugin-map";
+
 export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 	const tile = options.tile ?? DEFAULT_TILE;
 	const territoryStyle = resolveTerritoryStyle(options.territory);
@@ -83,7 +89,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 	}
 
 	return {
-		id: "usketch-plugin-map",
+		id: MAP_PLUGIN_ID,
 		name: "RPG マップ",
 
 		setup(ctx: PluginContext) {
@@ -119,9 +125,21 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 				stage.set({ active: data?.active === true });
 			});
 
+			// The board's height: the map's terrain is one ground provider. The cliffs are
+			// drawn only while the map's ground is the one in use (another terrain, such as
+			// the elevation field, can rank above it).
+			const height = ctx.height ?? boardHeight(ctx.services);
+			const ownsGround = createReactiveStore({ on: true });
+			const syncOwner = () => {
+				const owner = height.owner();
+				const on = owner === null || owner === MAP_PLUGIN_ID;
+				if (on !== ownsGround.get().on) ownsGround.set({ on });
+			};
+
 			// ── Terrain MapLayer (behind all shapes) ──
 			ctx.layers.register({
 				id: TERRAIN_LAYER_ID,
+				view3d: "tilt",
 				order: 40,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
@@ -141,6 +159,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			//    areas / icons (42/44) so those stay visible. ──
 			ctx.layers.register({
 				id: RELIEF_LAYER_ID,
+				view3d: "depth",
 				order: 41,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
@@ -152,6 +171,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 						tile={tile}
 						stage={stage}
 						overscan={overscan}
+						ownsGround={ownsGround}
 					/>
 				),
 			});
@@ -159,6 +179,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			// ── Base areas (above terrain, below shapes) + enter banner overlay ──
 			ctx.layers.register({
 				id: BASE_LAYER_ID,
+				view3d: "tilt",
 				order: 42,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
@@ -173,6 +194,7 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			//    split (#955). Always visible, unlike the base-mode-gated territory. ──
 			ctx.layers.register({
 				id: BASE_ICON_LAYER_ID,
+				view3d: "tilt",
 				order: 44,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).
@@ -239,6 +261,17 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 					// space deterministically so the world can be panned forever.
 					{ name: "infinite", label: "無限地形", type: "boolean" },
 					{ name: "seed", label: "シード", type: "number", min: 0, max: 999999, step: 1 },
+					// How the world is generated (re-generates it): region size as a multiple
+					// of the default (2 ⇒ regions twice as wide) and the sea level (0–1).
+					{
+						name: "regionSize",
+						label: "領域の広さ",
+						type: "number",
+						min: REGION_SIZE_RANGE.min,
+						max: REGION_SIZE_RANGE.max,
+						step: 0.25,
+					},
+					{ name: "seaLevel", label: "海の割合", type: "number", min: 0, max: 1, step: 0.02 },
 					// Draw range in a 3D view (Mode 7) + level of detail (see MapRenderConfig).
 					{
 						name: "groundOverscanMaxPx",
@@ -272,6 +305,11 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 					// app-local render config — so the generated world survives reload.
 					if (name === "infinite") return getInfiniteSeed(ctx.store) != null;
 					if (name === "seed") return getInfiniteSeed(ctx.store) ?? genStateStore.get().seed;
+					if (name === "regionSize" || name === "seaLevel") {
+						// The board's params while on, else the ones turning it on will use.
+						const gen = getInfiniteGen(ctx.store);
+						return name === "seaLevel" ? gen.seaLevel : Math.round(regionSizeOf(gen) * 100) / 100;
+					}
 					return renderConfigStore.get()[name as keyof ReturnType<typeof renderConfigStore.get>];
 				},
 				set: (name, value) => {
@@ -309,6 +347,10 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 						// seed field shouldn't turn the infinite terrain on by itself).
 						genStateStore.set({ seed });
 						if (isInfiniteTerrainEnabled(ctx.store)) enableInfiniteTerrain(ctx.store, { seed });
+					} else if (name === "regionSize" || name === "seaLevel") {
+						// Recorded on the board (synced): re-generates now when on, else used
+						// when it's turned on.
+						setInfiniteRegion(ctx.store, { [name]: Number(value) });
 					}
 				},
 				// Re-read on look-and-feel changes (renderConfig) AND shape mutations (the
@@ -340,12 +382,28 @@ export function createMapPlugin(options: MapPluginOptions = {}): UsketchPlugin {
 			const api = createMapApi(ctx.store, tile);
 			const unprovideService = mapService.provide(ctx.services, api);
 			// The board's ground height = the terrain's (a character can't climb cliffs).
-			const unprovideGround = groundHeightService.provide(ctx.services, {
+			// Answered through the older `groundHeightService` too, by the board's height.
+			const unregisterGround = height.register({
+				id: MAP_PLUGIN_ID,
+				kind: "ground",
+				active: () => renderConfigStore.get().heightEnabled,
 				heightAt: (x, y) => api.getHeightAt(x, y),
 			});
+			const offHeight = height.subscribe(syncOwner);
+			// The map's own switch (`heightEnabled`) decides whether it answers at all.
+			let lastHeightEnabled = renderConfigStore.get().heightEnabled;
+			const offHeightSwitch = renderConfigStore.subscribe(() => {
+				const on = renderConfigStore.get().heightEnabled;
+				if (on === lastHeightEnabled) return;
+				lastHeightEnabled = on;
+				height.notify();
+			});
+			syncOwner();
 
 			return () => {
-				unprovideGround();
+				unregisterGround();
+				offHeight();
+				offHeightSwitch();
 				unprovideService();
 				offOverscan();
 				offOverscanCap();

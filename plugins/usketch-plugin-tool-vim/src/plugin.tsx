@@ -197,6 +197,7 @@ export function createVimToolPlugin(
 			// ── UI レイヤー登録（プラグインが自前で chrome を描画） ──
 			ctx.layers.register({
 				id: "vim-overlay",
+				view3d: "tilt",
 				order: 85,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).

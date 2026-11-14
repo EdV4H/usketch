@@ -57,6 +57,7 @@ export function createPresenceActivityPlugin(options: PresenceActivityOptions): 
 			// Above terrain/base/shapes, alongside the sync divergence overlay (250).
 			ctx.layers.register({
 				id: LAYER_ID,
+				view3d: "tilt",
 				order: 248,
 				fixed: true,
 				// World-anchored: follow the camera rotation (see Layer.worldOverlay).

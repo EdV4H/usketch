@@ -1,8 +1,12 @@
+import { wrapDeg } from "@edv4h/usketch-shared";
 import { describe, expect, it } from "vitest";
 import {
+	AIR_CONTROL_TIME,
 	type CharacterPose,
+	DEFAULT_DRIFT,
 	DEFAULT_JUMP,
 	DEFAULT_MOTION,
+	headingVector,
 	IDLE_JUMP,
 	type JumpParams,
 	type JumpTimers,
@@ -161,31 +165,163 @@ describe("stepVertical", () => {
 });
 
 describe("stepCharacter in the air", () => {
-	it("a car keeps its speed and can't steer until it lands", () => {
-		const flying: CharacterPose = {
-			...ORIGIN_POSE,
-			speed: 300,
-			moving: true,
-			airborne: true,
-			z: 20,
-		};
-		const next = stepCharacter(
-			flying,
-			held({ down: true, left: true }),
-			0.1,
-			"vehicle",
-			DEFAULT_MOTION,
-		);
+	const flyingCar: CharacterPose = {
+		...ORIGIN_POSE,
+		speed: 300,
+		moving: true,
+		airborne: true,
+		z: 20,
+	};
+
+	it("a car keeps its speed (no throttle or brakes) until it lands", () => {
+		const next = stepCharacter(flyingCar, held({ down: true }), 0.1, "vehicle", DEFAULT_MOTION);
 		expect(next.speed).toBe(300);
 		expect(next.heading).toBe(0);
 		expect(next.y).toBeCloseTo(-30);
 		expect(next).toMatchObject({ z: 20, airborne: true });
 	});
 
-	it("directional movement keeps full control and the vertical state", () => {
+	it("a car steers in the air by the air control, its travel turning with it", () => {
+		const steer = (airControl: number) =>
+			stepCharacter(
+				flyingCar,
+				held({ left: true }),
+				0.1,
+				"vehicle",
+				DEFAULT_MOTION,
+				0,
+				null,
+				airControl,
+			);
+		const ground = stepCharacter(
+			{ ...flyingCar, airborne: false },
+			held({ left: true }),
+			0.1,
+			"vehicle",
+			DEFAULT_MOTION,
+		);
+		const turnOf = (p: CharacterPose) => wrapDeg(p.heading + 180) - 180;
+		expect(steer(0).heading).toBe(0);
+		expect(steer(0).steering).toBe(0);
+		expect(turnOf(steer(1))).toBeCloseTo(turnOf(ground));
+		expect(turnOf(steer(0.5))).toBeCloseTo(turnOf(ground) / 2);
+		expect(steer(0.5).speed).toBe(300);
+		// It travels along its new heading.
+		const turned = steer(0.5);
+		const dir = headingVector(turned.heading);
+		expect(turned.x).toBeCloseTo(dir.x * 30);
+		expect(turned.moveVx).toBeCloseTo(dir.x * 300);
+	});
+
+	it("a car doesn't start a drift in the air, but a running one carries on", () => {
+		const drift = { ...DEFAULT_DRIFT };
+		const input = held({ left: true, drift: true });
+		const start = stepCharacter(flyingCar, input, 0.1, "vehicle", DEFAULT_MOTION, 0, drift, 1);
+		expect(start.drift).toBe(0);
+		const running = stepCharacter(
+			{ ...flyingCar, drift: -1 },
+			input,
+			0.1,
+			"vehicle",
+			DEFAULT_MOTION,
+			0,
+			drift,
+			1,
+		);
+		expect(running.drift).toBe(-1);
+	});
+
+	it("a walk keeps its take-off velocity and the keys only pull it around", () => {
+		const v = DEFAULT_MOTION.moveSpeed;
+		// Took off walking up (world -y) at full speed, now holding right.
+		const flying: CharacterPose = {
+			...ORIGIN_POSE,
+			airborne: true,
+			z: 20,
+			vz: 50,
+			moveVy: -v,
+			speed: v,
+			moving: true,
+		};
+		const dt = 0.02;
+		const next = stepCharacter(
+			flying,
+			held({ right: true }),
+			dt,
+			"directional",
+			DEFAULT_MOTION,
+			0,
+			null,
+			0.5,
+		);
+		// The velocity moved toward (v, 0) by moveSpeed × 0.5 × dt / AIR_CONTROL_TIME.
+		const reach = (v * 0.5 * dt) / AIR_CONTROL_TIME;
+		expect(Math.hypot(next.moveVx - 0, next.moveVy + v)).toBeCloseTo(reach);
+		expect(next.moveVx).toBeGreaterThan(0);
+		expect(next.moveVy).toBeLessThan(0);
+		expect(next.x).toBeCloseTo(next.moveVx * dt);
+		expect(next.y).toBeCloseTo(next.moveVy * dt);
+		expect(next).toMatchObject({ z: 20, vz: 50, airborne: true });
+	});
+
+	it("releasing the keys in the air eases the walk to a stop instead of halting", () => {
+		const v = DEFAULT_MOTION.moveSpeed;
+		const flying: CharacterPose = {
+			...ORIGIN_POSE,
+			airborne: true,
+			z: 20,
+			moveVx: v,
+			speed: v,
+			moving: true,
+		};
+		const next = stepCharacter(flying, NO_INPUT, 0.02, "directional", DEFAULT_MOTION, 0, null, 0.5);
+		expect(next.moveVx).toBeCloseTo(v - (v * 0.5 * 0.02) / AIR_CONTROL_TIME);
+		expect(next.moving).toBe(true);
+		const ballistic = stepCharacter(
+			flying,
+			held({ left: true }),
+			0.02,
+			"directional",
+			DEFAULT_MOTION,
+			0,
+			null,
+			0,
+		);
+		expect(ballistic.moveVx).toBe(v); // no control: the keys do nothing
+		expect(ballistic.x).toBeCloseTo(v * 0.02);
+	});
+
+	it("full air control moves as on the ground", () => {
 		const flying: CharacterPose = { ...ORIGIN_POSE, airborne: true, z: 20, vz: 50 };
-		const next = stepCharacter(flying, held({ right: true }), 0.1, "directional", DEFAULT_MOTION);
+		const next = stepCharacter(
+			flying,
+			held({ right: true }),
+			0.1,
+			"directional",
+			DEFAULT_MOTION,
+			0,
+			null,
+			1,
+		);
 		expect(next.x).toBeCloseTo(DEFAULT_MOTION.moveSpeed * 0.1);
 		expect(next).toMatchObject({ z: 20, vz: 50, airborne: true });
+	});
+
+	it("on the ground the keys set the walk at once, whatever the air control", () => {
+		const walking: CharacterPose = { ...ORIGIN_POSE, moveVy: -400, speed: 400, moving: true };
+		const next = stepCharacter(
+			walking,
+			held({ right: true }),
+			0.1,
+			"directional",
+			DEFAULT_MOTION,
+			0,
+			null,
+			0,
+		);
+		expect(next.moveVx).toBeCloseTo(DEFAULT_MOTION.moveSpeed);
+		expect(next.moveVy).toBeCloseTo(0);
+		const stopped = stepCharacter(next, NO_INPUT, 0.1, "directional", DEFAULT_MOTION, 0, null, 0);
+		expect(stopped).toMatchObject({ moving: false, speed: 0, moveVx: 0, moveVy: 0 });
 	});
 });

@@ -5,7 +5,7 @@
 
 ## 仕組み
 
-- `perspective()+rotateX(pitch)+rotateZ(yaw)` の **CSS 3D 変換**を、`document.head` に挿した単一の `<style>`
+- `perspective()+rotateX(pitch)` の **CSS 3D 変換**を、`document.head` に挿した単一の `<style>`
   シート（`!important` ルール）で「板コンテンツ層」の外側ラッパ div に当てる。各レイヤーは `canvas.tsx` で
   `data-layer-id` 付き div にラップされ、ルールは `data-mode7-stage="on"` を付けたメインコンテナ配下に
   スコープされる。コンテナ検出は **`data-testid` ではなく `[data-layer-id]` の親**で行う（`data-testid` は
@@ -56,7 +56,7 @@ createApp({
 - **ON**: 地面が平ら（pitch 0）から `camera.pitch` までせり上がり、空・フォグがフェードイン。
 - **OFF**: 逆再生し、平らに戻りきってから非アクティブになる（それまで capture 層が編集を塞ぐ）。
 - 途中で切り替えると、**今の状態から逆再生**（ジャンプしない）。
-- 保存されたカメラ/見た目は常に目標値のまま。アニメするのは描画値だけ（pitch・yaw を
+- 保存されたカメラ/見た目は常に目標値のまま。アニメするのは描画値だけ（pitch と、viewport を回す yaw を
   遷移量でスケール、空/フォグは不透明度、描画距離の手前切り取りも同率でフェード）。
 - 1 フレームにつき store 更新は 1 回。`prefers-reduced-motion` なら終了状態へ即時。
 - 呼び出し単位で上書き可: `api.enable({ animate: true })` / `api.disable({ animate: false })`。
@@ -69,7 +69,7 @@ createApp({
 | パラメータ | 意味 | 範囲 |
 | --- | --- | --- |
 | `pitch` | 地平面の傾き（0=真上, 大=斜め） | 0–85° |
-| `yaw` | 旋回（進行方向の回転） | -180–180° |
+| `yaw` | 旋回（進行方向の回転）。3D の間は viewport の回転（`Viewport.rotation`）として地平線の中央を軸に回し、平らに戻るときに回した分だけ戻す | -180–180° |
 | `fov` | CSS `perspective()` 距離（小=遠近強） | 200–2000px |
 | `horizon` | 地平線の画面高さ割合（ピボット） | 0.1–0.9 |
 
@@ -104,8 +104,10 @@ createApp({
 `toggle` / `pitch-up` / `pitch-down` / `yaw-left` / `yaw-right` / `fov-narrow` / `fov-wide` / `reset` /
 `capture-frame`（取り込み範囲の表示切替）。
 
-ショートカットは **opt-in・既定なし**（共有レジストリは `event.key` 照合で macOS の Option+英字合成 /
-Shift+数字変換に弱く、既定を持たせると layout により無反応になるため）。`shortcuts` オプションで任意に割当。
+キーは **opt-in・既定なし**（どの文字キーも、どこかのツールや配列とぶつかるため）。各アクションはキーなしの
+keymap binding（id `usketch-plugin-mode7:<key>`）として登録されるので、キー設定に並び、ホストは
+`createApp({ keymap: { keys: { "usketch-plugin-mode7:toggle": ["Alt+M"] } } })` で割り当てる。
+`shortcuts` オプションも動くが非推奨（次のメジャーで削除）。
 
 ## サービス API
 
@@ -119,9 +121,32 @@ api?.setYaw(30);
 
 `Mode7Api`: `isActive` / `enable` / `disable` / `toggle`（各 `{ animate? }`）/ `isTransitioning` /
 `getTransitionAmount` / `getCamera` / `getRenderedCamera` / `setPitch` / `setYaw` /
-`setFov` / `setHorizon` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
+`setFov` / `setHorizon` / `setHeight` / `getHeightKeys` / `setHeightKeys` / `getHeightSpeed` / `setHeightSpeed` / `adjust` / `getLook` / `setSky` / `setFog` / `setFogColor` / `reset` /
 `getTiltLayers` / `setTiltLayers` / `toggleTiltLayer` / `getDrawDistance` / `setDrawDistance` /
 `isCaptureFrameVisible` / `setCaptureFrameVisible` / `toggleCaptureFrame` / `getCaptureRect` / `onChange`。
+
+## カメラの高さ
+
+`Camera.height`（ワールド単位、`0` = ボードの高さ）でカメラを上げると、すべてがその分だけ下に
+描かれ、その高さの地面が平らなボードと同じ位置に見える。`setHeight(height)` または
+`setCamera` 相当の `{ height }` で変える。カメラの横の位置はボードの viewport（スクロール位置）。
+高い山を歩くキャラクターが画面の上へ抜けないよう、追いかける側が毎フレーム足元の地面の高さを
+（自分でなめらかにして）渡す。`@edv4h/usketch-plugin-character` は
+`view3dService.setCameraHeight` を通して自動でこれを行う。描画上の上げ幅は
+`getRenderedCamera().heightPx`（px = 高さ × zoom × 遷移量）。WebGL などで自前に描く場合は
+これを引いてから投影する（`projectToGround` は `heightPx` を見る）。
+
+3D ビューのあいだは **Space を押している間カメラが上がり、Shift で下がる**（画面上で毎秒
+`heightSpeed` px、既定 480）。キーは keymap の `"hold"` binding（`HEIGHT_KEY_IDS` =
+`usketch-plugin-mode7:camera-up` / `camera-down`、`KeyboardEvent.code`）で、既定は `heightKeys` オプション
+（`{ up?, down? }`、`false` でキーなし）。ホストは `createApp({ keymap: { keys } })`、閲覧者は
+`keymap.setKeys` で付け替える（`setHeightKeys` / `getHeightKeys` は非推奨のラッパー）。入力欄・ボタン・
+スライダーにフォーカスがあるときは動かない。同じキーの binding がほかにあれば keymap が振り分け、
+高さキーの priority（`HEIGHT_KEY_PRIORITY` = 10）はツールより上・キャラクターより下（キャラクターの
+ジャンプが Space を取る）。
+キャラクターが追いかけている間は、キャラクターがカメラの高さを毎フレーム決めるので、高さキーは keymap 上でも無効になる
+（`view3dService.setCameraHeight` が最後に呼ばれてから `HEIGHT_DRIVER_HOLD_MS` = 250ms の間。
+両方が毎フレーム高さを書き換えて画面がガタガタしないように）。
 
 ## 地面上の点の投影
 
@@ -132,8 +157,9 @@ CSS 変換を自前で組まずに次の純関数を使う。座標はキャン�
 import { getMode7Api, projectToGround, unprojectFromGround } from "@edv4h/usketch-plugin-mode7";
 const cam = getMode7Api(app.services)?.getRenderedCamera(); // 遷移中は傾きが縮んだカメラ
 const size = { width, height };                              // キャンバスの px サイズ
-projectToGround(sx, sy, cam, size);   // → { x, y, depth, scale } | null（目の後ろ）
-unprojectFromGround(x, y, cam, size); // → { x, y } | null（地平線より上）
+projectToGround(sx, sy, cam, size, z);   // → { x, y, depth, scale } | null（目の後ろ）
+unprojectFromGround(x, y, cam, size, z); // → { x, y } | null（地平線より上）
+// z = 地面からの高さ（px、省略で 0）。cam.heightPx（カメラの高さ）は両方が自動で差し引く。
 ```
 
 ## スコープ外（v2 送り）

@@ -4,8 +4,25 @@
 // camera. It is a view mode (editing is suspended while active), off by default,
 // and holds only per-viewer view state (never persisted as shapes). Toggle it via
 // the HUD "3Dビュー切替" action, the service, or an emitted `mode7:toggle` event.
-import { type PluginContext, type UsketchPlugin, view3dService } from "@edv4h/usketch-shared";
+import { css3dRendererService, setupCss3dRenderer } from "@edv4h/usketch-css3d-renderer";
+import {
+	createView3dCell,
+	type PluginContext,
+	type UsketchPlugin,
+	type View3dRendererApi,
+	view3dCellOf,
+	view3dRendererService,
+	view3dService,
+} from "@edv4h/usketch-shared";
 import type { Camera } from "./mode7-camera.js";
+import {
+	createHeightDriver,
+	DEFAULT_HEIGHT_SPEED,
+	type HeightKeyConfig,
+	type HeightKeys,
+	resolveHeightKeys,
+	setupHeightKeys,
+} from "./mode7-height-keys.js";
 import {
 	CAPTURE_FRAME_LAYER_ID,
 	CAPTURE_LAYER_ID,
@@ -16,6 +33,7 @@ import {
 import { createMode7Api, createView3dApi, mode7Service } from "./mode7-service.js";
 import { createMode7Store, type Look } from "./mode7-store.js";
 import { createMode7Transition, type Mode7TransitionOptions } from "./mode7-transition.js";
+import { createYawTurner } from "./mode7-yaw.js";
 import { type Mode7Shortcuts, registerMode7Actions } from "./register-mode7-actions.js";
 import { registerMode7Hud } from "./register-mode7-hud.js";
 
@@ -26,8 +44,9 @@ export interface Mode7PluginOptions {
 	camera?: Partial<Camera>;
 	/** Initial appearance (sky / fog). */
 	look?: Partial<Look>;
-	/** Initial set of tilted layer ids (default: Shapes + backgrounds). The set is
-	 *  also selectable at runtime via the HUD layer picker. */
+	/** Initial set of tilted layer ids (default: `DEFAULT_TILT_LAYER_IDS` plus every layer
+	 *  that declares `view3d: "tilt" | "depth"`). Giving it makes the list exact (declared
+	 *  layers aren't added). The set is also selectable at runtime via the HUD layer picker. */
 	tiltLayerIds?: string[];
 	/** Layer ids the runtime picker must never offer (in addition to the plugin's own
 	 *  overlays and the HUD, which are always excluded). */
@@ -36,15 +55,27 @@ export interface Mode7PluginOptions {
 	 *  larger values extend the ground past it; default `1500`). */
 	drawDistance?: number;
 	/**
-	 * Tilted layers rendered with real depth (default `DEFAULT_DEPTH_LAYER_IDS`: the
-	 * map's raised terrain + characters). They skip the draw-distance clip, which
+	 * Tilted layers rendered with real depth (default `DEFAULT_DEPTH_LAYER_IDS` plus every
+	 * layer that declares `view3d: "depth"`: the map's raised terrain + characters). They skip the draw-distance clip, which
 	 * would flatten them.
 	 */
 	depthLayerIds?: string[];
 	/** Start with the flat-mode capture-frame overlay shown (default `false`). */
 	showCaptureFrame?: boolean;
-	/** Keyboard shortcut bindings (opt-in; no defaults). */
+	/**
+	 * Keyboard shortcut bindings (opt-in; no defaults).
+	 * @deprecated Use `createApp({ keymap: { keys } })` with the ids `usketch-plugin-mode7:<action>`.
+	 */
 	shortcuts?: Mode7Shortcuts;
+	/**
+	 * Keys that raise / lower the camera (`camera.height`) while held in the 3D view,
+	 * as `KeyboardEvent.code`s. Default Space = up, Shift = down; give either side to
+	 * rebind it, `false` to turn them off. These are the defaults of the keymap bindings
+	 * `HEIGHT_KEY_IDS`, which hosts can also set with `createApp({ keymap: { keys } })`.
+	 */
+	heightKeys?: Partial<HeightKeys> | false;
+	/** How fast the height keys move the camera, screen px per second (default 480). */
+	heightSpeed?: number;
 	/**
 	 * Animate switching the view on/off: the ground rises from flat to `camera.pitch`
 	 * (and back) while the sky/fog fade. Default `durationMs: 0` = instant; with it
@@ -64,7 +95,18 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 		showCaptureFrame: options.showCaptureFrame,
 	});
 	const transition = createMode7Transition(store, options.transition);
-	const api = createMode7Api(store, transition);
+	// The board's zoom, once set up (the camera height is in world units, drawn × zoom).
+	let zoom = (): number => 1;
+	const heightKeys: HeightKeyConfig = {
+		keys: resolveHeightKeys(options.heightKeys),
+		speed:
+			options.heightSpeed !== undefined &&
+			Number.isFinite(options.heightSpeed) &&
+			options.heightSpeed >= 0
+				? options.heightSpeed
+				: DEFAULT_HEIGHT_SPEED,
+	};
+	const api = createMode7Api(store, transition, () => zoom(), heightKeys);
 	// Layers the picker must never tilt (tilting the HUD or our own overlays makes
 	// no sense and could hide the very controls used to turn the view off).
 	const excludedLayerIds = [
@@ -80,20 +122,74 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 		id: "usketch-plugin-mode7",
 		name: "Mode 7 (3D ビュー)",
 		setup(ctx: PluginContext) {
-			const stopRuntime = setupMode7Runtime(ctx, store, { depthLayerIds: options.depthLayerIds });
+			zoom = () => ctx.store.getViewport().zoom;
+			// The camera and amount live in the board's 3D view state (a store from before
+			// it had one keeps them in the plugin).
+			const view3d = view3dCellOf(ctx.store) ?? createView3dCell();
+			const unbindView3d = store.bindView3d(view3d);
+			// The 3D view is drawn by the board's 3D renderer: the host's (CSS 3D or GPU), or
+			// a CSS 3D one of our own when the host didn't add one (until the next major).
+			let renderer: View3dRendererApi | undefined =
+				view3dRendererService.get(ctx.services) ?? css3dRendererService.get(ctx.services);
+			let stopOwnRenderer = (): void => {};
+			if (!renderer) {
+				const own = setupCss3dRenderer(ctx, { view3d });
+				if (own) {
+					renderer = own.api;
+					const unprovide = css3dRendererService.provide(ctx.services, own.api);
+					const unprovideGeneric = view3dRendererService.provide(ctx.services, own.api);
+					stopOwnRenderer = () => {
+						unprovideGeneric();
+						unprovide();
+						own.dispose();
+					};
+				}
+			}
+			if (!renderer) throw new Error("usketch-plugin-mode7: no 3D view state to draw");
+			const yaw = createYawTurner(ctx.store);
+			const stopRuntime = setupMode7Runtime(ctx, store, {
+				renderer,
+				depthLayerIds: options.depthLayerIds,
+				yaw,
+				adoptDeclared: options.tiltLayerIds === undefined,
+				excludedLayerIds,
+			});
 			const stopActions = registerMode7Actions(ctx, api, options.shortcuts);
+			// A follower driving the height (view3dService) wins over the height keys.
+			const heightDriver = createHeightDriver();
+			const stopHeightKeys = setupHeightKeys(
+				store,
+				heightKeys,
+				() => zoom(),
+				heightDriver.active,
+				// Older hosts have no keymap (the keys then work as before).
+				(ctx as Partial<PluginContext>).keymap ?? null,
+			);
 			const stopHud = registerMode7Hud(ctx, api, store, excludedLayerIds);
 			// Provide the service LAST so a failed earlier step can't leak it.
 			const unprovideService = mode7Service.provide(ctx.services, api);
-			const unprovideView3d = view3dService.provide(ctx.services, createView3dApi(store));
+			const unprovideView3d = view3dService.provide(
+				ctx.services,
+				createView3dApi(
+					store,
+					() => zoom(),
+					heightDriver.mark,
+					() => yaw.applied(),
+				),
+			);
 
 			return () => {
 				unprovideView3d();
 				unprovideService();
 				stopHud();
+				stopHeightKeys();
 				stopActions();
 				transition.dispose();
 				stopRuntime();
+				stopOwnRenderer();
+				unbindView3d();
+				// Nothing shows the board in 3D any more.
+				view3d.set({ amount: 0 });
 			};
 		},
 	};

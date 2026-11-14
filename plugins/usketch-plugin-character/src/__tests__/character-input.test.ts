@@ -1,5 +1,6 @@
+import { createKeymap } from "@edv4h/usketch-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createKeyInput } from "../character-input.js";
+import { CHARACTER_KEY_IDS, createKeyInput } from "../character-input.js";
 import { DEFAULT_KEYS } from "../character-types.js";
 
 type Listener = (e: unknown) => void;
@@ -334,5 +335,121 @@ describe("createKeyInput", () => {
 		input.dispose();
 		for (const fns of dom.win.values()) expect(fns).toHaveLength(0);
 		for (const fns of dom.doc.values()) expect(fns).toHaveLength(0);
+	});
+	it("hands the next press to a capture instead of the character, even while off", () => {
+		const input = createKeyInput(DEFAULT_KEYS, () => false);
+		const got: string[] = [];
+		input.captureNextKey((code) => got.push(code));
+		const down = dom.fire("keydown", { code: "KeyQ", target: { tagName: "INPUT" } });
+		expect(got).toEqual(["KeyQ"]);
+		expect(down.stopImmediatePropagation).toHaveBeenCalled();
+		expect(dom.fire("keydown", { code: "KeyQ", repeat: true }).preventDefault).toHaveBeenCalled();
+		expect(dom.fire("keyup", { code: "KeyQ" }).preventDefault).toHaveBeenCalled();
+		// One press per capture.
+		dom.fire("keydown", { code: "KeyE" });
+		expect(got).toEqual(["KeyQ"]);
+		input.dispose();
+	});
+
+	it("takes a bound key from the character while capturing, and can be cancelled", () => {
+		const input = createKeyInput(DEFAULT_KEYS, () => true);
+		const got: string[] = [];
+		input.captureNextKey((code) => got.push(code));
+		dom.fire("keydown", { code: "KeyW" });
+		expect(input.read().up).toBe(false);
+		dom.fire("keyup", { code: "KeyW" });
+		const cancel = input.captureNextKey((code) => got.push(`late:${code}`));
+		cancel();
+		dom.fire("keydown", { code: "KeyW" });
+		expect(got).toEqual(["KeyW"]);
+		expect(input.read().up).toBe(true);
+		input.dispose();
+	});
+
+	describe("with a keymap", () => {
+		it("registers hold bindings with the host's keys as defaults and reads rebinds back", () => {
+			const keymap = createKeymap();
+			const input = createKeyInput(
+				DEFAULT_KEYS,
+				() => true,
+				() => false,
+				() => true,
+				keymap,
+			);
+			expect(keymap.get(CHARACTER_KEY_IDS.up)).toMatchObject({
+				kind: "hold",
+				defaultKeys: ["KeyW"],
+				category: "キャラクター",
+			});
+			const changed = vi.fn();
+			input.onKeysChange(changed);
+			keymap.setKeys(CHARACTER_KEY_IDS.up, ["KeyI"]);
+			expect(changed).toHaveBeenCalledTimes(1);
+			expect(input.getKeys().up).toEqual(["KeyI"]);
+			dom.fire("keydown", { code: "KeyI" });
+			expect(input.read().up).toBe(true);
+
+			// setKeys rebinds through the keymap; a key back at its default is a reset.
+			input.setKeys({ ...input.getKeys(), up: ["KeyW"], left: ["KeyJ"] });
+			expect(keymap.getOverrides()).toEqual({ [CHARACTER_KEY_IDS.left]: ["KeyJ"] });
+			expect(input.getDefaultKeys().left).toEqual(["KeyA"]);
+
+			input.dispose();
+			expect(keymap.get(CHARACTER_KEY_IDS.up)).toBeUndefined();
+		});
+
+		it("takes a key only while its binding wins", () => {
+			const keymap = createKeymap();
+			let on = true;
+			let jumpOn = true;
+			const input = createKeyInput(
+				DEFAULT_KEYS,
+				() => on,
+				() => false,
+				() => jumpOn,
+				keymap,
+			);
+			// Beats a tool shortcut on the same key, so handleKeyDown leaves it alone.
+			const tool = vi.fn();
+			keymap.register({ id: "tool:a", keys: ["a"], onPress: tool });
+			const a = dom.fire("keydown", { code: "KeyA", key: "a" });
+			expect(a.stopImmediatePropagation).toHaveBeenCalled();
+			expect(keymap.handleKeyDown(a as unknown as KeyboardEvent)).toBe(false);
+			expect(tool).not.toHaveBeenCalled();
+			dom.fire("keyup", { code: "KeyA" });
+
+			// Jump off: Space is left to whoever else has it.
+			jumpOn = false;
+			const space = dom.fire("keydown", { code: "Space", key: " " });
+			expect(space.stopImmediatePropagation).not.toHaveBeenCalled();
+			expect(input.read().jump).toBe(false);
+
+			// A host binding above the character's priority keeps the key.
+			jumpOn = true;
+			keymap.register({ id: "host:space", kind: "hold", keys: ["Space"], priority: 100 });
+			dom.fire("keydown", { code: "Space", key: " " });
+			expect(input.read().jump).toBe(false);
+
+			on = false;
+			dom.fire("keydown", { code: "KeyW" });
+			expect(input.read().up).toBe(false);
+			input.dispose();
+		});
+
+		it("drifts rather than jumps on a key bound to both while the drift is on", () => {
+			const keymap = createKeymap();
+			const input = createKeyInput(
+				{ ...DEFAULT_KEYS, drift: ["Space"], jump: ["Space"] },
+				() => true,
+				() => true,
+				() => true,
+				keymap,
+			);
+			dom.fire("keydown", { code: "Space" });
+			const read = input.read();
+			expect(read.drift).toBe(true);
+			expect(read.jumpPressed).toBe(false);
+			input.dispose();
+		});
 	});
 });

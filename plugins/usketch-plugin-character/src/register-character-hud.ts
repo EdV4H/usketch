@@ -2,15 +2,15 @@
 // service (no plugin-owned UI; the character's LOOK is the host's renderer).
 import type { PluginContext } from "@edv4h/usketch-shared";
 import type { CameraMode } from "./character-camera.js";
-import { KEY_CHOICES, keyChoiceOf, withKeyChoice } from "./character-key-choices.js";
 import { type ControlScheme, DEFAULT_HOVER, DEFAULT_JUMP } from "./character-physics.js";
 import type { CharacterApi } from "./character-service.js";
+import type { CharacterSizeScale } from "./character-size.js";
 
 const CAMERA_MODES: readonly CameraMode[] = ["fixed", "rotate", "free"];
 const SCHEMES: readonly ControlScheme[] = ["directional", "vehicle"];
+const SIZE_SCALES: readonly CharacterSizeScale[] = ["screen", "world"];
 
 const truthy = (v: unknown) => v === true || v === "true";
-const KEY_OPTIONS = KEY_CHOICES.map((c) => ({ value: c.value, label: c.label }));
 
 export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () => void {
 	const offSettings = ctx.hud.registerSettings({
@@ -39,12 +39,58 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				],
 			},
 			{ name: "drift", label: "ドリフト（車）", type: "boolean" },
-			{ name: "driftKey", label: "ドリフトのキー", type: "enum", options: KEY_OPTIONS },
 			{ name: "driftHop", label: "ドリフトでホップ", type: "boolean" },
 			{ name: "jump", label: "ジャンプ", type: "boolean" },
-			{ name: "jumpKey", label: "ジャンプのキー", type: "enum", options: KEY_OPTIONS },
 			{ name: "jumpHeight", label: "ジャンプの高さ", type: "number", min: 8, max: 200, step: 4 },
 			{ name: "airJumps", label: "空中ジャンプ回数", type: "number", min: 0, max: 5, step: 1 },
+			{
+				name: "jumpSlope",
+				label: "坂でのジャンプの向き（0 = 真上、1 = 坂に垂直）",
+				type: "number",
+				min: 0,
+				max: 1,
+				step: 0.1,
+			},
+			{
+				name: "airControl",
+				label: "空中制御（0 = 効かない、1 = 地上と同じ）",
+				type: "number",
+				min: 0,
+				max: 1,
+				step: 0.05,
+			},
+			{
+				name: "spinRate",
+				label: "空中で車体を回す速さ（車、°/秒、0 = 回さない）",
+				type: "number",
+				min: 0,
+				max: 1080,
+				step: 30,
+			},
+			{
+				name: "spinInertia",
+				label: "車体の回転の慣性（車、秒、0 = なし）",
+				type: "number",
+				min: 0,
+				max: 2,
+				step: 0.05,
+			},
+			{
+				name: "landingTolerance",
+				label: "着地の許容角（車、°）",
+				type: "number",
+				min: 0,
+				max: 180,
+				step: 5,
+			},
+			{
+				name: "crashSpeed",
+				label: "着地失敗で残る速さ（車、0〜1）",
+				type: "number",
+				min: 0,
+				max: 1,
+				step: 0.1,
+			},
 			{ name: "hover", label: "ホバー", type: "boolean" },
 			{
 				name: "hoverDuration",
@@ -65,6 +111,47 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 			{ name: "moveSpeed", label: "速度", type: "number", min: 50, max: 3000, step: 50 },
 			{ name: "turnRate", label: "旋回(°/秒)", type: "number", min: 30, max: 1080, step: 30 },
 			{ name: "maxStep", label: "登れる段差", type: "number", min: 0, max: 400, step: 4 },
+			{
+				name: "maxSlope",
+				label: "登れる坂の角度（0 で 制限なし）",
+				type: "number",
+				min: 0,
+				max: 89,
+				step: 5,
+			},
+			{
+				name: "slopeTilt",
+				label: "坂に合わせて傾ける（3D、0〜1）",
+				type: "number",
+				min: 0,
+				max: 1,
+				step: 0.1,
+			},
+			{
+				name: "flatLift",
+				label: "ジャンプで画面上に浮かせる（2D、0〜3）",
+				type: "number",
+				min: 0,
+				max: 3,
+				step: 0.1,
+			},
+			{
+				name: "sizeScale",
+				label: "キャラの大きさの基準",
+				type: "enum",
+				options: [
+					{ value: "screen", label: "画面で固定（ズームしても同じ）" },
+					{ value: "world", label: "地面と同じ縮尺" },
+				],
+			},
+			{
+				name: "size",
+				label: "キャラの大きさ（画面固定は px、地面の縮尺は world 単位）",
+				type: "number",
+				min: 4,
+				max: 400,
+				step: 2,
+			},
 			{ name: "anchorX", label: "画面位置 横(%)", type: "number", min: 0, max: 100, step: 5 },
 			{ name: "anchorY", label: "画面位置 縦(%)", type: "number", min: 0, max: 100, step: 5 },
 			{ name: "smoothing", label: "カメラ遅れ(%)", type: "number", min: 0, max: 95, step: 5 },
@@ -81,18 +168,26 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return api.getControlScheme();
 				case "drift":
 					return api.getDrift() !== null;
-				case "driftKey":
-					return keyChoiceOf(api.getKeys().drift)?.value;
 				case "driftHop":
 					return api.getDrift()?.hop ?? false;
-				case "jumpKey":
-					return keyChoiceOf(api.getKeys().jump)?.value;
 				case "jump":
 					return api.getJump() !== null;
 				case "jumpHeight":
 					return (api.getJump() ?? DEFAULT_JUMP).height;
 				case "airJumps":
 					return (api.getJump() ?? DEFAULT_JUMP).airJumps;
+				case "jumpSlope":
+					return (api.getJump() ?? DEFAULT_JUMP).slopeRatio;
+				case "airControl":
+					return (api.getJump() ?? DEFAULT_JUMP).airControl;
+				case "spinRate":
+					return (api.getJump() ?? DEFAULT_JUMP).spinRate;
+				case "spinInertia":
+					return (api.getJump() ?? DEFAULT_JUMP).spinInertia;
+				case "landingTolerance":
+					return (api.getJump() ?? DEFAULT_JUMP).landingTolerance;
+				case "crashSpeed":
+					return (api.getJump() ?? DEFAULT_JUMP).crashSpeed;
 				case "hover":
 					return (api.getJump()?.hover ?? null) !== null;
 				case "hoverDuration":
@@ -105,6 +200,16 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 					return motion.turnRate;
 				case "maxStep":
 					return motion.maxStep;
+				case "maxSlope":
+					return motion.maxSlope;
+				case "slopeTilt":
+					return motion.slopeTilt;
+				case "flatLift":
+					return motion.flatLift;
+				case "sizeScale":
+					return api.getSize().scale;
+				case "size":
+					return api.getSize().value;
 				case "anchorX":
 					return Math.round(anchor.x * 100);
 				case "anchorY":
@@ -131,12 +236,6 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				case "drift":
 					api.setDrift(truthy(value));
 					return;
-				case "driftKey":
-				case "jumpKey":
-					api.setKeys(
-						withKeyChoice(api.getKeys(), name === "driftKey" ? "drift" : "jump", String(value)),
-					);
-					return;
 				case "driftHop":
 					// Like the other drift tuning: only while drifting is on.
 					if (api.getDrift()) api.setDrift({ hop: truthy(value) });
@@ -147,6 +246,10 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				case "hover":
 					// Like the other jump tuning: only while jumping is on.
 					if (api.getJump()) api.setJump({ hover: truthy(value) });
+					return;
+				case "sizeScale":
+					if (SIZE_SCALES.includes(value as CharacterSizeScale))
+						api.setSize({ scale: value as CharacterSizeScale });
 					return;
 			}
 			const n = Number(value);
@@ -161,6 +264,15 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				case "maxStep":
 					api.setMotion({ maxStep: n });
 					break;
+				case "maxSlope":
+					api.setMotion({ maxSlope: n });
+					break;
+				case "slopeTilt":
+					api.setMotion({ slopeTilt: n });
+					break;
+				case "flatLift":
+					api.setMotion({ flatLift: n });
+					break;
 				case "jumpHeight":
 					// Tuning while off keeps it off (applied when jumping is turned on).
 					if (api.getJump()) api.setJump({ height: n });
@@ -168,11 +280,32 @@ export function registerCharacterHud(ctx: PluginContext, api: CharacterApi): () 
 				case "airJumps":
 					if (api.getJump()) api.setJump({ airJumps: n });
 					break;
+				case "jumpSlope":
+					if (api.getJump()) api.setJump({ slopeRatio: n });
+					break;
+				case "airControl":
+					if (api.getJump()) api.setJump({ airControl: n });
+					break;
+				case "spinRate":
+					if (api.getJump()) api.setJump({ spinRate: n });
+					break;
+				case "spinInertia":
+					if (api.getJump()) api.setJump({ spinInertia: n });
+					break;
+				case "landingTolerance":
+					if (api.getJump()) api.setJump({ landingTolerance: n });
+					break;
+				case "crashSpeed":
+					if (api.getJump()) api.setJump({ crashSpeed: n });
+					break;
 				case "hoverDuration":
 					if (api.getJump()?.hover) api.setJump({ hover: { duration: n } });
 					break;
 				case "hoverThrust":
 					if (api.getJump()?.hover) api.setJump({ hover: { thrust: n } });
+					break;
+				case "size":
+					api.setSize({ value: n });
 					break;
 				case "anchorX":
 					api.setAnchor({ x: n / 100 });

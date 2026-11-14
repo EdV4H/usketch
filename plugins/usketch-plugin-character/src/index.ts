@@ -3,16 +3,37 @@ export {
 	type CameraFocus,
 	type CameraMode,
 	easeFocus,
+	followCameraHeight,
 	followViewport,
 	smoothingAlpha,
 	targetRotation,
 } from "./character-camera.js";
+export { CHARACTER_KEY_IDS, CHARACTER_KEY_PRIORITY } from "./character-input.js";
 export {
 	KEY_CHOICES,
 	type KeyChoice,
 	keyChoiceOf,
 	withKeyChoice,
 } from "./character-key-choices.js";
+export {
+	actionOfKey,
+	bindKey,
+	canBindKey,
+	defaultKeyStorage,
+	KEY_ACTION_LABELS,
+	KEY_ACTIONS,
+	KEYS_STORAGE_KEY,
+	type KeyAction,
+	type KeyStorage,
+	keyLabel,
+	loadStoredKeys,
+	MAX_KEYS_PER_ACTION,
+	parseStoredKeys,
+	saveStoredKeys,
+	unbindKey,
+	unboundDirections,
+} from "./character-keys.js";
+export { FLAT_JUMP_MAX_SCALE, flatJumpLift } from "./character-layer.js";
 export {
 	airJumpSpeed,
 	blockingHeight,
@@ -51,6 +72,14 @@ export {
 	characterService,
 	getCharacterApi,
 } from "./character-service.js";
+export {
+	type CharacterSize,
+	type CharacterSizeScale,
+	characterSizePx,
+	DEFAULT_SIZE,
+	MAX_SIZE_VALUE,
+	sanitizeSize,
+} from "./character-size.js";
 export {
 	effectiveJump,
 	hoverGaugeOf,

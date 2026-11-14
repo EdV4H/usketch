@@ -40,6 +40,11 @@ pnpm dev
 - **3D ビュー**: mode7（Canvas を奥へ傾ける擬似 3D 表示）、shape-3d（Shape を地面から立ち上げる・当たり判定）、character（操作キャラ + 追従カメラ・ジャンプ）
 - **Snap & smart guides**、キーボードショートカット、Undo/Redo（コマンドパターン）
 
+### マルチページ
+- 1 ボードに複数のページ。ページごとに別の Y.Doc で、開いたページだけ読み込む
+- HUD のページパネル（追加・名前変更・並べ替え・複製・削除と復元、`Alt+PageUp/Down`）とシェイプのページ間の移動・コピー
+- Members・Follow・コメント・発表・エクスポートもページに対応（[マルチページ](https://edv4h.github.io/usketch/docs/ja/guides/multi-page/)）
+
 ### コラボレーション
 - **Realtime sync**: Cloudflare Durable Objects + Yjs WebSocket（awareness 付き）
 - **Offline-first**: y-indexeddb によるローカル永続化、再接続時の自動同期
@@ -56,9 +61,10 @@ pnpm dev
 - **Frame ベースのスライド** + edit / present モード
 - Canvas が stage 矩形に縮退する "Canvas flavor" 設計
 - スライドサムネイル（minimap 連動）
+- マルチページのボードでは、ページをまたいで発表を進める
 
 ### エクスポート
-- PNG / SVG / JSON（Satori + Canvas）
+- PNG / SVG / JSON（Satori + Canvas）。マルチページのボードでは全ページをまとめて書き出せる
 
 ## プロジェクト構成
 
@@ -77,6 +83,8 @@ packages/
   shared/         — 共有型 / shape data model / utilities
   ui/             — 共通 UI コンポーネント
   dom-renderer/ / gpu-renderer/ — 2 系統の描画バックエンド
+  css3d-renderer/ — 3D 表示の描画（層を CSS の 3D 変形で傾ける）
+  gpu3d-renderer/ — 3D 表示の描画（WebGL2・実験中）
   server-core/    — サーバープラグイン基盤
   session-protocol/ — ライブ・セッションの client↔server 共通型（型のみ）
   session-voting/   — セッション型「投票」（server / client ペア）

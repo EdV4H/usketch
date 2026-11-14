@@ -12,6 +12,7 @@ import type {
 } from "@edv4h/usketch-shared";
 import {
 	compareZIndex,
+	createView3dCell,
 	DEFAULT_STYLE,
 	easeInOutCubic,
 	getRotatedAABB,
@@ -91,6 +92,8 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 	const clampZoom = (zoom: number) => Math.min(zoomRange.max, Math.max(zoomRange.min, zoom));
 
 	const spatialIndex = createSpatialIndex();
+	// The viewer's 3D view (camera + amount), with its own listeners: see `subscribeView3d`.
+	const view3d = createView3dCell();
 	const listeners = new Set<() => void>();
 	const mutationListeners = new Set<(event: StoreEvent) => void>();
 	let sortedCache: readonly ShapeData[] | null = null;
@@ -599,5 +602,9 @@ export function createBoardStore(options: BoardStoreOptions = {}): BoardStore {
 				mutationListeners.delete(listener);
 			};
 		},
+
+		getView3d: () => view3d.get(),
+		setView3d: (patch) => view3d.set(patch),
+		subscribeView3d: (listener) => view3d.subscribe(listener),
 	};
 }

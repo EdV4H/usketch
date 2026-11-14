@@ -1,31 +1,43 @@
-import type {
-	ActionRegistry,
-	BoardStore,
-	CommandRegistry,
-	EventBus,
-	ExternalContentRegistry,
-	HudRegistry,
-	LayerManager,
-	LodPolicy,
-	PluginContext,
-	PluginInfoRegistry,
-	PluginTeardown,
-	RenderMode,
-	SelectionForeground,
-	SelectionForegroundRegistry,
-	ServiceRegistry,
-	ShapeRegistry,
-	ShortcutRegistry,
-	ToolRegistry,
-	TransientRegistry,
-	UiRegistry,
-	UsketchPlugin,
+import {
+	type ActionRegistry,
+	type BoardHeightApi,
+	type BoardStore,
+	boardHeight,
+	type CommandRegistry,
+	createShapeSolids,
+	type EventBus,
+	type ExternalContentRegistry,
+	type HudRegistry,
+	type LayerManager,
+	type LodPolicy,
+	type PluginContext,
+	type PluginInfoRegistry,
+	type PluginTeardown,
+	type RenderMode,
+	type SelectionForeground,
+	type SelectionForegroundRegistry,
+	type SelectionHandleRegistry,
+	type ServiceRegistry,
+	type ShapeRegistry,
+	type ShortcutRegistry,
+	shapeSolidsService,
+	type ToolRegistry,
+	type TransientRegistry,
+	type UiRegistry,
+	type UsketchPlugin,
 } from "@edv4h/usketch-shared";
 import { createActionRegistry } from "./action-registry.js";
 import { createCommandRegistry } from "./command-registry.js";
 import { createEventBus } from "./event-bus.js";
 import { createExternalContentRegistry } from "./external-content-registry.js";
 import { createHudRegistry } from "./hud-registry.js";
+import {
+	type CreateKeymapOptions,
+	createKeymap,
+	describeConflicts,
+	type KeymapInternal,
+	scopeKeymap,
+} from "./keymap.js";
 import { createLayerManager } from "./layer-manager.js";
 import {
 	createCompositeLodPolicy,
@@ -36,10 +48,12 @@ import {
 } from "./lod/index.js";
 import { createPluginRegistry } from "./plugin-registry.js";
 import { createSelectionForegroundRegistry } from "./selection-foreground-registry.js";
+import { createSelectionHandleRegistry } from "./selection-handle-registry.js";
 import { createServiceRegistry } from "./service-registry.js";
 import { createShapeRegistry } from "./shape-registry.js";
 import { createShortcutRegistry } from "./shortcut-registry.js";
 import { createToolRegistry } from "./tool-registry.js";
+import { createToolShortcutBridge } from "./tool-shortcut-bridge.js";
 import { createTransientRegistry } from "./transient-registry.js";
 
 /** Internal id used when `CreateAppOptions.selectionForeground` is provided. */
@@ -52,12 +66,16 @@ export interface AppInstance {
 	shapes: ShapeRegistry;
 	commands: CommandRegistry;
 	shortcuts: ShortcutRegistry;
+	/** Every key binding (shortcuts, tool keys, held keys) + overlap detection. */
+	keymap: KeymapInternal;
 	events: EventBus;
 	transient: TransientRegistry;
 	lod: LodControllerInternal;
 	ui: UiRegistry;
 	/** Exposed so canvas-engine can subscribe to the active entry. */
 	selectionForeground: SelectionForegroundRegistry;
+	/** Handles plugins add to the selection UI (same object as `ui.selectionHandles`). */
+	selectionHandles: SelectionHandleRegistry;
 	/** Exposed so canvas-engine can dispatch drop/paste content. */
 	externalContent: ExternalContentRegistry;
 	/** Enumerable declarative plugin operations (control HUD / command palette). */
@@ -66,6 +84,8 @@ export interface AppInstance {
 	hud: HudRegistry;
 	/** String-keyed slot for plugin-provided services (IoC). */
 	services: ServiceRegistry;
+	/** The board's height (ground + solid providers); the plugins' `ctx.height`. */
+	height: BoardHeightApi;
 	plugins: readonly UsketchPlugin[];
 	destroy(): void;
 }
@@ -90,24 +110,48 @@ export interface CreateAppOptions {
 	 */
 	selectionForeground?: Pick<SelectionForeground, "render"> &
 		Partial<Pick<SelectionForeground, "priority" | "order" | "fixed">>;
+	/**
+	 * Key bindings: host defaults by binding id (`keys`), the viewer's saved rebindings
+	 * (`overrides`), who gets a shared key (`conflictPolicy`, default `"first"`; can be
+	 * switched later with `app.keymap.setConflictPolicy`), and whether to `console.warn`
+	 * the overlapping keys once the plugins are set up (`warnConflicts`, default false).
+	 */
+	keymap?: CreateKeymapOptions & { warnConflicts?: boolean };
 }
 
 export async function createApp(options: CreateAppOptions): Promise<AppInstance> {
 	const { store, plugins } = options;
 
 	const layers = createLayerManager();
-	const tools = createToolRegistry();
 	const shapes = createShapeRegistry();
 	const commands = createCommandRegistry();
-	const shortcuts = createShortcutRegistry();
+	const keymap = createKeymap(options.keymap);
+	const shortcutIds = new Set<string>();
+	const shortcuts = createShortcutRegistry(keymap, {}, shortcutIds);
+	const baseTools = createToolRegistry();
+	const toolBindings = new Map<string, () => void>();
+	const tools = createToolShortcutBridge(baseTools, keymap, store, {}, toolBindings);
 	const events = createEventBus();
 	const transient = createTransientRegistry();
 	const actions = createActionRegistry();
 	const hud = createHudRegistry();
 	const services = createServiceRegistry();
+	const height = boardHeight(services);
+	// The solids 3D shapes make (`view3d.collision`): a solid provider on the board's height.
+	const shapeSolids = createShapeSolids({
+		shapes: () => store.getShapes(),
+		typeView3d: (type) => shapes.getView3d?.(type) ?? shapes.get(type)?.view3d,
+		groundAt: (x, y) => height.groundAt(x, y),
+		view3dAmount: () => store.getView3d?.().amount ?? 0,
+	});
+	const unregisterShapeSolids = height.register(shapeSolids.provider);
+	const unprovideShapeSolids = shapeSolidsService.provide(services, shapeSolids);
+	const offShapeView3d = shapes.subscribeView3d?.(() => shapeSolids.invalidate());
 	const selectionForeground = createSelectionForegroundRegistry();
+	const selectionHandles = createSelectionHandleRegistry();
 	const ui: UiRegistry = {
 		registerSelectionForeground: (entry) => selectionForeground.register(entry),
+		selectionHandles,
 	};
 	const externalContent = createExternalContentRegistry(() => ({
 		store,
@@ -141,6 +185,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		shapes,
 		commands,
 		shortcuts,
+		keymap: scopeKeymap(keymap, {}),
 		events,
 		transient,
 		lod,
@@ -150,6 +195,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		hud,
 		plugins: pluginInfo,
 		services,
+		height,
 	};
 
 	// Bridge store mutations to EventBus
@@ -164,7 +210,7 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 	// plugins don't leak state.
 	const teardowns: PluginTeardown[] = [];
 	try {
-		for (const plugin of plugins) {
+		for (const [index, plugin] of plugins.entries()) {
 			pluginRegistry.register(plugin);
 			// Per-plugin scoped context: `actions`/`hud` registrations (including any
 			// made later from callbacks) are auto-attributed to this plugin's id.
@@ -186,7 +232,17 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 				getPanels: hud.getPanels,
 				subscribe: hud.subscribe,
 			};
-			const scopedCtx: PluginContext = { ...ctx, actions: scopedActions, hud: scopedHud };
+			// Key bindings (incl. `shortcuts.register` and tool `shortcut`s) are attributed to
+			// the plugin and ranked by its position in `plugins` (earlier wins ties).
+			const keyOwner = { pluginId: plugin.id, index };
+			const scopedCtx: PluginContext = {
+				...ctx,
+				actions: scopedActions,
+				hud: scopedHud,
+				keymap: scopeKeymap(keymap, keyOwner),
+				shortcuts: createShortcutRegistry(keymap, keyOwner, shortcutIds),
+				tools: createToolShortcutBridge(baseTools, keymap, store, keyOwner, toolBindings),
+			};
 			const teardown = await plugin.setup(scopedCtx);
 			if (typeof teardown === "function") {
 				teardowns.push(teardown);
@@ -214,6 +270,17 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		category: "history",
 	});
 
+	if (options.keymap?.warnConflicts) {
+		const conflicts = keymap.getConflicts();
+		if (conflicts.length > 0) {
+			const policy = keymap.getConflictPolicy();
+			const single = policy === "first" || policy === "last";
+			console.warn(
+				`[usketch] ${conflicts.length} key(s) are bound by more than one operation (conflict policy: ${typeof policy === "function" ? "custom" : policy}${single ? ", ▶ = gets the key when all act" : ""}):\n${describeConflicts(conflicts, single)}`,
+			);
+		}
+	}
+
 	// App-level selection foreground option is registered AFTER plugin setup
 	// so it wins on ties against a plugin that registered priority 100.
 	if (options.selectionForeground) {
@@ -235,15 +302,18 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 		shapes,
 		commands,
 		shortcuts,
+		keymap,
 		events,
 		transient,
 		lod,
 		ui,
 		selectionForeground,
+		selectionHandles,
 		externalContent,
 		actions,
 		hud,
 		services,
+		height,
 		plugins: pluginRegistry.getAll(),
 		destroy() {
 			if (destroyed) return;
@@ -262,6 +332,9 @@ export async function createApp(options: CreateAppOptions): Promise<AppInstance>
 			}
 			lod.destroy();
 			unsubMutation();
+			offShapeView3d?.();
+			unprovideShapeSolids();
+			unregisterShapeSolids();
 		},
 	};
 }

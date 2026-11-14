@@ -1,0 +1,53 @@
+{
+	"name": "@edv4h/usketch-css3d-renderer",
+	"version": "0.0.0",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"source": "./src/index.ts",
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@edv4h/usketch-dom-renderer": "workspace:*",
+		"@edv4h/usketch-shared": "workspace:*"
+	},
+	"peerDependencies": {
+		"react": ">=19"
+	},
+	"devDependencies": {
+		"@types/react": "19.3.0",
+		"@types/react-dom": "19.3.0",
+		"jsdom": "31.0.0",
+		"react-dom": "19.3.1",
+		"typescript": "7.0.2",
+		"vitest": "5.1.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/EdV4H/usketch.git",
+		"directory": "packages/css3d-renderer"
+	},
+	"homepage": "https://github.com/EdV4H/usketch#readme",
+	"bugs": {
+		"url": "https://github.com/EdV4H/usketch/issues"
+	},
+	"description": "CSS 3D renderer for the board 3D view: tilts the layers into a ground plane and stands 3D shapes up out of it with CSS transforms"
+}

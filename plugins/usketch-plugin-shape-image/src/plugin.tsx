@@ -4,6 +4,7 @@ import {
 	DEFAULT_STYLE,
 	type PluginContext,
 	type Point,
+	SHAPE_VIEW_3D_MODES,
 	type ShapeData,
 	type UsketchPlugin,
 	withRotation,
@@ -135,6 +136,8 @@ export function createImageShapePlugin(): UsketchPlugin {
 
 		setup(ctx: PluginContext) {
 			ctx.shapes.register("image", {
+				// Fills its box: may also be a block in 3D (stand / box / float).
+				view3d: { modes: SHAPE_VIEW_3D_MODES },
 				render,
 				getBounds,
 				hitTest: withRotation(hitTest),

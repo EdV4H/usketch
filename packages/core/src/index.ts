@@ -11,6 +11,44 @@ export type { AppInstance, CreateAppOptions } from "./create-app.js";
 export { createApp } from "./create-app.js";
 export { createEventBus } from "./event-bus.js";
 export { createExternalContentRegistry } from "./external-content-registry.js";
+export {
+	type ComboOptions,
+	type CreateKeymapOptions,
+	codeToKey,
+	createKeymap,
+	describeConflicts,
+	eventToCombo,
+	eventToCombos,
+	type KeymapInternal,
+	type KeymapOwner,
+	type ModKeyMode,
+	normalizeCombo,
+	scopeKeymap,
+} from "./keymap.js";
+export {
+	bindKeymapStorage,
+	type KeymapOverrides,
+	type KeymapStorage,
+	type LocalStorageKeymapStorageOptions,
+	localStorageKeymapStorage,
+	parseKeymapOverrides,
+} from "./keymap-storage.js";
+export {
+	type AssignKeyOptions,
+	type AssignKeyResult,
+	assignKey,
+	bindingsUsingKey,
+	comboFromKeyEvent,
+	DEFAULT_RESERVED_COMBOS,
+	type FormatComboOptions,
+	type FormatKeyCodeOptions,
+	formatBindingKey,
+	formatCombo,
+	formatKeyCode,
+	isReservedCombo,
+	type ReservedComboOptions,
+	unassignKey,
+} from "./keymap-ui.js";
 export { createLayerManager } from "./layer-manager.js";
 export type { CreateLodControllerOptions, LodControllerInternal } from "./lod/index.js";
 export {
@@ -22,6 +60,7 @@ export {
 } from "./lod/index.js";
 export { createPluginRegistry } from "./plugin-registry.js";
 export { createSelectionForegroundRegistry } from "./selection-foreground-registry.js";
+export { createSelectionHandleRegistry } from "./selection-handle-registry.js";
 export { createServiceRegistry } from "./service-registry.js";
 export { createShapeRegistry } from "./shape-registry.js";
 export { createShortcutRegistry } from "./shortcut-registry.js";

@@ -1,4 +1,7 @@
 import type { ComponentType, ReactElement } from "react";
+import type { BoardHeightApi } from "../board-height.js";
+import type { ShapeTypeView3d } from "../shape-view-3d.js";
+import type { View3dPatch, View3dState } from "../view-3d-state.js";
 import type { BoundingBox, Point, Viewport } from "./geometry.js";
 import type { LodController, RenderMode } from "./lod.js";
 import type { ResizeHandle, ShapeData, ShapeStyle } from "./shape.js";
@@ -30,7 +33,27 @@ export interface LayerRenderContext {
 	 * canvas has been measured — treat non-positive size as "unknown / no filter".
 	 */
 	viewportBounds: BoundingBox;
+	/**
+	 * While the board is shown in 3D: how far past the stage box (px, every side) a
+	 * background should draw so it stays under the far ground the draw distance shows
+	 * (`view3dOverscanPx`). `0` (or absent, on an older canvas) on the flat board.
+	 */
+	view3dOverscan?: number;
 }
+
+/**
+ * How a layer is shown while the board is in 3D (see {@link Layer.view3d}):
+ *
+ * - `tilt`   … tilted with the ground, clipped to the draw distance.
+ * - `depth`  … tilted and keeps real depth (not clipped): things rising out of the
+ *              ground, such as cliffs, standing shapes and characters.
+ * - `screen` … not tilted: screen UI (HUD, panels).
+ * - `ground` … not tilted, because it projects itself onto the ground (e.g. a WebGL
+ *              terrain mesh). Drawn like `screen`, but a renderer that sorts layers by
+ *              real depth keeps it behind everything standing on the ground.
+ * - `hidden` … not shown while in 3D.
+ */
+export type LayerView3d = "tilt" | "depth" | "screen" | "ground" | "hidden";
 
 export type RenderTarget = "svg" | "html";
 
@@ -74,6 +97,13 @@ export interface Layer {
 	 * `overflow: visible`). Full-screen `<canvas>` drawings don't fit this model.
 	 */
 	worldOverlay?: boolean;
+	/**
+	 * How the layer is shown while the board is in 3D ({@link LayerView3d}). The canvas
+	 * marks its wrapper with `data-view3d`, and a 3D view tilts it accordingly. Unset is
+	 * `screen` for now (a 3D view may still tilt it by its own list, e.g. Mode 7's
+	 * `tiltLayerIds`); from the next major an unset layer is `tilt` unless `fixed`.
+	 */
+	view3d?: LayerView3d;
 	/**
 	 * When true, `order` is treated as a preference: if another layer already
 	 * occupies the same effective order, this one is bumped up until it finds a
@@ -150,6 +180,8 @@ export interface SelectionForeground {
 	 * Defaults to true — selection UI is anchored to the shapes it outlines.
 	 */
 	worldOverlay?: boolean;
+	/** How the selection UI is shown in 3D (see {@link Layer.view3d}). Defaults to `tilt`. */
+	view3d?: LayerView3d;
 	render: (ctx: LayerRenderContext) => ReactElement | null;
 }
 
@@ -163,8 +195,126 @@ export interface SelectionForegroundRegistry {
 	subscribe(listener: () => void): () => void;
 }
 
+// ── Selection Handles (extension point for the select tool) ──
+
+/**
+ * One handle a plugin adds to the selection UI (e.g. a connector's anchor dots
+ * and end points). The select tool draws it, hit-tests it together with its own
+ * resize / rotation handles, and runs the drag, so every handle on the board
+ * shares one stacking order, one coordinate system, one cursor mechanism and one
+ * set of rules for when handles are hidden (while a shape is moved, resized or
+ * a marquee is drawn).
+ */
+export interface SelectionHandle {
+	/** Unique within its provider. */
+	id: string;
+	/** Position in WORLD coordinates. */
+	point: Point;
+	/** Screen-px offset added after projecting {@link point} (e.g. to clear a shape's edge). */
+	offset?: Point;
+	/** Hit radius in screen px. Default {@link DEFAULT_SELECTION_HANDLE_HIT_RADIUS}. */
+	hitRadius?: number;
+	/** CSS cursor while the pointer is over the handle (and during its drag). Default `"pointer"`. */
+	cursor?: string;
+	/**
+	 * Shape the handle belongs to. While the pointer is over the handle this shape
+	 * stays the hovered shape (a handle may sit just outside the shape), and a
+	 * press that does nothing (see {@link SelectionHandleDrag.end}) selects it.
+	 */
+	shapeId?: string;
+}
+
+/** Default {@link SelectionHandle.hitRadius} (screen px). */
+export const DEFAULT_SELECTION_HANDLE_HIT_RADIUS = 9;
+
+/** What a {@link SelectionHandleProvider} sees when it lists its handles. */
+export interface SelectionHandleState {
+	store: BoardStore;
+	shapes: ShapeRegistry;
+	selection: ReadonlySet<string>;
+	/** The select tool's hovered shape ({@link BoardStore.getHoveredShapeId}). */
+	hoveredShapeId: string | null;
+}
+
+/** A drag started from a handle. The select tool forwards the pointer to it. */
+export interface SelectionHandleDrag {
+	move(event: CanvasPointerEvent): void;
+	/**
+	 * The pointer was released. Return `false` when the press did nothing (a click
+	 * without a drag): the select tool then treats it as a click on the handle's
+	 * {@link SelectionHandle.shapeId}.
+	 */
+	end(event: CanvasPointerEvent): boolean | undefined;
+	/** The drag was abandoned (tool switched, plugin torn down). Undo any preview. */
+	cancel(): void;
+	/** Cursor during the drag. Defaults to the handle's cursor. */
+	cursor?: string;
+}
+
+/** What a {@link SelectionHandleProvider} draws with. */
+export interface SelectionHandleRenderContext extends SelectionHandleState {
+	/**
+	 * The viewport to project with. Handles are drawn in the selection overlay's
+	 * frame, so under camera rotation this is the unrotated viewport (see
+	 * `unrotatedViewport`); use {@link toScreen} for handle positions.
+	 */
+	viewport: Viewport;
+	/** The provider's handles that are shown now (empty while they are hidden). */
+	handles: readonly SelectionHandle[];
+	/** Id of this provider's handle under the pointer, or `null`. */
+	hoveredHandleId: string | null;
+	/** This provider's handle is being dragged: draw the drag feedback. */
+	dragging: boolean;
+	/** The selection overlay colors (`select:configure`), so handles match the selection frame. */
+	colors: { stroke: string; fill: string };
+	/** Screen position of a handle in the overlay frame ({@link SelectionHandle.point} + offset). */
+	toScreen(handle: SelectionHandle): Point;
+}
+
+/**
+ * A plugin's set of selection handles. Register with
+ * `ctx.ui.selectionHandles.register(provider)`.
+ *
+ * Precedence: the select tool's own rotation / resize handles always win, and a
+ * provider handle that sits on one of them is not shown. Among providers, higher
+ * `priority` is hit-tested (and drawn on top) first; within a provider, a later
+ * handle in the list wins.
+ */
+export interface SelectionHandleProvider {
+	id: string;
+	/** Default 0. */
+	priority?: number;
+	/** The handles for the current state. Called on every render and pointer move — keep it cheap. */
+	getHandles(state: SelectionHandleState): readonly SelectionHandle[];
+	/** A handle was pressed. Return the drag, or `null` to ignore the press. */
+	startDrag(
+		handle: SelectionHandle,
+		event: CanvasPointerEvent,
+		ctx: ToolContext,
+	): SelectionHandleDrag | null;
+	/** Draw the handles (in screen px, like a `fixed` world-overlay layer). */
+	render(ctx: SelectionHandleRenderContext): ReactElement | null;
+}
+
+export interface SelectionHandleRegistry {
+	/** Register a provider. Re-registering the same `id` replaces it. */
+	register(provider: SelectionHandleProvider): () => void;
+	unregister(id: string): void;
+	get(id: string): SelectionHandleProvider | undefined;
+	/** Providers by `priority` (highest first), ties in registration order. */
+	getAll(): readonly SelectionHandleProvider[];
+	/** Notified when a provider is added or removed. */
+	subscribe(listener: () => void): () => void;
+}
+
 export interface UiRegistry {
 	registerSelectionForeground(entry: SelectionForeground): () => void;
+	/**
+	 * Handles plugins add to the selection UI; drawn and driven by the select tool.
+	 * Optional so hand-built plugin contexts keep type-checking; `createApp` always
+	 * provides it.
+	 */
+	selectionHandles?: SelectionHandleRegistry;
 }
 
 // ── External Content (drop / paste / URL handlers) ──
@@ -306,6 +456,13 @@ export interface ShapeDefinition {
 	resize: (data: ShapeData, handle: ResizeHandle, delta: Point) => ShapeData;
 	createDefault: (params: { id: string; x: number; y: number }) => ShapeData;
 	renderTarget?: RenderTarget;
+	/**
+	 * How shapes of this type may show in 3D: the modes they may use, a default for
+	 * shapes holding no 3D parameters of their own, and an own 3D drawing (see
+	 * `ShapeTypeView3d`). Absent = the stand and float modes. A host overrides it with
+	 * `ctx.shapes.configureView3d`.
+	 */
+	view3d?: ShapeTypeView3d;
 	/**
 	 * 書き出し（exportRegion / buildRegionSvg）専用の描画。あれば `render` の代わりに使う。
 	 * `renderTarget: "html"` では Satori に渡されるため、インライン style のみ・フック/memo なし・同期の
@@ -499,6 +656,16 @@ export interface ShapeRegistry {
 	register(type: string, definition: ShapeDefinition): void;
 	get(type: string): ShapeDefinition | undefined;
 	getAll(): ReadonlyMap<string, ShapeDefinition>;
+	/**
+	 * Override a shape type's 3D (its `ShapeDefinition.view3d`) field by field, e.g. to
+	 * stand every portal up. Later calls merge over earlier ones; returns the removal.
+	 * Optional until the next major (a registry from an older core has none).
+	 */
+	configureView3d?(type: string, view3d: ShapeTypeView3d): () => void;
+	/** A shape type's 3D: its definition's `view3d` with the overrides merged over it. */
+	getView3d?(type: string): ShapeTypeView3d | undefined;
+	/** Notified when a type's 3D override changes. */
+	subscribeView3d?(listener: () => void): () => void;
 }
 
 // ── Tool System ──
@@ -593,6 +760,21 @@ export interface ShortcutMeta {
 	label?: string;
 	/** Grouping key (e.g. "history", "edit"). */
 	category?: string;
+	/**
+	 * Stable {@link KeyBinding} id for this shortcut (the key a viewer's / host's
+	 * rebinding is stored under). Defaults to `<pluginId>:shortcut:<combo>`.
+	 */
+	id?: string;
+	/** Only fire while this returns true; see {@link KeyBindingSpec.when}. */
+	when?: () => boolean;
+	/** See {@link KeyBindingSpec.customizable}. */
+	customizable?: boolean;
+	/** See {@link KeyBindingSpec.enabled}. */
+	enabled?: () => boolean;
+	/** See {@link KeyBindingSpec.order}. */
+	order?: number;
+	/** Tie-break against other bindings on the same key; see {@link KeyBindingSpec.priority}. */
+	priority?: number;
 }
 
 /** A single registered shortcut, as returned by {@link ShortcutRegistry.list}. */
@@ -609,9 +791,186 @@ export interface ShortcutRegistry {
 	 * macOS, Ctrl elsewhere). Returns an unregister function.
 	 */
 	register(combo: string, callback: () => void, meta?: ShortcutMeta): () => void;
+	/** Dispatch a keydown to the winning `"press"` binding; see {@link Keymap.handleKeyDown}. */
 	handleKeyDown(event: KeyboardEvent): boolean;
 	/** All currently-registered shortcuts (for cheat-sheet / settings UIs). */
 	list(): ShortcutEntry[];
+}
+
+// ── Keymap (key bindings + conflict detection) ──
+
+/**
+ * `"press"`: a discrete shortcut. `keys` are `"+"`-joined combos matched against
+ * `KeyboardEvent.key` (`"Mod+Shift+Z"`, `"s"`, `"Space"`), and the keymap calls
+ * `onPress` itself.
+ *
+ * `"hold"`: a key that acts while held (movement, camera height …). `keys` are
+ * `KeyboardEvent.code`s (`"KeyW"`, `"ShiftLeft"`), layout-independent. The plugin keeps
+ * its own keydown / keyup listeners; it reads its current keys with
+ * {@link Keymap.getKeys} and asks {@link Keymap.claims} whether a keydown is its own.
+ */
+export type KeyBindingKind = "press" | "hold";
+
+/** What a plugin declares for one bindable operation. */
+export interface KeyBindingSpec {
+	/**
+	 * Stable id, `<pluginId>:<name>` by convention (e.g. `usketch-plugin-mode7:camera-down`).
+	 * Rebindings are stored under it, so keep it the same across versions.
+	 */
+	id: string;
+	/** The plugin's default keys (combos for `"press"`, codes for `"hold"`). Empty = unbound. */
+	keys: readonly string[];
+	/** Default `"press"`. */
+	kind?: KeyBindingKind;
+	/** Human-readable name for settings UIs (e.g. "カメラを下げる"). */
+	label?: string;
+	/** Grouping key for settings UIs. */
+	category?: string;
+	/**
+	 * Whether the binding acts right now (e.g. only while the 3D view is on). Bindings
+	 * whose `when` is false step aside, so two plugins can share a key in different
+	 * situations. A throwing `when` counts as false.
+	 */
+	when?: () => boolean;
+	/**
+	 * When several bindings on the same key act at once, a higher priority goes first
+	 * (default 0). Below that, the {@link KeyConflictPolicy} decides.
+	 */
+	priority?: number;
+	/**
+	 * `"press"` only: run when this binding wins a keydown. Leave it out for a binding
+	 * that is only listed (shown in settings / cheat sheets and checked for overlaps)
+	 * while something else handles the key — e.g. paste, which the browser's `paste`
+	 * event carries.
+	 */
+	onPress?: (event: KeyboardEvent) => void;
+	/** Whether viewers may rebind it (default true). False keeps its default keys. */
+	customizable?: boolean;
+	/**
+	 * Whether the operation can run right now, for settings / cheat-sheet UIs to grey it
+	 * out (e.g. undo with an empty history). Unlike `when`, it does not change who gets
+	 * the key.
+	 */
+	enabled?: () => boolean;
+	/** Sort key within its category for settings UIs (lower first). */
+	order?: number;
+}
+
+/** A registered binding, as settings / conflict UIs see it. */
+export interface KeyBinding {
+	id: string;
+	/** The plugin that registered it; undefined when the host / core did. */
+	pluginId?: string;
+	kind: KeyBindingKind;
+	label?: string;
+	category?: string;
+	priority: number;
+	/** The keys before the viewer's rebinding (host default, else the plugin's). */
+	defaultKeys: readonly string[];
+	/** The keys in effect. */
+	keys: readonly string[];
+	/** Whether the viewer rebound (or unbound) it. */
+	overridden: boolean;
+	/** Whether viewers may rebind it. */
+	customizable: boolean;
+	/** {@link KeyBindingSpec.enabled} at the time of this snapshot (true when absent). */
+	enabled: boolean;
+	order?: number;
+	/** Whether it has an `onPress` (false = listed only). */
+	handled: boolean;
+}
+
+/**
+ * Two or more bindings on the same physical key. `bindings` are in the current
+ * {@link KeyConflictPolicy}'s order: under `"first"` / `"last"`, the first one gets the
+ * key when all of them act at once. Whether they can act at once depends on their
+ * `when`, which is only known at runtime, so this lists every overlap.
+ */
+export interface KeyConflict {
+	/** Normalized key (`"s"`, `"shift"`, `"ctrl+z"`, `"space"`). */
+	key: string;
+	bindings: KeyBinding[];
+}
+
+/**
+ * Who gets a keydown that several active bindings (their `when` holds) match.
+ *
+ * - `"first"` (default): one binding — the highest `priority`, then the plugin listed
+ *   first in `createApp({ plugins })` (host / core registrations come before every
+ *   plugin), then the earliest registration.
+ * - `"last"`: one binding — the highest `priority`, then the plugin listed last (so a
+ *   later plugin overrides an earlier one, and plugins override host / core), then the
+ *   latest registration.
+ * - `"all"`: every one of them (in `"first"` order). `"hold"` bindings all claim the key.
+ * - a function: gets the candidates in `"first"` order and returns the ones that act
+ *   (any subset, in the order `"press"` callbacks should run; `[]` = none). If it
+ *   throws, the first candidate acts.
+ */
+/**
+ * The host's say over every keydown: return false to keep `binding` from acting on it
+ * (e.g. while a settings dialog is open, while a shape is being edited inline, or to
+ * allow only some bindings in a restricted UI mode). Applies to `"hold"` bindings too
+ * (their `claims` turn false). A throwing gate blocks the key.
+ */
+export type KeyGate = (binding: KeyBinding, event: KeyboardEvent) => boolean;
+
+export type KeyConflictPolicy =
+	| "first"
+	| "last"
+	| "all"
+	| ((candidates: readonly KeyBinding[], event: KeyboardEvent) => readonly KeyBinding[]);
+
+/**
+ * Every key binding in the app (shortcuts, tool shortcuts and held keys), with the
+ * viewer's / host's rebindings and overlap detection. `ctx.keymap` attributes
+ * registrations to the calling plugin. {@link ShortcutRegistry.register} and
+ * {@link ToolDefinition.shortcut} register here too.
+ */
+export interface Keymap {
+	register(spec: KeyBindingSpec): () => void;
+	get(id: string): KeyBinding | undefined;
+	/** The keys in effect for `id` (empty when unbound or unknown). */
+	getKeys(id: string): readonly string[];
+	getAll(): KeyBinding[];
+	getConflicts(): KeyConflict[];
+	/** The first binding that gets this keydown now under the conflict policy, if any. */
+	resolve(event: KeyboardEvent): KeyBinding | undefined;
+	/** Every binding that gets this keydown now under the conflict policy, in run order. */
+	resolveAll(event: KeyboardEvent): KeyBinding[];
+	/** Whether `id` gets this keydown (for `"hold"` listeners, before acting on a key). */
+	claims(id: string, event: KeyboardEvent): boolean;
+	/**
+	 * Run the `"press"` bindings that get this keydown (and `preventDefault`). Returns
+	 * false when none does — no match, or only `"hold"` bindings (their plugins handle it).
+	 */
+	handleKeyDown(event: KeyboardEvent): boolean;
+	/** The current {@link KeyConflictPolicy}. */
+	getConflictPolicy(): KeyConflictPolicy;
+	/** Switch the {@link KeyConflictPolicy} (takes effect on the next keydown; notifies subscribers). */
+	setConflictPolicy(policy: KeyConflictPolicy): void;
+	/** The host's {@link KeyGate}, if any. */
+	getGate(): KeyGate | null;
+	/** Set (or clear with `null`) the host's {@link KeyGate}. */
+	setGate(gate: KeyGate | null): void;
+	/**
+	 * The key a combo (`"press"`) or `KeyboardEvent.code` (`"hold"`) stands for, as
+	 * {@link KeyConflict.key} names it under this keymap's `Mod` mode and platform
+	 * (e.g. to tell whether a key a viewer is about to bind is already taken).
+	 */
+	normalizeKey(key: string, kind?: KeyBindingKind): string;
+	/**
+	 * Rebind `id` for this viewer (`null` = unbind). Kept even before the binding is
+	 * registered, so saved settings can be applied at startup.
+	 */
+	setKeys(id: string, keys: readonly string[] | null): void;
+	/** Drop the viewer's rebinding of `id` (all of them when omitted). */
+	resetKeys(id?: string): void;
+	/** The viewer's rebindings by id (`null` = unbound), e.g. to persist them. */
+	getOverrides(): Readonly<Record<string, readonly string[] | null>>;
+	/** Replace all of the viewer's rebindings at once (one notification), e.g. when loading them. */
+	setOverrides(overrides: Readonly<Record<string, readonly string[] | null>>): void;
+	/** Called after any registration or rebinding. */
+	subscribe(listener: () => void): () => void;
 }
 
 // ── Action System ──
@@ -960,6 +1319,21 @@ export interface BoardStore {
 
 	subscribe(listener: () => void): () => void;
 	onMutation(listener: (event: StoreEvent) => void): () => void;
+
+	/**
+	 * The viewer's 3D view: the camera and how far the view is risen (`amount`, 0 = the
+	 * flat board). Per viewer like the viewport, never synced. Its heading is the
+	 * viewport's `rotation`. Optional until the next major; read it through
+	 * `view3dCellOf(store)`, which is `null` on a store without it.
+	 */
+	getView3d?(): View3dState;
+	/** Change the 3D view (camera fields merged and clamped, amount clamped to 0…1). */
+	setView3d?(patch: View3dPatch): void;
+	/**
+	 * Told when the 3D view changes. Separate from {@link subscribe}: a follower moves the
+	 * camera height every frame, which shouldn't wake every store listener.
+	 */
+	subscribeView3d?(listener: () => void): () => void;
 }
 
 // ── Markdown → Shape conversion ──
@@ -1064,6 +1438,8 @@ export interface PluginContext {
 	shapes: ShapeRegistry;
 	commands: CommandRegistry;
 	shortcuts: ShortcutRegistry;
+	/** All key bindings + conflict detection; see {@link Keymap}. */
+	keymap: Keymap;
 	events: EventBus;
 	transient: TransientRegistry;
 	lod: LodController;
@@ -1085,6 +1461,12 @@ export interface PluginContext {
 	 * feature concerns. See {@link ServiceRegistry}.
 	 */
 	services: ServiceRegistry;
+	/**
+	 * The board's height: ground and solid providers, and the heights things stand at
+	 * (see `BoardHeightApi`). The same object as `boardHeight(ctx.services)`, which a
+	 * plugin uses until the next major (a context from an older core has no `height`).
+	 */
+	height?: BoardHeightApi;
 }
 
 /**

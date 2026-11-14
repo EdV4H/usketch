@@ -11,6 +11,11 @@ import type {
 export interface AiAgentOptions {
 	apiUrl: string;
 	extraHeaders?: Record<string, string>;
+	/**
+	 * このプラグインが載っているページ（ページを使うボードのとき）。AI の配置・更新は
+	 * このページに書く。ページを使わないボードでは省略する。
+	 */
+	pageId?: string | null;
 }
 
 /** Smart Actionタイプ → プロンプトテンプレート（網羅性を型で保証） */
@@ -29,7 +34,7 @@ const ACTION_PROMPTS: Record<
 };
 
 export function createAiAgentPlugin(options: AiAgentOptions): UsketchPlugin {
-	const { apiUrl, extraHeaders } = options;
+	const { apiUrl, extraHeaders, pageId } = options;
 	let busy = false;
 
 	return {
@@ -67,7 +72,7 @@ export function createAiAgentPlugin(options: AiAgentOptions): UsketchPlugin {
 
 					const response = await requestAiCompletion(
 						apiUrl,
-						{ prompt, canvasContext, boardId, image },
+						{ prompt, canvasContext, boardId, image, ...(pageId ? { pageId } : {}) },
 						onStatus,
 						extraHeaders,
 					);

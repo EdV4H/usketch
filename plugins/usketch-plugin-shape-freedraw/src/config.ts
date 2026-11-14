@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { DEFAULT_PEN, DEFAULT_SIZES, PRESET_COLORS } from "./pen-meta.js";
 
-/** 太さ・消しゴム・筆圧感度の範囲（設計書 §7,§11,§12）。 */
-export const SIZE_RANGE = { min: 1, max: 48, step: 0.5 } as const;
+/** 消しゴム・筆圧感度の範囲（設計書 §11,§12）。 */
 export const ERASER_RANGE = { min: 10, max: 100, step: 1 } as const;
 export const BRUSH_DYNAMICS_RANGE = { min: 10, max: 100, step: 5 } as const;
 

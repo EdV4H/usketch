@@ -2,8 +2,36 @@
 // geometry, and the appearance ("look" = sky color, fog). The runtime / service /
 // HUD mutate it; the layer React components subscribe via `useSyncExternalStore`.
 // Kept tiny and framework-agnostic (same pattern as bg-grid's visibility store).
-import type { BoundingBox } from "@edv4h/usketch-shared";
+//
+// The camera (without its yaw), the rendered amount and the draw distance live in the board's 3D view
+// state (`BoardStore.getView3d`, see `bindView3d`), so other plugins and renderers read
+// the same view; until bound, a local cell stands in. The yaw stays here: it is how far
+// the view turns the viewport while in 3D (see `mode7-yaw.ts`).
+import {
+	type BoundingBox,
+	DEFAULT_DRAW_DISTANCE as CORE_DRAW_DISTANCE,
+	clampDrawDistance,
+	createView3dCell,
+	type View3dCell,
+} from "@edv4h/usketch-shared";
 import { type Camera, clampCamera, DEFAULT_CAMERA, updateCamera } from "./mode7-camera.js";
+
+/** Camera-height changes smaller than this (world units) are not applied. */
+const HEIGHT_EPSILON = 0.01;
+
+/** Whether `next` would look the same as `prev` (a follower eases the height every frame). */
+function sameCamera(prev: Camera, next: Camera): boolean {
+	const a = prev.height ?? 0;
+	const b = next.height ?? 0;
+	const sameHeight = a === b || (b !== 0 && Math.abs(a - b) < HEIGHT_EPSILON);
+	return (
+		sameHeight &&
+		prev.pitch === next.pitch &&
+		prev.yaw === next.yaw &&
+		prev.fov === next.fov &&
+		prev.horizon === next.horizon
+	);
+}
 
 /** Appearance settings, independent of the camera geometry. */
 export interface Look {
@@ -19,16 +47,15 @@ export const DEFAULT_LOOK: Look = { sky: "#0b1026", fog: 0.35, fogColor: "#0b102
 
 /** Default ground draw distance in canvas units: extends the ground a bit past the
  *  viewport so the 3D view opens on a proper receding plane (not just the box). */
-export const DEFAULT_DRAW_DISTANCE = 1500;
+export const DEFAULT_DRAW_DISTANCE = CORE_DRAW_DISTANCE;
 
 /** Clamp a draw distance (canvas units, `>= 0`; non-finite / negative → 0 = unlimited). */
-function clampDistance(n: number): number {
-	if (!Number.isFinite(n) || n < 0) return 0;
-	return n;
-}
+const clampDistance = clampDrawDistance;
 
 /**
- * Layers tilted by default: essentially everything on the board EXCEPT the persistent
+ * Layers tilted by default, for layers that don't declare `Layer.view3d` yet (layers that
+ * declare `tilt` / `depth` are added on their own; this list goes at the next major).
+ * Essentially everything on the board EXCEPT the persistent
  * UI chrome that must stay flat/readable (vim status line / which-key / help, the side
  * panel, the presentation overlay) — plus the plugin's own overlays + the HUD, which
  * are always excluded from the picker. The set is runtime-selectable via the HUD, so
@@ -43,6 +70,8 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 	"usketch-map:relief",
 	"usketch-map:base",
 	"usketch-map:base-icons",
+	// usketch-plugin-elevation: the elevation's colours / shading on the flat ground
+	"usketch-elevation:ground",
 	"gpu-shapes",
 	"dom-shapes",
 	// shapes stood up / raised in 3D by usketch-plugin-shape-3d (a depth layer)
@@ -50,8 +79,11 @@ export const DEFAULT_TILT_LAYER_IDS: readonly string[] = [
 	"usketch-plugin-dashboard:grid-overlay",
 	// shape-attached overlays (selection, connectors, editors) — follow the shapes
 	"comment-badges",
+	// connector-anchor-handles / connector-endpoints: shape-connector before 3.5
+	// (its handles are now drawn by the select tool's handles layer).
 	"connector-anchor-handles",
 	"__selection-foreground",
+	"usketch-plugin-tool-select:handles",
 	"connector-endpoints",
 	"connector-label-editor",
 	"usketch-plugin-shape-frame:title-editor",
@@ -153,27 +185,95 @@ export interface Mode7Store {
 	/** Store the captured world rect (called by the runtime; `null` clears it). */
 	setCaptureRect(rect: BoundingBox | null): void;
 	reset(): void;
+	/**
+	 * Keep the camera and amount in `cell` (the board's 3D view) from now on: the current
+	 * ones are written into it, and changes to it (also by others) show up here. Returns
+	 * an unbind that copies them back to a local cell.
+	 */
+	bindView3d(cell: View3dCell): () => void;
+}
+
+/** Mode 7's own fields: everything but the camera (minus yaw), amount and draw distance. */
+type Local = Omit<Mode7State, "camera" | "amount" | "drawDistance"> & { yaw: number };
+
+/** The view3d part of a camera (its yaw stays in Mode 7). */
+function cellCamera(c: Camera) {
+	return { pitch: c.pitch, fov: c.fov, horizon: c.horizon, height: c.height ?? 0 };
 }
 
 export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 	const baseCamera = clampCamera({ ...DEFAULT_CAMERA, ...init.camera });
 	const baseLook: Look = { ...DEFAULT_LOOK, ...init.look };
-	let state: Mode7State = {
+	const startAmount = init.active ? 1 : 0;
+	let local: Local = {
 		active: init.active ?? false,
-		progress: init.active ? 1 : 0,
-		amount: init.active ? 1 : 0,
+		progress: startAmount,
 		transitioning: false,
-		camera: baseCamera,
+		yaw: baseCamera.yaw,
 		look: baseLook,
 		tiltLayers: [...(init.tiltLayers ?? DEFAULT_TILT_LAYER_IDS)],
-		drawDistance: clampDistance(init.drawDistance ?? DEFAULT_DRAW_DISTANCE),
 		showCaptureFrame: init.showCaptureFrame ?? false,
 		captureRect: null,
 	};
+	let cell: View3dCell = createView3dCell({
+		camera: cellCamera(baseCamera),
+		amount: startAmount,
+		drawDistance: clampDistance(init.drawDistance ?? DEFAULT_DRAW_DISTANCE),
+	});
+	let offCell: () => void = () => {};
+
+	const build = (prev: Mode7State | null): Mode7State => {
+		const v = cell.get();
+		const { yaw, ...rest } = local;
+		const c = v.camera;
+		const same =
+			prev !== null &&
+			prev.camera.yaw === yaw &&
+			prev.camera.pitch === c.pitch &&
+			prev.camera.fov === c.fov &&
+			prev.camera.horizon === c.horizon &&
+			(prev.camera.height ?? 0) === c.height;
+		const camera: Camera = same && prev ? prev.camera : { ...c, yaw };
+		return { ...rest, camera, amount: v.amount, drawDistance: v.drawDistance };
+	};
+	let state: Mode7State = build(null);
 
 	const listeners = new Set<() => void>();
 	const notify = () => {
 		for (const l of listeners) l();
+	};
+	/** Rebuild from `local` + the cell; notify only if something changed. */
+	const refresh = (): void => {
+		const next = build(state);
+		const keys = Object.keys(next) as (keyof Mode7State)[];
+		if (keys.every((k) => next[k] === state[k])) return;
+		state = next;
+		notify();
+	};
+	// Writes to the cell made here are folded into one refresh by `commit`.
+	let muted = false;
+	const onCell = (): void => {
+		if (!muted) refresh();
+	};
+	offCell = cell.subscribe(onCell);
+
+	/** Change local fields and / or the cell, then notify once. */
+	const commit = (patch: Partial<Local>, view?: Parameters<View3dCell["set"]>[0]): void => {
+		local = { ...local, ...patch };
+		if (view) {
+			muted = true;
+			try {
+				cell.set(view);
+			} finally {
+				muted = false;
+			}
+		}
+		refresh();
+	};
+
+	const setCameraTo = (camera: Camera): void => {
+		if (sameCamera(state.camera, camera)) return;
+		commit({ yaw: camera.yaw }, { camera: cellCamera(camera) });
 	};
 
 	return {
@@ -187,14 +287,12 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 		setActive(active) {
 			const v = active ? 1 : 0;
 			if (state.active === active && state.progress === v && !state.transitioning) return;
-			state = { ...state, active, progress: v, amount: v, transitioning: false };
-			notify();
+			commit({ active, progress: v, transitioning: false }, { amount: v });
 		},
 		toggle() {
 			const active = !state.active;
 			const v = active ? 1 : 0;
-			state = { ...state, active, progress: v, amount: v, transitioning: false };
-			notify();
+			commit({ active, progress: v, transitioning: false }, { amount: v });
 		},
 		setPresentation(p) {
 			if (
@@ -205,63 +303,72 @@ export function createMode7Store(init: Mode7Init = {}): Mode7Store {
 			) {
 				return;
 			}
-			state = { ...state, ...p };
-			notify();
+			const { amount, ...rest } = p;
+			commit(rest, { amount });
 		},
 		setCamera(patch) {
-			state = { ...state, camera: updateCamera(state.camera, patch) };
-			notify();
+			setCameraTo(updateCamera(state.camera, patch));
 		},
 		adjustCamera(delta) {
-			state = {
-				...state,
-				camera: updateCamera(state.camera, {
+			setCameraTo(
+				updateCamera(state.camera, {
 					pitch: state.camera.pitch + (delta.pitch ?? 0),
 					yaw: state.camera.yaw + (delta.yaw ?? 0),
 					fov: state.camera.fov + (delta.fov ?? 0),
 					horizon: state.camera.horizon + (delta.horizon ?? 0),
+					height: (state.camera.height ?? 0) + (delta.height ?? 0),
 				}),
-			};
-			notify();
+			);
 		},
 		setLook(patch) {
-			state = { ...state, look: { ...state.look, ...patch } };
-			notify();
+			commit({ look: { ...local.look, ...patch } });
 		},
 		setTiltLayers(ids) {
-			state = { ...state, tiltLayers: [...new Set(ids)] };
-			notify();
+			commit({ tiltLayers: [...new Set(ids)] });
 		},
 		toggleTiltLayer(id) {
-			const has = state.tiltLayers.includes(id);
-			state = {
-				...state,
-				tiltLayers: has ? state.tiltLayers.filter((x) => x !== id) : [...state.tiltLayers, id],
-			};
-			notify();
+			const has = local.tiltLayers.includes(id);
+			commit({
+				tiltLayers: has ? local.tiltLayers.filter((x) => x !== id) : [...local.tiltLayers, id],
+			});
 		},
 		setDrawDistance(distance) {
 			const d = clampDistance(distance);
 			if (state.drawDistance === d) return;
-			state = { ...state, drawDistance: d };
-			notify();
+			commit({}, { drawDistance: d });
 		},
 		setCaptureFrame(show) {
-			if (state.showCaptureFrame === show) return;
-			state = { ...state, showCaptureFrame: show };
-			notify();
+			if (local.showCaptureFrame === show) return;
+			commit({ showCaptureFrame: show });
 		},
 		toggleCaptureFrame() {
-			state = { ...state, showCaptureFrame: !state.showCaptureFrame };
-			notify();
+			commit({ showCaptureFrame: !local.showCaptureFrame });
 		},
 		setCaptureRect(rect) {
-			state = { ...state, captureRect: rect };
-			notify();
+			commit({ captureRect: rect });
 		},
 		reset() {
-			state = { ...state, camera: baseCamera, look: baseLook };
-			notify();
+			commit({ yaw: baseCamera.yaw, look: baseLook }, { camera: cellCamera(baseCamera) });
+		},
+		bindView3d(next) {
+			const take = (to: View3dCell): void => {
+				const { camera, amount, drawDistance } = state;
+				offCell();
+				cell = to;
+				muted = true;
+				try {
+					cell.set({ camera: cellCamera(camera), amount, drawDistance });
+				} finally {
+					muted = false;
+				}
+				offCell = cell.subscribe(onCell);
+				refresh();
+			};
+			take(next);
+			return () => {
+				if (cell !== next) return;
+				take(createView3dCell());
+			};
 		},
 	};
 }

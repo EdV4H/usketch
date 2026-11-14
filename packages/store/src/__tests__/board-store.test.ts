@@ -596,3 +596,18 @@ describe("BoardStore", () => {
 		});
 	});
 });
+
+describe("3D view state", () => {
+	it("keeps the viewer's camera and amount, with its own listeners", () => {
+		const store = createBoardStore();
+		expect(store.getView3d?.().amount).toBe(0);
+		let view = 0;
+		let all = 0;
+		store.subscribeView3d?.(() => view++);
+		store.subscribe(() => all++);
+		store.setView3d?.({ amount: 1, camera: { pitch: 60, height: 25 } });
+		expect(store.getView3d?.()).toMatchObject({ amount: 1, camera: { pitch: 60, height: 25 } });
+		expect(view).toBe(1);
+		expect(all).toBe(0);
+	});
+});

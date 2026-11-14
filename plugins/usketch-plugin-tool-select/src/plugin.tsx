@@ -2,6 +2,7 @@ import type {
 	CanvasPointerEvent,
 	PluginContext,
 	Point,
+	SelectionHandleDrag,
 	ShapeData,
 	ToolContext,
 	UsketchPlugin,
@@ -45,6 +46,13 @@ import { createToggleLockSelectionCommand } from "./lock-selection.js";
 import type { MarqueeRect } from "./marquee-state.js";
 import { clearMarqueeListeners, setMarquee, setMarqueeMode } from "./marquee-state.js";
 import { createOverlayColorStore, type OverlayColors } from "./overlay-colors.js";
+import {
+	createHandleInteractionStore,
+	findHandleAt,
+	type HandleHit,
+	SELECT_TOOL_LAYER_IDS,
+	SelectionHandlesOverlay,
+} from "./selection-handles.js";
 import { SelectionOverlay } from "./selection-overlay.js";
 
 // Hit-test helpers used to live here; they were extracted to
@@ -161,6 +169,68 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 
 			// ── Local drag state (scoped to this setup closure) ──
 			let dragState: DragState = null;
+			// Handles other plugins add (connector anchors / ends …): drawn, hit-tested
+			// and dragged here so they share the stacking, coordinates, cursor and
+			// hide rules of the built-in handles. See SelectionHandleProvider.
+			const handleRegistry = ctx.ui.selectionHandles;
+			const handleInteraction = createHandleInteractionStore();
+			let handleDrag: {
+				hit: HandleHit;
+				drag: SelectionHandleDrag;
+				/** The last canvas event of the drag (a release off the canvas ends there). */
+				last: CanvasPointerEvent;
+				/** Removes the window release listeners. */
+				stopWindow: () => void;
+			} | null = null;
+
+			function cancelHandleDrag() {
+				if (!handleDrag) return;
+				const { drag, stopWindow } = handleDrag;
+				handleDrag = null;
+				stopWindow();
+				handleInteraction.set({ dragging: null });
+				drag.cancel();
+			}
+
+			/**
+			 * Shift toggles the shape in the selection; a plain click selects it alone
+			 * unless it is already selected (then the selection is kept, so a
+			 * multi-selection can be dragged).
+			 */
+			function clickSelect(toolCtx: ToolContext, id: string, shiftKey: boolean) {
+				const selection = toolCtx.store.getSelection();
+				if (shiftKey) {
+					if (selection.has(id)) toolCtx.store.removeFromSelection(id);
+					else toolCtx.store.addToSelection(id);
+				} else if (!selection.has(id)) {
+					toolCtx.store.setSelection([id]);
+				}
+			}
+
+			/** End the handle drag at `event`. A press that did nothing clicks the handle's shape. */
+			function endHandleDrag(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				if (!handleDrag) return;
+				const { hit, drag, stopWindow } = handleDrag;
+				handleDrag = null;
+				stopWindow();
+				handleInteraction.set({ dragging: null });
+				setOverrideCursor("");
+				const shapeId = hit.handle.shapeId;
+				if (drag.end(event) === false && shapeId && toolCtx.store.getShape(shapeId)) {
+					clickSelect(toolCtx, shapeId, event.shiftKey);
+				}
+			}
+
+			// A provider removed mid-drag (its plugin torn down) can't finish the drag.
+			const offHandleRegistry = handleRegistry?.subscribe(() => {
+				if (
+					handleDrag &&
+					handleRegistry.get(handleDrag.hit.provider.id) !== handleDrag.hit.provider
+				) {
+					cancelHandleDrag();
+					setOverrideCursor("");
+				}
+			});
 			let overrideCursor = "";
 			let lastClickTime = 0;
 			let lastClickId: string | null = null;
@@ -280,6 +350,8 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			// ── Tool handlers ──
 
 			function onPointerDown(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				// A drag whose release was missed must not run alongside a new press.
+				cancelHandleDrag();
 				disableTextSelection();
 				const viewport = toolCtx.store.getViewport();
 
@@ -405,6 +477,42 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 					}
 				}
 
+				// 1c. A handle another plugin added (after the built-in handles, which
+				// win; one sitting on a built-in handle isn't shown or hit at all).
+				if (handleRegistry) {
+					const hit = findHandleAt(handleRegistry, toolCtx, event.screenPoint);
+					const drag = hit?.provider.startDrag(hit.handle, event, toolCtx);
+					if (hit && drag) {
+						// The canvas captures only touch pointers, so a mouse released off
+						// the canvas never reaches onPointerUp: end at the last canvas point.
+						const onWindowUp = () => {
+							if (handleDrag?.drag === drag) {
+								endHandleDrag(toolCtx, handleDrag.last);
+								syncBusy();
+							}
+						};
+						const win = typeof window === "undefined" ? undefined : window;
+						win?.addEventListener("pointerup", onWindowUp);
+						win?.addEventListener("pointercancel", onWindowUp);
+						handleDrag = {
+							hit,
+							drag,
+							last: event,
+							stopWindow: () => {
+								win?.removeEventListener("pointerup", onWindowUp);
+								win?.removeEventListener("pointercancel", onWindowUp);
+							},
+						};
+						handleInteraction.set({
+							hovered: null,
+							dragging: { providerId: hit.provider.id, handleId: hit.handle.id },
+						});
+						setOverrideCursor(drag.cursor ?? hit.handle.cursor ?? "pointer");
+						toolCtx.store.setHoveredShapeId(null);
+						return;
+					}
+				}
+
 				// 2. Double-click detection for group enter/exit
 				const now = Date.now();
 				const rawHitId = findShapeAtPoint(toolCtx, event.worldPoint, {
@@ -435,15 +543,7 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				const hitId = rawHitId;
 
 				if (hitId) {
-					if (event.shiftKey) {
-						if (selection.has(hitId)) {
-							toolCtx.store.removeFromSelection(hitId);
-						} else {
-							toolCtx.store.addToSelection(hitId);
-						}
-					} else if (!selection.has(hitId)) {
-						toolCtx.store.setSelection([hitId]);
-					}
+					clickSelect(toolCtx, hitId, event.shiftKey);
 
 					const currentSelection = toolCtx.store.getSelection();
 					setMovingSelection(true);
@@ -488,6 +588,11 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			}
 
 			function onPointerMove(toolCtx: ToolContext, event: CanvasPointerEvent) {
+				if (handleDrag) {
+					handleDrag.last = event;
+					handleDrag.drag.move(event);
+					return;
+				}
 				if (!dragState) {
 					// Hover precedence (rotation handle → resize handle → multi-handle
 					// → shape body) is handled by the helper. The cursor is mirrored
@@ -495,6 +600,24 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 					const result = trackHover(toolCtx, event, {
 						editingGroupId: getEditingGroupId(),
 					});
+					// Then a plugin's handle, before the shape body. Its shape stays
+					// hovered (the handle may sit just outside it) so its handles stay.
+					const handleHit =
+						handleRegistry && !result.handleHit && !result.rotationHit
+							? findHandleAt(handleRegistry, toolCtx, event.screenPoint)
+							: null;
+					handleInteraction.set({
+						hovered: handleHit
+							? { providerId: handleHit.provider.id, handleId: handleHit.handle.id }
+							: null,
+					});
+					if (handleHit) {
+						setOverrideCursor(handleHit.handle.cursor ?? "pointer");
+						toolCtx.store.setHoveredShapeId(
+							handleHit.handle.shapeId ?? toolCtx.store.getHoveredShapeId(),
+						);
+						return;
+					}
 					setOverrideCursor(result.cursor);
 					toolCtx.store.setHoveredShapeId(
 						result.handleHit || result.rotationHit ? null : result.hoveredShapeId,
@@ -535,9 +658,13 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				updateDropTarget(dragState.findDropTarget(event.worldPoint));
 			}
 
-			function onPointerUp(toolCtx: ToolContext, _event: CanvasPointerEvent) {
+			function onPointerUp(toolCtx: ToolContext, event: CanvasPointerEvent) {
 				enableTextSelection();
 				updateDropTarget(null);
+				if (handleDrag) {
+					endHandleDrag(toolCtx, event);
+					return;
+				}
 				if (!dragState) return;
 
 				if (dragState.kind === "rotate") {
@@ -610,6 +737,8 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 			}
 
 			function onDeactivate(toolCtx: ToolContext) {
+				cancelHandleDrag();
+				handleInteraction.set({ hovered: null, busy: false });
 				discardCopies();
 				stopDuplicateKeyTracking();
 				dragState = null;
@@ -622,16 +751,49 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 				updateDropTarget(null);
 			}
 
+			// The plugin handles hide while the tool moves / resizes / rotates shapes or
+			// draws a marquee (whatever `dragState` holds after each pointer event).
+			const syncBusy = () => handleInteraction.set({ busy: dragState !== null });
+
 			ctx.tools.register("select", {
 				icon: SelectIcon,
 				cursor: "default",
 				shortcut: "v",
 				order: 0,
-				onPointerDown,
+				onPointerDown: (toolCtx, event) => {
+					onPointerDown(toolCtx, event);
+					syncBusy();
+				},
 				onPointerMove,
-				onPointerUp,
+				onPointerUp: (toolCtx, event) => {
+					onPointerUp(toolCtx, event);
+					syncBusy();
+				},
 				onDeactivate,
 			});
+
+			if (handleRegistry) {
+				ctx.layers.register({
+					id: SELECT_TOOL_LAYER_IDS.handles,
+					view3d: "tilt",
+					// Above the selection frame (80): the handles never sit on a built-in
+					// handle (those are left out), and they must not be covered by an
+					// outline drawn through them (e.g. a connector's line highlight).
+					order: 81,
+					fixed: true,
+					worldOverlay: true,
+					render: (renderCtx) => (
+						<SelectionHandlesOverlay
+							registry={handleRegistry}
+							interaction={handleInteraction}
+							colors={overlayColors}
+							viewport={renderCtx.viewport}
+							store={ctx.store}
+							shapes={ctx.shapes}
+						/>
+					),
+				});
+			}
 
 			// ── Selection foreground (default) ──
 			// Registered at priority 0 so any app option or third-party plugin
@@ -676,6 +838,9 @@ export function createSelectToolPlugin(options: SelectToolPluginOptions = {}): U
 
 			// ── Teardown ──
 			return () => {
+				cancelHandleDrag();
+				offHandleRegistry?.();
+				if (handleRegistry) ctx.layers.unregister(SELECT_TOOL_LAYER_IDS.handles);
 				for (const off of offShortcuts) off();
 				offConfigure();
 				discardCopies();

@@ -13,12 +13,17 @@ import {
 } from "./base/base-ops.js";
 import { baseStateStore } from "./base/base-state.js";
 import { computeTerritory, type Territory } from "./base/territory.js";
+import type { BaseGenOptions, BaseGenParams } from "./base-terrain.js";
 import {
 	disableInfiniteTerrain,
 	type EnableInfiniteTerrainOptions,
 	enableInfiniteTerrain,
+	getInfiniteGen,
 	getInfiniteSeed,
+	type InfiniteRegionOptions,
 	isInfiniteTerrainEnabled,
+	setInfiniteGen,
+	setInfiniteRegion,
 	setInfiniteSeed,
 } from "./infinite-terrain.js";
 import type { ReactiveStore } from "./reactive-store.js";
@@ -30,11 +35,27 @@ import { type MapToolState, toolStateStore } from "./tool-state.js";
 /** The map plugin's host-facing operations + live stores. */
 export interface MapApi {
 	// ── Infinite base terrain (store-bound; the host needn't pass the store) ──
-	/** Enable/re-seed the infinite base terrain. Returns the applied integer seed. */
+	/**
+	 * Enable/re-seed the infinite base terrain, optionally with its generation params
+	 * (`gen: { scale, seaLevel }`). Returns the applied integer seed.
+	 */
 	enableInfiniteTerrain(opts?: EnableInfiniteTerrainOptions): number;
 	disableInfiniteTerrain(): void;
 	/** Current effective seed, or `null` when disabled. */
 	getInfiniteSeed(): number | null;
+	/**
+	 * The board's generation params (scale, seaLevel…): in use while enabled, else
+	 * the ones turning it on will use.
+	 */
+	getInfiniteGen(): BaseGenParams;
+	/**
+	 * Change the generation params (`scale` / `seaLevel`). Re-generates the world
+	 * while on, else records them for turning it on. `false` on a board with no
+	 * tilemap yet.
+	 */
+	setInfiniteGen(gen: BaseGenOptions): boolean;
+	/** {@link setInfiniteGen} by region size + sea level, clamped (see setInfiniteRegion). */
+	setInfiniteRegion(opts: InfiniteRegionOptions): boolean;
 	isInfiniteTerrainEnabled(): boolean;
 	/** A number enables/re-seeds, `null` disables. */
 	setInfiniteSeed(seed: number | null): void;
@@ -51,6 +72,11 @@ export interface MapApi {
 	// ── Terrain height (高さ) — derived from each cell's terrain (see terrain-height.ts). ──
 	/** Ground height (world units) at a world point. */
 	getHeightAt(x: number, y: number): number;
+	/**
+	 * Switch the terrain's heights on / off (`renderConfig.heightEnabled`): off, there are
+	 * no cliffs and `getHeightAt` is 0 — for a board whose height another plugin owns.
+	 */
+	setHeightEnabled(on: boolean): void;
 	/** Fire `listener` whenever the territory could have changed (shapes / exclude set). Returns an unsubscribe. */
 	onTerritoryChange(listener: () => void): () => void;
 	// ── Reactive stores backing the map tool + Tweaks (get/set/subscribe). NOTE:
@@ -79,6 +105,9 @@ export function createMapApi(store: BoardStore, defaultTile = DEFAULT_TILE): Map
 		enableInfiniteTerrain: (opts) => enableInfiniteTerrain(store, opts),
 		disableInfiniteTerrain: () => disableInfiniteTerrain(store),
 		getInfiniteSeed: () => getInfiniteSeed(store),
+		getInfiniteGen: () => getInfiniteGen(store),
+		setInfiniteGen: (gen) => setInfiniteGen(store, gen),
+		setInfiniteRegion: (opts) => setInfiniteRegion(store, opts),
 		isInfiniteTerrainEnabled: () => isInfiniteTerrainEnabled(store),
 		setInfiniteSeed: (seed) => setInfiniteSeed(store, seed),
 		getTerritory: () => snapshot().territory,
@@ -88,6 +117,7 @@ export function createMapApi(store: BoardStore, defaultTile = DEFAULT_TILE): Map
 		},
 		getBases: () => getBaseMap(store)?.bases ?? {},
 		getHeightAt: (x, y) => groundHeightAt(store, x, y, defaultTile),
+		setHeightEnabled: (on) => renderConfigStore.set({ heightEnabled: on === true }),
 		getBaseRegions: () => {
 			const { baseMap, tile, territory } = snapshot();
 			return baseRegionAnchors(territory, baseMap?.bases ?? {}, tile);

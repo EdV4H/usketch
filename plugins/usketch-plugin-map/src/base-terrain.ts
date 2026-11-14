@@ -76,6 +76,61 @@ export function resolveBaseGen(gen: BaseGenParams | undefined): BaseGenParams {
 	return valid ? gen : V1_GEN;
 }
 
+/**
+ * The tunable inputs a host may choose for a board's infinite terrain (see
+ * `enableInfiniteTerrain`'s `gen`): `scale` (smaller ⇒ larger regions; v1 is 0.05)
+ * and `seaLevel` (0–1; larger ⇒ more sea; v1 is 0.42). The contrast window and the
+ * algorithm version stay those of the base params.
+ */
+export type BaseGenOptions = Partial<Pick<BaseGenParams, "scale" | "seaLevel">>;
+
+/**
+ * `base` with the given {@link BaseGenOptions} applied. Throws `RangeError` on a
+ * `scale` outside the {@link REGION_SIZE_RANGE} region sizes or a `seaLevel`
+ * outside 0–1, so a bad value never gets stamped on a board. Only the given
+ * options are checked: `base` itself may hold any value {@link resolveBaseGen} accepts.
+ */
+export function withBaseGen(base: BaseGenParams, opts: BaseGenOptions): BaseGenParams {
+	const scale = opts.scale ?? base.scale;
+	const seaLevel = opts.seaLevel ?? base.seaLevel;
+	if (
+		opts.scale !== undefined &&
+		!(
+			scale >= scaleForRegionSize(REGION_SIZE_RANGE.max) &&
+			scale <= scaleForRegionSize(REGION_SIZE_RANGE.min)
+		)
+	) {
+		throw new RangeError(
+			`baseGen: scale must give a region size within ${REGION_SIZE_RANGE.min}–${REGION_SIZE_RANGE.max}, got ${String(scale)}`,
+		);
+	}
+	if (opts.seaLevel !== undefined && !(seaLevel >= 0 && seaLevel <= 1)) {
+		throw new RangeError(`baseGen: seaLevel must be within 0–1, got ${String(seaLevel)}`);
+	}
+	return { ...base, scale, seaLevel };
+}
+
+/**
+ * 「領域の広さ」 as a multiple of the default: 2 ⇒ land / forest / mountain regions
+ * about twice as wide (half the default `scale`). For host UIs that show a size
+ * rather than the raw frequency.
+ */
+export const regionSizeOf = (gen: Pick<BaseGenParams, "scale">): number =>
+	DEFAULT_BASE_GEN.scale / gen.scale;
+
+/** The `scale` for a 「領域の広さ」 multiple (see {@link regionSizeOf}). */
+export const scaleForRegionSize = (size: number): number => DEFAULT_BASE_GEN.scale / size;
+
+/**
+ * The 「領域の広さ」 multiples a board may use (half to four times the default). Larger
+ * sizes make the land too uniform to read; smaller ones turn it into per-cell noise.
+ */
+export const REGION_SIZE_RANGE = { min: 0.5, max: 4 } as const;
+
+/** Compact signature of the params (also keys caches that depend on the terrain). */
+export const baseGenSignature = (g: BaseGenParams): string =>
+	`${g.version}|${g.scale}|${g.seaLevel}|${g.gMin}|${g.gMax}`;
+
 const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 // ── Per-chunk cache ──
@@ -85,12 +140,8 @@ const CHUNK = 16;
 const MAX_CHUNKS = 1024;
 const cache = new Map<string, TerrainKey[]>();
 
-/** Compact signature so chunks generated with different params never collide. */
-const genSig = (g: BaseGenParams): string =>
-	`${g.version}|${g.scale}|${g.seaLevel}|${g.gMin}|${g.gMax}`;
-
 function chunkGrid(seed: number, cx: number, cy: number, gen: BaseGenParams): TerrainKey[] {
-	const key = `${genSig(gen)}:${seed}:${cx}:${cy}`;
+	const key = `${baseGenSignature(gen)}:${seed}:${cx}:${cy}`;
 	const hit = cache.get(key);
 	if (hit) {
 		// LRU touch: re-insert so it's most-recently-used.

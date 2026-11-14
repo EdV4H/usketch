@@ -15,6 +15,7 @@ import { useFilterPredicate } from "../hooks/use-filter-predicate.js";
 import { useInteractingListeners } from "../hooks/use-interacting.js";
 import { useStoreSubscribe } from "../hooks/use-store-subscribe.js";
 import { useTimeTravelShapes } from "../hooks/use-time-travel.js";
+import { useView3dOverscan } from "../hooks/use-view-3d-overscan.js";
 
 /**
  * Effectively hidden = the shape's own `hidden` flag OR any ancestor's (hiding a
@@ -451,6 +452,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 					order: active.order ?? 80,
 					fixed: active.fixed ?? true,
 					worldOverlay: active.worldOverlay ?? true,
+					view3d: active.view3d ?? "tilt",
 					render: active.render,
 				});
 				mounted = true;
@@ -526,7 +528,11 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 		[],
 	);
 
-	// Native non-passive wheel listener to reliably prevent browser zoom
+	// Native non-passive wheel listener to reliably prevent browser zoom.
+	// The handlers read the viewport from the store when an event fires, so this
+	// effect doesn't depend on `viewport`: re-attaching on every pan/zoom would also
+	// reset `lastGestureScale` mid-pinch, and since a Safari gesture's `scale` is
+	// cumulative, each step would then zoom by the running product.
 	useEffect(() => {
 		const el = containerRef.current;
 		if (!el) return;
@@ -540,7 +546,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 			};
 			app.events.emit("canvas:wheel", {
 				screenPoint,
-				worldPoint: screenToWorld(screenPoint, viewport),
+				worldPoint: screenToWorld(screenPoint, app.store.getViewport()),
 				deltaX: e.deltaX,
 				deltaY: e.deltaY,
 				ctrlKey: e.ctrlKey,
@@ -587,7 +593,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 			el.removeEventListener("gesturestart", onGestureStart);
 			el.removeEventListener("gesturechange", onGestureChange);
 		};
-	}, [viewport, app.events, app.store, touchGestures]);
+	}, [app.events, app.store, touchGestures]);
 
 	const filterPredicate = useFilterPredicate(app.events);
 	const timeTravelShapes = useTimeTravelShapes(app.events);
@@ -622,6 +628,9 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 		[viewport, canvasSize],
 	);
 
+	// While in 3D: how far past the box backgrounds should draw (the draw distance).
+	const view3dOverscan = useView3dOverscan(app.store, viewport.zoom, canvasSize.height);
+
 	const renderCtx = {
 		viewport,
 		shapes: filteredShapes,
@@ -631,6 +640,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 		theme: DEFAULT_THEME,
 		renderMode,
 		viewportBounds,
+		view3dOverscan,
 	};
 
 	const layers = app.layers.getLayers();
@@ -650,7 +660,10 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 				position: "relative",
 				width: "100%",
 				height: "100%",
-				overflow: "hidden",
+				// `clip` (not `hidden`): a hidden box can still be scrolled by the browser
+				// (focus() / caret-into-view on a textarea near the edge), which shifts what
+				// is drawn while hit-testing keeps the unscrolled coordinates. Clip can't scroll.
+				overflow: "clip",
 				// `data-theme` による CSS 変数がある場合はそちらが効き、無い場合は従来の既定色にフォールバック
 				background: `var(--bg-canvas, ${DEFAULT_THEME.canvasBackground})`,
 				cursor: activeTool?.cursor ?? "default",
@@ -677,6 +690,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 							<div
 								key={layer.id}
 								data-layer-id={layer.id}
+								data-view3d={layer.view3d}
 								data-world-overlay=""
 								style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
 							>
@@ -690,6 +704,7 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 						<div
 							key={layer.id}
 							data-layer-id={layer.id}
+							data-view3d={layer.view3d}
 							style={{
 								position: "absolute",
 								inset: 0,
@@ -705,11 +720,14 @@ export function Canvas({ touchGestures = true }: CanvasProps = {}) {
 					<div
 						key={layer.id}
 						data-layer-id={layer.id}
+						data-view3d={layer.view3d}
 						style={{
 							position: "absolute",
 							inset: 0,
 							pointerEvents: "none",
-							overflow: "hidden",
+							// `clip`, for the same reason as the container above: focusing a
+							// shape's editor near the edge must not scroll this layer.
+							overflow: "clip",
 						}}
 					>
 						<div

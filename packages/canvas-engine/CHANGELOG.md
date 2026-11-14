@@ -1,5 +1,37 @@
 # @edv4h/usketch-canvas-engine
 
+## 1.5.12
+
+### Patch Changes
+
+- Updated dependencies [b16cfe8]
+- Updated dependencies [d81aad4]
+- Updated dependencies [5adf284]
+  - @edv4h/usketch-shared@4.24.0
+  - @edv4h/usketch-core@2.5.0
+
+## 1.5.11
+
+### Patch Changes
+
+- 735c4b4: レイヤー枠と Canvas を `overflow: clip` にし、編集欄へのフォーカスでレイヤーがスクロールして図形の表示と当たり判定がずれる不具合を直す
+
+## 1.5.10
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-core@2.4.13
+
+## 1.5.9
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-core@2.4.12
+
 ## 1.5.8
 
 ### Patch Changes

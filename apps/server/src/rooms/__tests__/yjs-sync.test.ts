@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 import { CHUNK_BYTES, deleteChunked, readChunked, writeChunked } from "../chunked-storage.js";
 import { createPartitionManager, partitionStateKey } from "../partition-manager.js";
-import { createSnapshotManager } from "../snapshot-manager.js";
 import { compactUpdates } from "../update-compaction.js";
 import { createYjsSync, LEGACY_UPDATES_KEY, MAX_SAVE_RETRIES, STATE_KEY } from "../yjs-sync.js";
 
@@ -341,32 +340,5 @@ describe("createPartitionManager", () => {
 			id: "moving",
 			x: 2,
 		});
-	});
-});
-
-describe("createSnapshotManager", () => {
-	it("returns the shapes as they were when the snapshot was taken", async () => {
-		const { storage } = fakeStorage();
-		const doc = new Y.Doc();
-		const shapes = doc.getMap<Record<string, unknown>>("shapes");
-		shapes.set("a", { id: "a", x: 1 });
-		const snapshots = createSnapshotManager({
-			storage,
-			getOrCreateDoc: async () => ({ doc }),
-			getWebSockets: () => [],
-		});
-
-		const created = (await (await snapshots.handleCreateSnapshot()).json()) as {
-			timestamp: number;
-		};
-		shapes.set("a", { id: "a", x: 2 });
-		shapes.set("b", { id: "b", x: 0 });
-
-		const res = await snapshots.handleGetSnapshot(String(created.timestamp));
-		expect(res.status).toBe(200);
-		expect((await snapshots.handleGetSnapshot("1")).status).toBe(404);
-		await storage.put("snapshot:2", [0]);
-		expect((await snapshots.handleGetSnapshot("2")).status).toBe(410);
-		expect(((await res.json()) as { shapes: unknown[] }).shapes).toEqual([{ id: "a", x: 1 }]);
 	});
 });

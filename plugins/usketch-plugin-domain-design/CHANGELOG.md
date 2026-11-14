@@ -1,5 +1,50 @@
 # @edv4h/usketch-plugin-domain-design
 
+## 1.1.24
+
+### Patch Changes
+
+- Updated dependencies [b16cfe8]
+- Updated dependencies [d81aad4]
+- Updated dependencies [5adf284]
+  - @edv4h/usketch-shared@4.24.0
+  - @edv4h/usketch-core@2.5.0
+  - @edv4h/usketch-canvas-engine@1.5.12
+  - @edv4h/usketch-store@3.11.6
+  - @edv4h/usketch-connector-anchor@0.5.6
+  - @edv4h/usketch-shape-utils@2.4.5
+
+## 1.1.23
+
+### Patch Changes
+
+- Updated dependencies [735c4b4]
+  - @edv4h/usketch-canvas-engine@1.5.11
+
+## 1.1.22
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+  - @edv4h/usketch-canvas-engine@1.5.10
+  - @edv4h/usketch-core@2.4.13
+  - @edv4h/usketch-store@3.11.5
+  - @edv4h/usketch-connector-anchor@0.5.5
+  - @edv4h/usketch-shape-utils@2.4.4
+
+## 1.1.21
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+  - @edv4h/usketch-canvas-engine@1.5.9
+  - @edv4h/usketch-core@2.4.12
+  - @edv4h/usketch-store@3.11.4
+  - @edv4h/usketch-connector-anchor@0.5.4
+  - @edv4h/usketch-shape-utils@2.4.3
+
 ## 1.1.20
 
 ### Patch Changes

@@ -17,13 +17,13 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"hono": "4.13.17"
+		"hono": "4.13.18"
 	},
 	"peerDependencies": {
 		"drizzle-orm": ">=0.45.0"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "5.20261108.1",
+		"@cloudflare/workers-types": "5.20261113.1",
 		"drizzle-orm": "0.45.4",
 		"typescript": "7.0.2",
 		"vitest": "5.1.0"

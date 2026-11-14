@@ -1,5 +1,27 @@
 # @edv4h/usketch-plugin-asset-store
 
+## 0.2.7
+
+### Patch Changes
+
+- Updated dependencies [b16cfe8]
+- Updated dependencies [d81aad4]
+  - @edv4h/usketch-shared@4.24.0
+
+## 0.2.6
+
+### Patch Changes
+
+- Updated dependencies [55459fd]
+  - @edv4h/usketch-shared@4.23.0
+
+## 0.2.5
+
+### Patch Changes
+
+- Updated dependencies [9ffa649]
+  - @edv4h/usketch-shared@4.22.0
+
 ## 0.2.4
 
 ### Patch Changes
