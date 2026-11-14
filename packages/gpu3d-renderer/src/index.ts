@@ -19,7 +19,14 @@ export {
 	hiddenLayerRules,
 	setupGpu3dRenderer,
 } from "./gpu3d-renderer.js";
-export { flatShapeHeight, ShapePainter, type ShapeSource } from "./gpu3d-shapes.js";
+export {
+	flatShapeHeight,
+	type Quad3d,
+	type Shape3dGeometry,
+	ShapePainter,
+	type ShapeSource,
+	shape3dGeometry,
+} from "./gpu3d-shapes.js";
 export {
 	loadSvgImage,
 	MAX_PICTURE_PX,

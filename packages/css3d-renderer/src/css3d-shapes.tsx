@@ -11,13 +11,15 @@ import { VIEWPORT_OVERSCAN_EVENT } from "@edv4h/usketch-dom-renderer";
 import {
 	boardHeight,
 	createView3dTracker,
-	defineService,
+	declaredView3dShapeTypes,
 	type Layer,
 	type PluginContext,
-	type ShapeTypeView3d,
+	sanitizeView3dShapeLimits,
 	shapeClaims,
 	type View3dOcclusionApi,
+	type View3dShapeSource,
 	view3dService,
+	view3dShapeSourceService,
 } from "@edv4h/usketch-shared";
 import {
 	type Css3dCameraSource,
@@ -25,40 +27,19 @@ import {
 	Css3dShapesLayer,
 	SHAPE_3D_LAYER_ID,
 } from "./shapes-layer.js";
-import {
-	type Css3dShapeLimits,
-	type Css3dShapeTypes,
-	DEFAULT_CSS3D_SHAPE_LIMITS,
-} from "./shapes-layout.js";
+/** What a plugin hands the renderer to draw 3D shapes by (shared's `View3dShapeSource`). */
+export type Css3dShapeSource = View3dShapeSource;
 
-/** What a plugin hands the renderer to draw 3D shapes by (see the module comment). */
-export interface Css3dShapeSource {
-	/** The types' 3D to use instead of what the board's types declare. */
-	types?(): Css3dShapeTypes;
-	/** Limits over {@link DEFAULT_CSS3D_SHAPE_LIMITS}. */
-	limits?(): Partial<Css3dShapeLimits>;
-}
-
-/** A plugin's source for the renderer's 3D shapes (read on every draw, so set up in any order). */
-export const css3dShapeSourceService = defineService<Css3dShapeSource>(
-	"usketch-css3d-renderer:shape-source",
-);
+/**
+ * A plugin's source for the renderer's 3D shapes (shared's `view3dShapeSourceService`,
+ * which the GPU 3D renderer reads too).
+ */
+export const css3dShapeSourceService = view3dShapeSourceService;
 
 let nextClaimSource = 0;
 
-/** Limits with every field usable (a bad one falls back to the default). Pure. */
-export function sanitizeCss3dShapeLimits(l: Partial<Css3dShapeLimits> = {}): Css3dShapeLimits {
-	const d = DEFAULT_CSS3D_SHAPE_LIMITS;
-	return {
-		minPx:
-			typeof l.minPx === "number" && Number.isFinite(l.minPx) && l.minPx >= 0 ? l.minPx : d.minPx,
-		maxCount:
-			typeof l.maxCount === "number" && Number.isFinite(l.maxCount) && l.maxCount >= 0
-				? Math.floor(l.maxCount)
-				: d.maxCount,
-		groundFlat: typeof l.groundFlat === "boolean" ? l.groundFlat : d.groundFlat,
-	};
-}
+/** Limits with every field usable (shared's `sanitizeView3dShapeLimits`). */
+export const sanitizeCss3dShapeLimits = sanitizeView3dShapeLimits;
 
 export interface Css3dShapesOptions {
 	/** What the ground hides (the renderer's), read on every draw. */
@@ -77,26 +58,10 @@ export function setupCss3dShapes(ctx: PluginContext, options: Css3dShapesOptions
 	const heightAt = (x: number, y: number) => height.groundAt(x, y);
 
 	// The types' own 3D, rebuilt when a type registers or the host overrides one.
-	let overrideVersion = 0;
-	const offOverrides = ctx.shapes.subscribeView3d?.(() => {
-		overrideVersion++;
-		ctx.events.emit("layers:changed", {});
-	});
-	let declaredKey = "";
-	let declared: Css3dShapeTypes = {};
-	const declaredTypes = (): Css3dShapeTypes => {
-		const all = ctx.shapes.getAll();
-		const key = `${all.size}:${overrideVersion}`;
-		if (key === declaredKey) return declared;
-		const out: Record<string, ShapeTypeView3d> = {};
-		for (const [type, def] of all) {
-			const view3d = ctx.shapes.getView3d ? ctx.shapes.getView3d(type) : def.view3d;
-			if (view3d) out[type] = view3d;
-		}
-		declaredKey = key;
-		declared = out;
-		return declared;
-	};
+	const declared = declaredView3dShapeTypes(ctx.shapes, () =>
+		ctx.events.emit("layers:changed", {}),
+	);
+	const declaredTypes = declared.get;
 
 	let overscanPx = 0;
 	const offOverscan = ctx.events.on<{ px: number }>(VIEWPORT_OVERSCAN_EVENT, ({ px }) => {
@@ -157,7 +122,7 @@ export function setupCss3dShapes(ctx: PluginContext, options: Css3dShapesOptions
 		// Another registration under the same id (an older shape-3d plugin) stays.
 		if (ctx.layers.getLayers().some((l) => l === layer)) ctx.layers.unregister(SHAPE_3D_LAYER_ID);
 		claims.claim(claimSource, []);
-		offOverrides?.();
+		declared.dispose();
 		offOverscan();
 		tracker.dispose();
 	};
