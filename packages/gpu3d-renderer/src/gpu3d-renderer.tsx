@@ -5,11 +5,14 @@
 // terrain and what stands on it hide each other by depth.
 //
 // While it draws, the layers that show in 3D (`tilt` / `depth`) are hidden: what they
-// show is drawn on the canvas. Screen layers (the sky, fog, HUD) stay DOM. It draws
+// show is drawn on the canvas. The shapes are pictures of their (hidden) DOM drawing laid
+// on the ground (see `gpu3d-shapes`). Screen layers (the sky, fog, HUD) stay DOM. It draws
 // nothing while the board is flat (the 2D renderers draw it then).
 import {
+	boardHeight,
 	defineService,
 	type Layer,
+	type LayerRenderContext,
 	type LayerView3d,
 	type PluginContext,
 	type ProjectionCamera,
@@ -25,7 +28,8 @@ import {
 	viewMatrix,
 } from "@edv4h/usketch-shared";
 import { useEffect, useRef } from "react";
-import { type GroundLook, GroundPainter, parseCssColor } from "./gpu3d-ground.js";
+import { type GroundLook, GroundPainter } from "./gpu3d-ground.js";
+import { ShapePainter, type ShapeSource } from "./gpu3d-shapes.js";
 
 /** The canvas layer's id. */
 export const GPU3D_LAYER_ID = "gpu3d:view";
@@ -33,6 +37,8 @@ export const GPU3D_LAYER_ID = "gpu3d:view";
 export const GPU_STAGE_ATTR = "data-view3d-gpu";
 /** Just above the sky (Mode 7's, order 1), under every other layer. */
 const LAYER_ORDER = 2;
+/** The DOM renderer's shape layer (its nodes are what the shape pictures are made of). */
+const DOM_SHAPES_LAYER_ID = "dom-shapes";
 
 export type Gpu3dRendererApi = View3dRendererApi;
 
@@ -46,6 +52,8 @@ export interface Gpu3dRendererOptions {
 	depthLayerIds?: readonly string[];
 	/** Where the 3D view state lives. Default: the board store's. */
 	view3d?: View3dCell;
+	/** Draw the board's shapes (default `true`). */
+	shapes?: boolean;
 }
 
 /** The camera a 3D view state draws with, as the projection functions take it. Pure. */
@@ -73,15 +81,27 @@ function declared(ctx: PluginContext, kinds: readonly LayerView3d[]): string[] {
 		.map((l) => l.id);
 }
 
-const GRID_LINE: [number, number, number, number] = [0xe0 / 255, 0xe0 / 255, 0xe0 / 255, 1];
-const FALLBACK_BACKGROUND: [number, number, number, number] = [0.98, 0.98, 0.98, 1];
+/** The bg-grid plugin's line: #e0e0e0 at half opacity (premultiplied). */
+const GRID_LINE: [number, number, number, number] = [
+	(0xe0 / 255) * 0.5,
+	(0xe0 / 255) * 0.5,
+	(0xe0 / 255) * 0.5,
+	0.5,
+];
+/**
+ * The ground's own colour: none, as the CSS 3D renderer's tilted grid (the board's
+ * background and the 3D view's sky show through between the lines, which hazes the far
+ * ground the same way).
+ */
+const GROUND_BACKGROUND: [number, number, number, number] = [0, 0, 0, 0];
 
 /** The GL side: one canvas, its context and what draws in it. */
 class Painter {
 	readonly gl: WebGL2RenderingContext;
 	private ground: GroundPainter;
+	private shapes: ShapePainter | null;
 
-	static create(canvas: HTMLCanvasElement): Painter | null {
+	static create(canvas: HTMLCanvasElement, onReady: () => void, shapes: boolean): Painter | null {
 		const gl = canvas.getContext("webgl2", {
 			antialias: true,
 			premultipliedAlpha: true,
@@ -89,15 +109,17 @@ class Painter {
 		});
 		if (!gl) return null;
 		try {
-			return new Painter(gl);
-		} catch {
+			return new Painter(gl, onReady, shapes);
+		} catch (err) {
+			console.error("[gpu3d-renderer] WebGL2 setup failed", err);
 			return null;
 		}
 	}
 
-	private constructor(gl: WebGL2RenderingContext) {
+	private constructor(gl: WebGL2RenderingContext, onReady: () => void, shapes: boolean) {
 		this.gl = gl;
 		this.ground = new GroundPainter(gl);
+		this.shapes = shapes ? new ShapePainter(gl, onReady) : null;
 	}
 
 	/** Draw a frame; `true` when a drawable wants another. */
@@ -106,6 +128,7 @@ class Painter {
 		look: GroundLook,
 		hook: View3dGlApi,
 		size: { width: number; height: number },
+		shapes: ShapeSource | null,
 	): boolean {
 		const { gl } = this;
 		const canvas = gl.canvas as HTMLCanvasElement;
@@ -134,6 +157,7 @@ class Painter {
 				console.error(`[gpu3d-renderer] drawable ${d.id} failed`, err);
 			}
 		}
+		if (this.shapes && shapes && this.shapes.draw(full, shapes)) again = true;
 		return again;
 	}
 
@@ -152,6 +176,7 @@ class Painter {
 			}
 		}
 		this.ground.release();
+		this.shapes?.release();
 	}
 }
 
@@ -178,6 +203,26 @@ export function setupGpu3dRenderer(
 	let stage: HTMLElement | null = null;
 
 	const drawing = (): boolean => cell.get().amount > 0 && painter !== null;
+	const height = ctx.height ?? boardHeight(ctx.services);
+	let rc: LayerRenderContext | null = null;
+
+	const shapeSource = (): ShapeSource | null => {
+		if (!rc || !stage) return null;
+		const layer = stage.querySelector(`:scope > [data-layer-id="${DOM_SHAPES_LAYER_ID}"]`);
+		const nodes = new Map<string, Element>();
+		if (layer) {
+			for (const el of layer.querySelectorAll("[data-shape-id]")) {
+				const id = el.getAttribute("data-shape-id");
+				if (id && !nodes.has(id)) nodes.set(id, el);
+			}
+		}
+		return {
+			shapes: rc.shapesSorted,
+			registry: ctx.shapes,
+			node: (id) => nodes.get(id) ?? null,
+			groundAt: (x, y) => height.groundAt(x, y),
+		};
+	};
 
 	const showLayers = (on: boolean): void => {
 		// The canvas sits in its layer's node, whose parent holds every layer.
@@ -209,11 +254,12 @@ export function setupGpu3dRenderer(
 	};
 
 	const look = (): GroundLook => {
-		const bg = stage ? getComputedStyle(stage).backgroundColor : "";
 		return {
-			background: parseCssColor(bg) ?? FALLBACK_BACKGROUND,
+			background: GROUND_BACKGROUND,
 			line: GRID_LINE,
 			grid: tiltLayers().includes("bg-grid"),
+			// 1 px of the flat grid (it is drawn in screen px, then tilted).
+			lineWidth: 1 / (ctx.store.getViewport().zoom || 1),
 		};
 	};
 
@@ -244,6 +290,7 @@ export function setupGpu3dRenderer(
 			look(),
 			hook,
 			size,
+			options.shapes === false ? null : shapeSource(),
 		);
 		hook.setDrawing(true);
 		if (again) schedule();
@@ -266,7 +313,7 @@ export function setupGpu3dRenderer(
 		hook.setDrawing(false);
 		canvas = el;
 		if (el) {
-			painter = Painter.create(el);
+			painter = Painter.create(el, schedule, options.shapes !== false);
 			schedule();
 		}
 	};
@@ -278,6 +325,7 @@ export function setupGpu3dRenderer(
 		}),
 		hook.onFrameRequest(schedule),
 		hook.subscribe(schedule),
+		height.subscribe(schedule),
 		ctx.events.on("layers:changed", schedule),
 	];
 	if (typeof window !== "undefined") window.addEventListener("resize", schedule);
@@ -287,7 +335,12 @@ export function setupGpu3dRenderer(
 		order: LAYER_ORDER,
 		avoidCollision: true,
 		fixed: true,
-		render: () => <Gpu3dCanvas attach={attach} />,
+		render: (layerCtx) => {
+			// The shapes drawn next frame (the layer re-renders as the board changes).
+			rc = layerCtx;
+			schedule();
+			return <Gpu3dCanvas attach={attach} />;
+		},
 	};
 	ctx.layers.register(layer);
 
