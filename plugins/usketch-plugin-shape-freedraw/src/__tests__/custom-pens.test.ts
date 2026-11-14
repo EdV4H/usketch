@@ -222,6 +222,7 @@ describe("外から足したペンで描く", () => {
 		const toolCtx = {
 			store,
 			commands: { execute: (c: { execute(): void }) => c.execute() },
+			events: { emit: () => {} },
 		} as unknown as ToolContext;
 		const settings = createFreedrawSettingsStore(parseFreedrawConfig({ persistSettings: false }));
 		settings.update({ pen: "road" });

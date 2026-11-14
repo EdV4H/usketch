@@ -44,3 +44,14 @@ export interface StrokeJoins {
 	start?: true;
 	end?: true;
 }
+
+/**
+ * Emitted on the app's event bus when the user finishes a stroke and it has been added
+ * (one undo step), only on the client that drew it. Payload: {@link FreedrawStrokeCommittedEvent}.
+ */
+export const FREEDRAW_STROKE_COMMITTED = "freedraw:stroke-committed";
+
+/** Payload of {@link FREEDRAW_STROKE_COMMITTED}: the shape as added. */
+export interface FreedrawStrokeCommittedEvent {
+	shape: FreedrawShapeData;
+}

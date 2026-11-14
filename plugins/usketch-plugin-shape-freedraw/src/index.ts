@@ -19,4 +19,12 @@ export { DEFAULT_PEN, PEN_KINDS, PEN_META, PRESET_COLORS } from "./pen-meta.js";
 export { createFreedrawPlugin, type FreedrawPluginOptions } from "./plugin.js";
 export type { FreedrawMode } from "./settings-store.js";
 export type { FreedrawHitTestMode } from "./shape.js";
-export type { FreedrawShapeData, PenId, PenKind, StrokeJoins, StrokePoint } from "./types.js";
+export {
+	FREEDRAW_STROKE_COMMITTED,
+	type FreedrawShapeData,
+	type FreedrawStrokeCommittedEvent,
+	type PenId,
+	type PenKind,
+	type StrokeJoins,
+	type StrokePoint,
+} from "./types.js";

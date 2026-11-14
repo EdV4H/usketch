@@ -5,7 +5,7 @@ import { parseFreedrawConfig } from "../config.js";
 import { createDrawController } from "../draw-tool.js";
 import { nearestOnPolyline, snapEndpoints } from "../endpoint-snap.js";
 import { createFreedrawSettingsStore } from "../settings-store.js";
-import type { FreedrawShapeData, StrokePoint } from "../types.js";
+import { FREEDRAW_STROKE_COMMITTED, type FreedrawShapeData, type StrokePoint } from "../types.js";
 import { createPointerStore } from "../ui/cursor-overlay.js";
 
 const line = (id: string, points: StrokePoint[], pen = "ballpoint"): FreedrawShapeData => {
@@ -101,9 +101,11 @@ describe("描いた線の端をつなぐ（endpointSnap）", () => {
 	const setup = (enabled: boolean, others: FreedrawShapeData[]) => {
 		const store = createBoardStore();
 		for (const o of others) store.addShape(o);
+		const emit = vi.fn();
 		const toolCtx = {
 			store,
 			commands: { execute: (c: { execute(): void }) => c.execute() },
+			events: { emit },
 		} as unknown as ToolContext;
 		const settings = createFreedrawSettingsStore(parseFreedrawConfig({ persistSettings: false }));
 		const draw = createDrawController(settings, createPointerStore(), {
@@ -126,7 +128,7 @@ describe("描いた線の端をつなぐ（endpointSnap）", () => {
 				[...store.getShapes().keys()].find((k) => !others.some((o) => o.id === k)) ?? "",
 			) as FreedrawShapeData;
 		};
-		return { drawLine };
+		return { drawLine, emit };
 	};
 
 	it("有効なら、同じペンの線へつなぎ joins を残す", () => {
@@ -143,6 +145,12 @@ describe("描いた線の端をつなぐ（endpointSnap）", () => {
 
 	it("無効なら、つながない", () => {
 		expect(setup(false, [horizontal]).drawLine().joins).toBeUndefined();
+	});
+
+	it("描き終えた線を freedraw:stroke-committed で知らせる（追加された形のまま）", () => {
+		const { drawLine, emit } = setup(true, [horizontal]);
+		const saved = drawLine();
+		expect(emit).toHaveBeenCalledWith(FREEDRAW_STROKE_COMMITTED, { shape: saved });
 	});
 
 	it("Ctrl / ⌘ を押しながら離すと、その線だけ逆になる", () => {

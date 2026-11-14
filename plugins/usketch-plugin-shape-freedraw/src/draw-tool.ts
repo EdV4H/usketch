@@ -16,7 +16,14 @@ import { penHalfWidth } from "./geometry/hit.js";
 import { simplifyPoints } from "./geometry/simplify.js";
 import { DEFAULT_PEN, penMeta } from "./pen-meta.js";
 import { type FreedrawSettingsStore, penSize } from "./settings-store.js";
-import type { FreedrawShapeData, PenId, StrokeJoins, StrokePoint } from "./types.js";
+import {
+	FREEDRAW_STROKE_COMMITTED,
+	type FreedrawShapeData,
+	type FreedrawStrokeCommittedEvent,
+	type PenId,
+	type StrokeJoins,
+	type StrokePoint,
+} from "./types.js";
 import type { PointerStore } from "./ui/cursor-overlay.js";
 
 interface StrokeState {
@@ -271,6 +278,12 @@ export function createDrawController(
 				...(joins ? { joins } : {}),
 			};
 			toolCtx.commands.execute(createAddShapeCommand(toolCtx.store, shape));
+			// Only the client that drew it hears this (synced peers just see the shape), so a
+			// host can follow up on its own strokes, e.g. level the ground under a road.
+			const added = (toolCtx.store.getShape(shape.id) as FreedrawShapeData | undefined) ?? shape;
+			toolCtx.events.emit<FreedrawStrokeCommittedEvent>(FREEDRAW_STROKE_COMMITTED, {
+				shape: added,
+			});
 		},
 
 		reset() {
