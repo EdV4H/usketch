@@ -362,6 +362,9 @@ importers:
       '@edv4h/usketch-core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@edv4h/usketch-css3d-renderer':
+        specifier: workspace:*
+        version: link:../../packages/css3d-renderer
       '@edv4h/usketch-dom-renderer':
         specifier: workspace:*
         version: link:../../packages/dom-renderer
@@ -717,6 +720,22 @@ importers:
         specifier: workspace:*
         version: link:../shared
     devDependencies:
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.1.0
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/css3d-renderer:
+    dependencies:
+      '@edv4h/usketch-shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      jsdom:
+        specifier: 31.0.0
+        version: 31.0.0(@napi-rs/canvas@1.1.0)(@noble/hashes@2.0.1)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -1747,6 +1766,9 @@ importers:
 
   plugins/usketch-plugin-mode7:
     dependencies:
+      '@edv4h/usketch-css3d-renderer':
+        specifier: workspace:*
+        version: link:../../packages/css3d-renderer
       '@edv4h/usketch-shared':
         specifier: workspace:*
         version: link:../../packages/shared

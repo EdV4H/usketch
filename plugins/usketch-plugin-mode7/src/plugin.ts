@@ -4,7 +4,9 @@
 // camera. It is a view mode (editing is suspended while active), off by default,
 // and holds only per-viewer view state (never persisted as shapes). Toggle it via
 // the HUD "3Dビュー切替" action, the service, or an emitted `mode7:toggle` event.
+import { css3dRendererService, setupCss3dRenderer } from "@edv4h/usketch-css3d-renderer";
 import {
+	createView3dCell,
 	type PluginContext,
 	type UsketchPlugin,
 	view3dCellOf,
@@ -121,10 +123,27 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 			zoom = () => ctx.store.getViewport().zoom;
 			// The camera and amount live in the board's 3D view state (a store from before
 			// it had one keeps them in the plugin).
-			const view3d = view3dCellOf(ctx.store);
-			const unbindView3d = view3d ? store.bindView3d(view3d) : () => {};
+			const view3d = view3dCellOf(ctx.store) ?? createView3dCell();
+			const unbindView3d = store.bindView3d(view3d);
+			// The tilt is drawn by the CSS 3D renderer: the host's, or one of our own when
+			// the host didn't add one (until the next major).
+			let renderer = css3dRendererService.get(ctx.services);
+			let stopOwnRenderer = (): void => {};
+			if (!renderer) {
+				const own = setupCss3dRenderer(ctx, { view3d });
+				if (own) {
+					renderer = own.api;
+					const unprovide = css3dRendererService.provide(ctx.services, own.api);
+					stopOwnRenderer = () => {
+						unprovide();
+						own.dispose();
+					};
+				}
+			}
+			if (!renderer) throw new Error("usketch-plugin-mode7: no 3D view state to draw");
 			const yaw = createYawTurner(ctx.store);
 			const stopRuntime = setupMode7Runtime(ctx, store, {
+				renderer,
 				depthLayerIds: options.depthLayerIds,
 				yaw,
 				adoptDeclared: options.tiltLayerIds === undefined,
@@ -162,9 +181,10 @@ export function createMode7Plugin(options: Mode7PluginOptions = {}): UsketchPlug
 				stopActions();
 				transition.dispose();
 				stopRuntime();
+				stopOwnRenderer();
 				unbindView3d();
 				// Nothing shows the board in 3D any more.
-				view3d?.set({ amount: 0 });
+				view3d.set({ amount: 0 });
 			};
 		},
 	};
